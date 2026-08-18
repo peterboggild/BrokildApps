@@ -1,9 +1,12 @@
 # Photo Synth
 
 A three-photo instrument that runs entirely in the browser. Drag across the
-first photo and the colour under your finger becomes a tone (up to sixteen
-voices via the Voices slider — idle voices sleep, so only what you play costs
-CPU); touch the second and its colour drives a virtual-analog ladder filter;
+first photo and the colour under your finger becomes a tone. Two voice modes
+share a sixteen-voice pool: Mono/Unison stacks 1–12 voices on one note, and
+Polyphonic plays up to 4 simultaneous notes (keyboard chords and real MIDI
+chords) with 1–4 photo-sampling oscillators per note — idle voices sleep, so
+only what you play costs CPU. Touch the second photo and its colour drives a
+virtual-analog ladder filter;
 the third shapes the envelope (red attack, green sustain, blue decay). Each pad
 has its own motion Rec button — record a gesture or define a line/circle with
 two fingers and it loops immediately. Polyphonic voices can pan by sampled hue
