@@ -808,7 +808,9 @@
     var Ctor = window.AudioContext || window.webkitAudioContext;
     if (!Ctor) return null;
     var ctx = null;
-    try { ctx = new Ctor({ latencyHint: "interactive", sampleRate: 48000 }); }
+    // No fixed sampleRate: forcing 48 kHz makes some iOS outputs go silent
+    // instead of resampling. Everything downstream reads ctx.sampleRate.
+    try { ctx = new Ctor({ latencyHint: "interactive" }); }
     catch (e) { try { ctx = new Ctor(); } catch (e2) { ctx = null; } }
     return ctx;
   }
@@ -846,6 +848,23 @@
     if (A && A.ctx.state === "suspended") A.ctx.resume();
     return true;
   }
+
+  // iOS unlocks web audio on touchend/click, not on pointerdown, and can
+  // leave a context "interrupted" after a call or app switch. Nudge it back
+  // to "running" on every finished tap; once running this is a no-op.
+  function unlockAudio() {
+    if (!A || A.ctx.state === "running" || A.ctx.state === "closed") return;
+    A.ctx.resume();
+    try {
+      var b = A.ctx.createBuffer(1, 1, 22050);
+      var s = A.ctx.createBufferSource();
+      s.buffer = b;
+      s.connect(A.ctx.destination);
+      s.start(0);
+    } catch (e) {}
+  }
+  window.addEventListener("touchend", unlockAudio, { passive: true });
+  window.addEventListener("click", unlockAudio);
 
   function setPower(on, label) {
     audioOn = !!on;
