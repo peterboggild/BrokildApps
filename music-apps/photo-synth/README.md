@@ -4,12 +4,13 @@ A three-photo instrument that runs entirely in the browser. Drag across the
 first photo and the colour under your finger becomes a tone (polyphonic if you
 raise the Voices slider); touch the second and its colour drives a
 virtual-analog ladder filter; the third shapes the envelope (red attack, green
-sustain, blue decay). Global Play / Edit / Rec modes keep the playing surface
-clean; Rec arms motion automation — record a gesture or define a line/circle
-with two fingers, and it replays from wherever you touch. Photos come from the
-camera, the camera roll or a live camera feed, an on-screen keyboard or an
-imported MIDI file sets the base note, and the output can be recorded or
-rendered to 24-bit WAV.
+sustain, blue decay). Each pad has its own motion Rec button — record a gesture
+or define a line/circle with two fingers and it loops immediately. Polyphonic
+voices can pan by sampled hue or cursor position, with a width-zero mono mode.
+A stereo effects chain adds delay, convolution reverb and saturation. Photos
+come from the camera, the camera roll or a live camera feed, an on-screen
+keyboard or an imported MIDI file sets the base note, and the output can be
+recorded or rendered to 24-bit WAV.
 
 ## Files
 
