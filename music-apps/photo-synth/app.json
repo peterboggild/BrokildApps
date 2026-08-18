@@ -1,7 +1,7 @@
 {
   "slug": "photo-synth",
   "name": "Photo Synth",
-  "description": "Play three photos: colour becomes tone (up to sixteen voices), filter and envelope, plus an FX matrix square that blends four effect parameters from its corners. On-device presets with photo snapshots and file export. Motion automation replays recorded gestures, lines and circles; a live camera mode plays whatever you point at. MIDI import, keyboard, and 24-bit WAV export.",
+  "description": "Play three photos: colour becomes tone — mono/unison (1-12 stacked voices) or true 4-note polyphony with 1-4 oscillators per note — plus filter, envelope and an FX matrix square that blends four effect parameters from its corners. On-device presets with photo snapshots and file export. Motion automation, live camera mode, MIDI import (with real chords), keyboard, and 24-bit WAV export.",
   "status": "live",
   "url": "music-apps/photo-synth/index.html",
   "icon": "wave",

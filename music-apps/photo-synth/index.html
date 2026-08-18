@@ -453,9 +453,26 @@
       <output id="legatoOut">120 ms</output>
     </div>
     <div class="row">
-      <label for="voices">Voices</label>
-      <div class="ctl"><input id="voices" type="range" min="1" max="16" step="1" value="1"></div>
+      <label for="voiceMode">Voice mode</label>
+      <div class="ctl"><select id="voiceMode">
+        <option value="mono" selected>Mono / Unison — one note, stacked voices</option>
+        <option value="poly">Polyphonic — up to 4 notes at once</option>
+      </select></div>
+    </div>
+    <div class="row" id="voicesRow">
+      <label for="voices">Unison voices</label>
+      <div class="ctl"><input id="voices" type="range" min="1" max="12" step="1" value="1"></div>
       <output id="voicesOut">1 voice</output>
+    </div>
+    <div class="row" id="polyNotesRow" hidden>
+      <label for="polyNotes">Notes</label>
+      <div class="ctl"><input id="polyNotes" type="range" min="1" max="4" step="1" value="4"></div>
+      <output id="polyNotesOut">4 notes</output>
+    </div>
+    <div class="row" id="polyOscRow" hidden>
+      <label for="polyOsc">Osc / note</label>
+      <div class="ctl"><input id="polyOsc" type="range" min="1" max="4" step="1" value="2"></div>
+      <output id="polyOscOut">2 osc</output>
     </div>
     <div class="row">
       <label for="spread">Voice spread</label>
@@ -673,15 +690,22 @@
       the sliders in Edit, so lifting your finger keeps the mix where you left it; <b>Reset</b>
       puts the four assigned sliders back to their defaults.</p>
 
-    <h3>Voices</h3>
-    <p>The <b>Voices</b> slider (Sound) turns the tone photo polyphonic — up to <b>sixteen</b>
-      voices. The extra voices sample the colours in rings around your finger — the radius set by
-      <b>Voice spread</b>, with large counts spreading onto wider rings — so the local texture of
-      the photo becomes a chord. Uniform areas thicken into a unison; detailed areas scatter into
-      intervals. <b>Stereo width</b> pans the voices by sampled hue or horizontal cursor position
-      and adds a small per-voice tuning offset. At zero, left and right are identical for true mono
-      compatibility. Voices need the analog engine, and unused voices cost nothing: the engine puts
-      them to sleep, so only the count you actually play burns CPU.</p>
+    <h3>Voices — Mono/Unison and Polyphonic</h3>
+    <p><b>Voice mode</b> (Sound) chooses how the sixteen-voice pool is used. In
+      <b>Mono/Unison</b>, everything plays one note and the <b>Unison voices</b> slider (1–12)
+      stacks extra voices that sample the colours in rings around your finger — the radius set by
+      <b>Voice spread</b> — so the local texture of the photo becomes a chord riding on that one
+      note. Uniform areas thicken into a unison; detailed areas scatter into intervals.</p>
+    <p>In <b>Polyphonic</b> mode you can hold up to <b>4 notes at once</b> — chords on the
+      on-screen keyboard, the computer keys, or in a MIDI file all sound together (oldest note is
+      stolen when you exceed the count). Each note carries <b>1–4 oscillators</b>: the first plays
+      the colour under your finger, the rest sample a small ring around it, so every note in the
+      chord still gets the photo's texture. Touching the tone pad plays a note at the base note.
+      <b>Hold</b> sustains released keys until it is switched off.</p>
+    <p><b>Stereo width</b> pans voices by sampled hue or horizontal cursor position and adds a
+      small per-voice tuning offset; at zero, left and right are identical for true mono
+      compatibility. Both modes need the analog engine, and idle voices cost nothing — only the
+      voices actually sounding burn CPU.</p>
 
     <h3>Effects</h3>
     <p>The Effects panel is a real serial signal chain. Drag the handle to put the tube stage,
@@ -752,8 +776,9 @@
       key.</p>
     <p>A <b>MIDI file</b> plays the base note for you: import a <code>.mid</code> and its melody
       drives the transposition while the photos keep shaping the sound. The tempo comes from the
-      file itself and the slider scales it from a quarter speed to four times. Overlapping notes are
-      reduced to the highest one, since the voice is monophonic.</p>
+      file itself and the slider scales it from a quarter speed to four times. In Mono/Unison mode
+      overlapping notes are reduced to the highest one; in <b>Polyphonic</b> mode the file's chords
+      play for real, up to the Notes setting, both live and in the offline render.</p>
 
     <h3>Recording and export</h3>
     <p><b>Record</b> captures the live output — playing, MIDI, filter sweeps and all — and
@@ -906,7 +931,10 @@
     satTone: 8400,
     vol: 0.70,
     legato: 0.12,
+    voiceMode: "mono",
     voices: 1,
+    polyNotes: 4,
+    polyOsc: 2,
     spread: 14,
     width: 0.65,
     panMode: "hue",
@@ -1062,6 +1090,88 @@
   }
 
   /* ================================================================== *
+   * Polyphonic note slots. In poly mode the 16-voice pool is divided into
+   * up to four note slots of 1–4 oscillators each; the keyboard, physical
+   * keys, the tone pad and MIDI allocate slots with oldest-note stealing.
+   * In mono/unison mode the pool stacks on one note exactly as before.
+   * ================================================================== */
+  var polySlots = [];
+  var polySeq = 0;
+  (function () {
+    for (var i = 0; i < 4; i++) polySlots.push({ src: null, note: null, on: false, sustained: false, seq: 0 });
+  })();
+
+  function polyActive() { return S.voiceMode === "poly" && engineIsAnalog(A); }
+
+  function extrasInUse() {
+    return S.voiceMode === "poly" ? S.polyNotes * S.polyOsc - 1 : S.voices - 1;
+  }
+
+  function polyClearSlots() {
+    polySlots.forEach(function (s) {
+      s.src = null; s.note = null; s.on = false; s.sustained = false;
+    });
+  }
+
+  function polyNoteOn(src, note) {
+    var pick = -1, i;
+    for (i = 0; i < S.polyNotes; i++) if (polySlots[i].src === src) { pick = i; break; }
+    if (pick < 0) for (i = 0; i < S.polyNotes; i++) if (!polySlots[i].on && !polySlots[i].sustained) { pick = i; break; }
+    if (pick < 0) {                                  // steal the oldest note
+      pick = 0;
+      for (i = 1; i < S.polyNotes; i++) if (polySlots[i].seq < polySlots[pick].seq) pick = i;
+    }
+    var s = polySlots[pick];
+    s.src = src; s.note = note; s.on = true; s.sustained = false; s.seq = ++polySeq;
+    pushVoices();
+  }
+
+  function polyNoteOff(src) {
+    polySlots.forEach(function (s) {
+      if (s.src !== src || !s.on) return;
+      if (keyHold && src !== "pad") { s.sustained = true; s.src = null; }
+      else { s.on = false; s.src = null; }
+    });
+    pushVoices();
+  }
+
+  function polyReleaseSustained() {
+    polySlots.forEach(function (s) {
+      if (s.sustained) { s.sustained = false; s.on = false; }
+    });
+    pushVoices();
+  }
+
+  /* Deterministic slot allocation for a whole MIDI chord sequence — the
+   * same routine drives live playback and the offline render, so both
+   * come out identical. Returns one {t, note|null} list per slot. */
+  function allocChord(events, notesN) {
+    var slots = [], out = [], seq = 0, s;
+    for (s = 0; s < notesN; s++) { slots.push({ note: null, seq: 0 }); out.push([]); }
+    events.forEach(function (e) {
+      if (e.on) {
+        var pick = -1;
+        for (s = 0; s < notesN; s++) if (slots[s].note === null) { pick = s; break; }
+        if (pick < 0) {
+          pick = 0;
+          for (s = 1; s < notesN; s++) if (slots[s].seq < slots[pick].seq) pick = s;
+        }
+        slots[pick].note = e.note; slots[pick].seq = ++seq;
+        out[pick].push({ t: e.t, note: e.note });
+      } else {
+        for (s = 0; s < notesN; s++) {
+          if (slots[s].note === e.note) {
+            slots[s].note = null;
+            out[s].push({ t: e.t, note: null });
+            break;
+          }
+        }
+      }
+    });
+    return out;
+  }
+
+  /* ================================================================== *
    * Audio graph — shared by the live context and the offline renderer
    * ================================================================== */
   var A = null;                 // live graph
@@ -1187,7 +1297,7 @@
     g.fxEdges.push([from, g.comp]);
   }
 
-  function buildChain(ctx, withWorklet, preload, nExtra) {
+  function buildChain(ctx, withWorklet, preload, nExtra, preloadExtras) {
     var g = { ctx: ctx };
 
     g.master = ctx.createGain();
@@ -1328,15 +1438,16 @@
       } catch (e) { g.voice = null; }
     }
 
-    // Extra polyphonic voices (live context only) — each one is a full copy
-    // of the analog voice, fed colours sampled around the finger.
+    // Extra pooled voices — each one is a full copy of the analog voice. Live
+    // they are fed by pushExtraVoices/pushPolyVoices; an offline render hands
+    // each its parameters and event schedule up front via preloadExtras.
     g.extras = [];
     if (g.voice && nExtra) {
       for (var vi = 0; vi < nExtra; vi++) {
         try {
           var xv = new AudioWorkletNode(ctx, "photo-synth-voice", {
             numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
-            processorOptions: { params: { level: 0 } }
+            processorOptions: (preloadExtras && preloadExtras[vi]) || { params: { level: 0 } }
           });
           var xg = ctx.createGain();
           var xp = makePanner(ctx);
@@ -1361,7 +1472,7 @@
     g.addGain.gain.setValueAtTime(analog ? 0 : 1, t);
     if (g.extras) {
       for (var i = 0; i < g.extras.length; i++) {
-        g.extras[i].gain.gain.setValueAtTime(analog && i < S.voices - 1 ? 1 : 0, t);
+        g.extras[i].gain.gain.setValueAtTime(analog && i < extrasInUse() ? 1 : 0, t);
       }
     }
   }
@@ -1372,8 +1483,12 @@
     var t = g.ctx.currentTime, tc = Math.max(0.004, S.glide), n;
     var f0 = toneFreq();
 
-    if (g.voice) g.voice.port.postMessage({ type: "params", p: voiceParams() });
-    setPan(g.vPan, voicePan(tone.rgb, padTone.pos ? padTone.pos.x : 0, padTone.w), t, true);
+    // In poly mode pushPolyVoices owns the main voice (base and gate come
+    // from its note slot), so only the mono path feeds it from here.
+    if (g.voice && !(g === A && polyActive())) {
+      g.voice.port.postMessage({ type: "params", p: voiceParams() });
+      setPan(g.vPan, voicePan(tone.rgb, padTone.pos ? padTone.pos.x : 0, padTone.w), t, true);
+    }
 
     for (n = 0; n < NPART; n++) {
       g.parts[n].osc.frequency.setTargetAtTime(clamp(f0 * (n + 1), 10, 20000), t, tc);
@@ -1402,7 +1517,65 @@
     g.master.gain.setTargetAtTime(S.vol, t, 0.03);
     setEngineGains(g);
   }
-  function pushAudio() { applyParams(A); pushExtraVoices(); }
+  function pushAudio() { applyParams(A); pushVoices(); }
+  function pushVoices() { if (polyActive()) pushPolyVoices(); else pushExtraVoices(); }
+
+  /* Feed the pool as note slots: slot s owns S.polyOsc consecutive voices
+   * (voice 0 is the main worklet voice). Osc 0 of each note plays the colour
+   * under the finger; the others sample a small ring around it, so every
+   * held note carries the local photo texture like a mini-unison. During
+   * MIDI playback the scheduled events own base and gate and only the
+   * timbre is refreshed here. */
+  function pushPolyVoices() {
+    if (!A || !A.voice) return;
+    var t = A.ctx.currentTime;
+    var oscN = clamp(S.polyOsc, 1, 4), notesN = clamp(S.polyNotes, 1, 4);
+    var norm = (1 / Math.sqrt(oscN)) * (notesN > 1 ? 0.85 : 1);
+    var shared = {
+      cut: filt.cut, res: filt.bypass ? 0 : filt.res,
+      mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
+      attack: envAttack(), decay: envDecay(), sustain: envSustain(),
+      release: envRelease(), glide: S.glide, spread: S.width
+    };
+    var total = 1 + (A.extras ? A.extras.length : 0);
+    for (var vi = 0; vi < total; vi++) {
+      var node = vi === 0 ? A.voice : A.extras[vi - 1].node;
+      var pan = vi === 0 ? A.vPan : A.extras[vi - 1].pan;
+      var slotIdx = Math.floor(vi / oscN), o = vi % oscN;
+      var slot = slotIdx < notesN ? polySlots[slotIdx] : null;
+      if (!slot || (!midi.playing && slot.note === null)) {
+        node.port.postMessage({ type: "params", p: { gate: 0 } });
+        setPan(pan, 0, t, true);
+        continue;
+      }
+
+      var tp = null, rgb = tone.rgb;
+      var sx = padTone.pos ? padTone.pos.x : 0;
+      if (o > 0 && padTone.pos) {
+        var ang = 4.7124 + o * 6.2832 / oscN;
+        var rad = S.spread * (0.7 + 0.3 * o);
+        sx = padTone.pos.x + Math.cos(ang) * rad;
+        var sy = padTone.pos.y + Math.sin(ang) * rad;
+        var srgb = padTone.sample(sx, sy);
+        if (srgb) { tp = toneParamsFromRGB(srgb); rgb = srgb; }
+      }
+      if (!tp) {
+        tp = { ratio: tone.ratio, morph: tone.morph, pulse: tone.pulse,
+               detune: tone.detune, level: tone.level };
+      }
+      var msg = {}, k;
+      for (k in shared) msg[k] = shared[k];
+      for (k in tp) msg[k] = tp[k];
+      msg.ratio = tp.ratio * Math.pow(2, (o - (oscN - 1) / 2) * 3 / 1200);
+      msg.level = tp.level * norm;
+      if (!midi.playing) {
+        msg.base = mtof(slot.note);
+        msg.gate = slot.on || slot.sustained ? 1 : 0;
+      }
+      node.port.postMessage({ type: "params", p: msg });
+      setPan(pan, voicePan(rgb, sx, padTone.w), t, true);
+    }
+  }
 
   /* Feed the extra polyphonic voices: each one plays the colour a small,
    * fixed offset away from the finger on the tone photo, so the local
@@ -1580,6 +1753,19 @@
   function setGate(on, force) {
     gateOn = !!on;
     if (!A) return;
+    if (polyActive()) {
+      if (!on) {
+        polyClearSlots();
+        var off = { type: "params", p: { gate: 0 } };
+        A.voice.port.postMessage(off);
+        if (A.extras) A.extras.forEach(function (x) { x.node.port.postMessage(off); });
+        if (force) {
+          A.voice.port.postMessage({ type: "clear" });
+          if (A.extras) A.extras.forEach(function (x) { x.node.port.postMessage({ type: "clear" }); });
+        }
+      }
+      return;
+    }
     if (engineIsAnalog(A)) {
       A.voice.port.postMessage({ type: "params", p: { gate: on ? 1 : 0 } });
       if (A.extras) {
@@ -1609,6 +1795,16 @@
 
   function updateGate() {
     if (midi.playing) return;                        // MIDI owns the gate
+    if (polyActive()) {
+      // The tone pad plays as its own note (at the base note); keys manage
+      // their slots directly in the keyboard handlers.
+      var wantPad = audioOn && (gates.pad || (padTone.latched && padTone.pos));
+      var padHeld = false;
+      polySlots.forEach(function (s) { if (s.src === "pad" && s.on) padHeld = true; });
+      if (wantPad && !padHeld) polyNoteOn("pad", S.baseMidi);
+      else if (!wantPad && padHeld) polyNoteOff("pad");
+      return;
+    }
     var on = audioOn && (gates.pad || gates.key || keyHold ||
                          (padTone.latched && padTone.pos));
     setGate(on);
@@ -2302,6 +2498,7 @@
       kb.down[ev.pointerId] = note;
       if (!audioOn) setPower(true); else ensureAudio();
       setBase(note);
+      if (polyActive()) polyNoteOn("kb" + ev.pointerId, note);
       gates.key = true;
       retriggerMotion();
       updateGate();
@@ -2314,6 +2511,7 @@
       if (note === null || note === kb.down[ev.pointerId]) return;
       kb.down[ev.pointerId] = note;                 // glissando
       setBase(note);
+      if (polyActive()) polyNoteOn("kb" + ev.pointerId, note);
       retriggerMotion();
       kb.dirty = true;
     }, { passive: false });
@@ -2321,6 +2519,7 @@
       if (!(ev.pointerId in kb.down)) return;
       ev.preventDefault();
       delete kb.down[ev.pointerId];
+      if (polyActive()) polyNoteOff("kb" + ev.pointerId);
       var held = kbHeld();
       if (held.length) setBase(held[held.length - 1]);
       else { gates.key = false; updateGate(); }
@@ -2334,9 +2533,20 @@
 
   function releaseKeyboardPointers() {
     kb.down = {};
+    releasePolyKeys("kb");
     gates.key = kbHeld().length > 0;
     kb.dirty = true;
     updateGate();
+  }
+
+  /* Release every slot whose source name starts with the given prefix. */
+  function releasePolyKeys(prefix) {
+    if (!polyActive()) return;
+    var srcs = [];
+    polySlots.forEach(function (s) {
+      if (s.src && s.src.indexOf(prefix) === 0) srcs.push(s.src);
+    });
+    srcs.forEach(polyNoteOff);
   }
 
   // Physical keyboard, two octaves from the leftmost key.
@@ -2354,6 +2564,7 @@
     kb.keysDown[ev.key.toLowerCase()] = note;
     if (!audioOn) setPower(true); else ensureAudio();
     setBase(note);
+    if (polyActive()) polyNoteOn("key" + ev.key.toLowerCase(), note);
     gates.key = true;
     retriggerMotion();
     updateGate();
@@ -2363,6 +2574,7 @@
     var k = ev.key.toLowerCase();
     if (!(k in kb.keysDown)) return;
     delete kb.keysDown[k];
+    if (polyActive()) polyNoteOff("key" + k);
     var held = kbHeld();
     if (held.length) setBase(held[held.length - 1]);
     else { gates.key = false; updateGate(); }
@@ -2375,6 +2587,8 @@
   function releaseAllInputs() {
     kb.down = {};
     kb.keysDown = {};
+    releasePolyKeys("kb");
+    releasePolyKeys("key");
     kb.dirty = true;
     pads.forEach(function (pad) {
       pad.pointerId = null;
@@ -3153,7 +3367,7 @@
    * MIDI file import
    * ================================================================== */
   var midi = {
-    name: null, bpm: 120, events: [], dur: 0, notes: 0,
+    name: null, bpm: 120, events: [], chord: null, dur: 0, notes: 0,
     playing: false, loop: false, t0: 0, rate: 1
   };
 
@@ -3219,6 +3433,7 @@
     }
 
     // Monophonic reduction: at any moment the highest sounding note wins.
+    // The full note-on/off list is kept alongside for the polyphonic mode.
     var held = [], evs = [], cur = null, i2, n2;
     for (i2 = 0; i2 < raw.length; i2++) {
       var e = raw[i2];
@@ -3227,9 +3442,10 @@
       var top = held.length ? Math.max.apply(null, held) : null;
       if (top !== cur) { cur = top; evs.push({ t: seconds(e.tick), note: top }); }
     }
+    var chord = raw.map(function (e2) { return { t: seconds(e2.tick), on: e2.on, note: e2.note }; });
     var lastTick = raw[raw.length - 1].tick;
     var bpm = tempos.length ? 60e6 / tempos[0].us : 120;
-    return { events: evs, dur: seconds(lastTick), bpm: smpte ? 120 : bpm, notes: raw.length / 2 };
+    return { events: evs, chord: chord, dur: seconds(lastTick), bpm: smpte ? 120 : bpm, notes: raw.length / 2 };
   }
 
   function demoTune() {
@@ -3237,19 +3453,23 @@
     var seq = [[0,57],[0.5,60],[1,62],[1.5,64],[2,67],[2.5,64],[3,62],[3.5,60],
                [4,57],[4.5,60],[5,64],[5.5,67],[6,69],[7,67],[7.5,64],[8,62],
                [8.5,60],[9,57],[10,55],[11,57]];
-    var evs = [], i;
+    var evs = [], chord = [], i;
     for (i = 0; i < seq.length; i++) {
       evs.push({ t: seq[i][0], note: seq[i][1] });
       var next = i + 1 < seq.length ? seq[i + 1][0] : seq[i][0] + 1;
       var offAt = Math.min(seq[i][0] + 0.45, next - 0.02);
       if (offAt > seq[i][0]) evs.push({ t: offAt, note: null });
+      chord.push({ t: seq[i][0], on: true, note: seq[i][1] });
+      chord.push({ t: Math.max(offAt, seq[i][0] + 0.05), on: false, note: seq[i][1] });
     }
     evs.sort(function (a, b) { return a.t - b.t; });
-    return { events: evs, dur: 12.2, bpm: 120, notes: seq.length };
+    chord.sort(function (a, b) { return a.t - b.t || (a.on ? 1 : -1) - (b.on ? 1 : -1); });
+    return { events: evs, chord: chord, dur: 12.2, bpm: 120, notes: seq.length };
   }
 
   function setMidi(m, name) {
     midi.events = m.events;
+    midi.chord = m.chord || null;
     midi.dur = m.dur;
     midi.bpm = m.bpm;
     midi.notes = m.notes;
@@ -3293,6 +3513,27 @@
 
   /* ---- playback -------------------------------------------------------- */
   function scheduleSequence(g, t0) {
+    // Polyphonic playback: the chord sequence is allocated to note slots and
+    // every oscillator of a slot receives that slot's event list.
+    if (g === A && polyActive() && midi.chord && midi.chord.length) {
+      var oscN = clamp(S.polyOsc, 1, 4);
+      var per = allocChord(midi.chord, clamp(S.polyNotes, 1, 4));
+      var endFrame = Math.round((t0 + midi.dur / midi.rate + 0.02) * g.ctx.sampleRate);
+      per.forEach(function (list, s) {
+        var evs = list.map(function (it) {
+          var frame = Math.max(0, Math.round((t0 + it.t / midi.rate) * g.ctx.sampleRate));
+          return it.note === null ? { frame: frame, gate: 0 }
+                                  : { frame: frame, p: { base: mtof(it.note) }, gate: 1 };
+        });
+        evs.push({ frame: endFrame, gate: 0 });
+        for (var o = 0; o < oscN; o++) {
+          var vi = s * oscN + o;
+          var node = vi === 0 ? g.voice : g.extras && g.extras[vi - 1] && g.extras[vi - 1].node;
+          if (node) node.port.postMessage({ type: "events", ev: evs });
+        }
+      });
+      return;
+    }
     var i, e;
     for (i = 0; i < midi.events.length; i++) {
       e = midi.events[i];
@@ -3323,6 +3564,7 @@
     $("midiPlay").textContent = "Play";
     if (A) {
       if (A.voice) A.voice.port.postMessage({ type: "clear" });
+      if (A.extras) A.extras.forEach(function (x) { x.node.port.postMessage({ type: "clear" }); });
       var t = A.ctx.currentTime, n;
       A.env.gain.cancelScheduledValues(t);
       for (n = 0; n < NPART; n++) A.parts[n].osc.frequency.cancelScheduledValues(t);
@@ -3336,10 +3578,12 @@
       if (!g) return;
       if (!audioOn) setPower(true); else ensureAudio();
       midiStop(true);
+      polyClearSlots();
       var t0 = g.ctx.currentTime + 0.15;
       midi.t0 = t0;
       midi.playing = true;
       $("midiPlay").textContent = "Stop";
+      pushVoices();                    // fresh timbre on the pool before the events land
       scheduleSequence(g, t0);
     });
   }
@@ -3527,10 +3771,57 @@
     if (oc.audioWorklet) {
       try { await oc.audioWorklet.addModule(WORKLET_URL); hasW = true; } catch (e) { hasW = false; }
     }
-    var preload = hasW && S.engine === "analog"
-      ? { params: voiceParams(), events: sequenceEvents(sr, 0.05) }
-      : null;
-    var g = buildChain(oc, hasW, preload);
+    var preload = null, preloadExtras = null, nOff = 0;
+    if (hasW && S.engine === "analog") {
+      if (S.voiceMode === "poly" && midi.chord && midi.chord.length) {
+        // Polyphonic render: same slot allocation and per-oscillator timbre
+        // as live playback, preloaded so the offline context never depends
+        // on message delivery timing.
+        var oscN = clamp(S.polyOsc, 1, 4), notesN = clamp(S.polyNotes, 1, 4);
+        var per = allocChord(midi.chord, notesN);
+        var norm = (1 / Math.sqrt(oscN)) * (notesN > 1 ? 0.85 : 1);
+        var mkEvents = function (list) {
+          var evs = list.map(function (it) {
+            var frame = Math.max(0, Math.round((0.05 + it.t / midi.rate) * sr));
+            return it.note === null ? { frame: frame, gate: 0 }
+                                    : { frame: frame, p: { base: mtof(it.note) }, gate: 1 };
+          });
+          evs.push({ frame: Math.round((0.05 + midi.dur / midi.rate + 0.02) * sr), gate: 0 });
+          return evs;
+        };
+        var voiceOpts = function (vi) {
+          var o = vi % oscN, s = Math.floor(vi / oscN);
+          var vp = {
+            base: baseFreq(), ratio: tone.ratio, morph: tone.morph, pulse: tone.pulse,
+            detune: tone.detune, level: tone.level,
+            cut: filt.cut, res: filt.bypass ? 0 : filt.res,
+            mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
+            drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
+            release: envRelease(), glide: S.glide, spread: S.width
+          };
+          if (o > 0 && padTone.pos) {
+            var ang = 4.7124 + o * 6.2832 / oscN;
+            var rad = S.spread * (0.7 + 0.3 * o);
+            var srgb = padTone.sample(padTone.pos.x + Math.cos(ang) * rad,
+                                      padTone.pos.y + Math.sin(ang) * rad);
+            if (srgb) {
+              var tp = toneParamsFromRGB(srgb);
+              for (var k in tp) vp[k] = tp[k];
+            }
+          }
+          vp.ratio *= Math.pow(2, (o - (oscN - 1) / 2) * 3 / 1200);
+          vp.level *= norm;
+          return { params: vp, events: mkEvents(per[s]) };
+        };
+        nOff = notesN * oscN - 1;
+        preload = voiceOpts(0);
+        preloadExtras = [];
+        for (var vx = 1; vx <= nOff; vx++) preloadExtras.push(voiceOpts(vx));
+      } else {
+        preload = { params: voiceParams(), events: sequenceEvents(sr, 0.05) };
+      }
+    }
+    var g = buildChain(oc, hasW, preload, nOff, preloadExtras);
     applyStatic(g, 0);
     g.master.gain.setValueAtTime(0.9, 0);          // render at a fixed level
     if (!preload) scheduleSequence(g, 0.05);       // additive path: automation
@@ -3666,6 +3957,7 @@
     keyHold = false;
     $("holdBtn").setAttribute("aria-pressed", "false");
     kb.down = {}; kb.keysDown = {}; kb.dirty = true;
+    polyClearSlots();
     setGate(false, true);
     setPower(false);
   });
@@ -3757,9 +4049,44 @@
     S.legato = e.target.value / 200;               // 0 .. 500 ms
     $("legatoOut").textContent = S.legato < 0.005 ? "off" : Math.round(S.legato * 1000) + " ms";
   });
+  function updateVoiceModeRows() {
+    var poly = S.voiceMode === "poly";
+    $("voicesRow").hidden = poly;
+    $("polyNotesRow").hidden = !poly;
+    $("polyOscRow").hidden = !poly;
+  }
+  $("voiceMode").addEventListener("change", function (e) {
+    S.voiceMode = e.target.value;
+    // A clean cut across the switch, so no voice is left holding a stale gate.
+    polyClearSlots();
+    gates.pad = gates.key = false;
+    if (A && engineIsAnalog(A)) {
+      var off = { type: "params", p: { gate: 0 } };
+      A.voice.port.postMessage(off);
+      if (A.extras) A.extras.forEach(function (x) { x.node.port.postMessage(off); });
+    }
+    updateVoiceModeRows();
+    pushAudio();
+    updateGate();
+  });
   $("voices").addEventListener("input", function (e) {
     S.voices = parseInt(e.target.value, 10);
     $("voicesOut").textContent = S.voices + (S.voices === 1 ? " voice" : " voices");
+    pushAudio();
+  });
+  $("polyNotes").addEventListener("input", function (e) {
+    S.polyNotes = parseInt(e.target.value, 10);
+    // Slots beyond the new limit are silenced by the pool feeder; mark them
+    // released so their keys don't linger in the bookkeeping.
+    for (var i = S.polyNotes; i < polySlots.length; i++) {
+      polySlots[i].on = false; polySlots[i].sustained = false; polySlots[i].src = null;
+    }
+    $("polyNotesOut").textContent = S.polyNotes + (S.polyNotes === 1 ? " note" : " notes");
+    pushAudio();
+  });
+  $("polyOsc").addEventListener("input", function (e) {
+    S.polyOsc = parseInt(e.target.value, 10);
+    $("polyOscOut").textContent = S.polyOsc + " osc";
     pushAudio();
   });
   $("spread").addEventListener("input", function (e) {
@@ -3810,6 +4137,7 @@
     keyHold = !keyHold;
     $("holdBtn").setAttribute("aria-pressed", keyHold ? "true" : "false");
     if (keyHold && !audioOn) setPower(true);
+    if (!keyHold && polyActive()) polyReleaseSustained();
     updateGate();
   });
   $("octDown").addEventListener("click", function () {
@@ -3832,7 +4160,8 @@
    * Nothing ever leaves the device unless the user moves the file.
    * ================================================================== */
   var PRESET_CONTROL_IDS = ["engine", "law", "scale", "root", "octaves", "glide", "drive",
-    "attack", "release", "legato", "voices", "spread", "width", "panMode", "padsize",
+    "attack", "release", "legato", "voiceMode", "voices", "polyNotes", "polyOsc",
+    "spread", "width", "panMode", "padsize",
     "satGain", "satTone", "delayMix", "delayTime", "delayFeedback",
     "reverbMix", "reverbType", "reverbLength", "vol", "rate", "mspeed"];
 
@@ -4112,6 +4441,8 @@
       refreshSaturation: refreshSaturation,
       wireFXOrder: wireFXOrder,
       voicePan: voicePan,
+      polySlots: polySlots,
+      allocChord: allocChord,
       state: function () {
         return pads.map(function (p) {
           return { key: p.key, active: p.active, pointerId: p.pointerId,
@@ -4138,7 +4469,8 @@
   })();
 
   (function initControls() {
-    ["octaves", "glide", "drive", "attack", "release", "legato", "voices", "spread", "width",
+    ["octaves", "glide", "drive", "attack", "release", "legato", "voices", "polyNotes", "polyOsc",
+     "spread", "width",
      "padsize", "delayMix", "delayTime", "delayFeedback", "reverbMix", "reverbLength", "satGain", "satTone",
      "vol", "rate", "mspeed"].forEach(function (id) {
       var el = $(id);
@@ -4149,6 +4481,7 @@
   initFXModules();
   initFXMatrix();
   refreshPresets();
+  updateVoiceModeRows();
   setMode("play");
   updateMotionUI();
   loadDemo("tone");
