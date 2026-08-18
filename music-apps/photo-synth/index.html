@@ -44,9 +44,14 @@
   ::selection{background:rgba(127,212,193,.25)}
   [hidden]{display:none !important}
 
-  header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 0 14px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:2px 0 12px}
   h1{font-size:17px;font-weight:600;letter-spacing:.02em;margin:0}
   h1 span{display:block;font-weight:400;font-size:11.5px;color:var(--faint);letter-spacing:.08em;text-transform:uppercase;margin-top:3px}
+  .topctl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  @media (max-width:479px){
+    h1{font-size:15px}
+    h1 span{display:none}
+  }
   .home{font-size:12px;color:var(--faint);text-decoration:none;border:1px solid var(--line-soft);border-radius:8px;padding:5px 9px;flex:none}
   .home:active{color:var(--muted)}
 
@@ -85,8 +90,10 @@
   input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--panel-2);border:1px solid var(--accent)}
 
   /* ---------- pads ---------- */
-  .pads{display:grid;gap:12px;margin-bottom:12px}
+  /* Side by side even on a phone, so one thumb can work each photo. */
+  .pads{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
   .pad{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow)}
+  .envpad{margin-bottom:12px}
   .padhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .padname{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);flex:1 1 auto}
   .padname b{color:var(--text);font-weight:600}
@@ -174,30 +181,70 @@
 
   @media (min-width:760px){
     body{max-width:1000px}
-    .pads{grid-template-columns:1fr 1fr}
-    canvas.pad-canvas{aspect-ratio:1/1}
+    .pads{gap:12px}
+  }
+  @media (max-width:759px){
+    .padname{font-size:10.5px}
+    .readout{font-size:11px}
+    .readout .sub{font-size:10px}
   }
   @media (orientation:landscape) and (max-height:620px){
     header{margin-bottom:6px}
     h1 span{display:none}
     .transport{padding:8px;margin-bottom:8px}
-    .pads{grid-template-columns:1fr 1fr}
-    canvas.pad-canvas{aspect-ratio:4/3;max-height:30vh}
+    canvas.pad-canvas{max-height:34vh}
     .scope canvas{aspect-ratio:8/2}
   }
+
+  /* ---------- global modes ---------- */
+  .modeseg{display:flex;gap:3px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:3px;flex:none}
+  .modeseg .btn{border:none;background:transparent;padding:7px 13px;font-size:13px;border-radius:8px}
+  .modeseg .btn[aria-pressed="true"]{background:var(--accent);color:#0a0c11;font-weight:600}
+  .modeseg .btn.recmode[aria-pressed="true"]{background:var(--rec);color:#fff}
+  body[data-mode="play"] .transport,body[data-mode="rec"] .transport,
+  body[data-mode="play"] .scope,body[data-mode="rec"] .scope,
+  body[data-mode="play"] details,body[data-mode="rec"] details,
+  body[data-mode="play"] .padbtns,body[data-mode="rec"] .padbtns{display:none}
+  body[data-mode="rec"] .stage{outline:2px dashed var(--rec);outline-offset:2px}
+  .rechint{
+    display:none;background:rgba(255,107,107,.10);border:1px solid rgba(255,107,107,.4);
+    color:var(--text);border-radius:11px;padding:9px 12px;font-size:12.5px;margin:0 0 12px;line-height:1.45;
+  }
+  body[data-mode="rec"] .rechint{display:block}
+  .autoflag{
+    display:none;font-size:9.5px;color:var(--accent);border:1px solid var(--accent);
+    border-radius:6px;padding:1px 4px;margin-left:6px;vertical-align:1px;letter-spacing:.05em;
+  }
+  .autoflag.on{display:inline-block}
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;
+    background:#1c2030;border:1px solid var(--accent);color:var(--text);
+    padding:10px 16px;border-radius:11px;font-size:13px;max-width:90vw;text-align:center;
+    opacity:0;transition:opacity .25s;pointer-events:none;
+  }
+  .toast.show{opacity:1}
 </style>
 </head>
 <body>
 
 <header>
   <h1>Photo Synth<span>colour → sound</span></h1>
+  <div class="topctl">
+    <div class="modeseg" role="group" aria-label="Mode">
+      <button class="btn" type="button" data-mode-btn="play" aria-pressed="true">Play</button>
+      <button class="btn" type="button" data-mode-btn="edit" aria-pressed="false">Edit</button>
+      <button class="btn recmode" type="button" data-mode-btn="rec" aria-pressed="false">Rec</button>
+    </div>
+    <button id="recBtn" class="btn rec" type="button" aria-pressed="false" title="Record audio"><span class="dot"></span><span id="recLabel">Record</span></button>
+    <button id="keysBtn" class="btn" type="button" aria-pressed="false">Keys</button>
+  </div>
 </header>
+
+<div class="rechint">Arm a motion: <b>draw</b> on a photo with one finger, or set <b>two fingers</b> down together for a line / circle (choose which in Edit → Motion). The motion is saved when you lift, and in Play it replays from wherever you touch, looping until you lift. Latch keeps it running.</div>
 
 <div class="transport">
   <button id="power" class="btn power" type="button" aria-pressed="false"><span class="dot"></span><span id="powerLabel">Sound off</span></button>
   <button id="panic" class="btn" type="button">Silence</button>
-  <button id="recBtn" class="btn rec" type="button" aria-pressed="false"><span class="dot"></span><span id="recLabel">Record</span></button>
-  <button id="keysBtn" class="btn" type="button" aria-pressed="false">Keys</button>
   <div class="vol">
     <label for="vol">Vol</label>
     <input id="vol" type="range" min="0" max="100" value="70" aria-label="Master volume">
@@ -207,7 +254,7 @@
 <section class="pads">
   <div class="pad" id="pad-tone">
     <div class="padhead">
-      <span class="padname"><b>1 · Tone</b> — colour → pitch &amp; timbre</span>
+      <span class="padname"><b>1 · Tone</b> — colour → pitch &amp; timbre<span class="autoflag" id="auto-tone">AUTO</span></span>
       <button class="btn latch" type="button" data-latch="tone" aria-pressed="false">Latch</button>
     </div>
     <div class="stage">
@@ -222,6 +269,7 @@
       <button class="btn" type="button" data-pick="tone-camera">Camera</button>
       <button class="btn" type="button" data-pick="tone-library">Photos</button>
       <button class="btn" type="button" data-demo="tone">Demo</button>
+      <button class="btn" type="button" data-live="tone" aria-pressed="false">Live</button>
     </div>
     <input type="file" id="file-tone-camera" accept="image/*" capture="environment">
     <input type="file" id="file-tone-library" accept="image/*">
@@ -229,7 +277,7 @@
 
   <div class="pad" id="pad-filter">
     <div class="padhead">
-      <span class="padname"><b>2 · Filter</b> — colour → tone colour</span>
+      <span class="padname"><b>2 · Filter</b> — colour → tone colour<span class="autoflag" id="auto-filter">AUTO</span></span>
       <button class="btn latch" type="button" data-latch="filter" aria-pressed="false">Latch</button>
     </div>
     <div class="stage">
@@ -244,10 +292,34 @@
       <button class="btn" type="button" data-pick="filter-camera">Camera</button>
       <button class="btn" type="button" data-pick="filter-library">Photos</button>
       <button class="btn" type="button" data-demo="filter">Demo</button>
+      <button class="btn" type="button" data-live="filter" aria-pressed="false">Live</button>
     </div>
     <input type="file" id="file-filter-camera" accept="image/*" capture="environment">
     <input type="file" id="file-filter-library" accept="image/*">
   </div>
+</section>
+
+<section class="pad envpad" id="pad-env">
+  <div class="padhead">
+    <span class="padname"><b>3 · Envelope</b> — red attack · green sustain · blue decay<span class="autoflag" id="auto-env">AUTO</span></span>
+    <button class="btn latch" type="button" data-latch="env" aria-pressed="false">Latch</button>
+  </div>
+  <div class="stage">
+    <canvas class="pad-canvas" id="canvas-env"></canvas>
+    <div class="hint" id="hint-env">Touch to shape the envelope</div>
+  </div>
+  <div class="readout">
+    <span class="swatch" id="swatch-env"></span>
+    <span class="vals" id="vals-env">—<span class="sub">sliders in Edit set the envelope</span></span>
+  </div>
+  <div class="padbtns">
+    <button class="btn" type="button" data-pick="env-camera">Camera</button>
+    <button class="btn" type="button" data-pick="env-library">Photos</button>
+    <button class="btn" type="button" data-demo="env">Demo</button>
+    <button class="btn" type="button" data-live="env" aria-pressed="false">Live</button>
+  </div>
+  <input type="file" id="file-env-camera" accept="image/*" capture="environment">
+  <input type="file" id="file-env-library" accept="image/*">
 </section>
 
 <section class="kbdpanel" id="kbdPanel" hidden>
@@ -269,7 +341,7 @@
 </div>
 
 <details id="settings">
-  <summary>Settings</summary>
+  <summary>Sound</summary>
   <div class="body">
     <div class="row">
       <label for="engine">Voice</label>
@@ -326,6 +398,26 @@
       <output id="releaseOut">180 ms</output>
     </div>
     <div class="row">
+      <label for="legato">Legato</label>
+      <div class="ctl"><input id="legato" type="range" min="0" max="100" value="24"></div>
+      <output id="legatoOut">120 ms</output>
+    </div>
+    <div class="row">
+      <label for="voices">Voices</label>
+      <div class="ctl"><input id="voices" type="range" min="1" max="4" step="1" value="1"></div>
+      <output id="voicesOut">1 voice</output>
+    </div>
+    <div class="row">
+      <label for="spread">Voice spread</label>
+      <div class="ctl"><input id="spread" type="range" min="5" max="40" value="14"></div>
+      <output id="spreadOut">14 px</output>
+    </div>
+    <div class="row">
+      <label for="padsize">Pad size</label>
+      <div class="ctl"><input id="padsize" type="range" min="60" max="130" value="100"></div>
+      <output id="padsizeOut">100 %</output>
+    </div>
+    <div class="row">
       <span class="lab">Filter type</span>
       <div class="ctl seg">
         <button class="btn" type="button" data-fmode="lowpass" aria-pressed="true">Low-pass</button>
@@ -346,53 +438,40 @@
   </div>
 </details>
 
-<details id="midiPanel">
-  <summary>MIDI &amp; audio export</summary>
+<details id="motionPanel">
+  <summary>Motion</summary>
   <div class="body">
     <div class="row">
-      <span class="lab">MIDI file</span>
+      <span class="lab">Photo 1 · Tone</span>
+      <span class="info" id="motion-tone">no motion armed</span>
+      <div class="ctl seg" style="flex:0 0 auto"><button class="btn" id="clearMotion-tone" type="button">Clear</button></div>
+    </div>
+    <div class="row">
+      <span class="lab">Photo 2 · Filter</span>
+      <span class="info" id="motion-filter">no motion armed</span>
+      <div class="ctl seg" style="flex:0 0 auto"><button class="btn" id="clearMotion-filter" type="button">Clear</button></div>
+    </div>
+    <div class="row">
+      <span class="lab">Photo 3 · Env</span>
+      <span class="info" id="motion-env">no motion armed</span>
+      <div class="ctl seg" style="flex:0 0 auto"><button class="btn" id="clearMotion-env" type="button">Clear</button></div>
+    </div>
+    <div class="row">
+      <span class="lab">Two fingers</span>
       <div class="ctl seg">
-        <button class="btn" id="pickMidi" type="button">Choose .mid</button>
-        <button class="btn" id="midiDemo" type="button">Demo tune</button>
+        <button class="btn" type="button" data-twoshape="line" aria-pressed="true">Line</button>
+        <button class="btn" type="button" data-twoshape="circle" aria-pressed="false">Circle</button>
       </div>
     </div>
     <div class="row">
-      <span class="lab">Loaded</span>
-      <span class="info" id="midiInfo">nothing loaded</span>
+      <label for="mspeed">Speed</label>
+      <div class="ctl"><input id="mspeed" type="range" min="25" max="400" value="100"></div>
+      <output id="mspeedOut">1.00×</output>
     </div>
-    <div class="row">
-      <label for="rate">Tempo</label>
-      <div class="ctl"><input id="rate" type="range" min="25" max="400" value="100"></div>
-      <output id="rateOut">1.00×</output>
-    </div>
-    <div class="row">
-      <span class="lab">Playback</span>
-      <div class="ctl seg">
-        <button class="btn" id="midiPlay" type="button" disabled>Play</button>
-        <button class="btn" id="midiLoop" type="button" aria-pressed="false">Loop</button>
-      </div>
-    </div>
-    <div class="row">
-      <span class="lab">Export</span>
-      <div class="ctl seg">
-        <button class="btn" id="midiRender" type="button" disabled>Render MIDI → WAV</button>
-      </div>
-    </div>
-    <div class="sep"></div>
-    <div class="row">
-      <span class="lab">Recording</span>
-      <div class="ctl seg">
-        <button class="btn" id="recBtn2" type="button">Record</button>
-        <button class="btn" id="recSave" type="button" disabled>Save WAV</button>
-      </div>
-    </div>
-    <div class="row">
-      <span class="lab">Status</span>
-      <span class="info" id="recInfo">idle</span>
-    </div>
-    <div class="note">Recording captures everything you hear, including the MIDI playback, at the full
-      output rate. Both exports are written as 24-bit WAV — no lossy codec in between.</div>
-    <input type="file" id="file-midi" accept=".mid,.midi,audio/midi,audio/x-midi">
+    <div class="note">Arm a motion with <b>Rec</b>: draw a gesture with one finger, or put two fingers
+      down together for a line (ping-pong) or circle (they define the diameter). In Play, touching an
+      armed photo replays the motion from the touch point, looping until you lift — with Latch on it
+      keeps running after you lift. Speed scales a recorded gesture and sets the pace of shapes.</div>
   </div>
 </details>
 
@@ -406,6 +485,35 @@
     <p><b>Latch</b> leaves the cursor where you lifted your finger. On the tone pad the note keeps
       sounding; on the filter pad the filter setting is held. Tap again to move the cursor, or turn
       latch off to release.</p>
+
+    <h3>Play · Edit · Rec</h3>
+    <p><b>Play</b> shows only the photos — everything is played by touch. <b>Edit</b> opens all the
+      controls: sound, motion, files and this text. <b>Rec</b> arms motion recording: draw on any
+      photo with one finger to record a gesture, or put <b>two fingers</b> down together to define a
+      line or circle. The motion is saved when you lift and the app returns to Play; from then on,
+      touching that photo replays the motion from wherever you touch, looping until you lift.
+      With latch on it keeps running on its own — an automated filter sweep or envelope cycle can
+      run while you play the tone photo by hand.</p>
+
+    <h3>Envelope (photo 3)</h3>
+    <p>The third photo shapes each note the way an ADSR does: <b>red sets the attack</b> (more red,
+      snappier — from a 1.5 s swell down to 2 ms), <b>green sets the sustain level</b> (how loud a
+      held note stays), and <b>blue sets the decay and release</b> (from 30 ms up to a 4 s tail).
+      Untouched, the sliders under Sound rule. It is latchable and automatable like the others.
+      <b>Legato</b> (under Sound) keeps the envelope alive for a moment after you lift, so tapping
+      from colour to colour glides instead of retriggering every note.</p>
+
+    <h3>Voices</h3>
+    <p>The <b>Voices</b> slider (Sound) turns the tone photo polyphonic: extra voices sample the
+      colours a small distance around your finger — set by <b>Voice spread</b> — so the local
+      texture of the photo becomes a chord. Uniform areas thicken into a unison; detailed areas
+      scatter into intervals. Voices need the analog engine.</p>
+
+    <h3>Live camera</h3>
+    <p><b>Live</b> (under each photo in Edit) replaces that photo with the live camera. Latch a
+      spot or arm a motion, then point the phone — whatever the camera sees plays the instrument,
+      also while a MIDI file plays and the recorder runs. The camera image is only sampled on the
+      device; nothing is sent anywhere.</p>
 
     <h3>The voice</h3>
     <p>The default <b>analog</b> engine is a virtual-analog monosynth running in an audio worklet:
@@ -470,6 +578,56 @@
     <p>On an iPhone the browser follows the ring/silent switch for web audio: if the pads look alive
       but you hear nothing, flip the switch or turn the volume up. Add the page to the home screen
       for a full-screen instrument.</p>
+  </div>
+</details>
+
+<details id="midiPanel">
+  <summary>File — MIDI in · audio out</summary>
+  <div class="body">
+    <div class="row">
+      <span class="lab">MIDI file</span>
+      <div class="ctl seg">
+        <button class="btn" id="pickMidi" type="button">Choose .mid</button>
+        <button class="btn" id="midiDemo" type="button">Demo tune</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lab">Loaded</span>
+      <span class="info" id="midiInfo">nothing loaded</span>
+    </div>
+    <div class="row">
+      <label for="rate">Tempo</label>
+      <div class="ctl"><input id="rate" type="range" min="25" max="400" value="100"></div>
+      <output id="rateOut">1.00×</output>
+    </div>
+    <div class="row">
+      <span class="lab">Playback</span>
+      <div class="ctl seg">
+        <button class="btn" id="midiPlay" type="button" disabled>Play</button>
+        <button class="btn" id="midiLoop" type="button" aria-pressed="false">Loop</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lab">Export</span>
+      <div class="ctl seg">
+        <button class="btn" id="midiRender" type="button" disabled>Render MIDI → WAV</button>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div class="row">
+      <span class="lab">Recording</span>
+      <div class="ctl seg">
+        <button class="btn" id="recBtn2" type="button">Record</button>
+        <button class="btn" id="recSave" type="button" disabled>Save WAV</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lab">Status</span>
+      <span class="info" id="recInfo">idle</span>
+    </div>
+    <div class="note">Recording captures everything you hear, including the MIDI playback, at the full
+      output rate. Both exports are written as 24-bit WAV — no lossy codec in between.</div>
+    <input type="file" id="file-midi" accept=".mid,.midi,audio/midi,audio/x-midi">
   </div>
 </details>
 
@@ -546,9 +704,32 @@
     release: 0.180,
     fmode: "lowpass",
     space: 0.18,
-    vol: 0.70
+    vol: 0.70,
+    legato: 0.12,
+    voices: 1,
+    spread: 14,
+    padSize: 1,
+    motionSpeed: 1,
+    twoShape: "line"
   };
   function baseFreq() { return mtof(S.baseMidi); }
+
+  /* Envelope photo (pad 3): red = attack, green = sustain, blue = decay.
+   * When it is not engaged the Sound sliders rule, exactly as before. */
+  var envp = { active: false, a: 0.012, d: 0.25, s: 1, rgb: null };
+  function computeEnv(rgb) {
+    if (!rgb) { envp.active = false; envp.rgb = null; return; }
+    envp.active = true;
+    envp.rgb = rgb;
+    envp.a = 0.002 * Math.pow(750, 1 - rgb[0]);      // 1.5 s .. 2 ms — red snaps
+    envp.s = 0.05 + 0.95 * Math.pow(rgb[1], 0.8);    // green holds the note up
+    envp.d = 0.03 * Math.pow(133, rgb[2]);           // 30 ms .. 4 s — blue rings out
+  }
+  function envAttack()  { return envp.active ? envp.a : S.attack; }
+  function envDecay()   { return envp.active ? envp.d : 0.25; }
+  function envSustain() { return envp.active ? envp.s : 1; }
+  function envRelease() { return envp.active ? envp.d : S.release; }
+  function fmtT(s) { return s < 1 ? Math.round(s * 1000) + " ms" : s.toFixed(2) + " s"; }
 
   var NPART = 10;          // partials in the additive voice
   var WORKLET_URL = "synth-worklet.js";
@@ -623,13 +804,33 @@
 
   function toneFreq() { return baseFreq() * tone.ratio; }
 
+  function voiceNorm() { return 1 / Math.sqrt(Math.max(1, S.voices)); }
+
   function voiceParams() {
     return {
       base: baseFreq(), ratio: tone.ratio,
-      morph: tone.morph, pulse: tone.pulse, detune: tone.detune, level: tone.level,
+      morph: tone.morph, pulse: tone.pulse, detune: tone.detune,
+      level: tone.level * (S.engine === "analog" ? voiceNorm() : 1),
       cut: filt.cut, res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
-      drive: S.drive, attack: S.attack, release: S.release, glide: S.glide, spread: 0.6
+      drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
+      release: envRelease(), glide: S.glide, spread: 0.6
+    };
+  }
+
+  /* The analog mapping of computeTone as a pure function — used by the extra
+   * polyphonic voices, which each sample their own colour near the finger. */
+  function toneParamsFromRGB(rgb) {
+    var hsv = rgb2hsv(rgb[0], rgb[1], rgb[2]);
+    var u = spectralPos(hsv.h, S.law);
+    var semis = quantize(u * 12 * S.octaves, SCALES[S.scale]);
+    var warm = rgb[0] - rgb[2], green = rgb[1];
+    return {
+      ratio: Math.pow(2, semis / 12),
+      morph: clamp(Math.pow(hsv.s, 0.75), 0, 1),
+      pulse: clamp(warm, 0, 1),
+      detune: 2 + 13 * green,
+      level: 0.06 + 0.94 * Math.pow(hsv.v, 1.35)
     };
   }
 
@@ -640,7 +841,7 @@
   var audioOn = false;
   var workletOK = false;        // did the module load in the live context?
 
-  function buildChain(ctx, withWorklet, preload) {
+  function buildChain(ctx, withWorklet, preload, nExtra) {
     var g = { ctx: ctx };
 
     g.master = ctx.createGain();
@@ -724,6 +925,25 @@
         g.vGain.connect(g.pk);
       } catch (e) { g.voice = null; }
     }
+
+    // Extra polyphonic voices (live context only) — each one is a full copy
+    // of the analog voice, fed colours sampled around the finger.
+    g.extras = [];
+    if (g.voice && nExtra) {
+      for (var vi = 0; vi < nExtra; vi++) {
+        try {
+          var xv = new AudioWorkletNode(ctx, "photo-synth-voice", {
+            numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
+            processorOptions: { params: { level: 0 } }
+          });
+          var xg = ctx.createGain();
+          xg.gain.value = 0;
+          xv.connect(xg);
+          xg.connect(g.pk);
+          g.extras.push({ node: xv, gain: xg });
+        } catch (e2) { break; }
+      }
+    }
     return g;
   }
 
@@ -735,6 +955,11 @@
     var analog = engineIsAnalog(g);
     if (g.vGain) g.vGain.gain.setValueAtTime(analog ? 1 : 0, t);
     g.addGain.gain.setValueAtTime(analog ? 0 : 1, t);
+    if (g.extras) {
+      for (var i = 0; i < g.extras.length; i++) {
+        g.extras[i].gain.gain.setValueAtTime(analog && i < S.voices - 1 ? 1 : 0, t);
+      }
+    }
   }
 
   /* Push every current parameter into a graph. */
@@ -760,7 +985,40 @@
     g.master.gain.setTargetAtTime(S.vol, t, 0.03);
     setEngineGains(g);
   }
-  function pushAudio() { applyParams(A); }
+  function pushAudio() { applyParams(A); pushExtraVoices(); }
+
+  /* Feed the extra polyphonic voices: each one plays the colour a small,
+   * fixed offset away from the finger on the tone photo, so the local
+   * texture of the photo becomes a chord. */
+  function pushExtraVoices() {
+    if (!A || !A.extras || !A.extras.length) return;
+    var n = clamp(S.voices - 1, 0, A.extras.length);
+    var shared = {
+      base: baseFreq(), cut: filt.cut, res: filt.bypass ? 0 : filt.res,
+      mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
+      attack: envAttack(), decay: envDecay(), sustain: envSustain(),
+      release: envRelease(), glide: S.glide, spread: 0.6
+    };
+    var norm = voiceNorm(), i, k;
+    for (i = 0; i < A.extras.length; i++) {
+      var p = null;
+      if (i < n && engineIsAnalog(A) && padTone.pos) {
+        var ang = 4.7124 + i * 2.0944;        // above, lower-right, lower-left
+        var rgb = padTone.sample(padTone.pos.x + Math.cos(ang) * S.spread,
+                                 padTone.pos.y + Math.sin(ang) * S.spread);
+        if (rgb) p = toneParamsFromRGB(rgb);
+      }
+      if (p) {
+        var msg = {};
+        for (k in shared) msg[k] = shared[k];
+        for (k in p) msg[k] = p[k];
+        msg.level = p.level * norm;
+        A.extras[i].node.port.postMessage({ type: "params", p: msg });
+      } else {
+        A.extras[i].node.port.postMessage({ type: "params", p: { level: 0 } });
+      }
+    }
+  }
 
   /* Set every parameter at a fixed time — used by the offline renderer. */
   function applyStatic(g, when) {
@@ -798,7 +1056,7 @@
         }
       }
       if (gate !== null && gate !== undefined) {
-        g.env.gain.setTargetAtTime(gate ? 1 : 0, when, gate ? Math.max(0.002, S.attack / 3) : Math.max(0.004, S.release / 3));
+        g.env.gain.setTargetAtTime(gate ? 1 : 0, when, gate ? Math.max(0.002, envAttack() / 3) : Math.max(0.004, envRelease() / 3));
       }
     }
   }
@@ -827,7 +1085,7 @@
         : Promise.resolve(false);
       return load.then(function (ok) {
         workletOK = ok;
-        A = buildChain(ctx, ok);
+        A = buildChain(ctx, ok, undefined, 3);
         if (!ok && S.engine === "analog") {
           S.engine = "additive";
           var sel = $("engine");
@@ -882,12 +1140,27 @@
     if (!A) return;
     if (engineIsAnalog(A)) {
       A.voice.port.postMessage({ type: "params", p: { gate: on ? 1 : 0 } });
+      if (A.extras) {
+        A.extras.forEach(function (x) {
+          x.node.port.postMessage({ type: "params", p: { gate: on ? 1 : 0 } });
+        });
+      }
     } else {
       var t = A.ctx.currentTime;
       A.env.gain.cancelScheduledValues(t);
-      A.env.gain.setTargetAtTime(on ? 1 : 0, t, on ? Math.max(0.002, S.attack / 3) : Math.max(0.004, S.release / 3));
+      if (on) {
+        var aT = Math.max(0.002, envAttack());
+        A.env.gain.setTargetAtTime(1, t, aT / 3);
+        // then sink towards the sustain level, roughly like the analog ADSR
+        A.env.gain.setTargetAtTime(envSustain(), t + aT * 1.5, Math.max(0.01, envDecay()) / 3);
+      } else {
+        A.env.gain.setTargetAtTime(0, t, Math.max(0.004, envRelease()) / 3);
+      }
     }
-    if (force && !on && A.voice) A.voice.port.postMessage({ type: "clear" });
+    if (force && !on && A.voice) {
+      A.voice.port.postMessage({ type: "clear" });
+      if (A.extras) A.extras.forEach(function (x) { x.node.port.postMessage({ type: "clear" }); });
+    }
   }
 
   function updateGate() {
@@ -915,6 +1188,11 @@
     this.pointerId = null;
     this.dirty = true;
     this.w = 0; this.h = 0;
+    this.liveOn = false;                // sampling the live camera instead of a photo
+    this.motion = null;                 // armed motion: recorded gesture / line / circle
+    this.auto = null;                   // a motion currently replaying on this pad
+    this.recCap = null;                 // gesture being captured (Rec mode)
+    this.recP2 = null;                  // second finger of a two-finger shape define
   }
 
   Pad.prototype.resize = function () {
@@ -930,10 +1208,27 @@
     this.dirty = true;
   };
 
+  // The source being shown: the live camera when enabled, else the photo.
+  Pad.prototype.srcDims = function () {
+    if (this.liveOn && live.video && live.video.videoWidth) {
+      return { w: live.video.videoWidth, h: live.video.videoHeight };
+    }
+    return { w: this.iw, h: this.ih };
+  };
+
   // Mapping from canvas CSS px -> image px (cover fit, centred).
   Pad.prototype.cover = function () {
-    var s = Math.max(this.w / this.iw, this.h / this.ih);
-    return { s: s, dx: (this.w - this.iw * s) / 2, dy: (this.h - this.ih * s) / 2 };
+    var d = this.srcDims();
+    var s = Math.max(this.w / d.w, this.h / d.h);
+    return { s: s, dx: (this.w - d.w * s) / 2, dy: (this.h - d.h * s) / 2, iw: d.w, ih: d.h };
+  };
+
+  Pad.prototype.drawSrc = function (g, c) {
+    if (this.liveOn && live.video && live.video.videoWidth) {
+      g.drawImage(live.video, c.dx, c.dy, c.iw * c.s, c.ih * c.s);
+    } else if (this.img) {
+      g.drawImage(this.img, c.dx, c.dy, c.iw * c.s, c.ih * c.s);
+    }
   };
 
   Pad.prototype.setImage = function (img, w, h) {
@@ -953,24 +1248,29 @@
     }
     this.dirty = true;
     var hint = $("hint-" + this.key);
-    if (hint) hint.textContent = this.key === "tone" ? "Drag anywhere to play" : "Touch to filter";
+    if (hint) {
+      hint.textContent = this.key === "tone" ? "Drag anywhere to play"
+        : this.key === "filter" ? "Touch to filter" : "Touch to shape the envelope";
+    }
   };
 
   // Average colour in a small neighbourhood around a canvas point.
   Pad.prototype.sample = function (x, y) {
-    if (!this.pix) return null;
+    var pix = this.pix, pw = this.pw, ph = this.ph;
+    if (this.liveOn && live.pix) { pix = live.pix; pw = live.pw; ph = live.ph; }
+    if (!pix) return null;
     var c = this.cover();
-    var ix = (x - c.dx) / c.s * (this.pw / this.iw);
-    var iy = (y - c.dy) / c.s * (this.ph / this.ih);
-    var cx = clamp(Math.round(ix), 0, this.pw - 1);
-    var cy = clamp(Math.round(iy), 0, this.ph - 1);
+    var ix = (x - c.dx) / c.s * (pw / c.iw);
+    var iy = (y - c.dy) / c.s * (ph / c.ih);
+    var cx = clamp(Math.round(ix), 0, pw - 1);
+    var cy = clamp(Math.round(iy), 0, ph - 1);
     var r = 0, g = 0, b = 0, cnt = 0, dx, dy, xx, yy, o;
     for (dy = -2; dy <= 2; dy++) {
-      yy = cy + dy; if (yy < 0 || yy >= this.ph) continue;
+      yy = cy + dy; if (yy < 0 || yy >= ph) continue;
       for (dx = -2; dx <= 2; dx++) {
-        xx = cx + dx; if (xx < 0 || xx >= this.pw) continue;
-        o = (yy * this.pw + xx) * 4;
-        r += this.pix[o]; g += this.pix[o + 1]; b += this.pix[o + 2]; cnt++;
+        xx = cx + dx; if (xx < 0 || xx >= pw) continue;
+        o = (yy * pw + xx) * 4;
+        r += pix[o]; g += pix[o + 1]; b += pix[o + 2]; cnt++;
       }
     }
     if (!cnt) return null;
@@ -983,11 +1283,52 @@
     g.clearRect(0, 0, this.w, this.h);
     g.fillStyle = "#000";
     g.fillRect(0, 0, this.w, this.h);
-    if (this.img) {
-      var c = this.cover();
-      g.drawImage(this.img, c.dx, c.dy, this.iw * c.s, this.ih * c.s);
-    }
+    this.drawSrc(g, this.cover());
+    if (this.auto) this.drawMotionPath(g);
+    if (this.recCap && this.recP2) this.drawShapePreview(g);
     if (this.pos) this.drawCursor(g);
+  };
+
+  /* Ghost of the armed motion while it replays. */
+  Pad.prototype.drawMotionPath = function (g) {
+    var a = this.auto, m = a.m, i;
+    g.save();
+    g.globalAlpha = 0.45;
+    g.strokeStyle = "#fff";
+    g.setLineDash([4, 6]);
+    g.lineWidth = 1.6;
+    g.beginPath();
+    if (m.kind === "recorded") {
+      for (i = 0; i < m.pts.length; i++) {
+        var px = a.x0 + m.pts[i].dx, py = a.y0 + m.pts[i].dy;
+        if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+      }
+    } else if (m.kind === "line") {
+      g.moveTo(a.x0, a.y0); g.lineTo(a.x0 + m.dx, a.y0 + m.dy);
+    } else {
+      g.arc(a.cx, a.cy, a.r, 0, 6.2832);
+    }
+    g.stroke();
+    g.restore();
+  };
+
+  /* Live preview while two fingers define a line or circle in Rec mode. */
+  Pad.prototype.drawShapePreview = function (g) {
+    var x0 = this.recCap.x0, y0 = this.recCap.y0;
+    var p2 = this.recP2.pos;
+    g.save();
+    g.globalAlpha = 0.8;
+    g.strokeStyle = "#ff6b6b";
+    g.setLineDash([5, 5]);
+    g.lineWidth = 2;
+    g.beginPath();
+    if (S.twoShape === "circle") {
+      g.arc((x0 + p2.x) / 2, (y0 + p2.y) / 2, Math.hypot(p2.x - x0, p2.y - y0) / 2, 0, 6.2832);
+    } else {
+      g.moveTo(x0, y0); g.lineTo(p2.x, p2.y);
+    }
+    g.stroke();
+    g.restore();
   };
 
   Pad.prototype.drawCursor = function (g) {
@@ -1001,7 +1342,7 @@
     g.globalAlpha = live ? 1 : 0.55;
 
     // Loupe while dragging: a magnified view of the pixels under the finger.
-    if (this.active && this.img) {
+    if (this.active && (this.img || this.liveOn)) {
       var lr = Math.min(40, Math.min(this.w, this.h) * 0.155);
       var ly = y - R - lr - 8;
       if (ly - lr < 2) ly = y + R + lr + 8;
@@ -1016,7 +1357,7 @@
       g.translate(lx, ly);
       g.scale(zoom, zoom);
       g.translate(-x, -y);
-      g.drawImage(this.img, c.dx, c.dy, this.iw * c.s, this.ih * c.s);
+      this.drawSrc(g, c);
       g.restore();
       g.beginPath(); g.arc(lx, ly, lr, 0, 6.2832);
       g.lineWidth = 3; g.strokeStyle = "rgba(0,0,0,.75)"; g.stroke();
@@ -1059,7 +1400,9 @@
 
   var padTone = new Pad("tone");
   var padFilter = new Pad("filter");
-  var pads = [padTone, padFilter];
+  var padEnv = new Pad("env");
+  var pads = [padTone, padFilter, padEnv];
+  var UI = { mode: "play" };
 
   /* ---- pointer handling ---------------------------------------------- */
   function localPoint(pad, ev) {
@@ -1074,44 +1417,187 @@
     if (!pad.pos) return;
     var rgb = pad.sample(pad.pos.x, pad.pos.y);
     if (!rgb) return;
-    if (pad.key === "tone") computeTone(rgb); else computeFilter(rgb);
+    if (pad.key === "tone") computeTone(rgb);
+    else if (pad.key === "filter") computeFilter(rgb);
+    else computeEnv(rgb);
     pushAudio();
     updateReadouts();
   }
 
+  /* Reset the modifier pads when they let go. */
+  function padRelease(pad) {
+    if (pad.key === "tone") return;
+    if (pad.key === "filter") computeFilter(null); else computeEnv(null);
+    pushAudio();
+    updateReadouts();
+  }
+
+  function padTitle(pad) {
+    return pad.key === "tone" ? "Tone" : pad.key === "filter" ? "Filter" : "Envelope";
+  }
+
+  /* ---- motion automation --------------------------------------------- */
+  function startAuto(pad, p0) {
+    var m = pad.motion;
+    var a = { t0: performance.now(), x0: p0.x, y0: p0.y, m: m };
+    if (m.kind === "circle") {
+      a.cx = p0.x + m.dx / 2; a.cy = p0.y + m.dy / 2;
+      a.r = Math.hypot(m.dx, m.dy) / 2;
+      a.a0 = Math.atan2(p0.y - a.cy, p0.x - a.cx);
+    }
+    return a;
+  }
+
+  function autoPos(pad, nowMs) {
+    var a = pad.auto, m = a.m;
+    var t = (nowMs - a.t0) / 1000, x, y;
+    if (m.kind === "recorded") {
+      var durS = Math.max(0.15, m.dur) / S.motionSpeed;   // scaled loop length
+      var tt = (t % durS) * S.motionSpeed;                // position in the original take
+      var pts = m.pts, i = 1;
+      while (i < pts.length - 1 && pts[i].t < tt) i++;
+      var p0 = pts[i - 1], p1 = pts[i];
+      var u = p1.t > p0.t ? clamp((tt - p0.t) / (p1.t - p0.t), 0, 1) : 0;
+      x = a.x0 + p0.dx + (p1.dx - p0.dx) * u;
+      y = a.y0 + p0.dy + (p1.dy - p0.dy) * u;
+    } else {
+      var T = 2 / S.motionSpeed;                          // shape cycle time
+      if (m.kind === "line") {
+        var ph = (t / T) % 2, u2 = ph < 1 ? ph : 2 - ph;  // ping-pong
+        x = a.x0 + m.dx * u2; y = a.y0 + m.dy * u2;
+      } else {
+        var ang = a.a0 + 6.2831853 * t / T;
+        x = a.cx + a.r * Math.cos(ang); y = a.cy + a.r * Math.sin(ang);
+      }
+    }
+    return { x: clamp(x, 0, pad.w), y: clamp(y, 0, pad.h) };
+  }
+
+  function motionLabel(m) {
+    if (!m) return "no motion armed";
+    if (m.kind === "recorded") return "gesture · " + m.dur.toFixed(1) + " s loop";
+    if (m.kind === "line") return "line · " + Math.round(Math.hypot(m.dx, m.dy)) + " px";
+    return "circle · ⌀ " + Math.round(Math.hypot(m.dx, m.dy)) + " px";
+  }
+
+  function updateMotionUI() {
+    pads.forEach(function (p) {
+      var el = $("motion-" + p.key);
+      if (el) el.textContent = motionLabel(p.motion);
+      var flag = $("auto-" + p.key);
+      if (flag) flag.classList.toggle("on", !!p.motion);
+    });
+  }
+
+  var legatoTimer = null;
+
   function attach(pad) {
     var cv = pad.canvas;
     cv.addEventListener("pointerdown", function (ev) {
-      if (pad.pointerId !== null) return;
       ev.preventDefault();
+
+      if (UI.mode === "rec") {
+        if (pad.pointerId === null) {
+          pad.pointerId = ev.pointerId;
+          try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
+          if (!audioOn) setPower(true); else ensureAudio();
+          pad.active = true;
+          var p0 = localPoint(pad, ev);
+          pad.pos = p0;
+          pad.dirty = true;
+          pad.recCap = { t0: performance.now(), x0: p0.x, y0: p0.y, pts: [{ t: 0, dx: 0, dy: 0 }] };
+          pad.recP2 = null;
+          apply(pad);
+          if (pad.key === "tone") { clearTimeout(legatoTimer); gates.pad = true; updateGate(); }
+        } else if (!pad.recP2) {
+          // second finger on the same pad: define a shape instead of a gesture
+          try { cv.setPointerCapture(ev.pointerId); } catch (e2) {}
+          pad.recP2 = { id: ev.pointerId, pos: localPoint(pad, ev) };
+          pad.dirty = true;
+        }
+        return;
+      }
+
+      if (pad.pointerId !== null) return;
       pad.pointerId = ev.pointerId;
-      try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
+      try { cv.setPointerCapture(ev.pointerId); } catch (e3) {}
       if (!audioOn) setPower(true); else ensureAudio();
       pad.active = true;
       var hint = $("hint-" + pad.key);
       if (hint) hint.style.display = "none";
       pad.pos = localPoint(pad, ev);
       pad.dirty = true;
+      pad.auto = pad.motion ? startAuto(pad, pad.pos) : null;
       apply(pad);
-      if (pad.key === "tone") { gates.pad = true; updateGate(); }
+      if (pad.key === "tone") { clearTimeout(legatoTimer); gates.pad = true; updateGate(); }
     }, { passive: false });
 
     cv.addEventListener("pointermove", function (ev) {
+      if (pad.recP2 && ev.pointerId === pad.recP2.id) {
+        ev.preventDefault();
+        pad.recP2.pos = localPoint(pad, ev);
+        pad.dirty = true;
+        return;
+      }
       if (pad.pointerId !== ev.pointerId) return;
       ev.preventDefault();
+      if (pad.auto) return;                       // the motion owns the cursor
       pad.pos = localPoint(pad, ev);
       pad.dirty = true;
+      if (pad.recCap) {
+        pad.recCap.pts.push({
+          t: (performance.now() - pad.recCap.t0) / 1000,
+          dx: pad.pos.x - pad.recCap.x0,
+          dy: pad.pos.y - pad.recCap.y0
+        });
+      }
       apply(pad);
     }, { passive: false });
 
     function end(ev) {
+      if (pad.recP2 && ev.pointerId === pad.recP2.id) return;   // keep its last position
       if (pad.pointerId !== ev.pointerId) return;
       pad.pointerId = null;
       pad.active = false;
       pad.dirty = true;
       try { cv.releasePointerCapture(ev.pointerId); } catch (e) {}
-      if (pad.key === "tone") { gates.pad = false; updateGate(); }
-      else if (!pad.latched) { computeFilter(null); pushAudio(); updateReadouts(); }
+
+      if (pad.recCap) {
+        var cap = pad.recCap;
+        pad.recCap = null;
+        if (pad.recP2) {
+          var dx = pad.recP2.pos.x - cap.x0, dy = pad.recP2.pos.y - cap.y0;
+          pad.recP2 = null;
+          if (Math.hypot(dx, dy) > 8) {
+            pad.motion = { kind: S.twoShape, dx: dx, dy: dy };
+            updateMotionUI();
+            showToast((S.twoShape === "circle" ? "Circle" : "Line") + " armed on " + padTitle(pad) + " — touch it in Play");
+            setMode("play");
+          }
+        } else {
+          var dur = (performance.now() - cap.t0) / 1000, len = 0, i;
+          for (i = 1; i < cap.pts.length; i++) {
+            len += Math.hypot(cap.pts[i].dx - cap.pts[i - 1].dx, cap.pts[i].dy - cap.pts[i - 1].dy);
+          }
+          if (dur > 0.15 && len > 12) {
+            cap.pts.push({ t: dur, dx: cap.pts[cap.pts.length - 1].dx, dy: cap.pts[cap.pts.length - 1].dy });
+            pad.motion = { kind: "recorded", pts: cap.pts, dur: dur };
+            updateMotionUI();
+            showToast("Motion recorded on " + padTitle(pad) + " — touch it in Play to replay");
+            setMode("play");
+          }
+        }
+      }
+
+      if (!pad.latched) pad.auto = null;
+      if (pad.key === "tone") {
+        if (S.legato > 0.005 && !pad.latched) {
+          clearTimeout(legatoTimer);
+          legatoTimer = setTimeout(function () { gates.pad = false; updateGate(); }, S.legato * 1000);
+        } else { gates.pad = false; updateGate(); }
+      } else if (!pad.latched) {
+        padRelease(pad);
+      }
     }
     cv.addEventListener("pointerup", end);
     cv.addEventListener("pointercancel", end);
@@ -1129,8 +1615,9 @@
         apply(pad);
         if (pad.key === "tone" && !audioOn) setPower(true);
       }
-    } else if (!pad.active && pad.key === "filter") {
-      computeFilter(null); pushAudio(); updateReadouts();
+    } else {
+      if (!pad.active) pad.auto = null;
+      if (!pad.active && pad.key !== "tone") padRelease(pad);
     }
     updateGate();
   }
@@ -1168,6 +1655,15 @@
     } else {
       sf.style.background = "#222";
       vf.innerHTML = "—" + '<span class="sub">filter open (no colour touched)</span>';
+    }
+    var se = $("swatch-env"), ve = $("vals-env");
+    if (envp.active && envp.rgb) {
+      se.style.background = cssRGB(envp.rgb);
+      ve.innerHTML = "<b>" + fmtT(envp.a) + "</b> att · " + fmtT(envp.d) + " dec" +
+        '<span class="sub">sustain ' + Math.round(envp.s * 100) + "%</span>";
+    } else {
+      se.style.background = "#222";
+      ve.innerHTML = "—" + '<span class="sub">sliders in Edit set the envelope</span>';
     }
     $("baseLabel").textContent = midiName(S.baseMidi);
   }
@@ -1518,9 +2014,20 @@
   /* ================================================================== *
    * Render loop
    * ================================================================== */
+  var liveTick = 0;
   function frame() {
+    var nowMs = performance.now();
+    if (live.video && (liveTick++ % 3) === 0) refreshLiveBuf();
     pads.forEach(function (p) {
       p.resize();
+      if (p.auto) {
+        p.pos = autoPos(p, nowMs);
+        p.dirty = true;
+        apply(p);
+      } else if (p.liveOn && p.pos && (p.active || p.latched)) {
+        apply(p);                       // camera moved under a resting cursor
+      }
+      if (p.liveOn) p.dirty = true;     // repaint the video every frame
       if (p.dirty) { p.draw(); p.dirty = false; }
     });
     if (!$("kbdPanel").hidden) {
@@ -1528,7 +2035,7 @@
       if (kb.dirty) kbDraw();
     }
     if (midi.playing) midiTick();
-    if (scopeChanged()) drawScope();
+    if (UI.mode === "edit" && scopeChanged()) drawScope();
     requestAnimationFrame(frame);
   }
 
@@ -1550,7 +2057,7 @@
   /* ================================================================== *
    * Photos: camera, camera roll, demo
    * ================================================================== */
-  function padOf(key) { return key === "tone" ? padTone : padFilter; }
+  function padOf(key) { return key === "tone" ? padTone : key === "filter" ? padFilter : padEnv; }
 
   // An <img> is decoded with the file's EXIF orientation applied in every
   // current browser, so photos shot in portrait come in the right way up.
@@ -1626,6 +2133,19 @@
         rg.addColorStop(1, "hsla(" + ((i * 47) % 360) + ",95%,60%,0)");
         g.fillStyle = rg; g.beginPath(); g.arc(cx, cy, r, 0, 6.2832); g.fill();
       }
+    } else if (kind === "env") {
+      // Left = red (snappy attack), right = blue (long decay); top = bright
+      // green (full sustain), bottom = dark (short, plucky notes).
+      var hg = g.createLinearGradient(0, 0, N, 0);
+      hg.addColorStop(0, "rgb(255,70,40)");
+      hg.addColorStop(0.5, "rgb(150,190,80)");
+      hg.addColorStop(1, "rgb(50,90,255)");
+      g.fillStyle = hg; g.fillRect(0, 0, N, N);
+      var vg2 = g.createLinearGradient(0, 0, 0, N);
+      vg2.addColorStop(0, "rgba(180,255,150,.55)");
+      vg2.addColorStop(0.45, "rgba(0,0,0,0)");
+      vg2.addColorStop(1, "rgba(0,0,0,.8)");
+      g.fillStyle = vg2; g.fillRect(0, 0, N, N);
     } else {
       g.fillStyle = "#101010"; g.fillRect(0, 0, N, N);
       for (j = 0; j < 40; j++) {
@@ -1662,6 +2182,153 @@
     });
     padTone.dirty = padFilter.dirty = true;
     apply(padTone); apply(padFilter);
+  });
+
+  /* ================================================================== *
+   * Live camera: any pad can sample the camera instead of a photo
+   * ================================================================== */
+  var live = { stream: null, video: null, pix: null, pw: 0, ph: 0, c: null, g: null };
+
+  function refreshLiveBuf() {
+    var v = live.video;
+    if (!v || !v.videoWidth) return;
+    if (!live.c) {
+      live.c = document.createElement("canvas");
+      live.g = live.c.getContext("2d", { willReadFrequently: true });
+    }
+    var k = 160 / Math.max(v.videoWidth, v.videoHeight);
+    var pw = Math.max(1, Math.round(v.videoWidth * k));
+    var ph = Math.max(1, Math.round(v.videoHeight * k));
+    if (live.c.width !== pw || live.c.height !== ph) { live.c.width = pw; live.c.height = ph; }
+    live.g.drawImage(v, 0, 0, pw, ph);
+    try {
+      live.pix = live.g.getImageData(0, 0, pw, ph).data;
+      live.pw = pw; live.ph = ph;
+    } catch (e) {}
+  }
+
+  function liveCount() {
+    var n = 0;
+    pads.forEach(function (p) { if (p.liveOn) n++; });
+    return n;
+  }
+
+  function setLivePad(pad, on) {
+    var btn = document.querySelector('[data-live="' + pad.key + '"]');
+    if (!on) {
+      pad.liveOn = false;
+      if (btn) btn.setAttribute("aria-pressed", "false");
+      if (!liveCount() && live.stream) {
+        live.stream.getTracks().forEach(function (t) { t.stop(); });
+        live.stream = null; live.video = null; live.pix = null;
+      }
+      pad.dirty = true;
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showToast("The camera needs a current browser over https");
+      return;
+    }
+    var start = live.stream ? Promise.resolve() : navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 640 } }, audio: false
+    }).then(function (s) {
+      live.stream = s;
+      var v = document.createElement("video");
+      v.setAttribute("playsinline", "");
+      v.playsInline = true;
+      v.muted = true;
+      v.srcObject = s;
+      live.video = v;
+      return v.play();
+    });
+    start.then(function () {
+      pad.liveOn = true;
+      if (btn) btn.setAttribute("aria-pressed", "true");
+      var hint = $("hint-" + pad.key);
+      if (hint) hint.style.display = "none";
+      pad.dirty = true;
+      showToast("Live camera on " + padTitle(pad) + " — latch a spot or arm a motion, then point the phone");
+    }, function (err) {
+      showToast("Camera not available" + (err && err.name === "NotAllowedError" ? " — permission denied" : ""));
+    });
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-live]"), function (b) {
+    b.addEventListener("click", function () {
+      var pad = padOf(b.getAttribute("data-live"));
+      setLivePad(pad, !pad.liveOn);
+    });
+  });
+
+  /* ================================================================== *
+   * Global modes: Play (clean), Edit (all controls), Rec (arm motion)
+   * ================================================================== */
+  var toastEl = document.createElement("div");
+  toastEl.className = "toast";
+  document.body.appendChild(toastEl);
+  var toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 2800);
+  }
+
+  function setMode(m) {
+    var prev = UI.mode;
+    UI.mode = m;
+    document.body.setAttribute("data-mode", m);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mode-btn]"), function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-mode-btn") === m ? "true" : "false");
+    });
+    if (m !== "edit") {
+      var p = $("kbdPanel");
+      if (!p.hidden) {
+        p.hidden = true;
+        $("keysBtn").setAttribute("aria-pressed", "false");
+        requestAnimationFrame(fitKeyboard);
+      }
+    } else {
+      scopeSig = "";                     // redraw the spectrum strip on return
+    }
+    pads.forEach(function (pad) {
+      var hint = $("hint-" + pad.key);
+      if (!hint) return;
+      if (m === "rec") {
+        hint.style.display = "";
+        hint.textContent = "Draw a motion — or two fingers for a " + S.twoShape;
+      } else if (prev === "rec") {
+        hint.style.display = "none";
+      }
+      // leaving Rec mid-capture must not leave a half-recorded state behind
+      if (m !== "rec") { pad.recCap = null; pad.recP2 = null; }
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-mode-btn]"), function (b) {
+    b.addEventListener("click", function () { setMode(b.getAttribute("data-mode-btn")); });
+  });
+
+  /* Motion panel controls */
+  pads.forEach(function (pad) {
+    var btn = $("clearMotion-" + pad.key);
+    if (btn) btn.addEventListener("click", function () {
+      pad.motion = null;
+      pad.auto = null;
+      pad.dirty = true;
+      updateMotionUI();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-twoshape]"), function (b) {
+    b.addEventListener("click", function () {
+      S.twoShape = b.getAttribute("data-twoshape");
+      Array.prototype.forEach.call(document.querySelectorAll("[data-twoshape]"), function (o) {
+        o.setAttribute("aria-pressed", o === b ? "true" : "false");
+      });
+    });
+  });
+  $("mspeed").addEventListener("input", function (e) {
+    S.motionSpeed = e.target.value / 100;
+    $("mspeedOut").textContent = S.motionSpeed.toFixed(2) + "×";
   });
 
   /* ================================================================== *
@@ -2148,6 +2815,27 @@
     $("spaceOut").textContent = e.target.value + " %";
     pushAudio();
   });
+  $("legato").addEventListener("input", function (e) {
+    S.legato = e.target.value / 200;               // 0 .. 500 ms
+    $("legatoOut").textContent = S.legato < 0.005 ? "off" : Math.round(S.legato * 1000) + " ms";
+  });
+  $("voices").addEventListener("input", function (e) {
+    S.voices = parseInt(e.target.value, 10);
+    $("voicesOut").textContent = S.voices + (S.voices === 1 ? " voice" : " voices");
+    pushAudio();
+  });
+  $("spread").addEventListener("input", function (e) {
+    S.spread = parseInt(e.target.value, 10);
+    $("spreadOut").textContent = S.spread + " px";
+    pushAudio();
+  });
+  $("padsize").addEventListener("input", function (e) {
+    S.padSize = e.target.value / 100;
+    padTone.canvas.style.aspectRatio = String(1 / S.padSize);
+    padFilter.canvas.style.aspectRatio = String(1 / S.padSize);
+    padEnv.canvas.style.aspectRatio = String(3.2 / S.padSize);
+    $("padsizeOut").textContent = e.target.value + " %";
+  });
   Array.prototype.forEach.call(document.querySelectorAll("[data-fmode]"), function (b) {
     b.addEventListener("click", function () {
       S.fmode = b.getAttribute("data-fmode");
@@ -2203,16 +2891,21 @@
   })();
 
   (function initControls() {
-    ["octaves", "glide", "drive", "attack", "release", "space", "vol", "rate"].forEach(function (id) {
+    ["octaves", "glide", "drive", "attack", "release", "legato", "voices", "spread",
+     "padsize", "space", "vol", "rate", "mspeed"].forEach(function (id) {
       var el = $(id);
       if (el) el.dispatchEvent(new Event("input"));
     });
   })();
 
+  setMode("play");
+  updateMotionUI();
   loadDemo("tone");
   loadDemo("filter");
+  loadDemo("env");
   computeTone([0.85, 0.25, 0.25]);
   computeFilter(null);
+  computeEnv(null);
   updateReadouts();
   resizeScope();
   updateEngineNote();

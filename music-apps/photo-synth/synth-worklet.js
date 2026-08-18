@@ -57,8 +57,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.p = {
       base: 220, ratio: 1, morph: 0.5, pulse: 0, detune: 6, level: 0,
       cut: 14000, res: 0, mode: 0, drive: 0.25,
-      attack: 0.012, release: 0.18, glide: 0.03, spread: 0.5
+      attack: 0.012, decay: 0.25, sustain: 1, release: 0.18, glide: 0.03, spread: 0.5
     };
+    this.stage = 0;              // 0 idle, 1 attack, 2 decay/sustain, 3 release
+    this.pg = 0;
     this.f0 = 220; this.morph = 0.5; this.pulse = 0; this.detune = 6;
     this.level = 0; this.cut = 14000; this.res = 0;
     this.gate = 0; this.env = 0;
@@ -94,7 +96,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
     } else if (d.type === "clear") {
       this.events.length = 0;
     } else if (d.type === "reset") {
-      this.env = 0; this.gate = 0;
+      this.env = 0; this.gate = 0; this.stage = 0; this.pg = 0;
       this.lad[0].reset(); this.lad[1].reset();
       this.phA = 0; this.phB = 0.37; this.triA = this.triB = 0;
     }
@@ -141,9 +143,20 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.cut += (p.cut - this.cut) * aSmooth;
       this.res += (p.res - this.res) * aSmooth;
 
-      // ---- envelope -------------------------------------------------------
-      var tau = this.gate ? Math.max(0.001, p.attack) / 3 : Math.max(0.004, p.release) / 3;
-      this.env += ((this.gate ? 1 : 0) - this.env) * (1 - Math.exp(-1 / (tau * sampleRate)));
+      // ---- envelope: attack -> decay towards sustain -> release ----------
+      if (this.gate && !this.pg) this.stage = 1;
+      if (!this.gate && this.pg) this.stage = 3;
+      this.pg = this.gate;
+      var target, tau;
+      if (this.stage === 1) {
+        target = 1; tau = Math.max(0.001, p.attack) / 3;
+        if (this.env > 0.985) this.stage = 2;
+      } else if (this.stage === 2) {
+        target = clamp(p.sustain, 0, 1); tau = Math.max(0.01, p.decay) / 3;
+      } else {
+        target = 0; tau = Math.max(0.004, p.release) / 3;
+      }
+      this.env += (target - this.env) * (1 - Math.exp(-1 / (tau * sampleRate)));
 
       // ---- oscillator + filter, run at 2x -------------------------------
       var det = this.detune / 1200;
