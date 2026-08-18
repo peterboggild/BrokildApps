@@ -10,6 +10,7 @@ GitHub Pages.
 | App | Folder | What it does |
 |-----|--------|--------------|
 | Photo Synth | [`music-apps/photo-synth`](music-apps/photo-synth) | Play two photos: colour becomes tone on one, filter on the other. |
+| Sleep Noise App | [`health-apps/sleep-noise`](health-apps/sleep-noise) | Private browser-generated sleep noise with timers, fades and blackout mode. |
 
 ## How the front page works
 
@@ -35,7 +36,7 @@ The front page is data-driven, so adding an app never means editing HTML:
    `status` is `"live"` or `"soon"`; `preview` (a 16:9 image in
    `assets/app-previews/`) and `note` are optional. `icon` picks one of the
    inline icons in `index.html` (`wave`, `note`, `camera`, `keys`, `device`,
-   `chart`, `more`), and `tags` reference label ids from `manifest.json`.
+   `moon`, `chart`, `more`), and `tags` reference label ids from `manifest.json`.
 
 3. Add the folder name to the `apps` list in `manifest.json`.
 
