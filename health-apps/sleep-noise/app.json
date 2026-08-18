@@ -1,0 +1,10 @@
+{
+  "slug": "sleep-noise",
+  "name": "Sleep Noise App",
+  "description": "Brown, green, pink and white noise for sleeping, with a sleep timer, gentle fade-in and fade-out, tone control, ocean swell and a blackout screen. Sound is generated privately in the browser.",
+  "status": "live",
+  "url": "health-apps/sleep-noise/index.html",
+  "icon": "moon",
+  "note": "Designed for overnight use on a phone.",
+  "tags": ["health", "phone"]
+}
