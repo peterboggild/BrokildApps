@@ -11,12 +11,18 @@
       "description": "Apps that use the camera or your photos."
     },
     {
+      "id": "health",
+      "name": "Health",
+      "description": "Personal wellbeing, sleep and health tools."
+    },
+    {
       "id": "phone",
       "name": "Phone App",
       "description": "Designed for a phone screen — touch-first, and installable to the home screen."
     }
   ],
   "apps": [
-    "music-apps/photo-synth"
+    "music-apps/photo-synth",
+    "health-apps/sleep-noise"
   ]
 }
