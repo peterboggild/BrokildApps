@@ -94,10 +94,13 @@
   .pads{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
   .pad{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px;box-shadow:var(--shadow)}
   .envpad{margin-bottom:12px}
-  .padhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-  .padname{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);flex:1 1 auto}
+  .padhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .padname{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);flex:1 1 auto;min-width:0}
   .padname b{color:var(--text);font-weight:600}
-  .latch{font-size:11.5px;padding:6px 10px;border-radius:9px}
+  .padtools{display:flex;align-items:center;gap:5px;flex:none;margin-left:auto}
+  .latch,.recarm{font-size:11.5px;padding:6px 9px;border-radius:9px}
+  .recarm[aria-pressed="true"]{border-color:var(--rec);color:#fff;background:rgba(255,107,107,.18)}
+  .pad.recarmed .stage{outline:2px dashed var(--rec);outline-offset:2px}
   .stage{position:relative;border-radius:11px;overflow:hidden;background:#000;border:1px solid var(--line-soft)}
   canvas.pad-canvas{display:block;width:100%;aspect-ratio:4/3;touch-action:none}
   .hint{
@@ -200,17 +203,10 @@
   .modeseg{display:flex;gap:3px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:3px;flex:none}
   .modeseg .btn{border:none;background:transparent;padding:7px 13px;font-size:13px;border-radius:8px}
   .modeseg .btn[aria-pressed="true"]{background:var(--accent);color:#0a0c11;font-weight:600}
-  .modeseg .btn.recmode[aria-pressed="true"]{background:var(--rec);color:#fff}
-  body[data-mode="play"] .transport,body[data-mode="rec"] .transport,
-  body[data-mode="play"] .scope,body[data-mode="rec"] .scope,
-  body[data-mode="play"] details,body[data-mode="rec"] details,
-  body[data-mode="play"] .padbtns,body[data-mode="rec"] .padbtns{display:none}
-  body[data-mode="rec"] .stage{outline:2px dashed var(--rec);outline-offset:2px}
-  .rechint{
-    display:none;background:rgba(255,107,107,.10);border:1px solid rgba(255,107,107,.4);
-    color:var(--text);border-radius:11px;padding:9px 12px;font-size:12.5px;margin:0 0 12px;line-height:1.45;
-  }
-  body[data-mode="rec"] .rechint{display:block}
+  body[data-mode="play"] .transport,
+  body[data-mode="play"] .scope,
+  body[data-mode="play"] details,
+  body[data-mode="play"] .padbtns{display:none}
   .autoflag{
     display:none;font-size:9.5px;color:var(--accent);border:1px solid var(--accent);
     border-radius:6px;padding:1px 4px;margin-left:6px;vertical-align:1px;letter-spacing:.05em;
@@ -233,14 +229,11 @@
     <div class="modeseg" role="group" aria-label="Mode">
       <button class="btn" type="button" data-mode-btn="play" aria-pressed="true">Play</button>
       <button class="btn" type="button" data-mode-btn="edit" aria-pressed="false">Edit</button>
-      <button class="btn recmode" type="button" data-mode-btn="rec" aria-pressed="false">Rec</button>
     </div>
     <button id="recBtn" class="btn rec" type="button" aria-pressed="false" title="Record audio"><span class="dot"></span><span id="recLabel">Record</span></button>
     <button id="keysBtn" class="btn" type="button" aria-pressed="false">Keys</button>
   </div>
 </header>
-
-<div class="rechint">Arm a motion: <b>draw</b> on a photo with one finger, or set <b>two fingers</b> down together for a line / circle (choose which in Edit → Motion). The motion is saved when you lift, and in Play it replays from wherever you touch, looping until you lift. Latch keeps it running.</div>
 
 <div class="transport">
   <button id="power" class="btn power" type="button" aria-pressed="false"><span class="dot"></span><span id="powerLabel">Sound off</span></button>
@@ -255,7 +248,7 @@
   <div class="pad" id="pad-tone">
     <div class="padhead">
       <span class="padname"><b>1 · Tone</b> — colour → pitch &amp; timbre<span class="autoflag" id="auto-tone">AUTO</span></span>
-      <button class="btn latch" type="button" data-latch="tone" aria-pressed="false">Latch</button>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="tone" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="tone" aria-pressed="false">Latch</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-tone"></canvas>
@@ -278,7 +271,7 @@
   <div class="pad" id="pad-filter">
     <div class="padhead">
       <span class="padname"><b>2 · Filter</b> — colour → tone colour<span class="autoflag" id="auto-filter">AUTO</span></span>
-      <button class="btn latch" type="button" data-latch="filter" aria-pressed="false">Latch</button>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="filter" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="filter" aria-pressed="false">Latch</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-filter"></canvas>
@@ -302,7 +295,7 @@
 <section class="pad envpad" id="pad-env">
   <div class="padhead">
     <span class="padname"><b>3 · Envelope</b> — red attack · green sustain · blue decay<span class="autoflag" id="auto-env">AUTO</span></span>
-    <button class="btn latch" type="button" data-latch="env" aria-pressed="false">Latch</button>
+    <span class="padtools"><button class="btn recarm" type="button" data-recarm="env" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="env" aria-pressed="false">Latch</button></span>
   </div>
   <div class="stage">
     <canvas class="pad-canvas" id="canvas-env"></canvas>
@@ -413,6 +406,18 @@
       <output id="spreadOut">14 px</output>
     </div>
     <div class="row">
+      <label for="width">Stereo width</label>
+      <div class="ctl"><input id="width" type="range" min="0" max="100" value="65"></div>
+      <output id="widthOut">65 %</output>
+    </div>
+    <div class="row">
+      <label for="panMode">Voice pan</label>
+      <div class="ctl"><select id="panMode">
+        <option value="hue" selected>Hue</option>
+        <option value="x">Cursor position</option>
+      </select></div>
+    </div>
+    <div class="row">
       <label for="padsize">Pad size</label>
       <div class="ctl"><input id="padsize" type="range" min="60" max="130" value="100"></div>
       <output id="padsizeOut">100 %</output>
@@ -426,15 +431,55 @@
       </div>
     </div>
     <div class="row">
-      <label for="space">Space</label>
-      <div class="ctl"><input id="space" type="range" min="0" max="100" value="18"></div>
-      <output id="spaceOut">18 %</output>
-    </div>
-    <div class="row">
       <span class="lab">Photos</span>
       <div class="ctl seg"><button class="btn" id="swap" type="button">Swap photos</button></div>
     </div>
     <div class="note" id="engineNote"></div>
+  </div>
+</details>
+
+<details id="effectsPanel">
+  <summary>Effects</summary>
+  <div class="body">
+    <div class="row">
+      <label for="space">FX mix</label>
+      <div class="ctl"><input id="space" type="range" min="0" max="100" value="18"></div>
+      <output id="spaceOut">18 %</output>
+    </div>
+    <div class="row">
+      <label for="delayTime">Delay time</label>
+      <div class="ctl"><input id="delayTime" type="range" min="40" max="900" value="260"></div>
+      <output id="delayTimeOut">260 ms</output>
+    </div>
+    <div class="row">
+      <label for="delayFeedback">Feedback</label>
+      <div class="ctl"><input id="delayFeedback" type="range" min="0" max="85" value="34"></div>
+      <output id="delayFeedbackOut">34 %</output>
+    </div>
+    <div class="row">
+      <label for="reverbType">Reverb</label>
+      <div class="ctl"><select id="reverbType">
+        <option value="room" selected>Room</option>
+        <option value="hall">Hall</option>
+        <option value="plate">Plate</option>
+      </select></div>
+    </div>
+    <div class="row">
+      <label for="reverbLength">Reverb length</label>
+      <div class="ctl"><input id="reverbLength" type="range" min="20" max="600" value="180"></div>
+      <output id="reverbLengthOut">1.80 s</output>
+    </div>
+    <div class="row">
+      <label for="satGain">Saturation gain</label>
+      <div class="ctl"><input id="satGain" type="range" min="0" max="24" value="0"></div>
+      <output id="satGainOut">off</output>
+    </div>
+    <div class="row">
+      <label for="satTone">Saturation tone</label>
+      <div class="ctl"><input id="satTone" type="range" min="0" max="100" value="72"></div>
+      <output id="satToneOut">8.4 kHz</output>
+    </div>
+    <div class="note">The dry signal, delay feedback and reverb remain stereo. Stereo width at zero produces identical left and right channels for reliable mono playback.</div>
   </div>
 </details>
 
@@ -468,10 +513,10 @@
       <div class="ctl"><input id="mspeed" type="range" min="25" max="400" value="100"></div>
       <output id="mspeedOut">1.00×</output>
     </div>
-    <div class="note">Arm a motion with <b>Rec</b>: draw a gesture with one finger, or put two fingers
-      down together for a line (ping-pong) or circle (they define the diameter). In Play, touching an
-      armed photo replays the motion from the touch point, looping until you lift — with Latch on it
-      keeps running after you lift. Speed scales a recorded gesture and sets the pace of shapes.</div>
+    <div class="note">Press <b>Rec on the pad you want to automate</b>, then draw a gesture with one
+      finger, or put two fingers down together for a line (ping-pong) or circle (they define the
+      diameter). Recording starts only on that pad and the saved motion loops immediately. Dragging
+      an automated cursor takes manual control; a tap starts its loop again.</div>
   </div>
 </details>
 
@@ -486,14 +531,12 @@
       sounding; on the filter pad the filter setting is held. Tap again to move the cursor, or turn
       latch off to release.</p>
 
-    <h3>Play · Edit · Rec</h3>
+    <h3>Play · Edit · per-pad Rec</h3>
     <p><b>Play</b> shows only the photos — everything is played by touch. <b>Edit</b> opens all the
-      controls: sound, motion, files and this text. <b>Rec</b> arms motion recording: draw on any
-      photo with one finger to record a gesture, or put <b>two fingers</b> down together to define a
-      line or circle. The motion is saved when you lift and the app returns to Play; from then on,
-      touching that photo replays the motion from wherever you touch, looping until you lift.
-      With latch on it keeps running on its own — an automated filter sweep or envelope cycle can
-      run while you play the tone photo by hand.</p>
+      controls: sound, effects, motion, files and this text. Each photo has its own <b>Rec</b> button:
+      arm only the pad you want, then draw with one finger or use <b>two fingers</b> to define a line
+      or circle. The saved motion begins looping as soon as you lift. A tap restarts its phase; a
+      drag takes manual control without erasing it. With latch on it keeps running on its own.</p>
 
     <h3>Envelope (photo 3)</h3>
     <p>The third photo shapes each note the way an ADSR does: <b>red sets the attack</b> (more red,
@@ -507,7 +550,14 @@
     <p>The <b>Voices</b> slider (Sound) turns the tone photo polyphonic: extra voices sample the
       colours a small distance around your finger — set by <b>Voice spread</b> — so the local
       texture of the photo becomes a chord. Uniform areas thicken into a unison; detailed areas
-      scatter into intervals. Voices need the analog engine.</p>
+      scatter into intervals. <b>Stereo width</b> pans the voices by sampled hue or horizontal
+      cursor position and adds a small per-voice tuning offset. At zero, left and right are
+      identical for true mono compatibility. Voices need the analog engine.</p>
+
+    <h3>Effects</h3>
+    <p>The Effects panel has a two-channel delay, three reverb characters with adjustable length,
+      and saturation with gain and tone. The dry path, delay feedback and convolution reverb all
+      preserve the stereo image created by the oscillators and polyphonic voice panning.</p>
 
     <h3>Live camera</h3>
     <p><b>Live</b> (under each photo in Edit) replaces that photo with the live camera. Latch a
@@ -704,10 +754,18 @@
     release: 0.180,
     fmode: "lowpass",
     space: 0.18,
+    delayTime: 0.260,
+    delayFeedback: 0.34,
+    reverbType: "room",
+    reverbLength: 1.8,
+    satGain: 0,
+    satTone: 8400,
     vol: 0.70,
     legato: 0.12,
     voices: 1,
     spread: 14,
+    width: 0.65,
+    panMode: "hue",
     padSize: 1,
     motionSpeed: 1,
     twoShape: "line"
@@ -806,15 +864,30 @@
 
   function voiceNorm() { return 1 / Math.sqrt(Math.max(1, S.voices)); }
 
-  function voiceParams() {
+  function voiceFineRatio(index) {
+    if (S.voices < 2) return 1;
+    var cents = (index - (S.voices - 1) / 2) * 3;
+    return Math.pow(2, cents / 1200);
+  }
+
+  function voicePan(rgb, x, w) {
+    if (S.voices < 2 || S.width <= 0) return 0;
+    var p = 0;
+    if (S.panMode === "x") p = w > 0 ? x / w * 2 - 1 : 0;
+    else if (rgb) p = rgb2hsv(rgb[0], rgb[1], rgb[2]).h / 180 - 1;
+    return clamp(p * S.width, -1, 1);
+  }
+
+  function voiceParams(index) {
+    index = index || 0;
     return {
-      base: baseFreq(), ratio: tone.ratio,
+      base: baseFreq(), ratio: tone.ratio * voiceFineRatio(index),
       morph: tone.morph, pulse: tone.pulse, detune: tone.detune,
       level: tone.level * (S.engine === "analog" ? voiceNorm() : 1),
       cut: filt.cut, res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
       drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
-      release: envRelease(), glide: S.glide, spread: 0.6
+      release: envRelease(), glide: S.glide, spread: S.width
     };
   }
 
@@ -841,6 +914,68 @@
   var audioOn = false;
   var workletOK = false;        // did the module load in the live context?
 
+  function forceStereo(node) {
+    try {
+      node.channelCount = 2;
+      node.channelCountMode = "explicit";
+      node.channelInterpretation = "speakers";
+    } catch (e) {}
+    return node;
+  }
+
+  function makePanner(ctx) {
+    return ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+  }
+
+  function setPan(node, value, time, smooth) {
+    if (!node || !node.pan) return;
+    if (smooth) node.pan.setTargetAtTime(value, time, 0.025);
+    else node.pan.setValueAtTime(value, time);
+  }
+
+  function saturationCurve(db) {
+    var n = 4097, curve = new Float32Array(n);
+    var drive = Math.pow(10, db / 20), norm = Math.tanh(drive);
+    for (var i = 0; i < n; i++) {
+      var x = i * 2 / (n - 1) - 1;
+      curve[i] = Math.tanh(x * drive) / norm;
+    }
+    return curve;
+  }
+
+  /* Deterministic stereo impulse: reproducible offline and decorrelated
+   * between channels without ever summing the input to mono. */
+  function reverbImpulse(ctx, type, length) {
+    var frames = Math.max(1, Math.round(ctx.sampleRate * length));
+    var b = ctx.createBuffer(2, frames, ctx.sampleRate);
+    var seed = type === "hall" ? 0x51f15e : type === "plate" ? 0x71a7e : 0x22334;
+    for (var ch = 0; ch < 2; ch++) {
+      var d = b.getChannelData(ch), energy = 0;
+      var s = (seed + ch * 0x9e3779b9) >>> 0;
+      var decayPower = type === "hall" ? 2.2 : type === "plate" ? 1.35 : 3.2;
+      for (var i = 0; i < frames; i++) {
+        s = (1664525 * s + 1013904223) >>> 0;
+        var noise = s / 4294967296 * 2 - 1;
+        var env = Math.pow(1 - i / frames, decayPower);
+        var v = noise * env;
+        if (type === "room" && i < ctx.sampleRate * 0.08 && i % 997 === ch * 137) v += 2.2 * env;
+        d[i] = v;
+        energy += v * v;
+      }
+      var scale = energy > 0 ? 0.75 / Math.sqrt(energy) : 1;
+      for (i = 0; i < frames; i++) d[i] *= scale;
+    }
+    return b;
+  }
+
+  function refreshReverb(g) {
+    if (g && g.reverb) g.reverb.buffer = reverbImpulse(g.ctx, S.reverbType, S.reverbLength);
+  }
+
+  function refreshSaturation(g) {
+    if (g && g.satShape) g.satShape.curve = saturationCurve(S.satGain);
+  }
+
   function buildChain(ctx, withWorklet, preload, nExtra) {
     var g = { ctx: ctx };
 
@@ -863,25 +998,55 @@
     g.pk.Q.value = 1.2;
     g.pk.gain.value = 0;
 
-    g.delay = ctx.createDelay(1.0);
-    g.delay.delayTime.value = 0.26;
-    g.fb = ctx.createGain();
-    g.fb.gain.value = 0.34;
-    g.wet = ctx.createGain();
-    g.wet.gain.value = S.space;
-    g.damp = ctx.createBiquadFilter();   // the repeats darken, as a room does
-    g.damp.type = "lowpass";
-    g.damp.frequency.value = 4200;
+    // Saturation is a stereo parallel path. At 0 dB the wet leg is muted,
+    // which makes the default exactly transparent instead of merely subtle.
+    g.satDry = ctx.createGain();
+    g.satPre = ctx.createGain();
+    g.satShape = ctx.createWaveShaper();
+    g.satShape.oversample = "4x";
+    g.satTone = ctx.createBiquadFilter();
+    g.satTone.type = "lowpass";
+    g.satWet = ctx.createGain();
+    g.fxBus = forceStereo(ctx.createGain());
+    g.pk.connect(g.satDry); g.satDry.connect(g.fxBus);
+    g.pk.connect(g.satPre); g.satPre.connect(g.satShape);
+    g.satShape.connect(g.satTone); g.satTone.connect(g.satWet); g.satWet.connect(g.fxBus);
 
-    g.pk.connect(g.comp);
-    g.pk.connect(g.delay);
-    g.delay.connect(g.damp);
-    g.damp.connect(g.fb);
-    g.fb.connect(g.delay);
-    g.delay.connect(g.wet);
-    g.wet.connect(g.comp);
+    // Dry path.
+    g.fxBus.connect(g.comp);
+
+    // Explicit left/right delay lines: the feedback loop never downmixes.
+    g.delaySplit = ctx.createChannelSplitter(2);
+    g.delayMerge = ctx.createChannelMerger(2);
+    g.delay = [ctx.createDelay(1.0), ctx.createDelay(1.0)];
+    g.fb = [ctx.createGain(), ctx.createGain()];
+    g.damp = [ctx.createBiquadFilter(), ctx.createBiquadFilter()];
+    g.delayWet = ctx.createGain();
+    g.fxBus.connect(g.delaySplit);
+    for (var dc = 0; dc < 2; dc++) {
+      g.damp[dc].type = "lowpass";
+      g.damp[dc].frequency.value = 4200;
+      g.delaySplit.connect(g.delay[dc], dc);
+      g.delay[dc].connect(g.damp[dc]);
+      g.damp[dc].connect(g.fb[dc]);
+      g.fb[dc].connect(g.delay[dc]);
+      g.delay[dc].connect(g.delayMerge, 0, dc);
+    }
+    g.delayMerge.connect(g.delayWet);
+    g.delayWet.connect(g.comp);
+
+    // Convolution also receives and returns two independent channels.
+    g.reverb = ctx.createConvolver();
+    g.reverbWet = ctx.createGain();
+    g.fxBus.connect(g.reverb);
+    g.reverb.connect(g.reverbWet);
+    g.reverbWet.connect(g.comp);
+
+    forceStereo(g.comp);
     g.comp.connect(g.master);
     g.master.connect(ctx.destination);
+    refreshSaturation(g);
+    refreshReverb(g);
 
     // ---- additive engine (sine bank + biquad) ----------------------------
     g.addGain = ctx.createGain();
@@ -920,8 +1085,10 @@
           processorOptions: preload || { params: voiceParams() }
         });
         g.vGain = ctx.createGain();
+        g.vPan = makePanner(ctx);
         g.vGain.gain.value = 0;
-        g.voice.connect(g.vGain);
+        g.voice.connect(g.vPan);
+        g.vPan.connect(g.vGain);
         g.vGain.connect(g.pk);
       } catch (e) { g.voice = null; }
     }
@@ -937,10 +1104,12 @@
             processorOptions: { params: { level: 0 } }
           });
           var xg = ctx.createGain();
+          var xp = makePanner(ctx);
           xg.gain.value = 0;
-          xv.connect(xg);
+          xv.connect(xp);
+          xp.connect(xg);
           xg.connect(g.pk);
-          g.extras.push({ node: xv, gain: xg });
+          g.extras.push({ node: xv, gain: xg, pan: xp });
         } catch (e2) { break; }
       }
     }
@@ -969,6 +1138,7 @@
     var f0 = toneFreq();
 
     if (g.voice) g.voice.port.postMessage({ type: "params", p: voiceParams() });
+    setPan(g.vPan, voicePan(tone.rgb, padTone.pos ? padTone.pos.x : 0, padTone.w), t, true);
 
     for (n = 0; n < NPART; n++) {
       g.parts[n].osc.frequency.setTargetAtTime(clamp(f0 * (n + 1), 10, 20000), t, tc);
@@ -981,7 +1151,17 @@
 
     g.pk.frequency.setTargetAtTime(clamp(filt.peakF, 40, 12000), t, 0.03);
     g.pk.gain.setTargetAtTime(filt.peakG, t, 0.03);
-    g.wet.gain.setTargetAtTime(S.space, t, 0.05);
+    var satMix = S.satGain / 24;
+    g.satDry.gain.setTargetAtTime(Math.cos(satMix * Math.PI / 2), t, 0.03);
+    g.satWet.gain.setTargetAtTime(Math.sin(satMix * Math.PI / 2), t, 0.03);
+    g.satPre.gain.setTargetAtTime(Math.pow(10, S.satGain / 20), t, 0.03);
+    g.satTone.frequency.setTargetAtTime(S.satTone, t, 0.03);
+    for (var dc = 0; dc < 2; dc++) {
+      g.delay[dc].delayTime.setTargetAtTime(S.delayTime, t, 0.02);
+      g.fb[dc].gain.setTargetAtTime(S.delayFeedback, t, 0.03);
+    }
+    g.delayWet.gain.setTargetAtTime(S.space * 0.72, t, 0.05);
+    g.reverbWet.gain.setTargetAtTime(S.space * 0.82, t, 0.05);
     g.master.gain.setTargetAtTime(S.vol, t, 0.03);
     setEngineGains(g);
   }
@@ -997,25 +1177,29 @@
       base: baseFreq(), cut: filt.cut, res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
-      release: envRelease(), glide: S.glide, spread: 0.6
+      release: envRelease(), glide: S.glide, spread: S.width
     };
     var norm = voiceNorm(), i, k;
     for (i = 0; i < A.extras.length; i++) {
       var p = null;
       if (i < n && engineIsAnalog(A) && padTone.pos) {
         var ang = 4.7124 + i * 2.0944;        // above, lower-right, lower-left
-        var rgb = padTone.sample(padTone.pos.x + Math.cos(ang) * S.spread,
-                                 padTone.pos.y + Math.sin(ang) * S.spread);
+        var sx = padTone.pos.x + Math.cos(ang) * S.spread;
+        var sy = padTone.pos.y + Math.sin(ang) * S.spread;
+        var rgb = padTone.sample(sx, sy);
         if (rgb) p = toneParamsFromRGB(rgb);
       }
       if (p) {
         var msg = {};
         for (k in shared) msg[k] = shared[k];
         for (k in p) msg[k] = p[k];
+        msg.ratio = p.ratio * voiceFineRatio(i + 1);
         msg.level = p.level * norm;
         A.extras[i].node.port.postMessage({ type: "params", p: msg });
+        setPan(A.extras[i].pan, voicePan(rgb, sx, padTone.w), A.ctx.currentTime, true);
       } else {
         A.extras[i].node.port.postMessage({ type: "params", p: { level: 0 } });
+        setPan(A.extras[i].pan, 0, A.ctx.currentTime, true);
       }
     }
   }
@@ -1033,7 +1217,18 @@
     g.lp.Q.setValueAtTime(filt.bypass ? 0.7 : filt.q, when);
     g.pk.frequency.setValueAtTime(clamp(filt.peakF, 40, 12000), when);
     g.pk.gain.setValueAtTime(filt.peakG, when);
-    g.wet.gain.setValueAtTime(S.space, when);
+    var satMix = S.satGain / 24;
+    g.satDry.gain.setValueAtTime(Math.cos(satMix * Math.PI / 2), when);
+    g.satWet.gain.setValueAtTime(Math.sin(satMix * Math.PI / 2), when);
+    g.satPre.gain.setValueAtTime(Math.pow(10, S.satGain / 20), when);
+    g.satTone.frequency.setValueAtTime(S.satTone, when);
+    for (var dc = 0; dc < 2; dc++) {
+      g.delay[dc].delayTime.setValueAtTime(S.delayTime, when);
+      g.fb[dc].gain.setValueAtTime(S.delayFeedback, when);
+    }
+    g.delayWet.gain.setValueAtTime(S.space * 0.72, when);
+    g.reverbWet.gain.setValueAtTime(S.space * 0.82, when);
+    setPan(g.vPan, voicePan(tone.rgb, padTone.pos ? padTone.pos.x : 0, padTone.w), when, false);
     g.master.gain.setValueAtTime(S.vol, when);
     setEngineGains(g, when);
   }
@@ -1191,7 +1386,8 @@
     this.liveOn = false;                // sampling the live camera instead of a photo
     this.motion = null;                 // armed motion: recorded gesture / line / circle
     this.auto = null;                   // a motion currently replaying on this pad
-    this.recCap = null;                 // gesture being captured (Rec mode)
+    this.recArmed = false;              // this pad alone records on its next touch
+    this.recCap = null;                 // gesture currently being captured
     this.recP2 = null;                  // second finger of a two-finger shape define
   }
 
@@ -1312,7 +1508,7 @@
     g.restore();
   };
 
-  /* Live preview while two fingers define a line or circle in Rec mode. */
+  /* Live preview while two fingers define a line or circle for this pad. */
   Pad.prototype.drawShapePreview = function (g) {
     var x0 = this.recCap.x0, y0 = this.recCap.y0;
     var p2 = this.recP2.pos;
@@ -1424,14 +1620,6 @@
     updateReadouts();
   }
 
-  /* Reset the modifier pads when they let go. */
-  function padRelease(pad) {
-    if (pad.key === "tone") return;
-    if (pad.key === "filter") computeFilter(null); else computeEnv(null);
-    pushAudio();
-    updateReadouts();
-  }
-
   function padTitle(pad) {
     return pad.key === "tone" ? "Tone" : pad.key === "filter" ? "Filter" : "Envelope";
   }
@@ -1473,6 +1661,17 @@
     return { x: clamp(x, 0, pad.w), y: clamp(y, 0, pad.h) };
   }
 
+  /* Any new note re-phases every running motion, so a phrase lands the same
+   * way each time. Independent of latch. */
+  function retriggerMotion(except) {
+    var now = performance.now();
+    pads.forEach(function (p) {
+      if (!p.motion || p === except) return;
+      if (p.auto) p.auto.t0 = now;
+      else p.auto = startAuto(p, p.pos || { x: p.w / 2, y: p.h / 2 });
+    });
+  }
+
   function motionLabel(m) {
     if (!m) return "no motion armed";
     if (m.kind === "recorded") return "gesture · " + m.dur.toFixed(1) + " s loop";
@@ -1496,7 +1695,7 @@
     cv.addEventListener("pointerdown", function (ev) {
       ev.preventDefault();
 
-      if (UI.mode === "rec") {
+      if (pad.recArmed) {
         if (pad.pointerId === null) {
           pad.pointerId = ev.pointerId;
           try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
@@ -1528,6 +1727,7 @@
       pad.pos = localPoint(pad, ev);
       pad.dirty = true;
       pad.auto = pad.motion ? startAuto(pad, pad.pos) : null;
+      retriggerMotion(pad);
       apply(pad);
       if (pad.key === "tone") { clearTimeout(legatoTimer); gates.pad = true; updateGate(); }
     }, { passive: false });
@@ -1541,7 +1741,9 @@
       }
       if (pad.pointerId !== ev.pointerId) return;
       ev.preventDefault();
-      if (pad.auto) return;                       // the motion owns the cursor
+      // A tap starts the saved loop; moving the same pointer takes manual
+      // control immediately. The motion remains saved for the next tap.
+      if (pad.auto) pad.auto = null;
       pad.pos = localPoint(pad, ev);
       pad.dirty = true;
       if (pad.recCap) {
@@ -1555,14 +1757,24 @@
     }, { passive: false });
 
     function end(ev) {
-      if (pad.recP2 && ev.pointerId === pad.recP2.id) return;   // keep its last position
+      if (pad.recP2 && ev.pointerId === pad.recP2.id) {
+        if (ev.type !== "pointerup") pad.recP2 = null;
+        return;                                     // pointerup keeps its shape endpoint
+      }
       if (pad.pointerId !== ev.pointerId) return;
       pad.pointerId = null;
       pad.active = false;
       pad.dirty = true;
       try { cv.releasePointerCapture(ev.pointerId); } catch (e) {}
 
-      if (pad.recCap) {
+      var armed = false;
+      var cancelled = ev.type === "pointercancel" || ev.type === "lostpointercapture";
+      if (pad.recCap && cancelled) {
+        pad.recCap = null;
+        pad.recP2 = null;
+        setRecArm(pad, false);
+        showToast("Motion recording cancelled on " + padTitle(pad));
+      } else if (pad.recCap) {
         var cap = pad.recCap;
         pad.recCap = null;
         if (pad.recP2) {
@@ -1570,9 +1782,10 @@
           pad.recP2 = null;
           if (Math.hypot(dx, dy) > 8) {
             pad.motion = { kind: S.twoShape, dx: dx, dy: dy };
+            pad.auto = startAuto(pad, { x: cap.x0, y: cap.y0 });
+            armed = true;
             updateMotionUI();
-            showToast((S.twoShape === "circle" ? "Circle" : "Line") + " armed on " + padTitle(pad) + " — touch it in Play");
-            setMode("play");
+            showToast((S.twoShape === "circle" ? "Circle" : "Line") + " running on " + padTitle(pad));
           }
         } else {
           var dur = (performance.now() - cap.t0) / 1000, len = 0, i;
@@ -1582,25 +1795,29 @@
           if (dur > 0.15 && len > 12) {
             cap.pts.push({ t: dur, dx: cap.pts[cap.pts.length - 1].dx, dy: cap.pts[cap.pts.length - 1].dy });
             pad.motion = { kind: "recorded", pts: cap.pts, dur: dur };
+            pad.auto = startAuto(pad, { x: cap.x0, y: cap.y0 });
+            armed = true;
             updateMotionUI();
-            showToast("Motion recorded on " + padTitle(pad) + " — touch it in Play to replay");
-            setMode("play");
+            showToast("Motion looping on " + padTitle(pad) + " — " + dur.toFixed(1) + " s");
           }
         }
+        setRecArm(pad, false);
+        if (!armed) showToast("Motion was too short — arm " + padTitle(pad) + " Rec and try again");
       }
 
-      if (!pad.latched) pad.auto = null;
+      if (!pad.latched && !armed) pad.auto = null;
       if (pad.key === "tone") {
         if (S.legato > 0.005 && !pad.latched) {
           clearTimeout(legatoTimer);
           legatoTimer = setTimeout(function () { gates.pad = false; updateGate(); }, S.legato * 1000);
         } else { gates.pad = false; updateGate(); }
-      } else if (!pad.latched) {
-        padRelease(pad);
       }
+      // Filter and Envelope are settings, not gestures: they keep the colour
+      // you left them on, so the cursor and the sound never disagree.
     }
     cv.addEventListener("pointerup", end);
     cv.addEventListener("pointercancel", end);
+    cv.addEventListener("lostpointercapture", end);
     cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   }
   pads.forEach(attach);
@@ -1615,16 +1832,49 @@
         apply(pad);
         if (pad.key === "tone" && !audioOn) setPower(true);
       }
-    } else {
-      if (!pad.active) pad.auto = null;
-      if (!pad.active && pad.key !== "tone") padRelease(pad);
-    }
+    } else if (!pad.active) {
+      pad.auto = null;                  // latch off stops the motion, but the
+    }                                   // colour under the cursor still stands
     updateGate();
   }
   Array.prototype.forEach.call(document.querySelectorAll("[data-latch]"), function (b) {
     b.addEventListener("click", function () {
-      var pad = b.getAttribute("data-latch") === "tone" ? padTone : padFilter;
+      var pad = padOf(b.getAttribute("data-latch"));
       setLatch(pad, !pad.latched);
+    });
+  });
+
+  /* ---- per-pad motion recording -------------------------------------- */
+  function setRecArm(pad, on) {
+    on = !!on;
+    if (on) {
+      // Arming is destructive only for this pad: its old loop must release
+      // the cursor before a new take can be captured.
+      pad.auto = null;
+      pad.motion = null;
+      pad.recCap = null;
+      pad.recP2 = null;
+      updateMotionUI();
+    }
+    pad.recArmed = on;
+    var b = document.querySelector('[data-recarm="' + pad.key + '"]');
+    if (b) b.setAttribute("aria-pressed", on ? "true" : "false");
+    var box = $("pad-" + pad.key);
+    if (box) box.classList.toggle("recarmed", on);
+    var hint = $("hint-" + pad.key);
+    if (hint) {
+      hint.textContent = on ? "Draw a motion — or two fingers for a " + S.twoShape
+                            : pad.key === "tone" ? "Drag anywhere to play"
+                            : pad.key === "filter" ? "Touch to filter"
+                            : "Touch to shape the envelope";
+      hint.style.display = on || !pad.pos ? "" : "none";
+    }
+    pad.dirty = true;
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-recarm]"), function (b) {
+    b.addEventListener("click", function () {
+      var pad = padOf(b.getAttribute("data-recarm"));
+      setRecArm(pad, !pad.recArmed);
     });
   });
 
@@ -1804,6 +2054,7 @@
       if (!audioOn) setPower(true); else ensureAudio();
       setBase(note);
       gates.key = true;
+      retriggerMotion();
       updateGate();
       kb.dirty = true;
     }, { passive: false });
@@ -1814,6 +2065,7 @@
       if (note === null || note === kb.down[ev.pointerId]) return;
       kb.down[ev.pointerId] = note;                 // glissando
       setBase(note);
+      retriggerMotion();
       kb.dirty = true;
     }, { passive: false });
     function up(ev) {
@@ -1827,8 +2079,16 @@
     }
     cv.addEventListener("pointerup", up);
     cv.addEventListener("pointercancel", up);
+    cv.addEventListener("lostpointercapture", up);
     cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   })();
+
+  function releaseKeyboardPointers() {
+    kb.down = {};
+    gates.key = kbHeld().length > 0;
+    kb.dirty = true;
+    updateGate();
+  }
 
   // Physical keyboard, two octaves from the leftmost key.
   var KEYMAP = { z:0, s:1, x:2, d:3, c:4, v:5, g:6, b:7, h:8, n:9, j:10, m:11,
@@ -1846,6 +2106,7 @@
     if (!audioOn) setPower(true); else ensureAudio();
     setBase(note);
     gates.key = true;
+    retriggerMotion();
     updateGate();
     kb.dirty = true;
   });
@@ -1858,6 +2119,30 @@
     else { gates.key = false; updateGate(); }
     kb.dirty = true;
   });
+
+  /* Browsers do not guarantee a final pointerup/keyup when focus moves to a
+   * system gesture, another tab or an alert. Clear every held input so the
+   * visual key and gate cannot remain stuck after returning. */
+  function releaseAllInputs() {
+    kb.down = {};
+    kb.keysDown = {};
+    kb.dirty = true;
+    pads.forEach(function (pad) {
+      pad.pointerId = null;
+      pad.active = false;
+      pad.recP2 = null;
+      if (pad.recCap) {
+        pad.recCap = null;
+        setRecArm(pad, false);
+      }
+      if (!pad.latched) pad.auto = null;
+      pad.dirty = true;
+    });
+    gates.key = false;
+    gates.pad = false;
+    updateGate();
+  }
+  window.addEventListener("blur", releaseAllInputs);
 
   /* ================================================================== *
    * Spectrum strip
@@ -2103,11 +2388,16 @@
   Array.prototype.forEach.call(document.querySelectorAll("[data-pick]"), function (b) {
     b.addEventListener("click", function () { $("file-" + b.getAttribute("data-pick")).click(); });
   });
-  ["tone-camera", "tone-library", "filter-camera", "filter-library"].forEach(function (id) {
+  ["tone-camera", "tone-library", "filter-camera", "filter-library",
+   "env-camera", "env-library"].forEach(function (id) {
     $("file-" + id).addEventListener("change", function (ev) {
-      var key = id.indexOf("tone") === 0 ? "tone" : "filter";
-      loadFile(key, ev.target.files && ev.target.files[0]);
-      ev.target.value = "";
+      var input = ev.target;
+      var file = input.files && input.files[0];
+      // Clear the input only once the file has been read: iOS can invalidate
+      // the blob when the input is reset, which loses camera shots entirely.
+      Promise.resolve(loadFile(id.split("-")[0], file)).then(function () {
+        input.value = "";
+      });
     });
   });
 
@@ -2261,7 +2551,8 @@
   });
 
   /* ================================================================== *
-   * Global modes: Play (clean), Edit (all controls), Rec (arm motion)
+   * Global modes: Play (clean) and Edit (all controls). Motion recording
+   * is armed independently from each pad header.
    * ================================================================== */
   var toastEl = document.createElement("div");
   toastEl.className = "toast";
@@ -2275,7 +2566,6 @@
   }
 
   function setMode(m) {
-    var prev = UI.mode;
     UI.mode = m;
     document.body.setAttribute("data-mode", m);
     Array.prototype.forEach.call(document.querySelectorAll("[data-mode-btn]"), function (b) {
@@ -2285,24 +2575,13 @@
       var p = $("kbdPanel");
       if (!p.hidden) {
         p.hidden = true;
+        releaseKeyboardPointers();
         $("keysBtn").setAttribute("aria-pressed", "false");
         requestAnimationFrame(fitKeyboard);
       }
     } else {
       scopeSig = "";                     // redraw the spectrum strip on return
     }
-    pads.forEach(function (pad) {
-      var hint = $("hint-" + pad.key);
-      if (!hint) return;
-      if (m === "rec") {
-        hint.style.display = "";
-        hint.textContent = "Draw a motion — or two fingers for a " + S.twoShape;
-      } else if (prev === "rec") {
-        hint.style.display = "none";
-      }
-      // leaving Rec mid-capture must not leave a half-recorded state behind
-      if (m !== "rec") { pad.recCap = null; pad.recP2 = null; }
-    });
   }
   Array.prototype.forEach.call(document.querySelectorAll("[data-mode-btn]"), function (b) {
     b.addEventListener("click", function () { setMode(b.getAttribute("data-mode-btn")); });
@@ -2545,6 +2824,7 @@
     }
     if (note !== midiLastNote) {
       midiLastNote = note;
+      if (note !== null) retriggerMotion();
       if (note !== null) { setBase(note, false); }
     }
   }
@@ -2698,7 +2978,9 @@
     var OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!OC || !midi.events.length) return null;
     var sr = 48000;
-    var tail = 1.0 + S.release + (S.space > 0.02 ? 2.0 : 0.2);
+    var delayTail = S.delayFeedback > 0.01
+      ? S.delayTime * Math.max(1, Math.log(0.001) / Math.log(S.delayFeedback)) : S.delayTime;
+    var tail = 1.0 + S.release + (S.space > 0.02 ? Math.max(S.reverbLength, delayTail) : 0.2);
     var dur = midi.dur / midi.rate + tail;
     var oc = new OC(2, Math.ceil(dur * sr), sr);
     var hasW = false;
@@ -2815,6 +3097,39 @@
     $("spaceOut").textContent = e.target.value + " %";
     pushAudio();
   });
+  $("delayTime").addEventListener("input", function (e) {
+    S.delayTime = parseInt(e.target.value, 10) / 1000;
+    $("delayTimeOut").textContent = e.target.value + " ms";
+    pushAudio();
+  });
+  $("delayFeedback").addEventListener("input", function (e) {
+    S.delayFeedback = parseInt(e.target.value, 10) / 100;
+    $("delayFeedbackOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("reverbType").addEventListener("change", function (e) {
+    S.reverbType = e.target.value;
+    refreshReverb(A);
+  });
+  var reverbTimer = null;
+  $("reverbLength").addEventListener("input", function (e) {
+    S.reverbLength = parseInt(e.target.value, 10) / 100;
+    $("reverbLengthOut").textContent = S.reverbLength.toFixed(2) + " s";
+    clearTimeout(reverbTimer);
+    reverbTimer = setTimeout(function () { refreshReverb(A); }, 100);
+  });
+  $("satGain").addEventListener("input", function (e) {
+    S.satGain = parseInt(e.target.value, 10);
+    $("satGainOut").textContent = S.satGain ? "+" + S.satGain + " dB" : "off";
+    refreshSaturation(A);
+    pushAudio();
+  });
+  $("satTone").addEventListener("input", function (e) {
+    var u = parseInt(e.target.value, 10) / 100;
+    S.satTone = 800 * Math.pow(18000 / 800, u);
+    $("satToneOut").textContent = S.satTone >= 1000 ? (S.satTone / 1000).toFixed(1) + " kHz" : Math.round(S.satTone) + " Hz";
+    pushAudio();
+  });
   $("legato").addEventListener("input", function (e) {
     S.legato = e.target.value / 200;               // 0 .. 500 ms
     $("legatoOut").textContent = S.legato < 0.005 ? "off" : Math.round(S.legato * 1000) + " ms";
@@ -2827,6 +3142,15 @@
   $("spread").addEventListener("input", function (e) {
     S.spread = parseInt(e.target.value, 10);
     $("spreadOut").textContent = S.spread + " px";
+    pushAudio();
+  });
+  $("width").addEventListener("input", function (e) {
+    S.width = parseInt(e.target.value, 10) / 100;
+    $("widthOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("panMode").addEventListener("change", function (e) {
+    S.panMode = e.target.value;
     pushAudio();
   });
   $("padsize").addEventListener("input", function (e) {
@@ -2853,6 +3177,7 @@
   $("keysBtn").addEventListener("click", function () {
     var p = $("kbdPanel"), show = p.hidden;
     p.hidden = !show;
+    if (!show) releaseKeyboardPointers();
     $("keysBtn").setAttribute("aria-pressed", show ? "true" : "false");
     if (show) { kb.w = 0; kb.dirty = true; }
     requestAnimationFrame(fitKeyboard);
@@ -2876,6 +3201,30 @@
     else { computeFilter(filt.rgb); pushAudio(); updateReadouts(); }
   }
 
+  // A deliberately opt-in hook for the browser measurement harness. It is
+  // absent on the published URL unless ?photosynth-test=1 is supplied.
+  if (/[?&]photosynth-test=1(?:&|$)/.test(location.search)) {
+    window.__photoSynthTest = {
+      settings: S,
+      buildChain: buildChain,
+      applyStatic: applyStatic,
+      voiceParams: voiceParams,
+      computeTone: computeTone,
+      computeFilter: computeFilter,
+      refreshReverb: refreshReverb,
+      refreshSaturation: refreshSaturation,
+      voicePan: voicePan,
+      state: function () {
+        return pads.map(function (p) {
+          return { key: p.key, active: p.active, pointerId: p.pointerId,
+                   recArmed: p.recArmed, recording: !!p.recCap,
+                   motion: p.motion && p.motion.kind, auto: !!p.auto };
+        });
+      },
+      releaseAllInputs: releaseAllInputs
+    };
+  }
+
   /* ================================================================== *
    * Boot
    * ================================================================== */
@@ -2891,8 +3240,9 @@
   })();
 
   (function initControls() {
-    ["octaves", "glide", "drive", "attack", "release", "legato", "voices", "spread",
-     "padsize", "space", "vol", "rate", "mspeed"].forEach(function (id) {
+    ["octaves", "glide", "drive", "attack", "release", "legato", "voices", "spread", "width",
+     "padsize", "space", "delayTime", "delayFeedback", "reverbLength", "satGain", "satTone",
+     "vol", "rate", "mspeed"].forEach(function (id) {
       var el = $(id);
       if (el) el.dispatchEvent(new Event("input"));
     });
@@ -2913,6 +3263,7 @@
   requestAnimationFrame(frame);
 
   document.addEventListener("visibilitychange", function () {
+    if (document.hidden) releaseAllInputs();
     if (document.hidden && !midi.playing && !padTone.latched && !keyHold) setGate(false);
   });
 })();
