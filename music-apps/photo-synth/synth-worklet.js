@@ -108,6 +108,26 @@ class VoiceProcessor extends AudioWorkletProcessor {
     var L = out[0], R = out.length > 1 ? out[1] : out[0], n = L.length;
     var fs = this.fs, p = this.p, i, k;
 
+    // Idle short-circuit: a released voice whose envelope has died, with no
+    // event due in this block, contributes exact silence — skip the DSP so
+    // a bank of pooled voices only costs what is actually sounding. The
+    // smoothers are snapped to their targets so the voice wakes up in the
+    // right state, and a couple of live blocks are required first so filter
+    // and decimator tails are flushed before the skipping starts.
+    if (!this.gate && this.env < 1e-5 &&
+        (!this.events.length || this.events[0].frame >= currentFrame + n)) {
+      this.quiet = (this.quiet || 0) + 1;
+      if (this.quiet > 2) {
+        this.env = 0; this.stage = 0; this.pg = 0;
+        this.f0 = p.base * p.ratio; this.morph = p.morph; this.pulse = p.pulse;
+        this.detune = p.detune; this.level = p.level; this.cut = p.cut; this.res = p.res;
+        for (i = 0; i < n; i++) { L[i] = 0; R[i] = 0; }
+        return true;
+      }
+    } else {
+      this.quiet = 0;
+    }
+
     // Per-block coefficients: parameter smoothing and the analogue wobble.
     var aSmooth = 1 - Math.exp(-1 / (0.006 * sampleRate));
     var glide = Math.max(0.0015, p.glide);
