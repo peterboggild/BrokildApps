@@ -1,0 +1,11 @@
+{
+  "slug": "photo-synth",
+  "name": "Photo Synth",
+  "description": "Play two photos: drag across one and the colour under your finger becomes a tone; touch the other and its colour drives a virtual-analog ladder filter. Camera or camera roll, on-screen keyboard, MIDI import and 24-bit WAV export.",
+  "status": "live",
+  "url": "music-apps/photo-synth/index.html",
+  "icon": "wave",
+  "preview": "assets/app-previews/photo-synth.svg",
+  "note": "On iPhone, sound follows the ring/silent switch.",
+  "tags": ["music", "camera", "phone"]
+}
