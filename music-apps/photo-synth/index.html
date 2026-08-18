@@ -117,7 +117,6 @@
   input[type=file]{display:none}
 
   /* ---------- FX matrix corner selectors ---------- */
-  #hint-fx{inset:50% 8px auto;transform:translateY(-50%)}
   .fxsel{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
   .fxsel .c{display:flex;align-items:center;gap:6px;min-width:0}
   .fxsel .cdot{width:10px;height:10px;border-radius:50%;flex:none;border:1px solid rgba(255,255,255,.25)}
@@ -193,6 +192,11 @@
   .fx-toggle[aria-expanded="true"]::after{content:"–"}
   .fx-move{display:flex;gap:3px;flex:none}
   .fx-move .btn{padding:5px 7px;font-size:12px;border-radius:7px}
+  .fx-power{padding:5px 8px;font-size:13px;border-radius:7px;line-height:1}
+  .fx-power[aria-pressed="false"]{color:var(--faint)}
+  .fx-power[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .fx-module.fx-off{opacity:.7}
+  .fx-module.fx-off .fx-name{color:var(--faint)}
   .fx-controls{padding:0 10px 8px;border-top:1px solid var(--line-soft)}
   .fx-controls .row label{flex-basis:104px}
   .fx-help{font-size:11px;color:var(--faint);padding:4px 0 2px}
@@ -352,23 +356,31 @@
 
   <div class="pad" id="pad-fx">
     <div class="padhead">
-      <span class="padname"><b>4 · FX Matrix</b> — corners → effect blend</span>
-      <span class="padtools"><button class="btn latch" id="fxReset" type="button">Reset</button></span>
+      <span class="padname"><b>4 · FX</b> — red · green · blue → three effects<span class="autoflag" id="auto-fx">AUTO</span></span>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="fx" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="fx" aria-pressed="false">Latch</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-fx"></canvas>
-      <div class="hint" id="hint-fx">Drag to blend the corner effects</div>
+      <div class="hint" id="hint-fx">Touch to drive the effects</div>
     </div>
     <div class="readout">
       <span class="swatch" id="swatch-fx"></span>
-      <span class="vals" id="vals-fx">—<span class="sub">each corner drives the effect chosen below</span></span>
+      <span class="vals" id="vals-fx">—<span class="sub">red, green and blue drive the effects below</span></span>
+    </div>
+    <div class="padbtns">
+      <button class="btn" type="button" data-pick="fx-camera">Camera</button>
+      <button class="btn" type="button" data-pick="fx-library">Photos</button>
+      <button class="btn" type="button" data-demo="fx">Demo</button>
+      <button class="btn" type="button" data-live="fx" aria-pressed="false">Live</button>
     </div>
     <div class="fxsel">
-      <label class="c"><span class="cdot" style="background:#3ddc84"></span><select id="fxCorner0" aria-label="Green corner (top left) effect"></select></label>
-      <label class="c"><span class="cdot" style="background:#ff5252"></span><select id="fxCorner1" aria-label="Red corner (top right) effect"></select></label>
-      <label class="c"><span class="cdot" style="background:#ffd24a"></span><select id="fxCorner2" aria-label="Yellow corner (bottom left) effect"></select></label>
-      <label class="c"><span class="cdot" style="background:#4aa3ff"></span><select id="fxCorner3" aria-label="Blue corner (bottom right) effect"></select></label>
+      <label class="c"><span class="cdot" style="background:#ff5252"></span><select id="fxChan0" aria-label="Red channel effect"></select></label>
+      <label class="c"><span class="cdot" style="background:#3ddc84"></span><select id="fxChan1" aria-label="Green channel effect"></select></label>
+      <label class="c"><span class="cdot" style="background:#4aa3ff"></span><select id="fxChan2" aria-label="Blue channel effect"></select></label>
+      <button class="btn" id="fxReset" type="button">Reset</button>
     </div>
+    <input type="file" id="file-fx-camera" accept="image/*" capture="environment">
+    <input type="file" id="file-fx-library" accept="image/*">
   </div>
 </section>
 
@@ -446,6 +458,16 @@
       <label for="release">Release</label>
       <div class="ctl"><input id="release" type="range" min="0" max="100" value="30"></div>
       <output id="releaseOut">180 ms</output>
+    </div>
+    <div class="row">
+      <label for="envAmp">Env → Amp</label>
+      <div class="ctl"><input id="envAmp" type="range" min="0" max="100" value="100"></div>
+      <output id="envAmpOut">100 %</output>
+    </div>
+    <div class="row">
+      <label for="envFlt">Env → Filter</label>
+      <div class="ctl"><input id="envFlt" type="range" min="0" max="100" value="0"></div>
+      <output id="envFltOut">off</output>
     </div>
     <div class="row">
       <label for="legato">Legato</label>
@@ -542,7 +564,7 @@
         <div class="fx-head">
           <button class="fx-grip" type="button" aria-label="Drag Tube saturation">⋮⋮</button>
           <button class="fx-toggle" type="button" aria-expanded="true"><span class="fx-index">01</span><span class="fx-name">Tube</span><span class="fx-sub">asymmetric soft saturation</span></button>
-          <span class="fx-move"><button class="btn" type="button" data-fx-up aria-label="Move Tube up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Tube down">↓</button></span>
+          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="true" aria-label="Tube on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Tube up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Tube down">↓</button></span>
         </div>
         <div class="fx-controls">
           <div class="row">
@@ -563,7 +585,7 @@
         <div class="fx-head">
           <button class="fx-grip" type="button" aria-label="Drag Delay">⋮⋮</button>
           <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">02</span><span class="fx-name">Delay</span><span class="fx-sub">stereo echo</span></button>
-          <span class="fx-move"><button class="btn" type="button" data-fx-up aria-label="Move Delay up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Delay down">↓</button></span>
+          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="true" aria-label="Delay on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Delay up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Delay down">↓</button></span>
         </div>
         <div class="fx-controls" hidden>
           <div class="row">
@@ -581,6 +603,16 @@
             <div class="ctl"><input id="delayFeedback" type="range" min="0" max="85" value="34"></div>
             <output id="delayFeedbackOut">34 %</output>
           </div>
+          <div class="row">
+            <label for="delayChar">Character</label>
+            <div class="ctl"><select id="delayChar">
+              <option value="clean" selected>Clean — digital repeats</option>
+              <option value="tape">Tape — soft, dark, wobbly</option>
+            </select></div>
+          </div>
+          <div class="note">Tape runs the feedback loop through gentle saturation, darker damping,
+            a low cut and a slow wow, so every repeat gets softer, dirtier and slightly unstable —
+            like a worn analog echo.</div>
         </div>
       </section>
 
@@ -588,7 +620,7 @@
         <div class="fx-head">
           <button class="fx-grip" type="button" aria-label="Drag Reverb">⋮⋮</button>
           <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">03</span><span class="fx-name">Reverb</span><span class="fx-sub">stereo convolution space</span></button>
-          <span class="fx-move"><button class="btn" type="button" data-fx-up aria-label="Move Reverb up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Reverb down">↓</button></span>
+          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="true" aria-label="Reverb on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Reverb up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Reverb down">↓</button></span>
         </div>
         <div class="fx-controls" hidden>
           <div class="row">
@@ -609,6 +641,82 @@
             <div class="ctl"><input id="reverbLength" type="range" min="20" max="600" value="180"></div>
             <output id="reverbLengthOut">1.80 s</output>
           </div>
+        </div>
+      </section>
+
+      <section class="fx-module" data-fx="phaser">
+        <div class="fx-head">
+          <button class="fx-grip" type="button" aria-label="Drag Phaser">⋮⋮</button>
+          <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">04</span><span class="fx-name">Phaser</span><span class="fx-sub">vintage 4-stage sweep</span></button>
+          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="false" aria-label="Phaser on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Phaser up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Phaser down">↓</button></span>
+        </div>
+        <div class="fx-controls" hidden>
+          <div class="row">
+            <label for="phaserMix">Mix</label>
+            <div class="ctl"><input id="phaserMix" type="range" min="0" max="100" value="35"></div>
+            <output id="phaserMixOut">35 %</output>
+          </div>
+          <div class="row">
+            <label for="phaserRate">Rate</label>
+            <div class="ctl"><input id="phaserRate" type="range" min="5" max="200" value="40"></div>
+            <output id="phaserRateOut">0.40 Hz</output>
+          </div>
+          <div class="row">
+            <label for="phaserDepth">Depth</label>
+            <div class="ctl"><input id="phaserDepth" type="range" min="0" max="100" value="55"></div>
+            <output id="phaserDepthOut">55 %</output>
+          </div>
+          <div class="note">Four swept all-pass stages with a little feedback — the slow, hollow
+            swoosh of a seventies stomp box.</div>
+        </div>
+      </section>
+
+      <section class="fx-module" data-fx="chorus">
+        <div class="fx-head">
+          <button class="fx-grip" type="button" aria-label="Drag Chorus">⋮⋮</button>
+          <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">05</span><span class="fx-name">Chorus</span><span class="fx-sub">vintage dual-line ensemble</span></button>
+          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="false" aria-label="Chorus on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Chorus up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Chorus down">↓</button></span>
+        </div>
+        <div class="fx-controls" hidden>
+          <div class="row">
+            <label for="chorusMix">Mix</label>
+            <div class="ctl"><input id="chorusMix" type="range" min="0" max="100" value="40"></div>
+            <output id="chorusMixOut">40 %</output>
+          </div>
+          <div class="row">
+            <label for="chorusRate">Rate</label>
+            <div class="ctl"><input id="chorusRate" type="range" min="5" max="300" value="45"></div>
+            <output id="chorusRateOut">0.45 Hz</output>
+          </div>
+          <div class="row">
+            <label for="chorusDepth">Depth</label>
+            <div class="ctl"><input id="chorusDepth" type="range" min="0" max="100" value="50"></div>
+            <output id="chorusDepthOut">50 %</output>
+          </div>
+          <div class="note">Two modulated delay lines in opposite phase, with the wet path rolled
+            off dark like an old bucket-brigade unit.</div>
+        </div>
+      </section>
+
+      <section class="fx-module" data-fx="stutter">
+        <div class="fx-head">
+          <button class="fx-grip" type="button" aria-label="Drag Stutter">⋮⋮</button>
+          <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">06</span><span class="fx-name">Stutter</span><span class="fx-sub">rhythmic gate chop</span></button>
+          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="false" aria-label="Stutter on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Stutter up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Stutter down">↓</button></span>
+        </div>
+        <div class="fx-controls" hidden>
+          <div class="row">
+            <label for="stutterAmt">Amount</label>
+            <div class="ctl"><input id="stutterAmt" type="range" min="0" max="100" value="60"></div>
+            <output id="stutterAmtOut">60 %</output>
+          </div>
+          <div class="row">
+            <label for="stutterRate">Rate</label>
+            <div class="ctl"><input id="stutterRate" type="range" min="10" max="160" value="80"></div>
+            <output id="stutterRateOut">8.0 Hz</output>
+          </div>
+          <div class="note">A smoothed rhythmic gate chops the signal — amount blends between solid
+            and fully chopped. Put it before the delay and reverb so the tails survive the cuts.</div>
         </div>
       </section>
     </div>
@@ -633,6 +741,11 @@
       <span class="lab">Photo 3 · Env</span>
       <span class="info" id="motion-env">no motion armed</span>
       <div class="ctl seg" style="flex:0 0 auto"><button class="btn" id="clearMotion-env" type="button">Clear</button></div>
+    </div>
+    <div class="row">
+      <span class="lab">Photo 4 · FX</span>
+      <span class="info" id="motion-fx">no motion armed</span>
+      <div class="ctl seg" style="flex:0 0 auto"><button class="btn" id="clearMotion-fx" type="button">Clear</button></div>
     </div>
     <div class="row">
       <span class="lab">Two fingers</span>
@@ -676,19 +789,22 @@
       snappier — from a 1.5 s swell down to 2 ms), <b>green sets the sustain level</b> (how loud a
       held note stays), and <b>blue sets the decay and release</b> (from 30 ms up to a 4 s tail).
       Untouched, the sliders under Sound rule. It is latchable and automatable like the others.
-      <b>Legato</b> (under Sound) keeps the envelope alive for a moment after you lift, so tapping
-      from colour to colour glides instead of retriggering every note.</p>
+      Two sliders under Sound choose what the envelope acts on: <b>Env → Amp</b> is how much it
+      shapes loudness (below 100 % the level blends toward a plain click-free gate), and
+      <b>Env → Filter</b> sweeps the filter cut-off with the envelope — up to five octaves at
+      full, closing when the envelope is down and landing on the filter setting at its peak
+      (analog engine). <b>Legato</b> keeps the envelope alive for a moment after you lift, so
+      tapping from colour to colour glides instead of retriggering every note.</p>
 
-    <h3>FX matrix (pad 4)</h3>
-    <p>The square next to the envelope photo blends four effect parameters at once. Each corner
-      — <b>green</b> (top left), <b>red</b> (top right), <b>yellow</b> (bottom left) and
-      <b>blue</b> (bottom right) — is assigned to a parameter with the pull-down menus under the
-      square (delay, reverb, tube, drive, width or glide). A corner's parameter is at <b>full</b>
-      anywhere in its own quarter of the square and still at full in the exact <b>centre</b>, where
-      all four meet at 100 %; from there it eases smoothly down to <b>zero</b> at the three
-      opposing corners. The field shows the same blend as colour. The matrix writes straight into
-      the sliders in Edit, so lifting your finger keeps the mix where you left it; <b>Reset</b>
-      puts the four assigned sliders back to their defaults.</p>
+    <h3>FX photo (pad 4)</h3>
+    <p>The fourth pad is a photo like the others — camera, camera roll, demo, live feed, latch and
+      motion recording all work on it. The colour under the cursor drives <b>three effect
+      parameters</b>, chosen with the pull-down menus under the pad: the <b>red</b> channel's
+      strength sets the first, <b>green</b> the second, <b>blue</b> the third. Black means all
+      three off, pure white means all three at 100 %, and everything in between blends. The values
+      are written straight into the sliders in Edit, so lifting your finger keeps them where you
+      left them; <b>Reset</b> puts the three assigned sliders back to their defaults. Note that a
+      parameter only sounds if its effect module is switched on in the Effects panel.</p>
 
     <h3>Voices — Mono/Unison and Polyphonic</h3>
     <p><b>Voice mode</b> (Sound) chooses how the sixteen-voice pool is used. In
@@ -708,12 +824,18 @@
       voices actually sounding burn CPU.</p>
 
     <h3>Effects</h3>
-    <p>The Effects panel is a real serial signal chain. Drag the handle to put the tube stage,
-      two-channel delay and convolution reverb in any order; tap a module to expand its controls.
-      The order is remembered on this device. Every module and feedback loop preserves the stereo
-      image created by the oscillators and polyphonic voice panning. The tube stage is
-      <b>loudness-compensated</b>: its wet path is trimmed by the measured gain of the saturation
-      curve, so turning drive up thickens the tone without getting louder.</p>
+    <p>The Effects panel is a real serial signal chain of six modules: the tube stage, a vintage
+      <b>phaser</b> (four swept all-pass stages with feedback), a vintage <b>chorus</b> (two
+      opposite-phase modulated delay lines, rolled off dark), a rhythmic <b>stutter</b> gate, the
+      two-channel delay and the convolution reverb. Drag the handle to reorder; tap a module to
+      expand its controls. Each module has a <b>⏻ power switch</b>: a switched-off module is
+      removed from the audio graph entirely, so bypassing modules genuinely reduces CPU load — the
+      phaser, chorus and stutter start switched off. The delay's <b>Character</b> switch chooses
+      clean digital repeats or a <b>tape</b> mode that runs the feedback loop through soft
+      saturation, darker damping, a low cut and a slow wow, so every repeat comes back softer,
+      dirtier and slightly unstable. The order and switches are remembered on this device. Every
+      module preserves the stereo image, and the tube stage is <b>loudness-compensated</b>: drive
+      thickens the tone without getting louder.</p>
 
     <h3>Presets</h3>
     <p>The <b>Presets</b> panel saves the whole instrument: every control, the effect order, the FX
@@ -919,10 +1041,20 @@
     attack: 0.012,
     release: 0.180,
     fmode: "lowpass",
-    fxOrder: ["saturation", "delay", "reverb"],
+    fxOrder: ["saturation", "phaser", "chorus", "stutter", "delay", "reverb"],
+    fxEnabled: { saturation: true, delay: true, reverb: true, phaser: false, chorus: false, stutter: false },
     delayTime: 0.260,
     delayFeedback: 0.34,
     delayMix: 0.13,
+    delayChar: "clean",
+    phaserMix: 0.35,
+    phaserRate: 0.4,
+    phaserDepth: 0.55,
+    chorusMix: 0.4,
+    chorusRate: 0.45,
+    chorusDepth: 0.5,
+    stutterAmt: 0.6,
+    stutterRate: 8,
     reverbType: "room",
     reverbLength: 1.8,
     reverbMix: 0.15,
@@ -931,6 +1063,8 @@
     satTone: 8400,
     vol: 0.70,
     legato: 0.12,
+    envAmp: 1,
+    envFlt: 0,
     voiceMode: "mono",
     voices: 1,
     polyNotes: 4,
@@ -942,14 +1076,29 @@
     motionSpeed: 1,
     twoShape: "line"
   };
+  var FX_MODULE_NAMES = ["saturation", "phaser", "chorus", "stutter", "delay", "reverb"];
   (function restoreFXOrder() {
     try {
       var saved = JSON.parse(localStorage.getItem("photoSynth.fxOrder") || "null");
-      var valid = ["saturation", "delay", "reverb"];
-      if (Array.isArray(saved) && saved.length === valid.length &&
-          valid.every(function (name) { return saved.indexOf(name) !== -1; })) {
-        S.fxOrder = saved;
-      }
+      if (!Array.isArray(saved)) return;
+      // Keep the saved order for the modules it knows and append the rest,
+      // so an order stored before a module existed still restores.
+      var known = saved.filter(function (name, i) {
+        return FX_MODULE_NAMES.indexOf(name) !== -1 && saved.indexOf(name) === i;
+      });
+      if (!known.length) return;
+      S.fxOrder = known.concat(FX_MODULE_NAMES.filter(function (name) {
+        return known.indexOf(name) === -1;
+      }));
+    } catch (ignore) {}
+  })();
+  (function restoreFXEnabled() {
+    try {
+      var saved = JSON.parse(localStorage.getItem("photoSynth.fxEnabled") || "null");
+      if (!saved || typeof saved !== "object") return;
+      FX_MODULE_NAMES.forEach(function (name) {
+        if (typeof saved[name] === "boolean") S.fxEnabled[name] = saved[name];
+      });
     } catch (ignore) {}
   })();
   function baseFreq() { return mtof(S.baseMidi); }
@@ -1069,7 +1218,8 @@
       cut: filt.cut, res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
       drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
-      release: envRelease(), glide: S.glide, spread: S.width
+      release: envRelease(), glide: S.glide, spread: S.width,
+      envAmp: S.envAmp, envFlt: S.envFlt
     };
   }
 
@@ -1279,6 +1429,45 @@
     if (g && g.satShape && !g.satShape.curve) g.satShape.curve = saturationCurve();
   }
 
+  /* Smoothed pulse for the stutter gate: the sine LFO becomes a ~50 % duty
+   * gate with soft edges, so the chopping never clicks. */
+  function stutterGateCurve() {
+    var n = 1025, curve = new Float32Array(n);
+    for (var i = 0; i < n; i++) {
+      var x = i * 2 / (n - 1) - 1;
+      var u = clamp((x + 0.4) / 0.5, 0, 1);
+      curve[i] = u * u * (3 - 2 * u);
+    }
+    return curve;
+  }
+
+  /* Gentle tanh for the tape delay's feedback loop: each repeat compresses
+   * a little more, so trails soften and thicken instead of building up. */
+  function tapeLoopCurve() {
+    var n = 1025, curve = new Float32Array(n);
+    var norm = Math.tanh(1.6);
+    for (var i = 0; i < n; i++) {
+      var x = i * 2 / (n - 1) - 1;
+      curve[i] = Math.tanh(1.6 * x) / norm;
+    }
+    return curve;
+  }
+
+  /* Clean/tape delay character: the loop shaper, damping, low cut and wow
+   * all switch together. Curve swaps live inside the feedback loop at low
+   * level, so this stays click-free in practice. */
+  function refreshDelayChar(g) {
+    if (!g || !g.dshape) return;
+    var tape = S.delayChar === "tape";
+    var t = g.ctx.currentTime;
+    for (var dc = 0; dc < 2; dc++) {
+      g.dshape[dc].curve = tape ? tapeLoopCurve() : null;
+      g.damp[dc].frequency.setTargetAtTime(tape ? 2600 : 4200, t, 0.05);
+      g.dhp[dc].frequency.setTargetAtTime(tape ? 120 : 25, t, 0.05);
+    }
+    g.wowGain.gain.setTargetAtTime(tape ? 0.0007 : 0, t, 0.1);
+  }
+
   function wireFXOrder(g) {
     if (!g || !g.fxModules) return;
     if (g.fxEdges) {
@@ -1288,7 +1477,9 @@
     var from = g.pk;
     S.fxOrder.forEach(function (name) {
       var mod = g.fxModules[name];
-      if (!mod) return;
+      // A switched-off module is left out of the graph entirely, so the
+      // audio thread never touches its nodes — bypass really saves CPU.
+      if (!mod || S.fxEnabled[name] === false) return;
       from.connect(mod.input);
       g.fxEdges.push([from, mod.input]);
       from = mod.output;
@@ -1340,6 +1531,9 @@
     g.satTone.connect(g.satWet); g.satWet.connect(g.satOut);
 
     // Explicit left/right delay lines: the feedback loop never downmixes.
+    // The loop carries a high-pass and a wave shaper for the tape character;
+    // in clean mode the shaper has no curve (a pass-through) and the filters
+    // sit out of the way.
     g.delayIn = forceStereo(ctx.createGain());
     g.delayOut = forceStereo(ctx.createGain());
     g.delayDry = ctx.createGain();
@@ -1348,20 +1542,129 @@
     g.delay = [ctx.createDelay(1.0), ctx.createDelay(1.0)];
     g.fb = [ctx.createGain(), ctx.createGain()];
     g.damp = [ctx.createBiquadFilter(), ctx.createBiquadFilter()];
+    g.dhp = [ctx.createBiquadFilter(), ctx.createBiquadFilter()];
+    g.dshape = [ctx.createWaveShaper(), ctx.createWaveShaper()];
     g.delayWet = ctx.createGain();
     g.delayIn.connect(g.delayDry); g.delayDry.connect(g.delayOut);
     g.delayIn.connect(g.delaySplit);
     for (var dc = 0; dc < 2; dc++) {
       g.damp[dc].type = "lowpass";
       g.damp[dc].frequency.value = 4200;
+      g.dhp[dc].type = "highpass";
+      g.dhp[dc].frequency.value = 25;
+      g.dhp[dc].Q.value = 0.5;
       g.delaySplit.connect(g.delay[dc], dc);
       g.delay[dc].connect(g.damp[dc]);
-      g.damp[dc].connect(g.fb[dc]);
+      g.damp[dc].connect(g.dhp[dc]);
+      g.dhp[dc].connect(g.dshape[dc]);
+      g.dshape[dc].connect(g.fb[dc]);
       g.fb[dc].connect(g.delay[dc]);
       g.delay[dc].connect(g.delayMerge, 0, dc);
     }
     g.delayMerge.connect(g.delayWet);
     g.delayWet.connect(g.delayOut);
+    // Tape wow: one slow LFO nudging both delay times a fraction of a
+    // millisecond, so repeats drift in pitch the way a worn transport does.
+    g.wow = ctx.createOscillator();
+    g.wow.type = "sine";
+    g.wow.frequency.value = 0.55;
+    g.wowGain = ctx.createGain();
+    g.wowGain.gain.value = 0;
+    g.wow.connect(g.wowGain);
+    g.wowGain.connect(g.delay[0].delayTime);
+    g.wowGain.connect(g.delay[1].delayTime);
+    g.wow.start();
+
+    // Vintage phaser: four swept all-pass stages plus a touch of feedback
+    // (through the minimum one-block delay a Web Audio cycle requires).
+    g.phIn = forceStereo(ctx.createGain());
+    g.phOut = forceStereo(ctx.createGain());
+    g.phDry = ctx.createGain();
+    g.phWet = ctx.createGain();
+    g.phAP = [];
+    var phBase = [300, 650, 1050, 1500], pi;
+    for (pi = 0; pi < 4; pi++) {
+      var ap = ctx.createBiquadFilter();
+      ap.type = "allpass";
+      ap.frequency.value = phBase[pi];
+      ap.Q.value = 0.6;
+      g.phAP.push(ap);
+      if (pi > 0) g.phAP[pi - 1].connect(ap);
+    }
+    g.phIn.connect(g.phDry); g.phDry.connect(g.phOut);
+    g.phIn.connect(g.phAP[0]);
+    g.phAP[3].connect(g.phWet);
+    g.phWet.connect(g.phOut);
+    g.phFBDelay = ctx.createDelay(0.01);
+    g.phFB = ctx.createGain();
+    g.phFB.gain.value = 0.3;
+    g.phAP[3].connect(g.phFBDelay);
+    g.phFBDelay.connect(g.phFB);
+    g.phFB.connect(g.phAP[0]);
+    g.phLFO = ctx.createOscillator();
+    g.phLFO.type = "sine";
+    g.phLFO.frequency.value = S.phaserRate;
+    g.phLFODepth = ctx.createGain();
+    g.phLFODepth.gain.value = 0;
+    g.phLFO.connect(g.phLFODepth);
+    for (pi = 0; pi < 4; pi++) g.phLFODepth.connect(g.phAP[pi].frequency);
+    g.phLFO.start();
+
+    // Vintage chorus: two delay lines modulated in opposite phase, the wet
+    // path rolled off dark like a bucket-brigade unit.
+    g.chIn = forceStereo(ctx.createGain());
+    g.chOut = forceStereo(ctx.createGain());
+    g.chDry = ctx.createGain();
+    g.chWet = ctx.createGain();
+    g.chSplit = ctx.createChannelSplitter(2);
+    g.chMerge = ctx.createChannelMerger(2);
+    g.chD = [ctx.createDelay(0.06), ctx.createDelay(0.06)];
+    g.chD[0].delayTime.value = 0.016;
+    g.chD[1].delayTime.value = 0.021;
+    g.chLP = ctx.createBiquadFilter();
+    g.chLP.type = "lowpass";
+    g.chLP.frequency.value = 5500;
+    g.chIn.connect(g.chDry); g.chDry.connect(g.chOut);
+    g.chIn.connect(g.chSplit);
+    g.chSplit.connect(g.chD[0], 0);
+    g.chSplit.connect(g.chD[1], 1);
+    g.chD[0].connect(g.chMerge, 0, 0);
+    g.chD[1].connect(g.chMerge, 0, 1);
+    g.chMerge.connect(g.chLP);
+    g.chLP.connect(g.chWet);
+    g.chWet.connect(g.chOut);
+    g.chLFO = ctx.createOscillator();
+    g.chLFO.type = "sine";
+    g.chLFO.frequency.value = S.chorusRate;
+    g.chDepth = ctx.createGain();
+    g.chDepth.gain.value = 0;
+    g.chInv = ctx.createGain();
+    g.chInv.gain.value = -1;
+    g.chLFO.connect(g.chDepth);
+    g.chDepth.connect(g.chD[0].delayTime);
+    g.chDepth.connect(g.chInv);
+    g.chInv.connect(g.chD[1].delayTime);
+    g.chLFO.start();
+
+    // Stutter: one gain gated by a smoothed pulse. Amount blends between a
+    // solid signal and a fully chopped one.
+    g.stIn = forceStereo(ctx.createGain());
+    g.stOut = forceStereo(ctx.createGain());
+    g.stGate = forceStereo(ctx.createGain());
+    g.stGate.gain.value = 1;
+    g.stIn.connect(g.stGate);
+    g.stGate.connect(g.stOut);
+    g.stLFO = ctx.createOscillator();
+    g.stLFO.type = "sine";
+    g.stLFO.frequency.value = S.stutterRate;
+    g.stShape = ctx.createWaveShaper();
+    g.stShape.curve = stutterGateCurve();
+    g.stMod = ctx.createGain();
+    g.stMod.gain.value = 0;
+    g.stLFO.connect(g.stShape);
+    g.stShape.connect(g.stMod);
+    g.stMod.connect(g.stGate.gain);
+    g.stLFO.start();
 
     // Convolution also receives and returns two independent channels.
     g.reverbIn = forceStereo(ctx.createGain());
@@ -1384,9 +1687,13 @@
     g.fxModules = {
       saturation: { input: g.satIn, output: g.satOut },
       delay: { input: g.delayIn, output: g.delayOut },
-      reverb: { input: g.reverbIn, output: g.reverbOut }
+      reverb: { input: g.reverbIn, output: g.reverbOut },
+      phaser: { input: g.phIn, output: g.phOut },
+      chorus: { input: g.chIn, output: g.chOut },
+      stutter: { input: g.stIn, output: g.stOut }
     };
     wireFXOrder(g);
+    refreshDelayChar(g);
 
     forceStereo(g.comp);
     g.comp.connect(g.master);
@@ -1514,6 +1821,17 @@
     g.delayWet.gain.setTargetAtTime(Math.sin(S.delayMix * Math.PI / 2), t, 0.05);
     g.reverbDry.gain.setTargetAtTime(Math.cos(S.reverbMix * Math.PI / 2), t, 0.05);
     g.reverbWet.gain.setTargetAtTime(Math.sin(S.reverbMix * Math.PI / 2), t, 0.05);
+    g.phDry.gain.setTargetAtTime(Math.cos(S.phaserMix * Math.PI / 2), t, 0.05);
+    g.phWet.gain.setTargetAtTime(Math.sin(S.phaserMix * Math.PI / 2), t, 0.05);
+    g.phLFO.frequency.setTargetAtTime(S.phaserRate, t, 0.05);
+    g.phLFODepth.gain.setTargetAtTime(80 + 780 * S.phaserDepth, t, 0.05);
+    g.chDry.gain.setTargetAtTime(Math.cos(S.chorusMix * Math.PI / 2), t, 0.05);
+    g.chWet.gain.setTargetAtTime(Math.sin(S.chorusMix * Math.PI / 2), t, 0.05);
+    g.chLFO.frequency.setTargetAtTime(S.chorusRate, t, 0.05);
+    g.chDepth.gain.setTargetAtTime(0.0008 + 0.0042 * S.chorusDepth, t, 0.05);
+    g.stLFO.frequency.setTargetAtTime(S.stutterRate, t, 0.05);
+    g.stGate.gain.setTargetAtTime(1 - S.stutterAmt, t, 0.03);
+    g.stMod.gain.setTargetAtTime(S.stutterAmt, t, 0.03);
     g.master.gain.setTargetAtTime(S.vol, t, 0.03);
     setEngineGains(g);
   }
@@ -1535,7 +1853,8 @@
       cut: filt.cut, res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
-      release: envRelease(), glide: S.glide, spread: S.width
+      release: envRelease(), glide: S.glide, spread: S.width,
+      envAmp: S.envAmp, envFlt: S.envFlt
     };
     var total = 1 + (A.extras ? A.extras.length : 0);
     for (var vi = 0; vi < total; vi++) {
@@ -1587,7 +1906,8 @@
       base: baseFreq(), cut: filt.cut, res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
-      release: envRelease(), glide: S.glide, spread: S.width
+      release: envRelease(), glide: S.glide, spread: S.width,
+      envAmp: S.envAmp, envFlt: S.envFlt
     };
     var norm = voiceNorm(), i, k;
     for (i = 0; i < A.extras.length; i++) {
@@ -1646,6 +1966,17 @@
     g.delayWet.gain.setValueAtTime(Math.sin(S.delayMix * Math.PI / 2), when);
     g.reverbDry.gain.setValueAtTime(Math.cos(S.reverbMix * Math.PI / 2), when);
     g.reverbWet.gain.setValueAtTime(Math.sin(S.reverbMix * Math.PI / 2), when);
+    g.phDry.gain.setValueAtTime(Math.cos(S.phaserMix * Math.PI / 2), when);
+    g.phWet.gain.setValueAtTime(Math.sin(S.phaserMix * Math.PI / 2), when);
+    g.phLFO.frequency.setValueAtTime(S.phaserRate, when);
+    g.phLFODepth.gain.setValueAtTime(80 + 780 * S.phaserDepth, when);
+    g.chDry.gain.setValueAtTime(Math.cos(S.chorusMix * Math.PI / 2), when);
+    g.chWet.gain.setValueAtTime(Math.sin(S.chorusMix * Math.PI / 2), when);
+    g.chLFO.frequency.setValueAtTime(S.chorusRate, when);
+    g.chDepth.gain.setValueAtTime(0.0008 + 0.0042 * S.chorusDepth, when);
+    g.stLFO.frequency.setValueAtTime(S.stutterRate, when);
+    g.stGate.gain.setValueAtTime(1 - S.stutterAmt, when);
+    g.stMod.gain.setValueAtTime(S.stutterAmt, when);
     setPan(g.vPan, voicePan(tone.rgb, padTone.pos ? padTone.pos.x : 0, padTone.w), when, false);
     g.master.gain.setValueAtTime(S.vol, when);
     setEngineGains(g, when);
@@ -1891,7 +2222,9 @@
     var hint = $("hint-" + this.key);
     if (hint) {
       hint.textContent = this.key === "tone" ? "Drag anywhere to play"
-        : this.key === "filter" ? "Touch to filter" : "Touch to shape the envelope";
+        : this.key === "filter" ? "Touch to filter"
+        : this.key === "env" ? "Touch to shape the envelope"
+        : "Touch to drive the effects";
     }
   };
 
@@ -1976,7 +2309,7 @@
     var x = this.pos.x, y = this.pos.y;
     var live = this.active || this.latched;
     var R = Math.max(16, Math.min(this.w, this.h) * 0.085);
-    var col = this.key === "tone" ? tone.rgb : filt.rgb;
+    var col = this.lastRGB || (this.key === "tone" ? tone.rgb : filt.rgb);
     var css = col ? cssRGB(col) : "#888";
 
     g.save();
@@ -2042,7 +2375,8 @@
   var padTone = new Pad("tone");
   var padFilter = new Pad("filter");
   var padEnv = new Pad("env");
-  var pads = [padTone, padFilter, padEnv];
+  var padFx = new Pad("fx");
+  var pads = [padTone, padFilter, padEnv, padFx];
   var UI = { mode: "play" };
 
   /* ---- pointer handling ---------------------------------------------- */
@@ -2058,15 +2392,18 @@
     if (!pad.pos) return;
     var rgb = pad.sample(pad.pos.x, pad.pos.y);
     if (!rgb) return;
+    pad.lastRGB = rgb;
     if (pad.key === "tone") computeTone(rgb);
     else if (pad.key === "filter") computeFilter(rgb);
-    else computeEnv(rgb);
+    else if (pad.key === "env") computeEnv(rgb);
+    else { computeFX(rgb); return; }        // computeFX drives the sliders itself
     pushAudio();
     updateReadouts();
   }
 
   function padTitle(pad) {
-    return pad.key === "tone" ? "Tone" : pad.key === "filter" ? "Filter" : "Envelope";
+    return pad.key === "tone" ? "Tone" : pad.key === "filter" ? "Filter"
+         : pad.key === "env" ? "Envelope" : "FX";
   }
 
   /* ---- motion automation --------------------------------------------- */
@@ -2311,7 +2648,8 @@
       hint.textContent = on ? "Draw a motion — or two fingers for a " + S.twoShape
                             : pad.key === "tone" ? "Drag anywhere to play"
                             : pad.key === "filter" ? "Touch to filter"
-                            : "Touch to shape the envelope";
+                            : pad.key === "env" ? "Touch to shape the envelope"
+                            : "Touch to drive the effects";
       hint.style.display = on || !pad.pos ? "" : "none";
     }
     pad.dirty = true;
@@ -2554,8 +2892,12 @@
                  q:12, "2":13, w:14, "3":15, e:16, r:17, "5":18, t:19, "6":20, y:21, "7":22, u:23 };
   window.addEventListener("keydown", function (ev) {
     if (ev.metaKey || ev.ctrlKey || ev.altKey || ev.repeat) return;
-    var tag = (ev.target && ev.target.tagName) || "";
-    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    // A slider keeps focus after being touched; note keys must keep working
+    // then (letters and digits do nothing to a range input, and its arrow
+    // keys are not note keys). Only text fields and selects swallow keys.
+    var t = ev.target, tag = (t && t.tagName) || "";
+    if (tag === "TEXTAREA" || tag === "SELECT") return;
+    if (tag === "INPUT" && t.type !== "range") return;
     var off = KEYMAP[ev.key.toLowerCase()];
     if (off === undefined || midi.playing) return;
     ev.preventDefault();
@@ -2778,8 +3120,6 @@
       if (p.liveOn) p.dirty = true;     // repaint the video every frame
       if (p.dirty) { p.draw(); p.dirty = false; }
     });
-    fxm.resize();
-    if (fxm.dirty) { fxm.draw(); fxm.dirty = false; }
     if (!$("kbdPanel").hidden) {
       kbResize();
       if (kb.dirty) kbDraw();
@@ -2807,7 +3147,10 @@
   /* ================================================================== *
    * Photos: camera, camera roll, demo
    * ================================================================== */
-  function padOf(key) { return key === "tone" ? padTone : key === "filter" ? padFilter : padEnv; }
+  function padOf(key) {
+    return key === "tone" ? padTone : key === "filter" ? padFilter
+         : key === "env" ? padEnv : padFx;
+  }
 
   // An <img> is decoded with the file's EXIF orientation applied in every
   // current browser, so photos shot in portrait come in the right way up.
@@ -2854,7 +3197,7 @@
     b.addEventListener("click", function () { $("file-" + b.getAttribute("data-pick")).click(); });
   });
   ["tone-camera", "tone-library", "filter-camera", "filter-library",
-   "env-camera", "env-library"].forEach(function (id) {
+   "env-camera", "env-library", "fx-camera", "fx-library"].forEach(function (id) {
     $("file-" + id).addEventListener("change", function (ev) {
       var input = ev.target;
       var file = input.files && input.files[0];
@@ -2888,6 +3231,22 @@
         rg.addColorStop(1, "hsla(" + ((i * 47) % 360) + ",95%,60%,0)");
         g.fillStyle = rg; g.beginPath(); g.arc(cx, cy, r, 0, 6.2832); g.fill();
       }
+    } else if (kind === "fx") {
+      // Red grows to the right, green downward, blue radiates from the
+      // centre — with a black corner (all off) and bright pockets where the
+      // channels overlap towards white (everything full).
+      g.fillStyle = "#000"; g.fillRect(0, 0, N, N);
+      g.globalCompositeOperation = "lighter";
+      var rg2 = g.createLinearGradient(0, 0, N, 0);
+      rg2.addColorStop(0, "rgb(0,0,0)"); rg2.addColorStop(1, "rgb(255,0,0)");
+      g.fillStyle = rg2; g.fillRect(0, 0, N, N);
+      var gg2 = g.createLinearGradient(0, 0, 0, N);
+      gg2.addColorStop(0, "rgb(0,0,0)"); gg2.addColorStop(1, "rgb(0,255,0)");
+      g.fillStyle = gg2; g.fillRect(0, 0, N, N);
+      var bg2 = g.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N * 0.62);
+      bg2.addColorStop(0, "rgb(0,0,255)"); bg2.addColorStop(1, "rgb(0,0,0)");
+      g.fillStyle = bg2; g.fillRect(0, 0, N, N);
+      g.globalCompositeOperation = "source-over";
     } else if (kind === "env") {
       // Left = red (snappy attack), right = blue (long decay); top = bright
       // green (full sustain), bottom = dark (short, plucky notes).
@@ -2940,48 +3299,51 @@
   });
 
   /* ================================================================== *
-   * FX matrix (pad 4): four coloured corners, each assigned to an effect
-   * parameter. The cursor weighs every corner by its distance — one side
-   * length is enough to take a parameter from full down to zero — and the
-   * weights are written straight into the existing sliders, so the Edit
-   * panel, the audio graph and the matrix can never disagree.
+   * FX photo (pad 4): the colour under the cursor drives three effect
+   * parameters — the red, green and blue channel strengths each control
+   * one, chosen in the pull-downs under the pad. Black turns all three
+   * off, white pushes all three to 100 %. The values are written straight
+   * into the existing sliders, so the Edit panel, the audio graph and the
+   * pad can never disagree.
    * ================================================================== */
-  var FX_CORNERS = [
-    { name: "Green",  css: "#3ddc84", rgb: [61, 220, 132], nx: 0, ny: 0 },
-    { name: "Red",    css: "#ff5252", rgb: [255, 82, 82],  nx: 1, ny: 0 },
-    { name: "Yellow", css: "#ffd24a", rgb: [255, 210, 74], nx: 0, ny: 1 },
-    { name: "Blue",   css: "#4aa3ff", rgb: [74, 163, 255], nx: 1, ny: 1 }
+  var FX_RGB = [
+    { name: "Red",   css: "#ff5252" },
+    { name: "Green", css: "#3ddc84" },
+    { name: "Blue",  css: "#4aa3ff" }
   ];
   var FX_PARAM_DEFS = [
+    { id: "satGain",       label: "Tube drive" },
+    { id: "satTone",       label: "Tube tone" },
     { id: "delayMix",      label: "Delay mix" },
     { id: "delayTime",     label: "Delay time" },
     { id: "delayFeedback", label: "Delay feedback" },
     { id: "reverbMix",     label: "Reverb mix" },
     { id: "reverbLength",  label: "Reverb length" },
-    { id: "satGain",       label: "Tube drive" },
-    { id: "satTone",       label: "Tube tone" },
+    { id: "phaserMix",     label: "Phaser mix" },
+    { id: "phaserRate",    label: "Phaser rate" },
+    { id: "phaserDepth",   label: "Phaser depth" },
+    { id: "chorusMix",     label: "Chorus mix" },
+    { id: "chorusRate",    label: "Chorus rate" },
+    { id: "chorusDepth",   label: "Chorus depth" },
+    { id: "stutterAmt",    label: "Stutter amount" },
+    { id: "stutterRate",   label: "Stutter rate" },
     { id: "drive",         label: "Osc drive" },
     { id: "width",         label: "Stereo width" },
     { id: "glide",         label: "Glide" }
   ];
-  var fxAssign = ["reverbMix", "satGain", "delayMix", "delayFeedback"];
-  (function restoreFXCorners() {
+  var fxAssign = ["satGain", "delayMix", "reverbMix"];
+  (function restoreFXRGB() {
     try {
-      var saved = JSON.parse(localStorage.getItem("photoSynth.fxCorners") || "null");
+      var saved = JSON.parse(localStorage.getItem("photoSynth.fxRGB") || "null");
       var ids = FX_PARAM_DEFS.map(function (d) { return d.id; });
-      if (Array.isArray(saved) && saved.length === 4 &&
+      if (Array.isArray(saved) && saved.length === 3 &&
           saved.every(function (id) { return ids.indexOf(id) !== -1; })) {
         fxAssign = saved;
       }
     } catch (ignore) {}
   })();
 
-  var fxm = {
-    canvas: $("canvas-fx"), g: null, w: 0, h: 0,
-    pos: null, active: false, pointerId: null,
-    dirty: true, field: null
-  };
-  fxm.g = fxm.canvas.getContext("2d");
+  var fxp = { rgb: null };
 
   function fxLabel(id) {
     for (var i = 0; i < FX_PARAM_DEFS.length; i++) {
@@ -2990,63 +3352,10 @@
     return id;
   }
 
-  /* Corner weights for a point in normalised pad coordinates (0..1).
-   * Each axis uses a plateau + smoothstep: full up to the middle of the pad,
-   * then easing to zero at the far edge. The product of the two axes means a
-   * corner's parameter is at 100 % through its whole home quadrant and at
-   * the exact centre (where all four meet at full), and dies to zero at the
-   * three opposing corners. */
-  function fxFall(t) {
-    if (t <= 0.5) return 1;
-    var u = clamp((t - 0.5) * 2, 0, 1);
-    return 1 - u * u * (3 - 2 * u);
-  }
-  function fxWeights(nx, ny) {
-    var out = [0, 0, 0, 0];
-    for (var i = 0; i < 4; i++) {
-      var tx = FX_CORNERS[i].nx ? 1 - nx : nx;
-      var ty = FX_CORNERS[i].ny ? 1 - ny : ny;
-      out[i] = fxFall(tx) * fxFall(ty);
-    }
-    return out;
-  }
-
-  function fxMixColor(wts) {
-    var sum = wts[0] + wts[1] + wts[2] + wts[3];
-    if (sum <= 0) return [26, 28, 36];
-    var peak = Math.max(wts[0], wts[1], wts[2], wts[3]);
-    var lum = 0.35 + 0.65 * peak, c = [0, 0, 0], i, k;
-    for (i = 0; i < 4; i++) {
-      k = wts[i] / sum * lum;
-      c[0] += FX_CORNERS[i].rgb[0] * k;
-      c[1] += FX_CORNERS[i].rgb[1] * k;
-      c[2] += FX_CORNERS[i].rgb[2] * k;
-    }
-    return c;
-  }
-
-  /* The colour field only depends on the fixed corner colours, so it is
-   * rendered once at low resolution and stretched over the canvas. */
-  function buildFXField() {
-    var N = 72, c = document.createElement("canvas");
-    c.width = N; c.height = N;
-    var g = c.getContext("2d"), im = g.createImageData(N, N), x, y;
-    for (y = 0; y < N; y++) {
-      for (x = 0; x < N; x++) {
-        var mix = fxMixColor(fxWeights(x / (N - 1), y / (N - 1)));
-        var o = (y * N + x) * 4;
-        im.data[o] = mix[0]; im.data[o + 1] = mix[1]; im.data[o + 2] = mix[2];
-        im.data[o + 3] = 255;
-      }
-    }
-    g.putImageData(im, 0, 0);
-    fxm.field = c;
-  }
-
-  /* Write one corner's weight into its slider: full weight = the slider's
-   * maximum, zero = its minimum. Dispatching the input event reuses the
-   * slider's own handler — value curve, readout text, debounced reverb
-   * rebuild and pushAudio all included. */
+  /* Write one channel strength into its slider: 1 = the slider maximum,
+   * 0 = its minimum. Dispatching the input event reuses the slider own
+   * handler — value curve, readout text, debounced reverb rebuild and
+   * pushAudio all included. */
   function fxSetParam(id, w) {
     var el = $(id);
     if (!el) return;
@@ -3058,142 +3367,35 @@
     }
   }
 
-  function updateFXReadout(wts) {
+  function updateFXReadout(rgb) {
     var sw = $("swatch-fx"), vals = $("vals-fx");
-    if (!wts) {
+    if (!rgb) {
       sw.style.background = "#222";
-      vals.innerHTML = "—" + '<span class="sub">each corner drives the effect chosen below</span>';
+      vals.innerHTML = "—" + '<span class="sub">red, green and blue drive the effects below</span>';
       return;
     }
-    var mix = fxMixColor(wts);
-    sw.style.background = "rgb(" + Math.round(mix[0]) + "," + Math.round(mix[1]) + "," + Math.round(mix[2]) + ")";
-    var main = [], top = 0, i;
-    for (i = 0; i < 4; i++) {
-      if (wts[i] > wts[top]) top = i;
-      main.push('<span style="color:' + FX_CORNERS[i].css + '">' + FX_CORNERS[i].name.charAt(0) + "</span>&thinsp;" +
-                Math.round(wts[i] * 100) + "%");
+    sw.style.background = cssRGB(rgb);
+    var main = [], subs = [], i;
+    for (i = 0; i < 3; i++) {
+      main.push('<span style="color:' + FX_RGB[i].css + '">' + FX_RGB[i].name.charAt(0) + "</span>&thinsp;" +
+                Math.round(rgb[i] * 100) + "%");
+      subs.push(fxLabel(fxAssign[i]).toLowerCase());
     }
     vals.innerHTML = "<b>" + main.join(" · ") + "</b>" +
-      '<span class="sub">strongest: ' + fxLabel(fxAssign[top]) + " (" + FX_CORNERS[top].name.toLowerCase() + ")</span>";
+      '<span class="sub">' + subs.join(" · ") + "</span>";
   }
 
-  function applyFXMatrix() {
-    if (!fxm.pos || !fxm.w) return;
-    var wts = fxWeights(fxm.pos.x / fxm.w, fxm.pos.y / fxm.h);
-    for (var i = 0; i < 4; i++) fxSetParam(fxAssign[i], wts[i]);
-    updateFXReadout(wts);
+  function computeFX(rgb) {
+    if (!rgb) { fxp.rgb = null; updateFXReadout(null); return; }
+    fxp.rgb = rgb;
+    for (var i = 0; i < 3; i++) fxSetParam(fxAssign[i], rgb[i]);
+    updateFXReadout(rgb);
   }
 
-  fxm.resize = function () {
-    var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-    var r = this.canvas.getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    var w = Math.round(r.width), h = Math.round(r.height);
-    if (this.w === w && this.h === h && this.canvas.width === Math.round(w * dpr)) return;
-    if (this.pos && this.w && this.h) {          // keep the cursor in place
-      this.pos = { x: this.pos.x / this.w * w, y: this.pos.y / this.h * h };
-    }
-    this.w = w; this.h = h;
-    this.canvas.width = Math.round(w * dpr);
-    this.canvas.height = Math.round(h * dpr);
-    this.g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this.dirty = true;
-  };
-
-  fxm.draw = function () {
-    var g = this.g, w = this.w, h = this.h;
-    if (!w) return;
-    if (!this.field) buildFXField();
-    g.clearRect(0, 0, w, h);
-    g.imageSmoothingEnabled = true;
-    g.drawImage(this.field, 0, 0, w, h);
-
-    // Corner labels: the assigned parameter, in the corner it lives in.
-    g.font = "600 10.5px -apple-system,system-ui,sans-serif";
-    g.lineWidth = 3; g.lineJoin = "round";
-    g.strokeStyle = "rgba(0,0,0,.65)"; g.fillStyle = "rgba(255,255,255,.95)";
-    for (var i = 0; i < 4; i++) {
-      var cn = FX_CORNERS[i];
-      var tx = cn.nx ? w - 7 : 7, ty = cn.ny ? h - 8 : 15;
-      g.textAlign = cn.nx ? "right" : "left";
-      var txt = fxLabel(fxAssign[i]);
-      g.strokeText(txt, tx, ty);
-      g.fillText(txt, tx, ty);
-    }
-
-    if (this.pos) {
-      var x = this.pos.x, y = this.pos.y;
-      var R = Math.max(14, Math.min(w, h) * 0.075);
-      var mix = fxMixColor(fxWeights(x / w, y / h));
-      g.save();
-      g.globalAlpha = this.active ? 1 : 0.75;
-      g.beginPath(); g.arc(x, y, R, 0, 6.2832);
-      g.lineWidth = 5; g.strokeStyle = "rgba(0,0,0,.6)"; g.stroke();
-      g.lineWidth = 2.4; g.strokeStyle = "#fff"; g.stroke();
-      g.beginPath(); g.arc(x, y, R * 0.34, 0, 6.2832);
-      g.fillStyle = "rgb(" + Math.round(mix[0]) + "," + Math.round(mix[1]) + "," + Math.round(mix[2]) + ")";
-      g.fill();
-      g.lineWidth = 1.6; g.strokeStyle = "rgba(255,255,255,.9)"; g.stroke();
-      var g1 = R * 0.5, g2 = R * 1.5;
-      g.beginPath();
-      g.moveTo(x - g2, y); g.lineTo(x - g1, y);
-      g.moveTo(x + g1, y); g.lineTo(x + g2, y);
-      g.moveTo(x, y - g2); g.lineTo(x, y - g1);
-      g.moveTo(x, y + g1); g.lineTo(x, y + g2);
-      g.lineWidth = 4; g.strokeStyle = "rgba(0,0,0,.55)"; g.stroke();
-      g.lineWidth = 1.7; g.strokeStyle = "#fff"; g.stroke();
-      g.restore();
-    }
-  };
-
-  (function attachFXMatrix() {
-    var cv = fxm.canvas;
-    function fxPoint(ev) {
-      var r = cv.getBoundingClientRect();
-      return {
-        x: clamp(ev.clientX - r.left, 0, r.width),
-        y: clamp(ev.clientY - r.top, 0, r.height)
-      };
-    }
-    cv.addEventListener("pointerdown", function (ev) {
-      ev.preventDefault();
-      if (fxm.pointerId !== null) return;
-      fxm.pointerId = ev.pointerId;
-      try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
-      if (!audioOn) setPower(true); else ensureAudio();
-      fxm.active = true;
-      var hint = $("hint-fx");
-      if (hint) hint.style.display = "none";
-      fxm.pos = fxPoint(ev);
-      fxm.dirty = true;
-      applyFXMatrix();
-    }, { passive: false });
-    cv.addEventListener("pointermove", function (ev) {
-      if (fxm.pointerId !== ev.pointerId) return;
-      ev.preventDefault();
-      fxm.pos = fxPoint(ev);
-      fxm.dirty = true;
-      applyFXMatrix();
-    }, { passive: false });
-    function fxEnd(ev) {
-      if (fxm.pointerId !== ev.pointerId) return;
-      fxm.pointerId = null;
-      fxm.active = false;
-      fxm.dirty = true;
-      try { cv.releasePointerCapture(ev.pointerId); } catch (e) {}
-      // Like the filter and envelope, the matrix is a setting, not a
-      // gesture: the cursor and the mix stay where you left them.
-    }
-    cv.addEventListener("pointerup", fxEnd);
-    cv.addEventListener("pointercancel", fxEnd);
-    cv.addEventListener("lostpointercapture", fxEnd);
-    cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
-  })();
-
-  function initFXMatrix() {
-    for (var i = 0; i < 4; i++) {
+  function initFXSelects() {
+    for (var i = 0; i < 3; i++) {
       (function (idx) {
-        var sel = $("fxCorner" + idx);
+        var sel = $("fxChan" + idx);
         FX_PARAM_DEFS.forEach(function (d) {
           var o = document.createElement("option");
           o.value = d.id;
@@ -3203,9 +3405,8 @@
         });
         sel.addEventListener("change", function () {
           fxAssign[idx] = sel.value;
-          try { localStorage.setItem("photoSynth.fxCorners", JSON.stringify(fxAssign)); } catch (ignore) {}
-          fxm.dirty = true;
-          applyFXMatrix();
+          try { localStorage.setItem("photoSynth.fxRGB", JSON.stringify(fxAssign)); } catch (ignore) {}
+          if (fxp.rgb) computeFX(fxp.rgb); else updateFXReadout(null);
         });
       })(i);
     }
@@ -3217,14 +3418,16 @@
           el.dispatchEvent(new Event("input"));
         }
       });
-      fxm.pos = null;
-      fxm.dirty = true;
+      var pad = padOf("fx");
+      pad.pos = null;
+      pad.auto = null;
+      pad.dirty = true;
+      fxp.rgb = null;
       var hint = $("hint-fx");
       if (hint) hint.style.display = "";
       updateFXReadout(null);
-      showToast("FX matrix reset — sliders back to their defaults");
+      showToast("FX pad reset — the three sliders are back to their defaults");
     });
-    buildFXField();
   }
 
   /* ================================================================== *
@@ -3797,7 +4000,8 @@
             cut: filt.cut, res: filt.bypass ? 0 : filt.res,
             mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
             drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
-            release: envRelease(), glide: S.glide, spread: S.width
+            release: envRelease(), glide: S.glide, spread: S.width,
+            envAmp: S.envAmp, envFlt: S.envFlt
           };
           if (o > 0 && padTone.pos) {
             var ang = 4.7124 + o * 6.2832 / oscN;
@@ -3870,6 +4074,20 @@
     try { localStorage.setItem("photoSynth.fxOrder", JSON.stringify(S.fxOrder)); } catch (ignore) {}
   }
 
+  /* Switch a module in or out of the chain. Off means out of the audio
+   * graph entirely — the audio thread never touches its nodes. */
+  function setFXEnabled(name, on) {
+    S.fxEnabled[name] = !!on;
+    var card = $("fxList").querySelector('[data-fx="' + name + '"]');
+    if (card) {
+      card.classList.toggle("fx-off", !on);
+      var b = card.querySelector("[data-fx-power]");
+      if (b) b.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    wireFXOrder(A);
+    try { localStorage.setItem("photoSynth.fxEnabled", JSON.stringify(S.fxEnabled)); } catch (ignore) {}
+  }
+
   function initFXModules() {
     var list = $("fxList");
     S.fxOrder.forEach(function (name) {
@@ -3880,6 +4098,16 @@
     fxCards().forEach(function (card) {
       var toggle = card.querySelector(".fx-toggle");
       var controls = card.querySelector(".fx-controls");
+      var name = card.getAttribute("data-fx");
+      var power = card.querySelector("[data-fx-power]");
+      var on = S.fxEnabled[name] !== false;
+      card.classList.toggle("fx-off", !on);
+      if (power) {
+        power.setAttribute("aria-pressed", on ? "true" : "false");
+        power.addEventListener("click", function () {
+          setFXEnabled(name, S.fxEnabled[name] === false);
+        });
+      }
       toggle.addEventListener("click", function () {
         var open = toggle.getAttribute("aria-expanded") !== "true";
         toggle.setAttribute("aria-expanded", open ? "true" : "false");
@@ -4045,6 +4273,60 @@
     $("satToneOut").textContent = S.satTone >= 1000 ? (S.satTone / 1000).toFixed(1) + " kHz" : Math.round(S.satTone) + " Hz";
     pushAudio();
   });
+  $("delayChar").addEventListener("change", function (e) {
+    S.delayChar = e.target.value;
+    refreshDelayChar(A);
+  });
+  $("phaserMix").addEventListener("input", function (e) {
+    S.phaserMix = e.target.value / 100;
+    $("phaserMixOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("phaserRate").addEventListener("input", function (e) {
+    S.phaserRate = parseInt(e.target.value, 10) / 100;
+    $("phaserRateOut").textContent = S.phaserRate.toFixed(2) + " Hz";
+    pushAudio();
+  });
+  $("phaserDepth").addEventListener("input", function (e) {
+    S.phaserDepth = e.target.value / 100;
+    $("phaserDepthOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("chorusMix").addEventListener("input", function (e) {
+    S.chorusMix = e.target.value / 100;
+    $("chorusMixOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("chorusRate").addEventListener("input", function (e) {
+    S.chorusRate = parseInt(e.target.value, 10) / 100;
+    $("chorusRateOut").textContent = S.chorusRate.toFixed(2) + " Hz";
+    pushAudio();
+  });
+  $("chorusDepth").addEventListener("input", function (e) {
+    S.chorusDepth = e.target.value / 100;
+    $("chorusDepthOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("stutterAmt").addEventListener("input", function (e) {
+    S.stutterAmt = e.target.value / 100;
+    $("stutterAmtOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("stutterRate").addEventListener("input", function (e) {
+    S.stutterRate = parseInt(e.target.value, 10) / 10;
+    $("stutterRateOut").textContent = S.stutterRate.toFixed(1) + " Hz";
+    pushAudio();
+  });
+  $("envAmp").addEventListener("input", function (e) {
+    S.envAmp = e.target.value / 100;
+    $("envAmpOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("envFlt").addEventListener("input", function (e) {
+    S.envFlt = e.target.value / 100;
+    $("envFltOut").textContent = S.envFlt < 0.005 ? "off" : e.target.value + " %";
+    pushAudio();
+  });
   $("legato").addEventListener("input", function (e) {
     S.legato = e.target.value / 200;               // 0 .. 500 ms
     $("legatoOut").textContent = S.legato < 0.005 ? "off" : Math.round(S.legato * 1000) + " ms";
@@ -4108,7 +4390,7 @@
     padTone.canvas.style.aspectRatio = String(1 / S.padSize);
     padFilter.canvas.style.aspectRatio = String(1 / S.padSize);
     padEnv.canvas.style.aspectRatio = String(1 / S.padSize);
-    fxm.canvas.style.aspectRatio = String(1 / S.padSize);
+    padFx.canvas.style.aspectRatio = String(1 / S.padSize);
     $("padsizeOut").textContent = e.target.value + " %";
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-fmode]"), function (b) {
@@ -4160,10 +4442,12 @@
    * Nothing ever leaves the device unless the user moves the file.
    * ================================================================== */
   var PRESET_CONTROL_IDS = ["engine", "law", "scale", "root", "octaves", "glide", "drive",
-    "attack", "release", "legato", "voiceMode", "voices", "polyNotes", "polyOsc",
+    "attack", "release", "legato", "envAmp", "envFlt", "voiceMode", "voices", "polyNotes", "polyOsc",
     "spread", "width", "panMode", "padsize",
-    "satGain", "satTone", "delayMix", "delayTime", "delayFeedback",
-    "reverbMix", "reverbType", "reverbLength", "vol", "rate", "mspeed"];
+    "satGain", "satTone", "delayMix", "delayTime", "delayFeedback", "delayChar",
+    "reverbMix", "reverbType", "reverbLength",
+    "phaserMix", "phaserRate", "phaserDepth", "chorusMix", "chorusRate", "chorusDepth",
+    "stutterAmt", "stutterRate", "vol", "rate", "mspeed"];
 
   function idbOpen() {
     return new Promise(function (res, rej) {
@@ -4249,8 +4533,8 @@
       name: name, created: Date.now(),
       controls: controls,
       fmode: S.fmode, twoShape: S.twoShape,
-      fxOrder: S.fxOrder.slice(), fxCorners: fxAssign.slice(),
-      fxPos: fxm.pos && fxm.w ? { x: fxm.pos.x / fxm.w, y: fxm.pos.y / fxm.h } : null,
+      fxOrder: S.fxOrder.slice(), fxRGB: fxAssign.slice(),
+      fxEnabled: JSON.parse(JSON.stringify(S.fxEnabled)),
       pads: padsOut
     };
   }
@@ -4274,13 +4558,17 @@
       });
       commitFXOrder();
     }
-    if (Array.isArray(p.fxCorners) && p.fxCorners.length === 4) {
-      var ids = FX_PARAM_DEFS.map(function (d) { return d.id; });
-      p.fxCorners.forEach(function (id, i) {
-        if (ids.indexOf(id) !== -1) { fxAssign[i] = id; $("fxCorner" + i).value = id; }
+    if (p.fxEnabled && typeof p.fxEnabled === "object") {
+      FX_MODULE_NAMES.forEach(function (nm) {
+        if (typeof p.fxEnabled[nm] === "boolean") setFXEnabled(nm, p.fxEnabled[nm]);
       });
-      try { localStorage.setItem("photoSynth.fxCorners", JSON.stringify(fxAssign)); } catch (ignore) {}
-      fxm.dirty = true;
+    }
+    if (Array.isArray(p.fxRGB) && p.fxRGB.length === 3) {
+      var ids = FX_PARAM_DEFS.map(function (d) { return d.id; });
+      p.fxRGB.forEach(function (id, i) {
+        if (ids.indexOf(id) !== -1) { fxAssign[i] = id; $("fxChan" + i).value = id; }
+      });
+      try { localStorage.setItem("photoSynth.fxRGB", JSON.stringify(fxAssign)); } catch (ignore) {}
     }
     var loads = pads.map(function (pad) {
       var pp = p.pads && p.pads[pad.key];
@@ -4315,16 +4603,9 @@
       });
     });
     return Promise.all(loads).then(function () {
-      if (p.fxPos && fxm.w) {
-        fxm.pos = { x: clamp(p.fxPos.x, 0, 1) * fxm.w, y: clamp(p.fxPos.y, 0, 1) * fxm.h };
-        var h = $("hint-fx");
-        if (h) h.style.display = "none";
-        applyFXMatrix();
-      } else if (!p.fxPos) {
-        fxm.pos = null;
-        updateFXReadout(null);
-      }
-      fxm.dirty = true;
+      // The FX photo pad restores through the pads loop like the others;
+      // without a stored cursor its sliders keep the preset's own values.
+      if (!padFx.pos) updateFXReadout(null);
       updateMotionUI();
       updateReadouts();
     });
@@ -4469,9 +4750,11 @@
   })();
 
   (function initControls() {
-    ["octaves", "glide", "drive", "attack", "release", "legato", "voices", "polyNotes", "polyOsc",
-     "spread", "width",
+    ["octaves", "glide", "drive", "attack", "release", "legato", "envAmp", "envFlt",
+     "voices", "polyNotes", "polyOsc", "spread", "width",
      "padsize", "delayMix", "delayTime", "delayFeedback", "reverbMix", "reverbLength", "satGain", "satTone",
+     "phaserMix", "phaserRate", "phaserDepth", "chorusMix", "chorusRate", "chorusDepth",
+     "stutterAmt", "stutterRate",
      "vol", "rate", "mspeed"].forEach(function (id) {
       var el = $(id);
       if (el) el.dispatchEvent(new Event("input"));
@@ -4479,7 +4762,7 @@
   })();
 
   initFXModules();
-  initFXMatrix();
+  initFXSelects();
   refreshPresets();
   updateVoiceModeRows();
   setMode("play");
@@ -4487,6 +4770,7 @@
   loadDemo("tone");
   loadDemo("filter");
   loadDemo("env");
+  loadDemo("fx");
   computeTone([0.85, 0.25, 0.25]);
   computeFilter(null);
   computeEnv(null);
