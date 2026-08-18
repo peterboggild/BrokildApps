@@ -1,18 +1,21 @@
 # Photo Synth
 
 A three-photo instrument that runs entirely in the browser. Drag across the
-first photo and the colour under your finger becomes a tone (polyphonic if you
-raise the Voices slider); touch the second and its colour drives a
-virtual-analog ladder filter; the third shapes the envelope (red attack, green
-sustain, blue decay). Each pad has its own motion Rec button — record a gesture
-or define a line/circle with two fingers and it loops immediately. Polyphonic
-voices can pan by sampled hue or cursor position, with a width-zero mono mode.
-A stereo effects chain adds delay, convolution reverb and saturation, and a
+first photo and the colour under your finger becomes a tone (up to sixteen
+voices via the Voices slider — idle voices sleep, so only what you play costs
+CPU); touch the second and its colour drives a virtual-analog ladder filter;
+the third shapes the envelope (red attack, green sustain, blue decay). Each pad
+has its own motion Rec button — record a gesture or define a line/circle with
+two fingers and it loops immediately. Polyphonic voices can pan by sampled hue
+or cursor position, with a width-zero mono mode. A stereo effects chain adds
+delay, convolution reverb and loudness-compensated tube saturation, and a
 fourth square — the FX matrix — blends four selectable effect parameters from
-its green, red, yellow and blue corners by cursor distance. Photos
-come from the camera, the camera roll or a live camera feed, an on-screen
-keyboard or an imported MIDI file sets the base note, and the output can be
-recorded or rendered to 24-bit WAV.
+its green, red, yellow and blue corners (full through each corner's quadrant
+and at the centre, zero at the opposing corners). Presets capture everything
+including small copies of the photos, stored only on the device (IndexedDB)
+with single-file export/import. Photos come from the camera, the camera roll or
+a live camera feed, an on-screen keyboard or an imported MIDI file sets the
+base note, and the output can be recorded or rendered to 24-bit WAV.
 
 ## Files
 
