@@ -454,7 +454,7 @@
     </div>
     <div class="row">
       <label for="voices">Voices</label>
-      <div class="ctl"><input id="voices" type="range" min="1" max="4" step="1" value="1"></div>
+      <div class="ctl"><input id="voices" type="range" min="1" max="16" step="1" value="1"></div>
       <output id="voicesOut">1 voice</output>
     </div>
     <div class="row">
@@ -492,6 +492,27 @@
       <div class="ctl seg"><button class="btn" id="swap" type="button">Swap photos</button></div>
     </div>
     <div class="note" id="engineNote"></div>
+  </div>
+</details>
+
+<details id="presetsPanel">
+  <summary>Presets</summary>
+  <div class="body">
+    <div class="row">
+      <span class="lab">Preset</span>
+      <div class="ctl seg">
+        <button class="btn" id="presetSave" type="button">Save current</button>
+        <button class="btn" id="presetImport" type="button">Import file</button>
+      </div>
+    </div>
+    <div id="presetList"></div>
+    <div class="note">A preset captures every control, the effect chain and FX matrix, the cursor
+      positions, armed motions, and small copies of the three photos. Presets are stored only in
+      this browser on this device — nothing is uploaded and no other device can read them.
+      <b>Export</b> writes a preset to a single file you can back up, or move to another device
+      yourself. Note: if the browser has not visited this page for a long time it may reclaim the
+      storage, so export the presets you care about.</div>
+    <input type="file" id="file-preset" accept=".json,application/json">
   </div>
 </details>
 
@@ -645,25 +666,39 @@
     <p>The square next to the envelope photo blends four effect parameters at once. Each corner
       — <b>green</b> (top left), <b>red</b> (top right), <b>yellow</b> (bottom left) and
       <b>blue</b> (bottom right) — is assigned to a parameter with the pull-down menus under the
-      square (delay, reverb, tube, drive, width or glide). The cursor weighs every corner by
-      distance: on a corner its parameter is at <b>full</b>, one side length away it has fallen to
-      <b>zero</b>, so the centre holds all four at about a third. The field shows the same blend as
-      colour. The matrix writes straight into the sliders in Edit, so lifting your finger keeps the
-      mix where you left it; <b>Reset</b> puts the four assigned sliders back to their defaults.</p>
+      square (delay, reverb, tube, drive, width or glide). A corner's parameter is at <b>full</b>
+      anywhere in its own quarter of the square and still at full in the exact <b>centre</b>, where
+      all four meet at 100 %; from there it eases smoothly down to <b>zero</b> at the three
+      opposing corners. The field shows the same blend as colour. The matrix writes straight into
+      the sliders in Edit, so lifting your finger keeps the mix where you left it; <b>Reset</b>
+      puts the four assigned sliders back to their defaults.</p>
 
     <h3>Voices</h3>
-    <p>The <b>Voices</b> slider (Sound) turns the tone photo polyphonic: extra voices sample the
-      colours a small distance around your finger — set by <b>Voice spread</b> — so the local
-      texture of the photo becomes a chord. Uniform areas thicken into a unison; detailed areas
-      scatter into intervals. <b>Stereo width</b> pans the voices by sampled hue or horizontal
-      cursor position and adds a small per-voice tuning offset. At zero, left and right are
-      identical for true mono compatibility. Voices need the analog engine.</p>
+    <p>The <b>Voices</b> slider (Sound) turns the tone photo polyphonic — up to <b>sixteen</b>
+      voices. The extra voices sample the colours in rings around your finger — the radius set by
+      <b>Voice spread</b>, with large counts spreading onto wider rings — so the local texture of
+      the photo becomes a chord. Uniform areas thicken into a unison; detailed areas scatter into
+      intervals. <b>Stereo width</b> pans the voices by sampled hue or horizontal cursor position
+      and adds a small per-voice tuning offset. At zero, left and right are identical for true mono
+      compatibility. Voices need the analog engine, and unused voices cost nothing: the engine puts
+      them to sleep, so only the count you actually play burns CPU.</p>
 
     <h3>Effects</h3>
     <p>The Effects panel is a real serial signal chain. Drag the handle to put the tube stage,
       two-channel delay and convolution reverb in any order; tap a module to expand its controls.
       The order is remembered on this device. Every module and feedback loop preserves the stereo
-      image created by the oscillators and polyphonic voice panning.</p>
+      image created by the oscillators and polyphonic voice panning. The tube stage is
+      <b>loudness-compensated</b>: its wet path is trimmed by the measured gain of the saturation
+      curve, so turning drive up thickens the tone without getting louder.</p>
+
+    <h3>Presets</h3>
+    <p>The <b>Presets</b> panel saves the whole instrument: every control, the effect order, the FX
+      matrix corners and cursor, armed motions, latches, and small copies of the three photos.
+      Presets live only in this browser on this device — nothing is uploaded, and another device
+      cannot read them. <b>Export</b> writes a preset to a single file (settings and photos
+      included) that you can back up or move to another device yourself, and <b>Import</b> reads it
+      back. Because browsers can reclaim site storage after long disuse, export the presets you
+      care about.</p>
 
     <h3>Live camera</h3>
     <p><b>Live</b> (under each photo in Edit) replaces that photo with the live camera. Latch a
@@ -867,6 +902,7 @@
     reverbLength: 1.8,
     reverbMix: 0.15,
     satGain: 0,
+    satComp: 1,
     satTone: 8400,
     vol: 0.70,
     legato: 0.12,
@@ -1054,21 +1090,40 @@
   /* A lightweight triode-style transfer. Biasing a smooth tanh curve makes
    * the positive and negative half-cycles compress differently, which adds
    * the gentle even harmonics associated with a single-ended valve stage.
-   * The following high-pass removes the small DC component this creates. */
-  function saturationCurve(db) {
-    var n = 8193, curve = new Float32Array(n);
-    var amount = db / 24;
-    var k = 1.15 + 2.85 * amount;
-    var bias = 0.06 + 0.05 * amount;
-    var zero = Math.tanh(k * bias);
-    var hi = Math.tanh(k * (1 + bias)) - zero;
-    var lo = Math.tanh(k * (-1 + bias)) - zero;
+   * The following high-pass removes the small DC component this creates.
+   *
+   * The curve itself is fixed: how hard it is driven comes entirely from the
+   * smoothed pre-gain and wet/dry mix. Swapping a WaveShaper curve while
+   * audio runs is an instantaneous transfer change and audibly pops, so the
+   * Drive slider must never rebuild it. */
+  var SAT_K = 4.0, SAT_BIAS = 0.11;
+  function satTransfer(x) {
+    var zero = Math.tanh(SAT_K * SAT_BIAS);
+    var hi = Math.tanh(SAT_K * (1 + SAT_BIAS)) - zero;
+    var lo = Math.tanh(SAT_K * (-1 + SAT_BIAS)) - zero;
     var norm = Math.max(Math.abs(hi), Math.abs(lo), 0.001);
-    for (var i = 0; i < n; i++) {
-      var x = i * 2 / (n - 1) - 1;
-      curve[i] = (Math.tanh(k * (x + bias)) - zero) / norm;
-    }
+    return (Math.tanh(SAT_K * (clamp(x, -1, 1) + SAT_BIAS)) - zero) / norm;
+  }
+  function saturationCurve() {
+    var n = 8193, curve = new Float32Array(n);
+    for (var i = 0; i < n; i++) curve[i] = satTransfer(i * 2 / (n - 1) - 1);
     return curve;
+  }
+
+  /* RMS gain of the tube stage for a reference sine at this drive setting.
+   * The wet path is trimmed by the inverse, so turning drive up thickens the
+   * tone without getting louder. The 0.3 reference amplitude was calibrated
+   * against offline renders of the synth voice: it holds a full-drive sweep
+   * within about ±1 dB of the clean signal. */
+  function saturationComp(db) {
+    var pre = Math.pow(10, db / 32);
+    var sIn = 0, sOut = 0;
+    for (var i = 0; i < 128; i++) {
+      var x = 0.3 * Math.sin(6.2831853 * i / 128);
+      var y = satTransfer(pre * x);
+      sIn += x * x; sOut += y * y;
+    }
+    return sOut > 1e-9 ? Math.sqrt(sIn / sOut) : 1;
   }
 
   /* Deterministic stereo impulse: reproducible offline and decorrelated
@@ -1096,12 +1151,22 @@
     return b;
   }
 
+  /* Swapping the buffer of a live ConvolverNode is an instant impulse change
+   * and audibly pops (the FX matrix hit this each time a drag settled). Two
+   * convolvers share the wet path instead: a new length or character loads
+   * into the spare one and the pair crossfades. */
   function refreshReverb(g) {
-    if (g && g.reverb) g.reverb.buffer = reverbImpulse(g.ctx, S.reverbType, S.reverbLength);
+    if (!g || !g.rv) return;
+    var next = 1 - g.rvActive;
+    g.rv[next].buffer = reverbImpulse(g.ctx, S.reverbType, S.reverbLength);
+    var t = g.ctx.currentTime;
+    g.rvGain[next].gain.setTargetAtTime(1, t, 0.05);
+    g.rvGain[g.rvActive].gain.setTargetAtTime(0, t, 0.05);
+    g.rvActive = next;
   }
 
   function refreshSaturation(g) {
-    if (g && g.satShape) g.satShape.curve = saturationCurve(S.satGain);
+    if (g && g.satShape && !g.satShape.curve) g.satShape.curve = saturationCurve();
   }
 
   function wireFXOrder(g) {
@@ -1192,11 +1257,18 @@
     g.reverbIn = forceStereo(ctx.createGain());
     g.reverbOut = forceStereo(ctx.createGain());
     g.reverbDry = ctx.createGain();
-    g.reverb = ctx.createConvolver();
+    g.rv = [ctx.createConvolver(), ctx.createConvolver()];
+    g.rvGain = [ctx.createGain(), ctx.createGain()];
+    g.rvActive = 0;
     g.reverbWet = ctx.createGain();
     g.reverbIn.connect(g.reverbDry); g.reverbDry.connect(g.reverbOut);
-    g.reverbIn.connect(g.reverb);
-    g.reverb.connect(g.reverbWet);
+    for (var rc = 0; rc < 2; rc++) {
+      g.reverbIn.connect(g.rv[rc]);
+      g.rv[rc].connect(g.rvGain[rc]);
+      g.rvGain[rc].connect(g.reverbWet);
+      g.rvGain[rc].gain.value = rc === 0 ? 1 : 0;
+    }
+    g.rv[0].buffer = reverbImpulse(ctx, S.reverbType, S.reverbLength);
     g.reverbWet.connect(g.reverbOut);
 
     g.fxModules = {
@@ -1210,7 +1282,6 @@
     g.comp.connect(g.master);
     g.master.connect(ctx.destination);
     refreshSaturation(g);
-    refreshReverb(g);
 
     // ---- additive engine (sine bank + biquad) ----------------------------
     g.addGain = ctx.createGain();
@@ -1317,7 +1388,7 @@
     g.pk.gain.setTargetAtTime(filt.peakG, t, 0.03);
     var satMix = S.satGain / 24;
     g.satDry.gain.setTargetAtTime(Math.cos(satMix * Math.PI / 2), t, 0.03);
-    g.satWet.gain.setTargetAtTime(Math.sin(satMix * Math.PI / 2), t, 0.03);
+    g.satWet.gain.setTargetAtTime(Math.sin(satMix * Math.PI / 2) * S.satComp, t, 0.03);
     g.satPre.gain.setTargetAtTime(Math.pow(10, S.satGain / 32), t, 0.03);
     g.satTone.frequency.setTargetAtTime(S.satTone, t, 0.03);
     for (var dc = 0; dc < 2; dc++) {
@@ -1349,9 +1420,14 @@
     for (i = 0; i < A.extras.length; i++) {
       var p = null;
       if (i < n && engineIsAnalog(A) && padTone.pos) {
-        var ang = 4.7124 + i * 2.0944;        // above, lower-right, lower-left
-        var sx = padTone.pos.x + Math.cos(ang) * S.spread;
-        var sy = padTone.pos.y + Math.sin(ang) * S.spread;
+        // Up to six voices on a ring around the finger, the next six on a
+        // second, wider ring, and so on — large voice counts read the local
+        // texture of the photo over a broader patch.
+        var ring = Math.floor(i / 6), nRing = Math.min(6, n - ring * 6);
+        var ang = 4.7124 + (i % 6 + ring * 0.5) * 6.2832 / Math.max(1, nRing);
+        var rad = S.spread * (1 + 0.9 * ring);
+        var sx = padTone.pos.x + Math.cos(ang) * rad;
+        var sy = padTone.pos.y + Math.sin(ang) * rad;
         var rgb = padTone.sample(sx, sy);
         if (rgb) p = toneParamsFromRGB(rgb);
       }
@@ -1361,10 +1437,11 @@
         for (k in p) msg[k] = p[k];
         msg.ratio = p.ratio * voiceFineRatio(i + 1);
         msg.level = p.level * norm;
+        msg.gate = gateOn ? 1 : 0;       // late joiners pick up the held gate
         A.extras[i].node.port.postMessage({ type: "params", p: msg });
         setPan(A.extras[i].pan, voicePan(rgb, sx, padTone.w), A.ctx.currentTime, true);
       } else {
-        A.extras[i].node.port.postMessage({ type: "params", p: { level: 0 } });
+        A.extras[i].node.port.postMessage({ type: "params", p: { level: 0, gate: 0 } });
         setPan(A.extras[i].pan, 0, A.ctx.currentTime, true);
       }
     }
@@ -1385,7 +1462,7 @@
     g.pk.gain.setValueAtTime(filt.peakG, when);
     var satMix = S.satGain / 24;
     g.satDry.gain.setValueAtTime(Math.cos(satMix * Math.PI / 2), when);
-    g.satWet.gain.setValueAtTime(Math.sin(satMix * Math.PI / 2), when);
+    g.satWet.gain.setValueAtTime(Math.sin(satMix * Math.PI / 2) * S.satComp, when);
     g.satPre.gain.setValueAtTime(Math.pow(10, S.satGain / 32), when);
     g.satTone.frequency.setValueAtTime(S.satTone, when);
     for (var dc = 0; dc < 2; dc++) {
@@ -1448,7 +1525,7 @@
         : Promise.resolve(false);
       return load.then(function (ok) {
         workletOK = ok;
-        A = buildChain(ctx, ok, undefined, 3);
+        A = buildChain(ctx, ok, undefined, 15);
         if (!ok && S.engine === "analog") {
           S.engine = "additive";
           var sel = $("engine");
@@ -1498,14 +1575,18 @@
   /* ---- gating -------------------------------------------------------- */
   var gates = { pad: false, key: false };
   var keyHold = false;
+  var gateOn = false;                    // last gate state, for late-joining voices
 
   function setGate(on, force) {
+    gateOn = !!on;
     if (!A) return;
     if (engineIsAnalog(A)) {
       A.voice.port.postMessage({ type: "params", p: { gate: on ? 1 : 0 } });
       if (A.extras) {
-        A.extras.forEach(function (x) {
-          x.node.port.postMessage({ type: "params", p: { gate: on ? 1 : 0 } });
+        // Only the voices in use are gated: the rest keep gate 0 so their
+        // envelopes die and the worklet's idle skip stops their DSP cost.
+        A.extras.forEach(function (x, xi) {
+          x.node.port.postMessage({ type: "params", p: { gate: on && xi < S.voices - 1 ? 1 : 0 } });
         });
       }
     } else {
@@ -2696,14 +2777,22 @@
   }
 
   /* Corner weights for a point in normalised pad coordinates (0..1).
-   * Each weight falls linearly with distance: 1 on the corner, 0 one full
-   * side length away, so the adjacent corners are silent from each other's
-   * home and the centre blends all four at ~29 %. */
+   * Each axis uses a plateau + smoothstep: full up to the middle of the pad,
+   * then easing to zero at the far edge. The product of the two axes means a
+   * corner's parameter is at 100 % through its whole home quadrant and at
+   * the exact centre (where all four meet at full), and dies to zero at the
+   * three opposing corners. */
+  function fxFall(t) {
+    if (t <= 0.5) return 1;
+    var u = clamp((t - 0.5) * 2, 0, 1);
+    return 1 - u * u * (3 - 2 * u);
+  }
   function fxWeights(nx, ny) {
     var out = [0, 0, 0, 0];
     for (var i = 0; i < 4; i++) {
-      var d = Math.hypot(nx - FX_CORNERS[i].nx, ny - FX_CORNERS[i].ny);
-      out[i] = clamp(1 - d, 0, 1);
+      var tx = FX_CORNERS[i].nx ? 1 - nx : nx;
+      var ty = FX_CORNERS[i].ny ? 1 - ny : ny;
+      out[i] = fxFall(tx) * fxFall(ty);
     }
     return out;
   }
@@ -3654,8 +3743,8 @@
   });
   $("satGain").addEventListener("input", function (e) {
     S.satGain = parseInt(e.target.value, 10);
+    S.satComp = saturationComp(S.satGain);
     $("satGainOut").textContent = S.satGain ? "+" + S.satGain + " dB" : "off";
-    refreshSaturation(A);
     pushAudio();
   });
   $("satTone").addEventListener("input", function (e) {
@@ -3736,6 +3825,279 @@
     else { computeFilter(filt.rgb); pushAudio(); updateReadouts(); }
   }
 
+  /* ================================================================== *
+   * Presets: the whole state of the instrument — every control, the FX
+   * chain and matrix, cursors, motions and small copies of the photos —
+   * saved on this device only (IndexedDB), or exported as a single file.
+   * Nothing ever leaves the device unless the user moves the file.
+   * ================================================================== */
+  var PRESET_CONTROL_IDS = ["engine", "law", "scale", "root", "octaves", "glide", "drive",
+    "attack", "release", "legato", "voices", "spread", "width", "panMode", "padsize",
+    "satGain", "satTone", "delayMix", "delayTime", "delayFeedback",
+    "reverbMix", "reverbType", "reverbLength", "vol", "rate", "mspeed"];
+
+  function idbOpen() {
+    return new Promise(function (res, rej) {
+      if (!window.indexedDB) { rej(new Error("no IndexedDB")); return; }
+      var rq = indexedDB.open("photoSynthPresets", 1);
+      rq.onupgradeneeded = function () {
+        rq.result.createObjectStore("presets", { keyPath: "id", autoIncrement: true });
+      };
+      rq.onsuccess = function () { res(rq.result); };
+      rq.onerror = function () { rej(rq.error || new Error("IndexedDB refused")); };
+    });
+  }
+  function idbOp(mode, fn) {
+    return idbOpen().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction("presets", mode);
+        var rq = fn(tx.objectStore("presets"));
+        tx.oncomplete = function () { res(rq && rq.result); };
+        tx.onerror = function () { rej(tx.error); };
+        tx.onabort = function () { rej(tx.error); };
+      });
+    });
+  }
+
+  /* A ≤640 px JPEG of what the pad is showing — enough for both display and
+   * the 5×5 colour sampling, at ~100 kB instead of a full camera photo. */
+  function padPhotoData(pad) {
+    var d = pad.srcDims();
+    if (!d.w || !d.h) return null;
+    var useLive = pad.liveOn && live.video && live.video.videoWidth;
+    if (!useLive && !pad.img) return null;
+    var k = Math.min(1, 640 / Math.max(d.w, d.h));
+    var c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(d.w * k));
+    c.height = Math.max(1, Math.round(d.h * k));
+    var g = c.getContext("2d");
+    if (useLive) g.drawImage(live.video, 0, 0, c.width, c.height);
+    else g.drawImage(pad.img, 0, 0, c.width, c.height);
+    try { return c.toDataURL("image/jpeg", 0.82); } catch (e) { return null; }
+  }
+
+  /* Motions are stored in pad-relative units so a preset saved on a phone
+   * replays at the same proportions on a tablet. */
+  function motionOut(pad) {
+    var m = pad.motion;
+    if (!m || !pad.w || !pad.h) return null;
+    if (m.kind === "recorded") {
+      return { kind: "recorded", dur: m.dur, pts: m.pts.map(function (p) {
+        return { t: p.t, dx: p.dx / pad.w, dy: p.dy / pad.h };
+      }) };
+    }
+    return { kind: m.kind, dx: m.dx / pad.w, dy: m.dy / pad.h };
+  }
+  function motionIn(pad, m) {
+    if (!m || !pad.w || !pad.h) return null;
+    if (m.kind === "recorded") {
+      if (!Array.isArray(m.pts) || m.pts.length < 2) return null;
+      return { kind: "recorded", dur: m.dur, pts: m.pts.map(function (p) {
+        return { t: p.t, dx: p.dx * pad.w, dy: p.dy * pad.h };
+      }) };
+    }
+    if (m.kind !== "line" && m.kind !== "circle") return null;
+    return { kind: m.kind, dx: m.dx * pad.w, dy: m.dy * pad.h };
+  }
+
+  function capturePreset(name) {
+    var controls = {};
+    PRESET_CONTROL_IDS.forEach(function (id) {
+      var el = $(id);
+      if (el) controls[id] = el.value;
+    });
+    var padsOut = {};
+    pads.forEach(function (pad) {
+      padsOut[pad.key] = {
+        img: padPhotoData(pad),
+        pos: pad.pos && pad.w ? { x: pad.pos.x / pad.w, y: pad.pos.y / pad.h } : null,
+        latched: pad.latched,
+        motion: motionOut(pad)
+      };
+    });
+    return {
+      app: "photo-synth", kind: "preset", version: 1,
+      name: name, created: Date.now(),
+      controls: controls,
+      fmode: S.fmode, twoShape: S.twoShape,
+      fxOrder: S.fxOrder.slice(), fxCorners: fxAssign.slice(),
+      fxPos: fxm.pos && fxm.w ? { x: fxm.pos.x / fxm.w, y: fxm.pos.y / fxm.h } : null,
+      pads: padsOut
+    };
+  }
+
+  function applyPreset(p) {
+    PRESET_CONTROL_IDS.forEach(function (id) {
+      var el = $(id);
+      if (!el || !p.controls || p.controls[id] === undefined) return;
+      el.value = p.controls[id];
+      el.dispatchEvent(new Event(el.tagName === "SELECT" ? "change" : "input"));
+    });
+    var fb = p.fmode && document.querySelector('[data-fmode="' + p.fmode + '"]');
+    if (fb) fb.click();
+    var tb = p.twoShape && document.querySelector('[data-twoshape="' + p.twoShape + '"]');
+    if (tb) tb.click();
+    if (Array.isArray(p.fxOrder)) {
+      var list = $("fxList");
+      p.fxOrder.forEach(function (nm) {
+        var card = list.querySelector('[data-fx="' + nm + '"]');
+        if (card) list.appendChild(card);
+      });
+      commitFXOrder();
+    }
+    if (Array.isArray(p.fxCorners) && p.fxCorners.length === 4) {
+      var ids = FX_PARAM_DEFS.map(function (d) { return d.id; });
+      p.fxCorners.forEach(function (id, i) {
+        if (ids.indexOf(id) !== -1) { fxAssign[i] = id; $("fxCorner" + i).value = id; }
+      });
+      try { localStorage.setItem("photoSynth.fxCorners", JSON.stringify(fxAssign)); } catch (ignore) {}
+      fxm.dirty = true;
+    }
+    var loads = pads.map(function (pad) {
+      var pp = p.pads && p.pads[pad.key];
+      if (!pp) return Promise.resolve();
+      var done = Promise.resolve();
+      if (pp.img) {
+        done = new Promise(function (res) {
+          var img = new Image();
+          img.onload = function () {
+            setLivePad(pad, false);
+            pad.setImage(img, img.naturalWidth, img.naturalHeight);
+            res();
+          };
+          img.onerror = function () { res(); };
+          img.src = pp.img;
+        });
+      }
+      return done.then(function () {
+        pad.auto = null;
+        pad.motion = motionIn(pad, pp.motion);
+        if (pp.pos && pad.w) {
+          pad.pos = { x: clamp(pp.pos.x, 0, 1) * pad.w, y: clamp(pp.pos.y, 0, 1) * pad.h };
+          var hint = $("hint-" + pad.key);
+          if (hint) hint.style.display = "none";
+          apply(pad);
+        } else if (!pp.pos) {
+          pad.pos = null;
+        }
+        setLatch(pad, !!pp.latched);
+        if (pad.latched && pad.motion && pad.pos) pad.auto = startAuto(pad, pad.pos);
+        pad.dirty = true;
+      });
+    });
+    return Promise.all(loads).then(function () {
+      if (p.fxPos && fxm.w) {
+        fxm.pos = { x: clamp(p.fxPos.x, 0, 1) * fxm.w, y: clamp(p.fxPos.y, 0, 1) * fxm.h };
+        var h = $("hint-fx");
+        if (h) h.style.display = "none";
+        applyFXMatrix();
+      } else if (!p.fxPos) {
+        fxm.pos = null;
+        updateFXReadout(null);
+      }
+      fxm.dirty = true;
+      updateMotionUI();
+      updateReadouts();
+    });
+  }
+
+  function renderPresetList(items) {
+    var box = $("presetList");
+    box.innerHTML = "";
+    if (!items.length) {
+      box.innerHTML = '<div class="note">no presets saved on this device yet</div>';
+      return;
+    }
+    items.sort(function (a, b) { return (b.created || 0) - (a.created || 0); });
+    items.forEach(function (p) {
+      var row = document.createElement("div");
+      row.className = "row";
+      var info = document.createElement("span");
+      info.className = "info";
+      info.textContent = p.name || "Preset";
+      row.appendChild(info);
+      var ctl = document.createElement("div");
+      ctl.className = "ctl seg";
+      ctl.style.flex = "0 0 auto";
+      [["Load", function () {
+        applyPreset(p).then(function () { showToast('Loaded "' + p.name + '"'); },
+                            function () { showToast("Could not load that preset"); });
+      }],
+       ["Export", function () {
+        var out = {};
+        for (var k in p) if (k !== "id") out[k] = p[k];
+        download(new Blob([JSON.stringify(out)], { type: "application/json" }),
+                 (p.name || "preset").replace(/[^\w-]+/g, "_") + ".photosynth.json");
+      }],
+       ["Delete", function () {
+        if (!confirm('Delete preset "' + p.name + '" from this device?')) return;
+        idbOp("readwrite", function (st) { return st.delete(p.id); })
+          .then(refreshPresets, function () { showToast("Could not delete"); });
+      }]].forEach(function (def) {
+        var b = document.createElement("button");
+        b.className = "btn";
+        b.type = "button";
+        b.textContent = def[0];
+        b.addEventListener("click", def[1]);
+        ctl.appendChild(b);
+      });
+      row.appendChild(ctl);
+      box.appendChild(row);
+    });
+  }
+
+  function refreshPresets() {
+    idbOp("readonly", function (st) { return st.getAll(); }).then(function (items) {
+      renderPresetList(items || []);
+    }, function () {
+      $("presetList").innerHTML =
+        '<div class="note">preset storage is not available here (private browsing?) — export still works after saving fails</div>';
+    });
+  }
+
+  $("presetSave").addEventListener("click", function () {
+    var name = prompt("Preset name", "Preset " + stamp());
+    if (name === null) return;
+    name = name.trim() || "Preset " + stamp();
+    var p = capturePreset(name);
+    idbOp("readwrite", function (st) { return st.put(p); }).then(function () {
+      // Ask the browser to hold on to the data across storage pressure.
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().then(function () {}, function () {});
+      }
+      showToast('Saved "' + name + '" on this device');
+      refreshPresets();
+    }, function () {
+      showToast("Could not save — storage unavailable. Exporting to a file instead.");
+      download(new Blob([JSON.stringify(p)], { type: "application/json" }),
+               name.replace(/[^\w-]+/g, "_") + ".photosynth.json");
+    });
+  });
+
+  $("presetImport").addEventListener("click", function () { $("file-preset").click(); });
+  $("file-preset").addEventListener("change", function (ev) {
+    var f = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      var p;
+      try {
+        p = JSON.parse(fr.result);
+        if (p.app !== "photo-synth" || p.kind !== "preset") throw new Error("not a Photo Synth preset");
+      } catch (e) {
+        showToast("Could not read that file: " + e.message);
+        return;
+      }
+      delete p.id;                       // imports never collide with a saved row
+      p.name = p.name || "Imported preset";
+      idbOp("readwrite", function (st) { return st.put(p); })
+        .then(refreshPresets, function () {});
+      applyPreset(p).then(function () { showToast('Loaded "' + p.name + '"'); });
+    };
+    fr.readAsText(f);
+  });
+
   // A deliberately opt-in hook for the browser measurement harness. It is
   // absent on the published URL unless ?photosynth-test=1 is supplied.
   if (/[?&]photosynth-test=1(?:&|$)/.test(location.search)) {
@@ -3786,6 +4148,7 @@
 
   initFXModules();
   initFXMatrix();
+  refreshPresets();
   setMode("play");
   updateMotionUI();
   loadDemo("tone");
