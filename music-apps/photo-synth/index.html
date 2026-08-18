@@ -163,6 +163,32 @@
   .row .info{font-size:12px;color:var(--text);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
   .sep{border-top:1px solid var(--line);margin:10px 0 0}
   .note{font-size:11.5px;color:var(--faint);padding:8px 0 0;line-height:1.45}
+  .fx-list{display:grid;gap:8px;padding-top:2px}
+  .fx-module{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:11px;overflow:hidden;
+    transition:border-color .15s,transform .15s,opacity .15s;
+  }
+  .fx-module.dragging{opacity:.7;border-color:var(--accent);transform:scale(.99)}
+  .fx-head{display:flex;align-items:center;gap:7px;min-height:46px;padding:5px 7px}
+  .fx-grip{
+    appearance:none;border:0;background:transparent;color:var(--faint);cursor:grab;
+    width:32px;align-self:stretch;border-radius:7px;font-size:19px;line-height:1;touch-action:none;
+  }
+  .fx-grip:active{cursor:grabbing;color:var(--accent);background:var(--accent-soft)}
+  .fx-toggle{
+    appearance:none;border:0;background:transparent;color:var(--text);font:inherit;text-align:left;
+    padding:7px 3px;cursor:pointer;display:flex;align-items:baseline;gap:7px;flex:1 1 auto;min-width:0;
+  }
+  .fx-index{color:var(--accent);font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .fx-name{font-size:13px;font-weight:600}
+  .fx-sub{font-size:11px;color:var(--faint);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fx-toggle::after{content:"+";color:var(--faint);font-size:15px;margin-left:auto}
+  .fx-toggle[aria-expanded="true"]::after{content:"–"}
+  .fx-move{display:flex;gap:3px;flex:none}
+  .fx-move .btn{padding:5px 7px;font-size:12px;border-radius:7px}
+  .fx-controls{padding:0 10px 8px;border-top:1px solid var(--line-soft)}
+  .fx-controls .row label{flex-basis:104px}
+  .fx-help{font-size:11px;color:var(--faint);padding:4px 0 2px}
   select{
     appearance:none;width:100%;font:inherit;font-size:13px;color:var(--text);background:var(--panel-2);
     border:1px solid var(--line);border-radius:9px;padding:8px 28px 8px 10px;
@@ -441,45 +467,83 @@
 <details id="effectsPanel">
   <summary>Effects</summary>
   <div class="body">
-    <div class="row">
-      <label for="space">FX mix</label>
-      <div class="ctl"><input id="space" type="range" min="0" max="100" value="18"></div>
-      <output id="spaceOut">18 %</output>
+    <div class="fx-help">Drag the ⋮⋮ handle to change the signal path. Tap a module to show its controls.</div>
+    <div class="fx-list" id="fxList" aria-label="Effects signal chain">
+      <section class="fx-module" data-fx="saturation">
+        <div class="fx-head">
+          <button class="fx-grip" type="button" aria-label="Drag Tube saturation">⋮⋮</button>
+          <button class="fx-toggle" type="button" aria-expanded="true"><span class="fx-index">01</span><span class="fx-name">Tube</span><span class="fx-sub">asymmetric soft saturation</span></button>
+          <span class="fx-move"><button class="btn" type="button" data-fx-up aria-label="Move Tube up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Tube down">↓</button></span>
+        </div>
+        <div class="fx-controls">
+          <div class="row">
+            <label for="satGain">Drive</label>
+            <div class="ctl"><input id="satGain" type="range" min="0" max="24" value="0"></div>
+            <output id="satGainOut">off</output>
+          </div>
+          <div class="row">
+            <label for="satTone">Tone</label>
+            <div class="ctl"><input id="satTone" type="range" min="0" max="100" value="72"></div>
+            <output id="satToneOut">8.4 kHz</output>
+          </div>
+          <div class="note">A biased triode-style curve adds gentle even harmonics. Four-times oversampling and DC blocking keep it smooth.</div>
+        </div>
+      </section>
+
+      <section class="fx-module" data-fx="delay">
+        <div class="fx-head">
+          <button class="fx-grip" type="button" aria-label="Drag Delay">⋮⋮</button>
+          <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">02</span><span class="fx-name">Delay</span><span class="fx-sub">stereo echo</span></button>
+          <span class="fx-move"><button class="btn" type="button" data-fx-up aria-label="Move Delay up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Delay down">↓</button></span>
+        </div>
+        <div class="fx-controls" hidden>
+          <div class="row">
+            <label for="delayMix">Mix</label>
+            <div class="ctl"><input id="delayMix" type="range" min="0" max="100" value="13"></div>
+            <output id="delayMixOut">13 %</output>
+          </div>
+          <div class="row">
+            <label for="delayTime">Time</label>
+            <div class="ctl"><input id="delayTime" type="range" min="40" max="900" value="260"></div>
+            <output id="delayTimeOut">260 ms</output>
+          </div>
+          <div class="row">
+            <label for="delayFeedback">Feedback</label>
+            <div class="ctl"><input id="delayFeedback" type="range" min="0" max="85" value="34"></div>
+            <output id="delayFeedbackOut">34 %</output>
+          </div>
+        </div>
+      </section>
+
+      <section class="fx-module" data-fx="reverb">
+        <div class="fx-head">
+          <button class="fx-grip" type="button" aria-label="Drag Reverb">⋮⋮</button>
+          <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">03</span><span class="fx-name">Reverb</span><span class="fx-sub">stereo convolution space</span></button>
+          <span class="fx-move"><button class="btn" type="button" data-fx-up aria-label="Move Reverb up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Reverb down">↓</button></span>
+        </div>
+        <div class="fx-controls" hidden>
+          <div class="row">
+            <label for="reverbMix">Mix</label>
+            <div class="ctl"><input id="reverbMix" type="range" min="0" max="100" value="15"></div>
+            <output id="reverbMixOut">15 %</output>
+          </div>
+          <div class="row">
+            <label for="reverbType">Character</label>
+            <div class="ctl"><select id="reverbType">
+              <option value="room" selected>Room</option>
+              <option value="hall">Hall</option>
+              <option value="plate">Plate</option>
+            </select></div>
+          </div>
+          <div class="row">
+            <label for="reverbLength">Length</label>
+            <div class="ctl"><input id="reverbLength" type="range" min="20" max="600" value="180"></div>
+            <output id="reverbLengthOut">1.80 s</output>
+          </div>
+        </div>
+      </section>
     </div>
-    <div class="row">
-      <label for="delayTime">Delay time</label>
-      <div class="ctl"><input id="delayTime" type="range" min="40" max="900" value="260"></div>
-      <output id="delayTimeOut">260 ms</output>
-    </div>
-    <div class="row">
-      <label for="delayFeedback">Feedback</label>
-      <div class="ctl"><input id="delayFeedback" type="range" min="0" max="85" value="34"></div>
-      <output id="delayFeedbackOut">34 %</output>
-    </div>
-    <div class="row">
-      <label for="reverbType">Reverb</label>
-      <div class="ctl"><select id="reverbType">
-        <option value="room" selected>Room</option>
-        <option value="hall">Hall</option>
-        <option value="plate">Plate</option>
-      </select></div>
-    </div>
-    <div class="row">
-      <label for="reverbLength">Reverb length</label>
-      <div class="ctl"><input id="reverbLength" type="range" min="20" max="600" value="180"></div>
-      <output id="reverbLengthOut">1.80 s</output>
-    </div>
-    <div class="row">
-      <label for="satGain">Saturation gain</label>
-      <div class="ctl"><input id="satGain" type="range" min="0" max="24" value="0"></div>
-      <output id="satGainOut">off</output>
-    </div>
-    <div class="row">
-      <label for="satTone">Saturation tone</label>
-      <div class="ctl"><input id="satTone" type="range" min="0" max="100" value="72"></div>
-      <output id="satToneOut">8.4 kHz</output>
-    </div>
-    <div class="note">The dry signal, delay feedback and reverb remain stereo. Stereo width at zero produces identical left and right channels for reliable mono playback.</div>
+    <div class="note">The order shown is the actual serial signal path. Every module and feedback loop remains stereo.</div>
   </div>
 </details>
 
@@ -555,9 +619,10 @@
       identical for true mono compatibility. Voices need the analog engine.</p>
 
     <h3>Effects</h3>
-    <p>The Effects panel has a two-channel delay, three reverb characters with adjustable length,
-      and saturation with gain and tone. The dry path, delay feedback and convolution reverb all
-      preserve the stereo image created by the oscillators and polyphonic voice panning.</p>
+    <p>The Effects panel is a real serial signal chain. Drag the handle to put the tube stage,
+      two-channel delay and convolution reverb in any order; tap a module to expand its controls.
+      The order is remembered on this device. Every module and feedback loop preserves the stereo
+      image created by the oscillators and polyphonic voice panning.</p>
 
     <h3>Live camera</h3>
     <p><b>Live</b> (under each photo in Edit) replaces that photo with the live camera. Latch a
@@ -753,11 +818,13 @@
     attack: 0.012,
     release: 0.180,
     fmode: "lowpass",
-    space: 0.18,
+    fxOrder: ["saturation", "delay", "reverb"],
     delayTime: 0.260,
     delayFeedback: 0.34,
+    delayMix: 0.13,
     reverbType: "room",
     reverbLength: 1.8,
+    reverbMix: 0.15,
     satGain: 0,
     satTone: 8400,
     vol: 0.70,
@@ -770,6 +837,16 @@
     motionSpeed: 1,
     twoShape: "line"
   };
+  (function restoreFXOrder() {
+    try {
+      var saved = JSON.parse(localStorage.getItem("photoSynth.fxOrder") || "null");
+      var valid = ["saturation", "delay", "reverb"];
+      if (Array.isArray(saved) && saved.length === valid.length &&
+          valid.every(function (name) { return saved.indexOf(name) !== -1; })) {
+        S.fxOrder = saved;
+      }
+    } catch (ignore) {}
+  })();
   function baseFreq() { return mtof(S.baseMidi); }
 
   /* Envelope photo (pad 3): red = attack, green = sustain, blue = decay.
@@ -933,12 +1010,22 @@
     else node.pan.setValueAtTime(value, time);
   }
 
+  /* A lightweight triode-style transfer. Biasing a smooth tanh curve makes
+   * the positive and negative half-cycles compress differently, which adds
+   * the gentle even harmonics associated with a single-ended valve stage.
+   * The following high-pass removes the small DC component this creates. */
   function saturationCurve(db) {
-    var n = 4097, curve = new Float32Array(n);
-    var drive = Math.pow(10, db / 20), norm = Math.tanh(drive);
+    var n = 8193, curve = new Float32Array(n);
+    var amount = db / 24;
+    var k = 1.15 + 2.85 * amount;
+    var bias = 0.06 + 0.05 * amount;
+    var zero = Math.tanh(k * bias);
+    var hi = Math.tanh(k * (1 + bias)) - zero;
+    var lo = Math.tanh(k * (-1 + bias)) - zero;
+    var norm = Math.max(Math.abs(hi), Math.abs(lo), 0.001);
     for (var i = 0; i < n; i++) {
       var x = i * 2 / (n - 1) - 1;
-      curve[i] = Math.tanh(x * drive) / norm;
+      curve[i] = (Math.tanh(k * (x + bias)) - zero) / norm;
     }
     return curve;
   }
@@ -976,6 +1063,24 @@
     if (g && g.satShape) g.satShape.curve = saturationCurve(S.satGain);
   }
 
+  function wireFXOrder(g) {
+    if (!g || !g.fxModules) return;
+    if (g.fxEdges) {
+      g.fxEdges.forEach(function (e) { try { e[0].disconnect(e[1]); } catch (ignore) {} });
+    }
+    g.fxEdges = [];
+    var from = g.pk;
+    S.fxOrder.forEach(function (name) {
+      var mod = g.fxModules[name];
+      if (!mod) return;
+      from.connect(mod.input);
+      g.fxEdges.push([from, mod.input]);
+      from = mod.output;
+    });
+    from.connect(g.comp);
+    g.fxEdges.push([from, g.comp]);
+  }
+
   function buildChain(ctx, withWorklet, preload, nExtra) {
     var g = { ctx: ctx };
 
@@ -998,31 +1103,38 @@
     g.pk.Q.value = 1.2;
     g.pk.gain.value = 0;
 
-    // Saturation is a stereo parallel path. At 0 dB the wet leg is muted,
-    // which makes the default exactly transparent instead of merely subtle.
+    // Each effect owns an input and output. The three modules are connected
+    // serially by wireFXOrder(), so moving a card changes the audio graph.
+    g.satIn = forceStereo(ctx.createGain());
+    g.satOut = forceStereo(ctx.createGain());
     g.satDry = ctx.createGain();
     g.satPre = ctx.createGain();
     g.satShape = ctx.createWaveShaper();
     g.satShape.oversample = "4x";
+    g.satDC = ctx.createBiquadFilter();
+    g.satDC.type = "highpass";
+    g.satDC.frequency.value = 18;
+    g.satDC.Q.value = 0.5;
     g.satTone = ctx.createBiquadFilter();
     g.satTone.type = "lowpass";
     g.satWet = ctx.createGain();
-    g.fxBus = forceStereo(ctx.createGain());
-    g.pk.connect(g.satDry); g.satDry.connect(g.fxBus);
-    g.pk.connect(g.satPre); g.satPre.connect(g.satShape);
-    g.satShape.connect(g.satTone); g.satTone.connect(g.satWet); g.satWet.connect(g.fxBus);
-
-    // Dry path.
-    g.fxBus.connect(g.comp);
+    g.satIn.connect(g.satDry); g.satDry.connect(g.satOut);
+    g.satIn.connect(g.satPre); g.satPre.connect(g.satShape);
+    g.satShape.connect(g.satDC); g.satDC.connect(g.satTone);
+    g.satTone.connect(g.satWet); g.satWet.connect(g.satOut);
 
     // Explicit left/right delay lines: the feedback loop never downmixes.
+    g.delayIn = forceStereo(ctx.createGain());
+    g.delayOut = forceStereo(ctx.createGain());
+    g.delayDry = ctx.createGain();
     g.delaySplit = ctx.createChannelSplitter(2);
     g.delayMerge = ctx.createChannelMerger(2);
     g.delay = [ctx.createDelay(1.0), ctx.createDelay(1.0)];
     g.fb = [ctx.createGain(), ctx.createGain()];
     g.damp = [ctx.createBiquadFilter(), ctx.createBiquadFilter()];
     g.delayWet = ctx.createGain();
-    g.fxBus.connect(g.delaySplit);
+    g.delayIn.connect(g.delayDry); g.delayDry.connect(g.delayOut);
+    g.delayIn.connect(g.delaySplit);
     for (var dc = 0; dc < 2; dc++) {
       g.damp[dc].type = "lowpass";
       g.damp[dc].frequency.value = 4200;
@@ -1033,14 +1145,25 @@
       g.delay[dc].connect(g.delayMerge, 0, dc);
     }
     g.delayMerge.connect(g.delayWet);
-    g.delayWet.connect(g.comp);
+    g.delayWet.connect(g.delayOut);
 
     // Convolution also receives and returns two independent channels.
+    g.reverbIn = forceStereo(ctx.createGain());
+    g.reverbOut = forceStereo(ctx.createGain());
+    g.reverbDry = ctx.createGain();
     g.reverb = ctx.createConvolver();
     g.reverbWet = ctx.createGain();
-    g.fxBus.connect(g.reverb);
+    g.reverbIn.connect(g.reverbDry); g.reverbDry.connect(g.reverbOut);
+    g.reverbIn.connect(g.reverb);
     g.reverb.connect(g.reverbWet);
-    g.reverbWet.connect(g.comp);
+    g.reverbWet.connect(g.reverbOut);
+
+    g.fxModules = {
+      saturation: { input: g.satIn, output: g.satOut },
+      delay: { input: g.delayIn, output: g.delayOut },
+      reverb: { input: g.reverbIn, output: g.reverbOut }
+    };
+    wireFXOrder(g);
 
     forceStereo(g.comp);
     g.comp.connect(g.master);
@@ -1154,14 +1277,16 @@
     var satMix = S.satGain / 24;
     g.satDry.gain.setTargetAtTime(Math.cos(satMix * Math.PI / 2), t, 0.03);
     g.satWet.gain.setTargetAtTime(Math.sin(satMix * Math.PI / 2), t, 0.03);
-    g.satPre.gain.setTargetAtTime(Math.pow(10, S.satGain / 20), t, 0.03);
+    g.satPre.gain.setTargetAtTime(Math.pow(10, S.satGain / 32), t, 0.03);
     g.satTone.frequency.setTargetAtTime(S.satTone, t, 0.03);
     for (var dc = 0; dc < 2; dc++) {
       g.delay[dc].delayTime.setTargetAtTime(S.delayTime, t, 0.02);
       g.fb[dc].gain.setTargetAtTime(S.delayFeedback, t, 0.03);
     }
-    g.delayWet.gain.setTargetAtTime(S.space * 0.72, t, 0.05);
-    g.reverbWet.gain.setTargetAtTime(S.space * 0.82, t, 0.05);
+    g.delayDry.gain.setTargetAtTime(Math.cos(S.delayMix * Math.PI / 2), t, 0.05);
+    g.delayWet.gain.setTargetAtTime(Math.sin(S.delayMix * Math.PI / 2), t, 0.05);
+    g.reverbDry.gain.setTargetAtTime(Math.cos(S.reverbMix * Math.PI / 2), t, 0.05);
+    g.reverbWet.gain.setTargetAtTime(Math.sin(S.reverbMix * Math.PI / 2), t, 0.05);
     g.master.gain.setTargetAtTime(S.vol, t, 0.03);
     setEngineGains(g);
   }
@@ -1220,14 +1345,16 @@
     var satMix = S.satGain / 24;
     g.satDry.gain.setValueAtTime(Math.cos(satMix * Math.PI / 2), when);
     g.satWet.gain.setValueAtTime(Math.sin(satMix * Math.PI / 2), when);
-    g.satPre.gain.setValueAtTime(Math.pow(10, S.satGain / 20), when);
+    g.satPre.gain.setValueAtTime(Math.pow(10, S.satGain / 32), when);
     g.satTone.frequency.setValueAtTime(S.satTone, when);
     for (var dc = 0; dc < 2; dc++) {
       g.delay[dc].delayTime.setValueAtTime(S.delayTime, when);
       g.fb[dc].gain.setValueAtTime(S.delayFeedback, when);
     }
-    g.delayWet.gain.setValueAtTime(S.space * 0.72, when);
-    g.reverbWet.gain.setValueAtTime(S.space * 0.82, when);
+    g.delayDry.gain.setValueAtTime(Math.cos(S.delayMix * Math.PI / 2), when);
+    g.delayWet.gain.setValueAtTime(Math.sin(S.delayMix * Math.PI / 2), when);
+    g.reverbDry.gain.setValueAtTime(Math.cos(S.reverbMix * Math.PI / 2), when);
+    g.reverbWet.gain.setValueAtTime(Math.sin(S.reverbMix * Math.PI / 2), when);
     setPan(g.vPan, voicePan(tone.rgb, padTone.pos ? padTone.pos.x : 0, padTone.w), when, false);
     g.master.gain.setValueAtTime(S.vol, when);
     setEngineGains(g, when);
@@ -2980,7 +3107,8 @@
     var sr = 48000;
     var delayTail = S.delayFeedback > 0.01
       ? S.delayTime * Math.max(1, Math.log(0.001) / Math.log(S.delayFeedback)) : S.delayTime;
-    var tail = 1.0 + S.release + (S.space > 0.02 ? Math.max(S.reverbLength, delayTail) : 0.2);
+    var tail = 1.0 + S.release + Math.max(S.reverbMix > 0.02 ? S.reverbLength : 0.2,
+                                         S.delayMix > 0.02 ? delayTail : 0.2);
     var dur = midi.dur / midi.rate + tail;
     var oc = new OC(2, Math.ceil(dur * sr), sr);
     var hasW = false;
@@ -3018,6 +3146,84 @@
   /* ================================================================== *
    * Controls
    * ================================================================== */
+  function fxCards() {
+    return Array.prototype.slice.call($("fxList").querySelectorAll(".fx-module"));
+  }
+
+  function updateFXIndexes() {
+    fxCards().forEach(function (card, i) {
+      card.querySelector(".fx-index").textContent = (i < 9 ? "0" : "") + (i + 1);
+      var up = card.querySelector("[data-fx-up]");
+      var down = card.querySelector("[data-fx-down]");
+      up.disabled = i === 0;
+      down.disabled = i === fxCards().length - 1;
+    });
+  }
+
+  function commitFXOrder() {
+    S.fxOrder = fxCards().map(function (card) { return card.getAttribute("data-fx"); });
+    updateFXIndexes();
+    wireFXOrder(A);
+    try { localStorage.setItem("photoSynth.fxOrder", JSON.stringify(S.fxOrder)); } catch (ignore) {}
+  }
+
+  function initFXModules() {
+    var list = $("fxList");
+    S.fxOrder.forEach(function (name) {
+      var card = list.querySelector('[data-fx="' + name + '"]');
+      if (card) list.appendChild(card);
+    });
+
+    fxCards().forEach(function (card) {
+      var toggle = card.querySelector(".fx-toggle");
+      var controls = card.querySelector(".fx-controls");
+      toggle.addEventListener("click", function () {
+        var open = toggle.getAttribute("aria-expanded") !== "true";
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        controls.hidden = !open;
+      });
+      card.querySelector("[data-fx-up]").addEventListener("click", function () {
+        var prev = card.previousElementSibling;
+        if (prev) { list.insertBefore(card, prev); commitFXOrder(); }
+      });
+      card.querySelector("[data-fx-down]").addEventListener("click", function () {
+        var next = card.nextElementSibling;
+        if (next) { list.insertBefore(next, card); commitFXOrder(); }
+      });
+    });
+
+    var dragged = null;
+    list.addEventListener("pointerdown", function (e) {
+      var grip = e.target.closest && e.target.closest(".fx-grip");
+      if (!grip) return;
+      dragged = grip.closest(".fx-module");
+      dragged.classList.add("dragging");
+      try { grip.setPointerCapture(e.pointerId); } catch (ignore) {}
+      e.preventDefault();
+    });
+    list.addEventListener("pointermove", function (e) {
+      if (!dragged) return;
+      var others = fxCards().filter(function (card) { return card !== dragged; });
+      var before = null;
+      for (var i = 0; i < others.length; i++) {
+        var r = others[i].getBoundingClientRect();
+        if (e.clientY < r.top + r.height / 2) { before = others[i]; break; }
+      }
+      if (before) list.insertBefore(dragged, before); else list.appendChild(dragged);
+      updateFXIndexes();
+      e.preventDefault();
+    });
+    function finishDrag() {
+      if (!dragged) return;
+      dragged.classList.remove("dragging");
+      dragged = null;
+      commitFXOrder();
+    }
+    list.addEventListener("pointerup", finishDrag);
+    list.addEventListener("pointercancel", finishDrag);
+    updateFXIndexes();
+  }
+
   function updateEngineNote() {
     var el = $("engineNote");
     if (!el) return;
@@ -3092,9 +3298,14 @@
     $("releaseOut").textContent = S.release < 1 ? Math.round(S.release * 1000) + " ms" : S.release.toFixed(2) + " s";
     pushAudio();
   });
-  $("space").addEventListener("input", function (e) {
-    S.space = e.target.value / 100;
-    $("spaceOut").textContent = e.target.value + " %";
+  $("delayMix").addEventListener("input", function (e) {
+    S.delayMix = e.target.value / 100;
+    $("delayMixOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("reverbMix").addEventListener("input", function (e) {
+    S.reverbMix = e.target.value / 100;
+    $("reverbMixOut").textContent = e.target.value + " %";
     pushAudio();
   });
   $("delayTime").addEventListener("input", function (e) {
@@ -3213,6 +3424,7 @@
       computeFilter: computeFilter,
       refreshReverb: refreshReverb,
       refreshSaturation: refreshSaturation,
+      wireFXOrder: wireFXOrder,
       voicePan: voicePan,
       state: function () {
         return pads.map(function (p) {
@@ -3241,13 +3453,14 @@
 
   (function initControls() {
     ["octaves", "glide", "drive", "attack", "release", "legato", "voices", "spread", "width",
-     "padsize", "space", "delayTime", "delayFeedback", "reverbLength", "satGain", "satTone",
+     "padsize", "delayMix", "delayTime", "delayFeedback", "reverbMix", "reverbLength", "satGain", "satTone",
      "vol", "rate", "mspeed"].forEach(function (id) {
       var el = $(id);
       if (el) el.dispatchEvent(new Event("input"));
     });
   })();
 
+  initFXModules();
   setMode("play");
   updateMotionUI();
   loadDemo("tone");
