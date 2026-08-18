@@ -10,15 +10,19 @@ virtual-analog ladder filter;
 the third shapes the envelope (red attack, green sustain, blue decay). Each pad
 has its own motion Rec button — record a gesture or define a line/circle with
 two fingers and it loops immediately. Polyphonic voices can pan by sampled hue
-or cursor position, with a width-zero mono mode. A stereo effects chain adds
-delay, convolution reverb and loudness-compensated tube saturation, and a
-fourth square — the FX matrix — blends four selectable effect parameters from
-its green, red, yellow and blue corners (full through each corner's quadrant
-and at the centre, zero at the opposing corners). Presets capture everything
-including small copies of the photos, stored only on the device (IndexedDB)
-with single-file export/import. Photos come from the camera, the camera roll or
-a live camera feed, an on-screen keyboard or an imported MIDI file sets the
-base note, and the output can be recorded or rendered to 24-bit WAV.
+or cursor position, with a width-zero mono mode. The envelope can be sent to
+amplitude, to a filter sweep, or any blend of the two. A six-module stereo
+effects chain — loudness-compensated tube saturation, vintage phaser, vintage
+chorus, stutter gate, a delay with a clean/tape character switch, and
+convolution reverb — is freely reorderable, and every module has a power
+switch that removes it from the audio graph entirely (real CPU savings). A
+fourth photo pad drives three selectable effect parameters from the sampled
+colour's red, green and blue strengths — black is all off, white is all full.
+Presets capture everything including small copies of the photos, stored only
+on the device (IndexedDB) with single-file export/import. Photos come from the
+camera, the camera roll or a live camera feed, an on-screen keyboard or an
+imported MIDI file sets the base note, and the output can be recorded or
+rendered to 24-bit WAV.
 
 ## Files
 

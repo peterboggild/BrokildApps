@@ -57,8 +57,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.p = {
       base: 220, ratio: 1, morph: 0.5, pulse: 0, detune: 6, level: 0,
       cut: 14000, res: 0, mode: 0, drive: 0.25,
-      attack: 0.012, decay: 0.25, sustain: 1, release: 0.18, glide: 0.03, spread: 0.5
+      attack: 0.012, decay: 0.25, sustain: 1, release: 0.18, glide: 0.03, spread: 0.5,
+      envAmp: 1, envFlt: 0
     };
+    this.gl = 0;                 // fast gate follower, for envAmp below 1
     this.stage = 0;              // 0 idle, 1 attack, 2 decay/sustain, 3 release
     this.pg = 0;
     this.f0 = 220; this.morph = 0.5; this.pulse = 0; this.detune = 6;
@@ -114,11 +116,11 @@ class VoiceProcessor extends AudioWorkletProcessor {
     // smoothers are snapped to their targets so the voice wakes up in the
     // right state, and a couple of live blocks are required first so filter
     // and decimator tails are flushed before the skipping starts.
-    if (!this.gate && this.env < 1e-5 &&
+    if (!this.gate && this.env < 1e-5 && this.gl < 1e-4 &&
         (!this.events.length || this.events[0].frame >= currentFrame + n)) {
       this.quiet = (this.quiet || 0) + 1;
       if (this.quiet > 2) {
-        this.env = 0; this.stage = 0; this.pg = 0;
+        this.env = 0; this.stage = 0; this.pg = 0; this.gl = 0;
         this.f0 = p.base * p.ratio; this.morph = p.morph; this.pulse = p.pulse;
         this.detune = p.detune; this.level = p.level; this.cut = p.cut; this.res = p.res;
         for (i = 0; i < n; i++) { L[i] = 0; R[i] = 0; }
@@ -143,6 +145,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
     // opens the image up instead of just beating in the middle.
     var spread = clamp(p.spread, 0, 1);
     var lA = 0.5 + 0.25 * spread, lB = 0.5 - 0.25 * spread;
+    var aGate = 1 - Math.exp(-1 / (0.004 * sampleRate));   // gate follower, ~4 ms
+    var envAmp = clamp(p.envAmp, 0, 1);
+    var envFlt = clamp(p.envFlt, 0, 1);
+    var fltK = 3.4657 * envFlt;    // ln(2) * 5: up to five octaves of sweep
 
     for (i = 0; i < n; i++) {
       // ---- scheduled events (sample-accurate, used by the offline render) --
@@ -177,6 +183,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
         target = 0; tau = Math.max(0.004, p.release) / 3;
       }
       this.env += (target - this.env) * (1 - Math.exp(-1 / (tau * sampleRate)));
+      this.gl += (this.gate - this.gl) * aGate;
+      var e = this.env * this.env * (3 - 2 * this.env);       // smoothstep envelope
 
       // ---- oscillator + filter, run at 2x -------------------------------
       var det = this.detune / 1200;
@@ -184,7 +192,11 @@ class VoiceProcessor extends AudioWorkletProcessor {
       var fB = this.f0 * Math.pow(2, (this.driftB * 3.5 + det * 600) / 1200);
       var dtA = clamp(fA / fs, 1e-7, 0.45);
       var dtB = clamp(fB / fs, 1e-7, 0.45);
-      var g = Math.tan(Math.PI * clamp(this.cut, 18, fs * 0.45) / fs);
+      // Envelope on the filter: at full amount the cut-off closes five
+      // octaves below its setting when the envelope is down and lands on
+      // the setting at the envelope's peak.
+      var cutEff = fltK > 0 ? this.cut * Math.exp(fltK * (e - 1)) : this.cut;
+      var g = Math.tan(Math.PI * clamp(cutEff, 18, fs * 0.45) / fs);
       var kres = 3.85 * clamp(this.res, 0, 1);
       var mode = p.mode | 0;
       // Resonance drains the low end of a ladder; feed it a little harder and
@@ -209,9 +221,12 @@ class VoiceProcessor extends AudioWorkletProcessor {
         else { sl += 0.25 * yl; sr += 0.25 * yr; this.dz[0] = yl; this.dz[1] = yr; }
       }
 
-      var e = this.env * this.env * (3 - 2 * this.env);       // smoothstep envelope
-      L[i] = clamp(sl * e, -1.4, 1.4);
-      R[i] = clamp(sr * e, -1.4, 1.4);
+      // Envelope on the amplitude: below full amount the level blends
+      // toward a plain click-free gate, so the envelope can be sent mostly
+      // to the filter instead (organ-style amplitude, swept tone).
+      var amp = envAmp * e + (1 - envAmp) * this.gl;
+      L[i] = clamp(sl * amp, -1.4, 1.4);
+      R[i] = clamp(sr * amp, -1.4, 1.4);
     }
     return true;
   }
