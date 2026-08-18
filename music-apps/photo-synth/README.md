@@ -1,10 +1,15 @@
 # Photo Synth
 
-A two-photo instrument that runs entirely in the browser. Drag across the first
-photo and the colour under your finger becomes a tone; touch the second and its
-colour drives a virtual-analog ladder filter. Photos come from the camera or the
-camera roll, an on-screen keyboard or an imported MIDI file sets the base note,
-and the output can be recorded or rendered to 24-bit WAV.
+A three-photo instrument that runs entirely in the browser. Drag across the
+first photo and the colour under your finger becomes a tone (polyphonic if you
+raise the Voices slider); touch the second and its colour drives a
+virtual-analog ladder filter; the third shapes the envelope (red attack, green
+sustain, blue decay). Global Play / Edit / Rec modes keep the playing surface
+clean; Rec arms motion automation — record a gesture or define a line/circle
+with two fingers, and it replays from wherever you touch. Photos come from the
+camera, the camera roll or a live camera feed, an on-screen keyboard or an
+imported MIDI file sets the base note, and the output can be recorded or
+rendered to 24-bit WAV.
 
 ## Files
 
