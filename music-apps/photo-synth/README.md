@@ -7,7 +7,9 @@ virtual-analog ladder filter; the third shapes the envelope (red attack, green
 sustain, blue decay). Each pad has its own motion Rec button — record a gesture
 or define a line/circle with two fingers and it loops immediately. Polyphonic
 voices can pan by sampled hue or cursor position, with a width-zero mono mode.
-A stereo effects chain adds delay, convolution reverb and saturation. Photos
+A stereo effects chain adds delay, convolution reverb and saturation, and a
+fourth square — the FX matrix — blends four selectable effect parameters from
+its green, red, yellow and blue corners by cursor distance. Photos
 come from the camera, the camera roll or a live camera feed, an on-screen
 keyboard or an imported MIDI file sets the base note, and the output can be
 recorded or rendered to 24-bit WAV.
