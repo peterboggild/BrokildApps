@@ -116,6 +116,13 @@
   .padbtns .btn{flex:1 1 0;justify-content:center;font-size:12px;padding:8px 6px}
   input[type=file]{display:none}
 
+  /* ---------- FX matrix corner selectors ---------- */
+  #hint-fx{inset:50% 8px auto;transform:translateY(-50%)}
+  .fxsel{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .fxsel .c{display:flex;align-items:center;gap:6px;min-width:0}
+  .fxsel .cdot{width:10px;height:10px;border-radius:50%;flex:none;border:1px solid rgba(255,255,255,.25)}
+  .fxsel select{flex:1 1 auto;min-width:0;font-size:11.5px;padding:6px 22px 6px 8px}
+
   /* ---------- keyboard ---------- */
   /* The keyboard docks to the bottom of the screen so it stays reachable in
      both orientations while the other hand works the photos. */
@@ -232,6 +239,7 @@
   body[data-mode="play"] .transport,
   body[data-mode="play"] .scope,
   body[data-mode="play"] details,
+  body[data-mode="play"] .fxsel,
   body[data-mode="play"] .padbtns{display:none}
   .autoflag{
     display:none;font-size:9.5px;color:var(--accent);border:1px solid var(--accent);
@@ -318,27 +326,50 @@
   </div>
 </section>
 
-<section class="pad envpad" id="pad-env">
-  <div class="padhead">
-    <span class="padname"><b>3 · Envelope</b> — red attack · green sustain · blue decay<span class="autoflag" id="auto-env">AUTO</span></span>
-    <span class="padtools"><button class="btn recarm" type="button" data-recarm="env" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="env" aria-pressed="false">Latch</button></span>
+<section class="pads envpad">
+  <div class="pad" id="pad-env">
+    <div class="padhead">
+      <span class="padname"><b>3 · Envelope</b> — red attack · green sustain · blue decay<span class="autoflag" id="auto-env">AUTO</span></span>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="env" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="env" aria-pressed="false">Latch</button></span>
+    </div>
+    <div class="stage">
+      <canvas class="pad-canvas" id="canvas-env"></canvas>
+      <div class="hint" id="hint-env">Touch to shape the envelope</div>
+    </div>
+    <div class="readout">
+      <span class="swatch" id="swatch-env"></span>
+      <span class="vals" id="vals-env">—<span class="sub">sliders in Edit set the envelope</span></span>
+    </div>
+    <div class="padbtns">
+      <button class="btn" type="button" data-pick="env-camera">Camera</button>
+      <button class="btn" type="button" data-pick="env-library">Photos</button>
+      <button class="btn" type="button" data-demo="env">Demo</button>
+      <button class="btn" type="button" data-live="env" aria-pressed="false">Live</button>
+    </div>
+    <input type="file" id="file-env-camera" accept="image/*" capture="environment">
+    <input type="file" id="file-env-library" accept="image/*">
   </div>
-  <div class="stage">
-    <canvas class="pad-canvas" id="canvas-env"></canvas>
-    <div class="hint" id="hint-env">Touch to shape the envelope</div>
+
+  <div class="pad" id="pad-fx">
+    <div class="padhead">
+      <span class="padname"><b>4 · FX Matrix</b> — corners → effect blend</span>
+      <span class="padtools"><button class="btn latch" id="fxReset" type="button">Reset</button></span>
+    </div>
+    <div class="stage">
+      <canvas class="pad-canvas" id="canvas-fx"></canvas>
+      <div class="hint" id="hint-fx">Drag to blend the corner effects</div>
+    </div>
+    <div class="readout">
+      <span class="swatch" id="swatch-fx"></span>
+      <span class="vals" id="vals-fx">—<span class="sub">each corner drives the effect chosen below</span></span>
+    </div>
+    <div class="fxsel">
+      <label class="c"><span class="cdot" style="background:#3ddc84"></span><select id="fxCorner0" aria-label="Green corner (top left) effect"></select></label>
+      <label class="c"><span class="cdot" style="background:#ff5252"></span><select id="fxCorner1" aria-label="Red corner (top right) effect"></select></label>
+      <label class="c"><span class="cdot" style="background:#ffd24a"></span><select id="fxCorner2" aria-label="Yellow corner (bottom left) effect"></select></label>
+      <label class="c"><span class="cdot" style="background:#4aa3ff"></span><select id="fxCorner3" aria-label="Blue corner (bottom right) effect"></select></label>
+    </div>
   </div>
-  <div class="readout">
-    <span class="swatch" id="swatch-env"></span>
-    <span class="vals" id="vals-env">—<span class="sub">sliders in Edit set the envelope</span></span>
-  </div>
-  <div class="padbtns">
-    <button class="btn" type="button" data-pick="env-camera">Camera</button>
-    <button class="btn" type="button" data-pick="env-library">Photos</button>
-    <button class="btn" type="button" data-demo="env">Demo</button>
-    <button class="btn" type="button" data-live="env" aria-pressed="false">Live</button>
-  </div>
-  <input type="file" id="file-env-camera" accept="image/*" capture="environment">
-  <input type="file" id="file-env-library" accept="image/*">
 </section>
 
 <section class="kbdpanel" id="kbdPanel" hidden>
@@ -609,6 +640,16 @@
       Untouched, the sliders under Sound rule. It is latchable and automatable like the others.
       <b>Legato</b> (under Sound) keeps the envelope alive for a moment after you lift, so tapping
       from colour to colour glides instead of retriggering every note.</p>
+
+    <h3>FX matrix (pad 4)</h3>
+    <p>The square next to the envelope photo blends four effect parameters at once. Each corner
+      — <b>green</b> (top left), <b>red</b> (top right), <b>yellow</b> (bottom left) and
+      <b>blue</b> (bottom right) — is assigned to a parameter with the pull-down menus under the
+      square (delay, reverb, tube, drive, width or glide). The cursor weighs every corner by
+      distance: on a corner its parameter is at <b>full</b>, one side length away it has fallen to
+      <b>zero</b>, so the centre holds all four at about a third. The field shows the same blend as
+      colour. The matrix writes straight into the sliders in Edit, so lifting your finger keeps the
+      mix where you left it; <b>Reset</b> puts the four assigned sliders back to their defaults.</p>
 
     <h3>Voices</h3>
     <p>The <b>Voices</b> slider (Sound) turns the tone photo polyphonic: extra voices sample the
@@ -2442,6 +2483,8 @@
       if (p.liveOn) p.dirty = true;     // repaint the video every frame
       if (p.dirty) { p.draw(); p.dirty = false; }
     });
+    fxm.resize();
+    if (fxm.dirty) { fxm.draw(); fxm.dirty = false; }
     if (!$("kbdPanel").hidden) {
       kbResize();
       if (kb.dirty) kbDraw();
@@ -2600,6 +2643,286 @@
     padTone.dirty = padFilter.dirty = true;
     apply(padTone); apply(padFilter);
   });
+
+  /* ================================================================== *
+   * FX matrix (pad 4): four coloured corners, each assigned to an effect
+   * parameter. The cursor weighs every corner by its distance — one side
+   * length is enough to take a parameter from full down to zero — and the
+   * weights are written straight into the existing sliders, so the Edit
+   * panel, the audio graph and the matrix can never disagree.
+   * ================================================================== */
+  var FX_CORNERS = [
+    { name: "Green",  css: "#3ddc84", rgb: [61, 220, 132], nx: 0, ny: 0 },
+    { name: "Red",    css: "#ff5252", rgb: [255, 82, 82],  nx: 1, ny: 0 },
+    { name: "Yellow", css: "#ffd24a", rgb: [255, 210, 74], nx: 0, ny: 1 },
+    { name: "Blue",   css: "#4aa3ff", rgb: [74, 163, 255], nx: 1, ny: 1 }
+  ];
+  var FX_PARAM_DEFS = [
+    { id: "delayMix",      label: "Delay mix" },
+    { id: "delayTime",     label: "Delay time" },
+    { id: "delayFeedback", label: "Delay feedback" },
+    { id: "reverbMix",     label: "Reverb mix" },
+    { id: "reverbLength",  label: "Reverb length" },
+    { id: "satGain",       label: "Tube drive" },
+    { id: "satTone",       label: "Tube tone" },
+    { id: "drive",         label: "Osc drive" },
+    { id: "width",         label: "Stereo width" },
+    { id: "glide",         label: "Glide" }
+  ];
+  var fxAssign = ["reverbMix", "satGain", "delayMix", "delayFeedback"];
+  (function restoreFXCorners() {
+    try {
+      var saved = JSON.parse(localStorage.getItem("photoSynth.fxCorners") || "null");
+      var ids = FX_PARAM_DEFS.map(function (d) { return d.id; });
+      if (Array.isArray(saved) && saved.length === 4 &&
+          saved.every(function (id) { return ids.indexOf(id) !== -1; })) {
+        fxAssign = saved;
+      }
+    } catch (ignore) {}
+  })();
+
+  var fxm = {
+    canvas: $("canvas-fx"), g: null, w: 0, h: 0,
+    pos: null, active: false, pointerId: null,
+    dirty: true, field: null
+  };
+  fxm.g = fxm.canvas.getContext("2d");
+
+  function fxLabel(id) {
+    for (var i = 0; i < FX_PARAM_DEFS.length; i++) {
+      if (FX_PARAM_DEFS[i].id === id) return FX_PARAM_DEFS[i].label;
+    }
+    return id;
+  }
+
+  /* Corner weights for a point in normalised pad coordinates (0..1).
+   * Each weight falls linearly with distance: 1 on the corner, 0 one full
+   * side length away, so the adjacent corners are silent from each other's
+   * home and the centre blends all four at ~29 %. */
+  function fxWeights(nx, ny) {
+    var out = [0, 0, 0, 0];
+    for (var i = 0; i < 4; i++) {
+      var d = Math.hypot(nx - FX_CORNERS[i].nx, ny - FX_CORNERS[i].ny);
+      out[i] = clamp(1 - d, 0, 1);
+    }
+    return out;
+  }
+
+  function fxMixColor(wts) {
+    var sum = wts[0] + wts[1] + wts[2] + wts[3];
+    if (sum <= 0) return [26, 28, 36];
+    var peak = Math.max(wts[0], wts[1], wts[2], wts[3]);
+    var lum = 0.35 + 0.65 * peak, c = [0, 0, 0], i, k;
+    for (i = 0; i < 4; i++) {
+      k = wts[i] / sum * lum;
+      c[0] += FX_CORNERS[i].rgb[0] * k;
+      c[1] += FX_CORNERS[i].rgb[1] * k;
+      c[2] += FX_CORNERS[i].rgb[2] * k;
+    }
+    return c;
+  }
+
+  /* The colour field only depends on the fixed corner colours, so it is
+   * rendered once at low resolution and stretched over the canvas. */
+  function buildFXField() {
+    var N = 72, c = document.createElement("canvas");
+    c.width = N; c.height = N;
+    var g = c.getContext("2d"), im = g.createImageData(N, N), x, y;
+    for (y = 0; y < N; y++) {
+      for (x = 0; x < N; x++) {
+        var mix = fxMixColor(fxWeights(x / (N - 1), y / (N - 1)));
+        var o = (y * N + x) * 4;
+        im.data[o] = mix[0]; im.data[o + 1] = mix[1]; im.data[o + 2] = mix[2];
+        im.data[o + 3] = 255;
+      }
+    }
+    g.putImageData(im, 0, 0);
+    fxm.field = c;
+  }
+
+  /* Write one corner's weight into its slider: full weight = the slider's
+   * maximum, zero = its minimum. Dispatching the input event reuses the
+   * slider's own handler — value curve, readout text, debounced reverb
+   * rebuild and pushAudio all included. */
+  function fxSetParam(id, w) {
+    var el = $(id);
+    if (!el) return;
+    var min = parseFloat(el.min) || 0, max = parseFloat(el.max) || 100;
+    var v = String(Math.round(min + (max - min) * clamp(w, 0, 1)));
+    if (el.value !== v) {
+      el.value = v;
+      el.dispatchEvent(new Event("input"));
+    }
+  }
+
+  function updateFXReadout(wts) {
+    var sw = $("swatch-fx"), vals = $("vals-fx");
+    if (!wts) {
+      sw.style.background = "#222";
+      vals.innerHTML = "—" + '<span class="sub">each corner drives the effect chosen below</span>';
+      return;
+    }
+    var mix = fxMixColor(wts);
+    sw.style.background = "rgb(" + Math.round(mix[0]) + "," + Math.round(mix[1]) + "," + Math.round(mix[2]) + ")";
+    var main = [], top = 0, i;
+    for (i = 0; i < 4; i++) {
+      if (wts[i] > wts[top]) top = i;
+      main.push('<span style="color:' + FX_CORNERS[i].css + '">' + FX_CORNERS[i].name.charAt(0) + "</span>&thinsp;" +
+                Math.round(wts[i] * 100) + "%");
+    }
+    vals.innerHTML = "<b>" + main.join(" · ") + "</b>" +
+      '<span class="sub">strongest: ' + fxLabel(fxAssign[top]) + " (" + FX_CORNERS[top].name.toLowerCase() + ")</span>";
+  }
+
+  function applyFXMatrix() {
+    if (!fxm.pos || !fxm.w) return;
+    var wts = fxWeights(fxm.pos.x / fxm.w, fxm.pos.y / fxm.h);
+    for (var i = 0; i < 4; i++) fxSetParam(fxAssign[i], wts[i]);
+    updateFXReadout(wts);
+  }
+
+  fxm.resize = function () {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    var r = this.canvas.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var w = Math.round(r.width), h = Math.round(r.height);
+    if (this.w === w && this.h === h && this.canvas.width === Math.round(w * dpr)) return;
+    if (this.pos && this.w && this.h) {          // keep the cursor in place
+      this.pos = { x: this.pos.x / this.w * w, y: this.pos.y / this.h * h };
+    }
+    this.w = w; this.h = h;
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
+    this.g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.dirty = true;
+  };
+
+  fxm.draw = function () {
+    var g = this.g, w = this.w, h = this.h;
+    if (!w) return;
+    if (!this.field) buildFXField();
+    g.clearRect(0, 0, w, h);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(this.field, 0, 0, w, h);
+
+    // Corner labels: the assigned parameter, in the corner it lives in.
+    g.font = "600 10.5px -apple-system,system-ui,sans-serif";
+    g.lineWidth = 3; g.lineJoin = "round";
+    g.strokeStyle = "rgba(0,0,0,.65)"; g.fillStyle = "rgba(255,255,255,.95)";
+    for (var i = 0; i < 4; i++) {
+      var cn = FX_CORNERS[i];
+      var tx = cn.nx ? w - 7 : 7, ty = cn.ny ? h - 8 : 15;
+      g.textAlign = cn.nx ? "right" : "left";
+      var txt = fxLabel(fxAssign[i]);
+      g.strokeText(txt, tx, ty);
+      g.fillText(txt, tx, ty);
+    }
+
+    if (this.pos) {
+      var x = this.pos.x, y = this.pos.y;
+      var R = Math.max(14, Math.min(w, h) * 0.075);
+      var mix = fxMixColor(fxWeights(x / w, y / h));
+      g.save();
+      g.globalAlpha = this.active ? 1 : 0.75;
+      g.beginPath(); g.arc(x, y, R, 0, 6.2832);
+      g.lineWidth = 5; g.strokeStyle = "rgba(0,0,0,.6)"; g.stroke();
+      g.lineWidth = 2.4; g.strokeStyle = "#fff"; g.stroke();
+      g.beginPath(); g.arc(x, y, R * 0.34, 0, 6.2832);
+      g.fillStyle = "rgb(" + Math.round(mix[0]) + "," + Math.round(mix[1]) + "," + Math.round(mix[2]) + ")";
+      g.fill();
+      g.lineWidth = 1.6; g.strokeStyle = "rgba(255,255,255,.9)"; g.stroke();
+      var g1 = R * 0.5, g2 = R * 1.5;
+      g.beginPath();
+      g.moveTo(x - g2, y); g.lineTo(x - g1, y);
+      g.moveTo(x + g1, y); g.lineTo(x + g2, y);
+      g.moveTo(x, y - g2); g.lineTo(x, y - g1);
+      g.moveTo(x, y + g1); g.lineTo(x, y + g2);
+      g.lineWidth = 4; g.strokeStyle = "rgba(0,0,0,.55)"; g.stroke();
+      g.lineWidth = 1.7; g.strokeStyle = "#fff"; g.stroke();
+      g.restore();
+    }
+  };
+
+  (function attachFXMatrix() {
+    var cv = fxm.canvas;
+    function fxPoint(ev) {
+      var r = cv.getBoundingClientRect();
+      return {
+        x: clamp(ev.clientX - r.left, 0, r.width),
+        y: clamp(ev.clientY - r.top, 0, r.height)
+      };
+    }
+    cv.addEventListener("pointerdown", function (ev) {
+      ev.preventDefault();
+      if (fxm.pointerId !== null) return;
+      fxm.pointerId = ev.pointerId;
+      try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
+      if (!audioOn) setPower(true); else ensureAudio();
+      fxm.active = true;
+      var hint = $("hint-fx");
+      if (hint) hint.style.display = "none";
+      fxm.pos = fxPoint(ev);
+      fxm.dirty = true;
+      applyFXMatrix();
+    }, { passive: false });
+    cv.addEventListener("pointermove", function (ev) {
+      if (fxm.pointerId !== ev.pointerId) return;
+      ev.preventDefault();
+      fxm.pos = fxPoint(ev);
+      fxm.dirty = true;
+      applyFXMatrix();
+    }, { passive: false });
+    function fxEnd(ev) {
+      if (fxm.pointerId !== ev.pointerId) return;
+      fxm.pointerId = null;
+      fxm.active = false;
+      fxm.dirty = true;
+      try { cv.releasePointerCapture(ev.pointerId); } catch (e) {}
+      // Like the filter and envelope, the matrix is a setting, not a
+      // gesture: the cursor and the mix stay where you left them.
+    }
+    cv.addEventListener("pointerup", fxEnd);
+    cv.addEventListener("pointercancel", fxEnd);
+    cv.addEventListener("lostpointercapture", fxEnd);
+    cv.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  })();
+
+  function initFXMatrix() {
+    for (var i = 0; i < 4; i++) {
+      (function (idx) {
+        var sel = $("fxCorner" + idx);
+        FX_PARAM_DEFS.forEach(function (d) {
+          var o = document.createElement("option");
+          o.value = d.id;
+          o.textContent = d.label;
+          if (d.id === fxAssign[idx]) o.selected = true;
+          sel.appendChild(o);
+        });
+        sel.addEventListener("change", function () {
+          fxAssign[idx] = sel.value;
+          try { localStorage.setItem("photoSynth.fxCorners", JSON.stringify(fxAssign)); } catch (ignore) {}
+          fxm.dirty = true;
+          applyFXMatrix();
+        });
+      })(i);
+    }
+    $("fxReset").addEventListener("click", function () {
+      fxAssign.forEach(function (id) {
+        var el = $(id);
+        if (el && el.value !== el.defaultValue) {
+          el.value = el.defaultValue;
+          el.dispatchEvent(new Event("input"));
+        }
+      });
+      fxm.pos = null;
+      fxm.dirty = true;
+      var hint = $("hint-fx");
+      if (hint) hint.style.display = "";
+      updateFXReadout(null);
+      showToast("FX matrix reset — sliders back to their defaults");
+    });
+    buildFXField();
+  }
 
   /* ================================================================== *
    * Live camera: any pad can sample the camera instead of a photo
@@ -3368,7 +3691,8 @@
     S.padSize = e.target.value / 100;
     padTone.canvas.style.aspectRatio = String(1 / S.padSize);
     padFilter.canvas.style.aspectRatio = String(1 / S.padSize);
-    padEnv.canvas.style.aspectRatio = String(3.2 / S.padSize);
+    padEnv.canvas.style.aspectRatio = String(1 / S.padSize);
+    fxm.canvas.style.aspectRatio = String(1 / S.padSize);
     $("padsizeOut").textContent = e.target.value + " %";
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-fmode]"), function (b) {
@@ -3461,6 +3785,7 @@
   })();
 
   initFXModules();
+  initFXMatrix();
   setMode("play");
   updateMotionUI();
   loadDemo("tone");
