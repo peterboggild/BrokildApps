@@ -1,0 +1,22 @@
+{
+  "labels": [
+    {
+      "id": "music",
+      "name": "Music",
+      "description": "Instruments, synths and other sound tools."
+    },
+    {
+      "id": "camera",
+      "name": "Camera",
+      "description": "Apps that use the camera or your photos."
+    },
+    {
+      "id": "phone",
+      "name": "Phone App",
+      "description": "Designed for a phone screen — touch-first, and installable to the home screen."
+    }
+  ],
+  "apps": [
+    "music-apps/photo-synth"
+  ]
+}

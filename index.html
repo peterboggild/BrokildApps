@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrokildApps — Apps &amp; Experiments</title>
+  <meta name="description" content="BrokildApps: browser-based apps and experiments by Peter Bøggild. Music instruments, tools and toys — no install, they run right in your browser." />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230e9f86'/><text x='50' y='68' font-size='52' font-family='Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'>B</text></svg>" />
+  <style>
+    :root {
+      --accent: #0e9f86;
+      --accent-bright: #14c2a4;
+      --bg: #ffffff;
+      --bg-soft: #f5f5f4;
+      --card: #ffffff;
+      --border: #e5e3e0;
+      --text: #1b1a19;
+      --text-soft: #5c5955;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+      --shadow-hover: 0 2px 4px rgba(0,0,0,.06), 0 16px 40px rgba(0,0,0,.10);
+      --hero-glow: rgba(14,159,134,.14);
+      --grid-line: rgba(14,159,134,.06);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #7fd4c1;
+        --accent-bright: #9fe6d6;
+        --bg: #0d0f13;
+        --bg-soft: #14161d;
+        --card: #171a22;
+        --border: #272b38;
+        --text: #f0eeea;
+        --text-soft: #a3a0ab;
+        --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.4);
+        --shadow-hover: 0 2px 4px rgba(0,0,0,.4), 0 16px 40px rgba(0,0,0,.55);
+        --hero-glow: rgba(127,212,193,.14);
+        --grid-line: rgba(127,212,193,.06);
+      }
+    }
+    :root[data-theme="dark"] {
+      --accent: #7fd4c1; --accent-bright: #9fe6d6;
+      --bg: #0d0f13; --bg-soft: #14161d; --card: #171a22; --border: #272b38;
+      --text: #f0eeea; --text-soft: #a3a0ab;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.4);
+      --shadow-hover: 0 2px 4px rgba(0,0,0,.4), 0 16px 40px rgba(0,0,0,.55);
+      --hero-glow: rgba(127,212,193,.14);
+      --grid-line: rgba(127,212,193,.06);
+    }
+    :root[data-theme="light"] {
+      --accent: #0e9f86; --accent-bright: #14c2a4;
+      --bg: #ffffff; --bg-soft: #f5f5f4; --card: #ffffff; --border: #e5e3e0;
+      --text: #1b1a19; --text-soft: #5c5955;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+      --shadow-hover: 0 2px 4px rgba(0,0,0,.06), 0 16px 40px rgba(0,0,0,.10);
+      --hero-glow: rgba(14,159,134,.14);
+      --grid-line: rgba(14,159,134,.06);
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1040px; margin: 0 auto; }
+    a { color: inherit; }
+
+    /* ---- Top nav ---- */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      overflow: hidden;
+      isolation: isolate;
+      background: linear-gradient(105deg, #06342d 0%, #0a4a40 45%, #14315c 78%, #2a2a6b 100%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 6px 22px rgba(6, 40, 34, 0.22);
+    }
+    /* Waveform pattern layer behind the bar contents */
+    .bar-waves {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .nav {
+      position: relative;
+      z-index: 1;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem;
+      padding: .8rem 1.5rem;
+    }
+    .brand { display: flex; align-items: center; gap: .7rem; text-decoration: none; }
+    .brand-mark {
+      width: 38px; height: 38px; border-radius: 9px;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      color: #fff;
+      display: grid; place-items: center;
+      font-weight: 800; font-size: 1.35rem; letter-spacing: -.02em;
+      flex: none;
+    }
+    .brand-name { font-weight: 700; font-size: 1.05rem; letter-spacing: -.01em; color: #fff; }
+    .brand-sub { color: rgba(255, 255, 255, 0.72); font-size: .82rem; }
+    .nav-right { display: flex; align-items: center; gap: 1.4rem; }
+    .nav-links { display: flex; gap: 1.4rem; font-size: .9rem; font-weight: 500; color: rgba(255, 255, 255, 0.8); }
+    .nav-links a { text-decoration: none; transition: color .15s ease; }
+    .nav-links a:hover { color: #fff; }
+    .nav-links a.cta { color: #a9f0df; font-weight: 600; }
+    .nav-links a.cta:hover { color: #d3fff4; }
+    .theme-toggle {
+      display: grid; place-items: center;
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.85);
+      cursor: pointer;
+      transition: color .15s ease, border-color .15s ease, background .15s ease, transform .12s ease;
+    }
+    .theme-toggle:hover { color: #fff; border-color: rgba(255, 255, 255, 0.55); background: rgba(255, 255, 255, 0.14); }
+    .theme-toggle:active { transform: scale(.94); }
+    .theme-toggle svg { width: 18px; height: 18px; }
+    .theme-toggle .moon { display: none; }
+    :root[data-theme="dark"] .theme-toggle .moon { display: block; }
+    :root[data-theme="dark"] .theme-toggle .sun { display: none; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .theme-toggle .moon { display: block; }
+      :root:not([data-theme="light"]) .theme-toggle .sun { display: none; }
+    }
+    @media (max-width: 640px) {
+      .nav-links a:not(.cta) { display: none; }
+      .brand-sub { display: none; }
+    }
+
+    /* ---- Hero ---- */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      padding: 4rem 1.5rem 3rem;
+    }
+    .hero::before {
+      content: "";
+      position: absolute; inset: 0; z-index: -2;
+      background-image:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: radial-gradient(ellipse 75% 80% at 25% 20%, #000 35%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 75% 80% at 25% 20%, #000 35%, transparent 100%);
+    }
+    .hero::after {
+      content: "";
+      position: absolute; z-index: -1;
+      top: -140px; left: -80px;
+      width: 620px; height: 480px;
+      background: radial-gradient(closest-side, var(--hero-glow), transparent 70%);
+      filter: blur(6px);
+      pointer-events: none;
+    }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .32rem .8rem;
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 999px;
+      font-size: .78rem; font-weight: 600; letter-spacing: .02em;
+      color: var(--text-soft);
+      box-shadow: var(--shadow);
+    }
+    .eyebrow .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      line-height: 1.07;
+      letter-spacing: -.03em;
+      margin: 1.3rem 0 1rem;
+      font-weight: 800;
+    }
+    .hero h1 .accent { color: var(--accent); }
+    .hero p {
+      font-size: clamp(1.02rem, 2.4vw, 1.2rem);
+      color: var(--text-soft);
+      max-width: 52ch;
+      margin: 0;
+    }
+    .hero-actions {
+      margin-top: 1.8rem;
+      display: flex; gap: .8rem; flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .7rem 1.3rem;
+      border-radius: 11px;
+      font-size: .95rem; font-weight: 600;
+      text-decoration: none;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+    }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    :root[data-theme="dark"] .btn-primary { color: #06231d; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .btn-primary { color: #06231d; }
+    }
+    .btn-primary:hover { transform: translateY(-2px); background: var(--accent-bright); }
+    .btn-ghost {
+      background: var(--card); color: var(--text);
+      border-color: var(--border); box-shadow: var(--shadow);
+    }
+    .btn-ghost:hover { transform: translateY(-2px); border-color: var(--accent); }
+
+    /* ---- Apps grid ---- */
+    main { padding: 0 1.5rem 4rem; }
+    .section-label {
+      font-size: .78rem; text-transform: uppercase; letter-spacing: .12em;
+      color: var(--text-soft); font-weight: 600;
+      margin: 2rem 0 1rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.1rem;
+    }
+    .card {
+      position: relative;
+      display: flex; flex-direction: column;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.4rem;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+      min-height: 190px;
+    }
+    .card-media {
+      position: relative;
+      margin: -1.4rem -1.4rem 1rem;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 18%, transparent), transparent 42%),
+        linear-gradient(135deg, color-mix(in srgb, var(--bg-soft) 92%, transparent), color-mix(in srgb, var(--accent) 8%, var(--bg-soft)));
+      border-bottom: 1px solid var(--border);
+    }
+    .card-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .card-media::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 44%;
+      background: linear-gradient(180deg, transparent, rgba(0,0,0,.16));
+      pointer-events: none;
+    }
+    .card.has-preview .card-icon {
+      margin-top: .15rem;
+    }
+    .card::before {
+      content: "";
+      position: absolute; inset: 0 0 auto 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-bright));
+      opacity: 0;
+      transition: opacity .22s ease;
+    }
+    .card.live { cursor: pointer; }
+    .card.live:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-hover);
+      border-color: var(--accent);
+    }
+    .card.live:hover::before { opacity: 1; }
+    .card.soon { opacity: .86; }
+    .card-note {
+      margin: .7rem 0 0;
+      font-size: .8rem;
+      color: var(--text-soft);
+      font-style: italic;
+    }
+    .card-icon {
+      width: 44px; height: 44px; border-radius: 11px;
+      display: grid; place-items: center;
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      color: var(--accent);
+      border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+      margin-bottom: 1rem;
+    }
+    .card-icon svg { width: 23px; height: 23px; }
+    .card h3 { margin: 0 0 .35rem; font-size: 1.15rem; letter-spacing: -.01em; }
+    .card p { margin: 0; color: var(--text-soft); font-size: .92rem; flex: 1; }
+    .badge {
+      position: absolute; top: 1.1rem; right: 1.1rem;
+      font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+      padding: .22rem .55rem; border-radius: 999px;
+    }
+    .badge.live { background: color-mix(in srgb, #12924b 16%, transparent); color: #12924b; }
+    .badge.soon { background: color-mix(in srgb, var(--text-soft) 16%, transparent); color: var(--text-soft); }
+    @media (prefers-color-scheme: dark) {
+      .badge.live { color: #46d68a; }
+    }
+    .card-cta {
+      margin-top: 1rem; font-size: .88rem; font-weight: 600; color: var(--accent);
+      display: inline-flex; align-items: center; gap: .3rem;
+      text-decoration: none;
+    }
+    a.card-cta:hover { text-decoration: underline; }
+    .card.live:hover .card-cta { gap: .5rem; }
+    .card.soon .card-cta { color: var(--text-soft); }
+    .card.soon .card-cta.card-source { color: var(--accent); }
+
+    /* ---- Filter bar ---- */
+    .apps-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap;
+      margin: 2rem 0 1rem;
+    }
+    .apps-head .section-label { margin: 0; }
+    .result-count { font-size: .82rem; color: var(--text-soft); }
+    .filters {
+      display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
+      margin-bottom: 1.4rem;
+    }
+    .filters .filter-label {
+      font-size: .8rem; color: var(--text-soft); margin-right: .2rem;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .32rem .8rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text-soft);
+      font-size: .82rem; font-weight: 600;
+      cursor: pointer;
+      transition: color .15s ease, border-color .15s ease, background .15s ease, transform .1s ease;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--text); }
+    .chip:active { transform: scale(.96); }
+    .chip[aria-pressed="true"] {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    :root[data-theme="dark"] .chip[aria-pressed="true"] { color: #06231d; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) .chip[aria-pressed="true"] { color: #06231d; }
+    }
+    .chip .chip-count {
+      font-size: .72rem; opacity: .7; font-weight: 700;
+    }
+    .chip-clear {
+      background: transparent; border-color: transparent; color: var(--accent);
+      text-decoration: underline;
+    }
+    .chip-clear:hover { border-color: transparent; }
+    .chip-clear[hidden] { display: none; }
+
+    /* Tag pills on cards */
+    .card-tags {
+      display: flex; flex-wrap: wrap; gap: .35rem;
+      margin-top: 1rem;
+    }
+    .tag {
+      font-size: .68rem; font-weight: 600; letter-spacing: .01em;
+      padding: .18rem .5rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      color: var(--text-soft);
+      cursor: pointer;
+      transition: color .15s ease, border-color .15s ease;
+    }
+    .tag:hover { border-color: var(--accent); color: var(--text); }
+    .tag[data-active="true"] {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Empty / loading states */
+    .grid-state {
+      color: var(--text-soft);
+      font-size: .95rem;
+      padding: 2rem 0;
+    }
+    .grid-state[hidden] { display: none; }
+
+    /* ---- About ---- */
+    .about { padding: 1rem 0 0; }
+    .about h2 {
+      font-size: clamp(1.3rem, 3vw, 1.7rem);
+      letter-spacing: -.02em;
+      margin: 0 0 .7rem;
+    }
+    .about p { color: var(--text-soft); max-width: 62ch; margin: 0; }
+
+    /* ---- Footer ---- */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      color: var(--text-soft);
+      font-size: .88rem;
+    }
+    footer .wrap { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; justify-content: space-between; align-items: center; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body id="top">
+  <div class="topbar">
+    <svg class="bar-waves" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <pattern id="wavePat" width="160" height="120" patternUnits="userSpaceOnUse">
+          <g fill="none" stroke="#ffffff" stroke-opacity="0.13" stroke-width="1.3" stroke-linecap="round">
+            <path d="M0 30c10-16 20-16 30 0s20 16 30 0 20-16 30 0 20 16 30 0 20-16 30 0 20 16 30 0" />
+            <path d="M0 70c10-10 20-10 30 0s20 10 30 0 20-10 30 0 20 10 30 0 20-10 30 0 20 10 30 0" />
+            <path d="M0 105c10-20 20-20 30 0s20 20 30 0 20-20 30 0 20 20 30 0 20-20 30 0 20 20 30 0" />
+          </g>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#wavePat)" />
+    </svg>
+    <div class="wrap nav">
+      <a class="brand" href="#top" aria-label="BrokildApps home">
+        <div class="brand-mark">B</div>
+        <div>
+          <div class="brand-name">BrokildApps</div>
+          <div class="brand-sub">Apps &amp; experiments by Peter Bøggild — everything runs in the browser</div>
+        </div>
+      </a>
+      <div class="nav-right">
+        <nav class="nav-links">
+          <a href="#apps">Apps</a>
+          <a href="#about">About</a>
+          <a class="cta" href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">GitHub →</a>
+        </nav>
+        <button class="theme-toggle" type="button" id="themeToggle" aria-label="Toggle light/dark theme" title="Toggle theme">
+          <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+          </svg>
+          <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <header class="hero">
+    <div class="wrap">
+      <span class="eyebrow"><span class="dot"></span> Instruments, tools &amp; toys</span>
+      <h1>Apps &amp;<br /><span class="accent">Experiments</span></h1>
+      <p>A collection of small browser-based apps — musical instruments, tools and experiments. No install and nothing uploaded: everything runs right in your browser, on your phone or your laptop.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#apps">Explore the apps</a>
+        <a class="btn btn-ghost" href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">Source on GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div class="apps-head">
+        <div class="section-label" id="apps">Apps</div>
+        <span class="result-count" id="resultCount"></span>
+      </div>
+
+      <div class="filters" id="filters" role="group" aria-label="Filter apps by label">
+        <span class="filter-label">Filter by label:</span>
+        <!-- filter chips injected here -->
+        <button type="button" class="chip chip-clear" id="clearFilters" hidden>Clear</button>
+      </div>
+
+      <div class="grid" id="appGrid" aria-live="polite"></div>
+      <p class="grid-state" id="gridLoading">Loading apps…</p>
+      <p class="grid-state" id="gridEmpty" hidden>No apps match the selected labels.</p>
+      <p class="grid-state" id="gridError" hidden>Couldn’t load the app list. Please try again later.</p>
+
+      <section class="about" id="about">
+        <div class="section-label">About</div>
+        <h2>Small apps, no strings attached</h2>
+        <p>BrokildApps collects apps and experiments built by Peter Bøggild. Each one is a self-contained static page: free to use, easy to share, and private by design — photos, audio and data stay on your device. The collection is open and growing; check back as new apps come online.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© <span id="year">2026</span> Peter Bøggild · BrokildApps</span>
+      <span><a href="https://github.com/peterboggild/BrokildApps">Source on GitHub</a></span>
+    </div>
+  </footer>
+
+  <script>
+    /* ---- Theme toggle ---- */
+    (function () {
+      var root = document.documentElement;
+      var stored = null;
+      try { stored = localStorage.getItem("brokild-theme"); } catch (e) {}
+      if (stored === "light" || stored === "dark") root.setAttribute("data-theme", stored);
+
+      var btn = document.getElementById("themeToggle");
+      btn.addEventListener("click", function () {
+        var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var current = root.getAttribute("data-theme") || (prefersDark ? "dark" : "light");
+        var next = current === "dark" ? "light" : "dark";
+        root.setAttribute("data-theme", next);
+        try { localStorage.setItem("brokild-theme", next); } catch (e) {}
+      });
+
+      document.getElementById("year").textContent = new Date().getFullYear();
+    })();
+
+    /* ---- Apps + label filtering ----
+     * The grid is data-driven: manifest.json lists the app folders, and each
+     * folder carries its own app.json with name, description, tags, etc.
+     * Adding an app = adding its folder name to manifest.json.
+     */
+    (function () {
+      // Inline icon library — apps reference these by the "icon" key in app.json.
+      var ICONS = {
+        wave: '<path d="M2 12c2-7 4-7 6 0s4 7 6 0 4-7 6 0" /><path d="M2 12h.01M22 12h-.01" />',
+        note: '<path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />',
+        camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />',
+        keys: '<rect x="2" y="6" width="20" height="12" rx="2" /><path d="M7 6v7M12 6v7M17 6v7" />',
+        device: '<rect x="3" y="4" width="18" height="14" rx="2" /><path d="M3 9h18M8 4v14M13 13h5M13 16h3" />',
+        chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />',
+        more: '<circle cx="12" cy="12" r="9" /><path d="M12 8v8M8 12h8" />'
+      };
+      var DEFAULT_ICON = "more";
+
+      var grid = document.getElementById("appGrid");
+      var filtersEl = document.getElementById("filters");
+      var clearBtn = document.getElementById("clearFilters");
+      var loadingEl = document.getElementById("gridLoading");
+      var emptyEl = document.getElementById("gridEmpty");
+      var errorEl = document.getElementById("gridError");
+      var countEl = document.getElementById("resultCount");
+
+      var labels = [];          // [{id, name, description}]
+      var labelName = {};       // id -> name
+      var apps = [];            // [{slug, name, description, status, url, icon, tags}]
+      var active = new Set();   // selected label ids
+
+      function svg(iconKey) {
+        var inner = ICONS[iconKey] || ICONS[DEFAULT_ICON];
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+               'stroke-linecap="round" stroke-linejoin="round">' + inner + "</svg>";
+      }
+
+      function esc(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function matches(app) {
+        if (active.size === 0) return true;
+        // OR within the label facet: show an app if it carries ANY selected label.
+        for (var i = 0; i < app.tags.length; i++) {
+          if (active.has(app.tags[i])) return true;
+        }
+        return false;
+      }
+
+      function render() {
+        var visible = apps.filter(matches);
+        grid.innerHTML = "";
+
+        visible.forEach(function (t) {
+          var live = t.status === "live" && t.url;
+          // Cards are always <div>s so the interactive tag pills aren't nested
+          // inside a link; live cards get whole-card click via a handler below.
+          var el = document.createElement("div");
+          el.className = "card" + (live ? " live" : " soon");
+          if (live) { el.setAttribute("data-url", t.url); }
+
+          var tagsHtml = t.tags.map(function (id) {
+            return '<button type="button" class="tag" data-tag="' + esc(id) + '"' +
+              (active.has(id) ? ' data-active="true"' : "") +
+              '>' + esc(labelName[id] || id) + "</button>";
+          }).join("");
+
+          var noteHtml = t.note ? '<p class="card-note">' + esc(t.note) + "</p>" : "";
+          var mediaHtml = t.status === "live" && t.preview
+            ? '<div class="card-media"><img src="' + esc(encodeURI(t.preview)) + '" alt="' + esc(t.name) + ' preview" loading="lazy"></div>'
+            : "";
+
+          var footHtml;
+          if (live) {
+            footHtml = '<a class="card-cta" href="' + esc(encodeURI(t.url)) + '">Open app →</a>';
+          } else if (t.repo) {
+            footHtml = '<a class="card-cta card-source" href="' + esc(t.repo) +
+              '" target="_blank" rel="noopener">View source →</a>';
+          } else {
+            footHtml = '<span class="card-cta">In development</span>';
+          }
+
+          el.innerHTML =
+            mediaHtml +
+            '<span class="badge ' + (live ? "live" : "soon") + '">' +
+              (live ? "Available" : "Coming soon") + "</span>" +
+            '<div class="card-icon" aria-hidden="true">' + svg(t.icon) + "</div>" +
+            "<h3>" + esc(t.name) + "</h3>" +
+            "<p>" + esc(t.description) + "</p>" +
+            noteHtml +
+            '<div class="card-tags">' + tagsHtml + "</div>" +
+            footHtml;
+
+          if (mediaHtml) { el.classList.add("has-preview"); }
+
+          // Whole-card click opens a live app, unless a tag pill / link was clicked.
+          if (live) {
+            el.addEventListener("click", function (e) {
+              if (e.target.closest(".tag") || e.target.closest("a")) return;
+              window.location.href = encodeURI(t.url);
+            });
+          }
+
+          grid.appendChild(el);
+        });
+
+        // Tag pills toggle the corresponding filter.
+        grid.querySelectorAll(".tag").forEach(function (pill) {
+          pill.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggle(pill.getAttribute("data-tag"));
+          });
+        });
+
+        emptyEl.hidden = visible.length !== 0;
+        countEl.textContent = visible.length +
+          (visible.length === 1 ? " app" : " apps") +
+          (active.size ? " · filtered" : "");
+        clearBtn.hidden = active.size === 0;
+
+        // Sync chip pressed states.
+        filtersEl.querySelectorAll(".chip[data-tag]").forEach(function (chip) {
+          chip.setAttribute("aria-pressed", active.has(chip.getAttribute("data-tag")) ? "true" : "false");
+        });
+      }
+
+      function toggle(id) {
+        if (active.has(id)) { active.delete(id); } else { active.add(id); }
+        render();
+      }
+
+      function buildChips() {
+        labels.forEach(function (lab) {
+          var n = apps.filter(function (t) { return t.tags.indexOf(lab.id) !== -1; }).length;
+          if (n === 0) return;
+          var chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "chip";
+          chip.setAttribute("data-tag", lab.id);
+          chip.setAttribute("aria-pressed", "false");
+          chip.title = lab.description || lab.name;
+          chip.innerHTML = esc(lab.name) + ' <span class="chip-count">' + n + "</span>";
+          chip.addEventListener("click", function () { toggle(lab.id); });
+          filtersEl.insertBefore(chip, clearBtn);
+        });
+        clearBtn.addEventListener("click", function () { active.clear(); render(); });
+      }
+
+      function fail() {
+        loadingEl.hidden = true;
+        errorEl.hidden = false;
+      }
+
+      function loadJSON(url) {
+        return fetch(encodeURI(url), { cache: "no-cache" }).then(function (r) {
+          if (!r.ok) throw new Error(url + " → " + r.status);
+          return r.json();
+        });
+      }
+
+      loadJSON("manifest.json").then(function (manifest) {
+        labels = manifest.labels || [];
+        labels.forEach(function (l) { labelName[l.id] = l.name; });
+
+        var folders = manifest.apps || [];
+        return Promise.all(folders.map(function (folder) {
+          return loadJSON(folder + "/app.json").then(function (t) {
+            if (t.url == null) t.url = folder + "/index.html";
+            return t;
+          }).catch(function (e) {
+            console.warn("Skipping app", folder, e);
+            return null;
+          });
+        })).then(function (loaded) {
+          apps = loaded.filter(Boolean).map(function (t) {
+            t.tags = Array.isArray(t.tags) ? t.tags : [];
+            return t;
+          });
+          loadingEl.hidden = true;
+          buildChips();
+          render();
+        });
+      }).catch(fail);
+    })();
+  </script>
+</body>
+</html>

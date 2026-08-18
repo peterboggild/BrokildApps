@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" width="960" height="540" role="img" aria-label="Photo Synth preview">
+  <!-- Stylised view of the app: the rainbow tone pad, readout and photo buttons -->
+  <defs>
+    <linearGradient id="spec" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff4b3e"/>
+      <stop offset=".16" stop-color="#ffb340"/>
+      <stop offset=".33" stop-color="#7ee04a"/>
+      <stop offset=".5" stop-color="#2fd4b0"/>
+      <stop offset=".66" stop-color="#3d7bff"/>
+      <stop offset=".83" stop-color="#7a4bff"/>
+      <stop offset="1" stop-color="#e04ad8"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".55"/>
+      <stop offset=".45" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset=".65" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity=".7"/>
+    </linearGradient>
+    <radialGradient id="blobA" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#ffe94a" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#ffe94a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blobB" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#4affc9" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#4affc9" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blobC" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#b44aff" stop-opacity=".8"/>
+      <stop offset="1" stop-color="#b44aff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="960" height="540" fill="#08090d"/>
+
+  <!-- pad card -->
+  <rect x="28" y="24" width="904" height="418" rx="22" fill="#101219" stroke="#242836"/>
+  <text x="52" y="66" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="21" font-weight="700" fill="#e6e3dd">1 · TONE <tspan font-weight="400" fill="#9b98a6">— COLOUR → PITCH &amp; TIMBRE</tspan></text>
+  <rect x="806" y="40" width="102" height="40" rx="11" fill="#151823" stroke="#242836"/>
+  <text x="857" y="66" text-anchor="middle" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="18" fill="#e6e3dd">Latch</text>
+
+  <!-- the colour field -->
+  <g>
+    <rect x="52" y="92" width="856" height="266" rx="14" fill="url(#spec)"/>
+    <circle cx="250" cy="170" r="110" fill="url(#blobA)"/>
+    <circle cx="640" cy="260" r="130" fill="url(#blobB)"/>
+    <circle cx="810" cy="150" r="100" fill="url(#blobC)"/>
+    <circle cx="430" cy="300" r="90" fill="url(#blobA)"/>
+    <rect x="52" y="92" width="856" height="266" rx="14" fill="url(#fade)"/>
+    <!-- cursor -->
+    <g stroke-linecap="round">
+      <circle cx="360" cy="210" r="34" fill="none" stroke="rgba(0,0,0,.6)" stroke-width="7"/>
+      <circle cx="360" cy="210" r="34" fill="none" stroke="#ffffff" stroke-width="3.4"/>
+      <circle cx="360" cy="210" r="12" fill="#ff5a4a" stroke="#ffffff" stroke-width="2"/>
+      <path d="M309 210h17M394 210h17M360 159v17M360 244v17" stroke="rgba(0,0,0,.55)" stroke-width="5.5"/>
+      <path d="M309 210h17M394 210h17M360 159v17M360 244v17" stroke="#ffffff" stroke-width="2.4"/>
+    </g>
+    <text x="480" y="338" text-anchor="middle" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="17" fill="rgba(255,255,255,.8)">Drag anywhere to play</text>
+  </g>
+
+  <!-- readout -->
+  <rect x="52" y="376" width="34" height="34" rx="9" fill="#ff5a4a" stroke="rgba(255,255,255,.25)"/>
+  <text x="100" y="392" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="18" fill="#e6e3dd"><tspan font-weight="700">130.8 Hz</tspan> <tspan fill="#9b98a6">· C3</tspan></text>
+  <text x="100" y="414" font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="15" fill="#6a6776">700 nm · sat 71% · val 85%</text>
+
+  <!-- photo buttons -->
+  <g font-family="-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="18" text-anchor="middle">
+    <rect x="28" y="462" width="288" height="52" rx="13" fill="#151823" stroke="#242836"/>
+    <text x="172" y="495" fill="#e6e3dd">Camera</text>
+    <rect x="336" y="462" width="288" height="52" rx="13" fill="#151823" stroke="#242836"/>
+    <text x="480" y="495" fill="#e6e3dd">Photos</text>
+    <rect x="644" y="462" width="288" height="52" rx="13" fill="#151823" stroke="#242836"/>
+    <text x="788" y="495" fill="#e6e3dd">Demo</text>
+  </g>
+</svg>
