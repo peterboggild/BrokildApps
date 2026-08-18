@@ -5,6 +5,7 @@
   "status": "live",
   "url": "health-apps/sleep-noise/index.html",
   "icon": "moon",
+  "preview": "assets/app-previews/sleep-noise.png",
   "note": "Designed for overnight use on a phone.",
   "tags": ["health", "phone"]
 }
