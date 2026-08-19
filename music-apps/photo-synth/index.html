@@ -290,8 +290,8 @@
     background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%;
     background-size:5px 5px,5px 5px;background-repeat:no-repeat;
   }
-  .seg{display:flex;gap:6px;flex:1 1 auto}
-  .seg .btn{flex:1 1 0;justify-content:center;font-size:12px;padding:7px 4px}
+  .seg{display:flex;gap:6px;flex:1 1 auto;flex-wrap:wrap}
+  .seg .btn{flex:1 1 0;justify-content:center;font-size:12px;padding:7px 4px;min-width:56px}
   .about p{font-size:13.5px;color:var(--muted);margin:.55em 0}
   .about h3{font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text);margin:1.3em 0 .3em}
   .about h3:first-of-type{margin-top:.2em}
@@ -620,9 +620,11 @@
         <div class="row wide">
           <span class="lab">Type</span>
           <div class="ctl seg">
-            <button class="btn" type="button" data-fmode="lowpass" aria-pressed="true">Low-pass</button>
-            <button class="btn" type="button" data-fmode="bandpass" aria-pressed="false">Band-pass</button>
-            <button class="btn" type="button" data-fmode="highpass" aria-pressed="false">High-pass</button>
+            <button class="btn" type="button" data-fmode="lowpass" aria-pressed="true">Low</button>
+            <button class="btn" type="button" data-fmode="bandpass" aria-pressed="false">Band</button>
+            <button class="btn" type="button" data-fmode="highpass" aria-pressed="false">High</button>
+            <button class="btn" type="button" data-fmode="notch" aria-pressed="false">Notch</button>
+            <button class="btn" type="button" data-fmode="comb" aria-pressed="false">Comb</button>
           </div>
         </div>
       </div>
@@ -716,6 +718,11 @@
             <output id="delayFeedbackOut">34 %</output>
           </div>
           <div class="row">
+            <label for="delayOffset">Offset L↔R</label>
+            <div class="ctl"><input id="delayOffset" type="range" min="-250" max="250" step="5" value="0"></div>
+            <output id="delayOffsetOut">0 ms</output>
+          </div>
+          <div class="row">
             <label for="delayChar">Character</label>
             <div class="ctl"><select id="delayChar">
               <option value="clean" selected>Clean — digital repeats</option>
@@ -746,6 +753,7 @@
               <option value="room" selected>Room</option>
               <option value="hall">Hall</option>
               <option value="plate">Plate</option>
+              <option value="spring">Spring — dispersive boing</option>
             </select></div>
           </div>
           <div class="row">
@@ -829,6 +837,34 @@
           </div>
           <div class="note">A smoothed rhythmic gate chops the signal — amount blends between solid
             and fully chopped. Put it before the delay and reverb so the tails survive the cuts.</div>
+        </div>
+      </section>
+
+      <section class="fx-module" data-fx="lofi">
+        <div class="fx-head">
+          <button class="fx-grip" type="button" aria-label="Drag Lofi">⋮⋮</button>
+          <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">07</span><span class="fx-name">Lofi</span><span class="fx-sub">crush · grit · noise · dirt</span></button>
+          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="false" aria-label="Lofi on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Lofi up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Lofi down">↓</button></span>
+        </div>
+        <div class="fx-controls" hidden>
+          <div class="row">
+            <label for="lofiCrush">Crush</label>
+            <div class="ctl"><input id="lofiCrush" type="range" min="0" max="100" value="35"></div>
+            <output id="lofiCrushOut">35 %</output>
+          </div>
+          <div class="row">
+            <label for="lofiNoise">Noise</label>
+            <div class="ctl"><input id="lofiNoise" type="range" min="0" max="100" value="25"></div>
+            <output id="lofiNoiseOut">25 %</output>
+          </div>
+          <div class="row">
+            <label for="lofiDirt">Dirt</label>
+            <div class="ctl"><input id="lofiDirt" type="range" min="0" max="100" value="30"></div>
+            <output id="lofiDirtOut">30 %</output>
+          </div>
+          <div class="note">Sample-rate crush and bit grit, a bed of hiss and crackle, and a soft
+            dirt stage — all smoothed, so the FX photo can drive them without clicks. Needs the
+            audio worklet; without it the module passes through. (Analog engine browsers.)</div>
         </div>
       </section>
     </div>
@@ -936,18 +972,27 @@
       voices actually sounding burn CPU.</p>
 
     <h3>Effects</h3>
-    <p>The Effects panel is a real serial signal chain of six modules: the tube stage, a vintage
+    <p>The Effects panel is a real serial signal chain of seven modules: the tube stage, a vintage
       <b>phaser</b> (four swept all-pass stages with feedback), a vintage <b>chorus</b> (two
-      opposite-phase modulated delay lines, rolled off dark), a rhythmic <b>stutter</b> gate, the
-      two-channel delay and the convolution reverb. Drag the handle to reorder; tap a module to
-      expand its controls. Each module has a <b>⏻ power switch</b>: a switched-off module is
-      removed from the audio graph entirely, so bypassing modules genuinely reduces CPU load — the
-      phaser, chorus and stutter start switched off. The delay's <b>Character</b> switch chooses
-      clean digital repeats or a <b>tape</b> mode that runs the feedback loop through soft
-      saturation, darker damping, a low cut and a slow wow, so every repeat comes back softer,
-      dirtier and slightly unstable. The order and switches are remembered on this device. Every
-      module preserves the stereo image, and the tube stage is <b>loudness-compensated</b>: drive
-      thickens the tone without getting louder.</p>
+      opposite-phase modulated delay lines, rolled off dark), a rhythmic <b>stutter</b> gate, a
+      <b>lofi</b> stage (sample-rate crush, bit grit, hiss and crackle, soft dirt — all smoothed,
+      analog engine), the two-channel delay and the convolution reverb with <b>Room, Hall, Plate
+      and Spring</b> characters — spring is a chain of dispersive chirp echoes, the classic boing.
+      Drag the handle to reorder; tap a module to expand its controls. Each module has a <b>⏻
+      power switch</b>: a switched-off module is removed from the audio graph entirely, so
+      bypassing genuinely reduces CPU load — phaser, chorus, stutter and lofi start switched off,
+      and switching happens under a 60 ms master dip so it never pops. The delay's
+      <b>Character</b> switch chooses clean digital repeats or a <b>tape</b> mode (saturating,
+      dark, wobbly loop), and <b>Offset L↔R</b> delays one side up to 250 ms after the other for
+      wide, staggered echoes. The order and switches are remembered on this device, every module
+      preserves the stereo image, and the tube stage is <b>loudness-compensated</b>.</p>
+
+    <h3>Filter modes</h3>
+    <p>Five types under Sound → Filter: <b>Low</b>, <b>Band</b> and <b>High</b> pass, <b>Notch</b>
+      (the inverse of band-pass — it removes the band at the cut-off, sweeping a hollow through
+      the sound), and <b>Comb</b> — a tuned feedback delay whose resonances sit at every multiple
+      of the cut-off frequency. Comb with high resonance rings like a struck string and is superb
+      for metallic drones; the envelope's → Filter amount sweeps its tuning.</p>
 
     <h3>Presets</h3>
     <p>The <b>Presets</b> panel saves the whole instrument: every control, the effect order, the FX
@@ -1092,7 +1137,10 @@
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-  var MODE_IDX = { lowpass: 0, bandpass: 1, highpass: 2 };
+  var MODE_IDX = { lowpass: 0, bandpass: 1, highpass: 2, notch: 3, comb: 4 };
+  // The additive engine approximates each mode with the closest biquad;
+  // comb becomes a strong resonant peak at the cut-off.
+  var BIQUAD_OF_MODE = { lowpass: "lowpass", bandpass: "bandpass", highpass: "highpass", notch: "notch", comb: "peaking" };
 
   function rgb2hsv(r, g, b) {           // r,g,b in 0..1
     var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, h = 0;
@@ -1153,12 +1201,16 @@
     attack: 0.012,
     release: 0.180,
     fmode: "lowpass",
-    fxOrder: ["saturation", "phaser", "chorus", "stutter", "delay", "reverb"],
-    fxEnabled: { saturation: true, delay: true, reverb: true, phaser: false, chorus: false, stutter: false },
+    fxOrder: ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"],
+    fxEnabled: { saturation: true, delay: true, reverb: true, phaser: false, chorus: false, stutter: false, lofi: false },
     delayTime: 0.260,
     delayFeedback: 0.34,
     delayMix: 0.13,
     delayChar: "clean",
+    delayOffset: 0,
+    lofiCrush: 0.35,
+    lofiNoise: 0.25,
+    lofiDirt: 0.3,
     phaserMix: 0.35,
     phaserRate: 0.4,
     phaserDepth: 0.55,
@@ -1188,7 +1240,7 @@
     motionSpeed: 1,
     twoShape: "line"
   };
-  var FX_MODULE_NAMES = ["saturation", "phaser", "chorus", "stutter", "delay", "reverb"];
+  var FX_MODULE_NAMES = ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"];
   (function restoreFXOrder() {
     try {
       var saved = JSON.parse(localStorage.getItem("photoSynth.fxOrder") || "null");
@@ -1503,6 +1555,38 @@
   function reverbImpulse(ctx, type, length) {
     var frames = Math.max(1, Math.round(ctx.sampleRate * length));
     var b = ctx.createBuffer(2, frames, ctx.sampleRate);
+    if (type === "spring") {
+      // A spring is a chain of dispersive echoes: every ~45 ms the impulse
+      // comes back as a downward chirp (high frequencies travel the coil
+      // faster), which is the characteristic "boing". Deterministic, so
+      // offline renders reproduce exactly.
+      for (var sc = 0; sc < 2; sc++) {
+        var sd = b.getChannelData(sc), en = 0, si;
+        var period = Math.round(ctx.sampleRate * (0.045 + 0.004 * sc));
+        var chirpLen = Math.round(ctx.sampleRate * 0.035);
+        var nPulse = Math.max(1, Math.floor(frames / period));
+        for (var k = 0; k < nPulse; k++) {
+          var t0 = k * period;
+          var amp = Math.pow(0.8, k) * Math.pow(1 - t0 / frames, 1.4);
+          var ph = sc * 1.7 + k * 0.31;
+          for (si = 0; si < chirpLen && t0 + si < frames; si++) {
+            var u = si / chirpLen;
+            var f = 3800 * Math.pow(250 / 3800, u);
+            ph += 6.2831853 * f / ctx.sampleRate;
+            sd[t0 + si] += Math.sin(ph) * amp * Math.sin(Math.PI * Math.min(1, u * 4)) * (1 - 0.6 * u);
+          }
+        }
+        var ss = (0x51ab + sc * 0x9e3779b9) >>> 0;   // faint metallic wash underneath
+        for (si = 0; si < frames; si++) {
+          ss = (1664525 * ss + 1013904223) >>> 0;
+          sd[si] += (ss / 4294967296 * 2 - 1) * 0.05 * Math.pow(1 - si / frames, 3);
+          en += sd[si] * sd[si];
+        }
+        var sk = en > 0 ? 0.75 / Math.sqrt(en) : 1;
+        for (si = 0; si < frames; si++) sd[si] *= sk;
+      }
+      return b;
+    }
     var seed = type === "hall" ? 0x51f15e : type === "plate" ? 0x71a7e : 0x22334;
     for (var ch = 0; ch < 2; ch++) {
       var d = b.getChannelData(ch), energy = 0;
@@ -1651,7 +1735,7 @@
     g.delayDry = ctx.createGain();
     g.delaySplit = ctx.createChannelSplitter(2);
     g.delayMerge = ctx.createChannelMerger(2);
-    g.delay = [ctx.createDelay(1.0), ctx.createDelay(1.0)];
+    g.delay = [ctx.createDelay(1.5), ctx.createDelay(1.5)];
     g.fb = [ctx.createGain(), ctx.createGain()];
     g.damp = [ctx.createBiquadFilter(), ctx.createBiquadFilter()];
     g.dhp = [ctx.createBiquadFilter(), ctx.createBiquadFilter()];
@@ -1758,6 +1842,23 @@
     g.chInv.connect(g.chD[1].delayTime);
     g.chLFO.start();
 
+    // Lofi: crush, grit, dirt and a noise bed live in a small worklet, so
+    // every parameter is smoothed per sample and pad-drivable without
+    // clicks. Without worklets the module passes through untouched.
+    g.lofiIn = forceStereo(ctx.createGain());
+    g.lofiOut = forceStereo(ctx.createGain());
+    g.lofi = null;
+    if (withWorklet) {
+      try {
+        g.lofi = new AudioWorkletNode(ctx, "photo-synth-lofi", {
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2]
+        });
+        g.lofiIn.connect(g.lofi);
+        g.lofi.connect(g.lofiOut);
+      } catch (eL) { g.lofi = null; }
+    }
+    if (!g.lofi) g.lofiIn.connect(g.lofiOut);
+
     // Stutter: one gain gated by a smoothed pulse. Amount blends between a
     // solid signal and a fully chopped one.
     g.stIn = forceStereo(ctx.createGain());
@@ -1802,7 +1903,8 @@
       reverb: { input: g.reverbIn, output: g.reverbOut },
       phaser: { input: g.phIn, output: g.phOut },
       chorus: { input: g.chIn, output: g.chOut },
-      stutter: { input: g.stIn, output: g.stOut }
+      stutter: { input: g.stIn, output: g.stOut },
+      lofi: { input: g.lofiIn, output: g.lofiOut }
     };
     wireFXOrder(g);
     refreshDelayChar(g);
@@ -1913,10 +2015,11 @@
       g.parts[n].osc.frequency.setTargetAtTime(clamp(f0 * (n + 1), 10, 20000), t, tc);
       g.parts[n].gain.gain.setTargetAtTime(tone.amps[n] * tone.level, t, 0.02);
     }
-    var wantType = filt.bypass ? "lowpass" : S.fmode;
+    var wantType = filt.bypass ? "lowpass" : BIQUAD_OF_MODE[S.fmode];
     if (g.lp.type !== wantType) g.lp.type = wantType;
     g.lp.frequency.setTargetAtTime(clamp(filt.cut, 20, 20000), t, 0.02);
     g.lp.Q.setTargetAtTime(filt.bypass ? 0.7 : filt.q, t, 0.03);
+    g.lp.gain.setTargetAtTime(!filt.bypass && S.fmode === "comb" ? 15 : 0, t, 0.03);
 
     g.pk.frequency.setTargetAtTime(clamp(filt.peakF, 40, 12000), t, 0.03);
     g.pk.gain.setTargetAtTime(filt.peakG, t, 0.03);
@@ -1925,10 +2028,12 @@
     g.satWet.gain.setTargetAtTime(Math.sin(satMix * Math.PI / 2) * S.satComp, t, 0.03);
     g.satPre.gain.setTargetAtTime(Math.pow(10, S.satGain / 32), t, 0.03);
     g.satTone.frequency.setTargetAtTime(S.satTone, t, 0.03);
+    g.delay[0].delayTime.setTargetAtTime(S.delayTime + Math.max(0, -S.delayOffset), t, 0.02);
+    g.delay[1].delayTime.setTargetAtTime(S.delayTime + Math.max(0, S.delayOffset), t, 0.02);
     for (var dc = 0; dc < 2; dc++) {
-      g.delay[dc].delayTime.setTargetAtTime(S.delayTime, t, 0.02);
       g.fb[dc].gain.setTargetAtTime(S.delayFeedback, t, 0.03);
     }
+    if (g.lofi) g.lofi.port.postMessage({ p: { crush: S.lofiCrush, noise: S.lofiNoise, dirt: S.lofiDirt } });
     g.delayDry.gain.setTargetAtTime(Math.cos(S.delayMix * Math.PI / 2), t, 0.05);
     g.delayWet.gain.setTargetAtTime(Math.sin(S.delayMix * Math.PI / 2), t, 0.05);
     g.reverbDry.gain.setTargetAtTime(Math.cos(S.reverbMix * Math.PI / 2), t, 0.05);
@@ -1944,7 +2049,10 @@
     g.stLFO.frequency.setTargetAtTime(S.stutterRate, t, 0.05);
     g.stGate.gain.setTargetAtTime(1 - S.stutterAmt, t, 0.03);
     g.stMod.gain.setTargetAtTime(S.stutterAmt, t, 0.03);
-    g.master.gain.setTargetAtTime(S.vol, t, 0.03);
+    // While rewireGently is dipping the master, don't fight the fade.
+    if (!(g === A && performance.now() < fxDipUntil)) {
+      g.master.gain.setTargetAtTime(S.vol, t, 0.03);
+    }
     setEngineGains(g);
   }
   function pushAudio() { applyParams(A); pushVoices(); }
@@ -2060,9 +2168,10 @@
       g.parts[n].osc.frequency.setValueAtTime(clamp(f0 * (n + 1), 10, 20000), when);
       g.parts[n].gain.gain.setValueAtTime(tone.amps[n] * tone.level, when);
     }
-    g.lp.type = filt.bypass ? "lowpass" : S.fmode;
+    g.lp.type = filt.bypass ? "lowpass" : BIQUAD_OF_MODE[S.fmode];
     g.lp.frequency.setValueAtTime(clamp(filt.cut, 20, 20000), when);
     g.lp.Q.setValueAtTime(filt.bypass ? 0.7 : filt.q, when);
+    g.lp.gain.setValueAtTime(!filt.bypass && S.fmode === "comb" ? 15 : 0, when);
     g.pk.frequency.setValueAtTime(clamp(filt.peakF, 40, 12000), when);
     g.pk.gain.setValueAtTime(filt.peakG, when);
     var satMix = S.satGain / 24;
@@ -2070,10 +2179,12 @@
     g.satWet.gain.setValueAtTime(Math.sin(satMix * Math.PI / 2) * S.satComp, when);
     g.satPre.gain.setValueAtTime(Math.pow(10, S.satGain / 32), when);
     g.satTone.frequency.setValueAtTime(S.satTone, when);
+    g.delay[0].delayTime.setValueAtTime(S.delayTime + Math.max(0, -S.delayOffset), when);
+    g.delay[1].delayTime.setValueAtTime(S.delayTime + Math.max(0, S.delayOffset), when);
     for (var dc = 0; dc < 2; dc++) {
-      g.delay[dc].delayTime.setValueAtTime(S.delayTime, when);
       g.fb[dc].gain.setValueAtTime(S.delayFeedback, when);
     }
+    if (g.lofi) g.lofi.port.postMessage({ p: { crush: S.lofiCrush, noise: S.lofiNoise, dirt: S.lofiDirt } });
     g.delayDry.gain.setValueAtTime(Math.cos(S.delayMix * Math.PI / 2), when);
     g.delayWet.gain.setValueAtTime(Math.sin(S.delayMix * Math.PI / 2), when);
     g.reverbDry.gain.setValueAtTime(Math.cos(S.reverbMix * Math.PI / 2), when);
@@ -3085,6 +3196,7 @@
     var nr, ni;
     if (mode === 0) { nr = a4r; ni = a4i; }
     else if (mode === 1) { nr = 4 * a2r - 8 * a3r + 4 * a4r; ni = 4 * a2i - 8 * a3i + 4 * a4i; }
+    else if (mode === 3) { nr = 1 - 2 * ar + 2 * a2r; ni = -2 * ai + 2 * a2i; }
     else { nr = 1 - 4 * ar + 6 * a2r - 4 * a3r + a4r; ni = -4 * ai + 6 * a2i - 4 * a3i + a4i; }
     var dr = 1 + k * a4r, di = k * a4i;
     var dm = Math.sqrt(dr * dr + di * di);
@@ -3111,6 +3223,15 @@
     var i, k = 3.85 * (filt.bypass ? 0 : filt.res);
     var mode = filt.bypass ? 0 : MODE_IDX[S.fmode];
     if (engineIsAnalog(A)) {
+      if (mode === 4) {
+        // Feedback comb magnitude: peaks at every multiple of the cut-off.
+        var gC = 0.55 + 0.43 * clamp(filt.res, 0, 1);
+        var fc = clamp(filt.cut, 40, 8000);
+        for (i = 0; i < len; i++) {
+          out[i] = (1 - 0.45 * gC) / Math.sqrt(1 - 2 * gC * Math.cos(6.2831853 * freqs[i] / fc) + gC * gC);
+        }
+        return;
+      }
       for (i = 0; i < len; i++) out[i] = ladderMag(freqs[i], clamp(filt.cut, 20, 20000), k, mode);
     } else if (A) {
       A.lp.getFrequencyResponse(freqs, out, len === NF ? phTmp : pPh);
@@ -3439,6 +3560,9 @@
     { id: "chorusDepth",   label: "Chorus depth" },
     { id: "stutterAmt",    label: "Stutter amount" },
     { id: "stutterRate",   label: "Stutter rate" },
+    { id: "lofiCrush",     label: "Lofi crush" },
+    { id: "lofiNoise",     label: "Lofi noise" },
+    { id: "lofiDirt",      label: "Lofi dirt" },
     { id: "drive",         label: "Osc drive" },
     { id: "width",         label: "Stereo width" },
     { id: "glide",         label: "Glide" }
@@ -4182,8 +4306,27 @@
   function commitFXOrder() {
     S.fxOrder = fxCards().map(function (card) { return card.getAttribute("data-fx"); });
     updateFXIndexes();
-    wireFXOrder(A);
+    rewireGently();
     try { localStorage.setItem("photoSynth.fxOrder", JSON.stringify(S.fxOrder)); } catch (ignore) {}
+  }
+
+  /* Rewiring the chain while audio flows is an instantaneous graph change
+   * and clicks. Dip the master for ~60 ms around the change instead — the
+   * switch lands as a tiny fade, never a pop. */
+  var fxDipUntil = 0;
+  function rewireGently() {
+    if (A && audioOn && A.ctx.state === "running") {
+      var t = A.ctx.currentTime;
+      fxDipUntil = performance.now() + 160;
+      A.master.gain.cancelScheduledValues(t);
+      A.master.gain.setTargetAtTime(0, t, 0.012);
+      setTimeout(function () {
+        wireFXOrder(A);
+        A.master.gain.setTargetAtTime(S.vol, A.ctx.currentTime, 0.02);
+      }, 60);
+    } else {
+      wireFXOrder(A);
+    }
   }
 
   /* Switch a module in or out of the chain. Off means out of the audio
@@ -4196,7 +4339,7 @@
       var b = card.querySelector("[data-fx-power]");
       if (b) b.setAttribute("aria-pressed", on ? "true" : "false");
     }
-    wireFXOrder(A);
+    rewireGently();
     try { localStorage.setItem("photoSynth.fxEnabled", JSON.stringify(S.fxEnabled)); } catch (ignore) {}
   }
 
@@ -4389,6 +4532,27 @@
     S.delayChar = e.target.value;
     refreshDelayChar(A);
   });
+  $("delayOffset").addEventListener("input", function (e) {
+    S.delayOffset = parseInt(e.target.value, 10) / 1000;
+    $("delayOffsetOut").textContent = (S.delayOffset > 0 ? "R +" : S.delayOffset < 0 ? "L +" : "") +
+      Math.abs(Math.round(S.delayOffset * 1000)) + " ms";
+    pushAudio();
+  });
+  $("lofiCrush").addEventListener("input", function (e) {
+    S.lofiCrush = e.target.value / 100;
+    $("lofiCrushOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("lofiNoise").addEventListener("input", function (e) {
+    S.lofiNoise = e.target.value / 100;
+    $("lofiNoiseOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("lofiDirt").addEventListener("input", function (e) {
+    S.lofiDirt = e.target.value / 100;
+    $("lofiDirtOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
   $("phaserMix").addEventListener("input", function (e) {
     S.phaserMix = e.target.value / 100;
     $("phaserMixOut").textContent = e.target.value + " %";
@@ -4556,10 +4720,11 @@
   var PRESET_CONTROL_IDS = ["engine", "law", "scale", "root", "octaves", "glide", "drive",
     "attack", "release", "legato", "envAmp", "envFlt", "voiceMode", "voices", "polyNotes", "polyOsc",
     "spread", "width", "panMode", "padsize",
-    "satGain", "satTone", "delayMix", "delayTime", "delayFeedback", "delayChar",
+    "satGain", "satTone", "delayMix", "delayTime", "delayFeedback", "delayOffset", "delayChar",
     "reverbMix", "reverbType", "reverbLength",
     "phaserMix", "phaserRate", "phaserDepth", "chorusMix", "chorusRate", "chorusDepth",
-    "stutterAmt", "stutterRate", "vol", "rate", "mspeed"];
+    "stutterAmt", "stutterRate", "lofiCrush", "lofiNoise", "lofiDirt",
+    "vol", "rate", "mspeed"];
 
   function idbOpen() {
     return new Promise(function (res, rej) {
@@ -4864,9 +5029,10 @@
   (function initControls() {
     ["octaves", "glide", "drive", "attack", "release", "legato", "envAmp", "envFlt",
      "voices", "polyNotes", "polyOsc", "spread", "width",
-     "padsize", "delayMix", "delayTime", "delayFeedback", "reverbMix", "reverbLength", "satGain", "satTone",
+     "padsize", "delayMix", "delayTime", "delayFeedback", "delayOffset", "reverbMix", "reverbLength",
+     "satGain", "satTone",
      "phaserMix", "phaserRate", "phaserDepth", "chorusMix", "chorusRate", "chorusDepth",
-     "stutterAmt", "stutterRate",
+     "stutterAmt", "stutterRate", "lofiCrush", "lofiNoise", "lofiDirt",
      "vol", "rate", "mspeed"].forEach(function (id) {
       var el = $(id);
       if (el) el.dispatchEvent(new Event("input"));
