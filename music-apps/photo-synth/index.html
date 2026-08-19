@@ -3524,13 +3524,13 @@
       if (mode === 4) {
         // Feedback comb magnitude: peaks at every multiple of the cut-off.
         var gC = 0.55 + 0.43 * clamp(filt.res, 0, 1);
-        var fc = clamp(filt.cut, 40, 8000);
+        var fc = clamp(filt.cut * driftCutMul(), 40, 8000);
         for (i = 0; i < len; i++) {
           out[i] = (1 - 0.45 * gC) / Math.sqrt(1 - 2 * gC * Math.cos(6.2831853 * freqs[i] / fc) + gC * gC);
         }
         return;
       }
-      for (i = 0; i < len; i++) out[i] = ladderMag(freqs[i], clamp(filt.cut, 20, 20000), k, mode);
+      for (i = 0; i < len; i++) out[i] = ladderMag(freqs[i], clamp(filt.cut * driftCutMul(), 20, 20000), k, mode);
     } else if (A) {
       A.lp.getFrequencyResponse(freqs, out, len === NF ? phTmp : pPh);
     } else {
@@ -3545,7 +3545,9 @@
                tone.pulse.toFixed(3), tone.rgb && tone.rgb.join(","),
                filt.cut.toFixed(1), filt.q.toFixed(2), filt.res.toFixed(3),
                filt.peakF.toFixed(1), filt.peakG.toFixed(2), filt.rgb && filt.rgb.join(","),
-               S.fmode, S.engine, audioOn, sw, sh].join("|");
+               S.fmode, S.engine, audioOn, sw, sh,
+               driftCutMul().toFixed(3),
+               darkActive() ? S.subLevel.toFixed(2) + ":" + S.subOct : "0"].join("|");
     if (sig === scopeSig) return false;
     scopeSig = sig;
     return true;
@@ -3595,6 +3597,25 @@
     } else {
       for (i = 0; i < NBAR; i++) pPk[i] = 1;
       for (i = 0; i < NF; i++) magPk[i] = 1;
+    }
+
+    // Dark Drone sub: one extra bar an octave or two below the fundamental.
+    if (darkActive() && S.subLevel > 0.01 && analog) {
+      var fSub = f0 / (S.subOct >= 2 ? 4 : 2);
+      if (fSub >= F_MIN) {
+        var sm = new Float32Array(1), sf1 = new Float32Array(1);
+        sf1[0] = fSub;
+        fillMain(sf1, sm, 1);
+        var aSub = S.subLevel * tone.level;
+        var rawS = 20 * Math.log(Math.max(aSub, 1e-6)) / Math.LN10;
+        var outS = rawS + 20 * Math.log(Math.max(sm[0], 1e-6)) / Math.LN10;
+        var bxS = fx(fSub);
+        sg.strokeStyle = "rgba(255,255,255,.20)"; sg.lineWidth = 2;
+        sg.beginPath(); sg.moveTo(bxS, dby(-60)); sg.lineTo(bxS, dby(clamp(rawS, -60, 18))); sg.stroke();
+        sg.strokeStyle = toneCss; sg.lineWidth = 6; sg.lineCap = "round"; sg.globalAlpha = 0.8;
+        sg.beginPath(); sg.moveTo(bxS, dby(-60)); sg.lineTo(bxS, dby(clamp(outS, -60, 18))); sg.stroke();
+        sg.globalAlpha = 1;
+      }
     }
 
     for (i = 0; i < nBar; i++) {
@@ -3657,6 +3678,7 @@
     }
     if (midi.playing) midiTick();
     driftTick(nowMs);
+    if (UI.mode === "edit" && !sw) resizeScope();
     if (UI.mode === "edit" && scopeChanged()) drawScope();
     requestAnimationFrame(frame);
   }
@@ -4073,7 +4095,11 @@
         requestAnimationFrame(fitKeyboard);
       }
     } else {
-      scopeSig = "";                     // redraw the spectrum strip on return
+      // The scope is display:none in Play mode and measures 0x0 there, so
+      // it must be re-measured when Edit reveals it — otherwise it stays
+      // blank until some window resize happens to rescue it.
+      resizeScope();
+      scopeSig = "";
     }
   }
   Array.prototype.forEach.call(document.querySelectorAll("[data-mode-btn]"), function (b) {
@@ -5382,6 +5408,7 @@
         deck.style.marginBottom = k === 1 ? "" : (-deck.offsetHeight * (1 - k)) + "px";
       }
       pads.forEach(function (p) { p.dirty = true; });
+      resizeScope();
     }
     function refresh() {
       if (!window.matchMedia("(min-width:1020px)").matches) { applyScale(1); return; }
