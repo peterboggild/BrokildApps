@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<meta name="theme-color" content="#08090d">
+<meta name="theme-color" content="#0c0a07">
 <meta name="color-scheme" content="dark">
 <meta name="description" content="Photo Synth turns two photos into a musical instrument: point at one photo and its colour becomes a tone, touch the other and its colour filters the sound. Virtual-analog oscillators and a ladder filter, an on-screen keyboard, MIDI import and 24-bit WAV export. Works with the camera or the camera roll, on Android and iOS.">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,20 +16,23 @@
 <link rel="apple-touch-icon" href="icon.svg">
 <style>
   :root{
-    --bg:#08090d;
-    --panel:#101219;
-    --panel-2:#151823;
-    --line:#242836;
-    --line-soft:#1b1e29;
-    --text:#e6e3dd;
-    --muted:#9b98a6;
-    --faint:#6a6776;
-    --accent:#7fd4c1;
-    --accent-2:#e0a3ff;
+    /* Warm charcoal faceplates, cream silkscreen text, amber LED accents —
+       the palette of a seventies effects unit, tuned for AA contrast. */
+    --bg:#0c0a07;
+    --panel:#181410;
+    --panel-2:#231d15;
+    --line:#463b28;
+    --line-soft:#2e271c;
+    --text:#f2ead6;
+    --muted:#cfc3a6;
+    --faint:#9a8f77;
+    --accent:#f0a848;
+    --accent-2:#7fd4c1;
     --rec:#ff6b6b;
-    --accent-soft:rgba(127,212,193,.12);
+    --accent-soft:rgba(240,168,72,.14);
+    --led:#ffc46b;
     --radius:14px;
-    --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 10px 30px rgba(0,0,0,.5);
+    --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 10px 30px rgba(0,0,0,.5);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{-webkit-text-size-adjust:100%;background:var(--bg)}
@@ -41,7 +44,7 @@
     overscroll-behavior-y:contain;
     -webkit-user-select:none;user-select:none;
   }
-  ::selection{background:rgba(127,212,193,.25)}
+  ::selection{background:rgba(240,168,72,.3)}
   [hidden]{display:none !important}
 
   header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:2px 0 12px}
@@ -62,15 +65,17 @@
     padding:10px;margin:0 0 12px;box-shadow:var(--shadow);
   }
   .btn{
-    appearance:none;border:1px solid var(--line);background:var(--panel-2);color:var(--text);
+    appearance:none;border:1px solid #52462f;color:var(--text);
+    background:linear-gradient(180deg,#2c251a,#1d1811);
     font:inherit;font-size:13px;padding:8px 12px;border-radius:10px;cursor:pointer;flex:none;
     display:inline-flex;align-items:center;gap:6px;
+    box-shadow:0 1px 0 rgba(255,255,255,.07) inset,0 1px 3px rgba(0,0,0,.4);
   }
-  .btn:active{background:#1c2030}
+  .btn:active{background:#171209}
   .btn:disabled{opacity:.4;cursor:default}
-  .btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);box-shadow:0 0 8px rgba(240,168,72,.25)}
   .btn.wide{flex:1 1 auto;justify-content:center}
-  .btn.power[aria-pressed="true"]{border-color:var(--accent);color:#0a0c11;background:var(--accent);font-weight:600}
+  .btn.power[aria-pressed="true"]{border-color:#f7c169;color:#140e05;background:var(--accent);font-weight:600;box-shadow:0 0 10px rgba(240,168,72,.5)}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
   .btn.power[aria-pressed="true"] .dot{background:#0a0c11}
   .btn.rec[aria-pressed="true"]{border-color:var(--rec);color:#fff;background:rgba(255,107,107,.18)}
@@ -78,16 +83,41 @@
   @keyframes blink{50%{opacity:.25}}
   .vol{display:flex;align-items:center;gap:8px;flex:1 1 120px;min-width:110px}
   .vol label{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em}
+  /* Sliders styled as hardware faders: a recessed slot with tick marks and
+     a wide cap with an amber index line. 38 px of vertical hit area and a
+     30 px cap keep them comfortable under a finger. */
   input[type=range]{
-    -webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;margin:0;
+    -webkit-appearance:none;appearance:none;width:100%;height:38px;background:transparent;margin:0;
   }
-  input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--line);border-radius:2px}
-  input[type=range]::-moz-range-track{height:3px;background:var(--line);border-radius:2px}
+  input[type=range]::-webkit-slider-runnable-track{
+    height:8px;border-radius:4px;border:1px solid #060503;
+    background:
+      repeating-linear-gradient(90deg,rgba(255,255,255,.09) 0 1px,transparent 1px 12.5%),
+      linear-gradient(180deg,#0b0906,#191510);
+    box-shadow:0 1px 0 rgba(255,255,255,.06);
+  }
+  input[type=range]::-moz-range-track{
+    height:8px;border-radius:4px;border:1px solid #060503;
+    background:
+      repeating-linear-gradient(90deg,rgba(255,255,255,.09) 0 1px,transparent 1px 12.5%),
+      linear-gradient(180deg,#0b0906,#191510);
+  }
   input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
-    background:var(--panel-2);border:1px solid var(--accent);margin-top:-9px;
+    -webkit-appearance:none;width:30px;height:26px;border-radius:5px;margin-top:-9px;
+    background:
+      linear-gradient(90deg,transparent 0 44%,var(--accent) 44% 56%,transparent 56% 100%),
+      linear-gradient(180deg,#4c4231,#1b1611);
+    border:1px solid #5d5340;
+    box-shadow:0 2px 5px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.14) inset;
   }
-  input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--panel-2);border:1px solid var(--accent)}
+  input[type=range]::-moz-range-thumb{
+    width:30px;height:26px;border-radius:5px;
+    background:
+      linear-gradient(90deg,transparent 0 44%,var(--accent) 44% 56%,transparent 56% 100%),
+      linear-gradient(180deg,#4c4231,#1b1611);
+    border:1px solid #5d5340;
+    box-shadow:0 2px 5px rgba(0,0,0,.6);
+  }
 
   /* ---------- pads ---------- */
   /* Side by side even on a phone, so one thumb can work each photo. */
@@ -127,7 +157,7 @@
      both orientations while the other hand works the photos. */
   .kbdpanel{
     position:fixed;left:0;right:0;bottom:0;z-index:30;
-    background:rgba(16,18,25,.97);
+    background:rgba(22,17,11,.97);
     -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
     border-top:1px solid var(--line);
     padding:8px 12px calc(env(safe-area-inset-bottom) + 8px);
@@ -154,28 +184,70 @@
   /* ---------- panels ---------- */
   details{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;box-shadow:var(--shadow)}
   summary{
-    cursor:pointer;list-style:none;padding:12px 14px;font-size:12.5px;letter-spacing:.08em;
-    text-transform:uppercase;color:var(--muted);display:flex;align-items:center;justify-content:space-between;
+    cursor:pointer;list-style:none;padding:12px 14px;font-size:12px;font-weight:700;letter-spacing:.16em;
+    text-transform:uppercase;color:#ead9ae;display:flex;align-items:center;gap:9px;
   }
   summary::-webkit-details-marker{display:none}
-  summary::after{content:"+";color:var(--faint);font-size:15px}
+  summary::before{
+    content:"";width:6px;height:6px;border-radius:50%;flex:none;
+    background:var(--faint);box-shadow:none;
+  }
+  details[open] summary::before{background:var(--accent);box-shadow:0 0 7px rgba(240,168,72,.85)}
+  summary::after{content:"+";color:var(--faint);font-size:15px;margin-left:auto}
   details[open] summary::after{content:"–"}
   .body{padding:0 14px 14px}
-  .row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line-soft)}
+  .row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line-soft)}
   .row:first-child{border-top:none}
-  .row label,.row .lab{flex:0 0 112px;font-size:12.5px;color:var(--muted)}
+  .row label,.row .lab{flex:0 0 108px;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
   .row .ctl{flex:1 1 auto;display:flex;align-items:center;gap:8px;min-width:0}
-  .row output,.row .val{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums;flex:none;min-width:52px;text-align:right}
+  .row output,.row .val{
+    font:600 11px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;flex:none;min-width:58px;text-align:center;
+    color:var(--led);background:#120d05;border:1px solid #3b2f1a;border-radius:4px;padding:1px 6px;
+    text-shadow:0 0 6px rgba(255,180,80,.4);box-shadow:0 1px 2px rgba(0,0,0,.55) inset;
+  }
   .row .info{font-size:12px;color:var(--text);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
   .sep{border-top:1px solid var(--line);margin:10px 0 0}
-  .note{font-size:11.5px;color:var(--faint);padding:8px 0 0;line-height:1.45}
-  .fx-list{display:grid;gap:8px;padding-top:2px}
+  .note{font-size:11.5px;color:#ab9f83;padding:8px 0 0;line-height:1.45}
+
+  /* Grouped "unit" plates: engraved faceplates with corner screws and a
+     silkscreened title, holding a two-column grid of fader cells. */
+  .unit{
+    position:relative;background:linear-gradient(180deg,#201a12,#151109);
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px 11px;margin:10px 0 0;
+    box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 3px 10px rgba(0,0,0,.35);
+  }
+  .unit::before,.unit::after{
+    content:"";position:absolute;top:9px;width:7px;height:7px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#77694f,#241d12 72%);
+    box-shadow:0 1px 1px rgba(0,0,0,.7);
+  }
+  .unit::before{left:9px}
+  .unit::after{right:9px}
+  .unitname{
+    font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#ead9ae;
+    display:flex;align-items:center;gap:8px;margin:0 14px 8px;justify-content:center;
+  }
+  .unitname::before,.unitname::after{content:"";flex:1;border-top:1px solid var(--line)}
+  .ugrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
+  .ugrid .row,.fx-controls .row{
+    display:grid;grid-template-columns:1fr auto;grid-template-areas:"lab out" "ctl ctl";
+    align-items:center;gap:2px 8px;border:0;padding:3px 0;min-width:0;
+  }
+  .ugrid .row label,.ugrid .row .lab,.fx-controls .row label{grid-area:lab;flex:none}
+  .ugrid .row output,.fx-controls .row output{grid-area:out}
+  .ugrid .row .ctl,.fx-controls .row .ctl{grid-area:ctl;width:100%}
+  .ugrid .row.wide{grid-column:1/-1}
+  .ugrid .row:has(select),.fx-controls .row:has(select){grid-column:1/-1}
+
+  .fx-list{display:grid;gap:9px;padding-top:2px}
   .fx-module{
-    background:var(--panel-2);border:1px solid var(--line);border-radius:11px;overflow:hidden;
+    background:linear-gradient(180deg,#201a12,#151109);
+    border:1px solid var(--line);border-radius:11px;overflow:hidden;
     transition:border-color .15s,transform .15s,opacity .15s;
+    box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 3px 10px rgba(0,0,0,.35);
   }
   .fx-module.dragging{opacity:.7;border-color:var(--accent);transform:scale(.99)}
-  .fx-head{display:flex;align-items:center;gap:7px;min-height:46px;padding:5px 7px}
+  .fx-head{display:flex;align-items:center;gap:7px;min-height:48px;padding:5px 7px}
   .fx-grip{
     appearance:none;border:0;background:transparent;color:var(--faint);cursor:grab;
     width:32px;align-self:stretch;border-radius:7px;font-size:19px;line-height:1;touch-action:none;
@@ -183,26 +255,37 @@
   .fx-grip:active{cursor:grabbing;color:var(--accent);background:var(--accent-soft)}
   .fx-toggle{
     appearance:none;border:0;background:transparent;color:var(--text);font:inherit;text-align:left;
-    padding:7px 3px;cursor:pointer;display:flex;align-items:baseline;gap:7px;flex:1 1 auto;min-width:0;
+    padding:7px 3px;cursor:pointer;display:flex;align-items:baseline;gap:8px;flex:1 1 auto;min-width:0;
   }
-  .fx-index{color:var(--accent);font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
-  .fx-name{font-size:13px;font-weight:600}
+  .fx-index{
+    color:var(--led);font:600 11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:#120d05;border:1px solid #3b2f1a;border-radius:4px;padding:0 4px;
+    text-shadow:0 0 5px rgba(255,180,80,.4);
+  }
+  .fx-name{font-size:12.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
   .fx-sub{font-size:11px;color:var(--faint);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .fx-toggle::after{content:"+";color:var(--faint);font-size:15px;margin-left:auto}
   .fx-toggle[aria-expanded="true"]::after{content:"–"}
-  .fx-move{display:flex;gap:3px;flex:none}
-  .fx-move .btn{padding:5px 7px;font-size:12px;border-radius:7px}
-  .fx-power{padding:5px 8px;font-size:13px;border-radius:7px;line-height:1}
+  .fx-move{display:flex;gap:3px;flex:none;align-items:center}
+  .fx-move .btn{padding:6px 8px;font-size:12px;border-radius:7px}
+  .fx-power{padding:6px 9px;font-size:13px;border-radius:7px;line-height:1}
   .fx-power[aria-pressed="false"]{color:var(--faint)}
-  .fx-power[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
-  .fx-module.fx-off{opacity:.7}
+  .fx-power[aria-pressed="true"]{
+    border-color:#f7c169;color:#140e05;background:var(--accent);
+    box-shadow:0 0 10px rgba(240,168,72,.5);
+  }
+  .fx-module.fx-off{opacity:.68}
   .fx-module.fx-off .fx-name{color:var(--faint)}
-  .fx-controls{padding:0 10px 8px;border-top:1px solid var(--line-soft)}
-  .fx-controls .row label{flex-basis:104px}
-  .fx-help{font-size:11px;color:var(--faint);padding:4px 0 2px}
+  .fx-controls{
+    display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;
+    padding:8px 11px 10px;border-top:1px solid var(--line-soft);
+  }
+  .fx-controls .note{grid-column:1/-1}
+  .fx-help{font-size:11px;color:#ab9f83;padding:4px 0 2px}
   select{
-    appearance:none;width:100%;font:inherit;font-size:13px;color:var(--text);background:var(--panel-2);
-    border:1px solid var(--line);border-radius:9px;padding:8px 28px 8px 10px;
+    appearance:none;width:100%;font:inherit;font-size:13px;color:var(--text);
+    background:linear-gradient(180deg,#2c251a,#1d1811);
+    border:1px solid #52462f;border-radius:9px;padding:9px 28px 9px 10px;
     background-image:linear-gradient(45deg,transparent 50%,var(--faint) 50%),linear-gradient(135deg,var(--faint) 50%,transparent 50%);
     background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%;
     background-size:5px 5px,5px 5px;background-repeat:no-repeat;
@@ -405,130 +488,159 @@
 <details id="settings">
   <summary>Sound</summary>
   <div class="body">
-    <div class="row">
-      <label for="engine">Voice</label>
-      <div class="ctl"><select id="engine">
-        <option value="analog" selected>Analog — ladder filter</option>
-        <option value="additive">Additive — pure partials</option>
-      </select></div>
-    </div>
-    <div class="row">
-      <label for="law">Colour → pitch</label>
-      <div class="ctl"><select id="law">
-        <option value="spectral" selected>Spectral (photon energy)</option>
-        <option value="hue">Hue angle (linear)</option>
-      </select></div>
-    </div>
-    <div class="row">
-      <label for="scale">Scale</label>
-      <div class="ctl"><select id="scale">
-        <option value="free" selected>Continuous (no steps)</option>
-        <option value="chromatic">Chromatic</option>
-        <option value="major">Major</option>
-        <option value="minorPent">Minor pentatonic</option>
-        <option value="majorPent">Major pentatonic</option>
-        <option value="whole">Whole tone</option>
-      </select></div>
-    </div>
-    <div class="row">
-      <label for="root">Base note</label>
-      <div class="ctl"><select id="root"></select></div>
-    </div>
-    <div class="row">
-      <label for="octaves">Range</label>
-      <div class="ctl"><input id="octaves" type="range" min="1" max="4" step="1" value="3"></div>
-      <output id="octavesOut">3 oct</output>
-    </div>
-    <div class="row">
-      <label for="glide">Glide</label>
-      <div class="ctl"><input id="glide" type="range" min="0" max="100" value="22"></div>
-      <output id="glideOut">30 ms</output>
-    </div>
-    <div class="row">
-      <label for="drive">Drive</label>
-      <div class="ctl"><input id="drive" type="range" min="0" max="100" value="25"></div>
-      <output id="driveOut">25 %</output>
-    </div>
-    <div class="row">
-      <label for="attack">Attack</label>
-      <div class="ctl"><input id="attack" type="range" min="0" max="100" value="14"></div>
-      <output id="attackOut">12 ms</output>
-    </div>
-    <div class="row">
-      <label for="release">Release</label>
-      <div class="ctl"><input id="release" type="range" min="0" max="100" value="30"></div>
-      <output id="releaseOut">180 ms</output>
-    </div>
-    <div class="row">
-      <label for="envAmp">Env → Amp</label>
-      <div class="ctl"><input id="envAmp" type="range" min="0" max="100" value="100"></div>
-      <output id="envAmpOut">100 %</output>
-    </div>
-    <div class="row">
-      <label for="envFlt">Env → Filter</label>
-      <div class="ctl"><input id="envFlt" type="range" min="0" max="100" value="0"></div>
-      <output id="envFltOut">off</output>
-    </div>
-    <div class="row">
-      <label for="legato">Legato</label>
-      <div class="ctl"><input id="legato" type="range" min="0" max="100" value="24"></div>
-      <output id="legatoOut">120 ms</output>
-    </div>
-    <div class="row">
-      <label for="voiceMode">Voice mode</label>
-      <div class="ctl"><select id="voiceMode">
-        <option value="mono" selected>Mono / Unison — one note, stacked voices</option>
-        <option value="poly">Polyphonic — up to 4 notes at once</option>
-      </select></div>
-    </div>
-    <div class="row" id="voicesRow">
-      <label for="voices">Unison voices</label>
-      <div class="ctl"><input id="voices" type="range" min="1" max="12" step="1" value="1"></div>
-      <output id="voicesOut">1 voice</output>
-    </div>
-    <div class="row" id="polyNotesRow" hidden>
-      <label for="polyNotes">Notes</label>
-      <div class="ctl"><input id="polyNotes" type="range" min="1" max="4" step="1" value="4"></div>
-      <output id="polyNotesOut">4 notes</output>
-    </div>
-    <div class="row" id="polyOscRow" hidden>
-      <label for="polyOsc">Osc / note</label>
-      <div class="ctl"><input id="polyOsc" type="range" min="1" max="4" step="1" value="2"></div>
-      <output id="polyOscOut">2 osc</output>
-    </div>
-    <div class="row">
-      <label for="spread">Voice spread</label>
-      <div class="ctl"><input id="spread" type="range" min="5" max="40" value="14"></div>
-      <output id="spreadOut">14 px</output>
-    </div>
-    <div class="row">
-      <label for="width">Stereo width</label>
-      <div class="ctl"><input id="width" type="range" min="0" max="100" value="65"></div>
-      <output id="widthOut">65 %</output>
-    </div>
-    <div class="row">
-      <label for="panMode">Voice pan</label>
-      <div class="ctl"><select id="panMode">
-        <option value="hue" selected>Hue</option>
-        <option value="x">Cursor position</option>
-      </select></div>
-    </div>
-    <div class="row">
-      <label for="padsize">Pad size</label>
-      <div class="ctl"><input id="padsize" type="range" min="60" max="130" value="100"></div>
-      <output id="padsizeOut">100 %</output>
-    </div>
-    <div class="row">
-      <span class="lab">Filter type</span>
-      <div class="ctl seg">
-        <button class="btn" type="button" data-fmode="lowpass" aria-pressed="true">Low-pass</button>
-        <button class="btn" type="button" data-fmode="bandpass" aria-pressed="false">Band-pass</button>
-        <button class="btn" type="button" data-fmode="highpass" aria-pressed="false">High-pass</button>
+    <div class="unit">
+      <div class="unitname">Voice</div>
+      <div class="ugrid">
+        <div class="row wide">
+          <label for="engine">Engine</label>
+          <div class="ctl"><select id="engine">
+            <option value="analog" selected>Analog — ladder filter</option>
+            <option value="additive">Additive — pure partials</option>
+          </select></div>
+        </div>
+        <div class="row wide">
+          <label for="voiceMode">Voice mode</label>
+          <div class="ctl"><select id="voiceMode">
+            <option value="mono" selected>Mono / Unison — one note, stacked voices</option>
+            <option value="poly">Polyphonic — up to 4 notes at once</option>
+          </select></div>
+        </div>
+        <div class="row" id="voicesRow">
+          <label for="voices">Unison voices</label>
+          <div class="ctl"><input id="voices" type="range" min="1" max="12" step="1" value="1"></div>
+          <output id="voicesOut">1 voice</output>
+        </div>
+        <div class="row" id="polyNotesRow" hidden>
+          <label for="polyNotes">Notes</label>
+          <div class="ctl"><input id="polyNotes" type="range" min="1" max="4" step="1" value="4"></div>
+          <output id="polyNotesOut">4 notes</output>
+        </div>
+        <div class="row" id="polyOscRow" hidden>
+          <label for="polyOsc">Osc / note</label>
+          <div class="ctl"><input id="polyOsc" type="range" min="1" max="4" step="1" value="2"></div>
+          <output id="polyOscOut">2 osc</output>
+        </div>
+        <div class="row">
+          <label for="drive">Drive</label>
+          <div class="ctl"><input id="drive" type="range" min="0" max="100" value="25"></div>
+          <output id="driveOut">25 %</output>
+        </div>
+        <div class="row">
+          <label for="spread">Spread</label>
+          <div class="ctl"><input id="spread" type="range" min="5" max="40" value="14"></div>
+          <output id="spreadOut">14 px</output>
+        </div>
+        <div class="row">
+          <label for="width">Width</label>
+          <div class="ctl"><input id="width" type="range" min="0" max="100" value="65"></div>
+          <output id="widthOut">65 %</output>
+        </div>
+        <div class="row wide">
+          <label for="panMode">Voice pan</label>
+          <div class="ctl"><select id="panMode">
+            <option value="hue" selected>Hue</option>
+            <option value="x">Cursor position</option>
+          </select></div>
+        </div>
       </div>
     </div>
-    <div class="row">
-      <span class="lab">Photos</span>
-      <div class="ctl seg"><button class="btn" id="swap" type="button">Swap photos</button></div>
+
+    <div class="unit">
+      <div class="unitname">Pitch &amp; scale</div>
+      <div class="ugrid">
+        <div class="row wide">
+          <label for="law">Colour → pitch</label>
+          <div class="ctl"><select id="law">
+            <option value="spectral" selected>Spectral (photon energy)</option>
+            <option value="hue">Hue angle (linear)</option>
+          </select></div>
+        </div>
+        <div class="row wide">
+          <label for="scale">Scale</label>
+          <div class="ctl"><select id="scale">
+            <option value="free" selected>Continuous (no steps)</option>
+            <option value="chromatic">Chromatic</option>
+            <option value="major">Major</option>
+            <option value="minorPent">Minor pentatonic</option>
+            <option value="majorPent">Major pentatonic</option>
+            <option value="whole">Whole tone</option>
+          </select></div>
+        </div>
+        <div class="row wide">
+          <label for="root">Base note</label>
+          <div class="ctl"><select id="root"></select></div>
+        </div>
+        <div class="row">
+          <label for="octaves">Range</label>
+          <div class="ctl"><input id="octaves" type="range" min="1" max="4" step="1" value="3"></div>
+          <output id="octavesOut">3 oct</output>
+        </div>
+        <div class="row">
+          <label for="glide">Glide</label>
+          <div class="ctl"><input id="glide" type="range" min="0" max="100" value="22"></div>
+          <output id="glideOut">30 ms</output>
+        </div>
+      </div>
+    </div>
+
+    <div class="unit">
+      <div class="unitname">Envelope</div>
+      <div class="ugrid">
+        <div class="row">
+          <label for="attack">Attack</label>
+          <div class="ctl"><input id="attack" type="range" min="0" max="100" value="14"></div>
+          <output id="attackOut">12 ms</output>
+        </div>
+        <div class="row">
+          <label for="release">Release</label>
+          <div class="ctl"><input id="release" type="range" min="0" max="100" value="30"></div>
+          <output id="releaseOut">180 ms</output>
+        </div>
+        <div class="row">
+          <label for="envAmp">→ Amp</label>
+          <div class="ctl"><input id="envAmp" type="range" min="0" max="100" value="100"></div>
+          <output id="envAmpOut">100 %</output>
+        </div>
+        <div class="row">
+          <label for="envFlt">→ Filter</label>
+          <div class="ctl"><input id="envFlt" type="range" min="0" max="100" value="0"></div>
+          <output id="envFltOut">off</output>
+        </div>
+        <div class="row">
+          <label for="legato">Legato</label>
+          <div class="ctl"><input id="legato" type="range" min="0" max="100" value="24"></div>
+          <output id="legatoOut">120 ms</output>
+        </div>
+      </div>
+    </div>
+
+    <div class="unit">
+      <div class="unitname">Filter</div>
+      <div class="ugrid">
+        <div class="row wide">
+          <span class="lab">Type</span>
+          <div class="ctl seg">
+            <button class="btn" type="button" data-fmode="lowpass" aria-pressed="true">Low-pass</button>
+            <button class="btn" type="button" data-fmode="bandpass" aria-pressed="false">Band-pass</button>
+            <button class="btn" type="button" data-fmode="highpass" aria-pressed="false">High-pass</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="unit">
+      <div class="unitname">Photos &amp; layout</div>
+      <div class="ugrid">
+        <div class="row">
+          <label for="padsize">Pad size</label>
+          <div class="ctl"><input id="padsize" type="range" min="60" max="130" value="100"></div>
+          <output id="padsizeOut">100 %</output>
+        </div>
+        <div class="row">
+          <span class="lab">Photos</span>
+          <div class="ctl seg"><button class="btn" id="swap" type="button">Swap 1 ↔ 2</button></div>
+        </div>
+      </div>
     </div>
     <div class="note" id="engineNote"></div>
   </div>
