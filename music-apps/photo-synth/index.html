@@ -105,7 +105,7 @@
   input[type=range]::-webkit-slider-thumb{
     -webkit-appearance:none;width:30px;height:26px;border-radius:5px;margin-top:-9px;
     background:
-      linear-gradient(90deg,transparent 0 44%,var(--accent) 44% 56%,transparent 56% 100%),
+      linear-gradient(90deg,transparent 0 44%,var(--fxc,var(--accent)) 44% 56%,transparent 56% 100%),
       linear-gradient(180deg,#4c4231,#1b1611);
     border:1px solid #5d5340;
     box-shadow:0 2px 5px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.14) inset;
@@ -113,7 +113,7 @@
   input[type=range]::-moz-range-thumb{
     width:30px;height:26px;border-radius:5px;
     background:
-      linear-gradient(90deg,transparent 0 44%,var(--accent) 44% 56%,transparent 56% 100%),
+      linear-gradient(90deg,transparent 0 44%,var(--fxc,var(--accent)) 44% 56%,transparent 56% 100%),
       linear-gradient(180deg,#4c4231,#1b1611);
     border:1px solid #5d5340;
     box-shadow:0 2px 5px rgba(0,0,0,.6);
@@ -241,11 +241,20 @@
 
   .fx-list{display:grid;gap:9px;padding-top:2px}
   .fx-module{
-    background:linear-gradient(180deg,#201a12,#151109);
-    border:1px solid var(--line);border-radius:11px;overflow:hidden;
+    --fxc:var(--accent);--fxglow:rgba(240,168,72,.5);
+    background:linear-gradient(180deg,var(--fxbg1,#201a12),var(--fxbg2,#151109));
+    border:1px solid var(--line);border-left:4px solid var(--fxc);border-radius:11px;overflow:hidden;
     transition:border-color .15s,transform .15s,opacity .15s;
     box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 3px 10px rgba(0,0,0,.35);
   }
+  /* Each unit wears its own faceplate colour, pedalboard style. */
+  .fx-module[data-fx="saturation"]{--fxc:#f0a848;--fxglow:rgba(240,168,72,.5);--fxbg1:#231b10;--fxbg2:#161008}
+  .fx-module[data-fx="phaser"]{--fxc:#ff8156;--fxglow:rgba(255,129,86,.5);--fxbg1:#261710;--fxbg2:#170d08}
+  .fx-module[data-fx="chorus"]{--fxc:#5fd3c0;--fxglow:rgba(95,211,192,.45);--fxbg1:#122220;--fxbg2:#0b1513}
+  .fx-module[data-fx="stutter"]{--fxc:#c39bff;--fxglow:rgba(195,155,255,.45);--fxbg1:#1c1727;--fxbg2:#100d18}
+  .fx-module[data-fx="lofi"]{--fxc:#c6c25e;--fxglow:rgba(198,194,94,.45);--fxbg1:#20210f;--fxbg2:#131408}
+  .fx-module[data-fx="delay"]{--fxc:#7ecb8c;--fxglow:rgba(126,203,140,.45);--fxbg1:#14231a;--fxbg2:#0c150f}
+  .fx-module[data-fx="reverb"]{--fxc:#84b4e8;--fxglow:rgba(132,180,232,.45);--fxbg1:#141d2a;--fxbg2:#0c1119}
   .fx-module.dragging{opacity:.7;border-color:var(--accent);transform:scale(.99)}
   .fx-head{display:flex;align-items:center;gap:7px;min-height:48px;padding:5px 7px}
   .fx-grip{
@@ -258,9 +267,9 @@
     padding:7px 3px;cursor:pointer;display:flex;align-items:baseline;gap:8px;flex:1 1 auto;min-width:0;
   }
   .fx-index{
-    color:var(--led);font:600 11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
-    background:#120d05;border:1px solid #3b2f1a;border-radius:4px;padding:0 4px;
-    text-shadow:0 0 5px rgba(255,180,80,.4);
+    color:var(--fxc,var(--led));font:600 11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:#0f0d0a;border:1px solid rgba(255,255,255,.14);border-radius:4px;padding:0 4px;
+    text-shadow:0 0 6px var(--fxglow,rgba(255,180,80,.4));
   }
   .fx-name{font-size:12.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
   .fx-sub{font-size:11px;color:var(--faint);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -271,9 +280,10 @@
   .fx-power{padding:6px 9px;font-size:13px;border-radius:7px;line-height:1}
   .fx-power[aria-pressed="false"]{color:var(--faint)}
   .fx-power[aria-pressed="true"]{
-    border-color:#f7c169;color:#140e05;background:var(--accent);
-    box-shadow:0 0 10px rgba(240,168,72,.5);
+    border-color:var(--fxc,#f7c169);color:#140e05;background:var(--fxc,var(--accent));
+    box-shadow:0 0 10px var(--fxglow,rgba(240,168,72,.5));
   }
+  .fx-controls .row output{color:var(--fxc,var(--led));text-shadow:0 0 6px var(--fxglow,rgba(255,180,80,.4))}
   .fx-module.fx-off{opacity:.68}
   .fx-module.fx-off .fx-name{color:var(--faint)}
   .fx-controls{
@@ -305,6 +315,30 @@
   @media (min-width:760px){
     body{max-width:1000px}
     .pads{gap:12px}
+  }
+
+  /* ---------- desktop console ---------- */
+  /* On a wide screen the page self-detects (media query) and locks into a
+     fixed 1250 px two-column console: photos and scope on the left, the
+     rack of panels on the right. Box sizes are static; the Zoom slider
+     scales the whole console uniformly (CSS zoom), so nothing reflows. */
+  #deck,#colA,#colB{display:contents}
+  .deskonly{display:none}
+  @media (min-width:1020px){
+    body{max-width:none;padding-left:16px;padding-right:16px}
+    .deskonly{display:flex}
+    #deck{
+      display:grid;width:1250px;margin:0 auto;
+      grid-template-columns:600px 630px;column-gap:20px;
+      justify-content:center;align-items:start;
+    }
+    #deck>header{grid-column:1/-1}
+    #colA,#colB{display:block;min-width:0}
+    body[data-mode="play"] #colB{display:none}
+    body[data-mode="play"] #deck{grid-template-columns:1fr;justify-items:center}
+    body[data-mode="play"] #colA{width:680px}
+    h1{font-size:19px}
+    canvas.pad-canvas{max-height:none}
   }
   @media (max-width:759px){
     .padname{font-size:10.5px}
@@ -344,6 +378,7 @@
 </head>
 <body>
 
+<div id="deck">
 <header>
   <h1>Photo Synth<span>colour → sound</span></h1>
   <div class="topctl">
@@ -353,9 +388,14 @@
     </div>
     <button id="recBtn" class="btn rec" type="button" aria-pressed="false" title="Record audio"><span class="dot"></span><span id="recLabel">Record</span></button>
     <button id="keysBtn" class="btn" type="button" aria-pressed="false">Keys</button>
+    <div class="vol deskonly" style="flex:0 1 150px">
+      <label for="uiScale">Zoom</label>
+      <input id="uiScale" type="range" min="55" max="140" value="100" aria-label="Interface zoom">
+    </div>
   </div>
 </header>
 
+<div class="col" id="colA">
 <div class="transport">
   <button id="power" class="btn power" type="button" aria-pressed="false"><span class="dot"></span><span id="powerLabel">Sound off</span></button>
   <button id="panic" class="btn" type="button">Silence</button>
@@ -467,24 +507,15 @@
   </div>
 </section>
 
-<section class="kbdpanel" id="kbdPanel" hidden>
-  <div class="kbdinner">
-    <div class="kbdbar">
-      <button class="btn" id="octDown" type="button">− oct</button>
-      <span class="kbdlabel">base <b id="baseLabel">C3</b></span>
-      <button class="btn" id="octUp" type="button">+ oct</button>
-      <button class="btn" id="holdBtn" type="button" aria-pressed="false">Hold</button>
-    </div>
-    <canvas id="kbd"></canvas>
-    <div class="kbdnote" id="kbdNote">The key sets the base note; the colour of photo 1 is the interval played above it.</div>
-  </div>
-</section>
 
 <div class="scope">
   <canvas id="scope"></canvas>
   <div class="cap" id="scopeCap">Harmonics of the tone (bars) shaped by the filter response (curve).</div>
 </div>
 
+</div>
+
+<div class="col" id="colB">
 <details id="settings">
   <summary>Sound</summary>
   <div class="body">
@@ -1127,6 +1158,21 @@
 </details>
 
 <footer>Photo Synth — everything runs in the browser; no photo or sound leaves the device.</footer>
+</div>
+</div>
+
+<section class="kbdpanel" id="kbdPanel" hidden>
+  <div class="kbdinner">
+    <div class="kbdbar">
+      <button class="btn" id="octDown" type="button">− oct</button>
+      <span class="kbdlabel">base <b id="baseLabel">C3</b></span>
+      <button class="btn" id="octUp" type="button">+ oct</button>
+      <button class="btn" id="holdBtn" type="button" aria-pressed="false">Hold</button>
+    </div>
+    <canvas id="kbd"></canvas>
+    <div class="kbdnote" id="kbdNote">The key sets the base note; the colour of photo 1 is the interval played above it.</div>
+  </div>
+</section>
 <script>
 (function () {
   "use strict";
@@ -4984,6 +5030,53 @@
     };
     fr.readAsText(f);
   });
+
+  /* ================================================================== *
+   * Desktop console zoom: on wide screens the console is a fixed 1250 px
+   * grid, and this slider scales it uniformly. Auto-fits the window until
+   * the user takes over; double-click the slider to return to auto.
+   * ================================================================== */
+  (function initDeckScale() {
+    var deck = $("deck"), sl = $("uiScale");
+    if (!deck || !sl) return;
+    var userSet = false;
+    var saved = parseFloat(localStorage.getItem("photoSynth.uiScale") || "0");
+    if (saved >= 0.55 && saved <= 1.4) { userSet = true; sl.value = String(Math.round(saved * 100)); }
+    var canZoom = "zoom" in deck.style;
+    function applyScale(k) {
+      if (canZoom) {
+        deck.style.zoom = k === 1 ? "" : String(k);
+      } else {
+        deck.style.transformOrigin = "top center";
+        deck.style.transform = k === 1 ? "" : "scale(" + k + ")";
+        deck.style.marginBottom = k === 1 ? "" : (-deck.offsetHeight * (1 - k)) + "px";
+      }
+      pads.forEach(function (p) { p.dirty = true; });
+    }
+    function refresh() {
+      if (!window.matchMedia("(min-width:1020px)").matches) { applyScale(1); return; }
+      var k;
+      if (userSet) {
+        k = clamp(parseInt(sl.value, 10) / 100, 0.55, 1.4);
+      } else {
+        k = clamp((window.innerWidth - 40) / 1250, 0.55, 1);
+        sl.value = String(Math.round(k * 100));
+      }
+      applyScale(k);
+    }
+    sl.addEventListener("input", function () {
+      userSet = true;
+      try { localStorage.setItem("photoSynth.uiScale", String(parseInt(sl.value, 10) / 100)); } catch (ignore) {}
+      refresh();
+    });
+    sl.addEventListener("dblclick", function () {
+      userSet = false;
+      try { localStorage.removeItem("photoSynth.uiScale"); } catch (ignore) {}
+      refresh();
+    });
+    window.addEventListener("resize", refresh);
+    refresh();
+  })();
 
   // A deliberately opt-in hook for the browser measurement harness. It is
   // absent on the published URL unless ?photosynth-test=1 is supplied.
