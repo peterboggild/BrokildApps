@@ -11,11 +11,14 @@ the third shapes the envelope (red attack, green sustain, blue decay). Each pad
 has its own motion Rec button — record a gesture or define a line/circle with
 two fingers and it loops immediately. Polyphonic voices can pan by sampled hue
 or cursor position, with a width-zero mono mode. The envelope can be sent to
-amplitude, to a filter sweep, or any blend of the two. A six-module stereo
-effects chain — loudness-compensated tube saturation, vintage phaser, vintage
-chorus, stutter gate, a delay with a clean/tape character switch, and
-convolution reverb — is freely reorderable, and every module has a power
-switch that removes it from the audio graph entirely (real CPU savings). A
+amplitude, to a filter sweep, or any blend of the two, and the ladder offers
+five modes (low/band/high pass, notch, and a tuned feedback comb). A
+seven-module stereo effects chain — loudness-compensated tube saturation,
+vintage phaser, vintage chorus, stutter gate, a lofi stage (crush, grit,
+noise, dirt), a delay with clean/tape characters and an L/R time offset, and
+convolution reverb with room/hall/plate/spring — is freely reorderable, and
+every module has a power switch that removes it from the audio graph entirely
+(real CPU savings), switched under a short master dip so it never pops. A
 fourth photo pad drives three selectable effect parameters from the sampled
 colour's red, green and blue strengths — black is all off, white is all full.
 Presets capture everything including small copies of the photos, stored only
