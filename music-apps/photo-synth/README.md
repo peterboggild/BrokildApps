@@ -19,6 +19,10 @@ noise, dirt), a delay with clean/tape characters and an L/R time offset, and
 convolution reverb with room/hall/plate/spring — is freely reorderable, and
 every module has a power switch that removes it from the audio graph entirely
 (real CPU savings), switched under a short master dip so it never pops. A
+Dark Drone switch arms a zero-cost-when-off drone engine: sub-oscillator,
+microtonal cluster detune, slow random drift, pitch sag on decay, a Freeze
+gesture that holds the delay tail forever, a Halt tape-stop, delay feedback
+past unity into a soft limiter, and a reverse reverb character. A
 fourth photo pad drives three selectable effect parameters from the sampled
 colour's red, green and blue strengths — black is all off, white is all full.
 Presets capture everything including small copies of the photos, stored only
