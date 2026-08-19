@@ -691,7 +691,8 @@
         voice, microtonal cluster detune instead of tidy unison, a slow random drift on cut-off,
         detune and delay time, and a pitch sag as notes decay. Off, none of it costs a single
         cycle. <b>Freeze</b> (top bar) holds the delay tail forever — feedback past 100 % howls
-        under a soft limiter — and <b>Halt</b> is the tape-stop.</div>
+        under a soft limiter — and <b>Halt</b> is the tape-stop. Sub, pitch sag and Halt live in
+        the analog engine; the additive fallback ignores them.</div>
     </div>
 
     <div class="unit">
@@ -4498,20 +4499,21 @@
    * and clicks. Dip the master for ~60 ms around the change instead — the
    * switch lands as a tiny fade, never a pop. */
   var fxDipUntil = 0;
-  function rewireGently() {
+  function dipMaster(fn) {
     if (A && audioOn && A.ctx.state === "running") {
       var t = A.ctx.currentTime;
       fxDipUntil = performance.now() + 160;
       A.master.gain.cancelScheduledValues(t);
       A.master.gain.setTargetAtTime(0, t, 0.012);
       setTimeout(function () {
-        wireFXOrder(A);
+        fn();
         A.master.gain.setTargetAtTime(S.vol, A.ctx.currentTime, 0.02);
       }, 60);
     } else {
-      wireFXOrder(A);
+      fn();
     }
   }
+  function rewireGently() { dipMaster(function () { wireFXOrder(A); }); }
 
   /* Switch a module in or out of the chain. Off means out of the audio
    * graph entirely — the audio thread never touches its nodes. */
@@ -4639,12 +4641,15 @@
     if (e.target.value === "analog" && !workletOK && audioReady) {
       e.target.value = "additive";
     }
-    S.engine = e.target.value;
-    setEngineGains(A);
-    pushAudio();
-    updateEngineNote();
-    updateReadouts();
-    scopeSig = "";
+    // Engine gains switch instantly, so land the change inside a master dip.
+    dipMaster(function () {
+      S.engine = $("engine").value;
+      setEngineGains(A);
+      pushAudio();
+      updateEngineNote();
+      updateReadouts();
+      scopeSig = "";
+    });
   });
   $("law").addEventListener("change", function (e) { S.law = e.target.value; reapply(); });
   $("scale").addEventListener("change", function (e) { S.scale = e.target.value; reapply(); });
@@ -4912,11 +4917,15 @@
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-fmode]"), function (b) {
     b.addEventListener("click", function () {
-      S.fmode = b.getAttribute("data-fmode");
       Array.prototype.forEach.call(document.querySelectorAll("[data-fmode]"), function (o) {
         o.setAttribute("aria-pressed", o === b ? "true" : "false");
       });
-      reapply();
+      // A mode change swaps the filter's transfer function instantly (both
+      // the ladder mix and the biquad type), so land it inside a master dip.
+      dipMaster(function () {
+        S.fmode = b.getAttribute("data-fmode");
+        reapply();
+      });
     });
   });
 
