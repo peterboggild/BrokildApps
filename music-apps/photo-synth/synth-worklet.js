@@ -43,6 +43,7 @@ Ladder.prototype.process = function (x, g, k, mode, dk, dnorm) {
   v = (y3 - z[3]) * G; y4 = v + z[3]; z[3] = y4 + v;
   if (mode === 0) return y4;                                  // 24 dB low-pass
   if (mode === 1) return 4 * y2 - 8 * y3 + 4 * y4;            // band-pass
+  if (mode === 3) return inp - 2 * y1 + 2 * y2;               // 2-pole notch (Xpander mix)
   return inp - 4 * y1 + 6 * y2 - 4 * y3 + y4;                 // high-pass
 };
 
@@ -72,6 +73,9 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.lfo = 0;
     this.lad = [new Ladder(), new Ladder()];
     this.dz = [0, 0];
+    // Comb mode (4): a tuned feedback delay per channel replaces the ladder.
+    this.cb = [new Float64Array(8192), new Float64Array(8192)];
+    this.cw = 0;
     this.events = [];
     this.port.onmessage = this.onmsg.bind(this);
 
@@ -213,8 +217,27 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
         var xl = (a * lA + b * lB) * this.level * inGain;
         var xr = (a * lB + b * lA) * this.level * inGain;
-        var yl = this.lad[0].process(xl, g, kres, mode, dk, dnorm) * outGain;
-        var yr = this.lad[1].process(xr, g, kres, mode, dk, dnorm) * outGain;
+        var yl, yr;
+        if (mode === 4) {
+          // Tuned feedback comb at the cut-off: y = x + g·tanh(y[n-D]).
+          // The tanh keeps the loop bounded, resonance sets the feedback,
+          // and the fractional delay keeps cut-off sweeps smooth.
+          var Dc = Math.min(8000, Math.max(4, fs / Math.min(8000, Math.max(40, cutEff))));
+          var gC = 0.55 + 0.43 * clamp(this.res, 0, 1);
+          var ri = this.cw - Dc, i0 = Math.floor(ri), frc = ri - i0;
+          var vL = this.cb[0][i0 & 8191] * (1 - frc) + this.cb[0][(i0 + 1) & 8191] * frc;
+          var vR = this.cb[1][i0 & 8191] * (1 - frc) + this.cb[1][(i0 + 1) & 8191] * frc;
+          yl = Math.tanh(xl * dk) * dnorm + gC * Math.tanh(vL);
+          yr = Math.tanh(xr * dk) * dnorm + gC * Math.tanh(vR);
+          this.cb[0][this.cw & 8191] = yl;
+          this.cb[1][this.cw & 8191] = yr;
+          this.cw++;
+          yl *= OUT_GAIN * (1 - 0.45 * gC);
+          yr *= OUT_GAIN * (1 - 0.45 * gC);
+        } else {
+          yl = this.lad[0].process(xl, g, kres, mode, dk, dnorm) * outGain;
+          yr = this.lad[1].process(xr, g, kres, mode, dk, dnorm) * outGain;
+        }
 
         // 3-tap decimation FIR across the oversampled stream
         if (j === 0) { sl = 0.25 * this.dz[0] + 0.5 * yl; sr = 0.25 * this.dz[1] + 0.5 * yr; }
@@ -289,5 +312,76 @@ class RecorderProcessor extends AudioWorkletProcessor {
   }
 }
 
+/* Lofi processor: sample-rate reduction, bit-depth grit, tape-style dirt
+ * and a bed of hiss and crackle. All parameters are smoothed per sample,
+ * so the FX photo pad can drive them without any clicks. */
+class LofiProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.p = { crush: 0, noise: 0, dirt: 0 };
+    this.crush = 0; this.noise = 0; this.dirt = 0;
+    this.holdL = 0; this.holdR = 0; this.holdAcc = 0;
+    this.crEnv = 0; this.crVal = 0;
+    this.port.onmessage = function (e) {
+      if (e.data && e.data.p) { for (var k in e.data.p) this.p[k] = e.data.p[k]; }
+    }.bind(this);
+  }
+  process(inputs, outputs) {
+    var out = outputs[0];
+    if (!out || !out.length) return true;
+    var L = out[0], R = out.length > 1 ? out[1] : out[0];
+    var inp = inputs[0];
+    var iL = inp && inp.length ? inp[0] : null;
+    var iR = inp && inp.length > 1 ? inp[1] : iL;
+    var n = L.length;
+    var aS = 1 - Math.exp(-1 / (0.02 * sampleRate));
+    for (var i = 0; i < n; i++) {
+      this.crush += (this.p.crush - this.crush) * aS;
+      this.noise += (this.p.noise - this.noise) * aS;
+      this.dirt += (this.p.dirt - this.dirt) * aS;
+      var xl = iL ? iL[i] : 0, xr = iR ? iR[i] : 0;
+
+      // Sample-rate reduction: both channels held together, wet blended in
+      // so small crush amounts stay subtle.
+      var hold = 1 + this.crush * this.crush * 38;
+      this.holdAcc += 1;
+      if (this.holdAcc >= hold) { this.holdAcc -= hold; this.holdL = xl; this.holdR = xr; }
+      var wet = Math.min(1, this.crush * 3);
+      var cl = xl + (this.holdL - xl) * wet;
+      var cr = xr + (this.holdR - xr) * wet;
+
+      // Bit-depth grit: quantisation from ~12 down to ~4 bits equivalent.
+      if (this.crush > 0.01) {
+        var q = Math.pow(2, 12 - this.crush * 8);
+        cl = Math.round(cl * q) / q;
+        cr = Math.round(cr * q) / q;
+      }
+
+      // Dirt: normalised tanh, blended in — thickens without getting loud.
+      if (this.dirt > 0.01) {
+        var dkl = 1 + this.dirt * 5, dn = 1 / Math.tanh(dkl);
+        cl += (Math.tanh(cl * dkl) * dn - cl) * this.dirt;
+        cr += (Math.tanh(cr * dkl) * dn - cr) * this.dirt;
+      }
+
+      // Noise bed: hiss plus sparse crackle pops with a fast decay.
+      if (this.noise > 0.002) {
+        var hiss = (Math.random() * 2 - 1) * this.noise * 0.012;
+        if (Math.random() < this.noise * 0.0006) {
+          this.crEnv = 1;
+          this.crVal = (Math.random() * 2 - 1);
+        }
+        this.crEnv *= 0.994;
+        var bed = hiss + this.crVal * this.crEnv * this.noise * 0.35;
+        cl += bed; cr += bed;
+      }
+
+      L[i] = cl; R[i] = cr;
+    }
+    return true;
+  }
+}
+
 registerProcessor("photo-synth-voice", VoiceProcessor);
 registerProcessor("photo-synth-recorder", RecorderProcessor);
+registerProcessor("photo-synth-lofi", LofiProcessor);
