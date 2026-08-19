@@ -247,6 +247,106 @@
     transition:border-color .15s,transform .15s,opacity .15s;
     box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 3px 10px rgba(0,0,0,.35);
   }
+  /* ---------- Boutique skin: one look per pedal ---------- */
+  /* The Rack skin (default) keeps the uniform faceplates below. Boutique
+     gives every unit its own enclosure: hot-rod tube, sunburst phaser,
+     dreamy chorus, glitch stutter, cassette lofi, tape-echo delay and a
+     deep-space reverb. Pure CSS — same markup, same controls. */
+  body[data-fxskin="boutique"] .fx-module{border-left-width:5px}
+  body[data-fxskin="boutique"] .fx-module[data-fx="saturation"]{
+    --fxc:#ff5533;--fxglow:rgba(255,85,51,.55);
+    background:
+      repeating-linear-gradient(-45deg,rgba(255,85,51,.08) 0 12px,transparent 12px 24px),
+      linear-gradient(180deg,#2c1008,#160605);
+    border-color:#6b2417;border-radius:6px;
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="saturation"] .fx-name{
+    color:#ff8f70;letter-spacing:.24em;text-shadow:0 0 9px rgba(255,85,51,.55);
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="saturation"] .fx-power{border-radius:3px}
+
+  body[data-fxskin="boutique"] .fx-module[data-fx="phaser"]{
+    --fxc:#ffa14d;--fxglow:rgba(255,161,77,.5);
+    background:
+      radial-gradient(circle at 88% 18%,rgba(255,150,60,.20) 0 16%,transparent 17%),
+      radial-gradient(circle at 88% 18%,rgba(255,150,60,.11) 0 30%,transparent 31%),
+      radial-gradient(circle at 88% 18%,rgba(255,150,60,.06) 0 45%,transparent 46%),
+      linear-gradient(180deg,#2c1508,#180b04);
+    border-color:#6e3d18;border-radius:14px;
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="phaser"] .fx-name{
+    font-family:Georgia,"Times New Roman",serif;font-style:italic;text-transform:none;
+    font-size:14.5px;color:#ffb877;letter-spacing:.04em;
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="phaser"] .fx-power{border-radius:50%}
+
+  body[data-fxskin="boutique"] .fx-module[data-fx="chorus"]{
+    --fxc:#7fd6ff;--fxglow:rgba(127,214,255,.5);
+    background:linear-gradient(160deg,#132b40,#0a1622 70%);
+    border-color:#2c4a63;border-radius:20px;
+    box-shadow:0 0 20px rgba(90,170,230,.14),0 1px 0 rgba(255,255,255,.09) inset;
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="chorus"] .fx-name{
+    color:#b3e2ff;font-weight:400;letter-spacing:.32em;
+    text-shadow:0 0 14px rgba(127,214,255,.65);
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="chorus"] .fx-power{border-radius:50%}
+
+  body[data-fxskin="boutique"] .fx-module[data-fx="stutter"]{
+    --fxc:#e05cff;--fxglow:rgba(224,92,255,.5);
+    background:
+      repeating-linear-gradient(0deg,rgba(224,92,255,.06) 0 2px,transparent 2px 7px),
+      linear-gradient(180deg,#1d1028,#130a19);
+    border-style:dashed;border-color:#7a4a99;border-radius:2px;
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="stutter"] .fx-name{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#eda9ff;
+    text-shadow:1px 0 0 rgba(0,255,255,.45),-1px 0 0 rgba(255,0,90,.45);
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="stutter"] .fx-power{border-radius:0}
+
+  body[data-fxskin="boutique"] .fx-module[data-fx="lofi"]{
+    --fxc:#7c6432;--fxglow:rgba(124,100,50,.4);
+    background:linear-gradient(180deg,#dccda9,#c7b58b);
+    border-color:#8a7a55;border-radius:9px;
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="lofi"] .fx-name{
+    color:#3a2c16;font-family:Georgia,serif;text-transform:none;font-size:14.5px;letter-spacing:.03em;
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="lofi"] .fx-sub,
+  body[data-fxskin="boutique"] .fx-module[data-fx="lofi"] .fx-toggle::after,
+  body[data-fxskin="boutique"] .fx-module[data-fx="lofi"] .fx-grip{color:#6d5c39}
+  body[data-fxskin="boutique"] .fx-module[data-fx="lofi"] .fx-toggle{color:#3a2c16}
+  body[data-fxskin="boutique"] .fx-module[data-fx="lofi"] .fx-controls{border-top-color:rgba(90,70,40,.45)}
+  body[data-fxskin="boutique"] .fx-module[data-fx="lofi"] .fx-controls .row label{color:#5b4a28}
+  body[data-fxskin="boutique"] .fx-module[data-fx="lofi"] .note{color:#6d5c39}
+
+  body[data-fxskin="boutique"] .fx-module[data-fx="delay"]{
+    --fxc:#59e389;--fxglow:rgba(89,227,137,.45);
+    background:
+      repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 1px,transparent 1px 4px),
+      linear-gradient(180deg,#0f2818,#08130a);
+    border-color:#2c5c3c;border-radius:8px;
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="delay"] .fx-name{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#8af0ac;letter-spacing:.18em;
+  }
+
+  body[data-fxskin="boutique"] .fx-module[data-fx="reverb"]{
+    --fxc:#9fc4ff;--fxglow:rgba(159,196,255,.5);
+    background:
+      radial-gradient(1px 1px at 15% 30%,rgba(255,255,255,.75) 50%,transparent 51%),
+      radial-gradient(1px 1px at 45% 72%,rgba(255,255,255,.5) 50%,transparent 51%),
+      radial-gradient(1.5px 1.5px at 76% 24%,rgba(255,255,255,.85) 50%,transparent 51%),
+      radial-gradient(1px 1px at 91% 62%,rgba(255,255,255,.45) 50%,transparent 51%),
+      radial-gradient(1px 1px at 31% 86%,rgba(255,255,255,.4) 50%,transparent 51%),
+      radial-gradient(ellipse at 50% 130%,#16283f 0%,#070c16 72%);
+    border-color:#2b3f5e;border-radius:16px;
+  }
+  body[data-fxskin="boutique"] .fx-module[data-fx="reverb"] .fx-name{
+    color:#c9dfff;letter-spacing:.36em;font-weight:400;
+  }
+
   /* Each unit wears its own faceplate colour, pedalboard style. */
   .fx-module[data-fx="saturation"]{--fxc:#f0a848;--fxglow:rgba(240,168,72,.5);--fxbg1:#231b10;--fxbg2:#161008}
   .fx-module[data-fx="phaser"]{--fxc:#ff8156;--fxglow:rgba(255,129,86,.5);--fxbg1:#261710;--fxbg2:#170d08}
@@ -753,6 +853,13 @@
 <details id="effectsPanel">
   <summary>Effects</summary>
   <div class="body">
+    <div class="row">
+      <label for="fxSkin">Skin</label>
+      <div class="ctl"><select id="fxSkin">
+        <option value="rack" selected>Rack — uniform faceplates</option>
+        <option value="boutique">Boutique — one look per pedal</option>
+      </select></div>
+    </div>
     <div class="fx-help">Drag the ⋮⋮ handle to change the signal path. Tap a module to show its controls.</div>
     <div class="fx-list" id="fxList" aria-label="Effects signal chain">
       <section class="fx-module" data-fx="saturation">
@@ -1054,6 +1161,11 @@
       voices actually sounding burn CPU.</p>
 
     <h3>Effects</h3>
+    <p>A <b>Skin</b> switch at the top of the panel chooses between the uniform <b>Rack</b>
+      faceplates and <b>Boutique</b>, where every unit wears its own enclosure — hot-rod red
+      tube, sunburst phaser, dreamy blue chorus, glitch-violet stutter, cassette-label lofi,
+      tape-echo green delay and a deep-space reverb. Purely cosmetic and remembered on the
+      device.</p>
     <p>The Effects panel is a real serial signal chain of seven modules: the tube stage, a vintage
       <b>phaser</b> (four swept all-pass stages with feedback), a vintage <b>chorus</b> (two
       opposite-phase modulated delay lines, rolled off dark), a rhythmic <b>stutter</b> gate, a
@@ -1352,6 +1464,7 @@
     padSize: 1,
     motionSpeed: 1,
     twoShape: "line",
+    fxSkin: "rack",
     darkOn: false,
     subLevel: 0.5,
     subOct: 1,
@@ -1376,6 +1489,12 @@
       S.fxOrder = known.concat(FX_MODULE_NAMES.filter(function (name) {
         return known.indexOf(name) === -1;
       }));
+    } catch (ignore) {}
+  })();
+  (function restoreFXSkin() {
+    try {
+      var v = localStorage.getItem("photoSynth.fxSkin");
+      if (v === "boutique" || v === "rack") S.fxSkin = v;
     } catch (ignore) {}
   })();
   (function restoreFXEnabled() {
@@ -4915,6 +5034,11 @@
     padFx.canvas.style.aspectRatio = String(1 / S.padSize);
     $("padsizeOut").textContent = e.target.value + " %";
   });
+  $("fxSkin").addEventListener("change", function (e) {
+    S.fxSkin = e.target.value;
+    document.body.setAttribute("data-fxskin", S.fxSkin);
+    try { localStorage.setItem("photoSynth.fxSkin", S.fxSkin); } catch (ignore) {}
+  });
   Array.prototype.forEach.call(document.querySelectorAll("[data-fmode]"), function (b) {
     b.addEventListener("click", function () {
       Array.prototype.forEach.call(document.querySelectorAll("[data-fmode]"), function (o) {
@@ -5344,6 +5468,8 @@
 
   initFXModules();
   initFXSelects();
+  $("fxSkin").value = S.fxSkin;
+  document.body.setAttribute("data-fxskin", S.fxSkin);
   refreshPresets();
   updateVoiceModeRows();
   setMode("play");
