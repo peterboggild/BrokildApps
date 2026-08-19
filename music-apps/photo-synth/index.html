@@ -388,6 +388,8 @@
     </div>
     <button id="recBtn" class="btn rec" type="button" aria-pressed="false" title="Record audio"><span class="dot"></span><span id="recLabel">Record</span></button>
     <button id="keysBtn" class="btn" type="button" aria-pressed="false">Keys</button>
+    <button id="freezeBtn" class="btn" type="button" aria-pressed="false" title="Hold the delay tail forever">Freeze</button>
+    <button id="stopBtn" class="btn" type="button" aria-pressed="false" title="Tape stop — pitch spins down; press again to spin back up">Halt</button>
     <div class="vol deskonly" style="flex:0 1 150px">
       <label for="uiScale">Zoom</label>
       <input id="uiScale" type="range" min="55" max="140" value="100" aria-label="Interface zoom">
@@ -645,6 +647,53 @@
       </div>
     </div>
 
+    <div class="unit" id="darkUnit">
+      <div class="unitname">Dark drone</div>
+      <div class="ugrid">
+        <div class="row wide">
+          <span class="lab">Mode</span>
+          <div class="ctl seg">
+            <button class="btn" id="darkBtn" type="button" aria-pressed="false">Engage Dark Drone</button>
+          </div>
+        </div>
+        <div class="row">
+          <label for="subLevel">Sub level</label>
+          <div class="ctl"><input id="subLevel" type="range" min="0" max="100" value="50"></div>
+          <output id="subLevelOut">50 %</output>
+        </div>
+        <div class="row">
+          <label for="subOct">Sub octave</label>
+          <div class="ctl"><input id="subOct" type="range" min="1" max="2" step="1" value="1"></div>
+          <output id="subOctOut">−1 oct</output>
+        </div>
+        <div class="row">
+          <label for="darkCluster">Cluster</label>
+          <div class="ctl"><input id="darkCluster" type="range" min="0" max="60" value="24"></div>
+          <output id="darkClusterOut">±24 ¢</output>
+        </div>
+        <div class="row">
+          <label for="envPitch">Env → Pitch</label>
+          <div class="ctl"><input id="envPitch" type="range" min="0" max="100" value="25"></div>
+          <output id="envPitchOut">25 %</output>
+        </div>
+        <div class="row">
+          <label for="drift">Drift</label>
+          <div class="ctl"><input id="drift" type="range" min="0" max="100" value="40"></div>
+          <output id="driftOut">40 %</output>
+        </div>
+        <div class="row">
+          <label for="driftSpeed">Drift time</label>
+          <div class="ctl"><input id="driftSpeed" type="range" min="0" max="100" value="40"></div>
+          <output id="driftSpeedOut">2.0 min</output>
+        </div>
+      </div>
+      <div class="note">One switch arms the whole drone engine: a sub-oscillator under every
+        voice, microtonal cluster detune instead of tidy unison, a slow random drift on cut-off,
+        detune and delay time, and a pitch sag as notes decay. Off, none of it costs a single
+        cycle. <b>Freeze</b> (top bar) holds the delay tail forever — feedback past 100 % howls
+        under a soft limiter — and <b>Halt</b> is the tape-stop.</div>
+    </div>
+
     <div class="unit">
       <div class="unitname">Filter</div>
       <div class="ugrid">
@@ -745,7 +794,7 @@
           </div>
           <div class="row">
             <label for="delayFeedback">Feedback</label>
-            <div class="ctl"><input id="delayFeedback" type="range" min="0" max="85" value="34"></div>
+            <div class="ctl"><input id="delayFeedback" type="range" min="0" max="112" value="34"></div>
             <output id="delayFeedbackOut">34 %</output>
           </div>
           <div class="row">
@@ -785,6 +834,7 @@
               <option value="hall">Hall</option>
               <option value="plate">Plate</option>
               <option value="spring">Spring — dispersive boing</option>
+              <option value="reverse">Reverse — swells in</option>
             </select></div>
           </div>
           <div class="row">
@@ -1017,6 +1067,22 @@
       dark, wobbly loop), and <b>Offset L↔R</b> delays one side up to 250 ms after the other for
       wide, staggered echoes. The order and switches are remembered on this device, every module
       preserves the stereo image, and the tube stage is <b>loudness-compensated</b>.</p>
+
+    <h3>Dark Drone</h3>
+    <p>One switch (Sound → Dark drone) arms a drone engine, and none of it costs any CPU while
+      the switch is off. <b>Sub level / Sub octave</b> put a thickened sine one or two octaves
+      under every voice, through the same filter. <b>Cluster</b> replaces the tidy ±3-cent unison
+      with an irregular microtonal spread of up to ±60 cents per voice step. <b>Env → Pitch</b>
+      makes notes sag toward an octave down as their envelope decays. <b>Drift</b> is an
+      ultra-slow random walk (30 s to 5 min characteristic time) leaning on the cut-off, the
+      detune and the delay time, so a held drone slowly comes apart on its own. Two live gestures
+      sit in the top bar: <b>Freeze</b> holds the delay tail forever — the loop's input closes,
+      feedback goes to unity under a soft limiter and the damping opens wide — and <b>Halt</b> is
+      a tape-stop that spins the pitch down (press again to spin back up). The delay's feedback
+      now reaches <b>112 %</b>: past unity the loop self-oscillates into a tanh limiter, and in
+      tape mode it degenerates into saturating, wobbling murk. The reverb gained a
+      <b>Reverse</b> character whose impulse swells in instead of decaying, so every note arrives
+      with a drawn-in breath.</p>
 
     <h3>Filter modes</h3>
     <p>Five types under Sound → Filter: <b>Low</b>, <b>Band</b> and <b>High</b> pass, <b>Notch</b>
@@ -1284,7 +1350,16 @@
     panMode: "hue",
     padSize: 1,
     motionSpeed: 1,
-    twoShape: "line"
+    twoShape: "line",
+    darkOn: false,
+    subLevel: 0.5,
+    subOct: 1,
+    darkCluster: 24,
+    drift: 0.4,
+    driftTau: 120,
+    envPitch: 0.25,
+    freeze: false,
+    tapeStop: false
   };
   var FX_MODULE_NAMES = ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"];
   (function restoreFXOrder() {
@@ -1405,10 +1480,42 @@
 
   function voiceNorm() { return 1 / Math.sqrt(Math.max(1, S.voices)); }
 
+  function darkActive() { return S.darkOn; }
+
+  /* Per-voice fine detune. Normally a tidy ±3-cent unison; in Dark Drone
+   * mode the voices spread into an irregular microtonal cluster (up to
+   * ±60 cents per step, with a deterministic wobble per voice index). */
+  function fineCents(index, count) {
+    if (count < 2) return 0;
+    var base = darkActive() && S.darkCluster > 0 ? S.darkCluster : 3;
+    var c = (index - (count - 1) / 2) * base;
+    if (darkActive() && S.darkCluster > 0) {
+      c += (((index * 73) % 7) - 3) * base * 0.12;
+    }
+    return c;
+  }
   function voiceFineRatio(index) {
-    if (S.voices < 2) return 1;
-    var cents = (index - (S.voices - 1) / 2) * 3;
-    return Math.pow(2, cents / 1200);
+    return Math.pow(2, fineCents(index, S.voices) / 1200);
+  }
+
+  /* Drift: an ultra-slow random walk (Ornstein–Uhlenbeck) that leans on
+   * the cut-off, the detune and the delay time, so a held drone slowly
+   * decays into unease. Costs nothing unless Dark Drone and Drift are on. */
+  var drift = { c: 0, d: 0, t: 0, lastMs: 0, pushMs: 0 };
+  function driftOn() { return S.darkOn && S.drift > 0.005 && audioOn; }
+  function driftCutMul() { return driftOn() ? Math.pow(2, drift.c * S.drift * 1.2) : 1; }
+  function driftDetAdd() { return driftOn() ? drift.d * S.drift * 10 : 0; }
+  function driftDelayMul() { return driftOn() ? 1 + drift.t * S.drift * 0.1 : 1; }
+  function driftTick(nowMs) {
+    if (!driftOn()) { drift.lastMs = nowMs; return; }
+    var dt = Math.min(0.1, Math.max(0, (nowMs - drift.lastMs) / 1000));
+    drift.lastMs = nowMs;
+    var a = dt / Math.max(10, S.driftTau);
+    var s = Math.sqrt(a) * 1.3;
+    drift.c = clamp(drift.c - drift.c * a + (Math.random() * 2 - 1) * s, -1, 1);
+    drift.d = clamp(drift.d - drift.d * a + (Math.random() * 2 - 1) * s, -1, 1);
+    drift.t = clamp(drift.t - drift.t * a + (Math.random() * 2 - 1) * s, -1, 1);
+    if (nowMs - drift.pushMs > 180) { drift.pushMs = nowMs; pushAudio(); }
   }
 
   function voicePan(rgb, x, w) {
@@ -1423,13 +1530,15 @@
     index = index || 0;
     return {
       base: baseFreq(), ratio: tone.ratio * voiceFineRatio(index),
-      morph: tone.morph, pulse: tone.pulse, detune: tone.detune,
+      morph: tone.morph, pulse: tone.pulse, detune: tone.detune + driftDetAdd(),
       level: tone.level * (S.engine === "analog" ? voiceNorm() : 1),
-      cut: filt.cut, res: filt.bypass ? 0 : filt.res,
+      cut: clamp(filt.cut * driftCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
       drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
-      envAmp: S.envAmp, envFlt: S.envFlt
+      envAmp: S.envAmp, envFlt: S.envFlt,
+      sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
+      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0
     };
   }
 
@@ -1633,7 +1742,9 @@
       }
       return b;
     }
-    var seed = type === "hall" ? 0x51f15e : type === "plate" ? 0x71a7e : 0x22334;
+    var seed = type === "hall" ? 0x51f15e : type === "plate" ? 0x71a7e
+             : type === "reverse" ? 0x9e111 : 0x22334;
+    var rev = type === "reverse";
     for (var ch = 0; ch < 2; ch++) {
       var d = b.getChannelData(ch), energy = 0;
       var s = (seed + ch * 0x9e3779b9) >>> 0;
@@ -1641,7 +1752,9 @@
       for (var i = 0; i < frames; i++) {
         s = (1664525 * s + 1013904223) >>> 0;
         var noise = s / 4294967296 * 2 - 1;
-        var env = Math.pow(1 - i / frames, decayPower);
+        var env = rev
+          ? Math.pow(i / frames, 2.4) * Math.min(1, (frames - i) / (ctx.sampleRate * 0.03))
+          : Math.pow(1 - i / frames, decayPower);
         var v = noise * env;
         if (type === "room" && i < ctx.sampleRate * 0.08 && i % 997 === ch * 137) v += 2.2 * env;
         d[i] = v;
@@ -1695,19 +1808,29 @@
     return curve;
   }
 
-  /* Clean/tape delay character: the loop shaper, damping, low cut and wow
-   * all switch together. Curve swaps live inside the feedback loop at low
-   * level, so this stays click-free in practice. */
+  /* Clean/tape delay character plus the freeze and self-oscillation
+   * states: the loop shaper, damping, low cut, wow and input feed all
+   * switch together. The tanh limiter engages for tape, for freeze, and
+   * whenever feedback approaches or exceeds unity, so the loop can howl
+   * without ever blowing up. Curve swaps happen at low loop level and are
+   * guarded against redundant re-assignment, so this stays click-free. */
   function refreshDelayChar(g) {
     if (!g || !g.dshape) return;
     var tape = S.delayChar === "tape";
+    var frozen = !!S.freeze;
+    var limit = tape || frozen || S.delayFeedback > 0.92;
     var t = g.ctx.currentTime;
-    for (var dc = 0; dc < 2; dc++) {
-      g.dshape[dc].curve = tape ? tapeLoopCurve() : null;
-      g.damp[dc].frequency.setTargetAtTime(tape ? 2600 : 4200, t, 0.05);
-      g.dhp[dc].frequency.setTargetAtTime(tape ? 120 : 25, t, 0.05);
+    if (g.dLimit !== limit) {
+      g.dLimit = limit;
+      for (var c = 0; c < 2; c++) g.dshape[c].curve = limit ? tapeLoopCurve() : null;
     }
-    g.wowGain.gain.setTargetAtTime(tape ? 0.0007 : 0, t, 0.1);
+    for (var dc = 0; dc < 2; dc++) {
+      // A frozen loop opens its filters wide so the held tail barely decays.
+      g.damp[dc].frequency.setTargetAtTime(frozen ? 16000 : tape ? 2600 : 4200, t, 0.05);
+      g.dhp[dc].frequency.setTargetAtTime(frozen ? 18 : tape ? 120 : 25, t, 0.05);
+      g.dfeed[dc].gain.setTargetAtTime(frozen ? 0 : 1, t, 0.05);
+    }
+    g.wowGain.gain.setTargetAtTime(tape && !frozen ? 0.0007 : 0, t, 0.1);
   }
 
   function wireFXOrder(g) {
@@ -1786,6 +1909,8 @@
     g.damp = [ctx.createBiquadFilter(), ctx.createBiquadFilter()];
     g.dhp = [ctx.createBiquadFilter(), ctx.createBiquadFilter()];
     g.dshape = [ctx.createWaveShaper(), ctx.createWaveShaper()];
+    // Freeze taps: input feed gains, muted while the loop is held forever.
+    g.dfeed = [ctx.createGain(), ctx.createGain()];
     g.delayWet = ctx.createGain();
     g.delayIn.connect(g.delayDry); g.delayDry.connect(g.delayOut);
     g.delayIn.connect(g.delaySplit);
@@ -1795,7 +1920,8 @@
       g.dhp[dc].type = "highpass";
       g.dhp[dc].frequency.value = 25;
       g.dhp[dc].Q.value = 0.5;
-      g.delaySplit.connect(g.delay[dc], dc);
+      g.delaySplit.connect(g.dfeed[dc], dc);
+      g.dfeed[dc].connect(g.delay[dc]);
       g.delay[dc].connect(g.damp[dc]);
       g.damp[dc].connect(g.dhp[dc]);
       g.dhp[dc].connect(g.dshape[dc]);
@@ -2063,7 +2189,7 @@
     }
     var wantType = filt.bypass ? "lowpass" : BIQUAD_OF_MODE[S.fmode];
     if (g.lp.type !== wantType) g.lp.type = wantType;
-    g.lp.frequency.setTargetAtTime(clamp(filt.cut, 20, 20000), t, 0.02);
+    g.lp.frequency.setTargetAtTime(clamp(filt.cut * driftCutMul(), 20, 20000), t, 0.02);
     g.lp.Q.setTargetAtTime(filt.bypass ? 0.7 : filt.q, t, 0.03);
     g.lp.gain.setTargetAtTime(!filt.bypass && S.fmode === "comb" ? 15 : 0, t, 0.03);
 
@@ -2074,10 +2200,11 @@
     g.satWet.gain.setTargetAtTime(Math.sin(satMix * Math.PI / 2) * S.satComp, t, 0.03);
     g.satPre.gain.setTargetAtTime(Math.pow(10, S.satGain / 32), t, 0.03);
     g.satTone.frequency.setTargetAtTime(S.satTone, t, 0.03);
-    g.delay[0].delayTime.setTargetAtTime(S.delayTime + Math.max(0, -S.delayOffset), t, 0.02);
-    g.delay[1].delayTime.setTargetAtTime(S.delayTime + Math.max(0, S.delayOffset), t, 0.02);
+    var dtd = S.delayTime * driftDelayMul();
+    g.delay[0].delayTime.setTargetAtTime(dtd + Math.max(0, -S.delayOffset), t, 0.02);
+    g.delay[1].delayTime.setTargetAtTime(dtd + Math.max(0, S.delayOffset), t, 0.02);
     for (var dc = 0; dc < 2; dc++) {
-      g.fb[dc].gain.setTargetAtTime(S.delayFeedback, t, 0.03);
+      g.fb[dc].gain.setTargetAtTime(S.freeze ? 1 : S.delayFeedback, t, 0.03);
     }
     if (g.lofi) g.lofi.port.postMessage({ p: { crush: S.lofiCrush, noise: S.lofiNoise, dirt: S.lofiDirt } });
     g.delayDry.gain.setTargetAtTime(Math.cos(S.delayMix * Math.PI / 2), t, 0.05);
@@ -2116,11 +2243,13 @@
     var oscN = clamp(S.polyOsc, 1, 4), notesN = clamp(S.polyNotes, 1, 4);
     var norm = (1 / Math.sqrt(oscN)) * (notesN > 1 ? 0.85 : 1);
     var shared = {
-      cut: filt.cut, res: filt.bypass ? 0 : filt.res,
+      cut: clamp(filt.cut * driftCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
-      envAmp: S.envAmp, envFlt: S.envFlt
+      envAmp: S.envAmp, envFlt: S.envFlt,
+      sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
+      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0
     };
     var total = 1 + (A.extras ? A.extras.length : 0);
     for (var vi = 0; vi < total; vi++) {
@@ -2151,7 +2280,7 @@
       var msg = {}, k;
       for (k in shared) msg[k] = shared[k];
       for (k in tp) msg[k] = tp[k];
-      msg.ratio = tp.ratio * Math.pow(2, (o - (oscN - 1) / 2) * 3 / 1200);
+      msg.ratio = tp.ratio * Math.pow(2, fineCents(o, oscN) / 1200);
       msg.level = tp.level * norm;
       if (!midi.playing) {
         msg.base = mtof(slot.note);
@@ -2169,11 +2298,13 @@
     if (!A || !A.extras || !A.extras.length) return;
     var n = clamp(S.voices - 1, 0, A.extras.length);
     var shared = {
-      base: baseFreq(), cut: filt.cut, res: filt.bypass ? 0 : filt.res,
+      base: baseFreq(), cut: clamp(filt.cut * driftCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
-      envAmp: S.envAmp, envFlt: S.envFlt
+      envAmp: S.envAmp, envFlt: S.envFlt,
+      sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
+      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0
     };
     var norm = voiceNorm(), i, k;
     for (i = 0; i < A.extras.length; i++) {
@@ -2228,7 +2359,8 @@
     g.delay[0].delayTime.setValueAtTime(S.delayTime + Math.max(0, -S.delayOffset), when);
     g.delay[1].delayTime.setValueAtTime(S.delayTime + Math.max(0, S.delayOffset), when);
     for (var dc = 0; dc < 2; dc++) {
-      g.fb[dc].gain.setValueAtTime(S.delayFeedback, when);
+      g.fb[dc].gain.setValueAtTime(S.freeze ? 1 : S.delayFeedback, when);
+      g.dfeed[dc].gain.setValueAtTime(S.freeze ? 0 : 1, when);
     }
     if (g.lofi) g.lofi.port.postMessage({ p: { crush: S.lofiCrush, noise: S.lofiNoise, dirt: S.lofiDirt } });
     g.delayDry.gain.setValueAtTime(Math.cos(S.delayMix * Math.PI / 2), when);
@@ -3404,6 +3536,7 @@
       if (kb.dirty) kbDraw();
     }
     if (midi.playing) midiTick();
+    driftTick(nowMs);
     if (UI.mode === "edit" && scopeChanged()) drawScope();
     requestAnimationFrame(frame);
   }
@@ -3609,6 +3742,8 @@
     { id: "lofiCrush",     label: "Lofi crush" },
     { id: "lofiNoise",     label: "Lofi noise" },
     { id: "lofiDirt",      label: "Lofi dirt" },
+    { id: "subLevel",      label: "Sub level" },
+    { id: "darkCluster",   label: "Cluster detune" },
     { id: "drive",         label: "Osc drive" },
     { id: "width",         label: "Stereo width" },
     { id: "glide",         label: "Glide" }
@@ -4246,8 +4381,9 @@
     var OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!OC || !midi.events.length) return null;
     var sr = 48000;
-    var delayTail = S.delayFeedback > 0.01
-      ? S.delayTime * Math.max(1, Math.log(0.001) / Math.log(S.delayFeedback)) : S.delayTime;
+    var fbT = Math.min(S.delayFeedback, 0.96);
+    var delayTail = fbT > 0.01
+      ? Math.min(12, S.delayTime * Math.max(1, Math.log(0.001) / Math.log(fbT))) : S.delayTime;
     var tail = 1.0 + S.release + Math.max(S.reverbMix > 0.02 ? S.reverbLength : 0.2,
                                          S.delayMix > 0.02 ? delayTail : 0.2);
     var dur = midi.dur / midi.rate + tail;
@@ -4283,7 +4419,9 @@
             mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
             drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
             release: envRelease(), glide: S.glide, spread: S.width,
-            envAmp: S.envAmp, envFlt: S.envFlt
+            envAmp: S.envAmp, envFlt: S.envFlt,
+            sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
+            envPitch: darkActive() ? S.envPitch : 0, stop: 0
           };
           if (o > 0 && padTone.pos) {
             var ang = 4.7124 + o * 6.2832 / oscN;
@@ -4295,7 +4433,7 @@
               for (var k in tp) vp[k] = tp[k];
             }
           }
-          vp.ratio *= Math.pow(2, (o - (oscN - 1) / 2) * 3 / 1200);
+          vp.ratio *= Math.pow(2, fineCents(o, oscN) / 1200);
           vp.level *= norm;
           return { params: vp, events: mkEvents(per[s]) };
         };
@@ -4487,6 +4625,11 @@
     $("holdBtn").setAttribute("aria-pressed", "false");
     kb.down = {}; kb.keysDown = {}; kb.dirty = true;
     polyClearSlots();
+    if (S.freeze) setFreeze(false);
+    if (S.tapeStop) {
+      S.tapeStop = false;
+      $("stopBtn").setAttribute("aria-pressed", "false");
+    }
     setGate(false, true);
     setPower(false);
   });
@@ -4549,6 +4692,7 @@
   $("delayFeedback").addEventListener("input", function (e) {
     S.delayFeedback = parseInt(e.target.value, 10) / 100;
     $("delayFeedbackOut").textContent = e.target.value + " %";
+    refreshDelayChar(A);
     pushAudio();
   });
   $("reverbType").addEventListener("change", function (e) {
@@ -4647,6 +4791,57 @@
   $("envFlt").addEventListener("input", function (e) {
     S.envFlt = e.target.value / 100;
     $("envFltOut").textContent = S.envFlt < 0.005 ? "off" : e.target.value + " %";
+    pushAudio();
+  });
+  function setDarkOn(on) {
+    S.darkOn = !!on;
+    $("darkBtn").setAttribute("aria-pressed", S.darkOn ? "true" : "false");
+    pushAudio();
+  }
+  $("darkBtn").addEventListener("click", function () { setDarkOn(!S.darkOn); });
+  $("subLevel").addEventListener("input", function (e) {
+    S.subLevel = e.target.value / 100;
+    $("subLevelOut").textContent = e.target.value + " %";
+    pushAudio();
+  });
+  $("subOct").addEventListener("input", function (e) {
+    S.subOct = parseInt(e.target.value, 10);
+    $("subOctOut").textContent = "−" + S.subOct + " oct";
+    pushAudio();
+  });
+  $("darkCluster").addEventListener("input", function (e) {
+    S.darkCluster = parseInt(e.target.value, 10);
+    $("darkClusterOut").textContent = "±" + S.darkCluster + " ¢";
+    pushAudio();
+  });
+  $("envPitch").addEventListener("input", function (e) {
+    S.envPitch = e.target.value / 100;
+    $("envPitchOut").textContent = S.envPitch < 0.005 ? "off" : e.target.value + " %";
+    pushAudio();
+  });
+  $("drift").addEventListener("input", function (e) {
+    S.drift = e.target.value / 100;
+    $("driftOut").textContent = S.drift < 0.01 ? "off" : e.target.value + " %";
+    pushAudio();
+  });
+  $("driftSpeed").addEventListener("input", function (e) {
+    S.driftTau = 300 * Math.pow(0.1, parseInt(e.target.value, 10) / 100);
+    $("driftSpeedOut").textContent = S.driftTau >= 90
+      ? (S.driftTau / 60).toFixed(1) + " min" : Math.round(S.driftTau) + " s";
+  });
+  function setFreeze(on) {
+    S.freeze = !!on;
+    $("freezeBtn").setAttribute("aria-pressed", S.freeze ? "true" : "false");
+    if (S.freeze && S.fxEnabled.delay === false) setFXEnabled("delay", true);
+    if (S.freeze && !audioOn) setPower(true);
+    refreshDelayChar(A);
+    pushAudio();
+    if (S.freeze) showToast("Freeze — the delay tail is held; play over it");
+  }
+  $("freezeBtn").addEventListener("click", function () { setFreeze(!S.freeze); });
+  $("stopBtn").addEventListener("click", function () {
+    S.tapeStop = !S.tapeStop;
+    $("stopBtn").setAttribute("aria-pressed", S.tapeStop ? "true" : "false");
     pushAudio();
   });
   $("legato").addEventListener("input", function (e) {
@@ -4770,6 +4965,7 @@
     "reverbMix", "reverbType", "reverbLength",
     "phaserMix", "phaserRate", "phaserDepth", "chorusMix", "chorusRate", "chorusDepth",
     "stutterAmt", "stutterRate", "lofiCrush", "lofiNoise", "lofiDirt",
+    "subLevel", "subOct", "darkCluster", "envPitch", "drift", "driftSpeed",
     "vol", "rate", "mspeed"];
 
   function idbOpen() {
@@ -4855,7 +5051,7 @@
       app: "photo-synth", kind: "preset", version: 1,
       name: name, created: Date.now(),
       controls: controls,
-      fmode: S.fmode, twoShape: S.twoShape,
+      fmode: S.fmode, twoShape: S.twoShape, darkOn: S.darkOn,
       fxOrder: S.fxOrder.slice(), fxRGB: fxAssign.slice(),
       fxEnabled: JSON.parse(JSON.stringify(S.fxEnabled)),
       pads: padsOut
@@ -4871,6 +5067,7 @@
     });
     var fb = p.fmode && document.querySelector('[data-fmode="' + p.fmode + '"]');
     if (fb) fb.click();
+    setDarkOn(!!p.darkOn);
     var tb = p.twoShape && document.querySelector('[data-twoshape="' + p.twoShape + '"]');
     if (tb) tb.click();
     if (Array.isArray(p.fxOrder)) {
@@ -5094,6 +5291,9 @@
       voicePan: voicePan,
       polySlots: polySlots,
       allocChord: allocChord,
+      drift: drift,
+      fineCents: fineCents,
+      graph: function () { return A; },
       state: function () {
         return pads.map(function (p) {
           return { key: p.key, active: p.active, pointerId: p.pointerId,
@@ -5126,6 +5326,7 @@
      "satGain", "satTone",
      "phaserMix", "phaserRate", "phaserDepth", "chorusMix", "chorusRate", "chorusDepth",
      "stutterAmt", "stutterRate", "lofiCrush", "lofiNoise", "lofiDirt",
+     "subLevel", "subOct", "darkCluster", "envPitch", "drift", "driftSpeed",
      "vol", "rate", "mspeed"].forEach(function (id) {
       var el = $(id);
       if (el) el.dispatchEvent(new Event("input"));

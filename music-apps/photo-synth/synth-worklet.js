@@ -59,9 +59,13 @@ class VoiceProcessor extends AudioWorkletProcessor {
       base: 220, ratio: 1, morph: 0.5, pulse: 0, detune: 6, level: 0,
       cut: 14000, res: 0, mode: 0, drive: 0.25,
       attack: 0.012, decay: 0.25, sustain: 1, release: 0.18, glide: 0.03, spread: 0.5,
-      envAmp: 1, envFlt: 0
+      envAmp: 1, envFlt: 0,
+      sub: 0, subOct: 1, envPitch: 0, stop: 0
     };
     this.gl = 0;                 // fast gate follower, for envAmp below 1
+    this.phS = 0;                // sub-oscillator phase
+    this.subL = 0;               // smoothed sub level
+    this.stopMul = 1;            // tape-stop pitch multiplier
     this.stage = 0;              // 0 idle, 1 attack, 2 decay/sustain, 3 release
     this.pg = 0;
     this.f0 = 220; this.morph = 0.5; this.pulse = 0; this.detune = 6;
@@ -153,6 +157,12 @@ class VoiceProcessor extends AudioWorkletProcessor {
     var envAmp = clamp(p.envAmp, 0, 1);
     var envFlt = clamp(p.envFlt, 0, 1);
     var fltK = 3.4657 * envFlt;    // ln(2) * 5: up to five octaves of sweep
+    var envPitch = clamp(p.envPitch, 0, 1);
+    var subDiv = p.subOct >= 2 ? 4 : 2;
+    // Tape stop: pitch multiplier eases to 0 when engaged (slow, like a
+    // transport spinning down) and back to 1 a little faster on release.
+    var stopTarget = p.stop ? 0 : 1;
+    var aStop = 1 - Math.exp(-1 / ((p.stop ? 0.45 : 0.15) * sampleRate));
 
     for (i = 0; i < n; i++) {
       // ---- scheduled events (sample-accurate, used by the offline render) --
@@ -189,11 +199,17 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.env += (target - this.env) * (1 - Math.exp(-1 / (tau * sampleRate)));
       this.gl += (this.gate - this.gl) * aGate;
       var e = this.env * this.env * (3 - 2 * this.env);       // smoothstep envelope
+      this.stopMul += (stopTarget - this.stopMul) * aStop;
+      this.subL += (p.sub - this.subL) * aSmooth;
 
       // ---- oscillator + filter, run at 2x -------------------------------
+      // Pitch modifiers: env->pitch sags notes toward -1 octave as the
+      // envelope falls; the tape stop drags everything to a halt.
+      var pMul = this.stopMul;
+      if (envPitch > 0.001) pMul *= Math.exp(-0.6931 * envPitch * (1 - e));
       var det = this.detune / 1200;
-      var fA = this.f0 * Math.pow(2, (this.driftA * 3.5 - det * 600) / 1200);
-      var fB = this.f0 * Math.pow(2, (this.driftB * 3.5 + det * 600) / 1200);
+      var fA = this.f0 * pMul * Math.pow(2, (this.driftA * 3.5 - det * 600) / 1200);
+      var fB = this.f0 * pMul * Math.pow(2, (this.driftB * 3.5 + det * 600) / 1200);
       var dtA = clamp(fA / fs, 1e-7, 0.45);
       var dtB = clamp(fB / fs, 1e-7, 0.45);
       // Envelope on the filter: at full amount the cut-off closes five
@@ -217,6 +233,16 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
         var xl = (a * lA + b * lB) * this.level * inGain;
         var xr = (a * lB + b * lA) * this.level * inGain;
+        if (this.subL > 0.003) {
+          // Sub-oscillator: a slightly thickened sine one or two octaves
+          // down, fed into the filter with the main oscillators.
+          var dtS = clamp(this.f0 * pMul / subDiv / fs, 1e-7, 0.45);
+          this.phS += dtS; if (this.phS >= 1) this.phS -= 1;
+          var sv = Math.sin(6.2831853 * this.phS);
+          sv = Math.tanh(1.8 * sv) * 1.05;
+          var sAdd = sv * this.subL * this.level * inGain;
+          xl += sAdd; xr += sAdd;
+        }
         var yl, yr;
         if (mode === 4) {
           // Tuned feedback comb at the cut-off: y = x + g·tanh(y[n-D]).
@@ -246,8 +272,9 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
       // Envelope on the amplitude: below full amount the level blends
       // toward a plain click-free gate, so the envelope can be sent mostly
-      // to the filter instead (organ-style amplitude, swept tone).
-      var amp = envAmp * e + (1 - envAmp) * this.gl;
+      // to the filter instead (organ-style amplitude, swept tone). The
+      // tape stop also fades the level out as the pitch falls.
+      var amp = (envAmp * e + (1 - envAmp) * this.gl) * this.stopMul;
       L[i] = clamp(sl * amp, -1.4, 1.4);
       R[i] = clamp(sr * amp, -1.4, 1.4);
     }
