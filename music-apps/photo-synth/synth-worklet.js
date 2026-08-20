@@ -60,7 +60,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
       cut: 14000, res: 0, mode: 0, drive: 0.25,
       attack: 0.012, decay: 0.25, sustain: 1, release: 0.18, glide: 0.03, spread: 0.5,
       envAmp: 1, envFlt: 0,
-      sub: 0, subOct: 1, envPitch: 0, stop: 0
+      sub: 0, subOct: 1, envPitch: 0, stop: 0, wave: 0
     };
     this.gl = 0;                 // fast gate follower, for envAmp below 1
     this.phS = 0;                // sub-oscillator phase
@@ -281,12 +281,16 @@ class VoiceProcessor extends AudioWorkletProcessor {
     return true;
   }
 
-  /* sine -> triangle -> (saw / pulse) morph, band-limited. */
+  /* Waveform. With p.wave = 0 the photo drives the shape, morphing sine ->
+   * triangle -> saw/pulse as the sampled colour saturates. 1..4 pin both
+   * oscillators to a fixed band-limited wave instead, and the photo then
+   * only sets pitch, loudness and detune. */
   shape(ph, dt, pw, which) {
     var m = clamp(this.morph, 0, 1);
     var sine = Math.sin(6.2831853 * ph);
 
-    // Band-limited square, integrated into a triangle.
+    // Band-limited square, integrated into a triangle. The integrator keeps
+    // running whatever wave is selected, so switching never jumps.
     var sq = (ph < pw ? 1 : -1) + polyBlep(ph, dt) - polyBlep((ph + 1 - pw) % 1, dt);
     var tri = which === "A" ? this.triA : this.triB;
     tri += 4 * dt * sq;
@@ -294,6 +298,13 @@ class VoiceProcessor extends AudioWorkletProcessor {
     if (which === "A") this.triA = tri; else this.triB = tri;
 
     var saw = 2 * ph - 1 - polyBlep(ph, dt);
+
+    var w = this.p.wave | 0;
+    if (w === 1) return sine;
+    if (w === 2) return tri;
+    if (w === 3) return saw;
+    if (w === 4) return sq * 0.6;
+
     var pulsed = sq * 0.6;
     var bright = saw * (1 - this.pulse) + pulsed * this.pulse;
 
@@ -409,6 +420,46 @@ class LofiProcessor extends AudioWorkletProcessor {
   }
 }
 
+/* Transparent output limiter: pure downward gain riding above a threshold —
+ * no makeup gain, no tone shaping — so it stays inaudible until a peak would
+ * otherwise poke out. A resonant ladder with the envelope sweeping it can
+ * produce sudden peaks; this catches them without colouring anything. */
+class LimiterProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.amt = 0.4;
+    this.env = 0;
+    this.port.onmessage = function (e) {
+      if (e.data && e.data.p && e.data.p.amount !== undefined) this.amt = e.data.p.amount;
+    }.bind(this);
+  }
+  process(inputs, outputs) {
+    var out = outputs[0];
+    if (!out || !out.length) return true;
+    var L = out[0], R = out.length > 1 ? out[1] : out[0];
+    var inp = inputs[0];
+    var iL = inp && inp.length ? inp[0] : null;
+    var iR = inp && inp.length > 1 ? inp[1] : iL;
+    var n = L.length, i, xl, xr, peak, g;
+
+    if (this.amt <= 0.001) {
+      for (i = 0; i < n; i++) { L[i] = iL ? iL[i] : 0; R[i] = iR ? iR[i] : 0; }
+      return true;
+    }
+    var thr = Math.pow(10, (-9 * this.amt) / 20);
+    var aAtt = 1 - Math.exp(-1 / (0.0015 * sampleRate));
+    var aRel = 1 - Math.exp(-1 / (0.15 * sampleRate));
+    for (i = 0; i < n; i++) {
+      xl = iL ? iL[i] : 0; xr = iR ? iR[i] : 0;
+      peak = Math.abs(xl) > Math.abs(xr) ? Math.abs(xl) : Math.abs(xr);
+      this.env += ((peak > this.env) ? aAtt : aRel) * (peak - this.env);
+      g = this.env > thr ? thr / this.env : 1;
+      L[i] = xl * g; R[i] = xr * g;
+    }
+    return true;
+  }
+}
 registerProcessor("photo-synth-voice", VoiceProcessor);
 registerProcessor("photo-synth-recorder", RecorderProcessor);
 registerProcessor("photo-synth-lofi", LofiProcessor);
+registerProcessor("photo-synth-limiter", LimiterProcessor);

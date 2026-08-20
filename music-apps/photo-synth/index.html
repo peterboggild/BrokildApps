@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="Photo Synth">
-<title>Photo Synth — play the colours of two photos</title>
+<meta name="apple-mobile-web-app-title" content="Photo Synth 2">
+<title>Photo Synth 2 — play the colours of four photos</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -480,7 +480,7 @@
 
 <div id="deck">
 <header>
-  <h1>Photo Synth<span>colour → sound</span></h1>
+  <h1>Photo Synth 2<span>colour → sound</span></h1>
   <div class="topctl">
     <div class="modeseg" role="group" aria-label="Mode">
       <button class="btn" type="button" data-mode-btn="play" aria-pressed="true">Play</button>
@@ -490,7 +490,8 @@
     <button id="keysBtn" class="btn" type="button" aria-pressed="false">Keys</button>
     <button id="freezeBtn" class="btn" type="button" aria-pressed="false" title="Hold the delay tail forever">Freeze</button>
     <button id="stopBtn" class="btn" type="button" aria-pressed="false" title="Tape stop — pitch spins down; press again to spin back up">Halt</button>
-    <div class="vol deskonly" style="flex:0 1 150px">
+    <button id="aboutBtn" class="btn" type="button" title="About Photo Synth 2">About</button>
+      <div class="vol deskonly" style="flex:0 1 150px">
       <label for="uiScale">Zoom</label>
       <input id="uiScale" type="range" min="55" max="140" value="100" aria-label="Interface zoom">
     </div>
@@ -504,6 +505,11 @@
   <div class="vol">
     <label for="vol">Vol</label>
     <input id="vol" type="range" min="0" max="100" value="70" aria-label="Master volume">
+  </div>
+  <div class="vol">
+    <label for="limiter">Limit</label>
+    <input id="limiter" type="range" min="0" max="100" value="40" aria-label="Transparent output limiter"
+           title="Transparent peak limiter — catches strong peaks without colouring the sound">
   </div>
 </div>
 
@@ -629,6 +635,16 @@
           <div class="ctl"><select id="engine">
             <option value="analog" selected>Analog — ladder filter</option>
             <option value="additive">Additive — pure partials</option>
+          </select></div>
+        </div>
+        <div class="row wide">
+          <label for="waveform">Waveform</label>
+          <div class="ctl"><select id="waveform">
+            <option value="photo" selected>Photo — colour morphs the wave</option>
+            <option value="sine">Sine</option>
+            <option value="triangle">Triangle</option>
+            <option value="sawtooth">Sawtooth</option>
+            <option value="square">Square</option>
           </select></div>
         </div>
         <div class="row wide">
@@ -1336,10 +1352,25 @@
   </div>
 </details>
 
-<footer>Photo Synth — everything runs in the browser; no photo or sound leaves the device.</footer>
+<footer>Photo Synth 2 — everything runs in the browser; no photo or sound leaves the device.</footer>
 </div>
 </div>
 
+<div id="aboutBox" hidden
+     style="position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.68);display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="max-width:460px;background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:24px 28px;box-shadow:0 20px 60px rgba(0,0,0,.75);text-align:center">
+    <h2 style="margin:0 0 4px;font-size:20px;letter-spacing:.04em;color:var(--accent)">Photo Synth 2</h2>
+    <div style="font-size:11px;color:var(--faint);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px">colour → sound</div>
+    <p style="font-size:13.5px;line-height:1.6;color:var(--muted);margin:.6em 0">This instrument comes from the curved mind of
+      <b style="color:var(--text)">Professor Brokild</b>, and was programmed with VScode, ChatGPT and Claude.
+      Use of this is on your own peril. It may generate unique, beautiful, scary or useless sounds for you.
+      Have fun, play unsafely, unwisely, and unboringly.</p>
+    <p style="font-size:13.5px;color:var(--text);margin:.9em 0 1.2em">Cheers, Peter Bøggild, August 2026.</p>
+    <p style="font-size:12px;color:var(--faint);margin:0 0 1.2em">There is a native VST3 version of this instrument —
+      see <b style="color:var(--muted)">brokildapps</b>.</p>
+    <button class="btn" id="aboutClose" type="button" style="min-width:110px;justify-content:center">Close</button>
+  </div>
+</div>
 <section class="kbdpanel" id="kbdPanel" hidden>
   <div class="kbdinner">
     <div class="kbdbar">
@@ -1363,6 +1394,8 @@
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
   var MODE_IDX = { lowpass: 0, bandpass: 1, highpass: 2, notch: 3, comb: 4 };
+  // 0 = the photo drives the wave; 1..4 pin it to a fixed band-limited shape.
+  var WAVE_IDX = { photo: 0, sine: 1, triangle: 2, sawtooth: 3, square: 4 };
   // The additive engine approximates each mode with the closest biquad;
   // comb becomes a strong resonant peak at the cut-off.
   var BIQUAD_OF_MODE = { lowpass: "lowpass", bandpass: "bandpass", highpass: "highpass", notch: "notch", comb: "peaking" };
@@ -1451,6 +1484,8 @@
     satComp: 1,
     satTone: 8400,
     vol: 0.70,
+    limiter: 0.4,
+    waveform: "photo",
     legato: 0.12,
     envAmp: 1,
     envFlt: 0,
@@ -1464,7 +1499,7 @@
     padSize: 1,
     motionSpeed: 1,
     twoShape: "line",
-    fxSkin: "rack",
+    fxSkin: "boutique",
     darkOn: false,
     subLevel: 0.5,
     subOct: 1,
@@ -1569,6 +1604,20 @@
     }
     if (sum > 0) for (n = 0; n < NPART; n++) amps[n] /= sum;
 
+    // A fixed waveform overrides the colour-derived spectrum, so the additive
+    // engine and the analysis strip agree with the analog voice.
+    if (S.waveform !== "photo") {
+      var wsum = 0, wa;
+      for (n = 1; n <= NPART; n++) {
+        if (S.waveform === "sine") wa = n === 1 ? 1 : 0;
+        else if (S.waveform === "triangle") wa = n % 2 === 1 ? 1 / (n * n) : 0;
+        else if (S.waveform === "sawtooth") wa = 1 / n;
+        else wa = n % 2 === 1 ? 1 / n : 0;
+        amps[n - 1] = wa; wsum += wa;
+      }
+      if (wsum > 0) for (n = 0; n < NPART; n++) amps[n] /= wsum;
+    }
+
     tone.level = 0.06 + 0.94 * Math.pow(hsv.v, 1.35);
     tone.hsv = hsv;
     tone.rgb = rgb;
@@ -1658,7 +1707,7 @@
       release: envRelease(), glide: S.glide, spread: S.width,
       envAmp: S.envAmp, envFlt: S.envFlt,
       sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
-      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0
+      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
     };
   }
 
@@ -2201,9 +2250,20 @@
     wireFXOrder(g);
     refreshDelayChar(g);
 
+    // Transparent output limiter, after the master fader. Without worklets the
+    // master connects straight to the destination and the Limit slider is inert.
+    g.limiter = null;
+    if (withWorklet) {
+      try {
+        g.limiter = new AudioWorkletNode(ctx, "photo-synth-limiter", {
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2]
+        });
+      } catch (eLim) { g.limiter = null; }
+    }
     forceStereo(g.comp);
     g.comp.connect(g.master);
-    g.master.connect(ctx.destination);
+    if (g.limiter) { g.master.connect(g.limiter); g.limiter.connect(ctx.destination); }
+    else g.master.connect(ctx.destination);
     refreshSaturation(g);
 
     // ---- additive engine (sine bank + biquad) ----------------------------
@@ -2327,6 +2387,7 @@
       g.fb[dc].gain.setTargetAtTime(S.freeze ? 1 : S.delayFeedback, t, 0.03);
     }
     if (g.lofi) g.lofi.port.postMessage({ p: { crush: S.lofiCrush, noise: S.lofiNoise, dirt: S.lofiDirt } });
+    if (g.limiter) g.limiter.port.postMessage({ p: { amount: S.limiter } });
     g.delayDry.gain.setTargetAtTime(Math.cos(S.delayMix * Math.PI / 2), t, 0.05);
     g.delayWet.gain.setTargetAtTime(Math.sin(S.delayMix * Math.PI / 2), t, 0.05);
     g.reverbDry.gain.setTargetAtTime(Math.cos(S.reverbMix * Math.PI / 2), t, 0.05);
@@ -2369,7 +2430,7 @@
       release: envRelease(), glide: S.glide, spread: S.width,
       envAmp: S.envAmp, envFlt: S.envFlt,
       sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
-      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0
+      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
     };
     var total = 1 + (A.extras ? A.extras.length : 0);
     for (var vi = 0; vi < total; vi++) {
@@ -2424,7 +2485,7 @@
       release: envRelease(), glide: S.glide, spread: S.width,
       envAmp: S.envAmp, envFlt: S.envFlt,
       sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
-      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0
+      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
     };
     var norm = voiceNorm(), i, k;
     for (i = 0; i < A.extras.length; i++) {
@@ -2483,6 +2544,7 @@
       g.dfeed[dc].gain.setValueAtTime(S.freeze ? 0 : 1, when);
     }
     if (g.lofi) g.lofi.port.postMessage({ p: { crush: S.lofiCrush, noise: S.lofiNoise, dirt: S.lofiDirt } });
+    if (g.limiter) g.limiter.port.postMessage({ p: { amount: S.limiter } });
     g.delayDry.gain.setValueAtTime(Math.cos(S.delayMix * Math.PI / 2), when);
     g.delayWet.gain.setValueAtTime(Math.sin(S.delayMix * Math.PI / 2), when);
     g.reverbDry.gain.setValueAtTime(Math.cos(S.reverbMix * Math.PI / 2), when);
@@ -3503,6 +3565,18 @@
 
   /* Harmonic amplitudes of the analog voice, from the waveform it is making. */
   function analogPartials(out) {
+    if (S.waveform !== "photo") {
+      var wsum2 = 0, n2, wa2;
+      for (n2 = 1; n2 <= NBAR; n2++) {
+        if (S.waveform === "sine") wa2 = n2 === 1 ? 1 : 0;
+        else if (S.waveform === "triangle") wa2 = n2 % 2 === 1 ? 1 / (n2 * n2) : 0;
+        else if (S.waveform === "sawtooth") wa2 = 1 / n2;
+        else wa2 = n2 % 2 === 1 ? 1 / n2 : 0;
+        out[n2 - 1] = wa2; wsum2 += wa2;
+      }
+      if (wsum2 > 0) for (n2 = 0; n2 < NBAR; n2++) out[n2] /= wsum2;
+      return;
+    }
     var m = clamp(tone.morph, 0, 1), pu = clamp(tone.pulse, 0, 1), n, sum = 0;
     for (n = 1; n <= NBAR; n++) {
       var odd = n % 2 === 1;
@@ -3545,7 +3619,7 @@
                tone.pulse.toFixed(3), tone.rgb && tone.rgb.join(","),
                filt.cut.toFixed(1), filt.q.toFixed(2), filt.res.toFixed(3),
                filt.peakF.toFixed(1), filt.peakG.toFixed(2), filt.rgb && filt.rgb.join(","),
-               S.fmode, S.engine, audioOn, sw, sh,
+               S.fmode, S.engine, S.waveform, audioOn, sw, sh,
                driftCutMul().toFixed(3),
                darkActive() ? S.subLevel.toFixed(2) + ":" + S.subOct : "0"].join("|");
     if (sig === scopeSig) return false;
@@ -3890,7 +3964,7 @@
     { id: "width",         label: "Stereo width" },
     { id: "glide",         label: "Glide" }
   ];
-  var fxAssign = ["satGain", "delayMix", "reverbMix"];
+  var fxAssign = ["reverbLength", "delayMix", "satGain"];
   (function restoreFXRGB() {
     try {
       var saved = JSON.parse(localStorage.getItem("photoSynth.fxRGB") || "null");
@@ -4567,7 +4641,8 @@
             release: envRelease(), glide: S.glide, spread: S.width,
             envAmp: S.envAmp, envFlt: S.envFlt,
             sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
-            envPitch: darkActive() ? S.envPitch : 0, stop: 0
+            envPitch: darkActive() ? S.envPitch : 0, stop: 0,
+            wave: WAVE_IDX[S.waveform] || 0
           };
           if (o > 0 && padTone.pos) {
             var ang = 4.7124 + o * 6.2832 / oscN;
@@ -4782,6 +4857,21 @@
   });
 
   $("vol").addEventListener("input", function (e) { S.vol = e.target.value / 100; pushAudio(); });
+  $("limiter").addEventListener("input", function (e) {
+    S.limiter = e.target.value / 100;
+    $("limiterOut") && ($("limiterOut").textContent = e.target.value + " %");
+    pushAudio();
+  });
+  $("waveform").addEventListener("change", function (e) {
+    S.waveform = e.target.value;
+    if (tone.rgb) computeTone(tone.rgb);
+    pushAudio();
+    updateReadouts();
+    scopeSig = "";
+  });
+  $("aboutBtn").addEventListener("click", function () { $("aboutBox").hidden = false; });
+  $("aboutClose").addEventListener("click", function () { $("aboutBox").hidden = true; });
+  $("aboutBox").addEventListener("click", function (e) { if (e.target === $("aboutBox")) $("aboutBox").hidden = true; });
   $("engine").addEventListener("change", function (e) {
     if (e.target.value === "analog" && !workletOK && audioReady) {
       e.target.value = "additive";
@@ -5117,7 +5207,7 @@
    * saved on this device only (IndexedDB), or exported as a single file.
    * Nothing ever leaves the device unless the user moves the file.
    * ================================================================== */
-  var PRESET_CONTROL_IDS = ["engine", "law", "scale", "root", "octaves", "glide", "drive",
+  var PRESET_CONTROL_IDS = ["engine", "waveform", "law", "scale", "root", "octaves", "glide", "drive",
     "attack", "release", "legato", "envAmp", "envFlt", "voiceMode", "voices", "polyNotes", "polyOsc",
     "spread", "width", "panMode", "padsize",
     "satGain", "satTone", "delayMix", "delayTime", "delayFeedback", "delayOffset", "delayChar",
@@ -5125,7 +5215,7 @@
     "phaserMix", "phaserRate", "phaserDepth", "chorusMix", "chorusRate", "chorusDepth",
     "stutterAmt", "stutterRate", "lofiCrush", "lofiNoise", "lofiDirt",
     "subLevel", "subOct", "darkCluster", "envPitch", "drift", "driftSpeed",
-    "vol", "rate", "mspeed"];
+    "vol", "limiter", "rate", "mspeed"];
 
   function idbOpen() {
     return new Promise(function (res, rej) {
@@ -5487,7 +5577,7 @@
      "phaserMix", "phaserRate", "phaserDepth", "chorusMix", "chorusRate", "chorusDepth",
      "stutterAmt", "stutterRate", "lofiCrush", "lofiNoise", "lofiDirt",
      "subLevel", "subOct", "darkCluster", "envPitch", "drift", "driftSpeed",
-     "vol", "rate", "mspeed"].forEach(function (id) {
+     "vol", "limiter", "rate", "mspeed"].forEach(function (id) {
       var el = $(id);
       if (el) el.dispatchEvent(new Event("input"));
     });
