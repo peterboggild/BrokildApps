@@ -400,6 +400,10 @@
     background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%;
     background-size:5px 5px,5px 5px;background-repeat:no-repeat;
   }
+  /* The popup list of a native <select> takes the page's cream text on a
+     white system background, which is unreadable. Colour the options too. */
+  select option{color:#f2ead6;background:#241d13}
+  select optgroup{color:#f2ead6;background:#241d13}
   .seg{display:flex;gap:6px;flex:1 1 auto;flex-wrap:wrap}
   .seg .btn{flex:1 1 0;justify-content:center;font-size:12px;padding:7px 4px;min-width:56px}
   .about p{font-size:13.5px;color:var(--muted);margin:.55em 0}
@@ -845,27 +849,6 @@
   </div>
 </details>
 
-<details id="presetsPanel">
-  <summary>Presets</summary>
-  <div class="body">
-    <div class="row">
-      <span class="lab">Preset</span>
-      <div class="ctl seg">
-        <button class="btn" id="presetSave" type="button">Save current</button>
-        <button class="btn" id="presetImport" type="button">Import file</button>
-      </div>
-    </div>
-    <div id="presetList"></div>
-    <div class="note">A preset captures every control, the effect chain and FX matrix, the cursor
-      positions, armed motions, and small copies of the three photos. Presets are stored only in
-      this browser on this device — nothing is uploaded and no other device can read them.
-      <b>Export</b> writes a preset to a single file you can back up, or move to another device
-      yourself. Note: if the browser has not visited this page for a long time it may reclaim the
-      storage, so export the presets you care about.</div>
-    <input type="file" id="file-preset" accept=".json,application/json">
-  </div>
-</details>
-
 <details id="effectsPanel">
   <summary>Effects</summary>
   <div class="body">
@@ -1119,6 +1102,77 @@
   </div>
 </details>
 
+<details id="presetsPanel">
+  <summary>Presets</summary>
+  <div class="body">
+    <div class="row">
+      <span class="lab">Preset</span>
+      <div class="ctl seg">
+        <button class="btn" id="presetSave" type="button">Save current</button>
+        <button class="btn" id="presetImport" type="button">Import file</button>
+      </div>
+    </div>
+    <div id="presetList"></div>
+    <div class="note">A preset captures every control, the effect chain and FX matrix, the cursor
+      positions, armed motions, and small copies of the three photos. Presets are stored only in
+      this browser on this device — nothing is uploaded and no other device can read them.
+      <b>Export</b> writes a preset to a single file you can back up, or move to another device
+      yourself. Note: if the browser has not visited this page for a long time it may reclaim the
+      storage, so export the presets you care about.</div>
+    <input type="file" id="file-preset" accept=".json,application/json">
+  </div>
+</details>
+
+<details id="midiPanel">
+  <summary>File — MIDI in · audio out</summary>
+  <div class="body">
+    <div class="row">
+      <span class="lab">MIDI file</span>
+      <div class="ctl seg">
+        <button class="btn" id="pickMidi" type="button">Choose .mid</button>
+        <button class="btn" id="midiDemo" type="button">Demo tune</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lab">Loaded</span>
+      <span class="info" id="midiInfo">nothing loaded</span>
+    </div>
+    <div class="row">
+      <label for="rate">Tempo</label>
+      <div class="ctl"><input id="rate" type="range" min="25" max="400" value="100"></div>
+      <output id="rateOut">1.00×</output>
+    </div>
+    <div class="row">
+      <span class="lab">Playback</span>
+      <div class="ctl seg">
+        <button class="btn" id="midiPlay" type="button" disabled>Play</button>
+        <button class="btn" id="midiLoop" type="button" aria-pressed="false">Loop</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lab">Export</span>
+      <div class="ctl seg">
+        <button class="btn" id="midiRender" type="button" disabled>Render MIDI → WAV</button>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div class="row">
+      <span class="lab">Recording</span>
+      <div class="ctl seg">
+        <button class="btn" id="recBtn2" type="button">Record</button>
+        <button class="btn" id="recSave" type="button" disabled>Save WAV</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lab">Status</span>
+      <span class="info" id="recInfo">idle</span>
+    </div>
+    <div class="note">Recording captures everything you hear, including the MIDI playback, at the full
+      output rate. Both exports are written as 24-bit WAV — no lossy codec in between.</div>
+    <input type="file" id="file-midi" accept=".mid,.midi,audio/midi,audio/x-midi">
+  </div>
+</details>
+
 <details class="about">
   <summary>How it works</summary>
   <div class="body">
@@ -1299,56 +1353,6 @@
     <p>On an iPhone the browser follows the ring/silent switch for web audio: if the pads look alive
       but you hear nothing, flip the switch or turn the volume up. Add the page to the home screen
       for a full-screen instrument.</p>
-  </div>
-</details>
-
-<details id="midiPanel">
-  <summary>File — MIDI in · audio out</summary>
-  <div class="body">
-    <div class="row">
-      <span class="lab">MIDI file</span>
-      <div class="ctl seg">
-        <button class="btn" id="pickMidi" type="button">Choose .mid</button>
-        <button class="btn" id="midiDemo" type="button">Demo tune</button>
-      </div>
-    </div>
-    <div class="row">
-      <span class="lab">Loaded</span>
-      <span class="info" id="midiInfo">nothing loaded</span>
-    </div>
-    <div class="row">
-      <label for="rate">Tempo</label>
-      <div class="ctl"><input id="rate" type="range" min="25" max="400" value="100"></div>
-      <output id="rateOut">1.00×</output>
-    </div>
-    <div class="row">
-      <span class="lab">Playback</span>
-      <div class="ctl seg">
-        <button class="btn" id="midiPlay" type="button" disabled>Play</button>
-        <button class="btn" id="midiLoop" type="button" aria-pressed="false">Loop</button>
-      </div>
-    </div>
-    <div class="row">
-      <span class="lab">Export</span>
-      <div class="ctl seg">
-        <button class="btn" id="midiRender" type="button" disabled>Render MIDI → WAV</button>
-      </div>
-    </div>
-    <div class="sep"></div>
-    <div class="row">
-      <span class="lab">Recording</span>
-      <div class="ctl seg">
-        <button class="btn" id="recBtn2" type="button">Record</button>
-        <button class="btn" id="recSave" type="button" disabled>Save WAV</button>
-      </div>
-    </div>
-    <div class="row">
-      <span class="lab">Status</span>
-      <span class="info" id="recInfo">idle</span>
-    </div>
-    <div class="note">Recording captures everything you hear, including the MIDI playback, at the full
-      output rate. Both exports are written as 24-bit WAV — no lossy codec in between.</div>
-    <input type="file" id="file-midi" accept=".mid,.midi,audio/midi,audio/x-midi">
   </div>
 </details>
 
