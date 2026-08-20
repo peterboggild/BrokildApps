@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BrokildApps — Apps &amp; Experiments</title>
-  <meta name="description" content="BrokildApps: browser-based apps and experiments by Peter Bøggild. Music instruments, tools and toys — no install, they run right in your browser." />
+  <meta name="description" content="BrokildApps: apps and experiments by Peter Bøggild. Music instruments, tools and toys that run right in your browser, plus the free Photo-Synth 2 VST3 plugin for your DAW." />
   <meta name="color-scheme" content="light dark" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230e9f86'/><text x='50' y='68' font-size='52' font-family='Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'>B</text></svg>" />
   <style>
@@ -446,7 +446,7 @@
         <div class="brand-mark">B</div>
         <div>
           <div class="brand-name">BrokildApps</div>
-          <div class="brand-sub">Apps &amp; experiments by Peter Bøggild — everything runs in the browser</div>
+          <div class="brand-sub">Apps &amp; experiments by Peter Bøggild — browser instruments and audio plugins</div>
         </div>
       </a>
       <div class="nav-right">
@@ -471,7 +471,7 @@
     <div class="wrap">
       <span class="eyebrow"><span class="dot"></span> Instruments, tools &amp; toys</span>
       <h1>Apps &amp;<br /><span class="accent">Experiments</span></h1>
-      <p>A collection of small browser-based apps — musical instruments, tools and experiments. No install and nothing uploaded: everything runs right in your browser, on your phone or your laptop.</p>
+      <p>A collection of small apps — musical instruments, tools and experiments. Most run right in your browser with no install and nothing uploaded, on your phone or your laptop; a few, like the Photo-Synth 2 plugin, you download and run inside your DAW.</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="#apps">Explore the apps</a>
         <a class="btn btn-ghost" href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">Source on GitHub</a>
@@ -610,7 +610,10 @@
 
           var footHtml;
           if (live) {
-            footHtml = '<a class="card-cta" href="' + esc(encodeURI(t.url)) + '">Open app →</a>';
+            // app.json may override the call to action — a downloadable plugin
+            // is not "opened" the way a browser app is.
+            footHtml = '<a class="card-cta" href="' + esc(encodeURI(t.url)) + '">' +
+              esc(t.cta || "Open app →") + "</a>";
           } else if (t.repo) {
             footHtml = '<a class="card-cta card-source" href="' + esc(t.repo) +
               '" target="_blank" rel="noopener">View source →</a>';

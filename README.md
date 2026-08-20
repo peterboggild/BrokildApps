@@ -9,6 +9,7 @@ GitHub Pages.
 
 | App | Folder | What it does |
 |-----|--------|--------------|
+| Photo-Synth 2 | [`vst3-apps/photo-synth-2`](vst3-apps/photo-synth-2) | **Windows VST3 plugin** (download): play the colours of four photographs inside your DAW. Ships with a 24-page PDF manual. |
 | Photo Synth | [`music-apps/photo-synth`](music-apps/photo-synth) | Play two photos: colour becomes tone on one, filter on the other. |
 | Sleep Noise App | [`health-apps/sleep-noise`](health-apps/sleep-noise) | Private browser-generated sleep noise with timers, fades and blackout mode. |
 
@@ -34,9 +35,18 @@ The front page is data-driven, so adding an app never means editing HTML:
    ```
 
    `status` is `"live"` or `"soon"`; `preview` (a 16:9 image in
-   `assets/app-previews/`) and `note` are optional. `icon` picks one of the
+   `assets/app-previews/`), `note` and `cta` are optional. `icon` picks one of the
    inline icons in `index.html` (`wave`, `note`, `camera`, `keys`, `device`,
    `moon`, `chart`, `more`), and `tags` reference label ids from `manifest.json`.
+   `cta` replaces the card's default "Open app →" link text — used by downloadable
+   plugins, which are not "opened" the way a browser app is.
+
+### Downloadable plugins
+
+Not everything here runs in the browser. `vst3-apps/` holds native audio plugins:
+each one keeps its own landing page (`index.html`) explaining what it is and how
+to install it, next to the release `.zip` and its PDF manual, so a visitor can
+download it straight from GitHub Pages.
 
 3. Add the folder name to the `apps` list in `manifest.json`.
 

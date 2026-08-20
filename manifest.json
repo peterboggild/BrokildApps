@@ -16,12 +16,18 @@
       "description": "Personal wellbeing, sleep and health tools."
     },
     {
+      "id": "vst3",
+      "name": "VST3 Plugin",
+      "description": "Native audio plugins you download and install — they run inside your DAW, not in the browser."
+    },
+    {
       "id": "phone",
       "name": "Phone App",
       "description": "Designed for a phone screen — touch-first, and installable to the home screen."
     }
   ],
   "apps": [
+    "vst3-apps/photo-synth-2",
     "music-apps/photo-synth",
     "health-apps/sleep-noise"
   ]
