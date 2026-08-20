@@ -9,7 +9,7 @@ GitHub Pages.
 
 | App | Folder | What it does |
 |-----|--------|--------------|
-| Photo-Synth 2 | [`vst3-apps/photo-synth-2`](vst3-apps/photo-synth-2) | **Windows VST3 plugin** (download): play the colours of four photographs inside your DAW. Ships with a 24-page PDF manual. |
+| Photo-Synth 2 | [`vst3-apps/photo-synth-2`](vst3-apps/photo-synth-2) | **Windows VST3 plugin** (download): play the colours of four photographs inside your DAW. Ships with a PDF manual, and with the HTML→VST3 developer kit that explains how it was built. |
 | Photo Synth | [`music-apps/photo-synth`](music-apps/photo-synth) | Play two photos: colour becomes tone on one, filter on the other. |
 | Sleep Noise App | [`health-apps/sleep-noise`](health-apps/sleep-noise) | Private browser-generated sleep noise with timers, fades and blackout mode. |
 

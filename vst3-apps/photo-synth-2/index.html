@@ -195,10 +195,10 @@
 
     <div class="btnrow">
       <a class="btn btn-primary" href="Photo-Synth2-VST3-win64.zip" download>
-        ↓ Download for Windows <small>(zip, 11 MB)</small>
+        ↓ Download for Windows <small>(zip, 8 MB)</small>
       </a>
       <a class="btn btn-ghost" href="Photo-Synth2-Manual.pdf">
-        Manual <small>(PDF, 24 pages)</small>
+        Manual <small>(PDF)</small>
       </a>
     </div>
 
@@ -280,7 +280,7 @@
 
     <ol class="steps">
       <li><b>Download the zip.</b>
-        <a href="Photo-Synth2-VST3-win64.zip" download>Photo-Synth2-VST3-win64.zip</a> (11 MB).
+        <a href="Photo-Synth2-VST3-win64.zip" download>Photo-Synth2-VST3-win64.zip</a> (8 MB).
         On GitHub you can also press the green <b>Code → Download ZIP</b> button on the
         <a href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">repository</a>
         and find it under <code>vst3-apps/photo-synth-2/</code>.</li>
@@ -348,6 +348,55 @@
         it, so the same picture can be played in any key. MIDI from your DAW does the same, and
         chords work in polyphonic mode.</figcaption>
     </figure>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Built it? Build your own.</h2>
+    <p class="sub">Photo-Synth 2 started life as a page in a browser. The method
+      that turned it into a plugin — without redrawing a single control — is
+      packaged as a developer kit.</p>
+
+    <p>The trick is that the plugin's interface <em>is</em> the original web
+      page: it runs inside the plugin window, and only its audio layer was
+      replaced, by proxy objects that marshal into a C++ engine. Everything the
+      page did — layout, canvas drawing, gestures, presets — still works because
+      it is still the same code. The kit contains the method as a skill an AI
+      assistant can load, working code templates, six PowerShell tools, and a
+      17-page manual including the list of traps that each cost a day.</p>
+
+    <div class="btnrow" style="margin-top:1.4rem">
+      <a class="btn btn-primary" href="HTML-to-VST3-Devkit.zip" download
+         style="background:var(--accent);color:#fff">
+        ↓ Developer kit <small>(zip, 4 MB)</small>
+      </a>
+      <a class="btn btn-ghost" href="HTML-to-VST3-Devkit-Manual.pdf"
+         style="border-color:var(--border);color:var(--text)">
+        Developer manual <small>(PDF, 17 pages)</small>
+      </a>
+    </div>
+
+    <div class="cards">
+      <div class="c">
+        <div class="n">Step 1</div>
+        <h4>Set up the machine</h4>
+        <p>Visual Studio, CMake, JUCE and WebView2, with a script that checks
+          the toolchain and prints the exact build commands.</p>
+      </div>
+      <div class="c">
+        <div class="n">Step 2</div>
+        <h4>Load the skill</h4>
+        <p>Drop it into <code>.claude/skills/</code> for Claude Code, or paste
+          the portable prompt into ChatGPT or a VS Code chat extension.</p>
+      </div>
+      <div class="c">
+        <div class="n">Step 3</div>
+        <h4>Point it at a prototype</h4>
+        <p>A folder on your PC or a GitHub page. It works through eight phases,
+          building in Release after each one.</p>
+      </div>
+    </div>
   </div>
 </section>
 
