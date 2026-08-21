@@ -206,6 +206,9 @@
     text-shadow:0 0 6px rgba(255,180,80,.4);box-shadow:0 1px 2px rgba(0,0,0,.55) inset;
   }
   .row .info{font-size:12px;color:var(--text);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  /* A control the photo has taken charge of: visibly out of play. */
+  .row.row-overridden{opacity:.45}
+  .row.row-overridden output::after{content:" · photo";font-size:8.5px;letter-spacing:.06em}
   .sep{border-top:1px solid var(--line);margin:10px 0 0}
   .note{font-size:11.5px;color:#ab9f83;padding:8px 0 0;line-height:1.45}
 
@@ -985,6 +988,13 @@
     <div class="unit">
       <div class="unitname">Envelope</div>
       <div class="ugrid">
+        <div class="row wide">
+          <label for="envSource">Shaped by</label>
+          <div class="ctl"><select id="envSource">
+            <option value="photo" selected>Photo 3 when it is touched</option>
+            <option value="sliders">These sliders only</option>
+          </select></div>
+        </div>
         <div class="row">
           <label for="attack">Attack</label>
           <div class="ctl"><input id="attack" type="range" min="0" max="100" value="14"></div>
@@ -1931,7 +1941,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.9";
+  var BUILD_ID = "260821.10";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -2002,6 +2012,7 @@
     attack: 0.012,
     release: 0.180,
     fmode: "lowpass",
+    envPhoto: true,      // photo 3 may take over the envelope once touched
     filterQ: 1,          // Q multiplier on the colour-driven resonance (0.25x..4x)
     fxOrder: ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"],
     fxEnabled: { saturation: true, delay: true, reverb: true, phaser: false, chorus: false, stutter: false, lofi: false },
@@ -2110,10 +2121,16 @@
     envp.s = 0.05 + 0.95 * Math.pow(rgb[1], 0.8);    // green holds the note up
     envp.d = 0.03 * Math.pow(133, rgb[2]);           // 30 ms .. 4 s — blue rings out
   }
-  function envAttack()  { return envp.active ? envp.a : S.attack; }
-  function envDecay()   { return envp.active ? envp.d : 0.25; }
-  function envSustain() { return envp.active ? envp.s : 1; }
-  function envRelease() { return envp.active ? envp.d : S.release; }
+  /* Photo 3 takes the envelope over as soon as it is touched — red is the
+   * attack, green the sustain, blue the decay and release — and the Attack
+   * and Release sliders below become the fallback for when it is not in
+   * charge. "Shaped by" hands control back to them without having to reload
+   * the plugin, which used to be the only way. */
+  function envPhotoRules() { return envp.active && S.envPhoto; }
+  function envAttack()  { return envPhotoRules() ? envp.a : S.attack; }
+  function envDecay()   { return envPhotoRules() ? envp.d : 0.25; }
+  function envSustain() { return envPhotoRules() ? envp.s : 1; }
+  function envRelease() { return envPhotoRules() ? envp.d : S.release; }
   function fmtT(s) { return s < 1 ? Math.round(s * 1000) + " ms" : s.toFixed(2) + " s"; }
 
   var NPART = 10;          // partials in the additive voice
@@ -3981,6 +3998,21 @@
   function cssRGB(c) {
     return "rgb(" + Math.round(c[0] * 255) + "," + Math.round(c[1] * 255) + "," + Math.round(c[2] * 255) + ")";
   }
+  /* Grey the two sliders the photo has taken over, so "why is Attack doing
+   * nothing?" is answerable at a glance rather than by reading the manual. */
+  function updateEnvSourceUI() {
+    var ruled = envPhotoRules();
+    ["attack", "release"].forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      var row = el.closest(".row");
+      if (row) row.classList.toggle("row-overridden", ruled);
+      el.disabled = ruled;
+    });
+    var sel = $("envSource");
+    if (sel) sel.value = S.envPhoto ? "photo" : "sliders";
+  }
+
   function updateReadouts() {
     var st = $("swatch-tone"), vt = $("vals-tone"), f0 = toneFreq();
     if (tone.hsv) {
@@ -4009,6 +4041,7 @@
       se.style.background = "#222";
       ve.innerHTML = "—" + '<span class="sub">sliders in Edit set the envelope</span>';
     }
+    updateEnvSourceUI();
     $("baseLabel").textContent = midiName(S.baseMidi);
   }
 
@@ -5836,6 +5869,12 @@
     $("driveOut").textContent = e.target.value + " %";
     pushAudio();
   });
+  $("envSource").addEventListener("change", function (e) {
+    S.envPhoto = e.target.value !== "sliders";
+    updateEnvSourceUI();
+    pushAudio();
+    updateReadouts();
+  });
   $("attack").addEventListener("input", function (e) {
     S.attack = 0.002 + Math.pow(e.target.value / 100, 2) * 1.0;
     $("attackOut").textContent = S.attack < 1 ? Math.round(S.attack * 1000) + " ms" : S.attack.toFixed(2) + " s";
@@ -6532,7 +6571,7 @@
    * saved on this device only (IndexedDB), or exported as a single file.
    * Nothing ever leaves the device unless the user moves the file.
    * ================================================================== */
-  var PRESET_CONTROL_IDS = ["engine", "waveform", "law", "scale", "root", "octaves", "filterQ", "glide", "drive",
+  var PRESET_CONTROL_IDS = ["engine", "waveform", "law", "scale", "root", "octaves", "filterQ", "envSource", "glide", "drive",
     "attack", "release", "legato", "envAmp", "envFlt", "voiceMode", "voices", "polyNotes", "polyOsc",
     "spread", "width", "panMode", "padsize",
     "satGain", "satTone", "delayMix", "delayTime", "delayFeedback", "delayOffset", "delayChar",
