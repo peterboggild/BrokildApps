@@ -493,7 +493,7 @@
   }
   .spec-module[data-spec="pink"] .spec-name{
     font-family:"Brush Script MT","Segoe Script",cursive;text-transform:none;
-    font-size:21px;font-weight:400;letter-spacing:.05em;color:#ffbdf0;
+    font-size:21px;font-weight:400;letter-spacing:.05em;color:#ffdcf8;
     text-shadow:0 0 14px rgba(255,79,216,.9),0 1px 2px #000;
   }
   .spec-module[data-spec="pink"] .spec-sub{color:#c99ad0}
@@ -516,7 +516,7 @@
   .spec-module[data-spec="black"] .spec-head{padding-top:12px}
   .spec-module[data-spec="black"] .spec-name{
     font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;
-    font-size:16px;font-weight:400;letter-spacing:.30em;color:#d8cfc0;text-shadow:none;
+    font-size:16px;font-weight:400;letter-spacing:.30em;color:#f6f0e3;text-shadow:none;
   }
   .spec-module[data-spec="black"] .spec-sub{color:#7d7a6d;text-transform:uppercase;font-size:9.5px;letter-spacing:.12em}
   .spec-module[data-spec="black"] .spec-mark{text-shadow:none;color:#c7a413}
@@ -543,7 +543,7 @@
   }
   .spec-module[data-spec="glass"] .spec-name{
     font-family:"Palatino Linotype","Book Antiqua",Palatino,serif;font-variant:small-caps;
-    font-size:16.5px;font-weight:400;letter-spacing:.30em;color:#dff2ff;
+    font-size:16.5px;font-weight:400;letter-spacing:.30em;color:#f2fbff;
     text-shadow:0 0 14px rgba(159,216,255,.8);
   }
   .spec-module[data-spec="glass"] .spec-sub{color:#7e99ad;font-style:italic}
@@ -569,7 +569,7 @@
   }
   .spec-module[data-spec="tape"] .spec-name{
     font-family:"Courier New",Courier,monospace;text-transform:uppercase;
-    font-size:14.5px;font-weight:700;letter-spacing:.20em;color:#e8c894;
+    font-size:14.5px;font-weight:700;letter-spacing:.20em;color:#f8ddb0;
     text-shadow:0 1px 0 #000;
   }
   .spec-module[data-spec="tape"] .spec-sub{color:#977c53;font-family:"Courier New",Courier,monospace;font-size:10.5px}
@@ -594,7 +594,7 @@
   }
   .spec-module[data-spec="insect"] .spec-name{
     font-family:"Arial Narrow","Liberation Sans Narrow",sans-serif;font-stretch:condensed;
-    font-size:15px;font-weight:700;letter-spacing:.02em;color:#c9ef86;
+    font-size:15px;font-weight:700;letter-spacing:.02em;color:#e4fbb2;
     text-shadow:0 0 9px rgba(158,219,58,.55);
   }
   .spec-module[data-spec="insect"] .spec-sub{color:#7d9b57;font-size:10px;letter-spacing:.01em}
@@ -619,7 +619,7 @@
   }
   .spec-module[data-spec="darkdrone"] .spec-name{
     font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-spacing:.34em;font-size:14px;
-    color:#e8697d;text-shadow:0 0 16px rgba(200,56,79,.85),0 1px 2px #000;
+    color:#ff9fb0;text-shadow:0 0 16px rgba(220,80,100,.95),0 1px 2px #000;
   }
   .spec-module[data-spec="darkdrone"] .spec-sub{color:#8e6b73;font-style:italic;letter-spacing:.02em}
   .spec-module[data-spec="darkdrone"]{--lens:#ff2440;--lensdim:#2c060c}
@@ -1014,8 +1014,14 @@
             <button class="btn" type="button" data-fmode="bandpass" aria-pressed="false">Band</button>
             <button class="btn" type="button" data-fmode="highpass" aria-pressed="false">High</button>
             <button class="btn" type="button" data-fmode="notch" aria-pressed="false">Notch</button>
+            <!-- Low is the classic analog ladder: a Moog-style 24 dB low-pass -->
             <button class="btn" type="button" data-fmode="comb" aria-pressed="false">Comb</button>
           </div>
+        </div>
+        <div class="row">
+          <label for="filterQ">Q factor</label>
+          <div class="ctl"><input id="filterQ" type="range" min="0" max="100" value="50"></div>
+          <output id="filterQOut">1.0×</output>
         </div>
       </div>
     </div>
@@ -1250,18 +1256,17 @@
 </details>
 
 <details id="spectrumPanel">
-  <summary>Spectrum</summary>
+  <summary>Spectra</summary>
   <div class="body">
     <div class="fx-help">A Spectrum module is a character rather than an effect: it does not sit in
-      the signal path but re-shapes how every voice is built. Arm one and the whole instrument
-      changes flavour.</div>
+      the signal path but re-shapes how every voice is built. Arm any combination — where two reach for the
+      same control the most recently armed wins, and each hands back what it took when released.</div>
     <div class="spec-list" id="specList" aria-label="Spectrum character modules">
       <section class="spec-module spec-off" data-spec="darkdrone" id="darkUnit">
         <div class="spec-head">
           <span class="spec-mark" aria-hidden="true">☾</span>
           <button class="spec-toggle" type="button" aria-expanded="true">
-            <span class="spec-name">Dark Drone</span>
-            <span class="spec-sub">sub octave · cluster detune · drift · pitch sag</span>
+            <span class="spec-name">Dark Drone Spectrum</span>
           </button>
           <button class="spec-rocker" id="darkBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Dark Drone" title="Engage Dark Drone"><span class="rocker-lens"><i></i></span></button>
@@ -1310,8 +1315,7 @@
         <div class="spec-head">
           <span class="spec-mark" aria-hidden="true">✿</span>
           <button class="spec-toggle" type="button" aria-expanded="false">
-            <span class="spec-name">Psychedelic Pink</span>
-            <span class="spec-sub">swirling pan · smeared chorus · reverse bloom</span>
+            <span class="spec-name">Psychedelic Pink Spectrum</span>
           </button>
           <button class="spec-rocker" id="pinkBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Psychedelic Pink" title="Engage Psychedelic Pink"><span class="rocker-lens"><i></i></span></button>
@@ -1344,8 +1348,7 @@
         <div class="spec-head">
           <span class="spec-mark" aria-hidden="true">▣</span>
           <button class="spec-toggle" type="button" aria-expanded="false">
-            <span class="spec-name">INDUSTRIAL BLACK</span>
-            <span class="spec-sub">square wave · crushed · comb clang · dead stop</span>
+            <span class="spec-name">INDUSTRIAL BLACK SPECTRUM</span>
           </button>
           <button class="spec-rocker" id="blackBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Industrial Black" title="Engage Industrial Black"><span class="rocker-lens"><i></i></span></button>
@@ -1377,8 +1380,7 @@
         <div class="spec-head">
           <span class="spec-mark" aria-hidden="true">✦</span>
           <button class="spec-toggle" type="button" aria-expanded="false">
-            <span class="spec-name">Glass Cathedral</span>
-            <span class="spec-sub">slow light · a long hall · nothing dirty</span>
+            <span class="spec-name">Glass Cathedral Spectrum</span>
           </button>
           <button class="spec-rocker" id="glassBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Glass Cathedral" title="Engage Glass Cathedral"><span class="rocker-lens"><i></i></span></button>
@@ -1412,8 +1414,7 @@
         <div class="spec-head">
           <span class="spec-mark" aria-hidden="true">◉</span>
           <button class="spec-toggle" type="button" aria-expanded="false">
-            <span class="spec-name">Tape Séance</span>
-            <span class="spec-sub">wow &amp; flutter · pitch sag · dust on everything</span>
+            <span class="spec-name">Tape Séance Spectrum</span>
           </button>
           <button class="spec-rocker" id="tapeBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Tape Séance" title="Engage Tape Séance"><span class="rocker-lens"><i></i></span></button>
@@ -1445,8 +1446,7 @@
         <div class="spec-head">
           <span class="spec-mark" aria-hidden="true">⁂</span>
           <button class="spec-toggle" type="button" aria-expanded="false">
-            <span class="spec-name">INSECT CHOIR</span>
-            <span class="spec-sub">cluster swarm · unsynchronised tremolo · skitter</span>
+            <span class="spec-name">INSECT CHOIR SPECTRUM</span>
           </button>
           <button class="spec-rocker" id="insectBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Insect Choir" title="Engage Insect Choir"><span class="rocker-lens"><i></i></span></button>
@@ -1703,7 +1703,7 @@
       preserves the stereo image, and the tube stage is <b>loudness-compensated</b>.</p>
 
     <h3>Spectrum</h3>
-    <p>The <b>Spectrum</b> panel, under Effects, holds characters rather than effects. A Spectrum
+    <p>The <b>Spectra</b> panel, under Effects, holds characters rather than effects. A Spectrum
       module is not a box in the signal path — it changes how every voice is built in the first
       place, which is why each one wears its own enclosure instead of a shared faceplate. Arming one
       re-colours the whole instrument; disarmed it costs nothing at all. <b>Dark Drone</b> is the
@@ -1864,7 +1864,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.5";
+  var BUILD_ID = "260821.6";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -1935,6 +1935,7 @@
     attack: 0.012,
     release: 0.180,
     fmode: "lowpass",
+    filterQ: 1,          // Q multiplier on the colour-driven resonance (0.25x..4x)
     fxOrder: ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"],
     fxEnabled: { saturation: true, delay: true, reverb: true, phaser: false, chorus: false, stutter: false, lofi: false },
     delayTime: 0.260,
@@ -2176,6 +2177,13 @@
     return t && t.length ? t[((i % t.length) + t.length) % t.length] : 1;
   }
 
+  /* The photo drives the resonance; the Q factor scales what it asks for.
+   * 50 % = exactly the original behaviour. Applies to the ladder resonance
+   * (all analog modes incl. notch and the comb) and to the additive
+   * engine's biquad Q — sharper notches and band-passes at the top end. */
+  function filterRes()  { return filt.bypass ? 0 : clamp(filt.res * S.filterQ, 0, 1); }
+  function filterQv()   { return filt.bypass ? 0.7 : clamp(filt.q * S.filterQ, 0.3, 30); }
+
   function driftCutMul() { return driftOn() ? Math.pow(2, drift.c * S.drift * 1.2) : 1; }
   function driftDetAdd() { return driftOn() ? drift.d * S.drift * 10 : 0; }
   function driftDelayMul() { return driftOn() ? 1 + drift.t * S.drift * 0.1 : 1; }
@@ -2205,7 +2213,7 @@
       base: baseFreq(), ratio: tone.ratio * voiceFineRatio(index),
       morph: tone.morph, pulse: tone.pulse, detune: tone.detune + driftDetAdd() + specDetAdd(),
       level: tone.level * (S.engine === "analog" ? voiceNorm() : 1) * velGain(midiIn.vel) * specLevelMul(0),
-      cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
+      cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filterRes(),
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
       drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
@@ -2893,7 +2901,7 @@
     var wantType = filt.bypass ? "lowpass" : BIQUAD_OF_MODE[S.fmode];
     if (g.lp.type !== wantType) g.lp.type = wantType;
     g.lp.frequency.setTargetAtTime(clamp(filt.cut * driftCutMul(), 20, 20000), t, 0.02);
-    g.lp.Q.setTargetAtTime(filt.bypass ? 0.7 : filt.q, t, 0.03);
+    g.lp.Q.setTargetAtTime(filterQv(), t, 0.03);
     g.lp.gain.setTargetAtTime(!filt.bypass && S.fmode === "comb" ? 15 : 0, t, 0.03);
 
     g.pk.frequency.setTargetAtTime(clamp(filt.peakF, 40, 12000), t, 0.03);
@@ -2947,7 +2955,7 @@
     var oscN = clamp(S.polyOsc, 1, 4), notesN = clamp(S.polyNotes, 1, 4);
     var norm = (1 / Math.sqrt(oscN)) * (notesN > 1 ? 0.85 : 1);
     var shared = {
-      cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
+      cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filterRes(),
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
@@ -3002,7 +3010,7 @@
     if (!A || !A.extras || !A.extras.length) return;
     var n = clamp(S.voices - 1, 0, A.extras.length);
     var shared = {
-      base: baseFreq(), cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
+      base: baseFreq(), cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filterRes(),
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
@@ -3051,7 +3059,7 @@
     }
     g.lp.type = filt.bypass ? "lowpass" : BIQUAD_OF_MODE[S.fmode];
     g.lp.frequency.setValueAtTime(clamp(filt.cut, 20, 20000), when);
-    g.lp.Q.setValueAtTime(filt.bypass ? 0.7 : filt.q, when);
+    g.lp.Q.setValueAtTime(filterQv(), when);
     g.lp.gain.setValueAtTime(!filt.bypass && S.fmode === "comb" ? 15 : 0, when);
     g.pk.frequency.setValueAtTime(clamp(filt.peakF, 40, 12000), when);
     g.pk.gain.setValueAtTime(filt.peakG, when);
@@ -5411,7 +5419,7 @@
           var vp = {
             base: baseFreq(), ratio: tone.ratio, morph: tone.morph, pulse: tone.pulse,
             detune: tone.detune, level: tone.level,
-            cut: filt.cut, res: filt.bypass ? 0 : filt.res,
+            cut: filt.cut, res: filterRes(),
             mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
             drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
             release: envRelease(), glide: S.glide, spread: S.width,
@@ -5670,6 +5678,12 @@
     $("octavesOut").textContent = S.octaves + " oct";
     reapply();
   });
+  $("filterQ").addEventListener("input", function (e) {
+    // 0..100 -> 0.25x..4x, exponential, 50 = 1x (the original sound)
+    S.filterQ = Math.pow(2, (e.target.value - 50) / 25);
+    $("filterQOut").textContent = S.filterQ.toFixed(2).replace(/0$/, "") + "\u00d7";
+    pushAudio();
+  });
   $("glide").addEventListener("input", function (e) {
     S.glide = Math.pow(e.target.value / 100, 2) * 0.55 + 0.004;
     $("glideOut").textContent = Math.round(S.glide * 1000) + " ms";
@@ -5812,20 +5826,21 @@
   /* Spectrum modules: a shared shell (arm / collapse) so a new character is
    * markup plus its own block of CSS, nothing more. */
   /* ================================================================== *
-   * Spectrum characters: one armed at a time.
+   * Spectrum characters — any combination may be armed at once.
    *
-   * Exclusivity lives HERE and nowhere else — specArm disarms whatever
-   * held the panel before arming the next. To let characters coexist
-   * later, relax this one function; the modules themselves do not know
-   * about each other.
+   * Arming stacks: each character snapshots the controls it moves before
+   * applying itself, so where two want the same control the most recently
+   * armed wins. Releasing one unwinds the stack to that point and
+   * re-applies the characters armed after it, so every release puts back
+   * exactly what that character took and nothing else.
    *
-   * A character is three things: a snapshot (the controls it moves, put
-   * back on disarm), a set of control values applied through the normal
-   * events (so presets, automation and saved state need no special
-   * cases), and, if it breathes, a tick that writes into specMod.
+   * Live motion: every armed character contributes through mods(dt, P)
+   * (P is its own phase store), and the contributions are combined:
+   * detune and pan add, multipliers multiply, sag and cluster take the
+   * strongest voice, tremolo patterns multiply through each other.
    * ================================================================== */
-  var SPEC = { armed: "", snap: null, pushMs: 0, ph: 0, ph2: 0, ph3: 0, jd: 0 };
-  var SPEC_MODULES = {};   // name -> { touches: [ids], start(), tick(now, dt) }
+  var SPEC = { stack: [], phs: {}, pushMs: 0, lastMs: 0 };
+  var SPEC_MODULES = {};   // name -> { touches: [ids], apply(), start(), mods(dt, P) }
 
   function specSetControls(map) {
     for (var id in map) {
@@ -5856,25 +5871,52 @@
     if ($("waveform") && S.waveform !== snap.waveform) specSetControls({ waveform: snap.waveform });
     if ($("engine") && S.engine !== snap.engine) specSetControls({ engine: snap.engine });
   }
-  function specResetMod() {
-    specMod.det = 0; specMod.cutMul = 1; specMod.panAdd = 0;
-    specMod.delayMul = 1; specMod.trem = null; specMod.sag = 0; specMod.cluster = 0;
+
+  function specPh(name) { return SPEC.phs[name] || (SPEC.phs[name] = { ph: 0, ph2: 0, ph3: 0, jd: 0 }); }
+  function specIsOn(name) { return SPEC.stack.some(function (e) { return e.name === name; }); }
+  function specApplyEntry(e) {
+    if (e.name === "darkdrone") { setDarkOn(true); return; }
+    var m = SPEC_MODULES[e.name];
+    e.snap = specSnapshot(m.touches);
+    m.start();
+  }
+  function specUnwindEntry(e) {
+    if (e.name === "darkdrone") setDarkOn(false);
+    else specRestore(e.snap);
+  }
+  function specArmOne(name) {
+    if (specIsOn(name)) return;
+    if (name !== "darkdrone" && !SPEC_MODULES[name]) return;
+    var e = { name: name, snap: null };
+    SPEC.stack.push(e);
+    SPEC.phs[name] = { ph: 0, ph2: 0, ph3: 0, jd: 0 };
+    specApplyEntry(e);
+    specAfterChange();
+  }
+  function specDisarmOne(name) {
+    var i = -1;
+    SPEC.stack.forEach(function (e, k) { if (e.name === name) i = k; });
+    if (i < 0) return;
+    for (var j = SPEC.stack.length - 1; j >= i; j--) specUnwindEntry(SPEC.stack[j]);
+    SPEC.stack.splice(i, 1);
+    for (var k = i; k < SPEC.stack.length; k++) specApplyEntry(SPEC.stack[k]);
+    specAfterChange();
+  }
+  function specToggle(name) { if (specIsOn(name)) specDisarmOne(name); else specArmOne(name); }
+
+  /* Kept for presets and older callers: "" releases everything; a name
+   * arms it (no longer exclusively). */
+  function specArm(name) {
+    if (!name) {
+      if (!SPEC.stack.length) return;
+      for (var j = SPEC.stack.length - 1; j >= 0; j--) specUnwindEntry(SPEC.stack[j]);
+      SPEC.stack = [];
+      specAfterChange();
+    } else specArmOne(name);
   }
 
-  function specArm(name) {
-    if (SPEC.armed === name) return;
-    if (SPEC.armed === "darkdrone") setDarkOn(false);
-    else if (SPEC.armed) { specRestore(SPEC.snap); SPEC.snap = null; }
-    specResetMod();
-    SPEC.armed = "";
-    if (name === "darkdrone") { setDarkOn(true); SPEC.armed = name; }
-    else if (name && SPEC_MODULES[name]) {
-      var m = SPEC_MODULES[name];
-      SPEC.snap = specSnapshot(m.touches);
-      m.start();
-      SPEC.armed = name;
-    }
-    SPEC.ph = SPEC.ph2 = SPEC.ph3 = SPEC.jd = 0;
+  function specAfterChange() {
+    specTick(SPEC.lastMs || 0);
     specRefreshUI();
     applyParams(A); pushVoices();
   }
@@ -5882,27 +5924,35 @@
   function specRefreshUI() {
     Array.prototype.forEach.call(document.querySelectorAll(".spec-module"), function (mod) {
       var name = mod.getAttribute("data-spec");
-      var on = SPEC.armed === name;
+      var on = specIsOn(name);
       mod.classList.toggle("spec-off", !on);
       var r = mod.querySelector(".spec-rocker");
       if (r) r.setAttribute("aria-pressed", on ? "true" : "false");
     });
   }
 
-  /* The armed character breathes from here — same cadence idea as the
-   * drift walk: maths every frame, a quiet push at most every 90 ms
-   * (params and voices only; the debounced state save is not involved). */
+  /* Combine every armed character's contribution; quiet push at most
+   * every 90 ms (params and voices only, never the debounced state save). */
   function specTick(nowMs) {
-    var m = SPEC_MODULES[SPEC.armed];
-    if (!m || !m.tick) { SPEC.lastMs = nowMs; return; }
     var dt = Math.min(0.1, Math.max(0, (nowMs - (SPEC.lastMs || nowMs)) / 1000));
     SPEC.lastMs = nowMs;
-    m.tick(dt, nowMs);
-    if (nowMs - SPEC.pushMs > 90) {
-      SPEC.pushMs = nowMs;
-      applyParams(A);
-      pushVoices();
+    var any = false, det = 0, cutMul = 1, panAdd = 0, delayMul = 1, trem = null, sag = 0, cluster = 0;
+    for (var i = 0; i < SPEC.stack.length; i++) {
+      var name = SPEC.stack[i].name, m = SPEC_MODULES[name];
+      if (!m || !m.mods) continue;
+      var c = m.mods(dt, specPh(name));
+      any = true;
+      det += c.det || 0;
+      cutMul *= c.cutMul || 1;
+      panAdd += c.panAdd || 0;
+      delayMul *= c.delayMul || 1;
+      if (c.sag) sag = Math.max(sag, c.sag);
+      if (c.cluster) cluster = Math.max(cluster, c.cluster);
+      if (c.trem) trem = trem ? trem.map(function (v, k) { return v * c.trem[k]; }) : c.trem.slice();
     }
+    specMod.det = det; specMod.cutMul = cutMul; specMod.panAdd = clamp(panAdd, -1, 1);
+    specMod.delayMul = delayMul; specMod.sag = sag; specMod.cluster = cluster; specMod.trem = trem;
+    if (any && nowMs - SPEC.pushMs > 90) { SPEC.pushMs = nowMs; applyParams(A); pushVoices(); }
   }
 
   SPEC_MODULES.pink = {
@@ -5922,23 +5972,23 @@
       });
     },
     start: function () { this.apply(); },
-    tick: function (dt) {
+    mods: function (dt, P) {
       var c = S.spec.pink, sw = c.swirl / 100;
-      var rate = 0.02 + 0.24 * sw;                       // rotations per second-ish
-      SPEC.ph  += 6.2832 * rate * dt;
-      SPEC.ph2 += 6.2832 * rate * 0.618 * dt;            // incommensurate, so it never repeats
-      SPEC.ph3 += 6.2832 * rate * 0.29 * dt;
-      specMod.panAdd = Math.sin(SPEC.ph) * 0.7 * sw;
-      specMod.det = Math.sin(SPEC.ph2) * 9 * (c.smear / 100);
-      specMod.cutMul = Math.pow(2, Math.sin(SPEC.ph3) * 0.55 * (c.bloom / 100));
+      var rate = 0.02 + 0.24 * sw;
+      P.ph  += 6.2832 * rate * dt;
+      P.ph2 += 6.2832 * rate * 0.618 * dt;
+      P.ph3 += 6.2832 * rate * 0.29 * dt;
+      return { panAdd: Math.sin(P.ph) * 0.7 * sw,
+               det: Math.sin(P.ph2) * 9 * (c.smear / 100),
+               cutMul: Math.pow(2, Math.sin(P.ph3) * 0.55 * (c.bloom / 100)) };
     }
   };
-  $("pinkBtn").addEventListener("click", function () { specArm(SPEC.armed === "pink" ? "" : "pink"); });
+  $("pinkBtn").addEventListener("click", function () { specToggle("pink"); });
   [["pinkSwirl", "swirl"], ["pinkSmear", "smear"], ["pinkBloom", "bloom"]].forEach(function (pair) {
     $(pair[0]).addEventListener("input", function (e) {
       S.spec.pink[pair[1]] = parseInt(e.target.value, 10) || 0;
       $(pair[0] + "Out").textContent = e.target.value + " %";
-      if (SPEC.armed === "pink") SPEC_MODULES.pink.apply();
+      if (specIsOn("pink")) SPEC_MODULES.pink.apply();
       });
   });
 
@@ -5972,12 +6022,12 @@
       this.apply();
     }
   };
-  $("blackBtn").addEventListener("click", function () { specArm(SPEC.armed === "black" ? "" : "black"); });
+  $("blackBtn").addEventListener("click", function () { specToggle("black"); });
   [["blackGrind", "grind"], ["blackChop", "chop"], ["blackClang", "clang"]].forEach(function (pair) {
     $(pair[0]).addEventListener("input", function (e) {
       S.spec.black[pair[1]] = parseInt(e.target.value, 10) || 0;
       $(pair[0] + "Out").textContent = e.target.value + " %";
-      if (SPEC.armed === "black") SPEC_MODULES.black.apply();
+      if (specIsOn("black")) SPEC_MODULES.black.apply();
       });
   });
 
@@ -6004,18 +6054,18 @@
       });
     },
     start: function () { this.apply(); },
-    tick: function (dt) {
+    mods: function (dt, P) {
       // barely-there breath on the tuning: window light, not vibrato
-      SPEC.ph += 6.2832 * 0.05 * dt;
-      specMod.det = Math.sin(SPEC.ph) * 2.2 * (S.spec.glass.shine / 100);
+      P.ph += 6.2832 * 0.05 * dt;
+      return { det: Math.sin(P.ph) * 2.2 * (S.spec.glass.shine / 100) };
     }
   };
-  $("glassBtn").addEventListener("click", function () { specArm(SPEC.armed === "glass" ? "" : "glass"); });
+  $("glassBtn").addEventListener("click", function () { specToggle("glass"); });
   [["glassAir", "air"], ["glassHalo", "halo"], ["glassShine", "shine"]].forEach(function (pair) {
     $(pair[0]).addEventListener("input", function (e) {
       S.spec.glass[pair[1]] = parseInt(e.target.value, 10) || 0;
       $(pair[0] + "Out").textContent = e.target.value + " %";
-      if (SPEC.armed === "glass") SPEC_MODULES.glass.apply();
+      if (specIsOn("glass")) SPEC_MODULES.glass.apply();
       });
   });
 
@@ -6029,30 +6079,30 @@
       setFXEnabled("saturation", true);
       specSetControls({
         delayChar: "tape", delayMix: 34, delayTime: 420, delayOffset: 14,
-        delayFeedback: Math.round(62 + 30 * du),
+        delayFeedback: Math.round(45 + 25 * du),   // <= 70 %: haunted trail, never runaway
         lofiCrush: Math.round(10 + 25 * du), lofiNoise: Math.round(18 + 55 * du),
         lofiDirt: Math.round(20 + 50 * du),
         satGain: Math.round(6 + 8 * du), satTone: Math.round(58 - 26 * du)
       });
-      specMod.sag = 0.15 + 0.75 * (c.sag / 100);       // pitch falls as notes decay
     },
     start: function () { this.apply(); },
-    tick: function (dt) {
+    mods: function (dt, P) {
       var wob = S.spec.tape.wobble / 100;
-      SPEC.ph  += 6.2832 * 0.5 * dt;                    // wow — the slow one
-      SPEC.ph2 += 6.2832 * 6.3 * dt;                    // flutter — the fast shiver
-      SPEC.jd  = clamp(SPEC.jd * 0.985 + (Math.random() - 0.5) * 0.06 * wob, -1, 1);
-      var wow = Math.sin(SPEC.ph) + 0.25 * Math.sin(SPEC.ph2) + 0.6 * SPEC.jd;
-      specMod.det = wow * 9 * wob;                      // the pitch wobbles...
-      specMod.delayMul = 1 + wow * 0.011 * wob;         // ...and the echoes with it
+      P.ph  += 6.2832 * 0.5 * dt;                       // wow, the slow one
+      P.ph2 += 6.2832 * 6.3 * dt;                       // flutter, the fast shiver
+      P.jd  = clamp(P.jd * 0.985 + (Math.random() - 0.5) * 0.06 * wob, -1, 1);
+      var wow = Math.sin(P.ph) + 0.25 * Math.sin(P.ph2) + 0.6 * P.jd;
+      return { det: wow * 9 * wob,
+               delayMul: 1 + wow * 0.011 * wob,
+               sag: 0.15 + 0.75 * (S.spec.tape.sag / 100) };
     }
   };
-  $("tapeBtn").addEventListener("click", function () { specArm(SPEC.armed === "tape" ? "" : "tape"); });
+  $("tapeBtn").addEventListener("click", function () { specToggle("tape"); });
   [["tapeWobble", "wobble"], ["tapeSag", "sag"], ["tapeDust", "dust"]].forEach(function (pair) {
     $(pair[0]).addEventListener("input", function (e) {
       S.spec.tape[pair[1]] = parseInt(e.target.value, 10) || 0;
       $(pair[0] + "Out").textContent = e.target.value + " %";
-      if (SPEC.armed === "tape") SPEC_MODULES.tape.apply();
+      if (specIsOn("tape")) SPEC_MODULES.tape.apply();
       });
   });
 
@@ -6061,27 +6111,26 @@
     apply: function () {
       var c = S.spec.insect;
       specSetControls({ voices: Math.max(7, S.voices), spread: 12, width: 85 });
-      specMod.cluster = 6 + 40 * (c.swarm / 100);      // cents between neighbours
     },
     start: function () { this.apply(); },
-    tick: function (dt) {
+    mods: function (dt, P) {
       var c = S.spec.insect, fl = c.flutter / 100, sk = c.skitter / 100;
-      SPEC.ph += dt;                                    // seconds; each voice gets its own rate
-      var trem = specMod.trem || (specMod.trem = new Array(16));
+      P.ph += dt;
+      var trem = new Array(16);
       for (var i = 0; i < 16; i++) {
-        var rate = 3.1 + 0.83 * i;                      // 3..15 Hz, never in step
-        trem[i] = 1 - 0.5 * fl + 0.5 * fl * Math.sin(6.2832 * rate * SPEC.ph + i * 2.39996);
+        var rate = 3.1 + 0.83 * i;
+        trem[i] = 1 - 0.5 * fl + 0.5 * fl * Math.sin(6.2832 * rate * P.ph + i * 2.39996);
       }
-      SPEC.jd = clamp(SPEC.jd * 0.9 + (Math.random() - 0.5) * 1.4 * sk, -1, 1);
-      specMod.det = SPEC.jd * 7 * sk;
+      P.jd = clamp(P.jd * 0.9 + (Math.random() - 0.5) * 1.4 * sk, -1, 1);
+      return { det: P.jd * 7 * sk, trem: trem, cluster: 6 + 40 * (c.swarm / 100) };
     }
   };
-  $("insectBtn").addEventListener("click", function () { specArm(SPEC.armed === "insect" ? "" : "insect"); });
+  $("insectBtn").addEventListener("click", function () { specToggle("insect"); });
   [["insectSwarm", "swarm"], ["insectFlutter", "flutter"], ["insectSkitter", "skitter"]].forEach(function (pair) {
     $(pair[0]).addEventListener("input", function (e) {
       S.spec.insect[pair[1]] = parseInt(e.target.value, 10) || 0;
       $(pair[0] + "Out").textContent = e.target.value + " %";
-      if (SPEC.armed === "insect") SPEC_MODULES.insect.apply();
+      if (specIsOn("insect")) SPEC_MODULES.insect.apply();
       });
   });
 
@@ -6101,9 +6150,7 @@
     S.darkOn = !!on;
     pushAudio();
   }
-  $("darkBtn").addEventListener("click", function () {
-    specArm(SPEC.armed === "darkdrone" ? "" : "darkdrone");
-  });
+  $("darkBtn").addEventListener("click", function () { specToggle("darkdrone"); });
   $("subLevel").addEventListener("input", function (e) {
     S.subLevel = e.target.value / 100;
     $("subLevelOut").textContent = e.target.value + " %";
@@ -6276,7 +6323,7 @@
    * saved on this device only (IndexedDB), or exported as a single file.
    * Nothing ever leaves the device unless the user moves the file.
    * ================================================================== */
-  var PRESET_CONTROL_IDS = ["engine", "waveform", "law", "scale", "root", "octaves", "glide", "drive",
+  var PRESET_CONTROL_IDS = ["engine", "waveform", "law", "scale", "root", "octaves", "filterQ", "glide", "drive",
     "attack", "release", "legato", "envAmp", "envFlt", "voiceMode", "voices", "polyNotes", "polyOsc",
     "spread", "width", "panMode", "padsize",
     "satGain", "satTone", "delayMix", "delayTime", "delayFeedback", "delayOffset", "delayChar",
@@ -6381,7 +6428,9 @@
       name: name, created: Date.now(),
       controls: controls,
       fmode: S.fmode, twoShape: S.twoShape, darkOn: S.darkOn,
-      specArmed: SPEC.armed, specSettings: JSON.parse(JSON.stringify(S.spec)),
+      specArmed: SPEC.stack.length ? SPEC.stack[0].name : "",
+      specArmedList: SPEC.stack.map(function (e) { return e.name; }),
+      specSettings: JSON.parse(JSON.stringify(S.spec)),
       fxOrder: S.fxOrder.slice(), fxRGB: fxAssign.slice(),
       fxEnabled: JSON.parse(JSON.stringify(S.fxEnabled)),
       pads: padsOut
@@ -6409,8 +6458,9 @@
         }
       }
     }
-    // old presets carry only darkOn; new ones name the armed character
-    specArm(p.specArmed !== undefined ? (p.specArmed || "") : (p.darkOn ? "darkdrone" : ""));
+    // old presets carry darkOn or one name; new ones the whole armed stack
+    var armList = p.specArmedList || (p.specArmed ? [p.specArmed] : (p.darkOn ? ["darkdrone"] : []));
+    armList.forEach(specArmOne);
     var tb = p.twoShape && document.querySelector('[data-twoshape="' + p.twoShape + '"]');
     if (tb) tb.click();
     if (Array.isArray(p.fxOrder)) {
@@ -6662,7 +6712,7 @@
   })();
 
   (function initControls() {
-    ["octaves", "glide", "drive", "attack", "release", "legato", "envAmp", "envFlt",
+    ["octaves", "filterQ", "glide", "drive", "attack", "release", "legato", "envAmp", "envFlt",
      "voices", "polyNotes", "polyOsc", "spread", "width",
      "padsize", "delayMix", "delayTime", "delayFeedback", "delayOffset", "reverbMix", "reverbLength",
      "satGain", "satTone",
