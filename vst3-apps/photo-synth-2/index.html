@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Photo-Synth 2 — VST3 instrument | BrokildApps</title>
+  <title>Photo-Synth 2 â VST3 instrument | BrokildApps</title>
   <meta name="description" content="Photo-Synth 2 is a free Windows VST3 instrument that turns the colours of four photographs into sound: colour becomes pitch and timbre, a second photo filters it, a third shapes the envelope, a fourth drives the effects. Download, install and play." />
   <meta name="color-scheme" content="light dark" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230e9f86'/><text x='50' y='68' font-size='52' font-family='Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'>B</text></svg>" />
@@ -89,6 +89,8 @@
       border: 1px solid #3a3025; box-shadow: 0 18px 48px rgba(0,0,0,.55);
     }
     .btnrow { display: flex; flex-wrap: wrap; gap: .8rem; margin: 1.8rem 0 0; }
+    .buildtag { align-self: center; font: 600 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+                letter-spacing: .14em; text-transform: uppercase; opacity: .55; }
     .btn {
       display: inline-flex; align-items: center; gap: .55rem;
       padding: .78rem 1.3rem; border-radius: 10px; text-decoration: none;
@@ -178,25 +180,26 @@
           <span class="brand-sub">Apps &amp; experiments</span>
         </span>
       </a>
-      <a class="back" href="../../index.html">← All apps</a>
+      <a class="back" href="../../index.html">â All apps</a>
     </nav>
   </div>
 </div>
 
 <header class="hero">
   <div class="wrap">
-    <div class="kicker">VST3 Instrument · Windows · Free</div>
+    <div class="kicker">VST3 Instrument Â· Windows Â· Free</div>
     <h1>Photo-Synth <span>2</span></h1>
     <p class="tagline">Play the colours of four photographs.</p>
     <p class="lede">A synthesiser you play by dragging across pictures. Colour becomes pitch and
       timbre on the first photo, the second one filters it, the third shapes the envelope, and the
-      fourth drives the effects. Runs in any VST3 host as a native plugin — the whole audio engine
+      fourth drives the effects. Runs in any VST3 host as a native plugin â the whole audio engine
       is C++, and every control is automatable.</p>
 
     <div class="btnrow">
       <a class="btn btn-primary" href="Photo-Synth2-VST3-win64.zip" download>
-        ↓ Download for Windows <small>(zip, 8 MB)</small>
+        â Download for Windows <small>(zip, 8 MB)</small>
       </a>
+      <span class="buildtag">Build 260821.2</span>
       <a class="btn btn-ghost" href="Photo-Synth2-Manual.pdf">
         Manual <small>(PDF)</small>
       </a>
@@ -212,31 +215,31 @@
   <div class="wrap">
     <h2>What it does</h2>
     <p class="sub">Four photo pads, each listening to colour in a different way. They all work at
-      once, and each can be latched in place or set looping along a gesture you drew — so the
+      once, and each can be latched in place or set looping along a gesture you drew â so the
       instrument keeps moving on its own while you play something else.</p>
 
     <div class="cards">
       <div class="c">
-        <div class="n">Pad 1 · Tone</div>
-        <h4>Colour → pitch &amp; timbre</h4>
+        <div class="n">Pad 1 Â· Tone</div>
+        <h4>Colour â pitch &amp; timbre</h4>
         <p>Hue picks the note, saturation morphs the waveform from sine to saw, brightness sets the
           loudness, green adds detune and vocal edge.</p>
       </div>
       <div class="c">
-        <div class="n">Pad 2 · Filter</div>
-        <h4>Colour → tone colour</h4>
+        <div class="n">Pad 2 Â· Filter</div>
+        <h4>Colour â tone colour</h4>
         <p>Brightness sweeps the ladder cut-off from 80 Hz to 14 kHz, saturation adds resonance,
           hue places a resonant peak.</p>
       </div>
       <div class="c">
-        <div class="n">Pad 3 · Envelope</div>
-        <h4>Red · green · blue → ADSR</h4>
+        <div class="n">Pad 3 Â· Envelope</div>
+        <h4>Red Â· green Â· blue â ADSR</h4>
         <p>Red is the attack, green the sustain level, blue the decay and release. Pick a colour and
           the instrument changes how it feels.</p>
       </div>
       <div class="c">
-        <div class="n">Pad 4 · FX</div>
-        <h4>Colour → three effects</h4>
+        <div class="n">Pad 4 Â· FX</div>
+        <h4>Colour â three effects</h4>
         <p>The red, green and blue strengths each drive an effect parameter you assign. Black is all
           off, white is all full.</p>
       </div>
@@ -245,7 +248,7 @@
     <div class="figrow" style="margin-top:2rem">
       <figure>
         <img src="img/hero-play.jpg" alt="Play mode: only the four photo pads">
-        <figcaption><b>Play mode</b> hides every control and leaves only the pictures — one thumb
+        <figcaption><b>Play mode</b> hides every control and leaves only the pictures â one thumb
           or one mouse per pad. Each readout shows exactly what the sampled colour is doing.</figcaption>
       </figure>
       <figure>
@@ -257,7 +260,7 @@
 
     <figure>
       <img src="img/effects-rack.png" alt="The seven-module effects rack in the Boutique skin">
-      <figcaption>A reorderable seven-module stereo rack — tube, phaser, chorus, stutter, lofi,
+      <figcaption>A reorderable seven-module stereo rack â tube, phaser, chorus, stutter, lofi,
         delay and convolution reverb. Drag a module to change the signal path; a switched-off module
         leaves the audio graph entirely, so bypassing genuinely saves CPU.</figcaption>
     </figure>
@@ -265,7 +268,7 @@
     <h3>Under the pictures</h3>
     <p>A virtual-analog voice: two band-limited oscillators that drift a few cents apart, a
       zero-delay-feedback ladder filter with a saturating core and five modes including a tuned
-      comb, a sixteen-voice pool — mono/unison with up to twelve stacked voices, or four-note
+      comb, a sixteen-voice pool â mono/unison with up to twelve stacked voices, or four-note
       polyphony with up to four photo-sampling oscillators per note. Selectable waveforms, a
       Dark Drone engine, tape stop, delay freeze, a transparent output limiter, MIDI file playback,
       24-bit recording and offline render.</p>
@@ -275,24 +278,24 @@
 <section class="block">
   <div class="wrap">
     <h2>Download and install</h2>
-    <p class="sub">Two minutes. There is no installer — a VST3 plugin is a folder you copy into
+    <p class="sub">Two minutes. There is no installer â a VST3 plugin is a folder you copy into
       place.</p>
 
     <ol class="steps">
       <li><b>Download the zip.</b>
         <a href="Photo-Synth2-VST3-win64.zip" download>Photo-Synth2-VST3-win64.zip</a> (8 MB).
-        On GitHub you can also press the green <b>Code → Download ZIP</b> button on the
+        On GitHub you can also press the green <b>Code â Download ZIP</b> button on the
         <a href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">repository</a>
         and find it under <code>vst3-apps/photo-synth-2/</code>.</li>
       <li><b>Unzip it.</b>
-        Right-click → <em>Extract All</em>. Inside you get a <code>Photo-Synth2.vst3</code> folder,
+        Right-click â <em>Extract All</em>. Inside you get a <code>Photo-Synth2.vst3</code> folder,
         the manual, and a readme.</li>
       <li><b>Copy the plugin folder into the VST3 directory.</b>
-        Move the whole <code>Photo-Synth2.vst3</code> <em>folder</em> — not just the file inside it —
+        Move the whole <code>Photo-Synth2.vst3</code> <em>folder</em> â not just the file inside it â
         into <code>C:\Program Files\Common Files\VST3\</code>. Windows will ask for administrator
         permission; that is normal.</li>
       <li><b>Rescan plugins in your DAW.</b>
-        In Ableton Live: <em>Preferences → Plug-Ins → Rescan</em>. It appears as
+        In Ableton Live: <em>Preferences â Plug-Ins â Rescan</em>. It appears as
         <b>Photo-Synth2</b> by Brokild. Drop it on a MIDI track and drag across the first photo.</li>
     </ol>
 
@@ -306,8 +309,9 @@
     <table>
       <tr><th>Requirement</th><th>Detail</th></tr>
       <tr><td>System</td><td>Windows 10 or 11, 64-bit</td></tr>
+      <tr><td>Build</td><td>260821.2 — shown in the plugin’s <b>How it works</b> panel and on its loading screen</td></tr>
       <tr><td>Format</td><td>VST3 (also builds as a standalone application from source)</td></tr>
-      <tr><td>Hosts</td><td>Any VST3 host — developed against Ableton Live 12</td></tr>
+      <tr><td>Hosts</td><td>Any VST3 host â developed against Ableton Live 12</td></tr>
       <tr><td>Price</td><td>Free. No account, no registration, no telemetry, no network access.</td></tr>
     </table>
 
@@ -344,7 +348,7 @@
 
     <figure>
       <img src="img/keyboard.png" alt="The on-screen keyboard">
-      <figcaption>The keyboard sets the base note — everything the photo does is an interval above
+      <figcaption>The keyboard sets the base note â everything the photo does is an interval above
         it, so the same picture can be played in any key. MIDI from your DAW does the same, and
         chords work in polyphonic mode.</figcaption>
     </figure>
@@ -355,13 +359,13 @@
   <div class="wrap">
     <h2>Built it? Build your own.</h2>
     <p class="sub">Photo-Synth 2 started life as a page in a browser. The method
-      that turned it into a plugin — without redrawing a single control — is
+      that turned it into a plugin â without redrawing a single control â is
       packaged as a developer kit.</p>
 
     <p>The trick is that the plugin's interface <em>is</em> the original web
       page: it runs inside the plugin window, and only its audio layer was
       replaced, by proxy objects that marshal into a C++ engine. Everything the
-      page did — layout, canvas drawing, gestures, presets — still works because
+      page did â layout, canvas drawing, gestures, presets â still works because
       it is still the same code. The kit contains the method as a skill an AI
       assistant can load, working code templates, six PowerShell tools, and a
       17-page manual including the list of traps that each cost a day.</p>
@@ -369,7 +373,7 @@
     <div class="btnrow" style="margin-top:1.4rem">
       <a class="btn btn-primary" href="HTML-to-VST3-Devkit.zip" download
          style="background:var(--accent);color:#fff">
-        ↓ Developer kit <small>(zip, 4 MB)</small>
+        â Developer kit <small>(zip, 4 MB)</small>
       </a>
       <a class="btn btn-ghost" href="HTML-to-VST3-Devkit-Manual.pdf"
          style="border-color:var(--border);color:var(--text)">
@@ -402,7 +406,7 @@
 
 <footer>
   <div class="wrap">
-    <p><b>Photo-Synth 2</b> — native VST3 port of the browser instrument
+    <p><b>Photo-Synth 2</b> â native VST3 port of the browser instrument
       <a href="../../music-apps/photo-synth/index.html">Photo Synth</a>, which still runs in your
       browser if you would rather not install anything. Source and issues:
       <a href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">github.com/peterboggild/BrokildApps</a>.</p>
@@ -410,7 +414,7 @@
       ChatGPT and Claude. Use of this is on your own peril. It may generate unique, beautiful, scary
       or useless sounds for you, and it may crash your DAW project. Have fun, play unsafely,
       unwisely, and unboringly.</p>
-    <p>Cheers, Peter Bøggild, August 2026.</p>
+    <p>Cheers, Peter BÃ¸ggild, August 2026.</p>
   </div>
 </footer>
 
