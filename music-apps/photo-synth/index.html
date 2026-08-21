@@ -1009,11 +1009,6 @@
           <div class="ctl"><input id="glide" type="range" min="0" max="100" value="22"></div>
           <output id="glideOut">30 ms</output>
         </div>
-        <div class="row">
-          <label for="legato">Legato</label>
-          <div class="ctl"><input id="legato" type="range" min="0" max="100" value="24"></div>
-          <output id="legatoOut">120 ms</output>
-        </div>
       </div>
     </div>
 
@@ -1036,6 +1031,21 @@
           <label for="release">Release</label>
           <div class="ctl"><input id="release" type="range" min="0" max="100" value="30"></div>
           <output id="releaseOut">180 ms</output>
+        </div>
+        <div class="row">
+          <label for="envAmpB">→ Amp</label>
+          <div class="ctl"><input id="envAmpB" type="range" min="0" max="100" value="100"></div>
+          <output id="envAmpBOut">100 %</output>
+        </div>
+        <div class="row">
+          <label for="envFltB">→ Filter</label>
+          <div class="ctl"><input id="envFltB" type="range" min="0" max="100" value="0"></div>
+          <output id="envFltBOut">off</output>
+        </div>
+        <div class="row">
+          <label for="legato">Legato</label>
+          <div class="ctl"><input id="legato" type="range" min="0" max="100" value="24"></div>
+          <output id="legatoOut">120 ms</output>
         </div>
       </div>
     </div>
@@ -1958,7 +1968,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.11";
+  var BUILD_ID = "260821.12";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -6011,15 +6021,37 @@
     $("stutterRateOut").textContent = S.stutterRate.toFixed(1) + " Hz";
     pushAudio();
   });
+  /* The envelope routing appears twice — under photo 3, where the envelope is
+   * made and where Play mode can still reach it, and in the Sound panel
+   * beside the fallback shape. They are two faces of one control: whichever
+   * you move, the other follows. Only the pad copy carries the id the preset
+   * and automation paths know, so nothing downstream has to care. */
+  function envRouteMirror(id) {
+    var main = $(id), twin = $(id + "B");
+    if (!twin) return;
+    twin.value = main.value;
+    $(id + "BOut").textContent = $(id + "Out").textContent;
+  }
   $("envAmp").addEventListener("input", function (e) {
     S.envAmp = e.target.value / 100;
     $("envAmpOut").textContent = e.target.value + " %";
+    envRouteMirror("envAmp");
     pushAudio();
   });
   $("envFlt").addEventListener("input", function (e) {
     S.envFlt = e.target.value / 100;
     $("envFltOut").textContent = S.envFlt < 0.005 ? "off" : e.target.value + " %";
+    envRouteMirror("envFlt");
     pushAudio();
+  });
+  ["envAmp", "envFlt"].forEach(function (id) {
+    var twin = $(id + "B");
+    if (!twin) return;
+    twin.addEventListener("input", function (e) {
+      var main = $(id);
+      main.value = e.target.value;
+      main.dispatchEvent(new Event("input"));   // one code path owns the work
+    });
   });
   /* Spectrum modules: a shared shell (arm / collapse) so a new character is
    * markup plus its own block of CSS, nothing more. */
@@ -7126,6 +7158,8 @@
       var el = $(id);
       if (el) el.dispatchEvent(new Event("input"));
     });
+    envRouteMirror("envAmp");
+    envRouteMirror("envFlt");
   })();
 
   (function showBuild() {
