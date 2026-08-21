@@ -146,6 +146,7 @@
      there, the cursor has simply stopped moving. */
   .pausebtn[aria-pressed="true"]{color:#ffd479;border-color:#ffd47955;background:#ffd4791a}
   .pausebtn[disabled]{opacity:.35;pointer-events:none}
+  .clearbtn[disabled]{opacity:.35;pointer-events:none}
   .padbtns{display:flex;gap:6px;margin-top:8px}
   .padbtns .btn{flex:1 1 0;justify-content:center;font-size:12px;padding:8px 6px}
   input[type=file]{display:none}
@@ -210,6 +211,7 @@
     text-shadow:0 0 6px rgba(255,180,80,.4);box-shadow:0 1px 2px rgba(0,0,0,.55) inset;
   }
   .row .info{font-size:12px;color:var(--text);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .tinyout{font:400 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--faint);flex:none;min-width:34px}
   /* A control the photo has taken charge of: visibly out of play. */
   .row.row-overridden{opacity:.45}
   .row.row-overridden output::after{content:" · photo";font-size:8.5px;letter-spacing:.06em}
@@ -235,6 +237,33 @@
     display:flex;align-items:center;gap:8px;margin:0 14px 8px;justify-content:center;
   }
   .unitname::before,.unitname::after{content:"";flex:1;border-top:1px solid var(--line)}
+  /* A folded unit is nothing but its nameplate, so "click anywhere" and
+     "click the title" are the same gesture. The caret turns to say which
+     way the next click will go. */
+  summary.unitname{cursor:pointer;list-style:none;user-select:none}
+  /* A panel summary wears an LED and a +/- sign; a unit nameplate wears two
+     rules and a caret. Same tag, so the panel decorations have to be undone
+     or the left rule inherits the LED and stretches into a glowing bar. */
+  details summary.unitname::before,details summary.unitname::after,
+  details[open] summary.unitname::before,details[open] summary.unitname::after{
+    content:"";flex:1;width:auto;height:0;margin:0;border-radius:0;
+    background:none;box-shadow:none;border-top:1px solid var(--line);
+  }
+  summary.unitname::-webkit-details-marker{display:none}
+  summary.unitname:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+  .ucaret{
+    flex:none;width:0;height:0;margin-left:2px;
+    border-left:4px solid transparent;border-right:4px solid transparent;
+    border-top:5px solid #ead9ae;opacity:.55;transition:transform .18s,opacity .18s;
+  }
+  summary.unitname:hover .ucaret{opacity:1}
+  .unit:not([open]) .ucaret{transform:rotate(-90deg)}
+  /* Folded, the block IS the nameplate: the unit gives up its padding and the
+     summary takes it, so a click anywhere on the strip opens it — while open,
+     only the nameplate itself closes it again. */
+  .unit:not([open]){padding:0}
+  .unit:not([open]) summary.unitname{margin:0;padding:10px 26px 11px}
+
   .ugrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
   .ugrid .row,.fx-controls .row{
     display:grid;grid-template-columns:1fr auto;grid-template-areas:"lab out" "ctl ctl";
@@ -270,7 +299,6 @@
   body[data-fxskin="boutique"] .fx-module[data-fx="saturation"] .fx-name{
     color:#ff8f70;letter-spacing:.24em;text-shadow:0 0 9px rgba(255,85,51,.55);
   }
-  body[data-fxskin="boutique"] .fx-module[data-fx="saturation"] .fx-power{border-radius:3px}
 
   body[data-fxskin="boutique"] .fx-module[data-fx="phaser"]{
     --fxc:#ffa14d;--fxglow:rgba(255,161,77,.5);
@@ -285,7 +313,6 @@
     font-family:Georgia,"Times New Roman",serif;font-style:italic;text-transform:none;
     font-size:14.5px;color:#ffb877;letter-spacing:.04em;
   }
-  body[data-fxskin="boutique"] .fx-module[data-fx="phaser"] .fx-power{border-radius:50%}
 
   body[data-fxskin="boutique"] .fx-module[data-fx="chorus"]{
     --fxc:#7fd6ff;--fxglow:rgba(127,214,255,.5);
@@ -297,7 +324,6 @@
     color:#b3e2ff;font-weight:400;letter-spacing:.32em;
     text-shadow:0 0 14px rgba(127,214,255,.65);
   }
-  body[data-fxskin="boutique"] .fx-module[data-fx="chorus"] .fx-power{border-radius:50%}
 
   body[data-fxskin="boutique"] .fx-module[data-fx="stutter"]{
     --fxc:#e05cff;--fxglow:rgba(224,92,255,.5);
@@ -310,7 +336,6 @@
     font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#eda9ff;
     text-shadow:1px 0 0 rgba(0,255,255,.45),-1px 0 0 rgba(255,0,90,.45);
   }
-  body[data-fxskin="boutique"] .fx-module[data-fx="stutter"] .fx-power{border-radius:0}
 
   body[data-fxskin="boutique"] .fx-module[data-fx="lofi"]{
     --fxc:#7c6432;--fxglow:rgba(124,100,50,.4);
@@ -384,12 +409,6 @@
   .fx-toggle[aria-expanded="true"]::after{content:"–"}
   .fx-move{display:flex;gap:3px;flex:none;align-items:center}
   .fx-move .btn{padding:6px 8px;font-size:12px;border-radius:7px}
-  .fx-power{padding:6px 9px;font-size:13px;border-radius:7px;line-height:1}
-  .fx-power[aria-pressed="false"]{color:var(--faint)}
-  .fx-power[aria-pressed="true"]{
-    border-color:var(--fxc,#f7c169);color:#140e05;background:var(--fxc,var(--accent));
-    box-shadow:0 0 10px var(--fxglow,rgba(240,168,72,.5));
-  }
   .fx-controls .row output{color:var(--fxc,var(--led));text-shadow:0 0 6px var(--fxglow,rgba(255,180,80,.4))}
   .fx-module.fx-off{opacity:.68}
   .fx-module.fx-off .fx-name{color:var(--faint)}
@@ -498,6 +517,23 @@
   .spec-rocker[aria-pressed="true"] .rocker-lens i{opacity:1}
   .spec-rocker[aria-pressed="true"] .rocker-lens{box-shadow:0 0 14px var(--spglow),0 2px 4px rgba(0,0,0,.6) inset}
   .spec-rocker:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* The same switch at pedal size, so the effect rack and the character rack
+     read as one instrument rather than two. Same component, same red lamp;
+     only the bezel and the glow are scaled down. */
+  .rocker-sm{width:26px;height:30px;padding:3px;border-radius:6px}
+  .rocker-sm .rocker-lens{border-radius:3px}
+  .rocker-sm .rocker-lens::after{bottom:8%;height:24%}
+  .rocker-sm .rocker-lens i{
+    background:
+      radial-gradient(circle at 50% 44%,#fff6d9 0 9%,transparent 30%),
+      radial-gradient(circle at 50% 44%,var(--lens,#e33) 0 34%,transparent 76%),
+      repeating-linear-gradient(90deg,rgba(0,0,0,.25) 0 1px,transparent 1px 3px),
+      radial-gradient(circle at 50% 50%,var(--lens,#e33) 0 62%,var(--lensdim,#2c0808) 100%);
+  }
+  .rocker-sm[aria-pressed="true"] .rocker-lens{
+    box-shadow:0 0 9px var(--spglow,rgba(255,58,42,.6)),0 2px 3px rgba(0,0,0,.6) inset;
+  }
 
   /* The explanation folds away behind a (?) so the plate stays tight. */
   .spec-help{
@@ -769,7 +805,12 @@
     <button id="freezeBtn" class="btn" type="button" aria-pressed="false" title="Hold the delay tail forever">Freeze</button>
     <button id="stopBtn" class="btn" type="button" aria-pressed="false" title="Tape stop — pitch spins down; press again to spin back up">Halt</button>
     <button id="aboutBtn" class="btn" type="button" title="About Photo Synth 2">About</button>
-      <div class="vol deskonly" style="flex:0 1 150px">
+      <div class="vol deskonly" style="flex:0 1 132px">
+      <label for="mspeed">Motion</label>
+      <input id="mspeed" type="range" min="25" max="400" value="100" aria-label="Motion speed">
+      <output id="mspeedOut" class="tinyout">1.00×</output>
+    </div>
+    <div class="vol deskonly" style="flex:0 1 150px">
       <label for="uiScale">Zoom</label>
       <input id="uiScale" type="range" min="55" max="140" value="100" aria-label="Interface zoom">
     </div>
@@ -795,7 +836,7 @@
   <div class="pad" id="pad-tone">
     <div class="padhead">
       <span class="padname"><b>1 · Tone</b> — colour → pitch &amp; timbre<span class="autoflag" id="auto-tone">AUTO</span></span>
-      <span class="padtools"><button class="btn recarm" type="button" data-recarm="tone" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="tone" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="tone" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button></span>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="tone" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="tone" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="tone" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button><button class="btn clearbtn" type="button" data-clearmotion="tone" disabled title="Throw the recorded motion away">Clear</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-tone"></canvas>
@@ -818,7 +859,7 @@
   <div class="pad" id="pad-filter">
     <div class="padhead">
       <span class="padname"><b>2 · Filter</b> — colour → tone colour<span class="autoflag" id="auto-filter">AUTO</span></span>
-      <span class="padtools"><button class="btn recarm" type="button" data-recarm="filter" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="filter" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="filter" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button></span>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="filter" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="filter" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="filter" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button><button class="btn clearbtn" type="button" data-clearmotion="filter" disabled title="Throw the recorded motion away">Clear</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-filter"></canvas>
@@ -843,7 +884,7 @@
   <div class="pad" id="pad-env">
     <div class="padhead">
       <span class="padname"><b>3 · Envelope</b> — red attack · green sustain · blue decay<span class="autoflag" id="auto-env">AUTO</span></span>
-      <span class="padtools"><button class="btn recarm" type="button" data-recarm="env" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="env" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="env" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button></span>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="env" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="env" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="env" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button><button class="btn clearbtn" type="button" data-clearmotion="env" disabled title="Throw the recorded motion away">Clear</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-env"></canvas>
@@ -878,7 +919,7 @@
   <div class="pad" id="pad-fx">
     <div class="padhead">
       <span class="padname"><b>4 · FX</b> — red · green · blue → three effects<span class="autoflag" id="auto-fx">AUTO</span></span>
-      <span class="padtools"><button class="btn recarm" type="button" data-recarm="fx" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="fx" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="fx" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button></span>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="fx" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="fx" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="fx" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button><button class="btn clearbtn" type="button" data-clearmotion="fx" disabled title="Throw the recorded motion away">Clear</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-fx"></canvas>
@@ -917,8 +958,8 @@
 <details id="settings">
   <summary>Sound</summary>
   <div class="body">
-    <div class="unit">
-      <div class="unitname">Voice</div>
+    <details class="unit" open>
+      <summary class="unitname">Voice<i class="ucaret"></i></summary>
       <div class="ugrid">
         <div class="row wide">
           <label for="engine">Engine</label>
@@ -987,10 +1028,10 @@
           <output id="padsizeOut">100 %</output>
         </div>
       </div>
-    </div>
+    </details>
 
-    <div class="unit">
-      <div class="unitname">Pitch &amp; scale</div>
+    <details class="unit" open>
+      <summary class="unitname">Pitch &amp; scale<i class="ucaret"></i></summary>
       <div class="ugrid">
         <div class="row wide">
           <label for="law">Colour → pitch</label>
@@ -1025,10 +1066,10 @@
           <output id="glideOut">30 ms</output>
         </div>
       </div>
-    </div>
+    </details>
 
-    <div class="unit">
-      <div class="unitname">Envelope · fallback shape</div>
+    <details class="unit" open>
+      <summary class="unitname">Envelope · fallback shape<i class="ucaret"></i></summary>
       <div class="ugrid">
         <div class="row wide">
           <label for="envSource">Shaped by</label>
@@ -1063,11 +1104,11 @@
           <output id="legatoOut">120 ms</output>
         </div>
       </div>
-    </div>
+    </details>
 
 
-    <div class="unit">
-      <div class="unitname">Filter</div>
+    <details class="unit" open>
+      <summary class="unitname">Filter<i class="ucaret"></i></summary>
       <div class="ugrid">
         <div class="row wide">
           <span class="lab">Type</span>
@@ -1094,7 +1135,7 @@
           <output id="filterQOut">1.0×</output>
         </div>
       </div>
-    </div>
+    </details>
 
     <div class="note" id="engineNote"></div>
   </div>
@@ -1109,7 +1150,7 @@
         <div class="fx-head">
           <button class="fx-grip" type="button" aria-label="Drag Tube saturation">⋮⋮</button>
           <button class="fx-toggle" type="button" aria-expanded="true"><span class="fx-index">01</span><span class="fx-name">Tube</span><span class="fx-sub">asymmetric soft saturation</span></button>
-          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="true" aria-label="Tube on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Tube up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Tube down">↓</button></span>
+          <span class="fx-move"><button class="spec-rocker rocker-sm" type="button" role="switch" data-fx-power aria-pressed="true" aria-label="Tube on or off" title="Tube on or off"><span class="rocker-lens"><i></i></span></button><button class="btn" type="button" data-fx-up aria-label="Move Tube up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Tube down">↓</button></span>
         </div>
         <div class="fx-controls">
           <div class="row">
@@ -1130,7 +1171,7 @@
         <div class="fx-head">
           <button class="fx-grip" type="button" aria-label="Drag Delay">⋮⋮</button>
           <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">02</span><span class="fx-name">Delay</span><span class="fx-sub">stereo echo</span></button>
-          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="true" aria-label="Delay on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Delay up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Delay down">↓</button></span>
+          <span class="fx-move"><button class="spec-rocker rocker-sm" type="button" role="switch" data-fx-power aria-pressed="true" aria-label="Delay on or off" title="Delay on or off"><span class="rocker-lens"><i></i></span></button><button class="btn" type="button" data-fx-up aria-label="Move Delay up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Delay down">↓</button></span>
         </div>
         <div class="fx-controls" hidden>
           <div class="row">
@@ -1170,7 +1211,7 @@
         <div class="fx-head">
           <button class="fx-grip" type="button" aria-label="Drag Reverb">⋮⋮</button>
           <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">03</span><span class="fx-name">Reverb</span><span class="fx-sub">stereo convolution space</span></button>
-          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="true" aria-label="Reverb on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Reverb up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Reverb down">↓</button></span>
+          <span class="fx-move"><button class="spec-rocker rocker-sm" type="button" role="switch" data-fx-power aria-pressed="true" aria-label="Reverb on or off" title="Reverb on or off"><span class="rocker-lens"><i></i></span></button><button class="btn" type="button" data-fx-up aria-label="Move Reverb up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Reverb down">↓</button></span>
         </div>
         <div class="fx-controls" hidden>
           <div class="row">
@@ -1200,7 +1241,7 @@
         <div class="fx-head">
           <button class="fx-grip" type="button" aria-label="Drag Phaser">⋮⋮</button>
           <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">04</span><span class="fx-name">Phaser</span><span class="fx-sub">vintage 4-stage sweep</span></button>
-          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="false" aria-label="Phaser on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Phaser up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Phaser down">↓</button></span>
+          <span class="fx-move"><button class="spec-rocker rocker-sm" type="button" role="switch" data-fx-power aria-pressed="false" aria-label="Phaser on or off" title="Phaser on or off"><span class="rocker-lens"><i></i></span></button><button class="btn" type="button" data-fx-up aria-label="Move Phaser up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Phaser down">↓</button></span>
         </div>
         <div class="fx-controls" hidden>
           <div class="row">
@@ -1227,7 +1268,7 @@
         <div class="fx-head">
           <button class="fx-grip" type="button" aria-label="Drag Chorus">⋮⋮</button>
           <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">05</span><span class="fx-name">Chorus</span><span class="fx-sub">vintage dual-line ensemble</span></button>
-          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="false" aria-label="Chorus on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Chorus up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Chorus down">↓</button></span>
+          <span class="fx-move"><button class="spec-rocker rocker-sm" type="button" role="switch" data-fx-power aria-pressed="false" aria-label="Chorus on or off" title="Chorus on or off"><span class="rocker-lens"><i></i></span></button><button class="btn" type="button" data-fx-up aria-label="Move Chorus up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Chorus down">↓</button></span>
         </div>
         <div class="fx-controls" hidden>
           <div class="row">
@@ -1254,7 +1295,7 @@
         <div class="fx-head">
           <button class="fx-grip" type="button" aria-label="Drag Stutter">⋮⋮</button>
           <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">06</span><span class="fx-name">Stutter</span><span class="fx-sub">rhythmic gate chop</span></button>
-          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="false" aria-label="Stutter on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Stutter up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Stutter down">↓</button></span>
+          <span class="fx-move"><button class="spec-rocker rocker-sm" type="button" role="switch" data-fx-power aria-pressed="false" aria-label="Stutter on or off" title="Stutter on or off"><span class="rocker-lens"><i></i></span></button><button class="btn" type="button" data-fx-up aria-label="Move Stutter up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Stutter down">↓</button></span>
         </div>
         <div class="fx-controls" hidden>
           <div class="row">
@@ -1276,7 +1317,7 @@
         <div class="fx-head">
           <button class="fx-grip" type="button" aria-label="Drag Lofi">⋮⋮</button>
           <button class="fx-toggle" type="button" aria-expanded="false"><span class="fx-index">07</span><span class="fx-name">Lofi</span><span class="fx-sub">crush · grit · noise · dirt</span></button>
-          <span class="fx-move"><button class="btn fx-power" type="button" data-fx-power aria-pressed="false" aria-label="Lofi on or off">⏻</button><button class="btn" type="button" data-fx-up aria-label="Move Lofi up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Lofi down">↓</button></span>
+          <span class="fx-move"><button class="spec-rocker rocker-sm" type="button" role="switch" data-fx-power aria-pressed="false" aria-label="Lofi on or off" title="Lofi on or off"><span class="rocker-lens"><i></i></span></button><button class="btn" type="button" data-fx-up aria-label="Move Lofi up">↑</button><button class="btn" type="button" data-fx-down aria-label="Move Lofi down">↓</button></span>
         </div>
         <div class="fx-controls" hidden>
           <div class="row">
@@ -1537,48 +1578,6 @@
   </div>
 </details>
 
-<details id="motionPanel">
-  <summary>Motion</summary>
-  <div class="body">
-    <div class="row">
-      <span class="lab">Photo 1 · Tone</span>
-      <span class="info" id="motion-tone">no motion armed</span>
-      <div class="ctl seg" style="flex:0 0 auto"><button class="btn" id="clearMotion-tone" type="button">Clear</button></div>
-    </div>
-    <div class="row">
-      <span class="lab">Photo 2 · Filter</span>
-      <span class="info" id="motion-filter">no motion armed</span>
-      <div class="ctl seg" style="flex:0 0 auto"><button class="btn" id="clearMotion-filter" type="button">Clear</button></div>
-    </div>
-    <div class="row">
-      <span class="lab">Photo 3 · Env</span>
-      <span class="info" id="motion-env">no motion armed</span>
-      <div class="ctl seg" style="flex:0 0 auto"><button class="btn" id="clearMotion-env" type="button">Clear</button></div>
-    </div>
-    <div class="row">
-      <span class="lab">Photo 4 · FX</span>
-      <span class="info" id="motion-fx">no motion armed</span>
-      <div class="ctl seg" style="flex:0 0 auto"><button class="btn" id="clearMotion-fx" type="button">Clear</button></div>
-    </div>
-    <div class="row">
-      <span class="lab">Two fingers</span>
-      <div class="ctl seg">
-        <button class="btn" type="button" data-twoshape="line" aria-pressed="true">Line</button>
-        <button class="btn" type="button" data-twoshape="circle" aria-pressed="false">Circle</button>
-      </div>
-    </div>
-    <div class="row">
-      <label for="mspeed">Speed</label>
-      <div class="ctl"><input id="mspeed" type="range" min="25" max="400" value="100"></div>
-      <output id="mspeedOut">1.00×</output>
-    </div>
-    <div class="note">Press <b>Rec on the pad you want to automate</b>, then draw a gesture with one
-      finger, or put two fingers down together for a line (ping-pong) or circle (they define the
-      diameter). Recording starts only on that pad and the saved motion loops immediately. Dragging
-      an automated cursor takes manual control; a tap starts its loop again.</div>
-  </div>
-</details>
-
 <details id="presetsPanel">
   <summary>Presets</summary>
   <div class="body">
@@ -1692,205 +1691,6 @@
   </div>
 </details>
 
-<details class="about">
-  <summary>How it works</summary>
-  <div class="body">
-    <div class="note" id="buildInfo" style="padding-top:0"></div>
-    <h3>Playing it</h3>
-    <p>Photo <b>1</b> is the oscillator: drag a finger over it and the colour under the fingertip
-      becomes a tone. Photo <b>2</b> is the filter: touch it and the colour there shapes that tone.
-      Both pads work at the same time — one finger on each.</p>
-    <p><b>Latch</b> leaves the cursor where you lifted your finger. On the tone pad the note keeps
-      sounding; on the filter pad the filter setting is held. Tap again to move the cursor, or turn
-      latch off to release.</p>
-
-    <h3>Play · Edit · per-pad Rec</h3>
-    <p><b>Play</b> shows only the photos — everything is played by touch. <b>Edit</b> opens all the
-      controls: sound, effects, motion, files and this text. Each photo has its own <b>Rec</b> button:
-      arm only the pad you want, then draw with one finger or use <b>two fingers</b> to define a line
-      or circle. The saved motion begins looping as soon as you lift. A tap restarts its phase; a
-      drag takes manual control without erasing it. With latch on it keeps running on its own.</p>
-
-    <h3>Envelope (photo 3)</h3>
-    <p>The third photo shapes each note the way an ADSR does: <b>red sets the attack</b> (more red,
-      snappier — from a 1.5 s swell down to 2 ms), <b>green sets the sustain level</b> (how loud a
-      held note stays), and <b>blue sets the decay and release</b> (from 30 ms up to a 4 s tail).
-      Untouched, the sliders under Sound rule. It is latchable and automatable like the others.
-      Two sliders under Sound choose what the envelope acts on: <b>Env → Amp</b> is how much it
-      shapes loudness (below 100 % the level blends toward a plain click-free gate), and
-      <b>Env → Filter</b> sweeps the filter cut-off with the envelope — up to five octaves at
-      full, closing when the envelope is down and landing on the filter setting at its peak
-      (analog engine). <b>Legato</b> keeps the envelope alive for a moment after you lift, so
-      tapping from colour to colour glides instead of retriggering every note.</p>
-
-    <h3>FX photo (pad 4)</h3>
-    <p>The fourth pad is a photo like the others — camera, camera roll, demo, live feed, latch and
-      motion recording all work on it. The colour under the cursor drives <b>three effect
-      parameters</b>, chosen with the pull-down menus under the pad: the <b>red</b> channel's
-      strength sets the first, <b>green</b> the second, <b>blue</b> the third. Black means all
-      three off, pure white means all three at 100 %, and everything in between blends. The values
-      are written straight into the sliders in Edit, so lifting your finger keeps them where you
-      left them; <b>Reset</b> puts the three assigned sliders back to their defaults. Note that a
-      parameter only sounds if its effect module is switched on in the Effects panel.</p>
-
-    <h3>Voices — Mono/Unison and Polyphonic</h3>
-    <p><b>Voice mode</b> (Sound) chooses how the sixteen-voice pool is used. In
-      <b>Mono/Unison</b>, everything plays one note and the <b>Unison voices</b> slider (1–12)
-      stacks extra voices that sample the colours in rings around your finger — the radius set by
-      <b>Voice spread</b> — so the local texture of the photo becomes a chord riding on that one
-      note. Uniform areas thicken into a unison; detailed areas scatter into intervals.</p>
-    <p>In <b>Polyphonic</b> mode you can hold up to <b>4 notes at once</b> — chords on the
-      on-screen keyboard, the computer keys, or in a MIDI file all sound together (oldest note is
-      stolen when you exceed the count). Each note carries <b>1–4 oscillators</b>: the first plays
-      the colour under your finger, the rest sample a small ring around it, so every note in the
-      chord still gets the photo's texture. Touching the tone pad plays a note at the base note.
-      <b>Hold</b> sustains released keys until it is switched off.</p>
-    <p><b>Stereo width</b> pans voices by sampled hue or horizontal cursor position and adds a
-      small per-voice tuning offset; at zero, left and right are identical for true mono
-      compatibility. Both modes need the analog engine, and idle voices cost nothing — only the
-      voices actually sounding burn CPU.</p>
-
-    <h3>Effects</h3>
-    <p>A <b>Skin</b> switch at the top of the panel chooses between the uniform <b>Rack</b>
-      faceplates and <b>Boutique</b>, where every unit wears its own enclosure — hot-rod red
-      tube, sunburst phaser, dreamy blue chorus, glitch-violet stutter, cassette-label lofi,
-      tape-echo green delay and a deep-space reverb. Purely cosmetic and remembered on the
-      device.</p>
-    <p>The Effects panel is a real serial signal chain of seven modules: the tube stage, a vintage
-      <b>phaser</b> (four swept all-pass stages with feedback), a vintage <b>chorus</b> (two
-      opposite-phase modulated delay lines, rolled off dark), a rhythmic <b>stutter</b> gate, a
-      <b>lofi</b> stage (sample-rate crush, bit grit, hiss and crackle, soft dirt — all smoothed,
-      analog engine), the two-channel delay and the convolution reverb with <b>Room, Hall, Plate
-      and Spring</b> characters — spring is a chain of dispersive chirp echoes, the classic boing.
-      Drag the handle to reorder; tap a module to expand its controls. Each module has a <b>⏻
-      power switch</b>: a switched-off module is removed from the audio graph entirely, so
-      bypassing genuinely reduces CPU load — phaser, chorus, stutter and lofi start switched off,
-      and switching happens under a 60 ms master dip so it never pops. The delay's
-      <b>Character</b> switch chooses clean digital repeats or a <b>tape</b> mode (saturating,
-      dark, wobbly loop), and <b>Offset L↔R</b> delays one side up to 250 ms after the other for
-      wide, staggered echoes. The order and switches are remembered on this device, every module
-      preserves the stereo image, and the tube stage is <b>loudness-compensated</b>.</p>
-
-    <h3>Spectrum</h3>
-    <p>The <b>Spectra</b> panel, under Effects, holds characters rather than effects. A Spectrum
-      module is not a box in the signal path — it changes how every voice is built in the first
-      place, which is why each one wears its own enclosure instead of a shared faceplate. Arming one
-      re-colours the whole instrument; disarmed it costs nothing at all. <b>Dark Drone</b> is the
-      first of them.</p>
-
-    <h3>Dark Drone</h3>
-    <p>One switch (Spectrum → Dark Drone) arms a drone engine, and none of it costs any CPU while
-      the switch is off. <b>Sub level / Sub octave</b> put a thickened sine one or two octaves
-      under every voice, through the same filter. <b>Cluster</b> replaces the tidy ±3-cent unison
-      with an irregular microtonal spread of up to ±60 cents per voice step. <b>Env → Pitch</b>
-      makes notes sag toward an octave down as their envelope decays. <b>Drift</b> is an
-      ultra-slow random walk (30 s to 5 min characteristic time) leaning on the cut-off, the
-      detune and the delay time, so a held drone slowly comes apart on its own. Two live gestures
-      sit in the top bar: <b>Freeze</b> holds the delay tail forever — the loop's input closes,
-      feedback goes to unity under a soft limiter and the damping opens wide — and <b>Halt</b> is
-      a tape-stop that spins the pitch down (press again to spin back up). The delay's feedback
-      now reaches <b>112 %</b>: past unity the loop self-oscillates into a tanh limiter, and in
-      tape mode it degenerates into saturating, wobbling murk. The reverb gained a
-      <b>Reverse</b> character whose impulse swells in instead of decaying, so every note arrives
-      with a drawn-in breath.</p>
-
-    <h3>Filter modes</h3>
-    <p>Five types under Sound → Filter: <b>Low</b>, <b>Band</b> and <b>High</b> pass, <b>Notch</b>
-      (the inverse of band-pass — it removes the band at the cut-off, sweeping a hollow through
-      the sound), and <b>Comb</b> — a tuned feedback delay whose resonances sit at every multiple
-      of the cut-off frequency. Comb with high resonance rings like a struck string and is superb
-      for metallic drones; the envelope's → Filter amount sweeps its tuning.</p>
-
-    <h3>Presets</h3>
-    <p>The <b>Presets</b> panel saves the whole instrument: every control, the effect order, the FX
-      matrix corners and cursor, armed motions, latches, and small copies of the three photos.
-      Presets live only in this browser on this device — nothing is uploaded, and another device
-      cannot read them. <b>Export</b> writes a preset to a single file (settings and photos
-      included) that you can back up or move to another device yourself, and <b>Import</b> reads it
-      back. Because browsers can reclaim site storage after long disuse, export the presets you
-      care about.</p>
-
-    <h3>Live camera</h3>
-    <p><b>Live</b> (under each photo in Edit) replaces that photo with the live camera. Latch a
-      spot or arm a motion, then point the phone — whatever the camera sees plays the instrument,
-      also while a MIDI file plays and the recorder runs. The camera image is only sampled on the
-      device; nothing is sent anywhere.</p>
-
-    <h3>The voice</h3>
-    <p>The default <b>analog</b> engine is a virtual-analog monosynth running in an audio worklet:
-      two band-limited (PolyBLEP) oscillators morph from sine through triangle to saw and pulse,
-      drift a few cents apart the way two analogue oscillators never quite agree, and feed a
-      zero-delay-feedback Moog ladder filter with a saturating core. Oscillators and filter run at
-      twice the output rate and are filtered back down, so the waveshaping and the resonance stay
-      clean instead of folding aliases back into the tone.</p>
-    <p>The <b>additive</b> engine is the alternative: ten pure sine partials and a biquad filter.
-      Cleaner and glassier, and the fallback on browsers without audio worklets.</p>
-
-    <h3>Colour → tone (photo 1)</h3>
-    <ul>
-      <li><b>Hue → pitch.</b> With the default <i>spectral</i> law the hue is read as a wavelength
-        (red ≈ 700 nm through to violet ≈ 380 nm) and the interval follows the photon energy
-        <code>E = hc/λ</code>: <code>semitones ∝ log(700 nm / λ)</code>. Red plays the base note,
-        violet the top of the range you choose.</li>
-      <li><b>Saturation → waveform.</b> A washed-out grey is close to a pure sine; as the colour
-        saturates the wave morphs through triangle to a full saw or pulse.</li>
-      <li><b>Warm vs cool → odd/even balance.</b> Reds fold in a square wave, which has only odd
-        harmonics and sounds hollow and clarinet-like; blues stay on the saw and keep the complete
-        harmonic series.</li>
-      <li><b>Green → detune and a formant bump</b> on the third to fifth partial: more green, more
-        beating between the two oscillators and more vocal edge.</li>
-      <li><b>Value → loudness.</b> Dark corners of the photo are quiet, highlights are loud.</li>
-    </ul>
-
-    <h3>Colour → filter (photo 2)</h3>
-    <ul>
-      <li><b>Value → cut-off</b>, from 80 Hz in the shadows to 14 kHz in the highlights, so a dark
-        patch mutes the tone and a bright one opens it up.</li>
-      <li><b>Saturation → resonance</b>, from nothing to the edge of self-oscillation.</li>
-      <li><b>Hue → a resonant peak</b> swept from 180 Hz to 6 kHz by the same wavelength law, with
-        its height set by saturation. Grey pixels leave the sound uncoloured.</li>
-    </ul>
-    <p>The strip above the settings draws it: the bars are the harmonics of the current tone, the
-      curve is the filter your second finger is describing, and the solid bars are what survives.</p>
-
-    <h3>Keyboard and MIDI</h3>
-    <p><b>Keys</b> opens a keyboard that sets the <b>base note</b> — the note a pure red pixel
-      plays. Everything the photo does is an interval above it, so the same photo can be played in
-      any key. It follows the screen: fewer, wider keys in portrait, more of them in landscape, with
-      the octave buttons to move. <b>Hold</b> keeps the last key down. On a computer the rows
-      <code>zsxdcvgbhnjm</code> and <code>q2w3er5t6y7u</code> play the two octaves from the leftmost
-      key.</p>
-    <p>A <b>MIDI keyboard</b> plays it the same way. Press <b>Connect</b> under File and the browser
-      asks for MIDI access; from then on every key of the instrument sets the base note, so the photo
-      still supplies the interval and the timbre. Notes light up on the on-screen keyboard, chords go
-      to the poly slots like any other held key, the <b>sustain pedal</b> acts as Hold and the
-      <b>bend wheel</b> bends ±2 semitones. <b>Velocity</b> decides how much a note's loudness follows
-      how hard you play it — at 0 % every note is as loud as a touch on the photo. Pick a single
-      <b>Input</b> and <b>Channel</b> if more than one device is talking, and <b>Panic</b> if a note
-      ever hangs. Web MIDI exists in Chrome, Edge and Opera; Safari and Firefox do not have it, and
-      there the button says so and nothing else changes.</p>
-    <p>A <b>MIDI file</b> plays the base note for you: import a <code>.mid</code> and its melody
-      drives the transposition while the photos keep shaping the sound. The tempo comes from the
-      file itself and the slider scales it from a quarter speed to four times. In Mono/Unison mode
-      overlapping notes are reduced to the highest one; in <b>Polyphonic</b> mode the file's chords
-      play for real, up to the Notes setting, both live and in the offline render.</p>
-
-    <h3>Recording and export</h3>
-    <p><b>Record</b> captures the live output — playing, MIDI, filter sweeps and all — and
-      <b>Save WAV</b> writes it out as 24-bit stereo at the output sample rate. <b>Render MIDI →
-      WAV</b> instead renders the loaded file offline, faster than real time and sample-accurate,
-      using the colours currently under the two cursors.</p>
-
-    <h3>Photos</h3>
-    <p><b>Camera</b> opens the camera, <b>Photos</b> opens the camera roll (on iOS both live behind
-      the same picker, so either button gets you there). Nothing is uploaded — the photos are
-      decoded and read in the browser and never leave the phone. <b>Demo</b> loads a synthetic
-      spectrum chart if you just want to try it.</p>
-    <p>On an iPhone the browser follows the ring/silent switch for web audio: if the pads look alive
-      but you hear nothing, flip the switch or turn the volume up. Add the page to the home screen
-      for a full-screen instrument.</p>
-  </div>
-</details>
 
 <footer>Photo Synth 2 — everything runs in the browser; no photo or sound leaves the device.</footer>
 </div>
@@ -1932,7 +1732,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.16";
+  var BUILD_ID = "260821.17";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -3854,6 +3654,8 @@
         if (!p.motion && p.paused) setPadPaused(p, false);
         pb.setAttribute("aria-pressed", p.paused ? "true" : "false");
       }
+      var cb2 = document.querySelector('[data-clearmotion="' + p.key + '"]');
+      if (cb2) cb2.disabled = !p.motion;
     });
   }
 
@@ -5011,22 +4813,15 @@
     b.addEventListener("click", function () { setMode(b.getAttribute("data-mode-btn")); });
   });
 
-  /* Motion panel controls */
-  pads.forEach(function (pad) {
-    var btn = $("clearMotion-" + pad.key);
-    if (btn) btn.addEventListener("click", function () {
+  Array.prototype.forEach.call(document.querySelectorAll("[data-clearmotion]"), function (b) {
+    b.addEventListener("click", function () {
+      var pad = padOf(b.getAttribute("data-clearmotion"));
+      if (!pad) return;
       pad.motion = null;
       pad.auto = null;
+      setPadPaused(pad, false);
       pad.dirty = true;
       updateMotionUI();
-    });
-  });
-  Array.prototype.forEach.call(document.querySelectorAll("[data-twoshape]"), function (b) {
-    b.addEventListener("click", function () {
-      S.twoShape = b.getAttribute("data-twoshape");
-      Array.prototype.forEach.call(document.querySelectorAll("[data-twoshape]"), function (o) {
-        o.setAttribute("aria-pressed", o === b ? "true" : "false");
-      });
     });
   });
   $("mspeed").addEventListener("input", function (e) {
@@ -6900,8 +6695,7 @@
     // old presets carry darkOn or one name; new ones the whole armed stack
     var armList = p.specArmedList || (p.specArmed ? [p.specArmed] : (p.darkOn ? ["darkdrone"] : []));
     armList.forEach(specArmOne);
-    var tb = p.twoShape && document.querySelector('[data-twoshape="' + p.twoShape + '"]');
-    if (tb) tb.click();
+    if (p.twoShape) S.twoShape = p.twoShape;
     if (Array.isArray(p.fxOrder)) {
       var list = $("fxList");
       p.fxOrder.forEach(function (nm) {
@@ -7190,8 +6984,6 @@
   })();
 
   (function showBuild() {
-    var b = $("buildInfo");
-    if (b) b.textContent = "Build " + BUILD_ID + " · Brokild";
     var c = $("aboutBuild");
     if (c) c.textContent = "BUILD " + BUILD_ID;
     var h = document.querySelector("h1");
