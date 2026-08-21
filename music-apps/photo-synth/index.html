@@ -1378,7 +1378,7 @@
           <span class="spec-mark" aria-hidden="true">✦</span>
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">Glass Cathedral</span>
-            <span class="spec-sub">pure partials · slow light · a long hall</span>
+            <span class="spec-sub">slow light · a long hall · nothing dirty</span>
           </button>
           <button class="spec-rocker" id="glassBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Glass Cathedral" title="Engage Glass Cathedral"><span class="rocker-lens"><i></i></span></button>
@@ -1399,9 +1399,10 @@
             <div class="ctl"><input id="glassShine" type="range" min="0" max="100" value="60"></div>
             <output id="glassShineOut">60 %</output>
           </div>
-          <div class="note">The additive engine alone in a long hall: pure partials, notes that
-            open like light arriving and take their time to leave, the envelope sent into the
-            filter so every note dawns. Everything dirty is switched off while it holds the panel.
+          <div class="note">Your own tone, sent to church: notes open like light arriving and
+            take their time to leave, the envelope is sent into the filter so every note dawns,
+            and a long hall stands behind it. The oscillator is untouched — this colours the
+            sound, it does not replace it. Everything dirty is switched off while it holds the panel.
             <b>Air</b> is how slowly notes open and close, <b>Halo</b> the hall around them,
             <b>Shine</b> how far each note sweeps toward the light.</div>
         </div>
@@ -1863,7 +1864,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.4";
+  var BUILD_ID = "260821.5";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -5981,7 +5982,7 @@
   });
 
   SPEC_MODULES.glass = {
-    touches: ["engine", "attack", "release", "envAmp", "envFlt", "glide",
+    touches: ["attack", "release", "envAmp", "envFlt", "glide",
               "reverbMix", "reverbType", "reverbLength", "width", "spread"],
     apply: function () {
       var c = S.spec.glass, air = c.air / 100, ha = c.halo / 100, sh = c.shine / 100;
@@ -5994,7 +5995,7 @@
       setFXEnabled("chorus", false);
       setFXEnabled("reverb", true);
       specSetControls({
-        engine: "additive", glide: 30,
+        glide: 30,
         attack: Math.round(35 + 55 * air), release: Math.round(45 + 50 * air),
         envAmp: 100, envFlt: Math.round(35 + 65 * sh),
         reverbType: "hall", reverbMix: Math.round(25 + 45 * ha),
@@ -6593,10 +6594,11 @@
     function refresh() {
       if (!window.matchMedia("(min-width:1020px)").matches) { applyScale(1); return; }
       var k;
+      var fit = Math.max(0.55, (window.innerWidth - 28) / 1250);
       if (userSet) {
-        k = clamp(parseInt(sl.value, 10) / 100, 0.55, 1.4);
+        k = Math.min(clamp(parseInt(sl.value, 10) / 100, 0.55, 1.4), fit);
       } else {
-        k = clamp((window.innerWidth - 40) / 1250, 0.55, 1);
+        k = clamp(fit, 0.55, 1);
         sl.value = String(Math.round(k * 100));
       }
       applyScale(k);
