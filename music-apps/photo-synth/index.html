@@ -396,6 +396,21 @@
   .fx-controls .note{grid-column:1/-1}
   .fx-help{font-size:11px;color:#ab9f83;padding:4px 0 2px}
 
+  /* Where the envelope photo sends its shape. These live under photo 3
+     rather than in the Sound panel, because that is where the envelope is
+     made — and unlike the panel they stay reachable in Play mode. */
+  .padsend{
+    display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;
+    margin-top:6px;padding-top:6px;border-top:1px solid var(--line-soft);
+  }
+  .padsend .row{
+    display:grid;grid-template-columns:1fr auto;grid-template-areas:"lab out" "ctl ctl";
+    align-items:center;gap:2px 8px;border:0;padding:2px 0;min-width:0;
+  }
+  .padsend .row label{grid-area:lab;flex:none}
+  .padsend .row output{grid-area:out}
+  .padsend .row .ctl{grid-area:ctl;width:100%}
+
   /* ---------- Spectrum: character modules ----------
      Not effects in the chain — each one re-colours the whole instrument, so
      each gets an enclosure of its own rather than a shared faceplate. The
@@ -828,6 +843,18 @@
       <span class="swatch" id="swatch-env"></span>
       <span class="vals" id="vals-env">—<span class="sub">sliders in Edit set the envelope</span></span>
     </div>
+    <div class="padsend">
+      <div class="row">
+        <label for="envAmp">→ Amp</label>
+        <div class="ctl"><input id="envAmp" type="range" min="0" max="100" value="100"></div>
+        <output id="envAmpOut">100 %</output>
+      </div>
+      <div class="row">
+        <label for="envFlt">→ Filter</label>
+        <div class="ctl"><input id="envFlt" type="range" min="0" max="100" value="0"></div>
+        <output id="envFltOut">off</output>
+      </div>
+    </div>
     <div class="padbtns">
       <button class="btn" type="button" data-pick="env-camera">Camera</button>
       <button class="btn" type="button" data-pick="env-library">Photos</button>
@@ -982,11 +1009,16 @@
           <div class="ctl"><input id="glide" type="range" min="0" max="100" value="22"></div>
           <output id="glideOut">30 ms</output>
         </div>
+        <div class="row">
+          <label for="legato">Legato</label>
+          <div class="ctl"><input id="legato" type="range" min="0" max="100" value="24"></div>
+          <output id="legatoOut">120 ms</output>
+        </div>
       </div>
     </div>
 
     <div class="unit">
-      <div class="unitname">Envelope</div>
+      <div class="unitname">Envelope · fallback shape</div>
       <div class="ugrid">
         <div class="row wide">
           <label for="envSource">Shaped by</label>
@@ -1004,21 +1036,6 @@
           <label for="release">Release</label>
           <div class="ctl"><input id="release" type="range" min="0" max="100" value="30"></div>
           <output id="releaseOut">180 ms</output>
-        </div>
-        <div class="row">
-          <label for="envAmp">→ Amp</label>
-          <div class="ctl"><input id="envAmp" type="range" min="0" max="100" value="100"></div>
-          <output id="envAmpOut">100 %</output>
-        </div>
-        <div class="row">
-          <label for="envFlt">→ Filter</label>
-          <div class="ctl"><input id="envFlt" type="range" min="0" max="100" value="0"></div>
-          <output id="envFltOut">off</output>
-        </div>
-        <div class="row">
-          <label for="legato">Legato</label>
-          <div class="ctl"><input id="legato" type="range" min="0" max="100" value="24"></div>
-          <output id="legatoOut">120 ms</output>
         </div>
       </div>
     </div>
@@ -1941,7 +1958,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.10";
+  var BUILD_ID = "260821.11";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
