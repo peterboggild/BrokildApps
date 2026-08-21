@@ -73,6 +73,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.gate = 0; this.env = 0;
     this.phA = 0; this.phB = 0.37;
     this.triA = 0; this.triB = 0;
+    // DC blocker on the voice output (5 Hz): the ladder, the comb and an
+    // asymmetric pulse can all leave an offset behind.
+    this.dcxL = 0; this.dcyL = 0; this.dcxR = 0; this.dcyR = 0;
+    this.dcR = 1 - 6.2831853 * 5 / sampleRate;
     this.driftA = 0; this.driftB = 0;
     this.lfo = 0;
     this.lad = [new Ladder(), new Ladder()];
@@ -109,6 +113,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.env = 0; this.gate = 0; this.stage = 0; this.pg = 0;
       this.lad[0].reset(); this.lad[1].reset();
       this.phA = 0; this.phB = 0.37; this.triA = this.triB = 0;
+      this.dcxL = this.dcyL = this.dcxR = this.dcyR = 0;
     }
   }
 
@@ -275,8 +280,11 @@ class VoiceProcessor extends AudioWorkletProcessor {
       // to the filter instead (organ-style amplitude, swept tone). The
       // tape stop also fades the level out as the pitch falls.
       var amp = (envAmp * e + (1 - envAmp) * this.gl) * this.stopMul;
-      L[i] = clamp(sl * amp, -1.4, 1.4);
-      R[i] = clamp(sr * amp, -1.4, 1.4);
+      var dl = sl * amp, dr = sr * amp;
+      var yl = dl - this.dcxL + this.dcR * this.dcyL; this.dcxL = dl; this.dcyL = yl;
+      var yr = dr - this.dcxR + this.dcR * this.dcyR; this.dcxR = dr; this.dcyR = yr;
+      L[i] = clamp(yl, -1.4, 1.4);
+      R[i] = clamp(yr, -1.4, 1.4);
     }
     return true;
   }
@@ -293,7 +301,13 @@ class VoiceProcessor extends AudioWorkletProcessor {
     // running whatever wave is selected, so switching never jumps.
     var sq = (ph < pw ? 1 : -1) + polyBlep(ph, dt) - polyBlep((ph + 1 - pw) % 1, dt);
     var tri = which === "A" ? this.triA : this.triB;
-    tri += 4 * dt * sq;
+    // Integrate the square about its OWN mean. A pulse of width pw carries a
+    // DC term of (2*pw - 1), and pw is swept by the 0.11 Hz width LFO, so
+    // integrating the raw square made it accumulate a slow offset -- the whole
+    // waveform drifting off zero with a nine-second period, at up to 80 % of
+    // the signal's own peak-to-peak. The AC shape is untouched: only the term
+    // that had no business being there goes.
+    tri += 4 * dt * (sq - (2 * pw - 1));
     tri *= 0.9995;
     if (which === "A") this.triA = tri; else this.triB = tri;
 

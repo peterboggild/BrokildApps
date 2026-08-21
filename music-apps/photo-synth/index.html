@@ -2413,7 +2413,16 @@
       } catch (eLim) { g.limiter = null; }
     }
     forceStereo(g.comp);
-    g.comp.connect(g.master);
+    // Master DC blocker, ahead of the master gain and the limiter. The tube
+    // stage saturates asymmetrically and the delay/reverb loops can integrate
+    // an offset of their own; an offset otherwise eats headroom and makes the
+    // limiter duck on one side of the waveform only.
+    g.dcBlock = ctx.createBiquadFilter();
+    g.dcBlock.type = "highpass";
+    g.dcBlock.frequency.value = 5;
+    g.dcBlock.Q.value = 0.5;
+    g.comp.connect(g.dcBlock);
+    g.dcBlock.connect(g.master);
     if (g.limiter) { g.master.connect(g.limiter); g.limiter.connect(ctx.destination); }
     else g.master.connect(ctx.destination);
     refreshSaturation(g);
