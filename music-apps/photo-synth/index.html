@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#0c0a07">
 <meta name="color-scheme" content="dark">
-<meta name="description" content="Photo Synth turns two photos into a musical instrument: point at one photo and its colour becomes a tone, touch the other and its colour filters the sound. Virtual-analog oscillators and a ladder filter, an on-screen keyboard, MIDI import and 24-bit WAV export. Works with the camera or the camera roll, on Android and iOS.">
+<meta name="description" content="Photo Synth turns two photos into a musical instrument: point at one photo and its colour becomes a tone, touch the other and its colour filters the sound. Virtual-analog oscillators and a ladder filter, an on-screen keyboard, live MIDI keyboard input, MIDI import and 24-bit WAV export. Works with the camera or the camera roll, on Android and iOS.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -392,6 +392,78 @@
   }
   .fx-controls .note{grid-column:1/-1}
   .fx-help{font-size:11px;color:#ab9f83;padding:4px 0 2px}
+
+  /* ---------- Spectrum: character modules ----------
+     Not effects in the chain — each one re-colours the whole instrument, so
+     each gets an enclosure of its own rather than a shared faceplate. The
+     shell below is deliberately plain; the character lives entirely in the
+     per-module block, which is all a new module needs to bring with it. */
+  .spec-list{display:grid;gap:11px;padding-top:2px}
+  .spec-module{
+    --spc:var(--accent);--spglow:rgba(240,168,72,.5);
+    --fxc:var(--spc);--fxglow:var(--spglow);   /* slider knobs pick the module's colour up */
+    background:linear-gradient(180deg,#1b1710,#100d08);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 3px 12px rgba(0,0,0,.4);
+    transition:box-shadow .25s,opacity .25s;
+  }
+  .spec-head{display:flex;align-items:center;gap:9px;min-height:52px;padding:6px 11px}
+  .spec-mark{
+    font-size:20px;line-height:1;flex:none;color:var(--spc);
+    text-shadow:0 0 14px var(--spglow);transition:opacity .25s;
+  }
+  .spec-toggle{
+    appearance:none;border:0;background:transparent;color:var(--text);font:inherit;text-align:left;
+    padding:7px 3px;cursor:pointer;display:flex;align-items:baseline;gap:9px;flex:1 1 auto;min-width:0;
+  }
+  .spec-name{font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+  .spec-sub{font-size:11px;color:var(--faint);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .spec-toggle::after{content:"+";color:var(--faint);font-size:15px;margin-left:auto;padding-left:8px}
+  .spec-toggle[aria-expanded="true"]::after{content:"–"}
+  .spec-power{
+    flex:none;padding:7px 13px;font-size:11.5px;line-height:1;border-radius:8px;
+    letter-spacing:.12em;text-transform:uppercase;
+  }
+  .spec-power[aria-pressed="false"]{color:var(--faint)}
+  .spec-power[aria-pressed="true"]{
+    border-color:var(--spc);color:#0a0507;background:var(--spc);font-weight:700;
+    box-shadow:0 0 16px var(--spglow);
+  }
+  .spec-controls{
+    display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;
+    padding:8px 12px 11px;border-top:1px solid var(--line-soft);
+  }
+  .spec-controls .note{grid-column:1/-1}
+  .spec-controls .row output{color:var(--spc);text-shadow:0 0 6px var(--spglow)}
+  .spec-module.spec-off{opacity:.72}
+  .spec-module.spec-off .spec-mark{opacity:.45}
+
+  /* Dark Drone — sinister: near-black, blood-red edge, a serif nameplate and
+     a cold fog creeping up from the bottom. Armed, the whole plate glows. */
+  .spec-module[data-spec="darkdrone"]{
+    --spc:#c8384f;--spglow:rgba(200,56,79,.6);
+    background:
+      radial-gradient(130% 90% at 50% 118%,rgba(150,20,45,.30),transparent 62%),
+      repeating-linear-gradient(0deg,rgba(255,255,255,.016) 0 1px,transparent 1px 5px),
+      linear-gradient(180deg,#120a0d,#060304);
+    border-color:#3f1621;border-radius:3px;
+    box-shadow:0 0 30px rgba(120,10,30,.18) inset,0 3px 16px rgba(0,0,0,.65);
+  }
+  .spec-module[data-spec="darkdrone"]:not(.spec-off){
+    border-color:#6d2131;
+    box-shadow:0 0 44px rgba(150,15,40,.30) inset,0 0 16px rgba(150,15,40,.22),0 3px 16px rgba(0,0,0,.7);
+  }
+  .spec-module[data-spec="darkdrone"] .spec-name{
+    font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-spacing:.34em;font-size:14px;
+    color:#e8697d;text-shadow:0 0 16px rgba(200,56,79,.85),0 1px 2px #000;
+  }
+  .spec-module[data-spec="darkdrone"] .spec-sub{color:#8e6b73;font-style:italic;letter-spacing:.02em}
+  .spec-module[data-spec="darkdrone"] .spec-power{border-radius:2px}
+  .spec-module[data-spec="darkdrone"] .spec-controls{border-top-color:#2c1017}
+  .spec-module[data-spec="darkdrone"] .spec-controls .row label,
+  .spec-module[data-spec="darkdrone"] .spec-controls .row .lab{color:#9b7d84}
+  .spec-module[data-spec="darkdrone"] .spec-controls .note{color:#8e747a}
+
   select{
     appearance:none;width:100%;font:inherit;font-size:13px;color:var(--text);
     background:linear-gradient(180deg,#2c251a,#1d1811);
@@ -767,53 +839,6 @@
       </div>
     </div>
 
-    <div class="unit" id="darkUnit">
-      <div class="unitname">Dark drone</div>
-      <div class="ugrid">
-        <div class="row wide">
-          <span class="lab">Mode</span>
-          <div class="ctl seg">
-            <button class="btn" id="darkBtn" type="button" aria-pressed="false">Engage Dark Drone</button>
-          </div>
-        </div>
-        <div class="row">
-          <label for="subLevel">Sub level</label>
-          <div class="ctl"><input id="subLevel" type="range" min="0" max="100" value="50"></div>
-          <output id="subLevelOut">50 %</output>
-        </div>
-        <div class="row">
-          <label for="subOct">Sub octave</label>
-          <div class="ctl"><input id="subOct" type="range" min="1" max="2" step="1" value="1"></div>
-          <output id="subOctOut">−1 oct</output>
-        </div>
-        <div class="row">
-          <label for="darkCluster">Cluster</label>
-          <div class="ctl"><input id="darkCluster" type="range" min="0" max="60" value="24"></div>
-          <output id="darkClusterOut">±24 ¢</output>
-        </div>
-        <div class="row">
-          <label for="envPitch">Env → Pitch</label>
-          <div class="ctl"><input id="envPitch" type="range" min="0" max="100" value="25"></div>
-          <output id="envPitchOut">25 %</output>
-        </div>
-        <div class="row">
-          <label for="drift">Drift</label>
-          <div class="ctl"><input id="drift" type="range" min="0" max="100" value="40"></div>
-          <output id="driftOut">40 %</output>
-        </div>
-        <div class="row">
-          <label for="driftSpeed">Drift time</label>
-          <div class="ctl"><input id="driftSpeed" type="range" min="0" max="100" value="40"></div>
-          <output id="driftSpeedOut">2.0 min</output>
-        </div>
-      </div>
-      <div class="note">One switch arms the whole drone engine: a sub-oscillator under every
-        voice, microtonal cluster detune instead of tidy unison, a slow random drift on cut-off,
-        detune and delay time, and a pitch sag as notes decay. Off, none of it costs a single
-        cycle. <b>Freeze</b> (top bar) holds the delay tail forever — feedback past 100 % howls
-        under a soft limiter — and <b>Halt</b> is the tape-stop. Sub, pitch sag and Halt live in
-        the analog engine; the additive fallback ignores them.</div>
-    </div>
 
     <div class="unit">
       <div class="unitname">Filter</div>
@@ -1060,6 +1085,66 @@
   </div>
 </details>
 
+<details id="spectrumPanel">
+  <summary>Spectrum</summary>
+  <div class="body">
+    <div class="fx-help">A Spectrum module is a character rather than an effect: it does not sit in
+      the signal path but re-shapes how every voice is built. Arm one and the whole instrument
+      changes flavour.</div>
+    <div class="spec-list" id="specList" aria-label="Spectrum character modules">
+      <section class="spec-module spec-off" data-spec="darkdrone" id="darkUnit">
+        <div class="spec-head">
+          <span class="spec-mark" aria-hidden="true">☾</span>
+          <button class="spec-toggle" type="button" aria-expanded="true">
+            <span class="spec-name">Dark Drone</span>
+            <span class="spec-sub">sub octave · cluster detune · drift · pitch sag</span>
+          </button>
+          <button class="btn spec-power" id="darkBtn" type="button" aria-pressed="false"
+                  aria-label="Engage Dark Drone">Engage</button>
+        </div>
+        <div class="spec-controls">
+          <div class="row">
+            <label for="subLevel">Sub level</label>
+            <div class="ctl"><input id="subLevel" type="range" min="0" max="100" value="50"></div>
+            <output id="subLevelOut">50 %</output>
+          </div>
+          <div class="row">
+            <label for="subOct">Sub octave</label>
+            <div class="ctl"><input id="subOct" type="range" min="1" max="2" step="1" value="1"></div>
+            <output id="subOctOut">−1 oct</output>
+          </div>
+          <div class="row">
+            <label for="darkCluster">Cluster</label>
+            <div class="ctl"><input id="darkCluster" type="range" min="0" max="60" value="24"></div>
+            <output id="darkClusterOut">±24 ¢</output>
+          </div>
+          <div class="row">
+            <label for="envPitch">Env → Pitch</label>
+            <div class="ctl"><input id="envPitch" type="range" min="0" max="100" value="25"></div>
+            <output id="envPitchOut">25 %</output>
+          </div>
+          <div class="row">
+            <label for="drift">Drift</label>
+            <div class="ctl"><input id="drift" type="range" min="0" max="100" value="40"></div>
+            <output id="driftOut">40 %</output>
+          </div>
+          <div class="row">
+            <label for="driftSpeed">Drift time</label>
+            <div class="ctl"><input id="driftSpeed" type="range" min="0" max="100" value="40"></div>
+            <output id="driftSpeedOut">2.0 min</output>
+          </div>
+          <div class="note">One switch arms the whole drone engine: a sub-oscillator under every
+            voice, microtonal cluster detune instead of tidy unison, a slow random drift on cut-off,
+            detune and delay time, and a pitch sag as notes decay. Off, none of it costs a single
+            cycle. <b>Freeze</b> (top bar) holds the delay tail forever — feedback past 100 % howls
+            under a soft limiter — and <b>Halt</b> is the tape-stop. Sub, pitch sag and Halt live in
+            the analog engine; the additive fallback ignores them.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+</details>
+
 <details id="motionPanel">
   <summary>Motion</summary>
   <div class="body">
@@ -1126,6 +1211,38 @@
 <details id="midiPanel">
   <summary>File — MIDI in · audio out</summary>
   <div class="body">
+    <div class="row">
+      <span class="lab">MIDI keyboard</span>
+      <div class="ctl seg">
+        <button class="btn" id="midiInBtn" type="button" aria-pressed="false">Connect</button>
+        <button class="btn" id="midiPanic" type="button" title="Release every held MIDI note">Panic</button>
+      </div>
+    </div>
+    <div class="row">
+      <label for="midiInDev">Input</label>
+      <div class="ctl"><select id="midiInDev" disabled>
+        <option value="all" selected>All inputs</option>
+      </select></div>
+    </div>
+    <div class="row">
+      <label for="midiInChan">Channel</label>
+      <div class="ctl"><select id="midiInChan"></select></div>
+    </div>
+    <div class="row">
+      <label for="midiVel">Velocity</label>
+      <div class="ctl"><input id="midiVel" type="range" min="0" max="100" value="60"></div>
+      <output id="midiVelOut">60 %</output>
+    </div>
+    <div class="row">
+      <span class="lab">Status</span>
+      <span class="info" id="midiInInfo">not connected</span>
+    </div>
+    <div class="note">Play the synth from a hardware keyboard. <b>Connect</b> asks the browser for
+      MIDI access — Chrome, Edge and Opera have Web MIDI; Safari and Firefox do not. A key sets the
+      base note exactly like the on-screen keys, so photo 1 still decides the interval and the
+      timbre. <b>Velocity</b> is how far loudness follows how hard you play (0 % = every note the
+      same); the sustain pedal works as Hold, and the bend wheel bends ±2 semitones.</div>
+    <div class="sep"></div>
     <div class="row">
       <span class="lab">MIDI file</span>
       <div class="ctl seg">
@@ -1251,8 +1368,15 @@
       wide, staggered echoes. The order and switches are remembered on this device, every module
       preserves the stereo image, and the tube stage is <b>loudness-compensated</b>.</p>
 
+    <h3>Spectrum</h3>
+    <p>The <b>Spectrum</b> panel, under Effects, holds characters rather than effects. A Spectrum
+      module is not a box in the signal path — it changes how every voice is built in the first
+      place, which is why each one wears its own enclosure instead of a shared faceplate. Arming one
+      re-colours the whole instrument; disarmed it costs nothing at all. <b>Dark Drone</b> is the
+      first of them.</p>
+
     <h3>Dark Drone</h3>
-    <p>One switch (Sound → Dark drone) arms a drone engine, and none of it costs any CPU while
+    <p>One switch (Spectrum → Dark Drone) arms a drone engine, and none of it costs any CPU while
       the switch is off. <b>Sub level / Sub octave</b> put a thickened sine one or two octaves
       under every voice, through the same filter. <b>Cluster</b> replaces the tidy ±3-cent unison
       with an irregular microtonal spread of up to ±60 cents per voice step. <b>Env → Pitch</b>
@@ -1333,6 +1457,15 @@
       the octave buttons to move. <b>Hold</b> keeps the last key down. On a computer the rows
       <code>zsxdcvgbhnjm</code> and <code>q2w3er5t6y7u</code> play the two octaves from the leftmost
       key.</p>
+    <p>A <b>MIDI keyboard</b> plays it the same way. Press <b>Connect</b> under File and the browser
+      asks for MIDI access; from then on every key of the instrument sets the base note, so the photo
+      still supplies the interval and the timbre. Notes light up on the on-screen keyboard, chords go
+      to the poly slots like any other held key, the <b>sustain pedal</b> acts as Hold and the
+      <b>bend wheel</b> bends ±2 semitones. <b>Velocity</b> decides how much a note's loudness follows
+      how hard you play it — at 0 % every note is as loud as a touch on the photo. Pick a single
+      <b>Input</b> and <b>Channel</b> if more than one device is talking, and <b>Panic</b> if a note
+      ever hangs. Web MIDI exists in Chrome, Edge and Opera; Safari and Firefox do not have it, and
+      there the button says so and nothing else changes.</p>
     <p>A <b>MIDI file</b> plays the base note for you: import a <code>.mid</code> and its melody
       drives the transposition while the photos keep shaping the sound. The tempo comes from the
       file itself and the slider scales it from a quarter speed to four times. In Mono/Unison mode
@@ -1457,6 +1590,7 @@
     law: "spectral",
     scale: "free",
     baseMidi: 48,          // C3
+    midiVel: 0.6,          // how far MIDI velocity moves the level (0 = flat)
     octaves: 3,
     glide: 0.030,
     drive: 0.25,
@@ -1545,7 +1679,11 @@
       });
     } catch (ignore) {}
   })();
-  function baseFreq() { return mtof(S.baseMidi); }
+  /* Every note the synth plays goes through noteFreq: the pitch-bend wheel of
+   * a connected MIDI keyboard offsets it. mtof() itself stays unbent — it also
+   * labels notes in the Base note list. */
+  function noteFreq(m) { return mtof(m + midiIn.bend); }
+  function baseFreq() { return noteFreq(S.baseMidi); }
 
   /* Envelope photo (pad 3): red = attack, green = sustain, blue = decay.
    * When it is not engaged the Sound sliders rule, exactly as before. */
@@ -1704,7 +1842,7 @@
     return {
       base: baseFreq(), ratio: tone.ratio * voiceFineRatio(index),
       morph: tone.morph, pulse: tone.pulse, detune: tone.detune + driftDetAdd(),
-      level: tone.level * (S.engine === "analog" ? voiceNorm() : 1),
+      level: tone.level * (S.engine === "analog" ? voiceNorm() : 1) * velGain(midiIn.vel),
       cut: clamp(filt.cut * driftCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
       drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
@@ -1740,8 +1878,17 @@
   var polySlots = [];
   var polySeq = 0;
   (function () {
-    for (var i = 0; i < 4; i++) polySlots.push({ src: null, note: null, on: false, sustained: false, seq: 0 });
+    for (var i = 0; i < 4; i++) polySlots.push({ src: null, note: null, on: false, sustained: false, seq: 0, vel: 1 });
   })();
+
+  /* How far a note's loudness follows MIDI velocity. At 0 % every note is as
+   * loud as a touch on the photo, which is how the synth behaved before a
+   * keyboard could be plugged in. */
+  function velGain(v) {
+    var a = S.midiVel;
+    if (!a) return 1;
+    return 1 - a + a * (v === undefined || v === null ? 1 : v);
+  }
 
   function polyActive() { return S.voiceMode === "poly" && engineIsAnalog(A); }
 
@@ -1751,11 +1898,11 @@
 
   function polyClearSlots() {
     polySlots.forEach(function (s) {
-      s.src = null; s.note = null; s.on = false; s.sustained = false;
+      s.src = null; s.note = null; s.on = false; s.sustained = false; s.vel = 1;
     });
   }
 
-  function polyNoteOn(src, note) {
+  function polyNoteOn(src, note, vel) {
     var pick = -1, i;
     for (i = 0; i < S.polyNotes; i++) if (polySlots[i].src === src) { pick = i; break; }
     if (pick < 0) for (i = 0; i < S.polyNotes; i++) if (!polySlots[i].on && !polySlots[i].sustained) { pick = i; break; }
@@ -1765,6 +1912,7 @@
     }
     var s = polySlots[pick];
     s.src = src; s.note = note; s.on = true; s.sustained = false; s.seq = ++polySeq;
+    s.vel = vel === undefined ? 1 : vel;
     pushVoices();
   }
 
@@ -2466,9 +2614,9 @@
       for (k in shared) msg[k] = shared[k];
       for (k in tp) msg[k] = tp[k];
       msg.ratio = tp.ratio * Math.pow(2, fineCents(o, oscN) / 1200);
-      msg.level = tp.level * norm;
+      msg.level = tp.level * norm * velGain(slot.vel);
       if (!midi.playing) {
-        msg.base = mtof(slot.note);
+        msg.base = noteFreq(slot.note);
         msg.gate = slot.on || slot.sustained ? 1 : 0;
       }
       node.port.postMessage({ type: "params", p: msg });
@@ -2511,7 +2659,7 @@
         for (k in shared) msg[k] = shared[k];
         for (k in p) msg[k] = p[k];
         msg.ratio = p.ratio * voiceFineRatio(i + 1);
-        msg.level = p.level * norm;
+        msg.level = p.level * norm * velGain(midiIn.vel);
         msg.gate = gateOn ? 1 : 0;       // late joiners pick up the held gate
         A.extras[i].node.port.postMessage({ type: "params", p: msg });
         setPan(A.extras[i].pan, voicePan(rgb, sx, padTone.w), A.ctx.currentTime, true);
@@ -2741,6 +2889,7 @@
     this.pix = null;                    // pixels of the sampling buffer
     this.pw = 0; this.ph = 0;
     this.pos = null;                    // {x,y} in CSS px of the canvas
+    this.pending = null;                // a restore waiting for the pad to be measured
     this.active = false;
     this.latched = false;
     this.pointerId = null;
@@ -2754,17 +2903,70 @@
     this.recP2 = null;                  // second finger of a two-finger shape define
   }
 
+  /* Everything a pad holds in canvas pixels — the cursor, an armed motion, a
+   * motion currently replaying, a take being recorded — is rescaled when the
+   * pad itself changes size, so it keeps the same spot on the photo. Without
+   * this, switching Play <-> Edit (the columns are laid out differently, so
+   * the pads are a different width) left the cursor on a new colour and the
+   * sound jumped. */
+  Pad.prototype.rescale = function (kx, ky) {
+    var kr = (kx + ky) / 2;                        // a radius has no single axis
+    function scalePts(pts) {
+      if (!pts) return;
+      for (var i = 0; i < pts.length; i++) { pts[i].dx *= kx; pts[i].dy *= ky; }
+    }
+    if (this.pos) { this.pos.x *= kx; this.pos.y *= ky; }
+    if (this.motion) { this.motion.dx *= kx; this.motion.dy *= ky; scalePts(this.motion.pts); }
+    if (this.auto) {
+      var a = this.auto;
+      a.x0 *= kx; a.y0 *= ky;
+      if (a.r !== undefined) { a.cx *= kx; a.cy *= ky; a.r *= kr; }
+      // a.m is normally the pad's own motion, already scaled above; only an
+      // orphaned copy (motion replaced while it was running) needs its own.
+      if (a.m && a.m !== this.motion) { a.m.dx *= kx; a.m.dy *= ky; scalePts(a.m.pts); }
+    }
+    if (this.recCap) { this.recCap.x0 *= kx; this.recCap.y0 *= ky; scalePts(this.recCap.pts); }
+    if (this.recP2 && this.recP2.pos) { this.recP2.pos.x *= kx; this.recP2.pos.y *= ky; }
+  };
+
+  /* Restore the cursor and the armed motion from the fractions a preset (or
+   * the plugin's live state) stores them as. If the pad has no size yet the
+   * request is parked on the pad and replayed by resize() the moment it does,
+   * so a restore can never be lost to a pad that has not been laid out. */
+  Pad.prototype.setGeometryFrom = function (pp) {
+    if (!pp) return;
+    if (!this.w || !this.h) { this.pending = pp; return; }
+    this.pending = null;
+    this.motion = motionIn(this, pp.motion);
+    if (pp.pos) {
+      this.pos = { x: clamp(pp.pos.x, 0, 1) * this.w, y: clamp(pp.pos.y, 0, 1) * this.h };
+      var hint = $("hint-" + this.key);
+      if (hint) hint.style.display = "none";
+      apply(this);
+    } else {
+      this.pos = null;
+    }
+    this.dirty = true;
+  };
+
   Pad.prototype.resize = function () {
     var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
     var r = this.canvas.getBoundingClientRect();
     if (!r.width || !r.height) return;
     var w = Math.round(r.width), h = Math.round(r.height);
     if (this.w === w && this.h === h && this.canvas.width === Math.round(w * dpr)) return;
+    if (this.w && this.h && (this.w !== w || this.h !== h)) this.rescale(w / this.w, h / this.h);
     this.w = w; this.h = h;
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
     this.ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.dirty = true;
+    if (this.pending) {
+      var pp = this.pending;
+      this.setGeometryFrom(pp);
+      if (this.latched && this.motion && this.pos) this.auto = startAuto(this, this.pos);
+      updateGate();
+    }
   };
 
   // The source being shown: the live camera when enabled, else the photo.
@@ -3299,6 +3501,7 @@
     whites: [], blacks: [],
     down: {},                  // pointerId -> midi note
     keysDown: {},              // physical key -> midi note
+    midiDown: {},              // "n"+note -> midi note, from a connected MIDI keyboard
     dirty: true
   };
   kb.g = kb.canvas.getContext("2d");
@@ -3340,6 +3543,10 @@
     var out = [], id;
     for (id in kb.down) out.push(kb.down[id]);
     for (id in kb.keysDown) out.push(kb.keysDown[id]);
+    // String keys ("n60"), so these keep the order they were pressed in: when
+    // one note of a chord is released the newest one still holding takes the
+    // base note back, exactly like the on-screen keys.
+    for (id in kb.midiDown) out.push(kb.midiDown[id]);
     return out;
   }
 
@@ -3530,7 +3737,9 @@
       if (!pad.latched) pad.auto = null;
       pad.dirty = true;
     });
-    gates.key = false;
+    // Notes held on a MIDI keyboard are deliberately left alone: the hardware
+    // sends its own note-off, and losing focus should not cut a chord short.
+    gates.key = kbHeld().length > 0;
     gates.pad = false;
     updateGate();
   }
@@ -4208,6 +4417,197 @@
   });
 
   /* ================================================================== *
+   * Live MIDI in (Web MIDI): a hardware keyboard plays the synth
+   *
+   * A MIDI key does exactly what an on-screen key does — it sets the base
+   * note — so the photo still decides the interval above it and the whole
+   * timbre. Held notes live in kb.midiDown, which means the keyboard drawing,
+   * the gate and the poly slots all treat them like any other key.
+   * ================================================================== */
+  var midiIn = {
+    access: null,
+    bound: [],             // the inputs we are listening to right now
+    deviceId: "all",
+    channel: 0,            // 0 = omni
+    vel: 1,                // velocity of the most recent note, 0..1
+    bend: 0                // pitch bend, in semitones
+  };
+  var MIDI_BEND_RANGE = 2;                 // semitones, the usual keyboard default
+
+  function midiInStatus(t) { $("midiInInfo").textContent = t; }
+  function midiHeldCount() { var n = 0, k; for (k in kb.midiDown) n++; return n; }
+
+  function midiNoteOn(note, vel) {
+    if (midi.playing) return;              // a MIDI file playing owns the base note
+    if (!audioOn) setPower(true); else ensureAudio();
+    midiIn.vel = vel;
+    kb.midiDown["n" + note] = note;
+    setBase(note);
+    if (polyActive()) polyNoteOn("midi" + note, note, vel);
+    gates.key = true;
+    retriggerMotion();
+    updateGate();
+    kb.dirty = true;
+  }
+
+  function midiNoteOff(note) {
+    if (!(("n" + note) in kb.midiDown)) return;
+    delete kb.midiDown["n" + note];
+    if (polyActive()) polyNoteOff("midi" + note);
+    var held = kbHeld();
+    if (held.length) setBase(held[held.length - 1]);
+    else { gates.key = false; updateGate(); }
+    kb.dirty = true;
+  }
+
+  /* Panic / All notes off / a change of device or channel: nothing can be
+   * left holding, and the wheel goes back to centre. */
+  function midiAllOff() {
+    kb.midiDown = {};
+    releasePolyKeys("midi");
+    midiIn.vel = 1;
+    midiIn.bend = 0;
+    gates.key = kbHeld().length > 0;
+    updateGate();
+    pushAudio();
+    kb.dirty = true;
+  }
+
+  function midiMessage(ev) {
+    var d = ev.data;
+    if (!d || d.length < 2) return;
+    var st = d[0];
+    if (st < 0x80 || st >= 0xf0) return;   // running status or a system message
+    var cmd = st & 0xf0, ch = (st & 0x0f) + 1;
+    if (midiIn.channel && ch !== midiIn.channel) return;
+    if (d.length < 3) return;              // everything below is a 3-byte message
+    if (cmd === 0x90 && d[2] > 0) midiNoteOn(d[1], d[2] / 127);
+    else if (cmd === 0x80 || cmd === 0x90) midiNoteOff(d[1]);
+    else if (cmd === 0xe0) {
+      midiIn.bend = ((((d[2] << 7) | d[1]) - 8192) / 8192) * MIDI_BEND_RANGE;
+      pushAudio();                         // base frequency only: it glides, nothing retriggers
+    } else if (cmd === 0xb0) {
+      if (d[1] === 64) setHold(d[2] >= 64);              // sustain pedal = Hold
+      else if (d[1] === 120 || d[1] === 123) midiAllOff();
+    }
+  }
+
+  function midiInputList() {
+    var out = [];
+    if (midiIn.access && midiIn.access.inputs) {
+      midiIn.access.inputs.forEach(function (inp) { out.push(inp); });
+    }
+    return out;
+  }
+
+  function midiInDescribe() {
+    var list = midiInputList();
+    if (!list.length) return "connected — no MIDI device found";
+    return midiIn.bound.length + " of " + list.length + " input" + (list.length === 1 ? "" : "s")
+      + " listening · " + (midiIn.channel ? "channel " + midiIn.channel : "omni");
+  }
+
+  function bindMidiInputs() {
+    var i;
+    for (i = 0; i < midiIn.bound.length; i++) {
+      try { midiIn.bound[i].onmidimessage = null; } catch (e) {}
+    }
+    midiIn.bound = [];
+    var list = midiInputList();
+    for (i = 0; i < list.length; i++) {
+      if (midiIn.deviceId !== "all" && list[i].id !== midiIn.deviceId) continue;
+      list[i].onmidimessage = midiMessage;
+      midiIn.bound.push(list[i]);
+    }
+    midiAllOff();
+    midiInStatus(midiInDescribe());
+  }
+
+  /* Rebuild the device list — also the onstatechange handler, so plugging a
+   * keyboard in while the page is open just works. */
+  function refreshMidiInputs() {
+    var sel = $("midiInDev"), list = midiInputList(), i, o, found = false;
+    sel.innerHTML = "";
+    o = document.createElement("option");
+    o.value = "all"; o.textContent = "All inputs";
+    sel.appendChild(o);
+    for (i = 0; i < list.length; i++) {
+      o = document.createElement("option");
+      o.value = list[i].id;
+      o.textContent = list[i].name || ("input " + (i + 1));
+      if (list[i].manufacturer) o.textContent += " · " + list[i].manufacturer;
+      sel.appendChild(o);
+      if (list[i].id === midiIn.deviceId) found = true;
+    }
+    if (!found) midiIn.deviceId = "all";    // the chosen device went away
+    sel.value = midiIn.deviceId;
+    sel.disabled = false;
+    bindMidiInputs();
+  }
+
+  function connectMidiIn(auto) {
+    if (!navigator.requestMIDIAccess) {
+      midiInStatus("this browser has no Web MIDI — try Chrome, Edge or Opera");
+      return;
+    }
+    if (midiIn.access) { refreshMidiInputs(); return; }
+    if (!auto) midiInStatus("asking the browser for MIDI access…");
+    navigator.requestMIDIAccess({ sysex: false }).then(function (acc) {
+      midiIn.access = acc;
+      acc.onstatechange = function () { refreshMidiInputs(); };
+      $("midiInBtn").setAttribute("aria-pressed", "true");
+      $("midiInBtn").textContent = "Connected";
+      refreshMidiInputs();
+      try { localStorage.setItem("photoSynth.midiIn", "1"); } catch (ignore) {}
+    }).catch(function (err) {
+      midiInStatus(auto ? "not connected"
+        : "MIDI access refused" + (err && err.name ? " (" + err.name + ")" : ""));
+    });
+  }
+
+  $("midiInBtn").addEventListener("click", function () {
+    // A click is a user gesture, so the audio context can be unlocked here —
+    // an incoming MIDI message is not one and could not start the sound.
+    ensureAudio();
+    connectMidiIn(false);
+  });
+  $("midiPanic").addEventListener("click", function () { setHold(false); midiAllOff(); });
+  $("midiInDev").addEventListener("change", function (e) {
+    midiIn.deviceId = e.target.value;
+    bindMidiInputs();
+  });
+  $("midiInChan").addEventListener("change", function (e) {
+    midiIn.channel = parseInt(e.target.value, 10) || 0;
+    midiAllOff();
+    if (midiIn.access) midiInStatus(midiInDescribe());
+    try { localStorage.setItem("photoSynth.midiChan", String(midiIn.channel)); } catch (ignore) {}
+  });
+  $("midiVel").addEventListener("input", function (e) {
+    S.midiVel = e.target.value / 100;
+    $("midiVelOut").textContent = e.target.value + " %";
+    try { localStorage.setItem("photoSynth.midiVel", e.target.value); } catch (ignore) {}
+    pushAudio();
+  });
+
+  (function initMidiInUI() {
+    var sel = $("midiInChan"), i, o;
+    for (i = 0; i <= 16; i++) {
+      o = document.createElement("option");
+      o.value = String(i);
+      o.textContent = i === 0 ? "Omni (all channels)" : String(i);
+      sel.appendChild(o);
+    }
+    try {
+      var c = parseInt(localStorage.getItem("photoSynth.midiChan"), 10);
+      if (c >= 0 && c <= 16) midiIn.channel = c;
+      var v = parseInt(localStorage.getItem("photoSynth.midiVel"), 10);
+      if (v >= 0 && v <= 100) $("midiVel").value = String(v);
+    } catch (ignore) {}
+    sel.value = String(midiIn.channel);
+    if (!navigator.requestMIDIAccess) midiInStatus("this browser has no Web MIDI");
+  })();
+
+  /* ================================================================== *
    * MIDI file import
    * ================================================================== */
   var midi = {
@@ -4367,7 +4767,7 @@
         var evs = list.map(function (it) {
           var frame = Math.max(0, Math.round((t0 + it.t / midi.rate) * g.ctx.sampleRate));
           return it.note === null ? { frame: frame, gate: 0 }
-                                  : { frame: frame, p: { base: mtof(it.note) }, gate: 1 };
+                                  : { frame: frame, p: { base: noteFreq(it.note) }, gate: 1 };
         });
         evs.push({ frame: endFrame, gate: 0 });
         for (var o = 0; o < oscN; o++) {
@@ -4383,7 +4783,7 @@
       e = midi.events[i];
       var when = t0 + e.t / midi.rate;
       if (e.note === null) scheduleNote(g, when, null, 0);
-      else scheduleNote(g, when, mtof(e.note), 1);
+      else scheduleNote(g, when, noteFreq(e.note), 1);
     }
     scheduleNote(g, t0 + midi.dur / midi.rate + 0.02, null, 0);
   }
@@ -4396,7 +4796,7 @@
       when = t0 + e.t / midi.rate;
       o = { frame: Math.max(0, Math.round(when * sr)) };
       if (e.note === null) o.gate = 0;
-      else { o.p = { base: mtof(e.note) }; o.gate = 1; }
+      else { o.p = { base: noteFreq(e.note) }; o.gate = 1; }
       ev.push(o);
     }
     ev.push({ frame: Math.round((t0 + midi.dur / midi.rate + 0.02) * sr), gate: 0 });
@@ -4629,7 +5029,7 @@
           var evs = list.map(function (it) {
             var frame = Math.max(0, Math.round((0.05 + it.t / midi.rate) * sr));
             return it.note === null ? { frame: frame, gate: 0 }
-                                    : { frame: frame, p: { base: mtof(it.note) }, gate: 1 };
+                                    : { frame: frame, p: { base: noteFreq(it.note) }, gate: 1 };
           });
           evs.push({ frame: Math.round((0.05 + midi.dur / midi.rate + 0.02) * sr), gate: 0 });
           return evs;
@@ -5037,9 +5437,24 @@
     $("envFltOut").textContent = S.envFlt < 0.005 ? "off" : e.target.value + " %";
     pushAudio();
   });
+  /* Spectrum modules: a shared shell (arm / collapse) so a new character is
+   * markup plus its own block of CSS, nothing more. */
+  function initSpecModules() {
+    Array.prototype.forEach.call(document.querySelectorAll(".spec-toggle"), function (b) {
+      b.addEventListener("click", function () {
+        var open = b.getAttribute("aria-expanded") === "true";
+        b.setAttribute("aria-expanded", open ? "false" : "true");
+        var body = b.closest(".spec-module").querySelector(".spec-controls");
+        if (body) body.hidden = open;
+      });
+    });
+  }
+
   function setDarkOn(on) {
     S.darkOn = !!on;
     $("darkBtn").setAttribute("aria-pressed", S.darkOn ? "true" : "false");
+    $("darkBtn").textContent = S.darkOn ? "Engaged" : "Engage";
+    $("darkUnit").classList.toggle("spec-off", !S.darkOn);
     pushAudio();
   }
   $("darkBtn").addEventListener("click", function () { setDarkOn(!S.darkOn); });
@@ -5186,12 +5601,16 @@
     requestAnimationFrame(fitKeyboard);
   });
   $("holdBtn").addEventListener("click", function () {
-    keyHold = !keyHold;
+    setHold(!keyHold);
+  });
+  /* The Hold button and a sustain pedal (CC 64) are the same thing. */
+  function setHold(on) {
+    keyHold = !!on;
     $("holdBtn").setAttribute("aria-pressed", keyHold ? "true" : "false");
     if (keyHold && !audioOn) setPower(true);
     if (!keyHold && polyActive()) polyReleaseSustained();
     updateGate();
-  });
+  }
   $("octDown").addEventListener("click", function () {
     kb.start = clamp(kb.start - 12, 12, 96); kbLayout(); kb.dirty = true;
   });
@@ -5293,6 +5712,17 @@
     });
     var padsOut = {};
     pads.forEach(function (pad) {
+      // A pad still waiting to be measured hands back the values it is waiting
+      // to apply, so a preset saved in that window cannot record "no cursor".
+      if (pad.pending) {
+        padsOut[pad.key] = {
+          img: padPhotoData(pad) || pad.pending.img || null,
+          pos: pad.pending.pos || null,
+          latched: pad.latched,
+          motion: pad.pending.motion || null
+        };
+        return;
+      }
       padsOut[pad.key] = {
         img: padPhotoData(pad),
         pos: pad.pos && pad.w ? { x: pad.pos.x / pad.w, y: pad.pos.y / pad.h } : null,
@@ -5361,15 +5791,12 @@
       }
       return done.then(function () {
         pad.auto = null;
-        pad.motion = motionIn(pad, pp.motion);
-        if (pp.pos && pad.w) {
-          pad.pos = { x: clamp(pp.pos.x, 0, 1) * pad.w, y: clamp(pp.pos.y, 0, 1) * pad.h };
-          var hint = $("hint-" + pad.key);
-          if (hint) hint.style.display = "none";
-          apply(pad);
-        } else if (!pp.pos) {
-          pad.pos = null;
-        }
+        // Cursor and motion are stored as fractions of the pad, so they can
+        // only be turned back into pixels once the pad has a size. Measure it
+        // here rather than waiting for the render loop, and park the request
+        // on the pad if it still has none.
+        pad.resize();
+        pad.setGeometryFrom(pp);
         setLatch(pad, !!pp.latched);
         if (pad.latched && pad.motion && pad.pos) pad.auto = startAuto(pad, pad.pos);
         pad.dirty = true;
@@ -5581,13 +6008,14 @@
      "phaserMix", "phaserRate", "phaserDepth", "chorusMix", "chorusRate", "chorusDepth",
      "stutterAmt", "stutterRate", "lofiCrush", "lofiNoise", "lofiDirt",
      "subLevel", "subOct", "darkCluster", "envPitch", "drift", "driftSpeed",
-     "vol", "limiter", "rate", "mspeed"].forEach(function (id) {
+     "vol", "limiter", "rate", "mspeed", "midiVel"].forEach(function (id) {
       var el = $(id);
       if (el) el.dispatchEvent(new Event("input"));
     });
   })();
 
   initFXModules();
+  initSpecModules();
   initFXSelects();
   $("fxSkin").value = S.fxSkin;
   document.body.setAttribute("data-fxskin", S.fxSkin);
@@ -5608,9 +6036,19 @@
   initAudio().then(function () { updateEngineNote(); });
   requestAnimationFrame(frame);
 
+  /* The browser remembers the MIDI permission per site, so a keyboard that
+   * was connected once comes back by itself on the next visit. */
+  (function reconnectMidiIn() {
+    var want = false;
+    try { want = localStorage.getItem("photoSynth.midiIn") === "1"; } catch (ignore) {}
+    if (want && navigator.requestMIDIAccess) connectMidiIn(true);
+  })();
+
   document.addEventListener("visibilitychange", function () {
     if (document.hidden) releaseAllInputs();
-    if (document.hidden && !midi.playing && !padTone.latched && !keyHold) setGate(false);
+    // A MIDI keyboard keeps playing with the tab in the background — only
+    // silence the synth if nothing is actually holding a note.
+    if (document.hidden && !midi.playing && !padTone.latched && !keyHold && !midiHeldCount()) setGate(false);
   });
 })();
 </script>
