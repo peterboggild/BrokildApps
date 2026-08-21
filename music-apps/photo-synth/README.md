@@ -18,8 +18,9 @@ vintage phaser, vintage chorus, stutter gate, a lofi stage (crush, grit,
 noise, dirt), a delay with clean/tape characters and an L/R time offset, and
 convolution reverb with room/hall/plate/spring — is freely reorderable, and
 every module has a power switch that removes it from the audio graph entirely
-(real CPU savings), switched under a short master dip so it never pops. A
-Dark Drone switch arms a zero-cost-when-off drone engine: sub-oscillator,
+(real CPU savings), switched under a short master dip so it never pops. The **Spectrum** panel, below Effects, holds character modules -- things that change how
+every voice is built rather than sitting in the effects chain, each with an enclosure of its
+own. Dark Drone is the first: one switch arms a zero-cost-when-off drone engine with sub-oscillator,
 microtonal cluster detune, slow random drift, pitch sag on decay, a Freeze
 gesture that holds the delay tail forever, a Halt tape-stop, delay feedback
 past unity into a soft limiter, and a reverse reverb character. A
@@ -27,9 +28,11 @@ fourth photo pad drives three selectable effect parameters from the sampled
 colour's red, green and blue strengths — black is all off, white is all full.
 Presets capture everything including small copies of the photos, stored only
 on the device (IndexedDB) with single-file export/import. Photos come from the
-camera, the camera roll or a live camera feed, an on-screen keyboard or an
-imported MIDI file sets the base note, and the output can be recorded or
-rendered to 24-bit WAV.
+camera, the camera roll or a live camera feed. The base note comes from an
+on-screen keyboard, the computer keys, an imported MIDI file, or a hardware
+MIDI keyboard over Web MIDI -- with velocity, sustain pedal and a two-semitone
+pitch bend, per-device and per-channel filtering, and hot-plug detection. The
+output can be recorded or rendered to 24-bit WAV.
 
 ## Files
 
