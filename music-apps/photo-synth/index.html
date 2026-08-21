@@ -1932,7 +1932,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.15";
+  var BUILD_ID = "260821.16";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -2214,10 +2214,13 @@
    * mode the voices spread into an irregular microtonal cluster (up to
    * ±60 cents per step, with a deterministic wobble per voice index). */
   function fineCents(index, count) {
-    if (count < 2) return 0;
+    if (count < 2 || index === 0) return 0;   // voice 0 IS the note you played
     var base = darkActive() && S.darkCluster > 0 ? S.darkCluster
              : specMod.cluster > 0 ? specMod.cluster : 3;
-    var c = (index - (count - 1) / 2) * base;
+    // The remaining voices fill the same reach as before, from one edge of
+    // the cluster to the other, so the width and the beating are unchanged.
+    var m = count - 1, reach = base * (count - 1) / 2;
+    var c = m === 1 ? reach : (((index - 1) / (m - 1)) * 2 - 1) * reach;
     if ((darkActive() && S.darkCluster > 0) || specMod.cluster > 0) {
       c += (((index * 73) % 7) - 3) * base * 0.12;
     }
@@ -6224,7 +6227,7 @@
 
   SPEC_MODULES.pink = {
     touches: ["chorusMix", "chorusRate", "chorusDepth", "phaserMix", "phaserRate", "phaserDepth",
-              "reverbMix", "reverbType", "reverbLength", "width", "spread", "voices"],
+              "reverbMix", "reverbType", "reverbLength", "width", "voices"],
     fx: ["phaser", "chorus", "reverb"],
     apply: function () {
       var c = S.spec.pink, sm = c.smear / 100, bl = c.bloom / 100;
@@ -6236,7 +6239,7 @@
         phaserMix: Math.round(30 + 30 * sm), phaserRate: 11, phaserDepth: Math.round(55 + 35 * sm),
         reverbType: "reverse", reverbMix: Math.round(22 + 45 * bl),
         reverbLength: Math.round(240 + 330 * bl),
-        width: 100, spread: 24, voices: Math.max(4, S.voices)
+        width: 100, voices: Math.max(4, S.voices)   // Spread is the player’s: it re-pitches the stack
       });
     },
     start: function () { this.apply(); },
@@ -6309,7 +6312,7 @@
   SPEC_MODULES.glass = {
     fx: ["reverb"],
     touches: ["attack", "release", "envFlt", "glide",
-              "reverbMix", "reverbType", "reverbLength", "width", "spread"],
+              "reverbMix", "reverbType", "reverbLength", "width"],
     apply: function () {
       var c = S.spec.glass, air = c.air / 100, ha = c.halo / 100, sh = c.shine / 100;
       // A cathedral is a room, not a replacement. Only the things that would
@@ -6328,7 +6331,7 @@
         envFlt: Math.round(18 + 42 * sh),
         reverbType: "hall", reverbMix: Math.round(16 + 30 * ha),
         reverbLength: Math.round(260 + 300 * ha),
-        width: 90, spread: 18
+        width: 90
       });
     },
     start: function () { this.apply(); },
@@ -6377,7 +6380,7 @@
       var wow = Math.sin(P.ph) + 0.25 * Math.sin(P.ph2) + 0.6 * P.jd;
       return { det: wow * 9 * wob,
                delayMul: 1 + wow * 0.011 * wob,
-               sag: 0.15 + 0.75 * (S.spec.tape.sag / 100) };
+               sag: 0.9 * (S.spec.tape.sag / 100) };   // shut means shut
     }
   };
   $("tapeBtn").addEventListener("click", function () { specToggle("tape"); });
@@ -6390,10 +6393,10 @@
   });
 
   SPEC_MODULES.insect = {
-    touches: ["voices", "spread", "width"],
+    touches: ["voices", "width"],
     apply: function () {
       var c = S.spec.insect;
-      specSetControls({ voices: Math.max(7, S.voices), spread: 12, width: 85 });
+      specSetControls({ voices: Math.max(7, S.voices), width: 85 });
     },
     start: function () { this.apply(); },
     mods: function (dt, P) {
