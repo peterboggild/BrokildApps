@@ -211,6 +211,34 @@
     text-shadow:0 0 6px rgba(255,180,80,.4);box-shadow:0 1px 2px rgba(0,0,0,.55) inset;
   }
   .row .info{font-size:12px;color:var(--text);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+  /* Console brightness. brightness() is a multiply, so on a near-black panel
+     it does almost nothing to the very thing that is too dark; invert →
+     brightness → invert is a multiply about white instead, which is a shadow
+     lift: out = (1-k) + k·in. Blacks come up, highlights stay put.
+
+     It is applied per region rather than to the whole deck, so it can reach
+     the pad furniture while the photographs themselves are given the exact
+     inverse and come out untouched. Nothing is filtered at all at 0, which is
+     the default — a filter on a subtree that repaints every frame is not
+     free, and nobody should pay for it who has not asked. */
+  body[data-lift] header,
+  body[data-lift] .transport,
+  body[data-lift] .scope,
+  body[data-lift] #colB,
+  body[data-lift] .kbdpanel{
+    filter:invert(1) brightness(var(--lift-k,1)) invert(1);
+  }
+  body[data-lift]::before{
+    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:#fff;opacity:var(--lift-a,0);mix-blend-mode:screen;
+  }
+  body[data-lift] .pad{position:relative}
+  body[data-lift] .pad::after{
+    content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:#fff;opacity:var(--lift-a,0);mix-blend-mode:screen;z-index:2;
+  }
+  body[data-lift] .pad .stage{position:relative;z-index:3}   /* the photo stays above the sheet */
   .tinyout{font:400 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--faint);flex:none;min-width:34px}
   /* A control the photo has taken charge of: visibly out of play. */
   .row.row-overridden{opacity:.45}
@@ -805,7 +833,11 @@
     <button id="freezeBtn" class="btn" type="button" aria-pressed="false" title="Hold the delay tail forever">Freeze</button>
     <button id="stopBtn" class="btn" type="button" aria-pressed="false" title="Tape stop — pitch spins down; press again to spin back up">Halt</button>
     <button id="aboutBtn" class="btn" type="button" title="About Photo Synth 2">About</button>
-      <div class="vol deskonly" style="flex:0 1 132px">
+      <div class="vol deskonly" style="flex:0 1 118px">
+      <label for="uiLift">Light</label>
+      <input id="uiLift" type="range" min="0" max="100" value="0" aria-label="Console brightness">
+    </div>
+    <div class="vol deskonly" style="flex:0 1 132px">
       <label for="mspeed">Motion</label>
       <input id="mspeed" type="range" min="25" max="400" value="100" aria-label="Motion speed">
       <output id="mspeedOut" class="tinyout">1.00×</output>
@@ -1732,7 +1764,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.17";
+  var BUILD_ID = "260821.18";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -6879,6 +6911,43 @@
    * grid, and this slider scales it uniformly. Auto-fits the window until
    * the user takes over; double-click the slider to return to auto.
    * ================================================================== */
+  /* Stored per installation rather than per patch: it is about the room you
+   * are sitting in, not about the sound. Same place the zoom lives. */
+  (function initUiLift() {
+    var sl = $("uiLift");
+    if (!sl) return;
+    var LIFT_KEY = "photoSynth.uiLift";
+    var MAX = 0.22;                     // beyond this the enclosures go flat
+
+    function applyLift(pct) {
+      var lift = clamp(pct, 0, 100) / 100 * MAX;
+      var root = document.documentElement;
+      if (lift < 0.001) {
+        document.body.removeAttribute("data-lift");
+        root.style.removeProperty("--lift-k");
+        root.style.removeProperty("--lift-a");
+        return;
+      }
+      var k = 1 - lift;                 // out = (1-k) + k·in
+      root.style.setProperty("--lift-k", String(k));
+      root.style.setProperty("--lift-a", String(lift));      // the backdrop sheet
+      document.body.setAttribute("data-lift", "1");
+    }
+
+    var saved = parseFloat(localStorage.getItem(LIFT_KEY) || "0");
+    if (saved > 0 && saved <= 100) sl.value = String(Math.round(saved));
+    applyLift(+sl.value);
+
+    sl.addEventListener("input", function (e) {
+      applyLift(+e.target.value);
+      try { localStorage.setItem(LIFT_KEY, String(+e.target.value)); } catch (err) {}
+    });
+    sl.addEventListener("dblclick", function () {
+      sl.value = "0";
+      sl.dispatchEvent(new Event("input"));
+    });
+  })();
+
   (function initDeckScale() {
     var deck = $("deck"), sl = $("uiScale");
     if (!deck || !sl) return;
