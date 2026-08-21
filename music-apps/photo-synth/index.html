@@ -570,6 +570,14 @@
     font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;opacity:.55;
   }
   .spec-help:hover,.spec-help[aria-expanded="true"]{opacity:1}
+  /* Beside the (?) and quieter than it: this one is for when something has gone
+     astray, not for every session. */
+  .spec-reset{
+    appearance:none;flex:none;width:20px;height:20px;padding:0;margin-left:auto;cursor:pointer;
+    border:1px solid currentColor;border-radius:50%;background:transparent;color:var(--spc);
+    font:400 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;opacity:.38;
+  }
+  .spec-reset:hover{opacity:1}
   .spec-help[aria-expanded="true"]{background:var(--spc);color:#0a0507}
   .spec-controls .note[hidden]{display:none}
 
@@ -1394,7 +1402,7 @@
           <button class="spec-toggle" type="button" aria-expanded="true">
             <span class="spec-name">Dark Drone Spectrum</span>
           </button>
-          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
+          <button class="spec-reset" type="button" aria-label="Reset this character" title="Reset this character — its own knobs, and any control of its you have moved">↺</button><button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="darkBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Dark Drone" title="Engage Dark Drone"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1444,7 +1452,7 @@
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">Psychedelic Pink Spectrum</span>
           </button>
-          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
+          <button class="spec-reset" type="button" aria-label="Reset this character" title="Reset this character — its own knobs, and any control of its you have moved">↺</button><button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="pinkBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Psychedelic Pink" title="Engage Psychedelic Pink"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1478,7 +1486,7 @@
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">INDUSTRIAL BLACK SPECTRUM</span>
           </button>
-          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
+          <button class="spec-reset" type="button" aria-label="Reset this character" title="Reset this character — its own knobs, and any control of its you have moved">↺</button><button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="blackBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Industrial Black" title="Engage Industrial Black"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1511,7 +1519,7 @@
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">Glass Cathedral Spectrum</span>
           </button>
-          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
+          <button class="spec-reset" type="button" aria-label="Reset this character" title="Reset this character — its own knobs, and any control of its you have moved">↺</button><button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="glassBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Glass Cathedral" title="Engage Glass Cathedral"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1546,7 +1554,7 @@
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">Tape Séance Spectrum</span>
           </button>
-          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
+          <button class="spec-reset" type="button" aria-label="Reset this character" title="Reset this character — its own knobs, and any control of its you have moved">↺</button><button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="tapeBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Tape Séance" title="Engage Tape Séance"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1579,7 +1587,7 @@
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">INSECT CHOIR SPECTRUM</span>
           </button>
-          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
+          <button class="spec-reset" type="button" aria-label="Reset this character" title="Reset this character — its own knobs, and any control of its you have moved">↺</button><button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="insectBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Insect Choir" title="Engage Insect Choir"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1764,7 +1772,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.18";
+  var BUILD_ID = "260821.19";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -5939,14 +5947,44 @@
   var SPEC = { stack: [], phs: {}, pushMs: 0, lastMs: 0 };
   var SPEC_MODULES = {};   // name -> { touches: [ids], apply(), start(), mods(dt, P) }
 
+  /* A character writes controls through here, and the events it dispatches look
+   * exactly like yours — so it raises a flag while it writes. Anything arriving
+   * without the flag came from a hand on a slider. */
+  var specWriting = 0;
   function specSetControls(map) {
-    for (var id in map) {
-      var el = $(id);
-      if (!el) continue;
-      el.value = String(map[id]);
-      el.dispatchEvent(new Event(el.tagName === "SELECT" ? "change" : "input"));
-    }
+    specWriting++;
+    try {
+      for (var id in map) {
+        var el = $(id);
+        if (!el || specIsFreed(id)) continue;
+        el.value = String(map[id]);
+        el.dispatchEvent(new Event(el.tagName === "SELECT" ? "change" : "input"));
+      }
+    } finally { specWriting--; }
   }
+
+  /* Move a control a character had taken over and it becomes yours again: it is
+   * dropped from that character's snapshot, so releasing the character leaves your
+   * value alone instead of quietly winding it back to whatever it was when you
+   * armed it. Its own knobs were always yours; now the rest are too. */
+  function specFree(id) {
+    if (specWriting || !SPEC.stack.length) return;
+    SPEC.stack.forEach(function (e) { if (e.freed) e.freed[id] = true; });
+  }
+  /* Is this control the player's now? Then no character may write it, and no
+   * release may wind it back — until that character is reset. */
+  function specIsFreed(id) {
+    for (var i = 0; i < SPEC.stack.length; i++) {
+      if (SPEC.stack[i].freed && SPEC.stack[i].freed[id]) return true;
+    }
+    return false;
+  }
+  document.addEventListener("input", function (ev) {
+    if (ev.target && ev.target.id) specFree(ev.target.id);
+  }, true);
+  document.addEventListener("change", function (ev) {
+    if (ev.target && ev.target.id) specFree(ev.target.id);
+  }, true);
   function specSnapshot(ids) {
     var out = { controls: {}, fxEnabled: JSON.parse(JSON.stringify(S.fxEnabled)),
                 fxOrder: S.fxOrder.slice(), fmode: S.fmode, waveform: S.waveform, engine: S.engine };
@@ -5961,12 +5999,55 @@
       if (card) list.appendChild(card);
     });
     commitFXOrder();
-    FX_MODULE_NAMES.forEach(function (n) { setFXEnabled(n, snap.fxEnabled[n] !== false); });
+    FX_MODULE_NAMES.forEach(function (n) {
+      if (!specIsFreed("fx:" + n)) setFXEnabled(n, snap.fxEnabled[n] !== false);
+    });
     specSetControls(snap.controls);
-    var fb = document.querySelector('[data-fmode="' + snap.fmode + '"]');
-    if (fb && S.fmode !== snap.fmode) fb.click();
-    if ($("waveform") && S.waveform !== snap.waveform) specSetControls({ waveform: snap.waveform });
-    if ($("engine") && S.engine !== snap.engine) specSetControls({ engine: snap.engine });
+    var fb = !specIsFreed("__fmode") && snap.fmode &&
+             document.querySelector('[data-fmode="' + snap.fmode + '"]');
+    if (fb && S.fmode !== snap.fmode) { specWriting++; try { fb.click(); } finally { specWriting--; } }
+    if (snap.waveform && $("waveform") && S.waveform !== snap.waveform) specSetControls({ waveform: snap.waveform });
+    if (snap.engine && $("engine") && S.engine !== snap.engine) specSetControls({ engine: snap.engine });
+  }
+
+  /* Reset undoes your meddling with one character and nothing else: its own
+   * knobs go back to where they arrive, it takes back any control of its you
+   * have borrowed, and it re-applies. What the patch looked like before you
+   * armed it is still remembered, so releasing afterwards still puts that back. */
+  function specResetOne(name) {
+    specRefreshOwnControls(name);
+    var e = null;
+    SPEC.stack.forEach(function (x) { if (x.name === name) e = x; });
+    var m = SPEC_MODULES[name];
+    if (e && m) {
+      e.freed = {};                          // it owns its controls again —
+      SPEC.phs[name] = { ph: 0, ph2: 0, ph3: 0, jd: 0 };   // but e.snap is untouched,
+      m.start();                             // so releasing still restores your patch
+    }
+    if (e) specAfterChange();
+    showToast(specLabel(name) + " reset to its factory settings");
+  }
+
+  /* Every slider carries the value it arrives with in its markup, which is the
+   * one honest source for all six — Dark Drone included, whose knobs are
+   * instrument controls rather than settings of its own. */
+  function specRefreshOwnControls(name) {
+    var mod = document.querySelector('.spec-module[data-spec="' + name + '"]');
+    if (!mod) return;
+    specWriting++;
+    try {
+      Array.prototype.forEach.call(mod.querySelectorAll("input[type=range]"), function (el) {
+        var d = el.getAttribute("value");
+        if (d === null) return;
+        el.value = d;
+        el.dispatchEvent(new Event("input"));
+      });
+    } finally { specWriting--; }
+  }
+
+  function specLabel(name) {
+    var nm = document.querySelector('.spec-module[data-spec="' + name + '"] .spec-name');
+    return nm ? nm.textContent.replace(/ Spectrum$/, "") : name;
   }
 
   function specPh(name) { return SPEC.phs[name] || (SPEC.phs[name] = { ph: 0, ph2: 0, ph3: 0, jd: 0 }); }
@@ -5975,6 +6056,7 @@
     if (e.name === "darkdrone") { setDarkOn(true); return; }
     var m = SPEC_MODULES[e.name];
     e.snap = specSnapshot(m.touches);
+    e.freed = {};
     m.start();
   }
   function specUnwindEntry(e) {
@@ -6019,6 +6101,13 @@
   }
 
   function specRefreshUI() {
+    Array.prototype.forEach.call(document.querySelectorAll(".spec-reset"), function (b) {
+      b.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var mod = b.closest(".spec-module");
+        if (mod) specResetOne(mod.getAttribute("data-spec"));
+      });
+    });
     Array.prototype.forEach.call(document.querySelectorAll(".spec-module"), function (mod) {
       var name = mod.getAttribute("data-spec");
       var on = specIsOn(name);
@@ -6412,6 +6501,7 @@
       });
       // A mode change swaps the filter's transfer function instantly (both
       // the ladder mix and the biquad type), so land it inside a master dip.
+      specFree("__fmode");
       dipMaster(function () {
         S.fmode = b.getAttribute("data-fmode");
         reapply();
