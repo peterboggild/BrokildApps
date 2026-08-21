@@ -1083,34 +1083,6 @@
             <div class="ctl"><input id="satTone" type="range" min="0" max="100" value="72"></div>
             <output id="satToneOut">8.4 kHz</output>
           </div>
-          <div class="row wide">
-            <label for="pinkPlace">Chain</label>
-            <div class="ctl"><select id="pinkPlace">
-              <option value="pre">Pre — its effects run first</option>
-              <option value="post">Post — its effects run last</option>
-            </select></div>
-          </div>
-          <div class="row wide">
-            <label for="blackPlace">Chain</label>
-            <div class="ctl"><select id="blackPlace">
-              <option value="pre">Pre — its effects run first</option>
-              <option value="post">Post — its effects run last</option>
-            </select></div>
-          </div>
-          <div class="row wide">
-            <label for="glassPlace">Chain</label>
-            <div class="ctl"><select id="glassPlace">
-              <option value="pre">Pre — its effects run first</option>
-              <option value="post">Post — its effects run last</option>
-            </select></div>
-          </div>
-          <div class="row wide">
-            <label for="tapePlace">Chain</label>
-            <div class="ctl"><select id="tapePlace">
-              <option value="pre">Pre — its effects run first</option>
-              <option value="post">Post — its effects run last</option>
-            </select></div>
-          </div>
           <div class="note">A biased triode-style curve adds gentle even harmonics. Four-times oversampling and DC blocking keep it smooth.</div>
         </div>
       </section>
@@ -1341,6 +1313,10 @@
             <div class="ctl"><input id="driftSpeed" type="range" min="0" max="100" value="40"></div>
             <output id="driftSpeedOut">2.0 min</output>
           </div>
+          <div class="row wide">
+            <span class="lab">Chain</span>
+            <span class="info">Voice only — this character adds no effects to place</span>
+          </div>
           <div class="note" hidden>One switch arms the whole drone engine: a sub-oscillator under every
             voice, microtonal cluster detune instead of tidy unison, a slow random drift on cut-off,
             detune and delay time, and a pitch sag as notes decay. Off, none of it costs a single
@@ -1376,6 +1352,13 @@
             <div class="ctl"><input id="pinkBloom" type="range" min="0" max="100" value="45"></div>
             <output id="pinkBloomOut">45 %</output>
           </div>
+          <div class="row wide">
+            <label for="pinkPlace">Chain</label>
+            <div class="ctl"><select id="pinkPlace">
+              <option value="pre">Pre — its effects run first</option>
+              <option value="post">Post — its effects run last</option>
+            </select></div>
+          </div>
           <div class="note" hidden>Everything smeared and slowly rotating: the stereo image swirls,
             a slow wave bends the tuning, the filter breathes on its own, and the reverb is the
             reverse character so tails swell in rather than die away. <b>Swirl</b> is the speed of
@@ -1410,6 +1393,13 @@
             <div class="ctl"><input id="blackClang" type="range" min="0" max="100" value="40"></div>
             <output id="blackClangOut">40 %</output>
           </div>
+          <div class="row wide">
+            <label for="blackPlace">Chain</label>
+            <div class="ctl"><select id="blackPlace">
+              <option value="pre">Pre — its effects run first</option>
+              <option value="post">Post — its effects run last</option>
+            </select></div>
+          </div>
           <div class="note" hidden>Square wave into the crusher BEFORE the filter, so the ladder has to
             smooth the wreckage; the comb filter and a tight metal slapback ring like struck sheet
             steel, the stutter chops the gate and notes stop dead instead of releasing.
@@ -1442,6 +1432,13 @@
             <label for="glassShine">Shine</label>
             <div class="ctl"><input id="glassShine" type="range" min="0" max="100" value="60"></div>
             <output id="glassShineOut">60 %</output>
+          </div>
+          <div class="row wide">
+            <label for="glassPlace">Chain</label>
+            <div class="ctl"><select id="glassPlace">
+              <option value="pre">Pre — its effects run first</option>
+              <option value="post">Post — its effects run last</option>
+            </select></div>
           </div>
           <div class="note" hidden>Your own tone, sent to church: notes open like light arriving and
             take their time to leave, the envelope is sent into the filter so every note dawns,
@@ -1478,6 +1475,13 @@
             <div class="ctl"><input id="tapeDust" type="range" min="0" max="100" value="40"></div>
             <output id="tapeDustOut">40 %</output>
           </div>
+          <div class="row wide">
+            <label for="tapePlace">Chain</label>
+            <div class="ctl"><select id="tapePlace">
+              <option value="pre">Pre — its effects run first</option>
+              <option value="post">Post — its effects run last</option>
+            </select></div>
+          </div>
           <div class="note" hidden>A reel that has been in the attic too long: wow bends the pitch and
             the echoes, notes sag flat as they die, and there is dust on everything — hiss,
             crackle, a dull top end, tape echoes that will not quite fade. <b>Wobble</b> is the
@@ -1510,6 +1514,10 @@
             <label for="insectSkitter">Skitter</label>
             <div class="ctl"><input id="insectSkitter" type="range" min="0" max="100" value="40"></div>
             <output id="insectSkitterOut">40 %</output>
+          </div>
+          <div class="row wide">
+            <span class="lab">Chain</span>
+            <span class="info">Voice only — this character adds no effects to place</span>
           </div>
           <div class="note" hidden>The voices stop agreeing: they detune into a cluster instead of a
             chord, each one trembles at its own rate, and tiny random jumps keep the whole swarm
@@ -1572,6 +1580,13 @@
       <div class="ctl seg">
         <button class="btn" id="presetSave" type="button">Save current</button>
         <button class="btn" id="presetImport" type="button">Import file</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lab">Factory</span>
+      <div class="ctl seg">
+        <button class="btn" id="factoryDreamy" type="button">Dreamy Hoover</button>
+        <button class="btn" id="factoryNaked" type="button">Naked Oscillator</button>
       </div>
     </div>
     <div class="row">
@@ -1916,7 +1931,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.8";
+  var BUILD_ID = "260821.9";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -6597,6 +6612,98 @@
    * factory demo. Stored on this device only.
    * The browser has no host state, so this is simply what the page opens with.
    */
+  /* ---- Factory patches ------------------------------------------------ *
+   * Two built-in starting points. They carry controls, chain and cursor
+   * placement but no photos of their own, so they dress whatever pictures
+   * are loaded — the demos on a fresh instance, yours once you load them.
+   *
+   * Dreamy Hoover is what the instrument opens on: a stacked, gliding,
+   * pentatonic pad that sounds like something the moment you touch it.
+   * Naked Oscillator is the bare engine — one voice, no effects, nothing
+   * between the photo and your ears — the place to start building.
+   * -------------------------------------------------------------------- */
+  var FACTORY = {
+    "Dreamy Hoover": {
+      controls: {
+        engine: "analog", waveform: "photo", law: "spectral", scale: "minorPent",
+        root: "45", tune: "0", fine: "0", tuneTarget: "9", octaves: "2",
+        filterQ: "62", glide: "38", drive: "30",
+        attack: "26", release: "52", legato: "38", envAmp: "100", envFlt: "28",
+        voiceMode: "mono", voices: "7", polyNotes: "4", polyOsc: "2",
+        spread: "34", width: "88", panMode: "hue", padsize: "100",
+        satGain: "5", satTone: "70",
+        delayMix: "22", delayTime: "340", delayFeedback: "32", delayChar: "clean", delayOffset: "18",
+        reverbMix: "38", reverbType: "hall", reverbLength: "330",
+        phaserMix: "35", phaserRate: "40", phaserDepth: "55",
+        chorusMix: "48", chorusRate: "26", chorusDepth: "58",
+        stutterAmt: "60", stutterRate: "80",
+        lofiCrush: "35", lofiNoise: "25", lofiDirt: "30",
+        subLevel: "50", subOct: "1", darkCluster: "24", envPitch: "25",
+        drift: "40", driftSpeed: "40", vol: "70", limiter: "45", rate: "100", mspeed: "100"
+      },
+      fmode: "lowpass",
+      fxEnabled: { saturation: true, phaser: false, chorus: true, stutter: false,
+                   lofi: false, delay: true, reverb: true },
+      fxOrder: ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"],
+      specArmedList: [],
+      pads: { tone: { pos: { x: 0.42, y: 0.46 }, latched: true },
+              filter: { pos: { x: 0.63, y: 0.34 }, latched: true },
+              env: { pos: null, latched: false },
+              fx: { pos: null, latched: false } }
+    },
+    "Naked Oscillator": {
+      controls: {
+        engine: "analog", waveform: "photo", law: "spectral", scale: "free",
+        root: "48", tune: "0", fine: "0", tuneTarget: "9", octaves: "3",
+        filterQ: "50", glide: "22", drive: "25",
+        attack: "14", release: "30", legato: "24", envAmp: "100", envFlt: "0",
+        voiceMode: "mono", voices: "1", polyNotes: "4", polyOsc: "2",
+        spread: "14", width: "65", panMode: "hue", padsize: "100",
+        satGain: "0", satTone: "72",
+        delayMix: "13", delayTime: "260", delayFeedback: "34", delayChar: "clean", delayOffset: "0",
+        reverbMix: "15", reverbType: "room", reverbLength: "180",
+        phaserMix: "35", phaserRate: "40", phaserDepth: "55",
+        chorusMix: "40", chorusRate: "45", chorusDepth: "50",
+        stutterAmt: "60", stutterRate: "80",
+        lofiCrush: "35", lofiNoise: "25", lofiDirt: "30",
+        subLevel: "50", subOct: "1", darkCluster: "24", envPitch: "25",
+        drift: "40", driftSpeed: "40", vol: "70", limiter: "40", rate: "100", mspeed: "100"
+      },
+      fmode: "lowpass",
+      fxEnabled: { saturation: false, phaser: false, chorus: false, stutter: false,
+                   lofi: false, delay: false, reverb: false },
+      fxOrder: ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"],
+      specArmedList: [],
+      pads: { tone: { pos: { x: 0.5, y: 0.5 }, latched: false },
+              filter: { pos: null, latched: false },
+              env: { pos: null, latched: false },
+              fx: { pos: null, latched: false } }
+    }
+  };
+  var FACTORY_OPENS_WITH = "Dreamy Hoover";
+
+  /* A factory entry becomes a normal preset object, so it travels the same
+   * applyPreset path as anything you saved yourself. */
+  function factoryPreset(name) {
+    var src = FACTORY[name];
+    if (!src) return null;
+    return {
+      app: "photo-synth", kind: "preset", version: 1, name: name, created: 0,
+      controls: JSON.parse(JSON.stringify(src.controls)),
+      fmode: src.fmode, twoShape: "line", darkOn: false,
+      specArmed: "", specArmedList: src.specArmedList.slice(),
+      specSettings: JSON.parse(JSON.stringify(S.spec)),
+      fxOrder: src.fxOrder.slice(), fxRGB: fxAssign.slice(),
+      fxEnabled: JSON.parse(JSON.stringify(src.fxEnabled)),
+      pads: JSON.parse(JSON.stringify(src.pads))
+    };
+  }
+  function applyFactory(name) {
+    var p = factoryPreset(name);
+    if (!p) return Promise.resolve();
+    return applyPreset(p).then(function () { showToast(name); });
+  }
+
   var DEFAULT_KEY = "photoSynth.defaultPatch";
   function defaultPatchGet() {
     try {
@@ -6781,6 +6888,12 @@
       row.appendChild(ctl);
       box.appendChild(row);
     });
+  }
+
+  function initFactoryPatches() {
+    var a = $("factoryDreamy"), b = $("factoryNaked");
+    if (a) a.addEventListener("click", function () { applyFactory("Dreamy Hoover"); });
+    if (b) b.addEventListener("click", function () { applyFactory("Naked Oscillator"); });
   }
 
   function initDefaultPatch() {
@@ -6976,15 +7089,19 @@
   document.body.setAttribute("data-fxskin", S.fxSkin);
   refreshPresets();
   initDefaultPatch();
+  initFactoryPatches();
   updateVoiceModeRows();
   setMode("play");
   updateMotionUI();
-  /* Open on the user's default patch when they have set one; the demos are
-   * only the factory fallback. */
+  /* Open on your own default patch when you have set one, else on the
+   * factory patch the instrument is meant to greet you with. */
   (function startupPatch() {
     var dp = defaultPatchGet();
-    if (!dp) return;
-    setTimeout(function () { initAudio().then(function () { applyPreset(dp); }); }, 0);
+    setTimeout(function () {
+      initAudio().then(function () {
+        if (dp) applyPreset(dp); else applyFactory(FACTORY_OPENS_WITH);
+      });
+    }, 0);
   })();
   loadDemo("tone");
   loadDemo("filter");
