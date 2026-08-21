@@ -435,8 +435,172 @@
   }
   .spec-controls .note{grid-column:1/-1}
   .spec-controls .row output{color:var(--spc);text-shadow:0 0 6px var(--spglow)}
+  /* Retro illuminated rocker switch: black bezel, ribbed lens, a hot
+     filament that lights when the character is armed. One component;
+     each module tints the lens with --lens / --lensdim. */
+  .spec-rocker{
+    appearance:none;flex:none;width:42px;height:52px;padding:4px;cursor:pointer;
+    background:linear-gradient(160deg,#2e2e30,#0b0b0c 55%,#1b1b1c);
+    border:1px solid #000;border-radius:8px;
+    box-shadow:0 1px 0 rgba(255,255,255,.10) inset,0 -2px 3px rgba(0,0,0,.85) inset,0 2px 7px rgba(0,0,0,.6);
+  }
+  .spec-rocker .rocker-lens{
+    display:block;width:100%;height:100%;border-radius:4px;position:relative;overflow:hidden;
+    border:1px solid rgba(0,0,0,.9);
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.16),transparent 22%),
+      repeating-linear-gradient(90deg,rgba(0,0,0,.38) 0 1px,transparent 1px 4px),
+      linear-gradient(180deg,var(--lensdim,#2c0808) 0%,#180404 55%,var(--lensdim,#2c0808) 100%);
+    box-shadow:0 2px 4px rgba(0,0,0,.85) inset;
+    transition:box-shadow .2s;
+  }
+  .spec-rocker .rocker-lens::after{      /* the lower facet of the rocker */
+    content:"";position:absolute;left:8%;right:8%;bottom:9%;height:22%;border-radius:3px;
+    background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.02));
+    border:1px solid rgba(0,0,0,.5);
+  }
+  .spec-rocker .rocker-lens i{
+    position:absolute;inset:0;opacity:0;transition:opacity .22s;
+    background:
+      radial-gradient(circle at 50% 44%,#fff6d9 0 7%,transparent 26%),
+      radial-gradient(circle at 50% 44%,var(--lens,#e33) 0 30%,transparent 72%),
+      repeating-linear-gradient(90deg,rgba(0,0,0,.25) 0 1px,transparent 1px 4px),
+      radial-gradient(circle at 50% 50%,var(--lens,#e33) 0 62%,var(--lensdim,#2c0808) 100%);
+  }
+  .spec-rocker[aria-pressed="true"] .rocker-lens i{opacity:1}
+  .spec-rocker[aria-pressed="true"] .rocker-lens{box-shadow:0 0 14px var(--spglow),0 2px 4px rgba(0,0,0,.6) inset}
+  .spec-rocker:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
   .spec-module.spec-off{opacity:.72}
   .spec-module.spec-off .spec-mark{opacity:.45}
+
+  /* Psychedelic Pink — liquid and rotating, nothing sharp: hot magenta on
+     lilac, chrome-liquid gradients that slowly turn, flowing script
+     letters that look wet. */
+  .spec-module[data-spec="pink"]{
+    --spc:#ff4fd8;--spglow:rgba(255,79,216,.55);--lens:#ff4fd8;--lensdim:#331026;
+    background:
+      radial-gradient(120% 130% at 12% -10%,rgba(255,79,216,.20),transparent 55%),
+      radial-gradient(130% 120% at 105% 112%,rgba(140,80,255,.22),transparent 58%),
+      radial-gradient(90% 70% at 80% 8%,rgba(255,150,60,.10),transparent 60%),
+      linear-gradient(165deg,#241028,#160a1a 55%,#1d0c22);
+    border-color:#5c2b58;border-radius:22px;
+    box-shadow:0 0 26px rgba(255,79,216,.10) inset,0 3px 14px rgba(0,0,0,.55);
+  }
+  .spec-module[data-spec="pink"]:not(.spec-off){
+    border-color:#a5479a;
+    box-shadow:0 0 34px rgba(255,79,216,.22) inset,0 0 18px rgba(255,79,216,.25),0 3px 14px rgba(0,0,0,.6);
+  }
+  .spec-module[data-spec="pink"] .spec-name{
+    font-family:"Brush Script MT","Segoe Script",cursive;text-transform:none;
+    font-size:21px;font-weight:400;letter-spacing:.05em;color:#ffbdf0;
+    text-shadow:0 0 14px rgba(255,79,216,.9),0 1px 2px #000;
+  }
+  .spec-module[data-spec="pink"] .spec-sub{color:#c99ad0}
+  .spec-module[data-spec="pink"] .spec-controls{border-top-color:#43203f}
+  .spec-module[data-spec="pink"] .spec-controls .row label{color:#c99ad0}
+  .spec-module[data-spec="pink"] .spec-controls .note{color:#b78fbe}
+
+  /* Industrial Black — brutal and mechanical: bare steel-black plate with a
+     hazard stripe, stencil capitals, sharp corners, no glow anywhere. */
+  .spec-module[data-spec="black"]{
+    --spc:#e0b418;--spglow:rgba(224,180,24,.30);--lens:#ff3b1f;--lensdim:#301008;
+    background:
+      repeating-linear-gradient(135deg,#c7a413 0 11px,#15130f 11px 22px) top/100% 7px no-repeat,
+      repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),
+      linear-gradient(180deg,#191a1c,#0b0c0d);
+    border-color:#33352f;border-radius:0;
+    box-shadow:0 2px 8px rgba(0,0,0,.7);
+  }
+  .spec-module[data-spec="black"]:not(.spec-off){border-color:#8f7c1e}
+  .spec-module[data-spec="black"] .spec-head{padding-top:12px}
+  .spec-module[data-spec="black"] .spec-name{
+    font-family:Impact,Haettenschweiler,"Arial Narrow Bold",sans-serif;
+    font-size:16px;font-weight:400;letter-spacing:.30em;color:#d8cfc0;text-shadow:none;
+  }
+  .spec-module[data-spec="black"] .spec-sub{color:#7d7a6d;text-transform:uppercase;font-size:9.5px;letter-spacing:.12em}
+  .spec-module[data-spec="black"] .spec-mark{text-shadow:none;color:#c7a413}
+  .spec-module[data-spec="black"] .spec-rocker{border-radius:0}
+  .spec-module[data-spec="black"] .spec-rocker .rocker-lens{border-radius:0}
+  .spec-module[data-spec="black"] .spec-controls{border-top-color:#2c2d26}
+  .spec-module[data-spec="black"] .spec-controls .row label{color:#8f8c7c}
+  .spec-module[data-spec="black"] .spec-controls .note{color:#84816f}
+
+  /* Glass Cathedral — pale light through tall windows: icy blue-white on
+     slate glass, thin small-cap serifs, an arched plate. */
+  .spec-module[data-spec="glass"]{
+    --spc:#9fd8ff;--spglow:rgba(159,216,255,.45);--lens:#9fd8ff;--lensdim:#0f2230;
+    background:
+      radial-gradient(140% 90% at 50% -25%,rgba(190,225,255,.16),transparent 55%),
+      repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 30px),
+      linear-gradient(180deg,#141c26,#0b111a);
+    border-color:#2c4256;border-radius:26px 26px 6px 6px;
+    box-shadow:0 0 24px rgba(140,190,240,.08) inset,0 3px 12px rgba(0,0,0,.5);
+  }
+  .spec-module[data-spec="glass"]:not(.spec-off){
+    border-color:#5d87ab;
+    box-shadow:0 0 38px rgba(159,216,255,.16) inset,0 0 16px rgba(159,216,255,.18),0 3px 12px rgba(0,0,0,.55);
+  }
+  .spec-module[data-spec="glass"] .spec-name{
+    font-family:"Palatino Linotype","Book Antiqua",Palatino,serif;font-variant:small-caps;
+    font-size:16.5px;font-weight:400;letter-spacing:.30em;color:#dff2ff;
+    text-shadow:0 0 14px rgba(159,216,255,.8);
+  }
+  .spec-module[data-spec="glass"] .spec-sub{color:#7e99ad;font-style:italic}
+  .spec-module[data-spec="glass"] .spec-controls{border-top-color:#22333f}
+  .spec-module[data-spec="glass"] .spec-controls .row label{color:#8fabc0}
+  .spec-module[data-spec="glass"] .spec-controls .note{color:#7e99ad}
+
+  /* Tape Séance — a haunted reel-to-reel: worn sepia paper, typewriter
+     letters, everything slightly the wrong colour of old. */
+  .spec-module[data-spec="tape"]{
+    --spc:#d8a24c;--spglow:rgba(216,162,76,.40);--lens:#ffab3d;--lensdim:#2e1d08;
+    background:
+      radial-gradient(80% 60% at 18% 8%,rgba(216,162,76,.10),transparent 55%),
+      radial-gradient(100% 80% at 88% 96%,rgba(120,70,20,.14),transparent 60%),
+      repeating-linear-gradient(0deg,rgba(0,0,0,.10) 0 2px,transparent 2px 5px),
+      linear-gradient(175deg,#221a10,#171108 60%,#1d150b);
+    border-color:#4c3b22;border-radius:9px;
+    box-shadow:0 1px 0 rgba(255,235,190,.05) inset,0 3px 12px rgba(0,0,0,.5);
+  }
+  .spec-module[data-spec="tape"]:not(.spec-off){
+    border-color:#8a6a34;
+    box-shadow:0 0 30px rgba(216,162,76,.12) inset,0 0 14px rgba(216,162,76,.16),0 3px 12px rgba(0,0,0,.55);
+  }
+  .spec-module[data-spec="tape"] .spec-name{
+    font-family:"Courier New",Courier,monospace;text-transform:uppercase;
+    font-size:14.5px;font-weight:700;letter-spacing:.20em;color:#e8c894;
+    text-shadow:0 1px 0 #000;
+  }
+  .spec-module[data-spec="tape"] .spec-sub{color:#977c53;font-family:"Courier New",Courier,monospace;font-size:10.5px}
+  .spec-module[data-spec="tape"] .spec-controls{border-top-color:#3a2d18}
+  .spec-module[data-spec="tape"] .spec-controls .row label{color:#a8895c}
+  .spec-module[data-spec="tape"] .spec-controls .note{color:#977c53;font-family:"Courier New",Courier,monospace;font-size:10.8px}
+
+  /* Insect Choir — chitin: iridescent green-black, cramped condensed
+     capitals packed close, a faint segmented shimmer. */
+  .spec-module[data-spec="insect"]{
+    --spc:#9edb3a;--spglow:rgba(158,219,58,.40);--lens:#aef03c;--lensdim:#15250a;
+    background:
+      linear-gradient(115deg,rgba(158,219,58,.07),transparent 30%,rgba(110,50,190,.08) 62%,transparent 80%),
+      repeating-linear-gradient(90deg,rgba(0,0,0,.22) 0 7px,transparent 7px 8px),
+      linear-gradient(180deg,#131a0d,#0a0f07);
+    border-color:#33461c;border-radius:5px 18px 5px 18px;
+    box-shadow:0 2px 10px rgba(0,0,0,.55);
+  }
+  .spec-module[data-spec="insect"]:not(.spec-off){
+    border-color:#6d9333;
+    box-shadow:0 0 28px rgba(158,219,58,.13) inset,0 0 14px rgba(158,219,58,.16),0 2px 10px rgba(0,0,0,.6);
+  }
+  .spec-module[data-spec="insect"] .spec-name{
+    font-family:"Arial Narrow","Liberation Sans Narrow",sans-serif;font-stretch:condensed;
+    font-size:15px;font-weight:700;letter-spacing:.02em;color:#c9ef86;
+    text-shadow:0 0 9px rgba(158,219,58,.55);
+  }
+  .spec-module[data-spec="insect"] .spec-sub{color:#7d9b57;font-size:10px;letter-spacing:.01em}
+  .spec-module[data-spec="insect"] .spec-controls{border-top-color:#243315}
+  .spec-module[data-spec="insect"] .spec-controls .row label{color:#8fae66}
+  .spec-module[data-spec="insect"] .spec-controls .note{color:#7d9b57}
 
   /* Dark Drone — sinister: near-black, blood-red edge, a serif nameplate and
      a cold fog creeping up from the bottom. Armed, the whole plate glows. */
@@ -458,7 +622,7 @@
     color:#e8697d;text-shadow:0 0 16px rgba(200,56,79,.85),0 1px 2px #000;
   }
   .spec-module[data-spec="darkdrone"] .spec-sub{color:#8e6b73;font-style:italic;letter-spacing:.02em}
-  .spec-module[data-spec="darkdrone"] .spec-power{border-radius:2px}
+  .spec-module[data-spec="darkdrone"]{--lens:#ff2440;--lensdim:#2c060c}
   .spec-module[data-spec="darkdrone"] .spec-controls{border-top-color:#2c1017}
   .spec-module[data-spec="darkdrone"] .spec-controls .row label,
   .spec-module[data-spec="darkdrone"] .spec-controls .row .lab{color:#9b7d84}
@@ -1099,8 +1263,8 @@
             <span class="spec-name">Dark Drone</span>
             <span class="spec-sub">sub octave · cluster detune · drift · pitch sag</span>
           </button>
-          <button class="btn spec-power" id="darkBtn" type="button" aria-pressed="false"
-                  aria-label="Engage Dark Drone">Engage</button>
+          <button class="spec-rocker" id="darkBtn" type="button" role="switch" aria-pressed="false"
+                  aria-label="Engage Dark Drone" title="Engage Dark Drone"><span class="rocker-lens"><i></i></span></button>
         </div>
         <div class="spec-controls">
           <div class="row">
@@ -1139,6 +1303,174 @@
             cycle. <b>Freeze</b> (top bar) holds the delay tail forever — feedback past 100 % howls
             under a soft limiter — and <b>Halt</b> is the tape-stop. Sub, pitch sag and Halt live in
             the analog engine; the additive fallback ignores them.</div>
+        </div>
+      </section>
+
+      <section class="spec-module spec-off" data-spec="pink">
+        <div class="spec-head">
+          <span class="spec-mark" aria-hidden="true">✿</span>
+          <button class="spec-toggle" type="button" aria-expanded="false">
+            <span class="spec-name">Psychedelic Pink</span>
+            <span class="spec-sub">swirling pan · smeared chorus · reverse bloom</span>
+          </button>
+          <button class="spec-rocker" id="pinkBtn" type="button" role="switch" aria-pressed="false"
+                  aria-label="Engage Psychedelic Pink" title="Engage Psychedelic Pink"><span class="rocker-lens"><i></i></span></button>
+        </div>
+        <div class="spec-controls" hidden>
+          <div class="row">
+            <label for="pinkSwirl">Swirl</label>
+            <div class="ctl"><input id="pinkSwirl" type="range" min="0" max="100" value="50"></div>
+            <output id="pinkSwirlOut">50 %</output>
+          </div>
+          <div class="row">
+            <label for="pinkSmear">Smear</label>
+            <div class="ctl"><input id="pinkSmear" type="range" min="0" max="100" value="55"></div>
+            <output id="pinkSmearOut">55 %</output>
+          </div>
+          <div class="row">
+            <label for="pinkBloom">Bloom</label>
+            <div class="ctl"><input id="pinkBloom" type="range" min="0" max="100" value="45"></div>
+            <output id="pinkBloomOut">45 %</output>
+          </div>
+          <div class="note">Everything smeared and slowly rotating: the stereo image swirls,
+            a slow wave bends the tuning, the filter breathes on its own, and the reverb is the
+            reverse character so tails swell in rather than die away. <b>Swirl</b> is the speed of
+            the rotation, <b>Smear</b> how deep the chorus and phaser smudge, <b>Bloom</b> how much
+            reverse reverb blooms behind every note.</div>
+        </div>
+      </section>
+
+      <section class="spec-module spec-off" data-spec="black">
+        <div class="spec-head">
+          <span class="spec-mark" aria-hidden="true">▣</span>
+          <button class="spec-toggle" type="button" aria-expanded="false">
+            <span class="spec-name">INDUSTRIAL BLACK</span>
+            <span class="spec-sub">square wave · crushed · comb clang · dead stop</span>
+          </button>
+          <button class="spec-rocker" id="blackBtn" type="button" role="switch" aria-pressed="false"
+                  aria-label="Engage Industrial Black" title="Engage Industrial Black"><span class="rocker-lens"><i></i></span></button>
+        </div>
+        <div class="spec-controls" hidden>
+          <div class="row">
+            <label for="blackGrind">Grind</label>
+            <div class="ctl"><input id="blackGrind" type="range" min="0" max="100" value="60"></div>
+            <output id="blackGrindOut">60 %</output>
+          </div>
+          <div class="row">
+            <label for="blackChop">Chop</label>
+            <div class="ctl"><input id="blackChop" type="range" min="0" max="100" value="55"></div>
+            <output id="blackChopOut">55 %</output>
+          </div>
+          <div class="row">
+            <label for="blackClang">Clang</label>
+            <div class="ctl"><input id="blackClang" type="range" min="0" max="100" value="40"></div>
+            <output id="blackClangOut">40 %</output>
+          </div>
+          <div class="note">Square wave into the crusher BEFORE the filter, so the ladder has to
+            smooth the wreckage; the comb filter and a tight metal slapback ring like struck sheet
+            steel, the stutter chops the gate and notes stop dead instead of releasing.
+            <b>Grind</b> is drive and bit-crush, <b>Chop</b> the gate, <b>Clang</b> the metal.</div>
+        </div>
+      </section>
+
+      <section class="spec-module spec-off" data-spec="glass">
+        <div class="spec-head">
+          <span class="spec-mark" aria-hidden="true">✦</span>
+          <button class="spec-toggle" type="button" aria-expanded="false">
+            <span class="spec-name">Glass Cathedral</span>
+            <span class="spec-sub">pure partials · slow light · a long hall</span>
+          </button>
+          <button class="spec-rocker" id="glassBtn" type="button" role="switch" aria-pressed="false"
+                  aria-label="Engage Glass Cathedral" title="Engage Glass Cathedral"><span class="rocker-lens"><i></i></span></button>
+        </div>
+        <div class="spec-controls" hidden>
+          <div class="row">
+            <label for="glassAir">Air</label>
+            <div class="ctl"><input id="glassAir" type="range" min="0" max="100" value="60"></div>
+            <output id="glassAirOut">60 %</output>
+          </div>
+          <div class="row">
+            <label for="glassHalo">Halo</label>
+            <div class="ctl"><input id="glassHalo" type="range" min="0" max="100" value="55"></div>
+            <output id="glassHaloOut">55 %</output>
+          </div>
+          <div class="row">
+            <label for="glassShine">Shine</label>
+            <div class="ctl"><input id="glassShine" type="range" min="0" max="100" value="60"></div>
+            <output id="glassShineOut">60 %</output>
+          </div>
+          <div class="note">The additive engine alone in a long hall: pure partials, notes that
+            open like light arriving and take their time to leave, the envelope sent into the
+            filter so every note dawns. Everything dirty is switched off while it holds the panel.
+            <b>Air</b> is how slowly notes open and close, <b>Halo</b> the hall around them,
+            <b>Shine</b> how far each note sweeps toward the light.</div>
+        </div>
+      </section>
+
+      <section class="spec-module spec-off" data-spec="tape">
+        <div class="spec-head">
+          <span class="spec-mark" aria-hidden="true">◉</span>
+          <button class="spec-toggle" type="button" aria-expanded="false">
+            <span class="spec-name">Tape Séance</span>
+            <span class="spec-sub">wow &amp; flutter · pitch sag · dust on everything</span>
+          </button>
+          <button class="spec-rocker" id="tapeBtn" type="button" role="switch" aria-pressed="false"
+                  aria-label="Engage Tape Séance" title="Engage Tape Séance"><span class="rocker-lens"><i></i></span></button>
+        </div>
+        <div class="spec-controls" hidden>
+          <div class="row">
+            <label for="tapeWobble">Wobble</label>
+            <div class="ctl"><input id="tapeWobble" type="range" min="0" max="100" value="45"></div>
+            <output id="tapeWobbleOut">45 %</output>
+          </div>
+          <div class="row">
+            <label for="tapeSag">Sag</label>
+            <div class="ctl"><input id="tapeSag" type="range" min="0" max="100" value="35"></div>
+            <output id="tapeSagOut">35 %</output>
+          </div>
+          <div class="row">
+            <label for="tapeDust">Dust</label>
+            <div class="ctl"><input id="tapeDust" type="range" min="0" max="100" value="40"></div>
+            <output id="tapeDustOut">40 %</output>
+          </div>
+          <div class="note">A reel that has been in the attic too long: wow bends the pitch and
+            the echoes, notes sag flat as they die, and there is dust on everything — hiss,
+            crackle, a dull top end, tape echoes that will not quite fade. <b>Wobble</b> is the
+            state of the motor, <b>Sag</b> how far dying notes fall, <b>Dust</b> the years.</div>
+        </div>
+      </section>
+
+      <section class="spec-module spec-off" data-spec="insect">
+        <div class="spec-head">
+          <span class="spec-mark" aria-hidden="true">⁂</span>
+          <button class="spec-toggle" type="button" aria-expanded="false">
+            <span class="spec-name">INSECT CHOIR</span>
+            <span class="spec-sub">cluster swarm · unsynchronised tremolo · skitter</span>
+          </button>
+          <button class="spec-rocker" id="insectBtn" type="button" role="switch" aria-pressed="false"
+                  aria-label="Engage Insect Choir" title="Engage Insect Choir"><span class="rocker-lens"><i></i></span></button>
+        </div>
+        <div class="spec-controls" hidden>
+          <div class="row">
+            <label for="insectSwarm">Swarm</label>
+            <div class="ctl"><input id="insectSwarm" type="range" min="0" max="100" value="55"></div>
+            <output id="insectSwarmOut">55 %</output>
+          </div>
+          <div class="row">
+            <label for="insectFlutter">Flutter</label>
+            <div class="ctl"><input id="insectFlutter" type="range" min="0" max="100" value="60"></div>
+            <output id="insectFlutterOut">60 %</output>
+          </div>
+          <div class="row">
+            <label for="insectSkitter">Skitter</label>
+            <div class="ctl"><input id="insectSkitter" type="range" min="0" max="100" value="40"></div>
+            <output id="insectSkitterOut">40 %</output>
+          </div>
+          <div class="note">The voices stop agreeing: they detune into a cluster instead of a
+            chord, each one trembles at its own rate, and tiny random jumps keep the whole swarm
+            moving. Best heard with several voices stacked — arming it raises the count.
+            <b>Swarm</b> is how wide the cluster spreads, <b>Flutter</b> the trembling,
+            <b>Skitter</b> the nervous jumps.</div>
         </div>
       </section>
     </div>
@@ -1531,7 +1863,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.3";
+  var BUILD_ID = "260821.4";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -1644,6 +1976,14 @@
     twoShape: "line",
     fxSkin: "boutique",
     darkOn: false,
+    spec: {
+      pink:   { swirl: 50, smear: 55, bloom: 45 },
+      black:  { grind: 60, chop: 55, clang: 40 },
+      glass:  { air: 60, halo: 55, shine: 60 },
+      tape:   { wobble: 45, sag: 35, dust: 40 },
+      insect: { swarm: 55, flutter: 60, skitter: 40 }
+    },
+
     subLevel: 0.5,
     subOct: 1,
     darkCluster: 24,
@@ -1803,9 +2143,10 @@
    * ±60 cents per step, with a deterministic wobble per voice index). */
   function fineCents(index, count) {
     if (count < 2) return 0;
-    var base = darkActive() && S.darkCluster > 0 ? S.darkCluster : 3;
+    var base = darkActive() && S.darkCluster > 0 ? S.darkCluster
+             : specMod.cluster > 0 ? specMod.cluster : 3;
     var c = (index - (count - 1) / 2) * base;
-    if (darkActive() && S.darkCluster > 0) {
+    if ((darkActive() && S.darkCluster > 0) || specMod.cluster > 0) {
       c += (((index * 73) % 7) - 3) * base * 0.12;
     }
     return c;
@@ -1819,6 +2160,21 @@
    * decays into unease. Costs nothing unless Dark Drone and Drift are on. */
   var drift = { c: 0, d: 0, t: 0, lastMs: 0, pushMs: 0 };
   function driftOn() { return S.darkOn && S.drift > 0.005 && audioOn; }
+  /* ---- Spectrum modulation hooks ------------------------------------ *
+   * The armed character writes into specMod from specTick; everything
+   * else reads through these, exactly like the drift hooks below. All
+   * neutral when nothing is armed, so the machinery costs nothing off. */
+  var specMod = { det: 0, cutMul: 1, panAdd: 0, delayMul: 1, trem: null, sag: 0, cluster: 0 };
+  function specDetAdd()   { return specMod.det; }
+  function specCutMul()   { return specMod.cutMul; }
+  function specPanAdd()   { return specMod.panAdd; }
+  function specDelayMul() { return specMod.delayMul; }
+  function specSagAmt()   { return specMod.sag; }
+  function specLevelMul(i) {
+    var t = specMod.trem;
+    return t && t.length ? t[((i % t.length) + t.length) % t.length] : 1;
+  }
+
   function driftCutMul() { return driftOn() ? Math.pow(2, drift.c * S.drift * 1.2) : 1; }
   function driftDetAdd() { return driftOn() ? drift.d * S.drift * 10 : 0; }
   function driftDelayMul() { return driftOn() ? 1 + drift.t * S.drift * 0.1 : 1; }
@@ -1839,22 +2195,22 @@
     var p = 0;
     if (S.panMode === "x") p = w > 0 ? x / w * 2 - 1 : 0;
     else if (rgb) p = rgb2hsv(rgb[0], rgb[1], rgb[2]).h / 180 - 1;
-    return clamp(p * S.width, -1, 1);
+    return clamp(p * S.width + specPanAdd(), -1, 1);
   }
 
   function voiceParams(index) {
     index = index || 0;
     return {
       base: baseFreq(), ratio: tone.ratio * voiceFineRatio(index),
-      morph: tone.morph, pulse: tone.pulse, detune: tone.detune + driftDetAdd(),
-      level: tone.level * (S.engine === "analog" ? voiceNorm() : 1) * velGain(midiIn.vel),
-      cut: clamp(filt.cut * driftCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
+      morph: tone.morph, pulse: tone.pulse, detune: tone.detune + driftDetAdd() + specDetAdd(),
+      level: tone.level * (S.engine === "analog" ? voiceNorm() : 1) * velGain(midiIn.vel) * specLevelMul(0),
+      cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
       drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
       envAmp: S.envAmp, envFlt: S.envFlt,
       sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
-      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
+      envPitch: darkActive() ? S.envPitch : specSagAmt(), stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
     };
   }
 
@@ -2546,7 +2902,7 @@
     g.satWet.gain.setTargetAtTime(Math.sin(satMix * Math.PI / 2) * S.satComp, t, 0.03);
     g.satPre.gain.setTargetAtTime(Math.pow(10, S.satGain / 32), t, 0.03);
     g.satTone.frequency.setTargetAtTime(S.satTone, t, 0.03);
-    var dtd = S.delayTime * driftDelayMul();
+    var dtd = S.delayTime * driftDelayMul() * specDelayMul();
     g.delay[0].delayTime.setTargetAtTime(dtd + Math.max(0, -S.delayOffset), t, 0.02);
     g.delay[1].delayTime.setTargetAtTime(dtd + Math.max(0, S.delayOffset), t, 0.02);
     for (var dc = 0; dc < 2; dc++) {
@@ -2590,13 +2946,13 @@
     var oscN = clamp(S.polyOsc, 1, 4), notesN = clamp(S.polyNotes, 1, 4);
     var norm = (1 / Math.sqrt(oscN)) * (notesN > 1 ? 0.85 : 1);
     var shared = {
-      cut: clamp(filt.cut * driftCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
+      cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
       envAmp: S.envAmp, envFlt: S.envFlt,
       sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
-      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
+      envPitch: darkActive() ? S.envPitch : specSagAmt(), stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
     };
     var total = 1 + (A.extras ? A.extras.length : 0);
     for (var vi = 0; vi < total; vi++) {
@@ -2628,7 +2984,7 @@
       for (k in shared) msg[k] = shared[k];
       for (k in tp) msg[k] = tp[k];
       msg.ratio = tp.ratio * Math.pow(2, fineCents(o, oscN) / 1200);
-      msg.level = tp.level * norm * velGain(slot.vel);
+      msg.level = tp.level * norm * velGain(slot.vel) * specLevelMul(vi);
       if (!midi.playing) {
         msg.base = noteFreq(slot.note);
         msg.gate = slot.on || slot.sustained ? 1 : 0;
@@ -2645,13 +3001,13 @@
     if (!A || !A.extras || !A.extras.length) return;
     var n = clamp(S.voices - 1, 0, A.extras.length);
     var shared = {
-      base: baseFreq(), cut: clamp(filt.cut * driftCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
+      base: baseFreq(), cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filt.bypass ? 0 : filt.res,
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
       envAmp: S.envAmp, envFlt: S.envFlt,
       sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
-      envPitch: darkActive() ? S.envPitch : 0, stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
+      envPitch: darkActive() ? S.envPitch : specSagAmt(), stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
     };
     var norm = voiceNorm(), i, k;
     for (i = 0; i < A.extras.length; i++) {
@@ -2673,7 +3029,7 @@
         for (k in shared) msg[k] = shared[k];
         for (k in p) msg[k] = p[k];
         msg.ratio = p.ratio * voiceFineRatio(i + 1);
-        msg.level = p.level * norm * velGain(midiIn.vel);
+        msg.level = p.level * norm * velGain(midiIn.vel) * specLevelMul(i + 1);
         msg.gate = gateOn ? 1 : 0;       // late joiners pick up the held gate
         A.extras[i].node.port.postMessage({ type: "params", p: msg });
         setPan(A.extras[i].pan, voicePan(rgb, sx, padTone.w), A.ctx.currentTime, true);
@@ -3979,6 +4335,7 @@
     }
     if (midi.playing) midiTick();
     driftTick(nowMs);
+    specTick(nowMs);
     if (UI.mode === "edit" && !sw) resizeScope();
     if (UI.mode === "edit" && scopeChanged()) drawScope();
     requestAnimationFrame(frame);
@@ -5059,7 +5416,7 @@
             release: envRelease(), glide: S.glide, spread: S.width,
             envAmp: S.envAmp, envFlt: S.envFlt,
             sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
-            envPitch: darkActive() ? S.envPitch : 0, stop: 0,
+            envPitch: darkActive() ? S.envPitch : specSagAmt(), stop: 0,
             wave: WAVE_IDX[S.waveform] || 0
           };
           if (o > 0 && padTone.pos) {
@@ -5453,6 +5810,280 @@
   });
   /* Spectrum modules: a shared shell (arm / collapse) so a new character is
    * markup plus its own block of CSS, nothing more. */
+  /* ================================================================== *
+   * Spectrum characters: one armed at a time.
+   *
+   * Exclusivity lives HERE and nowhere else — specArm disarms whatever
+   * held the panel before arming the next. To let characters coexist
+   * later, relax this one function; the modules themselves do not know
+   * about each other.
+   *
+   * A character is three things: a snapshot (the controls it moves, put
+   * back on disarm), a set of control values applied through the normal
+   * events (so presets, automation and saved state need no special
+   * cases), and, if it breathes, a tick that writes into specMod.
+   * ================================================================== */
+  var SPEC = { armed: "", snap: null, pushMs: 0, ph: 0, ph2: 0, ph3: 0, jd: 0 };
+  var SPEC_MODULES = {};   // name -> { touches: [ids], start(), tick(now, dt) }
+
+  function specSetControls(map) {
+    for (var id in map) {
+      var el = $(id);
+      if (!el) continue;
+      el.value = String(map[id]);
+      el.dispatchEvent(new Event(el.tagName === "SELECT" ? "change" : "input"));
+    }
+  }
+  function specSnapshot(ids) {
+    var out = { controls: {}, fxEnabled: JSON.parse(JSON.stringify(S.fxEnabled)),
+                fxOrder: S.fxOrder.slice(), fmode: S.fmode, waveform: S.waveform, engine: S.engine };
+    ids.forEach(function (id) { var el = $(id); if (el) out.controls[id] = el.value; });
+    return out;
+  }
+  function specRestore(snap) {
+    if (!snap) return;
+    var list = $("fxList");
+    snap.fxOrder.forEach(function (nm) {
+      var card = list.querySelector('[data-fx="' + nm + '"]');
+      if (card) list.appendChild(card);
+    });
+    commitFXOrder();
+    FX_MODULE_NAMES.forEach(function (n) { setFXEnabled(n, snap.fxEnabled[n] !== false); });
+    specSetControls(snap.controls);
+    var fb = document.querySelector('[data-fmode="' + snap.fmode + '"]');
+    if (fb && S.fmode !== snap.fmode) fb.click();
+    if ($("waveform") && S.waveform !== snap.waveform) specSetControls({ waveform: snap.waveform });
+    if ($("engine") && S.engine !== snap.engine) specSetControls({ engine: snap.engine });
+  }
+  function specResetMod() {
+    specMod.det = 0; specMod.cutMul = 1; specMod.panAdd = 0;
+    specMod.delayMul = 1; specMod.trem = null; specMod.sag = 0; specMod.cluster = 0;
+  }
+
+  function specArm(name) {
+    if (SPEC.armed === name) return;
+    if (SPEC.armed === "darkdrone") setDarkOn(false);
+    else if (SPEC.armed) { specRestore(SPEC.snap); SPEC.snap = null; }
+    specResetMod();
+    SPEC.armed = "";
+    if (name === "darkdrone") { setDarkOn(true); SPEC.armed = name; }
+    else if (name && SPEC_MODULES[name]) {
+      var m = SPEC_MODULES[name];
+      SPEC.snap = specSnapshot(m.touches);
+      m.start();
+      SPEC.armed = name;
+    }
+    SPEC.ph = SPEC.ph2 = SPEC.ph3 = SPEC.jd = 0;
+    specRefreshUI();
+    applyParams(A); pushVoices();
+  }
+
+  function specRefreshUI() {
+    Array.prototype.forEach.call(document.querySelectorAll(".spec-module"), function (mod) {
+      var name = mod.getAttribute("data-spec");
+      var on = SPEC.armed === name;
+      mod.classList.toggle("spec-off", !on);
+      var r = mod.querySelector(".spec-rocker");
+      if (r) r.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  /* The armed character breathes from here — same cadence idea as the
+   * drift walk: maths every frame, a quiet push at most every 90 ms
+   * (params and voices only; the debounced state save is not involved). */
+  function specTick(nowMs) {
+    var m = SPEC_MODULES[SPEC.armed];
+    if (!m || !m.tick) { SPEC.lastMs = nowMs; return; }
+    var dt = Math.min(0.1, Math.max(0, (nowMs - (SPEC.lastMs || nowMs)) / 1000));
+    SPEC.lastMs = nowMs;
+    m.tick(dt, nowMs);
+    if (nowMs - SPEC.pushMs > 90) {
+      SPEC.pushMs = nowMs;
+      applyParams(A);
+      pushVoices();
+    }
+  }
+
+  SPEC_MODULES.pink = {
+    touches: ["chorusMix", "chorusRate", "chorusDepth", "phaserMix", "phaserRate", "phaserDepth",
+              "reverbMix", "reverbType", "reverbLength", "width", "spread", "voices"],
+    apply: function () {
+      var c = S.spec.pink, sm = c.smear / 100, bl = c.bloom / 100;
+      setFXEnabled("chorus", true);
+      setFXEnabled("phaser", true);
+      setFXEnabled("reverb", true);
+      specSetControls({
+        chorusMix: Math.round(40 + 35 * sm), chorusRate: 22, chorusDepth: Math.round(45 + 45 * sm),
+        phaserMix: Math.round(30 + 30 * sm), phaserRate: 11, phaserDepth: Math.round(55 + 35 * sm),
+        reverbType: "reverse", reverbMix: Math.round(22 + 45 * bl),
+        reverbLength: Math.round(240 + 330 * bl),
+        width: 100, spread: 24, voices: Math.max(4, S.voices)
+      });
+    },
+    start: function () { this.apply(); },
+    tick: function (dt) {
+      var c = S.spec.pink, sw = c.swirl / 100;
+      var rate = 0.02 + 0.24 * sw;                       // rotations per second-ish
+      SPEC.ph  += 6.2832 * rate * dt;
+      SPEC.ph2 += 6.2832 * rate * 0.618 * dt;            // incommensurate, so it never repeats
+      SPEC.ph3 += 6.2832 * rate * 0.29 * dt;
+      specMod.panAdd = Math.sin(SPEC.ph) * 0.7 * sw;
+      specMod.det = Math.sin(SPEC.ph2) * 9 * (c.smear / 100);
+      specMod.cutMul = Math.pow(2, Math.sin(SPEC.ph3) * 0.55 * (c.bloom / 100));
+    }
+  };
+  $("pinkBtn").addEventListener("click", function () { specArm(SPEC.armed === "pink" ? "" : "pink"); });
+  [["pinkSwirl", "swirl"], ["pinkSmear", "smear"], ["pinkBloom", "bloom"]].forEach(function (pair) {
+    $(pair[0]).addEventListener("input", function (e) {
+      S.spec.pink[pair[1]] = parseInt(e.target.value, 10) || 0;
+      $(pair[0] + "Out").textContent = e.target.value + " %";
+      if (SPEC.armed === "pink") SPEC_MODULES.pink.apply();
+      });
+  });
+
+  SPEC_MODULES.black = {
+    touches: ["waveform", "drive", "glide", "attack", "release", "legato",
+              "lofiCrush", "lofiNoise", "lofiDirt", "stutterAmt", "stutterRate",
+              "satGain", "satTone", "delayMix", "delayTime", "delayFeedback", "delayChar", "delayOffset"],
+    apply: function () {
+      var c = S.spec.black, g = c.grind / 100, ch = c.chop / 100, cl = c.clang / 100;
+      setFXEnabled("lofi", true);
+      setFXEnabled("saturation", true);
+      setFXEnabled("stutter", ch > 0.02);
+      setFXEnabled("delay", cl > 0.02);
+      specSetControls({
+        waveform: "square", glide: 0, attack: 2, release: 8, legato: 0,
+        drive: Math.round(55 + 45 * g),
+        lofiCrush: Math.round(25 + 65 * g), lofiDirt: Math.round(25 + 55 * g), lofiNoise: 12,
+        satGain: Math.round(8 + 14 * g), satTone: 34,
+        stutterAmt: Math.round(35 + 65 * ch), stutterRate: Math.round(60 + 80 * ch),
+        delayMix: Math.round(18 + 30 * cl), delayTime: Math.round(120 - 75 * cl),
+        delayFeedback: Math.round(55 + 38 * cl), delayChar: "tape", delayOffset: 0
+      });
+      var cb = document.querySelector('[data-fmode="comb"]');
+      if (cb && S.fmode !== "comb" && cl > 0.4) cb.click();
+    },
+    start: function () {
+      // the crusher moves to the FRONT of the chain — the snapshot puts it back
+      var list = $("fxList"), lofi = list.querySelector('[data-fx="lofi"]');
+      if (lofi) list.insertBefore(lofi, list.firstChild);
+      commitFXOrder();
+      this.apply();
+    }
+  };
+  $("blackBtn").addEventListener("click", function () { specArm(SPEC.armed === "black" ? "" : "black"); });
+  [["blackGrind", "grind"], ["blackChop", "chop"], ["blackClang", "clang"]].forEach(function (pair) {
+    $(pair[0]).addEventListener("input", function (e) {
+      S.spec.black[pair[1]] = parseInt(e.target.value, 10) || 0;
+      $(pair[0] + "Out").textContent = e.target.value + " %";
+      if (SPEC.armed === "black") SPEC_MODULES.black.apply();
+      });
+  });
+
+  SPEC_MODULES.glass = {
+    touches: ["engine", "attack", "release", "envAmp", "envFlt", "glide",
+              "reverbMix", "reverbType", "reverbLength", "width", "spread"],
+    apply: function () {
+      var c = S.spec.glass, air = c.air / 100, ha = c.halo / 100, sh = c.shine / 100;
+      // a cathedral is tone and space — everything dirty steps aside
+      setFXEnabled("saturation", false);
+      setFXEnabled("lofi", false);
+      setFXEnabled("stutter", false);
+      setFXEnabled("delay", false);
+      setFXEnabled("phaser", false);
+      setFXEnabled("chorus", false);
+      setFXEnabled("reverb", true);
+      specSetControls({
+        engine: "additive", glide: 30,
+        attack: Math.round(35 + 55 * air), release: Math.round(45 + 50 * air),
+        envAmp: 100, envFlt: Math.round(35 + 65 * sh),
+        reverbType: "hall", reverbMix: Math.round(25 + 45 * ha),
+        reverbLength: Math.round(280 + 320 * ha),
+        width: 90, spread: 18
+      });
+    },
+    start: function () { this.apply(); },
+    tick: function (dt) {
+      // barely-there breath on the tuning: window light, not vibrato
+      SPEC.ph += 6.2832 * 0.05 * dt;
+      specMod.det = Math.sin(SPEC.ph) * 2.2 * (S.spec.glass.shine / 100);
+    }
+  };
+  $("glassBtn").addEventListener("click", function () { specArm(SPEC.armed === "glass" ? "" : "glass"); });
+  [["glassAir", "air"], ["glassHalo", "halo"], ["glassShine", "shine"]].forEach(function (pair) {
+    $(pair[0]).addEventListener("input", function (e) {
+      S.spec.glass[pair[1]] = parseInt(e.target.value, 10) || 0;
+      $(pair[0] + "Out").textContent = e.target.value + " %";
+      if (SPEC.armed === "glass") SPEC_MODULES.glass.apply();
+      });
+  });
+
+  SPEC_MODULES.tape = {
+    touches: ["delayMix", "delayTime", "delayFeedback", "delayChar", "delayOffset",
+              "lofiCrush", "lofiNoise", "lofiDirt", "satGain", "satTone"],
+    apply: function () {
+      var c = S.spec.tape, du = c.dust / 100;
+      setFXEnabled("delay", true);
+      setFXEnabled("lofi", true);
+      setFXEnabled("saturation", true);
+      specSetControls({
+        delayChar: "tape", delayMix: 34, delayTime: 420, delayOffset: 14,
+        delayFeedback: Math.round(62 + 30 * du),
+        lofiCrush: Math.round(10 + 25 * du), lofiNoise: Math.round(18 + 55 * du),
+        lofiDirt: Math.round(20 + 50 * du),
+        satGain: Math.round(6 + 8 * du), satTone: Math.round(58 - 26 * du)
+      });
+      specMod.sag = 0.15 + 0.75 * (c.sag / 100);       // pitch falls as notes decay
+    },
+    start: function () { this.apply(); },
+    tick: function (dt) {
+      var wob = S.spec.tape.wobble / 100;
+      SPEC.ph  += 6.2832 * 0.5 * dt;                    // wow — the slow one
+      SPEC.ph2 += 6.2832 * 6.3 * dt;                    // flutter — the fast shiver
+      SPEC.jd  = clamp(SPEC.jd * 0.985 + (Math.random() - 0.5) * 0.06 * wob, -1, 1);
+      var wow = Math.sin(SPEC.ph) + 0.25 * Math.sin(SPEC.ph2) + 0.6 * SPEC.jd;
+      specMod.det = wow * 9 * wob;                      // the pitch wobbles...
+      specMod.delayMul = 1 + wow * 0.011 * wob;         // ...and the echoes with it
+    }
+  };
+  $("tapeBtn").addEventListener("click", function () { specArm(SPEC.armed === "tape" ? "" : "tape"); });
+  [["tapeWobble", "wobble"], ["tapeSag", "sag"], ["tapeDust", "dust"]].forEach(function (pair) {
+    $(pair[0]).addEventListener("input", function (e) {
+      S.spec.tape[pair[1]] = parseInt(e.target.value, 10) || 0;
+      $(pair[0] + "Out").textContent = e.target.value + " %";
+      if (SPEC.armed === "tape") SPEC_MODULES.tape.apply();
+      });
+  });
+
+  SPEC_MODULES.insect = {
+    touches: ["voices", "spread", "width"],
+    apply: function () {
+      var c = S.spec.insect;
+      specSetControls({ voices: Math.max(7, S.voices), spread: 12, width: 85 });
+      specMod.cluster = 6 + 40 * (c.swarm / 100);      // cents between neighbours
+    },
+    start: function () { this.apply(); },
+    tick: function (dt) {
+      var c = S.spec.insect, fl = c.flutter / 100, sk = c.skitter / 100;
+      SPEC.ph += dt;                                    // seconds; each voice gets its own rate
+      var trem = specMod.trem || (specMod.trem = new Array(16));
+      for (var i = 0; i < 16; i++) {
+        var rate = 3.1 + 0.83 * i;                      // 3..15 Hz, never in step
+        trem[i] = 1 - 0.5 * fl + 0.5 * fl * Math.sin(6.2832 * rate * SPEC.ph + i * 2.39996);
+      }
+      SPEC.jd = clamp(SPEC.jd * 0.9 + (Math.random() - 0.5) * 1.4 * sk, -1, 1);
+      specMod.det = SPEC.jd * 7 * sk;
+    }
+  };
+  $("insectBtn").addEventListener("click", function () { specArm(SPEC.armed === "insect" ? "" : "insect"); });
+  [["insectSwarm", "swarm"], ["insectFlutter", "flutter"], ["insectSkitter", "skitter"]].forEach(function (pair) {
+    $(pair[0]).addEventListener("input", function (e) {
+      S.spec.insect[pair[1]] = parseInt(e.target.value, 10) || 0;
+      $(pair[0] + "Out").textContent = e.target.value + " %";
+      if (SPEC.armed === "insect") SPEC_MODULES.insect.apply();
+      });
+  });
+
   function initSpecModules() {
     Array.prototype.forEach.call(document.querySelectorAll(".spec-toggle"), function (b) {
       b.addEventListener("click", function () {
@@ -5464,14 +6095,14 @@
     });
   }
 
+  /* Low level: state + engine push only. All arming goes through specArm. */
   function setDarkOn(on) {
     S.darkOn = !!on;
-    $("darkBtn").setAttribute("aria-pressed", S.darkOn ? "true" : "false");
-    $("darkBtn").textContent = S.darkOn ? "Engaged" : "Engage";
-    $("darkUnit").classList.toggle("spec-off", !S.darkOn);
     pushAudio();
   }
-  $("darkBtn").addEventListener("click", function () { setDarkOn(!S.darkOn); });
+  $("darkBtn").addEventListener("click", function () {
+    specArm(SPEC.armed === "darkdrone" ? "" : "darkdrone");
+  });
   $("subLevel").addEventListener("input", function (e) {
     S.subLevel = e.target.value / 100;
     $("subLevelOut").textContent = e.target.value + " %";
@@ -5749,6 +6380,7 @@
       name: name, created: Date.now(),
       controls: controls,
       fmode: S.fmode, twoShape: S.twoShape, darkOn: S.darkOn,
+      specArmed: SPEC.armed, specSettings: JSON.parse(JSON.stringify(S.spec)),
       fxOrder: S.fxOrder.slice(), fxRGB: fxAssign.slice(),
       fxEnabled: JSON.parse(JSON.stringify(S.fxEnabled)),
       pads: padsOut
@@ -5764,7 +6396,20 @@
     });
     var fb = p.fmode && document.querySelector('[data-fmode="' + p.fmode + '"]');
     if (fb) fb.click();
-    setDarkOn(!!p.darkOn);
+    specArm("");                                   // release whatever holds the panel
+    if (p.specSettings) {
+      for (var sk in S.spec) {
+        if (!p.specSettings[sk]) continue;
+        for (var pk in S.spec[sk]) {
+          var v = parseFloat(p.specSettings[sk][pk]);
+          if (isFinite(v)) S.spec[sk][pk] = v;
+          var el = $(sk + pk.charAt(0).toUpperCase() + pk.slice(1));
+          if (el) el.value = String(S.spec[sk][pk]);
+        }
+      }
+    }
+    // old presets carry only darkOn; new ones name the armed character
+    specArm(p.specArmed !== undefined ? (p.specArmed || "") : (p.darkOn ? "darkdrone" : ""));
     var tb = p.twoShape && document.querySelector('[data-twoshape="' + p.twoShape + '"]');
     if (tb) tb.click();
     if (Array.isArray(p.fxOrder)) {
