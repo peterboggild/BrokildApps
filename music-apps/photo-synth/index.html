@@ -416,6 +416,12 @@
      each gets an enclosure of its own rather than a shared faceplate. The
      shell below is deliberately plain; the character lives entirely in the
      per-module block, which is all a new module needs to bring with it. */
+  /* The panel's own explanation folds away behind a (?), like each module's. */
+  .panel-help{display:flex;justify-content:flex-end;padding:2px 0 0}
+  .panel-help-btn{color:var(--accent)}
+  .panel-help .note{flex:1 1 auto;padding-right:8px}
+  .panel-help .note[hidden]{display:none}
+
   .spec-list{display:grid;gap:11px;padding-top:2px}
   .spec-module{
     --spc:var(--accent);--spglow:rgba(240,168,72,.5);
@@ -748,7 +754,7 @@
 
 <div id="deck">
 <header>
-  <h1>Photo Synth 2<span>colour → sound</span></h1>
+  <h1>Photo Synth 2</h1>
   <div class="topctl">
     <div class="modeseg" role="group" aria-label="Mode">
       <button class="btn" type="button" data-mode-btn="play" aria-pressed="true">Play</button>
@@ -971,6 +977,11 @@
             <option value="x">Cursor position</option>
           </select></div>
         </div>
+        <div class="row">
+          <label for="padsize">Pad size</label>
+          <div class="ctl"><input id="padsize" type="range" min="60" max="130" value="100"></div>
+          <output id="padsizeOut">100 %</output>
+        </div>
       </div>
     </div>
 
@@ -1073,20 +1084,6 @@
       </div>
     </div>
 
-    <div class="unit">
-      <div class="unitname">Photos &amp; layout</div>
-      <div class="ugrid">
-        <div class="row">
-          <label for="padsize">Pad size</label>
-          <div class="ctl"><input id="padsize" type="range" min="60" max="130" value="100"></div>
-          <output id="padsizeOut">100 %</output>
-        </div>
-        <div class="row">
-          <span class="lab">Photos</span>
-          <div class="ctl seg"><button class="btn" id="swap" type="button">Swap 1 ↔ 2</button></div>
-        </div>
-      </div>
-    </div>
     <div class="note" id="engineNote"></div>
   </div>
 </details>
@@ -1094,13 +1091,6 @@
 <details id="effectsPanel">
   <summary>Effects</summary>
   <div class="body">
-    <div class="row">
-      <label for="fxSkin">Skin</label>
-      <div class="ctl"><select id="fxSkin">
-        <option value="rack" selected>Rack — uniform faceplates</option>
-        <option value="boutique">Boutique — one look per pedal</option>
-      </select></div>
-    </div>
     <div class="fx-help">Drag the ⋮⋮ handle to change the signal path. Tap a module to show its controls.</div>
     <div class="fx-list" id="fxList" aria-label="Effects signal chain">
       <section class="fx-module" data-fx="saturation">
@@ -1305,9 +1295,13 @@
 <details id="spectrumPanel">
   <summary>Spectra</summary>
   <div class="body">
-    <div class="fx-help">A Spectrum module is a character rather than an effect: it does not sit in
+    <div class="panel-help">
+      <button class="spec-help panel-help-btn" type="button" aria-expanded="false"
+              aria-label="What Spectra are" title="What Spectra are">?</button>
+      <div class="note" hidden>A Spectrum module is a character rather than an effect: it does not sit in
       the signal path but re-shapes how every voice is built. Arm any combination — where two reach for the
       same control the most recently armed wins, and each hands back what it took when released.</div>
+    </div>
     <div class="spec-list" id="specList" aria-label="Spectrum character modules">
       <section class="spec-module spec-off" data-spec="darkdrone" id="darkUnit">
         <div class="spec-head">
@@ -1350,10 +1344,6 @@
             <div class="ctl"><input id="driftSpeed" type="range" min="0" max="100" value="40"></div>
             <output id="driftSpeedOut">2.0 min</output>
           </div>
-          <div class="row wide">
-            <span class="lab">Chain</span>
-            <span class="info">Voice only — this character adds no effects to place</span>
-          </div>
           <div class="note" hidden>One switch arms the whole drone engine: a sub-oscillator under every
             voice, microtonal cluster detune instead of tidy unison, a slow random drift on cut-off,
             detune and delay time, and a pitch sag as notes decay. Off, none of it costs a single
@@ -1389,13 +1379,6 @@
             <div class="ctl"><input id="pinkBloom" type="range" min="0" max="100" value="45"></div>
             <output id="pinkBloomOut">45 %</output>
           </div>
-          <div class="row wide">
-            <label for="pinkPlace">Chain</label>
-            <div class="ctl"><select id="pinkPlace">
-              <option value="pre">Pre — its effects run first</option>
-              <option value="post">Post — its effects run last</option>
-            </select></div>
-          </div>
           <div class="note" hidden>Everything smeared and slowly rotating: the stereo image swirls,
             a slow wave bends the tuning, the filter breathes on its own, and the reverb is the
             reverse character so tails swell in rather than die away. <b>Swirl</b> is the speed of
@@ -1430,13 +1413,6 @@
             <div class="ctl"><input id="blackClang" type="range" min="0" max="100" value="40"></div>
             <output id="blackClangOut">40 %</output>
           </div>
-          <div class="row wide">
-            <label for="blackPlace">Chain</label>
-            <div class="ctl"><select id="blackPlace">
-              <option value="pre">Pre — its effects run first</option>
-              <option value="post">Post — its effects run last</option>
-            </select></div>
-          </div>
           <div class="note" hidden>Square wave into the crusher BEFORE the filter, so the ladder has to
             smooth the wreckage; the comb filter and a tight metal slapback ring like struck sheet
             steel, the stutter chops the gate and notes stop dead instead of releasing.
@@ -1469,13 +1445,6 @@
             <label for="glassShine">Shine</label>
             <div class="ctl"><input id="glassShine" type="range" min="0" max="100" value="60"></div>
             <output id="glassShineOut">60 %</output>
-          </div>
-          <div class="row wide">
-            <label for="glassPlace">Chain</label>
-            <div class="ctl"><select id="glassPlace">
-              <option value="pre">Pre — its effects run first</option>
-              <option value="post">Post — its effects run last</option>
-            </select></div>
           </div>
           <div class="note" hidden>Your own tone, sent to church: notes open like light arriving and
             take their time to leave, the envelope is sent into the filter so every note dawns,
@@ -1512,13 +1481,6 @@
             <div class="ctl"><input id="tapeDust" type="range" min="0" max="100" value="40"></div>
             <output id="tapeDustOut">40 %</output>
           </div>
-          <div class="row wide">
-            <label for="tapePlace">Chain</label>
-            <div class="ctl"><select id="tapePlace">
-              <option value="pre">Pre — its effects run first</option>
-              <option value="post">Post — its effects run last</option>
-            </select></div>
-          </div>
           <div class="note" hidden>A reel that has been in the attic too long: wow bends the pitch and
             the echoes, notes sag flat as they die, and there is dust on everything — hiss,
             crackle, a dull top end, tape echoes that will not quite fade. <b>Wobble</b> is the
@@ -1551,10 +1513,6 @@
             <label for="insectSkitter">Skitter</label>
             <div class="ctl"><input id="insectSkitter" type="range" min="0" max="100" value="40"></div>
             <output id="insectSkitterOut">40 %</output>
-          </div>
-          <div class="row wide">
-            <span class="lab">Chain</span>
-            <span class="info">Voice only — this character adds no effects to place</span>
           </div>
           <div class="note" hidden>The voices stop agreeing: they detune into a cluster instead of a
             chord, each one trembles at its own rate, and tiny random jumps keep the whole swarm
@@ -1635,12 +1593,7 @@
       <span class="info" id="defaultInfo">factory settings</span>
     </div>
     <div id="presetList"></div>
-    <div class="note">A preset captures every control, the effect chain and FX matrix, the cursor
-      positions, armed motions, and small copies of the three photos. Presets are stored only in
-      this browser on this device — nothing is uploaded and no other device can read them.
-      <b>Export</b> writes a preset to a single file you can back up, or move to another device
-      yourself. Note: if the browser has not visited this page for a long time it may reclaim the
-      storage, so export the presets you care about.</div>
+    <div class="note">A preset captures every control, the effect chain and FX matrix, the cursor positions, armed motions, and small copies of the photos. <b>Export</b> writes a preset to a single file you can back up or move to another machine, and <b>Import file</b> reads one back.</div>
     <input type="file" id="file-preset" accept=".json,application/json">
   </div>
 </details>
@@ -1935,7 +1888,6 @@
      style="position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.68);display:flex;align-items:center;justify-content:center;padding:20px">
   <div style="max-width:460px;background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:24px 28px;box-shadow:0 20px 60px rgba(0,0,0,.75);text-align:center">
     <h2 style="margin:0 0 4px;font-size:20px;letter-spacing:.04em;color:var(--accent)">Photo Synth 2</h2>
-    <div style="font-size:11px;color:var(--faint);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px">colour → sound</div>
     <p style="font-size:13.5px;line-height:1.6;color:var(--muted);margin:.6em 0">This instrument comes from the curved mind of
       <b style="color:var(--text)">Professor Brokild</b>, and was programmed with VScode, ChatGPT and Claude.
       Use of this is on your own peril. It may generate unique, beautiful, scary or useless sounds for you.
@@ -1968,7 +1920,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.13";
+  var BUILD_ID = "260821.14";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -2041,7 +1993,7 @@
     fmode: "lowpass",
     envPhoto: true,      // photo 3 may take over the envelope once touched
     filterQ: 1,          // Q multiplier on the colour-driven resonance (0.25x..4x)
-    fxOrder: ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"],
+    fxOrder: ["saturation", "stutter", "lofi", "phaser", "chorus", "delay", "reverb"],
     fxEnabled: { saturation: true, delay: true, reverb: true, phaser: false, chorus: false, stutter: false, lofi: false },
     delayTime: 0.260,
     delayFeedback: 0.34,
@@ -2081,13 +2033,13 @@
     padSize: 1,
     motionSpeed: 1,
     twoShape: "line",
-    fxSkin: "boutique",
+    fxSkin: "boutique",   // the only skin now: one enclosure per pedal
     darkOn: false,
     spec: {
-      pink:   { swirl: 50, smear: 55, bloom: 45, place: "post" },
-      black:  { grind: 60, chop: 55, clang: 40, place: "pre" },
-      glass:  { air: 60, halo: 55, shine: 60, place: "post" },
-      tape:   { wobble: 45, sag: 35, dust: 40, place: "pre" },
+      pink:   { swirl: 50, smear: 55, bloom: 45 },
+      black:  { grind: 60, chop: 55, clang: 40 },
+      glass:  { air: 60, halo: 55, shine: 60 },
+      tape:   { wobble: 45, sag: 35, dust: 40 },
       insect: { swarm: 55, flutter: 60, skitter: 40 }
     },
 
@@ -2100,7 +2052,7 @@
     freeze: false,
     tapeStop: false
   };
-  var FX_MODULE_NAMES = ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"];
+  var FX_MODULE_NAMES = ["saturation", "stutter", "lofi", "phaser", "chorus", "delay", "reverb"];
   (function restoreFXOrder() {
     try {
       var saved = JSON.parse(localStorage.getItem("photoSynth.fxOrder") || "null");
@@ -2114,12 +2066,6 @@
       S.fxOrder = known.concat(FX_MODULE_NAMES.filter(function (name) {
         return known.indexOf(name) === -1;
       }));
-    } catch (ignore) {}
-  })();
-  (function restoreFXSkin() {
-    try {
-      var v = localStorage.getItem("photoSynth.fxSkin");
-      if (v === "boutique" || v === "rack") S.fxSkin = v;
     } catch (ignore) {}
   })();
   (function restoreFXEnabled() {
@@ -4387,12 +4333,16 @@
   }
 
   function fillMain(freqs, out, len) {
-    var i, k = 3.85 * (filt.bypass ? 0 : filt.res);
+    // filterRes()/filterQv() are what the engine is actually given — the
+    // colour’s resonance with the Q factor applied. Drawing from filt.res
+    // instead left the curve blind to the Q slider.
+    var res = filterRes();
+    var i, k = 3.85 * res;
     var mode = filt.bypass ? 0 : MODE_IDX[S.fmode];
     if (engineIsAnalog(A)) {
       if (mode === 4) {
         // Feedback comb magnitude: peaks at every multiple of the cut-off.
-        var gC = 0.55 + 0.43 * clamp(filt.res, 0, 1);
+        var gC = 0.55 + 0.43 * clamp(res, 0, 1);
         var fc = clamp(filt.cut * driftCutMul(), 40, 8000);
         for (i = 0; i < len; i++) {
           out[i] = (1 - 0.45 * gC) / Math.sqrt(1 - 2 * gC * Math.cos(6.2831853 * freqs[i] / fc) + gC * gC);
@@ -4412,7 +4362,7 @@
   function scopeChanged() {
     var sig = [tone.ratio.toFixed(4), S.baseMidi, tone.level.toFixed(3), tone.morph.toFixed(3),
                tone.pulse.toFixed(3), tone.rgb && tone.rgb.join(","),
-               filt.cut.toFixed(1), filt.q.toFixed(2), filt.res.toFixed(3),
+               filt.cut.toFixed(1), filt.q.toFixed(2), filt.res.toFixed(3), S.filterQ.toFixed(3),
                filt.peakF.toFixed(1), filt.peakG.toFixed(2), filt.rgb && filt.rgb.join(","),
                S.fmode, S.engine, S.waveform, audioOn, sw, sh,
                driftCutMul().toFixed(3),
@@ -4714,13 +4664,6 @@
     b.addEventListener("click", function () { loadDemo(b.getAttribute("data-demo")); });
   });
 
-  $("swap").addEventListener("click", function () {
-    ["img", "url", "iw", "ih", "pix", "pw", "ph"].forEach(function (k) {
-      var t = padTone[k]; padTone[k] = padFilter[k]; padFilter[k] = t;
-    });
-    padTone.dirty = padFilter.dirty = true;
-    apply(padTone); apply(padFilter);
-  });
 
   /* ================================================================== *
    * FX photo (pad 4): the colour under the cursor drives three effect
@@ -6102,24 +6045,6 @@
     if ($("engine") && S.engine !== snap.engine) specSetControls({ engine: snap.engine });
   }
 
-  /* Where a character's own effects sit relative to everything else.
-   * "pre" pulls them to the front of the chain (so they are coloured by
-   * whatever follows — a reverb downstream hears the crush and the stutter);
-   * "post" pushes them to the end (they treat the finished sound). The
-   * snapshot restores the whole order when the character is released. */
-  function specPlaceFX(list, place) {
-    var host = $("fxList");
-    if (!host || !list || !list.length) return;
-    var cards = list.map(function (nm) { return host.querySelector('[data-fx="' + nm + '"]'); })
-                    .filter(Boolean);
-    if (place === "pre") {
-      for (var i = cards.length - 1; i >= 0; i--) host.insertBefore(cards[i], host.firstChild);
-    } else {
-      cards.forEach(function (c) { host.appendChild(c); });
-    }
-    commitFXOrder();
-  }
-
   function specPh(name) { return SPEC.phs[name] || (SPEC.phs[name] = { ph: 0, ph2: 0, ph3: 0, jd: 0 }); }
   function specIsOn(name) { return SPEC.stack.some(function (e) { return e.name === name; }); }
   function specApplyEntry(e) {
@@ -6220,7 +6145,7 @@
         width: 100, spread: 24, voices: Math.max(4, S.voices)
       });
     },
-    start: function () { this.apply(); specPlaceFX(this.fx, S.spec.pink.place); },
+    start: function () { this.apply(); },
     mods: function (dt, P) {
       var c = S.spec.pink, sw = c.swirl / 100;
       var rate = 0.02 + 0.24 * sw;
@@ -6275,7 +6200,7 @@
     },
     start: function () {
       this.apply();
-      specPlaceFX(this.fx, S.spec.black.place);
+     
     }
   };
   $("blackBtn").addEventListener("click", function () { specToggle("black"); });
@@ -6312,7 +6237,7 @@
         width: 90, spread: 18
       });
     },
-    start: function () { this.apply(); specPlaceFX(this.fx, S.spec.glass.place); },
+    start: function () { this.apply(); },
     mods: function (dt, P) {
       // barely-there breath on the tuning: window light, not vibrato
       P.ph += 6.2832 * 0.05 * dt;
@@ -6349,7 +6274,7 @@
         satGain: Math.round(1 + 4 * du), satTone: Math.round(58 - 26 * du)
       });
     },
-    start: function () { this.apply(); specPlaceFX(this.fx, S.spec.tape.place); },
+    start: function () { this.apply(); },
     mods: function (dt, P) {
       var wob = S.spec.tape.wobble / 100;
       P.ph  += 6.2832 * 0.5 * dt;                       // wow, the slow one
@@ -6398,25 +6323,15 @@
       });
   });
 
-  ["pink", "black", "glass", "tape"].forEach(function (name) {
-    var sel = $(name + "Place");
-    if (!sel) return;
-    sel.value = S.spec[name].place;
-    sel.addEventListener("change", function (e) {
-      S.spec[name].place = e.target.value === "pre" ? "pre" : "post";
-      if (specIsOn(name)) specPlaceFX(SPEC_MODULES[name].fx, S.spec[name].place);
-      if (typeof pushStateSoon === "function") pushStateSoon();
-    });
-  });
-
   /* (?) shows this character's explanation. It also opens the controls if
    * they are folded, so the answer is never hidden behind a second click. */
   function initSpecHelp() {
     Array.prototype.forEach.call(document.querySelectorAll(".spec-help"), function (b) {
       b.addEventListener("click", function (ev) {
         ev.stopPropagation();
-        var mod = b.closest(".spec-module");
-        var note = mod.querySelector(".spec-controls .note");
+        var mod = b.closest(".spec-module") || b.closest(".panel-help");
+        if (!mod) return;
+        var note = mod.querySelector(".note");
         var body = mod.querySelector(".spec-controls");
         var toggle = mod.querySelector(".spec-toggle");
         if (!note) return;
@@ -6560,11 +6475,6 @@
     padEnv.canvas.style.aspectRatio = String(1 / S.padSize);
     padFx.canvas.style.aspectRatio = String(1 / S.padSize);
     $("padsizeOut").textContent = e.target.value + " %";
-  });
-  $("fxSkin").addEventListener("change", function (e) {
-    S.fxSkin = e.target.value;
-    document.body.setAttribute("data-fxskin", S.fxSkin);
-    try { localStorage.setItem("photoSynth.fxSkin", S.fxSkin); } catch (ignore) {}
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-fmode]"), function (b) {
     b.addEventListener("click", function () {
@@ -6734,7 +6644,7 @@
       fmode: "lowpass",
       fxEnabled: { saturation: true, phaser: false, chorus: true, stutter: false,
                    lofi: false, delay: true, reverb: true },
-      fxOrder: ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"],
+      fxOrder: ["saturation", "stutter", "lofi", "phaser", "chorus", "delay", "reverb"],
       specArmedList: [],
       pads: { tone: { pos: { x: 0.42, y: 0.46 }, latched: true },
               filter: { pos: { x: 0.63, y: 0.34 }, latched: true },
@@ -6762,7 +6672,7 @@
       fmode: "lowpass",
       fxEnabled: { saturation: false, phaser: false, chorus: false, stutter: false,
                    lofi: false, delay: false, reverb: false },
-      fxOrder: ["saturation", "phaser", "chorus", "stutter", "lofi", "delay", "reverb"],
+      fxOrder: ["saturation", "stutter", "lofi", "phaser", "chorus", "delay", "reverb"],
       specArmedList: [],
       pads: { tone: { pos: { x: 0.5, y: 0.5 }, latched: false },
               filter: { pos: null, latched: false },
@@ -7177,7 +7087,6 @@
   initSpecModules();
   initSpecHelp();
   initFXSelects();
-  $("fxSkin").value = S.fxSkin;
   document.body.setAttribute("data-fxskin", S.fxSkin);
   refreshPresets();
   initDefaultPatch();
