@@ -1968,7 +1968,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.12";
+  var BUILD_ID = "260821.13";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -6289,24 +6289,26 @@
 
   SPEC_MODULES.glass = {
     fx: ["reverb"],
-    touches: ["attack", "release", "envAmp", "envFlt", "glide",
+    touches: ["attack", "release", "envFlt", "glide",
               "reverbMix", "reverbType", "reverbLength", "width", "spread"],
     apply: function () {
       var c = S.spec.glass, air = c.air / 100, ha = c.halo / 100, sh = c.shine / 100;
-      // a cathedral is tone and space — everything dirty steps aside
-      setFXEnabled("saturation", false);
+      // A cathedral is a room, not a replacement. Only the things that would
+      // muddy a long tail step aside; saturation, chorus and phaser are left
+      // as you set them, because they are what keeps the oscillator present.
       setFXEnabled("lofi", false);
       setFXEnabled("stutter", false);
       setFXEnabled("delay", false);
-      setFXEnabled("phaser", false);
-      setFXEnabled("chorus", false);
       setFXEnabled("reverb", true);
+      // Restrained on purpose: the note must still arrive. A slow attack over
+      // a filter closed to a tenth, behind half a wall of reverb, reads as the
+      // oscillator having been taken away rather than sent to church.
       specSetControls({
-        glide: 30,
-        attack: Math.round(35 + 55 * air), release: Math.round(45 + 50 * air),
-        envAmp: 100, envFlt: Math.round(35 + 65 * sh),
-        reverbType: "hall", reverbMix: Math.round(25 + 45 * ha),
-        reverbLength: Math.round(280 + 320 * ha),
+        glide: 18,
+        attack: Math.round(10 + 40 * air), release: Math.round(40 + 45 * air),
+        envFlt: Math.round(18 + 42 * sh),
+        reverbType: "hall", reverbMix: Math.round(16 + 30 * ha),
+        reverbLength: Math.round(260 + 300 * ha),
         width: 90, spread: 18
       });
     },
