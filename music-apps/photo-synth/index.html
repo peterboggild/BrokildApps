@@ -142,6 +142,10 @@
   .readout .vals{flex:1 1 auto;font-variant-numeric:tabular-nums;line-height:1.35}
   .readout .vals b{color:var(--text);font-weight:600}
   .readout .sub{display:block;color:var(--faint);font-size:11px}
+  /* Paused reads as held, not off: the pad is still armed, the path is still
+     there, the cursor has simply stopped moving. */
+  .pausebtn[aria-pressed="true"]{color:#ffd479;border-color:#ffd47955;background:#ffd4791a}
+  .pausebtn[disabled]{opacity:.35;pointer-events:none}
   .padbtns{display:flex;gap:6px;margin-top:8px}
   .padbtns .btn{flex:1 1 0;justify-content:center;font-size:12px;padding:8px 6px}
   input[type=file]{display:none}
@@ -791,7 +795,7 @@
   <div class="pad" id="pad-tone">
     <div class="padhead">
       <span class="padname"><b>1 · Tone</b> — colour → pitch &amp; timbre<span class="autoflag" id="auto-tone">AUTO</span></span>
-      <span class="padtools"><button class="btn recarm" type="button" data-recarm="tone" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="tone" aria-pressed="false">Latch</button></span>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="tone" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="tone" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="tone" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-tone"></canvas>
@@ -814,7 +818,7 @@
   <div class="pad" id="pad-filter">
     <div class="padhead">
       <span class="padname"><b>2 · Filter</b> — colour → tone colour<span class="autoflag" id="auto-filter">AUTO</span></span>
-      <span class="padtools"><button class="btn recarm" type="button" data-recarm="filter" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="filter" aria-pressed="false">Latch</button></span>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="filter" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="filter" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="filter" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-filter"></canvas>
@@ -839,7 +843,7 @@
   <div class="pad" id="pad-env">
     <div class="padhead">
       <span class="padname"><b>3 · Envelope</b> — red attack · green sustain · blue decay<span class="autoflag" id="auto-env">AUTO</span></span>
-      <span class="padtools"><button class="btn recarm" type="button" data-recarm="env" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="env" aria-pressed="false">Latch</button></span>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="env" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="env" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="env" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-env"></canvas>
@@ -874,7 +878,7 @@
   <div class="pad" id="pad-fx">
     <div class="padhead">
       <span class="padname"><b>4 · FX</b> — red · green · blue → three effects<span class="autoflag" id="auto-fx">AUTO</span></span>
-      <span class="padtools"><button class="btn recarm" type="button" data-recarm="fx" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="fx" aria-pressed="false">Latch</button></span>
+      <span class="padtools"><button class="btn recarm" type="button" data-recarm="fx" aria-pressed="false">Rec</button><button class="btn latch" type="button" data-latch="fx" aria-pressed="false">Latch</button><button class="btn pausebtn" type="button" data-pause="fx" aria-pressed="false" disabled title="Hold the motion where it is">Pause</button></span>
     </div>
     <div class="stage">
       <canvas class="pad-canvas" id="canvas-fx"></canvas>
@@ -1074,6 +1078,14 @@
             <button class="btn" type="button" data-fmode="notch" aria-pressed="false">Notch</button>
             <!-- Low is the classic analog ladder: a Moog-style 24 dB low-pass -->
             <button class="btn" type="button" data-fmode="comb" aria-pressed="false">Comb</button>
+          </div>
+        </div>
+        <div class="row wide">
+          <span class="lab">Key follow</span>
+          <div class="ctl seg">
+            <button class="btn" type="button" data-keyfollow="0" aria-pressed="true">Off</button>
+            <button class="btn" type="button" data-keyfollow="0.5" aria-pressed="false">Half</button>
+            <button class="btn" type="button" data-keyfollow="1" aria-pressed="false">Full</button>
           </div>
         </div>
         <div class="row">
@@ -1920,7 +1932,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.14";
+  var BUILD_ID = "260821.15";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -1991,6 +2003,7 @@
     attack: 0.012,
     release: 0.180,
     fmode: "lowpass",
+    keyFollow: 0,        // 0 · 0.5 · 1 — how far the cut-off tracks the keyboard
     envPhoto: true,      // photo 3 may take over the envelope once touched
     filterQ: 1,          // Q multiplier on the colour-driven resonance (0.25x..4x)
     fxOrder: ["saturation", "stutter", "lofi", "phaser", "chorus", "delay", "reverb"],
@@ -2239,7 +2252,27 @@
    * (all analog modes incl. notch and the comb) and to the additive
    * engine's biquad Q — sharper notches and band-passes at the top end. */
   function filterRes()  { return filt.bypass ? 0 : clamp(filt.res * S.filterQ, 0, 1); }
-  function filterQv()   { return filt.bypass ? 0.7 : clamp(filt.q * S.filterQ, 0.3, 30); }
+
+  /* The lowest note now sounding. Notes arrive from three places — the host,
+   * the on-screen keys and the poly slots — and a filter that tracks the
+   * keyboard should follow the bass of a chord, not whichever note was
+   * pressed last. With nothing held the base note stands in. */
+  var KEYFOLLOW_REF = 48;              // C3: the note the patch is dialled in on
+  function lowestSounding() {
+    var lo = null, k, i, n;
+    for (k in hostHeld) { n = +k; if (lo === null || n < lo) lo = n; }
+    kbHeld().forEach(function (m) { if (lo === null || m < lo) lo = m; });
+    for (i = 0; i < S.polyNotes; i++) {
+      var sl = polySlots[i];
+      if (sl && (sl.on || sl.sustained) && sl.note !== null && (lo === null || sl.note < lo)) lo = sl.note;
+    }
+    return lo === null ? S.baseMidi : lo;
+  }
+  function keyFollowMul() {
+    if (!S.keyFollow) return 1;
+    return Math.pow(2, ((lowestSounding() - KEYFOLLOW_REF) / 12) * S.keyFollow);
+  }
+  function filterQv()   { return filt.bypass ? 0.7 : clamp(filt.q * S.filterQ, 0.05, 30); }
 
   function driftCutMul() { return driftOn() ? Math.pow(2, drift.c * S.drift * 1.2) : 1; }
   function driftDetAdd() { return driftOn() ? drift.d * S.drift * 10 : 0; }
@@ -2270,7 +2303,7 @@
       base: baseFreq(), ratio: tone.ratio * voiceFineRatio(index),
       morph: tone.morph, pulse: tone.pulse, detune: tone.detune + driftDetAdd() + specDetAdd(),
       level: tone.level * (S.engine === "analog" ? voiceNorm() : 1) * velGain(midiIn.vel) * specLevelMul(0),
-      cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filterRes(),
+      cut: clamp(filt.cut * driftCutMul() * specCutMul() * keyFollowMul(), 20, 20000), res: filterRes(),
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode],
       drive: S.drive, attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
@@ -2341,6 +2374,7 @@
     s.src = src; s.note = note; s.on = true; s.sustained = false; s.seq = ++polySeq;
     s.vel = vel === undefined ? 1 : vel;
     pushVoices();
+    if (S.keyFollow) pushAudio();      // the bass note may have moved the cut-off
   }
 
   function polyNoteOff(src) {
@@ -2350,6 +2384,7 @@
       else { s.on = false; s.src = null; }
     });
     pushVoices();
+    if (S.keyFollow) pushAudio();
   }
 
   function polyReleaseSustained() {
@@ -2957,7 +2992,7 @@
     }
     var wantType = filt.bypass ? "lowpass" : BIQUAD_OF_MODE[S.fmode];
     if (g.lp.type !== wantType) g.lp.type = wantType;
-    g.lp.frequency.setTargetAtTime(clamp(filt.cut * driftCutMul(), 20, 20000), t, 0.02);
+    g.lp.frequency.setTargetAtTime(clamp(filt.cut * driftCutMul() * keyFollowMul(), 20, 20000), t, 0.02);
     g.lp.Q.setTargetAtTime(filterQv(), t, 0.03);
     g.lp.gain.setTargetAtTime(!filt.bypass && S.fmode === "comb" ? 15 : 0, t, 0.03);
 
@@ -3012,7 +3047,7 @@
     var oscN = clamp(S.polyOsc, 1, 4), notesN = clamp(S.polyNotes, 1, 4);
     var norm = (1 / Math.sqrt(oscN)) * (notesN > 1 ? 0.85 : 1);
     var shared = {
-      cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filterRes(),
+      cut: clamp(filt.cut * driftCutMul() * specCutMul() * keyFollowMul(), 20, 20000), res: filterRes(),
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
@@ -3066,7 +3101,7 @@
     if (!A || !A.extras || !A.extras.length) return;
     var n = clamp(S.voices - 1, 0, A.extras.length);
     var shared = {
-      base: baseFreq(), cut: clamp(filt.cut * driftCutMul() * specCutMul(), 20, 20000), res: filterRes(),
+      base: baseFreq(), cut: clamp(filt.cut * driftCutMul() * specCutMul() * keyFollowMul(), 20, 20000), res: filterRes(),
       mode: filt.bypass ? 0 : MODE_IDX[S.fmode], drive: S.drive,
       attack: envAttack(), decay: envDecay(), sustain: envSustain(),
       release: envRelease(), glide: S.glide, spread: S.width,
@@ -3329,6 +3364,8 @@
     this.liveOn = false;                // sampling the live camera instead of a photo
     this.motion = null;                 // armed motion: recorded gesture / line / circle
     this.auto = null;                   // a motion currently replaying on this pad
+    this.paused = false;                // motion held where it stands, path kept
+    this.pauseAt = 0;                   // when it was held, to shift the phase back
     this.recArmed = false;              // this pad alone records on its next touch
     this.recCap = null;                 // gesture currently being captured
     this.recP2 = null;                  // second finger of a two-finger shape define
@@ -3369,6 +3406,8 @@
     if (!this.w || !this.h) { this.pending = pp; return; }
     this.pending = null;
     this.motion = motionIn(this, pp.motion);
+    this.paused = !!pp.paused;
+    this.pauseAt = 0;
     if (pp.pos) {
       this.pos = { x: clamp(pp.pos.x, 0, 1) * this.w, y: clamp(pp.pos.y, 0, 1) * this.h };
       var hint = $("hint-" + this.key);
@@ -3584,6 +3623,22 @@
       g.arc(a.cx, a.cy, a.r, 0, 6.2832);
     }
     g.stroke();
+
+    // Where the loop begins and ends. Without it a recorded gesture gives no
+     // clue where to come back to, and closing the loop is guesswork.
+    var sx, sy;
+    if (m.kind === "recorded") { sx = a.x0 + m.pts[0].dx; sy = a.y0 + m.pts[0].dy; }
+    else if (m.kind === "line") { sx = a.x0; sy = a.y0; }
+    else { sx = a.cx + a.r * Math.cos(a.a0); sy = a.cy + a.r * Math.sin(a.a0); }
+    g.setLineDash([]);
+    g.globalAlpha = 0.95;
+    g.beginPath();
+    g.arc(sx, sy, 4.2, 0, 6.2832);
+    g.fillStyle = "#fff";
+    g.fill();
+    g.lineWidth = 1.3;
+    g.strokeStyle = "rgba(0,0,0,.55)";
+    g.stroke();
     g.restore();
   };
 
@@ -3711,6 +3766,9 @@
   function startAuto(pad, p0) {
     var m = pad.motion;
     var a = { t0: performance.now(), x0: p0.x, y0: p0.y, m: m };
+    // Armed while paused: stamp the hold now, so resuming does not credit the
+    // motion with all the time it stood still.
+    if (pad.paused) pad.pauseAt = a.t0;
     if (m.kind === "circle") {
       a.cx = p0.x + m.dx / 2; a.cy = p0.y + m.dy / 2;
       a.r = Math.hypot(m.dx, m.dy) / 2;
@@ -3749,7 +3807,7 @@
   function retriggerMotion(except) {
     var now = performance.now();
     pads.forEach(function (p) {
-      if (!p.motion || p === except) return;
+      if (!p.motion || p === except || p.paused) return;
       if (p.auto) p.auto.t0 = now;
       else p.auto = startAuto(p, p.pos || { x: p.w / 2, y: p.h / 2 });
     });
@@ -3762,12 +3820,37 @@
     return "circle · ⌀ " + Math.round(Math.hypot(m.dx, m.dy)) + " px";
   }
 
+  /* Pause holds the replay where it stands. The motion itself is untouched:
+   * releasing the button shifts its phase forward by exactly how long it was
+   * held, so the loop picks up where it left off rather than jumping. */
+  function setPadPaused(pad, on) {
+    if (pad.paused === on) return;
+    var now = performance.now();
+    pad.paused = on;
+    if (on) {
+      pad.pauseAt = now;
+    } else {
+      if (pad.auto) pad.auto.t0 += now - (pad.pauseAt || now);
+      pad.pauseAt = 0;
+    }
+    var b = document.querySelector('[data-pause="' + pad.key + '"]');
+    if (b) b.setAttribute("aria-pressed", on ? "true" : "false");
+    pad.dirty = true;
+    pushStateSoon();
+  }
+
   function updateMotionUI() {
     pads.forEach(function (p) {
       var el = $("motion-" + p.key);
       if (el) el.textContent = motionLabel(p.motion);
       var flag = $("auto-" + p.key);
       if (flag) flag.classList.toggle("on", !!p.motion);
+      var pb = document.querySelector('[data-pause="' + p.key + '"]');
+      if (pb) {
+        pb.disabled = !p.motion;
+        if (!p.motion && p.paused) setPadPaused(p, false);
+        pb.setAttribute("aria-pressed", p.paused ? "true" : "false");
+      }
     });
   }
 
@@ -3920,6 +4003,12 @@
     }                                   // colour under the cursor still stands
     updateGate();
   }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-pause]"), function (b) {
+    b.addEventListener("click", function () {
+      var pad = padOf(b.getAttribute("data-pause"));
+      if (pad) setPadPaused(pad, !pad.paused);
+    });
+  });
   Array.prototype.forEach.call(document.querySelectorAll("[data-latch]"), function (b) {
     b.addEventListener("click", function () {
       var pad = padOf(b.getAttribute("data-latch"));
@@ -4343,13 +4432,13 @@
       if (mode === 4) {
         // Feedback comb magnitude: peaks at every multiple of the cut-off.
         var gC = 0.55 + 0.43 * clamp(res, 0, 1);
-        var fc = clamp(filt.cut * driftCutMul(), 40, 8000);
+        var fc = clamp(filt.cut * driftCutMul() * keyFollowMul(), 40, 8000);
         for (i = 0; i < len; i++) {
           out[i] = (1 - 0.45 * gC) / Math.sqrt(1 - 2 * gC * Math.cos(6.2831853 * freqs[i] / fc) + gC * gC);
         }
         return;
       }
-      for (i = 0; i < len; i++) out[i] = ladderMag(freqs[i], clamp(filt.cut * driftCutMul(), 20, 20000), k, mode);
+      for (i = 0; i < len; i++) out[i] = ladderMag(freqs[i], clamp(filt.cut * driftCutMul() * keyFollowMul(), 20, 20000), k, mode);
     } else if (A) {
       A.lp.getFrequencyResponse(freqs, out, len === NF ? phTmp : pPh);
     } else {
@@ -4365,7 +4454,7 @@
                filt.cut.toFixed(1), filt.q.toFixed(2), filt.res.toFixed(3), S.filterQ.toFixed(3),
                filt.peakF.toFixed(1), filt.peakG.toFixed(2), filt.rgb && filt.rgb.join(","),
                S.fmode, S.engine, S.waveform, audioOn, sw, sh,
-               driftCutMul().toFixed(3),
+               driftCutMul().toFixed(3), keyFollowMul().toFixed(4),
                darkActive() ? S.subLevel.toFixed(2) + ":" + S.subOct : "0"].join("|");
     if (sig === scopeSig) return false;
     scopeSig = sig;
@@ -4481,7 +4570,7 @@
     if (live.video && (liveTick++ % 3) === 0) refreshLiveBuf();
     pads.forEach(function (p) {
       p.resize();
-      if (p.auto) {
+      if (p.auto && !p.paused) {
         p.pos = autoPos(p, nowMs);
         p.dirty = true;
         apply(p);
@@ -5824,9 +5913,14 @@
     reapply();
   });
   $("filterQ").addEventListener("input", function (e) {
-    // 0..100 -> 0.25x..4x, exponential, 50 = 1x (the original sound)
-    S.filterQ = Math.pow(2, (e.target.value - 50) / 25);
-    $("filterQOut").textContent = S.filterQ.toFixed(2).replace(/0$/, "") + "\u00d7";
+    // 50 = 1x, the original sound, and 50..100 still reaches 4x. Below the
+    // middle the curve is stretched instead: the slider now bottoms out at
+    // 0.05x — all but no resonance, which the old 0.25x floor could not reach.
+    var qv = +e.target.value;
+    S.filterQ = qv >= 50 ? Math.pow(2, (qv - 50) / 25)
+                         : Math.pow(2, ((qv - 50) / 50) * 4.321928);   // 2^-4.32 = 0.05
+    $("filterQOut").textContent = (S.filterQ < 0.1 ? S.filterQ.toFixed(3)
+                                                  : S.filterQ.toFixed(2).replace(/0$/, "")) + "\u00d7";
     pushAudio();
   });
   $("glide").addEventListener("input", function (e) {
@@ -6476,6 +6570,11 @@
     padFx.canvas.style.aspectRatio = String(1 / S.padSize);
     $("padsizeOut").textContent = e.target.value + " %";
   });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-keyfollow]"), function (b) {
+    b.addEventListener("click", function () {
+      setKeyFollow(parseFloat(b.getAttribute("data-keyfollow")));
+    });
+  });
   Array.prototype.forEach.call(document.querySelectorAll("[data-fmode]"), function (b) {
     b.addEventListener("click", function () {
       Array.prototype.forEach.call(document.querySelectorAll("[data-fmode]"), function (o) {
@@ -6489,6 +6588,15 @@
       });
     });
   });
+
+  function setKeyFollow(amt) {
+    S.keyFollow = amt;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-keyfollow]"), function (o) {
+      o.setAttribute("aria-pressed", parseFloat(o.getAttribute("data-keyfollow")) === amt ? "true" : "false");
+    });
+    pushAudio();
+    updateReadouts();
+  }
 
   function fitKeyboard() {
     var p = $("kbdPanel");
@@ -6646,7 +6754,9 @@
                    lofi: false, delay: true, reverb: true },
       fxOrder: ["saturation", "stutter", "lofi", "phaser", "chorus", "delay", "reverb"],
       specArmedList: [],
-      pads: { tone: { pos: { x: 0.42, y: 0.46 }, latched: true },
+      // The tone cursor is placed but not latched: the patch is ready to play
+      // rather than already playing, which is a startling way to be greeted.
+      pads: { tone: { pos: { x: 0.42, y: 0.46 }, latched: false },
               filter: { pos: { x: 0.63, y: 0.34 }, latched: true },
               env: { pos: null, latched: false },
               fx: { pos: null, latched: false } }
@@ -6741,6 +6851,7 @@
         return;
       }
       padsOut[pad.key] = {
+        paused: pad.paused,
         img: padPhotoData(pad),
         pos: pad.pos && pad.w ? { x: pad.pos.x / pad.w, y: pad.pos.y / pad.h } : null,
         latched: pad.latched,
@@ -6751,7 +6862,7 @@
       app: "photo-synth", kind: "preset", version: 1,
       name: name, created: Date.now(),
       controls: controls,
-      fmode: S.fmode, twoShape: S.twoShape, darkOn: S.darkOn,
+      fmode: S.fmode, keyFollow: S.keyFollow, twoShape: S.twoShape, darkOn: S.darkOn,
       specArmed: SPEC.stack.length ? SPEC.stack[0].name : "",
       specArmedList: SPEC.stack.map(function (e) { return e.name; }),
       specSettings: JSON.parse(JSON.stringify(S.spec)),
@@ -6770,6 +6881,7 @@
     });
     var fb = p.fmode && document.querySelector('[data-fmode="' + p.fmode + '"]');
     if (fb) fb.click();
+    setKeyFollow(p.keyFollow ? +p.keyFollow : 0);
     specArm("");                                   // release whatever holds the panel
     if (p.specSettings) {
       for (var sk in S.spec) {
