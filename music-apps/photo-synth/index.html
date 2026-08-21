@@ -1293,6 +1293,7 @@
 <details class="about">
   <summary>How it works</summary>
   <div class="body">
+    <div class="note" id="buildInfo" style="padding-top:0"></div>
     <h3>Playing it</h3>
     <p>Photo <b>1</b> is the oscillator: drag a finger over it and the colour under the fingertip
       becomes a tone. Photo <b>2</b> is the filter: touch it and the colour there shapes that tone.
@@ -1527,6 +1528,9 @@
   /* ================================================================== *
    * Helpers
    * ================================================================== */
+  // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
+  // the VST3, which carries the same id compiled in.
+  var BUILD_ID = "260821.2";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -6021,6 +6025,13 @@
       var el = $(id);
       if (el) el.dispatchEvent(new Event("input"));
     });
+  })();
+
+  (function showBuild() {
+    var b = $("buildInfo");
+    if (b) b.textContent = "Build " + BUILD_ID + " · Brokild";
+    var h = document.querySelector("h1");
+    if (h) h.title = "Photo Synth 2 · build " + BUILD_ID;
   })();
 
   initFXModules();
