@@ -471,6 +471,16 @@
   .spec-rocker[aria-pressed="true"] .rocker-lens{box-shadow:0 0 14px var(--spglow),0 2px 4px rgba(0,0,0,.6) inset}
   .spec-rocker:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
+  /* The explanation folds away behind a (?) so the plate stays tight. */
+  .spec-help{
+    appearance:none;flex:none;width:20px;height:20px;padding:0;margin-left:2px;cursor:pointer;
+    border:1px solid currentColor;border-radius:50%;background:transparent;color:var(--spc);
+    font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;opacity:.55;
+  }
+  .spec-help:hover,.spec-help[aria-expanded="true"]{opacity:1}
+  .spec-help[aria-expanded="true"]{background:var(--spc);color:#0a0507}
+  .spec-controls .note[hidden]{display:none}
+
   .spec-module.spec-off{opacity:.72}
   .spec-module.spec-off .spec-mark{opacity:.45}
 
@@ -916,7 +926,7 @@
         </div>
         <div class="row">
           <label for="spread">Spread</label>
-          <div class="ctl"><input id="spread" type="range" min="5" max="40" value="14"></div>
+          <div class="ctl"><input id="spread" type="range" min="5" max="60" value="14"></div>
           <output id="spreadOut">14 px</output>
         </div>
         <div class="row">
@@ -1072,6 +1082,34 @@
             <label for="satTone">Tone</label>
             <div class="ctl"><input id="satTone" type="range" min="0" max="100" value="72"></div>
             <output id="satToneOut">8.4 kHz</output>
+          </div>
+          <div class="row wide">
+            <label for="pinkPlace">Chain</label>
+            <div class="ctl"><select id="pinkPlace">
+              <option value="pre">Pre — its effects run first</option>
+              <option value="post">Post — its effects run last</option>
+            </select></div>
+          </div>
+          <div class="row wide">
+            <label for="blackPlace">Chain</label>
+            <div class="ctl"><select id="blackPlace">
+              <option value="pre">Pre — its effects run first</option>
+              <option value="post">Post — its effects run last</option>
+            </select></div>
+          </div>
+          <div class="row wide">
+            <label for="glassPlace">Chain</label>
+            <div class="ctl"><select id="glassPlace">
+              <option value="pre">Pre — its effects run first</option>
+              <option value="post">Post — its effects run last</option>
+            </select></div>
+          </div>
+          <div class="row wide">
+            <label for="tapePlace">Chain</label>
+            <div class="ctl"><select id="tapePlace">
+              <option value="pre">Pre — its effects run first</option>
+              <option value="post">Post — its effects run last</option>
+            </select></div>
           </div>
           <div class="note">A biased triode-style curve adds gentle even harmonics. Four-times oversampling and DC blocking keep it smooth.</div>
         </div>
@@ -1268,6 +1306,7 @@
           <button class="spec-toggle" type="button" aria-expanded="true">
             <span class="spec-name">Dark Drone Spectrum</span>
           </button>
+          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="darkBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Dark Drone" title="Engage Dark Drone"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1302,7 +1341,7 @@
             <div class="ctl"><input id="driftSpeed" type="range" min="0" max="100" value="40"></div>
             <output id="driftSpeedOut">2.0 min</output>
           </div>
-          <div class="note">One switch arms the whole drone engine: a sub-oscillator under every
+          <div class="note" hidden>One switch arms the whole drone engine: a sub-oscillator under every
             voice, microtonal cluster detune instead of tidy unison, a slow random drift on cut-off,
             detune and delay time, and a pitch sag as notes decay. Off, none of it costs a single
             cycle. <b>Freeze</b> (top bar) holds the delay tail forever — feedback past 100 % howls
@@ -1317,6 +1356,7 @@
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">Psychedelic Pink Spectrum</span>
           </button>
+          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="pinkBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Psychedelic Pink" title="Engage Psychedelic Pink"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1336,7 +1376,7 @@
             <div class="ctl"><input id="pinkBloom" type="range" min="0" max="100" value="45"></div>
             <output id="pinkBloomOut">45 %</output>
           </div>
-          <div class="note">Everything smeared and slowly rotating: the stereo image swirls,
+          <div class="note" hidden>Everything smeared and slowly rotating: the stereo image swirls,
             a slow wave bends the tuning, the filter breathes on its own, and the reverb is the
             reverse character so tails swell in rather than die away. <b>Swirl</b> is the speed of
             the rotation, <b>Smear</b> how deep the chorus and phaser smudge, <b>Bloom</b> how much
@@ -1350,6 +1390,7 @@
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">INDUSTRIAL BLACK SPECTRUM</span>
           </button>
+          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="blackBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Industrial Black" title="Engage Industrial Black"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1369,7 +1410,7 @@
             <div class="ctl"><input id="blackClang" type="range" min="0" max="100" value="40"></div>
             <output id="blackClangOut">40 %</output>
           </div>
-          <div class="note">Square wave into the crusher BEFORE the filter, so the ladder has to
+          <div class="note" hidden>Square wave into the crusher BEFORE the filter, so the ladder has to
             smooth the wreckage; the comb filter and a tight metal slapback ring like struck sheet
             steel, the stutter chops the gate and notes stop dead instead of releasing.
             <b>Grind</b> is drive and bit-crush, <b>Chop</b> the gate, <b>Clang</b> the metal.</div>
@@ -1382,6 +1423,7 @@
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">Glass Cathedral Spectrum</span>
           </button>
+          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="glassBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Glass Cathedral" title="Engage Glass Cathedral"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1401,7 +1443,7 @@
             <div class="ctl"><input id="glassShine" type="range" min="0" max="100" value="60"></div>
             <output id="glassShineOut">60 %</output>
           </div>
-          <div class="note">Your own tone, sent to church: notes open like light arriving and
+          <div class="note" hidden>Your own tone, sent to church: notes open like light arriving and
             take their time to leave, the envelope is sent into the filter so every note dawns,
             and a long hall stands behind it. The oscillator is untouched — this colours the
             sound, it does not replace it. Everything dirty is switched off while it holds the panel.
@@ -1416,6 +1458,7 @@
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">Tape Séance Spectrum</span>
           </button>
+          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="tapeBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Tape Séance" title="Engage Tape Séance"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1435,7 +1478,7 @@
             <div class="ctl"><input id="tapeDust" type="range" min="0" max="100" value="40"></div>
             <output id="tapeDustOut">40 %</output>
           </div>
-          <div class="note">A reel that has been in the attic too long: wow bends the pitch and
+          <div class="note" hidden>A reel that has been in the attic too long: wow bends the pitch and
             the echoes, notes sag flat as they die, and there is dust on everything — hiss,
             crackle, a dull top end, tape echoes that will not quite fade. <b>Wobble</b> is the
             state of the motor, <b>Sag</b> how far dying notes fall, <b>Dust</b> the years.</div>
@@ -1448,6 +1491,7 @@
           <button class="spec-toggle" type="button" aria-expanded="false">
             <span class="spec-name">INSECT CHOIR SPECTRUM</span>
           </button>
+          <button class="spec-help" type="button" aria-expanded="false" aria-label="What this character does" title="What this character does">?</button>
           <button class="spec-rocker" id="insectBtn" type="button" role="switch" aria-pressed="false"
                   aria-label="Engage Insect Choir" title="Engage Insect Choir"><span class="rocker-lens"><i></i></span></button>
         </div>
@@ -1467,7 +1511,7 @@
             <div class="ctl"><input id="insectSkitter" type="range" min="0" max="100" value="40"></div>
             <output id="insectSkitterOut">40 %</output>
           </div>
-          <div class="note">The voices stop agreeing: they detune into a cluster instead of a
+          <div class="note" hidden>The voices stop agreeing: they detune into a cluster instead of a
             chord, each one trembles at its own rate, and tiny random jumps keep the whole swarm
             moving. Best heard with several voices stacked — arming it raises the count.
             <b>Swarm</b> is how wide the cluster spreads, <b>Flutter</b> the trembling,
@@ -1529,6 +1573,14 @@
         <button class="btn" id="presetSave" type="button">Save current</button>
         <button class="btn" id="presetImport" type="button">Import file</button>
       </div>
+    </div>
+    <div class="row">
+      <span class="lab">Startup</span>
+      <div class="ctl seg">
+        <button class="btn" id="defaultSet" type="button">Set as default</button>
+        <button class="btn" id="defaultClear" type="button">Clear default</button>
+      </div>
+      <span class="info" id="defaultInfo">factory settings</span>
     </div>
     <div id="presetList"></div>
     <div class="note">A preset captures every control, the effect chain and FX matrix, the cursor
@@ -1864,7 +1916,7 @@
    * ================================================================== */
   // Build id: date (YYMMDD) plus that day’s build number. Kept in step with
   // the VST3, which carries the same id compiled in.
-  var BUILD_ID = "260821.6";
+  var BUILD_ID = "260821.8";
   var $ = function (id) { return document.getElementById(id); };
   var clamp = function (x, a, b) { return x < a ? a : (x > b ? b : x); };
   var NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
@@ -1979,10 +2031,10 @@
     fxSkin: "boutique",
     darkOn: false,
     spec: {
-      pink:   { swirl: 50, smear: 55, bloom: 45 },
-      black:  { grind: 60, chop: 55, clang: 40 },
-      glass:  { air: 60, halo: 55, shine: 60 },
-      tape:   { wobble: 45, sag: 35, dust: 40 },
+      pink:   { swirl: 50, smear: 55, bloom: 45, place: "post" },
+      black:  { grind: 60, chop: 55, clang: 40, place: "pre" },
+      glass:  { air: 60, halo: 55, shine: 60, place: "post" },
+      tape:   { wobble: 45, sag: 35, dust: 40, place: "pre" },
       insect: { swarm: 55, flutter: 60, skitter: 40 }
     },
 
@@ -2963,6 +3015,7 @@
       sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
       envPitch: darkActive() ? S.envPitch : specSagAmt(), stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
     };
+    var spPts = spreadPoints();
     var total = 1 + (A.extras ? A.extras.length : 0);
     for (var vi = 0; vi < total; vi++) {
       var node = vi === 0 ? A.voice : A.extras[vi - 1].node;
@@ -2977,11 +3030,9 @@
 
       var tp = null, rgb = tone.rgb;
       var sx = padTone.pos ? padTone.pos.x : 0;
-      if (o > 0 && padTone.pos) {
-        var ang = 4.7124 + o * 6.2832 / oscN;
-        var rad = S.spread * (0.7 + 0.3 * o);
-        sx = padTone.pos.x + Math.cos(ang) * rad;
-        var sy = padTone.pos.y + Math.sin(ang) * rad;
+      if (o > 0 && padTone.pos && spPts[o - 1]) {
+        sx = spPts[o - 1].x;
+        var sy = spPts[o - 1].y;
         var srgb = padTone.sample(sx, sy);
         if (srgb) { tp = toneParamsFromRGB(srgb); rgb = srgb; }
       }
@@ -3018,18 +3069,14 @@
       sub: darkActive() ? S.subLevel : 0, subOct: S.subOct,
       envPitch: darkActive() ? S.envPitch : specSagAmt(), stop: S.tapeStop ? 1 : 0, wave: WAVE_IDX[S.waveform] || 0
     };
-    var norm = voiceNorm(), i, k;
+    var spPts = spreadPoints(), norm = voiceNorm(), i, k;
     for (i = 0; i < A.extras.length; i++) {
       var p = null;
-      if (i < n && engineIsAnalog(A) && padTone.pos) {
+      if (i < n && engineIsAnalog(A) && padTone.pos && spPts[i]) {
         // Up to six voices on a ring around the finger, the next six on a
         // second, wider ring, and so on — large voice counts read the local
         // texture of the photo over a broader patch.
-        var ring = Math.floor(i / 6), nRing = Math.min(6, n - ring * 6);
-        var ang = 4.7124 + (i % 6 + ring * 0.5) * 6.2832 / Math.max(1, nRing);
-        var rad = S.spread * (1 + 0.9 * ring);
-        var sx = padTone.pos.x + Math.cos(ang) * rad;
-        var sy = padTone.pos.y + Math.sin(ang) * rad;
+        var sx = spPts[i].x, sy = spPts[i].y;
         var rgb = padTone.sample(sx, sy);
         if (rgb) p = toneParamsFromRGB(rgb);
       }
@@ -3419,6 +3466,86 @@
     return [r / cnt / 255, g / cnt / 255, b / cnt / 255];
   };
 
+  /* The points the extra voices read, in pad pixels around the cursor.
+   * Mono/unison: voice 0 is the cursor itself, then rings of six — the
+   * first at Spread, each next 0.9x Spread further out. Polyphonic: each
+   * note's oscillator o sits at Spread x (0.7 + 0.3 o). This is the single
+   * source of truth; pushExtraVoices, pushPolyVoices and the halo all use
+   * it, so what you see is exactly what is sampled. */
+  function spreadPoints() {
+    var pts = [], i;
+    if (!padTone.pos) return pts;
+    if (polyActive()) {
+      var oscN = clamp(S.polyOsc, 1, 4), notesN = clamp(S.polyNotes, 1, 4);
+      var live = 0;
+      for (i = 0; i < notesN; i++) if (polySlots[i] && (polySlots[i].on || polySlots[i].sustained)) live++;
+      if (!live) live = 1;
+      for (var o = 1; o < oscN; o++) {
+        var pa = 4.7124 + o * 6.2832 / oscN;
+        var pr = S.spread * (0.7 + 0.3 * o);
+        pts.push({ x: padTone.pos.x + Math.cos(pa) * pr, y: padTone.pos.y + Math.sin(pa) * pr, r: pr });
+      }
+    } else {
+      var n = clamp(S.voices - 1, 0, 15);
+      for (i = 0; i < n; i++) {
+        var ring = Math.floor(i / 6), nRing = Math.min(6, n - ring * 6);
+        var ang = 4.7124 + (i % 6 + ring * 0.5) * 6.2832 / Math.max(1, nRing);
+        var rad = S.spread * (1 + 0.9 * ring);
+        pts.push({ x: padTone.pos.x + Math.cos(ang) * rad, y: padTone.pos.y + Math.sin(ang) * rad, r: rad });
+      }
+    }
+    return pts;
+  }
+
+  /* Lift the patch the extra voices are reading out of the photo: a soft
+   * additive brightening (about 10 % on the RGB values) out to the widest
+   * sampling radius, a hairline at the Spread radius itself, and a dot on
+   * every point that actually feeds a voice. */
+  Pad.prototype.drawSpread = function (g) {
+    if (this.key !== "tone" || !this.pos) return;
+    var pts = spreadPoints();
+    if (!pts.length) return;
+    var maxR = 0, i;
+    for (i = 0; i < pts.length; i++) if (pts[i].r > maxR) maxR = pts[i].r;
+    if (maxR < 1) return;
+    var x = this.pos.x, y = this.pos.y;
+
+    g.save();
+    // additive lift, feathered at the edge so it reads as light not paint
+    g.globalCompositeOperation = "lighter";
+    var grd = g.createRadialGradient(x, y, 0, x, y, maxR);
+    grd.addColorStop(0,    "rgba(255,255,255,0.13)");
+    grd.addColorStop(0.72, "rgba(255,255,255,0.10)");
+    grd.addColorStop(1,    "rgba(255,255,255,0.00)");
+    g.fillStyle = grd;
+    g.beginPath();
+    g.arc(x, y, maxR, 0, 6.2832);
+    g.fill();
+    g.restore();
+
+    g.save();
+    g.globalAlpha = this.active || this.latched ? 0.85 : 0.5;
+    g.strokeStyle = "rgba(255,255,255,.5)";
+    g.lineWidth = 1;
+    g.setLineDash([3, 4]);
+    g.beginPath();
+    g.arc(x, y, S.spread, 0, 6.2832);
+    g.stroke();
+    g.setLineDash([]);
+    for (i = 0; i < pts.length; i++) {
+      g.beginPath();
+      g.arc(pts[i].x, pts[i].y, 2.4, 0, 6.2832);
+      g.fillStyle = "rgba(255,255,255,.85)";
+      g.fill();
+      g.beginPath();
+      g.arc(pts[i].x, pts[i].y, 2.4, 0, 6.2832);
+      g.strokeStyle = "rgba(0,0,0,.55)";
+      g.lineWidth = 1;
+      g.stroke();
+    }
+    g.restore();
+  };
+
   Pad.prototype.draw = function () {
     var g = this.ctx2d;
     if (!this.w) return;
@@ -3428,6 +3555,7 @@
     this.drawSrc(g, this.cover());
     if (this.auto) this.drawMotionPath(g);
     if (this.recCap && this.recP2) this.drawShapePreview(g);
+    if (this.pos) this.drawSpread(g);
     if (this.pos) this.drawCursor(g);
   };
 
@@ -5428,11 +5556,10 @@
             envPitch: darkActive() ? S.envPitch : specSagAmt(), stop: 0,
             wave: WAVE_IDX[S.waveform] || 0
           };
-          if (o > 0 && padTone.pos) {
-            var ang = 4.7124 + o * 6.2832 / oscN;
-            var rad = S.spread * (0.7 + 0.3 * o);
-            var srgb = padTone.sample(padTone.pos.x + Math.cos(ang) * rad,
-                                      padTone.pos.y + Math.sin(ang) * rad);
+          // same sampling points as the live push, so the render matches
+          var rpts = spreadPoints();
+          if (o > 0 && padTone.pos && rpts[o - 1]) {
+            var srgb = padTone.sample(rpts[o - 1].x, rpts[o - 1].y);
             if (srgb) {
               var tp = toneParamsFromRGB(srgb);
               for (var k in tp) vp[k] = tp[k];
@@ -5872,6 +5999,24 @@
     if ($("engine") && S.engine !== snap.engine) specSetControls({ engine: snap.engine });
   }
 
+  /* Where a character's own effects sit relative to everything else.
+   * "pre" pulls them to the front of the chain (so they are coloured by
+   * whatever follows — a reverb downstream hears the crush and the stutter);
+   * "post" pushes them to the end (they treat the finished sound). The
+   * snapshot restores the whole order when the character is released. */
+  function specPlaceFX(list, place) {
+    var host = $("fxList");
+    if (!host || !list || !list.length) return;
+    var cards = list.map(function (nm) { return host.querySelector('[data-fx="' + nm + '"]'); })
+                    .filter(Boolean);
+    if (place === "pre") {
+      for (var i = cards.length - 1; i >= 0; i--) host.insertBefore(cards[i], host.firstChild);
+    } else {
+      cards.forEach(function (c) { host.appendChild(c); });
+    }
+    commitFXOrder();
+  }
+
   function specPh(name) { return SPEC.phs[name] || (SPEC.phs[name] = { ph: 0, ph2: 0, ph3: 0, jd: 0 }); }
   function specIsOn(name) { return SPEC.stack.some(function (e) { return e.name === name; }); }
   function specApplyEntry(e) {
@@ -5958,6 +6103,7 @@
   SPEC_MODULES.pink = {
     touches: ["chorusMix", "chorusRate", "chorusDepth", "phaserMix", "phaserRate", "phaserDepth",
               "reverbMix", "reverbType", "reverbLength", "width", "spread", "voices"],
+    fx: ["phaser", "chorus", "reverb"],
     apply: function () {
       var c = S.spec.pink, sm = c.smear / 100, bl = c.bloom / 100;
       setFXEnabled("chorus", true);
@@ -5971,7 +6117,7 @@
         width: 100, spread: 24, voices: Math.max(4, S.voices)
       });
     },
-    start: function () { this.apply(); },
+    start: function () { this.apply(); specPlaceFX(this.fx, S.spec.pink.place); },
     mods: function (dt, P) {
       var c = S.spec.pink, sw = c.swirl / 100;
       var rate = 0.02 + 0.24 * sw;
@@ -5993,9 +6139,10 @@
   });
 
   SPEC_MODULES.black = {
-    touches: ["waveform", "drive", "glide", "attack", "release", "legato",
+    touches: ["waveform", "drive", "glide", "attack", "release", "legato", "filterQ",
               "lofiCrush", "lofiNoise", "lofiDirt", "stutterAmt", "stutterRate",
               "satGain", "satTone", "delayMix", "delayTime", "delayFeedback", "delayChar", "delayOffset"],
+    fx: ["lofi", "saturation", "stutter", "delay"],
     apply: function () {
       var c = S.spec.black, g = c.grind / 100, ch = c.chop / 100, cl = c.clang / 100;
       setFXEnabled("lofi", true);
@@ -6004,22 +6151,28 @@
       setFXEnabled("delay", cl > 0.02);
       specSetControls({
         waveform: "square", glide: 0, attack: 2, release: 8, legato: 0,
-        drive: Math.round(55 + 45 * g),
-        lofiCrush: Math.round(25 + 65 * g), lofiDirt: Math.round(25 + 55 * g), lofiNoise: 12,
-        satGain: Math.round(8 + 14 * g), satTone: 34,
-        stutterAmt: Math.round(35 + 65 * ch), stutterRate: Math.round(60 + 80 * ch),
-        delayMix: Math.round(18 + 30 * cl), delayTime: Math.round(120 - 75 * cl),
-        delayFeedback: Math.round(55 + 38 * cl), delayChar: "tape", delayOffset: 0
+        // Gain discipline: satGain is an exponential pre-gain (10^(v/32)), so
+        // it is the loudest knob on the panel — kept low and paid for with
+        // grit from the crusher instead.
+        drive: Math.round(42 + 28 * g),
+        lofiCrush: Math.round(22 + 55 * g), lofiDirt: Math.round(20 + 45 * g), lofiNoise: 10,
+        satGain: Math.round(2 + 6 * g), satTone: 34,
+        stutterAmt: Math.round(35 + 60 * ch), stutterRate: Math.round(60 + 80 * ch),
+        // A short loop at high feedback is a howl, not a slapback: the loop
+        // stays >= 80 ms and the feedback well under unity so it always decays.
+        delayMix: Math.round(16 + 24 * cl), delayTime: Math.round(150 - 70 * cl),
+        delayFeedback: Math.round(26 + 22 * cl), delayChar: "tape", delayOffset: 0,
+        // The comb runs its own feedback (0.55 + 0.43 x resonance); at the
+        // resonance a saturated photo asks for it self-oscillates, so the Q
+        // factor is pulled down while the clang is engaged.
+        filterQ: cl > 0.55 ? 28 : 50
       });
       var cb = document.querySelector('[data-fmode="comb"]');
-      if (cb && S.fmode !== "comb" && cl > 0.4) cb.click();
+      if (cb && S.fmode !== "comb" && cl > 0.55) cb.click();
     },
     start: function () {
-      // the crusher moves to the FRONT of the chain — the snapshot puts it back
-      var list = $("fxList"), lofi = list.querySelector('[data-fx="lofi"]');
-      if (lofi) list.insertBefore(lofi, list.firstChild);
-      commitFXOrder();
       this.apply();
+      specPlaceFX(this.fx, S.spec.black.place);
     }
   };
   $("blackBtn").addEventListener("click", function () { specToggle("black"); });
@@ -6032,6 +6185,7 @@
   });
 
   SPEC_MODULES.glass = {
+    fx: ["reverb"],
     touches: ["attack", "release", "envAmp", "envFlt", "glide",
               "reverbMix", "reverbType", "reverbLength", "width", "spread"],
     apply: function () {
@@ -6053,7 +6207,7 @@
         width: 90, spread: 18
       });
     },
-    start: function () { this.apply(); },
+    start: function () { this.apply(); specPlaceFX(this.fx, S.spec.glass.place); },
     mods: function (dt, P) {
       // barely-there breath on the tuning: window light, not vibrato
       P.ph += 6.2832 * 0.05 * dt;
@@ -6070,6 +6224,7 @@
   });
 
   SPEC_MODULES.tape = {
+    fx: ["saturation", "lofi", "delay"],
     touches: ["delayMix", "delayTime", "delayFeedback", "delayChar", "delayOffset",
               "lofiCrush", "lofiNoise", "lofiDirt", "satGain", "satTone"],
     apply: function () {
@@ -6078,14 +6233,18 @@
       setFXEnabled("lofi", true);
       setFXEnabled("saturation", true);
       specSetControls({
-        delayChar: "tape", delayMix: 34, delayTime: 420, delayOffset: 14,
-        delayFeedback: Math.round(45 + 25 * du),   // <= 70 %: haunted trail, never runaway
-        lofiCrush: Math.round(10 + 25 * du), lofiNoise: Math.round(18 + 55 * du),
-        lofiDirt: Math.round(20 + 50 * du),
-        satGain: Math.round(6 + 8 * du), satTone: Math.round(58 - 26 * du)
+        delayChar: "tape", delayMix: 30, delayTime: 420, delayOffset: 14,
+        // Under half: the trail dies away like tape, instead of the in-loop
+        // limiter holding it up for ever.
+        delayFeedback: Math.round(26 + 18 * du),
+        lofiCrush: Math.round(10 + 22 * du), lofiNoise: Math.round(16 + 45 * du),
+        lofiDirt: Math.round(18 + 40 * du),
+        // satGain is exponential pre-gain: age comes from the noise and the
+        // dull top end, not from driving the whole thing louder.
+        satGain: Math.round(1 + 4 * du), satTone: Math.round(58 - 26 * du)
       });
     },
-    start: function () { this.apply(); },
+    start: function () { this.apply(); specPlaceFX(this.fx, S.spec.tape.place); },
     mods: function (dt, P) {
       var wob = S.spec.tape.wobble / 100;
       P.ph  += 6.2832 * 0.5 * dt;                       // wow, the slow one
@@ -6133,6 +6292,39 @@
       if (specIsOn("insect")) SPEC_MODULES.insect.apply();
       });
   });
+
+  ["pink", "black", "glass", "tape"].forEach(function (name) {
+    var sel = $(name + "Place");
+    if (!sel) return;
+    sel.value = S.spec[name].place;
+    sel.addEventListener("change", function (e) {
+      S.spec[name].place = e.target.value === "pre" ? "pre" : "post";
+      if (specIsOn(name)) specPlaceFX(SPEC_MODULES[name].fx, S.spec[name].place);
+      if (typeof pushStateSoon === "function") pushStateSoon();
+    });
+  });
+
+  /* (?) shows this character's explanation. It also opens the controls if
+   * they are folded, so the answer is never hidden behind a second click. */
+  function initSpecHelp() {
+    Array.prototype.forEach.call(document.querySelectorAll(".spec-help"), function (b) {
+      b.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var mod = b.closest(".spec-module");
+        var note = mod.querySelector(".spec-controls .note");
+        var body = mod.querySelector(".spec-controls");
+        var toggle = mod.querySelector(".spec-toggle");
+        if (!note) return;
+        var show = note.hidden;
+        note.hidden = !show;
+        b.setAttribute("aria-expanded", show ? "true" : "false");
+        if (show && body && body.hidden) {
+          body.hidden = false;
+          if (toggle) toggle.setAttribute("aria-expanded", "true");
+        }
+      });
+    });
+  }
 
   function initSpecModules() {
     Array.prototype.forEach.call(document.querySelectorAll(".spec-toggle"), function (b) {
@@ -6221,6 +6413,7 @@
     updateGate();
   });
   $("voices").addEventListener("input", function (e) {
+    padTone.dirty = true;
     S.voices = parseInt(e.target.value, 10);
     $("voicesOut").textContent = S.voices + (S.voices === 1 ? " voice" : " voices");
     pushAudio();
@@ -6243,6 +6436,7 @@
   $("spread").addEventListener("input", function (e) {
     S.spread = parseInt(e.target.value, 10);
     $("spreadOut").textContent = S.spread + " px";
+    padTone.dirty = true;
     pushAudio();
   });
   $("width").addEventListener("input", function (e) {
@@ -6395,6 +6589,29 @@
     }
     if (m.kind !== "line" && m.kind !== "circle") return null;
     return { kind: m.kind, dx: m.dx * pad.w, dy: m.dy * pad.h };
+  }
+
+  /* The startup patch. "Set as default" freezes everything the current
+   * sound is made of — controls, chain, characters, cursors, motions and
+   * the photos themselves — and a fresh instance opens on it instead of the
+   * factory demo. Stored on this device only.
+   * The browser has no host state, so this is simply what the page opens with.
+   */
+  var DEFAULT_KEY = "photoSynth.defaultPatch";
+  function defaultPatchGet() {
+    try {
+      var raw = localStorage.getItem(DEFAULT_KEY);
+      if (!raw) return null;
+      var p = JSON.parse(raw);
+      return (p && p.app === "photo-synth" && p.kind === "preset") ? p : null;
+    } catch (e) { return null; }
+  }
+  function defaultPatchInfo() {
+    var el = $("defaultInfo");
+    if (!el) return;
+    var p = defaultPatchGet();
+    el.textContent = p ? ("your patch" + (p.created ? " — saved " + new Date(p.created).toLocaleString() : ""))
+                       : "factory settings";
   }
 
   function capturePreset(name) {
@@ -6564,6 +6781,23 @@
       row.appendChild(ctl);
       box.appendChild(row);
     });
+  }
+
+  function initDefaultPatch() {
+    var setB = $("defaultSet"), clrB = $("defaultClear");
+    if (setB) setB.addEventListener("click", function () {
+      try {
+        localStorage.setItem(DEFAULT_KEY, JSON.stringify(capturePreset("__default__")));
+        showToast("This patch is now the startup default");
+      } catch (e) { showToast("Could not store the default (out of space?)"); }
+      defaultPatchInfo();
+    });
+    if (clrB) clrB.addEventListener("click", function () {
+      try { localStorage.removeItem(DEFAULT_KEY); } catch (e) {}
+      showToast("Back to the factory startup patch");
+      defaultPatchInfo();
+    });
+    defaultPatchInfo();
   }
 
   function refreshPresets() {
@@ -6736,13 +6970,22 @@
 
   initFXModules();
   initSpecModules();
+  initSpecHelp();
   initFXSelects();
   $("fxSkin").value = S.fxSkin;
   document.body.setAttribute("data-fxskin", S.fxSkin);
   refreshPresets();
+  initDefaultPatch();
   updateVoiceModeRows();
   setMode("play");
   updateMotionUI();
+  /* Open on the user's default patch when they have set one; the demos are
+   * only the factory fallback. */
+  (function startupPatch() {
+    var dp = defaultPatchGet();
+    if (!dp) return;
+    setTimeout(function () { initAudio().then(function () { applyPreset(dp); }); }, 0);
+  })();
   loadDemo("tone");
   loadDemo("filter");
   loadDemo("env");
