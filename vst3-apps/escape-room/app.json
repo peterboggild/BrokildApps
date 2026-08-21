@@ -1,0 +1,12 @@
+{
+  "slug": "escape-room",
+  "name": "Escape Room (VST3)",
+  "description": "A free Windows VST3 noise instrument built as a puzzle. Five coupled noise cells — a geiger cloud, a chaotic FM pair, wandering formants, inharmonic strings, and a crusher that eats the room's own output — through a playable four-voice resonant filter, three effects, and a six-bit lock that rewires the whole machine into any of sixty-four reproducible rooms. Nothing on the panel is labelled with what it does, and there is a legend hidden in the door.",
+  "status": "live",
+  "url": "vst3-apps/escape-room/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/escape-room.jpg",
+  "note": "Windows VST3 · build 260822.1 · free download · 15-page manual included.",
+  "tags": ["music", "vst3"]
+}
