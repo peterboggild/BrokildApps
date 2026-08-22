@@ -27,6 +27,7 @@
     }
   ],
   "apps": [
+    "vst3-apps/blade-ruiner",
     "vst3-apps/mars-wars",
     "vst3-apps/escape-room",
     "vst3-apps/photo-synth-2",
