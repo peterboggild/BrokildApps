@@ -195,11 +195,16 @@
       fourth drives the effects. Runs in any VST3 host as a native plugin — the whole audio engine
       is C++, and every control is automatable.</p>
 
+    <p class="lede" style="margin-top:.9rem"><b>New in build 260822.1:</b> Automotion —
+      Shift-drag a line or Ctrl-drag a circle onto any photo and the cursor walks it on its
+      own, with per-pad speed, loop or one shot, direction and travel shape. Plus <b>Save</b>,
+      <b>Load</b> and <b>Random</b> in the title bar.</p>
+
     <div class="btnrow">
       <a class="btn btn-primary" href="Photo-Synth2-VST3-win64.zip" download>
         ↓ Download for Windows <small>(zip, 6 MB)</small>
       </a>
-      <span class="buildtag">Build 260821.20</span>
+      <span class="buildtag">Build 260822.1</span>
       <a class="btn btn-ghost" href="Photo-Synth2-Manual.pdf">
         Manual <small>(PDF)</small>
       </a>
@@ -277,6 +282,57 @@
 
 <section class="block">
   <div class="wrap">
+    <h2>Paths the cursor walks by itself</h2>
+    <p class="sub">Recording a gesture is the free-hand way. The other way needs no arming at
+      all: hold a modifier and drag straight across the picture.</p>
+
+    <div class="cards">
+      <div class="c">
+        <div class="n">Shift + drag</div>
+        <h4>A line</h4>
+        <p>From where you pressed to where you let go. The cursor walks up and down it,
+          sampling colour the whole way.</p>
+      </div>
+      <div class="c">
+        <div class="n">Ctrl + drag</div>
+        <h4>A circle</h4>
+        <p>Centred on the point you pressed, the drag setting the radius. Clockwise or
+          counter, and reversible while it runs.</p>
+      </div>
+      <div class="c">
+        <div class="n">Per pad</div>
+        <h4>Speed, loop, shape</h4>
+        <p>0.1&times; to 4&times; on top of the master Motion slider. Loop for ever, or one shot
+          that stops where the path ends and re-fires on the next note.</p>
+      </div>
+      <div class="c">
+        <div class="n">Triangle or sine</div>
+        <h4>How a line travels</h4>
+        <p>Triangle holds one speed and turns sharply at each end. Sine eases into both ends —
+          the difference between a scan and a breath.</p>
+      </div>
+    </div>
+
+    <figure style="margin-top:2rem">
+      <img src="img/automotion.jpg" alt="The Automotion panel: one row per photo pad">
+      <figcaption>Draw a path and this panel opens on the pad you drew, everything else folded
+        away. A control that cannot apply goes grey rather than disappearing, so the row never
+        moves: direction is a circle idea, travel shape a line idea, and a recorded gesture uses
+        Speed and Loop only.</figcaption>
+    </figure>
+
+    <figure>
+      <img src="img/topbar.jpg" alt="The title bar: Save, Load and Random">
+      <figcaption><b>Save</b> opens an ordinary Save dialog on your preset folder;
+        <b>Load</b> opens the library as a menu, sub-folders flying out sideways beside the loose
+        presets; <b>Random</b> re-rolls every sound control and leaves the photographs, the
+        cursors and the paths exactly where they are. All three work in Play mode.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
     <h2>Download and install</h2>
     <p class="sub">Two minutes. There is no installer — a VST3 plugin is a folder you copy into
       place.</p>
@@ -309,7 +365,7 @@
     <table>
       <tr><th>Requirement</th><th>Detail</th></tr>
       <tr><td>System</td><td>Windows 10 or 11, 64-bit</td></tr>
-      <tr><td>Build</td><td>260821.20 — shown in the plugin’s <b>How it works</b> panel, its About box and its loading screen</td></tr>
+      <tr><td>Build</td><td>260822.1 — shown in the plugin’s <b>How it works</b> panel, its About box and its loading screen</td></tr>
       <tr><td>Format</td><td>VST3 (also builds as a standalone application from source)</td></tr>
       <tr><td>Hosts</td><td>Any VST3 host — developed against Ableton Live 12</td></tr>
       <tr><td>Price</td><td>Free. No account, no registration, no telemetry, no network access.</td></tr>

@@ -1,12 +1,12 @@
 {
   "slug": "photo-synth-2",
   "name": "Photo-Synth 2 (VST3)",
-  "description": "A free Windows VST3 instrument: play the colours of four photographs. Colour becomes pitch and timbre on the first photo, the second filters it, the third shapes the envelope, the fourth drives the effects. Virtual-analog voice with a ladder filter, 16-voice pool, seven-module stereo effects rack, Dark Drone engine, MIDI and 24-bit export — all native C++ inside your DAW.",
+  "description": "A free Windows VST3 instrument: play the colours of four photographs. Colour becomes pitch and timbre on the first photo, the second filters it, the third shapes the envelope, the fourth drives the effects. Virtual-analog voice with a ladder filter, 16-voice pool, seven-module stereo effects rack, Dark Drone engine, MIDI and 24-bit export — all native C++ inside your DAW. Now with Automotion: Shift-drag a line or Ctrl-drag a circle onto a photo and the cursor walks it on its own, per pad, with speed, loop or one shot, direction and travel shape.",
   "status": "live",
   "url": "vst3-apps/photo-synth-2/index.html",
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/photo-synth-2.jpg",
-  "note": "Windows VST3 · build 260821.20 · free download · manual and developer kit included.",
+  "note": "Windows VST3 · build 260822.1 · free download · manual and developer kit included.",
   "tags": ["music", "vst3"]
 }
