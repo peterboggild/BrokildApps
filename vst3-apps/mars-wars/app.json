@@ -1,0 +1,12 @@
+{
+  "slug": "mars-wars",
+  "name": "The Mars Wars (VST3)",
+  "description": "A free Windows VST3 multiband distortion. One to five bands, each running its own algorithm out of sixteen — from a tube that flatters everything to a fold-crush-clip cascade with no musical justification at all — with a limiter on every band and a measured gain match, so turning DRIVE up changes what a band sounds like without changing how loud it is. Then the front panel comes off: underneath is a patch bay where any band's audio or envelope can drive any other band's knobs, or move the crossovers themselves.",
+  "status": "live",
+  "url": "vst3-apps/mars-wars/index.html",
+  "icon": "chart",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/mars-wars.jpg",
+  "note": "Windows VST3 · build 260822.4 · free download · 18-page manual included.",
+  "tags": ["music", "vst3"]
+}
