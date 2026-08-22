@@ -199,7 +199,7 @@
       <a class="btn btn-primary" href="Escape-Room-VST3-win64.zip" download>
         ↓ Download for Windows <small>(zip, 7 MB)</small>
       </a>
-      <span class="buildtag">Build 260822.1</span>
+      <span class="buildtag">Build 260822.2</span>
       <a class="btn btn-ghost" href="Escape-Room-Manual.pdf">
         Manual <small>(PDF, 15 pages)</small>
       </a>
@@ -316,7 +316,7 @@
     <table>
       <tr><th>Requirement</th><th>Detail</th></tr>
       <tr><td>System</td><td>Windows 10 or 11, 64-bit</td></tr>
-      <tr><td>Build</td><td>260822.1 — shown on the loading screen and in the header of the panel</td></tr>
+      <tr><td>Build</td><td>260822.2 — shown on the loading screen and in the header of the panel</td></tr>
       <tr><td>Format</td><td>VST3 instrument, MIDI in, stereo out. A standalone application is in the same zip.</td></tr>
       <tr><td>Parameters</td><td>45, every one host-automatable</td></tr>
       <tr><td>Sample rates</td><td>Any. Tested at 44.1, 48, 88.2 and 96 kHz.</td></tr>
@@ -360,6 +360,20 @@
       <figcaption>Three octaves on the panel, playable with the mouse and lit by incoming
         MIDI. A note does not start the sound — the room is already running — it opens a
         filter voice tuned to that note.</figcaption>
+    </figure>
+
+    <h3>Patches are small readable files</h3>
+    <p><b>ENCODE</b> in the header puts an ordinary Save dialog in front of you, already
+      suggesting the room you are in. <b>DECODE</b> opens the patch folder as a menu, with
+      sub-folders flying out sideways beside the loose patches. A patch is the forty-five
+      numbers and nothing else — plain JSON you can read, diff, back up or mail to someone.
+      They live in a folder called <b>User presets</b> beside the installed plugin, so a
+      library travels with it.</p>
+
+    <figure>
+      <img src="img/patch.jpg" alt="The DECODE menu, a sub-folder flying out">
+      <figcaption>Sixty-four rooms is a lot to remember. This is the part of the instrument
+        that does it for you.</figcaption>
     </figure>
 
     <h3>There is a legend</h3>
