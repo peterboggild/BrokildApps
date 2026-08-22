@@ -194,14 +194,15 @@
     <p class="lede">An atmospheric synthesiser in three layers, each with its own engine and its
       own room. <b>LOS ANGELES</b> is a drone that does not stop. <b>DECKARD</b> is the polysynth
       you play over it. <b>REPLICANT</b> is the machine in the next room that has been counting
-      all along. Any combination can run at once — but not none of them, because an atmosphere
+      all along. One dial marked MOOD, running 0 to 999, is the whole patch. Any combination of the
+      three can run at once — but not none of them, because an atmosphere
       that can be silenced by one click is a mixer channel.</p>
 
     <div class="btnrow">
       <a class="btn btn-primary" href="Blade-Ruiner-VST3-win64.zip" download>
         ↓ Download for Windows <small>(zip, 6.9 MB)</small>
       </a>
-      <span class="buildtag">Build 260822.2</span>
+      <span class="buildtag">Build 260822.3</span>
       <a class="btn btn-ghost" href="Blade-Ruiner-Manual.pdf">
         Manual <small>(PDF)</small>
       </a>
@@ -320,28 +321,46 @@
 
 <section class="block">
   <div class="wrap">
-    <h2>RANDOM is a mood organ</h2>
-    <p class="sub">In the book you dial a three-digit code and feel the thing the code describes.</p>
+    <h2>A thousand moods, and every one of them is a patch</h2>
+    <p class="sub">There is a dial in the header marked MOOD. It goes from 0 to 999, and each of
+      those thousand numbers is an entire instrument with its own line of text.</p>
 
-    <p>Here it re-rolls the character of all three layers — which are live, the voicing, the
-      weather, the seed, the shape of everything — and then tells you what you dialled. It never
-      touches the output, the tuning, the limiter or the three layer levels, so a roll of the dice
-      changes what the machine is thinking about and not how loud it is.</p>
+    <p>Dialling a number writes every character parameter in all three layers — which are live,
+      the voicing, the weather, the oscillator, the sequence seed, the shape of everything — and
+      prints what the number means. <b>RANDOM</b> simply dials at random. Levels, tuning and the
+      limiter are never touched, so a mood changes what the machine is thinking about and not how
+      loud it is.</p>
+
+    <div class="note"><b>The same number is always the same instrument.</b> Nothing about a mood
+      depends on the clock, the session or the machine: 481 today is 481 next year and 481 on
+      somebody else’s computer. That is the only thing that makes a three-digit number worth
+      writing down.</div>
 
     <table>
       <tr><th>Code</th><th>What you have dialled</th></tr>
       <tr><td>3</td><td>a stimulus to dial, for when you cannot face dialling</td></tr>
       <tr><td>481</td><td>awareness of the manifold possibilities open to me in the future</td></tr>
       <tr><td>888</td><td>the desire to watch television, no matter what is on it</td></tr>
-      <tr><td>127</td><td>placid recognition of one’s own obsolescence</td></tr>
-      <tr><td>964</td><td>the calm of a room where the television has just been turned off</td></tr>
+      <tr><td>250</td><td>a long memory of a name one has stopped using</td></tr>
+      <tr><td>613</td><td>a small, clean sense of weather that is not dust</td></tr>
+      <tr><td>999</td><td>a flicker of resentment at weather arriving on schedule</td></tr>
     </table>
 
-    <div class="note"><b>Which of these are Dick’s.</b> The first three, near enough, from
-      <i>Do Androids Dream of Electric Sheep?</i> (1968). The last two are ours, written in the
-      same voice — as are ten of the other twelve in the machine. The manual says which are which,
-      because we would rather say so than let you wonder.</div>
+    <p>Seventeen of the descriptions are written by hand, and <b>five of those are Philip K.
+      Dick’s own</b> — 3, 382, 481, 594 and 888, from <i>Do Androids Dream of Electric Sheep?</i>
+      The dial marks the written ones as you pass them. The other 983 are generated from the seed
+      by a small grammar of nine sentence shapes, each with its own vocabulary chosen so that every
+      combination inside it is a sentence somebody might actually write.</p>
+
+    <div class="note"><b>No two of the thousand share a line.</b> Drawing the words at random gave
+      664 distinct descriptions out of 1000, so the mapping is injective by construction instead —
+      and the bench checks all thousand, both text and patch, on every build.</div>
   </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Download and install</h2>  </div>
 </section>
 
 <section class="block">
@@ -386,10 +405,10 @@
     <table>
       <tr><th>Requirement</th><th>Detail</th></tr>
       <tr><td>System</td><td>Windows 10 or 11, 64-bit</td></tr>
-      <tr><td>Build</td><td>260822.2 — shown on the loading screen and in the panel footer</td></tr>
+      <tr><td>Build</td><td>260822.3 — shown on the loading screen and in the panel footer</td></tr>
       <tr><td>Format</td><td>VST3 instrument, stereo out, MIDI in. A standalone application is in
         the same zip.</td></tr>
-      <tr><td>Parameters</td><td>46, every one host-automatable</td></tr>
+      <tr><td>Parameters</td><td>47 — the 46 sound parameters are host-automatable, MOOD is state</td></tr>
       <tr><td>Polyphony</td><td>Deckard 8 voices; Los Angeles 9 oscillators plus a sub, always;
         Replicant monophonic by design</td></tr>
       <tr><td>Sample rates</td><td>Any. Tested at 44.1, 48, 88.2 and 96 kHz.</td></tr>
