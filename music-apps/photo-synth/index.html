@@ -795,6 +795,28 @@
     .readout{font-size:11px}
     .readout .sub{font-size:10px}
   }
+
+  /* ---------- SPECTRA on a narrow screen ----------
+     Two columns of controls is a desk layout. On a phone each column is
+     about 150 px, of which a row spends 108 on its label and 58 on its
+     readout — so the slider is left with nothing and cannot be dragged.
+     One column first, then the label moves onto its own line so the
+     slider gets the full width of the module. */
+  @media (max-width:820px){
+    .spec-controls{grid-template-columns:1fr}
+  }
+  @media (max-width:560px){
+    /*  Name and value keep the top line; the slider gets the one below it,
+        all of it. order: because the readout comes after the control in the
+        markup and has to sit before it on screen. */
+    .spec-controls .row{flex-wrap:wrap;gap:0 10px;padding:7px 0 10px}
+    .spec-controls .row label,
+    .spec-controls .row .lab{order:1;flex:1 1 auto;padding-bottom:4px}
+    .spec-controls .row output,
+    .spec-controls .row .val{order:2;flex:none}
+    .spec-controls .row .ctl{order:3;flex:1 1 100%}
+    .spec-controls .row input[type=range]{height:42px}
+  }
   @media (orientation:landscape) and (max-height:620px){
     header{margin-bottom:6px}
     h1 span{display:none}
