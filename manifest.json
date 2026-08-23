@@ -27,6 +27,7 @@
     }
   ],
   "apps": [
+    "vst3-apps/black-rider",
     "vst3-apps/photo-synth-2",
     "music-apps/photo-synth",
     "vst3-apps/mars-wars",
