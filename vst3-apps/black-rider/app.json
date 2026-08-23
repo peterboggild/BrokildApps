@@ -1,12 +1,12 @@
 {
   "slug": "black-rider",
   "name": "Black Rider (VST3)",
-  "description": "A free Windows VST3 analogue monosynth with a matte-black fascia and walnut cheeks. Two oscillators you can push past stable into drift, hard sync and injection-lock; one filter that is either an MS-20-style Sallen-Key screamer — diodes in the feedback, keeps its bass, squeals on its own harmonics — or a Moog-style transistor ladder that rounds the resonance, thins the low end and sings a clean sine at self-oscillation. On SCREAM the Sallen-Key self-oscillates from noon and, with key follow, plays in tune as an oscillator of its own. An eight-cable patch bay wires anything to anything, three-note polyphony spreads a held MIDI chord across the stereo field, and the whole voice runs out through genuine spring reverb, tape delay, BBD chorus and drive. Two hundred deterministic seed patches on a red LED dial, grouped by category. Built-in keyboard, pitch and mod wheels.",
+  "description": "A free Windows VST3 analogue monosynth with a matte-black fascia and walnut cheeks. Two oscillators you can push past stable into drift, hard sync and injection-lock; one filter that is either an MS-20-style Sallen-Key screamer — diodes in the feedback, keeps its bass, squeals on its own harmonics — or a Moog-style transistor ladder that rounds the resonance, thins the low end and sings a clean sine at self-oscillation. On SCREAM the Sallen-Key self-oscillates past two o'clock, runs deep into its diodes, and with key follow plays in tune as an oscillator of its own. The LFO and tape delay sync to the host clock. An eight-cable patch bay wires anything to anything, three-note polyphony spreads a held MIDI chord across the stereo field, and the whole voice runs out through genuine spring reverb, tape delay, BBD chorus and drive. Two hundred deterministic seed patches on a red LED dial, grouped by category. Built-in keyboard, pitch and mod wheels.",
   "status": "live",
   "url": "vst3-apps/black-rider/index.html",
   "icon": "keys",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/black-rider.jpg",
-  "note": "Windows VST3 · build 260823.6 · free download · 200 seed patches · 16-page manual.",
+  "note": "Windows VST3 · build 260823.7 · free download · 200 seed patches · 16-page manual.",
   "tags": ["music", "vst3", "synth"]
 }
