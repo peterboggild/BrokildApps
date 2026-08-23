@@ -208,10 +208,15 @@ class VoiceProcessor extends AudioWorkletProcessor {
       this.subL += (p.sub - this.subL) * aSmooth;
 
       // ---- oscillator + filter, run at 2x -------------------------------
-      // Pitch modifiers: env->pitch sags notes toward -1 octave as the
-      // envelope falls; the tape stop drags everything to a halt.
+      // Pitch modifiers: env->pitch sags notes flat as they DIE (keyed to the
+      // gate gl, not the amp env e). Keying it off (1 - e) pulled every
+      // sustained note flat, because a held note sits at its sustain level
+      // where e < 1 — so Dark Drone / Tape shifted the base note by ~a
+      // semitone. gl is ~1 for the whole held portion and only falls on
+      // release, so held notes stay in tune and only sag as they die. The
+      // tape stop still drags everything to a halt.
       var pMul = this.stopMul;
-      if (envPitch > 0.001) pMul *= Math.exp(-0.6931 * envPitch * (1 - e));
+      if (envPitch > 0.001) pMul *= Math.exp(-0.6931 * envPitch * (1 - this.gl));
       var det = this.detune / 1200;
       var fA = this.f0 * pMul * Math.pow(2, (this.driftA * 3.5 - det * 600) / 1200);
       var fB = this.f0 * pMul * Math.pow(2, (this.driftB * 3.5 + det * 600) / 1200);
