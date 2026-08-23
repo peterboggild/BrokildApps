@@ -21,6 +21,16 @@
       "description": "Native audio plugins you download and install — they run inside your DAW, not in the browser."
     },
     {
+      "id": "synth",
+      "name": "Synth",
+      "description": "Instruments that make sound — play them from a keyboard, or let them drone."
+    },
+    {
+      "id": "effect",
+      "name": "Effect",
+      "description": "Processors that transform the sound running through them."
+    },
+    {
       "id": "phone",
       "name": "Phone App",
       "description": "Designed for a phone screen — touch-first, and installable to the home screen."
