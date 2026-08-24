@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#06070a">
-<meta name="description" content="Brown and green noise generator for sleeping. Sleep timer in hours, gentle fade-out, tone control and a blackout screen mode. Runs entirely in the browser.">
+<meta name="description" content="Sleeper Agent: brown, green, pink and white noise for sleeping, plus five slow ambient synth themes for meditation. Sleep timer in hours, gentle fade-out, tone control and a blackout screen mode. Runs entirely in the browser.">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="Sleep Noise App">
-<title>Sleep Noise App — brown &amp; green noise for sleeping</title>
+<meta name="apple-mobile-web-app-title" content="Sleeper Agent">
+<title>Sleeper Agent — noise for sleep, ambient synths for meditation</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -65,6 +65,7 @@
   #playBtn.on{border-color:var(--accent-dim)}
   #playBtn svg{width:40px;height:40px}
   #playBtn.busy{opacity:.6}
+  #padChips.busy{opacity:.5;pointer-events:none}
 
   .remain{font-size:27px;font-variant-numeric:tabular-nums;letter-spacing:.01em;color:var(--text);font-weight:300;min-height:34px}
   .remain.idle{color:var(--muted)}
@@ -80,6 +81,7 @@
   .chips.c4{grid-template-columns:repeat(4,1fr)}
   .chips.c2{grid-template-columns:repeat(2,1fr)}
   .chips.c3{grid-template-columns:repeat(3,1fr)}
+  .chips.c5{grid-template-columns:repeat(5,1fr)}
   .chip{
     appearance:none;border:1px solid var(--line-soft);background:var(--panel);color:var(--muted);
     border-radius:11px;padding:11px 4px;font:inherit;font-size:13.5px;cursor:pointer;
@@ -196,7 +198,7 @@
 <body>
 
 <header>
-  <h1>Sleep Noise App<span>Brown &amp; green noise</span></h1>
+  <h1>Sleeper Agent<span>Noise &amp; ambient synths</span></h1>
   <a class="home" href="../../">BrokildApps</a>
 </header>
 
@@ -218,13 +220,35 @@
 
 <section>
   <div class="lab">Sound</div>
-  <div class="chips c4" id="typeChips" role="group" aria-label="Noise type">
-    <button class="chip" data-type="brown">Brown</button>
-    <button class="chip" data-type="green">Green</button>
-    <button class="chip" data-type="pink">Pink</button>
-    <button class="chip" data-type="white">White</button>
+  <div class="chips c5" id="typeChips" role="group" aria-label="Noise type">
+    <button class="chip sm" data-type="brown">Brown</button>
+    <button class="chip sm" data-type="green">Green</button>
+    <button class="chip sm" data-type="pink">Pink</button>
+    <button class="chip sm" data-type="white">White</button>
+    <button class="chip sm" data-type="off">Off</button>
   </div>
   <p class="desc" id="typeDesc"></p>
+</section>
+
+<section>
+  <div class="lab">Ambient synth <em id="padVal">off</em></div>
+  <div class="chips c3" id="padChips" role="group" aria-label="Ambient theme">
+    <button class="chip sm" data-pad="off">Off</button>
+    <button class="chip sm" data-pad="harbour">Harbour</button>
+    <button class="chip sm" data-pad="meadow">Meadow</button>
+    <button class="chip sm" data-pad="dusk">Dusk</button>
+    <button class="chip sm" data-pad="rainroom">Rainroom</button>
+    <button class="chip sm" data-pad="deep">Deep</button>
+  </div>
+  <p class="desc" id="padDesc"></p>
+  <div id="padPane" hidden>
+    <div class="lab">Ambient level <em id="plVal">50%</em></div>
+    <div class="row">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15c2-6 4-9 6-9s2 12 4 12 3-9 6-9"/></svg>
+      <input type="range" id="padLevel" min="0" max="100" step="1" aria-label="Ambient level">
+    </div>
+  </div>
+  <p class="note">Meant for meditation and relaxation rather than for sleeping through: anything melodic holds the attention more than plain noise does.</p>
 </section>
 
 <section>
@@ -369,6 +393,10 @@
     white: {
       name: "White noise",
       desc: "Flat across the spectrum, the familiar hiss of static. Masks the most, but the bright top end can feel harsh over a whole night."
+    },
+    off: {
+      name: "No noise",
+      desc: "Noise off, so only the ambient synth is heard. Nothing is masked — this is for listening rather than for sleeping through."
     }
   };
 
@@ -453,6 +481,175 @@
   }
 
   /* ============================================================
+     Ambient synth
+
+     Five slow chord themes, meant for meditation rather than for
+     sleeping through. Each is rendered once into a looping buffer,
+     for the same reason the noise is: once the screen is off the
+     page may be frozen, and anything driven from setTimeout would
+     stall while the audio clock carried on.
+
+     Notes are written into the buffer modulo its length, so a note
+     that runs off the end continues at the start — the loop is then
+     seamless on its own and needs no cross-fade.
+     ============================================================ */
+
+  var THEMES = {
+    harbour: {
+      name: "Harbour", root: 130.81,          // C3, major
+      desc: "Open major chords over a steady root — the plainest and warmest of the five.",
+      cutoff: 1150,
+      chords: [[0, 7, 12, 16], [5, 12, 17, 21], [7, 14, 19, 23], [9, 16, 21, 24]],
+      mel: [12, 14, 16, 19, 21, 24], pat: [0, 2, 4, 2, 3, 1, 5]
+    },
+    meadow: {
+      name: "Meadow", root: 174.61,           // F3, lydian
+      desc: "Bright and floating. The raised fourth keeps it from ever quite settling.",
+      cutoff: 1350,
+      chords: [[0, 7, 12, 16], [2, 9, 14, 18], [0, 7, 11, 16], [7, 14, 19, 23]],
+      mel: [12, 14, 16, 18, 21, 23], pat: [0, 3, 1, 4, 2, 5]
+    },
+    dusk: {
+      name: "Dusk", root: 98.00,              // G2, mixolydian / suspended
+      desc: "Suspended chords that resolve nowhere — neither happy nor sad, the middle of the set.",
+      cutoff: 1000,
+      chords: [[0, 7, 12, 17], [0, 7, 12, 14], [5, 12, 17, 21], [10, 17, 22, 26]],
+      mel: [12, 14, 17, 19, 22, 24], pat: [0, 1, 3, 2, 4, 1]
+    },
+    rainroom: {
+      name: "Rainroom", root: 110.00,         // A2, natural minor
+      desc: "Plain natural minor, soft and a little melancholy without turning bleak.",
+      cutoff: 900,
+      chords: [[0, 7, 12, 15], [5, 12, 17, 20], [7, 14, 19, 22], [3, 10, 15, 19]],
+      mel: [12, 15, 17, 19, 22, 24], pat: [0, 2, 1, 4, 3, 1, 5]
+    },
+    deep: {
+      name: "Deep", root: 73.42,              // D2, dorian over a drone
+      desc: "A low drone with sparse minor notes above it — the darkest and slowest.",
+      cutoff: 750,
+      chords: [[0, 12, 19, 24], [0, 12, 17, 22], [0, 12, 15, 22], [0, 12, 19, 21]],
+      mel: [24, 27, 29, 31, 34, 36], pat: [0, 2, 4, 1, 3]
+    }
+  };
+
+  // Co-prime loop lengths: the two layers only line up again after
+  // BED_SEC * MEL_SEC seconds, so nothing audibly repeats for ~12 minutes.
+  var BED_SEC = 23, MEL_SEC = 31;
+
+  var SINE_N = 4096, SINE = new Float32Array(SINE_N + 1);
+  for (var _s = 0; _s <= SINE_N; _s++) SINE[_s] = Math.sin(2 * Math.PI * _s / SINE_N);
+
+  function semi(root, n) { return root * Math.pow(2, n / 12); }
+
+  // A raised-cosine swell, exactly zero at both ends — the only condition the
+  // seamless wrap needs. Every note in a layer shares one, so it is built once.
+  function envelope(len, atkFrac) {
+    var atk = Math.round(len * atkFrac), rel = len - atk, e = new Float32Array(len), i;
+    for (i = 0; i < atk; i++) e[i] = 0.5 - 0.5 * Math.cos(Math.PI * i / atk);
+    for (i = atk; i < len; i++) e[i] = 0.5 + 0.5 * Math.cos(Math.PI * (i - atk + 1) / rel);
+    return e;
+  }
+
+  // One long note, written into the loop modulo its length: a note that runs
+  // off the end carries on at the start, so it is still continuous when the
+  // buffer repeats. Written in contiguous runs to keep the inner loop tight.
+  function addNote(L, R, n, sr, startSec, freq, amp, partials, pan, env) {
+    var len = env.length;
+    if (len > n) return;
+    var start = Math.round(startSec * sr) % n;
+    var a = (pan + 1) * Math.PI / 4;
+    var gL = amp * Math.cos(a), gR = amp * Math.sin(a);
+    var k = partials.length, j;
+    var phL = new Float64Array(k), phR = new Float64Array(k),
+        inL = new Float64Array(k), inR = new Float64Array(k), pa = new Float64Array(k);
+    for (j = 0; j < k; j++) {
+      // A hair of detune between the channels: width without audible chorusing.
+      inL[j] = freq * partials[j][0] * 0.99925 * SINE_N / sr;
+      inR[j] = freq * partials[j][0] * 1.00075 * SINE_N / sr;
+      phL[j] = Math.random() * SINE_N;
+      phR[j] = Math.random() * SINE_N;
+      pa[j] = partials[j][1];
+    }
+    var i = 0, at = start;
+    while (i < len) {
+      var run = Math.min(len - i, n - at);
+      for (var m = 0; m < run; m++, i++, at++) {
+        var e = env[i], sL = 0, sR = 0;
+        for (j = 0; j < k; j++) {
+          var x = phL[j], y = phR[j], xi = x | 0, yi = y | 0, w = pa[j];
+          sL += (SINE[xi] + (SINE[xi + 1] - SINE[xi]) * (x - xi)) * w;
+          sR += (SINE[yi] + (SINE[yi + 1] - SINE[yi]) * (y - yi)) * w;
+          x += inL[j]; if (x >= SINE_N) x -= SINE_N;
+          y += inR[j]; if (y >= SINE_N) y -= SINE_N;
+          phL[j] = x; phR[j] = y;
+        }
+        L[at] += sL * gL * e;
+        R[at] += sR * gR * e;
+      }
+      if (at >= n) at = 0;
+    }
+  }
+
+  // Lowpass over a loop: the first lap only warms the filter's state up, so the
+  // second lap starts where the loop ends and the seam stays silent.
+  function lowpassLoop(x, sr, f0, Q) {
+    var w0 = 2 * Math.PI * f0 / sr, cs = Math.cos(w0), sn = Math.sin(w0), al = sn / (2 * Q);
+    var a0 = 1 + al;
+    var B0 = ((1 - cs) / 2) / a0, B1 = (1 - cs) / a0, B2 = ((1 - cs) / 2) / a0;
+    var A1 = (-2 * cs) / a0, A2 = (1 - al) / a0;
+    var x1 = 0, x2 = 0, y1 = 0, y2 = 0, i, xi, yi, n = x.length;
+    for (var lap = 0; lap < 2; lap++) {
+      for (i = 0; i < n; i++) {
+        xi = x[i];
+        yi = B0 * xi + B1 * x1 + B2 * x2 - A1 * y1 - A2 * y2;
+        x2 = x1; x1 = xi; y2 = y1; y1 = yi;
+        if (lap) x[i] = yi;
+      }
+    }
+    return x;
+  }
+
+  // "bed" is the chord wash; "mel" is a sparse line of single notes over it.
+  function makePad(ctx, th, secs, layer) {
+    var sr = ctx.sampleRate, n = Math.round(secs * sr);
+    var buf = ctx.createBuffer(2, n, sr);
+    var L = new Float32Array(n), R = new Float32Array(n), i;
+
+    if (layer === "bed") {
+      var slot = secs / th.chords.length;
+      var bedEnv = envelope(Math.min(Math.round(slot * 2.0 * sr), n), 0.38);
+      th.chords.forEach(function (ch, ci) {
+        ch.forEach(function (off, vi) {
+          var pan = ch.length > 1 ? -0.55 + 1.1 * (vi / (ch.length - 1)) : 0;
+          addNote(L, R, n, sr, ci * slot, semi(th.root, off),
+                  1 / ch.length, [[1, 1], [2, 0.30], [3, 0.10]], pan, bedEnv);
+        });
+      });
+    } else {
+      var mslot = secs / th.pat.length;
+      var melEnv = envelope(Math.min(Math.round(mslot * 1.8 * sr), n), 0.42);
+      th.pat.forEach(function (idx, k) {
+        addNote(L, R, n, sr, k * mslot, semi(th.root, th.mel[idx]),
+                0.5, [[1, 1], [2, 0.22]], k % 2 ? 0.35 : -0.35, melEnv);
+      });
+    }
+
+    lowpassLoop(L, sr, th.cutoff, 0.707);
+    lowpassLoop(R, sr, th.cutoff, 0.707);
+
+    // Level the layers against each other and against the noise, which is
+    // itself normalised to 0.18 RMS.
+    var target = layer === "bed" ? 0.11 : 0.055;
+    var sum = 0;
+    for (i = 0; i < n; i++) sum += L[i] * L[i] + R[i] * R[i];
+    var rms = Math.sqrt(sum / (2 * n));
+    var g = rms > 1e-9 ? Math.min(target / rms, 6) : 0;
+    var cL = buf.getChannelData(0), cR = buf.getChannelData(1);
+    for (i = 0; i < n; i++) { cL[i] = L[i] * g; cR[i] = R[i] * g; }
+    return buf;
+  }
+
+  /* ============================================================
      State
      ============================================================ */
 
@@ -461,8 +658,11 @@
     mode: "for", durationMin: 480, untilTime: "07:00",
     fadeInSec: 30, fadeOutMin: 5,
     waves: false, waveDepth: 30, wavePeriod: 16,
+    pad: "off", padLevel: 50,
     bgPlayback: true, keepAwake: true, autoDim: true
   };
+  // Unchanged since the app was called Sleep Noise: renaming the key would
+  // silently throw away everyone's saved settings.
   var KEY = "brokild-sleep-noise";
   var S = Object.assign({}, DEFAULTS);
   try {
@@ -481,7 +681,8 @@
 
   var ctx = null, src = null, srcGain = null, hp = null, lp = null,
       swell = null, lfo = null, lfoGain = null, env = null, vol = null,
-      msDest = null, bufCache = {}, usingElement = false, fallbackChecked = false;
+      msDest = null, bufCache = {}, usingElement = false, fallbackChecked = false,
+      padGain = null, padFade = null, padA = null, padB = null, padCache = null;
 
   var playing = false;
   var remainingMs = 0;      // for a finite timer; 0 when unlimited
@@ -508,9 +709,13 @@
 
     env = ctx.createGain(); env.gain.value = 0;
     vol = ctx.createGain(); vol.gain.value = volGain();
+    padGain = ctx.createGain(); padGain.gain.value = padLevelGain();
 
     hp.connect(lp); lp.connect(swell);
     swell.connect(env); env.connect(vol);
+    // The synth joins after the tone control and the swell — both belong to
+    // the noise — but before env, so the sleep timer still fades and stops it.
+    padGain.connect(env);
 
     applySwell();
     routeOutput();
@@ -573,9 +778,17 @@
     return bufCache[type];
   }
 
+  // With the noise switched off a source still runs: the sleep timer is
+  // scheduled on it, so it has to exist even when it makes no sound.
+  var silentBuf = null;
+  function silence() {
+    if (!silentBuf) silentBuf = ctx.createBuffer(1, Math.round(ctx.sampleRate), ctx.sampleRate);
+    return silentBuf;
+  }
+
   function startSource(fadeSec) {
     var s = ctx.createBufferSource();
-    s.buffer = getBuffer(S.type);
+    s.buffer = S.type === "off" ? silence() : getBuffer(S.type);
     s.loop = true;
     var g = ctx.createGain();
     var t = ctx.currentTime;
@@ -606,6 +819,66 @@
     lfo.frequency.setTargetAtTime(1 / S.wavePeriod, t, 0.4);
   }
 
+  /* ---- ambient synth layer ---- */
+
+  function padLevelGain() { var v = S.padLevel / 100; return v * v; }
+
+  // Only ever one theme in memory: two stereo loops is already about 20 MB,
+  // and re-rendering costs a few hundred milliseconds, so a cache would trade
+  // a lot of a phone's memory for very little.
+  function padBuffers(id) {
+    if (!padCache || padCache.id !== id) {
+      padCache = null;
+      padCache = {
+        id: id,
+        bed: makePad(ctx, THEMES[id], BED_SEC, "bed"),
+        mel: makePad(ctx, THEMES[id], MEL_SEC, "mel")
+      };
+    }
+    return padCache;
+  }
+
+  function startPad(fadeSec) {
+    if (S.pad === "off" || !THEMES[S.pad]) return;
+    var b = padBuffers(S.pad);
+    var t = ctx.currentTime;
+    var f = ctx.createGain();
+    f.gain.setValueAtTime(fadeSec ? 0.0001 : 1, t);
+    if (fadeSec) f.gain.linearRampToValueAtTime(1, t + fadeSec);
+    f.connect(padGain);
+    padA = ctx.createBufferSource(); padA.buffer = b.bed; padA.loop = true; padA.connect(f);
+    padB = ctx.createBufferSource(); padB.buffer = b.mel; padB.loop = true; padB.connect(f);
+    padA.start(0); padB.start(0);
+    padFade = f;
+  }
+
+  function stopPad(fadeSec) {
+    var a = padA, b = padB, f = padFade;
+    padA = padB = padFade = null;
+    if (!f) return;
+    var t = ctx.currentTime;
+    try {
+      f.gain.cancelScheduledValues(t);
+      f.gain.setValueAtTime(f.gain.value, t);
+      f.gain.linearRampToValueAtTime(0.0001, t + fadeSec);
+    } catch (e) {}
+    if (a) { try { a.stop(t + fadeSec + 0.05); } catch (e) {} }
+    if (b) { try { b.stop(t + fadeSec + 0.05); } catch (e) {} }
+  }
+
+  function padStopAt(when) {
+    if (padA) { try { padA.stop(when); } catch (e) {} }
+    if (padB) { try { padB.stop(when); } catch (e) {} }
+  }
+
+  function swapPad() {
+    if (!playing) { updateUI(); return; }
+    stopPad(0.8);
+    startPad(0.8);
+    if (endAt) padStopAt(ctx.currentTime + Math.max(endAt - Date.now(), 0) / 1000 + 0.1);
+    mediaSession();
+  }
+
   /* ---- timer maths ---- */
 
   function plannedMs() {
@@ -632,6 +905,7 @@
 
     var fadeIn = Math.max(S.fadeInSec, 0.4);
     startSource(fadeIn);
+    startPad(fadeIn);
 
     var t = ctx.currentTime;
     env.gain.cancelScheduledValues(t);
@@ -648,6 +922,7 @@
       // Scheduled on the audio clock, so the timer still fires if the page is
       // frozen while the phone sleeps.
       try { src.stop(endT + 0.1); } catch (e) {}
+      padStopAt(endT + 0.1);
       src.onended = function () { if (playing) finish(); };
       endAt = Date.now() + remainingMs;
     } else {
@@ -671,6 +946,7 @@
     src = null;
     if (s) s.onended = null;
     stopSource(0.4, s, g);
+    stopPad(0.4);
     clearTimeout(autoDimTimer);
     releaseWake();
     if (navigator.mediaSession) navigator.mediaSession.playbackState = "paused";
@@ -681,6 +957,7 @@
     playing = false;
     if (src) { src.onended = null; try { src.stop(); } catch (e) {} }
     src = null;
+    stopPad(0.25);
     remainingMs = 0;
     clearTimeout(autoDimTimer);
     releaseWake();
@@ -731,8 +1008,8 @@
     if (!navigator.mediaSession || !window.MediaMetadata) return;
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: TYPES[S.type].name,
-        artist: "Sleep Noise App",
+        title: soundName(),
+        artist: "Sleeper Agent",
         album: "BrokildApps"
       });
       navigator.mediaSession.playbackState = playing ? "playing" : "paused";
@@ -825,6 +1102,29 @@
     });
   });
 
+  // Ambient theme
+  var padChips = $("padChips");
+  Array.prototype.forEach.call(padChips.children, function (b) {
+    b.addEventListener("click", function () {
+      if (S.pad === b.dataset.pad) return;
+      S.pad = b.dataset.pad; save();
+      updateUI();
+      // Nothing is built until it is needed: while paused the render waits for
+      // the play button, which already has its own busy state.
+      if (!playing || !THEMES[S.pad]) { swapPad(); return; }
+      padChips.classList.add("busy");
+      setStatus("Preparing " + THEMES[S.pad].name + "…", false);
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          try { swapPad(); setStatus("", false); }
+          catch (e) { setStatus("The ambient layer could not be built: " + e.message, true); }
+          padChips.classList.remove("busy");
+          updateUI();
+        });
+      });
+    });
+  });
+
   // Duration
   var durChips = $("durChips");
   buildChips(durChips, DURATIONS,
@@ -862,8 +1162,16 @@
   buildChips($("foChips"), FADE_OUT, fmtFadeOut, function () { return S.fadeOutMin; }, function (v) { S.fadeOutMin = v; });
 
   // Sliders
-  var volIn = $("vol"), toneIn = $("tone"), wdIn = $("waveDepth"), wpIn = $("wavePeriod");
+  var volIn = $("vol"), toneIn = $("tone"), wdIn = $("waveDepth"), wpIn = $("wavePeriod"), plIn = $("padLevel");
   volIn.value = S.volume; toneIn.value = S.tone; wdIn.value = S.waveDepth; wpIn.value = S.wavePeriod;
+  plIn.value = S.padLevel;
+
+  plIn.addEventListener("input", function () {
+    S.padLevel = +plIn.value;
+    if (padGain) padGain.gain.setTargetAtTime(padLevelGain(), ctx.currentTime, 0.05);
+    $("plVal").textContent = S.padLevel + "%";
+    save();
+  });
 
   volIn.addEventListener("input", function () {
     S.volume = +volIn.value;
@@ -883,6 +1191,14 @@
   wpIn.addEventListener("input", function () {
     S.wavePeriod = +wpIn.value; $("wpVal").textContent = S.wavePeriod + " s"; applySwell(); save();
   });
+
+  // What is actually making sound: noise, ambient synth, both or neither.
+  function soundName() {
+    var n = S.type === "off" ? "" : TYPES[S.type].name;
+    var p = (S.pad === "off" || !THEMES[S.pad]) ? "" : THEMES[S.pad].name;
+    if (n && p) return n + " + " + p;
+    return n || p || "Silent";
+  }
 
   function toneLabel() {
     var f = toneHz();
@@ -1024,6 +1340,15 @@
       b.setAttribute("aria-pressed", String(b.dataset.type === S.type));
     });
     $("typeDesc").textContent = t.desc;
+    Array.prototype.forEach.call(padChips.children, function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.pad === S.pad));
+    });
+    var th = THEMES[S.pad];
+    $("padVal").textContent = th ? th.name : "off";
+    $("padDesc").textContent = th ? th.desc
+      : "Five slow chord themes, from plain major to dark minor. Pick one to layer it under the noise, or with the noise off, to hear it on its own.";
+    $("padPane").hidden = !th;
+    $("plVal").textContent = S.padLevel + "%";
     $("volVal").textContent = S.volume + "%";
     $("toneVal").textContent = toneLabel();
     $("wdVal").textContent = S.waveDepth + "%";
@@ -1057,18 +1382,18 @@
     playBtn.classList.toggle("on", playing);
     playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
 
-    var line;
+    var sName = soundName(), line;
     if (playing) {
-      line = t.name + (unlimited ? " · playing" : " · stops at " + clockOf(new Date(endAt)));
+      line = sName + (unlimited ? " · playing" : " · stops at " + clockOf(new Date(endAt)));
       if (S.fadeOutMin && !unlimited) line += ", fading from " + clockOf(new Date(endAt - S.fadeOutMin * 60000));
     } else {
-      line = t.name + " · " + (unlimited ? "no timer" : "tap to start");
+      line = sName + " · " + (unlimited ? "no timer" : "tap to start");
     }
     subEl.textContent = line;
 
     $("dimClock").textContent = clockOf(new Date());
     $("dimMeta").textContent = playing
-      ? (t.name.replace(" noise", "") + " · " + (unlimited ? "no limit" : fmtRemain(left) + " left"))
+      ? (sName.replace(" noise", "") + " · " + (unlimited ? "no limit" : fmtRemain(left) + " left"))
       : "paused";
     $("dimToggle").textContent = playing ? "Pause" : "Play";
   }
