@@ -9,6 +9,7 @@ GitHub Pages.
 
 | App | Folder | What it does |
 |-----|--------|--------------|
+| DSW | [`dsw`](dsw) | **Digital Science Workstation** (build from source): a native host that runs C++/HTML digital-experiment plugins the way a DAW runs VST3s — drop a bundle in `plugins/`, the browser is the GUI, the math runs native. Ships with Gray–Scott and double-slit wave-tank experiments. |
 | Photo-Synth 2 | [`vst3-apps/photo-synth-2`](vst3-apps/photo-synth-2) | **Windows VST3 plugin** (download): play the colours of four photographs inside your DAW. Ships with a PDF manual, and with the HTML→VST3 developer kit that explains how it was built. |
 | Photo Synth | [`music-apps/photo-synth`](music-apps/photo-synth) | Play two photos: colour becomes tone on one, filter on the other. |
 | Sleep Noise App | [`health-apps/sleep-noise`](health-apps/sleep-noise) | Private browser-generated sleep noise with timers, fades and blackout mode. |
