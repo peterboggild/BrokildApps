@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#06070a">
-<meta name="description" content="Sleeper Agent: brown, green, pink and white noise for sleeping, plus five slow ambient synth themes for meditation. Sleep timer in hours, gentle fade-out, tone control and a blackout screen mode. Runs entirely in the browser.">
+<meta name="description" content="Sleeper Agent: brown, green, pink, white and rain noise for sleeping, plus five slow ambient synth themes for meditation. Sleep timer in hours, gentle fade-out, tone control and a blackout screen mode. Runs entirely in the browser.">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -81,7 +81,6 @@
   .chips.c4{grid-template-columns:repeat(4,1fr)}
   .chips.c2{grid-template-columns:repeat(2,1fr)}
   .chips.c3{grid-template-columns:repeat(3,1fr)}
-  .chips.c5{grid-template-columns:repeat(5,1fr)}
   .chip{
     appearance:none;border:1px solid var(--line-soft);background:var(--panel);color:var(--muted);
     border-radius:11px;padding:11px 4px;font:inherit;font-size:13.5px;cursor:pointer;
@@ -220,11 +219,12 @@
 
 <section>
   <div class="lab">Sound</div>
-  <div class="chips c5" id="typeChips" role="group" aria-label="Noise type">
+  <div class="chips c3" id="typeChips" role="group" aria-label="Noise type">
     <button class="chip sm" data-type="brown">Brown</button>
     <button class="chip sm" data-type="green">Green</button>
     <button class="chip sm" data-type="pink">Pink</button>
     <button class="chip sm" data-type="white">White</button>
+    <button class="chip sm" data-type="rain">Rain</button>
     <button class="chip sm" data-type="off">Off</button>
   </div>
   <p class="desc" id="typeDesc"></p>
@@ -394,6 +394,10 @@
       name: "White noise",
       desc: "Flat across the spectrum, the familiar hiss of static. Masks the most, but the bright top end can feel harsh over a whole night."
     },
+    rain: {
+      name: "Rain",
+      desc: "Steady rain — a wash of far-off drops with nearer ones pattering through it. Masks about as well as pink noise, but it keeps moving: some people drift off faster to that, others find it too busy."
+    },
     off: {
       name: "No noise",
       desc: "Noise off, so only the ambient synth is heard. Nothing is masked — this is for listening rather than for sleeping through."
@@ -434,6 +438,60 @@
       // Trim inaudible sub-bass so phone speakers do not waste excursion on it.
       return biquad(out, sr, "highpass", 26, 0.707);
     }
+    if (type === "rain") {
+      // Rain is three sounds at once: a wash of drops too far off to pick
+      // apart, nearer ones pattering through it, and a low rumble underneath.
+      // Synthesised rather than looped from a recording, so it costs a few
+      // dozen lines instead of a megabyte and never repeats inside the loop.
+      var pink = genRaw("pink", n, sr);
+      var wash = biquad(pink, sr, "highpass", 320, 0.707);
+      var sizzle = biquad(pink, sr, "bandpass", 2600, 0.5);
+      var rumble = biquad(pink, sr, "lowpass", 220, 0.707);
+      for (i = 0; i < n; i++) out[i] = wash[i] * 0.25 + sizzle[i] * 0.20 + rumble[i] * 0.50;
+      pink = wash = sizzle = rumble = null;
+
+      // Short bandpassed textures the individual drops are cut from: low taps
+      // on wood, the mid body of most drops, and bright ticks on glass.
+      var texN = Math.min(Math.round(0.5 * sr), n);
+      var tex = [900, 2200, 4800].map(function (f) {
+        var t = new Float32Array(texN);
+        for (var k = 0; k < texN; k++) t[k] = Math.random() * 2 - 1;
+        return biquad(t, sr, "bandpass", f, 2.4);
+      });
+
+      var maxDrop = Math.round(0.05 * sr);
+      var drops = Math.round((n / sr) * 55);
+      for (var d = 0; d < drops; d++) {
+        var pick = Math.random();
+        var tx = tex[pick < 0.18 ? 0 : (pick < 0.78 ? 1 : 2)];
+        var dur = Math.round((0.006 + Math.random() * 0.034) * sr);
+        var at = Math.floor(Math.random() * (n - maxDrop));
+        var off = Math.floor(Math.random() * (texN - dur));
+        // Squaring the random keeps most drops faint and the loud ones rare.
+        var amp = 0.3 + Math.random() * Math.random() * 3.6;
+        var fall = 3.4 + Math.random() * 3.4;
+        var dk = Math.exp(-fall / dur), rk = Math.exp(-55 / dur), de = 1, re = 1;
+        for (i = 0; i < dur; i++) {
+          out[at + i] += tx[off + i] * amp * (1 - re) * de;
+          de *= dk; re *= rk;
+        }
+      }
+
+      // Round the drop peaks off, so rain normalises to the same loudness as
+      // the steady noises instead of being held back by its own transients.
+      var s2 = 0;
+      for (i = 0; i < n; i++) s2 += out[i] * out[i];
+      var rr = Math.sqrt(s2 / n), thr = rr * 2.2, span = rr * 1.2;
+      for (i = 0; i < n; i++) {
+        var a = out[i] < 0 ? -out[i] : out[i];
+        if (a > thr) {
+          var v = thr + span * (1 - Math.exp(-(a - thr) / span));
+          out[i] = out[i] < 0 ? -v : v;
+        }
+      }
+      return out;
+    }
+
     // Pink (Paul Kellet's refined method) — also the base for green.
     var b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
     for (i = 0; i < n; i++) {
@@ -475,6 +533,22 @@
       for (i = 0; i < x; i++) {
         var t = i / x;
         out[i] = (raw[n + i] * Math.cos(t * Math.PI / 2) + raw[i] * Math.sin(t * Math.PI / 2)) * g;
+      }
+    }
+    // The cross-fade sums two independent samples, so it can overshoot the
+    // per-channel cap set above — rarely for the steady noises, more often for
+    // rain, whose drops give it a longer tail. Pull both channels back by the
+    // same amount if it did, so the headroom holds and the image does not move.
+    var top = 0, c, k, d, m;
+    for (c = 0; c < 2; c++) {
+      d = buf.getChannelData(c);
+      for (k = 0; k < n; k++) { m = d[k] < 0 ? -d[k] : d[k]; if (m > top) top = m; }
+    }
+    if (top > 0.9) {
+      var back = 0.9 / top;
+      for (c = 0; c < 2; c++) {
+        d = buf.getChannelData(c);
+        for (k = 0; k < n; k++) d[k] *= back;
       }
     }
     return buf;
