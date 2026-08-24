@@ -1,7 +1,7 @@
 {
-  "name": "Sleep Noise App",
-  "short_name": "Sleep Noise",
-  "description": "Brown and green noise for sleeping, with a sleep timer and a blackout screen.",
+  "name": "Sleeper Agent",
+  "short_name": "Sleeper",
+  "description": "Noise for sleeping plus slow ambient synth themes for meditation, with a sleep timer and a blackout screen.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
