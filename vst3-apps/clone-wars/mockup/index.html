@@ -117,6 +117,13 @@
     font-family: var(--stencilf); font-size: 13px; letter-spacing: .3em; line-height: 1.7;
   }
   .hullmark .big { font-size: 19px; color: var(--stencil); opacity: .85; }
+  .hullmark .odo-line { font-family: var(--sans); font-size: 9px; letter-spacing: .22em; }
+  .hullmark .odo {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    background: var(--well); color: var(--stencil); border: 1px solid #05090d;
+    border-radius: 3px; padding: 1px 6px; letter-spacing: .1em;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.8);
+  }
   .hullmark .haz {
     display: inline-block; width: 130px; height: 8px; margin-top: 4px;
     background: repeating-linear-gradient(45deg, var(--hazard) 0 8px, #171a1d 8px 16px);
@@ -459,6 +466,7 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
       <div class="hullmark">
         <span class="big">DRONE DIVISION</span><br>
         BROKILD HEAVY INDUSTRIES · SERIAL CW-16<br>
+        <span class="odo-line">UNIT AGE <span class="odo" id="odo">00000.0</span> HRS IN SERVICE</span><br>
         <span class="haz"></span>
       </div>
     </header>
@@ -1162,14 +1170,45 @@ function addWear(e) {
 }
 document.addEventListener("pointerup", addWear);
 
+/* unit age: this instance's service hours, ticking while the panel is open.
+   In the plugin this lives in the instance state, so it travels with the
+   DAW project — every instance keeps its own progressively growing age. */
+let ageSec = 0;
+try { ageSec = parseFloat(localStorage.getItem("cw-age")) || 0; } catch (e) {}
+const odo = document.getElementById("odo");
+function paintOdo() {
+  const hrs = ageSec / 3600;
+  odo.textContent = String(Math.floor(hrs)).padStart(5, "0") + "." +
+    Math.floor((hrs % 1) * 10);
+}
+paintOdo();
+setInterval(() => {
+  if (document.hidden) return;
+  ageSec += 1;
+  // time on the hull is wear too: ~gentle, scaled by how loud it runs
+  if (patinaModeV === "LIVE") {
+    const master = document.querySelector('[data-cmd="MASTER VOL"]');
+    const vol = master ? parseFloat(master.dataset.val) : .5;
+    wear += (0.2 + vol * 0.6) / 60;
+    if (Math.floor(Math.sqrt(wear) * 2) !== lastN) drawPatina();
+  }
+  if (Math.floor(ageSec) % 10 === 0) {
+    try { localStorage.setItem("cw-age", ageSec); } catch (e) {}
+    saveWear();
+  }
+  paintOdo();
+}, 1000);
+
 document.getElementById("tourBtn").addEventListener("click", () => {
-  wear += 400; drawPatina(); saveWear();
-  say("TOUR · ONE YEAR OF ROAD DAMAGE APPLIED");
+  wear += 400; ageSec += 800 * 3600; // a year on the road ≈ 800 stage hours
+  drawPatina(); paintOdo(); saveWear();
+  try { localStorage.setItem("cw-age", ageSec); } catch (e) {}
+  say("TOUR · +800 SERVICE HRS · ROAD DAMAGE APPLIED");
 });
 document.getElementById("repaintBtn").addEventListener("click", () => {
   wear = 0; wearSeed = Math.floor(Math.random() * 1e9);
   drawPatina(); saveWear();
-  say("FACTORY REPAINT · HISTORY ERASED");
+  say("FACTORY REPAINT · SCARS GONE · SERVICE HOURS REMAIN");
 });
 
 /* VU idle animation */
