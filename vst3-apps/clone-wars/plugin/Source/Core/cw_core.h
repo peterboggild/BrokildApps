@@ -22,7 +22,8 @@ namespace cw
 
 static constexpr int kVoices     = 16;
 static constexpr int kArmySize   = 8;
-static constexpr int kNoteSlots  = 3;
+static constexpr int kNoteSlots  = 3;    // legacy: vfNote's range, kept for state compat
+static constexpr int kMaxHeld    = 8;    // held notes tracked before the oldest is stolen
 static constexpr int kSubBlock   = 32;   // control-rate granularity in samples
 
 //==============================================================================
@@ -46,7 +47,8 @@ enum VoiceField
     vfLevel,      // 0..1 fader
     vfMute,       // 0/1
     vfSolo,       // 0/1
-    vfNote,       // 0..2 which held note slot this clone follows
+    vfNote,       // legacy, ignored: note assignment is gNoteMode's job now
+    vfPw,         // 0..1 pulse duty (0.05..0.95); the pulse wave only
     numVoiceFields
 };
 
@@ -75,7 +77,7 @@ enum GlobalParam
     gBusSat,        // 0..1  bus soft-clip amount (auto-gained)
     gBassMono,      // 0/1
     gHpf,           // 0/1
-    gDrone,         // 0/1  power-on drone: empty slot 1 falls back to base pitch
+    gDrone,         // 0/1  power-on drone: an army with no note sounds its base
     gHq,            // 0..2 quality: 0 LOW (1x), 1 HQ (2x), 2 XHQ (4x oversampled
                     //      nonlinearities; the host forces 2 for offline render)
     gSpringDwell,   // 0..1
@@ -92,8 +94,24 @@ enum GlobalParam
                     //       exaggerates the differences (up to 2.5x). Discrete
                     //       rows (wave, footage, notes) and the faders are
                     //       untouched, and the panel's stored values never move.
+    gNoteMode,      // 0..2 unison / treaty poly / war poly (see NoteMode)
+    gEnvFilt,       // 0..1 how much of the cutoff headroom ABOVE the knob the
+                    //      filter envelope opens (0 = CUT alone)
+    gLfoSync,       // 0/1  LFO rates locked to the host clock
     numGlobals
 };
+
+// How the 16 clones are shared out over the held notes. See gNoteMode.
+enum NoteMode
+{
+    nmUnison = 0,   // every clone on the bottom note
+    nmTreaty,       // one body: the 16 split left to right, low note to high
+    nmWar           // two armies contesting the chord across the WAR fader
+};
+
+// Divide `count` clones over `n` notes: palindromic and centre-weighted, so
+// 16 over 3 is 5-6-5, over 4 is 4-4-4-4 and over 5 is 3-3-4-3-3.
+void divideClones (int count, int n, int* out);
 
 const char* voiceFieldId (int f);   // "wave", "foot", ...
 const char* globalId (int g);       // "tolerance", ...
@@ -153,6 +171,11 @@ public:
     // Feeds tolerance offsets and LFO phase scatter. Part of saved state.
     void setUnitSeed (uint32_t s) { unitSeed.store (s, std::memory_order_relaxed); }
 
+    // Host tempo for LFO SYNC, and the SCATTER button. Both are message
+    // thread; the audio thread picks them up at the next sub-block.
+    void setBpm (double b) { hostBpm.store (b, std::memory_order_relaxed); }
+    void scatterLfoPhases() { scatterReq.store (1, std::memory_order_relaxed); }
+
     // Note slots (host MIDI). May be called from the audio thread.
     void noteOn  (int midiNote);
     void noteOff (int midiNote);
@@ -170,24 +193,72 @@ private:
     //==========================================================================
     struct Onepole { float z = 0; float process (float x, float a) { z += a * (x - z); return z; } };
 
-    struct SVF     // TPT state-variable, the GROWL/SCREAM circuits
+    // Sallen-Key two-pole, the GROWL and SCREAM circuits, ported from Black
+    // Rider: two one-pole TPT stages with feedback of K through a one-pole of
+    // the opposite kind and an asymmetric diode clipper in the feedback path.
+    // Solved as a zero-delay loop for the linear part, then refined twice for
+    // the clipper. Q = 1/(2-K); K = 2 is the edge of self-oscillation, and the
+    // clipper is what holds it there instead of letting it run away.
+    struct K35
     {
-        float ic1 = 0, ic2 = 0;
-        void reset() { ic1 = ic2 = 0; }
-        // one step; returns lowpass. Nonlinear damping via tanh on the band
-        // state. g must already match the (oversampled) step rate.
-        float step (float x, float g, float k, float drive);
-        // os steps with linear-interp upsampling from xPrev and an averaging
-        // decimator — kills most of the saturation aliasing at os=2/4.
-        float process (float x, float xPrev, float g, float k, float drive, int os);
+        float G = 0.09f, s1 = 0, s2 = 0, s3 = 0, sat = 1.0f;
+        void reset() { s1 = s2 = s3 = 0.0f; }
+        void setG (float g) { G = g / (1.0f + g); }
+        float clip (float x) const
+        {
+            // the diode pair: firm, a touch asymmetric so the scream has an edge
+            const float t = x > 0.0f ? x : x * 1.12f;
+            const float y = sat * detail::fastTanh (t / sat);
+            return x > 0.0f ? y : y / 1.12f;
+        }
+        float step (float x, float K)
+        {
+            const float v1 = (x - s1) * G; const float a = v1 + s1; s1 = a + v1;
+            const float oneG = 1.0f - G;
+            const float den = 1.0f / (1.0f - G * K * oneG);
+            float y = (G * a + oneG * s2 - G * K * oneG * s3) * den;
+            float u = a;
+            for (int it = 0; it < 2; ++it)            // refine for the clipper
+            {
+                const float hp = oneG * (y - s3);
+                u = a + clip (K * hp);
+                y = G * u + oneG * s2;
+            }
+            const float v2 = (u - s2) * G; s2 = y + v2;
+            const float vh = (y - s3) * G; const float lp = vh + s3; s3 = lp + vh;
+            return y;
+        }
+        // os steps, linear-interp upsampling from xPrev, averaging decimator
+        float process (float x, float xPrev, float K, int os);
     };
 
-    struct Ladder  // 4-pole tanh cascade, the LADDER circuit
+    // Transistor ladder, ported from Black Rider: four trapezoidal one-poles
+    // with the loop solved EXACTLY for the linear case, and only then the
+    // differential pair applied as a tanh. Solving first and saturating after
+    // is what keeps the tuning exact - a saturator inside the loop has no
+    // phase - while the saturator still sets the self-oscillation amplitude.
+    // The bass thinning as resonance rises is correct ladder behaviour.
+    struct Ladder
     {
-        float s[4] {};
-        void reset() { s[0] = s[1] = s[2] = s[3] = 0; }
-        float step (float x, float p, float res);
-        float process (float x, float xPrev, float g, float res, int os);
+        float G = 0.09f, s1 = 0, s2 = 0, s3 = 0, s4 = 0;
+        void reset() { s1 = s2 = s3 = s4 = 0.0f; }
+        void setG (float g) { G = g / (1.0f + g); }
+        float step (float x, float k)
+        {
+            const float G2 = G * G, G4 = G2 * G2, oneG = 1.0f - G;
+            const float S = G2 * G * oneG * s1 + G2 * oneG * s2 + G * oneG * s3 + oneG * s4;
+            const float y4lin = (G4 * x + S) / (1.0f + k * G4);
+            float u = x - k * y4lin;
+            u = 1.3f * detail::fastTanh (u * (1.0f / 1.3f));
+            auto stage = [this] (float in, float& s)
+            { const float v = G * (in - s); const float y = v + s; s = y + v; return y; };
+            auto soft = [] (float y) { return y * (1.0f - std::min (0.3f, y * y * 0.025f)); };
+            const float y1 = soft (stage (u,  s1));
+            const float y2 = soft (stage (y1, s2));
+            const float y3 = soft (stage (y2, s3));
+            return stage (y3, s4);
+        }
+        float process (float x, float xPrev, float k, int os);
     };
 
     // stateless saturator, oversampled the same way (for the master chain)
@@ -200,7 +271,10 @@ private:
         bool  looping = false;
         void  gateOn()  { stage = 1; }
         void  gateOff() { if (stage != 0) stage = 2; }
-        float tick (float atkCoef, float decCoef, bool loop);
+        // A held note decays to `sus` rather than sitting at full open. The
+        // amp envelope passes 1 (a drone must go on droning); the filter
+        // envelope passes the shape knob, which is what gives it a contour.
+        float tick (float atkCoef, float decCoef, float sus, bool loop);
     };
 
     struct Voice
@@ -212,7 +286,7 @@ private:
         float  driftState = 0;         // OU random walk
         uint32_t noiseState = 1;
         float  shValue = 0;            // sample & hold latch
-        SVF    svf;  Ladder ladder;
+        K35    k35;  Ladder ladder;
         Env    envAmp, envFlt;
         bool   gated = false;
         float  ampSmooth = 0, panSmooth = 0, cutSmooth = 0.5f;
@@ -256,10 +330,25 @@ private:
 
     std::array<Voice, kVoices> voices;
 
-    // note slots: midi note or -1; released flag for latch semantics
-    std::atomic<int>  slotNote[kNoteSlots] { -1, -1, -1 };
-    std::atomic<int>  slotHeld[kNoteSlots] { 0, 0, 0 };
-    std::atomic<int>  slotOrder { 0 };
+    // Held notes: midi note or -1, a held flag so latch can keep a released
+    // note sounding, and an arrival stamp so the oldest is stolen first.
+    // Every entry is written out - a short brace list zero-fills the rest.
+    std::atomic<int>      heldNote [kMaxHeld] { -1, -1, -1, -1, -1, -1, -1, -1 };
+    std::atomic<int>      heldOn   [kMaxHeld] {  0,  0,  0,  0,  0,  0,  0,  0 };
+    std::atomic<uint32_t> heldStamp[kMaxHeld] {  0,  0,  0,  0,  0,  0,  0,  0 };
+    std::atomic<uint32_t> heldClock { 1 };
+    std::atomic<double>   hostBpm { 120.0 };
+    std::atomic<int>      scatterReq { 0 };
+    uint32_t              scatterState = 0x9E3779B9u;
+
+    // Rebuilt once per sub-block by assignNotes(): the midi note each clone
+    // plays (-1 = none), whether that note is physically held, and whether the
+    // army has any note at all (DRONE fills in for an army that has not).
+    int  vAssign[kVoices] {};
+    int  vAssignHeld[kVoices] {};
+    bool armyGated[2] {};
+    int  activeCount = 0;
+    void assignNotes (const float* Gp);
 
     // buses & master state
     float warCurrent = 0.5f;

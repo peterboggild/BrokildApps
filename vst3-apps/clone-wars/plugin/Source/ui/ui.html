@@ -631,6 +631,14 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
           </div>
         </div>
         <div class="cmdrow">
+          <div class="step" data-cmd="NOTE MODE" tabindex="0" title="How the sixteen share out the held notes — UNISON: all on the bottom note; TREATY: split left to right, low to high; WAR: the armies contest the chord">
+            <span class="win">TREATY</span><div class="lbl">note mode</div>
+          </div>
+          <div class="knob k34" data-cmd="ENV&gt;FILT" data-val="0.45" tabindex="0" title="How much of the cutoff headroom ABOVE the knob the filter envelope opens">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">env&gt;filt</div>
+          </div>
+        </div>
+        <div class="cmdrow">
           <button class="btn" data-gparam="g_latcha"><span class="lamp"></span>LATCH A</button>
           <button class="btn" data-gparam="g_latchb"><span class="lamp"></span>LATCH B</button>
         </div>
@@ -703,7 +711,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.3 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.4 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -742,7 +750,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
           <div class="cap"><div class="ptr"></div></div><div class="lbl">kbd b</div>
         </div>
         <button class="btn" id="scatter" title="Re-randomise all 16 LFO phases"><span class="lamp"></span>SCATTER</button>
-        <button class="btn" id="lfosync" title="LFOs free-run (phases from seed) or sync to host clock"><span class="lamp"></span>LFO SYNC</button>
+        <button class="btn" id="lfosync" data-gparam="g_lfosync" title="LFOs free-run (phases from seed) or sync to host clock"><span class="lamp"></span>LFO SYNC</button>
       </div>
       <div class="cmd-t">OUTPUT BUS</div>
       <div class="cmdrow">
@@ -797,7 +805,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.3 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.4 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -830,14 +838,19 @@ window.CW_DECALS = [{"c": "damage", "n": "Deep gouge", "src": "data:image/webp;b
 "use strict";
 /* ---------------- row model ---------------- */
 const ENV_TITLE = "← fast atk / fast dec · ↑ fast atk / slow dec · → slow atk / slow dec";
+const STEPOPTS = {
+  "TEMPER A": ["GROWL", "SCREAM", "LADDER"],
+  "TEMPER B": ["GROWL", "SCREAM", "LADDER"],
+  "NOTE MODE": ["UNISON", "TREATY", "WAR"],
+};
 const ROWS = [
   { id:"vu",      label:"LEVEL VU",  type:"vu",    h:"46px" },
   { id:"ch",      label:"CLONE",     type:"ch",    h:"14px" },
-  { id:"note",    label:"NOTE",      type:"note",  h:"20px", dice:true },
+  { id:"pw",      label:"PULSE W",   type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.5, title:"Pulse duty, 5-95% \u2014 the PULSE wave only" },
   { id:"wave",    label:"WAVE",      type:"step",  h:"30px", dice:true, fan:true, opts:["SAW","PULSE","TRI","SINE"] },
   { id:"oct",     label:"FOOTAGE",   type:"step",  h:"30px", dice:true, fan:true, opts:["64'","32'","16'","8'","4'","2'"] },
   { id:"tune",    label:"TUNE",      type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.5 },
-  { id:"cut",     label:"CUTOFF",    type:"knob",  h:"52px", dice:true, fan:true, size:"k44", def:.65 },
+  { id:"cut",     label:"CUTOFF",    type:"knob",  h:"52px", dice:true, fan:true, size:"k44", def:.85 },
   { id:"res",     label:"RES",       type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.2 },
   { id:"lfowave", label:"LFO WAVE",  type:"step",  h:"30px", dice:true, fan:true, opts:["SIN","TRI","SQR","S&H"] },
   { id:"lforate", label:"LFO RATE",  type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.3 },
@@ -1106,7 +1119,7 @@ document.addEventListener("click", e => {
       if (targets.length > 1) rowBulkChanged(step.dataset.row);
       say(controlName(step) + " · " + rowDef.opts[idx] + (targets.length > 1 ? " · ×" + targets.length : ""));
     } else if (step.dataset.cmd) {
-      const OPTS = ["GROWL", "SCREAM", "LADDER"];
+      const OPTS = STEPOPTS[step.dataset.cmd] || STEPOPTS["TEMPER A"];
       const w = step.querySelector(".win");
       w.textContent = OPTS[(OPTS.indexOf(w.textContent) + 1) % OPTS.length];
       say(step.dataset.cmd + " · " + w.textContent);
@@ -1788,7 +1801,7 @@ const aboutveil = document.getElementById("aboutveil");
   const ROWMAP = { wave: "wave", oct: "foot", tune: "tune", cut: "cut", res: "res",
     lfowave: "lfowave", lforate: "lforate", lfoamp: "lfoamp", lfoflt: "lfoflt",
     envf: "envf", enva: "enva", loop: "loop", drift: "drift", pan: "pan",
-    fader: "level", mute: "mute", solo: "solo" };
+    fader: "level", mute: "mute", solo: "solo", pw: "pw" };
   const BIPOLAR = { tune: 1, pan: 1 };
   const CMDMAP = { "TOLERANCE": "g_tolerance", "TIDE": "g_tide",
     "ENTRAIN A": "g_entraina", "DRIFT MASTER": "g_driftmaster",
@@ -1799,7 +1812,8 @@ const aboutveil = document.getElementById("aboutveil");
     "BUS SAT": "g_bussat", "SPRING DWELL": "g_springdwell",
     "SPRING MIX": "g_springmix", "TAPE TIME": "g_tapetime",
     "TAPE FDBK": "g_tapefdbk", "TAPE MIX": "g_tapemix",
-    "BBD RATE": "g_bbdrate", "BBD DEPTH": "g_bbddepth", "DRIVE AMT": "g_driveamt" };
+    "BBD RATE": "g_bbdrate", "BBD DEPTH": "g_bbddepth", "DRIVE AMT": "g_driveamt",
+    "NOTE MODE": "g_notemode", "ENV>FILT": "g_envfilt" };
   const TEMPERS = ["GROWL", "SCREAM", "LADDER"];
 
   const vid = (ch, field) => "v" + String(ch).padStart(2, "0") + "_" + field;
@@ -1811,7 +1825,8 @@ const aboutveil = document.getElementById("aboutveil");
       if (el.classList.contains("step")) {   // temper selectors
         const gid = CMDMAP[el.dataset.cmd];
         if (!gid) return null;
-        return { id: gid, v: Math.max(0, TEMPERS.indexOf(el.querySelector(".win").textContent)) };
+        const opts = STEPOPTS[el.dataset.cmd] || TEMPERS;
+        return { id: gid, v: Math.max(0, opts.indexOf(el.querySelector(".win").textContent)) };
       }
       const gid = CMDMAP[el.dataset.cmd];
       return gid ? { id: gid, v: parseFloat(el.dataset.val) } : null;
@@ -1885,6 +1900,7 @@ const aboutveil = document.getElementById("aboutveil");
     }
     if (e.target.closest("#tourBtn"))   send({ k: "tour" });
     if (e.target.closest("#repairBtn")) send({ k: "repair" });
+    if (e.target.closest("#scatter"))   send({ k: "scatter" });
   });
 
   // ---- seeds: deterministic, generated by the processor ------------------
@@ -1929,7 +1945,8 @@ const aboutveil = document.getElementById("aboutveil");
         const el = document.querySelector('[data-cmd="' + cmd + '"]');
         if (!el) return;
         if (el.classList.contains("step"))
-          el.querySelector(".win").textContent = TEMPERS[Math.round(v)] || TEMPERS[0];
+          const opts = STEPOPTS[el.dataset.cmd] || TEMPERS;
+          el.querySelector(".win").textContent = opts[Math.round(v)] || opts[0];
         else { el.dataset.val = v; paintKnob(el); }
         return;
       }
@@ -1967,6 +1984,7 @@ const aboutveil = document.getElementById("aboutveil");
     seedA.innerHTML = String(p.seedA).padStart(3, "0") + "<small>A</small>";
     seedB.innerHTML = String(p.seedB).padStart(3, "0") + "<small>B</small>";
     wear = p.wear; ageSec = p.ageSec;
+    if (typeof p.wearSeed === "number") wearSeed = p.wearSeed;
     paintOdo(); drawPatina();
     say("CLONE WARS · " + (p.category || "READY").toUpperCase());
   });
@@ -1982,6 +2000,7 @@ const aboutveil = document.getElementById("aboutveil");
     if (Math.floor(Math.sqrt(wear) * 2) !== before) drawPatina();
   });
 
+  wear = 0; ageSec = 0; drawPatina(); paintOdo();
   send({ k: "getinit" });
 })();
 </script>

@@ -62,7 +62,9 @@ private:
 
     // the hull remembers: per-instance, travels with the DAW project
     std::atomic<int64_t>  ageSamples { 0 };      // time spent audibly playing
-    std::atomic<double>   wearPoints { 300.0 };
+    // A unit leaves the factory undamaged, and the scars are the instance's
+    // own - never a patch's. wearSeed is drawn per instance in the ctor.
+    std::atomic<double>   wearPoints { 0.0 };
     std::atomic<uint32_t> wearSeed { 1337 };
     std::atomic<uint32_t> unitSeed { 0xC70BE5u };
     std::atomic<int>      currentSeedA { 42 }, currentSeedB { 137 };

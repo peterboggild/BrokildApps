@@ -28,6 +28,7 @@ static Shape voiceShape (int f)
         case vfMute:
         case vfSolo:    return { 0, 1, 1, 0 };
         case vfNote:    return { 0, 2, 1, 0 };
+        case vfPw:      return { 0, 1, 0, 0.5f };
         case vfLevel:   return { 0, 1, 0, 0.8f };
         case vfCut:     return { 0, 1, 0, 0.65f };
         case vfPan:     return { -1, 1, 0, 0 };
@@ -45,6 +46,9 @@ static Shape globalShape (int g)
         case gDrone:                return { 0, 1, 1, 1 };
         case gHq:                   return { 0, 2, 1, 1 };  // LOW / HQ / XHQ
         case gSpringFreeze:         return { 0, 1, 1, 0 };
+        case gLfoSync:              return { 0, 1, 1, 0 };
+        case gNoteMode:             return { 0, 2, 1, 1 };  // UNISON/TREATY/WAR
+        case gEnvFilt:              return { 0, 1, 0, 0.45f };
         case gWar:                  return { 0, 1, 0, 0.5f };
         case gRanks:                return { 0, 1, 0, 0.5f };
         case gMaster:               return { 0, 1, 0, 0.75f };
@@ -105,6 +109,8 @@ CloneWarsProcessor::CloneWarsProcessor()
     // every fresh instance is a distinct unit off the production line
     unitSeed = (uint32_t) juce::Random::getSystemRandom().nextInt64();
     engine.setUnitSeed (unitSeed.load());
+    // ...and wears its own scars, in its own pattern, starting from undamaged
+    wearSeed = (uint32_t) juce::Random::getSystemRandom().nextInt (1 << 30);
     hqRaw = apvts.getRawParameterValue (globalParamId (cw::gHq));
     pushAllParamsToEngine();
 }
@@ -155,6 +161,12 @@ void CloneWarsProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         else if (msg.isAllNotesOff() || msg.isAllSoundOff()) engine.allNotesOff();
     }
     midi.clear();
+
+    // host tempo for LFO SYNC; harmless when the host offers none
+    if (auto* ph = getPlayHead())
+        if (auto pos = ph->getPosition())
+            if (auto bpm = pos->getBpm())
+                engine.setBpm (*bpm);
 
     if (buffer.getNumChannels() < 2) { buffer.clear(); return; }
 
@@ -253,6 +265,10 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
         wearPoints.store (wearPoints.load() + 400.0);
         ageSamples.fetch_add ((int64_t) (800.0 * 3600.0 * getSampleRate()));
     }
+    else if (k == "scatter")
+    {
+        engine.scatterLfoPhases();
+    }
     else if (k == "getinit")
     {
         sendInitToUi();
@@ -331,7 +347,7 @@ void CloneWarsProcessor::setStateInformation (const void* data, int sizeInBytes)
         suppressEcho = false;
     }
     ageSamples = (juce::int64) v.getProperty ("ageSamples", 0);
-    wearPoints = (double) v.getProperty ("wear", 300.0);
+    wearPoints = (double) v.getProperty ("wear", 0.0);
     wearSeed   = (uint32_t) (juce::int64) v.getProperty ("wearSeed", 1337);
     unitSeed   = (uint32_t) (juce::int64) v.getProperty ("unitSeed", (juce::int64) 0xC70BE5);
     currentSeedA = (int) v.getProperty ("seedA", 42);
