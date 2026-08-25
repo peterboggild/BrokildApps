@@ -75,7 +75,8 @@ enum GlobalParam
     gBassMono,      // 0/1
     gHpf,           // 0/1
     gDrone,         // 0/1  power-on drone: empty slot 1 falls back to base pitch
-    gHq,            // 0/1  1 = HQ (oversampled nonlinearities)
+    gHq,            // 0..2 quality: 0 LOW (1x), 1 HQ (2x), 2 XHQ (4x oversampled
+                    //      nonlinearities; the host forces 2 for offline render)
     gSpringDwell,   // 0..1
     gSpringMix,     // 0..1
     gSpringFreeze,  // 0/1
@@ -118,10 +119,11 @@ namespace detail
 
     inline float fastTanh (float x)
     {
-        // Pade-ish, accurate to ~1e-4 in ±4; cheaper than std::tanh and
-        // bit-identical across platforms for the test harness.
-        if (x >  4.97f) return  1.0f;
-        if (x < -4.97f) return -1.0f;
+        // Pade x(27+x²)/(27+9x²): monotone on ±3 and exactly 1 at |x| = 3;
+        // beyond that it OVERSHOOTS 1 (up to ~1.03), so clamp at 3, not
+        // further out — saturators must never exceed unity.
+        if (x >  3.0f) return  1.0f;
+        if (x < -3.0f) return -1.0f;
         const float x2 = x * x;
         return x * (27.0f + x2) / (27.0f + 9.0f * x2);
     }
@@ -166,16 +168,24 @@ private:
     {
         float ic1 = 0, ic2 = 0;
         void reset() { ic1 = ic2 = 0; }
-        // returns lowpass; nonlinear damping via tanh on the band state
-        float process (float x, float g, float k, float drive);
+        // one step; returns lowpass. Nonlinear damping via tanh on the band
+        // state. g must already match the (oversampled) step rate.
+        float step (float x, float g, float k, float drive);
+        // os steps with linear-interp upsampling from xPrev and an averaging
+        // decimator — kills most of the saturation aliasing at os=2/4.
+        float process (float x, float xPrev, float g, float k, float drive, int os);
     };
 
     struct Ladder  // 4-pole tanh cascade, the LADDER circuit
     {
         float s[4] {};
         void reset() { s[0] = s[1] = s[2] = s[3] = 0; }
-        float process (float x, float g, float res, bool hq);
+        float step (float x, float p, float res);
+        float process (float x, float xPrev, float g, float res, int os);
     };
+
+    // stateless saturator, oversampled the same way (for the master chain)
+    static float satOS (float x, float& xPrev, float drive, float norm, int os);
 
     struct Env
     {
@@ -192,6 +202,7 @@ private:
         double phase = 0, lfoPhase = 0;
         float  triState = 0;           // leaky integrator for tri
         float  freqCurrent = 110;      // glide state (Hz)
+        float  prevOsc = 0;            // previous osc sample (filter upsampling)
         float  driftState = 0;         // OU random walk
         uint32_t noiseState = 1;
         float  shValue = 0;            // sample & hold latch
@@ -246,6 +257,8 @@ private:
     uint32_t tideRng = 77;
     Onepole hpfL1, hpfL2, hpfR1, hpfR2, bassLpL, bassLpR;
     float masterSmooth = 0.75f;
+    float satPrevL = 0, satPrevR = 0, drvPrevL = 0, drvPrevR = 0,
+          mstPrevL = 0, mstPrevR = 0;   // upsampling memories for saturators
 
     // FX
     DelayLine tapeL, tapeR, bbdL, bbdR;
