@@ -177,6 +177,10 @@ public:
     // Host tempo for LFO SYNC, and the SCATTER button. Both are message
     // thread; the audio thread picks them up at the next sub-block.
     void setBpm (double b) { hostBpm.store (b, std::memory_order_relaxed); }
+    // Performance wheels: bend in semitones (+-2), mod 0..1 (vibrato depth -
+    // each clone vibrates on its OWN LFO phase, so the ensemble shimmers).
+    void setBend (float semis) { bendIn.store (semis, std::memory_order_relaxed); }
+    void setMod  (float m)     { modIn.store (m, std::memory_order_relaxed); }
     void scatterLfoPhases() { scatterReq.store (1, std::memory_order_relaxed); }
 
     // Note slots (host MIDI). May be called from the audio thread.
@@ -342,6 +346,8 @@ private:
     std::atomic<uint32_t> heldClock { 1 };
     std::atomic<double>   hostBpm { 120.0 };
     std::atomic<int>      scatterReq { 0 };
+    std::atomic<float>    bendIn { 0.0f };
+    std::atomic<float>    modIn { 0.0f };
     uint32_t              scatterState = 0x9E3779B9u;
 
     // Rebuilt once per sub-block by assignNotes(): the midi note each clone

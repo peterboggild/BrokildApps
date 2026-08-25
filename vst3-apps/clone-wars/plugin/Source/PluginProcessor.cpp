@@ -159,6 +159,10 @@ void CloneWarsProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         const auto msg = meta.getMessage();
         if (msg.isNoteOn())        engine.noteOn  (msg.getNoteNumber());
         else if (msg.isNoteOff())  engine.noteOff (msg.getNoteNumber());
+        else if (msg.isPitchWheel())
+            engine.setBend (((float) msg.getPitchWheelValue() - 8192.0f) / 8192.0f * 2.0f);
+        else if (msg.isController() && msg.getControllerNumber() == 1)
+            engine.setMod ((float) msg.getControllerValue() / 127.0f);
         else if (msg.isAllNotesOff() || msg.isAllSoundOff()) engine.allNotesOff();
     }
     midi.clear();
@@ -249,8 +253,18 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
         cw::Patch a, b;
         cw::generatePatch ((uint32_t) currentSeedA.load(), a);
         cw::generatePatch ((uint32_t) currentSeedB.load(), b);
-        auto blend = [t] (float av, float bv, bool stepped)
-        { return stepped ? (t < 0.5f ? av : bv) : av + t * (bv - av); };
+        // Continuous parameters glide; STEPPED ones (wave, footage, temper,
+        // switches) cannot - so instead of every one of them snapping together
+        // at the midpoint (an audible cliff at 49->50), each defects at its own
+        // deterministic threshold, staggered across 0.08..0.92 of the travel.
+        // The console changes sides one clone at a time.
+        uint32_t stag = 0x243F6A88u;
+        auto blend = [t, &stag] (float av, float bv, bool stepped) mutable
+        {
+            stag = stag * 1664525u + 1013904223u;
+            const float thresh = 0.08f + 0.84f * (float) (stag >> 8) / 16777216.0f;
+            return stepped ? (t < thresh ? av : bv) : av + t * (bv - av);
+        };
         suppressEcho = true;
         for (int g = 0; g < cw::numGlobals; ++g)
             if (auto* par = apvts.getParameter (globalParamId (g)))
@@ -291,6 +305,14 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
     {
         wearPoints.store (wearPoints.load() + 400.0);
         ageSamples.fetch_add ((int64_t) (800.0 * 3600.0 * getSampleRate()));
+    }
+    else if (k == "bend")
+    {
+        engine.setBend ((float) (double) m.getProperty ("v", 0.0) * 2.0f);
+    }
+    else if (k == "mod")
+    {
+        engine.setMod ((float) (double) m.getProperty ("v", 0.0));
     }
     else if (k == "scatter")
     {
