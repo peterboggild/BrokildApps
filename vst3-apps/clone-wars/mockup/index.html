@@ -458,21 +458,43 @@
   .colorized .legend .row[data-row] .tool { color: inherit; }
 
 
-  /* ---- KEYS: floating blue-metal field keyboard ---- */
-  .keysbar {
-    position: absolute; left: 70px; right: 70px; bottom: 0; z-index: 30;
-    transform: translateY(115%);
-    transition: transform .3s cubic-bezier(.2, 1.35, .45, 1);
+  /* ---- KEYS: field keyboard in its own bay below the console ---- */
+  .keysdock {
+    position: relative; height: 168px; margin-top: 10px; overflow: hidden;
+    border-top: 1px solid var(--line); border-radius: 4px;
+    background:
+      radial-gradient(70% 120% at 50% 0%, rgba(0,0,0,.20), transparent 70%),
+      rgba(6,10,14,.24);
+    box-shadow: inset 0 4px 14px rgba(0,0,0,.35);
   }
-  .keysbar.open { transform: translateY(0); }
+  .keysdock .dock-t {
+    position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%);
+    text-align: center; font-family: var(--stencilf); font-size: 11px;
+    letter-spacing: .5em; color: rgba(227,233,228,.14); pointer-events: none;
+  }
+  /* the cast shadow on the deck: fades and spreads in as the ship lands */
+  .keyshadow {
+    position: absolute; left: 6%; right: 6%; bottom: 4px; height: 22px;
+    background: radial-gradient(50% 100% at 50% 50%, rgba(0,0,0,.65), transparent 75%);
+    opacity: 0; transform: scaleX(.55);
+    transition: opacity 2s cubic-bezier(.45,.05,.15,1), transform 2s cubic-bezier(.45,.05,.15,1);
+    pointer-events: none;
+  }
+  .keysdock.open .keyshadow { opacity: .6; transform: scaleX(1); }
+  .keysbar {
+    position: absolute; left: 16px; right: 16px; bottom: 12px;
+    transform: translateY(210px);
+    transition: transform 2s cubic-bezier(.45, .05, .15, 1);   /* slow drift, soft settle */
+  }
+  .keysdock.open .keysbar { transform: translateY(0); }
   .keysplate {
     position: relative;
     background:
       repeating-linear-gradient(90deg, transparent 0 46px, rgba(0,0,0,.10) 46px 48px),
       linear-gradient(180deg, #93a0ab 0%, #5f6b77 35%, #414d59 90%);
-    border: 1px solid #0a1118; border-radius: 10px 10px 0 0;
+    border: 1px solid #0a1118; border-radius: 10px;
     padding: 8px 12px 12px;
-    box-shadow: 0 -22px 48px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.3);
+    box-shadow: 0 14px 30px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.3);
   }
   .keysplate .screwdot {
     position: absolute; width: 8px; height: 8px; border-radius: 50%;
@@ -487,25 +509,26 @@
   .keysrow .spacer { flex: 1; }
   .keys {
     position: relative; height: 92px; border-radius: 4px; overflow: hidden;
-    border: 1px solid #0a1118; background: #1a232d;
+    border: 1px solid #0a1118; background: #16202b;
     box-shadow: inset 0 3px 8px rgba(0,0,0,.5);
   }
+  /* hull-palette keys: whites are the panel blue lightened, blacks ARE the panel */
   .kwhite {
-    position: absolute; top: 0; bottom: 0; border-right: 1px solid #27333f;
-    background: linear-gradient(180deg, #e4ebf0 0%, #b9c7d2 68%, #98a9b7 100%);
+    position: absolute; top: 0; bottom: 0; border-right: 1px solid #24384c;
+    background: linear-gradient(180deg, #8aa4bf 0%, #64809c 68%, #516d89 100%);
     border-radius: 0 0 3px 3px; cursor: pointer;
   }
   .kwhite.down {
-    background: linear-gradient(180deg, #9fc0d8, #6f95b3 70%, #5b7f9d);
+    background: linear-gradient(180deg, #a8c4de, #7f9cb8 70%, #6a87a3);
     box-shadow: inset 0 3px 6px rgba(0,0,0,.35);
   }
   .kblack {
     position: absolute; top: 0; height: 57%; z-index: 2;
-    background: linear-gradient(180deg, #2b3947 0%, #101820 75%, #22303c 100%);
-    border: 1px solid #05090d; border-radius: 0 0 3px 3px; cursor: pointer;
+    background: linear-gradient(180deg, #40607e 0%, #33506a 70%, #24384c 100%);
+    border: 1px solid #0a1118; border-radius: 0 0 3px 3px; cursor: pointer;
     box-shadow: 2px 3px 5px rgba(0,0,0,.5);
   }
-  .kblack.down { background: linear-gradient(180deg, #57708a, #2c3f52); }
+  .kblack.down { background: linear-gradient(180deg, #587a9a, #466482); }
 
   /* ---- about hatch text ---- */
   .aboutbody {
@@ -603,8 +626,8 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
           </div>
         </div>
         <div class="cmdrow">
-          <button class="btn on"><span class="lamp"></span>LATCH A</button>
-          <button class="btn on"><span class="lamp"></span>LATCH B</button>
+          <button class="btn" data-gparam="g_latcha"><span class="lamp"></span>LATCH A</button>
+          <button class="btn" data-gparam="g_latchb"><span class="lamp"></span>LATCH B</button>
         </div>
         <div class="ledrow" title="Which of the three note slots are held (click to simulate)">
           <span>HELD</span>
@@ -651,18 +674,22 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
       <div class="legend right" id="legendR"></div>
     </div>
 
-    <div class="keysbar" id="keysbar">
-      <div class="keysplate">
-        <div class="screwdot" style="left:6px;top:6px"></div>
-        <div class="screwdot" style="right:6px;top:6px"></div>
-        <div class="screwdot" style="left:6px;bottom:6px"></div>
-        <div class="screwdot" style="right:6px;bottom:6px"></div>
-        <div class="keysrow">
-          <span class="kt">CLONE WARS · FIELD KEYBOARD · C2–C5</span>
-          <span class="spacer"></span>
-          <button class="btn on" id="holdBtn" title="Latch held notes — release nothing, the drone way"><span class="lamp"></span>HOLD</button>
+    <div class="keysdock" id="keysdock">
+      <div class="dock-t">KEYBOARD BAY</div>
+      <div class="keyshadow"></div>
+      <div class="keysbar" id="keysbar">
+        <div class="keysplate">
+          <div class="screwdot" style="left:6px;top:6px"></div>
+          <div class="screwdot" style="right:6px;top:6px"></div>
+          <div class="screwdot" style="left:6px;bottom:6px"></div>
+          <div class="screwdot" style="right:6px;bottom:6px"></div>
+          <div class="keysrow">
+            <span class="kt">CLONE WARS · FIELD KEYBOARD · C2–C5</span>
+            <span class="spacer"></span>
+            <button class="btn" id="holdBtn" title="Latch held notes — release nothing, the drone way"><span class="lamp"></span>HOLD</button>
+          </div>
+          <div class="keys" id="keys"></div>
         </div>
-        <div class="keys" id="keys"></div>
       </div>
     </div>
 
@@ -1544,8 +1571,9 @@ function juceEmit(obj) {
   if (window.__JUCE__ && window.__JUCE__.backend)
     window.__JUCE__.backend.emitEvent("cw", obj);
 }
+const keysdock = document.getElementById("keysdock");
 keysBtn.addEventListener("click", () => {
-  const open = keysbar.classList.toggle("open");
+  const open = keysdock.classList.toggle("open");
   keysBtn.classList.toggle("on", open);
   say(open ? "KEYBOARD \u00b7 DEPLOYED" : "KEYBOARD \u00b7 STOWED");
 });
@@ -1603,7 +1631,7 @@ holdBtn.addEventListener("click", () => {
   const qmap = {};
   "awsedftgyhujkolp".split("").forEach((c, i) => qmap[c] = 48 + i);
   window.addEventListener("keydown", e => {
-    if (!keysbar.classList.contains("open") || e.repeat) return;
+    if (!keysdock.classList.contains("open") || e.repeat) return;
     if (qmap[e.key] !== undefined) press(cont.querySelector('[data-n="' + qmap[e.key] + '"]'));
   });
   window.addEventListener("keyup", e => {

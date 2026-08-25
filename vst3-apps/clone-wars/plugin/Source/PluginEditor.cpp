@@ -86,8 +86,8 @@ CloneWarsEditor::CloneWarsEditor (CloneWarsProcessor& p)
     };
 
     setResizable (true, true);
-    setResizeLimits (900, 560, 3400, 2200);
-    setSize (1760, 1080);
+    setResizeLimits (900, 560, 3400, 2400);
+    setSize (1760, 1250);          // includes the keyboard bay below the console
     startTimerHz (15);
 }
 

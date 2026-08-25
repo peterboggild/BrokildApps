@@ -142,6 +142,8 @@ int main (int argc, char** argv)
         const auto silent = analyze (L, R, 0);
         check (silent.rms < 0.001f, "drone off + no notes = silence");
 
+        e.setGlobal (cw::gLatchA, 1);                  // engage HOLD explicitly
+        e.setGlobal (cw::gLatchB, 1);
         e.noteOn (36); e.noteOn (43); e.noteOn (48);   // C2 G2 C3
         render (e, L, R, fs, 3.0);
         e.noteOff (36); e.noteOff (43); e.noteOff (48); // latched: keeps sounding
