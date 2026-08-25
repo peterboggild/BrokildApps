@@ -116,6 +116,12 @@ CloneWarsProcessor::CloneWarsProcessor()
     wearSeed = (uint32_t) juce::Random::getSystemRandom().nextInt (1 << 30);
     hqRaw = apvts.getRawParameterValue (globalParamId (cw::gHq));
     pushAllParamsToEngine();
+    // A fresh instance boots ON seed A, so the console truly equals
+    // blend(A, B, morphT=0) from the first moment - without this the seed
+    // windows claim 042/137 while the console holds the factory patch, and
+    // the first touch of MORPH audibly snaps to seed 42 (Peter caught it).
+    // A saved project immediately overwrites all of this via setState.
+    applySeed ((uint32_t) currentSeedA.load());
 }
 
 CloneWarsProcessor::~CloneWarsProcessor()
