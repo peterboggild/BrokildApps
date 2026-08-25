@@ -4,6 +4,31 @@ For any Claude session (cloud, VS Code, or otherwise) or human picking this up.
 Sessions do **not** coordinate with each other automatically — **this repo is
 the only shared state**. Read this before changing anything.
 
+## OPERATOR
+
+As of 2026-08-25 evening, **the VS Code session on Peter's PC is the
+operator**: it owns releases, merges to `main`, and the build number.
+The cloud session that built 260825.1–.3 stands down; its branch
+`claude/dex-server-host-9jkd55` is final history — do not push to it.
+Peter can hand the role back at any time by saying so to either session
+and updating this line.
+
+Operating the release from the PC needs nothing special:
+- Push a green change to `main` (or a branch, then merge).
+- Rebuild the download zip with a manual run of the **Clone Wars VST3
+  (win64)** workflow on `main` — GitHub → Actions → Run workflow, or
+  `gh workflow run clone-wars.yml --ref main`. On green, CI commits
+  `Clone-Wars-VST3-win64.zip` to `main` itself (`[skip ci]`); pull after.
+- GitHub Pages redeploys `main` automatically; the zip URL caches, so
+  verify with `...zip?v=<build>`.
+
+**Top open item for the operator:** the manual
+(`tools/cw-manual.html` → `Clone-Wars-Manual.pdf`) still describes the
+retired NOTE 1·2·3 slots and doesn't know NOTE MODE, PULSE WIDTH, the
+new filters, ENV>FILT or sustain — it ships inside the zip, so it is
+now the stalest thing in the box. Regeneration command is in the file
+map below.
+
 Last updated: 2026-08-25, build **260825.4**, by the VS Code session on Peter's PC
 (see the 260825.4 section below). Before that **260825.3**, by the cloud session that built
 the plugin (branch `claude/dex-server-host-9jkd55`).
@@ -11,7 +36,7 @@ the plugin (branch `claude/dex-server-host-9jkd55`).
 ## Coordination protocol
 
 1. **`main` is the source of truth** and is what the site serves (GitHub
-   Pages). At the time of writing, `main` = `cc442a6` and contains everything:
+   Pages). It contains everything:
    engine, UI, tests, CI, manual, landing page, release zip.
 2. **Always `git fetch` + rebase/merge onto `origin/main` before editing.**
    If you find `main` ahead of what you expected, someone else shipped —
