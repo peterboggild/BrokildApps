@@ -2,7 +2,7 @@ CLONE WARS
 Sixteen analogue clones of almost, but not quite, the same oscillator -
 drawn up in two armies of eight, aimed at each other, and slid into
 battle with one fader.
-Brokild Heavy Industries · Drone Division  -  build 260825.2  -
+Brokild Heavy Industries · Drone Division  -  build 260825.3  -
 August 2026  -  Windows 64-bit
 
 
@@ -37,6 +37,13 @@ THIRTY SECONDS OF INSTRUCTIONS
   - The MORPH knob glides the whole console between seed A and seed B.
   - THE WAR slides the mix from Army A to Army B; SLEW stretches the
     journey up to five minutes. Set it moving and go make coffee.
+  - THE RANKS (below THE WAR) is a sync/desync slider: left pulls every
+    continuous control toward its army's average - hard left is sixteen
+    perfect copies - and right exaggerates the differences, up to full
+    mutiny. Non-destructive: centre always returns your exact patch.
+    Discrete rows (wave, footage, notes) and the faders are untouched.
+  - FOOTAGE runs 64' to 2' - from three octaves below 8' to two above,
+    for extreme registrations.
   - GROWL / SCREAM / LADDER pick each army's filter circuit. Same patch,
     three different animals.
   - Shift-click controls in one row to LOCK them into a group. Ctrl-click

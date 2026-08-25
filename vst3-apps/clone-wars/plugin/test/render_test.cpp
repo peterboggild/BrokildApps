@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -179,7 +180,51 @@ int main (int argc, char** argv)
         check (st.peak <= 1.01f, "stable at high resonance");
     }
 
-    // ---- scenario 5: determinism — same seed twice is bit-identical -------
+    // ---- scenario 5: THE RANKS extremes + 64'/2' footage stay stable ------
+    {
+        cw::Engine e;
+        e.prepare (fs, 512);
+        e.setGlobal (cw::gDrone, 1);
+        for (int v = 0; v < cw::kVoices; ++v)
+        {
+            e.setVoice (v, cw::vfFoot, (float) (v % 6));   // includes 64' and 2'
+            e.setVoice (v, cw::vfTune, (v % 2 ? 0.8f : -0.8f));
+            e.setVoice (v, cw::vfCut,  0.3f + 0.05f * (float) (v % 8));
+        }
+        std::vector<float> L, R;
+        e.setGlobal (cw::gRanks, 1.0f);                    // full mutiny
+        render (e, L, R, fs, 3.0);
+        e.setGlobal (cw::gRanks, 0.0f);                    // one perfect machine
+        render (e, L, R, fs, 3.0);
+        writeWav (out + "cw-ranks-footage.wav", L, R, fs);
+        const auto st = analyze (L, R, (size_t) fs / 2);
+        printf ("ranks+footage: peak %.3f rms %.4f\n", st.peak, st.rms);
+        check (! st.nan, "no NaN/inf at ranks extremes with 64'/2'");
+        check (st.rms > 0.005f, "still sounds at ranks extremes");
+        check (st.peak <= 1.01f, "no hard clipping at ranks extremes");
+
+        // unison really is unison: with ranks at 0 the per-army spread of the
+        // working cutoffs collapses, so two very different strips converge.
+        // (Indirect check: a render with ranks 0 differs from ranks 0.5.)
+        // Engines are ~2 MB each, so these live on the heap.
+        auto mkEngine = [fs] (float ranksVal)
+        {
+            auto ep = std::make_unique<cw::Engine>();
+            ep->prepare (fs, 512);
+            ep->setGlobal (cw::gDrone, 1);
+            for (int v = 0; v < cw::kVoices; ++v)
+                ep->setVoice (v, cw::vfCut, 0.2f + 0.07f * (float) v);
+            ep->setGlobal (cw::gRanks, ranksVal);
+            return ep;
+        };
+        std::vector<float> a1, b1, a2, b2;
+        render (*mkEngine (0.5f), a1, b1, fs, 2.0);
+        render (*mkEngine (0.0f), a2, b2, fs, 2.0);
+        check (std::memcmp (a1.data(), a2.data(), a1.size() * 4) != 0,
+               "ranks 0 audibly differs from ranks centre");
+    }
+
+    // ---- scenario 6: determinism — same seed twice is bit-identical -------
     {
         auto renderSeed = [fs] (std::vector<float>& L, std::vector<float>& R)
         {

@@ -130,7 +130,7 @@ static void labPatch (cw::Engine& e, int wave, int temper, float cut, float res)
     }
     float* f = p.voice[0];
     f[vfMute] = 0; f[vfLevel] = 0.8f;
-    f[vfWave] = (float) wave; f[vfFoot] = 2;   // 8'
+    f[vfWave] = (float) wave; f[vfFoot] = 3;   // 8'
     f[vfCut] = cut; f[vfRes] = res;
     f[vfEnvA] = 0; f[vfEnvF] = 0;              // fast attack
     f[vfNote] = 0;
@@ -223,7 +223,7 @@ int main()
         const Jump jumps[] =
         {
             { "cutoff 0.6->1.0", [&] { e.setVoice (0, cw::vfCut, 1.0f); } },
-            { "footage 8'->32'", [&] { e.setVoice (0, cw::vfFoot, 0.0f); } },
+            { "footage 8'->32'", [&] { e.setVoice (0, cw::vfFoot, 1.0f); } },
             { "mute on",         [&] { e.setVoice (0, cw::vfMute, 1.0f); } },
             { "mute off",        [&] { e.setVoice (0, cw::vfMute, 0.0f); } },
             { "note jump",       [&] { e.noteOff (note); e.noteOn (note + 7); } },

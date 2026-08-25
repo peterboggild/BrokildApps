@@ -10,6 +10,7 @@
 // Real-time rules (devkit): process() never allocates, locks or logs.
 // All parameter entry points are plain float stores read at sub-block rate.
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cmath>
@@ -86,6 +87,11 @@ enum GlobalParam
     gBbdRate,       // 0..1  0.05..6 Hz
     gBbdDepth,      // 0..1
     gDriveAmt,      // 0..1
+    gRanks,         // 0..1  THE RANKS: 0.5 = as set; ->0 pulls every continuous
+                    //       per-voice value to its army's mean (unison); ->1
+                    //       exaggerates the differences (up to 2.5x). Discrete
+                    //       rows (wave, footage, notes) and the faders are
+                    //       untouched, and the panel's stored values never move.
     numGlobals
 };
 
@@ -230,7 +236,11 @@ private:
     void renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixRB, int n);
     void masterChain (float* L, float* R, int n);
 
-    static float footMult (int f) { const float m[4] = { 0.25f, 0.5f, 1.0f, 2.0f }; return m[f & 3]; }
+    static float footMult (int f)   // 64' 32' 16' 8' 4' 2'
+    {
+        static constexpr float m[6] = { 0.125f, 0.25f, 0.5f, 1.0f, 2.0f, 4.0f };
+        return m[std::clamp (f, 0, 5)];
+    }
 
     //==========================================================================
     double fs = 48000.0;
