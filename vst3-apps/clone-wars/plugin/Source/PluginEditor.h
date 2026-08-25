@@ -18,6 +18,7 @@ private:
 
     CloneWarsProcessor& processor;
     std::unique_ptr<juce::WebBrowserComponent> browser;
+    std::unique_ptr<juce::Label> fallbackNote;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CloneWarsEditor)
 };
