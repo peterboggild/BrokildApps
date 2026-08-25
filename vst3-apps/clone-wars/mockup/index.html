@@ -102,6 +102,7 @@
       linear-gradient(90deg, rgba(0,0,0,.16), transparent 4%, transparent 96%, rgba(0,0,0,.16));
   }
   .panel > * { position: relative; z-index: 1; }
+  #patina { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 
   .rivet {
     position: absolute; width: 10px; height: 10px; border-radius: 50%; z-index: 2;
@@ -448,6 +449,7 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
 <div class="stagebox"><div class="rig">
   <div class="rail"></div>
   <div class="panel" id="panel">
+    <canvas id="patina"></canvas>
 
     <header>
       <div class="brand">
@@ -619,6 +621,15 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
         </div>
         <button class="btn on" title="Footages 16' and below pulled to centre"><span class="lamp"></span>BASS MONO</button>
         <button class="btn" title="Gentle infrasonic high-pass on the master"><span class="lamp"></span>HPF</button>
+      </div>
+      <div class="cmd-t">HULL</div>
+      <div class="cmdrow">
+        <div class="step" id="patinaMode" data-opts="LIVE,FREEZE,OFF" tabindex="0"
+             title="LIVE: the panel accumulates wear as you play · FREEZE: keep the scars, stop earning new ones · OFF: pristine">
+          <span class="win">LIVE</span><div class="lbl">patina</div>
+        </div>
+        <button class="btn" id="tourBtn" title="Simulate a year of hard touring"><span class="lamp"></span>TOUR</button>
+        <button class="btn" id="repaintBtn" title="Factory repaint — erases the machine's history"><span class="lamp"></span>REPAINT</button>
       </div>
       <div class="modulebay">
         MODULE BAY · FUTURE PLUG-IN MODULES DOCK HERE
@@ -861,6 +872,11 @@ document.addEventListener("click", e => {
       const idx = (parseInt(step.dataset.idx || 0) + 1) % rowDef.opts.length;
       for (const t of targets) { t.dataset.idx = idx; t.querySelector(".win").textContent = rowDef.opts[idx]; }
       say(controlName(step) + " · " + rowDef.opts[idx] + (targets.length > 1 ? " · ×" + targets.length : ""));
+    } else if (step.dataset.opts) {
+      const OPTS = step.dataset.opts.split(",");
+      const w = step.querySelector(".win");
+      w.textContent = OPTS[(OPTS.indexOf(w.textContent) + 1) % OPTS.length];
+      if (step.id === "patinaMode") patinaSetMode(w.textContent);
     } else if (step.dataset.cmd) {
       const OPTS = ["GROWL", "SCREAM", "LADDER"];
       const w = step.querySelector(".win");
@@ -972,6 +988,7 @@ const seedB = document.getElementById("seedB");
 function newSeed(elem, tag) {
   const n = String(Math.floor(Math.random() * 200)).padStart(3, "0");
   elem.innerHTML = n + "<small>" + tag + "</small>";
+  if (typeof drawPatina === "function") drawPatina(); // preset-keyed grime follows the seed
   return n;
 }
 seedA.addEventListener("click", () => { say("SEED A · " + newSeed(seedA, "A")); rollAll(); });
@@ -1020,6 +1037,140 @@ function moveWar(e) {
   war.querySelector(".fcap").style.left = (v * 100) + "%";
   say("THE WAR · A " + pct(1 - v) + " / B " + pct(v));
 }
+
+/* ---------------- patina: the machine earns its scars ----------------
+   Every decal is generated from (wearSeed + index), so the whole damage
+   history is two persisted numbers — scars never move between sessions. */
+const patCan = document.getElementById("patina");
+const pctx = patCan.getContext("2d");
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+let wear = 60, wearSeed = 1337, patinaModeV = "LIVE", lastN = -1;
+try {
+  if (localStorage.getItem("cw-wear") !== null) wear = parseFloat(localStorage.getItem("cw-wear"));
+  wearSeed = parseInt(localStorage.getItem("cw-wearseed")) || 1337;
+  patinaModeV = localStorage.getItem("cw-patina") || "LIVE";
+} catch (e) {}
+function saveWear() {
+  try {
+    localStorage.setItem("cw-wear", wear);
+    localStorage.setItem("cw-wearseed", wearSeed);
+    localStorage.setItem("cw-patina", patinaModeV);
+  } catch (e) {}
+}
+
+function scratch(rng, x, y) {
+  const len = 20 + rng() * 160, ang = rng() * Math.PI * 2;
+  const seg = 6, dx = len / seg, pts = [[0, 0]];
+  let yy = 0;
+  for (let s = 1; s <= seg; s++) { yy += (rng() - .5) * 3; pts.push([s * dx, yy]); }
+  pctx.save(); pctx.translate(x, y); pctx.rotate(ang);
+  for (const [c, wd, oy] of [["rgba(8,12,16,.5)", 1.4, 0], ["rgba(205,214,220,.30)", .7, -.9]]) {
+    pctx.beginPath(); pctx.moveTo(pts[0][0], pts[0][1] + oy);
+    for (let s = 1; s < pts.length; s++) pctx.lineTo(pts[s][0], pts[s][1] + oy);
+    pctx.strokeStyle = c; pctx.lineWidth = wd; pctx.stroke();
+  }
+  pctx.restore();
+}
+function ding(rng, x, y) {
+  const r = 2 + rng() * 5;
+  const gr = pctx.createRadialGradient(x - r * .3, y - r * .3, 0, x, y, r);
+  gr.addColorStop(0, "rgba(8,12,16,.6)");
+  gr.addColorStop(.7, "rgba(20,28,36,.25)");
+  gr.addColorStop(1, "rgba(0,0,0,0)");
+  pctx.fillStyle = gr; pctx.beginPath(); pctx.arc(x, y, r, 0, 7); pctx.fill();
+  pctx.strokeStyle = "rgba(210,220,226,.28)"; pctx.lineWidth = .8;
+  pctx.beginPath(); pctx.arc(x + r * .25, y + r * .25, r * .8, -.4, 1.6); pctx.stroke();
+}
+function chip(rng, x, y) {
+  const r = 3 + rng() * 11, k = 6 + Math.floor(rng() * 4), pts = [];
+  for (let i = 0; i < k; i++) {
+    const a = i / k * Math.PI * 2, rr = r * (0.55 + rng() * .7);
+    pts.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr]);
+  }
+  pctx.beginPath(); pctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < k; i++) pctx.lineTo(pts[i][0], pts[i][1]);
+  pctx.closePath();
+  const gr = pctx.createLinearGradient(x - r, y - r, x + r, y + r);
+  gr.addColorStop(0, "#9aa4ab"); gr.addColorStop(1, "#5f6970");
+  pctx.fillStyle = gr; pctx.fill();
+  pctx.strokeStyle = "rgba(10,16,22,.65)"; pctx.lineWidth = 1; pctx.stroke();
+}
+function stain(rng, x, y, mul) {
+  mul = mul || 1;
+  const r = 14 + rng() * 46;
+  const gr = pctx.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, "rgba(16,14,8," + (0.10 * mul) + ")");
+  gr.addColorStop(.7, "rgba(14,12,8," + (0.05 * mul) + ")");
+  gr.addColorStop(1, "rgba(0,0,0,0)");
+  pctx.fillStyle = gr; pctx.beginPath(); pctx.arc(x, y, r, 0, 7); pctx.fill();
+}
+
+function drawPatina() {
+  pctx.clearRect(0, 0, patCan.width, patCan.height);
+  if (patinaModeV === "OFF") { lastN = -1; return; }
+  const W = patCan.width, H = patCan.height;
+  // permanent battle damage: count grows with the square root of abuse
+  const n = Math.floor(Math.sqrt(wear) * 2);
+  lastN = n;
+  for (let i = 0; i < n; i++) {
+    const rng = mulberry32(wearSeed + i * 7919);
+    const type = rng();
+    const x = 10 + rng() * (W - 20), y = 10 + rng() * (H - 20);
+    if (type < .45) scratch(rng, x, y);
+    else if (type < .70) ding(rng, x, y);
+    else if (type < .85) chip(rng, x, y);
+    else stain(rng, x, y);
+  }
+  // preset-keyed grime: temporary, follows seed A — "busted" seeds arrive dirty
+  const seedNum = parseInt(seedA.textContent) || 0;
+  const busted = (seedNum * 37 % 97) / 97;
+  const g = mulberry32(seedNum + 1);
+  const gn = Math.floor(busted * 12);
+  for (let i = 0; i < gn; i++) stain(g, 10 + g() * (W - 20), 10 + g() * (H - 20), .5 + busted * .8);
+}
+function sizePatina() {
+  patCan.width = panel.offsetWidth;
+  patCan.height = panel.offsetHeight;
+  drawPatina();
+}
+sizePatina();
+window.addEventListener("load", sizePatina);
+
+function patinaSetMode(m) {
+  patinaModeV = m;
+  saveWear(); drawPatina();
+  say("PATINA · " + (m === "LIVE" ? "LIVE — THE HULL REMEMBERS" : m === "FREEZE" ? "FROZEN — SCARS KEPT, NO NEW ONES" : "OFF — PRISTINE"));
+}
+document.getElementById("patinaMode").querySelector(".win").textContent = patinaModeV;
+
+// playing wears the hull; louder sessions wear it faster
+function addWear(e) {
+  if (patinaModeV !== "LIVE") return;
+  if (!e.target.closest(".panel") || e.target.closest(".hatch")) return;
+  const master = document.querySelector('[data-cmd="MASTER VOL"]');
+  const vol = master ? parseFloat(master.dataset.val) : .5;
+  wear += 0.4 + vol * 1.2;
+  if (Math.floor(Math.sqrt(wear) * 2) !== lastN) drawPatina();
+  saveWear();
+}
+document.addEventListener("pointerup", addWear);
+
+document.getElementById("tourBtn").addEventListener("click", () => {
+  wear += 400; drawPatina(); saveWear();
+  say("TOUR · ONE YEAR OF ROAD DAMAGE APPLIED");
+});
+document.getElementById("repaintBtn").addEventListener("click", () => {
+  wear = 0; wearSeed = Math.floor(Math.random() * 1e9);
+  drawPatina(); saveWear();
+  say("FACTORY REPAINT · HISTORY ERASED");
+});
 
 /* VU idle animation */
 const needles = [...document.querySelectorAll(".vu .needle")].map(n => ({
