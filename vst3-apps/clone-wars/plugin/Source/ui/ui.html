@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clone Wars</title>
+<meta name="description" content="Interactive panel mockup of Clone Wars — a 16-voice analogue drone monster VST3 in war-torn blue-painted metal. Two 8-voice armies, row locking, seed morphing.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&family=Oswald:wght@300;400;500&display=swap">
+<style>
+  /* War-torn painted-metal hardware panel: deliberately single-theme,
+     every surface painted. Chris-Foss-ship blues, hazard amber, stencil white. */
+  :root {
+    --stage: #0e1319;
+    --hull: #33506a;
+    --hull-hi: #40607e;
+    --hull-lo: #24384c;
+    --plate-a: #38556f;
+    --plate-b: #314f6c;
+    --steel: #97a1a8;
+    --steel-dk: #5c666e;
+    --well: #0d141b;
+    --line: #22394e;
+    --stencil: #e3e9e4;
+    --dim: #9fb2bd;
+    --hazard: #e8a33d;
+    --hazard-glow: rgba(232,163,61,.5);
+    --a-acc: #ff9a45;
+    --a-glow: rgba(255,154,69,.5);
+    --b-acc: #86d9e8;
+    --b-glow: rgba(134,217,232,.5);
+    --led: #ff5040;
+    --lock: #ffd75e;
+    --stencilf: "Saira Stencil One", "Arial Black", sans-serif;
+    --sans: "Oswald", "Arial Narrow", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
+  html, body { background: var(--stage); }
+  body {
+    color: var(--stencil);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 26px 12px 40px;
+  }
+  .intro {
+    max-width: 900px; text-align: center; color: var(--dim);
+    font-weight: 300; font-size: 14px; letter-spacing: .04em; margin-bottom: 18px;
+  }
+  .intro b { color: var(--hazard); font-weight: 500; }
+  .mobilenote { display: none; }
+  @media (max-width: 900px) {
+    .mobilenote { display: block; margin-top: 6px; color: var(--hazard); }
+  }
+  .stagebox { max-width: 100%; overflow-x: auto; padding-bottom: 10px; }
+
+  /* ---- the ship ---- */
+  .rig { display: flex; align-items: stretch; width: max-content; filter: drop-shadow(0 30px 60px rgba(0,0,0,.75)); }
+  .rail {
+    width: 30px; flex: none; position: relative;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 34px, rgba(0,0,0,.28) 34px 36px),
+      linear-gradient(90deg, #7b858c 0%, #59636b 30%, #3d454c 70%, #2a3036 100%);
+    border: 1px solid #05070a; border-radius: 6px 0 0 6px;
+    box-shadow: inset 0 0 14px rgba(0,0,0,.6);
+  }
+  .rail.r { transform: scaleX(-1); }
+  .rail::before { /* hazard chevrons */
+    content: ""; position: absolute; inset: 6px 6px; opacity: .85;
+    background: repeating-linear-gradient(45deg, var(--hazard) 0 9px, #171a1d 9px 18px);
+    border: 1px solid #0a0c0e; border-radius: 3px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,.55);
+  }
+  .rail::after { /* wear on the stripes */
+    content: ""; position: absolute; inset: 6px 6px;
+    background:
+      radial-gradient(14px 30px at 50% 12%, rgba(90,98,104,.9), transparent 70%),
+      radial-gradient(10px 22px at 40% 55%, rgba(70,78,85,.8), transparent 70%),
+      radial-gradient(12px 26px at 60% 88%, rgba(90,98,104,.85), transparent 70%);
+  }
+
+  .panel {
+    position: relative;
+    background:
+      radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.07), transparent 55%),
+      radial-gradient(90% 70% at 85% 100%, rgba(0,0,0,.30), transparent 60%),
+      radial-gradient(26% 20% at 70% 30%, rgba(20,32,44,.35), transparent 70%),
+      linear-gradient(160deg, var(--hull-hi) 0%, var(--hull) 45%, var(--hull-lo) 100%);
+    border: 1px solid #05070a;
+    padding: 14px 18px 12px;
+    overflow: hidden;
+  }
+  .panel::before { /* grime + paint mottling */
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    opacity: .5; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='340'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.6 0 0 0 0 0.62 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='340' height='340' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .panel::after { /* stains, scorch, chipped corners showing steel */
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(180px 60px at 78% 4%, rgba(0,0,0,.22), transparent 70%),
+      radial-gradient(120px 120px at 8% 92%, rgba(20,14,6,.28), transparent 70%),
+      radial-gradient(60px 22px at 30% 99%, rgba(151,161,168,.5), transparent 72%),
+      radial-gradient(34px 16px at 97% 20%, rgba(151,161,168,.55), transparent 70%),
+      radial-gradient(26px 12px at 2% 6%, rgba(151,161,168,.5), transparent 70%),
+      linear-gradient(90deg, rgba(0,0,0,.16), transparent 4%, transparent 96%, rgba(0,0,0,.16));
+  }
+  .panel > * { position: relative; z-index: 1; }
+  #patina { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+
+  .rivet {
+    position: absolute; width: 10px; height: 10px; border-radius: 50%; z-index: 2;
+    background: radial-gradient(circle at 34% 28%, #c9d1d6, #6a747c 55%, #2e353b 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,.7), inset 0 0 2px rgba(0,0,0,.4);
+  }
+
+  /* ---- header ---- */
+  header { display: flex; align-items: center; gap: 26px; padding: 6px 8px 12px; }
+  .hullmark {
+    margin-left: auto; text-align: right; color: var(--dim); opacity: .8;
+    font-family: var(--stencilf); font-size: 13px; letter-spacing: .3em; line-height: 1.7;
+  }
+  .hullmark .big { font-size: 19px; color: var(--stencil); opacity: .85; }
+  .hullmark .odo-line { font-family: var(--sans); font-size: 9px; letter-spacing: .22em; }
+  .hullmark .odo {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    background: var(--well); color: var(--stencil); border: 1px solid #05090d;
+    border-radius: 3px; padding: 1px 6px; letter-spacing: .1em;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.8);
+  }
+  .hullmark .haz {
+    display: inline-block; width: 130px; height: 8px; margin-top: 4px;
+    background: repeating-linear-gradient(45deg, var(--hazard) 0 8px, #171a1d 8px 16px);
+    border: 1px solid #0a0c0e; opacity: .8;
+  }
+  .brand { min-width: 216px; }
+  .brand h1 {
+    font-family: var(--stencilf); font-weight: 400;
+    font-size: 36px; line-height: .92; letter-spacing: .02em; color: var(--stencil);
+    text-shadow: 0 2px 3px rgba(0,0,0,.5);
+  }
+  .brand h1 span { color: var(--hazard); }
+  .brand .tag {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--dim); margin-top: 7px; max-width: 220px; line-height: 1.5;
+  }
+  .hdr-right { margin-left: auto; display: flex; gap: 16px; align-items: flex-start; }
+
+  .fxbank { display: flex; gap: 12px; }
+  .module {
+    border: 1px solid #142333; border-radius: 6px; padding: 6px 9px 7px;
+    background: linear-gradient(170deg, rgba(255,255,255,.05), rgba(0,0,0,.18)), var(--plate-b);
+    box-shadow: 0 2px 4px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08);
+    text-align: center;
+  }
+  .module .t { font-size: 9.5px; letter-spacing: .2em; color: var(--dim); margin-bottom: 4px; }
+  .fxrow { display: flex; gap: 8px; align-items: flex-end; justify-content: center; }
+
+  .seedrow { display: flex; gap: 9px; align-items: center; }
+  .led7 {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    background: #1c0503; color: var(--led); border: 1px solid #000;
+    border-radius: 4px; padding: 3px 7px; font-size: 16px; letter-spacing: .12em;
+    text-shadow: 0 0 7px rgba(255,80,64,.8);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.85); cursor: pointer;
+  }
+  .led7 small { display: block; font-size: 7.5px; color: #8a4038; letter-spacing: .2em; text-shadow: none; }
+  .hbtnrow { display: flex; gap: 6px; margin-top: 6px; justify-content: center; }
+
+  /* ---- generic controls ---- */
+  .btn {
+    font-family: var(--sans); font-size: 9px; letter-spacing: .12em;
+    color: var(--dim);
+    background: linear-gradient(180deg, #46586a, #22303e 60%, #2b3a49);
+    border: 1px solid #0a121a; border-radius: 3px; padding: 4px 8px 3px;
+    cursor: pointer;
+    box-shadow: 0 2px 3px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14);
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn .lamp {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #202c36; box-shadow: inset 0 0 2px #000;
+  }
+  .btn.on { color: var(--stencil); }
+  .btn.on .lamp { background: var(--hazard); box-shadow: 0 0 7px var(--hazard-glow); }
+  .btn.blank { min-width: 34px; min-height: 21px; justify-content: center; opacity: .6; }
+  .btn:focus-visible, .knob:focus-visible, .step:focus-visible, .led:focus-visible { outline: 1px solid var(--hazard); outline-offset: 2px; }
+
+  .knob { position: relative; cursor: ns-resize; text-align: center; touch-action: none; }
+  .knob .cap {
+    margin: 0 auto; border-radius: 50%; position: relative;
+    background:
+      radial-gradient(circle at 32% 26%, #3f4850 0%, #1b2127 46%, #12171c 100%);
+    border: 1.5px solid #77828a;
+    box-shadow: 0 3px 6px rgba(0,0,0,.65), inset 0 1px 1px rgba(255,255,255,.10);
+  }
+  .knob .ptr {
+    position: absolute; left: 50%; top: 8%; width: 2px; height: 38%;
+    margin-left: -1px; border-radius: 2px; background: var(--stencil);
+    transform-origin: 50% 108%;
+  }
+  .knob .lbl, .step .lbl, .vlabel {
+    font-size: 8px; letter-spacing: .14em; color: var(--dim); margin-top: 2px;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .knob.locked .cap { box-shadow: 0 0 0 2px var(--lock), 0 0 10px var(--hazard-glow); }
+  .k28 .cap { width: 28px; height: 28px; }
+  .k34 .cap { width: 34px; height: 34px; }
+  .k44 .cap { width: 44px; height: 44px; }
+
+  .step { cursor: pointer; text-align: center; }
+  .step .win {
+    font-family: var(--mono); font-size: 10px; padding: 2px 0 1px; min-width: 36px;
+    color: var(--hazard); background: var(--well); border: 1px solid #05090d;
+    border-radius: 3px; box-shadow: inset 0 2px 5px rgba(0,0,0,.8);
+    display: inline-block; letter-spacing: .05em;
+  }
+  .step.locked .win { box-shadow: inset 0 2px 5px rgba(0,0,0,.8), 0 0 0 2px var(--lock); }
+
+  .led {
+    width: 9px; height: 9px; border-radius: 50%; cursor: pointer;
+    background: #202c36; border: 1px solid #0a1118; box-shadow: inset 0 0 3px #000;
+  }
+  .led.on { background: #9fe870; box-shadow: 0 0 8px rgba(159,232,112,.7); }
+
+  /* ---- console body ---- */
+  .console { display: flex; gap: 10px; align-items: stretch; }
+
+  .legend {
+    display: grid; grid-template-rows: var(--rows);
+    width: 92px; padding-top: 22px; row-gap: 3px;
+  }
+  .legend .row {
+    display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+    font-size: 8.5px; letter-spacing: .13em; color: var(--dim); text-transform: uppercase;
+    border-right: 1px solid var(--line); padding-right: 6px;
+  }
+  .legend.right .row {
+    flex-direction: row-reverse; justify-content: flex-end;
+    border-right: none; border-left: 1px solid var(--line);
+    padding-right: 0; padding-left: 6px;
+  }
+  /* faint row guides across the armies (not the command column) */
+  .army .cell { border-bottom: 1px solid rgba(227,233,228,.075); }
+  .army .cell[data-row="fader"] { border-bottom: none; }
+  .tool {
+    width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line);
+    background: rgba(13,20,27,.55); color: var(--dim); font-size: 8.5px; line-height: 12px;
+    text-align: center; cursor: pointer; flex: none;
+  }
+  .tool:hover { color: var(--hazard); border-color: var(--hazard); }
+
+  .army-title {
+    font-family: var(--stencilf); font-size: 12px; letter-spacing: .34em;
+    text-align: center; margin-bottom: 5px; color: var(--a-acc);
+    text-shadow: 0 1px 2px rgba(0,0,0,.6); opacity: .92;
+  }
+  .army.b .army-title { color: var(--b-acc); }
+  .strips { display: flex; }
+  .strip {
+    width: 72px; display: grid; grid-template-rows: var(--rows); row-gap: 3px;
+    padding: 0 2px; border-left: 1px solid rgba(10,18,26,.75);
+    background: linear-gradient(180deg, rgba(255,255,255,.028), transparent 8%, transparent 92%, rgba(0,0,0,.14));
+  }
+  .army.a .strip:nth-child(odd) { background-color: rgba(64,96,126,.16); }
+  .army.b .strip:nth-child(even) { background-color: rgba(38,66,92,.22); }
+  .strip:last-child { border-right: 1px solid rgba(10,18,26,.75); }
+  .cell { display: flex; align-items: center; justify-content: center; }
+  .chnum {
+    font-family: var(--stencilf); font-size: 9.5px; color: var(--dim);
+    text-align: center; letter-spacing: .18em;
+  }
+  .army.b .step .win { color: var(--b-acc); }
+  .army.b .btn.on .lamp { background: var(--b-acc); box-shadow: 0 0 7px var(--b-glow); }
+
+  /* VU — cream face with printed scale (SVG face applied from JS) */
+  .vu {
+    width: 62px; height: 40px; border-radius: 5px;
+    background: #e6d9b4; background-size: 100% 100%;
+    border: 2px solid #14181c;
+    position: relative; overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,.5), inset 0 1px 3px rgba(0,0,0,.35);
+  }
+  .vu .needle {
+    position: absolute; left: 50%; bottom: -8px; width: 1.6px; height: 38px;
+    margin-left: -0.8px; background: #26201a; transform-origin: 50% 100%;
+    box-shadow: 0.5px 0 0.5px rgba(0,0,0,.25);
+  }
+  .vu .glass {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(115deg, rgba(255,255,255,.30), rgba(255,255,255,.06) 38%, transparent 60%);
+  }
+
+  /* note buttons */
+  .noteset { display: flex; gap: 3px; }
+  .nbtn {
+    width: 16px; height: 15px; border-radius: 3px; cursor: pointer;
+    background: linear-gradient(180deg, #46586a, #22303e); border: 1px solid #0a121a;
+    color: var(--dim); font-size: 8.5px; line-height: 14px; text-align: center;
+    box-shadow: 0 2px 3px rgba(0,0,0,.5);
+  }
+  .nbtn.on { color: #1b1206; background: var(--a-acc); box-shadow: 0 0 8px var(--a-glow); }
+  .army.b .nbtn.on { background: var(--b-acc); box-shadow: 0 0 8px var(--b-glow); color: #0a2830; }
+  .nbtn.locked, .btn.locked { box-shadow: 0 0 0 2px var(--lock); }
+
+  .msset { display: flex; gap: 4px; }
+  .msset .btn { padding: 3px 6px 2px; }
+
+  /* fader */
+  .fader {
+    width: 30px; height: 118px; position: relative; cursor: ns-resize; touch-action: none;
+    display: flex; justify-content: center;
+  }
+  .fader .slot {
+    width: 4px; height: 100%; background: var(--well); border-radius: 2px;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,.9);
+  }
+  .fader .fcap {
+    position: absolute; left: 50%; width: 26px; height: 15px; margin-left: -13px;
+    background: linear-gradient(180deg, #aab3ba 0%, #59636b 45%, #39424a 55%, #6b757d 100%);
+    border: 1px solid #05090d; border-radius: 3px;
+    box-shadow: 0 3px 6px rgba(0,0,0,.7);
+  }
+  .fader .fcap::after {
+    content: ""; position: absolute; left: 2px; right: 2px; top: 6.5px; height: 2px;
+    background: #10161c; border-radius: 1px;
+  }
+  .fader.locked .fcap { box-shadow: 0 0 0 2px var(--lock), 0 0 10px var(--hazard-glow); }
+
+  /* ---- command column ---- */
+  .command {
+    width: 252px; margin: 0 6px; padding: 18px 10px 6px;
+    border-left: 1px solid var(--line); border-right: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(13,20,27,.28), rgba(13,20,27,.1));
+    display: flex; flex-direction: column; gap: 8px; align-items: center;
+  }
+  .fx2col { display: grid; grid-template-columns: auto auto; gap: 7px; justify-content: center; }
+  .fx2col .module { padding: 5px 7px 6px; }
+
+  /* ---- engine room popup ---- */
+  .hatchveil {
+    position: fixed; inset: 0; z-index: 40; display: none;
+    background: rgba(5,9,13,.72); align-items: center; justify-content: center;
+  }
+  .hatchveil.open { display: flex; }
+  .hatch {
+    position: relative; width: min(520px, 92vw);
+    background:
+      radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.06), transparent 55%),
+      linear-gradient(160deg, var(--hull-hi) 0%, var(--hull) 45%, var(--hull-lo) 100%);
+    border: 2px solid #0a121a; border-radius: 8px;
+    box-shadow: 0 40px 90px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.06);
+    padding: 16px 18px 16px;
+  }
+  .hatch .cmd-t { text-align: center; }
+  .hatch-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+  }
+  .hatch-head .t {
+    font-family: var(--stencilf); font-size: 15px; letter-spacing: .3em; color: var(--stencil);
+  }
+  .hatch-grid { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .hatch .bolt {
+    position: absolute; width: 12px; height: 12px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 28%, #c9d1d6, #6a747c 55%, #2e353b 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,.7);
+  }
+  .hatch .bolt.tl { top: 8px; left: 8px; } .hatch .bolt.tr { top: 8px; right: 8px; }
+  .hatch .bolt.bl { bottom: 8px; left: 8px; } .hatch .bolt.br { bottom: 8px; right: 8px; }
+  .modulebay {
+    width: 100%; margin-top: 4px; padding: 10px; border: 1px dashed var(--line);
+    border-radius: 6px; text-align: center; color: var(--dim);
+    font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+  }
+  .modulebay .slots { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+  .modulebay .slot {
+    width: 74px; height: 40px; border: 1px solid var(--line); border-radius: 4px;
+    background: rgba(13,20,27,.5); box-shadow: inset 0 2px 6px rgba(0,0,0,.55);
+    display: grid; place-items: center; font-size: 8px; color: var(--steel-dk);
+  }
+  .cmd-t {
+    font-family: var(--stencilf); font-size: 9.5px; letter-spacing: .3em; color: var(--dim);
+  }
+  .readout {
+    width: 100%; font-family: var(--mono); font-size: 10.5px; color: var(--hazard);
+    background: var(--well); border: 1px solid #05090d; border-radius: 4px;
+    padding: 5px 8px; min-height: 25px; text-align: center; letter-spacing: .06em;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.8);
+    text-shadow: 0 0 6px var(--hazard-glow);
+  }
+  .cmdrow { display: flex; gap: 11px; align-items: flex-end; justify-content: center; }
+  .warband { width: 100%; text-align: center; }
+  .war { position: relative; height: 26px; margin: 6px 2px 2px; cursor: ew-resize; touch-action: none; }
+  .war .slot {
+    position: absolute; left: 0; right: 0; top: 10px; height: 6px; border-radius: 3px;
+    background:
+      repeating-linear-gradient(45deg, rgba(0,0,0,.5) 0 5px, transparent 5px 10px),
+      linear-gradient(90deg, var(--a-acc), #3a3626 40%, #21414c 60%, var(--b-acc));
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.85);
+  }
+  .war .fcap {
+    position: absolute; top: 0; width: 16px; height: 26px; margin-left: -8px;
+    background: linear-gradient(180deg, #aab3ba, #4a545c 60%, #6b757d); border: 1px solid #05090d;
+    border-radius: 3px; box-shadow: 0 3px 6px rgba(0,0,0,.7);
+  }
+  .war .fcap::after {
+    content: ""; position: absolute; top: 2px; bottom: 2px; left: 6.5px; width: 2px;
+    background: #10161c; border-radius: 1px;
+  }
+  .warlabels { display: flex; justify-content: space-between; font-size: 8px; letter-spacing: .2em; color: var(--dim); margin-top: 2px; }
+  .divider { width: 100%; border-top: 1px solid var(--line); }
+  .ledrow { display: flex; gap: 12px; align-items: center; font-size: 8px; letter-spacing: .14em; color: var(--dim); }
+  .ledrow .grp { display: flex; gap: 4px; align-items: center; }
+  .expan { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+
+  footer.plate {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 6px 0; margin-top: 4px; border-top: 1px solid var(--line);
+    font-size: 8.5px; letter-spacing: .18em; color: var(--dim); text-transform: uppercase;
+  }
+  footer.plate .mono { font-family: var(--mono); letter-spacing: .1em; }
+
+  .hint {
+    margin-top: 16px; max-width: 880px; color: var(--dim);
+    font-weight: 300; font-size: 13px; letter-spacing: .03em; line-height: 1.6; text-align: center;
+  }
+  .hint kbd {
+    font-family: var(--mono); font-size: 11px; background: #1a2530; border: 1px solid var(--line);
+    border-radius: 4px; padding: 1px 6px; color: var(--stencil);
+  }
+  /* ---- Grandmother-style group color coding (toggle) ---- */
+  :root {
+    --g-osc: #ffb054;   /* oscillator: note, wave, footage, tune, drift */
+    --g-flt: #82e082;   /* filter: cutoff, res */
+    --g-lfo: #c99cff;   /* modulation: lfo wave/rate/amp/flt */
+    --g-env: #ff8fb0;   /* envelope: env flt, env amp, loop */
+    --g-mix: #ff6a5e;   /* mixer: pan, mute, solo, fader */
+  }
+  .colorized :is([data-row="note"],[data-row="wave"],[data-row="oct"],[data-row="tune"],[data-row="drift"]) { --g: var(--g-osc); }
+  .colorized :is([data-row="cut"],[data-row="res"]) { --g: var(--g-flt); }
+  .colorized :is([data-row="lfowave"],[data-row="lforate"],[data-row="lfoamp"],[data-row="lfoflt"]) { --g: var(--g-lfo); }
+  .colorized :is([data-row="envf"],[data-row="enva"],[data-row="loop"]) { --g: var(--g-env); }
+  .colorized :is([data-row="pan"],[data-row="ms"],[data-row="mute"],[data-row="solo"],[data-row="fader"]) { --g: var(--g-mix); }
+  /* faint by default; the touched row wakes up */
+  .colorized .knob .cap { outline: 1.5px solid color-mix(in srgb, var(--g, transparent) 20%, transparent); outline-offset: 1px; }
+  .colorized .step .win,
+  .colorized .btn[data-row],
+  .colorized .nbtn { outline: 1.5px solid color-mix(in srgb, var(--g, transparent) 20%, transparent); }
+  .colorized .fader .fcap { outline: 1.5px solid color-mix(in srgb, var(--g, transparent) 20%, transparent); }
+  .colorized .knob.hot .cap,
+  .colorized .step.hot .win,
+  .colorized .btn.hot[data-row],
+  .colorized .nbtn.hot,
+  .colorized .fader.hot .fcap { outline: 2px solid color-mix(in srgb, var(--g, transparent) 75%, transparent); }
+  .colorized .legend .row[data-row] { color: color-mix(in srgb, var(--g, var(--dim)) 45%, var(--dim)); border-color: color-mix(in srgb, var(--g, var(--line)) 25%, transparent); }
+  .colorized .legend .row.hot[data-row] { color: var(--g, var(--dim)); }
+  .colorized .legend .row[data-row] .tool { color: inherit; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<p class="intro"><b>CLONE WARS</b> — panel mockup, war-paint revision. Sixteen analogue clones in two armies.
+Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> controls in a row to lock them together ·
+<b>⚄</b> rolls a row, <b>⇗</b> fans it across all sixteen clones.
+<span class="mobilenote">You are viewing a desktop-size plugin panel scaled down to fit this screen —
+pinch to zoom into a section, or open it on a computer to play with it properly.</span></p>
+
+<div class="stagebox"><div class="rig">
+  <div class="rail"></div>
+  <div class="panel" id="panel">
+    <canvas id="patina"></canvas>
+
+    <header>
+      <div class="brand">
+        <h1>CLONE<br><span>WARS</span></h1>
+        <div class="tag">16 oscillators · almost, but not quite, the same machine</div>
+      </div>
+      <div class="hullmark">
+        <span class="big">DRONE DIVISION</span><br>
+        BROKILD HEAVY INDUSTRIES · SERIAL CW-16<br>
+        <span class="odo-line">UNIT AGE <span class="odo" id="odo">00000.0</span> HRS IN SERVICE</span><br>
+        <span class="haz"></span>
+      </div>
+    </header>
+
+    <div class="console">
+      <div class="legend" id="legend"></div>
+
+      <div class="army a">
+        <div class="army-title">ARMY A · 01–08</div>
+        <div class="strips" id="stripsA"></div>
+      </div>
+
+      <div class="command">
+        <div class="readout" id="readout">CLONE WARS · READY</div>
+
+        <div class="cmd-t">SEED · MORPH</div>
+        <div class="seedrow">
+          <div class="led7" id="seedA" title="Seed A — click to reroll">042<small>A</small></div>
+          <div class="knob k34" data-cmd="MORPH" data-val="0" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">morph</div>
+          </div>
+          <div class="led7" id="seedB" title="Seed B — click to reroll">137<small>B</small></div>
+        </div>
+        <div class="hbtnrow">
+          <button class="btn" id="patches"><span class="lamp"></span>PATCHES</button>
+          <button class="btn" id="randomBtn"><span class="lamp"></span>RANDOM</button>
+          <button class="btn on" id="hq" title="Engine quality — offline render is always HQ"><span class="lamp"></span>HQ</button>
+        </div>
+
+        <div class="divider"></div>
+        <div class="cmd-t">COMMAND</div>
+        <div class="cmdrow">
+          <div class="knob k44" data-cmd="TOLERANCE" data-val="0.35" tabindex="0"
+               title="0% = perfect clones · 100% = sloppy vintage batch">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">tolerance</div>
+          </div>
+          <div class="knob k44" data-cmd="TIDE" data-val="0.2" tabindex="0"
+               title="Minutes-long random-walk conductor">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">tide</div>
+          </div>
+        </div>
+        <div class="cmdrow">
+          <div class="knob k34" data-cmd="ENTRAIN A" data-val="0.15" tabindex="0"
+               title="Adjacent clones pull into lock">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">entrain a</div>
+          </div>
+          <div class="knob k34" data-cmd="DRIFT MASTER" data-val="0.4" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">drift</div>
+          </div>
+          <div class="knob k34" data-cmd="ENTRAIN B" data-val="0.15" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">entrain b</div>
+          </div>
+        </div>
+        <div class="cmdrow">
+          <div class="step" data-cmd="TEMPER A" tabindex="0" title="Filter circuit, Army A">
+            <span class="win">GROWL</span><div class="lbl">temper a</div>
+          </div>
+          <div class="step" data-cmd="TEMPER B" tabindex="0" title="Filter circuit, Army B">
+            <span class="win">LADDER</span><div class="lbl">temper b</div>
+          </div>
+        </div>
+        <div class="cmdrow">
+          <button class="btn on" data-gparam="g_latcha"><span class="lamp"></span>LATCH A</button>
+          <button class="btn on" data-gparam="g_latchb"><span class="lamp"></span>LATCH B</button>
+        </div>
+        <div class="ledrow" title="Which of the three note slots are held (click to simulate)">
+          <span>HELD</span>
+          <span class="grp"><span class="led on" data-note="1" tabindex="0"></span>N1</span>
+          <span class="grp"><span class="led on" data-note="2" tabindex="0"></span>N2</span>
+          <span class="grp"><span class="led" data-note="3" tabindex="0"></span>N3</span>
+        </div>
+
+        <div class="warband">
+          <div class="cmd-t">THE WAR</div>
+          <div class="war" id="war"><div class="slot"></div><div class="fcap" style="left:50%"></div></div>
+          <div class="warlabels"><span>ARMY A</span><span>SLEW ⟶ 5 MIN</span><span>ARMY B</span></div>
+        </div>
+        <div class="cmdrow">
+          <div class="knob k28" data-cmd="WAR SLEW" data-val="0.3" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">slew</div>
+          </div>
+          <div class="knob k34" data-cmd="MASTER VOL" data-val="0.75" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">master</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="cmd-t">BACK PANEL</div>
+        <div class="fx2col" id="fxbank"></div>
+
+        <div class="divider"></div>
+        <div class="cmdrow">
+          <button class="btn" id="engineBtn" title="Under-the-hood controls"><span class="lamp"></span>ENGINE ROOM</button>
+          <button class="btn" id="colorBtn" title="Ring every control by function group — osc, filter, LFO, env, mix"><span class="lamp"></span>WAR PAINT</button>
+        </div>
+        <div class="expan">
+          <button class="btn blank">·</button><button class="btn blank">·</button>
+          <button class="btn blank">·</button><button class="btn blank">·</button>
+        </div>
+      </div>
+
+      <div class="army b">
+        <div class="army-title">ARMY B · 09–16</div>
+        <div class="strips" id="stripsB"></div>
+      </div>
+
+      <div class="legend right" id="legendR"></div>
+    </div>
+
+    <footer class="plate">
+      <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
+      <span class="mono">BUILD 000000.MOCK · 16 VOICES · HQ/LOW · OFFLINE RENDER = HQ</span>
+    </footer>
+  </div>
+  <div class="rail r"></div>
+</div></div>
+
+<div class="hatchveil" id="hatchveil">
+  <div class="hatch" role="dialog" aria-label="Engine room">
+    <div class="bolt tl"></div><div class="bolt tr"></div>
+    <div class="bolt bl"></div><div class="bolt br"></div>
+    <div class="hatch-head">
+      <div class="t">ENGINE ROOM</div>
+      <button class="btn" id="hatchClose"><span class="lamp"></span>CLOSE</button>
+    </div>
+    <div class="hatch-grid">
+      <div class="cmd-t">PITCH</div>
+      <div class="cmdrow">
+        <div class="knob k28" data-cmd="BASE A" data-val="0.5" tabindex="0" title="Army A base pitch">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">base a</div>
+        </div>
+        <div class="knob k28" data-cmd="GLIDE" data-val="0.2" tabindex="0" title="Portamento between held notes">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">glide</div>
+        </div>
+        <div class="knob k28" data-cmd="SPREAD" data-val="0.3" tabindex="0" title="Fans all 16 microtunes symmetrically">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">spread</div>
+        </div>
+        <div class="knob k28" data-cmd="BASE B" data-val="0.5" tabindex="0" title="Army B base pitch">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">base b</div>
+        </div>
+      </div>
+      <div class="cmd-t">FILTER · LFO</div>
+      <div class="cmdrow">
+        <div class="knob k28" data-cmd="KBD>FLT A" data-val="0.5" tabindex="0" title="Filter key-tracking, Army A">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">kbd a</div>
+        </div>
+        <div class="knob k28" data-cmd="KBD>FLT B" data-val="0.5" tabindex="0" title="Filter key-tracking, Army B">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">kbd b</div>
+        </div>
+        <button class="btn" id="scatter" title="Re-randomise all 16 LFO phases"><span class="lamp"></span>SCATTER</button>
+        <button class="btn" id="lfosync" title="LFOs free-run (phases from seed) or sync to host clock"><span class="lamp"></span>LFO SYNC</button>
+      </div>
+      <div class="cmd-t">OUTPUT BUS</div>
+      <div class="cmdrow">
+        <div class="knob k28" data-cmd="WIDTH" data-val="0.6" tabindex="0" title="Master stereo width">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">width</div>
+        </div>
+        <div class="knob k28" data-cmd="BUS SAT" data-val="0.25" tabindex="0" title="Analog bus soft-clip with auto-gain">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">bus sat</div>
+        </div>
+        <button class="btn on" data-gparam="g_bassmono" title="Footages 16' and below pulled to centre"><span class="lamp"></span>BASS MONO</button>
+        <button class="btn" data-gparam="g_hpf" title="Gentle infrasonic high-pass on the master"><span class="lamp"></span>HPF</button>
+      </div>
+      <div class="modulebay">
+        MODULE BAY · FUTURE PLUG-IN MODULES DOCK HERE
+        <div class="slots">
+          <div class="slot">EMPTY</div><div class="slot">EMPTY</div>
+          <div class="slot">EMPTY</div><div class="slot">EMPTY</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="hatchveil" id="serviceveil">
+  <div class="hatch" style="width:min(360px,92vw)" role="dialog" aria-label="Service bay">
+    <div class="bolt tl"></div><div class="bolt tr"></div>
+    <div class="bolt bl"></div><div class="bolt br"></div>
+    <div class="hatch-head">
+      <div class="t">SERVICE BAY</div>
+      <button class="btn" id="serviceClose"><span class="lamp"></span>CLOSE</button>
+    </div>
+    <div class="hatch-grid">
+      <div class="cmdrow">
+        <button class="btn" id="tourBtn" title="Simulate a year of hard touring"><span class="lamp"></span>TOUR</button>
+        <button class="btn" id="repairBtn" title="Repair the panel — scars are repaired, service hours are not"><span class="lamp"></span>REPAIR</button>
+      </div>
+      <div class="modulebay" style="margin-top:2px">
+        THE HULL REMEMBERS WHENEVER THE UNIT PLAYS · REPAIR RESTORES FACTORY CONDITION AND RESETS THE TIMER
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="hint">
+  <kbd>drag</kbd> knobs &amp; faders · <kbd>click</kbd> WAVE / FOOTAGE / LFO / TEMPER selectors to cycle ·
+  <kbd>shift-click</kbd> controls in one row to lock them — dragging any of them moves the group ·
+  <kbd>⚄</kbd> rolls a row (locked controls roll together) · <kbd>⇗</kbd> fans a ramp across clones 1→16 ·
+  <kbd>RANDOM</kbd> rerolls everything from a new seed. NOTE 1·2·3 per strip picks which held MIDI note the
+  clone follows; ENV knobs travel <i>fast/fast → fast/slow → slow/slow</i>.
+</p>
+
+<script>
+"use strict";
+/* ---------------- row model ---------------- */
+const ENV_TITLE = "← fast atk / fast dec · ↑ fast atk / slow dec · → slow atk / slow dec";
+const ROWS = [
+  { id:"vu",      label:"LEVEL VU",  type:"vu",    h:"46px" },
+  { id:"ch",      label:"CLONE",     type:"ch",    h:"14px" },
+  { id:"note",    label:"NOTE",      type:"note",  h:"20px", dice:true },
+  { id:"wave",    label:"WAVE",      type:"step",  h:"30px", dice:true, fan:true, opts:["SAW","PULSE","TRI","SINE"] },
+  { id:"oct",     label:"FOOTAGE",   type:"step",  h:"30px", dice:true, fan:true, opts:["32'","16'","8'","4'"] },
+  { id:"tune",    label:"TUNE",      type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.5 },
+  { id:"cut",     label:"CUTOFF",    type:"knob",  h:"52px", dice:true, fan:true, size:"k44", def:.65 },
+  { id:"res",     label:"RES",       type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.2 },
+  { id:"lfowave", label:"LFO WAVE",  type:"step",  h:"30px", dice:true, fan:true, opts:["SIN","TRI","SQR","S&H"] },
+  { id:"lforate", label:"LFO RATE",  type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.3 },
+  { id:"lfoamp",  label:"LFO→AMP",   type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.15 },
+  { id:"lfoflt",  label:"LFO→FLT",   type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.25 },
+  { id:"envf",    label:"ENV FLT",   type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.5, title: ENV_TITLE },
+  { id:"enva",    label:"ENV AMP",   type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.5, title: ENV_TITLE },
+  { id:"loop",    label:"ENV LOOP",  type:"btn",   h:"20px", dice:true, text:"LOOP", title:"Envelope self-retriggers — the strip breathes" },
+  { id:"drift",   label:"DRIFT",     type:"knob",  h:"38px", dice:true, fan:true, size:"k28", def:.3 },
+  { id:"pan",     label:"PAN",       type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.5 },
+  { id:"ms",      label:"MUTE·SOLO", type:"ms",    h:"20px" },
+  { id:"fader",   label:"FADER",     type:"fader", h:"122px", dice:true, fan:true, def:.8 },
+];
+document.documentElement.style.setProperty("--rows", ROWS.map(r => r.h).join(" "));
+
+const readout = document.getElementById("readout");
+function say(t) { readout.textContent = t; }
+const pct = v => Math.round(v * 100) + "%";
+
+/* ---------------- build strips ---------------- */
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+function buildStrip(ch) {
+  const strip = el("div", "strip");
+  for (const row of ROWS) {
+    const cell = el("div", "cell");
+    cell.dataset.row = row.id;
+    if (row.type === "vu") {
+      cell.appendChild(el("div", "vu",
+        '<div class="needle" style="transform:rotate(-42deg)"></div><div class="glass"></div>'));
+    } else if (row.type === "ch") {
+      cell.appendChild(el("div", "chnum", String(ch).padStart(2, "0")));
+    } else if (row.type === "note") {
+      const set = el("div", "noteset");
+      for (let n = 1; n <= 3; n++) {
+        const b = el("div", "nbtn" + (n === ((ch - 1) % 3) + 1 ? " on" : ""), String(n));
+        b.dataset.row = "note"; b.dataset.ch = ch; b.dataset.n = n;
+        b.title = "Clone follows held note " + n;
+        set.appendChild(b);
+      }
+      cell.appendChild(set);
+    } else if (row.type === "step") {
+      const s = el("div", "step", '<span class="win"></span>');
+      s.tabIndex = 0;
+      s.dataset.row = row.id; s.dataset.ch = ch;
+      s.dataset.idx = row.id === "oct" ? (ch % 4) : 0;
+      s.querySelector(".win").textContent = row.opts[s.dataset.idx];
+      cell.appendChild(s);
+    } else if (row.type === "knob") {
+      const k = el("div", "knob " + row.size, '<div class="cap"><div class="ptr"></div></div>');
+      k.tabIndex = 0;
+      k.dataset.row = row.id; k.dataset.ch = ch; k.dataset.val = row.def;
+      if (row.title) k.title = row.title;
+      cell.appendChild(k);
+    } else if (row.type === "btn") {
+      const b = el("button", "btn", '<span class="lamp"></span>' + row.text);
+      b.dataset.row = row.id; b.dataset.ch = ch;
+      if (row.title) b.title = row.title;
+      cell.appendChild(b);
+    } else if (row.type === "ms") {
+      const set = el("div", "msset");
+      const m = el("button", "btn", "M"); m.dataset.row = "mute"; m.dataset.ch = ch;
+      const s = el("button", "btn", "S"); s.dataset.row = "solo"; s.dataset.ch = ch;
+      set.appendChild(m); set.appendChild(s);
+      cell.appendChild(set);
+    } else if (row.type === "fader") {
+      const f = el("div", "fader", '<div class="slot"></div><div class="fcap"></div>');
+      f.tabIndex = 0;
+      f.dataset.row = "fader"; f.dataset.ch = ch; f.dataset.val = row.def;
+      cell.appendChild(f);
+    }
+    strip.appendChild(cell);
+  }
+  return strip;
+}
+const stripsA = document.getElementById("stripsA");
+const stripsB = document.getElementById("stripsB");
+for (let ch = 1; ch <= 8; ch++) stripsA.appendChild(buildStrip(ch));
+for (let ch = 9; ch <= 16; ch++) stripsB.appendChild(buildStrip(ch));
+
+/* legend rails, left and right (both carry working dice/fan tools) */
+for (const railId of ["legend", "legendR"]) {
+  const rail = document.getElementById(railId);
+  for (const row of ROWS) {
+    const r = el("div", "row");
+    r.dataset.row = row.id;
+    r.innerHTML =
+      (row.fan ? '<span class="tool" title="Fan a ramp across clones 1→16" data-fan="' + row.id + '">⇗</span>' : "") +
+      (row.dice ? '<span class="tool" title="Roll this row" data-dice="' + row.id + '">⚄</span>' : "") +
+      "<span>" + row.label + "</span>";
+    rail.appendChild(r);
+  }
+}
+
+/* FX bank */
+const FX = [
+  { t: "SPRING", knobs: ["DWELL", "MIX"], btn: "FREEZE", btnTitle: "Infinite spring — drone sustain" },
+  { t: "BBD",    knobs: ["RATE", "DEPTH"] },
+  { t: "TAPE",   knobs: ["TIME", "FDBK", "MIX"] },
+  { t: "DRIVE",  knobs: ["AMT"] },
+];
+const fxbank = document.getElementById("fxbank");
+for (const fx of FX) {
+  const m = el("div", "module", '<div class="t">' + fx.t + '</div><div class="fxrow"></div>');
+  const row = m.querySelector(".fxrow");
+  for (const kn of fx.knobs) {
+    const k = el("div", "knob k28", '<div class="cap"><div class="ptr"></div></div><div class="lbl">' + kn.toLowerCase() + "</div>");
+    k.tabIndex = 0; k.dataset.cmd = fx.t + " " + kn; k.dataset.val = 0.4;
+    row.appendChild(k);
+  }
+  if (fx.btn) {
+    const b = el("button", "btn", '<span class="lamp"></span>' + fx.btn);
+    if (fx.btnTitle) b.title = fx.btnTitle;
+    b.dataset.gparam = "g_springfreeze";
+    b.style.marginTop = "5px";
+    m.appendChild(b);
+  }
+  fxbank.appendChild(m);
+}
+
+/* rivets along panel edges */
+const panel = document.getElementById("panel");
+(function rivets() {
+  const W = 24;
+  for (let i = 0; i < W; i++) {
+    for (const y of ["6px", "calc(100% - 16px)"]) {
+      const r = el("div", "rivet");
+      r.style.left = "calc(" + (i + 0.5) * (100 / W) + "% - 5px)";
+      r.style.top = y;
+      panel.appendChild(r);
+    }
+  }
+})();
+
+/* ---------------- knob & fader mechanics ---------------- */
+function paintKnob(k) {
+  const v = parseFloat(k.dataset.val);
+  k.querySelector(".ptr").style.transform = "rotate(" + (-135 + v * 270) + "deg)";
+}
+function paintFader(f) {
+  const v = parseFloat(f.dataset.val);
+  f.querySelector(".fcap").style.top = ((1 - v) * (118 - 15)) + "px";
+}
+document.querySelectorAll(".knob").forEach(paintKnob);
+document.querySelectorAll(".fader").forEach(paintFader);
+
+const locks = {}; // rowId -> Set of elements
+function lockSet(rowId) { return locks[rowId] || (locks[rowId] = new Set()); }
+function toggleLock(elem) {
+  const row = elem.dataset.row;
+  if (!row) return;
+  const set = lockSet(row);
+  if (set.has(elem)) { set.delete(elem); elem.classList.remove("locked"); }
+  else { set.add(elem); elem.classList.add("locked"); }
+  say("LOCK " + row.toUpperCase() + " · " + set.size + " CLONES");
+}
+
+function controlName(elem) {
+  if (elem.dataset.cmd) return elem.dataset.cmd;
+  return (elem.dataset.row || "").toUpperCase() + " · CLONE " + String(elem.dataset.ch).padStart(2, "0");
+}
+
+let drag = null;
+function beginDrag(e, elem) {
+  drag = { elem, y: e.clientY, start: parseFloat(elem.dataset.val), group: [] };
+  const row = elem.dataset.row;
+  if (row && lockSet(row).has(elem)) {
+    for (const g of lockSet(row)) drag.group.push({ el: g, start: parseFloat(g.dataset.val) });
+  } else {
+    drag.group.push({ el: elem, start: drag.start });
+  }
+  e.preventDefault();
+}
+function applyVal(entry, delta) {
+  const v = Math.min(1, Math.max(0, entry.start + delta));
+  entry.el.dataset.val = v;
+  if (entry.el.classList.contains("fader")) paintFader(entry.el); else paintKnob(entry.el);
+  return v;
+}
+window.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const delta = (drag.y - e.clientY) / 150;
+  let v = 0;
+  for (const entry of drag.group) v = applyVal(entry, delta);
+  say(controlName(drag.elem) + " · " + pct(v) + (drag.group.length > 1 ? " · ×" + drag.group.length : ""));
+});
+window.addEventListener("pointerup", () => { drag = null; });
+
+document.addEventListener("pointerdown", e => {
+  const elem = e.target.closest(".knob") || e.target.closest(".fader");
+  if (!elem) return;
+  if (e.shiftKey && elem.dataset.row) { toggleLock(elem); return; }
+  beginDrag(e, elem);
+});
+
+/* steps, notes, buttons, LEDs */
+document.addEventListener("click", e => {
+  const step = e.target.closest(".step");
+  if (step) {
+    const rowDef = ROWS.find(r => r.id === step.dataset.row);
+    if (e.shiftKey && step.dataset.row) { toggleLock(step); return; }
+    if (rowDef) {
+      const targets = lockSet(step.dataset.row).has(step) ? [...lockSet(step.dataset.row)] : [step];
+      const idx = (parseInt(step.dataset.idx || 0) + 1) % rowDef.opts.length;
+      for (const t of targets) { t.dataset.idx = idx; t.querySelector(".win").textContent = rowDef.opts[idx]; }
+      say(controlName(step) + " · " + rowDef.opts[idx] + (targets.length > 1 ? " · ×" + targets.length : ""));
+    } else if (step.dataset.cmd) {
+      const OPTS = ["GROWL", "SCREAM", "LADDER"];
+      const w = step.querySelector(".win");
+      w.textContent = OPTS[(OPTS.indexOf(w.textContent) + 1) % OPTS.length];
+      say(step.dataset.cmd + " · " + w.textContent);
+    }
+    return;
+  }
+  const nb = e.target.closest(".nbtn");
+  if (nb) {
+    if (e.shiftKey) { toggleLock(nb); return; }
+    nb.parentElement.querySelectorAll(".nbtn").forEach(b => b.classList.remove("on"));
+    nb.classList.add("on");
+    say("CLONE " + String(nb.dataset.ch).padStart(2, "0") + " → NOTE " + nb.dataset.n);
+    return;
+  }
+  const led = e.target.closest(".led");
+  if (led && led.dataset.note) {
+    led.classList.toggle("on");
+    say("NOTE SLOT " + led.dataset.note + " · " + (led.classList.contains("on") ? "HELD" : "RELEASED"));
+    return;
+  }
+  const btn = e.target.closest(".btn");
+  if (btn && !btn.classList.contains("blank")) {
+    if (e.shiftKey && btn.dataset.row) { toggleLock(btn); return; }
+    if (["patches", "randomBtn", "scatter", "hq"].includes(btn.id)) return; // handled below
+    btn.classList.toggle("on");
+    if (btn.dataset.row) say(controlName(btn) + " · " + (btn.classList.contains("on") ? "ON" : "OFF"));
+    else if (btn.id === "lfosync") say("LFO · " + (btn.classList.contains("on") ? "HOST SYNC" : "FREE-RUN, PHASES FROM SEED"));
+  }
+});
+
+/* dice + fan per row */
+document.addEventListener("click", e => {
+  const dice = e.target.closest("[data-dice]");
+  const fan = e.target.closest("[data-fan]");
+  if (!dice && !fan) return;
+  const rowId = (dice || fan).dataset.dice || (fan && fan.dataset.fan);
+  const rowDef = ROWS.find(r => r.id === rowId);
+  const cells = [...document.querySelectorAll('[data-row="' + rowId + '"]')]
+    .filter(c => c.dataset.ch);
+  cells.sort((a, b) => a.dataset.ch - b.dataset.ch);
+  const locked = lockSet(rowId);
+  if (dice) {
+    const sharedVal = Math.random();
+    const sharedIdx = rowDef.opts ? Math.floor(Math.random() * rowDef.opts.length) : 0;
+    cells.forEach(c => {
+      const isLocked = locked.has(c);
+      if (c.classList.contains("knob") || c.classList.contains("fader")) {
+        c.dataset.val = isLocked ? sharedVal : Math.random();
+        c.classList.contains("fader") ? paintFader(c) : paintKnob(c);
+      } else if (c.classList.contains("step")) {
+        const idx = isLocked ? sharedIdx : Math.floor(Math.random() * rowDef.opts.length);
+        c.dataset.idx = idx; c.querySelector(".win").textContent = rowDef.opts[idx];
+      } else if (c.classList.contains("btn")) {
+        c.classList.toggle("on", (isLocked ? sharedVal : Math.random()) > 0.5);
+      } else if (c.classList.contains("cell")) {
+        // note row: cells hold .nbtn children
+        const btns = c.querySelectorAll(".nbtn");
+        if (btns.length) {
+          btns.forEach(b => b.classList.remove("on"));
+          btns[Math.floor(Math.random() * btns.length)].classList.add("on");
+        }
+      }
+    });
+    say("ROLL " + rowDef.label + (locked.size ? " · " + locked.size + " LOCKED TOGETHER" : ""));
+  } else {
+    cells.forEach((c, i) => {
+      const t = cells.length > 1 ? i / (cells.length - 1) : 0;
+      if (c.classList.contains("knob") || c.classList.contains("fader")) {
+        c.dataset.val = 0.12 + t * 0.76;
+        c.classList.contains("fader") ? paintFader(c) : paintKnob(c);
+      } else if (c.classList.contains("step")) {
+        const idx = Math.round(t * (rowDef.opts.length - 1));
+        c.dataset.idx = idx; c.querySelector(".win").textContent = rowDef.opts[idx];
+      }
+    });
+    say("FAN " + rowDef.label + " · CLONE 01 → 16");
+  }
+});
+/* note-row dice needs cell targeting */
+document.querySelectorAll(".strip .cell").forEach(c => {
+  if (c.dataset.row === "note") {
+    const strip = c.closest(".strip");
+    const num = strip.querySelector(".chnum");
+    if (num) c.dataset.ch = parseInt(num.textContent, 10);
+  }
+});
+
+/* seed / random / scatter / engine */
+function rollAll() {
+  for (const rowDef of ROWS) {
+    if (!rowDef.dice) continue;
+    document.querySelectorAll('[data-row="' + rowDef.id + '"]').forEach(c => {
+      if (c.classList.contains("knob") || c.classList.contains("fader")) {
+        c.dataset.val = Math.random();
+        c.classList.contains("fader") ? paintFader(c) : paintKnob(c);
+      } else if (c.classList.contains("step") && rowDef.opts) {
+        const idx = Math.floor(Math.random() * rowDef.opts.length);
+        c.dataset.idx = idx; c.querySelector(".win").textContent = rowDef.opts[idx];
+      } else if (c.classList.contains("btn")) {
+        c.classList.toggle("on", Math.random() > 0.6);
+      }
+    });
+  }
+}
+const seedA = document.getElementById("seedA");
+const seedB = document.getElementById("seedB");
+function newSeed(elem, tag) {
+  const n = String(Math.floor(Math.random() * 200)).padStart(3, "0");
+  elem.innerHTML = n + "<small>" + tag + "</small>";
+  if (typeof drawPatina === "function") drawPatina(); // preset-keyed grime follows the seed
+  return n;
+}
+seedA.addEventListener("click", () => { say("SEED A · " + newSeed(seedA, "A")); rollAll(); });
+seedB.addEventListener("click", () => { say("SEED B · " + newSeed(seedB, "B") + " · MORPH TARGET"); });
+document.getElementById("randomBtn").addEventListener("click", () => {
+  say("RANDOM · SEED " + newSeed(seedA, "A")); rollAll();
+});
+document.getElementById("patches").addEventListener("click", () =>
+  say("PATCHES · 000–199 BY CATEGORY (MENU IN PLUGIN)"));
+document.getElementById("scatter").addEventListener("click", () =>
+  say("SCATTER · 16 LFO PHASES RE-THROWN"));
+document.getElementById("hq").addEventListener("click", function () {
+  this.classList.toggle("on");
+  this.innerHTML = '<span class="lamp"></span>' + (this.classList.contains("on") ? "HQ" : "LOW");
+  say("ENGINE · " + (this.classList.contains("on") ? "HQ (4× OVERSAMPLED)" : "LOW (ECO) · RENDER STILL HQ"));
+});
+
+/* group color coding */
+document.getElementById("colorBtn").addEventListener("click", function () {
+  this.classList.toggle("on");
+  document.body.classList.toggle("colorized", this.classList.contains("on"));
+  say(this.classList.contains("on")
+    ? "WAR PAINT · OSC / FILTER / LFO / ENV / MIX"
+    : "WAR PAINT · OFF");
+});
+
+/* engine room hatch */
+const veil = document.getElementById("hatchveil");
+document.getElementById("engineBtn").addEventListener("click", () => {
+  veil.classList.add("open");
+  say("ENGINE ROOM · OPEN");
+});
+document.getElementById("hatchClose").addEventListener("click", () => veil.classList.remove("open"));
+veil.addEventListener("pointerdown", e => { if (e.target === veil) veil.classList.remove("open"); });
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape") document.querySelectorAll(".hatchveil.open").forEach(v => v.classList.remove("open"));
+});
+
+/* WAR crossfader */
+const war = document.getElementById("war");
+let warDrag = false;
+war.addEventListener("pointerdown", e => { warDrag = true; moveWar(e); });
+window.addEventListener("pointermove", e => { if (warDrag) moveWar(e); });
+window.addEventListener("pointerup", () => { warDrag = false; });
+function moveWar(e) {
+  const r = war.getBoundingClientRect();
+  const v = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  war.querySelector(".fcap").style.left = (v * 100) + "%";
+  say("THE WAR · A " + pct(1 - v) + " / B " + pct(v));
+}
+
+/* ---------------- patina: the machine earns its scars ----------------
+   Every decal is generated from (wearSeed + index), so the whole damage
+   history is two persisted numbers — scars never move between sessions. */
+const patCan = document.getElementById("patina");
+const pctx = patCan.getContext("2d");
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// No off switch, by design: the hull always remembers. REPAIR (hidden in
+// the service bay) removes scars; unit age is never reset.
+let wear = 300, wearSeed = 1337, lastN = -1; // fresh demo units show visible history
+const patinaModeV = "LIVE";
+try {
+  if (localStorage.getItem("cw-wear") !== null) wear = parseFloat(localStorage.getItem("cw-wear"));
+  wearSeed = parseInt(localStorage.getItem("cw-wearseed")) || 1337;
+} catch (e) {}
+function saveWear() {
+  try {
+    localStorage.setItem("cw-wear", wear);
+    localStorage.setItem("cw-wearseed", wearSeed);
+  } catch (e) {}
+}
+
+// Placeholder generators — to be superseded by photographic decal patches
+// composited with blend modes once a set is generated.
+function scratch(rng, x, y) { // tapered gouge with a metal glint
+  const len = 30 + rng() * 220, ang = rng() * Math.PI * 2, segs = 8;
+  pctx.save(); pctx.translate(x, y); pctx.rotate(ang);
+  let px = 0, py = 0;
+  for (let s = 0; s < segs; s++) {
+    const nx = px + len / segs, ny = py + (rng() - .5) * 4;
+    const t = 1 - Math.abs((s + .5) / segs - .5) * 2; // fat middle, thin ends
+    pctx.strokeStyle = "rgba(6,10,14," + (0.30 + 0.38 * t) + ")";
+    pctx.lineWidth = 0.6 + 1.6 * t;
+    pctx.beginPath(); pctx.moveTo(px, py); pctx.lineTo(nx, ny); pctx.stroke();
+    pctx.strokeStyle = "rgba(215,224,230," + (0.15 + 0.30 * t) + ")";
+    pctx.lineWidth = 0.5 + 0.8 * t;
+    pctx.beginPath(); pctx.moveTo(px, py - 1); pctx.lineTo(nx, ny - 1); pctx.stroke();
+    px = nx; py = ny;
+  }
+  pctx.restore();
+}
+function scuff(rng, x, y) { // cluster of short parallel abrasions
+  const ang = rng() * Math.PI * 2, n = 4 + Math.floor(rng() * 6);
+  pctx.save(); pctx.translate(x, y); pctx.rotate(ang);
+  for (let i = 0; i < n; i++) {
+    const ox = (rng() - .5) * 28, oy = (rng() - .5) * 16, l = 6 + rng() * 20;
+    pctx.strokeStyle = "rgba(220,228,234," + (0.10 + rng() * 0.16) + ")";
+    pctx.lineWidth = 0.6 + rng() * 0.8;
+    pctx.beginPath(); pctx.moveTo(ox, oy); pctx.lineTo(ox + l, oy + (rng() - .5) * 2); pctx.stroke();
+  }
+  pctx.restore();
+}
+function ding(rng, x, y) { // dent: dark toward the light, bright away from it
+  const r = 2.5 + rng() * 6;
+  let gr = pctx.createRadialGradient(x - r * .4, y - r * .4, 0, x, y, r);
+  gr.addColorStop(0, "rgba(6,10,14,.55)");
+  gr.addColorStop(.8, "rgba(6,10,14,.12)");
+  gr.addColorStop(1, "rgba(0,0,0,0)");
+  pctx.fillStyle = gr; pctx.beginPath(); pctx.arc(x, y, r, 0, 7); pctx.fill();
+  gr = pctx.createRadialGradient(x + r * .35, y + r * .35, 0, x + r * .3, y + r * .3, r * .8);
+  gr.addColorStop(0, "rgba(225,232,238,.32)");
+  gr.addColorStop(1, "rgba(0,0,0,0)");
+  pctx.fillStyle = gr; pctx.beginPath(); pctx.arc(x + r * .3, y + r * .3, r * .8, 0, 7); pctx.fill();
+}
+function chip(rng, x, y) { // paint gone: recessed bare steel with a bright lip
+  const r = 4 + rng() * 14, k = 7 + Math.floor(rng() * 5), pts = [];
+  for (let i = 0; i < k; i++) {
+    const a = i / k * Math.PI * 2, rr = r * (0.5 + rng() * .8);
+    pts.push([Math.cos(a) * rr, Math.sin(a) * rr]);
+  }
+  const path = () => {
+    pctx.beginPath(); pctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < k; i++) pctx.lineTo(pts[i][0], pts[i][1]);
+    pctx.closePath();
+  };
+  pctx.save(); pctx.translate(x, y);
+  pctx.shadowColor = "rgba(0,0,0,.55)"; pctx.shadowBlur = 3;
+  pctx.shadowOffsetX = 1; pctx.shadowOffsetY = 1.5;
+  path();
+  const gr = pctx.createLinearGradient(-r, -r, r, r);
+  gr.addColorStop(0, "#aeb7bd"); gr.addColorStop(.5, "#8b959c"); gr.addColorStop(1, "#646e75");
+  pctx.fillStyle = gr; pctx.fill();
+  pctx.shadowColor = "transparent";
+  pctx.save(); path(); pctx.clip(); // brushed texture in the bare metal
+  for (let i = 0; i < 5; i++) {
+    pctx.strokeStyle = "rgba(255,255,255," + (0.06 + rng() * 0.10) + ")";
+    pctx.lineWidth = .6;
+    pctx.beginPath(); pctx.moveTo(-r, (rng() - .5) * 2 * r); pctx.lineTo(r, (rng() - .5) * 2 * r); pctx.stroke();
+  }
+  pctx.restore();
+  path();
+  pctx.strokeStyle = "rgba(225,232,238,.38)"; pctx.lineWidth = 1; pctx.stroke();
+  pctx.restore();
+}
+function rust(rng, x, y) { // streak dripping from a wound
+  const len = 20 + rng() * 70, w = 2 + rng() * 4;
+  const gr = pctx.createLinearGradient(x, y, x, y + len);
+  gr.addColorStop(0, "rgba(96,52,20,.45)");
+  gr.addColorStop(.4, "rgba(120,66,26,.25)");
+  gr.addColorStop(1, "rgba(120,66,26,0)");
+  pctx.fillStyle = gr;
+  pctx.beginPath();
+  pctx.moveTo(x - w / 2, y);
+  pctx.quadraticCurveTo(x - w * .3, y + len * .5, x - w * .15, y + len);
+  pctx.lineTo(x + w * .15, y + len);
+  pctx.quadraticCurveTo(x + w * .3, y + len * .5, x + w / 2, y);
+  pctx.closePath(); pctx.fill();
+  ding(rng, x, y); // the wound it weeps from
+}
+function stain(rng, x, y, mul) {
+  mul = mul || 1;
+  const r = 14 + rng() * 46;
+  const gr = pctx.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, "rgba(18,15,8," + (0.14 * mul) + ")");
+  gr.addColorStop(.7, "rgba(14,12,8," + (0.07 * mul) + ")");
+  gr.addColorStop(1, "rgba(0,0,0,0)");
+  pctx.fillStyle = gr; pctx.beginPath(); pctx.arc(x, y, r, 0, 7); pctx.fill();
+}
+
+function drawPatina() {
+  pctx.clearRect(0, 0, patCan.width, patCan.height);
+  const W = patCan.width, H = patCan.height;
+  // permanent battle damage: count grows with the square root of abuse
+  const n = Math.floor(Math.sqrt(wear) * 2);
+  lastN = n;
+  for (let i = 0; i < n; i++) {
+    const rng = mulberry32(wearSeed + i * 7919);
+    const type = rng();
+    const x = 10 + rng() * (W - 20), y = 10 + rng() * (H - 20);
+    if (type < .30) scratch(rng, x, y);
+    else if (type < .45) scuff(rng, x, y);
+    else if (type < .60) ding(rng, x, y);
+    else if (type < .75) chip(rng, x, y);
+    else if (type < .87) rust(rng, x, y);
+    else stain(rng, x, y);
+  }
+  // preset-keyed grime: temporary, follows seed A — "busted" seeds arrive dirty
+  const seedNum = parseInt(seedA.textContent) || 0;
+  const busted = (seedNum * 37 % 97) / 97;
+  const g = mulberry32(seedNum + 1);
+  const gn = Math.floor(busted * 12);
+  for (let i = 0; i < gn; i++) stain(g, 10 + g() * (W - 20), 10 + g() * (H - 20), .5 + busted * .8);
+}
+function sizePatina() {
+  patCan.width = panel.offsetWidth;
+  patCan.height = panel.offsetHeight;
+  drawPatina();
+}
+sizePatina();
+window.addEventListener("load", sizePatina);
+
+// playing wears the hull; louder sessions wear it faster
+function addWear(e) {
+  if (!e.target.closest(".panel") || e.target.closest(".hatch")) return;
+  const master = document.querySelector('[data-cmd="MASTER VOL"]');
+  const vol = master ? parseFloat(master.dataset.val) : .5;
+  wear += 0.4 + vol * 1.2;
+  if (Math.floor(Math.sqrt(wear) * 2) !== lastN) drawPatina();
+  saveWear();
+}
+document.addEventListener("pointerup", addWear);
+
+/* unit age: this instance's service hours, ticking while the panel is open.
+   In the plugin this lives in the instance state, so it travels with the
+   DAW project — every instance keeps its own progressively growing age. */
+let ageSec = 0;
+try { ageSec = parseFloat(localStorage.getItem("cw-age")) || 0; } catch (e) {}
+const odo = document.getElementById("odo");
+function paintOdo() {
+  const hrs = ageSec / 3600;
+  odo.textContent = String(Math.floor(hrs)).padStart(5, "0") + "." +
+    Math.floor((hrs % 1) * 10);
+}
+paintOdo();
+setInterval(() => {
+  if (document.hidden || window.CW_BRIDGED) return;   // plugin drives age/wear
+  ageSec += 1;
+  // time on the hull is wear too: ~gentle, scaled by how loud it runs
+  if (patinaModeV === "LIVE") {
+    const master = document.querySelector('[data-cmd="MASTER VOL"]');
+    const vol = master ? parseFloat(master.dataset.val) : .5;
+    wear += (0.2 + vol * 0.6) / 60;
+    if (Math.floor(Math.sqrt(wear) * 2) !== lastN) drawPatina();
+  }
+  if (Math.floor(ageSec) % 10 === 0) {
+    try { localStorage.setItem("cw-age", ageSec); } catch (e) {}
+    saveWear();
+  }
+  paintOdo();
+}, 1000);
+
+document.getElementById("tourBtn").addEventListener("click", () => {
+  wear += 400; ageSec += 800 * 3600; // a year on the road ≈ 800 stage hours
+  drawPatina(); paintOdo(); saveWear();
+  try { localStorage.setItem("cw-age", ageSec); } catch (e) {}
+  say("TOUR · +800 SERVICE HRS · ROAD DAMAGE APPLIED");
+});
+document.getElementById("repairBtn").addEventListener("click", () => {
+  wear = 0; ageSec = 0; wearSeed = Math.floor(Math.random() * 1e9);
+  drawPatina(); paintOdo(); saveWear();
+  try { localStorage.setItem("cw-age", ageSec); } catch (e) {}
+  say("REPAIR · FACTORY CONDITION · TIMER RESET");
+});
+
+/* hidden service bay: shift-click the UNIT AGE odometer */
+const serviceveil = document.getElementById("serviceveil");
+odo.style.cursor = "default";
+odo.addEventListener("click", e => {
+  if (!e.shiftKey) return;
+  serviceveil.classList.add("open");
+  say("SERVICE BAY · OPEN");
+});
+document.getElementById("serviceClose").addEventListener("click", () => serviceveil.classList.remove("open"));
+serviceveil.addEventListener("pointerdown", e => { if (e.target === serviceveil) serviceveil.classList.remove("open"); });
+
+/* war-paint row wake: the touched row's rings light up */
+let hotRow = null;
+function setHot(row) {
+  if (hotRow === row) return;
+  document.querySelectorAll(".hot[data-row]").forEach(el => el.classList.remove("hot"));
+  hotRow = row;
+  if (row) document.querySelectorAll('[data-row="' + row + '"]').forEach(el => el.classList.add("hot"));
+}
+document.addEventListener("pointerover", e => {
+  if (drag) return; // while dragging, the dragged row stays lit
+  const c = e.target.closest("[data-row]");
+  setHot(c ? c.dataset.row : null);
+});
+
+/* shrink-to-fit: the rig is a fixed desktop-size panel; on narrow screens
+   scale the whole thing down so the full machine is visible (pinch to zoom). */
+const stagebox = document.querySelector(".stagebox");
+const rig = document.querySelector(".rig");
+function fitStage() {
+  const avail = Math.max(320, window.innerWidth - 20);
+  const scale = Math.min(1, avail / rig.offsetWidth);
+  if (scale < 1) {
+    rig.style.transform = "scale(" + scale + ")";
+    rig.style.transformOrigin = "top left";
+    stagebox.style.overflow = "hidden";
+    stagebox.style.height = (rig.offsetHeight * scale + 8) + "px";
+  } else {
+    rig.style.transform = "";
+    stagebox.style.overflow = "";
+    stagebox.style.height = "";
+  }
+}
+fitStage();
+window.addEventListener("resize", fitStage);
+window.addEventListener("load", fitStage);
+
+/* VU faces: one shared SVG — printed arc, ticks, red zone, VU legend */
+(function vuFaces() {
+  const cx = 31, cy = 44;
+  const P = (a, r) => {
+    const t = a * Math.PI / 180;
+    return (cx + r * Math.sin(t)).toFixed(1) + " " + (cy - r * Math.cos(t)).toFixed(1);
+  };
+  let ticks = "";
+  for (let a = -45; a <= 45; a += 15)
+    ticks += '<line x1="' + P(a, 26).replace(" ", '" y1="') + '" x2="' +
+      P(a, 30.5).replace(" ", '" y2="') + '" stroke="#4a4238" stroke-width="' +
+      (Math.abs(a) === 45 || a === 0 ? 1.1 : 0.6) + '"/>';
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 62 40">' +
+    '<defs><radialGradient id="b" cx="50%" cy="30%" r="90%">' +
+    '<stop offset="0" stop-color="#f6eed8"/><stop offset="0.75" stop-color="#e8dcb8"/>' +
+    '<stop offset="1" stop-color="#d3c29a"/></radialGradient></defs>' +
+    '<rect width="62" height="40" fill="url(#b)"/>' +
+    '<path d="M ' + P(-45, 28.2) + ' A 28.2 28.2 0 0 1 ' + P(18, 28.2) +
+    '" fill="none" stroke="#3a332a" stroke-width="1"/>' +
+    '<path d="M ' + P(18, 28.2) + ' A 28.2 28.2 0 0 1 ' + P(45, 28.2) +
+    '" fill="none" stroke="#b32c1e" stroke-width="2"/>' +
+    ticks +
+    '<text x="31" y="37" font-family="Georgia,serif" font-size="7" font-weight="bold" text-anchor="middle" fill="#3a332a">VU</text>' +
+    '<text x="7" y="19" font-size="6" font-family="Arial" fill="#4a4238">&#8722;</text>' +
+    '<text x="50.5" y="19" font-size="6" font-family="Arial" fill="#b32c1e">+</text>' +
+    '</svg>';
+  const url = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
+  document.querySelectorAll(".vu").forEach(v => v.style.backgroundImage = url);
+})();
+
+/* VU idle animation — each meter breathes on its own, grazing the red */
+const needles = [...document.querySelectorAll(".vu .needle")].map(n => ({
+  n, phase: Math.random() * 6.28, rate: 0.15 + Math.random() * 0.3, amp: 16 + Math.random() * 18,
+}));
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (!reduced) {
+  let t0 = performance.now();
+  (function tick(t) {
+    const dt = (t - t0) / 1000; t0 = t;
+    if (window.CW_BRIDGED) { requestAnimationFrame(tick); return; }  // real meters
+    for (const v of needles) {
+      v.phase += v.rate * dt * 6.28;
+      const wob = Math.sin(v.phase) * 0.5 + Math.sin(v.phase * 0.37 + 1.2) * 0.5;
+      v.n.style.transform = "rotate(" + (-42 + v.amp + wob * v.amp) + "deg)";
+    }
+    requestAnimationFrame(tick);
+  })(t0);
+}
+</script>
+
+<script>
+"use strict";
+/* ============================================================================
+   Plugin bridge. Loaded after the mockup script, so its top-level bindings
+   (drag, warDrag, paintKnob, paintFader, say, wear, ageSec, paintOdo,
+   drawPatina, seedA, seedB, needles) are in scope. In a plain browser
+   window.__JUCE__ is absent and this block does nothing — the page stays a
+   self-contained mockup.
+============================================================================ */
+(function () {
+  const juceBackend = window.__JUCE__ && window.__JUCE__.backend;
+  if (!juceBackend) return;
+  window.CW_BRIDGED = true;
+
+  const send = obj => juceBackend.emitEvent("cw", obj);
+  const lastSent = {};
+  function sendParam(id, v, force) {
+    const now = performance.now();
+    if (!force && lastSent[id] && now - lastSent[id] < 33) return;
+    lastSent[id] = now;
+    send({ k: "param", id: id, v: v });
+  }
+
+  // ---- control → parameter id -------------------------------------------
+  const ROWMAP = { wave: "wave", oct: "foot", tune: "tune", cut: "cut", res: "res",
+    lfowave: "lfowave", lforate: "lforate", lfoamp: "lfoamp", lfoflt: "lfoflt",
+    envf: "envf", enva: "enva", loop: "loop", drift: "drift", pan: "pan",
+    fader: "level", mute: "mute", solo: "solo" };
+  const BIPOLAR = { tune: 1, pan: 1 };
+  const CMDMAP = { "TOLERANCE": "g_tolerance", "TIDE": "g_tide",
+    "ENTRAIN A": "g_entraina", "DRIFT MASTER": "g_driftmaster",
+    "ENTRAIN B": "g_entrainb", "BASE A": "g_basea", "GLIDE": "g_glide",
+    "SPREAD": "g_spread", "BASE B": "g_baseb", "KBD>FLT A": "g_kbda",
+    "KBD>FLT B": "g_kbdb", "TEMPER A": "g_tempera", "TEMPER B": "g_temperb",
+    "WAR SLEW": "g_warslew", "MASTER VOL": "g_master", "WIDTH": "g_width",
+    "BUS SAT": "g_bussat", "SPRING DWELL": "g_springdwell",
+    "SPRING MIX": "g_springmix", "TAPE TIME": "g_tapetime",
+    "TAPE FDBK": "g_tapefdbk", "TAPE MIX": "g_tapemix",
+    "BBD RATE": "g_bbdrate", "BBD DEPTH": "g_bbddepth", "DRIVE AMT": "g_driveamt" };
+  const TEMPERS = ["GROWL", "SCREAM", "LADDER"];
+
+  const vid = (ch, field) => "v" + String(ch).padStart(2, "0") + "_" + field;
+
+  function controlValue(el) {   // -> {id, v} or null
+    if (el.dataset.gparam)      // latch / bass mono / hpf / freeze buttons
+      return { id: el.dataset.gparam, v: el.classList.contains("on") ? 1 : 0 };
+    if (el.dataset.cmd) {
+      if (el.classList.contains("step")) {   // temper selectors
+        const gid = CMDMAP[el.dataset.cmd];
+        if (!gid) return null;
+        return { id: gid, v: Math.max(0, TEMPERS.indexOf(el.querySelector(".win").textContent)) };
+      }
+      const gid = CMDMAP[el.dataset.cmd];
+      return gid ? { id: gid, v: parseFloat(el.dataset.val) } : null;
+    }
+    const row = el.dataset.row, ch = el.dataset.ch;
+    if (!row || !ch) return null;
+    if (el.classList.contains("nbtn"))
+      return { id: vid(ch, "note"), v: parseInt(el.dataset.n) - 1 };
+    const field = ROWMAP[row];
+    if (!field) return null;
+    if (el.classList.contains("step"))
+      return { id: vid(ch, field), v: parseInt(el.dataset.idx || 0) };
+    if (el.classList.contains("btn"))
+      return { id: vid(ch, field), v: el.classList.contains("on") ? 1 : 0 };
+    let v = parseFloat(el.dataset.val);
+    if (BIPOLAR[field]) v = v * 2 - 1;
+    return { id: vid(ch, field), v: v };
+  }
+
+  function sendControl(el, force) {
+    const pv = controlValue(el);
+    if (pv) sendParam(pv.id, pv.v, force);
+  }
+
+  // ---- outgoing: piggyback on the mockup's own handlers ------------------
+  let warTouched = false;
+  window.addEventListener("pointermove", () => {      // knob/fader drags
+    if (drag) for (const entry of drag.group) sendControl(entry.el);
+    if (warDrag) {
+      warTouched = true;
+      const v = parseFloat(war.querySelector(".fcap").style.left) / 100;
+      if (!isNaN(v)) sendParam("g_war", v);
+    }
+  });
+  window.addEventListener("pointerup", e => {
+    const el = e.target.closest(".knob,.fader");
+    if (el) sendControl(el, true);
+    if (warTouched) {
+      warTouched = false;
+      sendParam("g_war", parseFloat(war.querySelector(".fcap").style.left) / 100 || 0.5, true);
+    }
+  });
+  document.addEventListener("click", e => {           // runs after mockup handlers
+    const one = e.target.closest(".step,.nbtn,.btn[data-row],.btn[data-gparam],.step[data-cmd]");
+    if (one && !e.shiftKey) sendControl(one, true);
+    if (e.target.id === "hq")
+      sendParam("g_hq", document.getElementById("hq").classList.contains("on") ? 1 : 0, true);
+    const bulk = e.target.closest("[data-dice],[data-fan]");
+    if (bulk) {
+      const rid = bulk.dataset.dice || bulk.dataset.fan;
+      document.querySelectorAll('[data-row="' + rid + '"][data-ch]').forEach(c => {
+        if (c.classList.contains("knob") || c.classList.contains("fader") ||
+            c.classList.contains("step") || c.classList.contains("btn"))
+          sendControl(c, true);
+      });
+    }
+    if (e.target.closest("#tourBtn"))   send({ k: "tour" });
+    if (e.target.closest("#repairBtn")) send({ k: "repair" });
+  });
+
+  // ---- seeds: deterministic, generated by the processor ------------------
+  document.addEventListener("click", e => {
+    const a = e.target.closest("#seedA"), b = e.target.closest("#seedB"),
+          r = e.target.closest("#randomBtn");
+    if (!a && !b && !r) return;
+    if (a && e.shiftKey) return;                      // service bay gesture
+    e.stopPropagation();
+    const n = Math.floor(Math.random() * 200);
+    if (b) { seedB.innerHTML = String(n).padStart(3, "0") + "<small>B</small>";
+             send({ k: "seed", n: n, b: true }); say("SEED B · " + n + " · MORPH TARGET"); }
+    else   { seedA.innerHTML = String(n).padStart(3, "0") + "<small>A</small>";
+             send({ k: "seed", n: n }); }
+  }, true);                                           // capture: beats local reroll
+
+  // ---- incoming ----------------------------------------------------------
+  function applyParamToUi(id, v) {
+    if (id.startsWith("g_")) {
+      if (id === "g_war") { war.querySelector(".fcap").style.left = (v * 100) + "%"; return; }
+      if (id === "g_hq") {
+        const hq = document.getElementById("hq");
+        hq.classList.toggle("on", v > 0.5);
+        hq.innerHTML = '<span class="lamp"></span>' + (v > 0.5 ? "HQ" : "LOW");
+        return;
+      }
+      const byG = document.querySelector('[data-gparam="' + id + '"]');
+      if (byG) { byG.classList.toggle("on", v > 0.5); return; }
+      for (const cmd in CMDMAP) {
+        if (CMDMAP[cmd] !== id) continue;
+        const el = document.querySelector('[data-cmd="' + cmd + '"]');
+        if (!el) return;
+        if (el.classList.contains("step"))
+          el.querySelector(".win").textContent = TEMPERS[Math.round(v)] || TEMPERS[0];
+        else { el.dataset.val = v; paintKnob(el); }
+        return;
+      }
+      return;
+    }
+    const m = id.match(/^v(\d\d)_(\w+)$/);
+    if (!m) return;
+    const ch = parseInt(m[1]), field = m[2];
+    if (field === "note") {
+      document.querySelectorAll('.nbtn[data-ch="' + ch + '"]').forEach(b =>
+        b.classList.toggle("on", parseInt(b.dataset.n) - 1 === Math.round(v)));
+      return;
+    }
+    let row = null;
+    for (const r in ROWMAP) if (ROWMAP[r] === field) { row = r; break; }
+    if (!row) return;
+    const el = document.querySelector('[data-row="' + row + '"][data-ch="' + ch + '"]');
+    if (!el) return;
+    if (el.classList.contains("step")) {
+      const rowDef = ROWS.find(r => r.id === row);
+      el.dataset.idx = Math.round(v);
+      el.querySelector(".win").textContent = rowDef.opts[Math.round(v)] || rowDef.opts[0];
+    } else if (el.classList.contains("btn")) {
+      el.classList.toggle("on", v > 0.5);
+    } else {
+      el.dataset.val = BIPOLAR[field] ? (v + 1) / 2 : v;
+      el.classList.contains("fader") ? paintFader(el) : paintKnob(el);
+    }
+  }
+
+  juceBackend.addEventListener("hostParam", p => applyParamToUi(p.id, p.v));
+
+  juceBackend.addEventListener("init", p => {
+    for (const id in p.params) applyParamToUi(id, p.params[id]);
+    seedA.innerHTML = String(p.seedA).padStart(3, "0") + "<small>A</small>";
+    seedB.innerHTML = String(p.seedB).padStart(3, "0") + "<small>B</small>";
+    wear = p.wear; ageSec = p.ageSec;
+    paintOdo(); drawPatina();
+    say("CLONE WARS · " + (p.category || "READY").toUpperCase());
+  });
+
+  juceBackend.addEventListener("meters", p => {
+    if (p.vu) for (let i = 0; i < needles.length && i < p.vu.length; i++)
+      needles[i].n.style.transform =
+        "rotate(" + (-42 + Math.min(1, p.vu[i]) * 82) + "deg)";
+    ageSec = p.ageSec;
+    const before = Math.floor(Math.sqrt(wear) * 2);
+    wear = p.wear;
+    paintOdo();
+    if (Math.floor(Math.sqrt(wear) * 2) !== before) drawPatina();
+  });
+
+  send({ k: "getinit" });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+name: Clone Wars VST3 (win64)
+
+on:
+  push:
+    paths:
+      - "vst3-apps/clone-wars/plugin/**"
+      - ".github/workflows/clone-wars.yml"
+  workflow_dispatch:
+
+jobs:
+  engine-test:
+    name: Engine sanity (Linux, headless)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run render test
+        working-directory: vst3-apps/clone-wars/plugin/test
+        run: |
+          g++ -O2 -std=c++17 -Wall -Wextra -I../Source/Core \
+              render_test.cpp ../Source/Core/cw_core.cpp -o render_test
+          mkdir -p wavs
+          ./render_test wavs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clone-wars-test-renders
+          path: vst3-apps/clone-wars/plugin/test/wavs/*.wav
+          retention-days: 14
+
+  windows-build:
+    name: Plugin build (Windows)
+    runs-on: windows-latest
+    needs: engine-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (fetches JUCE 8)
+        working-directory: vst3-apps/clone-wars/plugin
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+      - name: Build Release
+        working-directory: vst3-apps/clone-wars/plugin
+        run: cmake --build build --config Release
+      - name: Package
+        shell: pwsh
+        working-directory: vst3-apps/clone-wars/plugin
+        run: |
+          $out = "package"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item -Recurse "build/CloneWars_artefacts/Release/VST3/Clone Wars.vst3" "$out/"
+          Copy-Item "build/CloneWars_artefacts/Release/Standalone/Clone Wars.exe" "$out/"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Clone-Wars-VST3-win64
+          path: vst3-apps/clone-wars/plugin/package/**
+          retention-days: 30
