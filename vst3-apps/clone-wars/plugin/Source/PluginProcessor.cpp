@@ -239,6 +239,32 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
             suppressEcho = false;
         }
     }
+    else if (k == "morph")
+    {
+        // Glide the console from seed A to seed B: continuous parameters are
+        // interpolated, stepped ones (wave, footage, tempers, switches) snap
+        // at the midpoint. Writing through the APVTS keeps host automation,
+        // the engine and the panel all in agreement.
+        const float t = std::clamp ((float) (double) m.getProperty ("v", 0.0), 0.0f, 1.0f);
+        cw::Patch a, b;
+        cw::generatePatch ((uint32_t) currentSeedA.load(), a);
+        cw::generatePatch ((uint32_t) currentSeedB.load(), b);
+        auto blend = [t] (float av, float bv, bool stepped)
+        { return stepped ? (t < 0.5f ? av : bv) : av + t * (bv - av); };
+        suppressEcho = true;
+        for (int g = 0; g < cw::numGlobals; ++g)
+            if (auto* par = apvts.getParameter (globalParamId (g)))
+                par->setValueNotifyingHost (par->convertTo0to1 (
+                    blend (a.global[g], b.global[g], globalShape (g).step > 0.0f)));
+        for (int v = 0; v < cw::kVoices; ++v)
+            for (int f = 0; f < cw::numVoiceFields; ++f)
+                if (auto* par = apvts.getParameter (voiceParamId (v, f)))
+                    par->setValueNotifyingHost (par->convertTo0to1 (
+                        blend (a.voice[v][f], b.voice[v][f], voiceShape (f).step > 0.0f)));
+        suppressEcho = false;
+        pushAllParamsToEngine();
+        if (t <= 0.0f || t >= 1.0f) sendInitToUi();   // repaint at the endpoints
+    }
     else if (k == "seed")
     {
         const int n = (int) m.getProperty ("n", 0);

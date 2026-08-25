@@ -549,12 +549,6 @@
 </head>
 <body>
 
-<p class="intro"><b>CLONE WARS</b> — panel mockup, war-paint revision. Sixteen analogue clones in two armies.
-Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> controls in a row to lock them together ·
-<b>⚄</b> rolls a row, <b>⇗</b> fans it across all sixteen clones.
-<span class="mobilenote">You are viewing a desktop-size plugin panel scaled down to fit this screen —
-pinch to zoom into a section, or open it on a computer to play with it properly.</span></p>
-
 <div class="stagebox"><div class="rig">
   <div class="rail"></div>
   <div class="panel" id="panel">
@@ -563,7 +557,6 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
     <header>
       <div class="brand">
         <h1>CLONE<br><span>WARS</span></h1>
-        <div class="tag">16 oscillators · almost, but not quite, the same machine</div>
       </div>
       <div class="hullmark">
         <span class="big">DRONE DIVISION</span><br>
@@ -680,6 +673,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
           <button class="btn" id="engineBtn" title="Under-the-hood controls"><span class="lamp"></span>ENGINE ROOM</button>
           <button class="btn" id="colorBtn" title="Ring every control by function group — osc, filter, LFO, env, mix"><span class="lamp"></span>WAR PAINT</button>
           <button class="btn" id="keysBtn" title="Deploy the field keyboard"><span class="lamp"></span>KEYS</button>
+          <button class="btn" id="helpBtn" title="Controls and gestures"><span class="lamp"></span>?</button>
         </div>
         <div class="expan">
           <button class="btn blank">·</button><button class="btn blank">·</button>
@@ -716,7 +710,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.5 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.6 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -799,6 +793,38 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
   </div>
 </div>
 
+<div class="hatchveil" id="helpveil">
+  <div class="hatch" style="width:min(560px,94vw)" role="dialog" aria-label="Controls and gestures">
+    <div class="bolt tl"></div><div class="bolt tr"></div>
+    <div class="bolt bl"></div><div class="bolt br"></div>
+    <div class="hatch-head">
+      <div class="t">FIELD MANUAL</div>
+      <button class="btn" id="helpClose"><span class="lamp"></span>CLOSE</button>
+    </div>
+    <div class="hatch-grid">
+      <div class="aboutbody">
+        <b>Sixteen analogue clones in two armies of eight.</b><br><br>
+        <kbd>drag</kbd> knobs &amp; faders &middot; <kbd>click</kbd> WAVE / FOOTAGE / LFO /
+        TEMPER / NOTE MODE selectors to cycle<br>
+        <kbd>&#9860;</kbd> rerolls a row &middot; <kbd>&#8663;</kbd> fans it across all sixteen<br><br>
+        <kbd>shift-click</kbd> controls in one row locks them into a group &mdash; dragging any
+        of them moves the group<br>
+        <kbd>ctrl-click</kbd> locks a half-row in unison at the clicked value &middot;
+        <kbd>shift-ctrl-click</kbd> locks it keeping its intervals &middot;
+        <kbd>&#9837;</kbd> tools on the side rails do the same per army<br><br>
+        <b>NOTE MODE</b> &mdash; UNISON: every clone on the bottom note &middot; TREATY: the
+        sixteen split left to right, low to high &middot; WAR: the armies contest the chord
+        across THE WAR fader<br>
+        <b>MASTER CUT</b> sweeps all sixteen filters together &middot; <b>ENV&gt;FILT</b> sets
+        how far the envelope opens the filter above the knob<br>
+        <b>THE RANKS</b> &mdash; left: the clones fall into line &middot; right: their
+        differences grow<br>
+        <b>MORPH</b> glides the whole console from seed A to seed B<br><br>
+        Shift-click the odometer for the service bay. The hull remembers.
+      </div>
+    </div>
+  </div>
+</div>
 <div class="hatchveil" id="aboutveil">
   <div class="hatch" style="width:min(480px,92vw)" role="dialog" aria-label="About Clone Wars">
     <div class="bolt tl"></div><div class="bolt tr"></div>
@@ -810,7 +836,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.5 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.6 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -824,16 +850,6 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
     </div>
   </div>
 </div>
-
-<p class="hint">
-  <kbd>drag</kbd> knobs &amp; faders · <kbd>click</kbd> WAVE / FOOTAGE / LFO / TEMPER selectors to cycle ·
-  <kbd>shift-click</kbd> controls in one row to lock them — dragging any of them moves the group ·
-  <kbd>ctrl-click</kbd> locks a whole half-row in unison at the clicked value · <kbd>shift-ctrl-click</kbd>
-  locks it keeping its intervals · <kbd>⚭</kbd> on the rails does the same per side ·
-  <kbd>⚄</kbd> rolls a row (locked controls roll together) · <kbd>⇗</kbd> fans a ramp across clones 1→16 ·
-  <kbd>RANDOM</kbd> rerolls everything from a new seed. NOTE 1·2·3 per strip picks which held MIDI note the
-  clone follows; ENV knobs travel <i>fast/fast → fast/slow → slow/slow</i>.
-</p>
 
 <script id="cw-decals">
 /* photographic damage decals — generated by tools/embed-decals.py */
@@ -1763,6 +1779,10 @@ holdBtn.addEventListener("click", () => {
 })();
 
 /* ---------------- ABOUT hatch (click the nameplate) ---------------- */
+const helpveil = document.getElementById("helpveil");
+document.getElementById("helpBtn").addEventListener("click", () => helpveil.classList.add("open"));
+document.getElementById("helpClose").addEventListener("click", () => helpveil.classList.remove("open"));
+helpveil.addEventListener("pointerdown", e => { if (e.target === helpveil) helpveil.classList.remove("open"); });
 const aboutveil = document.getElementById("aboutveil");
 {
   const brand = document.querySelector(".brand h1");
