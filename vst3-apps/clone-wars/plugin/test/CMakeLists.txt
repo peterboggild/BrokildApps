@@ -78,3 +78,19 @@ target_compile_definitions(cwrel PRIVATE _USE_MATH_DEFINES)
 if(MSVC)
     target_link_options(cwrel PRIVATE /STACK:33554432)
 endif()
+
+# scratch probe (safe to delete): where does the top end go at max bright?
+add_executable(cwbright brightprobe.cpp ../Source/Core/cw_core.cpp)
+target_include_directories(cwbright PRIVATE ../Source/Core)
+target_compile_definitions(cwbright PRIVATE _USE_MATH_DEFINES)
+if(MSVC)
+    target_link_options(cwbright PRIVATE /STACK:33554432)
+endif()
+
+# scratch probe (safe to delete): voice-chain response at max cut, per tier
+add_executable(cwvresp vresp.cpp ../Source/Core/cw_core.cpp)
+target_include_directories(cwvresp PRIVATE ../Source/Core)
+target_compile_definitions(cwvresp PRIVATE _USE_MATH_DEFINES)
+if(MSVC)
+    target_link_options(cwvresp PRIVATE /STACK:33554432)
+endif()

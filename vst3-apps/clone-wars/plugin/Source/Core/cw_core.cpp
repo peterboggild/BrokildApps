@@ -617,7 +617,11 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
         vc.driftState += -vc.driftState * (dtc / 8.0f)
                          + (rng01 (vc.noiseState) - 0.5f) * 0.12f * std::sqrt (dtc);
         const float fan = ((float) vi - 7.5f) / 7.5f;
+        const float bendC = bendIn.load (std::memory_order_relaxed) * 100.0f;
+        const float modV  = modIn.load (std::memory_order_relaxed);
         const float cents = F[vfTune] * 50.0f
+                          + bendC
+                          + modV * 35.0f * (float) std::sin (6.2831853 * vc.lfoPhase)
                           + G[gSpread] * 30.0f * fan
                           + vc.tolDetune * T
                           + vc.driftState * 14.0f * F[vfDrift] * G[gDriftMaster]
@@ -753,7 +757,11 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
                         + lfo * lfoFltD * 0.35f;
             cut01 = std::clamp (cut01, 0.0f, 1.0f);
             vc.cutSmooth += 0.02f * (cut01 - vc.cutSmooth);
-            const float fc = 30.0f * std::pow (533.0f, vc.cutSmooth);   // 30 Hz .. 16 kHz
+            float fc = 30.0f * std::pow (533.0f, vc.cutSmooth);   // 30 Hz .. 16 kHz
+            // the last 3% of the knob lifts the ceiling to ~20.5 kHz, so MAX
+            // really is out of the way (the chain measured flat; only this
+            // 16 kHz top through a 2-pole still shaved the air off)
+            if (vc.cutSmooth > 0.97f) fc *= 1.0f + 9.5f * (vc.cutSmooth - 0.97f);
             const float fcC = std::min (fc * prewarp, (float) fs * 0.45f);
             const float g = std::tan (3.14159265f * fcC / ((float) fs * (float) os));
             if (temper == 2) vc.ladder.setG (g); else vc.k35.setG (g);

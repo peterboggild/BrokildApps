@@ -477,21 +477,25 @@
     text-align: center; font-family: var(--stencilf); font-size: 11px;
     letter-spacing: .5em; color: rgba(227,233,228,.14); pointer-events: none;
   }
-  /* the cast shadow on the deck: fades and spreads in as the ship lands */
+  /* the cast shadow on the deck: a hovering mass, condensing as it lands */
   .keyshadow {
-    position: absolute; left: 6%; right: 6%; bottom: 4px; height: 22px;
-    background: radial-gradient(50% 100% at 50% 50%, rgba(0,0,0,.65), transparent 75%);
-    opacity: 0; transform: scaleX(.55);
-    transition: opacity 2s cubic-bezier(.45,.05,.15,1), transform 2s cubic-bezier(.45,.05,.15,1);
+    position: absolute; left: 3%; right: 3%; bottom: 2px; height: 34px;
+    background:
+      radial-gradient(46% 90% at 50% 55%, rgba(0,0,0,.85), rgba(0,0,0,.4) 55%, transparent 78%);
+    filter: blur(3px);
+    opacity: 0; transform: scaleX(.4) scaleY(1.6) translateY(-14px);
+    transition: opacity 2s cubic-bezier(.45,.05,.15,1), transform 2s cubic-bezier(.45,.05,.15,1), filter 2s;
     pointer-events: none;
   }
-  .keysdock.open .keyshadow { opacity: .6; transform: scaleX(1); }
+  .keysdock.open .keyshadow { opacity: .9; transform: scaleX(1) scaleY(1) translateY(0); filter: blur(6px); }
   .keysbar {
     position: absolute; left: 16px; right: 16px; bottom: 12px;
-    transform: translateY(210px);
+    transform: translateY(230px) rotateX(18deg) scale(1.04);
     transition: transform 2s cubic-bezier(.45, .05, .15, 1);   /* slow drift, soft settle */
+    transform-style: preserve-3d;
   }
-  .keysdock.open .keysbar { transform: translateY(0); }
+  .keysdock { perspective: 820px; perspective-origin: 50% 0%; }
+  .keysdock.open .keysbar { transform: translateY(0) rotateX(0deg) scale(1); }
   .keysplate {
     position: relative;
     background:
@@ -499,7 +503,11 @@
       linear-gradient(180deg, #93a0ab 0%, #5f6b77 35%, #414d59 90%);
     border: 1px solid #0a1118; border-radius: 10px;
     padding: 8px 12px 12px;
-    box-shadow: 0 14px 30px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.3);
+    /* a slab with thickness: stacked hull-edge extrusion + deep air below */
+    box-shadow:
+      0 2px 0 #39434e, 0 4px 0 #242d36, 0 6px 0 #161d24, 0 7px 1px #0a1016,
+      0 26px 44px rgba(0,0,0,.65), 0 10px 18px rgba(0,0,0,.5),
+      inset 0 1px 0 rgba(255,255,255,.3), inset 0 -4px 8px rgba(0,0,0,.28);
   }
   .keysplate .screwdot {
     position: absolute; width: 8px; height: 8px; border-radius: 50%;
@@ -522,6 +530,8 @@
     position: absolute; top: 0; bottom: 0; border-right: 1px solid #24384c;
     background: linear-gradient(180deg, #8aa4bf 0%, #64809c 68%, #516d89 100%);
     border-radius: 0 0 3px 3px; cursor: pointer;
+    box-shadow: inset 0 -5px 7px rgba(0,0,0,.28), inset 0 2px 1px rgba(255,255,255,.22),
+                inset -1px 0 0 rgba(0,0,0,.15);
   }
   .kwhite.down {
     background: linear-gradient(180deg, #a8c4de, #7f9cb8 70%, #6a87a3);
@@ -535,6 +545,29 @@
   }
   .kblack.down { background: linear-gradient(180deg, #587a9a, #466482); }
 
+  .keysmain { display: flex; align-items: stretch; gap: 10px; }
+  .keysmain .keys { flex: 1; }
+  .wheels { display: flex; gap: 7px; }
+  .wheel {
+    position: relative; width: 26px; height: 92px; border-radius: 5px;
+    background: linear-gradient(180deg, #10171f, #1b242e 18%, #232e39 50%, #1b242e 82%, #10171f);
+    border: 1px solid #0a1118; cursor: ns-resize;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.6), inset 0 -2px 6px rgba(0,0,0,.6);
+  }
+  .wheel .wcap {
+    position: absolute; left: 2px; right: 2px; height: 26px; top: 33px;
+    border-radius: 4px;
+    background:
+      repeating-linear-gradient(180deg, rgba(0,0,0,.35) 0 2px, transparent 2px 5px),
+      linear-gradient(180deg, #5f7c99, #46617c 55%, #35495d);
+    border: 1px solid #0a1118;
+    box-shadow: 0 2px 4px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.25);
+  }
+  .wheel .wlbl {
+    position: absolute; left: 0; right: 0; bottom: -1px; text-align: center;
+    font-family: var(--stencilf); font-size: 6px; letter-spacing: .28em;
+    color: rgba(227,233,228,.5); pointer-events: none;
+  }
   /* ---- about hatch text ---- */
   .aboutbody {
     width: 100%; text-align: left; font-size: 10px; letter-spacing: .14em;
@@ -699,18 +732,28 @@
           <div class="screwdot" style="left:6px;bottom:6px"></div>
           <div class="screwdot" style="right:6px;bottom:6px"></div>
           <div class="keysrow">
-            <span class="kt">CLONE WARS · FIELD KEYBOARD · C2–C5</span>
+            <span class="kt">CLONE WARS · FIELD KEYBOARD · C1–C7</span>
             <span class="spacer"></span>
             <button class="btn" id="holdBtn" title="Latch held notes — release nothing, the drone way"><span class="lamp"></span>HOLD</button>
           </div>
-          <div class="keys" id="keys"></div>
+          <div class="keysmain">
+            <div class="wheels">
+              <div class="wheel" id="bendWheel" title="Pitch bend ±2 semitones — springs back">
+                <div class="wcap"></div><div class="wlbl">BEND</div>
+              </div>
+              <div class="wheel" id="modWheel" title="Modulation — sixteen vibratos, one per clone, each on its own LFO">
+                <div class="wcap"></div><div class="wlbl">MOD</div>
+              </div>
+            </div>
+            <div class="keys" id="keys"></div>
+          </div>
         </div>
       </div>
     </div>
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.6 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.7 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -730,7 +773,7 @@
         <div class="knob k28" data-cmd="BASE A" data-val="0.5" tabindex="0" title="Army A base pitch">
           <div class="cap"><div class="ptr"></div></div><div class="lbl">base a</div>
         </div>
-        <div class="knob k28" data-cmd="GLIDE" data-val="0.2" tabindex="0" title="Portamento between held notes">
+        <div class="knob k34" data-cmd="GLIDE" data-val="0.2" tabindex="0" title="Portamento between held notes">
           <div class="cap"><div class="ptr"></div></div><div class="lbl">glide</div>
         </div>
         <div class="knob k28" data-cmd="SPREAD" data-val="0.3" tabindex="0" title="Fans all 16 microtunes symmetrically">
@@ -836,7 +879,7 @@
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.6 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.7 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -1724,9 +1767,39 @@ holdBtn.addEventListener("click", () => {
   juceEmit({ k: "param", id: "g_latchb", v: on ? 1 : 0 });
   say("HOLD \u00b7 " + (on ? "ON \u2014 NOTES LATCH" : "OFF \u2014 NOTES RELEASE"));
 });
+(function buildWheels() {
+  const mk = (id, spring, sendV) => {
+    const w = document.getElementById(id);
+    if (!w) return;
+    const cap = w.querySelector(".wcap");
+    let v = 0.5, live = false, lastT = 0;
+    const paint = () => { cap.style.top = (3 + (1 - v) * 60) + "px"; };
+    const sendNow = () => {
+      const now = performance.now();
+      if (now - lastT < 16) return;
+      lastT = now; sendV(v);
+    };
+    const fromY = (e) => {
+      const r = w.getBoundingClientRect();
+      v = Math.min (1, Math.max (0, 1 - (e.clientY - r.top - 13) / (r.height - 26)));
+      paint(); sendNow();
+    };
+    w.addEventListener("pointerdown", e => { live = true; cap.style.transition = "none"; fromY(e); e.preventDefault(); });
+    window.addEventListener("pointermove", e => { if (live) fromY(e); });
+    window.addEventListener("pointerup", () => {
+      if (!live) return;
+      live = false;
+      if (spring) { cap.style.transition = "top .18s"; v = 0.5; paint(); sendV(0.5); }
+    });
+    if (!spring) { v = 0; paint(); }
+    paint();
+  };
+  mk("bendWheel", true,  v => juceEmit({ k: "bend", v: (v - 0.5) * 2 }));
+  mk("modWheel",  false, v => juceEmit({ k: "mod",  v: v }));
+})();
 (function buildKeyboard() {
   const cont = document.getElementById("keys");
-  const LO = 36, HI = 72;                       // C2..C5
+  const LO = 24, HI = 96;                       // C1..C7 - twice the ranks
   const isBlack = n => [1, 3, 6, 8, 10].includes(n % 12);
   const NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
   const noteName = n => NAMES[n % 12] + (Math.floor(n / 12) - 1);
