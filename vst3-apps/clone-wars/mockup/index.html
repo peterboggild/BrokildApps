@@ -274,21 +274,23 @@
   .army.b .step .win { color: var(--b-acc); }
   .army.b .btn.on .lamp { background: var(--b-acc); box-shadow: 0 0 7px var(--b-glow); }
 
-  /* VU */
+  /* VU — cream face with printed scale (SVG face applied from JS) */
   .vu {
-    width: 56px; height: 30px; border-radius: 4px 4px 2px 2px;
-    background: linear-gradient(180deg, #ece4ca, #d3c8a4); border: 1px solid #0a0f14;
-    position: relative; overflow: hidden; box-shadow: inset 0 1px 4px rgba(0,0,0,.5);
+    width: 62px; height: 40px; border-radius: 5px;
+    background: #e6d9b4; background-size: 100% 100%;
+    border: 2px solid #14181c;
+    position: relative; overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,.5), inset 0 1px 3px rgba(0,0,0,.35);
   }
   .vu .needle {
-    position: absolute; left: 50%; bottom: -2px; width: 1.5px; height: 26px;
-    background: #1c1712; transform-origin: 50% 100%;
+    position: absolute; left: 50%; bottom: -8px; width: 1.6px; height: 38px;
+    margin-left: -0.8px; background: #26201a; transform-origin: 50% 100%;
+    box-shadow: 0.5px 0 0.5px rgba(0,0,0,.25);
   }
-  .vu .arc {
-    position: absolute; inset: 3px 5px auto; height: 14px;
-    border-bottom: 1.5px solid rgba(28,23,18,.5); border-radius: 50%;
+  .vu .glass {
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(115deg, rgba(255,255,255,.30), rgba(255,255,255,.06) 38%, transparent 60%);
   }
-  .vu .red { position: absolute; right: 6px; top: 4px; width: 9px; height: 3px; background: #b03020; transform: rotate(32deg); }
 
   /* note buttons */
   .noteset { display: flex; gap: 3px; }
@@ -668,7 +670,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
         <button class="btn" id="repairBtn" title="Repair the panel — scars are repaired, service hours are not"><span class="lamp"></span>REPAIR</button>
       </div>
       <div class="modulebay" style="margin-top:2px">
-        THE HULL REMEMBERS · REPAIR REMOVES SCARS · UNIT AGE CANNOT BE RESET
+        THE HULL REMEMBERS WHENEVER THE UNIT PLAYS · REPAIR RESTORES FACTORY CONDITION AND RESETS THE TIMER
       </div>
     </div>
   </div>
@@ -687,7 +689,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
 /* ---------------- row model ---------------- */
 const ENV_TITLE = "← fast atk / fast dec · ↑ fast atk / slow dec · → slow atk / slow dec";
 const ROWS = [
-  { id:"vu",      label:"LEVEL VU",  type:"vu",    h:"34px" },
+  { id:"vu",      label:"LEVEL VU",  type:"vu",    h:"46px" },
   { id:"ch",      label:"CLONE",     type:"ch",    h:"14px" },
   { id:"note",    label:"NOTE",      type:"note",  h:"20px", dice:true },
   { id:"wave",    label:"WAVE",      type:"step",  h:"30px", dice:true, fan:true, opts:["SAW","PULSE","TRI","SINE"] },
@@ -728,7 +730,7 @@ function buildStrip(ch) {
     cell.dataset.row = row.id;
     if (row.type === "vu") {
       cell.appendChild(el("div", "vu",
-        '<div class="arc"></div><div class="red"></div><div class="needle" style="transform:rotate(-38deg)"></div>'));
+        '<div class="needle" style="transform:rotate(-42deg)"></div><div class="glass"></div>'));
     } else if (row.type === "ch") {
       cell.appendChild(el("div", "chnum", String(ch).padStart(2, "0")));
     } else if (row.type === "note") {
@@ -1082,7 +1084,7 @@ function mulberry32(a) {
 }
 // No off switch, by design: the hull always remembers. REPAIR (hidden in
 // the service bay) removes scars; unit age is never reset.
-let wear = 60, wearSeed = 1337, lastN = -1;
+let wear = 300, wearSeed = 1337, lastN = -1; // fresh demo units show visible history
 const patinaModeV = "LIVE";
 try {
   if (localStorage.getItem("cw-wear") !== null) wear = parseFloat(localStorage.getItem("cw-wear"));
@@ -1095,49 +1097,99 @@ function saveWear() {
   } catch (e) {}
 }
 
-function scratch(rng, x, y) {
-  const len = 20 + rng() * 160, ang = rng() * Math.PI * 2;
-  const seg = 6, dx = len / seg, pts = [[0, 0]];
-  let yy = 0;
-  for (let s = 1; s <= seg; s++) { yy += (rng() - .5) * 3; pts.push([s * dx, yy]); }
+// Placeholder generators — to be superseded by photographic decal patches
+// composited with blend modes once a set is generated.
+function scratch(rng, x, y) { // tapered gouge with a metal glint
+  const len = 30 + rng() * 220, ang = rng() * Math.PI * 2, segs = 8;
   pctx.save(); pctx.translate(x, y); pctx.rotate(ang);
-  for (const [c, wd, oy] of [["rgba(8,12,16,.5)", 1.4, 0], ["rgba(205,214,220,.30)", .7, -.9]]) {
-    pctx.beginPath(); pctx.moveTo(pts[0][0], pts[0][1] + oy);
-    for (let s = 1; s < pts.length; s++) pctx.lineTo(pts[s][0], pts[s][1] + oy);
-    pctx.strokeStyle = c; pctx.lineWidth = wd; pctx.stroke();
+  let px = 0, py = 0;
+  for (let s = 0; s < segs; s++) {
+    const nx = px + len / segs, ny = py + (rng() - .5) * 4;
+    const t = 1 - Math.abs((s + .5) / segs - .5) * 2; // fat middle, thin ends
+    pctx.strokeStyle = "rgba(6,10,14," + (0.30 + 0.38 * t) + ")";
+    pctx.lineWidth = 0.6 + 1.6 * t;
+    pctx.beginPath(); pctx.moveTo(px, py); pctx.lineTo(nx, ny); pctx.stroke();
+    pctx.strokeStyle = "rgba(215,224,230," + (0.15 + 0.30 * t) + ")";
+    pctx.lineWidth = 0.5 + 0.8 * t;
+    pctx.beginPath(); pctx.moveTo(px, py - 1); pctx.lineTo(nx, ny - 1); pctx.stroke();
+    px = nx; py = ny;
   }
   pctx.restore();
 }
-function ding(rng, x, y) {
-  const r = 2 + rng() * 5;
-  const gr = pctx.createRadialGradient(x - r * .3, y - r * .3, 0, x, y, r);
-  gr.addColorStop(0, "rgba(8,12,16,.6)");
-  gr.addColorStop(.7, "rgba(20,28,36,.25)");
+function scuff(rng, x, y) { // cluster of short parallel abrasions
+  const ang = rng() * Math.PI * 2, n = 4 + Math.floor(rng() * 6);
+  pctx.save(); pctx.translate(x, y); pctx.rotate(ang);
+  for (let i = 0; i < n; i++) {
+    const ox = (rng() - .5) * 28, oy = (rng() - .5) * 16, l = 6 + rng() * 20;
+    pctx.strokeStyle = "rgba(220,228,234," + (0.10 + rng() * 0.16) + ")";
+    pctx.lineWidth = 0.6 + rng() * 0.8;
+    pctx.beginPath(); pctx.moveTo(ox, oy); pctx.lineTo(ox + l, oy + (rng() - .5) * 2); pctx.stroke();
+  }
+  pctx.restore();
+}
+function ding(rng, x, y) { // dent: dark toward the light, bright away from it
+  const r = 2.5 + rng() * 6;
+  let gr = pctx.createRadialGradient(x - r * .4, y - r * .4, 0, x, y, r);
+  gr.addColorStop(0, "rgba(6,10,14,.55)");
+  gr.addColorStop(.8, "rgba(6,10,14,.12)");
   gr.addColorStop(1, "rgba(0,0,0,0)");
   pctx.fillStyle = gr; pctx.beginPath(); pctx.arc(x, y, r, 0, 7); pctx.fill();
-  pctx.strokeStyle = "rgba(210,220,226,.28)"; pctx.lineWidth = .8;
-  pctx.beginPath(); pctx.arc(x + r * .25, y + r * .25, r * .8, -.4, 1.6); pctx.stroke();
+  gr = pctx.createRadialGradient(x + r * .35, y + r * .35, 0, x + r * .3, y + r * .3, r * .8);
+  gr.addColorStop(0, "rgba(225,232,238,.32)");
+  gr.addColorStop(1, "rgba(0,0,0,0)");
+  pctx.fillStyle = gr; pctx.beginPath(); pctx.arc(x + r * .3, y + r * .3, r * .8, 0, 7); pctx.fill();
 }
-function chip(rng, x, y) {
-  const r = 3 + rng() * 11, k = 6 + Math.floor(rng() * 4), pts = [];
+function chip(rng, x, y) { // paint gone: recessed bare steel with a bright lip
+  const r = 4 + rng() * 14, k = 7 + Math.floor(rng() * 5), pts = [];
   for (let i = 0; i < k; i++) {
-    const a = i / k * Math.PI * 2, rr = r * (0.55 + rng() * .7);
-    pts.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr]);
+    const a = i / k * Math.PI * 2, rr = r * (0.5 + rng() * .8);
+    pts.push([Math.cos(a) * rr, Math.sin(a) * rr]);
   }
-  pctx.beginPath(); pctx.moveTo(pts[0][0], pts[0][1]);
-  for (let i = 1; i < k; i++) pctx.lineTo(pts[i][0], pts[i][1]);
-  pctx.closePath();
-  const gr = pctx.createLinearGradient(x - r, y - r, x + r, y + r);
-  gr.addColorStop(0, "#9aa4ab"); gr.addColorStop(1, "#5f6970");
+  const path = () => {
+    pctx.beginPath(); pctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < k; i++) pctx.lineTo(pts[i][0], pts[i][1]);
+    pctx.closePath();
+  };
+  pctx.save(); pctx.translate(x, y);
+  pctx.shadowColor = "rgba(0,0,0,.55)"; pctx.shadowBlur = 3;
+  pctx.shadowOffsetX = 1; pctx.shadowOffsetY = 1.5;
+  path();
+  const gr = pctx.createLinearGradient(-r, -r, r, r);
+  gr.addColorStop(0, "#aeb7bd"); gr.addColorStop(.5, "#8b959c"); gr.addColorStop(1, "#646e75");
   pctx.fillStyle = gr; pctx.fill();
-  pctx.strokeStyle = "rgba(10,16,22,.65)"; pctx.lineWidth = 1; pctx.stroke();
+  pctx.shadowColor = "transparent";
+  pctx.save(); path(); pctx.clip(); // brushed texture in the bare metal
+  for (let i = 0; i < 5; i++) {
+    pctx.strokeStyle = "rgba(255,255,255," + (0.06 + rng() * 0.10) + ")";
+    pctx.lineWidth = .6;
+    pctx.beginPath(); pctx.moveTo(-r, (rng() - .5) * 2 * r); pctx.lineTo(r, (rng() - .5) * 2 * r); pctx.stroke();
+  }
+  pctx.restore();
+  path();
+  pctx.strokeStyle = "rgba(225,232,238,.38)"; pctx.lineWidth = 1; pctx.stroke();
+  pctx.restore();
+}
+function rust(rng, x, y) { // streak dripping from a wound
+  const len = 20 + rng() * 70, w = 2 + rng() * 4;
+  const gr = pctx.createLinearGradient(x, y, x, y + len);
+  gr.addColorStop(0, "rgba(96,52,20,.45)");
+  gr.addColorStop(.4, "rgba(120,66,26,.25)");
+  gr.addColorStop(1, "rgba(120,66,26,0)");
+  pctx.fillStyle = gr;
+  pctx.beginPath();
+  pctx.moveTo(x - w / 2, y);
+  pctx.quadraticCurveTo(x - w * .3, y + len * .5, x - w * .15, y + len);
+  pctx.lineTo(x + w * .15, y + len);
+  pctx.quadraticCurveTo(x + w * .3, y + len * .5, x + w / 2, y);
+  pctx.closePath(); pctx.fill();
+  ding(rng, x, y); // the wound it weeps from
 }
 function stain(rng, x, y, mul) {
   mul = mul || 1;
   const r = 14 + rng() * 46;
   const gr = pctx.createRadialGradient(x, y, 0, x, y, r);
-  gr.addColorStop(0, "rgba(16,14,8," + (0.10 * mul) + ")");
-  gr.addColorStop(.7, "rgba(14,12,8," + (0.05 * mul) + ")");
+  gr.addColorStop(0, "rgba(18,15,8," + (0.14 * mul) + ")");
+  gr.addColorStop(.7, "rgba(14,12,8," + (0.07 * mul) + ")");
   gr.addColorStop(1, "rgba(0,0,0,0)");
   pctx.fillStyle = gr; pctx.beginPath(); pctx.arc(x, y, r, 0, 7); pctx.fill();
 }
@@ -1152,9 +1204,11 @@ function drawPatina() {
     const rng = mulberry32(wearSeed + i * 7919);
     const type = rng();
     const x = 10 + rng() * (W - 20), y = 10 + rng() * (H - 20);
-    if (type < .45) scratch(rng, x, y);
-    else if (type < .70) ding(rng, x, y);
-    else if (type < .85) chip(rng, x, y);
+    if (type < .30) scratch(rng, x, y);
+    else if (type < .45) scuff(rng, x, y);
+    else if (type < .60) ding(rng, x, y);
+    else if (type < .75) chip(rng, x, y);
+    else if (type < .87) rust(rng, x, y);
     else stain(rng, x, y);
   }
   // preset-keyed grime: temporary, follows seed A — "busted" seeds arrive dirty
@@ -1219,9 +1273,10 @@ document.getElementById("tourBtn").addEventListener("click", () => {
   say("TOUR · +800 SERVICE HRS · ROAD DAMAGE APPLIED");
 });
 document.getElementById("repairBtn").addEventListener("click", () => {
-  wear = 0; wearSeed = Math.floor(Math.random() * 1e9);
-  drawPatina(); saveWear();
-  say("REPAIR · SCARS REPAIRED · UNIT AGE REMAINS");
+  wear = 0; ageSec = 0; wearSeed = Math.floor(Math.random() * 1e9);
+  drawPatina(); paintOdo(); saveWear();
+  try { localStorage.setItem("cw-age", ageSec); } catch (e) {}
+  say("REPAIR · FACTORY CONDITION · TIMER RESET");
 });
 
 /* hidden service bay: shift-click the UNIT AGE odometer */
@@ -1271,9 +1326,40 @@ fitStage();
 window.addEventListener("resize", fitStage);
 window.addEventListener("load", fitStage);
 
-/* VU idle animation */
+/* VU faces: one shared SVG — printed arc, ticks, red zone, VU legend */
+(function vuFaces() {
+  const cx = 31, cy = 44;
+  const P = (a, r) => {
+    const t = a * Math.PI / 180;
+    return (cx + r * Math.sin(t)).toFixed(1) + " " + (cy - r * Math.cos(t)).toFixed(1);
+  };
+  let ticks = "";
+  for (let a = -45; a <= 45; a += 15)
+    ticks += '<line x1="' + P(a, 26).replace(" ", '" y1="') + '" x2="' +
+      P(a, 30.5).replace(" ", '" y2="') + '" stroke="#4a4238" stroke-width="' +
+      (Math.abs(a) === 45 || a === 0 ? 1.1 : 0.6) + '"/>';
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 62 40">' +
+    '<defs><radialGradient id="b" cx="50%" cy="30%" r="90%">' +
+    '<stop offset="0" stop-color="#f6eed8"/><stop offset="0.75" stop-color="#e8dcb8"/>' +
+    '<stop offset="1" stop-color="#d3c29a"/></radialGradient></defs>' +
+    '<rect width="62" height="40" fill="url(#b)"/>' +
+    '<path d="M ' + P(-45, 28.2) + ' A 28.2 28.2 0 0 1 ' + P(18, 28.2) +
+    '" fill="none" stroke="#3a332a" stroke-width="1"/>' +
+    '<path d="M ' + P(18, 28.2) + ' A 28.2 28.2 0 0 1 ' + P(45, 28.2) +
+    '" fill="none" stroke="#b32c1e" stroke-width="2"/>' +
+    ticks +
+    '<text x="31" y="37" font-family="Georgia,serif" font-size="7" font-weight="bold" text-anchor="middle" fill="#3a332a">VU</text>' +
+    '<text x="7" y="19" font-size="6" font-family="Arial" fill="#4a4238">&#8722;</text>' +
+    '<text x="50.5" y="19" font-size="6" font-family="Arial" fill="#b32c1e">+</text>' +
+    '</svg>';
+  const url = 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
+  document.querySelectorAll(".vu").forEach(v => v.style.backgroundImage = url);
+})();
+
+/* VU idle animation — each meter breathes on its own, grazing the red */
 const needles = [...document.querySelectorAll(".vu .needle")].map(n => ({
-  n, phase: Math.random() * 6.28, rate: 0.15 + Math.random() * 0.3, amp: 12 + Math.random() * 16,
+  n, phase: Math.random() * 6.28, rate: 0.15 + Math.random() * 0.3, amp: 16 + Math.random() * 18,
 }));
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 if (!reduced) {
@@ -1283,7 +1369,7 @@ if (!reduced) {
     for (const v of needles) {
       v.phase += v.rate * dt * 6.28;
       const wob = Math.sin(v.phase) * 0.5 + Math.sin(v.phase * 0.37 + 1.2) * 0.5;
-      v.n.style.transform = "rotate(" + (-38 + v.amp + wob * v.amp) + "deg)";
+      v.n.style.transform = "rotate(" + (-42 + v.amp + wob * v.amp) + "deg)";
     }
     requestAnimationFrame(tick);
   })(t0);
