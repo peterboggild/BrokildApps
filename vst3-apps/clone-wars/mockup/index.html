@@ -48,10 +48,14 @@
     font-weight: 300; font-size: 14px; letter-spacing: .04em; margin-bottom: 18px;
   }
   .intro b { color: var(--hazard); font-weight: 500; }
+  .mobilenote { display: none; }
+  @media (max-width: 900px) {
+    .mobilenote { display: block; margin-top: 6px; color: var(--hazard); }
+  }
   .stagebox { max-width: 100%; overflow-x: auto; padding-bottom: 10px; }
 
   /* ---- the ship ---- */
-  .rig { display: flex; align-items: stretch; filter: drop-shadow(0 30px 60px rgba(0,0,0,.75)); }
+  .rig { display: flex; align-items: stretch; width: max-content; filter: drop-shadow(0 30px 60px rgba(0,0,0,.75)); }
   .rail {
     width: 30px; flex: none; position: relative;
     background:
@@ -458,7 +462,9 @@
 
 <p class="intro"><b>CLONE WARS</b> — panel mockup, war-paint revision. Sixteen analogue clones in two armies.
 Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> controls in a row to lock them together ·
-<b>⚄</b> rolls a row, <b>⇗</b> fans it across all sixteen clones.</p>
+<b>⚄</b> rolls a row, <b>⇗</b> fans it across all sixteen clones.
+<span class="mobilenote">You are viewing a desktop-size plugin panel scaled down to fit this screen —
+pinch to zoom into a section, or open it on a computer to play with it properly.</span></p>
 
 <div class="stagebox"><div class="rig">
   <div class="rail"></div>
@@ -1242,6 +1248,28 @@ document.addEventListener("pointerover", e => {
   const c = e.target.closest("[data-row]");
   setHot(c ? c.dataset.row : null);
 });
+
+/* shrink-to-fit: the rig is a fixed desktop-size panel; on narrow screens
+   scale the whole thing down so the full machine is visible (pinch to zoom). */
+const stagebox = document.querySelector(".stagebox");
+const rig = document.querySelector(".rig");
+function fitStage() {
+  const avail = Math.max(320, window.innerWidth - 20);
+  const scale = Math.min(1, avail / rig.offsetWidth);
+  if (scale < 1) {
+    rig.style.transform = "scale(" + scale + ")";
+    rig.style.transformOrigin = "top left";
+    stagebox.style.overflow = "hidden";
+    stagebox.style.height = (rig.offsetHeight * scale + 8) + "px";
+  } else {
+    rig.style.transform = "";
+    stagebox.style.overflow = "";
+    stagebox.style.height = "";
+  }
+}
+fitStage();
+window.addEventListener("resize", fitStage);
+window.addEventListener("load", fitStage);
 
 /* VU idle animation */
 const needles = [...document.querySelectorAll(".vu .needle")].map(n => ({
