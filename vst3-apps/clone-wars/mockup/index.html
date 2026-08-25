@@ -110,7 +110,17 @@
   }
 
   /* ---- header ---- */
-  header { display: flex; align-items: flex-start; gap: 26px; padding: 6px 8px 12px; }
+  header { display: flex; align-items: center; gap: 26px; padding: 6px 8px 12px; }
+  .hullmark {
+    margin-left: auto; text-align: right; color: var(--dim); opacity: .8;
+    font-family: var(--stencilf); font-size: 13px; letter-spacing: .3em; line-height: 1.7;
+  }
+  .hullmark .big { font-size: 19px; color: var(--stencil); opacity: .85; }
+  .hullmark .haz {
+    display: inline-block; width: 130px; height: 8px; margin-top: 4px;
+    background: repeating-linear-gradient(45deg, var(--hazard) 0 8px, #171a1d 8px 16px);
+    border: 1px solid #0a0c0e; opacity: .8;
+  }
   .brand { min-width: 216px; }
   .brand h1 {
     font-family: var(--stencilf); font-weight: 400;
@@ -306,10 +316,54 @@
 
   /* ---- command column ---- */
   .command {
-    width: 224px; margin: 0 6px; padding: 18px 10px 6px;
+    width: 252px; margin: 0 6px; padding: 18px 10px 6px;
     border-left: 1px solid var(--line); border-right: 1px solid var(--line);
     background: linear-gradient(180deg, rgba(13,20,27,.28), rgba(13,20,27,.1));
     display: flex; flex-direction: column; gap: 8px; align-items: center;
+  }
+  .fx2col { display: grid; grid-template-columns: auto auto; gap: 7px; justify-content: center; }
+  .fx2col .module { padding: 5px 7px 6px; }
+
+  /* ---- engine room popup ---- */
+  .hatchveil {
+    position: fixed; inset: 0; z-index: 40; display: none;
+    background: rgba(5,9,13,.72); align-items: center; justify-content: center;
+  }
+  .hatchveil.open { display: flex; }
+  .hatch {
+    position: relative; width: min(520px, 92vw);
+    background:
+      radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.06), transparent 55%),
+      linear-gradient(160deg, var(--hull-hi) 0%, var(--hull) 45%, var(--hull-lo) 100%);
+    border: 2px solid #0a121a; border-radius: 8px;
+    box-shadow: 0 40px 90px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.06);
+    padding: 16px 18px 16px;
+  }
+  .hatch .cmd-t { text-align: center; }
+  .hatch-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+  }
+  .hatch-head .t {
+    font-family: var(--stencilf); font-size: 15px; letter-spacing: .3em; color: var(--stencil);
+  }
+  .hatch-grid { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .hatch .bolt {
+    position: absolute; width: 12px; height: 12px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 28%, #c9d1d6, #6a747c 55%, #2e353b 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,.7);
+  }
+  .hatch .bolt.tl { top: 8px; left: 8px; } .hatch .bolt.tr { top: 8px; right: 8px; }
+  .hatch .bolt.bl { bottom: 8px; left: 8px; } .hatch .bolt.br { bottom: 8px; right: 8px; }
+  .modulebay {
+    width: 100%; margin-top: 4px; padding: 10px; border: 1px dashed var(--line);
+    border-radius: 6px; text-align: center; color: var(--dim);
+    font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+  }
+  .modulebay .slots { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+  .modulebay .slot {
+    width: 74px; height: 40px; border: 1px solid var(--line); border-radius: 4px;
+    background: rgba(13,20,27,.5); box-shadow: inset 0 2px 6px rgba(0,0,0,.55);
+    display: grid; place-items: center; font-size: 8px; color: var(--steel-dk);
   }
   .cmd-t {
     font-family: var(--stencilf); font-size: 9.5px; letter-spacing: .3em; color: var(--dim);
@@ -379,23 +433,10 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
         <h1>CLONE<br><span>WARS</span></h1>
         <div class="tag">16 oscillators · almost, but not quite, the same machine</div>
       </div>
-      <div class="hdr-right">
-        <div class="fxbank" id="fxbank"></div>
-        <div class="module">
-          <div class="t">SEED · MORPH</div>
-          <div class="seedrow">
-            <div class="led7" id="seedA" title="Seed A — click to reroll">042<small>A</small></div>
-            <div class="knob k34" data-cmd="MORPH" data-val="0" tabindex="0">
-              <div class="cap"><div class="ptr"></div></div><div class="lbl">morph</div>
-            </div>
-            <div class="led7" id="seedB" title="Seed B — click to reroll">137<small>B</small></div>
-          </div>
-          <div class="hbtnrow">
-            <button class="btn" id="patches"><span class="lamp"></span>PATCHES</button>
-            <button class="btn" id="randomBtn"><span class="lamp"></span>RANDOM</button>
-            <button class="btn on" id="hq" title="Engine quality — offline render is always HQ"><span class="lamp"></span>HQ</button>
-          </div>
-        </div>
+      <div class="hullmark">
+        <span class="big">DRONE DIVISION</span><br>
+        BROKILD HEAVY INDUSTRIES · SERIAL CW-16<br>
+        <span class="haz"></span>
       </div>
     </header>
 
@@ -410,6 +451,21 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
       <div class="command">
         <div class="readout" id="readout">CLONE WARS · READY</div>
 
+        <div class="cmd-t">SEED · MORPH</div>
+        <div class="seedrow">
+          <div class="led7" id="seedA" title="Seed A — click to reroll">042<small>A</small></div>
+          <div class="knob k34" data-cmd="MORPH" data-val="0" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">morph</div>
+          </div>
+          <div class="led7" id="seedB" title="Seed B — click to reroll">137<small>B</small></div>
+        </div>
+        <div class="hbtnrow">
+          <button class="btn" id="patches"><span class="lamp"></span>PATCHES</button>
+          <button class="btn" id="randomBtn"><span class="lamp"></span>RANDOM</button>
+          <button class="btn on" id="hq" title="Engine quality — offline render is always HQ"><span class="lamp"></span>HQ</button>
+        </div>
+
+        <div class="divider"></div>
         <div class="cmd-t">COMMAND</div>
         <div class="cmdrow">
           <div class="knob k44" data-cmd="TOLERANCE" data-val="0.35" tabindex="0"
@@ -434,31 +490,11 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
           </div>
         </div>
         <div class="cmdrow">
-          <div class="knob k28" data-cmd="BASE A" data-val="0.5" tabindex="0" title="Army A base pitch">
-            <div class="cap"><div class="ptr"></div></div><div class="lbl">base a</div>
-          </div>
-          <div class="knob k28" data-cmd="GLIDE" data-val="0.2" tabindex="0" title="Portamento between held notes">
-            <div class="cap"><div class="ptr"></div></div><div class="lbl">glide</div>
-          </div>
-          <div class="knob k28" data-cmd="SPREAD" data-val="0.3" tabindex="0" title="Fans all 16 microtunes symmetrically">
-            <div class="cap"><div class="ptr"></div></div><div class="lbl">spread</div>
-          </div>
-          <div class="knob k28" data-cmd="BASE B" data-val="0.5" tabindex="0" title="Army B base pitch">
-            <div class="cap"><div class="ptr"></div></div><div class="lbl">base b</div>
-          </div>
-        </div>
-        <div class="cmdrow">
-          <div class="knob k28" data-cmd="KBD>FLT A" data-val="0.5" tabindex="0" title="Filter key-tracking, Army A">
-            <div class="cap"><div class="ptr"></div></div><div class="lbl">kbd a</div>
-          </div>
           <div class="step" data-cmd="TEMPER A" tabindex="0" title="Filter circuit, Army A">
             <span class="win">GROWL</span><div class="lbl">temper a</div>
           </div>
           <div class="step" data-cmd="TEMPER B" tabindex="0" title="Filter circuit, Army B">
             <span class="win">LADDER</span><div class="lbl">temper b</div>
-          </div>
-          <div class="knob k28" data-cmd="KBD>FLT B" data-val="0.5" tabindex="0" title="Filter key-tracking, Army B">
-            <div class="cap"><div class="ptr"></div></div><div class="lbl">kbd b</div>
           </div>
         </div>
         <div class="cmdrow">
@@ -470,10 +506,6 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
           <span class="grp"><span class="led on" data-note="1" tabindex="0"></span>N1</span>
           <span class="grp"><span class="led on" data-note="2" tabindex="0"></span>N2</span>
           <span class="grp"><span class="led" data-note="3" tabindex="0"></span>N3</span>
-        </div>
-        <div class="cmdrow">
-          <button class="btn" id="scatter" title="Re-randomise all 16 LFO phases"><span class="lamp"></span>SCATTER</button>
-          <button class="btn" id="lfosync" title="LFOs free-run (phases from seed) or sync to host clock"><span class="lamp"></span>LFO SYNC</button>
         </div>
 
         <div class="warband">
@@ -488,20 +520,16 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
           <div class="knob k34" data-cmd="MASTER VOL" data-val="0.75" tabindex="0">
             <div class="cap"><div class="ptr"></div></div><div class="lbl">master</div>
           </div>
-          <div class="knob k28" data-cmd="WIDTH" data-val="0.6" tabindex="0" title="Master stereo width">
-            <div class="cap"><div class="ptr"></div></div><div class="lbl">width</div>
-          </div>
-          <div class="knob k28" data-cmd="BUS SAT" data-val="0.25" tabindex="0" title="Analog bus soft-clip with auto-gain">
-            <div class="cap"><div class="ptr"></div></div><div class="lbl">bus sat</div>
-          </div>
-        </div>
-        <div class="cmdrow">
-          <button class="btn on" title="Footages 16' and below pulled to centre"><span class="lamp"></span>BASS MONO</button>
-          <button class="btn" title="Gentle infrasonic high-pass on the master"><span class="lamp"></span>HPF</button>
         </div>
 
         <div class="divider"></div>
-        <div class="cmd-t">EXPANSION</div>
+        <div class="cmd-t">BACK PANEL</div>
+        <div class="fx2col" id="fxbank"></div>
+
+        <div class="divider"></div>
+        <div class="cmdrow">
+          <button class="btn" id="engineBtn" title="Under-the-hood controls"><span class="lamp"></span>ENGINE ROOM</button>
+        </div>
         <div class="expan">
           <button class="btn blank">·</button><button class="btn blank">·</button>
           <button class="btn blank">·</button><button class="btn blank">·</button>
@@ -523,6 +551,63 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
   </div>
   <div class="rail r"></div>
 </div></div>
+
+<div class="hatchveil" id="hatchveil">
+  <div class="hatch" role="dialog" aria-label="Engine room">
+    <div class="bolt tl"></div><div class="bolt tr"></div>
+    <div class="bolt bl"></div><div class="bolt br"></div>
+    <div class="hatch-head">
+      <div class="t">ENGINE ROOM</div>
+      <button class="btn" id="hatchClose"><span class="lamp"></span>CLOSE</button>
+    </div>
+    <div class="hatch-grid">
+      <div class="cmd-t">PITCH</div>
+      <div class="cmdrow">
+        <div class="knob k28" data-cmd="BASE A" data-val="0.5" tabindex="0" title="Army A base pitch">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">base a</div>
+        </div>
+        <div class="knob k28" data-cmd="GLIDE" data-val="0.2" tabindex="0" title="Portamento between held notes">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">glide</div>
+        </div>
+        <div class="knob k28" data-cmd="SPREAD" data-val="0.3" tabindex="0" title="Fans all 16 microtunes symmetrically">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">spread</div>
+        </div>
+        <div class="knob k28" data-cmd="BASE B" data-val="0.5" tabindex="0" title="Army B base pitch">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">base b</div>
+        </div>
+      </div>
+      <div class="cmd-t">FILTER · LFO</div>
+      <div class="cmdrow">
+        <div class="knob k28" data-cmd="KBD>FLT A" data-val="0.5" tabindex="0" title="Filter key-tracking, Army A">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">kbd a</div>
+        </div>
+        <div class="knob k28" data-cmd="KBD>FLT B" data-val="0.5" tabindex="0" title="Filter key-tracking, Army B">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">kbd b</div>
+        </div>
+        <button class="btn" id="scatter" title="Re-randomise all 16 LFO phases"><span class="lamp"></span>SCATTER</button>
+        <button class="btn" id="lfosync" title="LFOs free-run (phases from seed) or sync to host clock"><span class="lamp"></span>LFO SYNC</button>
+      </div>
+      <div class="cmd-t">OUTPUT BUS</div>
+      <div class="cmdrow">
+        <div class="knob k28" data-cmd="WIDTH" data-val="0.6" tabindex="0" title="Master stereo width">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">width</div>
+        </div>
+        <div class="knob k28" data-cmd="BUS SAT" data-val="0.25" tabindex="0" title="Analog bus soft-clip with auto-gain">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">bus sat</div>
+        </div>
+        <button class="btn on" title="Footages 16' and below pulled to centre"><span class="lamp"></span>BASS MONO</button>
+        <button class="btn" title="Gentle infrasonic high-pass on the master"><span class="lamp"></span>HPF</button>
+      </div>
+      <div class="modulebay">
+        MODULE BAY · FUTURE PLUG-IN MODULES DOCK HERE
+        <div class="slots">
+          <div class="slot">EMPTY</div><div class="slot">EMPTY</div>
+          <div class="slot">EMPTY</div><div class="slot">EMPTY</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <p class="hint">
   <kbd>drag</kbd> knobs &amp; faders · <kbd>click</kbd> WAVE / FOOTAGE / LFO / TEMPER selectors to cycle ·
@@ -645,8 +730,8 @@ for (const railId of ["legend", "legendR"]) {
 /* FX bank */
 const FX = [
   { t: "SPRING", knobs: ["DWELL", "MIX"], btn: "FREEZE", btnTitle: "Infinite spring — drone sustain" },
-  { t: "TAPE",   knobs: ["TIME", "FDBK", "MIX"] },
   { t: "BBD",    knobs: ["RATE", "DEPTH"] },
+  { t: "TAPE",   knobs: ["TIME", "FDBK", "MIX"] },
   { t: "DRIVE",  knobs: ["AMT"] },
 ];
 const fxbank = document.getElementById("fxbank");
@@ -661,8 +746,8 @@ for (const fx of FX) {
   if (fx.btn) {
     const b = el("button", "btn", '<span class="lamp"></span>' + fx.btn);
     if (fx.btnTitle) b.title = fx.btnTitle;
-    b.style.marginLeft = "2px";
-    row.appendChild(b);
+    b.style.marginTop = "5px";
+    m.appendChild(b);
   }
   fxbank.appendChild(m);
 }
@@ -880,6 +965,16 @@ document.getElementById("hq").addEventListener("click", function () {
   this.innerHTML = '<span class="lamp"></span>' + (this.classList.contains("on") ? "HQ" : "LOW");
   say("ENGINE · " + (this.classList.contains("on") ? "HQ (4× OVERSAMPLED)" : "LOW (ECO) · RENDER STILL HQ"));
 });
+
+/* engine room hatch */
+const veil = document.getElementById("hatchveil");
+document.getElementById("engineBtn").addEventListener("click", () => {
+  veil.classList.add("open");
+  say("ENGINE ROOM · OPEN");
+});
+document.getElementById("hatchClose").addEventListener("click", () => veil.classList.remove("open"));
+veil.addEventListener("pointerdown", e => { if (e.target === veil) veil.classList.remove("open"); });
+window.addEventListener("keydown", e => { if (e.key === "Escape") veil.classList.remove("open"); });
 
 /* WAR crossfader */
 const war = document.getElementById("war");
