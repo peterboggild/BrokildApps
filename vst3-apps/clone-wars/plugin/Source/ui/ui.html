@@ -765,7 +765,7 @@
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.10 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.11 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -789,6 +789,8 @@
       <div class="cmd-t" style="margin-top:8px">AMP ENVELOPE</div>
       <canvas id="envAmpCv" class="envcv" width="460" height="120"></canvas>
       <div class="cmdrow" style="margin-top:10px">
+        <button class="btn" id="envLockA" title="Latch: edits in this bay strike ALL of Army A at once — no undo"><span class="lamp"></span>LOCK ARMY A</button>
+        <button class="btn" id="envLockB" title="Latch: edits in this bay strike ALL of Army B at once — no undo"><span class="lamp"></span>LOCK ARMY B</button>
         <button class="btn" id="envLoopBtn" title="Envelopes self-retrigger — the strip breathes"><span class="lamp"></span>LOOP</button>
         <div class="knob k34" data-cmd="ENV&gt;FILT" data-val="0.45" tabindex="0" title="Global: how much of the cutoff headroom ABOVE the knob the filter envelope opens">
           <div class="cap"><div class="ptr"></div></div><div class="lbl">env&gt;filt · global</div>
@@ -931,7 +933,7 @@
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.10 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.11 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -1287,7 +1289,9 @@ document.addEventListener("click", e => {
       return;
     }
     if (e.shiftKey && btn.dataset.row) { toggleLock(btn); return; }
-    if (["patches", "randomBtn", "scatter", "hq"].includes(btn.id)) return; // handled below
+    if (["patches", "randomBtn", "scatter", "hq",
+         // bay buttons manage their own lamps - the generic toggle would undo them
+         "envLockA", "envLockB", "envLoopBtn", "envPrev", "envNext", "envClose"].includes(btn.id)) return;
     if (btn.dataset.row && lockSet(btn.dataset.row).has(btn)) {   // locked buttons move as one
       const on = !btn.classList.contains("on");
       for (const t of lockSet(btn.dataset.row)) t.classList.toggle("on", on);
@@ -1409,7 +1413,7 @@ document.getElementById("hq").addEventListener("click", function () {
 });
 
 /* group color coding */
-/* WAR PAINT control removed 260825.10 (Peter: keep the function, lose the
+/* WAR PAINT control removed 260825.11 (Peter: keep the function, lose the
    button while he decides). The body.colorized CSS legend machinery stays;
    toggling the class by hand still works. */
 
@@ -1445,6 +1449,15 @@ function envChanged(ch, fields) {
   document.dispatchEvent(new CustomEvent("cw-env", { detail: { ch: ch, fields: fields } }));
 }
 let envBayCh = 0;
+let envLockA = false, envLockB = false;
+// While a lock is lit, a bay edit strikes the shown clone plus every clone of
+// the latched army - the lamp is the warning that there is no undo.
+function envTargets(ch) {
+  const t = new Set([ch]);
+  if (envLockA) for (let c = 1; c <= 8; c++) t.add(c);
+  if (envLockB) for (let c = 9; c <= 16; c++) t.add(c);
+  return [...t];
+}
 const envveil = document.getElementById("envveil");
 function paintEnvBay() {
   const mini = envMiniFor(envBayCh);
@@ -1452,6 +1465,8 @@ function paintEnvBay() {
   document.getElementById("envTitle").textContent =
     "CLONE " + String(envBayCh).padStart(2, "0") + " · ARMY " + (envBayCh <= 8 ? "A" : "B");
   document.getElementById("envLoopBtn").classList.toggle("on", mini.dataset.loop > 0.5);
+  document.getElementById("envLockA").classList.toggle("on", envLockA);
+  document.getElementById("envLockB").classList.toggle("on", envLockB);
   for (const [cvId, set, col] of [["envFltCv", ENVF, "#d8b24a"], ["envAmpCv", ENVA, "#9fb4c6"]]) {
     const cv = document.getElementById(cvId), ctx = cv.getContext("2d");
     ctx.clearRect(0, 0, cv.width, cv.height);
@@ -1468,12 +1483,27 @@ document.getElementById("envClose").addEventListener("click", () => { envveil.cl
 envveil.addEventListener("pointerdown", e => { if (e.target === envveil) { envveil.classList.remove("open"); envBayCh = 0; } });
 document.getElementById("envPrev").addEventListener("click", () => { envBayCh = envBayCh <= 1 ? 16 : envBayCh - 1; paintEnvBay(); });
 document.getElementById("envNext").addEventListener("click", () => { envBayCh = envBayCh >= 16 ? 1 : envBayCh + 1; paintEnvBay(); });
+document.getElementById("envLockA").addEventListener("click", function () {
+  envLockA = !envLockA;
+  this.classList.toggle("on", envLockA);
+  say("ENV LOCK · ARMY A " + (envLockA ? "ARMED — EDITS STRIKE ALL EIGHT" : "RELEASED"));
+});
+document.getElementById("envLockB").addEventListener("click", function () {
+  envLockB = !envLockB;
+  this.classList.toggle("on", envLockB);
+  say("ENV LOCK · ARMY B " + (envLockB ? "ARMED — EDITS STRIKE ALL EIGHT" : "RELEASED"));
+});
 document.getElementById("envLoopBtn").addEventListener("click", function () {
   const mini = envMiniFor(envBayCh);
   if (!mini) return;
-  mini.dataset.loop = mini.dataset.loop > 0.5 ? 0 : 1;
-  this.classList.toggle("on", mini.dataset.loop > 0.5);
-  envChanged(envBayCh, { loop: parseFloat(mini.dataset.loop) });
+  const nv = mini.dataset.loop > 0.5 ? 0 : 1;
+  this.classList.toggle("on", nv > 0.5);
+  for (const t of envTargets(envBayCh)) {
+    const tm = envMiniFor(t);
+    if (!tm) continue;
+    tm.dataset.loop = nv;
+    envChanged(t, { loop: nv });
+  }
   say("CLONE " + String(envBayCh).padStart(2, "0") + " · ENV LOOP " + (mini.dataset.loop > 0.5 ? "ON" : "OFF"));
 });
 // dragging inside the bay: A / D / S / R by nearest quarter, S vertical
@@ -1502,9 +1532,13 @@ function bayDragWire(cvId, set) {
     else if (seg === 2) { field = set[2]; v = fy; }                 // sustain level
     else                { field = set[3]; v = (1 - fx) * 4; }       // release time
     v = Math.min(1, Math.max(0, v));
-    mini.dataset[field] = v;
     const fields = {}; fields[field] = v;
-    envChanged(envBayCh, fields);
+    for (const t of envTargets(envBayCh)) {
+      const tm = envMiniFor(t);
+      if (!tm) continue;
+      tm.dataset[field] = v;
+      envChanged(t, fields);
+    }
   }
 }
 bayDragWire("envFltCv", ENVF);
