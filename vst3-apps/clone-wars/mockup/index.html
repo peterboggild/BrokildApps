@@ -214,6 +214,14 @@
     font-size: 8.5px; letter-spacing: .13em; color: var(--dim); text-transform: uppercase;
     border-right: 1px solid var(--line); padding-right: 6px;
   }
+  .legend.right .row {
+    flex-direction: row-reverse; justify-content: flex-end;
+    border-right: none; border-left: 1px solid var(--line);
+    padding-right: 0; padding-left: 6px;
+  }
+  /* faint row guides across the armies (not the command column) */
+  .army .cell { border-bottom: 1px solid rgba(227,233,228,.075); }
+  .army .cell[data-row="fader"] { border-bottom: none; }
   .tool {
     width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line);
     background: rgba(13,20,27,.55); color: var(--dim); font-size: 8.5px; line-height: 12px;
@@ -504,6 +512,8 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
         <div class="army-title">ARMY B · 09–16</div>
         <div class="strips" id="stripsB"></div>
       </div>
+
+      <div class="legend right" id="legendR"></div>
     </div>
 
     <footer class="plate">
@@ -619,15 +629,17 @@ const stripsB = document.getElementById("stripsB");
 for (let ch = 1; ch <= 8; ch++) stripsA.appendChild(buildStrip(ch));
 for (let ch = 9; ch <= 16; ch++) stripsB.appendChild(buildStrip(ch));
 
-/* legend rail */
-const legend = document.getElementById("legend");
-for (const row of ROWS) {
-  const r = el("div", "row");
-  r.innerHTML =
-    (row.fan ? '<span class="tool" title="Fan a ramp across clones 1→16" data-fan="' + row.id + '">⇗</span>' : "") +
-    (row.dice ? '<span class="tool" title="Roll this row" data-dice="' + row.id + '">⚄</span>' : "") +
-    "<span>" + row.label + "</span>";
-  legend.appendChild(r);
+/* legend rails, left and right (both carry working dice/fan tools) */
+for (const railId of ["legend", "legendR"]) {
+  const rail = document.getElementById(railId);
+  for (const row of ROWS) {
+    const r = el("div", "row");
+    r.innerHTML =
+      (row.fan ? '<span class="tool" title="Fan a ramp across clones 1→16" data-fan="' + row.id + '">⇗</span>' : "") +
+      (row.dice ? '<span class="tool" title="Roll this row" data-dice="' + row.id + '">⚄</span>' : "") +
+      "<span>" + row.label + "</span>";
+    rail.appendChild(r);
+  }
 }
 
 /* FX bank */
