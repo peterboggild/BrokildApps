@@ -571,6 +571,26 @@
   /* rail lock tools light when their half-row is locked */
   .tool[data-lockrow].lit { color: #d8b24a; text-shadow: 0 0 6px rgba(216,178,74,.8); }
   .tool[data-lockrow].half { color: #a58a45; text-shadow: 0 0 4px rgba(216,178,74,.4); }
+  .knob.disarmed { opacity: .35; filter: grayscale(1); pointer-events: none; }
+  .plist {
+    max-height: 320px; overflow-y: auto; margin-top: 8px;
+    border: 1px solid #0a1118; border-radius: 5px; background: rgba(6,10,14,.35);
+  }
+  .prow {
+    display: flex; gap: 10px; padding: 4px 10px; cursor: pointer;
+    font-family: var(--stencilf); font-size: 10px; letter-spacing: .18em;
+    color: rgba(227,233,228,.8); border-bottom: 1px solid rgba(10,17,24,.6);
+  }
+  .prow:hover { background: rgba(216,178,74,.1); }
+  .prow.empty { color: rgba(227,233,228,.28); }
+  .prow.sel { outline: 1.5px solid #d8b24a; outline-offset: -1.5px; }
+  .prow .pn { opacity: .55; min-width: 3ch; }
+  #archTabs .btn.on .lamp { background: #d8b24a; box-shadow: 0 0 6px #d8b24a; }
+  #slotName {
+    flex: 1; background: #101821; border: 1px solid #0a1118; border-radius: 4px;
+    color: #e3e9e4; font-family: var(--stencilf); font-size: 11px;
+    letter-spacing: .2em; padding: 5px 8px; outline: none;
+  }
   .envmini {
     width: 58px; height: 42px; margin: 0 auto; cursor: pointer;
     border: 1px solid #0a1118; border-radius: 4px; background: #101821;
@@ -630,6 +650,7 @@
           <div class="knob k34" data-cmd="MORPH" data-val="0" tabindex="0">
             <div class="cap"><div class="ptr"></div></div><div class="lbl">morph</div>
           </div>
+          <button class="btn" id="morphOn" title="MORPH disarms itself the moment you edit the console by hand, so a long-crafted patch cannot be folded back by an accidental brush. This re-arms it."><span class="lamp"></span>ON</button>
           <div class="led7" id="seedB" title="Seed B — click to reroll">137<small>B</small></div>
         </div>
         <div class="hbtnrow">
@@ -765,12 +786,34 @@
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.12 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.13 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
 </div></div>
 
+<div class="hatchveil" id="patchveil">
+  <div class="hatch" style="width:min(560px,94vw)" role="dialog" aria-label="War archive">
+    <div class="bolt tl"></div><div class="bolt tr"></div>
+    <div class="bolt bl"></div><div class="bolt br"></div>
+    <div class="hatch-head">
+      <div class="t">WAR ARCHIVE</div>
+      <div>
+        <button class="btn" id="archToA" title="Loads land in seed A"><span class="lamp"></span>&rarr; A</button>
+        <button class="btn" id="archToB" title="Loads land in seed B (the morph target)"><span class="lamp"></span>&rarr; B</button>
+        <button class="btn" id="patchClose"><span class="lamp"></span>CLOSE</button>
+      </div>
+    </div>
+    <div class="hatch-grid">
+      <div class="cmdrow" id="archTabs" style="flex-wrap:wrap"></div>
+      <div class="plist" id="plist"></div>
+      <div class="cmdrow" id="archSaveRow" style="display:none;margin-top:8px">
+        <input id="slotName" maxlength="24" placeholder="patch name" spellcheck="false">
+        <button class="btn" id="slotSave" title="Save the console as it sounds NOW into the selected slot"><span class="lamp"></span>SAVE</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="hatchveil" id="envveil">
   <div class="hatch" style="width:min(520px,94vw)" role="dialog" aria-label="Envelope bay">
     <div class="bolt tl"></div><div class="bolt tr"></div>
@@ -933,7 +976,7 @@
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.12 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.13 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -1291,7 +1334,8 @@ document.addEventListener("click", e => {
     if (e.shiftKey && btn.dataset.row) { toggleLock(btn); return; }
     if (["patches", "randomBtn", "scatter", "hq",
          // bay buttons manage their own lamps - the generic toggle would undo them
-         "envLockA", "envLockB", "envLoopBtn", "envPrev", "envNext", "envClose"].includes(btn.id)) return;
+         "envLockA", "envLockB", "envLoopBtn", "envPrev", "envNext", "envClose",
+         "archToA", "archToB", "patchClose", "slotSave", "morphOn"].includes(btn.id)) return;
     if (btn.dataset.row && lockSet(btn.dataset.row).has(btn)) {   // locked buttons move as one
       const on = !btn.classList.contains("on");
       for (const t of lockSet(btn.dataset.row)) t.classList.toggle("on", on);
@@ -1393,13 +1437,17 @@ function newSeed(elem, tag) {
   if (typeof drawPatina === "function") drawPatina(); // preset-keyed grime follows the seed
   return n;
 }
-seedA.addEventListener("click", () => { say("SEED A · " + newSeed(seedA, "A")); rollAll(); });
-seedB.addEventListener("click", () => { say("SEED B · " + newSeed(seedB, "B") + " · MORPH TARGET"); });
+seedA.addEventListener("click", () => { armMorph(true); say("SEED A · " + newSeed(seedA, "A")); rollAll(); });
+seedB.addEventListener("click", () => { armMorph(true); say("SEED B · " + newSeed(seedB, "B") + " · MORPH TARGET"); });
 document.getElementById("randomBtn").addEventListener("click", () => {
+  armMorph(true);
   say("RANDOM · SEED " + newSeed(seedA, "A")); rollAll();
 });
-document.getElementById("patches").addEventListener("click", () =>
-  say("PATCHES · 000–199 BY CATEGORY (MENU IN PLUGIN)"));
+document.getElementById("patches").addEventListener("click", () => {
+  renderArchive();
+  patchveil.classList.add("open");
+  say("WAR ARCHIVE · 000–099 FACTORY · 100–199 YOURS");
+});
 document.getElementById("scatter").addEventListener("click", () =>
   say("SCATTER · 16 LFO PHASES RE-THROWN"));
 document.getElementById("hq").addEventListener("click", function () {
@@ -1413,9 +1461,130 @@ document.getElementById("hq").addEventListener("click", function () {
 });
 
 /* group color coding */
-/* WAR PAINT control removed 260825.12 (Peter: keep the function, lose the
+/* WAR PAINT control removed 260825.13 (Peter: keep the function, lose the
    button while he decides). The body.colorized CSS legend machinery stays;
    toggling the class by hand still works. */
+
+
+/* ---------------- the WAR ARCHIVE: 100 factory patches ---------------- */
+const ARCHIVE_BANDS = ["TENSION", "CRISIS", "SKIRMISH", "BATTLE", "MAYHEM"];
+const ARCHIVE_NAMES = [
+  // TENSION 000-019 - musical, easy, mild
+  "First Light","Distant Column","Border Hum","Quiet Muster","Long Watch",
+  "Signal Fires","Cold Parade","Slow Perimeter","Winter Garrison","Truce Line",
+  "Grey Dawn","Supply Road","Low Fog","Sentry Glass","Held Breath",
+  "Map Room","First Snow Drill","Radio Silence","Powder Dry","Standing Order",
+  // CRISIS 020-039
+  "Broken Treaty","War Council","Drums Below","Mobilise","Crossing Point",
+  "Sealed Orders","Alarm Wire","Second Warning","Iron Rations","Blackout Drill",
+  "Forced March","The Ultimatum","Split Command","Panic Cable","Escalation",
+  "Armoury Run","Midnight Vote","Fault Line","Tinderbox","Eve Of War",
+  // SKIRMISH 040-059
+  "First Contact","Probing Fire","Flank Test","Tracer Arc","Patrol Clash",
+  "Hedgerow Fight","Sniper Weather","Ambush Creek","Raiding Party","Hot Wire",
+  "Ridge Dispute","Salvo Practice","Border Raid","Feint Left","Running Fight",
+  "Scrap Metal","Crossfire Lane","Powder Flash","Skirmish Line","Falling Back",
+  // BATTLE 060-079
+  "Full Advance","Rolling Barrage","Iron Weather","Siege Engine","The Cauldron",
+  "Armoured Wedge","Danger Close","Broken Square","Cannon Fever","Overrun",
+  "War Machine","Bayonet Dawn","Shock Column","The Salient","Hammer Fall",
+  "Burning Line","Counterstrike","No Quarter","Steel Rain","Last Redoubt",
+  // MAYHEM 080-099 - all out
+  "Total War","Scorched Earth","Doomsday Clock","The Meat Grinder","Chaos Reigns",
+  "Dead Channel","Howling Waste","Broken Sky","Feedback War","Annihilator",
+  "Mad Bombardier","Scrap Tornado","The Shredder","Poison Cloud","Endless Barrage",
+  "Colony Collapse","Static Massacre","Terminal Velocity","All Fall Down","Silence After"
+];
+
+let archTab = 0, archToB = false, archSel = null;
+const userSlots = {};                 // n -> name (plugin fills over the bridge)
+const patchveil = document.getElementById("patchveil");
+function renderArchTabs() {
+  const holder = document.getElementById("archTabs");
+  holder.innerHTML = "";
+  ARCHIVE_BANDS.concat(["USER"]).forEach((nm, i) => {
+    const b = el("button", "btn" + (i === archTab ? " on" : ""), '<span class="lamp"></span>' + nm);
+    b.addEventListener("click", () => { archTab = i; archSel = null; renderArchive(); });
+    holder.appendChild(b);
+  });
+  document.getElementById("archToA").classList.toggle("on", !archToB);
+  document.getElementById("archToB").classList.toggle("on", archToB);
+}
+function renderArchive() {
+  renderArchTabs();
+  const list = document.getElementById("plist");
+  list.innerHTML = "";
+  document.getElementById("archSaveRow").style.display = archTab === 5 ? "flex" : "none";
+  if (archTab < 5) {
+    for (let i = 0; i < 20; i++) {
+      const n = archTab * 20 + i;
+      const row = el("div", "prow", '<span class="pn">' + String(n).padStart(3, "0") + '</span><span>' + ARCHIVE_NAMES[n] + "</span>");
+      row.addEventListener("click", () => {
+        armMorph(true);
+        document.dispatchEvent(new CustomEvent("cw-patch", { detail: { n: n, b: archToB } }));
+        say((archToB ? "SEED B · " : "SEED A · ") + String(n).padStart(3, "0") + " · " + ARCHIVE_NAMES[n].toUpperCase());
+      });
+      list.appendChild(row);
+    }
+  } else {
+    for (let n = 100; n <= 199; n++) {
+      const named = userSlots[n];
+      const row = el("div", "prow" + (named ? "" : " empty") + (archSel === n ? " sel" : ""),
+        '<span class="pn">' + n + '</span><span>' + (named || "EMPTY") + "</span>");
+      row.addEventListener("click", () => {
+        archSel = n; renderArchive();
+        if (named) {
+          armMorph(true);
+          document.dispatchEvent(new CustomEvent("cw-patch", { detail: { n: n, b: archToB } }));
+          say((archToB ? "SEED B · " : "SEED A · ") + n + " · " + named.toUpperCase());
+        } else say("SLOT " + n + " · EMPTY · NAME IT AND SAVE");
+      });
+      list.appendChild(row);
+    }
+  }
+}
+document.getElementById("archToA").addEventListener("click", () => { archToB = false; renderArchTabs(); });
+document.getElementById("archToB").addEventListener("click", () => { archToB = true; renderArchTabs(); });
+document.getElementById("slotSave").addEventListener("click", () => {
+  const n = archSel != null ? archSel
+          : (() => { for (let i = 100; i <= 199; i++) if (!userSlots[i]) return i; return null; })();
+  if (n == null) { say("ARCHIVE FULL · 100 SLOTS"); return; }
+  const name = document.getElementById("slotName").value.trim() || "slot " + n;
+  document.dispatchEvent(new CustomEvent("cw-saveslot", { detail: { n: n, name: name } }));
+  say("SAVING · " + n + " · " + name.toUpperCase());
+});
+document.getElementById("patchClose").addEventListener("click", () => patchveil.classList.remove("open"));
+patchveil.addEventListener("pointerdown", e => { if (e.target === patchveil) patchveil.classList.remove("open"); });
+
+/* ---- MORPH safety: manual edits disarm it, MORPH ON re-arms ---- */
+window.cwMorphArmed = true;
+const morphOnBtn = document.getElementById("morphOn");
+const morphKnob = document.querySelector('.knob[data-cmd="MORPH"]');
+function armMorph(silent) {
+  window.cwMorphArmed = true;
+  morphKnob.classList.remove("disarmed");
+  morphOnBtn.classList.add("on");
+  if (!silent) say("MORPH ARMED — THE NEXT MOVE FOLDS HAND EDITS INTO THE BLEND");
+}
+function disarmMorph() {
+  if (!window.cwMorphArmed) return;
+  window.cwMorphArmed = false;
+  morphKnob.classList.add("disarmed");
+  morphOnBtn.classList.remove("on");
+  say("MORPH DISARMED — CONSOLE EDITED BY HAND · PRESS ON TO RE-ARM");
+}
+morphOnBtn.addEventListener("click", () => { if (!window.cwMorphArmed) armMorph(false); });
+armMorph(true);
+// any hand edit on the console disarms
+window.addEventListener("pointermove", () => {
+  if (drag && drag.elem !== morphKnob && window.cwMorphArmed) disarmMorph();
+});
+document.addEventListener("click", e => {
+  if (e.target.closest("#patchveil,#morphOn")) return;
+  if (e.target.closest('.step[data-row],.step[data-cmd],.btn[data-row],.btn[data-gparam],.nbtn,[data-dice],[data-fan],[data-lockrow]'))
+    disarmMorph();
+});
+document.addEventListener("cw-env", () => disarmMorph());
 
 /* ---------------- envelope bay ---------------- */
 const ENVF = ["fatk", "fdec", "fsus", "frel"];

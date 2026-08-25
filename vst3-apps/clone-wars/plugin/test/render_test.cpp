@@ -114,7 +114,7 @@ int main (int argc, char** argv)
     }
 
     // ---- scenario 2: all five seed categories -----------------------------
-    for (uint32_t seed : { 5u, 6u, 7u, 8u, 9u })
+    for (uint32_t seed : { 5u, 25u, 45u, 65u, 85u })   // one per band
     {
         cw::Engine e;
         cw::Patch p;

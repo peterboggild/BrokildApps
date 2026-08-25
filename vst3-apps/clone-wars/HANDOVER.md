@@ -128,6 +128,24 @@ width, master) stays in circuit.
 explicitly. The MODULE BAY idea folds into this: the rack shows an
 EXPANSION SLOTS row where new modules land.
 
+## 260825.13 - the WAR ARCHIVE
+
+generatePatch is now a five-band ESCALATION generator: 0-19 TENSION (musical,
+mild), 20-39 CRISIS, 40-59 SKIRMISH, 60-79 BATTLE, 80-99 MAYHEM (dissonant,
+screaming). Seeds 100-199 are USER SLOTS - JSON files by param id in
+"Clone Wars User Patches" beside the .vst3 (APPDATA fallback; write-probe,
+never hasWriteAccess). resolvePatch() feeds seed loads, MORPH and boot from
+one place; loading an empty slot is refused. The old abyss/swarm/engines/
+cathedral/rust families are gone - every seed sounds different from .12.
+The 100 factory NAMES live in the panel JS (ARCHIVE_NAMES), not in C++.
+PATCHES opens the WAR ARCHIVE hatch: five band tabs + USER, ->A / ->B load
+targets, name field + SAVE. MORPH disarms on any hand edit (grey knob, ON
+button re-arms, loads re-arm) and the whole console now repaints ~15 Hz
+during a morph so what you see is always the state. Envelope attacks and
+releases reach 20 s. NOTE: audit.cpp / render_test.cpp were updated for the
+new fields - a stale test exe prints ALL PASS from before the change, so
+delete the exe if the build errors and the run still passes.
+
 ## Release pipeline (how a build reaches the download button)
 
 - Any push touching `plugin/**` runs CI (`.github/workflows/clone-wars.yml`):

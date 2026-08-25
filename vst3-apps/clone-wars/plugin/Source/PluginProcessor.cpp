@@ -217,6 +217,94 @@ void CloneWarsProcessor::parameterChanged (const juce::String& id, float newValu
 }
 
 //==============================================================================
+juce::File CloneWarsProcessor::userPatchFolder()
+{
+    // Beside the installed .vst3 if that is writable (Photo-Synth's rule:
+    // hasWriteAccess lies on Windows, so probe by writing), else APPDATA.
+    auto exe = juce::File::getSpecialLocation (juce::File::currentExecutableFile);
+    for (auto d = exe.getParentDirectory(); d.getFullPathName().length() > 3; d = d.getParentDirectory())
+        if (d.getFileName().endsWithIgnoreCase (".vst3"))
+        {
+            auto folder = d.getParentDirectory().getChildFile ("Clone Wars User Patches");
+            folder.createDirectory();
+            auto probe = folder.getChildFile (".writeprobe");
+            if (probe.replaceWithText ("x")) { probe.deleteFile(); return folder; }
+            break;
+        }
+    auto fallback = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                        .getChildFile ("Brokild").getChildFile ("CloneWars")
+                        .getChildFile ("User Patches");
+    fallback.createDirectory();
+    return fallback;
+}
+
+bool CloneWarsProcessor::resolvePatch (int n, cw::Patch& outPatch, juce::String& catName)
+{
+    if (n < 100)
+    {
+        catName = cw::generatePatch ((uint32_t) juce::jmax (0, n), outPatch);
+        return true;
+    }
+    auto f = userPatchFolder().getChildFile ("slot-" + juce::String (n) + ".json");
+    if (! f.existsAsFile()) return false;
+    auto v = juce::JSON::parse (f.loadFileAsString());
+    auto* obj = v.getDynamicObject();
+    if (obj == nullptr) return false;
+    cw::defaultPatch (outPatch);
+    if (auto* params = v.getProperty ("params", {}).getDynamicObject())
+    {
+        // by-id, so slots survive parameter-set changes; unknown ids ignored
+        for (auto& kv : params->getProperties())
+        {
+            const auto id = kv.name.toString();
+            const float pv = (float) (double) kv.value;
+            for (int g = 0; g < cw::numGlobals; ++g)
+                if (id == globalParamId (g)) { outPatch.global[g] = pv; goto next; }
+            for (int vi = 0; vi < cw::kVoices; ++vi)
+                for (int fi = 0; fi < cw::numVoiceFields; ++fi)
+                    if (id == voiceParamId (vi, fi)) { outPatch.voice[vi][fi] = pv; goto next; }
+            next:;
+        }
+    }
+    catName = obj->getProperty ("name").toString();
+    if (catName.isEmpty()) catName = "user " + juce::String (n);
+    return true;
+}
+
+void CloneWarsProcessor::saveUserSlot (int n, const juce::String& name)
+{
+    if (n < 100 || n > 199) return;
+    auto* obj = new juce::DynamicObject();
+    auto* params = new juce::DynamicObject();
+    for (auto& kv : slots)
+        params->setProperty (kv.first, apvts.getRawParameterValue (kv.first)->load());
+    obj->setProperty ("name", name.isEmpty() ? "slot " + juce::String (n) : name);
+    obj->setProperty ("params", juce::var (params));
+    obj->setProperty ("build", juce::String (JucePlugin_VersionString));
+    userPatchFolder().getChildFile ("slot-" + juce::String (n) + ".json")
+        .replaceWithText (juce::JSON::toString (juce::var (obj), true));
+    sendSlotListToUi();
+}
+
+void CloneWarsProcessor::sendSlotListToUi()
+{
+    if (! emitToUi) return;
+    juce::Array<juce::var> list;
+    for (int n = 100; n <= 199; ++n)
+    {
+        auto f = userPatchFolder().getChildFile ("slot-" + juce::String (n) + ".json");
+        if (! f.existsAsFile()) continue;
+        auto v = juce::JSON::parse (f.loadFileAsString());
+        auto* o = new juce::DynamicObject();
+        o->setProperty ("n", n);
+        o->setProperty ("name", v.getProperty ("name", "slot " + juce::String (n)));
+        list.add (juce::var (o));
+    }
+    auto* obj = new juce::DynamicObject();
+    obj->setProperty ("list", list);
+    emitToUi ("slots", juce::var (obj));
+}
+
 void CloneWarsProcessor::applyMorph (float t, bool repaintUi)
 {
     // Glide the console from seed A to seed B: continuous parameters are
@@ -224,9 +312,10 @@ void CloneWarsProcessor::applyMorph (float t, bool repaintUi)
     // at their own deterministic threshold staggered across the travel, so the
     // console changes sides one clone at a time instead of all at the midpoint.
     cw::Patch a, b;
-    cw::generatePatch ((uint32_t) currentSeedA.load(), a);
-    currentCategory = cw::generatePatch ((uint32_t) currentSeedA.load(), a);
-    cw::generatePatch ((uint32_t) currentSeedB.load(), b);
+    juce::String catA, catB;
+    if (! resolvePatch (currentSeedA.load(), a, catA)) cw::defaultPatch (a);
+    if (! resolvePatch (currentSeedB.load(), b, catB)) cw::defaultPatch (b);
+    currentCategory = catA;
     uint32_t stag = 0x243F6A88u;
     auto blend = [t, &stag] (float av, float bv, bool stepped) mutable
     {
@@ -252,7 +341,9 @@ void CloneWarsProcessor::applyMorph (float t, bool repaintUi)
 void CloneWarsProcessor::applySeed (uint32_t seed)
 {
     cw::Patch p;
-    currentCategory = cw::generatePatch (seed, p);
+    juce::String cat;
+    if (! resolvePatch ((int) seed, p, cat)) return;
+    currentCategory = cat;
 
     suppressEcho = true;
     for (int g = 0; g < cw::numGlobals; ++g)
@@ -287,7 +378,11 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
     {
         const float t = std::clamp ((float) (double) m.getProperty ("v", 0.0), 0.0f, 1.0f);
         morphT.store (t);
-        applyMorph (t, t <= 0.0f || t >= 1.0f);
+        // repaint the whole console every other tick (~15 Hz against the
+        // bridge's 30 Hz morph stream): every knob, fader, stepper and
+        // envelope mini VISIBLY rides the morph, and what you see is the
+        // state - savable as a user patch at any point of the journey.
+        applyMorph (t, t <= 0.0f || t >= 1.0f || (++morphUiTick & 1) == 0);
     }
     else if (k == "__never__")
     {
@@ -326,6 +421,10 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
         // blend AT that position, so the knob and the console never disagree.
         const int n = (int) m.getProperty ("n", 0);
         const bool isB = (bool) m.getProperty ("b", false);
+        {
+            cw::Patch probe; juce::String cat;
+            if (! resolvePatch (n, probe, cat)) return;   // empty user slot
+        }
         if (isB) currentSeedB = n; else currentSeedA = n;
         const float t = morphT.load();
         if (! isB && t <= 0.001f) applySeed ((uint32_t) n);
@@ -358,6 +457,14 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
     else if (k == "mod")
     {
         engine.setMod ((float) (double) m.getProperty ("v", 0.0));
+    }
+    else if (k == "saveslot")
+    {
+        saveUserSlot ((int) m.getProperty ("n", 0), m.getProperty ("name", "").toString());
+    }
+    else if (k == "slotlist")
+    {
+        sendSlotListToUi();
     }
     else if (k == "scatter")
     {
