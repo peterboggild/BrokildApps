@@ -263,6 +263,7 @@ int main()
         const char* cat = cw::generatePatch (seed, p);
         e.applyPatch (p);
         e.prepare (fs, 512);
+        e.noteOn (36); e.noteOn (43); e.noteOn (48);
         std::vector<float> L, R;
         render (e, L, R, fs, 5.0);
         double sum = 0;
@@ -277,6 +278,7 @@ int main()
     {
         cw::Engine e;
         e.prepare (fs, 512);
+        e.setGlobal (cw::gDrone, 1);
         e.setGlobal (cw::gHq, 2);
         e.setGlobal (cw::gBusSat, 1);
         e.setGlobal (cw::gDriveAmt, 1);
@@ -307,6 +309,7 @@ int main()
     {
         cw::Engine e;
         e.prepare (fs, 512);
+        e.setGlobal (cw::gDrone, 1);
         e.setGlobal (cw::gHq, (float) q);
         std::vector<float> L, R;
         render (e, L, R, fs, 1.0);        // warm up
@@ -329,6 +332,7 @@ int main()
             e.setUnitSeed (777);
             e.setGlobal (cw::gHq, (float) q);
             e.prepare (fs, 512);
+            e.noteOn (40);
             render (e, L, R, fs, 2.0);
         };
         std::vector<float> L1, R1, L2, R2;

@@ -42,7 +42,8 @@ void defaultPatch (Patch& p)
     g[gGlide] = 0.2f; g[gSpread] = 0.3f;
     g[gWar] = 0.5f; g[gWarSlew] = 0.3f;
     g[gMaster] = 0.75f; g[gWidth] = 0.5f; g[gBusSat] = 0.25f;
-    g[gBassMono] = 1; g[gHpf] = 1; g[gDrone] = 1; g[gHq] = 1;
+    g[gBassMono] = 1; g[gHpf] = 1; g[gHq] = 1;
+    g[gDrone] = 0;   // a VST3 must open silent; DRONE is an opt-in power switch
     g[gSpringDwell] = 0.4f; g[gSpringMix] = 0.25f; g[gSpringFreeze] = 0;
     g[gTapeTime] = 0.45f; g[gTapeFdbk] = 0.35f; g[gTapeMix] = 0.2f;
     g[gBbdRate] = 0.3f; g[gBbdDepth] = 0.25f;
