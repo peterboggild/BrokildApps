@@ -549,9 +549,13 @@ void CloneWarsProcessor::setStateInformation (const void* data, int sizeInBytes)
         apvts.replaceState (juce::ValueTree::fromXml (*xml));
         suppressEcho = false;
     }
-    ageSamples = (juce::int64) v.getProperty ("ageSamples", 0);
-    wearPoints = (double) v.getProperty ("wear", 0.0);
-    wearSeed   = (uint32_t) (juce::int64) v.getProperty ("wearSeed", 1337);
+    // Damage is NEVER read from state (Peter's ruling): hosts use the same
+    // getState/setState for project restore AND preset files, so reading it
+    // here stamped a preset's saved scars onto the instance - the damage
+    // looked patch-dependent. The hull's wear now depends on nothing but the
+    // time this instance has actually spent playing. (Still written to state
+    // above, harmlessly, in case a future build finds a way to tell a
+    // project apart from a preset.)
     unitSeed   = (uint32_t) (juce::int64) v.getProperty ("unitSeed", (juce::int64) 0xC70BE5);
     currentSeedA = (int) v.getProperty ("seedA", 42);
     currentSeedB = (int) v.getProperty ("seedB", 137);

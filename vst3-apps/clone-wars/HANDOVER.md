@@ -198,8 +198,11 @@ delete the exe if the build errors and the run still passes.
   the latches default off. There's a test asserting it; keep it passing.
 - **Offline render is always XHQ** regardless of the panel tier switch.
 - **Patina has no off switch** by design. REPAIR (shift-click the odometer →
-  service bay) resets scars *and* the clock. Age/wear/serial live in the DAW
-  project state — per instance, deliberately.
+  service bay) resets scars *and* the clock. SINCE 260825.15 damage is NEVER
+  read back from state: hosts use the same getState/setState for projects AND
+  preset files, so restoring it stamped a preset's scars onto the instance.
+  Wear now depends on nothing but the time the instance has spent playing
+  (still written to state, harmlessly, never read).
 - Real-time code: no allocation, locks, or logging in `process()`.
 
 ## Current state / open threads
