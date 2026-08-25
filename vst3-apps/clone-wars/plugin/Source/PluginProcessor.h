@@ -52,8 +52,14 @@ private:
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void pushAllParamsToEngine();
     void applySeed (uint32_t seed);
+    // 0-99 factory archive; 100-199 user slot files. False = empty slot.
+    bool resolvePatch (int n, cw::Patch& out, juce::String& catName);
+    juce::File userPatchFolder();
+    void saveUserSlot (int n, const juce::String& name);
+    void sendSlotListToUi();
     void applyMorph (float t, bool repaintUi);
     std::atomic<float> morphT { 0.0f };
+    int morphUiTick = 0;
     void sendInitToUi();
 
     juce::AudioProcessorValueTreeState apvts;

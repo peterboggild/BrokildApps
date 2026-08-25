@@ -119,110 +119,108 @@ static void envA4 (float k, float* f)
 
 const char* generatePatch (uint32_t seed, Patch& p)
 {
+    //  The factory archive: 0-99 in five bands of twenty, escalating.
+    //    TENSION   musical, easy, mild differences
+    //    CRISIS    movement under the surface
+    //    SKIRMISH  active, contesting armies
+    //    BATTLE    heavy, driven, resonant
+    //    MAYHEM    all-out: dissonant, screaming, wild
+    //  Deterministic: same seed, same machine, forever.
     defaultPatch (p);
     uint32_t s = seed * 2654435761u + 0x9E3779B9u;
     auto r  = [&s]() { return rng01 (s); };
     auto rr = [&] (float lo, float hi) { return lo + (hi - lo) * r(); };
+    auto ri = [&] (int n) { return (int) (rngStep (s) % (uint32_t) n); };
     float* g = p.global;
 
-    static const char* kCats[5] = { "abyss", "swarm", "engines", "cathedral", "rust" };
-    const int cat = (int) (seed % 5u);
+    static const char* kCats[5] = { "tension", "crisis", "skirmish", "battle", "mayhem" };
+    const int   band = std::min (4, (int) ((seed % 100u) / 20u));
+    const float w    = ((float) band + 0.25f + 0.5f * r()) / 4.75f;   // wildness
 
-    g[gTolerance] = rr (0.2f, 0.8f);
-    g[gTide]      = rr (0.1f, 0.6f);
-    g[gDriftMaster] = rr (0.2f, 0.8f);
-    g[gSpread]    = rr (0.1f, 0.7f);
-    g[gWar]       = rr (0.3f, 0.7f);
+    // ---- globals: the theatre of war -------------------------------------
+    g[gTolerance]   = 0.15f + 0.55f * w * r();
+    g[gTide]        = rr (0.05f, 0.15f + 0.5f * w);
+    g[gDriftMaster] = 0.15f + 0.6f * w * r();
+    g[gSpread]      = band == 0 ? rr (0.05f, 0.22f) : rr (0.1f, 0.25f + 0.7f * w);
+    g[gEntrainA]    = band <= 1 ? rr (0.25f, 0.65f) : rr (0.0f, 0.5f);
+    g[gEntrainB]    = band <= 1 ? rr (0.25f, 0.65f) : rr (0.0f, 0.5f);
+    g[gGlide]       = rr (0.08f, 0.35f);
+    g[gWar]         = rr (0.35f, 0.65f);
+    g[gWarSlew]     = rr (0.1f, 0.7f);
+    g[gEnvFilt]     = 0.25f + 0.35f * w;
 
+    // pitch relationship between the armies: consonant in peacetime,
+    // increasingly hostile as the bands rise (36ths of the base range
+    // are semitones: 7/36 a fifth, 6/36 a tritone, 1/36 a minor second)
+    g[gBaseA] = band == 4 ? rr (0.2f, 0.6f) : rr (0.35f, 0.55f);
+    {
+        static const float kCons[5] = { 0.0f, 0.0f, 7.0f / 36.0f, -7.0f / 36.0f, 12.0f / 36.0f };
+        static const float kHost[5] = { 6.0f / 36.0f, 1.0f / 36.0f, -1.0f / 36.0f, 5.0f / 36.0f, -6.0f / 36.0f };
+        const float off = band <= 1 ? kCons[ri (5)]
+                        : band == 4 ? kHost[ri (5)]
+                        : (r() < 0.6f ? kCons[ri (5)] : kHost[ri (5)]);
+        g[gBaseB] = std::clamp (g[gBaseA] + off, 0.0f, 1.0f);
+    }
+
+    // filter circuits: peacetime growls and ladders; the scream arrives
+    // with the skirmishes and rules the mayhem
+    if (band == 0)      { g[gTemperA] = (float) (ri (2) * 2); g[gTemperB] = (float) (ri (2) * 2); }
+    else if (band == 1) { g[gTemperA] = (float) ri (3); g[gTemperB] = (float) (ri (2) * 2); }
+    else if (band == 4) { g[gTemperA] = r() < 0.6f ? 1.0f : (float) ri (3); g[gTemperB] = r() < 0.6f ? 1.0f : (float) ri (3); }
+    else                { g[gTemperA] = (float) ri (3); g[gTemperB] = (float) ri (3); }
+    g[gKbdA] = rr (0.3f, 0.7f); g[gKbdB] = rr (0.3f, 0.7f);
+
+    // the rack
+    g[gBusSat]      = 0.1f + 0.5f * w * r();
+    g[gDriveAmt]    = band == 0 ? rr (0.0f, 0.15f) : 0.1f + 0.65f * w * r();
+    g[gSpringDwell] = rr (0.3f, 0.5f + 0.4f * w);
+    g[gSpringMix]   = band == 0 ? rr (0.15f, 0.4f) : rr (0.1f, 0.2f + 0.35f * w);
+    g[gTapeTime]    = rr (0.2f, 0.8f);
+    g[gTapeFdbk]    = 0.1f + (band == 0 ? 0.2f * r() : 0.6f * w * r());
+    g[gTapeMix]     = rr (0.05f, 0.15f + 0.3f * w);
+    g[gBbdRate]     = rr (0.15f, 0.3f + 0.4f * w);
+    g[gBbdDepth]    = rr (0.1f, 0.2f + 0.3f * w);
+
+    // ---- the sixteen clones ----------------------------------------------
+    const float tuneReach = band == 0 ? 0.06f : 0.08f + 0.9f * w * w;
     for (int v = 0; v < kVoices; ++v)
     {
         float* f = p.voice[v];
-        f[vfTune]    = rr (-0.5f, 0.5f);
-        f[vfPan]     = rr (-0.9f, 0.9f);
-        f[vfLfoRate] = rr (0.05f, 0.7f);
-        f[vfLfoAmp]  = rr (0.0f, 0.4f);
-        f[vfLfoFlt]  = rr (0.0f, 0.5f);
-        f[vfDrift]   = rr (0.1f, 0.7f);
-        f[vfLevel]   = rr (0.55f, 0.95f);
-        f[vfNote]    = (float) (rngStep (s) % kNoteSlots);
+        const bool armyA = v < kArmySize;
+
+        if (band == 0)      f[vfWave] = (float) (r() < 0.55f ? 0 : 2 + ri (2));      // saw / tri / sine
+        else if (band <= 2) f[vfWave] = (float) (r() < 0.35f ? 1 : ri (4));          // pulses arrive
+        else                f[vfWave] = (float) ri (4);
+        f[vfPw] = band <= 1 ? rr (0.4f, 0.6f) : rr (0.5f - 0.45f * w, 0.5f + 0.45f * w);
+
+        // footage: tight consonant registers first, the whole 64'-2' at war
+        if (band == 0)      f[vfFoot] = (float) (2 + ri (2));                        // 16' / 8'
+        else if (band <= 2) f[vfFoot] = (float) (1 + ri (3));                        // 32'..4'
+        else                f[vfFoot] = (float) ri (6);
+        f[vfTune]    = rr (-tuneReach, tuneReach);
+
+        f[vfCut]     = rr (0.3f, 0.55f) + 0.15f * w;
+        f[vfRes]     = band == 0 ? rr (0.05f, 0.3f)
+                     : band == 4 ? rr (0.45f, 0.98f)
+                                 : rr (0.1f, 0.3f + 0.45f * w);
+
+        f[vfLfoWave] = band >= 3 && r() < 0.3f + 0.3f * w ? 3.0f : (float) ri (3);   // s&h at war
+        f[vfLfoRate] = band == 0 ? rr (0.08f, 0.3f) : rr (0.1f, 0.25f + 0.65f * w);
+        f[vfLfoAmp]  = rr (0.0f, 0.1f + 0.4f * w);
+        f[vfLfoFlt]  = rr (0.0f, 0.15f + 0.55f * w);
+
+        // envelopes: pads in peacetime, machine pulses at war
+        const float shape = band == 0 ? rr (0.55f, 0.9f) : rr (0.55f - 0.5f * w, 0.95f - 0.3f * w);
+        envF4 (shape, &f[vfFAtk]);
+        envA4 (band == 0 ? rr (0.6f, 0.95f) : shape + rr (-0.15f, 0.15f), &f[vfAAtk]);
+        f[vfLoop]    = band >= 2 && r() < 0.12f + 0.25f * w ? 1.0f : 0.0f;
+
+        f[vfDrift]   = rr (0.1f, 0.2f + 0.5f * w);
+        f[vfPan]     = armyA ? rr (-0.9f, 0.1f) : rr (-0.1f, 0.9f);
+        f[vfLevel]   = rr (0.6f - 0.15f * w, 0.9f);
+        f[vfMute]    = 0; f[vfSolo] = 0;
     }
-
-    switch (cat)
-    {
-        case 0: // abyss — vast, dark, slow
-            g[gBaseA] = rr (0.05f, 0.3f); g[gBaseB] = g[gBaseA] + rr (-0.05f, 0.1f);
-            g[gTemperA] = 2; g[gTemperB] = 2;
-            g[gSpringMix] = rr (0.3f, 0.6f); g[gSpringDwell] = rr (0.4f, 0.8f);
-            g[gDriveAmt] = rr (0.0f, 0.2f);
-            for (int v = 0; v < kVoices; ++v)
-            {
-                float* f = p.voice[v];
-                f[vfWave] = (float) (rngStep (s) % 2 + 2);        // tri / sine
-                f[vfFoot] = (float) (1 + (int) (rngStep (s) % 2)); // 32' / 16'
-                f[vfCut]  = rr (0.22f, 0.52f);
-                f[vfRes]  = rr (0.0f, 0.3f);
-                envA4 (rr (0.7f, 1.0f), &f[vfAAtk]); envF4 (rr (0.6f, 1.0f), &f[vfFAtk]);
-            }
-            break;
-
-        case 1: // swarm — massed detuned saws pulling into lock
-            g[gEntrainA] = rr (0.3f, 0.9f); g[gEntrainB] = rr (0.3f, 0.9f);
-            g[gSpread] = rr (0.4f, 1.0f);
-            g[gTemperA] = 0; g[gTemperB] = (float) (rngStep (s) % 3);
-            for (int v = 0; v < kVoices; ++v)
-            {
-                float* f = p.voice[v];
-                f[vfWave] = 0;
-                f[vfFoot] = (float) (2 + (int) (rngStep (s) % 2)); // 16' / 8'
-                f[vfCut]  = rr (0.42f, 0.72f);
-                f[vfRes]  = rr (0.1f, 0.45f);
-            }
-            break;
-
-        case 2: // engines — looping envelopes, machine-room pulse
-            g[gTapeFdbk] = rr (0.4f, 0.7f); g[gTapeMix] = rr (0.2f, 0.5f);
-            g[gDriveAmt] = rr (0.2f, 0.5f);
-            for (int v = 0; v < kVoices; ++v)
-            {
-                float* f = p.voice[v];
-                f[vfWave] = 1;                                   // pulse
-                f[vfLoop] = (rngStep (s) % 3) != 0 ? 1.0f : 0.0f;
-                envA4 (rr (0.0f, 0.4f), &f[vfAAtk]); envF4 (rr (0.0f, 0.5f), &f[vfFAtk]);
-                f[vfCut]  = rr (0.36f, 0.66f);
-                f[vfRes]  = rr (0.2f, 0.6f);
-            }
-            break;
-
-        case 3: // cathedral — swelling upper partials in a long tank
-            g[gSpringMix] = rr (0.4f, 0.7f); g[gSpringDwell] = rr (0.5f, 0.9f);
-            g[gBaseA] = rr (0.4f, 0.7f); g[gBaseB] = g[gBaseA] + rr (0.0f, 0.2f);
-            for (int v = 0; v < kVoices; ++v)
-            {
-                float* f = p.voice[v];
-                f[vfWave] = (float) (rngStep (s) % 2 + 2);
-                f[vfFoot] = (float) (3 + (int) (rngStep (s) % 2)); // 8' / 4'
-                envA4 (rr (0.6f, 1.0f), &f[vfAAtk]);
-                f[vfCut]  = rr (0.50f, 0.80f);
-                f[vfLfoAmp] = rr (0.1f, 0.35f);
-            }
-            break;
-
-        default: // rust — screaming filters, sample & hold, drive
-            g[gTemperA] = 1; g[gTemperB] = (float) (rngStep (s) % 2);
-            g[gDriveAmt] = rr (0.4f, 0.85f);
-            g[gBusSat] = rr (0.3f, 0.7f);
-            for (int v = 0; v < kVoices; ++v)
-            {
-                float* f = p.voice[v];
-                f[vfWave] = (float) (rngStep (s) % 2);
-                f[vfLfoWave] = 3;                                // s&h
-                f[vfLfoFlt] = rr (0.3f, 0.8f);
-                f[vfRes]  = rr (0.4f, 0.85f);
-                f[vfCut]  = rr (0.36f, 0.66f);
-            }
-            break;
-    }
-    return kCats[cat];
+    return kCats[band];
 }
 
 //==============================================================================
@@ -722,12 +720,13 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
             seconds = std::max (1.0e-3f, seconds * vc.tolEnv);
             return 1.0f - std::exp ((float) (-1.0 / (seconds * fs)));
         };
-        const float fAtk = coefOf (0.002f * std::pow (2500.0f, F[vfFAtk]));   // 2 ms .. 5 s
+        // drone times: attacks reach 20 s, releases too - it is a DRONE
+        const float fAtk = coefOf (0.002f * std::pow (10000.0f, F[vfFAtk]));  // 2 ms .. 20 s
         const float fDec = coefOf (0.005f * std::pow (2400.0f, F[vfFDec]));   // 5 ms .. 12 s
-        const float fRel = coefOf (0.005f * std::pow (3000.0f, F[vfFRel]));   // 5 ms .. 15 s
-        const float aAtk = coefOf (0.002f * std::pow (2500.0f, F[vfAAtk]));
+        const float fRel = coefOf (0.005f * std::pow (4000.0f, F[vfFRel]));   // 5 ms .. 20 s
+        const float aAtk = coefOf (0.002f * std::pow (10000.0f, F[vfAAtk]));
         const float aDec = coefOf (0.005f * std::pow (2400.0f, F[vfADec]));
-        const float aRel = coefOf (0.005f * std::pow (3000.0f, F[vfARel]));
+        const float aRel = coefOf (0.005f * std::pow (4000.0f, F[vfARel]));
         const float fSus = F[vfFSus], aSus = F[vfASus];
         const bool loop = F[vfLoop] > 0.5f;
 

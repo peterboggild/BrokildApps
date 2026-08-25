@@ -132,7 +132,8 @@ static void labPatch (cw::Engine& e, int wave, int temper, float cut, float res)
     f[vfMute] = 0; f[vfLevel] = 0.8f;
     f[vfWave] = (float) wave; f[vfFoot] = 3;   // 8'
     f[vfCut] = cut; f[vfRes] = res;
-    f[vfEnvA] = 0; f[vfEnvF] = 0;              // fast attack
+    f[vfAAtk] = 0; f[vfADec] = 1; f[vfASus] = 1;   // instant on, full hold
+    f[vfFAtk] = 0; f[vfFDec] = 1; f[vfFSus] = 1;
     f[vfNote] = 0;
     e.applyPatch (p);
     e.setUnitSeed (1);
