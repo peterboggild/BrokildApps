@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Clone Wars — Owner's Manual</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+    color: #cfdcea;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .page {
+    width: 210mm; height: 296.5mm; overflow: hidden; position: relative;
+    page-break-after: always;
+    background:
+      radial-gradient(120% 90% at 80% 0%, rgba(90,130,170,.14) 0%, transparent 55%),
+      radial-gradient(100% 80% at 8% 100%, rgba(30,50,75,.5) 0%, transparent 60%),
+      linear-gradient(165deg, #2c4258 0%, #22344a 45%, #182636 100%);
+    padding: 16mm 17mm 18mm;
+  }
+  .page:last-child { page-break-after: auto; }
+  /* hazard stripe strip on every page edge */
+  .haz {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 5mm;
+    background: repeating-linear-gradient(45deg, #b98a2c 0 9px, #23303e 9px 18px);
+    opacity: .55;
+  }
+  .haz.r { left: auto; right: 0; }
+  .pagenum {
+    position: absolute; bottom: 7mm; right: 12mm;
+    font: 600 8pt/1 Consolas, monospace; letter-spacing: .22em; color: #7d94ab;
+  }
+  .runhead {
+    position: absolute; bottom: 7mm; left: 12mm;
+    font: 600 7pt/1 Consolas, monospace; letter-spacing: .3em; color: #64798e;
+    text-transform: uppercase;
+  }
+  h1, h2, .stencil { font-family: "Arial Black", "Segoe UI", sans-serif; }
+
+  /* chapter heading: number tab + title */
+  .chap { display: flex; align-items: baseline; gap: 6mm; margin: 0 0 2mm; }
+  .chap .no {
+    font: 800 26pt/1 Consolas, monospace; color: #e8a33d; letter-spacing: 0;
+  }
+  .chap h2 {
+    font-size: 21pt; margin: 0; color: #eef4f9; letter-spacing: .01em; font-weight: 800;
+  }
+  .kick {
+    font: 700 8pt/1 Consolas, monospace; letter-spacing: .34em; color: #8fb2d3;
+    text-transform: uppercase; margin: 0 0 3mm;
+  }
+  p { font-size: 10.3pt; line-height: 1.62; margin: 0 0 3.2mm; max-width: 168mm; }
+  p b { color: #f0d8a8; font-weight: 700; }
+  .lede { font-size: 11.3pt; color: #dde8f2; }
+  .cols2 { column-count: 2; column-gap: 8mm; }
+  .cols2 p { break-inside: avoid-column; }
+
+  .plate {
+    background: rgba(10,18,27,.5); border: 1px solid rgba(140,170,200,.25);
+    border-radius: 2.5mm; padding: 4mm 5mm; margin: 4mm 0;
+  }
+  .plate .t {
+    font: 800 8.5pt/1 Consolas, monospace; letter-spacing: .28em; color: #e8a33d;
+    text-transform: uppercase; margin-bottom: 2.5mm;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 9.3pt; line-height: 1.45; }
+  th, td { text-align: left; padding: 1.6mm 2mm; border-bottom: 1px solid rgba(140,170,200,.16); vertical-align: top; }
+  th { font: 700 7.5pt/1.2 Consolas, monospace; letter-spacing: .18em; text-transform: uppercase; color: #8fb2d3; }
+  td:first-child { font-weight: 700; color: #f0d8a8; white-space: nowrap; }
+  code, .mono { font-family: Consolas, Menlo, monospace; font-size: .92em; color: #ffe9bd; }
+
+  .dense table { font-size: 8.6pt; line-height: 1.38; }
+  .dense th, .dense td { padding: 1.2mm 2mm; }
+  .dense p { font-size: 9.8pt; line-height: 1.5; margin-bottom: 2.4mm; }
+  .dense .plate { padding: 3mm 4mm; margin: 3mm 0; }
+  img.shot {
+    width: 100%; display: block; border-radius: 2mm;
+    border: 1px solid rgba(150,180,210,.35); box-shadow: 0 4mm 10mm rgba(0,0,0,.5);
+  }
+  figcaption { font-size: 8.5pt; color: #92a7bc; margin-top: 2mm; }
+  .note {
+    border-left: 1.2mm solid #e8a33d; background: rgba(232,163,61,.09);
+    padding: 3mm 4mm; margin: 4mm 0; font-size: 9.6pt; line-height: 1.55; max-width: 168mm;
+  }
+
+  /* ---------- cover ---------- */
+  .cover { display: flex; flex-direction: column; padding: 20mm 18mm 16mm; }
+  .cover .top {
+    font: 700 8pt/1 Consolas, monospace; letter-spacing: .3em; color: #9db8d2;
+  }
+  .cover h1 {
+    margin: 10mm 0 0; font-size: 64pt; line-height: .95; color: #eef4f9; letter-spacing: -.01em;
+  }
+  .cover h1 span { color: #e8a33d; }
+  .cover .tag {
+    font: 400 italic 14pt/1.5 Georgia, serif; color: #a8bfd4; margin: 8mm 0 0; max-width: 150mm;
+  }
+  .cover .shotwrap { margin: 10mm 0 0; }
+  .cover .bottom {
+    margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end;
+    font: 700 8pt/1.7 Consolas, monospace; letter-spacing: .22em; color: #8fa8c0; text-transform: uppercase;
+  }
+  .coverhaz {
+    height: 4mm; margin: 9mm 0 0;
+    background: repeating-linear-gradient(45deg, #b98a2c 0 10px, #1d2938 10px 20px); opacity: .6;
+  }
+</style>
+</head>
+<body>
+
+<!-- ======================= COVER ======================= -->
+<div class="page cover">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="top">BROKILD&nbsp;HEAVY&nbsp;INDUSTRIES&nbsp;·&nbsp;DRONE&nbsp;DIVISION&nbsp;·&nbsp;OWNER'S&nbsp;MANUAL</div>
+  <h1>CLONE<br><span>WARS</span></h1>
+  <div class="tag">Sixteen analogue clones of almost, but not quite, the same oscillator —
+    drawn up in two armies of eight, aimed at each other, and slid into battle with one fader.</div>
+  <div class="coverhaz"></div>
+  <figure class="shotwrap"><img class="shot" src="../img/clone-wars.jpg" alt="The Clone Wars console"></figure>
+  <div class="bottom">
+    <div>16 CLONES · 2 ARMIES · 3 NOTES<br>GROWL / SCREAM / LADDER<br>SPRING · TAPE · BBD · DRIVE</div>
+    <div style="text-align:right">SERIAL CW-16 · BUILD 260825.3<br>WINDOWS VST3 + STANDALONE · FREE</div>
+  </div>
+</div>
+
+<!-- ======================= 01 THE IDEA ======================= -->
+<div class="page">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="kick">The idea</div>
+  <div class="chap"><span class="no">01</span><h2>A war between sixteen copies of one machine</h2></div>
+
+  <p class="lede">Every great analogue drone has the same secret: many voices that are supposed
+  to be identical, and are not. Sixteen oscillators built from the same schematic never agree —
+  each one is a few cents off, a few degrees warmer, a little slower to wake. Clone Wars builds
+  that disagreement on purpose.</p>
+
+  <p>The console holds <b>sixteen clones</b>, each a complete voice: an oscillator with four
+  waveforms and four footages, an analogue-modelled filter, its own LFO, two looping envelopes,
+  drift, pan and a fader. They stand in <b>two armies of eight</b> — Army A on the left,
+  Army B on the right — with a command column between them. The two armies can carry two entirely
+  different sounds, and <b>THE WAR</b> crossfade slides the mix from one to the other over anything
+  from fifty milliseconds to five minutes.</p>
+
+  <p>What makes the machine breathe is the imperfection engine. <b>TOLERANCE</b> scatters component
+  values across the sixteen clones, so no two strips are quite the same instrument.
+  <b>DRIFT</b> lets every oscillator wander slowly around its pitch. <b>ENTRAIN</b> pulls the
+  clones of an army gently into phase with each other, the way oscillators sharing a power rail
+  fall into step. <b>TIDE</b> is a conductor moving over minutes, leaning on the whole orchestra
+  at once. Between them, a held chord is never static: it swells, beats, locks and unlocks.</p>
+
+  <p>Everything on the panel is deterministic. A <b>seed number is a whole patch</b> — the same
+  number is the same drone on any machine — and the panel morphs continuously between two seeds.
+  Even the scratches are deterministic: the hull records its service hours and accumulates dents,
+  chips and grime as it is played, and two numbers in your DAW project replay the whole damage
+  history. There is no off switch for that. There is only <b>REPAIR</b>.</p>
+
+  <div class="plate"><div class="t">The machine in one breath</div>
+  <table>
+    <tr><td>16 clones</td><td>Complete voices — oscillator, filter, LFO, two looping envelopes, drift, pan, fader.</td></tr>
+    <tr><td>2 armies</td><td>Eight clones each, with their own filter temper, latch and base pitch — one crossfade between them.</td></tr>
+    <tr><td>3 notes</td><td>The machine listens to up to three held MIDI notes; every clone picks which one it follows.</td></tr>
+    <tr><td>1 hull</td><td>Ages with your project. The scars are yours.</td></tr>
+  </table></div>
+
+  <div class="runhead">CLONE WARS · OWNER'S MANUAL</div><div class="pagenum">02</div>
+</div>
+
+<!-- ======================= 02 THIRTY SECONDS ======================= -->
+<div class="page">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="kick">Quick start</div>
+  <div class="chap"><span class="no">02</span><h2>Thirty seconds of instructions</h2></div>
+
+  <p class="lede">A fresh instance is silent — a VST3 has manners. Give it a note and it becomes
+  a monster.</p>
+
+  <table>
+    <tr><th style="width:34mm">Do this</th><th>What happens</th></tr>
+    <tr><td>Play and hold a note</td><td>All sixteen clones wake on it. Hold two or three notes and
+      the armies spread across them — each clone follows the held note its <b>NOTE 1·2·3</b>
+      buttons point at.</td></tr>
+    <tr><td>Press KEYS</td><td>The field keyboard floats up into the keyboard bay under the console.
+      Drag across it for glissandi; the computer keyboard plays too
+      (<span class="mono">A&nbsp;W&nbsp;S&nbsp;E&nbsp;D…</span> is an octave).</td></tr>
+    <tr><td>Engage HOLD</td><td>Notes latch — release everything and the drone keeps standing.
+      That is the drone way. HOLD drives LATCH A and LATCH B together.</td></tr>
+    <tr><td>Press PATCHES</td><td>Five families of seed patches — <b>abyss</b>, <b>swarm</b>,
+      <b>engines</b>, <b>cathedral</b>, <b>rust</b>. Every number is the same sound on every
+      machine.</td></tr>
+    <tr><td>Turn MORPH</td><td>The panel glides between seed A and seed B — two red LED numbers,
+      one knob, a continuous journey between two complete patches.</td></tr>
+    <tr><td>Drag THE WAR</td><td>The mix marches from Army A to Army B. With SLEW up, the march
+      takes minutes — set it moving and go make coffee.</td></tr>
+    <tr><td>Click GROWL / SCREAM / LADDER</td><td>Each army's filter temper. Same patch, three
+      different animals.</td></tr>
+    <tr><td>Shift-click two knobs in a row</td><td>They lock — dragging one drags the whole locked
+      group. The ⊠ dice reroll a row; the ⌁ fan ramps it across clones 1→16.</td></tr>
+  </table>
+
+  <div class="note"><b>If nothing sounds:</b> the machine is idle by design until it is played.
+  Check a note is held (the HELD N1·N2·N3 lamps in the command column light for each occupied
+  note slot), the strip faders are up, and no MUTE is engaged. The host parameter
+  <span class="mono">drone</span> can wake it permanently with no input at all — see chapter 06.</div>
+
+  <figure><img class="shot" src="../img/keyboard-bay.jpg" alt="The console with the field keyboard deployed in the keyboard bay">
+  <figcaption>The field keyboard deployed in its bay. It floats in from below the deck over two
+  seconds, casting its shadow on the hull — and blocks nothing while it is out.</figcaption></figure>
+
+  <div class="runhead">CLONE WARS · OWNER'S MANUAL</div><div class="pagenum">03</div>
+</div>
+
+<!-- ======================= 03 INSTALL ======================= -->
+<div class="page">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="kick">Install</div>
+  <div class="chap"><span class="no">03</span><h2>Two minutes, no installer</h2></div>
+
+  <p class="lede">A VST3 plugin is a folder you copy into place. That is the whole ceremony.</p>
+
+  <table>
+    <tr><th style="width:10mm">Step</th><th>Action</th></tr>
+    <tr><td>1</td><td>Unzip <span class="mono">Clone-Wars-VST3-win64.zip</span> (right-click →
+      <i>Extract&nbsp;All</i>). Inside: the <span class="mono">Clone Wars.vst3</span> folder, the
+      standalone <span class="mono">Clone Wars.exe</span>, this manual, and a readme.</td></tr>
+    <tr><td>2</td><td>Copy the whole <span class="mono">Clone Wars.vst3</span> <b>folder</b> — not
+      just a file from inside it — to <span class="mono">C:\Program Files\Common Files\VST3\</span>.
+      A sub-folder such as <span class="mono">…\VST3\Brokild\</span> is fine; hosts look inside.
+      Windows asks for administrator permission; that is normal.</td></tr>
+    <tr><td>3</td><td>Rescan plugins in your DAW (Ableton Live: <i>Preferences → Plug-Ins →
+      Rescan</i>). Clone Wars appears as an <b>instrument</b>, by Brokild. Put it on a MIDI track
+      and hold a chord.</td></tr>
+    <tr><td>or</td><td>Skip the DAW: run <span class="mono">Clone Wars.exe</span>. It picks its
+      audio and MIDI devices from its own options menu and has the field keyboard built in.</td></tr>
+  </table>
+
+  <div class="note"><b>If the plugin window is blank or shows an error page:</b> install the free
+  <b>Microsoft Edge WebView2 runtime</b> from
+  <span class="mono">developer.microsoft.com/microsoft-edge/webview2</span> and reopen the window.
+  The interface is drawn with WebView2, which every current Windows 10 and 11 ships with, but which
+  can be missing on older or heavily stripped installations. The audio engine runs either way.</div>
+
+  <div class="note"><b>If Windows refuses to load the plugin</b> and mentions an <i>Application
+  Control policy</i>, that is <b>Smart App Control</b>. It judges each file from a cloud reputation
+  lookup and can block one unsigned binary while loading another happily. Most machines do not have
+  it enabled at all; Windows Security → App &amp; browser control shows whether yours does.</div>
+
+  <div class="plate"><div class="t">Requirements</div>
+  <table>
+    <tr><td>System</td><td>Windows 10 or 11, 64-bit</td></tr>
+    <tr><td>Format</td><td>VST3 instrument, stereo out, MIDI in — plus a standalone application in the same zip</td></tr>
+    <tr><td>Sample rates</td><td>Any. Tested at 44.1, 48, 88.2 and 96 kHz.</td></tr>
+    <tr><td>CPU</td><td>One core carries the full sixteen-clone console with headroom at HQ; LOW and XHQ tiers are a click away (chapter 10)</td></tr>
+    <tr><td>Price</td><td>Free. No installer, no account, no telemetry, no network access at all.</td></tr>
+  </table></div>
+
+  <div class="runhead">CLONE WARS · OWNER'S MANUAL</div><div class="pagenum">04</div>
+</div>
+
+<!-- ======================= 04 THE CLONE STRIP ======================= -->
+<div class="page dense">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="kick">The console · left and right wings</div>
+  <div class="chap"><span class="no">04</span><h2>Anatomy of a clone</h2></div>
+
+  <p>Each of the sixteen strips is the same soldier, read top to bottom. The row labels stand on
+  both wings of the console, so nothing is ever more than a glance away.</p>
+
+  <table>
+    <tr><th style="width:26mm">Row</th><th>What it does</th></tr>
+    <tr><td>LEVEL VU</td><td>A real needle VU with real ballistics, one per clone — sixteen
+      needles leaning together is half the show.</td></tr>
+    <tr><td>NOTE 1·2·3</td><td>Which of the three held MIDI notes this clone follows
+      (chapter 06).</td></tr>
+    <tr><td>WAVE</td><td>SAW / PULSE / TRI / SINE — band-limited analogue-modelled cores.</td></tr>
+    <tr><td>FOOTAGE</td><td>64' / 32' / 16' / 8' / 4' / 2' — organ-style octave, three below
+      unison to two above. 32' shakes the floor; 64' is felt more than heard; the low ranks can
+      be pulled to mono centre on the bus (chapter 09).</td></tr>
+    <tr><td>TUNE</td><td>Microtune, a few cents either way. Where the beating between clones
+      lives. The engine-room SPREAD knob fans all sixteen at once.</td></tr>
+    <tr><td>CUTOFF · RES</td><td>The clone's own analogue-modelled filter — its circuit is chosen
+      per army by the TEMPER switch (chapter 05).</td></tr>
+    <tr><td>LFO WAVE · RATE</td><td>SIN / TRI / SQR / S&amp;H per clone, with its own rate — sixteen
+      LFOs at sixteen speeds is what makes the field shimmer.</td></tr>
+    <tr><td>LFO→AMP · LFO→FLT</td><td>How much of that LFO reaches the clone's level and its filter
+      cutoff.</td></tr>
+    <tr><td>ENV FLT · ENV AMP</td><td>Two one-knob envelopes. The knob is a journey: hard left is
+      <b>fast attack / fast decay</b> (percussive), noon is <b>fast / slow</b> (struck, then
+      breathing), hard right is <b>slow / slow</b> (tidal). One knob, the whole family of
+      shapes.</td></tr>
+    <tr><td>ENV LOOP</td><td>The envelope self-retriggers — the strip breathes on its own, its
+      period set by the envelope travel.</td></tr>
+    <tr><td>DRIFT</td><td>How far this clone wanders around its pitch, scaled by the command
+      column's DRIFT master.</td></tr>
+    <tr><td>PAN · FADER</td><td>Position and level in the army's mix.</td></tr>
+    <tr><td>M · S</td><td>Mute and solo, per clone.</td></tr>
+  </table>
+
+  <div class="plate"><div class="t">Row warfare — commanding sixteen strips at once</div>
+  <table>
+    <tr><td>Shift-click</td><td>Locks any combination of controls in one row into a group —
+      drag one and the whole group moves. Lock four LFO RATE knobs and sweep them together;
+      the lock ring marks the members.</td></tr>
+    <tr><td>Ctrl-click</td><td>Locks a whole <b>half-row</b> — the clicked army's eight — in
+      <b>unison</b>: every control snaps to the clicked one's value and they move as one.
+      Repeat the gesture to release the side.</td></tr>
+    <tr><td>Shift-ctrl-click</td><td>The same half-row lock, but every control <b>keeps its own
+      value</b> — the intervals travel together. Armies are independent: lock A's cutoffs in
+      unison while B's stay scattered.</td></tr>
+    <tr><td>Lock tool (rails)</td><td>The same, from the rails: each side label carries a lock tool beside the
+      dice and the fan. Click locks that army's half-row keeping intervals; ctrl-click locks it
+      in unison on the army's first clone.</td></tr>
+    <tr><td>Dice (rails)</td><td>Rerolls a whole row from the seed — locked controls roll
+      together.</td></tr>
+    <tr><td>Fan (rails)</td><td>Draws a ramp across clones 1→16 — a filter sunrise, a pan sweep, a
+      stagger of envelope speeds, in one click.</td></tr>
+    <tr><td>WAR PAINT</td><td>Very faint colour rings sort the rows into families — oscillator,
+      filter, LFO, envelope, mix. The ring of a row lights a little brighter while you touch it,
+      then fades back into the paint.</td></tr>
+  </table></div>
+
+  <div class="runhead">CLONE WARS · OWNER'S MANUAL</div><div class="pagenum">05</div>
+</div>
+
+<!-- ======================= 05 COMMAND COLUMN ======================= -->
+<div class="page dense">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="kick">The console · centre</div>
+  <div class="chap"><span class="no">05</span><h2>The command column</h2></div>
+
+  <p>Everything that rules the whole machine stands in the centre, between the armies. Top to
+  bottom:</p>
+
+  <table>
+    <tr><th style="width:34mm">Station</th><th>Function</th></tr>
+    <tr><td>SEED · MORPH</td><td>Two red LED seed numbers — <b>A</b> and <b>B</b> — and a MORPH
+      knob that glides the whole console continuously between them (chapter 07).</td></tr>
+    <tr><td>PATCHES · RANDOM</td><td>The seed browser, five families deep — and a reroll of
+      everything from a fresh seed.</td></tr>
+    <tr><td>ENGINE</td><td>Cycles the render tier: LOW / HQ / XHQ (chapter 10).</td></tr>
+    <tr><td>TOLERANCE</td><td>Component scatter. At zero the sixteen clones are one perfect
+      machine; opened up, every strip is a slightly different instrument — filter, envelope and
+      LFO all wander from spec, deterministically, from the unit's own serial seed.</td></tr>
+    <tr><td>TIDE</td><td>The conductor. A random walk moving over minutes that leans on the whole
+      orchestra — level, cutoff, pitch — the way a drone piece swells without anyone touching
+      anything.</td></tr>
+    <tr><td>ENTRAIN A · B</td><td>Phase pull inside each army. Low, the clones beat freely
+      against each other; high, they fall into step like oscillators sharing a rail — the beating
+      slows, thickens, and locks.</td></tr>
+    <tr><td>DRIFT</td><td>Master depth for every clone's pitch wander.</td></tr>
+    <tr><td>TEMPER A · B</td><td>Each army's filter circuit: <b>GROWL</b> — a Sallen-Key voice
+      with diode squash, gnarly and bass-keeping; <b>SCREAM</b> — the same circuit pushed far
+      harder, howling on its own harmonics near the top; <b>LADDER</b> — a four-pole transistor
+      ladder, round, fat, Moog-mannered. One switch turns an army into a different animal.</td></tr>
+    <tr><td>LATCH A · B</td><td>Per-army note latch — released notes keep sounding for that army.
+      The keyboard's HOLD switch drives both at once.</td></tr>
+    <tr><td>HELD N1·N2·N3</td><td>Lamps for the three note slots — lit while a slot is
+      occupied.</td></tr>
+    <tr><td>THE WAR</td><td>The A↔B crossfade, equal-power, with <b>SLEW</b> — the fader's travel
+      time, from fifty milliseconds to five minutes — and the MASTER level beside it
+      (chapter 08).</td></tr>
+    <tr><td>THE RANKS</td><td>The sync/desync slider. Left of centre pulls every continuous
+      control toward its army's average — hard left is sixteen perfect copies of one machine;
+      right of centre exaggerates the differences, up to full mutiny. Non-destructive: the knobs
+      never move, and dead centre is always exactly your patch. Discrete rows and the faders are
+      untouched; the armies are treated independently. Double-click to recentre.</td></tr>
+    <tr><td>BACK PANEL</td><td>The effects: <b>SPRING</b> (dwell, mix, and FREEZE — an infinite
+      spring for drone sustain), <b>BBD</b> bucket-brigade chorus (rate, depth), <b>TAPE</b> echo
+      (60 ms–1.2 s, feedback, mix), and <b>DRIVE</b> for the whole bus.</td></tr>
+    <tr><td>ENGINE ROOM · WAR PAINT · KEYS</td><td>The under-the-hood hatch (chapter 09), the row
+      colour rings, and the field keyboard (chapter 06).</td></tr>
+  </table>
+
+  <div class="note"><b>The armies are two different sounds, not one sound twice.</b> Give Army A a
+  32'-heavy LADDER abyss and Army B a screaming 4' swarm, park THE WAR in the middle, and the
+  machine plays a duet with itself. Then set SLEW to minutes and let the war decide.</div>
+
+  <div class="runhead">CLONE WARS · OWNER'S MANUAL</div><div class="pagenum">06</div>
+</div>
+
+<!-- ======================= 06 THREE NOTES / KEYBOARD ======================= -->
+<div class="page">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="kick">Playing it</div>
+  <div class="chap"><span class="no">06</span><h2>Three notes, sixteen clones, one keyboard</h2></div>
+
+  <p class="lede">Most drones are one note. Clone Wars listens to three at once — and lets every
+  clone choose which one it obeys.</p>
+
+  <p>The machine keeps <b>three note slots</b>, filled in order of arrival: the first held note
+  takes slot 1, the second slot 2, the third slot 3. A fourth note steals the oldest slot. Each
+  strip's <b>NOTE 1·2·3</b> buttons say which slot that clone follows — so a held three-note chord
+  can be voiced any way you like across the armies: all of Army A on the bass note, Army B split
+  across the fifth and the octave, one lone clone riding the top. When a clone's slot is empty it
+  falls back to the lowest occupied one, so the drone never drops a soldier.</p>
+
+  <p><b>LATCH A</b> and <b>LATCH B</b> hold notes after release, per army. With latch off the
+  machine goes quiet when you let go, like an instrument; with latch on it stands where you left
+  it, like a monument. Fresh instances open with latch off and make <b>no sound until played</b> —
+  a VST3 has manners. For an installation drone that must sound with no input at all, automate the
+  host parameter <span class="mono">drone</span>: it wakes the machine on its base pitch,
+  no MIDI required.</p>
+
+  <div class="plate"><div class="t">The field keyboard</div>
+  <p style="margin-bottom:2.5mm">Press <b>KEYS</b> and a three-octave field keyboard (C2–C5) floats
+  up into the <b>keyboard bay</b> beneath the console — a two-second landing, drifting in from
+  below the deck with its shadow growing on the hull, spaceship fashion. Press KEYS again and it
+  departs the same way. The bay is its own deck: the keyboard covers no controls while
+  deployed.</p>
+  <table>
+    <tr><td>Mouse</td><td>Click to play, drag across for glissandi.</td></tr>
+    <tr><td>Computer keys</td><td><span class="mono">A W S E D F T G Y H U J K</span> — home row
+      plays an octave, black keys on the row above.</td></tr>
+    <tr><td>HOLD</td><td>The latch switch on the keyboard plate — engages LATCH A and B together,
+      and mirrors them both ways.</td></tr>
+    <tr><td>Livery</td><td>The keys wear the hull's own paint: the black keys are panel blue, the
+      whites a lighter blue of the same metal. Unusual for a keyboard. This is an unusual
+      machine.</td></tr>
+  </table></div>
+
+  <div class="note"><b>Voicing recipe:</b> hold a low C, a G above it, and a high C. Set Army A's
+  clones to NOTE 1, Army B's alternating 2 and 3. Now THE WAR is not just a timbre crossfade — it
+  is a harmonic one, marching from the root to the interval and back.</div>
+
+  <div class="runhead">CLONE WARS · OWNER'S MANUAL</div><div class="pagenum">07</div>
+</div>
+
+<!-- ======================= 07 SEEDS ======================= -->
+<div class="page">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="kick">Patches</div>
+  <div class="chap"><span class="no">07</span><h2>Seeds, families, and the morph</h2></div>
+
+  <p class="lede">A seed number <b>is</b> a patch. Not a pointer to one — the patch itself,
+  generated from the number, bit-identical on every machine, forever.</p>
+
+  <p>Dial a seed and the entire console jumps to it: all sixteen strips, the tempers, the
+  imperfection engine, the effects. Each seed belongs to a <b>family</b> chosen first, so the
+  category and the sound always agree:</p>
+
+  <table>
+    <tr><th style="width:30mm">Family</th><th>Character</th></tr>
+    <tr><td>ABYSS</td><td>32' and 16' footage, LADDER tempers, slow tides — the bottom of the
+      ocean.</td></tr>
+    <tr><td>SWARM</td><td>High footages, sharp tolerances, fast scattered LFOs — a field of
+      insects with opinions.</td></tr>
+    <tr><td>ENGINES</td><td>Pulse-heavy, entrained, mechanical — the hum of a hull under
+      power.</td></tr>
+    <tr><td>CATHEDRAL</td><td>Wide, spring-frozen, slow envelopes — sacred space in a
+      box.</td></tr>
+    <tr><td>RUST</td><td>Detuned, driven, S&amp;H-modulated — beautiful decay.</td></tr>
+  </table>
+
+  <p style="margin-top:4mm">The command column carries <b>two</b> seeds at once — the red LED
+  numbers A and B — and the <b>MORPH</b> knob glides the whole console continuously between them.
+  Every knob value travels; the selectors switch over at the halfway point. A slow morph between an
+  ABYSS and a RUST is a composition in itself. <b>RANDOM</b> deals a fresh seed; <b>PATCHES</b>
+  browses all of them by family.</p>
+
+  <div class="note"><b>A seed is a postcard.</b> Tell a friend "CLONE WARS, seed 042" and they
+  hold your exact drone. Tweak any knob afterwards and the sound is yours — the DAW project saves
+  every parameter as it stands, and the seed display still shows where you started.</div>
+
+  <div class="kick" style="margin-top:8mm">The war</div>
+  <div class="chap"><span class="no">08</span><h2>A crossfade with a strategy</h2></div>
+
+  <p>THE WAR is the horizontal fader in the command column: hard left is Army A alone, hard right
+  is Army B, equal-power all the way across. What makes it a weapon is <b>SLEW</b> — the fader's
+  own travel time. At the bottom the war snaps in fifty milliseconds; at the top, a single drag
+  takes <b>five minutes</b> to arrive, the two armies trading ground so slowly the change is felt
+  before it is heard. Automate the target from the DAW and the slew still shapes the journey —
+  the fader on the panel shows the war's true position, not the order it was given.</p>
+
+  <div class="runhead">CLONE WARS · OWNER'S MANUAL</div><div class="pagenum">08</div>
+</div>
+
+<!-- ======================= 09 ENGINE ROOM ======================= -->
+<div class="page">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="kick">Under the hood</div>
+  <div class="chap"><span class="no">09</span><h2>The engine room</h2></div>
+
+  <p class="lede">The front panel is for playing. The <b>ENGINE ROOM</b> button opens the hatch to
+  everything else — four bolts, one dark room.</p>
+
+  <table>
+    <tr><th style="width:34mm">Station</th><th>Function</th></tr>
+    <tr><td>BASE A · BASE B</td><td>Each army's base pitch — where the clones sit when the drone
+      parameter drives them, and the floor the note slots transpose from. Two armies, two
+      keys.</td></tr>
+    <tr><td>GLIDE</td><td>Portamento between held notes, up to two seconds — the drone way of
+      changing chords.</td></tr>
+    <tr><td>SPREAD</td><td>Fans all sixteen microtunes symmetrically — the one-knob version of
+      detuning every strip by hand.</td></tr>
+    <tr><td>KBD A · KBD B</td><td>Filter key-tracking per army — how much the cutoff follows the
+      note.</td></tr>
+    <tr><td>SCATTER · LFO SYNC</td><td>Panel fitted, wiring scheduled: SCATTER will re-randomise
+      all sixteen LFO phases, LFO SYNC will lock the LFO rates to the host clock. In this build
+      the LFO phases come from the seed and free-run.</td></tr>
+    <tr><td>WIDTH</td><td>Master stereo width, from mono through unity to wide.</td></tr>
+    <tr><td>BUS SAT</td><td>Analogue bus soft-clip with automatic gain compensation — glue at low
+      settings, weld at high ones.</td></tr>
+    <tr><td>BASS MONO</td><td>Pulls footages 16' and below to centre — the low ranks stand firm
+      while the high ranks fight across the stereo field.</td></tr>
+    <tr><td>HPF</td><td>A gentle infrasonic high-pass on the master — sixteen drifting oscillators
+      can conspire below hearing; this keeps the conspiracy off your woofers.</td></tr>
+    <tr><td>MODULE BAY</td><td>Four empty slots. Future plug-in modules dock here — the bay is
+      real, the modules are coming.</td></tr>
+  </table>
+
+  <div class="note"><b>The output is always safe.</b> Underneath everything sits a transparent
+  soft ceiling: it does nothing at all until the mix approaches full scale, then rounds the peaks
+  instead of clipping them. Nothing this machine can do — not sixteen screaming filters, not a
+  frozen spring into full drive — puts a hard edge above full scale into your monitors.</div>
+
+  <div class="runhead">CLONE WARS · OWNER'S MANUAL</div><div class="pagenum">09</div>
+</div>
+
+<!-- ======================= 10 QUALITY / HULL ======================= -->
+<div class="page">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="kick">Rendering</div>
+  <div class="chap"><span class="no">10</span><h2>LOW · HQ · XHQ</h2></div>
+
+  <p>The ENGINE button cycles three render tiers. They change how hard the nonlinear stages — the
+  filters and saturators, where aliasing is born — work per sample:</p>
+
+  <table>
+    <tr><th style="width:22mm">Tier</th><th>What it means</th></tr>
+    <tr><td>LOW</td><td>No oversampling. The full console at minimum CPU — for sketching on a
+      laptop with the fans off. Still band-limited oscillators, still the soft ceiling.</td></tr>
+    <tr><td>HQ</td><td>Nonlinearities run 2× oversampled. The default: transparent for everything
+      short of the most violent SCREAM settings.</td></tr>
+    <tr><td>XHQ</td><td>4× oversampled nonlinearities — the measured aliasing floor of the whole
+      engine. Costs real CPU with sixteen clones running.</td></tr>
+  </table>
+
+  <div class="note"><b>Bounces are always XHQ.</b> When the host renders offline — an export, a
+  freeze, a bounce-in-place — the engine ignores the panel switch and runs XHQ. Play at LOW all
+  day; the record is always made at full quality.</div>
+
+  <div class="kick" style="margin-top:9mm">The living hull</div>
+  <div class="chap"><span class="no">11</span><h2>The hull remembers</h2></div>
+
+  <p class="lede">Every instance of Clone Wars keeps an odometer — <b>UNIT AGE</b>, top right, in
+  hours of service. While the unit plays, it ages. And as it ages, it scars.</p>
+
+  <p>Dings, chips, paint peel, rust breakthrough, smears and fingerprints accumulate on the panel
+  with use — photographic damage, placed deterministically from the unit's own serial, so your
+  scars are yours and stay exactly where they fell. The age and the damage history are saved
+  <b>per instance, inside the DAW project</b>: the Clone Wars in your old project is old, the one
+  you added today is factory fresh. Hard sessions at high level scar faster than quiet ones.</p>
+
+  <p>There is <b>no off switch</b> for any of this. There is only repair: <b>shift-click the
+  odometer</b> and the <b>SERVICE BAY</b> hatch opens. <b>REPAIR</b> restores the hull to factory
+  condition and starts the service clock again — new panel, day zero. <b>TOUR</b> does the
+  opposite: it simulates a year of hard touring, right now, if you want an instrument with a past
+  the day you meet it.</p>
+
+  <div class="runhead">CLONE WARS · OWNER'S MANUAL</div><div class="pagenum">10</div>
+</div>
+
+<!-- ======================= 12 SPECS / CREDITS ======================= -->
+<div class="page">
+  <div class="haz"></div><div class="haz r"></div>
+  <div class="kick">Appendix</div>
+  <div class="chap"><span class="no">12</span><h2>Specifications &amp; ship's papers</h2></div>
+
+  <div class="plate"><div class="t">Specifications</div>
+  <table>
+    <tr><td>Instrument</td><td>16-voice analogue-modelled drone synthesizer — two 8-clone armies</td></tr>
+    <tr><td>Oscillators</td><td>16 × band-limited SAW / PULSE / TRI / SINE, footages 64'–2', per-clone microtune and drift, tolerance scatter, per-army entrainment</td></tr>
+    <tr><td>Filters</td><td>Per-clone analogue-modelled filter; per-army temper — GROWL and SCREAM (Sallen-Key with diode squash) or LADDER (four-pole transistor ladder with per-stage saturation)</td></tr>
+    <tr><td>Modulation</td><td>16 × LFO (SIN/TRI/SQR/S&amp;H), 32 × one-knob looping envelopes, TIDE conductor, THE RANKS sync/desync contrast, minutes-scale WAR slew</td></tr>
+    <tr><td>MIDI</td><td>Three note slots, arrival-ordered, per-clone slot select, per-army latch, glide</td></tr>
+    <tr><td>Effects</td><td>Spring reverb with FREEZE, tape echo, BBD chorus, bus drive; bass-mono, infrasonic HPF, width, auto-gained bus saturation, transparent output ceiling</td></tr>
+    <tr><td>Patches</td><td>Deterministic seed patches in five families, two seed slots with continuous morph</td></tr>
+    <tr><td>Quality</td><td>LOW / HQ / XHQ (1× / 2× / 4× oversampled nonlinearities); offline render always XHQ</td></tr>
+    <tr><td>Persistence</td><td>All parameters, both seeds, unit age, damage history and unit serial saved in the DAW project</td></tr>
+    <tr><td>Format</td><td>Windows 64-bit VST3 instrument + standalone · build 260825.3</td></tr>
+  </table></div>
+
+  <div class="plate"><div class="t">Ship's papers</div>
+  <p style="font-size:9.6pt; margin-bottom:2mm">CLONE WARS · Brokild Heavy Industries, Drone
+  Division · Serial CW-16.</p>
+  <p style="font-size:9.6pt; margin-bottom:2mm">From the curved mind of <b>Professor Brokild</b>.
+  Programmed with VS Code, ChatGPT and Claude. Native C++ audio engine, JUCE 8 shell, interface
+  drawn in the plugin's own window. Source and issues:
+  <span class="mono">github.com/peterboggild/BrokildApps</span>.</p>
+  <p style="font-size:9.6pt; margin-bottom:2mm">Use of this instrument is at your own peril. It may
+  produce unique, beautiful, terrifying or useless drones, and it may crash your DAW project. The
+  hull damage is cosmetic; the machine inside is always factory-true. Play unsafely, unwisely and
+  unboringly.</p>
+  <p style="font-size:9.6pt; margin:0">Free — no installer, no account, no telemetry, no network
+  access at all. Cheers, Peter Bøggild, August 2026.</p></div>
+
+  <div style="margin-top:10mm; text-align:center">
+    <div style="font: 800 10pt/1 Consolas, monospace; letter-spacing:.5em; color:#8fa8c0">— END OF MANUAL · FIRST EDITION —</div>
+  </div>
+
+  <div class="runhead">CLONE WARS · OWNER'S MANUAL</div><div class="pagenum">11</div>
+</div>
+
+</body>
+</html>
