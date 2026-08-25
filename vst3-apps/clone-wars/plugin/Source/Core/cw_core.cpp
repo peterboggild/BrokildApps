@@ -48,7 +48,7 @@ static const char* kGlobalIds[numGlobals] =
     "spread", "war", "warslew", "master", "width", "bussat", "bassmono",
     "hpf", "drone", "hq", "springdwell", "springmix", "springfreeze",
     "tapetime", "tapefdbk", "tapemix", "bbdrate", "bbddepth", "driveamt",
-    "ranks", "notemode", "envfilt", "lfosync", "cutoff"
+    "ranks", "notemode", "envfilt", "lfosync", "fxmix", "cutoff"
 };
 const char* voiceFieldId (int f) { return kVoiceIds[f]; }
 const char* globalId (int g)     { return kGlobalIds[g]; }
@@ -78,6 +78,7 @@ void defaultPatch (Patch& p)
     g[gEnvFilt] = 0.45f;               // what the envelope used to add flat
     g[gLfoSync] = 0;                   // free-run, phases from the seed
     g[gCutoff] = 0.5f;                 // dead centre: the strips as set
+    g[gFxMix] = 1.0f;                  // the rack fully in, as it always was
 
     for (int v = 0; v < kVoices; ++v)
     {
@@ -880,9 +881,11 @@ void Engine::masterChain (float* L, float* R, int n)
     const float width = G[gWidth] * 2.0f;
     const float masterTgt = G[gMaster] * G[gMaster] * 1.4f;
 
+    const float fxMix = std::clamp (G[gFxMix], 0.0f, 1.0f);
     for (int i = 0; i < n; ++i)
     {
         float l = L[i], r = R[i];
+        const float dryL = l, dryR = r;      // the console before the rack
 
         // bus soft clip (unity small-signal gain), oversampled per quality
         l = satOS (l, satPrevL, satD, satN, os);
@@ -925,6 +928,10 @@ void Engine::masterChain (float* L, float* R, int n)
         const float sr = (0.55f * c0 + 0.8f * c1 + c2) * 0.33f;
         l += sl * springMix;
         r += sr * springMix;
+
+        // global FX MIX: dry console vs the whole rack, in one move
+        l = dryL + (l - dryL) * fxMix;
+        r = dryR + (r - dryR) * fxMix;
 
         // bass mono
         if (doBassMono)

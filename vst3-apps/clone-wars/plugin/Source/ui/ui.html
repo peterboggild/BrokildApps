@@ -695,24 +695,23 @@
           <div class="knob k28" data-cmd="WAR SLEW" data-val="0.3" tabindex="0">
             <div class="cap"><div class="ptr"></div></div><div class="lbl">slew</div>
           </div>
+          <div class="knob k28" data-cmd="FX MIX" data-val="1" tabindex="0" title="Dry console ↔ the whole effect rack">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">fx mix</div>
+          </div>
           <div class="knob k34" data-cmd="MASTER VOL" data-val="0.75" tabindex="0">
             <div class="cap"><div class="ptr"></div></div><div class="lbl">master</div>
           </div>
         </div>
 
         <div class="divider"></div>
-        <div class="cmd-t">BACK PANEL</div>
-        <div class="fx2col" id="fxbank"></div>
-
-        <div class="divider"></div>
         <div class="cmdrow">
           <button class="btn" id="engineBtn" title="Under-the-hood controls"><span class="lamp"></span>ENGINE ROOM</button>
           <button class="btn" id="colorBtn" title="Ring every control by function group — osc, filter, LFO, env, mix"><span class="lamp"></span>WAR PAINT</button>
           <button class="btn" id="keysBtn" title="Deploy the field keyboard"><span class="lamp"></span>KEYS</button>
-          <button class="btn" id="helpBtn" title="Controls and gestures"><span class="lamp"></span>?</button>
+          <button class="btn" id="fxBtn" title="The effect rack — spring, tape, BBD, drive"><span class="lamp"></span>EFFECTS</button>
         </div>
         <div class="expan">
-          <button class="btn blank">·</button><button class="btn blank">·</button>
+          <button class="btn" id="helpBtn" title="Controls and gestures">?</button><button class="btn blank">·</button>
           <button class="btn blank">·</button><button class="btn blank">·</button>
         </div>
       </div>
@@ -756,12 +755,26 @@
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.8 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.9 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
 </div></div>
 
+<div class="hatchveil" id="fxveil">
+  <div class="hatch" role="dialog" aria-label="Effect rack">
+    <div class="bolt tl"></div><div class="bolt tr"></div>
+    <div class="bolt bl"></div><div class="bolt br"></div>
+    <div class="hatch-head">
+      <div class="t">EFFECT RACK</div>
+      <button class="btn" id="fxClose"><span class="lamp"></span>CLOSE</button>
+    </div>
+    <div class="hatch-grid">
+      <div class="fx2col" id="fxbank"></div>
+      <div class="cmd-t" style="margin-top:10px;opacity:.45">EXPANSION SLOTS · AWAITING MODULES</div>
+    </div>
+  </div>
+</div>
 <div class="hatchveil" id="hatchveil">
   <div class="hatch" role="dialog" aria-label="Engine room">
     <div class="bolt tl"></div><div class="bolt tr"></div>
@@ -879,7 +892,7 @@
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.8 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.9 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -1340,6 +1353,15 @@ document.getElementById("colorBtn").addEventListener("click", function () {
     ? "WAR PAINT · OSC / FILTER / LFO / ENV / MIX"
     : "WAR PAINT · OFF");
 });
+
+/* effect rack hatch */
+const fxveil = document.getElementById("fxveil");
+document.getElementById("fxBtn").addEventListener("click", () => {
+  fxveil.classList.add("open");
+  say("EFFECT RACK · OPEN");
+});
+document.getElementById("fxClose").addEventListener("click", () => fxveil.classList.remove("open"));
+fxveil.addEventListener("pointerdown", e => { if (e.target === fxveil) fxveil.classList.remove("open"); });
 
 /* engine room hatch */
 const veil = document.getElementById("hatchveil");
@@ -1911,7 +1933,8 @@ const aboutveil = document.getElementById("aboutveil");
     "SPRING MIX": "g_springmix", "TAPE TIME": "g_tapetime",
     "TAPE FDBK": "g_tapefdbk", "TAPE MIX": "g_tapemix",
     "BBD RATE": "g_bbdrate", "BBD DEPTH": "g_bbddepth", "DRIVE AMT": "g_driveamt",
-    "NOTE MODE": "g_notemode", "ENV>FILT": "g_envfilt", "MASTER CUT": "g_cutoff" };
+    "NOTE MODE": "g_notemode", "ENV>FILT": "g_envfilt", "MASTER CUT": "g_cutoff",
+    "FX MIX": "g_fxmix" };
   const TEMPERS = ["GROWL", "SCREAM", "LADDER"];
 
   const vid = (ch, field) => "v" + String(ch).padStart(2, "0") + "_" + field;

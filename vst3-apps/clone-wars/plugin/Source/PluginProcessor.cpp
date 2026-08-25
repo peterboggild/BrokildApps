@@ -48,6 +48,7 @@ static Shape globalShape (int g)
         case gSpringFreeze:         return { 0, 1, 1, 0 };
         case gLfoSync:              return { 0, 1, 1, 0 };
         case gCutoff:               return { 0, 1, 0, 0.5f };
+        case gFxMix:                return { 0, 1, 0, 1.0f };
         case gNoteMode:             return { 0, 2, 1, 1 };  // UNISON/TREATY/WAR
         case gEnvFilt:              return { 0, 1, 0, 0.45f };
         case gWar:                  return { 0, 1, 0, 0.5f };
