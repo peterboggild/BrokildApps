@@ -62,7 +62,17 @@ uploads them as the `Clone-Wars-VST3-win64` artifact.
   1·2·3 picks the slot. LATCH per army keeps released notes sounding. With
   DRONE on, an empty slot 1 falls back to the army base pitch, so the synth
   sounds the moment it is instantiated.
-- **HQ/LOW.** HQ oversamples the filter nonlinearities; offline render
-  policy (always HQ) is TODO in the processor.
+- **Quality tiers.** The ENGINE button cycles LOW / HQ / XHQ: the filter
+  and saturation nonlinearities run 1× / 2× / 4× oversampled (linear-interp
+  upsampling, averaging decimation). Measured on the audit: saw-through-
+  resonant-filter aliasing −40.6 / −46.7 / −47.0 dB. **Offline render is
+  always forced to XHQ** (`isNonRealtime()`), whatever the switch says.
+  All tiers render bit-deterministically.
+- **Audit.** `test/audit.cpp` measures aliasing per tier, clean-path THD
+  (growl −46.6 dB; ladder colour −29.9 dB by design), click energy on hard
+  parameter jumps, idle silence, DC per seed, full-blast headroom (≤ 0.999
+  into the slope-continuous safety knee at 0.7), and tier speed (LOW 11×,
+  HQ 10×, XHQ 7× realtime for all 16 voices with FX, single thread). CI
+  runs it on every push.
 - Damage sprite integration (photographic decals) is pending the sprite set;
   the UI's procedural patina is the placeholder.

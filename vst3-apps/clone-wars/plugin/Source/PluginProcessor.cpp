@@ -42,7 +42,8 @@ static Shape globalShape (int g)
         case gTemperA:      return { 0, 2, 1, 0 };
         case gTemperB:      return { 0, 2, 1, 2 };
         case gLatchA: case gLatchB: case gBassMono: case gHpf:
-        case gDrone: case gHq:      return { 0, 1, 1, 1 };
+        case gDrone:                return { 0, 1, 1, 1 };
+        case gHq:                   return { 0, 2, 1, 1 };  // LOW / HQ / XHQ
         case gSpringFreeze:         return { 0, 1, 1, 0 };
         case gWar:                  return { 0, 1, 0, 0.5f };
         case gMaster:               return { 0, 1, 0, 0.75f };
@@ -103,6 +104,7 @@ CloneWarsProcessor::CloneWarsProcessor()
     // every fresh instance is a distinct unit off the production line
     unitSeed = (uint32_t) juce::Random::getSystemRandom().nextInt64();
     engine.setUnitSeed (unitSeed.load());
+    hqRaw = apvts.getRawParameterValue (globalParamId (cw::gHq));
     pushAllParamsToEngine();
 }
 
@@ -138,6 +140,11 @@ void CloneWarsProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
     const int n = buffer.getNumSamples();
+
+    // Offline render always gets the extra-high-quality engine, whatever the
+    // panel switch says — CPU load only matters in real time.
+    engine.setGlobal (cw::gHq, isNonRealtime() ? 2.0f
+                                               : (hqRaw != nullptr ? hqRaw->load() : 1.0f));
 
     for (const auto meta : midi)
     {

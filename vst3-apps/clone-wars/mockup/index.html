@@ -1030,9 +1030,13 @@ document.getElementById("patches").addEventListener("click", () =>
 document.getElementById("scatter").addEventListener("click", () =>
   say("SCATTER · 16 LFO PHASES RE-THROWN"));
 document.getElementById("hq").addEventListener("click", function () {
-  this.classList.toggle("on");
-  this.innerHTML = '<span class="lamp"></span>' + (this.classList.contains("on") ? "HQ" : "LOW");
-  say("ENGINE · " + (this.classList.contains("on") ? "HQ (4× OVERSAMPLED)" : "LOW (ECO) · RENDER STILL HQ"));
+  const q = (parseInt(this.dataset.q || "1") + 1) % 3;
+  this.dataset.q = q;
+  const names = ["LOW", "HQ", "XHQ"];
+  this.classList.toggle("on", q > 0);
+  this.innerHTML = '<span class="lamp"></span>' + names[q];
+  say("ENGINE · " + (q === 0 ? "LOW (ECO)" : q === 1 ? "HQ (2× OVERSAMPLED)"
+      : "XHQ (4× — HEAVY)") + " · OFFLINE RENDER = XHQ");
 });
 
 /* group color coding */

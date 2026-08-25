@@ -68,6 +68,7 @@ private:
     std::atomic<int>      currentSeedA { 42 }, currentSeedB { 137 };
     juce::String          currentCategory { "default" };
 
+    std::atomic<float>* hqRaw = nullptr;
     std::atomic<bool> suppressEcho { false };
     juce::CriticalSection dirtyLock;
     juce::StringArray dirtyParams;

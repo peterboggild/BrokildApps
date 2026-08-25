@@ -270,7 +270,7 @@ void Engine::allNotesOff()
 }
 
 //==============================================================================
-float Engine::SVF::process (float x, float g, float k, float drive)
+float Engine::SVF::step (float x, float g, float k, float drive)
 {
     const float v1 = (ic1 + g * (x - ic2)) / (1.0f + g * (g + k));
     const float v2 = ic2 + g * v1;
@@ -281,23 +281,58 @@ float Engine::SVF::process (float x, float g, float k, float drive)
     return v2;
 }
 
-float Engine::Ladder::process (float x, float g, float res, bool hq)
+float Engine::SVF::process (float x, float xPrev, float g, float k, float drive, int os)
 {
-    const int steps = hq ? 2 : 1;
-    const float gg = hq ? g * 0.5f : g;
-    const float p  = gg / (1.0f + gg);
-    float out = s[3];
-    for (int it = 0; it < steps; ++it)
+    if (os <= 1) return step (x, g, k, drive);
+    float acc = 0;
+    const float inv = 1.0f / (float) os;
+    for (int u = 1; u <= os; ++u)
+        acc += step (xPrev + (x - xPrev) * ((float) u * inv), g, k, drive);
+    return acc * inv;                    // averaging decimator
+}
+
+float Engine::Ladder::step (float x, float p, float res)
+{
+    float in = fastTanh (x - 4.2f * res * s[3]);
+    for (int st = 0; st < 4; ++st)
     {
-        float in = fastTanh (x - 4.2f * res * s[3]);
-        for (int st = 0; st < 4; ++st)
-        {
-            s[st] += p * (in - fastTanh (s[st] * 0.9f));
-            in = s[st];
-        }
-        out = s[3];
+        s[st] += p * (in - fastTanh (s[st] * 0.9f));
+        in = s[st];
     }
-    return out;
+    return s[3];
+}
+
+float Engine::Ladder::process (float x, float xPrev, float g, float res, int os)
+{
+    // Scale into the tanh region and make up on the way out: a full-scale
+    // oscillator straight into the cascade measured -7.8 dB THD (fuzz, not
+    // "round"). 0.35 in / ~2.6 out keeps the character, loses the fuzz.
+    constexpr float kIn = 0.35f, kOut = 0.9f / kIn;
+    x *= kIn; xPrev *= kIn;
+    // g must already be computed for the oversampled step rate
+    const float p = g / (1.0f + g);
+    if (os <= 1) return step (x, p, res) * kOut;
+    float acc = 0;
+    const float inv = 1.0f / (float) os;
+    for (int u = 1; u <= os; ++u)
+        acc += step (xPrev + (x - xPrev) * ((float) u * inv), p, res);
+    return acc * inv * kOut;
+}
+
+float Engine::satOS (float x, float& xPrev, float drive, float norm, int os)
+{
+    float y;
+    if (os <= 1) y = fastTanh (x * drive) * norm;
+    else
+    {
+        float acc = 0;
+        const float inv = 1.0f / (float) os;
+        for (int u = 1; u <= os; ++u)
+            acc += fastTanh ((xPrev + (x - xPrev) * ((float) u * inv)) * drive);
+        y = acc * inv * norm;
+    }
+    xPrev = x;
+    return y;
 }
 
 float Engine::Env::tick (float atkCoef, float decCoef, bool loop)
@@ -411,7 +446,8 @@ void Engine::process (float* L, float* R, int n)
 //==============================================================================
 void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixRB, int n)
 {
-    const bool hq = G[gHq] > 0.5f;
+    const int quality = std::clamp ((int) std::lround (G[gHq]), 0, 2);
+    const int os = quality == 2 ? 4 : (quality == 1 ? 2 : 1);
     bool soloAny = false;
     for (int v = 0; v < kVoices; ++v) soloAny |= V[v][vfSolo] > 0.5f;
 
@@ -554,9 +590,12 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
                 if (wave == 1) osc = sq * 0.85f;
                 else
                 {
-                    vc.triState = vc.triState * 0.999f + (float) (4.0 * dt) * sq;
-                    osc = vc.triState * 0.9f / (float) std::max (0.05, 4.0 * dt * 90.0);
-                    osc = std::clamp (vc.triState * 2.2f, -1.2f, 1.2f);
+                    // triangle: leaky-integrated blepped square. The leak is
+                    // proportional to frequency so the amplitude is pitch-
+                    // independent (~0.95) and DC drains in ~10 cycles.
+                    const float k4dt = (float) (4.0 * dt);
+                    vc.triState = vc.triState * (1.0f - 0.05f * k4dt) + k4dt * sq;
+                    osc = vc.triState;
                 }
             }
 
@@ -565,22 +604,19 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
             cut01 = std::clamp (cut01, 0.0f, 1.0f);
             vc.cutSmooth += 0.02f * (cut01 - vc.cutSmooth);
             const float fc = 30.0f * std::pow (533.0f, vc.cutSmooth);   // 30 Hz .. 16 kHz
+            const float fcC = std::min (fc, (float) fs * 0.45f);
+            const float g = std::tan (3.14159265f * fcC / ((float) fs * (float) os));
             float y;
             if (temper == 2)
             {
-                const float g = std::tan (3.14159265f * std::min (fc, (float) fs * 0.45f) / (float) fs);
-                y = vc.ladder.process (osc, g, res, hq);
+                y = vc.ladder.process (osc, vc.prevOsc, g, res, os);
                 y *= 1.0f + res * 0.9f;                       // ladder loses level at res
             }
             else
             {
-                const int os = hq ? 2 : 1;
-                const float g = std::tan (3.14159265f * std::min (fc, (float) fs * 0.45f)
-                                          / ((float) fs * (float) os));
-                y = 0;
-                for (int u = 0; u < os; ++u)
-                    y = vc.svf.process (osc, g, svfK, svfDrive);
+                y = vc.svf.process (osc, vc.prevOsc, g, svfK, svfDrive, os);
             }
+            vc.prevOsc = osc;
 
             // -- amplitude: env * tremolo, smoothed pan/level
             const float trem = 1.0f - lfoAmpD * (0.5f - 0.5f * lfo) * 0.9f;
@@ -604,8 +640,12 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
 //==============================================================================
 void Engine::masterChain (float* L, float* R, int n)
 {
+    const int quality = std::clamp ((int) std::lround (G[gHq]), 0, 2);
+    const int os = quality == 2 ? 4 : (quality == 1 ? 2 : 1);
+
     const float sat  = G[gBusSat];
     const float satD = 1.0f + 6.0f * sat;
+    const float satN = 1.0f / satD;                 // unity small-signal gain
     const float driveAmt = G[gDriveAmt];
     const float driveIn  = 1.0f + 9.0f * driveAmt;
     const float driveOut = 1.0f / (1.0f + 2.0f * driveAmt);
@@ -643,24 +683,24 @@ void Engine::masterChain (float* L, float* R, int n)
     {
         float l = L[i], r = R[i];
 
-        // bus soft clip (unity small-signal gain)
-        l = fastTanh (l * satD) / satD;
-        r = fastTanh (r * satD) / satD;
+        // bus soft clip (unity small-signal gain), oversampled per quality
+        l = satOS (l, satPrevL, satD, satN, os);
+        r = satOS (r, satPrevR, satD, satN, os);
 
         // drive
-        l = fastTanh (l * driveIn) * driveOut;
-        r = fastTanh (r * driveIn) * driveOut;
+        l = satOS (l, drvPrevL, driveIn, driveOut, os);
+        r = satOS (r, drvPrevR, driveIn, driveOut, os);
 
         // BBD chorus
         bbdPhase += bbdDt; if (bbdPhase >= 1.0) bbdPhase -= 1.0;
         const float m1 = std::sin (6.2831853f * (float) bbdPhase);
         const float m2 = std::sin (6.2831853f * ((float) bbdPhase + 0.25f));
-        bbdL.push (l + bbdToneL.z * 0.0f);
+        bbdL.push (l);
         bbdR.push (r);
         const float cl = bbdToneL.process (bbdL.read (bbdBase + bbdSwing * m1), 0.28f);
         const float cr = bbdToneR.process (bbdR.read (bbdBase + bbdSwing * m2), 0.28f);
-        l += (cl - l) * bbdMix * 0.5f + cl * bbdMix * 0.15f;
-        r += (cr - r) * bbdMix * 0.5f + cr * bbdMix * 0.15f;
+        l = l * (1.0f - bbdMix * 0.5f) + cl * bbdMix * 0.65f;   // honest dry/wet
+        r = r * (1.0f - bbdMix * 0.5f) + cr * bbdMix * 0.65f;
 
         // tape delay
         wowPhase += wowDt; if (wowPhase >= 1.0) wowPhase -= 1.0;
@@ -710,10 +750,21 @@ void Engine::masterChain (float* L, float* R, int n)
             r = mid - side;
         }
 
-        // master + safety
+        // master gain, then a transparent safety clip: unity below ~0.7,
+        // tanh knee only above that (was a full tanh, which colored
+        // everything all the time — measured ~1% THD on clean material).
         masterSmooth += 0.002f * (masterTgt - masterSmooth);
-        l = fastTanh (l * masterSmooth * 0.8f) * 1.25f;
-        r = fastTanh (r * masterSmooth * 0.8f) * 1.25f;
+        l *= masterSmooth;
+        r *= masterSmooth;
+        auto knee = [] (float x)
+        {
+            const float a = std::fabs (x);
+            if (a <= 0.7f) return x;                       // bit-transparent
+            const float y = 0.7f + 0.3f * fastTanh ((a - 0.7f) / 0.3f);
+            return x < 0 ? -y : y;                         // slope-continuous
+        };
+        l = knee (l);
+        r = knee (r);
 
         L[i] = l; R[i] = r;
     }
