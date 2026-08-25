@@ -457,6 +457,65 @@
   .colorized .legend .row.hot[data-row] { color: var(--g, var(--dim)); }
   .colorized .legend .row[data-row] .tool { color: inherit; }
 
+
+  /* ---- KEYS: floating blue-metal field keyboard ---- */
+  .keysbar {
+    position: absolute; left: 70px; right: 70px; bottom: 0; z-index: 30;
+    transform: translateY(115%);
+    transition: transform .3s cubic-bezier(.2, 1.35, .45, 1);
+  }
+  .keysbar.open { transform: translateY(0); }
+  .keysplate {
+    position: relative;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 46px, rgba(0,0,0,.10) 46px 48px),
+      linear-gradient(180deg, #93a0ab 0%, #5f6b77 35%, #414d59 90%);
+    border: 1px solid #0a1118; border-radius: 10px 10px 0 0;
+    padding: 8px 12px 12px;
+    box-shadow: 0 -22px 48px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .keysplate .screwdot {
+    position: absolute; width: 8px; height: 8px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #cfd6db, #6a747c 60%, #2e353b);
+    box-shadow: 0 1px 2px rgba(0,0,0,.5);
+  }
+  .keysrow { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .keysrow .kt {
+    font-family: var(--stencilf); font-size: 10px; letter-spacing: .3em;
+    color: #1d2731; text-shadow: 0 1px 0 rgba(255,255,255,.25);
+  }
+  .keysrow .spacer { flex: 1; }
+  .keys {
+    position: relative; height: 92px; border-radius: 4px; overflow: hidden;
+    border: 1px solid #0a1118; background: #1a232d;
+    box-shadow: inset 0 3px 8px rgba(0,0,0,.5);
+  }
+  .kwhite {
+    position: absolute; top: 0; bottom: 0; border-right: 1px solid #27333f;
+    background: linear-gradient(180deg, #e4ebf0 0%, #b9c7d2 68%, #98a9b7 100%);
+    border-radius: 0 0 3px 3px; cursor: pointer;
+  }
+  .kwhite.down {
+    background: linear-gradient(180deg, #9fc0d8, #6f95b3 70%, #5b7f9d);
+    box-shadow: inset 0 3px 6px rgba(0,0,0,.35);
+  }
+  .kblack {
+    position: absolute; top: 0; height: 57%; z-index: 2;
+    background: linear-gradient(180deg, #2b3947 0%, #101820 75%, #22303c 100%);
+    border: 1px solid #05090d; border-radius: 0 0 3px 3px; cursor: pointer;
+    box-shadow: 2px 3px 5px rgba(0,0,0,.5);
+  }
+  .kblack.down { background: linear-gradient(180deg, #57708a, #2c3f52); }
+
+  /* ---- about hatch text ---- */
+  .aboutbody {
+    width: 100%; text-align: left; font-size: 10px; letter-spacing: .14em;
+    line-height: 1.9; color: var(--dim); text-transform: uppercase;
+    border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px;
+    background: rgba(13,20,27,.5);
+  }
+  .aboutbody b { color: var(--stencil); }
+
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -576,6 +635,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
         <div class="cmdrow">
           <button class="btn" id="engineBtn" title="Under-the-hood controls"><span class="lamp"></span>ENGINE ROOM</button>
           <button class="btn" id="colorBtn" title="Ring every control by function group — osc, filter, LFO, env, mix"><span class="lamp"></span>WAR PAINT</button>
+          <button class="btn" id="keysBtn" title="Deploy the field keyboard"><span class="lamp"></span>KEYS</button>
         </div>
         <div class="expan">
           <button class="btn blank">·</button><button class="btn blank">·</button>
@@ -589,6 +649,21 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
       </div>
 
       <div class="legend right" id="legendR"></div>
+    </div>
+
+    <div class="keysbar" id="keysbar">
+      <div class="keysplate">
+        <div class="screwdot" style="left:6px;top:6px"></div>
+        <div class="screwdot" style="right:6px;top:6px"></div>
+        <div class="screwdot" style="left:6px;bottom:6px"></div>
+        <div class="screwdot" style="right:6px;bottom:6px"></div>
+        <div class="keysrow">
+          <span class="kt">CLONE WARS · FIELD KEYBOARD · C2–C5</span>
+          <span class="spacer"></span>
+          <button class="btn on" id="holdBtn" title="Latch held notes — release nothing, the drone way"><span class="lamp"></span>HOLD</button>
+        </div>
+        <div class="keys" id="keys"></div>
+      </div>
     </div>
 
     <footer class="plate">
@@ -671,6 +746,32 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
       </div>
       <div class="modulebay" style="margin-top:2px">
         THE HULL REMEMBERS WHENEVER THE UNIT PLAYS · REPAIR RESTORES FACTORY CONDITION AND RESETS THE TIMER
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="hatchveil" id="aboutveil">
+  <div class="hatch" style="width:min(480px,92vw)" role="dialog" aria-label="About Clone Wars">
+    <div class="bolt tl"></div><div class="bolt tr"></div>
+    <div class="bolt bl"></div><div class="bolt br"></div>
+    <div class="hatch-head">
+      <div class="t">CLONE WARS</div>
+      <button class="btn" id="aboutClose"><span class="lamp"></span>CLOSE</button>
+    </div>
+    <div class="hatch-grid">
+      <div class="aboutbody">
+        <b>16 analogue clones · two armies · one war</b><br><br>
+        Version 0.1 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Engine LOW / HQ / XHQ · offline render always XHQ<br>
+        The hull remembers: this unit ages with your project. Repair is in the
+        service bay (shift-click the odometer).<br><br>
+        From the curved mind of <b>Professor Brokild</b>.<br>
+        Programmed with VS Code, ChatGPT and Claude.<br><br>
+        Use of this instrument is at your own peril. It may produce unique,
+        beautiful, terrifying or useless drones, and it may crash your DAW.
+        Play unsafely, unwisely and unboringly.<br><br>
+        © 2026 Peter Bøggild · github.com/peterboggild/BrokildApps
       </div>
     </div>
   </div>
@@ -1436,6 +1537,95 @@ if (!reduced) {
     requestAnimationFrame(tick);
   })(t0);
 }
+
+/* ---------------- KEYS: floating field keyboard + HOLD ---------------- */
+const keysbar = document.getElementById("keysbar");
+const keysBtn = document.getElementById("keysBtn");
+const holdBtn = document.getElementById("holdBtn");
+function juceEmit(obj) {
+  if (window.__JUCE__ && window.__JUCE__.backend)
+    window.__JUCE__.backend.emitEvent("cw", obj);
+}
+keysBtn.addEventListener("click", () => {
+  const open = keysbar.classList.toggle("open");
+  keysBtn.classList.toggle("on", open);
+  say(open ? "KEYBOARD \u00b7 DEPLOYED" : "KEYBOARD \u00b7 STOWED");
+});
+holdBtn.addEventListener("click", () => {
+  const on = holdBtn.classList.toggle("on");
+  document.querySelectorAll('[data-gparam="g_latcha"],[data-gparam="g_latchb"]')
+    .forEach(b => b.classList.toggle("on", on));
+  juceEmit({ k: "param", id: "g_latcha", v: on ? 1 : 0 });
+  juceEmit({ k: "param", id: "g_latchb", v: on ? 1 : 0 });
+  say("HOLD \u00b7 " + (on ? "ON \u2014 NOTES LATCH" : "OFF \u2014 NOTES RELEASE"));
+});
+(function buildKeyboard() {
+  const cont = document.getElementById("keys");
+  const LO = 36, HI = 72;                       // C2..C5
+  const isBlack = n => [1, 3, 6, 8, 10].includes(n % 12);
+  const NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const noteName = n => NAMES[n % 12] + (Math.floor(n / 12) - 1);
+  function sendNote(on, n) {
+    say((on ? "NOTE ON \u00b7 " : "NOTE OFF \u00b7 ") + noteName(n));
+    juceEmit({ k: "note", on: on ? 1 : 0, n: n });
+  }
+  const whites = [];
+  for (let n = LO; n <= HI; n++) if (!isBlack(n)) whites.push(n);
+  const ww = 100 / whites.length;
+  whites.forEach((n, i) => {
+    const k = el("div", "kwhite");
+    k.dataset.n = n;
+    k.style.left = (i * ww) + "%"; k.style.width = ww + "%";
+    cont.appendChild(k);
+  });
+  for (let n = LO; n <= HI; n++) {
+    if (!isBlack(n)) continue;
+    const wIdx = whites.filter(w => w < n).length;
+    const k = el("div", "kblack");
+    k.dataset.n = n;
+    k.style.left = (wIdx * ww - ww * 0.32) + "%"; k.style.width = (ww * 0.64) + "%";
+    cont.appendChild(k);
+  }
+  let mouseDown = false;
+  function press(kEl)   { if (!kEl || kEl.classList.contains("down")) return; kEl.classList.add("down"); sendNote(true, +kEl.dataset.n); }
+  function release(kEl) { if (!kEl || !kEl.classList.contains("down")) return; kEl.classList.remove("down"); sendNote(false, +kEl.dataset.n); }
+  function releaseAll() { cont.querySelectorAll(".down").forEach(release); }
+  cont.addEventListener("pointerdown", e => {
+    const k = e.target.closest("[data-n]");
+    if (!k) return;
+    mouseDown = true; press(k); e.preventDefault();
+  });
+  cont.addEventListener("pointerover", e => {
+    if (!mouseDown) return;
+    const k = e.target.closest("[data-n]");
+    if (k) { releaseAll(); press(k); }          // glissando
+  });
+  window.addEventListener("pointerup", () => { if (mouseDown) { mouseDown = false; releaseAll(); } });
+  // qwerty: a w s e d f t g y h u j k o l p  from C3
+  const qmap = {};
+  "awsedftgyhujkolp".split("").forEach((c, i) => qmap[c] = 48 + i);
+  window.addEventListener("keydown", e => {
+    if (!keysbar.classList.contains("open") || e.repeat) return;
+    if (qmap[e.key] !== undefined) press(cont.querySelector('[data-n="' + qmap[e.key] + '"]'));
+  });
+  window.addEventListener("keyup", e => {
+    if (qmap[e.key] !== undefined) release(cont.querySelector('[data-n="' + qmap[e.key] + '"]'));
+  });
+})();
+
+/* ---------------- ABOUT hatch (click the nameplate) ---------------- */
+const aboutveil = document.getElementById("aboutveil");
+{
+  const brand = document.querySelector(".brand h1");
+  brand.style.cursor = "pointer";
+  brand.title = "About Clone Wars";
+  brand.addEventListener("click", () => {
+    document.getElementById("aboutAge").textContent = odo.textContent;
+    aboutveil.classList.add("open");
+  });
+  document.getElementById("aboutClose").addEventListener("click", () => aboutveil.classList.remove("open"));
+  aboutveil.addEventListener("pointerdown", e => { if (e.target === aboutveil) aboutveil.classList.remove("open"); });
+}
 </script>
 
 <script>
@@ -1576,7 +1766,15 @@ if (!reduced) {
         return;
       }
       const byG = document.querySelector('[data-gparam="' + id + '"]');
-      if (byG) { byG.classList.toggle("on", v > 0.5); return; }
+      if (byG) {
+        byG.classList.toggle("on", v > 0.5);
+        if (id === "g_latcha" || id === "g_latchb") {
+          const a = document.querySelector('[data-gparam="g_latcha"]').classList.contains("on");
+          const b = document.querySelector('[data-gparam="g_latchb"]').classList.contains("on");
+          holdBtn.classList.toggle("on", a && b);
+        }
+        return;
+      }
       for (const cmd in CMDMAP) {
         if (CMDMAP[cmd] !== id) continue;
         const el = document.querySelector('[data-cmd="' + cmd + '"]');

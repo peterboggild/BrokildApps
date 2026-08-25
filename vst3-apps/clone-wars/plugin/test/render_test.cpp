@@ -91,10 +91,16 @@ int main (int argc, char** argv)
     const std::string out = argc > 1 ? std::string (argv[1]) + "/" : "";
     const int fs = 48000;
 
-    // ---- scenario 1: power-on default drone -------------------------------
+    // ---- scenario 1: silent on open, then the DRONE power switch ----------
     {
         cw::Engine e;
         e.prepare (fs, 512);
+        std::vector<float> S1, S2;
+        render (e, S1, S2, fs, 1.0);
+        const auto quiet = analyze (S1, S2, 0);
+        check (quiet.rms < 1.0e-4f, "default patch opens silent (VST3 manners)");
+
+        e.setGlobal (cw::gDrone, 1);
         std::vector<float> L, R;
         render (e, L, R, fs, 10.0);
         writeWav (out + "cw-default-drone.wav", L, R, fs);
@@ -114,6 +120,7 @@ int main (int argc, char** argv)
         const char* cat = cw::generatePatch (seed, p);
         e.applyPatch (p);
         e.prepare (fs, 512);
+        e.noteOn (36); e.noteOn (43); e.noteOn (48);
         std::vector<float> L, R;
         render (e, L, R, fs, 8.0);
         char name[128];
@@ -129,8 +136,7 @@ int main (int argc, char** argv)
     // ---- scenario 3: MIDI chord, latch, then WAR sweep --------------------
     {
         cw::Engine e;
-        e.prepare (fs, 512);
-        e.setGlobal (cw::gDrone, 0);          // silent until played
+        e.prepare (fs, 512);                  // silent until played, by default
         std::vector<float> L, R;
         render (e, L, R, fs, 0.5);
         const auto silent = analyze (L, R, 0);
@@ -155,6 +161,7 @@ int main (int argc, char** argv)
     {
         cw::Engine e;
         e.prepare (fs, 512);
+        e.setGlobal (cw::gDrone, 1);
         e.setGlobal (cw::gTemperA, (float) temper);
         e.setGlobal (cw::gTemperB, (float) temper);
         for (int v = 0; v < cw::kVoices; ++v)
@@ -180,6 +187,7 @@ int main (int argc, char** argv)
             e.applyPatch (p);
             e.setUnitSeed (777);
             e.prepare (fs, 512);
+            e.noteOn (40);
             render (e, L, R, fs, 2.0);
         };
         std::vector<float> L1, R1, L2, R2;

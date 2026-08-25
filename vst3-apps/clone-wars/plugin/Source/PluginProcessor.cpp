@@ -232,6 +232,15 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
         if (isB) currentSeedB = n;
         else     { currentSeedA = n; applySeed ((uint32_t) n); }
     }
+    else if (k == "note")                      // on-screen keyboard
+    {
+        const int n = (int) m.getProperty ("n", -1);
+        if (n >= 0 && n < 128)
+        {
+            if ((int) m.getProperty ("on", 0) != 0) engine.noteOn (n);
+            else                                    engine.noteOff (n);
+        }
+    }
     else if (k == "repair")
     {
         wearPoints = 0.0;
