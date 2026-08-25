@@ -38,11 +38,16 @@ jobs:
     needs: engine-test
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch WebView2 SDK (NuGet)
+        working-directory: vst3-apps/clone-wars/plugin
+        run: nuget install Microsoft.Web.WebView2 -Version 1.0.1901.177 -OutputDirectory webview2
       - name: Configure (fetches JUCE 8)
         working-directory: vst3-apps/clone-wars/plugin
         # No -G: the runner's default generator is whichever Visual Studio is
         # installed (the 2026 images dropped VS 2022, so naming a year breaks).
-        run: cmake -S . -B build -A x64
+        run: >
+          cmake -S . -B build -A x64
+          -DJUCE_WEBVIEW2_PACKAGE_LOCATION="${{ github.workspace }}/vst3-apps/clone-wars/plugin/webview2"
       - name: Build Release
         working-directory: vst3-apps/clone-wars/plugin
         run: cmake --build build --config Release
