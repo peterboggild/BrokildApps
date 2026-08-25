@@ -415,6 +415,27 @@
     font-family: var(--mono); font-size: 11px; background: #1a2530; border: 1px solid var(--line);
     border-radius: 4px; padding: 1px 6px; color: var(--stencil);
   }
+  /* ---- Grandmother-style group color coding (toggle) ---- */
+  :root {
+    --g-osc: #ffb054;   /* oscillator: note, wave, footage, tune, drift */
+    --g-flt: #82e082;   /* filter: cutoff, res */
+    --g-lfo: #c99cff;   /* modulation: lfo wave/rate/amp/flt */
+    --g-env: #ff8fb0;   /* envelope: env flt, env amp, loop */
+    --g-mix: #ff6a5e;   /* mixer: pan, mute, solo, fader */
+  }
+  .colorized :is([data-row="note"],[data-row="wave"],[data-row="oct"],[data-row="tune"],[data-row="drift"]) { --g: var(--g-osc); }
+  .colorized :is([data-row="cut"],[data-row="res"]) { --g: var(--g-flt); }
+  .colorized :is([data-row="lfowave"],[data-row="lforate"],[data-row="lfoamp"],[data-row="lfoflt"]) { --g: var(--g-lfo); }
+  .colorized :is([data-row="envf"],[data-row="enva"],[data-row="loop"]) { --g: var(--g-env); }
+  .colorized :is([data-row="pan"],[data-row="ms"],[data-row="mute"],[data-row="solo"],[data-row="fader"]) { --g: var(--g-mix); }
+  .colorized .knob .cap { outline: 2px solid var(--g, transparent); outline-offset: 1px; }
+  .colorized .step .win,
+  .colorized .btn[data-row],
+  .colorized .nbtn { outline: 2px solid var(--g, transparent); }
+  .colorized .fader .fcap { outline: 2px solid var(--g, transparent); }
+  .colorized .legend .row[data-row] { color: var(--g, var(--dim)); border-color: color-mix(in srgb, var(--g, var(--line)) 40%, transparent); }
+  .colorized .legend .row[data-row] .tool { color: inherit; }
+
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -529,6 +550,7 @@ Drag knobs &amp; faders · click selectors to cycle · <b>shift-click</b> contro
         <div class="divider"></div>
         <div class="cmdrow">
           <button class="btn" id="engineBtn" title="Under-the-hood controls"><span class="lamp"></span>ENGINE ROOM</button>
+          <button class="btn" id="colorBtn" title="Ring every control by function group — osc, filter, LFO, env, mix"><span class="lamp"></span>WAR PAINT</button>
         </div>
         <div class="expan">
           <button class="btn blank">·</button><button class="btn blank">·</button>
@@ -719,6 +741,7 @@ for (const railId of ["legend", "legendR"]) {
   const rail = document.getElementById(railId);
   for (const row of ROWS) {
     const r = el("div", "row");
+    r.dataset.row = row.id;
     r.innerHTML =
       (row.fan ? '<span class="tool" title="Fan a ramp across clones 1→16" data-fan="' + row.id + '">⇗</span>' : "") +
       (row.dice ? '<span class="tool" title="Roll this row" data-dice="' + row.id + '">⚄</span>' : "") +
@@ -964,6 +987,15 @@ document.getElementById("hq").addEventListener("click", function () {
   this.classList.toggle("on");
   this.innerHTML = '<span class="lamp"></span>' + (this.classList.contains("on") ? "HQ" : "LOW");
   say("ENGINE · " + (this.classList.contains("on") ? "HQ (4× OVERSAMPLED)" : "LOW (ECO) · RENDER STILL HQ"));
+});
+
+/* group color coding */
+document.getElementById("colorBtn").addEventListener("click", function () {
+  this.classList.toggle("on");
+  document.body.classList.toggle("colorized", this.classList.contains("on"));
+  say(this.classList.contains("on")
+    ? "WAR PAINT · OSC / FILTER / LFO / ENV / MIX"
+    : "WAR PAINT · OFF");
 });
 
 /* engine room hatch */
