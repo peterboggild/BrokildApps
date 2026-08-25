@@ -52,6 +52,8 @@ private:
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void pushAllParamsToEngine();
     void applySeed (uint32_t seed);
+    void applyMorph (float t, bool repaintUi);
+    std::atomic<float> morphT { 0.0f };
     void sendInitToUi();
 
     juce::AudioProcessorValueTreeState apvts;
