@@ -94,3 +94,11 @@ target_compile_definitions(cwvresp PRIVATE _USE_MATH_DEFINES)
 if(MSVC)
     target_link_options(cwvresp PRIVATE /STACK:33554432)
 endif()
+
+# scratch probe (safe to delete): how many archive seeds evolve, per band?
+add_executable(cwevo evocount.cpp ../Source/Core/cw_core.cpp)
+target_include_directories(cwevo PRIVATE ../Source/Core)
+target_compile_definitions(cwevo PRIVATE _USE_MATH_DEFINES)
+if(MSVC)
+    target_link_options(cwevo PRIVATE /STACK:33554432)
+endif()
