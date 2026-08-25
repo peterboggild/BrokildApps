@@ -36,7 +36,7 @@ void defaultPatch (Patch& p)
     g[gEntrainA] = 0.15f;  g[gEntrainB] = 0.15f;
     g[gDriftMaster] = 0.4f;
     g[gTemperA] = 0; g[gTemperB] = 2;
-    g[gLatchA] = 1; g[gLatchB] = 1;
+    g[gLatchA] = 0; g[gLatchB] = 0;   // no hold by default: opened VST3s stay polite
     g[gKbdA] = 0.5f; g[gKbdB] = 0.5f;
     g[gBaseA] = 0.5f; g[gBaseB] = 0.5f;
     g[gGlide] = 0.2f; g[gSpread] = 0.3f;
