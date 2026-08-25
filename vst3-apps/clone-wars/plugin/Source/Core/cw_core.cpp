@@ -38,8 +38,8 @@ static constexpr float LADDER_MAKEUP = 0.55f;
 static const char* kVoiceIds[numVoiceFields] =
 {
     "wave", "foot", "tune", "cut", "res", "lfowave", "lforate", "lfoamp",
-    "lfoflt", "envf", "enva", "loop", "drift", "pan", "level", "mute",
-    "solo", "note", "pw"
+    "lfoflt", "fatk", "fdec", "fsus", "frel", "aatk", "adec", "asus", "arel",
+    "loop", "drift", "pan", "level", "mute", "solo", "note", "pw"
 };
 static const char* kGlobalIds[numGlobals] =
 {
@@ -48,7 +48,7 @@ static const char* kGlobalIds[numGlobals] =
     "spread", "war", "warslew", "master", "width", "bussat", "bassmono",
     "hpf", "drone", "hq", "springdwell", "springmix", "springfreeze",
     "tapetime", "tapefdbk", "tapemix", "bbdrate", "bbddepth", "driveamt",
-    "ranks", "notemode", "envfilt", "lfosync", "fxmix", "cutoff"
+    "ranks", "notemode", "envfilt", "lfosync", "fxmix", "lfodiv", "cutoff"
 };
 const char* voiceFieldId (int f) { return kVoiceIds[f]; }
 const char* globalId (int g)     { return kGlobalIds[g]; }
@@ -79,6 +79,7 @@ void defaultPatch (Patch& p)
     g[gLfoSync] = 0;                   // free-run, phases from the seed
     g[gCutoff] = 0.5f;                 // dead centre: the strips as set
     g[gFxMix] = 1.0f;                  // the rack fully in, as it always was
+    g[gLfoDiv] = 5;                    // 1/4 - one beat per LFO cycle
 
     for (int v = 0; v < kVoices; ++v)
     {
@@ -89,11 +90,31 @@ void defaultPatch (Patch& p)
         f[vfCut] = 0.55f; f[vfRes] = 0.2f;
         f[vfLfoWave] = 0; f[vfLfoRate] = 0.3f;
         f[vfLfoAmp] = 0.15f; f[vfLfoFlt] = 0.25f;
-        f[vfEnvF] = 0.5f; f[vfEnvA] = 0.5f; f[vfLoop] = 0;
+        f[vfFAtk] = 0.12f; f[vfFDec] = 0.8f; f[vfFSus] = 0.55f; f[vfFRel] = 0.8f;
+        f[vfAAtk] = 0.12f; f[vfADec] = 0.8f; f[vfASus] = 1.0f;  f[vfARel] = 0.8f;
+        f[vfLoop] = 0;
         f[vfDrift] = 0.3f; f[vfPan] = 0; f[vfLevel] = 0.8f;
         f[vfMute] = 0; f[vfSolo] = 0; f[vfPw] = 0.5f;
         f[vfNote] = (float) (v % kNoteSlots);
     }
+}
+
+// Translate the legacy one-knob envelope shape into four stages. Filter env
+// keeps the shape-tied sustain the old code had; the amp env always sustained
+// at full, and a drone must go on droning, so its S stays 1.
+static void envF4 (float k, float* f)
+{
+    f[0] = k < 0.45f ? 0.10f : std::min (1.0f, 0.10f + (k - 0.45f) * 1.3f);
+    f[1] = 0.35f + 0.6f * k;
+    f[2] = 0.15f + 0.8f * k;
+    f[3] = 0.4f + 0.5f * k;
+}
+static void envA4 (float k, float* f)
+{
+    f[0] = k < 0.45f ? 0.10f : std::min (1.0f, 0.10f + (k - 0.45f) * 1.3f);
+    f[1] = 0.35f + 0.6f * k;
+    f[2] = 1.0f;
+    f[3] = 0.4f + 0.5f * k;
 }
 
 const char* generatePatch (uint32_t seed, Patch& p)
@@ -140,7 +161,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 f[vfFoot] = (float) (1 + (int) (rngStep (s) % 2)); // 32' / 16'
                 f[vfCut]  = rr (0.22f, 0.52f);
                 f[vfRes]  = rr (0.0f, 0.3f);
-                f[vfEnvA] = rr (0.7f, 1.0f); f[vfEnvF] = rr (0.6f, 1.0f);
+                envA4 (rr (0.7f, 1.0f), &f[vfAAtk]); envF4 (rr (0.6f, 1.0f), &f[vfFAtk]);
             }
             break;
 
@@ -166,7 +187,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 float* f = p.voice[v];
                 f[vfWave] = 1;                                   // pulse
                 f[vfLoop] = (rngStep (s) % 3) != 0 ? 1.0f : 0.0f;
-                f[vfEnvA] = rr (0.0f, 0.4f); f[vfEnvF] = rr (0.0f, 0.5f);
+                envA4 (rr (0.0f, 0.4f), &f[vfAAtk]); envF4 (rr (0.0f, 0.5f), &f[vfFAtk]);
                 f[vfCut]  = rr (0.36f, 0.66f);
                 f[vfRes]  = rr (0.2f, 0.6f);
             }
@@ -180,7 +201,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 float* f = p.voice[v];
                 f[vfWave] = (float) (rngStep (s) % 2 + 2);
                 f[vfFoot] = (float) (3 + (int) (rngStep (s) % 2)); // 8' / 4'
-                f[vfEnvA] = rr (0.6f, 1.0f);
+                envA4 (rr (0.6f, 1.0f), &f[vfAAtk]);
                 f[vfCut]  = rr (0.50f, 0.80f);
                 f[vfLfoAmp] = rr (0.1f, 0.35f);
             }
@@ -426,7 +447,7 @@ float Engine::satOS (float x, float& xPrev, float drive, float norm, int os)
     return y;
 }
 
-float Engine::Env::tick (float atkCoef, float decCoef, float sus, bool loop)
+float Engine::Env::tick (float atkCoef, float decCoef, float relCoef, float sus, bool loop)
 {
     if (stage == 1)                       // attacking
     {
@@ -439,7 +460,7 @@ float Engine::Env::tick (float atkCoef, float decCoef, float sus, bool loop)
     }
     else if (stage == 2)                  // released: fall to silence
     {
-        value += decCoef * (0.0f - value);
+        value += relCoef * (0.0f - value);
         if (value < 1.0e-4f) { value = 0; stage = 0; }
     }
     else if (stage == 3)                  // loop decay leg
@@ -503,7 +524,9 @@ void Engine::controlTick()
             const float k = ranks <= 0.5f ? ranks * 2.0f
                                           : 1.0f + (ranks - 0.5f) * 3.0f;
             static constexpr int fields[] = { vfTune, vfCut, vfRes, vfLfoRate,
-                                              vfLfoAmp, vfLfoFlt, vfEnvF, vfEnvA,
+                                              vfLfoAmp, vfLfoFlt,
+                                              vfFAtk, vfFDec, vfFSus, vfFRel,
+                                              vfAAtk, vfADec, vfASus, vfARel,
                                               vfDrift, vfPan };
             for (int army = 0; army < 2; ++army)
             {
@@ -682,30 +705,30 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
         float lfoHz;
         if (G[gLfoSync] > 0.5f)
         {
-            // Beats per LFO cycle, longest first, so the knob still reads
-            // "slow on the left" exactly as the free-running sweep does.
-            // Tolerance is deliberately NOT applied: synced means synced.
-            static constexpr float kBeats[8] = { 16, 8, 4, 2, 1, 0.5f, 0.25f, 0.125f };
+            // One division for the whole machine, chosen in the engine room:
+            // 4/1 .. 1/32 in beats per cycle (4/4 bars). Tolerance and the
+            // per-clone RATE knobs are deliberately ignored: synced is synced.
+            static constexpr float kDivBeats[10] = { 16.0f, 8.0f, 4.0f, 2.0f,
+                                                     4.0f / 3.0f, 1.0f, 2.0f / 3.0f,
+                                                     0.5f, 0.25f, 0.125f };
             const double bpm = hostBpm.load (std::memory_order_relaxed);
-            const int idx = std::clamp ((int) (F[vfLfoRate] * 7.999f), 0, 7);
-            lfoHz = (float) (std::max (20.0, bpm) / 60.0) / kBeats[idx];
+            const int di = std::clamp ((int) G[gLfoDiv], 0, 9);
+            lfoHz = (float) (std::max (20.0, bpm) / 60.0) / kDivBeats[di];
         }
-        else lfoHz = 0.02f * std::pow (400.0f, F[vfLfoRate]) * vc.tolLfo;
+        else lfoHz = 0.01f * std::pow (4000.0f, F[vfLfoRate]) * vc.tolLfo;   // 0.01 .. 40 Hz
         const double lfoDt = (double) lfoHz / fs;
-        auto envTimes = [&] (float k, float& atkC, float& decC)
+        auto coefOf = [&] (float seconds)
         {
-            auto sstep = [] (float a, float b, float x)
-            { x = std::clamp ((x - a) / (b - a), 0.0f, 1.0f); return x * x * (3 - 2 * x); };
-            const float atkS = 0.004f * std::pow (1250.0f, sstep (0.45f, 1.0f, k)) * vc.tolEnv;
-            const float decS = 0.06f  * std::pow (133.0f,  sstep (0.0f, 0.55f, k)) * vc.tolEnv;
-            atkC = 1.0f - std::exp ((float) (-1.0 / (atkS * fs)));
-            decC = 1.0f - std::exp ((float) (-1.0 / (decS * fs)));
+            seconds = std::max (1.0e-3f, seconds * vc.tolEnv);
+            return 1.0f - std::exp ((float) (-1.0 / (seconds * fs)));
         };
-        float aAtk, aDec, fAtk, fDec;
-        envTimes (F[vfEnvA], aAtk, aDec);
-        envTimes (F[vfEnvF], fAtk, fDec);
-        // One knob, so the sustain rides with it: shut = plucky, open = pad.
-        const float fSus = 0.15f + 0.8f * F[vfEnvF];
+        const float fAtk = coefOf (0.002f * std::pow (2500.0f, F[vfFAtk]));   // 2 ms .. 5 s
+        const float fDec = coefOf (0.005f * std::pow (2400.0f, F[vfFDec]));   // 5 ms .. 12 s
+        const float fRel = coefOf (0.005f * std::pow (3000.0f, F[vfFRel]));   // 5 ms .. 15 s
+        const float aAtk = coefOf (0.002f * std::pow (2500.0f, F[vfAAtk]));
+        const float aDec = coefOf (0.005f * std::pow (2400.0f, F[vfADec]));
+        const float aRel = coefOf (0.005f * std::pow (3000.0f, F[vfARel]));
+        const float fSus = F[vfFSus], aSus = F[vfASus];
         const bool loop = F[vfLoop] > 0.5f;
 
         // ---- output gains
@@ -748,8 +771,8 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
             }
 
             // -- envelopes
-            const float ea = vc.envAmp.tick (aAtk, aDec, 1.0f, loop);
-            const float ef = vc.envFlt.tick (fAtk, fDec, fSus, loop);
+            const float ea = vc.envAmp.tick (aAtk, aDec, aRel, aSus, loop);
+            const float ef = vc.envFlt.tick (fAtk, fDec, fRel, fSus, loop);
 
             // -- filter coefficient for this output sample. The envelope opens
             //    what headroom is LEFT above the knob: added flat it pushed

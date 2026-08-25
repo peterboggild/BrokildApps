@@ -49,6 +49,7 @@ static Shape globalShape (int g)
         case gLfoSync:              return { 0, 1, 1, 0 };
         case gCutoff:               return { 0, 1, 0, 0.5f };
         case gFxMix:                return { 0, 1, 0, 1.0f };
+        case gLfoDiv:               return { 0, 9, 1, 5 };
         case gNoteMode:             return { 0, 2, 1, 1 };  // UNISON/TREATY/WAR
         case gEnvFilt:              return { 0, 1, 0, 0.45f };
         case gWar:                  return { 0, 1, 0, 0.5f };
@@ -210,6 +211,38 @@ void CloneWarsProcessor::parameterChanged (const juce::String& id, float newValu
 }
 
 //==============================================================================
+void CloneWarsProcessor::applyMorph (float t, bool repaintUi)
+{
+    // Glide the console from seed A to seed B: continuous parameters are
+    // interpolated; STEPPED ones (wave, footage, temper, switches) each defect
+    // at their own deterministic threshold staggered across the travel, so the
+    // console changes sides one clone at a time instead of all at the midpoint.
+    cw::Patch a, b;
+    cw::generatePatch ((uint32_t) currentSeedA.load(), a);
+    currentCategory = cw::generatePatch ((uint32_t) currentSeedA.load(), a);
+    cw::generatePatch ((uint32_t) currentSeedB.load(), b);
+    uint32_t stag = 0x243F6A88u;
+    auto blend = [t, &stag] (float av, float bv, bool stepped) mutable
+    {
+        stag = stag * 1664525u + 1013904223u;
+        const float thresh = 0.08f + 0.84f * (float) (stag >> 8) / 16777216.0f;
+        return stepped ? (t < thresh ? av : bv) : av + t * (bv - av);
+    };
+    suppressEcho = true;
+    for (int g = 0; g < cw::numGlobals; ++g)
+        if (auto* par = apvts.getParameter (globalParamId (g)))
+            par->setValueNotifyingHost (par->convertTo0to1 (
+                blend (a.global[g], b.global[g], globalShape (g).step > 0.0f)));
+    for (int v = 0; v < cw::kVoices; ++v)
+        for (int f = 0; f < cw::numVoiceFields; ++f)
+            if (auto* par = apvts.getParameter (voiceParamId (v, f)))
+                par->setValueNotifyingHost (par->convertTo0to1 (
+                    blend (a.voice[v][f], b.voice[v][f], voiceShape (f).step > 0.0f)));
+    suppressEcho = false;
+    pushAllParamsToEngine();
+    if (repaintUi) sendInitToUi();
+}
+
 void CloneWarsProcessor::applySeed (uint32_t seed)
 {
     cw::Patch p;
@@ -246,11 +279,13 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
     }
     else if (k == "morph")
     {
-        // Glide the console from seed A to seed B: continuous parameters are
-        // interpolated, stepped ones (wave, footage, tempers, switches) snap
-        // at the midpoint. Writing through the APVTS keeps host automation,
-        // the engine and the panel all in agreement.
         const float t = std::clamp ((float) (double) m.getProperty ("v", 0.0), 0.0f, 1.0f);
+        morphT.store (t);
+        applyMorph (t, t <= 0.0f || t >= 1.0f);
+    }
+    else if (k == "__never__")
+    {
+        const float t = 0;
         cw::Patch a, b;
         cw::generatePatch ((uint32_t) currentSeedA.load(), a);
         cw::generatePatch ((uint32_t) currentSeedB.load(), b);
@@ -278,14 +313,17 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
                         blend (a.voice[v][f], b.voice[v][f], voiceShape (f).step > 0.0f)));
         suppressEcho = false;
         pushAllParamsToEngine();
-        if (t <= 0.0f || t >= 1.0f) sendInitToUi();   // repaint at the endpoints
     }
     else if (k == "seed")
     {
+        // MORPH's position is authoritative: loading a seed re-applies the
+        // blend AT that position, so the knob and the console never disagree.
         const int n = (int) m.getProperty ("n", 0);
         const bool isB = (bool) m.getProperty ("b", false);
-        if (isB) currentSeedB = n;
-        else     { currentSeedA = n; applySeed ((uint32_t) n); }
+        if (isB) currentSeedB = n; else currentSeedA = n;
+        const float t = morphT.load();
+        if (! isB && t <= 0.001f) applySeed ((uint32_t) n);
+        else                      applyMorph (t, true);
     }
     else if (k == "note")                      // on-screen keyboard
     {
@@ -338,6 +376,7 @@ void CloneWarsProcessor::sendInitToUi()
     obj->setProperty ("wearSeed", (juce::int64) wearSeed.load());
     obj->setProperty ("seedA", currentSeedA.load());
     obj->setProperty ("seedB", currentSeedB.load());
+    obj->setProperty ("morph", morphT.load());
     obj->setProperty ("category", currentCategory);
     emitToUi ("init", juce::var (obj));
 }
@@ -380,6 +419,7 @@ void CloneWarsProcessor::getStateInformation (juce::MemoryBlock& destData)
     root->setProperty ("unitSeed", (juce::int64) unitSeed.load());
     root->setProperty ("seedA", currentSeedA.load());
     root->setProperty ("seedB", currentSeedB.load());
+    root->setProperty ("morphT", (double) morphT.load());
 
     const auto json = juce::JSON::toString (juce::var (root), true);
     destData.replaceAll (json.toRawUTF8(), json.getNumBytesAsUTF8());
@@ -402,6 +442,9 @@ void CloneWarsProcessor::setStateInformation (const void* data, int sizeInBytes)
     unitSeed   = (uint32_t) (juce::int64) v.getProperty ("unitSeed", (juce::int64) 0xC70BE5);
     currentSeedA = (int) v.getProperty ("seedA", 42);
     currentSeedB = (int) v.getProperty ("seedB", 137);
+    // restore the position but do NOT re-apply the blend: the saved params
+    // already carry blend + any edits, and re-applying would wipe the edits
+    morphT = (float) (double) v.getProperty ("morphT", 0.0);
 
     engine.setUnitSeed (unitSeed.load());
     pushAllParamsToEngine();

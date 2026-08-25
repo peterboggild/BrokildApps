@@ -568,6 +568,20 @@
     font-family: var(--stencilf); font-size: 6px; letter-spacing: .28em;
     color: rgba(227,233,228,.5); pointer-events: none;
   }
+  /* rail lock tools light when their half-row is locked */
+  .tool[data-lockrow].lit { color: #d8b24a; text-shadow: 0 0 6px rgba(216,178,74,.8); }
+  .tool[data-lockrow].half { color: #a58a45; text-shadow: 0 0 4px rgba(216,178,74,.4); }
+  .envmini {
+    width: 58px; height: 42px; margin: 0 auto; cursor: pointer;
+    border: 1px solid #0a1118; border-radius: 4px; background: #101821;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.5);
+  }
+  .envmini canvas { width: 100%; height: 100%; display: block; }
+  .envcv {
+    display: block; width: 100%; border: 1px solid #0a1118; border-radius: 5px;
+    background: #101821; box-shadow: inset 0 2px 6px rgba(0,0,0,.5);
+    cursor: crosshair; touch-action: none;
+  }
   /* ---- about hatch text ---- */
   .aboutbody {
     width: 100%; text-align: left; font-size: 10px; letter-spacing: .14em;
@@ -660,9 +674,6 @@
           <div class="step" data-cmd="NOTE MODE" tabindex="0" title="How the sixteen share out the held notes — UNISON: all on the bottom note; TREATY: split left to right, low to high; WAR: the armies contest the chord">
             <span class="win">TREATY</span><div class="lbl">note mode</div>
           </div>
-          <div class="knob k34" data-cmd="ENV&gt;FILT" data-val="0.45" tabindex="0" title="How much of the cutoff headroom ABOVE the knob the filter envelope opens">
-            <div class="cap"><div class="ptr"></div></div><div class="lbl">env&gt;filt</div>
-          </div>
         </div>
         <div class="cmdrow">
           <div class="knob k44" data-cmd="MASTER CUT" data-val="0.5" tabindex="0" title="Sweeps all sixteen filters together — centre leaves the strips as set. This is the filter knob.">
@@ -706,7 +717,6 @@
         <div class="divider"></div>
         <div class="cmdrow">
           <button class="btn" id="engineBtn" title="Under-the-hood controls"><span class="lamp"></span>ENGINE ROOM</button>
-          <button class="btn" id="colorBtn" title="Ring every control by function group — osc, filter, LFO, env, mix"><span class="lamp"></span>WAR PAINT</button>
           <button class="btn" id="keysBtn" title="Deploy the field keyboard"><span class="lamp"></span>KEYS</button>
           <button class="btn" id="fxBtn" title="The effect rack — spring, tape, BBD, drive"><span class="lamp"></span>EFFECTS</button>
         </div>
@@ -755,12 +765,38 @@
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.9 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.10 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
 </div></div>
 
+<div class="hatchveil" id="envveil">
+  <div class="hatch" style="width:min(520px,94vw)" role="dialog" aria-label="Envelope bay">
+    <div class="bolt tl"></div><div class="bolt tr"></div>
+    <div class="bolt bl"></div><div class="bolt br"></div>
+    <div class="hatch-head">
+      <div class="t">ENVELOPE BAY · <span id="envTitle">CLONE 01</span></div>
+      <div>
+        <button class="btn" id="envPrev">&#9664;</button>
+        <button class="btn" id="envNext">&#9654;</button>
+        <button class="btn" id="envClose"><span class="lamp"></span>CLOSE</button>
+      </div>
+    </div>
+    <div class="hatch-grid">
+      <div class="cmd-t">FILTER ENVELOPE</div>
+      <canvas id="envFltCv" class="envcv" width="460" height="120"></canvas>
+      <div class="cmd-t" style="margin-top:8px">AMP ENVELOPE</div>
+      <canvas id="envAmpCv" class="envcv" width="460" height="120"></canvas>
+      <div class="cmdrow" style="margin-top:10px">
+        <button class="btn" id="envLoopBtn" title="Envelopes self-retrigger — the strip breathes"><span class="lamp"></span>LOOP</button>
+        <div class="knob k34" data-cmd="ENV&gt;FILT" data-val="0.45" tabindex="0" title="Global: how much of the cutoff headroom ABOVE the knob the filter envelope opens">
+          <div class="cap"><div class="ptr"></div></div><div class="lbl">env&gt;filt · global</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="hatchveil" id="fxveil">
   <div class="hatch" role="dialog" aria-label="Effect rack">
     <div class="bolt tl"></div><div class="bolt tr"></div>
@@ -806,6 +842,9 @@
         </div>
         <button class="btn" id="scatter" title="Re-randomise all 16 LFO phases"><span class="lamp"></span>SCATTER</button>
         <button class="btn" id="lfosync" data-gparam="g_lfosync" title="LFOs free-run (phases from seed) or sync to host clock"><span class="lamp"></span>LFO SYNC</button>
+        <div class="step" data-cmd="LFO DIV" tabindex="0" title="Synced LFO cycle length against the host clock (4/1 = four bars)">
+          <span class="win">1/4</span><div class="lbl">lfo div</div>
+        </div>
       </div>
       <div class="cmd-t">OUTPUT BUS</div>
       <div class="cmdrow">
@@ -892,7 +931,7 @@
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.9 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.10 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -919,6 +958,7 @@ const STEPOPTS = {
   "TEMPER A": ["GROWL", "SCREAM", "LADDER"],
   "TEMPER B": ["GROWL", "SCREAM", "LADDER"],
   "NOTE MODE": ["UNISON", "TREATY", "WAR"],
+  "LFO DIV": ["4/1", "2/1", "1/1", "1/2", "1/3", "1/4", "1/6", "1/8", "1/16", "1/32"],
 };
 const ROWS = [
   { id:"vu",      label:"LEVEL VU",  type:"vu",    h:"46px" },
@@ -933,9 +973,7 @@ const ROWS = [
   { id:"lforate", label:"LFO RATE",  type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.3 },
   { id:"lfoamp",  label:"LFO→AMP",   type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.15 },
   { id:"lfoflt",  label:"LFO→FLT",   type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.25 },
-  { id:"envf",    label:"ENV FLT",   type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.5, title: ENV_TITLE },
-  { id:"enva",    label:"ENV AMP",   type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.5, title: ENV_TITLE },
-  { id:"loop",    label:"ENV LOOP",  type:"btn",   h:"20px", dice:true, text:"LOOP", title:"Envelope self-retriggers — the strip breathes" },
+  { id:"env",     label:"ENVELOPES", type:"env",   h:"48px" },
   { id:"drift",   label:"DRIFT",     type:"knob",  h:"38px", dice:true, fan:true, size:"k28", def:.3 },
   { id:"pan",     label:"PAN",       type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.5 },
   { id:"ms",      label:"MUTE·SOLO", type:"ms",    h:"20px" },
@@ -992,6 +1030,17 @@ function buildStrip(ch) {
       b.dataset.row = row.id; b.dataset.ch = ch;
       if (row.title) b.title = row.title;
       cell.appendChild(b);
+    } else if (row.type === "env") {
+      const em = el("div", "envmini");
+      em.dataset.ch = ch;
+      em.dataset.fatk = .12; em.dataset.fdec = .8; em.dataset.fsus = .55; em.dataset.frel = .8;
+      em.dataset.aatk = .12; em.dataset.adec = .8; em.dataset.asus = 1;   em.dataset.arel = .8;
+      em.dataset.loop = 0;
+      em.title = "Drag: shape the FILTER envelope · click: open the envelope bay";
+      const cv = document.createElement("canvas");
+      cv.width = 116; cv.height = 84;
+      em.appendChild(cv);
+      cell.appendChild(em);
     } else if (row.type === "ms") {
       const set = el("div", "msset");
       const m = el("button", "btn", "M"); m.dataset.row = "mute"; m.dataset.ch = ch;
@@ -1092,6 +1141,7 @@ function toggleLock(elem) {
   const set = lockSet(row);
   if (set.has(elem)) { set.delete(elem); elem.classList.remove("locked"); }
   else { set.add(elem); elem.classList.add("locked"); }
+  refreshLockTools();
   say("LOCK " + row.toUpperCase() + " · " + set.size + " CLONES");
 }
 
@@ -1126,16 +1176,29 @@ function lockSide(rowId, side, anchor) {     // anchor set = unison at its value
   const army = side.toUpperCase();
   if (els.every(c => set.has(c))) {          // gesture repeated: release the side
     for (const c of els) { set.delete(c); c.classList.remove("locked"); }
+    refreshLockTools();
     say("UNLOCK " + rowId.toUpperCase() + " · ARMY " + army);
     return;
   }
   if (anchor) for (const c of els) snapTo(c, anchor);
   for (const c of els) { set.add(c); c.classList.add("locked"); }
   if (anchor) rowBulkChanged(rowId);
+  refreshLockTools();
   say("LOCK " + rowId.toUpperCase() + " · ARMY " + army + " · " +
       (anchor ? "UNISON @ " + controlName(anchor) : "INTERVALS KEPT"));
 }
 function sideOf(el) { return parseInt(el.dataset.ch) <= 8 ? "a" : "b"; }
+
+/* the rail lock tools glow when their half-row is locked (dim = partial) */
+function refreshLockTools() {
+  document.querySelectorAll("[data-lockrow]").forEach(t => {
+    const els = sideEls(t.dataset.lockrow, t.dataset.side);
+    const set = lockSet(t.dataset.lockrow);
+    const locked = els.filter(c => set.has(c)).length;
+    t.classList.toggle("lit", locked > 0 && locked === els.length);
+    t.classList.toggle("half", locked > 0 && locked < els.length);
+  });
+}
 
 function controlName(elem) {
   if (elem.dataset.cmd) return elem.dataset.cmd;
@@ -1346,13 +1409,137 @@ document.getElementById("hq").addEventListener("click", function () {
 });
 
 /* group color coding */
-document.getElementById("colorBtn").addEventListener("click", function () {
-  this.classList.toggle("on");
-  document.body.classList.toggle("colorized", this.classList.contains("on"));
-  say(this.classList.contains("on")
-    ? "WAR PAINT · OSC / FILTER / LFO / ENV / MIX"
-    : "WAR PAINT · OFF");
+/* WAR PAINT control removed 260825.10 (Peter: keep the function, lose the
+   button while he decides). The body.colorized CSS legend machinery stays;
+   toggling the class by hand still works. */
+
+/* ---------------- envelope bay ---------------- */
+const ENVF = ["fatk", "fdec", "fsus", "frel"];
+const ENVA = ["aatk", "adec", "asus", "arel"];
+function envPath(ctx, W, H, a, d, s, r, color, fill) {
+  const q = W / 4;
+  const x1 = 6 + a * (q - 6), x2 = x1 + 4 + d * (q - 4);
+  const x3 = W - 6 - r * (q - 6);
+  const sy = 6 + (1 - s) * (H - 12);
+  ctx.beginPath();
+  ctx.moveTo(3, H - 3); ctx.lineTo(x1, 4); ctx.lineTo(x2, sy);
+  ctx.lineTo(Math.max(x2, x3), sy); ctx.lineTo(W - 3, H - 3);
+  if (fill) { ctx.lineTo(3, H - 3); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); }
+  ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.stroke();
+  return { x1: x1, x2: x2, x3: Math.max(x2, x3), sy: sy };
+}
+function envVals(mini, set) { return set.map(f => parseFloat(mini.dataset[f])); }
+function paintEnvMini(mini) {
+  const cv = mini.querySelector("canvas"), ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  let v = envVals(mini, ENVA);
+  envPath(ctx, cv.width, cv.height, v[0], v[1], v[2], v[3], "rgba(227,233,228,.4)");
+  v = envVals(mini, ENVF);
+  envPath(ctx, cv.width, cv.height, v[0], v[1], v[2], v[3], "#d8b24a", "rgba(216,178,74,.12)");
+}
+function envMiniFor(ch) { return document.querySelector('.envmini[data-ch="' + ch + '"]'); }
+function envChanged(ch, fields) {
+  const mini = envMiniFor(ch);
+  paintEnvMini(mini);
+  if (envBayCh === ch) paintEnvBay();
+  document.dispatchEvent(new CustomEvent("cw-env", { detail: { ch: ch, fields: fields } }));
+}
+let envBayCh = 0;
+const envveil = document.getElementById("envveil");
+function paintEnvBay() {
+  const mini = envMiniFor(envBayCh);
+  if (!mini) return;
+  document.getElementById("envTitle").textContent =
+    "CLONE " + String(envBayCh).padStart(2, "0") + " · ARMY " + (envBayCh <= 8 ? "A" : "B");
+  document.getElementById("envLoopBtn").classList.toggle("on", mini.dataset.loop > 0.5);
+  for (const [cvId, set, col] of [["envFltCv", ENVF, "#d8b24a"], ["envAmpCv", ENVA, "#9fb4c6"]]) {
+    const cv = document.getElementById(cvId), ctx = cv.getContext("2d");
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const v = envVals(mini, set);
+    const h = envPath(ctx, cv.width, cv.height, v[0], v[1], v[2], v[3], col, "rgba(120,140,160,.08)");
+    ctx.fillStyle = col;
+    for (const [hx, hy] of [[h.x1, 4], [h.x2, h.sy], [(h.x2 + h.x3) / 2, h.sy], [cv.width - 3, cv.height - 3]]) {
+      ctx.beginPath(); ctx.arc(hx, hy, 4, 0, 6.2832); ctx.fill();
+    }
+  }
+}
+function openEnvBay(ch) { envBayCh = ch; paintEnvBay(); envveil.classList.add("open"); say("ENVELOPE BAY · CLONE " + String(ch).padStart(2, "0")); }
+document.getElementById("envClose").addEventListener("click", () => { envveil.classList.remove("open"); envBayCh = 0; });
+envveil.addEventListener("pointerdown", e => { if (e.target === envveil) { envveil.classList.remove("open"); envBayCh = 0; } });
+document.getElementById("envPrev").addEventListener("click", () => { envBayCh = envBayCh <= 1 ? 16 : envBayCh - 1; paintEnvBay(); });
+document.getElementById("envNext").addEventListener("click", () => { envBayCh = envBayCh >= 16 ? 1 : envBayCh + 1; paintEnvBay(); });
+document.getElementById("envLoopBtn").addEventListener("click", function () {
+  const mini = envMiniFor(envBayCh);
+  if (!mini) return;
+  mini.dataset.loop = mini.dataset.loop > 0.5 ? 0 : 1;
+  this.classList.toggle("on", mini.dataset.loop > 0.5);
+  envChanged(envBayCh, { loop: parseFloat(mini.dataset.loop) });
+  say("CLONE " + String(envBayCh).padStart(2, "0") + " · ENV LOOP " + (mini.dataset.loop > 0.5 ? "ON" : "OFF"));
 });
+// dragging inside the bay: A / D / S / R by nearest quarter, S vertical
+function bayDragWire(cvId, set) {
+  const cv = document.getElementById(cvId);
+  let seg = -1;
+  cv.addEventListener("pointerdown", e => {
+    const r = cv.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width;
+    seg = x < 0.25 ? 0 : x < 0.5 ? 1 : x < 0.75 ? 2 : 3;
+    move(e); e.preventDefault();
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener("pointermove", move);
+  cv.addEventListener("pointerup", () => { seg = -1; });
+  function move(e) {
+    if (seg < 0) return;
+    const mini = envMiniFor(envBayCh);
+    if (!mini) return;
+    const r = cv.getBoundingClientRect();
+    const fx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    const fy = Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height));
+    let field, v;
+    if (seg === 0)      { field = set[0]; v = fx * 4; }             // attack time
+    else if (seg === 1) { field = set[1]; v = (fx - 0.25) * 4; }    // decay time
+    else if (seg === 2) { field = set[2]; v = fy; }                 // sustain level
+    else                { field = set[3]; v = (1 - fx) * 4; }       // release time
+    v = Math.min(1, Math.max(0, v));
+    mini.dataset[field] = v;
+    const fields = {}; fields[field] = v;
+    envChanged(envBayCh, fields);
+  }
+}
+bayDragWire("envFltCv", ENVF);
+bayDragWire("envAmpCv", ENVA);
+// the mini: small drag shapes the FILTER envelope; a click opens the bay
+document.addEventListener("pointerdown", e => {
+  const mini = e.target.closest(".envmini");
+  if (!mini) return;
+  const start = { x: e.clientX, y: e.clientY, moved: false };
+  const ch = parseInt(mini.dataset.ch);
+  const r = mini.getBoundingClientRect();
+  const onMove = ev => {
+    if (Math.abs(ev.clientX - start.x) + Math.abs(ev.clientY - start.y) < 5 && !start.moved) return;
+    start.moved = true;
+    const fx = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
+    const fy = Math.min(1, Math.max(0, 1 - (ev.clientY - r.top) / r.height));
+    const seg = fx < 0.25 ? 0 : fx < 0.5 ? 1 : fx < 0.75 ? 2 : 3;
+    let field, v;
+    if (seg === 0)      { field = "fatk"; v = fx * 4; }
+    else if (seg === 1) { field = "fdec"; v = (fx - 0.25) * 4; }
+    else if (seg === 2) { field = "fsus"; v = fy; }
+    else                { field = "frel"; v = (1 - fx) * 4; }
+    mini.dataset[field] = Math.min(1, Math.max(0, v));
+    const fields = {}; fields[field] = parseFloat(mini.dataset[field]);
+    envChanged(ch, fields);
+  };
+  const onUp = () => {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    if (!start.moved) openEnvBay(ch);
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+});
+document.querySelectorAll(".envmini").forEach(paintEnvMini);
 
 /* effect rack hatch */
 const fxveil = document.getElementById("fxveil");

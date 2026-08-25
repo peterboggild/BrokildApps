@@ -39,8 +39,14 @@ enum VoiceField
     vfLfoRate,    // 0..1 (exp 0.02..8 Hz)
     vfLfoAmp,     // 0..1
     vfLfoFlt,     // 0..1
-    vfEnvF,       // 0..1 one-knob shape (filter env)
-    vfEnvA,       // 0..1 one-knob shape (amp env)
+    vfFAtk,       // filter envelope: attack, decay, sustain level, release
+    vfFDec,
+    vfFSus,
+    vfFRel,
+    vfAAtk,       // amp envelope: the same four
+    vfADec,
+    vfASus,
+    vfARel,
     vfLoop,       // 0/1 envelope self-retrigger
     vfDrift,      // 0..1
     vfPan,        // -1..1
@@ -101,6 +107,7 @@ enum GlobalParam
     gFxMix,         // 0..1 global effect mix: dry console <-> the full rack
                     //      (sat, drive, bbd, tape, spring; the corrective bus
                     //      stays in circuit). 1.0 = exactly the old behaviour.
+    gLfoDiv,        // 0..9 synced LFO cycle: 4/1 2/1 1/1 1/2 1/3 1/4 1/6 1/8 1/16 1/32
     gCutoff,        // 0..1 MASTER CUT: 0.5 neutral, offsets all 16 cutoffs
                     //      together. The per-clone CUTOFF knobs stay put and
                     //      keep their spread; this is the knob you sweep.
@@ -281,10 +288,9 @@ private:
         bool  looping = false;
         void  gateOn()  { stage = 1; }
         void  gateOff() { if (stage != 0) stage = 2; }
-        // A held note decays to `sus` rather than sitting at full open. The
-        // amp envelope passes 1 (a drone must go on droning); the filter
-        // envelope passes the shape knob, which is what gives it a contour.
-        float tick (float atkCoef, float decCoef, float sus, bool loop);
+        // Full ADSR: attack to 1, decay to sus while held, release with its
+        // own coefficient. Loop mode cycles attack <-> decay.
+        float tick (float atkCoef, float decCoef, float relCoef, float sus, bool loop);
     };
 
     struct Voice
