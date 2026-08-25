@@ -60,6 +60,11 @@ target_compile_definitions(CloneWars
     PUBLIC
         JUCE_WEB_BROWSER=1
         JUCE_USE_WIN_WEBVIEW2=1
+        # Without this, JUCE ignores the statically linked loader and tries to
+        # LoadLibrary("WebView2Loader.dll") at runtime; when that DLL isn't
+        # next to the host it silently falls back to the IE backend, which
+        # shows "Navigation to the webpage was canceled" instead of the panel.
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0)
 

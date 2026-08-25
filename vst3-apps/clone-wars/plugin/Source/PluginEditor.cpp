@@ -51,7 +51,31 @@ namespace
 CloneWarsEditor::CloneWarsEditor (CloneWarsProcessor& p)
     : juce::AudioProcessorEditor (&p), processor (p)
 {
-    browser = std::make_unique<juce::WebBrowserComponent> (buildOptions (p));
+    const auto options = buildOptions (p);
+
+   #if JUCE_WINDOWS
+    // If WebView2 genuinely cannot start (runtime missing), say so plainly
+    // instead of letting JUCE fall back to the IE backend's cryptic
+    // "Navigation to the webpage was canceled" page.
+    if (! juce::WebBrowserComponent::areOptionsSupported (options))
+    {
+        fallbackNote = std::make_unique<juce::Label>();
+        fallbackNote->setJustificationType (juce::Justification::centred);
+        fallbackNote->setColour (juce::Label::textColourId, juce::Colour (0xffe3e9e4));
+        fallbackNote->setText ("CLONE WARS\n\n"
+                               "The interface needs the Microsoft Edge WebView2 runtime,\n"
+                               "which was not found on this machine.\n\n"
+                               "Install it from:\n"
+                               "developer.microsoft.com/microsoft-edge/webview2\n\n"
+                               "then reopen this window. The audio engine is running either way.",
+                               juce::dontSendNotification);
+        addAndMakeVisible (*fallbackNote);
+        setSize (640, 360);
+        return;
+    }
+   #endif
+
+    browser = std::make_unique<juce::WebBrowserComponent> (options);
     addAndMakeVisible (*browser);
     browser->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
 
@@ -79,7 +103,10 @@ void CloneWarsEditor::paint (juce::Graphics& g)
 
 void CloneWarsEditor::resized()
 {
-    browser->setBounds (getLocalBounds());
+    if (browser != nullptr)
+        browser->setBounds (getLocalBounds());
+    if (fallbackNote != nullptr)
+        fallbackNote->setBounds (getLocalBounds());
 }
 
 void CloneWarsEditor::timerCallback()
