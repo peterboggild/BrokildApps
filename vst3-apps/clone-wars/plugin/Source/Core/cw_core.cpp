@@ -23,7 +23,8 @@ static const char* kGlobalIds[numGlobals] =
     "temperb", "latcha", "latchb", "kbda", "kbdb", "basea", "baseb", "glide",
     "spread", "war", "warslew", "master", "width", "bussat", "bassmono",
     "hpf", "drone", "hq", "springdwell", "springmix", "springfreeze",
-    "tapetime", "tapefdbk", "tapemix", "bbdrate", "bbddepth", "driveamt"
+    "tapetime", "tapefdbk", "tapemix", "bbdrate", "bbddepth", "driveamt",
+    "ranks"
 };
 const char* voiceFieldId (int f) { return kVoiceIds[f]; }
 const char* globalId (int g)     { return kGlobalIds[g]; }
@@ -48,12 +49,13 @@ void defaultPatch (Patch& p)
     g[gTapeTime] = 0.45f; g[gTapeFdbk] = 0.35f; g[gTapeMix] = 0.2f;
     g[gBbdRate] = 0.3f; g[gBbdDepth] = 0.25f;
     g[gDriveAmt] = 0.15f;
+    g[gRanks] = 0.5f;   // dead centre: the panel as set
 
     for (int v = 0; v < kVoices; ++v)
     {
         float* f = p.voice[v];
         f[vfWave] = 0;
-        f[vfFoot] = (float) ((v + 1) % 4);       // 16' 8' 4' 32' ...
+        f[vfFoot] = (float) (1 + (v + 1) % 4);   // 16' 8' 4' 32' ...
         f[vfTune] = 0;
         f[vfCut] = 0.65f; f[vfRes] = 0.2f;
         f[vfLfoWave] = 0; f[vfLfoRate] = 0.3f;
@@ -106,7 +108,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
             {
                 float* f = p.voice[v];
                 f[vfWave] = (float) (rngStep (s) % 2 + 2);        // tri / sine
-                f[vfFoot] = (float) (rngStep (s) % 2);            // 32' / 16'
+                f[vfFoot] = (float) (1 + (int) (rngStep (s) % 2)); // 32' / 16'
                 f[vfCut]  = rr (0.2f, 0.5f);
                 f[vfRes]  = rr (0.0f, 0.3f);
                 f[vfEnvA] = rr (0.7f, 1.0f); f[vfEnvF] = rr (0.6f, 1.0f);
@@ -121,7 +123,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
             {
                 float* f = p.voice[v];
                 f[vfWave] = 0;
-                f[vfFoot] = (float) (1 + (int) (rngStep (s) % 2)); // 16' / 8'
+                f[vfFoot] = (float) (2 + (int) (rngStep (s) % 2)); // 16' / 8'
                 f[vfCut]  = rr (0.4f, 0.75f);
                 f[vfRes]  = rr (0.1f, 0.45f);
             }
@@ -148,7 +150,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
             {
                 float* f = p.voice[v];
                 f[vfWave] = (float) (rngStep (s) % 2 + 2);
-                f[vfFoot] = (float) (2 + (int) (rngStep (s) % 2)); // 8' / 4'
+                f[vfFoot] = (float) (3 + (int) (rngStep (s) % 2)); // 8' / 4'
                 f[vfEnvA] = rr (0.6f, 1.0f);
                 f[vfCut]  = rr (0.45f, 0.8f);
                 f[vfLfoAmp] = rr (0.1f, 0.35f);
@@ -396,6 +398,36 @@ void Engine::controlTick()
     for (int v = 0; v < kVoices; ++v)
         for (int f = 0; f < numVoiceFields; ++f)
             V[v][f] = voiceIn[(size_t) v][(size_t) f].load (std::memory_order_relaxed);
+
+    // THE RANKS: contrast the continuous panel values around each army's mean.
+    // 0.5 leaves the panel as set; toward 0 the clones fall into line, toward 1
+    // their differences grow (up to 2.5x). The stored values never move - this
+    // reshapes only the working copy, so pulling the slider back to centre
+    // always returns the exact patch. Discretes and the faders are untouched.
+    {
+        const float ranks = std::clamp (G[gRanks], 0.0f, 1.0f);
+        if (std::fabs (ranks - 0.5f) > 1.0e-4f)
+        {
+            const float k = ranks <= 0.5f ? ranks * 2.0f
+                                          : 1.0f + (ranks - 0.5f) * 3.0f;
+            static constexpr int fields[] = { vfTune, vfCut, vfRes, vfLfoRate,
+                                              vfLfoAmp, vfLfoFlt, vfEnvF, vfEnvA,
+                                              vfDrift, vfPan };
+            for (int army = 0; army < 2; ++army)
+            {
+                const int v0 = army * kArmySize;
+                for (int f : fields)
+                {
+                    float mean = 0.0f;
+                    for (int v = v0; v < v0 + kArmySize; ++v) mean += V[v][f];
+                    mean /= (float) kArmySize;
+                    const float lo = (f == vfTune || f == vfPan) ? -1.0f : 0.0f;
+                    for (int v = v0; v < v0 + kArmySize; ++v)
+                        V[v][f] = std::clamp (mean + k * (V[v][f] - mean), lo, 1.0f);
+                }
+            }
+        }
+    }
 
     refreshTolerances();
 
