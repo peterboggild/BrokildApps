@@ -695,7 +695,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.1 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.2 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -789,7 +789,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.1 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.2 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -807,6 +807,8 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
 <p class="hint">
   <kbd>drag</kbd> knobs &amp; faders · <kbd>click</kbd> WAVE / FOOTAGE / LFO / TEMPER selectors to cycle ·
   <kbd>shift-click</kbd> controls in one row to lock them — dragging any of them moves the group ·
+  <kbd>ctrl-click</kbd> locks a whole half-row in unison at the clicked value · <kbd>shift-ctrl-click</kbd>
+  locks it keeping its intervals · <kbd>⚭</kbd> on the rails does the same per side ·
   <kbd>⚄</kbd> rolls a row (locked controls roll together) · <kbd>⇗</kbd> fans a ramp across clones 1→16 ·
   <kbd>RANDOM</kbd> rerolls everything from a new seed. NOTE 1·2·3 per strip picks which held MIDI note the
   clone follows; ENV knobs travel <i>fast/fast → fast/slow → slow/slow</i>.
@@ -916,12 +918,17 @@ for (let ch = 9; ch <= 16; ch++) stripsB.appendChild(buildStrip(ch));
 /* legend rails, left and right (both carry working dice/fan tools) */
 for (const railId of ["legend", "legendR"]) {
   const rail = document.getElementById(railId);
+  const railSide = railId === "legend" ? "a" : "b";
+  const railChs = railId === "legend" ? "01–08" : "09–16";
   for (const row of ROWS) {
     const r = el("div", "row");
     r.dataset.row = row.id;
     r.innerHTML =
       (row.fan ? '<span class="tool" title="Fan a ramp across clones 1→16" data-fan="' + row.id + '">⇗</span>' : "") +
       (row.dice ? '<span class="tool" title="Roll this row" data-dice="' + row.id + '">⚄</span>' : "") +
+      ((row.dice || row.fan) && row.id !== "note" ? '<span class="tool" title="Lock clones ' + railChs +
+        ' in this row · click: keep intervals · ctrl-click: unison" data-lockrow="' +
+        row.id + '" data-side="' + railSide + '">⚭</span>' : "") +
       "<span>" + row.label + "</span>";
     rail.appendChild(r);
   }
@@ -990,6 +997,48 @@ function toggleLock(elem) {
   say("LOCK " + row.toUpperCase() + " · " + set.size + " CLONES");
 }
 
+/* half-row locking: an army's eight controls of one row as a single group */
+function sideEls(rowId, side) {              // "a" = clones 1..8, "b" = 9..16
+  const els = [];
+  document.querySelectorAll('[data-row="' + rowId + '"][data-ch]').forEach(c => {
+    if ((side === "a") === (parseInt(c.dataset.ch) <= 8)) els.push(c);
+  });
+  return els;
+}
+function snapTo(el, anchor) {                // copy the anchor's value onto el
+  if (el === anchor) return;
+  if (el.classList.contains("step")) {
+    const rowDef = ROWS.find(r => r.id === el.dataset.row);
+    el.dataset.idx = anchor.dataset.idx || 0;
+    el.querySelector(".win").textContent = rowDef.opts[parseInt(el.dataset.idx)];
+  } else if (el.classList.contains("btn")) {
+    el.classList.toggle("on", anchor.classList.contains("on"));
+  } else if (el.dataset.val !== undefined) {
+    el.dataset.val = anchor.dataset.val;
+    if (el.classList.contains("fader")) paintFader(el); else paintKnob(el);
+  }
+}
+function rowBulkChanged(rowId) {             // the bridge re-sends the row on this
+  document.dispatchEvent(new CustomEvent("cw-rowbulk", { detail: { row: rowId } }));
+}
+function lockSide(rowId, side, anchor) {     // anchor set = unison at its value
+  const els = sideEls(rowId, side);
+  if (!els.length) return;
+  const set = lockSet(rowId);
+  const army = side.toUpperCase();
+  if (els.every(c => set.has(c))) {          // gesture repeated: release the side
+    for (const c of els) { set.delete(c); c.classList.remove("locked"); }
+    say("UNLOCK " + rowId.toUpperCase() + " · ARMY " + army);
+    return;
+  }
+  if (anchor) for (const c of els) snapTo(c, anchor);
+  for (const c of els) { set.add(c); c.classList.add("locked"); }
+  if (anchor) rowBulkChanged(rowId);
+  say("LOCK " + rowId.toUpperCase() + " · ARMY " + army + " · " +
+      (anchor ? "UNISON @ " + controlName(anchor) : "INTERVALS KEPT"));
+}
+function sideOf(el) { return parseInt(el.dataset.ch) <= 8 ? "a" : "b"; }
+
 function controlName(elem) {
   if (elem.dataset.cmd) return elem.dataset.cmd;
   return (elem.dataset.row || "").toUpperCase() + " · CLONE " + String(elem.dataset.ch).padStart(2, "0");
@@ -1024,6 +1073,10 @@ window.addEventListener("pointerup", () => { drag = null; });
 document.addEventListener("pointerdown", e => {
   const elem = e.target.closest(".knob") || e.target.closest(".fader");
   if (!elem) return;
+  if ((e.ctrlKey || e.metaKey) && elem.dataset.row && elem.dataset.ch) {
+    lockSide(elem.dataset.row, sideOf(elem), e.shiftKey ? null : elem);
+    e.preventDefault(); return;
+  }
   if (e.shiftKey && elem.dataset.row) { toggleLock(elem); return; }
   beginDrag(e, elem);
 });
@@ -1033,11 +1086,16 @@ document.addEventListener("click", e => {
   const step = e.target.closest(".step");
   if (step) {
     const rowDef = ROWS.find(r => r.id === step.dataset.row);
+    if ((e.ctrlKey || e.metaKey) && step.dataset.row && step.dataset.ch) {
+      lockSide(step.dataset.row, sideOf(step), e.shiftKey ? null : step);
+      return;
+    }
     if (e.shiftKey && step.dataset.row) { toggleLock(step); return; }
     if (rowDef) {
       const targets = lockSet(step.dataset.row).has(step) ? [...lockSet(step.dataset.row)] : [step];
       const idx = (parseInt(step.dataset.idx || 0) + 1) % rowDef.opts.length;
       for (const t of targets) { t.dataset.idx = idx; t.querySelector(".win").textContent = rowDef.opts[idx]; }
+      if (targets.length > 1) rowBulkChanged(step.dataset.row);
       say(controlName(step) + " · " + rowDef.opts[idx] + (targets.length > 1 ? " · ×" + targets.length : ""));
     } else if (step.dataset.cmd) {
       const OPTS = ["GROWL", "SCREAM", "LADDER"];
@@ -1063,9 +1121,19 @@ document.addEventListener("click", e => {
   }
   const btn = e.target.closest(".btn");
   if (btn && !btn.classList.contains("blank")) {
+    if ((e.ctrlKey || e.metaKey) && btn.dataset.row && btn.dataset.ch) {
+      lockSide(btn.dataset.row, sideOf(btn), e.shiftKey ? null : btn);
+      return;
+    }
     if (e.shiftKey && btn.dataset.row) { toggleLock(btn); return; }
     if (["patches", "randomBtn", "scatter", "hq"].includes(btn.id)) return; // handled below
-    btn.classList.toggle("on");
+    if (btn.dataset.row && lockSet(btn.dataset.row).has(btn)) {   // locked buttons move as one
+      const on = !btn.classList.contains("on");
+      for (const t of lockSet(btn.dataset.row)) t.classList.toggle("on", on);
+      rowBulkChanged(btn.dataset.row);
+    } else {
+      btn.classList.toggle("on");
+    }
     if (btn.dataset.row) say(controlName(btn) + " · " + (btn.classList.contains("on") ? "ON" : "OFF"));
     else if (btn.id === "lfosync") say("LFO · " + (btn.classList.contains("on") ? "HOST SYNC" : "FREE-RUN, PHASES FROM SEED"));
   }
@@ -1073,6 +1141,13 @@ document.addEventListener("click", e => {
 
 /* dice + fan per row */
 document.addEventListener("click", e => {
+  const lockTool = e.target.closest("[data-lockrow]");
+  if (lockTool) {
+    const anchor = (e.ctrlKey || e.metaKey)
+      ? sideEls(lockTool.dataset.lockrow, lockTool.dataset.side)[0] : null;
+    lockSide(lockTool.dataset.lockrow, lockTool.dataset.side, anchor);
+    return;
+  }
   const dice = e.target.closest("[data-dice]");
   const fan = e.target.closest("[data-fan]");
   if (!dice && !fan) return;

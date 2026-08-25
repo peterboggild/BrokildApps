@@ -2,7 +2,7 @@ CLONE WARS
 Sixteen analogue clones of almost, but not quite, the same oscillator -
 drawn up in two armies of eight, aimed at each other, and slid into
 battle with one fader.
-Brokild Heavy Industries · Drone Division  -  build 260825.1  -
+Brokild Heavy Industries · Drone Division  -  build 260825.2  -
 August 2026  -  Windows 64-bit
 
 
@@ -39,8 +39,11 @@ THIRTY SECONDS OF INSTRUCTIONS
     journey up to five minutes. Set it moving and go make coffee.
   - GROWL / SCREAM / LADDER pick each army's filter circuit. Same patch,
     three different animals.
-  - Shift-click controls in one row to LOCK them into a group; the dice
-    reroll a row; the fan draws a ramp across clones 1-16.
+  - Shift-click controls in one row to LOCK them into a group. Ctrl-click
+    locks a whole half-row (an army's eight) in UNISON at the clicked
+    value; shift-ctrl-click locks it keeping its intervals; the lock
+    tools on the side rails do the same per army. The dice reroll a row;
+    the fan draws a ramp across clones 1-16.
   - ENGINE cycles LOW / HQ / XHQ render quality. Offline bounces are
     ALWAYS rendered XHQ, whatever the panel says.
 
