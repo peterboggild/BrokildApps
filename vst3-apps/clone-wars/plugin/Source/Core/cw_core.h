@@ -98,6 +98,9 @@ enum GlobalParam
     gEnvFilt,       // 0..1 how much of the cutoff headroom ABOVE the knob the
                     //      filter envelope opens (0 = CUT alone)
     gLfoSync,       // 0/1  LFO rates locked to the host clock
+    gFxMix,         // 0..1 global effect mix: dry console <-> the full rack
+                    //      (sat, drive, bbd, tape, spring; the corrective bus
+                    //      stays in circuit). 1.0 = exactly the old behaviour.
     gCutoff,        // 0..1 MASTER CUT: 0.5 neutral, offsets all 16 cutoffs
                     //      together. The per-clone CUTOFF knobs stay put and
                     //      keep their spread; this is the knob you sweep.

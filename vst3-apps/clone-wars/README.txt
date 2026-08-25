@@ -2,7 +2,7 @@ CLONE WARS
 Sixteen analogue clones of almost, but not quite, the same oscillator -
 drawn up in two armies of eight, aimed at each other, and slid into
 battle with one fader.
-Brokild Heavy Industries · Drone Division  -  build 260825.8  -
+Brokild Heavy Industries · Drone Division  -  build 260825.9  -
 August 2026  -  Windows 64-bit
 
 

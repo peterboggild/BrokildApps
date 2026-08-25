@@ -114,6 +114,20 @@ there so the shipped sources stay untouched: MSVC has no `M_PI`, and
 `cw::Engine` as a stack local overflows Windows' 1 MB default stack
 (`/STACK:33554432`) where Linux CI gets 8 MB — without it both benches die with
 0xC00000FD before printing a line.
+## 260825.9 - the EFFECT RACK
+
+The fx bank (SPRING/BBD/TAPE/DRIVE) left the centre console for its own
+pop-up hatch, engine-room pattern: EFFECTS button (where the ? was; the
+field manual ? moved to the first expansion-slot button). This shortened
+the console considerably. A global FX MIX knob sits on the front console
+(g_fxmix, default 1.0 = the old sound): it blends dry console vs the whole
+rack around sat/drive/bbd/tape/spring; the corrective bus (bass mono, hpf,
+width, master) stays in circuit.
+
+**Future FX modules go in the EFFECT RACK hatch** - Peter has said so
+explicitly. The MODULE BAY idea folds into this: the rack shows an
+EXPANSION SLOTS row where new modules land.
+
 ## Release pipeline (how a build reaches the download button)
 
 - Any push touching `plugin/**` runs CI (`.github/workflows/clone-wars.yml`):
