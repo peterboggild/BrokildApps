@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clone Wars</title>
+<meta name="description" content="Interactive panel mockup of Clone Wars — a 16-voice analogue drone monster VST3. Two 8-voice armies, per-channel strips, row locking, seed morphing.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500&display=swap">
+<style>
+  /* Hardware panel: deliberately single-theme; every surface painted. */
+  :root {
+    --stage: #0a0908;
+    --panel: #16130e;
+    --panel-hi: #1d1913;
+    --well: #0d0b08;
+    --line: #2c2619;
+    --cream: #e8dfc8;
+    --cream-dim: #9a917c;
+    --amber: #f0a94a;
+    --amber-glow: rgba(240,169,74,.45);
+    --steel: #8fb4d4;
+    --steel-glow: rgba(143,180,212,.45);
+    --led: #ff5040;
+    --lock: #ffcf7a;
+    --sans: "Oswald", "Arial Narrow", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
+  html, body { background: var(--stage); }
+  body {
+    color: var(--cream);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 26px 12px 40px;
+  }
+  .intro {
+    max-width: 900px; text-align: center; color: var(--cream-dim);
+    font-weight: 300; font-size: 14px; letter-spacing: .04em; margin-bottom: 18px;
+  }
+  .intro b { color: var(--amber); font-weight: 500; }
+  .stagebox { max-width: 100%; overflow-x: auto; padding-bottom: 10px; }
+
+  /* ---- the instrument ---- */
+  .rig { display: flex; align-items: stretch; filter: drop-shadow(0 30px 60px rgba(0,0,0,.7)); }
+  .cheek {
+    width: 26px; border-radius: 8px;
+    background: linear-gradient(90deg, #5a3a22 0%, #7a4e2c 18%, #4a2e1a 55%, #2e1c10 100%);
+    box-shadow: inset 0 0 12px rgba(0,0,0,.55);
+  }
+  .cheek.r { transform: scaleX(-1); }
+  .panel {
+    background:
+      radial-gradient(140% 90% at 50% 0%, rgba(255,255,255,.028), transparent 60%),
+      var(--panel);
+    border: 1px solid #060504;
+    padding: 14px 18px 12px;
+    position: relative;
+  }
+  .screw {
+    position: absolute; width: 11px; height: 11px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #6a6156, #241f16 70%);
+    box-shadow: inset 0 0 3px #000;
+  }
+  .screw::after {
+    content: ""; position: absolute; left: 1px; right: 1px; top: 4.5px; height: 1.5px;
+    background: #0a0806; transform: rotate(28deg);
+  }
+  .screw.tl { top: 7px; left: 7px; } .screw.tr { top: 7px; right: 7px; }
+  .screw.bl { bottom: 7px; left: 7px; } .screw.br { bottom: 7px; right: 7px; }
+
+  /* ---- header ---- */
+  header { display: flex; align-items: flex-start; gap: 26px; padding: 4px 6px 12px; }
+  .brand { min-width: 208px; }
+  .brand h1 {
+    font-family: Georgia, "Times New Roman", serif; font-weight: 600;
+    font-size: 34px; line-height: .95; letter-spacing: .01em; color: var(--cream);
+  }
+  .brand h1 span { color: var(--amber); }
+  .brand .tag {
+    font-family: Georgia, serif; font-style: italic; font-size: 12.5px;
+    color: var(--cream-dim); margin-top: 6px; max-width: 200px; line-height: 1.35;
+  }
+  .hdr-right { margin-left: auto; display: flex; gap: 18px; align-items: flex-start; }
+
+  .fxbank { display: flex; gap: 14px; }
+  .fxmod {
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px 7px;
+    background: var(--panel-hi); text-align: center;
+  }
+  .fxmod .t { font-size: 9.5px; letter-spacing: .18em; color: var(--cream-dim); margin-bottom: 4px; }
+  .fxrow { display: flex; gap: 8px; align-items: flex-end; justify-content: center; }
+
+  .seedbay {
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px 8px;
+    background: var(--panel-hi); text-align: center;
+  }
+  .seedbay .t { font-size: 9.5px; letter-spacing: .18em; color: var(--cream-dim); margin-bottom: 5px; }
+  .seedrow { display: flex; gap: 9px; align-items: center; }
+  .led7 {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    background: #1c0503; color: var(--led); border: 1px solid #000;
+    border-radius: 4px; padding: 3px 7px; font-size: 16px; letter-spacing: .12em;
+    text-shadow: 0 0 7px rgba(255,80,64,.8);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.8); cursor: pointer;
+  }
+  .led7 small { display: block; font-size: 7.5px; color: #8a4038; letter-spacing: .2em; text-shadow: none; }
+  .hbtnrow { display: flex; gap: 6px; margin-top: 6px; justify-content: center; }
+
+  /* ---- generic controls ---- */
+  .btn {
+    font-family: var(--sans); font-size: 9px; letter-spacing: .12em;
+    color: var(--cream-dim); background: linear-gradient(180deg, #262119, #14110c);
+    border: 1px solid #060504; border-radius: 4px; padding: 4px 8px 3px;
+    cursor: pointer; box-shadow: 0 2px 3px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06);
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn .lamp {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #3a2f1e; box-shadow: inset 0 0 2px #000;
+  }
+  .btn.on { color: var(--cream); }
+  .btn.on .lamp { background: var(--amber); box-shadow: 0 0 7px var(--amber-glow); }
+  .btn.blank { min-width: 34px; min-height: 21px; justify-content: center; opacity: .55; }
+  .btn:focus-visible, .knob:focus-visible, .step:focus-visible { outline: 1px solid var(--amber); outline-offset: 2px; }
+
+  .knob { position: relative; cursor: ns-resize; text-align: center; touch-action: none; }
+  .knob .cap {
+    margin: 0 auto; border-radius: 50%; position: relative;
+    background:
+      radial-gradient(circle at 32% 26%, #4a4238 0%, #211c15 46%, #171310 100%);
+    border: 1px solid #050403;
+    box-shadow: 0 3px 6px rgba(0,0,0,.6), inset 0 1px 1px rgba(255,255,255,.09);
+  }
+  .knob .ptr {
+    position: absolute; left: 50%; top: 8%; width: 2px; height: 38%;
+    margin-left: -1px; border-radius: 2px; background: var(--cream);
+    transform-origin: 50% 108%;
+  }
+  .knob .lbl, .step .lbl, .vlabel {
+    font-size: 8px; letter-spacing: .14em; color: var(--cream-dim); margin-top: 2px;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .knob.locked .cap { box-shadow: 0 0 0 2px var(--lock), 0 0 10px var(--amber-glow); }
+  .k28 .cap { width: 28px; height: 28px; }
+  .k34 .cap { width: 34px; height: 34px; }
+  .k44 .cap { width: 44px; height: 44px; }
+
+  .step {
+    cursor: pointer; text-align: center;
+  }
+  .step .win {
+    font-family: var(--mono); font-size: 10px; padding: 2px 0 1px; min-width: 34px;
+    color: var(--amber); background: var(--well); border: 1px solid #050403;
+    border-radius: 3px; box-shadow: inset 0 2px 5px rgba(0,0,0,.7);
+    display: inline-block; letter-spacing: .05em;
+  }
+  .step.locked .win { box-shadow: inset 0 2px 5px rgba(0,0,0,.7), 0 0 0 2px var(--lock); }
+
+  /* ---- console body ---- */
+  .console { display: flex; gap: 10px; align-items: stretch; }
+
+  .legend {
+    display: grid; grid-template-rows: var(--rows);
+    width: 74px; padding-top: 22px; row-gap: 3px;
+  }
+  .legend .row {
+    display: flex; align-items: center; justify-content: flex-end; gap: 5px;
+    font-size: 8.5px; letter-spacing: .13em; color: var(--cream-dim); text-transform: uppercase;
+    border-right: 1px solid var(--line); padding-right: 6px;
+  }
+  .dice {
+    width: 13px; height: 13px; border-radius: 3px; border: 1px solid var(--line);
+    background: var(--panel-hi); color: var(--cream-dim); font-size: 8px; line-height: 11px;
+    text-align: center; cursor: pointer; flex: none;
+  }
+  .dice:hover { color: var(--amber); border-color: var(--amber); }
+
+  .army { }
+  .army-title {
+    font-size: 9.5px; letter-spacing: .3em; text-align: center; margin-bottom: 5px;
+    color: var(--amber);
+  }
+  .army.b .army-title { color: var(--steel); }
+  .strips { display: flex; }
+  .strip {
+    width: 72px; display: grid; grid-template-rows: var(--rows); row-gap: 3px;
+    padding: 0 2px; border-left: 1px solid #1e1a12;
+  }
+  .strip:last-child { border-right: 1px solid #1e1a12; }
+  .cell { display: flex; align-items: center; justify-content: center; }
+  .chnum {
+    font-family: var(--mono); font-size: 9px; color: var(--cream-dim);
+    text-align: center; letter-spacing: .1em;
+  }
+  .army.b .step .win { color: var(--steel); }
+  .army.b .btn.on .lamp { background: var(--steel); box-shadow: 0 0 7px var(--steel-glow); }
+
+  /* VU */
+  .vu {
+    width: 56px; height: 30px; border-radius: 4px 4px 2px 2px;
+    background: linear-gradient(180deg, #efe6cf, #d9cba6); border: 1px solid #060504;
+    position: relative; overflow: hidden; box-shadow: inset 0 1px 4px rgba(0,0,0,.45);
+  }
+  .vu .needle {
+    position: absolute; left: 50%; bottom: -2px; width: 1.5px; height: 26px;
+    background: #1c1712; transform-origin: 50% 100%;
+  }
+  .vu .arc {
+    position: absolute; inset: 3px 5px auto; height: 14px;
+    border-bottom: 1.5px solid rgba(28,23,18,.5); border-radius: 50%;
+  }
+  .vu .red { position: absolute; right: 6px; top: 4px; width: 9px; height: 3px; background: #b03020; transform: rotate(32deg); }
+
+  /* note buttons */
+  .noteset { display: flex; gap: 3px; }
+  .nbtn {
+    width: 16px; height: 15px; border-radius: 3px; cursor: pointer;
+    background: linear-gradient(180deg, #262119, #14110c); border: 1px solid #060504;
+    color: var(--cream-dim); font-size: 8.5px; line-height: 14px; text-align: center;
+    box-shadow: 0 2px 3px rgba(0,0,0,.5);
+  }
+  .nbtn.on { color: #171008; background: var(--amber); box-shadow: 0 0 8px var(--amber-glow); }
+  .army.b .nbtn.on { background: var(--steel); box-shadow: 0 0 8px var(--steel-glow); }
+  .nbtn.locked, .btn.locked { box-shadow: 0 0 0 2px var(--lock); }
+
+  /* mute/solo */
+  .msset { display: flex; gap: 4px; }
+  .msset .btn { padding: 3px 6px 2px; }
+
+  /* fader */
+  .fader {
+    width: 30px; height: 118px; position: relative; cursor: ns-resize; touch-action: none;
+    display: flex; justify-content: center;
+  }
+  .fader .slot {
+    width: 4px; height: 100%; background: var(--well); border-radius: 2px;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,.9);
+  }
+  .fader .fcap {
+    position: absolute; left: 50%; width: 26px; height: 15px; margin-left: -13px;
+    background: linear-gradient(180deg, #3a332a 0%, #171310 55%, #232019 100%);
+    border: 1px solid #050403; border-radius: 3px;
+    box-shadow: 0 3px 6px rgba(0,0,0,.65);
+  }
+  .fader .fcap::after {
+    content: ""; position: absolute; left: 2px; right: 2px; top: 6.5px; height: 2px;
+    background: var(--cream); opacity: .85; border-radius: 1px;
+  }
+  .fader.locked .fcap { box-shadow: 0 0 0 2px var(--lock), 0 0 10px var(--amber-glow); }
+
+  /* ---- command column ---- */
+  .command {
+    width: 216px; margin: 0 6px; padding: 20px 10px 6px;
+    border-left: 1px solid var(--line); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 9px; align-items: center;
+  }
+  .cmd-t { font-size: 9px; letter-spacing: .26em; color: var(--cream-dim); }
+  .readout {
+    width: 100%; font-family: var(--mono); font-size: 10.5px; color: var(--amber);
+    background: var(--well); border: 1px solid #050403; border-radius: 4px;
+    padding: 5px 8px; min-height: 25px; text-align: center; letter-spacing: .06em;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.7);
+    text-shadow: 0 0 6px var(--amber-glow);
+  }
+  .cmdrow { display: flex; gap: 12px; align-items: flex-end; justify-content: center; }
+  .warband { width: 100%; text-align: center; }
+  .war {
+    position: relative; height: 26px; margin: 6px 2px 2px; cursor: ew-resize; touch-action: none;
+  }
+  .war .slot {
+    position: absolute; left: 0; right: 0; top: 11px; height: 4px;
+    background: linear-gradient(90deg, var(--amber), #3a2f1e 40%, #263038 60%, var(--steel));
+    border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,.8);
+  }
+  .war .fcap {
+    position: absolute; top: 0; width: 16px; height: 26px; margin-left: -8px;
+    background: linear-gradient(180deg, #3a332a, #171310); border: 1px solid #050403;
+    border-radius: 3px; box-shadow: 0 3px 6px rgba(0,0,0,.65);
+  }
+  .war .fcap::after {
+    content: ""; position: absolute; top: 2px; bottom: 2px; left: 6.5px; width: 2px;
+    background: var(--cream); border-radius: 1px;
+  }
+  .warlabels { display: flex; justify-content: space-between; font-size: 8px; letter-spacing: .2em; color: var(--cream-dim); margin-top: 2px; }
+  .divider { width: 100%; border-top: 1px solid var(--line); }
+  .expan { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+
+  footer.plate {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 6px 0; margin-top: 4px; border-top: 1px solid var(--line);
+    font-size: 8.5px; letter-spacing: .18em; color: var(--cream-dim); text-transform: uppercase;
+  }
+  footer.plate .mono { font-family: var(--mono); letter-spacing: .1em; }
+
+  .hint {
+    margin-top: 16px; max-width: 860px; color: var(--cream-dim);
+    font-weight: 300; font-size: 13px; letter-spacing: .03em; line-height: 1.6; text-align: center;
+  }
+  .hint kbd {
+    font-family: var(--mono); font-size: 11px; background: #1d1913; border: 1px solid var(--line);
+    border-radius: 4px; padding: 1px 6px; color: var(--cream);
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<p class="intro"><b>CLONE WARS</b> — panel mockup. Sixteen analogue clones in two armies.
+Everything below is clickable: drag knobs &amp; faders, click selectors to cycle,
+<b>shift-click</b> controls in a row to lock them together.</p>
+
+<div class="stagebox"><div class="rig">
+  <div class="cheek"></div>
+  <div class="panel">
+    <div class="screw tl"></div><div class="screw tr"></div>
+    <div class="screw bl"></div><div class="screw br"></div>
+
+    <header>
+      <div class="brand">
+        <h1>CLONE<br><span>WARS</span></h1>
+        <div class="tag">Sixteen oscillators that are almost, but not quite, the same machine.</div>
+      </div>
+      <div class="hdr-right">
+        <div class="fxbank" id="fxbank"></div>
+        <div class="seedbay">
+          <div class="t">SEED · MORPH</div>
+          <div class="seedrow">
+            <div class="led7" id="seedA" title="Seed A — click to reroll">042<small>A</small></div>
+            <div class="knob k34" data-cmd="MORPH" data-val="0" tabindex="0">
+              <div class="cap"><div class="ptr"></div></div><div class="lbl">morph</div>
+            </div>
+            <div class="led7" id="seedB" title="Seed B — click to reroll">137<small>B</small></div>
+          </div>
+          <div class="hbtnrow">
+            <button class="btn" id="patches"><span class="lamp"></span>PATCHES</button>
+            <button class="btn" id="randomBtn"><span class="lamp"></span>RANDOM</button>
+            <button class="btn on" id="hq"><span class="lamp"></span>HQ</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="console">
+      <div class="legend" id="legend"></div>
+
+      <div class="army a">
+        <div class="army-title">ARMY A · CLONES 1–8</div>
+        <div class="strips" id="stripsA"></div>
+      </div>
+
+      <div class="command">
+        <div class="readout" id="readout">CLONE WARS · READY</div>
+
+        <div class="cmd-t">COMMAND</div>
+        <div class="cmdrow">
+          <div class="knob k44" data-cmd="TOLERANCE" data-val="0.35" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">tolerance</div>
+          </div>
+          <div class="knob k44" data-cmd="TIDE" data-val="0.2" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">tide</div>
+          </div>
+        </div>
+        <div class="cmdrow">
+          <div class="knob k34" data-cmd="ENTRAIN A" data-val="0.15" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">entrain a</div>
+          </div>
+          <div class="knob k34" data-cmd="DRIFT MASTER" data-val="0.4" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">drift</div>
+          </div>
+          <div class="knob k34" data-cmd="ENTRAIN B" data-val="0.15" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">entrain b</div>
+          </div>
+        </div>
+
+        <div class="cmdrow">
+          <div class="step" data-cmd="TEMPER A" tabindex="0">
+            <span class="win">GROWL</span><div class="lbl">temper a</div>
+          </div>
+          <div class="step" data-cmd="TEMPER B" tabindex="0">
+            <span class="win">LADDER</span><div class="lbl">temper b</div>
+          </div>
+        </div>
+        <div class="cmdrow">
+          <button class="btn on"><span class="lamp"></span>LATCH A</button>
+          <button class="btn on"><span class="lamp"></span>LATCH B</button>
+        </div>
+
+        <div class="warband">
+          <div class="cmd-t">THE WAR</div>
+          <div class="war" id="war"><div class="slot"></div><div class="fcap" style="left:50%"></div></div>
+          <div class="warlabels"><span>ARMY A</span><span>SLEW ⟶ 5 MIN</span><span>ARMY B</span></div>
+        </div>
+        <div class="cmdrow">
+          <div class="knob k28" data-cmd="WAR SLEW" data-val="0.3" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">slew</div>
+          </div>
+          <div class="knob k34" data-cmd="MASTER VOL" data-val="0.75" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">master</div>
+          </div>
+          <div class="knob k28" data-cmd="BUS SAT" data-val="0.25" tabindex="0">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">bus sat</div>
+          </div>
+        </div>
+        <div class="cmdrow">
+          <button class="btn on"><span class="lamp"></span>BASS MONO</button>
+          <button class="btn"><span class="lamp"></span>HPF</button>
+        </div>
+
+        <div class="divider"></div>
+        <div class="cmd-t">EXPANSION</div>
+        <div class="expan">
+          <button class="btn blank">·</button><button class="btn blank">·</button>
+          <button class="btn blank">·</button><button class="btn blank">·</button>
+        </div>
+      </div>
+
+      <div class="army b">
+        <div class="army-title">ARMY B · CLONES 9–16</div>
+        <div class="strips" id="stripsB"></div>
+      </div>
+    </div>
+
+    <footer class="plate">
+      <span>BROKILD · CLONE WARS · DRONE DIVISION</span>
+      <span class="mono">BUILD 000000.MOCK · 16 VOICES · HQ/LOW ENGINE</span>
+    </footer>
+  </div>
+  <div class="cheek r"></div>
+</div></div>
+
+<p class="hint">
+  <kbd>drag</kbd> a knob or fader vertically · <kbd>click</kbd> WAVE / FOOTAGE / LFO selectors to cycle ·
+  <kbd>shift-click</kbd> any controls in the same row to lock them into a group — dragging one then moves them all ·
+  <kbd>⚄</kbd> on the legend rail rolls just that row (locked controls roll together) ·
+  <kbd>RANDOM</kbd> rerolls the whole army from a new seed. NOTE 1·2·3 picks which of three held
+  MIDI notes the clone follows.
+</p>
+
+<script>
+"use strict";
+/* ---------------- row model ---------------- */
+const ROWS = [
+  { id:"vu",      label:"LEVEL VU",  type:"vu",    h:"34px" },
+  { id:"ch",      label:"CLONE",     type:"ch",    h:"14px" },
+  { id:"note",    label:"NOTE",      type:"note",  h:"20px", dice:true },
+  { id:"wave",    label:"WAVE",      type:"step",  h:"30px", dice:true, opts:["SAW","PULSE","TRI","SINE"] },
+  { id:"oct",     label:"FOOTAGE",   type:"step",  h:"30px", dice:true, opts:["32'","16'","8'","4'"] },
+  { id:"tune",    label:"TUNE",      type:"knob",  h:"44px", dice:true, size:"k34", def:.5 },
+  { id:"cut",     label:"CUTOFF",    type:"knob",  h:"52px", dice:true, size:"k44", def:.65 },
+  { id:"res",     label:"RES",       type:"knob",  h:"40px", dice:true, size:"k28", def:.2 },
+  { id:"lfowave", label:"LFO WAVE",  type:"step",  h:"30px", dice:true, opts:["SIN","TRI","SQR","S&H"] },
+  { id:"lforate", label:"LFO RATE",  type:"knob",  h:"44px", dice:true, size:"k34", def:.3 },
+  { id:"lfoamp",  label:"LFO→AMP",   type:"knob",  h:"40px", dice:true, size:"k28", def:.15 },
+  { id:"lfoflt",  label:"LFO→FLT",   type:"knob",  h:"40px", dice:true, size:"k28", def:.25 },
+  { id:"envf",    label:"ENV FLT",   type:"knob",  h:"40px", dice:true, size:"k28", def:.5 },
+  { id:"enva",    label:"ENV AMP",   type:"knob",  h:"40px", dice:true, size:"k28", def:.5 },
+  { id:"loop",    label:"ENV LOOP",  type:"btn",   h:"20px", dice:true, text:"LOOP" },
+  { id:"drift",   label:"DRIFT",     type:"knob",  h:"38px", dice:true, size:"k28", def:.3 },
+  { id:"pan",     label:"PAN",       type:"knob",  h:"44px", dice:true, size:"k34", def:.5 },
+  { id:"ms",      label:"MUTE·SOLO", type:"ms",    h:"20px" },
+  { id:"fader",   label:"FADER",     type:"fader", h:"122px", dice:true, def:.8 },
+];
+document.documentElement.style.setProperty("--rows", ROWS.map(r => r.h).join(" "));
+
+const readout = document.getElementById("readout");
+function say(t) { readout.textContent = t; }
+const pct = v => Math.round(v * 100) + "%";
+
+/* ---------------- build strips ---------------- */
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+function buildStrip(ch) {
+  const strip = el("div", "strip");
+  for (const row of ROWS) {
+    const cell = el("div", "cell");
+    cell.dataset.row = row.id;
+    if (row.type === "vu") {
+      cell.appendChild(el("div", "vu",
+        '<div class="arc"></div><div class="red"></div><div class="needle" style="transform:rotate(-38deg)"></div>'));
+    } else if (row.type === "ch") {
+      cell.appendChild(el("div", "chnum", String(ch).padStart(2, "0")));
+    } else if (row.type === "note") {
+      const set = el("div", "noteset");
+      for (let n = 1; n <= 3; n++) {
+        const b = el("div", "nbtn" + (n === ((ch - 1) % 3) + 1 ? " on" : ""), String(n));
+        b.dataset.row = "note"; b.dataset.ch = ch; b.dataset.n = n;
+        b.title = "Clone follows held note " + n;
+        set.appendChild(b);
+      }
+      cell.appendChild(set);
+    } else if (row.type === "step") {
+      const s = el("div", "step", '<span class="win"></span>');
+      s.tabIndex = 0;
+      s.dataset.row = row.id; s.dataset.ch = ch;
+      s.dataset.idx = row.id === "oct" ? (ch % 4) : 0;
+      s.querySelector(".win").textContent = row.opts[s.dataset.idx];
+      cell.appendChild(s);
+    } else if (row.type === "knob") {
+      const k = el("div", "knob " + row.size, '<div class="cap"><div class="ptr"></div></div>');
+      k.tabIndex = 0;
+      k.dataset.row = row.id; k.dataset.ch = ch; k.dataset.val = row.def;
+      cell.appendChild(k);
+    } else if (row.type === "btn") {
+      const b = el("button", "btn", '<span class="lamp"></span>' + row.text);
+      b.dataset.row = row.id; b.dataset.ch = ch;
+      cell.appendChild(b);
+    } else if (row.type === "ms") {
+      const set = el("div", "msset");
+      const m = el("button", "btn", "M"); m.dataset.row = "mute"; m.dataset.ch = ch;
+      const s = el("button", "btn", "S"); s.dataset.row = "solo"; s.dataset.ch = ch;
+      set.appendChild(m); set.appendChild(s);
+      cell.appendChild(set);
+    } else if (row.type === "fader") {
+      const f = el("div", "fader", '<div class="slot"></div><div class="fcap"></div>');
+      f.tabIndex = 0;
+      f.dataset.row = "fader"; f.dataset.ch = ch; f.dataset.val = row.def;
+      cell.appendChild(f);
+    }
+    strip.appendChild(cell);
+  }
+  return strip;
+}
+const stripsA = document.getElementById("stripsA");
+const stripsB = document.getElementById("stripsB");
+for (let ch = 1; ch <= 8; ch++) stripsA.appendChild(buildStrip(ch));
+for (let ch = 9; ch <= 16; ch++) stripsB.appendChild(buildStrip(ch));
+
+/* legend rail */
+const legend = document.getElementById("legend");
+for (const row of ROWS) {
+  const r = el("div", "row");
+  r.innerHTML = (row.dice ? '<span class="dice" title="Roll this row" data-dice="' + row.id + '">⚄</span>' : "") +
+    "<span>" + row.label + "</span>";
+  legend.appendChild(r);
+}
+
+/* FX bank */
+const FX = [
+  { t: "SPRING", knobs: ["DWELL", "MIX"], btn: "FREEZE" },
+  { t: "TAPE",   knobs: ["TIME", "FDBK", "MIX"] },
+  { t: "BBD",    knobs: ["RATE", "DEPTH"] },
+  { t: "DRIVE",  knobs: ["AMT"] },
+];
+const fxbank = document.getElementById("fxbank");
+for (const fx of FX) {
+  const m = el("div", "fxmod", '<div class="t">' + fx.t + '</div><div class="fxrow"></div>');
+  const row = m.querySelector(".fxrow");
+  for (const kn of fx.knobs) {
+    const k = el("div", "knob k28", '<div class="cap"><div class="ptr"></div></div><div class="lbl">' + kn.toLowerCase() + "</div>");
+    k.tabIndex = 0; k.dataset.cmd = fx.t + " " + kn; k.dataset.val = 0.4;
+    row.appendChild(k);
+  }
+  if (fx.btn) {
+    const b = el("button", "btn", '<span class="lamp"></span>' + fx.btn);
+    b.style.marginLeft = "2px";
+    row.appendChild(b);
+  }
+  fxbank.appendChild(m);
+}
+
+/* ---------------- knob & fader mechanics ---------------- */
+function paintKnob(k) {
+  const v = parseFloat(k.dataset.val);
+  k.querySelector(".ptr").style.transform = "rotate(" + (-135 + v * 270) + "deg)";
+}
+function paintFader(f) {
+  const v = parseFloat(f.dataset.val);
+  f.querySelector(".fcap").style.top = ((1 - v) * (118 - 15)) + "px";
+}
+document.querySelectorAll(".knob").forEach(paintKnob);
+document.querySelectorAll(".fader").forEach(paintFader);
+
+const locks = {}; // rowId -> Set of elements
+function lockSet(rowId) { return locks[rowId] || (locks[rowId] = new Set()); }
+function toggleLock(elem) {
+  const row = elem.dataset.row;
+  if (!row) return;
+  const set = lockSet(row);
+  if (set.has(elem)) { set.delete(elem); elem.classList.remove("locked"); }
+  else { set.add(elem); elem.classList.add("locked"); }
+  say("LOCK " + row.toUpperCase() + " · " + set.size + " CLONES");
+}
+
+function controlName(elem) {
+  if (elem.dataset.cmd) return elem.dataset.cmd;
+  return (elem.dataset.row || "").toUpperCase() + " · CLONE " + String(elem.dataset.ch).padStart(2, "0");
+}
+
+let drag = null;
+function beginDrag(e, elem, kind) {
+  drag = { elem, kind, y: e.clientY, x: e.clientX, start: parseFloat(elem.dataset.val),
+           group: [] };
+  const row = elem.dataset.row;
+  if (row && lockSet(row).has(elem)) {
+    for (const g of lockSet(row)) drag.group.push({ el: g, start: parseFloat(g.dataset.val) });
+  } else {
+    drag.group.push({ el: elem, start: drag.start });
+  }
+  e.preventDefault();
+}
+function applyVal(entry, delta) {
+  const v = Math.min(1, Math.max(0, entry.start + delta));
+  entry.el.dataset.val = v;
+  if (entry.el.classList.contains("fader")) paintFader(entry.el); else paintKnob(entry.el);
+  return v;
+}
+window.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const delta = (drag.y - e.clientY) / 150;
+  let v = 0;
+  for (const entry of drag.group) v = applyVal(entry, delta);
+  say(controlName(drag.elem) + " · " + pct(v) + (drag.group.length > 1 ? " · ×" + drag.group.length : ""));
+});
+window.addEventListener("pointerup", () => { drag = null; });
+
+document.addEventListener("pointerdown", e => {
+  const knob = e.target.closest(".knob");
+  const fader = e.target.closest(".fader");
+  const elem = knob || fader;
+  if (!elem) return;
+  if (e.shiftKey && elem.dataset.row) { toggleLock(elem); return; }
+  beginDrag(e, elem, knob ? "knob" : "fader");
+});
+
+/* steps, notes, buttons */
+document.addEventListener("click", e => {
+  const step = e.target.closest(".step");
+  if (step) {
+    const rowDef = ROWS.find(r => r.id === step.dataset.row);
+    if (e.shiftKey && step.dataset.row) { toggleLock(step); return; }
+    if (rowDef) {
+      const targets = lockSet(step.dataset.row).has(step) ? [...lockSet(step.dataset.row)] : [step];
+      const idx = (parseInt(step.dataset.idx || 0) + 1) % rowDef.opts.length;
+      for (const t of targets) { t.dataset.idx = idx; t.querySelector(".win").textContent = rowDef.opts[idx]; }
+      say(controlName(step) + " · " + rowDef.opts[idx] + (targets.length > 1 ? " · ×" + targets.length : ""));
+    } else if (step.dataset.cmd) { // command tempers
+      const OPTS = ["GROWL", "SCREAM", "LADDER"];
+      const w = step.querySelector(".win");
+      w.textContent = OPTS[(OPTS.indexOf(w.textContent) + 1) % OPTS.length];
+      say(step.dataset.cmd + " · " + w.textContent);
+    }
+    return;
+  }
+  const nb = e.target.closest(".nbtn");
+  if (nb) {
+    if (e.shiftKey) { toggleLock(nb); return; }
+    nb.parentElement.querySelectorAll(".nbtn").forEach(b => b.classList.remove("on"));
+    nb.classList.add("on");
+    say("CLONE " + String(nb.dataset.ch).padStart(2, "0") + " → NOTE " + nb.dataset.n);
+    return;
+  }
+  const btn = e.target.closest(".btn");
+  if (btn && !btn.classList.contains("blank")) {
+    if (e.shiftKey && btn.dataset.row) { toggleLock(btn); return; }
+    btn.classList.toggle("on");
+    if (btn.dataset.row) say(controlName(btn) + " · " + (btn.classList.contains("on") ? "ON" : "OFF"));
+  }
+});
+
+/* dice per row */
+document.addEventListener("click", e => {
+  const dice = e.target.closest(".dice");
+  if (!dice) return;
+  const rowId = dice.dataset.dice;
+  const rowDef = ROWS.find(r => r.id === rowId);
+  const cells = document.querySelectorAll('[data-row="' + rowId + '"]');
+  const locked = lockSet(rowId);
+  const sharedVal = Math.random();
+  const sharedIdx = rowDef.opts ? Math.floor(Math.random() * rowDef.opts.length) : 0;
+  cells.forEach(c => {
+    const isLocked = locked.has(c);
+    if (c.classList.contains("knob") || c.classList.contains("fader")) {
+      c.dataset.val = isLocked ? sharedVal : Math.random();
+      c.classList.contains("fader") ? paintFader(c) : paintKnob(c);
+    } else if (c.classList.contains("step")) {
+      const idx = isLocked ? sharedIdx : Math.floor(Math.random() * rowDef.opts.length);
+      c.dataset.idx = idx; c.querySelector(".win").textContent = rowDef.opts[idx];
+    } else if (c.classList.contains("btn")) {
+      c.classList.toggle("on", (isLocked ? sharedVal : Math.random()) > 0.5);
+    }
+  });
+  say("ROLL " + rowDef.label + (locked.size ? " · " + locked.size + " LOCKED TOGETHER" : ""));
+});
+
+/* seed / random */
+function rollAll() {
+  for (const rowDef of ROWS) {
+    if (!rowDef.dice) continue;
+    document.querySelectorAll('[data-row="' + rowDef.id + '"]').forEach(c => {
+      if (c.classList.contains("knob") || c.classList.contains("fader")) {
+        c.dataset.val = Math.random();
+        c.classList.contains("fader") ? paintFader(c) : paintKnob(c);
+      } else if (c.classList.contains("step") && rowDef.opts) {
+        const idx = Math.floor(Math.random() * rowDef.opts.length);
+        c.dataset.idx = idx; c.querySelector(".win").textContent = rowDef.opts[idx];
+      } else if (c.classList.contains("btn")) {
+        c.classList.toggle("on", Math.random() > 0.6);
+      }
+    });
+  }
+}
+const seedA = document.getElementById("seedA");
+const seedB = document.getElementById("seedB");
+function newSeed(elem, tag) {
+  const n = String(Math.floor(Math.random() * 200)).padStart(3, "0");
+  elem.innerHTML = n + "<small>" + tag + "</small>";
+  return n;
+}
+seedA.addEventListener("click", () => { say("SEED A · " + newSeed(seedA, "A")); rollAll(); });
+seedB.addEventListener("click", () => { say("SEED B · " + newSeed(seedB, "B")); });
+document.getElementById("randomBtn").addEventListener("click", () => {
+  say("RANDOM · SEED " + newSeed(seedA, "A")); rollAll();
+});
+document.getElementById("patches").addEventListener("click", () =>
+  say("PATCHES · 000–199 BY CATEGORY (MENU IN PLUGIN)"));
+document.getElementById("hq").addEventListener("click", function () {
+  this.classList.toggle("on");
+  this.innerHTML = '<span class="lamp"></span>' + (this.classList.contains("on") ? "HQ" : "LOW");
+  say("ENGINE · " + (this.classList.contains("on") ? "HQ (4× OVERSAMPLED)" : "LOW (ECO)"));
+});
+
+/* WAR crossfader */
+const war = document.getElementById("war");
+let warDrag = false;
+war.addEventListener("pointerdown", e => { warDrag = true; moveWar(e); });
+window.addEventListener("pointermove", e => { if (warDrag) moveWar(e); });
+window.addEventListener("pointerup", () => { warDrag = false; });
+function moveWar(e) {
+  const r = war.getBoundingClientRect();
+  const v = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  war.querySelector(".fcap").style.left = (v * 100) + "%";
+  say("THE WAR · A " + pct(1 - v) + " / B " + pct(v));
+}
+
+/* VU idle animation */
+const needles = [...document.querySelectorAll(".vu .needle")].map(n => ({
+  n, phase: Math.random() * 6.28, rate: 0.15 + Math.random() * 0.3, amp: 12 + Math.random() * 16,
+}));
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+if (!reduced) {
+  let t0 = performance.now();
+  (function tick(t) {
+    const dt = (t - t0) / 1000; t0 = t;
+    for (const v of needles) {
+      v.phase += v.rate * dt * 6.28;
+      const wob = Math.sin(v.phase) * 0.5 + Math.sin(v.phase * 0.37 + 1.2) * 0.5;
+      v.n.style.transform = "rotate(" + (-38 + v.amp + wob * v.amp) + "deg)";
+    }
+    requestAnimationFrame(tick);
+  })(t0);
+}
+</script>
+</body>
+</html>
