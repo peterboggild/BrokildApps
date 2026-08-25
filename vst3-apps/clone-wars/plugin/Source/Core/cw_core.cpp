@@ -136,6 +136,10 @@ const char* generatePatch (uint32_t seed, Patch& p)
     static const char* kCats[5] = { "tension", "crisis", "skirmish", "battle", "mayhem" };
     const int   band = std::min (4, (int) ((seed % 100u) / 20u));
     const float w    = ((float) band + 0.25f + 0.5f * r()) / 4.75f;   // wildness
+    // Roughly half the archive EVOLVES: slow tidal motion instead of a held
+    // portrait - built from the machine's own long-form tools (TIDE, drift,
+    // very slow LFOs, 10-20 s swells, looping envelopes that breathe).
+    const bool  evolving = (rngStep (s) & 1u) != 0u;
 
     // ---- globals: the theatre of war -------------------------------------
     g[gTolerance]   = 0.15f + 0.55f * w * r();
@@ -181,6 +185,16 @@ const char* generatePatch (uint32_t seed, Patch& p)
     g[gBbdRate]     = rr (0.15f, 0.3f + 0.4f * w);
     g[gBbdDepth]    = rr (0.1f, 0.2f + 0.3f * w);
 
+    if (evolving)
+    {
+        g[gTide]        = rr (0.35f, 0.8f);          // the minutes-scale conductor
+        g[gDriftMaster] = rr (0.35f, 0.8f);
+        g[gGlide]       = rr (0.25f, 0.55f);
+        g[gSpringDwell] = rr (0.5f, 0.9f);
+        g[gTapeTime]    = rr (0.5f, 0.9f);           // long wash
+        g[gWarSlew]     = rr (0.5f, 0.9f);
+    }
+
     // ---- the sixteen clones ----------------------------------------------
     const float tuneReach = band == 0 ? 0.06f : 0.08f + 0.9f * w * w;
     for (int v = 0; v < kVoices; ++v)
@@ -215,6 +229,23 @@ const char* generatePatch (uint32_t seed, Patch& p)
         envA4 (band == 0 ? rr (0.6f, 0.95f) : shape + rr (-0.15f, 0.15f), &f[vfAAtk]);
         f[vfLoop]    = band >= 2 && r() < 0.12f + 0.25f * w ? 1.0f : 0.0f;
 
+        if (evolving)
+        {
+            // smooth waves only, at cycle times of many seconds to minutes,
+            // each clone at its own rate so the movements phase against
+            // each other; long swells, and some clones loop and breathe
+            f[vfLfoWave] = (float) ri (2);                    // sin / tri
+            f[vfLfoRate] = rr (0.03f, 0.16f);
+            f[vfLfoAmp]  = rr (0.1f, 0.2f + 0.3f * w);
+            f[vfLfoFlt]  = rr (0.2f, 0.35f + 0.35f * w);
+            f[vfFAtk] = rr (0.55f, 0.95f); f[vfFDec] = rr (0.7f, 1.0f);
+            f[vfFSus] = rr (0.3f, 0.7f);   f[vfFRel] = rr (0.7f, 1.0f);
+            f[vfAAtk] = rr (0.5f, 0.9f);   f[vfADec] = rr (0.7f, 1.0f);
+            f[vfASus] = rr (0.7f, 1.0f);   f[vfARel] = rr (0.7f, 1.0f);
+            f[vfLoop] = r() < 0.3f ? 1.0f : 0.0f;
+            f[vfDrift] = rr (0.3f, 0.5f + 0.4f * w);
+        }
+        else
         f[vfDrift]   = rr (0.1f, 0.2f + 0.5f * w);
         f[vfPan]     = armyA ? rr (-0.9f, 0.1f) : rr (-0.1f, 0.9f);
         f[vfLevel]   = rr (0.6f - 0.15f * w, 0.9f);
