@@ -70,3 +70,11 @@ target_compile_definitions(cwalias PRIVATE _USE_MATH_DEFINES)
 if(MSVC)
     target_link_options(cwalias PRIVATE /STACK:33554432)
 endif()
+
+# scratch probe (safe to delete): release pitch + MASTER CUT sweep
+add_executable(cwrel releaseprobe.cpp ../Source/Core/cw_core.cpp)
+target_include_directories(cwrel PRIVATE ../Source/Core)
+target_compile_definitions(cwrel PRIVATE _USE_MATH_DEFINES)
+if(MSVC)
+    target_link_options(cwrel PRIVATE /STACK:33554432)
+endif()

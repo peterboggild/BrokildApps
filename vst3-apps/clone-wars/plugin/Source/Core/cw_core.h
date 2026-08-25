@@ -98,6 +98,9 @@ enum GlobalParam
     gEnvFilt,       // 0..1 how much of the cutoff headroom ABOVE the knob the
                     //      filter envelope opens (0 = CUT alone)
     gLfoSync,       // 0/1  LFO rates locked to the host clock
+    gCutoff,        // 0..1 MASTER CUT: 0.5 neutral, offsets all 16 cutoffs
+                    //      together. The per-clone CUTOFF knobs stay put and
+                    //      keep their spread; this is the knob you sweep.
     numGlobals
 };
 

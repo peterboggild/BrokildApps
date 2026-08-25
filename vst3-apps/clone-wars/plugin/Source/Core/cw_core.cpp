@@ -48,7 +48,7 @@ static const char* kGlobalIds[numGlobals] =
     "spread", "war", "warslew", "master", "width", "bussat", "bassmono",
     "hpf", "drone", "hq", "springdwell", "springmix", "springfreeze",
     "tapetime", "tapefdbk", "tapemix", "bbdrate", "bbddepth", "driveamt",
-    "ranks", "notemode", "envfilt", "lfosync"
+    "ranks", "notemode", "envfilt", "lfosync", "cutoff"
 };
 const char* voiceFieldId (int f) { return kVoiceIds[f]; }
 const char* globalId (int g)     { return kGlobalIds[g]; }
@@ -77,6 +77,7 @@ void defaultPatch (Patch& p)
     g[gNoteMode] = (float) nmTreaty;   // the 16 share the chord out by default
     g[gEnvFilt] = 0.45f;               // what the envelope used to add flat
     g[gLfoSync] = 0;                   // free-run, phases from the seed
+    g[gCutoff] = 0.5f;                 // dead centre: the strips as set
 
     for (int v = 0; v < kVoices; ++v)
     {
@@ -84,7 +85,7 @@ void defaultPatch (Patch& p)
         f[vfWave] = 0;
         f[vfFoot] = (float) (1 + (v + 1) % 4);   // 16' 8' 4' 32' ...
         f[vfTune] = 0;
-        f[vfCut] = 0.85f; f[vfRes] = 0.2f;
+        f[vfCut] = 0.55f; f[vfRes] = 0.2f;
         f[vfLfoWave] = 0; f[vfLfoRate] = 0.3f;
         f[vfLfoAmp] = 0.15f; f[vfLfoFlt] = 0.25f;
         f[vfEnvF] = 0.5f; f[vfEnvA] = 0.5f; f[vfLoop] = 0;
@@ -136,7 +137,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 float* f = p.voice[v];
                 f[vfWave] = (float) (rngStep (s) % 2 + 2);        // tri / sine
                 f[vfFoot] = (float) (1 + (int) (rngStep (s) % 2)); // 32' / 16'
-                f[vfCut]  = rr (0.36f, 0.91f);
+                f[vfCut]  = rr (0.22f, 0.52f);
                 f[vfRes]  = rr (0.0f, 0.3f);
                 f[vfEnvA] = rr (0.7f, 1.0f); f[vfEnvF] = rr (0.6f, 1.0f);
             }
@@ -151,7 +152,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 float* f = p.voice[v];
                 f[vfWave] = 0;
                 f[vfFoot] = (float) (2 + (int) (rngStep (s) % 2)); // 16' / 8'
-                f[vfCut]  = rr (0.64f, 1.0f);
+                f[vfCut]  = rr (0.42f, 0.72f);
                 f[vfRes]  = rr (0.1f, 0.45f);
             }
             break;
@@ -165,7 +166,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 f[vfWave] = 1;                                   // pulse
                 f[vfLoop] = (rngStep (s) % 3) != 0 ? 1.0f : 0.0f;
                 f[vfEnvA] = rr (0.0f, 0.4f); f[vfEnvF] = rr (0.0f, 0.5f);
-                f[vfCut]  = rr (0.55f, 1.0f);
+                f[vfCut]  = rr (0.36f, 0.66f);
                 f[vfRes]  = rr (0.2f, 0.6f);
             }
             break;
@@ -179,7 +180,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 f[vfWave] = (float) (rngStep (s) % 2 + 2);
                 f[vfFoot] = (float) (3 + (int) (rngStep (s) % 2)); // 8' / 4'
                 f[vfEnvA] = rr (0.6f, 1.0f);
-                f[vfCut]  = rr (0.73f, 1.0f);
+                f[vfCut]  = rr (0.50f, 0.80f);
                 f[vfLfoAmp] = rr (0.1f, 0.35f);
             }
             break;
@@ -195,7 +196,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 f[vfLfoWave] = 3;                                // s&h
                 f[vfLfoFlt] = rr (0.3f, 0.8f);
                 f[vfRes]  = rr (0.4f, 0.85f);
-                f[vfCut]  = rr (0.55f, 1.0f);
+                f[vfCut]  = rr (0.36f, 0.66f);
             }
             break;
     }
@@ -607,6 +608,7 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
         else if (G[gDrone] > 0.5f && ! armyGated[armyA ? 0 : 1]) { gate = true; }
         else                                       gate = false;
 
+        const bool wasGated = vc.gated;
         if (gate && ! vc.gated) { vc.envAmp.gateOn(); vc.envFlt.gateOn(); }
         if (! gate && vc.gated) { vc.envAmp.gateOff(); vc.envFlt.gateOff(); }
         vc.gated = gate;
@@ -623,14 +625,30 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
         const float noteHz = 440.0f * std::pow (2.0f, (targetNote - 69.0f) / 12.0f);
         const float targetHz = noteHz * footMult ((int) F[vfFoot])
                              * std::pow (2.0f, cents / 1200.0f);
-        vc.freqCurrent += glideCoef * (targetHz - vc.freqCurrent);
+        // A released note KEEPS its pitch while it decays. This glide used to
+        // run unconditionally, and an ungated voice's targetNote falls back to
+        // the army base - so every note slid down to the base pitch through
+        // its whole release tail, which reads exactly like a stuck drone note.
+        // A voice waking from silence snaps instead of gliding from a stale
+        // frequency; one taken over while still sounding glides, as it should.
+        if (gate)
+        {
+            if (! wasGated && vc.envAmp.value < 1.0e-4f) vc.freqCurrent = targetHz;
+            else vc.freqCurrent += glideCoef * (targetHz - vc.freqCurrent);
+        }
         const double dt = (double) vc.freqCurrent / fs;
 
         // ---- filter control values
         const float kTrack = kbd * (targetNote - 48.0f) / 60.0f;
         // Clamped here so the envelope below opens what is LEFT of the range
         // rather than pushing past the ceiling and clamping the knob flat.
-        const float cut01base = std::clamp (F[vfCut] + vc.tolCut * T + kTrack
+        // MASTER CUT rides on top of the sixteen strip knobs: one sweep for
+        // the whole machine, which is what a filter knob is supposed to be.
+        // The strips keep their own values and their spread.
+        // +/-0.5, not +/-1: the strips sit mid-travel, so half the range each
+        // way reaches both fully shut and fully open without a dead stretch.
+        const float masterCut = G[gCutoff] - 0.5f;
+        const float cut01base = std::clamp (F[vfCut] + masterCut + vc.tolCut * T + kTrack
                                             + tideState * 0.12f * G[gTide], 0.0f, 1.0f);
         const float envFiltD = G[gEnvFilt];
         const float res = F[vfRes];
