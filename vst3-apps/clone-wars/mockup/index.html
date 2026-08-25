@@ -695,7 +695,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 000000.MOCK · 16 VOICES · HQ/LOW · OFFLINE RENDER = HQ</span>
+      <span class="mono">BUILD 260825.1 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -744,8 +744,8 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
         <div class="knob k28" data-cmd="BUS SAT" data-val="0.25" tabindex="0" title="Analog bus soft-clip with auto-gain">
           <div class="cap"><div class="ptr"></div></div><div class="lbl">bus sat</div>
         </div>
-        <button class="btn on" title="Footages 16' and below pulled to centre"><span class="lamp"></span>BASS MONO</button>
-        <button class="btn" title="Gentle infrasonic high-pass on the master"><span class="lamp"></span>HPF</button>
+        <button class="btn on" data-gparam="g_bassmono" title="Footages 16' and below pulled to centre"><span class="lamp"></span>BASS MONO</button>
+        <button class="btn" data-gparam="g_hpf" title="Gentle infrasonic high-pass on the master"><span class="lamp"></span>HPF</button>
       </div>
       <div class="modulebay">
         MODULE BAY · FUTURE PLUG-IN MODULES DOCK HERE
@@ -769,7 +769,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
     <div class="hatch-grid">
       <div class="cmdrow">
         <button class="btn" id="tourBtn" title="Simulate a year of hard touring"><span class="lamp"></span>TOUR</button>
-        <button class="btn" id="repairBtn" title="Repair the panel — scars are repaired, service hours are not"><span class="lamp"></span>REPAIR</button>
+        <button class="btn" id="repairBtn" title="Repair the panel — factory condition restored, the service clock starts again"><span class="lamp"></span>REPAIR</button>
       </div>
       <div class="modulebay" style="margin-top:2px">
         THE HULL REMEMBERS WHENEVER THE UNIT PLAYS · REPAIR RESTORES FACTORY CONDITION AND RESETS THE TIMER
@@ -789,7 +789,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Version 0.1 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.1 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -946,6 +946,7 @@ for (const fx of FX) {
   if (fx.btn) {
     const b = el("button", "btn", '<span class="lamp"></span>' + fx.btn);
     if (fx.btnTitle) b.title = fx.btnTitle;
+    b.dataset.gparam = "g_springfreeze";
     b.style.marginTop = "5px";
     m.appendChild(b);
   }

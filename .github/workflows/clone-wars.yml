@@ -5,7 +5,13 @@ on:
     paths:
       - "vst3-apps/clone-wars/plugin/**"
       - ".github/workflows/clone-wars.yml"
+  # A manual dispatch additionally commits the house-style release zip
+  # (VST3 + standalone + manual + readme) to vst3-apps/clone-wars/ on the
+  # branch it ran on, which is what the site's download button serves.
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   engine-test:
@@ -55,12 +61,26 @@ jobs:
         shell: pwsh
         working-directory: vst3-apps/clone-wars/plugin
         run: |
-          $out = "package"
+          $out = "package/Clone-Wars-VST3-win64"
           New-Item -ItemType Directory -Force $out | Out-Null
           Copy-Item -Recurse "build/CloneWars_artefacts/Release/VST3/Clone Wars.vst3" "$out/"
           Copy-Item "build/CloneWars_artefacts/Release/Standalone/Clone Wars.exe" "$out/"
+          Copy-Item "../Clone-Wars-Manual.pdf" "$out/"
+          Copy-Item "../README.txt" "$out/"
       - uses: actions/upload-artifact@v4
         with:
           name: Clone-Wars-VST3-win64
           path: vst3-apps/clone-wars/plugin/package/**
           retention-days: 30
+      - name: Commit release zip to the repo (manual dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        working-directory: vst3-apps/clone-wars
+        run: |
+          Compress-Archive -Path "plugin/package/Clone-Wars-VST3-win64" -DestinationPath "Clone-Wars-VST3-win64.zip" -Force
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Clone-Wars-VST3-win64.zip
+          git commit -m "Clone Wars: release zip (site download) [skip ci]"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.ref_name }}"
