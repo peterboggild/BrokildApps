@@ -9,13 +9,37 @@ using detail::rng01;
 using detail::rngStep;
 using detail::fastTanh;
 
+// Black Rider's resonance mappings. GROWL reaches the K = 2 edge of self-
+// oscillation only near the top of the dial, so it stays a gnarly resonance
+// for most of its travel; SCREAM crosses K = 2 at noon and is pushed a lot
+// harder above it, so the top of that dial is a loud, filthy scream.
+static inline float k35Kgrowl (float v)
+{
+    return 2.25f * std::pow (std::clamp (v, 0.0f, 1.0f), 0.9f);
+}
+static inline float k35Kscream (float v)
+{
+    v = std::clamp (v, 0.0f, 1.0f);
+    return v < 0.62f ? 2.0f * std::pow (v / 0.62f, 0.7f)
+                     : 2.0f + 0.9f * ((v - 0.62f) / 0.38f);
+}
+static inline float ladderK (float v)
+{
+    return 4.0f * 1.12f * std::pow (std::clamp (v, 0.0f, 1.0f), 0.85f);
+}
+// A real ladder loses its bass as resonance rises - correct, and half of why
+// the models feel different. But TEMPER is a per-army switch here, so an
+// uncompensated LADDER simply drops out against GROWL when you flip it.
+// Calibrated by measurement in test/ladderprobe.cpp, not from the model.
+static constexpr float LADDER_MAKEUP = 0.55f;
+
 //==============================================================================
 // id tables (UI + APVTS use these; order must match the enums)
 static const char* kVoiceIds[numVoiceFields] =
 {
     "wave", "foot", "tune", "cut", "res", "lfowave", "lforate", "lfoamp",
     "lfoflt", "envf", "enva", "loop", "drift", "pan", "level", "mute",
-    "solo", "note"
+    "solo", "note", "pw"
 };
 static const char* kGlobalIds[numGlobals] =
 {
@@ -24,7 +48,7 @@ static const char* kGlobalIds[numGlobals] =
     "spread", "war", "warslew", "master", "width", "bussat", "bassmono",
     "hpf", "drone", "hq", "springdwell", "springmix", "springfreeze",
     "tapetime", "tapefdbk", "tapemix", "bbdrate", "bbddepth", "driveamt",
-    "ranks"
+    "ranks", "notemode", "envfilt", "lfosync"
 };
 const char* voiceFieldId (int f) { return kVoiceIds[f]; }
 const char* globalId (int g)     { return kGlobalIds[g]; }
@@ -50,6 +74,9 @@ void defaultPatch (Patch& p)
     g[gBbdRate] = 0.3f; g[gBbdDepth] = 0.25f;
     g[gDriveAmt] = 0.15f;
     g[gRanks] = 0.5f;   // dead centre: the panel as set
+    g[gNoteMode] = (float) nmTreaty;   // the 16 share the chord out by default
+    g[gEnvFilt] = 0.45f;               // what the envelope used to add flat
+    g[gLfoSync] = 0;                   // free-run, phases from the seed
 
     for (int v = 0; v < kVoices; ++v)
     {
@@ -57,12 +84,12 @@ void defaultPatch (Patch& p)
         f[vfWave] = 0;
         f[vfFoot] = (float) (1 + (v + 1) % 4);   // 16' 8' 4' 32' ...
         f[vfTune] = 0;
-        f[vfCut] = 0.65f; f[vfRes] = 0.2f;
+        f[vfCut] = 0.85f; f[vfRes] = 0.2f;
         f[vfLfoWave] = 0; f[vfLfoRate] = 0.3f;
         f[vfLfoAmp] = 0.15f; f[vfLfoFlt] = 0.25f;
         f[vfEnvF] = 0.5f; f[vfEnvA] = 0.5f; f[vfLoop] = 0;
         f[vfDrift] = 0.3f; f[vfPan] = 0; f[vfLevel] = 0.8f;
-        f[vfMute] = 0; f[vfSolo] = 0;
+        f[vfMute] = 0; f[vfSolo] = 0; f[vfPw] = 0.5f;
         f[vfNote] = (float) (v % kNoteSlots);
     }
 }
@@ -109,7 +136,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 float* f = p.voice[v];
                 f[vfWave] = (float) (rngStep (s) % 2 + 2);        // tri / sine
                 f[vfFoot] = (float) (1 + (int) (rngStep (s) % 2)); // 32' / 16'
-                f[vfCut]  = rr (0.2f, 0.5f);
+                f[vfCut]  = rr (0.36f, 0.91f);
                 f[vfRes]  = rr (0.0f, 0.3f);
                 f[vfEnvA] = rr (0.7f, 1.0f); f[vfEnvF] = rr (0.6f, 1.0f);
             }
@@ -124,7 +151,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 float* f = p.voice[v];
                 f[vfWave] = 0;
                 f[vfFoot] = (float) (2 + (int) (rngStep (s) % 2)); // 16' / 8'
-                f[vfCut]  = rr (0.4f, 0.75f);
+                f[vfCut]  = rr (0.64f, 1.0f);
                 f[vfRes]  = rr (0.1f, 0.45f);
             }
             break;
@@ -138,7 +165,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 f[vfWave] = 1;                                   // pulse
                 f[vfLoop] = (rngStep (s) % 3) != 0 ? 1.0f : 0.0f;
                 f[vfEnvA] = rr (0.0f, 0.4f); f[vfEnvF] = rr (0.0f, 0.5f);
-                f[vfCut]  = rr (0.3f, 0.7f);
+                f[vfCut]  = rr (0.55f, 1.0f);
                 f[vfRes]  = rr (0.2f, 0.6f);
             }
             break;
@@ -152,7 +179,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 f[vfWave] = (float) (rngStep (s) % 2 + 2);
                 f[vfFoot] = (float) (3 + (int) (rngStep (s) % 2)); // 8' / 4'
                 f[vfEnvA] = rr (0.6f, 1.0f);
-                f[vfCut]  = rr (0.45f, 0.8f);
+                f[vfCut]  = rr (0.73f, 1.0f);
                 f[vfLfoAmp] = rr (0.1f, 0.35f);
             }
             break;
@@ -168,7 +195,7 @@ const char* generatePatch (uint32_t seed, Patch& p)
                 f[vfLfoWave] = 3;                                // s&h
                 f[vfLfoFlt] = rr (0.3f, 0.8f);
                 f[vfRes]  = rr (0.4f, 0.85f);
-                f[vfCut]  = rr (0.3f, 0.7f);
+                f[vfCut]  = rr (0.55f, 1.0f);
             }
             break;
     }
@@ -197,7 +224,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
 
     for (auto& v : voices)
     {
-        v.svf.reset(); v.ladder.reset();
+        v.k35.reset(); v.ladder.reset();
         v.envAmp = {}; v.envFlt = {};
         v.ampSmooth = 0;
     }
@@ -249,77 +276,136 @@ void Engine::refreshTolerances()
 }
 
 //==============================================================================
+void divideClones (int count, int n, int* out)
+{
+    if (n <= 0) return;
+    const int base = count / n;
+    int rem = count % n;
+    for (int i = 0; i < n; ++i) out[i] = base;
+    // an odd remainder over an odd count goes to the exact centre (5-6-5); the
+    // rest is handed out in symmetric pairs, working outwards from the middle
+    if ((n & 1) && (rem & 1)) { out[n / 2] += 1; --rem; }
+    int lo = (n - 1) / 2, hi = n / 2;
+    if (n & 1) { --lo; ++hi; }
+    while (rem >= 2 && lo >= 0 && hi < n) { out[lo] += 1; out[hi] += 1; rem -= 2; --lo; ++hi; }
+    for (int i = 0; rem > 0 && i < n; ++i) { out[i] += 1; --rem; }
+}
+
+void Engine::assignNotes (const float* Gp)
+{
+    // Gather the sounding notes low to high. A note counts as sounding if it
+    // is physically held or if EITHER army latches: the division has to agree
+    // across the panel, or latching one army would re-shuffle the other.
+    const bool latchA = Gp[gLatchA] > 0.5f, latchB = Gp[gLatchB] > 0.5f;
+    int  notes[kMaxHeld], onFlag[kMaxHeld], n = 0;
+    bool anyHeld = false;
+    for (int i = 0; i < kMaxHeld; ++i)
+    {
+        const int note = heldNote[i].load (std::memory_order_relaxed);
+        const int on   = heldOn[i].load (std::memory_order_relaxed);
+        if (note < 0) continue;
+        if (on == 0 && ! latchA && ! latchB) continue;
+        notes[n] = note; onFlag[n] = on; ++n;
+        if (on != 0) anyHeld = true;
+    }
+    for (int i = 1; i < n; ++i)          // insertion sort: the left of the
+    {                                    // panel is the bottom of the chord
+        const int kn = notes[i], kf = onFlag[i];
+        int j = i - 1;
+        while (j >= 0 && notes[j] > kn) { notes[j + 1] = notes[j]; onFlag[j + 1] = onFlag[j]; --j; }
+        notes[j + 1] = kn; onFlag[j + 1] = kf;
+    }
+
+    activeCount  = n;
+    armyGated[0] = anyHeld || (n > 0 && latchA);
+    armyGated[1] = anyHeld || (n > 0 && latchB);
+    for (int v = 0; v < kVoices; ++v) { vAssign[v] = -1; vAssignHeld[v] = 0; }
+    if (n == 0) return;                  // nothing sounding: DRONE takes over
+
+    auto place = [&] (int firstVoice, int voiceCount, const int* idx, int idxCount)
+    {
+        int share[kMaxHeld];
+        divideClones (voiceCount, idxCount, share);
+        int v = firstVoice;
+        for (int k = 0; k < idxCount; ++k)
+            for (int c = 0; c < share[k] && v < kVoices; ++c, ++v)
+            {
+                vAssign[v]     = notes[idx[k]];
+                vAssignHeld[v] = onFlag[idx[k]];
+            }
+    };
+
+    int idx[kMaxHeld];
+    const int mode = (int) Gp[gNoteMode];
+    if (mode == nmUnison)
+    {
+        idx[0] = 0;                      // the bottom note: a drone wants a root
+        place (0, kVoices, idx, 1);
+    }
+    else if (mode == nmWar)
+    {
+        // The armies contest the chord: A takes the lower half, B the upper,
+        // and on an odd count they share the middle note. One note and both
+        // armies play it; two and it is low on the left, high on the right.
+        // THE WAR fader then slides the chord from A's notes to B's.
+        const int half = (n + 1) / 2;
+        for (int k = 0; k < half; ++k) idx[k] = k;
+        place (0, kArmySize, idx, half);
+        for (int k = 0; k < half; ++k) idx[k] = n - half + k;
+        place (kArmySize, kArmySize, idx, half);
+    }
+    else
+    {
+        for (int k = 0; k < n; ++k) idx[k] = k;
+        place (0, kVoices, idx, n);      // one body, low on the left
+    }
+}
+
 void Engine::noteOn (int midiNote)
 {
-    for (int i = 0; i < kNoteSlots; ++i)                 // retrigger same note
-        if (slotNote[i].load() == midiNote) { slotHeld[i].store (1); return; }
-    for (int i = 0; i < kNoteSlots; ++i)                 // truly empty slot
-        if (slotNote[i].load() < 0) { slotNote[i].store (midiNote); slotHeld[i].store (1); return; }
-    for (int i = 0; i < kNoteSlots; ++i)                 // released (latched remnant)
-        if (slotHeld[i].load() == 0) { slotNote[i].store (midiNote); slotHeld[i].store (1); return; }
-    const int steal = slotOrder.fetch_add (1) % kNoteSlots;
-    slotNote[steal].store (midiNote); slotHeld[steal].store (1);
+    const uint32_t stamp = heldClock.fetch_add (1);
+    for (int i = 0; i < kMaxHeld; ++i)                   // retrigger same note
+        if (heldNote[i].load() == midiNote) { heldOn[i].store (1); heldStamp[i].store (stamp); return; }
+    for (int i = 0; i < kMaxHeld; ++i)                   // a truly empty seat
+        if (heldNote[i].load() < 0) { heldNote[i].store (midiNote); heldOn[i].store (1); heldStamp[i].store (stamp); return; }
+    for (int i = 0; i < kMaxHeld; ++i)                   // a released latched remnant
+        if (heldOn[i].load() == 0) { heldNote[i].store (midiNote); heldOn[i].store (1); heldStamp[i].store (stamp); return; }
+    int oldest = 0; uint32_t best = 0xFFFFFFFFu;         // otherwise steal the oldest
+    for (int i = 0; i < kMaxHeld; ++i)
+    { const uint32_t st = heldStamp[i].load(); if (st < best) { best = st; oldest = i; } }
+    heldNote[oldest].store (midiNote); heldOn[oldest].store (1); heldStamp[oldest].store (stamp);
 }
 
 void Engine::noteOff (int midiNote)
 {
-    for (int i = 0; i < kNoteSlots; ++i)
-        if (slotNote[i].load() == midiNote) slotHeld[i].store (0);
+    for (int i = 0; i < kMaxHeld; ++i)
+        if (heldNote[i].load() == midiNote) heldOn[i].store (0);
 }
 
 void Engine::allNotesOff()
 {
-    for (int i = 0; i < kNoteSlots; ++i) { slotNote[i].store (-1); slotHeld[i].store (0); }
+    for (int i = 0; i < kMaxHeld; ++i) { heldNote[i].store (-1); heldOn[i].store (0); }
 }
 
 //==============================================================================
-float Engine::SVF::step (float x, float g, float k, float drive)
+float Engine::K35::process (float x, float xPrev, float K, int os)
 {
-    const float v1 = (ic1 + g * (x - ic2)) / (1.0f + g * (g + k));
-    const float v2 = ic2 + g * v1;
-    ic1 = 2.0f * v1 - ic1;
-    ic2 = 2.0f * v2 - ic2;
-    // the diode squash that keeps GROWL/SCREAM from running away
-    ic1 = fastTanh (ic1 * drive) / drive;
-    return v2;
-}
-
-float Engine::SVF::process (float x, float xPrev, float g, float k, float drive, int os)
-{
-    if (os <= 1) return step (x, g, k, drive);
+    if (os <= 1) return step (x, K);
     float acc = 0;
     const float inv = 1.0f / (float) os;
     for (int u = 1; u <= os; ++u)
-        acc += step (xPrev + (x - xPrev) * ((float) u * inv), g, k, drive);
+        acc += step (xPrev + (x - xPrev) * ((float) u * inv), K);
     return acc * inv;                    // averaging decimator
 }
 
-float Engine::Ladder::step (float x, float p, float res)
+float Engine::Ladder::process (float x, float xPrev, float k, int os)
 {
-    float in = fastTanh (x - 4.2f * res * s[3]);
-    for (int st = 0; st < 4; ++st)
-    {
-        s[st] += p * (in - fastTanh (s[st] * 0.9f));
-        in = s[st];
-    }
-    return s[3];
-}
-
-float Engine::Ladder::process (float x, float xPrev, float g, float res, int os)
-{
-    // Scale into the tanh region and make up on the way out: a full-scale
-    // oscillator straight into the cascade measured -7.8 dB THD (fuzz, not
-    // "round"). 0.35 in / ~2.6 out keeps the character, loses the fuzz.
-    constexpr float kIn = 0.35f, kOut = 0.9f / kIn;
-    x *= kIn; xPrev *= kIn;
-    // g must already be computed for the oversampled step rate
-    const float p = g / (1.0f + g);
-    if (os <= 1) return step (x, p, res) * kOut;
+    if (os <= 1) return step (x, k);
     float acc = 0;
     const float inv = 1.0f / (float) os;
     for (int u = 1; u <= os; ++u)
-        acc += step (xPrev + (x - xPrev) * ((float) u * inv), p, res);
-    return acc * inv * kOut;
+        acc += step (xPrev + (x - xPrev) * ((float) u * inv), k);
+    return acc * inv;
 }
 
 float Engine::satOS (float x, float& xPrev, float drive, float norm, int os)
@@ -338,12 +424,16 @@ float Engine::satOS (float x, float& xPrev, float drive, float norm, int os)
     return y;
 }
 
-float Engine::Env::tick (float atkCoef, float decCoef, bool loop)
+float Engine::Env::tick (float atkCoef, float decCoef, float sus, bool loop)
 {
     if (stage == 1)                       // attacking
     {
         value += atkCoef * (1.06f - value);
-        if (value >= 1.0f) { value = 1.0f; if (loop) stage = 3; }
+        if (value >= 1.0f) { value = 1.0f; stage = loop ? 3 : 4; }
+    }
+    else if (stage == 4)                  // held: settle to the sustain level
+    {
+        value += decCoef * (sus - value);
     }
     else if (stage == 2)                  // released: fall to silence
     {
@@ -483,6 +573,13 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
     const int os = quality == 2 ? 4 : (quality == 1 ? 2 : 1);
     bool soloAny = false;
     for (int v = 0; v < kVoices; ++v) soloAny |= V[v][vfSolo] > 0.5f;
+    assignNotes (G);
+    if (scatterReq.exchange (0, std::memory_order_relaxed))
+        for (int v = 0; v < kVoices; ++v)     // fresh phases, a new draw each press
+        {
+            scatterState = scatterState * 1664525u + 1013904223u;
+            voices[(size_t) v].lfoPhase = (double) rng01 (scatterState);
+        }
 
     const float glideTau  = 0.001f + G[gGlide] * G[gGlide] * 2.0f;
     const float glideCoef = 1.0f - std::exp ((float) (-(double) kSubBlock / (glideTau * fs)));
@@ -499,15 +596,15 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
         const float entrain = armyA ? G[gEntrainA] : G[gEntrainB];
         const float kbd = armyA ? G[gKbdA] : G[gKbdB];
 
-        // ---- gate & pitch from the note slot
-        const int slot = std::clamp ((int) F[vfNote], 0, kNoteSlots - 1);
-        const int note = slotNote[slot].load (std::memory_order_relaxed);
-        const int held = slotHeld[slot].load (std::memory_order_relaxed);
+        // ---- gate & pitch: assignNotes() has already decided which note this
+        //      clone follows under the current NOTE MODE.
+        const int note = vAssign[vi];
+        const int held = vAssignHeld[vi];
         const float base = armyA ? G[gBaseA] : G[gBaseB];
         float targetNote = 24.0f + 36.0f * base;
         bool gate;
         if (note >= 0 && (held != 0 || latched)) { gate = true; targetNote = (float) note; }
-        else if (G[gDrone] > 0.5f && slot == 0)  { gate = true; }
+        else if (G[gDrone] > 0.5f && ! armyGated[armyA ? 0 : 1]) { gate = true; }
         else                                       gate = false;
 
         if (gate && ! vc.gated) { vc.envAmp.gateOn(); vc.envFlt.gateOn(); }
@@ -531,15 +628,46 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
 
         // ---- filter control values
         const float kTrack = kbd * (targetNote - 48.0f) / 60.0f;
-        float cut01base = F[vfCut] + vc.tolCut * T + kTrack + tideState * 0.12f * G[gTide];
+        // Clamped here so the envelope below opens what is LEFT of the range
+        // rather than pushing past the ceiling and clamping the knob flat.
+        const float cut01base = std::clamp (F[vfCut] + vc.tolCut * T + kTrack
+                                            + tideState * 0.12f * G[gTide], 0.0f, 1.0f);
+        const float envFiltD = G[gEnvFilt];
         const float res = F[vfRes];
-        float svfK, svfDrive;
-        if (temper == 1) { svfK = 2.0f - 2.1f * res;  svfDrive = 1.6f + 2.5f * res; }   // scream
-        else             { svfK = 2.0f - 1.85f * res; svfDrive = 1.2f + 1.6f * res; }   // growl
-        svfK = std::max (temper == 1 ? -0.05f : 0.12f, svfK);
+        // Resonance, and for the Sallen-Key models the prewarp that keeps the
+        // self-oscillation in tune: the clipper takes a share of the loop and
+        // its share GROWS with K (measured -6 cents at K 2.25, -17 at 2.45,
+        // -52 at 2.9). Below the oscillation edge the lift shrinks to nothing.
+        float filtK, prewarp = 1.0f, ladMakeup = 1.0f;
+        if (temper == 2)
+        {
+            filtK = std::min (4.6f, ladderK (res));
+            ladMakeup = 1.0f + LADDER_MAKEUP * filtK;
+        }
+        else
+        {
+            filtK = std::min (temper == 1 ? k35Kscream (res) : k35Kgrowl (res),
+                              temper == 1 ? 2.95f : 2.45f);
+            float warpCents = 0.0f;
+            if      (filtK > 2.45f) warpCents = 17.0f + 78.0f * (filtK - 2.45f);
+            else if (filtK > 2.25f) warpCents = 6.0f + 55.0f * (filtK - 2.25f);
+            else if (filtK > 2.0f)  warpCents = 24.0f * (filtK - 2.0f);
+            if (warpCents > 0.0f) prewarp = std::pow (2.0f, warpCents / 1200.0f);
+        }
 
         // ---- LFO / env control values
-        const float lfoHz  = 0.02f * std::pow (400.0f, F[vfLfoRate]) * vc.tolLfo;
+        float lfoHz;
+        if (G[gLfoSync] > 0.5f)
+        {
+            // Beats per LFO cycle, longest first, so the knob still reads
+            // "slow on the left" exactly as the free-running sweep does.
+            // Tolerance is deliberately NOT applied: synced means synced.
+            static constexpr float kBeats[8] = { 16, 8, 4, 2, 1, 0.5f, 0.25f, 0.125f };
+            const double bpm = hostBpm.load (std::memory_order_relaxed);
+            const int idx = std::clamp ((int) (F[vfLfoRate] * 7.999f), 0, 7);
+            lfoHz = (float) (std::max (20.0, bpm) / 60.0) / kBeats[idx];
+        }
+        else lfoHz = 0.02f * std::pow (400.0f, F[vfLfoRate]) * vc.tolLfo;
         const double lfoDt = (double) lfoHz / fs;
         auto envTimes = [&] (float k, float& atkC, float& decC)
         {
@@ -553,6 +681,8 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
         float aAtk, aDec, fAtk, fDec;
         envTimes (F[vfEnvA], aAtk, aDec);
         envTimes (F[vfEnvF], fAtk, fDec);
+        // One knob, so the sustain rides with it: shut = plucky, open = pad.
+        const float fSus = 0.15f + 0.8f * F[vfEnvF];
         const bool loop = F[vfLoop] > 0.5f;
 
         // ---- output gains
@@ -567,6 +697,7 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
         const int lfoWave = (int) F[vfLfoWave];
         const int wave = (int) F[vfWave];
         const float lfoAmpD = F[vfLfoAmp];
+        const float pw = 0.05f + 0.9f * std::clamp (F[vfPw], 0.0f, 1.0f);
         const float lfoFltD = F[vfLfoFlt];
         const double neighborPhase = vi % kArmySize == 0 ? -1.0
                                     : voices[(size_t) vi - 1].phase;
@@ -594,62 +725,73 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
             }
 
             // -- envelopes
-            const float ea = vc.envAmp.tick (aAtk, aDec, loop);
-            const float ef = vc.envFlt.tick (fAtk, fDec, loop);
+            const float ea = vc.envAmp.tick (aAtk, aDec, 1.0f, loop);
+            const float ef = vc.envFlt.tick (fAtk, fDec, fSus, loop);
 
-            // -- oscillator with entrain phase pull
-            if (neighborPhase >= 0.0 && pull > 0.0f)
-            {
-                const double np = voices[(size_t) vi - 1].phase;
-                vc.phase += pull * std::sin (6.2831853 * (np - vc.phase));
-            }
-            vc.phase += dt;
-            if (vc.phase >= 1.0) vc.phase -= 1.0;
-            if (vc.phase < 0.0)  vc.phase += 1.0;
-            const double t = vc.phase;
-            auto blep = [dt] (double tt)
-            {
-                if (tt < dt)       { const double x = tt / dt;         return (float) (x + x - x * x - 1.0); }
-                if (tt > 1.0 - dt) { const double x = (tt - 1.0) / dt; return (float) (x * x + x + x + 1.0); }
-                return 0.0f;
-            };
-            float osc;
-            if (wave == 3)      osc = std::sin (6.2831853f * (float) t);
-            else if (wave == 0) osc = (float) (2.0 * t - 1.0) - blep (t);
-            else
-            {
-                float sq = (t < 0.5 ? 1.0f : -1.0f) + blep (t)
-                         - blep (t >= 0.5 ? t - 0.5 : t + 0.5);
-                if (wave == 1) osc = sq * 0.85f;
-                else
-                {
-                    // triangle: leaky-integrated blepped square. The leak is
-                    // proportional to frequency so the amplitude is pitch-
-                    // independent (~0.95) and DC drains in ~10 cycles.
-                    const float k4dt = (float) (4.0 * dt);
-                    vc.triState = vc.triState * (1.0f - 0.05f * k4dt) + k4dt * sq;
-                    osc = vc.triState;
-                }
-            }
-
-            // -- filter (cutoff modulated per sample by env + lfo)
-            float cut01 = cut01base + ef * 0.45f + lfo * lfoFltD * 0.35f;
+            // -- filter coefficient for this output sample. The envelope opens
+            //    what headroom is LEFT above the knob: added flat it pushed
+            //    past the ceiling and clamped, killing CUT's whole top half.
+            float cut01 = cut01base + ef * envFiltD * (1.0f - cut01base)
+                        + lfo * lfoFltD * 0.35f;
             cut01 = std::clamp (cut01, 0.0f, 1.0f);
             vc.cutSmooth += 0.02f * (cut01 - vc.cutSmooth);
             const float fc = 30.0f * std::pow (533.0f, vc.cutSmooth);   // 30 Hz .. 16 kHz
-            const float fcC = std::min (fc, (float) fs * 0.45f);
+            const float fcC = std::min (fc * prewarp, (float) fs * 0.45f);
             const float g = std::tan (3.14159265f * fcC / ((float) fs * (float) os));
-            float y;
-            if (temper == 2)
+            if (temper == 2) vc.ladder.setG (g); else vc.k35.setG (g);
+
+            // -- oscillator AND filter, both stepped at the oversampled rate.
+            //    This used to generate the oscillator once per output sample
+            //    and interpolate it up into the filter, which left the polyBLEP
+            //    residual exactly where it was: the quality tiers only cleaned
+            //    up the filter, and measured saw aliasing stopped improving
+            //    past -47 dB however high you set them.
+            const float  invOs = 1.0f / (float) os;
+            const double dtOs  = dt * (double) invOs;
+            auto blep = [dtOs] (double tt)
             {
-                y = vc.ladder.process (osc, vc.prevOsc, g, res, os);
-                y *= 1.0f + res * 0.9f;                       // ladder loses level at res
-            }
-            else
+                if (tt < dtOs)       { const double x = tt / dtOs;         return (float) (x + x - x * x - 1.0); }
+                if (tt > 1.0 - dtOs) { const double x = (tt - 1.0) / dtOs; return (float) (x * x + x + x + 1.0); }
+                return 0.0f;
+            };
+            float y = 0.0f;
+            for (int u = 0; u < os; ++u)
             {
-                y = vc.svf.process (osc, vc.prevOsc, g, svfK, svfDrive, os);
+                if (neighborPhase >= 0.0 && pull > 0.0f)
+                {
+                    const double np = voices[(size_t) vi - 1].phase;
+                    vc.phase += (double) invOs * pull * std::sin (6.2831853 * (np - vc.phase));
+                }
+                vc.phase += dtOs;
+                if (vc.phase >= 1.0) vc.phase -= 1.0;
+                if (vc.phase < 0.0)  vc.phase += 1.0;
+                const double t = vc.phase;
+                float osc;
+                if (wave == 3)      osc = std::sin (6.2831853f * (float) t);
+                else if (wave == 0) osc = (float) (2.0 * t - 1.0) - blep (t);
+                else
+                {
+                    // PW sets the pulse duty. The triangle keeps a symmetric
+                    // square: a pulse of width d carries DC of 2d-1, and the
+                    // leaky integrator below would accumulate it.
+                    const double d = (wave == 1) ? (double) pw : 0.5;
+                    const float sq = (t < d ? 1.0f : -1.0f) + blep (t)
+                                   - blep (t >= d ? t - d : t + 1.0 - d);
+                    if (wave == 1) osc = sq * 0.85f;
+                    else
+                    {
+                        // triangle: leaky-integrated blepped square. The leak is
+                        // proportional to frequency so the amplitude is pitch-
+                        // independent (~0.95) and DC drains in ~10 cycles.
+                        const float k4dt = (float) (4.0 * dtOs);
+                        vc.triState = vc.triState * (1.0f - 0.05f * k4dt) + k4dt * sq;
+                        osc = vc.triState;
+                    }
+                }
+                y += (temper == 2) ? vc.ladder.step (osc, filtK) : vc.k35.step (osc, filtK);
             }
-            vc.prevOsc = osc;
+            y *= invOs;                              // averaging decimator
+            if (temper == 2) y *= ladMakeup;
 
             // -- amplitude: env * tremolo, smoothed pan/level
             const float trem = 1.0f - lfoAmpD * (0.5f - 0.5f * lfo) * 0.9f;

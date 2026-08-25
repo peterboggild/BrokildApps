@@ -631,6 +631,14 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
           </div>
         </div>
         <div class="cmdrow">
+          <div class="step" data-cmd="NOTE MODE" tabindex="0" title="How the sixteen share out the held notes — UNISON: all on the bottom note; TREATY: split left to right, low to high; WAR: the armies contest the chord">
+            <span class="win">TREATY</span><div class="lbl">note mode</div>
+          </div>
+          <div class="knob k34" data-cmd="ENV&gt;FILT" data-val="0.45" tabindex="0" title="How much of the cutoff headroom ABOVE the knob the filter envelope opens">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">env&gt;filt</div>
+          </div>
+        </div>
+        <div class="cmdrow">
           <button class="btn" data-gparam="g_latcha"><span class="lamp"></span>LATCH A</button>
           <button class="btn" data-gparam="g_latchb"><span class="lamp"></span>LATCH B</button>
         </div>
@@ -703,7 +711,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.3 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.4 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -742,7 +750,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
           <div class="cap"><div class="ptr"></div></div><div class="lbl">kbd b</div>
         </div>
         <button class="btn" id="scatter" title="Re-randomise all 16 LFO phases"><span class="lamp"></span>SCATTER</button>
-        <button class="btn" id="lfosync" title="LFOs free-run (phases from seed) or sync to host clock"><span class="lamp"></span>LFO SYNC</button>
+        <button class="btn" id="lfosync" data-gparam="g_lfosync" title="LFOs free-run (phases from seed) or sync to host clock"><span class="lamp"></span>LFO SYNC</button>
       </div>
       <div class="cmd-t">OUTPUT BUS</div>
       <div class="cmdrow">
@@ -797,7 +805,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.3 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.4 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -830,14 +838,19 @@ window.CW_DECALS = [{"c": "damage", "n": "Deep gouge", "src": "data:image/webp;b
 "use strict";
 /* ---------------- row model ---------------- */
 const ENV_TITLE = "← fast atk / fast dec · ↑ fast atk / slow dec · → slow atk / slow dec";
+const STEPOPTS = {
+  "TEMPER A": ["GROWL", "SCREAM", "LADDER"],
+  "TEMPER B": ["GROWL", "SCREAM", "LADDER"],
+  "NOTE MODE": ["UNISON", "TREATY", "WAR"],
+};
 const ROWS = [
   { id:"vu",      label:"LEVEL VU",  type:"vu",    h:"46px" },
   { id:"ch",      label:"CLONE",     type:"ch",    h:"14px" },
-  { id:"note",    label:"NOTE",      type:"note",  h:"20px", dice:true },
+  { id:"pw",      label:"PULSE W",   type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.5, title:"Pulse duty, 5-95% \u2014 the PULSE wave only" },
   { id:"wave",    label:"WAVE",      type:"step",  h:"30px", dice:true, fan:true, opts:["SAW","PULSE","TRI","SINE"] },
   { id:"oct",     label:"FOOTAGE",   type:"step",  h:"30px", dice:true, fan:true, opts:["64'","32'","16'","8'","4'","2'"] },
   { id:"tune",    label:"TUNE",      type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.5 },
-  { id:"cut",     label:"CUTOFF",    type:"knob",  h:"52px", dice:true, fan:true, size:"k44", def:.65 },
+  { id:"cut",     label:"CUTOFF",    type:"knob",  h:"52px", dice:true, fan:true, size:"k44", def:.85 },
   { id:"res",     label:"RES",       type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.2 },
   { id:"lfowave", label:"LFO WAVE",  type:"step",  h:"30px", dice:true, fan:true, opts:["SIN","TRI","SQR","S&H"] },
   { id:"lforate", label:"LFO RATE",  type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.3 },
@@ -1106,7 +1119,7 @@ document.addEventListener("click", e => {
       if (targets.length > 1) rowBulkChanged(step.dataset.row);
       say(controlName(step) + " · " + rowDef.opts[idx] + (targets.length > 1 ? " · ×" + targets.length : ""));
     } else if (step.dataset.cmd) {
-      const OPTS = ["GROWL", "SCREAM", "LADDER"];
+      const OPTS = STEPOPTS[step.dataset.cmd] || STEPOPTS["TEMPER A"];
       const w = step.querySelector(".win");
       w.textContent = OPTS[(OPTS.indexOf(w.textContent) + 1) % OPTS.length];
       say(step.dataset.cmd + " · " + w.textContent);

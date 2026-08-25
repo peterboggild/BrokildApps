@@ -4,7 +4,8 @@ For any Claude session (cloud, VS Code, or otherwise) or human picking this up.
 Sessions do **not** coordinate with each other automatically — **this repo is
 the only shared state**. Read this before changing anything.
 
-Last updated: 2026-08-25, build **260825.3**, by the cloud session that built
+Last updated: 2026-08-25, build **260825.4**, by the VS Code session on Peter's PC
+(see the 260825.4 section below). Before that **260825.3**, by the cloud session that built
 the plugin (branch `claude/dex-server-host-9jkd55`).
 
 ## Coordination protocol
@@ -26,6 +27,68 @@ the plugin (branch `claude/dex-server-host-9jkd55`).
    - `app.json` (note) and `README.txt` (header)
 5. Update this note when the state changes hands.
 
+
+## 260825.4 — filters, note modes, damage (VS Code session, Peter's PC)
+
+Peter reported four things by ear; all four were real, and all were measured
+before and after. Probes live in `plugin/test/` and are marked scratch.
+
+- **The filters are now Black Rider's.** GROWL and SCREAM were one 2-pole TPT
+  SVF sharing a K mapping (they rendered *identically* to four decimals), and
+  LADDER was a crude cascade running ~7 dB quiet — which is why "any army on
+  LADDER made everything go quiet". Ported the Korg35 Sallen-Key ZDF with its
+  asymmetric diode clipper, the k35K / k35Kscream mappings, the measured
+  piecewise-in-K prewarp, and the ZDF ladder that solves the loop *before*
+  saturating. Measured after: self-oscillation lands on the cutoff at **0
+  cents** (110/220/440/880 Hz, all three models), and LADDER sits within
+  **0.7–2.3 dB** of GROWL. See `test/tuneprobe.cpp`, `test/ladderprobe.cpp`.
+- **No cross-army coupling.** A muted army's temper changes the output
+  bit-for-bit not at all (`test/mixprobe.cpp`). The shared bus tanh *can* duck
+  the mix, so this is worth re-checking after any bus change.
+- **CUT had a dead top half.** The filter envelope was added flat (`+ ef*0.45`)
+  and `Env` attacked to 1.0 and then HELD, so every sounding note carried a
+  permanent +4 octaves and anything above CUT 0.55 clamped to 16 kHz. Now the
+  envelope opens the headroom that is LEFT above the knob, with a new global
+  **ENV>FILT** depth, and `Env` gained a sustain leg (the amp envelope passes
+  1 — a drone must go on droning; the filter envelope passes the shape knob).
+- **Seed CUT values were re-mapped** by `(min(1, old + 0.45) - 0.45) / 0.55`, so
+  each seed lands where it sounded before. This knowingly bends the "seeds are
+  a promise" rule — Peter's explicit call: "much better that the filters sound
+  good and right than the existing presets are the same".
+- **NOTE MODE** (`g_notemode`) replaces the three note slots: UNISON, TREATY
+  POLY (the 16 split left to right, low note to high: 16 / 8-8 / 5-6-5 /
+  4-4-4-4 / 3-3-4-3-3, generalised palindromic and centre-weighted in
+  `divideClones`) and WAR POLY (the armies contest the chord — A takes the
+  lower half, B the upper, sharing the middle note on an odd count).
+  `vfNote` is kept for state compatibility but ignored; the **NOTE 1·2·3 row is
+  retired and PULSE WIDTH took its place**, so the console neither grew nor
+  shrank and no net parameters were added.
+- **The oscillator is generated AT the oversampled rate.** It used to run at
+  base rate and be interpolated up into the filter, so the quality tiers only
+  ever cleaned the filter and could not touch the oscillator's own aliasing.
+  **Careful with the audit's aliasing table**: it runs all 16 detuned clones, so
+  every other clone's fundamental lands off the harmonic grid and counts as
+  "non-harmonic" — it floors near −47 dB whatever the oscillator does, and it
+  is not an aliasing measurement. `test/aliasprobe.cpp` isolates one clone with
+  nothing detuned: saw at 2 foot measures **−41.3 / −49.7 / −51.2 dB** for
+  LOW / HQ / XHQ. The remaining floor is the averaging decimator; a polyphase
+  halfband (as in Mars Wars) is the next step if more is wanted.
+- **Damage is the unit's, never the patch's.** `wearPoints` defaulted to
+  **300.0** and `wearSeed` to a fixed **1337**, so every instance was born
+  scarred, and identically scarred. Now 0.0 and a per-instance draw. The panel
+  also *ignored* the `wearSeed` the processor sends, and read wear from
+  localStorage; both fixed. Verified headless: wear 0 paints 0 pixels on the
+  patina canvas, wear 40 paints 4,266.
+- **SCATTER and LFO SYNC are wired.** SCATTER sends `{k:"scatter"}` and the
+  engine re-draws all 16 LFO phases at the next sub-block; LFO SYNC is a real
+  parameter (`g_lfosync`) and the processor feeds host BPM to `Engine::setBpm`.
+
+**Open:** the release zip is still the .3 build — dispatch the workflow to cut
+a .4 zip. `plugin/test/CMakeLists.txt` is new, with two MSVC-only fixes kept
+there so the shipped sources stay untouched: MSVC has no `M_PI`, and
+`cw::Engine` as a stack local overflows Windows' 1 MB default stack
+(`/STACK:33554432`) where Linux CI gets 8 MB — without it both benches die with
+0xC00000FD before printing a line.
 ## Release pipeline (how a build reaches the download button)
 
 - Any push touching `plugin/**` runs CI (`.github/workflows/clone-wars.yml`):
