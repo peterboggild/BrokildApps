@@ -639,6 +639,11 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
           </div>
         </div>
         <div class="cmdrow">
+          <div class="knob k44" data-cmd="MASTER CUT" data-val="0.5" tabindex="0" title="Sweeps all sixteen filters together — centre leaves the strips as set. This is the filter knob.">
+            <div class="cap"><div class="ptr"></div></div><div class="lbl">master cut</div>
+          </div>
+        </div>
+        <div class="cmdrow">
           <button class="btn" data-gparam="g_latcha"><span class="lamp"></span>LATCH A</button>
           <button class="btn" data-gparam="g_latchb"><span class="lamp"></span>LATCH B</button>
         </div>
@@ -711,7 +716,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.4 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.5 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -805,7 +810,7 @@ pinch to zoom into a section, or open it on a computer to play with it properly.
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.4 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.5 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -850,7 +855,7 @@ const ROWS = [
   { id:"wave",    label:"WAVE",      type:"step",  h:"30px", dice:true, fan:true, opts:["SAW","PULSE","TRI","SINE"] },
   { id:"oct",     label:"FOOTAGE",   type:"step",  h:"30px", dice:true, fan:true, opts:["64'","32'","16'","8'","4'","2'"] },
   { id:"tune",    label:"TUNE",      type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.5 },
-  { id:"cut",     label:"CUTOFF",    type:"knob",  h:"52px", dice:true, fan:true, size:"k44", def:.85 },
+  { id:"cut",     label:"CUTOFF",    type:"knob",  h:"52px", dice:true, fan:true, size:"k44", def:.55 },
   { id:"res",     label:"RES",       type:"knob",  h:"40px", dice:true, fan:true, size:"k28", def:.2 },
   { id:"lfowave", label:"LFO WAVE",  type:"step",  h:"30px", dice:true, fan:true, opts:["SIN","TRI","SQR","S&H"] },
   { id:"lforate", label:"LFO RATE",  type:"knob",  h:"44px", dice:true, fan:true, size:"k34", def:.3 },
