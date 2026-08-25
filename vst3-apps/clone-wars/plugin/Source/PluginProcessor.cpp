@@ -21,7 +21,7 @@ static Shape voiceShape (int f)
     switch (f)
     {
         case vfWave:    return { 0, 3, 1, 0 };
-        case vfFoot:    return { 0, 3, 1, 1 };
+        case vfFoot:    return { 0, 5, 1, 2 };
         case vfTune:    return { -1, 1, 0, 0 };
         case vfLfoWave: return { 0, 3, 1, 0 };
         case vfLoop:
@@ -46,6 +46,7 @@ static Shape globalShape (int g)
         case gHq:                   return { 0, 2, 1, 1 };  // LOW / HQ / XHQ
         case gSpringFreeze:         return { 0, 1, 1, 0 };
         case gWar:                  return { 0, 1, 0, 0.5f };
+        case gRanks:                return { 0, 1, 0, 0.5f };
         case gMaster:               return { 0, 1, 0, 0.75f };
         default:                    return { 0, 1, 0, 0.3f };
     }
