@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "vst3-apps/clone-wars/plugin/**"
+      - "BrokildWorldFX/**"        # the shared BWFX rack is compiled in
       - ".github/workflows/clone-wars.yml"
   # A manual dispatch additionally commits the house-style release zip
   # (VST3 + standalone + manual + readme) to vst3-apps/clone-wars/ on the
@@ -19,11 +20,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Build and run BWFX bench (the shared world rack)
+        working-directory: BrokildWorldFX/test
+        run: |
+          g++ -O2 -std=c++17 -Wall -Wextra -I../src -I../modules \
+              bench.cpp ../src/bwfx_json.cpp ../src/bwfx_rack.cpp \
+              ../modules/bwfx_conv.cpp ../modules/bwfx_modules.cpp -o bwfxtest
+          ./bwfxtest
       - name: Build and run render test
         working-directory: vst3-apps/clone-wars/plugin/test
         run: |
           g++ -O2 -std=c++17 -Wall -Wextra -I../Source/Core \
-              render_test.cpp ../Source/Core/cw_core.cpp -o render_test
+              -I../../../../BrokildWorldFX/src -I../../../../BrokildWorldFX/modules \
+              render_test.cpp ../Source/Core/cw_core.cpp \
+              ../../../../BrokildWorldFX/src/bwfx_json.cpp \
+              ../../../../BrokildWorldFX/src/bwfx_rack.cpp \
+              ../../../../BrokildWorldFX/modules/bwfx_conv.cpp \
+              ../../../../BrokildWorldFX/modules/bwfx_modules.cpp -o render_test
           mkdir -p wavs
           ./render_test wavs
       - name: Run DSP quality audit (aliasing, THD, clicks, DC, headroom)

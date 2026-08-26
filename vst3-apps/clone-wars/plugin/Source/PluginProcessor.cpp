@@ -122,6 +122,8 @@ CloneWarsProcessor::CloneWarsProcessor()
     // the first touch of MORPH audibly snaps to seed 42 (Peter caught it).
     // A saved project immediately overwrites all of this via setState.
     applySeed ((uint32_t) currentSeedA.load());
+
+    startTimerHz (15);        // bwfxRack.service() — editor open or not
 }
 
 CloneWarsProcessor::~CloneWarsProcessor()
@@ -144,6 +146,7 @@ void CloneWarsProcessor::pushAllParamsToEngine()
 void CloneWarsProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     engine.prepare (sampleRate, juce::jmax (64, samplesPerBlock));
+    bwfxRack.prepare (sampleRate, juce::jmax (64, samplesPerBlock));
 }
 
 bool CloneWarsProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -184,6 +187,10 @@ void CloneWarsProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     if (buffer.getNumChannels() < 2) { buffer.clear(); return; }
 
     engine.process (buffer.getWritePointer (0), buffer.getWritePointer (1), n);
+
+    // The world rack: one extra stage after the engine. Empty = returns
+    // without touching the buffers (bit-identical, proven in cwtest).
+    bwfxRack.process (buffer.getWritePointer (0), buffer.getWritePointer (1), n);
 
     for (int ch = 2; ch < buffer.getNumChannels(); ++ch)
         buffer.clear (ch, 0, n);
@@ -238,18 +245,22 @@ juce::File CloneWarsProcessor::userPatchFolder()
     return fallback;
 }
 
-bool CloneWarsProcessor::resolvePatch (int n, cw::Patch& outPatch, juce::String& catName)
+bool CloneWarsProcessor::resolvePatch (int n, cw::Patch& outPatch, juce::String& catName,
+                                       juce::String* bwfxBlob)
 {
+    if (bwfxBlob != nullptr) *bwfxBlob = juce::String();
     if (n < 100)
     {
         catName = cw::generatePatch ((uint32_t) juce::jmax (0, n), outPatch);
-        return true;
+        return true;                       // factory seeds carry no rack
     }
     auto f = userPatchFolder().getChildFile ("slot-" + juce::String (n) + ".json");
     if (! f.existsAsFile()) return false;
     auto v = juce::JSON::parse (f.loadFileAsString());
     auto* obj = v.getDynamicObject();
     if (obj == nullptr) return false;
+    if (bwfxBlob != nullptr)
+        *bwfxBlob = v.getProperty ("bwfx", juce::var ("")).toString();
     cw::defaultPatch (outPatch);
     if (auto* params = v.getProperty ("params", {}).getDynamicObject())
     {
@@ -280,6 +291,7 @@ void CloneWarsProcessor::saveUserSlot (int n, const juce::String& name)
         params->setProperty (kv.first, apvts.getRawParameterValue (kv.first)->load());
     obj->setProperty ("name", name.isEmpty() ? "slot " + juce::String (n) : name);
     obj->setProperty ("params", juce::var (params));
+    obj->setProperty ("bwfx", juce::String (bwfxRack.toJson()));   // a patch stores its own rack
     obj->setProperty ("build", juce::String (JucePlugin_VersionString));
     userPatchFolder().getChildFile ("slot-" + juce::String (n) + ".json")
         .replaceWithText (juce::JSON::toString (juce::var (obj), true));
@@ -341,9 +353,14 @@ void CloneWarsProcessor::applyMorph (float t, bool repaintUi)
 void CloneWarsProcessor::applySeed (uint32_t seed)
 {
     cw::Patch p;
-    juce::String cat;
-    if (! resolvePatch ((int) seed, p, cat)) return;
+    juce::String cat, rackBlob;
+    if (! resolvePatch ((int) seed, p, cat, &rackBlob)) return;
     currentCategory = cat;
+
+    // A patch stores its own rack: user slots restore theirs, factory seeds
+    // (and pre-BWFX slots) come rack-empty — the seed's promised sound.
+    bwfxRack.fromJson (rackBlob.toStdString());
+    sendBwfxToUi();
 
     suppressEcho = true;
     for (int g = 0; g < cw::numGlobals; ++g)
@@ -473,7 +490,77 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
     else if (k == "getinit")
     {
         sendInitToUi();
+        sendBwfxToUi();
     }
+    else if (k == "bwfx")
+    {
+        handleBwfxMessage (m);
+    }
+}
+
+//==============================================================================
+// Brokild World FX message pipe. Ids arrive as strings (the state contract);
+// they resolve to registry indices here and nowhere else.
+static int bwfxTypeByName (const juce::String& id)
+{
+    for (int t = 0; t < bwfx::numModuleTypes(); ++t)
+        if (id == bwfx::moduleDescriptor (t).id) return t;
+    return -1;
+}
+
+void CloneWarsProcessor::handleBwfxMessage (const juce::var& m)
+{
+    const juce::String op = m.getProperty ("op", juce::var()).toString();
+
+    if (op == "set")
+    {
+        const int t = bwfxTypeByName (m.getProperty ("m", juce::var()).toString());
+        if (t < 0) return;
+        const auto& d = bwfx::moduleDescriptor (t);
+        const juce::String pid = m.getProperty ("p", juce::var()).toString();
+        for (int p = 0; p < d.numParams; ++p)
+            if (pid == d.params[p].id)
+            {
+                bwfxRack.setParam (t, p, (float) (double) m.getProperty ("v", 0.0));
+                return;
+            }
+    }
+    else if (op == "enable")
+    {
+        const int t = bwfxTypeByName (m.getProperty ("m", juce::var()).toString());
+        if (t >= 0) bwfxRack.setEnabled (t, (int) m.getProperty ("on", 0) != 0);
+    }
+    else if (op == "order")
+    {
+        if (auto* arr = m.getProperty ("order", juce::var()).getArray())
+        {
+            int order[bwfx::kMaxModules];
+            int count = 0;
+            for (const auto& e : *arr)
+            {
+                const int t = bwfxTypeByName (e.toString());
+                if (t >= 0 && count < bwfx::kMaxModules) order[count++] = t;
+            }
+            bwfxRack.setOrder (order, count);
+        }
+    }
+    else if (op == "mix")
+    {
+        bwfxRack.setMix ((float) (double) m.getProperty ("v", 1.0));
+    }
+    else if (op == "init")
+    {
+        sendBwfxToUi();
+    }
+}
+
+void CloneWarsProcessor::sendBwfxToUi()
+{
+    if (! emitToUi) return;
+    auto* obj = new juce::DynamicObject();
+    obj->setProperty ("desc",  juce::JSON::parse (juce::String (bwfx::descriptorJson())));
+    obj->setProperty ("state", juce::JSON::parse (juce::String (bwfxRack.toJson())));
+    emitToUi ("bwfx", juce::var (obj));
 }
 
 void CloneWarsProcessor::sendInitToUi()
@@ -533,6 +620,7 @@ void CloneWarsProcessor::getStateInformation (juce::MemoryBlock& destData)
     root->setProperty ("seedA", currentSeedA.load());
     root->setProperty ("seedB", currentSeedB.load());
     root->setProperty ("morphT", (double) morphT.load());
+    root->setProperty ("bwfx", juce::String (bwfxRack.toJson()));   // the world rack
 
     const auto json = juce::JSON::toString (juce::var (root), true);
     destData.replaceAll (json.toRawUTF8(), json.getNumBytesAsUTF8());
@@ -565,7 +653,11 @@ void CloneWarsProcessor::setStateInformation (const void* data, int sizeInBytes)
 
     engine.setUnitSeed (unitSeed.load());
     pushAllParamsToEngine();
+    // The rack blob rides in project state; a pre-BWFX project has none and
+    // fromJson("") = the default empty rack — the old sound, bit for bit.
+    bwfxRack.fromJson (v.getProperty ("bwfx", juce::var ("")).toString().toStdString());
     sendInitToUi();
+    sendBwfxToUi();
 }
 
 juce::AudioProcessorEditor* CloneWarsProcessor::createEditor()

@@ -8,8 +8,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #   test/build/Release/cwtest.exe wavs     renders WAVs + asserts
 #   test/build/Release/cwaudit.exe         aliasing / THD / clicks / headroom
 
-add_executable(cwtest  render_test.cpp ../Source/Core/cw_core.cpp)
+# BWFX (the shared world rack) rides along in cwtest for the additive-
+# contract proof: empty rack == bit-identical. Same path rule as the plugin.
+if(NOT DEFINED BWFX_DIR)
+    set(BWFX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../BrokildWorldFX")
+endif()
+
+add_executable(cwtest  render_test.cpp ../Source/Core/cw_core.cpp
+    "${BWFX_DIR}/src/bwfx_json.cpp" "${BWFX_DIR}/src/bwfx_rack.cpp"
+    "${BWFX_DIR}/modules/bwfx_conv.cpp" "${BWFX_DIR}/modules/bwfx_modules.cpp")
 add_executable(cwaudit audit.cpp       ../Source/Core/cw_core.cpp)
+
+target_include_directories(cwtest PRIVATE "${BWFX_DIR}/src" "${BWFX_DIR}/modules")
 
 foreach(t cwtest cwaudit)
     target_include_directories(${t} PRIVATE ../Source/Core)

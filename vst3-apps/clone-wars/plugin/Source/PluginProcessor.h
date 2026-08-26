@@ -3,10 +3,12 @@
 #include <JuceHeader.h>
 #include <map>
 #include "Core/cw_core.h"
+#include "bwfx.h"
 
 //==============================================================================
 class CloneWarsProcessor : public juce::AudioProcessor,
-                           private juce::AudioProcessorValueTreeState::Listener
+                           private juce::AudioProcessorValueTreeState::Listener,
+                           private juce::Timer
 {
 public:
     CloneWarsProcessor();
@@ -47,13 +49,27 @@ public:
 
     cw::Engine engine;
 
+    // Brokild World FX — the shared rack, one extra stage after the engine.
+    // Default empty = bit-transparent (proven in cwtest). State is an opaque
+    // JSON blob keyed by module/param ids, so BWFX updates need no changes here.
+    bwfx::Rack bwfxRack;
+
 private:
+    // The rack's message-thread work (reverb IR builds) must run with the
+    // editor closed too — a DAW project restore can enable the reverb long
+    // before the window ever opens.
+    void timerCallback() override { bwfxRack.service(); }
+    void handleBwfxMessage (const juce::var& m);
+    void sendBwfxToUi();
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void pushAllParamsToEngine();
     void applySeed (uint32_t seed);
     // 0-99 factory archive; 100-199 user slot files. False = empty slot.
-    bool resolvePatch (int n, cw::Patch& out, juce::String& catName);
+    // bwfxBlob (optional out): the patch's own BWFX rack — empty string for
+    // factory seeds and pre-BWFX user slots (a patch stores its own rack).
+    bool resolvePatch (int n, cw::Patch& out, juce::String& catName,
+                       juce::String* bwfxBlob = nullptr);
     juce::File userPatchFolder();
     void saveUserSlot (int n, const juce::String& name);
     void sendSlotListToUi();

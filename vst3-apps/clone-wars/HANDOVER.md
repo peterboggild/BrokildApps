@@ -29,8 +29,9 @@ new filters, ENV>FILT or sustain — it ships inside the zip, so it is
 now the stalest thing in the box. Regeneration command is in the file
 map below.
 
-Last updated: 2026-08-25, build **260825.4**, by the VS Code session on Peter's PC
-(see the 260825.4 section below). Before that **260825.3**, by the cloud session that built
+Last updated: 2026-08-26, build **260826.1**, by the VS Code session on Peter's PC
+(see the 260826.1 section below). Before that **260825.17** (the BUGLIST small
+pass) and **260825.4**; **260825.3** was the cloud session that built
 the plugin (branch `claude/dex-server-host-9jkd55`).
 
 ## Coordination protocol
@@ -52,6 +53,47 @@ the plugin (branch `claude/dex-server-host-9jkd55`).
    - `app.json` (note) and `README.txt` (header)
 5. Update this note when the state changes hands.
 
+
+## 260826.1 — BROKILD WORLD FX: first citizen (VS Code session, Peter's PC)
+
+Clone Wars now carries the BWFX rack — the shared, global FX system designed
+in `BWFX-DESIGN.md` (repo root; build notes in `BWFX-HANDOVER.md`). The BWFX
+source itself lives at the repo root, `BrokildWorldFX/` (mirrored from the
+canonical local checkout `C:\Users\peter\b\BrokildWorldFX`, its own git repo);
+CI compiles it in via the `BWFX_DIR` CMake path (defaults to the repo layout,
+no submodule needed — same-repo atomic commits beat pinning).
+
+- **The adapter is exactly the four contracted calls**: `bwfxRack.process()`
+  after `engine.process()` in processBlock; the rack blob in project state
+  (`"bwfx"` key) and user patch files; the `{k:"bwfx",...}` message pipe +
+  `bwfx-rack.js` served from BinaryData; the world-mod bus mapping is
+  DEFERRED until SPECTRA characters exist (the bus is neutral today).
+- **The additive contract is proven in cwtest**: empty rack == bit-identical
+  output (memcmp over 3 s of drone), an enabled module != identical, and the
+  chain stays bounded. Every pre-BWFX project and factory seed sounds
+  exactly as before — `fromJson("")` is the default empty rack.
+- **A patch stores its own rack** (Kemper rule): user slots save/restore the
+  blob; factory seeds and pre-BWFX slots load rack-empty — the seed's
+  promised sound. Loading into seed B and MORPH do NOT touch the rack (a
+  blob cannot blend); only a seed-A load applies it.
+- **Panel**: ONE new control — the BWFX button (globe + teal, `data-bwfx-open`,
+  in the expansion-slot row where future modules were always meant to land).
+  The overlay ships INSIDE bwfx-rack.js (BWFX brand chrome, Photo-Synth
+  pedal faceplates, FX rack left / SPECTRA plate right) — the host page owns
+  nothing of it. NEW IRON RULE: `bwfx-rack.js` is edited ONLY in the BWFX
+  repo, then copied to `mockup/bwfx-rack.js` and mirrored to
+  `BrokildWorldFX/ui/` — the plugin compiles it from `BWFX_DIR` directly.
+- **The processor runs its own 15 Hz timer** for `bwfxRack.service()` (reverb
+  IR builds): a DAW project restore can enable the reverb with the editor
+  closed, so the editor's timer is not enough.
+- Verified LIVE over CDP against the standalone: overlay opens, powering
+  ECHO + setting TIME 430 round-tripped through the C++ rack and came back
+  as native truth on reopen. BWFX's own bench: 203 checks ALL CLEAR
+  (convolver vs direct convolution 2.6e-6, click bounds, state round trip).
+- CI gained a BWFX bench step and compiles the BWFX sources into the render
+  test; push paths now include `BrokildWorldFX/**`.
+- Site zip is still whatever workflow_dispatch last cut — dispatch on main
+  after merging to ship 260826.1 to the download button.
 
 ## 260825.4 — filters, note modes, damage (VS Code session, Peter's PC)
 

@@ -29,6 +29,16 @@ else()
     FetchContent_MakeAvailable(JUCE)
 endif()
 
+# Brokild World FX — the shared global rack, compiled in (see BWFX-DESIGN.md
+# at the BrokildApps repo root). Default path assumes this plugin lives at
+# vst3-apps/clone-wars/plugin/ inside the BrokildApps checkout, with the BWFX
+# repo mirrored at the checkout root; local builds pass
+# -DBWFX_DIR=C:/Users/peter/b/BrokildWorldFX instead.
+if(NOT DEFINED BWFX_DIR)
+    set(BWFX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../BrokildWorldFX")
+endif()
+add_subdirectory("${BWFX_DIR}" bwfx)
+
 juce_add_plugin(CloneWars
     COMPANY_NAME "Brokild"
     PLUGIN_MANUFACTURER_CODE Brkd
@@ -44,11 +54,13 @@ juce_add_plugin(CloneWars
 juce_generate_juce_header(CloneWars)
 
 # The panel page is compiled in; the plugin runs with no external files.
+# bwfx-rack.js is the shared BWFX rack overlay, served beside the page.
 juce_add_binary_data(CloneWarsAssets
     HEADER_NAME BinaryData.h
     NAMESPACE BinaryData
     SOURCES
-        Source/ui/ui.html)
+        Source/ui/ui.html
+        "${BWFX_DIR}/ui/bwfx-rack.js")
 
 target_sources(CloneWars
     PRIVATE
@@ -71,6 +83,7 @@ target_compile_definitions(CloneWars
 target_link_libraries(CloneWars
     PRIVATE
         CloneWarsAssets
+        bwfx
         juce::juce_audio_utils
         juce::juce_dsp
         juce::juce_gui_extra

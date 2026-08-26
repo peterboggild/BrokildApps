@@ -7,11 +7,18 @@ with the build number that fixed them.
 
 ## Open
 
-### 4. FEATURE (large): BWFX - Brokild World FX rack (first citizen)
-Full design: BWFX-DESIGN.md at the BrokildApps repo root (settled 2026-08-26).
-Build handover: BWFX-HANDOVER.md. Run as its own session.
+(nothing)
 
 ## Done
+
+### 4. BWFX - Brokild World FX rack (first citizen) - SHIPPED in 260826.1
+The BWFX repo exists (BrokildWorldFX/ at the repo root + canonical checkout
+at C:\Users\peter\b\BrokildWorldFX): six founding modules extracted from
+Photo-Synth 2 (TUBE/SWEEP/ENSEMBLE/GATE/ECHO/SPACE, own partitioned FFT
+convolver), descriptor-driven rack + overlay UI, bench 203 checks ALL CLEAR.
+Clone Wars carries it behind the one teal globe button; empty rack proven
+bit-identical in cwtest; verified live over CDP. SPECTRA characters and the
+other five synths are the next BWFX passes (see BWFX-HANDOVER.md).
 
 ### 1. Footage glide - FIXED in 260825.17
 Footage changes now jump the glide state by the footMult ratio: the octave
