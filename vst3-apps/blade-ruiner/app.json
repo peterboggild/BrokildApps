@@ -1,12 +1,16 @@
 {
   "slug": "blade-ruiner",
   "name": "Blade Ruiner (VST3)",
-  "description": "A free Windows VST3 atmospheric synthesiser in three layers, each with its own engine and its own room. LOS ANGELES is a drone that does not stop — nine detuned oscillators on a chord, filtered rain, grains of kipple and a shimmering reverb big enough to lose a city in. DECKARD is an eight-voice polysynth built the way the big Japanese machine of 1977 was built, with a ladder filter, a late-arriving vibrato and an ensemble chorus that does most of the emotional work. REPLICANT is a sixteen-step FM sequencer whose entire pattern is a six-bit seed. Any combination can run at once, and at least one of them always is.",
+  "description": "A free Windows VST3 atmospheric synthesiser in three layers, each with its own engine and its own room. LOS ANGELES is a drone that does not stop — nine detuned oscillators on a chord, filtered rain, grains of kipple and a shimmering reverb big enough to lose a city in. DECKARD is an eight-voice polysynth built the way the big Japanese machine of 1977 was built, with a ladder filter, a late-arriving vibrato and an ensemble chorus that does most of the emotional work. REPLICANT is a sixteen-step FM sequencer whose entire pattern is a six-bit seed. Any combination can run at once, and at least one of them always is. All three run out through the Brokild World Rack — twelve shared effect pedals and six SPECTRA characters that possess the voices rather than process them — and the mood organ still writes the whole machine from a single number.",
   "status": "live",
   "url": "vst3-apps/blade-ruiner/index.html",
   "icon": "keys",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/blade-ruiner.jpg",
-  "note": "Windows VST3 · build 260826.5 · free download · 15-page manual included.",
-  "tags": ["music", "vst3", "synth"]
+  "note": "Windows VST3 · build 260826.5 · free download · 18-page manual included.",
+  "tags": [
+    "music",
+    "vst3",
+    "synth"
+  ]
 }
