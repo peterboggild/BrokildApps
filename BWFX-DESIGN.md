@@ -12,7 +12,7 @@ COMPILED INTO every Brokild plugin. Not runtime DLLs, deliberately: Smart
 App Control blocks fresh DLL hashes per file, and patches must stay a
 promise on every machine.
 
-## The four load-bearing decisions
+## The five load-bearing decisions
 
 1. ADDITIVE RACK. Each synth keeps its existing native FX untouched; the
    BWFX rack inserts as one extra stage (before the final limiter), DEFAULT
@@ -45,6 +45,20 @@ promise on every machine.
        (drag-to-reorder, ~30 ms crossfade on reorder so it never clicks)
        and skins itself from per-synth CSS variables (--bwfx-*).
    After that, BWFX updates reach the synth BY REBUILD ALONE, forever.
+
+5. THE RACK IS ITS OWN POP-UP, EVERYWHERE (Peter, 2026-08-26). The rack
+   opens as an overlay window inside the plugin - it does NOT reshape any
+   synth's panel. The ONLY visible change a synth undergoes when adopting
+   BWFX is one button: **BWFX**, wearing the same distinct accent colour in
+   every product (slightly but clearly apart from the host's own button
+   colour - suggestion: a cool teal/cyan lamp against the usual ambers),
+   so it reads as the same global system wherever it appears. The overlay
+   CHROME ships with the shared fragment and looks identical in every
+   synth (the BWFX brand look, pedal faces and all); only the button obeys
+   the host panel's styling plus the accent. This applies to Photo-Synth 2
+   too when it adopts the rack - consistency beats its integrated layout.
+   For Clone Wars this means a separate BWFX overlay, NOT merged into its
+   existing EFFECT RACK hatch; the native four stay where they are.
 
 ## Patch-compatibility policy (Kemper / Quad Cortex style)
 
