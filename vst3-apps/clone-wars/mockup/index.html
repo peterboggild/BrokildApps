@@ -619,10 +619,11 @@
 
   /* BROKILD WORLD FX — the one branded control a host carries: the globe
      and a cool teal, deliberately apart from the console's own palette. */
-  .bwfxbtn{color:#3fe0d8;border-color:rgba(63,224,216,.45);display:inline-flex;align-items:center;gap:5px;justify-content:center}
-  .bwfxbtn .bwfx-globe{filter:drop-shadow(0 0 5px rgba(63,224,216,.7));flex:none}
+  .expan .btn{min-height:24px}
+  .bwfxbtn{color:#3fe0d8;border-color:rgba(63,224,216,.45);justify-content:center;gap:6px;padding:4px 14px 3px;font-weight:700}
+  .bwfxbtn .bwfx-globe{width:14px;height:14px;flex:none;filter:drop-shadow(0 0 4px rgba(63,224,216,.6))}
   .bwfxbtn:hover,.bwfxbtn:focus-visible{border-color:#3fe0d8;box-shadow:0 0 10px rgba(63,224,216,.3);color:#7ff0ea}
-  .bwfxbtn .bwfxlbl{letter-spacing:.1em}
+  .bwfxbtn .bwfxlbl{letter-spacing:.12em}
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -755,8 +756,8 @@
           <button class="btn" id="fxBtn" title="The effect rack — spring, tape, BBD, drive"><span class="lamp"></span>EFFECTS</button>
         </div>
         <div class="expan">
-          <button class="btn" id="helpBtn" title="Controls and gestures">?</button><button class="btn bwfxbtn" id="bwfxBtn" data-bwfx-open title="BROKILD WORLD FX — the world rack: the same global FX modules in every Brokild synth"><span class="bwfxlbl">BWFX</span></button>
-          <button class="btn blank">·</button><button class="btn blank">·</button>
+          <button class="btn bwfxbtn" id="bwfxBtn" data-bwfx-open title="BROKILD WORLD FX — the world rack: the same global FX modules in every Brokild synth"><span class="bwfxlbl">BWFX</span></button><button class="btn blank"></button>
+          <button class="btn blank"></button><button class="btn blank"></button>
         </div>
       </div>
 
@@ -799,7 +800,7 @@
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260826.1 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260826.2 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -989,7 +990,7 @@
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260826.1 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260826.2 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -2324,7 +2325,7 @@ holdBtn.addEventListener("click", () => {
 
 /* ---------------- ABOUT hatch (click the nameplate) ---------------- */
 const helpveil = document.getElementById("helpveil");
-document.getElementById("helpBtn").addEventListener("click", () => helpveil.classList.add("open"));
+{ const hb = document.getElementById("helpBtn"); if (hb) hb.addEventListener("click", () => helpveil.classList.add("open")); } // ? retired from the expansion row (BWFX took the slot)
 document.getElementById("helpClose").addEventListener("click", () => helpveil.classList.remove("open"));
 helpveil.addEventListener("pointerdown", e => { if (e.target === helpveil) helpveil.classList.remove("open"); });
 const aboutveil = document.getElementById("aboutveil");

@@ -54,6 +54,20 @@ the plugin (branch `claude/dex-server-host-9jkd55`).
 5. Update this note when the state changes hands.
 
 
+## 260826.2 — the BWFX button row, reworked (Peter's live feedback)
+
+Peter hit the .1 row within minutes: the globe SVG rendered unsized (the
+fragment's GLOBE constant had dropped the canonical width/height="13" —
+an SVG without them defaults to 300x150 and wrecks any host button it is
+injected into; restored in the BWFX repo, overlay sizes still come from
+CSS). Row reworked to his spec: **BWFX leftmost, properly sized, three
+truly empty blanks, the ? retired**. The help hatch (helpveil) is still
+in the page but now has NO button — its binding is guarded
+(`if (hb) ...`) so the missing element cannot kill the handlers
+registered after it (the .4/.5 parse-order disaster class). If the field
+manual should be reachable again, give it a home and unguard nothing —
+the veil and its content are intact.
+
 ## 260826.1 — BROKILD WORLD FX: first citizen (VS Code session, Peter's PC)
 
 Clone Wars now carries the BWFX rack — the shared, global FX system designed
