@@ -69,7 +69,10 @@ Requested 2026-08-26.
   second modifier could unlock - decide while building, prefer: plain sweep
   adds, sweep with ctrl held removes.
 
-### 4. FEATURE (large): Photo-Synth 2 effects bank replaces the effect rack
+### 4. FEATURE (large): BWFX - Brokild World FX rack (first citizen)
+Full design: BWFX-DESIGN.md at the BrokildApps repo root (settled 2026-08-26).
+Note per the design: the rack lands ALONGSIDE the native four (additive,
+default empty) - not replacing them on day one.
 Requested 2026-08-26.
 - Replace the current rack (SPRING / BBD / TAPE / DRIVE) with Photo-Synth 2's
   effects bank: the SAME pedal look and face plates, and the modules
