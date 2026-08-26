@@ -9,8 +9,8 @@ Read this before writing any of it. Written 2026-08-26 from Peter's brief.
 
 *Name*: Kubrick pun in the family vein (Blade Ruiner, Clone Wars, Mars
 Wars), and it happens to describe the machine — the metal core drives the
-hats and cymbals, and a racket is what it makes. Alternates if it doesn't
-land: **DRUM FICTION**, **THE DRUMMING MAN**, **BOOM TOWN**.
+hats and cymbals, and a racket is what it makes. **Confirmed by Peter
+2026-08-26**, along with the other four forks (see section 12).
 
 ---
 
@@ -26,7 +26,8 @@ design idea, and everything wild below falls out of it.
 
 ## 1. The twelve channels
 
-Peter's list, with the one thing it was missing:
+Peter's list, with the hi-hat correction and his own resolution of it
+(2026-08-26: "you can sacrifice a tom for the open hihat"):
 
 | # | Channel | Models | Notes |
 |---|---------|--------|-------|
@@ -34,17 +35,50 @@ Peter's list, with the one thing it was missing:
 | 2 | **BD 2** | PING / PUNCH / MEMBRANE | |
 | 3 | **SD 1** | SHELL / WIRES / CLAP | |
 | 4 | **SD 2** | SHELL / WIRES / CLAP | CLAP model = a clap without spending a channel |
-| 5–8 | **TOM 1–4** | MEMBRANE / CONGA / BLOCK | one KIT TUNE knob tunes all four to a scale |
-| 9 | **HAT** | METAL / RING / NOISE | **dual voice: closed + open, two MIDI notes, self-choking** |
-| 10 | **CYM 1** | CRASH / RIDE / SPLASH | three-band decay |
-| 11 | **CYM 2** | CRASH / RIDE / SPLASH | |
-| 12 | **FX** | BELL / WOOD / ZAP / VOX | the wildcard step |
+| 5–7 | **TOM 1–3** | MEMBRANE / CONGA / BLOCK | low → high, one KIT TUNE knob tunes all three to a scale |
+| 8 | **FX** | BELL / WOOD / ZAP / VOX | the wildcard step — the 808's claves/cowbell slot |
+| 9 | **CH** | METAL / RING / NOISE | closed hat |
+| 10 | **OH** | METAL / RING / NOISE | open hat, **LINKed to CH by default** |
+| 11 | **CYM 1** | CRASH / RIDE / SPLASH | three-band decay |
+| 12 | **CYM 2** | CRASH / RIDE / SPLASH | |
 
-The hat is the correction. One "HH channel" is not a hi-hat — a hi-hat is
-an *instrument with a pedal*, and its whole musical function is that the
-open one is cut off by the closed one. So channel 9 is one circuit with two
-triggers, two decays, and a hard internal choke. Cymbals get an assignable
-choke group too (a crash choked by a hand is a real gesture).
+Three toms is the classic count anyway — both the 808 and the 909 had
+three — so nothing is really sacrificed.
+
+**Why this order.** Every classic machine reads the kit from the floor
+upward: kick → snare → toms low to high → percussion → hats → cymbals.
+The 808 is `AC BD SD LT MT HT RS/CL MA/CP CB CY OH CH`, the 909
+`AC BD SD LT MT HT RIM CLAP HH CRASH RIDE`, the 707 the same spine. Two
+conventions are near-universal and we keep both: **toms run low to high,
+left to right**, and **percussion sits between the toms and the metal** —
+which is exactly where FX belongs, since WOOD and BELL *are* the claves
+and the cowbell. It also puts the four metal-core channels (FX aside) side
+by side at the right-hand end, which is true to the DSP as well as to the
+tradition.
+
+The one classic slot we do not have is **ACCENT**, first on every machine's
+selector. Accent is per step in our sequencer, which is the modern form of
+the same idea — the manual must say so, or people will look for it.
+
+**The hat, and why it is two channels that behave like one.** One "HH
+channel" is not a hi-hat: a hi-hat is an *instrument with a pedal*, and its
+whole musical function is that the open one is cut off by the closed one.
+Two separate channels buy four things a single dual-trigger circuit could
+not: **its own sequencer lane** (decisive — you want a CH lane and an OH
+lane, not an openness flag per step), its own aux out, its own sample slot,
+and its own level and pan.
+
+What that risks losing is that a real hi-hat is *one pair of cymbals*. So
+the pair ships **LINKed**: OH tracks CH's metal core — tune, spread, model
+— and AGE drifts them together, with a hard choke from CH to OH. Unlink and
+they are independent, which is occasionally wanted and always physically
+wrong, so link is the default: the correct thing should be the easy thing.
+Implementation note — LINK is a mirror at parameter level, not a shared
+voice; the two channels keep separate resonator state so an open hat
+already ringing is not disturbed when the closed one retunes.
+
+Cymbals get assignable choke groups too (a crash stopped by a hand is a
+real gesture).
 
 ---
 
@@ -110,8 +144,8 @@ this path, not the body.
 - **SD CLAP** — a burst of four re-triggers with decreasing spacing plus a
   short reverberant tail; the spacing is a knob.
 - **TOM** — C + B, three models by decay/ratio preset.
-- **HAT / CYM / BELL** — D through E, high-passed, with attack time > 0 for
-  a crash swell.
+- **CH / OH / CYM / BELL** — D through E, high-passed, with attack time > 0
+  for a crash swell.
 - **FX WOOD** — A at 1–2 ms with a huge F share. Rimshot, claves, block.
 - **FX ZAP / VOX** — an oscillator with a large bipolar pitch sweep; VOX is
   a pair of formant bandpasses.
@@ -131,8 +165,15 @@ defaults are already musical.
 ## 3. The sample layer, and the good idea in it
 
 Every channel has a sample slot. WAV/AIFF, dropped on the strip, embedded
-in the patch (the Photo-Synth lesson — a project that loses its assets is
-a broken project; cap it, warn above it, offer 16-bit mono conversion).
+in the patch — the Photo-Synth lesson: a project that loses its assets is
+a broken project.
+
+**Import policy (decided):** auto-convert to **16-bit mono at the session
+rate**, cap **4 MB per channel** (~45 s mono at 44.1k, far more than any
+drum needs). Stereo is kept only if the slot's STEREO box is ticked. Over
+the cap the import is **refused with a message naming the size** — never
+silently truncated, never silently resampled to fit. Worst case, twelve
+full slots put 48 MB in the project; a realistic kit lands under 5 MB.
 
 Three routings, and the third is the reason to have it at all:
 
@@ -318,7 +359,7 @@ its rules inverts here:
 
 ## 8. The things the brief forgot, all of which are essential
 
-1. **Open + closed hi-hat with a choke.** Section 1.
+1. **Open + closed hi-hat with a choke.** Section 1 — two channels, LINKed.
 2. **Assignable choke groups** beyond the hat.
 3. **Multi-outs.** Section 7.
 4. **Velocity must do more than volume.** Section 2.3.
@@ -356,7 +397,9 @@ This family's rule: if it isn't measured it isn't done. What to assert:
   lesson. Render with and without each source→dest thread and measure the
   difference; a thread wired to nothing would otherwise pass every test.
 - **RAIL SAG** measurably ducks, and at 0 is memcmp-identical.
-- **Choke**: an open hat is silent within N ms of a closed hat.
+- **Choke**: an open hat is silent within N ms of a closed hat, and a
+  LINKed pair tracks — retune CH and OH's measured pitch follows, while an
+  already-ringing open hat is *not* disturbed by the retune.
 - **REBOUND** produces the right number of hits at the right spacing.
 - **Sequencer timing**: each step lands within one sample of its host PPQ
   position, at four sample rates and four tempos; swing measured in ms;
@@ -434,16 +477,25 @@ Steps 1–3 are the plugin. Everything after 3 is why it is worth building.
 
 ---
 
-## 12. Open decisions for Peter
+## 12. Decisions — all settled 2026-08-26
 
-Nothing here blocks a start; these are the forks worth his opinion when we
-get to them.
+1. **Name** — FULL METAL RACKET. Plugin code `FmRk`.
+2. **Panel** — cream painted steel, walnut end cheeks, amber and red LEDs,
+   silver knobs with red pointers, black silkscreen. Deliberately unlike
+   the dark fleet.
+3. **Factory kits** — **200, seed-generated** on a dial, Black Rider's
+   method: category assigned first (house, techno, 808-ish, breaks,
+   industrial, jazz, lo-fi, trap, …) from a bijective permutation into
+   contiguous blocks, *then* parameters generated to fit, so the name
+   always matches the sound by construction. Names from adjective × noun
+   grids with nouns disjoint per category, so all 200 are globally unique
+   and the bench can prove it. RANDOM dials a number; a kit is
+   reproducible anywhere from one integer.
+4. **Samples** — 4 MB per channel, auto-converted to 16-bit mono at the
+   session rate, stereo only on request, over-cap imports refused with the
+   size named. Section 3.
+5. **Channel 12** — the wildcard FX voice stays; a tom was given up for the
+   open hat instead (Peter's call), and FX moved to slot 8 where the
+   tradition puts percussion. Section 1.
 
-- **Name** — FULL METAL RACKET, or one of the three alternates.
-- **Panel colour** — cream/wood as specified, or dark to match the fleet.
-- **Factory kit count** and whether kits are seed-generated (Black Rider
-  style) or hand-made.
-- **Sample size cap** per channel, and whether to auto-convert to 16-bit
-  mono on import.
-- **Is the FX channel one wildcard or a second hat?** Twelve is what he
-  asked for; the FX channel is the more interesting answer.
+Nothing is open. Build order in section 11.
