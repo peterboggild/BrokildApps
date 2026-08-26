@@ -54,6 +54,17 @@ the plugin (branch `claude/dex-server-host-9jkd55`).
 5. Update this note when the state changes hands.
 
 
+## 260826.6 — BWFX 1.4.0 rides in by rebuild (VS Code session)
+
+No Clone Wars code changed beyond the build id: BWFX 1.4.0 (SPECTRA
+phase B — dark drone / psychedelic pink / industrial black / glass
+cathedral, plus 10 built-in rack presets and the "blob" adapter op)
+arrives entirely through the compiled-in library. The overlay now shows
+all six characters here (bus is live) and a PRESETS select in the
+header. cwtest re-run against 1.4.0: ALL PASS, scenarios 7 and 8
+(additive contract, neutral bus) still bit-identical. See
+BWFX-HANDOVER.md for the 1.4.0 details.
+
 ## 260826.5 — SPECTRA phase A: the world-mod bus reaches the clones (VS Code session)
 
 Clone Wars is the first synth whose engine LISTENS to the BWFX character

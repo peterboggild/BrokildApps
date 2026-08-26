@@ -106,6 +106,11 @@ inline bool handleMessage (bwfx::Rack& rack, const juce::var& m)
                 { rack.setCharParam (c, p, (float) (double) m.getProperty ("v", 0.0)); break; }
         }
     }
+    else if (op == "blob")      // apply a whole rack blob (the preset path)
+    {
+        rack.fromJson (m.getProperty ("j", juce::var ("")).toString().toStdString());
+        return true;            // caller re-emits state so the UI adopts it
+    }
     else if (op == "init")
     {
         return true;
@@ -123,6 +128,7 @@ inline juce::var stateVar (bwfx::Rack& rack)
     obj->setProperty ("cdesc", juce::JSON::parse (juce::String (bwfx::characterJson())));
     obj->setProperty ("state", juce::JSON::parse (juce::String (rack.toJson())));
     obj->setProperty ("busLive", rack.isWorldModConsumed());
+    obj->setProperty ("presets", juce::JSON::parse (juce::String (bwfx::presetsJson())));
     return juce::var (obj);
 }
 

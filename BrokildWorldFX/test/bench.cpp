@@ -68,6 +68,21 @@ namespace
             if (std::string (moduleDescriptor (t).id) == id) return t;
         return -1;
     }
+
+    // characters are found by ID, never by index — the registry grew once
+    // already (phase B slotted four ahead of tape/insect) and will again
+    int charByName (const char* id)
+    {
+        for (int c = 0; c < numCharacters(); ++c)
+            if (std::string (characterDescriptor (c).id) == id) return c;
+        return -1;
+    }
+
+    // let private reverbs build their IRs (rebuild waits for settled knobs)
+    void serviceRack (Rack& r, int times = 5)
+    {
+        for (int i = 0; i < times; ++i) r.service();
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -767,11 +782,14 @@ static void testSpectra()
                (double) w.detuneCents, (double) w.pitchSag, (double) w.filterMul);
     }
 
+    const int cTape = charByName ("tape"), cInsect = charByName ("insect");
+    CHECK (cTape >= 0 && cInsect >= 0, "tape/insect missing from the registry");
+
     // tape armed: sag and dulling appear, detune wobbles; deterministic
     {
         Rack r1, r2;
         r1.prepare (fs, 512); r2.prepare (fs, 512);
-        r1.setCharArmed (0, true); r2.setCharArmed (0, true);
+        r1.setCharArmed (cTape, true); r2.setCharArmed (cTape, true);
         renderRack (r1, L.data(), R.data(), N);
         renderRack (r2, L.data(), R.data(), N);
         const WorldMod a = r1.worldMod(), b = r2.worldMod();
@@ -786,8 +804,8 @@ static void testSpectra()
     {
         Rack r;
         r.prepare (fs, 512);
-        r.setCharArmed (0, true);
-        r.setCharPresence (0, 0.0f);
+        r.setCharArmed (cTape, true);
+        r.setCharPresence (cTape, 0.0f);
         renderRack (r, L.data(), R.data(), N);
         const WorldMod w = r.worldMod();
         CHECK (std::abs (w.detuneCents) < 1e-6f && w.pitchSag < 1e-6f
@@ -799,8 +817,8 @@ static void testSpectra()
     {
         Rack r;
         r.prepare (fs, 512);
-        r.setCharArmed (0, true);
-        r.setCharArmed (1, true);
+        r.setCharArmed (cTape, true);
+        r.setCharArmed (cInsect, true);
         renderRack (r, L.data(), R.data(), N);
         const WorldMod w = r.worldMod();
         std::printf ("   tape+insect: tremDepth %.3f, tremRate %.2f Hz, pan %.3f\n",
@@ -814,20 +832,256 @@ static void testSpectra()
     {
         Rack a;
         a.prepare (fs, 512);
-        a.setCharArmed (1, true);
-        a.setCharParam (1, 0, 80.0f);
-        a.setCharPresence (1, 0.6f);
+        a.setCharArmed (cInsect, true);
+        a.setCharParam (cInsect, 0, 80.0f);
+        a.setCharPresence (cInsect, 0.6f);
         Rack b;
         b.prepare (fs, 512);
         b.fromJson (a.toJson());
-        CHECK (b.getCharArmed (1) && ! b.getCharArmed (0), "spectra enables lost in round trip");
-        CHECK (std::abs (b.getCharParam (1, 0) - 80.0f) < 1e-4f, "spectra param lost");
-        CHECK (std::abs (b.getCharPresence (1) - 0.6f) < 1e-4f, "spectra presence lost");
+        CHECK (b.getCharArmed (cInsect) && ! b.getCharArmed (cTape), "spectra enables lost in round trip");
+        CHECK (std::abs (b.getCharParam (cInsect, 0) - 80.0f) < 1e-4f, "spectra param lost");
+        CHECK (std::abs (b.getCharPresence (cInsect) - 0.6f) < 1e-4f, "spectra presence lost");
         Rack c;
         c.prepare (fs, 512);
         c.fromJson ("{\"spectra\":{\"ghost\":{\"on\":1},\"tape\":{\"on\":1}}}");
-        CHECK (c.getCharArmed (0), "known character lost beside unknown one");
+        CHECK (c.getCharArmed (cTape), "known character lost beside unknown one");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Phase B: the four PS2 characters — dark drone / pink / black / glass.
+// Dark drone is a pure modulator; pink, black and glass own private audio
+// DSP that must be additive (unarmed = bit-identical, presence 0 =
+// bit-transparent), silence-preserving, bounded and deterministic.
+static void testSpectraPhaseB()
+{
+    std::printf ("-- SPECTRA phase B: dark drone / pink / black / glass\n");
+    const double fs = 48000;
+    const int N = 96000;
+    std::vector<float> L (N), R (N), refL (N), refR (N);
+
+    const int cDark = charByName ("darkdrone"), cPink = charByName ("pink");
+    const int cBlack = charByName ("black"),    cGlass = charByName ("glass");
+    CHECK (cDark >= 0 && cPink >= 0 && cBlack >= 0 && cGlass >= 0,
+           "phase B characters missing from the registry");
+
+    // dark drone: cluster + sag land on the bus; the drift WANDERS the filter
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.setCharArmed (cDark, true);
+        float mulMin = 10.0f, mulMax = 0.0f, detMin = 1e9f, detMax = -1e9f;
+        for (int done = 0; done < N * 5; done += 4800)
+        {
+            renderRack (r, L.data(), R.data(), 4800);
+            const WorldMod w = r.worldMod();
+            mulMin = std::min (mulMin, w.filterMul); mulMax = std::max (mulMax, w.filterMul);
+            detMin = std::min (detMin, w.detuneCents); detMax = std::max (detMax, w.detuneCents);
+        }
+        const WorldMod w = r.worldMod();
+        std::printf ("   dark drone: sag %.3f, det %.1f..%.1f c, filterMul %.3f..%.3f\n",
+                     (double) w.pitchSag, (double) detMin, (double) detMax,
+                     (double) mulMin, (double) mulMax);
+        CHECK (std::abs (w.pitchSag - 0.25f) < 1e-3f, "dark drone sag wrong");
+        CHECK (detMin > 20.0f && detMax < 28.5f && detMax > detMin + 0.05f,
+               "dark drone cluster+drift detune out of range");
+        CHECK (mulMax > mulMin + 0.005f && mulMin > 0.5f && mulMax < 2.0f,
+               "dark drone drift does not wander the filter");
+    }
+
+    // pink: the three LFOs breathe width, tuning and filter at x1 / x0.618 / x0.29
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        serviceRack (r);
+        r.setCharArmed (cPink, true);
+        float panMin = 1e9f, panMax = -1e9f, detMin = 1e9f, detMax = -1e9f, mulMin = 10, mulMax = 0;
+        // 26 s: the slowest of the three LFOs (bloom, rate x0.29 = 0.041 Hz)
+        // needs a full cycle in view or its lower half never gets sampled
+        for (int done = 0; done < N * 13; done += 2400)
+        {
+            std::memset (L.data(), 0, sizeof (float) * 2400);
+            std::memset (R.data(), 0, sizeof (float) * 2400);
+            renderRack (r, L.data(), R.data(), 2400);
+            const WorldMod w = r.worldMod();
+            panMin = std::min (panMin, w.panSpread); panMax = std::max (panMax, w.panSpread);
+            detMin = std::min (detMin, w.detuneCents); detMax = std::max (detMax, w.detuneCents);
+            mulMin = std::min (mulMin, w.filterMul); mulMax = std::max (mulMax, w.filterMul);
+        }
+        std::printf ("   pink bus: pan %.2f..%.2f, det %.1f..%.1f c, mul %.2f..%.2f\n",
+                     (double) panMin, (double) panMax, (double) detMin, (double) detMax,
+                     (double) mulMin, (double) mulMax);
+        CHECK (panMin < 0.08f && panMax > 0.25f, "pink swirl does not breathe the width");
+        CHECK (detMin < -3.0f && detMax > 3.0f, "pink smear detune missing");
+        CHECK (mulMin < 0.90f && mulMax > 1.10f, "pink bloom filter swing missing");
+    }
+
+    // glass: the barely-there breath on the tuning (±2.2 c * shine at 0.05 Hz)
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        serviceRack (r);
+        r.setCharArmed (cGlass, true);
+        float detMin = 1e9f, detMax = -1e9f;
+        for (int done = 0; done < N * 6; done += 4800)   // 12 s of a 20 s period
+        {
+            std::memset (L.data(), 0, sizeof (float) * 4800);
+            std::memset (R.data(), 0, sizeof (float) * 4800);
+            renderRack (r, L.data(), R.data(), 4800);
+            const WorldMod w = r.worldMod();
+            detMin = std::min (detMin, w.detuneCents); detMax = std::max (detMax, w.detuneCents);
+        }
+        std::printf ("   glass breath: det %.2f..%.2f c\n", (double) detMin, (double) detMax);
+        CHECK (detMax - detMin > 1.2f && detMax <= 2.3f && detMin >= -2.3f,
+               "glass breath out of character");
+    }
+
+    // the audio characters: each must be additive, present, silent-safe,
+    // deterministic — and presence 0 must be bit-transparent
+    const int audioChars[] = { cPink, cBlack, cGlass };
+    const char* audioNames[] = { "pink", "black", "glass" };
+    for (int k = 0; k < 3; ++k)
+    {
+        const int c = audioChars[k];
+
+        // armed at presence 1: the output must actually change
+        fillTone (L.data(), R.data(), N, fs, 220.0, 0.4f);
+        refL = L; refR = R;
+        Rack r;
+        r.prepare (fs, 512);
+        serviceRack (r);
+        r.setCharArmed (c, true);
+        renderRack (r, L.data(), R.data(), N);
+        const Stats s = measure (L.data(), R.data(), N);
+        double diff = 0;
+        for (int i = 0; i < N; ++i) diff += std::abs ((double) L[(size_t) i] - refL[(size_t) i]);
+        diff /= N;
+        std::printf ("   %s audio: peak %.3f, mean|delta| %.4f\n", audioNames[k], (double) s.peak, diff);
+        CHECK (s.finite && s.peak < 1.3f, "%s audio unbounded", audioNames[k]);
+        CHECK (diff > 1e-3, "%s audio character changes nothing", audioNames[k]);
+
+        // deterministic: a second identical rack renders the same bytes
+        {
+            std::vector<float> L2 (refL), R2 (refR);
+            Rack r2;
+            r2.prepare (fs, 512);
+            serviceRack (r2);
+            r2.setCharArmed (c, true);
+            renderRack (r2, L2.data(), R2.data(), N);
+            CHECK (std::memcmp (L.data(), L2.data(), sizeof (float) * N) == 0,
+                   "%s audio nondeterministic", audioNames[k]);
+        }
+
+        // silence in -> silence out
+        {
+            std::vector<float> zL (N, 0.0f), zR (N, 0.0f);
+            Rack rz;
+            rz.prepare (fs, 512);
+            serviceRack (rz);
+            rz.setCharArmed (c, true);
+            renderRack (rz, zL.data(), zR.data(), N);
+            const Stats sz = measure (zL.data(), zR.data(), N);
+            CHECK (sz.peak < 1e-5f, "%s emits sound from silence (peak %g)", audioNames[k], (double) sz.peak);
+        }
+
+        // presence 0: bit-transparent even while armed
+        {
+            std::vector<float> pL (refL), pR (refR);
+            Rack rp;
+            rp.prepare (fs, 512);
+            serviceRack (rp);
+            rp.setCharArmed (c, true);
+            rp.setCharPresence (c, 0.0f);
+            renderRack (rp, pL.data(), pR.data(), N);
+            CHECK (std::memcmp (pL.data(), refL.data(), sizeof (float) * N) == 0,
+                   "%s at presence 0 is not bit-transparent", audioNames[k]);
+        }
+
+        // disarm mid-note: no click beyond the settled chain's own step
+        {
+            std::vector<float> dL (refL), dR (refR);
+            Rack rd;
+            rd.prepare (fs, 512);
+            serviceRack (rd);
+            rd.setCharArmed (c, true);
+            renderRack (rd, dL.data(), dR.data(), N / 2);
+            rd.setCharArmed (c, false);
+            renderRack (rd, dL.data() + N / 2, dR.data() + N / 2, N / 2);
+            float maxStep = 0;
+            for (int i = N / 2 - 4800; i < N / 2 + 4800; ++i)
+                maxStep = std::max (maxStep, std::abs (dL[(size_t) i] - dL[(size_t) i - 1]));
+            CHECK (maxStep < 0.30f, "%s disarm clicks (step %.3f)", audioNames[k], (double) maxStep);
+        }
+    }
+
+    // black must publish NOTHING on the bus (pure FX character)
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        serviceRack (r);
+        r.setCharArmed (cBlack, true);
+        fillTone (L.data(), R.data(), 4800, fs, 220.0, 0.4f);
+        renderRack (r, L.data(), R.data(), 4800);
+        const WorldMod w = r.worldMod();
+        CHECK (w.detuneCents == 0 && w.panSpread == 0 && w.tremDepth == 0
+            && w.pitchSag == 0 && w.filterMul == 1, "black leaks onto the bus");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The built-in presets: every one must load through fromJson, render bounded,
+// deterministic and silence-preserving, and never change a rack it isn't
+// applied to (they are data, not code).
+static void testPresets()
+{
+    std::printf ("-- built-in presets\n");
+    const double fs = 48000;
+    const int N = 48000;
+    std::vector<float> L (N), R (N);
+
+    CHECK (numPresets() >= 8, "preset library too small (%d)", numPresets());
+    const std::string js = presetsJson();
+    CHECK (js.size() > 100 && js[0] == '[', "presetsJson malformed");
+
+    for (int i = 0; i < numPresets(); ++i)
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.fromJson (presetBlob (i));
+        serviceRack (r);
+        r.setTransport (120.0, 0.0, true);       // pattern presets need a clock
+
+        fillTone (L.data(), R.data(), N, fs, 220.0, 0.4f);
+        renderRack (r, L.data(), R.data(), N);
+        const Stats s = measure (L.data(), R.data(), N);
+        CHECK (s.finite && s.peak < 1.3f, "preset '%s' unbounded (peak %g)",
+               presetName (i), (double) s.peak);
+
+        std::vector<float> zL (N, 0.0f), zR (N, 0.0f);
+        Rack rz;
+        rz.prepare (fs, 512);
+        rz.fromJson (presetBlob (i));
+        serviceRack (rz);
+        rz.setTransport (120.0, 0.0, true);
+        renderRack (rz, zL.data(), zR.data(), N);
+        const Stats sz = measure (zL.data(), zR.data(), N);
+        CHECK (sz.peak < 1e-5f, "preset '%s' emits sound from silence (peak %g)",
+               presetName (i), (double) sz.peak);
+    }
+
+    // the pattern preset carries its KIERANATOR grid through the blob
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        int idx = -1;
+        for (int i = 0; i < numPresets(); ++i)
+            if (std::string (presetName (i)) == "BROKEN TRANSMISSION") idx = i;
+        CHECK (idx >= 0, "BROKEN TRANSMISSION missing");
+        r.fromJson (presetBlob (idx));
+        CHECK (r.getExtra (typeByName ("kieranator")) == "1000300010002060",
+               "preset pattern lost");
+    }
+    std::printf ("   %d presets, all bounded + silence-safe\n", numPresets());
 }
 
 // ---------------------------------------------------------------------------
@@ -994,6 +1248,12 @@ int main (int argc, char** argv)
         std::printf ("%s\n", characterJson().c_str());
         return 0;
     }
+    // `bwfxtest --presets` prints presetsJson() for DEFAULT_PRESETS, same rule.
+    if (argc > 1 && std::string (argv[1]) == "--presets")
+    {
+        std::printf ("%s\n", presetsJson().c_str());
+        return 0;
+    }
 #if defined(__SSE2__) || defined(_M_X64) || defined(_M_IX86_FP)
     _MM_SET_FLUSH_ZERO_MODE (_MM_FLUSH_ZERO_ON);   // hosts run FTZ; so does the bench
 #endif
@@ -1011,6 +1271,8 @@ int main (int argc, char** argv)
     testRotary();
     testDisruptor();
     testSpectra();
+    testSpectraPhaseB();
+    testPresets();
     testPresenceAndMorph();
     testReverbLive();
     testFuzz();
