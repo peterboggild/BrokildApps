@@ -224,6 +224,63 @@ int main (int argc, char** argv)
                "ranks 0 audibly differs from ranks centre");
     }
 
+    // ---- sticky seats: no phantom note between a chord's tones on release --
+    {
+        cw::Engine e;
+        e.prepare (fs, 512);
+        e.setGlobal (cw::gTolerance, 0.f); e.setGlobal (cw::gDriftMaster, 0.f);
+        e.setGlobal (cw::gSpread, 0.f);    e.setGlobal (cw::gTide, 0.f);
+        e.setGlobal (cw::gDrone, 0.f);     e.setGlobal (cw::gNoteMode, 1.f);  // treaty
+        for (int v = 0; v < cw::kVoices; ++v)
+        {
+            e.setVoice (v, cw::vfWave, 3.f);   // sine - clean partials
+            e.setVoice (v, cw::vfFoot, 3.f);   // 8' - as played
+            e.setVoice (v, cw::vfTune, 0.f);   e.setVoice (v, cw::vfDrift, 0.f);
+            e.setVoice (v, cw::vfCut, 1.f);    e.setVoice (v, cw::vfRes, 0.f);
+            e.setVoice (v, cw::vfLfoAmp, 0.f); e.setVoice (v, cw::vfLfoFlt, 0.f);
+        }
+        std::vector<float> L, R;
+        const size_t n1 = (size_t) fs, nGap = (size_t) fs / 20, nTail = (size_t) fs * 2;
+        L.assign (n1 + nGap + nTail, 0.f); R.assign (L.size(), 0.f);
+        auto run = [&] (size_t from, size_t len)
+        {
+            size_t done = from;
+            while (done < from + len)
+            {
+                const int m = (int) std::min<size_t> (512, from + len - done);
+                e.process (L.data() + done, R.data() + done, m); done += (size_t) m;
+            }
+        };
+        e.noteOn (48); e.noteOn (60);       // C3 + C4
+        run (0, n1);
+        e.noteOff (48);                     // release the low note first...
+        run (n1, nGap);
+        e.noteOff (60);                     // ...then the high, 50 ms later
+        run (n1 + nGap, nTail);
+        // the release tail must hold energy at C3 and C4 partials ONLY -
+        // the old redistribution left clones frozen mid-glide in between
+        auto goert = [&] (double f)
+        {
+            const double w = 2.0 * 3.14159265358979 * f / fs, c = 2.0 * std::cos (w);
+            double s1 = 0, s2 = 0;
+            const size_t from = n1 + nGap + (size_t) (0.2 * fs);
+            for (size_t i = from; i < L.size(); ++i)
+            { const double s0 = L[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+            return std::sqrt (std::max (0.0, s1 * s1 + s2 * s2 - c * s1 * s2));
+        };
+        const double c3 = goert (130.81), c4 = goert (261.63);
+        double worstBetween = 0;
+        for (int cents = 150; cents <= 1050; cents += 25)   // strictly between
+        {
+            const double f = 130.81 * std::pow (2.0, cents / 1200.0);
+            worstBetween = std::max (worstBetween, goert (f));
+        }
+        const double notesMag = std::max (c3, c4);
+        printf ("sticky release: C3 %.4g C4 %.4g worst-between %.4g\n", c3, c4, worstBetween);
+        check (notesMag > 1e-4, "release tail still sounds the played notes");
+        check (worstBetween < notesMag * 0.1, "no phantom pitch between the released notes");
+    }
+
     // ---- scenario 6: determinism — same seed twice is bit-identical -------
     {
         auto renderSeed = [fs] (std::vector<float>& L, std::vector<float>& R)

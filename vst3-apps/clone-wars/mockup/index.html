@@ -591,6 +591,12 @@
     color: #e3e9e4; font-family: var(--stencilf); font-size: 11px;
     letter-spacing: .2em; padding: 5px 8px; outline: none;
   }
+  /* shift-drag marquee: rubber-band lock selection on empty deck */
+  .mq-box {
+    position: absolute; z-index: 60; pointer-events: none;
+    border: 1px dashed #d8b24a; background: rgba(216,178,74,.07);
+  }
+  .mq { outline: 2px dashed #d8b24a !important; outline-offset: 1px; }
   .envmini {
     width: 58px; height: 42px; margin: 0 auto; cursor: pointer;
     border: 1px solid #0a1118; border-radius: 4px; background: #101821;
@@ -786,7 +792,7 @@
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.16 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.17 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -976,7 +982,7 @@
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.16 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.17 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -1234,6 +1240,61 @@ function lockSide(rowId, side, anchor) {     // anchor set = unison at its value
 }
 function sideOf(el) { return parseInt(el.dataset.ch) <= 8 ? "a" : "b"; }
 
+/* shift-drag on empty deck: a selection rectangle - every per-clone control
+   it sweeps joins its row's lock group (each row keeps its own group).
+   Plain sweep adds; ctrl-sweep removes. */
+(function marquee() {
+  let box = null, sx = 0, sy = 0, removeMode = false;
+  const mqPanel = document.getElementById("panel");
+  mqPanel.addEventListener("pointerdown", e => {
+    if (!e.shiftKey || box) return;
+    if (e.target.closest(".knob,.fader,.step,.btn,.nbtn,.envmini,.war,.wheel,[data-n],.led,.tool,input,canvas,.hatchveil")) return;
+    removeMode = e.ctrlKey || e.metaKey;
+    const pr = mqPanel.getBoundingClientRect();
+    const sc = pr.width / mqPanel.offsetWidth || 1;
+    sx = (e.clientX - pr.left) / sc; sy = (e.clientY - pr.top) / sc;
+    box = document.createElement("div");
+    box.className = "mq-box";
+    box.style.left = sx + "px"; box.style.top = sy + "px";
+    mqPanel.appendChild(box);
+    e.preventDefault();
+  });
+  window.addEventListener("pointermove", e => {
+    if (!box) return;
+    const pr = mqPanel.getBoundingClientRect();
+    const sc = pr.width / mqPanel.offsetWidth || 1;
+    const x = (e.clientX - pr.left) / sc, y = (e.clientY - pr.top) / sc;
+    const L = Math.min(sx, x), T = Math.min(sy, y), W = Math.abs(x - sx), H = Math.abs(y - sy);
+    box.style.left = L + "px"; box.style.top = T + "px";
+    box.style.width = W + "px"; box.style.height = H + "px";
+    const bb = { left: pr.left + L * sc, top: pr.top + T * sc,
+                 right: pr.left + (L + W) * sc, bottom: pr.top + (T + H) * sc };
+    document.querySelectorAll("[data-row][data-ch]").forEach(c => {
+      const r = c.getBoundingClientRect();
+      c.classList.toggle("mq",
+        r.left < bb.right && r.right > bb.left && r.top < bb.bottom && r.bottom > bb.top);
+    });
+  });
+  window.addEventListener("pointerup", () => {
+    if (!box) return;
+    box.remove(); box = null;
+    const hits = [...document.querySelectorAll(".mq")];
+    const rows = new Set();
+    for (const c of hits) {
+      const set = lockSet(c.dataset.row);
+      rows.add(c.dataset.row);
+      if (removeMode) { set.delete(c); c.classList.remove("locked"); }
+      else            { set.add(c); c.classList.add("locked"); }
+      c.classList.remove("mq");
+    }
+    if (hits.length) {
+      refreshLockTools();
+      say((removeMode ? "UNLOCK" : "LOCK") + " · " + hits.length +
+          " CONTROLS · " + rows.size + " ROW" + (rows.size > 1 ? "S" : ""));
+    }
+  });
+})();
+
 /* the rail lock tools glow when their half-row is locked (dim = partial) */
 function refreshLockTools() {
   document.querySelectorAll("[data-lockrow]").forEach(t => {
@@ -1460,7 +1521,7 @@ document.getElementById("hq").addEventListener("click", function () {
 });
 
 /* group color coding */
-/* WAR PAINT control removed 260825.16 (Peter: keep the function, lose the
+/* WAR PAINT control removed 260825.17 (Peter: keep the function, lose the
    button while he decides). The body.colorized CSS legend machinery stays;
    toggling the class by hand still works. */
 
