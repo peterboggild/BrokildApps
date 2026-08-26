@@ -45,6 +45,26 @@ All seven PDF manuals predate the rack (deliberately skipped in the
 section could be written once and dropped into each manual's pipeline;
 landing-page prose could carry one feature line each.
 
+### 4. IDEA: module wishlist — founding set 2 (surveyed 2026-08-26)
+What the six do not cover, ranked by proven-code reuse (the BWFX pattern:
+extract, never invent). Capacity note: order packing holds 16 modules,
+6 used — Tier 1+2 lands at 15.
+- Tier 1 (in-house code, ~afternoon each): LOFI (PS2 Lofi crush/noise/
+  dirt — the module deliberately left out of the founding six), FLANGER
+  (BBD line + feedback, small delta from ENSEMBLE), TREMOLO/AUTO-PAN
+  (smooth sibling of GATE + stereo pan; rides the future sync), COMPRESSOR
+  (Hairfryer two-stage, simplified), TONE (Hairfryer 4-band RBJ EQ).
+- Tier 2 (distinctive ports): SHIMMER (Blade Ruiner FDN-8 + octave-up in
+  the loop — the reverb a convolver cannot be, complements SPACE), FILTER
+  (Black Rider GROWL/SCREAM/LADDER + LFO + envelope-follower sweep =
+  auto-wah and squelch on tuning-proven ZDF code), FREEZE (infinite hold,
+  the drone-fleet pedal), RING MOD (Mars Wars, incl. the no-BIAS lesson).
+- Tier 3 (new DSP, real projects): micro-pitch/detune + octaver (needs a
+  pitch shifter, none in the fleet), granular texture (kipple as seed),
+  rotary speaker.
+- Suggested batch if Peter says go: LOFI, FLANGER, TREMOLO, FILTER,
+  SHIMMER — closes modulation, tone and character gaps in one pass.
+
 ## Done
 
 (nothing yet — the founding rollout itself is logged in BWFX-HANDOVER.md)
