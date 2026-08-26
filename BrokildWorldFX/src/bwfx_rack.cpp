@@ -10,11 +10,34 @@ namespace bwfx
 
 namespace
 {
-    // enable ramp / structural dip: ~15 ms each way at 48 k, per sub-block
+    // enable/presence ramp / structural dip: ~15 ms each way at 48 k
     inline float rampCoef (double fs) { return 1.0f - std::exp ((float) (-(double) kSubBlock / (0.005 * fs))); }
+
+    // deterministic per-key stagger threshold in 0.08..0.92 for morph defection
+    inline float staggerThreshold (const char* moduleId, const char* paramId)
+    {
+        uint32_t h = 2166136261u;
+        for (const char* c = moduleId; *c; ++c) h = (h ^ (uint32_t) *c) * 16777619u;
+        h = (h ^ (uint32_t) '/') * 16777619u;
+        for (const char* c = paramId; *c; ++c) h = (h ^ (uint32_t) *c) * 16777619u;
+        return 0.08f + 0.84f * (float) (h >> 8) / 16777216.0f;
+    }
 }
 
-const char* Rack::version() { return "1.0.0"; }
+const char* Rack::version() { return "1.1.0"; }
+
+// Parsed form of a state blob, defaults pre-filled.
+struct Rack::BlobState
+{
+    float mix = 1.0f;
+    int   order[kMaxModules] {};
+    struct Mod
+    {
+        bool  on = false;
+        float pr = 1.0f;
+        float p[kMaxParams] {};
+    } m[kMaxModules];
+};
 
 Rack::Rack()
 {
@@ -26,6 +49,7 @@ Rack::Rack()
     for (int t = 0; t < nTypes; ++t) def[t] = t;
     orderPacked.store (packOrder (def, nTypes), std::memory_order_relaxed);
     orderApplied = orderPacked.load();
+    for (auto& p : presenceIn) p.store (1.0f, std::memory_order_relaxed);
     env.fill (0.0f);
     wasOff.fill (true);
 }
@@ -107,6 +131,12 @@ void Rack::setOrder (const int* types, int count)
 
 void Rack::setMix (float v) { mixIn.store (clampf (v, 0.0f, 1.0f), std::memory_order_relaxed); }
 
+void Rack::setPresence (int type, float v)
+{
+    if (type >= 0 && type < nTypes)
+        presenceIn[(size_t) type].store (clampf (v, 0.0f, 1.0f), std::memory_order_relaxed);
+}
+
 // --- queries ---------------------------------------------------------------
 bool Rack::anyEnabled() const  { return enabledBits.load (std::memory_order_relaxed) != 0; }
 bool Rack::getEnabled (int type) const
@@ -117,6 +147,10 @@ bool Rack::getEnabled (int type) const
 float Rack::getParam (int type, int p) const
 {
     return (type >= 0 && type < nTypes) ? mods[(size_t) type]->getParam (p) : 0.0f;
+}
+float Rack::getPresence (int type) const
+{
+    return (type >= 0 && type < nTypes) ? presenceIn[(size_t) type].load (std::memory_order_relaxed) : 1.0f;
 }
 void Rack::getOrder (int* types) const { unpackOrder (orderPacked.load (std::memory_order_relaxed), types); }
 float Rack::getMix() const { return mixIn.load (std::memory_order_relaxed); }
@@ -175,24 +209,29 @@ void Rack::process (float* L, float* R, int n)
         {
             const int t = order[s];
             const bool on = (en & (1u << t)) != 0;
-            const float target = on ? 1.0f : 0.0f;
+            // the module's blend target is its PRESENCE while on, 0 while off
+            const float target = on ? presenceIn[(size_t) t].load (std::memory_order_relaxed) : 0.0f;
             float e = env[(size_t) t];
-            if (! on && e <= 1e-4f) { env[(size_t) t] = 0.0f; wasOff[(size_t) t] = true; continue; }
-            if (on && wasOff[(size_t) t])
+            if (target <= 1e-4f && e <= 1e-4f) { env[(size_t) t] = 0.0f; wasOff[(size_t) t] = true; continue; }
+            if (target > 1e-4f && wasOff[(size_t) t])
             {
                 mods[(size_t) t]->reset();          // fresh start, no stale tails
                 wasOff[(size_t) t] = false;
             }
 
             float e1 = e + (target - e) * coef;
-            if (on && e1 > 0.9995f) e1 = 1.0f;
+            if (std::abs (e1 - target) < 5e-4f) e1 = target;
             env[(size_t) t] = e1;
 
-            mods[(size_t) t]->inputDuck (std::min (dip, e1));
+            // duck buffer injection during TRANSITIONS only: how far the
+            // module is along toward its own target, not the target itself —
+            // a steady presence of 0.5 must not halve what enters the delay.
+            const float ref = target > 0.05f ? e1 / target : e1 * 20.0f;
+            mods[(size_t) t]->inputDuck (std::min (dip, clampf (ref, 0.0f, 1.0f)));
 
             if (e >= 1.0f && e1 >= 1.0f)
             {
-                mods[(size_t) t]->process (bl, br, m);   // steady state: in place
+                mods[(size_t) t]->process (bl, br, m);   // steady full: in place
             }
             else
             {
@@ -269,7 +308,10 @@ std::string Rack::toJson() const
         const Descriptor& d = mods[(size_t) t]->desc();
         if (t > 0) s += ",";
         s += "\"" + std::string (d.id) + "\":{\"ver\":" + std::to_string (d.version)
-           + ",\"on\":" + (getEnabled (t) ? "1" : "0") + ",\"p\":{";
+           + ",\"on\":" + (getEnabled (t) ? "1" : "0");
+        std::snprintf (buf, sizeof (buf), ",\"pr\":%g", (double) getPresence (t));
+        s += buf;
+        s += ",\"p\":{";
         for (int p = 0; p < d.numParams; ++p)
         {
             if (p > 0) s += ",";
@@ -287,6 +329,7 @@ void Rack::clearState()
     for (int t = 0; t < nTypes; ++t)
     {
         setEnabled (t, false);
+        setPresence (t, 1.0f);
         const Descriptor& d = mods[(size_t) t]->desc();
         for (int p = 0; p < d.numParams; ++p)
             mods[(size_t) t]->setParam (p, d.params[p].def);
@@ -297,15 +340,24 @@ void Rack::clearState()
     setMix (1.0f);
 }
 
-void Rack::fromJson (const std::string& s)
+void Rack::parseBlob (const std::string& s, BlobState& bs) const
 {
-    clearState();                                  // missing = defaults
+    // defaults first — a missing key is the default (the Kemper rule)
+    bs.mix = 1.0f;
+    for (int t = 0; t < nTypes; ++t)
+    {
+        bs.order[t] = t;
+        bs.m[t].on = false;
+        bs.m[t].pr = 1.0f;
+        const Descriptor& d = moduleDescriptor (t);
+        for (int p = 0; p < d.numParams; ++p) bs.m[t].p[p] = d.params[p].def;
+    }
     if (s.empty()) return;
     json::Value v;
     if (! json::parse (s, v) || ! v.isObj()) return;
 
     if (const json::Value* mx = v.find ("mix"))
-        setMix ((float) mx->asNum (1.0));
+        bs.mix = clampf ((float) mx->asNum (1.0), 0.0f, 1.0f);
 
     if (const json::Value* modsV = v.find ("modules"))
         if (modsV->isObj())
@@ -317,14 +369,19 @@ void Rack::fromJson (const std::string& s)
                 if (type < 0) continue;            // unknown module: ignored
                 const Descriptor& d = moduleDescriptor (type);
                 if (const json::Value* on = kv.second.find ("on"))
-                    setEnabled (type, on->asNum (0) > 0.5);
+                    bs.m[type].on = on->asNum (0) > 0.5;
+                if (const json::Value* pr = kv.second.find ("pr"))
+                    bs.m[type].pr = clampf ((float) pr->asNum (1.0), 0.0f, 1.0f);
                 if (const json::Value* pv = kv.second.find ("p"))
                     if (pv->isObj())
                         for (auto& pkv : pv->obj)
                             for (int p = 0; p < d.numParams; ++p)
                                 if (pkv.first == d.params[p].id)
                                 {
-                                    setParam (type, p, (float) pkv.second.asNum (d.params[p].def));
+                                    const ParamDesc& pd = d.params[p];
+                                    float val = clampf ((float) pkv.second.asNum (pd.def), pd.lo, pd.hi);
+                                    if (pd.step > 0) val = pd.lo + pd.step * std::round ((val - pd.lo) / pd.step);
+                                    bs.m[type].p[p] = val;
                                     break;
                                 }
             }
@@ -349,8 +406,67 @@ void Rack::fromJson (const std::string& s)
             for (int t = 0; t < nTypes; ++t)       // modules the blob predates
                 if (! (seen & (1u << t)))
                     order[count++] = t;
-            setOrder (order, count);
+            if (count == nTypes)
+                for (int t = 0; t < nTypes; ++t) bs.order[t] = order[t];
         }
+}
+
+void Rack::applyBlobState (const BlobState& bs)
+{
+    for (int t = 0; t < nTypes; ++t)
+    {
+        setEnabled (t, bs.m[t].on);
+        setPresence (t, bs.m[t].pr);
+        const Descriptor& d = moduleDescriptor (t);
+        for (int p = 0; p < d.numParams; ++p)
+            mods[(size_t) t]->setParam (p, bs.m[t].p[p]);
+    }
+    setOrder (bs.order, nTypes);
+    setMix (bs.mix);
+}
+
+void Rack::fromJson (const std::string& s)
+{
+    BlobState bs;
+    parseBlob (s, bs);
+    applyBlobState (bs);
+}
+
+void Rack::applyMorph (const std::string& a, const std::string& b, float t)
+{
+    t = clampf (t, 0.0f, 1.0f);
+    BlobState A, B, out;
+    parseBlob (a, A);
+    parseBlob (b, B);
+    out = A;
+
+    for (int m = 0; m < nTypes; ++m)
+    {
+        const Descriptor& d = moduleDescriptor (m);
+        const float prA = A.m[m].on ? A.m[m].pr : 0.0f;
+        const float prB = B.m[m].on ? B.m[m].pr : 0.0f;
+        const float pres = prA + (prB - prA) * t;
+        out.m[m].on = pres > 1e-3f;
+        out.m[m].pr = pres;
+
+        for (int p = 0; p < d.numParams; ++p)
+        {
+            const float vA = A.m[m].p[p], vB = B.m[m].p[p];
+            if (prA <= 1e-3f)      out.m[m].p[p] = vB;   // fading in: B's sound
+            else if (prB <= 1e-3f) out.m[m].p[p] = vA;   // fading out: A's sound
+            else if (d.params[p].step > 0)               // stepped: staggered defection
+                out.m[m].p[p] = t < staggerThreshold (d.id, d.params[p].id) ? vA : vB;
+            else                                         // continuous: glide
+                out.m[m].p[p] = vA + (vB - vA) * t;
+        }
+    }
+
+    // the chain order cannot lerp: it defects once, through the dip
+    for (int i = 0; i < nTypes; ++i)
+        out.order[i] = t < 0.5f ? A.order[i] : B.order[i];
+    out.mix = A.mix + (B.mix - A.mix) * t;
+
+    applyBlobState (out);
 }
 
 std::string Rack::uiStateJson() const

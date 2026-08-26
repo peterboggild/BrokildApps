@@ -61,7 +61,7 @@
       s.order.push(d.id);
       var p = {};
       d.params.forEach(function (pd) { p[pd.id] = pd.def; });
-      s.modules[d.id] = { on: 0, p: p };
+      s.modules[d.id] = { on: 0, pr: 1, p: p };
     });
     return s;
   }
@@ -136,6 +136,10 @@
     /* display:grid would beat the hidden attribute's UA display:none (the
        Black Rider about-box lesson, attribute edition) — restate it. */
     ".bwfx-ctl[hidden]{display:none}",
+    /* PRESENCE is the rack's own control: teal, whatever the pedal wears */
+    ".bwfx-presrow label{color:var(--bwfx-accent,#3fe0d8);letter-spacing:.16em}",
+    ".bwfx-presrow output{color:var(--bwfx-accent,#3fe0d8);text-shadow:0 0 6px rgba(63,224,216,.5)}",
+    ".bwfx-presrow input[type=range]{accent-color:var(--bwfx-accent,#3fe0d8)}",
     ".bwfx-row{display:grid;grid-template-columns:1fr auto;grid-template-areas:'lab out' 'ctl ctl';",
     " align-items:center;gap:2px 8px;padding:3px 0;min-width:0;}",
     ".bwfx-row label{grid-area:lab;font-size:10.5px;letter-spacing:.1em;color:#93a1a8}",
@@ -301,6 +305,26 @@
       var ctl = document.createElement("div");
       ctl.className = "bwfx-ctl";
       if (!ms.on) ctl.hidden = true;
+
+      // PRESENCE — the rack's own per-module dry/wet (teal: a world control,
+      // not one of the pedal's knobs). It is also what a patch morph rides.
+      (function () {
+        var row = document.createElement("div");
+        row.className = "bwfx-row bwfx-presrow";
+        var v = Math.round((typeof ms.pr === "number" ? ms.pr : 1) * 100);
+        row.innerHTML = "<label>PRESENCE</label><output>" + v + " %</output>" +
+          '<div class="bwfx-c"><input type="range" min="0" max="100" step="1" value="' + v + '"></div>';
+        var inp = row.querySelector("input");
+        var out = row.querySelector("output");
+        inp.addEventListener("input", function () {
+          var nv = parseInt(inp.value, 10);
+          out.textContent = nv + " %";
+          ms.pr = nv / 100;
+          if (send) send({ op: "presence", m: id, v: ms.pr });
+        });
+        ctl.appendChild(row);
+      })();
+
       d.params.forEach(function (pd) {
         var row = document.createElement("div");
         row.className = "bwfx-row" + (pd.choices ? " bwfx-wide" : "");
@@ -447,6 +471,7 @@
           var m = s.modules[d.id];
           if (!m) return;
           state.modules[d.id].on = m.on ? 1 : 0;
+          if (typeof m.pr === "number") state.modules[d.id].pr = m.pr;
           d.params.forEach(function (pd) {
             if (m.p && typeof m.p[pd.id] === "number") state.modules[d.id].p[pd.id] = m.p[pd.id];
           });

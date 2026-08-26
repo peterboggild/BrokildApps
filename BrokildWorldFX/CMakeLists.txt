@@ -20,5 +20,7 @@ add_library(bwfx STATIC
 target_compile_features(bwfx PUBLIC cxx_std_17)
 target_include_directories(bwfx PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/modules)
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules
+    # adapter/ is header-only JUCE glue compiled by HOSTS, never by this lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/adapter)
 set_target_properties(bwfx PROPERTIES POSITION_INDEPENDENT_CODE ON)

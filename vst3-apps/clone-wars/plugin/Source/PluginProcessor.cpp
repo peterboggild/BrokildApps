@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "bwfx_juce.h"
 
 //==============================================================================
 juce::String CloneWarsProcessor::globalParamId (int g)
@@ -324,10 +325,14 @@ void CloneWarsProcessor::applyMorph (float t, bool repaintUi)
     // at their own deterministic threshold staggered across the travel, so the
     // console changes sides one clone at a time instead of all at the midpoint.
     cw::Patch a, b;
-    juce::String catA, catB;
-    if (! resolvePatch (currentSeedA.load(), a, catA)) cw::defaultPatch (a);
-    if (! resolvePatch (currentSeedB.load(), b, catB)) cw::defaultPatch (b);
+    juce::String catA, catB, rackA, rackB;
+    if (! resolvePatch (currentSeedA.load(), a, catA, &rackA)) cw::defaultPatch (a);
+    if (! resolvePatch (currentSeedB.load(), b, catB, &rackB)) cw::defaultPatch (b);
     currentCategory = catA;
+
+    // The world rack morphs too (union + presence — BWFX does the blending;
+    // factory seeds have no blob, so their side of the rack breathes out).
+    bwfxRack.applyMorph (rackA.toStdString(), rackB.toStdString(), t);
     uint32_t stag = 0x243F6A88u;
     auto blend = [t, &stag] (float av, float bv, bool stepped) mutable
     {
@@ -347,7 +352,7 @@ void CloneWarsProcessor::applyMorph (float t, bool repaintUi)
                     blend (a.voice[v][f], b.voice[v][f], voiceShape (f).step > 0.0f)));
     suppressEcho = false;
     pushAllParamsToEngine();
-    if (repaintUi) sendInitToUi();
+    if (repaintUi) { sendInitToUi(); sendBwfxToUi(); }
 }
 
 void CloneWarsProcessor::applySeed (uint32_t seed)
@@ -499,68 +504,18 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
 }
 
 //==============================================================================
-// Brokild World FX message pipe. Ids arrive as strings (the state contract);
-// they resolve to registry indices here and nowhere else.
-static int bwfxTypeByName (const juce::String& id)
-{
-    for (int t = 0; t < bwfx::numModuleTypes(); ++t)
-        if (id == bwfx::moduleDescriptor (t).id) return t;
-    return -1;
-}
-
+// Brokild World FX message pipe — the shared adapter (bwfx_juce.h) does the
+// decoding; every Brokild synth routes k=="bwfx" through the same two calls.
 void CloneWarsProcessor::handleBwfxMessage (const juce::var& m)
 {
-    const juce::String op = m.getProperty ("op", juce::var()).toString();
-
-    if (op == "set")
-    {
-        const int t = bwfxTypeByName (m.getProperty ("m", juce::var()).toString());
-        if (t < 0) return;
-        const auto& d = bwfx::moduleDescriptor (t);
-        const juce::String pid = m.getProperty ("p", juce::var()).toString();
-        for (int p = 0; p < d.numParams; ++p)
-            if (pid == d.params[p].id)
-            {
-                bwfxRack.setParam (t, p, (float) (double) m.getProperty ("v", 0.0));
-                return;
-            }
-    }
-    else if (op == "enable")
-    {
-        const int t = bwfxTypeByName (m.getProperty ("m", juce::var()).toString());
-        if (t >= 0) bwfxRack.setEnabled (t, (int) m.getProperty ("on", 0) != 0);
-    }
-    else if (op == "order")
-    {
-        if (auto* arr = m.getProperty ("order", juce::var()).getArray())
-        {
-            int order[bwfx::kMaxModules];
-            int count = 0;
-            for (const auto& e : *arr)
-            {
-                const int t = bwfxTypeByName (e.toString());
-                if (t >= 0 && count < bwfx::kMaxModules) order[count++] = t;
-            }
-            bwfxRack.setOrder (order, count);
-        }
-    }
-    else if (op == "mix")
-    {
-        bwfxRack.setMix ((float) (double) m.getProperty ("v", 1.0));
-    }
-    else if (op == "init")
-    {
+    if (bwfx_juce::handleMessage (bwfxRack, m))
         sendBwfxToUi();
-    }
 }
 
 void CloneWarsProcessor::sendBwfxToUi()
 {
-    if (! emitToUi) return;
-    auto* obj = new juce::DynamicObject();
-    obj->setProperty ("desc",  juce::JSON::parse (juce::String (bwfx::descriptorJson())));
-    obj->setProperty ("state", juce::JSON::parse (juce::String (bwfxRack.toJson())));
-    emitToUi ("bwfx", juce::var (obj));
+    if (emitToUi)
+        emitToUi ("bwfx", bwfx_juce::stateVar (bwfxRack));
 }
 
 void CloneWarsProcessor::sendInitToUi()

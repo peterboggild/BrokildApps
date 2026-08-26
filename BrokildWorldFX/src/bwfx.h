@@ -116,11 +116,16 @@ public:
     void setParam   (int type, int p, float v);
     void setOrder   (const int* types, int count); // permutation of type ids
     void setMix     (float v);                     // 0 dry .. 1 full rack
+    // PRESENCE: the per-module dry/wet the rack itself owns — the same scalar
+    // that makes power toggles click-free, promoted to a stored, morphable
+    // knob. 0 = the module is inert (bit-transparent), 1 = fully in.
+    void setPresence (int type, float v);
 
     // --- queries -----------------------------------------------------------
     bool  anyEnabled() const;
     bool  getEnabled (int type) const;
     float getParam (int type, int p) const;
+    float getPresence (int type) const;
     void  getOrder (int* types) const;             // numModuleTypes() entries
     float getMix() const;
 
@@ -128,6 +133,17 @@ public:
     std::string toJson() const;                    // message thread
     void fromJson (const std::string& s);          // message thread
     void clearState();                             // back to default empty
+
+    // Patch morphing (message thread): glide the rack between two stored
+    // blobs. The UNION of both patches' modules runs; a module only in A
+    // fades out via presence as t rises, one only in B fades in, one in both
+    // interpolates. Continuous params lerp; stepped ones (choices) defect at
+    // their own deterministic threshold staggered across the travel; the
+    // chain order swaps through the click-free dip at mid-morph. An empty
+    // blob is the default empty rack, so morphing to a rack-less patch
+    // breathes the whole rack out. Hosts with a morph feature call this per
+    // morph tick; every host gets it by rebuild alone.
+    void applyMorph (const std::string& a, const std::string& b, float t);
 
     // Rack state as one JSON payload for the UI (order/enables/params/mix).
     std::string uiStateJson() const;
@@ -143,6 +159,7 @@ private:
     std::atomic<uint64_t> orderPacked { 0 };       // 4 bits per slot
     std::atomic<uint32_t> enabledBits { 0 };
     std::atomic<float>    mixIn { 1.0f };
+    std::array<std::atomic<float>, kMaxModules> presenceIn {};
 
     // audio-thread state
     uint64_t orderApplied = 0;
@@ -157,6 +174,10 @@ private:
 
     static uint64_t packOrder (const int* types, int count);
     void unpackOrder (uint64_t packed, int* types) const;
+
+    struct BlobState;                              // parsed blob (bwfx_rack.cpp)
+    void parseBlob (const std::string& s, BlobState& out) const;
+    void applyBlobState (const BlobState& bs);
 };
 
 } // namespace bwfx
