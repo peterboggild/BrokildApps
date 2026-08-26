@@ -11,16 +11,21 @@ the world rack: its modules, the overlay, the rack machinery, SPECTRA.)
 
 ## Open
 
-### 2. SPECTRA characters — phase C still open (A shipped 1.3.0, B in 1.4.0)
-Remaining:
-- **C. The other six host mappings (hours each).** Five bus inputs per
-  voice engine + bench additions per synth. PS2 LAST, with an open
-  question flagged for Peter: it would then carry two spectra systems
-  (native panel + world rack) — whether the native panel retires is a
-  separate per-synth decision, like native-FX retirement. Note the bar
-  phase B set: audio characters (pink/black/glass) already work in every
-  host — phase C is only about the pure modulators (dark drone, tape,
-  insect) and the modulation half of pink/glass.
+### 2-wave-2. PS2 retirement + MW/HF rack removal (Peter's decisions
+2026-08-26 evening, recorded verbatim; build AFTER he has played with
+phase C):
+- **Mars Wars and Hairfryer are FX plugins, not synths — they do NOT
+  get BWFX.** Their racks (added 1.1.0) are to be REMOVED COMPLETELY
+  (button, overlay, processing, state); stale rack blobs in day-old
+  projects are silently ignored (his OK on record).
+- **PS2 retirement**: internal FX chain + native SPECTRA panels retire
+  from the VST3 — **HARD CUT** (his call): old presets/projects load
+  with the FX/SPECTRA portion gone, no migration. The **FX photo REMAPS
+  to the rack**: R→SPACE length, G→ECHO mix, B→TUBE drive. The offline
+  MIDI→WAV render must run through the rack or renders come out dry.
+  The BROWSER twin (music-apps/photo-synth) stays exactly as it is —
+  Peter: "a toy version of the professional (VST3)". Interim: PS2
+  carries both spectra systems until this lands — known and accepted.
 
 ### 3. Manuals do not mention BWFX yet
 All seven PDF manuals predate the rack (deliberately skipped in the
@@ -29,6 +34,36 @@ section could be written once and dropped into each manual's pipeline;
 landing-page prose could carry one feature line each.
 
 ## Done
+
+### 2c. SPECTRA phase C — SHIPPED with BWFX 1.5.0 (fleet 260826.5, CW .7)
+All five SYNTHS now map the world-mod bus (Mars Wars/Hairfryer excluded
+by Peter's decision — FX plugins get no bus and lose the rack in wave 2):
+- **Black Rider**: full per-voice mapping (detune fan, gate-keyed sag,
+  per-voice trem, pan spread, filterMul on the working cutoff; a
+  VCA-mode drone counts as held so it never sags while sounding).
+  Bench section [12]: 6036 checks ALL CLEAR — sag measured exactly
+  100 cents down in the release tail, in tune held.
+- **Blade Ruiner**: DECKARD full per-voice; LA fans detune across its
+  9-saw stack + filterMul on the smog + layer trem (sag skipped: a
+  drone is held by definition and its env is an AMP env); REPLICANT
+  filterMul + trem (detune skipped: one voice — un-fanned det would
+  move the note). ALL CLEAR incl. the bare-drone filterMul probe
+  (grains/rain bypass the smog and had floored the first measurement).
+- **Escape Room**: the door IS the voice — detune/sag land on the
+  per-voice filter frequency, filterMul on the CUT identity, trem+pan
+  as per-voice gains at control-tick rate. ALL CLEAR (held resonance
+  in tune, the −100 c twin dominating the release tail).
+- **Photo-Synth 2**: detune fan + bus sag riding the SAME smoothed-gate
+  multiplier as the native envPitch sag, filterMul on cutEff, trem+pan
+  per voice at block rate. Neutral = exact-identity multipliers (×1.0,
+  +0.0 are IEEE-exact) so no branch in the voice loop. NOTE: PS2 has no
+  offline bench — verification is compile + code review + live CDP, not
+  a rendered proof. Also fixed en route this wave: overlay reorder DRAG
+  (Chromium releases pointer capture on mid-drag reparent — listeners
+  moved to the document), off-state legibility (dim ember in the OFF
+  rocker lens, off pedals 0.62→0.85 opacity), and TUBE level neutrality
+  (linear correlated-blend + measured RMS auto-gain, worst settled
+  deviation 0.84 dB across DRIVE at two input levels — was +3/6.4 dB).
 
 ### 2b. SPECTRA phase B + built-in presets — SHIPPED in BWFX 1.4.0
 The four remaining PS2 characters, split by what honestly ports (Peter's

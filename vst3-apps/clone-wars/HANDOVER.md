@@ -54,6 +54,16 @@ the plugin (branch `claude/dex-server-host-9jkd55`).
 5. Update this note when the state changes hands.
 
 
+## 260826.7 — BWFX 1.5.0 by rebuild (VS Code session)
+
+No Clone Wars code changed beyond the build id. BWFX 1.5.0 brings the
+overlay reorder-drag fix (document-level listeners — capture died on
+mid-drag reparent), off-state legibility (visible ember in the OFF
+rocker), and TUBE level neutrality across DRIVE (linear blend +
+measured auto-gain). Same wave, the OTHER four synths gained their
+world-mod mappings (phase C) — Clone Wars is no longer the only
+possessed one. See BWFX-HANDOVER.md.
+
 ## 260826.6 — BWFX 1.4.0 rides in by rebuild (VS Code session)
 
 No Clone Wars code changed beyond the build id: BWFX 1.4.0 (SPECTRA
