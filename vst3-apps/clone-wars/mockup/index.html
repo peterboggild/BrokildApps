@@ -786,7 +786,7 @@
 
     <footer class="plate">
       <span>BROKILD HEAVY INDUSTRIES · CLONE WARS · DRONE DIVISION</span>
-      <span class="mono">BUILD 260825.15 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
+      <span class="mono">BUILD 260825.16 · 16 VOICES · LOW/HQ/XHQ · OFFLINE RENDER = XHQ</span>
     </footer>
   </div>
   <div class="rail r"></div>
@@ -976,7 +976,7 @@
     <div class="hatch-grid">
       <div class="aboutbody">
         <b>16 analogue clones · two armies · one war</b><br><br>
-        Build 260825.15 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
+        Build 260825.16 · Serial CW-16 · Unit age <span id="aboutAge">00000.0</span> hrs in service<br>
         Engine LOW / HQ / XHQ · offline render always XHQ<br>
         The hull remembers: this unit ages with your project. Repair is in the
         service bay (shift-click the odometer).<br><br>
@@ -1434,7 +1434,6 @@ const seedB = document.getElementById("seedB");
 function newSeed(elem, tag) {
   const n = String(Math.floor(Math.random() * 200)).padStart(3, "0");
   elem.innerHTML = n + "<small>" + tag + "</small>";
-  if (typeof drawPatina === "function") drawPatina(); // preset-keyed grime follows the seed
   return n;
 }
 seedA.addEventListener("click", () => { armMorph(true); say("SEED A · " + newSeed(seedA, "A")); rollAll(); });
@@ -1461,7 +1460,7 @@ document.getElementById("hq").addEventListener("click", function () {
 });
 
 /* group color coding */
-/* WAR PAINT control removed 260825.15 (Peter: keep the function, lose the
+/* WAR PAINT control removed 260825.16 (Peter: keep the function, lose the
    button while he decides). The body.colorized CSS legend machinery stays;
    toggling the class by hand still works. */
 
@@ -1986,18 +1985,9 @@ function drawPatina() {
                    0.30 + rng() * 0.30);
     }
   }
-  // preset-keyed grime: temporary, follows seed A — "busted" seeds arrive dirty
-  const seedNum = parseInt(seedA.textContent) || 0;
-  const busted = (seedNum * 37 % 97) / 97;
-  const g = mulberry32(seedNum + 1);
-  const gn = Math.floor(busted * 12);
-  for (let i = 0; i < gn; i++) {
-    const x = 10 + g() * (W - 20), y = 10 + g() * (H - 20);
-    if (dirt && dirt.length)
-      drawImgDecal(dirt[Math.floor(g() * dirt.length)].img, x, y,
-                   80 + g() * 170, g() * 6.2832, 0.12 + busted * 0.30);
-    else stain(g, x, y, .5 + busted * .8);
-  }
+  // The old "preset-keyed grime" (busted seeds arrived dirty, keyed to seed A)
+  // lived here and is deliberately GONE: Peter's ruling is that damage depends
+  // on nothing but the time the unit has spent playing. wear + wearSeed only.
 }
 function sizePatina() {
   patCan.width = panel.offsetWidth;
