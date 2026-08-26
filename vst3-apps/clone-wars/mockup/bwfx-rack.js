@@ -374,7 +374,7 @@
     }
   ];
 
-  var VERSION = "1.4.0";
+  var VERSION = "1.5.0";
   var desc = DEFAULT_DESC;
   var charDesc = DEFAULT_CDESC;
   var presets = DEFAULT_PRESETS;
@@ -462,10 +462,12 @@
     " transition:border-color .15s,opacity .15s,transform .12s;",
     " box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 3px 10px rgba(0,0,0,.35);}",
     ".bwfx-mod.bwfx-dragging{opacity:.65;border-color:var(--bwfx-acc);transform:scale(.99)}",
-    ".bwfx-mod.bwfx-off{opacity:.62}",
-    ".bwfx-mod.bwfx-off .bwfx-name{color:#77828a}",
+    /* Off pedals stay clearly readable at normal screen contrast (Peter's
+       report): a light dim only — the rocker itself carries the off cue. */
+    ".bwfx-mod.bwfx-off{opacity:.85}",
+    ".bwfx-mod.bwfx-off .bwfx-name{color:#8b969e}",
     ".bwfx-mhead{display:flex;align-items:center;gap:7px;min-height:46px;padding:5px 7px}",
-    ".bwfx-grip{appearance:none;border:0;background:transparent;color:#5d6a72;cursor:grab;",
+    ".bwfx-grip{appearance:none;border:0;background:transparent;color:#8a97a1;cursor:grab;",
     " width:30px;align-self:stretch;border-radius:7px;font-size:18px;line-height:1;touch-action:none;}",
     ".bwfx-grip:active{cursor:grabbing;color:var(--bwfx-acc)}",
     ".bwfx-mtoggle{appearance:none;border:0;background:transparent;color:#dde5e9;font:inherit;text-align:left;",
@@ -520,10 +522,15 @@
     " box-shadow:0 1px 0 rgba(255,255,255,.10) inset,0 -2px 3px rgba(0,0,0,.85) inset,0 2px 7px rgba(0,0,0,.6);}",
     ".bwfx-rocker .bwfx-lens{display:block;width:100%;height:100%;border-radius:3px;position:relative;overflow:hidden;",
     " border:1px solid rgba(0,0,0,.9);",
-    " background:linear-gradient(180deg,rgba(255,255,255,.16),transparent 22%),",
+    " background:linear-gradient(180deg,rgba(255,255,255,.2),transparent 24%),",
     "  repeating-linear-gradient(90deg,rgba(0,0,0,.38) 0 1px,transparent 1px 4px),",
-    "  linear-gradient(180deg,#232628 0%,#121415 55%,#232628 100%);",
+    "  linear-gradient(180deg,#3a3f44 0%,#22262a 55%,#3a3f44 100%);",
     " box-shadow:0 2px 4px rgba(0,0,0,.85) inset;transition:box-shadow .2s;}",
+    /* a dim ember of the module colour keeps the OFF switch findable at
+       normal contrast — full illumination stays the ON cue */
+    ".bwfx-rocker .bwfx-lens::before{content:'';position:absolute;inset:0;opacity:.28;",
+    " background:radial-gradient(circle at 50% 44%,var(--fxc) 0 26%,transparent 68%);}",
+    ".bwfx-rocker[aria-pressed=true] .bwfx-lens::before{opacity:0}",
     ".bwfx-rocker .bwfx-lens::after{content:'';position:absolute;left:8%;right:8%;bottom:8%;height:24%;border-radius:3px;",
     " background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.02));border:1px solid rgba(0,0,0,.5);}",
     ".bwfx-rocker .bwfx-lens i{position:absolute;inset:0;opacity:0;transition:opacity .22s;",
@@ -1036,14 +1043,20 @@
     renderList();
   }
 
-  /* pointer drag-to-reorder on the grip */
+  /* Pointer drag-to-reorder on the grip. The move/up listeners live on the
+     DOCUMENT for the drag's duration: reparenting the pedal mid-drag
+     (insertBefore) silently RELEASES pointer capture in Chromium, so
+     grip-scoped listeners died after the first swap — the "drag does not
+     work" report from Black Rider. Capture is still requested (harmless
+     where it survives), but nothing depends on it any more. */
   function bindDrag(grip, mod, id) {
     grip.addEventListener("pointerdown", function (e) {
       e.preventDefault();
-      grip.setPointerCapture(e.pointerId);
+      try { grip.setPointerCapture(e.pointerId); } catch (err) {}
       mod.classList.add("bwfx-dragging");
       var moved = false;
       function onMove(ev) {
+        if (ev.buttons === 0) { onUp(); return; }   // released outside the window
         moved = true;
         var els = Array.prototype.slice.call(listEl.children);
         var target = null;
@@ -1058,8 +1071,9 @@
         }
       }
       function onUp() {
-        grip.removeEventListener("pointermove", onMove);
-        grip.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onUp);
         mod.classList.remove("bwfx-dragging");
         if (moved) {
           var order = Array.prototype.map.call(listEl.children, function (el) {
@@ -1070,8 +1084,9 @@
         }
         renderList();
       }
-      grip.addEventListener("pointermove", onMove);
-      grip.addEventListener("pointerup", onUp);
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onUp);
     });
   }
 

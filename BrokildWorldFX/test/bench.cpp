@@ -1029,6 +1029,42 @@ static void testSpectraPhaseB()
 }
 
 // ---------------------------------------------------------------------------
+// TUBE must hold its level across the whole DRIVE range at more than one
+// input level — the Mars Wars lesson, relearned live: the equal-power blend
+// summed correlated dry+wet to +3 dB at mid drive (Peter heard it).
+static void testTubeDriveNeutral()
+{
+    std::printf ("-- TUBE gain neutrality across DRIVE\n");
+    const double fs = 48000;
+    const int N = 120000;                  // 2.5 s: measure the SETTLED level
+    const int tTube = typeByName ("saturation");
+    std::vector<float> L (N), R (N);
+    for (int lvl = 0; lvl < 2; ++lvl)
+    {
+        const float amp = lvl == 0 ? 0.25f : 0.6f;
+        double refRms = 0;
+        double worst = 0;
+        for (int d = 0; d <= 24; d += 4)
+        {
+            Rack r;
+            r.prepare (fs, 512);
+            r.setEnabled (tTube, true);
+            r.setParam (tTube, 0, (float) d);
+            fillTone (L.data(), R.data(), N, fs, 220.0, amp);
+            renderRack (r, L.data(), R.data(), N);
+            double acc = 0;
+            for (int i = 72000; i < N; ++i) acc += (double) L[(size_t) i] * L[(size_t) i];
+            const double rmsV = std::sqrt (acc / (N - 72000));
+            if (d == 0) refRms = rmsV;
+            const double dB = 20.0 * std::log10 (rmsV / std::max (1e-12, refRms));
+            worst = std::max (worst, std::abs (dB));
+        }
+        std::printf ("   amp %.2f: worst deviation %.2f dB\n", (double) amp, worst);
+        CHECK (worst < 1.5, "TUBE drive not level-neutral at amp %.2f (%.2f dB)", (double) amp, worst);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // The built-in presets: every one must load through fromJson, render bounded,
 // deterministic and silence-preserving, and never change a rack it isn't
 // applied to (they are data, not code).
@@ -1067,6 +1103,23 @@ static void testPresets()
         const Stats sz = measure (zL.data(), zR.data(), N);
         CHECK (sz.peak < 1e-5f, "preset '%s' emits sound from silence (peak %g)",
                presetName (i), (double) sz.peak);
+    }
+
+    // presets must actually DO something: IRON WORKS arms black + enables
+    // strip (the live 260826.6 check caught params arriving without enables —
+    // never let a preset test pass on bounded+silence alone)
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        int idx = -1;
+        for (int i = 0; i < numPresets(); ++i)
+            if (std::string (presetName (i)) == "IRON WORKS") idx = i;
+        CHECK (idx >= 0, "IRON WORKS missing");
+        r.fromJson (presetBlob (idx));
+        CHECK (r.getCharArmed (charByName ("black")), "IRON WORKS does not arm black");
+        CHECK (r.getEnabled (typeByName ("strip")), "IRON WORKS does not enable strip");
+        CHECK (std::abs (r.getCharParam (charByName ("black"), 0) - 70.0f) < 1e-4f,
+               "IRON WORKS grind wrong");
     }
 
     // the pattern preset carries its KIERANATOR grid through the blob
@@ -1272,6 +1325,7 @@ int main (int argc, char** argv)
     testDisruptor();
     testSpectra();
     testSpectraPhaseB();
+    testTubeDriveNeutral();
     testPresets();
     testPresenceAndMorph();
     testReverbLive();

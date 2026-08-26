@@ -1,5 +1,34 @@
 # BWFX build — handover
 
+## STATUS 2026-08-27: BWFX 1.5.0 — SPECTRA PHASE C: EVERY SYNTH ON THE BUS
+
+Peter's go ("proceed with Phase B, cautiously" → his four decisions →
+"Phase C first"), plus three of his live reports fixed en route:
+
+- **Phase C**: Black Rider, Blade Ruiner, Escape Room and Photo-Synth 2
+  now map the world-mod bus (Clone Wars already did) — every SYNTH shows
+  the full live SPECTRA rack. Per-synth mapping notes and verification
+  status in BWFX-BUGLIST.md item 2c; the pattern is the Clone Wars one
+  (golden-angle fans, gate-keyed sag, wmActive guard, memcmp-proven
+  neutral bus — bench sections added to BR/BRD/ER; PS2 has no bench, its
+  neutral path is exact-identity arithmetic + live CDP).
+- **Mars Wars and Hairfryer are NOT synths** (Peter): no bus for them,
+  and their racks come OUT entirely in wave 2 — with the PS2 hard-cut
+  retirement of internal FX/SPECTRA and the FX-photo remap
+  (R→SPACE length, G→ECHO mix, B→TUBE drive). Decisions recorded in
+  BWFX-BUGLIST.md item 2-wave-2.
+- **Fixed from Peter's live reports**: overlay reorder drag (Chromium
+  silently releases pointer capture when the pedal is reparented
+  mid-drag — the move/up listeners now live on the document); off-state
+  legibility (dim module-colour ember in the OFF rocker lens, off-pedal
+  opacity 0.62→0.85); TUBE level neutrality (equal-power blend summed
+  correlated dry+wet to +3 dB at mid drive, and the static satComp only
+  held at its 0.3 calibration amplitude — now a linear blend plus a slow
+  MEASURED RMS auto-gain, worst settled deviation 0.84 dB across the
+  whole DRIVE range at two input levels; bench section added).
+- Fleet at 260826.5, Clone Wars 260826.7. BWFX bench 364 checks ALL
+  CLEAR; BR 6036, BRD and ER ALL CLEAR with new world-mod sections.
+
 ## STATUS 2026-08-27: BWFX 1.4.0 — SPECTRA PHASE B + BUILT-IN PRESETS
 
 Peter's go ("proceed with Phase B, cautiously") plus his mid-build rule:

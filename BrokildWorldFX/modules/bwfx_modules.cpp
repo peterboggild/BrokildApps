@@ -74,6 +74,7 @@ public:
         tone.init (getParam (1));
         comp = satComp (drive.current);
         lastCompDrive = drive.current;
+        agMsIn = agMsWet = 0.0; agGain = 1.0f;
 
         // Measure the oversampler round trip once so the dry branch can be
         // delayed to match — otherwise dry+wet comb at mid drive.
@@ -102,6 +103,7 @@ public:
         toneBq.reset();
         dryRing.fill (0.0f);
         ringW = 0;
+        agMsIn = agMsWet = 0.0; agGain = 1.0f;
     }
 
     void process (float* L, float* R, int n) override
@@ -114,9 +116,15 @@ public:
         toneBq.set (Biquad::lowpass, toneHz (t), 1.0, 0, fs);
 
         const float pre = (float) std::pow (10.0, d / 32.0);
-        float dryG, wetG;
-        mixLaw (d / 24.0f, dryG, wetG);
-        wetG *= comp;
+        /*  LINEAR blend, not the equal-power mixLaw: dry and wet here are the
+            SAME waveform (one saturated), i.e. fully correlated - cos/sin
+            weights sum to +3 dB at mid drive, which was the 'DRIVE raises
+            the volume' report. Correlated signals crossfade at equal
+            AMPLITUDE, so the level holds across the whole DRIVE range. */
+        const float m = clampf (d / 24.0f, 0.0f, 1.0f);
+        const float dryG = 1.0f - m;
+        const float wetG = m * comp;
+        double agAccIn = 0.0, agAccWet = 0.0;
 
         for (int i = 0; i < n; ++i)
         {
@@ -148,8 +156,23 @@ public:
 
             wl = toneBq.processL (satDC.processL (wl));
             wr = toneBq.processR (satDC.processR (wr));
-            L[i] = dl * dryG + wl * wetG;
-            R[i] = dr * dryG + wr * wetG;
+            agAccIn  += (double) dl * dl + (double) dr * dr;
+            agAccWet += (double) (wl * comp) * (wl * comp) + (double) (wr * comp) * (wr * comp);
+            L[i] = dl * dryG + wl * wetG * agGain;
+            R[i] = dr * dryG + wr * wetG * agGain;
+        }
+
+        // Measured auto-gain, the Mars Wars principle: a slow tracker of
+        // dry-in vs (comp-scaled) wet-out RMS corrects what a static comp
+        // cannot — saturation's level-dependence. ~400 ms, so no audible
+        // pumping; frozen in silence; clamped so it can never scream.
+        const double blockK = 1.0 - std::exp (-(double) n / (0.3 * fs));
+        agMsIn  += (agAccIn  / (double) n - agMsIn)  * blockK;
+        agMsWet += (agAccWet / (double) n - agMsWet) * blockK;
+        if (agMsIn > 1.0e-8 && agMsWet > 1.0e-8)
+        {
+            const float target = clampf ((float) std::sqrt (agMsIn / agMsWet), 0.5f, 2.5f);
+            agGain += (target - agGain) * (float) blockK;
         }
     }
 
@@ -161,6 +184,8 @@ private:
     Biquad satDC, toneBq;
     Smooth drive, tone;
     float comp = 1, lastCompDrive = -1;
+    double agMsIn = 0.0, agMsWet = 0.0;
+    float agGain = 1.0f;
     int osDelay = 0;
     std::array<float, 256> dryRing {};   // L in [0..127], R in [128..255]
     int ringW = 0;
