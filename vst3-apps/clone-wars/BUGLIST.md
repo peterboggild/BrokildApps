@@ -50,6 +50,25 @@ Reported 2026-08-26 (build 260825.16). DIAGNOSED - the fix is specified.
 - Test to add: render press A + B, release A, 50 ms later release B; Goertzel
   the release tail - energy must sit at A and B only, nothing in between.
 
+### 3. FEATURE: shift-drag selection rectangle for lock groups
+Requested 2026-08-26.
+- Shift-drag starting on empty panel (outside any control) draws a selection
+  rectangle; every per-clone control it sweeps joins its row's lock group -
+  rubber-band selection of any part of a row (or several rows at once).
+- Sketch: pointerdown with shiftKey where e.target is not a control and not
+  inside a hatch -> spawn an absolutely-positioned dashed marquee div on the
+  panel; on pointermove, resize it and hit-test every [data-row][data-ch]
+  control by getBoundingClientRect intersection (live highlight via the
+  existing .locked class preview); on pointerup, per ROW touched: add the
+  swept controls to lockSet(row), apply .locked, call refreshLockTools().
+  A rectangle spanning several rows locks each row as its own group - locks
+  stay per-row, consistent with the whole locking model.
+- No conflict with existing gestures: shift-click ON a control still toggles
+  that control's membership; the marquee only arms from empty deck. Sweep
+  over an already-locked control could REMOVE it (toggle semantics) or a
+  second modifier could unlock - decide while building, prefer: plain sweep
+  adds, sweep with ctrl held removes.
+
 ## Done
 
 (nothing yet — fixes land here with their build number)
