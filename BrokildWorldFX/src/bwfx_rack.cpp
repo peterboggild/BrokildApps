@@ -24,7 +24,7 @@ namespace
     }
 }
 
-const char* Rack::version() { return "1.3.0"; }
+const char* Rack::version() { return "1.4.0"; }
 
 // Parsed form of a state blob, defaults pre-filled.
 struct Rack::BlobState
@@ -90,10 +90,14 @@ void Rack::prepare (double fsr, int maxBlockSize)
     maxBlock = std::max (maxBlockSize, kSubBlock);
     for (int t = 0; t < nTypes; ++t)
         mods[(size_t) t]->prepare (fs, maxBlock);
+    for (int c = 0; c < nChars; ++c)
+        chars[(size_t) c]->prepare (fs, maxBlock);
     dryL.reset (new float[(size_t) maxBlock]);
     dryR.reset (new float[(size_t) maxBlock]);
     env.fill (0.0f);
     wasOff.fill (true);
+    charEnv.fill (0.0f);
+    charAudioOff.fill (true);
     dip = 1.0f;
     mixSm = mixIn.load (std::memory_order_relaxed);
     orderApplied = orderPacked.load (std::memory_order_relaxed);
@@ -104,6 +108,10 @@ void Rack::service()
 {
     for (int t = 0; t < nTypes; ++t)
         mods[(size_t) t]->service();
+    // characters are serviced armed or not, so a private reverb's IR is
+    // already built the moment the character is first armed
+    for (int c = 0; c < nChars; ++c)
+        chars[(size_t) c]->service();
 }
 
 // --- edits -----------------------------------------------------------------
@@ -276,6 +284,73 @@ float Rack::getPresence (int type) const
 void Rack::getOrder (int* types) const { unpackOrder (orderPacked.load (std::memory_order_relaxed), types); }
 float Rack::getMix() const { return mixIn.load (std::memory_order_relaxed); }
 
+// Audio characters run BEFORE the pedal chain: a character possesses the
+// synth itself, and the pedals then shape the possessed sound. Each armed
+// audio character is crossfaded in by its own presence envelope (same ramp
+// machinery as the modules), so presence 0 and unarmed are bit-transparent.
+void Rack::processCharacterAudio (float* L, float* R, int n)
+{
+    const uint32_t armed = charArmedBits.load (std::memory_order_relaxed);
+    bool any = false;
+    for (int c = 0; c < nChars; ++c)
+        if (chars[(size_t) c]->hasAudio()
+            && ((armed & (1u << c)) != 0 || charEnv[(size_t) c] > 1e-4f))
+            any = true;
+    if (! any) return;
+
+    const float coef = rampCoef (fs);
+    int done = 0;
+    while (done < n)
+    {
+        const int m = std::min (kSubBlock, n - done);
+        float* bl = L + done;
+        float* br = R + done;
+        for (int c = 0; c < nChars; ++c)
+        {
+            Character* ch = chars[(size_t) c].get();
+            if (! ch->hasAudio()) continue;
+            const bool on = (armed & (1u << c)) != 0;
+            const float target = on ? charPresenceIn[(size_t) c].load (std::memory_order_relaxed) : 0.0f;
+            float e = charEnv[(size_t) c];
+            if (target <= 1e-4f && e <= 1e-4f)
+            {
+                charEnv[(size_t) c] = 0.0f;
+                charAudioOff[(size_t) c] = true;
+                continue;
+            }
+            if (target > 1e-4f && charAudioOff[(size_t) c])
+            {
+                ch->resetAudio();                    // fresh buffers, no stale splice
+                charAudioOff[(size_t) c] = false;
+            }
+            float e1 = e + (target - e) * coef;
+            if (std::abs (e1 - target) < 5e-4f) e1 = target;
+            charEnv[(size_t) c] = e1;
+
+            const float ref = target > 0.05f ? e1 / target : e1 * 20.0f;
+            const float duck = clampf (ref, 0.0f, 1.0f);
+            if (e >= 1.0f && e1 >= 1.0f)
+            {
+                ch->processAudio (bl, br, m, duck);  // steady full: in place
+            }
+            else
+            {
+                float inL[kSubBlock], inR[kSubBlock];
+                std::memcpy (inL, bl, sizeof (float) * (size_t) m);
+                std::memcpy (inR, br, sizeof (float) * (size_t) m);
+                ch->processAudio (bl, br, m, duck);
+                for (int i = 0; i < m; ++i)
+                {
+                    const float g = e + (e1 - e) * ((float) (i + 1) / (float) m);
+                    bl[i] = inL[i] + (bl[i] - inL[i]) * g;
+                    br[i] = inR[i] + (br[i] - inR[i]) * g;
+                }
+            }
+        }
+        done += m;
+    }
+}
+
 // --- audio -----------------------------------------------------------------
 void Rack::process (float* L, float* R, int n)
 {
@@ -284,6 +359,7 @@ void Rack::process (float* L, float* R, int n)
     // SPECTRA tick FIRST: characters live on the bus, not in the chain, so
     // they must breathe even when no FX pedal is enabled.
     tickCharacters (n);
+    processCharacterAudio (L, R, std::min (n, maxBlock));
 
     const uint32_t en = enabledBits.load (std::memory_order_relaxed);
 
@@ -296,6 +372,17 @@ void Rack::process (float* L, float* R, int n)
         orderApplied = orderPacked.load (std::memory_order_relaxed);
         dip = 1.0f;
         mixSm = mixIn.load (std::memory_order_relaxed);
+        // a hot audio character must still meet the ceiling on this path
+        bool charLive = false;
+        for (int c = 0; c < nChars; ++c) charLive |= charEnv[(size_t) c] > 1e-4f;
+        if (charLive)
+            for (int i = 0; i < n; ++i)
+            {
+                const float al = std::abs (L[i]);
+                if (al > 0.98f) L[i] = (L[i] < 0 ? -1.0f : 1.0f) * (0.98f + 0.27f * std::tanh ((al - 0.98f) / 0.27f));
+                const float ar = std::abs (R[i]);
+                if (ar > 0.98f) R[i] = (R[i] < 0 ? -1.0f : 1.0f) * (0.98f + 0.27f * std::tanh ((ar - 0.98f) / 0.27f));
+            }
         return;
     }
 

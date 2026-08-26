@@ -11,22 +11,16 @@ the world rack: its modules, the overlay, the rack machinery, SPECTRA.)
 
 ## Open
 
-### 2. SPECTRA characters — phases B and C still open (phase A shipped 1.3.0)
-What ports and what does not: a PS2 SPECTRA = a host-control MACRO
-(snapshots/rewrites PS2's own knobs — CANNOT port, stays PS2-native) + a
-LIVE MODULATOR (per-tick det/pan/trem/sag + sometimes own FX — ports
-completely via the bus). A ported character sounds like THAT synth
-possessed, by design. Remaining phases:
-- **B. Remaining characters (a session).** Dark Drone, Pink, Black,
-  Glass — characters owning FX (Black's feedback/comb, Glass's colours)
-  carry that DSP privately inside their unit. All documented PS2 lessons
-  apply: voice-0 detune rule, sag keyed to GATE not amp env, spread must
-  not change the note, never noise inside a loop.
+### 2. SPECTRA characters — phase C still open (A shipped 1.3.0, B in 1.4.0)
+Remaining:
 - **C. The other six host mappings (hours each).** Five bus inputs per
   voice engine + bench additions per synth. PS2 LAST, with an open
   question flagged for Peter: it would then carry two spectra systems
   (native panel + world rack) — whether the native panel retires is a
-  separate per-synth decision, like native-FX retirement.
+  separate per-synth decision, like native-FX retirement. Note the bar
+  phase B set: audio characters (pink/black/glass) already work in every
+  host — phase C is only about the pure modulators (dark drone, tape,
+  insect) and the modulation half of pink/glass.
 
 ### 3. Manuals do not mention BWFX yet
 All seven PDF manuals predate the rack (deliberately skipped in the
@@ -35,6 +29,42 @@ section could be written once and dropped into each manual's pipeline;
 landing-page prose could carry one feature line each.
 
 ## Done
+
+### 2b. SPECTRA phase B + built-in presets — SHIPPED in BWFX 1.4.0
+The four remaining PS2 characters, split by what honestly ports (Peter's
+"cautiously" + "no change to functioning synths" + "presets built in"):
+- **DARK DRONE** (cluster/sag/drift/drift-time): pure bus modulator with
+  PS2's faithful drift law (tau 300*0.1^(v/100) s, OU walk, cutMul
+  2^(c*d*1.2), det d*10 c). The sub-oscillator did NOT port — no note on
+  the bus, and an audio-domain octaver on polyphonic material is mush;
+  skipping beat faking (documented in the handover).
+- **PSYCHEDELIC PINK** (swirl/smear/bloom): the three swirl LFOs
+  (x1/x0.618/x0.29) on the bus + a private phaser->chorus->reverse-reverb
+  wash. PS2's whole-image pan swing became a breathing width (the bus
+  carries spread, hosts fan it per voice).
+- **INDUSTRIAL BLACK** (grind/chop/clang): pure FX character — private
+  crusher->tube->stutter->tape-echo, PS2 gain discipline kept (satGain
+  law 10^(v/32) = 0.625*v dB), GRIT noise pinned 0 for silence-safety.
+  The comb filter stayed behind on purpose (PS2's self-oscillation spot).
+- **GLASS CATHEDRAL** (halo/shine): private hall + the 0.05 Hz ±2.2 c
+  breath. AIR (attack shaping) needs the host envelope — dropped rather
+  than left as a lying knob.
+Machinery: characters may own audio DSP (Character::hasAudio/prepare/
+resetAudio/processAudio/service) reusing the rack's own module classes
+privately (PrivateFx); the rack crossfades them by presence with the same
+env pattern as pedals, BEFORE the chain (possession first, pedals shape
+it). **Audio characters therefore work in EVERY host today** — the
+overlay shows them everywhere (per-character `audio` flag), pure
+modulators only where busLive. The additive contract held: unarmed =
+memcmp bit-identical, presence 0 = bit-transparent, silence-safe,
+deterministic, disarm click-bounded.
+**Built-in presets**: 10 curated sparse rack blobs in C++
+(numPresets/presetName/presetBlob, presetsJson; `bwfxtest --presets`
+generates the fragment's DEFAULT_PRESETS), applied through the new
+adapter op "blob" -> fromJson — the same tolerant path patches ride.
+PRESETS select in the overlay header. Bench 358 checks ALL CLEAR
+(every preset bounded + silence-safe, pattern preset round-trips its
+KIERANATOR grid); UI probe 16/16; cwtest ALL PASS.
 
 ### 2a. SPECTRA phase A — SHIPPED in BWFX 1.3.0
 The character rack is live: registry (Descriptor reused, kMaxChars 8),

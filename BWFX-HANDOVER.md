@@ -1,5 +1,41 @@
 # BWFX build — handover
 
+## STATUS 2026-08-27: BWFX 1.4.0 — SPECTRA PHASE B + BUILT-IN PRESETS
+
+Peter's go ("proceed with Phase B, cautiously") plus his mid-build rule:
+no change to the sound or performance of functioning synths, and presets
+built in. Both are structural, not promised: unarmed characters render
+memcmp-bit-identically and cost zero audio-thread CPU; presets are data
+applied through the same tolerant fromJson path patches ride.
+
+- Four characters: **DARK DRONE** (pure bus: cluster/sag + PS2's exact
+  drift law; the sub-oscillator deliberately did not port — no note on
+  the bus, an audio octaver would be mush), **PSYCHEDELIC PINK** (swirl
+  LFO trio on the bus + private phaser→chorus→reverse-reverb wash),
+  **INDUSTRIAL BLACK** (pure FX: crusher→tube→stutter→tape-echo, comb
+  left behind on purpose), **GLASS CATHEDRAL** (private hall + the
+  0.05 Hz breath; AIR dropped rather than faked).
+- New machinery: characters may OWN audio DSP (hasAudio/prepare/
+  resetAudio/processAudio/service) reusing the rack's module classes
+  privately; the rack crossfades them by presence before the pedal
+  chain. **Audio characters work in every host today** — the overlay
+  shows them everywhere (per-character `audio` flag in cdesc); pure
+  modulators appear only where busLive.
+- **10 built-in presets** (VELVET STAGE … POSSESSED CHOIR) in the C++
+  (numPresets/presetName/presetBlob), served to the overlay via the
+  state payload, applied with the new adapter op "blob". The fragment's
+  DEFAULT_CDESC and DEFAULT_PRESETS are GENERATED (`bwfxtest --cdesc` /
+  `--presets` + scratchpad/regen-cdesc.js) — never hand-typed.
+- Bench grew to 358 checks ALL CLEAR (phase B suite: bus laws measured,
+  audio chars additive/deterministic/silence-safe/presence-0-transparent/
+  disarm-click-bounded; every preset bounded + silence-safe + the
+  KIERANATOR pattern preset round-trips). UI probe 16/16. cwtest ALL
+  PASS. One bench lesson repeated itself: pink's slowest LFO (24.6 s
+  period) needs a full cycle in the test window or its lower half never
+  gets sampled — the vacuous-window trap again.
+- Fleet at 260826.4, Clone Wars 260826.6. Phase C (other six host
+  mappings) stays on BWFX-BUGLIST.md.
+
 ## STATUS 2026-08-26 night: BWFX 1.3.0 — ROTARY, KIERANATOR, SPECTRA PHASE A
 
 The three Fable-tier items from the buglist, in one wave (Fable 5 session):

@@ -138,6 +138,20 @@ public:
     virtual void reset() = 0;                            // audio thread safe
     virtual void tick (double dt, WorldMod& add) = 0;    // audio thread
 
+    // Characters that OWN audio DSP (Pink's wash, Black's grind chain,
+    // Glass's hall — reusing the rack's module classes privately) implement
+    // these; pure modulators keep the defaults. processAudio runs IN PLACE at
+    // full strength — the rack crossfades the result by the character's
+    // presence envelope, so presence 0 is bit-transparent by construction.
+    // Audio characters work in EVERY host (the rack's audio path needs no
+    // engine mapping); only the tick() half needs a bus-consuming host.
+    virtual bool hasAudio() const { return false; }
+    virtual void prepare (double /*fs*/, int /*maxBlock*/) {} // message thread; may allocate
+    virtual void resetAudio() {}                              // audio thread, no alloc
+    virtual void processAudio (float* /*L*/, float* /*R*/, int /*n*/,
+                               float /*duck*/) {}             // audio thread
+    virtual void service() {}                                 // message thread ~15 Hz
+
     void  setParam (int i, float v) { if (i >= 0 && i < kMaxParams) pv[(size_t) i].store (v, std::memory_order_relaxed); }
     float getParam (int i) const    { return (i >= 0 && i < kMaxParams) ? pv[(size_t) i].load (std::memory_order_relaxed) : 0.0f; }
 
@@ -150,6 +164,15 @@ int numCharacters();
 const Descriptor& characterDescriptor (int c);
 Character* createCharacter (int c);       // message thread; caller owns
 std::string characterJson();              // for the rack UI fragment
+
+// Built-in rack presets: curated named blobs shipped with the library,
+// [{name, blob:{...}}]. A preset is applied through Rack::fromJson — the
+// same tolerant path patches ride — so applying one can never express a
+// state a patch could not. Purely additive: nothing applies one on its own.
+std::string presetsJson();
+int numPresets();
+const char* presetName (int i);
+const char* presetBlob (int i);            // the sparse blob JSON, verbatim
 
 // ---------------------------------------------------------------------------
 // The rack: one instance of every registered module, reorderable, each with
@@ -263,6 +286,10 @@ private:
     std::array<std::atomic<float>, 6> busOut {};   // det,pan,tremD,tremR,sag,fmul
     std::atomic<bool> busConsumed { false };
     void tickCharacters (int nSamples);            // audio thread
+    // audio characters: per-character presence ramp, reset on rising edge
+    std::array<float, kMaxChars> charEnv {};
+    std::array<bool,  kMaxChars> charAudioOff {};
+    void processCharacterAudio (float* L, float* R, int n);  // audio thread
 
     // audio-thread state
     uint64_t orderApplied = 0;
