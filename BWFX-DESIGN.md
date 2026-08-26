@@ -12,7 +12,7 @@ COMPILED INTO every Brokild plugin. Not runtime DLLs, deliberately: Smart
 App Control blocks fresh DLL hashes per file, and patches must stay a
 promise on every machine.
 
-## The six load-bearing decisions
+## The seven load-bearing decisions
 
 1. ADDITIVE RACK. Each synth keeps its existing native FX untouched; the
    BWFX rack inserts as one extra stage (before the final limiter), DEFAULT
@@ -80,6 +80,23 @@ promise on every machine.
    update that redesigns or extends the rack panel reaches ALL synths on
    their next rebuild with zero per-synth work, exactly like the DSP does.
    Host synths never own any rack UI beyond the button.
+
+7. SPECTRA JOIN THE WORLD (Peter, 2026-08-26). The BWFX overlay is split:
+   **FX rack LEFT, SPECTRA rack RIGHT**, keeping Photo-Synth 2's enclosures,
+   names, rockers and the arm/STACK semantics (arm order layers, last-armed
+   wins, releasing unwinds). The photosynthesis word-play tie is noted and
+   waived - the faceplates are the value.
+   Technical truth a port must respect: a Spectra is (a) a host-control
+   MACRO (snapshots and rewrites Photo-Synth's own controls - sub, subOct,
+   envPitch...) and (b) a LIVE MODULATOR (per-tick detune/pan/trem/sag +
+   its own FX). Part (a) CANNOT port - control sets differ per synth and
+   stays a Photo-Synth-native specialty. BWFX Spectra are built on part (b)
+   via a FIXED world-modulation bus: ~five per-block outputs
+   { detuneCents, panSpread, tremolo, pitchSag, filterMul } that each host
+   synth maps onto its voice engine ONCE in its adapter (the fourth and
+   last integration call). Fixed bus size = new characters reach every
+   synth by rebuild alone, the standard BWFX contract. A ported character
+   sounds like THAT synth possessed, not like Photo-Synth pasted in.
 
 ## Patch-compatibility policy (Kemper / Quad Cortex style)
 
