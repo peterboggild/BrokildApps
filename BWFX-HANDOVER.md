@@ -11,8 +11,12 @@ below, before writing anything.
    it; Peter settled every point personally.
 2. `vst3-apps/clone-wars/HANDOVER.md` — coordination rules (main is truth,
    fetch before editing, build-id-in-four-places, CI cuts the zip, a phone
-   session exists), plus the build history .4–.16.
-3. `vst3-apps/clone-wars/BUGLIST.md` — items 1–3 are a small batch-fix pass
+   session exists), plus the build history .4–.16; local builds have since
+   reached .17 (the BUGLIST pass). The SITE ZIP is still .4 — nothing since
+   has been cut by workflow_dispatch; do not let that surprise you.
+3. `vst3-apps/clone-wars/BUGLIST.md` — UPDATE 2026-08-26: items 1–3 are DONE
+   (shipped 260825.17); their diagnoses under Done are worth skimming, the
+   entrain finding especially. Item 4 is the only open item. Original note: — items 1–3 are a small batch-fix pass
    (footage instant, phantom release note [diagnosed, fix specified],
    shift-drag marquee). If still Open when you start, do them FIRST as one
    Clone Wars build — they are an hour and independent of BWFX. Item 4 IS
@@ -27,7 +31,8 @@ below, before writing anything.
 ## Safety state (already done — do not redo)
 
 - All 7 synth trees in `C:\Users\peter\b\` have local git repos with a
-  "Pre-BWFX snapshot, 2026-08-26" commit. COMMIT AT EVERY WORKING STEP.
+  "Pre-BWFX snapshot, 2026-08-26" commit (CloneWars also has the .17
+  BUGLIST-pass commit). COMMIT AT EVERY WORKING STEP.
 - Off-machine tarball: `00 VSCODE/BrokildBackups/pre-bwfx-snapshot-2026-08-26.tar.gz`.
 - Clone Wars canonical source is `vst3-apps/clone-wars/plugin/` in THIS repo
   (pushed); `C:\Users\peter\b\CloneWars` is the build mirror — every change
