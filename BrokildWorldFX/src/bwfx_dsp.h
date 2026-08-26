@@ -41,7 +41,7 @@ struct Smooth
 // low/highpass, linear otherwise; peaking gain in dB.
 struct Biquad
 {
-    enum Type { lowpass = 0, highpass, bandpass, notch, allpass, peaking };
+    enum Type { lowpass = 0, highpass, bandpass, notch, allpass, peaking, lowShelf, highShelf };
     Type type = lowpass;
     double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
     double z1L = 0, z2L = 0, z1R = 0, z2R = 0;
@@ -103,6 +103,34 @@ struct Biquad
                 a0 = 1 + alpha / A; a1n = -2 * cw; a2n = 1 - alpha / A;
                 break;
             }
+            // RBJ cookbook shelves at S = 1 (the classic gentle slope). Q is
+            // ignored for these — a shelf's shape is set by S, not Q.
+            case lowShelf:
+            {
+                const double A = std::pow (10.0, gainDb / 40.0);
+                const double alpha = sw * 0.5 * 1.4142135623730951;
+                const double tsa = 2.0 * std::sqrt (A) * alpha;
+                b0n =      A * ((A + 1) - (A - 1) * cw + tsa);
+                b1n =  2 * A * ((A - 1) - (A + 1) * cw);
+                b2n =      A * ((A + 1) - (A - 1) * cw - tsa);
+                a0  =          (A + 1) + (A - 1) * cw + tsa;
+                a1n = -2 *     ((A - 1) + (A + 1) * cw);
+                a2n =          (A + 1) + (A - 1) * cw - tsa;
+                break;
+            }
+            case highShelf:
+            {
+                const double A = std::pow (10.0, gainDb / 40.0);
+                const double alpha = sw * 0.5 * 1.4142135623730951;
+                const double tsa = 2.0 * std::sqrt (A) * alpha;
+                b0n =      A * ((A + 1) + (A - 1) * cw + tsa);
+                b1n = -2 * A * ((A - 1) + (A + 1) * cw);
+                b2n =      A * ((A + 1) + (A - 1) * cw - tsa);
+                a0  =          (A + 1) - (A - 1) * cw + tsa;
+                a1n =  2 *     ((A - 1) - (A + 1) * cw);
+                a2n =          (A + 1) - (A - 1) * cw - tsa;
+                break;
+            }
         }
         b0 = b0n / a0; b1 = b1n / a0; b2 = b2n / a0;
         a1 = a1n / a0; a2 = a2n / a0;
@@ -111,6 +139,23 @@ struct Biquad
     inline float processL (float x) { const double y = b0 * x + z1L; z1L = b1 * x - a1 * y + z2L; z2L = b2 * x - a2 * y; return (float) y; }
     inline float processR (float x) { const double y = b0 * x + z1R; z1R = b1 * x - a1 * y + z2R; z2R = b2 * x - a2 * y; return (float) y; }
 };
+
+// ---------------------------------------------------------------------------
+// Host-tempo sync: seconds per note division. div indexes
+// FREE | 2/1 | 1/1 | 1/2 | 1/4 | 1/8 | 1/16 | 1/32, feel indexes
+// STRAIGHT | TRIPLET (x2/3) | DOTTED (x1.5). Returns 0 for FREE and for a
+// missing host clock — a module must then behave exactly as if set to FREE,
+// so a host with no transport never changes anyone's sound.
+inline double syncSeconds (int div, int feel, double bpm)
+{
+    if (div <= 0 || bpm <= 1.0 || bpm >= 999.0) return 0.0;
+    static const double beats[8] = { 0.0, 8.0, 4.0, 2.0, 1.0, 0.5, 0.25, 0.125 };
+    const double b = beats[div < 8 ? div : 7];
+    double s = b * 60.0 / bpm;
+    if (feel == 1) s *= 2.0 / 3.0;
+    else if (feel == 2) s *= 1.5;
+    return s;
+}
 
 // ---------------------------------------------------------------------------
 // 4-point Catmull-Rom read from a power-of-two ring buffer. A moving tap read

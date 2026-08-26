@@ -17,7 +17,10 @@
 namespace bwfx
 {
 
-constexpr int kMaxParams  = 8;    // per module
+constexpr int kMaxParams  = 16;   // per module (raised from 8 for STRIP's
+                                  // comp+EQ; state is keyed by id, so the
+                                  // arrays simply got roomier — old blobs
+                                  // round-trip unchanged, proven in the bench)
 constexpr int kMaxModules = 16;   // registry headroom (4-bit order packing)
 constexpr int kSubBlock   = 32;   // control-rate granularity in samples
 
@@ -81,6 +84,11 @@ public:
     // material's own). Modules without long memory ignore it.
     virtual void inputDuck (float) {}
 
+    // Host tempo, per sub-block (audio thread). Modules with a SYNC option
+    // read it; the rest ignore it. 0 or nonsense means "no host clock" —
+    // a module must then behave exactly as if it were set to FREE.
+    virtual void setTempo (double) {}
+
     // Plain stores; readable any time (UI/processor thread).
     void  setParam (int i, float v) { if (i >= 0 && i < kMaxParams) pv[(size_t) i].store (v, std::memory_order_relaxed); }
     float getParam (int i) const    { return (i >= 0 && i < kMaxParams) ? pv[(size_t) i].load (std::memory_order_relaxed) : 0.0f; }
@@ -116,6 +124,11 @@ public:
     void setParam   (int type, int p, float v);
     void setOrder   (const int* types, int count); // permutation of type ids
     void setMix     (float v);                     // 0 dry .. 1 full rack
+    // Host tempo for the synced modules. Hosts call this from processBlock
+    // with the playhead's BPM; harmless when a host offers none.
+    // (A later transport feed — bar position, for the GLITCHER — extends
+    // this; the BPM half is what the sync options need.)
+    void setBpm (double bpm) { bpmIn.store (bpm > 1.0 && bpm < 999.0 ? bpm : 0.0, std::memory_order_relaxed); }
     // PRESENCE: the per-module dry/wet the rack itself owns — the same scalar
     // that makes power toggles click-free, promoted to a stored, morphable
     // knob. 0 = the module is inert (bit-transparent), 1 = fully in.
@@ -159,6 +172,7 @@ private:
     std::atomic<uint64_t> orderPacked { 0 };       // 4 bits per slot
     std::atomic<uint32_t> enabledBits { 0 };
     std::atomic<float>    mixIn { 1.0f };
+    std::atomic<double>   bpmIn { 0.0 };           // 0 = no host clock
     std::array<std::atomic<float>, kMaxModules> presenceIn {};
 
     // audio-thread state

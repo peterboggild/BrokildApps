@@ -179,16 +179,23 @@ public:
     void prepare (double fsr, int) override
     {
         fs = fsr;
-        const int len = nextPow2 ((int) (fs * 1.6) + 8);
+        // 5 s of line: the free-run knob only reaches 900 ms, but a synced
+        // 2/1 is 4 s at 120 BPM. Longer divisions at slow tempos clamp to
+        // the line rather than wrapping.
+        const int len = nextPow2 ((int) (fs * 5.0) + 8);
         bufL.assign ((size_t) len, 0.0f);
         bufR.assign ((size_t) len, 0.0f);
         mask = len - 1;
+        maxSec = (float) ((double) (len - 4) / fs);
         mix.init (getParam (0));
         timeMs.init (getParam (1));
         fbAmt.init (getParam (2));
         offMs.init (getParam (3));
+        lastSyncMs = 0.0f;
         reset();
     }
+
+    void setTempo (double b) override { bpm = b; }
 
     void reset() override
     {
@@ -205,10 +212,30 @@ public:
     void process (float* L, float* R, int n) override
     {
         mix.set (getParam (0));
-        timeMs.set (getParam (1));
         fbAmt.set (getParam (2));
         offMs.set (getParam (3));
         const bool tape = getParam (4) > 0.5f;
+
+        // SYNC: the division drives the same TIME smoother the knob does, so
+        // there is no second code path. Engaging sync (or a big tempo jump)
+        // SNAPS the smoother onto the new time — gliding into it lands the
+        // first echo early, which is the Black Rider lesson.
+        const double syncSec = syncSeconds ((int) std::lround (getParam (5)),
+                                            (int) std::lround (getParam (6)), bpm);
+        if (syncSec > 0.0)
+        {
+            const float ms = (float) clampd (syncSec * 1000.0, 20.0, (double) maxSec * 1000.0);
+            if (lastSyncMs <= 0.0f || std::abs (ms - lastSyncMs) > lastSyncMs * 0.5f)
+                timeMs.init (ms);
+            timeMs.set (ms);
+            lastSyncMs = ms;
+        }
+        else
+        {
+            if (lastSyncMs > 0.0f) timeMs.init (getParam (1));   // back to FREE: snap to the knob
+            lastSyncMs = 0.0f;
+            timeMs.set (getParam (1));
+        }
 
         float dryG, wetG;
         mixLaw (mix.tick (fs, n, 0.05f) / 100.0f, dryG, wetG);
@@ -232,8 +259,8 @@ public:
             const float wow = wowDepth * (float) std::sin (wowPhase);
             wowPhase += wowStep; if (wowPhase > kTwoPi) wowPhase -= kTwoPi;
 
-            const float outL = catmullRead (bufL, mask, w, clampd ((double) t0 + wow, 0.0, 1.5) * fs);
-            const float outR = catmullRead (bufR, mask, w, clampd ((double) t1 + wow, 0.0, 1.5) * fs);
+            const float outL = catmullRead (bufL, mask, w, clampd ((double) t0 + wow, 0.0, (double) maxSec) * fs);
+            const float outR = catmullRead (bufR, mask, w, clampd ((double) t1 + wow, 0.0, (double) maxSec) * fs);
 
             float lpL = dampBq.processL (outL), lpR = dampBq.processR (outR);
             lpL = dhpBq.processL (lpL); lpR = dhpBq.processR (lpR);
@@ -260,6 +287,8 @@ private:
     double wowPhase = 0;
     Smooth mix, timeMs, fbAmt, offMs;
     float duckT = 1, duckCur = 1;
+    double bpm = 0;
+    float maxSec = 1.5f, lastSyncMs = 0;
 };
 
 //==============================================================================
@@ -494,11 +523,32 @@ public:
 
     void reset() override { lfoPhase = 0; }
 
+    void setTempo (double b) override { bpm = b; }
+
     void process (float* L, float* R, int n) override
     {
         amount.set (getParam (0));
-        rate.set (getParam (1));
         const float amt = amount.tick (fs, n, 0.03f) / 100.0f;
+
+        // SYNC: the division IS the chop period, so it drives the same RATE
+        // smoother the knob does (FREE / no host clock = the knob, exactly
+        // as before).
+        const double syncSec = syncSeconds ((int) std::lround (getParam (2)),
+                                            (int) std::lround (getParam (3)), bpm);
+        if (syncSec > 0.0)
+        {
+            const float dHz = (float) clampd (10.0 / syncSec, 1.0, 2000.0);   // param is v/10 Hz
+            if (lastSyncRate <= 0.0f || std::abs (dHz - lastSyncRate) > lastSyncRate * 0.5f)
+                rate.init (dHz);
+            rate.set (dHz);
+            lastSyncRate = dHz;
+        }
+        else
+        {
+            if (lastSyncRate > 0.0f) rate.init (getParam (1));
+            lastSyncRate = 0.0f;
+            rate.set (getParam (1));
+        }
         const float rateHz = rate.tick (fs, n, 0.05f) / 10.0f;
         const float base = 1.0f - amt;
         const double step = kTwoPi * rateHz / fs;
@@ -517,6 +567,459 @@ private:
     double fs = 48000;
     double lfoPhase = 0;
     Smooth amount, rate;
+    double bpm = 0;
+    float lastSyncRate = 0;
+};
+
+//==============================================================================
+// GRIT — the lofi stage from Photo-Synth 2: sample-rate crush, bit crush,
+// asymmetric dirt, hiss and crackle. Straight port of ps::Lofi. NOISE
+// defaults to 0 so a fresh GRIT is still silent in / silent out.
+class LofiGrit : public Module
+{
+public:
+    const Descriptor& desc() const override;
+
+    void prepare (double fsr, int) override { fs = fsr; reset(); }
+
+    void reset() override
+    {
+        crush = noise = dirt = 0;
+        holdL = holdR = holdAcc = 0;
+        crEnv = crVal = 0;
+        rng = 22222;
+    }
+
+    void process (float* L, float* R, int n) override
+    {
+        const double pCrush = getParam (0) / 100.0;
+        const double pNoise = getParam (1) / 100.0;
+        const double pDirt  = getParam (2) / 100.0;
+        const double aS = 1.0 - std::exp (-1.0 / (0.02 * fs));
+
+        for (int i = 0; i < n; ++i)
+        {
+            crush += (pCrush - crush) * aS;
+            noise += (pNoise - noise) * aS;
+            dirt  += (pDirt  - dirt)  * aS;
+            const double xl = L[i], xr = R[i];
+
+            const double hold = 1.0 + crush * crush * 38.0;
+            holdAcc += 1.0;
+            if (holdAcc >= hold) { holdAcc -= hold; holdL = xl; holdR = xr; }
+            const double wet = std::min (1.0, crush * 3.0);
+            double cl = xl + (holdL - xl) * wet;
+            double cr = xr + (holdR - xr) * wet;
+
+            if (crush > 0.01)
+            {
+                const double q = std::pow (2.0, 12.0 - crush * 8.0);
+                cl = std::round (cl * q) / q;
+                cr = std::round (cr * q) / q;
+            }
+            if (dirt > 0.01)
+            {
+                const double dk = 1.0 + dirt * 5.0, dn = 1.0 / std::tanh (dk);
+                cl += (std::tanh (cl * dk) * dn - cl) * dirt;
+                cr += (std::tanh (cr * dk) * dn - cr) * dirt;
+            }
+            if (noise > 0.002)
+            {
+                const double hiss = (rand01() * 2.0 - 1.0) * noise * 0.012;
+                if (rand01() < noise * 0.0006) { crEnv = 1.0; crVal = rand01() * 2.0 - 1.0; }
+                crEnv *= 0.994;
+                const double bed = hiss + crVal * crEnv * noise * 0.35;
+                cl += bed; cr += bed;
+            }
+            L[i] = (float) cl; R[i] = (float) cr;
+        }
+    }
+
+private:
+    double rand01() { rng = 1664525u * rng + 1013904223u; return rng / 4294967296.0; }
+    double fs = 48000;
+    double crush = 0, noise = 0, dirt = 0;
+    double holdL = 0, holdR = 0, holdAcc = 0, crEnv = 0, crVal = 0;
+    uint32_t rng = 22222;
+};
+
+//==============================================================================
+// STRIP — the channel strip: Hairfryer's compressor (soft knee, two-stage
+// gain smoothing — a fast stage catches, a slow one breathes, which is what
+// reads as analogue) followed by a five-band musical EQ. One AMOUNT macro
+// opens both threshold and ratio, the studio move.
+class Strip : public Module
+{
+public:
+    const Descriptor& desc() const override;
+
+    void prepare (double fsr, int) override
+    {
+        fs = fsr;
+        for (auto& g : lastGain) g = -999.0f;
+        reset();
+    }
+
+    void reset() override
+    {
+        det = 0; g1 = 0; g2 = 0; autoMk = 0;
+        for (auto& b : eq) b.reset();
+    }
+
+    void process (float* L, float* R, int n) override
+    {
+        const float amount = clampf (getParam (0) / 100.0f, 0.0f, 1.0f);
+        const float thrDb = -2.0f - 30.0f * amount;
+        const float ratio = 1.5f + 5.5f * amount;
+        constexpr float knee = 6.0f;
+        const float aAtt = 1.0f - std::exp ((float) (-1.0 / (0.001 * std::max (0.5, (double) getParam (1)) * fs)));
+        const float aRel = 1.0f - std::exp ((float) (-1.0 / (0.001 * std::max (5.0, (double) getParam (2)) * fs)));
+        const float aDet = 1.0f - std::exp ((float) (-1.0 / (0.002 * fs)));
+
+        static const double freq[5] = { 80.0, 250.0, 1000.0, 3500.0, 10000.0 };
+        static const Biquad::Type kind[5] = { Biquad::lowShelf, Biquad::peaking,
+                                              Biquad::peaking, Biquad::peaking, Biquad::highShelf };
+        for (int b = 0; b < 5; ++b)
+        {
+            const float g = getParam (3 + b);
+            if (std::abs (g - lastGain[(size_t) b]) > 1e-4f)
+            {
+                eq[(size_t) b].set (kind[b], freq[b], 0.9, g, fs);
+                lastGain[(size_t) b] = g;
+            }
+        }
+        const float outG = std::pow (10.0f, getParam (8) / 20.0f);
+
+        for (int i = 0; i < n; ++i)
+        {
+            float l = L[i], r = R[i];
+
+            const float mag = std::max (std::abs (l), std::abs (r));
+            det += (mag - det) * aDet;
+            const float lvl = 20.0f * std::log10 (det + 1.0e-6f);
+            float grDb = 0.0f;
+            const float over = lvl - thrDb;
+            if (over > -knee * 0.5f)
+            {
+                if (over < knee * 0.5f)
+                {
+                    const float t = over + knee * 0.5f;
+                    grDb = (1.0f / ratio - 1.0f) * t * t / (2.0f * knee);
+                }
+                else grDb = (1.0f / ratio - 1.0f) * over;
+            }
+            g1 += (grDb - g1) * (grDb < g1 ? aAtt : aRel);
+            g2 += (g1 - g2) * 0.12f;
+            autoMk += (-g2 * 0.8f - autoMk) * 0.0005f;
+            const float cg = std::pow (10.0f, (g2 + autoMk) / 20.0f);
+            l *= cg; r *= cg;
+
+            for (int b = 0; b < 5; ++b) { l = eq[(size_t) b].processL (l); r = eq[(size_t) b].processR (r); }
+
+            L[i] = l * outG; R[i] = r * outG;
+        }
+    }
+
+private:
+    double fs = 48000;
+    float det = 0, g1 = 0, g2 = 0, autoMk = 0;
+    std::array<Biquad, 5> eq;
+    std::array<float, 5> lastGain { -999.0f, -999.0f, -999.0f, -999.0f, -999.0f };
+};
+
+//==============================================================================
+// SHIMMER — Blade Ruiner's eight-line FDN behind four diffusing allpasses,
+// with an octave-up copy of the tail folded back INTO the loop. That is the
+// reverb a convolver cannot be: the sheen is generated by the feedback, not
+// stored in an impulse. Ported with its runaway lesson — a soft ceiling sits
+// in the loop unconditionally.
+namespace
+{
+    struct RvDelay
+    {
+        std::vector<float> buf;
+        int w = 0, mask = 0;
+        void init (int nn)
+        {
+            int p = 8; while (p < nn) p <<= 1;
+            buf.assign ((size_t) p, 0.0f); mask = p - 1; w = 0;
+        }
+        void push (float x) { buf[(size_t) w] = x; w = (w + 1) & mask; }
+        float read (float d) const
+        {
+            const float len = (float) (mask + 1);
+            float rp = (float) w - std::min (std::max (d, 1.0f), len - 2.0f);
+            while (rp < 0.0f) rp += len;
+            const int i0 = (int) rp;
+            const float f = rp - (float) i0;
+            return buf[(size_t) (i0 & mask)] * (1.0f - f) + buf[(size_t) ((i0 + 1) & mask)] * f;
+        }
+        void clear() { std::fill (buf.begin(), buf.end(), 0.0f); w = 0; }
+    };
+
+    struct RvOnePole
+    {
+        float z = 0, a = 0.1f;
+        void setHz (float hz, double sr) { a = 1.0f - std::exp (-6.2831853f * clampf (hz, 1.0f, (float) sr * 0.45f) / (float) sr); }
+        float lp (float x) { z += (x - z) * a; return z; }
+        float hp (float x) { return x - lp (x); }
+        void clear() { z = 0; }
+    };
+
+    // Reads its own line at twice the rate through two crossfaded windows:
+    // an octave up with a soft seam rather than a chirp.
+    struct RvOctaveUp
+    {
+        RvDelay d;
+        float ph = 0, win = 2400.0f;
+        void prepare (double sr)
+        {
+            win = (float) sr * 0.05f;
+            d.init ((int) win * 2 + 8);
+            ph = 0;
+        }
+        float tick (float x)
+        {
+            d.push (x);
+            ph += 1.0f;
+            if (ph >= win) ph -= win;
+            float p2 = ph + win * 0.5f;
+            if (p2 >= win) p2 -= win;
+            const float w1 = 0.5f - 0.5f * std::cos (6.2831853f * ph / win);
+            const float w2 = 0.5f - 0.5f * std::cos (6.2831853f * p2 / win);
+            return d.read (win - ph) * w1 + d.read (win - p2) * w2;
+        }
+        void clear() { d.clear(); ph = 0; }
+    };
+
+    // transparent below 0.7, asymptotic above — the feedback never runs away
+    inline float ceilSoft (float x)
+    {
+        const float a = std::abs (x);
+        if (a <= 0.7f) return x;
+        const float y = 0.7f + 0.3f * std::tanh ((a - 0.7f) / 0.3f);
+        return x < 0 ? -y : y;
+    }
+}
+
+class Shimmer : public Module
+{
+public:
+    const Descriptor& desc() const override;
+
+    void prepare (double fsr, int) override
+    {
+        fs = fsr;
+        srScale = (float) fs / 44100.0f;
+        for (int i = 0; i < N; ++i)
+        {
+            len[i] = baseLen[i] * srScale;
+            line[i].init ((int) (len[i] * 3.0f) + 64);
+        }
+        for (int i = 0; i < 4; ++i) ap[i].init ((int) (apLen[i] * srScale) + 64);
+        oct.prepare (fs);
+        shHp.setHz (300.0f, fs);
+        mix.init (getParam (0));
+        reset();
+    }
+
+    void reset() override
+    {
+        for (auto& l : line) l.clear();
+        for (auto& a : ap) a.clear();
+        for (auto& d : damp) d.clear();
+        oct.clear();
+        shHp.clear();
+        duckCur = 0;
+    }
+
+    void inputDuck (float g) override { duckT = g; }
+
+    void process (float* L, float* R, int n) override
+    {
+        mix.set (getParam (0));
+        float dryG, wetG;
+        mixLaw (mix.tick (fs, n, 0.05f) / 100.0f, dryG, wetG);
+
+        const float size01  = clampf (getParam (1) / 100.0f, 0.0f, 1.0f);
+        const float decay01 = clampf (getParam (2) / 100.0f, 0.0f, 1.0f);
+        const float shAmt   = clampf (getParam (3) / 100.0f, 0.0f, 1.0f);
+        const float toneHz  = 1500.0f * std::pow (8.0f, clampf (getParam (4) / 100.0f, 0.0f, 1.0f));
+
+        const float sc = (0.55f + 1.30f * size01) * srScale;
+        for (int i = 0; i < N; ++i)
+        {
+            len[i] = baseLen[i] * sc;
+            damp[i].setHz (toneHz, fs);
+        }
+        const float fb = 0.62f + 0.325f * decay01;
+        const float dcoef = 1.0f - std::exp ((float) (-1.0 / (0.003 * fs)));
+
+        for (int i = 0; i < n; ++i)
+        {
+            duckCur += (duckT - duckCur) * dcoef;
+            const float in = (L[i] + R[i]) * 0.5f * duckCur;
+
+            float x = in;
+            for (int a = 0; a < 4; ++a)
+            {
+                const float dl = ap[a].read (apLen[a] * srScale);
+                const float v  = x - 0.62f * dl;
+                ap[a].push (v);
+                x = dl + 0.62f * v;
+            }
+
+            float y[N];
+            for (int k = 0; k < N; ++k) y[k] = damp[k].lp (line[k].read (len[k]));
+
+            // Hadamard-8, three butterfly stages
+            float t[N];
+            for (int k = 0; k < 4; ++k) { t[k] = y[k] + y[k + 4]; t[k + 4] = y[k] - y[k + 4]; }
+            for (int b = 0; b < 8; b += 4)
+                for (int k = 0; k < 2; ++k)
+                { const float a1 = t[b + k], c = t[b + k + 2]; t[b + k] = a1 + c; t[b + k + 2] = a1 - c; }
+            for (int b = 0; b < 8; b += 2)
+            { const float a1 = t[b], c = t[b + 1]; t[b] = a1 + c; t[b + 1] = a1 - c; }
+            for (int k = 0; k < N; ++k) t[k] *= 0.35355339f;      // 1/sqrt(8)
+
+            float sh = 0.0f;
+            if (shAmt > 0.001f)
+                sh = shHp.hp (oct.tick ((y[0] + y[3]) * 0.5f)) * shAmt;
+
+            for (int k = 0; k < N; ++k)
+                line[k].push (ceilSoft (x + sh + fb * t[k]));
+
+            const float wl = (y[0] + y[2] + y[4] + y[6]) * 0.34f;
+            const float wr = (y[1] + y[3] + y[5] + y[7]) * 0.34f;
+            L[i] = L[i] * dryG + wl * wetG;
+            R[i] = R[i] * dryG + wr * wetG;
+        }
+    }
+
+private:
+    static constexpr int N = 8;
+    double fs = 48000;
+    float srScale = 1.0f;
+    RvDelay line[N], ap[4];
+    RvOnePole damp[N], shHp;
+    RvOctaveUp oct;
+    float apLen[4] { 142.0f, 379.0f, 107.0f, 277.0f };
+    float baseLen[N] { 1116.0f, 1188.0f, 1277.0f, 1356.0f, 1422.0f, 1491.0f, 1557.0f, 1617.0f };
+    float len[N] {};
+    Smooth mix;
+    float duckT = 1, duckCur = 1;
+};
+
+//==============================================================================
+// HARMONIC — one modulation pedal, three modes. HARMONIC is the brownface
+// trick: split the band at 800 Hz and tremolo the halves in OPPOSITE phase,
+// which is where the swirl lives (a plain tremolo cannot do it). TREM is the
+// straight amplitude wobble; VIBRATO is true pitch through a modulated line.
+class HarmTrem : public Module
+{
+public:
+    const Descriptor& desc() const override;
+
+    void prepare (double fsr, int) override
+    {
+        fs = fsr;
+        const int len = nextPow2 ((int) (fs * 0.05) + 8);
+        vbL.assign ((size_t) len, 0.0f);
+        vbR.assign ((size_t) len, 0.0f);
+        mask = len - 1;
+        split.set (Biquad::lowpass, 800.0, 0.0, 0, fs);
+        rate.init (getParam (1));
+        depth.init (getParam (2));
+        mix.init (getParam (5));
+        lastSyncRate = 0;
+        reset();
+    }
+
+    void reset() override
+    {
+        std::fill (vbL.begin(), vbL.end(), 0.0f);
+        std::fill (vbR.begin(), vbR.end(), 0.0f);
+        w = 0;
+        split.reset();
+        lfoPhase = 0;
+    }
+
+    void setTempo (double b) override { bpm = b; }
+
+    void process (float* L, float* R, int n) override
+    {
+        const int mode = (int) std::lround (getParam (0));
+        depth.set (getParam (2));
+        mix.set (getParam (5));
+
+        // SYNC: the division is one full LFO cycle.
+        const double syncSec = syncSeconds ((int) std::lround (getParam (3)),
+                                            (int) std::lround (getParam (4)), bpm);
+        if (syncSec > 0.0)
+        {
+            const float cHz = (float) clampd (100.0 / syncSec, 5.0, 2000.0);   // param is v/100 Hz
+            if (lastSyncRate <= 0.0f || std::abs (cHz - lastSyncRate) > lastSyncRate * 0.5f)
+                rate.init (cHz);
+            rate.set (cHz);
+            lastSyncRate = cHz;
+        }
+        else
+        {
+            if (lastSyncRate > 0.0f) rate.init (getParam (1));
+            lastSyncRate = 0.0f;
+            rate.set (getParam (1));
+        }
+
+        const float rateHz = rate.tick (fs, n, 0.05f) / 100.0f;
+        const float d = clampf (depth.tick (fs, n, 0.05f) / 100.0f, 0.0f, 1.0f);
+        float dryG, wetG;
+        mixLaw (mix.tick (fs, n, 0.05f) / 100.0f, dryG, wetG);
+        const double step = kTwoPi * rateHz / fs;
+        const double vibMax = 0.004 * fs;          // +-4 ms of pitch wobble
+
+        for (int i = 0; i < n; ++i)
+        {
+            const float s = (float) std::sin (lfoPhase);
+            lfoPhase += step; if (lfoPhase > kTwoPi) lfoPhase -= kTwoPi;
+
+            float wl, wr;
+            if (mode == 2)                          // VIBRATO
+            {
+                vbL[(size_t) (w & mask)] = L[i];
+                vbR[(size_t) (w & mask)] = R[i];
+                const double dl = vibMax * (1.0 + (double) d * s) + 4.0;
+                wl = catmullRead (vbL, mask, w, dl);
+                wr = catmullRead (vbR, mask, w, dl);
+                ++w;
+            }
+            else if (mode == 1)                     // TREM
+            {
+                const float g = 1.0f - d * 0.5f * (1.0f - s);
+                wl = L[i] * g; wr = R[i] * g;
+            }
+            else                                    // HARMONIC
+            {
+                const float gLo = 1.0f - d * 0.5f * (1.0f - s);
+                const float gHi = 1.0f - d * 0.5f * (1.0f + s);   // opposite phase
+                const float loL = split.processL (L[i]);
+                const float loR = split.processR (R[i]);
+                wl = loL * gLo + (L[i] - loL) * gHi;
+                wr = loR * gLo + (R[i] - loR) * gHi;
+            }
+            L[i] = L[i] * dryG + wl * wetG;
+            R[i] = R[i] * dryG + wr * wetG;
+        }
+        if (w > (1 << 30)) w -= (1 << 29);
+    }
+
+private:
+    double fs = 48000;
+    std::vector<float> vbL, vbR;
+    int mask = 0, w = 0;
+    Biquad split;
+    double lfoPhase = 0, bpm = 0;
+    Smooth rate, depth, mix;
+    float lastSyncRate = 0;
 };
 
 //==============================================================================
@@ -538,9 +1041,16 @@ namespace
         { "rate",  "RATE",  45,  5,   300, 0, "cHz", nullptr },
         { "depth", "DEPTH", 55,  0,   100, 0, "%",   nullptr },
     };
+    // Shared sync vocabulary (item 1). FREE is index 0 and the default
+    // everywhere, so adding these changed nobody's sound.
+    constexpr const char* SYNC_CHOICES = "FREE|2/1|1/1|1/2|1/4|1/8|1/16|1/32";
+    constexpr const char* FEEL_CHOICES = "STRAIGHT|TRIPLET|DOTTED";
+
     const ParamDesc STUTTER_PARAMS[] = {
         { "amount", "AMOUNT", 50, 0,  100, 0, "%",   nullptr },
         { "rate",   "RATE",   80, 10, 160, 0, "dHz", nullptr },
+        { "sync",   "SYNC",   0,  0,  7,   1, "",    SYNC_CHOICES },
+        { "feel",   "FEEL",   0,  0,  2,   1, "",    FEEL_CHOICES },
     };
     const ParamDesc DELAY_PARAMS[] = {
         { "mix",       "MIX",       25,  0,    100, 0, "%",  nullptr },
@@ -548,6 +1058,39 @@ namespace
         { "feedback",  "FEEDBACK",  34,  0,    112, 0, "%",  nullptr },
         { "offset",    "OFFSET",    0,   -250, 250, 5, "ms", nullptr },
         { "character", "CHARACTER", 0,   0,    1,   1, "",   "CLEAN|TAPE" },
+        { "sync",      "SYNC",      0,   0,    7,   1, "",   SYNC_CHOICES },
+        { "feel",      "FEEL",      0,   0,    2,   1, "",   FEEL_CHOICES },
+    };
+    const ParamDesc LOFI_PARAMS[] = {
+        { "crush", "CRUSH", 25, 0, 100, 0, "%", nullptr },
+        { "noise", "NOISE", 0,  0, 100, 0, "%", nullptr },
+        { "dirt",  "DIRT",  30, 0, 100, 0, "%", nullptr },
+    };
+    const ParamDesc STRIP_PARAMS[] = {
+        { "amount",  "COMP",    35,  0,   100, 0, "%",  nullptr },
+        { "attack",  "ATTACK",  12,  1,   100, 0, "ms", nullptr },
+        { "release", "RELEASE", 180, 20,  800, 0, "ms", nullptr },
+        { "low",     "80 HZ",   0,   -12, 12,  0, "dB", nullptr },
+        { "lomid",   "250 HZ",  0,   -12, 12,  0, "dB", nullptr },
+        { "mid",     "1 KHZ",   0,   -12, 12,  0, "dB", nullptr },
+        { "himid",   "3.5 KHZ", 0,   -12, 12,  0, "dB", nullptr },
+        { "high",    "10 KHZ",  0,   -12, 12,  0, "dB", nullptr },
+        { "output",  "OUTPUT",  0,   -12, 12,  0, "dB", nullptr },
+    };
+    const ParamDesc SHIMMER_PARAMS[] = {
+        { "mix",     "MIX",     30, 0, 100, 0, "%", nullptr },
+        { "size",    "SIZE",    55, 0, 100, 0, "%", nullptr },
+        { "decay",   "DECAY",   60, 0, 100, 0, "%", nullptr },
+        { "shimmer", "SHIMMER", 45, 0, 100, 0, "%", nullptr },
+        { "tone",    "TONE",    55, 0, 100, 0, "%", nullptr },
+    };
+    const ParamDesc TREM_PARAMS[] = {
+        { "mode",  "MODE",  0,   0, 2,    1, "",    "HARMONIC|TREM|VIBRATO" },
+        { "rate",  "RATE",  400, 5, 2000, 0, "cHz", nullptr },
+        { "depth", "DEPTH", 55,  0, 100,  0, "%",   nullptr },
+        { "sync",  "SYNC",  0,   0, 7,    1, "",    SYNC_CHOICES },
+        { "feel",  "FEEL",  0,   0, 2,    1, "",    FEEL_CHOICES },
+        { "mix",   "MIX",   100, 0, 100,  0, "%",   nullptr },
     };
     const ParamDesc REVERB_PARAMS[] = {
         { "mix",       "MIX",       25,  0,  100, 0, "%",  nullptr },
@@ -559,9 +1102,13 @@ namespace
         { "saturation", "TUBE",     "asymmetric valve saturation", 1, TUBE_PARAMS,    2 },
         { "phaser",     "SWEEP",    "vintage 4-stage phaser",      1, PHASER_PARAMS,  3 },
         { "chorus",     "ENSEMBLE", "dual-line chorus",            1, CHORUS_PARAMS,  3 },
-        { "stutter",    "GATE",     "rhythmic stutter gate",       1, STUTTER_PARAMS, 2 },
-        { "delay",      "ECHO",     "stereo tape echo",            1, DELAY_PARAMS,   5 },
+        { "trem",       "HARMONIC", "harmonic tremolo & vibrato",  1, TREM_PARAMS,    6 },
+        { "stutter",    "GATE",     "rhythmic stutter gate",       1, STUTTER_PARAMS, 4 },
+        { "lofi",       "GRIT",     "sample crusher and dirt",     1, LOFI_PARAMS,    3 },
+        { "strip",      "STRIP",    "compressor and 5-band EQ",    1, STRIP_PARAMS,   9 },
+        { "delay",      "ECHO",     "stereo tape echo",            1, DELAY_PARAMS,   7 },
         { "reverb",     "SPACE",    "stereo convolution space",    1, REVERB_PARAMS,  3 },
+        { "shimmer",    "SHIMMER",  "octave-up cathedral",         1, SHIMMER_PARAMS, 5 },
     };
     constexpr int kNumTypes = (int) (sizeof (DESCS) / sizeof (DESCS[0]));
 }
@@ -569,9 +1116,13 @@ namespace
 const Descriptor& TubeSat::desc() const     { return DESCS[0]; }
 const Descriptor& PhaserFx::desc() const    { return DESCS[1]; }
 const Descriptor& ChorusFx::desc() const    { return DESCS[2]; }
-const Descriptor& StutterGate::desc() const { return DESCS[3]; }
-const Descriptor& EchoDelay::desc() const   { return DESCS[4]; }
-const Descriptor& ConvReverb::desc() const  { return DESCS[5]; }
+const Descriptor& HarmTrem::desc() const    { return DESCS[3]; }
+const Descriptor& StutterGate::desc() const { return DESCS[4]; }
+const Descriptor& LofiGrit::desc() const    { return DESCS[5]; }
+const Descriptor& Strip::desc() const       { return DESCS[6]; }
+const Descriptor& EchoDelay::desc() const   { return DESCS[7]; }
+const Descriptor& ConvReverb::desc() const  { return DESCS[8]; }
+const Descriptor& Shimmer::desc() const     { return DESCS[9]; }
 
 int numModuleTypes() { return kNumTypes; }
 
@@ -588,9 +1139,13 @@ Module* createModule (int type)
         case 0: m = new TubeSat(); break;
         case 1: m = new PhaserFx(); break;
         case 2: m = new ChorusFx(); break;
-        case 3: m = new StutterGate(); break;
-        case 4: m = new EchoDelay(); break;
-        case 5: m = new ConvReverb(); break;
+        case 3: m = new HarmTrem(); break;
+        case 4: m = new StutterGate(); break;
+        case 5: m = new LofiGrit(); break;
+        case 6: m = new Strip(); break;
+        case 7: m = new EchoDelay(); break;
+        case 8: m = new ConvReverb(); break;
+        case 9: m = new Shimmer(); break;
         default: return nullptr;
     }
     const Descriptor& d = m->desc();
