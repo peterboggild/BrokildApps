@@ -11,26 +11,6 @@ the world rack: its modules, the overlay, the rack machinery, SPECTRA.)
 
 ## Open
 
-### 1. FEATURE: host-tempo sync for ECHO and GATE (Peter, 2026-08-26)
-Both modules gain two choice params, defaults = legacy sound:
-- `sync`: FREE | 2/1 | 1/1 | 1/2 | 1/4 | 1/8 | 1/16 | 1/32 (default FREE)
-- `feel`: STRAIGHT | TRIPLET | DOTTED (default STRAIGHT; T = x2/3, D = x1.5)
-When sync != FREE, ECHO's TIME and GATE's RATE follow the division against
-the host clock (ECHO: seconds per division, clamped into the 1.5 s buffer —
-2/1 at slow tempos must clamp, not wrap; GATE: division -> Hz).
-Engineering notes (the Black Rider lessons apply verbatim):
-- The rack does not receive the host clock yet: add `Rack::setBpm(double)`
-  (atomic, read at sub-block rate) and one `bwfxRack.setBpm(...)` line per
-  host adapter from its playhead (five of seven already fetch BPM for their
-  own sync; Escape Room and Hairfryer need the three playhead lines added).
-- A synced delay must initialise its time-smoother ON the synced value when
-  sync engages or the tempo jumps — otherwise the first echo lands early
-  mid-glide. Tempo CHANGES glide through the existing smoother (tape-style
-  pitch bend on the tail, as the tape character should).
-- Bench: Goertzel proof that a synced echo lands on the grid at a known BPM,
-  a tempo-step render stays inside the click bound, FREE renders
-  bit-identical to today's module (the Kemper rule, proven not assumed).
-
 ### 2. SPECTRA characters — the plan (design decision 7; planned 2026-08-26)
 The overlay's right half is a placeholder; the world-mod bus
 {detuneCents, panSpread, tremolo, pitchSag, filterMul} exists and is
@@ -66,6 +46,10 @@ section could be written once and dropped into each manual's pipeline;
 landing-page prose could carry one feature line each.
 
 ### 4. FEATURE: founding set 2 — Peter's selection (2026-08-26)
+STATUS: four of five SHIPPED in BWFX 1.2.0 (LOFI/GRIT, STRIP, SHIMMER,
+HARMONIC TREM/VIBRATO). **ROTARY is the one still open** — deliberately
+left for a Fable session: it is the only from-scratch DSP in the set and
+the feel of the inertia is taste plus measurement, not recipe.
 Five new modules, chosen by Peter from the survey. Capacity: order packing
 holds 16 modules; 6 + 5 = 11, fine. ONE machinery prerequisite: a comp+EQ
 module needs ~10 params, so raise bwfx kMaxParams (8 -> 16). Safe: the
@@ -134,4 +118,26 @@ bounded. Estimate ~2 sessions including the machinery.
 
 ## Done
 
-(nothing yet — the founding rollout itself is logged in BWFX-HANDOVER.md)
+### 1. Host-tempo sync — SHIPPED in BWFX 1.2.0
+SYNC (FREE|2/1..1/32) + FEEL (STRAIGHT|TRIPLET|DOTTED) on ECHO, GATE and
+the new HARMONIC. Drives the SAME smoother the knob does — no second code
+path. Engaging sync or a big tempo jump SNAPS the smoother (gliding in
+lands the first echo early, the Black Rider lesson); tempo changes glide,
+which is the tape bend you want. ECHO buffer grew to 5 s so 2/1 is real at
+normal tempos. Rack::setBpm + Module::setTempo carry the clock; all seven
+adapters feed it (Mars Wars, Escape Room and Hairfryer gained a playhead
+read). Measured at 120 BPM: echo 1/4 = 0.5000 s, triplet 0.3333, dotted
+0.7500; gate 1/4 = 0.5000. FREE and no-host-clock are bit-identical to
+1.1.0, proven by memcmp.
+
+### 4a. LOFI / STRIP / SHIMMER / HARMONIC — SHIPPED in BWFX 1.2.0
+GRIT (PS2 lofi port; NOISE defaults 0 so a fresh unit is still silent in /
+silent out), STRIP (Hairfryer soft-knee comp with its two-stage gain
+smoothing — fast catch, slow breathe — plus a 5-band musical EQ, one COMP
+macro opening threshold and ratio together), SHIMMER (Blade Ruiner FDN-8
+with the octave-up folded INTO the loop, ceilSoft in the loop per the
+runaway lesson), HARMONIC (brownface split at 800 Hz with the halves
+tremolo'd in opposite phase, plus TREM and true-pitch VIBRATO).
+kMaxParams went 8 -> 16 for STRIP; old blobs round-trip unchanged. Biquad
+gained RBJ shelves. The UI DEFAULT_DESC is now GENERATED from the C++
+(bwfxtest --desc), never typed. Bench 260 checks ALL CLEAR, UI probe 21/21.

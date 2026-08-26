@@ -24,7 +24,7 @@ namespace
     }
 }
 
-const char* Rack::version() { return "1.1.0"; }
+const char* Rack::version() { return "1.2.0"; }
 
 // Parsed form of a state blob, defaults pre-filled.
 struct Rack::BlobState
@@ -228,6 +228,7 @@ void Rack::process (float* L, float* R, int n)
             // a steady presence of 0.5 must not halve what enters the delay.
             const float ref = target > 0.05f ? e1 / target : e1 * 20.0f;
             mods[(size_t) t]->inputDuck (std::min (dip, clampf (ref, 0.0f, 1.0f)));
+            mods[(size_t) t]->setTempo (bpmIn.load (std::memory_order_relaxed));
 
             if (e >= 1.0f && e1 >= 1.0f)
             {

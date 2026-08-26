@@ -396,6 +396,98 @@ static void testReverbLive()
 }
 
 // ---------------------------------------------------------------------------
+// Tempo sync: the echo must land ON the grid, the gate must chop at the
+// division, and a host with NO clock must change nothing at all.
+static void testSync()
+{
+    std::printf ("-- host-tempo sync (ECHO, GATE)\n");
+    const double fs = 48000, bpm = 120.0;
+    const int tDelay = typeByName ("delay"), tGate = typeByName ("stutter");
+    const int N = (int) fs * 3;
+    const int click = 4800;
+
+    // ECHO: div 1/4 (index 4) at 120 BPM = 0.500 s; triplet = 0.3333; dotted = 0.750
+    struct Case { int div, feel; double sec; const char* name; };
+    const Case cases[3] = { { 4, 0, 0.5, "1/4 straight" },
+                            { 4, 1, 1.0 / 3.0, "1/4 triplet" },
+                            { 4, 2, 0.75, "1/4 dotted" } };
+    for (const auto& c : cases)
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.setBpm (bpm);
+        r.setEnabled (tDelay, true);
+        r.setParam (tDelay, 0, 100.0f);      // full wet: only echoes come out
+        r.setParam (tDelay, 2, 55.0f);
+        r.setParam (tDelay, 5, (float) c.div);
+        r.setParam (tDelay, 6, (float) c.feel);
+        std::vector<float> L (N, 0.0f), R (N, 0.0f);
+        L[(size_t) click] = 1.0f; R[(size_t) click] = 1.0f;
+        renderRack (r, L.data(), R.data(), N);
+
+        int peak = 0;
+        float best = 0;
+        for (int i = click + 1000; i < N; ++i)
+            if (std::abs (L[(size_t) i]) > best) { best = std::abs (L[(size_t) i]); peak = i; }
+        const double got = (double) (peak - click) / fs;
+        std::printf ("   echo %s: want %.4f s, got %.4f s\n", c.name, c.sec, got);
+        CHECK (best > 0.05f, "echo %s: no echo at all", c.name);
+        CHECK (std::abs (got - c.sec) < 0.005, "echo %s off grid: %.4f vs %.4f s",
+               c.name, got, c.sec);
+    }
+
+    // GATE: div 1/4 at 120 BPM = one chop every 0.5 s
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.setBpm (bpm);
+        r.setEnabled (tGate, true);
+        r.setParam (tGate, 0, 100.0f);       // full chop
+        r.setParam (tGate, 2, 4.0f);         // sync 1/4
+        std::vector<float> L (N, 0.5f), R (N, 0.5f);
+        renderRack (r, L.data(), R.data(), N);
+        // mean-crossing spacing over the settled second half
+        std::vector<int> ups;
+        const int from = N / 2;
+        double mean = 0;
+        for (int i = from; i < N; ++i) mean += L[(size_t) i];
+        mean /= (N - from);
+        for (int i = from + 1; i < N; ++i)
+            if (L[(size_t) (i - 1)] <= mean && L[(size_t) i] > mean) ups.push_back (i);
+        CHECK (ups.size() >= 2, "gate sync: no chop detected");
+        if (ups.size() >= 2)
+        {
+            double sum = 0;
+            for (size_t k = 1; k < ups.size(); ++k) sum += ups[k] - ups[k - 1];
+            const double period = sum / (double) (ups.size() - 1) / fs;
+            std::printf ("   gate 1/4: want 0.5000 s, got %.4f s\n", period);
+            CHECK (std::abs (period - 0.5) < 0.01, "gate off grid: %.4f s", period);
+        }
+    }
+
+    // The Kemper rule: sync selected but NO host clock renders exactly as FREE.
+    {
+        auto render = [&] (int div, double hostBpm, std::vector<float>& out)
+        {
+            Rack r;
+            r.prepare (fs, 512);
+            r.setBpm (hostBpm);
+            r.setEnabled (tDelay, true);
+            r.setParam (tDelay, 5, (float) div);
+            std::vector<float> L (N), R (N);
+            fillTone (L.data(), R.data(), N, fs, 220.0, 0.4f);
+            renderRack (r, L.data(), R.data(), N);
+            out = L;
+        };
+        std::vector<float> freeRun, syncedNoClock;
+        render (0, 0.0, freeRun);
+        render (4, 0.0, syncedNoClock);
+        CHECK (std::memcmp (freeRun.data(), syncedNoClock.data(), sizeof (float) * N) == 0,
+               "sync with no host clock is not identical to FREE");
+    }
+}
+
+// ---------------------------------------------------------------------------
 static void testPresenceAndMorph()
 {
     std::printf ("-- presence + patch morph\n");
@@ -544,8 +636,15 @@ static void testPresenceAndMorph()
 }
 
 // ---------------------------------------------------------------------------
-int main()
+int main (int argc, char** argv)
 {
+    // `bwfxtest --desc` prints descriptorJson() so the UI fragment's
+    // DEFAULT_DESC snapshot is regenerated from the C++ truth, never typed.
+    if (argc > 1 && std::string (argv[1]) == "--desc")
+    {
+        std::printf ("%s\n", descriptorJson().c_str());
+        return 0;
+    }
 #if defined(__SSE2__) || defined(_M_X64) || defined(_M_IX86_FP)
     _MM_SET_FLUSH_ZERO_MODE (_MM_FLUSH_ZERO_ON);   // hosts run FTZ; so does the bench
 #endif
@@ -559,6 +658,7 @@ int main()
         testModuleSuite (t);
     testClicks();
     testState();
+    testSync();
     testPresenceAndMorph();
     testReverbLive();
     testFuzz();

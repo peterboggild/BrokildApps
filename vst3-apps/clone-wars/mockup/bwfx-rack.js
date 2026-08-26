@@ -24,31 +24,72 @@
   var DEFAULT_DESC = [
     { id: "saturation", name: "TUBE", sub: "asymmetric valve saturation", ver: 1, params: [
       { id: "drive", name: "DRIVE", def: 8, lo: 0, hi: 24, step: 0, unit: "dB" },
-      { id: "tone", name: "TONE", def: 72, lo: 0, hi: 100, step: 0, unit: "%" } ] },
+      { id: "tone", name: "TONE", def: 72, lo: 0, hi: 100, step: 0, unit: "%" }
+    ] },
     { id: "phaser", name: "SWEEP", sub: "vintage 4-stage phaser", ver: 1, params: [
       { id: "mix", name: "MIX", def: 35, lo: 0, hi: 100, step: 0, unit: "%" },
       { id: "rate", name: "RATE", def: 40, lo: 5, hi: 200, step: 0, unit: "cHz" },
-      { id: "depth", name: "DEPTH", def: 55, lo: 0, hi: 100, step: 0, unit: "%" } ] },
+      { id: "depth", name: "DEPTH", def: 55, lo: 0, hi: 100, step: 0, unit: "%" }
+    ] },
     { id: "chorus", name: "ENSEMBLE", sub: "dual-line chorus", ver: 1, params: [
       { id: "mix", name: "MIX", def: 40, lo: 0, hi: 100, step: 0, unit: "%" },
       { id: "rate", name: "RATE", def: 45, lo: 5, hi: 300, step: 0, unit: "cHz" },
-      { id: "depth", name: "DEPTH", def: 55, lo: 0, hi: 100, step: 0, unit: "%" } ] },
+      { id: "depth", name: "DEPTH", def: 55, lo: 0, hi: 100, step: 0, unit: "%" }
+    ] },
+    { id: "trem", name: "HARMONIC", sub: "harmonic tremolo & vibrato", ver: 1, params: [
+      { id: "mode", name: "MODE", def: 0, lo: 0, hi: 2, step: 1, unit: "", choices: "HARMONIC|TREM|VIBRATO" },
+      { id: "rate", name: "RATE", def: 400, lo: 5, hi: 2000, step: 0, unit: "cHz" },
+      { id: "depth", name: "DEPTH", def: 55, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "sync", name: "SYNC", def: 0, lo: 0, hi: 7, step: 1, unit: "", choices: "FREE|2/1|1/1|1/2|1/4|1/8|1/16|1/32" },
+      { id: "feel", name: "FEEL", def: 0, lo: 0, hi: 2, step: 1, unit: "", choices: "STRAIGHT|TRIPLET|DOTTED" },
+      { id: "mix", name: "MIX", def: 100, lo: 0, hi: 100, step: 0, unit: "%" }
+    ] },
     { id: "stutter", name: "GATE", sub: "rhythmic stutter gate", ver: 1, params: [
       { id: "amount", name: "AMOUNT", def: 50, lo: 0, hi: 100, step: 0, unit: "%" },
-      { id: "rate", name: "RATE", def: 80, lo: 10, hi: 160, step: 0, unit: "dHz" } ] },
+      { id: "rate", name: "RATE", def: 80, lo: 10, hi: 160, step: 0, unit: "dHz" },
+      { id: "sync", name: "SYNC", def: 0, lo: 0, hi: 7, step: 1, unit: "", choices: "FREE|2/1|1/1|1/2|1/4|1/8|1/16|1/32" },
+      { id: "feel", name: "FEEL", def: 0, lo: 0, hi: 2, step: 1, unit: "", choices: "STRAIGHT|TRIPLET|DOTTED" }
+    ] },
+    { id: "lofi", name: "GRIT", sub: "sample crusher and dirt", ver: 1, params: [
+      { id: "crush", name: "CRUSH", def: 25, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "noise", name: "NOISE", def: 0, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "dirt", name: "DIRT", def: 30, lo: 0, hi: 100, step: 0, unit: "%" }
+    ] },
+    { id: "strip", name: "STRIP", sub: "compressor and 5-band EQ", ver: 1, params: [
+      { id: "amount", name: "COMP", def: 35, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "attack", name: "ATTACK", def: 12, lo: 1, hi: 100, step: 0, unit: "ms" },
+      { id: "release", name: "RELEASE", def: 180, lo: 20, hi: 800, step: 0, unit: "ms" },
+      { id: "low", name: "80 HZ", def: 0, lo: -12, hi: 12, step: 0, unit: "dB" },
+      { id: "lomid", name: "250 HZ", def: 0, lo: -12, hi: 12, step: 0, unit: "dB" },
+      { id: "mid", name: "1 KHZ", def: 0, lo: -12, hi: 12, step: 0, unit: "dB" },
+      { id: "himid", name: "3.5 KHZ", def: 0, lo: -12, hi: 12, step: 0, unit: "dB" },
+      { id: "high", name: "10 KHZ", def: 0, lo: -12, hi: 12, step: 0, unit: "dB" },
+      { id: "output", name: "OUTPUT", def: 0, lo: -12, hi: 12, step: 0, unit: "dB" }
+    ] },
     { id: "delay", name: "ECHO", sub: "stereo tape echo", ver: 1, params: [
       { id: "mix", name: "MIX", def: 25, lo: 0, hi: 100, step: 0, unit: "%" },
       { id: "time", name: "TIME", def: 260, lo: 40, hi: 900, step: 0, unit: "ms" },
       { id: "feedback", name: "FEEDBACK", def: 34, lo: 0, hi: 112, step: 0, unit: "%" },
       { id: "offset", name: "OFFSET", def: 0, lo: -250, hi: 250, step: 5, unit: "ms" },
-      { id: "character", name: "CHARACTER", def: 0, lo: 0, hi: 1, step: 1, unit: "", choices: "CLEAN|TAPE" } ] },
+      { id: "character", name: "CHARACTER", def: 0, lo: 0, hi: 1, step: 1, unit: "", choices: "CLEAN|TAPE" },
+      { id: "sync", name: "SYNC", def: 0, lo: 0, hi: 7, step: 1, unit: "", choices: "FREE|2/1|1/1|1/2|1/4|1/8|1/16|1/32" },
+      { id: "feel", name: "FEEL", def: 0, lo: 0, hi: 2, step: 1, unit: "", choices: "STRAIGHT|TRIPLET|DOTTED" }
+    ] },
     { id: "reverb", name: "SPACE", sub: "stereo convolution space", ver: 1, params: [
       { id: "mix", name: "MIX", def: 25, lo: 0, hi: 100, step: 0, unit: "%" },
       { id: "character", name: "CHARACTER", def: 0, lo: 0, hi: 4, step: 1, unit: "", choices: "ROOM|HALL|PLATE|SPRING|REVERSE" },
-      { id: "length", name: "LENGTH", def: 180, lo: 20, hi: 600, step: 0, unit: "cs" } ] }
+      { id: "length", name: "LENGTH", def: 180, lo: 20, hi: 600, step: 0, unit: "cs" }
+    ] },
+    { id: "shimmer", name: "SHIMMER", sub: "octave-up cathedral", ver: 1, params: [
+      { id: "mix", name: "MIX", def: 30, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "size", name: "SIZE", def: 55, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "decay", name: "DECAY", def: 60, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "shimmer", name: "SHIMMER", def: 45, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "tone", name: "TONE", def: 55, lo: 0, hi: 100, step: 0, unit: "%" }
+    ] }
   ];
 
-  var VERSION = "1.0.0";
+  var VERSION = "1.2.0";
   var desc = DEFAULT_DESC;
   var send = null;                 // native pipe; null = standalone
   var state = defaultState();
