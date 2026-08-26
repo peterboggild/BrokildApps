@@ -1,6 +1,31 @@
 # BWFX build — handover
 
-## STATUS 2026-08-26 (build session): core + first citizen DONE
+## STATUS 2026-08-26 evening: ROLLED OUT TO ALL SEVEN SYNTHS
+
+Same session, Peter's go: BWFX 1.1.0 added per-module **PRESENCE** (the
+rack-owned dry/wet every pedal carries, teal) and **Rack::applyMorph** —
+union of two patches' racks, presence crossfade, staggered stepped
+defection, order swap through the dip (bench 211 checks ALL CLEAR; morph
+sweep max step == the settled baseline). Clone Wars MORPH now carries the
+rack (260826.3, zip cut by CI dispatch, live).
+
+All six remaining synths adopted the rack via the shared adapter header
+`adapter/bwfx_juce.h` (the pipe written once): Black Rider, Hairfryer,
+The Mars Wars, Blade Ruiner, Escape Room (globe-only button — its panel
+is cryptic on purpose), Photo-Synth 2 (rack blob rides INSIDE its preset
+files — the native side injects/strips the "bwfx" key so the page's
+preset flow is untouched). Each synth: build 260826.1, LoadLibraryW OK,
+installed to Common Files\VST3\Brokild + AudioDev mirror, local repo
+committed, dist zip rebuilt with the existing manual, landing page +
+app.json bumped. Black Rider and Photo-Synth 2 were verified LIVE over
+CDP (native round trips incl. presence). Manuals were deliberately NOT
+regenerated (Peter's instruction) — they do not mention BWFX yet.
+
+Still open: SPECTRA characters (the world-mod bus is in place, neutral),
+per-synth manual sections, and the host synths' worldMod mapping (call
+four of the adapter — deferred with SPECTRA).
+
+## PREVIOUS STATUS 2026-08-26 (build session): core + first citizen DONE
 
 - `C:\Users\peter\b\BrokildWorldFX` exists (git repo) and is mirrored at this
   repo's root as `BrokildWorldFX/` (mirror after every BWFX commit:
