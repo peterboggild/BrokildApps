@@ -27,11 +27,32 @@ phase C):
   Peter: "a toy version of the professional (VST3)". Interim: PS2
   carries both spectra systems until this lands — known and accepted.
 
-### 3. Manuals do not mention BWFX yet
-All seven PDF manuals predate the rack (deliberately skipped in the
-2026-08-26 rollout, Peter's instruction). One shared "The World Rack"
-section could be written once and dropped into each manual's pipeline;
-landing-page prose could carry one feature line each.
+### 3. Manuals + homepage — DONE for the five SYNTHS (2026-08-27)
+Peter: "update the homepage, so that the screenshots are accurate and the
+manuals updated… the descriptions also need an update. Focus on the
+synths, not the effects."
+- **Manuals**: a shared "The world rack" chapter, written once, inserted
+  into Photo-Synth 2 (07), Blade Ruiner (09), Black Rider (10) and
+  Escape Room (12) in the family-A house style, and HAND-PORTED into
+  Clone Wars (12) — family B is a different page model (dark hull,
+  explicit `.page` divs, `.chap`/`.no`/`.lede`, no h3). Trailing chapters
+  renumbered in DESCENDING order so numbers never collide. Three plates
+  per chapter. PDFs rebuilt: 38 / 26 / 18 / 18 / 12 pages.
+- **Screenshots**: every synth's hero plate re-shot from the live build
+  (all predated the BWFX button) + a world-rack plate per synth + the
+  front-page preview cards regenerated. Pipeline in the scratchpad:
+  `shoot.js` (element capture over CDP), `shoot-one.sh` (launch → shoot →
+  kill, with the SAC byte-append fallback), `tojpg.ps1`.
+- **Descriptions**: all five app.json descriptions rewritten, and a "The
+  world rack" section added to each landing page above the download
+  block. Three app.json manual page counts were stale BEFORE this work
+  (Escape Room claimed 15 for a 25-page PDF) and are now measured.
+- **Mars Wars and Hairfryer deliberately untouched** — FX plugins, not
+  synths; they lose the rack in wave 2, so documenting it would have
+  been wrong twice.
+Still open: nothing for the synths. When wave 2 lands, Photo-Synth's
+chapters 05 (Spectra) and 06 (the effects rack) come OUT and its
+description drops the last internal-FX references.
 
 ## Done
 
