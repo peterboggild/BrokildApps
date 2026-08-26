@@ -392,7 +392,7 @@ static void testReverbLive()
     CHECK (diff > 1e-2, "room and hall render identically");
 
     WorldMod wm = Rack().worldMod();
-    CHECK (wm.detuneCents == 0 && wm.tremolo == 1 && wm.filterMul == 1, "world-mod bus not neutral");
+    CHECK (wm.detuneCents == 0 && wm.tremDepth == 0 && wm.filterMul == 1, "world-mod bus not neutral");
 }
 
 // ---------------------------------------------------------------------------
@@ -484,6 +484,349 @@ static void testSync()
         render (4, 0.0, syncedNoClock);
         CHECK (std::memcmp (freeRun.data(), syncedNoClock.data(), sizeof (float) * N) == 0,
                "sync with no host clock is not identical to FREE");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ROTARY: the rotor rates and — the whole point — the two inertias are
+// MEASURED. The amplitude throw of each rotor writes its rate into the
+// output envelope; autocorrelating the envelope reads it back out.
+namespace
+{
+    // AM frequency of a carrier: rectify, LP, remove mean, autocorrelate.
+    double envelopeRate (const float* x, int from, int to, double fs)
+    {
+        const int n = to - from;
+        std::vector<double> env ((size_t) n);
+        double lp = 0;
+        const double a = 1.0 - std::exp (-2.0 * 3.14159265 * 30.0 / fs);
+        for (int i = 0; i < n; ++i)
+        {
+            lp += (std::abs ((double) x[from + i]) - lp) * a;
+            env[(size_t) i] = lp;
+        }
+        double mean = 0;
+        for (double v : env) mean += v;
+        mean /= n;
+        for (auto& v : env) v -= mean;
+        // autocorrelation, NORMALIZED per lag (longer lags sum fewer terms),
+        // then the FIRST peak within 85% of the global max — a periodic
+        // envelope peaks at every multiple of its period, and the fundamental
+        // is the first of them, not necessarily the numerically largest.
+        const int lagMin = (int) (fs / 8.5), lagMax = std::min ((int) (fs / 0.4), n / 2);
+        std::vector<double> r ((size_t) lagMax, 0.0);
+        double globalMax = 0;
+        for (int lag = lagMin; lag < lagMax; ++lag)
+        {
+            double acc = 0;
+            int cnt = 0;
+            for (int i = 0; i + lag < n; i += 4) { acc += env[(size_t) i] * env[(size_t) (i + lag)]; ++cnt; }
+            r[(size_t) lag] = cnt > 0 ? acc / cnt : 0.0;
+            globalMax = std::max (globalMax, r[(size_t) lag]);
+        }
+        for (int lag = lagMin + 1; lag < lagMax - 1; ++lag)
+            if (r[(size_t) lag] >= 0.85 * globalMax
+             && r[(size_t) lag] >= r[(size_t) (lag - 1)]
+             && r[(size_t) lag] >= r[(size_t) (lag + 1)])
+                return fs / lag;
+        return 0.0;
+    }
+}
+
+static void testRotary()
+{
+    std::printf ("-- ROTARY: rotor rates + the two inertias, measured\n");
+    const double fs = 48000;
+    const int tRot = typeByName ("rotary");
+
+    // steady rates: 1 kHz rides the horn, 150 Hz rides the drum
+    struct Case { double tone; int speed; double want; const char* name; };
+    const Case cases[3] = { { 3000.0, 1, 6.8, "horn FAST" },
+                            { 3000.0, 0, 0.83, "horn SLOW" },
+                            { 100.0,  1, 5.9, "drum FAST" } };
+    for (const auto& c : cases)
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.setEnabled (tRot, true);
+        r.setParam (tRot, 0, (float) c.speed);
+        const int N = (int) fs * 8;
+        std::vector<float> L (N), R (N);
+        for (int i = 0; i < N; ++i)
+        {
+            L[(size_t) i] = 0.4f * (float) std::sin (6.2831853 * c.tone * i / fs);
+            R[(size_t) i] = L[(size_t) i];
+        }
+        renderRack (r, L.data(), R.data(), N);
+        const double got = envelopeRate (L.data(), N / 2, N, fs);
+        std::printf ("   %s: want %.2f Hz, got %.2f Hz\n", c.name, c.want, got);
+        CHECK (std::abs (got - c.want) < c.want * 0.15,
+               "%s off: %.2f vs %.2f Hz", c.name, got, c.want);
+    }
+
+    // the inertia: flip SLOW->FAST at t=4s. The horn must arrive within ~2 s;
+    // the heavy drum must still be climbing soon after and arrive by ~+8 s.
+    {
+        auto ramp = [&] (double tone, double winA0, double winA1, double winB0, double winB1,
+                         double& early, double& late)
+        {
+            Rack r;
+            r.prepare (fs, 512);
+            r.setEnabled (tRot, true);
+            r.setParam (tRot, 0, 0.0f);           // SLOW
+            const int N = (int) fs * 14;
+            std::vector<float> L (N), R (N);
+            for (int i = 0; i < N; ++i)
+            {
+                L[(size_t) i] = 0.4f * (float) std::sin (6.2831853 * tone * i / fs);
+                R[(size_t) i] = L[(size_t) i];
+            }
+            const int flip = (int) fs * 4;
+            for (int done = 0; done < N; )
+            {
+                if (done == flip) r.setParam (tRot, 0, 1.0f);   // FAST
+                const int m = std::min (512, N - done);
+                r.process (L.data() + done, R.data() + done, m);
+                done += m;
+            }
+            early = envelopeRate (L.data(), (int) (fs * winA0), (int) (fs * winA1), fs);
+            late  = envelopeRate (L.data(), (int) (fs * winB0), (int) (fs * winB1), fs);
+        };
+        double hornEarly, hornLate, drumEarly, drumLate;
+        ramp (3000.0, 6.0, 8.0, 11.0, 13.5, hornEarly, hornLate);
+        ramp (100.0,  5.0, 6.5, 11.0, 13.5, drumEarly, drumLate);
+        std::printf ("   horn after flip: +2..4 s %.2f Hz, +7..9.5 s %.2f Hz (fast 6.8)\n", hornEarly, hornLate);
+        std::printf ("   drum after flip: +1..2.5 s %.2f Hz, +7..9.5 s %.2f Hz (fast 5.9)\n", drumEarly, drumLate);
+        CHECK (hornEarly > 5.5, "horn too lazy: %.2f Hz two seconds after the flip", hornEarly);
+        CHECK (drumEarly < 4.5, "drum has no inertia: %.2f Hz so soon after the flip", drumEarly);
+        CHECK (drumLate > 4.8, "drum never arrives: %.2f Hz", drumLate);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// DISRUPTOR: the pattern is real. Gate steps land on the transport grid,
+// the tape-stop measurably drops pitch across its step, the drawn pattern
+// survives the state round trip, and an all-NONE pattern is transparent.
+namespace
+{
+    double goertzel (const float* x, int from, int to, double f, double fs)
+    {
+        const double w = 2.0 * 3.14159265358979 * f / fs, c = 2.0 * std::cos (w);
+        double s1 = 0, s2 = 0;
+        for (int i = from; i < to; ++i)
+        { const double s0 = x[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+        return std::sqrt (std::max (0.0, s1 * s1 + s2 * s2 - c * s1 * s2));
+    }
+}
+
+static void testDisruptor()
+{
+    std::printf ("-- DISRUPTOR: grid, tape-stop pitch, pattern state\n");
+    const double fs = 48000, bpm = 120.0;
+    const int tD = typeByName ("kieranator");
+    const double stepSec = 0.125;                       // 1/16 at 120 BPM
+
+    auto renderWithTransport = [&] (Rack& r, float* L, float* R, int N)
+    {
+        int done = 0;
+        while (done < N)
+        {
+            const int m = std::min (512, N - done);
+            r.setTransport (bpm, (double) done * bpm / (60.0 * fs), true);
+            r.process (L + done, R + done, m);
+            done += m;
+        }
+    };
+
+    // 1) all-NONE pattern: enabled but transparent (mix 100, every step dry)
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.setEnabled (tD, true);
+        const int N = 48000;
+        std::vector<float> L (N), R (N), refL (N), refR (N);
+        fillTone (L.data(), R.data(), N, fs, 220.0, 0.5f);
+        refL = L; refR = R;
+        renderWithTransport (r, L.data(), R.data(), N);
+        double maxDiff = 0;
+        for (int i = 0; i < N; ++i) maxDiff = std::max (maxDiff, std::abs ((double) L[(size_t) i] - refL[(size_t) i]));
+        CHECK (maxDiff < 1e-6, "all-NONE pattern not transparent (%.2e)", maxDiff);
+    }
+
+    // 2) GATE on every step chops on the 1/16 grid
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.setEnabled (tD, true);
+        r.setExtra (tD, "7777777777777777");
+        r.setParam (tD, 7, 50.0f);                      // duty 50%
+        const int N = 96000;
+        std::vector<float> L (N), R (N);
+        for (int i = 0; i < N; ++i) { L[(size_t) i] = 0.5f; R[(size_t) i] = 0.5f; }
+        renderWithTransport (r, L.data(), R.data(), N);
+        // mean spacing of rising edges over the settled half
+        std::vector<int> ups;
+        for (int i = N / 2 + 1; i < N; ++i)
+            if (L[(size_t) (i - 1)] <= 0.25f && L[(size_t) i] > 0.25f) ups.push_back (i);
+        CHECK (ups.size() >= 4, "disruptor gate: no chops");
+        if (ups.size() >= 4)
+        {
+            double sum = 0;
+            for (size_t k = 1; k < ups.size(); ++k) sum += ups[k] - ups[k - 1];
+            const double period = sum / (double) (ups.size() - 1) / fs;
+            std::printf ("   gate steps: want %.4f s, got %.4f s\n", stepSec, period);
+            CHECK (std::abs (period - stepSec) < 0.004, "gate off grid: %.4f s", period);
+        }
+    }
+
+    // 3) TAPESTOP: pitch measured falling across the step
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.setEnabled (tD, true);
+        r.setExtra (tD, "0000000020000000");            // one tape-stop, step 8
+        r.setParam (tD, 4, 100.0f);                     // full stop
+        const int N = 96000;                            // one bar = 2 s at 120
+        std::vector<float> L (N), R (N);
+        fillTone (L.data(), R.data(), N, fs, 880.0, 0.5f);
+        renderWithTransport (r, L.data(), R.data(), N);
+        const int s8 = (int) (8 * stepSec * fs);
+        const int q = (int) (stepSec * fs / 4.0);
+        const double early = goertzel (L.data(), s8, s8 + q, 880.0, fs);
+        const double lateAt880 = goertzel (L.data(), s8 + 2 * q, s8 + 3 * q, 880.0, fs);
+        std::printf ("   tapestop: 880 Hz energy early %.1f, late %.1f (must collapse)\n",
+                     early, lateAt880);
+        CHECK (early > 100.0, "tapestop start does not carry the tone (%.1f) — window bug?", early);
+        CHECK (early > lateAt880 * 2.5, "tapestop does not drop the pitch (early %.1f late %.1f)",
+               early, lateAt880);
+    }
+
+    // 4) the drawn pattern survives the state round trip
+    {
+        Rack a;
+        a.prepare (fs, 512);
+        a.setEnabled (tD, true);
+        a.setExtra (tD, "1234567012345670");
+        Rack b;
+        b.prepare (fs, 512);
+        b.fromJson (a.toJson());
+        CHECK (b.getExtra (tD) == "1234567012345670",
+               "pattern lost in round trip (got '%s')", b.getExtra (tD).c_str());
+        // and a blob WITHOUT x resets the pattern to default
+        Rack c;
+        c.prepare (fs, 512);
+        c.fromJson (b.toJson());
+        b.setExtra (tD, "");
+        CHECK (c.getExtra (tD) == "1234567012345670", "pattern lost via reserialize");
+    }
+
+    // 5) deterministic (shuffle included) + bounded at full mayhem
+    {
+        auto renderOnce = [&] (std::vector<float>& L)
+        {
+            Rack r;
+            r.prepare (fs, 512);
+            r.setEnabled (tD, true);
+            r.setExtra (tD, "1234567123456712");
+            const int N = 96000;
+            L.assign ((size_t) N, 0.0f);
+            std::vector<float> R (N);
+            fillTone (L.data(), R.data(), N, fs, 220.0, 0.7f);
+            renderWithTransport (r, L.data(), R.data(), N);
+        };
+        std::vector<float> a, b;
+        renderOnce (a);
+        renderOnce (b);
+        CHECK (std::memcmp (a.data(), b.data(), a.size() * 4) == 0,
+               "disruptor nondeterministic");
+        const Stats s = measure (a.data(), a.data(), (int) a.size());
+        CHECK (s.finite && s.peak < 1.3f, "disruptor unbounded (peak %.3f)", (double) s.peak);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SPECTRA: the characters live on the bus. Neutral when unarmed (the
+// additive contract extended to modulation), audibly present when armed,
+// scaled by presence, deterministic, and stored in the blob.
+static void testSpectra()
+{
+    std::printf ("-- SPECTRA characters on the world-mod bus\n");
+    const double fs = 48000;
+    const int N = 48000;
+    std::vector<float> L (N, 0.0f), R (N, 0.0f);
+
+    // unarmed = neutral bus
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        renderRack (r, L.data(), R.data(), N);
+        const WorldMod w = r.worldMod();
+        CHECK (w.detuneCents == 0 && w.panSpread == 0 && w.tremDepth == 0
+            && w.pitchSag == 0 && w.filterMul == 1,
+               "unarmed bus not neutral (det %g sag %g mul %g)",
+               (double) w.detuneCents, (double) w.pitchSag, (double) w.filterMul);
+    }
+
+    // tape armed: sag and dulling appear, detune wobbles; deterministic
+    {
+        Rack r1, r2;
+        r1.prepare (fs, 512); r2.prepare (fs, 512);
+        r1.setCharArmed (0, true); r2.setCharArmed (0, true);
+        renderRack (r1, L.data(), R.data(), N);
+        renderRack (r2, L.data(), R.data(), N);
+        const WorldMod a = r1.worldMod(), b = r2.worldMod();
+        std::printf ("   tape bus: det %.3f c, sag %.3f st, filterMul %.3f\n",
+                     (double) a.detuneCents, (double) a.pitchSag, (double) a.filterMul);
+        CHECK (a.pitchSag > 0.25f && a.filterMul < 0.95f, "tape character inert");
+        CHECK (a.detuneCents == b.detuneCents && a.pitchSag == b.pitchSag,
+               "character tick nondeterministic");
+    }
+
+    // presence scales the contribution to nothing
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.setCharArmed (0, true);
+        r.setCharPresence (0, 0.0f);
+        renderRack (r, L.data(), R.data(), N);
+        const WorldMod w = r.worldMod();
+        CHECK (std::abs (w.detuneCents) < 1e-6f && w.pitchSag < 1e-6f
+            && std::abs (w.filterMul - 1.0f) < 1e-6f,
+               "presence 0 does not silence the character");
+    }
+
+    // insect: tremolo depth/rate on the bus; both armed: contributions combine
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.setCharArmed (0, true);
+        r.setCharArmed (1, true);
+        renderRack (r, L.data(), R.data(), N);
+        const WorldMod w = r.worldMod();
+        std::printf ("   tape+insect: tremDepth %.3f, tremRate %.2f Hz, pan %.3f\n",
+                     (double) w.tremDepth, (double) w.tremRate, (double) w.panSpread);
+        CHECK (w.tremDepth > 0.1f && w.tremRate > 2.0f, "insect tremolo missing");
+        CHECK (w.panSpread > 0.2f, "insect pan spread missing");
+        CHECK (w.pitchSag > 0.25f, "tape sag lost in combination");
+    }
+
+    // the blob carries the spectra; unknown character ignored
+    {
+        Rack a;
+        a.prepare (fs, 512);
+        a.setCharArmed (1, true);
+        a.setCharParam (1, 0, 80.0f);
+        a.setCharPresence (1, 0.6f);
+        Rack b;
+        b.prepare (fs, 512);
+        b.fromJson (a.toJson());
+        CHECK (b.getCharArmed (1) && ! b.getCharArmed (0), "spectra enables lost in round trip");
+        CHECK (std::abs (b.getCharParam (1, 0) - 80.0f) < 1e-4f, "spectra param lost");
+        CHECK (std::abs (b.getCharPresence (1) - 0.6f) < 1e-4f, "spectra presence lost");
+        Rack c;
+        c.prepare (fs, 512);
+        c.fromJson ("{\"spectra\":{\"ghost\":{\"on\":1},\"tape\":{\"on\":1}}}");
+        CHECK (c.getCharArmed (0), "known character lost beside unknown one");
     }
 }
 
@@ -645,6 +988,12 @@ int main (int argc, char** argv)
         std::printf ("%s\n", descriptorJson().c_str());
         return 0;
     }
+    // `bwfxtest --cdesc` prints characterJson() for DEFAULT_CDESC, same rule.
+    if (argc > 1 && std::string (argv[1]) == "--cdesc")
+    {
+        std::printf ("%s\n", characterJson().c_str());
+        return 0;
+    }
 #if defined(__SSE2__) || defined(_M_X64) || defined(_M_IX86_FP)
     _MM_SET_FLUSH_ZERO_MODE (_MM_FLUSH_ZERO_ON);   // hosts run FTZ; so does the bench
 #endif
@@ -659,6 +1008,9 @@ int main (int argc, char** argv)
     testClicks();
     testState();
     testSync();
+    testRotary();
+    testDisruptor();
+    testSpectra();
     testPresenceAndMorph();
     testReverbLive();
     testFuzz();

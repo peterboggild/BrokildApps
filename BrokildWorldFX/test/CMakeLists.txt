@@ -10,7 +10,8 @@ add_executable(bwfxtest
     ../src/bwfx_json.cpp
     ../src/bwfx_rack.cpp
     ../modules/bwfx_conv.cpp
-    ../modules/bwfx_modules.cpp)
+    ../modules/bwfx_modules.cpp
+    ../modules/bwfx_spectra.cpp)
 
 target_compile_features(bwfxtest PRIVATE cxx_std_17)
 target_include_directories(bwfxtest PRIVATE ../src ../modules)
@@ -26,6 +27,7 @@ add_executable(dbgclick
     ../src/bwfx_json.cpp
     ../src/bwfx_rack.cpp
     ../modules/bwfx_conv.cpp
-    ../modules/bwfx_modules.cpp)
+    ../modules/bwfx_modules.cpp
+    ../modules/bwfx_spectra.cpp)
 target_compile_features(dbgclick PRIVATE cxx_std_17)
 target_include_directories(dbgclick PRIVATE ../src ../modules)

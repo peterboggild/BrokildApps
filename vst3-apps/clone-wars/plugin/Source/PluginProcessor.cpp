@@ -125,6 +125,7 @@ CloneWarsProcessor::CloneWarsProcessor()
     applySeed ((uint32_t) currentSeedA.load());
 
     startTimerHz (15);        // bwfxRack.service() — editor open or not
+    bwfxRack.setWorldModConsumed (true);   // this engine maps the SPECTRA bus
 }
 
 CloneWarsProcessor::~CloneWarsProcessor()
@@ -183,9 +184,18 @@ void CloneWarsProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     if (auto* ph = getPlayHead())
         if (auto pos = ph->getPosition())
             if (auto bpm = pos->getBpm())
+            {
                 engine.setBpm (*bpm);
+                bwfxRack.setBpm (*bpm);       // the world rack syncs too
+            }
 
     if (buffer.getNumChannels() < 2) { buffer.clear(); return; }
+
+    // SPECTRA: last block's combined bus onto the sixteen clones (adapter
+    // call four - neutral when nothing is armed, and neutral is bit-inert)
+    const bwfx::WorldMod wm = bwfxRack.worldMod();
+    engine.setWorldMod (wm.detuneCents, wm.panSpread, wm.tremDepth,
+                        wm.tremRate, wm.pitchSag, wm.filterMul);
 
     engine.process (buffer.getWritePointer (0), buffer.getWritePointer (1), n);
 

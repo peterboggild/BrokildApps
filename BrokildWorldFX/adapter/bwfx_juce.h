@@ -83,6 +83,29 @@ inline bool handleMessage (bwfx::Rack& rack, const juce::var& m)
     {
         rack.setMix ((float) (double) m.getProperty ("v", 1.0));
     }
+    else if (op == "extra")     // opaque module state (the KIERANATOR pattern)
+    {
+        const int t = typeByName (m.getProperty ("m", juce::var()).toString());
+        if (t >= 0) rack.setExtra (t, m.getProperty ("x", juce::var ("")).toString().toStdString());
+    }
+    else if (op == "cenable" || op == "cset" || op == "cpresence")   // SPECTRA
+    {
+        const juce::String id = m.getProperty ("m", juce::var()).toString();
+        int c = -1;
+        for (int i = 0; i < bwfx::numCharacters(); ++i)
+            if (id == bwfx::characterDescriptor (i).id) { c = i; break; }
+        if (c < 0) return false;
+        if (op == "cenable") rack.setCharArmed (c, (int) m.getProperty ("on", 0) != 0);
+        else if (op == "cpresence") rack.setCharPresence (c, (float) (double) m.getProperty ("v", 1.0));
+        else
+        {
+            const auto& d = bwfx::characterDescriptor (c);
+            const juce::String pid = m.getProperty ("p", juce::var()).toString();
+            for (int p = 0; p < d.numParams; ++p)
+                if (pid == d.params[p].id)
+                { rack.setCharParam (c, p, (float) (double) m.getProperty ("v", 0.0)); break; }
+        }
+    }
     else if (op == "init")
     {
         return true;
@@ -90,12 +113,16 @@ inline bool handleMessage (bwfx::Rack& rack, const juce::var& m)
     return false;
 }
 
-// The payload for the "bwfx" event: descriptors + full rack state.
+// The payload for the "bwfx" event: descriptors + full rack state, plus
+// whether THIS host's engine consumes the world-mod bus (the overlay shows
+// the SPECTRA rack live only where it actually does something).
 inline juce::var stateVar (bwfx::Rack& rack)
 {
     auto* obj = new juce::DynamicObject();
     obj->setProperty ("desc",  juce::JSON::parse (juce::String (bwfx::descriptorJson())));
+    obj->setProperty ("cdesc", juce::JSON::parse (juce::String (bwfx::characterJson())));
     obj->setProperty ("state", juce::JSON::parse (juce::String (rack.toJson())));
+    obj->setProperty ("busLive", rack.isWorldModConsumed());
     return juce::var (obj);
 }
 

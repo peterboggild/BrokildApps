@@ -15,7 +15,8 @@ add_library(bwfx STATIC
     src/bwfx_json.cpp
     src/bwfx_rack.cpp
     modules/bwfx_conv.cpp
-    modules/bwfx_modules.cpp)
+    modules/bwfx_modules.cpp
+    modules/bwfx_spectra.cpp)
 
 target_compile_features(bwfx PUBLIC cxx_std_17)
 target_include_directories(bwfx PUBLIC

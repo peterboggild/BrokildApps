@@ -187,6 +187,20 @@ public:
     // Host tempo for LFO SYNC, and the SCATTER button. Both are message
     // thread; the audio thread picks them up at the next sub-block.
     void setBpm (double b) { hostBpm.store (b, std::memory_order_relaxed); }
+    // Brokild World FX world-mod bus (plain stores, any thread). The five
+    // values are fanned across the sixteen clones inside renderVoices; a
+    // NEUTRAL bus (0,0,0,0,1) is skipped entirely, so it is bit-identical.
+    void setWorldMod (float detCents, float panSpread, float tremDepth,
+                      float tremRateHz, float sagSemis, float filterMul)
+    {
+        wmIn[0].store (detCents,   std::memory_order_relaxed);
+        wmIn[1].store (panSpread,  std::memory_order_relaxed);
+        wmIn[2].store (tremDepth,  std::memory_order_relaxed);
+        wmIn[3].store (tremRateHz, std::memory_order_relaxed);
+        wmIn[4].store (sagSemis,   std::memory_order_relaxed);
+        wmIn[5].store (filterMul,  std::memory_order_relaxed);
+    }
+
     // Performance wheels: bend in semitones (+-2), mod 0..1 (vibrato depth -
     // each clone vibrates on its OWN LFO phase, so the ensemble shimmers).
     void setBend (float semis) { bendIn.store (semis, std::memory_order_relaxed); }
@@ -311,6 +325,7 @@ private:
         float  tolDetune = 0, tolCut = 0, tolEnv = 1, tolLevel = 1, tolLfo = 1;
         float  lfoPhase0 = 0;
         float  meterAcc = 0;
+        float  wmGate = 0;             // smoothed gate for the sag (world mod)
     };
 
     struct DelayLine
@@ -358,6 +373,10 @@ private:
     std::atomic<int>      scatterReq { 0 };
     std::atomic<float>    bendIn { 0.0f };
     std::atomic<float>    modIn { 0.0f };
+    std::array<std::atomic<float>, 6> wmIn { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
+    float wmDet = 0, wmPan = 0, wmTremD = 0, wmTremR = 0, wmSag = 0, wmFmul = 1;
+    bool  wmActive = false;
+    double wmT = 0;                    // seconds, for the trem phases
     uint32_t              scatterState = 0x9E3779B9u;
 
     // Rebuilt once per sub-block by assignNotes(): the midi note each clone

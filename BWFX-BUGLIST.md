@@ -11,23 +11,12 @@ the world rack: its modules, the overlay, the rack machinery, SPECTRA.)
 
 ## Open
 
-### 2. SPECTRA characters — the plan (design decision 7; planned 2026-08-26)
-The overlay's right half is a placeholder; the world-mod bus
-{detuneCents, panSpread, tremolo, pitchSag, filterMul} exists and is
-neutral. What ports and what does not: a PS2 SPECTRA = a host-control
-MACRO (snapshots/rewrites PS2's own knobs — CANNOT port, stays PS2-native)
-+ a LIVE MODULATOR (per-tick det/pan/trem/sag + sometimes own FX — ports
+### 2. SPECTRA characters — phases B and C still open (phase A shipped 1.3.0)
+What ports and what does not: a PS2 SPECTRA = a host-control MACRO
+(snapshots/rewrites PS2's own knobs — CANNOT port, stays PS2-native) + a
+LIVE MODULATOR (per-tick det/pan/trem/sag + sometimes own FX — ports
 completely via the bus). A ported character sounds like THAT synth
-possessed, by design. Three phases:
-- **A. Machinery + Tape + Insect + Clone Wars mapping (1-2 sessions).**
-  Character registry (descriptors, enclosures + rockers from PS2's CSS,
-  arm/STACK semantics: arm order layers, last-armed wins, release
-  unwinds), combination rules AS MEASURED in PS2 (det/pan add, muls
-  multiply, trem element-wise product, sag/cluster max), worldMod() goes
-  live, PRESENCE doubles as arm strength (morph then covers characters
-  for free). First host mapping = Clone Wars: five bus inputs onto the 16
-  clones — touches cw_core, so it lands WITH Goertzel bench checks (the
-  6000-check bench stays green or it does not ship).
+possessed, by design. Remaining phases:
 - **B. Remaining characters (a session).** Dark Drone, Pink, Black,
   Glass — characters owning FX (Black's feedback/comb, Glass's colours)
   carry that DSP privately inside their unit. All documented PS2 lessons
@@ -45,78 +34,54 @@ All seven PDF manuals predate the rack (deliberately skipped in the
 section could be written once and dropped into each manual's pipeline;
 landing-page prose could carry one feature line each.
 
-### 4. FEATURE: founding set 2 — Peter's selection (2026-08-26)
-STATUS: four of five SHIPPED in BWFX 1.2.0 (LOFI/GRIT, STRIP, SHIMMER,
-HARMONIC TREM/VIBRATO). **ROTARY is the one still open** — deliberately
-left for a Fable session: it is the only from-scratch DSP in the set and
-the feel of the inertia is taste plus measurement, not recipe.
-Five new modules, chosen by Peter from the survey. Capacity: order packing
-holds 16 modules; 6 + 5 = 11, fine. ONE machinery prerequisite: a comp+EQ
-module needs ~10 params, so raise bwfx kMaxParams (8 -> 16). Safe: the
-state blob is keyed by id, arrays just get roomier — prove old-blob
-round-trip in the bench anyway.
-- **LOFI** — port PS2's Lofi processor (crush / noise / dirt), the module
-  deliberately left out of the founding six. Code exists; needed.
-- **STRIP (comp + 5-band EQ, one pedal)** — Hairfryer's two-stage
-  compressor plus its RBJ EQ grown to five bands, as a single channel-
-  strip module. Suggested params: comp AMOUNT (macro over both stages),
-  ATTACK, RELEASE, then five fixed musical bands gain-only +-12 dB
-  (low shelf ~80, 250, 1k, 3.5k, high shelf ~10k). EQ post-comp.
-- **SHIMMER** — Blade Ruiner's FDN-8 with the octave-up folded into the
-  loop: the reverb a convolver cannot be, complements SPACE. Params:
-  mix, size, decay, shimmer amount, tone. Mind the runaway lesson
-  (ceilSoft in the loop, 60 s max-settings soak in the bench).
-- **HARMONIC TREM / VIBRATO** — one modulation pedal, mode-switched:
-  HARMONIC (brownface style: split ~800 Hz, low and high band tremolo'd
-  in OPPOSITE phase — the swirl), TREM (plain), VIBRATO (true pitch via
-  a modulated line, Catmull-Rom as always). Params: mode, rate, depth,
-  mix. Must ride the item-1 sync system when that lands.
-- **ROTARY** — a solid Leslie: horn + drum split ~800 Hz, each rotor its
-  own AM + doppler FM (modulated delay) + stereo mic pair; SLOW / FAST /
-  BRAKE control where the point is the INERTIA — independent ramp times
-  per rotor (horn ~1 s, drum ~4-5 s) so speed CHANGES sound like a
-  Leslie spinning up. The one genuinely new DSP build in the set — give
-  it a bench that measures doppler depth and the two ramp times.
-Surveyed and parked by Peter ("not now" — do not re-propose, they are
-here for the record): FLANGER, plain TREMOLO/AUTO-PAN, standalone TONE
-EQ, FILTER pedal (Black Rider circuits), FREEZE, RING MOD, micro-pitch/
-octaver, granular, and these stay available whenever wanted.
-
-### 5. FEATURE: GLITCHER — step-sequenced rhythmic effect switching
-(Peter, 2026-08-26; inspired by dblue's Glitch 2 at illformed.com — our
-own build from scratch, concept only, no code or UI copied. "It was
-phenomenal": draw a pattern of different effects across a bar or two,
-tune each effect, get rhythmic, glitchy but musical results.)
-SELF-CONTAINED module (Peter's call — do not route the rack's own pedals
-per step): a rolling capture buffer of the last 2 bars; every effect is a
-way of READING it, so CPU is trivially light (no FFT, no formants — the
-tape-style repitch grit is desired):
-- 16-step pattern over 1 or 2 bars; per step one effect type (3 bits):
-  NONE, RETRIG (buffer repeat, division + decay), TAPESTOP (pitch drop
-  across the step — explicitly wanted), REVERSE (bar buffer backwards),
-  SHUFFLE (jump to a random earlier slice), PITCH (fixed repitch read:
-  octaves/fifth up/down), CRUSH (LOFI-lite in place), GATE (duty chop).
-- Per-effect tuning knobs (1-2 macros each) + global: pattern LENGTH
-  (1|2 bars), MIX. All reads Catmull-Rom; 5 ms crossfades at every slice
-  edge (glitchy, never clicky). Free-runs on an internal clock when the
-  host transport is stopped.
-MACHINERY it needs (each piece useful beyond this module):
-- Transport feed: `Rack::setTransport(ppq, bpm, playing)` — bar-aligned
-  patterns need position, not just tempo. SUPERSEDES the setBpm half of
-  item 1; build once, both items ride it.
-- Opaque per-module extra state: a drawn pattern does not fit the knob
-  descriptors — add a module `extra` blob (string, rides inside the
-  module's entry in the rack JSON; unknown-key rules apply as ever).
-- The fragment's FIRST custom pedal editor: a drawable step grid
-  (effect per step, drag to paint), shipping inside bwfx-rack.js so it
-  versions with the library. Descriptor-generated knobs still render
-  below it for the per-effect tuning.
-Bench: retrig period lands on the grid at a known BPM (Goertzel/period
-measure), TAPESTOP measurably drops pitch across a step, slice edges stay
-inside the click bound, pattern renders deterministic, silence in/out,
-bounded. Estimate ~2 sessions including the machinery.
-
 ## Done
+
+### 2a. SPECTRA phase A — SHIPPED in BWFX 1.3.0
+The character rack is live: registry (Descriptor reused, kMaxChars 8),
+TAPE SEANCE (wobble/sag/dull) + INSECT SWARM (swarm/flutter/skitter),
+world-mod bus {detuneCents, panSpread, tremDepth+tremRate, pitchSag,
+filterMul} published as atomics, combination rules as measured in PS2
+(det/pan add, muls multiply, trem depth unions, sag max), PRESENCE
+scales a character's grip and rides the morph (characters defect at 0.5
+like modules). Trem ships as depth+rate so each HOST fans per-voice
+phases (golden-angle). PS2's 60 Hz per-tick walks converted to
+time-constant form so characters sound the same at any tick rate.
+First host mapping = Clone Wars 260826.5: five bus inputs across the 16
+clones, sag keyed to a 50 ms smoothed gate, all guarded by wmActive —
+neutral bus proven bit-identical by memcmp (render_test scenario 8).
+Hosts declare the mapping with setWorldModConsumed(true); the overlay
+shows the live SPECTRA rack only there (busLive), a placeholder plate
+everywhere else. Bench 306 checks ALL CLEAR, UI probe 16/16.
+
+### 4b. ROTARY — SHIPPED in BWFX 1.3.0
+A Leslie with real inertia: 12 dB/oct crossover at 800 Hz with horn EQ,
+counter-rotating horn and drum, each rotor its own AM (beam sharpening +
+back-lobe) and doppler FM on a Catmull-Rom line, belt wobble, stereo mic
+pair. SLOW/FAST/BRAKE with independent per-rotor ramp times (horn ~1 s,
+drum ~4 s) — the bench MEASURES both ramp windows and the doppler depth
+via a normalized-autocorrelation envelope-rate estimator (probes at
+3 kHz/100 Hz, off the crossover, after the 1 kHz probe caught the real
+horn−drum beat through crossover leakage).
+
+### 5. KIERANATOR (the GLITCHER) — SHIPPED in BWFX 1.3.0
+Step-sequenced havoc, self-contained: a 10 s rolling capture buffer that
+every effect is a way of READING — RETRIG, TAPESTOP, REVERSE, SHUFFLE,
+PITCH, CRUSH, GATE per step, 16 steps over 1 or 2 bars, 5 ms raised-
+cosine edges, host-transport aligned (Rack::setTransport) with an
+internal clock fallback. Pattern lives in the module's opaque `extra`
+blob (16×3 bits in one atomic); the fragment grew its first custom pedal
+editor — a paintable step grid with 8 brushes. Named for the late
+Kieran Foster (dblue), author of Glitch 2, with a tribute line on the
+pedal (one line in the fragment; Peter may retire it later). Own build
+from scratch — concept homage only, no code or UI copied.
+Machinery that shipped with it (useful beyond this module): setTransport
+(ppq+bpm+playing, extrapolated per sub-block), Module::getExtra/setExtra
+with "x" in the blob and morph defection at 0.5, Descriptor::custom.
+
+### 4-survey. Parked by Peter ("not now" — do not re-propose, kept for
+the record): FLANGER, plain TREMOLO/AUTO-PAN, standalone TONE EQ, FILTER
+pedal (Black Rider circuits), FREEZE, RING MOD, micro-pitch/octaver,
+granular. Available whenever wanted.
 
 ### 1. Host-tempo sync — SHIPPED in BWFX 1.2.0
 SYNC (FREE|2/1..1/32) + FEEL (STRAIGHT|TRIPLET|DOTTED) on ECHO, GATE and
