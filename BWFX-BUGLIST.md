@@ -98,6 +98,40 @@ here for the record): FLANGER, plain TREMOLO/AUTO-PAN, standalone TONE
 EQ, FILTER pedal (Black Rider circuits), FREEZE, RING MOD, micro-pitch/
 octaver, granular, and these stay available whenever wanted.
 
+### 5. FEATURE: GLITCHER — step-sequenced rhythmic effect switching
+(Peter, 2026-08-26; inspired by dblue's Glitch 2 at illformed.com — our
+own build from scratch, concept only, no code or UI copied. "It was
+phenomenal": draw a pattern of different effects across a bar or two,
+tune each effect, get rhythmic, glitchy but musical results.)
+SELF-CONTAINED module (Peter's call — do not route the rack's own pedals
+per step): a rolling capture buffer of the last 2 bars; every effect is a
+way of READING it, so CPU is trivially light (no FFT, no formants — the
+tape-style repitch grit is desired):
+- 16-step pattern over 1 or 2 bars; per step one effect type (3 bits):
+  NONE, RETRIG (buffer repeat, division + decay), TAPESTOP (pitch drop
+  across the step — explicitly wanted), REVERSE (bar buffer backwards),
+  SHUFFLE (jump to a random earlier slice), PITCH (fixed repitch read:
+  octaves/fifth up/down), CRUSH (LOFI-lite in place), GATE (duty chop).
+- Per-effect tuning knobs (1-2 macros each) + global: pattern LENGTH
+  (1|2 bars), MIX. All reads Catmull-Rom; 5 ms crossfades at every slice
+  edge (glitchy, never clicky). Free-runs on an internal clock when the
+  host transport is stopped.
+MACHINERY it needs (each piece useful beyond this module):
+- Transport feed: `Rack::setTransport(ppq, bpm, playing)` — bar-aligned
+  patterns need position, not just tempo. SUPERSEDES the setBpm half of
+  item 1; build once, both items ride it.
+- Opaque per-module extra state: a drawn pattern does not fit the knob
+  descriptors — add a module `extra` blob (string, rides inside the
+  module's entry in the rack JSON; unknown-key rules apply as ever).
+- The fragment's FIRST custom pedal editor: a drawable step grid
+  (effect per step, drag to paint), shipping inside bwfx-rack.js so it
+  versions with the library. Descriptor-generated knobs still render
+  below it for the per-effect tuning.
+Bench: retrig period lands on the grid at a known BPM (Goertzel/period
+measure), TAPESTOP measurably drops pitch across a step, slice edges stay
+inside the click bound, pattern renders deterministic, silence in/out,
+bounded. Estimate ~2 sessions including the machinery.
+
 ## Done
 
 (nothing yet — the founding rollout itself is logged in BWFX-HANDOVER.md)
