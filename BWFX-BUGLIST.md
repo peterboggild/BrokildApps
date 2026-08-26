@@ -54,6 +54,54 @@ Still open: nothing for the synths. When wave 2 lands, Photo-Synth's
 chapters 05 (Spectra) and 06 (the effects rack) come OUT and its
 description drops the last internal-FX references.
 
+### 6. PARITY PASS — bring three modules up to Photo-Synth's originals
+(Peter, 2026-08-27, hesitating about the wave-2 retirement: "the built in
+versions are more powerful than the BWFX versions, better integrated. Is
+there some way to have versions that are more similar to the original?")
+**MEASURED, module by module — he is right about three and only three:**
+- PARITY ALREADY: SWEEP vs PS2 phaser (both 4-stage, dry/wet == mix),
+  ENSEMBLE vs PS2 chorus (both dual-line), GRIT vs PS2 lofi (a literal
+  port, same three controls). GATE is RICHER than PS2's stutter (it has
+  host sync). SPECTRA ported with measured coefficients, so the
+  characters' modulation half is faithful.
+- **TUBE is poorer**: PS2 has satDry, satWet, satPre and satToneF — four
+  independent controls. BWFX has DRIVE and TONE, and DRIVE *is* the
+  blend, so "full wet, gentle drive" and "subtle blend, hard drive" are
+  both unreachable. Fix: an independent MIX. Kemper-safe shape is a
+  LINK choice (DRIVE-LINKED default = today, MANUAL exposes the knob).
+- **ECHO is poorer in CONTROL only, not in DSP**: it already has the
+  damping low-pass, the loop high-pass and the wow inside it — they are
+  just hardcoded per CLEAN/TAPE character (2600/4200 Hz, 120/25 Hz,
+  0.0007). PS2 exposes dampF, dhpF and wowDepth as continuous knobs.
+  Fix is nearly free: add DAMP, LOW CUT and WOW as **offsets** with
+  default 0, so every existing rack is bit-identical. PS2's FREEZE
+  (infinite hold) is genuinely missing — add it as a switch, default off.
+- **SPACE is genuinely simpler**: PS2 runs TWO convolver slots with
+  independent gains (rvG0/rvG1) and blends them, which is how its
+  reverb morphs continuously between spaces. BWFX SPACE has ONE
+  PartConv; its internal dual-spectra crossfade only covers click-free
+  IR rebuilds, it is not a blend you can sit inside. Fix: a second slot
+  plus CHARACTER B and BLEND (default 0 = today's sound exactly). This
+  is the only one with a real cost — roughly 2x the reverb's CPU and
+  memory when BLEND is engaged.
+**Integration is NOT the problem it looks like.** The FX photo drives
+R→reverbLength, G→delayMix, B→satGain — all continuous, and all three
+exist as continuous BWFX params already, settable per block from the
+host. The photo can drive the rack exactly as it drove the chain.
+**The one thing that genuinely cannot port** is the other half of PS2's
+SPECTRA: its characters are also host-control MACROS that rewrite PS2's
+own panel (Industrial Black sets waveform=square, attack 2, release 8,
+legato off and switches the filter to comb). A BWFX character publishes
+a modulation bus and carries private FX; it cannot reach a host's own
+parameters. Porting that needs a new "character macro" layer where a
+character declares host-parameter targets and each adapter maps them —
+per-synth work, which is exactly why phase A left it out.
+**RECOMMENDATION: do this parity pass BEFORE any retirement, and split
+the wave-2 decision in two.** Retiring PS2's FX chain is then a pure
+win; retiring its native SPECTRA is a separate call, because the macro
+half is a real loss until the macro layer exists. Nothing here is
+urgent — the current state (both systems live in PS2) is stable.
+
 ## Done
 
 ### 2c. SPECTRA phase C — SHIPPED with BWFX 1.5.0 (fleet 260826.5, CW .7)
