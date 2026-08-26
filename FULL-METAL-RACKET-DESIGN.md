@@ -458,6 +458,58 @@ plugin over CDP, 16:9, not generated.
 
 ---
 
+## 10a. PROTOTYPE STATUS — build 260826.1, 2026-08-26
+
+Local tree `C:\Users\peter\b\FullMetalRacket` (own git repo, not on GitHub
+yet). Installed to `C:\Program Files\Common Files\VST3\Brokild\` and
+mirrored in `C:\Users\peter\AudioDev\VST3\`. `LoadLibraryW` OK; verified
+live over CDP (12 strips, kit load, triggers reaching the audio thread,
+BWFX overlay round-tripping).
+
+**In**: all twelve channels and every model; the six mechanisms; MIDI
+(GM-ish map, plus C3–B3 for the twelve in panel order); main stereo + 12
+mono aux; THE WEB (fixed matrix + global BLEED), KIT BODY, RAIL SAG, AGE;
+HAT LINK; BWFX rack and the world-mod bus; nine kits; the panel; the
+offline bench (`test/`, **1320 checks ALL CLEAR**).
+
+**Not yet**: sequencer, sample layer, REBOUND, KIT MORPH, KEY MODE, THE
+HAND, the 200-seed kit library, manual/landing page.
+
+**Measured**: tuning −0.4 cents and one octave = 2.0004; silence in →
+exact digital zero; THE WEB proven to *work*, not merely to be bounded;
+neutral world-mod bus memcmp-identical; 6 / 10 / 19 % of a core at 1× /
+2× / 4× with all twelve firing at 10 Hz.
+
+**Five bugs the bench caught, worth not repeating:**
+1. `wmIn` is value-initialised to zeros, but slot 5 is `filterMul` whose
+   neutral is **1.0** — a zeroed bus is a request to retune every resonator
+   to 0 Hz. The whole machine rang at the 8 Hz clamp and measured ~850
+   cents flat, looking exactly like a broken resonator.
+2. One biquad ticked **twice per sample** with two different signals (body
+   and skin noise sharing `tone`). That is not "using a filter twice", it
+   is a different, undesigned recursion — it gave the toms a tail seconds
+   longer than their own decay.
+3. The nonlinear damping was an absolute number, so its weight relative to
+   the linear damping scaled with Q: at Q = 21 the drag was six times the
+   linear term and a 1.2 s kick died in 0.25 s. It now derives from Q
+   (`nlFor`) and **saturates** rather than growing without bound.
+4. Velocity gave only 5 dB from ghost note to full hit — a linear map with
+   a 0.18 floor, and a DRIVE curve (`1 + dr*11`) already deep in the tanh
+   knee at a 14 % setting. Now about 15 dB.
+5. Twice the **probe** was wrong rather than the engine: an unwindowed
+   Goertzel over 30 k samples of a signal that decayed in the first few
+   thousand, and "brightness" measured as share-of-energy-above-2.5 kHz,
+   which flips sign on a kick because its click owns that band and is a
+   *larger* fraction of a much smaller sound.
+
+Panel geometry and the five decal prompts: `docs/PANEL-SPEC.md` in that
+tree. Short version — an image generator cannot hit exact pixel
+coordinates, so it makes isolated decals (texture, knob cap, cheek,
+nameplate, pad) and the geometry table fixes their sizes; every
+interactive part stays CSS/SVG.
+
+---
+
 ## 11. Build order
 
 1. Skeleton: CMake, `SPECS[]`, APVTS, WebView2 page, `hello`, empty panel,
