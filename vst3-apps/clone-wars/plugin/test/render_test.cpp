@@ -346,6 +346,62 @@ int main (int argc, char** argv)
         check (! st.nan && st.peak < 1.3f, "engine + BWFX delay stays bounded");
     }
 
+    // ---- scenario 8: the SPECTRA world-mod bus on the clones -------------
+    {
+        auto renderDroneWm = [fs] (std::vector<float>& L, std::vector<float>& R,
+                                   int mode)   // 0 no call, 1 neutral, 2 sag, 3 detune, 4 dull
+        {
+            auto ep = std::make_unique<cw::Engine>();
+            ep->prepare (fs, 512);
+            ep->setGlobal (cw::gDrone, 1);
+            ep->setGlobal (cw::gTolerance, 0.f);
+            ep->setGlobal (cw::gDriftMaster, 0.f);
+            ep->setGlobal (cw::gTide, 0.f);
+            if (mode == 1) ep->setWorldMod (0, 0, 0, 0, 0, 1);
+            if (mode == 2) ep->setWorldMod (0, 0, 0, 0, 1.0f, 1);   // 1 st sag
+            if (mode == 3) ep->setWorldMod (30, 0, 0, 0, 0, 1);
+            if (mode == 4) ep->setWorldMod (0, 0, 0, 0, 0, 0.25f);
+            const size_t n = (size_t) fs * 3;
+            L.assign (n, 0.0f); R.assign (n, 0.0f);
+            size_t done = 0;
+            while (done < n)
+            {
+                const int m = (int) std::min<size_t> (512, n - done);
+                ep->process (L.data() + done, R.data() + done, m);
+                done += (size_t) m;
+            }
+        };
+        auto goertz = [fs] (const std::vector<float>& L, double f0)
+        {
+            const double w = 2.0 * 3.14159265358979 * f0 / fs, c = 2.0 * std::cos (w);
+            double s1 = 0, s2 = 0;
+            for (size_t i = (size_t) fs; i < L.size(); ++i)
+            { const double s0 = L[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+            return std::sqrt (std::max (0.0, s1 * s1 + s2 * s2 - c * s1 * s2));
+        };
+        std::vector<float> L0, R0, L1, R1, L2, R2, L3, R3, L4, R4;
+        renderDroneWm (L0, R0, 0);
+        renderDroneWm (L1, R1, 1);
+        renderDroneWm (L2, R2, 2);
+        renderDroneWm (L3, R3, 3);
+        renderDroneWm (L4, R4, 4);
+        check (std::memcmp (L0.data(), L1.data(), L0.size() * 4) == 0,
+               "neutral world-mod bus is bit-identical");
+        // sag keys to the GATE: a held drone must NOT go flat (PS2 lesson)
+        const double f0 = 110.0;
+        const double e0 = goertz (L0, f0), e2 = goertz (L2, f0);
+        printf ("world-mod sag on held drone: f0 energy %.3g vs %.3g\n", e0, e2);
+        check (e2 > e0 * 0.5, "sag detuned a HELD note (the PS2 bug reborn)");
+        check (std::memcmp (L0.data(), L3.data(), L0.size() * 4) != 0,
+               "world-mod detune audibly does something");
+        double hi0 = 0, hi4 = 0;
+        for (double f = 3000; f <= 6000; f += 500) { hi0 += goertz (L0, f); hi4 += goertz (L4, f); }
+        printf ("world-mod dull: HF energy %.3g -> %.3g\n", hi0, hi4);
+        check (hi4 < hi0 * 0.6, "filterMul does not darken");
+        const auto st = analyze (L3, R3, (size_t) fs / 2);
+        check (! st.nan && st.peak <= 1.01f, "world-mod render stays bounded");
+    }
+
     printf ("\n%s (%d failure%s)\n", failures == 0 ? "ALL PASS" : "FAILURES",
             failures, failures == 1 ? "" : "s");
     return failures == 0 ? 0 : 1;

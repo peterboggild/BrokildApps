@@ -608,6 +608,17 @@ void Engine::controlTick()
 
     refreshTolerances();
 
+    // Brokild World FX bus: copy once per sub-block; neutral = inert
+    wmDet   = wmIn[0].load (std::memory_order_relaxed);
+    wmPan   = wmIn[1].load (std::memory_order_relaxed);
+    wmTremD = wmIn[2].load (std::memory_order_relaxed);
+    wmTremR = wmIn[3].load (std::memory_order_relaxed);
+    wmSag   = wmIn[4].load (std::memory_order_relaxed);
+    wmFmul  = wmIn[5].load (std::memory_order_relaxed);
+    wmActive = wmDet != 0.0f || wmPan != 0.0f || wmTremD != 0.0f
+            || wmSag != 0.0f || wmFmul != 1.0f;
+    if (wmActive) wmT += (double) kSubBlock / fs; else wmT = 0.0;
+
     // TIDE: two independent minutes-scale random walks (filter, pitch)
     const float dtc = (float) kSubBlock / (float) fs;
     const float leak = dtc / 45.0f;
@@ -733,7 +744,18 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
             if (! wasGated && vc.envAmp.value < 1.0e-4f) vc.freqCurrent = targetHz;
             else vc.freqCurrent += glideCoef * (targetHz - vc.freqCurrent);
         }
-        const double dt = (double) vc.freqCurrent / fs;
+        double wmPitch = 1.0;
+        if (wmActive)
+        {
+            // sag keys to the smoothed GATE: in tune while held, sags as
+            // the note dies (the Photo-Synth lesson - never the amp env)
+            const float gcoef = 1.0f - std::exp ((float) (-(double) kSubBlock / (0.05 * fs)));
+            vc.wmGate += gcoef * ((gate ? 1.0f : 0.0f) - vc.wmGate);
+            const float fan = std::fmod ((float) vi * 0.6180339887f + 0.5f, 1.0f) * 2.0f - 1.0f;
+            const float cents = wmDet * fan - wmSag * 100.0f * (1.0f - vc.wmGate);
+            wmPitch = std::exp2 ((double) cents / 1200.0);
+        }
+        const double dt = (double) vc.freqCurrent * wmPitch / fs;
 
         // ---- filter control values
         const float kTrack = kbd * (targetNote - 48.0f) / 60.0f;
@@ -804,9 +826,23 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
         // ---- output gains
         const bool audible = F[vfMute] < 0.5f && (! soloAny || F[vfSolo] > 0.5f);
         const float lvl = audible ? F[vfLevel] * F[vfLevel] * vc.tolLevel : 0.0f;
-        const float panv = std::clamp (F[vfPan], -1.0f, 1.0f);
-        const float tgtL = lvl * std::cos ((panv + 1.0f) * 0.7853981f);
-        const float tgtR = lvl * std::sin ((panv + 1.0f) * 0.7853981f);
+        float panWm = std::clamp (F[vfPan], -1.0f, 1.0f);
+        float wmGain = 1.0f;
+        if (wmActive)
+        {
+            const float fan2 = std::fmod ((float) vi * 0.6180339887f + 0.21f, 1.0f) * 2.0f - 1.0f;
+            panWm = std::clamp (panWm + wmPan * fan2, -1.0f, 1.0f);
+            if (wmTremD > 0.0f && wmTremR > 0.0f)
+            {
+                // per-clone tremolo: spread rates, golden-angle phases
+                const float u = std::fmod ((float) vi * 0.6180339887f + 0.71f, 1.0f);
+                const float rate = wmTremR * (0.75f + 0.5f * u);
+                const float ph = (float) (6.2831853 * rate * wmT) + (float) vi * 2.39996f;
+                wmGain = 1.0f - wmTremD * (0.5f - 0.5f * std::sin (ph));
+            }
+        }
+        const float tgtL = lvl * wmGain * std::cos ((panWm + 1.0f) * 0.7853981f);
+        const float tgtR = lvl * wmGain * std::sin ((panWm + 1.0f) * 0.7853981f);
 
         float* mixL = armyA ? mixLA : mixLB;
         float* mixR = armyA ? mixRA : mixRB;
@@ -852,6 +888,7 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
             cut01 = std::clamp (cut01, 0.0f, 1.0f);
             vc.cutSmooth += 0.02f * (cut01 - vc.cutSmooth);
             float fc = 30.0f * std::pow (533.0f, vc.cutSmooth);   // 30 Hz .. 16 kHz
+            if (wmActive) fc *= wmFmul;                           // world-mod bus
             // the last 3% of the knob lifts the ceiling to ~20.5 kHz, so MAX
             // really is out of the way (the chain measured flat; only this
             // 16 kHz top through a 2-pole still shaved the air off)

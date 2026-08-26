@@ -86,26 +86,76 @@
       { id: "decay", name: "DECAY", def: 60, lo: 0, hi: 100, step: 0, unit: "%" },
       { id: "shimmer", name: "SHIMMER", def: 45, lo: 0, hi: 100, step: 0, unit: "%" },
       { id: "tone", name: "TONE", def: 55, lo: 0, hi: 100, step: 0, unit: "%" }
+    ] },
+    { id: "rotary", name: "ROTARY", sub: "leslie cabinet, real inertia", ver: 1, params: [
+      { id: "speed", name: "SPEED", def: 0, lo: 0, hi: 2, step: 1, unit: "", choices: "SLOW|FAST|BRAKE" },
+      { id: "mix", name: "MIX", def: 100, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "balance", name: "BALANCE", def: 0, lo: -50, hi: 50, step: 0, unit: "" },
+      { id: "growl", name: "GROWL", def: 20, lo: 0, hi: 100, step: 0, unit: "%" }
+    ] },
+    { id: "kieranator", name: "KIERANATOR", sub: "step-sequenced havoc", ver: 1, custom: "steps", params: [
+      { id: "length", name: "LENGTH", def: 0, lo: 0, hi: 1, step: 1, unit: "", choices: "1 BAR|2 BARS" },
+      { id: "mix", name: "MIX", def: 100, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "repeat", name: "REPEAT", def: 1, lo: 0, hi: 2, step: 1, unit: "", choices: "1/2 STEP|1/4 STEP|1/8 STEP" },
+      { id: "decay", name: "DECAY", def: 70, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "stop", name: "STOP", def: 100, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "pitch", name: "PITCH", def: 0, lo: 0, hi: 3, step: 1, unit: "", choices: "OCT DOWN|5TH DOWN|5TH UP|OCT UP" },
+      { id: "crush", name: "CRUSH", def: 60, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "duty", name: "DUTY", def: 50, lo: 0, hi: 100, step: 0, unit: "%" }
     ] }
   ];
 
-  var VERSION = "1.2.0";
+  /* Snapshot of bwfx::characterJson() for standalone use. */
+  var DEFAULT_CDESC = [
+    { id: "tape", name: "TAPE SEANCE", sub: "the wow of a dying machine", ver: 1, params: [
+      { id: "wobble", name: "WOBBLE", def: 45, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "sag", name: "SAG", def: 35, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "dull", name: "DULL", def: 40, lo: 0, hi: 100, step: 0, unit: "%" }
+    ] },
+    { id: "insect", name: "INSECT SWARM", sub: "sixteen wings, none agreeing", ver: 1, params: [
+      { id: "swarm", name: "SWARM", def: 55, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "flutter", name: "FLUTTER", def: 60, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "skitter", name: "SKITTER", def: 40, lo: 0, hi: 100, step: 0, unit: "%" }
+    ] }
+  ];
+
+  var VERSION = "1.3.0";
   var desc = DEFAULT_DESC;
+  var charDesc = DEFAULT_CDESC;
+  var busLive = false;             // does THIS host map the world-mod bus?
   var send = null;                 // native pipe; null = standalone
   var state = defaultState();
   var open = false;
   var built = false;
 
   function defaultState() {
-    var s = { mix: 1, order: [], modules: {} };
+    var s = { mix: 1, order: [], modules: {}, spectra: {} };
     desc.forEach(function (d) {
       s.order.push(d.id);
       var p = {};
       d.params.forEach(function (pd) { p[pd.id] = pd.def; });
-      s.modules[d.id] = { on: 0, pr: 1, p: p };
+      s.modules[d.id] = { on: 0, pr: 1, p: p, x: "" };
+    });
+    charDesc.forEach(function (d) {
+      var p = {};
+      d.params.forEach(function (pd) { p[pd.id] = pd.def; });
+      s.spectra[d.id] = { on: 0, pr: 1, p: p };
     });
     return s;
   }
+
+  /* The step-grid editor (custom: "steps") — 16 cells, 8 effect brushes.
+     The pattern is the module's opaque extra state: 16 chars '0'..'7'. */
+  var STEPFX = [
+    { c: "0", n: "·", t: "none",      col: "#2c3a42" },
+    { c: "1", n: "RT",     t: "retrigger", col: "#ff9d4d" },
+    { c: "2", n: "TS",     t: "tape stop", col: "#ff5533" },
+    { c: "3", n: "RV",     t: "reverse",   col: "#5fa8ff" },
+    { c: "4", n: "SH",     t: "shuffle",   col: "#c39bff" },
+    { c: "5", n: "PT",     t: "pitch",     col: "#59e389" },
+    { c: "6", n: "CR",     t: "crush",     col: "#e8d44d" },
+    { c: "7", n: "GT",     t: "gate",      col: "#3fe0d8" }
+  ];
 
   function descOf(id) { for (var i = 0; i < desc.length; i++) if (desc[i].id === id) return desc[i]; return null; }
 
@@ -181,6 +231,19 @@
     ".bwfx-presrow label{color:var(--bwfx-accent,#3fe0d8);letter-spacing:.16em}",
     ".bwfx-presrow output{color:var(--bwfx-accent,#3fe0d8);text-shadow:0 0 6px rgba(63,224,216,.5)}",
     ".bwfx-presrow input[type=range]{accent-color:var(--bwfx-accent,#3fe0d8)}",
+    /* --- the step grid (custom pedal editor, DISRUPTOR) --- */
+    ".bwfx-steps{grid-column:1/-1;padding:4px 0 2px}",
+    ".bwfx-steprow{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;touch-action:none}",
+    ".bwfx-step{aspect-ratio:1;border-radius:4px;border:1px solid rgba(255,255,255,.10);cursor:pointer;",
+    " background:#141b20;display:flex;align-items:center;justify-content:center;",
+    " font:600 8px ui-monospace,Menlo,monospace;color:#0a0d10;user-select:none;}",
+    ".bwfx-step[data-q='1']{border-color:rgba(255,255,255,.22)}",
+    ".bwfx-brushes{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}",
+    ".bwfx-brush{border:1px solid rgba(255,255,255,.14);border-radius:5px;padding:3px 7px;cursor:pointer;",
+    " font:600 9px ui-monospace,Menlo,monospace;letter-spacing:.06em;background:#10161b;color:#8fa0a8;}",
+    ".bwfx-brush.on{color:#0a0d10;border-color:transparent}",
+    ".bwfx-stephint{font-size:9px;letter-spacing:.1em;color:#5d7a76;margin-top:5px}",
+    ".bwfx-tribute{font-size:8.5px;letter-spacing:.08em;color:#4d625e;font-style:italic;margin-top:4px}",
     ".bwfx-row{display:grid;grid-template-columns:1fr auto;grid-template-areas:'lab out' 'ctl ctl';",
     " align-items:center;gap:2px 8px;padding:3px 0;min-width:0;}",
     ".bwfx-row label{grid-area:lab;font-size:10.5px;letter-spacing:.1em;color:#93a1a8}",
@@ -254,6 +317,25 @@
     ".bwfx-spectra .bwfx-globe{width:30px;height:30px;color:#2c4a46;}",
     ".bwfx-spectra b{font-size:11px;letter-spacing:.3em;color:#6d8a86}",
     ".bwfx-spectra span{font-size:10.5px;letter-spacing:.08em;max-width:300px;text-align:center;line-height:1.6}",
+    /* --- live SPECTRA characters (Photo-Synth 2's possession units) --- */
+    ".bwfx-rocker-lg{width:42px;height:52px;padding:4px;border-radius:8px}",
+    ".bwfx-char .bwfx-mhead{min-height:62px}",
+    ".bwfx-char .bwfx-mtoggle{text-align:left}",
+    ".bwfx-char .bwfx-sub{text-transform:none;font-style:italic;letter-spacing:.06em}",
+    ".bwfx-mod[data-spec=tape]{--fxc:#e0b46a;--fxglow:rgba(224,180,106,.5);",
+    " background:radial-gradient(circle at 14% 30%,rgba(224,180,106,.13) 0 9px,transparent 10px),",
+    "  radial-gradient(circle at 14% 30%,rgba(224,180,106,.07) 0 16px,transparent 17px),",
+    "  radial-gradient(circle at 86% 30%,rgba(224,180,106,.13) 0 9px,transparent 10px),",
+    "  radial-gradient(circle at 86% 30%,rgba(224,180,106,.07) 0 16px,transparent 17px),",
+    "  linear-gradient(180deg,#231708,#140d04);border-color:#5e4520;border-left-color:#e0b46a;border-radius:5px;}",
+    ".bwfx-mod[data-spec=tape] .bwfx-name{font-family:Georgia,'Times New Roman',serif;text-transform:none;",
+    " font-size:15px;letter-spacing:.14em;color:#f0cd8e;text-shadow:0 0 10px rgba(224,180,106,.5);}",
+    ".bwfx-mod[data-spec=insect]{--fxc:#b6ff45;--fxglow:rgba(182,255,69,.45);",
+    " background:repeating-linear-gradient(64deg,rgba(182,255,69,.05) 0 2px,transparent 2px 9px),",
+    "  repeating-linear-gradient(-64deg,rgba(182,255,69,.04) 0 2px,transparent 2px 9px),",
+    "  linear-gradient(180deg,#131c07,#0a1004);border-color:#3f5c1c;border-left-color:#b6ff45;border-radius:12px;}",
+    ".bwfx-mod[data-spec=insect] .bwfx-name{font-family:ui-monospace,Menlo,monospace;color:#d2ff8e;",
+    " letter-spacing:.22em;text-shadow:0 0 8px rgba(182,255,69,.55);}",
     ".bwfx-foot{padding:8px 18px 2px;font:10px ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#4d625e;",
     " display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}"
   ].join("\n");
@@ -291,10 +373,7 @@
       '  <div class="bwfx-cols">' +
       '    <div><div class="bwfx-rack-t">FX RACK</div><div class="bwfx-list" id="bwfxList"></div></div>' +
       '    <div><div class="bwfx-rack-t">SPECTRA RACK</div>' +
-      '      <div class="bwfx-spectra">' + GLOBE +
-      '        <b>SPECTRA</b>' +
-      '        <span>The character modules join the world with a coming BWFX update &mdash; they will appear here, in every Brokild synth, on its next rebuild. The FX rack is live.</span>' +
-      '      </div></div>' +
+      '      <div id="bwfxSpectraCol"></div></div>' +
       '  </div>' +
       '  <div class="bwfx-foot"><span>BWFX ' + VERSION + '</span>' +
       '  <span>A PATCH STORES ITS OWN RACK &middot; EMPTY RACK = BIT-TRANSPARENT</span></div>' +
@@ -316,6 +395,102 @@
     });
 
     renderList();
+    renderSpectra();
+  }
+
+  /* The SPECTRA rack. Live only where the host's engine maps the bus;
+     everywhere else the plate says the characters are still on their way. */
+  function renderSpectra() {
+    var col = veil && veil.querySelector("#bwfxSpectraCol");
+    if (!col) return;
+    col.innerHTML = "";
+    if (!busLive) {
+      var plate = document.createElement("div");
+      plate.className = "bwfx-spectra";
+      plate.innerHTML = GLOBE + "<b>SPECTRA</b>" +
+        "<span>The character modules arrive for this synth with a coming BWFX update &mdash; " +
+        "its engine does not yet listen to the world-modulation bus. The FX rack is live.</span>";
+      col.appendChild(plate);
+      return;
+    }
+    var list = document.createElement("div");
+    list.className = "bwfx-list";
+    charDesc.forEach(function (d) {
+      if (!state.spectra[d.id]) {
+        var pdef = {};
+        d.params.forEach(function (pd) { pdef[pd.id] = pd.def; });
+        state.spectra[d.id] = { on: 0, pr: 1, p: pdef };
+      }
+      var cs = state.spectra[d.id];
+      var unit = document.createElement("section");
+      unit.className = "bwfx-mod bwfx-char" + (cs.on ? "" : " bwfx-off");
+      unit.setAttribute("data-spec", d.id);
+
+      var head = document.createElement("div");
+      head.className = "bwfx-mhead";
+      head.innerHTML =
+        '<button class="bwfx-rocker bwfx-rocker-lg" type="button" role="switch" aria-pressed="' + (cs.on ? "true" : "false") + '"' +
+        ' aria-label="' + d.name + ' armed" title="Arm ' + d.name + '"><span class="bwfx-lens"><i></i></span></button>' +
+        '<button class="bwfx-mtoggle" type="button" aria-expanded="' + (cs.on ? "true" : "false") + '">' +
+        '  <span class="bwfx-name">' + d.name + '</span><span class="bwfx-sub">' + d.sub + '</span></button>';
+      unit.appendChild(head);
+
+      var ctl = document.createElement("div");
+      ctl.className = "bwfx-ctl";
+      if (!cs.on) ctl.hidden = true;
+
+      (function () {   // PRESENCE = arm strength, the morph lever
+        var row = document.createElement("div");
+        row.className = "bwfx-row bwfx-presrow";
+        var v = Math.round((typeof cs.pr === "number" ? cs.pr : 1) * 100);
+        row.innerHTML = "<label>PRESENCE</label><output>" + v + " %</output>" +
+          '<div class="bwfx-c"><input type="range" min="0" max="100" step="1" value="' + v + '"></div>';
+        var inp = row.querySelector("input"), out = row.querySelector("output");
+        inp.addEventListener("input", function () {
+          out.textContent = inp.value + " %";
+          cs.pr = parseInt(inp.value, 10) / 100;
+          if (send) send({ op: "cpresence", m: d.id, v: cs.pr });
+        });
+        ctl.appendChild(row);
+      })();
+
+      d.params.forEach(function (pd) {
+        var row = document.createElement("div");
+        row.className = "bwfx-row";
+        var v = cs.p[pd.id] !== undefined ? cs.p[pd.id] : pd.def;
+        row.innerHTML = "<label>" + pd.name + "</label><output>" + fmt(pd, v) + "</output>" +
+          '<div class="bwfx-c"><input type="range" min="' + pd.lo + '" max="' + pd.hi + '" step="1" value="' + v + '"></div>';
+        var inp = row.querySelector("input"), out = row.querySelector("output");
+        inp.addEventListener("input", function () {
+          var nv = parseFloat(inp.value);
+          out.textContent = fmt(pd, nv);
+          cs.p[pd.id] = nv;
+          if (send) send({ op: "cset", m: d.id, p: pd.id, v: nv });
+        });
+        ctl.appendChild(row);
+      });
+      unit.appendChild(ctl);
+
+      head.querySelector(".bwfx-rocker").addEventListener("click", function (e) {
+        e.stopPropagation();
+        cs.on = cs.on ? 0 : 1;
+        if (send) send({ op: "cenable", m: d.id, on: cs.on });
+        renderSpectra();
+      });
+      head.querySelector(".bwfx-mtoggle").addEventListener("click", function (e) {
+        var ex = e.currentTarget.getAttribute("aria-expanded") === "true";
+        e.currentTarget.setAttribute("aria-expanded", ex ? "false" : "true");
+        ctl.hidden = ex;
+      });
+
+      list.appendChild(unit);
+    });
+    col.appendChild(list);
+
+    var note = document.createElement("div");
+    note.className = "bwfx-stephint";
+    note.textContent = "CHARACTERS POSSESS THE SYNTH ITSELF · ARM ORDER LAYERS · PRESENCE IS THE GRIP";
+    col.appendChild(note);
   }
 
   function renderList() {
@@ -364,6 +539,82 @@
           if (send) send({ op: "presence", m: id, v: ms.pr });
         });
         ctl.appendChild(row);
+      })();
+
+      // custom pedal editor: the drawable step grid (DISRUPTOR)
+      if (d.custom === "steps") (function () {
+        var wrap = document.createElement("div");
+        wrap.className = "bwfx-steps";
+        var pat = typeof ms.x === "string" ? ms.x : "";
+        while (pat.length < 16) pat += "0";
+        pat = pat.slice(0, 16);
+        var brush = "1";
+
+        var grid = document.createElement("div");
+        grid.className = "bwfx-steprow";
+        var cells = [];
+        function paintCell(k) {
+          var c = pat[k];
+          var fx = STEPFX[parseInt(c, 10)] || STEPFX[0];
+          cells[k].style.background = c === "0" ? "#141b20" : fx.col;
+          cells[k].textContent = c === "0" ? "" : fx.n;
+          cells[k].setAttribute("data-q", (k % 4 === 0) ? "1" : "0");
+        }
+        function setCell(k, c) {
+          if (pat[k] === c) return;
+          pat = pat.slice(0, k) + c + pat.slice(k + 1);
+          ms.x = pat === "0000000000000000" ? "" : pat;
+          paintCell(k);
+          if (send) send({ op: "extra", m: id, x: pat });
+        }
+        for (var k = 0; k < 16; ++k) (function (k) {
+          var cell = document.createElement("div");
+          cell.className = "bwfx-step";
+          cells.push(cell);
+          grid.appendChild(cell);
+          cell.addEventListener("pointerdown", function (e) {
+            e.preventDefault();
+            setCell(k, pat[k] === brush ? "0" : brush);   // same brush = clear
+          });
+          cell.addEventListener("pointerenter", function (e) {
+            if (e.buttons) setCell(k, brush);             // drag paints
+          });
+          paintCell(k);
+        })(k);
+        for (var k2 = 0; k2 < 16; ++k2) paintCell(k2);
+        wrap.appendChild(grid);
+
+        var brushes = document.createElement("div");
+        brushes.className = "bwfx-brushes";
+        STEPFX.slice(1).forEach(function (fx) {
+          var b = document.createElement("div");
+          b.className = "bwfx-brush" + (fx.c === brush ? " on" : "");
+          b.textContent = fx.n + " " + fx.t.toUpperCase();
+          if (fx.c === brush) b.style.background = fx.col;
+          b.addEventListener("click", function () {
+            brush = fx.c;
+            brushes.querySelectorAll(".bwfx-brush").forEach(function (x, i) {
+              var f = STEPFX[i + 1];
+              x.classList.toggle("on", f.c === brush);
+              x.style.background = f.c === brush ? f.col : "";
+            });
+          });
+          brushes.appendChild(b);
+        });
+        wrap.appendChild(brushes);
+
+        var hint = document.createElement("div");
+        hint.className = "bwfx-stephint";
+        hint.textContent = "PICK A BRUSH · PAINT THE BAR · SAME BRUSH AGAIN CLEARS A STEP";
+        wrap.appendChild(hint);
+
+        if (id === "kieranator") {           // Peter may retire this line later
+          var trib = document.createElement("div");
+          trib.className = "bwfx-tribute";
+          trib.textContent = "Inspired by the late Kieran Foster" + String.fromCharCode(8217) + "s legendary VST, Glitch 2.";
+          wrap.appendChild(trib);
+        }
+        ctl.appendChild(wrap);
       })();
 
       d.params.forEach(function (pd) {
@@ -497,6 +748,8 @@
     onState: function (p) {
       if (!p) return;
       if (p.desc && p.desc.length) desc = p.desc;
+      if (p.cdesc && p.cdesc.length) charDesc = p.cdesc;
+      if (typeof p.busLive === "boolean") busLive = p.busLive;
       if (p.state) {
         var s = p.state;
         state = defaultState();
@@ -513,12 +766,22 @@
           if (!m) return;
           state.modules[d.id].on = m.on ? 1 : 0;
           if (typeof m.pr === "number") state.modules[d.id].pr = m.pr;
+          if (typeof m.x === "string") state.modules[d.id].x = m.x;
           d.params.forEach(function (pd) {
             if (m.p && typeof m.p[pd.id] === "number") state.modules[d.id].p[pd.id] = m.p[pd.id];
           });
         });
+        if (s.spectra) charDesc.forEach(function (d) {
+          var c = s.spectra[d.id];
+          if (!c || !state.spectra[d.id]) return;
+          state.spectra[d.id].on = c.on ? 1 : 0;
+          if (typeof c.pr === "number") state.spectra[d.id].pr = c.pr;
+          d.params.forEach(function (pd) {
+            if (c.p && typeof c.p[pd.id] === "number") state.spectra[d.id].p[pd.id] = c.p[pd.id];
+          });
+        });
       }
-      if (built) renderList();
+      if (built) { renderList(); renderSpectra(); }
     },
     open: openRack,
     close: close,

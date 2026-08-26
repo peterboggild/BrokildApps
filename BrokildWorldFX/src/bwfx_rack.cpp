@@ -24,7 +24,7 @@ namespace
     }
 }
 
-const char* Rack::version() { return "1.2.0"; }
+const char* Rack::version() { return "1.3.0"; }
 
 // Parsed form of a state blob, defaults pre-filled.
 struct Rack::BlobState
@@ -36,7 +36,14 @@ struct Rack::BlobState
         bool  on = false;
         float pr = 1.0f;
         float p[kMaxParams] {};
+        std::string extra;                    // opaque ("x"), empty = default
     } m[kMaxModules];
+    struct Char
+    {
+        bool  on = false;
+        float pr = 1.0f;
+        float p[kMaxParams] {};
+    } c[kMaxChars];
 };
 
 Rack::Rack()
@@ -44,6 +51,13 @@ Rack::Rack()
     nTypes = numModuleTypes();
     for (int t = 0; t < nTypes; ++t)
         mods[(size_t) t].reset (createModule (t));
+
+    nChars = numCharacters();
+    for (int c = 0; c < nChars; ++c)
+        chars[(size_t) c].reset (createCharacter (c));
+    for (auto& p : charPresenceIn) p.store (1.0f, std::memory_order_relaxed);
+    charWasOff.fill (true);
+    busOut[5].store (1.0f, std::memory_order_relaxed);   // filterMul neutral
 
     int def[kMaxModules];
     for (int t = 0; t < nTypes; ++t) def[t] = t;
@@ -137,6 +151,113 @@ void Rack::setPresence (int type, float v)
         presenceIn[(size_t) type].store (clampf (v, 0.0f, 1.0f), std::memory_order_relaxed);
 }
 
+void Rack::setExtra (int type, const std::string& x)
+{
+    if (type >= 0 && type < nTypes)
+        mods[(size_t) type]->setExtra (x);
+}
+
+std::string Rack::getExtra (int type) const
+{
+    return (type >= 0 && type < nTypes) ? mods[(size_t) type]->getExtra() : std::string();
+}
+
+// --- SPECTRA ----------------------------------------------------------------
+void Rack::setCharArmed (int c, bool on)
+{
+    if (c < 0 || c >= nChars) return;
+    uint32_t bits = charArmedBits.load (std::memory_order_relaxed);
+    uint32_t nb;
+    do
+    {
+        nb = on ? (bits | (1u << c)) : (bits & ~(1u << c));
+    } while (! charArmedBits.compare_exchange_weak (bits, nb, std::memory_order_relaxed));
+}
+
+void Rack::setCharParam (int c, int p, float v)
+{
+    if (c < 0 || c >= nChars) return;
+    const Descriptor& d = characterDescriptor (c);
+    if (p < 0 || p >= d.numParams) return;
+    chars[(size_t) c]->setParam (p, clampf (v, d.params[p].lo, d.params[p].hi));
+}
+
+void Rack::setCharPresence (int c, float v)
+{
+    if (c >= 0 && c < nChars)
+        charPresenceIn[(size_t) c].store (clampf (v, 0.0f, 1.0f), std::memory_order_relaxed);
+}
+
+bool Rack::getCharArmed (int c) const
+{
+    return c >= 0 && c < nChars
+        && (charArmedBits.load (std::memory_order_relaxed) & (1u << c)) != 0;
+}
+float Rack::getCharParam (int c, int p) const
+{
+    return (c >= 0 && c < nChars) ? chars[(size_t) c]->getParam (p) : 0.0f;
+}
+float Rack::getCharPresence (int c) const
+{
+    return (c >= 0 && c < nChars) ? charPresenceIn[(size_t) c].load (std::memory_order_relaxed) : 1.0f;
+}
+
+WorldMod Rack::worldMod() const
+{
+    WorldMod w;
+    w.detuneCents = busOut[0].load (std::memory_order_relaxed);
+    w.panSpread   = busOut[1].load (std::memory_order_relaxed);
+    w.tremDepth   = busOut[2].load (std::memory_order_relaxed);
+    w.tremRate    = busOut[3].load (std::memory_order_relaxed);
+    w.pitchSag    = busOut[4].load (std::memory_order_relaxed);
+    w.filterMul   = busOut[5].load (std::memory_order_relaxed);
+    return w;
+}
+
+// Tick every armed character and publish the combined bus — the Photo-Synth
+// combination rules: detune/pan add, multipliers multiply, tremolo unions,
+// sag takes the max; each contribution scaled by the character's presence.
+void Rack::tickCharacters (int nSamples)
+{
+    const uint32_t armed = charArmedBits.load (std::memory_order_relaxed);
+    if (armed == 0)
+    {
+        for (int c = 0; c < nChars; ++c) charWasOff[(size_t) c] = true;
+        busOut[0].store (0.0f, std::memory_order_relaxed);
+        busOut[1].store (0.0f, std::memory_order_relaxed);
+        busOut[2].store (0.0f, std::memory_order_relaxed);
+        busOut[3].store (0.0f, std::memory_order_relaxed);
+        busOut[4].store (0.0f, std::memory_order_relaxed);
+        busOut[5].store (1.0f, std::memory_order_relaxed);
+        return;
+    }
+
+    const double dt = (double) nSamples / fs;
+    float det = 0, pan = 0, tremD = 0, tremR = 0, sag = 0, fmul = 1;
+    for (int c = 0; c < nChars; ++c)
+    {
+        if (! (armed & (1u << c))) { charWasOff[(size_t) c] = true; continue; }
+        if (charWasOff[(size_t) c]) { chars[(size_t) c]->reset(); charWasOff[(size_t) c] = false; }
+        const float pr = charPresenceIn[(size_t) c].load (std::memory_order_relaxed);
+        WorldMod one;
+        one.filterMul = 1.0f;
+        chars[(size_t) c]->tick (dt, one);
+        det += one.detuneCents * pr;
+        pan  = clampf (pan + one.panSpread * pr, 0.0f, 1.0f);
+        sag  = std::max (sag, one.pitchSag * pr);
+        fmul *= 1.0f + (one.filterMul - 1.0f) * pr;
+        const float d = one.tremDepth * pr;
+        if (d > tremD) tremR = one.tremRate;
+        tremD = 1.0f - (1.0f - tremD) * (1.0f - d);
+    }
+    busOut[0].store (det, std::memory_order_relaxed);
+    busOut[1].store (pan, std::memory_order_relaxed);
+    busOut[2].store (tremD, std::memory_order_relaxed);
+    busOut[3].store (tremR, std::memory_order_relaxed);
+    busOut[4].store (sag, std::memory_order_relaxed);
+    busOut[5].store (clampf (fmul, 0.05f, 4.0f), std::memory_order_relaxed);
+}
+
 // --- queries ---------------------------------------------------------------
 bool Rack::anyEnabled() const  { return enabledBits.load (std::memory_order_relaxed) != 0; }
 bool Rack::getEnabled (int type) const
@@ -159,6 +280,10 @@ float Rack::getMix() const { return mixIn.load (std::memory_order_relaxed); }
 void Rack::process (float* L, float* R, int n)
 {
     if (! prepared || n <= 0) return;
+
+    // SPECTRA tick FIRST: characters live on the bus, not in the chain, so
+    // they must breathe even when no FX pedal is enabled.
+    tickCharacters (n);
 
     const uint32_t en = enabledBits.load (std::memory_order_relaxed);
 
@@ -228,7 +353,14 @@ void Rack::process (float* L, float* R, int n)
             // a steady presence of 0.5 must not halve what enters the delay.
             const float ref = target > 0.05f ? e1 / target : e1 * 20.0f;
             mods[(size_t) t]->inputDuck (std::min (dip, clampf (ref, 0.0f, 1.0f)));
-            mods[(size_t) t]->setTempo (bpmIn.load (std::memory_order_relaxed));
+            const double bpm = bpmIn.load (std::memory_order_relaxed);
+            mods[(size_t) t]->setTempo (bpm);
+            const double ppq0 = ppqIn.load (std::memory_order_relaxed);
+            mods[(size_t) t]->setClock (
+                ppq0 >= 0.0 && bpm > 0.0
+                    ? ppq0 + (double) (samplesSinceTransport + done) * bpm / (60.0 * fs)
+                    : -1.0,
+                playingIn.load (std::memory_order_relaxed));
 
             if (e >= 1.0f && e1 >= 1.0f)
             {
@@ -273,6 +405,7 @@ void Rack::process (float* L, float* R, int n)
 
         done += m;
     }
+    samplesSinceTransport += n;
 
     // Safety ceiling: the rack sits after the host's own limiter, so it must
     // not hand runaway feedback onward. Transparent below 0.98 (host-limited
@@ -312,11 +445,32 @@ std::string Rack::toJson() const
            + ",\"on\":" + (getEnabled (t) ? "1" : "0");
         std::snprintf (buf, sizeof (buf), ",\"pr\":%g", (double) getPresence (t));
         s += buf;
+        const std::string extra = getExtra (t);
+        if (! extra.empty())
+            s += ",\"x\":\"" + json::escape (extra) + "\"";
         s += ",\"p\":{";
         for (int p = 0; p < d.numParams; ++p)
         {
             if (p > 0) s += ",";
             std::snprintf (buf, sizeof (buf), "\"%s\":%g", d.params[p].id, (double) getParam (t, p));
+            s += buf;
+        }
+        s += "}}";
+    }
+    s += "},\"spectra\":{";
+    for (int c = 0; c < nChars; ++c)
+    {
+        const Descriptor& d = characterDescriptor (c);
+        if (c > 0) s += ",";
+        s += "\"" + std::string (d.id) + "\":{\"ver\":" + std::to_string (d.version)
+           + ",\"on\":" + (getCharArmed (c) ? "1" : "0");
+        std::snprintf (buf, sizeof (buf), ",\"pr\":%g", (double) getCharPresence (c));
+        s += buf;
+        s += ",\"p\":{";
+        for (int p = 0; p < d.numParams; ++p)
+        {
+            if (p > 0) s += ",";
+            std::snprintf (buf, sizeof (buf), "\"%s\":%g", d.params[p].id, (double) getCharParam (c, p));
             s += buf;
         }
         s += "}}";
@@ -339,6 +493,14 @@ void Rack::clearState()
     for (int t = 0; t < nTypes; ++t) def[t] = t;
     orderPacked.store (packOrder (def, nTypes), std::memory_order_relaxed);
     setMix (1.0f);
+    for (int c = 0; c < nChars; ++c)
+    {
+        setCharArmed (c, false);
+        setCharPresence (c, 1.0f);
+        const Descriptor& d = characterDescriptor (c);
+        for (int p = 0; p < d.numParams; ++p)
+            chars[(size_t) c]->setParam (p, d.params[p].def);
+    }
 }
 
 void Rack::parseBlob (const std::string& s, BlobState& bs) const
@@ -352,6 +514,13 @@ void Rack::parseBlob (const std::string& s, BlobState& bs) const
         bs.m[t].pr = 1.0f;
         const Descriptor& d = moduleDescriptor (t);
         for (int p = 0; p < d.numParams; ++p) bs.m[t].p[p] = d.params[p].def;
+    }
+    for (int c = 0; c < nChars; ++c)
+    {
+        bs.c[c].on = false;
+        bs.c[c].pr = 1.0f;
+        const Descriptor& d = characterDescriptor (c);
+        for (int p = 0; p < d.numParams; ++p) bs.c[c].p[p] = d.params[p].def;
     }
     if (s.empty()) return;
     json::Value v;
@@ -373,6 +542,8 @@ void Rack::parseBlob (const std::string& s, BlobState& bs) const
                     bs.m[type].on = on->asNum (0) > 0.5;
                 if (const json::Value* pr = kv.second.find ("pr"))
                     bs.m[type].pr = clampf ((float) pr->asNum (1.0), 0.0f, 1.0f);
+                if (const json::Value* x = kv.second.find ("x"))
+                    bs.m[type].extra = x->asStr ("");
                 if (const json::Value* pv = kv.second.find ("p"))
                     if (pv->isObj())
                         for (auto& pkv : pv->obj)
@@ -383,6 +554,31 @@ void Rack::parseBlob (const std::string& s, BlobState& bs) const
                                     float val = clampf ((float) pkv.second.asNum (pd.def), pd.lo, pd.hi);
                                     if (pd.step > 0) val = pd.lo + pd.step * std::round ((val - pd.lo) / pd.step);
                                     bs.m[type].p[p] = val;
+                                    break;
+                                }
+            }
+
+    if (const json::Value* specV = v.find ("spectra"))
+        if (specV->isObj())
+            for (auto& kv : specV->obj)
+            {
+                int ci = -1;
+                for (int c = 0; c < nChars; ++c)
+                    if (kv.first == characterDescriptor (c).id) { ci = c; break; }
+                if (ci < 0) continue;              // unknown character: ignored
+                const Descriptor& d = characterDescriptor (ci);
+                if (const json::Value* on = kv.second.find ("on"))
+                    bs.c[ci].on = on->asNum (0) > 0.5;
+                if (const json::Value* pr = kv.second.find ("pr"))
+                    bs.c[ci].pr = clampf ((float) pr->asNum (1.0), 0.0f, 1.0f);
+                if (const json::Value* pv = kv.second.find ("p"))
+                    if (pv->isObj())
+                        for (auto& pkv : pv->obj)
+                            for (int p = 0; p < d.numParams; ++p)
+                                if (pkv.first == d.params[p].id)
+                                {
+                                    bs.c[ci].p[p] = clampf ((float) pkv.second.asNum (d.params[p].def),
+                                                            d.params[p].lo, d.params[p].hi);
                                     break;
                                 }
             }
@@ -421,6 +617,15 @@ void Rack::applyBlobState (const BlobState& bs)
         const Descriptor& d = moduleDescriptor (t);
         for (int p = 0; p < d.numParams; ++p)
             mods[(size_t) t]->setParam (p, bs.m[t].p[p]);
+        mods[(size_t) t]->setExtra (bs.m[t].extra);
+    }
+    for (int c = 0; c < nChars; ++c)
+    {
+        setCharArmed (c, bs.c[c].on);
+        setCharPresence (c, bs.c[c].pr);
+        const Descriptor& d = characterDescriptor (c);
+        for (int p = 0; p < d.numParams; ++p)
+            chars[(size_t) c]->setParam (p, bs.c[c].p[p]);
     }
     setOrder (bs.order, nTypes);
     setMix (bs.mix);
@@ -461,6 +666,28 @@ void Rack::applyMorph (const std::string& a, const std::string& b, float t)
                 out.m[m].p[p] = vA + (vB - vA) * t;
         }
     }
+
+    // SPECTRA characters morph like modules: union + presence crossfade
+    for (int c = 0; c < nChars; ++c)
+    {
+        const Descriptor& d = characterDescriptor (c);
+        const float prA = A.c[c].on ? A.c[c].pr : 0.0f;
+        const float prB = B.c[c].on ? B.c[c].pr : 0.0f;
+        const float pres = prA + (prB - prA) * t;
+        out.c[c].on = pres > 1e-3f;
+        out.c[c].pr = pres;
+        for (int p = 0; p < d.numParams; ++p)
+        {
+            const float vA = A.c[c].p[p], vB = B.c[c].p[p];
+            if (prA <= 1e-3f)      out.c[c].p[p] = vB;
+            else if (prB <= 1e-3f) out.c[c].p[p] = vA;
+            else                   out.c[c].p[p] = vA + (vB - vA) * t;
+        }
+    }
+
+    // extra state (a drawn pattern) cannot lerp either: defect at mid-morph
+    for (int m = 0; m < nTypes; ++m)
+        out.m[m].extra = t < 0.5f ? A.m[m].extra : B.m[m].extra;
 
     // the chain order cannot lerp: it defects once, through the dip
     for (int i = 0; i < nTypes; ++i)

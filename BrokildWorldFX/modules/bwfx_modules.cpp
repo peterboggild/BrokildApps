@@ -1023,6 +1023,403 @@ private:
 };
 
 //==============================================================================
+// ROTARY — a Leslie. Mono in (a rotary cabinet has one throat), GROWL drive,
+// an 800 Hz LR4 split, then two independent rotors: the HORN carries the top,
+// the DRUM the bottom, each with its own doppler (a modulated tap — distance
+// to the mic varies as the source circles) and amplitude throw, picked up by
+// two virtual mics 90 degrees apart. The point of the whole thing is the
+// INERTIA: the horn spins up in about a second, the heavy drum takes four —
+// that is what a SLOW/FAST flip sounds like on the real machine, and the
+// bench measures both ramp times rather than trusting anyone's ear.
+class Rotary : public Module
+{
+public:
+    const Descriptor& desc() const override;
+
+    void prepare (double fsr, int) override
+    {
+        fs = fsr;
+        const int len = nextPow2 ((int) (fs * 0.01) + 16);   // ~10 ms of throw
+        hornBuf.assign ((size_t) len, 0.0f);
+        drumBuf.assign ((size_t) len, 0.0f);
+        mask = len - 1;
+        // The real 122's passive crossover is only 12 dB/oct — the mid-band
+        // overlap where BOTH rotors carry ~800 Hz (and beat against each
+        // other) is part of the famous sound. A steeper split is cleaner and
+        // wrong.
+        lo1.set (Biquad::lowpass, 800.0, 20.0 * std::log10 (0.7071), 0, fs);
+        hi1.set (Biquad::highpass, 800.0, 20.0 * std::log10 (0.7071), 0, fs);
+        // the horn's own voice: a mild presence formant before it spins
+        hornEq.set (Biquad::peaking, 2500.0, 0.8, 2.0, fs);
+        mix.init (getParam (1));
+        reset();
+    }
+
+    void reset() override
+    {
+        std::fill (hornBuf.begin(), hornBuf.end(), 0.0f);
+        std::fill (drumBuf.begin(), drumBuf.end(), 0.0f);
+        w = 0;
+        for (auto* b : { &lo1, &hi1, &hornEq }) b->reset();
+        hornPh = 0.0;
+        drumPh = 0.31;                        // the rotors never start aligned
+        wobPh = 0.0;
+        const int sp = (int) std::lround (getParam (0));
+        hornRate = sp == 1 ? kHornFast : (sp == 2 ? 0.0 : kHornSlow);
+        drumRate = sp == 1 ? kDrumFast : (sp == 2 ? 0.0 : kDrumSlow);
+    }
+
+    void process (float* L, float* R, int n) override
+    {
+        const int sp = (int) std::lround (getParam (0));     // SLOW|FAST|BRAKE
+        mix.set (getParam (1));
+        const float m = clampf (mix.tick (fs, n, 0.05f) / 100.0f, 0.0f, 1.0f);
+        const float bal = clampf (getParam (2) / 50.0f, -1.0f, 1.0f);
+        const float hornG = bal <= 0 ? 1.0f : 1.0f - 0.6f * bal;
+        const float drumG = bal >= 0 ? 1.0f : 1.0f + 0.6f * bal;
+        const float growl = clampf (getParam (3) / 100.0f, 0.0f, 1.0f);
+        const float drvK = 1.0f + growl * 4.0f;
+        const float drvN = 1.0f / drvK;                      // unity small-signal
+
+        const double hornTarget = sp == 1 ? kHornFast : (sp == 2 ? 0.0 : kHornSlow);
+        const double drumTarget = sp == 1 ? kDrumFast : (sp == 2 ? 0.0 : kDrumSlow);
+        // per-rotor inertia: rising uses the spin-up time, falling the coast
+        const double hornTau = hornTarget > hornRate ? 0.9 : 1.1;
+        const double drumTau = drumTarget > drumRate ? 3.5 : 4.5;
+        const double hornCoef = 1.0 - std::exp (-(double) n / (hornTau * fs));
+        const double drumCoef = 1.0 - std::exp (-(double) n / (drumTau * fs));
+        hornRate += (hornTarget - hornRate) * hornCoef;
+        drumRate += (drumTarget - drumRate) * drumCoef;
+
+        // belt wobble: real rotors are not clockwork — a slow +-0.8% sway
+        // (deterministic, so renders stay bit-repeatable)
+        wobPh += kTwoPi * 0.11 * n / fs; if (wobPh > kTwoPi) wobPh -= kTwoPi;
+        const double wob = 1.0 + 0.008 * std::sin (wobPh);
+
+        const double hornStep = kTwoPi * hornRate * wob / fs;
+        const double drumStep = -kTwoPi * drumRate / fs;     // COUNTER-rotation,
+                                                             // like the real unit
+        // doppler throw: horn ~+-1.35% pitch at fast, drum ~+-0.7% — the
+        // physically plausible band for the mouth radius and baffle scoop
+        const double hornDep = 0.00032 * fs;
+        const double drumDep = 0.00018 * fs;
+        const double hornBase = hornDep + 6.0;
+        const double drumBase = drumDep + 6.0;
+        constexpr double micL = 0.7853981634;                // mics at +-45 degrees
+        constexpr double micR = -0.7853981634;
+
+        for (int i = 0; i < n; ++i)
+        {
+            // mono throat, growl drive
+            float x = (L[i] + R[i]) * 0.5f;
+            if (growl > 0.001f) x = std::tanh (x * drvK) * drvN * (1.0f + growl * 0.7f);
+
+            const float lo = lo1.processL (x);
+            const float hi = hornEq.processL (hi1.processL (x));
+            hornBuf[(size_t) (w & mask)] = hi;
+            drumBuf[(size_t) (w & mask)] = lo;
+
+            hornPh += hornStep; if (hornPh > kTwoPi) hornPh -= kTwoPi;
+            drumPh += drumStep; if (drumPh < 0.0) drumPh += kTwoPi;
+
+            // The horn: a directional beam. Front lobe sharpened (a horn's
+            // throw is more peaked than a bare cosine), plus a weak back-lobe
+            // reflection off the cabinet — that is what keeps the level from
+            // holing out when the horn points away.
+            auto horn = [&] (double mic) -> float
+            {
+                const double c = std::cos (hornPh - mic);
+                const double beam = 0.5 + 0.5 * c;
+                const float g  = 0.40f + 0.60f * (float) (beam * std::sqrt (beam));
+                const float d  = catmullRead (hornBuf, mask, w, hornBase + hornDep * (1.0 - c));
+                const float rb = catmullRead (hornBuf, mask, w, hornBase + hornDep * (1.0 + c) + 11.0);
+                return d * g + rb * 0.22f * (1.0f - g);
+            };
+            // The drum: a baffle behind a wooden scoop — broad, gentle throw.
+            auto drum = [&] (double mic) -> float
+            {
+                const double c = std::cos (drumPh - mic);
+                const float g = 1.0f - 0.25f * 0.5f * (1.0f - (float) c);
+                return catmullRead (drumBuf, mask, w, drumBase + drumDep * (1.0 - c)) * g;
+            };
+            const float hL = horn (micL), hR = horn (micR);
+            const float dL = drum (micL), dR = drum (micR);
+            ++w;
+
+            const float wl = hL * hornG + dL * drumG;
+            const float wr = hR * hornG + dR * drumG;
+            L[i] = L[i] * (1.0f - m) + wl * m;
+            R[i] = R[i] * (1.0f - m) + wr * m;
+        }
+        if (w > (1 << 30)) w -= (1 << 29);
+    }
+
+private:
+    static constexpr double kHornSlow = 0.83, kHornFast = 6.8;
+    static constexpr double kDrumSlow = 0.70, kDrumFast = 5.9;
+    double fs = 48000;
+    std::vector<float> hornBuf, drumBuf;
+    int mask = 0, w = 0;
+    Biquad lo1, hi1, hornEq;
+    double hornPh = 0, drumPh = 0.31, hornRate = kHornSlow, drumRate = kDrumSlow;
+    double wobPh = 0;
+    Smooth mix;
+};
+
+//==============================================================================
+// KIERANATOR — step-sequenced effect switching, named in honour of the late
+// Kieran Foster (dblue), whose Glitch 2 inspired it. Our own build
+// build. A rolling capture buffer holds the last bars; a 16-step pattern
+// (drawn on the pedal, stored as the module's opaque extra state) chooses per
+// step how that buffer is READ: nothing, retrigger, tape-stop, reverse,
+// shuffle, repitch, crush, gate. Everything is time-domain buffer reads —
+// glitchy by design, trivially light on CPU. 5 ms crossfades at every step
+// boundary keep it rhythmic rather than clicky. Bar-locked to the host
+// transport when it rolls; free-runs on an internal clock otherwise, so it
+// stays deterministic and playable without a DAW.
+class Disruptor : public Module
+{
+public:
+    const Descriptor& desc() const override;
+
+    void prepare (double fsr, int) override
+    {
+        fs = fsr;
+        const int len = nextPow2 ((int) (fs * 10.0) + 8);   // 2 bars at 48 BPM
+        bufL.assign ((size_t) len, 0.0f);
+        bufR.assign ((size_t) len, 0.0f);
+        mask = len - 1;
+        mix.init (getParam (1));
+        reset();
+    }
+
+    void reset() override
+    {
+        std::fill (bufL.begin(), bufL.end(), 0.0f);
+        std::fill (bufR.begin(), bufR.end(), 0.0f);
+        w = 0;
+        beats = 0.0;
+        lastStep = -1;
+        rng = 0xD15Bu;
+        cur = Voice();
+        old = Voice();
+        fade = 1.0f;
+    }
+
+    void setTempo (double b) override { bpm = b; }
+    void setClock (double ppq, bool playing) override { hostPpq = ppq; hostRolls = playing; }
+
+    // the pattern: 16 characters '0'..'7', one per step
+    void setExtra (const std::string& x) override
+    {
+        uint64_t p = 0;
+        for (int i = 0; i < 16; ++i)
+        {
+            const int c = i < (int) x.size() ? x[(size_t) i] - '0' : 0;
+            p |= (uint64_t) (c >= 0 && c <= 7 ? c : 0) << (3 * i);
+        }
+        patternIn.store (p, std::memory_order_relaxed);
+    }
+    std::string getExtra() const override
+    {
+        const uint64_t p = patternIn.load (std::memory_order_relaxed);
+        std::string s (16, '0');
+        for (int i = 0; i < 16; ++i) s[(size_t) i] = (char) ('0' + ((p >> (3 * i)) & 7));
+        return s == "0000000000000000" ? std::string() : s;   // default = empty blob
+    }
+
+    void process (float* L, float* R, int n) override
+    {
+        mix.set (getParam (1));
+        const float m = clampf (mix.tick (fs, n, 0.05f) / 100.0f, 0.0f, 1.0f);
+        const double useBpm = bpm > 0.0 ? bpm : 120.0;
+        const int bars = (int) std::lround (getParam (0)) == 1 ? 2 : 1;
+        const double stepBeats = bars * 4.0 / 16.0;
+        const double stepLen = stepBeats * 60.0 / useBpm * fs;      // samples
+        const uint64_t pattern = patternIn.load (std::memory_order_relaxed);
+
+        const double repFrac[3] = { 0.5, 0.25, 0.125 };
+        const double repLen = std::max (64.0, stepLen * repFrac[(int) std::lround (getParam (2)) & 3]);
+        const float decay = clampf (getParam (3) / 100.0f, 0.0f, 1.0f);
+        const float stopDepth = clampf (getParam (4) / 100.0f, 0.0f, 1.0f);
+        static const double ratios[4] = { 0.5, 2.0 / 3.0, 1.5, 2.0 };
+        const double ratio = ratios[(int) std::lround (getParam (5)) & 3];
+        const float crushAmt = clampf (getParam (6) / 100.0f, 0.0f, 1.0f);
+        const float duty = clampf (getParam (7) / 100.0f, 0.05f, 1.0f);
+        const double beatsPerSample = useBpm / (60.0 * fs);
+        const float fadeStep = 1.0f / (0.005f * (float) fs);        // 5 ms
+
+        for (int i = 0; i < n; ++i)
+        {
+            // clock: bar-locked to the host when it rolls, else internal
+            double b;
+            if (hostRolls && hostPpq >= 0.0)
+            {
+                b = hostPpq + (double) i * beatsPerSample;
+                beats = b;                                          // stay continuous on stop
+            }
+            else
+            {
+                beats += beatsPerSample;
+                b = beats;
+            }
+            const double stepPos = b / stepBeats;
+            const int step = (int) ((int64_t) stepPos % 16);
+            const double phase = stepPos - std::floor (stepPos);
+
+            // capture never stops
+            bufL[(size_t) (w & mask)] = L[i];
+            bufR[(size_t) (w & mask)] = R[i];
+
+            if (step != lastStep)
+            {
+                lastStep = step;
+                old = cur;
+                fade = 0.0f;
+                cur.type = (int) ((pattern >> (3 * step)) & 7);
+                cur.start = w;
+                cur.t = 0;
+                if (cur.type == 4)                                 // SHUFFLE
+                {
+                    rng = 1664525u * rng + 1013904223u;
+                    cur.shuffleBack = (1.0 + (double) (rng % 15u)) * stepLen;
+                }
+            }
+
+            float fl, fr, ol, orr;
+            render (cur, L[i], R[i], stepLen, repLen, decay, stopDepth, ratio,
+                    crushAmt, duty, phase, fl, fr);
+            if (fade < 1.0f)
+            {
+                render (old, L[i], R[i], stepLen, repLen, decay, stopDepth, ratio,
+                        crushAmt, duty, 1.0, ol, orr);
+                const float g = 0.5f - 0.5f * std::cos (3.14159265f * fade);   // equal-ish power
+                fl = ol + (fl - ol) * g;
+                fr = orr + (fr - orr) * g;
+                fade = std::min (1.0f, fade + fadeStep);
+            }
+            ++cur.t;
+            ++old.t;
+            ++w;
+
+            L[i] = L[i] * (1.0f - m) + fl * m;
+            R[i] = R[i] * (1.0f - m) + fr * m;
+        }
+        if (w > (1 << 30)) { w -= (1 << 29); cur.start -= (1 << 29); old.start -= (1 << 29); }
+    }
+
+private:
+    struct Voice
+    {
+        int type = 0;            // 0 NONE 1 RETRIG 2 TAPESTOP 3 REVERSE
+                                 // 4 SHUFFLE 5 PITCH 6 CRUSH 7 GATE
+        int start = 0;           // write position at the step boundary
+        int64_t t = 0;           // samples into the step
+        double shuffleBack = 0;
+        // crush state
+        float holdL = 0, holdR = 0;
+        double holdAcc = 0;
+    };
+
+    void render (Voice& v, float inL, float inR, double stepLen, double repLen,
+                 float decay, float stopDepth, double ratio, float crushAmt,
+                 float duty, double phase, float& outL, float& outR)
+    {
+        switch (v.type)
+        {
+            default:
+            case 0:                                                // NONE: dry
+                outL = inL; outR = inR;
+                return;
+            case 1:                                                // RETRIG
+            {
+                const int64_t k = v.t / (int64_t) repLen;
+                const double pos = (double) (v.t % (int64_t) repLen);
+                const float g = std::pow (decay, (float) k);
+                outL = catmullRead (bufL, mask, w, (double) (w - v.start) - pos + 2.0) * g;
+                outR = catmullRead (bufR, mask, w, (double) (w - v.start) - pos + 2.0) * g;
+                return;
+            }
+            case 2:                                                // TAPESTOP
+            {
+                const double u = std::min (1.0, (double) v.t / std::max (1.0, stepLen));
+                const double rate = std::max (0.0, 1.0 - stopDepth * std::pow (u, 1.4));
+                // integrated read position (closed form of the power ramp)
+                const double travel = (double) v.t - stopDepth * stepLen * std::pow (u, 2.4) / 2.4;
+                const double back = (double) (w - v.start) - travel + 2.0;
+                const float g = 0.25f + 0.75f * (float) std::sqrt (rate);   // dies as it stops
+                outL = catmullRead (bufL, mask, w, back) * g;
+                outR = catmullRead (bufR, mask, w, back) * g;
+                return;
+            }
+            case 3:                                                // REVERSE
+            {
+                const double back = (double) (w - v.start) + (double) v.t + 2.0;
+                outL = catmullRead (bufL, mask, w, back);
+                outR = catmullRead (bufR, mask, w, back);
+                return;
+            }
+            case 4:                                                // SHUFFLE
+            {
+                const double pos = (double) (v.t % (int64_t) std::max (64.0, stepLen));
+                const double back = (double) (w - v.start) + v.shuffleBack - pos + 2.0;
+                outL = catmullRead (bufL, mask, w, back);
+                outR = catmullRead (bufR, mask, w, back);
+                return;
+            }
+            case 5:                                                // PITCH
+            {
+                // loop the PREVIOUS step's slice at the ratio: the read head
+                // never has to cross the write head, whatever the interval
+                const double span = std::max (64.0, stepLen);
+                const double pos = std::fmod ((double) v.t * ratio, span);
+                const double back = (double) (w - v.start) + span - pos + 2.0;
+                outL = catmullRead (bufL, mask, w, back);
+                outR = catmullRead (bufR, mask, w, back);
+                return;
+            }
+            case 6:                                                // CRUSH
+            {
+                const double hold = 1.0 + crushAmt * crushAmt * 60.0;
+                v.holdAcc += 1.0;
+                if (v.holdAcc >= hold) { v.holdAcc -= hold; v.holdL = inL; v.holdR = inR; }
+                const double q = std::pow (2.0, 11.0 - crushAmt * 8.0);
+                outL = (float) (std::round (v.holdL * q) / q);
+                outR = (float) (std::round (v.holdR * q) / q);
+                return;
+            }
+            case 7:                                                // GATE
+            {
+                // open for `duty` of the step, 1% edges so the chop is a
+                // chop, not a click
+                const double edge = 0.01;
+                float g = 0.0f;
+                if (phase < duty)
+                {
+                    g = 1.0f;
+                    if (phase < edge)               g = (float) (phase / edge);
+                    else if (phase > duty - edge)   g = (float) ((duty - phase) / edge);
+                }
+                outL = inL * g; outR = inR * g;
+                return;
+            }
+        }
+    }
+
+    double fs = 48000;
+    std::vector<float> bufL, bufR;
+    int mask = 0, w = 0;
+    double bpm = 0, hostPpq = -1.0, beats = 0;
+    bool hostRolls = false;
+    int lastStep = -1;
+    uint32_t rng = 0xD15Bu;
+    std::atomic<uint64_t> patternIn { 0 };
+    Voice cur, old;
+    float fade = 1.0f;
+    Smooth mix;
+};
+
+//==============================================================================
 // The registry. Type indices are the default chain order (Photo-Synth 2's:
 // saturation, phaser, chorus, stutter, delay, reverb).
 namespace
@@ -1077,6 +1474,22 @@ namespace
         { "high",    "10 KHZ",  0,   -12, 12,  0, "dB", nullptr },
         { "output",  "OUTPUT",  0,   -12, 12,  0, "dB", nullptr },
     };
+    const ParamDesc DISRUPTOR_PARAMS[] = {
+        { "length", "LENGTH", 0,   0, 1,   1, "",  "1 BAR|2 BARS" },
+        { "mix",    "MIX",    100, 0, 100, 0, "%", nullptr },
+        { "repeat", "REPEAT", 1,   0, 2,   1, "",  "1/2 STEP|1/4 STEP|1/8 STEP" },
+        { "decay",  "DECAY",  70,  0, 100, 0, "%", nullptr },
+        { "stop",   "STOP",   100, 0, 100, 0, "%", nullptr },
+        { "pitch",  "PITCH",  0,   0, 3,   1, "",  "OCT DOWN|5TH DOWN|5TH UP|OCT UP" },
+        { "crush",  "CRUSH",  60,  0, 100, 0, "%", nullptr },
+        { "duty",   "DUTY",   50,  0, 100, 0, "%", nullptr },
+    };
+    const ParamDesc ROTARY_PARAMS[] = {
+        { "speed",   "SPEED",   0,   0,   2,   1, "",   "SLOW|FAST|BRAKE" },
+        { "mix",     "MIX",     100, 0,   100, 0, "%",  nullptr },
+        { "balance", "BALANCE", 0,   -50, 50,  0, "",   nullptr },
+        { "growl",   "GROWL",   20,  0,   100, 0, "%",  nullptr },
+    };
     const ParamDesc SHIMMER_PARAMS[] = {
         { "mix",     "MIX",     30, 0, 100, 0, "%", nullptr },
         { "size",    "SIZE",    55, 0, 100, 0, "%", nullptr },
@@ -1109,6 +1522,8 @@ namespace
         { "delay",      "ECHO",     "stereo tape echo",            1, DELAY_PARAMS,   7 },
         { "reverb",     "SPACE",    "stereo convolution space",    1, REVERB_PARAMS,  3 },
         { "shimmer",    "SHIMMER",  "octave-up cathedral",         1, SHIMMER_PARAMS, 5 },
+        { "rotary",     "ROTARY",   "leslie cabinet, real inertia", 1, ROTARY_PARAMS, 4 },
+        { "kieranator", "KIERANATOR", "step-sequenced havoc",       1, DISRUPTOR_PARAMS, 8, "steps" },
     };
     constexpr int kNumTypes = (int) (sizeof (DESCS) / sizeof (DESCS[0]));
 }
@@ -1123,6 +1538,8 @@ const Descriptor& Strip::desc() const       { return DESCS[6]; }
 const Descriptor& EchoDelay::desc() const   { return DESCS[7]; }
 const Descriptor& ConvReverb::desc() const  { return DESCS[8]; }
 const Descriptor& Shimmer::desc() const     { return DESCS[9]; }
+const Descriptor& Rotary::desc() const      { return DESCS[10]; }
+const Descriptor& Disruptor::desc() const   { return DESCS[11]; }
 
 int numModuleTypes() { return kNumTypes; }
 
@@ -1146,6 +1563,8 @@ Module* createModule (int type)
         case 7: m = new EchoDelay(); break;
         case 8: m = new ConvReverb(); break;
         case 9: m = new Shimmer(); break;
+        case 10: m = new Rotary(); break;
+        case 11: m = new Disruptor(); break;
         default: return nullptr;
     }
     const Descriptor& d = m->desc();
@@ -1177,7 +1596,10 @@ std::string descriptorJson()
                 s += std::string (",\"choices\":\"") + json::escape (pd.choices) + "\"";
             s += "}";
         }
-        s += "]}";
+        s += "]";
+        if (d.custom != nullptr)
+            s += std::string (",\"custom\":\"") + json::escape (d.custom) + "\"";
+        s += "}";
     }
     s += "]";
     return s;

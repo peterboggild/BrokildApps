@@ -54,6 +54,30 @@ the plugin (branch `claude/dex-server-host-9jkd55`).
 5. Update this note when the state changes hands.
 
 
+## 260826.5 — SPECTRA phase A: the world-mod bus reaches the clones (VS Code session)
+
+Clone Wars is the first synth whose engine LISTENS to the BWFX character
+bus (BWFX 1.3.0: TAPE SEANCE + INSECT SWARM in the overlay's right rack).
+- `cw_core.h` gained `Engine::setWorldMod(det, pan, tremD, tremR, sag,
+  fmul)` (six atomics, any thread); `cw_core.cpp` copies them once per
+  sub-block in controlTick and fans them across the 16 clones: detune by
+  golden-angle offsets, pan spread likewise, per-clone tremolo with
+  spread rates and golden-angle phases, pitch sag keyed to a 50 ms
+  smoothed GATE (in tune while held — the Photo-Synth lesson), filterMul
+  on the working cutoff. ALL of it is guarded by `wmActive` so a neutral
+  bus is bit-identical — `render_test` scenario 8 proves it by memcmp.
+- `PluginProcessor.cpp`: `bwfxRack.worldMod()` → `engine.setWorldMod`
+  before `engine.process`, and `setWorldModConsumed(true)` in the ctor —
+  that flag is what makes the overlay show the LIVE SPECTRA rack
+  (`busLive` in the state payload) instead of the placeholder plate.
+- CI: both g++ steps and `plugin/test/CMakeLists.txt` now compile
+  `BrokildWorldFX/modules/bwfx_spectra.cpp` — a render_test build that
+  omits it fails at link.
+- Same wave, BWFX itself: ROTARY (Leslie, real inertia) and KIERANATOR
+  (step-sequenced glitcher, first custom pedal editor in the fragment;
+  tribute line to Kieran Foster is one line in bwfx-rack.js, easy to
+  retire). mockup/bwfx-rack.js re-copied — the iron rule holds.
+
 ## 260826.2 — the BWFX button row, reworked (Peter's live feedback)
 
 Peter hit the .1 row within minutes: the globe SVG rendered unsized (the

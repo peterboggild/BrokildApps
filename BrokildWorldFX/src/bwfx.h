@@ -48,18 +48,26 @@ struct Descriptor
     int version;           // stored in patches; bump only on a true break
     const ParamDesc* params;
     int numParams;
+    const char* custom = nullptr;   // UI hook: "steps" = the fragment renders
+                                    // its step-grid editor above the knobs
 };
 
 // ---------------------------------------------------------------------------
-// The fixed world-modulation bus. SPECTRA characters (second pass) write it
-// per block; each host synth maps it onto its voice engine ONCE in its
-// adapter. Fixed size = new characters reach every synth by rebuild alone.
+// The fixed world-modulation bus. SPECTRA characters write it per sub-block;
+// each host synth maps it onto its voice engine ONCE in its adapter. Fixed
+// size = new characters reach every synth by rebuild alone. The tremolo is
+// carried as depth+rate (not a single gain) because the swarm characters
+// need PER-VOICE phases — the character describes the modulation, the host
+// realises it across its own voices with golden-angle offsets.
 struct WorldMod
 {
-    float detuneCents = 0;   // extra detune to fan across the host's voices
-    float panSpread   = 0;   // 0..1 extra stereo scatter
-    float tremolo     = 1;   // amplitude multiplier (1 = none)
-    float pitchSag    = 0;   // downward pitch pull in semitones (tape sag)
+    float detuneCents = 0;   // extra detune, fanned +-1 across host voices
+    float panSpread   = 0;   // 0..1 extra stereo scatter, fanned likewise
+    float tremDepth   = 0;   // 0..1 per-voice tremolo depth
+    float tremRate    = 0;   // Hz, per-voice spread around this
+    float pitchSag    = 0;   // semitones down; hosts key it to their GATE
+                             // (in tune while held, sags as the note dies —
+                             // the Photo-Synth lesson, never the amp env)
     float filterMul   = 1;   // cutoff multiplier
 };
 
@@ -89,6 +97,17 @@ public:
     // a module must then behave exactly as if it were set to FREE.
     virtual void setTempo (double) {}
 
+    // Bar position, per sub-block (audio thread): ppq extrapolated to the
+    // sub-block start, and whether the transport rolls. ppq < 0 = unknown
+    // (host never sent it) — a pattern module then free-runs internally.
+    virtual void setClock (double /*ppq*/, bool /*playing*/) {}
+
+    // Opaque per-module extra state — for state a knob cannot carry (the
+    // DISRUPTOR's drawn pattern). Rides in the blob as "x"; message thread;
+    // the module must hand it to its audio thread lock-free itself.
+    virtual std::string getExtra() const { return {}; }
+    virtual void setExtra (const std::string&) {}
+
     // Plain stores; readable any time (UI/processor thread).
     void  setParam (int i, float v) { if (i >= 0 && i < kMaxParams) pv[(size_t) i].store (v, std::memory_order_relaxed); }
     float getParam (int i) const    { return (i >= 0 && i < kMaxParams) ? pv[(size_t) i].load (std::memory_order_relaxed) : 0.0f; }
@@ -104,6 +123,33 @@ Module* createModule (int type);          // message thread; caller owns
 
 // All descriptors as one JSON string, for the rack UI fragment.
 std::string descriptorJson();
+
+// ---------------------------------------------------------------------------
+// SPECTRA characters: not FX in the chain but personalities on the bus.
+// A character ADDS its contribution to a WorldMod each sub-block; the rack
+// combines all armed characters by the Photo-Synth rules (detune/pan add,
+// multipliers multiply, tremolo unions, sag takes the max), scaled by each
+// character's presence (its arm strength — which is also what a morph rides).
+class Character
+{
+public:
+    virtual ~Character() = default;
+    virtual const Descriptor& desc() const = 0;
+    virtual void reset() = 0;                            // audio thread safe
+    virtual void tick (double dt, WorldMod& add) = 0;    // audio thread
+
+    void  setParam (int i, float v) { if (i >= 0 && i < kMaxParams) pv[(size_t) i].store (v, std::memory_order_relaxed); }
+    float getParam (int i) const    { return (i >= 0 && i < kMaxParams) ? pv[(size_t) i].load (std::memory_order_relaxed) : 0.0f; }
+
+protected:
+    std::array<std::atomic<float>, kMaxParams> pv {};
+};
+
+constexpr int kMaxChars = 8;
+int numCharacters();
+const Descriptor& characterDescriptor (int c);
+Character* createCharacter (int c);       // message thread; caller owns
+std::string characterJson();              // for the rack UI fragment
 
 // ---------------------------------------------------------------------------
 // The rack: one instance of every registered module, reorderable, each with
@@ -126,9 +172,36 @@ public:
     void setMix     (float v);                     // 0 dry .. 1 full rack
     // Host tempo for the synced modules. Hosts call this from processBlock
     // with the playhead's BPM; harmless when a host offers none.
-    // (A later transport feed — bar position, for the GLITCHER — extends
-    // this; the BPM half is what the sync options need.)
     void setBpm (double bpm) { bpmIn.store (bpm > 1.0 && bpm < 999.0 ? bpm : 0.0, std::memory_order_relaxed); }
+
+    // The full transport, for pattern modules (the DISRUPTOR): call from
+    // processBlock, audio thread, once per block, ppq at block start.
+    // Hosts that only know BPM keep calling setBpm; ppq stays "unknown".
+    void setTransport (double bpm, double ppq, bool playing)
+    {
+        setBpm (bpm);
+        ppqIn.store (ppq, std::memory_order_relaxed);
+        playingIn.store (playing, std::memory_order_relaxed);
+        samplesSinceTransport = 0;
+    }
+
+    // Per-module extra state (message thread) — see Module::setExtra.
+    void setExtra (int type, const std::string& x);
+    std::string getExtra (int type) const;
+
+    // --- SPECTRA characters (message thread edits, audio thread ticks) -----
+    void setCharArmed (int c, bool on);
+    void setCharParam (int c, int p, float v);
+    void setCharPresence (int c, float v);
+    bool  getCharArmed (int c) const;
+    float getCharParam (int c, int p) const;
+    float getCharPresence (int c) const;
+
+    // The host adapter declares ONCE that its engine consumes worldMod();
+    // the overlay then shows the SPECTRA rack live instead of the
+    // "arriving" plate. Hosts without a mapping stay on the plate.
+    void setWorldModConsumed (bool on) { busConsumed.store (on, std::memory_order_relaxed); }
+    bool isWorldModConsumed() const    { return busConsumed.load (std::memory_order_relaxed); }
     // PRESENCE: the per-module dry/wet the rack itself owns — the same scalar
     // that makes power toggles click-free, promoted to a stored, morphable
     // knob. 0 = the module is inert (bit-transparent), 1 = fully in.
@@ -161,7 +234,10 @@ public:
     // Rack state as one JSON payload for the UI (order/enables/params/mix).
     std::string uiStateJson() const;
 
-    WorldMod worldMod() const { return {}; }       // neutral until SPECTRA land
+    // The combined SPECTRA bus as of the last processed block (audio thread
+    // publishes; the host reads it in processBlock BEFORE its engine runs —
+    // one block of modulation latency, inaudible at LFO rates).
+    WorldMod worldMod() const;
 
     static const char* version();                  // "1.0.0"
 
@@ -173,7 +249,20 @@ private:
     std::atomic<uint32_t> enabledBits { 0 };
     std::atomic<float>    mixIn { 1.0f };
     std::atomic<double>   bpmIn { 0.0 };           // 0 = no host clock
+    std::atomic<double>   ppqIn { -1.0 };          // <0 = unknown
+    std::atomic<bool>     playingIn { false };
+    int samplesSinceTransport = 0;                 // audio thread only
     std::array<std::atomic<float>, kMaxModules> presenceIn {};
+
+    // SPECTRA
+    std::array<std::unique_ptr<Character>, kMaxChars> chars;
+    int nChars = 0;
+    std::atomic<uint32_t> charArmedBits { 0 };
+    std::array<std::atomic<float>, kMaxChars> charPresenceIn {};
+    std::array<bool, kMaxChars> charWasOff {};     // audio thread: reset on arm
+    std::array<std::atomic<float>, 6> busOut {};   // det,pan,tremD,tremR,sag,fmul
+    std::atomic<bool> busConsumed { false };
+    void tickCharacters (int nSamples);            // audio thread
 
     // audio-thread state
     uint64_t orderApplied = 0;

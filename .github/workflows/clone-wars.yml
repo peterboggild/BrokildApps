@@ -25,7 +25,8 @@ jobs:
         run: |
           g++ -O2 -std=c++17 -Wall -Wextra -I../src -I../modules \
               bench.cpp ../src/bwfx_json.cpp ../src/bwfx_rack.cpp \
-              ../modules/bwfx_conv.cpp ../modules/bwfx_modules.cpp -o bwfxtest
+              ../modules/bwfx_conv.cpp ../modules/bwfx_modules.cpp \
+              ../modules/bwfx_spectra.cpp -o bwfxtest
           ./bwfxtest
       - name: Build and run render test
         working-directory: vst3-apps/clone-wars/plugin/test
@@ -36,7 +37,8 @@ jobs:
               ../../../../BrokildWorldFX/src/bwfx_json.cpp \
               ../../../../BrokildWorldFX/src/bwfx_rack.cpp \
               ../../../../BrokildWorldFX/modules/bwfx_conv.cpp \
-              ../../../../BrokildWorldFX/modules/bwfx_modules.cpp -o render_test
+              ../../../../BrokildWorldFX/modules/bwfx_modules.cpp \
+              ../../../../BrokildWorldFX/modules/bwfx_spectra.cpp -o render_test
           mkdir -p wavs
           ./render_test wavs
       - name: Run DSP quality audit (aliasing, THD, clicks, DC, headroom)
