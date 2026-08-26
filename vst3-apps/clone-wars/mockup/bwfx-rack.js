@@ -133,6 +133,9 @@
     ".bwfx-move .bwfx-ud:hover{border-color:var(--bwfx-acc);color:var(--bwfx-acc)}",
     ".bwfx-ctl{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;padding:8px 11px 10px;",
     " border-top:1px solid rgba(255,255,255,.07);}",
+    /* display:grid would beat the hidden attribute's UA display:none (the
+       Black Rider about-box lesson, attribute edition) — restate it. */
+    ".bwfx-ctl[hidden]{display:none}",
     ".bwfx-row{display:grid;grid-template-columns:1fr auto;grid-template-areas:'lab out' 'ctl ctl';",
     " align-items:center;gap:2px 8px;padding:3px 0;min-width:0;}",
     ".bwfx-row label{grid-area:lab;font-size:10.5px;letter-spacing:.1em;color:#93a1a8}",
