@@ -45,25 +45,38 @@ All seven PDF manuals predate the rack (deliberately skipped in the
 section could be written once and dropped into each manual's pipeline;
 landing-page prose could carry one feature line each.
 
-### 4. IDEA: module wishlist — founding set 2 (surveyed 2026-08-26)
-What the six do not cover, ranked by proven-code reuse (the BWFX pattern:
-extract, never invent). Capacity note: order packing holds 16 modules,
-6 used — Tier 1+2 lands at 15.
-- Tier 1 (in-house code, ~afternoon each): LOFI (PS2 Lofi crush/noise/
-  dirt — the module deliberately left out of the founding six), FLANGER
-  (BBD line + feedback, small delta from ENSEMBLE), TREMOLO/AUTO-PAN
-  (smooth sibling of GATE + stereo pan; rides the future sync), COMPRESSOR
-  (Hairfryer two-stage, simplified), TONE (Hairfryer 4-band RBJ EQ).
-- Tier 2 (distinctive ports): SHIMMER (Blade Ruiner FDN-8 + octave-up in
-  the loop — the reverb a convolver cannot be, complements SPACE), FILTER
-  (Black Rider GROWL/SCREAM/LADDER + LFO + envelope-follower sweep =
-  auto-wah and squelch on tuning-proven ZDF code), FREEZE (infinite hold,
-  the drone-fleet pedal), RING MOD (Mars Wars, incl. the no-BIAS lesson).
-- Tier 3 (new DSP, real projects): micro-pitch/detune + octaver (needs a
-  pitch shifter, none in the fleet), granular texture (kipple as seed),
-  rotary speaker.
-- Suggested batch if Peter says go: LOFI, FLANGER, TREMOLO, FILTER,
-  SHIMMER — closes modulation, tone and character gaps in one pass.
+### 4. FEATURE: founding set 2 — Peter's selection (2026-08-26)
+Five new modules, chosen by Peter from the survey. Capacity: order packing
+holds 16 modules; 6 + 5 = 11, fine. ONE machinery prerequisite: a comp+EQ
+module needs ~10 params, so raise bwfx kMaxParams (8 -> 16). Safe: the
+state blob is keyed by id, arrays just get roomier — prove old-blob
+round-trip in the bench anyway.
+- **LOFI** — port PS2's Lofi processor (crush / noise / dirt), the module
+  deliberately left out of the founding six. Code exists; needed.
+- **STRIP (comp + 5-band EQ, one pedal)** — Hairfryer's two-stage
+  compressor plus its RBJ EQ grown to five bands, as a single channel-
+  strip module. Suggested params: comp AMOUNT (macro over both stages),
+  ATTACK, RELEASE, then five fixed musical bands gain-only +-12 dB
+  (low shelf ~80, 250, 1k, 3.5k, high shelf ~10k). EQ post-comp.
+- **SHIMMER** — Blade Ruiner's FDN-8 with the octave-up folded into the
+  loop: the reverb a convolver cannot be, complements SPACE. Params:
+  mix, size, decay, shimmer amount, tone. Mind the runaway lesson
+  (ceilSoft in the loop, 60 s max-settings soak in the bench).
+- **HARMONIC TREM / VIBRATO** — one modulation pedal, mode-switched:
+  HARMONIC (brownface style: split ~800 Hz, low and high band tremolo'd
+  in OPPOSITE phase — the swirl), TREM (plain), VIBRATO (true pitch via
+  a modulated line, Catmull-Rom as always). Params: mode, rate, depth,
+  mix. Must ride the item-1 sync system when that lands.
+- **ROTARY** — a solid Leslie: horn + drum split ~800 Hz, each rotor its
+  own AM + doppler FM (modulated delay) + stereo mic pair; SLOW / FAST /
+  BRAKE control where the point is the INERTIA — independent ramp times
+  per rotor (horn ~1 s, drum ~4-5 s) so speed CHANGES sound like a
+  Leslie spinning up. The one genuinely new DSP build in the set — give
+  it a bench that measures doppler depth and the two ramp times.
+Surveyed and parked by Peter ("not now" — do not re-propose, they are
+here for the record): FLANGER, plain TREMOLO/AUTO-PAN, standalone TONE
+EQ, FILTER pedal (Black Rider circuits), FREEZE, RING MOD, micro-pitch/
+octaver, granular, and these stay available whenever wanted.
 
 ## Done
 
