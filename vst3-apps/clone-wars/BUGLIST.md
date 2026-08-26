@@ -96,6 +96,16 @@ Requested 2026-08-26.
   driveamt...) - map old params onto the new bank or re-voice the archive;
   the offline bench FX assertions; feature-parity with what the seeds
   expect; the manual (already stale) documents the old rack.
+- ARCHITECTURE (settled with Peter 2026-08-26): build this as **BrokildFX**,
+  a shared SOURCE library (not runtime DLLs - SAC blocks fresh hashes and
+  patches must stay a promise): one repo of FX modules, DSP in plain C++ +
+  a face-plate convention, compiled INTO every Brokild plugin; changes mean
+  rebuilding all synths (CI can automate). Patch policy, Kemper-style:
+  a patch stores its rack (modules + order + settings), so a NEW module
+  never touches existing patches; every new parameter DEFAULTS to legacy
+  behaviour so old patches keep their sound through updates; genuine sound
+  improvements and bug fixes flow to all patches; a genuinely different
+  algorithm ships as a new mode or a MkII module alongside, never replacing.
 - This is the largest open item - do it as its own build, not mixed into
   the small-bug pass.
 
