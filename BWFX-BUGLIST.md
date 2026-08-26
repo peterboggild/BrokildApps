@@ -240,3 +240,42 @@ tremolo'd in opposite phase, plus TREM and true-pitch VIBRATO).
 kMaxParams went 8 -> 16 for STRIP; old blobs round-trip unchanged. Biquad
 gained RBJ shelves. The UI DEFAULT_DESC is now GENERATED from the C++
 (bwfxtest --desc), never typed. Bench 260 checks ALL CLEAR, UI probe 21/21.
+
+### 7. PS2: retire the internal FX chain, KEEP native SPECTRA — DECIDED
+2026-08-26 (Peter: "ok, lets lose the PS2 FX chain, and leave the SPECTRA
+as is"). This splits BUGLIST 2-wave-2 exactly as recommended:
+
+  * **GO** — remove Photo-Synth 2's own seven-module FX chain from the
+    VST3. Hard cut, no migration (his earlier call). FX photo remaps to
+    the rack: R -> SPACE length, G -> ECHO mix, B -> TUBE drive. The
+    offline MIDI->WAV render must then run through `Rack::process`, which
+    it does not today — that is the one piece of real work in this item.
+    Do the item 6 PARITY PASS FIRST (TUBE MIX, ECHO damp/low-cut/wow/
+    freeze, SPACE second slot) or the remap lands on a poorer reverb than
+    the one it replaces.
+  * **HOLD** — PS2's native SPECTRA panel stays exactly as it is. It is
+    not only a modulator: each character is also a MACRO that rewrites
+    PS2's own panel (Industrial Black sets waveform=square, attack 2,
+    release 8, legato off, filter=comb). BWFX characters structurally
+    cannot reach a host's own controls. Keeping it costs nothing — it
+    already coexists with the BWFX character rack (verified: PS2 calls
+    `setWorldModConsumed(true)`, so both racks are live and they stack).
+  * The browser twin (music-apps/photo-synth) is untouched either way —
+    "a toy version of the professional".
+
+### 8. Host characters inside the BWFX drawer — SPEC, awaiting go
+Peter: "Can the native SPECTRA appear also when BWFX is chosen?" They
+already coexist, but in two different places on the panel. Proposal, and
+it is general rather than a PS2 special case:
+
+  * The adapter's state payload gains `hostChars: [{id,name,armed,
+    presence,colour}]`, published by the host synth, plus a group title.
+  * The fragment renders them in the character column under a divider
+    ("THIS INSTRUMENT" above "BROKILD WORLD"), using the SAME rocker and
+    PRESENCE control, and sends `{k:"hostchar",id,...}` back to the PAGE
+    (not to the rack) — the host owns them, BWFX only draws them.
+  * Zero DSP change, no blob change, nothing to migrate: a host that
+    publishes no hostChars renders exactly today's drawer.
+  * Wins twice: PS2 gets one place to arm any character, and any future
+    synth with instrument-specific characters (a drum machine's per-kit
+    macros, say) inherits the same drawer for free.
