@@ -31,13 +31,33 @@ Engineering notes (the Black Rider lessons apply verbatim):
   a tempo-step render stays inside the click bound, FREE renders
   bit-identical to today's module (the Kemper rule, proven not assumed).
 
-### 2. SPECTRA characters (second pass, design decision 7)
+### 2. SPECTRA characters — the plan (design decision 7; planned 2026-08-26)
 The overlay's right half is a placeholder; the world-mod bus
 {detuneCents, panSpread, tremolo, pitchSag, filterMul} exists and is
-neutral. Port the characters from Photo-Synth 2's SPEC_MODULES `mods(dt,P)`
-behaviour (Dark Drone, tape, insect, pink, glass) onto the bus, then wire
-each host's `worldMod()` mapping (adapter call four). Presence already
-gives every character its arm-strength dial and morphs it.
+neutral. What ports and what does not: a PS2 SPECTRA = a host-control
+MACRO (snapshots/rewrites PS2's own knobs — CANNOT port, stays PS2-native)
++ a LIVE MODULATOR (per-tick det/pan/trem/sag + sometimes own FX — ports
+completely via the bus). A ported character sounds like THAT synth
+possessed, by design. Three phases:
+- **A. Machinery + Tape + Insect + Clone Wars mapping (1-2 sessions).**
+  Character registry (descriptors, enclosures + rockers from PS2's CSS,
+  arm/STACK semantics: arm order layers, last-armed wins, release
+  unwinds), combination rules AS MEASURED in PS2 (det/pan add, muls
+  multiply, trem element-wise product, sag/cluster max), worldMod() goes
+  live, PRESENCE doubles as arm strength (morph then covers characters
+  for free). First host mapping = Clone Wars: five bus inputs onto the 16
+  clones — touches cw_core, so it lands WITH Goertzel bench checks (the
+  6000-check bench stays green or it does not ship).
+- **B. Remaining characters (a session).** Dark Drone, Pink, Black,
+  Glass — characters owning FX (Black's feedback/comb, Glass's colours)
+  carry that DSP privately inside their unit. All documented PS2 lessons
+  apply: voice-0 detune rule, sag keyed to GATE not amp env, spread must
+  not change the note, never noise inside a loop.
+- **C. The other six host mappings (hours each).** Five bus inputs per
+  voice engine + bench additions per synth. PS2 LAST, with an open
+  question flagged for Peter: it would then carry two spectra systems
+  (native panel + world rack) — whether the native panel retires is a
+  separate per-synth decision, like native-FX retirement.
 
 ### 3. Manuals do not mention BWFX yet
 All seven PDF manuals predate the rack (deliberately skipped in the
