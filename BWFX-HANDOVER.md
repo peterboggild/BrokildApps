@@ -21,7 +21,7 @@ app.json bumped. Black Rider and Photo-Synth 2 were verified LIVE over
 CDP (native round trips incl. presence). Manuals were deliberately NOT
 regenerated (Peter's instruction) — they do not mention BWFX yet.
 
-Still open: SPECTRA characters (the world-mod bus is in place, neutral),
+Ideas/fixes/features now collect in **BWFX-BUGLIST.md** (this repo root) and ship in batches when Peter says go, Clone Wars-style. Still open: SPECTRA characters (the world-mod bus is in place, neutral),
 per-synth manual sections, and the host synths' worldMod mapping (call
 four of the adapter — deferred with SPECTRA).
 
