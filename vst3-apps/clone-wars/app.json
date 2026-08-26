@@ -1,12 +1,16 @@
 {
   "slug": "clone-wars",
   "name": "Clone Wars (VST3)",
-  "description": "A free Windows VST3 drone monster in war-torn blue-painted metal: sixteen analogue-modelled clones of almost, but not quite, the same oscillator, drawn up in two armies of eight around a command column. Each clone is a complete voice — oscillator with four waves and organ footages from 64' to 2', its own analogue filter, LFO and one-knob looping envelopes. TOLERANCE scatters their components, ENTRAIN pulls each army into phase, TIDE conducts over minutes, and THE WAR crossfades the armies over up to five minutes. Per-army GROWL / SCREAM / LADDER filter tempers, three-note voicing with per-clone note select, deterministic seed patches in five families with continuous morphing between two seeds, spring · tape · BBD · drive on the back panel — and a living hull that scars with use, remembers its age in your DAW project, and can only be fixed in the hidden service bay. Field keyboard included, standalone in the same zip.",
+  "description": "A free Windows VST3 drone monster in war-torn blue-painted metal: sixteen analogue-modelled clones of almost, but not quite, the same oscillator, drawn up in two armies of eight around a command column. Each clone is a complete voice — oscillator with four waves and organ footages from 64' to 2', its own analogue filter, LFO and one-knob looping envelopes. TOLERANCE scatters their components, ENTRAIN pulls each army into phase, TIDE conducts over minutes, and THE WAR crossfades the armies over up to five minutes. Per-army GROWL / SCREAM / LADDER filter tempers, three-note voicing with per-clone note select, deterministic seed patches in five families with continuous morphing between two seeds, spring · tape · BBD · drive on the back panel — and the Brokild World Rack over all of it, twelve shared pedals and six SPECTRA characters that fan across the sixteen clones and haunt them one by one. A living hull that scars with use, remembers its age in your DAW project, and can only be fixed in the hidden service bay. Field keyboard included, standalone in the same zip.",
   "status": "live",
   "url": "vst3-apps/clone-wars/index.html",
   "icon": "keys",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/clone-wars.jpg",
   "note": "Windows VST3 · build 260826.7 · free download · 16 clones · seed morphing · the hull remembers.",
-  "tags": ["music", "vst3", "synth"]
+  "tags": [
+    "music",
+    "vst3",
+    "synth"
+  ]
 }
