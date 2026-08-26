@@ -298,6 +298,7 @@ private:
         double phase = 0, lfoPhase = 0;
         float  triState = 0;           // leaky integrator for tri
         float  freqCurrent = 110;      // glide state (Hz)
+        int    lastFoot = -1;          // footage jumps are instant, never glide
         float  prevOsc = 0;            // previous osc sample (filter upsampling)
         float  driftState = 0;         // OU random walk
         uint32_t noiseState = 1;
@@ -366,6 +367,11 @@ private:
     int  vAssignHeld[kVoices] {};
     bool armyGated[2] {};
     int  activeCount = 0;
+    // sticky seats: the sounding set of the previous sub-block, so a release
+    // can be told apart from an arrival (only arrivals redistribute)
+    int  lastList[kMaxHeld] {};
+    int  lastListN = 0;
+    int  lastMode = -1;
     void assignNotes (const float* Gp);
 
     // buses & master state

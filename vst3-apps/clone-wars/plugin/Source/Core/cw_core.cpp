@@ -371,6 +371,40 @@ void Engine::assignNotes (const float* Gp)
     activeCount  = n;
     armyGated[0] = anyHeld || (n > 0 && latchA);
     armyGated[1] = anyHeld || (n > 0 && latchB);
+
+    const int mode = (int) Gp[gNoteMode];
+
+    // STICKY SEATS (BUGLIST #2): releasing one note of a chord must never
+    // re-aim the other clones - the old full redistribution sent every clone
+    // gliding toward the surviving notes through the release gap, and near-
+    // simultaneous releases froze them mid-glide at a pitch nobody played.
+    // Redistribute ONLY when a note ARRIVES (or the mode changed); on a pure
+    // release, clones whose note vanished just gate off AT their note, and
+    // everyone else keeps their seat. UNISON keeps re-aiming - that is
+    // classic mono last-note behaviour and sounds right.
+    bool arrival = (mode != lastMode) || (lastListN == 0);
+    for (int k = 0; k < n && ! arrival; ++k)
+    {
+        bool known = false;
+        for (int j = 0; j < lastListN; ++j) if (lastList[j] == notes[k]) { known = true; break; }
+        if (! known) arrival = true;
+    }
+    lastMode = mode;
+    for (int k = 0; k < n; ++k) lastList[k] = notes[k];
+    lastListN = n;
+
+    if (n > 0 && ! arrival && mode != nmUnison)
+    {
+        for (int v = 0; v < kVoices; ++v)
+        {
+            if (vAssign[v] < 0) continue;
+            int flag = -1;
+            for (int k = 0; k < n; ++k) if (notes[k] == vAssign[v]) { flag = onFlag[k]; break; }
+            vAssignHeld[v] = flag > 0 ? 1 : 0;   // vanished or latched-off: release at its own note
+        }
+        return;
+    }
+
     for (int v = 0; v < kVoices; ++v) { vAssign[v] = -1; vAssignHeld[v] = 0; }
     if (n == 0) return;                  // nothing sounding: DRONE takes over
 
@@ -388,7 +422,6 @@ void Engine::assignNotes (const float* Gp)
     };
 
     int idx[kMaxHeld];
-    const int mode = (int) Gp[gNoteMode];
     if (mode == nmUnison)
     {
         idx[0] = 0;                      // the bottom note: a drone wants a root
@@ -680,7 +713,14 @@ void Engine::renderVoices (float* mixLA, float* mixRA, float* mixLB, float* mixR
                           + vc.driftState * 14.0f * F[vfDrift] * G[gDriftMaster]
                           + tideState2 * 7.0f * G[gTide];
         const float noteHz = 440.0f * std::pow (2.0f, (targetNote - 69.0f) / 12.0f);
-        const float targetHz = noteHz * footMult ((int) F[vfFoot])
+        // FOOTAGE is a register switch, not a performance slide: when it
+        // changes, jump the glide state by the same ratio so the octave is
+        // instant while a genuine note-glide in progress stays intact.
+        const int footNow = (int) F[vfFoot];
+        if (vc.lastFoot >= 0 && footNow != vc.lastFoot)
+            vc.freqCurrent *= footMult (footNow) / footMult (vc.lastFoot);
+        vc.lastFoot = footNow;
+        const float targetHz = noteHz * footMult (footNow)
                              * std::pow (2.0f, cents / 1200.0f);
         // A released note KEEPS its pitch while it decays. This glide used to
         // run unconditionally, and an ungated voice's targetNote falls back to
