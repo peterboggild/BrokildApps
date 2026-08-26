@@ -7,6 +7,7 @@
 // silence, no hard clipping, bounded DC), prints stats. Exit 0 = pass.
 
 #include "cw_core.h"
+#include "bwfx.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -299,6 +300,50 @@ int main (int argc, char** argv)
         renderSeed (L2, R2);
         check (std::memcmp (L1.data(), L2.data(), L1.size() * 4) == 0,
                "same seed → bit-identical render");
+    }
+
+    // ---- scenario 7: BWFX — the additive contract ------------------------
+    // The world rack sits after the engine in processBlock. Empty (nothing
+    // enabled) it must be BIT-identical: the day Clone Wars adopted BWFX,
+    // every existing patch and factory seed provably kept its sound.
+    {
+        auto renderDrone = [fs] (std::vector<float>& L, std::vector<float>& R,
+                                 int rackMode)   // 0 none, 1 empty rack, 2 delay on
+        {
+            auto ep = std::make_unique<cw::Engine>();
+            ep->prepare (fs, 512);
+            ep->setGlobal (cw::gDrone, 1);
+            bwfx::Rack rack;
+            rack.prepare (fs, 512);
+            if (rackMode == 2)
+            {
+                for (int t = 0; t < bwfx::numModuleTypes(); ++t)
+                    if (std::string (bwfx::moduleDescriptor (t).id) == "delay")
+                        rack.setEnabled (t, true);
+            }
+            const size_t n = (size_t) fs * 3;
+            L.assign (n, 0.0f); R.assign (n, 0.0f);
+            size_t done = 0;
+            while (done < n)
+            {
+                const int m = (int) std::min<size_t> (512, n - done);
+                ep->process (L.data() + done, R.data() + done, m);
+                if (rackMode != 0)
+                    rack.process (L.data() + done, R.data() + done, m);
+                done += (size_t) m;
+            }
+        };
+        std::vector<float> L0, R0, L1, R1, L2, R2;
+        renderDrone (L0, R0, 0);
+        renderDrone (L1, R1, 1);
+        renderDrone (L2, R2, 2);
+        check (std::memcmp (L0.data(), L1.data(), L0.size() * 4) == 0
+            && std::memcmp (R0.data(), R1.data(), R0.size() * 4) == 0,
+               "empty BWFX rack is bit-identical (additive contract)");
+        check (std::memcmp (L0.data(), L2.data(), L0.size() * 4) != 0,
+               "an enabled BWFX module audibly does something");
+        const auto st = analyze (L2, R2, (size_t) fs / 2);
+        check (! st.nan && st.peak < 1.3f, "engine + BWFX delay stays bounded");
     }
 
     printf ("\n%s (%d failure%s)\n", failures == 0 ? "ALL PASS" : "FAILURES",

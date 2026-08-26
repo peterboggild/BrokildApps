@@ -14,6 +14,17 @@ namespace
         return r;
     }
 
+    // The BWFX rack overlay fragment (shipped inside the BWFX repo, compiled
+    // into BinaryData) — the page pulls it with <script src="bwfx-rack.js">.
+    juce::WebBrowserComponent::Resource makeBwfxResource()
+    {
+        juce::WebBrowserComponent::Resource r;
+        r.data.resize ((size_t) BinaryData::bwfxrack_jsSize);
+        std::memcpy (r.data.data(), BinaryData::bwfxrack_js, (size_t) BinaryData::bwfxrack_jsSize);
+        r.mimeType = "application/javascript";
+        return r;
+    }
+
     juce::WebBrowserComponent::Options buildOptions (CloneWarsProcessor& processor)
     {
         using BrowserOptions = juce::WebBrowserComponent::Options;
@@ -26,6 +37,8 @@ namespace
             {
                 if (path == "/" || path == "/index.html" || path == "/ui.html")
                     return makeUiResource();
+                if (path == "/bwfx-rack.js")
+                    return makeBwfxResource();
                 return std::nullopt;
             })
             .withEventListener ("cw", [&processor] (juce::var payload)

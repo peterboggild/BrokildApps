@@ -1,5 +1,32 @@
 # BWFX build — handover
 
+## STATUS 2026-08-26 (build session): core + first citizen DONE
+
+- `C:\Users\peter\b\BrokildWorldFX` exists (git repo) and is mirrored at this
+  repo's root as `BrokildWorldFX/` (mirror after every BWFX commit:
+  `git archive HEAD | tar -x -C <BrokildApps>/BrokildWorldFX`). Six founding
+  modules (TUBE, SWEEP, ENSEMBLE, GATE, ECHO, SPACE — SPACE on an own
+  partitioned FFT convolver, no JUCE), descriptor-driven Rack, JSON state,
+  rack overlay fragment `ui/bwfx-rack.js`, bench 203 checks ALL CLEAR.
+- Clone Wars is integrated (build 260826.1, four-call adapter), empty rack
+  proven bit-identical in cwtest, verified live over CDP, installed. See the
+  260826.1 section of clone-wars/HANDOVER.md — including the new iron rule
+  for bwfx-rack.js copies.
+- NOT done yet: SPECTRA characters (the world-mod bus exists and is neutral;
+  design decision 7 tells you how to port them), the other five synths
+  (Black Rider, Blade Ruiner, Escape Room, Hairfryer, Mars Wars —
+  ~an afternoon each, same four calls), Photo-Synth 2 whenever convenient,
+  and the workflow_dispatch to cut a .1 site zip.
+- Deviation from the original plan, deliberate: no separate GitHub repo /
+  submodule for BWFX — the mirror lives in THIS repo so CI gets it without
+  pinning and BWFX+host changes land in one atomic commit. If a separate
+  repo is ever wanted, the folder moves out and BWFX_DIR points at it;
+  nothing else changes.
+
+Original handover below, for the record.
+
+---
+
 For the fresh session that builds Brokild World FX. Written 2026-08-26 by the
 VS Code session that designed it with Peter. Read this, then the three files
 below, before writing anything.
