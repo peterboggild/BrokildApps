@@ -12,7 +12,7 @@ COMPILED INTO every Brokild plugin. Not runtime DLLs, deliberately: Smart
 App Control blocks fresh DLL hashes per file, and patches must stay a
 promise on every machine.
 
-## The five load-bearing decisions
+## The six load-bearing decisions
 
 1. ADDITIVE RACK. Each synth keeps its existing native FX untouched; the
    BWFX rack inserts as one extra stage (before the final limiter), DEFAULT
@@ -59,6 +59,27 @@ promise on every machine.
    too when it adopts the rack - consistency beats its integrated layout.
    For Clone Wars this means a separate BWFX overlay, NOT merged into its
    existing EFFECT RACK hatch; the native four stay where they are.
+
+   THE GLOBE (Peter, 2026-08-26): the BWFX button wears a small minimal
+   globe - a sphere with an equatorial and a meridian line. Canonical SVG,
+   identical in every synth, strokes inherit the accent via currentColor:
+
+     <svg class="bwfx-globe" viewBox="0 0 16 16" width="13" height="13"
+          fill="none" stroke="currentColor" stroke-width="1.2">
+       <circle cx="8" cy="8" r="6.2"/>
+       <ellipse cx="8" cy="8" rx="6.2" ry="2.5"/>
+       <ellipse cx="8" cy="8" rx="2.5" ry="6.2"/>
+     </svg>
+
+   The globe + accent colour ARE the BWFX mark; nothing else is branded.
+
+6. THE PANEL VERSIONS WITH THE LIBRARY. The rack overlay - its chrome,
+   layout, pedal faces, drag behaviour, every future feature (module
+   search, A/B racks, whatever comes) - ships as the UI fragment INSIDE
+   the BWFX repo and is compiled into each synth with the DSP. So a BWFX
+   update that redesigns or extends the rack panel reaches ALL synths on
+   their next rebuild with zero per-synth work, exactly like the DSP does.
+   Host synths never own any rack UI beyond the button.
 
 ## Patch-compatibility policy (Kemper / Quad Cortex style)
 
