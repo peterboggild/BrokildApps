@@ -69,6 +69,36 @@ Requested 2026-08-26.
   second modifier could unlock - decide while building, prefer: plain sweep
   adds, sweep with ctrl held removes.
 
+### 4. FEATURE (large): Photo-Synth 2 effects bank replaces the effect rack
+Requested 2026-08-26.
+- Replace the current rack (SPRING / BBD / TAPE / DRIVE) with Photo-Synth 2's
+  effects bank: the SAME pedal look and face plates, and the modules
+  DRAG-REORDERABLE so the player chooses the chain order.
+- Sources to port from (all on this machine):
+  - DSP: C:/Users/peter/b/PhotoSynth Source/Engine.cpp - the 7-module FX
+    chain (exact C++ port of the browser worklet: delay, chorus, phaser,
+    stutter, saturation, convolution reverb, limiter). Mind the PhotoSynth
+    lessons already learned there: never prepare Convolution under a
+    message-thread impulse load (the irLock story), cubic Catmull-Rom on
+    delay/chorus taps, satGain is exponential pre-gain.
+  - Face plates: PhotoSynth Source/ui/ui.html pedal markup + CSS (pedal
+    enclosures, .spec-rocker rocker-sm power switches, per-pedal skins).
+- Chain ORDER must become part of the machine: a permutation stored in
+  project state and user patches (NOT an automatable param - a permutation
+  fights automation the way Blade Ruiner's mood did). Message {k:"fxorder",
+  order:[...]} UI->processor; engine processes modules through an index
+  table; crossfade ~30 ms on reorder so dragging never clicks.
+- UI: pedals live in the EFFECT RACK hatch (standing rule: future FX go
+  there); HTML5 drag or pointer-drag reorder with a gap indicator; the
+  global FX MIX knob on the console stays and wraps the whole bank.
+- Consequences to handle in the same pass: the factory archive generator and
+  all 100 seeds voice the OLD four units (springmix/tapefdbk/bbddepth/
+  driveamt...) - map old params onto the new bank or re-voice the archive;
+  the offline bench FX assertions; feature-parity with what the seeds
+  expect; the manual (already stale) documents the old rack.
+- This is the largest open item - do it as its own build, not mixed into
+  the small-bug pass.
+
 ## Done
 
 (nothing yet — fixes land here with their build number)
