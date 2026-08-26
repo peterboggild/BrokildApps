@@ -213,7 +213,11 @@
     " display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}"
   ].join("\n");
 
-  var GLOBE = '<svg class="bwfx-globe" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">' +
+  /* The canonical globe (BWFX-DESIGN.md) — the width/height attributes are
+     load-bearing: without them an SVG defaults to 300x150 and blows up any
+     host button it is injected into (seen live in Clone Wars 260826.1).
+     Overlay CSS still overrides the size where it wants a bigger globe. */
+  var GLOBE = '<svg class="bwfx-globe" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.2">' +
     '<circle cx="8" cy="8" r="6.2"/><ellipse cx="8" cy="8" rx="6.2" ry="2.5"/>' +
     '<ellipse cx="8" cy="8" rx="2.5" ry="6.2"/></svg>';
 
