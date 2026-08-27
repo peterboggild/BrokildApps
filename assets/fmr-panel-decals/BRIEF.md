@@ -463,3 +463,38 @@ The candid notes in `DELIVERED.md` are more useful than a clean-looking sheet.
 If a crop is approximate, or a part came out weaker than the others, say so in
 the prose next to the JSON block — it goes straight into what gets looked at
 first.
+
+---
+
+# PART 03 · REPLACEMENT ORDER (the walnut cheek)
+
+The delivered cheek is a good piece of wood but the wrong KIND of asset. It
+was made as an object with rounded ends, and the panel tiles it vertically —
+so those ends repeat every few hundred pixels and the side of the machine
+reads as a stack of separate blocks. My original wording asked for "one softly
+rounded front edge", which is what caused it. Entirely my fault.
+
+Please replace `fmr-cheek.png` with this:
+
+> Part 03 (replacement). A seamless, VERTICALLY TILEABLE photographic texture
+> of walnut wood, of the kind used for the end cheeks of 1980s synthesisers.
+> A tall narrow strip, portrait. Warm mid-brown #6d4526, straight open grain
+> running vertically along the long axis, satin oil finish, slight natural
+> colour variation across the width.
+>
+> CRITICAL — this is a TEXTURE, not an object:
+> - It must tile seamlessly TOP TO BOTTOM. The grain at the very top edge has
+>   to continue into the grain at the very bottom edge.
+> - NO rounded corners, NO end caps, NO chamfer or bevel at the top or bottom.
+>   The wood must run straight off both short edges, cut flat.
+> - No vignette and no shading that changes along the length — uniform
+>   brightness from top to bottom, or the repeat becomes visible as banding.
+> - The LEFT and RIGHT long edges may carry a soft vertical highlight, as
+>   light catching a rounded front edge, but that highlight must be constant
+>   all the way down.
+>
+> Opaque; no transparency needed. 240 x 1200 pixels.
+
+The same rule applies to any texture: **an end cap is what makes a texture
+stop being tileable.** The cream panel (01) and the anodised sub-panel (02)
+were both correct on this count.
