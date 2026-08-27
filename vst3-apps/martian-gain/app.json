@@ -8,5 +8,8 @@
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/martian-gain.jpg",
   "note": "Windows VST3 · build 260827.2 · free download · 18-page manual included.",
-  "tags": ["music", "vst3", "effect"]
+  "tags": [
+    "vst3",
+    "effect"
+  ]
 }

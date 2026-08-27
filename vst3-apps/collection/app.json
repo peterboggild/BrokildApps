@@ -8,5 +8,7 @@
   "cta": "Download all seven →",
   "preview": "assets/app-previews/collection.jpg",
   "note": "Windows VST3 · 61 MB · six instruments and one effect · all manuals included.",
-  "tags": ["music", "vst3"]
+  "tags": [
+    "vst3"
+  ]
 }

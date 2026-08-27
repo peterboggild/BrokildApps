@@ -1,24 +1,14 @@
 {
   "labels": [
     {
-      "id": "music",
-      "name": "Music",
-      "description": "Instruments, synths and other sound tools."
-    },
-    {
-      "id": "camera",
-      "name": "Camera",
-      "description": "Apps that use the camera or your photos."
-    },
-    {
-      "id": "health",
-      "name": "Health",
-      "description": "Personal wellbeing, sleep and health tools."
-    },
-    {
       "id": "vst3",
       "name": "VST3 Plugin",
-      "description": "Native audio plugins you download and install — they run inside your DAW, not in the browser."
+      "description": "Native audio plugins you download and install — they run inside your DAW."
+    },
+    {
+      "id": "browser",
+      "name": "Browser",
+      "description": "Runs in a tab. Nothing to install, nothing uploaded — the sound is made on your own machine."
     },
     {
       "id": "synth",
@@ -32,8 +22,8 @@
     },
     {
       "id": "phone",
-      "name": "Phone App",
-      "description": "Designed for a phone screen — touch-first, and installable to the home screen."
+      "name": "Phone",
+      "description": "Works on a phone screen — touch-first, and installable to the home screen."
     }
   ],
   "apps": [
@@ -45,7 +35,7 @@
     "vst3-apps/full-metal-racket",
     "vst3-apps/martian-gain",
     "vst3-apps/blade-ruiner",
-    "vst3-apps/escape-room",
+    "vst3-apps/escape-room",
     "health-apps/sleep-noise"
   ]
 }

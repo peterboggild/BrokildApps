@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BrokildApps — Apps &amp; Experiments</title>
-  <meta name="description" content="BrokildApps: apps and experiments by Peter Bøggild. Music instruments, tools and toys that run right in your browser, plus the free Photo-Synth 2 VST3 plugin for your DAW." />
+  <title>Brokild Musical Instruments</title>
+  <meta name="description" content="Brokild Musical Instruments: synthesisers, sound generators and effects by Peter Bøggild. Unusual instruments that did not already exist — built because nothing on the market did the job the way he wanted. Free VST3 plugins for Windows, and a few that run in a browser." />
   <meta name="color-scheme" content="light dark" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230e9f86'/><text x='50' y='68' font-size='52' font-family='Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'>B</text></svg>" />
   <style>
@@ -446,7 +446,7 @@
         <div class="brand-mark">B</div>
         <div>
           <div class="brand-name">BrokildApps</div>
-          <div class="brand-sub">Apps &amp; experiments by Peter Bøggild — browser instruments and audio plugins</div>
+          <div class="brand-sub">Synthesisers, sound generators and effects by Peter Bøggild</div>
         </div>
       </a>
       <div class="nav-right">
@@ -469,11 +469,11 @@
 
   <header class="hero">
     <div class="wrap">
-      <span class="eyebrow"><span class="dot"></span> Instruments, tools &amp; toys</span>
-      <h1>Apps &amp;<br /><span class="accent">Experiments</span></h1>
-      <p>A collection of small apps — musical instruments, tools and experiments. Most run right in your browser with no install and nothing uploaded, on your phone or your laptop; a few, like the Photo-Synth 2 plugin, you download and run inside your DAW.</p>
+      <span class="eyebrow"><span class="dot"></span> Synthesisers, sound generators &amp; effects</span>
+      <h1>Brokild Musical<br /><span class="accent">Instruments</span></h1>
+      <p>Instruments that did not exist until they had to. Each one was built for my own use, because nothing I could buy did the particular job the way I wanted it done — and the point was never to make a better version of something familiar, but to end up somewhere no existing instrument would have taken me. Most are free VST3 plugins for Windows; a couple run in a browser tab. All of them are yours to use.</p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="#apps">Explore the apps</a>
+        <a class="btn btn-primary" href="#apps">See the instruments</a>
         <a class="btn btn-ghost" href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">Source on GitHub</a>
       </div>
     </div>
@@ -482,32 +482,33 @@
   <main>
     <div class="wrap">
       <div class="apps-head">
-        <div class="section-label" id="apps">Apps</div>
+        <div class="section-label" id="apps">The instruments</div>
         <span class="result-count" id="resultCount"></span>
       </div>
 
-      <div class="filters" id="filters" role="group" aria-label="Filter apps by label">
+      <div class="filters" id="filters" role="group" aria-label="Filter by label">
         <span class="filter-label">Filter by label:</span>
         <!-- filter chips injected here -->
         <button type="button" class="chip chip-clear" id="clearFilters" hidden>Clear</button>
       </div>
 
       <div class="grid" id="appGrid" aria-live="polite"></div>
-      <p class="grid-state" id="gridLoading">Loading apps…</p>
-      <p class="grid-state" id="gridEmpty" hidden>No apps match the selected labels.</p>
-      <p class="grid-state" id="gridError" hidden>Couldn’t load the app list. Please try again later.</p>
+      <p class="grid-state" id="gridLoading">Loading…</p>
+      <p class="grid-state" id="gridEmpty" hidden>Nothing matches the selected labels.</p>
+      <p class="grid-state" id="gridError" hidden>Couldn’t load the list. Please try again later.</p>
 
       <section class="about" id="about">
         <div class="section-label">About</div>
-        <h2>Small apps, no strings attached</h2>
-        <p>BrokildApps collects apps and experiments built by Peter Bøggild. Each one is a self-contained static page: free to use, easy to share, and private by design — photos, audio and data stay on your device. The collection is open and growing; check back as new apps come online.</p>
+        <h2>Why these exist</h2>
+        <p>Every one of these started as a thing I wanted to play and could not find. A synth you perform by moving a cursor across a photograph. A drum machine whose twelve voices share a power supply, so a hard kick makes the whole kit sag. A monosynth built to be pushed until its oscillators lock to each other. None of them is a better version of something that already exists; each one goes somewhere I could not otherwise get to.</p>
+        <p>They are made for my own enjoyment, and given away because there is no reason not to. Free, no installer, no account, no telemetry, nothing uploaded anywhere — the sound is made on your machine and stays there. Nothing in them is asserted either: each is built against a bench that renders real audio and measures it, and the numbers in the manuals come from that rather than from my opinion of it.</p>
       </section>
     </div>
   </main>
 
   <footer>
     <div class="wrap">
-      <span>© <span id="year">2026</span> Peter Bøggild · BrokildApps</span>
+      <span>© <span id="year">2026</span> Peter Bøggild · Brokild Musical Instruments</span>
       <span><a href="https://github.com/peterboggild/BrokildApps">Source on GitHub</a></span>
     </div>
   </footer>
