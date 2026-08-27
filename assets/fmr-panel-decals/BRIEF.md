@@ -498,3 +498,79 @@ Please replace `fmr-cheek.png` with this:
 The same rule applies to any texture: **an end cap is what makes a texture
 stop being tileable.** The cream panel (01) and the anodised sub-panel (02)
 were both correct on this count.
+
+---
+
+# ROUND 2 · one redo, one addition
+
+Seventeen parts are wired into the panel and most of them look excellent — the
+nameplate, the model keys, the fader caps and slots, the pad and the lamps all
+went straight in. Two things left.
+
+## PART 04 · REDO (the knob)
+
+The knob is beautifully made and is the one part that has to change. Its top
+face was drawn with **radial brushing — fine lines running outward from the
+centre like spokes**. At 1024 px that reads as brushed metal. On the panel the
+knob is 52 px across, and those spokes collapse into a rotating fan or star
+pattern; with ninety-six of them the machine looks like a row of turbines.
+
+This is not a scaling problem I can fix downstream — the spokes are large
+features, so downsampling keeps them. What is needed is the other kind of
+brushing:
+
+> Part 04 (replacement). A single flat-on, top-down photograph of a small
+> silver aluminium synthesiser knob cap, as fitted to 1980s Japanese drum
+> machines.
+>
+> Seen from directly above. The top face carries **CONCENTRIC brushing — very
+> fine circular rings running AROUND the centre**, the way a lathe-turned
+> aluminium cap is finished. It must NOT have radial or spoke-like lines
+> running outward from the centre, and must NOT look like a fan, a turbine or
+> a starburst: at panel size those turn into a rotating pattern. If in doubt,
+> make the top face plainer — a smooth satin aluminium face with only a hint
+> of circular grain is much better than a strong radial one.
+>
+> A knurled, milled outer skirt catching a ring of small highlights. A very
+> slight dome. One matte red pointer line (#d8412a) from the exact centre
+> straight up to the edge, pointing to 12 o'clock.
+>
+> CRITICAL: perfectly circular, perfectly centred, the circle touching all
+> four edges of the frame. This image gets ROTATED, so any offset makes the
+> knob wobble as it turns. Transparent background, no shadow, no perspective,
+> no panel behind it. 1024 x 1024 pixels.
+
+## PARTS 18–20 · the step buttons (new)
+
+The sequencer page is twelve lanes of thirty-two step buttons — three hundred
+and eighty-four of them, so they are that page the way the knob is the other
+one. They are currently drawn in CSS. Three states, and they must be the same
+button: **same shape, same size, same camera, same lighting.** Please put all
+three on one sheet, in crop regions of the same size, with the button in the
+same place inside each crop.
+
+Each is **144 x 132 pixels** — very slightly wider than tall.
+
+> Parts 18, 19 and 20. Three states of one small square-ish pushbutton from a
+> 1980s drum machine's step sequencer, seen from directly above. Slightly
+> rounded corners, a shallow chamfer round the edge catching a thin highlight
+> along the top and a soft shadow line along the bottom. Completely blank — no
+> lettering, no numbers, no lamp.
+>
+> - **18 · `fmr-step.png`** — unlit. Cream-ivory plastic, #e2d7bb at the top
+>   fading to #c2b492 at the bottom. Matte.
+> - **19 · `fmr-step-on.png`** — lit amber. The same cap now translucent and
+>   glowing from within, #ffb35c at the top to #d8721a at the bottom.
+> - **20 · `fmr-step-acc.png`** — lit red, for accented steps. The same cap
+>   glowing #ef8a5e to #c5411f.
+>
+> The lit states sit very slightly lower, as a pressed switch does. The glow
+> must stay inside the cap — no bloom spilling past its edge, the panel adds
+> that itself. Transparent background, no drop shadow, no perspective, no
+> panel behind them. 144 x 132 pixels each.
+
+## Still outstanding
+
+The walnut cheek replacement in the section above — the seamless tileable
+version with no end caps. The current one is being cropped and mirrored to
+make it usable, which works but costs some of the grain.
