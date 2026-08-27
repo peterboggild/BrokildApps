@@ -370,3 +370,61 @@ readable at a glance instead of being sixteen identical lit cells.
 
 Worth doing at the same time as 9-11, since all four touch the same fragment
 and the same editor.
+
+### 13. SAVE and LOAD a rack to disk — SPEC, awaiting go
+Peter 2026-08-27: "can I also push Save preset and Load preset in the BWFX
+module. Is this even possible, given the architecture?"
+
+**Yes, and the architecture was already built for it** — most of the parts
+exist. What is missing is only the file dialog and two buttons.
+
+Already there:
+
+  * `Rack::toJson()` returns the WHOLE rack as one string — modules, their
+    parameters, presence, order, mix, the SPECTRA characters and any opaque
+    module state such as the KIERANATOR grid. That is the file.
+  * `Rack::fromJson()` reads it back, and is deliberately tolerant: unknown
+    keys are ignored and missing ones take defaults, which the bench checks
+    with a synthetic future blob. So a rack saved by a newer BWFX loads into
+    an older one minus the modules it has never heard of, rather than
+    failing.
+  * the adapter already carries an op that applies a whole blob (`"blob"`,
+    added for the built-in presets), and the fragment already has a PRESETS
+    row that uses it.
+
+What has to be added, and where:
+
+  * **Nothing in the core.** It stays JUCE-free; file I/O has no business
+    there.
+  * **The adapter** (`adapter/bwfx_juce.h`) gains saveRackAs and openRack,
+    written ONCE so all seven synths get them from the same code — which is
+    the whole reason the adapter exists.
+  * **The fragment** gains SAVE and LOAD beside the PRESETS row, and two ops
+    the adapter answers.
+
+**The design decision that matters: the folder must be SHARED between the
+synths, not per-plugin.** A rack is portable — that is the entire promise of
+BWFX, and the reason a user rack is worth more than a per-plugin preset. A
+rack built in Black Rider should open in Full Metal Racket. So:
+`Documents/Brokild/World FX racks`, one folder, extension `.bwfx`, remembered
+in a PropertiesFile under Brokild/WorldFX rather than under any one synth.
+
+Two things to get right:
+
+  * **FileChooser lifetime.** `launchAsync` needs the chooser to outlive the
+    call, and the adapter is header-only free functions. A function-local
+    static would be destroyed by a second instance opening a dialog. Either
+    hand the adapter the host's existing `activeChooser` (every synth has
+    one already, for its own patches), or keep a small static list in the
+    adapter that drops finished ones. The first is tidier and is seven
+    one-line edits.
+  * **A rack carrying armed CHARACTERS, loaded into a host that does not
+    consume the world-mod bus.** Mars Wars and Hairfryer are effects: they
+    have no voices to detune. The characters would arm and only their
+    PRIVATE audio would be heard. That is already how it behaves and the
+    overlay already shows it via busLive, but a loaded rack should say so
+    in the notice line rather than leave someone wondering why a character
+    sounds thin.
+
+Worth pairing with a **rack blob in the clipboard** — copy and paste as text
+is often faster than a file dialog, and it costs one more op.
