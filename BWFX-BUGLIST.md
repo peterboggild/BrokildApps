@@ -280,33 +280,74 @@ it is general rather than a PS2 special case:
     synth with instrument-specific characters (a drum machine's per-kit
     macros, say) inherits the same drawer for free.
 
-### 9. KIERANATOR: A/B pages to 32 steps, and a LAST step — SPEC, awaiting go
-Peter 2026-08-27, while playing Full Metal Racket: "can I have an A and B
-there as well, allowing up to 32 steps. Also, here I'd like a last step, to
-create polyrhythms." He noted himself that rolling it out is a big job.
+### 9. KIERANATOR: 32 steps, A/B pages, LAST step — SPEC, awaiting go
+Peter 2026-08-27: "can I have an A and B there as well, allowing up to 32
+steps. Also, here I'd like a last step, to create polyrhythms."
 
-Why it is a big job: the pattern is **16 x 3 bits packed into one atomic
-uint64** in the module's opaque `extra` blob, and that word is exactly 64
-bits wide. Thirty-two steps does not fit — it needs two words, or a wider
-representation, and the atomicity is the point: the audio thread reads the
-pattern without a lock. Options, in order of preference:
+**Correction to the first version of this entry, which was written from
+notes rather than from the code and was wrong.** The claim was that the
+pattern is 16 x 3 bits filling one atomic uint64 and that 32 steps cannot
+fit. Reading `modules/bwfx_modules.cpp`:
 
-  * TWO atomic uint64s, page A and page B, read as a pair. The audio side
-    only ever needs the word for the page it is currently in, so a torn read
-    across the pair is not observable — the same trick that made one word
-    safe in the first place.
-  * A LAST STEP (1..32) alongside, so the loop can end anywhere. That is what
-    makes the polyrhythm, and it is cheap: the step index becomes
-    `k % last` instead of `k % 16`.
+  * 16 steps x 3 bits is **48 bits of 64** — sixteen are spare.
+  * the pattern is read **once per block**, not per sample
+    (`patternIn.load` sits above the sample loop);
+  * the serialised form is not bits at all, it is a **string of characters
+    '0'..'7'**, packed and unpacked by setExtra/getExtra.
 
-Precedent worth copying: Full Metal Racket's sequencer already does exactly
-this per lane, and the interaction question turned out to matter more than
-the feature. LAST was there from the start as a lane length and Peter could
-not find it, because it was drawn as dim text rather than as a control. The
-three ways in that worked: DRAG the field for any value, CLICK it to jump
-through musical lengths (1 2 3 4 6 8 12 16 24 32), and RIGHT-CLICK A STEP to
-end the loop there — the last of those is the one that needs no explaining.
+All three change the answer, so the design below is not the one the first
+entry implied.
 
-Compatibility: an existing blob carries one 16-step word. It must load as
-page A with LAST = 16 and page B empty, so every KIERANATOR pattern already
-saved sounds identical. That is the Kemper rule and it is not negotiable.
+**1 · Do not pack harder. Double-buffer.** Since the read is once per block,
+the tidy structure is a two-slot pattern with an atomic index: the writer
+fills the inactive slot and then publishes it, the reader takes the index
+once per block. Lock-free, cannot tear, and it stops caring how big a
+pattern is — which matters, because 32 steps needs 96 bits and 64 steps
+would need 192. Two atomic uint64s read as a pair would also work, but a
+tear across them would splice half an old pattern onto half a new one, and
+the double buffer costs no more to write.
+
+**2 · BARS should become STEP, and this migrates for free.** Today BARS
+stretches the same sixteen steps over one bar or two — so it is a
+resolution control wearing the wrong name, and adding LAST on top of it
+would only change resolution again, not produce a polyrhythm. What makes a
+polyrhythm is a FIXED grid with a VARIABLE loop length, which is exactly
+what Full Metal Racket's lanes do.
+
+The migration is exact, which is what decides it:
+
+  | stored index | means today            | would mean | same sound |
+  |--------------|------------------------|-----------|------------|
+  | 0            | 1 bar over 16 steps    | 1/16      | yes        |
+  | 1            | 2 bars over 16 steps   | 1/8       | yes        |
+  | 2, 3         | (unused)               | 1/32, 1/4 | new        |
+
+The list is stored by index, so as long as index 0 stays 1/16 and index 1
+stays 1/8, every saved KIERANATOR is bit-identical. The menu then reads
+1/16, 1/8, 1/32, 1/4 — an odd order, and the right price to pay.
+
+**3 · LAST (1..32) as a PARAMETER, not in the blob.** It is a musical value
+people will want to automate and to morph, and the blob is neither
+automatable nor interpolable. kMaxParams is 16 and KIERANATOR uses 8, so
+there is room.
+
+**4 · A/B is an EDITING page, not a second pattern.** The pedal is too
+narrow for 32 cells, so A shows steps 1-16 and B shows 17-32 — one 32-step
+pattern, two pages. (Full Metal Racket shows all 32 at once because it has
+the width; the KIERANATOR does not.)
+
+**5 · The compatibility rule, stated precisely.** It is not enough for an
+old pattern to *sound* the same: `getExtra` must return a **byte-identical
+string** for a pattern that has not been edited, or every rack blob in every
+saved project changes and the bench's memcmp checks start failing for no
+musical reason. So: a 16-character blob loads as steps 1-16 with LAST = 16
+and steps 17-32 empty, and getExtra emits 16 characters whenever steps 17-32
+are all empty — 32 only once something is written there.
+
+**The lesson worth keeping from Full Metal Racket:** LAST existed there from
+the first build as a lane length, and Peter could not find it, because it
+was drawn as dim text rather than as a control. The three ways in that
+worked: DRAG the field for any value, CLICK it to jump through musical
+lengths (1 2 3 4 6 8 12 16 24 32), and RIGHT-CLICK A STEP to end the loop
+there. The last needs no explaining at all, and should be the one the
+KIERANATOR copies.
