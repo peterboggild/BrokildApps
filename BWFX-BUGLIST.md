@@ -280,74 +280,93 @@ it is general rather than a PS2 special case:
     synth with instrument-specific characters (a drum machine's per-kit
     macros, say) inherits the same drawer for free.
 
-### 9. KIERANATOR: 32 steps, A/B pages, LAST step — SPEC, awaiting go
-Peter 2026-08-27: "can I have an A and B there as well, allowing up to 32
-steps. Also, here I'd like a last step, to create polyrhythms."
+### 9. KIERANATOR: A/B pages and a LAST step — SPEC, awaiting go
+Peter 2026-08-27, and **his model supersedes the one I proposed in the first
+two versions of this entry.** He described it as:
 
-**Correction to the first version of this entry, which was written from
-notes rather than from the code and was wrong.** The claim was that the
-pattern is 16 x 3 bits filling one atomic uint64 and that 32 steps cannot
-fit. Reading `modules/bwfx_modules.cpp`:
+> Two bars, A and B. The 1 or 2 bars would then double the length to 4 bars
+> if I have both A and B. Default is 16 as last step, corresponding to
+> patterns distributed over 1 bar if 1 bar is selected, and 2 bars if 2 bars
+> is selected.
 
-  * 16 steps x 3 bits is **48 bits of 64** — sixteen are spare.
-  * the pattern is read **once per block**, not per sample
-    (`patternIn.load` sits above the sample loop);
-  * the serialised form is not bits at all, it is a **string of characters
-    '0'..'7'**, packed and unpacked by setExtra/getExtra.
+That is better than what I suggested, and for a concrete reason: I wanted to
+reinterpret BARS as a step DIVISION, which needed a migration table to stay
+compatible. His keeps BARS meaning exactly what it means today — how long a
+page is stretched over — and gets the extra length from the second PAGE
+instead. So:
 
-All three change the answer, so the design below is not the one the first
-entry implied.
+| BARS | page A | page B | LAST 16 | LAST 32 |
+|------|--------|--------|---------|---------|
+| 1    | 1 bar  | 1 bar  | 1 bar (today exactly) | 2 bars |
+| 2    | 2 bars | 2 bars | 2 bars (today exactly) | 4 bars |
 
-**1 · Do not pack harder. Double-buffer.** Since the read is once per block,
-the tidy structure is a two-slot pattern with an atomic index: the writer
-fills the inactive slot and then publishes it, the reader takes the index
-once per block. Lock-free, cannot tear, and it stops caring how big a
-pattern is — which matters, because 32 steps needs 96 bits and 64 steps
-would need 192. Two atomic uint64s read as a pair would also work, but a
-tear across them would splice half an old pattern onto half a new one, and
-the double buffer costs no more to write.
+**Compatibility falls out for free**: an existing pattern is LAST 16 with an
+empty page B, which is bit-for-bit what it does now. No reinterpretation, no
+migration table, nothing to get wrong. LAST still gives the polyrhythm —
+set it to 12 or 25 and the loop stops agreeing with the bar.
 
-**2 · BARS should become STEP, and this migrates for free.** Today BARS
-stretches the same sixteen steps over one bar or two — so it is a
-resolution control wearing the wrong name, and adding LAST on top of it
-would only change resolution again, not produce a polyrhythm. What makes a
-polyrhythm is a FIXED grid with a VARIABLE loop length, which is exactly
-what Full Metal Racket's lanes do.
+Two things from reading the module that still hold:
 
-The migration is exact, which is what decides it:
+  * the pattern is read **once per block**, so use a two-slot buffer with an
+    atomic index rather than packing harder. 32 steps x 3 bits is 96 bits and
+    will not fit the uint64 it uses today;
+  * `getExtra` must return a **byte-identical string** for a pattern nobody
+    has edited — not merely one that sounds the same — or every rack blob in
+    every saved project changes and the memcmp checks fail for no musical
+    reason. So: 16 characters out whenever steps 17-32 are empty, 32 only
+    once something is written there.
 
-  | stored index | means today            | would mean | same sound |
-  |--------------|------------------------|-----------|------------|
-  | 0            | 1 bar over 16 steps    | 1/16      | yes        |
-  | 1            | 2 bars over 16 steps   | 1/8       | yes        |
-  | 2, 3         | (unused)               | 1/32, 1/4 | new        |
+A/B is an editing page, not a second pattern: the pedal is too narrow for 32
+cells at once.
 
-The list is stored by index, so as long as index 0 stays 1/16 and index 1
-stays 1/8, every saved KIERANATOR is bit-identical. The menu then reads
-1/16, 1/8, 1/32, 1/4 — an odd order, and the right price to pay.
+### 10. KIERANATOR: a RANDOM brush — SPEC, awaiting go
+Peter: "could you make a new FX, RANDOM, that selects a random one of the
+other effects."
 
-**3 · LAST (1..32) as a PARAMETER, not in the blob.** It is a musical value
-people will want to automate and to morph, and the blob is neither
-automatable nor interpolable. kMaxParams is 16 and KIERANATOR uses 8, so
-there is room.
+A ninth brush that resolves, per hit, to one of the eight real ones. Two
+details decide whether it is usable or a mess:
 
-**4 · A/B is an EDITING page, not a second pattern.** The pedal is too
-narrow for 32 cells, so A shows steps 1-16 and B shows 17-32 — one 32-step
-pattern, two pages. (Full Metal Racket shows all 32 at once because it has
-the width; the KIERANATOR does not.)
+  * **Seed it from the position**, the way the sequencer's probability is
+    seeded — from bar and step. Then a bar is reproducible while still
+    differing from the bar before, a re-render gives the same audio, and the
+    bench can test it at all. A free-running rand() would be none of those.
+  * **Exclude RETRIG-into-itself and the silent combinations**, or the brush
+    will sometimes land on the one that does nothing audible and read as a
+    dropout rather than a choice.
 
-**5 · The compatibility rule, stated precisely.** It is not enough for an
-old pattern to *sound* the same: `getExtra` must return a **byte-identical
-string** for a pattern that has not been edited, or every rack blob in every
-saved project changes and the bench's memcmp checks start failing for no
-musical reason. So: a 16-character blob loads as steps 1-16 with LAST = 16
-and steps 17-32 empty, and getExtra emits 16 characters whenever steps 17-32
-are all empty — 32 only once something is written there.
+Costs one value in the 3-bit step field, which currently holds 0-7 — RANDOM
+would be the eighth non-empty value and the field is already wide enough.
 
-**The lesson worth keeping from Full Metal Racket:** LAST existed there from
-the first build as a lane length, and Peter could not find it, because it
-was drawn as dim text rather than as a control. The three ways in that
-worked: DRAG the field for any value, CLICK it to jump through musical
-lengths (1 2 3 4 6 8 12 16 24 32), and RIGHT-CLICK A STEP to end the loop
-there. The last needs no explaining at all, and should be the one the
-KIERANATOR copies.
+### 11. KIERANATOR: a CHAOS slider — SPEC, awaiting go
+Peter: "a CHAOS slider that introduces variabilities in the parameters,
+depending on how far it is set to the right, as well as with increasing
+frequency making a single temporary effect application on a certain slot."
+
+Two behaviours on one knob, which is right — they are the same idea at two
+scales:
+
+  1. **Parameter jitter.** Each time a step fires, that effect's own
+     parameters are perturbed by up to +/- CHAOS percent. Applied at the
+     STEP, not continuously, so it is a different-sounding glitch each time
+     rather than a wobble.
+  2. **Uninvited glitches.** With a probability rising with CHAOS, a step
+     that is OFF fires a single temporary effect anyway. That is the half
+     that makes it feel alive rather than merely loose.
+
+Seeded from bar and step like everything else here, so it is reproducible.
+At 0 it must be **exactly** inert — the bench should memcmp a render at
+CHAOS 0 against the same render with the parameter absent, the way the
+empty-rack check works.
+
+### 12. KIERANATOR: colour the brush keys — SPEC, awaiting go
+Peter: "colour the selection buttons below the 16 sequence in the same
+colours but dimmer (GT GATE etc). They highlight when selected and get a
+slight halo."
+
+Each brush gets a hue; the key carries it at low saturation, comes to full
+strength when selected, and takes a soft glow. The steps painted with that
+brush should carry the same hue, which is the real win: a pattern becomes
+readable at a glance instead of being sixteen identical lit cells.
+
+Worth doing at the same time as 9-11, since all four touch the same fragment
+and the same editor.
