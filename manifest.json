@@ -37,6 +37,7 @@
     }
   ],
   "apps": [
+    "vst3-apps/collection",
     "vst3-apps/clone-wars",
     "vst3-apps/black-rider",
     "vst3-apps/photo-synth-2",
