@@ -279,3 +279,34 @@ it is general rather than a PS2 special case:
   * Wins twice: PS2 gets one place to arm any character, and any future
     synth with instrument-specific characters (a drum machine's per-kit
     macros, say) inherits the same drawer for free.
+
+### 9. KIERANATOR: A/B pages to 32 steps, and a LAST step — SPEC, awaiting go
+Peter 2026-08-27, while playing Full Metal Racket: "can I have an A and B
+there as well, allowing up to 32 steps. Also, here I'd like a last step, to
+create polyrhythms." He noted himself that rolling it out is a big job.
+
+Why it is a big job: the pattern is **16 x 3 bits packed into one atomic
+uint64** in the module's opaque `extra` blob, and that word is exactly 64
+bits wide. Thirty-two steps does not fit — it needs two words, or a wider
+representation, and the atomicity is the point: the audio thread reads the
+pattern without a lock. Options, in order of preference:
+
+  * TWO atomic uint64s, page A and page B, read as a pair. The audio side
+    only ever needs the word for the page it is currently in, so a torn read
+    across the pair is not observable — the same trick that made one word
+    safe in the first place.
+  * A LAST STEP (1..32) alongside, so the loop can end anywhere. That is what
+    makes the polyrhythm, and it is cheap: the step index becomes
+    `k % last` instead of `k % 16`.
+
+Precedent worth copying: Full Metal Racket's sequencer already does exactly
+this per lane, and the interaction question turned out to matter more than
+the feature. LAST was there from the start as a lane length and Peter could
+not find it, because it was drawn as dim text rather than as a control. The
+three ways in that worked: DRAG the field for any value, CLICK it to jump
+through musical lengths (1 2 3 4 6 8 12 16 24 32), and RIGHT-CLICK A STEP to
+end the loop there — the last of those is the one that needs no explaining.
+
+Compatibility: an existing blob carries one 16-step word. It must load as
+page A with LAST = 16 and page B empty, so every KIERANATOR pattern already
+saved sounds identical. That is the Kemper rule and it is not negotiable.
