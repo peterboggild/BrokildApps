@@ -415,3 +415,51 @@ Write each sheet's entry into `DELIVERED.md` **as soon as that sheet is
 committed**, rather than saving it all for the end. If the run stops halfway,
 that file is what lets it resume instead of starting over — and it lets me
 wire up whatever has arrived so far without waiting for the rest.
+
+---
+
+# ADDENDUM 2 · what is worth a redo, and what is not
+
+Treating the composites as documented source sheets rather than
+production-ready crops is exactly right. Here is what that means in practice,
+now that the ingest side is built and tested.
+
+## Do NOT redo for proportions
+
+The ingest tool crops each part, trims its transparent margin and then
+**stretches it to the aspect the panel needs**, reporting the correction. A
+knob drawn as a 320 × 250 oval comes out a true 321 × 321 circle. A key drawn
+at 3.7 : 1 where 5.05 : 1 is wanted comes out at 5.048 : 1.
+
+So a part whose *proportions* are off is not a defect — it is absorbed, and
+the log says by how much. Anything over about 25 % gets flagged and I will ask
+for that one part specifically. Please do not re-roll a whole sheet for it.
+
+## DO redo for these three, which cannot be fixed downstream
+
+1. **A baked-in drop shadow.** It doubles against the panel's own lighting and
+   there is no way to remove it from a flattened image.
+2. **Perspective or any camera angle.** The panel is dead flat-on; a part shot
+   at an angle cannot be un-projected.
+3. **Wrong or missing content** — lettering that was asked to be absent, a lamp
+   that is lit when it should be dark, a slot with a fader cap still in it.
+
+## One request that WOULD help
+
+For the three pairs — `fmr-key` / `fmr-key-lit`, `fmr-keydark` /
+`fmr-keydark-lit`, `fmr-led` / `fmr-led-lit` — please put each pair **on the
+same sheet, in crop regions of the same size, with the object in the same
+place inside each crop**.
+
+The two states are registered against each other during ingest using their
+offsets within their own crops, so same-size crops make that exact. Generated
+separately at different proportions, the button appears to twitch as it
+lights, and that is the one relationship that cannot be reconstructed after
+the fact.
+
+## Keep the caveats coming
+
+The candid notes in `DELIVERED.md` are more useful than a clean-looking sheet.
+If a crop is approximate, or a part came out weaker than the others, say so in
+the prose next to the JSON block — it goes straight into what gets looked at
+first.
