@@ -242,7 +242,7 @@ juce::File CloneWarsProcessor::userPatchFolder()
         plugin now uses, one per plugin, migrated once by copying from the old
         "Clone Wars User Patches" beside the bundle. See brokild_paths.h: a
         folder beside an installed .vst3 is somewhere an installer reaches. */
-    auto house = brokild::patchFolder ("Clone Wars", "", "slot-*.json");
+    auto house = brokild::patchFolder ("Clone Wars", {}, "slot-*.json");
     if (house != juce::File()) return house;
 
     auto fallback = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
