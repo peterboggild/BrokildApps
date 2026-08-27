@@ -354,3 +354,64 @@ Alongside them, a `manifest.json` in the same shape as the existing
 Do **04, 09, 10 and 01** first, in that order. The knob and the two key states
 are most of what currently reads as artificial, and the panel texture is what
 stops the cream looking like a flat fill.
+
+---
+
+# ADDENDUM · combining parts into sheets
+
+**Combining is welcome.** Several related parts on one sheet is fine and saves
+you time. Two things make it work, and one of them I cannot guess.
+
+## Resolution does not matter. ASPECT RATIO does.
+
+Every part gets scaled to fit its place on the panel, so a knob delivered at
+600 px is as good as one at 1024. What cannot be fixed by scaling is the
+**shape**:
+
+- Anything described as *perfectly circular* — the knob (04), the lamps (14,
+  15), the screw (17) — must sit in a **square** crop region, centred. If its
+  crop is 700 × 640 it becomes an oval on the panel and every knob wobbles as
+  it turns.
+- The rectangular parts must keep roughly the width-to-height ratio given for
+  them. Within about 5 % is fine; the panel absorbs the rest.
+- Do not put two parts with different aspect ratios in one crop region.
+
+## Leave gutters
+
+At least 32 px of **fully transparent** pixels between parts on a sheet, and
+around the outside. That way a crop region that is a few pixels out still
+clips nothing.
+
+## What I need recorded — please use this exact format
+
+Write `DELIVERED.md` in this folder, and put a fenced ```json block in it in
+this shape. Prose around it is welcome; the block is what gets read.
+
+```json
+{
+  "sheets": [
+    {
+      "file": "sheet-controls.png",
+      "size": [2048, 2048],
+      "parts": [
+        { "name": "fmr-knob",       "rect": [16, 16, 1024, 1024], "shape": "circle" },
+        { "name": "fmr-fadercap-v", "rect": [1100, 16, 512, 512] }
+      ]
+    }
+  ]
+}
+```
+
+- `name` — the target filename from the list above, **without** `.png`.
+- `rect` — `[x, y, width, height]` in that sheet's own pixels, top-left origin.
+- `shape` — `"circle"` for the four that must be round; omit otherwise.
+
+A part delivered as its own standalone file needs no entry: just name the file
+correctly and it is picked up as it is.
+
+## Please append as you go
+
+Write each sheet's entry into `DELIVERED.md` **as soon as that sheet is
+committed**, rather than saving it all for the end. If the run stops halfway,
+that file is what lets it resume instead of starting over — and it lets me
+wire up whatever has arrived so far without waiting for the rest.
