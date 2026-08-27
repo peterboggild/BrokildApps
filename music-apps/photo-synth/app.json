@@ -7,5 +7,9 @@
   "icon": "wave",
   "preview": "assets/app-previews/photo-synth.svg",
   "note": "Also available as a native VST3 plugin. On iPhone, sound follows the ring/silent switch.",
-  "tags": ["music", "camera", "phone", "synth"]
+  "tags": [
+    "browser",
+    "phone",
+    "synth"
+  ]
 }

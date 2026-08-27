@@ -8,5 +8,8 @@
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/hairfryer.jpg",
   "note": "Windows VST3 · build 260826.5 · free download · 9-page manual & cookbook included.",
-  "tags": ["music", "vst3", "effect"]
+  "tags": [
+    "vst3",
+    "effect"
+  ]
 }
