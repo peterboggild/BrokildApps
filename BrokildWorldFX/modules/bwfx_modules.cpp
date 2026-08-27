@@ -1234,23 +1234,40 @@ public:
     void setTempo (double b) override { bpm = b; }
     void setClock (double ppq, bool playing) override { hostPpq = ppq; hostRolls = playing; }
 
-    // the pattern: 16 characters '0'..'7', one per step
+    /*  The pattern: up to 32 characters '0'..'8', one per step, where 8 is
+        the RANDOM brush. 32 x 4 bits does not fit a uint64 and the pattern
+        is read once per SAMPLE, so it lives in two slots with an atomic
+        index rather than in a packed word — the writer fills the spare slot
+        and publishes it, and the audio thread never sees a half-written
+        pattern. */
     void setExtra (const std::string& x) override
     {
-        uint64_t p = 0;
-        for (int i = 0; i < 16; ++i)
+        const int idx = patIdx.load (std::memory_order_relaxed);
+        auto& dst = pat[(size_t) (idx ^ 1)];
+        for (int i = 0; i < kSteps; ++i)
         {
             const int c = i < (int) x.size() ? x[(size_t) i] - '0' : 0;
-            p |= (uint64_t) (c >= 0 && c <= 7 ? c : 0) << (3 * i);
+            dst[(size_t) i] = (uint8_t) (c >= 0 && c <= 8 ? c : 0);
         }
-        patternIn.store (p, std::memory_order_relaxed);
+        patIdx.store (idx ^ 1, std::memory_order_release);
     }
+    /*  SIXTEEN characters whenever the second page is empty — the identical
+        string the module returned before page B existed, not merely one
+        that sounds the same. Otherwise every rack blob in every saved
+        project would change the day this shipped. */
     std::string getExtra() const override
     {
-        const uint64_t p = patternIn.load (std::memory_order_relaxed);
-        std::string s (16, '0');
-        for (int i = 0; i < 16; ++i) s[(size_t) i] = (char) ('0' + ((p >> (3 * i)) & 7));
-        return s == "0000000000000000" ? std::string() : s;   // default = empty blob
+        const auto& p = pat[(size_t) patIdx.load (std::memory_order_acquire)];
+        int len = 16;
+        for (int i = 16; i < kSteps; ++i) if (p[(size_t) i] != 0) { len = kSteps; break; }
+        std::string s ((size_t) len, '0');
+        bool any = false;
+        for (int i = 0; i < len; ++i)
+        {
+            s[(size_t) i] = (char) ('0' + p[(size_t) i]);
+            if (p[(size_t) i] != 0) any = true;
+        }
+        return any ? s : std::string();                       // default = empty blob
     }
 
     void process (float* L, float* R, int n) override
@@ -1261,7 +1278,6 @@ public:
         const int bars = (int) std::lround (getParam (0)) == 1 ? 2 : 1;
         const double stepBeats = bars * 4.0 / 16.0;
         const double stepLen = stepBeats * 60.0 / useBpm * fs;      // samples
-        const uint64_t pattern = patternIn.load (std::memory_order_relaxed);
 
         const double repFrac[3] = { 0.5, 0.25, 0.125 };
         const double repLen = std::max (64.0, stepLen * repFrac[(int) std::lround (getParam (2)) & 3]);
@@ -1271,6 +1287,10 @@ public:
         const double ratio = ratios[(int) std::lround (getParam (5)) & 3];
         const float crushAmt = clampf (getParam (6) / 100.0f, 0.0f, 1.0f);
         const float duty = clampf (getParam (7) / 100.0f, 0.05f, 1.0f);
+        const int   last = (int) std::lround (getParam (8));
+        const int   nSteps = last < 2 ? 2 : (last > kSteps ? kSteps : last);
+        const float chaos = clampf (getParam (9) / 100.0f, 0.0f, 1.0f);
+        const auto& pgm = pat[(size_t) patIdx.load (std::memory_order_acquire)];
         const double beatsPerSample = useBpm / (60.0 * fs);
         const float fadeStep = 1.0f / (0.005f * (float) fs);        // 5 ms
 
@@ -1289,7 +1309,12 @@ public:
                 b = beats;
             }
             const double stepPos = b / stepBeats;
-            const int step = (int) ((int64_t) stepPos % 16);
+            /*  A host can hand out a negative ppq during a count-in, and a
+                negative index would read outside the pattern. */
+            const int64_t rawStep = (int64_t) std::floor (stepPos);
+            int64_t cycle = rawStep / nSteps;
+            int step = (int) (rawStep - cycle * nSteps);
+            if (step < 0) { step += nSteps; --cycle; }
             const double phase = stepPos - std::floor (stepPos);
 
             // capture never stops
@@ -1301,9 +1326,43 @@ public:
                 lastStep = step;
                 old = cur;
                 fade = 0.0f;
-                cur.type = (int) ((pattern >> (3 * step)) & 7);
+                cur.type = pgm[(size_t) step];
                 cur.start = w;
                 cur.t = 0;
+                cur.jRep = 1.0; cur.jRatio = 1.0;
+                cur.jDecay = 1.0f; cur.jStop = 1.0f; cur.jCrush = 1.0f; cur.jDuty = 1.0f;
+
+                /*  RANDOM resolves to one of the SEVEN real effects, never
+                    to NONE — a brush that sometimes does nothing reads as a
+                    dropout rather than as a choice. Seeded from the loop
+                    cycle and the step, so the bar is reproducible and a
+                    re-render gives the same audio. */
+                if (cur.type == 8)
+                    cur.type = 1 + (int) (stepHash (cycle, step, 0x5EEDu) % 7u);
+
+                if (chaos > 0.0f)
+                {
+                    //  a step that is OFF fires anyway, more often as the
+                    //  knob comes up. This is the half that makes CHAOS feel
+                    //  alive rather than merely loose.
+                    if (cur.type == 0)
+                    {
+                        const uint32_t h = stepHash (cycle, step, 0xC0FFEEu);
+                        const uint32_t thresh = (uint32_t) (chaos * chaos * 0.45f * 65536.0f);
+                        if ((h & 0xFFFFu) < thresh) cur.type = 1 + (int) ((h >> 16) % 7u);
+                    }
+                    //  ...and whatever fires is knocked off its knob setting
+                    //  by up to +/- half the CHAOS reading. Applied AT the
+                    //  step, so it is a different glitch each time rather
+                    //  than a wobble across the bar.
+                    const float k = chaos * 0.5f;
+                    cur.jDecay = jitter (cycle, step, 0x11u, k);
+                    cur.jStop  = jitter (cycle, step, 0x22u, k);
+                    cur.jCrush = jitter (cycle, step, 0x33u, k);
+                    cur.jDuty  = jitter (cycle, step, 0x44u, k);
+                    cur.jRep   = (double) jitter (cycle, step, 0x55u, k);
+                    cur.jRatio = (double) jitter (cycle, step, 0x66u, k * 0.5f);
+                }
                 if (cur.type == 4)                                 // SHUFFLE
                 {
                     rng = 1664525u * rng + 1013904223u;
@@ -1341,6 +1400,11 @@ private:
         int start = 0;           // write position at the step boundary
         int64_t t = 0;           // samples into the step
         double shuffleBack = 0;
+        //  CHAOS: per-step multipliers on this effect's own settings. All
+        //  exactly 1 when the knob is shut, and x1.0f is IEEE-exact, so a
+        //  rack at CHAOS 0 renders the identical samples it always did.
+        double jRep = 1.0, jRatio = 1.0;
+        float jDecay = 1.0f, jStop = 1.0f, jCrush = 1.0f, jDuty = 1.0f;
         // crush state
         float holdL = 0, holdR = 0;
         double holdAcc = 0;
@@ -1358,9 +1422,10 @@ private:
                 return;
             case 1:                                                // RETRIG
             {
-                const int64_t k = v.t / (int64_t) repLen;
-                const double pos = (double) (v.t % (int64_t) repLen);
-                const float g = std::pow (decay, (float) k);
+                const double rl = std::max (64.0, repLen * v.jRep);
+                const int64_t k = v.t / (int64_t) rl;
+                const double pos = (double) (v.t % (int64_t) rl);
+                const float g = std::pow (clampf (decay * v.jDecay, 0.0f, 1.0f), (float) k);
                 outL = catmullRead (bufL, mask, w, (double) (w - v.start) - pos + 2.0) * g;
                 outR = catmullRead (bufR, mask, w, (double) (w - v.start) - pos + 2.0) * g;
                 return;
@@ -1368,9 +1433,10 @@ private:
             case 2:                                                // TAPESTOP
             {
                 const double u = std::min (1.0, (double) v.t / std::max (1.0, stepLen));
-                const double rate = std::max (0.0, 1.0 - stopDepth * std::pow (u, 1.4));
+                const double sd = (double) clampf (stopDepth * v.jStop, 0.0f, 1.0f);
+                const double rate = std::max (0.0, 1.0 - sd * std::pow (u, 1.4));
                 // integrated read position (closed form of the power ramp)
-                const double travel = (double) v.t - stopDepth * stepLen * std::pow (u, 2.4) / 2.4;
+                const double travel = (double) v.t - sd * stepLen * std::pow (u, 2.4) / 2.4;
                 const double back = (double) (w - v.start) - travel + 2.0;
                 const float g = 0.25f + 0.75f * (float) std::sqrt (rate);   // dies as it stops
                 outL = catmullRead (bufL, mask, w, back) * g;
@@ -1397,7 +1463,7 @@ private:
                 // loop the PREVIOUS step's slice at the ratio: the read head
                 // never has to cross the write head, whatever the interval
                 const double span = std::max (64.0, stepLen);
-                const double pos = std::fmod ((double) v.t * ratio, span);
+                const double pos = std::fmod ((double) v.t * ratio * v.jRatio, span);
                 const double back = (double) (w - v.start) + span - pos + 2.0;
                 outL = catmullRead (bufL, mask, w, back);
                 outR = catmullRead (bufR, mask, w, back);
@@ -1405,10 +1471,11 @@ private:
             }
             case 6:                                                // CRUSH
             {
-                const double hold = 1.0 + crushAmt * crushAmt * 60.0;
+                const float ca = clampf (crushAmt * v.jCrush, 0.0f, 1.0f);
+                const double hold = 1.0 + ca * ca * 60.0;
                 v.holdAcc += 1.0;
                 if (v.holdAcc >= hold) { v.holdAcc -= hold; v.holdL = inL; v.holdR = inR; }
-                const double q = std::pow (2.0, 11.0 - crushAmt * 8.0);
+                const double q = std::pow (2.0, 11.0 - ca * 8.0);
                 outL = (float) (std::round (v.holdL * q) / q);
                 outR = (float) (std::round (v.holdR * q) / q);
                 return;
@@ -1418,12 +1485,13 @@ private:
                 // open for `duty` of the step, 1% edges so the chop is a
                 // chop, not a click
                 const double edge = 0.01;
+                const double dy = (double) clampf (duty * v.jDuty, 0.05f, 1.0f);
                 float g = 0.0f;
-                if (phase < duty)
+                if (phase < dy)
                 {
                     g = 1.0f;
-                    if (phase < edge)               g = (float) (phase / edge);
-                    else if (phase > duty - edge)   g = (float) ((duty - phase) / edge);
+                    if (phase < edge)             g = (float) (phase / edge);
+                    else if (phase > dy - edge)   g = (float) ((dy - phase) / edge);
                 }
                 outL = inL * g; outR = inR * g;
                 return;
@@ -1438,7 +1506,30 @@ private:
     bool hostRolls = false;
     int lastStep = -1;
     uint32_t rng = 0xD15Bu;
-    std::atomic<uint64_t> patternIn { 0 };
+
+    /*  Deterministic per (loop cycle, step, purpose). Everything random in
+        this module is drawn from here, so a bar always sounds the same way
+        twice, a bounce matches the playback, and the bench can assert on
+        it. A free-running rand() would give none of those. */
+    static uint32_t stepHash (int64_t cycle, int step, uint32_t salt)
+    {
+        uint64_t h = (uint64_t) cycle * 0x9E3779B97F4A7C15ull;
+        h ^= (uint64_t) (uint32_t) step * 0xBF58476D1CE4E5B9ull;
+        h ^= (uint64_t) salt * 0x94D049BB133111EBull;
+        h ^= h >> 30; h *= 0xBF58476D1CE4E5B9ull;
+        h ^= h >> 27; h *= 0x94D049BB133111EBull;
+        h ^= h >> 31;
+        return (uint32_t) h;
+    }
+    static float jitter (int64_t cycle, int step, uint32_t salt, float amount)
+    {
+        const float u = (float) (stepHash (cycle, step, salt) & 0xFFFFFFu) / 16777215.0f;
+        return 1.0f + amount * (2.0f * u - 1.0f);
+    }
+
+    static constexpr int kSteps = 32;
+    std::array<uint8_t, kSteps> pat[2] { };
+    std::atomic<int> patIdx { 0 };
     Voice cur, old;
     float fade = 1.0f;
     Smooth mix;
@@ -1508,6 +1599,8 @@ namespace
         { "pitch",  "PITCH",  0,   0, 3,   1, "",  "OCT DOWN|5TH DOWN|5TH UP|OCT UP" },
         { "crush",  "CRUSH",  60,  0, 100, 0, "%", nullptr },
         { "duty",   "DUTY",   50,  0, 100, 0, "%", nullptr },
+        { "last",   "LAST",   16,  2, 32,  1, "",  nullptr },
+        { "chaos",  "CHAOS",  0,   0, 100, 0, "%", nullptr },
     };
     const ParamDesc ROTARY_PARAMS[] = {
         { "speed",   "SPEED",   0,   0,   2,   1, "",   "SLOW|FAST|BRAKE" },
@@ -1548,7 +1641,7 @@ namespace
         { "reverb",     "SPACE",    "stereo convolution space",    1, REVERB_PARAMS,  3 },
         { "shimmer",    "SHIMMER",  "octave-up cathedral",         1, SHIMMER_PARAMS, 5 },
         { "rotary",     "ROTARY",   "leslie cabinet, real inertia", 1, ROTARY_PARAMS, 4 },
-        { "kieranator", "KIERANATOR", "step-sequenced havoc",       1, DISRUPTOR_PARAMS, 8, "steps" },
+        { "kieranator", "KIERANATOR", "step-sequenced havoc",       1, DISRUPTOR_PARAMS, 10, "steps" },
     };
     constexpr int kNumTypes = (int) (sizeof (DESCS) / sizeof (DESCS[0]));
 }

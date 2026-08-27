@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "bwfx_juce.h"
+#include "brokild_paths.h"
 
 //==============================================================================
 juce::String CloneWarsProcessor::globalParamId (int g)
@@ -237,18 +238,13 @@ void CloneWarsProcessor::parameterChanged (const juce::String& id, float newValu
 //==============================================================================
 juce::File CloneWarsProcessor::userPatchFolder()
 {
-    // Beside the installed .vst3 if that is writable (Photo-Synth's rule:
-    // hasWriteAccess lies on Windows, so probe by writing), else APPDATA.
-    auto exe = juce::File::getSpecialLocation (juce::File::currentExecutableFile);
-    for (auto d = exe.getParentDirectory(); d.getFullPathName().length() > 3; d = d.getParentDirectory())
-        if (d.getFileName().endsWithIgnoreCase (".vst3"))
-        {
-            auto folder = d.getParentDirectory().getChildFile ("Clone Wars User Patches");
-            folder.createDirectory();
-            auto probe = folder.getChildFile (".writeprobe");
-            if (probe.replaceWithText ("x")) { probe.deleteFile(); return folder; }
-            break;
-        }
+    /*  Documents/Brokild patches/Clone Wars/ — the same folder every Brokild
+        plugin now uses, one per plugin, migrated once by copying from the old
+        "Clone Wars User Patches" beside the bundle. See brokild_paths.h: a
+        folder beside an installed .vst3 is somewhere an installer reaches. */
+    auto house = brokild::patchFolder ("Clone Wars", "", "slot-*.json");
+    if (house != juce::File()) return house;
+
     auto fallback = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
                         .getChildFile ("Brokild").getChildFile ("CloneWars")
                         .getChildFile ("User Patches");
@@ -634,3 +630,5 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new CloneWarsProcessor();
 }
+
+// relink 2
