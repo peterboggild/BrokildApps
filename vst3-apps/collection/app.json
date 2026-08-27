@@ -1,0 +1,12 @@
+{
+  "slug": "collection",
+  "name": "The Brokild Collection (all seven)",
+  "description": "Every Brokild plugin in one download: six instruments and one effect for Windows, with their manuals and their standalones. Photo-Synth 2, Escape Room, Blade Ruiner, Black Rider, Clone Wars, Full Metal Racket and Martian Gain. They were built one at a time, each to answer a different question, but they share a rack of global effects that runs inside all of them, one patch folder, and a way of working: nothing is asserted, every claim is measured by a bench that renders real audio and reads the numbers off it.",
+  "status": "live",
+  "url": "vst3-apps/collection/index.html",
+  "icon": "more",
+  "cta": "Download all seven →",
+  "preview": "assets/app-previews/collection.jpg",
+  "note": "Windows VST3 · 61 MB · six instruments and one effect · all manuals included.",
+  "tags": ["music", "vst3"]
+}
