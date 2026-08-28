@@ -429,91 +429,128 @@ Two things to get right:
 Worth pairing with a **rack blob in the clipboard** — copy and paste as text
 is often faster than a file dialog, and it costs one more op.
 
-### 14. Can the rack be AUTOMATED? — SPEC, awaiting go
+### 14. BWFX MACROS — automating the rack. SPEC, chosen, awaiting go
 Peter 2026-08-28: "is there some way that the BWFX of the synths can be
-automatised as well as the regular synth parameters?"
+automatised as well as the regular synth parameters?" — and, after the
+options were laid out, "lets go with the macro solution".
 
-**Not today, and that was deliberate.** The rack is a string-keyed opaque
-blob, explicitly NOT host parameters (BWFX-DESIGN.md), and that decision is
-what lets a BWFX release add ROTARY, KIERANATOR, LAST and CHAOS and reach all
-seven synths by rebuild alone. Nothing about a host's parameter list has to
-change, and no saved project is disturbed. It is the best decision in the
-whole system and it should not be given up.
+**Why there is a gap at all.** Every Brokild synth already exposes every one
+of its own parameters to the host (Clone Wars exposes hundreds). The rack is
+the exception: it is a string-keyed opaque blob, deliberately NOT host
+parameters, and that is what lets a BWFX release add ROTARY, KIERANATOR, LAST
+and CHAOS and reach all seven synths by rebuild alone. So the rack is the one
+part of these instruments a DAW cannot draw a line on.
 
-But it does mean a rack cannot be automated, and for a delay time or a
-KIERANATOR chaos knob that is a real loss.
+#### Two arguments from the first draft that did not survive
 
-**Three ways out, and only one of them is any good.**
+Recorded because the conclusion should not rest on them:
 
-| | |
-|---|---|
-| **(a) Expose every rack parameter** | Measured, not guessed: 59 module parameters + 12 enables + 12 presences + 18 character parameters and their enables and presences ≈ **125** per synth, most belonging to modules a given patch never turns on. Two real costs and one non-cost — see below. **Still no, but for weaker reasons than the first draft of this entry claimed.** |
-| **(b) MIDI CC learn** | Real, and cheap, and genuinely useful for a hardware controller. But it is not an automation lane: no curves, no drawing, no reading back what the value was at bar 33. Worth having eventually; not an answer to the question asked. |
-| **(c) A fixed pool of MACROS** | **This is the answer.** |
+  * *"Exposing every rack parameter would break saved projects' automation
+    on a BWFX update."* **Wrong.** JUCE derives a VST3 parameter id from its
+    string id, so appending parameters leaves existing bindings intact.
+  * *"125 entries would be a wall to scroll past."* **Weak.** Peter: Ableton's
+    Configure adds only the parameters you actually touch, and other DAWs
+    cope with large lists routinely. He also points out that plugins change
+    under existing automation all the time and everyone lives with it.
 
-#### What is NOT wrong with (a) — a correction
+Full exposure is therefore a more reasonable option than the first draft
+allowed, and if macros ever prove too small it is the honest next step. It
+was not chosen because it is a permanent commitment (an exposed knob is
+frozen forever, MkII replacements included), because module ORDER and the
+KIERANATOR grid could never be parameters anyway, and because macros are the
+small reversible thing that covers the actual use.
 
-The first draft of this entry said that exposing everything would break every
-saved project's automation whenever BWFX gained a module. **That is not true**
-and the spec should not rest on it. JUCE derives a VST3 parameter's id from its
-string id, so *appending* parameters leaves every existing one bound exactly
-where it was; old automation survives a BWFX update untouched.
+A macro is also NOT the same feature as exposure: exposure is access, one
+lane per control; a macro is modulation, one gesture moving several things
+with depth and polarity. If both ever exist, macros ADD to the parameter
+value the way the Mars Wars patch bay adds to a knob, and they compose
+cleanly.
 
-Nor is it a problem for a PATCH. A patch already carries the whole rack —
-modules, values, presence, order, mix, the armed characters, the KIERANATOR
-grid — and has since 1.1.0. Patches were never the limitation; only host
-automation is.
+---
 
-So the honest case against (a) is three plainer things:
+#### The design
 
-  * **125 permanent entries in every synth's parameter list**, most of them for
-    modules that patch does not use. In a host with a flat list that is a wall
-    to scroll past to reach the instrument's own controls;
-  * **some rack state cannot be a float parameter at all** — module ORDER is a
-    permutation and the KIERANATOR pattern is a 32-step grid in an opaque
-    string. Those stay in the blob whatever happens, so (a) could never make
-    the rack *fully* automatable anyway;
-  * **it is a permanent commitment.** Adding host parameters is safe; removing
-    or renaming one is not. Every exposed rack knob is frozen forever, MkII
-    replacements included. That is the real cost, and it is about the future
-    rather than about anything breaking today.
+**Eight host parameters, `BWFX MACRO 1..8`,** declared once in
+`adapter/bwfx_juce.h` by one loop, so every synth gets them and no synth has
+per-plugin work. Automatable, saved in APVTS state like any other parameter —
+which means a `.fmrkit` or a synth preset picks up the values for free.
 
-#### The macro pool
+**A macro ADDS. It does not set.**
 
-Add a fixed, permanent set of host parameters — `BWFX MACRO 1`..`8` — once,
-to every synth. They never change in number or in name, so the host's
-parameter list is stable forever and a BWFX update still costs the host
-nothing. Each macro can be ASSIGNED to any rack control from the overlay
-(right-click a knob, "assign to macro 3"), and the assignment lives in the
-rack blob where everything else already lives.
+```
+effective = clamp( knob + SUM(macro_i * depth_i * (hi - lo)), lo, hi )
+```
 
-That gets: real automation lanes, host learn, remote control, and DAW
-randomisation — for the eight things in a patch that actually want moving,
-which in practice is never more than a handful.
+That is the Mars Wars patch-bay model and it buys three things: the knob
+keeps showing the patch's own value and still works by hand; automation on a
+macro never fights the knob; and a macro at 0 with nothing assigned is exact
+identity, so the empty-rack bit-transparency contract is untouched.
 
-Design points worth settling before building:
+**It applies in exactly ONE place** — `Module::getParam()` returns
+`pv[i] + macroOff[i]` — so every module, including ones not yet written, gets
+it free. Same pattern as `inputDuck` and `setTempo`. It feeds each module's
+existing smoother, so there is no second path (the tempo-sync lesson).
 
-  * **One macro, several destinations.** Cheap to allow, and the obvious way
-    to open a filter and lengthen a delay together. Each assignment carries
-    its own depth and polarity, like the Mars Wars patch bay's AMOUNT.
-  * **The macro is the AUTHORITY while assigned.** Otherwise the knob and the
-    lane fight, which is the bug class that eats an afternoon. The overlay
-    should ring an assigned control and show it following, and turning it by
-    hand should offset rather than fight — or simply be refused, which is
-    honest and much simpler. Decide this first, not last.
-  * **A patch with no assignments must be bit-identical.** Same rule as every
-    other BWFX addition: eight parameters sitting at their defaults, assigned
-    to nothing, must memcmp against a build without them.
-  * **Where the eight parameters are declared** is per synth, in each
-    adapter — but the mapping, the depth and the smoothing belong in the core
-    so all seven behave identically. `Rack::setMacro(i, v)` and the
-    assignments in the blob.
-  * **Smoothing**: a macro drives whatever a knob drives, so it must go
-    through the SAME smoother the knob does — the tempo-sync lesson. No
-    second path.
+#### Layout
 
-Eight is a guess and is the one number worth arguing about. Four feels tight
-for a rack of ten modules; sixteen is a lot of empty lanes in every host's
-parameter list, on every synth, forever. Eight is the compromise, and the
-count can never be raised later without changing the parameter list — so it
-is worth being sure.
+A **MACROS rail across the bottom of the rack window**, between `.bwfx-cols`
+and `.bwfx-foot`: full width, eight slim faders, always visible rather than
+behind a mode — they have to be reachable while playing. Each fader carries a
+badge with the number of things it moves; hovering lists them.
+
+#### Assigning — one gesture, no menus
+
+  * click a macro's name to **arm** it: it lights, and every assignable
+    control in the rack picks up a thin ring in that macro's colour;
+  * **click a knob** -> assigned at +100 % depth;
+  * **drag its ring** -> depth, -100 % to +100 %;
+  * **click it again** -> unassigned;
+  * **Esc, or the macro name again** -> done.
+
+Assignable: every module parameter, every module's PRESENCE (the most useful
+target of the lot), and the rack MIX.
+
+#### Storage — the split that keeps this small
+
+| | Lives in | Why |
+|---|---|---|
+| macro **values** | host parameters | that IS the feature; and they land in patches for free |
+| macro **assignments** | the rack blob, one `"m"` key | they are rack structure: they travel with a patch, with a saved rack, and across synths |
+
+Nothing is owned twice. That is what stops this being a real layer of
+complexity rather than a small one, and it is the trap that has cost time in
+this fleet before (Photo-Synth's SPECTRA snapshot restore).
+
+Two consequences to build in deliberately:
+
+  * **morph leaves assignments alone** — they are structure, not values. Same
+    rule as the Full Metal Racket morph fix;
+  * **stepped parameters CAN be assigned** (a macro flipping ECHO's sync
+    division is genuinely useful); the sum rounds. This is not a
+    contradiction of the morph decision: there, stepping happened to
+    everything automatically; here it is one deliberate act per assignment.
+
+#### The number is frozen the day it ships
+
+**Eight.** Once those parameters exist the count can never grow — that is the
+whole reason the list stays stable. Eight fits one rail and is generous for a
+patch; four is tight against a twelve-module rack; sixteen is a lot of
+permanently empty lanes in every synth's parameter list, forever. Settle this
+before writing the adapter loop, not after.
+
+Host parameter NAMES are fixed at construction ("BWFX MACRO 1") because hosts
+cache them — no user renaming. The overlay showing what each one moves is the
+useful half of that anyway.
+
+#### Total new surface
+
+  * 8 parameters, one loop in `bwfx_juce.h`;
+  * one `"m"` key in the blob;
+  * one rail in `bwfx-rack.js` plus the arm mode;
+  * `Rack::setMacro(i, v)` and a per-module offset array.
+
+Nothing changes if nothing is assigned, and the empty-rack memcmp still
+holds — which the bench should assert, alongside: a macro at 0 is identity, a
+macro at 100 with +100 % depth reaches the parameter's top, depth polarity
+works both ways, an assignment to a disabled module is inert, and assignments
+survive the blob round trip.
