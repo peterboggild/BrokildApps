@@ -429,7 +429,7 @@ Two things to get right:
 Worth pairing with a **rack blob in the clipboard** — copy and paste as text
 is often faster than a file dialog, and it costs one more op.
 
-### 14. BWFX MACROS + VOLUME — automating the rack. SPEC, settled, awaiting go
+### 14. BWFX MACROS + MIX — automating the rack. SPEC, settled, awaiting go
 Peter 2026-08-28: "is there some way that the BWFX of the synths can be
 automatised as well as the regular synth parameters?" — and, after the
 options were laid out, "lets go with the macro solution".
@@ -470,7 +470,7 @@ cleanly.
 
 #### The design
 
-**Five host parameters — `BWFX MACRO 1..4` and `BWFX VOLUME`** — declared once in
+**Five host parameters — `BWFX MACRO 1..4` and `BWFX MIX`** — declared once in
 `adapter/bwfx_juce.h` by one loop, so every synth gets them and no synth has
 per-plugin work. Automatable, saved in APVTS state like any other parameter —
 which means a `.fmrkit` or a synth preset picks up the values for free.
@@ -547,66 +547,58 @@ Host parameter NAMES are fixed at construction ("BWFX MACRO 1") because hosts
 cache them — no user renaming. The overlay showing what each one moves is the
 useful half of that anyway.
 
-#### BWFX VOLUME
+#### BWFX MIX — the dry/wet, made automatable
 
-Peter, 2026-08-28: "also BWFX volume, would be great to have". There is no
-output level on the rack today — only RACK MIX (dry/wet) and per-module
-PRESENCE — so a rack that saturates or reverberates its way to a different
-loudness can only be compensated on the synth's own master, which is the
-wrong knob.
+Peter, 2026-08-28: "also BWFX volume, would be great to have" — then, on
+being shown what exists: **"i didnt mean volume but dry/wet"**.
 
-**Where it sits in the signal path.** On the WET path, before the dry/wet
-blend — not on the final output. The rack lives inside a synth that already
-has a master fader; a trim that also pulled the dry signal down would just be
-duplicating it. What is actually wanted is a trim on what the RACK adds,
-which is what every hardware effect's output level means.
+**The control already exists.** RACK MIX sits in the overlay header beside
+PRESETS, 0..100 %, and each module additionally has its own PRESENCE, which
+is that pedal's individual dry/wet. `Rack::setMix` and the blend in
+`Rack::process` have been there since 1.1.0.
 
-Concretely, in `Rack::process`, the existing blend is
+**What is missing is that it is not automatable** — it lives in the blob like
+every other rack value, which is the exact gap this entry exists to close. So
+the fifth frozen slot is `BWFX MIX`: no new DSP, no new concept, no new knob
+on the panel. The control stays exactly where it is; only its OWNERSHIP
+changes.
 
-```
-out = dry + (wet - dry) * g          // g = dip * mix
-```
+That ownership change is the whole of the work, and it is the same rule the
+macro values follow:
 
-and volume scales `wet` before it: `wet *= vol`. Two things fall out of that
-placement and both matter:
+  * the host parameter becomes the live value. `setMix` is called from it,
+    every block, as the synths already call `setBpm` and `setTransport`;
+  * **the blob must stop owning it.** `toJson`/`fromJson` may still carry a
+    `mix` key, but on load it is WRITTEN INTO the host parameter and never
+    read during playback — a delivery mechanism, not a source. Same for a
+    saved rack file (item 13) and for a patch;
+  * the overlay slider keeps working by writing the host parameter rather
+    than the rack directly, so a lane and the knob agree.
 
-  * **at 0 dB it is EXACTLY inert** — 0 dB is x1.0f, an IEEE-exact multiply —
-    so the empty-rack memcmp contract is untouched, and the existing
-    full-wet fast path (`dip >= 1 && mix >= 1`, leave the chain output alone)
-    still applies unchanged when volume is at default;
-  * it composes correctly with MIX and PRESENCE, which are both already
-    wet-side quantities.
+**Compatibility.** Default is 100 % (full rack), which is what it is today,
+and the existing full-wet fast path in `process` (`dip >= 1 && mix >= 1`,
+leave the chain output untouched) is unaffected. An old blob carrying `mix`
+still restores its value, now by writing the parameter. Nothing about the
+sound changes.
 
-**Range** -24 .. +12 dB, default 0. `{ "vol", "VOLUME", 0, -24, 12, 0, "dB" }`
-— the ParamDesc table already carries a dB unit (TUBE's DRIVE uses it).
-Smoothed through the same `Smooth` the mix uses; no second path.
-
-**On the panel**, beside RACK MIX in the overlay header, where the two
-level-ish controls belong together.
-
-**It is the fifth host parameter, not a blob value.** An output level is the
-single most likely thing in the rack to want an automation lane on, and it
-costs one slot. That does raise a question the macro values raise too:
-
-> if the VALUES are host parameters, what happens when a saved rack file
-> (item 13) is loaded?
-
-Answer, and it is the same rule as a patch load: a rack file MAY carry a
-snapshot of the five, and loading one WRITES them into the host parameters.
-The snapshot is a delivery mechanism, never a live source — nothing reads it
-during playback. That keeps exactly one owner per value, which is the whole
-point of the storage split above.
+**Not done here:** a true rack OUTPUT LEVEL, which is a different thing and
+was my misreading of the request. There is genuinely no gain trim on the rack
+— a saturating or reverberant rack can only be compensated on the synth's
+master. If that is ever wanted it is a small separate item: a wet-path gain
+before the blend, exactly inert at 0 dB. It is NOT in this block, because the
+five slots are frozen the day they ship and MIX earns its place first.
 
 #### Total new surface
 
-  * 5 parameters (4 macros + volume), one loop in `bwfx_juce.h`;
+  * 5 parameters (4 macros + the existing MIX), one loop in `bwfx_juce.h`;
   * one `"m"` key in the blob for the assignments;
-  * one rail in `bwfx-rack.js` plus the arm mode, and VOLUME in the header;
-  * `Rack::setMacro(i, v)`, `Rack::setVolume(dB)`, and a per-module offset
-    array.
+  * one rail in `bwfx-rack.js` plus the arm mode. RACK MIX stays exactly
+    where it is on the panel — only its ownership changes;
+  * `Rack::setMacro(i, v)` and a per-module offset array. `setMix` already
+    exists and does not change.
 
 Nothing changes if nothing is assigned, and the empty-rack memcmp still
-holds — which the bench should assert, alongside: a macro at 0 is identity, VOLUME at 0 dB is identity, a
+holds — which the bench should assert, alongside: a macro at 0 is identity, MIX at 100 % is identity, a
 macro at 100 with +100 % depth reaches the parameter's top, depth polarity
 works both ways, an assignment to a disabled module is inert, and assignments
 survive the blob round trip.
