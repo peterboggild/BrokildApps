@@ -429,7 +429,7 @@ Two things to get right:
 Worth pairing with a **rack blob in the clipboard** — copy and paste as text
 is often faster than a file dialog, and it costs one more op.
 
-### 14. BWFX MACROS — automating the rack. SPEC, chosen, awaiting go
+### 14. BWFX MACROS + VOLUME — automating the rack. SPEC, settled, awaiting go
 Peter 2026-08-28: "is there some way that the BWFX of the synths can be
 automatised as well as the regular synth parameters?" — and, after the
 options were laid out, "lets go with the macro solution".
@@ -470,7 +470,7 @@ cleanly.
 
 #### The design
 
-**Eight host parameters, `BWFX MACRO 1..8`,** declared once in
+**Five host parameters — `BWFX MACRO 1..4` and `BWFX VOLUME`** — declared once in
 `adapter/bwfx_juce.h` by one loop, so every synth gets them and no synth has
 per-plugin work. Automatable, saved in APVTS state like any other parameter —
 which means a `.fmrkit` or a synth preset picks up the values for free.
@@ -530,27 +530,83 @@ Two consequences to build in deliberately:
     contradiction of the morph decision: there, stepping happened to
     everything automatically; here it is one deliberate act per assignment.
 
-#### The number is frozen the day it ships
+#### The count is FOUR, and it is frozen the day it ships
 
-**Eight.** Once those parameters exist the count can never grow — that is the
-whole reason the list stays stable. Eight fits one rail and is generous for a
-patch; four is tight against a twelve-module rack; sixteen is a lot of
-permanently empty lanes in every synth's parameter list, forever. Settle this
-before writing the adapter loop, not after.
+Peter, 2026-08-28: **"four should be enough + volume"**. Settled.
+
+I had argued for eight; four is the better call. A macro carries several
+destinations with independent depth and polarity, so four is not four moves
+— it is four *gestures*, and a patch rarely has more than a couple worth
+automating. Four also keeps the permanent cost of this feature to five lanes
+in every synth's parameter list rather than nine, forever. The count can
+never grow later without changing the list, which is the one thing the whole
+design exists to avoid, so it is worth having been asked and answered before
+a line is written.
 
 Host parameter NAMES are fixed at construction ("BWFX MACRO 1") because hosts
 cache them — no user renaming. The overlay showing what each one moves is the
 useful half of that anyway.
 
+#### BWFX VOLUME
+
+Peter, 2026-08-28: "also BWFX volume, would be great to have". There is no
+output level on the rack today — only RACK MIX (dry/wet) and per-module
+PRESENCE — so a rack that saturates or reverberates its way to a different
+loudness can only be compensated on the synth's own master, which is the
+wrong knob.
+
+**Where it sits in the signal path.** On the WET path, before the dry/wet
+blend — not on the final output. The rack lives inside a synth that already
+has a master fader; a trim that also pulled the dry signal down would just be
+duplicating it. What is actually wanted is a trim on what the RACK adds,
+which is what every hardware effect's output level means.
+
+Concretely, in `Rack::process`, the existing blend is
+
+```
+out = dry + (wet - dry) * g          // g = dip * mix
+```
+
+and volume scales `wet` before it: `wet *= vol`. Two things fall out of that
+placement and both matter:
+
+  * **at 0 dB it is EXACTLY inert** — 0 dB is x1.0f, an IEEE-exact multiply —
+    so the empty-rack memcmp contract is untouched, and the existing
+    full-wet fast path (`dip >= 1 && mix >= 1`, leave the chain output alone)
+    still applies unchanged when volume is at default;
+  * it composes correctly with MIX and PRESENCE, which are both already
+    wet-side quantities.
+
+**Range** -24 .. +12 dB, default 0. `{ "vol", "VOLUME", 0, -24, 12, 0, "dB" }`
+— the ParamDesc table already carries a dB unit (TUBE's DRIVE uses it).
+Smoothed through the same `Smooth` the mix uses; no second path.
+
+**On the panel**, beside RACK MIX in the overlay header, where the two
+level-ish controls belong together.
+
+**It is the fifth host parameter, not a blob value.** An output level is the
+single most likely thing in the rack to want an automation lane on, and it
+costs one slot. That does raise a question the macro values raise too:
+
+> if the VALUES are host parameters, what happens when a saved rack file
+> (item 13) is loaded?
+
+Answer, and it is the same rule as a patch load: a rack file MAY carry a
+snapshot of the five, and loading one WRITES them into the host parameters.
+The snapshot is a delivery mechanism, never a live source — nothing reads it
+during playback. That keeps exactly one owner per value, which is the whole
+point of the storage split above.
+
 #### Total new surface
 
-  * 8 parameters, one loop in `bwfx_juce.h`;
-  * one `"m"` key in the blob;
-  * one rail in `bwfx-rack.js` plus the arm mode;
-  * `Rack::setMacro(i, v)` and a per-module offset array.
+  * 5 parameters (4 macros + volume), one loop in `bwfx_juce.h`;
+  * one `"m"` key in the blob for the assignments;
+  * one rail in `bwfx-rack.js` plus the arm mode, and VOLUME in the header;
+  * `Rack::setMacro(i, v)`, `Rack::setVolume(dB)`, and a per-module offset
+    array.
 
 Nothing changes if nothing is assigned, and the empty-rack memcmp still
-holds — which the bench should assert, alongside: a macro at 0 is identity, a
+holds — which the bench should assert, alongside: a macro at 0 is identity, VOLUME at 0 dB is identity, a
 macro at 100 with +100 % depth reaches the parameter's top, depth polarity
 works both ways, an assignment to a disabled module is inert, and assignments
 survive the blob round trip.
