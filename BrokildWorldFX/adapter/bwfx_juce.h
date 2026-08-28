@@ -113,9 +113,13 @@ inline bool handleMessage (bwfx::Rack& rack, const juce::var& m)
     }
     else if (op == "assign")    // arm-and-click: wire a macro to a control
     {
+        /*  The overlay speaks PERCENT, the way macroAssignJson() writes it;
+            the core works in -1..+1. Without this divide every depth clamped
+            to full, so only +-100 appeared to work — and it worked by
+            accident rather than by agreement. */
         rack.setMacroAssign ((int) m.getProperty ("i", 0),
                              m.getProperty ("d", juce::var ("")).toString().toStdString(),
-                             (float) (double) m.getProperty ("a", 0.0));
+                             (float) ((double) m.getProperty ("a", 0.0) / 100.0));
         return true;
     }
     else if (op == "unassign")  // clear one macro entirely
