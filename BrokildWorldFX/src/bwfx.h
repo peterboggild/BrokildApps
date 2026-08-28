@@ -377,6 +377,7 @@ private:
     std::array<std::array<RDest, kMaxMacroDest>, 2> destBuf {};
     std::array<int, 2> destCount { 0, 0 };
     std::atomic<int> destIdx { 0 };
+    void materialiseDefault();      // write the implicit wiring down before editing
     void republishMacros();          // message thread: resolve names -> indices
     void applyMacros();              // audio thread: one pass per sub-block
     void macroFromBlob (const std::string& s);
