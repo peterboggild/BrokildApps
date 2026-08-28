@@ -453,6 +453,7 @@
     ".bwfx-assignable{outline:1px dashed rgba(63,224,216,.55);outline-offset:2px;",
     "border-radius:4px;cursor:crosshair}",
     ".bwfx-assigned{outline:1px solid var(--bwfx-acc);outline-offset:2px;border-radius:4px}",
+    ".bwfx-modded{color:var(--bwfx-acc)!important;text-shadow:0 0 6px rgba(63,224,216,.35)}",
     ".bwfx-dep{margin-left:6px;padding:0 4px;border-radius:3px;background:var(--bwfx-acc);",
     "color:#0a0d10;font:600 9px ui-monospace,Menlo,monospace;letter-spacing:.06em}",
     ".bwfx-dep.neg{background:transparent;color:var(--bwfx-acc);",
@@ -711,6 +712,10 @@
   }
 
   function renderList() {
+    //  every row is rebuilt here, so the modulation registry starts
+    //  empty. It lived in renderSpectra() by mistake, which runs AFTER
+    //  this and wiped what this had just filled.
+    MODROWS = [];
     if (!listEl) return;
     listEl.innerHTML = "";
     state.order.forEach(function (id, idx) {
@@ -912,10 +917,15 @@
             '<div class="bwfx-c"><input type="range" min="' + pd.lo + '" max="' + pd.hi + '" step="' + st + '" value="' + v + '"></div>';
           var inp = row.querySelector("input");
           var out = row.querySelector("output");
+          //  the slider stays at the PATCH value and stays editable; the
+          //  number shows where the macros have put it
+          MODROWS.push({ row: row, out: out, pd: pd, dest: id + "." + pd.id,
+                         base: function () { return parseFloat(inp.value); } });
           inp.addEventListener("input", function () {
             var nv = parseFloat(inp.value);
             out.textContent = fmt(pd, nv);
             setParamLocal(id, pd, nv);
+            drawModValues();
           });
         }
         ctl.appendChild(row);
@@ -973,6 +983,37 @@
     if (p === 'pr') return mn + ' PRESENCE';
     if (m) for (var i = 0; i < m.params.length; i++) if (m.params[i].id === p) return mn + ' ' + m.params[i].name;
     return mn + ' ' + p.toUpperCase();
+  }
+
+  /*  What the macros are adding to this destination right now. The SAME
+     expression Rack::applyMacros computes, including the clamp — a display
+     that used a different one would be the very bug this is fixing. */
+  function modOffset(dest, lo, hi) {
+    if (!macros || !macroVals) return 0;
+    var off = 0;
+    for (var m = 0; m < macros.length; m++)
+      for (var j = 0; j < macros[m].length; j++)
+        if (macros[m][j].d === dest)
+          off += (macroVals[m] || 0) * (macros[m][j].a / 100) * (hi - lo);
+    return off;
+  }
+  function effective(dest, base, lo, hi) {
+    var v = base + modOffset(dest, lo, hi);
+    return v < lo ? lo : (v > hi ? hi : v);
+  }
+
+  /*  Every modulated row repaints its number. Called when a macro moves and
+     after every state adoption, so automation shows up too. */
+  var MODROWS = [];
+  function drawModValues() {
+    for (var i = 0; i < MODROWS.length; i++) {
+      var r = MODROWS[i];
+      if (!r.out || !r.row.isConnected) continue;
+      var e = effective(r.dest, r.base(), r.pd.lo, r.pd.hi);
+      var moved = Math.abs(e - r.base()) > (r.pd.hi - r.pd.lo) * 1e-4;
+      r.out.textContent = fmt(r.pd, e);
+      r.out.classList.toggle('bwfx-modded', moved);
+    }
   }
 
   function macroOf(dest) {
@@ -1038,6 +1079,7 @@
       if (macros[m][j].d === dest) { macros[m][j].a = a; break; }
     markAssignable();
     drawMacros();
+    drawModValues();
     if (send) send({ op: 'assign', i: m, d: dest, a: a });
     return true;
   }
@@ -1067,6 +1109,7 @@
         r.type = 'range'; r.min = 0; r.max = 100; r.value = 0;
         r.addEventListener('input', function () {
           if (macroVals) macroVals[i] = parseInt(r.value, 10) / 100;
+          drawModValues();
           if (send) send({ op: 'macro', i: i, v: parseInt(r.value, 10) / 100 });
           var o = c.querySelector('output'); if (o) o.textContent = r.value + ' %';
         });
@@ -1220,13 +1263,20 @@
           });
         });
       }
-      if (built) { renderList(); renderSpectra(); drawMacros(); markAssignable(); }
+      if (built) { renderList(); renderSpectra(); drawMacros(); markAssignable(); drawModValues(); }
     },
     open: openRack,
     close: close,
     toggle: function () { open ? close() : openRack(); },
     isOpen: function () { return open; },
-    state: function () { return state; }
+    state: function () { return state; },
+    /*  For driving the overlay from a debugger or a CDP probe. The rack is
+       built entirely inside a closure, which is right, but it also means a
+       misbehaving control cannot be diagnosed from outside without this. */
+    debug: function () {
+      return { macros: macros, macroVals: macroVals, armed: armed,
+               modRows: MODROWS.length, built: built };
+    }
   };
 
   /* the one host button: any element carrying data-bwfx-open */

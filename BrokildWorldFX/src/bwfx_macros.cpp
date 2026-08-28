@@ -49,10 +49,24 @@ float Rack::getMacro (int i) const
     return (i >= 0 && i < kMacros) ? macroIn[(size_t) i].load (std::memory_order_relaxed) : 0.0f;
 }
 
+/*  The default wiring is IMPLICIT — a blob with no "m" key means macro 5
+    holds the dry/wet, which is what keeps pre-macro blobs byte-identical.
+    The moment anything is edited the rack has to state its wiring in full,
+    and that means writing the default down rather than discarding it.
+    Discarding it is what the first version did, so assigning anything to
+    any macro silently took the dry/wet off macro 5. */
+void Rack::materialiseDefault()
+{
+    if (! macroDefaulted) return;
+    macroDefaulted = false;
+    for (auto& v : macroAssign) v.clear();
+    macroAssign[(size_t) kDefaultMacro].push_back ({ kDefaultDest, kDefaultDepth });
+}
+
 void Rack::setMacroAssign (int macro, const std::string& dest, float depth)
 {
     if (macro < 0 || macro >= kMacros || dest.empty()) return;
-    macroDefaulted = false;                 // the rack now states its own wiring
+    materialiseDefault();
     auto& v = macroAssign[(size_t) macro];
     for (size_t i = 0; i < v.size(); ++i)
         if (v[i].dest == dest)
@@ -76,7 +90,7 @@ void Rack::setMacroAssign (int macro, const std::string& dest, float depth)
 void Rack::clearMacroAssigns (int macro)
 {
     if (macro < 0 || macro >= kMacros) return;
-    macroDefaulted = false;
+    materialiseDefault();          // ...then take this one away, default or not
     macroAssign[(size_t) macro].clear();
     republishMacros();
 }
