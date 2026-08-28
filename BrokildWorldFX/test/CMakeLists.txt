@@ -9,6 +9,7 @@ add_executable(bwfxtest
     bench.cpp
     ../src/bwfx_json.cpp
     ../src/bwfx_rack.cpp
+    ../src/bwfx_macros.cpp
     ../modules/bwfx_conv.cpp
     ../modules/bwfx_modules.cpp
     ../modules/bwfx_spectra.cpp)
@@ -26,6 +27,7 @@ add_executable(dbgclick
     dbgclick.cpp
     ../src/bwfx_json.cpp
     ../src/bwfx_rack.cpp
+    ../src/bwfx_macros.cpp
     ../modules/bwfx_conv.cpp
     ../modules/bwfx_modules.cpp
     ../modules/bwfx_spectra.cpp)

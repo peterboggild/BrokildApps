@@ -157,7 +157,7 @@
     { name: "POSSESSED CHOIR", blob: {"modules":{"chorus":{"on":1,"p":{"mix":35}}},"spectra":{"darkdrone":{"on":1,"p":{"cluster":28}},"glass":{"on":1,"p":{"halo":60,"shine":65}}}}, params: [] }
   ];
 
-  var VERSION = "1.6.0";
+  var VERSION = "1.7.0";
   var desc = DEFAULT_DESC;
   var charDesc = DEFAULT_CDESC;
   var presets = DEFAULT_PRESETS;
@@ -435,6 +435,24 @@
     ".bwfx-mod[data-spec=glass] .bwfx-name{color:#d4f0ff;font-weight:400;letter-spacing:.34em;",
     " text-shadow:0 0 14px rgba(174,230,255,.6);}",
     ".bwfx-mod[data-spec=glass] .bwfx-sub{color:#8fb6cc}",
+    /* --- the macro rail: five faders, always visible --- */
+    ".bwfx-macros{display:flex;align-items:stretch;gap:10px;padding:10px 16px 12px;",
+    "border-top:1px solid #1d2830;background:linear-gradient(180deg,#0d151a,#0a1116)}",
+    ".bwfx-macros>.lab{font:600 9.5px ui-monospace,Menlo,monospace;letter-spacing:.2em;",
+    "color:#5d7a74;align-self:center;flex:none}",
+    ".bwfx-mac{flex:1 1 0;min-width:0;display:grid;gap:3px}",
+    ".bwfx-mac .mn{display:flex;align-items:center;gap:5px;cursor:pointer;",
+    "font:600 10px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:#8ea6a1;",
+    "border:1px solid transparent;border-radius:4px;padding:1px 4px}",
+    ".bwfx-mac .mn:hover{color:#cfe4df}",
+    ".bwfx-mac.armed .mn{color:#0a0d10;background:var(--bwfx-acc);border-color:transparent}",
+    ".bwfx-mac .cnt{margin-left:auto;font-size:9px;opacity:.8}",
+    ".bwfx-mac input[type=range]{width:100%;margin:0}",
+    ".bwfx-mac output{font:600 9.5px ui-monospace,Menlo,monospace;color:#6d8a85}",
+    /* an assignable control while a macro is armed, and one already wired */
+    ".bwfx-assignable{outline:1px dashed rgba(63,224,216,.55);outline-offset:2px;",
+    "border-radius:4px;cursor:crosshair}",
+    ".bwfx-assigned{outline:1px solid var(--bwfx-acc);outline-offset:2px;border-radius:4px}",
     ".bwfx-foot{padding:8px 18px 2px;font:10px ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#4d625e;",
     " display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}"
   ].join("\n");
@@ -449,6 +467,10 @@
 
   /* ------------------------------------------------------------- DOM build */
   var veil = null, listEl = null, mixIn = null, mixOut = null;
+  /*  macros[i] = [{d,a}, ...] — the WIRING, which is rack structure and
+     comes from the native side. macroVals[i] is the live host-parameter
+     value: the rail shows it and can nudge it, but the host owns it. */
+  var macros = null, macroVals = null, macEls = [], armed = -1;
 
   function build() {
     if (built) return;
@@ -466,7 +488,7 @@
       '    <div class="bwfx-title">BROKILD WORLD FX<small>THE WORLD RACK &middot; EVERY BROKILD SYNTH, ONE RACK</small></div>' +
       '    <div class="bwfx-presetrow"><span>PRESETS</span>' +
       '      <select id="bwfxPresetSel" aria-label="Built-in rack presets"></select></div>' +
-      '    <div class="bwfx-mixrow"><span>RACK MIX</span>' +
+      '    <div class="bwfx-mixrow" data-bwfx-dest="mix"><span>RACK MIX</span>' +
       '      <input id="bwfxMix" type="range" min="0" max="100" value="100">' +
       '      <output id="bwfxMixOut">100 %</output></div>' +
       '    <button class="bwfx-close" id="bwfxClose">CLOSE</button>' +
@@ -476,10 +498,27 @@
       '    <div><div class="bwfx-rack-t">SPECTRA RACK</div>' +
       '      <div id="bwfxSpectraCol"></div></div>' +
       '  </div>' +
+      '  <div class="bwfx-macros" id="bwfxMacros"><div class="lab">MACROS</div></div>' +
       '  <div class="bwfx-foot"><span>BWFX ' + VERSION + '</span>' +
       '  <span>A PATCH STORES ITS OWN RACK &middot; EMPTY RACK = BIT-TRANSPARENT</span></div>' +
       '</div>';
     document.body.appendChild(veil);
+
+    /*  While a macro is armed, a click on an assignable control WIRES it
+       rather than editing it. Capture phase, so the row's own range/select
+       listeners never see the event — anything else would move the knob on
+       the way to assigning it. */
+    veil.addEventListener("pointerdown", function (ev) {
+      if (armed < 0) return;
+      var el = ev.target && ev.target.closest ? ev.target.closest("[data-bwfx-dest]") : null;
+      if (!el) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      assignClick(el.getAttribute("data-bwfx-dest"));
+    }, true);
+    veil.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape" && armed >= 0) { armMacro(armed); ev.stopPropagation(); }
+    });
 
     listEl = veil.querySelector("#bwfxList");
     mixIn = veil.querySelector("#bwfxMix");
@@ -691,6 +730,7 @@
       (function () {
         var row = document.createElement("div");
         row.className = "bwfx-row bwfx-presrow";
+        row.setAttribute("data-bwfx-dest", id + ".pr");
         var v = Math.round((typeof ms.pr === "number" ? ms.pr : 1) * 100);
         row.innerHTML = "<label>PRESENCE</label><output>" + v + " %</output>" +
           '<div class="bwfx-c"><input type="range" min="0" max="100" step="1" value="' + v + '"></div>';
@@ -842,6 +882,7 @@
       d.params.forEach(function (pd) {
         var row = document.createElement("div");
         row.className = "bwfx-row" + (pd.choices ? " bwfx-wide" : "");
+        row.setAttribute("data-bwfx-dest", id + "." + pd.id);
         var v = ms.p[pd.id] !== undefined ? ms.p[pd.id] : pd.def;
         if (pd.choices) {
           var opts = pd.choices.split("|").map(function (c, i) {
@@ -906,6 +947,101 @@
     if (cr && cr.on[pd.id]) cr.fn();
   }
 
+  /*  A destination key, the same string the native side resolves: 'mix',
+     '<module>.<param>', '<module>.pr'. Addressed by NAME so an assignment
+     survives the registry changing under it. */
+  function destLabel(d) {
+    if (d === 'mix') return 'RACK MIX';
+    var dot = d.indexOf('.');
+    if (dot < 0) return d.toUpperCase();
+    var m = descOf(d.slice(0, dot)), p = d.slice(dot + 1);
+    var mn = m ? m.name : d.slice(0, dot).toUpperCase();
+    if (p === 'pr') return mn + ' PRESENCE';
+    if (m) for (var i = 0; i < m.params.length; i++) if (m.params[i].id === p) return mn + ' ' + m.params[i].name;
+    return mn + ' ' + p.toUpperCase();
+  }
+
+  function macroOf(dest) {
+    if (!macros) return -1;
+    for (var i = 0; i < macros.length; i++)
+      for (var j = 0; j < macros[i].length; j++) if (macros[i][j].d === dest) return i;
+    return -1;
+  }
+  function depthOf(dest) {
+    if (!macros) return 0;
+    for (var i = 0; i < macros.length; i++)
+      for (var j = 0; j < macros[i].length; j++) if (macros[i][j].d === dest) return macros[i][j].a;
+    return 0;
+  }
+
+  /*  Arming is a mode, and the only one in the overlay — it has to be easy
+     to leave. Escape, clicking the macro again, or picking another. */
+  function armMacro(i) {
+    armed = (armed === i) ? -1 : i;
+    drawMacros();
+    markAssignable();
+  }
+  function markAssignable() {
+    if (!veil) return;
+    veil.querySelectorAll('[data-bwfx-dest]').forEach(function (el) {
+      var d = el.getAttribute('data-bwfx-dest');
+      el.classList.toggle('bwfx-assignable', armed >= 0);
+      el.classList.toggle('bwfx-assigned', macroOf(d) >= 0);
+      el.title = macroOf(d) >= 0
+        ? destLabel(d) + '  \u00b7  MACRO ' + (macroOf(d) + 1) + ' at ' + depthOf(d) + ' %'
+        : (armed >= 0 ? 'Click to assign to MACRO ' + (armed + 1) : '');
+    });
+  }
+
+  /*  Clicking an assignable control while a macro is armed: assign at full
+     positive depth, or take it away if this macro already has it. */
+  function assignClick(dest) {
+    if (armed < 0) return false;
+    var cur = macroOf(dest);
+    var a = (cur === armed) ? 0 : 100;
+    if (send) send({ op: 'assign', i: armed, d: dest, a: a });
+    return true;
+  }
+
+  function drawMacros() {
+    var wrap = veil && veil.querySelector('#bwfxMacros');
+    if (!wrap) return;
+    if (!macEls.length) {
+      for (var i = 0; i < 5; i++) (function (i) {
+        var c = document.createElement('div');
+        c.className = 'bwfx-mac';
+        var nm = document.createElement('div');
+        nm.className = 'mn';
+        nm.innerHTML = '<span>M' + (i + 1) + '</span><span class="cnt"></span>';
+        nm.addEventListener('click', function () { armMacro(i); });
+        var r = document.createElement('input');
+        r.type = 'range'; r.min = 0; r.max = 100; r.value = 0;
+        r.addEventListener('input', function () {
+          if (macroVals) macroVals[i] = parseInt(r.value, 10) / 100;
+          if (send) send({ op: 'macro', i: i, v: parseInt(r.value, 10) / 100 });
+          var o = c.querySelector('output'); if (o) o.textContent = r.value + ' %';
+        });
+        var o = document.createElement('output');
+        o.textContent = '0 %';
+        c.appendChild(nm); c.appendChild(r); c.appendChild(o);
+        wrap.appendChild(c);
+        macEls.push({ box: c, name: nm, range: r, out: o });
+      })(i);
+    }
+    for (var k = 0; k < macEls.length; k++) {
+      var e = macEls[k];
+      var list = (macros && macros[k]) ? macros[k] : [];
+      e.box.classList.toggle('armed', armed === k);
+      e.name.querySelector('.cnt').textContent = list.length ? String(list.length) : '';
+      e.name.title = list.length
+        ? list.map(function (x) { return destLabel(x.d) + ' ' + (x.a > 0 ? '+' : '') + x.a + ' %'; }).join('\n')
+        : 'Click to arm, then click a control to assign it';
+      var v = macroVals ? Math.round((macroVals[k] || 0) * 100) : 0;
+      e.range.value = v;
+      e.out.textContent = v + ' %';
+    }
+  }
+
   function move(id, dir) {
     var i = state.order.indexOf(id);
     var j = i + dir;
@@ -966,6 +1102,9 @@
   /* --------------------------------------------------------------- public */
   function openRack() {
     build();
+    armed = -1;                       // never open already in a mode
+    drawMacros();
+    markAssignable();
     open = true;
     veil.classList.add("open");
     if (send) send({ op: "init" });     // refresh from the native truth
@@ -992,6 +1131,10 @@
         if (built) populatePresets(veil.querySelector("#bwfxPresetSel"));
       }
       if (typeof p.busLive === "boolean") busLive = p.busLive;
+      //  the wiring is rack STRUCTURE and comes from the blob; the values
+      //  are host parameters and the rail only mirrors them
+      if (p.macros) { macros = p.macros; }
+      if (p.macroVals) { macroVals = p.macroVals; }
       if (p.state) {
         var s = p.state;
         state = defaultState();
@@ -1023,7 +1166,7 @@
           });
         });
       }
-      if (built) { renderList(); renderSpectra(); }
+      if (built) { renderList(); renderSpectra(); drawMacros(); markAssignable(); }
     },
     open: openRack,
     close: close,

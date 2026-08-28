@@ -24,7 +24,7 @@ namespace
     }
 }
 
-const char* Rack::version() { return "1.6.0"; }
+const char* Rack::version() { return "1.7.0"; }
 
 // Parsed form of a state blob, defaults pre-filled.
 struct Rack::BlobState
@@ -66,6 +66,7 @@ Rack::Rack()
     for (auto& p : presenceIn) p.store (1.0f, std::memory_order_relaxed);
     env.fill (0.0f);
     wasOff.fill (true);
+    republishMacros();          // macro 5 starts on the dry/wet
 }
 
 Rack::~Rack() = default;
@@ -275,7 +276,9 @@ bool Rack::getEnabled (int type) const
 }
 float Rack::getParam (int type, int p) const
 {
-    return (type >= 0 && type < nTypes) ? mods[(size_t) type]->getParam (p) : 0.0f;
+    //  RAW on purpose: a knob that wandered because a macro was moving would
+    //  be showing a value no patch ever described. The DSP reads the sum.
+    return (type >= 0 && type < nTypes) ? mods[(size_t) type]->getParamRaw (p) : 0.0f;
 }
 float Rack::getPresence (int type) const
 {
@@ -412,6 +415,8 @@ void Rack::process (float* L, float* R, int n)
                 dipTarget = 1.0f;
             }
         }
+        applyMacros();          // macro offsets for this sub-block
+
         const float dip0 = dip;
         dip += (dipTarget - dip) * coef;
         if (dipTarget >= 1.0f && dip > 0.9995f) dip = 1.0f;
@@ -422,7 +427,10 @@ void Rack::process (float* L, float* R, int n)
             const int t = order[s];
             const bool on = (en & (1u << t)) != 0;
             // the module's blend target is its PRESENCE while on, 0 while off
-            const float target = on ? presenceIn[(size_t) t].load (std::memory_order_relaxed) : 0.0f;
+            const float target = on ? clampf (presenceIn[(size_t) t].load (std::memory_order_relaxed)
+                                            + presenceOff[(size_t) t].load (std::memory_order_relaxed),
+                                              0.0f, 1.0f)
+                                    : 0.0f;
             float e = env[(size_t) t];
             if (target <= 1e-4f && e <= 1e-4f) { env[(size_t) t] = 0.0f; wasOff[(size_t) t] = true; continue; }
             if (target > 1e-4f && wasOff[(size_t) t])
@@ -469,7 +477,8 @@ void Rack::process (float* L, float* R, int n)
         }
 
         // rack wet/dry and the structural dip
-        const float mixT = mixIn.load (std::memory_order_relaxed);
+        const float mixT = clampf (mixIn.load (std::memory_order_relaxed)
+                                 + mixOff.load (std::memory_order_relaxed), 0.0f, 1.0f);
         const float mix0 = mixSm;
         mixSm += (mixT - mixSm) * coef;
         if (std::abs (mixT - mixSm) < 5e-4f) mixSm = mixT;
@@ -562,7 +571,9 @@ std::string Rack::toJson() const
         }
         s += "}}";
     }
-    s += "}}";
+    s += "}";                  // close the spectra object
+    s += macroToBlob();         // empty unless an assignment was ever edited
+    s += "}";                  // close the root
     return s;
 }
 
@@ -588,6 +599,7 @@ void Rack::clearState()
         for (int p = 0; p < d.numParams; ++p)
             chars[(size_t) c]->setParam (p, d.params[p].def);
     }
+    macroSetDefault();
 }
 
 void Rack::parseBlob (const std::string& s, BlobState& bs) const
@@ -723,6 +735,7 @@ void Rack::fromJson (const std::string& s)
     BlobState bs;
     parseBlob (s, bs);
     applyBlobState (bs);
+    macroFromBlob (s);          // assignments: structure, parsed from the text
 }
 
 void Rack::applyMorph (const std::string& a, const std::string& b, float t)
