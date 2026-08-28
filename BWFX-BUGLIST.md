@@ -428,3 +428,65 @@ Two things to get right:
 
 Worth pairing with a **rack blob in the clipboard** — copy and paste as text
 is often faster than a file dialog, and it costs one more op.
+
+### 14. Can the rack be AUTOMATED? — SPEC, awaiting go
+Peter 2026-08-28: "is there some way that the BWFX of the synths can be
+automatised as well as the regular synth parameters?"
+
+**Not today, and that was deliberate.** The rack is a string-keyed opaque
+blob, explicitly NOT host parameters (BWFX-DESIGN.md), and that decision is
+what lets a BWFX release add ROTARY, KIERANATOR, LAST and CHAOS and reach all
+seven synths by rebuild alone. Nothing about a host's parameter list has to
+change, and no saved project is disturbed. It is the best decision in the
+whole system and it should not be given up.
+
+But it does mean a rack cannot be automated, and for a delay time or a
+KIERANATOR chaos knob that is a real loss.
+
+**Three ways out, and only one of them is any good.**
+
+| | |
+|---|---|
+| **(a) Expose every rack parameter** | Twelve modules x 16 params plus the characters is roughly 250 host parameters per synth, most of them belonging to modules the patch does not use. Worse, the LIST CHANGES whenever BWFX gains a module — which is precisely what every host uses to bind automation lanes, so every saved project's rack automation would break on a BWFX update. This is the additive promise thrown away. **No.** |
+| **(b) MIDI CC learn** | Real, and cheap, and genuinely useful for a hardware controller. But it is not an automation lane: no curves, no drawing, no reading back what the value was at bar 33. Worth having eventually; not an answer to the question asked. |
+| **(c) A fixed pool of MACROS** | **This is the answer.** |
+
+#### The macro pool
+
+Add a fixed, permanent set of host parameters — `BWFX MACRO 1`..`8` — once,
+to every synth. They never change in number or in name, so the host's
+parameter list is stable forever and a BWFX update still costs the host
+nothing. Each macro can be ASSIGNED to any rack control from the overlay
+(right-click a knob, "assign to macro 3"), and the assignment lives in the
+rack blob where everything else already lives.
+
+That gets: real automation lanes, host learn, remote control, and DAW
+randomisation — for the eight things in a patch that actually want moving,
+which in practice is never more than a handful.
+
+Design points worth settling before building:
+
+  * **One macro, several destinations.** Cheap to allow, and the obvious way
+    to open a filter and lengthen a delay together. Each assignment carries
+    its own depth and polarity, like the Mars Wars patch bay's AMOUNT.
+  * **The macro is the AUTHORITY while assigned.** Otherwise the knob and the
+    lane fight, which is the bug class that eats an afternoon. The overlay
+    should ring an assigned control and show it following, and turning it by
+    hand should offset rather than fight — or simply be refused, which is
+    honest and much simpler. Decide this first, not last.
+  * **A patch with no assignments must be bit-identical.** Same rule as every
+    other BWFX addition: eight parameters sitting at their defaults, assigned
+    to nothing, must memcmp against a build without them.
+  * **Where the eight parameters are declared** is per synth, in each
+    adapter — but the mapping, the depth and the smoothing belong in the core
+    so all seven behave identically. `Rack::setMacro(i, v)` and the
+    assignments in the blob.
+  * **Smoothing**: a macro drives whatever a knob drives, so it must go
+    through the SAME smoother the knob does — the tempo-sync lesson. No
+    second path.
+
+Eight is a guess and is the one number worth arguing about. Four feels tight
+for a rack of ten modules; sixteen is a lot of empty lanes in every host's
+parameter list, on every synth, forever. Eight is the compromise, and the
+count can never be raised later without changing the parameter list — so it
+is worth being sure.
