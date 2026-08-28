@@ -520,7 +520,7 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
 // decoding; every Brokild synth routes k=="bwfx" through the same two calls.
 void CloneWarsProcessor::handleBwfxMessage (const juce::var& m)
 {
-    if (bwfx_juce::handleMessage (bwfxRack, m))
+    if (bwfx_juce::handleMessage (bwfxRack, apvts, m))
         sendBwfxToUi();
 }
 

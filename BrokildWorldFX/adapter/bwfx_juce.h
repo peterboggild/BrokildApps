@@ -106,10 +106,13 @@ inline bool handleMessage (bwfx::Rack& rack, const juce::var& m)
                 { rack.setCharParam (c, p, (float) (double) m.getProperty ("v", 0.0)); break; }
         }
     }
-    else if (op == "macro")     // the rail moved a fader (not automation)
+    else if (op == "macro")
     {
-        rack.setMacro ((int) m.getProperty ("i", 0),
-                       (float) (double) m.getProperty ("v", 0.0));
+        /*  Handled by the APVTS-aware overload below, never here. A macro's
+            value belongs to the HOST PARAMETER, and pushMacros writes that
+            parameter into the rack once per block — so anything this function
+            stored would be overwritten by the next audio block, which is
+            exactly what happened: the rail moved and nothing changed. */
     }
     else if (op == "assign")    // arm-and-click: wire a macro to a control
     {
@@ -203,6 +206,41 @@ inline void pushMacros (bwfx::Rack& rack, juce::AudioProcessorValueTreeState& ap
     for (int i = 0; i < bwfx::kMacros; ++i)
         if (auto* p = apvts.getRawParameterValue (macroParamId (i)))
             rack.setMacro (i, p->load());
+}
+
+/*  THE MESSAGE ENTRY POINT EVERY SYNTH SHOULD USE.
+
+    A macro's value lives in a HOST PARAMETER, so the rail has to move the
+    parameter — not the rack. Storing it in the rack looks like it works and
+    then loses the race with the next audio block, because pushMacros writes
+    the parameter over it every time. One owner per value, and here the owner
+    is the host.
+
+    The change is wrapped in a GESTURE, and that part is not optional: a bare
+    setValueNotifyingHost tells the host the value moved, but Ableton's
+    Configure listens for begin/endChangeGesture to decide that the user
+    TOUCHED a control — without them the macro never appears in the wrapper
+    alongside the plugin's other parameters. It is also what lets a host
+    record the move as automation. */
+inline bool handleMessage (bwfx::Rack& rack,
+                           juce::AudioProcessorValueTreeState& apvts,
+                           const juce::var& m)
+{
+    if (m.getProperty ("op", juce::var()).toString() == "macro")
+    {
+        const int i = (int) m.getProperty ("i", 0);
+        if (i >= 0 && i < bwfx::kMacros)
+            if (auto* p = apvts.getParameter (macroParamId (i)))
+            {
+                //  the range is 0..1, so the normalised value IS the value
+                const float v = juce::jlimit (0.0f, 1.0f, (float) (double) m.getProperty ("v", 0.0));
+                p->beginChangeGesture();
+                p->setValueNotifyingHost (v);
+                p->endChangeGesture();
+            }
+        return false;                 // no state echo: the rail already shows it
+    }
+    return handleMessage (rack, m);
 }
 
 } // namespace bwfx_juce
