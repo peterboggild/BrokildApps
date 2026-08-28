@@ -67,6 +67,16 @@ void Rack::setMacroAssign (int macro, const std::string& dest, float depth)
 {
     if (macro < 0 || macro >= kMacros || dest.empty()) return;
     materialiseDefault();
+    /*  One destination, one macro. Under a mapping there is no sensible
+        answer to two macros owning the same control, so taking it here
+        takes it away from wherever it was. */
+    for (int m = 0; m < kMacros; ++m)
+        if (m != macro)
+        {
+            auto& o = macroAssign[(size_t) m];
+            for (size_t i = 0; i < o.size(); ++i)
+                if (o[i].dest == dest) { o.erase (o.begin() + (long) i); break; }
+        }
     auto& v = macroAssign[(size_t) macro];
     for (size_t i = 0; i < v.size(); ++i)
         if (v[i].dest == dest)
@@ -177,22 +187,25 @@ void Rack::applyMacros()
     {
         const RDest& d = tab[(size_t) i];
         const float v = macroIn[(size_t) d.macro].load (std::memory_order_relaxed);
-        const float delta = v * d.depth * (d.hi - d.lo);
+        /*  A MAPPING, not an offset: the macro owns the destination and
+            sweeps it across its own range. Which end it starts from is the
+            sign of the depth, so a negative assignment runs top to bottom
+            and macro 5 can hold the dry/wet at full-rack when at rest. */
+        const float from = (d.depth >= 0.0f ? d.lo : d.hi);
+        const float want = from + v * d.depth * (d.hi - d.lo);
 
         switch (d.kind)
         {
             case 1:                                          // rack mix
             {
                 const float base = mixIn.load (std::memory_order_relaxed);
-                const float want = base + delta;
-                mo += (want < d.lo ? d.lo : (want > d.hi ? d.hi : want)) - base;
+                mo = (want < d.lo ? d.lo : (want > d.hi ? d.hi : want)) - base;
                 moTouched = true;
                 break;
             }
             case 2:                                          // module parameter
             {
                 const float base = mods[(size_t) d.type]->getParamRaw (d.param);
-                const float want = base + delta;
                 mods[(size_t) d.type]->setParamOffset (
                     d.param, (want < d.lo ? d.lo : (want > d.hi ? d.hi : want)) - base);
                 break;
@@ -200,7 +213,6 @@ void Rack::applyMacros()
             case 3:                                          // module presence
             {
                 const float base = presenceIn[(size_t) d.type].load (std::memory_order_relaxed);
-                const float want = base + delta;
                 presenceOff[(size_t) d.type].store (
                     (want < 0.0f ? 0.0f : (want > 1.0f ? 1.0f : want)) - base,
                     std::memory_order_relaxed);
@@ -256,6 +268,48 @@ std::string Rack::macroAssignJson() const
 }
 
 bool Rack::macroIsDefault() const { return macroDefaulted; }
+
+std::string Rack::macroDebugJson() const
+{
+    char buf[256];
+    std::string s = "{\"vals\":[";
+    for (int i = 0; i < kMacros; ++i)
+    {
+        if (i) s += ",";
+        std::snprintf (buf, sizeof (buf), "%g", (double) getMacro (i));
+        s += buf;
+    }
+    const int idx = destIdx.load (std::memory_order_acquire);
+    const int n = destCount[(size_t) idx];
+    std::snprintf (buf, sizeof (buf), "],\"resolved\":%d,\"dest\":[", n);
+    s += buf;
+    for (int i = 0; i < n; ++i)
+    {
+        const RDest& d = destBuf[(size_t) idx][(size_t) i];
+        if (i) s += ",";
+        float off = 0.0f, base = 0.0f;
+        const char* what = "?";
+        if (d.kind == 1) { what = "mix"; base = getMix(); off = mixOff.load (std::memory_order_relaxed); }
+        else if (d.kind == 2)
+        {
+            what = mods[(size_t) d.type]->desc().params[d.param].id;
+            base = mods[(size_t) d.type]->getParamRaw (d.param);
+            off  = mods[(size_t) d.type]->getParam (d.param) - base;
+        }
+        else if (d.kind == 3)
+        {
+            what = "pr";
+            base = presenceIn[(size_t) d.type].load (std::memory_order_relaxed);
+            off  = presenceOff[(size_t) d.type].load (std::memory_order_relaxed);
+        }
+        std::snprintf (buf, sizeof (buf),
+                       "{\"k\":%d,\"m\":%d,\"w\":\"%s\",\"d\":%g,\"base\":%g,\"off\":%g}",
+                       (int) d.kind, (int) d.macro, what, (double) d.depth,
+                       (double) base, (double) off);
+        s += buf;
+    }
+    return s + "]}";
+}
 
 void Rack::macroSetDefault()
 {

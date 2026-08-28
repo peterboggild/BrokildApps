@@ -916,7 +916,7 @@ static void testDisruptor()
 // Neutral at zero, additive, and invisible until something is assigned.
 static void testMacros()
 {
-    std::printf ("-- MACROS: neutral at zero, additive, blob-compatible\n");
+    std::printf ("-- MACROS: a mapping, owned destinations, blob-compatible\n");
     const double fs = 48000;
     const int N = 24000;
     const int tTube = typeByName ("saturation");
@@ -1016,22 +1016,35 @@ static void testMacros()
         {   Rack r; r.prepare (fs, 512); r.setMacroAssign (0, "delay.mix", 1.0f);
             CHECK (! r.macroIsDefault(), "editing an assignment did not leave the default"); }
 
-        std::vector<float> at0, plain, up, topOut, down, botOut;
-        echoRack (50.0f,  1.0f, 0.0f, at0);         // assigned, macro at rest
-        echoRack (50.0f,  0.0f, 0.0f, plain);       // no macro at all
-        CHECK (std::memcmp (at0.data(), plain.data(), at0.size() * 4) == 0,
-               "an assigned macro at 0 is not identity");
+        /*  A MAPPING: the macro owns the destination and sweeps it end to
+            end. Which end it starts from is the sign of the depth. Note
+            what is NOT asserted here any more — that assigning changes
+            nothing. Under a mapping it does, immediately, and that is the
+            behaviour being asked for. */
+        std::vector<float> lowEnd, atZero, up, topOut, down, botOut;
+        echoRack (50.0f,  1.0f, 0.0f, atZero);      // owned, macro at rest
+        echoRack (0.0f,   0.0f, 0.0f, lowEnd);      // the parameter at its bottom
+        const double dZero = settledDiff (atZero, lowEnd);
+        std::printf ("   +100%% at macro 0 vs the bottom: %.2e\n", dZero);
+        CHECK (dZero < 2e-3, "a +100%% macro at rest is not at the bottom (%.2e)", dZero);
 
-        echoRack (50.0f,  1.0f, 1.0f, up);          // +100 % -> clamps at the top
+        echoRack (50.0f,  1.0f, 1.0f, up);          // ...and at the top when full
         echoRack (100.0f, 0.0f, 0.0f, topOut);
         const double dTop = settledDiff (up, topOut);
-        std::printf ("   clamp: macro-driven vs set-to-top, settled %.2e\n", dTop);
-        CHECK (dTop < 2e-3, "macro at 1.0 x +100%% did not clamp to the top (%.2e)", dTop);
+        std::printf ("   +100%% at macro 1 vs the top: %.2e\n", dTop);
+        CHECK (dTop < 2e-3, "macro at 1.0 x +100%% did not reach the top (%.2e)", dTop);
 
-        echoRack (50.0f, -1.0f, 1.0f, down);        // -100 % -> the bottom
-        echoRack (0.0f,   0.0f, 0.0f, botOut);
-        const double dBot = settledDiff (down, botOut);
-        CHECK (dBot < 2e-3, "negative depth did not reach the bottom (%.2e)", dBot);
+        //  a NEGATIVE depth runs the other way: top at rest, bottom at full
+        echoRack (50.0f, -1.0f, 0.0f, down);
+        echoRack (100.0f, 0.0f, 0.0f, botOut);      // ...which is the TOP
+        const double dNegRest = settledDiff (down, botOut);
+        CHECK (dNegRest < 2e-3, "a -100%% macro at rest is not at the top (%.2e)", dNegRest);
+
+        std::vector<float> negFull, lowAgain;
+        echoRack (50.0f, -1.0f, 1.0f, negFull);
+        echoRack (0.0f,   0.0f, 0.0f, lowAgain);
+        const double dNegFull = settledDiff (negFull, lowAgain);
+        CHECK (dNegFull < 2e-3, "a -100%% macro at full is not at the bottom (%.2e)", dNegFull);
     }
 
     //  5) presence is assignable, and an assignment to a module that is OFF
@@ -1058,6 +1071,19 @@ static void testMacros()
         render (off, lo); render (offRef, lor);
         CHECK (std::memcmp (lo.data(), lor.data(), lo.size() * 4) == 0,
                "an assignment to a disabled module was not inert");
+    }
+
+    //  5b) a destination belongs to exactly one macro
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        r.setMacroAssign (0, "delay.mix", 1.0f);
+        r.setMacroAssign (2, "delay.mix", -0.5f);   // takes it off macro 1
+        const std::string j = r.macroAssignJson();
+        //  it must appear exactly once across all five
+        int count = 0;
+        for (size_t i = j.find ("delay.mix"); i != std::string::npos; i = j.find ("delay.mix", i + 1)) ++count;
+        CHECK (count == 1, "delay.mix is owned by %d macros, want 1", count);
     }
 
     //  6) assignments round-trip through the blob, and one this build cannot
