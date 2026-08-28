@@ -955,6 +955,7 @@
     if (mixIn) {
       mixIn.value = Math.round(state.mix * 100);
       mixOut.textContent = Math.round(state.mix * 100) + " %";
+      drawModValues();          // ...unless a macro owns it
     }
   }
 
@@ -1017,6 +1018,17 @@
      after every state adoption, so automation shows up too. */
   var MODROWS = [];
   function drawModValues() {
+    /*  RACK MIX first: it is a destination like any other, and it is the
+        one macro 5 ships assigned to, so leaving it on its base value made
+        the default macro look inert. */
+    if (mixIn && mixOut) {
+      var mOwned = macroOwning('mix') >= 0;
+      var me = effective('mix', state.mix, 0, 1);
+      mixOut.textContent = Math.round(me * 100) + ' %';
+      mixOut.classList.toggle('bwfx-modded', mOwned);
+      mixIn.classList.toggle('bwfx-owned', mOwned);
+      if (mOwned) mixIn.value = Math.round(me * 100);
+    }
     for (var i = 0; i < MODROWS.length; i++) {
       var r = MODROWS[i];
       if (!r.out || !r.row.isConnected) continue;
