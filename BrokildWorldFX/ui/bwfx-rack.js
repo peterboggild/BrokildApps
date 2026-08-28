@@ -454,6 +454,7 @@
     "border-radius:4px;cursor:crosshair}",
     ".bwfx-assigned{outline:1px solid var(--bwfx-acc);outline-offset:2px;border-radius:4px}",
     ".bwfx-modded{color:var(--bwfx-acc)!important;text-shadow:0 0 6px rgba(63,224,216,.35)}",
+    ".bwfx-owned{accent-color:var(--bwfx-acc)!important;opacity:.95}",
     ".bwfx-dep{margin-left:6px;padding:0 4px;border-radius:3px;background:var(--bwfx-acc);",
     "color:#0a0d10;font:600 9px ui-monospace,Menlo,monospace;letter-spacing:.06em}",
     ".bwfx-dep.neg{background:transparent;color:var(--bwfx-acc);",
@@ -478,6 +479,7 @@
      comes from the native side. macroVals[i] is the live host-parameter
      value: the rail shows it and can nudge it, but the host owns it. */
   var macros = null, macroVals = null, macEls = [], armed = -1;
+  var macroDbg = null;   // what the RACK resolved, for probes
 
   function build() {
     if (built) return;
@@ -919,7 +921,7 @@
           var out = row.querySelector("output");
           //  the slider stays at the PATCH value and stays editable; the
           //  number shows where the macros have put it
-          MODROWS.push({ row: row, out: out, pd: pd, dest: id + "." + pd.id,
+          MODROWS.push({ row: row, out: out, input: inp, pd: pd, dest: id + "." + pd.id,
                          base: function () { return parseFloat(inp.value); } });
           inp.addEventListener("input", function () {
             var nv = parseFloat(inp.value);
@@ -988,17 +990,26 @@
   /*  What the macros are adding to this destination right now. The SAME
      expression Rack::applyMacros computes, including the clamp — a display
      that used a different one would be the very bug this is fixing. */
-  function modOffset(dest, lo, hi) {
-    if (!macros || !macroVals) return 0;
-    var off = 0;
+  /*  The SAME mapping Rack::applyMacros computes, sign and clamp included.
+     Duplicated here deliberately: the alternative is a panel showing one
+     thing while the ears hear another, which is the bug this replaced.
+
+       value = (depth >= 0 ? lo : hi) + macro * depth * (hi - lo)
+
+     so +100 % runs bottom to top and -100 % runs top to bottom. */
+  function macroOwning(dest) {
+    if (!macros) return -1;
     for (var m = 0; m < macros.length; m++)
       for (var j = 0; j < macros[m].length; j++)
-        if (macros[m][j].d === dest)
-          off += (macroVals[m] || 0) * (macros[m][j].a / 100) * (hi - lo);
-    return off;
+        if (macros[m][j].d === dest) return m;
+    return -1;
   }
   function effective(dest, base, lo, hi) {
-    var v = base + modOffset(dest, lo, hi);
+    var m = macroOwning(dest);
+    if (m < 0 || !macroVals) return base;
+    var depth = depthOf(dest) / 100;
+    var from = depth >= 0 ? lo : hi;
+    var v = from + (macroVals[m] || 0) * depth * (hi - lo);
     return v < lo ? lo : (v > hi ? hi : v);
   }
 
@@ -1009,10 +1020,17 @@
     for (var i = 0; i < MODROWS.length; i++) {
       var r = MODROWS[i];
       if (!r.out || !r.row.isConnected) continue;
+      var owned = macroOwning(r.dest) >= 0;
       var e = effective(r.dest, r.base(), r.pd.lo, r.pd.hi);
-      var moved = Math.abs(e - r.base()) > (r.pd.hi - r.pd.lo) * 1e-4;
       r.out.textContent = fmt(r.pd, e);
-      r.out.classList.toggle('bwfx-modded', moved);
+      r.out.classList.toggle('bwfx-modded', owned);
+      /*  The macro OWNS this control, so the slider goes where the macro
+          puts it. A number that moved while the slider sat still was the
+          most confusing part of the additive version. */
+      if (r.input) {
+        r.input.classList.toggle('bwfx-owned', owned);
+        if (owned) r.input.value = e;
+      }
     }
   }
 
@@ -1232,6 +1250,7 @@
       //  are host parameters and the rail only mirrors them
       if (p.macros) { macros = p.macros; }
       if (p.macroVals) { macroVals = p.macroVals; }
+      if (p.macroDbg) { macroDbg = p.macroDbg; }
       if (p.state) {
         var s = p.state;
         state = defaultState();
@@ -1275,7 +1294,7 @@
        misbehaving control cannot be diagnosed from outside without this. */
     debug: function () {
       return { macros: macros, macroVals: macroVals, armed: armed,
-               modRows: MODROWS.length, built: built };
+               modRows: MODROWS.length, built: built, rack: macroDbg };
     }
   };
 

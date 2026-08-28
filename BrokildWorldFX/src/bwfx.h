@@ -276,6 +276,9 @@ public:
     void clearMacroAssigns (int macro);
     std::string macroAssignJson() const;      // for the overlay: [[{d,a}...] x5]
     bool macroIsDefault() const;              // never edited: macro 5 holds the dry/wet
+    /*  What the rack RESOLVED and what it is currently adding — the one
+        link in the macro chain a panel probe cannot see. */
+    std::string macroDebugJson() const;
     void macroSetDefault();
 
     // --- SPECTRA characters (message thread edits, audio thread ticks) -----

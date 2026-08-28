@@ -159,6 +159,7 @@ inline juce::var stateVar (bwfx::Rack& rack)
     juce::Array<juce::var> mv;
     for (int i = 0; i < bwfx::kMacros; ++i) mv.add (rack.getMacro (i));
     obj->setProperty ("macroVals", mv);
+    obj->setProperty ("macroDbg", juce::JSON::parse (juce::String (rack.macroDebugJson())));
     return juce::var (obj);
 }
 
