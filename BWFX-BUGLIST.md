@@ -429,7 +429,7 @@ Two things to get right:
 Worth pairing with a **rack blob in the clipboard** — copy and paste as text
 is often faster than a file dialog, and it costs one more op.
 
-### 14. BWFX MACROS + MIX — automating the rack. SPEC, settled, awaiting go
+### 14. BWFX MACROS — automating the rack. SPEC, settled, awaiting go
 Peter 2026-08-28: "is there some way that the BWFX of the synths can be
 automatised as well as the regular synth parameters?" — and, after the
 options were laid out, "lets go with the macro solution".
@@ -470,7 +470,7 @@ cleanly.
 
 #### The design
 
-**Five host parameters — `BWFX MACRO 1..4` and `BWFX MIX`** — declared once in
+**Five host parameters, `BWFX MACRO 1..5`** — and nothing else — declared once in
 `adapter/bwfx_juce.h` by one loop, so every synth gets them and no synth has
 per-plugin work. Automatable, saved in APVTS state like any other parameter —
 which means a `.fmrkit` or a synth preset picks up the values for free.
@@ -530,9 +530,11 @@ Two consequences to build in deliberately:
     contradiction of the morph decision: there, stepping happened to
     everything automatically; here it is one deliberate act per assignment.
 
-#### The count is FOUR, and it is frozen the day it ships
+#### The count is FIVE, and it is frozen the day it ships
 
-Peter, 2026-08-28: **"four should be enough + volume"**. Settled.
+Peter, 2026-08-28: **"four should be enough"**, then **"can the fifth macro
+be defaulted to wet/dry, and then possible to change?"** — so FIVE, the fifth
+pre-assigned rather than special-cased. Settled.
 
 I had argued for eight; four is the better call. A macro carries several
 destinations with independent depth and polarity, so four is not four moves
@@ -547,58 +549,64 @@ Host parameter NAMES are fixed at construction ("BWFX MACRO 1") because hosts
 cache them — no user renaming. The overlay showing what each one moves is the
 useful half of that anyway.
 
-#### BWFX MIX — the dry/wet, made automatable
+#### MACRO 5 ships assigned to the dry/wet
 
-Peter, 2026-08-28: "also BWFX volume, would be great to have" — then, on
-being shown what exists: **"i didnt mean volume but dry/wet"**.
+Peter, 2026-08-28: "can the fifth macro be defaulted to wet/dry, and then
+possible to change? I'd like access to a global effects slider from
+automation" — and, ruling out what I had misread the first time: **"there
+should be no volume or output level — only dry/wet via macro as now"**.
 
-**The control already exists.** RACK MIX sits in the overlay header beside
-PRESETS, 0..100 %, and each module additionally has its own PRESENCE, which
-is that pedal's individual dry/wet. `Rack::setMix` and the blend in
-`Rack::process` have been there since 1.1.0.
+So: five identical macros, and MACRO 5 carries one default assignment to RACK
+MIX. Nothing is special-cased — it is an ordinary assignment that happens to
+be there out of the box, and clicking it away frees a fifth macro like any
+other.
 
-**What is missing is that it is not automatable** — it lives in the blob like
-every other rack value, which is the exact gap this entry exists to close. So
-the fifth frozen slot is `BWFX MIX`: no new DSP, no new concept, no new knob
-on the panel. The control stays exactly where it is; only its OWNERSHIP
-changes.
+**This is the simplification that matters.** Reaching the dry/wet THROUGH a
+macro means MIX never becomes a host parameter, so it **never changes
+ownership**: it stays in the blob, `setMix` is untouched, the overlay slider
+still writes the rack directly, and the whole two-sources-of-truth question
+raised by the earlier draft simply does not arise. The five macros are the
+entire new host surface. Everything else about the rack is exactly as it is
+today.
 
-That ownership change is the whole of the work, and it is the same rule the
-macro values follow:
+There is deliberately **no rack VOLUME and no output level** — I invented one
+from a misreading and Peter ruled it out. If a gain trim is ever wanted it is
+a new conversation, not a reserved slot.
 
-  * the host parameter becomes the live value. `setMix` is called from it,
-    every block, as the synths already call `setBpm` and `setTransport`;
-  * **the blob must stop owning it.** `toJson`/`fromJson` may still carry a
-    `mix` key, but on load it is WRITTEN INTO the host parameter and never
-    read during playback — a delivery mechanism, not a source. Same for a
-    saved rack file (item 13) and for a patch;
-  * the overlay slider keeps working by writing the host parameter rather
-    than the rack directly, so a lane and the knob agree.
+#### Macros are NEUTRAL AT ZERO
 
-**Compatibility.** Default is 100 % (full rack), which is what it is today,
-and the existing full-wet fast path in `process` (`dip >= 1 && mix >= 1`,
-leave the chain output untouched) is unaffected. An old blob carrying `mix`
-still restores its value, now by writing the parameter. Nothing about the
-sound changes.
+The one contract question, and it is frozen with the parameters: what does a
+macro at 0 mean?
 
-**Not done here:** a true rack OUTPUT LEVEL, which is a different thing and
-was my misreading of the request. There is genuinely no gain trim on the rack
-— a saturating or reverberant rack can only be compensated on the synth's
-master. If that is ever wanted it is a small separate item: a wet-path gain
-before the blend, exactly inert at 0 dB. It is NOT in this block, because the
-five slots are frozen the day they ship and MIX earns its place first.
+**Decided: 0 means the patch exactly as saved.** Every other neutral in this
+system works that way — an empty rack, a presence, CHAOS, the world-mod bus —
+and a rack at rest should always sound like its patch. The alternative (the
+Ableton model, where a macro OWNS its destinations over a range and their
+knobs grey out) is coherent, and arguably more familiar, but it means a macro
+at rest is a state the patch never described.
+
+The consequence for MACRO 5 is worth stating plainly, because it reads
+backwards at first: its default assignment is **MIX at -100 %**. At rest the
+rack is at the patch's own mix — "as now" — and pushing the macro UP pulls
+the effects OUT. That is a better live gesture than adding effects that were
+not in the patch, but it is the opposite direction from what "global effects
+slider" suggests, so it is the one thing to look at again before the
+parameters are declared. Flipping it is a one-character change to the default
+assignment's depth; flipping it AFTER shipping is not, because the meaning of
+every saved automation lane would invert.
 
 #### Total new surface
 
-  * 5 parameters (4 macros + the existing MIX), one loop in `bwfx_juce.h`;
+  * 5 parameters, one loop in `bwfx_juce.h`. That is the ENTIRE new host
+    surface — nothing else about the rack becomes a parameter;
   * one `"m"` key in the blob for the assignments;
-  * one rail in `bwfx-rack.js` plus the arm mode. RACK MIX stays exactly
-    where it is on the panel — only its ownership changes;
-  * `Rack::setMacro(i, v)` and a per-module offset array. `setMix` already
-    exists and does not change.
+  * one rail in `bwfx-rack.js` plus the arm mode. Every existing control
+    stays exactly where it is and keeps its current ownership;
+  * `Rack::setMacro(i, v)`, a per-module offset array, and two rack-level
+    offsets (MIX and each module's PRESENCE, which are not module params).
 
 Nothing changes if nothing is assigned, and the empty-rack memcmp still
-holds — which the bench should assert, alongside: a macro at 0 is identity, MIX at 100 % is identity, a
+holds — which the bench should assert, alongside: a every macro at 0 is identity, a
 macro at 100 with +100 % depth reaches the parameter's top, depth polarity
 works both ways, an assignment to a disabled module is inert, and assignments
 survive the blob round trip.
