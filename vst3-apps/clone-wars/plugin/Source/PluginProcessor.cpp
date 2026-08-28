@@ -89,6 +89,9 @@ CloneWarsProcessor::createParameterLayout()
                 juce::NormalisableRange<float> (sh.min, sh.max, sh.step),
                 defs.voice[v][f]));
         }
+    //  the rack's five automatable macros, declared by shared code so
+    //  every synth carries the identical five (see bwfx_juce.h)
+    bwfx_juce::addMacroParameters (layout);
     return layout;
 }
 
@@ -202,6 +205,9 @@ void CloneWarsProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // The world rack: one extra stage after the engine. Empty = returns
     // without touching the buffers (bit-identical, proven in cwtest).
+    bwfx_juce::pushMacros (bwfxRack, apvts);   // the five host macros
+
+
     bwfxRack.process (buffer.getWritePointer (0), buffer.getWritePointer (1), n);
 
     for (int ch = 2; ch < buffer.getNumChannels(); ++ch)

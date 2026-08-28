@@ -15,7 +15,7 @@ if(NOT DEFINED BWFX_DIR)
 endif()
 
 add_executable(cwtest  render_test.cpp ../Source/Core/cw_core.cpp
-    "${BWFX_DIR}/src/bwfx_json.cpp" "${BWFX_DIR}/src/bwfx_rack.cpp"
+    "${BWFX_DIR}/src/bwfx_json.cpp" "${BWFX_DIR}/src/bwfx_rack.cpp" "${BWFX_DIR}/src/bwfx_macros.cpp"
     "${BWFX_DIR}/modules/bwfx_conv.cpp" "${BWFX_DIR}/modules/bwfx_modules.cpp" "${BWFX_DIR}/modules/bwfx_spectra.cpp")
 add_executable(cwaudit audit.cpp       ../Source/Core/cw_core.cpp)
 

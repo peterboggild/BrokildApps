@@ -81,7 +81,8 @@ inline juce::File installedNextTo()
     migration done — which would then have skipped it for the plugin too. The
     old patches live beside the installed BUNDLES, so look where bundles are
     installed, not only where this executable happens to sit. */
-inline juce::Array<juce::File> legacyPatchFolders (const juce::String& pluginName)
+inline juce::Array<juce::File> legacyPatchFolders (const juce::String& pluginName,
+                                                   const juce::StringArray& formerNames = {})
 {
     const auto self = juce::File::getSpecialLocation (juce::File::currentExecutableFile);
     const auto docs = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory);
@@ -112,20 +113,35 @@ inline juce::Array<juce::File> legacyPatchFolders (const juce::String& pluginNam
                                        .getChildFile ("User patches"));
     out.addIfNotAlreadyThere (docs.getChildFile (pluginName + " Presets"));
     out.addIfNotAlreadyThere (docs.getChildFile (pluginName));
+
+    /*  A plugin that has been RENAMED must still find what it saved under its
+        old name — including the house folder it was already using. Nothing
+        else knows those names, so the plugin has to say them. */
+    const auto house = docs.getChildFile ("Brokild patches");
+    for (const auto& was : formerNames)
+    {
+        out.addIfNotAlreadyThere (house.getChildFile (was));
+        out.addIfNotAlreadyThere (docs.getChildFile (was + " Presets"));
+        out.addIfNotAlreadyThere (docs.getChildFile (was));
+    }
     return out;
 }
 
 /*  THE FOLDER. Creates it, migrates once, and hands it back.
 
-    appTag is the fragment that identifies this plugin's own files inside the
-    shared folder — the "app" value every Brokild preset writes, or the format
-    marker for the ones that predate it. Pass an empty string to take every
-    file matching the wildcard, which is right for a folder that was never
-    shared (Clone Wars' slots).
+    appTags identify this plugin's own files inside the shared folder — the
+    "app" value every Brokild preset writes, or the format marker for the ones
+    that predate it. More than one because a RENAMED plugin has files under
+    both names. Pass an empty array to take every file matching the wildcard,
+    which is right for a folder that was never shared (Clone Wars' slots).
+
+    formerNames are the plugin's previous product names, so a rename does not
+    strand what was saved before it.
 */
 inline juce::File patchFolder (const juce::String& pluginName,
-                               const juce::String& appTag,
-                               const juce::String& wildcard = "*.json")
+                               const juce::StringArray& appTags,
+                               const juce::String& wildcard = "*.json",
+                               const juce::StringArray& formerNames = {})
 {
     const auto root = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
                           .getChildFile ("Brokild patches");
@@ -137,7 +153,7 @@ inline juce::File patchFolder (const juce::String& pluginName,
 
     int moved = 0;
     juce::StringArray looked;
-    for (const auto& old : legacyPatchFolders (pluginName))
+    for (const auto& old : legacyPatchFolders (pluginName, formerNames))
     {
         if (! old.isDirectory() || old == dir) continue;
         looked.add (old.getFullPathName());
@@ -146,7 +162,13 @@ inline juce::File patchFolder (const juce::String& pluginName,
             if (f.getFileName().startsWithChar ('.')) continue;
             //  a shared folder holds other plugins' patches; the file says
             //  whose it is, which is far safer than reading its name
-            if (appTag.isNotEmpty() && ! f.loadFileAsString().contains (appTag)) continue;
+            if (! appTags.isEmpty())
+            {
+                const auto text = f.loadFileAsString();
+                bool mine = false;
+                for (const auto& tag : appTags) if (text.contains (tag)) { mine = true; break; }
+                if (! mine) continue;
+            }
             //  keep any subfolder structure — those are the browser's groups,
             //  and flattening them would quietly collide two same-named files
             const auto rel = f.getRelativePathFrom (old);

@@ -14,6 +14,7 @@ project(BrokildWorldFX VERSION 1.0.0 LANGUAGES CXX)
 add_library(bwfx STATIC
     src/bwfx_json.cpp
     src/bwfx_rack.cpp
+    src/bwfx_macros.cpp
     modules/bwfx_conv.cpp
     modules/bwfx_modules.cpp
     modules/bwfx_spectra.cpp)

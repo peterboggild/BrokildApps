@@ -24,7 +24,7 @@ jobs:
         working-directory: BrokildWorldFX/test
         run: |
           g++ -O2 -std=c++17 -Wall -Wextra -I../src -I../modules \
-              bench.cpp ../src/bwfx_json.cpp ../src/bwfx_rack.cpp \
+              bench.cpp ../src/bwfx_json.cpp ../src/bwfx_rack.cpp ../src/bwfx_macros.cpp \
               ../modules/bwfx_conv.cpp ../modules/bwfx_modules.cpp \
               ../modules/bwfx_spectra.cpp -o bwfxtest
           ./bwfxtest
@@ -35,7 +35,7 @@ jobs:
               -I../../../../BrokildWorldFX/src -I../../../../BrokildWorldFX/modules \
               render_test.cpp ../Source/Core/cw_core.cpp \
               ../../../../BrokildWorldFX/src/bwfx_json.cpp \
-              ../../../../BrokildWorldFX/src/bwfx_rack.cpp \
+              ../../../../BrokildWorldFX/src/bwfx_rack.cpp \n              ../../../../BrokildWorldFX/src/bwfx_macros.cpp \
               ../../../../BrokildWorldFX/modules/bwfx_conv.cpp \
               ../../../../BrokildWorldFX/modules/bwfx_modules.cpp \
               ../../../../BrokildWorldFX/modules/bwfx_spectra.cpp -o render_test

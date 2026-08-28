@@ -911,6 +911,206 @@ static void testDisruptor()
 // SPECTRA: the characters live on the bus. Neutral when unarmed (the
 // additive contract extended to modulation), audibly present when armed,
 // scaled by presence, deterministic, and stored in the blob.
+// ---------------------------------------------------------------------------
+// MACROS: five host parameters, the only automatable part of the rack.
+// Neutral at zero, additive, and invisible until something is assigned.
+static void testMacros()
+{
+    std::printf ("-- MACROS: neutral at zero, additive, blob-compatible\n");
+    const double fs = 48000;
+    const int N = 24000;
+    const int tTube = typeByName ("saturation");
+    const int tEcho = typeByName ("delay");
+
+    auto render = [&] (Rack& r, std::vector<float>& L)
+    {
+        L.assign ((size_t) N, 0.0f);
+        std::vector<float> R (N);
+        fillTone (L.data(), R.data(), N, fs, 220.0, 0.5f);
+        renderRack (r, L.data(), R.data(), N);
+    };
+
+    //  1) a fresh rack writes NO "m" key — a blob saved today is the blob
+    //     that was saved before macros existed
+    {
+        Rack r;
+        r.prepare (fs, 512);
+        const std::string blob = r.toJson();
+        CHECK (blob.find ("\"m\":") == std::string::npos,
+               "a fresh rack emits an \"m\" key — every old blob just changed");
+        //  ...and macro 5 is nonetheless holding the dry/wet
+        CHECK (r.macroIsDefault(), "a fresh rack is not in the default wiring");
+        const std::string mj = r.macroAssignJson();
+        CHECK (mj.find ("mix") != std::string::npos,
+               "macro 5 is not assigned to the dry/wet (%s)", mj.c_str());
+    }
+
+    //  2) every macro at 0 is EXACTLY the rack without macros
+    {
+        Rack a, b;
+        a.prepare (fs, 512); b.prepare (fs, 512);
+        for (Rack* r : { &a, &b })
+        {
+            r->setEnabled (tTube, true);
+            r->setParam (tTube, 0, 14.0f);
+            r->setEnabled (tEcho, true);
+        }
+        for (int m = 0; m < kMacros; ++m) b.setMacro (m, 0.0f);   // explicitly at rest
+        std::vector<float> la, lb;
+        render (a, la); render (b, lb);
+        CHECK (std::memcmp (la.data(), lb.data(), la.size() * 4) == 0,
+               "macros at 0 are not bit-identical to a rack that never touched them");
+    }
+
+    //  3) macro 5, the one that ships assigned, pulls the rack toward dry
+    {
+        Rack dry, wet, pulled;
+        for (Rack* r : { &dry, &wet, &pulled }) r->prepare (fs, 512);
+        for (Rack* r : { &wet, &pulled })
+        {
+            r->setEnabled (tTube, true);
+            r->setParam (tTube, 0, 20.0f);          // hard drive, unmistakable
+        }
+        pulled.setMacro (kMacros - 1, 1.0f);        // full up = effects out
+        std::vector<float> ld, lw, lp;
+        render (dry, ld); render (wet, lw); render (pulled, lp);
+        double dWet = 0, dPulled = 0;
+        const size_t settled = ld.size() / 2;      // past the macro ramp
+        for (size_t i = settled; i < ld.size(); ++i)
+        {
+            dWet    = std::max (dWet,    std::abs ((double) lw[i] - ld[i]));
+            dPulled = std::max (dPulled, std::abs ((double) lp[i] - ld[i]));
+        }
+        std::printf ("   macro 5 up: distance from dry %.4f (wet is %.4f)\n", dPulled, dWet);
+        CHECK (dWet > 0.02, "the probe's own effect is inaudible (%.4f) — bad test", dWet);
+        CHECK (dPulled < dWet * 0.05, "macro 5 did not pull the rack dry (%.4f vs %.4f)",
+               dPulled, dWet);
+    }
+
+    /*  4) a macro on a module parameter moves it, both polarities, and
+        clamps. Every measurement gets a FRESH rack: rendering the same one
+        twice leaves its delay line primed, and it would then be compared
+        against a reference whose line is empty. */
+    {
+        auto echoRack = [&] (float mixPct, float depth, float macro, std::vector<float>& out)
+        {
+            Rack r;
+            r.prepare (fs, 512);
+            r.setEnabled (tEcho, true);
+            r.setParam (tEcho, 0, mixPct);          // ECHO mix is parameter 0
+            if (std::fabs (depth) > 0.0f)
+            {
+                r.setMacroAssign (0, "delay.mix", depth);
+                r.setMacro (0, macro);
+            }
+            render (r, out);
+        };
+        auto settledDiff = [] (const std::vector<float>& a, const std::vector<float>& b)
+        {
+            double d = 0;
+            for (size_t i = a.size() / 2; i < a.size(); ++i)
+                d = std::max (d, std::abs ((double) a[i] - b[i]));
+            return d;
+        };
+
+        {   Rack r; r.prepare (fs, 512); r.setMacroAssign (0, "delay.mix", 1.0f);
+            CHECK (! r.macroIsDefault(), "editing an assignment did not leave the default"); }
+
+        std::vector<float> at0, plain, up, topOut, down, botOut;
+        echoRack (50.0f,  1.0f, 0.0f, at0);         // assigned, macro at rest
+        echoRack (50.0f,  0.0f, 0.0f, plain);       // no macro at all
+        CHECK (std::memcmp (at0.data(), plain.data(), at0.size() * 4) == 0,
+               "an assigned macro at 0 is not identity");
+
+        echoRack (50.0f,  1.0f, 1.0f, up);          // +100 % -> clamps at the top
+        echoRack (100.0f, 0.0f, 0.0f, topOut);
+        const double dTop = settledDiff (up, topOut);
+        std::printf ("   clamp: macro-driven vs set-to-top, settled %.2e\n", dTop);
+        CHECK (dTop < 2e-3, "macro at 1.0 x +100%% did not clamp to the top (%.2e)", dTop);
+
+        echoRack (50.0f, -1.0f, 1.0f, down);        // -100 % -> the bottom
+        echoRack (0.0f,   0.0f, 0.0f, botOut);
+        const double dBot = settledDiff (down, botOut);
+        CHECK (dBot < 2e-3, "negative depth did not reach the bottom (%.2e)", dBot);
+    }
+
+    //  5) presence is assignable, and an assignment to a module that is OFF
+    //     is inert
+    {
+        Rack r, ref;
+        r.prepare (fs, 512); ref.prepare (fs, 512);
+        r.setEnabled (tTube, true); ref.setEnabled (tTube, true);
+        r.setParam (tTube, 0, 18.0f); ref.setParam (tTube, 0, 18.0f);
+        r.setMacroAssign (0, "saturation.pr", -1.0f);
+        r.setMacro (0, 1.0f);                       // presence pulled to 0
+        std::vector<float> lp, lr;
+        render (r, lp); render (ref, lr);
+        double d = 0;
+        for (size_t i = 0; i < lp.size(); ++i) d = std::max (d, std::abs ((double) lp[i] - lr[i]));
+        CHECK (d > 0.01, "a macro on PRESENCE did nothing (%.4f)", d);
+
+        Rack off, offRef;
+        off.prepare (fs, 512); offRef.prepare (fs, 512);
+        off.setEnabled (tEcho, true); offRef.setEnabled (tEcho, true);
+        off.setMacroAssign (1, "reverb.mix", 1.0f); // SPACE is not enabled
+        off.setMacro (1, 1.0f);
+        std::vector<float> lo, lor;
+        render (off, lo); render (offRef, lor);
+        CHECK (std::memcmp (lo.data(), lor.data(), lo.size() * 4) == 0,
+               "an assignment to a disabled module was not inert");
+    }
+
+    //  6) assignments round-trip through the blob, and one this build cannot
+    //     resolve is kept verbatim — the future-blob rule
+    {
+        Rack a;
+        a.prepare (fs, 512);
+        a.setMacroAssign (0, "delay.time", 0.5f);
+        a.setMacroAssign (0, "reverb.mix", -0.25f);
+        a.setMacroAssign (3, "mix", 1.0f);
+        const std::string blob = a.toJson();
+        CHECK (blob.find ("\"m\":") != std::string::npos, "assignments missing from the blob");
+
+        Rack b;
+        b.prepare (fs, 512);
+        b.fromJson (blob);
+        CHECK (b.macroAssignJson() == a.macroAssignJson(),
+               "assignments lost in the round trip\n     a: %s\n     b: %s",
+               a.macroAssignJson().c_str(), b.macroAssignJson().c_str());
+
+        //  a destination from a BWFX that does not exist yet
+        Rack c;
+        c.prepare (fs, 512);
+        c.setMacroAssign (2, "vocoder.formant", 0.75f);
+        const std::string cj = c.toJson();
+        Rack d;
+        d.prepare (fs, 512);
+        d.fromJson (cj);
+        CHECK (d.macroAssignJson().find ("vocoder.formant") != std::string::npos,
+               "an unresolvable destination was dropped instead of kept");
+        //  and it must be silent, not crash or wander
+        d.setMacro (2, 1.0f);
+        d.setEnabled (tEcho, true);
+        std::vector<float> l; render (d, l);
+        const Stats st = measure (l.data(), l.data(), (int) l.size());
+        CHECK (st.finite, "an unresolvable destination made the rack non-finite");
+    }
+
+    //  7) a morph leaves the wiring alone: assignments are structure
+    {
+        Rack a;
+        a.prepare (fs, 512);
+        a.setMacroAssign (0, "delay.time", 0.5f);
+        const std::string before = a.macroAssignJson();
+        Rack x, y;
+        x.prepare (fs, 512); y.prepare (fs, 512);
+        x.setEnabled (tTube, true);
+        y.setEnabled (tEcho, true);
+        a.applyMorph (x.toJson(), y.toJson(), 0.5f);
+        CHECK (a.macroAssignJson() == before, "a morph moved the macro wiring");
+    }
+}
+
 static void testSpectra()
 {
     std::printf ("-- SPECTRA characters on the world-mod bus\n");
@@ -1471,6 +1671,7 @@ int main (int argc, char** argv)
     testSync();
     testRotary();
     testDisruptor();
+    testMacros();
     testSpectra();
     testSpectraPhaseB();
     testTubeDriveNeutral();

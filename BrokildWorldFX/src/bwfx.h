@@ -12,6 +12,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <vector>
 #include <string>
 
 namespace bwfx
@@ -23,6 +24,16 @@ constexpr int kMaxParams  = 16;   // per module (raised from 8 for STRIP's
                                   // round-trip unchanged, proven in the bench)
 constexpr int kMaxModules = 16;   // registry headroom (4-bit order packing)
 constexpr int kSubBlock   = 32;   // control-rate granularity in samples
+
+/*  MACROS. The only part of the rack a host can automate, and the count is
+    FROZEN: these become host parameters, and a parameter list that grows is
+    the one thing this design exists to avoid. Five, decided 2026-08-28 —
+    four free plus one that ships assigned to the rack's dry/wet.
+
+    A macro is neutral at zero. Zero means "the patch exactly as saved", the
+    same contract as an empty rack, a presence, or the world-mod bus. */
+constexpr int kMacros       = 5;
+constexpr int kMaxMacroDest = 64;   // total assignments across all five
 
 // ---------------------------------------------------------------------------
 // Self-describing modules (the Hairfryer SPECS[] lesson): the rack UI, the
@@ -110,10 +121,41 @@ public:
 
     // Plain stores; readable any time (UI/processor thread).
     void  setParam (int i, float v) { if (i >= 0 && i < kMaxParams) pv[(size_t) i].store (v, std::memory_order_relaxed); }
-    float getParam (int i) const    { return (i >= 0 && i < kMaxParams) ? pv[(size_t) i].load (std::memory_order_relaxed) : 0.0f; }
+
+    /*  What the DSP reads: the stored value PLUS whatever the macros are
+        adding this sub-block. The rack has already clamped the offset so the
+        sum lands inside the parameter's own range, which is why this can be a
+        plain add rather than a clamp on every read.
+
+        With nothing assigned every offset is 0.0f, and `x + 0.0f` is exact —
+        so a rack without macros renders the identical samples it always did. */
+    float getParam (int i) const
+    {
+        return (i >= 0 && i < kMaxParams)
+             ? pv[(size_t) i].load (std::memory_order_relaxed)
+             + pvo[(size_t) i].load (std::memory_order_relaxed)
+             : 0.0f;
+    }
+
+    /*  The stored value alone — what the PATCH says. The panel, the state and
+        a morph all want this one: a knob that wandered because a macro was
+        moving would be showing something no patch ever described. */
+    float getParamRaw (int i) const
+    {
+        return (i >= 0 && i < kMaxParams) ? pv[(size_t) i].load (std::memory_order_relaxed) : 0.0f;
+    }
+
+    //  written by the rack once per sub-block, audio thread
+    void setParamOffset (int i, float v)
+    {
+        if (i >= 0 && i < kMaxParams) pvo[(size_t) i].store (v, std::memory_order_relaxed);
+    }
 
 protected:
     std::array<std::atomic<float>, kMaxParams> pv {};
+
+private:
+    std::array<std::atomic<float>, kMaxParams> pvo {};
 };
 
 // The registry. Module type indices are the DEFAULT chain order.
@@ -212,6 +254,30 @@ public:
     void setExtra (int type, const std::string& x);
     std::string getExtra (int type) const;
 
+    // --- MACROS ------------------------------------------------------------
+    /*  The five host parameters, 0..1, called from processBlock like setBpm.
+        A macro ADDS to its destinations rather than setting them, the way the
+        Mars Wars patch bay adds to a knob: the panel keeps showing the
+        patch's own value, an automation lane never fights the knob, and a
+        macro at rest is exactly the patch. */
+    void setMacro (int i, float v);
+    float getMacro (int i) const;
+
+    /*  Assignments are STRUCTURE, not values: they live in the blob, travel
+        with a patch, cross synths, and a morph leaves them alone.
+
+        A destination is addressed by NAME, never by index — "echo.time",
+        "space.pr", "mix" — so an assignment survives the registry gaining or
+        losing modules. One this build does not recognise is kept verbatim and
+        written back out, which is what lets a rack from a newer BWFX round
+        trip through an older one. Depth is -1..+1 of the destination's own
+        full range. */
+    void setMacroAssign (int macro, const std::string& dest, float depth);   // depth 0 removes
+    void clearMacroAssigns (int macro);
+    std::string macroAssignJson() const;      // for the overlay: [[{d,a}...] x5]
+    bool macroIsDefault() const;              // never edited: macro 5 holds the dry/wet
+    void macroSetDefault();
+
     // --- SPECTRA characters (message thread edits, audio thread ticks) -----
     void setCharArmed (int c, bool on);
     void setCharParam (int c, int p, float v);
@@ -290,6 +356,33 @@ private:
     std::array<float, kMaxChars> charEnv {};
     std::array<bool,  kMaxChars> charAudioOff {};
     void processCharacterAudio (float* L, float* R, int n);  // audio thread
+
+    // MACROS
+    struct Assign { std::string dest; float depth = 0.0f; };
+    std::array<std::vector<Assign>, kMacros> macroAssign;   // message thread owns
+    std::array<std::atomic<float>, kMacros> macroIn {};
+    bool macroDefaulted = true;      // no "m" key seen: macro 5 holds the dry/wet
+
+    /*  The resolved table the audio thread reads. Published double-buffered
+        with an atomic index, the same way the KIERANATOR publishes its
+        pattern: the writer fills the spare slot and swaps, so the audio
+        thread never sees a half-written table. */
+    struct RDest
+    {
+        uint8_t kind = 0;            // 1 mix, 2 module param, 3 module presence
+        uint8_t macro = 0;
+        uint8_t type = 0, param = 0;
+        float depth = 0.0f, lo = 0.0f, hi = 1.0f;
+    };
+    std::array<std::array<RDest, kMaxMacroDest>, 2> destBuf {};
+    std::array<int, 2> destCount { 0, 0 };
+    std::atomic<int> destIdx { 0 };
+    void republishMacros();          // message thread: resolve names -> indices
+    void applyMacros();              // audio thread: one pass per sub-block
+    void macroFromBlob (const std::string& s);
+    std::string macroToBlob() const; // "" when never edited, so old blobs match
+    std::array<std::atomic<float>, kMaxModules> presenceOff {};
+    std::atomic<float> mixOff { 0.0f };
 
     // audio-thread state
     uint64_t orderApplied = 0;
