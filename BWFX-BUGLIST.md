@@ -447,9 +447,36 @@ KIERANATOR chaos knob that is a real loss.
 
 | | |
 |---|---|
-| **(a) Expose every rack parameter** | Twelve modules x 16 params plus the characters is roughly 250 host parameters per synth, most of them belonging to modules the patch does not use. Worse, the LIST CHANGES whenever BWFX gains a module — which is precisely what every host uses to bind automation lanes, so every saved project's rack automation would break on a BWFX update. This is the additive promise thrown away. **No.** |
+| **(a) Expose every rack parameter** | Measured, not guessed: 59 module parameters + 12 enables + 12 presences + 18 character parameters and their enables and presences ≈ **125** per synth, most belonging to modules a given patch never turns on. Two real costs and one non-cost — see below. **Still no, but for weaker reasons than the first draft of this entry claimed.** |
 | **(b) MIDI CC learn** | Real, and cheap, and genuinely useful for a hardware controller. But it is not an automation lane: no curves, no drawing, no reading back what the value was at bar 33. Worth having eventually; not an answer to the question asked. |
 | **(c) A fixed pool of MACROS** | **This is the answer.** |
+
+#### What is NOT wrong with (a) — a correction
+
+The first draft of this entry said that exposing everything would break every
+saved project's automation whenever BWFX gained a module. **That is not true**
+and the spec should not rest on it. JUCE derives a VST3 parameter's id from its
+string id, so *appending* parameters leaves every existing one bound exactly
+where it was; old automation survives a BWFX update untouched.
+
+Nor is it a problem for a PATCH. A patch already carries the whole rack —
+modules, values, presence, order, mix, the armed characters, the KIERANATOR
+grid — and has since 1.1.0. Patches were never the limitation; only host
+automation is.
+
+So the honest case against (a) is three plainer things:
+
+  * **125 permanent entries in every synth's parameter list**, most of them for
+    modules that patch does not use. In a host with a flat list that is a wall
+    to scroll past to reach the instrument's own controls;
+  * **some rack state cannot be a float parameter at all** — module ORDER is a
+    permutation and the KIERANATOR pattern is a 32-step grid in an opaque
+    string. Those stay in the blob whatever happens, so (a) could never make
+    the rack *fully* automatable anyway;
+  * **it is a permanent commitment.** Adding host parameters is safe; removing
+    or renaming one is not. Every exposed rack knob is frozen forever, MkII
+    replacements included. That is the real cost, and it is about the future
+    rather than about anything breaking today.
 
 #### The macro pool
 
