@@ -54,11 +54,36 @@ questions instead:
    of *something*) while resembling nothing (the something cannot exist
    here).
 
+Peter sharpened the challenge mid-design (2026-08-29): *"you cannot do Giger
+style, although I love it — this is a classic humanoid phantasy. You really
+have to explore the negative space between human knowledge. Borderline
+impossible for you — but maybe just borderline."* That phrase supplies the
+operational definition the method needed:
+
+3. **Negative space is not outside the human distribution — it is the
+   low-density INTERIOR of it.** Nature and culture do not fill
+   feature-space; they occupy thin manifolds. Materials come in bundles
+   (wet↔soft, iridescent↔thin-film, granular↔dry), colors come with natural
+   lighting statistics, forms carry either manufacturing logic (parting
+   lines, fasteners) or developmental logic (symmetry, branching). Giger is
+   a POINT on the manifold — catalogued the day it was painted. The gaps
+   between the shelves are reachable **by construction**: take cues that
+   each exist but never co-occur, and render them coherently anyway. A thing
+   whose features are all familiar and whose combination has probability
+   near zero is precisely the thing you cannot name. Section 9 turns this
+   into pipeline rules, including the enforcement clause: *if you can name
+   the material, the decal is rejected and reordered.*
+
 The honest limit, admitted now rather than discovered later: moments of the
 result will still catch on human references — a bell-ish instant, a vowel-ish
 band. The design minimizes them, and the bench MEASURES the distance (§8): no
 specimen ships whose spectrum sits near a harmonic series. Alienness here is
-not asserted. It is enforced numerically.
+not asserted. It is enforced numerically. The same honesty applies to the
+method itself: every move here is executed BY a system steeped in human
+priors, aiming at the priors' gaps — asymptotically alien, never actually so.
+What the pipeline guarantees structurally is narrower and real: **no step in
+it ever selects a style**, so there is no step at which a shelf — Giger's or
+any other — can be reached for.
 
 ---
 
@@ -360,17 +385,40 @@ distinct, CPU budget):
 ## 9. Graphics — ordered from ChatGPT, after geometry lock
 
 Same pipeline as Clone Wars / FMR (BRIEF.md with isolated parts + DELIVERED
-crop manifests; stretch-to-aspect ingest; never a registered faceplate). The
-brief will steer hard AWAY from the alien shelf: **no Giger, no bones, no
-tentacles, no insectoid plates, no sci-fi greebles, no glyphs** (glyphs are
-human writing pretending otherwise). Direction instead: materials without
-names — deep-sea + mineral + anodized-iridescent readings that don't resolve
-into any one substance; asymmetry; structures that look grown under
-different rules. Parts list (to be finalized when panel geometry locks):
-shell/carapace plates, membrane tissue (lit and unlit states), pore-field
-texture, filament cluster, the void backdrop with faint containment
-markings (the human lab's, diegetic), harness hardware (clips, tags, cable),
-journal paper scraps. Peter runs the generation, as before.
+crop manifests; stretch-to-aspect ingest; never a registered faceplate).
+Division of labour, revised per §0.3 — the earlier draft's direction
+("deep-sea + mineral + iridescent") was itself a reach for a shelf, and is
+withdrawn:
+
+* **FORM IS COMPUTED, NEVER DRAWN.** The body on screen is the specimen's
+  own spectral geometry (§11.2) rendered by fixed rules — no one, human or
+  AI or image model, ever chooses a shape. Decals supply only surface
+  micro-texture, applied to generated geometry. A style cannot enter
+  through a door that does not exist.
+* **Materials must refuse to resolve.** The brief demands violated bundles —
+  cues that never co-occur in nature rendered in one surface: subsurface
+  glow WITH brushed anisotropy WITH granular self-shadowing; wet-reading and
+  dry-reading at once; mineral and tissue cues simultaneously. Heavy
+  negative prompting, because image models regress to their attractors:
+  **no Giger, no bones, no tentacles, no chitin, no insectoid plates, no
+  chrome, no coral, no crystal, no flesh, no sci-fi greebles, no glyphs**
+  (glyphs are human writing pretending otherwise) — banned as words and as
+  looks. Enforcement at ingest, not at ordering: **if a delivered texture
+  can be NAMED, it is rejected and reordered.** The nameability test is the
+  acceptance test.
+* **Color sits off the natural-statistics manifold.** Palettes built on
+  equiluminant hue boundaries — edges the eye's luminance channel cannot
+  see, so contours shimmer and refuse to lock. Human design avoids them
+  because they destabilize human vision; that rule exists for our eyes'
+  convenience, which is exactly why an object not made for our eyes breaks
+  it. Costs nothing: this is palette discipline in the renderer, not an
+  asset.
+
+Parts list (finalized when geometry locks): material micro-textures for
+tissue states (resting / attending / condensing / evaporating), the void
+backdrop, and the HARNESS hardware — clips, tags, cabling, journal scraps —
+which, pointedly, IS allowed to look human, manufactured and nameable,
+because it is ours. Peter runs the generation, as before.
 
 ---
 
@@ -387,4 +435,138 @@ journal paper scraps. Peter runs the generation, as before.
 
 ---
 
-*Status: design committed, awaiting Peter's go. Nothing built.*
+## 11. Addendum, same day — THE SECTION: an instrument larger than its interface
+
+Peter, 2026-08-29:
+
+> another thing that could be interesting is if the interface changes
+> depending on what the user does. I.e. as if the very synth is adjustable.
+> Think beyond merely different frontplate […] like this thing exists in
+> multiple dimensions, and we just see the cross section of the fourth
+> dimensional object with our three dimensional universe, and can only
+> operate whatever exists in that — in this case — two dimensional projection
+> of a three dimensional cross-section of a fourth dimensional musical
+> instrument […] Think about how that could be materialised, and still be a
+> useful instrument for humans (if not understandable or controllable).
+
+This is the strongest refusal in the whole design, so it gets promoted to a
+first-class principle rather than a feature. The deepest assumption in every
+human interface is not knobs or labels — it is **total presence**: the
+instrument is all there, all the time, fully inventoried. B2311.22 refuses
+it. You never see the instrument. You see where it currently intersects you.
+
+### 11.1 What makes it lawful instead of a shuffling UI
+
+The anti-pattern is explicit: pages, modes, skins, or a panel that
+rearranges itself are all HUMAN devices (a frontplate that changes is still
+a frontplate). A cross-section is different because it obeys geometry, and
+geometry is learnable:
+
+* **continuity** — nothing teleports. Organs bloom from a point, grow,
+  shrink, vanish to a point, exactly as a 4D body's slices do;
+* **conservation** — it is ONE persistent object. What left the slice still
+  exists and can return; the journal (§11.6) even documents organs "the
+  previous shift saw" that are currently outside the section;
+* **merge and split for free** — a single connected 4D body can intersect
+  the slice as several disconnected pieces. Two organs drifting together
+  and FUSING — their functions combining — is not a designed feature, it is
+  what sections do.
+
+### 11.2 The implementation is already in the mathematics — this is the point
+
+The specimen is a graph, and a graph's Laplacian eigenvectors give a
+canonical **spectral embedding**: coordinates for every node, intrinsic to
+the specimen, no art direction involved. Take eigenvectors 2–5 as the four
+spatial coordinates and the whole design closes like a loop:
+
+**The artefact's four spatial dimensions ARE its first four vibrational
+modes.** Body-space and sound-space are the same space. Which yields, with
+no additional machinery:
+
+* **playing it moves it** — a note excites modes; mode excitation IS
+  displacement along those axes. Play low and dark and the body drifts one
+  way through the section plane; play sparse and high and it rotates
+  another; go silent and it relaxes (or holds — hysteresis, §3.6). The
+  interface changes *depending on what the user does* — Peter's exact
+  request — through the physics of the object, not through UI logic;
+* **where the slice sits is a timbre** — modes are weighted by their
+  distance from the section slab, so the reachable sound IS the visible
+  anatomy. Navigating the object and navigating its sound are one act.
+  Crossing a dense eigen-cluster is passing through a gland of formants;
+* **the catalog gains a second meaning** — every specimen is a different 4D
+  body with different geography to travel, not just a different spectrum.
+
+Concretely, v1 keeps two section degrees of freedom: a translation along
+dimension four and one rotation in the 3–4 plane. Both are **deterministic
+functions of note history** (leaky integrals of per-mode excitation) plus
+the seeded WAKE drift. Same MIDI in, same journey, same sound — bit-exact,
+bench-checked. Visible set = nodes inside the slab after rotation; organs =
+connected components of the visible subgraph, recomputed at control rate
+(N ≤ 96 nodes: trivial).
+
+### 11.3 Materializing 2D-of-3D-of-4D on a screen
+
+The chain of projections Peter specifies is rendered as a chain:
+
+* the 3D cross-section is drawn **as a volume** — depth shading, occlusion,
+  a slow breathing parallax — so the screen reads as a window onto a solid,
+  not a diagram;
+* the fourth dimension is rendered as **material phase, not direction**
+  (there is no direction to point). Organs entering the slice *condense* —
+  matter arriving from nowhere visible; organs leaving *evaporate*.
+  Iridescence keys to w-velocity: tissue moving through the section shimmers
+  differently from tissue resting in it;
+* **approach ghosts** — organs nearing the slab cast a faint refracted
+  pre-image before they arrive, like a fish rising toward the underside of
+  the water's surface. This is the learnability concession, and it is
+  diegetically clean: the surface of the water is the slice.
+
+### 11.4 Useful for humans, exactly as far as Peter allows
+
+"Useful (if not understandable or controllable)" — the split of §2 carries
+all of it:
+
+* **harness taps are bolted to the LAB FRAME, not to the artefact.** The
+  host parameters (APERTURE, METABOLISM, REVIVAL…) are field quantities
+  applied to *whatever tissue is currently in the slice*. Automation never
+  chases a moving organ; lanes stay orthogonal and sane while the thing
+  they act on lives;
+* **steering, not setting** — the player influences the journey by HOW they
+  play, like riding an animal. And because humans are humans, the
+  expedition bolted a **winch** onto it: one harness control (automatable,
+  saved) that drags the section toward a stored position. Recall for a mix
+  session, without pretending the artefact itself is controllable;
+* **a patch is a photograph** — patches store the full section state, so a
+  saved sound is a saved *place on the body*, and loading one returns
+  there;
+* **grip pins locally** — the organ under active manipulation is held while
+  gripped (the section keeps moving elsewhere). Your organ cannot evaporate
+  out from under a gesture in progress: the one frustration that would kill
+  the instrument, removed by a rule that reads as holding one limb of a
+  moving creature;
+* **tempo of the motion** — metabolic, seconds to tens of seconds, never
+  flicker. The object travels like weather, not like a screensaver.
+
+### 11.5 Bench additions
+
+Section trajectory bit-deterministic from MIDI history at all rates;
+continuity bound (visible set changes only by slab-boundary crossings — no
+organ ever appears except by growth from the boundary); pinned-organ
+invariant under section motion; winch recall lands exactly; slice position
+audibly matters (same note, two section states, spectral distance above a
+floor — the §11.2 claim, measured); WAKE = 0 and no-notes ⇒ section static
+and render bit-identical.
+
+### 11.6 The fiction earns it
+
+The expedition's journal entry that frames the whole feature: *the
+artefact's response mass is inconsistent with its visible volume* — it is
+larger than its extent, and the parts take turns existing here. The manual
+(expedition report) documents organs observed on previous shifts that
+cannot currently be found, with sketches. Researchers name places on the
+body the way sailors name coasts; the winch log records the places worth
+returning to.
+
+---
+
+*Status: design committed (incl. §11), awaiting Peter's go. Nothing built.*
