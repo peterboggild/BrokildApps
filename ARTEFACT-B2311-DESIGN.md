@@ -570,3 +570,29 @@ returning to.
 ---
 
 *Status: design committed (incl. §11), awaiting Peter's go. Nothing built.*
+
+---
+
+## 12. Addendum, during the build — the visual bar, raised
+
+Peter, mid-build: *"be careful to make the graphics dazzling, puzzling,
+intricate and gorgeous — realism is a priority… confounding, but still
+gorgeous. An alien intelligence superior to our own will have extraordinary
+ways of communicating visually."* And: *"and maybe other types of vision."*
+
+Two consequences, adopted immediately:
+
+* **The renderer is WebGL, not flat canvas.** Real lighting on the tissue,
+  thin-film iridescence, volumetric blending — the organism must read as a
+  photographed thing, not a diagram. Computed geometry (§9) stays the law;
+  the *rendering* of that geometry is where realism lives.
+* **"Other types of vision" becomes a display principle.** A superior
+  intelligence signalling visually would not be limited to human channels —
+  so the artefact's surface communicates partly in channels at the edge of
+  ours: interference fringes that resolve only under MOTION (motion-vision:
+  parallax reveals structure stillness hides), equiluminant patterning
+  pitched at the eye's blind luminance channel (§9), angle- and
+  state-dependent moiré. And these are never decoration: each is the
+  artefact DISPLAYING ITS STATE in its own language — section drift, revival
+  approach, warmth — which a patient human can partially learn to read. The
+  journal documents the expedition's partial decipherments.
