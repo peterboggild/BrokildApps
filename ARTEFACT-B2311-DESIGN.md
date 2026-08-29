@@ -596,3 +596,40 @@ Two consequences, adopted immediately:
   artefact DISPLAYING ITS STATE in its own language — section drift, revival
   approach, warmth — which a patient human can partially learn to read. The
   journal documents the expedition's partial decipherments.
+
+## 13. THE INTERLOCUTOR — communication by spectra (SPEC, awaiting go)
+Peter 2026-08-29: "could one imagine these communicated by sound spectra, with
+voices that depend on their shape, using modulation, resonance, filtering...?
+What would be the most outlandish and alien way to couple that in?"
+
+The language is already implied by the design: a voice IS a shape (the
+Laplacian spectrum), so mutual intelligibility = the overlap of two specimens'
+eigenfrequency ladders — kin converse, distant topologies are mutually deaf.
+Words are not pitches but MIGRATION TRAJECTORIES: routes of energy through the
+body, spoken as moving timbre.
+
+Three coupling layers, each honest to the machine:
+1. SYMPATHETIC LISTENING + RANK REPLY. A second resident specimen. The played
+   specimen's AUDIO (not MIDI) drives a resonator bank at the listener's own
+   eigenfrequencies — it absorbs only what it owns a mode for. In your
+   silences it replies: the heard energy distribution re-uttered through its
+   own anatomy, mapped by MODE RANK not frequency (your 3rd-brightest mode ->
+   its 3rd-brightest). Same sentence, different flesh.
+2. THE MEMBRANE IS NONLINEAR. While both sound, their voices MULTIPLY:
+   sidebands at sums/differences of the two ladders — frequencies neither
+   body can make alone, existing only during the conversation, unique per
+   pair, dying when either falls silent.
+3. SPEECH IS SURGERY (the outlandish one). Listening remodels the listener:
+   modes that resonate together strengthen the graph edges coupling them
+   (Hebbian anatomy), so the eigenmodes — the voice — permanently drift
+   toward what was heard. A specimen develops an ACCENT from being played to.
+   The section silhouette visibly remodels. Bounded edge deltas, derived from
+   the audio path only: renders stay bit-deterministic, and the bench can
+   measure a conversation retuning eigenfrequencies in cents.
+Survey-field tie-in: calls CARRY — spectral kin answer faintly from the
+field; navigate the 300 by following who answers. Travel by conversation.
+
+Implementation sketch: second spec slot (double-buffer pattern exists), 71
+resonators ~ one voice of cost, reply through the normal voice machinery,
+ring-mod membrane channel gated by simultaneous loudness, plasticity as
+capped coupleW/edge-weight deltas + eigen re-solve amortized in service().
