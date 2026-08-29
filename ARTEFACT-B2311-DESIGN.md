@@ -569,7 +569,7 @@ returning to.
 
 ---
 
-*Status: design committed (incl. §11), awaiting Peter's go. Nothing built.*
+*Status: FIRST PROTOTYPE BUILT AND INSTALLED, 2026-08-29, build 260829.1 - tree C:\Users\peter\b\ArtefactB2311 (own git repo). Bench: 1743 checks ALL CLEAR, alienness floor 20 cents enforced across all 300 specimens, revival correlation 0.9999, 3.1% of a core. Gestures verified live over CDP. v1 renders the organism entirely from computed geometry per section 9 - no ChatGPT run needed for the prototype; tissue micro-textures remain an option.*
 
 ---
 
