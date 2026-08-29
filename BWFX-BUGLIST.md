@@ -651,3 +651,29 @@ Do NOT make it larger — his instruction, and correct: it is the least
 important text in the window.
 
 One line of CSS and one of text. Batch it with the next BWFX pass.
+
+### 16. SPECTRA characters must not move the pitch — SPEC, awaiting go
+Peter 2026-08-29: "tape seances dull, and dark drones drift, changes the pitch -
+that is rarely helpful. Please see if you can avoid the FX changing the pitch,
+unless its a pitch shifter as such."
+The offenders are on the world-mod bus:
+- TAPE SEANCE `pitchSag` (keyed to the gate envelope) audibly bends held/dying
+  notes flat — the PS2 heritage behaviour, but on the bus it lands on every
+  synth's voices.
+- DARK DRONE's drift writes `detuneCents` per walk step; hosts fan det across
+  voices (golden-angle), but the walk's DC component still reads as the note
+  slowly wandering off pitch. (The PS2 rule already on file: un-fanned det
+  MOVES THE NOTE.)
+Spec:
+- `detuneCents` on the bus becomes strictly zero-mean: characters emit only a
+  SPREAD (fanned symmetrically, centre voice pinned to 0 — the fineCents
+  lesson from PS2 .16), never an offset. Dark Drone's drift then modulates
+  spread width + filterMul only.
+- `pitchSag` default becomes 0 for TAPE SEANCE; its wobble survives as the
+  wow (already slewed) which is symmetric around true pitch. If a character
+  wants sag, it must be an explicit knob the user raised, and the tooltip
+  says it bends pitch.
+- Bench: for every character armed at defaults, render a held note and assert
+  the fundamental stays within ±3 cents of the unarmed engine (Goertzel).
+- Kemper rule: old blobs that saved a nonzero SAG keep their sound; only the
+  DEFAULTS and the drift law change. Verify with a saved-blob round trip.
