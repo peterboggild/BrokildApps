@@ -610,3 +610,44 @@ holds — which the bench should assert, alongside: a every macro at 0 is identi
 macro at 100 with +100 % depth reaches the parameter's top, depth polarity
 works both ways, an assignment to a disabled module is inert, and assignments
 survive the blob round trip.
+
+### 15. The macro hint line is styled wrong — SPEC, awaiting go
+Peter 2026-08-29: "the CLICK A MACRO... sentence in the BWFX macro window
+should be styled like the rest of the text. Right now it looks out of place,
+capital white letters. Make it brighter or yellow if you want it to pop, but
+not larger — it looks like a design error."
+
+He is right and it is mine: I added `.bwfx-machint` with the rack's own
+caption idiom (uppercase, wide letter-spacing) but at a size and weight that
+reads as a heading rather than as a note. Next to the pedal labels it looks
+like something went wrong rather than like an instruction.
+
+The fix is to make it agree with `.bwfx-foot`, which is the overlay's
+established voice for a line of guidance at the bottom of the window:
+
+```
+.bwfx-foot{padding:8px 18px 2px;font:10px ui-monospace,Menlo,monospace;
+           letter-spacing:.14em;color:#4d625e;...}
+.bwfx-machint{padding:0 16px 8px;font:9.5px ui-monospace,Menlo,monospace;
+              letter-spacing:.13em;color:#4d625e;min-height:13px}   <- today
+```
+
+They are already close, so the offence is not the size — it is that the text
+is SHOUTED. Two changes:
+
+  * **drop the capitals.** Sentence case, the way the rest of the overlay
+    writes prose. The uppercase idiom in this panel belongs to LABELS (RACK
+    MIX, PRESETS, MACROS), not to sentences, and using it for a sentence is
+    exactly what makes it read as a design error;
+  * **pick the colour deliberately.** Peter offers brighter or yellow. The
+    overlay already has an accent (`--bwfx-acc`, the host's own colour) and
+    a muted caption grey. A third hue would be a new thing to justify, so
+    the honest choice is the accent at low strength while a macro is ARMED
+    (it is then a live instruction and should pop) and the caption grey when
+    it is not (it is then just a reminder). That also uses colour to say
+    something true, rather than for emphasis.
+
+Do NOT make it larger — his instruction, and correct: it is the least
+important text in the window.
+
+One line of CSS and one of text. Batch it with the next BWFX pass.
