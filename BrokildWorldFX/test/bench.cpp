@@ -1169,7 +1169,9 @@ static void testSpectra()
         const WorldMod a = r1.worldMod(), b = r2.worldMod();
         std::printf ("   tape bus: det %.3f c, sag %.3f st, filterMul %.3f\n",
                      (double) a.detuneCents, (double) a.pitchSag, (double) a.filterMul);
-        CHECK (a.pitchSag > 0.25f && a.filterMul < 0.95f, "tape character inert");
+        CHECK (a.pitchSag == 0.0f, "tape bends the note at its defaults (%.3f)",
+               (double) a.pitchSag);
+        CHECK (a.filterMul < 0.95f, "tape character inert");
         CHECK (a.detuneCents == b.detuneCents && a.pitchSag == b.pitchSag,
                "character tick nondeterministic");
     }
@@ -1199,7 +1201,10 @@ static void testSpectra()
                      (double) w.tremDepth, (double) w.tremRate, (double) w.panSpread);
         CHECK (w.tremDepth > 0.1f && w.tremRate > 2.0f, "insect tremolo missing");
         CHECK (w.panSpread > 0.2f, "insect pan spread missing");
-        CHECK (w.pitchSag > 0.25f, "tape sag lost in combination");
+        //  sag is opt-in now, so ask for it before checking it combines
+        r.setCharParam (cTape, 1, 40.0f);
+        renderRack (r, L.data(), R.data(), N);
+        CHECK (r.worldMod().pitchSag > 0.25f, "tape sag lost in combination");
     }
 
     // the blob carries the spectra; unknown character ignored
@@ -1256,11 +1261,53 @@ static void testSpectraPhaseB()
         std::printf ("   dark drone: sag %.3f, det %.1f..%.1f c, filterMul %.3f..%.3f\n",
                      (double) w.pitchSag, (double) detMin, (double) detMax,
                      (double) mulMin, (double) mulMax);
-        CHECK (std::abs (w.pitchSag - 0.25f) < 1e-3f, "dark drone sag wrong");
-        CHECK (detMin > 20.0f && detMax < 28.5f && detMax > detMin + 0.05f,
-               "dark drone cluster+drift detune out of range");
+        CHECK (w.pitchSag == 0.0f, "dark drone bends the note at its defaults (%.3f)",
+               (double) w.pitchSag);
+        //  CLUSTER is an ensemble width the hosts fan across voices, so it is
+        //  allowed to be non-zero — but it must be STEADY. Drift wandering it
+        //  was the tuning wandering, which is the bug.
+        CHECK (std::abs (detMin - 24.0f) < 1e-3f && std::abs (detMax - 24.0f) < 1e-3f,
+               "dark drone detune is not a steady cluster width (%.2f..%.2f)",
+               (double) detMin, (double) detMax);
         CHECK (mulMax > mulMin + 0.005f && mulMin > 0.5f && mulMax < 2.0f,
                "dark drone drift does not wander the filter");
+    }
+
+    /*  BUGLIST 16, the rule itself: an effect may colour, widen, tremble and
+        filter, but it may not put the instrument out of tune. At its own
+        defaults NO character writes pitchSag, and the one pitch modulator we
+        keep — tape WOW — is zero-mean, so the note always comes back. */
+    {
+        std::printf ("   -- no character bends the note at its defaults\n");
+        for (int c = 0; c < numCharacters(); ++c)
+        {
+            Rack r;
+            r.prepare (fs, 512);
+            r.setCharArmed (c, true);
+            renderRack (r, L.data(), R.data(), N);
+            const WorldMod w = r.worldMod();
+            CHECK (w.pitchSag == 0.0f,
+                   "%s bends the note at its defaults (sag %.3f)",
+                   characterDescriptor (c).name, (double) w.pitchSag);
+        }
+
+        //  tape WOW: a full wow cycle is 2 s at 0.5 Hz — its mean must be ~0
+        Rack r;
+        r.prepare (fs, 512);
+        const int tapeIdx = charByName ("tape");
+        r.setCharArmed (tapeIdx, true);
+        double sum = 0; int n = 0; float lo = 1e9f, hi = -1e9f;
+        for (int i = 0; i < 40; ++i)                    // 40 x 0.1 s = 4 s
+        {
+            renderRack (r, L.data(), R.data(), (int) (fs * 0.1));
+            const float d = r.worldMod().detuneCents;
+            sum += d; ++n; lo = std::min (lo, d); hi = std::max (hi, d);
+        }
+        const double mean = sum / n;
+        std::printf ("   tape wow over 4 s: %.2f .. %.2f c, mean %.3f c\n",
+                     (double) lo, (double) hi, mean);
+        CHECK (hi - lo > 1.0f, "tape wow is not modulating at all");
+        CHECK (std::abs (mean) < 1.0, "tape wow is not zero-mean (%.2f c)", mean);
     }
 
     // pink: the three LFOs breathe width, tuning and filter at x1 / x0.618 / x0.29

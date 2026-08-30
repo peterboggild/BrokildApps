@@ -92,7 +92,7 @@ class DarkDrone : public Character
 public:
     const Descriptor& desc() const override;
 
-    void reset() override { wc.reset (0xD44Cu); wd.reset (0x0DD1u); }
+    void reset() override { wc.reset (0xD44Cu); }
 
     void tick (double dt, WorldMod& add) override
     {
@@ -106,15 +106,18 @@ public:
         const double tau = std::max (10.0, 300.0 * std::pow (0.1, (double) dtime));
         const float amp = (float) (2.6 / std::sqrt (60.0 * tau));
         const float c = wc.step (dt, tau, amp);
-        const float d = wd.step (dt, tau, amp);
 
-        add.detuneCents += cluster + d * drift * 10.0f;
+        /*  CLUSTER is an ensemble WIDTH — hosts fan detuneCents across voices
+            (voice 0 gets exactly 0), so it spreads the stack without moving
+            the note. DRIFT used to wander detune as well, which is precisely
+            "the drone drifts out of tune"; it now wanders the COLOUR only. */
+        add.detuneCents += cluster;
         add.pitchSag    += sag;                     // hosts key this to the gate
         add.filterMul   *= (float) std::pow (2.0, (double) (c * drift * 1.2f));
     }
 
 private:
-    Walk wc { 0xD44Cu }, wd { 0x0DD1u };
+    Walk wc { 0xD44Cu };
 };
 
 //==============================================================================
@@ -376,7 +379,7 @@ namespace
 {
     const ParamDesc DARK_PARAMS[] = {
         { "cluster", "CLUSTER",    24, 0, 60,  0, "\\u00a2", nullptr },
-        { "sag",     "SAG",        25, 0, 100, 0, "%", nullptr },
+        { "sag",     "SAG",         0, 0, 100, 0, "%", nullptr },   // bends pitch: opt-in
         { "drift",   "DRIFT",      40, 0, 100, 0, "%", nullptr },
         { "dtime",   "DRIFT TIME", 40, 0, 100, 0, "%", nullptr },
     };
@@ -396,7 +399,7 @@ namespace
     };
     const ParamDesc TAPE_PARAMS[] = {
         { "wobble", "WOBBLE", 45, 0, 100, 0, "%", nullptr },
-        { "sag",    "SAG",    35, 0, 100, 0, "%", nullptr },
+        { "sag",    "SAG",     0, 0, 100, 0, "%", nullptr },   // bends pitch: opt-in
         { "dull",   "DULL",   40, 0, 100, 0, "%", nullptr },
     };
     const ParamDesc INSECT_PARAMS[] = {
@@ -406,7 +409,7 @@ namespace
     };
 
     const Descriptor CHAR_DESCS[] = {
-        { "darkdrone", "DARK DRONE",       "a cluster gone dark, sagging as it dies", 1, DARK_PARAMS,   4 },
+        { "darkdrone", "DARK DRONE",       "a cluster gone dark, drifting in colour", 1, DARK_PARAMS,   4 },
         { "pink",      "PSYCHEDELIC PINK", "a swirl of smeared bloom",                1, PINK_PARAMS,   3 },
         { "black",     "INDUSTRIAL BLACK", "grind, chop, clang",                      1, BLACK_PARAMS,  3 },
         { "glass",     "GLASS CATHEDRAL",  "the room the note prays in",              1, GLASS_PARAMS,  2 },
@@ -509,10 +512,10 @@ namespace
           "\"spectra\":{\"black\":{\"on\":1,\"p\":{\"grind\":70,\"chop\":60,\"clang\":45}}}}" },
         { "SEANCE",
           "{\"modules\":{\"reverb\":{\"on\":1,\"p\":{\"mix\":22,\"character\":3,\"length\":300}}},"
-          "\"spectra\":{\"tape\":{\"on\":1,\"p\":{\"wobble\":60,\"sag\":45,\"dull\":55}}}}" },
+          "\"spectra\":{\"tape\":{\"on\":1,\"p\":{\"wobble\":60,\"sag\":0,\"dull\":55}}}}" },
         { "THE SWARM",
           "{\"spectra\":{\"insect\":{\"on\":1,\"p\":{\"swarm\":70,\"flutter\":65,\"skitter\":50}},"
-          "\"darkdrone\":{\"on\":1,\"p\":{\"cluster\":30,\"sag\":20,\"drift\":50,\"dtime\":60}}}}" },
+          "\"darkdrone\":{\"on\":1,\"p\":{\"cluster\":30,\"sag\":0,\"drift\":50,\"dtime\":60}}}}" },
         { "BROKEN TRANSMISSION",
           "{\"modules\":{\"kieranator\":{\"on\":1,\"x\":\"1000300010002060\",\"p\":{\"mix\":100,\"crush\":55}},"
           "\"lofi\":{\"on\":1,\"p\":{\"crush\":45,\"dirt\":35}}}}" },
