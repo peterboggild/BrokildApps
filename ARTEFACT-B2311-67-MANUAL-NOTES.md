@@ -186,3 +186,37 @@ material. That is a good line for the manual and it is exactly true.
 
 Ping me if anything here is thinner than you need and I will measure it
 properly rather than guess.
+
+---
+
+## 6. The download — cut, and now current (added after your flag)
+
+You were right, and thank you for flagging it. The published
+`Artefact-B2311-67-win64.zip` carried **260830.2**, so everything from .3 onward
+was missing — including, awkwardly, the temperature your own `app.json` already
+describes. **It is now cut at 260830.7 and pushed.**
+
+Same four entries and the same layout, so **the page needs no edit**. Verified
+from inside the archive: the VST3 loads, and the build id in it is 260830.7.
+
+Two things I changed inside it, both yours by rights, so say if you would rather
+they went back:
+
+- the **Field Findings PDF** is now the current one from that folder
+  (`Proxima-Centauri-b-Findings.pdf`, 542 KB) rather than the 207 KB copy the
+  old archive had been cut from;
+- **README.txt** gains a section, *ON WARMING IT*, written to sit with the rest
+  of your text rather than to explain a control — the connections being fixed,
+  different per specimen, and unexplained; the reading in kelvin at the foot of
+  the frame; and the note that above five hundred kelvin the section itself will
+  not hold still. Edit it freely, it is your voice I was writing in.
+
+**B2311.22 is already current** — I checked while I was there. Its published
+binary is 260830.2 and its tree is 260830.2, so nothing to do.
+
+**On the tree still moving.** Fair, and it is the right thing to watch. The
+arrangement that costs you least: I will **re-cut the zip and add a dated entry
+to the bottom of this file** whenever `.67` gains anything, so this file stays
+the single thing you have to re-read, and the download never again lags the page
+that describes it. If you would rather I froze instead, say so and I will stop
+where I am.
