@@ -92,3 +92,62 @@ In both `C:\Program Files\Common Files\VST3\Brokild\` and
 `C:\Users\peter\AudioDev\VST3\`. Patch folders are
 `Documents\Brokild patches\<PRODUCT_NAME>`, one per plugin, name matching the
 product exactly — `tools/check-names.js` enforces it.
+
+---
+
+## Update, 2026-08-30 afternoon — where everything lives now
+
+Read this before your next commit or install; two things changed under you.
+
+### 1. Your tree already has a remote. Use it, do not add another.
+
+`C:\Users\peter\b\ArtefactB2311_67` now pushes to the PRIVATE repo
+**`peterboggild/brokild-artefact-b2311-67`**. `origin` is configured and your
+first commit is pushed. From here just `git commit` and `git push` — that IS
+the backup, and it is the only one: `C:\Users\peter\b` is in neither Dropbox
+nor OneDrive, so anything uncommitted exists on one disk and nowhere else.
+
+All ten source trees were pushed to private repos this afternoon, named
+`brokild-<product>`: artefact-b2311-22, artefact-b2311-67, black-rider,
+blade-ruiner, escape-room, full-metal-racket, hairfryer, martian-gain,
+photo-synth, world-fx. Do not create more; do not rename them.
+
+When .67 starts producing a zip, add `dist/` to its `.gitignore` alongside
+`build/` and `test/build/` — built artefacts belong on the website, not in the
+source history.
+
+### 2. NEVER keep a second copy of a tree
+
+This is the failure mode that cost real work today, so it is worth being
+concrete about. Clone Wars had its canonical source in the BrokildApps repo
+and a working copy at `b\CloneWars`. They drifted: a panel fix made in the
+canonical tree was never copied across, the local copy sat 41 lines stale, and
+a CI build would have shipped the old file without complaining. The duplicate
+is now retired to `b\_retired\`, Clone Wars is edited directly in
+`BrokildApps/vst3-apps/clone-wars/`, and it builds with the build directory
+outside Dropbox (see its `LOCAL-BUILD.md`).
+
+So: **one tree per plugin, edited in place.** If you need a scratch copy for
+an experiment, put it under `b\_retired\` or the scratchpad — never beside the
+real one where a build script might find it.
+
+### 3. Installing
+
+Only ever `powershell -File C:\Users\peter\b\BrokildWorldFX\tools\install-fleet.ps1 -Only "Artefact B2311.67"`.
+It puts the bundle in `Proxima Centauri B findings`, retires any loose copy at
+the VST3 root, and probes the INSTALLED file past Smart App Control. Installing
+by hand is how a duplicate bundle with identical class ids appears, and then
+scan order decides which one your DAW loads.
+
+### 4. Committing to BrokildApps
+
+**Stage by explicit path. Never `git add -A`.** Both sessions have untracked
+work in that repo; `-A` files the other's work under your commit message. It
+has happened once already, in both directions of surprise.
+
+### 5. Finishing .67
+
+`C:\Users\peter\b\BrokildWorldFX\tools\RELEASE-CHECKLIST.md` is the whole
+path from 'it works' to 'it is published', in dependency order, with the traps
+that have each cost a debugging round. Run it yourself or hand over — either is
+fine, just say which, and freeze the tree first if you hand over.
