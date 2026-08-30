@@ -683,3 +683,88 @@ slab widens until it holds tissue, so no anatomy can ever be mute. Ratios
 come from eigenvalues, so no specimen VOICE changed; only the bodies did.
 **A spectral embedding must select for delocalisation. The lowest four
 eigenvectors are not automatically axes.**
+
+---
+
+## Appendix A — the brief, verbatim
+
+Everything Peter said before the first prototype existed, in order, exactly
+as written. Seven messages over thirty-one minutes on 2026-08-29. Kept
+verbatim (typos included) because every paraphrase of a brief loses the
+thing that made it a brief.
+
+**1 · 19:36 · the commission**
+
+> id like to create a synth that looks and feels like an alien artefect. Its
+> design, the ways the control work, everything should be utterly alien.
+> Ordinary sliders and knobs wont do, but it should reimagine how aliens
+> would work with it. The sounds should be as alien, foreign, outrageously
+> weird as at all possible. The library and selection and sound generation
+> should not just be pure noise, but offer a selection of sounds that dont
+> resemble anything anyone has ever heard before. This is a massive
+> challenge, i know, but i am very intersted in how you, as an AI trained on
+> human input, will approach the task of coming up with something that dont
+> resemble anything human. It should still be possible to operate by a
+> human, though, still being an VST3 synth that can be used, but everything
+> from graphics, to ways of interfacing, everything should be as different
+> from us as possible, yet still be something that can be used with a mouse,
+> on a PC. You can order graphics from chatGPT as you did for Clone Wars,
+> and i will run them.
+>
+> What do you say. Are you up for this challenge? If it just look like any
+> other weird synth, like Escape Room, i will be a bit disappointed. You need
+> to do better. Can you?
+>
+> Call it "Proxims Centauri B Artefact B2311.22" to indicate that it was
+> collected during a space travel to Proxima Centauri B, the closest
+> habitable planet to Earth.
+>
+> Alpha Centauri Artefact
+
+**2 · 19:38 · the name, corrected**
+
+> the last line is superfluious, the name should be: Proxims Centauri B
+> Artefact B2311.22"
+
+**3 · 19:58 · the fourth dimension**
+
+> another thing that could be interesting is if the interface changes
+> depending on what the user does. I.e. as if the very synth is adjustable.
+> Think beyond merely different frontplate, but the sort of meta
+> interconnectivity, like this thing exist in multiple dimensions, and we
+> just see the cross section of the fourth dimensional objecf with out three
+> dimensional universe, and only can operate whatever exist in that - in this
+> case - two dimensional projection of a three dimensional crosssection of a
+> fourth dimensional musical instrument (or whatever it is). Think about how
+> that could be materialised, and still be a useful instrument for humans (if
+> not understandable or controllable)
+
+**4 · 20:00 · no Giger**
+
+> also, you cannot do giger style, although i love it... this is a classic
+> humanoid phantasy. YOu realy have to explore the negative space between
+> human knowledge. Borderline impossible for you - but maybe just borderline
+
+**5 · 20:02 · the go-ahead**
+
+> i gave enough seed i think. You just go ahead and do your very best - a
+> tall order, so how tall can you reach? Show me. Let me know when the first
+> protoype is up, and if you need graphics element (whihc you dont have to,
+> but can). Your decision. Make it happen. I trust you!
+> store the VST3 in the usual folder, if you get that far
+
+**6 · 20:07 · the visual bar** (arrived a few minutes into the build)
+
+> be careful to make the graphics dazzling, puzzling, intricate and gorgeous
+> - realism is a priority... confounding, but still gorgeous. An alien
+> intelligence superior to our own, will have extraordineary ways of
+> communicating visually.
+
+**7 · 20:07 · and the last line of the brief**
+
+> and maybe other types vision.
+
+Nothing else was specified. No sound-design direction, no interface
+vocabulary, no visual reference, no parameter list, no architecture — and
+deliberately so ("i gave enough seed i think"). Everything in sections 0-13
+above is derived from these seven messages.
