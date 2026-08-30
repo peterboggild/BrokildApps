@@ -7,7 +7,20 @@ with the build number that fixed them.
 
 ## Open
 
-### 5. Patina dirt decals read as panel discoloration (Peter, 2026-08-26)
+### 5. Patina dirt decals read as panel discoloration — FIXED 2026-08-30
+
+Measured over the whole patina at heavy wear, the dirt sat **148.1 degrees**
+from the hull's hue — nearly opposite on the colour wheel, which is
+precisely why it read as the panel being a different colour rather than as
+grime on it. It was the only layer drawn with no blending at all. The dirt
+now keeps its LUMINANCE and takes the hull's HUE (offscreen buffer, `color`
+composite, alpha restored with `destination-in`); damage decals are
+deliberately untouched, since a scratch showing bare material SHOULD break
+the hull colour. After: **12.1 degrees**, unsaturated pixels 9.0% -> 4.2%.
+Both `ui.html` and `mockup/index.html`. The binary needs a
+`workflow_dispatch` of `clone-wars.yml` — never a local build.
+
+(original report)
 Report: "damage and panel have different colors — is that a filtering
 bug?" (area around TREATY/NOTE MODE). Diagnosis: NOT a filter and NOT
 BWFX (nothing in the patina path changed); the photographic DIRT decals

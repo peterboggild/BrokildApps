@@ -611,7 +611,18 @@ macro at 100 with +100 % depth reaches the parameter's top, depth polarity
 works both ways, an assignment to a disabled module is inert, and assignments
 survive the blob round trip.
 
-### 15. The macro hint line is styled wrong — SPEC, awaiting go
+### 15. The macro hint line is styled wrong — FIXED 2026-08-30
+
+It looked like a design error because it WAS one, not a styling choice. The
+`.bwfx-machint` rule had been spliced into the middle of an unclosed
+`.bwfx-dep.neg`, so under CSS nesting it resolved to `.bwfx-dep.neg
+.bwfx-machint` and matched nothing at all — the line inherited system-ui at
+the browser default 16px beside 9.5px monospace captions. No restyling would
+have shown up until the braces were repaired. Now 9.5px mono at .14em like
+its neighbours, muted at rest and accent-bright while a macro is armed and
+waiting. `test/check-css.js` added: it proves the braces balance and that no
+ordinary rule is nested inside another — the check that would have caught
+this the day it landed. (Third insertion-anchor bug in this codebase.)
 Peter 2026-08-29: "the CLICK A MACRO... sentence in the BWFX macro window
 should be styled like the rest of the text. Right now it looks out of place,
 capital white letters. Make it brighter or yellow if you want it to pop, but
@@ -652,7 +663,32 @@ important text in the window.
 
 One line of CSS and one of text. Batch it with the next BWFX pass.
 
-### 16. SPECTRA characters must not move the pitch — SPEC, awaiting go
+### 16. SPECTRA characters must not move the pitch — FIXED 2026-08-30
+
+Measured, there were two mechanisms and they were not equally guilty.
+
+* **pitchSag was the real offender.** Hosts key it to the smoothed GATE, so
+  it scoops every note in and droops it out — a single held note included,
+  whichever voice it lands on. It is never heard as an effect, only as an
+  instrument that will not stay in tune. TAPE shipped 0.315 semitones of it
+  and DARK DRONE 0.25; both now default to ZERO, knob retained.
+* **DARK DRONE's DRIFT wrote detune as well as filter** — a slow wander of
+  the tuning itself, which is exactly the complaint. It now wanders the
+  COLOUR only, which is what a drifting drone should be.
+* **Kept deliberately:** CLUSTER (hosts fan detuneCents per voice,
+  `fan = fmod(vi*0.618+0.5,1)*2-1`, so voice 0 gets exactly 0 — it is an
+  ensemble WIDTH, not an offset) and tape WOW (zero-mean, its own knob, and
+  a tape emulation without it is not one).
+* The two built-in presets that baked a sag lose it (SEANCE, THE SWARM).
+  **User racks are untouched:** `Rack::toJson` writes every character
+  parameter explicitly, so a saved blob carries its own sag and ignores the
+  default — the Kemper rule is satisfied for free.
+
+Measured: tape sag 0.315 -> 0.000 with filterMul still 0.860; dark drone
+detune steady 24.0..24.0 c (was wandering) with filterMul still moving
+0.997..1.096; tape wow -4.88..+4.77 c, mean -0.074 c. Bench 409 checks — four
+re-aimed and a new one stating the rule over EVERY character. DARK DRONE's
+subtitle no longer promises a sag it no longer does.
 Peter 2026-08-29: "tape seances dull, and dark drones drift, changes the pitch -
 that is rarely helpful. Please see if you can avoid the FX changing the pitch,
 unless its a pitch shifter as such."
