@@ -1,0 +1,1133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Brokild · Video Sync</title>
+<!--
+   A screen recording plus a rendered stereo mix, matched at the top and
+   written out as one MP4. For demoing the plugins.
+
+   Why it is built this way:
+
+   * MediaRecorder in this Chrome supports video/mp4 with avc1 + mp4a.40.2,
+     so the output is a real MP4 with H.264 video and AAC audio. WebCodecs
+     was the other candidate and it cannot do this: AudioEncoder reports
+     mp4a.40.2 unsupported (Opus only), and Opus in an MP4 container is not
+     something you want to hand anybody.
+
+   * Export is therefore REAL TIME — a three minute video takes three minutes
+     — and the picture is re-encoded. If ffmpeg is ever on this machine the
+     button at the bottom gives the exact command for a lossless remux
+     instead, which is instant and copies the video untouched.
+
+   * The screen recording almost always contains scratch audio of the same
+     performance as the render, so the offset can be MEASURED rather than
+     eyeballed: both are reduced to loudness envelopes and cross-correlated.
+     That is the AUTO MATCH button, and it is the whole point of the tool.
+-->
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#12161a; --line:#232b31; --line2:#2f3a42;
+    --ink:#c6d6da; --dim:#7b9198; --dimmer:#4e6169; --accent:#4fd6c4;
+    --warn:#ffb35c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:13px/1.5 "Consolas","Cascadia Mono",ui-monospace,monospace}
+  #wrap{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
+  h1{font-size:13px;letter-spacing:.26em;text-transform:uppercase;color:#dcecee;margin:0 0 2px;font-weight:600}
+  .sub{font-size:10px;letter-spacing:.2em;color:var(--dimmer);text-transform:uppercase;margin-bottom:18px}
+
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:13px 15px}
+  .grow{flex:1 1 0;min-width:280px}
+
+  .drop{border:1px dashed var(--line2);border-radius:4px;padding:16px;text-align:center;
+    cursor:pointer;transition:border-color .15s,background .15s;color:var(--dim)}
+  .drop:hover,.drop.over{border-color:var(--accent);background:#0f1a1c;color:var(--ink)}
+  .drop b{display:block;color:#dcecee;font-size:11px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:4px}
+  .drop .meta{font-size:10.5px;color:var(--dim);margin-top:6px;word-break:break-all}
+
+  video{width:100%;background:#000;border:1px solid var(--line);border-radius:3px;display:block}
+
+  #wave{width:100%;height:170px;display:block;background:#080b0d;
+    border:1px solid var(--line);border-radius:3px;cursor:ew-resize}
+
+  label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dimmer)}
+  input[type=number],select{background:#0a0e11;border:1px solid var(--line2);color:var(--ink);
+    border-radius:3px;padding:4px 7px;font:inherit;font-size:12px}
+  input[type=number]{width:104px}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+
+  button{background:#141a1e;border:1px solid var(--line2);color:var(--ink);border-radius:3px;
+    padding:6px 12px;font:inherit;font-size:11px;letter-spacing:.1em;cursor:pointer;
+    text-transform:uppercase;transition:.15s}
+  button:hover:not(:disabled){border-color:var(--accent);color:#eafcf9;background:#16211f}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  button.primary{background:#123029;border-color:#2f7c6e;color:#9ff0e2}
+  button.primary:hover:not(:disabled){background:#164036;border-color:var(--accent)}
+  .seg{display:inline-flex;border:1px solid var(--line2);border-radius:3px;overflow:hidden}
+  .seg button{border:0;border-radius:0;border-right:1px solid var(--line2)}
+  .seg button:last-child{border-right:0}
+  .seg button.on{background:var(--accent);color:#04231f}
+
+  .k{color:var(--dim)} .v{color:#eafcf9}
+  #log{font-size:11px;color:var(--dim);min-height:19px;margin-top:9px}
+  #log .ok{color:var(--accent)} #log .bad{color:#ff8f6b} #log .warn{color:var(--warn)}
+  #bar{height:3px;background:#101619;border-radius:2px;overflow:hidden;margin-top:9px}
+  #bar div{height:100%;width:0;background:var(--accent);transition:width .2s}
+  code{background:#0a0e11;border:1px solid var(--line);border-radius:3px;padding:9px 11px;
+    display:block;font-size:11px;color:#a9c6c2;white-space:pre-wrap;word-break:break-all;margin-top:7px}
+  .hint{font-size:10.5px;color:var(--dimmer);margin-top:7px}
+  h2{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin:0 0 9px;font-weight:600}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>Brokild · Video Sync</h1>
+  <div class="sub">screen recording + rendered mix &rarr; one mp4</div>
+
+  <!-- ── sources ────────────────────────────────────────────────────── -->
+  <div class="row" style="margin-bottom:14px">
+    <div class="card grow">
+      <div class="drop" id="dropV">
+        <b>1 · video</b>
+        drop a screen recording, or click
+        <div class="meta" id="metaV">nothing loaded</div>
+      </div>
+      <input type="file" id="fileV" hidden>
+    </div>
+    <div class="card grow">
+      <div class="drop" id="dropA">
+        <b>2 · audio</b>
+        drop the rendered mix &mdash; wav, mp3, aif, flac, or another video
+        <div class="meta" id="metaA">nothing loaded</div>
+      </div>
+      <input type="file" id="fileA" hidden>
+    </div>
+  </div>
+
+  <!-- ── preview + alignment ────────────────────────────────────────── -->
+  <div class="row" style="margin-bottom:14px">
+    <div class="card" style="flex:1 1 480px;min-width:340px">
+      <h2>preview</h2>
+      <video id="vid" playsinline></video>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap">
+        <button id="back1">&#9668;&#9668; 1s</button>
+        <button id="backF">&#9668; frame</button>
+        <span id="tc" style="font-size:11px;color:#eafcf9;min-width:132px;text-align:center">0:00.00 &middot; f0</span>
+        <button id="fwdF">frame &#9658;</button>
+        <button id="fwd1">1s &#9658;&#9658;</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <button id="play">play</button>
+        <button id="stop">stop</button>
+        <span style="flex:1"></span>
+        <label style="margin-right:5px">monitor</label>
+        <span class="seg" id="mon">
+          <button data-m="new" class="on">new</button>
+          <button data-m="orig">original</button>
+          <button data-m="both">both</button>
+        </span>
+      </div>
+      <div class="hint">Arrow keys step a frame, shift-arrow a second. With a silent recording,
+        find the frame where the sound should start and press MARK VIDEO. With a recording that
+        does have audio, set monitor to BOTH: when the offset is right the two lock together and
+        stop sounding like a slapback.</div>
+    </div>
+
+    <div class="card" style="flex:1 1 480px;min-width:340px">
+      <h2>alignment</h2>
+      <canvas id="wave"></canvas>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:7px;flex-wrap:wrap">
+        <button id="zFit">fit</button>
+        <button id="zOut">&minus;</button>
+        <button id="zIn">+</button>
+        <button data-zspan="2">2 s</button>
+        <button data-zspan="0.5">500 ms</button>
+        <button data-zspan="0.1">100 ms</button>
+        <button data-zspan="0.02">20 ms</button>
+        <button id="zMark">go to mark</button>
+        <span class="hint" style="margin:0 0 0 4px" id="zoomInfo">&mdash;</span>
+        <span class="seg" style="margin-left:auto">
+          <button id="snap" class="on">snap to onset</button>
+        </span>
+      </div>
+      <div class="hint" style="margin-top:5px">Wheel to zoom, drag the top lane to pan, click it to jump the picture there.
+        Drag the bottom lane to slide the render; <b>shift-click</b> it to mark the start of a sound.</div>
+
+      <div style="display:flex;gap:10px;align-items:flex-end;margin-top:12px;flex-wrap:wrap">
+        <div>
+          <label>offset (ms)</label><br>
+          <input type="number" id="offMs" value="0" step="1">
+        </div>
+        <div style="display:flex;gap:5px">
+          <button data-nudge="-100">&minus;100</button>
+          <button data-nudge="-10">&minus;10</button>
+          <button data-nudge="-1">&minus;1</button>
+          <button data-nudge="1">+1</button>
+          <button data-nudge="10">+10</button>
+          <button data-nudge="100">+100</button>
+        </div>
+        <span style="flex:1"></span>
+        <button id="auto" class="primary">auto match</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:9px;flex-wrap:wrap">
+        <button id="markV">mark video at playhead</button>
+        <button id="alignMarks" disabled>align marks</button>
+        <button id="clearMarks">clear</button>
+        <span class="hint" style="margin:0 0 0 4px" id="markInfo">shift-click the render lane to mark it</span>
+      </div>
+      <input type="range" id="offSlider" min="-20000" max="20000" value="0" step="1" style="margin-top:11px">
+      <div class="hint">Positive = the render starts later than the picture.</div>
+    </div>
+  </div>
+
+  <!-- ── export ─────────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>export</h2>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label>video quality</label><br>
+        <select id="vbr">
+          <option value="8000000">high &mdash; 8 Mbit/s</option>
+          <option value="16000000" selected>very high &mdash; 16 Mbit/s</option>
+          <option value="30000000">maximum &mdash; 30 Mbit/s</option>
+        </select>
+      </div>
+      <div>
+        <label>keep original audio</label><br>
+        <select id="keepOrig">
+          <option value="0" selected>no &mdash; replace it</option>
+          <option value="0.25">yes, quietly (&minus;12 dB)</option>
+          <option value="1">yes, at full level</option>
+        </select>
+      </div>
+      <div>
+        <label>length</label><br>
+        <select id="limit">
+          <option value="0" selected>whole video</option>
+          <option value="10">first 10 s (check the sync)</option>
+          <option value="30">first 30 s</option>
+        </select>
+      </div>
+      <span style="flex:1"></span>
+      <button id="go" class="primary" disabled>export mp4</button>
+      <button id="abort" disabled>stop</button>
+    </div>
+    <div id="bar"><div></div></div>
+    <div id="log">load a video and an audio file to begin.</div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2>lossless alternative</h2>
+    <div class="hint" style="margin-top:0">Export here is real time and re-encodes the picture, because that is
+      what a browser can do. If ffmpeg is ever installed, this command does the same job instantly and copies
+      the video stream untouched &mdash; only the audio is encoded.</div>
+    <code id="ff">load both files to see the command</code>
+    <button id="copyFf" style="margin-top:8px">copy command</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+const fmt = t => { const m = Math.floor(t/60), s = t-m*60; return m + ":" + (s<10?"0":"") + s.toFixed(2); };
+
+const ac = new (window.AudioContext || window.webkitAudioContext)();
+
+const S = {
+  vFile:null, vURL:null, vBuf:null, vEnv:null, vDur:0,
+  aFile:null, aBuf:null, aEnv:null, aDur:0,
+  offMs:0, monitor:"new", vSilent:false, vMark:null, aMark:null, fps:30, vPk:null, aPk:null,
+  playing:false, exporting:false,
+  nodes:null, rec:null, chunks:[], abort:false
+};
+
+function log(msg, cls){ $("#log").innerHTML = cls ? '<span class="'+cls+'">'+msg+'</span>' : msg; }
+function prog(f){ $("#bar div").style.width = clamp(f*100,0,100) + "%"; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   loading
+   ═══════════════════════════════════════════════════════════════════════ */
+function wireDrop(dropId, inputId, accept, onFile){
+  const d = $(dropId), i = $(inputId);
+  d.addEventListener("click", () => i.click());
+  i.addEventListener("change", e => { if (e.target.files[0]) onFile(e.target.files[0]); });
+  d.addEventListener("dragover", e => { e.preventDefault(); d.classList.add("over"); });
+  d.addEventListener("dragleave", () => d.classList.remove("over"));
+  d.addEventListener("drop", e => {
+    e.preventDefault(); d.classList.remove("over");
+    const f = e.dataTransfer.files[0];
+    if (f) onFile(f);
+  });
+}
+
+/*  A loudness envelope at 100 Hz. This is what gets cross-correlated: the two
+    recordings share a performance, not a waveform — different codecs, levels
+    and speaker colouration — so matching their SHAPE is robust where matching
+    samples is not. */
+function envelope(buf, rate){
+  rate = rate || 100;
+  const step = Math.max(1, Math.round(buf.sampleRate / rate));
+  const n = Math.floor(buf.length / step);
+  const out = new Float32Array(n);
+  const chans = Math.min(2, buf.numberOfChannels);
+  const data = [];
+  for (let c = 0; c < chans; c++) data.push(buf.getChannelData(c));
+  for (let i = 0; i < n; i++){
+    let acc = 0;
+    const a = i*step, b = a+step;
+    for (let c = 0; c < chans; c++){
+      const d = data[c];
+      for (let j = a; j < b; j++) acc += d[j]*d[j];
+    }
+    out[i] = Math.sqrt(acc / (step*chans));
+  }
+  return out;
+}
+
+/*  The frame rate is not in any property a browser will hand you, so it is
+    measured: requestVideoFrameCallback reports the media time of each frame
+    actually presented, and the median gap between them is the answer. Worth
+    the third of a second it takes, because stepping by the wrong frame time
+    walks the picture out from under the mark. */
+async function detectFps(v){
+  if (!v.requestVideoFrameCallback) return 30;
+  return await new Promise(res => {
+    const times = []; let done = false;
+    const t0 = v.currentTime, wasMuted = v.muted;
+    v.muted = true;
+    const finish = () => {
+      if (done) return; done = true;
+      try { v.pause(); } catch(e){}
+      v.currentTime = t0; v.muted = wasMuted;
+      const d = [];
+      for (let i = 1; i < times.length; i++){ const x = times[i] - times[i-1]; if (x > 0.0005) d.push(x); }
+      d.sort((a,b) => a-b);
+      const med = d.length ? d[Math.floor(d.length/2)] : 1/30;
+      const f = 1/med;
+      // snap to the rate it plainly is, rather than 29.97000000004
+      const common = [23.976,24,25,29.97,30,48,50,59.94,60,90,120];
+      let best = f, err = 1e9;
+      for (const c of common){ const e = Math.abs(c - f); if (e < err && e < c*0.04){ err = e; best = c; } }
+      res(best);
+    };
+    const cb = (now, meta) => {
+      times.push(meta.mediaTime);
+      if (times.length >= 14) return finish();
+      v.requestVideoFrameCallback(cb);
+    };
+    setTimeout(finish, 1600);
+    v.requestVideoFrameCallback(cb);
+    v.play().catch(() => finish());
+  });
+}
+
+async function loadVideo(f){
+  S.vFile = f;
+  if (S.vURL) URL.revokeObjectURL(S.vURL);
+  S.vURL = URL.createObjectURL(f);
+  const v = $("#vid");
+  v.src = S.vURL;
+  await new Promise(r => { v.onloadedmetadata = r; });
+  S.vDur = v.duration;
+  log("measuring the frame rate…");
+  S.fps = await detectFps(v);
+  $("#metaV").innerHTML = '<span class="v">' + f.name + '</span><br>' +
+    fmt(v.duration) + ' &middot; ' + v.videoWidth + '&times;' + v.videoHeight +
+    ' &middot; ' + S.fps + ' fps &middot; ' + (f.size/1048576).toFixed(1) + ' MB';
+  tc();
+  log("decoding the recording's own audio…");
+  try {
+    const ab = await f.arrayBuffer();
+    S.vBuf = await ac.decodeAudioData(ab);
+    S.vEnv = envelope(S.vBuf);
+    S.vPk = buildPeaks(S.vBuf);
+    /*  A screen recorder will happily write an audio track with nothing in
+        it — the desktop route not armed, the mic muted — and the track then
+        decodes perfectly into silence. Saying "scratch audio found" on that
+        basis is a lie, and the matcher will go on to return a confident
+        number from correlating noise with nothing. Measure the energy. */
+    let pk = 0;
+    for (let i = 0; i < S.vEnv.length; i++) if (S.vEnv[i] > pk) pk = S.vEnv[i];
+    S.vSilent = pk < 1e-4;
+    if (S.vSilent)
+      log("video loaded &mdash; but its audio track is <span class=\"v\">silent</span>, so there is " +
+          "nothing to match against. Line it up with the two marks instead.", "warn");
+    else
+      log("video loaded, scratch audio found &mdash; AUTO MATCH can measure the offset.", "ok");
+  } catch(e){
+    S.vBuf = null; S.vEnv = null; S.vPk = null;
+    log("video loaded, but it has no readable audio track &mdash; align by hand with BOTH monitoring off.", "warn");
+  }
+  fitView(); ready();
+}
+
+async function loadAudio(f){
+  S.aFile = f;
+  log("decoding the mix…");
+  try {
+    const ab = await f.arrayBuffer();
+    S.aBuf = await ac.decodeAudioData(ab);
+  } catch(e){
+    const n = f.name.toLowerCase();
+    if (n.endsWith(".asd"))
+      log("that is Ableton's analysis sidecar, not the audio &mdash; load <span class=\"v\">" +
+          f.name.replace(/\.asd$/i, "") + "</span> instead.", "bad");
+    else
+      log("could not decode <span class=\"v\">" + f.name + "</span> &mdash; " +
+          "wav, mp3, m4a, aif, flac, ogg and most video files work. (" + e.message + ")", "bad");
+    return;
+  }
+  S.aDur = S.aBuf.duration;
+  S.aEnv = envelope(S.aBuf);
+  S.aPk = buildPeaks(S.aBuf);
+  $("#metaA").innerHTML = '<span class="v">' + f.name + '</span><br>' +
+    fmt(S.aBuf.duration) + ' &middot; ' + S.aBuf.numberOfChannels + ' ch &middot; ' +
+    S.aBuf.sampleRate + ' Hz &middot; ' + (f.size/1048576).toFixed(1) + ' MB';
+  log("mix loaded.", "ok");
+  fitView(); ready();
+}
+
+wireDrop("#dropV", "#fileV", "video/*", loadVideo);
+wireDrop("#dropA", "#fileA", "audio/*", loadAudio);
+
+function ready(){
+  const ok = !!(S.vFile && S.aBuf);
+  $("#go").disabled = !ok || S.exporting;
+  const canMatch = !!(S.vEnv && S.aEnv) && !S.vSilent;
+  $("#auto").disabled = !canMatch;
+  $("#auto").title = canMatch ? "measure the offset by cross-correlation"
+    : (S.vSilent ? "the recording's audio track is silent — use the marks"
+                 : "load both files first");
+  $("#alignMarks").disabled = !(S.vMark !== null && S.aMark !== null);
+  if (ok) updateFf();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   auto match — measure the offset instead of eyeballing it
+   ═══════════════════════════════════════════════════════════════════════ */
+function normalise(e){
+  // remove the mean and divide by the deviation, so level and codec
+  // differences between the two recordings stop mattering
+  let m = 0; for (let i=0;i<e.length;i++) m += e[i]; m /= e.length || 1;
+  let s = 0; for (let i=0;i<e.length;i++){ const d = e[i]-m; s += d*d; }
+  s = Math.sqrt(s/(e.length||1)) || 1;
+  const o = new Float32Array(e.length);
+  for (let i=0;i<e.length;i++) o[i] = (e[i]-m)/s;
+  return o;
+}
+
+/*  a = the recording's scratch audio, b = the mix. Returns the lag in
+    envelope samples; positive means b happens LATER than a.
+
+    Two things here are not optional, and the first version had neither.
+
+    A proper PEARSON correlation over the overlapping region, not a mean
+    product of two globally-normalised signals. Percussive material is mostly
+    silence with a few spikes, so the local statistics are nothing like the
+    global ones and the mean product is not bounded by one — the first version
+    cheerfully reported a "correlation" of 2.366.
+
+    And the score must be WEIGHTED BY HOW MUCH ACTUALLY OVERLAPS. Otherwise a
+    huge lag that leaves two seconds overlapping can line up a single spike and
+    beat the true answer outright. On a six-second test clip whose real offset
+    was 600 ms, that is exactly what happened: it returned 3761 ms. */
+// the correlation at one particular lag, same rules as bestLag
+function corrAt(a, b, L){
+  const i0 = Math.max(0, -L), i1 = Math.min(a.length, b.length - L);
+  const cnt = i1 - i0;
+  const maxOv = Math.min(a.length, b.length);
+  if (cnt < Math.max(50, maxOv * 0.30)) return null;
+  let sa=0, sb=0, sab=0, saa=0, sbb=0;
+  for (let i = i0; i < i1; i++){
+    const x = a[i], y = b[i+L];
+    sa += x; sb += y; sab += x*y; saa += x*x; sbb += y*y;
+  }
+  const num = sab - sa*sb/cnt;
+  const den = Math.sqrt(Math.max(1e-12, (saa - sa*sa/cnt) * (sbb - sb*sb/cnt)));
+  const r = num/den;
+  return { r, score: r * Math.sqrt(cnt/maxOv) };
+}
+
+function bestLag(a, b, maxLag, minOverlap){
+  let best = -Infinity, bestL = 0, bestR = 0;
+  const maxOv = Math.min(a.length, b.length);
+  const floor = Math.max(minOverlap || 0, Math.round(maxOv * 0.30));
+  for (let L = -maxLag; L <= maxLag; L++){
+    const i0 = Math.max(0, -L), i1 = Math.min(a.length, b.length - L);
+    const cnt = i1 - i0;
+    if (cnt < floor) continue;
+    let sa=0, sb=0, sab=0, saa=0, sbb=0;
+    for (let i = i0; i < i1; i++){
+      const x = a[i], y = b[i+L];
+      sa += x; sb += y; sab += x*y; saa += x*x; sbb += y*y;
+    }
+    const num = sab - sa*sb/cnt;
+    const den = Math.sqrt(Math.max(1e-12, (saa - sa*sa/cnt) * (sbb - sb*sb/cnt)));
+    const r = num / den;                        // in [-1, 1], as it should be
+    const score = r * Math.sqrt(cnt / maxOv);   // a sliver of overlap cannot win
+    if (score > best){ best = score; bestL = L; bestR = r; }
+  }
+  return { lag: bestL, score: best, r: bestR };
+}
+
+$("#auto").addEventListener("click", () => {
+  if (!(S.vEnv && S.aEnv)) return;
+  log("measuring the offset…");
+  setTimeout(() => {
+    /*  Three passes, coarse to fine. A single pass at a resolution fine enough
+        to be useful would have to search millions of lags; a single pass coarse
+        enough to be quick lands ten milliseconds out, which is audible as flam
+        on any transient. */
+    const cut = (buf, rate, secs) => {
+      const e = envelope(buf, rate);
+      return normalise(e.subarray(0, Math.min(rate * secs, e.length)));
+    };
+    // (a) 25 Hz over three minutes: the whole search range, cheaply
+    const a25 = cut(S.vBuf, 25, 180), b25 = cut(S.aBuf, 25, 180);
+    const c = bestLag(a25, b25, 25 * 30, 25 * 3);
+    const coarseMs = -c.lag * 40;
+
+    // (b) 100 Hz, within a hundred milliseconds of that
+    const a100 = cut(S.vBuf, 100, 180), b100 = cut(S.aBuf, 100, 180);
+    let bestMs = coarseMs, bestR = c.r;
+    {
+      const centre = Math.round(-coarseMs / 10);
+      let best = -Infinity;
+      for (let L = centre - 12; L <= centre + 12; L++){
+        const g = corrAt(a100, b100, L);
+        if (g && g.score > best){ best = g.score; bestMs = -L * 10; bestR = g.r; }
+      }
+    }
+    // (c) 1 kHz, within thirty milliseconds: a millisecond of slip is audible
+    {
+      const a1k = cut(S.vBuf, 1000, 90), b1k = cut(S.aBuf, 1000, 90);
+      const centre = Math.round(-bestMs);
+      let best = -Infinity, ms = bestMs;
+      for (let L = centre - 30; L <= centre + 30; L++){
+        const g = corrAt(a1k, b1k, L);
+        if (g && g.score > best){ best = g.score; ms = -L; bestR = g.r; }
+      }
+      bestMs = ms;
+    }
+
+    /*  Running to the end of the search range with nothing to show for it is
+        what "no match" looks like, and it must not be reported as an answer. */
+    const pinned = Math.abs(Math.abs(bestMs) - 30000) < 400;
+    if (bestR < 0.08 || pinned){
+      log("no match found &mdash; the two recordings do not appear to share a performance. " +
+          "The offset has been left where it was; align with the marks.", "bad");
+      return;
+    }
+    setOffset(bestMs);
+    const conf = bestR > 0.45 ? "ok" : (bestR > 0.20 ? "warn" : "bad");
+    const word = conf === "ok" ? "confident"
+               : (conf === "warn" ? "plausible &mdash; check it by ear"
+                                  : "weak &mdash; check it by ear, or align by hand");
+    log("matched at <span class=\"v\">" + bestMs + " ms</span> (correlation " +
+        bestR.toFixed(3) + ", " + word + ")", conf);
+  }, 30);
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   the alignment view
+   ═══════════════════════════════════════════════════════════════════════ */
+const wave = $("#wave"), wctx = wave.getContext("2d");
+
+/*  THE VIEW.
+
+    t0 and span are in TIMELINE seconds — the picture's clock. The render lane
+    is the same clock shifted by the offset, which is what makes dragging it
+    mean something.
+
+    Zoom matters more here than it looks. Aligning by eye means finding the
+    exact sample where a sound starts, and at a hundred milliseconds across the
+    canvas a ten-millisecond envelope gives you ten points to look at. So the
+    drawing switches to the real samples as soon as it is worth doing. */
+const view = { t0: 0, span: 1 };
+
+/*  A small pyramid of min/max peaks, built once per file. Drawing three
+    minutes of forty-four kilohertz audio straight from the samples is eight
+    million reads per repaint; drawing a hundred milliseconds of it from a
+    decimated envelope is ten. Neither is acceptable, so keep both and pick. */
+function buildPeaks(buf){
+  const n = buf.length, ch = Math.min(2, buf.numberOfChannels);
+  const c0 = buf.getChannelData(0), c1 = ch > 1 ? buf.getChannelData(1) : null;
+  const levels = [];
+  for (const dec of [64, 1024, 16384]){
+    const m = Math.ceil(n / dec);
+    const mn = new Float32Array(m), mx = new Float32Array(m);
+    for (let i = 0; i < m; i++){
+      const s = i*dec, e = Math.min(n, s+dec);
+      let lo = 1e9, hi = -1e9;
+      for (let j = s; j < e; j++){
+        const v = c1 ? (c0[j] + c1[j]) * 0.5 : c0[j];
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+      mn[i] = lo === 1e9 ? 0 : lo; mx[i] = hi === -1e9 ? 0 : hi;
+    }
+    levels.push({ dec, mn, mx });
+  }
+  return { buf, levels, sr: buf.sampleRate, len: n };
+}
+
+function sampleAt(pk, i){
+  const c0 = pk.buf.getChannelData(0);
+  const c1 = pk.buf.numberOfChannels > 1 ? pk.buf.getChannelData(1) : null;
+  return c1 ? (c0[i] + c1[i]) * 0.5 : c0[i];
+}
+
+/*  Draw one lane over the current view. tShift converts timeline seconds into
+    this signal's own seconds. */
+function drawSignal(pk, y0, h, col, tShift){
+  if (!pk) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = wave.width / dpr;
+  const spp = (view.span * pk.sr) / W;          // samples per pixel
+  const mid = y0 + h*0.5, amp = h*0.46;
+  wctx.fillStyle = col;
+
+  if (spp < 1.2){
+    // fewer samples than pixels: draw the waveform itself, and the samples
+    wctx.strokeStyle = col; wctx.lineWidth = 1; wctx.beginPath();
+    let started = false;
+    const i0 = Math.floor((view.t0 - tShift) * pk.sr) - 2;
+    const i1 = Math.ceil((view.t0 + view.span - tShift) * pk.sr) + 2;
+    for (let i = Math.max(0,i0); i < Math.min(pk.len, i1); i++){
+      const t = i / pk.sr + tShift;
+      const x = ((t - view.t0) / view.span) * W;
+      const y = mid - sampleAt(pk, i) * amp;
+      if (!started){ wctx.moveTo(x, y); started = true; } else wctx.lineTo(x, y);
+    }
+    wctx.stroke();
+    if (spp < 0.22){
+      for (let i = Math.max(0,i0); i < Math.min(pk.len, i1); i++){
+        const t = i / pk.sr + tShift;
+        const x = ((t - view.t0) / view.span) * W;
+        wctx.fillRect(x-1, mid - sampleAt(pk, i)*amp - 1, 2.5, 2.5);
+      }
+    }
+    return;
+  }
+
+  // otherwise the coarsest level that still gives a few samples per pixel
+  let L = pk.levels[0];
+  for (const lv of pk.levels) if (spp / lv.dec >= 1.0) L = lv;
+  const per = spp / L.dec;
+  for (let px = 0; px < W; px++){
+    const t = view.t0 + (px / W) * view.span - tShift;
+    const s = (t * pk.sr) / L.dec;
+    const a0 = Math.floor(s), a1 = Math.max(a0 + 1, Math.floor(s + per));
+    if (a1 < 0 || a0 >= L.mn.length) continue;
+    let lo = 1e9, hi = -1e9;
+    for (let i = Math.max(0,a0); i < Math.min(L.mn.length, a1); i++){
+      if (L.mn[i] < lo) lo = L.mn[i];
+      if (L.mx[i] > hi) hi = L.mx[i];
+    }
+    if (lo === 1e9) continue;
+    const yA = mid - hi*amp, yB = mid - lo*amp;
+    wctx.fillRect(px, yA, 1, Math.max(1, yB - yA));
+  }
+}
+
+function sizeWave(){
+  const r = wave.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  wave.width = Math.round(r.width*dpr); wave.height = Math.round(r.height*dpr);
+  wctx.setTransform(dpr,0,0,dpr,0,0);
+  drawWave();
+}
+window.addEventListener("resize", sizeWave);
+
+function fullSpan(){
+  return Math.max(S.vDur || 0, (S.aDur||0) + Math.abs(S.offMs)/1000, 1);
+}
+function fitView(){ view.t0 = 0; view.span = fullSpan(); drawWave(); }
+
+function zoomAt(tAnchor, factor){
+  const min = 0.004, max = fullSpan();
+  let sp = clamp(view.span * factor, min, max);
+  const f = (tAnchor - view.t0) / view.span;
+  view.t0 = tAnchor - f * sp;
+  view.span = sp;
+  clampView(); drawWave();
+}
+function clampView(){
+  const total = fullSpan();
+  if (view.span > total) view.span = total;
+  view.t0 = clamp(view.t0, -0.5, Math.max(0, total - view.span) + 0.5);
+}
+function xToT(clientX){
+  const r = wave.getBoundingClientRect();
+  return view.t0 + ((clientX - r.left)/r.width) * view.span;
+}
+function tToX(t){
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  return ((t - view.t0)/view.span) * (wave.width/dpr);
+}
+
+function drawWave(){
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  const w = wave.width/dpr, h = wave.height/dpr;
+  if (!view.span || view.span <= 0) view.span = fullSpan();
+  wctx.clearRect(0,0,w,h);
+
+  // grid, at whatever step suits the zoom
+  wctx.strokeStyle = "rgba(60,80,88,.30)"; wctx.lineWidth = 1;
+  wctx.font = "9px Consolas,monospace";
+  const steps = [0.005,0.01,0.02,0.05,0.1,0.2,0.5,1,2,5,10,15,30,60,120,300];
+  const stp = steps.find(s => view.span/s < 13) || 600;
+  const t0g = Math.ceil(view.t0/stp)*stp;
+  for (let t = t0g; t < view.t0 + view.span; t += stp){
+    const x = tToX(t);
+    wctx.beginPath(); wctx.moveTo(x+.5,0); wctx.lineTo(x+.5,h); wctx.stroke();
+    wctx.fillStyle = "rgba(120,150,158,.55)";
+    wctx.fillText(view.span < 2 ? t.toFixed(3) + "s" : fmt(t), x+3, h-4);
+  }
+  wctx.strokeStyle = "rgba(60,80,88,.5)";
+  wctx.beginPath(); wctx.moveTo(0, h*0.24); wctx.lineTo(w, h*0.24); wctx.stroke();
+  wctx.beginPath(); wctx.moveTo(0, h*0.76); wctx.lineTo(w, h*0.76); wctx.stroke();
+
+  drawSignal(S.vPk, 4, h*0.44, "rgba(150,175,182,.80)", 0);
+  wctx.fillStyle = "rgba(120,150,158,.8)";
+  wctx.fillText("RECORDING", 5, 12);
+  if (S.vSilent){
+    wctx.fillStyle = "rgba(255,179,92,.7)";
+    wctx.fillText("— silent, use the marks", 78, 12);
+  }
+
+  drawSignal(S.aPk, h*0.52, h*0.44, "rgba(79,214,196,.9)", S.offMs/1000);
+  wctx.fillStyle = "rgba(79,214,196,.9)";
+  wctx.fillText("RENDER  " + (S.offMs>=0?"+":"") + S.offMs + " ms", 5, h*0.52+12);
+
+  // where the render begins
+  const ox = tToX(S.offMs/1000);
+  if (ox > -50 && ox < w+50){
+    wctx.strokeStyle = "rgba(79,214,196,.55)";
+    wctx.beginPath(); wctx.moveTo(ox+.5, h*0.5); wctx.lineTo(ox+.5, h); wctx.stroke();
+  }
+
+  const mark = (t, y0, y1, col, label) => {
+    if (t === null) return;
+    const x = tToX(t);
+    if (x < -30 || x > w+30) return;
+    wctx.strokeStyle = col; wctx.lineWidth = 1.5;
+    wctx.beginPath(); wctx.moveTo(x+.5, y0); wctx.lineTo(x+.5, y1); wctx.stroke();
+    wctx.lineWidth = 1; wctx.fillStyle = col;
+    wctx.beginPath(); wctx.moveTo(x, y0); wctx.lineTo(x-4, y0-6); wctx.lineTo(x+4, y0-6); wctx.fill();
+    wctx.fillText(label, x+5, y0+9);
+  };
+  mark(S.vMark, 6, h*0.48, "rgba(255,179,92,.95)", "V");
+  if (S.aMark !== null) mark(S.aMark + S.offMs/1000, h*0.52, h-14, "rgba(255,179,92,.95)", "R");
+
+  const v = $("#vid");
+  if (v && v.duration){
+    const px = tToX(v.currentTime);
+    if (px > -10 && px < w+10){
+      wctx.strokeStyle = "rgba(255,255,255,.6)";
+      wctx.beginPath(); wctx.moveTo(px+.5,0); wctx.lineTo(px+.5,h); wctx.stroke();
+    }
+  }
+  const z = $("#zoomInfo");
+  if (z) z.textContent = view.span < 1 ? (view.span*1000).toFixed(0) + " ms across"
+                                       : view.span.toFixed(2) + " s across";
+}
+
+/*  Where does the sound actually START?
+
+    Clicking the loudest part of a note puts the mark tens of milliseconds
+    late: the peak of an attack is not its beginning. So walk back to the
+    beginning — but walk back through an ENVELOPE, not through the samples.
+
+    The first version tested the sample value against a threshold, which is
+    useless: a waveform passes through zero twice a cycle, so |x| drops below
+    any threshold within a millisecond wherever you start, and the search
+    stopped where it began. Measured: clicking ten milliseconds past a peak
+    moved the mark by 0.2 ms. What has to be examined is the energy over a
+    short window and, specifically, where that energy RISES.  */
+function snapOnset(pk, tAudio){
+  if (!pk || !$("#snap").classList.contains("on")) return tAudio;
+  const sr = pk.sr;
+  const hop = Math.max(1, Math.round(sr * 0.001));      // 1 ms
+  const win = Math.round(0.075 * sr);
+  const c  = Math.round(tAudio * sr);
+  const a0 = Math.max(0, c - win), a1 = Math.min(pk.len, c + Math.round(0.020*sr));
+  const n  = Math.floor((a1 - a0) / hop);
+  if (n < 8) return tAudio;
+
+  // peak energy per millisecond
+  const e = new Float32Array(n);
+  for (let k = 0; k < n; k++){
+    const s0 = a0 + k*hop, s1 = s0 + hop;
+    let m = 0;
+    for (let i = s0; i < s1; i++){ const v = Math.abs(sampleAt(pk, i)); if (v > m) m = v; }
+    e[k] = m;
+  }
+  let hi = 0; for (let k = 0; k < n; k++) if (e[k] > hi) hi = e[k];
+  if (hi < 1e-5) return tAudio;
+
+  /*  The rise, over three milliseconds so one noisy sample cannot win, and
+      weighted toward the click: in a dense mix there is nearly always a bigger
+      transient somewhere in the window, and the one that was pointed at is the
+      one that was meant. */
+  const kc = Math.round((c - a0) / hop);
+  let best = -1e9, bk = kc;
+  for (let k = 3; k < n; k++){
+    const rise = e[k] - e[k-3];
+    if (rise <= 0) continue;
+    const near = Math.exp(-Math.abs(k - kc) / (0.35 * n));
+    const score = (rise / hi) * near;
+    if (score > best){ best = score; bk = k; }
+  }
+  if (best < 0.02) return tAudio;                       // nothing rose: leave it
+
+  /*  That is the millisecond. Now the sample: back up to where the energy was
+      last below a tenth of what the attack reaches, so the mark sits on the
+      foot of the transient rather than partway up it. */
+  const target = e[Math.min(n-1, bk + 2)] * 0.10;
+  let k = bk;
+  while (k > 0 && e[k] > target) k--;
+  return (a0 + k*hop) / sr;
+}
+
+let dragging = false, panning = false, dragX = 0, dragOff = 0, panT0 = 0, moved = 0;
+
+wave.addEventListener("wheel", e => {
+  e.preventDefault();
+  zoomAt(xToT(e.clientX), e.deltaY > 0 ? 1.22 : 1/1.22);
+}, { passive:false });
+
+wave.addEventListener("pointerdown", e => {
+  const r = wave.getBoundingClientRect();
+  const t = xToT(e.clientX);
+  moved = 0; dragX = e.clientX;
+  if (e.shiftKey){
+    const raw = t - S.offMs/1000;
+    S.aMark = Math.max(0, snapOnset(S.aPk, raw));
+    $("#markInfo").textContent = "render marked at " + S.aMark.toFixed(3) + " s";
+    ready(); drawWave();
+    return;
+  }
+  if ((e.clientY - r.top) < r.height*0.48){
+    panning = true; panT0 = view.t0;
+    try { wave.setPointerCapture(e.pointerId); } catch(x){}
+    return;
+  }
+  dragging = true; dragOff = S.offMs;
+  try { wave.setPointerCapture(e.pointerId); } catch(x){}
+});
+
+wave.addEventListener("pointermove", e => {
+  const r = wave.getBoundingClientRect();
+  moved = Math.max(moved, Math.abs(e.clientX - dragX));
+  if (panning){
+    view.t0 = panT0 - ((e.clientX - dragX)/r.width) * view.span;
+    clampView(); drawWave(); return;
+  }
+  if (dragging){
+    const dt = ((e.clientX - dragX)/r.width) * view.span * 1000;
+    setOffset(Math.round(dragOff + dt));
+  }
+});
+
+const endDrag = e => {
+  // a click on the recording lane, rather than a drag of it, goes there
+  if (panning && moved < 4 && e){
+    const v = $("#vid");
+    if (v.duration) { v.currentTime = clamp(xToT(e.clientX), 0, v.duration); tc(); }
+  }
+  dragging = false; panning = false; drawWave();
+};
+wave.addEventListener("pointerup", endDrag);
+wave.addEventListener("pointercancel", () => { dragging = false; panning = false; });
+
+function setOffset(ms){
+  S.offMs = Math.round(ms);
+  $("#offMs").value = S.offMs;
+  $("#offSlider").value = clamp(S.offMs, -20000, 20000);
+  drawWave(); updateFf();
+  if (S.playing) restartAudio();
+}
+$("#offMs").addEventListener("input", e => setOffset(+e.target.value || 0));
+$("#offSlider").addEventListener("input", e => setOffset(+e.target.value));
+document.querySelectorAll("[data-nudge]").forEach(b =>
+  b.addEventListener("click", () => setOffset(S.offMs + (+b.dataset.nudge))));
+
+/* ═══════════════════════════════════════════════════════════════════════
+   the audio graph — one graph for preview and for export
+   ═══════════════════════════════════════════════════════════════════════ */
+let elSource = null;      // the video element, into WebAudio (created once, ever)
+
+function buildGraph(dest){
+  /*  createMediaElementSource can only ever be called ONCE per element: call
+      it twice and the second throws and the element goes silent for good. So
+      it is made on first use and kept. */
+  if (!elSource){
+    try { elSource = ac.createMediaElementSource($("#vid")); } catch(e){ elSource = null; }
+  }
+  const gNew = ac.createGain(), gOrig = ac.createGain();
+  if (elSource){ elSource.disconnect(); elSource.connect(gOrig); }
+  gNew.connect(dest); gOrig.connect(dest);
+  return { gNew, gOrig };
+}
+
+function monitorGains(forExport){
+  const keep = forExport ? parseFloat($("#keepOrig").value) : null;
+  if (forExport) return { nw: 1, og: keep };
+  if (S.monitor === "new")  return { nw: 1, og: 0 };
+  if (S.monitor === "orig") return { nw: 0, og: 1 };
+  return { nw: 0.8, og: 0.8 };
+}
+
+function startAudio(dest, forExport){
+  const g = buildGraph(dest);
+  const gains = monitorGains(forExport);
+  g.gNew.gain.value = gains.nw;
+  g.gOrig.gain.value = gains.og;
+
+  const src = ac.createBufferSource();
+  src.buffer = S.aBuf;
+  src.connect(g.gNew);
+
+  /*  offset > 0 : the render belongs later than the picture, so wait.
+      offset < 0 : it belongs earlier, so start it partway in.  */
+  const v = $("#vid");
+  const now = ac.currentTime + 0.06;
+  const startInVideo = v.currentTime;
+  const posInAudio = startInVideo - S.offMs/1000;
+  if (posInAudio >= 0){
+    if (posInAudio < S.aBuf.duration) src.start(now, posInAudio);
+  } else {
+    src.start(now - posInAudio);   // still to come: wait for it
+  }
+  S.nodes = { src, g };
+  return src;
+}
+
+function stopAudio(){
+  if (S.nodes){
+    try { S.nodes.src.stop(); } catch(e){}
+    try { S.nodes.src.disconnect(); } catch(e){}
+    S.nodes = null;
+  }
+}
+function restartAudio(){
+  if (!S.playing || S.exporting) return;
+  stopAudio();
+  startAudio(ac.destination, false);
+}
+
+$("#mon").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.monitor = b.dataset.m;
+  document.querySelectorAll("#mon button").forEach(x => x.classList.toggle("on", x===b));
+  if (S.nodes){
+    const g = monitorGains(false);
+    S.nodes.g.gNew.gain.value = g.nw;
+    S.nodes.g.gOrig.gain.value = g.og;
+  }
+});
+
+$("#play").addEventListener("click", async () => {
+  if (!S.aBuf) { log("load the mix first.", "warn"); return; }
+  await ac.resume();
+  const v = $("#vid");
+  if (S.playing){ v.pause(); stopAudio(); S.playing = false; $("#play").textContent = "play"; return; }
+  S.playing = true; $("#play").textContent = "pause";
+  startAudio(ac.destination, false);
+  v.play();
+});
+$("#stop").addEventListener("click", () => {
+  const v = $("#vid"); v.pause(); v.currentTime = 0;
+  stopAudio(); S.playing = false; $("#play").textContent = "play"; drawWave();
+});
+$("#vid").addEventListener("timeupdate", drawWave);
+$("#vid").addEventListener("ended", () => {
+  if (!S.exporting){ stopAudio(); S.playing = false; $("#play").textContent = "play"; }
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   export
+   ═══════════════════════════════════════════════════════════════════════ */
+const MP4 = 'video/mp4;codecs="avc1.640028,mp4a.40.2"';
+const MP4B = 'video/mp4;codecs="avc1.42E01E,mp4a.40.2"';
+function pickMime(){
+  for (const m of [MP4, MP4B, 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'])
+    if (MediaRecorder.isTypeSupported(m)) return m;
+  return "";
+}
+
+$("#go").addEventListener("click", async () => {
+  if (S.exporting) return;
+  const v = $("#vid");
+  const mime = pickMime();
+  if (!mime){ log("this browser cannot record video at all.", "bad"); return; }
+  const isMp4 = mime.indexOf("mp4") >= 0;
+
+  await ac.resume();
+  S.exporting = true; S.abort = false; S.chunks = [];
+  $("#go").disabled = true; $("#abort").disabled = false;
+
+  v.pause(); v.currentTime = 0;
+  await new Promise(r => setTimeout(r, 120));
+
+  const dest = ac.createMediaStreamDestination();
+  startAudio(dest, true);
+
+  /*  The element's own frames, not a canvas redraw: one less resample, and
+      the picture that comes out is the picture that went in. */
+  let vStream;
+  try { vStream = v.captureStream ? v.captureStream() : v.mozCaptureStream(); }
+  catch(e){ log("could not capture the video: " + e.message, "bad"); cleanup(); return; }
+  const vTrack = vStream.getVideoTracks()[0];
+  if (!vTrack){ log("no video track to capture.", "bad"); cleanup(); return; }
+
+  const out = new MediaStream([vTrack, dest.stream.getAudioTracks()[0]]);
+  const rec = new MediaRecorder(out, {
+    mimeType: mime,
+    videoBitsPerSecond: parseInt($("#vbr").value, 10),
+    audioBitsPerSecond: 256000
+  });
+  S.rec = rec;
+  rec.ondataavailable = e => { if (e.data && e.data.size) S.chunks.push(e.data); };
+
+  const limit = parseFloat($("#limit").value) || 0;
+  const total = limit > 0 ? Math.min(limit, v.duration) : v.duration;
+
+  const finish = () => {
+    const blob = new Blob(S.chunks, { type: mime.split(";")[0] });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const base = (S.vFile.name || "video").replace(/\.[^.]+$/, "");
+    a.href = url; a.download = base + "-synced." + (isMp4 ? "mp4" : "webm");
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 20000);
+    log("done &mdash; <span class=\"v\">" + a.download + "</span>, " +
+        (blob.size/1048576).toFixed(1) + " MB" +
+        (isMp4 ? "" : " <span class=\"warn\">(webm: this browser would not write mp4)</span>"), "ok");
+    prog(1); cleanup();
+  };
+  rec.onstop = finish;
+
+  const tick = () => {
+    if (!S.exporting) return;
+    prog(v.currentTime / total);
+    if (S.abort || v.currentTime >= total - 0.02 || v.ended){
+      try { rec.stop(); } catch(e){}
+      v.pause();
+      return;
+    }
+    requestAnimationFrame(tick);
+  };
+
+  rec.start(1000);
+  v.play();
+  log("recording in real time &mdash; " + fmt(total) + " to go. Leave this tab in front.");
+  requestAnimationFrame(tick);
+
+  function cleanup(){
+    S.exporting = false; S.rec = null;
+    stopAudio();
+    $("#go").disabled = false; $("#abort").disabled = true;
+    try { vTrack && vTrack.stop(); } catch(e){}
+  }
+});
+
+$("#abort").addEventListener("click", () => { S.abort = true; log("stopping…", "warn"); });
+
+/* ═══════════════════════════════════════════════════════════════════════
+   the lossless command, for when ffmpeg is available
+   ═══════════════════════════════════════════════════════════════════════ */
+function updateFf(){
+  if (!(S.vFile && S.aFile)) return;
+  const off = S.offMs/1000;
+  const base = (S.vFile.name||"video").replace(/\.[^.]+$/, "");
+  // itsoffset shifts the input that follows it
+  const shift = off >= 0 ? '-itsoffset ' + off.toFixed(3) + ' ' : '';
+  const trim  = off < 0  ? ' -ss ' + (-off).toFixed(3) : '';
+  const cmd =
+    'ffmpeg -i "' + S.vFile.name + '"' + trim + ' ' + shift + '-i "' + S.aFile.name + '" ' +
+    '-map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 320k -shortest "' + base + '-synced.mp4"';
+  $("#ff").textContent = cmd;
+}
+$("#copyFf").addEventListener("click", () => {
+  navigator.clipboard.writeText($("#ff").textContent).then(
+    () => log("command copied.", "ok"), () => log("could not reach the clipboard.", "warn"));
+});
+
+$("#markV").addEventListener("click", () => {
+  const v = $("#vid");
+  if (!v.duration) { log("load a video first.", "warn"); return; }
+  S.vMark = v.currentTime;
+  $("#markInfo").textContent = "video marked at " + fmt(S.vMark) + " (f" + Math.round(S.vMark*S.fps) + ")" +
+    (S.aMark === null ? " — now shift-click the render lane" : "");
+  ready(); drawWave();
+});
+$("#alignMarks").addEventListener("click", () => {
+  if (S.vMark === null || S.aMark === null) return;
+  /*  The mark on the render must land on the mark in the picture, so the
+      render has to start (video mark - render mark) into the timeline. */
+  setOffset(Math.round((S.vMark - S.aMark) * 1000));
+  log("aligned: the moment at " + fmt(S.vMark) + " in the picture is the moment at " +
+      fmt(S.aMark) + " in the render.", "ok");
+});
+$("#clearMarks").addEventListener("click", () => {
+  S.vMark = S.aMark = null;
+  $("#markInfo").textContent = "shift-click the render lane to mark it";
+  ready(); drawWave();
+});
+
+$("#zFit").addEventListener("click", fitView);
+$("#zIn").addEventListener("click",  () => zoomAt(view.t0 + view.span*0.5, 1/1.8));
+$("#zOut").addEventListener("click", () => zoomAt(view.t0 + view.span*0.5, 1.8));
+document.querySelectorAll("[data-zspan]").forEach(b => b.addEventListener("click", () => {
+  const c = $("#vid").currentTime || (view.t0 + view.span*0.5);
+  view.span = parseFloat(b.dataset.zspan);
+  view.t0 = c - view.span*0.5; clampView(); drawWave();
+}));
+$("#zMark").addEventListener("click", () => {
+  const t = S.aMark !== null ? S.aMark + S.offMs/1000 : S.vMark;
+  if (t === null || t === undefined) { log("nothing marked yet.", "warn"); return; }
+  view.t0 = t - view.span*0.5; clampView(); drawWave();
+});
+$("#snap").addEventListener("click", () => $("#snap").classList.toggle("on"));
+
+function tc(){
+  const v = $("#vid");
+  const t = v.currentTime || 0;
+  $("#tc").textContent = fmt(t) + " · f" + Math.round(t * S.fps);
+}
+function step(dt){
+  const v = $("#vid");
+  if (!v.duration) return;
+  if (!v.paused){ v.pause(); stopAudio(); S.playing = false; $("#play").textContent = "play"; }
+  v.currentTime = clamp(v.currentTime + dt, 0, v.duration);
+  tc(); drawWave();
+}
+$("#backF").addEventListener("click", () => step(-1/S.fps));
+$("#fwdF").addEventListener("click",  () => step( 1/S.fps));
+$("#back1").addEventListener("click", () => step(-1));
+$("#fwd1").addEventListener("click",  () => step( 1));
+$("#vid").addEventListener("timeupdate", tc);
+$("#vid").addEventListener("seeked", tc);
+
+window.addEventListener("keydown", e => {
+  const tag = (e.target && e.target.tagName) || "";
+  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+  if (e.key === "ArrowLeft")  { e.preventDefault(); step(e.shiftKey ? -1 : -1/S.fps); }
+  if (e.key === "ArrowRight") { e.preventDefault(); step(e.shiftKey ?  1 :  1/S.fps); }
+  if (e.key === "m" || e.key === "M") { e.preventDefault(); $("#markV").click(); }
+  if (e.key === " ") { e.preventDefault(); $("#play").click(); }
+});
+
+$("#markV").title = "shortcut: M";
+
+sizeWave();
+log("ready. Drop a screen recording and a rendered mix.");
+</script>
+</body>
+</html>
