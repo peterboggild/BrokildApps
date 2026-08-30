@@ -674,10 +674,41 @@ A habit is a colouring of the acceptance window; it never changes which tiles
 exist. Every specimen is the same body wearing different material. That is one
 more face of the same thing Peter has been hearing.
 
-**Proposed, not built:** weight the plate's eight arms by the measured square
+**BUILT at 260830.4** (see below). The proposal was: weight the plate's eight arms by the measured square
 fraction, so the four square directions dominate as the body becomes square-
 dominated and even out as it does not; and let OBLIQUITY's strain visibly
 distort it, since a strained approximant really does have lower symmetry. Both
 are driven by measured properties of the body in view, which is what "in
 agreement on a superficial level" should mean. It needs the engine to publish
 its star first (see the previous entry).
+
+### 2026-08-30 · the plate, built (260830.4)
+
+Peter: *"ok build it."* Both halves, and both verified on the live panel.
+
+**The engine publishes its star.** `Engine::star()` and `starGeneration()`
+alongside the existing `patch()`; `emitBody` sends the peaks when the
+generation moves rather than at 30 Hz, so the bridge stays light. The page
+retires its own `buildStar` the moment the first one arrives — `starFromEngine`
+guards the frame loop, and the old idealised star stands in only until then, so
+the plate is never empty at boot. Measured live, the plate signature now moves
+for every control it was deaf to:
+
+| | signature |
+|---|---|
+| at rest | 18459379 |
+| TRAVERSE | 21519775 |
+| CUT BEARING | 23849750 |
+| CUT OFFSET | 20111846 |
+| OBLIQUITY | 24892026 |
+| HABIT | 24210996 |
+
+**The symmetry follows the tile mixture,** not the bond angles — because the
+bond angles cannot express it. `Engine::squareFraction()` counts squares among
+the tiles in view and rides on every body message; the four square directions
+gain as it rises and even out as it falls, and OBLIQUITY shears the figure.
+Verified live: **aperture 12 % → square fraction 1.000 → a four-armed cross;
+aperture 92 % → 0.349 → a full eightfold star** (`shots/plate-cubic.png`,
+`shots/plate-octagonal.png`).
+
+59 checks ALL CLEAR.
