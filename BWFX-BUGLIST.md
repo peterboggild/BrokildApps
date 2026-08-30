@@ -713,3 +713,105 @@ Spec:
   the fundamental stays within ±3 cents of the unarmed engine (Goertzel).
 - Kemper rule: old blobs that saved a nonzero SAG keep their sound; only the
   DEFAULTS and the drift law change. Verify with a saved-blob round trip.
+
+### 17. Tempo changes wreck the synced effects — SPEC, awaiting go
+
+Peter 2026-08-30: "when changing DAW tempo, a lot of the synced effects do
+not follow. If i start at 120 bpm all sound good when adding echoes,
+kieranator, stutters — but changing tempo in daw just creates a mess."
+
+Reproduced offline (`test/tempoprobe.cpp`, a fake host whose ppq advances at
+the current tempo, exactly as JUCE's playhead does). There are **four**
+separate faults, and the loudest one is not the one the wording suggests.
+
+#### 17a. ECHO splices on EVERY tempo change (the audible one)
+
+The timing is not the problem: measured across 120->90, 120->150 and 120->121
+the echo lands on the new grid immediately and exactly (0.6667 / 0.4000 /
+0.4959 s against a 1/4 note). What is wrong is the transition.
+
+| change | worst sample step, settled | around the change |
+|---|---|---|
+| 120 -> 90 | 0.0229 | **1.4674** (64x) |
+| 120 -> 150 | 0.0229 | **1.5195** (66x) |
+| 120 -> 121 | 0.0229 | **0.1638** (7x) |
+
+Even a one-BPM nudge is an audible tick. Cause, in `bwfx_modules.cpp:248-263`:
+the snap test is `abs(ms - lastSyncMs) > lastSyncMs * 0.5f` — a 50 % change in
+delay TIME. Since time is inversely proportional to tempo, that only fires
+below old/1.5 or above 2x, so every ordinary tempo move falls under it and
+GLIDES instead. And the glide is not smooth: the time is evaluated once per
+32-sample sub-block and held constant across it, so each sub-block teleports
+the read pointer by ~115 samples inside a 32-sample window — a hard splice
+every sub-block for the whole glide, fed back through the feedback path.
+Snapping (the other branch) splices once instead. Both are wrong.
+
+**Fix:** a crossfaded tap. When the synced time changes, fade the old read
+position out and the new one in over ~20-30 ms instead of moving one pointer.
+Clickless AND on the new grid at once, so the Black Rider lesson ("gliding in
+lands the first echo early") is honoured without the splice.
+
+#### 17b. Nothing but the KIERANATOR knows where the BAR is
+
+This is the one that matches "do not follow". Grepping the module file:
+```
+1235:    void setClock (double ppq, bool playing) override { ... }   // KIERANATOR
+```
+That is the ONLY override in the whole rack. ECHO, GATE and HARMONIC receive
+a BPM and nothing else, so they match the tempo's PERIOD but their PHASE is
+wherever it happened to land — they are free-running LFOs whose rate is
+tempo-derived, not bar-locked oscillators. That is exactly why it "sounds
+good at 120": you set it up by ear at one tempo, and after any change the
+phase relationship to the bar is arbitrary. The bench never noticed because
+it only ever measures the gate PERIOD, never its phase against the bar
+(`bench.cpp:477-479`).
+
+**Fix:** the rate-based modules already receive `setClock`; they should use it,
+deriving phase from ppq when a host clock exists and free-running only when
+it does not.
+
+#### 17c. Seven of nine hosts never send the bar at all
+
+Only Full Metal Racket and Artefact B2311.22 call `bwfxRack.setTransport`.
+Photo-Synth 2, Escape Room, Blade Ruiner, Black Rider, Hairfryer and Clone
+Wars call `setBpm` only, so `ppqIn` stays at its init -1 and the KIERANATOR
+takes its free-run branch permanently — it is never bar-locked in any of
+them. And the two hosts that DO call it pass `ppq ? *ppq : 0.0`, telling the
+rack "you are exactly at bar 0" every block when the host has no position,
+where the contract says <0 means unknown.
+
+#### 17d. Three smaller hazards found on the way
+
+* **A stale BPM is held forever.** Every host nests the call inside
+  `if (auto bpm = pos->getBpm())`, so a block with no tempo simply does not
+  call `setBpm` and the rack keeps the old value. There is no "no clock any
+  more" path back to FREE.
+* **An unguarded 0 BPM causes two discontinuities.** Five hosts pass the
+  host's value with no range check; `Rack::setBpm` clamps out-of-range to 0,
+  which drops the rack to FREE for that block, fires ECHO's hard snap to the
+  KNOB value, then snaps back the next block. Some hosts do report 0 while
+  relocating. Black Rider and FMR already guard (20..999); the rest should.
+* **`EchoDelay::reset()` does not clear `lastSyncMs`** (only `prepare()` does),
+  so a module toggled off across a tempo change returns with a stale value
+  and glides from the old delay time.
+
+#### 17e. KIERANATOR: the grid is right, the voices are not
+
+Measured, the step grid does follow (0.125 s steps at 120 BPM, 0.167 at 90,
+0.100 at 150 — all correct). But `stepLen`/`repLen` are recomputed every
+sub-block while a firing voice's counters (`Voice::t`, `Voice::start`) are raw
+sample counts captured at the step boundary. So mid-step: RETRIG's
+`pos = v.t % repLen` jumps, TAPESTOP re-derives its whole closed-form ramp
+against a new `stepLen`, SHUFFLE's `shuffleBack` was computed from the OLD
+one and now disagrees, and PITCH's `span` changes under an `fmod`. Slowing
+down can also reach further back than the 10 s capture ring and read stale
+audio. A firing voice must keep the geometry it started with.
+
+#### Why this survived
+
+**No test in the repo ever changes tempo mid-render.** Every sync test sets a
+BPM once and renders (`bench.cpp` :433, :458, :489, :650, :1509, :1522). The fix
+must add tempo-change coverage: timing after the change, worst sample step
+across it, and phase against the bar for every synced module.
+
+Probe kept at `test/tempoprobe.cpp` (target `tempoprobe`).
