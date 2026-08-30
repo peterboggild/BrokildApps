@@ -67,7 +67,36 @@
     "void main(){",
     "  vec2 s=(gl_FragCoord.xy-0.5*res)/rad;",
     "  float d2=dot(s,s);",
-    "  if(d2>1.0){gl_FragColor=vec4(0.0);return;}",
+    "",
+    "  if(d2>1.0){",
+    /*  THE SKY. A pinhole in the same frame as everything else, so the",
+        planet's disc occults it for free: we simply return before drawing",
+        anything the sphere covers. */
+    "    vec3 sd=normalize(rot*normalize(vec3(s,-2.2)));",
+    "    vec3 col=vec3(0.0);",
+    "",
+    "    vec3 gi=floor(sd*250.0), gf=fract(sd*250.0);",
+    "    vec3 rp=vec3(h(gi),h(gi+7.0),h(gi+13.0));",
+    "    float pick=h(gi+31.0);",
+    "    if(pick>0.9855){",
+    "      float dd=length(gf-rp);",
+    "      float mag=0.30+0.70*h(gi+53.0);",
+    "      float pt=smoothstep(0.30*mag,0.0,dd)*mag;",
+    "      float warm=h(gi+71.0);",
+    "      col+=pt*mix(vec3(0.72,0.80,0.95),vec3(1.0,0.86,0.72),warm)*0.95;",
+    "    }",
+    "",
+    /*  the star: fixed over longitude 0 because the world is locked to it,",
+        so it is behind the observer on the day side and eclipsed on the",
+        night side, and only stands clear beside the crescent. */
+    "    float ca=clamp(dot(sd,vec3(0.0,0.0,1.0)),-1.0,1.0);",
+    "    float ang=acos(ca);",
+    "    float disc=smoothstep(0.0150,0.0132,ang);",
+    "    float halo=exp(-ang*ang/0.0022)*0.55+exp(-ang*ang/0.045)*0.16;",
+    "    col+=vec3(1.00,0.52,0.30)*halo;",
+    "    col+=vec3(1.00,0.86,0.74)*disc;",
+    "    gl_FragColor=vec4(col,1.0);return;",
+    "  }",
     "  float z=sqrt(1.0-d2);",
     "  vec3 nv=vec3(s,z);",                    // normal, view frame
     "  vec3 ng=rot*nv;",                       // normal, planet frame
@@ -102,7 +131,9 @@
     "  float fa=fract(la*(9.0/3.14159)), fo=fract(lo*(9.0/3.14159));",
     "  float da=min(fa,1.0-fa), doo=min(fo,1.0-fo);",
     "  float grat=max(smoothstep(0.035,0.0,da),smoothstep(0.035,0.0,doo));",
-    "  c+=vec3(96.0,168.0,158.0)*grat*0.30*z;",
+    /*  the graticule is a chart overlay, not a structure: it must not glow",
+        like a cage across the night side */
+    "  c+=vec3(96.0,168.0,158.0)*grat*(0.07+0.30*lit)*z;",
 
     /* limb darkening, and the rim of atmosphere */
     "  c*=pow(z,0.42);",
@@ -136,6 +167,7 @@
   var uRot = gl.getUniformLocation(prog, "rot");
   var uT   = gl.getUniformLocation(prog, "t");
   var uRad = gl.getUniformLocation(prog, "rad");
+  gl.clearColor(0, 0, 0, 0);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
