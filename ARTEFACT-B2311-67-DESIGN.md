@@ -513,3 +513,76 @@ Also held: a strain of zero is the chain that was there before, to the last bit.
 
 59 checks, ALL CLEAR. Installed at 260830.2; every bundle loads past Smart App
 Control at both locations.
+
+### 2026-08-30 · the self-check: how many controls are deaf while you play (260830.3)
+
+Peter, three reports in a row: the sustained chord is much the same across the
+catalogue, it does not evolve, it barely follows the screen — and then *"the
+sounding line changes nothing in many of the catalogue entries."* All of it is
+one defect with one cause, and none of it was guessed.
+
+**You are watching the filament and listening to the star.** `visualState()`
+returns `siteE[]`, a smoothed sum of the filament's displacement, and that is
+the only sound-derived quantity the panel ever receives. Measured on a held
+note at the specimens' own settings:
+
+| habit | mean \|siteE\| at 0.2 s | 1.0 s | 3.0 s | 5.0 s |
+|---|---|---|---|---|
+| 8 | 0.448 | 0.0116 | 0.0000275 | 0.00000033 |
+| 160 | 0.155 | 0.0000129 | 0.000000 | 0.000000 |
+
+Meanwhile, holding a note with ASPECT pinned to each voice: all FILAMENT gives
+a sustain of **0.000079** rms, all STAR **0.0957**. Three orders of magnitude.
+The voice that drives the picture is silent through the whole sustain, and the
+voice you hear has no visual representation at all.
+
+**Why every specimen's chord is a cousin of every other.** The star's ratios
+are the reciprocal module of the lattice — a property of Z^4 and the cut, not
+of the specimen. Across the catalogue, lambda = 1 is among the loudest eight
+partials of **151 of 168** specimens and carries **25.2 %** of all sustained
+energy; sixteen ratios carry **61.7 %** of it; only ~294 distinct pitches (to
+the cent) occur anywhere in 4032 partial slots. Only the loudnesses differ per
+specimen. Measured against a control: median pairwise chord distance **0.693**,
+against **1.420** for the same loudnesses on randomly scattered ratios. One
+chord, re-voiced.
+
+Held untouched, the chord moves **0.07–0.24** over three seconds, against
+**0.81** for a whole change of specimen.
+
+**THE SELF-CHECK.** Every parameter moved from its default *while a note is
+held*, the change compared against what the untouched note did anyway. **28 of
+41 controls were deaf.** The largest single cause was the star's staleness
+test: a list of seven remembered parameters that never mentioned CUT BEARING,
+CUT OFFSET, APERTURE, RIM, CONTRAST or the arrests — every one of them a thing
+the player does to the body on screen. The chain was rebuilt every tick and
+the star went on being the diffraction of a filament that no longer existed.
+
+The fix is not a longer list, because a longer list is the same bug waiting.
+The star is the chain's diffraction, so it is stale when the chain it was made
+from is not the chain that is sounding — it asks the chain, which covers the
+arrests and covers anything added later by construction. Result:
+
+    CUT BEARING   0.0000 -> 1.5057        APERTURE   0.0000 -> 0.9896
+    CUT OFFSET    0.0000 -> 1.3719        RIM        0.0000 -> 0.3623
+    CONTRAST      0.0000 -> 1.3759
+
+59 checks ALL CLEAR; 14.0 % of one core, from 13.3 %.
+
+**What is still deaf, and which of it is honest.** ONSET, QUENCH, GLIDE, BEND
+RANGE, INCIDENCE and STATION are per-note-event and correctly do nothing to a
+note already sounding. The rest are not honest, and they share the root cause
+above: LOSS, BOND LAW, LOSS TILT, STRAIN, WALK, SEPARATION, CAVITY, CAVITY
+COLOUR are the filament's own physics, and the filament has died by the time
+you reach for them.
+
+**The lever that already exists.** SUSTAINED FORCE re-excites the filament —
+the voice the panel draws. Measured: sustain rms **0.0094 -> 0.243** (26x),
+chord distance from drive-zero **1.12**, which is larger than changing specimen
+entirely (0.81), and it holds |siteE| at ~1.0 instead of 0.00003. The generator
+sets it to zero for about 60 % of the catalogue (`r.uni() < 0.4`), which is
+exactly why most specimens show this and a few do not.
+
+**Not built, awaiting Peter's go** (his standing rule): raise SUSTAINED FORCE
+across the catalogue so the visible voice is present in the sustain, which
+would bring the filament's whole physics — envelope, damping, nonlinearity,
+cavity — back under the hand while a note is held.
