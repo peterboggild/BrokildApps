@@ -286,3 +286,44 @@ makes a picture read as an object is illumination and colour varying on the
 scale of the OBJECT. Also: build normals analytically. Screen-space derivatives
 of a height field with fine detail alias, and a sharp specular on top of that
 turns the chamfers into white confetti that looks like broken hardware.
+
+### 2026-08-30 later · the delivered graphics, and the provenance card
+
+**Eight decals arrived and all eight are in use.** The artefact's own geometry
+stays computed, as it must — it is a live cut through a four-dimensional
+lattice and no bitmap could keep being correct as the player travels. What the
+images supply is what the facets REFLECT, which until now was nothing.
+
+- DARK MINERAL carries most of the body; ANODISED SPECTRUM is multiplied by the
+  thin film (a film modulates the reflectance of whatever comes off the
+  surface, so it belongs inside the reflection and not beside it); WET GLASS
+  does the rim; COLD FIRE is an accent scaled by each habit's glint.
+- The striations tile replaced the procedural sine — sampled rather than
+  computed, so there is nothing left to alias.
+- The crate wears the brushed aluminium, the wear mask over it, and the corner
+  fittings. The crate is the one part that should look photographed: it is ours.
+
+**The bug worth keeping:** a matcap is indexed by the normal in view space, and
+this artefact is a nearly flat slab, so every facet pointed at the camera and
+every tile sampled the same spot — the dead centre of the sphere, which on the
+dark maps is almost black. The maps loaded correctly and contributed nothing.
+A slab this wide is not seen down a single axis: the direction from the eye to
+a point on it swings as you look across, and that is what sweeps a reflection
+over a polished surface. Putting the eye at a finite height above the centre
+and computing the view per point fixed it; the facet normal then supplies the
+local break-up on top of the sweep, which is how a cut stone divides the work.
+
+**PROVENANCE.** Both artefacts now carry a card: the globe, a pin at the find
+site, a fainter mark at the sister specimen's site, and the field record.
+
+B2311.22 was lifted from a dry cistern at Kell Rille on day 81 — a matched
+PAIR, four metres apart, held at that separation by nothing anyone could see;
+on lifting the first, the second changed pitch. That is the Interlocutor's own
+physics told as a find. B2311.67 came 123 days later from a collapsed
+evaporite vault at the Sabik Terminator, one of sixty-seven laid out on an
+eightfold plan, each at the centre of its own void, none touching — and it was
+logged as mineral until the survey's seismometers, left running beside the
+crate, returned a spectrum with gaps at every scale.
+
+The two cards cross-reference each other and share one globe, so the pair reads
+as one collection. Nobody on the survey was an archaeologist.
