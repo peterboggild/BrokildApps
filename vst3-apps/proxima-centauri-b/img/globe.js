@@ -34,9 +34,9 @@
   /*  Latitude/longitude in the planet's own frame. Longitude 0 is the
       substellar point — the place the star is always overhead. */
   var SITES = [
-    { lon: -34, lat:  18, id: "B2311.22", name: "KELL RILLE",
+    { lon: -34.7417, lat: 41.1311, id: "B2311.22", name: "KELL RILLE",
       note: "day 81 · dry cistern" },
-    { lon:  88, lat: -14, id: "B2311.67", name: "SABIK TERMINATOR",
+    { lon: 89.3183, lat: -17.7031, id: "B2311.67", name: "SABIK TERMINATOR",
       note: "day 204 · vault field" }
   ];
 
