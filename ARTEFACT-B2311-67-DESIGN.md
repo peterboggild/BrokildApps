@@ -327,3 +327,189 @@ crate, returned a spectrum with gaps at every scale.
 
 The two cards cross-reference each other and share one globe, so the pair reads
 as one collection. Nobody on the survey was an archaeologist.
+
+### 2026-08-30 · the output stage, and why the sustain was so static
+
+**Peter's two reports, both correct, both measured.**
+
+*"The tone that remains while a key is held lives a quieter life."* Measured:
+the filament keeps **0.00 %** of its own transient into the sustain — not less,
+none. Everything visible on screen is the FILAMENT, and the filament is a
+percussive voice: struck, rings, dies, and nothing re-excites it while a key is
+held. The sustained tone is carried entirely by the STAR.
+
+*"Even transiting through dimensional cross-sections leaves this background
+dissonant chord almost unchanged."* Also correct, and mostly for a right
+reason: the star's peaks sit at f0*(p + q*sqrt2), the reciprocal module of the
+lattice. Travelling slides the WINDOW through w; it does not rotate the
+lattice, so the module is untouched. Travel changes the structure factor —
+the amplitudes — and that does move (3.35 at tau 3.8, 4.87 at tau 8.4 on a
+20-band log metric, against 8.44 for the transient). Same chord, re-weighted.
+
+The wrong reason is mine: **OBLIQUITY is a dead control.** It is in the
+parameter table, is exposed to the host, and sits on rosette 4 ring 4 — and
+grep finds it in exactly two places, the SPECS table and the Params struct.
+Nothing consumes it. It is precisely the control this document promised in §1
+("turn the cut plane and you pass through a devil's staircase between crystal
+and quasicrystal"), and the slope of the cut is what sets the module. It is
+therefore the one knob that would make the background chord move, and it was
+never wired. Listed on the buglist, not built.
+
+**THE OUTPUT STAGE.** What was here was a tanh waveshaper, and the giveaway
+was in this bench all along: all 256 habits peaked at 0.9349, which is that
+waveshaper's own asymptote. The output was not occasionally clipping, it was
+sitting IN the clipper almost permanently. Peter's call — "a musical
+compressor with a brickwall at the end" — is the right architecture, and it is
+what is there now:
+
+* **compressor**, soft knee, 3:1, threshold at 0.55 of the ceiling, with a
+  fast and a slow release running together and the LOWER gain winning. That
+  last part is what makes a compressor programme-dependent rather than merely
+  quieter: one release either chatters on transients or drags through a
+  phrase; two, taken as a minimum, do neither.
+* **brickwall**, 4 ms look-ahead, gain reduction only, declared to the host as
+  latency so it is compensated.
+
+Two bugs on the way, both in the brickwall and both classics:
+
+1. **The detector released during the look-ahead.** At a 40 ms release the
+   envelope falls by exp(-192/1920) = 0.905 before the peak it saw actually
+   emerges, so the gain is ten per cent too high exactly when it matters. It
+   must HOLD across the window.
+2. **Two cascaded smoothing poles chasing a moving target lag it.** At
+   tau = la/5 a pair reaches only 96 % within the look-ahead where a single
+   pole reaches 99.3 %, and the missing percent is overshoot. Track the target
+   exactly, smooth once.
+
+Measured after: driven flat out with three notes at full level the worst peak
+is **0.9328 against a ceiling of 0.935** — under it. Played quietly the gain
+reduction is **exactly 1.000000**, so below threshold the stage does nothing at
+all. A held chord moves **1.66 dB**, so it does not pump. 52 checks all clear,
+and the CPU went down, not up: 15.7 % of a core to 12.9 %.
+
+### 2026-08-30 · OBLIQUITY: two wirings measured and thrown away
+
+The dead control was wired two different ways and both were measured. Neither
+is shipped, and the reason is worth keeping, because it says what the control
+actually costs.
+
+**First attempt — tilt the CHAIN.** A site's position along the cut becomes
+`s = x_par + t*x_perp`, which for an axis cut is `(1+t)A + (1-t)B/sqrt2`: the
+ratio of those coefficients is the slope, and it sweeps continuously. Measured
+across four habits and sixteen tilts:
+
+* one habit (37, bearing index 6) did not move **at all** — the conjugate term
+  is constant along that bearing, so the knob was dead exactly where the
+  instrument is most nearly periodic;
+* the mean spacing jumped from 0.8975 to 0.6305 at the FIRST step and then sat
+  flat — a discontinuity, not a sweep;
+* the minimum gap fell to **0.0186**, and stiffness goes as `length^-bondExp`
+  with bondExp 1.6, so that bond is some eight hundred times stiffer than its
+  neighbours;
+* cents-from-harmonic moved 8.0 to 8.5 across the whole range. **No crystal, no
+  staircase.**
+
+Adding a bounded oscillating term to the positions and re-sorting does not
+change the slope, it scrambles the order.
+
+**Second attempt — tilt the MODULE.** `lam = p + q*tau` with tau sweeping from
+sqrt2 to 1, coincidences merged (at tau = 1 every one of the 1485 pairs lands
+on an integer). This is arithmetically exactly right, and the endpoint proves
+it: at tilt 1.000 the chord is **0.0 cents from a harmonic series** and the
+lowest partial is exactly 1.0 — a crystal, an ordinary bell.
+
+Everywhere else it is wrong, and the bench said so in one line: the chord moves
+**62 units in the first 2.5 % of travel** and then merely wanders between 54
+and 82 for the remaining 97.5 %.
+
+That is not a staircase, it is a collapse, and the cause is structural. The
+intensities are the structure factor of the chain, and at tau = sqrt2 the
+module coincides with the chain's own module, so every partial sits exactly on
+a Bragg peak. Move tau by anything at all and every partial falls off its Bragg
+condition together, into the diffuse background. **The star stops being the
+diffraction of the filament the moment the knob leaves zero** — which is the
+one thing this instrument may not do, since "conjugate readings of the same
+integers" is the whole design.
+
+**What wiring it properly costs.** The two readings have to move together, and
+the only way that is true for an arbitrary tilt is to stop enumerating the
+module and instead FIND the peaks in the chain's own structure factor — scan k
+across the audible range and take the local maxima. `amplitudeAt()` already
+exists and the scan is about a millisecond, so the cost is not CPU. The cost is
+that peak SELECTION changes for every specimen at tilt zero too, so all 256
+shipped chords move, and the catalogue's alienness floor would have to be
+re-measured and possibly re-seeded.
+
+That is a decision about the instrument's own sound, so it is Peter's, not
+mine. Until he takes it, OBLIQUITY stays on the buglist and stays dead — and a
+dead control is at least honest, where a knob whose first two per cent does all
+its work while claiming to be a devil's staircase is not.
+
+### 2026-08-30 · OBLIQUITY: the third wiring, which is the one that works (build 260830.2)
+
+Peter's call, given the cost: *wire it properly, accept the reseed.* Two
+changes, and they only work together.
+
+**The star now FINDS its partials instead of assuming them.** What was there
+evaluated the chain's structure factor at ratios taken from the module
+`Z + Z*sqrt2` — the module of the *unstrained* lattice. That is exactly right
+while the cut lies flat, and wrong the instant it does not, which is why both
+earlier attempts failed. So the scan runs across the structure factor, takes
+its local maxima and refines each one: the answer is the true diffraction of
+whatever chain is actually sounding. A phase recurrence, re-seeded from the
+trigonometry every 256 steps, keeps 42 000 scan points × 170 sites down from
+eight million sines to about 20 ms.
+
+Two things had to be put back, and both were found by measuring rather than
+reading:
+
+* **the shadow rule.** Selecting on loudness alone filled the star with
+  sub-audible rumble — 44 % of all partials fell below the fundamental, and
+  habit 16's second, third and fourth loudest sat at lambda 0.082, 0.163 and
+  0.120 with shadows of fourteen and twenty. A structure factor tends to unity
+  as k tends to zero and the radiation rolloff then *multiplies* that forward
+  beam by two and a half. The old code never showed this because its candidates
+  were screened by the window's transform before the structure factor was
+  consulted. Restored as the selection prior: **44.2 % → 1.9 %**, lowest ratio
+  now 0.1716, which is 3 − 2·sqrt2 and a real module point.
+* **the resolution limit.** Habit 8 reported partials at 0.99156 and 1.00848
+  flanking its fundamental — 13.0 dB down at 1.42/169, which is the textbook
+  first sidelobe of a rectangular window to three digits. Nothing closer than
+  1.8/n is a second partial; it is the same peak seen again.
+
+Sanity, measured against a control rather than asserted: in the range where the
+module is densely covered, partials sit **0.0019** from it against **0.0085**
+for random ratios — module-associated by four and a half times, while carrying
+each specimen's own decoration.
+
+**OBLIQUITY is a LINEAR PHASON STRAIN.** The acceptance window slides through
+the unseen plane as you travel along the cut, so the far end of the filament is
+judged by a different window from the near end. This is the classical route
+from quasicrystal to rational approximant, and — the point — it moves *which
+sites are there*, never *where they are*, so it has none of the pathologies the
+first attempt had.
+
+| | strain 0 → 0.06 |
+|---|---|
+| site count | constant — the filament never loses a site |
+| smallest gap anywhere | 0.2929 (the first attempt reached 0.0186) |
+| chord movement, worst habit | **87.3**, against 3–5 for travel |
+| habits passing nearer harmonic | 20 of 24 |
+| closest approach to harmonic | **0.2 cents** (worst at rest 15.5) |
+| rebuild cost | 20 ms at rest, 27 ms at full, on the service thread |
+
+**The assertion that failed, and was wrong.** The bench first demanded that the
+fundamental always remain the loudest partial. It does not — and measuring the
+*old* code settled who was at fault: on the enumerated star this replaced, the
+loudest partial was something other than the fundamental for **8.3 %** of the
+catalogue at rest (worst 3052 cents); on the new one it is 13.7 % (worst 2727).
+This is how the artefact has always been, and the note itself cannot move in
+any case, since every ratio is relative to the key that was struck. What the
+bench holds instead is that leaning the cut does not make the exception the
+rule: median excursion **0 cents**, 90th percentile 1526, beyond two octaves
+**4.9 %**.
+
+Also held: a strain of zero is the chain that was there before, to the last bit.
+
+59 checks, ALL CLEAR. Installed at 260830.2; every bundle loads past Smart App
+Control at both locations.
