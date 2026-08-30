@@ -586,3 +586,51 @@ exactly why most specimens show this and a few do not.
 across the catalogue so the visible voice is present in the sustain, which
 would bring the filament's whole physics — envelope, damping, nonlinearity,
 cavity — back under the hand while a note is held.
+
+### 2026-08-30 · the DIFFRACTION plate is not a picture of the sound
+
+Peter: *"does the diffraction pattern ever change, or is it static?"* Measured
+live through the panel's own `setParam`, so the dirty flags really ran:
+
+| control moved | plate signature |
+|---|---|
+| at rest | `110:13789425.0452` |
+| TRAVERSE | unchanged |
+| CUT BEARING + CUT OFFSET | unchanged |
+| APERTURE, RIM, CONTRAST | unchanged |
+| OBLIQUITY | unchanged |
+| HABIT | unchanged |
+| **WINDOW** | 12301213 — changes |
+| **EXTINCTION** | 10969447 — changes |
+| **ORDERS** | changes |
+
+The source agrees exactly: `onParamChanged` raises `starDirty` for
+`["starwid","startilt","peaks"]` and nothing else.
+
+The cause is that the panel computes its own star in JavaScript —
+`buildStar(wid, tilt, want)` enumerating `lam = p + q*sqrt2` with intensity
+`|sinc(wid*cj)| * exp(-tilt*|cj|) / (0.35 + lam^1.15)`. That is the OLD,
+idealised star: the module's envelope. It has no knowledge of the chain, of
+the specimen, of travel, or of the strain — `dependsOnChain: false`,
+`dependsOnHabit: false`.
+
+Meanwhile the star you HEAR is now built in C++ from the structure factor of
+the actual sounding chain. **So the plate labelled DIFFRACTION is not a
+picture of what the instrument is playing**, and cannot become one while it is
+computed from three parameters on the page. It is the same family of fault as
+everything else found today: the display and the sound run on separate
+descriptions of the body.
+
+The honest fix is for the engine to publish its own star — it already has the
+peaks, and `visualState()` is the precedent for streaming a body-derived array
+to the panel — and for the plate to draw what was published. Specced, not
+built; Peter's standing rule.
+
+**Also confirmed, because it looked alarming and was not:** the rosettes slide
+as the body moves, and moving them looks like the controls have been shuffled.
+They have not. Across 25 travel positions spanning the full range, the angular
+order of the eight rosettes was `6,7,8,1,2,3,4,5` every single time, never once
+re-ordering; all eight translate together (measured 56 px, same direction); and
+each rosette's five parameters are a fixed `const` table that nothing writes to.
+A control map is therefore safe to draw by compass position —
+`docs/control-map.png`.
