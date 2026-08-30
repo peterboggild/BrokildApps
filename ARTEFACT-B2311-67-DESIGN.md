@@ -712,3 +712,54 @@ aperture 92 % → 0.349 → a full eightfold star** (`shots/plate-cubic.png`,
 `shots/plate-octagonal.png`).
 
 59 checks ALL CLEAR.
+
+### 2026-08-30 · the clicks on habit 240, and the gain structure (260830.5)
+
+Peter: *"it sounds like the sound engine clips or glitches on some patches...
+the lower left one in the catalogue has some fast clicks. Is that intentional
+or some problem with the gain structure?"*
+
+**Which patch.** The catalogue grid is `repeat(16, ...)`, 256 swatches, so the
+lower-left swatch is **habit 240** — and it is the loudest patch in the
+catalogue.
+
+**What it is not.** Four suspects, each with a decisive test:
+
+* *not the star rebuilding.* Today's staleness change makes the star rebuild
+  whenever the chain changes, and the obvious worry was that a rebuild swaps
+  every partial at once mid-note. Measured: **zero rebuilds during a held
+  note**, on every habit sampled. The hypothesis was mine and it was wrong.
+* *not a discontinuity.* Across all 256 habits, **0** have a sample step above
+  eight times their own 99.9th percentile. The worst step ratio in the
+  catalogue is 5.5 (habit 230).
+* *not a per-block splice.* Of the 200 largest steps, **0** sit on a block
+  boundary.
+* *not limiter splatter.* Habit 240 at its own ceiling versus wide open gives
+  high-frequency shares of **0.01692 and 0.01693** — identical. The limiter is
+  not generating the distortion.
+
+**What it is: the patch lives inside the limiter.**
+
+| habit | blocks with gain reduction (of 300) | mean gr | min gr |
+|---|---|---|---|
+| **240** | **300** | 0.7466 (−2.5 dB) | 0.4312 (**−7.3 dB**) |
+| 8 | 10 | 0.9954 | 0.8998 |
+| 96 | **0** | 1.0000 | 1.0000 |
+
+Habit 240 is under gain reduction in every single block of a three-second note,
+averaging two and a half decibels and reaching seven. Habit 96 never touches the
+limiter at all. That is a **twenty-decibel spread of loudness across the
+catalogue**, and the limiter riding hard and fast on a dense inharmonic signal
+is what is being heard as fast clicks.
+
+It is worse on some notes than others — habit 240's minimum gain reduction runs
+from 0.5566 at note 46 to **0.1255 (−18 dB) at note 58**, and its
+high-frequency share rises six-fold across the keyboard (0.0083 to 0.0504).
+
+So: not intentional, and not clipping. A gain-structure problem, exactly as
+Peter guessed.
+
+**Not built, awaiting his go:** give each habit a level trim so no patch sits
+permanently in the limiter — measured per habit at generation, the way Mars
+Wars measures its auto-gain rather than modelling it. It changes the balance of
+the whole catalogue, so it is his call.
