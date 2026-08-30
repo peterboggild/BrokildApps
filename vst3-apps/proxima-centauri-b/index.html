@@ -36,6 +36,26 @@
        color:var(--dim);margin:0;max-width:38rem}
   .plate{margin:2.6rem 0 0}
   .plate img{width:100%;display:block;border:1px solid var(--rule)}
+  .globe{position:relative;border:1px solid var(--rule);background:#06070a;
+         aspect-ratio:16/9;overflow:visible}
+  .globe img{border:0;position:absolute;inset:0;height:100%;object-fit:cover}
+  .globe.live img{display:none}
+  .globe.live{cursor:grab;touch-action:none}
+  .globe.live.turning{cursor:grabbing}
+  .globe-cv{position:absolute;inset:0;display:block}
+  .globe-marks{position:absolute;inset:0;pointer-events:none}
+  .gm{position:absolute;transform:translate(-50%,-50%);will-change:left,top}
+  .gm .ret{display:block;width:26px;height:26px;margin:-13px 0 0 -13px;
+           border:1.5px solid var(--acc);border-radius:50%;position:absolute;left:0;top:0}
+  .gm .ret::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;
+                  margin:-2px 0 0 -2px;border-radius:50%;background:var(--acc)}
+  .gm b{position:absolute;left:22px;top:-19px;white-space:nowrap;
+        font:500 12px/1 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.13em;
+        color:var(--acc);text-shadow:0 1px 6px #000}
+  .gm i{position:absolute;left:22px;top:-2px;white-space:nowrap;font-style:normal;
+        font:400 11px/1 "IBM Plex Mono",ui-monospace,monospace;
+        color:var(--dim);text-shadow:0 1px 6px #000}
+  @media (max-width:34rem){ .gm b,.gm i{display:none} }
   .plate figcaption{font:400 12px/1.6 "IBM Plex Mono",ui-monospace,monospace;
                     color:var(--faint);margin-top:.7rem}
   .lede{font-size:1.14rem;color:#d6e0e2;max-width:40rem}
@@ -84,10 +104,14 @@
      stop.</p>
 
   <figure class="plate">
-    <img src="img/survey-plate.jpg" alt="Survey plate of Proxima Centauri b with the two recovery sites marked">
-    <figcaption>Survey plate. The world is tidally locked — the substellar point never moves,
-      and the terminator is a permanent ring rather than a passing hour. Kell Rille lies
-      inside the lit hemisphere; the Sabik vault field lies on the boundary itself.</figcaption>
+    <div id="globe" class="globe">
+      <img src="img/survey-plate.jpg" alt="Survey plate of Proxima Centauri b with the two recovery sites marked">
+    </div>
+    <figcaption><b>Drag to turn the world.</b> It is tidally locked: the star stands over one
+      fixed place on the ground and never moves, so the lit face is a region of the planet
+      rather than a trick of the view. Turn it and the day side travels with the terrain —
+      the far side is genuinely dark. Kell Rille lies inside the lit hemisphere; the Sabik
+      vault field sits on the boundary itself, and passes into night as you go round.</figcaption>
   </figure>
 </header>
 
@@ -160,6 +184,7 @@ intent.</p>
 
 </div>
 
+<script src="img/globe.js" defer></script>
 
 </body>
 </html>
