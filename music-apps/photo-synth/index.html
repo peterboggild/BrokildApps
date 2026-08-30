@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="Photo Synth 2">
-<title>Photo Synth 2 — play the colours of four photos</title>
+<meta name="apple-mobile-web-app-title" content="Photo Synth">
+<title>Photo Synth — play the colours of four photos</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -852,7 +852,7 @@
 
 <div id="deck">
 <header>
-  <h1>Photo Synth 2</h1>
+  <h1>Photo Synth</h1>
   <div class="topctl">
     <div class="modeseg" role="group" aria-label="Mode">
       <button class="btn" type="button" data-mode-btn="play" aria-pressed="true">Play</button>
@@ -862,7 +862,7 @@
     <button id="keysBtn" class="btn" type="button" aria-pressed="false">Keys</button>
     <button id="freezeBtn" class="btn" type="button" aria-pressed="false" title="Hold the delay tail forever">Freeze</button>
     <button id="stopBtn" class="btn" type="button" aria-pressed="false" title="Tape stop — pitch spins down; press again to spin back up">Halt</button>
-    <button id="aboutBtn" class="btn" type="button" title="About Photo Synth 2">About</button>
+    <button id="aboutBtn" class="btn" type="button" title="About Photo Synth">About</button>
       <div class="vol deskonly" style="flex:0 1 118px">
       <label for="uiLift">Light</label>
       <input id="uiLift" type="range" min="0" max="100" value="0" aria-label="Console brightness">
@@ -1754,14 +1754,14 @@
 </details>
 
 
-<footer>Photo Synth 2 — everything runs in the browser; no photo or sound leaves the device.</footer>
+<footer>Photo Synth — everything runs in the browser; no photo or sound leaves the device.</footer>
 </div>
 </div>
 
 <div id="aboutBox" hidden
      style="position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.68);display:flex;align-items:center;justify-content:center;padding:20px">
   <div style="max-width:460px;background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:24px 28px;box-shadow:0 20px 60px rgba(0,0,0,.75);text-align:center">
-    <h2 style="margin:0 0 4px;font-size:20px;letter-spacing:.04em;color:var(--accent)">Photo Synth 2</h2>
+    <h2 style="margin:0 0 4px;font-size:20px;letter-spacing:.04em;color:var(--accent)">Photo Synth</h2>
     <p style="font-size:13.5px;line-height:1.6;color:var(--muted);margin:.6em 0">This instrument comes from the curved mind of
       <b style="color:var(--text)">Professor Brokild</b>, and was programmed with VScode, ChatGPT and Claude.
       Use of this is on your own peril. It may generate unique, beautiful, scary or useless sounds for you.
@@ -7168,7 +7168,7 @@
     var c = $("aboutBuild");
     if (c) c.textContent = "BUILD " + BUILD_ID;
     var h = document.querySelector("h1");
-    if (h) h.title = "Photo Synth 2 · build " + BUILD_ID;
+    if (h) h.title = "Photo Synth · build " + BUILD_ID;
   })();
 
   initFXModules();
