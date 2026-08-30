@@ -9,7 +9,7 @@
   :root{
     --ink:#0a0c0f; --paper:#0d1013; --rule:#1e262b;
     --text:#c9d3d6; --dim:#8ba0a4; --faint:#5d7176;
-    --acc:#7ee2d0; --warm:#e8a175;
+    --acc:#7ee2d0; --warm:#e8a175; --open:#a99ad6;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--ink);color:var(--text);
@@ -37,13 +37,43 @@
   figure img{width:100%;display:block;border:1px solid var(--rule)}
   figcaption{font:400 12px/1.6 "IBM Plex Mono",ui-monospace,monospace;
              color:var(--faint);margin-top:.7rem}
-  .obs{border-left:2px solid var(--acc);padding:.15rem 0 .15rem 1.15rem;margin:1.6rem 0;
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+  @media (max-width:34rem){ .pair{grid-template-columns:1fr} }
+
+  /* the three registers this report is written in */
+  .est,.sus,.opn{padding:.15rem 0 .15rem 1.15rem;margin:1.6rem 0;
        font:400 13.5px/1.62 "IBM Plex Mono",ui-monospace,monospace;color:var(--dim)}
-  .obs b{color:var(--acc);font-weight:500}
-  .q{margin:1.5rem 0 1.5rem 0;padding-left:1.5rem;border-left:1px solid var(--rule)}
+  .est{border-left:2px solid var(--acc)}
+  .sus{border-left:2px dashed var(--warm)}
+  .opn{border-left:2px dotted var(--open)}
+  .est b{color:var(--acc);font-weight:500}
+  .sus b{color:var(--warm);font-weight:500}
+  .opn b{color:var(--open);font-weight:500}
+
+  .key{margin:2.4rem 0 0;display:grid;gap:1rem;
+       font:400 13px/1.6 "IBM Plex Mono",ui-monospace,monospace;color:var(--faint)}
+  .key div{padding-left:1.15rem}
+  .key .k1{border-left:2px solid var(--acc)}
+  .key .k2{border-left:2px dashed var(--warm)}
+  .key .k3{border-left:2px dotted var(--open)}
+  .key b{display:block;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+         font-size:11px;margin-bottom:.25rem}
+  .key .k1 b{color:var(--acc)} .key .k2 b{color:var(--warm)} .key .k3 b{color:var(--open)}
+
+  table{width:100%;border-collapse:collapse;margin:1.8rem 0;
+        font:400 13px/1.5 "IBM Plex Mono",ui-monospace,monospace;
+        font-variant-numeric:tabular-nums}
+  th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--rule);
+        vertical-align:top}
+  th{color:var(--dim);font-weight:500;font-size:11px;letter-spacing:.13em;
+     text-transform:uppercase;border-bottom-color:#2c383e}
+  td:first-child{color:var(--acc);white-space:nowrap}
+  td.none{color:var(--faint)}
+
+  .q{margin:1.5rem 0;padding-left:1.5rem;border-left:1px dotted var(--open)}
   .q p{margin:.55rem 0}
   .q .qn{font:500 11px/1 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.2em;
-         color:var(--warm);display:block;margin-bottom:.35rem}
+         color:var(--open);display:block;margin-bottom:.35rem}
   hr{border:0;border-top:1px solid var(--rule);margin:3.4rem 0}
   .foot{margin-top:4rem;padding-top:1.6rem;border-top:1px solid var(--rule);
         font:400 12px/1.7 "IBM Plex Mono",ui-monospace,monospace;color:var(--faint)}
@@ -52,10 +82,17 @@
     body{background:#fff;color:#14181a;font-size:10.5pt}
     .sheet{max-width:none;padding:0}
     h2,h3{color:#000} .lede,em{color:#14181a}
-    .obs{border-left-color:#4a8f84;color:#333} .obs b{color:#1d6f63}
-    .q .qn{color:#8a4f24} .rec{color:#1d6f63}
+    .est,.sus,.opn{color:#333}
+    .est{border-left-color:#4a8f84} .est b{color:#1d6f63}
+    .sus{border-left-color:#b3703f} .sus b{color:#8a4f24}
+    .opn{border-left-color:#7b6aa8} .opn b{color:#4e3f7a}
+    .q{border-left-color:#7b6aa8} .q .qn{color:#4e3f7a}
+    .rec{color:#1d6f63}
+    .key{color:#444} .key .k1 b{color:#1d6f63} .key .k2 b{color:#8a4f24} .key .k3 b{color:#4e3f7a}
+    th{color:#444;border-bottom-color:#999} td{border-bottom-color:#ddd}
+    td:first-child{color:#1d6f63} td.none{color:#777}
     figure img{border-color:#ccc}
-    h2{page-break-after:avoid} figure{page-break-inside:avoid}
+    h2{page-break-after:avoid} figure{page-break-inside:avoid} table{page-break-inside:avoid}
   }
 </style>
 </head>
@@ -65,13 +102,23 @@
 <header>
   <div class="rec">Field record B2311 · survey of Proxima Centauri b</div>
   <h1>Two objects, and what they were found to do</h1>
-  <p class="sub">Findings on the sound produced by the recovered artefacts B2311.22 and B2311.67,
-     with the questions the survey was unable to close.</p>
+  <p class="sub">Findings on the sound produced by the recovered artefacts B2311.22 and B2311.67:
+     what has been established, what is suspected, and what remains entirely unclear.</p>
   <div class="meta">
     <div><b>Primary</b>M5.5Ve · 0.0485 AU</div>
     <div><b>Recovered</b>2 of 2 catalogued</div>
     <div><b>Sites</b>Kell Rille · Sabik Terminator</div>
     <div><b>Status</b>Both objects active</div>
+  </div>
+
+  <div class="key">
+    <div class="k1"><b>Established</b>Measured, repeated, and quotable. Every figure marked this
+      way came off an instrument, and the measurement has been made again.</div>
+    <div class="k2"><b>Suspected</b>Consistent with everything measured and not demonstrated.
+      Marked as such wherever it appears, including where it is the most interesting thing on
+      the page.</div>
+    <div class="k3"><b>Unresolved</b>The survey could not close it. Some of these we know how
+      to ask; at least one we do not.</div>
   </div>
 </header>
 
@@ -122,7 +169,7 @@ a bell or blown like a pipe; it is a network, and what is heard is that network 
 according to how its parts are joined. Change which point is disturbed and the sound
 changes, because a different part of the structure is being asked to move.</p>
 
-<div class="obs">
+<div class="est">
   <b>Established.</b> Disturbing the object at its most connected point, versus its most
   remote, produces spectra differing by 0.51 in relative terms — the same object, two
   different voices, depending only on where it is touched.
@@ -135,6 +182,15 @@ without exception: <em>no specimen sits within twenty cents of any harmonic seri
 The closest approach found anywhere in the collection lands exactly on that floor, and no
 nearer.</p>
 
+<figure>
+  <img src="img/organism.jpg" alt="B2311.22, specimen 037, present in the slab">
+  <figcaption>B2311.22, specimen 037. Bright tissue is inside the section and sounding; the two
+  dim forms at centre are structure approaching the boundary but not yet present, and they will
+  brighten without anything having been done to the object. The brightness of a region is that
+  region's share of the energy — so this plate is, in part, a picture of what is being heard.
+  Only in part: see section seven.</figcaption>
+</figure>
+
 <h3>Energy does not stay where it is put</h3>
 
 <p>The behaviour that most clearly distinguishes this object from anything of ours is
@@ -143,7 +199,7 @@ and falls silent. B2311.22 does not lose the energy. It <em>moves</em> it, along
 structure, from one mode of vibration into its neighbours, so that a sustained note is not
 a note being held but the object exploring itself.</p>
 
-<div class="obs">
+<div class="est">
   <b>Established.</b> Over a single sustained disturbance the centre of the sound's energy
   travels from 645 Hz to 582 Hz without any further input. The object is not decaying. It
   is redistributing.
@@ -169,7 +225,7 @@ related bodies converse fluently; two unrelated ones are very nearly deaf to eac
 When it answers, it answers <em>in its own frequencies</em> — the shape of what it heard,
 re-spoken through a different anatomy. The same statement, in another body's voice.</p>
 
-<div class="obs">
+<div class="est">
   <b>Established.</b> Ladder overlap between an object and itself measures 1.000; between
   the least related pair in the catalogue, 0.180. Closely related bodies answer 2.2 times
   more strongly than unrelated ones — but no pair is ever mute. A darker utterance draws a
@@ -187,7 +243,7 @@ accounts for roughly a sixth of what is heard during an exchange.</p>
 a sustained exchange the responding body's own frequencies have moved, and they do not
 move back. The change accumulates in the direction of what it heard.</p>
 
-<div class="obs">
+<div class="est">
   <b>Established.</b> Thirty seconds of exchange displaced a responding body's own
   frequencies by 53.9 cents, in nineteen discrete steps, each applied while the object was
   at rest. The displacement is permanent. An object that has been in a vessel with another
@@ -216,7 +272,7 @@ width at all: a dust with self-similar gaps at every scale.</p>
 
 <p class="lede">No material we have ever made produces it. This object does.</p>
 
-<div class="obs">
+<div class="est">
   <b>Established.</b> Energy injected at one point of the lattice spreads neither as heat
   spreads nor as a wave travels, but by a power law between the two. The sound arrives
   smeared in a manner that no room, no enclosure and no material in our possession
@@ -227,60 +283,287 @@ width at all: a dust with self-similar gaps at every scale.</p>
 the sequence 5, 12, 29, 70, 169, 408 — the ratios native to eightfold order, as inevitable
 to this object as the octave is absent from it.</p>
 
-<h3>What moving the section does here</h3>
+<h3>Two hundred and fifty-six specimens, and one body</h3>
 
-<p>In B2311.22 the section reveals and conceals parts of a body. In B2311.67 it does
-something else: the lattice <em>rearranges</em>. Moving the window causes local
-reorganisations that propagate outward through the structure, matter appearing and
-disappearing at the rim, the whole tiling settling into a new arrangement that is equally
-ordered and equally non-repeating. The object is not disturbed by this. It appears to be
-the normal condition of such a thing.</p>
+<p>The catalogue holds 256 specimens, and they sound so unlike one another that they were
+at first taken to be different structures. They are not. The survey measured the geometry
+of every one of them and found no variation whatever.</p>
 
-<p>The object may also be read in two aspects which appear entirely unrelated — one
-following the structure directly, one following the pattern its structure would cast — and
-these have been shown to be the same object described two ways.</p>
+<div class="est">
+  <b>Established.</b> The proportion of squares to rhombi is 0.438 in every specimen in the
+  catalogue — smallest, median and largest identical across all 256. What distinguishes one
+  specimen from another is never <em>which</em> structure exists, only how that structure is
+  weighted. Every specimen is the same body wearing different material.
+</div>
+
+<p>The figure the object casts changes with how much of the lattice is admitted, and this
+is the most legible thing on the frame: opened narrowly it throws a four-armed cross, opened
+wide, a full eightfold star. The temptation is to call this a change of symmetry, and the
+survey record must not, because the measurement says otherwise.</p>
+
+<figure>
+  <div class="pair">
+    <img src="img/plate-narrow.jpg" alt="B2311.67 with the acceptance window narrow: sparse tiling, four-armed figure">
+    <img src="img/plate-wide.jpg" alt="B2311.67 with the acceptance window wide: dense tiling, eightfold figure">
+  </div>
+  <figcaption>The same specimen at 12 per cent and 92 per cent of the acceptance window; the
+  figure it casts is the small form at the lower left of each plate. By bond angle the tiling is
+  exactly eightfold in both — measured at every depth, every window and every specimen without
+  exception. What actually changes is the mixture: almost entirely square-dominated when narrow,
+  roughly a third so when wide. The figure follows the mixture, not the symmetry, and this report
+  therefore does not describe it as a diffraction pattern.</figcaption>
+</figure>
+
+<h3>The strain that makes a crystal</h3>
+
+<p>One quantity on the frame does something none of the others do. Where travelling through
+the fourth dimension exchanges one arrangement for another equally aperiodic, this one
+<em>tilts the section against the lattice</em> — and a tilted cut through an ordered
+aperiodic body is the classical route by which such a body becomes an ordinary crystal.
+The object goes willingly.</p>
+
+<div class="est">
+  <b>Established.</b> Tilting the section moves the sustained sound roughly twenty times as
+  far as travelling through the fourth dimension does. Twenty of twenty-four specimens
+  examined pass measurably nearer a harmonic series on the way, and one arrives within
+  0.2 cents of one — an object that had no octave in it becoming, briefly, an ordinary
+  crystal with an ordinary voice.
+</div>
+
+<p>This deserves to be set beside the corresponding finding for the other object. B2311.22
+refuses the harmonic series absolutely: no specimen anywhere in its catalogue comes within
+twenty cents of one. B2311.67 will not produce a harmonic series either, until it is
+strained — and then it produces one to within a fifth of a cent.</p>
+
+<div class="sus">
+  <b>Suspected.</b> That the crystal is a destination rather than an accident. It lies at a
+  particular tilt, it is reached by a smooth path, and the object arrives at it in tune. A
+  structure that has one exact configuration in which it speaks our kind of interval, and no
+  other, is either a coincidence of geometry or a door. The survey cannot tell which.
+</div>
+
+<h3>What is seen is not what is heard</h3>
+
+<p>The visible structure of B2311.67 and its sustained sound are two different voices, and
+they belong to different parts of the object. What the eye is given is struck, rings and
+dies; what the ear is given persists. For as long as a sound is held, the observer is
+watching one thing and listening to another.</p>
+
+<div class="est">
+  <b>Established.</b> With the reading drawn entirely from the visible structure, a held
+  sound sustains at three orders of magnitude below the same sound drawn from the object's
+  standing figure, and the visible array falls by a factor of sixteen thousand within three
+  seconds. One quantity on the frame puts the visible body back into the held sound; for
+  roughly three specimens in five it sits at zero unless a hand moves it.
+</div>
 
 <hr>
 
-<h2><span class="n">Four · Open</span>What the survey could not close</h2>
+<h2><span class="n">Four · Temperature</span>The one condition that changes everything</h2>
+
+<p class="lede">Warming B2311.67 does not make it louder, brighter or faster. It makes the
+object's quantities begin to act on one another.</p>
+
+<p>Held cold, every quantity of the object is independent: set it, and it stays where it was
+set, and nothing else moves. Warm the body and this stops being true. Quantities begin to
+drive other quantities — some in depth, some in rate — along connections that are fixed,
+that differ from specimen to specimen, and that no amount of handling will rearrange.
+The survey has recorded this as cross-talk for want of a better word, and section six gives
+the reason that word is probably wrong.</p>
+
+<figure>
+  <img src="img/thermometer.jpg" alt="The temperature reading on the frame at 293 K">
+  <figcaption>The only reading on the frame that is not a ring. The range runs from liquid
+  nitrogen to a temperature at which no expedition material would survive; the object is
+  indifferent to both ends.</figcaption>
+</figure>
+
+<table>
+  <thead>
+    <tr><th>Temperature</th><th>Effect on the material</th><th>Effect on the frame of observation</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>77 K</td><td class="none">none whatever</td><td class="none">none</td></tr>
+    <tr><td>293 K</td><td>&plusmn;8.96 % of range</td><td class="none">none</td></tr>
+    <tr><td>500 K</td><td>&plusmn;19 %</td><td>begins</td></tr>
+    <tr><td>800 K</td><td>&plusmn;30 %</td><td>&plusmn;12 %</td></tr>
+  </tbody>
+</table>
+
+<div class="est">
+  <b>Established.</b> At 77 K the coupling is not merely small — it is absent, and the object
+  is indistinguishable from one in which no such mechanism exists. Between there and room
+  temperature the material stirs and nothing else does. Only above about 500 K do the
+  quantities that frame the observation itself — where the section is taken, how it is
+  angled, how much of the lattice is admitted — begin to drift on their own.
+</div>
+
+<div class="est">
+  <b>Established.</b> Every specimen carries its own arrangement: four of its quantities are
+  connected outward, each to two or three others. All 256 arrangements differ, and each is
+  fixed to its specimen. The motion is slow — between one cycle in fifty seconds and one in
+  two — a body settling rather than anything that could be mistaken for a tremor.
+</div>
+
+<div class="est">
+  <b>Established.</b> The coupling is strictly one-way. No connection has ever been observed
+  to read back what it wrote, and no closed loop has been found in any of the 256
+  arrangements. Whatever this mechanism is for, it is not for regulating itself.
+</div>
+
+<p>Two further observations are worth recording precisely because they are negative. First,
+some quantities are never driven at any temperature the frame can reach: the object's
+loudness, its reference pitch, the identity of the specimen itself, and the size of the body.
+The object has never been observed to reach for these. Second, the response to heat is not
+uniform across the catalogue — at the top of the range 141 of the 256 specimens stir the
+frame of observation and the remaining 115 hold it perfectly still. That division is fixed
+per specimen and the survey cannot predict it from anything else it can measure.</p>
+
+<hr>
+
+<h2><span class="n">Five · The frame</span>What our apparatus can do, briefly</h2>
+
+<p>What follows is the shortest possible account of the expedition apparatus. It is short on
+purpose: the frame is ours, it is not interesting, and the rest of this report is about what
+it has not been able to settle.</p>
+
+<p><strong>Both objects</strong> are moved through the fourth dimension by a single
+continuous control. Nothing is created or destroyed by this; a different part of the object
+is brought into the section, and structure enters and leaves at the boundary as it does so.</p>
+
+<p><strong>B2311.22</strong> answers the hand directly. Three kinds of contact have been
+distinguished and they produce different results: a circling motion, which accumulates and in
+which direction matters; a fast straight one, which disturbs and is then relaxed; and a still
+press held in one place, which deepens for as long as it is held and part of which remains
+after release. A separate control draws the section back towards where it was.</p>
+
+<p><strong>B2311.67</strong> presents forty rings, arranged as eight rosettes of five, with
+no numerals, no pointers and no marked position. A ring is wound by dragging across it —
+right or up to raise, left or down to lower — with full travel in about a hand's width, and
+roughly four times finer with a modifier held. The rings sit on the body, so they travel with
+it, but they do not change places. The sounding line through the lattice can be dragged
+directly, a vertex can be arrested by touching it, and the temperature reading runs along the
+foot.</p>
+
+<div class="opn">
+  <b>Note.</b> Twenty-three of the forty-two quantities on the B2311.67 frame do not affect a
+  sound already in progress. Most of these are honestly properties of a disturbance rather
+  than of the object, and take effect at the next one. The remainder belong to the visible
+  structure, which has already fallen silent by the time they are moved — see section three.
+</div>
+
+<hr>
+
+<h2><span class="n">Six · The suspicion</span>What the couplings may be for</h2>
+
+<p>Two findings, made on two different objects by two different methods, point the same way,
+and the survey records the resemblance without being able to prove anything from it.</p>
+
+<p>In B2311.22, an object placed beside another <em>answers</em> it — hearing only at the
+frequencies it itself possesses, replying in its own voice, and being permanently altered by
+the exchange. In B2311.67, warming the body makes its quantities drive one another along an
+arrangement that is fixed, unique to each specimen, one-way, and slow.</p>
+
+<div class="sus">
+  <b>Suspected.</b> That what the survey has recorded as cross-talk is not a defect of a warm
+  material but a channel — that each specimen's arrangement of connections is its identity in
+  the way a voice is an identity, and that temperature is simply the condition under which it
+  speaks. On this reading the quantities on our frame are not settings at all. They are an
+  alphabet, and the survey has spent two hundred days spelling at random.
+</div>
+
+<div class="sus">
+  <b>Suspected.</b> That the two objects are one technology in two conditions: one kept where
+  it could converse, and sixty-seven kept where they could not. The vault spacing is exactly
+  what would be required to prevent the permanent alteration described in section two, and it
+  is too regular to be incidental.
+</div>
+
+<p>The survey takes both of these seriously enough to say what follows from them, which is a
+change in method. If these couplings are a channel, then nothing about them will be found by
+setting a quantity to a value and leaving it there, any more than a language is found by
+holding one note. Every finding in this report that turned out to matter was found by moving
+something and listening to what moved with it.</p>
+
+<p class="lede">Whoever now holds these objects is therefore asked to explore rather than to
+configure — and to treat the search for couplings as the work itself, not as preparation
+for it.</p>
+
+<p>In practice that means: hold one quantity and listen for what follows it, and for how long
+afterwards. Warm the body and note which quantities begin to move together, since that
+grouping is fixed and is different for every specimen. Return to the same specimen after time
+has passed, because at least one of these objects does not stay as it was found. Place two of
+them in one vessel and let them run without intervening. And attend particularly to what
+happens at the two thresholds the survey has located but cannot explain — the temperature at
+which the frame of observation itself begins to drift, and the tilt at which an aperiodic
+body becomes a crystal and speaks, for a moment, in our intervals.</p>
+
+<hr>
+
+<h2><span class="n">Seven · Unresolved</span>What the survey could not close</h2>
 
 <div class="q">
-  <p><span class="qn">Question 1</span>Why does a listening body change permanently, and is
+  <p><span class="qn">Question 1</span>Why 500 K? Below it the material stirs and the frame of
+  observation is untouched; above it the frame drifts too. Nothing about the structure predicts
+  a threshold there, and nothing predicts which specimens have one: 141 of 256 stir the frame
+  at the top of the range and 115 hold it still, the division is fixed, and it does not
+  correlate with any other property the survey can measure.</p>
+</div>
+
+<div class="q">
+  <p><span class="qn">Question 2</span>What have the objects on the surface to do with the
+  sound, and with one another? In B2311.67 what is seen and what is heard are demonstrably
+  different voices. In B2311.22 the visible tissue does brighten where the energy sits — that
+  much is established — but whether the visible features act on one another or merely display
+  something decided elsewhere is not. The survey has no account of the interaction between the
+  surface bodies at all: not with the sound, and not among themselves.</p>
+</div>
+
+<div class="q">
+  <p><span class="qn">Question 3</span>Why does a listening body change permanently, and is
   the change legible? The displacement accumulates in the direction of what was heard. If
   it is a record rather than mere wear, then every recovered object carries the history of
   whatever stood beside it, and we do not know how to read it.</p>
 </div>
 
 <div class="q">
-  <p><span class="qn">Question 2</span>Two objects were found together and interacting.
+  <p><span class="qn">Question 4</span>Two objects were found together and interacting.
   Sixty-seven were found isolated, each at the centre of a deliberate void. Are these two
   conventions of storage, or two kinds of thing? The vault spacing is too regular to be
   incidental, and separation is exactly what would prevent the alteration described above.</p>
 </div>
 
 <div class="q">
-  <p><span class="qn">Question 3</span>Neither object has an off state. Both were sounding
+  <p><span class="qn">Question 5</span>One specimen is not understood. The first habit in the
+  B2311.67 catalogue drives its own resonance to a level some six hundred times what any other
+  specimen produces, and the frame must hold it back by sixty decibels for it to be worked with
+  at all. The restraint is reliable and has been verified as reliable. The behaviour has not
+  been explained, and that specimen should not be treated as representative of anything.</p>
+</div>
+
+<div class="q">
+  <p><span class="qn">Question 6</span>Neither object has an off state. Both were sounding
   when found, both have sounded continuously since, and the frame can only open onto that
   sound or close again. What the objects are doing when nothing is listening is not
   established, and the question may not be well posed.</p>
 </div>
 
 <div class="q">
-  <p><span class="qn">Question 4</span>Is B2311.67 a specimen of ordered aperiodic matter,
+  <p><span class="qn">Question 7</span>Is B2311.67 a specimen of ordered aperiodic matter,
   or a device that produces the behaviour of such matter? The distinction matters. The
   first would make it a sample; the second would make it an instrument, and would mean
   someone built it to sound like something.</p>
 </div>
 
 <div class="q">
-  <p><span class="qn">Question 5</span>We can slide the section along one axis. We cannot
+  <p><span class="qn">Question 8</span>We can slide the section along one axis. We cannot
   rotate it. Everything reported here is what lies in one particular family of
   cross-sections through each object, and there is no reason to believe it is the
   informative one.</p>
 </div>
 
 <div class="q">
-  <p><span class="qn">Question 6</span>We have found no controls, and have built our own.
+  <p><span class="qn">Question 9</span>We have found no controls, and have built our own.
   It has not been established whether the absence of controls is a fact about these
   objects or a fact about us — whether we are failing to find an interface, or whether the
   question of an interface does not arise for something that was never meant to be
@@ -289,13 +572,21 @@ these have been shown to be the same object described two ways.</p>
 
 <hr>
 
-<h2><span class="n">Five · Caution</span>On the frame, and on reading this report</h2>
+<h2><span class="n">Eight · Caution</span>On the frame, and on reading this report</h2>
 
 <p>Every quantity named in this report is an expedition quantity. The names on the frames
 were chosen by us, for our convenience, and describe what our apparatus does to the
 objects rather than any faculty the objects possess. Where this report says an object
 "answers" or "explores itself", these are the plainest available descriptions of measured
 behaviour and are not offered as claims about intent.</p>
+
+<p>The three registers used here should be respected in any use made of this document. The
+temperature figures, the geometry, the spectral displacements and the permanence of the
+alteration are established and may be quoted. That the couplings constitute a channel is
+suspected, and is the reason the survey recommends the method it does; it is not a finding.
+The nine questions in section seven are open, and the second of them — what the visible
+bodies have to do with the sound, or with each other — is the one the survey has made least
+progress on and considers most likely to matter.</p>
 
 <p>What can be said without qualification is that both objects produce sound continuously,
 that the sound is lawful and repeatable, that it is generated by structures which have no
