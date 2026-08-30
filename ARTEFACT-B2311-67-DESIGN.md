@@ -634,3 +634,50 @@ re-ordering; all eight translate together (measured 56 px, same direction); and
 each rosette's five parameters are a fixed `const` table that nothing writes to.
 A control map is therefore safe to draw by compass position —
 `docs/control-map.png`.
+
+### 2026-08-30 · what symmetry does the body actually have?
+
+Peter, on the diffraction plate: *"many patterns have also cubic symmetry, and
+this should be reflected in the pattern... it does not have to be a real
+physics diffraction pattern."* Measured before answering.
+
+**By bond orientation the tiling is exactly eightfold, always.** The
+orientational order parameters over the edges in view:
+
+    psi8 = 1.000    psi4 = 0.000
+
+at every depth in w, at every aperture, for every specimen. So a literally
+correct diffraction pattern WOULD be eightfold everywhere, and the plate's
+hard-coded eight arms are not wrong in that sense. (psi4 cannot see it either
+way: Ammann-Beenker's squares come in two orientations, 0 and 45 degrees, so
+even an all-square patch averages to zero.)
+
+**But what the eye reads as cubic does vary, and strongly — with APERTURE:**
+
+| window scale | tiles in view | square fraction |
+|---|---|---|
+| 0.663 | 8 | **1.000** — nothing but squares |
+| 0.775 | 64 | 0.750 |
+| 0.888 | 304 | 0.526 |
+| 1.000 | 640 | 0.438 |
+| 1.450 | 3072 | 0.352 |
+
+So at a small aperture the body genuinely *is* a lattice of squares and reads
+cubic; opening it buries the squares in rhombi. Peter is right about what he is
+seeing, and the handle is the square:rhombus mixture, not the bond angles.
+
+Travel barely moves it (0.406 to 0.438 across the full sweep).
+
+**And a fact worth having on its own: the geometry is IDENTICAL for all 256
+specimens** — square fraction 0.438, min = median = max, across the catalogue.
+A habit is a colouring of the acceptance window; it never changes which tiles
+exist. Every specimen is the same body wearing different material. That is one
+more face of the same thing Peter has been hearing.
+
+**Proposed, not built:** weight the plate's eight arms by the measured square
+fraction, so the four square directions dominate as the body becomes square-
+dominated and even out as it does not; and let OBLIQUITY's strain visibly
+distort it, since a strained approximant really does have lower symmetry. Both
+are driven by measured properties of the body in view, which is what "in
+agreement on a superficial level" should mean. It needs the engine to publish
+its star first (see the previous entry).
