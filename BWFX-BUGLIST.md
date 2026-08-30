@@ -280,7 +280,7 @@ it is general rather than a PS2 special case:
     synth with instrument-specific characters (a drum machine's per-kit
     macros, say) inherits the same drawer for free.
 
-### 9. KIERANATOR: A/B pages and a LAST step — SPEC, awaiting go
+### 9. KIERANATOR: A/B pages and a LAST step — SHIPPED in BWFX 1.6.0
 Peter 2026-08-27, and **his model supersedes the one I proposed in the first
 two versions of this entry.** He described it as:
 
@@ -319,7 +319,7 @@ Two things from reading the module that still hold:
 A/B is an editing page, not a second pattern: the pedal is too narrow for 32
 cells at once.
 
-### 10. KIERANATOR: a RANDOM brush — SPEC, awaiting go
+### 10. KIERANATOR: a RANDOM brush — SHIPPED in BWFX 1.6.0
 Peter: "could you make a new FX, RANDOM, that selects a random one of the
 other effects."
 
@@ -337,7 +337,7 @@ details decide whether it is usable or a mess:
 Costs one value in the 3-bit step field, which currently holds 0-7 — RANDOM
 would be the eighth non-empty value and the field is already wide enough.
 
-### 11. KIERANATOR: a CHAOS slider — SPEC, awaiting go
+### 11. KIERANATOR: a CHAOS slider — SHIPPED in BWFX 1.6.0
 Peter: "a CHAOS slider that introduces variabilities in the parameters,
 depending on how far it is set to the right, as well as with increasing
 frequency making a single temporary effect application on a certain slot."
@@ -358,7 +358,7 @@ At 0 it must be **exactly** inert — the bench should memcmp a render at
 CHAOS 0 against the same render with the parameter absent, the way the
 empty-rack check works.
 
-### 12. KIERANATOR: colour the brush keys — SPEC, awaiting go
+### 12. KIERANATOR: colour the brush keys — SHIPPED in BWFX 1.6.0
 Peter: "colour the selection buttons below the 16 sequence in the same
 colours but dimmer (GT GATE etc). They highlight when selected and get a
 slight halo."
@@ -429,7 +429,7 @@ Two things to get right:
 Worth pairing with a **rack blob in the clipboard** — copy and paste as text
 is often faster than a file dialog, and it costs one more op.
 
-### 14. BWFX MACROS — automating the rack. SPEC, settled, awaiting go
+### 14. BWFX MACROS — automating the rack. SHIPPED in BWFX 1.7.0
 Peter 2026-08-28: "is there some way that the BWFX of the synths can be
 automatised as well as the regular synth parameters?" — and, after the
 options were laid out, "lets go with the macro solution".
