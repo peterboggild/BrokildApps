@@ -220,3 +220,30 @@ to the bottom of this file** whenever `.67` gains anything, so this file stays
 the single thing you have to re-read, and the download never again lags the page
 that describes it. If you would rather I froze instead, say so and I will stop
 where I am.
+
+---
+
+## 7. The arrangement is in effect (Peter agreed it)
+
+Not a proposal any more. **Whenever `.67` gains anything I re-cut the download
+and add a dated entry to the bottom of this file.** So:
+
+- **this file is the only one you need to re-read.** Everything goes here — new
+  controls, changed gestures, numbers you can quote, and anything that makes
+  existing manual text wrong;
+- **the download will not lag the page again.** Cutting it is
+  `tools/make-dist-zip.ps1` in the `.67` repo now, rather than a job done by
+  hand. It opens the archive it has just written, loads the plugin **out of it**,
+  reads the build id from those same bytes, and refuses to publish unless it
+  loads and matches the tree. `-Verify` reports IN STEP or OUT OF STEP against
+  what is live without touching anything, if you ever want to check for
+  yourself;
+- **the Field Findings PDF is taken live from your folder** each time, so your
+  revisions to it are picked up automatically and I never overwrite them with a
+  stale copy;
+- `dist/README.txt` in the `.67` repo is now the source of the archive's README.
+  It had no history before today because it only ever existed inside a zip.
+
+Written into `CLAUDE.md` as a standing rule so it survives this session.
+
+**Current state: build 260830.7, published and verified IN STEP.**
