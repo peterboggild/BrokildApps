@@ -212,6 +212,7 @@
         </select>
       </div>
       <span style="flex:1"></span>
+      <span id="syncInfo" class="hint" style="margin:0 10px 5px 0">no sync point set</span>
       <button id="go" class="primary" disabled>export mp4</button>
       <button id="abort" disabled>stop</button>
     </div>
@@ -240,7 +241,7 @@ const ac = new (window.AudioContext || window.webkitAudioContext)();
 const S = {
   vFile:null, vURL:null, vBuf:null, vEnv:null, vDur:0,
   aFile:null, aBuf:null, aEnv:null, aDur:0,
-  offMs:0, monitor:"new", vSilent:false, vMark:null, aMark:null, fps:30, vPk:null, aPk:null,
+  offMs:0, monitor:"new", vSilent:false, vMark:null, aMark:null, lock:false, fps:30, vPk:null, aPk:null,
   playing:false, exporting:false,
   nodes:null, rec:null, chunks:[], abort:false
 };
@@ -403,6 +404,7 @@ function ready(){
     : (S.vSilent ? "the recording's audio track is silent — use the marks"
                  : "load both files first");
   $("#alignMarks").disabled = !(S.vMark !== null && S.aMark !== null);
+  syncInfo();
   if (ok) updateFf();
 }
 
@@ -721,8 +723,34 @@ function drawWave(){
     wctx.beginPath(); wctx.moveTo(x, y0); wctx.lineTo(x-4, y0-6); wctx.lineTo(x+4, y0-6); wctx.fill();
     wctx.fillText(label, x+5, y0+9);
   };
-  mark(S.vMark, 6, h*0.48, "rgba(255,179,92,.95)", "V");
-  if (S.aMark !== null) mark(S.aMark + S.offMs/1000, h*0.52, h-14, "rgba(255,179,92,.95)", "R");
+  /*  When the two marks name the same instant they are ONE line, drawn the
+      full height of both lanes: that is the sync point, and it is the thing
+      the export is locked to. When they do not, they are drawn apart with the
+      gap written between them, because a sync point you cannot see is a sync
+      point you cannot trust. */
+  const rT = S.aMark === null ? null : S.aMark + S.offMs/1000;
+  if (S.lock && S.vMark !== null && rT !== null){
+    const x = tToX(S.vMark);
+    if (x > -40 && x < w+40){
+      wctx.strokeStyle = "rgba(255,196,110,.95)"; wctx.lineWidth = 2;
+      wctx.beginPath(); wctx.moveTo(x+.5, 0); wctx.lineTo(x+.5, h); wctx.stroke();
+      wctx.lineWidth = 1;
+      wctx.fillStyle = "rgba(255,196,110,1)";
+      wctx.beginPath(); wctx.moveTo(x, 0); wctx.lineTo(x-6, -0); wctx.lineTo(x, 9); wctx.lineTo(x+6, 0); wctx.fill();
+      wctx.fillText("SYNC", x+6, h*0.5 - 4);
+    }
+  } else {
+    mark(S.vMark, 6, h*0.48, "rgba(255,179,92,.95)", "V");
+    mark(rT, h*0.52, h-14, "rgba(255,179,92,.95)", "R");
+    if (S.vMark !== null && rT !== null){
+      const x1 = tToX(S.vMark), x2 = tToX(rT);
+      wctx.strokeStyle = "rgba(255,120,90,.75)"; wctx.setLineDash([3,3]);
+      wctx.beginPath(); wctx.moveTo(x1, h*0.5); wctx.lineTo(x2, h*0.5); wctx.stroke();
+      wctx.setLineDash([]);
+      wctx.fillStyle = "rgba(255,140,110,.95)";
+      wctx.fillText(Math.round((rT - S.vMark)*1000) + " ms apart", Math.min(x1,x2)+5, h*0.5-4);
+    }
+  }
 
   const v = $("#vid");
   if (v && v.duration){
@@ -809,7 +837,7 @@ wave.addEventListener("pointerdown", e => {
     const raw = t - S.offMs/1000;
     S.aMark = Math.max(0, snapOnset(S.aPk, raw));
     $("#markInfo").textContent = "render marked at " + S.aMark.toFixed(3) + " s";
-    ready(); drawWave();
+    ready(); drawWave(); syncInfo();
     return;
   }
   if ((e.clientY - r.top) < r.height*0.48){
@@ -845,11 +873,15 @@ const endDrag = e => {
 wave.addEventListener("pointerup", endDrag);
 wave.addEventListener("pointercancel", () => { dragging = false; panning = false; });
 
-function setOffset(ms){
+function setOffset(ms, fromAlign){
+  /*  Moving the offset by hand breaks the lock: the two marks no longer name
+      the same instant, and the panel should say so rather than keep claiming
+      a sync point it no longer has. */
+  if (!fromAlign) S.lock = false;
   S.offMs = Math.round(ms);
   $("#offMs").value = S.offMs;
   $("#offSlider").value = clamp(S.offMs, -20000, 20000);
-  drawWave(); updateFf();
+  drawWave(); updateFf(); syncInfo();
   if (S.playing) restartAudio();
 }
 $("#offMs").addEventListener("input", e => setOffset(+e.target.value || 0));
@@ -883,7 +915,7 @@ function monitorGains(forExport){
   return { nw: 0.8, og: 0.8 };
 }
 
-function startAudio(dest, forExport){
+function startAudio(dest, forExport, onArmed){
   const g = buildGraph(dest);
   const gains = monitorGains(forExport);
   g.gNew.gain.value = gains.nw;
@@ -893,18 +925,47 @@ function startAudio(dest, forExport){
   src.buffer = S.aBuf;
   src.connect(g.gNew);
 
-  /*  offset > 0 : the render belongs later than the picture, so wait.
-      offset < 0 : it belongs earlier, so start it partway in.  */
-  const v = $("#vid");
-  const now = ac.currentTime + 0.06;
-  const startInVideo = v.currentTime;
-  const posInAudio = startInVideo - S.offMs/1000;
-  if (posInAudio >= 0){
-    if (posInAudio < S.aBuf.duration) src.start(now, posInAudio);
-  } else {
-    src.start(now - posInAudio);   // still to come: wait for it
-  }
   S.nodes = { src, g };
+
+  /*  THE TWO CLOCKS HAVE TO BE THE SAME CLOCK.
+
+      What was here scheduled the render sixty milliseconds from now and then
+      called play(), as if the picture would start when it was asked to. It
+      does not: the first frame appears whenever the decoder gets to it, tens
+      to hundreds of milliseconds later and never the same twice. The render
+      was therefore early by an amount nobody had measured — which is exactly
+      what an export that looked aligned in the panel and drifted in the file
+      would do.
+
+      So wait for the first frame that is actually PRESENTED. Its callback
+      hands us the media time that frame shows, and reading the audio clock in
+      the same callback ties the two together. Everything is then scheduled a
+      short lead ahead so nothing is asked to start in the past.
+
+      offset > 0 : the render belongs later than the picture, so it waits.
+      offset < 0 : it belongs earlier, so it starts partway in.  */
+  const v = $("#vid");
+  const off = S.offMs/1000;
+  let armed = false;
+  const arm = (mediaTime) => {
+    if (armed) return; armed = true;
+    const lead = 0.04;
+    const acAt = ac.currentTime + lead;
+    const vAt  = mediaTime + lead;        // where the picture will be by then
+    const pos  = vAt - off;               // the matching place in the render
+    try {
+      if (pos >= 0){ if (pos < S.aBuf.duration) src.start(acAt, pos); }
+      else src.start(acAt - pos);
+    } catch(e){}
+    if (onArmed) onArmed();
+  };
+
+  if (v.requestVideoFrameCallback){
+    v.requestVideoFrameCallback((now, meta) => arm(meta.mediaTime));
+    setTimeout(() => arm(v.currentTime), 600);      // if frames never come
+  } else {
+    setTimeout(() => arm(v.currentTime), 0);
+  }
   return src;
 }
 
@@ -972,11 +1033,21 @@ $("#go").addEventListener("click", async () => {
   S.exporting = true; S.abort = false; S.chunks = [];
   $("#go").disabled = true; $("#abort").disabled = false;
 
-  v.pause(); v.currentTime = 0;
-  await new Promise(r => setTimeout(r, 120));
+  /*  Rewind, and WAIT for it. Assigning currentTime is a request, not an act;
+      a hundred and twenty milliseconds of hope is not the same as a seeked
+      event, and on a large file it is not enough. */
+  v.pause();
+  if (v.currentTime > 0.001){
+    await new Promise(res => {
+      let done = false;
+      const h = () => { if (done) return; done = true; v.removeEventListener("seeked", h); res(); };
+      v.addEventListener("seeked", h);
+      v.currentTime = 0;
+      setTimeout(h, 2500);
+    });
+  }
 
   const dest = ac.createMediaStreamDestination();
-  startAudio(dest, true);
 
   /*  The element's own frames, not a canvas redraw: one less resample, and
       the picture that comes out is the picture that went in. */
@@ -1024,10 +1095,16 @@ $("#go").addEventListener("click", async () => {
     requestAnimationFrame(tick);
   };
 
-  rec.start(1000);
+  /*  The recorder starts on the same frame the render is scheduled against,
+      inside the same callback. Starting it earlier banks audio against a still
+      picture, and every millisecond of that is a millisecond of drift. */
+  startAudio(dest, true, () => {
+    try { rec.start(1000); } catch(e){}
+    log("recording in real time &mdash; " + fmt(total) + " to go. Leave this tab in front."
+        + (S.lock ? " Locked to the sync point at " + fmt(S.vMark) + "." : ""));
+    requestAnimationFrame(tick);
+  });
   v.play();
-  log("recording in real time &mdash; " + fmt(total) + " to go. Leave this tab in front.");
-  requestAnimationFrame(tick);
 
   function cleanup(){
     S.exporting = false; S.rec = null;
@@ -1065,20 +1142,22 @@ $("#markV").addEventListener("click", () => {
   S.vMark = v.currentTime;
   $("#markInfo").textContent = "video marked at " + fmt(S.vMark) + " (f" + Math.round(S.vMark*S.fps) + ")" +
     (S.aMark === null ? " — now shift-click the render lane" : "");
-  ready(); drawWave();
+  ready(); drawWave(); syncInfo();
 });
 $("#alignMarks").addEventListener("click", () => {
   if (S.vMark === null || S.aMark === null) return;
   /*  The mark on the render must land on the mark in the picture, so the
       render has to start (video mark - render mark) into the timeline. */
-  setOffset(Math.round((S.vMark - S.aMark) * 1000));
-  log("aligned: the moment at " + fmt(S.vMark) + " in the picture is the moment at " +
-      fmt(S.aMark) + " in the render.", "ok");
+  setOffset(Math.round((S.vMark - S.aMark) * 1000), true);
+  S.lock = true;
+  syncInfo();
+  log("locked: " + fmt(S.vMark) + " in the picture is " + S.aMark.toFixed(3) +
+      " s in the render. The export will hold that.", "ok");
 });
 $("#clearMarks").addEventListener("click", () => {
-  S.vMark = S.aMark = null;
+  S.vMark = S.aMark = null; S.lock = false;
   $("#markInfo").textContent = "shift-click the render lane to mark it";
-  ready(); drawWave();
+  ready(); drawWave(); syncInfo();
 });
 
 $("#zFit").addEventListener("click", fitView);
@@ -1095,6 +1174,23 @@ $("#zMark").addEventListener("click", () => {
   view.t0 = t - view.span*0.5; clampView(); drawWave();
 });
 $("#snap").addEventListener("click", () => $("#snap").classList.toggle("on"));
+
+function syncInfo(){
+  const el = $("#syncInfo"); if (!el) return;
+  if (S.lock && S.vMark !== null && S.aMark !== null){
+    el.innerHTML = '<span style="color:#ffc46e">&#9679; locked</span> &mdash; picture ' +
+      fmt(S.vMark) + " = render " + S.aMark.toFixed(3) + " s";
+  } else if (S.vMark !== null && S.aMark !== null){
+    const gap = Math.round((S.aMark + S.offMs/1000 - S.vMark)*1000);
+    el.innerHTML = '<span style="color:#ff8f6b">marks ' + gap + ' ms apart</span> &mdash; press ALIGN MARKS';
+  } else if (S.vMark !== null){
+    el.textContent = "video marked — now shift-click the render";
+  } else if (S.aMark !== null){
+    el.textContent = "render marked — now press MARK VIDEO";
+  } else {
+    el.textContent = "no sync point set";
+  }
+}
 
 function tc(){
   const v = $("#vid");
