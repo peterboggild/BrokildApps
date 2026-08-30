@@ -2019,6 +2019,43 @@ function drawImgDecal(img, x, y, size, rot, alpha) {
   pctx.globalAlpha = 1;
 }
 
+/*  Dirt has to belong to the metal it is sitting on. The dirt photos are grey
+    concrete, and grey laid flat on a cobalt hull reads as the panel being a
+    different colour rather than as grime on it — which is exactly the report.
+    (The embed pipeline cannot help: it only desaturates blue-dominant pixels,
+    so a neutral grey passes through untouched by construction.)
+
+    So: keep the photograph's LUMINANCE, which is the texture and the whole
+    reason to use a photograph, and take the hull's HUE. Done per decal in an
+    offscreen buffer, because the patina canvas also carries the damage decals
+    and the procedural grime, and those must not be tinted — a scratch showing
+    bare material SHOULD break the hull colour. */
+const TINTBUF = document.createElement("canvas");
+const tctx = TINTBUF.getContext("2d");
+function hullTint() {
+  const v = getComputedStyle(document.documentElement).getPropertyValue("--hull");
+  return (v || "").trim() || "#33506a";
+}
+function drawDirtDecal(img, x, y, size, rot, alpha) {
+  if (!img.width) return;
+  TINTBUF.width = img.width; TINTBUF.height = img.height;
+  tctx.clearRect(0, 0, img.width, img.height);
+  tctx.globalCompositeOperation = "source-over";
+  tctx.globalAlpha = 1;
+  tctx.drawImage(img, 0, 0);
+  //  hue and saturation from the hull, lightness from the photograph
+  tctx.globalCompositeOperation = "color";
+  tctx.globalAlpha = 0.82;
+  tctx.fillStyle = hullTint();
+  tctx.fillRect(0, 0, img.width, img.height);
+  //  the fill covered the transparent margins too - put the mask back
+  tctx.globalCompositeOperation = "destination-in";
+  tctx.globalAlpha = 1;
+  tctx.drawImage(img, 0, 0);
+  tctx.globalCompositeOperation = "source-over";
+  drawImgDecal(TINTBUF, x, y, size, rot, alpha);
+}
+
 function drawPatina() {
   pctx.clearRect(0, 0, patCan.width, patCan.height);
   const W = patCan.width, H = patCan.height;
@@ -2051,8 +2088,8 @@ function drawPatina() {
       drawImgDecal(d.img, x, y, size, rng() * 6.2832, 0.95);
     } else {                            // photographic dirt
       const d = dirt[Math.floor(rng() * dirt.length)];
-      drawImgDecal(d.img, x, y, 60 + rng() * 140, rng() * 6.2832,
-                   0.30 + rng() * 0.30);
+      drawDirtDecal(d.img, x, y, 60 + rng() * 140, rng() * 6.2832,
+                    0.30 + rng() * 0.30);
     }
   }
   // The old "preset-keyed grime" (busted seeds arrived dirty, keyed to seed A)
