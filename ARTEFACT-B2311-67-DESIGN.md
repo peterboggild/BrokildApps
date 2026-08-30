@@ -803,3 +803,64 @@ nothing. 62 checks ALL CLEAR.
 and needs −62 dB. That is a near-runaway resonance rather than a loud patch. The
 trim contains it, and the bench now proves it is contained, but the specimen
 itself deserves a look on its own terms.
+
+### 2026-08-30 · TEMPERATURE and the per-specimen modulation matrix (260830.7)
+
+Peter's brief: a rosette control turned up should set three or four **other**
+controls moving — oscillating, or oscillating *faster* — with the wiring unique
+to each entry in the catalogue, and a TEMPERATURE governing how much happens at
+all. Nitrogen as now; room temperature the default; 800 K the most. Then, on
+second thought: *"major scene controls should not be affected. I think. Maybe at
+very high temperatures."*
+
+**A feedback loop is not prevented, it is unrepresentable.** A wire's SOURCE
+reads the **stored** parameter — the knob position the host and the panel hold —
+and its DESTINATION is written into a separate effective array that nothing
+reads back. One hop, always, and `apply (const float* stored, float* eff, float
+kelvin)` is what enforces it. A matrix wiring A→B and B→A is then simply two
+independent wires. Bounded excursion is kept as well, belt and braces, and the
+bench measures the worst at **0.3000** of range against an allowance of 0.3000.
+
+That is also exactly what was asked for: "increasing one of these rosette
+controls can mean that 3-4 other parameters oscillate" describes a single hop
+from a knob position, not a network. Four sources per specimen, each fanning to
+two or three destinations — measured live at room temperature, **four**
+parameters were moving at once (CONTRAST, FORCE COLOUR, ASPECT, FALL).
+
+**The temperature law.**
+
+| | material | scene (TRAVERSE, CUT BEARING, CUT OFFSET) |
+|---|---|---|
+| 77 K | **nothing, to the bit** | nothing |
+| 293 K (default) | ±8.96 % of range | **0.000000** |
+| 500 K | ±19 % | begins |
+| 800 K | ±30 % | ±12 % |
+
+77 K is not "nearly nothing": the offsets are skipped entirely, so a frozen
+instrument is bit-identical to one built before any of this existed — memcmp
+over four hundred steps in the bench, and confirmed live, **0 of 42** parameters
+moving. At 800 K, **141 of 256** specimens stir the scene. Some bodies hold
+their frame even when far too hot and others do not, which is character rather
+than a fault.
+
+**Never modulated**, and not out of squeamishness: LEVEL and CEILING would make
+the instrument breathe in loudness, which is a fault and not a feature;
+CONFORMANCE, REFERENCE, REGISTER and BEND RANGE would detune a held note; HABIT
+would change the specimen underneath its own matrix; EXTENT and ORDERS are
+stepped, and rebuilding the body to a different SIZE thirty times a second is
+both expensive and audible.
+
+**Where it lives, and why.** In the processor, not the engine — the engine's
+parameters are refreshed wholesale from the host every block, so the three
+places that did that now come through one `refreshParams`, stored values in and
+effective values out. The engine never learns the difference and needed no
+change.
+
+**And the panel shows it.** The effective values ride back on the body message
+and the rings are drawn from those, so a stirring body is one you can *see*
+stirring — except the ring under your hand, which follows the hand, or it would
+lag a frame behind the finger.
+
+Bench section 8f holds all of it, including that the same specimen modulates
+identically every time it is played, so a bounce matches what was heard.
+71 checks ALL CLEAR, 14.0 % of one core.
