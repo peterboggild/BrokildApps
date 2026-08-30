@@ -759,7 +759,47 @@ high-frequency share rises six-fold across the keyboard (0.0083 to 0.0504).
 So: not intentional, and not clipping. A gain-structure problem, exactly as
 Peter guessed.
 
-**Not built, awaiting his go:** give each habit a level trim so no patch sits
+**BUILT at 260830.6** (see below). The proposal was: give each habit a level trim so no patch sits
 permanently in the limiter — measured per habit at generation, the way Mars
 Wars measures its auto-gain rather than modelling it. It changes the balance of
 the whole catalogue, so it is his call.
+
+### 2026-08-30 · the level trims, built (260830.6)
+
+Peter: *"go do it!"*
+
+Every habit is rendered across five notes, the peak the output stage is handed
+**before it acts** is read, and the trim is whatever puts the worst of those on
+0.50 — just under the compressor knee at 0.514. Applied at the output multiply,
+after every nonlinearity in the instrument, so the pre-limiter peak scales
+exactly with the trim and one pass is exact.
+
+It only ever **reduces**. A quiet specimen is quiet because that is what it is;
+levelling everything would flatten the catalogue. 74 of 256 are untouched, and
+25.5 dB of honest dynamic range survives.
+
+| | before | after |
+|---|---|---|
+| habit 240, blocks under gain reduction | **300 of 300** | 0 |
+| habits spending half a note in the limiter | many | **0 of 256** |
+| worst blocks limited in one note | 300 | **0 of 190** |
+| pre-limiter peak | 0.0567 … **12.12** | 0.0267 … **0.5000** |
+
+**The machinery, and why each piece exists.** `Engine::preLimitPeak`, because
+the peak *after* the output stage is just the ceiling — the same number for
+every patch, telling you nothing. `ab::habitTrim()` reading
+`Source/HabitGain.h`. And `test/gaincal.cpp`, which generates that table and is
+**idempotent**: it folds out the trim already compiled in, so running it on a
+calibrated build reproduces the same table instead of trimming the trim. That
+property was worth building — the first version was not idempotent and would
+have silently squared the correction on the second run.
+
+A measured table goes stale the moment anything moves the level, so **bench
+section 8e** holds it: no specimen spends half a note in the limiter, none is
+handed to the output stage far above target, and no trim reduces a specimen to
+nothing. 62 checks ALL CLEAR.
+
+**Left standing, and flagged:** habit 1 hands the output stage a peak of **606**
+and needs −62 dB. That is a near-runaway resonance rather than a loud patch. The
+trim contains it, and the bench now proves it is contained, but the specimen
+itself deserves a look on its own terms.
