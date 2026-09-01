@@ -46,3 +46,4 @@ endfunction()
 
 dsw_add_plugin(gray-scott)
 dsw_add_plugin(wave-tank)
+dsw_add_plugin(heat-blob)     # the docs/CREATING-A-PLUGIN.md tutorial plugin

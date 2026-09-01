@@ -1,0 +1,6 @@
+{
+  "name": "Heat Blob (tutorial)",
+  "description": "The 100-line example from docs/CREATING-A-PLUGIN.md: 2D heat diffusion on a 256×256 plate. Click to inject heat, one slider for diffusivity, and watch it spread and cool. Start here when writing your own DEX.",
+  "accent": "#e8a33d",
+  "version": "1.0"
+}

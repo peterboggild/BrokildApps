@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Heat Blob — DSW tutorial</title>
+<style>
+  :root { --accent: #e8a33d; }
+  body {
+    margin: 0; background: #12161c; color: #dfe6ee;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: grid; place-items: center; min-height: 100vh;
+  }
+  .rig { text-align: center; padding: 1rem; }
+  h1 { font-size: 1.1rem; letter-spacing: .18em; margin: 0 0 .8rem; color: var(--accent); }
+  canvas {
+    width: min(70vh, 92vw); aspect-ratio: 1; image-rendering: pixelated;
+    border: 1px solid #2c3642; border-radius: 8px; background: #000;
+    cursor: crosshair; touch-action: none;
+  }
+  .row { display: flex; gap: 1rem; align-items: center; justify-content: center; margin-top: .9rem; flex-wrap: wrap; }
+  label { font-size: .85rem; color: #9fb0c2; }
+  input[type=range] { accent-color: var(--accent); width: 180px; }
+  button {
+    background: #1b232d; color: #dfe6ee; border: 1px solid #33404f;
+    border-radius: 7px; padding: .45rem .9rem; cursor: pointer; font-size: .85rem;
+  }
+  button:hover { border-color: var(--accent); }
+  #stats { font-size: .8rem; color: #7e8fa1; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="rig">
+  <h1>HEAT BLOB</h1>
+  <canvas id="view" width="256" height="256"></canvas>
+  <div class="row">
+    <label>diffusivity <input id="diff" type="range" min="0.01" max="0.25" step="0.005" value="0.20"></label>
+    <button id="pause">Pause</button>
+    <button id="clear">Clear</button>
+    <span id="stats">–</span>
+  </div>
+</div>
+
+<script src="/dex.js"></script>
+<script>
+  const canvas = document.getElementById("view");
+  const stats  = document.getElementById("stats");
+
+  const dex = DEX.connect({
+    canvas,                                     // incoming frames auto-draw here
+    onMessage(m) {                              // telemetry from the core
+      if (m.t === "stats")
+        stats.textContent = "total " + m.total.toFixed(0) + " · peak " + m.peak.toFixed(1);
+    },
+  });
+
+  // controls -> core
+  document.getElementById("diff").addEventListener("input", e =>
+    dex.send({ t: "set", k: "diff", v: parseFloat(e.target.value) }));
+
+  let paused = false;
+  document.getElementById("pause").addEventListener("click", e => {
+    paused = !paused;
+    e.target.textContent = paused ? "Resume" : "Pause";
+    dex.send({ t: "set", k: "pause", v: paused ? 1 : 0 });
+  });
+
+  document.getElementById("clear").addEventListener("click", () =>
+    dex.send({ t: "clear" }));
+
+  // click / drag pokes heat, in 0..1 field coordinates
+  function poke(ev) {
+    const r = canvas.getBoundingClientRect();
+    dex.send({ t: "poke",
+               x: (ev.clientX - r.left) / r.width,
+               y: (ev.clientY - r.top) / r.height });
+  }
+  canvas.addEventListener("pointerdown", ev => { poke(ev); canvas.setPointerCapture(ev.pointerId); });
+  canvas.addEventListener("pointermove", ev => { if (ev.buttons) poke(ev); });
+</script>
+</body>
+</html>
