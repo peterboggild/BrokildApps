@@ -300,3 +300,51 @@ at `test/voidtest.cpp` (target `ab67void`). Bench ALL CLEAR at 71 checks.
 runs out of range at its ends — past about ±10.4 in tau the plane has left the
 fragment and there is nothing to hear, which is worth a sentence in whatever
 describes the traverse.
+
+### 260902.2 — the body deconstructs, and the wheel has no end
+
+**The picture and the sound now agree.** `presence` is sent to the page every
+frame, so the body is drawn by exactly the number that silences it — the page
+does not recompute the face law, because two copies of a law drift apart. The
+tile shader culls by a hash of the tile **centre** (every vertex of a tile
+shares it, so a tile leaves whole rather than tearing) and survivors shrink
+toward their own centres: the body scatters into plates and then into nothing.
+The skeleton has no per-line centre and would tear in half, so it fades instead.
+
+Measured live, drawing and reading in the same task: **53 body pixels of 1700
+in range, 0 of 1700 out, 52 again on the way back.**
+
+**A pulse in the void.** Drawn from the same presence, so it can only appear
+where there genuinely is no cross-section: 3251 lit pixels within 60 of the
+section centre when out, against 500 in range.
+
+**The wheel has no limit.** `tauUi` had been in `Engine.h` since the first
+build, commented *"the wheel's contribution"*, and nothing ever called
+`setTravelDelta`. TRAVERSE keeps its host range on the slider; the excess now
+accumulates in that offset without limit, and unwinds first on the way back so
+returning is not a long scroll against a pinned control. New message `twheel`;
+`service()` already runs every timer tick, so a notch lands on the next one.
+
+**THE FIELD — undocumented, and deliberately not in the manual.** Sixty-seven
+vaults were found at the Sabik Terminator, each at the centre of its own void,
+so the field is in the fourth dimension too. Wind the cut far enough along w and
+it meets a neighbour: narrow, quieter than home, and nothing on the panel says
+where they are.
+
+| tau | peak |
+|---|---|
+| 0 (home) | 0.587 |
+| 14 … 55 | **0.000000** |
+| 64 / **67** / 70 | 0.218 / **0.333** / 0.241 |
+| 80 … 120 | **0.000000** |
+| **134** | **0.098** |
+| 150 | **0.000000** |
+
+*If you are writing the manual: the neighbours are meant to be found, not
+listed. The traverse having an outside is worth a sentence; the field is not.*
+
+Bench ALL CLEAR at 71; `test/voidtest.cpp` now walks the field. Two probe
+faults on the way, both mine and both the recurring kind: the bench forgot
+`service()` and so read the same peak at every depth (it looked like the feature
+was dead), and a `readPixels` after compositing reported the body missing
+whether it was there or not.
