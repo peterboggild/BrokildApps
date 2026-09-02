@@ -6,6 +6,7 @@ began crashing at startup.
 | | |
 |---|---|
 | `ableton-triage.ps1` | inventories what is really installed, finds duplicate class ids, compares installed against published, reads Ableton's own log, and can quarantine the fleet to prove the point in one restart |
+| `install-from-archives.ps1` | installs the fleet from the published archives on a machine with no source tree, retiring by plug-in code rather than by name |
 | `recover-panel.js` | pulls a plug-in's panel source back out of a shipped binary — the whole HTML document, byte-exact |
 
 ---
@@ -25,10 +26,39 @@ checkable without Windows was checked, and it is intact:
 | plug-in code | `BrkdAb01` | `BrkdAb22`, `BrkdAb67` |
 | imports | identical set to both siblings | — |
 
-The plug-in codes are what VST3 class ids are derived from, and **all eleven
-shipped Brokild plug-ins carry distinct codes** — `Ab01 Ab22 Ab67 BlkR BldR
-Cwar EscR FmRk Hfry MrsW Psy2`. Nothing in the published fleet can collide with
-anything else in it.
+The plug-in codes are what VST3 class ids are derived from, and the eleven
+individual archives carry eleven distinct codes — `Ab01 Ab22 Ab67 BlkR BldR
+Cwar EscR FmRk Hfry MrsW Psy2`. Nothing in B2311.1 can collide with any of them.
+
+### But the published fleet does contain one collision, and it is not B2311.1
+
+Checking only the individual archives says the fleet is clean. It is not. The
+**collection** archive was checked too, and it ships a twelfth module:
+
+| archive | bundle | linked | code |
+|---|---|---|---|
+| `Brokild-Collection-win64.zip` | `Photo-Synth2.vst3` | 2026-08-27 08:55 | `BrkdPsy2` |
+| `Photo-Synth-VST3-win64.zip` | `Photo Synth.vst3` | 2026-08-30 09:59 | `BrkdPsy2` |
+
+**Two bundle names, one plug-in code, two different builds three days apart.**
+The product was renamed — `brokild_paths.h` carries `formerNames` for exactly
+this reason — and the collection archive still carries the pre-rename copy.
+
+Install both archives and two bundles with **identical VST3 class ids** sit in
+the scan path under different names, and scan order decides which one the host
+loads. `install-fleet.ps1` cannot catch it: it retires a loose copy of the same
+*product name*, and it has a row for "Photo Synth", so a bundle called
+`Photo-Synth2.vst3` is invisible to it.
+
+That is a live hazard in what is published today, whether or not it is what is
+crashing Ableton. `install-from-archives.ps1` resolves it by matching on the
+**code** rather than the name: one module per code, newest wins, and anything
+already on disk claiming that code is retired first.
+
+Three more archives are stale rather than colliding — Black Rider, Blade Ruiner
+and Escape Room are a day NEWER inside the collection archive than in their own
+downloads. Same names, so they overwrite rather than duplicate, but a visitor
+downloading the individual plug-in gets the older build.
 
 The zero overlay figure is worth keeping in mind, because it is the one that
 will trip you up later: `install-fleet.ps1` appends a few random bytes to an
@@ -51,8 +81,9 @@ That is a much better position to be in, and it is testable in one restart.
    `-Reference` answers this outright: point it at the downloaded archives and
    it says SAME BUILD or DIFFERENT BUILD per plug-in.
 
-2. **A duplicate bundle.** `Artefact B2311.1` **is not in `install-fleet.ps1`'s
-   table** in this repo's BWFX mirror — the table stops at `.67`. So either the
+2. **A duplicate bundle.** One is published — the Photo Synth collision above,
+   which is on this machine if both archives were ever installed. Separately,
+   `Artefact B2311.1` **is not in `install-fleet.ps1`'s table** in this repo's BWFX mirror — the table stops at `.67`. So either the
    work PC's copy of that script is ahead of the mirror, or `.1` was installed
    by hand. Installing by hand is the documented way a second bundle carrying
    identical class ids appears, after which scan order decides which one the
@@ -77,6 +108,10 @@ Two things were *checked and ruled out* rather than left as suspicions:
 ## Doing it
 
 ```powershell
+# put the verified B2311.1 on this machine, from the archive rather than a build
+powershell -ExecutionPolicy Bypass -File install-from-archives.ps1 `
+    -Archives C:\Users\peter\Downloads -Only "Artefact B2311.1"
+
 # read-only: what is installed, what collides, what Ableton's log says
 powershell -ExecutionPolicy Bypass -File ableton-triage.ps1
 
