@@ -1,6 +1,6 @@
 # Install the Brokild plugins into both houses, into their THREE folders.
 #
-#   Proxima Centauri B findings : Artefact B2311.22, Artefact B2311.67
+#   Proxima Centauri B findings : Artefact B2311.1, Artefact B2311.22, Artefact B2311.67
 #   Experimental                : Hairfryer
 #   Brokild collection          : everything else
 #
@@ -28,6 +28,7 @@ $quarantine = "C:\Users\peter\AudioDev\Quarantine"
 
 # dir = source tree under C:\Users\peter\b, name = product name, group = folder
 $plugins = @(
+  @{ dir = "ArtefactB2311_1";  name = "Artefact B2311.1";   group = "Proxima Centauri B findings" },
   @{ dir = "ArtefactB2311";    name = "Artefact B2311.22";  group = "Proxima Centauri B findings" },
   @{ dir = "ArtefactB2311_67"; name = "Artefact B2311.67";  group = "Proxima Centauri B findings" },
   @{ dir = "Hairfryer";        name = "Hairfryer";          group = "Experimental" },
