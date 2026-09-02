@@ -188,13 +188,85 @@ The frame carries a reading in kelvin, as B2311.67 does. Cold, it is silent.
 
 ---
 
-## 5 · Still to build
+## 5 · As built (260902.1)
 
-- the engine, as a JUCE VST3 (`Ab01`, "Artefact B2311.1")
-- the panel: the 2D cross-section of the lattice, phase as the visible quantity,
-  and interaction that shoves phases directly
-- the bench, holding every measurement in this document
-- decals — Peter supplies these through ChatGPT; brief to follow once the panel
-  geometry is fixed
-- backstory, landing page and sound demos, published to the collection alongside
-  B2311.22 and B2311.67
+Shipped the day it was designed, and published to the collection alongside its
+two siblings.
+
+### What the bench holds
+
+| claim | measured |
+|---|---|
+| cold, it does not count | 77 K peak **0.000000**, the loop skipped entirely |
+| warming makes it count faster | 7226 → 13640 → 28826 → **69360** firings/s |
+| conduction sizes the events | largest cascade **138 → 835** |
+| a note transposes the counting | 6044 → 11546 → **22252** firings/s, 2× an octave |
+| it eases towards a pulse | R builds across a take at most tempi |
+| it can be led, not shoved | gentle **0.705**, violent **0.502** |
+| it keeps its own time | 11053 firings/s with the transport stopped |
+| bounded | worst peak **0.9368** hot and flat out |
+| 256 specimens | all distinct; each plays identically twice |
+
+13 checks, ALL CLEAR.
+
+### Texture or pulse — the regime that made it an instrument
+
+At the first defaults it fired eleven thousand times a second, which the thesis
+says is a *tone* and the brief did not ask for. A pulse needs silence around it.
+Conduction turned out to be the switch:
+
+    0.30    2–11 % of steps silent     a texture
+    0.60    70–75 % silent             beginning to clump
+    0.80    91–97 % silent             RHYTHM, whole-lattice cascades
+
+The shipped renders sit at 99.5 % silent with six distinct recurring intervals.
+
+### The one that was not a bug
+
+The bench asserted that a harder grip gathers more of the object onto the beat.
+It does not: R peaks at a grip of 0.20 and has fallen to 0.158 by 0.55. Once the
+lattice has organised itself, a gentle nudge aligns the clusters and a violent
+shove scatters them.
+
+Which is the brief's own word, *eases*, turning out to be the physics — it can
+be led, and it cannot be forced. The test now asserts that shape. Leaving it
+failing for a commit rather than weakening it is what kept the finding.
+
+### Faults the panel found in its own author
+
+- **The count was invented.** The page added `lastCascade` every frame, and that
+  value is never cleared, so it counted one event thirty times a second and
+  displayed a briskly rising number for an object that might have been asleep.
+- **The flares were invisible.** Heat decayed in 30 ms; the panel samples every
+  33. Nearly every firing fell between two frames — the object sounded and the
+  picture stayed still.
+- **The meter never moved**, because it averaged a block and this object is
+  silent for ninety-nine per cent of its steps. Peak, held.
+- **"Send the rate field when it changes"** sent it once before the page was
+  listening and then never again. B2311.67 learned the same lesson about its
+  initial state; this is the second time the shape has cost a round.
+
+### The layers, made visible
+
+A unit's hue is its natural rate. Units near each other in rate run together, so
+the banding across the face *is* the object's own organisation — the brief's
+"several layers correlated by the object" made lookable-at rather than left as
+structure nobody could see.
+
+### Published
+
+`vst3-apps/proxima-centauri-b/` — the page is three objects now, not two with a
+block appended: every "neither", "both" and "2 of 2" was changed by exact match.
+Five passages, each figure quoted one the bench or renderer printed. The archive
+is verified from the inside — opened after writing, the plug-in loaded out of
+it, build id read from those bytes.
+
+### Left open, honestly
+
+- **No user patch folder.** `check-names.js` reports it. The 256 specimens are
+  the preset system; patch *files* are not written.
+- **Decals not yet made.** Brief for Peter at `assets/ab1-decals/BRIEF.md`; the
+  dial face is the one that would change the panel most.
+- **The section-is-timbre test measures the wrong thing in this regime.** With
+  the object now firing in rare bursts, its crossing-rate probe reads event rate
+  rather than colour. It passes, and it is not measuring what its name says.
