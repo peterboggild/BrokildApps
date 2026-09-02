@@ -1,0 +1,4 @@
+counting
+*.o
+suite.txt
+findings-tables.txt
