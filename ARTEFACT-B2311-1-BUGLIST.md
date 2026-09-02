@@ -7,7 +7,7 @@ while investigating; move shipped items to DONE with the build id that carried
 them.
 
 Source tree: `C:\Users\peter\b\ArtefactB2311_1` (own git repo, local only).
-Design: `ARTEFACT-B2311-1-DESIGN.md`. Current build **260902.2**.
+Design: `ARTEFACT-B2311-1-DESIGN.md`. Current build **260902.3**.
 
 ---
 
@@ -244,3 +244,154 @@ controls shut, where the audio is the 260902.1 audio to −119 dB — and they
 return the 260902.1 numbers to three decimal places (0.382/0.658, 0.445/0.450,
 0.508/0.365, 0.406/0.272), which is itself the proof that entrainment is
 untouched.
+
+---
+
+### 2. "They sound great but all noises are very short" — SHIPPED in 260902.3
+
+Peter, 2026-09-02, on 260902.2; then *"still? Is there some way to give them
+weight, some new control?"*, then *"it is unrealistically that the patterns stop
+dead at 77 K… they should just be less active"*, then *"dragging or marking
+areas should change these tiny clocks behavior permanently, or at least a
+while"*, and *"you should redo at least half of the patches to demonstrate these
+new patterns"*.
+
+**He was right, and item 1 had under-delivered.** 260902.2 improved the length
+RATIO between big and small events by 2.4× while the longest tail anywhere in the
+instrument was still **47.8 ms**. A ratio cannot tell you that, and I had only
+measured ratios. *A feature that measures as working can still be worthless —
+check the magnitude, not the sign.* That is the FMR PUNCH lesson, already in
+CLAUDE.md, and I walked straight into it.
+
+#### ENCLOSURE was a dead control
+
+Declared in SPECS, glossed "the room the crate makes around it", drawn on the
+panel, randomised into all 256 specimens — and **never read by the engine**.
+`p.space` appeared exactly twice in `Engine.cpp`: the parameter table and
+`applySpecimen`. It is now a four-line feedback delay network, Householder mixed,
+damped in the loop so the tail darkens as a real box does.
+
+| ENCLOSURE | tail after the counting stops |
+|---|---|
+| 0.30 | 43.7 ms |
+| 0.50 | 106.9 ms |
+| 0.70 | 298.0 ms |
+| 0.90 | **469.0 ms** |
+
+#### WEIGHT — the new control, and four calibrations to get there
+
+The object had **4.5 %** of its energy below 250 Hz and a spectral centre at
+8.6 kHz. Nothing that thin sounds heavy however long it rings. WEIGHT is the
+object's own low body: three resonators at 1, 1.47 and 2.09 — deliberately not a
+harmonic series, so it arrives as a struck shell and not a note — pitched from
+ABSORPTION and **not** from the played note, struck only in proportion to how
+hard the object is being hit.
+
+Every pass was measured, not judged:
+
+1. **Peak-levelled against one band kernel** → 73.6 % of all energy below 250 Hz,
+   centre dragged to 213 Hz. A Q-14 resonator rings 250× longer than a band, so
+   equal peaks are wildly unequal energy.
+2. **Energy-levelled against one band** → still 77.6 %. The low body hears the
+   drive of all eight bands; each band hears only its own share.
+3. **Energy-levelled against the whole bank** → 72.7 %, which fixed the coupling
+   constant and made the last step arithmetic instead of guesswork.
+4. **Struck by the SIGNED train** (parity cancellation) → WEIGHT did nothing at
+   all, 4.5 % against 4.6 %. Over-corrected, and instructive: the parity rule
+   governs what the object **radiates**, not what it is **struck by**. A blow is
+   compressive — nine thousand impacts push the same way whatever the parity of
+   their coordinates.
+
+Shipped on magnitude with the trim solved from (2). At WEIGHT 0.85: **53 %**
+below 250 Hz with the centre still at 5.4 kHz.
+
+#### The 77 K cliff
+
+Two cliffs stacked. The rate law `0.25 + 3.2w²` still counted at a **quarter
+speed** at 77.1 K, and a hard `return` muted the object outright at 77.0 — busy
+to silent across a tenth of a kelvin.
+
+**The first fix was too clever and broke the instrument.** Replacing the law with
+a smooth `3.45 w^1.55`, matched at 800 K and at room to within one per cent,
+inverted BOTH entrainment checks — R fell across a take where it had risen. At
+the default CONDUCTION the lattice sits near global synchrony and is exquisitely
+sensitive to how its own rate stands against the imposed pulse. **One per cent
+was too much.** What shipped keeps the old law exactly above 99 K and fades the
+last twenty-two kelvin to zero; the same gate holds the imposed pulse, or a
+frozen object would still be shoved into firing.
+
+| kelvin | whole-body events in 20 s |
+|---|---|
+| 80 | 1.1 |
+| 90 | 3.2 |
+| 100 | 5.2 |
+| 120 | 6.0 |
+| 190 | 7.0 |
+
+Worst single step 3.0×, and at 77 K still **exactly** silent. The early return is
+gone, so cooling no longer cuts the body off mid-ring — which is also the only
+reason the crate's tail could be measured at all.
+
+#### MEMORY — a touch is remembered
+
+A touch used to shove a phase and be over with. Now it MARKS the units it lands
+on; they count faster while the mark lasts, and MEMORY sets the fade from about
+two seconds to permanent. The panel tints marked cells green (sped up) or violet
+(slowed), fading with the mark, so the trace is watchable.
+
+**The first version was wired to nothing that mattered.** A mark changed only how
+fast a unit counted — and at any real CONDUCTION the coupling pins the collective
+rate and swallows it: a second after a drag the object differed by **1 %** and
+MEMORY made no difference at all. The comment in the code already claimed a mark
+"moves it into another layer… it speaks through a different body", and the code
+did not do that, because `bandOf` is built from the NATURAL rate. The deposit now
+shifts the band by the mark. A second after the touch ends the object sounds
+**35.3 %** different in colour.
+
+*Honest limit:* eight seconds on, a short MEMORY still differs from untouched by
+11.5 % against a long memory's 14.2 %. Most of that residue is not memory — a
+touch perturbs a near-chaotic lattice and it diverges whether the mark survives
+or not. The check asserts the ordering and no more.
+
+#### Half the catalogue redrawn
+
+The old generator makes BUSY objects, several thousand firings a second, and at
+that density events overlap so a long tail and a heavy blow are heard as texture
+rather than as events. Everything built in .2 and .3 was therefore nearly
+inaudible across the catalogue — not a fault in the mechanisms but in what the
+specimens asked of them. **Odd-numbered specimens are now drawn sparse and
+resonant**: slow counts so events stand apart, enough conduction for real
+cascades, and a body given time and room. Split by the specimen NUMBER rather
+than a draw, so it is legible from the dial; even numbers are the objects as they
+were.
+
+| spec | firings/s | energy <250 Hz | colour |
+|---|---|---|---|
+| 8 | 41 480 | 9.6 % | 5 960 Hz |
+| **9** | 2 388 | **64.6 %** | **1 058 Hz** |
+| 40 | 73 507 | 22.6 % | 7 718 Hz |
+| **41** | 7 128 | **61.9 %** | **2 550 Hz** |
+| 200 | 4 613 | 9.1 % | 7 382 Hz |
+| **201** | 4 626 | **68.2 %** | **2 406 Hz** |
+
+#### The bench lesson, for the third time
+
+Check 4 failed again this round and **the counting had not moved a sample** —
+because it neutralises the body controls and WEIGHT and ENCLOSURE had just joined
+the body. R is read from the audio envelope against the beat, so anything that
+lengthens an event lowers it. The rule is now stated once in `bench.cpp`: *if it
+makes sound after the firing, it is shut off for the entrainment tests.* With
+that, check 4 returns 0.382/0.658, 0.445/0.450, 0.508/0.365, 0.406/0.272 — the
+260902.1 numbers to three decimals.
+
+Section 12 then failed on 3072 firings/s, flat across four temperatures. 3072 is
+exactly NUNIT⁄3 over a 3 s take: cold, the lattice fires as ONE body, and three
+seconds cannot resolve anything finer than "it went off once". **The flatness was
+the take length, not the object.**
+
+**26 bench checks ALL CLEAR.** New panel probe `test/uiprobe.js` cross-checks
+every engine parameter against the panel (and knows TEMPERATURE has its own
+thermometer) — the guard against the working-but-invisible class. Six demo
+passages re-rendered, a new one (*The Weight of It*, sparse specimen 41) added to
+the landing page as OBS-17, the page's "at 77 K the count stops" claim corrected,
+zip re-cut and verified byte-identical to the build, installed to both houses.

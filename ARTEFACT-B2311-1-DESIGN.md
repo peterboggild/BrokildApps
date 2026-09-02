@@ -345,3 +345,37 @@ against the real 260902.1 engine compiled in beside the new one, residual
   body neutral and return the 260902.1 numbers to three decimals.
 - **Cost 0.89 % → 1.20 % of one core.** The first measurement said 10.7 %,
   because the bench does not flush denormals and the plug-in does.
+
+---
+
+## 7 - The crate, the low body, and a touch that is remembered (260902.3)
+
+Peter, having played 260902.2: "they sound great but all noises are very short",
+and then "is there some way to give them weight". Both were true and the second
+was answered by a control that had been on the panel since the first day.
+
+**ENCLOSURE was never wired to anything.** Declared, glossed "the room the crate
+makes around it", drawn, randomised into all 256 specimens, and never read. It is
+now a four-line FDN and it is where LENGTH comes from: the bank alone topped out
+at 48 ms, the crate reaches 469 ms.
+
+**WEIGHT** is the object own low body - three resonators at unharmonic ratios,
+pitched from ABSORPTION and never from the played note, struck only in proportion
+to how hard the object is being hit. The object had 4.5 per cent of its energy
+below 250 Hz; nothing that thin sounds heavy however long it rings.
+
+**MEMORY** makes a touch persist: the units under it are MARKED, count faster,
+and speak through a different body until the mark fades. The panel tints them,
+so the trace can be watched.
+
+**It runs down now instead of stopping dead.** The old rate law counted at a
+quarter speed at 77.1 K and then met a hard return at 77.0. The law is unchanged
+above 99 K - the first attempt replaced it outright, moved every temperature by
+one per cent, and inverted both entrainment checks - and the last twenty-two
+kelvin carry a fade to zero.
+
+**Half the catalogue is redrawn.** Odd-numbered specimens are sparse and
+resonant, because at several thousand firings a second events overlap and none of
+this is audible. Even numbers are the objects as they were.
+
+Full record, every measurement and every wrong turn: `ARTEFACT-B2311-1-BUGLIST.md`.
