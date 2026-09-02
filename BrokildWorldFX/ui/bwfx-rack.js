@@ -528,11 +528,32 @@
       assignClick(el.getAttribute("data-bwfx-dest"));
     }, true);
     veil.addEventListener("wheel", function (ev) {
-      if (armed < 0) return;
-      var el = ev.target && ev.target.closest ? ev.target.closest("[data-bwfx-dest]") : null;
-      if (!el) return;
-      if (wheelDepth(el.getAttribute("data-bwfx-dest"), ev.deltaY < 0 ? 1 : -1, ev.shiftKey))
-      { ev.preventDefault(); ev.stopPropagation(); }
+      /*  A macro is armed and the wheel is over one of its destinations: the
+          wheel sets the depth, as it always has. */
+      if (armed >= 0) {
+        var el = ev.target && ev.target.closest ? ev.target.closest("[data-bwfx-dest]") : null;
+        if (el && wheelDepth(el.getAttribute("data-bwfx-dest"), ev.deltaY < 0 ? 1 : -1, ev.shiftKey))
+        { ev.preventDefault(); ev.stopPropagation(); return; }
+      }
+      /*  OTHERWISE THE OVERLAY SCROLLS, AND IT DOES IT ITSELF.
+
+          Relying on the browser to scroll the veil means relying on the host
+          page not to have called preventDefault first, and B2311.67 takes the
+          wheel on window to drag its body through the cut — so the rack could
+          not be scrolled at all and the lowest pedals were unreachable. This
+          listener is in the CAPTURE phase on the veil, so it runs before the
+          event can bubble to the page, and it moves the veil by hand rather
+          than asking for a default action the page may already have refused.
+
+          deltaMode matters: a wheel reports pixels, lines or pages depending
+          on the device, and treating lines as pixels makes a mouse wheel move
+          the rack by three pixels a notch. */
+      var d = ev.deltaY;
+      if (ev.deltaMode === 1) d *= 16;
+      else if (ev.deltaMode === 2) d *= veil.clientHeight;
+      veil.scrollTop += d;
+      ev.preventDefault();
+      ev.stopPropagation();
     }, { capture: true, passive: false });
     veil.addEventListener("keydown", function (ev) {
       if (ev.key === "Escape" && armed >= 0) { armMacro(armed); ev.stopPropagation(); }

@@ -247,3 +247,56 @@ and add a dated entry to the bottom of this file.** So:
 Written into `CLAUDE.md` as a standing rule so it survives this session.
 
 **Current state: build 260830.7, published and verified IN STEP.**
+
+---
+
+## 2026-09-02 — 260902.1: the globe moves, the fragment gets faces, the rack scrolls
+
+Three of Peter's reports, all measured on the live panel before anything was
+changed. Archive re-cut and verified (`make-dist-zip.ps1` reports the build id
+in the zip and in the tree both at 260902.1, and loads the plug-in out of the
+archive).
+
+**The BWFX overlay could not be scrolled**, so the pedals at the bottom of the
+rack were unreachable. The fix is in the SHARED fragment, not in .67: the veil's
+scrollHeight was 1108 against a clientHeight of 880 — 228 px below the fold —
+and setting `scrollTop` from script worked, so it was scrollable all along and
+the wheel was never reaching it. A synthetic wheel inside the veil reported
+`host window wheel handlers saw the event: 1 (defaultPrevented=true)`: .67
+registers a window-level wheel listener and preventDefaults every wheel event
+anywhere, to drag the body through the cut. The overlay now scrolls itself in
+the capture phase and stops the event there, so it no longer depends on the host
+leaving the default action alone. Of the ten synths only .67 takes the wheel
+globally; the rest inherit the hardened fragment on their next rebuild.
+
+**The globe sat on the readouts.** Measured at (1238,22) with `rOrd "72"`,
+`rSig "30:70"` and `rGR "0.0 dB"` underneath it, plus the cut/habit/ceiling
+label rows reaching x=1268 — the top-right corner plate is 265×75 and full.
+Moved to `top:88`, just below the plate; verified live as *"globe at 1238,88 ->
+CLEAR of all text"*.
+
+**The traverse now leaves the body.** Peter asked that winding the wheel too far
+give no cross-section and therefore no sound. Worth recording that the
+mathematics does **not** give this: a cut-and-project quasicrystal is infinite
+and dense, so the acceptance window holds points at every depth and no traverse
+could ever empty the section. What ends is the *specimen* — B2311.67 came out of
+a vault as a fragment, and a fragment has faces. The tissue now occupies the
+middle of the traverse and the outer reaches are the vault: raised-cosine face
+from tau 8.5 to 10.4, exactly zero beyond.
+
+| TRAVERSE | depth tau | peak |
+|---|---|---|
+| 0.50 | 0.0 | 0.5866 |
+| 0.20 | −7.2 | 0.6495 |
+| 0.14 | −8.6 | 0.2813 |
+| 0.10 | −9.6 | 0.2636 |
+| 0.05 | −10.8 | **0.000000** |
+| 0.00 / 1.00 | ∓12.0 | **0.000000** |
+
+Roughly the middle 70 % of the wheel is inside the object. New permanent check
+at `test/voidtest.cpp` (target `ab67void`). Bench ALL CLEAR at 71 checks.
+
+**For the manual:** TRAVERSE now has an outside. The wheel no longer merely
+runs out of range at its ends — past about ±10.4 in tau the plane has left the
+fragment and there is nothing to hear, which is worth a sentence in whatever
+describes the traverse.
