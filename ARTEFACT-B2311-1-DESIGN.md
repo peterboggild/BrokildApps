@@ -270,3 +270,78 @@ it, build id read from those bytes.
 - **The section-is-timbre test measures the wrong thing in this regime.** With
   the object now firing in rare bursts, its crossing-rate probe reads event rate
   rather than colour. It passes, and it is not measuring what its name says.
+
+---
+
+## 6 · The body gains layers (260902.2)
+
+Peter, having played it: *"id also like the sounds it generated to have more
+variety in terms of lengths and spectral weight… Can you do that without just
+pasting basic oscillators on?"*
+
+The answer was yes, and the reason it was yes is that the object was already
+computing the variety and discarding it before the ear.
+
+**What was wrong, measured.** Section 3 above says a firing is a moment and the
+waveform is the list of moments — and that is true — but the moment was given
+its body by ONE pair of one-poles shared by all 9216 units. So every event in a
+take was **1.19 ms** long and one colour, and the longest event the instrument
+could make anywhere in its parameter space was **9.5 ms**, at its darkest
+setting. Everything that sounded like variety was the DENSITY of identical
+clicks: over a 20 s take, loudness moved with a CV of 110 % and colour 27 %,
+and the 27 % was how the clicks were spaced, not any click differing.
+
+Meanwhile the lattice was doing plenty. Cascade size runs 303 to 9216 across the
+catalogue — a 30× spread that changed only how loud a moment was.
+
+**Three things it already knew and never said.** A unit's own natural rate (the
+smooth field that makes the layers, drawn as hue on the panel, and never
+consulted when a firing became sound); the size of the cascade; and how far
+across the lattice the cascade reached, which was not computed at all though the
+coordinates were in hand.
+
+So: **STRATIFICATION** gives each layer of the rate field its own body — eight
+one-pole pairs, a unit speaking through the band its own rate puts it in, slow
+regions answering low and long and fast regions high and short. **PERSISTENCE**
+gives each band a long mode that only a hard strike reaches, so a tick comes out
+dry and a convulsion rings; the length of an event is now an output of the
+lattice, exactly as its rhythm always was. **TRAVERSE** lets a cascade's own
+reach decide how long it takes to arrive, so the ear hears the cascade's SIZE
+where before it heard only its order.
+
+None of it is an oscillator. Every one is a change to damping, to timing, or to
+routing; the waveform is still a point process. The constraint that keeps it
+that way is written into `Engine.h` and is worth repeating: **the bands stay
+one-poles, Q below one.** Raise the Q and spread the centres and this stops
+being a body and becomes a bank of tuned bars struck by the lattice, which is
+the thing being refused.
+
+At 0 all three are exactly neutral and the instrument is 260902.1 — verified
+against the real 260902.1 engine compiled in beside the new one, residual
+−119.3 dB, which is float summation order and nothing else.
+
+### What it cost to get right
+
+- **The obvious PERSISTENCE was wrong.** Opening the band's own slow pole
+  lengthens the tail and lowers it faster than it lengthens it: the −20 dB point
+  moved from 0.375 ms to 0.125 ms and the audible event got SHORTER. A parallel
+  long mode — the same body at a tenth the speed, fed by the drive — is what a
+  real object has, and is what shipped. Big/small length ratio 1.59× → **3.78×**.
+- **A ratio normalised against the average SAMPLE saturates**, because in an
+  object silent between events every event is enormous against it. Normalising
+  against the average EVENT is the comparison that was wanted.
+- **Sorting events by their peak sorts them by the wrong thing** once TRAVERSE
+  is in: a large cascade is spread flatter, so it can peak lower than a small
+  tight one. Sort by the energy of the first 3 ms — the cascade arriving, before
+  the long mode has spoken.
+- **The soft ceiling never was one.** It asymptotes to `ceil/0.55` = 1.67 at a
+  wide-open CEILING; nothing had driven it that hard until the long mode did,
+  and the worst peak reached 1.29. Fixed with a hard knee at 0.85 — because the
+  first attempt, a gentler curve everywhere, moved every sample in the take by
+  about a per cent.
+- **The bench's own entrainment check measured the tail, not the counting.** R
+  is taken from the audio envelope against the beat, and a forty-millisecond
+  tail spreads energy over every phase of it. Checks 4 and 5 now run with the
+  body neutral and return the 260902.1 numbers to three decimals.
+- **Cost 0.89 % → 1.20 % of one core.** The first measurement said 10.7 %,
+  because the bench does not flush denormals and the plug-in does.
