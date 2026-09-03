@@ -178,3 +178,17 @@ has its natural-rate multiplier, 1.012):**
 6. `test/sitetest.cpp` in .104 exercises the header with two clients in one
    process (slots, climate propagation, Kuramoto convergence, hot → zero pull,
    coupling off → zero pull); reuse it if the header ever changes.
+7. **Your page must echo host-parameter changes.** The climate arrives as a
+   change to your temperature parameter made by the processor, not by the
+   page; if the page only learns its values from `initialState`, the sound
+   moves and the slider does not, and the whole thing reads as broken (Peter's
+   first report on 260903.1 was exactly that — .104 and .1 had no echo, .22
+   did). Diff `raw[]` against a `lastSent[]` on the timer and emit a
+   `hostParam` batch; mark the page's own `"p"` moves in `lastSent` so they
+   are not echoed back.
+8. **Chosen here, global now.** When a panel turns CLIMATE on, propose that
+   finding's own temperature at once, so the bench takes it; and for the
+   first second after construction make no proposals (the host is still
+   restoring state) while following the bench's climate if it has one — or a
+   project load would rewrite the bench, and a restored value would sit off
+   the bench forever.
