@@ -123,3 +123,58 @@ is the v2 the panel is already shaped for.
    that phase alignment actually tightens when cold and close (measured, not
    assumed); offline-freeze behavior.
 6. Handover note for the .67 session; CLAUDE.md; push.
+
+## 7. Status 2026-09-03 — built, measured, and the recipe for B2311.67
+
+**Shipped.** `BrokildWorldFX/adapter/proxima_site.h` (header-only; the named
+mapping `Local\BrokildProximaSite`; settings in `%APPDATA%\Brokild\ProximaSite.json`)
+is wired into **B2311.104, B2311.1 and B2311.22**. Coupling defaults OFF and
+every bench proves the uncoupled render is **byte-identical** to an engine that
+never called `setSite` (a plain sample-by-sample compare). What each one does
+when coupled, and the number that proves it:
+
+| finding | the lean | measured, cold + distance 0 |
+|---|---|---|
+| .104 | the grid's traffic packets are scheduled on the site's wraps | 24/24 packets within 0.1 s of a wrap, vs 4 % free |
+| .1 | the site is a SECOND imposed pulse: on each wrap it shoves the lattice like the host pulse, scaled by the pull and the cold gate | output concentration on the site period (see its bench) |
+| .22 | the sustain floor breathes on a FOUR-wrap cycle (its modes reach the floor over 2–9 s, so a swell at 0.5 Hz filtered to nothing — measured 0.010 vs 0.010) and the interlocutor interjects only near a wrap | envelope concentration on the four-wrap cycle (see its bench) |
+
+The law in every case is the header's one line: `pull = (1 − distance) × (1 − warmth)`
+when TIMING is shared and somebody else is present; the climate is a host
+parameter on each finding, so a shared move is visible, automatable and
+undoable in any DAW. The SITE panel in ANY finding edits the same settings.
+
+**Recipe for .67 (an afternoon; the header needs no change — kind 67 already
+has its natural-rate multiplier, 1.012):**
+
+1. `#include "proxima_site.h"` — the BWFX adapter dir is already on your
+   include path (you include `bwfx_juce.h` from it). Member
+   `proxima::Client site;` — `site.open (67)` in the processor ctor,
+   `site.close()` in the dtor.
+2. A `siteStep()` on the processor's **own** timer (so it runs with the editor
+   closed). Copy .104's `siteStep()`/`emitSite()` from
+   `ArtefactB2311_104/Source/PluginProcessor.cpp` — forty lines: warmth 0..1
+   and kelvin from your temperature param; `if (isNonRealtime() || !site.isOpen())`
+   hand the engine pull 0 and return; `auto v = site.sync (activity, myK, phase, warmth)`;
+   climate = propose when YOU moved (guarded on the last applied value, or two
+   instances chase each other round the rounding error), follow `v.climateMoved`
+   through your host parameter; `pull = Client::pullStrength (v, warmth)`;
+   `phase = Client::stepPhase (phase, site.naturalHz(), dt, v, pull)`; hand
+   `(phase, v.pulseHz, pull)` to the engine.
+3. Engine: `setSite (phase, hz, pull)` into three atomics, ONE mechanism that
+   leans on the site phase, inside `if (pull > 0)` so pull 0 is never entered.
+   Choose what in .67 is a TIMING — the thing that should fall into step with
+   the bench. Ease a local phase onto the negotiated one (the .1/.22 pattern:
+   `diff -= floor(diff+0.5); phase += diff*0.35 + hz*dt`).
+4. UI: `{k:"site", climate|timing|distance}` up; a `site` event down with
+   `{open, climate, timing, distance, others, coh, pull, kelvin, phase}`. The
+   panel markup + JS is in .104's `ui.html` under "the site" (ids
+   `siteClimate / siteTiming / siteDist / siteDistRd / siteStatus`, plus a
+   one-line status readout). .22 has the same panel as a rail overlay.
+5. Bench, two checks: uncoupled memcmp against an engine that never called
+   `setSite`; coupled, cold, distance 0, the lean measurably present (fold the
+   output envelope on the site period, or count events on wraps). Render long
+   enough to hold several site periods — the vacuous-window trap.
+6. `test/sitetest.cpp` in .104 exercises the header with two clients in one
+   process (slots, climate propagation, Kuramoto convergence, hot → zero pull,
+   coupling off → zero pull); reuse it if the header ever changes.

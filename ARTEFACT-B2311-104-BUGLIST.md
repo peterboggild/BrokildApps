@@ -55,9 +55,23 @@ effect is absent"):**
    150 K → −40 dB within a fixed time), "hot drones" (same phrase at 700 K
    sings on), and the existing clean-regime tuning checks unchanged.
 
-**Status: awaiting go.**
+**Status: SHIPPED 2026-09-03, build 260903.1.** Range 77–800 K; warmth gates
+the auto-song, turbulence, stiffness, hunt and leak; the auto-song excess is
+directional (max(0, ln T/T_amb)) and gated off while an order holds; a warm
+grid carries more traffic. Measured self-song rms 0.00000 / 0.00004 / 0.0098 /
+0.29 at 100 / 234 / 450 / 800 K — a monotone slope; a note at 150 K dies to
+2 % of its held level within a second; a conduit poured COLD is silent. The
+last bug in the way was not the law at all: under a hard heat drive the loop
+LATCHED to a DC fixed point (+0.62, no AC — read straight off the delay line),
+because the in-phase King term amplifies DC as well as it does the tone. Fixed
+by Rayleigh's criterion stated properly: only the FLUCTUATING heat release
+enters the loop (a 6 Hz thermal-inertia high-pass on the King branch).
+62 bench checks ALL CLEAR, tuning untouched (worst 3.30 c).
 
 ## 2. THE SITE LAYER (cross-artefact coupling) — see PROXIMA-SITE-DESIGN.md
 
-Global climate, the site pulse, and the DISTANCE control, shared by all four
-findings. Specced separately because it spans the collection. Awaiting go.
+**SHIPPED 2026-09-03** in .104, .1 and .22 (section 7 of the design doc has the
+measurements and the recipe for .67). Coupling defaults OFF and is bench-proven
+byte-identical when off. .104's lean: the grid's traffic lands on the site's
+wraps (24/24 packets, vs 4 % free). SITE panel lives in the survey legend
+(triple-click the void).
