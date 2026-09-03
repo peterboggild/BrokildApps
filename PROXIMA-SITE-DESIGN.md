@@ -192,3 +192,28 @@ has its natural-rate multiplier, 1.012):**
    restoring state) while following the bench's climate if it has one — or a
    project load would rewrite the bench, and a restored value would sit off
    the bench forever.
+9. **Seed an empty bench.** The bench's temperature lives in the block, and
+   the block dies with the last instance — so opening a project with CLIMATE
+   already shared gives a bench with no temperature at all, and nothing
+   converges until somebody happens to move a slider. Every finding sits at
+   its own value with the setting plainly switched on, which reads exactly
+   like the sharing being broken. The first settled finding to find
+   `siteKelvin <= 0` proposes its own.
+
+## 8. How the site is verified — three levels, because one was not enough
+
+Each level covers a link the others cannot reach. All three are in
+`ArtefactB2311_104/test/`.
+
+| level | what it drives | what only it can catch |
+|---|---|---|
+| `ab104siteclimate` | the climate state machine, **four findings in one process** | the DAW configuration: propose/follow/seed/settle, a dragged slider, ping-pong, an unwired finding present |
+| `ab104host` (`test/host/`) | **the installed .vst3 bundles in a real JUCE host** | anything broken in the plug-in wrapper rather than the engine — the only link the other two never touch |
+| `site-live.ps1` | three **standalones** over CDP | the panels: buttons, readouts, and the sliders actually moving |
+
+Plus `ab104sitewatch`, which is not a test but a **window on the bench**: it
+opens the shared block read-only and prints who is present, what each is
+publishing, and how long ago they last spoke. Run it while a DAW is open and
+it answers "is this finding on the bench" in one line — which is the question
+every site bug reduces to. A finding that does not appear there is not wired,
+whatever its panel says.
