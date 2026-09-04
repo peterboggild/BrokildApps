@@ -138,6 +138,10 @@ when coupled, and the number that proves it:
 | .104 | the grid's traffic packets are scheduled on the site's wraps | 24/24 packets within 0.1 s of a wrap, vs 4 % free |
 | .1 | the site is a SECOND imposed pulse: on each wrap it shoves the lattice like the host pulse, scaled by the pull and the cold gate | output concentration on the site period (see its bench) |
 | .22 | the sustain floor breathes on a FOUR-wrap cycle (its modes reach the floor over 2–9 s, so a swell at 0.5 Hz filtered to nothing — measured 0.010 vs 0.010) and the interlocutor interjects only near a wrap | envelope concentration on the four-wrap cycle (see its bench) |
+| .67 (wired 2026-09-04, build 260904.1) | the cut ROCKS through the fourth dimension in the bench's time, a quarter-unit deep at full pull — the tiling's own motion, the rim flipping as it goes; the star's shimmer breathes with it | depth swing 0.500 of 0.500 asked; output folded on the bench's 0.5 Hz 0.513 vs 0.006 free; uncoupled byte-identical |
+
+**All four contribute** as of 2026-09-04. The recipe below is what .67 was
+wired from, verbatim, in one pass; keep it for a fifth finding.
 
 The law in every case is the header's one line: `pull = (1 − distance) × (1 − warmth)`
 when TIMING is shared and somebody else is present; the climate is a host
