@@ -5,7 +5,7 @@ code, in the house manner: every claim made here is something `test/bench.cpp`
 measures against the real engine.*
 
 *STATUS 2026-09-04: BUILT AND SHIPPED — build 260904.2, tree
-`C:\Users\peter\b\HighTide`, 123 bench checks ALL CLEAR, panel probe 12/12,
+`C:\Users\peter\b\HighTide`, 283 bench checks ALL CLEAR, panel probe 14/14,
 verified live over CDP, installed in both houses, published at
 `vst3-apps/high-tide/`. What was built matches this document except where §12
 says otherwise; §12 and §13 are the record of what the build taught.*
