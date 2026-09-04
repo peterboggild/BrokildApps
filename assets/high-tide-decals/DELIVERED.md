@@ -25,3 +25,10 @@ All twelve standalone assets are included at their exact requested dimensions. T
 ```
 
 Production note: the source generations were normalized mechanically to the specified dimensions. The glass is especially narrow by design; inspect it in-panel at its actual rendered width, where its edge highlights read correctly.
+
+## Redelivery after `REDO.md`
+
+- `ht-ground.png` — regenerated full-frame sea-ink woven chart-table texture with visibly stronger material grain; seamless on both axes.
+- `ht-paper.png` — regenerated full-frame cream laid-paper texture with visible fibres, pulp cloudiness and subtle age; seamless on both axes.
+- `ht-nameplate.png` — regenerated full-frame engraved brass plate with intact `HIGH TIDE` capitals, four screws and wave line.
+- `ht-rose.png` — regenerated as a complete, centred circular compass rose in ink-only transparency with no lettering.
