@@ -1,0 +1,15 @@
+{
+  "slug": "high-tide",
+  "name": "High Tide (VST3)",
+  "description": "A free Windows VST3 wavetable synth that stores no waveforms. Every frame is a bowl on a sculpted terrain and the sound is a ball dropped into it, integrated by Newton's law at audio rate: a parabola is a sine, a box is a square, a pit in the floor is a pulse, a hard strike climbs the walls and brightens, a note decays by sinking to the floor. Position is where the ball is; a rising TIDE floods the passes between the valleys so it can be towed anywhere, a low tide leaves it stranded; keyframe PINS on a timeline that runs from the key going down tow it exactly where you want it, when you want it there, the same way every time, and a coral wake shows where the terrain won. ROCK drives the whole terrain at the note and opens period doubling into chaos. Tune-locked sculpting keeps any bowl exactly in tune; a 16-bit PNG goes in and out, so any image editor is a terrain editor; a photograph becomes a landscape of bowls. Twelve factory terrains, the Brokild World FX rack and five macros. Every claim measured by a 123-check bench.",
+  "status": "live",
+  "url": "vst3-apps/high-tide/index.html",
+  "icon": "keys",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/high-tide.jpg",
+  "note": "Windows VST3 · build 260904.1 · free download · 12 factory terrains · 15-page manual.",
+  "tags": [
+    "vst3",
+    "synth"
+  ]
+}

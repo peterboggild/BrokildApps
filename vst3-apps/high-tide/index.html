@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>High Tide — VST3 terrain wavetable synth | BrokildApps</title>
+  <meta name="description" content="High Tide is a free Windows VST3 wavetable synth that stores no waveforms: every frame is a bowl on a sculpted terrain and the sound is a ball dropped into it, integrated by Newton's law. A rising tide floods the passes between valleys, keyframe pins on a timeline tow the ball, ROCK drives the terrain into period doubling and chaos. Tune-locked sculpting, 16-bit PNG terrains, photographs as landscapes, twelve factory terrains, the Brokild World FX rack." />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230e9f86'/><text x='50' y='68' font-size='52' font-family='Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'>B</text></svg>" />
+  <style>
+    :root {
+      --accent: #14808a;
+      --accent-bright: #1fb5c4;
+      --amber: #8a6a2a;
+      --bg: #ffffff;
+      --bg-soft: #f7f4ee;
+      --card: #ffffff;
+      --border: #e7e2d8;
+      --text: #1b1810;
+      --text-soft: #5c564a;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+      --code-bg: #f2eee4;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #6fe3ee; --accent-bright: #a9f0f5; --amber: #e8c56a;
+        --bg: #0c0a07; --bg-soft: #14110b; --card: #17130c; --border: #2a2418;
+        --text: #f0ece2; --text-soft: #a8a294;
+        --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.4);
+        --code-bg: #201a10;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 0 1.5rem; }
+    a { color: var(--accent); }
+
+    /* ---- top bar (matches the front page) ---- */
+    .topbar {
+      background: linear-gradient(105deg, #06342d 0%, #0a4a40 45%, #14315c 78%, #2a2a6b 100%);
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+    .nav {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; padding: .8rem 0;
+    }
+    .brand { display: flex; align-items: center; gap: .7rem; text-decoration: none; }
+    .brand-mark {
+      width: 38px; height: 38px; border-radius: 9px;
+      background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.28);
+      color: #fff; display: grid; place-items: center;
+      font-weight: 800; font-size: 1.35rem; flex: none;
+    }
+    .brand-name { font-weight: 700; font-size: 1.05rem; color: #fff; }
+    .brand-sub { color: rgba(255,255,255,.72); font-size: .82rem; }
+    .nav a.back { color: #a9f0df; text-decoration: none; font-size: .9rem; font-weight: 600; }
+
+    /* ---- hero ---- */
+    .hero {
+      background:
+        radial-gradient(120% 90% at 78% 0%, rgba(31,181,196,.22) 0%, transparent 56%),
+        radial-gradient(90% 80% at 6% 100%, rgba(201,162,74,.20) 0%, transparent 60%),
+        linear-gradient(168deg, #10202d 0%, #06090e 100%);
+      color: #efe6d4; padding: 3.4rem 0 3rem; border-bottom: 1px solid var(--border);
+    }
+    .kicker {
+      font-size: .74rem; letter-spacing: .34em; text-transform: uppercase;
+      color: #6fe3ee; margin-bottom: .9rem;
+    }
+    .hero h1 {
+      font-family: Georgia, "Times New Roman", serif; font-weight: 600;
+      font-size: clamp(2.1rem, 5.5vw, 3.4rem); line-height: 1.05; margin: 0;
+      color: #f2ede0; letter-spacing: -.02em;
+    }
+    .hero h1 span { color: #c9a24a; }
+    .hero .tagline {
+      font-family: Georgia, serif; font-style: italic; font-size: 1.2rem;
+      color: #a9c6cc; margin: .9rem 0 0;
+    }
+    .hero p.lede { color: #b8c4c8; max-width: 62ch; margin: 1.1rem 0 0; }
+    .hero-shot { margin: 2rem 0 0; }
+    .hero-shot img {
+      width: 100%; display: block; border-radius: 10px;
+      border: 1px solid #1f3a44; box-shadow: 0 18px 48px rgba(0,0,0,.6);
+    }
+    .btnrow { display: flex; flex-wrap: wrap; gap: .8rem; margin: 1.8rem 0 0; }
+    .buildtag { align-self: center; font: 600 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+                letter-spacing: .14em; text-transform: uppercase; opacity: .55; }
+    .btn {
+      display: inline-flex; align-items: center; gap: .55rem;
+      padding: .78rem 1.3rem; border-radius: 10px; text-decoration: none;
+      font-weight: 600; font-size: .96rem; border: 1px solid transparent;
+    }
+    .btn-primary { background: #1fb5c4; color: #06171b; }
+    .btn-primary:hover { background: #6fe3ee; }
+    .btn-ghost { border-color: #3a5560; color: #d8e4e6; }
+    .btn-ghost:hover { border-color: #6fe3ee; color: #a9f0f5; }
+    .btn small { font-weight: 400; opacity: .75; }
+
+    /* ---- body sections ---- */
+    section.block { padding: 3rem 0; border-bottom: 1px solid var(--border); }
+    section.block:last-of-type { border-bottom: none; }
+    h2 {
+      font-family: Georgia, serif; font-size: 1.55rem; margin: 0 0 .4rem;
+      letter-spacing: -.01em;
+    }
+    h3 { font-size: 1.02rem; margin: 1.6rem 0 .3rem; }
+    .sub { color: var(--text-soft); margin: 0 0 1.4rem; max-width: 70ch; }
+    p { max-width: 72ch; }
+    code {
+      font-family: Consolas, "SF Mono", Menlo, monospace; font-size: .86em;
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 4px; padding: .1em .4em;
+    }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 1rem; margin-top: 1.4rem; }
+    .c {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.1rem 1.2rem; box-shadow: var(--shadow);
+    }
+    .c .n {
+      font: 600 .72rem/1 Consolas, monospace; color: var(--amber);
+      letter-spacing: .1em; text-transform: uppercase;
+    }
+    .c h4 { margin: .5rem 0 .35rem; font-size: 1rem; }
+    .c p { margin: 0; font-size: .9rem; color: var(--text-soft); max-width: none; }
+
+    ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 1.2rem 0 0; }
+    ol.steps li {
+      counter-increment: s; position: relative; padding: 0 0 1.1rem 2.9rem;
+    }
+    ol.steps li::before {
+      content: counter(s); position: absolute; left: 0; top: 0;
+      width: 1.85rem; height: 1.85rem; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      font: 600 .95rem/1.85rem Georgia, serif; text-align: center;
+    }
+    ol.steps li b { display: block; }
+
+    figure { margin: 1.6rem 0 0; }
+    figure img {
+      width: 100%; display: block; border-radius: 10px;
+      border: 1px solid var(--border); box-shadow: var(--shadow); background: #0a141c;
+    }
+    figcaption { font-size: .85rem; color: var(--text-soft); margin-top: .55rem; }
+    .figrow { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; align-items: start; }
+    @media (max-width: 700px) { .figrow { grid-template-columns: 1fr; } }
+
+    .note {
+      background: var(--bg-soft); border-left: 3px solid var(--amber);
+      padding: .9rem 1.1rem; border-radius: 0 8px 8px 0; margin: 1.3rem 0;
+      font-size: .93rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: 1rem; }
+    th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { font-size: .74rem; text-transform: uppercase; letter-spacing: .12em; color: var(--text-soft); }
+    td:first-child { font-weight: 600; width: 30%; }
+
+    footer {
+      background: var(--bg-soft); border-top: 1px solid var(--border);
+      padding: 2.2rem 0; color: var(--text-soft); font-size: .88rem;
+    }
+    footer p { max-width: 76ch; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <nav class="nav">
+      <a class="brand" href="../../index.html">
+        <span class="brand-mark">B</span>
+        <span>
+          <span class="brand-name">Brokild</span><br>
+          <span class="brand-sub">Musical instruments</span>
+        </span>
+      </a>
+      <a class="back" href="../../index.html">← All instruments</a>
+    </nav>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">VST3 Instrument · Windows · Free</div>
+    <h1>High <span>Tide</span></h1>
+    <p class="tagline">A wavetable synth that stores no waveforms. Sculpt the terrain; the sound is what falls out of it.</p>
+    <p class="lede">Every wavetable synth keeps a list of numbers and reads it with a pointer. High Tide
+      keeps the <b>landscape those numbers fall out of</b>: a frame is a bowl on a sculpted terrain, and the
+      waveform is a ball dropped into it, integrated by Newton's law at audio rate. A parabola is a sine, a
+      box is a square, a pit in the floor is a pulse. A hard strike climbs the walls and brightens; a note
+      decays by sinking to the floor. Position is where the ball <i>is</i>. A rising <b>tide</b> floods the
+      passes between valleys; <b>pins</b> on a timeline tow the ball exactly where you want it, when you
+      want it, the same way every time. <b>Rock</b> the terrain at the note and the sound period-doubles
+      into chaos, an octave at a time.</p>
+
+    <div class="btnrow">
+      <a class="btn btn-primary" href="High-Tide-VST3-win64.zip" download>
+        ↓ Download for Windows <small>(zip, 7.1 MB)</small>
+      </a>
+      <span class="buildtag">Build 260904.1</span>
+      <a class="btn btn-ghost" href="High-Tide-Manual.pdf">
+        Manual <small>(PDF, 15 pages)</small>
+      </a>
+    </div>
+
+    <figure class="hero-shot" style="margin-top:2.4rem">
+      <img src="img/high-tide.jpg" alt="The High Tide plugin window: a lit terrain with water flooding its passes, a pearl swinging in a valley, the sculpt tools, the tide-gauge controls and a cream timeline with pins">
+    </figure>
+  </div>
+</header>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Store the question, not the answer</h2>
+    <p class="sub">A frame is a bowl. The waveform is what a mass does in it.</p>
+    <p>In mechanics a periodic waveform is not data; it is what a ball does when it is dropped into a
+      bowl. Energy is conserved, so at every point of the swing the ball's speed is fixed by how far
+      below the rim it sits. Draw the bowl and you have drawn the wave, from the other side. High Tide
+      hands you the bowl and never the wave. Nothing in the voice stores a sample, and the bench proves it
+      by having nothing to erase: the reference bowl plays a sine with every harmonic below &minus;119 dB.</p>
+    <div class="cards">
+      <div class="c"><div class="n">floor</div><h4>The note</h4><p>Its curvature is the pitch. Every decay ends here, so every note ends as a sine.</p></div>
+      <div class="c"><div class="n">walls</div><h4>The loud timbre</h4><p>Steep is bright and square-ish; gentle is round. A shelf halfway up is a sound only forte reaches.</p></div>
+      <div class="c"><div class="n">pit</div><h4>A pulse</h4><p>The ball dives through it and comes out with a spike in its velocity, twice a cycle.</p></div>
+      <div class="c"><div class="n">two pits</div><h4>An octave regime</h4><p>Below the hump the ball stays in one pit. Clear it and the cycle spans both.</p></div>
+      <div class="c"><div class="n">asymmetry</div><h4>Even harmonics</h4><p>Shear the bowl and they appear. Mirror it and they vanish, measured below &minus;120 dB.</p></div>
+      <div class="c"><div class="n">ridge</div><h4>A morph threshold</h4><p>Between two valleys along the position axis. Its height is the force it takes to cross.</p></div>
+    </div>
+    <h3>In tune by construction</h3>
+    <p>A textbook result says the period of a bowl depends only on its width at each height. <b>TUNE
+      LOCK</b> keeps that rule while you sculpt: shear the walls however you like, the other wall
+      follows, and the pitch does not move with the strike. Turn it off and the departure paints the bowl
+      red; that red is the pitch bend a strike will produce. Tension is not a knob, it is something you
+      can see you carved.</p>
+    <figure>
+      <img src="img/terrain.jpg" alt="The terrain view: a lit heightmap with contour lines, water at the tide line, the pearl and its swing streak">
+      <figcaption>The terrain view. Contour lines every tenth of a unit, the water at the tide line, the pearl with the streak of its swing, the tether to its target, the pins as brass stakes along the far edge.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Pins, the tide, and a timeline that runs from the key</h2>
+    <p class="sub">Keyframes for the wavetable, with the terrain still having a say.</p>
+    <p>The bottom of the window is a timeline that starts when a key goes down. Envelopes and LFOs are
+      drawn as the curves they actually are. Below them three lanes are yours: <b>TIDE</b>, <b>ROCK</b>
+      and <b>PINS</b>. A pin is a target, never a coordinate: the ball is towed toward it by a tether whose
+      strength is <b>HOLD</b>, and the terrain decides how it gets there. Points left of the red flag
+      count from the key going down; points right of it count from the key coming up. Shift-drag a
+      loop and the pins inside it cycle while the key is held.</p>
+    <p><b>TIDE</b> is a water line on the relief. A ridge under water is not there; a ridge above it stands.
+      High tide and high hold is the video editor, the ball goes exactly where the pins say. Low tide and
+      low hold is the pure landscape and the ball is stranded where it was struck. Everything between is
+      a terrain that partly has its way, and the coral <b>wake</b> of the last note shows you where it
+      won.</p>
+    <figure>
+      <img src="img/loop.jpg" alt="The timeline with a looped pin lane and the coral wake of the last note">
+      <figcaption>SPRING TIDE: a loop from half a second to a second and a half cycles the ball between two valleys while the key is held. The coral dots are where the last note actually went.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Rock the terrain</h2>
+    <p class="sub">Where the nonlinear waveforms live.</p>
+    <p>A ball on a still terrain can never be chaotic; that theorem is what makes the sculpting playable.
+      Add one ingredient and the whole bifurcation literature opens. <b>ROCK</b> tilts the terrain like a
+      see-saw at a ratio of the note; <b>BREATH</b> steepens and relaxes the bowls instead. In a double well
+      as the drive rises, the ball takes two rocks to complete one figure and the pitch drops an exact
+      octave; then four; then eight; then it hops between the pits at times nobody chose. The drive stays as
+      a strong line, so the note survives the chaos. Put ROCK on the timeline and every key walks the same
+      road from clean tone into the cascade.</p>
+    <figure>
+      <img src="img/tension.jpg" alt="The CASCADE terrain with tune lock off, painted red where the width rule is broken">
+      <figcaption>CASCADE with TUNE LOCK off: a double well is nowhere near the width rule, and the whole terrain says so.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Terrains come from anywhere a heightmap does</h2>
+    <p class="sub">Sculpt, stamp, generate, import a PNG, or feed it a photograph.</p>
+    <p>Ten tools on the left rail: push, pull, smooth, pit, ridge, tilt, mirror, stamp, relief, flatten,
+      with undo and redo. A GENERATE menu offers four starting grounds. <b>PNG OUT</b> writes the terrain
+      as a 16-bit greyscale PNG and <b>PNG IN</b> reads one back, so Photoshop, Blender and World Machine
+      are terrain editors the day it ships. <b>PHOTO</b> reads any picture and uses each row's brightness
+      as a bowl profile. A patch is the whole instrument: terrain, pins, every control and the rack, saved
+      as one file in <code>Documents\Brokild patches\High Tide\</code>.</p>
+    <table>
+      <tr><th>Factory terrain</th><th>What it is</th></tr>
+      <tr><td>FIRST LIGHT</td><td>Two sine valleys, a small ridge, a slow sweep and a release pin</td></tr>
+      <tr><td>BOX TIDE</td><td>A box that morphs into a sine over a high ridge while the tide rises</td></tr>
+      <tr><td>PIT BASS</td><td>Mono, glide, a pit into a double well, rock at 1/2</td></tr>
+      <tr><td>CASCADE</td><td>One double well; the pin sweep and the rock lane rise together</td></tr>
+      <tr><td>SHELF ORGAN</td><td>Shelved bowls, three frictionless balls</td></tr>
+      <tr><td>STRANDED</td><td>Four valleys behind tall ridges at low tide; the LFO pushes and mostly fails</td></tr>
+      <tr><td>SEICHE</td><td>BREATH at 2/1 bowing a box: the parametric pump</td></tr>
+      <tr><td>SPRING TIDE</td><td>A looped pin lane between two valleys, the LFO on the tide</td></tr>
+      <tr><td>UNDERTOW</td><td>Mono bass on the force tap with a tilted box</td></tr>
+      <tr><td>TIDE POOL</td><td>A grained sine with the servo holding pitch</td></tr>
+      <tr><td>NACRE</td><td>Four balls in a sine bowl, wide</td></tr>
+      <tr><td>GROUNDSWELL</td><td>Legato sub-bass, a double well rocked at 1/3</td></tr>
+    </table>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>The world rack</h2>
+    <p class="sub">Twelve pedals and six characters, shared by every Brokild synth.</p>
+    <p>The teal globe in the header opens the Brokild World FX rack: effects on the left that process what
+      the instrument has made, characters on the right that reach back into it. In High Tide the characters'
+      detune is fanned across the unison balls, their sag is keyed to each note's gate, and their tremolo and
+      filter ride the taps. Five MACROS are the rack's only host parameters. An empty rack is not a bypass
+      but an absence: the audio never enters it, to the sample.</p>
+    <figure>
+      <img src="img/rack.jpg" alt="The Brokild World FX rack open over High Tide">
+      <figcaption>The rack every Brokild synth carries: valve, phaser, chorus, harmonic tremolo, gate, crusher, channel strip, tape echo, convolution space, shimmer, Leslie and step glitcher, with six SPECTRA characters beside them.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Measured, not promised</h2>
+    <p class="sub">Every claim on this page is a check in the instrument's bench, run against the real engine.</p>
+    <table>
+      <tr><th>Claim</th><th>Measured</th></tr>
+      <tr><td>Reference bowl</td><td>A sine, worst harmonic &minus;120 dB, 110.000 Hz</td></tr>
+      <tr><td>Isochrone</td><td>A sheared bowl holds pitch within 0.01 cents from a 0.5 % strike to a full one</td></tr>
+      <tr><td>Energy</td><td>A frictionless ball keeps its energy to 0.00003 % over a minute</td></tr>
+      <tr><td>Box bowl</td><td>Velocity tap third harmonic &minus;10.6 dB against a square's &minus;9.5; position tap &minus;20 dB against a triangle's &minus;19</td></tr>
+      <tr><td>Rock</td><td>Sub-octave from ROCK 30 %; two strikes a millionth apart diverge to order one</td></tr>
+      <tr><td>Tide</td><td>A higher ridge takes longer to cross; at TIDE 100 % it is not there; a weak tether at low tide never crosses</td></tr>
+      <tr><td>Pins</td><td>Two identical notes leave byte-identical wakes and audio</td></tr>
+      <tr><td>Aliasing</td><td>Non-harmonic floor at 4x: parabola &minus;90 dB, box &minus;59 dB, pit &minus;63 dB at B5</td></tr>
+      <tr><td>Cost</td><td>A four-note chord 2.8 % of one core; twelve voices of four balls 27 %</td></tr>
+    </table>
+    <p>123 checks, all clear, on build 260904.1.</p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Download and install</h2>
+    <p class="sub">Two minutes. There is no installer — a VST3 plugin is a folder you copy into place.</p>
+
+    <ol class="steps">
+      <li><b>Download the zip.</b>
+        <a href="High-Tide-VST3-win64.zip" download>High-Tide-VST3-win64.zip</a>.</li>
+      <li><b>Unzip it.</b>
+        Right-click → <em>Extract All</em>. Inside you get a <code>High Tide.vst3</code> folder,
+        a standalone <code>High Tide.exe</code>, the manual and a readme.</li>
+      <li><b>Copy the plugin folder into the VST3 directory.</b>
+        Move the whole <code>High Tide.vst3</code> <em>folder</em> — not just the file inside
+        it — into <code>C:\Program Files\Common Files\VST3\</code>. Windows will ask for
+        administrator permission; that is normal.</li>
+      <li><b>Rescan plugins in your DAW.</b>
+        In Ableton Live: <em>Preferences → Plug-Ins → Rescan</em>. It appears as an instrument
+        called <b>High Tide</b>, by Brokild. Put it on a MIDI track and play.</li>
+    </ol>
+
+    <div class="note">
+      <b>If the plugin window is blank</b>, install the
+      <a href="https://developer.microsoft.com/microsoft-edge/webview2/" target="_blank" rel="noopener">Microsoft Edge WebView2 runtime</a>.
+      The interface is drawn with WebView2, which ships with current Windows but can be missing on
+      older or heavily stripped installations. The audio keeps working with the window shut either way.
+    </div>
+
+    <div class="note">
+      <b>If Windows refuses to load it at all</b> and mentions an <i>Application Control policy</i>,
+      that is <b>Smart App Control</b>. It decides <i>per file</i>, from a cloud reputation lookup,
+      and it can block one unsigned binary while loading another quite happily. The block attaches to
+      that exact copy of the file rather than to the plugin. Windows Security → App &amp; browser control
+      → Smart App Control lets you turn it off — note that switching it off is not reversible without
+      reinstalling Windows. Most machines do not have it enabled at all.
+    </div>
+
+    <table>
+      <tr><th>Requirement</th><th>Detail</th></tr>
+      <tr><td>System</td><td>Windows 10 or 11, 64-bit</td></tr>
+      <tr><td>Build</td><td>260904.1 — shown on the loading screen and in the header</td></tr>
+      <tr><td>Format</td><td>VST3 instrument, stereo out, MIDI in. A standalone application is in the same zip.</td></tr>
+      <tr><td>Polyphony</td><td>Twelve voices of up to four balls, or mono and legato</td></tr>
+      <tr><td>Sample rates</td><td>Any. Bench-tested at 44.1, 48 and 96 kHz.</td></tr>
+      <tr><td>Hosts</td><td>Any VST3 host — developed against Ableton Live 12</td></tr>
+      <tr><td>Price</td><td>Free. No account, no registration, no telemetry.</td></tr>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>High Tide</b> — a native VST3 instrument. Native C++ audio, JUCE 8, interface drawn in
+      the plugin's own window. Source and issues:
+      <a href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">github.com/peterboggild/BrokildApps</a>.
+      Its stablemates are <a href="../black-rider/index.html">Black Rider</a>,
+      <a href="../full-metal-racket/index.html">Full Metal Racket</a>, <a href="../clone-wars/index.html">Clone Wars</a>,
+      <a href="../blade-ruiner/index.html">Blade Ruiner</a>,
+      <a href="../martian-gain/index.html">Martian Gain</a>,
+      <a href="../photo-synth/index.html">Photo Synth</a> and
+      <a href="../escape-room/index.html">Escape Room</a>.</p>
+    <p>This VST comes from the curved mind of Professor Brokild, and was programmed with VScode,
+      ChatGPT and Claude. Use of this is on your own peril. It may generate unique, beautiful,
+      scary or useless sounds for you, and it may crash your DAW project. Have fun, play unsafely,
+      unwisely, and unboringly.</p>
+    <p>Cheers, Peter Bøggild, September 2026.</p>
+  </div>
+</footer>
+
+</body>
+</html>
