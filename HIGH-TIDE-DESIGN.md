@@ -4,7 +4,7 @@
 code, in the house manner: every claim made here is something `test/bench.cpp`
 measures against the real engine.*
 
-*STATUS 2026-09-04: BUILT AND SHIPPED — build 260904.3, tree
+*STATUS 2026-09-04: BUILT AND SHIPPED — build 260904.4, tree
 `C:\Users\peter\b\HighTide`, 283 bench checks ALL CLEAR, panel probe 14/14,
 verified live over CDP, installed in both houses, published at
 `vst3-apps/high-tide/`. What was built matches this document except where §12
@@ -457,8 +457,15 @@ on the timeline, the flag is the release marker, the glass is the gauge tubes
 the header and over the timeline. Each is applied only when its image has
 loaded, so a missing file leaves the drawn panel exactly as it was.
 
-Four came back letterboxed and one has no home; the redo order is
-`assets/high-tide-decals/REDO.md`. Three lessons worth keeping:
+A second delivery fixed the drawings but not the framing — the same four
+arrived letterboxed again — so three of them were taken from this side instead
+of asking a third time: the ground and paper strips are mirrored top-to-bottom
+into tiles that repeat without a seam, and the rose (the top half of a circle,
+cleanly cropped rather than squashed) rises out of a corner where only its
+upper quadrant is in frame. Dark ink on a dark panel cannot be seen, so the
+rose is filled through its own alpha with pale brass. Eleven of twelve parts
+are in; only the nameplate still needs redrawing, and `ht-knob` has no home.
+Four lessons worth keeping:
 
 - **A part's delivered size is not its drawn size.** Four arrived with the
   drawing pasted into a band of a larger black canvas, so the file was the
@@ -476,6 +483,11 @@ Four came back letterboxed and one has no home; the redo order is
   as well as the gauge ferrules. Pointing it at a 320 px brass ring painted a
   stretched ring across the whole header. It is the same rule as for an audio
   parameter, met on a CSS variable.
+- **When an order fails twice, stop ordering and start salvaging.** A strip of
+  fine grain mirrors into a seamless tile; a cropped half-circle can be placed
+  so the crop is off the frame. Both keep the artist's drawing and invent
+  nothing. What cannot be salvaged is a composition fault — the nameplate's
+  letters are cut by the plate's own edge, and no crop puts that back.
 
 ## 13. THE CENTRE LINE — the discovery of the second round (260904.2)
 
