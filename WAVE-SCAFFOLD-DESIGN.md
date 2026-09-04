@@ -127,3 +127,48 @@ waveform IS the brightness along the curve. Sight = sound, exactly.
 3. Panel: volume render (WebGL, raymarched, dim), glowing scaffolds, the
    cursor, the read waveform drawn on the curve itself.
 4. Then decide whether it is High Tide's sibling or its second mode.
+
+## 6 · A mode of High Tide, or its own thing? (asked 2026-09-04, High Tide already built)
+
+Recommendation: **its own thing, a sibling in the terrain family**, sharing
+High Tide's workflow but not its engine. The reasons are structural, not taste:
+
+1. **Opposite axioms.** High Tide's identity is "no stored waveform, no
+   phasor: the reader is a mass under Newton". A scaffold is read by a phasor
+   along a curve — exactly the reader High Tide refuses. As a mode it would
+   contradict the thesis the product is named for, and every bench claim
+   ("nothing to erase", "the period is the bowl's") would need a qualifier.
+2. **Different alias law.** High Tide's reader speed depends on strike energy,
+   so its anti-aliasing is a per-note blur along x chosen from the ball's own
+   step (§12 of its design). A scaffold's read speed is fixed by the pitch and
+   the path length, so its mip level is static per note — simpler, exact, and
+   a different code path. Nothing to share but the lesson.
+3. **The mode would be two synths in one binary.** A 3D volume needs a
+   raymarched renderer (High Tide's is a 2D heightmap), a different state blob
+   (a volume, not a 16-bit PNG), different sculpting (3D brushes), and its own
+   parameter set. Only the chassis would be common, and the manual would
+   double. The fleet's own rule for a different algorithm is a sibling, never
+   a replacement or a mode.
+
+And a reframing that matters for the decision: dimension count is not the
+axis of esotericism here. High Tide is esoteric in its READER (physics, chaos,
+descent through a bifurcation tree); the scaffold is esoteric in its PATH
+(topology, path-blending) but its reader is conventional — deterministic,
+exactly in tune, easy to alias-control. It is the more approachable of the
+two, closer to a wavetable than High Tide will ever be, and should not be
+buried as the wild mode inside the wild synth. If anything it is the family's
+entry instrument.
+
+**What to share, concretely:**
+- the TIMELINE with PINS and HOLD — a pin as a target the morph cursor eases
+  toward is exactly the scaffold's morph-space workflow; port the mechanic;
+- the LOD discipline and the brush-floor rule (as rules, re-derived for 3D);
+- the chassis every Brokild synth has (BWFX rack, macros, SPECTRA, patches);
+- a **bridge**: a High Tide terrain is a 2D field, i.e. one slice of a
+  scaffold volume — "export this terrain as a slice" and the two products
+  hand material to each other.
+
+If the one-product route is still preferred for the shelf, the least bad way
+is a second reader type behind the same SPECS table with the volume as an
+extra state blob; the cost is the renderer and the sculpting, not the engine.
+Not recommended.
