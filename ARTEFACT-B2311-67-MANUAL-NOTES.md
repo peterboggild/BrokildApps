@@ -348,3 +348,43 @@ faults on the way, both mine and both the recurring kind: the bench forgot
 `service()` and so read the same peak at every depth (it looked like the feature
 was dead), and a `readPixels` after compositing reported the body missing
 whether it was there or not.
+
+## 2026-09-04 - THE SITE is wired in (build 260904.1)
+
+Peter: "can you consolidate them all, so that they all have site code on the
+repo?" - so this finding joined the bench the other three have shared since
+260903.1. Everything is in `BrokildApps/PROXIMA-SITE-DESIGN.md` (sections 7-8);
+what the manual needs is this:
+
+**A SITE button on the lower-left plate**, beside PROVENANCE. It opens the
+bench's settings, which are GLOBAL - every finding present shares them, and
+turning one on here turns it on for all of them: CLIMATE (one temperature for
+the whole bench; the finding that turns it on gives the bench its own
+temperature, and the others follow through their TEMPERATURE parameter, so the
+slider visibly moves), TIMING (cooled and set close together, the findings fall
+into step; warm, or far apart, each keeps its own time), and DISTANCE (same
+bench ... different rooms). Both couplings are OFF in the recovered material,
+and off, the finding is exactly what it was - the bench proves the uncoupled
+render byte-identical.
+
+**What this finding does when it is in step**: its cut ROCKS through the
+fourth dimension in the bench's time, a quarter of a unit deep at full pull -
+the lattice's own motion, the rim flipping as it goes, the star's shimmer
+breathing with it. The neighbours in the field are fourteen units away, so a
+rock of a quarter never leaves home. The pull is (1 - distance) x (1 - warmth):
+at 77 K and on the same bench it is full; at room temperature and a distance of
+0.5 it is 0.35.
+
+**Measured** (bench section 11, 74 checks ALL CLEAR): uncoupled byte-identical,
+depth swing 0.0000; coupled at full pull the section rocks 0.500 deep (0.500
+asked); the output energy folded on the bench's 0.5 Hz reads 0.513 coupled
+against 0.006 free - the largest lean of the four findings, because a phason
+flip is not subtle.
+
+**A readout on the upper-right plate** says "bench N present" and the lock
+coherence while any coupling is on and another finding is on the bench.
+
+Manual-wise: a sentence under the plates ("SITE - the bench the four findings
+share; see the Field Findings") is enough. The distance words (the same bench,
+the same table, the same room, across the hall, different rooms) are the
+panel's own and can be quoted.
