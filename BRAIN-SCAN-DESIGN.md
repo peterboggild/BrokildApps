@@ -310,3 +310,73 @@ stop being a metaphor and become a radiographer's window width and level in
 Hounsfield units. And it need not be a brain: any volumetric data is a
 specimen — a micro-CT of a fossil has the same novelty and none of the licence
 or privacy questions.
+
+## 12. The read — 260904.3
+
+Peter, after playing .2: *"more complex waveforms… perhaps they are smoothed
+too much?… fairly sinusy… a layer of granularity there could be and which
+isn't quite there yet… the sound quality is a bit bland."* He was right, and
+the mechanism was measurable before a line changed.
+
+**Three causes, all in the read.** (1) The tricubic B-spline is an
+*approximating* kernel — it smooths. Its frequency response is sinc⁴: −3.6 dB
+at a quarter of the texel rate, −15.7 dB at the texel Nyquist. (2) Sixty-four
+texels: a straight line across the whole cube carried at most 32 harmonics,
+and a short line far fewer. (3) The mip level coarsens that further as the
+pitch rises. None of it was in the specimens' spirit; SPINE at y = 1 was a
+1/n^0.9 stack of 24 harmonics read through a low-pass.
+
+**What shipped.**
+
+- **128³.** `VN = 128`, `NLOD = 5`. The panel still renders 64³: it is sent
+  `levelWithSide(64)`, the same bytes binomially averaged. Every specimen was
+  rebuilt for the resolution — PULSE's edge 0.004 at the bottom of z (half a
+  texel), SPINE 48 harmonics with the roll reaching n^−0.6, past a saw.
+- **GRAIN** — the Mitchell-Netravali cubic family (B, C) in `Volume::sample`,
+  from the B-spline (1, 0) to Catmull-Rom (0, ½). Measured on a bright SPINE
+  at A2: harmonic 40 rises 4.6 dB from GRAIN 0 to 1 while harmonic 20 moves
+  1.3 dB. A kernel, not a tilt. The default is 0.35.
+- **CONTRAST / FOLD** — a CT window applied to the *audio*: x = w · 2^(4c),
+  then clip to [−1, 1] or a triangle fold of period 4, blended by FOLD. Both
+  pieces are piecewise linear, so first-order ADAA uses exact quadratic
+  antiderivatives; the shaper is skipped entirely at 0/0, because the ADAA's
+  own half-sample average would otherwise take the top octave down 3 dB and
+  the plain read must stay the plain read. SINUS THD across CONTRAST 0 / ¼ /
+  ½ / ¾ / 1: −120.6 / −18.3 / −10.3 / −7.9 / −6.9 dB, monotonic.
+- **The gritty three.** SUTURE, a random staircase (y steps per cycle, z a
+  walk through eight patterns, each step a hard edge). ENAMEL, a comb of
+  spikes (z how many, y their width; a texel-wide spike is a pulse train with
+  every harmonic in it). TENDON, four partials whose ratios slide from
+  harmonic to a bell's. Above the 8th harmonic against the fundamental:
+  SPINE's middle −24.6 dB, SUTURE +4.4, ENAMEL +10.1, TENDON −2.6.
+- **Twelve slots on the dial, with a migration.** The parameter is
+  normalised, so 8/8 (CORTEX) reads as 11/11 (TENDON) in any older patch or
+  project. `migrateSpecimen()` remaps once, keyed on the build that wrote the
+  file — patch files already carried "build"; the project state did not, so
+  it does now, and its absence means "older than every build that writes one".
+- **The build moved off the timer.** `serviceAsync()` builds on a worker and
+  publishes on a later tick; `service()` joins first so the two never race.
+  `buildSpecimen` splits over up to eight threads and keeps an LRU of four.
+  MARROW builds in 21 ms on twenty threads — cheap insurance.
+
+**What the update taught.**
+
+- **Measure before spending detail.** The first design coarsened the mip
+  level by the window's gain (a ×9 budget at CONTRAST 1: level 4, eight
+  texels, at C5). With *no* budget the hardest window on the brightest field
+  at C5 aliases at −51.2 dB and a full fold at −64.9: the ADAA carries it.
+  The budget was deleted; the only headroom kept is ×1.35 for the
+  interpolating kernel, which passes the texel Nyquist the B-spline muffled.
+- **A single-cycle read is harmonic, whatever is in the field.** TENDON's
+  bell ratios cut to one cycle repeat at f0, so its spectrum sits on multiples
+  of f0 by construction; the gloss and the manual say so. Real inharmonicity
+  in this engine needs the read to move — scan, modulation, detune — or a
+  second reader at a ratio (parked on the BUGLIST).
+- **A normalised list parameter cannot grow without a migration**, and the
+  migration needs a build id in everything that stores the parameter.
+- Bench 85 checks ALL CLEAR; cost 12.6 % (14.9 % with GRAIN 1, the window
+  and the fold all on). Panel probe 30/30. Live over CDP: six modules, 33
+  parameters, SUTURE published from the worker (the page's volume checksum
+  moved), a note through the window, no script errors. Numbers that moved
+  with 128³: the claim's anchors −65.8 → −61.2 dB, DC −122.9 → −114.0, LUNG
+  with the pyramid forced off −26.0 → −23.8.
