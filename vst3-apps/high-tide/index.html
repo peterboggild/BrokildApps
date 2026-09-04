@@ -198,13 +198,14 @@
       decays by sinking to the floor. Position is where the ball <i>is</i>. A rising <b>tide</b> floods the
       passes between valleys; <b>pins</b> on a timeline tow the ball exactly where you want it, when you
       want it, the same way every time. <b>Rock</b> the terrain at the note and the sound period-doubles
-      into chaos, an octave at a time.</p>
+      into chaos, an octave at a time. Seventeen <b>starters</b> to play straight away, and every
+      control on the panel tells you what it is for.</p>
 
     <div class="btnrow">
       <a class="btn btn-primary" href="High-Tide-VST3-win64.zip" download>
-        ↓ Download for Windows <small>(zip, 7.1 MB)</small>
+        ↓ Download for Windows <small>(zip, 7.6 MB)</small>
       </a>
-      <span class="buildtag">Build 260904.1</span>
+      <span class="buildtag">Build 260904.2</span>
       <a class="btn btn-ghost" href="High-Tide-Manual.pdf">
         Manual <small>(PDF, 15 pages)</small>
       </a>
@@ -242,6 +243,27 @@
     <figure>
       <img src="img/terrain.jpg" alt="The terrain view: a lit heightmap with contour lines, water at the tide line, the pearl and its swing streak">
       <figcaption>The terrain view. Contour lines every tenth of a unit, the water at the tide line, the pearl with the streak of its swing, the tether to its target, the pins as brass stakes along the far edge.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Seventeen sounds to start from, and a panel that explains itself</h2>
+    <p class="sub">A new instrument you cannot guess your way into is a curiosity. These two make it playable on the first day.</p>
+    <p>The FACTORY menu opens in two groups. <b>STARTERS</b> is seventeen ordinary instruments —
+      subs, plucks, wide basses, saw and square leads, an organ, an electric piano, a bell, a clav,
+      pads, a drone — each built on bowls that are exactly in tune whatever the strike, with no
+      drive and a predictable tide. They sound the way their names sound, they are levelled against
+      each other, and they are the place to start editing. <b>TERRAINS</b> below them is the
+      instrument showing what else it is: thresholds, cascades, stranded balls, a parametric pump.</p>
+    <p>And every control, button, tool and lane of the timeline carries a <b>hint</b>: hover it and
+      a note appears beside it — never under the pointer, never over the control — saying what it
+      is, how it is meant to be used, and what it is set to against its default. One button in the
+      header turns them off when you no longer need them.</p>
+    <figure>
+      <img src="img/hints.jpg" alt="A hint open beside a control on the High Tide panel">
+      <figcaption>The hint for DETUNE, placed beside the rail rather than over it. Eighty-nine of them, and the panel probe fails if a single control is missing one.</figcaption>
     </figure>
   </div>
 </section>
@@ -344,9 +366,10 @@
       <tr><td>Tide</td><td>A higher ridge takes longer to cross; at TIDE 100 % it is not there; a weak tether at low tide never crosses</td></tr>
       <tr><td>Pins</td><td>Two identical notes leave byte-identical wakes and audio</td></tr>
       <tr><td>Aliasing</td><td>Non-harmonic floor at 4x: parabola &minus;90 dB, box &minus;59 dB, pit &minus;63 dB at B5</td></tr>
+      <tr><td>The starters</td><td>Every one within 3 cents of the note at a brushed key and a hammered one, and within 7 dB of each other</td></tr>
       <tr><td>Cost</td><td>A four-note chord 2.8 % of one core; twelve voices of four balls 27 %</td></tr>
     </table>
-    <p>123 checks, all clear, on build 260904.1.</p>
+    <p>283 checks, all clear, on build 260904.2 — and a panel probe that refuses to pass if any control is missing its hint.</p>
   </div>
 </section>
 
@@ -389,9 +412,10 @@
     <table>
       <tr><th>Requirement</th><th>Detail</th></tr>
       <tr><td>System</td><td>Windows 10 or 11, 64-bit</td></tr>
-      <tr><td>Build</td><td>260904.1 — shown on the loading screen and in the header</td></tr>
+      <tr><td>Build</td><td>260904.2 — shown on the loading screen and in the header</td></tr>
       <tr><td>Format</td><td>VST3 instrument, stereo out, MIDI in. A standalone application is in the same zip.</td></tr>
       <tr><td>Polyphony</td><td>Twelve voices of up to four balls, or mono and legato</td></tr>
+      <tr><td>Patches</td><td>17 starters and 12 terrains built in; your own saved as one file each</td></tr>
       <tr><td>Sample rates</td><td>Any. Bench-tested at 44.1, 48 and 96 kHz.</td></tr>
       <tr><td>Hosts</td><td>Any VST3 host — developed against Ableton Live 12</td></tr>
       <tr><td>Price</td><td>Free. No account, no registration, no telemetry.</td></tr>

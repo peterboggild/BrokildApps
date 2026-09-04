@@ -4,11 +4,11 @@
 code, in the house manner: every claim made here is something `test/bench.cpp`
 measures against the real engine.*
 
-*STATUS 2026-09-04: BUILT AND SHIPPED — build 260904.1, tree
+*STATUS 2026-09-04: BUILT AND SHIPPED — build 260904.2, tree
 `C:\Users\peter\b\HighTide`, 123 bench checks ALL CLEAR, panel probe 12/12,
 verified live over CDP, installed in both houses, published at
 `vst3-apps/high-tide/`. What was built matches this document except where §12
-says otherwise; §12 is the record of what the build taught.*
+says otherwise; §12 and §13 are the record of what the build taught.*
 
 ---
 
@@ -446,3 +446,51 @@ Each of these is a bench number, not an opinion.
 - Not built, deliberately: the 2-D bowl (§3.2), the bifurcation view (§3.4),
   decals (ordered, slot in through the panel's `--decal-*` variables), the
   MPE mapping. The mod wheel and channel pressure lift the TIDE.
+
+## 13. THE CENTRE LINE — the discovery of the second round (260904.2)
+
+Peter asked for "less chaotic starter sounds ... a safe starting point". The
+design as written offered one isochronous family, the linear shear, which is
+thin ground for seventeen patches. The way out was already in §2.4 and had not
+been read properly. Landau's result is about the WIDTH function alone, so write
+a bowl as
+
+    x±(h) = c(h) ± sqrt(2h)
+
+and the width is the reference parabola's **whatever c does**. The bowl's
+CENTRE LINE may wander with height however it likes and the pitch does not
+move. c is the timbre; the pitch is exact by construction.
+
+- A straight c is the sheared bowl (even harmonics). A **wavy** c gives a wave
+  nothing like a sine and still exactly in tune — that is what the starters are
+  made of. The only constraint is that the walls stay monotone,
+  |c'(h)| < 1/sqrt(2h), which at full scale means |c'| < 1.
+- **Morphing along z must blend the CENTRE LINES, not the heights.** The
+  average of two isochronous bowls' heights has neither one's width and is not
+  isochronous; blending c keeps the whole sweep in tune. That is what makes
+  SWEEP LEAD (a filter sweep with no filter) and MORPH PAD possible.
+- The construction generalises the design's own claim: TUNE LOCK is the
+  c-preserving edit, and the red tension band is |c'| running out of room.
+
+Four measured lessons from the same round:
+
+- **The balls' mutual push is what makes a unison patch drift with the
+  strike.** A patch at SPREAD 0.45 drifted 6.8 cents between a brushed and a
+  hammered key; at SPREAD 0.20, 0.76 cents. The push was there to stop the
+  balls sitting on top of each other, which is DETUNE's job now, so it was
+  halved and the drift went to 1.2 cents.
+- **A box bowl under heavy friction cannot be held in tune by the servo.** As
+  the ball sinks onto the flat floor the period grows without bound and the
+  servo runs out of range — CLAV measured 35 cents flat within a second. It is
+  built from a wavy centre line instead, which cannot go out of tune at all.
+- **ballPeriod is measured in BALL time, so it cannot see DETUNE** — a detuned
+  ball's clock scales that time too and its period reads 2π whatever the
+  detune. The first version of the detune check measured exactly nothing.
+  Detune is heard as BEATING, so the check measures beating: 1.00× envelope
+  swing at zero, 21.9× at 40 %.
+- **Where a block is placed is part of whether it works.** The hints block was
+  appended near the end of the page and `initHints()` called from the boot
+  line above it; function declarations hoist but `const` does not, so the call
+  threw on the temporal dead zone and took the whole script with it. Moving the
+  block above its first use was the fix. Same family as the missing
+  `</script>`: only a live page shows it.
