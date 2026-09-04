@@ -203,7 +203,7 @@
       <a class="btn btn-primary" href="Brain-Scan-VST3-win64.zip" download>
         Download for Windows · 7 MB
       </a>
-      <span class="buildtag">Build 260904.1</span>
+      <span class="buildtag">Build 260904.2</span>
       <a class="btn btn-ghost" href="Brain-Scan-Manual.pdf">
         Read the manual (PDF)
       </a>
@@ -259,6 +259,44 @@
       <figure class="hero-shot" style="flex:1;min-width:260px"><img src="img/gantry.jpg" alt="The gantry: a ray-marched brain with the scan lines glowing inside it"><figcaption>CORTEX in the gantry, the lines glowing inside the tissue.</figcaption></figure>
       <figure class="hero-shot" style="flex:1;min-width:260px"><img src="img/surface.jpg" alt="The gantry in SURFACE mode showing one level of a waveform field"><figcaption>SPINE in SURFACE — one level of the field, as a surface.</figcaption></figure>
     </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Or bring your own body</h2>
+    <p class="sub">A NIfTI file, a folder of DICOM, or a stack of images.</p>
+    <p><b>IMPORT</b> reads a real volume off disk and uses it instead of the nine — a CT or MR of a
+      head, a micro-CT of a fossil, a confocal stack, an industrial scan of a casting. Anything with
+      three dimensions and a number in each of them is a specimen.</p>
+    <p>The three things that decide whether that is any good are none of them the file format, and
+      all three are measured:</p>
+    <div class="cards">
+      <div class="c"><div class="n">millimetres</div><h4>Not voxels</h4><p>A clinical CT is about
+        0.5 mm across a slice and 1–5 mm between them. Resampling by index squashes the body by
+        exactly that ratio. The spacing is read from the file, so a sphere stays a sphere.</p></div>
+      <div class="c"><div class="n">averaged</div><h4>Not point-sampled</h4><p>512 × 512 × 300 into
+        64³ is about 8 × 8 × 5 source voxels per destination voxel. Aliasing introduced there is in
+        the specimen for good. A one-voxel checkerboard decimated 4:1 flattens to a standard
+        deviation of 0.00005.</p></div>
+      <div class="c"><div class="n">percentile</div><h4>Not min to max</h4><p>One surgical clip at
+        3000 HU would push every brain voxel into the bottom two per cent of the range. The window
+        comes from the data's percentiles, and it tells you which values it chose.</p></div>
+    </div>
+    <figure class="hero-shot">
+      <img src="img/import.jpg" alt="The import strip: IMPORTED in the specimen window, with phase axis and shape controls and a line describing the file">
+      <figcaption>It overrides the dial rather than joining it — so no patch anyone has already saved changes meaning.</figcaption>
+    </figure>
+    <p>With a CT loaded, WINDOW and LEVEL stop being a metaphor: they are a radiographer's window
+      width and level in Hounsfield units, and a brain window is the only way to see cortical detail.
+      An imported volume is saved with the patch and with the project, so it travels.</p>
+    <div class="shot-row" style="display:flex;gap:1rem;flex-wrap:wrap">
+      <figure class="hero-shot" style="flex:1;min-width:240px"><img src="img/import-slice.jpg" alt="An imported scan on the tomography screen"><figcaption>An imported scan, at the window the data chose</figcaption></figure>
+      <figure class="hero-shot" style="flex:1;min-width:240px"><img src="img/import-window.jpg" alt="The same slice at a narrow brain window"><figcaption>The same slice, narrowed to a brain window</figcaption></figure>
+    </div>
+    <p style="font-size:.92rem;opacity:.8">Compressed DICOM and NIfTI-2 are refused by name rather
+      than misread — <code>dcm2niix</code> converts either in one command. A reader that guesses is
+      worse than one that says no.</p>
   </div>
 </section>
 
@@ -365,7 +403,7 @@
     <table>
       <tr><th>Requirement</th><th>Detail</th></tr>
       <tr><td>System</td><td>Windows 10 or 11, 64-bit</td></tr>
-      <tr><td>Build</td><td>260904.1 — shown on the loading screen and in the About box</td></tr>
+      <tr><td>Build</td><td>260904.2 — shown on the loading screen and in the About box</td></tr>
       <tr><td>Format</td><td>VST3 instrument, stereo out, MIDI in. A standalone application is in the same zip.</td></tr>
       <tr><td>Polyphony</td><td>Eight voices of up to four readers, or mono with legato glide</td></tr>
       <tr><td>Specimens</td><td>Nine volumes built in, including a simulated brain</td></tr>
