@@ -4,7 +4,7 @@
 code, in the house manner: every claim made here is something `test/bench.cpp`
 measures against the real engine.*
 
-*STATUS 2026-09-04: BUILT AND SHIPPED — build 260904.2, tree
+*STATUS 2026-09-04: BUILT AND SHIPPED — build 260904.3, tree
 `C:\Users\peter\b\HighTide`, 283 bench checks ALL CLEAR, panel probe 14/14,
 verified live over CDP, installed in both houses, published at
 `vst3-apps/high-tide/`. What was built matches this document except where §12
@@ -446,6 +446,36 @@ Each of these is a bench number, not an opinion.
 - Not built, deliberately: the 2-D bowl (§3.2), the bifurcation view (§3.4),
   decals (ordered, slot in through the panel's `--decal-*` variables), the
   MPE mapping. The mod wheel and channel pressure lift the TIDE.
+
+## 14. The decals (260904.3)
+
+Twelve photographic parts were ordered through
+`assets/high-tide-decals/BRIEF.md` and delivered. Six went in: the pearl is
+the ball, the bezel made the scope a round instrument, the tack is every point
+on the timeline, the flag is the release marker, the glass is the gauge tubes
+(drawn standing, used lying — the ingest turns it), and the oak rail runs under
+the header and over the timeline. Each is applied only when its image has
+loaded, so a missing file leaves the drawn panel exactly as it was.
+
+Four came back letterboxed and one has no home; the redo order is
+`assets/high-tide-decals/REDO.md`. Three lessons worth keeping:
+
+- **A part's delivered size is not its drawn size.** Four arrived with the
+  drawing pasted into a band of a larger black canvas, so the file was the
+  right number of pixels and the picture inside it was the wrong shape. The
+  ingest crops every part to its own content before scaling; a straight rescale
+  to the asked-for size would have smeared them. Measure the content box, do
+  not trust the header.
+- **Content is where a transparent image is OPAQUE and where an opaque one is
+  NOT BLACK.** Asking for both at once cropped the dark engraving off the
+  bottom of the brass nameplate, because dark lettering failed the brightness
+  half of the test. Choose the test from whether the part actually carries
+  alpha.
+- **Find every consumer of a variable before redefining it.** The panel already
+  had `--decal-*` hooks, and `--decal-bezel` was the HEADER's background layer
+  as well as the gauge ferrules. Pointing it at a 320 px brass ring painted a
+  stretched ring across the whole header. It is the same rule as for an audio
+  parameter, met on a CSS variable.
 
 ## 13. THE CENTRE LINE — the discovery of the second round (260904.2)
 
