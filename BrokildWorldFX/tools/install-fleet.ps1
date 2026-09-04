@@ -39,7 +39,8 @@ $plugins = @(
   @{ dir = "FullMetalRacket";  name = "Full Metal Racket";  group = "Brokild collection" },
   @{ dir = "MarsWars";         name = "Martian Gain";       group = "Brokild collection" },
   @{ dir = "PhotoSynth";       name = "Photo Synth";        group = "Brokild collection" },
-  @{ dir = "HighTide";         name = "High Tide";          group = "Brokild collection" }
+  @{ dir = "HighTide";         name = "High Tide";          group = "Brokild collection" },
+  @{ dir = "BrainScan";        name = "Brain Scan";         group = "Brokild collection" }
   # Clone Wars is deliberately absent: its binary comes from a CI-built zip,
   # never a local build (house rule).
 )
