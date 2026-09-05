@@ -470,3 +470,33 @@ every body, the import cleared by the dial, FLATTEN ALL then REVERT restoring
 the point counts, a split line sounding, UNDO, four handles on the gantry, no
 script errors. Cost 16.7 % (32 readers), 18.5 % with the window on, 39 % with
 a second head on every reader.
+
+## 14. The circuits — 260905.2
+
+Peter: *"can I have the same three filter types as Black Rider, with both low
+pass and high pass? Please be careful with the panel design."*
+
+Black Rider's `Korg35` (Sallen-Key, diode clipper in the feedback, zero-delay
+loop refined twice) already had a lowpass and a highpass; its `Ladder` had a
+lowpass only. The ladder highpass is the same loop with highpass stages,
+h = (1−G)(u − s), solved the same way: h4 = ((1−G)⁴x − S)/(1 + k(1−G)⁴), then
+the tanh at the summing node and the stages run. Both structs now live per
+reader in `Uni`; the model's K comes from the same RESONANCE knob by Black
+Rider's own laws (GROWL 2.25·r^0.9, SCREAM crossing K = 2 at 0.62, LADDER
+4·1.12·r^0.85) and the Sallen-Key prewarp carries Black Rider's piecewise
+tuning lift for the clipper's drag. A new `fmodel` parameter (CIRCUIT: SVF /
+GROWL / SCREAM / LADDER), default SVF — every existing patch is untouched, and
+the bench memcmp-proves it. BAND is the SVF's; the panel dims it off the SVF.
+
+**Measured at 1×, no oversampling.** Each lowpass at 500 Hz pulls a bright
+SPINE's centroid from 1308 Hz to 259–304; each highpass at 2 kHz pushes it to
+3414–3723. SCREAM and LADDER at full resonance sing at a 1 kHz cutoff within a
+few cents (the first run read −150 cents on both — KEY TRACK at its default 50 %
+had pulled the cutoff to 917 Hz at A3, exactly what the ladder sang; the probe
+measured the note, not the circuit). Non-harmonic floor at C5 below the
+oscillation edge: −69.2 / −67.1 / −67.0 dB, so the circuits do not need the
+oversampling Black Rider runs at. Six circuit/response pairs driven with
+CONTRAST 1 and FOLD into RESONANCE 1 stay bounded at the ceiling. 32 ladders
+cost 19.7 % of a core. The panel: one segmented row in the FILTER module,
+and the probe asserts the module still fits its column (698 of 698 px, no
+scroll). Bench 126, panel probe 48.
