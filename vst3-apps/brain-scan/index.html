@@ -203,7 +203,7 @@
       <a class="btn btn-primary" href="Brain-Scan-VST3-win64.zip" download>
         Download for Windows · 8 MB
       </a>
-      <span class="buildtag">Build 260905.1</span>
+      <span class="buildtag">Build 260905.2</span>
       <a class="btn btn-ghost" href="Brain-Scan-Manual.pdf">
         Read the manual (PDF)
       </a>
@@ -280,6 +280,12 @@
       drive the window and the grain, unison readers can spread through the scan, and FLATTEN, REVERT and
       UNDO take you back to a simple state to build up from again. The selected line's points can be
       dragged on the gantry too — with shift, along the line of sight.</p>
+    <p><b>And the filter has circuits.</b> Beside the state-variable filter sit Black Rider's three,
+      ported whole: <b>GROWL</b>, a Sallen-Key with a diode clipper in its feedback that screams only at
+      the top of the dial; <b>SCREAM</b>, the same circuit pushed harder, self-oscillating in tune from
+      two o'clock so KEY TRACK plays it; <b>LADDER</b>, the four-pole transistor ladder. Each is a
+      lowpass or a highpass. The bench hears SCREAM and LADDER sing at the cutoff within a few cents,
+      and the SVF at its default is bit-identical to the filter that shipped.</p>
     <figure class="hero-shot" style="max-width:520px"><img src="img/read.jpg" alt="The READ · WINDOW module: GRAIN, CONTRAST and FOLD knobs"><figcaption>READ · WINDOW — the kernel, the window and the fold.</figcaption></figure>
     <div class="shot-row" style="display:flex;gap:1rem;flex-wrap:wrap">
       <figure class="hero-shot" style="flex:1;min-width:260px"><img src="img/gantry.jpg" alt="The gantry: a ray-marched brain with the scan lines glowing inside it"><figcaption>CORTEX in the gantry, the lines glowing inside the tissue.</figcaption></figure>
@@ -368,7 +374,7 @@
 <section class="block">
   <div class="wrap">
     <h2>Everything here is measured</h2>
-    <p class="sub">Two benches, 161 checks, both in the source.</p>
+    <p class="sub">Two benches, 174 checks, both in the source.</p>
     <table>
       <tr><th>What</th><th>Measured</th></tr>
       <tr><td>SINUS is a sine</td><td>total harmonic distortion &minus;120.9 dB</td></tr>
@@ -382,6 +388,7 @@
       <tr><td>The second head</td><td>at ×1.00 and PHASE 50 % the odd harmonics fall from +3.9 dB over the even to &minus;106 dB under; at ×1.50 a partial at 1.5 f<sub>0</sub> sits 0.3 dB from the fundamental with no 2nd harmonic (&minus;111 dB)</td></tr>
       <tr><td>A split line</td><td>at C5, both edges band-limited: &minus;64.3 dB of non-harmonic energy, &minus;31.8 without the second polyBLEP</td></tr>
       <tr><td>The bodies</td><td>tissue fractions per body; five rays from the centre of the head all cross bone; SKULL's cranium is empty and CORTEX's holds white matter; the chest has two lungs; the vertebra a canal of CSF between two pedicles</td></tr>
+      <tr><td>The circuits</td><td>each lowpass at 500 Hz pulls a bright SPINE's centroid from 1308 Hz to under 310 and each highpass at 2 kHz pushes it past 3400; SCREAM and LADDER at full resonance sing at a 1 kHz cutoff within a few cents; non-harmonic floor at C5 below the oscillation edge &minus;67 to &minus;69 dB at 1×</td></tr>
       <tr><td>GRAIN</td><td>bright SPINE at A2: harmonic 40 rises 4.6 dB from GRAIN 0 to 1 while harmonic 20 moves 1.3 dB — a kernel, not a tilt</td></tr>
       <tr><td>CONTRAST</td><td>SINUS THD &minus;120.6 / &minus;18.3 / &minus;10.3 / &minus;7.9 / &minus;6.9 dB at 0 / ¼ / ½ / ¾ / 1 — nothing at zero, monotonic toward a square</td></tr>
       <tr><td>The window's aliasing</td><td>brightest SPINE, GRAIN 1, C5: &minus;58.3 dB plain, &minus;51.2 dB with CONTRAST 1, &minus;64.9 dB with a full FOLD at gain 4</td></tr>
@@ -436,12 +443,12 @@
     <table>
       <tr><th>Requirement</th><th>Detail</th></tr>
       <tr><td>System</td><td>Windows 10 or 11, 64-bit</td></tr>
-      <tr><td>Build</td><td>260905.1 — shown on the loading screen and in the About box</td></tr>
+      <tr><td>Build</td><td>260905.2 — shown on the loading screen and in the About box</td></tr>
       <tr><td>Format</td><td>VST3 instrument, stereo out, MIDI in. A standalone application is in the same zip.</td></tr>
       <tr><td>Polyphony</td><td>Eight voices of up to four readers, or mono with legato glide</td></tr>
       <tr><td>Specimens</td><td>Fifteen volumes built in, 128 texels across: nine phantoms and six bodies in Hounsfield units</td></tr>
       <tr><td>Patches</td><td>Sixteen factory studies; your own saved one file each to <code>Documents\Brokild patches\Brain Scan</code></td></tr>
-      <tr><td>Automation</td><td>39 parameters plus 5 rack macros. SPECIMEN is deliberately not automatable — it rebuilds two million texels.</td></tr>
+      <tr><td>Automation</td><td>40 parameters plus 5 rack macros. SPECIMEN is deliberately not automatable — it rebuilds two million texels.</td></tr>
       <tr><td>Sample rates</td><td>Any. Bench-tested at 44.1, 48 and 96 kHz.</td></tr>
       <tr><td>Hosts</td><td>Any VST3 host — developed against Ableton Live 12</td></tr>
       <tr><td>Price</td><td>Free. No account, no registration, no telemetry.</td></tr>
