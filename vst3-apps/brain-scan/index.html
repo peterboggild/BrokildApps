@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Brain Scan — VST3 volume synth | BrokildApps</title>
-  <meta name="description" content="Brain Scan is a free Windows VST3 synth that stores no waveforms. A specimen is a volume - a scalar field filling a cube, like the numbers a scanner records - and a scan line is a curve through it: one cycle of the sound is the field along that curve. SCAN blends the geometry of two lines before the field is read, so halfway between two sounds is tissue neither has visited. Twelve specimens including a simulated brain and three made of edges, a read with its own grain and CT window, a tomography slice you draw the lines on, and a ray-marched gantry." />
+  <meta name="description" content="Brain Scan is a free Windows VST3 synth that stores no waveforms. A specimen is a volume - a scalar field filling a cube, like the numbers a scanner records - and a scan line is a curve through it: one cycle of the sound is the field along that curve. SCAN blends the geometry of two lines before the field is read, so halfway between two sounds is tissue neither has visited. Fifteen specimens: nine phantoms built from formulas and six bodies in Hounsfield units - a head, a bare skull, a chest, three vertebrae, a thigh, a jaw - with a radiographer's window presets, a second reading head for inharmonic partials, split lines, and a tomography slice you draw the lines on." />
   <meta name="color-scheme" content="light dark" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%231f6ea8'/><text x='50' y='68' font-size='52' font-family='Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'>B</text></svg>" />
   <style>
@@ -201,9 +201,9 @@
       neither of them has ever visited.</p>
     <div class="btnrow">
       <a class="btn btn-primary" href="Brain-Scan-VST3-win64.zip" download>
-        Download for Windows · 7 MB
+        Download for Windows · 8 MB
       </a>
-      <span class="buildtag">Build 260904.3</span>
+      <span class="buildtag">Build 260905.1</span>
       <a class="btn btn-ghost" href="Brain-Scan-Manual.pdf">
         Read the manual (PDF)
       </a>
@@ -244,26 +244,42 @@
 
 <section class="block">
   <div class="wrap">
-    <h2>Twelve bodies to read</h2>
-    <p class="sub">Seven fields built to give ordinary, useful waveforms; three made of edges, spikes and beats; a hollow shell; and a brain.</p>
+    <h2>Fifteen specimens: nine phantoms and six bodies</h2>
+    <p class="sub">The phantoms are formulas and promises; the bodies are anatomy in Hounsfield units, and a bone is a bone.</p>
     <p>The <code>x</code> axis is the phase axis, so a straight line across the cube reads the specimen's
       natural waveform and an ordinary wavetable turns out to be a special case: a straight line, moved
       sideways. <b>SPINE</b> is a harmonic stack whose brightness and parity are the other two axes —
       the instrument's bread, and the bench checks it against its own formula. <b>PULSE</b> is a pulse
       whose duty is a coordinate. <b>NERVE</b> is phase modulation laid out as a landscape.</p>
-    <p><b>CORTEX</b> is the show-piece: a simulated brain with skull, cerebrospinal fluid, folded cortex,
-      the longitudinal fissure, ventricles, cerebellum and stem. A line through it reads bone, then
-      fluid, then folds, then a ventricle — a waveform with a hard edge, a smooth stretch, a burst of
-      detail and a plateau. Move the line an inch and it meets them in a different order.</p>
-    <p><b>Build 260904.3 doubled the volume and gave the read its own controls.</b> The cube is 128
-      texels across (64 before), so a line carries twice the harmonics it did, and three specimens
-      are made of edges: <b>SUTURE</b>, a random staircase; <b>ENAMEL</b>, a comb of spikes;
-      <b>TENDON</b>, four partials sliding from harmonic to a bell's ratios. <b>GRAIN</b> chooses
-      the read kernel — smoothed, or texel by texel, kinks included. <b>CONTRAST</b> is a CT window
-      applied to the sound: narrow it and the read saturates toward a square, with more for the
-      filter to bite on. <b>FOLD</b> folds the wave back past the window's edges. All of it
-      anti-aliased and measured, none of it a tone control: at CONTRAST 0 and FOLD 0 the window is
-      not there, and the plain read is the plain read.</p>
+    <p><b>The bodies (260905.1)</b> are built the way a scanner would record them — air at &minus;1000 HU,
+      fat about &minus;90, soft tissue 40, trabecular bone a few hundred, the cortical tables above a thousand,
+      enamel at the top of the scale. <b>CORTEX</b> is a head: skull with its tables and sutures, orbits with
+      globes, sinuses, folded cortex, ventricles, cerebellum, brainstem, the jaw and both rows of teeth.
+      <b>SKULL</b> is the same head with every soft tissue removed. <b>THORAX</b> has ribs, sternum, clavicles,
+      a spine with its canal, two lungs with bronchi and vessels, the heart and the aorta. <b>VERTEBRA</b> is
+      three lumbar levels with discs, canal, processes and the muscles round them; <b>FEMUR</b> a thigh with
+      the shaft flaring into its ends; <b>JAW</b> the mandible with teeth of enamel, dentine and pulp. A line
+      through any of them reads what is there — bone, then fluid, then folds, then a ventricle — and moving it
+      an inch meets them in a different order. WINDOW and LEVEL read in HU on a body, and four presets on the
+      gantry are a radiographer's: BRAIN, SOFT, LUNG, BONE.</p>
+    <div class="shot-row" style="display:flex;gap:1rem;flex-wrap:wrap">
+      <figure class="hero-shot" style="flex:1;min-width:220px"><img src="img/skull-gantry.jpg" alt="SKULL in the gantry, bone window"><figcaption>SKULL in the gantry, bone window.</figcaption></figure>
+      <figure class="hero-shot" style="flex:1;min-width:220px"><img src="img/cortex-axial.jpg" alt="CORTEX axial slice, brain window"><figcaption>CORTEX, axial, brain window.</figcaption></figure>
+      <figure class="hero-shot" style="flex:1;min-width:220px"><img src="img/jaw-axial.jpg" alt="JAW axial slice through the lower teeth"><figcaption>JAW, axial through the lower teeth.</figcaption></figure>
+    </div>
+    <p><b>The read has its own controls.</b> The cube is 128 texels across, so a line carries 64
+      harmonics; three phantoms are made of edges: <b>SUTURE</b>, a random staircase; <b>ENAMEL</b>, a
+      comb of spikes; <b>TENDON</b>, four partials at a bell's ratios. <b>GRAIN</b> chooses the read
+      kernel — smoothed, or texel by texel, kinks included. <b>CONTRAST</b> is a CT window applied to the
+      sound: narrow it and the read saturates toward a square. <b>FOLD</b> folds the wave back past the
+      window's edges. And a <b>2ND HEAD</b> reads the same line at a ratio of the note: at ×1.00 with a
+      phase offset it is a fixed-interval double, off the whole numbers it is a partial no harmonic series
+      contains — real inharmonicity, which a single-cycle read can never give on its own; the bench
+      measures a partial at 1.5 f<sub>0</sub> within 0.3 dB of the fundamental and no second harmonic. A
+      line can be <b>SPLIT</b> into two segments (two edges a cycle, both band-limited), the MOD line can
+      drive the window and the grain, unison readers can spread through the scan, and FLATTEN, REVERT and
+      UNDO take you back to a simple state to build up from again. The selected line's points can be
+      dragged on the gantry too — with shift, along the line of sight.</p>
     <figure class="hero-shot" style="max-width:520px"><img src="img/read.jpg" alt="The READ · WINDOW module: GRAIN, CONTRAST and FOLD knobs"><figcaption>READ · WINDOW — the kernel, the window and the fold.</figcaption></figure>
     <div class="shot-row" style="display:flex;gap:1rem;flex-wrap:wrap">
       <figure class="hero-shot" style="flex:1;min-width:260px"><img src="img/gantry.jpg" alt="The gantry: a ray-marched brain with the scan lines glowing inside it"><figcaption>CORTEX in the gantry, the lines glowing inside the tissue.</figcaption></figure>
@@ -276,7 +292,7 @@
   <div class="wrap">
     <h2>Or bring your own body</h2>
     <p class="sub">A NIfTI file, a folder of DICOM, or a stack of images.</p>
-    <p><b>IMPORT</b> reads a real volume off disk and uses it instead of the twelve — a CT or MR of a
+    <p><b>IMPORT</b> reads a real volume off disk and uses it instead of the fifteen — a CT or MR of a
       head, a micro-CT of a fossil, a confocal stack, an industrial scan of a casting. Anything with
       three dimensions and a number in each of them is a specimen.</p>
     <p>The three things that decide whether that is any good are none of them the file format, and
@@ -352,7 +368,7 @@
 <section class="block">
   <div class="wrap">
     <h2>Everything here is measured</h2>
-    <p class="sub">Two benches, 115 checks, both in the source.</p>
+    <p class="sub">Two benches, 161 checks, both in the source.</p>
     <table>
       <tr><th>What</th><th>Measured</th></tr>
       <tr><td>SINUS is a sine</td><td>total harmonic distortion &minus;120.9 dB</td></tr>
@@ -362,12 +378,15 @@
       <tr><td>The claim</td><td>fifth harmonic at SCAN 50 %: &minus;13.6 dB, formula &minus;14.0; the crossfade of the same anchors &minus;61.2 dB</td></tr>
       <tr><td>The filter follows its line</td><td>worst error 0.000 octaves against the field read along the blended line</td></tr>
       <tr><td>Offset</td><td>&minus;114.0 dB of DC after a second</td></tr>
-      <tr><td>Cost</td><td>12.6 % of one core for eight voices of four-way unison — 32 readers, the maximum; 14.9 % with GRAIN 1, the window and the fold all on</td></tr>
+      <tr><td>Cost</td><td>16.7 % of one core for eight voices of four-way unison — 32 readers, the maximum; 18.5 % with GRAIN 1, the window and the fold all on; 39 % with a second head on every reader</td></tr>
+      <tr><td>The second head</td><td>at ×1.00 and PHASE 50 % the odd harmonics fall from +3.9 dB over the even to &minus;106 dB under; at ×1.50 a partial at 1.5 f<sub>0</sub> sits 0.3 dB from the fundamental with no 2nd harmonic (&minus;111 dB)</td></tr>
+      <tr><td>A split line</td><td>at C5, both edges band-limited: &minus;64.3 dB of non-harmonic energy, &minus;31.8 without the second polyBLEP</td></tr>
+      <tr><td>The bodies</td><td>tissue fractions per body; five rays from the centre of the head all cross bone; SKULL's cranium is empty and CORTEX's holds white matter; the chest has two lungs; the vertebra a canal of CSF between two pedicles</td></tr>
       <tr><td>GRAIN</td><td>bright SPINE at A2: harmonic 40 rises 4.6 dB from GRAIN 0 to 1 while harmonic 20 moves 1.3 dB — a kernel, not a tilt</td></tr>
       <tr><td>CONTRAST</td><td>SINUS THD &minus;120.6 / &minus;18.3 / &minus;10.3 / &minus;7.9 / &minus;6.9 dB at 0 / ¼ / ½ / ¾ / 1 — nothing at zero, monotonic toward a square</td></tr>
       <tr><td>The window's aliasing</td><td>brightest SPINE, GRAIN 1, C5: &minus;58.3 dB plain, &minus;51.2 dB with CONTRAST 1, &minus;64.9 dB with a full FOLD at gain 4</td></tr>
       <tr><td>The gritty three</td><td>energy above the 8th harmonic against the fundamental: SPINE's middle &minus;24.6 dB, SUTURE +4.4, ENAMEL +10.1</td></tr>
-      <tr><td>The panel</td><td>loaded in a real browser and driven through the plug-in's own message vocabulary: 30 checks, including that a straight line of four control points reads straight to five decimals</td></tr>
+      <tr><td>The panel</td><td>loaded in a real browser and driven through the plug-in's own message vocabulary: 43 checks, including that a straight line of four control points reads straight to five decimals and that a split line jumps segments at exactly half a cycle, as the engine does</td></tr>
     </table>
     <p>That last one matters more than it sounds: it is the proof that the panel evaluates a curve the
       same way the audio engine does. What you see drawn is what you hear.</p>
@@ -417,12 +436,12 @@
     <table>
       <tr><th>Requirement</th><th>Detail</th></tr>
       <tr><td>System</td><td>Windows 10 or 11, 64-bit</td></tr>
-      <tr><td>Build</td><td>260904.3 — shown on the loading screen and in the About box</td></tr>
+      <tr><td>Build</td><td>260905.1 — shown on the loading screen and in the About box</td></tr>
       <tr><td>Format</td><td>VST3 instrument, stereo out, MIDI in. A standalone application is in the same zip.</td></tr>
       <tr><td>Polyphony</td><td>Eight voices of up to four readers, or mono with legato glide</td></tr>
-      <tr><td>Specimens</td><td>Twelve volumes built in, 128 texels across, including a simulated brain and three made of edges</td></tr>
-      <tr><td>Patches</td><td>Twelve factory studies; your own saved one file each to <code>Documents\Brokild patches\Brain Scan</code></td></tr>
-      <tr><td>Automation</td><td>33 parameters plus 5 rack macros. SPECIMEN is deliberately not automatable — it rebuilds two million texels.</td></tr>
+      <tr><td>Specimens</td><td>Fifteen volumes built in, 128 texels across: nine phantoms and six bodies in Hounsfield units</td></tr>
+      <tr><td>Patches</td><td>Sixteen factory studies; your own saved one file each to <code>Documents\Brokild patches\Brain Scan</code></td></tr>
+      <tr><td>Automation</td><td>39 parameters plus 5 rack macros. SPECIMEN is deliberately not automatable — it rebuilds two million texels.</td></tr>
       <tr><td>Sample rates</td><td>Any. Bench-tested at 44.1, 48 and 96 kHz.</td></tr>
       <tr><td>Hosts</td><td>Any VST3 host — developed against Ableton Live 12</td></tr>
       <tr><td>Price</td><td>Free. No account, no registration, no telemetry.</td></tr>
