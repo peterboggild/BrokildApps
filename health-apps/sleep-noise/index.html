@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#06070a">
-<meta name="description" content="Sleeper Agent: brown, green, pink, white and rain noise for sleeping, plus five slow ambient synth themes for meditation. Sleep timer in hours, gentle fade-out, tone control and a blackout screen mode. Runs entirely in the browser.">
+<meta name="description" content="Sleeper Agent: a five-fader mixer of brown noise, green noise, rain, soft rain and ocean, with five slow ambient synth themes over the top and five ready-made presets. Sleep timer in hours, gentle fade-out, tone control and a blackout screen mode. Runs entirely in the browser.">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Sleeper Agent">
-<title>Sleeper Agent — noise for sleep, ambient synths for meditation</title>
+<title>Sleeper Agent — a mixer of sleep noise and ambient synths</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -65,7 +65,8 @@
   #playBtn.on{border-color:var(--accent-dim)}
   #playBtn svg{width:40px;height:40px}
   #playBtn.busy{opacity:.6}
-  #padChips.busy{opacity:.5;pointer-events:none}
+  #padChips.busy,#presetChips.busy{opacity:.5;pointer-events:none}
+  #mixRows.busy{opacity:.55}
 
   .remain{font-size:27px;font-variant-numeric:tabular-nums;letter-spacing:.01em;color:var(--text);font-weight:300;min-height:34px}
   .remain.idle{color:var(--muted)}
@@ -89,7 +90,19 @@
   .chip:active{background:var(--panel-2)}
   .chip[aria-pressed="true"],.chip.on{border-color:var(--accent-dim);background:var(--accent-soft);color:var(--accent)}
   .chip.sm{padding:9px 2px;font-size:13px}
+  .chips.c5{grid-template-columns:repeat(5,1fr);gap:5px}
+  .chip.px{padding:9px 1px;font-size:11.5px;letter-spacing:.01em;line-height:1.25}
   .desc{font-size:12.5px;color:var(--faint);margin:9px 2px 0;line-height:1.5;min-height:38px}
+
+  /* ---------- mixer ---------- */
+  .mix{display:grid;gap:2px}
+  .mixrow{display:grid;grid-template-columns:74px 1fr 40px;align-items:center;gap:10px}
+  .mixname{font-size:13px;color:var(--faint);transition:color .2s;white-space:nowrap}
+  .mixrow.on .mixname{color:var(--accent)}
+  .mixval{font-size:11.5px;color:var(--faint);text-align:right;font-variant-numeric:tabular-nums}
+  .mixrow.on .mixval{color:var(--muted)}
+  .mixrow input[type=range]{height:32px}
+  .mixsep{height:1px;background:var(--line-soft);margin:7px 0 5px}
 
   /* ---------- sliders ---------- */
   .row{display:flex;align-items:center;gap:12px}
@@ -218,16 +231,15 @@
 </div>
 
 <section>
-  <div class="lab">Sound</div>
-  <div class="chips c3" id="typeChips" role="group" aria-label="Noise type">
-    <button class="chip sm" data-type="brown">Brown</button>
-    <button class="chip sm" data-type="green">Green</button>
-    <button class="chip sm" data-type="pink">Pink</button>
-    <button class="chip sm" data-type="white">White</button>
-    <button class="chip sm" data-type="rain">Rain</button>
-    <button class="chip sm" data-type="off">Off</button>
-  </div>
-  <p class="desc" id="typeDesc"></p>
+  <div class="lab">Presets <em id="presetVal">custom</em></div>
+  <div class="chips c5" id="presetChips" role="group" aria-label="Presets"></div>
+  <p class="desc" id="presetDesc"></p>
+</section>
+
+<section>
+  <div class="lab">Mix <em id="mixVal"></em></div>
+  <div class="mix" id="mixRows"></div>
+  <p class="note">Brown is the deep one — distant surf, the hum of a cabin at altitude — and masks the most for the least hiss. Green sits in the middle of the band, near 500&nbsp;Hz, where wind in trees lives. Rain is a wash of far-off drops with nearer ones pattering through it; soft rain is the same weather heard through a closed window. Ocean rises and falls on its own swell. Run one on its own, or lay several over each other — brown under soft rain is where most people end up.</p>
 </section>
 
 <section>
@@ -241,7 +253,7 @@
     <button class="chip sm" data-pad="deep">Deep</button>
   </div>
   <p class="desc" id="padDesc"></p>
-  <div id="padPane" hidden>
+  <div id="padPane">
     <div class="lab">Ambient level <em id="plVal">50%</em></div>
     <div class="row">
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15c2-6 4-9 6-9s2 12 4 12 3-9 6-9"/></svg>
@@ -305,10 +317,10 @@
       <div class="lab" style="margin-top:20px">Motion</div>
       <div class="toggle">
         <div>
-          <div class="t">Ocean swell</div>
-          <div class="h">Very slow rise and fall in level, like breathing surf.</div>
+          <div class="t">Swell</div>
+          <div class="h">Very slow rise and fall in the level of the whole mix, like breathing surf. The ocean fader carries a swell of its own; this one moves everything together.</div>
         </div>
-        <button class="sw" id="wavesSw" aria-pressed="false" aria-label="Ocean swell"></button>
+        <button class="sw" id="wavesSw" aria-pressed="false" aria-label="Swell"></button>
       </div>
       <div id="wavePane" hidden>
         <div class="lab">Swell depth <em id="wdVal"></em></div>
@@ -377,32 +389,56 @@
      Noise generation
      ============================================================ */
 
-  var TYPES = {
-    brown: {
-      name: "Brown noise",
-      desc: "Deep and low, like distant surf or the hum of a cabin at altitude. The usual first choice: it masks traffic, snoring and footsteps without any hiss."
+  // The five faders. Each is rendered into its own looping buffer and summed,
+  // so any of the 2^5 combinations can be dialled in and held all night.
+  // Pink and white are gone from the panel — pink survives inside the code as
+  // the raw material the rains are cut from, and white as the ocean's foam.
+  var LAYERS = [
+    { id: "brown",    name: "Brown"     },
+    { id: "green",    name: "Green"     },
+    { id: "rain",     name: "Rain"      },
+    { id: "softrain", name: "Soft rain" },
+    { id: "ocean",    name: "Ocean"     }
+  ];
+  var LAYER_IDS = LAYERS.map(function (l) { return l.id; });
+  var LAYER_NAME = {};
+  LAYERS.forEach(function (l) { LAYER_NAME[l.id] = l.name; });
+
+  // Five starting points. Each one sets every fader, the tone and the ambient
+  // theme, so a preset is a whole state rather than a nudge — and any fader
+  // moved afterwards drops the mix back to "custom" without undoing anything.
+  var PRESETS = [
+    {
+      id: "deep", name: "Deep",
+      desc: "Brown noise alone, rolled off dark. The plain overnight setting.",
+      mix: { brown: 72, green: 0, rain: 0, softrain: 0, ocean: 0 },
+      tone: 45, pad: "off", padLevel: 40
     },
-    green: {
-      name: "Green noise",
-      desc: "The mid band of natural ambience, centred near 500 Hz. Softer than white, less boomy than brown — close to the sound of a forest or steady wind."
+    {
+      id: "rainroom", name: "Rainroom",
+      desc: "Brown under soft rain, with the minor synth theme a long way behind it.",
+      mix: { brown: 55, green: 0, rain: 0, softrain: 48, ocean: 0 },
+      tone: 60, pad: "rainroom", padLevel: 34
     },
-    pink: {
-      name: "Pink noise",
-      desc: "Equal energy in every octave, the balance found in rain and rustling leaves. Warm but still full-range."
+    {
+      id: "forest", name: "Forest",
+      desc: "Green noise with a light rain through it — wind in trees, weather coming.",
+      mix: { brown: 18, green: 62, rain: 24, softrain: 0, ocean: 0 },
+      tone: 70, pad: "off", padLevel: 40
     },
-    white: {
-      name: "White noise",
-      desc: "Flat across the spectrum, the familiar hiss of static. Masks the most, but the bright top end can feel harsh over a whole night."
+    {
+      id: "shore", name: "Shore",
+      desc: "Surf on its own swell, with brown noise filling in underneath.",
+      mix: { brown: 30, green: 0, rain: 0, softrain: 0, ocean: 70 },
+      tone: 62, pad: "off", padLevel: 40
     },
-    rain: {
-      name: "Rain",
-      desc: "Steady rain — a wash of far-off drops with nearer ones pattering through it. Masks about as well as pink noise, but it keeps moving: some people drift off faster to that, others find it too busy."
-    },
-    off: {
-      name: "No noise",
-      desc: "Noise off, so only the ambient synth is heard. Nothing is masked — this is for listening rather than for sleeping through."
+    {
+      id: "drift", name: "Drift",
+      desc: "Quiet green and far-off surf under the bright synth theme.",
+      mix: { brown: 0, green: 30, rain: 0, softrain: 14, ocean: 22 },
+      tone: 66, pad: "meadow", padLevel: 55
     }
-  };
+  ];
 
   // Robert Bristow-Johnson biquad, applied in place over a Float32Array.
   function biquad(x, sr, kind, f0, Q) {
@@ -438,29 +474,62 @@
       // Trim inaudible sub-bass so phone speakers do not waste excursion on it.
       return biquad(out, sr, "highpass", 26, 0.707);
     }
-    if (type === "rain") {
+    if (type === "ocean") {
+      // Surf is brown noise breathing. A long swell lifts the whole band and
+      // lets it fall again, with foam hissing over the top of each crest a
+      // moment after it. The swell is written as a whole number of cycles
+      // across the loop, so the wave the buffer ends on is the wave it starts
+      // on and the seam falls inside a single breath rather than across two.
+      var nl = Math.round(LOOP_SEC * sr);
+      var body = genRaw("brown", n, sr);
+      var foamRaw = new Float32Array(n);
+      for (i = 0; i < n; i++) foamRaw[i] = Math.random() * 2 - 1;
+      var foam = biquad(foamRaw, sr, "bandpass", 1500, 0.6);
+      foamRaw = null;
+      var TAU = 2 * Math.PI;
+      for (i = 0; i < n; i++) {
+        // Two swells at two and three cycles a loop: their crests only meet
+        // once, so no two waves in the twenty seconds break quite alike.
+        var p = (i % nl) / nl;
+        var s = Math.pow(0.62 * (0.5 - 0.5 * Math.cos(TAU * 2 * p)) +
+                         0.38 * (0.5 - 0.5 * Math.cos(TAU * 3 * p + 1.1)), 1.6);
+        // Foam lags the water that throws it and is scarce between waves,
+        // which is what the steep power does.
+        var f = Math.pow(0.62 * (0.5 - 0.5 * Math.cos(TAU * 2 * p - 0.7)) +
+                         0.38 * (0.5 - 0.5 * Math.cos(TAU * 3 * p + 0.4)), 3.2);
+        out[i] = body[i] * (0.34 + 1.05 * s) + foam[i] * 0.42 * f;
+      }
+      body = foam = null;
+      return biquad(out, sr, "lowpass", 5200, 0.707);
+    }
+
+    if (type === "rain" || type === "softrain") {
       // Rain is three sounds at once: a wash of drops too far off to pick
       // apart, nearer ones pattering through it, and a low rumble underneath.
       // Synthesised rather than looped from a recording, so it costs a few
       // dozen lines instead of a megabyte and never repeats inside the loop.
+      // Soft rain is the same weather heard through a closed window: fewer
+      // drops, softer ones, and the top of the band shut out.
+      var soft = type === "softrain";
       var pink = genRaw("pink", n, sr);
-      var wash = biquad(pink, sr, "highpass", 320, 0.707);
-      var sizzle = biquad(pink, sr, "bandpass", 2600, 0.5);
+      var wash = biquad(pink, sr, "highpass", soft ? 260 : 320, 0.707);
+      var sizzle = biquad(pink, sr, "bandpass", soft ? 1800 : 2600, 0.5);
       var rumble = biquad(pink, sr, "lowpass", 220, 0.707);
-      for (i = 0; i < n; i++) out[i] = wash[i] * 0.25 + sizzle[i] * 0.20 + rumble[i] * 0.50;
+      var wG = soft ? 0.22 : 0.25, sG = soft ? 0.07 : 0.20, rG = soft ? 0.58 : 0.50;
+      for (i = 0; i < n; i++) out[i] = wash[i] * wG + sizzle[i] * sG + rumble[i] * rG;
       pink = wash = sizzle = rumble = null;
 
       // Short bandpassed textures the individual drops are cut from: low taps
       // on wood, the mid body of most drops, and bright ticks on glass.
       var texN = Math.min(Math.round(0.5 * sr), n);
-      var tex = [900, 2200, 4800].map(function (f) {
+      var tex = (soft ? [700, 1500, 3000] : [900, 2200, 4800]).map(function (f) {
         var t = new Float32Array(texN);
         for (var k = 0; k < texN; k++) t[k] = Math.random() * 2 - 1;
         return biquad(t, sr, "bandpass", f, 2.4);
       });
 
       var maxDrop = Math.round(0.05 * sr);
-      var drops = Math.round((n / sr) * 55);
+      var drops = Math.round((n / sr) * (soft ? 26 : 55));
       for (var d = 0; d < drops; d++) {
         var pick = Math.random();
         var tx = tex[pick < 0.18 ? 0 : (pick < 0.78 ? 1 : 2)];
@@ -468,7 +537,7 @@
         var at = Math.floor(Math.random() * (n - maxDrop));
         var off = Math.floor(Math.random() * (texN - dur));
         // Squaring the random keeps most drops faint and the loud ones rare.
-        var amp = 0.3 + Math.random() * Math.random() * 3.6;
+        var amp = (soft ? 0.2 : 0.3) + Math.random() * Math.random() * (soft ? 1.5 : 3.6);
         var fall = 3.4 + Math.random() * 3.4;
         var dk = Math.exp(-fall / dur), rk = Math.exp(-55 / dur), de = 1, re = 1;
         for (i = 0; i < dur; i++) {
@@ -489,7 +558,8 @@
           out[i] = out[i] < 0 ? -v : v;
         }
       }
-      return out;
+      // The glass pane: everything above it stays outside.
+      return soft ? biquad(out, sr, "lowpass", 3200, 0.707) : out;
     }
 
     // Pink (Paul Kellet's refined method) — also the base for green.
@@ -728,7 +798,8 @@
      ============================================================ */
 
   var DEFAULTS = {
-    type: "brown", volume: 55, tone: 62,
+    mix: { brown: 60, green: 0, rain: 0, softrain: 0, ocean: 0 },
+    volume: 55, tone: 62,
     mode: "for", durationMin: 480, untilTime: "07:00",
     fadeInSec: 30, fadeOutMin: 5,
     waves: false, waveDepth: 30, wavePeriod: 16,
@@ -738,12 +809,46 @@
   // Unchanged since the app was called Sleep Noise: renaming the key would
   // silently throw away everyone's saved settings.
   var KEY = "brokild-sleep-noise";
+
+  function blankMix() {
+    var m = {};
+    LAYER_IDS.forEach(function (id) { m[id] = 0; });
+    return m;
+  }
+
+  // What the single sound picker turned into, for anyone who set it before the
+  // mixer existed. Pink and white have no fader of their own any more, so they
+  // land on the neighbour that sounds least unlike them.
+  var MIGRATE = { brown: "brown", green: "green", pink: "brown", white: "green", rain: "rain", off: null };
+
   var S = Object.assign({}, DEFAULTS);
+  S.mix = Object.assign(blankMix(), DEFAULTS.mix);
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || "{}");
-    Object.keys(DEFAULTS).forEach(function (k) { if (saved[k] !== undefined) S[k] = saved[k]; });
+    Object.keys(DEFAULTS).forEach(function (k) {
+      if (k !== "mix" && saved[k] !== undefined) S[k] = saved[k];
+    });
+    if (saved.mix && typeof saved.mix === "object") {
+      S.mix = blankMix();
+      LAYER_IDS.forEach(function (id) {
+        var v = +saved.mix[id];
+        if (isFinite(v)) S.mix[id] = Math.max(0, Math.min(100, Math.round(v)));
+      });
+    } else if (saved.type !== undefined) {
+      var to = MIGRATE[saved.type];
+      S.mix = blankMix();
+      if (to) S.mix[to] = 60;
+    }
   } catch (e) {}
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+  function presetById(id) {
+    for (var i = 0; i < PRESETS.length; i++) if (PRESETS[i].id === id) return PRESETS[i];
+    return null;
+  }
+  function activeLayers() {
+    return LAYER_IDS.filter(function (id) { return S.mix[id] > 0; });
+  }
 
   var DURATIONS = [15, 30, 45, 60, 120, 180, 240, 360, 480, 600, 720, 0];
   var FADE_IN = [0, 10, 30, 60, 120, 300];
@@ -753,10 +858,16 @@
      Audio graph
      ============================================================ */
 
-  var ctx = null, src = null, srcGain = null, hp = null, lp = null,
+  var ctx = null, hp = null, lp = null, limiter = null,
       swell = null, lfo = null, lfoGain = null, env = null, vol = null,
       msDest = null, bufCache = {}, usingElement = false, fallbackChecked = false,
       padGain = null, padFade = null, padA = null, padB = null, padCache = null;
+  // One entry per fader that is currently making sound: { src, fade, level }.
+  var layers = {};
+  // A silent source that runs for exactly as long as the night is meant to.
+  // The sleep timer hangs off this rather than off any one fader, which come
+  // and go as the faders are moved.
+  var clock = null;
 
   var playing = false;
   var remainingMs = 0;      // for a finite timer; 0 when unlimited
@@ -781,12 +892,21 @@
     lfo.connect(lfoGain); lfoGain.connect(swell.gain);
     lfo.start();
 
+    // Five faders open at once can sum to more than the output can hold. This
+    // only wakes up when they do; one fader on its own never reaches it.
+    limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -4;
+    limiter.knee.value = 8;
+    limiter.ratio.value = 12;
+    limiter.attack.value = 0.005;
+    limiter.release.value = 0.25;
+
     env = ctx.createGain(); env.gain.value = 0;
     vol = ctx.createGain(); vol.gain.value = volGain();
     padGain = ctx.createGain(); padGain.gain.value = padLevelGain();
 
     hp.connect(lp); lp.connect(swell);
-    swell.connect(env); env.connect(vol);
+    swell.connect(limiter); limiter.connect(env); env.connect(vol);
     // The synth joins after the tone control and the swell — both belong to
     // the noise — but before env, so the sleep timer still fades and stops it.
     padGain.connect(env);
@@ -843,45 +963,111 @@
     }, 1200);
   }
 
-  function getBuffer(type) {
-    if (!bufCache[type]) {
-      var keys = Object.keys(bufCache);
-      while (keys.length >= 2) { delete bufCache[keys.shift()]; }
-      bufCache[type] = makeBuffer(ctx, type);
-    }
-    return bufCache[type];
+  // A twenty-second stereo loop is about eight megabytes, so only the faders
+  // that are actually open keep one; closing a fader hands its buffer back.
+  function getBuffer(id) {
+    if (!bufCache[id]) bufCache[id] = makeBuffer(ctx, id);
+    return bufCache[id];
+  }
+  function freeBuffer(id) { delete bufCache[id]; }
+
+  // Ocean normalises quieter than the rest: its crests reach the peak ceiling
+  // in makeBuffer long before its average reaches the loudness target, which
+  // is what a swell is. A trim puts the fader back on the same scale as the
+  // others rather than flattening the sound to suit the meter.
+  var TRIM = { ocean: 1.5 };
+
+  // The fader curve, with enough top on it that a single fader still sits
+  // near the loudness the master knob is already set for.
+  function layerGain(v, id) {
+    return Math.pow(v / 100, 1.3) * 1.25 * (TRIM[id] || 1);
   }
 
-  // With the noise switched off a source still runs: the sleep timer is
-  // scheduled on it, so it has to exist even when it makes no sound.
   var silentBuf = null;
   function silence() {
     if (!silentBuf) silentBuf = ctx.createBuffer(1, Math.round(ctx.sampleRate), ctx.sampleRate);
     return silentBuf;
   }
 
-  function startSource(fadeSec) {
-    var s = ctx.createBufferSource();
-    s.buffer = S.type === "off" ? silence() : getBuffer(S.type);
-    s.loop = true;
-    var g = ctx.createGain();
+  // Two gains per fader: one the slider owns, one the fades own, so a slider
+  // moved during a fade-in does not fight the ramp already scheduled on it.
+  function startLayer(id, fadeSec, stopAt) {
+    if (layers[id] || !(S.mix[id] > 0)) return;
     var t = ctx.currentTime;
-    g.gain.setValueAtTime(fadeSec ? 0.0001 : 1, t);
-    if (fadeSec) g.gain.linearRampToValueAtTime(1, t + fadeSec);
-    s.connect(g); g.connect(hp);
+    var lvl = ctx.createGain(); lvl.gain.value = layerGain(S.mix[id], id);
+    var f = ctx.createGain();
+    f.gain.setValueAtTime(fadeSec ? 0.0001 : 1, t);
+    if (fadeSec) f.gain.linearRampToValueAtTime(1, t + fadeSec);
+    var s = ctx.createBufferSource();
+    s.buffer = getBuffer(id);
+    s.loop = true;
+    s.connect(f); f.connect(lvl); lvl.connect(hp);
     s.start(0);
-    src = s; srcGain = g;
+    if (stopAt) { try { s.stop(stopAt); } catch (e) {} }
+    layers[id] = { src: s, fade: f, level: lvl };
   }
 
-  function stopSource(fadeSec, node, gain) {
-    if (!node) return;
+  function stopLayer(id, fadeSec) {
+    var L = layers[id];
+    if (!L) return;
+    delete layers[id];
     var t = ctx.currentTime;
     try {
-      gain.gain.cancelScheduledValues(t);
-      gain.gain.setValueAtTime(gain.gain.value, t);
-      gain.gain.linearRampToValueAtTime(0.0001, t + fadeSec);
+      L.fade.gain.cancelScheduledValues(t);
+      L.fade.gain.setValueAtTime(L.fade.gain.value, t);
+      L.fade.gain.linearRampToValueAtTime(0.0001, t + fadeSec);
     } catch (e) {}
-    try { node.stop(t + fadeSec + 0.05); } catch (e) {}
+    // Unwire the pair once the source has run out, so a night of moving the
+    // faders does not leave a queue of silent gains hanging off the bus.
+    L.src.onended = function () {
+      try { L.fade.disconnect(); } catch (e) {}
+      try { L.level.disconnect(); } catch (e) {}
+    };
+    try { L.src.stop(t + fadeSec + 0.05); } catch (e) {}
+  }
+
+  function stopAllLayers(fadeSec) {
+    Object.keys(layers).forEach(function (id) { stopLayer(id, fadeSec); });
+  }
+
+  // When the night has an end, everything started after the timer began has
+  // to be told about it too.
+  function endStopTime() {
+    if (!endAt) return 0;
+    return ctx.currentTime + Math.max(endAt - Date.now(), 0) / 1000 + 0.1;
+  }
+
+  // Bring the sounding layers into line with the faders: open what has been
+  // raised off zero, hand back what has been closed.
+  function reconcileLayers(fadeSec) {
+    if (!ctx || !playing) return;
+    var stopAt = endStopTime();
+    LAYER_IDS.forEach(function (id) {
+      if (S.mix[id] > 0) startLayer(id, fadeSec, stopAt);
+      else if (layers[id]) { stopLayer(id, fadeSec); freeBuffer(id); }
+    });
+    mediaSession();
+  }
+
+  function startClock(stopAt) {
+    var s = ctx.createBufferSource();
+    s.buffer = silence();
+    s.loop = true;
+    var g = ctx.createGain(); g.gain.value = 0;
+    s.connect(g); g.connect(env);
+    s.start(0);
+    if (stopAt) {
+      try { s.stop(stopAt); } catch (e) {}
+      s.onended = function () { if (playing) finish(); };
+    }
+    clock = s;
+  }
+
+  function stopClock() {
+    if (!clock) return;
+    clock.onended = null;
+    try { clock.stop(); } catch (e) {}
+    clock = null;
   }
 
   function applySwell() {
@@ -978,13 +1164,11 @@
     if (!totalMs) totalMs = remainingMs;
 
     var fadeIn = Math.max(S.fadeInSec, 0.4);
-    startSource(fadeIn);
-    startPad(fadeIn);
-
     var t = ctx.currentTime;
     env.gain.cancelScheduledValues(t);
     env.gain.setValueAtTime(1, t);
 
+    var stopAt = 0;
     if (remainingMs > 0) {
       var secs = remainingMs / 1000;
       var endT = t + secs;
@@ -995,13 +1179,16 @@
       }
       // Scheduled on the audio clock, so the timer still fires if the page is
       // frozen while the phone sleeps.
-      try { src.stop(endT + 0.1); } catch (e) {}
-      padStopAt(endT + 0.1);
-      src.onended = function () { if (playing) finish(); };
+      stopAt = endT + 0.1;
       endAt = Date.now() + remainingMs;
     } else {
       endAt = 0;
     }
+
+    LAYER_IDS.forEach(function (id) { startLayer(id, fadeIn, stopAt); });
+    startPad(fadeIn);
+    startClock(stopAt);
+    if (stopAt) padStopAt(stopAt);
 
     playing = true;
     fallbackChecked = false;
@@ -1016,10 +1203,8 @@
     if (!playing) return;
     if (endAt) remainingMs = Math.max(endAt - Date.now(), 0);
     playing = false;
-    var s = src, g = srcGain;
-    src = null;
-    if (s) s.onended = null;
-    stopSource(0.4, s, g);
+    stopClock();
+    stopAllLayers(0.4);
     stopPad(0.4);
     clearTimeout(autoDimTimer);
     releaseWake();
@@ -1029,8 +1214,8 @@
 
   function finish() {
     playing = false;
-    if (src) { src.onended = null; try { src.stop(); } catch (e) {} }
-    src = null;
+    stopClock();
+    stopAllLayers(0.25);
     stopPad(0.25);
     remainingMs = 0;
     clearTimeout(autoDimTimer);
@@ -1047,21 +1232,6 @@
     totalMs = plannedMs();
     if (playing) { pause(); play(); }
     updateUI();
-  }
-
-  function swapType() {
-    if (!playing) { updateUI(); return; }
-    var old = src, oldG = srcGain;
-    if (old) old.onended = null;
-    stopSource(0.7, old, oldG);
-    startSource(0.7);
-    // Re-arm the scheduled stop on the new source.
-    if (endAt) {
-      var secs = Math.max(endAt - Date.now(), 0) / 1000;
-      try { src.stop(ctx.currentTime + secs + 0.1); } catch (e) {}
-      src.onended = function () { if (playing) finish(); };
-    }
-    mediaSession();
   }
 
   /* ---- wake lock ---- */
@@ -1165,16 +1335,161 @@
     });
   }
 
-  // Sound type
-  var typeChips = $("typeChips");
-  Array.prototype.forEach.call(typeChips.children, function (b) {
-    b.addEventListener("click", function () {
-      if (S.type === b.dataset.type) return;
-      S.type = b.dataset.type; save();
-      swapType();
-      updateUI();
+  // Building a loop takes a few hundred milliseconds of blocked main thread,
+  // so anything that needs one says so first and does it a frame later.
+  // Nothing is built until it is needed: while paused the render waits for the
+  // play button, which already has its own busy state.
+  function busyRender(host, label, fn) {
+    if (!playing) { updateUI(); return; }
+    if (host) host.classList.add("busy");
+    setStatus(label, false);
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        try { fn(); setStatus("", false); }
+        catch (e) { setStatus("That sound could not be built: " + e.message, true); }
+        if (host) host.classList.remove("busy");
+        updateUI();
+      });
     });
+  }
+
+  // A preset is not a flag but a shape: whichever one the settings currently
+  // spell out is the one lit up, so it survives a reload and comes back if a
+  // fader is moved away and then back again.
+  function matchPreset() {
+    for (var i = 0; i < PRESETS.length; i++) {
+      var p = PRESETS[i], ok = true;
+      for (var j = 0; j < LAYER_IDS.length; j++) {
+        if (S.mix[LAYER_IDS[j]] !== (p.mix[LAYER_IDS[j]] || 0)) { ok = false; break; }
+      }
+      if (ok && S.tone === p.tone && S.pad === p.pad && S.padLevel === p.padLevel) return p;
+    }
+    return null;
+  }
+
+  /* ---- the mixer ---- */
+
+  var mixRows = $("mixRows"), mixIn = {}, mixRow = {}, mixValEl = {};
+
+  LAYERS.forEach(function (l) {
+    var row = document.createElement("div");
+    row.className = "mixrow";
+
+    var name = document.createElement("div");
+    name.className = "mixname";
+    name.textContent = l.name;
+
+    var input = document.createElement("input");
+    input.type = "range";
+    input.min = "0"; input.max = "100"; input.step = "1";
+    input.value = S.mix[l.id];
+    input.setAttribute("aria-label", l.name + " level");
+
+    var val = document.createElement("div");
+    val.className = "mixval";
+
+    input.addEventListener("input", function () {
+      S.mix[l.id] = +input.value;
+      // A fader already sounding follows the finger; one coming up off zero
+      // has to wait for its loop to be built, which mixSettled does.
+      if (layers[l.id]) layers[l.id].level.gain.setTargetAtTime(layerGain(S.mix[l.id], l.id), ctx.currentTime, 0.05);
+      paintMix();
+      save();
+      mixSettled();
+    });
+    // Some browsers never fire change for a drag that ends outside the track,
+    // which is why the timer above exists as well.
+    input.addEventListener("change", applyMix);
+
+    row.appendChild(name); row.appendChild(input); row.appendChild(val);
+    mixRows.appendChild(row);
+    mixIn[l.id] = input; mixRow[l.id] = row; mixValEl[l.id] = val;
   });
+
+  var mixTimer = null;
+  function mixSettled() {
+    clearTimeout(mixTimer);
+    mixTimer = setTimeout(applyMix, 280);
+  }
+
+  function applyMix() {
+    clearTimeout(mixTimer);
+    if (!playing) {
+      LAYER_IDS.forEach(function (id) { if (!(S.mix[id] > 0)) freeBuffer(id); });
+      updateUI();
+      return;
+    }
+    var building = LAYER_IDS.some(function (id) {
+      return S.mix[id] > 0 && !layers[id] && !bufCache[id];
+    });
+    if (!building) { reconcileLayers(0.7); updateUI(); return; }
+    busyRender(mixRows, "Preparing the mix…", function () { reconcileLayers(0.7); });
+  }
+
+  function syncMixInputs() {
+    LAYER_IDS.forEach(function (id) { mixIn[id].value = S.mix[id]; });
+  }
+
+  function paintMix() {
+    var names = [];
+    LAYER_IDS.forEach(function (id) {
+      var v = S.mix[id];
+      mixRow[id].classList.toggle("on", v > 0);
+      mixValEl[id].textContent = v > 0 ? v + "%" : "—";
+      if (v > 0) names.push(LAYER_NAME[id].toLowerCase());
+    });
+    $("mixVal").textContent = !names.length ? "silent"
+      : (names.length > 2 ? names.length + " sounds" : names.join(" + "));
+  }
+
+  /* ---- presets ---- */
+
+  var presetChips = $("presetChips");
+  PRESETS.forEach(function (p) {
+    var b = document.createElement("button");
+    b.className = "chip px";
+    b.type = "button";
+    b.textContent = p.name;
+    b.dataset.preset = p.id;
+    b.addEventListener("click", function () { applyPreset(p); });
+    presetChips.appendChild(b);
+  });
+
+  function paintPresets() {
+    var p = matchPreset();
+    Array.prototype.forEach.call(presetChips.children, function (b) {
+      b.setAttribute("aria-pressed", String(!!p && b.dataset.preset === p.id));
+    });
+    $("presetVal").textContent = p ? p.name.toLowerCase() : "custom";
+    $("presetDesc").textContent = p ? p.desc
+      : "Five ways in. Move any fader afterwards and the mix becomes your own.";
+  }
+
+  function applyPreset(p) {
+    var padChanged = S.pad !== p.pad;
+    LAYER_IDS.forEach(function (id) { S.mix[id] = p.mix[id] || 0; });
+    S.tone = p.tone;
+    S.pad = p.pad;
+    S.padLevel = p.padLevel;
+    save();
+
+    syncMixInputs();
+    toneIn.value = S.tone;
+    plIn.value = S.padLevel;
+    if (ctx) {
+      var t = ctx.currentTime;
+      lp.frequency.setTargetAtTime(toneHz(), t, 0.05);
+      padGain.gain.setTargetAtTime(padLevelGain(), t, 0.05);
+      LAYER_IDS.forEach(function (id) {
+        if (layers[id]) layers[id].level.gain.setTargetAtTime(layerGain(S.mix[id], id), t, 0.05);
+      });
+    }
+    busyRender(presetChips, "Preparing " + p.name + "…", function () {
+      reconcileLayers(0.7);
+      if (padChanged) swapPad();
+    });
+    updateUI();
+  }
 
   // Ambient theme
   var padChips = $("padChips");
@@ -1183,19 +1498,8 @@
       if (S.pad === b.dataset.pad) return;
       S.pad = b.dataset.pad; save();
       updateUI();
-      // Nothing is built until it is needed: while paused the render waits for
-      // the play button, which already has its own busy state.
       if (!playing || !THEMES[S.pad]) { swapPad(); return; }
-      padChips.classList.add("busy");
-      setStatus("Preparing " + THEMES[S.pad].name + "…", false);
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () {
-          try { swapPad(); setStatus("", false); }
-          catch (e) { setStatus("The ambient layer could not be built: " + e.message, true); }
-          padChips.classList.remove("busy");
-          updateUI();
-        });
-      });
+      busyRender(padChips, "Preparing " + THEMES[S.pad].name + "…", swapPad);
     });
   });
 
@@ -1244,6 +1548,7 @@
     S.padLevel = +plIn.value;
     if (padGain) padGain.gain.setTargetAtTime(padLevelGain(), ctx.currentTime, 0.05);
     $("plVal").textContent = S.padLevel + "%";
+    paintPresets();
     save();
   });
 
@@ -1257,6 +1562,7 @@
     S.tone = +toneIn.value;
     if (ctx) lp.frequency.setTargetAtTime(toneHz(), ctx.currentTime, 0.05);
     $("toneVal").textContent = toneLabel();
+    paintPresets();
     save();
   });
   wdIn.addEventListener("input", function () {
@@ -1266,12 +1572,18 @@
     S.wavePeriod = +wpIn.value; $("wpVal").textContent = S.wavePeriod + " s"; applySwell(); save();
   });
 
-  // What is actually making sound: noise, ambient synth, both or neither.
+  // What is actually making sound, short enough for a lock screen: the preset
+  // if the mix still spells one out, otherwise what is open, named.
   function soundName() {
-    var n = S.type === "off" ? "" : TYPES[S.type].name;
-    var p = (S.pad === "off" || !THEMES[S.pad]) ? "" : THEMES[S.pad].name;
-    if (n && p) return n + " + " + p;
-    return n || p || "Silent";
+    var p = matchPreset();
+    if (p) return p.name;
+    var pad = (S.pad === "off" || !THEMES[S.pad]) ? "" : THEMES[S.pad].name;
+    var on = activeLayers().sort(function (a, b) { return S.mix[b] - S.mix[a]; });
+    var n = !on.length ? ""
+          : on.length > 2 ? "Mix"
+          : on.map(function (id) { return LAYER_NAME[id]; }).join(" + ");
+    if (n && pad) return n + " + " + pad;
+    return n || pad || "Silent";
   }
 
   function toneLabel() {
@@ -1409,19 +1721,15 @@
   /* ---- periodic UI refresh ---- */
 
   function updateUI() {
-    var t = TYPES[S.type];
-    Array.prototype.forEach.call(typeChips.children, function (b) {
-      b.setAttribute("aria-pressed", String(b.dataset.type === S.type));
-    });
-    $("typeDesc").textContent = t.desc;
+    paintMix();
+    paintPresets();
     Array.prototype.forEach.call(padChips.children, function (b) {
       b.setAttribute("aria-pressed", String(b.dataset.pad === S.pad));
     });
     var th = THEMES[S.pad];
     $("padVal").textContent = th ? th.name : "off";
     $("padDesc").textContent = th ? th.desc
-      : "Five slow chord themes, from plain major to dark minor. Pick one to layer it under the noise, or with the noise off, to hear it on its own.";
-    $("padPane").hidden = !th;
+      : "Five slow chord themes, from plain major to dark minor. Pick one to lay over the mix, or with every fader down, to hear it on its own.";
     $("plVal").textContent = S.padLevel + "%";
     $("volVal").textContent = S.volume + "%";
     $("toneVal").textContent = toneLabel();
