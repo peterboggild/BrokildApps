@@ -1,0 +1,50 @@
+# Node
+node_modules/
+npm-debug.log*
+.npm/
+
+# Capacitor: www/ is generated from the canonical web app by
+# ios-apps/*/scripts/build-www.mjs, so it is never committed.
+ios-apps/*/www/
+.capacitor/
+
+# CocoaPods: restored by `pod install`
+ios-apps/*/ios/App/Pods/
+ios-apps/*/ios/App/Podfile.lock
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.xcscmblueprint
+*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Apple signing and distribution material — never commit any of this
+*.p12
+*.pem
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+AuthKey_*.p8
+*.keychain
+*.keychain-db
+ExportOptions.plist
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Local scratch
+.DS_Store
+Thumbs.db
+*.swp
+.env
+.env.local

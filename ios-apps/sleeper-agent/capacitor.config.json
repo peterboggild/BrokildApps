@@ -1,0 +1,18 @@
+{
+  "appId": "com.peterboggild.sleeperagent",
+  "appName": "Sleeper Agent",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#06070aff",
+    "scrollEnabled": true,
+    "preferredContentMode": "mobile",
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "iosScheme": "capacitor"
+  },
+  "plugins": {
+    "Haptics": {}
+  }
+}

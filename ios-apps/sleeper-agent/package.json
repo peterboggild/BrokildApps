@@ -1,0 +1,22 @@
+{
+  "name": "sleeper-agent-ios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native iOS/iPadOS shell for Sleeper Agent. The web application in health-apps/sleep-noise/ is the canonical source; this project wraps it in Capacitor and adds the native audio engine.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-www.mjs",
+    "sync": "npm run build && cap sync ios",
+    "open": "cap open ios",
+    "test": "node ../../health-apps/sleep-noise/test/regression.mjs",
+    "test:slow": "node ../../health-apps/sleep-noise/test/regression.mjs --slow"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0"
+  }
+}
