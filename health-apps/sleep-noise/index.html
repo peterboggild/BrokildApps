@@ -86,6 +86,9 @@
     appearance:none;border:1px solid var(--line-soft);background:var(--panel);color:var(--muted);
     border-radius:11px;padding:11px 4px;font:inherit;font-size:13.5px;cursor:pointer;
     text-align:center;transition:border-color .15s, color .15s, background .15s;
+    /* Apple's 44pt minimum. Flex rather than more padding, so a label that
+       wraps to two lines stays centred instead of pushing the chip taller. */
+    min-height:44px;display:flex;align-items:center;justify-content:center;
   }
   .chip:active{background:var(--panel-2)}
   .chip[aria-pressed="true"],.chip.on{border-color:var(--accent-dim);background:var(--accent-soft);color:var(--accent)}
@@ -101,13 +104,13 @@
   .mixrow.on .mixname{color:var(--accent)}
   .mixval{font-size:11.5px;color:var(--faint);text-align:right;font-variant-numeric:tabular-nums}
   .mixrow.on .mixval{color:var(--muted)}
-  .mixrow input[type=range]{height:32px}
+  .mixrow input[type=range]{height:44px}
   .mixsep{height:1px;background:var(--line-soft);margin:7px 0 5px}
 
   /* ---------- sliders ---------- */
   .row{display:flex;align-items:center;gap:12px}
   input[type=range]{
-    -webkit-appearance:none;appearance:none;width:100%;background:transparent;margin:0;height:30px;
+    -webkit-appearance:none;appearance:none;width:100%;background:transparent;margin:0;height:44px;
   }
   input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:3px;background:var(--line)}
   input[type=range]::-moz-range-track{height:3px;border-radius:3px;background:var(--line)}
@@ -125,13 +128,14 @@
   .seg{display:flex;background:var(--panel);border:1px solid var(--line-soft);border-radius:11px;padding:3px;gap:3px;margin-bottom:10px}
   .seg button{
     flex:1;appearance:none;border:0;background:transparent;color:var(--muted);
-    font:inherit;font-size:13px;padding:8px 4px;border-radius:8px;cursor:pointer;
+    font:inherit;font-size:13px;padding:12px 4px;border-radius:8px;cursor:pointer;
+    min-height:44px;
   }
   .seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
   .fine{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;
         background:var(--panel);border:1px solid var(--line-soft);border-radius:11px;padding:8px 10px}
   .fine button{
-    appearance:none;width:38px;height:34px;border-radius:9px;border:1px solid var(--line);
+    appearance:none;width:44px;height:44px;border-radius:10px;border:1px solid var(--line);
     background:var(--panel-2);color:var(--muted);font:inherit;font-size:17px;line-height:1;cursor:pointer;
   }
   .fine button:active{color:var(--accent)}
@@ -157,15 +161,24 @@
   .toggle:first-of-type{border-top:0}
   .toggle .t{font-size:13.5px;color:var(--text)}
   .toggle .h{font-size:11.5px;color:var(--faint);margin-top:3px;line-height:1.45}
+  /* A switch should look 27px tall and be 44px to hit, which is Apple's
+     minimum. So the button itself is the full 44 and the track is drawn as a
+     pseudo-element inside it: the whole target is real rather than an
+     invisible extension a neighbouring row can paint over. */
   .sw{
-    appearance:none;flex:none;width:46px;height:27px;border-radius:14px;border:1px solid var(--line);
-    background:var(--panel-2);position:relative;cursor:pointer;transition:background .18s, border-color .18s;
+    appearance:none;flex:none;width:46px;height:44px;border:0;background:transparent;padding:0;
+    position:relative;cursor:pointer;
+  }
+  .sw::before{
+    content:"";position:absolute;left:0;right:0;top:8px;height:27px;box-sizing:border-box;
+    border-radius:14px;border:1px solid var(--line);background:var(--panel-2);
+    transition:background .18s, border-color .18s;
   }
   .sw::after{
-    content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+    content:"";position:absolute;top:11px;left:3px;width:20px;height:20px;border-radius:50%;
     background:#4a4740;transition:transform .18s, background .18s;
   }
-  .sw[aria-pressed="true"]{background:rgba(217,160,91,.16);border-color:var(--accent-dim)}
+  .sw[aria-pressed="true"]::before{background:rgba(217,160,91,.16);border-color:var(--accent-dim)}
   .sw[aria-pressed="true"]::after{transform:translateX(19px);background:var(--accent)}
 
   /* ---------- footer ---------- */
@@ -1804,6 +1817,7 @@
       else if (layers[l.id]) layers[l.id].level.gain.setTargetAtTime(layerGain(S.mix[l.id], l.id), ctx.currentTime, 0.05);
       paintMix();
       paintPresets();
+      paintAria();
       save();
       mixSettled();
     });
@@ -1881,6 +1895,23 @@
     b.addEventListener("click", function () { haptic("selection"); applyPreset(p); });
     presetChips.appendChild(b);
   });
+
+  // VoiceOver reads a range's raw number unless it is told otherwise, so
+  // "62" instead of "soft, 3.2 kHz" and a bare "0" for a closed fader. These
+  // are the same words the panel prints, so what is heard matches what is
+  // shown.
+  function paintAria() {
+    LAYER_IDS.forEach(function (id) {
+      var v = S.mix[id];
+      mixIn[id].setAttribute("aria-valuetext", v > 0 ? v + "%" : "closed");
+    });
+    volIn.setAttribute("aria-valuetext", S.volume + "%");
+    toneIn.setAttribute("aria-valuetext", toneLabel());
+    plIn.setAttribute("aria-valuetext",
+      (THEMES[S.pad] ? THEMES[S.pad].name : "no theme") + ", " + S.padLevel + "%");
+    wdIn.setAttribute("aria-valuetext", S.waveDepth + "%");
+    wpIn.setAttribute("aria-valuetext", S.wavePeriod + " seconds");
+  }
 
   function paintPresets() {
     var p = matchPreset();
@@ -1985,6 +2016,7 @@
     else if (padGain) padGain.gain.setTargetAtTime(padLevelGain(), ctx.currentTime, 0.05);
     $("plVal").textContent = S.padLevel + "%";
     paintPresets();
+    paintAria();
     save();
   });
 
@@ -1993,6 +2025,7 @@
     if (NATIVE) { if (Audio2) { try { Audio2.setVolume({ value: volGain() }); } catch (e) {} } }
     else if (ctx) vol.gain.setTargetAtTime(volGain(), ctx.currentTime, 0.05);
     $("volVal").textContent = S.volume + "%";
+    paintAria();
     save();
   });
   toneIn.addEventListener("input", function () {
@@ -2001,6 +2034,7 @@
     else if (ctx) lp.frequency.setTargetAtTime(toneHz(), ctx.currentTime, 0.05);
     $("toneVal").textContent = toneLabel();
     paintPresets();
+    paintAria();
     save();
   });
   wdIn.addEventListener("input", function () {
@@ -2184,6 +2218,7 @@
   function updateUI() {
     paintMix();
     paintPresets();
+    paintAria();
     Array.prototype.forEach.call(padChips.children, function (b) {
       b.setAttribute("aria-pressed", String(b.dataset.pad === S.pad));
     });
