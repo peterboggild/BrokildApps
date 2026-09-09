@@ -11,5 +11,6 @@
     "browser",
     "phone",
     "synth"
-  ]
+  ],
+  "privacy": "health-apps/sleep-noise/privacy.html"
 }

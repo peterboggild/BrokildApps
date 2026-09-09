@@ -490,13 +490,13 @@ that word.
 |---|---|---|
 | 1. Baseline + regression suite | here | **done** — 114 checks |
 | 2. This document | here | **done** |
-| 3. Capacitor scaffold, config, gitignore | here | |
-| 4. Audio backend interface; Web Audio backend refactored behind it | here | |
-| 5. Swift plugin (session, engine, timer, Now Playing, interruptions) | here, uncompiled | |
-| 6. Native JS backend + WAV handoff + cache | here | |
-| 7. iOS adaptations (chrome, safe areas, haptics, Preferences, idle timer) | here | |
-| 8. Icon + launch screen assets | here | |
-| 9. Docs, App Store metadata, privacy notes, privacy policy page | here | |
+| 3. Capacitor scaffold, config, gitignore | here | **done** — Capacitor 8.5.1, SPM (no CocoaPods) |
+| 4. Audio backend chosen at runtime; Web Audio path untouched | here | **done** |
+| 5. Swift plugin (session, engine, timer, Now Playing, interruptions) | here | **written, never compiled** |
+| 6. Native JS backend + chunked WAV handoff + disk cache | here | **done** — 65 checks against a mock plugin |
+| 7. iOS adaptations (chrome, haptics, idle timer, status bar, settings mirror) | here | **done** |
+| 8. Icon + launch screen assets | here | **done** |
+| 9. Docs, App Store metadata, privacy notes, privacy policy page | here | **done** |
 | 10. First compile, fix build errors | **Mac** | |
 | 11. Simulator run, screenshots | **Mac** | |
 | 12. Device QA — the whole of `IOS_QA_CHECKLIST.md` | **Mac + iPhone** | |

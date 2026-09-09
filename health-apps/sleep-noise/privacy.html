@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06070a">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Privacy policy for Sleeper Agent. The app collects nothing, sends nothing, and makes no network connections at all. All sound is generated on the device.">
+<title>Sleeper Agent — privacy</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root{
+    --bg:#06070a; --panel:#0e1015; --line:#1f232c; --line-soft:#171a21;
+    --text:#d7d2c8; --muted:#8a8578; --faint:#5f5b52; --accent:#d9a05b;
+  }
+  *{box-sizing:border-box}
+  html{background:var(--bg);-webkit-text-size-adjust:100%}
+  body{
+    margin:0 auto;max-width:660px;background:var(--bg);color:var(--text);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:calc(env(safe-area-inset-top) + 26px) 20px calc(env(safe-area-inset-bottom) + 60px);
+  }
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:34px}
+  h1{font-size:21px;font-weight:600;letter-spacing:.01em;margin:0}
+  h1 span{display:block;font-weight:400;font-size:11.5px;color:var(--faint);
+          letter-spacing:.16em;text-transform:uppercase;margin-top:6px}
+  .home{font-size:12.5px;color:var(--faint);text-decoration:none;border:1px solid var(--line-soft);
+        border-radius:8px;padding:6px 10px;flex:none;white-space:nowrap}
+  .home:hover{color:var(--muted)}
+  h2{font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);
+     margin:36px 0 12px;font-weight:600}
+  p{margin:0 0 15px}
+  ul{margin:0 0 15px;padding-left:22px}
+  li{margin-bottom:8px}
+  strong{color:#e6e1d6;font-weight:600}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;
+       color:var(--accent);background:rgba(217,160,91,.08);padding:1px 5px;border-radius:4px}
+  .lead{font-size:17.5px;line-height:1.6;color:#e6e1d6;
+        border-left:2px solid var(--accent);padding-left:16px;margin:0 0 30px}
+  .card{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;
+        padding:18px 20px;margin:0 0 15px}
+  .card p:last-child{margin-bottom:0}
+  table{width:100%;border-collapse:collapse;margin:0 0 15px;font-size:14.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{color:var(--faint);font-weight:600;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase}
+  a{color:var(--accent)}
+  footer{margin-top:44px;padding-top:22px;border-top:1px solid var(--line-soft);
+         font-size:13px;color:var(--faint)}
+  .date{font-size:13px;color:var(--faint);margin-bottom:30px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sleeper Agent<span>Privacy policy</span></h1>
+  <a class="home" href="../../">BrokildApps</a>
+</header>
+
+<p class="date">Last updated 9 September 2026. Applies to Sleeper Agent for iOS and iPadOS, and to the web version at this address.</p>
+
+<p class="lead">Sleeper Agent collects nothing about you. It has no account, no
+analytics and no advertising, and it makes no network connections of any
+kind — so there is nothing for it to send anywhere, and nowhere for it to send
+it.</p>
+
+<h2>What is collected</h2>
+
+<div class="card">
+  <p><strong>Nothing.</strong> No personal information, no identifiers, no
+  location, no contacts, no usage statistics, no crash reports, no advertising
+  identifier, no analytics events. Not anonymised, not aggregated, not
+  "pseudonymised" — none of it, because none of it is gathered in the first
+  place.</p>
+</div>
+
+<h2>Why that is not just a promise</h2>
+
+<p>The app contains no code that can reach a network. There is no HTTP request,
+no WebSocket, no analytics library, no advertising framework and no
+crash-reporting service anywhere in it. It asks the operating system for no
+permissions at all: not the microphone, not the camera, not your location, not
+notifications, not your contacts, not health data.</p>
+
+<p>You can check this without taking anyone's word for it: turn on airplane
+mode, switch off Wi-Fi and Bluetooth, and use the app normally. Everything
+works, because everything it does happens on your device.</p>
+
+<h2>What is stored on your device</h2>
+
+<p>Two things, both of which stay on your device and are removed when you
+delete the app:</p>
+
+<table>
+  <tr><th>What</th><th>Why</th></tr>
+  <tr>
+    <td><strong>Your settings</strong><br>the five fader levels, volume, tone,
+    swell, sleep-timer preference, fade lengths, ambient theme and level,
+    and the blackout preference</td>
+    <td>So the app opens as you left it. Stored under the key
+    <code>brokild-sleep-noise</code>.</td>
+  </tr>
+  <tr>
+    <td><strong>Generated audio loops</strong><br>the app's own synthesised
+    sound, cached as files</td>
+    <td>So the sound starts immediately instead of being generated again every
+    evening. In the system cache, which the operating system may clear at any
+    time; the app simply regenerates it.</td>
+  </tr>
+</table>
+
+<p>Neither contains anything about you. They are your own preferences and the
+app's own audio. Neither is uploaded, synced, or shared, and neither is
+readable by anyone but you.</p>
+
+<h2>Where the sound comes from</h2>
+
+<p>All of it is generated on your device, sample by sample, as it plays. There
+are no audio recordings in the app and nothing is streamed or downloaded. The
+brown noise, the green noise, the rain, the soft rain, the ocean and the five
+synth themes are all produced by arithmetic while you listen.</p>
+
+<h2>Children</h2>
+
+<p>The app is suitable for all ages and collects no data from anyone,
+regardless of age.</p>
+
+<h2>Third parties</h2>
+
+<p>There are none. No advertising networks, no analytics providers, no
+attribution services, no cloud services, no third-party SDKs that gather
+anything. Nobody receives data about you from this app, because the app does
+not have any and could not send it.</p>
+
+<p>If you bought the app from Apple's App Store, Apple handles that
+transaction under its own privacy policy, and the developer never sees your
+payment details.</p>
+
+<h2>Your rights</h2>
+
+<p>Rights such as access, correction, deletion and portability apply to data a
+company holds about you. No data about you is held. The settings on your
+device are yours already: change them in the app, or delete the app to remove
+them completely.</p>
+
+<h2>Changes to this policy</h2>
+
+<p>If a future version of the app ever collects anything, this policy will be
+updated before that version is released, and the change will be described here
+rather than quietly absorbed. The intention is that this page never needs to
+say anything more complicated than it does now.</p>
+
+<h2>Contact</h2>
+
+<p>Questions about this policy or about the app can be raised through
+<a href="https://github.com/peterboggild">github.com/peterboggild</a>.</p>
+
+<footer>
+  Sleeper Agent is part of <a href="../../">BrokildApps</a>.<br>
+  The web version of the app is at <a href="./">this address</a>, and behaves
+  the same way: it too makes no network requests once the page has loaded.
+</footer>
+
+</body>
+</html>
