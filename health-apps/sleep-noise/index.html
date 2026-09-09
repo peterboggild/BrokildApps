@@ -559,7 +559,13 @@
         }
       }
       // The glass pane: everything above it stays outside.
-      return soft ? biquad(out, sr, "lowpass", 3200, 0.707) : out;
+      if (soft) out = biquad(out, sr, "lowpass", 3200, 0.707);
+      // Pink's generator has gain right down to nothing, which leaves a small
+      // standing offset in everything cut from it. Brown has been trimmed at
+      // 26 Hz since the beginning for the same reason; the rains get the same
+      // cut, which takes the offset with it and spares the phone speaker an
+      // excursion nobody can hear.
+      return biquad(out, sr, "highpass", 26, 0.707);
     }
 
     // Pink (Paul Kellet's refined method) — also the base for green.
@@ -579,6 +585,7 @@
       // Broad mid hump around 500 Hz, with some of the pink left underneath.
       var bp = biquad(out, sr, "bandpass", 500, 0.55);
       for (i = 0; i < n; i++) out[i] = bp[i] + out[i] * 0.32;
+      return biquad(out, sr, "highpass", 26, 0.707);
     }
     return out;
   }
@@ -1394,6 +1401,7 @@
       // has to wait for its loop to be built, which mixSettled does.
       if (layers[l.id]) layers[l.id].level.gain.setTargetAtTime(layerGain(S.mix[l.id], l.id), ctx.currentTime, 0.05);
       paintMix();
+      paintPresets();
       save();
       mixSettled();
     });
