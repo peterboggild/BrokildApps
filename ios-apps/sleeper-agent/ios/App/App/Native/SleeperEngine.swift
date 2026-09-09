@@ -36,6 +36,7 @@
 import Foundation
 import AVFoundation
 import MediaPlayer
+import QuartzCore
 
 /// One tick of the control loop. Everything time-varying — the swell, both
 /// fades, the sleep timer — is driven from this single timer rather than from
@@ -109,7 +110,14 @@ final class SleeperEngine {
     private var totalSeconds: Double = 0
 
     private var tick: DispatchSourceTimer?
+    private var ticks: Int = 0
     private let queue = DispatchQueue(label: "com.peterboggild.sleeperagent.engine")
+    private var observers: [NSObjectProtocol] = []
+
+    /// How much of the night was left when an interruption began. The timer is
+    /// frozen for the duration rather than run down, so a ten-minute phone call
+    /// does not silently cost ten minutes of sleep sound.
+    private var frozenRemaining: Double?
 
     /// Set by the plugin so engine events can reach JavaScript.
     var onEvent: ((String, [String: Any]) -> Void)?
@@ -396,8 +404,12 @@ final class SleeperEngine {
         }
     }
 
+    /// Asynchronous on purpose: the fade below is a sleep on the engine queue,
+    /// and a caller asking for a half-second fade should not be blocked for
+    /// half a second. The queue is serial, so a start() arriving straight
+    /// afterwards still lands after this has finished.
     func stop(fadeSeconds: Double) {
-        queue.sync { stopLocked(fadeSeconds: fadeSeconds, notify: false) }
+        queue.async { self.stopLocked(fadeSeconds: fadeSeconds, notify: false) }
     }
 
     /// The sleep timer reaching its end. Distinguished from a manual stop so
@@ -530,6 +542,7 @@ final class SleeperEngine {
 
     private func startTick() {
         stopTick()
+        ticks = 0
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now(), repeating: 1.0 / kTickHz, leeway: .milliseconds(10))
         t.setEventHandler { [weak self] in self?.onTick() }
@@ -606,8 +619,11 @@ final class SleeperEngine {
             padMixer.outputVolume = padCurrent
         }
 
-        // The lock screen only needs refreshing about once a second.
-        if Int((t - startedAt) * kTickHz) % Int(kTickHz) == 0 { updateNowPlaying() }
+        // The lock screen only needs refreshing about once a second. Counted
+        // rather than derived from the clock, which drifted in and out of
+        // hitting the modulus exactly.
+        ticks += 1
+        if ticks % Int(kTickHz) == 0 { updateNowPlaying() }
     }
 
     // MARK: - Now Playing and remote commands
@@ -674,17 +690,28 @@ final class SleeperEngine {
 
     // MARK: - System events
 
+    /// Block-based rather than selector-based on purpose. This class is not an
+    /// NSObject subclass, so it has no Objective-C selectors to offer, and
+    /// `addObserver(self, selector:)` could not see it. The observers are never
+    /// removed because the engine is a singleton that lives as long as the app.
     private func registerForSystemNotifications() {
         let nc = NotificationCenter.default
 
-        nc.addObserver(self, selector: #selector(handleInterruption(_:)),
-                       name: AVAudioSession.interruptionNotification, object: nil)
-        nc.addObserver(self, selector: #selector(handleRouteChange(_:)),
-                       name: AVAudioSession.routeChangeNotification, object: nil)
-        nc.addObserver(self, selector: #selector(handleMediaServicesReset(_:)),
-                       name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
-        nc.addObserver(self, selector: #selector(handleEngineConfigurationChange(_:)),
-                       name: .AVAudioEngineConfigurationChange, object: nil)
+        observers.append(nc.addObserver(
+            forName: AVAudioSession.interruptionNotification, object: nil, queue: nil
+        ) { [weak self] note in self?.handleInterruption(note) })
+
+        observers.append(nc.addObserver(
+            forName: AVAudioSession.routeChangeNotification, object: nil, queue: nil
+        ) { [weak self] note in self?.handleRouteChange(note) })
+
+        observers.append(nc.addObserver(
+            forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: nil
+        ) { [weak self] _ in self?.handleMediaServicesReset() })
+
+        observers.append(nc.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: nil, queue: nil
+        ) { [weak self] _ in self?.handleEngineConfigurationChange() })
     }
 
     /// A call, Siri, an alarm. iOS stops the audio for us; the question is only
@@ -694,7 +721,7 @@ final class SleeperEngine {
     /// the interruption ended with `shouldResume`. Sound restarting on its own
     /// in the small hours is worse than sound not restarting, and the app is
     /// one tap away on the lock screen either way.
-    @objc private func handleInterruption(_ note: Notification) {
+    private func handleInterruption(_ note: Notification) {
         guard let info = note.userInfo,
               let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw)
@@ -704,34 +731,50 @@ final class SleeperEngine {
         case .began:
             queue.sync {
                 interrupted = true
+                // Freeze the sleep timer for the duration. A ten-minute call
+                // must not cost ten minutes of the night.
+                if endsAt > 0 {
+                    frozenRemaining = max(0, endsAt - now())
+                    endsAt = 0
+                }
                 for (_, l) in layers { l.player.pause() }
                 for p in padPlayers { p.pause() }
             }
-            emit("interrupted", ["resumable": false])
+            emit("interrupted", ["resumable": true])
 
         case .ended:
             let opts = AVAudioSession.InterruptionOptions(
                 rawValue: info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
-            let shouldResume = opts.contains(.shouldResume)
+            let wantsResume = opts.contains(.shouldResume)
+            var resumed = false
             queue.sync {
                 interrupted = false
                 guard isPlaying else { return }
-                if shouldResume {
+                if wantsResume {
                     do {
                         try AVAudioSession.sharedInstance().setActive(true)
                         if !engine.isRunning { try engine.start() }
                         for (_, l) in layers { l.player.play() }
                         for p in padPlayers { p.play() }
+                        // Pick the timer back up where it was left. startedAt is
+                        // deliberately not touched, so the fade-in does not
+                        // start over.
+                        if let r = frozenRemaining { endsAt = now() + r }
+                        frozenRemaining = nil
+                        resumed = true
                     } catch {
                         log("could not resume after interruption: \(error.localizedDescription)")
                     }
-                } else {
-                    // Left paused on purpose. The timer is not advanced while
-                    // paused, so the night is not silently shortened.
-                    startedAt = now() - (totalSeconds - (endsAt > 0 ? endsAt - now() : 0))
+                }
+                if !resumed {
+                    // Not resuming, so do not sit half-alive holding the audio
+                    // session all night. Stop properly; JavaScript keeps the
+                    // remaining time and the user resumes with one tap.
+                    stopLocked(fadeSeconds: 0, notify: false)
+                    frozenRemaining = nil
                 }
             }
-            emit("interruptionEnded", ["resumed": shouldResume])
+            emit("interruptionEnded", ["resumed": resumed])
 
         @unknown default:
             break
@@ -741,18 +784,19 @@ final class SleeperEngine {
     /// AirPods pulled out, headphones unplugged, Bluetooth switched away.
     /// iOS pauses for `.oldDeviceUnavailable`, which is the behaviour anyone
     /// expects; the engine is simply told so the UI can agree with it.
-    @objc private func handleRouteChange(_ note: Notification) {
+    private func handleRouteChange(_ note: Notification) {
         guard let raw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
               let reason = AVAudioSession.RouteChangeReason(rawValue: raw)
         else { return }
 
         switch reason {
         case .oldDeviceUnavailable:
-            queue.sync {
-                for (_, l) in layers { l.player.pause() }
-                for p in padPlayers { p.pause() }
-                interrupted = true
-            }
+            // Headphones pulled out, or Bluetooth switched away. Stop properly
+            // rather than pausing into a half-alive state: leaving the engine
+            // marked interrupted would stop the control loop, and with it the
+            // sleep timer, for the rest of the night. JavaScript keeps the
+            // remaining time, so one tap resumes where it left off.
+            queue.sync { stopLocked(fadeSeconds: 0.1, notify: false) }
             emit("routeLost", [:])
 
         case .newDeviceAvailable, .categoryChange, .override:
@@ -766,20 +810,23 @@ final class SleeperEngine {
     /// The audio server restarted. Everything is invalid and has to be rebuilt
     /// from scratch; a long overnight session is exactly the window in which
     /// this happens, and not handling it is a silent night.
-    @objc private func handleMediaServicesReset(_ note: Notification) {
+    private func handleMediaServicesReset() {
         queue.sync {
             guard isPlaying else { return }
             log("media services were reset — rebuilding")
             stopTick()
             teardownGraph()
             isPlaying = false
+            endsAt = 0
+            frozenRemaining = nil
+            clearNowPlaying()
         }
         emit("needsRestart", ["reason": "mediaServicesReset"])
     }
 
     /// The engine's own configuration changed under it, usually because the
     /// route did. Players have to be restarted or the output is silence.
-    @objc private func handleEngineConfigurationChange(_ note: Notification) {
+    private func handleEngineConfigurationChange() {
         queue.sync {
             guard isPlaying, !interrupted else { return }
             do {

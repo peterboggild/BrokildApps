@@ -250,9 +250,22 @@ at least 44pt, and there is no horizontal overflow. Re-confirm on a device.
 
 ## 14. Known-unknowns to watch for on first device contact
 
-Written down in advance, because these are the places the design is most
-likely to be wrong. None has been observed; all are guesses about where to
-look first.
+The Swift has had one critical read-back pass without a compiler, which found
+and fixed five real defects — so the first build starts from better than a
+first draft, but still from unproven code:
+
+- `SleeperEngine` used `@objc` and `#selector` while not being an `NSObject`
+  subclass. **That could not have compiled.** Now block-based observers.
+- `CACurrentMediaTime()` was used without importing QuartzCore.
+- A headphone unplug left the engine permanently marked interrupted, which
+  stopped the control loop — and with it the sleep timer — for the rest of the
+  night. Route loss now stops cleanly.
+- An interruption ran the sleep timer down while paused, so a ten-minute call
+  cost ten minutes of the night. The timer is now frozen and restored.
+- `stop()` held its caller for the whole length of the fade.
+
+What follows is where to look next. None of it has been observed; all of it is
+a guess about the places the design is most likely to be wrong.
 
 1. **Plugin registration.** If Capacitor 8's SPM setup does not pick up Swift
    files under `App/Native/`, the plugins never register. Check 1.7.
