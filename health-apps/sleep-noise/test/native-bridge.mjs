@@ -108,7 +108,11 @@ const MOCK = () => {
     getBacking() { record("getBacking", {}); return Promise.resolve({ json: window.__backing || "", present: !!window.__backing }); },
     getEnvironment() {
       record("getEnvironment", {});
-      return Promise.resolve({ safeArea: { top: 59, bottom: 34, left: 0, right: 0 }, idiom: "phone" });
+      return Promise.resolve({
+        safeArea: { top: 59, bottom: 34, left: 0, right: 0 }, idiom: "phone",
+        systemVersion: "26.0", appVersion: "1.0.0", buildNumber: "1",
+        scale: 3, hasHomeIndicator: true,
+      });
     },
   };
 
@@ -370,6 +374,15 @@ const duringDrag = await page.evaluate(() => {
   return window.__calls.filter((c) => c.name === "haptic").length - before;
 });
 check("no haptics while a fader is being dragged", duringDrag === 0, `${duringDrag} during 21 input events`);
+
+/* ---------------- version line ---------------- */
+console.log("\nversion line");
+await page.waitForTimeout(300);
+const ver = await page.evaluate(() => document.getElementById("verLine").textContent);
+check("the app states its version, so a bug report can name one",
+  /Sleeper Agent .+ \(.+\) · iOS /.test(ver), ver || "(empty)");
+check("the environment was read from native",
+  (await callsOf(page, "getEnvironment")).length >= 1);
 
 /* ---------------- settings mirror ---------------- */
 console.log("\nsettings mirror");

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06070a">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Support for Sleeper Agent: answers to the common questions, and how to get in touch.">
+<title>Sleeper Agent — support</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root{
+    --bg:#06070a; --panel:#0e1015; --line:#1f232c; --line-soft:#171a21;
+    --text:#dcd7cd; --muted:#989385; --faint:#827d70; --accent:#d9a05b;
+  }
+  *{box-sizing:border-box}
+  html{background:var(--bg);-webkit-text-size-adjust:100%}
+  body{
+    margin:0 auto;max-width:660px;background:var(--bg);color:var(--text);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:calc(env(safe-area-inset-top) + 26px) 20px calc(env(safe-area-inset-bottom) + 60px);
+  }
+  header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:30px}
+  h1{font-size:21px;font-weight:600;letter-spacing:.01em;margin:0}
+  h1 span{display:block;font-weight:400;font-size:11.5px;color:var(--faint);
+          letter-spacing:.16em;text-transform:uppercase;margin-top:6px}
+  .home{font-size:12.5px;color:var(--faint);text-decoration:none;border:1px solid var(--line-soft);
+        border-radius:8px;padding:6px 10px;flex:none;white-space:nowrap}
+  .home:hover{color:var(--muted)}
+  h2{font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);
+     margin:38px 0 14px;font-weight:600}
+  h3{font-size:16px;font-weight:600;margin:0 0 7px;color:#e6e1d6}
+  p{margin:0 0 14px}
+  ul,ol{margin:0 0 14px;padding-left:22px}
+  li{margin-bottom:7px}
+  strong{color:#e6e1d6;font-weight:600}
+  a{color:var(--accent)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;
+       color:var(--accent);background:rgba(217,160,91,.08);padding:1px 5px;border-radius:4px}
+  .contact{background:var(--panel);border:1px solid var(--line-soft);border-radius:14px;
+           padding:20px 22px;margin:0 0 8px}
+  .contact p:last-child{margin-bottom:0}
+  .mail{font-size:19px;letter-spacing:.01em;display:inline-block;margin:2px 0 10px}
+  .q{border-top:1px solid var(--line-soft);padding-top:18px;margin-bottom:20px}
+  .q:first-of-type{border-top:0;padding-top:0}
+  .q p:last-child{margin-bottom:0}
+  footer{margin-top:44px;padding-top:22px;border-top:1px solid var(--line-soft);
+         font-size:13px;color:var(--faint)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sleeper Agent<span>Support</span></h1>
+  <a class="home" href="../../">BrokildApps</a>
+</header>
+
+<h2>Get in touch</h2>
+
+<div class="contact">
+  <a class="mail" href="mailto:brokildapps@gmail.com?subject=Sleeper%20Agent">brokildapps@gmail.com</a>
+  <p>Bug reports, questions and suggestions are all welcome. It is a small
+  operation, so a reply may take a few days.</p>
+  <p>If something is going wrong, these four things make it far easier to work
+  out what: <strong>which device</strong> you are using, <strong>which version
+  of iOS</strong>, the <strong>version line printed at the very bottom of the
+  app's screen</strong>, and <strong>what you had set up</strong> when it
+  happened — which faders were open, the sleep timer, whether the screen was
+  locked.</p>
+</div>
+
+<h2>The usual questions</h2>
+
+<div class="q">
+  <h3>I tap play and hear nothing</h3>
+  <p>The first time you use a given sound, the app has to generate it — the
+  sound is not a recording, it is made from scratch on your device. You will
+  see <em>"Preparing…"</em> for a few seconds. Every later start is
+  immediate.</p>
+  <p>If that is not it: check the phone is not in silent mode or muted at the
+  hardware switch, check the volume fader in the app is not at zero, and check
+  at least one fader in the <strong>Mix</strong> section is above zero. Every
+  fader down is a legal setting — the timer still runs — so it is possible to
+  have the app happily "playing" silence.</p>
+</div>
+
+<div class="q">
+  <h3>Does it keep playing when the screen locks?</h3>
+  <p>Yes. That is the whole point, and the app is built around it: the sound is
+  played by the phone's own audio engine, not by the on-screen part of the app,
+  so it carries on with the screen off for as long as the sleep timer says.</p>
+  <p>You will see it on the lock screen, with what is playing and how much time
+  is left, and you can pause and resume from there or from Control Centre.</p>
+</div>
+
+<div class="q">
+  <h3>The sound stopped in the night</h3>
+  <p>Almost always this is the sleep timer doing its job. Check the timer
+  setting — if it says <em>Play for 8 h</em>, it stopped after eight hours. Set
+  it to <strong>∞</strong> in the duration row if you want no limit at all.</p>
+  <p>The other cause is an interruption: a phone call, an alarm, Siri, or
+  headphones being unplugged. The app pauses for those and <em>deliberately
+  does not start itself again</em> — sound coming back on by itself at three in
+  the morning is worse than sound not coming back. Tap play, or use the lock
+  screen, and it picks up where it left off with the remaining time intact.</p>
+</div>
+
+<div class="q">
+  <h3>I turned the volume up and then it got loud</h3>
+  <p>That was the fade-in, and it is now one second by default for exactly this
+  reason. If you have a longer fade-in set — you can see it under <strong>More
+  options → Fade in</strong> — set the volume you actually want first, then
+  start it, because the sound is still on its way up while you are judging
+  it.</p>
+</div>
+
+<div class="q">
+  <h3>How do I stop it without unlocking the phone?</h3>
+  <p>From the lock screen or Control Centre, like any other audio. Or set a
+  sleep timer and let it fade out on its own, which is what it is for.</p>
+</div>
+
+<div class="q">
+  <h3>Which sound should I use?</h3>
+  <p>Start with a preset and adjust from there. <strong>Deep</strong> is plain
+  brown noise, the usual first choice — it masks traffic, snoring and footsteps
+  with no hiss. <strong>Rainroom</strong> is brown under soft rain, which is
+  where most people end up. <strong>Shore</strong> is surf.</p>
+  <p>If it feels harsh over a whole night, pull <strong>Tone</strong> down:
+  darker is gentler on the ears, brighter masks more speech. If you can hear
+  the individual rain drops too clearly, try <strong>soft rain</strong>
+  instead — it is the same weather heard through a closed window.</p>
+</div>
+
+<div class="q">
+  <h3>Does it work with no signal?</h3>
+  <p>Completely. The app makes no network connections at all, so aeroplanes,
+  tents and basements are all fine. Try it in airplane mode if you like — it
+  behaves identically.</p>
+</div>
+
+<div class="q">
+  <h3>Is it draining my battery?</h3>
+  <p>Playing sound overnight with the screen off costs relatively little. What
+  costs a lot is keeping the <em>display</em> on, so if you use the blackout
+  screen all night, turn off <strong>More options → Keep the screen on in
+  blackout</strong>. The sound carries on with the screen off either way.</p>
+</div>
+
+<div class="q">
+  <h3>The ambient synth keeps me awake</h3>
+  <p>It probably will, and that is expected. Anything melodic holds the
+  attention more than plain noise does, so the five synth themes are meant for
+  lying awake on purpose — meditating, reading, resting — rather than for
+  sleeping through. For sleep, set the <strong>Ambient synth</strong> to
+  <em>Off</em> and use the noise faders alone.</p>
+</div>
+
+<div class="q">
+  <h3>My settings disappeared</h3>
+  <p>Settings live on your device and nowhere else — there is no account and
+  nothing is synced, so deleting the app removes them, and a new phone starts
+  fresh. On iOS the app keeps a second copy in the system's own storage and
+  restores it if the first is ever cleared, so this should be rare.</p>
+</div>
+
+<div class="q">
+  <h3>Is there a subscription?</h3>
+  <p>No. You buy it once. There is no account, no advertising, no analytics and
+  no tracking of any kind — see the <a href="privacy.html">privacy
+  policy</a>, which is short because there is not much to say.</p>
+</div>
+
+<div class="q">
+  <h3>Can I use it in a browser instead?</h3>
+  <p>Yes — <a href="./">the web version</a> is the same app and is free. The
+  iOS version exists because a browser cannot be relied on to keep playing all
+  night with the screen locked; that part is native.</p>
+</div>
+
+<h2>Reporting a bug</h2>
+
+<p>The most useful bug report says what you expected, what happened instead,
+and whether it happens every time. If it involves the sound stopping, the two
+things worth noting are <strong>how long it had been playing</strong> and
+<strong>whether the screen was locked</strong>.</p>
+
+<p>Send it to
+<a href="mailto:brokildapps@gmail.com?subject=Sleeper%20Agent%20bug">brokildapps@gmail.com</a>
+with the four details from the top of this page.</p>
+
+<footer>
+  Sleeper Agent is part of <a href="../../">BrokildApps</a>.<br>
+  <a href="privacy.html">Privacy policy</a> · <a href="./">the web version of the app</a>
+</footer>
+
+</body>
+</html>

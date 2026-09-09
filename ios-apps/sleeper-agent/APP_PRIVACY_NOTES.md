@@ -132,10 +132,10 @@ generic template, and it says plainly that nothing is collected. **Read it
 before you point Apple at it** — you are the one making the representation,
 and a privacy policy that overclaims is worse than none.
 
-One thing to check: it names no contact address. Apple requires a Support URL
-where a person can reach you, so decide what address you are willing to
-publish. If you want, I will add it to both the privacy page and a matching
-`support.html`.
+It gives `brokildapps@gmail.com` as the contact, links the support page, and
+links the public repository — on the grounds that a privacy policy whose central
+claim is "there is no network code" is more convincing if it also tells you
+where to go and check.
 
 ## 7. What would change these answers
 

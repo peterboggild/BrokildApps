@@ -198,6 +198,7 @@
   .dimbtn:active{background:var(--panel-2);color:var(--accent)}
   footer{margin-top:24px;font-size:11.5px;color:var(--faint);line-height:1.6;text-align:center}
   footer a{color:var(--muted)}
+  #verLine{display:block;margin-top:6px;color:#6a655b;font-variant-numeric:tabular-nums}
   .note{font-size:11.5px;color:var(--faint);margin:10px 2px 0;line-height:1.5}
   .warn{color:#b8834a}
 
@@ -403,7 +404,8 @@
 
 <footer>
   Sound is generated on your phone — nothing is streamed or recorded.<br>
-  <span class="webonly"><a href="privacy.html">Privacy</a> · <a href="../../">BrokildApps</a></span>
+  <span class="webonly"><a href="privacy.html">Privacy</a> · <a href="support.html">Support</a> · <a href="../../">BrokildApps</a></span>
+  <span id="verLine"></span>
 </footer>
 
 <audio id="sink" playsinline></audio>
@@ -2387,6 +2389,16 @@
     Audio2.addListener("remotePlay", function () { if (!playing) play(); });
     Audio2.addListener("remotePause", function () { if (playing) pause(); });
     Audio2.addListener("remoteToggle", function () { if (playing) pause(); else play(); });
+  }
+
+  if (NATIVE && Shell) {
+    // Nowhere else in the app says what version it is, which makes a useful
+    // bug report impossible. The support page asks for this line.
+    Shell.getEnvironment().then(function (env) {
+      if (!env || !env.appVersion) return;
+      $("verLine").textContent =
+        "Sleeper Agent " + env.appVersion + " (" + (env.buildNumber || "?") + ") · iOS " + (env.systemVersion || "?");
+    }).catch(function () {});
   }
 
   if (NATIVE) {

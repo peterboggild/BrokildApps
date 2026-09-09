@@ -151,13 +151,26 @@ First release.
 
 | Field | Value | Status |
 |---|---|---|
-| Support URL | `https://peterboggild.github.io/BrokildApps/health-apps/sleep-noise/support.html` | **needs creating** |
+| Support URL | `https://peterboggild.github.io/BrokildApps/health-apps/sleep-noise/support.html` | created on this branch |
 | Marketing URL | `https://peterboggild.github.io/BrokildApps/health-apps/sleep-noise/` | exists (the web version) |
 | Privacy Policy URL | `https://peterboggild.github.io/BrokildApps/health-apps/sleep-noise/privacy.html` | created on this branch |
 
-A Support URL is **required**. It has to be a page a human can use to reach
-you — an email address on a page is enough. Say the word and I will write
-`support.html` in the same house style as the privacy page.
+A Support URL is **required**, and it has to be a page a human can actually
+use. `support.html` is written and published on this branch: the contact
+address is `brokildapps@gmail.com`, and above it sit twelve answers to the
+questions this app will actually generate — nothing heard on play, sound
+stopping in the night (nearly always the sleep timer, or an interruption the
+app deliberately does not auto-resume from), the fade-in catching people out,
+battery, and why the synth themes keep you awake on purpose.
+
+A reviewer will open this URL. A page with real content on it reads better
+than a bare mailto, and it is also the page that answers the support email
+before it is sent.
+
+Also worth knowing: the app now prints its version and build at the very
+bottom of its own screen, on iOS only. Nothing else in the app said what
+version it was, which made a useful bug report impossible. The support page
+asks for that line.
 
 ## 8. Age rating
 
@@ -218,7 +231,14 @@ above, from the real build. I cannot produce them here, and I will not
 fabricate screenshots: every frame listed is a state the app genuinely has,
 but the pixels have to come from the app.
 
-## 11. App Review notes
+## 11. App Review contact and notes
+
+App Review Information also asks for a contact for the reviewer, separate from
+the public Support URL. `brokildapps@gmail.com` serves for both unless you
+would rather Apple had a different one. A phone number is required in that
+form too, and I have not guessed at it.
+
+### Notes
 
 Paste into *App Review Information → Notes*:
 
@@ -324,7 +344,7 @@ Human decisions, roughly in the order they come up:
 2. Choose the category (§2).
 3. Decide the `tinnitus` keyword question (§5).
 4. Approve or rewrite the description (§4).
-5. Ask for `support.html` to be written, or supply a support URL.
+5. ~~Support URL~~ — done: `support.html`, contact `brokildapps@gmail.com`.
 6. Apple Developer Program membership — see `README-iOS.md` §7.
 7. Paid Apps Agreement, tax and banking details in App Store Connect.
 8. Set the price (§12).
