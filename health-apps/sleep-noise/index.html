@@ -21,11 +21,19 @@
     --panel-2:#12151c;
     --line:#1f232c;
     --line-soft:#171a21;
-    --text:#d7d2c8;
-    --muted:#8a8578;
-    --faint:#5f5b52;
+    /* Lifted one step in September 2026: --faint measured 2.98:1 against the
+       ground, below even the 3:1 floor for UI text, and it carries every
+       label, note, description and mixer name in the app. Each value keeps
+       its hue and saturation and is only brighter, so the muted character is
+       intact. Ratios against --bg are now: text 14.1, muted 6.6, faint 4.6,
+       accent 8.8, accent-dim 4.6. --faint is solved against --panel rather
+       than --bg, because the advanced section and every switch caption sit on
+       a panel, and that is the harder ground. */
+    --text:#dcd7cd;
+    --muted:#989385;
+    --faint:#827d70;
     --accent:#d9a05b;
-    --accent-dim:#8d6738;
+    --accent-dim:#9a713d;
     --accent-soft:rgba(217,160,91,.10);
     --radius:14px;
     --shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 10px 30px rgba(0,0,0,.5);
@@ -176,7 +184,7 @@
   }
   .sw::after{
     content:"";position:absolute;top:11px;left:3px;width:20px;height:20px;border-radius:50%;
-    background:#4a4740;transition:transform .18s, background .18s;
+    background:#646056;transition:transform .18s, background .18s;
   }
   .sw[aria-pressed="true"]::before{background:rgba(217,160,91,.16);border-color:var(--accent-dim)}
   .sw[aria-pressed="true"]::after{transform:translateX(19px);background:var(--accent)}
@@ -188,8 +196,8 @@
     display:flex;align-items:center;justify-content:center;gap:9px;
   }
   .dimbtn:active{background:var(--panel-2);color:var(--accent)}
-  footer{margin-top:24px;font-size:11.5px;color:#4a473f;line-height:1.6;text-align:center}
-  footer a{color:#5f5b52}
+  footer{margin-top:24px;font-size:11.5px;color:var(--faint);line-height:1.6;text-align:center}
+  footer a{color:var(--muted)}
   .note{font-size:11.5px;color:var(--faint);margin:10px 2px 0;line-height:1.5}
   .warn{color:#b8834a}
 
@@ -203,7 +211,9 @@
   #dimInner{text-align:center;opacity:.14;transition:opacity .8s ease;pointer-events:none}
   #dim.awake #dimInner{opacity:.5}
   #dimClock{font-size:52px;font-weight:200;color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:.04em}
-  #dimMeta{font-size:13px;color:var(--accent-dim);margin-top:10px;letter-spacing:.06em}
+  /* Pinned rather than tokenised: the blackout screen exists to be dark, so
+     it must not brighten when the panel's palette does. */
+  #dimMeta{font-size:13px;color:#8d6738;margin-top:10px;letter-spacing:.06em}
   #dimBar{
     position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 28px);
     display:flex;gap:10px;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s ease;
@@ -336,7 +346,8 @@
     <summary><span>More options</span><span class="caret">›</span></summary>
     <div class="adv">
       <div class="lab">Fade in <em id="fiVal"></em></div>
-      <div class="chips c3" id="fiChips" role="group" aria-label="Fade in"></div>
+      <div class="chips c4" id="fiChips" role="group" aria-label="Fade in"></div>
+      <p class="note">Kept short by default, so the level you set is the level you get. A longer rise is gentler to fall asleep to — but set the volume before you use one.</p>
 
       <div class="lab">Fade out before stop <em id="foVal"></em></div>
       <div class="chips c3" id="foChips" role="group" aria-label="Fade out"></div>
@@ -836,7 +847,10 @@
     mix: { brown: 60, green: 0, rain: 0, softrain: 0, ocean: 0 },
     volume: 55, tone: 62,
     mode: "for", durationMin: 480, untilTime: "07:00",
-    fadeInSec: 30, fadeOutMin: 5,
+    // One second, not thirty. A long rise is a trap on first use: the app is
+    // quiet when you tap play, so you turn it up, and then the fade arrives on
+    // top of the level you just set. Short by default; long if you choose it.
+    fadeInSec: 1, fadeOutMin: 5,
     waves: false, waveDepth: 30, wavePeriod: 16,
     pad: "off", padLevel: 50,
     bgPlayback: true, keepAwake: true, autoDim: true
@@ -904,7 +918,7 @@
   }
 
   var DURATIONS = [15, 30, 45, 60, 120, 180, 240, 360, 480, 600, 720, 0];
-  var FADE_IN = [0, 10, 30, 60, 120, 300];
+  var FADE_IN = [0, 1, 5, 10, 30, 60, 120, 300];
   var FADE_OUT = [0, 1, 5, 10, 20, 30];
 
   /* ============================================================

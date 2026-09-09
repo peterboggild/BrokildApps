@@ -404,6 +404,87 @@ async function appSuite() {
   check("blackout exits",
     !(await p.evaluate(() => document.getElementById("dim").classList.contains("show"))));
 
+  /* ---- defaults a first-time user meets ---- */
+  console.log("\nAPP — first-run defaults");
+  await p.evaluate(() => localStorage.clear());
+  await p.reload();
+  await p.waitForTimeout(250);
+  const firstRun = await p.evaluate(() => ({
+    fadeIn: document.getElementById("fiVal").textContent,
+    fadeInLit: [...document.querySelectorAll("#fiChips button")]
+      .filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.textContent),
+    fadeInOptions: [...document.querySelectorAll("#fiChips button")].map((b) => b.textContent),
+    volume: +document.getElementById("vol").value,
+  }));
+  // A long fade-in is a trap on first use: the app is quiet when you tap play,
+  // so you turn it up, and the fade then arrives on top of that level.
+  check("fade-in defaults to one second", firstRun.fadeIn === "1 s", firstRun.fadeIn);
+  check("and its chip is the one lit", firstRun.fadeInLit.join() === "1 s", firstRun.fadeInLit.join());
+  check("fade-in offers a short end and a long one",
+    firstRun.fadeInOptions.length === 8 && firstRun.fadeInOptions.includes("1 s") &&
+    firstRun.fadeInOptions.includes("5 min"), firstRun.fadeInOptions.join(" "));
+
+  /* ---- text is legible on the dark ground ---- */
+  console.log("\nAPP — contrast");
+  const contrast = await p.evaluate(() => {
+    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    const parse = (s) => (s.match(/[\d.]+/g) || []).map(Number);
+    const lum = ([r, g, b]) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    const ratio = (a, b) => {
+      const la = lum(a), lb = lum(b), hi = Math.max(la, lb), lo = Math.min(la, lb);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    // The first ancestor that actually paints a background.
+    const groundOf = (el) => {
+      let n = el;
+      while (n && n !== document.documentElement) {
+        const bg = parse(getComputedStyle(n).backgroundColor);
+        if (bg.length >= 3 && (bg[3] === undefined || bg[3] > 0.5)) return bg.slice(0, 3);
+        n = n.parentElement;
+      }
+      return parse(getComputedStyle(document.body).backgroundColor).slice(0, 3);
+    };
+    const out = {};
+    for (const [name, sel] of [
+      ["body copy", "body"],
+      ["section label", ".lab"],
+      ["explanatory note", ".note"],
+      ["preset description", ".desc"],
+      ["mixer fader name", ".mixname"],
+      ["mixer fader value", ".mixval"],
+      ["transport subtitle", ".sub"],
+      ["chip label", ".chip"],
+      ["footer", "footer"],
+      ["switch caption", ".toggle .h"],
+    ]) {
+      const el = document.querySelector(sel);
+      if (!el) { out[name] = null; continue; }
+      const fg = parse(getComputedStyle(el).color).slice(0, 3);
+      out[name] = Math.round(ratio(fg, groundOf(el)) * 100) / 100;
+    }
+    return out;
+  });
+  // 4.5:1 is WCAG AA for normal text. Every one of these is prose the user is
+  // expected to read, not decoration.
+  for (const [name, r] of Object.entries(contrast)) {
+    check(`${name} meets 4.5:1`, r !== null && r >= 4.5, r === null ? "selector not found" : `${r}:1`);
+  }
+  check("body copy is comfortably above AA", contrast["body copy"] >= 10, contrast["body copy"] + ":1");
+
+  // The inverse guard: the blackout screen exists to be dark, so it must not
+  // brighten when the panel's palette does.
+  const blackout = await p.evaluate(() => {
+    const d = getComputedStyle(document.getElementById("dim"));
+    const meta = getComputedStyle(document.getElementById("dimMeta"));
+    const hint = getComputedStyle(document.getElementById("dimHint"));
+    const inner = getComputedStyle(document.getElementById("dimInner"));
+    return { bg: d.backgroundColor, meta: meta.color, hint: hint.color, opacity: +inner.opacity };
+  });
+  check("blackout ground is pure black", blackout.bg === "rgb(0, 0, 0)", blackout.bg);
+  check("blackout meta text stayed dim", blackout.meta === "rgb(141, 103, 56)", blackout.meta);
+  check("blackout hint stayed nearly invisible", blackout.hint === "rgb(30, 28, 25)", blackout.hint);
+  check("blackout content is heavily dimmed at rest", blackout.opacity <= 0.2, String(blackout.opacity));
+
   /* ---- the sleep timer, end to end ---- */
   if (SLOW) {
     console.log("\nAPP — sleep timer (slow)");
