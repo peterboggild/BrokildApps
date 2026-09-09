@@ -4,6 +4,11 @@ Working document for turning the existing web application at
 `health-apps/sleep-noise/` into an iOS/iPadOS app suitable for TestFlight, the
 App Store, and paid sale.
 
+> **Coming back to this cold?** Start at
+> [`ios-apps/sleeper-agent/START_HERE.md`](../../ios-apps/sleeper-agent/START_HERE.md)
+> instead. This file explains *why* the app is built the way it is; that one
+> explains what state everything is in and what to do next.
+
 Written before any port work began, so that the baseline is recorded rather
 than remembered. Updated as the port proceeds.
 

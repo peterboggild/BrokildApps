@@ -12,7 +12,22 @@ GitHub Pages.
 | DSW | [`dsw`](dsw) | **Digital Science Workstation** (build from source): a native host that runs C++/HTML digital-experiment plugins the way a DAW runs VST3s — drop a bundle in `plugins/`, the browser is the GUI, the math runs native. Ships with Gray–Scott and double-slit wave-tank experiments. |
 | Photo Synth | [`vst3-apps/photo-synth-2`](vst3-apps/photo-synth-2) | **Windows VST3 plugin** (download): play the colours of four photographs inside your DAW. Ships with a PDF manual, and with the HTML→VST3 developer kit that explains how it was built. |
 | Photo Synth | [`music-apps/photo-synth`](music-apps/photo-synth) | Play two photos: colour becomes tone on one, filter on the other. |
-| Sleeper Agent | [`health-apps/sleep-noise`](health-apps/sleep-noise) | Private browser-generated sleep noise with timers, fades and blackout mode, plus five slow ambient synth themes for meditation. |
+| Sleeper Agent | [`health-apps/sleep-noise`](health-apps/sleep-noise) | Private browser-generated sleep noise: a five-fader mixer of brown, green, rain, soft rain and ocean, with timers, fades, blackout mode and five slow ambient synth themes. Also being ported to iOS — see below. |
+
+## Work in progress: Sleeper Agent for iOS
+
+Sleeper Agent is being turned into a native iOS/iPadOS app, on the branch
+`ios-sleeper-agent`. The same `index.html` serves both the website and the app;
+inside the app a native AVAudioEngine plays the sound, because a WebView cannot
+be relied on to keep playing through a locked screen all night.
+
+**It is unfinished, and the Swift has never been compiled** — there was no Mac
+involved in writing it. Everything that could be done without one has been.
+
+Start at **[`ios-apps/sleeper-agent/START_HERE.md`](ios-apps/sleeper-agent/START_HERE.md)**,
+which says what state it is in and points at everything else, including a
+step-by-step guide from here to the App Store written for someone who has never
+shipped an app.
 
 ## How the front page works
 
