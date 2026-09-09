@@ -205,13 +205,28 @@
   #dim.awake #dimHint{color:#3c342b}
 
   @media (max-height:640px){ .dial{width:140px;height:140px} #playBtn svg{width:38px;height:38px} .remain{font-size:24px} }
+
+  /* ---------- native (iOS) ----------
+     Set on <html> when the Capacitor bridge is present. Everything here is
+     either a browser affordance that has no meaning inside an app, or a piece
+     of web-page behaviour that reads as a bug in one. */
+  html.native .webonly{display:none !important}
+  html.native body{
+    /* Nothing in the panel is content to copy, and a long press raising
+       Copy / Look Up over a slider label is the clearest possible tell that
+       this used to be a web page. */
+    -webkit-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+  }
+  /* The status bar sits above the panel rather than behind it. */
+  html.native body{padding-top:calc(env(safe-area-inset-top) + 6px)}
 </style>
 </head>
 <body>
 
 <header>
   <h1>Sleeper Agent<span>Noise &amp; ambient synths</span></h1>
-  <a class="home" href="../../">BrokildApps</a>
+  <a class="home webonly" href="../../">BrokildApps</a>
 </header>
 
 <div class="transport">
@@ -330,7 +345,7 @@
       </div>
 
       <div class="lab" style="margin-top:20px">Playback</div>
-      <div class="toggle">
+      <div class="toggle webonly">
         <div>
           <div class="t">Play with screen locked</div>
           <div class="h">Routes the sound through the system media player so it keeps going in the background and appears on the lock screen. Turn off if you hear nothing.</div>
@@ -339,8 +354,8 @@
       </div>
       <div class="toggle">
         <div>
-          <div class="t">Keep the phone awake</div>
-          <div class="h">Some browsers cut the sound when the phone falls asleep. This holds it awake so the night is never interrupted — the blackout screen keeps the display dark while it does. Turn off to save battery.</div>
+          <div class="t" id="wakeT">Keep the phone awake</div>
+          <div class="h" id="wakeH">Some browsers cut the sound when the phone falls asleep. This holds it awake so the night is never interrupted — the blackout screen keeps the display dark while it does. Turn off to save battery.</div>
         </div>
         <button class="sw" id="wakeSw" aria-pressed="true" aria-label="Keep the phone awake"></button>
       </div>
@@ -364,7 +379,7 @@
 
 <footer>
   Sound is generated on your phone — nothing is streamed or recorded.<br>
-  <a href="../../">BrokildApps</a>
+  <span class="webonly"><a href="../../">BrokildApps</a></span>
 </footer>
 
 <audio id="sink" playsinline></audio>
@@ -830,6 +845,8 @@
 
   var S = Object.assign({}, DEFAULTS);
   S.mix = Object.assign(blankMix(), DEFAULTS.mix);
+  var hadSavedSettings = false;
+  try { hadSavedSettings = !!localStorage.getItem(KEY); } catch (e) {}
   try {
     var saved = JSON.parse(localStorage.getItem(KEY) || "{}");
     Object.keys(DEFAULTS).forEach(function (k) {
@@ -847,7 +864,23 @@
       if (to) S.mix[to] = 60;
     }
   } catch (e) {}
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  // localStorage stays the primary store, because the app reads its settings
+  // synchronously as it boots. WKWebView can evict it, though, so on iOS every
+  // write is mirrored into UserDefaults, which is not evictable, and the mirror
+  // is consulted at startup if localStorage has come back empty.
+  var mirrorTimer = null;
+  function save() {
+    var json;
+    try { json = JSON.stringify(S); localStorage.setItem(KEY, json); } catch (e) {}
+    if (NATIVE && Shell && json) {
+      // Coalesced: a slider drag calls save() on every input event, and this
+      // does not need to keep pace with a finger.
+      clearTimeout(mirrorTimer);
+      mirrorTimer = setTimeout(function () {
+        try { Shell.setBacking({ json: json }); } catch (e) {}
+      }, 400);
+    }
+  }
 
   function presetById(id) {
     for (var i = 0; i < PRESETS.length; i++) if (PRESETS[i].id === id) return PRESETS[i];
@@ -885,8 +918,268 @@
   function volGain() { var v = S.volume / 100; return v * v; }
   function toneHz() { return 200 * Math.pow(20000 / 200, S.tone / 100); }
 
+  /* ============================================================
+     The native audio path (iOS)
+
+     On iOS the app is the same file inside a Capacitor WKWebView, but the
+     sound does not come out of Web Audio. The WebView's content process can
+     be suspended or throttled when the app is backgrounded even while the
+     app holds the audio background mode, and the failure mode for a sleep
+     app is an entire silent night.
+
+     So on iOS JavaScript keeps the job it is good at — rendering the loops,
+     which are the actual product and are covered by the DSP suite — and a
+     native AVAudioEngine plays them. Once playback starts this WebView may
+     be frozen until morning: the engine, the swell, both fades and the sleep
+     timer all live in Swift. See ios-apps/sleeper-agent/.
+
+     In a browser none of this runs and the Web Audio path below is used
+     unchanged, so the website is never affected by native work.
+     ============================================================ */
+
+  // Native haptics, used sparingly. Never on a mixer fader: a buzz on every
+  // value change of a slider is intolerable, and this is a bedtime app.
+  function haptic(kind) {
+    if (!Shell) return;
+    try { Shell.haptic({ kind: kind || "selection" }); } catch (e) {}
+  }
+
+  var CAP = window.Capacitor || null;
+  var NATIVE = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform() &&
+                  CAP.Plugins && CAP.Plugins.SleeperAudio);
+  var Audio2 = NATIVE ? CAP.Plugins.SleeperAudio : null;
+  var Shell = (CAP && CAP.Plugins && CAP.Plugins.SleeperShell) || null;
+
+  if (NATIVE) document.documentElement.classList.add("native");
+
+  // The loop ids the native side caches. The two ambient loops are per theme,
+  // since each theme is a different piece of music.
+  function padLoopIds(theme) {
+    return THEMES[theme] ? ["pad-" + theme + "-bed", "pad-" + theme + "-mel"] : [];
+  }
+
+  // makeBuffer and makePad only ever ask a context for its sample rate and for
+  // somewhere to write, so on the native path they are handed this instead of
+  // an AudioContext. It is the same object the offline DSP suite uses, which
+  // is the point: the loops the phone plays are the loops the tests measure.
+  function stubCtx(sampleRate) {
+    return {
+      sampleRate: sampleRate,
+      createBuffer: function (channels, length, rate) {
+        var data = [];
+        for (var i = 0; i < channels; i++) data.push(new Float32Array(length));
+        return {
+          length: length, numberOfChannels: channels, sampleRate: rate,
+          getChannelData: function (i) { return data[i]; }
+        };
+      }
+    };
+  }
+
+  // Interleaved 16-bit little-endian PCM. Sixteen bits is ample here: the
+  // material is noise, which dithers itself, normalised to 0.18 RMS under a
+  // 0.9 ceiling. Halving the bytes halves what crosses the bridge.
+  function pcm16(buf) {
+    var ch = buf.numberOfChannels, n = buf.length;
+    var out = new Uint8Array(n * ch * 2);
+    var view = new DataView(out.buffer);
+    var chans = [], c;
+    for (c = 0; c < ch; c++) chans.push(buf.getChannelData(c));
+    var o = 0;
+    for (var i = 0; i < n; i++) {
+      for (c = 0; c < ch; c++) {
+        var s = chans[c][i];
+        s = s < -1 ? -1 : (s > 1 ? 1 : s);
+        view.setInt16(o, s < 0 ? s * 32768 : s * 32767, true);
+        o += 2;
+      }
+    }
+    return out;
+  }
+
+  function toBase64(u8, from, to) {
+    var s = "", STEP = 0x8000;   // apply() has an argument-count limit
+    for (var i = from; i < to; i += STEP) {
+      s += String.fromCharCode.apply(null, u8.subarray(i, Math.min(i + STEP, to)));
+    }
+    return btoa(s);
+  }
+
+  // 512 KB, a whole number of stereo frames. Each chunk is its own base64
+  // string decoded independently on the other side, so a 20-second loop never
+  // has to exist as one 5 MB string in the WebView or one 5 MB bridge message.
+  var CHUNK_BYTES = 512 * 1024;
+
+  var NativeAudio = {
+    sampleRate: 48000,
+    known: null,          // ids the native cache already holds
+    started: false,
+    building: false,
+
+    // async/await rather than the ES5 the rest of the file is written in:
+    // the upload is a sequential conversation with the native side, and
+    // promise chains would make it unreadable. Every iOS version this runs on
+    // supports it.
+    async info(ids) {
+      var r = await Audio2.getInfo({ ids: ids || [] });
+      this.sampleRate = r.sampleRate || 48000;
+      this.known = r.cached || [];
+      return r;
+    },
+
+    async upload(id, buf) {
+      await Audio2.prepareBegin({
+        id: id, sampleRate: this.sampleRate, channels: buf.numberOfChannels
+      });
+      var pcm = pcm16(buf);
+      for (var off = 0; off < pcm.length; off += CHUNK_BYTES) {
+        var end = Math.min(off + CHUNK_BYTES, pcm.length);
+        await Audio2.prepareChunk({ id: id, data: toBase64(pcm, off, end) });
+      }
+      await Audio2.prepareEnd({ id: id });
+    },
+
+    // Renders and uploads whatever the current mix needs and the cache does
+    // not already have. After the first night this does nothing at all, which
+    // is why starting is instant from then on.
+    async ensureLoops() {
+      var need = activeLayers().concat(S.padLevel > 0 ? padLoopIds(S.pad) : []);
+      if (!need.length) { await this.info([]); return; }
+
+      var r = await this.info(need);
+      var have = r.cached || [];
+      var missing = need.filter(function (id) { return have.indexOf(id) < 0; });
+      if (!missing.length) return;
+
+      var ctx2 = stubCtx(this.sampleRate);
+      for (var i = 0; i < missing.length; i++) {
+        var id = missing[i];
+        setStatus("Preparing " + loopLabel(id) + "… (" + (i + 1) + " of " + missing.length + ")", false);
+        // Yield to the compositor between loops so the status line actually
+        // repaints; each render blocks for a few hundred milliseconds.
+        await new Promise(function (r2) { setTimeout(r2, 0); });
+        var buf = id.indexOf("pad-") === 0
+          ? makePad(ctx2, THEMES[id.split("-")[1]],
+                    id.slice(-3) === "bed" ? BED_SEC : MEL_SEC,
+                    id.slice(-3) === "bed" ? "bed" : "mel")
+          : makeBuffer(ctx2, id);
+        await this.upload(id, buf);
+      }
+      setStatus("", false);
+      this.known = null;
+    },
+
+    open: {},          // fader ids native currently has a player for
+
+    layerPayload: function () {
+      return activeLayers().map(function (id) {
+        return { id: id, level: layerGain(S.mix[id], id) };
+      });
+    },
+
+    // A gain move on a fader that is already sounding: one cheap call, no
+    // cache check, safe to fire on every input event of a drag.
+    setLevel: function (id) {
+      if (!this.started || !this.open[id]) return;
+      try {
+        Audio2.setLayer({ id: id, level: layerGain(S.mix[id], id), sampleRate: this.sampleRate });
+      } catch (e) {}
+    },
+
+    // Bring native into line with the faders. Anything crossing zero is
+    // opened or retired; anything already open just has its gain moved.
+    async reconcile() {
+      if (!this.started) return;
+      for (var i = 0; i < LAYER_IDS.length; i++) {
+        var id = LAYER_IDS[i];
+        var want = S.mix[id] > 0;
+        if (want !== !!this.open[id]) await this.setLayer(id);
+        else if (want) this.setLevel(id);
+      }
+      try { await Audio2.setNowPlaying({ title: soundName(), subtitle: nowPlayingLine() }); } catch (e) {}
+    },
+
+    async start() {
+      await this.ensureLoops();
+      var planned = remainingMs || plannedMs();
+      var fadeIn = Math.max(S.fadeInSec, 0.4);
+      var secs = planned / 1000;
+      // The same clamp the Web Audio path applies: a fade-out can never eat
+      // into the fade-in or run past the end of a short session.
+      var fadeOut = planned > 0
+        ? Math.min(S.fadeOutMin * 60, Math.max(secs - fadeIn - 1, 0)) : 0;
+
+      var r = await Audio2.start({
+        sampleRate: this.sampleRate,
+        layers: this.layerPayload(),
+        padIds: S.padLevel > 0 ? padLoopIds(S.pad) : [],
+        padLevel: padLevelGain(),
+        volume: volGain(),
+        toneHz: toneHz(),
+        swellOn: !!S.waves,
+        swellDepth: S.waves ? S.waveDepth / 200 : 0,
+        swellPeriod: S.wavePeriod,
+        fadeInSeconds: fadeIn,
+        fadeOutSeconds: fadeOut,
+        durationSeconds: secs,
+        title: soundName(),
+        subtitle: nowPlayingLine()
+      });
+      this.started = true;
+      this.open = {};
+      var self = this;
+      activeLayers().forEach(function (id) { self.open[id] = true; });
+      return r;
+    },
+
+    async stop(fadeSec) {
+      this.started = false;
+      this.open = {};
+      try { await Audio2.stop({ fadeSeconds: fadeSec }); } catch (e) {}
+    },
+
+    // A fader moved. Native decides whether that means starting a player,
+    // retiring one, or just moving a gain.
+    async setLayer(id) {
+      if (!this.started) return;
+      var level = S.mix[id] > 0 ? layerGain(S.mix[id], id) : 0;
+      if (S.mix[id] > 0 && (!this.known || this.known.indexOf(id) < 0)) {
+        var r = await this.info([id]);
+        if ((r.cached || []).indexOf(id) < 0) {
+          setStatus("Preparing " + loopLabel(id) + "…", false);
+          await new Promise(function (r2) { setTimeout(r2, 0); });
+          await this.upload(id, makeBuffer(stubCtx(this.sampleRate), id));
+          setStatus("", false);
+        }
+      }
+      try {
+        await Audio2.setLayer({ id: id, level: level, sampleRate: this.sampleRate });
+        if (level > 0) this.open[id] = true; else delete this.open[id];
+      } catch (e) {}
+    },
+
+    // Changing theme means different loops, so the whole engine is restarted
+    // rather than swapped under itself. The timer is preserved because
+    // remainingMs is recomputed from endAt before the restart.
+    async swapPad() {
+      if (!this.started) return;
+      await this.stop(0.5);
+      await this.start();
+    }
+  };
+
+  function loopLabel(id) {
+    if (id.indexOf("pad-") === 0) {
+      var th = THEMES[id.split("-")[1]];
+      return th ? th.name : "the ambient theme";
+    }
+    return (LAYER_NAME[id] || id).toLowerCase();
+  }
+
   function initAudio() {
-    if (ctx) return;
+    // On iOS the sound comes from AVAudioEngine. Building a Web Audio graph
+    // here would take the audio session for a context that never plays.
+    if (NATIVE || ctx) return;
     var AC = window.AudioContext || window.webkitAudioContext;
     ctx = new AC();
 
@@ -1078,6 +1371,18 @@
   }
 
   function applySwell() {
+    if (NATIVE) {
+      if (Audio2) {
+        try {
+          Audio2.setSwell({
+            on: !!S.waves,
+            depth: S.waves ? S.waveDepth / 200 : 0,
+            period: S.wavePeriod
+          });
+        } catch (e) {}
+      }
+      return;
+    }
     if (!ctx) return;
     var t = ctx.currentTime;
     var d = S.waves ? S.waveDepth / 200 : 0;   // half-depth: gain swings 1-2d … 1
@@ -1140,6 +1445,14 @@
 
   function swapPad() {
     if (!playing) { updateUI(); return; }
+    if (NATIVE) {
+      // A different theme is different music, so the engine is restarted
+      // rather than swapped under itself. remainingMs is recomputed first so
+      // the night is not lengthened by the restart.
+      if (endAt) remainingMs = Math.max(endAt - Date.now(), 0);
+      NativeAudio.swapPad().catch(function () {});
+      return;
+    }
     stopPad(0.8);
     startPad(0.8);
     if (endAt) padStopAt(ctx.currentTime + Math.max(endAt - Date.now(), 0) / 1000 + 0.1);
@@ -1162,6 +1475,7 @@
   }
 
   function play() {
+    if (NATIVE) { playNative(); return; }
     initAudio();
     if (ctx.state === "suspended") ctx.resume();
     if (usingElement && sink.paused) { var pr = sink.play(); if (pr && pr.catch) pr.catch(function () {}); }
@@ -1210,9 +1524,13 @@
     if (!playing) return;
     if (endAt) remainingMs = Math.max(endAt - Date.now(), 0);
     playing = false;
-    stopClock();
-    stopAllLayers(0.4);
-    stopPad(0.4);
+    if (NATIVE) {
+      NativeAudio.stop(0.4);
+    } else {
+      stopClock();
+      stopAllLayers(0.4);
+      stopPad(0.4);
+    }
     clearTimeout(autoDimTimer);
     releaseWake();
     if (navigator.mediaSession) navigator.mediaSession.playbackState = "paused";
@@ -1221,9 +1539,13 @@
 
   function finish() {
     playing = false;
-    stopClock();
-    stopAllLayers(0.25);
-    stopPad(0.25);
+    if (NATIVE) {
+      NativeAudio.stop(0.25);
+    } else {
+      stopClock();
+      stopAllLayers(0.25);
+      stopPad(0.25);
+    }
     remainingMs = 0;
     clearTimeout(autoDimTimer);
     releaseWake();
@@ -1232,6 +1554,53 @@
     if (navigator.mediaSession) navigator.mediaSession.playbackState = "paused";
     setStatus("Timer finished — sleep well.", false);
     updateUI();
+  }
+
+  // The native start is a conversation with Swift, so it is asynchronous.
+  // The timer bookkeeping is done up front and synchronously, so the UI and
+  // the countdown are correct from the first frame whatever the engine does.
+  function playNative() {
+    if (playing) return;
+    if (!remainingMs) { remainingMs = plannedMs(); totalMs = remainingMs; }
+    if (!totalMs) totalMs = remainingMs;
+
+    endAt = remainingMs > 0 ? Date.now() + remainingMs : 0;
+    playing = true;
+    if (S.keepAwake) requestWake();
+    armAutoDim();
+    updateUI();
+
+    NativeAudio.start().then(function () {
+      mediaSession();
+      updateUI();
+    }).catch(function (e) {
+      playing = false;
+      endAt = 0;
+      releaseWake();
+      setStatus("Audio could not start: " + (e && e.message ? e.message : e), true);
+      updateUI();
+    });
+  }
+
+  // Native owns the clock once playing, so it is the authority on how much of
+  // the night is left. Consulted when the app comes back to the foreground,
+  // where a frozen WebView's own countdown may have stopped or an
+  // interruption may have paused playback without JavaScript hearing about it.
+  function resyncFromNative() {
+    if (!NATIVE || !Audio2) return;
+    Audio2.getState().then(function (st) {
+      if (!st) return;
+      if (!st.playing && playing) {
+        playing = false;
+        remainingMs = st.remainingMs || 0;
+        endAt = 0;
+        releaseWake();
+      } else if (st.playing) {
+        playing = true;
+        endAt = st.unlimited ? 0 : Date.now() + (st.remainingMs || 0);
+      }
+      updateUI();
+    }).catch(function () {});
   }
 
   function resetTimer() {
@@ -1244,7 +1613,19 @@
   /* ---- wake lock ---- */
 
   var wakeLock = null;
+
+  // On iOS there is no Screen Wake Lock API, and holding the display awake for
+  // audio's sake would be a battery bug: the audio background mode is what
+  // keeps the sound going with the screen off. So natively this is the idle
+  // timer, and it is held only while the blackout screen is up, where keeping
+  // a deliberately black screen lit is the whole intent.
   function requestWake() {
+    if (NATIVE) {
+      if (Shell && S.keepAwake && dim && dim.classList.contains("show")) {
+        try { Shell.setIdleTimerDisabled({ value: true }); } catch (e) {}
+      }
+      return;
+    }
     if (!navigator.wakeLock || wakeLock) return;
     navigator.wakeLock.request("screen").then(function (w) {
       wakeLock = w;
@@ -1252,10 +1633,23 @@
     }).catch(function () {});
   }
   function releaseWake() {
+    if (NATIVE) {
+      if (Shell) { try { Shell.setIdleTimerDisabled({ value: false }); } catch (e) {} }
+      return;
+    }
     if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
   }
 
   function mediaSession() {
+    if (NATIVE) {
+      // MPNowPlayingInfoCenter, set from Swift. WKWebView's own MediaSession
+      // support is partial and its relationship to the real Now Playing
+      // centre is not something a shipping app should depend on.
+      if (Audio2) {
+        try { Audio2.setNowPlaying({ title: soundName(), subtitle: nowPlayingLine() }); } catch (e) {}
+      }
+      return;
+    }
     if (!navigator.mediaSession || !window.MediaMetadata) return;
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
@@ -1348,6 +1742,13 @@
   // play button, which already has its own busy state.
   function busyRender(host, label, fn) {
     if (!playing) { updateUI(); return; }
+    if (NATIVE) {
+      // Nothing blocks here: the render, if any, happens inside the native
+      // path's own status line. Just run it.
+      try { fn(); } catch (e) { setStatus("That sound could not be built: " + e.message, true); }
+      updateUI();
+      return;
+    }
     if (host) host.classList.add("busy");
     setStatus(label, false);
     requestAnimationFrame(function () {
@@ -1399,7 +1800,8 @@
       S.mix[l.id] = +input.value;
       // A fader already sounding follows the finger; one coming up off zero
       // has to wait for its loop to be built, which mixSettled does.
-      if (layers[l.id]) layers[l.id].level.gain.setTargetAtTime(layerGain(S.mix[l.id], l.id), ctx.currentTime, 0.05);
+      if (NATIVE) NativeAudio.setLevel(l.id);
+      else if (layers[l.id]) layers[l.id].level.gain.setTargetAtTime(layerGain(S.mix[l.id], l.id), ctx.currentTime, 0.05);
       paintMix();
       paintPresets();
       save();
@@ -1423,8 +1825,25 @@
   function applyMix() {
     clearTimeout(mixTimer);
     if (!playing) {
-      LAYER_IDS.forEach(function (id) { if (!(S.mix[id] > 0)) freeBuffer(id); });
+      if (!NATIVE) LAYER_IDS.forEach(function (id) { if (!(S.mix[id] > 0)) freeBuffer(id); });
       updateUI();
+      return;
+    }
+    if (NATIVE) {
+      // Only a fader coming up off zero for the first time ever has to render,
+      // and only until its loop is cached; after that this is a few calls.
+      var fresh = LAYER_IDS.some(function (id) {
+        return S.mix[id] > 0 && !NativeAudio.open[id] &&
+               (!NativeAudio.known || NativeAudio.known.indexOf(id) < 0);
+      });
+      if (fresh) mixRows.classList.add("busy");
+      NativeAudio.reconcile().then(function () {
+        mixRows.classList.remove("busy");
+        updateUI();
+      }).catch(function (e) {
+        mixRows.classList.remove("busy");
+        setStatus("That sound could not be built: " + (e && e.message ? e.message : e), true);
+      });
       return;
     }
     var building = LAYER_IDS.some(function (id) {
@@ -1459,7 +1878,7 @@
     b.type = "button";
     b.textContent = p.name;
     b.dataset.preset = p.id;
-    b.addEventListener("click", function () { applyPreset(p); });
+    b.addEventListener("click", function () { haptic("selection"); applyPreset(p); });
     presetChips.appendChild(b);
   });
 
@@ -1484,7 +1903,15 @@
     syncMixInputs();
     toneIn.value = S.tone;
     plIn.value = S.padLevel;
-    if (ctx) {
+    if (NATIVE) {
+      if (Audio2) {
+        try {
+          Audio2.setTone({ hz: toneHz() });
+          Audio2.setPadLevel({ level: padLevelGain() });
+        } catch (e) {}
+      }
+      LAYER_IDS.forEach(function (id) { NativeAudio.setLevel(id); });
+    } else if (ctx) {
       var t = ctx.currentTime;
       lp.frequency.setTargetAtTime(toneHz(), t, 0.05);
       padGain.gain.setTargetAtTime(padLevelGain(), t, 0.05);
@@ -1554,7 +1981,8 @@
 
   plIn.addEventListener("input", function () {
     S.padLevel = +plIn.value;
-    if (padGain) padGain.gain.setTargetAtTime(padLevelGain(), ctx.currentTime, 0.05);
+    if (NATIVE) { if (Audio2) { try { Audio2.setPadLevel({ level: padLevelGain() }); } catch (e) {} } }
+    else if (padGain) padGain.gain.setTargetAtTime(padLevelGain(), ctx.currentTime, 0.05);
     $("plVal").textContent = S.padLevel + "%";
     paintPresets();
     save();
@@ -1562,13 +1990,15 @@
 
   volIn.addEventListener("input", function () {
     S.volume = +volIn.value;
-    if (ctx) vol.gain.setTargetAtTime(volGain(), ctx.currentTime, 0.05);
+    if (NATIVE) { if (Audio2) { try { Audio2.setVolume({ value: volGain() }); } catch (e) {} } }
+    else if (ctx) vol.gain.setTargetAtTime(volGain(), ctx.currentTime, 0.05);
     $("volVal").textContent = S.volume + "%";
     save();
   });
   toneIn.addEventListener("input", function () {
     S.tone = +toneIn.value;
-    if (ctx) lp.frequency.setTargetAtTime(toneHz(), ctx.currentTime, 0.05);
+    if (NATIVE) { if (Audio2) { try { Audio2.setTone({ hz: toneHz() }); } catch (e) {} } }
+    else if (ctx) lp.frequency.setTargetAtTime(toneHz(), ctx.currentTime, 0.05);
     $("toneVal").textContent = toneLabel();
     paintPresets();
     save();
@@ -1592,6 +2022,14 @@
           : on.map(function (id) { return LAYER_NAME[id]; }).join(" + ");
     if (n && pad) return n + " + " + pad;
     return n || pad || "Silent";
+  }
+
+  // The lock screen's second line. Short, because iOS truncates it, and
+  // factual: what is playing and how much of the night is left.
+  function nowPlayingLine() {
+    if (!playing) return "Paused";
+    if (!endAt) return "No sleep timer";
+    return fmtRemain(Math.max(endAt - Date.now(), 0)) + " left";
   }
 
   function toneLabel() {
@@ -1637,11 +2075,14 @@
 
   // Play / pause
   playBtn.addEventListener("click", function () {
+    haptic("medium");
     if (playing) { pause(); return; }
     // Set up (and unmute) the audio path synchronously, while the tap still
     // counts as a user gesture; the heavy buffer build happens right after.
-    try { initAudio(); if (ctx.state === "suspended") ctx.resume(); }
-    catch (e) { setStatus("Audio could not start: " + e.message, true); return; }
+    if (!NATIVE) {
+      try { initAudio(); if (ctx.state === "suspended") ctx.resume(); }
+      catch (e) { setStatus("Audio could not start: " + e.message, true); return; }
+    }
     playBtn.classList.add("busy");
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -1668,12 +2109,14 @@
       (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
   }
   function tryFullscreen() {
+    if (NATIVE) return;      // no browser bars to escape from
     if (fsElement()) return;
     var r = dim.requestFullscreen || dim.webkitRequestFullscreen;
     if (!r) return;
     try { var p = r.call(dim, { navigationUI: "hide" }); if (p && p.catch) p.catch(function () {}); } catch (e) {}
   }
   function leaveFullscreen() {
+    if (NATIVE) return;
     if (!fsElement()) return;
     var x = document.exitFullscreen || document.webkitExitFullscreen;
     if (!x) return;
@@ -1685,15 +2128,25 @@
     dim.classList.add("show");
     tryFullscreen();
     wakeDim();
+    if (NATIVE) {
+      // The status bar is the last lit thing left once the page is black.
+      if (Shell) { try { Shell.setStatusBarHidden({ value: true }); } catch (e) {} }
+      haptic("light");
+    }
     if (S.keepAwake && playing) requestWake();
-    $("dimHint").textContent = (!fsSupported() && !standalone())
-      ? "add to home screen for a fully dark screen"
-      : "tap to wake";
+    $("dimHint").textContent = NATIVE ? "tap to wake"
+      : ((!fsSupported() && !standalone())
+        ? "add to home screen for a fully dark screen"
+        : "tap to wake");
   }
   function hideDim() {
     dim.classList.remove("show", "awake");
     clearTimeout(dimAwakeTimer);
     leaveFullscreen();
+    if (NATIVE) {
+      if (Shell) { try { Shell.setStatusBarHidden({ value: false }); } catch (e) {} }
+      releaseWake();
+    }
     armAutoDim();
   }
   function wakeDim() {
@@ -1795,11 +2248,109 @@
 
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible") {
+      if (NATIVE) {
+        // This WebView may have been frozen for hours while Swift carried on.
+        // Native holds the real clock, so ask it rather than trusting ours.
+        resyncFromNative();
+        return;
+      }
       if (playing && ctx && ctx.state === "suspended") ctx.resume();
       if (playing && S.keepAwake) requestWake();
       updateUI();
     }
   });
+
+  // If iOS has cleared the WebView's local storage, the settings are still in
+  // UserDefaults. Put them back and boot again: one reload on the rare
+  // occasion storage was evicted is cheaper than making the whole startup
+  // path asynchronous for everyone.
+  if (NATIVE && !hadSavedSettings && Shell) {
+    Shell.getBacking().then(function (r) {
+      if (r && r.present && r.json) {
+        try {
+          localStorage.setItem(KEY, r.json);
+          location.reload();
+        } catch (e) {}
+      }
+    }).catch(function () {});
+  }
+
+  /* ---- events from the native engine ---- */
+
+  if (NATIVE && Audio2 && Audio2.addListener) {
+    // The sleep timer reached its end, in Swift, while this WebView may have
+    // been frozen for hours. The UI catches up when it is next painted.
+    Audio2.addListener("finished", function () {
+      playing = false;
+      remainingMs = 0;
+      endAt = 0;
+      clearTimeout(autoDimTimer);
+      releaseWake();
+      setStatus("Timer finished — sleep well.", false);
+      updateUI();
+    });
+
+    // A call, Siri, an alarm. iOS has already stopped the sound.
+    Audio2.addListener("interrupted", function () {
+      playing = false;
+      if (endAt) { remainingMs = Math.max(endAt - Date.now(), 0); endAt = 0; }
+      setStatus("Paused by the phone. Tap play to carry on.", true);
+      updateUI();
+    });
+
+    Audio2.addListener("interruptionEnded", function (e) {
+      if (e && e.resumed) {
+        playing = true;
+        if (remainingMs) endAt = Date.now() + remainingMs;
+        setStatus("", false);
+      }
+      updateUI();
+    });
+
+    // Headphones pulled out, or Bluetooth switched away. iOS pauses, which is
+    // what anyone expects; the panel is only being told so it agrees.
+    Audio2.addListener("routeLost", function () {
+      playing = false;
+      if (endAt) { remainingMs = Math.max(endAt - Date.now(), 0); endAt = 0; }
+      setStatus("Sound stopped when the headphones went away.", true);
+      updateUI();
+    });
+
+    // The audio server restarted, or the engine lost its configuration.
+    // Everything native is gone and has to be built again from here.
+    Audio2.addListener("needsRestart", function () {
+      var wasPlaying = playing;
+      if (endAt) { remainingMs = Math.max(endAt - Date.now(), 0); }
+      playing = false;
+      endAt = 0;
+      NativeAudio.started = false;
+      NativeAudio.open = {};
+      updateUI();
+      if (wasPlaying && remainingMs !== 0) {
+        // Pick the night back up rather than leaving the user in silence.
+        playNative();
+      } else {
+        setStatus("The phone reset its audio. Tap play to carry on.", true);
+      }
+    });
+
+    // The lock screen and Control Center.
+    Audio2.addListener("remotePlay", function () { if (!playing) play(); });
+    Audio2.addListener("remotePause", function () { if (playing) pause(); });
+    Audio2.addListener("remoteToggle", function () { if (playing) pause(); else play(); });
+  }
+
+  if (NATIVE) {
+    // The switch means something different here. The sound keeps going with
+    // the screen off either way — that is the background audio capability, not
+    // a wake lock — so all this now decides is whether the blackout screen
+    // stays lit or lets the display sleep behind it.
+    $("wakeT").textContent = "Keep the screen on in blackout";
+    $("wakeH").textContent =
+      "Holds the display awake while the blackout screen is up, so the dim clock stays readable through the night. " +
+      "The sound carries on with the screen off whatever this is set to. Turn it off to save battery.";
+    $("wakeSw").setAttribute("aria-label", "Keep the screen on in blackout");
+  }
 
   // Initial paint
   setMode(S.mode);

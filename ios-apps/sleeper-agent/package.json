@@ -9,8 +9,9 @@
     "build": "node scripts/build-www.mjs",
     "sync": "npm run build && cap sync ios",
     "open": "cap open ios",
-    "test": "node ../../health-apps/sleep-noise/test/regression.mjs",
-    "test:slow": "node ../../health-apps/sleep-noise/test/regression.mjs --slow"
+    "test": "node ../../health-apps/sleep-noise/test/regression.mjs && node ../../health-apps/sleep-noise/test/native-bridge.mjs",
+    "test:slow": "node ../../health-apps/sleep-noise/test/regression.mjs --slow && node ../../health-apps/sleep-noise/test/native-bridge.mjs",
+    "assets": "node scripts/render-assets.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.0.0",
