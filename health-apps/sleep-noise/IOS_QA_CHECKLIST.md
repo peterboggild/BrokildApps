@@ -23,8 +23,8 @@ reasoning is an argument, not a measurement.
 
 | | |
 |---|---|
-| `test/regression.mjs` | 114 checks. The web app: DSP invariants at 44.1 and 48 kHz, panel shape, all five presets, persistence, migration from pre-mixer settings, transport, blackout. Add `--slow` for the end-to-end sleep timer. |
-| `test/native-bridge.mjs` | 65 checks. The **JavaScript half** of the native path against a mock plugin: call sequence, PCM byte count, chunking, parameter mapping, cache behaviour on a second start, blackout, haptics, the settings mirror, and every engine event. |
+| `test/regression.mjs` | 132 checks. The web app: DSP invariants at 44.1 and 48 kHz, panel shape, all five presets, persistence, migration from pre-mixer settings, transport, blackout. Add `--slow` for the end-to-end sleep timer. |
+| `test/native-bridge.mjs` | 67 checks. The **JavaScript half** of the native path against a mock plugin: call sequence, PCM byte count, chunking, parameter mapping, cache behaviour on a second start, blackout, haptics, the settings mirror, and every engine event. |
 
 Both suites pass at the current commit. Neither of them executes a single line
 of Swift.

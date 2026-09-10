@@ -14,9 +14,16 @@ Each has a recommendation and the reasoning behind it. None has been acted on.
 **Recommendation: borrow one for an afternoon first.**
 
 You need it for three sessions at most. Do not buy hardware to find out
-whether an unproven app works. `SHIPPING_GUIDE.md` step 1 compares the four
-options; note that cloud-rented Macs are a poor fit here specifically, because
-the tests that matter need a physical iPhone plugged in.
+whether an unproven app works. `SHIPPING_GUIDE.md` step 1 compares the options;
+note that cloud-rented Macs are a poor fit here specifically, because the tests
+that matter need a physical iPhone plugged in.
+
+**You can also ship without one entirely.** A GitHub Actions workflow that
+builds, signs and uploads on a free macOS runner is committed and ready —
+`NO_MAC_ROUTE.md`. The catch is that the Swift has never been compiled, and
+fixing that through ten-minute CI rounds is far slower than an afternoon at a
+Mac. Borrowing one for the first compile and then using CI forever after is the
+combination worth aiming at.
 
 ---
 

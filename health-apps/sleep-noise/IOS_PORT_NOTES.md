@@ -136,7 +136,7 @@ path reads the pre-mixer `type` key and maps it onto the new faders.
 
 ## 2. Feature inventory (the regression baseline)
 
-Pinned down by `test/regression.mjs` — 114 automated checks, all passing at the
+Pinned down by `test/regression.mjs` — 132 automated checks, all passing at the
 baseline commit. Run it before and after every port change:
 
 ```
@@ -493,12 +493,12 @@ that word.
 
 | Phase | Where | Status |
 |---|---|---|
-| 1. Baseline + regression suite | here | **done** — 114 checks |
+| 1. Baseline + regression suite | here | **done** — 132 checks |
 | 2. This document | here | **done** |
 | 3. Capacitor scaffold, config, gitignore | here | **done** — Capacitor 8.5.1, SPM (no CocoaPods) |
 | 4. Audio backend chosen at runtime; Web Audio path untouched | here | **done** |
 | 5. Swift plugin (session, engine, timer, Now Playing, interruptions) | here | **written, never compiled** |
-| 6. Native JS backend + chunked WAV handoff + disk cache | here | **done** — 65 checks against a mock plugin |
+| 6. Native JS backend + chunked WAV handoff + disk cache | here | **done** — 67 checks against a mock plugin |
 | 7. iOS adaptations (chrome, haptics, idle timer, status bar, settings mirror) | here | **done** |
 | 8. Icon + launch screen assets | here | **done** |
 | 9. Docs, App Store metadata, privacy notes, privacy policy page | here | **done** |

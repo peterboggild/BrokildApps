@@ -19,7 +19,7 @@ see when it worked. Nothing is skipped as "obvious".
 | | |
 |---|---|
 | Apple Developer Program | **$99 / year** (or local equivalent). Required to put anything on the App Store or TestFlight. Recurring — the app is removed if you stop paying |
-| A Mac | See step 1. Can be free |
+| A Mac | See step 1. Can be free — or skipped entirely, see `NO_MAC_ROUTE.md` |
 | An iPhone | You presumably have one. Needed for the tests that matter |
 | Apple's cut of each sale | **30%**, or **15%** if you join the Small Business Program (step 10) — do not skip that |
 | Everything else | Nothing. No hosting, no server, no domain |
@@ -33,7 +33,8 @@ be approved, for review.
 ## Step 1 — Get to a Mac
 
 Building, signing and uploading an iOS app can only happen on macOS with
-Xcode. Apple permits no alternative. Everything else in this project was
+Xcode — but it does not have to be a Mac you own, and the last option below
+needs no Mac in your hands at all. Everything else in this project was
 deliberately done on Linux to get as far as possible without one.
 
 Your options, honestly compared:
@@ -51,6 +52,21 @@ overnight, and you cannot plug your phone into a Mac in a datacentre.
 **Buy a Mac mini.** The cheapest Mac Apple sells and entirely sufficient. But
 do not buy hardware to find out whether an unproven app works — borrow first,
 buy later if it is worth it.
+
+**Use no Mac at all.** `.github/workflows/sleeper-agent-ios.yml` builds, signs
+and uploads on a GitHub-hosted Mac — free on public repositories, which this
+one is — and everything else is a browser, including on an iPad. It genuinely
+works, and **`NO_MAC_ROUTE.md`** covers it in full.
+
+Two honest catches, though, which is why it is listed last rather than first:
+you must pay the $99 before you can use TestFlight, so you would be paying
+before knowing whether the app plays through a night; and the Swift here has
+never been compiled, so the first build means a dozen rounds of push, wait ten
+minutes, read the log. On a Mac that same work is an afternoon.
+
+**Best of both:** borrow a Mac for one afternoon to get it compiling and to run
+the first night of device testing, then use the CI workflow from an iPad for
+every update afterwards.
 
 **Requirements:** a Mac from roughly the last five years, running a macOS
 recent enough for the current Xcode. About **40 GB of free disk** — Xcode is

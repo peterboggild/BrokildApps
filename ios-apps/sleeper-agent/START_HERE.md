@@ -40,12 +40,23 @@ open it in Xcode. That is normal and expected, not a sign something is wrong.
 
 ## 3. The one thing standing in the way
 
-**A Mac with Xcode.** Building, signing and uploading an iOS app can only be
-done on macOS. There is no way around it, and everything else here was done on
-Linux precisely to get as far as possible without one.
+**Compiling it.** Building, signing and uploading an iOS app needs macOS — but
+not macOS *that you own*.
 
-`SHIPPING_GUIDE.md` opens with your options for getting Mac access, including
-the one that costs nothing.
+`.github/workflows/sleeper-agent-ios.yml` builds, signs and uploads the app on
+a GitHub-hosted Mac that exists for ten minutes and is then destroyed. macOS
+runner minutes are free on public repositories, and this repository is public.
+Everything else — enrolment, the listing, TestFlight, submission — is a
+browser, and works on an iPad.
+
+**`NO_MAC_ROUTE.md`** covers that path in full, including how to make the
+signing certificates with `openssl` instead of a Mac's Keychain.
+
+The recommendation is still to **borrow a Mac for one afternoon** for the first
+compile and the first night of device testing, because the Swift here has never
+been compiled and fixing that through a ten-minute CI round trip is slow going.
+After that, the CI route serves indefinitely. `SHIPPING_GUIDE.md` step 1
+compares all the options.
 
 ## 4. Where everything is
 
@@ -55,6 +66,7 @@ Read in this order if you are coming back cold:
 |---|---|
 | **`START_HERE.md`** | this file |
 | **`SHIPPING_GUIDE.md`** | the complete step-by-step from here to the App Store, written for someone who has never done it |
+| **`NO_MAC_ROUTE.md`** | can an iPad do this? What a Mac is actually needed for, and how to ship without owning one |
 | `../../health-apps/sleep-noise/IOS_PORT_NOTES.md` | why the app is built the way it is — the architecture and the alternatives that were rejected |
 | `README-iOS.md` | the maintenance document: architecture on a page, every file, the build commands, what not to break |
 | `../../health-apps/sleep-noise/IOS_QA_CHECKLIST.md` | what to test, in order. §4 is the one that matters |

@@ -54,8 +54,8 @@ the file that actually ships.
 | Path | |
 |---|---|
 | `health-apps/sleep-noise/index.html` | the entire app — UI, DSP, both backends |
-| `health-apps/sleep-noise/test/regression.mjs` | 114 checks, the web app |
-| `health-apps/sleep-noise/test/native-bridge.mjs` | 65 checks, the JS side of the native path |
+| `health-apps/sleep-noise/test/regression.mjs` | 132 checks, the web app |
+| `health-apps/sleep-noise/test/native-bridge.mjs` | 67 checks, the JS side of the native path |
 | `health-apps/sleep-noise/IOS_PORT_NOTES.md` | architecture and decisions |
 | `health-apps/sleep-noise/IOS_QA_CHECKLIST.md` | **read before trusting anything** |
 | `ios/App/App/Native/SleeperEngine.swift` | the audio engine |
@@ -64,6 +64,9 @@ the file that actually ships.
 | `ios/App/App/Native/SleeperViewController.swift` | `CAPBridgeViewController` + hideable status bar |
 | `scripts/build-www.mjs` | copies the web app into `www/`, with guards |
 | `scripts/render-assets.mjs` | rasterises the icon and launch mark |
+| `ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme` | the shared scheme. Committed on purpose — a build machine finds no scheme without it |
+| `../../.github/workflows/sleeper-agent-ios.yml` | builds, signs and uploads on a GitHub-hosted Mac |
+| `NO_MAC_ROUTE.md` | what a Mac is actually needed for, and how to ship without owning one |
 | `assets/icon/*.svg` | icon and launch-mark artwork sources |
 | `APP_STORE_METADATA.md` | listing copy, screenshots plan, review notes |
 | `APP_PRIVACY_NOTES.md` | what to answer in the App Privacy questionnaire |
@@ -95,7 +98,7 @@ git checkout ios-sleeper-agent
 cd ios-apps/sleeper-agent
 npm install
 npm run sync            # builds www/ and runs `cap sync ios`
-npm run open            # opens ios/App/App.xcworkspace
+npm run open            # opens ios/App/App.xcodeproj
 ```
 
 In Xcode, let Swift Package Manager resolve `capacitor-swift-pm`, then build.
@@ -124,9 +127,9 @@ the same; only the audio backend differs.
 ## 5. Testing
 
 ```bash
-node health-apps/sleep-noise/test/regression.mjs          # 114 checks, web app
+node health-apps/sleep-noise/test/regression.mjs          # 132 checks, web app
 node health-apps/sleep-noise/test/regression.mjs --slow    # + end-to-end timer (~90 s)
-node health-apps/sleep-noise/test/native-bridge.mjs        # 65 checks, native path
+node health-apps/sleep-noise/test/native-bridge.mjs        # 67 checks, native path
 ```
 
 The bridge suite installs a mock Capacitor plugin before the page's own script
