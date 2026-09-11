@@ -95,11 +95,14 @@ jobs:
         if: inputs.build_number != ''
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
+          # PlistBuddy only. agvtool has to run from the directory holding the
+          # .xcodeproj and would only ever have failed from here; a literal
+          # CFBundleVersion overrides the $(CURRENT_PROJECT_VERSION) variable
+          # it otherwise expands from, which is exactly what is wanted.
           /usr/libexec/PlistBuddy -c \
             "Set :CFBundleVersion ${{ inputs.build_number }}" \
-            ios/App/App/Info.plist 2>/dev/null || true
-          agvtool new-version -all "${{ inputs.build_number }}" || true
-        continue-on-error: true
+            ios/App/App/Info.plist
+          echo "CFBundleVersion is now: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' ios/App/App/Info.plist)"
 
       # ---------------------------------------------------------------
       # build-only: prove it compiles. No secrets needed, so this is the
@@ -108,7 +111,11 @@ jobs:
       - name: Compile (no signing)
         if: inputs.mode == 'build-only'
         run: |
-          set -o pipefail
+          # Deliberately unprettified. Full xcodebuild output is what you want
+          # when the Swift has never been compiled, and piping through xcpretty
+          # meant a real compile error failed the pipeline and triggered a
+          # fallback rebuild — doubling the slowest step and printing every
+          # error twice.
           xcodebuild \
             -project "$XCODE_PROJECT" \
             -scheme "$SCHEME" \
@@ -118,12 +125,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build \
-            | xcpretty || xcodebuild \
-              -project "$XCODE_PROJECT" -scheme "$SCHEME" \
-              -configuration Release -destination 'generic/platform=iOS' \
-              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-              build
+            build
 
       # ---------------------------------------------------------------
       # Everything below signs and uploads, and only runs on request.
@@ -157,8 +159,10 @@ jobs:
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
           KEYCHAIN_PASSWORD="$(uuidgen)"
 
-          echo -n "$CERT_BASE64" | base64 --decode -o "$RUNNER_TEMP/cert.p12"
-          echo -n "$PROFILE_BASE64" | base64 --decode -o "$RUNNER_TEMP/profile.mobileprovision"
+          # A redirect rather than `-o`: the output flag is BSD-only, and a
+          # GNU coreutils base64 earlier in PATH would reject it.
+          printf '%s' "$CERT_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          printf '%s' "$PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"

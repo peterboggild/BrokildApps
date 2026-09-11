@@ -252,27 +252,66 @@ should not become a TestFlight build.
 ## 7. This workflow has never been run
 
 Like the Swift it builds, it was written on Linux with no way to test it.
-Expect to fix it. The likely trouble spots, in the order I would suspect them:
+Expect to fix it. What follows is where to look, with the symptom you would
+actually see in the log.
 
-1. **Swift Package resolution.** Capacitor 8 uses SPM; the first CI run has to
-   fetch `capacitor-swift-pm`, and `-skipPackagePluginValidation` is there
-   because package plugins otherwise prompt for confirmation that CI cannot
-   give.
-2. **`xcpretty` may not be installed** on the runner. The compile step falls
-   back to plain `xcodebuild` if the piped version fails, which is ugly but
-   works.
-3. **`agvtool`** needs to run from the directory containing the project and can
-   be fussy; the build-number step is `continue-on-error` so it cannot fail the
-   run. If the build number does not take, set it by editing `Info.plist`
-   directly and committing.
-4. **`security set-key-partition-list`** is the step that most often breaks
-   signing in CI. If codesign hangs or reports "user interaction is not
-   allowed", that is the line to look at.
-5. **`base64 --decode -o`** is the macOS spelling. It is correct here because
-   this step runs on the macOS runner, but it would need `-d >` on Linux.
-6. **The bundle identifier must match** in three places: the App ID you
-   registered, the provisioning profile, and `PRODUCT_BUNDLE_IDENTIFIER`. A
-   mismatch produces a signing error that does not name the real cause.
+Three of these can only bite in `mode: testflight`, which is another reason to
+run `build-only` first — that path has just two places to go wrong.
+
+### Can fail in `build-only`
+
+**1. Swift Package resolution.** Capacitor 8 uses SPM, so the first run has to
+fetch `capacitor-swift-pm` from GitHub. *Symptom:* "failed to resolve
+dependencies", a network timeout, or a prompt about a package plugin that CI
+cannot answer. `-skipPackagePluginValidation` is already passed for the last of
+those. *If it persists:* add a separate step before the compile —
+`xcodebuild -resolvePackageDependencies -project "$XCODE_PROJECT"` — so
+resolution fails on its own line instead of inside the build.
+
+**2. The Swift itself.** By far the likeliest, and the whole reason
+`build-only` exists. *Symptom:* ordinary Swift compile errors in
+`ios/App/App/Native/`. *Fix:* they are the same errors a Mac would give you;
+paste the log into an assistant with the prompt in §5.
+
+### Can only fail in `testflight`
+
+**3. `security set-key-partition-list`.** The single most common way signing
+breaks in CI. *Symptom:* `codesign` hangs until the job times out, or reports
+*"User interaction is not allowed"* or `errSecInternalComponent`. *Cause:* the
+imported key is in the keychain but nothing is authorised to use it without a
+UI prompt. That line is what grants access; if it is failing, check the
+keychain password matches the one used to create it.
+
+**4. Bundle identifier mismatch.** It has to be the same in three places: the
+App ID you registered, the provisioning profile built from it, and
+`PRODUCT_BUNDLE_IDENTIFIER`. *Symptom:* "No profile for team ... matching
+'...' found", or a signing error naming the profile rather than the real
+cause. *Fix:* check all three read `com.peterboggild.sleeperagent`.
+
+**5. The App Store Connect upload.** *Symptom:* `altool` reports an
+authentication failure, or cannot find the key. *Cause:* the `.p8` has to be at
+`~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` with the Key ID in the
+filename matching `APPSTORE_API_KEY_ID` exactly; the workflow writes it there,
+but a secret pasted with a missing `-----BEGIN` line or stray whitespace fails
+here rather than earlier. *Also:* a build number Apple has already seen is
+rejected at this step, not before it.
+
+### Already removed
+
+Three more were in this list when it was written, and were fixed by re-reading
+the workflow rather than left as warnings:
+
+- The compile step piped through `xcpretty` under `set -o pipefail`, so a
+  **real compile error** failed the pipeline and triggered the fallback
+  rebuild — doubling the slowest step and printing every error twice. It now
+  runs plain `xcodebuild`, which is also the output you want when diagnosing
+  Swift that has never been compiled.
+- `agvtool` was called from the project root, but it has to run from the
+  directory holding the `.xcodeproj`, so it could only ever have failed. The
+  build number is now set by `PlistBuddy` alone, from the right path, and the
+  step prints what it set.
+- `base64 --decode -o` used the BSD-only output flag, which a GNU coreutils
+  `base64` earlier in `PATH` would reject. It is a redirect now.
 
 ## Sources
 
