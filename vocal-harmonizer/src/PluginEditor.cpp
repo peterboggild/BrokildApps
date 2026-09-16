@@ -10,6 +10,65 @@ namespace
     const juce::Colour kTeal   { 0xff35c9c0 };   // the BWFX accent, the same
                                                  // colour in every Brokild
                                                  // plugin (BWFX-DESIGN.md §5)
+
+    //  The rack's own display rules, kept identical to fmt() in the shared
+    //  ui/bwfx-rack.js so a module reads the same here as it does in every
+    //  other Brokild plugin. Without it JUCE's default wins and a rate shows
+    //  as "400.0000..." instead of "4.00 Hz".
+    juce::String bwfxText (const bwfx::ParamDesc& pd, double v)
+    {
+        const juce::String u (pd.unit != nullptr ? pd.unit : "");
+
+        if (u == "%")   return juce::String (juce::roundToInt (v)) + " %";
+        if (u == "dB")  return juce::String (v, 1) + " dB";
+        if (u == "ms")  return juce::String (juce::roundToInt (v)) + " ms";
+        if (u == "cHz") return juce::String (v / 100.0, 2) + " Hz";
+        if (u == "dHz") return juce::String (v / 10.0,  1) + " Hz";
+        if (u == "cs")  return juce::String (v / 100.0, 2) + " s";
+
+        if (pd.choices != nullptr && *pd.choices != 0)
+        {
+            auto c = juce::StringArray::fromTokens (juce::String (pd.choices), "|", "");
+            const int i = juce::jlimit (0, c.size() - 1, juce::roundToInt (v));
+            return c[i];
+        }
+        return juce::String (juce::roundToInt (v * 100.0) / 100.0, 2);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The BWFX overlay. Opaque and full-bleed on purpose: it is the one thing
+// standing between the rack and the panel underneath it.
+LegionEditor::RackOverlay::RackOverlay()
+{
+    setOpaque (true);                         //  every pixel is ours
+    setInterceptsMouseClicks (true, true);    //  and no click reaches the panel
+}
+
+void LegionEditor::RackOverlay::paint (juce::Graphics& g)
+{
+    //  the panel, darkened — it stays faintly readable so you can see WHAT the
+    //  rack is sitting on, without competing with it
+    g.fillAll (kBack.withAlpha (1.0f));
+    g.setColour (juce::Colours::black.withAlpha (0.55f));
+    g.fillRect (getLocalBounds());
+
+    //  the rack card
+    g.setColour (kPanel);
+    g.fillRoundedRectangle (card.toFloat(), 8.0f);
+    g.setColour (kTeal.withAlpha (0.55f));
+    g.drawRoundedRectangle (card.toFloat().reduced (0.5f), 8.0f, 1.0f);
+
+    //  its header rule
+    g.setColour (kTeal.withAlpha (0.25f));
+    g.fillRect (card.getX() + 12, card.getY() + 38, card.getWidth() - 24, 1);
+}
+
+void LegionEditor::RackOverlay::mouseDown (const juce::MouseEvent& e)
+{
+    //  clicking the darkened surround closes it, the usual modal idiom
+    if (! card.contains (e.getPosition()) && onDismiss)
+        onDismiss();
 }
 
 // ---------------------------------------------------------------------------
@@ -117,7 +176,9 @@ LegionEditor::LegionEditor (LegionProcessor& p)
     rackButton.onClick = [this]
     {
         rackOpen = rackButton.getToggleState();
-        rackView.setVisible (rackOpen);
+        rackOverlay.setVisible (rackOpen);
+        if (rackOpen)
+            rackOverlay.toFront (false);      //  always the last thing painted
         resized();
     };
     addAndMakeVisible (rackButton);
@@ -125,8 +186,19 @@ LegionEditor::LegionEditor (LegionProcessor& p)
     buildRackPanel();
     rackView.setViewedComponent (&rackPanel, false);
     rackView.setScrollBarsShown (true, false);
-    rackView.setVisible (false);
-    addChildComponent (rackView);
+
+    rackTitle.setText ("BWFX", juce::dontSendNotification);
+    rackTitle.setColour (juce::Label::textColourId, kTeal);
+    rackTitle.setFont (juce::FontOptions (16.0f, juce::Font::bold));
+
+    rackClose.setColour (juce::TextButton::textColourOffId, kDim);
+    rackClose.onClick = [this] { rackButton.setToggleState (false, juce::sendNotificationSync); };
+
+    rackOverlay.onDismiss = [this] { rackButton.setToggleState (false, juce::sendNotificationSync); };
+    rackOverlay.addAndMakeVisible (rackView);
+    rackOverlay.addAndMakeVisible (rackTitle);
+    rackOverlay.addAndMakeVisible (rackClose);
+    addChildComponent (rackOverlay);          //  added last: it paints on top
 
     setSize (940, 620);
     startTimerHz (8);
@@ -146,7 +218,10 @@ void LegionEditor::buildRackPanel()
     rackMix.setSliderStyle (juce::Slider::LinearHorizontal);
     rackMix.setTextBoxStyle (juce::Slider::TextBoxRight, false, 52, 16);
     rackMix.setRange (0.0, 1.0, 0.001);
+    rackMix.textFromValueFunction = [] (double v)
+        { return juce::String (juce::roundToInt (v * 100.0)) + " %"; };
     rackMix.setValue (proc.rack().getMix(), juce::dontSendNotification);
+    rackMix.updateText();
     rackMix.setColour (juce::Slider::thumbColourId, kTeal);
     rackMix.setColour (juce::Slider::trackColourId, kTeal.withAlpha (0.5f));
     rackMix.onValueChange = [this] { proc.rack().setMix ((float) rackMix.getValue()); };
@@ -182,8 +257,12 @@ void LegionEditor::buildRackPanel()
             const auto& ps = d.params[pi];
             auto sl = std::make_unique<juce::Slider> (juce::Slider::RotaryHorizontalVerticalDrag,
                                                       juce::Slider::TextBoxBelow);
-            sl->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 62, 14);
+            sl->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 70, 14);
             sl->setRange (ps.lo, ps.hi, ps.step);
+            //  by value: a ParamDesc is a POD of literals, so the lambda does
+            //  not depend on the descriptor table outliving the editor
+            sl->textFromValueFunction = [ps] (double v) { return bwfxText (ps, v); };
+            sl->updateText();
             sl->setValue (proc.rack().getParam (t, pi), juce::dontSendNotification);
             sl->setColour (juce::Slider::rotarySliderFillColourId, kTeal);
             sl->setColour (juce::Slider::textBoxTextColourId, kInk);
@@ -282,9 +361,19 @@ void LegionEditor::resized()
         }
     }
 
+    //  the overlay always spans the whole editor, so nothing can show past it
+    rackOverlay.setBounds (getLocalBounds());
+
     if (rackOpen)
     {
-        auto area = getLocalBounds().reduced (30).withTrimmedTop (40);
+        auto card = getLocalBounds().reduced (24);
+        rackOverlay.card = card;
+
+        auto cardHead = card.withHeight (38).reduced (12, 6);
+        rackTitle.setBounds (cardHead.removeFromLeft (120));
+        rackClose.setBounds (cardHead.removeFromRight (80));
+
+        auto area = card.withTrimmedTop (40).reduced (10, 8);
         rackView.setBounds (area);
         layoutRackPanel (area);
     }
@@ -341,5 +430,8 @@ void LegionEditor::timerCallback()
                           + (f0 > 20.0f ? "   f0 " + juce::String ((int) std::lround (f0)) + " Hz"
                                         : juce::String()),
                           juce::dontSendNotification);
-    repaint (0, 118, getWidth(), getHeight() - 118);
+    //  the strips are behind the overlay while the rack is open — no point
+    //  redrawing them, and it would drag the whole overlay with them
+    if (! rackOpen)
+        repaint (0, 118, getWidth(), getHeight() - 118);
 }

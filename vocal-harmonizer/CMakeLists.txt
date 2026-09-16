@@ -93,3 +93,12 @@ add_executable(legionhost test/hosttest.cpp)
 target_link_libraries(legionhost PRIVATE LEGION)
 target_include_directories(legionhost PRIVATE $<TARGET_PROPERTY:LEGION,INCLUDE_DIRECTORIES>)
 target_compile_definitions(legionhost PRIVATE $<TARGET_PROPERTY:LEGION,COMPILE_DEFINITIONS>)
+
+# ---------------------------------------------------------------------------
+# The panel snapshot. Legion has no standalone and no web panel, so rendering
+# the real editor to a PNG is the only way to LOOK at it — and the only way to
+# catch a layer that paints nothing, which is how the BWFX rack first shipped.
+add_executable(legionshot test/shoteditor.cpp)
+target_link_libraries(legionshot PRIVATE LEGION)
+target_include_directories(legionshot PRIVATE $<TARGET_PROPERTY:LEGION,INCLUDE_DIRECTORIES>)
+target_compile_definitions(legionshot PRIVATE $<TARGET_PROPERTY:LEGION,COMPILE_DEFINITIONS>)
