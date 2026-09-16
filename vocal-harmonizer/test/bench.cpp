@@ -607,6 +607,71 @@ int main()
         CHECK (smearDb < -6.0, "the click smeared (%.1f dB outside the window)", smearDb);
     }
 
+    // -- 11b. THE PHASE-VOCODER ACCUSATION, measured -------------------------
+    /*  The standard objection to a phase vocoder is that it smears noisy and
+        transient material — that a scream comes out "phasy". The mechanism
+        behind that word is specific and measurable: when the frames do not
+        agree with each other, the overlap-add sums partially-cancelling
+        copies and the result is AMPLITUDE MODULATION AT THE FRAME RATE
+        (fs/hop, 187.5 Hz on NATURAL at 48 k). It is the warble you hear on
+        a cheap shifter, and it is loudest on exactly the material the
+        objection is about: broadband noise, which has no peaks to lock to.
+
+        So: shift noise, square the output to get its envelope into the
+        spectrum, and look for a line at the frame rate against the envelope's
+        own broadband floor. A pure phase vocoder puts a fat line there. This
+        one should not, because of the peak locking and the transient reset —
+        and if it does, that is the evidence for a second algorithm. */
+    {
+        std::printf ("  frame-rate modulation (the \"phasiness\" line, %.1f Hz):\n",
+                     kFs / (h.windowFor (1) / 8));
+
+        struct AmCase { const char* what; int kind; float semis; };
+        for (AmCase c : { AmCase { "white noise, unshifted", 0,  0.0f },
+                          AmCase { "white noise, +7 st",     0,  7.0f },
+                          AmCase { "white noise, -7 st",     0, -7.0f },
+                          AmCase { "scream, unshifted",      1,  0.0f },
+                          AmCase { "scream, +7 st",          1,  7.0f },
+                          AmCase { "scream, -12 st",         1, -12.0f } })
+        {
+            std::vector<float> sig ((size_t) nLen);
+            if (c.kind == 0) for (int i = 0; i < nLen; ++i) sig[(size_t) i] = 0.4f * rndPm();
+            else             makeScream (sig, nLen, kFs);
+
+            h.reset();
+            auto r = render (h, oneVoice (c.semis, 0.0f), sig);
+
+            //  the envelope lives in the spectrum of the squared signal
+            std::vector<float> sq ((size_t) (nLen - skip));
+            for (int i = skip; i < nLen; ++i)
+                sq[(size_t) (i - skip)] = r.harmL[(size_t) i] * r.harmL[(size_t) i];
+            Spectrum e = measureSpectrum (sq.data(), (int) sq.size(), kFs);
+
+            const double frameHz = kFs / (h.windowFor (1) / 8);
+            //  the line, and the envelope's own floor away from it
+            double line = -200.0;
+            std::vector<double> floorBins;
+            for (int k = (int) (40.0 / e.binHz); k < (int) (700.0 / e.binHz); ++k)
+            {
+                const double f = k * e.binHz;
+                bool onLine = false;
+                for (int m = 1; m <= 3; ++m)
+                    if (std::abs (f - m * frameHz) < 3.0 * e.binHz) onLine = true;
+                if (onLine) line = std::max (line, (double) e.db[(size_t) k]);
+                else        floorBins.push_back ((double) e.db[(size_t) k]);
+            }
+            std::sort (floorBins.begin(), floorBins.end());
+            const double floorDb = floorBins[floorBins.size() / 2];   // median
+            const double excess = line - floorDb;
+
+            std::printf ("    %-24s  line %+6.1f dB over the envelope floor\n", c.what, excess);
+            CHECK (excess < 12.0,
+                   "%s modulates at the frame rate, %.1f dB over the floor — "
+                   "this is the smear the phase vocoder is accused of", c.what, excess);
+        }
+        std::printf ("\n");
+    }
+
     // -- 12b. TONE PURITY: what a shifted sine turns into -------------------
     /*  The sharpest artefact test there is. A sine has one line in it; after
         a shift it must still have one line, at the new frequency. Anything

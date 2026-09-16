@@ -7,7 +7,7 @@ like a body that could have made it. Wet/dry mix. BWFX on the second voice.
 Simple VST3 for now; aesthetics later.*
 
 *STATUS 2026-09-16: ENGINE BUILT AND MEASURED, PLUGIN WRITTEN, NOT YET HEARD.
-107 engine checks and 22 wrapper checks ALL CLEAR on Linux, and the VST3 links
+113 engine checks and 22 wrapper checks ALL CLEAR on Linux, and the VST3 links
 and loads there; it has not been run in a DAW and no human has listened to it. Everything below marked "measured" comes from
 `vocal-harmonizer/test/bench.cpp`, which anyone can rebuild and rerun in about
 ten seconds. Everything marked "expected" is a claim waiting for Peter's ears.*
@@ -234,7 +234,7 @@ regardless; only the `tick()` half needs a mapping.
 
 ## 9. What the bench measures
 
-`vocal-harmonizer/test/bench.cpp`, 107 checks, no JUCE, no audio device:
+`vocal-harmonizer/test/bench.cpp`, 113 checks, no JUCE, no audio device:
 
 - the transform round-trips and a tone lands on one bin;
 - Hann² overlap-adds to exactly 1 at the hop the engine uses;
@@ -250,6 +250,11 @@ regardless; only the `tick()` half needs a mapping.
 - shifted-tone purity, nine cases, worst spur −39 dB;
 - screams (jittered period, subharmonic, noise, hard clipping) stay bounded and
   finite at twelve pitch/formant combinations;
+- **the phase-vocoder accusation**: the frame-rate amplitude modulation that
+  the word "phasy" actually describes, measured on white noise and on a scream
+  against the envelope's own floor — 1 to 2 dB at the shipping overlap, worst
+  case +5.0 dB for a scream shifted DOWN an octave. Calibrated by breaking the
+  overlap to 50 %, which takes the scream to +11.9 dB;
 - a click comes out where the latency says, with −148 dB of smear;
 - the output is byte-identical at block size 64 and 256;
 - all three windows agree with each other on one voice all three can resolve,
@@ -276,6 +281,50 @@ meter now samples the spectrum AT THE HARMONICS — the only frequencies where
 the tract was ever measured — lays them on a log-frequency grid and finds the
 translation that lines the two up. It is self-tested against a vowel whose
 formants were moved by a known 7.02 st.
+
+## 9a. One algorithm, or several?
+
+The literature's standard advice is that a phase vocoder handles clean singing
+and struggles on screams, and that PSOLA or WSOLA should take over there. Both
+halves of that were tested against this build rather than assumed.
+
+**The objection does not land on this engine.** "Phasy" names a specific
+mechanism — frames that disagree, overlap-added into amplitude modulation at
+the frame rate — and §9's calibrated test puts that at 1 to 2 dB above the
+envelope floor on noise and on a scream, where a 50 % overlap build reads
++11.9 dB. Peak locking, the transient reset and 87.5 % overlap are between
+this and the artifact the objection describes.
+
+**PSOLA would solve the wrong half.** It needs accurate real-time f0 (YIN,
+pYIN), and a scream has no reliable f0 — so it is strongest exactly where this
+engine is already measured good (clean singing, formants within 0.3 st) and
+weakest exactly where the worry is. Adding it inverts the problem.
+
+**WSOLA does not escape the spectrum.** It time-stretches; pitch shifting is
+then stretch plus resample, and resampling moves the formants, so independent
+formant control needs an envelope estimate — the same true envelope §3 already
+runs. It is a second source-shifter bolted onto the analysis that is already
+here, and on noise it trades frame-rate modulation for comb filtering between
+correlated splices. Not obviously a win; certainly not a free one.
+
+**The one real argument for a second algorithm is LATENCY, not quality.** This
+engine costs a window: 21 to 85 ms. No amount of spectral polish makes that
+usable for singing live into headphones. A time-domain path could reach a few
+milliseconds, and that is a different capability rather than a duplicate one.
+A second, weaker argument is character: time-domain splicing keeps the literal
+waveform grain of a distorted scream, where spectral resynthesis rebuilds it,
+and someone may simply prefer the former.
+
+If it is ever built, the shape is already here. §2's line is
+`SOURCE(f/pitch) * TRACT(f/formant)`, and a second algorithm replaces the
+SOURCE half ONLY — the true envelope, FORMANT, FOLLOW, HUMANISE, the voice
+manager, the two buses and BWFX are all shared, and the formant knobs must
+behave identically in either mode or the switch is a trap. It would be chosen
+by hand and never switched automatically: an algorithm that flips mid-phrase
+puts an audible seam in the middle of a note.
+
+Until somebody has heard a real scream through this one, a second engine is a
+solution shopping for a problem.
 
 ## 10. What is not there yet
 
