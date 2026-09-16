@@ -8,7 +8,7 @@ Design authority: [`LEGION-DESIGN.md`](../LEGION-DESIGN.md) at the repo root —
 read it before changing anything structural here. Every number it quotes is
 something `test/bench.cpp` measures against the real engine.
 
-**Status: built and measured, not yet heard.** 107 engine checks and 22 wrapper
+**Status: built and measured, not yet heard.** 113 engine checks and 22 wrapper
 checks pass; nobody has put a scream through it in a DAW. The name is
 provisional.
 
