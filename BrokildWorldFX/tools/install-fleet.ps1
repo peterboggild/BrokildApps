@@ -27,6 +27,7 @@ $roots = @(
 $quarantine = "C:\Users\peter\AudioDev\Quarantine"
 
 # dir = source tree under C:\Users\peter\b, name = product name, group = folder
+# build = optional explicit build root, for a plugin whose source is not under b\
 $plugins = @(
   @{ dir = "ArtefactB2311_1";   name = "Artefact B2311.1";    group = "Proxima Centauri B findings" },
   @{ dir = "ArtefactB2311";     name = "Artefact B2311.22";   group = "Proxima Centauri B findings" },
@@ -40,7 +41,11 @@ $plugins = @(
   @{ dir = "MarsWars";         name = "Martian Gain";       group = "Brokild collection" },
   @{ dir = "PhotoSynth";       name = "Photo Synth";        group = "Brokild collection" },
   @{ dir = "HighTide";         name = "High Tide";          group = "Brokild collection" },
-  @{ dir = "BrainScan";        name = "Brain Scan";         group = "Brokild collection" }
+  @{ dir = "BrainScan";        name = "Brain Scan";         group = "Brokild collection" },
+  # Legion's source lives in the WEBSITE repo (like Clone Wars), so it has no
+  # tree under b\ — it is built to b\_build\Legion and named here explicitly.
+  @{ dir = "Legion";           name = "Legion";             group = "Brokild collection";
+     build = "C:\Users\peter\b\_build\Legion\plugin" }
   # Clone Wars is deliberately absent: its binary comes from a CI-built zip,
   # never a local build (house rule).
 )
@@ -54,7 +59,8 @@ if (-not (Test-Path $quarantine)) { New-Item -ItemType Directory -Force $quarant
 foreach ($p in $plugins) {
     if ($Only.Count -gt 0 -and $Only -notcontains $p.name -and $Only -notcontains $p.dir) { continue }
 
-    $src = Get-ChildItem "C:\Users\peter\b\$($p.dir)\build" -Recurse -Filter "$($p.name).vst3" -File -ErrorAction SilentlyContinue |
+    $buildRoot = if ($p.build) { $p.build } else { "C:\Users\peter\b\$($p.dir)\build" }
+    $src = Get-ChildItem $buildRoot -Recurse -Filter "$($p.name).vst3" -File -ErrorAction SilentlyContinue |
            Where-Object { $_.FullName -like "*Release*x86_64-win*" } | Select-Object -First 1
     if (-not $src) { Write-Output ("{0,-22} no build output" -f $p.name); continue }
 

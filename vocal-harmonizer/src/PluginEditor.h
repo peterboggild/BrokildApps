@@ -61,6 +61,24 @@ private:
 
     //  the BWFX rack, generated from bwfx::moduleDescriptor()
     juce::TextButton rackButton { "BWFX" };
+
+    //  The rack lives on an OPAQUE, full-bleed overlay. It has to: a Viewport
+    //  and a plain Component both paint nothing, so without this the rack's
+    //  knobs were drawn straight over the voice strips and both were legible
+    //  at once — which is to say neither was.
+    struct RackOverlay  : juce::Component
+    {
+        RackOverlay();
+        void paint (juce::Graphics&) override;
+        void mouseDown (const juce::MouseEvent&) override;
+
+        std::function<void()> onDismiss;
+        juce::Rectangle<int>  card;      //  where the rack itself sits
+    };
+
+    RackOverlay      rackOverlay;
+    juce::TextButton rackClose { "CLOSE" };
+    juce::Label      rackTitle;
     juce::Component  rackPanel;
     juce::Viewport   rackView;
     juce::Slider     rackMix;
