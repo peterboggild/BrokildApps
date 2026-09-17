@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#06070a">
-<meta name="description" content="Sleeper Agent: a five-fader mixer of brown noise, green noise, rain, soft rain and ocean, with five slow ambient synth themes over the top and five ready-made presets. Binaural placement puts the noise around the room rather than on the phone. Sleep timer in hours, gentle fade-out, tone control and a blackout screen mode. Runs entirely in the browser.">
+<meta name="description" content="Sleeper Agent: a five-fader mixer of brown noise, green noise, rain, soft rain and ocean, with five slow ambient synth themes over the top and five ready-made presets. A space slider runs from mono through stereo to a binaural render that puts the noise around the room rather than on the phone. Sleep timer in hours, gentle fade-out, tone control and a blackout screen mode. Runs entirely in the browser.">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -120,6 +120,8 @@
   }
   input[type=range]:active::-webkit-slider-thumb{border-color:var(--accent)}
   .ico{width:17px;height:17px;flex:none;color:var(--faint)}
+  .ticks{display:flex;justify-content:space-between;margin:2px 0 0 29px;
+    font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 
   /* ---------- timer ---------- */
   .seg{display:flex;background:var(--panel);border:1px solid var(--line-soft);border-radius:11px;padding:3px;gap:3px;margin-bottom:10px}
@@ -283,13 +285,13 @@
 
 <section>
   <div class="lab">Space <em id="spaceVal">room</em></div>
-  <div class="chips c3" id="spaceChips" role="group" aria-label="Space">
-    <button class="chip sm" data-space="flat">Flat</button>
-    <button class="chip sm" data-space="room">Room</button>
-    <button class="chip sm" data-space="around">Around</button>
+  <div class="row" id="spaceRow">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M7.2 8.6a5 5 0 0 0 0 6.8M16.8 8.6a5 5 0 0 1 0 6.8M4.2 5.8a9.2 9.2 0 0 0 0 12.4M19.8 5.8a9.2 9.2 0 0 1 0 12.4"/></svg>
+    <input type="range" id="space" min="0" max="100" step="5" aria-label="Space">
   </div>
+  <div class="ticks"><span>Mono</span><span>Stereo</span><span>3D</span></div>
   <p class="desc" id="spaceDesc"></p>
-  <p class="note">Each sound can be built as a handful of sources standing around you instead of as two channels: every one of them reaches the two ears a fraction of a millisecond apart, shaded by the head in between, coloured for its height, with a soft room behind the lot. Rain then falls mostly overhead, soft rain gathers at a window off to the left and the ocean lies a long way out in front. Headphones hear the most of it — that is where the noise stops sitting on the phone and starts filling the room. On a speaker it sums cleanly: the bottom of the band is folded back to the middle, so nothing cancels. Changing this rebuilds the loops, which takes a moment.</p>
+  <p class="note">Halfway along is plain stereo, which is how the app has always sounded. Left of it the two channels are drawn together towards one, which is worth having for a single earbud. Right of it each sound is built as a handful of sources standing around you instead of as two channels: every one of them reaches the two ears a fraction of a millisecond apart, shaded by the head in between and coloured for its height, with a soft room behind the lot. Rain then falls mostly overhead, soft rain gathers at a window off to the left and the ocean lies a long way out in front. Headphones hear nearly all of it — that is where the noise stops sitting on the phone and starts filling the room; a speaker hears the least, though it loses nothing, since the bottom of the band is folded back to the middle where one speaker was going to put it anyway. Moving the right-hand half rebuilds the loops, which takes a moment; the left-hand half is instant.</p>
 </section>
 
 <section>
@@ -619,21 +621,30 @@
      a cycle after the buffer is built.
      ============================================================ */
 
-  var SPACES = [
-    { id: "flat", name: "Flat", amount: 0,
-      desc: "Two unrelated noises, one per channel. Wide and even, with no room around it — how the app has always sounded." },
-    { id: "room", name: "Room", amount: 0.62,
-      desc: "The same sounds placed around you in a small near room. Plainer than it looks written down, and the setting for most nights." },
-    { id: "around", name: "Around", amount: 1,
-      desc: "That room opened out: sources further off, the head's shadow at full depth, a longer tail behind them. Strongest over headphones." }
-  ];
-  function spaceById(id) {
-    for (var i = 0; i < SPACES.length; i++) if (SPACES[i].id === id) return SPACES[i];
-    return null;
+  // One slider, with plain stereo halfway along it. Below the middle nothing
+  // is rendered differently: the two channels are simply drawn together by a
+  // gain, all the way to mono, which follows the finger and costs nothing.
+  // Above it the loops are written again, each step further into the room.
+  function spaceWidth() { return Math.min(1, S.space / 50); }
+  function spaceAmount() { return Math.max(0, (S.space - 50) / 50); }
+
+  function spaceLabel() {
+    var v = S.space;
+    if (v === 0) return "mono";
+    if (v < 50) return "narrow · " + Math.round(v * 2) + "%";
+    if (v === 50) return "stereo";
+    if (v === 100) return "3D";
+    return "3D · " + Math.round((v - 50) * 2) + "%";
   }
-  function spaceAmount() {
-    var s = spaceById(S.space);
-    return s ? s.amount : 0;
+
+  function spaceText() {
+    var v = S.space;
+    if (v === 0) return "One signal in both ears. The safest setting for a single earbud, or for a phone lying face down on a speaker of its own.";
+    if (v < 50) return "The two channels drawn part of the way together. Narrower than the app has ever been, and steadier on one ear than full stereo is.";
+    if (v === 50) return "Two unrelated noises, one per channel: wide and even, with no room around it — how the app has always sounded.";
+    if (v < 80) return "Plain stereo with the room mixed in behind it. The placed version is there in full, but you are hearing more of the old sound than of it.";
+    if (v < 100) return "Mostly the room now: sources standing around you, the head's shadow between them, and only a little of the plain pair left underneath.";
+    return "The room alone. Every source placed, the head's shadow at full depth, the tail behind them — and nothing of the flat pair left. Strongest over headphones.";
   }
 
   // Head radius and the speed of sound: between them they set how late and how
@@ -670,7 +681,11 @@
             { az: 24, el: 30, d: 4.0 }, { az: 120, el: 10, d: 5.0 }]
     },
     ocean: {
-      tail: 0.26, size: 1.4, damp: 2400, spread: 1.3,
+      // Ocean is held at the peak ceiling by its own crests wherever the
+      // slider stands, so what the room hands back is not level but balance:
+      // the sub-bass it trims turns into audible band, and the trim puts that
+      // back where plain stereo had it.
+      tail: 0.26, size: 1.4, damp: 2400, spread: 1.3, trim: 0.86,
       src: [{ az: -62, el: -4, d: 9 }, { az: -24, el: 0, d: 7.5 }, { az: 20, el: 2, d: 8 },
             { az: 58, el: -4, d: 10 }, { az: 150, el: 0, d: 11 }]
     }
@@ -742,24 +757,27 @@
     }
   }
 
-  // Stand one source in the room and write it into both ears.
-  function placeSource(mono, far, L, R, sr, s, amt) {
+  // Stand one source in the room and write it into both ears. cue is how deep
+  // the head's own cues are cut, which is not the same question as how much of
+  // the result you end up hearing — the slider answers that one further down,
+  // by crossfading the whole placed pair against the plain one.
+  function placeSource(mono, far, L, R, sr, s, cue) {
     var n = mono.length, i;
     var az = s.az * Math.PI / 180, el = s.el * Math.PI / 180;
     // Everything on the same cone sounds equally far to one side, and the side
     // is all the delay between the ears encodes. Height and front-or-behind
     // are settled by colour further down.
     var lat = Math.asin(Math.max(-1, Math.min(1, Math.sin(az) * Math.cos(el))));
-    var itd = (HEAD_R / SOUND_C) * (lat + Math.sin(lat)) * amt;
-    var shade = Math.abs(Math.sin(lat)) * amt;
+    var itd = (HEAD_R / SOUND_C) * (lat + Math.sin(lat)) * cue;
+    var shade = Math.abs(Math.sin(lat)) * cue;
 
     // Distance: quieter, and with the top taken off it by the air and by
     // whatever else stands in the way.
     var g = 1 / Math.sqrt(Math.max(s.d, 1));
-    shelf(mono, sr, 6500, Math.min(0.5, Math.max(0, (s.d - 2) / 14)) * amt);
-    if (Math.abs(s.el) >= 16) notch(mono, sr, 6200 + 62 * Math.abs(s.el), 0.55 * amt);
+    shelf(mono, sr, 6500, Math.min(0.5, Math.max(0, (s.d - 2) / 14)) * cue);
+    if (Math.abs(s.el) >= 16) notch(mono, sr, 6200 + 62 * Math.abs(s.el), 0.55 * cue);
     var back = (Math.abs(s.az) - 100) / 80;
-    if (back > 0) shelf(mono, sr, 4200, Math.min(back, 1) * 0.35 * amt);
+    if (back > 0) shelf(mono, sr, 4200, Math.min(back, 1) * 0.35 * cue);
 
     for (i = 0; i < n; i++) far[i] = mono[i];
     shelf(far, sr, 1700, 0.7 * shade);
@@ -858,6 +876,24 @@
     }
   }
 
+  // The top half of the slider is a crossfade between the plain pair the two
+  // parents already are and the pair they have been placed into. Both are
+  // levelled against each other first, so what travels as the slider moves is
+  // the character of the sound and not its loudness.
+  function blendPlain(L, R, p0, p1, amt) {
+    var n = L.length, i, sp = 0, sd = 0;
+    for (i = 0; i < n; i++) {
+      sp += L[i] * L[i] + R[i] * R[i];
+      sd += p0[i] * p0[i] + p1[i] * p1[i];
+    }
+    if (!(sp > 1e-18)) return;
+    var g = Math.sqrt(sd / sp) * amt, d = 1 - amt;
+    for (i = 0; i < n; i++) {
+      L[i] = L[i] * g + p0[i] * d;
+      R[i] = R[i] * g + p1[i] * d;
+    }
+  }
+
   // Fold the low half of the difference between the ears back to the middle.
   // The sum of the two channels is untouched by it, so nothing is lost when a
   // single speaker adds them together.
@@ -884,22 +920,26 @@
     var p1 = biquad(genRaw(type, n, sr), sr, "highpass", 28, 0.707);
     var L = new Float32Array(n), R = new Float32Array(n);
     var work = new Float32Array(n), far = new Float32Array(n);
-    var i, k;
+    // The cues themselves stay nearly full depth wherever the slider is: a
+    // source half placed is not half as convincing, only quieter, and the
+    // crossfade at the end is what quiet means here.
+    var cue = 0.55 + 0.45 * amt, i, k;
     for (k = 0; k < list.length; k++) {
       var parent = (k % 2) ? p1 : p0;
       if (k < 2) { for (i = 0; i < n; i++) work[i] = parent[i]; }
       else decorrelate(work, parent, sr, k, plan.spread || 1);
-      placeSource(work, far, L, R, sr, list[k], amt);
+      placeSource(work, far, L, R, sr, list[k], cue);
     }
-    work = far = p1 = null;
-    var wet = (plan.tail || 0) * amt;
-    if (wet > 0) {
+    work = far = null;
+    if (plan.tail) {
       var size = plan.size || 1;
       var TL = new Float32Array(n), TR = new Float32Array(n);
       roomTail(p0, sr, size, 0.8 * size, plan.damp || 2400, TL, TR);
-      mixTail(L, R, TL, TR, wet);
+      mixTail(L, R, TL, TR, plan.tail);
+      TL = TR = null;
     }
     if (plan.round) roundPeaks(L, R, plan.round);
+    if (amt < 1) blendPlain(L, R, p0, p1, amt);
     coherentBass(L, R, sr, 200, 0.8 * amt);
     return { L: L, R: R, trim: plan.trim || 1 };
   }
@@ -1151,7 +1191,7 @@
 
   var DEFAULTS = {
     mix: { brown: 60, green: 0, rain: 0, softrain: 0, ocean: 0 },
-    volume: 55, tone: 62, space: "room",
+    volume: 55, tone: 62, space: 80,
     mode: "for", durationMin: 480, untilTime: "07:00",
     fadeInSec: 30, fadeOutMin: 5,
     waves: false, waveDepth: 30, wavePeriod: 16,
@@ -1192,7 +1232,9 @@
       if (to) S.mix[to] = 60;
     }
   } catch (e) {}
-  if (!spaceById(S.space)) S.space = DEFAULTS.space;
+  // Space was three named settings before it was a slider.
+  if (typeof S.space === "string") S.space = { flat: 50, room: 80, around: 100 }[S.space];
+  S.space = Math.round(Math.max(0, Math.min(100, +S.space || 0)) / 5) * 5;
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
   function presetById(id) {
@@ -1211,7 +1253,7 @@
      Audio graph
      ============================================================ */
 
-  var ctx = null, hp = null, lp = null, limiter = null,
+  var ctx = null, hp = null, lp = null, limiter = null, width = null,
       swell = null, lfo = null, lfoGain = null, env = null, vol = null,
       msDest = null, bufCache = {}, usingElement = false, fallbackChecked = false,
       padGain = null, padFade = null, padA = null, padB = null, padCache = null;
@@ -1258,19 +1300,55 @@
     vol = ctx.createGain(); vol.gain.value = volGain();
     padGain = ctx.createGain(); padGain.gain.value = padLevelGain();
 
+    width = makeWidth();
     hp.connect(lp); lp.connect(swell);
-    swell.connect(limiter); limiter.connect(env); env.connect(vol);
+    swell.connect(limiter); limiter.connect(env);
+    // The bottom half of the space slider lives here, on everything at once.
+    // It only ever draws the two channels together, never apart, so it cannot
+    // add a peak the limiter upstream has not already seen.
+    env.connect(width.in); width.out.connect(vol);
     // The synth joins after the tone control and the swell — both belong to
     // the noise — but before env, so the sleep timer still fades and stops it.
     padGain.connect(env);
 
     applySwell();
+    setWidth(ctx.currentTime);
     routeOutput();
 
     ctx.onstatechange = function () {
       if (playing && ctx.state === "suspended") setStatus("Playback was paused by the system — tap play to resume.", true);
       updateUI();
     };
+  }
+
+  // L and R out of M and S, written as the four gains the matrix actually is:
+  // L' = L(1+w)/2 + R(1-w)/2, and its mirror. At w = 1 nothing is changed; at
+  // w = 0 both ears get the same sum.
+  function makeWidth() {
+    var sp = ctx.createChannelSplitter(2), mg = ctx.createChannelMerger(2);
+    var aL = ctx.createGain(), bL = ctx.createGain(), aR = ctx.createGain(), bR = ctx.createGain();
+    sp.connect(aL, 0); sp.connect(bL, 1); aL.connect(mg, 0, 0); bL.connect(mg, 0, 0);
+    sp.connect(bR, 0); sp.connect(aR, 1); bR.connect(mg, 0, 1); aR.connect(mg, 0, 1);
+    var w = { in: sp, out: mg, near: [aL, aR], far: [bL, bR] };
+    // Start where the slider already is rather than gliding there from wide
+    // once the first sound is up.
+    setWidth(0, w);
+    return w;
+  }
+
+  function setWidth(t, w) {
+    w = w || width;
+    if (!w) return;
+    var v = spaceWidth(), a = (1 + v) / 2, b = (1 - v) / 2, i;
+    for (i = 0; i < 2; i++) {
+      if (t) {
+        w.near[i].gain.setTargetAtTime(a, t, 0.05);
+        w.far[i].gain.setTargetAtTime(b, t, 0.05);
+      } else {
+        w.near[i].gain.value = a;
+        w.far[i].gain.value = b;
+      }
+    }
   }
 
   // Prefer sending the sound through a media element: the browser then treats
@@ -1318,7 +1396,18 @@
 
   // A twenty-second stereo loop is about eight megabytes, so only the faders
   // that are actually open keep one; closing a fader hands its buffer back.
+  // Everything built while the slider was somewhere else is stale, wherever
+  // the request came from, so the check sits on the way in rather than on the
+  // slider itself.
+  var bufAmt = -1;
+  function spaceSync() {
+    if (bufAmt === spaceAmount()) return;
+    bufAmt = spaceAmount();
+    bufCache = {};
+    padCache = null;
+  }
   function getBuffer(id) {
+    spaceSync();
     if (!bufCache[id]) bufCache[id] = makeBuffer(ctx, id);
     return bufCache[id];
   }
@@ -1440,6 +1529,7 @@
   // and re-rendering costs a few hundred milliseconds, so a cache would trade
   // a lot of a phone's memory for very little.
   function padBuffers(id) {
+    spaceSync();
     if (!padCache || padCache.id !== id) {
       padCache = null;
       padCache = {
@@ -1484,15 +1574,15 @@
     if (padB) { try { padB.stop(when); } catch (e) {} }
   }
 
-  // Space is baked into the loops rather than applied as they play, so
-  // changing it means writing every one of them again. Each sounding fader is
-  // crossfaded into its new buffer over a second, which is slow enough to pass
-  // for a room changing shape around you.
+  // The room is baked into the loops rather than applied as they play, so
+  // moving the top half of the slider means writing every one of them again.
+  // Each sounding fader is crossfaded into its new loop over a second, which
+  // is slow enough to pass for a room changing shape around you. The bottom
+  // half never reaches here: a gain has already followed the finger.
   function rebuildSpace() {
-    bufCache = {};
-    padCache = null;
-    if (!ctx || !playing) { updateUI(); return; }
-    busyRender(spaceChips, "Preparing the room\u2026", function () {
+    if (bufAmt === spaceAmount()) { updateUI(); return; }
+    if (!ctx || !playing) { spaceSync(); updateUI(); return; }
+    busyRender(spaceRow, "Preparing the room\u2026", function () {
       var stopAt = endStopTime();
       LAYER_IDS.forEach(function (id) {
         if (!(S.mix[id] > 0)) return;
@@ -1876,14 +1966,22 @@
   });
 
   // Space
-  var spaceChips = $("spaceChips");
-  Array.prototype.forEach.call(spaceChips.children, function (b) {
-    b.addEventListener("click", function () {
-      if (S.space === b.dataset.space) return;
-      S.space = b.dataset.space; save();
-      updateUI();
-      rebuildSpace();
-    });
+  var spaceRow = $("spaceRow"), spaceIn = $("space"), spaceTimer = null;
+  spaceIn.value = S.space;
+  spaceIn.addEventListener("input", function () {
+    S.space = +spaceIn.value;
+    if (ctx) setWidth(ctx.currentTime);
+    $("spaceVal").textContent = spaceLabel();
+    $("spaceDesc").textContent = spaceText();
+    save();
+    // The loops are only rewritten once the finger has stopped somewhere, the
+    // same way the mixer waits before building a fader that has just opened.
+    clearTimeout(spaceTimer);
+    if (bufAmt !== spaceAmount()) spaceTimer = setTimeout(rebuildSpace, 320);
+  });
+  spaceIn.addEventListener("change", function () {
+    clearTimeout(spaceTimer);
+    rebuildSpace();
   });
 
   // Duration
@@ -2114,12 +2212,8 @@
     $("padDesc").textContent = th ? th.desc
       : "Five slow chord themes, from plain major to dark minor. Pick one to lay over the mix, or with every fader down, to hear it on its own.";
     $("plVal").textContent = S.padLevel + "%";
-    var sp = spaceById(S.space) || SPACES[0];
-    Array.prototype.forEach.call(spaceChips.children, function (b) {
-      b.setAttribute("aria-pressed", String(b.dataset.space === sp.id));
-    });
-    $("spaceVal").textContent = sp.name.toLowerCase();
-    $("spaceDesc").textContent = sp.desc;
+    $("spaceVal").textContent = spaceLabel();
+    $("spaceDesc").textContent = spaceText();
     $("volVal").textContent = S.volume + "%";
     $("toneVal").textContent = toneLabel();
     $("wdVal").textContent = S.waveDepth + "%";
