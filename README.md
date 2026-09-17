@@ -13,7 +13,7 @@ GitHub Pages.
 | Photo Synth | [`vst3-apps/photo-synth-2`](vst3-apps/photo-synth-2) | **Windows VST3 plugin** (download): play the colours of four photographs inside your DAW. Ships with a PDF manual, and with the HTML→VST3 developer kit that explains how it was built. |
 | Legion | [`vocal-harmonizer`](vocal-harmonizer) | **VST3 vocal harmoniser** (build from source): a singing or screaming voice pitch shifted with independent formant control, up to four voices, with BWFX on the harmony bus. Design: [`LEGION-DESIGN.md`](LEGION-DESIGN.md). |
 | Photo Synth | [`music-apps/photo-synth`](music-apps/photo-synth) | Play two photos: colour becomes tone on one, filter on the other. |
-| Sleeper Agent | [`health-apps/sleep-noise`](health-apps/sleep-noise) | Private browser-generated sleep noise with timers, fades and blackout mode, plus five slow ambient synth themes for meditation. |
+| Sleeper Agent | [`health-apps/sleep-noise`](health-apps/sleep-noise) | Private browser-generated sleep noise with timers, fades and blackout mode, binaural placement so the noise fills the room, plus five slow ambient synth themes for meditation. |
 
 ## How the front page works
 

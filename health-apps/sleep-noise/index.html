@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#06070a">
-<meta name="description" content="Sleeper Agent: a five-fader mixer of brown noise, green noise, rain, soft rain and ocean, with five slow ambient synth themes over the top and five ready-made presets. Sleep timer in hours, gentle fade-out, tone control and a blackout screen mode. Runs entirely in the browser.">
+<meta name="description" content="Sleeper Agent: a five-fader mixer of brown noise, green noise, rain, soft rain and ocean, with five slow ambient synth themes over the top and five ready-made presets. Binaural placement puts the noise around the room rather than on the phone. Sleep timer in hours, gentle fade-out, tone control and a blackout screen mode. Runs entirely in the browser.">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -279,6 +279,17 @@
     <input type="range" id="tone" min="0" max="100" step="1" aria-label="Tone">
   </div>
   <p class="note">Rolls off the top end. Darker is gentler on the ears over a long night; brighter masks more speech and traffic.</p>
+</section>
+
+<section>
+  <div class="lab">Space <em id="spaceVal">room</em></div>
+  <div class="chips c3" id="spaceChips" role="group" aria-label="Space">
+    <button class="chip sm" data-space="flat">Flat</button>
+    <button class="chip sm" data-space="room">Room</button>
+    <button class="chip sm" data-space="around">Around</button>
+  </div>
+  <p class="desc" id="spaceDesc"></p>
+  <p class="note">Each sound can be built as a handful of sources standing around you instead of as two channels: every one of them reaches the two ears a fraction of a millisecond apart, shaded by the head in between, coloured for its height, with a soft room behind the lot. Rain then falls mostly overhead, soft rain gathers at a window off to the left and the ocean lies a long way out in front. Headphones hear the most of it — that is where the noise stops sitting on the phone and starts filling the room. On a speaker it sums cleanly: the bottom of the band is folded back to the middle, so nothing cancels. Changing this rebuilds the loops, which takes a moment.</p>
 </section>
 
 <section>
@@ -585,34 +596,362 @@
 
   var LOOP_SEC = 20, XFADE_SEC = 1;
 
+  /* ============================================================
+     The room
+
+     The loops have always been stereo, but their two channels were
+     two unrelated noises: wide, even, and with nothing around them —
+     the sound sits on the phone rather than anywhere. What follows
+     puts it in a room instead.
+
+     Each sound is built as a handful of virtual sources standing
+     around the listener. Every one of them reaches the two ears at
+     slightly different times and through the shadow of the head in
+     between — the two cues the ear reads a direction from — coloured
+     for its height and its distance, with a small reverberant tail
+     behind the lot so that the drops in rain land in a space rather
+     than in a vacuum. Below a couple of hundred hertz the two ears
+     are put back together: no room can pull the bass apart, and one
+     speaker sums it to mono regardless.
+
+     All of it happens once, while the loop is being written. What
+     plays all night is the graph it always was — nothing here costs
+     a cycle after the buffer is built.
+     ============================================================ */
+
+  var SPACES = [
+    { id: "flat", name: "Flat", amount: 0,
+      desc: "Two unrelated noises, one per channel. Wide and even, with no room around it — how the app has always sounded." },
+    { id: "room", name: "Room", amount: 0.62,
+      desc: "The same sounds placed around you in a small near room. Plainer than it looks written down, and the setting for most nights." },
+    { id: "around", name: "Around", amount: 1,
+      desc: "That room opened out: sources further off, the head's shadow at full depth, a longer tail behind them. Strongest over headphones." }
+  ];
+  function spaceById(id) {
+    for (var i = 0; i < SPACES.length; i++) if (SPACES[i].id === id) return SPACES[i];
+    return null;
+  }
+  function spaceAmount() {
+    var s = spaceById(S.space);
+    return s ? s.amount : 0;
+  }
+
+  // Head radius and the speed of sound: between them they set how late and how
+  // dull a sound arrives at the ear on the far side.
+  var HEAD_R = 0.0875, SOUND_C = 343;
+
+  // Where each sound is standing. Azimuth in degrees, zero straight ahead and
+  // positive to the right; elevation above the ear; distance in metres. Rain
+  // is mostly overhead with one source splashing at your feet, soft rain is
+  // gathered at a window off to the left, ocean is a long way out in front,
+  // and the two plain noises simply surround you.
+  var ROOMS = {
+    brown: {
+      tail: 0.16, size: 1.05, damp: 2200, spread: 1,
+      src: [{ az: -148, el: -4, d: 3.0 }, { az: -76, el: 10, d: 2.4 }, { az: -24, el: 2, d: 2.7 },
+            { az: 30, el: 8, d: 2.6 }, { az: 82, el: -6, d: 2.3 }, { az: 150, el: 6, d: 3.2 }]
+    },
+    green: {
+      tail: 0.20, size: 1.15, damp: 2600, spread: 1,
+      src: [{ az: -128, el: 14, d: 3.4 }, { az: -58, el: 4, d: 2.6 }, { az: -12, el: 20, d: 3.0 },
+            { az: 46, el: 8, d: 2.5 }, { az: 104, el: 16, d: 3.2 }, { az: 166, el: 2, d: 3.6 }]
+    },
+    rain: {
+      tail: 0.34, size: 1.0, damp: 2000, spread: 0.55, round: 2.6, trim: 0.8,
+      src: [{ az: -120, el: 38, d: 2.6 }, { az: -44, el: 52, d: 2.2 }, { az: 22, el: 44, d: 2.4 },
+            { az: 96, el: 30, d: 2.8 }, { az: 168, el: 24, d: 3.0 }, { az: -8, el: -22, d: 2.0 }]
+    },
+    softrain: {
+      // Soft rain spends most of its energy on a rumble below hearing, and the
+      // trim above hands that headroom back to the part of it you can hear.
+      // Holding it there keeps the fader at the level Flat set it to.
+      tail: 0.40, size: 1.25, damp: 1700, spread: 0.6, trim: 0.68, round: 3.0,
+      src: [{ az: -64, el: 22, d: 4.2 }, { az: -40, el: 36, d: 3.8 }, { az: -18, el: 14, d: 4.6 },
+            { az: 24, el: 30, d: 4.0 }, { az: 120, el: 10, d: 5.0 }]
+    },
+    ocean: {
+      tail: 0.26, size: 1.4, damp: 2400, spread: 1.3,
+      src: [{ az: -62, el: -4, d: 9 }, { az: -24, el: 0, d: 7.5 }, { az: 20, el: 2, d: 8 },
+            { az: 58, el: -4, d: 10 }, { az: 150, el: 0, d: 11 }]
+    }
+  };
+
+  // A one-pole lowpass mixed back into what went in: a gentle shelf rather
+  // than a filter, and cheap enough to run several of per source. k is how
+  // much of the top end goes.
+  function shelf(x, sr, fc, k) {
+    if (!(k > 0)) return x;
+    var a = Math.exp(-2 * Math.PI * fc / sr), y = 0, n = x.length, i, v;
+    for (i = 0; i < n; i++) {
+      v = x[i];
+      y = v + a * (y - v);
+      x[i] = v + k * (y - v);
+    }
+    return x;
+  }
+
+  // Take a notch out of the band the outer ear tells height with: the higher
+  // the source, the higher its notch sits.
+  function notch(x, sr, f0, depth) {
+    var bp = biquad(x, sr, "bandpass", f0, 1.6), n = x.length, i;
+    for (i = 0; i < n; i++) x[i] -= bp[i] * depth;
+    return x;
+  }
+
+  // Schroeder all-pass: the same spectrum with its phase scrambled. Three in a
+  // row turn one noise into a second unrelated to the first, for a fraction of
+  // what generating another twenty seconds would cost. Two laps, so the state
+  // the loop ends on is the state it starts from.
+  function allpassLoop(x, sr, delaySec, g) {
+    var d = Math.max(1, Math.round(delaySec * sr));
+    var line = new Float32Array(d), p = 0, n = x.length, i, lap, xi, wd;
+    for (lap = 0; lap < 2; lap++) {
+      for (i = 0; i < n; i++) {
+        xi = x[i];
+        wd = line[p];
+        line[p] = xi + g * wd;
+        if (++p === d) p = 0;
+        if (lap) x[i] = wd - g * xi;
+      }
+    }
+    return x;
+  }
+
+  var AP_SETS = [
+    [0.0067, 0.0131, 0.0243], [0.0089, 0.0179, 0.0311], [0.0053, 0.0157, 0.0287],
+    [0.0101, 0.0211, 0.0349], [0.0073, 0.0193, 0.0263], [0.0061, 0.0149, 0.0331]
+  ];
+
+  function decorrelate(dst, src, sr, k, spread) {
+    var set = AP_SETS[k % AP_SETS.length], n = src.length, i;
+    for (i = 0; i < n; i++) dst[i] = src[i];
+    for (i = 0; i < set.length; i++) allpassLoop(dst, sr, set[i] * spread, 0.6);
+    return dst;
+  }
+
+  // Add one ear's copy of a source, late by the fraction of a millisecond the
+  // head costs the far side. The opening samples are the only ones with
+  // nothing to read, and the cross-fade covers them.
+  function addDelayed(dst, src, samples, gain) {
+    var d = Math.floor(samples), fr = samples - d, n = src.length, i, j, a, b;
+    for (i = 0; i < n; i++) {
+      j = i - d;
+      a = j >= 0 ? src[j] : 0;
+      b = j >= 1 ? src[j - 1] : 0;
+      dst[i] += (a + (b - a) * fr) * gain;
+    }
+  }
+
+  // Stand one source in the room and write it into both ears.
+  function placeSource(mono, far, L, R, sr, s, amt) {
+    var n = mono.length, i;
+    var az = s.az * Math.PI / 180, el = s.el * Math.PI / 180;
+    // Everything on the same cone sounds equally far to one side, and the side
+    // is all the delay between the ears encodes. Height and front-or-behind
+    // are settled by colour further down.
+    var lat = Math.asin(Math.max(-1, Math.min(1, Math.sin(az) * Math.cos(el))));
+    var itd = (HEAD_R / SOUND_C) * (lat + Math.sin(lat)) * amt;
+    var shade = Math.abs(Math.sin(lat)) * amt;
+
+    // Distance: quieter, and with the top taken off it by the air and by
+    // whatever else stands in the way.
+    var g = 1 / Math.sqrt(Math.max(s.d, 1));
+    shelf(mono, sr, 6500, Math.min(0.5, Math.max(0, (s.d - 2) / 14)) * amt);
+    if (Math.abs(s.el) >= 16) notch(mono, sr, 6200 + 62 * Math.abs(s.el), 0.55 * amt);
+    var back = (Math.abs(s.az) - 100) / 80;
+    if (back > 0) shelf(mono, sr, 4200, Math.min(back, 1) * 0.35 * amt);
+
+    for (i = 0; i < n; i++) far[i] = mono[i];
+    shelf(far, sr, 1700, 0.7 * shade);
+
+    var late = Math.abs(itd) * sr;
+    if (itd >= 0) {                       // to the right: the left ear is the far one
+      for (i = 0; i < n; i++) R[i] += mono[i] * g;
+      addDelayed(L, far, late, g);
+    } else {
+      for (i = 0; i < n; i++) L[i] += mono[i] * g;
+      addDelayed(R, far, late, g);
+    }
+  }
+
+  // Four delay lines, mixed into one another every lap and damped a little
+  // each time round: the tail of a soft room. The two outputs come off
+  // different lines, so the tail is as wide as the sources standing in it.
+  // Two laps again, so what runs off the end of the loop is already sounding
+  // when it starts.
+  function roomTail(send, sr, size, rt60, damp, L, R) {
+    var base = [0.0231, 0.0307, 0.0411, 0.0537];
+    var d = [], line = [], p = [], fb = [], lp = [0, 0, 0, 0], dc = [0, 0, 0, 0], v = [0, 0, 0, 0];
+    var a = Math.exp(-2 * Math.PI * damp / sr);
+    // The four lines are mixed by a reflection, which leaves every direction
+    // exactly as loud as it found it — including the one a steady rumble sits
+    // in, where nothing but the wall loss stands between the room and a very
+    // slow runaway. The send arrives with the bottom already taken off it, and
+    // each line drops whatever is left under about ninety hertz on every lap.
+    var b = Math.exp(-2 * Math.PI * 90 / sr);
+    var dry = biquad(send, sr, "highpass", 110, 0.707);
+    var n = send.length, i, k, lap, s, x, y, w;
+    for (k = 0; k < 4; k++) {
+      d[k] = Math.max(1, Math.round(base[k] * size * sr));
+      line[k] = new Float32Array(d[k]);
+      p[k] = 0;
+      fb[k] = Math.pow(10, -3 * (d[k] / sr) / rt60);
+    }
+    for (lap = 0; lap < 2; lap++) {
+      for (i = 0; i < n; i++) {
+        s = 0;
+        for (k = 0; k < 4; k++) { v[k] = line[k][p[k]]; s += v[k]; }
+        s *= 0.5;
+        x = dry[i] * 0.5;
+        for (k = 0; k < 4; k++) {
+          y = s - v[k];                       // a Householder reflection: lossless
+          lp[k] = y + a * (lp[k] - y);        // and the walls take the top off
+          dc[k] = lp[k] + b * (dc[k] - lp[k]);
+          w = lp[k] - dc[k];
+          line[k][p[k]] = x + w * fb[k];
+          if (++p[k] === d[k]) p[k] = 0;
+        }
+        if (lap) {
+          L[i] += v[0] + v[2];
+          R[i] += v[1] + v[3];
+        }
+      }
+    }
+  }
+
+  // Set the tail against the dry sum rather than against its own input, so the
+  // same fraction of room comes back whatever was sent into it.
+  function mixTail(L, R, TL, TR, wet) {
+    var n = L.length, i, ds = 0, ts = 0, g;
+    for (i = 0; i < n; i++) {
+      ds += L[i] * L[i] + R[i] * R[i];
+      ts += TL[i] * TL[i] + TR[i] * TR[i];
+    }
+    if (!(ts > 1e-18) || !(ds > 1e-18)) return;
+    g = wet * Math.sqrt(ds / ts);
+    for (i = 0; i < n; i++) { L[i] += TL[i] * g; R[i] += TR[i] * g; }
+  }
+
+  // The same rounding-off the rain generator does to its own drops, done once
+  // more over the sum: three copies of one drop arriving from three directions
+  // land closer together than three separate drops would, and the peaks they
+  // make between them would otherwise hold the whole loop back from the
+  // loudness every other fader is levelled to. Both channels are pulled by the
+  // one gain, so nothing in the image moves while it happens. Ocean never asks
+  // for this — its crests are the swell itself, and flattening them would be
+  // flattening the sound to suit the meter.
+  function roundPeaks(L, R, over) {
+    var n = L.length, i, s = 0, a, b, v;
+    for (i = 0; i < n; i++) s += L[i] * L[i] + R[i] * R[i];
+    var rms = Math.sqrt(s / (2 * n));
+    if (!(rms > 1e-9)) return;
+    var thr = rms * over, span = rms * 1.4;
+    for (i = 0; i < n; i++) {
+      a = L[i] < 0 ? -L[i] : L[i];
+      b = R[i] < 0 ? -R[i] : R[i];
+      if (b > a) a = b;
+      if (a > thr) {
+        v = thr + span * (1 - Math.exp(-(a - thr) / span));
+        v /= a;
+        L[i] *= v; R[i] *= v;
+      }
+    }
+  }
+
+  // Fold the low half of the difference between the ears back to the middle.
+  // The sum of the two channels is untouched by it, so nothing is lost when a
+  // single speaker adds them together.
+  function coherentBass(L, R, sr, f0, amount) {
+    if (!(amount > 0)) return;
+    var n = L.length, side = new Float32Array(n), i;
+    for (i = 0; i < n; i++) side[i] = (L[i] - R[i]) * 0.5;
+    lowpassLoop(side, sr, f0, 0.707);
+    for (i = 0; i < n; i++) { L[i] -= side[i] * amount; R[i] += side[i] * amount; }
+  }
+
+  // The whole of the above, for one sound: two noises generated from scratch,
+  // the rest of the sources all-passed out of those two, each one placed, and
+  // a tail fed from the first of the two — what comes back off the walls is
+  // the same weather, not the same signal.
+  function renderRoom(type, n, sr, amt) {
+    var plan = ROOMS[type] || ROOMS.brown, list = plan.src;
+    // Six sources cut from two noises are all but the same signal down at the
+    // bottom of the band, where a metre of air is nothing and they simply add
+    // up. Brown already trims what is below hearing; the rains are cut from
+    // pink, which does not, and left in it would take several audible decibels
+    // off everything above it once the loop is levelled.
+    var p0 = biquad(genRaw(type, n, sr), sr, "highpass", 28, 0.707);
+    var p1 = biquad(genRaw(type, n, sr), sr, "highpass", 28, 0.707);
+    var L = new Float32Array(n), R = new Float32Array(n);
+    var work = new Float32Array(n), far = new Float32Array(n);
+    var i, k;
+    for (k = 0; k < list.length; k++) {
+      var parent = (k % 2) ? p1 : p0;
+      if (k < 2) { for (i = 0; i < n; i++) work[i] = parent[i]; }
+      else decorrelate(work, parent, sr, k, plan.spread || 1);
+      placeSource(work, far, L, R, sr, list[k], amt);
+    }
+    work = far = p1 = null;
+    var wet = (plan.tail || 0) * amt;
+    if (wet > 0) {
+      var size = plan.size || 1;
+      var TL = new Float32Array(n), TR = new Float32Array(n);
+      roomTail(p0, sr, size, 0.8 * size, plan.damp || 2400, TL, TR);
+      mixTail(L, R, TL, TR, wet);
+    }
+    if (plan.round) roundPeaks(L, R, plan.round);
+    coherentBass(L, R, sr, 200, 0.8 * amt);
+    return { L: L, R: R, trim: plan.trim || 1 };
+  }
+
   // Builds a stereo buffer whose end is cross-faded into its start, so the
-  // loop point is inaudible; the two channels are independent for natural width.
+  // loop point is inaudible. Flat, its two channels are two unrelated noises;
+  // otherwise they are the two ears of someone standing in the room above.
   function makeBuffer(ctx, type) {
     var sr = ctx.sampleRate;
     var n = Math.round(LOOP_SEC * sr);
     var x = Math.round(XFADE_SEC * sr);
-    var buf = ctx.createBuffer(2, n, sr);
-    for (var ch = 0; ch < 2; ch++) {
-      var raw = genRaw(type, n + x, sr);
-      var sum = 0, peak = 1e-9, i, v;
-      for (i = 0; i < n + x; i++) { v = raw[i]; sum += v * v; if (v < 0) v = -v; if (v > peak) peak = v; }
-      var rms = Math.sqrt(sum / (n + x));
-      var g = Math.min(0.18 / rms, 0.9 / peak);
-      var out = buf.getChannelData(ch);
-      for (i = x; i < n; i++) out[i] = raw[i] * g;
-      for (i = 0; i < x; i++) {
-        var t = i / x;
-        out[i] = (raw[n + i] * Math.cos(t * Math.PI / 2) + raw[i] * Math.sin(t * Math.PI / 2)) * g;
-      }
+    var amt = spaceAmount(), L, R, trim = 1;
+    if (amt > 0) {
+      var st = renderRoom(type, n + x, sr, amt);
+      L = st.L; R = st.R; trim = st.trim;
+    } else {
+      L = genRaw(type, n + x, sr);
+      R = genRaw(type, n + x, sr);
     }
-    // The cross-fade sums two independent samples, so it can overshoot the
-    // per-channel cap set above — rarely for the steady noises, more often for
-    // rain, whose drops give it a longer tail. Pull both channels back by the
-    // same amount if it did, so the headroom holds and the image does not move.
-    var top = 0, c, k, d, m;
+    return seamed(ctx, L, R, n, x, 0.18 * trim);
+  }
+
+  // Normalise to a loudness target, then cross-fade the tail into the head.
+  // One gain covers both channels: levelling them apart would undo exactly the
+  // differences between the ears that the room was rendered for.
+  function seamed(ctx, L, R, n, x, target) {
+    var m = n + x, i, v, sum = 0, peak = 1e-9;
+    for (i = 0; i < m; i++) {
+      v = L[i]; sum += v * v; if (v < 0) v = -v; if (v > peak) peak = v;
+      v = R[i]; sum += v * v; if (v < 0) v = -v; if (v > peak) peak = v;
+    }
+    var rms = Math.sqrt(sum / (2 * m));
+    var g = rms > 1e-9 ? Math.min(target / rms, 0.9 / peak) : 0;
+
+    var buf = ctx.createBuffer(2, n, ctx.sampleRate);
+    var raw = [L, R], c, d, t;
     for (c = 0; c < 2; c++) {
       d = buf.getChannelData(c);
-      for (k = 0; k < n; k++) { m = d[k] < 0 ? -d[k] : d[k]; if (m > top) top = m; }
+      for (i = x; i < n; i++) d[i] = raw[c][i] * g;
+      for (i = 0; i < x; i++) {
+        t = i / x;
+        d[i] = (raw[c][n + i] * Math.cos(t * Math.PI / 2) + raw[c][i] * Math.sin(t * Math.PI / 2)) * g;
+      }
+    }
+    // The cross-fade sums two samples a loop apart, so it can overshoot the
+    // cap set above — rarely for the steady noises, more often for rain, whose
+    // drops give it a longer tail. Pull both channels back by the same amount
+    // if it did, so the headroom holds and the image does not move.
+    var top = 0, k, mag;
+    for (c = 0; c < 2; c++) {
+      d = buf.getChannelData(c);
+      for (k = 0; k < n; k++) { mag = d[k] < 0 ? -d[k] : d[k]; if (mag > top) top = mag; }
     }
     if (top > 0.9) {
       var back = 0.9 / top;
@@ -781,6 +1120,19 @@
     lowpassLoop(L, sr, th.cutoff, 0.707);
     lowpassLoop(R, sr, th.cutoff, 0.707);
 
+    // The synth gets the same room as the noise does, at a fraction of the
+    // depth: enough that the chords have somewhere to decay into rather than
+    // simply stopping. A bigger, slower room than the weather stands in.
+    var amt = spaceAmount();
+    if (amt > 0) {
+      var send = new Float32Array(n), TL = new Float32Array(n), TR = new Float32Array(n);
+      for (i = 0; i < n; i++) send[i] = (L[i] + R[i]) * 0.5;
+      roomTail(send, sr, 1.5, 1.8, 1800, TL, TR);
+      mixTail(L, R, TL, TR, 0.30 * amt);
+      send = TL = TR = null;
+      coherentBass(L, R, sr, 200, 0.8 * amt);
+    }
+
     // Level the layers against each other and against the noise, which is
     // itself normalised to 0.18 RMS.
     var target = layer === "bed" ? 0.11 : 0.055;
@@ -799,7 +1151,7 @@
 
   var DEFAULTS = {
     mix: { brown: 60, green: 0, rain: 0, softrain: 0, ocean: 0 },
-    volume: 55, tone: 62,
+    volume: 55, tone: 62, space: "room",
     mode: "for", durationMin: 480, untilTime: "07:00",
     fadeInSec: 30, fadeOutMin: 5,
     waves: false, waveDepth: 30, wavePeriod: 16,
@@ -840,6 +1192,7 @@
       if (to) S.mix[to] = 60;
     }
   } catch (e) {}
+  if (!spaceById(S.space)) S.space = DEFAULTS.space;
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
   function presetById(id) {
@@ -1129,6 +1482,25 @@
   function padStopAt(when) {
     if (padA) { try { padA.stop(when); } catch (e) {} }
     if (padB) { try { padB.stop(when); } catch (e) {} }
+  }
+
+  // Space is baked into the loops rather than applied as they play, so
+  // changing it means writing every one of them again. Each sounding fader is
+  // crossfaded into its new buffer over a second, which is slow enough to pass
+  // for a room changing shape around you.
+  function rebuildSpace() {
+    bufCache = {};
+    padCache = null;
+    if (!ctx || !playing) { updateUI(); return; }
+    busyRender(spaceChips, "Preparing the room\u2026", function () {
+      var stopAt = endStopTime();
+      LAYER_IDS.forEach(function (id) {
+        if (!(S.mix[id] > 0)) return;
+        stopLayer(id, 1.2);
+        startLayer(id, 1.2, stopAt);
+      });
+      swapPad();
+    });
   }
 
   function swapPad() {
@@ -1503,6 +1875,17 @@
     });
   });
 
+  // Space
+  var spaceChips = $("spaceChips");
+  Array.prototype.forEach.call(spaceChips.children, function (b) {
+    b.addEventListener("click", function () {
+      if (S.space === b.dataset.space) return;
+      S.space = b.dataset.space; save();
+      updateUI();
+      rebuildSpace();
+    });
+  });
+
   // Duration
   var durChips = $("durChips");
   buildChips(durChips, DURATIONS,
@@ -1731,6 +2114,12 @@
     $("padDesc").textContent = th ? th.desc
       : "Five slow chord themes, from plain major to dark minor. Pick one to lay over the mix, or with every fader down, to hear it on its own.";
     $("plVal").textContent = S.padLevel + "%";
+    var sp = spaceById(S.space) || SPACES[0];
+    Array.prototype.forEach.call(spaceChips.children, function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.space === sp.id));
+    });
+    $("spaceVal").textContent = sp.name.toLowerCase();
+    $("spaceDesc").textContent = sp.desc;
     $("volVal").textContent = S.volume + "%";
     $("toneVal").textContent = toneLabel();
     $("wdVal").textContent = S.waveDepth + "%";
