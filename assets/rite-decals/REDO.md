@@ -57,3 +57,27 @@ It slices perfectly. Note that it carries **eleven** effect marks plus the
 empty brackets, and the plugin now has **twelve** effects — GAP has no mark of
 its own and falls back to type on the panel. A thirteenth cell for GAP (the
 silence before the drop) would finish the set; it is not urgent.
+
+## Also wanted now: seven more marks (added 2026-09-18)
+
+The plugin grew from twelve effects to **eighteen**, so the sheet's eleven
+marks no longer cover it. Seven effects currently fall back to their name in
+type on the panel, which works and looks like what it is.
+
+A second sheet in exactly the same hand would finish the set: **1024 x 1536,
+a 3 x 2 grid of 341 x 768 cells** (or simply another 4 x 3 sheet with five
+cells left empty, whichever is easier to draw), same ash white `#e6ddcd` on
+transparent, same stiff brush, same clear space, no grid lines.
+
+| mark | the effect | what it should read as |
+|---|---|---|
+| 1 | GAP | **A bold vertical stroke broken cleanly in two**, with a clear gap between the halves. The gap is the subject; the stroke exists to be interrupted. |
+| 2 | SWIRL | **A spiral that does not close** — three loose turns, each drawn with a visible wobble, as though the hand could not hold the circle. Distinct from cell 2 of the first sheet, which is a tight spiral with a straight tail. |
+| 3 | MANGLE | **A heavy horizontal bar torn across the middle**, the two halves offset vertically, with a ragged edge where it broke. |
+| 4 | SWARM | **Seven short parallel strokes leaning at slightly different angles**, crowded together but never touching — a flock, not a comb. |
+| 5 | DUST | **A solid square dissolving from its lower right into a coarse scatter of square specks**, the specks square rather than round. |
+| 6 | ORBIT | **An ellipse seen nearly edge on**, with a heavy dot on the near side of it and a light, broken arc on the far side where it passes behind. |
+| 7 | CHANT | **A vertical column of five horizontal bars of differing lengths**, widest in the middle, like a spectrum standing on end. |
+
+Everything else about the brief is unchanged. If only one gets drawn, make it
+GAP: it has been waiting since the first sheet.

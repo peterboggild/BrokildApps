@@ -67,6 +67,7 @@ target_sources(RITEOFPASSAGE PRIVATE
     engine/rop_loudness.cpp
     engine/rop_effects.cpp
     engine/rop_effects_more.cpp
+    engine/rop_effects_third.cpp
     engine/rop_rack.cpp)
 
 target_compile_definitions(RITEOFPASSAGE PUBLIC

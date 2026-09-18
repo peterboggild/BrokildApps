@@ -1,5 +1,6 @@
 #include "rop_effect.h"
 #include "rop_effects_more.h"
+#include "rop_effects_third.h"
 
 #include <cstring>
 #include <vector>
@@ -603,6 +604,16 @@ const Entry REGISTRY[] = {
     { &more::reverseDesc(), &more::makeReverse },
     { &more::brakeDesc(),   &more::makeBrake },
     { &more::diveDesc(),    &more::makeDive },
+
+    //  the third six (rop_effects_third.cpp), appended for the same reason
+    //  the second six were: an index that moves changes what a saved rite
+    //  means, and nothing is worth that
+    { &third::swirlDesc(),  &third::makeSwirl },
+    { &third::mangleDesc(), &third::makeMangle },
+    { &third::swarmDesc(),  &third::makeSwarm },
+    { &third::dustDesc(),   &third::makeDust },
+    { &third::orbitDesc(),  &third::makeOrbit },
+    { &third::chantDesc(),  &third::makeChant },
 };
 constexpr int kNumEffects = (int) (sizeof (REGISTRY) / sizeof (REGISTRY[0]));
 
