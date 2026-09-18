@@ -300,6 +300,21 @@ RiteEditor::RiteEditor (RiteProcessor& p) : AudioProcessorEditor (&p), proc (p)
     readout.setFont (juce::FontOptions (11.0f));
     addAndMakeVisible (readout);
 
+    /*  THE BUILD, ON THE FACE. Peter could not tell a new install from an
+        old one because nothing on this panel said which it was — the one
+        plugin in the fleet without a build id. The effect COUNT is printed
+        from numEffects() rather than typed, because a typed number can
+        disagree with the registry and is then worse than no number. */
+    build.setText (juce::String (ROP_BUILD_ID) + "   "
+                     + juce::String (numEffects()) + " EFFECTS",
+                   juce::dontSendNotification);
+    build.setJustificationType (juce::Justification::centredLeft);
+    //  smoke on charred wood was unreadable in the render, which defeats the
+    //  whole point of printing it — ash, and a size you can take in at a glance
+    build.setColour (juce::Label::textColourId, kAsh.withAlpha (0.66f));
+    build.setFont (juce::FontOptions (11.0f, juce::Font::bold));
+    addAndMakeVisible (build);
+
     //  the marker travelling through the gate
     position.setComponentID ("master");     // RiteLook gives only this one the marker
     position.setSliderStyle (juce::Slider::LinearHorizontal);
@@ -741,7 +756,8 @@ void RiteEditor::resized()
     if (overlay != nullptr) overlay->setBounds (getLocalBounds());
 
     auto head = getLocalBounds().removeFromTop (kHeadH).reduced (kInset, 0);
-    title.setBounds (head.getX(), 58, 260, 26);
+    title.setBounds (head.getX(), 54, 260, 26);
+    build.setBounds (head.getX() + 2, 78, 260, 14);
     readout.setBounds (head.getRight() - 320, 60, 320, 20);
     position.setBounds (head.getX(), 90, head.getWidth() - 230, 30);
     arrival.setBounds (head.getRight() - 110, 90, 110, 30);
