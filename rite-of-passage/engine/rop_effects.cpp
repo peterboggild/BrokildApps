@@ -1,4 +1,5 @@
 #include "rop_effect.h"
+#include "rop_effects_more.h"
 
 #include <cstring>
 #include <vector>
@@ -593,6 +594,15 @@ const Entry REGISTRY[] = {
     { &CHOP_D,  [] () -> Effect* { return new Chop; } },
     { &RISE_D,  [] () -> Effect* { return new Riser; } },
     { &GAP_D,   [] () -> Effect* { return new Gap; } },
+
+    //  the second six (rop_effects_more.cpp), APPENDED so that no
+    //  existing index moves and no saved rite changes meaning
+    { &more::grainDesc(),   &more::makeGrain },
+    { &more::bloomDesc(),   &more::makeBloom },
+    { &more::freezeDesc(),  &more::makeFreeze },
+    { &more::reverseDesc(), &more::makeReverse },
+    { &more::brakeDesc(),   &more::makeBrake },
+    { &more::diveDesc(),    &more::makeDive },
 };
 constexpr int kNumEffects = (int) (sizeof (REGISTRY) / sizeof (REGISTRY[0]));
 

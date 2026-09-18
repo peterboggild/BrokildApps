@@ -1,30 +1,40 @@
 # RITE OF PASSAGE — what the controls are, and how to use it
 
-*Written 2026-09-18 from the code as built (build 260918.1), not from the design.
-Where the panel does not yet match the design, this says so. Pictures of the
-real panel, rendered by `ropshot`: `docs/panel-empty.png`, `docs/panel-loaded.png`,
-`docs/panel-midway.png`.*
+*Written from the code as built (build 260918.2), not from the design. Pictures
+of the real panel, rendered by `ropshot`: `docs/panel-empty.png`,
+`docs/panel-loaded.png`, `docs/panel-midway.png`, `docs/panel-flat.png`.*
 
 ## What it is, in one paragraph
 
 An insert effect for the bar before a drop. You put it on a track (or a bus),
 load up to six effects into six **slots**, and tell each slot *where* along one
-master slider it should start and finish moving from its **A** setting to its
-**B** setting. Then you automate that one slider — **POSITION** — from 0 to
-100 % over the build. The slots ignite one after another as the slider passes
-their entry points. At the end you fire **ARRIVAL**, a separate command, and
-every slot lets go on the next bar line, to the sample, with a sub-bass impact
-under it. Scrubbing the slider never fires the drop; only ARRIVAL does.
+master slider it should travel from its **A** setting to its **B** setting.
+Then you automate that one slider — **POSITION** — from 0 to 100 % over the
+build. The slots ignite one after another as the slider passes their entry
+points. At the end you fire **ARRIVAL**, a separate command, and every slot
+lets go on the next bar line, to the sample, with a sub-bass impact under it.
+Scrubbing the slider never fires the drop; only ARRIVAL does.
 
-**A fresh instance does nothing.** Every slot is empty, so POSITION moves
-nothing and the audio passes straight through. That is by design (an empty
-rite is bit-transparent) but it is also why it can look broken at first.
-Assign an effect to a slot and it comes alive.
+## READ THIS FIRST: why a new slot seems to do nothing
+
+**A slot you have just filled cannot move, and that is deliberate.** Choosing
+an effect from a lane's menu seeds *both* sides of that slot — A and B — with
+the effect's own default settings. A equals B, so the slot resolves to the same
+value at every position on the slider, and **ENTER, EXIT, DEPTH and CURVE all
+do nothing until you change something in the B row.** This is on purpose:
+loading an effect never changes your sound until you ask it to.
+
+The panel now says so rather than leaving you to work it out. A slot that
+cannot travel has its span **hatched out** on the lane, its **name in amber**
+instead of ash, and a line under the A/B editor telling you to move a B knob.
+
+So the first move after choosing an effect is always the same: **click the
+lane, then change a knob in the bottom (B) row.**
 
 ## Signal path
 
-    in → slot 1 → slot 2 → … → slot 6 → stereo stage (SPREAD / TURN / MONO GATE)
-       → MIX (dry/wet) → OUTPUT → BWFX rack (post-chain) → out
+    in -> slot 1 -> slot 2 -> ... -> slot 6 -> stereo stage (SPREAD / TURN / MONO GATE)
+       -> MIX (dry/wet) -> OUTPUT -> BWFX rack (post-chain) -> out
 
 Slots are in series, top to bottom. Slot order is chain order.
 
@@ -42,93 +52,104 @@ orphans an automation lane.
 | **OUTPUT** | −24…+12 dB | output trim |
 | **SPREAD** | 0–100 % | the left and right channels run the score slightly apart, so the two sides of the transition arrive at different moments — width without panning |
 | **TURN** | −100…+100 % | rotates the stereo field, up to ±45°, energy preserving |
-| **MONO GATE** | 0–100 % | how far toward mono the mix collapses over the LAST 15 % of the travel; ARRIVAL releases it back to full width — the classic "narrow, then open on the drop" |
-| **BWFX MACRO 1–5** | | the World FX rack's five macros (the rack itself sits post-chain, default empty) |
+| **MONO GATE** | 0–100 % | how far toward mono the mix collapses over the LAST 15 % of the travel; ARRIVAL releases it back to full width |
+| **BWFX MACRO 1–5** | | the World FX rack's five macros. The **BWFX** button in the header opens the rack's face. |
 
 ## Each slot (one lane on the panel)
 
-From left to right on a lane:
+Left to right, and the panel now prints these as column headings:
 
 | control | what it does |
 |---|---|
 | **tick box** | slot on/off |
-| **effect menu** | which effect the slot holds ("—" = empty; duplicates are allowed) |
-| **ENTER** (first slider) | the POSITION at which this slot starts moving from A toward B (0–100 % of the travel) |
-| **EXIT** (second slider) | the POSITION at which it reaches B. Before ENTER the slot sits at A; after EXIT it holds at B. |
-| **DEPTH** (third slider) | how far along the A→B route it actually gets by EXIT. 60 % means it is still on its way when the drop lands, which is often the better sound. |
+| **socket** | the effect's own mark, struck into iron. It warms to ember as the lane catches. |
+| **EFFECT** | which effect the slot holds ("EMPTY" = none; duplicates are allowed). **Amber means the slot cannot travel: A still equals B.** |
+| **ENTER** | the POSITION at which this slot starts moving from A toward B |
+| **EXIT** | the POSITION at which it reaches B. Before ENTER the slot sits at A; after EXIT it holds at B. |
+| **DEPTH** | how far along the A→B route it actually gets by EXIT. 60 % means it is still on its way when the drop lands, which is often the better sound. |
 | **PLACE** (ST / MID / SIDE / L / R) | which part of the stereo field the slot works on |
-| **TAIL** (BYPASS / SPILL / CLEAR) | what ARRIVAL does to this slot: BYPASS stops it dead; SPILL stops feeding it but lets its tail ring on (the echo or wash spilling over the downbeat); CLEAR silences it and zeroes its buffers (the vacuum) |
-| **CURVE** (LIN / ACCEL / DECEL / S / PEAK) | the shape of the A→B travel: linear; late then a rush (x³); fast then settling; S-curve; out and back (PEAK reaches B in the middle and returns to A) |
+| **ON ARRIVAL** (STOP / SPILL / CLEAR) | what ARRIVAL does to this slot: STOP kills it dead; SPILL stops feeding it but lets its tail ring on over the downbeat; CLEAR silences it and zeroes its buffers (the vacuum) |
+| **CURVE** (LIN / ACCEL / DECEL / S / PEAK) | the shape of the A→B travel: linear; late then a rush; fast then settling; S-curve; out and back (PEAK reaches B in the middle and returns to A) |
 
-The lane's coloured band shows its ENTER–EXIT span; it turns to ember as the
-marker crosses it. Click a lane to select it; the **A / B editor** below then
-shows that slot's parameters — top row **A** (yellow), bottom row **B**
-(ember). A parameter whose A equals its B does not move.
+The lane's band shows its ENTER–EXIT span and turns to ember as the marker
+crosses it. Click a lane to select it; the **A / B editor** below shows that
+slot's parameters, top row **A** (yellow), bottom row **B** (ember). A
+parameter whose A equals its B does not move.
 
-Not on the panel yet, but in the state: per-parameter curve overrides,
-the stepped-parameter grid (bar / ½ / ¼ — a STUTTER division only changes
-on a musical boundary), the ARRIVAL settings (grid, impact on/off, impact
-tune 48 Hz, decay 700 ms, level −6 dB, restore-dry), the mono-gate span and the
-bass-mono corner.
+## The twelve effects
 
-## The six effects that exist
-
-| effect | what it is | parameters (A and B each) | level rule | pitch |
+| effect | what it is | parameters (A and B each) | level | pitch |
 |---|---|---|---|---|
-| **CLIMB** | resonant filter sweep to self-oscillation — the spine of a build | MODE LP/BP/HP · CUTOFF 20 Hz–20 kHz · RESO 0–100 % · DRIVE 0–100 % | spectral: loudness follows what the filter removes, resonance adds none | exact |
-| **TAPE** | analogue echo whose head moves: changing TIME bends the pitch (REPITCH) or crossfades (FADE); MOTOR is how heavy the head is, so it overshoots and wobbles into place; FEEDBACK past 100 % runs away | TIME 20–1500 ms · FEEDBACK 0–120 % · MOTOR 1–2000 ms · MODE REPITCH/FADE · DRIVE · WOW · MIX | neutral on the dry path | moves, in REPITCH |
-| **STUTTER** | captures a slice and repeats it, so time stops; tighten the division toward a buzz; PITCH per repeat; CAPTURE REFRESH takes a new slice each time, HOLD keeps the first | DIV 1/4 · 1/8 · 1/8T · 1/16 · 1/16T · 1/32 · DEPTH · DECAY · PITCH ±12 st · CAPTURE | neutral: the slice is matched to what it replaced | exact at PITCH 0 |
-| **CHOP** | gates the LIVE signal rhythmically, so time continues; accelerate RATE from A to B | RATE 1/4 … 1/32 (same six divisions) · DEPTH · DUTY 10–90 % · SLEW 0.1–50 ms | neutral: duty is compensated, three CHOPs in series stay the same loudness | exact |
-| **RISER** | a generator: noise, tone or a Shepard (endless) climb, mixed IN — works even when the bar before the drop is silent | SOURCE NOISE/TONE/SHEPARD · FREQ 50 Hz–12 kHz · RESO · LEVEL −60…+6 dB · WIDTH | intentional: LEVEL is the point | moves |
-| **GAP** | the silence before the drop, placeable anywhere on the score — a ⅛ hole at 85 % of the travel, not only at the end | DEPTH 0–100 % · EDGE 0.3–80 ms | intentional | exact |
+| **CLIMB** | resonant filter sweep to self-oscillation — the spine of a build | MODE LP/BP/HP · CUTOFF · RESO · DRIVE | spectral | exact |
+| **TAPE** | analogue echo whose head moves: changing TIME bends the pitch (REPITCH) or crossfades (FADE) | TIME · FEEDBACK · MOTOR · MODE · DRIVE · WOW · MIX | neutral | moves in REPITCH |
+| **STUTTER** | captures a slice and repeats it, so time stops | DIV · DEPTH · DECAY · PITCH · CAPTURE | neutral | exact at PITCH 0 |
+| **CHOP** | gates the LIVE signal rhythmically, so time continues | RATE · DEPTH · DUTY · SLEW | neutral | exact |
+| **RISER** | a generator: noise, tone or a Shepard climb, mixed IN | SOURCE · FREQ · RESO · LEVEL · WIDTH | intentional | moves |
+| **GAP** | the silence before the drop, placeable anywhere on the score | DEPTH · EDGE | intentional | exact |
+| **GRAIN** | the music breaks into particles, then a cloud | SIZE · DENSITY · SCATTER · SPREAD · MIX | neutral, computed | exact at SPREAD 0 |
+| **BLOOM** | a small room growing into an enormous wash; FREEZE at 100 % holds it for ever | SIZE · DECAY · DAMP · MOD · FREEZE · MIX | neutral, measured | exact |
+| **FREEZE** | the harmonic fingerprint held while the rhythm dissolves | BLUR · HOLD · CAPTURE REFRESH/HOLD | neutral | exact |
+| **REVERSE** | each division played back to front over the next one | DIV · DEPTH · EDGE | neutral | exact |
+| **BRAKE** | the whole signal grinding to a halt, or launching | SPEED 0–200 % | SPEED is a level knob | moves |
+| **DIVE** | the source itself bending into the drop | SEMIS −24…+12 · GRAIN | SEMIS is a level knob | moves |
 
-Not built yet (designed, named in the README as "to come"): GRAIN, BLOOM,
-FREEZE, REVERSE, BRAKE, DIVE.
+**BRAKE only launches out of a stop.** Above 100 % the playback head is trying
+to catch up with the present, and from rest there is nothing to catch up to —
+it cannot read the future. Brake first, then let it go: that is the gesture.
+
+**BLOOM's FREEZE is exact.** At 100 % the loop gain is exactly 1.0, the
+modulation stops and the delays are rounded to whole samples, so a frozen wash
+neither creeps nor decays. The bench holds it flat over sixty seconds.
 
 ## A first rite, step by step
 
 1. Insert Rite of Passage on the drum bus or the master. Nothing changes yet.
-2. Lane 1: choose **CLIMB**. Click the lane. In the A/B editor set A CUTOFF
-   20000 and B CUTOFF 300, B RESO 60. Leave ENTER at 0 and EXIT at 100 %.
-3. Lane 2: choose **CHOP**. Set ENTER to about 50 %, EXIT 95 %. A RATE = 1/4,
-   B RATE = 1/16. Set CURVE to ACCEL so the rate rushes at the end.
+2. Lane 1: choose **CLIMB**. Click the lane. In the B row set CUTOFF to 300 Hz
+   and RESO to 60 %. (Until you do, the lane stays hatched.) Leave ENTER at 0
+   and EXIT at 100 %.
+3. Lane 2: choose **CHOP**. ENTER about 50 %, EXIT 95 %. A RATE 1/4, B RATE
+   1/16. CURVE = ACCEL so the rate rushes at the end.
 4. Lane 3: choose **RISER**. ENTER 30 %, EXIT 100 %. A LEVEL −60 dB,
    B LEVEL −6 dB, B FREQ 8000. SOURCE NOISE.
 5. Lane 4: choose **GAP**. ENTER 92 %, EXIT 100 %. A DEPTH 0, B DEPTH 100.
-   TAIL CLEAR.
+   ON ARRIVAL = CLEAR.
 6. Set **MONO GATE** to 60 %.
-7. In the DAW draw a POSITION ramp 0 → 100 % over the last four bars before
-   the drop. Draw an ARRIVAL blip that goes to "on" just BEFORE the bar line
-   of the drop (up to a beat before is fine: it fires on the next bar
-   boundary, sample-accurately). Draw it back to "off" after.
-8. Play. The filter closes across the four bars, the chop starts halfway and
-   accelerates, the riser rises from bar two, the mix narrows to mono in the
-   last 15 %, the gap cuts the last half-beat, and on the bar the chain lets
-   go: dry signal back in one block, full width restored, a 48 Hz impact
-   under the first hit.
+7. In the DAW draw a POSITION ramp 0 → 100 % over the last four bars before the
+   drop. Draw an ARRIVAL blip that goes "on" just before the bar line of the
+   drop, and back to "off" after.
+8. Play. The filter closes across four bars, the chop starts halfway and
+   accelerates, the riser rises from bar two, the mix narrows in the last 15 %,
+   the gap cuts the last half-beat, and on the bar the chain lets go.
 
-Without a host clock (a standalone test, or a host that reports none) the
-plugin free-runs at 120 BPM, so ARRIVAL still lands on a bar of its own clock.
+Two more worth trying once that works: **DIVE** on the last bar with B SEMIS at
+−12 (the whole track bending into the drop), and **BLOOM** with B FREEZE at
+100 % and ON ARRIVAL = SPILL, so the wash is caught and hangs over the downbeat.
 
-## What is verified, and what is not
+Without a host clock the plugin free-runs at 120 BPM, so ARRIVAL still lands on
+a bar of its own clock.
 
-- Engine bench: 133 checks, all clear on this machine (the score is obeyed,
-  loudness contracts held per effect, ARRIVAL sample-accurate, rendering
-  identical at 64 and 256-sample blocks, six slots at 0.7 % of a core).
-- Wrapper harness: 20 checks, all clear (parameters, buses, state round trip,
-  a rite from a newer build tolerated, scrubbing fires nothing, ARRIVAL fires).
-- Panel snapshot: 3 checks, all clear; the pictures in `docs/`.
+## What is verified
+
+- **Engine bench, 193 checks, all clear**: the score is obeyed, the loudness
+  contract holds per effect, ARRIVAL is sample-accurate, rendering is identical
+  at 64 and 256-sample blocks, six loaded slots cost 0.7 % of one core.
+- **Anti-aliasing.** BRAKE and DIVE read a delay line faster than it was
+  written, which folds everything above the new Nyquist back into the band.
+  Both run on a 2x oversampled line. Measured fold of a 14 kHz tone: DIVE at
+  +12 st **−64.6 dB** (it was 0.0 dB before), BRAKE launching out of a stop
+  −64.6 dB, GRAIN at full SPREAD −103.3 dB.
+- **Wrapper harness, 20 checks**: parameters, buses, state round trip, a rite
+  from a newer build tolerated, scrubbing fires nothing, ARRIVAL fires.
+- **Panel snapshot, 4 checks**: a travelling lane carries heat, and a lane
+  whose A equals its B carries none.
 - **Not verified: nobody has heard it in a DAW yet.**
 
-## Panel faults seen on the rendered picture (to fix)
+## What the panel still does not have
 
-- The empty-slot entry shows as mojibake ("â□□") — the em dash went through
-  `juce::String(const char*)`, which is Latin-1 (the High Tide lesson).
-- The three lane sliders carry no labels; nothing says which is ENTER, EXIT
-  or DEPTH.
-- The A/B knobs are 42 px with value boxes that read "800.0000…" and
-  stepped choices that read "0" instead of "LP".
-- "BWFX" is drawn as text only; there is no button and no rack overlay, so
-  the World FX rack cannot be opened from the panel (its macros are still
-  host parameters).
-- The PLACE / TAIL / CURVE menus are unlabelled and TAIL is truncated to "BYPA…".
+- **GAP has no mark of its own.** The glyph sheet carries eleven effect marks
+  and the empty brackets; GAP falls back to its name in type.
+- **The wordmark is not used.** The delivered plank is shorter than its own
+  lettering, so every letter is cut off at the bottom. The panel draws the
+  title in type. See `assets/rite-decals/REDO.md`.
+- **The BWFX face shows the five macros only.** The rack's own module editor is
+  not on the panel yet; the macros are the part a DAW can automate.

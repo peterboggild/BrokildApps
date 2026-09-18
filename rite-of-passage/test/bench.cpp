@@ -122,6 +122,22 @@ double measureF0 (const std::vector<float>& x, int from, int len, double lo = 80
 
 double centsBetween (double a, double b) { return 1200.0 * std::log2 (a / b); }
 
+//  magnitude at one frequency (Goertzel), Hann windowed so a neighbouring
+//  partial cannot leak into the bin and be reported as an alias
+double toneMag (const std::vector<float>& x, int from, int len, double hz)
+{
+    const double w = 2.0 * M_PI * hz / kFs;
+    const double c = 2.0 * std::cos (w);
+    double s1 = 0, s2 = 0;
+    for (int i = 0; i < len; ++i)
+    {
+        const double win = 0.5 * (1.0 - std::cos (2.0 * M_PI * i / (len - 1)));
+        const double s0 = win * x[(size_t) (from + i)] + c * s1 - s2;
+        s2 = s1; s1 = s0;
+    }
+    return 2.0 * std::sqrt (std::max (0.0, s1 * s1 + s2 * s2 - c * s1 * s2)) / len;
+}
+
 // --- running the rack ------------------------------------------------------
 struct Host
 {
@@ -694,6 +710,85 @@ int main()
         CHECK (drop >= loudestBuild - 0.5,
                "the drop (%.1f LUFS) is quieter than the build (%.1f LUFS) — the plugin "
                "exists to make this false", drop, loudestBuild);
+    }
+
+    // -- 13b. ALIASING ON THE FAST READS --------------------------------------
+    /*  The one place this plugin can sound cheap. Reading a delay line FASTER
+        than it was written decimates it, and everything above the new Nyquist
+        folds back into the band as a spurious tone — the sound of a bad
+        varispeed. DIVE +12 st reads at exactly rate 2, so a 14 kHz tone should
+        land at 28 kHz, i.e. nowhere: any energy at the fold (48 - 28 = 20 kHz)
+        is an artefact and nothing else. Downward is the control: rate 0.5
+        interpolates rather than decimates and cannot alias at all. */
+    {
+        std::printf ("  aliasing on the fast reads (a tone past the new Nyquist must not fold back):\n");
+        const int dive = effectTypeByName ("dive");
+        const int nLen = (int) (kFs * 2.0);
+
+        struct Case { float semis; double inHz, foldHz; const char* label; };
+        const Case cases[] = {
+            { +12.0f, 14000.0, 20000.0, "DIVE +12 st (reads at 2x)" },
+            {  -0.0f, 14000.0, 20000.0, "DIVE   0 st (the exact path)" },
+            { -12.0f, 14000.0, 20000.0, "DIVE -12 st (reads at 0.5x)" },
+        };
+
+        for (const auto& cs : cases)
+        {
+            Host h; h.prepare (256);
+            h.rack.setSlotEffect (0, dive);
+            setFlat (h.rack, 0, dive);
+            setAB (h.rack, 0, 0, cs.semis, cs.semis);
+            std::vector<float> l, r; fillSine (l, r, nLen, cs.inHz, 0.5f);
+            const double inMag = toneMag (l, (int) kFs / 2, 32768, cs.inHz);
+            h.run (l, r, 256, 1.0f, 1.0f);
+            const double fold = toneMag (l, (int) kFs / 2, 32768, cs.foldHz);
+            const double db = 20.0 * std::log10 ((fold + 1e-12) / (inMag + 1e-12));
+            std::printf ("    %-28s fold at %.0f kHz  %+6.1f dB\n", cs.label, cs.foldHz * 0.001, db);
+            if (cs.semis > 0.0f)
+                CHECK (db < -60.0, "DIVE +12 st folds a 14 kHz tone back at %.1f dB — that is the sound of a cheap varispeed", db);
+            else
+                CHECK (db < -80.0, "DIVE at %.0f st should not alias at all, but the fold is %.1f dB", (double) cs.semis, db);
+        }
+        /*  BRAKE only reads fast while it is CATCHING UP: from rest the head
+            is already at the present and cannot read the future, so a launch
+            has to follow a stop. Brake first, then launch, and measure the
+            catch-up. */
+        {
+            Host h; h.prepare (256);
+            const int brake = effectTypeByName ("brake");
+            h.rack.setSlotEffect (0, brake);
+            setFlat (h.rack, 0, brake);
+            setAB (h.rack, 0, 0, 20.0f, 20.0f);              // stop: the head falls behind
+            std::vector<float> l, r; fillSine (l, r, nLen, 14000.0, 0.5f);
+            const double inMag = toneMag (l, (int) kFs / 2, 32768, 14000.0);
+            h.run (l, r, 256, 1.0f, 1.0f);
+
+            setAB (h.rack, 0, 0, 200.0f, 200.0f);            // launch: it reads at 2x
+            std::vector<float> l2, r2; fillSine (l2, r2, nLen, 14000.0, 0.5f);
+            h.run (l2, r2, 256, 1.0f, 1.0f);
+            const double fold = toneMag (l2, 4096, 32768, 20000.0);
+            const double db = 20.0 * std::log10 ((fold + 1e-12) / (inMag + 1e-12));
+            std::printf ("    %-28s fold at 20 kHz  %+6.1f dB\n", "BRAKE launch out of a stop", db);
+            CHECK (db < -60.0, "BRAKE folds a 14 kHz tone back at %.1f dB while it catches up", db);
+        }
+
+        /*  GRAIN reads fast too: SPREAD gives each grain its own pitch, up to
+            an octave. Measured rather than assumed — a decorrelated cloud
+            hides an artefact far better than a tone does, but not for ever. */
+        {
+            Host h; h.prepare (256);
+            const int gr = effectTypeByName ("grain");
+            h.rack.setSlotEffect (0, gr);
+            setFlat (h.rack, 0, gr);
+            setAB (h.rack, 0, 3, 12.0f, 12.0f);              // SPREAD, the full octave
+            std::vector<float> l, r; fillSine (l, r, nLen, 14000.0, 0.5f);
+            const double inMag = toneMag (l, (int) kFs / 2, 32768, 14000.0);
+            h.run (l, r, 256, 1.0f, 1.0f);
+            const double fold = toneMag (l, (int) kFs / 2, 32768, 20000.0);
+            const double db = 20.0 * std::log10 ((fold + 1e-12) / (inMag + 1e-12));
+            std::printf ("    %-28s fold at 20 kHz  %+6.1f dB\n", "GRAIN SPREAD 12 st", db);
+            CHECK (db < -60.0, "GRAIN at full SPREAD folds a 14 kHz tone back at %.1f dB", db);
+        }
     }
 
     // -- 14. COST -------------------------------------------------------------
