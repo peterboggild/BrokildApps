@@ -76,7 +76,7 @@ crosses it. Click a lane to select it; the **A / B editor** below shows that
 slot's parameters, top row **A** (yellow), bottom row **B** (ember). A
 parameter whose A equals its B does not move.
 
-## The twelve effects
+## The eighteen effects
 
 | effect | what it is | parameters (A and B each) | level | pitch |
 |---|---|---|---|---|
@@ -92,6 +92,27 @@ parameter whose A equals its B does not move.
 | **REVERSE** | each division played back to front over the next one | DIV · DEPTH · EDGE | neutral | exact |
 | **BRAKE** | the whole signal grinding to a halt, or launching | SPEED 0–200 % | SPEED is a level knob | moves |
 | **DIVE** | the source itself bending into the drop | SEMIS −24…+12 · GRAIN | SEMIS is a level knob | moves |
+| **SWIRL** | a room that will not hold still: the lines are chorused twenty times as deep as BLOOM's and the wet field turns with them | SIZE · DECAY · WARP · RATE · TONE · MIX | measured; DECAY and TONE are level knobs | moves, by design |
+| **MANGLE** | four ways to break it, from Martian Gain. Travelling ENGINE across the build walks warm, ugly, folded, destroyed | ENGINE VALVE/FUZZ/SINE FOLD/ANNIHILATE · DRIVE · BIAS · CHAR · TONE · MIX | measured, K-weighted; DRIVE is held | exact |
+| **SWARM** | one voice becomes a crowd: up to eight copies, each at its own pitch offset and its own wander | VOICES · DETUNE · DEPTH · RATE · SPREAD · MIX | computed | moves |
+| **DUST** | older than the record: quantise, hold, wobble the transport, add the room the tape was in | BITS · RATE · WOW · NOISE · TONE · MIX | measured; NOISE and TONE are level knobs | moves |
+| **ORBIT** | round the head, and behind it. ANGLE is where on the circle the source sits, and the score sweeps it | ANGLE · SPIN · WIDTH · REAR · SHADE · MIX | ANGLE and SPIN are level knobs | moves |
+| **CHANT** | the track is made to speak. What arrives is the modulator; the carrier is made here | CARRIER · PITCH · BANDS · FORMANT · RESPONSE · TONE · MIX | measured | moves |
+
+**ORBIT's back is measured, not asserted.** Behind the head it is 3.3 dB quieter,
+6.6 dB darker at the top and 24 samples (0.5 ms) late, because the path round a
+skull is longer than the path to the front of it. All three cues together are
+what sell the circle; a pan pot gives you only the first.
+
+**CHANT has no second input, so it makes its own carrier.** An insert carries one
+signal, so what arrives is the modulator and the carrier is generated inside with
+its own PITCH. Feed it a 440 Hz tone at PITCH 0 and it speaks at 65.4 Hz, the
+carrier's own note. Sweep PITCH from the score and the machine rises with the build.
+
+**MANGLE's four engines are a road, not a menu.** VALVE flatters, FUZZ ruins, SINE
+FOLD turns the wave inside out, ANNIHILATE leaves gravel. ENGINE is stepped, so
+travelling it from A to B changes engine on a musical boundary rather than
+mid-phrase.
 
 **BRAKE only launches out of a stop.** Above 100 % the playback head is trying
 to catch up with the present, and from rest there is nothing to catch up to —
@@ -130,9 +151,9 @@ a bar of its own clock.
 
 ## What is verified
 
-- **Engine bench, 193 checks, all clear**: the score is obeyed, the loudness
+- **Engine bench, 303 checks, all clear**: the score is obeyed, the loudness
   contract holds per effect, ARRIVAL is sample-accurate, rendering is identical
-  at 64 and 256-sample blocks, six loaded slots cost 0.7 % of one core.
+  at 64 and 256-sample blocks, the six most expensive effects loaded at once cost 4.2 % of one core.
 - **Anti-aliasing.** BRAKE and DIVE read a delay line faster than it was
   written, which folds everything above the new Nyquist back into the band.
   Both run on a 2x oversampled line. Measured fold of a 14 kHz tone: DIVE at
@@ -146,7 +167,7 @@ a bar of its own clock.
 
 ## What the panel still does not have
 
-- **GAP has no mark of its own.** The glyph sheet carries eleven effect marks
+- **Seven effects have no mark of their own.** The glyph sheet carries eleven marks
   and the empty brackets; GAP falls back to its name in type.
 - **The wordmark is not used.** The delivered plank is shorter than its own
   lettering, so every letter is cut off at the bottom. The panel draws the
