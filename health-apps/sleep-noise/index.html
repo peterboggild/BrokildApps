@@ -330,7 +330,7 @@
   </div>
   <div class="ticks"><span>Mono</span><span>Stereo</span><span>3D</span></div>
   <p class="desc" id="spaceDesc"></p>
-  <p class="note">Halfway along is plain stereo, which is how the app has always sounded. Left of it the two channels are drawn together towards one, which is worth having for a single earbud. Right of it each sound is built as a handful of sources standing around you instead of as two channels: every one of them reaches the two ears a fraction of a millisecond apart, shaded by the head in between and coloured for its height, with a soft room behind the lot. Rain then falls mostly overhead, soft rain gathers at a window off to the left and the ocean lies a long way out in front. Headphones hear nearly all of it — that is where the noise stops sitting on the phone and starts filling the room; a speaker hears the least, though it loses nothing, since the bottom of the band is folded back to the middle where one speaker was going to put it anyway. Moving the right-hand half rebuilds the loops, which takes a moment; the left-hand half is instant.</p>
+  <p class="note"><b>Headphones, or speakers set apart.</b> A phone's own two speakers sit centimetres apart, so most of the placing is lost before it reaches you. Moving the right-hand half rebuilds the loops.</p>
 </section>
 
 <section>
@@ -687,12 +687,12 @@
 
   function spaceText() {
     var v = S.space;
-    if (v === 0) return "One signal in both ears. The safest setting for a single earbud, or for a phone lying face down on a speaker of its own.";
-    if (v < 50) return "The two channels drawn part of the way together. Narrower than the app has ever been, and steadier on one ear than full stereo is.";
-    if (v === 50) return "Two unrelated noises, one per channel: wide and even, with no room around it — how the app has always sounded.";
-    if (v < 80) return "Plain stereo with the room mixed in behind it. The placed version is there in full, but you are hearing more of the old sound than of it.";
-    if (v < 100) return "Mostly the room now: sources standing around you, the head's shadow between them, and only a little of the plain pair left underneath.";
-    return "The room alone. Every source placed, the head's shadow at full depth, the tail behind them — and nothing of the flat pair left. Strongest over headphones.";
+    if (v === 0) return "One signal in both ears. Best for a single earbud.";
+    if (v < 50) return "The channels drawn part of the way together.";
+    if (v === 50) return "Two unrelated noises, one per channel. How the app has always sounded.";
+    if (v < 80) return "Plain stereo with the room behind it.";
+    if (v < 100) return "Mostly the room: sources placed around you.";
+    return "The room alone. Every source placed. Wants headphones.";
   }
 
   // Head radius and the speed of sound: between them they set how late and how
