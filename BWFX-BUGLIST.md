@@ -815,3 +815,35 @@ must add tempo-change coverage: timing after the change, worst sample step
 across it, and phase against the bar for every synced module.
 
 Probe kept at `test/tempoprobe.cpp` (target `tempoprobe`).
+
+---
+
+## SHIMMER: the bench proves BOUNDED, not STABLE — AWAITING GO *(found 2026-09-18)*
+
+Building Battlestar Overdrive turned up a genuine self-oscillator in an FDN
+with an octave-up folded into its feedback — the same architecture SHIMMER
+uses. There, the shimmer path grew to full scale and sat there across a third
+of the knob's range, **and passed every bounds check the whole time, because
+the output ceiling keeps a runaway neatly inside full scale.** Peter found it
+by ear; no test did.
+
+**SHIMMER is NOT known to be broken, and it is structurally safer than the
+Battlestar version was**: its damping is applied on the READ (`damp[k].lp` in
+`modules/bwfx_modules.cpp`), so the injected octave is filtered on every pass
+rather than bypassing the filter; there is a high-pass on the shimmer path
+(`shHp`); the Hadamard is normalised; and `ceilSoft` sits in the loop
+unconditionally with a comment already naming the runaway lesson.
+
+What is missing is the test. The loop gain is `fb` (max 0.945) **plus** a
+shimmer path whose gain rises with `shAmt`, and nothing anywhere checks that
+the sum stays under unity — only that the output is bounded, which is exactly
+what an oscillator into a ceiling also measures.
+
+**The check to add** (it is about ten lines, and it is the only thing that can
+tell a long tail from an oscillator): render a short burst, then silence, and
+measure the tail in windows at 1–2 s, 4–5 s and 8–9 s across the whole SHIMMER
+and DECAY range. A tail falls monotonically; an oscillator stalls or grows.
+Pattern to copy: `b/BattlestarOverdrive/test/quality.cpp` §7.
+
+Worth pointing the same check at Blade Ruiner's LOS ANGELES shimmer and High
+Tide, for the same reason.
