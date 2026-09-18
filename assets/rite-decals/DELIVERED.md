@@ -19,5 +19,13 @@ All requested parts were delivered as PNG files at the specified dimensions.
 
 ## Deviations
 
-None. The files use the requested aspect ratios, dimensions, opacity or transparency, filenames, and cold/unlit treatment.
+The original delivery contained excess transparent or empty canvas in parts
+01–06 and 12. Parts 01–06 were recoverable by the plugin's ingest step, which
+crops the drawn content and rebuilds the tiling grounds. The original part 12
+also clipped the bottoms of the letters and could not be recovered that way.
 
+Part 12 was regenerated and replaced. Its final canvas is 1536 × 256; the
+centred non-transparent plank measures approximately 1525 × 196 pixels at an
+alpha threshold of 8, leaving transparent margin above and below. The complete
+plank and every letter are visible, with clear wood above the cap height and
+below the baseline. No current deviation from the revised wordmark brief.
