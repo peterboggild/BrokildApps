@@ -24,9 +24,9 @@ The web version still works and is unaffected. It is the same file.
 
 | | |
 |---|---|
-| Web app | **Working**, unchanged in behaviour, 132 automated checks passing |
+| Web app | **Working**, unchanged in behaviour, 204 automated checks passing |
 | Capacitor project | **Set up**, Capacitor 8.5.1, Swift Package Manager (no CocoaPods) |
-| JavaScript side of the native bridge | **Written and tested** — 67 checks against a mock plugin |
+| JavaScript side of the native bridge | **Written and tested** — 80 checks against a mock plugin |
 | Swift audio engine | **Written. Never compiled.** No Apple toolchain existed on the machine it was written on |
 | App icon, launch screen | **Done** |
 | Privacy policy, support page | **Written and published** in the repo |
@@ -90,8 +90,8 @@ Code:
 On any machine with Node, from the repository root. Neither needs a Mac:
 
 ```bash
-node health-apps/sleep-noise/test/regression.mjs      # 132 checks, the web app
-node health-apps/sleep-noise/test/native-bridge.mjs   # 67 checks, the native path
+node health-apps/sleep-noise/test/regression.mjs      # 204 checks, the web app
+node health-apps/sleep-noise/test/native-bridge.mjs   # 80 checks, the native path
 ```
 
 If both pass, nothing has rotted. If the second one fails, the JavaScript side

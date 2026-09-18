@@ -54,10 +54,12 @@ function check(name, ok, detail = "") {
 const html = readFileSync(APP, "utf8");
 const script = html.match(/<script>\n([\s\S]*)\n<\/script>/)[1];
 
-// The generator half of the file: from the biquad down to the end of
-// makeBuffer, which is self-contained apart from LOOP_SEC / XFADE_SEC.
+// The generator half of the file: from the biquad down to the end of makePad.
+// It runs to the State section rather than stopping at the ambient synth,
+// because the spatial render calls lowpassLoop, which lives with the synth —
+// hoisting makes that work in the page, but not in an extracted slice.
 const dspStart = script.indexOf("  // Robert Bristow-Johnson biquad");
-const dspEnd = script.indexOf("  /* ============================================================\n     Ambient synth");
+const dspEnd = script.indexOf("  /* ============================================================\n     State");
 if (dspStart < 0 || dspEnd < 0) {
   console.error("regression: could not locate the DSP block in index.html — has it been restructured?");
   process.exit(2);
@@ -123,24 +125,44 @@ function measure(buf) {
   return { rms, peak, nonFinite, wrapStep, maxStep, dc, bal };
 }
 
+// The generators read S.space, so the harness supplies one. `space` is the
+// slider position: 50 is plain stereo, 100 the full binaural render.
+function buildDsp(space) {
+  return new Function(
+    "S",
+    dsp + "\nreturn { makeBuffer: makeBuffer, genRaw: genRaw, makePad: makePad, " +
+          "LOOP_SEC: LOOP_SEC, XFADE_SEC: XFADE_SEC, spaceAmount: spaceAmount };"
+  )({ space });
+}
+
 function dspSuite() {
-  console.log("\nDSP — generators (48 kHz, stub context)");
-  const make = new Function(
-    "ctxFactory",
-    dsp + "\nreturn { makeBuffer: makeBuffer, genRaw: genRaw, LOOP_SEC: LOOP_SEC, XFADE_SEC: XFADE_SEC };"
-  )();
+  const make = buildDsp(50);
 
   check("loop length is 20 s with a 1 s cross-fade",
     make.LOOP_SEC === 20 && make.XFADE_SEC === 1,
     `LOOP_SEC=${make.LOOP_SEC} XFADE_SEC=${make.XFADE_SEC}`);
 
+  // Both ends of the space slider have to hold the same invariants. The
+  // binaural render is a great deal more arithmetic than the flat pair, and
+  // nothing else measures it.
+  for (const space of [50, 100]) {
+    const label = space === 50 ? "stereo" : "3D";
+    const m2 = buildDsp(space);
+    console.log(`\nDSP — generators, ${label} (space ${space})`);
+    check(`${label}: spaceAmount is ${space === 50 ? 0 : 1}`,
+      m2.spaceAmount() === (space === 50 ? 0 : 1), String(m2.spaceAmount()));
+    dspPass(m2, label, space === 100);
+  }
+}
+
+function dspPass(make, label, spatial) {
   for (const sampleRate of [44100, 48000]) {
     for (const id of LAYERS) {
       const t0 = Date.now();
       const buf = make.makeBuffer(stubContext(sampleRate), id);
       const ms = Date.now() - t0;
       const m = measure(buf);
-      const tag = `${id}@${sampleRate / 1000}k`;
+      const tag = `${label} ${id}@${sampleRate / 1000}k`;
 
       check(`${tag}: no non-finite samples`, m.nonFinite === 0, `${m.nonFinite} bad`);
       check(`${tag}: peak within headroom`, m.peak <= 0.9001, `peak ${m.peak.toFixed(3)}`);
@@ -149,7 +171,7 @@ function dspSuite() {
       check(`${tag}: channels balanced`, m.bal > 0.8 && m.bal < 1.25, `L/R ${m.bal.toFixed(3)}`);
       check(`${tag}: loop seam inaudible`, m.wrapStep < m.maxStep,
         `wrap ${m.wrapStep.toFixed(4)} < max ${m.maxStep.toFixed(4)}`);
-      check(`${tag}: builds in reasonable time`, ms < 5000, `${ms} ms`);
+      check(`${tag}: builds in reasonable time`, ms < (spatial ? 20000 : 5000), `${ms} ms`);
     }
   }
 }

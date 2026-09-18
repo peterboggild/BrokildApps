@@ -136,7 +136,7 @@ path reads the pre-mixer `type` key and maps it onto the new faders.
 
 ## 2. Feature inventory (the regression baseline)
 
-Pinned down by `test/regression.mjs` — 132 automated checks, all passing at the
+Pinned down by `test/regression.mjs` — 204 automated checks, all passing at the
 baseline commit. Run it before and after every port change:
 
 ```
@@ -392,6 +392,44 @@ the web app is never at risk from native work.
 
 ---
 
+## 4b. The space slider, and what it cost on iOS
+
+Added to the web app after this port was under way: one slider from mono
+through plain stereo to a binaural render — a handful of virtual sources
+standing around the listener, delayed and shaded ear by ear, with a soft room
+behind them.
+
+**The top half ported for nothing.** The whole render happens inside
+`makeBuffer` and `makePad`, which is JavaScript, and the native path already
+runs those and ships the result to Swift as WAV. Not one line of the room is
+native. The offline DSP suite now measures both ends of the slider — peak,
+level, DC, channel balance and loop seam, at both sample rates — so the
+binaural render is as covered as the flat pair.
+
+**The bottom half did not.** On the web it is four gains in the live graph
+(`ChannelSplitter` → M/S matrix → `ChannelMerger`), following the finger for
+nothing. `AVAudioEngine` has no stock node for that. The options were a
+`kAudioUnitSubType_MatrixMixer` audio unit — the fiddliest CoreAudio API in the
+project, uncompiled, sitting on the master bus where a mistake is silence
+rather than a wrong width — or baking the fold into the loop like the room.
+
+Baked. It is a scalar 2×2 matrix on an already-rendered buffer, it commutes
+with everything downstream of it natively (the tone lowpass is the same linear
+filter on both channels; the swell and the master volume are scalars), and it
+runs in the JavaScript the test suite already covers. The cost is that moving
+the *left* half of the slider rebuilds the loops, where on the web it is
+instant. Given the project's posture — the failure that matters is a silent
+night — that is the right trade for a first release. A native matrix mixer
+would win the instant response back later.
+
+**One real bug this surfaced.** The loop cache was keyed
+`<id>-<sampleRate>.wav`. With the room rendered into the file, that key is
+wrong: the phone would have gone on serving last week's room for ever, with
+nothing to indicate why. The key is now `<id>-<sampleRate>-s<space>.wav`, the
+space travels with every call that touches the cache, and `clearCache` gained
+a `keepSpace` option so a session spent moving the slider can be pruned to the
+rendering actually in use.
+
 ## 5. Proposed source-tree changes
 
 Two constraints shaped this:
@@ -493,12 +531,12 @@ that word.
 
 | Phase | Where | Status |
 |---|---|---|
-| 1. Baseline + regression suite | here | **done** — 132 checks |
+| 1. Baseline + regression suite | here | **done** — 204 checks |
 | 2. This document | here | **done** |
 | 3. Capacitor scaffold, config, gitignore | here | **done** — Capacitor 8.5.1, SPM (no CocoaPods) |
 | 4. Audio backend chosen at runtime; Web Audio path untouched | here | **done** |
 | 5. Swift plugin (session, engine, timer, Now Playing, interruptions) | here | **written, never compiled** |
-| 6. Native JS backend + chunked WAV handoff + disk cache | here | **done** — 67 checks against a mock plugin |
+| 6. Native JS backend + chunked WAV handoff + disk cache | here | **done** — 80 checks against a mock plugin |
 | 7. iOS adaptations (chrome, haptics, idle timer, status bar, settings mirror) | here | **done** |
 | 8. Icon + launch screen assets | here | **done** |
 | 9. Docs, App Store metadata, privacy notes, privacy policy page | here | **done** |

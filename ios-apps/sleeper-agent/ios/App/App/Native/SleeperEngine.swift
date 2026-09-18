@@ -99,6 +99,11 @@ final class SleeperEngine {
     private var swellPeriod: Double = 16
     private var swellPhase: Double = 0
 
+    /// The slider position the sounding loops were rendered at. A layer
+    /// raised mid-session has to be loaded from the same rendering as the
+    /// ones already playing, or the room would change shape under one fader.
+    private var currentSpace: Int = 50
+
     private var fadeInSeconds: Double = 0
     private var fadeOutSeconds: Double = 0
     private var envelope: Float = 0             // master fade envelope, 0…1
@@ -169,15 +174,22 @@ final class SleeperEngine {
         return dir
     }
 
-    static func url(forLoop id: String, sampleRate: Int) -> URL {
+    /// The space setting is part of the filename, not just of the payload.
+    /// The room and the stereo width are both rendered into the loop, so a
+    /// file written at one slider position is simply the wrong sound at
+    /// another — and without this in the key the phone would go on playing
+    /// last week's room for ever, with nothing to indicate why.
+    static func url(forLoop id: String, sampleRate: Int, space: Int) -> URL {
         // The id is fixed by the app, never user input, but it lands in a file
         // path so it is filtered anyway.
         let safe = id.filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
-        return cacheDirectory.appendingPathComponent("\(safe)-\(sampleRate).wav")
+        let s = max(0, min(100, space))
+        return cacheDirectory.appendingPathComponent("\(safe)-\(sampleRate)-s\(s).wav")
     }
 
-    static func hasLoop(_ id: String, sampleRate: Int) -> Bool {
-        FileManager.default.fileExists(atPath: url(forLoop: id, sampleRate: sampleRate).path)
+    static func hasLoop(_ id: String, sampleRate: Int, space: Int) -> Bool {
+        FileManager.default.fileExists(
+            atPath: url(forLoop: id, sampleRate: sampleRate, space: space).path)
     }
 
     /// The hardware rate, so JavaScript can render at it and nothing has to be
@@ -187,10 +199,10 @@ final class SleeperEngine {
         return r > 0 ? Int(r.rounded()) : 48000
     }
 
-    private func loadBuffer(id: String, sampleRate: Int) -> AVAudioPCMBuffer? {
-        let url = Self.url(forLoop: id, sampleRate: sampleRate)
+    private func loadBuffer(id: String, sampleRate: Int, space: Int) -> AVAudioPCMBuffer? {
+        let url = Self.url(forLoop: id, sampleRate: sampleRate, space: space)
         guard let file = try? AVAudioFile(forReading: url) else {
-            log("no cached loop for \(id) at \(sampleRate) Hz")
+            log("no cached loop for \(id) at \(sampleRate) Hz, space \(space)")
             return nil
         }
         let frames = AVAudioFrameCount(file.length)
@@ -302,6 +314,9 @@ final class SleeperEngine {
         let durationSeconds: Double
         let title: String
         let subtitle: String
+        /// 0 mono, 50 plain stereo, 100 the full binaural render. Rendered
+        /// into the loops by JavaScript; here it only selects which files.
+        let space: Int
     }
 
     /// Errors are returned rather than thrown past the plugin boundary so the
@@ -333,6 +348,7 @@ final class SleeperEngine {
             swellDepth = clamp(req.swellDepth, 0, 0.45)
             swellPeriod = max(4, req.swellPeriod)
             swellPhase = 0
+            currentSpace = max(0, min(100, req.space))
             fadeInSeconds = max(0, req.fadeInSeconds)
             fadeOutSeconds = max(0, req.fadeOutSeconds)
             padTarget = clamp(req.padLevel, 0, 2)
@@ -344,7 +360,8 @@ final class SleeperEngine {
 
             // Noise faders.
             for l in req.layers where l.level > 0 {
-                guard let buffer = loadBuffer(id: l.id, sampleRate: req.sampleRate) else { continue }
+                guard let buffer = loadBuffer(id: l.id, sampleRate: req.sampleRate,
+                                              space: currentSpace) else { continue }
                 let player = AVAudioPlayerNode()
                 engine.attach(player)
                 engine.connect(player, to: noiseMixer, format: buffer.format)
@@ -356,7 +373,8 @@ final class SleeperEngine {
             // The ambient synth: two co-prime loops started together.
             if req.padLevel > 0 {
                 for id in req.padIDs {
-                    guard let buffer = loadBuffer(id: id, sampleRate: req.sampleRate) else { continue }
+                    guard let buffer = loadBuffer(id: id, sampleRate: req.sampleRate,
+                                                  space: currentSpace) else { continue }
                     let player = AVAudioPlayerNode()
                     engine.attach(player)
                     engine.connect(player, to: padMixer, format: buffer.format)
@@ -451,7 +469,7 @@ final class SleeperEngine {
 
     /// A fader moved. Crossing zero starts or retires the layer; anything else
     /// just moves its gain, which the tick smooths.
-    func setLayer(id: String, level: Float, sampleRate: Int) {
+    func setLayer(id: String, level: Float, sampleRate: Int, space: Int) {
         queue.sync {
             guard isPlaying else { return }
             let want = clamp(level, 0, 2)
@@ -474,8 +492,12 @@ final class SleeperEngine {
 
             // Coming up off zero: attach and start it under a fade so it
             // arrives rather than appearing.
-            guard let buffer = loadBuffer(id: id, sampleRate: sampleRate) else {
-                log("cannot raise \(id): no cached loop")
+            // Deliberately the session's space, not the caller's: a fader
+            // raised while the slider has already moved must still match the
+            // loops around it. The rebuild that follows replaces them all.
+            guard let buffer = loadBuffer(id: id, sampleRate: sampleRate,
+                                          space: currentSpace) else {
+                log("cannot raise \(id): no cached loop at space \(currentSpace)")
                 return
             }
             let player = AVAudioPlayerNode()
@@ -533,6 +555,7 @@ final class SleeperEngine {
                 "remainingMs": Int(remaining * 1000),
                 "unlimited": endsAt == 0,
                 "interrupted": interrupted,
+                "space": currentSpace,
                 "openLayers": Array(layers.keys),
             ]
         }

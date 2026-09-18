@@ -23,8 +23,8 @@ reasoning is an argument, not a measurement.
 
 | | |
 |---|---|
-| `test/regression.mjs` | 132 checks. The web app: DSP invariants at 44.1 and 48 kHz, panel shape, all five presets, persistence, migration from pre-mixer settings, transport, blackout. Add `--slow` for the end-to-end sleep timer. |
-| `test/native-bridge.mjs` | 67 checks. The **JavaScript half** of the native path against a mock plugin: call sequence, PCM byte count, chunking, parameter mapping, cache behaviour on a second start, blackout, haptics, the settings mirror, and every engine event. |
+| `test/regression.mjs` | 204 checks. The web app: DSP invariants at 44.1 and 48 kHz, panel shape, all five presets, persistence, migration from pre-mixer settings, transport, blackout. Add `--slow` for the end-to-end sleep timer. |
+| `test/native-bridge.mjs` | 80 checks. The **JavaScript half** of the native path against a mock plugin: call sequence, PCM byte count, chunking, parameter mapping, cache behaviour on a second start, blackout, haptics, the settings mirror, and every engine event. |
 
 Both suites pass at the current commit. Neither of them executes a single line
 of Swift.
@@ -88,6 +88,25 @@ never to conclude anything about backgrounding.
 | 3.6 | **All five faders at 100 with a theme at 100: listen for clipping.** This is the case the peak limiter exists for; if the limiter failed to attach, the Xcode log says "peak limiter unavailable" | |
 | 3.7 | Haptics fire on preset, play/pause and blackout — and **not** while dragging a fader | |
 | 3.8 | Blackout is genuinely black in a dark room (no grey, no status bar) | |
+
+## 3b. Real device — the space slider
+
+The room and the stereo width are both rendered into the loops, so on iOS the
+whole slider is a rebuild — there is no live width node as there is on the web.
+That is the trade recorded in `IOS_PORT_NOTES.md`; these are the checks it asks
+for.
+
+| # | Check | ✓ |
+|---|---|---|
+| 3b.1 | At **Stereo** (50) the app sounds as it always has | |
+| 3b.2 | At **3D** (100) **on headphones**, the sound is around you rather than on the phone. This is the whole point of the feature | |
+| 3b.3 | Rain falls mostly overhead; soft rain gathers off to the left; ocean lies out in front | |
+| 3b.4 | At **Mono** (0) the two ears are identical — check with one earbud | |
+| 3b.5 | Moving the slider shows "Preparing the room…", then crossfades; the sleep timer is **not** lengthened by the rebuild | |
+| 3b.6 | Returning to a position used before starts immediately (cached) | |
+| 3b.7 | On a **speaker**, 3D loses no bass versus stereo — the bottom of the band is folded back to the middle on purpose | |
+| 3b.8 | Raising a fader after moving the slider gives a layer that matches the room already playing, not the previous one | |
+| 3b.9 | `Caches/sleeper-loops/` after using several positions: note the size. One file per loop **per position** | |
 
 ## 4. Real device — background audio · **THE CRITICAL SECTION**
 

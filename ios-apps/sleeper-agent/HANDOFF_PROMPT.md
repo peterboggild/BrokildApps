@@ -74,8 +74,8 @@ Verify nothing has rotted. Neither suite needs a Mac, and both should be green
 before you change anything:
 
 ```bash
-node health-apps/sleep-noise/test/regression.mjs      # expect 132 passed, 0 failed
-node health-apps/sleep-noise/test/native-bridge.mjs   # expect  67 passed, 0 failed
+node health-apps/sleep-noise/test/regression.mjs      # expect 204 passed, 0 failed
+node health-apps/sleep-noise/test/native-bridge.mjs   # expect   80 passed, 0 failed
 ```
 
 If Playwright is missing: `npm install -g playwright && npx playwright install chromium`.

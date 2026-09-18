@@ -79,11 +79,15 @@ public class SleeperAudioPlugin: CAPPlugin, CAPBridgedPlugin {
     /// are already on disk so it can skip generating them.
     @objc func getInfo(_ call: CAPPluginCall) {
         let sampleRate = SleeperEngine.hardwareSampleRate
+        let space = call.getInt("space") ?? 50
         let ids = call.getArray("ids", String.self) ?? []
-        let cached = ids.filter { SleeperEngine.hasLoop($0, sampleRate: sampleRate) }
+        let cached = ids.filter {
+            SleeperEngine.hasLoop($0, sampleRate: sampleRate, space: space)
+        }
         call.resolve([
             "sampleRate": sampleRate,
             "cached": cached,
+            "space": space,
             "native": true,
         ])
     }
@@ -104,7 +108,8 @@ public class SleeperAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("implausible sample rate \(sampleRate)"); return
         }
 
-        let url = SleeperEngine.url(forLoop: id, sampleRate: sampleRate)
+        let space = call.getInt("space") ?? 50
+        let url = SleeperEngine.url(forLoop: id, sampleRate: sampleRate, space: space)
         let partURL = url.appendingPathExtension("part")
 
         lock.lock()
@@ -194,7 +199,21 @@ public class SleeperAudioPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func clearCache(_ call: CAPPluginCall) {
         let dir = SleeperEngine.cacheDirectory
-        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: nil)) ?? []
+
+        // With the space in the filename the cache holds one rendering of each
+        // loop per slider position, so a session spent moving it could leave
+        // twenty files where there used to be one. `keepSpace` prunes every
+        // rendering except the one in use; without it the whole directory goes.
+        if let keep = call.getInt("keepSpace") {
+            let suffix = "-s\(max(0, min(100, keep))).wav"
+            let stale = files.filter { !$0.lastPathComponent.hasSuffix(suffix) }
+            for f in stale { try? FileManager.default.removeItem(at: f) }
+            call.resolve(["removed": stale.count, "kept": files.count - stale.count])
+            return
+        }
+
         for f in files { try? FileManager.default.removeItem(at: f) }
         call.resolve(["removed": files.count])
     }
@@ -225,7 +244,8 @@ public class SleeperAudioPlugin: CAPPlugin, CAPBridgedPlugin {
             fadeOutSeconds: call.getDouble("fadeOutSeconds") ?? 0,
             durationSeconds: call.getDouble("durationSeconds") ?? 0,
             title: call.getString("title") ?? "Sleeper Agent",
-            subtitle: call.getString("subtitle") ?? ""
+            subtitle: call.getString("subtitle") ?? "",
+            space: call.getInt("space") ?? 50
         )
 
         do {
@@ -246,7 +266,8 @@ public class SleeperAudioPlugin: CAPPlugin, CAPBridgedPlugin {
         SleeperEngine.shared.setLayer(
             id: id,
             level: floatValue(call, "level", 0),
-            sampleRate: call.getInt("sampleRate") ?? SleeperEngine.hardwareSampleRate)
+            sampleRate: call.getInt("sampleRate") ?? SleeperEngine.hardwareSampleRate,
+            space: call.getInt("space") ?? 50)
         call.resolve()
     }
 

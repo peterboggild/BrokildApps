@@ -54,15 +54,20 @@ const MOCK = () => {
   const SleeperAudio = {
     getInfo(a) {
       record("getInfo", a);
+      // Keyed by id AND space, as the real cache is: the room and the stereo
+      // width are rendered into the file, so one space's loop is the wrong
+      // sound at another.
       return Promise.resolve({
         sampleRate: SR,
-        cached: (a.ids || []).filter((i) => cached.has(i)),
+        cached: (a.ids || []).filter((i) => cached.has(i + "@" + a.space)),
+        space: a.space,
         native: true,
       });
     },
     prepareBegin(a) {
-      record("prepareBegin", { id: a.id, sampleRate: a.sampleRate, channels: a.channels });
-      uploads[a.id] = { chunks: 0, bytes: 0, sampleRate: a.sampleRate, channels: a.channels, data: [] };
+      record("prepareBegin", { id: a.id, sampleRate: a.sampleRate, channels: a.channels, space: a.space });
+      uploads[a.id] = { chunks: 0, bytes: 0, sampleRate: a.sampleRate, channels: a.channels,
+                        space: a.space, data: [] };
       return Promise.resolve({ ok: true });
     },
     prepareChunk(a) {
@@ -77,8 +82,13 @@ const MOCK = () => {
       return Promise.resolve({ bytes: u.bytes });
     },
     prepareEnd(a) {
-      record("prepareEnd", { id: a.id, bytes: uploads[a.id].bytes, chunks: uploads[a.id].chunks });
-      cached.add(a.id);
+      record("prepareEnd", { id: a.id, bytes: uploads[a.id].bytes,
+                             chunks: uploads[a.id].chunks, space: uploads[a.id].space });
+      cached.add(a.id + "@" + uploads[a.id].space);
+      // Keep the first chunk of each rendering so the test can prove that
+      // moving the slider actually changes the samples.
+      window.__renders = window.__renders || {};
+      window.__renders[a.id + "@" + uploads[a.id].space] = uploads[a.id].data[0] || "";
       return Promise.resolve({ ok: true });
     },
     start(a) { record("start", a); return Promise.resolve({ playing: true, remainingMs: (a.durationSeconds || 0) * 1000, unlimited: !a.durationSeconds }); },
@@ -383,6 +393,101 @@ check("the app states its version, so a bug report can name one",
   /Sleeper Agent .+ \(.+\) · iOS /.test(ver), ver || "(empty)");
 check("the environment was read from native",
   (await callsOf(page, "getEnvironment")).length >= 1);
+
+/* ---------------- space: mono / stereo / 3D ---------------- */
+console.log("\nspace");
+
+const spaceShape = await page.evaluate(() => ({
+  exists: !!document.getElementById("space"),
+  min: document.getElementById("space")?.min,
+  max: document.getElementById("space")?.max,
+  step: document.getElementById("space")?.step,
+  ticks: [...document.querySelectorAll(".ticks span")].map((s) => s.textContent),
+}));
+check("the space slider is present", spaceShape.exists);
+check("it runs 0 to 100 in steps of 5",
+  spaceShape.min === "0" && spaceShape.max === "100" && spaceShape.step === "5",
+  `${spaceShape.min}..${spaceShape.max}/${spaceShape.step}`);
+check("it is labelled mono / stereo / 3D",
+  spaceShape.ticks.join("|") === "Mono|Stereo|3D", spaceShape.ticks.join("|"));
+
+// Every call that touches the cache must carry the space, or a loop rendered
+// at one slider position gets served at another.
+for (const name of ["getInfo", "prepareBegin", "start", "setLayer"]) {
+  const calls = await callsOf(page, name);
+  check(`${name} carries the space`,
+    calls.length > 0 && calls.every((c) => typeof c.args.space === "number"),
+    calls.length ? `${calls.length} calls, last space ${calls[calls.length - 1].args.space}` : "no calls");
+}
+
+// Move the slider into the room and the loops must be rendered again.
+const beforeSpace = (await callsOf(page, "prepareEnd")).length;
+await page.evaluate(() => {
+  const i = document.getElementById("space");
+  i.value = 100;
+  i.dispatchEvent(new Event("input", { bubbles: true }));
+  i.dispatchEvent(new Event("change", { bubbles: true }));
+});
+await wait(page, (n) => window.__calls.filter((c) => c.name === "prepareEnd").length > n, beforeSpace);
+await page.waitForTimeout(800);
+
+const at100 = (await callsOf(page, "prepareEnd")).filter((c) => c.args.space === 100);
+check("moving into the room re-renders the loops", at100.length > 0, `${at100.length} loops at space 100`);
+check("and restarts the engine with the new space",
+  (await lastCall(page, "start")).args.space === 100,
+  String((await lastCall(page, "start")).args.space));
+
+// The samples must actually differ — otherwise the slider is decorative.
+const differs = await page.evaluate(() => {
+  const r = window.__renders || {};
+  const keys = Object.keys(r).filter((k) => k.startsWith("brown@"));
+  if (keys.length < 2) return { keys, same: null };
+  return { keys, same: r[keys[0]] === r[keys[1]] };
+});
+check("the two renderings of brown are different audio",
+  differs.same === false, differs.keys.join(", ") + (differs.same === null ? " (only one rendering)" : ""));
+
+// Going back to a space already rendered must not re-render.
+const beforeReturn = (await callsOf(page, "prepareBegin")).length;
+await page.evaluate(() => {
+  const i = document.getElementById("space");
+  i.value = 80;
+  i.dispatchEvent(new Event("input", { bubbles: true }));
+  i.dispatchEvent(new Event("change", { bubbles: true }));
+});
+await page.waitForTimeout(2500);
+check("returning to a rendered space reuses the cache",
+  (await callsOf(page, "prepareBegin")).length === beforeReturn,
+  `${beforeReturn} uploads before and after`);
+
+// The bottom half is baked natively too, so it also invalidates.
+const beforeMono = (await callsOf(page, "prepareEnd")).length;
+await page.evaluate(() => {
+  const i = document.getElementById("space");
+  i.value = 0;
+  i.dispatchEvent(new Event("input", { bubbles: true }));
+  i.dispatchEvent(new Event("change", { bubbles: true }));
+});
+await wait(page, (n) => window.__calls.filter((c) => c.name === "prepareEnd").length > n, beforeMono);
+await page.waitForTimeout(600);
+const atMono = (await callsOf(page, "prepareEnd")).filter((c) => c.args.space === 0);
+check("the mono half is baked natively and re-renders", atMono.length > 0, `${atMono.length} loops at space 0`);
+
+// Folded to mono, the two channels of the written PCM must be identical.
+const monoCheck = await page.evaluate(() => {
+  const bin = (window.__renders || {})["brown@0"];
+  if (!bin) return null;
+  let same = 0, total = 0;
+  for (let i = 0; i + 3 < bin.length; i += 4) {
+    let l = bin.charCodeAt(i) | (bin.charCodeAt(i + 1) << 8);
+    let r = bin.charCodeAt(i + 2) | (bin.charCodeAt(i + 3) << 8);
+    total++; if (l === r) same++;
+  }
+  return { same, total };
+});
+check("at mono the two channels are identical",
+  monoCheck && monoCheck.total > 0 && monoCheck.same === monoCheck.total,
+  monoCheck ? `${monoCheck.same}/${monoCheck.total} frames` : "no mono rendering captured");
 
 /* ---------------- settings mirror ---------------- */
 console.log("\nsettings mirror");

@@ -54,8 +54,8 @@ the file that actually ships.
 | Path | |
 |---|---|
 | `health-apps/sleep-noise/index.html` | the entire app — UI, DSP, both backends |
-| `health-apps/sleep-noise/test/regression.mjs` | 132 checks, the web app |
-| `health-apps/sleep-noise/test/native-bridge.mjs` | 67 checks, the JS side of the native path |
+| `health-apps/sleep-noise/test/regression.mjs` | 204 checks, the web app |
+| `health-apps/sleep-noise/test/native-bridge.mjs` | 80 checks, the JS side of the native path |
 | `health-apps/sleep-noise/IOS_PORT_NOTES.md` | architecture and decisions |
 | `health-apps/sleep-noise/IOS_QA_CHECKLIST.md` | **read before trusting anything** |
 | `ios/App/App/Native/SleeperEngine.swift` | the audio engine |
@@ -127,9 +127,9 @@ the same; only the audio backend differs.
 ## 5. Testing
 
 ```bash
-node health-apps/sleep-noise/test/regression.mjs          # 132 checks, web app
+node health-apps/sleep-noise/test/regression.mjs          # 204 checks, web app
 node health-apps/sleep-noise/test/regression.mjs --slow    # + end-to-end timer (~90 s)
-node health-apps/sleep-noise/test/native-bridge.mjs        # 67 checks, native path
+node health-apps/sleep-noise/test/native-bridge.mjs        # 80 checks, native path
 ```
 
 The bridge suite installs a mock Capacitor plugin before the page's own script
