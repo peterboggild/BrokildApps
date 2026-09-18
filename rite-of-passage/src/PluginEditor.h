@@ -24,6 +24,7 @@
 
 #include <JuceHeader.h>
 
+#include "BwfxPanel.h"
 #include "PluginProcessor.h"
 
 //  ---------------------------------------------------------------------------
@@ -46,35 +47,18 @@ public:
 };
 
 //  ---------------------------------------------------------------------------
-/*  The BWFX rack's face. OPAQUE and full-bleed, and both of those words are
-    load-bearing: Legion shipped this as a plain Component, which paints
-    NOTHING, so the rack and the panel underneath were legible at the same
-    time and every static check passed. It carries its own close button
-    because the button that opens it is underneath it. */
-class BwfxOverlay : public juce::Component
+/*  A button that can be right-clicked. JUCE's TextButton reports a click and
+    nothing about which button did it, and this panel needs the distinction:
+    left loads a preset, right stores one over it. */
+class PresetButton : public juce::TextButton
 {
 public:
-    explicit BwfxOverlay (RiteProcessor&);
-    void paint (juce::Graphics&) override;
-    void resized() override;
-    void mouseDown (const juce::MouseEvent&) override;
-
-    juce::Image ground;
-
-private:
-    using SliderAttach = juce::AudioProcessorValueTreeState::SliderAttachment;
-    struct Macro
+    std::function<void()> onRightClick;
+    void mouseDown (const juce::MouseEvent& e) override
     {
-        juce::Slider slider;
-        juce::Label  label;
-        std::unique_ptr<SliderAttach> attach;
-    };
-    RiteProcessor& proc;
-    std::vector<std::unique_ptr<Macro>> macros;
-    juce::TextButton close { "CLOSE" };
-    juce::Label heading, note;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BwfxOverlay)
+        if (e.mods.isPopupMenu() && onRightClick) { onRightClick(); return; }
+        juce::TextButton::mouseDown (e);
+    }
 };
 
 //  ---------------------------------------------------------------------------
@@ -149,7 +133,12 @@ private:
     std::vector<std::unique_ptr<ABKnob>> ab;
     juce::Label abHeading, abHint, abA, abB;
 
-    std::unique_ptr<BwfxOverlay> overlay;
+    //  the six quick presets: left loads, right stores
+    PresetButton presetBtn[RiteProcessor::kQuickPresets];
+    juce::Label  presetHead;
+    void refreshPresetNames();
+
+    std::unique_ptr<BwfxPanel> overlay;
 
     //  the decals. An empty Image means "not delivered" and the code draws
     //  what it drew before — never a hole.

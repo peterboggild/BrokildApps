@@ -185,6 +185,7 @@ void RiteLook::drawLinearSlider (juce::Graphics& g, int x, int y, int w, int h,
 }
 
 // ===========================================================================
+#if 0   // retired: BwfxPanel is the rack now
 BwfxOverlay::BwfxOverlay (RiteProcessor& p) : proc (p)
 {
     setOpaque (true);                       // the whole point: it HIDES the panel
@@ -255,6 +256,7 @@ void BwfxOverlay::resized()
 }
 
 void BwfxOverlay::mouseDown (const juce::MouseEvent&) {}
+#endif
 
 // ===========================================================================
 std::unique_ptr<RiteEditor::Knob> RiteEditor::makeKnob (const juce::String& id, const juce::String& text)
@@ -340,11 +342,13 @@ RiteEditor::RiteEditor (RiteProcessor& p) : AudioProcessorEditor (&p), proc (p)
     {
         if (overlay == nullptr)
         {
-            overlay = std::make_unique<BwfxOverlay> (proc);
+            overlay = std::make_unique<BwfxPanel> (proc.bwfxRack(), proc.apvts);
             overlay->ground = dGround;
+            overlay->onClose = [this] { if (overlay != nullptr) overlay->setVisible (false); };
             addAndMakeVisible (*overlay);
             overlay->setBounds (getLocalBounds());
         }
+        else overlay->refreshFromRack();
         overlay->setVisible (true);
         overlay->toFront (true);
     };
@@ -440,6 +444,56 @@ RiteEditor::RiteEditor (RiteProcessor& p) : AudioProcessorEditor (&p), proc (p)
     side (abA, "A", kYellow);
     side (abB, "B", kEmber);
 
+    /*  THE SIX QUICK PRESETS. Left click loads, right click stores over the
+        slot — and the right click is why PresetButton exists, because a
+        TextButton reports a click and not which button made it. They live
+        on disk in the house patch folder, so the six are the user's own
+        across every instance rather than six per plugin copy. */
+    proc.ensureQuickPresets();
+    presetHead.setText ("PRESETS   left load  -  right store", juce::dontSendNotification);
+    presetHead.setColour (juce::Label::textColourId, kSmoke);
+    presetHead.setFont (juce::FontOptions (9.5f));
+    addAndMakeVisible (presetHead);
+
+    for (int i = 0; i < RiteProcessor::kQuickPresets; ++i)
+    {
+        auto& b = presetBtn[i];
+        b.setColour (juce::TextButton::textColourOffId, kAsh);
+        b.setColour (juce::TextButton::buttonColourId, kClay);
+        b.onClick = [this, i]
+        {
+            if (! proc.loadQuickPreset (i)) return;
+            //  the rite moved underneath every lane control, so the panel has
+            //  to be rebuilt from it rather than left showing the old one
+            building = true;
+            for (int s = 0; s < kSlots; ++s)
+            {
+                lanes[s].fx.setSelectedId (proc.rack().slotEffect (s) + 2, juce::dontSendNotification);
+                lanes[s].on.setToggleState (proc.rack().state (s).on, juce::dontSendNotification);
+                lanes[s].enter.setValue (proc.rack().state (s).enter, juce::dontSendNotification);
+                lanes[s].exitS.setValue (proc.rack().state (s).exit, juce::dontSendNotification);
+                lanes[s].depth.setValue (proc.rack().state (s).depth, juce::dontSendNotification);
+                lanes[s].curve.setSelectedId (proc.rack().state (s).curve + 1, juce::dontSendNotification);
+                lanes[s].place.setSelectedId ((int) proc.rack().state (s).place + 1, juce::dontSendNotification);
+                lanes[s].tail.setSelectedId ((int) proc.rack().state (s).tail + 1, juce::dontSendNotification);
+            }
+            building = false;
+            rebuildSlotEditor();
+            markInertLanes();
+            resized();
+            repaint();
+        };
+        b.onRightClick = [this, i]
+        {
+            proc.storeQuickPreset (i, proc.quickPresetName (i) == "EMPTY"
+                                        ? juce::String ("QUICK ") + juce::String (i + 1)
+                                        : proc.quickPresetName (i));
+            refreshPresetNames();
+        };
+        addAndMakeVisible (b);
+    }
+    refreshPresetNames();
+
     rebuildSlotEditor();
     markInertLanes();
     setSize (1000, kHeadH + kGlobH + kColH + kSlots * (kLaneH + kLaneGap)
@@ -457,6 +511,12 @@ RiteEditor::~RiteEditor()
 //  an effect that cannot travel names itself in amber, on its own lane.
 //  Called from every place the answer can change — NOT only from the timer,
 //  because a snapshot never runs one and that is how the panel is reviewed.
+void RiteEditor::refreshPresetNames()
+{
+    for (int i = 0; i < RiteProcessor::kQuickPresets; ++i)
+        presetBtn[i].setButtonText (proc.quickPresetName (i));
+}
+
 void RiteEditor::markInertLanes()
 {
     for (int i = 0; i < kSlots; ++i)
@@ -770,6 +830,20 @@ void RiteEditor::resized()
         k->label.setBounds (cell.removeFromTop (12));
         k->slider.setBounds (cell);
         row.removeFromLeft (6);
+    }
+
+    //  the six presets take the room left over beside the globals
+    row.removeFromLeft (10);
+    presetHead.setBounds (row.removeFromTop (12));
+    {
+        const int bw = row.getWidth() / 3;
+        const int bh = (row.getHeight() - 4) / 2;
+        for (int i = 0; i < RiteProcessor::kQuickPresets; ++i)
+        {
+            const int cx = row.getX() + (i % 3) * bw;
+            const int cy = row.getY() + (i / 3) * (bh + 4);
+            presetBtn[i].setBounds (juce::Rectangle<int> (cx, cy, bw, bh).reduced (2, 0));
+        }
     }
 
     for (int i = 0; i < kSlots; ++i)
