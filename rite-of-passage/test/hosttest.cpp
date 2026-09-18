@@ -1,0 +1,198 @@
+// RITE OF PASSAGE host harness. The bench proves the ENGINE; this proves the
+// WRAPPER — the parameter table, the buses, the rite blob, and the one thing
+// a DSP bench cannot reach: that ARRIVAL is a TRIGGER and NOT the end of the
+// slider, so scrubbing to 100 % does not fire a drop.
+
+#include <JuceHeader.h>
+
+#include "../src/PluginProcessor.h"
+
+static int failures = 0, checks = 0;
+#define CHECK(cond, ...) do { ++checks; if (!(cond)) { ++failures; \
+    std::printf ("FAIL @%d: ", __LINE__); std::printf (__VA_ARGS__); std::printf ("\n"); } } while (0)
+
+namespace
+{
+    constexpr double kFs = 48000.0;
+    constexpr int kBlock = 256;
+
+    void setP (juce::AudioProcessorValueTreeState& s, const juce::String& id, float plain)
+    {
+        auto* p = s.getParameter (id);
+        jassert (p != nullptr);
+        p->setValueNotifyingHost (p->convertTo0to1 (plain));
+    }
+
+    struct Play : juce::AudioPlayHead
+    {
+        double bpm = 128.0; long long samples = 0; bool playing = true;
+        juce::Optional<PositionInfo> getPosition() const override
+        {
+            PositionInfo p;
+            p.setBpm (bpm);
+            p.setPpqPosition ((double) samples * bpm / (60.0 * kFs));
+            p.setIsPlaying (playing);
+            p.setTimeInSamples (samples);
+            return p;
+        }
+    };
+
+    float run (RiteProcessor& proc, Play& ph, int nBlocks, bool silent = true)
+    {
+        juce::MidiBuffer midi;
+        juce::AudioBuffer<float> b (2, kBlock);
+        float peak = 0;
+        for (int i = 0; i < nBlocks; ++i)
+        {
+            b.clear();
+            if (! silent)
+                for (int c = 0; c < 2; ++c)
+                    for (int j = 0; j < kBlock; ++j)
+                        b.setSample (c, j, 0.2f * std::sin (0.05f * (float) (i * kBlock + j)));
+            proc.processBlock (b, midi);
+            ph.samples += kBlock;
+            peak = std::max (peak, b.getMagnitude (0, kBlock));
+        }
+        return peak;
+    }
+}
+
+int main()
+{
+    juce::ScopedJuceInitialiser_GUI juceInit;
+    std::printf ("RITE OF PASSAGE host harness\n\n");
+
+    RiteProcessor proc;
+    Play ph;
+    proc.setPlayHead (&ph);
+    proc.setPlayConfigDetails (2, 2, kFs, kBlock);
+    proc.prepareToPlay (kFs, kBlock);
+
+    // -- the parameter surface is small, fixed and uniquely named ------------
+    {
+        juce::StringArray ids;
+        for (auto* p : proc.getParameters())
+            if (auto* wp = dynamic_cast<juce::AudioProcessorParameterWithID*> (p))
+                ids.add (wp->paramID);
+        const int before = ids.size();
+        ids.removeDuplicates (false);
+        CHECK (ids.size() == before, "a parameter id is declared twice");
+        CHECK (before == 7 + bwfx::kMacros, "the parameter list is %d, not the fixed surface of §10", before);
+        std::printf ("  %d host parameters — the fixed surface\n", before);
+    }
+
+    // -- SCRUBBING TO THE END DOES NOT FIRE A DROP (§4) ----------------------
+    /*  The fault the design was changed to avoid. Walk the slider all the way
+        to 100 %, with silence in and no slot assigned: if the landing were
+        tied to the slider, the impact would sound. */
+    {
+        proc.prepareToPlay (kFs, kBlock);
+        for (int k = 0; k <= 100; ++k)
+        {
+            setP (proc.apvts, rop_ids::position, (float) k);
+            run (proc, ph, 1);
+        }
+        const float peak = run (proc, ph, 40);
+        std::printf ("  scrubbed 0 -> 100 %%      peak %.3g (nothing fired)\n", peak);
+        CHECK (peak == 0.0f, "reaching the end of the slider fired the arrival (%.3g)", peak);
+        CHECK (! proc.rack().arrived(), "the rack thinks it arrived from the slider alone");
+    }
+
+    // -- and pressing ARRIVAL does ------------------------------------------
+    {
+        setP (proc.apvts, rop_ids::arrival, 1.0f);
+        //  a bar at 128 BPM is 90 000 samples: the arrival waits for the
+        //  boundary, so the test has to wait for it too
+        const float peak = run (proc, ph, 400);
+        std::printf ("  ARRIVAL pressed          peak %.3f\n", peak);
+        CHECK (peak > 0.01f, "ARRIVAL fired nothing (%.3g)", peak);
+        CHECK (proc.rack().arrived(), "ARRIVAL did not mark the rack arrived");
+        setP (proc.apvts, rop_ids::arrival, 0.0f);
+    }
+
+    // -- an empty rite is transparent ----------------------------------------
+    {
+        RiteProcessor p2;
+        Play ph2; p2.setPlayHead (&ph2);
+        p2.setPlayConfigDetails (2, 2, kFs, kBlock);
+        p2.prepareToPlay (kFs, kBlock);
+        juce::MidiBuffer midi;
+        juce::AudioBuffer<float> b (2, kBlock), ref (2, kBlock);
+        for (int c = 0; c < 2; ++c)
+            for (int j = 0; j < kBlock; ++j)
+                b.setSample (c, j, 0.3f * std::sin (0.031f * (float) j + (float) c));
+        ref.makeCopyOf (b);
+        for (int i = 0; i < 20; ++i) { p2.processBlock (b, midi); ph2.samples += kBlock; }
+        //  the last block is the steady state; compare it to what went in
+        float worst = 0;
+        for (int c = 0; c < 2; ++c)
+            for (int j = 0; j < kBlock; ++j)
+                worst = std::max (worst, std::abs (b.getSample (c, j) - ref.getSample (c, j)));
+        std::printf ("  empty rite               error %.3g\n", worst);
+        CHECK (worst == 0.0f, "an empty rite is not transparent (%.3g)", worst);
+    }
+
+    // -- the rite survives a round trip into a fresh instance ---------------
+    {
+        const int climb = rop::effectTypeByName ("climb");
+        const int tape  = rop::effectTypeByName ("tape");
+        proc.rack().setSlotEffect (0, climb);
+        proc.rack().setSlotEffect (3, tape);
+        proc.rack().state (0).enter = 0.42f;
+        proc.rack().state (0).exit  = 0.88f;
+        proc.rack().state (0).curve = rop::CurveAccel;
+        proc.rack().state (0).place = rop::Place::Side;
+        proc.rack().state (3).tail  = rop::Tail::Spill;
+        proc.rack().state (0).A[1] = 250.0f;
+        proc.rack().state (0).B[1] = 9000.0f;
+        setP (proc.apvts, rop_ids::spread, 40.0f);
+        proc.bwfxRack().setEnabled (0, true);
+
+        juce::MemoryBlock mb;
+        proc.getStateInformation (mb);
+
+        RiteProcessor fresh;
+        fresh.setPlayConfigDetails (2, 2, kFs, kBlock);
+        fresh.prepareToPlay (kFs, kBlock);
+        fresh.setStateInformation (mb.getData(), (int) mb.getSize());
+
+        CHECK (fresh.rack().slotEffect (0) == climb, "slot 0's effect did not survive the round trip");
+        CHECK (fresh.rack().slotEffect (3) == tape,  "slot 3's effect did not survive the round trip");
+        CHECK (std::abs (fresh.rack().state (0).enter - 0.42f) < 1e-4f, "ENTER did not survive");
+        CHECK (fresh.rack().state (0).curve == rop::CurveAccel, "the curve did not survive");
+        CHECK (fresh.rack().state (0).place == rop::Place::Side, "PLACE did not survive");
+        CHECK (fresh.rack().state (3).tail == rop::Tail::Spill, "the tail mode did not survive");
+        CHECK (std::abs (fresh.rack().state (0).B[1] - 9000.0f) < 0.5f, "a B value did not survive");
+        CHECK (std::abs (fresh.apvts.getRawParameterValue (rop_ids::spread)->load() - 40.0f) < 0.01f,
+               "SPREAD did not survive");
+        CHECK (fresh.bwfxRack().getEnabled (0) == proc.bwfxRack().getEnabled (0),
+               "the BWFX blob did not survive");
+        std::printf ("  state round trip         %d bytes\n", (int) mb.getSize());
+    }
+
+    // -- an unknown effect id leaves its slot empty rather than failing ------
+    {
+        RiteProcessor p3;
+        p3.setPlayConfigDetails (2, 2, kFs, kBlock);
+        p3.prepareToPlay (kFs, kBlock);
+        p3.riteFromJson (R"({"slots":[{"fx":"nosuchthing","on":true,"enter":0.3}]})");
+        CHECK (p3.rack().slotEffect (0) == -1, "an unknown effect id did not leave the slot empty");
+        CHECK (std::abs (p3.rack().state (0).enter - 0.3f) < 1e-4f,
+               "the rest of the slot was discarded with the unknown id");
+        std::printf ("  a rite from a newer build tolerated\n");
+    }
+
+    // -- buses ----------------------------------------------------------------
+    {
+        RiteProcessor b;
+        using Set = juce::AudioChannelSet;
+        CHECK (b.checkBusesLayoutSupported ({ { Set::stereo() }, { Set::stereo() } }), "stereo refused");
+        CHECK (b.checkBusesLayoutSupported ({ { Set::mono() },   { Set::mono() } }),   "mono refused");
+        std::printf ("  buses                    stereo and mono\n");
+    }
+
+    std::printf ("\n%d checks", checks);
+    if (failures == 0) std::printf (" — ALL CLEAR\n");
+    else               std::printf (" — %d FAILED\n", failures);
+    return failures == 0 ? 0 : 1;
+}
