@@ -81,6 +81,14 @@ int main (int argc, char** argv)
         auto& s = proc.rack().state (i);
         s.enter = 0.12f * (float) i;
         s.exit  = juce::jmin (1.0f, s.enter + 0.55f);
+        /*  GIVE IT SOMEWHERE TO GO. setSlotEffect seeds A and B with the
+            effect's own defaults, so a slot straight out of the menu has
+            A == B and cannot travel however the lane is drawn — which is
+            the fault this panel round exists to make visible. A shot that
+            never moves B is a shot of six inert lanes. */
+        const auto& d = rop::effectDescriptor (i);
+        for (int p = 0; p < d.numParams; ++p)
+            s.B[p] = (s.A[p] >= d.params[p].hi) ? d.params[p].lo : d.params[p].hi;
     }
     ed.reset (proc.createEditor());
     ed->setBounds (0, 0, ed->getWidth(), ed->getHeight());
@@ -99,10 +107,41 @@ int main (int argc, char** argv)
     //  lane 0 entered at 0 %, lane 5 enters at 60 %: both should carry heat at 62 %;
     //  a lane that has not been entered carries none. Measure lane 0 against an
     //  empty instance's lane 0.
-    const auto lane0 = juce::Rectangle<int> (14, 116 + 62, ed->getWidth() - 28, 40);
+    //  the lane geometry, from the panel's own constants (kInset, kHeadH,
+    //  kGlobH, kColH, kLaneH) — a hard-coded rectangle silently measured the
+    //  wrong strip the moment the layout moved
+    const int laneY = 128 + 78 + 15;
+    const auto lane0 = juce::Rectangle<int> (42, laneY, ed->getWidth() - 84, 44);
     const int lit = emberPixels (mid, lane0);
     CHECK (lit > 200, "lane 0 shows no heat at 62 %% (%d ember pixels)", lit);
     std::printf ("  lane 0 at 62 %%: %d ember pixels\n", lit);
+
+    /*  The other half of the same promise, and the one the round was for:
+        a slot whose A and B are identical must show NO heat at all, however
+        far the marker has gone past its ENTER. Without this check the panel
+        could go back to lighting a lane that cannot move and nothing would
+        say so — which is exactly how the fault shipped in the first place. */
+    proc.rack().setSlotEffect (0, 0);               // fresh: A == B again
+    {
+        auto& s = proc.rack().state (0);
+        s.enter = 0.0f; s.exit = 1.0f;
+    }
+    ed.reset (proc.createEditor());
+    ed->setBounds (0, 0, ed->getWidth(), ed->getHeight());
+    if (auto* p = proc.apvts.getParameter (rop_ids::position))
+        p->setValueNotifyingHost (0.62f);
+    const auto flat = ed->createComponentSnapshot (ed->getLocalBounds(), false, 1.0f);
+    const int cold = emberPixels (flat, lane0);
+    CHECK (cold < 50, "a slot with A == B still shows %d ember pixels — the lane is "
+                      "claiming a travel it cannot make", cold);
+    std::printf ("  lane 0 with A == B: %d ember pixels\n", cold);
+    {
+        juce::File f = dir.getChildFile ("panel-flat.png");
+        f.deleteFile();
+        juce::FileOutputStream os (f);
+        juce::PNGImageFormat png; png.writeImageToStream (flat, os);
+        std::printf ("  wrote panel-flat.png\n");
+    }
 
     std::printf ("\n%d checks, %d failed - %s\n", checks, failures, failures ? "SEE ABOVE" : "ALL CLEAR");
     return failures ? 1 : 0;

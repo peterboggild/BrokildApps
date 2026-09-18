@@ -9,6 +9,7 @@ add_executable(roptest
     bench.cpp
     ../engine/rop_loudness.cpp
     ../engine/rop_effects.cpp
+    ../engine/rop_effects_more.cpp
     ../engine/rop_rack.cpp)
 
 target_compile_features(roptest PRIVATE cxx_std_17)
