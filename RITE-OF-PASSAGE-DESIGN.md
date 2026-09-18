@@ -4,11 +4,16 @@
 Peter, before any code, in the house manner. Two readings of the effect menu
 were taken and merged; where the second reading won, §17 says so.*
 
-*STATUS: NO CODE. Nothing here has been measured. Every number in this
-document is a TARGET, and the bench in §15 is the list of promises that have
-to come true before the plugin is allowed to exist. The LEGION doc could say
-"measured" because it was written after the engine; this one cannot, and
-saying so is the point of writing it first.*
+*STATUS 2026-09-18: THE SPINE IS BUILT AND MEASURED; SIX OF THE TWELVE
+EFFECTS ARE IN (CLIMB, TAPE, STUTTER, CHOP, RISER, GAP). 133 engine checks and
+20 wrapper checks ALL CLEAR at `rite-of-passage/`; the VST3 builds and loads.
+Nobody has heard it in a DAW.*
+
+*This document was written before any code, which was the point: the bench of
+§15 existed first and failed first. Where a number below now says "measured",
+it was measured after the fact against a claim this document had already made
+— and §17 records the four places where the code that resulted is not what
+this document first described, because the bench disagreed with it.*
 
 ---
 
@@ -532,6 +537,14 @@ None of this is measured yet. The bench is written first and fails first.
 - **Deterministic**: byte-identical at block size 64 and 256.
 - **Cost**, six slots loaded, the worst six.
 
+Measured, 2026-09-18, with six of the twelve effects in: ARRIVAL lands on the
+bar with **zero** samples of error across 36 cases (3 tempos x 3 buffer sizes x
+4 starting positions); an empty rack is bit-identical; rendering is
+byte-identical at 64 and 256 samples; a NEUTRAL effect stacked three deep moves
+the programme loudness 0.14 dB; the worst 1 % step along a three-slot travel is
+1.27 dB; the mono sum of a SPREAD 1 rite loses 2.9 dB; six slots cost about
+1 % of one core.
+
 ## 16. What is deferred
 
 - **Parallel routing.** Serial only. Six slots in a line is already a
@@ -541,7 +554,51 @@ None of this is measured yet. The bench is written first and fails first.
 - **A curve editor.** Five named curves, not a drawable one.
 - **The reserve four effects.** §5.
 
-## 17. Provenance
+## 17. What the bench changed
+
+Four things in this document were written as design and came back wrong. They
+are recorded here rather than quietly corrected, because the reason each one
+was wrong is more useful than the fix.
+
+**CHOP's makeup, three times.** §8.1 says the compensation should be computed
+rather than measured, and for a gate the obvious computation is
+`duty + (1-duty)*(1-depth)^2`. It left 1.9 dB on the table, because SLEW
+rounds the edges and at a short duty the gate never reaches the top. Measuring
+the gate's own envelope power fixed that and broke something worse: three
+CHOPs in series came out **5.5 dB louder than one**, each gate compensating as
+though it were gating the full-scale material the one before it had already
+thinned — which is precisely the "layers get louder" fault this plugin exists
+to avoid. What works is measuring the power actually removed across the stage,
+over a window long enough (0.5 s) to average the gate rather than track it.
+So §8.1's "computed, never measured" is too strong: the rule is that the
+compensation must not be able to fight the gesture, and a long window achieves
+that as surely as a formula does.
+
+**Linear dry/wet dips.** §8.1 mentions it in passing; it cost STUTTER 3.0 dB
+at DEPTH 50, because a repeated slice is decorrelated from the live signal it
+is crossfaded against. Equal power is now the default for every wet path in
+the plugin, and linear is the exception.
+
+**The clock has to be derived, not accumulated.** Nothing in this document
+said so, and two wrong versions shipped into the bench before the right one.
+Adding the increment block by block rounds differently at 64 samples than at
+256, and the plugin rendered differently in the two hosts (0.024 of error).
+Taking the host's ppq fresh each block was better and still not identical
+(0.0004), because the host's arithmetic and ours disagree in the last bit and
+a beat boundary sitting within one bit of a sample edge falls on either side
+of it. `origin + samples * increment`, with an integer sample count and the
+origin re-seated only on a jump or a tempo change, is exactly identical at
+every buffer size.
+
+**ARRIVAL rounds to the nearest sample, and may decline.** §4 says "to the
+sample" and the first implementation truncated, which fires up to a sample
+early every time. Rounding is not enough either: when the boundary sits in the
+last half sample of a sub-block, rounding takes it to the sub-block's own end,
+and clamping it back inside fires one sample early. Letting it fall through to
+the next sub-block — where it rounds to zero, the same instant — is what took
+the worst error over 36 cases from 1 sample to **0**.
+
+## 18. Provenance
 
 The six-slot architecture is Peter's, 2026-09-18, and it is better than the
 twelve fixed effects it replaced.
