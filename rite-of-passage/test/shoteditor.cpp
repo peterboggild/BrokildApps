@@ -221,6 +221,117 @@ int main (int argc, char** argv)
         }
     }
 
+    // -- CAN THE BWFX EFFECTS BE SWITCHED ORDER? --------------------------------
+    {
+        auto& rk = proc.bwfxRack();
+        const int n = bwfx::numModuleTypes();
+        std::vector<int> before ((size_t) n), after ((size_t) n);
+
+        //  the DN button on the FIRST pedal, found the way a user finds it
+        juce::Button* dn = nullptr;
+        std::function<void (juce::Component&)> findDn = [&] (juce::Component& c)
+        {
+            for (auto* k : c.getChildren())
+            {
+                if (auto* b = dynamic_cast<juce::Button*> (k))
+                    if (b->getButtonText() == "DN") { dn = b; return; }
+                findDn (*k);
+                if (dn != nullptr) return;
+            }
+        };
+        findDn (*ed);
+        CHECK (dn != nullptr, "the BWFX rack has no reorder button");
+
+        if (dn != nullptr)
+        {
+            rk.getOrder (before.data());
+            if (dn->onClick) dn->onClick();
+            rk.getOrder (after.data());
+            std::printf ("  BWFX order: %s then %s  ->  %s then %s\n",
+                         bwfx::moduleDescriptor (before[0]).name,
+                         bwfx::moduleDescriptor (before[1]).name,
+                         bwfx::moduleDescriptor (after[0]).name,
+                         bwfx::moduleDescriptor (after[1]).name);
+            CHECK (after[0] == before[1] && after[1] == before[0],
+                   "DN did not swap the first two pedals in the rack's own order");
+        }
+
+        /*  and the order has to MATTER. TUBE then GRIT is a saturator feeding a
+            crusher; GRIT then TUBE is a crusher feeding a saturator, and those
+            are different sounds. If they measured the same, the reorder would
+            be moving names around a list nothing reads. */
+        int tube = -1, grit = -1;
+        for (int t = 0; t < n; ++t)
+        {
+            const juce::String nm (bwfx::moduleDescriptor (t).name);
+            if (nm == "TUBE") tube = t;
+            if (nm == "GRIT") grit = t;
+        }
+        if (tube >= 0 && grit >= 0)
+        {
+            auto render = [&] (bool tubeFirst, std::vector<float>& out)
+            {
+                rk.clearState();
+                /*  BY NAME, AND TO THE TOP OF ITS OWN RANGE. The first version of
+                    this set parameter INDEX 1 on TUBE and index 0 on GRIT, which
+                    are TONE and CRUSH - so it left TUBE at its default 8 dB of
+                    drive and turned GRIT DOWN from 25 to 5. Both effects were then
+                    close to inert, the swap measured 0.019, and that reads exactly
+                    like reordering that does not work. Address a parameter by its
+                    id, never by a remembered index (the BWFX macro lesson). */
+                auto crank = [&] (int type, const char* id)
+                {
+                    const auto& dd = bwfx::moduleDescriptor (type);
+                    for (int q = 0; q < dd.numParams; ++q)
+                        if (juce::String (dd.params[q].id) == id)
+                            { rk.setParam (type, q, dd.params[q].hi); return; }
+                    CHECK (false, "no parameter %s on %s", id, dd.name);
+                };
+                rk.setEnabled (tube, true);  crank (tube, "drive");
+                rk.setEnabled (grit, true);  crank (grit, "crush");
+                std::vector<int> ord ((size_t) n);
+                rk.getOrder (ord.data());
+                //  put the two under test at the front, in the order asked for
+                std::vector<int> want;
+                want.push_back (tubeFirst ? tube : grit);
+                want.push_back (tubeFirst ? grit : tube);
+                for (int t2 = 0; t2 < n; ++t2)
+                    if (t2 != tube && t2 != grit) want.push_back (t2);
+                rk.setOrder (want.data(), n);
+
+                proc.prepareToPlay (48000.0, 256);
+                juce::AudioBuffer<float> buf (2, 256 * 40);
+                juce::Random r (0x51ED);
+                for (int ch = 0; ch < 2; ++ch)
+                    for (int i = 0; i < buf.getNumSamples(); ++i)
+                        buf.setSample (ch, i, 0.35f * (r.nextFloat() * 2.0f - 1.0f));
+                juce::MidiBuffer mb;
+                for (int i = 0; i + 256 <= buf.getNumSamples(); i += 256)
+                {
+                    juce::AudioBuffer<float> blk (buf.getArrayOfWritePointers(), 2, i, 256);
+                    proc.processBlock (blk, mb);
+                }
+                out.assign ((size_t) buf.getNumSamples(), 0.0f);
+                for (int i = 0; i < buf.getNumSamples(); ++i) out[(size_t) i] = buf.getSample (0, i);
+            };
+            std::vector<float> a, b;
+            render (true,  a);
+            render (false, b);
+            double num = 0.0, den = 0.0;
+            for (size_t i = a.size() / 2; i < a.size(); ++i)
+            {
+                const double d = (double) a[i] - (double) b[i];
+                num += d * d; den += (double) a[i] * a[i];
+            }
+            const double apart = std::sqrt (num / std::max (1.0e-20, den));
+            std::printf ("  TUBE->GRIT against GRIT->TUBE: %.3f apart\n", apart);
+            CHECK (apart > 0.02,
+                   "swapping two BWFX effects changed nothing (%.4f) — the order is "
+                   "being moved on the screen and nowhere else", apart);
+            rk.clearState();
+        }
+    }
+
     std::printf ("\n%d checks, %d failed - %s\n", checks, failures, failures ? "SEE ABOVE" : "ALL CLEAR");
     return failures ? 1 : 0;
 }
