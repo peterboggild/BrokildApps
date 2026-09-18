@@ -1,0 +1,161 @@
+# Handoff prompt
+
+A prompt to paste into a fresh AI coding session so it can pick up the iOS
+port and get it building, without any of the conversation it was written in.
+
+Also posted as a GitHub issue so it can be found from the repository's issue
+list rather than only by knowing this path.
+
+**Copy everything between the rules below.**
+
+---
+
+You are picking up a half-finished iOS port in the repository
+`peterboggild/BrokildApps`. Your job is to get it to compile, then to build
+and run on a real iPhone.
+
+## Before you do anything
+
+Read these, in this order. They were written for exactly this moment and they
+will save you from re-deriving decisions that already have reasons:
+
+1. `ios-apps/sleeper-agent/START_HERE.md` — state of play, where everything is
+2. `ios-apps/sleeper-agent/NO_MAC_ROUTE.md` — how to build without a Mac, and
+   the known failure points with the symptom for each
+3. `health-apps/sleep-noise/IOS_PORT_NOTES.md` — why the architecture is what
+   it is, and the two alternatives that were rejected
+4. `health-apps/sleep-noise/IOS_QA_CHECKLIST.md` — what to test. §4 is the
+   product; nothing else matters if it fails
+5. `ios-apps/sleeper-agent/README-iOS.md` — the build commands and, in §12,
+   what is load-bearing and must not be casually changed
+
+`git log ios-sleeper-agent` explains why almost every decision was made. The
+commit messages are unusually detailed on purpose.
+
+## The single most important fact
+
+**The Swift has never been compiled.** All 1,375 lines of it were written on
+Linux, where no Apple toolchain exists. One critical read-back pass was done,
+which found and fixed five real defects including one that could not have
+compiled at all — but that is not the same as building it.
+
+**Expect compile errors on the first attempt. They are normal. They are not a
+sign the project is broken.** Fixing them is the first task.
+
+## What the app is
+
+Sleeper Agent is a sleep-sound app. It exists as a web page at
+`health-apps/sleep-noise/index.html` — one file, no build step, no
+dependencies — and this port wraps that same file in Capacitor 8 with a native
+audio engine underneath.
+
+The architecture in one line: **JavaScript renders the sound, native plays
+it.** Everything was already rendered into finite looping buffers, and
+everything downstream is signal flow `AVAudioEngine` does natively. Once
+playback starts the WebView may be frozen all night without consequence,
+because the engine, the fades and the sleep timer are all in Swift.
+
+This was chosen over running Web Audio inside the WebView because WKWebView's
+content process can be suspended on backgrounding even when the app holds the
+audio background mode, and the failure mode for a sleep app is an entire
+silent night. It was chosen over rewriting the synthesis in Swift because the
+generators *are* the product and the test suite measures the exact code that
+ships. Do not revisit either decision without reading `IOS_PORT_NOTES.md` §4.
+
+## Getting to it
+
+```bash
+git clone https://github.com/peterboggild/BrokildApps.git
+cd BrokildApps
+git checkout ios-sleeper-agent
+```
+
+Verify nothing has rotted. Neither suite needs a Mac, and both should be green
+before you change anything:
+
+```bash
+node health-apps/sleep-noise/test/regression.mjs      # expect 132 passed, 0 failed
+node health-apps/sleep-noise/test/native-bridge.mjs   # expect  67 passed, 0 failed
+```
+
+If Playwright is missing: `npm install -g playwright && npx playwright install chromium`.
+
+## Then, whichever applies
+
+**If you have a Mac with Xcode:**
+
+```bash
+cd ios-apps/sleeper-agent
+npm install
+npm run sync      # builds www/ from the canonical index.html, then cap sync
+npm run open      # opens ios/App/App.xcodeproj
+```
+
+Let Swift Package Manager resolve `capacitor-swift-pm`, then ⌘B. Work through
+the errors. `SHIPPING_GUIDE.md` steps 5–7 continue from there.
+
+**If you have no Mac:** `.github/workflows/sleeper-agent-ios.yml` builds on a
+GitHub-hosted macOS runner, free on public repositories, and this repository is
+public. Run it from the Actions tab with **`mode: build-only`** — that path
+needs no secrets and no Apple account, and it exists precisely to answer
+"does it compile" for free. `NO_MAC_ROUTE.md` has the rest.
+
+## Your task
+
+1. Make it compile. Report every error you fixed and why.
+2. Get it running on a simulator (`IOS_QA_CHECKLIST.md` §2).
+3. Get it running on a real iPhone (§3), which a free Apple Account is enough
+   for — no payment needed to reach this point.
+4. Then §4, background audio, which is the whole product: does it play
+   through a locked screen for five minutes, an hour, a night.
+
+Stop and report after each of these rather than pressing on.
+
+## Guardrails
+
+These are not style preferences; each has a reason recorded in the repository.
+
+- **`health-apps/sleep-noise/index.html` is the single source for both the
+  website and the app.** Editing it changes both. There is deliberately no
+  second copy; `www/` is generated by a copy step, never a transform.
+- **Do not rewrite the sound generation in Swift.** The generators are the
+  product and the offline suite measures the code that actually ships.
+- **Do not make startup asynchronous.** Settings are read synchronously from
+  `localStorage` so the first painted frame is correct.
+- **`npm run build` refuses** if `index.html` loses a hook the native build
+  needs, or gains a network request that would break airplane-mode use. If it
+  refuses, read the message rather than weakening the guard.
+- **The sleep timer runs on a monotonic clock** in both backends, so a phone
+  changing time zone overnight cannot lengthen or shorten the night.
+- **Interruptions do not auto-resume** unless iOS says `shouldResume`. Sound
+  restarting by itself at 3 a.m. is worse than sound not restarting.
+- **The loop cache lives in `Caches/`** so iOS may evict it. That is intended.
+- **Never commit signing material.** `.gitignore` covers `*.p12`,
+  `*.mobileprovision`, `AuthKey_*.p8` and the rest.
+- **Run both test suites after any change to `index.html`** and report the
+  counts.
+
+## Not yours to decide
+
+`ios-apps/sleeper-agent/DECISIONS_OPEN.md` lists twelve choices that belong to
+the repository owner — the bundle identifier (irreversible once registered),
+price, category, App Store copy, and the privacy declarations, which are
+legally meaningful and must be signed by a person. Each has a recommendation
+and reasoning. **Do not act on any of them.** Raise them; do not settle them.
+
+## How to report
+
+Say plainly what compiled, what did not, and what remains untested. Do not
+describe background audio as working until a device has played through a night
+— the architecture was chosen to make that likely, but until §4 is ticked it
+is a design intention, not a measurement.
+
+---
+
+## Where this prompt lives
+
+- This file: `ios-apps/sleeper-agent/HANDOFF_PROMPT.md`
+- GitHub issue: see `START_HERE.md` §3 for the link
+
+If you change the port substantially, update this prompt too — its value is
+that it is true.
