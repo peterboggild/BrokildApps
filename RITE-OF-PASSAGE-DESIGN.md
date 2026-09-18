@@ -2,10 +2,10 @@
 
 *A Brokild transition processor. Written 2026-09-18 from a conversation with
 Peter, before any code, in the house manner. Two readings of the effect menu
-were taken and merged; where the second reading won, §16 says so.*
+were taken and merged; where the second reading won, §17 says so.*
 
 *STATUS: NO CODE. Nothing here has been measured. Every number in this
-document is a TARGET, and the bench in §14 is the list of promises that have
+document is a TARGET, and the bench in §15 is the list of promises that have
 to come true before the plugin is allowed to exist. The LEGION doc could say
 "measured" because it was written after the engine; this one cannot, and
 saying so is the point of writing it first.*
@@ -32,9 +32,12 @@ deliberate act — not something that falls out of the slider reaching the end.
   macro, not a transition. §3.
 - **No drop fired by scrubbing.** ARRIVAL is its own command. §4.
 - **No dynamic panning as the stereo story.** §6.
+- **No level change that is not the point, and no pitch change that is not
+  the point.** Two faults that make an effect sound amateur however good the
+  algorithm is. §8.
 - **No growing parameter list.** One automatable slider, one arrival trigger,
   four macros. Everything else lives in an opaque blob, the BWFX doctrine.
-  §10.
+  §11.
 
 ## 2. Six slots
 
@@ -227,7 +230,7 @@ bigger for less work, and it costs no slot because it belongs to ARRIVAL.
 Optionally it releases *past* unity for a moment and settles back.
 
 **Bass is mono below a corner (default 120 Hz), always, with no switch.** And
-mono compatibility is a measured contract, not a hope: §14 requires the
+mono compatibility is a measured contract, not a hope: §15 requires the
 mono sum of any rite to lose no more than 3 dB against its stereo RMS at every
 point on the travel. A transition that vanishes on a phone is not spectacular.
 
@@ -268,6 +271,9 @@ point on the travel. A transition that vanishes on a phone is not spectacular.
 - `process()` allocates nothing, locks nothing, logs nothing. Denormals off.
   Internal float headroom, one safety limiter last, and nothing else clips.
 
+Level and pitch have their own section, because "it got louder" and "it went
+slightly flat" are the two ways a good algorithm still sounds wrong. §8.
+
 And the part that is not DSP: **spectacular is contrast, not loudness.**
 Twelve effects stacking resonance and saturation can put the build well over
 the drop, which inverts the entire point. Per-slot auto-makeup, a global
@@ -276,7 +282,101 @@ somewhere to arrive from. Silence, width and level all change at the same
 instant — that is what makes a drop land, and it is why GAP, the MONO GATE and
 the tail modes are three parts of one idea.
 
-## 8. Capture, tails, and going backwards
+## 8. Level and pitch discipline
+
+*Peter, 2026-09-18.* Two faults that make an effect sound amateur even when
+the algorithm underneath it is good. They are cross-cutting contracts rather
+than per-effect notes, and both of them are measurable, which is why they get
+a section and a block of the bench.
+
+### 8.1 An effect changes loudness only when that is what it is for
+
+Where it goes wrong, and every one of these is live in this plugin:
+
+- **Saturation raises RMS**, which is the oldest reason a processed signal
+  "sounds better" than the one it replaced.
+- **Six slots in series each adding a wet path.** Correlated wet and dry sum
+  to more than either; a linear dry/wet dips in the middle and an equal-power
+  one swells. Neither is right for all material.
+- **A resonant peak is up to +18 dB over the passband.** Sweeping CLIMB up
+  should not be a volume ride.
+- **Density and overlap.** GRAIN's density knob will be swept the length of
+  the transition; if the grain windows do not sum to equal power, that sweep
+  is a fader move.
+- **Capture picks a level.** A STUTTER repeats whichever slice it happened to
+  catch, and a FREEZE holds whichever frame it grabbed. Both can sit well
+  above or below the material they replaced.
+- **Shifting up loses everything above Nyquist.** LEGION measures −5.5 dB at
+  +12 st, and DIVE is LEGION.
+- **Collapsing correlated stereo to mono is up to +6 dB.** §6's MONO GATE
+  would jump at the exact moment it must not.
+
+**The answer is neutrality by construction, not a leveller.** A dynamic
+leveller fights the gesture, pumps, and makes the last bar of a build mushy —
+which is the one bar that matters. What is wanted is a *computed, static*
+compensation that follows the parameters:
+
+- resonance compensation on CLIMB, so the peak adds no gain while the
+  passband loss stays — a lowpass sweeping down **should** thin out, and that
+  is the music, not a fault;
+- equal-power grain windows, so density is level-invariant by construction
+  rather than by correction;
+- STUTTER normalises its captured slice to the loudness of what it replaced,
+  and FREEZE to the frame it captured;
+- every stereo operation energy-preserving: TURN is a rotation and already is,
+  WIDTH and the MONO GATE are normalised so the sum keeps its energy;
+- drive makeup **measured** against the actual signal, never a formula.
+
+Each effect declares one of three classes, and the class is what the bench
+holds it to:
+
+| class | contract |
+|---|---|
+| **NEUTRAL** | loudness must not move at all as its parameters move |
+| **SPECTRAL** | loudness follows what was removed from the spectrum, and nothing else |
+| **INTENTIONAL** | the level change IS the effect |
+
+### 8.2 Nothing moves pitch unless moving pitch is the point
+
+The traps, again all live here:
+
+- **BLOOM's delay lines have to be modulated** or the FDN rings metallic —
+  and modulation is pitch. Depth stays under 5 cents.
+- **Splices.** REVERSE and STUTTER cut and crossfade; two fragments at
+  different rates crossfaded together warble.
+- **BRAKE's inertia must settle to exactly 1.0.** A lag that never quite
+  arrives leaves the whole track permanently a few cents flat, which is the
+  worst kind of bug because it is inaudible until it is in the mix.
+- **Zero must be exactly zero.** GRAIN's pitch spread and STUTTER's
+  pitch-per-repeat at their zero settings must be bit-exact, not nearly. This
+  is the LEGION lesson restated: unity there measures −93.9 dB because it is
+  exact, and it is exact because the code has a path where nothing happens.
+- **TAPE's Fade mode must not repitch.** Not repitching is the entire purpose
+  of the mode.
+- **Oversampling ratios must be exact**, or everything drifts.
+
+Declared movers: **TAPE** (in Repitch), **BRAKE**, **DIVE**, **RISER**, and
+**STUTTER / GRAIN only when their pitch controls are off zero.** Everything
+else is pitch-exact, and the bench proves it rather than assuming it.
+
+### 8.3 The twelve, declared
+
+| effect | level | pitch |
+|---|---|---|
+| CLIMB | SPECTRAL — passband loss yes, resonance gain no | exact |
+| TAPE | NEUTRAL (dry path); feedback INTENTIONAL | **moves** in Repitch, exact in Fade |
+| STUTTER | NEUTRAL — slice matched to what it replaced | exact unless pitch-per-repeat is on |
+| CHOP | NEUTRAL — duty compensated | exact |
+| GRAIN | NEUTRAL — equal-power windows | exact unless spread is on |
+| BLOOM | NEUTRAL — wet matched, tail decays | exact (modulation under 5 cents) |
+| FREEZE | NEUTRAL — matched to the captured frame | exact |
+| REVERSE | NEUTRAL | exact |
+| BRAKE | NEUTRAL | **moves**, and settles to exactly 1.0 |
+| DIVE | NEUTRAL — Nyquist loss compensated | **moves** |
+| RISER | INTENTIONAL | **moves** |
+| GAP | INTENTIONAL — silence is the point | exact |
+
+## 9. Capture, tails, and going backwards
 
 A transition plugin is unusual in that the slider can move *back*, and the
 host can jump the playhead into the middle of a rite that never started.
@@ -290,10 +390,10 @@ host can jump the playhead into the middle of a rite that never started.
 - **Playhead jumps** are detected from a ppq discontinuity: every slot resets,
   buffers clear, capture re-arms. No tail survives a jump.
 - **Tails at t=0.** With every slot before its ENTER and A empty, the plugin
-  is **bit-transparent** — the house contract, and the first thing §14
+  is **bit-transparent** — the house contract, and the first thing §15
   measures.
 
-## 9. Latency
+## 10. Latency
 
 **Two effects carry latency** — FREEZE and DIVE, both windowed. With
 assignable slots the honest latency depends on what is loaded, and a plugin
@@ -303,7 +403,7 @@ always**, with a DETAIL-style window choice that sets what the worst case is.
 It is a transition plugin; it is not for live monitoring, and pretending
 otherwise would cost more than it buys.
 
-## 10. The automatable surface, and nothing more
+## 11. The automatable surface, and nothing more
 
 **One slider. One ARRIVAL trigger. Four macros.** Everything else — six slot
 assignments, two full settings each, enter, exit, curve, depth, place, tail
@@ -315,7 +415,7 @@ reading raised without having to manage it: if slot parameters were host
 parameters, re-assigning a slot would orphan every automation lane bound to
 it. They are not host parameters, so there is nothing to orphan.
 
-## 11. BWFX
+## 12. BWFX
 
 The rack inserts as one stage, post-slots, pre-limiter, default empty and
 therefore bit-transparent. Four calls, exactly as LEGION does it.
@@ -327,7 +427,7 @@ EROSION, JET and WIDTH do not need to be in the twelve. TUBE and GRIT already
 exist in BWFX; a transition that wants progressive destruction drives a macro
 at them.
 
-## 12. The rite
+## 13. The rite
 
 **The panel is a threshold, and the transition is something crossing it.**
 
@@ -373,7 +473,7 @@ gate. Six lanes below, notched like a tally, one per slot.
 Decals are ordered through `assets/rite-decals/BRIEF.md` — twelve parts, the
 house format, self-contained to paste in one message.
 
-## 13. Presets
+## 14. Presets
 
 A **rite** is the whole thing: six assignments, twelve settings, the score,
 the arrival. Named and shareable as one file.
@@ -384,7 +484,7 @@ short stutter takes over, and everything clears on the downbeat. Five slots,
 staggered enter points, an ARRIVAL with SPILL on the bloom. If that lands on
 the bar and sounds like one gesture rather than five, the score model works.
 
-## 14. What the bench will measure
+## 15. What the bench will measure
 
 None of this is measured yet. The bench is written first and fails first.
 
@@ -406,21 +506,42 @@ None of this is measured yet. The bench is written first and fails first.
   0.1 dB.
 - **Backwards and jumps**: scrub the slider back, jump the playhead — no tail,
   no capture, no sound survives.
+- **LOUDNESS SWEEP** — the §8 contract, and the largest block in the file.
+  Every parameter of every effect swept its full range, on pink noise and on a
+  drum loop, measured as short-term loudness with BS.1770 K-weighting: a
+  NEUTRAL effect may not move more than **±1.0 dB**, a SPECTRAL one may not
+  move more than the band it removed, and an INTENTIONAL one is exempt and
+  says so.
+- **STACK** — enabling each slot in turn, one at a time and then all six, may
+  not move programme loudness more than **±1.0 dB** per slot.
+- **THE TRAVEL** — the slider walked 0 → 1 in 1 % steps on every factory rite,
+  loudness at each step: no step over **1.5 dB**, and the whole excursion
+  declared per preset so a change to it is visible in a diff.
+- **THE DROP IS LOUDER THAN THE BUILD** — the bar after ARRIVAL must be at
+  least as loud as the loudest point of the build that preceded it. The whole
+  plugin exists to make this true and it is one line to check.
+- **PITCH EXACTNESS** — a 440 Hz sine through every non-mover of §8.3, at both
+  extremes of every parameter: output within **±2 cents**. GRAIN's spread and
+  STUTTER's pitch-per-repeat at zero must be bit-exact, not merely close.
+- **BRAKE SETTLES** — held at speed 1.0 for 60 s after a full stop and
+  release, the output is within ±1 cent of the input and stays there.
+- **STEREO IS ENERGY PRESERVING** — TURN, WIDTH and the MONO GATE across their
+  full range, within **0.5 dB** of unity sum energy.
 - **Bounded and finite** for all twelve effects at both extremes of every
   parameter, on music, on noise, on silence and on a scream.
 - **Deterministic**: byte-identical at block size 64 and 256.
 - **Cost**, six slots loaded, the worst six.
 
-## 15. What is deferred
+## 16. What is deferred
 
 - **Parallel routing.** Serial only. Six slots in a line is already a
   combinatorial instrument.
-- **Per-slot host automation.** §10. Four macros is the pressure valve.
+- **Per-slot host automation.** §11. Four macros is the pressure valve.
 - **MIDI trigger for ARRIVAL.** Obvious, easy, not v1.
 - **A curve editor.** Five named curves, not a drawable one.
 - **The reserve four effects.** §5.
 
-## 16. Provenance
+## 17. Provenance
 
 The six-slot architecture is Peter's, 2026-09-18, and it is better than the
 twelve fixed effects it replaced.
