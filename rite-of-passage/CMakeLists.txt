@@ -40,16 +40,33 @@ juce_add_plugin(RITEOFPASSAGE
     NEEDS_MIDI_OUTPUT         FALSE
     IS_MIDI_EFFECT            FALSE
     COPY_PLUGIN_AFTER_BUILD   FALSE
+    // Smart App Control on the build machine blocks the freshly linked
+    // vst3_helper.exe, and JUCE runs it to write moduleinfo.json — so the
+    // manifest step fails the whole build after the DLL is already good.
+    // The file is optional and hosts scan the binary without it.
+    VST3_AUTO_MANIFEST        FALSE
     VST3_CATEGORIES           Fx Modulation
     PRODUCT_NAME              "Rite of Passage")
 
 juce_generate_juce_header(RITEOFPASSAGE)
+
+# ---------------------------------------------------------------------------
+# The decals (assets/rite-decals, ingested by tools/ingest-decals.ps1). The
+# panel looks each one up BY FILENAME and draws its procedural fallback when
+# it is missing, so this glob may legitimately be empty.
+file(GLOB ROP_DECALS "${CMAKE_CURRENT_SOURCE_DIR}/decals/*.png")
+if(ROP_DECALS)
+    juce_add_binary_data(ropdecals SOURCES ${ROP_DECALS})
+    set_target_properties(ropdecals PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+    target_link_libraries(RITEOFPASSAGE PRIVATE ropdecals)
+endif()
 
 target_sources(RITEOFPASSAGE PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
     engine/rop_loudness.cpp
     engine/rop_effects.cpp
+    engine/rop_effects_more.cpp
     engine/rop_rack.cpp)
 
 target_compile_definitions(RITEOFPASSAGE PUBLIC
