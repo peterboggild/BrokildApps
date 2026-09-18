@@ -126,7 +126,7 @@ private:
     juce::TextButton arrival { "ARRIVAL" };
     std::unique_ptr<ButtonAttach> arrivalAttach;
     juce::TextButton bwfxButton { "BWFX" };
-    juce::Label title, readout;
+    juce::Label title, readout, build;
 
     std::vector<std::unique_ptr<Knob>> globals;
 

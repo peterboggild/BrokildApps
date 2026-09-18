@@ -70,7 +70,12 @@ target_sources(RITEOFPASSAGE PRIVATE
     engine/rop_effects_third.cpp
     engine/rop_rack.cpp)
 
+# The build id. Bump it for a new build AND re-run cmake -S . -B <dir>, or
+# it will not take — the same rule every other plugin in the fleet has.
+set(ROP_BUILD_ID "260918.3")
+
 target_compile_definitions(RITEOFPASSAGE PUBLIC
+    ROP_BUILD_ID="${ROP_BUILD_ID}"
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
