@@ -155,7 +155,7 @@ is a design intention, not a measurement.
 ## Where this prompt lives
 
 - This file: `ios-apps/sleeper-agent/HANDOFF_PROMPT.md`
-- GitHub issue: see `START_HERE.md` §3 for the link
+- GitHub issue: https://github.com/peterboggild/BrokildApps/issues/30
 
 If you change the port substantially, update this prompt too — its value is
 that it is true.

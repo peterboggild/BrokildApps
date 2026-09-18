@@ -73,6 +73,7 @@ Read in this order if you are coming back cold:
 | `APP_STORE_METADATA.md` | the listing: name, description, keywords, screenshots plan, review notes, pricing recommendation |
 | `APP_PRIVACY_NOTES.md` | what to answer in Apple's privacy questionnaire, and how to verify it yourself |
 | `DECISIONS_OPEN.md` | the short list of things only you can decide |
+| `HANDOFF_PROMPT.md` | a prompt to paste into a fresh AI session so it can carry on |
 
 Code:
 
@@ -120,7 +121,17 @@ two URLs to be live.** See `SHIPPING_GUIDE.md` step 8.
 
 ## 7. Picking this up with an AI assistant later
 
-Point it at these files, in this order, and it will have the whole picture:
+**The prompt is already written.** `HANDOFF_PROMPT.md`, and posted as a GitHub
+issue so it can be found from the issue list rather than only by knowing the
+path:
+
+> https://github.com/peterboggild/BrokildApps/issues/30
+
+Paste the block from either into a fresh session and it has the whole picture.
+What follows is the same thing in short, if you would rather assemble it
+yourself.
+
+Point it at these files, in this order:
 
 ```
 ios-apps/sleeper-agent/START_HERE.md

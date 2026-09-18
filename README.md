@@ -29,6 +29,10 @@ which says what state it is in and points at everything else, including a
 step-by-step guide from here to the App Store written for someone who has never
 shipped an app.
 
+To hand it to an AI session, paste the prompt from
+[issue #30](https://github.com/peterboggild/BrokildApps/issues/30) or from
+[`HANDOFF_PROMPT.md`](ios-apps/sleeper-agent/HANDOFF_PROMPT.md).
+
 ## How the front page works
 
 The front page is data-driven, so adding an app never means editing HTML:
