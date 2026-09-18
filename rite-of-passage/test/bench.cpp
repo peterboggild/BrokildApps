@@ -138,6 +138,49 @@ double toneMag (const std::vector<float>& x, int from, int len, double hz)
     return 2.0 * std::sqrt (std::max (0.0, s1 * s1 + s2 * s2 - c * s1 * s2)) / len;
 }
 
+//  two tones at once: one low enough to be untouched by a tone cue and one
+//  high enough to be flattened by it, so LEVEL and COLOUR can be told apart
+//  in a single take
+void fillTwoTone (std::vector<float>& l, std::vector<float>& r, int n,
+                  double f1, double f2, float amp = 0.35f)
+{
+    l.assign ((size_t) n, 0.0f); r.assign ((size_t) n, 0.0f);
+    for (int i = 0; i < n; ++i)
+    {
+        const float v = amp * (float) (std::sin (2.0 * M_PI * f1 * i / kFs)
+                                     + std::sin (2.0 * M_PI * f2 * i / kFs)) * 0.5f;
+        l[(size_t) i] = v; r[(size_t) i] = v;
+    }
+}
+
+//  where does b sit behind a? integer samples, by plain cross-correlation
+int bestLag (const std::vector<float>& a, const std::vector<float>& b,
+             int from, int len, int maxLag)
+{
+    double best = -1.0e30; int bl = 0;
+    for (int lag = 0; lag <= maxLag; ++lag)
+    {
+        double acc = 0.0;
+        for (int i = 0; i < len; ++i)
+            acc += (double) a[(size_t) (from + i)] * b[(size_t) (from + i + lag)];
+        if (acc > best) { best = acc; bl = lag; }
+    }
+    return bl;
+}
+
+//  how far apart are two renders of the same input? 0 = identical.
+//  (Martian Gain's apart(), for the same reason it exists there.)
+double apart (const std::vector<float>& a, const std::vector<float>& b, int from)
+{
+    double num = 0.0, den = 0.0;
+    for (size_t i = (size_t) from; i < a.size(); ++i)
+    {
+        const double d = (double) a[i] - (double) b[i];
+        num += d * d; den += (double) a[i] * a[i];
+    }
+    return std::sqrt (num / std::max (1.0e-20, den));
+}
+
 // --- running the rack ------------------------------------------------------
 struct Host
 {
@@ -791,14 +834,171 @@ int main()
         }
     }
 
+    // -- 13c. THE THIRD SIX DO WHAT THEY ARE NAMED FOR -------------------------
+    /*  Every check here is of the BRIEF, because bounded-and-finite is the
+        easiest thing in the world to pass while doing nothing. */
+    {
+        std::printf ("  the third six, against what they promise:\n");
+        const int nLen3 = (int) (kFs * 2.0);
+
+        /*  ORBIT: near, right, BACK, left — and the back has to be weaker,
+            darker AND later, because one cue on its own is a pan pot. Two
+            tones in one take separate level from colour. */
+        {
+            const int orbit = effectTypeByName ("orbit");
+            std::vector<float> fl, fr, bl2, br2;
+            auto render = [&] (float deg, std::vector<float>& l, std::vector<float>& r)
+            {
+                Host h; h.prepare (256);
+                h.rack.setSlotEffect (0, orbit);
+                setFlat (h.rack, 0, orbit);
+                setAB (h.rack, 0, 0, deg, deg);          // ANGLE
+                fillTwoTone (l, r, nLen3, 300.0, 6000.0);
+                h.run (l, r, 256, 1.0f, 1.0f);
+            };
+            render (0.0f, fl, fr);                        // in front
+            render (180.0f, bl2, br2);                    // behind
+
+            const int at = (int) kFs / 2, win = 32768;
+            const double loF = toneMag (fl, at, win, 300.0),  hiF = toneMag (fl, at, win, 6000.0);
+            const double loB = toneMag (bl2, at, win, 300.0), hiB = toneMag (bl2, at, win, 6000.0);
+            const double lvlDb = 20.0 * std::log10 ((loB + 1e-12) / (loF + 1e-12));
+            const double colDb = 20.0 * std::log10 (((hiB / (loB + 1e-12)) + 1e-12)
+                                                  / ((hiF / (loF + 1e-12)) + 1e-12));
+            const int lag = bestLag (fl, bl2, at, 8192, 64);
+            std::printf ("    ORBIT behind you       %+.1f dB, %+.1f dB of top, %d samples late\n",
+                         lvlDb, colDb, lag);
+            CHECK (lvlDb < -1.0, "ORBIT's back is not quieter than its front (%+.1f dB)", lvlDb);
+            CHECK (colDb < -3.0, "ORBIT's back is not darker than its front (%+.1f dB)", colDb);
+            CHECK (lag >= 4, "ORBIT's back is not LATE (%d samples) — the path round a head is longer", lag);
+
+            //  and the sides have to be sides
+            std::vector<float> rl, rr;
+            render (90.0f, rl, rr);
+            const double ml = toneMag (rl, at, win, 300.0), mr = toneMag (rr, at, win, 300.0);
+            std::printf ("    ORBIT at 90 degrees    L %.4f  R %.4f\n", ml, mr);
+            CHECK (mr > ml * 1.5, "ORBIT at 90 degrees is not to the RIGHT (L %.4f, R %.4f)", ml, mr);
+        }
+
+        /*  MANGLE: four engines that are actually four. A selector wired to
+            nothing would pass every bounded check ever written. */
+        {
+            const int mangle = effectTypeByName ("mangle");
+            std::vector<float> take[4];
+            for (int e = 0; e < 4; ++e)
+            {
+                Host h; h.prepare (256);
+                h.rack.setSlotEffect (0, mangle);
+                setFlat (h.rack, 0, mangle);
+                setAB (h.rack, 0, 0, (float) e, (float) e);   // ENGINE
+                setAB (h.rack, 0, 1, 70.0f, 70.0f);           // DRIVE
+                std::vector<float> r;
+                fillNoise (take[e], r, nLen3);
+                h.run (take[e], r, 256, 1.0f, 1.0f);
+            }
+            double worst = 1.0e30;
+            for (int a = 0; a < 4; ++a)
+                for (int b = a + 1; b < 4; ++b)
+                    worst = std::min (worst, apart (take[a], take[b], (int) kFs / 2));
+            std::printf ("    MANGLE engines         closest pair differs by %.3f\n", worst);
+            CHECK (worst > 0.05, "two of MANGLE's four engines are the same thing (%.4f apart)", worst);
+
+            //  and the oversampling has to be doing its job: a 9 kHz tone's
+            //  third harmonic is at 27 kHz, i.e. nowhere — not folded to 21
+            Host h; h.prepare (256);
+            h.rack.setSlotEffect (0, mangle);
+            setFlat (h.rack, 0, mangle);
+            setAB (h.rack, 0, 0, 2.0f, 2.0f);                 // SINE FOLD, the worst case
+            setAB (h.rack, 0, 1, 100.0f, 100.0f);
+            std::vector<float> l, r; fillSine (l, r, nLen3, 9000.0, 0.5f);
+            const double in9 = toneMag (l, (int) kFs / 2, 32768, 9000.0);
+            h.run (l, r, 256, 1.0f, 1.0f);
+            const double fold = toneMag (l, (int) kFs / 2, 32768, 21000.0);
+            const double db = 20.0 * std::log10 ((fold + 1e-12) / (in9 + 1e-12));
+            std::printf ("    MANGLE fold at 21 kHz  %+.1f dB\n", db);
+            CHECK (db < -30.0, "MANGLE folds its third harmonic back at %+.1f dB", db);
+        }
+
+        /*  CHANT: the output is the CARRIER. Feed it 440 Hz and the pitch that
+            comes out must be the carrier's, or it is a filter bank and not a
+            vocoder. */
+        {
+            const int chant = effectTypeByName ("chant");
+            Host h; h.prepare (256);
+            h.rack.setSlotEffect (0, chant);
+            setFlat (h.rack, 0, chant);
+            std::vector<float> l, r; fillSine (l, r, (int) (kFs * 3.0), 440.0, 0.45f);
+            h.run (l, r, 256, 1.0f, 1.0f);
+            const double f = measureF0 (l, (int) kFs, 32768, 40.0, 900.0);
+            std::printf ("    CHANT 440 Hz in        speaks at %.1f Hz (carrier C2 = 65.4)\n", f);
+            CHECK (f > 55.0 && f < 80.0,
+                   "CHANT did not take the carrier's pitch (%.1f Hz, wanted ~65.4)", f);
+        }
+
+        /*  SWARM: the crowd has to be a crowd. Both controls that make it one
+            must change the sound — the Martian Gain rule that a knob which
+            does nothing passes every other test. */
+        {
+            const int swarm = effectTypeByName ("swarm");
+            auto render = [&] (float voices, float detune, std::vector<float>& l)
+            {
+                Host h; h.prepare (256);
+                h.rack.setSlotEffect (0, swarm);
+                setFlat (h.rack, 0, swarm);
+                setAB (h.rack, 0, 0, voices, voices);
+                setAB (h.rack, 0, 1, detune, detune);
+                std::vector<float> r;
+                fillNoise (l, r, nLen3);
+                h.run (l, r, 256, 1.0f, 1.0f);
+            };
+            std::vector<float> a2, a8, d0;
+            render (2.0f, 18.0f, a2);
+            render (8.0f, 18.0f, a8);
+            render (8.0f,  0.0f, d0);
+            const double byVoices = apart (a2, a8, (int) kFs / 2);
+            const double byDetune = apart (a8, d0, (int) kFs / 2);
+            std::printf ("    SWARM 2 vs 8 voices    %.3f apart; detune 0 vs 18 c  %.3f apart\n",
+                         byVoices, byDetune);
+            CHECK (byVoices > 0.05, "SWARM's VOICES does nothing (%.4f apart)", byVoices);
+            CHECK (byDetune > 0.05, "SWARM's DETUNE does nothing (%.4f apart)", byDetune);
+        }
+
+        /*  SWIRL earns its place only by not being BLOOM. Same nominal room,
+            and they must still be different animals. */
+        {
+            auto render = [&] (const char* id, std::vector<float>& l)
+            {
+                const int t = effectTypeByName (id);
+                Host h; h.prepare (256);
+                h.rack.setSlotEffect (0, t);
+                setFlat (h.rack, 0, t);
+                std::vector<float> r;
+                fillNoise (l, r, nLen3);
+                h.run (l, r, 256, 1.0f, 1.0f);
+            };
+            std::vector<float> sw, bl3;
+            render ("swirl", sw);
+            render ("bloom", bl3);
+            const double d = apart (sw, bl3, (int) kFs / 2);
+            std::printf ("    SWIRL against BLOOM    %.3f apart\n", d);
+            CHECK (d > 0.3, "SWIRL is BLOOM with a different name (%.3f apart)", d);
+        }
+    }
+
     // -- 14. COST -------------------------------------------------------------
     {
         Host h; h.prepare (256);
+        /*  THE WORST CASE, not the first six. `i % numEffects()` loaded
+            CLIMB..GAP, which are the cheap ones — a cost figure taken from
+            them says nothing about a rack somebody would actually build. */
+        const char* heavy[kSlots] = { "chant", "swarm", "swirl", "mangle", "bloom", "grain" };
         for (int i = 0; i < kSlots; ++i)
         {
-            const int type = i % numEffects();
+            const int type = effectTypeByName (heavy[i]);
             h.rack.setSlotEffect (i, type);
             setFlat (h.rack, i, type);
+            if (std::strcmp (heavy[i], "chant") == 0) setAB (h.rack, i, 2, 2.0f, 2.0f);  // 24 bands
+            if (std::strcmp (heavy[i], "swarm") == 0) setAB (h.rack, i, 0, 8.0f, 8.0f);  // 8 voices
         }
         const int n = (int) (kFs * 4.0);
         std::vector<float> l, r; fillNoise (l, r, n);
@@ -806,7 +1006,7 @@ int main()
         h.run (l, r, 256, 0.0f, 1.0f);
         const auto t1 = std::chrono::steady_clock::now();
         const double secs = std::chrono::duration<double> (t1 - t0).count();
-        std::printf ("  six slots loaded         %.1f x real time (%.1f %% of one core)\n",
+        std::printf ("  the six most expensive   %.1f x real time (%.1f %% of one core)\n",
                      4.0 / secs, 100.0 * secs / 4.0);
         CHECK (measure (l, r).finite, "the cost run produced a non-finite sample");
     }
