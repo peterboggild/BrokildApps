@@ -77,3 +77,12 @@ add_executable(ropehost test/hosttest.cpp)
 target_link_libraries(ropehost PRIVATE RITEOFPASSAGE)
 target_include_directories(ropehost PRIVATE $<TARGET_PROPERTY:RITEOFPASSAGE,INCLUDE_DIRECTORIES>)
 target_compile_definitions(ropehost PRIVATE $<TARGET_PROPERTY:RITEOFPASSAGE,COMPILE_DEFINITIONS>)
+
+# ---------------------------------------------------------------------------
+# The panel snapshot: renders the REAL editor to PNGs (empty, loaded, midway)
+# and checks the lanes take on heat. There is no standalone and no web panel,
+# so this is the only way to look at it (Legion's lesson).
+add_executable(ropshot test/shoteditor.cpp)
+target_link_libraries(ropshot PRIVATE RITEOFPASSAGE)
+target_include_directories(ropshot PRIVATE $<TARGET_PROPERTY:RITEOFPASSAGE,INCLUDE_DIRECTORIES>)
+target_compile_definitions(ropshot PRIVATE $<TARGET_PROPERTY:RITEOFPASSAGE,COMPILE_DEFINITIONS>)
