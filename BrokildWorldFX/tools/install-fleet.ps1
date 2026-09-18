@@ -46,6 +46,10 @@ $plugins = @(
   # tree under b\ — it is built to b\_build\Legion and named here explicitly.
   @{ dir = "Legion";           name = "Legion";             group = "Brokild collection";
      build = "C:\Users\peter\b\_build\Legion\plugin" }
+  # Rite of Passage: same arrangement - source in the website repo (checked out
+  # to b\_worktrees\rop), built to b\_build\RiteOfPassage\plugin.
+  @{ dir = "RiteOfPassage";    name = "Rite of Passage";    group = "Brokild collection";
+     build = "C:\Users\peter\b\_build\RiteOfPassage\plugin" }
   # Clone Wars is deliberately absent: its binary comes from a CI-built zip,
   # never a local build (house rule).
 )
