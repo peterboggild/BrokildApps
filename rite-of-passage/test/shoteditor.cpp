@@ -143,6 +143,84 @@ int main (int argc, char** argv)
         std::printf ("  wrote panel-flat.png\n");
     }
 
+    /*  THE BWFX RACK. It shipped once as a face with five macros and nothing
+        else, and nothing here would have noticed — so this opens it and
+        measures that it is FULL: teal ink (the rack's one mandated accent)
+        across both columns, and specifically on the RIGHT half, because the
+        fault Peter found was a panel with a left side and no SPECTRA. */
+    {
+        //  find the BWFX button by its text and click it
+        juce::Button* bwfx = nullptr;
+        std::function<void (juce::Component&)> hunt = [&] (juce::Component& c)
+        {
+            for (auto* k : c.getChildren())
+            {
+                if (auto* b = dynamic_cast<juce::Button*> (k))
+                    if (b->getButtonText() == "BWFX") { bwfx = b; return; }
+                hunt (*k);
+                if (bwfx != nullptr) return;
+            }
+        };
+        hunt (*ed);
+
+        /*  Arm one of each before opening, so the shot is of a rack somebody
+            would actually have and the checks can see a PRESENCE slider. An
+            empty rack is the honest default but it proves the least. */
+        if (bwfx != nullptr)
+        {
+            for (int t = 0; t < bwfx::numModuleTypes(); ++t)
+                if (juce::String (bwfx::moduleDescriptor (t).name) == "ECHO")
+                    proc.bwfxRack().setEnabled (t, true);
+            for (int c = 0; c < bwfx::numCharacters(); ++c)
+                if (juce::String (bwfx::characterDescriptor (c).name) == "TAPE SEANCE")
+                    proc.bwfxRack().setCharArmed (c, true);
+        }
+        CHECK (bwfx != nullptr, "there is no BWFX button on the panel");
+        if (bwfx != nullptr)
+        {
+            /*  NOT triggerClick(): it posts through MessageManager::callAsync
+                and nothing here runs a loop to deliver it, so the snapshot came
+                out showing the main panel and the check measured that. The
+                button's own onClick is the click, synchronously. */
+            if (bwfx->onClick) bwfx->onClick();
+            const auto shot = ed->createComponentSnapshot (ed->getLocalBounds(), false, 1.0f);
+            juce::File f = dir.getChildFile ("panel-bwfx.png");
+            f.deleteFile();
+            { juce::FileOutputStream os (f); juce::PNGImageFormat png; png.writeImageToStream (shot, os); }
+            std::printf ("  wrote panel-bwfx.png\n");
+
+            /*  ASH, not teal. Teal is the accent on presence sliders and the
+                reorder buttons, so an un-armed column has almost none of it and
+                a teal count calls a perfectly correct panel empty. The module
+                NAMES are ash and are there either way, which is what "this
+                column has content" actually means. */
+            auto inkIn = [&] (juce::Rectangle<int> r, bool teal)
+            {
+                int n = 0;
+                for (int y = r.getY(); y < r.getBottom(); y += 2)
+                    for (int x = r.getX(); x < r.getRight(); x += 2)
+                    {
+                        const auto c = shot.getPixelAt (x, y);
+                        if (teal) { if (c.getGreen() > 120 && c.getBlue() > 110 && c.getRed() < 110) ++n; }
+                        else      { if (c.getRed() > 170 && c.getGreen() > 160 && c.getBlue() > 140) ++n; }
+                    }
+                return n;
+            };
+            const int w = shot.getWidth(), h = shot.getHeight();
+            const juce::Rectangle<int> lc { 0, 90, w / 2, h - 200 }, rc { w / 2, 90, w / 2, h - 200 };
+            const int leftInk = inkIn (lc, false), rightInk = inkIn (rc, false);
+            const int leftTeal = inkIn (lc, true), rightTeal = inkIn (rc, true);
+            std::printf ("  BWFX rack: FX column %d names / %d teal, SPECTRA %d names / %d teal\n",
+                         leftInk, leftTeal, rightInk, rightTeal);
+            CHECK (leftInk  > 400, "the BWFX rack's FX column is empty (%d ink)", leftInk);
+            CHECK (rightInk > 250, "the BWFX rack has no SPECTRA column (%d ink) — that was "
+                                   "the whole fault Peter reported", rightInk);
+            //  and arming something has to put a PRESENCE slider on both sides
+            CHECK (leftTeal  > 200, "arming an FX put no teal control in its column (%d)", leftTeal);
+            CHECK (rightTeal > 120, "arming a character put no teal control in its column (%d)", rightTeal);
+        }
+    }
+
     std::printf ("\n%d checks, %d failed - %s\n", checks, failures, failures ? "SEE ABOVE" : "ALL CLEAR");
     return failures ? 1 : 0;
 }

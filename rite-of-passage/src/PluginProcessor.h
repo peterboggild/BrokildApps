@@ -68,6 +68,18 @@ public:
     juce::String riteToJson() const;
     void riteFromJson (const juce::String&);
 
+    /*  The six quick presets. They carry the RITE and the five global host
+        parameters — not POSITION or ARRIVAL, which are the performance and
+        would jump under the automation driving them, and not the BWFX rack,
+        because every other synth in the fleet leaves the rack alone on a
+        patch load and a preset that replaced it would be a nasty surprise. */
+    static constexpr int kQuickPresets = 6;
+    juce::File   quickPresetFile (int i) const;
+    juce::String quickPresetName (int i) const;
+    bool         loadQuickPreset (int i);
+    void         storeQuickPreset (int i, const juce::String& name = {});
+    void         ensureQuickPresets();       // writes the six factories once
+
     bool handleRackMessage (const juce::var& m) { return bwfx_juce::handleMessage (worldFx, apvts, m); }
     double loudness() const { return engine.lufs(); }
 

@@ -1,6 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include <brokild_paths.h>
+
 using namespace rop;
 
 namespace
@@ -241,6 +243,199 @@ void RiteProcessor::riteFromJson (const juce::String& js)
     }
     engine.monoGateSpan = (float) (double) root.getProperty ("gateSpan", 0.15);
     engine.bassMonoHz   = (float) (double) root.getProperty ("bass", 120.0);
+}
+
+// ---------------------------------------------------------------------------
+// THE SIX QUICK PRESETS.
+//
+// The factory six are described as a TABLE rather than as JSON literals, and
+// the JSON is generated from the descriptors: a table can only name a
+// parameter that exists, because the id is looked up in the effect's own
+// ParamDesc list and a miss is skipped rather than silently landing in the
+// wrong slot. Hand-written JSON has no such guard.
+namespace
+{
+    struct PV { const char* id; float a, b; };          // one parameter's journey
+    struct FSlot
+    {
+        const char* fx;                                  // nullptr = empty slot
+        float enter, exit, depth;
+        int   curve;                                     // rop::Curve
+        int   tail;                                      // 0 stop, 1 spill, 2 clear
+        PV    pv[6];
+    };
+    struct FRite
+    {
+        const char* name;
+        float mix, output, spread, turn, monogate;
+        FSlot slot[rop::kSlots];
+    };
+
+    const FRite kFactory[6] = {
+        //  1 — the classic: everything closes, then a hole, then the drop
+        { "DISSOLVE", 100.0f, 0.0f, 25.0f, 0.0f, 60.0f, {
+            { "climb", 0.00f, 1.00f, 1.0f, rop::CurveS,     0, { {"cutoff", 18000.0f, 320.0f}, {"reso", 15.0f, 62.0f} } },
+            { "grain", 0.45f, 1.00f, 0.9f, rop::CurveAccel, 2, { {"size", 120.0f, 22.0f}, {"density", 12.0f, 60.0f}, {"mix", 0.0f, 90.0f} } },
+            { "gap",   0.92f, 1.00f, 1.0f, rop::CurveLinear,2, { {"depth", 0.0f, 100.0f} } },
+            { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} } } },
+
+        //  2 — it does not close, it catches fire
+        { "IGNITE", 100.0f, 0.0f, 35.0f, 0.0f, 45.0f, {
+            { "riser", 0.20f, 1.00f, 1.0f, rop::CurveAccel, 0, { {"level", -60.0f, -7.0f}, {"freq", 400.0f, 9000.0f} } },
+            { "chop",  0.45f, 0.96f, 1.0f, rop::CurveAccel, 0, { {"div", 0.0f, 5.0f}, {"depth", 40.0f, 100.0f} } },
+            { "climb", 0.30f, 1.00f, 1.0f, rop::CurveLinear,0, { {"cutoff", 900.0f, 12000.0f}, {"reso", 20.0f, 70.0f} } },
+            { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} } } },
+
+        //  3 — the air is pulled out of the room
+        { "VACUUM", 100.0f, 0.0f, 20.0f, 0.0f, 85.0f, {
+            { "freeze", 0.35f, 0.90f, 1.0f, rop::CurveDecel,  2, { {"hold", 0.0f, 100.0f}, {"blur", 30.0f, 85.0f} } },
+            { "climb",  0.10f, 1.00f, 1.0f, rop::CurveDecel,  0, { {"mode", 2.0f, 2.0f}, {"cutoff", 30.0f, 2600.0f} } },
+            { "gap",    0.88f, 1.00f, 1.0f, rop::CurveLinear, 2, { {"depth", 0.0f, 100.0f}, {"edge", 20.0f, 3.0f} } },
+            { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} } } },
+
+        //  4 — the room comes loose from its moorings
+        { "SEASICK", 100.0f, 0.0f, 55.0f, 0.0f, 30.0f, {
+            { "swirl", 0.10f, 1.00f, 1.0f, rop::CurveS,      1, { {"mix", 15.0f, 80.0f}, {"warp", 20.0f, 100.0f}, {"rate", 0.2f, 2.4f} } },
+            { "swarm", 0.30f, 1.00f, 1.0f, rop::CurveLinear, 0, { {"voices", 2.0f, 8.0f}, {"detune", 4.0f, 42.0f}, {"mix", 30.0f, 90.0f} } },
+            { "orbit", 0.00f, 1.00f, 1.0f, rop::CurveLinear, 0, { {"angle", 0.0f, 360.0f}, {"rear", 80.0f, 80.0f} } },
+            { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} } } },
+
+        //  5 — it is taken apart with tools
+        { "DEMOLITION", 100.0f, 0.0f, 15.0f, 0.0f, 50.0f, {
+            { "mangle", 0.20f, 1.00f, 1.0f, rop::CurveAccel, 0, { {"engine", 0.0f, 3.0f}, {"drive", 20.0f, 95.0f}, {"mix", 45.0f, 100.0f} } },
+            { "dust",   0.40f, 1.00f, 1.0f, rop::CurveAccel, 0, { {"bits", 16.0f, 4.0f}, {"rate", 48000.0f, 2200.0f} } },
+            { "brake",  0.90f, 1.00f, 1.0f, rop::CurveDecel, 2, { {"speed", 100.0f, 0.0f} } },
+            { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} } } },
+
+        //  6 — the track stops being music and becomes a machine
+        { "THE MACHINE", 100.0f, 0.0f, 25.0f, 0.0f, 70.0f, {
+            { "chant",   0.25f, 1.00f, 1.0f, rop::CurveS,      0, { {"pitch", -12.0f, 7.0f}, {"mix", 40.0f, 100.0f}, {"bands", 1.0f, 2.0f} } },
+            { "stutter", 0.55f, 0.95f, 1.0f, rop::CurveAccel, 0, { {"div", 0.0f, 5.0f}, {"depth", 50.0f, 100.0f} } },
+            { "reverse", 0.70f, 1.00f, 1.0f, rop::CurveLinear,2, { {"depth", 0.0f, 100.0f} } },
+            { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} }, { nullptr, 0, 1, 1, 0, 0, {} } } },
+    };
+
+    //  the rite JSON for one factory entry, built from the DESCRIPTORS so a
+    //  parameter that does not exist cannot be written into the wrong index
+    juce::String factoryRiteJson (const FRite& f)
+    {
+        auto* rootObj = new juce::DynamicObject();
+        juce::Array<juce::var> slots;
+        for (int i = 0; i < rop::kSlots; ++i)
+        {
+            const FSlot& fs = f.slot[i];
+            auto* o = new juce::DynamicObject();
+            const int type = (fs.fx != nullptr) ? rop::effectTypeByName (fs.fx) : -1;
+            o->setProperty ("fx", type >= 0 ? juce::String (fs.fx) : juce::String());
+            o->setProperty ("on", true);
+            o->setProperty ("enter", fs.enter);
+            o->setProperty ("exit", fs.exit);
+            o->setProperty ("depth", fs.depth);
+            o->setProperty ("curve", fs.curve);
+            o->setProperty ("place", 0);
+            o->setProperty ("tail", fs.tail);
+            o->setProperty ("q", 0);
+            if (type >= 0)
+            {
+                const auto& d = rop::effectDescriptor (type);
+                juce::Array<juce::var> A, B;
+                for (int p = 0; p < d.numParams; ++p) { A.add (d.params[p].def); B.add (d.params[p].def); }
+                for (const auto& pv : fs.pv)
+                {
+                    if (pv.id == nullptr) continue;
+                    for (int p = 0; p < d.numParams; ++p)
+                        if (juce::String (d.params[p].id) == pv.id) { A.set (p, pv.a); B.set (p, pv.b); break; }
+                }
+                o->setProperty ("A", A);
+                o->setProperty ("B", B);
+            }
+            slots.add (juce::var (o));
+        }
+        rootObj->setProperty ("slots", slots);
+        return juce::JSON::toString (juce::var (rootObj));
+    }
+}
+
+juce::File RiteProcessor::quickPresetFile (int i) const
+{
+    const auto dir = brokild::patchFolder ("Rite of Passage", { "rite-of-passage" });
+    if (dir == juce::File()) return {};
+    return dir.getChildFile ("Quick " + juce::String (i + 1) + ".json");
+}
+
+juce::String RiteProcessor::quickPresetName (int i) const
+{
+    const auto f = quickPresetFile (i);
+    if (f == juce::File() || ! f.existsAsFile()) return "EMPTY";
+    const auto v = juce::JSON::parse (f.loadFileAsString());
+    const auto n = v.getProperty ("name", juce::var()).toString();
+    return n.isNotEmpty() ? n : ("QUICK " + juce::String (i + 1));
+}
+
+void RiteProcessor::storeQuickPreset (int i, const juce::String& name)
+{
+    const auto f = quickPresetFile (i);
+    if (f == juce::File()) return;
+
+    auto* o = new juce::DynamicObject();
+    o->setProperty ("name", name.isNotEmpty() ? name : ("QUICK " + juce::String (i + 1)));
+    o->setProperty ("build", juce::String (ROP_BUILD_ID));
+    o->setProperty ("rite", riteToJson());
+
+    //  the globals, but never POSITION or ARRIVAL: those are the performance
+    auto* g = new juce::DynamicObject();
+    for (const char* id : { rop_ids::mix, rop_ids::output, rop_ids::spread,
+                            rop_ids::turn, rop_ids::monogate })
+        if (auto* p = apvts.getRawParameterValue (id)) g->setProperty (id, (double) p->load());
+    o->setProperty ("globals", juce::var (g));
+
+    f.replaceWithText (juce::JSON::toString (juce::var (o)));
+}
+
+bool RiteProcessor::loadQuickPreset (int i)
+{
+    const auto f = quickPresetFile (i);
+    if (f == juce::File() || ! f.existsAsFile()) return false;
+    const auto v = juce::JSON::parse (f.loadFileAsString());
+    if (! v.isObject()) return false;
+
+    riteFromJson (v.getProperty ("rite", juce::var()).toString());
+
+    const juce::var g = v.getProperty ("globals", juce::var());
+    if (g.isObject())
+        for (const char* id : { rop_ids::mix, rop_ids::output, rop_ids::spread,
+                                rop_ids::turn, rop_ids::monogate })
+            if (g.hasProperty (id))
+                if (auto* p = apvts.getParameter (id))
+                {
+                    const double raw = (double) g.getProperty (id, juce::var (0.0));
+                    p->setValueNotifyingHost (p->convertTo0to1 ((float) raw));
+                }
+    return true;
+}
+
+//  the six factories are written ONCE, and never over a slot the user has
+//  stored into — a preset that came back from the dead is the worst kind
+void RiteProcessor::ensureQuickPresets()
+{
+    for (int i = 0; i < kQuickPresets; ++i)
+    {
+        const auto f = quickPresetFile (i);
+        if (f == juce::File() || f.existsAsFile()) continue;
+        auto* o = new juce::DynamicObject();
+        o->setProperty ("name", juce::String (kFactory[i].name));
+        o->setProperty ("build", juce::String (ROP_BUILD_ID));
+        o->setProperty ("factory", true);
+        o->setProperty ("rite", factoryRiteJson (kFactory[i]));
+        auto* g = new juce::DynamicObject();
+        g->setProperty (rop_ids::mix,      kFactory[i].mix);
+        g->setProperty (rop_ids::output,   kFactory[i].output);
+        g->setProperty (rop_ids::spread,   kFactory[i].spread);
+        g->setProperty (rop_ids::turn,     kFactory[i].turn);
+        g->setProperty (rop_ids::monogate, kFactory[i].monogate);
+        o->setProperty ("globals", juce::var (g));
+        f.replaceWithText (juce::JSON::toString (juce::var (o)));
+    }
 }
 
 void RiteProcessor::getStateInformation (juce::MemoryBlock& dest)

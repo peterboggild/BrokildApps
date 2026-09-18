@@ -64,6 +64,7 @@ endif()
 target_sources(RITEOFPASSAGE PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
+    src/BwfxPanel.cpp
     engine/rop_loudness.cpp
     engine/rop_effects.cpp
     engine/rop_effects_more.cpp
