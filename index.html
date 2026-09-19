@@ -33,6 +33,12 @@
       --line:    #17212f;
       --line-2:  #23344a;
 
+      /* The collection cards sit on a warmer, slightly lighter panel than
+         the single plugins - near enough in value that the grid still reads
+         as one surface, far enough in hue that the eye sorts them out. */
+      --panel-hi:   #131110;
+      --panel-hi-2: #1d1811;
+
       --cyan:      #5ef0da;
       --cyan-deep: #2a9d8f;
       --amber:     #ffb454;
@@ -361,6 +367,42 @@
     .card.soon { opacity: .78; }
     .card.soon::before, .card.soon::after { border-color: var(--amber-deep); }
 
+    /* ------------------------------------------------------ collections -- *
+     *  Two of the cards are not a plugin but a whole shelf of them: the
+     *  ten-plugin bundle and the Proxima findings. They sort to the head of
+     *  the grid (see the sort in the script) and are marked three ways at
+     *  once, because any one of them alone reads as an accident: a heavier
+     *  amber frame, a warmer panel, and a starred COLLECTION badge.
+     *
+     *  These rules come after the plain .card:hover ones on purpose - they
+     *  are the same specificity, so source order is what keeps the amber
+     *  frame amber when the pointer is over it.
+     * ---------------------------------------------------------------------- */
+    .card.collection {
+      border-width: 2px;
+      border-color: rgba(255,180,84,.34);
+      background: linear-gradient(170deg, var(--panel-hi-2), var(--panel-hi) 62%);
+      box-shadow: 0 0 22px rgba(255,180,84,.05);
+    }
+    .card.collection::before, .card.collection::after {
+      border-color: var(--amber-deep); opacity: .75;
+    }
+    .card.collection:hover {
+      border-color: var(--amber);
+      box-shadow: 0 0 0 1px rgba(255,180,84,.1), 0 18px 44px rgba(0,0,0,.6),
+                  0 0 44px rgba(255,180,84,.13);
+    }
+    .card.collection:hover::before, .card.collection:hover::after {
+      opacity: 1; border-color: var(--amber);
+    }
+    /* The dividing hairlines inside the card are cool grey; on the warm
+       panel they read as a stray colour, so warm them too. */
+    .card.collection .card-media { border-bottom-color: rgba(255,180,84,.2); }
+    .card.collection .card-note,
+    .card.collection .card-cta { border-top-color: rgba(255,180,84,.16); }
+    .card.collection .card-icon { color: var(--amber-deep); }
+    .card.collection:hover .card-icon { color: var(--amber); }
+
     .card-media {
       margin: -1.35rem -1.35rem 1.1rem;
       border-bottom: 1px solid var(--line);
@@ -381,6 +423,12 @@
         rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
     }
 
+    .badge-row {
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: .45rem; margin-bottom: .75rem;
+    }
+    .badge-row .badge { align-self: auto; margin-bottom: 0; }
+
     .badge {
       align-self: flex-start;
       font-family: var(--mono); font-size: .62rem; font-weight: 600;
@@ -391,6 +439,18 @@
     .badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
     .badge.live { color: var(--cyan); border: 1px solid rgba(94,240,218,.32); background: rgba(94,240,218,.06); }
     .badge.soon { color: var(--amber); border: 1px solid rgba(255,180,84,.3); background: rgba(255,180,84,.06); }
+    .badge.is-collection {
+      color: var(--amber);
+      border: 1px solid rgba(255,180,84,.55);
+      background: rgba(255,180,84,.11);
+      box-shadow: 0 0 16px rgba(255,180,84,.16);
+    }
+    /* The star replaces the status dot the other badges carry. */
+    .badge.is-collection::before {
+      content: "\2605";
+      width: auto; height: auto; border-radius: 0; background: none;
+      font-size: .82rem; line-height: 1; transform: translateY(-.04em);
+    }
 
     .card-icon {
       width: 34px; height: 34px; margin-bottom: .55rem;
@@ -653,7 +713,8 @@
           // Cards are always <div>s so the interactive tag pills aren't nested
           // inside a link; live cards get whole-card click via a handler below.
           var el = document.createElement("div");
-          el.className = "card" + (live ? " live" : " soon");
+          el.className = "card" + (live ? " live" : " soon") +
+            (t.collection ? " collection" : "");
           if (live) { el.setAttribute("data-url", t.url); }
 
           var tagsHtml = t.tags.map(function (id) {
@@ -680,10 +741,16 @@
             footHtml = '<span class="card-cta">In development</span>';
           }
 
+          // A collection says so first, then whether it is downloadable; a
+          // single plugin keeps the one status badge it always had.
+          var badgesHtml =
+            (t.collection ? '<span class="badge is-collection">Collection</span>' : "") +
+            '<span class="badge ' + (live ? "live" : "soon") + '">' +
+              (live ? "Available" : "Coming soon") + "</span>";
+
           el.innerHTML =
             mediaHtml +
-            '<span class="badge ' + (live ? "live" : "soon") + '">' +
-              (live ? "Available" : "Coming soon") + "</span>" +
+            '<div class="badge-row">' + badgesHtml + "</div>" +
             '<div class="card-icon" aria-hidden="true">' + svg(t.icon) + "</div>" +
             "<h3>" + esc(t.name) + "</h3>" +
             "<p>" + esc(t.description) + "</p>" +
@@ -795,7 +862,14 @@
         })).then(function (loaded) {
           apps = loaded.filter(Boolean).map(function (t) {
             t.tags = Array.isArray(t.tags) ? t.tags : [];
+            t.collection = t.collection === true;
             return t;
+          });
+          // Collections lead the grid, whatever order the manifest lists
+          // them in and whatever the filters leave standing. Sort is stable
+          // everywhere that matters, so the singles keep manifest order.
+          apps.sort(function (a, b) {
+            return (b.collection ? 1 : 0) - (a.collection ? 1 : 0);
           });
           loadingEl.hidden = true;
           buildChips();
