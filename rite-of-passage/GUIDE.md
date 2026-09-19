@@ -42,11 +42,16 @@ you do not have to draw an automation lane at all.
 | **BARS** | the length of the cycle: 1, 2, 4, 8 or 16 bars. It repeats for ever. |
 | **START** / **END** | where in that cycle the sweep runs. They are BAR LINES counted the way a DAW counts them, so in an 8-bar cycle the 8th bar is 8.00 to 9.00. They snap to quarter bars. |
 | **0 to 100 / 100 to 0** | which way the sweep runs. |
+| **then RESET / then HOLD** | what the position does between the end of the window and the end of the cycle. RESET drops it straight back to the start value; HOLD keeps it at the end value until the cycle wraps. RESET is the default. |
 | **ARRIVE** | fire ARRIVAL when the sweep completes. Off by default, because an automatic drop is a bigger thing than an automatic sweep. |
 
-Before the window the position sits at the start value, after it at the end
-value, and it resets when the cycle comes round. With no transport running it
-waits, and the readout says so.
+Before the window the position sits at the start value. **After the window it
+drops straight back**, which is what `then RESET` means and why it is the
+default: put the window early in a long cycle and `then HOLD` leaves you at
+100 % for several bars, which reads exactly like the sweep having run once and
+stopped. `then HOLD` is still there for when you want the arrival to stay
+landed until the cycle comes round. With no transport running it waits, and
+the readout says so.
 
 Measured, on an 8-bar cycle with the window set to the 8th bar:
 
@@ -59,6 +64,31 @@ Measured, on an 8-bar cycle with the window set to the 8th bar:
 
 **With AUTO off nothing changes at all** - the host parameter drives POSITION
 exactly as it always did, which is checked so that no existing project moves.
+
+The sweep repeats for as long as the transport rolls: measured over three
+continuous 2-bar cycles it rises three times and returns to 0.00 each time.
+
+## MIX GATE: the effects only while the slider moves
+
+Most of the time you want the plugin present during the transition and absent
+either side of it. The MIX GATE row does that without a second automation
+lane - it scales MIX by where POSITION is.
+
+| control | what it does |
+|---|---|
+| **FADE IN** | shuts the effects off while POSITION is at 0. |
+| its length | how much of the travel the fade takes. At **0 the switch is instant** (the readout says `instant`): silent at exactly 0 %, fully open one step above it. At 20 % it is half open at 10 % and finished by 20 %. |
+| **FADE OUT** | the same at the other end - shut at 100 %, and the length is measured back from there. |
+
+Turn both on and the plugin is only there while the slider is moving; turn
+both off and **MIX is exactly the number on the knob**, which is checked to be
+an IEEE-exact multiply by one, so no existing project moves. There is no click
+risk at a zero-length gate - the rack already smooths MIX with a 10 ms
+one-pole.
+
+Measured: a 20 % fade in gives 0.50 at 10 % and 1.00 from 20 % on; a 25 % fade
+out gives 0.50 at 87.5 % and 0.00 at 100 %; both on gives 0.00 / 1.00 / 0.00 at
+0 / 50 / 100 %.
 
 ## Signal path
 

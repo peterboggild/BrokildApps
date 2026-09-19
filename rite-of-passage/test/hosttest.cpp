@@ -224,6 +224,48 @@ int main()
         CHECK (atEnd > 0.97f, "by the end of the window the sweep is only %.3f", atEnd);
         CHECK (after < 0.01f, "the next cycle did not start from 0 (%.3f)", after);
 
+        /*  DOES IT COME ROUND AGAIN? Everything above parks the transport and
+            reads one point, which proves the shape of the sweep and nothing
+            whatever about whether it repeats — every sample was inside one
+            cycle. So: run the transport CONTINUOUSLY across three cycles and
+            watch the whole curve. */
+        {
+            a.on = true; a.bars = 2; a.start = 2.0f; a.end = 3.0f; a.down = false;
+            aph.samples = 0;
+            juce::MidiBuffer m; juce::AudioBuffer<float> b (2, kBlock);
+            //  three 2-bar cycles at 128 BPM
+            const double blocksPerCycle = (2.0 * 4.0 * 60.0 / aph.bpm) * kFs / kBlock;
+            const int total = (int) (blocksPerCycle * 3.0);
+            std::vector<float> trace;
+            for (int i = 0; i < total; ++i)
+            {
+                b.clear();
+                ap.processBlock (b, m);
+                aph.samples += kBlock;
+                trace.push_back (ap.effectivePosition());
+            }
+
+            //  count the RISES: a run that climbs past 0.9 after having been
+            //  below 0.1. Three cycles must give three of them.
+            int rises = 0; bool low = true;
+            float highest = 0.0f, lowestAfterFirstPeak = 1.0f;
+            bool seenPeak = false;
+            for (float v : trace)
+            {
+                highest = std::max (highest, v);
+                if (low && v > 0.9f) { ++rises; low = false; seenPeak = true; }
+                if (! low && v < 0.1f) low = true;
+                if (seenPeak) lowestAfterFirstPeak = std::min (lowestAfterFirstPeak, v);
+            }
+            std::printf ("    three 2-bar cycles: %d rises, peak %.2f, lowest after the first peak %.2f\n",
+                         rises, highest, lowestAfterFirstPeak);
+            CHECK (rises >= 3, "the sweep ran %d time(s) in three cycles - it is not coming round again", rises);
+            CHECK (lowestAfterFirstPeak < 0.1f,
+                   "after its first peak the sweep never returned below 0.1 (lowest %.2f) - it stays up",
+                   lowestAfterFirstPeak);
+            a.bars = 8; a.start = 8.0f; a.end = 9.0f;
+        }
+
         //  and the other direction is its mirror
         a.down = true;
         const float dStart = at (8.0), dMid = at (8.5), dEnd = at (9.0 - 0.01);
@@ -231,12 +273,19 @@ int main()
         CHECK (dStart > 0.98f && dEnd < 0.03f && std::abs (dMid - 0.5f) < 0.03f,
                "100 to 0 is not the mirror of 0 to 100 (%.2f %.2f %.2f)", dStart, dMid, dEnd);
 
-        //  a different window, to prove the numbers are read and not assumed
+        //  a different window, to prove the numbers are read and not assumed,
+        //  and BOTH of the things that can happen once it is over
         a.down = false; a.start = 7.0f; a.end = 8.0f;
-        const float w2a = at (7.5), w2b = at (8.5);
-        std::printf ("    window 7 to 8:  bar 7.5 %.2f   bar 8.5 %.2f\n", w2a, w2b);
+        a.hold = false;
+        const float w2a = at (7.5), w2reset = at (8.5);
+        a.hold = true;
+        const float w2hold = at (8.5);
+        a.hold = false;
+        std::printf ("    window 7 to 8:  bar 7.5 %.2f   after it: reset %.2f, hold %.2f\n",
+                     w2a, w2reset, w2hold);
         CHECK (std::abs (w2a - 0.5f) < 0.03f, "the 7-to-8 window is not half way at bar 7.5 (%.3f)", w2a);
-        CHECK (w2b > 0.97f, "past the 7-to-8 window the sweep is only %.3f", w2b);
+        CHECK (w2reset < 0.02f, "with RESET the sweep did not drop back after its window (%.3f)", w2reset);
+        CHECK (w2hold > 0.98f, "with HOLD the sweep did not stay up after its window (%.3f)", w2hold);
 
         /*  AND WITH AUTO OFF NOTHING CHANGES. This is the check that protects
             every project that already exists: the parameter drives the rack
@@ -247,6 +296,51 @@ int main()
         std::printf ("    auto off, POSITION at 62 %%:  %.2f\n", manual);
         CHECK (std::abs (manual - 0.62f) < 0.01f,
                "with AUTO off the host parameter no longer drives POSITION (%.3f)", manual);
+    }
+
+    // -- THE MIX GATE ----------------------------------------------------------
+    {
+        std::printf ("  mix gate:\n");
+        RiteProcessor gp;
+        gp.setPlayConfigDetails (2, 2, kFs, kBlock);
+        gp.prepareToPlay (kFs, kBlock);
+        auto& g = gp.mixGate();
+
+        /*  THE CHECK THAT PROTECTS EVERY EXISTING PROJECT: with both switches
+            off the gate multiplies by exactly 1, so the MIX parameter means
+            precisely what it always meant. IEEE-exact, hence the == . */
+        CHECK (g.factor (0.0f) == 1.0f && g.factor (0.5f) == 1.0f && g.factor (1.0f) == 1.0f,
+               "with both switches off the mix gate is not exactly 1");
+
+        //  a length of ZERO is the plain gate Peter asked for first
+        g.fadeIn = true; g.inLen = 0.0f;
+        std::printf ("    fade in, instant:   at 0 %% %.2f   at 1 %% %.2f\n", g.factor (0.0f), g.factor (0.01f));
+        CHECK (g.factor (0.0f) == 0.0f, "an instant fade in is not silent at 0 %%");
+        CHECK (g.factor (0.01f) == 1.0f, "an instant fade in is not fully open just above 0 %%");
+
+        g.inLen = 0.20f;
+        std::printf ("    fade in over 20 %%: at 10 %% %.2f   at 20 %% %.2f   at 50 %% %.2f\n",
+                     g.factor (0.10f), g.factor (0.20f), g.factor (0.50f));
+        CHECK (std::abs (g.factor (0.10f) - 0.5f) < 0.001f, "a 20 %% fade in is not half open at 10 %%");
+        CHECK (g.factor (0.20f) == 1.0f && g.factor (0.50f) == 1.0f, "a 20 %% fade in did not finish");
+
+        g.fadeIn = false; g.fadeOut = true; g.outLen = 0.0f;
+        std::printf ("    fade out, instant:  at 99 %% %.2f   at 100 %% %.2f\n", g.factor (0.99f), g.factor (1.0f));
+        CHECK (g.factor (1.0f) == 0.0f, "an instant fade out is not silent at 100 %%");
+        CHECK (g.factor (0.99f) == 1.0f, "an instant fade out is not fully open just below 100 %%");
+
+        g.outLen = 0.25f;
+        std::printf ("    fade out over 25 %%: at 75 %% %.2f   at 87.5 %% %.2f   at 100 %% %.2f\n",
+                     g.factor (0.75f), g.factor (0.875f), g.factor (1.0f));
+        CHECK (std::abs (g.factor (0.875f) - 0.5f) < 0.001f, "a 25 %% fade out is not half shut at 87.5 %%");
+        CHECK (g.factor (1.0f) == 0.0f, "a 25 %% fade out did not reach silence");
+
+        //  both together: the plugin is only present while the slider moves
+        g.fadeIn = true; g.inLen = 0.1f; g.fadeOut = true; g.outLen = 0.1f;
+        std::printf ("    both:  0 %% %.2f   50 %% %.2f   100 %% %.2f\n",
+                     g.factor (0.0f), g.factor (0.5f), g.factor (1.0f));
+        CHECK (g.factor (0.0f) == 0.0f && g.factor (1.0f) == 0.0f && g.factor (0.5f) == 1.0f,
+               "with both ends gated the plugin is not silent at the ends and open in the middle");
     }
 
     std::printf ("\n%d checks", checks);

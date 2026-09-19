@@ -113,10 +113,16 @@ private:
 
     //  AUTO TRANSITION: the strip that drives POSITION from the transport
     juce::ToggleButton autoOn, autoArrive;
-    juce::ComboBox     autoBars, autoDir;
+    juce::ComboBox     autoBars, autoDir, autoAfter;
     juce::Slider       autoStart, autoEnd;
     juce::Label        autoHead, autoReadout;
     void syncAutoUi();
+
+    //  the mix gate: get out of the way outside the transition
+    juce::ToggleButton fadeInOn, fadeOutOn;
+    juce::Slider       fadeInLen, fadeOutLen;
+    juce::Label        gateHead, gateReadout;
+    void syncGateUi();
     juce::Label title, readout, build;
 
     std::vector<std::unique_ptr<Knob>> globals;

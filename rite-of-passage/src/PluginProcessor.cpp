@@ -129,7 +129,7 @@ void RiteProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
         float u = 0.0f;
         if (bar < 0.0f)      u = 0.0f;           // no clock: parked at the start
         else if (bar <= s)   u = 0.0f;
-        else if (bar >= e)   u = 1.0f;
+        else if (bar >= e)   u = autoC.hold ? 1.0f : 0.0f;   // hold at B, or step back
         else                 u = (bar - s) / (e - s);
         t = autoC.down ? 1.0f - u : u;
 
@@ -152,7 +152,10 @@ void RiteProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
     }
     effPos.store (t, std::memory_order_relaxed);
     engine.setPosition (t);
-    engine.mix         = pMix->load() * 0.01f;
+    /*  The mix gate rides on TOP of the MIX parameter rather than replacing
+        it, so the knob still means what it means and the gate only ever takes
+        away. With both switches off factor() returns exactly 1.0f. */
+    engine.mix         = pMix->load() * 0.01f * mixG.factor (t);
     engine.outputGain  = juce::Decibels::decibelsToGain (pOut->load(), -24.0f);
     engine.spread      = pSpread->load() * 0.01f;
     engine.turn        = pTurn->load() * 0.01f;
@@ -238,7 +241,15 @@ juce::String RiteProcessor::riteToJson() const
     au->setProperty ("end", autoC.end);
     au->setProperty ("down", autoC.down);
     au->setProperty ("arrive", autoC.arrive);
+    au->setProperty ("hold", autoC.hold);
     root->setProperty ("auto", juce::var (au));
+
+    auto* mg = new juce::DynamicObject();
+    mg->setProperty ("in", mixG.fadeIn);
+    mg->setProperty ("inLen", mixG.inLen);
+    mg->setProperty ("out", mixG.fadeOut);
+    mg->setProperty ("outLen", mixG.outLen);
+    root->setProperty ("mixgate", juce::var (mg));
     root->setProperty ("gateSpan", engine.monoGateSpan);
     root->setProperty ("bass", engine.bassMonoHz);
 
@@ -295,6 +306,14 @@ void RiteProcessor::riteFromJson (const juce::String& js)
         engine.arrival.impactLevel = (float) (double) ar.getProperty ("lvl", -6.0);
         engine.arrival.grid        = (int) ar.getProperty ("grid", 0);
     }
+    const juce::var mg = root.getProperty ("mixgate", juce::var());
+    if (mg.isObject())
+    {
+        mixG.fadeIn  = (bool) mg.getProperty ("in", false);
+        mixG.inLen   = (float) (double) mg.getProperty ("inLen", 0.10);
+        mixG.fadeOut = (bool) mg.getProperty ("out", false);
+        mixG.outLen  = (float) (double) mg.getProperty ("outLen", 0.10);
+    }
     const juce::var au = root.getProperty ("auto", juce::var());
     if (au.isObject())
     {
@@ -304,6 +323,7 @@ void RiteProcessor::riteFromJson (const juce::String& js)
         autoC.end    = (float) (double) au.getProperty ("end", 9.0);
         autoC.down   = (bool) au.getProperty ("down", false);
         autoC.arrive = (bool) au.getProperty ("arrive", false);
+        autoC.hold   = (bool) au.getProperty ("hold", false);
     }
     engine.monoGateSpan = (float) (double) root.getProperty ("gateSpan", 0.15);
     engine.bassMonoHz   = (float) (double) root.getProperty ("bass", 120.0);
