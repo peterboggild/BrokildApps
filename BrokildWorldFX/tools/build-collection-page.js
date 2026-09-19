@@ -1,11 +1,12 @@
-/*  The collection page: one download, nine plugins.
+/*  The collection page: one download, ten plugins.
 
     Same family shell as every other landing page, so it sits among them rather
     than looking like a different site. The body is a directory of what is in
     the box, each entry saying what the instrument actually IS rather than
     listing its features.
 
-    Moved here from FullMetalRacket/tools on 2026-09-04 and rewritten for nine:
+    Moved here from FullMetalRacket/tools on 2026-09-04, rewritten for nine and
+    then for ten when Battlestar Overdrive landed:
     the collection spans the fleet, so it belongs with the fleet's tooling, and
     two copies of a builder drift (Clone Wars taught that lesson at a cost of
     41 lines).
@@ -34,15 +35,15 @@ if (heroAt < 0 || footAt < 0) { console.error("ABORT: splice points not found");
 
 let head = s.slice(0, heroAt)
   .replace("<title>Black Rider — VST3 analogue monosynth | BrokildApps</title>",
-           "<title>The Brokild Collection — nine free VST3 plugins | BrokildApps</title>")
+           "<title>The Brokild Collection — ten free VST3 plugins | BrokildApps</title>")
   .replace(/<meta name="description" content="[^"]*" \/>/,
-    '<meta name="description" content="Every Brokild plugin in one download: eight instruments and one effect for Windows. Brain Scan, High Tide, Photo Synth, Escape Room, Blade Ruiner, Black Rider, Clone Wars, Full Metal Racket and Martian Gain - with their manuals, their standalones, and the shared world-effects rack that runs inside all of them. Free, no installer, no account." />')
+    '<meta name="description" content="Every Brokild plugin in one download: eight instruments and two effects for Windows. Brain Scan, High Tide, Photo Synth, Escape Room, Blade Ruiner, Black Rider, Clone Wars, Full Metal Racket, Martian Gain and Battlestar Overdrive - with their manuals, their standalones, and the shared world-effects rack that runs inside the instruments. Free, no installer, no account." />')
   .replace("--accent: #a9651a;", "--accent: #0e7f6c;")
   .replace("--accent-bright: #c67f28;", "--accent-bright: #14a189;")
   .replace("--accent: #f0a94a; --accent-bright: #ffc474; --amber: #e8b45a;",
            "--accent: #3fd8b8; --accent-bright: #6ff0d4; --amber: #e8b45a;");
 if (head.indexOf("#0e7f6c") < 0) { console.error("ABORT: the palette swap missed"); process.exit(1); }
-if (head.indexOf("nine free VST3") < 0) { console.error("ABORT: the title swap missed"); process.exit(1); }
+if (head.indexOf("ten free VST3") < 0) { console.error("ABORT: the title swap missed"); process.exit(1); }
 
 const foot = s.slice(footAt);
 
@@ -74,7 +75,10 @@ const ITEMS = [
    "A thirty-two step sequencer with a last step <em>per lane</em>, so polyrhythms cost one number. Two hundred generated kits and a fader that morphs between any two."],
   ["Martian Gain", "martian-gain", "Effect",
    "A multiband distortion. One to five bands, each running one of sixteen algorithms, each with its own limiter — and each level-matched by measurement, so turning DRIVE up changes what a band sounds like without changing how loud it is.",
-   "The front panel comes off. Underneath is a patch bay where any band's audio or envelope can drive any other band's knobs, or move the crossovers themselves."]
+   "The front panel comes off. Underneath is a patch bay where any band's audio or envelope can drive any other band's knobs, or move the crossovers themselves."],
+  ["Battlestar Overdrive", "battlestar-overdrive", "Effect",
+   "An overdrive, and a tribute: it is named after Max Christensen's Copenhagen solo project and built with his blessing. Eight drive engines on one knob, running from a polite tube to a fold-crush-chaos cascade with no musical justification whatsoever, every one of them level-matched by a table the plugin measures for itself at startup.",
+   "The CRT is part of the instrument. It names the engine you landed on, speeds its starfield up as you climb the knob, goes to warp on the seventh and blows up a star on the eighth. And watch the fuel."]
 ];
 
 const cards = ITEMS.map(function (it) {
@@ -90,9 +94,9 @@ const cards = ITEMS.map(function (it) {
 const BODY = [
 '<header class="hero">',
 '  <div class="wrap">',
-'    <div class="kicker">Nine plugins · Windows · Free</div>',
+'    <div class="kicker">Ten plugins · Windows · Free</div>',
 '    <h1>The Brokild <span>Collection</span></h1>',
-'    <p class="tagline">Eight instruments and one effect, in a single download.</p>',
+'    <p class="tagline">Eight instruments and two effects, in a single download.</p>',
 '    <p class="lede">Everything Brokild makes, with its manuals and its standalones. They are not a',
 '      product line — they were built one at a time, each to answer a different question — but they',
 '      share a rack of effects, a patch folder and a way of working: nothing in any of them is',
@@ -100,11 +104,11 @@ const BODY = [
 '      off it.</p>',
 '    <div class="btnrow">',
 '      <a class="btn btn-primary" href="Brokild-Collection-win64.zip" download>',
-'        Download all nine (' + MB + ' MB)</a>',
+'        Download all ten (' + MB + ' MB)</a>',
 '      <span class="buildtag">September 2026</span>',
 '    </div>',
 '    <figure class="hero-shot" style="margin-top:2.4rem">',
-'      <img src="img/collection.jpg" alt="The Full Metal Racket panel, one of the nine plugins in the collection">',
+'      <img src="img/collection.jpg" alt="The Full Metal Racket panel, one of the ten plugins in the collection">',
 '    </figure>',
 '  </div>',
 '</header>',
@@ -155,7 +159,7 @@ cards,
 '        <code>C:\\Program Files\\Common Files\\VST3\\</code>. A sub-folder such as',
 '        <code>...\\VST3\\Brokild\\</code> is fine and tidier; hosts look inside.</li>',
 '      <li><b>Rescan.</b> In Ableton Live: Preferences → Plug-Ins → Rescan. They appear under',
-'        Brokild — eight instruments and one effect.</li>',
+'        Brokild — eight instruments and two effects.</li>',
 '      <li><b>Or just run them.</b> Every folder also has an <code>.exe</code>. No installation at',
 '        all.</li>',
 '    </ol>',
@@ -169,4 +173,4 @@ cards,
 
 fs.mkdirSync(R + "vst3-apps/collection", { recursive: true });
 fs.writeFileSync(OUT, head + BODY + foot);
-console.log("collection page written - nine plugins, " + MB + " MB");
+console.log("collection page written - ten plugins, " + MB + " MB");
