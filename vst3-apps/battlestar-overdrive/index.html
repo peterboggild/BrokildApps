@@ -7,6 +7,9 @@
   <meta name="description" content="Battlestar Overdrive is a free Windows VST3 overdrive, built as a tribute to Max Christensen's solo project of the same name and made with his blessing. Eight drive engines on one knob, from a polite tube to a fold-crush-chaos cascade with no musical justification whatsoever; a CRT that tells you which one you are on, goes to warp on the seventh and blows up a star on the eighth; a mono-safe width control; and a SPACE knob that flies through five overlapping effects, because too much is never enough." />
   <meta name="color-scheme" content="light dark" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23e8761a'/><text x='50' y='68' font-size='52' font-family='Arial,sans-serif' font-weight='700' text-anchor='middle' fill='white'>B</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
   <style>
     :root {
       --accent: #c25a10;
@@ -42,24 +45,38 @@
     a { color: var(--accent); }
 
     /* ---- top bar (matches the front page) ---- */
+    /* --- Brokild chrome ---------------------------------------------
+       The same black bar sits on every page in the catalogue, and this
+       block is identical in all of them. Each plugin keeps its own
+       palette strictly BELOW the bar; the bar never takes it, so the
+       header reads the same wherever you have landed. --- */
     .topbar {
-      background: linear-gradient(105deg, #3a1403 0%, #6d2a05 42%, #92450a 72%, #b0640f 100%);
-      border-bottom: 1px solid rgba(255,255,255,.12);
+      position: sticky; top: 0; z-index: 60;
+      background: rgba(4,6,11,.93);
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+      border-bottom: 1px solid #17212f;
+      box-shadow: 0 1px 0 rgba(94,240,218,.08), 0 10px 30px rgba(0,0,0,.5);
     }
-    .nav {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 1rem; padding: .8rem 0;
-    }
-    .brand { display: flex; align-items: center; gap: .7rem; text-decoration: none; }
+    .nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .72rem 0; }
+    .brand { display: flex; align-items: center; gap: .72rem; text-decoration: none; }
     .brand-mark {
-      width: 38px; height: 38px; border-radius: 9px;
-      background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.28);
-      color: #fff; display: grid; place-items: center;
-      font-weight: 800; font-size: 1.35rem; flex: none;
+      width: 38px; height: 38px; flex: none; display: grid; place-items: center;
+      font: 900 1.2rem/1 "Orbitron", "Segoe UI", system-ui, sans-serif;
+      color: #5ef0da; background: #08101a;
+      border: 1px solid rgba(94,240,218,.42); border-radius: 4px;
+      box-shadow: 0 0 14px rgba(94,240,218,.16), inset 0 0 12px rgba(94,240,218,.07);
     }
-    .brand-name { font-weight: 700; font-size: 1.05rem; color: #fff; }
-    .brand-sub { color: rgba(255,255,255,.72); font-size: .82rem; }
-    .nav a.back { color: #ffd98a; text-decoration: none; font-size: .9rem; font-weight: 600; }
+    .brand-name { font: 600 .95rem/1.4 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .22em; text-transform: uppercase; color: #fff; }
+    .brand-sub  { font: 400 .66rem/1.5 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .2em; text-transform: uppercase; color: #2a9d8f; }
+    .nav a.back { font: 500 .74rem/1 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .16em; text-transform: uppercase;
+                  color: #ffb454; text-decoration: none;
+                  border: 1px solid rgba(255,180,84,.3); border-radius: 3px;
+                  padding: .5rem .85rem; transition: all .15s; white-space: nowrap; }
+    .nav a.back:hover { color: #fff; border-color: #ffb454; background: rgba(255,180,84,.1);
+                        text-shadow: 0 0 12px rgba(255,180,84,.55); }
 
     /* ---- hero ---- */
     .hero {

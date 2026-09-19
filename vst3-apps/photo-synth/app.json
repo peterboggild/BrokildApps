@@ -1,7 +1,7 @@
 {
   "slug": "photo-synth-vst3",
   "name": "Photo Synth (VST3)",
-  "description": "A free Windows VST3 instrument: play the colours of four photographs. Colour becomes pitch and timbre on the first photo, the second filters it, the third shapes the envelope, the fourth drives the effects. Virtual-analog voice with a ladder filter, a 16-voice pool, host MIDI and 24-bit export — all native C++ inside your DAW. Automotion draws the performance: shift-drag a line or ctrl-drag a circle onto a photo and the cursor walks it on its own, per pad, with speed, direction and travel shape. And the Brokild World Rack rides with every patch — twelve shared effect pedals from valve saturation to a Leslie and a step glitcher, plus six SPECTRA characters, Dark Drone among them, that reach into the voices themselves and possess the instrument.",
+  "description": "A synthesiser you play by moving a cursor across a photograph. The colours under the cursor are the sound — hue, saturation and brightness map onto the oscillator, the filter and the effects, so a picture is a patch and moving across it is a performance. Load your own photos; a recorded cursor path becomes a phrase that plays itself. Four pads, a seven-module effects chain, and SPECTRA characters that reshape how every voice is built.",
   "status": "live",
   "url": "vst3-apps/photo-synth/index.html",
   "icon": "device",

@@ -1,7 +1,7 @@
 {
   "slug": "photo-synth",
   "name": "Photo Synth (HTML)",
-  "description": "Play four photos: colour becomes tone — mono/unison (1-12 stacked voices) or true 4-note polyphony with 1-4 oscillators per note — plus filter, envelope (to amplitude, filter sweep or both) and an FX photo whose red/green/blue strengths drive three chosen effects. Selectable waveforms (photo-morph, sine, triangle, sawtooth, square), a transparent output limiter, and seven switchable stereo FX: tube, vintage phaser, vintage chorus, stutter, lofi (crush/noise/dirt), clean/tape delay with L/R offset, and room/hall/plate/spring/reverse reverb; five filter modes including notch and comb. On-device presets with photo snapshots and file export, motion automation, live camera, a hardware MIDI keyboard (velocity, sustain pedal and pitch bend), MIDI chords, 24-bit WAV export.",
+  "description": "The same idea in a browser tab, with the things only a browser can do. Play four photos: colour becomes tone, in mono, unison or four-note polyphony, through a filter, an envelope and an FX photo whose red, green and blue strengths drive three chosen effects. Seven switchable stereo effects, on-device presets with photo snapshots, motion automation, a live camera, a hardware MIDI keyboard and 24-bit WAV export. Nothing to install and nothing uploaded anywhere.",
   "status": "live",
   "url": "music-apps/photo-synth/index.html",
   "icon": "wave",

@@ -1,13 +1,13 @@
 {
   "slug": "collection",
-  "name": "The Brokild Collection (all nine)",
-  "description": "Every Brokild plugin in one download: eight instruments and one effect for Windows, with their manuals and their standalones. Brain Scan, High Tide, Photo Synth, Escape Room, Blade Ruiner, Black Rider, Clone Wars, Full Metal Racket and Martian Gain. They were built one at a time, each to answer a different question, but they share a rack of global effects that runs inside all of them, one patch folder, and a way of working: nothing is asserted, every claim is measured by a bench that renders real audio and reads the numbers off it. Each plugin in here is byte-for-byte the same file as its own download.",
+  "name": "The Brokild Collection (all ten)",
+  "description": "Every Brokild plugin in one download: eight instruments and two effects for Windows, with their manuals and their standalones. They were built one at a time, each to answer a different question, but they share a rack of global effects that runs inside the instruments, one patch folder, and a way of working — nothing asserted, everything measured by a bench that renders real audio and reads the numbers off it. Each plugin in here is byte-for-byte the same file as its own download.",
   "status": "live",
   "url": "vst3-apps/collection/index.html",
   "icon": "more",
-  "cta": "Download all nine →",
+  "cta": "Download all ten →",
   "preview": "assets/app-previews/collection.jpg",
-  "note": "Windows VST3 · 76 MB · eight instruments and one effect · all manuals included.",
+  "note": "Windows VST3 · 93 MB · eight instruments and two effects · all manuals included.",
   "tags": [
     "vst3"
   ]
