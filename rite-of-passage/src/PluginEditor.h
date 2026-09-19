@@ -110,6 +110,13 @@ private:
     juce::TextButton arrival { "ARRIVAL" };
     std::unique_ptr<ButtonAttach> arrivalAttach;
     juce::TextButton bwfxButton { "BWFX" };
+
+    //  AUTO TRANSITION: the strip that drives POSITION from the transport
+    juce::ToggleButton autoOn, autoArrive;
+    juce::ComboBox     autoBars, autoDir;
+    juce::Slider       autoStart, autoEnd;
+    juce::Label        autoHead, autoReadout;
+    void syncAutoUi();
     juce::Label title, readout, build;
 
     std::vector<std::unique_ptr<Knob>> globals;
