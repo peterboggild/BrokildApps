@@ -91,7 +91,42 @@ public:
         float end   = 9.0f;
         bool  down  = false;      // false 0 -> 100, true 100 -> 0
         bool  arrive = false;     // fire ARRIVAL when the sweep completes
+        /*  what happens once the sweep is finished and the cycle has not yet
+            come round. HOLD keeps it at the end value; RESET returns it to
+            the start value at once. RESET is the default because a
+            transition ends — and because holding for the rest of an 8-bar
+            cycle reads as the feature having stopped working. */
+        bool  hold   = false;
     };
+    /*  The mix gate: the plugin gets out of the way outside the transition.
+
+        Each end has its own switch and its own LENGTH as a fraction of the
+        travel. A length of ZERO is the plain gate — mix is 0 only at the very
+        end of the slider and full everywhere else — and it does not click,
+        because the rack smooths its own mix over 10 ms.
+
+        Both OFF by default, and with both off this multiplies by exactly 1,
+        which is IEEE-exact: an existing project is untouched to the bit. */
+    struct MixGate
+    {
+        bool  fadeIn  = false;
+        float inLen   = 0.10f;    // fraction of the travel; 0 = instant
+        bool  fadeOut = false;
+        float outLen  = 0.10f;
+
+        float factor (float t) const
+        {
+            float g = 1.0f;
+            if (fadeIn)  g *= (inLen  <= 0.0f) ? (t > 0.0f ? 1.0f : 0.0f)
+                                               : juce::jlimit (0.0f, 1.0f, t / inLen);
+            if (fadeOut) g *= (outLen <= 0.0f) ? (t < 1.0f ? 1.0f : 0.0f)
+                                               : juce::jlimit (0.0f, 1.0f, (1.0f - t) / outLen);
+            return g;
+        }
+    };
+    MixGate& mixGate() { return mixG; }
+    const MixGate& mixGate() const { return mixG; }
+
     AutoCycle& autoCycle() { return autoC; }
     const AutoCycle& autoCycle() const { return autoC; }
 
@@ -130,6 +165,7 @@ private:
     bwfx::Rack worldFx;
 
     AutoCycle autoC;
+    MixGate   mixG;
     std::atomic<float> effPos { 0.0f };
     std::atomic<float> barNow { -1.0f };
     float lastAutoBar = -1.0f;        // for the edge that fires ARRIVAL
