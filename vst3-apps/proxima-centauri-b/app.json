@@ -3,6 +3,7 @@
   "name": "Proxima Centauri B findings (Collection)",
   "description": "Four objects recovered from Proxima Centauri b, each making sound continuously by means that have no counterpart among our instruments. One counts, and its sound is the list of moments at which something happened. One rings with its own connectedness, and did not come up alone. One is a lattice that is perfectly ordered and never repeats. One is a power grid, tuned by warming a conduit, so to name a note is to command a temperature. None has controls and none has an off state. The findings report is included.",
   "status": "live",
+  "collection": true,
   "url": "vst3-apps/proxima-centauri-b/index.html",
   "icon": "moon",
   "cta": "Read the findings →",
