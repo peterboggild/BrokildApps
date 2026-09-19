@@ -85,6 +85,10 @@ public:
     void cancelArrival(){ arrivalArmed = false; }
     bool arrivalPending() const { return arrivalArmed; }
     bool arrived() const { return didArrive; }
+    /*  arrived() is a STATE and clears itself when the slider falls back —
+        with AUTO on RESET that is the same block it fired in, so nothing
+        outside can observe it. The count is what a check can hold on to. */
+    int  arrivalCount() const { return nArrivals; }
 
     void process (float* L, float* R, int n);
 
@@ -115,6 +119,7 @@ private:
     int subPhase = 0;   // absolute, so sub-block edges do not move with the host's buffer
     std::atomic<bool> arrivalArmed { false };
     bool didArrive = false;
+    int  nArrivals = 0;
     std::array<bool, kSlots> released {}, wasIn {};
 
     // transport

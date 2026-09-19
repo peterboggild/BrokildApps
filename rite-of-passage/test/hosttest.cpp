@@ -298,6 +298,129 @@ int main()
                "with AUTO off the host parameter no longer drives POSITION (%.3f)", manual);
     }
 
+    // -- DOES THE SOUND TRANSITION EVERY CYCLE, NOT JUST THE FIRST? -----------
+    /*  Peter's report, and his exact panel: AUTO 4 BARS, window bar 4.00 to
+        5.00, 0 to 100, then RESET, ARRIVE on, three lanes on partial spans,
+        SPREAD 35 %, MONO GATE 45 %. "position changes, but not the sound."
+
+        Everything else here measures the POSITION, and the position was never
+        the problem — so none of it could see this. Render audio continuously
+        over three cycles and measure, per cycle, how far the output travels. */
+    {
+        std::printf ("  does it transition every cycle:\n");
+
+        //  one scenario = one fresh processor, rendered over three cycles
+        int arrivalsOut = 0;
+        auto travelPerCycle = [&arrivalsOut] (const char* name, bool latchArrival,
+                                  bool partialSpans, bool stereoStage)
+        {
+            RiteProcessor rp;
+            Play rph;
+            rp.setPlayConfigDetails (2, 2, kFs, kBlock);
+            rp.prepareToPlay (kFs, kBlock);
+            rp.setPlayHead (&rph);
+
+            const char* names[3] = { "riser", "chop", "climb" };
+            for (int sl = 0; sl < 3; ++sl)
+            {
+                const int ty = rop::effectTypeByName (names[sl]);
+                rp.rack().setSlotEffect (sl, ty);
+                auto& stt = rp.rack().state (sl);
+                stt.enter = partialSpans ? (0.08f + 0.04f * (float) sl) : 0.0f;
+                stt.exit  = partialSpans ? 0.62f : 1.0f;
+                stt.depth = 1.0f;
+                const auto& d = rop::effectDescriptor (ty);
+                for (int q = 0; q < d.numParams; ++q)
+                { stt.A[q] = d.params[q].lo; stt.B[q] = d.params[q].hi; }
+            }
+            setP (rp.apvts, rop_ids::mix, 100.0f);
+            if (stereoStage)
+            {
+                setP (rp.apvts, rop_ids::spread, 35.0f);
+                setP (rp.apvts, rop_ids::monogate, 45.0f);
+            }
+            if (latchArrival) setP (rp.apvts, rop_ids::arrival, 1.0f);
+
+            auto& a = rp.autoCycle();
+            a.on = true; a.bars = 4; a.start = 4.0f; a.end = 5.0f;
+            a.down = false; a.hold = false; a.arrive = true;
+            auto& g = rp.mixGate();
+            g.fadeIn = true; g.inLen = 0.0f; g.fadeOut = true; g.outLen = 0.0f;
+
+            juce::MidiBuffer mid;
+            juce::AudioBuffer<float> b (2, kBlock);
+            const double blocksPerCycle = (4.0 * 4.0 * 60.0 / rph.bpm) * kFs / kBlock;
+
+            std::array<float, 3> tr { 0.0f, 0.0f, 0.0f };
+            int arrivals = 0;
+            for (int cyc = 0; cyc < 3; ++cyc)
+            {
+                float lo = 1.0e9f, hi = -1.0e9f;
+                for (int i = 0; i < (int) blocksPerCycle; ++i)
+                {
+                    for (int c = 0; c < 2; ++c)
+                        for (int j = 0; j < kBlock; ++j)
+                            b.setSample (c, j, 0.2f * std::sin (0.31f * (float) j));
+                    rp.processBlock (b, mid);
+                    rph.samples += kBlock;
+                    /*  the rack's own COUNT, not arrived(): that is a state
+                        and it clears itself when the position falls back —
+                        which under `then RESET` is the same block it fired
+                        in, so an edge counter outside can never see it. */
+                    arrivals = rp.rack().arrivalCount();
+                    const float t = rp.effectivePosition();
+                    if (t > 0.2f && t < 0.6f)
+                    {
+                        const float r = b.getRMSLevel (0, 0, kBlock);
+                        lo = std::min (lo, r); hi = std::max (hi, r);
+                    }
+                }
+                tr[(size_t) cyc] = (hi > lo) ? (hi - lo) : 0.0f;
+            }
+
+            /*  (int) blocksPerCycle loses a fraction of a block each cycle,
+                so three cycles land ~192 samples SHORT of the third wrap and
+                its arrival falls outside the render. Carry on to the wrap
+                rather than expecting one arrival fewer. */
+            for (int i = 0; i < 400; ++i)
+            {
+                b.clear();
+                rp.processBlock (b, mid);
+                rph.samples += kBlock;
+                arrivals = rp.rack().arrivalCount();
+            }
+            std::printf ("    %-28s cycle 1/2/3: %.4f / %.4f / %.4f   arrivals %d%s\n", name,
+                         tr[0], tr[1], tr[2], arrivals,
+                         arrivals > 0 ? "" : "   (never arrived)");
+            arrivalsOut = arrivals;
+            return tr;
+        };
+
+        const auto plain   = travelPerCycle ("full lanes, plain",      false, false, false);
+        const auto latched = travelPerCycle ("ARRIVAL toggle latched", true,  false, false);
+        const auto spans   = travelPerCycle ("partial lane spans only", false, true,  false);
+        const auto stereo  = travelPerCycle ("stereo stage only",       false, false, true);
+        const auto hisWay  = travelPerCycle ("his panel",              false, true,  true);
+
+        CHECK (plain[0] > 0.005f, "the first cycle did not move the sound at all (%.4f)", plain[0]);
+        CHECK (plain[1] > 0.5f * plain[0] && plain[2] > 0.5f * plain[0],
+               "a plain repeat stopped moving the sound (%.4f / %.4f against %.4f)",
+               plain[1], plain[2], plain[0]);
+        CHECK (latched[1] > 0.5f * latched[0] && latched[2] > 0.5f * latched[0],
+               "with the ARRIVAL toggle left on, later sweeps stopped moving the sound (%.4f / %.4f against %.4f)",
+               latched[1], latched[2], latched[0]);
+        CHECK (hisWay[1] > 0.5f * hisWay[0] && hisWay[2] > 0.5f * hisWay[0],
+               "on Peter's panel, later sweeps stopped moving the sound (%.4f / %.4f against %.4f)",
+               hisWay[1], hisWay[2], hisWay[0]);
+
+        /*  And his window ENDS ON THE CYCLE LINE — bar 5.00 of 4 bars, which
+            is the natural way to write "the 4th bar". `bar` runs [1, 5) and
+            never REACHES 5.00, so unless the wrap counts as the crossing,
+            ARRIVAL never fires at all. */
+        CHECK (arrivalsOut >= 3,
+               "a window ending on the cycle line fired ARRIVAL %d times in three cycles",
+               arrivalsOut);
+    }
     // -- THE MIX GATE ----------------------------------------------------------
     {
         std::printf ("  mix gate:\n");
