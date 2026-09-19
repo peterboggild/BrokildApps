@@ -191,6 +191,64 @@ int main()
         std::printf ("  buses                    stereo and mono\n");
     }
 
+    // -- AUTO TRANSITION -------------------------------------------------------
+    {
+        std::printf ("  auto transition:\n");
+        RiteProcessor ap;
+        Play aph;
+        ap.setPlayHead (&aph);
+        ap.setPlayConfigDetails (2, 2, kFs, kBlock);
+        ap.prepareToPlay (kFs, kBlock);
+
+        //  the 8th bar of an 8-bar cycle, which is Peter's own example
+        auto& a = ap.autoCycle();
+        a.on = true; a.bars = 8; a.start = 8.0f; a.end = 9.0f; a.down = false;
+
+        //  park the transport at a given bar of the cycle and read the position
+        auto at = [&] (double barLine)
+        {
+            const double beats = (barLine - 1.0) * 4.0;
+            aph.samples = (long long) (beats * 60.0 * kFs / aph.bpm);
+            juce::MidiBuffer m; juce::AudioBuffer<float> b (2, kBlock); b.clear();
+            ap.processBlock (b, m);
+            return ap.effectivePosition();
+        };
+
+        const float before = at (4.0), atStart = at (8.0), mid = at (8.5),
+                    atEnd  = at (9.0 - 0.01), after = at (2.0);
+        std::printf ("    bar 4 %.2f   bar 8 %.2f   bar 8.5 %.2f   bar 9 %.2f\n",
+                     before, atStart, mid, atEnd);
+        CHECK (before < 0.01f, "before the window the sweep is not at 0 (%.3f)", before);
+        CHECK (atStart < 0.02f, "at the start of the window the sweep is not at 0 (%.3f)", atStart);
+        CHECK (std::abs (mid - 0.5f) < 0.03f, "half way through the window the sweep is %.3f, not 0.5", mid);
+        CHECK (atEnd > 0.97f, "by the end of the window the sweep is only %.3f", atEnd);
+        CHECK (after < 0.01f, "the next cycle did not start from 0 (%.3f)", after);
+
+        //  and the other direction is its mirror
+        a.down = true;
+        const float dStart = at (8.0), dMid = at (8.5), dEnd = at (9.0 - 0.01);
+        std::printf ("    100 to 0:  bar 8 %.2f   bar 8.5 %.2f   bar 9 %.2f\n", dStart, dMid, dEnd);
+        CHECK (dStart > 0.98f && dEnd < 0.03f && std::abs (dMid - 0.5f) < 0.03f,
+               "100 to 0 is not the mirror of 0 to 100 (%.2f %.2f %.2f)", dStart, dMid, dEnd);
+
+        //  a different window, to prove the numbers are read and not assumed
+        a.down = false; a.start = 7.0f; a.end = 8.0f;
+        const float w2a = at (7.5), w2b = at (8.5);
+        std::printf ("    window 7 to 8:  bar 7.5 %.2f   bar 8.5 %.2f\n", w2a, w2b);
+        CHECK (std::abs (w2a - 0.5f) < 0.03f, "the 7-to-8 window is not half way at bar 7.5 (%.3f)", w2a);
+        CHECK (w2b > 0.97f, "past the 7-to-8 window the sweep is only %.3f", w2b);
+
+        /*  AND WITH AUTO OFF NOTHING CHANGES. This is the check that protects
+            every project that already exists: the parameter drives the rack
+            exactly as it did before any of this was written. */
+        a.on = false;
+        setP (ap.apvts, rop_ids::position, 62.0f);
+        const float manual = at (3.0);
+        std::printf ("    auto off, POSITION at 62 %%:  %.2f\n", manual);
+        CHECK (std::abs (manual - 0.62f) < 0.01f,
+               "with AUTO off the host parameter no longer drives POSITION (%.3f)", manual);
+    }
+
     std::printf ("\n%d checks", checks);
     if (failures == 0) std::printf (" — ALL CLEAR\n");
     else               std::printf (" — %d FAILED\n", failures);

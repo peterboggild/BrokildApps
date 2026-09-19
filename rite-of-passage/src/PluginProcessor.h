@@ -73,6 +73,45 @@ public:
         would jump under the automation driving them, and not the BWFX rack,
         because every other synth in the fleet leaves the rack alone on a
         patch load and a preset that replaced it would be a nasty surprise. */
+    /*  AUTO TRANSITION: the plugin drives POSITION itself from the host
+        transport, over a window of bars you choose.
+
+        START and END are BAR LINES within the cycle, 1-indexed the way a DAW
+        counts them, so an 8-bar cycle runs from 1.0 to 9.0 and "the 8th bar"
+        is 8.0 to 9.0. They snap to quarter bars.
+
+        These are RITE STATE, not host parameters: the design keeps the
+        parameter list small and stable on purpose, and this is something you
+        set once per song rather than automate. */
+    struct AutoCycle
+    {
+        bool  on    = false;
+        int   bars  = 8;          // the cycle length
+        float start = 8.0f;       // bar line within the cycle, 1-indexed
+        float end   = 9.0f;
+        bool  down  = false;      // false 0 -> 100, true 100 -> 0
+        bool  arrive = false;     // fire ARRIVAL when the sweep completes
+    };
+    AutoCycle& autoCycle() { return autoC; }
+    const AutoCycle& autoCycle() const { return autoC; }
+
+    //  what the rack is ACTUALLY being driven with, whoever is driving it —
+    //  the panel draws its marker and its lane heat from this, so the picture
+    //  cannot disagree with the sound
+    float effectivePosition() const
+    {
+        /*  With AUTO off the PARAMETER is the owner, so read it rather than a
+            cache only processBlock fills — before any audio has run (a freshly
+            opened editor, a stopped transport) that cache is 0 and the panel
+            would draw a marker at the far left whatever the slider said. */
+        if (! autoC.on)
+            if (auto* p = apvts.getRawParameterValue ("position"))
+                return p->load() * 0.01f;
+        return effPos.load (std::memory_order_relaxed);
+    }
+    //  where in the cycle the transport is, 1-indexed bars; <0 = no clock
+    float autoBarNow() const { return barNow.load (std::memory_order_relaxed); }
+
     static constexpr int kQuickPresets = 6;
     juce::File   quickPresetFile (int i) const;
     juce::String quickPresetName (int i) const;
@@ -89,6 +128,11 @@ private:
 
     rop::Rack engine;
     bwfx::Rack worldFx;
+
+    AutoCycle autoC;
+    std::atomic<float> effPos { 0.0f };
+    std::atomic<float> barNow { -1.0f };
+    float lastAutoBar = -1.0f;        // for the edge that fires ARRIVAL
 
     std::atomic<float>* pPos = nullptr;
     std::atomic<float>* pArrival = nullptr;

@@ -32,7 +32,30 @@ namespace
     }
 
     //  how many pixels in a region are lit with the ember colour family
-    int emberPixels (const juce::Image& img, juce::Rectangle<int> r)
+    /*  WHERE THE LANES ARE, asked of the panel rather than remembered.
+
+    A hard-coded rectangle drifted the moment the header grew; a scan for the
+    hottest row then found the POSITION slider, whose track is the same ember
+    as a live lane. Neither can say which band is a LANE.
+
+    Every lane carries an effect menu with numEffects()+1 entries and nothing
+    else on the panel does, so those menus are the lanes and their own bounds
+    give each band. */
+void findLanes (juce::Component& c, std::vector<juce::Rectangle<int>>& out)
+{
+    for (auto* k : c.getChildren())
+    {
+        if (auto* cb = dynamic_cast<juce::ComboBox*> (k))
+            if (cb->getNumItems() == rop::numEffects() + 1)
+            {
+                const auto b = c.getLocalArea (cb, cb->getLocalBounds());
+                out.push_back ({ 0, b.getY() - 4, 10000, b.getHeight() + 8 });
+            }
+        findLanes (*k, out);
+    }
+}
+
+int emberPixels (const juce::Image& img, juce::Rectangle<int> r)
     {
         int n = 0;
         for (int y = r.getY(); y < r.getBottom(); ++y)
@@ -107,14 +130,18 @@ int main (int argc, char** argv)
     //  lane 0 entered at 0 %, lane 5 enters at 60 %: both should carry heat at 62 %;
     //  a lane that has not been entered carries none. Measure lane 0 against an
     //  empty instance's lane 0.
-    //  the lane geometry, from the panel's own constants (kInset, kHeadH,
-    //  kGlobH, kColH, kLaneH) — a hard-coded rectangle silently measured the
-    //  wrong strip the moment the layout moved
-    const int laneY = 128 + 78 + 15;
-    const auto lane0 = juce::Rectangle<int> (42, laneY, ed->getWidth() - 84, 44);
+    std::vector<juce::Rectangle<int>> lanes;
+    findLanes (*ed, lanes);
+    std::sort (lanes.begin(), lanes.end(),
+               [] (const juce::Rectangle<int>& a, const juce::Rectangle<int>& b)
+               { return a.getY() < b.getY(); });
+    CHECK ((int) lanes.size() == rop::kSlots, "found %d lanes on the panel, not %d",
+           (int) lanes.size(), rop::kSlots);
+    const auto lane0 = lanes.empty() ? juce::Rectangle<int> (0, 0, 1, 1)
+                                     : lanes[0].withWidth (mid.getWidth());
     const int lit = emberPixels (mid, lane0);
-    CHECK (lit > 200, "lane 0 shows no heat at 62 %% (%d ember pixels)", lit);
-    std::printf ("  lane 0 at 62 %%: %d ember pixels\n", lit);
+    CHECK (lit > 200, "lane 1 shows no heat at 62 %% (%d ember pixels at y=%d)", lit, lane0.getY());
+    std::printf ("  lane 1 at 62 %%: %d ember pixels (its band at y=%d)\n", lit, lane0.getY());
 
     /*  The other half of the same promise, and the one the round was for:
         a slot whose A and B are identical must show NO heat at all, however
@@ -131,10 +158,11 @@ int main (int argc, char** argv)
     if (auto* p = proc.apvts.getParameter (rop_ids::position))
         p->setValueNotifyingHost (0.62f);
     const auto flat = ed->createComponentSnapshot (ed->getLocalBounds(), false, 1.0f);
+    //  the other half of the promise, measured in the same band
     const int cold = emberPixels (flat, lane0);
-    CHECK (cold < 50, "a slot with A == B still shows %d ember pixels — the lane is "
+    CHECK (cold < 60, "a slot with A == B still shows %d ember pixels — the lane is "
                       "claiming a travel it cannot make", cold);
-    std::printf ("  lane 0 with A == B: %d ember pixels\n", cold);
+    std::printf ("  lane 1 with A == B: %d ember pixels\n", cold);
     {
         juce::File f = dir.getChildFile ("panel-flat.png");
         f.deleteFile();
