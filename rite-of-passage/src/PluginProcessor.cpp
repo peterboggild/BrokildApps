@@ -106,7 +106,52 @@ void RiteProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
         }
 
     engine.setTransport (bpm, ppq, playing);
-    engine.setPosition (pPos->load() * 0.01f);
+
+    /*  WHO DRIVES POSITION. With AUTO off this is exactly what it always was:
+        the host parameter, and nothing here runs. With AUTO on the parameter
+        is IGNORED rather than written to — one owner for one value, and no
+        fight with an automation lane somebody left on POSITION. */
+    float t = pPos->load() * 0.01f;
+    if (autoC.on)
+    {
+        const double cycleBeats = juce::jmax (1, autoC.bars) * 4.0;
+        float bar = -1.0f;
+        if (playing && ppq >= 0.0)
+        {
+            double b = std::fmod (ppq, cycleBeats);
+            if (b < 0.0) b += cycleBeats;
+            bar = (float) (b / 4.0) + 1.0f;      // 1-indexed, as a DAW counts
+        }
+        barNow.store (bar, std::memory_order_relaxed);
+
+        const float s = juce::jmin (autoC.start, autoC.end);
+        const float e = juce::jmax (autoC.end, s + 0.05f);
+        float u = 0.0f;
+        if (bar < 0.0f)      u = 0.0f;           // no clock: parked at the start
+        else if (bar <= s)   u = 0.0f;
+        else if (bar >= e)   u = 1.0f;
+        else                 u = (bar - s) / (e - s);
+        t = autoC.down ? 1.0f - u : u;
+
+        /*  ARRIVAL on completion, if asked for. The edge is taken on the BAR
+            rather than on u, because u sits at 1 for the rest of the cycle and
+            an edge on it would never come round again. The rack still lands it
+            on its own grid, so an END snapped mid-bar arrives at the next bar
+            line rather than early. */
+        if (autoC.arrive && bar >= 0.0f)
+        {
+            if (lastAutoBar >= 0.0f && lastAutoBar < e && bar >= e) engine.armArrival();
+            lastAutoBar = bar;
+        }
+        else lastAutoBar = -1.0f;
+    }
+    else
+    {
+        barNow.store (-1.0f, std::memory_order_relaxed);
+        lastAutoBar = -1.0f;
+    }
+    effPos.store (t, std::memory_order_relaxed);
+    engine.setPosition (t);
     engine.mix         = pMix->load() * 0.01f;
     engine.outputGain  = juce::Decibels::decibelsToGain (pOut->load(), -24.0f);
     engine.spread      = pSpread->load() * 0.01f;
@@ -185,6 +230,15 @@ juce::String RiteProcessor::riteToJson() const
     ar->setProperty ("lvl", engine.arrival.impactLevel);
     ar->setProperty ("grid", engine.arrival.grid);
     root->setProperty ("arrival", juce::var (ar));
+
+    auto* au = new juce::DynamicObject();
+    au->setProperty ("on", autoC.on);
+    au->setProperty ("bars", autoC.bars);
+    au->setProperty ("start", autoC.start);
+    au->setProperty ("end", autoC.end);
+    au->setProperty ("down", autoC.down);
+    au->setProperty ("arrive", autoC.arrive);
+    root->setProperty ("auto", juce::var (au));
     root->setProperty ("gateSpan", engine.monoGateSpan);
     root->setProperty ("bass", engine.bassMonoHz);
 
@@ -240,6 +294,16 @@ void RiteProcessor::riteFromJson (const juce::String& js)
         engine.arrival.impactDecay = (float) (double) ar.getProperty ("dec", 700.0);
         engine.arrival.impactLevel = (float) (double) ar.getProperty ("lvl", -6.0);
         engine.arrival.grid        = (int) ar.getProperty ("grid", 0);
+    }
+    const juce::var au = root.getProperty ("auto", juce::var());
+    if (au.isObject())
+    {
+        autoC.on     = (bool) au.getProperty ("on", false);
+        autoC.bars   = (int) au.getProperty ("bars", 8);
+        autoC.start  = (float) (double) au.getProperty ("start", 8.0);
+        autoC.end    = (float) (double) au.getProperty ("end", 9.0);
+        autoC.down   = (bool) au.getProperty ("down", false);
+        autoC.arrive = (bool) au.getProperty ("arrive", false);
     }
     engine.monoGateSpan = (float) (double) root.getProperty ("gateSpan", 0.15);
     engine.bassMonoHz   = (float) (double) root.getProperty ("bass", 120.0);

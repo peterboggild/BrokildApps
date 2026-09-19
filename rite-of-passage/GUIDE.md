@@ -31,6 +31,35 @@ instead of ash, and a line under the A/B editor telling you to move a B knob.
 So the first move after choosing an effect is always the same: **click the
 lane, then change a knob in the bottom (B) row.**
 
+## AUTO TRANSITION: let the plugin drive the slider
+
+The strip under POSITION runs the sweep for you, off the host transport, so
+you do not have to draw an automation lane at all.
+
+| control | what it does |
+|---|---|
+| **AUTO** | on or off. While it is ON the plugin owns POSITION and the host parameter is ignored, so the slider is disabled and becomes a display. |
+| **BARS** | the length of the cycle: 1, 2, 4, 8 or 16 bars. It repeats for ever. |
+| **START** / **END** | where in that cycle the sweep runs. They are BAR LINES counted the way a DAW counts them, so in an 8-bar cycle the 8th bar is 8.00 to 9.00. They snap to quarter bars. |
+| **0 to 100 / 100 to 0** | which way the sweep runs. |
+| **ARRIVE** | fire ARRIVAL when the sweep completes. Off by default, because an automatic drop is a bigger thing than an automatic sweep. |
+
+Before the window the position sits at the start value, after it at the end
+value, and it resets when the cycle comes round. With no transport running it
+waits, and the readout says so.
+
+Measured, on an 8-bar cycle with the window set to the 8th bar:
+
+| where the transport is | position |
+|---|---|
+| bar 4 | 0.00 |
+| bar 8.0 | 0.00 |
+| bar 8.5 | 0.50 |
+| bar 9.0 | 0.99 |
+
+**With AUTO off nothing changes at all** - the host parameter drives POSITION
+exactly as it always did, which is checked so that no existing project moves.
+
 ## Signal path
 
     in -> slot 1 -> slot 2 -> ... -> slot 6 -> stereo stage (SPREAD / TURN / MONO GATE)
@@ -159,9 +188,9 @@ a bar of its own clock.
   Both run on a 2x oversampled line. Measured fold of a 14 kHz tone: DIVE at
   +12 st **−64.6 dB** (it was 0.0 dB before), BRAKE launching out of a stop
   −64.6 dB, GRAIN at full SPREAD −103.3 dB.
-- **Wrapper harness, 20 checks**: parameters, buses, state round trip, a rite
+- **Wrapper harness, 29 checks**: parameters, buses, state round trip, a rite
   from a newer build tolerated, scrubbing fires nothing, ARRIVAL fires.
-- **Panel snapshot, 4 checks**: a travelling lane carries heat, and a lane
+- **Panel snapshot, 13 checks**: a travelling lane carries heat, and a lane
   whose A equals its B carries none.
 - **Not verified: nobody has heard it in a DAW yet.**
 
