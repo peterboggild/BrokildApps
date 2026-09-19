@@ -17,7 +17,7 @@ namespace
     constexpr int kMargin = 16;
     constexpr int kPostW  = 18;
     constexpr int kInset  = kMargin + kPostW + 8;   // where content starts
-    constexpr int kHeadH  = 128;
+    constexpr int kHeadH  = 176;   // POSITION, and the AUTO strip under it
     constexpr int kGlobH  = 78;
     constexpr int kColH   = 15;                     // the column headings
     constexpr int kLaneH  = 44;
@@ -354,6 +354,110 @@ RiteEditor::RiteEditor (RiteProcessor& p) : AudioProcessorEditor (&p), proc (p)
     };
     addAndMakeVisible (bwfxButton);
 
+    /*  AUTO TRANSITION. It sits under POSITION because it drives POSITION,
+        and while it is on the host parameter is ignored — so the slider is
+        disabled and DISPLAY-DRIVEN from the processor's effective position,
+        which keeps one owner for the value and still lets the master slider
+        be the thing you watch. */
+    autoHead.setText ("AUTO TRANSITION", juce::dontSendNotification);
+    //  ash, not smoke: charred wood swallows smoke whole (the build-id lesson)
+    autoHead.setColour (juce::Label::textColourId, kAsh.withAlpha (0.66f));
+    autoHead.setFont (juce::FontOptions (10.0f, juce::Font::bold));
+    addAndMakeVisible (autoHead);
+
+    autoReadout.setJustificationType (juce::Justification::centredRight);
+    autoReadout.setColour (juce::Label::textColourId, kYellow.withAlpha (0.80f));
+    autoReadout.setFont (juce::FontOptions (10.0f));
+    addAndMakeVisible (autoReadout);
+
+    autoOn.setButtonText ("AUTO");
+    autoOn.setColour (juce::ToggleButton::tickColourId, kEmber);
+    autoOn.setColour (juce::ToggleButton::textColourId, kAsh);
+    autoOn.setToggleState (proc.autoCycle().on, juce::dontSendNotification);
+    autoOn.onClick = [this]
+    {
+        proc.autoCycle().on = autoOn.getToggleState();
+        //  handing the slider back: when AUTO lets go, the parameter is the
+        //  owner again and the slider has to show IT, not the last auto value
+        if (! autoOn.getToggleState())
+            if (auto* p = proc.apvts.getRawParameterValue (rop_ids::position))
+                position.setValue (p->load(), juce::dontSendNotification);
+        syncAutoUi();
+        repaint();
+    };
+    addAndMakeVisible (autoOn);
+
+    autoBars.addItemList ({ "1 BAR", "2 BARS", "4 BARS", "8 BARS", "16 BARS" }, 1);
+    {
+        const int b = proc.autoCycle().bars;
+        autoBars.setSelectedId (b <= 1 ? 1 : (b <= 2 ? 2 : (b <= 4 ? 3 : (b <= 8 ? 4 : 5))),
+                                juce::dontSendNotification);
+    }
+    autoBars.setColour (juce::ComboBox::backgroundColourId, kClay);
+    autoBars.setColour (juce::ComboBox::textColourId, kAsh);
+    autoBars.onChange = [this]
+    {
+        static const int kBars[] = { 1, 2, 4, 8, 16 };
+        const int idx = juce::jlimit (0, 4, autoBars.getSelectedId() - 1);
+        proc.autoCycle().bars = kBars[idx];
+        //  the window has to stay inside the cycle it lives in
+        const float top = (float) proc.autoCycle().bars + 1.0f;
+        autoStart.setRange (1.0, top, 0.25);
+        autoEnd.setRange (1.0, top, 0.25);
+        proc.autoCycle().start = juce::jlimit (1.0f, top, proc.autoCycle().start);
+        proc.autoCycle().end   = juce::jlimit (1.0f, top, proc.autoCycle().end);
+        autoStart.setValue (proc.autoCycle().start, juce::dontSendNotification);
+        autoEnd.setValue (proc.autoCycle().end, juce::dontSendNotification);
+        syncAutoUi();
+    };
+    addAndMakeVisible (autoBars);
+
+    auto barSlider = [&] (juce::Slider& s, float v, bool isStart)
+    {
+        s.setSliderStyle (juce::Slider::LinearHorizontal);
+        s.setTextBoxStyle (juce::Slider::TextBoxRight, false, 52, 16);
+        //  QUARTER BARS: the grid it snaps to, so "the 8th bar" is 8.0 to 9.0
+        s.setRange (1.0, (double) proc.autoCycle().bars + 1.0, 0.25);
+        s.setValue (v, juce::dontSendNotification);
+        s.textFromValueFunction = [] (double x) { return "bar " + juce::String (x, 2); };
+        s.updateText();
+        s.setColour (juce::Slider::thumbColourId, kYellow);
+        s.setColour (juce::Slider::trackColourId, kOchre.withAlpha (0.55f));
+        s.setColour (juce::Slider::backgroundColourId, kClay);
+        s.setColour (juce::Slider::textBoxTextColourId, kAsh);
+        s.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+        s.onValueChange = [this, &s, isStart]
+        {
+            (isStart ? proc.autoCycle().start : proc.autoCycle().end) = (float) s.getValue();
+            syncAutoUi();
+            repaint();
+        };
+        addAndMakeVisible (s);
+    };
+    barSlider (autoStart, proc.autoCycle().start, true);
+    barSlider (autoEnd,   proc.autoCycle().end,   false);
+
+    autoDir.addItemList ({ "0 to 100", "100 to 0" }, 1);
+    autoDir.setSelectedId (proc.autoCycle().down ? 2 : 1, juce::dontSendNotification);
+    autoDir.setColour (juce::ComboBox::backgroundColourId, kClay);
+    autoDir.setColour (juce::ComboBox::textColourId, kAsh);
+    autoDir.onChange = [this]
+    {
+        proc.autoCycle().down = (autoDir.getSelectedId() == 2);
+        syncAutoUi();
+    };
+    addAndMakeVisible (autoDir);
+
+    autoArrive.setButtonText ("ARRIVE");
+    autoArrive.setColour (juce::ToggleButton::tickColourId, kEmber);
+    autoArrive.setColour (juce::ToggleButton::textColourId, kSmoke);
+    autoArrive.setToggleState (proc.autoCycle().arrive, juce::dontSendNotification);
+    autoArrive.setTooltip ("fire ARRIVAL when the sweep completes; off by default, "
+                           "because an automatic drop is a bigger thing than an "
+                           "automatic sweep");
+    autoArrive.onClick = [this] { proc.autoCycle().arrive = autoArrive.getToggleState(); syncAutoUi(); };
+    addAndMakeVisible (autoArrive);
+
     globals.push_back (makeKnob (rop_ids::mix,      "MIX"));
     globals.push_back (makeKnob (rop_ids::output,   "OUTPUT"));
     globals.push_back (makeKnob (rop_ids::spread,   "SPREAD"));
@@ -493,6 +597,7 @@ RiteEditor::RiteEditor (RiteProcessor& p) : AudioProcessorEditor (&p), proc (p)
         addAndMakeVisible (b);
     }
     refreshPresetNames();
+    syncAutoUi();
 
     rebuildSlotEditor();
     markInertLanes();
@@ -511,6 +616,38 @@ RiteEditor::~RiteEditor()
 //  an effect that cannot travel names itself in amber, on its own lane.
 //  Called from every place the answer can change — NOT only from the timer,
 //  because a snapshot never runs one and that is how the panel is reviewed.
+/*  Everything the AUTO strip says about itself, in one place. The readout
+    names the window in the same words a DAW would, so "the 8th bar" is
+    something you can read off rather than work out. */
+void RiteEditor::syncAutoUi()
+{
+    const auto& a = proc.autoCycle();
+    for (juce::Component* c : { (juce::Component*) &autoBars, (juce::Component*) &autoStart,
+                                (juce::Component*) &autoEnd,  (juce::Component*) &autoDir,
+                                (juce::Component*) &autoArrive })
+        c->setEnabled (a.on);
+
+    //  AUTO owns POSITION while it is on, so the slider stops being an input
+    //  and becomes a display. Saying so beats letting somebody drag a control
+    //  that is being overwritten.
+    position.setEnabled (! a.on);
+
+    const float s = juce::jmin (a.start, a.end), e = juce::jmax (a.start, a.end);
+    juce::String txt;
+    if (! a.on) txt = "off - POSITION is yours to automate";
+    else
+    {
+        txt = juce::String (a.down ? "100 to 0" : "0 to 100")
+            + "  over bar " + juce::String (s, 2) + " to " + juce::String (e, 2)
+            + " of " + juce::String (a.bars);
+        if (a.arrive) txt += "  then ARRIVE";
+        const float b = proc.autoBarNow();
+        txt += (b < 0.0f) ? "   -   waiting for the transport"
+                          : ("   -   at bar " + juce::String (b, 2));
+    }
+    autoReadout.setText (txt, juce::dontSendNotification);
+}
+
 void RiteEditor::refreshPresetNames()
 {
     for (int i = 0; i < RiteProcessor::kQuickPresets; ++i)
@@ -642,7 +779,8 @@ void RiteEditor::paint (juce::Graphics& g)
 {
     g.fillAll (kGround);
     tile (g, dGround, getLocalBounds(), 0.55f);
-    const float t = proc.apvts.getRawParameterValue (rop_ids::position)->load() * 0.01f;
+    //  whoever is driving it: the parameter, or AUTO
+    const float t = proc.effectivePosition();
 
     // ---- the threshold: two uprights and a lintel -------------------------
     auto head = getLocalBounds().removeFromTop (kHeadH);
@@ -823,6 +961,26 @@ void RiteEditor::resized()
     arrival.setBounds (head.getRight() - 110, 90, 110, 30);
     bwfxButton.setBounds (head.getRight() - 110 - 86, 90, 78, 30);
 
+    //  the AUTO strip: one label line, one control line
+    {
+        auto lab = juce::Rectangle<int> (head.getX(), 126, head.getWidth(), 13);
+        autoHead.setBounds (lab.removeFromLeft (150));
+        autoReadout.setBounds (lab);
+
+        auto rowA = juce::Rectangle<int> (head.getX(), 140, head.getWidth(), 28);
+        autoOn.setBounds (rowA.removeFromLeft (66));
+        rowA.removeFromLeft (4);
+        autoBars.setBounds (rowA.removeFromLeft (84).reduced (0, 2));
+        rowA.removeFromLeft (10);
+        autoArrive.setBounds (rowA.removeFromRight (86));
+        rowA.removeFromRight (6);
+        autoDir.setBounds (rowA.removeFromRight (92).reduced (0, 2));
+        rowA.removeFromRight (10);
+        const int half = rowA.getWidth() / 2;
+        autoStart.setBounds (rowA.removeFromLeft (half).reduced (2, 2));
+        autoEnd.setBounds (rowA.reduced (2, 2));
+    }
+
     auto row = juce::Rectangle<int> (kInset, kHeadH, getWidth() - 2 * kInset, kGlobH).reduced (2, 4);
     for (auto& k : globals)
     {
@@ -898,6 +1056,13 @@ void RiteEditor::timerCallback()
     //  the arrival mark is struck once and fades; it is an event, not a state
     const bool nowArrived = proc.rack().arrived();
     if (nowArrived && ! wasArrived) flash = 1.0f;
+    if (proc.autoCycle().on)
+    {
+        syncAutoUi();
+        //  display only: the parameter is not moving, so nothing fights this
+        position.setValue (proc.effectivePosition() * 100.0, juce::dontSendNotification);
+    }
+
     wasArrived = nowArrived;
     flash *= 0.86f;
 
