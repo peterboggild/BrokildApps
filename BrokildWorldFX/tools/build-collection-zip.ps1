@@ -33,7 +33,8 @@ $plugins = @(
   @{ slug = "black-rider";       name = "Black Rider" },
   @{ slug = "clone-wars";        name = "Clone Wars" },
   @{ slug = "full-metal-racket"; name = "Full Metal Racket" },
-  @{ slug = "martian-gain";      name = "Martian Gain" }
+  @{ slug = "martian-gain";      name = "Martian Gain" },
+  @{ slug = "battlestar-overdrive"; name = "Battlestar Overdrive" }
 )
 
 if (Test-Path $work) { Remove-Item $work -Recurse -Force }
@@ -76,7 +77,7 @@ foreach ($p in $plugins) {
 
 $readme = @"
 THE BROKILD COLLECTION
-Nine Windows plugins: eight instruments and one effect.
+Ten Windows plugins: eight instruments and two effects.
 Brokild Apps  -  September 2026  -  Windows 64-bit  -  free
 
 
@@ -113,6 +114,13 @@ WHAT IS IN HERE
                      front panel, and a gain match measured rather than
                      modelled - so DRIVE changes the sound without
                      changing the level
+  Battlestar Overdrive
+                     an overdrive, and a tribute to the Copenhagen solo
+                     act of the same name, built with Max Christensen
+                     blessing. Eight drive engines on one knob from a
+                     polite tube to a fold-crush-chaos cascade, and a
+                     CRT that names the one you are on, goes to warp on
+                     the seventh and blows up a star on the eighth
 
 
 INSTALL
@@ -131,15 +139,15 @@ INSTALL
   2. Start your DAW and rescan plugins.
      In Ableton Live: Preferences - Plug-Ins - Rescan.
 
-  3. They appear under Brokild. Eight are instruments; Martian Gain is
-     an effect.
+  3. They appear under Brokild. Eight are instruments; Martian Gain and
+     Battlestar Overdrive are effects.
 
   Or just double-click any of the .exe files. No installation needed.
 
 
 WHAT THEY HAVE IN COMMON
 ------------------------
-  BROKILD WORLD FX. Eight of the nine carry the same rack of global
+  BROKILD WORLD FX. Eight of the ten carry the same rack of global
   effects behind a teal globe - saturation, phaser, chorus, gate,
   echo, reverb, rotary, a step glitcher and more - plus SPECTRA
   characters, which do not treat the mix but possess the instrument
@@ -147,7 +155,7 @@ WHAT THEY HAVE IN COMMON
   one of them opens in any of the others. It is empty by default and
   adds nothing until you put something in it. (Martian Gain is an
   effect, so it has no rack: you already have a chain to put things
-  in.)
+  in, and so does Battlestar Overdrive.)
 
   YOUR PATCHES ALL LIVE TOGETHER, in
 
