@@ -1,7 +1,7 @@
 {
   "slug": "full-metal-racket",
   "name": "Full Metal Racket (VST3)",
-  "description": "A free Windows VST3 analogue drum machine. Twelve voices, nothing sampled and nothing cloned — but what makes it different is not the voices, it is what they share: one power rail that sags in pitch as well as level when a kick lands, one shell every channel feeds, and a bleed web so that hitting the snare rings the toms. It is the glue that bus compression is an apology for, built in at the circuit. Then a thirty-two step sequencer with a last step per lane for polyrhythms, two hundred generated kits, and a fader that morphs between any two of them.",
+  "description": "An analogue drum machine whose twelve voices share a power rail, a shell and a bleed web — so a hard kick dips the whole machine in pitch as well as level, and hitting the snare rings the toms. A thirty-two step sequencer with a last step per lane, so polyrhythms cost one number. Two hundred generated kits and a fader that morphs between any two.",
   "status": "live",
   "url": "vst3-apps/full-metal-racket/index.html",
   "icon": "device",

@@ -1,7 +1,7 @@
 {
   "slug": "escape-room",
   "name": "Escape Room (VST3)",
-  "description": "A free Windows VST3 noise instrument built as a puzzle. Five coupled noise cells — a geiger cloud, a chaotic FM pair, wandering formants, inharmonic strings, and a crusher that eats the room's own output — through a playable four-voice resonant filter, three traps, and a six-bit lock that rewires the whole machine into any of sixty-four reproducible rooms. Nothing on the panel is labelled with what it does, and there is a legend hidden in the door. Behind the globe: the Brokild World Rack, twelve effect pedals and six SPECTRA characters that take hold of the room itself — the same rack every Brokild synth carries, stored inside each room you save.",
+  "description": "Five noise cells, a playable filter, three traps — and a SIGIL, a number from 0 to 63 that seeds eight modulation wires deterministically. The same sigil is the same machine, on any computer, forever. The panel is cryptic on purpose: the knobs are named ALEPH and BETH, and the real values only appear while you turn one. There is a legend, if you can find it.",
   "status": "live",
   "url": "vst3-apps/escape-room/index.html",
   "icon": "device",
