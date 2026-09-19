@@ -140,7 +140,16 @@ void RiteProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
             line rather than early. */
         if (autoC.arrive && bar >= 0.0f)
         {
-            if (lastAutoBar >= 0.0f && lastAutoBar < e && bar >= e) engine.armArrival();
+            /*  THE WINDOW CAN END ON THE CYCLE LINE, and that is the
+                natural way to write it: with 4 BARS `bar` runs [1, 5) and
+                never REACHES 5.00, so "the 4th bar" = 4.00 to 5.00 would
+                never satisfy bar >= e and the arrival would never fire.
+                The wrap IS the crossing in that case — and it can only be
+                the crossing when the end was not reached earlier in the
+                cycle, which `lastAutoBar < e` already says. */
+            const bool wrapped = (lastAutoBar >= 0.0f && bar < lastAutoBar);
+            if (lastAutoBar >= 0.0f && lastAutoBar < e && (bar >= e || wrapped))
+                engine.armArrival();
             lastAutoBar = bar;
         }
         else lastAutoBar = -1.0f;

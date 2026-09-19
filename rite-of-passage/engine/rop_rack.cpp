@@ -237,6 +237,7 @@ void Rack::fireArrival()
 {
     for (int i = 0; i < kSlots; ++i) releaseSlot (i);
     didArrive = true;
+    ++nArrivals;
     arrivalArmed.store (false, std::memory_order_relaxed);
 
     if (arrival.fireImpact)
@@ -382,7 +383,6 @@ void Rack::runSubBlockRange (float* L, float* R, int from, int to, double subPpq
         if (e == nullptr) continue;
         const auto& s = st[(size_t) i];
         if (! s.on) continue;
-        if (released[(size_t) i] && s.tail != Tail::Spill) continue;
 
         const auto& d = e->desc();
 
@@ -390,6 +390,21 @@ void Rack::runSubBlockRange (float* L, float* R, int from, int to, double subPpq
         const float lean = spread * kMaxLean * kSlotLean[i];
         const float tl = clampf (pos + lean, 0.0f, 1.0f);
         const float tr = clampf (pos - lean, 0.0f, 1.0f);
+
+        /*  LANE EDGES, AND THIS MUST COME BEFORE THE RELEASED-SKIP BELOW.
+            A slot is released on the way OUT of its lane, and the only
+            thing that can bring it back is the arm on the way IN — so if
+            that decision sits after the `continue`, it is unreachable and
+            the lane is dead for the rest of the session after one pass.
+            Any lane with ENTER above 0 hit it; a lane starting at 0 never
+            leaves, which is why it went unnoticed and why a check written
+            with ENTER 0 cannot see it. */
+        const bool in = (tl >= s.enter);
+        if (in && ! wasIn[(size_t) i]) rearmSlot (i);
+        if (! in && wasIn[(size_t) i]) releaseSlot (i);
+        wasIn[(size_t) i] = in;
+
+        if (released[(size_t) i] && s.tail != Tail::Spill) continue;
 
         resolve (i, tl, pL);
         if (d.perChannelParams && std::abs (lean) > 1.0e-6f) resolve (i, tr, pR);
@@ -413,12 +428,7 @@ void Rack::runSubBlockRange (float* L, float* R, int from, int to, double subPpq
             pL[p] = pR[p] = held;
         }
 
-        //  lane edges: arm on the way in, release on the way out
-        const bool in = (tl >= s.enter);
-        if (in && ! wasIn[(size_t) i]) rearmSlot (i);
-        if (! in && wasIn[(size_t) i]) releaseSlot (i);
-        wasIn[(size_t) i] = in;
-        c.inLane = in;
+        c.inLane = in;   //  decided above, before the released-skip
 
         const float span = std::max (1.0e-4f, s.exit - s.enter);
         c.u = applyCurve (clampf ((tl - s.enter) / span, 0.0f, 1.0f), s.curve) * s.depth;
