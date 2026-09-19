@@ -1,0 +1,15 @@
+{
+  "slug": "battlestar-overdrive",
+  "name": "Battlestar Overdrive (VST3)",
+  "description": "A free Windows VST3 overdrive, and a tribute: Max Christensen's idea was a Battlestar Overdrive for Battlestar Overdrive, and this is it, made with his blessing. Eight drive engines on one knob ordered from polite to unhinged — a soft tube, a classic soft knee, tape with memory, asymmetric fuzz, tanh into a hard clip, a wavefolder, Chebyshev harmonic injection, and a fold-crush-chaos cascade with no musical justification offered or implied — every one of them level-matched by a table the plugin measures for itself at startup, so THRUST changes what it sounds like rather than how loud it is. The CRT is part of the instrument: it names the engine you landed on in blue, runs a starfield that speeds up as you climb the knob, goes to warp on the seventh, blows up a star on the eighth, paints nebulae as SPACE comes up and blooms red when you are genuinely clipping. ANTITHRUST widens the image after the drive and never moves the mono sum. SPACE is one knob across an overlapping tape delay, hall, shimmer and harmonic tremolo. And the fuel gauge means it — play long enough with Autorefill dark and the engine flames out. Go and listen to the band; the plugin makes more sense afterwards.",
+  "status": "live",
+  "url": "vst3-apps/battlestar-overdrive/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/battlestar-overdrive.jpg",
+  "note": "Windows VST3 · build 260919.2 · free download · 8 engines · 12-page handbook included.",
+  "tags": [
+    "vst3",
+    "effect"
+  ]
+}
