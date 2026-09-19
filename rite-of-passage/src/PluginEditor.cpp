@@ -17,7 +17,7 @@ namespace
     constexpr int kMargin = 16;
     constexpr int kPostW  = 18;
     constexpr int kInset  = kMargin + kPostW + 8;   // where content starts
-    constexpr int kHeadH  = 176;   // POSITION, and the AUTO strip under it
+    constexpr int kHeadH  = 210;   // POSITION, the AUTO strip, the MIX GATE
     constexpr int kGlobH  = 78;
     constexpr int kColH   = 15;                     // the column headings
     constexpr int kLaneH  = 44;
@@ -448,15 +448,83 @@ RiteEditor::RiteEditor (RiteProcessor& p) : AudioProcessorEditor (&p), proc (p)
     };
     addAndMakeVisible (autoDir);
 
+    autoAfter.addItemList ({ "then RESET", "then HOLD" }, 1);
+    autoAfter.setSelectedId (proc.autoCycle().hold ? 2 : 1, juce::dontSendNotification);
+    autoAfter.setColour (juce::ComboBox::backgroundColourId, kClay);
+    autoAfter.setColour (juce::ComboBox::textColourId, kAsh);
+    autoAfter.setTooltip ("what the position does between the end of the window and "
+                          "the end of the cycle: drop straight back, or stay at the top");
+    autoAfter.onChange = [this]
+    {
+        proc.autoCycle().hold = (autoAfter.getSelectedId() == 2);
+        syncAutoUi();
+    };
+    addAndMakeVisible (autoAfter);
+
     autoArrive.setButtonText ("ARRIVE");
     autoArrive.setColour (juce::ToggleButton::tickColourId, kEmber);
-    autoArrive.setColour (juce::ToggleButton::textColourId, kSmoke);
+    autoArrive.setColour (juce::ToggleButton::textColourId, kAsh);
     autoArrive.setToggleState (proc.autoCycle().arrive, juce::dontSendNotification);
     autoArrive.setTooltip ("fire ARRIVAL when the sweep completes; off by default, "
                            "because an automatic drop is a bigger thing than an "
                            "automatic sweep");
     autoArrive.onClick = [this] { proc.autoCycle().arrive = autoArrive.getToggleState(); syncAutoUi(); };
     addAndMakeVisible (autoArrive);
+
+    /*  THE MIX GATE. Peter: "most often i need the plugin to only activate
+        the transition while position is being swept." Two switches, each
+        with its own length, and a length of zero is the plain gate. Both
+        default off, so nothing about an existing project changes. */
+    gateHead.setText ("MIX GATE", juce::dontSendNotification);
+    gateHead.setColour (juce::Label::textColourId, kAsh.withAlpha (0.66f));
+    gateHead.setFont (juce::FontOptions (10.0f, juce::Font::bold));
+    addAndMakeVisible (gateHead);
+
+    gateReadout.setJustificationType (juce::Justification::centredRight);
+    gateReadout.setColour (juce::Label::textColourId, kYellow.withAlpha (0.80f));
+    gateReadout.setFont (juce::FontOptions (10.0f));
+    addAndMakeVisible (gateReadout);
+
+    auto gateSwitch = [&] (juce::ToggleButton& b, const juce::String& text, bool state,
+                           std::function<void (bool)> set)
+    {
+        b.setButtonText (text);
+        b.setColour (juce::ToggleButton::tickColourId, kEmber);
+        b.setColour (juce::ToggleButton::textColourId, kAsh);
+        b.setToggleState (state, juce::dontSendNotification);
+        b.onClick = [this, &b, set] { set (b.getToggleState()); syncGateUi(); repaint(); };
+        addAndMakeVisible (b);
+    };
+    gateSwitch (fadeInOn,  "FADE IN",  proc.mixGate().fadeIn,
+                [this] (bool v) { proc.mixGate().fadeIn = v; });
+    gateSwitch (fadeOutOn, "FADE OUT", proc.mixGate().fadeOut,
+                [this] (bool v) { proc.mixGate().fadeOut = v; });
+
+    auto lenSlider = [&] (juce::Slider& s, float v, bool isIn)
+    {
+        s.setSliderStyle (juce::Slider::LinearHorizontal);
+        s.setTextBoxStyle (juce::Slider::TextBoxRight, false, 62, 16);
+        s.setRange (0.0, 50.0, 1.0);          // per cent of the whole travel
+        s.setValue (v * 100.0, juce::dontSendNotification);
+        //  zero is not "a very short fade", it is a different thing, and the
+        //  readout has to say which one you have
+        s.textFromValueFunction = [] (double x)
+            { return x <= 0.5 ? juce::String ("instant") : (juce::String (juce::roundToInt (x)) + " %"); };
+        s.updateText();
+        s.setColour (juce::Slider::thumbColourId, kYellow);
+        s.setColour (juce::Slider::trackColourId, kOchre.withAlpha (0.55f));
+        s.setColour (juce::Slider::backgroundColourId, kClay);
+        s.setColour (juce::Slider::textBoxTextColourId, kAsh);
+        s.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+        s.onValueChange = [this, &s, isIn]
+        {
+            (isIn ? proc.mixGate().inLen : proc.mixGate().outLen) = (float) (s.getValue() * 0.01);
+            syncGateUi();
+        };
+        addAndMakeVisible (s);
+    };
+    lenSlider (fadeInLen,  proc.mixGate().inLen,  true);
+    lenSlider (fadeOutLen, proc.mixGate().outLen, false);
 
     globals.push_back (makeKnob (rop_ids::mix,      "MIX"));
     globals.push_back (makeKnob (rop_ids::output,   "OUTPUT"));
@@ -598,6 +666,7 @@ RiteEditor::RiteEditor (RiteProcessor& p) : AudioProcessorEditor (&p), proc (p)
     }
     refreshPresetNames();
     syncAutoUi();
+    syncGateUi();
 
     rebuildSlotEditor();
     markInertLanes();
@@ -622,9 +691,9 @@ RiteEditor::~RiteEditor()
 void RiteEditor::syncAutoUi()
 {
     const auto& a = proc.autoCycle();
-    for (juce::Component* c : { (juce::Component*) &autoBars, (juce::Component*) &autoStart,
-                                (juce::Component*) &autoEnd,  (juce::Component*) &autoDir,
-                                (juce::Component*) &autoArrive })
+    for (juce::Component* c : { (juce::Component*) &autoBars,  (juce::Component*) &autoStart,
+                                (juce::Component*) &autoEnd,   (juce::Component*) &autoDir,
+                                (juce::Component*) &autoAfter, (juce::Component*) &autoArrive })
         c->setEnabled (a.on);
 
     //  AUTO owns POSITION while it is on, so the slider stops being an input
@@ -640,12 +709,37 @@ void RiteEditor::syncAutoUi()
         txt = juce::String (a.down ? "100 to 0" : "0 to 100")
             + "  over bar " + juce::String (s, 2) + " to " + juce::String (e, 2)
             + " of " + juce::String (a.bars);
-        if (a.arrive) txt += "  then ARRIVE";
+        txt += a.hold ? "  then HOLD" : "  then RESET";
+        if (a.arrive) txt += "  and ARRIVE";
         const float b = proc.autoBarNow();
         txt += (b < 0.0f) ? "   -   waiting for the transport"
                           : ("   -   at bar " + juce::String (b, 2));
     }
     autoReadout.setText (txt, juce::dontSendNotification);
+}
+
+//  what the gate is doing, in the words somebody would use to ask for it
+void RiteEditor::syncGateUi()
+{
+    const auto& g = proc.mixGate();
+    fadeInLen.setEnabled (g.fadeIn);
+    fadeOutLen.setEnabled (g.fadeOut);
+
+    juce::String t;
+    if (! g.fadeIn && ! g.fadeOut) t = "off - the effects are always on, MIX is yours";
+    else
+    {
+        if (g.fadeIn)
+            t = (g.inLen <= 0.0f) ? juce::String ("silent at 0 %")
+                : ("fades in over the first " + juce::String (juce::roundToInt (g.inLen * 100.0f)) + " %");
+        if (g.fadeOut)
+        {
+            if (t.isNotEmpty()) t += "   -   ";
+            t += (g.outLen <= 0.0f) ? juce::String ("silent at 100 %")
+                : ("fades out over the last " + juce::String (juce::roundToInt (g.outLen * 100.0f)) + " %");
+        }
+    }
+    gateReadout.setText (t, juce::dontSendNotification);
 }
 
 void RiteEditor::refreshPresetNames()
@@ -974,11 +1068,24 @@ void RiteEditor::resized()
         rowA.removeFromLeft (10);
         autoArrive.setBounds (rowA.removeFromRight (86));
         rowA.removeFromRight (6);
+        autoAfter.setBounds (rowA.removeFromRight (100).reduced (0, 2));
+        rowA.removeFromRight (6);
         autoDir.setBounds (rowA.removeFromRight (92).reduced (0, 2));
         rowA.removeFromRight (10);
         const int half = rowA.getWidth() / 2;
         autoStart.setBounds (rowA.removeFromLeft (half).reduced (2, 2));
         autoEnd.setBounds (rowA.reduced (2, 2));
+
+        //  the MIX GATE, one row under it
+        auto rowB = juce::Rectangle<int> (head.getX(), 172, head.getWidth(), 28);
+        gateHead.setBounds (rowB.removeFromLeft (76));
+        fadeInOn.setBounds (rowB.removeFromLeft (86));
+        fadeInLen.setBounds (rowB.removeFromLeft (180).reduced (2, 2));
+        rowB.removeFromLeft (14);
+        fadeOutOn.setBounds (rowB.removeFromLeft (96));
+        fadeOutLen.setBounds (rowB.removeFromLeft (180).reduced (2, 2));
+        rowB.removeFromLeft (10);
+        gateReadout.setBounds (rowB);
     }
 
     auto row = juce::Rectangle<int> (kInset, kHeadH, getWidth() - 2 * kInset, kGlobH).reduced (2, 4);
