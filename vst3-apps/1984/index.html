@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <title>1984 &mdash; VST3 vintage polysynth | BrokildApps</title>
+  <meta name="description" content="1984 is a free Windows VST3 polysynth. Eight voices, and each voice is two complete synthesizer ranks with their own oscillator, resonant high-pass, resonant low-pass and two envelopes. Hard sync, poly-mod, a ring modulator and unison. A formant choir behind a three-phase ensemble. Then everything goes to tape - wow, flutter, age, dropouts, a VHS mode - before it goes to the hall. Forty factory patches." />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%2308090c'/><rect x='16' y='24' width='9' height='52' rx='4' fill='%23b0424a'/><rect x='33' y='36' width='9' height='40' rx='4' fill='%23ffb642'/><rect x='50' y='18' width='9' height='58' rx='4' fill='%23e6dfcf'/><rect x='67' y='42' width='9' height='34' rx='4' fill='%233aa39c'/><rect x='14' y='82' width='72' height='5' rx='2.5' fill='%23ffb642'/></svg>" />
+  <style>
+    :root {
+      /*  The deck: black anodised aluminium, cream silkscreen, an amber VFD,
+          and the five slider-cap colours. Nothing on this page is a colour
+          that is not on the panel. */
+      --accent: #a06a12;
+      --accent-bright: #c98a1c;
+      --amber: #96620f;
+      --teal: #1f7a74;
+      --ox: #9b3038;
+      /*  Cream rather than white, because the silkscreen on the deck is
+          cream and a clinical white page is nobody's 1984. */
+      --bg: #fdfaf4;
+      --bg-soft: #f7f0e3;
+      --card: #ffffff;
+      --border: #ece3d1;
+      --text: #171512;
+      --text-soft: #5b544a;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+      --code-bg: #f4ece0;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #ffb642; --accent-bright: #ffd9a2; --amber: #ffb642;
+        --teal: #3aa39c; --ox: #cf5a62;
+        --bg: #08090c; --bg-soft: #101319; --card: #14171d; --border: #262b34;
+        --text: #e9e3d4; --text-soft: #948c7e;
+        --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.45);
+        --code-bg: #1a1d24;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 0 1.5rem; }
+    a { color: var(--accent); }
+    [hidden] { display: none !important; }
+
+    /* --- Brokild chrome ---------------------------------------------
+       The same black bar sits on every page in the catalogue, and this
+       block is identical in all of them. Each plugin keeps its own
+       palette strictly BELOW the bar; the bar never takes it, so the
+       header reads the same wherever you have landed. --- */
+    .topbar {
+      position: sticky; top: 0; z-index: 60;
+      background: rgba(4,6,11,.93);
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+      border-bottom: 1px solid #17212f;
+      box-shadow: 0 1px 0 rgba(94,240,218,.08), 0 10px 30px rgba(0,0,0,.5);
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .72rem 0; }
+    .brand { display: flex; align-items: center; gap: .72rem; text-decoration: none; }
+    .brand-mark {
+      width: 38px; height: 38px; flex: none; display: grid; place-items: center;
+      font: 900 1.2rem/1 "Orbitron", "Segoe UI", system-ui, sans-serif;
+      color: #5ef0da; background: #08101a;
+      border: 1px solid rgba(94,240,218,.42); border-radius: 4px;
+      box-shadow: 0 0 14px rgba(94,240,218,.16), inset 0 0 12px rgba(94,240,218,.07);
+    }
+    .brand-name { font: 600 .95rem/1.4 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .22em; text-transform: uppercase; color: #fff; }
+    .brand-sub  { font: 400 .66rem/1.5 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .2em; text-transform: uppercase; color: #2a9d8f; }
+    .nav a.back { font: 500 .74rem/1 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .16em; text-transform: uppercase;
+                  color: #ffb454; text-decoration: none;
+                  border: 1px solid rgba(255,180,84,.3); border-radius: 3px;
+                  padding: .5rem .85rem; transition: all .15s; white-space: nowrap; }
+    .nav a.back:hover { color: #fff; border-color: #ffb454; background: rgba(255,180,84,.1);
+                        text-shadow: 0 0 12px rgba(255,180,84,.55); }
+
+    /* ---- hero: a rack light over a black deck ---- */
+    .hero {
+      background:
+        radial-gradient(80% 60% at 70% 0%, rgba(255,182,66,.20) 0%, transparent 62%),
+        radial-gradient(60% 60% at 6% 100%, rgba(58,163,156,.10) 0%, transparent 66%),
+        linear-gradient(172deg, #15171d 0%, #07080b 100%);
+      color: #e9e3d4; padding: 3.4rem 0 3rem; border-bottom: 1px solid var(--border);
+    }
+    .kicker {
+      font-size: .74rem; letter-spacing: .34em; text-transform: uppercase;
+      color: #c08f4e; margin-bottom: 1rem;
+    }
+    /*  The panel sets its legends in wide-tracked caps cut into cream. So
+        does the page. No web fonts: these are the faces on the machine. */
+    .hero h1 {
+      font-family: "Franklin Gothic Medium", "Segoe UI Semibold", "Segoe UI", Arial, sans-serif;
+      font-weight: 600;
+      font-size: clamp(3rem, 12vw, 7rem); line-height: 1; margin: 0;
+      letter-spacing: .22em; text-indent: .22em;
+      color: #f3ecdc;
+      text-shadow: 0 0 52px rgba(255,182,66,.30);
+    }
+    .yearbar {
+      height: 4px; border: 0; margin: 1.4rem 0 1.5rem; max-width: 460px;
+      background: linear-gradient(90deg, #ffb642 0%, #b0424a 32%, #e6dfcf 54%, #3aa39c 74%, rgba(255,182,66,.05) 100%);
+    }
+    .hero .tagline { font-size: 1.22rem; color: #e3c68c; margin: 0; font-weight: 600; }
+    .hero p.lede { color: #b5ac9c; max-width: 64ch; margin: 1.1rem 0 0; }
+    .hero-shot { margin: 2.4rem 0 0; }
+    .hero-shot img {
+      width: 100%; display: block; border-radius: 10px;
+      border: 1px solid #2e3039; box-shadow: 0 18px 48px rgba(0,0,0,.7);
+    }
+    .btnrow { display: flex; flex-wrap: wrap; gap: .8rem; margin: 1.9rem 0 0; }
+    .buildtag { align-self: center; font: 600 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+                letter-spacing: .14em; text-transform: uppercase; opacity: .6; }
+    .btn {
+      display: inline-flex; align-items: center; gap: .55rem;
+      padding: .78rem 1.3rem; border-radius: 10px; text-decoration: none;
+      font-weight: 600; font-size: .96rem; border: 1px solid transparent;
+    }
+    .btn-primary { background: #ffb642; color: #221a0c; }
+    .btn-primary:hover { background: #ffd9a2; }
+    .btn-ghost { border-color: #6a5330; color: #e6d6b6; }
+    .btn-ghost:hover { border-color: #ffb642; color: #ffd9a2; }
+    .btn small { font-weight: 400; opacity: .78; }
+
+    /* ---- body sections ---- */
+    section.block { padding: 3rem 0; border-bottom: 1px solid var(--border); }
+    section.block:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.55rem; margin: 0 0 .4rem; letter-spacing: -.01em; }
+    h3 { font-size: 1.02rem; margin: 1.6rem 0 .3rem; }
+    .sub { color: var(--text-soft); margin: 0 0 1.4rem; max-width: 70ch; }
+    p { max-width: 72ch; }
+    code {
+      font-family: Consolas, "SF Mono", Menlo, monospace; font-size: .86em;
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 4px; padding: .1em .4em;
+    }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 1rem; margin-top: 1.4rem; }
+    .c {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.1rem 1.2rem; box-shadow: var(--shadow);
+    }
+    .c .n { font: 600 .72rem/1 Consolas, monospace; color: var(--amber);
+            letter-spacing: .1em; text-transform: uppercase; }
+    .c h4 { margin: .5rem 0 .35rem; font-size: 1rem; }
+    .c p { margin: 0; font-size: .9rem; color: var(--text-soft); max-width: none; }
+
+    figure { margin: 1.6rem 0 0; }
+    figure img {
+      width: 100%; display: block; border-radius: 10px;
+      border: 1px solid var(--border); box-shadow: var(--shadow); background: #08090c;
+    }
+    figcaption { font-size: .85rem; color: var(--text-soft); margin-top: .55rem; }
+    .figrow { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; align-items: start; }
+    @media (max-width: 700px) { .figrow { grid-template-columns: 1fr; } }
+
+    .note {
+      background: var(--bg-soft); border-left: 3px solid var(--amber);
+      padding: .9rem 1.1rem; border-radius: 0 8px 8px 0; margin: 1.3rem 0;
+      font-size: .93rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: 1rem; }
+    th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { font-size: .74rem; text-transform: uppercase; letter-spacing: .12em; color: var(--text-soft); }
+    td:first-child { font-weight: 600; width: 30%; }
+
+    /* ---- the eight passages ----
+       Eight players, each one a factory patch and nothing else: no outboard,
+       no editing afterwards, and the patch named beside it so you can dial the
+       same one up and play it yourself. */
+    .plays { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem 1.6rem; margin-top: 1.5rem; }
+    @media (max-width: 760px) { .plays { grid-template-columns: 1fr; } }
+    .play {
+      border: 1px solid var(--border); border-radius: 12px; background: var(--card);
+      padding: .95rem 1.05rem 1.05rem; box-shadow: var(--shadow);
+    }
+    .play .t {
+      font: 600 .74rem/1 Consolas, ui-monospace, monospace; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--amber);
+    }
+    .play p { margin: .45rem 0 .7rem; font-size: .89rem; color: var(--text-soft); max-width: none; }
+    .play audio { width: 100%; height: 34px; display: block; }
+
+    /* ---- the bench numbers ---- */
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin-top: 1.4rem; }
+    .fact {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1rem 1.1rem; box-shadow: var(--shadow);
+    }
+    .fact .v {
+      font: 700 1.45rem/1.1 Consolas, ui-monospace, monospace; color: var(--accent);
+      letter-spacing: -.01em;
+    }
+    .fact .l { font-size: .84rem; color: var(--text-soft); margin-top: .4rem; }
+
+    footer {
+      background: var(--bg-soft); border-top: 1px solid var(--border);
+      padding: 2.2rem 0; color: var(--text-soft); font-size: .88rem;
+    }
+    footer p { max-width: 76ch; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <nav class="nav">
+      <a class="brand" href="../../index.html">
+        <span class="brand-mark">B</span>
+        <span>
+          <span class="brand-name">Brokild</span><br>
+          <span class="brand-sub">Musical instruments</span>
+        </span>
+      </a>
+      <a class="back" href="../../index.html">&larr; All instruments</a>
+    </nav>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">VST3 Instrument &middot; Windows &middot; Free</div>
+    <h1>1984</h1>
+    <hr class="yearbar" />
+    <p class="tagline">A vintage analog polysynth. Eight voices, sixteen ranks, one tape.</p>
+    <p class="lede">
+      A voice in 1984 is not one synthesizer, it is two. Rank I and rank II
+      share a keyboard, a ring modulator and a sub-oscillator, and each of them
+      has its own oscillator, its own resonant high-pass into its own resonant
+      low-pass, its own filter envelope, its own amplifier envelope, and its
+      own level and pan. Eight voices is sixteen complete ranks, so every patch
+      on the dial is two instruments played as one.
+    </p>
+    <p class="lede" style="margin-top:1rem">
+      Rank II can be hard-synced to rank I, or bend it at audio rate, or go
+      silent and do nothing but bend it. Then the eight voices meet one chain:
+      drive, a three-phase ensemble, a formant choir, tape or VHS, and a hall.
+      Forty factory patches, from brass and strings to the stranger things.
+    </p>
+
+    <div class="btnrow">
+      <a class="btn btn-primary" href="1984-VST3-win64.zip" download>
+        Download for Windows <small>VST3 + standalone</small>
+      </a>
+      <span class="buildtag">Windows VST3 &middot; build 260922.1</span>
+      <a class="btn btn-ghost" href="1984-Manual.pdf">
+        Handbook <small>PDF, 18 pages</small>
+      </a>
+    </div>
+
+    <figure class="hero-shot" style="margin-top:2.4rem">
+      <img src="img/panel.jpg" alt="The 1984 panel: two rank rows of long-throw sliders in coloured caps, an amber display across the top, the chain and the keyboard below" />
+    </figure>
+  </div>
+</header>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Listen</h2>
+    <p class="sub">Eight passages, each one a factory patch and nothing else
+      &mdash; no outboard, no editing afterwards. The patch is named so you can
+      dial up the same one and play it yourself.</p>
+
+    <div class="plays">
+      <div class="play">
+        <div class="t">Blade Brass &middot; Brass</div>
+        <p>Four held chords with the aftertouch leaned into on the last one.
+          Two ranks of saw, pulse and sine nine cents apart, through the
+          ensemble into a 2.4 second hall.</p>
+        <audio controls preload="none" src="audio/1984-01-blade-brass.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">CS Strings &middot; Strings</div>
+        <p>A slow four-chord progression with nothing moving but the ensemble
+          and eight voices that are each tuned very slightly differently from
+          one another.</p>
+        <audio controls preload="none" src="audio/1984-02-cs-strings.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">Vangelis Choir &middot; Choir</div>
+        <p>Three chords through the formant bank at ninety per cent on a dark
+          vowel, the CATHEDRAL ensemble behind it, an eight-second hall with
+          shimmer.</p>
+        <audio controls preload="none" src="audio/1984-03-vangelis-choir.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">Sync Lead &middot; Lead</div>
+        <p>A sixteen-note line, monophonic and legato with glide, and the mod
+          wheel brought up under the note it ends on.</p>
+        <audio controls preload="none" src="audio/1984-04-sync-lead.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">VHS Memory &middot; Strange</div>
+        <p>Two chords on a worn tape: VHS mode, sixty per cent wow, sixty per
+          cent flutter, a quarter of the dropouts dial and plenty of hiss.</p>
+        <audio controls preload="none" src="audio/1984-05-vhs-memory.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">Vintage Bass &middot; Bass</div>
+        <p>Sixteen notes of a bass figure, monophonic and legato, through
+          ladder filters at 500 and 400 Hz with TAPE drive on the way out.</p>
+        <audio controls preload="none" src="audio/1984-06-vintage-bass.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">Poly-Mod Sweep &middot; Strange</div>
+        <p>Rank II is silent here and does nothing but bend rank I: forty-five
+          per cent into its pitch and thirty into both of its filters, with the
+          envelope on top.</p>
+        <audio controls preload="none" src="audio/1984-07-poly-mod-sweep.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">Heaven and Hell &middot; Pad</div>
+        <p>Two chords and twenty-eight seconds. A 1.8 second filter attack,
+          pulse width wandering under a 0.25 Hz sub-oscillator, a nine-second
+          hall with shimmer.</p>
+        <audio controls preload="none" src="audio/1984-08-heaven-and-hell.mp3"></audio>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>The two ranks</h2>
+    <p class="sub">The architecture is the one the big Japanese polysynth of
+      1977 used and almost nobody has used since.</p>
+    <p>
+      Every voice is two complete strips, and both of them are always there.
+      Each carries a band-limited saw, pulse, triangle and sine <em>at once</em>,
+      each wave on its own slider, plus noise &mdash; they are not a selector,
+      and saw plus a little pulse plus a little sine is one sound rather than
+      three. Each rank then has a resonant high-pass in series with a resonant
+      low-pass, switchable between a 12 dB state-variable circuit and a 24 dB
+      ladder, and the two ranks can run different circuits. One filter envelope
+      drives <b>both</b> filters, which is the thing that makes this
+      architecture sound the way it does: the note changes shape from the top
+      and the bottom at the same time.
+    </p>
+
+    <figure>
+      <img src="img/rank.jpg" alt="The two rank rows, I above and II below, each a long strip of coloured sliders" />
+      <figcaption><b>Rank I above, rank II below.</b> Waves and tuning, the two
+        filters, the filter envelope with its initial and attack levels, the
+        amplifier envelope, then level, pan and the two velocity depths. The
+        same strip twice, plus SYNC on rank II.</figcaption>
+    </figure>
+
+    <div class="note">
+      The filter envelope has <b>no sustain</b>. It jumps to an
+      <b>initial level</b> at key down, moves to an <b>attack level</b>, then
+      decays to zero &mdash; and both of those levels are bipolar, so a filter
+      can open from below or slam shut from above. The knobs are the sustain.
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>The strange things</h2>
+    <p class="sub">Four ways for a voice to stop being two oscillators and a
+      filter.</p>
+
+    <div class="cards">
+      <div class="c"><div class="n">rank I resets rank II</div><h4>Hard sync</h4>
+        <p>Rank II's phase is reset every time rank I wraps, and the jump is
+        band-limited at its actual height rather than left to alias. Tune rank
+        II upward and sweep it.</p></div>
+      <div class="c"><div class="n">per voice, at audio rate</div><h4>Poly-mod</h4>
+        <p>Rank II, taken before its filter, into rank I's pitch, its pulse
+        width and both low-pass cutoffs; and rank I's filter envelope into its
+        own pitch and width. Eight voices each modulating themselves.</p></div>
+      <div class="c"><div class="n">two circuits, one switch</div><h4>Ring</h4>
+        <p>A carrier of its own from 0.1 Hz to 4 kHz with an attack, a decay
+        and a bipolar sweep &mdash; or a ratio of the note, or simply rank I
+        multiplied by rank II.</p></div>
+      <div class="c"><div class="n">eight on one key</div><h4>Unison and duo</h4>
+        <p>All eight voices fanned symmetrically about the note by up to sixty
+        cents, or two per key with four-note polyphony. VINTAGE then gives each
+        of them its own tuning, cutoff and envelope errors.</p></div>
+    </div>
+
+    <p style="margin-top:1.6rem">
+      Set rank II's level to zero and it stops being a layer: poly-mod takes it
+      from before its amplifier, so it goes on bending rank I while you hear
+      nothing of it at all. That is what <b>POLY-MOD SWEEP</b> on the patch
+      dial is, and it is two seconds of dialling to turn it back into a layer
+      as well.
+    </p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>The chain</h2>
+    <p class="sub">The eight voices are summed once and go through one chain,
+      in this order, before the Brokild World FX rack sees them.</p>
+    <p>
+      <b>Drive</b> is a valve, a tape, a fuzz or a wavefolder, and it runs in
+      the oversampled domain where it cannot alias. <b>Ensemble</b> is three
+      delay taps per channel driven by a slow LFO and a fast one, 120 degrees
+      apart, with the right channel offset by 60: the string-machine circuit,
+      in four depths. <b>Choir</b> is five band-passes at the formants of a
+      vowel, sliding continuously from U through O, A and E to I, with a
+      register shift and a breath control. <b>Tape</b> is wow, flutter, a
+      saturator with a head bump, high-frequency loss with age, dropouts and
+      hiss &mdash; or VHS, where the flutter becomes head-switching and the
+      bandwidth is capped near 6 kHz. Then the <b>hall</b>: eight lines behind
+      four diffusers, 0.2 to 20 seconds, with an octave-up shimmer budgeted
+      against the decay so it cannot run away.
+    </p>
+
+    <figure>
+      <img src="img/chain.jpg" alt="The chain row along the foot of the panel: drive, ensemble, choir, tape and hall" />
+      <figcaption><b>The chain row.</b> Drive, ensemble, choir, tape and hall,
+        left to right in the order the sound meets them. The tape window's
+        reels turn while the tape is running.</figcaption>
+    </figure>
+
+    <div class="note">
+      Everything up to and including the tape runs at <b>1x, 2x or 4x</b>, so
+      nothing that saturates can fold back into the band. The hall runs at the
+      base rate, because it is linear and long and gains nothing from the extra
+      work. Eight voices with every stage on cost <b>4.6 per cent</b> of one
+      core at the default 2x.
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>What the bench proves</h2>
+    <p class="sub">Eighty-six checks, all clear, at 48 kHz and again at 44.1
+      and 96. The bench renders real audio and measures it; these are its
+      numbers.</p>
+
+    <div class="facts">
+      <div class="fact"><div class="v">&plusmn;1 cent</div><div class="l">how far either rank sits from its note, at every footage &mdash; and rank II asked for +25 cents lands on +25.0</div></div>
+      <div class="fact"><div class="v">&minus;60 dB</div><div class="l">worst non-harmonic component of a saw at A6 at 2x oversampling, below 20 kHz; &minus;50 dB for a 5 per cent pulse</div></div>
+      <div class="fact"><div class="v">1000.0 Hz</div><div class="l">where the state-variable filter self-oscillates when asked for 1 kHz; the ladder, 996.5 Hz &mdash; and both stay bounded</div></div>
+      <div class="fact"><div class="v">14.5 dB</div><div class="l">how far resonance at 80 per cent lifts the cutoff over the octave above it</div></div>
+      <div class="fact"><div class="v">2.15 %</div><div class="l">peak-to-peak pitch movement from WOW at full and 0.5 Hz; flutter at full, 0.35 %; both at zero, 0.0003 %</div></div>
+      <div class="fact"><div class="v">&minus;57 dBFS</div><div class="l">hiss with HISS and AGE both at full, in the second after a note &mdash; and exactly silent when nothing is playing</div></div>
+      <div class="fact"><div class="v">1.68 s</div><div class="l">measured reverberation time for a 2 s setting; at maximum everything the tail is 97 dB down forty seconds after the note</div></div>
+      <div class="fact"><div class="v">4.6 %</div><div class="l">of one core, eight voices with every stage running at 2x. 2.5 per cent at 1x, 10.4 at 4x</div></div>
+    </div>
+
+    <div class="note">
+      Six probes lied before the code did, and each was rewritten rather than
+      loosened: a zero-crossing pitch estimator reading 46 per cent of wobble
+      out of a two-tap chorus's own cancellation nulls; a pulse source with a
+      spectral null sitting exactly on the formant under test; a pluck measured
+      after it had already decayed; a glide test reading voice 0 of a
+      polyphonic allocation; a vintage test on the one voice whose tolerance
+      happened to be small; and a sustain test reading past the end of its own
+      buffer.
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Get it</h2>
+    <div class="btnrow" style="margin-top:.6rem">
+      <a class="btn btn-primary" href="1984-VST3-win64.zip" download>
+        1984-VST3-win64.zip <small>VST3 + standalone</small>
+      </a>
+      <a class="btn btn-ghost" href="1984-Manual.pdf">
+        1984-Manual.pdf <small>18 pages</small>
+      </a>
+    </div>
+    <p style="margin-top:1.2rem">
+      Copy the whole <code>1984.vst3</code> folder into
+      <code>C:\Program Files\Common Files\VST3</code> and rescan. The standalone
+      needs no installing. Your own patches go to
+      <code>Documents\Brokild patches\1984</code> as plain JSON, and each one
+      carries its Brokild World FX rack inside it.
+    </p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Specifications</h2>
+    <table>
+      <tr><td>Format</td><td>Windows VST3 (64-bit), plus a standalone application</td></tr>
+      <tr><td>Type</td><td>Instrument &mdash; MIDI in, stereo out</td></tr>
+      <tr><td>Voices</td><td>Eight, each of two complete ranks &mdash; sixteen ranks in all</td></tr>
+      <tr><td>Oscillator</td><td>Per rank: band-limited saw, pulse, triangle and sine at once, each on its own slider, plus white noise. 32' / 16' / 8' / 4' / 2', &plusmn;12 semitones, &plusmn;50 cents. Pulse width 50 to 95 per cent with PWM</td></tr>
+      <tr><td>Filters</td><td>Per rank: resonant 12 dB high-pass, 10 Hz to 12 kHz, into a resonant low-pass, 20 Hz to 20 kHz, switchable between a 12 dB state-variable circuit and a 24 dB ladder. One filter envelope drives both</td></tr>
+      <tr><td>Envelopes</td><td>Per rank: a filter envelope with initial level, attack level, attack, decay and release (1 ms to 10 s, 2 ms to 20 s), and an ADSR amplifier envelope</td></tr>
+      <tr><td>Modulation</td><td>Hard sync; poly-mod from rank II and from the filter envelope, per voice at audio rate; a ring modulator per voice; a sub-oscillator per voice with seven shapes, 0.05 to 40 Hz, a delay to 5 s and free, reset or shared phase</td></tr>
+      <tr><td>Touch</td><td>Velocity into level and brilliance; channel or polyphonic aftertouch into pitch, brilliance, level and the sub-oscillator; mod wheel into vibrato and brilliance at its own 2 to 10 Hz</td></tr>
+      <tr><td>Voice modes</td><td>Poly 8, Duo, Unison 8 with up to 60 cents of detune, Mono with legato. Glide 5 ms to 5 s, optionally glissando. VINTAGE gives every voice its own tolerances</td></tr>
+      <tr><td>Chain</td><td>Drive (valve, tape, fuzz, fold), ensemble (four modes, three taps), choir (five formants, U to I), tape or VHS, hall (eight-line FDN, 0.2 to 20 s, predelay to 250 ms, shimmer)</td></tr>
+      <tr><td>Oversampling</td><td>1x, 2x or 4x up to and including the tape; the hall runs at the base rate. 2x by default</td></tr>
+      <tr><td>Parameters</td><td>126, plus the five Brokild World FX macros. All automatable except the patch dial and the quality switch</td></tr>
+      <tr><td>Patches</td><td>Forty factory, in nine categories. Your own are JSON in <code>Documents\Brokild patches\1984</code>, carrying the world rack with them</td></tr>
+      <tr><td>CPU</td><td>Eight voices with every stage running: 2.5 per cent of one core at 1x, 4.6 at 2x, 10.4 at 4x</td></tr>
+      <tr><td>Sample rates</td><td>Any. Bench-tested at 44.1, 48 and 96 kHz</td></tr>
+      <tr><td>Hosts</td><td>Any VST3 host &mdash; developed against Ableton Live 12</td></tr>
+      <tr><td>Price</td><td>Free. No account, no registration, no telemetry.</td></tr>
+    </table>
+    <p style="margin-top:1.2rem; font-size:.88rem; color:var(--text-soft)">
+      Deliberately not in it, and the handbook says so too: MPE, because channel
+      and polyphonic pressure already cover the touch response and per-note bend
+      is a later thing; and a real vocoder, because the choir is a fixed formant
+      bank by design and a vocoder would need a sidechain input, which changes
+      what every host thinks the plugin is for the sake of one feature.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>1984</b> &mdash; a native VST3 instrument, September 2026.
+      Native C++ audio, JUCE 8, interface drawn in the plugin's own window.
+      The CS-80, the Prophet-5 and the VP-330 are the machines it is after, and
+      it copies none of them. Source and issues:
+      <a href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">github.com/peterboggild/BrokildApps</a>.
+      Its stablemates are
+      <a href="../thin-walls/index.html">Thin Walls</a>,
+      <a href="../rite-of-passage/index.html">Rite of Passage</a>,
+      <a href="../battlestar-overdrive/index.html">Battlestar Overdrive</a>,
+      <a href="../brain-scan/index.html">Brain Scan</a>,
+      <a href="../high-tide/index.html">High Tide</a>,
+      <a href="../martian-gain/index.html">Martian Gain</a>,
+      <a href="../black-rider/index.html">Black Rider</a>,
+      <a href="../full-metal-racket/index.html">Full Metal Racket</a>,
+      <a href="../clone-wars/index.html">Clone Wars</a>,
+      <a href="../blade-ruiner/index.html">Blade Ruiner</a>,
+      <a href="../photo-synth/index.html">Photo Synth</a>,
+      <a href="../escape-room/index.html">Escape Room</a>,
+      <a href="../hairfryer/index.html">Hairfryer</a> and the
+      <a href="../proxima-centauri-b/index.html">Proxima Centauri B findings</a>.</p>
+    <p>This VST comes from the curved mind of Professor Brokild, and was programmed with VScode,
+      ChatGPT and Claude. Use of this is on your own peril. It may generate unique, beautiful,
+      scary or useless sounds for you, and it may crash your DAW project. Have fun, play unsafely,
+      unwisely, and unboringly.</p>
+    <p>Cheers, Peter B&oslash;ggild, September 2026.</p>
+  </div>
+</footer>
+
+</body>
+</html>

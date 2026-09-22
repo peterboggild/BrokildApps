@@ -1,0 +1,15 @@
+{
+  "slug": "1984",
+  "name": "1984 (VST3)",
+  "description": "A vintage analog polysynth built the way the big ones were: eight voices, each of two complete ranks with their own oscillator, resonant high-pass, resonant low-pass, filter envelope and amplifier envelope. Brass, strings, choir, leads and the stranger things: hard sync, poly-mod, a ring modulator, unison. Then everything goes to tape before it goes to the hall: wow, flutter, saturation, age, dropouts, a VHS mode, a three-phase ensemble and a formant choir. Forty factory patches. It is built to sound like a late night in 1984.",
+  "status": "live",
+  "url": "vst3-apps/1984/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/1984.jpg",
+  "note": "Windows VST3 · build 260922.1 · free download · 8 voices × 2 ranks · CS / ladder filters · tape, VHS, ensemble, choir, hall · 40 patches · BWFX rack · manual included.",
+  "tags": [
+    "vst3",
+    "synth"
+  ]
+}
