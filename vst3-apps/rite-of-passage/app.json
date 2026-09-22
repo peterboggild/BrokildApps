@@ -2,13 +2,12 @@
   "slug": "rite-of-passage",
   "name": "Rite of Passage (VST3)",
   "description": "A transition processor: one slider is the journey, and the landing is a separate thing you fire. Six slots hold any of eighteen transition effects — filter climbs, stutters, risers, freezes, brakes, the gap before the drop — and each slot carries two complete settings plus where on the travel it starts moving, on what curve, and how far it actually gets. So a build is a score read left to right rather than forty knobs on one macro, and the panel catches fire along it as the slider crosses. ARRIVAL lands on the bar to the sample, and every slot decides for itself whether it stops dead, spills its tail over the downbeat, or leaves a vacuum. The Brokild World rack is in it twice: after the chain, and as ten modules you can drop into a slot.",
-  "status": "soon",
-  "repo": "https://github.com/peterboggild/BrokildApps/tree/main/rite-of-passage",
+  "status": "live",
   "url": "vst3-apps/rite-of-passage/index.html",
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/rite-of-passage.jpg",
-  "note": "Windows VST3 · build 260922.1 · free download · 18 transition effects, plus 10 World FX modules in a slot.",
+  "note": "Windows VST3 · build 260922.1 · free download · 3.6 MB · 18 transition effects, plus 10 World FX modules in a slot.",
   "tags": [
     "vst3",
     "effect"
