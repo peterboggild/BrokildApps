@@ -61,7 +61,22 @@ const SKIP = new Set([
   "tools/video-sync/index.html",
 ]);
 
-const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
+/* This tool runs on Linux in CI and on Windows on the PC, and git is set to
+ * autocrlf there — so the same file is LF in one place and CRLF in the
+ * other. Every anchor below is written with a bare \n, so the text is
+ * normalised on the way IN and the file's own ending is restored on the
+ * way OUT. Without this the tool matches nothing on Windows and throws.
+ * A file that only passes through is therefore byte-identical either way. */
+const EOL = new Map();
+const read = (p) => {
+  const raw = fs.readFileSync(path.join(ROOT, p), "utf8");
+  EOL.set(p, raw.indexOf("\r\n") >= 0 ? "\r\n" : "\n");
+  return raw.split("\r\n").join("\n");
+};
+const write = (p, s) => {
+  const nl = EOL.get(p) || "\n";
+  fs.writeFileSync(path.join(ROOT, p), nl === "\n" ? s : s.split("\n").join(nl));
+};
 const exists = (p) => fs.existsSync(path.join(ROOT, p));
 
 /* Decode the handful of entities the descriptions actually use, so the tag
@@ -334,7 +349,7 @@ function syncReadme() {
   if (!had.test(before)) throw new Error("README.md: no apps-table markers");
   const after = before.replace(had, block);
   if (after === before) return false;
-  if (!check) fs.writeFileSync(path.join(ROOT, "README.md"), after);
+  if (!check) write("README.md", after);
   console.log(`${check ? "STALE" : "wrote"}  README.md`);
   return true;
 }
@@ -348,7 +363,7 @@ for (const info of pages()) {
   const noImage = !(info.image && exists(info.image));
   if (after !== before) {
     changed++;
-    if (!check) fs.writeFileSync(path.join(ROOT, info.page), after);
+    if (!check) write(info.page, after);
     console.log(`${check ? "STALE" : "wrote"}  ${info.page}${noImage ? "  (no preview image)" : ""}`);
   }
 }
@@ -371,8 +386,8 @@ function syncSitemap() {
     urls.map((u) => `  <url><loc>${attr(u)}</loc></url>`).join("\n") +
     `\n</urlset>\n`;
   const p = path.join(ROOT, "sitemap.xml");
-  if (fs.existsSync(p) && fs.readFileSync(p, "utf8") === body) return false;
-  if (!check) fs.writeFileSync(p, body);
+  if (fs.existsSync(p) && read("sitemap.xml") === body) return false;
+  if (!check) write("sitemap.xml", body);
   console.log(`${check ? "STALE" : "wrote"}  sitemap.xml`);
   return true;
 }
