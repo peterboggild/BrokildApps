@@ -1,30 +1,31 @@
 name: Engines (Linux, headless)
 
-# The benches that were already in the repo but ran nowhere.
+# The benches that are in the repo but run nowhere else.
 #
-# Every one of these is plain C++17 with no JUCE and no audio device, because
-# they were written to be run from a terminal while the DSP was being argued
-# with. That is exactly what a runner is, so they cost about a minute between
-# them and they gate the thing that actually breaks: the maths.
+# Each plugin that ships has its own workflow, and those already cover their
+# own engine and the shared rack: clone-wars.yml and rite-of-passage.yml both
+# trigger on BrokildWorldFX/** and both run the BWFX bench, and
+# rite-of-passage.yml runs roptest. Repeating either here would just run the
+# same bench a third time on every push to the rack, so this file is only the
+# projects nothing else gates:
 #
-# BWFX is compiled into all ten plugins, so a change to the shared rack is a
-# change to the whole fleet - which is why one push to any engine path runs
-# every job here rather than only the one that moved. The Clone Wars workflow
-# builds the Windows plugin and cuts the release zip; this one only ever
-# renders audio and reads numbers off it.
+#   Legion   a full bench (113 checks) and no workflow of its own - it has no
+#            published zip yet, so no release job exists to carry it
+#   DSW      no bench, so a compile gate: the host and both shipped
+#            experiments must still build
+#
+# Both are plain C++17 with no JUCE and no audio device, so they cost well
+# under a minute between them. When Legion ships and gains a release
+# workflow, move its bench there and this file becomes DSW alone.
 
 on:
   push:
     paths:
-      - "BrokildWorldFX/**"
-      - "rite-of-passage/**"
       - "vocal-harmonizer/**"
       - "dsw/**"
       - ".github/workflows/engines.yml"
   pull_request:
     paths:
-      - "BrokildWorldFX/**"
-      - "rite-of-passage/**"
       - "vocal-harmonizer/**"
       - "dsw/**"
       - ".github/workflows/engines.yml"
@@ -39,34 +40,6 @@ permissions:
   contents: read
 
 jobs:
-  bwfx:
-    name: BWFX bench (the shared world rack)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Build and run the bench
-        working-directory: BrokildWorldFX/test
-        run: |
-          g++ -O2 -std=c++17 -Wall -Wextra -I../src -I../modules \
-              bench.cpp ../src/bwfx_json.cpp ../src/bwfx_rack.cpp ../src/bwfx_macros.cpp \
-              ../modules/bwfx_conv.cpp ../modules/bwfx_modules.cpp \
-              ../modules/bwfx_spectra.cpp -o bwfxtest
-          ./bwfxtest
-
-  rite-of-passage:
-    name: Rite of Passage bench
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Build the bench
-        working-directory: rite-of-passage
-        run: |
-          cmake -S test -B test/build -DCMAKE_BUILD_TYPE=Release
-          cmake --build test/build --parallel
-      - name: Run the bench
-        working-directory: rite-of-passage/test
-        run: ./build/roptest
-
   legion:
     name: Legion bench (vocal harmoniser)
     runs-on: ubuntu-latest
@@ -87,8 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       # The host is a headless HTTP server - the browser is the GUI - so it
-      # needs no display here. There is no bench for it yet, so this is a
-      # compile gate: the host and both shipped experiments must still build.
+      # needs no display here.
       - name: Build the host and its plugins
         working-directory: dsw
         run: |
