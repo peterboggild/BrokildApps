@@ -170,6 +170,88 @@ int main()
         std::printf ("  state round trip         %d bytes\n", (int) mb.getSize());
     }
 
+    // -- A WORLD MODULE IN A SLOT, THROUGH THE REAL WRAPPER (§12a) ----------
+    /*  The claim a saved project would break on: a rite carrying wrapped
+        BWFX modules has to come back as the SAME modules with the SAME
+        knobs, and the slot rack's instances have to be separate from the
+        post-chain rack's. */
+    {
+        const int echo = rop::effectTypeByName ("bwfx.delay");
+        const int gate = rop::effectTypeByName ("bwfx.stutter");
+        const int stut = rop::effectTypeByName ("stutter");
+        CHECK (echo > 0 && gate > 0, "the wrapped World modules are not in the registry");
+        CHECK (stut >= 0 && stut != gate, "BWFX's GATE took the native STUTTER's id");
+
+        RiteProcessor w;
+        w.setPlayConfigDetails (2, 2, kFs, kBlock);
+        w.prepareToPlay (kFs, kBlock);
+        w.rack().setSlotEffect (1, echo);
+        w.rack().setSlotEffect (4, gate);
+        w.rack().state (1).tail = rop::Tail::Spill;
+        w.rack().state (4).place = rop::Place::Side;
+
+        //  ECHO's MIX from dry to full across the second half of the travel
+        const auto& d = rop::effectDescriptor (echo);
+        int mixP = -1;
+        for (int i = 0; i < d.numParams; ++i)
+            if (std::strcmp (d.params[i].id, "mix") == 0) mixP = i;
+        CHECK (mixP >= 0, "the wrapped ECHO has no MIX");
+        w.rack().state (1).A[mixP] = 0.0f;
+        w.rack().state (1).B[mixP] = 100.0f;
+        w.rack().state (1).enter = 0.5f;
+
+        juce::MemoryBlock mb;
+        w.getStateInformation (mb);
+
+        RiteProcessor back;
+        back.setPlayConfigDetails (2, 2, kFs, kBlock);
+        back.prepareToPlay (kFs, kBlock);
+        back.setStateInformation (mb.getData(), (int) mb.getSize());
+
+        CHECK (back.rack().slotEffect (1) == echo, "a wrapped ECHO did not survive the round trip");
+        CHECK (back.rack().slotEffect (4) == gate, "a wrapped GATE did not survive the round trip");
+        CHECK (std::abs (back.rack().state (1).B[mixP] - 100.0f) < 0.5f,
+               "the wrapped ECHO's B MIX did not survive");
+        CHECK (back.rack().state (1).tail == rop::Tail::Spill, "the wrapped slot's tail mode did not survive");
+        CHECK (back.rack().state (4).place == rop::Place::Side, "the wrapped slot's PLACE did not survive");
+
+        //  and it makes sound: the SAME loaded rite at A and at B must not
+        //  render the same audio, or the lane is decorative. Both runs carry
+        //  the slot, so this compares the TRAVEL and not the rack's own
+        //  loaded-versus-empty path.
+        Play ph2;
+        back.setPlayHead (&ph2);
+        auto render = [&] (float pos)
+        {
+            back.prepareToPlay (kFs, kBlock);
+            setP (back.apvts, rop_ids::position, pos);
+            juce::MidiBuffer midi;
+            std::vector<float> out;
+            juce::AudioBuffer<float> b (2, kBlock);
+            for (int i = 0; i < 160; ++i)
+            {
+                for (int c = 0; c < 2; ++c)
+                    for (int j = 0; j < kBlock; ++j)
+                        b.setSample (c, j, 0.2f * std::sin (0.05f * (float) (i * kBlock + j)));
+                back.processBlock (b, midi);
+                ph2.samples += kBlock;
+                for (int j = 0; j < kBlock; ++j) out.push_back (b.getSample (0, j));
+            }
+            return out;
+        };
+        const auto atA = render (0.0f), atB = render (100.0f);
+        float apart = 0.0f;
+        bool finite = true;
+        for (size_t i = atA.size() / 2; i < atA.size(); ++i)
+        {
+            apart = std::max (apart, std::abs (atA[i] - atB[i]));
+            finite = finite && std::isfinite (atA[i]) && std::isfinite (atB[i]);
+        }
+        std::printf ("  a World module in a slot  A against B: %.3f apart\n", apart);
+        CHECK (finite, "a wrapped slot produced a non-finite sample");
+        CHECK (apart > 0.01f, "the wrapped ECHO renders the same at A and at B (%.4f)", apart);
+    }
+
     // -- an unknown effect id leaves its slot empty rather than failing ------
     {
         RiteProcessor p3;

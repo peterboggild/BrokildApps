@@ -13,6 +13,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <vector>
 
 #if defined(__SSE2__) || defined(_M_X64) || defined(_M_IX86_FP)
@@ -982,6 +983,230 @@ int main()
             const double d = apart (sw, bl3, (int) kFs / 2);
             std::printf ("    SWIRL against BLOOM    %.3f apart\n", d);
             CHECK (d > 0.3, "SWIRL is BLOOM with a different name (%.3f apart)", d);
+        }
+    }
+
+    // -- 13c. THE WRAPPED WORLD RACK (rop_bwfx.h) ---------------------------
+    /*  The BWFX modules offered as slot effects. What this block holds them
+        to is what is OURS — the registry join, the promise that assigning
+        one changes nothing until it is edited, the three tail modes of §4,
+        and bounded output with every knob moving at once. What each module
+        SOUNDS like is BWFX's bench's business (§12a).
+
+        Several of these questions are asked of the EFFECT, with no rack
+        around it. That is not convenience: a loaded lane and an empty one
+        take different paths through the rack's own output stage (the bass
+        mono at rop_rack.cpp:322 runs only when the field is live), so a
+        claim about the wrapper measured across the whole rack would be
+        measuring that difference too. It cost three false failures to find
+        out, and the first version of this block reported them as the
+        wrapper's. */
+    {
+        const int base = numNativeEffects();
+        const int nWrapped = numEffects() - base;
+        std::printf ("  the wrapped World rack (%d modules):\n", nWrapped);
+        CHECK (nWrapped > 0, "no BWFX module reached the registry");
+
+        //  a) the join. No native index moved, every wrapped id resolves to
+        //     its own index, and nothing outgrew a slot.
+        CHECK (effectTypeByName ("climb") == 0, "CLIMB is no longer effect 0 - saved rites moved");
+        CHECK (effectTypeByName ("gap") == 5, "GAP moved - saved rites moved");
+        CHECK (effectTypeByName ("stutter") < base, "the native STUTTER lost its id to BWFX's GATE");
+        CHECK (effectTypeByName ("bwfx.nonesuch") == -1, "an unknown bwfx id resolved to something");
+        for (int t = base; t < numEffects(); ++t)
+        {
+            const auto& d = effectDescriptor (t);
+            CHECK (std::strncmp (d.id, "bwfx.", 5) == 0, "%s sits in the wrapped range without a bwfx. id", d.id);
+            CHECK (effectTypeByName (d.id) == t, "%s does not resolve to its own index", d.id);
+            CHECK (d.numParams > 0 && d.numParams <= kMaxParams,
+                   "%s has %d parameters and a slot carries %d", d.id, d.numParams, kMaxParams);
+            CHECK (d.level == Level::Intentional && d.movesPitch,
+                   "%s must be declared INTENTIONAL and a pitch mover - this plugin's bench does not govern it", d.id);
+            CHECK (! d.perChannelParams, "%s claims two parameter sets; a BWFX module has one", d.id);
+            CHECK (d.latency == 0, "%s reports latency, and the plugin pays a fixed worst case", d.id);
+        }
+
+        /*  the effect alone: parameters flat at the descriptor's defaults
+            unless named, released at `releaseAt` if asked */
+        auto direct = [&] (int type, std::vector<float>& l, std::vector<float>& r,
+                           const char* knob, float value, int releaseAt, Tail how,
+                           bool rearm = false)
+        {
+            std::unique_ptr<Effect> e (createEffect (type));
+            if (! e) return;
+            e->prepare (kFs, kSubBlock);
+            e->reset();
+            const auto& d = effectDescriptor (type);
+            float p[kMaxParams] {};
+            for (int i = 0; i < d.numParams; ++i)
+                p[i] = (knob != nullptr && std::strcmp (d.params[i].id, knob) == 0)
+                     ? value : d.params[i].def;
+
+            Ctx c;
+            c.fs = kFs; c.bpm = 128.0; c.ppq = 0.0;
+            c.ppqPerSample = 128.0 / (60.0 * kFs);
+            c.playing = true; c.t = 1.0f; c.u = 1.0f; c.inLane = true;
+
+            e->arm();
+            bool done = false;
+            for (int i = 0; i < (int) l.size(); i += kSubBlock)
+            {
+                const int m = std::min (kSubBlock, (int) l.size() - i);
+                if (releaseAt >= 0 && i >= releaseAt && ! done)
+                {
+                    e->release (how);
+                    //  §9: the slider came back past ENTER, so whatever it
+                    //  was holding is dropped rather than replayed
+                    if (rearm) e->arm();
+                    done = true;
+                }
+                e->process (l.data() + i, r.data() + i, m, p, p, c);
+                c.ppq += (double) m * c.ppqPerSample;
+            }
+        };
+
+        //  b) ASSIGNING ONE CHANGES NOTHING until it is edited
+        //     (rop_rack.cpp:129 — and the reason each spec zeroes one knob)
+        std::printf ("    inert at its slot defaults (against the signal it was handed):\n");
+        for (int t = base; t < numEffects(); ++t)
+        {
+            rng.seed (0x5a5a01u);
+            std::vector<float> l, r; fillNoise (l, r, (int) (kFs * 1.5));
+            const std::vector<float> inL = l, inR = r;
+            const double before = integratedLufs (inL, inR, (int) (kFs * 0.5));
+            direct (t, l, r, nullptr, 0.0f, -1, Tail::Bypass);
+            const double d = integratedLufs (l, r, (int) (kFs * 0.5)) - before;
+            float worst = 0.0f;
+            for (size_t i = (size_t) kFs / 2; i < l.size(); ++i)
+                worst = std::max (worst, std::abs (l[i] - inL[i]));
+            /*  NINE OF TEN ARE BIT-EXACT, and the tenth is declared here
+                rather than excused in prose: TUBE's valve stage is in
+                circuit at any drive, so assigning it lands a colour at
+                once. Its LOUDNESS still may not move — it is a saturation
+                at 0 dB, not a fader. Everything else must hand back the
+                samples it was given, because zeroing one amount knob is
+                what the spec table promises. */
+            /*  EIGHT OF TEN HAND BACK THE SAMPLES THEY WERE GIVEN, and the
+                two that do not are declared here rather than excused in
+                prose, because "nearly transparent" is how a plugin ends up
+                quietly colouring a master:
+
+                  TUBE      its valve stage is in circuit at any drive, so
+                            assigning it lands a colour at once. The
+                            LOUDNESS still may not move: it is a saturation
+                            at 0 dB, not a fader.
+                  HARMONIC  its crossover stays in the path at depth 0, so
+                            the sum is arithmetic rather than bit-exact. It
+                            measures 3e-8, which is around -150 dBFS: the
+                            tolerance is there to say WHY it is not zero,
+                            not to leave room for a sound. */
+            const char* eid = effectDescriptor (t).id;
+            const bool colour   = std::strcmp (eid, "bwfx.saturation") == 0;
+            const bool residual = std::strcmp (eid, "bwfx.trem") == 0;
+            std::printf ("      %-9s %+5.2f dB, worst sample %.3g%s\n",
+                         effectDescriptor (t).name, d, worst,
+                         colour ? "   (in circuit at 0 dB)" : (residual ? "   (crossover only)" : ""));
+            CHECK (std::abs (d) <= 0.5,
+                   "%s moved the loudness %.2f dB at its slot defaults",
+                   effectDescriptor (t).name, d);
+            if (! colour)
+                CHECK (worst <= (residual ? 1.0e-4f : 0.0f),
+                       "%s is not inert at its slot defaults (worst sample %.3g)",
+                       effectDescriptor (t).name, worst);
+        }
+
+        //  c) EVERY KNOB MOVING AT ONCE, lo to hi across the whole travel.
+        //     Check 11 sweeps one knob with the rest at their (deliberately
+        //     switched off) defaults, which is a weak question to ask here.
+        for (int t = base; t < numEffects(); ++t)
+        {
+            const auto& d = effectDescriptor (t);
+            Host h; h.prepare();
+            h.rack.setSlotEffect (0, t);
+            for (int p = 0; p < d.numParams; ++p) setAB (h.rack, 0, p, d.params[p].lo, d.params[p].hi);
+            rng.seed (0x5a5a02u);
+            std::vector<float> l, r; fillNoise (l, r, (int) (kFs * 2.0), 0.7f);
+            h.run (l, r, 256, 0.0f, 1.0f);
+            const auto st = measure (l, r);
+            CHECK (st.finite, "%s with every knob travelling produced a non-finite sample", d.name);
+            CHECK (st.peak <= 1.01f, "%s with every knob travelling reached %.3f", d.name, st.peak);
+        }
+        std::printf ("    every knob travelling    bounded and finite\n");
+
+        //  d) THE THREE TAIL MODES, §4. ECHO is the one in the set with a
+        //     tail worth the distinction; TUBE is one without, and a module
+        //     with nothing to spill must get OUT OF THE WAY rather than keep
+        //     grinding through the drop.
+        {
+            const int echo = effectTypeByName ("bwfx.delay");
+            const int fed = (int) (kFs * 0.5), tail = (int) (kFs * 1.0);
+            auto tailRms = [&] (Tail how, bool rearm)
+            {
+                rng.seed (0x5a5a03u);
+                std::vector<float> l, r; fillNoise (l, r, fed, 0.5f);
+                l.resize ((size_t) (fed + tail), 0.0f);
+                r.resize ((size_t) (fed + tail), 0.0f);
+                direct (echo, l, r, "mix", 100.0f, fed, how, rearm);
+                std::vector<float> after (l.begin() + fed, l.end());
+                return measure (after, after).rms;
+            };
+            const double rs = tailRms (Tail::Spill, false), rc = tailRms (Tail::Clear, false);
+            /*  BYPASS is not measured here because it is not the effect's to
+                answer: a released BYPASS slot is skipped by the rack
+                (rop_rack.cpp:407) and never reaches the output at all. What
+                the WRAPPER owes on a bypass is §9 — the line is dropped, so
+                coming back into the lane does not replay last night's
+                build. */
+            const double rr = tailRms (Tail::Bypass, true);
+            std::printf ("    ECHO released            SPILL %.4f, CLEAR %.7f, re-armed %.7f\n", rs, rc, rr);
+            CHECK (rs > 1.0e-3, "ECHO set to SPILL went silent when it was released (%.6f)", rs);
+            CHECK (rc < 1.0e-6, "ECHO set to CLEAR kept ringing (%.7f)", rc);
+            CHECK (rs > rc * 1000.0, "SPILL and CLEAR are the same sound");
+            CHECK (rr < 1.0e-6, "ECHO replayed what it held when the lane was re-entered (%.7f)", rr);
+        }
+        {
+            const int tube = effectTypeByName ("bwfx.saturation");
+            const int half = (int) (kFs * 0.5);
+            rng.seed (0x5a5a04u);
+            std::vector<float> l, r; fillNoise (l, r, half * 2, 0.5f);
+            const std::vector<float> inL = l;
+            direct (tube, l, r, "drive", 24.0f, half, Tail::Spill);
+            float moved = 0.0f, after = 0.0f;
+            for (int i = 0; i < half; ++i) moved = std::max (moved, std::abs (l[(size_t) i] - inL[(size_t) i]));
+            for (int i = half + kSubBlock; i < half * 2; ++i)
+                after = std::max (after, std::abs (l[(size_t) i] - inL[(size_t) i]));
+            std::printf ("    TUBE released to SPILL   %.3f before, %.3g after\n", moved, after);
+            CHECK (moved > 0.01f, "TUBE at 24 dB was not processing in the first place (%.3g)", moved);
+            CHECK (after == 0.0f, "a tailless module set to SPILL is still processing (%.3g)", after);
+        }
+
+        //  e) the message-thread pump reaches them and changes nothing about
+        //     the rendering (the eighteen natives need no service at all)
+        {
+            auto render = [&] (bool pump)
+            {
+                Host h; h.prepare();
+                h.rack.arrival.fireImpact = false;
+                const int type = effectTypeByName ("bwfx.shimmer");
+                h.rack.setSlotEffect (0, type);
+                setFlat (h.rack, 0, type);
+                rng.seed (0x5a5a05u);
+                std::vector<float> l, r; fillNoise (l, r, (int) (kFs * 0.5));
+                for (int i = 0; i < (int) l.size(); i += 4096)
+                {
+                    const int m = std::min (4096, (int) l.size() - i);
+                    std::vector<float> sl (l.begin() + i, l.begin() + i + m), sr (sl);
+                    h.run (sl, sr, 256, 0.5f, 0.5f);
+                    std::copy (sl.begin(), sl.end(), l.begin() + i);
+                    if (pump) h.rack.service();
+                }
+                return l;
+            };
+            auto a = render (false), b = render (true);
+            float worst = 0.0f;
+            for (size_t i = 0; i < a.size(); ++i) worst = std::max (worst, std::abs (a[i] - b[i]));
+            std::printf ("    service() pumped         %.3g\n", worst);
+            CHECK (worst == 0.0f, "servicing a live slot changed the rendering (%.3g)", worst);
         }
     }
 

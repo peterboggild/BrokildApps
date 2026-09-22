@@ -1,3 +1,4 @@
+#include "rop_bwfx.h"
 #include "rop_effect.h"
 #include "rop_effects_more.h"
 #include "rop_effects_third.h"
@@ -619,11 +620,23 @@ constexpr int kNumEffects = (int) (sizeof (REGISTRY) / sizeof (REGISTRY[0]));
 
 } // namespace
 
-int numEffects() { return kNumEffects; }
+/*  THE REGISTRY IS TWO TABLES, AND THE SECOND IS APPENDED FOR THE SAME
+    REASON THE SECOND AND THIRD SIX WERE: an index that moves changes what a
+    saved rite means.
+
+    0 .. kNumEffects-1            the eighteen this plugin owns
+    kNumEffects ..                the wrapped BWFX modules, in rop_bwfx.h
+
+    Everything downstream — the score, the state, the panel, the bench —
+    goes through numEffects()/effectDescriptor()/createEffect(), so the join
+    is here and nowhere else. */
+int numNativeEffects() { return kNumEffects; }
+int numEffects() { return kNumEffects + bw::numWrapped(); }
 
 const EffectDesc& effectDescriptor (int t)
 {
-    return *REGISTRY[t < 0 ? 0 : (t >= kNumEffects ? kNumEffects - 1 : t)].d;
+    if (t >= kNumEffects) return bw::wrappedDescriptor (t - kNumEffects);
+    return *REGISTRY[t < 0 ? 0 : t].d;
 }
 
 int effectTypeByName (const char* id)
@@ -631,12 +644,15 @@ int effectTypeByName (const char* id)
     if (id == nullptr) return -1;
     for (int t = 0; t < kNumEffects; ++t)
         if (std::strcmp (id, REGISTRY[t].d->id) == 0) return t;
+    for (int i = 0; i < bw::numWrapped(); ++i)
+        if (std::strcmp (id, bw::wrappedDescriptor (i).id) == 0) return kNumEffects + i;
     return -1;
 }
 
 Effect* createEffect (int t)
 {
-    if (t < 0 || t >= kNumEffects) return nullptr;
+    if (t < 0 || t >= numEffects()) return nullptr;
+    if (t >= kNumEffects) return bw::createWrapped (t - kNumEffects);
     return REGISTRY[t].make();
 }
 

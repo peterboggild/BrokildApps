@@ -149,7 +149,18 @@ int Rack::slotEffect (int slot) const
     return (slot >= 0 && slot < kSlots) ? liveType[(size_t) slot] : -1;
 }
 
-void Rack::service() { retired.clear(); }
+/*  MESSAGE THREAD, ~15 Hz, from the processor's timer — which already ran
+    for the BWFX rack, so this pump costs no thread and no timer.
+
+    The live slots are serviced BEFORE the retired ones are freed, and the
+    retired ones are not serviced at all: they are about to stop existing
+    and have no audio left to be ready for. */
+void Rack::service()
+{
+    for (auto& a : live)
+        if (auto* e = a.load (std::memory_order_acquire)) e->service();
+    retired.clear();
+}
 
 // ---------------------------------------------------------------------------
 /*  THE CLOCK IS DERIVED, NEVER ACCUMULATED.
