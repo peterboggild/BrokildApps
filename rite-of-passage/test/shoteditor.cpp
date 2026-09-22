@@ -175,8 +175,14 @@ int main (int argc, char** argv)
         p->setValueNotifyingHost (0.62f);
     const auto mid = ed->createComponentSnapshot (ed->getLocalBounds(), false, 1.0f);
     {
-        juce::FileOutputStream os (dir.getChildFile ("panel-midway.png"));
+        /*  DELETE FIRST, THEN OPEN. The other way round — which this was —
+            opens the stream and then unlinks the file under it, and what
+            lands is not a shot of this panel: the copy in docs/ came out
+            1000x767 and FORTY-TWO MEGABYTES. Every other shot here goes
+            through shoot(), which does it in the right order; this one is
+            hand-rolled because it needs the snapshot twice. */
         dir.getChildFile ("panel-midway.png").deleteFile();
+        juce::FileOutputStream os (dir.getChildFile ("panel-midway.png"));
         juce::PNGImageFormat png; png.writeImageToStream (mid, os);
         std::printf ("  wrote panel-midway.png\n");
     }
