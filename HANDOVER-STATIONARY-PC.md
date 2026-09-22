@@ -11,12 +11,15 @@ licensed under.
 Nothing here is urgent enough to rush. None of it is broken in a way a visitor
 sees today, with one exception flagged as **stale**.
 
+Kept current: rebased onto Thin Walls (2026-09-22) and every figure re-derived
+from the repo at that point.
+
 ---
 
 ## What is already done (do not redo)
 
-Branch `claude/brokild-apps-gaps-p837x3`, four commits, rebased onto `main` at
-`94ee3a2`, pushed, no PR opened:
+Branch `claude/brokild-apps-gaps-p837x3`, five commits, rebased onto `main` at
+`6c5b1d3` (the Thin Walls publish), pushed, no PR opened:
 
 | Commit | What |
 |--------|------|
@@ -24,6 +27,7 @@ Branch `claude/brokild-apps-gaps-p837x3`, four commits, rebased onto `main` at
 | `6b97002` | Open Graph / Twitter tags on every page, the `<noscript>` app list, a real Collection preview image. |
 | `9bf89ff` | Hairfryer onto the front page, README/sitemap/robots/404, `tools/check-links.js`. |
 | `e7cadb8` | Rebase onto the Rite of Passage publish; trimmed CI that had become duplicated. |
+| `67ba96d` | This document, `contents.json`, and the Collection consistency check. |
 
 Verified on Linux after the rebase:
 
@@ -33,7 +37,7 @@ BWFX              409 checks   ALL CLEAR
 Legion            113 checks   ALL CLEAR
 clone-wars        render test + DSP audit, ALL PASS
 DSW               host and both experiment bundles build
-site              30 pages, 16 apps, no dead targets
+site              31 pages, 17 apps, no dead targets
 ```
 
 **This branch is not merged.** Everything below assumes it is merged first, or
@@ -45,11 +49,21 @@ at least that `tools/check-links.js` and `tools/sync-site.js` exist.
 
 **STALE. This is the only item a visitor can see today.**
 
-Rite of Passage was published on 2026-09-19. The Collection zip was cut before
-that, so it holds ten plugins and does not contain it. The site says "all ten"
-and "eight instruments and two effects" in thirteen places across
-`vst3-apps/collection/app.json`, `vst3-apps/collection/index.html` and
-`index.html`.
+**Two** plugins have been published since the archive was cut, and it contains
+neither:
+
+| Published | Plugin | Kind |
+|-----------|--------|------|
+| 2026-09-19 | Rite of Passage | effect |
+| 2026-09-22 | Thin Walls | effect |
+
+The zip still holds ten, and the site says "all ten" and "eight instruments and
+two effects" in thirteen places across `vst3-apps/collection/app.json`,
+`vst3-apps/collection/index.html` and `index.html`. A re-cut that takes both
+would make it **twelve — eight instruments and four effects**.
+
+The gap widened by one plugin in the three days it took to write this section,
+which is the argument for the check below rather than for a reminder.
 
 This is the failure the repo has already had twice — the commit that cut the
 current archive says so itself:
@@ -72,40 +86,52 @@ if:
   disagrees with `contents.json` — membership lives in three places and that
   script is the one this checker cannot run.
 
-Right now the check **passes**, because `contents.json` records Rite of Passage
-as an explicit pending exclusion. That is the honest current state, not a fix.
+Right now the check **passes**, because `contents.json` records both Rite of
+Passage and Thin Walls as explicit pending exclusions. That is the honest
+current state, not a fix.
+
+It already worked once unprompted: Thin Walls was published while this branch
+sat unmerged, and the moment it was rebased on, the check named it —
+*"thin-walls ships a zip but is neither included nor excluded — decide which."*
+Nobody had to remember.
 
 ### The decision
 
-Either is fine; both need recording.
+Either is fine; both need recording. Settle both plugins in one re-cut.
 
-**A — put Rite of Passage in the collection (eleven).** On the PC:
+**A — take both in (twelve).** On the PC:
 
-1. Add it to `$plugins` in `BrokildWorldFX/tools/build-collection-zip.ps1`
-   (the list is newest-first, the way the front page reads).
+1. Add `rite-of-passage` and `thin-walls` to `$plugins` in
+   `BrokildWorldFX/tools/build-collection-zip.ps1` (the list is newest-first,
+   the way the front page reads).
 2. Run that script. It takes each plugin's **published zip**, not a build tree,
    and hash-verifies every staged file against the source zip and again after
    re-extracting the finished archive. Do not shortcut that.
-3. In `contents.json`: move `rite-of-passage` from `excludes` to `includes`,
-   set `claims.count` to `11` and `claims.phrase` to whatever is true — it
-   becomes eight instruments and **three** effects.
+3. In `contents.json`: move both from `excludes` to `includes`, set
+   `claims.count` to `12` and `claims.phrase` to what is then true — eight
+   instruments and **four** effects.
 4. Update the prose. `node tools/check-links.js` will name every file still
    saying "ten", including the one with a capital E that a previous patch
    walked past.
 5. Check `BrokildWorldFX/tools/build-collection-page.js` too — it builds the
    cards on the collection page and has its own idea of the fleet.
 
-**B — leave it out.** Replace the `PENDING A DECISION` text in
+**B — leave one or both out.** Replace the `PENDING A DECISION` text in
 `contents.json` with the actual reason. Nothing else changes and the check goes
 on passing.
+
+Mixing is fine — include one, exclude the other — as long as `claims.count`
+and the prose follow. The check will say if they do not.
 
 > The builder hardcodes `c:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps`.
 > Worth making that a parameter while you are in there.
 
-**One caution before re-cutting:** a fresh Collection zip is ~93 MB and the
-repo is already at 989 MiB packed against GitHub's 1 GB guidance (see §4).
-Committing a new one pushes it over. Consider settling §4 first, or attaching
-the new collection as a GitHub Release asset rather than committing it.
+**Do §4 first.** A twelve-plugin Collection zip will be ~105 MB, and the repo
+has already crossed 1 GB (see §4). Committing another copy makes the worst
+offender worse — the Collection is already 538 MB of history on its own.
+Attach the re-cut archive to a GitHub Release and point the download button at
+it, rather than committing it. That is the same amount of work and it is the
+last time the question comes up.
 
 ---
 
@@ -168,16 +194,19 @@ answer and keeps the browser apps and DSW reusable.
 
 ---
 
-## 4. Repo size — 989 MiB, at GitHub's line
+## 4. Repo size — just over 1 GiB, now past GitHub's line
 
 | | |
 |---|---|
-| Working tree | 348 MB |
-| `.git` packed | **989 MiB** |
-| Binary blobs in history | 369 blobs, ~1.23 GiB |
+| Working tree | 359 MB |
+| `.git` packed | 989 MiB + 43 MiB loose |
+| `.git` on disk | **1.1 GB** |
+| Binary blobs in history | 380 blobs, ~1.24 GiB |
 
-It was 695 MiB at the start of that session; the Rite of Passage publish added
-the rest. GitHub's guidance is to stay under 1 GB.
+It was 695 MiB at the start of that session. Rite of Passage added most of the
+rest and Thin Walls the last ~11 MB, which took it **past the 1 GB** GitHub
+asks repositories to stay under. It is not a hard limit and nothing breaks
+today, but the repo is now the thing the guidance is about.
 
 Where it actually went, by total bytes across all revisions in history:
 
@@ -222,8 +251,8 @@ None of this needs the PC — it is a decision, not a capability.
 
 ## 5. Smaller things, none blocking
 
-- **Ten plugins ship a zip with no release workflow.** Only `clone-wars` and
-  `rite-of-passage` have one; the other ten were built and packaged by hand on
+- **Eleven plugins ship a zip with no release workflow.** Only `clone-wars` and
+  `rite-of-passage` have one; the other eleven were built and packaged by hand on
   the PC. Adding workflows modelled on `rite-of-passage.yml` would move that
   onto free Windows runners, and is the single biggest reduction in PC-only
   work available. It does not need the PC to write — only to verify the first
