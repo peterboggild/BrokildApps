@@ -264,9 +264,13 @@ Live: `tools/live.ps1` + `tools/cdp.js` + `test/live-jobs.json` / `live-audio-jo
   and glazed tile without leaning on the modulation, which currently carries those two.
 - Every room's field runs even when nobody is in it, because the coupling needs it. Skipping
   a silent, empty room would give most of the 17 % back.
-- **The build id is still `260921.1`** although the second day added a great deal. Bumping
-  it means a rebuild, and the standalone had just been relinked cleanly for the release zip;
-  the shipped bytes and every document agree on 260921.1, which is the property that matters.
+- ~~The build id is still `260921.1`~~ **Fixed 2026-09-22: the shipped build is 260922.1.**
+  "Every document agrees" was the wrong property to be satisfied by — they agreed on a
+  number that was a day and a great deal of work out of date, and the back page of the
+  handbook printed it. A build id exists so a user can tell one build from another BY
+  LOOKING. Bump it as part of the change, not as part of the release. The plates had the
+  same disease one level down: the panel photographed on the landing page still showed
+  260921.1 in its own corner beside a download button reading 260922.1.
 - A single room network per room: two sources in one room share its field (correct), but
   the early-energy fraction each hands the field is taken at 1 kHz only.
 - The DRR readout counts doorway/leaf/wall arrivals as "direct" (the shortest route), which
