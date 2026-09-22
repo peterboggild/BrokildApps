@@ -122,7 +122,7 @@ Left to right, and the panel now prints these as column headings:
 |---|---|
 | **tick box** | slot on/off |
 | **socket** | the effect's own mark, struck into iron. It warms to ember as the lane catches. |
-| **EFFECT** | which effect the slot holds ("EMPTY" = none; duplicates are allowed). **Amber means the slot cannot travel: A still equals B.** |
+| **EFFECT** | which effect the slot holds ("EMPTY" = none; duplicates are allowed). The eighteen are the list; **BROKILD WORLD FX** at the bottom opens a submenu with ten of the World rack's modules. **Amber means the slot cannot travel: A still equals B.** |
 | **ENTER** | the POSITION at which this slot starts moving from A toward B |
 | **EXIT** | the POSITION at which it reaches B. Before ENTER the slot sits at A; after EXIT it holds at B. |
 | **DEPTH** | how far along the A→B route it actually gets by EXIT. 60 % means it is still on its way when the drop lands, which is often the better sound. |
@@ -181,6 +181,57 @@ it cannot read the future. Brake first, then let it go: that is the gesture.
 modulation stops and the delays are rounded to whole samples, so a frozen wash
 neither creeps nor decays. The bench holds it flat over sixty seconds.
 
+## The World rack in a slot (BWFX)
+
+The bottom of every EFFECT menu opens **BROKILD WORLD FX** — ten modules of
+the World rack, insertable in a slot like any of the eighteen, and swept from
+A to B like any of the eighteen:
+
+**TUBE · SWEEP · ENSEMBLE · HARMONIC · GATE · GRIT · STRIP · ECHO · SHIMMER ·
+ROTARY**
+
+The rack is already on this plugin, post-chain, with its five macros
+automatable — so this is not about *reaching* those modules. It is about
+**where they sit**. A slot puts one INSIDE the chain, with its own PLACE and
+its own ON ARRIVAL. That buys three things the post-chain rack cannot:
+
+- **Order.** A GRIT before CLIMB is a dirty filter; after it, a clean filter
+  into dirt. Same two boxes, different instrument.
+- **Field.** GATE set to SIDE rolls the room and leaves the lead alone.
+- **The landing.** An ECHO set to SPILL rings on through the drop while
+  everything around it is CLEARed.
+
+And because BWFX's SYNC and FEEL are stepped parameters, a slot travelling
+ECHO from 1/4 to 1/32 changes division **on the bar line**, the same way
+STUTTER does. That is the thing worth building a rite around.
+
+**They start switched off.** Assigning one changes nothing until you edit it
+— each arrives with its one amount knob (MIX, DRIVE, DEPTH, CRUSH, COMP) at
+zero, so A is dry and the first thing you reach for is B's amount. Eight of
+the ten are bit-exact at rest; TUBE's valve stage is in circuit at any drive,
+so that one colours the moment you assign it.
+
+**What is different about them, said plainly:**
+
+- **SPREAD does not reach them.** A World module has one set of parameters, so
+  both channels read the same score. ENTER, EXIT, CURVE, DEPTH, PLACE, TURN
+  and the MONO GATE all work normally.
+- **They are not held to §8.** The eighteen declare what they may do to
+  loudness and pitch and this plugin's bench holds them to it. The World
+  modules are declared as guests — BWFX's own bench governs their DSP. What
+  this plugin still guarantees is that they stay bounded and finite at both
+  ends of every knob, and that nothing leaves above 0 dBFS.
+- **SPILL on a module with no tail is STOP.** Only ECHO and SHIMMER have
+  memory worth ringing on. A TUBE has nothing to spill, so from the arrival it
+  is simply out of the way, exactly.
+- **Two modules are deliberately not offered.** **SPACE** rebuilds its reverb
+  between blocks, so its CHARACTER and LENGTH cannot travel — it stays in the
+  post-chain rack, which is where a colour you set once belongs.
+  **KIERANATOR** is a drawn step pattern, and the grid that draws it is on the
+  BWFX face, not in a lane.
+- **They cost what they cost.** Six SHIMMERs is six SHIMMERs. The post-chain
+  rack's copy is a separate instance from a slot's.
+
 ## A first rite, step by step
 
 1. Insert Rite of Passage on the drum bus or the master. Nothing changes yet.
@@ -210,18 +261,26 @@ a bar of its own clock.
 
 ## What is verified
 
-- **Engine bench, 303 checks, all clear**: the score is obeyed, the loudness
+- **Engine bench, 506 checks, all clear**: the score is obeyed, the loudness
   contract holds per effect, ARRIVAL is sample-accurate, rendering is identical
-  at 64 and 256-sample blocks, the six most expensive effects loaded at once cost 4.2 % of one core.
+  at 64 and 256-sample blocks, the six most expensive effects loaded at once
+  cost about 10 % of one core.
 - **Anti-aliasing.** BRAKE and DIVE read a delay line faster than it was
   written, which folds everything above the new Nyquist back into the band.
   Both run on a 2x oversampled line. Measured fold of a 14 kHz tone: DIVE at
   +12 st **−64.6 dB** (it was 0.0 dB before), BRAKE launching out of a stop
   −64.6 dB, GRAIN at full SPREAD −103.3 dB.
-- **Wrapper harness, 29 checks**: parameters, buses, state round trip, a rite
-  from a newer build tolerated, scrubbing fires nothing, ARRIVAL fires.
-- **Panel snapshot, 13 checks**: a travelling lane carries heat, and a lane
-  whose A equals its B carries none.
+- **Wrapper harness, 57 checks**: parameters, buses, state round trip, a rite
+  from a newer build tolerated, scrubbing fires nothing, ARRIVAL fires — and a
+  rite carrying World modules comes back as the same modules with the same
+  knobs.
+- **Panel snapshot, 37 checks**: a travelling lane carries heat, a lane whose
+  A equals its B carries none, and the lane menu is the eighteen with the ten
+  World modules behind their own door, every one of them selectable.
+- **The World modules in a slot**: inert until edited (eight of the ten
+  bit-exact, and the bench names the two that are not and why), bounded and
+  finite with every knob travelling, SPILL rings and CLEAR does not, and a
+  re-entered lane drops what it was holding.
 - **Not verified: nobody has heard it in a DAW yet.**
 
 ## What the panel still does not have

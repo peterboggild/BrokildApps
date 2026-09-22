@@ -108,12 +108,23 @@ public:
     virtual void arm() {}                     // the slot has entered its lane
     virtual void release (Tail) {}            // ARRIVAL, or leaving the lane
     virtual bool ringing() const { return false; }   // still has a tail to give
+
+    /*  Message thread, ~15 Hz, from Rack::service(). Work an effect may not
+        do on the audio thread — building an impulse, swapping a table —
+        happens here. The eighteen natives need nothing; a wrapped BWFX
+        module does, and a module whose first IR is built in service() has
+        NO IR AT ALL without it. */
+    virtual void service() {}
 };
 
 // The registry. Only IMPLEMENTED effects appear; the twelve of the design doc
 // arrive one at a time and a saved rite naming one that is not here yet
 // leaves its slot empty rather than failing to load.
 int numEffects();
+/*  The eighteen this plugin OWNS — everything above numNativeEffects() is a
+    wrapped BWFX module (rop_bwfx.h). The panel counts them separately
+    because "28 EFFECTS" would claim credit for someone else's rack. */
+int numNativeEffects();
 const EffectDesc& effectDescriptor (int type);
 int effectTypeByName (const char* id);        // -1 when unknown
 Effect* createEffect (int type);              // message thread; caller owns

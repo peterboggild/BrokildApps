@@ -4,10 +4,11 @@
 Peter, before any code, in the house manner. Two readings of the effect menu
 were taken and merged; where the second reading won, §17 says so.*
 
-*STATUS 2026-09-18: THE SPINE IS BUILT AND MEASURED; SIX OF THE TWELVE
-EFFECTS ARE IN (CLIMB, TAPE, STUTTER, CHOP, RISER, GAP). 133 engine checks and
-20 wrapper checks ALL CLEAR at `rite-of-passage/`; the VST3 builds and loads.
-Nobody has heard it in a DAW.*
+*STATUS 2026-09-22: THE SPINE IS BUILT AND MEASURED; EIGHTEEN EFFECTS ARE IN
+(the twelve, plus the third six of §5's reserve), AND TEN BWFX MODULES ARE
+OFFERED IN A SLOT (§12a). 506 engine checks, 57 wrapper checks and 37 panel
+checks ALL CLEAR at `rite-of-passage/`; the VST3 builds and loads. Nobody has
+heard it in a DAW.*
 
 *This document was written before any code, which was the point: the bench of
 §15 existed first and failed first. Where a number below now says "measured",
@@ -33,6 +34,10 @@ deliberate act — not something that falls out of the slider reaching the end.
 - **No effect that is a colour rather than a gesture.** If freezing the slider
   at a fixed position leaves you still wanting it, it belongs in BWFX, which
   this plugin hosts anyway. A bitcrusher in a transition slot is paying twice.
+  *Amended 2026-09-22, and §12a is the argument: a World module in a slot is
+  not paying twice, because what the slot buys is not the effect — it is the
+  PLACE. This refusal stands against WRITING a colour as one of the twelve.
+  It never stood against putting a borrowed one somewhere in the six.*
 - **No lockstep morph.** One slider moving forty knobs on the same curve is a
   macro, not a transition. §3.
 - **No drop fired by scrubbing.** ARRIVAL is its own command. §4.
@@ -431,6 +436,70 @@ module timeline-sequenceable without spending a slot, and it is the reason
 EROSION, JET and WIDTH do not need to be in the twelve. TUBE and GRIT already
 exist in BWFX; a transition that wants progressive destruction drives a macro
 at them.
+
+## 12a. The World rack in a slot
+
+*Peter, 2026-09-22: "would it make sense to have an effect that somehow hooks
+the whole BWFX ecosystem in as a wrapper? That would enable me to have a
+submenu where i could insert any of the BWFX FX in one of the six slots."*
+
+It does, and the argument is **placement**, which is worth being exact about
+because §12 already answers the obvious version of the question. The macros
+had made every World module timeline-sequenceable; what they could not do is
+put one INSIDE the chain. A slot can, and that buys three things the
+post-slots rack cannot:
+
+- **order** — GRIT before CLIMB is a dirty filter, after it a clean filter
+  into dirt: the same two boxes, a different instrument;
+- **field** — §6's PLACE, so a GATE works the SIDES only;
+- **the landing** — §4's tail modes, so an ECHO SPILLs through a drop that
+  CLEARs everything around it.
+
+§2 already said the ordering of six things is the second instrument in this
+plugin. This hands that instrument the World rack.
+
+**Ten modules, and the two absences are the design.** TUBE, SWEEP, ENSEMBLE,
+HARMONIC, GATE, GRIT, STRIP, ECHO, SHIMMER, ROTARY.
+
+- **SPACE is out.** Its CHARACTER and LENGTH only take effect on a *settled*
+  message-thread service tick, so they cannot travel at all. A lane that
+  cannot move is a lane that lies about what it is doing. It stays in the
+  post-slots rack — which, by §1, is exactly where a colour you set once
+  belongs.
+- **KIERANATOR is out.** Its pattern is opaque extra state drawn by a step
+  grid that lives on the BWFX face. In a lane it would run a default nobody
+  could edit.
+
+**They are guests, and a guest is announced.** §8.3's table is for the
+eighteen effects this plugin owns and whose DSP it wrote. A wrapped module is
+declared INTENTIONAL and a pitch mover — which is not a claim that TUBE bends
+pitch, but the statement that this plugin's level and pitch contracts do not
+govern it. BWFX's bench governs BWFX's DSP; two benches policing one
+algorithm would eventually disagree and there would be no way to tell which
+was right. What this plugin still holds them to, and tests: bounded and
+finite at both ends of every knob, inert until edited, and the three tail
+modes.
+
+**What it does not reach.** SPREAD, because a World module carries one
+parameter set and the two sides would have nothing to differ about. ENTER,
+EXIT, CURVE, DEPTH, PLACE, TURN, the MONO GATE and the stepped-parameter bar
+line all work unchanged, because the rack applies them outside the effect —
+and that last one is the sharpest thing this feature buys, because it makes
+ECHO and GATE change division on the bar the way STUTTER already does.
+
+**In the rite file** a slot names its effect by id and its parameters by
+POSITION, which is how §11's blob already worked and is unchanged here. A
+World module that APPENDS a knob round-trips through an older build; one that
+REORDERED its knobs would not — which is why BWFX declares its parameter ids
+stable forever and keys its own blob by them. A rite naming a module this
+build does not have leaves that slot empty, exactly as §2 already required.
+
+**What it costs.** Nothing in the ids (the wrapped set is APPENDED, prefixed
+`bwfx.`, and no saved rite moved), nothing in latency (no World module
+reports any), and one message-thread pump: `rop::Effect` gains `service()`,
+called from the 15 Hz timer the BWFX rack already ran on. In CPU it costs
+what it costs — a slot's SHIMMER and the rack's SHIMMER are two instances,
+and six of anything is six.
 
 ## 13. The rite
 
