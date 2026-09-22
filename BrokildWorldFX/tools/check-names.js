@@ -18,23 +18,35 @@ const path = require("path");
 
 const B = "C:/Users/peter/b";
 const DOCS = "C:/Users/peter/Documents/Brokild patches";
+/*  A bare string is a tree under b\. An object carries its own root, for the two
+    plugins whose source lives in the WEBSITE repo instead - without them the
+    checker cannot read their PRODUCT_NAME and calls their patch folders
+    unclaimed, which is the checker not knowing where to look rather than a
+    naming fault. */
+const SITE = "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps";
 const DIRS = ["ArtefactB2311_1", "ArtefactB2311", "ArtefactB2311_67", "ArtefactB2311_104",
               "BlackRider", "BladeRuiner",
               "CloneWars", "EscapeRoom", "FullMetalRacket", "Hairfryer",
-              "MarsWars", "PhotoSynth", "HighTide", "BrainScan"];
+              "MarsWars", "PhotoSynth", "HighTide", "BrainScan", "ThinWalls",
+              { name: "CloneWars(site)",    root: SITE + "/vst3-apps/clone-wars/plugin" },
+              { name: "Legion",             root: SITE + "/vocal-harmonizer" },
+              { name: "RiteOfPassage",      root: SITE + "/rite-of-passage" }];
 
 let bad = 0;
 const claimed = new Set();
 
-for (const d of DIRS) {
-  const cml = path.join(B, d, "CMakeLists.txt");
+for (const entry of DIRS) {
+  const d = typeof entry === "string" ? entry : entry.name;
+  const root = typeof entry === "string" ? path.join(B, d) : entry.root;
+  const cml = path.join(root, "CMakeLists.txt");
   if (!fs.existsSync(cml)) { console.log("  " + d.padEnd(18) + "no CMakeLists"); continue; }
   const pm = fs.readFileSync(cml, "utf8").match(/PRODUCT_NAME\s+"([^"]+)"/);
   const product = pm ? pm[1] : null;
 
   let folder = null, former = [];
-  const srcDir = path.join(B, d, "Source");
-  if (fs.existsSync(srcDir)) {
+  // Source/ in most trees, src/ in the ones written in the website repo
+  for (const srcDir of [path.join(root, "Source"), path.join(root, "src")]) {
+    if (!fs.existsSync(srcDir)) continue;
     for (const f of fs.readdirSync(srcDir)) {
       if (!/\.(cpp|h)$/.test(f)) continue;
       const t = fs.readFileSync(path.join(srcDir, f), "utf8");

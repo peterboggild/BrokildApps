@@ -9,6 +9,7 @@
 #include <JuceHeader.h>
 
 #include "PluginProcessor.h"
+#include "BwfxPanel.h"
 
 class LegionEditor  : public juce::AudioProcessorEditor,
                       private juce::Timer
@@ -22,8 +23,6 @@ public:
 
 private:
     void timerCallback() override;
-    void buildRackPanel();
-    void layoutRackPanel (juce::Rectangle<int> area);
 
     using SliderAttach = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttach = juce::AudioProcessorValueTreeState::ButtonAttachment;
@@ -42,6 +41,10 @@ private:
     LegionProcessor& proc;
 
     juce::Label title, latencyLabel;
+
+    //  the build id, on the face of the plugin: the one question a version
+    //  number exists to answer by looking
+    juce::Label buildLabel;
 
     //  globals
     std::vector<std::unique_ptr<Knob>> globalKnobs;
@@ -62,40 +65,14 @@ private:
     //  the BWFX rack, generated from bwfx::moduleDescriptor()
     juce::TextButton rackButton { "BWFX" };
 
-    //  The rack lives on an OPAQUE, full-bleed overlay. It has to: a Viewport
-    //  and a plain Component both paint nothing, so without this the rack's
-    //  knobs were drawn straight over the voice strips and both were legible
-    //  at once — which is to say neither was.
-    struct RackOverlay  : juce::Component
-    {
-        RackOverlay();
-        void paint (juce::Graphics&) override;
-        void mouseDown (const juce::MouseEvent&) override;
+    /*  The rack is the STANDARD BWFX panel: the FX chain on the left in its
+        own order with UP/DN, SPECTRA on the right, presets, rack mix and the
+        five macros along the foot -- the same shape as BrokildWorldFX's
+        ui/bwfx-rack.js, which is what every WebView synth in the fleet shows.
+        Legion used to draw a flat list of every module instead, with no chain
+        order and no SPECTRA at all, which is the thing Peter reported. */
+    std::unique_ptr<BwfxPanel> overlay;
 
-        std::function<void()> onDismiss;
-        juce::Rectangle<int>  card;      //  where the rack itself sits
-    };
-
-    RackOverlay      rackOverlay;
-    juce::TextButton rackClose { "CLOSE" };
-    juce::Label      rackTitle;
-    juce::Component  rackPanel;
-    juce::Viewport   rackView;
-    juce::Slider     rackMix;
-    juce::Label      rackMixLabel;
-
-    struct RackModule
-    {
-        int type = 0;
-        juce::ToggleButton power;
-        juce::Label name;
-        std::vector<std::unique_ptr<juce::Slider>> knobs;
-        std::vector<std::unique_ptr<juce::Label>>  knobLabels;
-    };
-    std::vector<std::unique_ptr<RackModule>> rackModules;
-    bool rackOpen = false;
-
-    std::vector<std::unique_ptr<Knob>> macroKnobs;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LegionEditor)
 };

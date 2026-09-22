@@ -11,6 +11,13 @@
 # when changing the engine: cmake -S test -B test/build && cmake --build test/build
 
 cmake_minimum_required(VERSION 3.22)
+
+# The build id goes on the face of the plugin. Every other Brokild plugin
+# carries one, and Rite of Passage cost a round of "i didnt see the new
+# version in Ableton?" precisely because it did not: it is the one question
+# a version number exists to answer BY LOOKING. Bump it AND re-run
+# cmake -S . -B <dir> or it does not take.
+set(LEGION_BUILD_ID "260922.1")
 project(LEGION VERSION 0.1.0 LANGUAGES C CXX)   # JUCE pulls in C sources
 
 set(CMAKE_CXX_STANDARD 17)
@@ -58,6 +65,7 @@ juce_generate_juce_header(LEGION)
 target_sources(LEGION PRIVATE
     src/PluginProcessor.cpp
     src/PluginEditor.cpp
+    src/BwfxPanel.cpp
     engine/legion_fft.cpp
     engine/legion_analysis.cpp
     engine/legion_shifter.cpp
@@ -68,6 +76,7 @@ target_compile_definitions(LEGION PUBLIC
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0
+    LEGION_BUILD_ID="${LEGION_BUILD_ID}"
     JUCE_REPORT_APP_USAGE=0)
 
 target_link_libraries(LEGION PRIVATE

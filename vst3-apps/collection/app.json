@@ -1,14 +1,14 @@
 {
   "slug": "collection",
-  "name": "The Brokild Collection (all ten)",
-  "description": "Every Brokild plugin in one download: eight instruments and two effects for Windows, with their manuals and their standalones. They were built one at a time, each to answer a different question, but they share a rack of global effects that runs inside the instruments, one patch folder, and a way of working — nothing asserted, everything measured by a bench that renders real audio and reads the numbers off it. Each plugin in here is byte-for-byte the same file as its own download.",
+  "name": "The Brokild Collection (all eleven)",
+  "description": "Every Brokild plugin in one download: eight instruments and three effects for Windows, with their manuals and their standalones. They were built one at a time, each to answer a different question, but they share a rack of global effects that runs inside the instruments, one patch folder, and a way of working — nothing asserted, everything measured by a bench that renders real audio and reads the numbers off it. Each plugin in here is byte-for-byte the same file as its own download.",
   "status": "live",
   "collection": true,
   "url": "vst3-apps/collection/index.html",
   "icon": "more",
-  "cta": "Download all ten →",
+  "cta": "Download all eleven →",
   "preview": "assets/app-previews/collection.jpg",
-  "note": "Windows VST3 · 93 MB · eight instruments and two effects · all manuals included.",
+  "note": "Windows VST3 · 101 MB · eight instruments and three effects · all manuals included.",
   "tags": [
     "vst3"
   ]

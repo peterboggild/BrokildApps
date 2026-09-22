@@ -2,6 +2,14 @@
 
 namespace
 {
+    /*  The voice strips' geometry is read by BOTH paint() and resized(), and
+        it used to be written out in each. Giving the globals row the height it
+        needed moved one copy and not the other, so the first strip was painted
+        over the global knobs. One source, so that cannot happen again. */
+    constexpr int kStripTop = 154;   //  header 58 + globals 96
+    constexpr int kStripH   = 148;
+    constexpr int kStripGap = 8;
+
     const juce::Colour kBack   { 0xff14171c };
     const juce::Colour kPanel  { 0xff1c2128 };
     const juce::Colour kInk    { 0xffd8dee6 };
@@ -37,41 +45,6 @@ namespace
 }
 
 // ---------------------------------------------------------------------------
-// The BWFX overlay. Opaque and full-bleed on purpose: it is the one thing
-// standing between the rack and the panel underneath it.
-LegionEditor::RackOverlay::RackOverlay()
-{
-    setOpaque (true);                         //  every pixel is ours
-    setInterceptsMouseClicks (true, true);    //  and no click reaches the panel
-}
-
-void LegionEditor::RackOverlay::paint (juce::Graphics& g)
-{
-    //  the panel, darkened — it stays faintly readable so you can see WHAT the
-    //  rack is sitting on, without competing with it
-    g.fillAll (kBack.withAlpha (1.0f));
-    g.setColour (juce::Colours::black.withAlpha (0.55f));
-    g.fillRect (getLocalBounds());
-
-    //  the rack card
-    g.setColour (kPanel);
-    g.fillRoundedRectangle (card.toFloat(), 8.0f);
-    g.setColour (kTeal.withAlpha (0.55f));
-    g.drawRoundedRectangle (card.toFloat().reduced (0.5f), 8.0f, 1.0f);
-
-    //  its header rule
-    g.setColour (kTeal.withAlpha (0.25f));
-    g.fillRect (card.getX() + 12, card.getY() + 38, card.getWidth() - 24, 1);
-}
-
-void LegionEditor::RackOverlay::mouseDown (const juce::MouseEvent& e)
-{
-    //  clicking the darkened surround closes it, the usual modal idiom
-    if (! card.contains (e.getPosition()) && onDismiss)
-        onDismiss();
-}
-
-// ---------------------------------------------------------------------------
 void LegionEditor::addKnob (const juce::String& paramId, const juce::String& text,
                             juce::Component& parent, std::vector<std::unique_ptr<Knob>>& into)
 {
@@ -103,6 +76,11 @@ LegionEditor::LegionEditor (LegionProcessor& p)
     title.setFont (juce::FontOptions (22.0f, juce::Font::bold));
     title.setColour (juce::Label::textColourId, kInk);
     addAndMakeVisible (title);
+
+    buildLabel.setText (LEGION_BUILD_ID, juce::dontSendNotification);
+    buildLabel.setColour (juce::Label::textColourId, kDim);
+    buildLabel.setFont (juce::FontOptions (10.0f));
+    addAndMakeVisible (buildLabel);
 
     latencyLabel.setJustificationType (juce::Justification::centredRight);
     latencyLabel.setColour (juce::Label::textColourId, kDim);
@@ -175,124 +153,29 @@ LegionEditor::LegionEditor (LegionProcessor& p)
     rackButton.setColour (juce::TextButton::buttonOnColourId, kTeal);
     rackButton.onClick = [this]
     {
-        rackOpen = rackButton.getToggleState();
-        rackOverlay.setVisible (rackOpen);
-        if (rackOpen)
-            rackOverlay.toFront (false);      //  always the last thing painted
-        resized();
+        /*  Built on first open, so an editor nobody opens the rack on costs
+            nothing -- and refreshed from the rack on every later open, because
+            a patch load or a macro can have moved the chain underneath it. */
+        if (overlay == nullptr)
+        {
+            overlay = std::make_unique<BwfxPanel> (proc.rack(), proc.apvts);
+            overlay->onClose = [this] { rackButton.setToggleState (false, juce::sendNotificationSync); };
+            addAndMakeVisible (*overlay);
+            overlay->setBounds (getLocalBounds());
+        }
+        else overlay->refreshFromRack();
+
+        overlay->setVisible (rackButton.getToggleState());
+        if (rackButton.getToggleState()) overlay->toFront (true);
     };
     addAndMakeVisible (rackButton);
 
-    buildRackPanel();
-    rackView.setViewedComponent (&rackPanel, false);
-    rackView.setScrollBarsShown (true, false);
 
-    rackTitle.setText ("BWFX", juce::dontSendNotification);
-    rackTitle.setColour (juce::Label::textColourId, kTeal);
-    rackTitle.setFont (juce::FontOptions (16.0f, juce::Font::bold));
-
-    rackClose.setColour (juce::TextButton::textColourOffId, kDim);
-    rackClose.onClick = [this] { rackButton.setToggleState (false, juce::sendNotificationSync); };
-
-    rackOverlay.onDismiss = [this] { rackButton.setToggleState (false, juce::sendNotificationSync); };
-    rackOverlay.addAndMakeVisible (rackView);
-    rackOverlay.addAndMakeVisible (rackTitle);
-    rackOverlay.addAndMakeVisible (rackClose);
-    addChildComponent (rackOverlay);          //  added last: it paints on top
-
-    setSize (940, 620);
+    setSize (940, kStripTop + legion::kVoices * (kStripH + kStripGap) + 12);
     startTimerHz (8);
 }
 
 LegionEditor::~LegionEditor() { stopTimer(); }
-
-// ---------------------------------------------------------------------------
-// The rack UI is GENERATED from the BWFX descriptors, never typed out: that
-// is the whole point of self-describing modules. A module added to BWFX
-// appears here on the next rebuild, with its own name, ranges and units,
-// and no line of this file changes.
-void LegionEditor::buildRackPanel()
-{
-    rackPanel.setName ("bwfx");
-
-    rackMix.setSliderStyle (juce::Slider::LinearHorizontal);
-    rackMix.setTextBoxStyle (juce::Slider::TextBoxRight, false, 52, 16);
-    rackMix.setRange (0.0, 1.0, 0.001);
-    rackMix.textFromValueFunction = [] (double v)
-        { return juce::String (juce::roundToInt (v * 100.0)) + " %"; };
-    rackMix.setValue (proc.rack().getMix(), juce::dontSendNotification);
-    rackMix.updateText();
-    rackMix.setColour (juce::Slider::thumbColourId, kTeal);
-    rackMix.setColour (juce::Slider::trackColourId, kTeal.withAlpha (0.5f));
-    rackMix.onValueChange = [this] { proc.rack().setMix ((float) rackMix.getValue()); };
-    rackMixLabel.setText ("RACK DRY / WET", juce::dontSendNotification);
-    rackMixLabel.setColour (juce::Label::textColourId, kTeal);
-    rackMixLabel.setFont (juce::FontOptions (11.0f));
-    rackPanel.addAndMakeVisible (rackMix);
-    rackPanel.addAndMakeVisible (rackMixLabel);
-
-    for (int t = 0; t < bwfx::numModuleTypes(); ++t)
-    {
-        const auto& d = bwfx::moduleDescriptor (t);
-        auto rm = std::make_unique<RackModule>();
-        rm->type = t;
-
-        rm->name.setText (juce::String (d.name) + "   " + juce::String (d.sub),
-                          juce::dontSendNotification);
-        rm->name.setFont (juce::FontOptions (12.0f, juce::Font::bold));
-        rm->name.setColour (juce::Label::textColourId, kTeal);
-        rackPanel.addAndMakeVisible (rm->name);
-
-        rm->power.setColour (juce::ToggleButton::tickColourId, kTeal);
-        rm->power.setToggleState (proc.rack().getEnabled (t), juce::dontSendNotification);
-        const int type = t;
-        rm->power.onClick = [this, type, pw = &rm->power]
-        {
-            proc.rack().setEnabled (type, pw->getToggleState());
-        };
-        rackPanel.addAndMakeVisible (rm->power);
-
-        for (int pi = 0; pi < d.numParams; ++pi)
-        {
-            const auto& ps = d.params[pi];
-            auto sl = std::make_unique<juce::Slider> (juce::Slider::RotaryHorizontalVerticalDrag,
-                                                      juce::Slider::TextBoxBelow);
-            sl->setTextBoxStyle (juce::Slider::TextBoxBelow, false, 70, 14);
-            sl->setRange (ps.lo, ps.hi, ps.step);
-            //  by value: a ParamDesc is a POD of literals, so the lambda does
-            //  not depend on the descriptor table outliving the editor
-            sl->textFromValueFunction = [ps] (double v) { return bwfxText (ps, v); };
-            sl->updateText();
-            sl->setValue (proc.rack().getParam (t, pi), juce::dontSendNotification);
-            sl->setColour (juce::Slider::rotarySliderFillColourId, kTeal);
-            sl->setColour (juce::Slider::textBoxTextColourId, kInk);
-            sl->setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
-            auto* raw = sl.get();
-            sl->onValueChange = [this, type, pi, raw]
-            {
-                proc.rack().setParam (type, pi, (float) raw->getValue());
-            };
-
-            auto lb = std::make_unique<juce::Label>();
-            lb->setText (ps.name, juce::dontSendNotification);
-            lb->setJustificationType (juce::Justification::centred);
-            lb->setColour (juce::Label::textColourId, kDim);
-            lb->setFont (juce::FontOptions (10.0f));
-
-            rackPanel.addAndMakeVisible (*sl);
-            rackPanel.addAndMakeVisible (*lb);
-            rm->knobs.push_back (std::move (sl));
-            rm->knobLabels.push_back (std::move (lb));
-        }
-
-        rackModules.push_back (std::move (rm));
-    }
-
-    //  the five macros are HOST parameters, so they attach the normal way —
-    //  the rack never owns their values (bwfx_juce, "one owner per value")
-    for (int i = 0; i < bwfx::kMacros; ++i)
-        addKnob (bwfx_juce::macroParamId (i), "MACRO " + juce::String (i + 1), rackPanel, macroKnobs);
-}
 
 // ---------------------------------------------------------------------------
 void LegionEditor::paint (juce::Graphics& g)
@@ -304,13 +187,13 @@ void LegionEditor::paint (juce::Graphics& g)
     g.fillRect (r.removeFromTop (58));
 
     //  the voice strips
-    const int stripTop = 118;
-    const int stripH   = 148;
+    const int stripTop = kStripTop;
+    const int stripH   = kStripH;
     for (int v = 0; v < legion::kVoices; ++v)
     {
         const bool on = proc.apvts.getRawParameterValue (legion_ids::voice (v, "on"))->load() > 0.5f;
         g.setColour (on ? kPanel : kPanel.withAlpha (0.45f));
-        g.fillRoundedRectangle ((float) (14 + 0), (float) (stripTop + v * (stripH + 8)),
+        g.fillRoundedRectangle ((float) (14 + 0), (float) (stripTop + v * (stripH + kStripGap)),
                                 (float) (getWidth() - 28), (float) stripH, 6.0f);
     }
 }
@@ -321,11 +204,12 @@ void LegionEditor::resized()
     auto head = r.removeFromTop (58).reduced (14, 8);
 
     title.setBounds (head.removeFromLeft (110));
+    buildLabel.setBounds (head.removeFromLeft (70).withTrimmedTop (10));
     latencyLabel.setBounds (head.removeFromRight (230));
     rackButton.setBounds (head.removeFromRight (90).reduced (2, 6));
 
     //  globals
-    auto row = r.removeFromTop (60).reduced (14, 2);
+    auto row = r.removeFromTop (96).reduced (14, 2);
     const int kw = 86;
     for (auto& k : globalKnobs)
     {
@@ -343,10 +227,10 @@ void LegionEditor::resized()
     rackPosBox.setBounds (box2.reduced (2, 8));
 
     //  the voice strips
-    const int stripH = 148;
+    const int stripH = kStripH;
     for (int v = 0; v < legion::kVoices; ++v)
     {
-        auto strip = juce::Rectangle<int> (14, 118 + v * (stripH + 8), getWidth() - 28, stripH)
+        auto strip = juce::Rectangle<int> (14, kStripTop + v * (stripH + kStripGap), getWidth() - 28, stripH)
                         .reduced (10, 6);
         auto top = strip.removeFromTop (18);
         strips[v].on.setBounds (top.removeFromLeft (26));
@@ -360,63 +244,6 @@ void LegionEditor::resized()
             strips[v].knobs[(size_t) s]->slider.setBounds (cell);
         }
     }
-
-    //  the overlay always spans the whole editor, so nothing can show past it
-    rackOverlay.setBounds (getLocalBounds());
-
-    if (rackOpen)
-    {
-        auto card = getLocalBounds().reduced (24);
-        rackOverlay.card = card;
-
-        auto cardHead = card.withHeight (38).reduced (12, 6);
-        rackTitle.setBounds (cardHead.removeFromLeft (120));
-        rackClose.setBounds (cardHead.removeFromRight (80));
-
-        auto area = card.withTrimmedTop (40).reduced (10, 8);
-        rackView.setBounds (area);
-        layoutRackPanel (area);
-    }
-}
-
-void LegionEditor::layoutRackPanel (juce::Rectangle<int> area)
-{
-    const int w = area.getWidth() - 20;
-    int y = 8;
-
-    rackMixLabel.setBounds (12, y, 140, 16);
-    rackMix.setBounds (156, y, w - 170, 16);
-    y += 28;
-
-    for (auto& rm : rackModules)
-    {
-        const auto& d = bwfx::moduleDescriptor (rm->type);
-        rm->power.setBounds (12, y, 26, 20);
-        rm->name .setBounds (42, y, w - 60, 20);
-        y += 22;
-
-        const int per = juce::jmax (1, (w - 24) / 76);
-        for (int i = 0; i < d.numParams; ++i)
-        {
-            const int col = i % per, rowN = i / per;
-            const int x = 14 + col * 76;
-            const int ky = y + rowN * 74;
-            rm->knobLabels[(size_t) i]->setBounds (x, ky, 72, 12);
-            rm->knobs[(size_t) i]->setBounds (x, ky + 12, 72, 58);
-        }
-        y += ((d.numParams + per - 1) / per) * 74 + 10;
-    }
-
-    y += 6;
-    for (size_t i = 0; i < macroKnobs.size(); ++i)
-    {
-        const int x = 14 + (int) i * 92;
-        macroKnobs[i]->label .setBounds (x, y, 88, 12);
-        macroKnobs[i]->slider.setBounds (x, y + 12, 88, 62);
-    }
-    y += 84;
-
-    rackPanel.setSize (area.getWidth() - 4, y);
 }
 
 void LegionEditor::timerCallback()
@@ -432,6 +259,6 @@ void LegionEditor::timerCallback()
                           juce::dontSendNotification);
     //  the strips are behind the overlay while the rack is open — no point
     //  redrawing them, and it would drag the whole overlay with them
-    if (! rackOpen)
-        repaint (0, 118, getWidth(), getHeight() - 118);
+    if (overlay == nullptr || ! overlay->isVisible())
+        repaint (0, 154, getWidth(), getHeight() - 154);
 }

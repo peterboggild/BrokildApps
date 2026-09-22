@@ -17,7 +17,7 @@ Windows builds are downloadable from each plugin's own landing page.
 
 | App | Folder | What it does |
 |-----|--------|--------------|
-| The Brokild Collection (all ten) | [`vst3-apps/collection`](vst3-apps/collection) | Every Brokild plugin in one download: eight instruments and two effects for Windows, with their manuals and their standalones. |
+| The Brokild Collection (all eleven) | [`vst3-apps/collection`](vst3-apps/collection) | Every Brokild plugin in one download: eight instruments and three effects for Windows, with their manuals and their standalones. |
 | Thin Walls (VST3) | [`vst3-apps/thin-walls`](vst3-apps/thin-walls) | An apartment of three rooms and three doors that you put the sound inside and then walk around in. |
 | Rite of Passage (VST3) | [`vst3-apps/rite-of-passage`](vst3-apps/rite-of-passage) | A transition processor: one slider is the journey, and the landing is a separate thing you fire. |
 | Battlestar Overdrive (VST3) | [`vst3-apps/battlestar-overdrive`](vst3-apps/battlestar-overdrive) | An overdrive, and a tribute: named after Max Christensen's Copenhagen solo project and built with his blessing. |

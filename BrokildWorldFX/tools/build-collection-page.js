@@ -1,12 +1,12 @@
-/*  The collection page: one download, ten plugins.
+/*  The collection page: one download, eleven plugins.
 
     Same family shell as every other landing page, so it sits among them rather
     than looking like a different site. The body is a directory of what is in
     the box, each entry saying what the instrument actually IS rather than
     listing its features.
 
-    Moved here from FullMetalRacket/tools on 2026-09-04, rewritten for nine and
-    then for ten when Battlestar Overdrive landed:
+    Moved here from FullMetalRacket/tools on 2026-09-04, rewritten for nine,
+    then ten when Battlestar Overdrive landed, then eleven for Thin Walls:
     the collection spans the fleet, so it belongs with the fleet's tooling, and
     two copies of a builder drift (Clone Wars taught that lesson at a cost of
     41 lines).
@@ -26,8 +26,21 @@ let s = fs.readFileSync(SRC, "utf8");
 const NL = s.indexOf(String.fromCharCode(13, 10)) >= 0
   ? String.fromCharCode(13, 10) : String.fromCharCode(10);
 
-const MB = fs.existsSync(ZIP) ? Math.round(fs.statSync(ZIP).size / 1048576) : 0;
-if (!MB) { console.error("ABORT: no zip - run build-collection-zip.ps1 first"); process.exit(1); }
+/*  The archive is a RELEASE ASSET, not a file in the repo: at eleven plugins
+    it is 101 MB and GitHub refuses any file over 100 MB outright, so there was
+    no choice to make. (LFS is not a way round it either - Pages serves an LFS
+    pointer rather than the file.) The url and the size are DECLARED in
+    contents.json beside the membership, so the page, the checker and whoever
+    re-cuts it are all reading the same line. The local zip is still consulted
+    when it is there, because it is the thing that was actually measured.    */
+const SPEC = JSON.parse(fs.readFileSync(R + "vst3-apps/collection/contents.json", "utf8"));
+const HREF = (SPEC.download && SPEC.download.url) || "Brokild-Collection-win64.zip";
+const BYTES = fs.existsSync(ZIP) ? fs.statSync(ZIP).size
+                                 : (SPEC.download && SPEC.download.bytes) || 0;
+const MB = Math.round(BYTES / 1048576);
+if (!MB) { console.error("ABORT: no size - run build-collection-zip.ps1, or declare it in contents.json"); process.exit(1); }
+if (SPEC.download && SPEC.download.bytes && fs.existsSync(ZIP) && SPEC.download.bytes !== BYTES)
+{ console.error("ABORT: the zip on disk is " + BYTES + " bytes, contents.json declares " + SPEC.download.bytes + " - upload the new asset and update it"); process.exit(1); }
 
 const heroAt = s.indexOf("<header class=\"hero\">");
 const footAt = s.indexOf("<footer>");
@@ -35,15 +48,15 @@ if (heroAt < 0 || footAt < 0) { console.error("ABORT: splice points not found");
 
 let head = s.slice(0, heroAt)
   .replace("<title>Black Rider — VST3 analogue monosynth | BrokildApps</title>",
-           "<title>The Brokild Collection — ten free VST3 plugins | BrokildApps</title>")
+           "<title>The Brokild Collection — eleven free VST3 plugins | BrokildApps</title>")
   .replace(/<meta name="description" content="[^"]*" \/>/,
-    '<meta name="description" content="Every Brokild plugin in one download: eight instruments and two effects for Windows. Brain Scan, High Tide, Photo Synth, Escape Room, Blade Ruiner, Black Rider, Clone Wars, Full Metal Racket, Martian Gain and Battlestar Overdrive - with their manuals, their standalones, and the shared world-effects rack that runs inside the instruments. Free, no installer, no account." />')
+    '<meta name="description" content="Every Brokild plugin in one download: eight instruments and three effects for Windows. Brain Scan, High Tide, Photo Synth, Escape Room, Blade Ruiner, Black Rider, Clone Wars, Full Metal Racket, Martian Gain, Battlestar Overdrive and Thin Walls - with their manuals, their standalones, and the shared world-effects rack that runs inside the instruments. Free, no installer, no account." />')
   .replace("--accent: #a9651a;", "--accent: #0e7f6c;")
   .replace("--accent-bright: #c67f28;", "--accent-bright: #14a189;")
   .replace("--accent: #f0a94a; --accent-bright: #ffc474; --amber: #e8b45a;",
            "--accent: #3fd8b8; --accent-bright: #6ff0d4; --amber: #e8b45a;");
 if (head.indexOf("#0e7f6c") < 0) { console.error("ABORT: the palette swap missed"); process.exit(1); }
-if (head.indexOf("ten free VST3") < 0) { console.error("ABORT: the title swap missed"); process.exit(1); }
+if (head.indexOf("eleven free VST3") < 0) { console.error("ABORT: the title swap missed"); process.exit(1); }
 
 const foot = s.slice(footAt);
 
@@ -78,7 +91,10 @@ const ITEMS = [
    "The front panel comes off. Underneath is a patch bay where any band's audio or envelope can drive any other band's knobs, or move the crossovers themselves."],
   ["Battlestar Overdrive", "battlestar-overdrive", "Effect",
    "An overdrive, and a tribute: it is named after Max Christensen's Copenhagen solo project and built with his blessing. Eight drive engines on one knob, running from a polite tube to a fold-crush-chaos cascade with no musical justification whatsoever, every one of them level-matched by a table the plugin measures for itself at startup.",
-   "The CRT is part of the instrument. It names the engine you landed on, speeds its starfield up as you climb the knob, goes to warp on the seventh and blows up a star on the eighth. And watch the fuel."]
+   "The CRT is part of the instrument. It names the engine you landed on, speeds its starfield up as you climb the knob, goes to warp on the seventh and blows up a star on the eighth. And watch the fuel."],
+  ["Thin Walls", "thin-walls", "Effect",
+   "An apartment of three rooms and three doors that you put the sound inside and then walk around in. Every arrival is a journey the engine traced: the straight line, the bounces off the walls, the path bent round a door frame, the muffled fraction through a shut leaf or a party wall, and the tail each room builds for itself.",
+   "There is no reverb amount, because the amount is decided by where you stood. Five surface treatments chosen separately for walls, floor and ceiling; two walls of every room can be broken at a movable point and splayed outward; and every door has a handle you can take hold of."]
 ];
 
 const cards = ITEMS.map(function (it) {
@@ -94,21 +110,21 @@ const cards = ITEMS.map(function (it) {
 const BODY = [
 '<header class="hero">',
 '  <div class="wrap">',
-'    <div class="kicker">Ten plugins · Windows · Free</div>',
+'    <div class="kicker">Eleven plugins · Windows · Free</div>',
 '    <h1>The Brokild <span>Collection</span></h1>',
-'    <p class="tagline">Eight instruments and two effects, in a single download.</p>',
+'    <p class="tagline">Eight instruments and three effects, in a single download.</p>',
 '    <p class="lede">Everything Brokild makes, with its manuals and its standalones. They are not a',
 '      product line — they were built one at a time, each to answer a different question — but they',
 '      share a rack of effects, a patch folder and a way of working: nothing in any of them is',
 '      asserted, every claim is measured by a bench that renders real audio and reads the numbers',
 '      off it.</p>',
 '    <div class="btnrow">',
-'      <a class="btn btn-primary" href="Brokild-Collection-win64.zip" download>',
-'        Download all ten (' + MB + ' MB)</a>',
+'      <a class="btn btn-primary" href="' + HREF + '">',
+'        Download all eleven (' + MB + ' MB)</a>',
 '      <span class="buildtag">September 2026</span>',
 '    </div>',
 '    <figure class="hero-shot" style="margin-top:2.4rem">',
-'      <img src="img/collection.jpg" alt="The Full Metal Racket panel, one of the ten plugins in the collection">',
+'      <img src="img/collection.jpg" alt="The Full Metal Racket panel, one of the eleven plugins in the collection">',
 '    </figure>',
 '  </div>',
 '</header>',
@@ -159,7 +175,7 @@ cards,
 '        <code>C:\\Program Files\\Common Files\\VST3\\</code>. A sub-folder such as',
 '        <code>...\\VST3\\Brokild\\</code> is fine and tidier; hosts look inside.</li>',
 '      <li><b>Rescan.</b> In Ableton Live: Preferences → Plug-Ins → Rescan. They appear under',
-'        Brokild — eight instruments and two effects.</li>',
+'        Brokild — eight instruments and three effects.</li>',
 '      <li><b>Or just run them.</b> Every folder also has an <code>.exe</code>. No installation at',
 '        all.</li>',
 '    </ol>',
@@ -173,4 +189,4 @@ cards,
 
 fs.mkdirSync(R + "vst3-apps/collection", { recursive: true });
 fs.writeFileSync(OUT, head + BODY + foot);
-console.log("collection page written - ten plugins, " + MB + " MB");
+console.log("collection page written - eleven plugins, " + MB + " MB");

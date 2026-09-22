@@ -34,6 +34,7 @@ $plugins = @(
   @{ slug = "clone-wars";        name = "Clone Wars" },
   @{ slug = "full-metal-racket"; name = "Full Metal Racket" },
   @{ slug = "martian-gain";      name = "Martian Gain" },
+  @{ slug = "thin-walls";        name = "Thin Walls" },
   @{ slug = "battlestar-overdrive"; name = "Battlestar Overdrive" }
 )
 

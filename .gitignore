@@ -53,3 +53,8 @@ desktop.ini
 *~
 .vscode/
 .idea/
+
+# The collection archive is a GitHub Release asset, not a file in the repo:
+# at eleven plugins it is 101 MB and GitHub rejects any file over 100 MB.
+# See vst3-apps/collection/contents.json for the url it is published at.
+vst3-apps/collection/Brokild-Collection-win64.zip

@@ -12,7 +12,6 @@
     "instead of leaving one to be remembered. Re-cutting the zip is a Windows job -",
     "see HANDOVER-STATIONARY-PC.md."
   ],
-
   "includes": [
     "battlestar-overdrive",
     "black-rider",
@@ -23,18 +22,23 @@
     "full-metal-racket",
     "high-tide",
     "martian-gain",
-    "photo-synth"
+    "photo-synth",
+    "thin-walls"
   ],
-
   "excludes": {
     "hairfryer": "In development - its own card says so, and a collection billed as finished work should not carry it.",
-    "rite-of-passage": "PENDING A DECISION. Published 2026-09-19, after this archive was cut, so it is not in the zip. Either re-cut on the stationary PC and move this to 'includes', or leave it out on purpose and say why here.",
-    "thin-walls": "PENDING A DECISION. Published 2026-09-22, after this archive was cut. Same choice as rite-of-passage, and the same re-cut settles both: the collection would go to twelve, eight instruments and four effects."
+    "rite-of-passage": "Left out on purpose: its zip carries the .vst3 bundle and a GUIDE.md, with no standalone and no manual, so it does not have the shape the other entries do - every plugin in the archive gets a folder with a bundle, an application and a handbook. Peter also asked for it to be kept minimal (\"you can just store it in the VST3 folder\"). Give it a standalone and a manual and it belongs here.",
+    "legion": "Same reason as rite-of-passage: VST3 only, no standalone and no manual yet."
   },
-
   "claims": {
-    "count": 10,
-    "phrase": "eight instruments and two effects",
+    "count": 11,
+    "phrase": "eight instruments and three effects",
     "_comment": "Repeated across app.json, the collection page and the front page. Checked so a re-cut cannot update the zip and leave the prose saying ten."
+  },
+  "download": {
+    "url": "https://github.com/peterboggild/BrokildApps/releases/download/collection-2026-09-22/Brokild-Collection-win64.zip",
+    "bytes": 106040644,
+    "sha256": "6b6a18a1af9b4881e8d31e644de3605955242325e7a5c4475bf59f3a66ea9552",
+    "_comment": "The archive is a GitHub RELEASE ASSET, not a file in this repository. At eleven plugins it is 101 MB and GitHub refuses any file over 100 MB outright - the push is rejected, so there is no choice to make. Git LFS is not an option either: GitHub Pages serves an LFS pointer rather than the file. Re-cutting therefore means uploading a new asset and pointing this url at it. The zip is kept on the PC beside this file, untracked, which is why the archive check in tools/check-links.js still runs there and skips in CI."
   }
 }
