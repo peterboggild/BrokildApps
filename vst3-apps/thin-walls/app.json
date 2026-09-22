@@ -1,0 +1,15 @@
+{
+  "slug": "thin-walls",
+  "name": "Thin Walls (VST3)",
+  "description": "An apartment of three rooms and three doors that you put the sound inside and then walk around in. Place up to four sources anywhere, stand where you like, turn your head, open a door or shut it. Every arrival is a journey the engine traced: the straight line, the bounces, the path bent round a door frame, the muffled part through a shut leaf or the party wall, and each room's own tail. Five surface treatments, chosen separately for walls, floor and ceiling; two walls of every room can be splayed outward. There is no reverb amount, because the amount is decided by where you stood.",
+  "status": "live",
+  "url": "vst3-apps/thin-walls/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/thin-walls.jpg",
+  "note": "Windows VST3 · build 260921.1 · free download · 3 rooms, 3 doors, 4 sources · 5 materials per surface, breakable walls · measured MIT KEMAR head · 17-page handbook included.",
+  "tags": [
+    "vst3",
+    "effect"
+  ]
+}

@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thin Walls &mdash; VST3 binaural room | BrokildApps</title>
+  <meta name="description" content="Thin Walls is a free Windows VST3 effect: an apartment of three rooms and three doors that you place up to four sound sources in and then walk around yourself. Image-source reflections, doorway diffraction, transmission through a shut door and through the party wall, one coupled reverberator per room, and a measured head. There is no reverb amount, because the amount is decided by where you stood." />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230d0b0a'/><rect x='16' y='30' width='40' height='44' fill='none' stroke='%23d8a45c' stroke-width='6'/><rect x='56' y='18' width='30' height='64' fill='none' stroke='%23d8a45c' stroke-width='6'/><rect x='52' y='44' width='8' height='16' fill='%230d0b0a'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    :root {
+      --accent: #8a5a1e;
+      --accent-bright: #b9792c;
+      --amber: #9a6a12;
+      --cool: #3d7a99;
+      --bg: #ffffff;
+      --bg-soft: #faf5ec;
+      --card: #ffffff;
+      --border: #ece0cd;
+      --text: #1b1510;
+      --text-soft: #5e5448;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+      --code-bg: #f5eddf;
+      --plan-paper: #efe7d6;
+      --plan-ink: #2b2a27;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #d8a45c; --accent-bright: #f0d2a4; --amber: #d8a45c;
+        --cool: #7fb9d8;
+        --bg: #0d0b0a; --bg-soft: #161311; --card: #1a1512; --border: #2e2724;
+        --text: #f0d2a4; --text-soft: #9a8a78;
+        --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.45);
+        --code-bg: #201a14;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 0 1.5rem; }
+    a { color: var(--accent); }
+
+    /* --- Brokild chrome ---------------------------------------------
+       The same black bar sits on every page in the catalogue, and this
+       block is identical in all of them. Each plugin keeps its own
+       palette strictly BELOW the bar; the bar never takes it, so the
+       header reads the same wherever you have landed. --- */
+    .topbar {
+      position: sticky; top: 0; z-index: 60;
+      background: rgba(4,6,11,.93);
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+      border-bottom: 1px solid #17212f;
+      box-shadow: 0 1px 0 rgba(94,240,218,.08), 0 10px 30px rgba(0,0,0,.5);
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .72rem 0; }
+    .brand { display: flex; align-items: center; gap: .72rem; text-decoration: none; }
+    .brand-mark {
+      width: 38px; height: 38px; flex: none; display: grid; place-items: center;
+      font: 900 1.2rem/1 "Orbitron", "Segoe UI", system-ui, sans-serif;
+      color: #5ef0da; background: #08101a;
+      border: 1px solid rgba(94,240,218,.42); border-radius: 4px;
+      box-shadow: 0 0 14px rgba(94,240,218,.16), inset 0 0 12px rgba(94,240,218,.07);
+    }
+    .brand-name { font: 600 .95rem/1.4 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .22em; text-transform: uppercase; color: #fff; }
+    .brand-sub  { font: 400 .66rem/1.5 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .2em; text-transform: uppercase; color: #2a9d8f; }
+    .nav a.back { font: 500 .74rem/1 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .16em; text-transform: uppercase;
+                  color: #ffb454; text-decoration: none;
+                  border: 1px solid rgba(255,180,84,.3); border-radius: 3px;
+                  padding: .5rem .85rem; transition: all .15s; white-space: nowrap; }
+    .nav a.back:hover { color: #fff; border-color: #ffb454; background: rgba(255,180,84,.1);
+                        text-shadow: 0 0 12px rgba(255,180,84,.55); }
+
+    /* ---- hero: a lamp on in one room of a dark flat ---- */
+    .hero {
+      background:
+        radial-gradient(90% 70% at 74% 6%, rgba(216,164,92,.26) 0%, transparent 60%),
+        radial-gradient(70% 70% at 4% 100%, rgba(127,185,216,.12) 0%, transparent 64%),
+        linear-gradient(170deg, #1a130d 0%, #0a0807 100%);
+      color: #f0d2a4; padding: 3.4rem 0 3rem; border-bottom: 1px solid var(--border);
+    }
+    .kicker {
+      font-size: .74rem; letter-spacing: .34em; text-transform: uppercase;
+      color: #c08f4e; margin-bottom: 1rem;
+    }
+    /* The panel sets its headings in a wide-tracked geometric sans, because the
+       right half of it is an architect's drawing. The page does the same. */
+    .hero h1 {
+      font-family: "Century Gothic", "Futura", "Trebuchet MS", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: clamp(2.4rem, 7.4vw, 4.6rem); line-height: 1.02; margin: 0;
+      letter-spacing: .13em; text-transform: uppercase;
+      color: #f5ddb6;
+      text-shadow: 0 0 44px rgba(216,164,92,.34);
+    }
+    .hero .tagline { font-size: 1.22rem; color: #e0b87c; margin: 1.2rem 0 0; font-weight: 600; }
+    .hero p.lede { color: #bdac96; max-width: 64ch; margin: 1.1rem 0 0; }
+    .hero-shot { margin: 2.4rem 0 0; }
+    .hero-shot img {
+      width: 100%; display: block; border-radius: 10px;
+      border: 1px solid #3d2c19; box-shadow: 0 18px 48px rgba(0,0,0,.7);
+    }
+    .btnrow { display: flex; flex-wrap: wrap; gap: .8rem; margin: 1.9rem 0 0; }
+    .buildtag { align-self: center; font: 600 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+                letter-spacing: .14em; text-transform: uppercase; opacity: .6; }
+    .btn {
+      display: inline-flex; align-items: center; gap: .55rem;
+      padding: .78rem 1.3rem; border-radius: 10px; text-decoration: none;
+      font-weight: 600; font-size: .96rem; border: 1px solid transparent;
+    }
+    .btn-primary { background: #d8a45c; color: #24180a; }
+    .btn-primary:hover { background: #f0d2a4; }
+    .btn-ghost { border-color: #6b4f2a; color: #e6cda6; }
+    .btn-ghost:hover { border-color: #d8a45c; color: #f0d2a4; }
+    .btn small { font-weight: 400; opacity: .78; }
+
+    /* ---- body sections ---- */
+    section.block { padding: 3rem 0; border-bottom: 1px solid var(--border); }
+    section.block:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.55rem; margin: 0 0 .4rem; letter-spacing: -.01em; }
+    h3 { font-size: 1.02rem; margin: 1.6rem 0 .3rem; }
+    .sub { color: var(--text-soft); margin: 0 0 1.4rem; max-width: 70ch; }
+    p { max-width: 72ch; }
+    code {
+      font-family: Consolas, "SF Mono", Menlo, monospace; font-size: .86em;
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 4px; padding: .1em .4em;
+    }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 1rem; margin-top: 1.4rem; }
+    .c {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.1rem 1.2rem; box-shadow: var(--shadow);
+    }
+    .c .n { font: 600 .72rem/1 Consolas, monospace; color: var(--amber);
+            letter-spacing: .1em; text-transform: uppercase; }
+    .c h4 { margin: .5rem 0 .35rem; font-size: 1rem; }
+    .c p { margin: 0; font-size: .9rem; color: var(--text-soft); max-width: none; }
+
+    figure { margin: 1.6rem 0 0; }
+    figure img {
+      width: 100%; display: block; border-radius: 10px;
+      border: 1px solid var(--border); box-shadow: var(--shadow); background: #0d0b0a;
+    }
+    figcaption { font-size: .85rem; color: var(--text-soft); margin-top: .55rem; }
+    .figrow { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; align-items: start; }
+    .figrow3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; align-items: start; }
+    @media (max-width: 700px) { .figrow, .figrow3 { grid-template-columns: 1fr; } }
+
+    .note {
+      background: var(--bg-soft); border-left: 3px solid var(--amber);
+      padding: .9rem 1.1rem; border-radius: 0 8px 8px 0; margin: 1.3rem 0;
+      font-size: .93rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: 1rem; }
+    th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { font-size: .74rem; text-transform: uppercase; letter-spacing: .12em; color: var(--text-soft); }
+    td:first-child { font-weight: 600; width: 30%; }
+
+    /* ---- the plan drawing -------------------------------------------
+       Drawn from the geometry the engine uses, not traced from a picture:
+       three shoeboxes, three 0.90 m doors, each on the wall and at the
+       offset the plug-in actually places it. --- */
+    .planwrap {
+      margin-top: 1.4rem; background: var(--plan-paper);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+    }
+    .planwrap svg { width: 100%; height: auto; display: block; }
+    .plan-room { fill: none; stroke: #2b2a27; stroke-width: 3; }
+    .plan-solid { fill: #d6cbb4; stroke: #2b2a27; stroke-width: 3; }
+    .plan-door { stroke: #b9792c; stroke-width: 7; stroke-linecap: butt; }
+    .plan-gap { stroke: #efe7d6; stroke-width: 9; stroke-linecap: butt; }
+    .plan-lab { font: 600 15px "Century Gothic","Futura","Trebuchet MS",sans-serif;
+                letter-spacing: .16em; fill: #2b2a27; }
+    .plan-dim { font: 400 12px Consolas, monospace; fill: #6d6455; }
+    .plan-key { font: 600 11px Consolas, monospace; fill: #8a6636; letter-spacing: .08em; }
+
+    /* ---- the bench numbers ---- */
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin-top: 1.4rem; }
+    .fact {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1rem 1.1rem; box-shadow: var(--shadow);
+    }
+    .fact .v {
+      font: 700 1.45rem/1.1 Consolas, ui-monospace, monospace; color: var(--accent);
+      letter-spacing: -.01em;
+    }
+    .fact .l { font-size: .84rem; color: var(--text-soft); margin-top: .4rem; }
+
+    footer {
+      background: var(--bg-soft); border-top: 1px solid var(--border);
+      padding: 2.2rem 0; color: var(--text-soft); font-size: .88rem;
+    }
+    footer p { max-width: 76ch; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <nav class="nav">
+      <a class="brand" href="../../index.html">
+        <span class="brand-mark">B</span>
+        <span>
+          <span class="brand-name">Brokild</span><br>
+          <span class="brand-sub">Musical instruments</span>
+        </span>
+      </a>
+      <a class="back" href="../../index.html">← All instruments</a>
+    </nav>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">VST3 Effect · Windows · Free</div>
+    <h1>Thin Walls</h1>
+    <p class="tagline">Put the sound in the next room and shut the door.</p>
+    <p class="lede">
+      An apartment of three rooms and three doors. You place up to four sound
+      sources in it, you stand in it yourself, and what comes out is what your
+      two ears would pick up from where you are standing and which way you are
+      facing. Every arrival is a journey the engine has actually traced: the
+      straight line, the bounces off the walls, the path that bends round a door
+      frame, the muffled fraction that gets through a shut leaf or a party wall,
+      and the tail each room builds for itself. Walk around it while it plays.
+    </p>
+    <p class="lede" style="margin-top:1rem">
+      Five surface treatments, chosen separately for the walls, the floor and
+      the ceiling of each room. Two walls of every room can be broken at a
+      movable point and splayed outward. And every door has a handle you can
+      take hold of and swing.
+    </p>
+
+    <div class="btnrow">
+      <a class="btn btn-primary" href="Thin-Walls-VST3-win64.zip" download>
+        Download for Windows <small>VST3 + standalone &middot; 8.2 MB</small>
+      </a>
+      <span class="buildtag">Build 260921.1</span>
+      <a class="btn btn-ghost" href="Thin-Walls-Manual.pdf">
+        Handbook <small>PDF, 17 pages</small>
+      </a>
+    </div>
+
+    <figure class="hero-shot" style="margin-top:2.4rem">
+      <img src="img/panel.jpg" alt="The Thin Walls panel: the view from inside the flat on the left, the architect's plan on the right" />
+    </figure>
+  </div>
+</header>
+
+<section class="block">
+  <div class="wrap">
+    <h2>There is no reverb amount</h2>
+    <p class="sub">Because the amount is decided by where you stood.</p>
+    <p>
+      A reverb asks you how much room you want. A room does not: it gives you
+      exactly as much as the distance, the absorption and the doors say it
+      should. Thin Walls calibrates the reverberant level to what the physics
+      of a diffuse field demands, so the <b>direct-to-reverberant ratio</b>
+      &mdash; the strongest cue your ears have for distance &mdash; comes out
+      right by construction. Walk twice as far away and it falls by 6 dB. At
+      the critical distance it reads within 3.5 dB of zero for every material
+      in the flat.
+    </p>
+    <p>
+      What you get instead of an amount is a place to stand. Close, far,
+      through a doorway and behind a shut door are four different sounds, and
+      they differ in <em>character</em> &mdash; timing, colour, direction
+      &mdash; not merely in level.
+    </p>
+    <div class="note">
+      Three trims &mdash; DIRECT, EARLY and REVERB &mdash; are there anyway,
+      defaulting to 0 dB, for when you want to lie about it on purpose.
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>The flat</h2>
+    <p class="sub">Three shoeboxes, every pair joined by a door &mdash; so every
+      &ldquo;behind that one&rdquo; case exists, including the two-door route
+      through the third room.</p>
+
+    <div class="planwrap">
+      <svg viewBox="-26 -30 772 420" role="img" aria-label="Plan of the apartment: a 6 by 5 metre living room, a 3 by 3.5 metre box room above it, and a 12 by 9 metre hall to the east, with three doors">
+        <!-- the block north-west of the living room is outside the flat -->
+        <rect class="plan-solid" x="0" y="20" width="120" height="140" />
+        <text class="plan-dim" x="60" y="95" text-anchor="middle">outside</text>
+
+        <!-- rooms: 40 px per metre, y flipped so north is up -->
+        <rect class="plan-room" x="0"   y="160" width="240" height="200" />
+        <rect class="plan-room" x="120" y="20"  width="120" height="140" />
+        <rect class="plan-room" x="240" y="0"   width="480" height="360" />
+
+        <!-- doors: paint out the wall, then draw the leaf's opening in brass -->
+        <line class="plan-gap"  x1="162" y1="160" x2="198" y2="160" />
+        <line class="plan-door" x1="162" y1="160" x2="198" y2="160" />
+        <line class="plan-gap"  x1="240" y1="242" x2="240" y2="278" />
+        <line class="plan-door" x1="240" y1="242" x2="240" y2="278" />
+        <line class="plan-gap"  x1="240" y1="82"  x2="240" y2="118" />
+        <line class="plan-door" x1="240" y1="82"  x2="240" y2="118" />
+
+        <!-- Every label is centred in its own room and must FIT it: the first
+             draft ran the living room's dimensions straight through the wall
+             and into the hall, which a grep would never have shown. -->
+        <text class="plan-lab" x="120" y="248" text-anchor="middle">LARGE</text>
+        <text class="plan-dim" x="120" y="268" text-anchor="middle">6.0 × 5.0 × 2.8 m</text>
+        <text class="plan-dim" x="120" y="285" text-anchor="middle">the living room</text>
+
+        <text class="plan-lab" x="180" y="72"  text-anchor="middle">SMALL</text>
+        <text class="plan-dim" x="180" y="92"  text-anchor="middle">3.0 × 3.5 m</text>
+        <text class="plan-dim" x="180" y="109" text-anchor="middle">h 2.5 m</text>
+        <text class="plan-dim" x="180" y="126" text-anchor="middle">the box room</text>
+
+        <text class="plan-lab" x="480" y="166" text-anchor="middle">GIANT</text>
+        <text class="plan-dim" x="480" y="186" text-anchor="middle">12.0 × 9.0 × 5.0 m</text>
+        <text class="plan-dim" x="480" y="203" text-anchor="middle">the hall</text>
+
+        <text class="plan-key" x="180" y="152" text-anchor="middle">door 1</text>
+        <text class="plan-key" x="252" y="264" text-anchor="start">door 2</text>
+        <text class="plan-key" x="252" y="104" text-anchor="start">door 3</text>
+
+        <!-- north, because the plan is drawn with y up and the parameters are
+             x east / y north -->
+        <g stroke="#8a6636" stroke-width="2" fill="none">
+          <line x1="700" y1="330" x2="700" y2="304" />
+          <path d="M 694 312 L 700 302 L 706 312" />
+        </g>
+        <text class="plan-key" x="700" y="348" text-anchor="middle">N</text>
+
+        <text class="plan-dim" x="0" y="382">origin · x east, y north · every door 0.90 × 2.05 m · ears at 1.65 m</text>
+      </svg>
+    </div>
+
+    <div class="cards">
+      <div class="c"><div class="n">a hinge side</div><h4>A door is a strip</h4><p>Opening one 30 % uncovers a real 27 cm gap beside the frame, not a uniformly thinner wall. The leaf swings into the room it is hung in, and you can watch it.</p></div>
+      <div class="c"><div class="n">an open door absorbs</div><h4>A room changes size</h4><p>Sound that leaves through a doorway does not come back. The box room in bare plaster rings for 1.32 s at 1 kHz shut, and 0.58 s with both its doors wide open.</p></div>
+      <div class="c"><div class="n">nine surfaces</div><h4>Walls you can change</h4><p>Absorbing, furnished, plaster, tiled or studio &mdash; chosen separately for the walls, the floor and the ceiling of each room, from published octave-band absorption. The hall in tiles rings for five and a half seconds at 1 kHz.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>What you hear behind a door</h2>
+    <p class="sub">Three different ways in, and they do not sound alike. This is
+      the part the name is about.</p>
+
+    <div class="figrow">
+      <figure style="margin-top:0">
+        <img src="img/plan-open.jpg" alt="The plan with the door open: the path bends at the doorway" />
+        <figcaption><b>Open.</b> Outside the open strip the path bends at the
+          nearest edge and pays Maekawa's diffraction, which costs the top end
+          far more than the bottom &mdash; 6 dB more at 4 kHz than the clear
+          line. The sound is localised <b>at the doorway</b>, as it is in a real
+          flat.</figcaption>
+      </figure>
+      <figure style="margin-top:0">
+        <img src="img/plan-shut.jpg" alt="The plan with the door shut: what is left comes through the leaf and the wall" />
+        <figcaption><b>Shut.</b> A light leaf loses 14 dB at 125 Hz and 32 dB at
+          8 kHz; the party wall, 30 to 53 dB. Shutting the door drops 1 kHz by
+          20 dB and darkens what is left. It still radiates from the point
+          nearest the straight line, so it comes from the right direction.</figcaption>
+      </figure>
+    </div>
+
+    <div class="note">
+      A door part open sits between the two, continuously. Nothing crossfades a
+      shut sound into an open one &mdash; the opening is a real strip of a real
+      width, and the diffraction, the leaf and the room's own absorption all
+      follow from it.
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>The room is yours to change</h2>
+    <p class="sub">Not a size knob and a decay knob &mdash; the surfaces and
+      the shape, with the reverberation time falling out of them.</p>
+
+    <div class="figrow">
+      <figure style="margin-top:0">
+        <img src="img/ctrl-materials.jpg" alt="The materials grid: a row per room, a column for walls, floor and ceiling" />
+        <figcaption><b>A material per surface.</b> Between a source on the
+          floor and a listener on the floor, the first two reflections to
+          arrive are the floor's and the ceiling's. A carpet is the most
+          lopsided absorber in a normal room &mdash; almost nothing below
+          250 Hz, a great deal above 2 kHz &mdash; so <b>floor = ABSORBING</b>
+          is a real tuning control, and <b>ceiling = ABSORBING</b> is the cloud
+          every control room has over the desk. Both default to AS WALLS, so a
+          room you never touch is the room it always was.</figcaption>
+      </figure>
+      <figure style="margin-top:0">
+        <img src="img/plan-folded.jpg" alt="The plan with four walls broken and splayed outward" />
+        <figcaption><b>Breakable walls.</b> The two walls of each room that
+          carry no doorway can be split at a movable point and that point
+          pushed out, so the room stops being rectangular. Drag the diamond in
+          the plan. A centred source in a square hard room measures
+          <b>2.4 dB</b> uneven across 300 Hz&ndash;1.2 kHz and <b>2.0 dB</b>
+          with both walls broken; push a wall 0.6 m out and the room's own
+          decay goes from 1.766 s to <b>1.801 s</b>, because the room really is
+          bigger.</figcaption>
+      </figure>
+    </div>
+
+    <div class="note" style="border-color:rgba(200,105,92,.4)">
+      <b>Push the break OUTWARD.</b> Pulling it inward makes the wall concave,
+      which focuses sound at a point and is worse than leaving it flat. Real
+      studios splay outward. And be clear about what it does here: the splay
+      acts on the <b>early reflections</b>, not on standing waves &mdash; this
+      model's late field is statistical rather than modal. Above the Schroeder
+      frequency, about 72 Hz in the hall as a studio, that is where splay does
+      its audible work in a real room too. Below it, absorption is what helps.
+    </div>
+
+    <h3>STUDIO, the fifth material</h3>
+    <p>
+      Its absorption was not guessed: it was solved backwards from Eyring's
+      formula for a decay that <b>does not move with frequency</b>, and what
+      comes out is roughly constant absorption near a quarter with a little
+      relief at the top to pay for air absorption &mdash; which is what
+      broadband absorbers plus bass traps physically are. The hall as a studio
+      measures <b>0.71 s at 250 Hz, 1 kHz and 4 kHz alike</b>, a spread of
+      1.00&times;, where the same room tiled spreads 3.09&times;. The living
+      room: 0.39 / 0.40 / 0.41 s.
+    </p>
+    <p>
+      Its treatment is <b>diffusion, not absorption</b>. Reflections keep their
+      energy and lose the specular direction, so the room stays live while the
+      flutter goes: the specular reflections carry <b>18 %</b> of what a
+      plastered room's carry, and the rest is scattered into the room rather
+      than taken out of it.
+    </p>
+
+    <h3>And the doors have handles</h3>
+    <p>
+      In the 3D view, walk up to a door &mdash; within 2.5 m, in front of you,
+      not through a wall &mdash; and its handle lights up under the pointer.
+      Click to slam it or throw it open; drag to swing it. Meanwhile
+      <b>W&nbsp;A&nbsp;S&nbsp;D and the arrow keys always win</b>: they walk
+      and turn even when a menu or a fader has the focus, so you can set a
+      material and then simply walk.
+    </p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Four sources, two kinds, two input buses</h2>
+    <p class="sub">Each source has its own place, height, facing, type, level and input.</p>
+
+    <div class="figrow">
+      <figure style="margin-top:0">
+        <img src="img/pov-speaker.jpg" alt="A modelled two-way loudspeaker seen from inside the room" />
+        <figcaption><b>LOUDSPEAKER</b> &mdash; a two-way monitor: a 6.5&Prime;
+          woofer below 2.2 kHz and a 1&Prime; tweeter above, nearly
+          omnidirectional at 125 Hz and about 22 dB down straight behind it at
+          4 kHz. Turn one away and it loses 21.5 dB at 4 kHz but only 5.5 dB at
+          250 Hz.</figcaption>
+      </figure>
+      <figure style="margin-top:0">
+        <img src="img/pov-pure.jpg" alt="A pure point source drawn as a ball on a stand" />
+        <figcaption><b>PURE</b> &mdash; a point source on a stand, from
+          omnidirectional to cardioid at every frequency. Narrowing it removes
+          radiated power, so a cardioid excites the room 4.8 dB less than an
+          omni: point it away and the room gets brighter relative to it, not
+          darker.</figcaption>
+      </figure>
+    </div>
+
+    <h3>MAIN and AUX</h3>
+    <p>
+      Every source takes one channel, or both, from either of two stereo input
+      buses. <b>MAIN</b> is the track the plugin is on &mdash; feed MAIN L and
+      MAIN R to two loudspeakers and you have a stereo pair standing in a room.
+      <b>AUX</b> is a second input bus, the <b>sidechain</b> in most hosts:
+      route another track into it and a second instrument plays in a different
+      room of the same flat. A source set to OFF is silent, costs nothing, and
+      stays in the views as a ghost so you can place it before you use it.
+    </p>
+    <p>
+      And because walking around a room is not something you can do with one
+      hand on a transport bar, the plugin will loop a file of your own into the
+      input while you do it &mdash; in the VST3 and in the standalone alike.
+    </p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>What the bench proves</h2>
+    <p class="sub">90 checks, all clear, beside 73 that drive the panel. The
+      bench renders real audio and measures it; these are its numbers.</p>
+
+    <div class="facts">
+      <div class="fact"><div class="v">−708 µs</div><div class="l">interaural delay at 90°, against Woodworth's 666</div></div>
+      <div class="fact"><div class="v">0.1 dB</div><div class="l">how far the direct path sits from the physics, 10 Hz to 16 kHz, wherever a source stands</div></div>
+      <div class="fact"><div class="v">15 of 15</div><div class="l">room and material cases matching Eyring's reverberation time</div></div>
+      <div class="fact"><div class="v">5.6–6.6 dB</div><div class="l">spectral roughness of the tail, against the 5.57 dB of a perfectly diffuse field</div></div>
+      <div class="fact"><div class="v">1.00×</div><div class="l">how far a studio-treated hall's decay moves across 250 Hz, 1 kHz and 4 kHz; tiled, it spreads 3.09×</div></div>
+      <div class="fact"><div class="v">−23 dB</div><div class="l">at 1 kHz from shutting a door &mdash; and 4 kHz loses 12 dB more than 250 Hz</div></div>
+      <div class="fact"><div class="v">31 dB</div><div class="l">down through the party wall and a shut door, against the same distance in your own room</div></div>
+      <div class="fact"><div class="v">0.09 dB</div><div class="l">how far the general path search lands from the exact shoebox on a wall broken by 2 mm</div></div>
+    </div>
+
+    <div class="note">
+      The head is the <b>MIT KEMAR</b> compact measurement set &mdash; 368
+      directions, diffuse-field equalised, converted to minimum phase with a
+      separate onset delay and resampled to your host's rate. Air absorption is
+      ISO 9613-1, diffraction is Maekawa, absorption coefficients are from the
+      standard tables. Delays are read with a 16-tap windowed sinc, so a source
+      may stand anywhere without losing the top octave. None of it was tuned by
+      ear afterwards.
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Get it</h2>
+    <div class="btnrow" style="margin-top:.6rem">
+      <a class="btn btn-primary" href="Thin-Walls-VST3-win64.zip" download>
+        Thin-Walls-VST3-win64.zip <small>VST3 + standalone &middot; 8.2 MB</small>
+      </a>
+      <a class="btn btn-ghost" href="Thin-Walls-Manual.pdf">
+        Thin-Walls-Manual.pdf <small>17 pages</small>
+      </a>
+    </div>
+    <p style="margin-top:1.2rem">
+      Copy the whole <code>Thin Walls.vst3</code> folder into
+      <code>C:\Program Files\Common Files\VST3</code> and rescan. The standalone
+      needs no installing.
+    </p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Specifications</h2>
+    <table>
+      <tr><td>Format</td><td>Windows VST3 (64-bit), plus a standalone application</td></tr>
+      <tr><td>Type</td><td>Effect &mdash; stereo in, stereo out, plus a second stereo input bus (&ldquo;Aux In&rdquo;, the host's sidechain)</td></tr>
+      <tr><td>Rooms</td><td>Three: 6×5×2.8 m, 3×3.5×2.5 m and 12×9×5 m, joined by three 0.90 m doors. Two walls of each can be broken and pushed ±0.6 m</td></tr>
+      <tr><td>Materials</td><td>Five &mdash; absorbing, furnished, plaster, tiled, studio &mdash; chosen per surface: walls, floor and ceiling of each room</td></tr>
+      <tr><td>Sources</td><td>Four, each a modelled two-way loudspeaker or a point source, each with its own input</td></tr>
+      <tr><td>Reflections</td><td>Image sources to second order; a general surface-sequence search once a wall is broken, validated against the exact arithmetic to 0.09 dB</td></tr>
+      <tr><td>Reverberation</td><td>One 16-line feedback delay network per room, allpass diffusers inside every line, per-band decay from Eyring, coupled through the doors and walls</td></tr>
+      <tr><td>Delay reader</td><td>16-tap windowed sinc; the direct path holds to a tenth of a decibel from 10 Hz to 16 kHz</td></tr>
+      <tr><td>Head</td><td>MIT KEMAR compact set, 368 directions, resampled at prepare; EAR SPACING 15 to 100 cm</td></tr>
+      <tr><td>Parameters</td><td>65, all automatable &mdash; including every source position, every surface, every broken wall and your own position</td></tr>
+      <tr><td>CPU</td><td>One source about 17 % of a core at 48 kHz; four with every door open, 40 %</td></tr>
+      <tr><td>Sample rates</td><td>Any. Bench-tested at 44.1 and 96 kHz.</td></tr>
+      <tr><td>Hosts</td><td>Any VST3 host &mdash; developed against Ableton Live 12</td></tr>
+      <tr><td>Price</td><td>Free. No account, no registration, no telemetry.</td></tr>
+    </table>
+    <p style="margin-top:1.2rem; font-size:.88rem; color:var(--text-soft)">
+      Honest limits, also in the handbook: where the rooms are and which doors
+      join them cannot change; reflections are specular (only STUDIO scatters)
+      and stop at the second order; breaking a wall moves the early reflections
+      rather than the room's standing waves; and two sources in one room share
+      that room's field &mdash; correct, but the share each hands it is taken
+      at 1 kHz rather than per band.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>Thin Walls</b> &mdash; a native VST3 effect, September 2026.
+      Native C++ audio, JUCE 8, interface drawn in the plugin's own window.
+      HRTF data: the MIT KEMAR measurements of W. G. Gardner and K. D. Martin
+      (1994), MIT Media Lab, used with thanks. Source and issues:
+      <a href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">github.com/peterboggild/BrokildApps</a>.
+      Its stablemates are
+      <a href="../battlestar-overdrive/index.html">Battlestar Overdrive</a>,
+      <a href="../martian-gain/index.html">Martian Gain</a>,
+      <a href="../high-tide/index.html">High Tide</a>,
+      <a href="../brain-scan/index.html">Brain Scan</a>,
+      <a href="../black-rider/index.html">Black Rider</a>,
+      <a href="../full-metal-racket/index.html">Full Metal Racket</a>,
+      <a href="../clone-wars/index.html">Clone Wars</a>,
+      <a href="../blade-ruiner/index.html">Blade Ruiner</a>,
+      <a href="../photo-synth/index.html">Photo Synth</a> and
+      <a href="../escape-room/index.html">Escape Room</a>.</p>
+    <p>This VST comes from the curved mind of Professor Brokild, and was programmed with VScode,
+      ChatGPT and Claude. Use of this is on your own peril. It may generate unique, beautiful,
+      scary or useless sounds for you, and it may crash your DAW project. Have fun, play unsafely,
+      unwisely, and unboringly.</p>
+    <p>Cheers, Peter Bøggild, September 2026.</p>
+  </div>
+</footer>
+
+</body>
+</html>
