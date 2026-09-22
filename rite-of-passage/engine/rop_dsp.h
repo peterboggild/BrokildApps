@@ -17,7 +17,13 @@ namespace rop
 
 constexpr int   kSlots    = 6;
 constexpr int   kSubBlock = 32;     // control rate, the BWFX granularity
-constexpr int   kMaxParams = 10;    // per effect
+/*  Per effect. Raised 10 -> 16 on 2026-09-22 to match bwfx::kMaxParams
+    exactly, so a wrapped World module can never have more knobs than a slot
+    can carry (KIERANATOR has 10, STRIP 9 — it fitted, with nothing to
+    spare, and "it fitted" is not a contract). It costs six floats twice and
+    six bytes per slot in SlotState, and nothing else: the state writes
+    numParams entries, not kMaxParams. */
+constexpr int   kMaxParams = 16;
 
 inline float clampf (float x, float a, float b) { return x < a ? a : (x > b ? b : x); }
 inline float lerpf  (float a, float b, float t) { return a + (b - a) * t; }
