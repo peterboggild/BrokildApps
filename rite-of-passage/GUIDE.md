@@ -286,9 +286,8 @@ a bar of its own clock.
 ## What the panel still does not have
 
 - **Seven effects have no mark of their own.** The glyph sheet carries eleven marks
-  and the empty brackets; GAP falls back to its name in type.
+  and the empty brackets; GAP falls back to its name in type. A World module in
+  a lane has none either, and draws its name in the BWFX teal instead.
 - **The wordmark is not used.** The delivered plank is shorter than its own
   lettering, so every letter is cut off at the bottom. The panel draws the
   title in type. See `assets/rite-decals/REDO.md`.
-- **The BWFX face shows the five macros only.** The rack's own module editor is
-  not on the panel yet; the macros are the part a DAW can automate.

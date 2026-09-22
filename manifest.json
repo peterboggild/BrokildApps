@@ -28,6 +28,7 @@
   ],
   "apps": [
     "vst3-apps/collection",
+    "vst3-apps/rite-of-passage",
     "vst3-apps/battlestar-overdrive",
     "vst3-apps/clone-wars",
     "vst3-apps/black-rider",
