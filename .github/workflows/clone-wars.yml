@@ -19,7 +19,7 @@ jobs:
     name: Engine sanity (Linux, headless)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build and run BWFX bench (the shared world rack)
         working-directory: BrokildWorldFX/test
         run: |
@@ -35,7 +35,8 @@ jobs:
               -I../../../../BrokildWorldFX/src -I../../../../BrokildWorldFX/modules \
               render_test.cpp ../Source/Core/cw_core.cpp \
               ../../../../BrokildWorldFX/src/bwfx_json.cpp \
-              ../../../../BrokildWorldFX/src/bwfx_rack.cpp \n              ../../../../BrokildWorldFX/src/bwfx_macros.cpp \
+              ../../../../BrokildWorldFX/src/bwfx_rack.cpp \
+              ../../../../BrokildWorldFX/src/bwfx_macros.cpp \
               ../../../../BrokildWorldFX/modules/bwfx_conv.cpp \
               ../../../../BrokildWorldFX/modules/bwfx_modules.cpp \
               ../../../../BrokildWorldFX/modules/bwfx_spectra.cpp -o render_test
@@ -58,7 +59,7 @@ jobs:
     runs-on: windows-latest
     needs: engine-test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Fetch WebView2 SDK (NuGet)
         working-directory: vst3-apps/clone-wars/plugin
         run: nuget install Microsoft.Web.WebView2 -Version 1.0.1901.177 -OutputDirectory webview2

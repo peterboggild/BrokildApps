@@ -1,0 +1,55 @@
+# Build trees. The benches and the DSW host write into the source folder on
+# purpose (CMakeLists sets RUNTIME_OUTPUT_DIRECTORY there so `./dsw` just
+# runs), which makes it easy to commit a binary by accident.
+build/
+*/build/
+test/build/
+cmake-build-*/
+
+# Bench and probe executables, built straight into test/ by the g++ one-liners
+# in the workflows and by hand while arguing with the DSP.
+BrokildWorldFX/test/bwfxtest
+rite-of-passage/test/roptest
+vocal-harmonizer/test/legiontest
+vst3-apps/clone-wars/plugin/test/render_test
+vst3-apps/clone-wars/plugin/test/audit
+vst3-apps/clone-wars/plugin/test/wavs/
+
+# The DSW host and the experiment bundles it loads.
+dsw/dsw
+dsw/dsw.exe
+dsw/plugins/*/*.so
+dsw/plugins/*/*.dll
+dsw/plugins/*/*.dylib
+
+# Compiled objects and libraries anywhere.
+*.o
+*.obj
+*.a
+*.lib
+*.exp
+*.ilk
+*.pdb
+
+# Rendered audio from the benches. The renders are evidence for one run, not
+# artefacts - CI uploads them, the repo should not carry them.
+*.wav
+
+# JUCE fetches itself at configure time.
+**/JUCE/
+**/_deps/
+
+# WebView2, fetched by NuGet in the Clone Wars workflow.
+vst3-apps/*/plugin/webview2/
+
+# The house-style release folder a local package step builds before zipping.
+vst3-apps/*/plugin/package/
+
+# OS and editor droppings.
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.vscode/
+.idea/

@@ -1,0 +1,102 @@
+name: Engines (Linux, headless)
+
+# The benches that were already in the repo but ran nowhere.
+#
+# Every one of these is plain C++17 with no JUCE and no audio device, because
+# they were written to be run from a terminal while the DSP was being argued
+# with. That is exactly what a runner is, so they cost about a minute between
+# them and they gate the thing that actually breaks: the maths.
+#
+# BWFX is compiled into all ten plugins, so a change to the shared rack is a
+# change to the whole fleet - which is why one push to any engine path runs
+# every job here rather than only the one that moved. The Clone Wars workflow
+# builds the Windows plugin and cuts the release zip; this one only ever
+# renders audio and reads numbers off it.
+
+on:
+  push:
+    paths:
+      - "BrokildWorldFX/**"
+      - "rite-of-passage/**"
+      - "vocal-harmonizer/**"
+      - "dsw/**"
+      - ".github/workflows/engines.yml"
+  pull_request:
+    paths:
+      - "BrokildWorldFX/**"
+      - "rite-of-passage/**"
+      - "vocal-harmonizer/**"
+      - "dsw/**"
+      - ".github/workflows/engines.yml"
+  workflow_dispatch:
+
+# A second push to the same branch makes the first one's answer irrelevant.
+concurrency:
+  group: engines-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bwfx:
+    name: BWFX bench (the shared world rack)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build and run the bench
+        working-directory: BrokildWorldFX/test
+        run: |
+          g++ -O2 -std=c++17 -Wall -Wextra -I../src -I../modules \
+              bench.cpp ../src/bwfx_json.cpp ../src/bwfx_rack.cpp ../src/bwfx_macros.cpp \
+              ../modules/bwfx_conv.cpp ../modules/bwfx_modules.cpp \
+              ../modules/bwfx_spectra.cpp -o bwfxtest
+          ./bwfxtest
+
+  rite-of-passage:
+    name: Rite of Passage bench
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the bench
+        working-directory: rite-of-passage
+        run: |
+          cmake -S test -B test/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build test/build --parallel
+      - name: Run the bench
+        working-directory: rite-of-passage/test
+        run: ./build/roptest
+
+  legion:
+    name: Legion bench (vocal harmoniser)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the bench
+        working-directory: vocal-harmonizer
+        run: |
+          cmake -S test -B test/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build test/build --parallel
+      - name: Run the bench
+        working-directory: vocal-harmonizer/test
+        run: ./build/legiontest
+
+  dsw:
+    name: DSW host + experiment plugins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # The host is a headless HTTP server - the browser is the GUI - so it
+      # needs no display here. There is no bench for it yet, so this is a
+      # compile gate: the host and both shipped experiments must still build.
+      - name: Build the host and its plugins
+        working-directory: dsw
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel
+      - name: The bundles the host loads must exist
+        working-directory: dsw
+        run: |
+          test -x dsw
+          test -f plugins/gray-scott/gray-scott.so
+          test -f plugins/wave-tank/wave-tank.so
