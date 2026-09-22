@@ -20,7 +20,7 @@ jobs:
     name: Engine bench (Linux, headless)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # The bench is a separate JUCE-free project and is built FIRST when the
       # engine changes, which is also the order the repo's own instructions
       # give. It links BWFX, because the registry carries the wrapped World
@@ -45,7 +45,7 @@ jobs:
     runs-on: windows-latest
     needs: engine-test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Configure (fetches JUCE 8)
         working-directory: rite-of-passage
         # No -G: the runner's default generator is whichever Visual Studio is

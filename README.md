@@ -18,6 +18,7 @@ Windows builds are downloadable from each plugin's own landing page.
 | App | Folder | What it does |
 |-----|--------|--------------|
 | The Brokild Collection (all ten) | [`vst3-apps/collection`](vst3-apps/collection) | Every Brokild plugin in one download: eight instruments and two effects for Windows, with their manuals and their standalones. |
+| Rite of Passage (VST3) | [`vst3-apps/rite-of-passage`](vst3-apps/rite-of-passage) | A transition processor: one slider is the journey, and the landing is a separate thing you fire. |
 | Battlestar Overdrive (VST3) | [`vst3-apps/battlestar-overdrive`](vst3-apps/battlestar-overdrive) | An overdrive, and a tribute: named after Max Christensen's Copenhagen solo project and built with his blessing. |
 | Clone Wars (VST3) | [`vst3-apps/clone-wars`](vst3-apps/clone-wars) | Sixteen detuned oscillators in two armies of eight, crossfaded by a single fader — THE WAR — which can be set to take up to five minutes to cross. |
 | Black Rider (VST3) | [`vst3-apps/black-rider`](vst3-apps/black-rider) | An analogue monosynth sitting between the MS-20 and the Moog. Two oscillators you can push into instability, drift and injection-lock, and one filter… |
