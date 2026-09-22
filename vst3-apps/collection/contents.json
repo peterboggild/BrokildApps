@@ -1,0 +1,39 @@
+{
+  "_comment": [
+    "What the Brokild Collection zip is supposed to contain, declared rather than inferred.",
+    "",
+    "A collection is a DERIVED artefact: it goes stale the moment the fleet gains or",
+    "renames a plugin, and it had done so twice before anyone noticed. So every plugin",
+    "that ships a -VST3-win64.zip must appear in exactly one of the two lists below,",
+    "and tools/check-links.js fails if it does not, or if the archive on disk disagrees",
+    "with 'includes', or if the site's wording contradicts the count.",
+    "",
+    "Adding a plugin to the fleet therefore forces a decision about the collection",
+    "instead of leaving one to be remembered. Re-cutting the zip is a Windows job -",
+    "see HANDOVER-STATIONARY-PC.md."
+  ],
+
+  "includes": [
+    "battlestar-overdrive",
+    "black-rider",
+    "blade-ruiner",
+    "brain-scan",
+    "clone-wars",
+    "escape-room",
+    "full-metal-racket",
+    "high-tide",
+    "martian-gain",
+    "photo-synth"
+  ],
+
+  "excludes": {
+    "hairfryer": "In development - its own card says so, and a collection billed as finished work should not carry it.",
+    "rite-of-passage": "PENDING A DECISION. Published 2026-09-19, after this archive was cut, so it is not in the zip. Either re-cut the collection to eleven on the stationary PC and move this to 'includes', or leave it out on purpose and say why here."
+  },
+
+  "claims": {
+    "count": 10,
+    "phrase": "eight instruments and two effects",
+    "_comment": "Repeated across app.json, the collection page and the front page. Checked so a re-cut cannot update the zip and leave the prose saying ten."
+  }
+}

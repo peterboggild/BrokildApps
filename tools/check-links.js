@@ -117,6 +117,103 @@ for (const f of files.filter((f) => f.endsWith("/app.json"))) {
   if (!manifest.apps.includes(folder)) note(f, `has an app.json but manifest.json does not list ${folder}`);
 }
 
+/* --------------------------------------------- the collection is derived -- */
+/* The Collection zip is built from the other plugins' published zips, so it
+ * goes out of date silently every time the fleet changes - by its own commit
+ * message, twice before anyone noticed. This does not let that happen again:
+ * every plugin that ships a zip must be listed in contents.json as either in
+ * the collection or deliberately out of it, the archive on disk must match the
+ * "includes" list, and the count the site quotes must match too.
+ *
+ * Reading the zip's central directory directly: no unzip, no dependency, and
+ * it is the actual file the download button serves. */
+function zipEntries(rel) {
+  const b = fs.readFileSync(path.join(ROOT, rel));
+  /* End of central directory: scan back for the signature. */
+  let eocd = -1;
+  for (let i = b.length - 22; i >= 0 && i > b.length - 66000; i--)
+    if (b.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error(`${rel}: no zip end-of-central-directory`);
+  const count = b.readUInt16LE(eocd + 10);
+  let p = b.readUInt32LE(eocd + 16);
+  const names = [];
+  for (let i = 0; i < count; i++) {
+    if (b.readUInt32LE(p) !== 0x02014b50) break;
+    const n = b.readUInt16LE(p + 28), m = b.readUInt16LE(p + 30), k = b.readUInt16LE(p + 32);
+    names.push(b.slice(p + 46, p + 46 + n).toString("utf8"));
+    p += 46 + n + m + k;
+  }
+  return names;
+}
+
+const COLL = "vst3-apps/collection";
+if (fs.existsSync(path.join(ROOT, `${COLL}/contents.json`))) {
+  const spec = JSON.parse(fs.readFileSync(path.join(ROOT, `${COLL}/contents.json`), "utf8"));
+  const declared = new Set([...spec.includes, ...Object.keys(spec.excludes)]);
+
+  /* Every plugin that ships a zip has to be accounted for, one way or the other. */
+  for (const dir of fs.readdirSync(path.join(ROOT, "vst3-apps"))) {
+    if (dir === "collection") continue;
+    const has = fs.readdirSync(path.join(ROOT, "vst3-apps", dir))
+      .some((f) => /-VST3-win64\.zip$/.test(f));
+    if (has && !declared.has(dir))
+      note(`${COLL}/contents.json`, `${dir} ships a zip but is neither included nor excluded — decide which`);
+  }
+
+  /* And the archive has to actually be what the list says it is. */
+  const zip = `${COLL}/Brokild-Collection-win64.zip`;
+  if (fs.existsSync(path.join(ROOT, zip))) {
+    const inZip = new Set(
+      zipEntries(zip)
+        .map((e) => e.replace(/\\/g, "/").split("/")[1])
+        .filter((e) => e && !/\.(txt|md)$/i.test(e))
+    );
+    /* contents.json names folders, the zip names products ("Black Rider"). */
+    const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const zipNorm = new Set([...inZip].map(norm));
+    for (const slug of spec.includes)
+      if (!zipNorm.has(norm(slug)))
+        note(zip, `contents.json includes ${slug}, but the archive does not carry it`);
+    for (const name of inZip)
+      if (!spec.includes.some((s) => norm(s) === norm(name)))
+        note(zip, `archive carries "${name}", which contents.json does not include`);
+    if (inZip.size !== spec.claims.count)
+      note(zip, `archive holds ${inZip.size} plugins, contents.json claims ${spec.claims.count}`);
+  }
+
+  /* BrokildWorldFX/tools/build-collection-zip.ps1 carries its own hardcoded
+   * $plugins list — a third copy of the same membership, on a machine this
+   * checker never runs on. If it drifts from contents.json, the next re-cut
+   * silently produces the wrong archive, so compare the two here where it is
+   * cheap rather than discovering it in a 93 MB download. */
+  const ps1 = "BrokildWorldFX/tools/build-collection-zip.ps1";
+  if (fs.existsSync(path.join(ROOT, ps1))) {
+    const txt = fs.readFileSync(path.join(ROOT, ps1), "utf8");
+    const block = txt.match(/\$plugins\s*=\s*@\(([\s\S]*?)\n\)/);
+    if (block) {
+      const slugs = [...block[1].matchAll(/slug\s*=\s*"([^"]+)"/g)].map((m) => m[1]);
+      for (const s of spec.includes)
+        if (!slugs.includes(s)) note(ps1, `contents.json includes ${s}, the builder's $plugins list does not`);
+      for (const s of slugs)
+        if (!spec.includes.includes(s)) note(ps1, `builder stages ${s}, contents.json does not include it`);
+    }
+  }
+
+  /* A re-cut that updates the zip and leaves the prose saying "all ten" is the
+   * same bug wearing a hat. */
+  const words = { 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve" };
+  const stale = Object.entries(words)
+    .filter(([n]) => Number(n) !== spec.claims.count)
+    .map(([, w]) => w);
+  for (const page of [`${COLL}/index.html`, `${COLL}/app.json`, "index.html"]) {
+    const txt = fs.readFileSync(path.join(ROOT, page), "utf8");
+    for (const w of stale) {
+      const re = new RegExp(`\\ball ${w}\\b|\\b${w} plugins\\b`, "i");
+      if (re.test(txt)) note(page, `says "${w}" where the collection holds ${spec.claims.count}`);
+    }
+  }
+}
+
 if (problems.length) {
   console.error(`${problems.length} problem(s):\n`);
   for (const p of problems) console.error("  " + p);
