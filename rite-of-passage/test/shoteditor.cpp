@@ -12,6 +12,8 @@
 
 #include <JuceHeader.h>
 
+#include <functional>
+
 #include "../src/PluginProcessor.h"
 #include "../src/PluginEditor.h"
 
@@ -92,6 +94,57 @@ int main (int argc, char** argv)
 
     shoot (*ed, dir.getChildFile ("panel-empty.png"));
 
+    /*  THE LANE MENU IS TWO FLOORS (§12a). The eighteen are the list and the
+        World rack is behind one door — and the reason to check it HERE is
+        that ComboBox finds a sub-menu item only because its iterators
+        recurse. If that ever stopped being true, every wrapped module would
+        silently become unselectable AND unreadable, with nothing else in
+        the build to say so. */
+    {
+        std::vector<juce::ComboBox*> boxes;
+        std::function<void (juce::Component&)> walk = [&] (juce::Component& c)
+        {
+            for (auto* k : c.getChildren())
+            {
+                if (auto* cb = dynamic_cast<juce::ComboBox*> (k))
+                    if (cb->getNumItems() == rop::numEffects() + 1) boxes.push_back (cb);
+                walk (*k);
+            }
+        };
+        walk (*ed);
+        CHECK ((int) boxes.size() == rop::kSlots, "%d lane menus, not %d", (int) boxes.size(), rop::kSlots);
+
+        if (! boxes.empty())
+        {
+            int top = 0, inWorld = 0;
+            juce::String door;
+            for (juce::PopupMenu::MenuItemIterator it (*boxes[0]->getRootMenu(), false); it.next();)
+            {
+                const auto& item = it.getItem();
+                if (item.subMenu != nullptr) { door = item.text; inWorld = item.subMenu->getNumItems(); }
+                else if (item.itemID != 0)   ++top;
+            }
+            std::printf ("  the lane menu            %d on top, then \"%s\" with %d\n",
+                         top, door.toRawUTF8(), inWorld);
+            CHECK (top == rop::numNativeEffects() + 1, "%d items above the door, not EMPTY plus the natives", top);
+            CHECK (inWorld == rop::numEffects() - rop::numNativeEffects(),
+                   "the World submenu holds %d of %d", inWorld, rop::numEffects() - rop::numNativeEffects());
+            CHECK (door == "BROKILD WORLD FX", "the door is labelled \"%s\"", door.toRawUTF8());
+
+            //  every wrapped module is selectable and reads back, submenu or not
+            for (int t = rop::numNativeEffects(); t < rop::numEffects(); ++t)
+            {
+                boxes[0]->setSelectedId (t + 2, juce::dontSendNotification);
+                CHECK (boxes[0]->getSelectedId() == t + 2,
+                       "%s cannot be selected from the submenu", rop::effectDescriptor (t).id);
+                CHECK (boxes[0]->getText() == rop::effectDescriptor (t).name,
+                       "%s reads back as \"%s\"", rop::effectDescriptor (t).id,
+                       boxes[0]->getText().toRawUTF8());
+            }
+            boxes[0]->setSelectedId (1, juce::dontSendNotification);
+        }
+    }
+
     //  ---- a rite: the six effects that exist, one per slot -----------------
     ed.reset();
     const int n = rop::numEffects();
@@ -122,8 +175,14 @@ int main (int argc, char** argv)
         p->setValueNotifyingHost (0.62f);
     const auto mid = ed->createComponentSnapshot (ed->getLocalBounds(), false, 1.0f);
     {
-        juce::FileOutputStream os (dir.getChildFile ("panel-midway.png"));
+        /*  DELETE FIRST, THEN OPEN. The other way round — which this was —
+            opens the stream and then unlinks the file under it, and what
+            lands is not a shot of this panel: the copy in docs/ came out
+            1000x767 and FORTY-TWO MEGABYTES. Every other shot here goes
+            through shoot(), which does it in the right order; this one is
+            hand-rolled because it needs the snapshot twice. */
         dir.getChildFile ("panel-midway.png").deleteFile();
+        juce::FileOutputStream os (dir.getChildFile ("panel-midway.png"));
         juce::PNGImageFormat png; png.writeImageToStream (mid, os);
         std::printf ("  wrote panel-midway.png\n");
     }

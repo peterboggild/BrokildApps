@@ -1,0 +1,88 @@
+name: Rite of Passage VST3 (win64)
+
+on:
+  push:
+    paths:
+      - "rite-of-passage/**"
+      - "BrokildWorldFX/**"        # the shared BWFX rack is compiled in, and
+                                   # ten of its modules are slot effects
+      - ".github/workflows/rite-of-passage.yml"
+  # A manual dispatch additionally commits the house-style release zip
+  # (VST3 + guide + readme) to vst3-apps/rite-of-passage/ on the branch it
+  # ran on, which is what the site's download button serves.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  engine-test:
+    name: Engine bench (Linux, headless)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The bench is a separate JUCE-free project and is built FIRST when the
+      # engine changes, which is also the order the repo's own instructions
+      # give. It links BWFX, because the registry carries the wrapped World
+      # modules and a bench that could not build them would be testing a
+      # different plugin from the one this job ships.
+      - name: Build and run the Rite of Passage bench
+        run: |
+          cmake -S rite-of-passage/test -B rite-of-passage/test/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build rite-of-passage/test/build -j
+          ./rite-of-passage/test/build/roptest
+      - name: Build and run the BWFX bench (the shared world rack)
+        working-directory: BrokildWorldFX/test
+        run: |
+          g++ -O2 -std=c++17 -Wall -Wextra -I../src -I../modules \
+              bench.cpp ../src/bwfx_json.cpp ../src/bwfx_rack.cpp ../src/bwfx_macros.cpp \
+              ../modules/bwfx_conv.cpp ../modules/bwfx_modules.cpp \
+              ../modules/bwfx_spectra.cpp -o bwfxtest
+          ./bwfxtest
+
+  windows-build:
+    name: Plugin build (Windows)
+    runs-on: windows-latest
+    needs: engine-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (fetches JUCE 8)
+        working-directory: rite-of-passage
+        # No -G: the runner's default generator is whichever Visual Studio is
+        # installed (the 2026 images dropped VS 2022, so naming a year breaks).
+        run: cmake -S . -B build -A x64
+      - name: Build Release
+        working-directory: rite-of-passage
+        # The VST3 target only. The host harness and the panel shooter are
+        # built and run on Linux; they are not what this job ships.
+        run: cmake --build build --config Release --target RITEOFPASSAGE_VST3
+      - name: Package
+        shell: pwsh
+        working-directory: rite-of-passage
+        run: |
+          $out = "package/Rite-of-Passage-VST3-win64"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item -Recurse "build/RITEOFPASSAGE_artefacts/Release/VST3/Rite of Passage.vst3" "$out/"
+          Copy-Item "GUIDE.md" "$out/"
+          Copy-Item "../vst3-apps/rite-of-passage/README.txt" "$out/"
+          # The manifest step is off in CMakeLists (VST3_AUTO_MANIFEST FALSE),
+          # so there is nothing to strip here — but a zero-byte moduleinfo.json
+          # is worse than none, and this is where one would appear.
+          Get-ChildItem -Recurse -Filter moduleinfo.json "$out" |
+            Where-Object { $_.Length -eq 0 } | Remove-Item
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Rite-of-Passage-VST3-win64
+          path: rite-of-passage/package/**
+          retention-days: 30
+      - name: Commit release zip to the repo (manual dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "rite-of-passage/package/Rite-of-Passage-VST3-win64" -DestinationPath "vst3-apps/rite-of-passage/Rite-of-Passage-VST3-win64.zip" -Force
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vst3-apps/rite-of-passage/Rite-of-Passage-VST3-win64.zip
+          git commit -m "Rite of Passage: release zip (site download) [skip ci]"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.ref_name }}"

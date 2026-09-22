@@ -92,6 +92,13 @@ namespace
         return -1;
     }
 
+    //  a wrapped World module, by its id — the registry's own prefix, so
+    //  nothing here needs a second list to fall out of date
+    bool isWrappedBwfx (const char* id)
+    {
+        return id != nullptr && std::strncmp (id, "bwfx.", 5) == 0;
+    }
+
     //  what a parameter's value reads as: a choice by NAME, everything else
     //  with its own unit and a sane number of digits. JUCE's default prints
     //  "800.0000000" for a frequency and "0" for a filter mode.
@@ -104,9 +111,20 @@ namespace
             if (opts.size() > 0)
                 return opts[juce::jlimit (0, opts.size() - 1, (int) std::lround (v))];
         }
+        const juce::String u (pd.unit != nullptr ? pd.unit : "");
+
+        /*  BWFX carries three SCALED display codes — a rate stored in
+            hundredths of a hertz reads as hertz — and a wrapped World
+            module brings them onto this panel for the first time. Without
+            this, ENSEMBLE's rate reads "45.0 cHz" instead of "0.45 Hz".
+            The same three lines are in BwfxPanel.cpp:35, which is where
+            they came from. */
+        if (u == "cHz") return juce::String (v / 100.0, 2) + " Hz";
+        if (u == "dHz") return juce::String (v / 10.0,  1) + " Hz";
+        if (u == "cs")  return juce::String (v / 100.0, 2) + " s";
+
         const double span = std::abs (pd.hi - pd.lo);
         const int dp = span >= 200.0 ? 0 : (span >= 20.0 ? 1 : 2);
-        const juce::String u (pd.unit != nullptr ? pd.unit : "");
         return juce::String (v, dp) + (u.isEmpty() ? juce::String() : " " + u);
     }
 }
@@ -308,7 +326,10 @@ RiteEditor::RiteEditor (RiteProcessor& p) : AudioProcessorEditor (&p), proc (p)
         from numEffects() rather than typed, because a typed number can
         disagree with the registry and is then worse than no number. */
     build.setText (juce::String (ROP_BUILD_ID) + "   "
-                     + juce::String (numEffects()) + " EFFECTS",
+                     + juce::String (numNativeEffects()) + " EFFECTS"
+                     + (numEffects() > numNativeEffects()
+                          ? "  + " + juce::String (numEffects() - numNativeEffects()) + " BWFX"
+                          : juce::String()),
                    juce::dontSendNotification);
     build.setJustificationType (juce::Justification::centredLeft);
     //  smoke on charred wood was unreadable in the render, which defeats the
@@ -532,15 +553,36 @@ RiteEditor::RiteEditor (RiteProcessor& p) : AudioProcessorEditor (&p), proc (p)
     globals.push_back (makeKnob (rop_ids::turn,     "TURN"));
     globals.push_back (makeKnob (rop_ids::monogate, "MONO GATE"));
 
-    //  "EMPTY", not an em dash: juce::String(const char*) reads LATIN-1, so a
-    //  UTF-8 dash typed here arrives as mojibake and did (the High Tide lesson)
-    juce::StringArray fxNames { "EMPTY" };
-    for (int t = 0; t < numEffects(); ++t) fxNames.add (effectDescriptor (t).name);
-
     for (int i = 0; i < kSlots; ++i)
     {
         auto& L = lanes[i];
-        L.fx.addItemList (fxNames, 1);
+
+        /*  THE MENU IS TWO FLOORS. The eighteen this plugin owns are the
+            list; the World rack is behind one door, because a flat
+            twenty-eight is a scroll and it would also say that a borrowed
+            colour and a transition gesture are the same kind of thing.
+
+            The ids are unchanged — type + 2, EMPTY at 1 — so the submenu
+            costs the state nothing: ComboBox::getItemForId searches the
+            root menu recursively, and a sub-menu item selects, reads back
+            and sets exactly like a top-level one. */
+        auto* root = L.fx.getRootMenu();
+        //  "EMPTY", not an em dash: juce::String(const char*) reads LATIN-1,
+        //  so a UTF-8 dash typed here arrives as mojibake and did (the High
+        //  Tide lesson)
+        root->addItem (1, "EMPTY");
+        for (int t = 0; t < numNativeEffects(); ++t)
+            root->addItem (t + 2, effectDescriptor (t).name);
+
+        juce::PopupMenu world;
+        for (int t = numNativeEffects(); t < numEffects(); ++t)
+            world.addItem (t + 2, effectDescriptor (t).name);
+        if (numEffects() > numNativeEffects())
+        {
+            root->addSeparator();
+            root->addSubMenu ("BROKILD WORLD FX", world);
+        }
+
         L.fx.setSelectedId (proc.rack().slotEffect (i) + 2, juce::dontSendNotification);
         L.fx.setColour (juce::ComboBox::backgroundColourId, kClay);
         L.fx.setColour (juce::ComboBox::textColourId, kAsh);
@@ -1018,7 +1060,11 @@ void RiteEditor::paint (juce::Graphics& g)
         }
         else if (type >= 0)
         {
-            g.setColour (kAsh.withAlpha (live ? 0.7f : 0.4f));
+            //  no decal: the name, in ash — or in the BWFX teal when the
+            //  lane holds a World module, which is the one place on this
+            //  panel that says where a slot's effect came from
+            const bool world = isWrappedBwfx (effectDescriptor (type).id);
+            g.setColour ((world ? kTeal : kAsh).withAlpha (live ? 0.7f : 0.4f));
             g.setFont (juce::FontOptions (8.0f, juce::Font::bold));
             g.drawText (juce::String (effectDescriptor (type).name).substring (0, 3),
                         cells.socket, juce::Justification::centred, false);
