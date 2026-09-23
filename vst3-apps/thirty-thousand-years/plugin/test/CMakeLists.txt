@@ -28,3 +28,13 @@ if(MSVC)
     target_compile_options(ttyprobe PRIVATE /O2 /fp:precise /EHsc /bigobj)
     target_link_options(ttyprobe PRIVATE /STACK:67108864)
 endif()
+
+# A one-off probe for the two reports on THE SUN BEHIND THE ASH.
+add_executable(ttyash probe-ash.cpp ${ENGINE})
+target_include_directories(ttyash PRIVATE ../Source)
+if(MSVC)
+    target_compile_options(ttyash PRIVATE /O2 /fp:precise /EHsc /bigobj)
+    target_link_options(ttyash PRIVATE /STACK:67108864)
+else()
+    target_compile_options(ttyash PRIVATE -O2 -fno-fast-math)
+endif()
