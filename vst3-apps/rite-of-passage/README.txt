@@ -26,15 +26,22 @@ zero.
 
 WHAT IS IN THIS ARCHIVE
 
-  Rite of Passage.vst3         the plug-in, as a Windows VST3 bundle
-  GUIDE.md                     every control, and a first rite step by step
-  README.txt                   this file
+  Rite of Passage.vst3            the plug-in, as a Windows VST3 bundle
+  Rite of Passage.exe             the standalone, for trying it without a host
+  Rite-of-Passage-Manual.pdf      the handbook: every control, the eighteen
+                                  effects, the World modules in a slot, and a
+                                  first rite step by step
+  README.txt                      this file
 
 INSTALLING
 
   Copy the folder  Rite of Passage.vst3  into
-      C:\Program Files\Common Files\VST3\
-  and rescan in your host.
+      C:\Program Files\Common Files\VST3\Brokild\
+  and rescan in your host. Nothing is written outside that folder.
+
+  The standalone needs no installing: run it where it sits. It takes audio
+  from your default input, which is the quickest way to hear what a rite
+  does before you commit one to a project.
 
 READ THIS FIRST
 

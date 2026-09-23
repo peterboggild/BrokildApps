@@ -39,7 +39,16 @@ const SKIP_DIRS = new Set([".git", "node_modules", "build", "webview2", "_deps",
  *  their ui.html leaked in and was reported for a bwfx-rack.js that CMake
  *  supplies at build time. Any Source folder is plug-in source, never a page.
  *  "reference/" is a preserved copy of an app a plug-in was ported FROM. */
-const NOT_SERVED_BY_PAGES = /^(dsw\/(web|plugins)\/|.*\/Source\/|.*\/mockup\/|.*\/reference\/)/;
+const NOT_SERVED_BY_PAGES =
+  /^(dsw\/(web|plugins)\/|.*\/Source\/|.*\/mockup\/|.*\/reference\/|.*\/plugin\/docs\/landing\.html$)/;
+/*  plugin/docs/landing.html is the SOURCE a landing page was built from, and
+ *  its images resolve at the published location rather than beside it. The
+ *  published page is the one that has to be whole, and it is checked. Thirty
+ *  Thousand Years' source still names an img/foot.jpg that the finished page
+ *  dropped, which is stale source rather than a dead link on the site: eight
+ *  images referenced there, eight present.
+ *  The MANUAL source stays in scope on purpose — its plates DO sit beside it,
+ *  and that check is what caught five manuals losing theirs in the migration. */
 
 const problems = [];
 const note = (file, msg) => problems.push(`${file}: ${msg}`);

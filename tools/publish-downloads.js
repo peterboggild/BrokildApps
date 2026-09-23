@@ -74,8 +74,23 @@ if (!rel.id) {
 const existing = new Map((rel.assets || []).map((a) => [a.name, a]));
 
 /* ------------------------------------------------------------------- zips */
-let zips = sh(`git -C "${ROOT}" ls-files "*.zip"`).split("\n").filter(Boolean);
+/*  Scan the FILESYSTEM, not the index. This used to ask git for the zips, and
+ *  that worked exactly once: the moment the zips became untracked — which is
+ *  the whole point of this tool — git stopped reporting them and every
+ *  re-publish silently found nothing to do. A tool whose input is the thing it
+ *  removes from git cannot use git to find it. */
+function findZips(dir, out = []) {
+  for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+    if (e.name === ".git" || e.name === "node_modules" || e.name === "build") continue;
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) findZips(rel, out);
+    else if (e.name.toLowerCase().endsWith(".zip") && !/Brokild-Collection/i.test(e.name)) out.push(rel);
+  }
+  return out;
+}
+let zips = findZips("vst3-apps").sort();
 if (only.length) zips = zips.filter((z) => only.some((o) => z.includes(o)));
+if (!zips.length) { console.error("no zips found under vst3-apps" + (only.length ? " matching " + only.join(" ") : "")); process.exit(1); }
 
 const report = [];
 for (const rel_path of zips) {

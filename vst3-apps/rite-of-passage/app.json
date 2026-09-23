@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/rite-of-passage.jpg",
-  "note": "Windows VST3 · build 260922.1 · free download · 3.6 MB · 18 transition effects, plus 10 World FX modules in a slot.",
+  "note": "Windows VST3 + standalone · build 260919.2 · free download · 9.4 MB · 18 transition effects, plus 10 World FX modules in a slot · 12-page handbook.",
   "tags": [
     "vst3",
     "effect"
@@ -16,8 +16,8 @@
     {
       "name": "Rite-of-Passage-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Rite-of-Passage-VST3-win64.zip",
-      "bytes": 3725313,
-      "sha256": "bcf24bc403de454d70927f75fe7a7299bf086a41d515698d65f53412bb1d3e5b"
+      "bytes": 9831532,
+      "sha256": "61245ab5e22c9d4ec99296ef4e5cee64c358bdf5cfadeeeefe7a31ea9177d0d3"
     }
   ]
-}
+}

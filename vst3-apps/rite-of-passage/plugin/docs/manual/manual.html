@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Rite of Passage — Handbook</title>
+<style>
+/* ===========================================================================
+   THIN WALLS, handbook.
+
+   Landscape, because the panel is 1400 x 900 and a portrait page would shrink
+   every plate to a stamp. Built for print: each .page is exactly one sheet and
+   the page background is the same near-black the plates are composited onto,
+   so a full-bleed shot has no seam at its edge.
+
+   The palette is the panel's own :root - lamp-lit brass on dark walnut, with
+   the architect's plan on paper. Nothing here invents a colour the instrument
+   does not already use.
+   =========================================================================== */
+
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:     #0d0b0a;   /* the page, and the colour the JPEGs sit on */
+  --shell:   #161311;
+  --line:    #2e2724;
+  --brass:   #e07a3c;
+  --brass1:  #f09a5e;
+  --brass2:  #8a4a22;
+  --warm:    #f6c9a4;
+  --paper:   #efe7d6;
+  --body:    #cabaa4;
+  --dim:     #8d8172;
+  --cool:    #3fe0d8;   /* what comes through a doorway */
+  --rule:    rgba(224,122,60,.34);
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; background: var(--ink); }
+
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body);
+  font-size: 10.2pt;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.page{
+  position: relative;
+  width: 297mm; height: 210mm;
+  overflow: hidden;
+  page-break-after: always;
+  background: var(--ink);
+}
+.page:last-child{ page-break-after: auto; }
+
+/*  The standard inner margin. The bottom inset CLEARS the folio strip rather
+    than merely meeting it: at 13mm a filled column sits on the page number. */
+.pad{ position:absolute; inset: 14mm 16mm 18mm 16mm; }
+
+/* --- display type ----------------------------------------------------------
+   The panel sets its own headings in a geometric sans, wide-tracked and upper
+   case, because the right half of it is an architect's drawing. The manual
+   does the same. No gradient: brass on walnut is the instrument. */
+.display{
+  font-family: "Futura", "Century Gothic", "Trebuchet MS", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--warm);
+  line-height: 1.04;
+  margin: 0;
+}
+h1.display{ font-size: 40pt; letter-spacing: .14em; }
+h2.display{ font-size: 21pt; }
+h3.display{ font-size: 12.5pt; color: var(--brass); letter-spacing: .13em; }
+
+.kick{
+  font: 600 8pt/1 "Segoe UI", sans-serif;
+  letter-spacing: .34em; text-transform: uppercase;
+  color: var(--brass2);
+  margin: 0 0 4mm 0;
+}
+.kick.cool{ color: #5f8ea6; }
+
+.sub{
+  font-size: 11pt; color: var(--warm); margin: 4mm 0 0 0; line-height: 1.42;
+  max-width: 155mm;
+}
+
+p{ margin: 0 0 3.2mm 0; }
+b, strong{ color: var(--warm); font-weight: 600; }
+em{ color: var(--brass); font-style: normal; font-weight: 600; }
+.mono{ font-family: Consolas, "SF Mono", ui-monospace, monospace; font-size: .92em; color: var(--warm); }
+
+/* --- rules and plates ------------------------------------------------------ */
+.rule{
+  height: 2px; border: 0; margin: 5mm 0 6mm 0;
+  background: linear-gradient(90deg, var(--brass) 0%, var(--brass2) 40%, rgba(216,164,92,.06) 100%);
+}
+.rule.thin{ height:1px; background: var(--rule); margin: 4mm 0; }
+
+img{ display:block; max-width:100%; }
+figure{ margin:0; }
+figcaption{ font-size: 8.3pt; color: var(--dim); margin-top: 2mm; line-height: 1.38; }
+figcaption b{ color: var(--brass); font-weight:600; }
+
+.bleed{ position:absolute; inset:0; width:100%; height:100%; object-fit: cover; }
+
+.shot{ border: 1px solid rgba(216,164,92,.22); border-radius: 2px; }
+
+/*  Every sheet is a FIXED height with overflow:hidden, so anything too tall is
+    not pushed onto a new page - it is silently cut off, and the DOM still
+    measures correct. Cap plates by HEIGHT and let the width follow. */
+.c-36 .shot, .c-40 .shot, .c-44 .shot, .c-46 .shot{ max-height: 62mm; width: auto; }
+.grid2 .shot{ max-height: 72mm; width: auto; margin: 0 auto; }
+/*  The "behind a door" page carries two plan plates AND three control entries
+    AND a callout: the standard cap overran the sheet by 23px, which would have
+    been cut off in silence. */
+.grid2.tight-plates .shot{ max-height: 58mm; }
+.grid3 .shot{ max-height: 40mm; width: auto; }
+/*  The panel plate is 1400 x 900; filling its column gives 95mm of height,
+    which is the whole of the room it has. Cap by WIDTH, not height. */
+.wide .shot{ width: 100%; height: auto; }
+/*  The status strip is 1400 x 23 - about sixty to one. Capping THAT by height
+    at 16mm would make it a metre wide. A strip is capped by width; everything
+    else on these pages is capped by height. */
+.strip .shot{ width: 100%; height: auto; }
+.card .shot{ max-height: 34mm; width: auto; }
+
+/* --- layout helpers -------------------------------------------------------- */
+.cols{ display:flex; gap: 9mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-36{ flex: 0 0 36%; }
+.c-40{ flex: 0 0 40%; }
+.c-44{ flex: 0 0 44%; }
+.c-46{ flex: 0 0 46%; }
+.c-54{ flex: 0 0 54%; }
+.c-58{ flex: 0 0 58%; }
+.c-62{ flex: 0 0 62%; }
+
+.grid2{ display:grid; grid-template-columns: repeat(2, 1fr); gap: 5mm 9mm; }
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 5mm 7mm; }
+
+/* --- the control entry ----------------------------------------------------- */
+.ctl{
+  border-left: 2.5px solid var(--brass2);
+  padding-left: 4.5mm;
+  margin-bottom: 5mm;
+}
+.ctl h3{
+  font: 700 11pt/1 "Futura","Century Gothic","Trebuchet MS",sans-serif;
+  color: var(--brass); letter-spacing:.1em; text-transform:uppercase;
+  margin:0 0 1.4mm 0;
+}
+.ctl .what{ font-size:8.1pt; color:var(--dim); letter-spacing:.14em;
+            text-transform:uppercase; margin:0 0 1.8mm 0; }
+.ctl p{ margin:0 0 1.8mm 0; font-size: 9.5pt; }
+
+/* --- callout panels -------------------------------------------------------- */
+.box{
+  border: 1px solid var(--rule);
+  background: linear-gradient(160deg, rgba(216,164,92,.07), rgba(216,164,92,.02));
+  padding: 4.5mm 5.5mm;
+  border-radius: 2px;
+}
+.box h4{
+  font: 700 9.6pt/1 "Futura","Century Gothic","Trebuchet MS",sans-serif;
+  color: var(--brass); margin:0 0 2.2mm 0; letter-spacing:.12em; text-transform:uppercase;
+}
+.box p{ font-size: 9.3pt; }
+.box p:last-child{ margin-bottom:0; }
+.box.cool{ border-color: rgba(127,185,216,.32);
+           background: linear-gradient(160deg, rgba(127,185,216,.08), rgba(127,185,216,.02)); }
+.box.cool h4{ color: var(--cool); }
+
+/* --- tables ---------------------------------------------------------------- */
+table{ width:100%; border-collapse: collapse; font-size: 9pt; }
+th{
+  text-align:left; font: 600 7.6pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.2em; text-transform:uppercase; color: var(--brass2);
+  padding: 0 1.5mm 2mm 0; border-bottom: 1px solid var(--rule);
+}
+td{ padding: 1.7mm 1.5mm 1.7mm 0; border-bottom: 1px solid rgba(216,164,92,.11);
+    vertical-align: top; }
+td:first-child{ color: var(--brass); font-weight:600; }
+td.num{ font-family:"Consolas",ui-monospace,monospace; color:var(--warm); text-align:right; }
+th.num{ text-align:right; }
+table.tight td{ padding: 1.2mm 1.5mm 1.2mm 0; }
+table.tight{ font-size: 8.6pt; }
+
+/* --- page furniture -------------------------------------------------------- */
+.folio{
+  position:absolute; left:16mm; right:16mm; bottom: 7mm;
+  display:flex; justify-content:space-between; align-items:center;
+  font: 600 7.2pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.24em; text-transform:uppercase; color: rgba(141,129,114,.85);
+  border-top: 1px solid rgba(216,164,92,.16); padding-top: 2.4mm;
+}
+.folio .n{ color: var(--brass); font-weight:700; letter-spacing:.1em; }
+
+/* --- cover -----------------------------------------------------------------
+   The panel carries its own wordmark, top left. The title is banded across the
+   UPPER page and the art across the lower two thirds, framed to start below
+   that lettering: text on ink, picture on its own. */
+.cover-art{ position:absolute; left:0; right:0; bottom:0; height: 60%; overflow:hidden; }
+.cover-art img{ width:100%; height:100%; object-fit: cover; object-position: center 40%; }
+.cover-fade{
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, var(--ink) 0%, rgba(13,11,10,.60) 12%, rgba(13,11,10,0) 32%,
+                              rgba(13,11,10,0) 62%, rgba(13,11,10,.78) 84%, var(--ink) 96%);
+}
+.cover-top{ position:absolute; left:18mm; right:18mm; top:16mm; }
+.cover-foot{ position:absolute; left:18mm; right:18mm; bottom:12mm; }
+
+.stamp{
+  display:inline-block;
+  border: 1.4px solid var(--brass2); color: var(--brass);
+  font: 600 7.4pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.3em; text-transform:uppercase;
+  padding: 2mm 4mm; transform: rotate(-2deg); border-radius: 1.5px;
+}
+
+.says{
+  font: 600 9pt/1.35 "Consolas","SF Mono",ui-monospace,monospace;
+  color: var(--brass); letter-spacing:.14em;
+}
+
+/* the little inline plan key */
+.key{ display:flex; gap:5mm; flex-wrap:wrap; font-size:8.4pt; color:var(--dim); margin-top:2.5mm; }
+.key span{ display:flex; align-items:center; gap:1.8mm; }
+.key i{ width:7mm; height:2px; display:block; border-radius:2px; }
+
+/* ---- this manual's cover: its panel is brighter than the shell's -------- */
+.cover-fade{
+  background: linear-gradient(180deg,
+    var(--ink) 0%, rgba(13,11,10,.72) 10%, rgba(13,11,10,.10) 26%,
+    rgba(13,11,10,.14) 48%, rgba(13,11,10,.86) 66%, var(--ink) 78%);
+}
+.cover-art img{ object-position: center 34%; }
+</style>
+</head>
+<body>
+
+<section class="page">
+  <div class="cover-art">
+    <img src="img/panel-loaded.jpg" alt="" />
+    <div class="cover-fade"></div>
+  </div>
+
+  <div class="cover-top">
+    <p class="kick" style="color:var(--brass); margin-bottom:6mm">Brokild &middot; Windows VST3 &middot; Transition processor</p>
+    <h1 class="display">Rite of Passage</h1>
+    <hr class="rule" style="margin:7mm 0 5mm 0" />
+    <div class="cols" style="align-items:flex-start">
+      <div class="c-62">
+        <p class="display" style="font-size:13pt; color:var(--paper); letter-spacing:.18em">Handbook</p>
+      </div>
+      <div style="text-align:right; margin-left:auto">
+        <p class="says" style="margin:0">BUILD 260919.2</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover-foot">
+    <p style="color:var(--dim); font-size:9.2pt; max-width:170mm; margin:0">
+      A transition is not an effect. It is a journey with a landing. One slider
+      carries the music, six slots travel along it on schedules you set, and
+      the arrival is a separate command that lands on the bar, to the sample.
+      <span style="color:var(--brass)">September 2026.</span>
+    </p>
+  </div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">What it is</p>
+    <h2 class="display">One slider, written as a score</h2>
+
+    <div class="cols" style="margin-top:6mm">
+      <div class="c-58">
+        <p>An insert for the bar before a drop. Put it on a track or a bus, load up
+          to six effects into six <b>slots</b>, and tell each slot <em>where</em> along
+          one master slider it should travel from its <b>A</b> setting to its
+          <b>B</b> setting. Then automate that one slider — <b>POSITION</b> — from
+          0 to 100&nbsp;% over the build.</p>
+        <p style="margin-top:3mm">The slots ignite one after another as the slider
+          passes their entry points. At the end you fire <b>ARRIVAL</b>, a separate
+          command, and every slot lets go on the next bar line, to the sample, with
+          a sub-bass impact under it.</p>
+        <p style="margin-top:3mm"><b>Scrubbing the slider never fires the drop.</b>
+          Only ARRIVAL does, which is why you can drag POSITION about while you work
+          without the track detonating.</p>
+
+        <div class="box" style="margin-top:5mm">
+          <h4>The signal path</h4>
+          <p class="mono" style="font-size:8.4pt; line-height:1.6">
+            in &rarr; slot 1 &rarr; slot 2 &rarr; &hellip; &rarr; slot 6<br>
+            &nbsp;&nbsp;&rarr; stereo stage (SPREAD / TURN / MONO GATE)<br>
+            &nbsp;&nbsp;&rarr; MIX &rarr; OUTPUT &rarr; BWFX rack &rarr; out
+          </p>
+          <p style="margin-top:2.5mm">Slots are in series, top to bottom.
+            <b>Slot order is chain order.</b></p>
+        </div>
+      </div>
+
+      <div style="padding-top:1mm">
+        <figure class="wide">
+          <img class="shot" src="img/panel-loaded.jpg" alt="" style="max-height:88mm; width:auto; margin:0 auto" />
+          <figcaption>Six lanes, each with its own span along the travel. The marker
+            is where POSITION is; a lane takes on heat as the marker crosses it.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>What it is</span><span class="n">02</span></div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">Read this first</p>
+    <h2 class="display">Why a new slot seems to do nothing</h2>
+
+    <div class="cols" style="margin-top:6mm">
+      <div class="c-58">
+        <p><b>A slot you have just filled cannot move, and that is deliberate.</b>
+          Choosing an effect seeds <em>both</em> sides of the slot — A and B — with
+          that effect's own defaults. A equals B, so the slot resolves to the same
+          value at every position, and <b>ENTER, EXIT, DEPTH and CURVE all do nothing
+          until you change something in the B row.</b></p>
+        <p style="margin-top:3mm">This is on purpose: loading an effect never changes
+          your sound until you ask it to. You can fill all six lanes and hear nothing
+          different, then decide what travels.</p>
+
+        <div class="box" style="margin-top:5mm">
+          <h4>The panel says so</h4>
+          <p>A slot that cannot travel has its span <b>hatched out</b> on the lane,
+            its <b>name in amber</b> instead of ash, and a line under the A/B editor
+            telling you to move a B knob. A lane is 44&nbsp;mm of panel with a slider
+            on every pixel, so it has to say it without words.</p>
+        </div>
+
+        <p style="margin-top:5mm">So the first move after choosing an effect is always
+          the same: <b>click the lane, then change a knob in the bottom row.</b></p>
+      </div>
+
+      <div style="padding-top:1mm">
+        <figure class="wide">
+          <img class="shot" src="img/panel-empty.jpg" alt="" style="max-height:74mm; width:auto; margin:0 auto" />
+          <figcaption>An empty rack. Nothing is loaded, and the plug-in is
+            bit-transparent: POSITION moves and the sound does not.</figcaption>
+        </figure>
+
+        <div class="box cool" style="margin-top:5mm">
+          <h4>The A / B editor</h4>
+          <p>Click a lane to select it. The editor below shows that slot's parameters:
+            top row <b>A</b> in yellow, bottom row <b>B</b> in ember. A parameter whose
+            A equals its B does not move, however far the marker travels.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Read this first</span><span class="n">03</span></div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">Each slot</p>
+    <h2 class="display">One lane, ten decisions</h2>
+
+    <table class="tight" style="margin-top:5mm">
+      <tr><td style="width:26mm"><b>tick box</b></td>
+          <td style="color:var(--body)">slot on or off</td>
+          <td style="width:26mm"><b>DEPTH</b></td>
+          <td style="color:var(--body)">how far along the A&rarr;B route it actually gets by EXIT. 60&nbsp;% means it is still on its way when the drop lands, which is often the better sound</td></tr>
+      <tr><td><b>socket</b></td>
+          <td style="color:var(--body)">the effect's own mark, struck into iron. It warms to ember as the lane catches</td>
+          <td><b>PLACE</b></td>
+          <td style="color:var(--body)">ST / MID / SIDE / L / R — which part of the stereo field the slot works on</td></tr>
+      <tr><td><b>EFFECT</b></td>
+          <td style="color:var(--body)">which effect the slot holds. EMPTY is none, duplicates are allowed, and BROKILD WORLD FX at the bottom opens a submenu of ten rack modules. <b>Amber means the slot cannot travel</b></td>
+          <td><b>ON ARRIVAL</b></td>
+          <td style="color:var(--body)">STOP kills it dead &middot; SPILL stops feeding it but lets the tail ring on over the downbeat &middot; CLEAR silences it and zeroes its buffers, the vacuum</td></tr>
+      <tr><td><b>ENTER</b></td>
+          <td style="color:var(--body)">the POSITION at which this slot starts moving from A toward B</td>
+          <td><b>CURVE</b></td>
+          <td style="color:var(--body)">LIN &middot; ACCEL, late then a rush &middot; DECEL, fast then settling &middot; S &middot; PEAK, which reaches B in the middle and returns to A</td></tr>
+      <tr><td><b>EXIT</b></td>
+          <td style="color:var(--body)">the POSITION at which it reaches B. Before ENTER it sits at A; after EXIT it holds at B</td>
+          <td></td><td></td></tr>
+    </table>
+
+    <hr class="rule thin" style="margin-top:6mm" />
+
+    <div class="cols" style="margin-top:4mm">
+      <div class="c-58">
+        <h3 class="display" style="font-size:11pt">The host parameters</h3>
+        <p style="margin-top:2.5mm; font-size:9.6pt">Only these are automatable.
+          Everything else lives in the plug-in state — the rite — on purpose, so
+          re-assigning a slot never orphans an automation lane.</p>
+      </div>
+      <div style="padding-top:1mm">
+        <table class="tight">
+          <tr><td style="width:24mm"><b>POSITION</b></td><td style="color:var(--body)">0&ndash;100&nbsp;%. The master slider. <b>Automate this</b></td></tr>
+          <tr><td><b>ARRIVAL</b></td><td style="color:var(--body)">a trigger. On its rising edge it arms and fires at the next bar. Set it back to off before the next build</td></tr>
+          <tr><td><b>MIX</b></td><td style="color:var(--body)">global dry/wet across the chain</td></tr>
+          <tr><td><b>OUTPUT</b></td><td style="color:var(--body)">&minus;24 to +12&nbsp;dB trim</td></tr>
+          <tr><td><b>SPREAD</b></td><td style="color:var(--body)">left and right run the score slightly apart: width without panning</td></tr>
+          <tr><td><b>TURN</b></td><td style="color:var(--body)">rotates the field up to &plusmn;45&deg;, energy preserving</td></tr>
+          <tr><td><b>MONO GATE</b></td><td style="color:var(--body)">how far toward mono the mix collapses over the last 15&nbsp;% of the travel. ARRIVAL releases it</td></tr>
+          <tr><td><b>MACRO 1&ndash;5</b></td><td style="color:var(--body)">the World rack's five macros</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Each slot</span><span class="n">04</span></div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">Auto transition</p>
+    <h2 class="display">Let the plug-in drive the slider</h2>
+
+    <div class="cols" style="margin-top:6mm">
+      <div class="c-58">
+        <p>The strip under POSITION runs the sweep for you off the host transport,
+          so you need not draw an automation lane at all.</p>
+        <table class="tight" style="margin-top:4mm">
+          <tr><td style="width:30mm"><b>AUTO</b></td><td style="color:var(--body)">while it is on, the plug-in owns POSITION and the host parameter is ignored. The slider is disabled and becomes a display</td></tr>
+          <tr><td><b>BARS</b></td><td style="color:var(--body)">the cycle length: 1, 2, 4, 8 or 16 bars, repeating</td></tr>
+          <tr><td><b>START / END</b></td><td style="color:var(--body)">where in the cycle the sweep runs. These are BAR LINES counted the way a DAW counts them, so in an 8-bar cycle the 8th bar is 8.00 to 9.00. They snap to quarter bars</td></tr>
+          <tr><td><b>0 to 100 / 100 to 0</b></td><td style="color:var(--body)">which way it runs</td></tr>
+          <tr><td><b>then RESET / then HOLD</b></td><td style="color:var(--body)">what happens between the end of the window and the end of the cycle</td></tr>
+          <tr><td><b>ARRIVE</b></td><td style="color:var(--body)">fire ARRIVAL when the sweep completes. Off by default: an automatic drop is a bigger thing than an automatic sweep</td></tr>
+        </table>
+      </div>
+
+      <div style="padding-top:1mm">
+        <div class="box">
+          <h4>Why RESET is the default</h4>
+          <p>After the window the position drops straight back. Put the window early
+            in a long cycle and <b>then HOLD</b> leaves you at 100&nbsp;% for several
+            bars, which reads exactly like the sweep having run once and stopped.
+            HOLD is there for when you want the arrival to stay landed until the
+            cycle comes round.</p>
+        </div>
+
+        <h3 class="display" style="font-size:11pt; margin-top:6mm">Measured</h3>
+        <p style="font-size:9.2pt; color:var(--dim); margin-top:1.5mm">An 8-bar cycle,
+          window on the 8th bar.</p>
+        <table class="tight" style="margin-top:2.5mm">
+          <tr><td style="width:34mm">transport at bar 4</td><td class="mono">0.00</td></tr>
+          <tr><td>bar 8.0</td><td class="mono">0.00</td></tr>
+          <tr><td>bar 8.5</td><td class="mono">0.50</td></tr>
+          <tr><td>bar 9.0</td><td class="mono">0.99</td></tr>
+        </table>
+        <p style="margin-top:3mm; font-size:9.4pt"><b>With AUTO off nothing changes
+          at all.</b> The host parameter drives POSITION exactly as it always did,
+          which is checked so that no existing project moves.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Auto transition</span><span class="n">05</span></div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">Mix gate</p>
+    <h2 class="display">The effects only while the slider moves</h2>
+
+    <div class="cols" style="margin-top:6mm">
+      <div class="c-58">
+        <p>Most of the time you want the plug-in present during the transition and
+          absent either side of it. The MIX GATE row does that without a second
+          automation lane: it scales MIX by where POSITION is.</p>
+
+        <table class="tight" style="margin-top:4mm">
+          <tr><td style="width:30mm"><b>FADE IN</b></td><td style="color:var(--body)">shuts the effects off while POSITION is at 0</td></tr>
+          <tr><td><b>its length</b></td><td style="color:var(--body)">how much of the travel the fade takes. At <b>0 the switch is instant</b> and the readout says so: silent at exactly 0&nbsp;%, fully open one step above it. At 20&nbsp;% it is half open at 10&nbsp;% and finished by 20&nbsp;%</td></tr>
+          <tr><td><b>FADE OUT</b></td><td style="color:var(--body)">the same at the other end, measured back from 100&nbsp;%</td></tr>
+        </table>
+
+        <p style="margin-top:4mm">There is no click risk at a zero-length gate: the
+          rack already smooths MIX with a 10&nbsp;ms one-pole.</p>
+      </div>
+
+      <div style="padding-top:1mm">
+        <div class="box">
+          <h4>Both off means exactly off</h4>
+          <p>With neither switch engaged, <b>MIX is exactly the number on the knob</b>.
+            The bench checks that as an IEEE-exact multiply by one rather than a
+            tolerance, so no existing project moves by a hair.</p>
+        </div>
+
+        <h3 class="display" style="font-size:11pt; margin-top:6mm">Measured</h3>
+        <table class="tight" style="margin-top:2.5mm">
+          <tr><td style="width:44mm">20&nbsp;% fade in, at 10&nbsp;%</td><td class="mono">0.50</td></tr>
+          <tr><td>&hellip; from 20&nbsp;% on</td><td class="mono">1.00</td></tr>
+          <tr><td>25&nbsp;% fade out, at 87.5&nbsp;%</td><td class="mono">0.50</td></tr>
+          <tr><td>&hellip; at 100&nbsp;%</td><td class="mono">0.00</td></tr>
+          <tr><td>both on, at 0 / 50 / 100&nbsp;%</td><td class="mono">0.00 / 1.00 / 0.00</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Mix gate</span><span class="n">06</span></div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">The eighteen</p>
+    <h2 class="display">What each slot can hold</h2>
+    <p style="margin-top:3mm; font-size:9.4pt; color:var(--dim)">Each carries its own
+      parameters, and every one of them has an A and a B.</p>
+
+    <table class="tight" style="margin-top:4mm">
+      <tr><td style="width:22mm"><b>CLIMB</b></td><td style="color:var(--body)">resonant filter sweep to self-oscillation — the spine of a build</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">MODE LP/BP/HP · CUTOFF · RESO · DRIVE</td></tr>
+      <tr><td style="width:22mm"><b>TAPE</b></td><td style="color:var(--body)">analogue echo whose head moves: changing TIME bends the pitch, or crossfades</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">TIME · FEEDBACK · MOTOR · MODE · DRIVE · WOW · MIX</td></tr>
+      <tr><td style="width:22mm"><b>STUTTER</b></td><td style="color:var(--body)">captures a slice and repeats it, so time stops</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">DIV · DEPTH · DECAY · PITCH · CAPTURE</td></tr>
+      <tr><td style="width:22mm"><b>CHOP</b></td><td style="color:var(--body)">gates the live signal rhythmically, so time continues</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">RATE · DEPTH · DUTY · SLEW</td></tr>
+      <tr><td style="width:22mm"><b>RISER</b></td><td style="color:var(--body)">a generator: noise, tone or a Shepard climb, mixed in</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">SOURCE · FREQ · RESO · LEVEL · WIDTH</td></tr>
+      <tr><td style="width:22mm"><b>GAP</b></td><td style="color:var(--body)">the silence before the drop, placeable anywhere on the score</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">DEPTH · EDGE</td></tr>
+      <tr><td style="width:22mm"><b>GRAIN</b></td><td style="color:var(--body)">the music breaks into particles, then a cloud</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">SIZE · DENSITY · SCATTER · SPREAD · MIX</td></tr>
+      <tr><td style="width:22mm"><b>BLOOM</b></td><td style="color:var(--body)">a small room growing into an enormous wash; FREEZE at 100 % holds it for ever</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">SIZE · DECAY · DAMP · MOD · FREEZE · MIX</td></tr>
+      <tr><td style="width:22mm"><b>FREEZE</b></td><td style="color:var(--body)">the harmonic fingerprint held while the rhythm dissolves</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">BLUR · HOLD · CAPTURE</td></tr>
+    </table>
+  </div>
+  <div class="folio"><span>The eighteen</span><span class="n">07</span></div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">The eighteen</p>
+    <h2 class="display">&hellip; and the other nine</h2>
+
+    <table class="tight" style="margin-top:5mm">
+      <tr><td style="width:22mm"><b>REVERSE</b></td><td style="color:var(--body)">each division played back to front over the next one</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">DIV · DEPTH · EDGE</td></tr>
+      <tr><td style="width:22mm"><b>BRAKE</b></td><td style="color:var(--body)">the whole signal grinding to a halt, or launching out of one</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">SPEED 0–200 %</td></tr>
+      <tr><td style="width:22mm"><b>DIVE</b></td><td style="color:var(--body)">the source itself bending into the drop</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">SEMIS −24…+12 · GRAIN</td></tr>
+      <tr><td style="width:22mm"><b>SWIRL</b></td><td style="color:var(--body)">a room that will not hold still: chorused twenty times as deep as BLOOM's</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">SIZE · DECAY · WARP · RATE · TONE · MIX</td></tr>
+      <tr><td style="width:22mm"><b>MANGLE</b></td><td style="color:var(--body)">four ways to break it. Travelling ENGINE walks warm, ugly, folded, destroyed</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">ENGINE · DRIVE · BIAS · CHAR · TONE · MIX</td></tr>
+      <tr><td style="width:22mm"><b>SWARM</b></td><td style="color:var(--body)">one voice becomes a crowd: up to eight copies, each at its own offset</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">VOICES · DETUNE · DEPTH · RATE · SPREAD · MIX</td></tr>
+      <tr><td style="width:22mm"><b>DUST</b></td><td style="color:var(--body)">older than the record: quantise, hold, wobble the transport, add the room</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">BITS · RATE · WOW · NOISE · TONE · MIX</td></tr>
+      <tr><td style="width:22mm"><b>ORBIT</b></td><td style="color:var(--body)">round the head, and behind it. ANGLE is where on the circle the source sits</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">ANGLE · SPIN · WIDTH · REAR · SHADE · MIX</td></tr>
+      <tr><td style="width:22mm"><b>CHANT</b></td><td style="color:var(--body)">the track is made to speak. What arrives is the modulator</td><td style="width:62mm; color:var(--dim); font-size:8.4pt" class="mono">CARRIER · PITCH · BANDS · FORMANT · RESPONSE · TONE · MIX</td></tr>
+    </table>
+
+    <hr class="rule thin" style="margin-top:6mm" />
+
+    <div class="grid3" style="margin-top:4mm">
+      <div class="box">
+        <h4>ORBIT's back is measured</h4>
+        <p>Behind the head it is 3.3&nbsp;dB quieter, 6.6&nbsp;dB darker at the top and
+          24&nbsp;samples late, because the path round a skull is longer than the path
+          to the front of it. All three together sell the circle; a pan pot gives you
+          only the first.</p>
+      </div>
+      <div class="box">
+        <h4>BRAKE only launches out of a stop</h4>
+        <p>Above 100&nbsp;% the playback head is trying to catch up with the present,
+          and from rest there is nothing to catch up to. Brake first, then let it go:
+          that is the gesture.</p>
+      </div>
+      <div class="box">
+        <h4>BLOOM's FREEZE is exact</h4>
+        <p>At 100&nbsp;% the loop gain is exactly 1.0, the modulation stops and the
+          delays round to whole samples, so a frozen wash neither creeps nor decays.
+          The bench holds it flat over sixty seconds.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The eighteen</span><span class="n">08</span></div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">The World rack</p>
+    <h2 class="display">Ten modules you can put <em>inside</em> the chain</h2>
+
+    <div class="cols" style="margin-top:6mm">
+      <div class="c-58">
+        <p>The bottom of every EFFECT menu opens <b>BROKILD WORLD FX</b>: ten modules
+          of the World rack, insertable in a slot like any of the eighteen and swept
+          from A to B like any of the eighteen.</p>
+        <p class="mono" style="margin-top:3mm; color:var(--cool); font-size:8.6pt">
+          TUBE &middot; SWEEP &middot; ENSEMBLE &middot; HARMONIC &middot; GATE &middot;
+          GRIT &middot; STRIP &middot; ECHO &middot; SHIMMER &middot; ROTARY</p>
+
+        <p style="margin-top:4mm">The rack is already on this plug-in, post-chain, with
+          its five macros automatable — so this is not about <em>reaching</em> those
+          modules. It is about <b>where they sit</b>. A slot puts one inside the chain,
+          with its own PLACE and its own ON ARRIVAL, and that buys three things the
+          post-chain rack cannot.</p>
+
+        <table class="tight" style="margin-top:4mm">
+          <tr><td style="width:22mm"><b>Order</b></td><td style="color:var(--body)">a GRIT before CLIMB is a dirty filter; after it, a clean filter into dirt. Same two boxes, different instrument</td></tr>
+          <tr><td><b>Field</b></td><td style="color:var(--body)">GATE set to SIDE rolls the room and leaves the lead alone</td></tr>
+          <tr><td><b>The landing</b></td><td style="color:var(--body)">an ECHO set to SPILL rings on through the drop while everything around it is CLEARed</td></tr>
+        </table>
+      </div>
+
+      <div style="padding-top:1mm">
+        <figure class="wide">
+          <img class="shot" src="img/panel-bwfx.jpg" alt="" style="max-height:70mm; width:auto; margin:0 auto" />
+          <figcaption>The rack's own face, opened from the header: effects on the left,
+            characters on the right, five macros along the foot.</figcaption>
+        </figure>
+
+        <div class="box cool" style="margin-top:4mm">
+          <h4>They start switched off</h4>
+          <p>Assigning one changes nothing until you edit it — each arrives with its
+            one amount knob at zero, so A is dry and the first thing you reach for is
+            B's amount. Eight of the ten are bit-exact at rest; TUBE's valve stage is
+            in circuit at any drive, so that one colours the moment you assign it.</p>
+        </div>
+
+        <p style="margin-top:4mm; font-size:9.2pt"><b>Two are deliberately not offered.</b>
+          SPACE rebuilds its reverb between blocks, so its character cannot travel.
+          KIERANATOR is a drawn step pattern, and the grid that draws it is on the
+          rack's face, not in a lane.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The World rack</span><span class="n">09</span></div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">A first rite</p>
+    <h2 class="display">Step by step, and it works</h2>
+
+    <div class="cols" style="margin-top:6mm">
+      <div class="c-58">
+        <table class="tight">
+          <tr><td style="width:8mm; color:var(--brass)"><b>1</b></td><td style="color:var(--body)">Insert it on the drum bus or the master. Nothing changes yet.</td></tr>
+          <tr><td style="color:var(--brass)"><b>2</b></td><td style="color:var(--body)">Lane 1: choose <b>CLIMB</b>. Click the lane. In the B row set CUTOFF to 300&nbsp;Hz and RESO to 60&nbsp;%. Until you do, the lane stays hatched. Leave ENTER at 0 and EXIT at 100&nbsp;%.</td></tr>
+          <tr><td style="color:var(--brass)"><b>3</b></td><td style="color:var(--body)">Lane 2: <b>CHOP</b>. ENTER about 50&nbsp;%, EXIT 95&nbsp;%. A RATE 1/4, B RATE 1/16. CURVE = ACCEL, so the rate rushes at the end.</td></tr>
+          <tr><td style="color:var(--brass)"><b>4</b></td><td style="color:var(--body)">Lane 3: <b>RISER</b>. ENTER 30&nbsp;%, EXIT 100&nbsp;%. A LEVEL &minus;60&nbsp;dB, B LEVEL &minus;6&nbsp;dB, B FREQ 8000. SOURCE NOISE.</td></tr>
+          <tr><td style="color:var(--brass)"><b>5</b></td><td style="color:var(--body)">Lane 4: <b>GAP</b>. ENTER 92&nbsp;%, EXIT 100&nbsp;%. A DEPTH 0, B DEPTH 100. ON ARRIVAL = CLEAR.</td></tr>
+          <tr><td style="color:var(--brass)"><b>6</b></td><td style="color:var(--body)">Set <b>MONO GATE</b> to 60&nbsp;%.</td></tr>
+          <tr><td style="color:var(--brass)"><b>7</b></td><td style="color:var(--body)">In the DAW draw a POSITION ramp 0&rarr;100&nbsp;% over the last four bars. Draw an ARRIVAL blip that goes on just before the bar line of the drop, and back to off after.</td></tr>
+        </table>
+      </div>
+
+      <div style="padding-top:1mm">
+        <figure class="wide">
+          <img class="shot" src="img/panel-midway.jpg" alt="" style="max-height:66mm; width:auto; margin:0 auto" />
+          <figcaption>Midway. The lanes the marker has passed carry heat; the ones ahead
+            of it are still cold.</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:4mm">
+          <h4>What you will hear</h4>
+          <p>The filter closes across four bars, the chop starts halfway and
+            accelerates, the riser rises from bar two, the mix narrows in the last
+            15&nbsp;%, the gap cuts the last half-beat, and on the bar the chain lets
+            go.</p>
+        </div>
+
+        <p style="margin-top:4mm; font-size:9.2pt">Two more worth trying once that works:
+          <b>DIVE</b> on the last bar with B SEMIS at &minus;12, the whole track bending
+          into the drop; and <b>BLOOM</b> with B FREEZE at 100&nbsp;% and ON ARRIVAL =
+          SPILL, so the wash is caught and hangs over the downbeat.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>A first rite</span><span class="n">10</span></div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">What is verified</p>
+    <h2 class="display">Measured, not asserted</h2>
+
+    <div class="grid2" style="margin-top:6mm">
+      <div>
+        <div class="box">
+          <h4>Engine bench &mdash; 506 checks, all clear</h4>
+          <p>The score is obeyed, the loudness contract holds per effect, ARRIVAL is
+            sample-accurate, rendering is identical at 64 and 256-sample blocks, and
+            the six most expensive effects loaded at once cost about 10&nbsp;% of one
+            core.</p>
+        </div>
+        <div class="box" style="margin-top:4mm">
+          <h4>Anti-aliasing</h4>
+          <p>BRAKE and DIVE read a delay line faster than it was written, which folds
+            everything above the new Nyquist back into the band. Both run on a
+            2&times; oversampled line. A 14&nbsp;kHz tone folds at
+            <b>&minus;64.6&nbsp;dB</b> for DIVE at +12 semitones, where it was
+            0.0&nbsp;dB before; &minus;64.6 for BRAKE launching out of a stop; and
+            &minus;103.3 for GRAIN at full SPREAD.</p>
+        </div>
+      </div>
+      <div>
+        <div class="box">
+          <h4>Wrapper harness &mdash; 57 checks</h4>
+          <p>Parameters, buses, state round trip, a rite from a newer build tolerated,
+            scrubbing fires nothing, ARRIVAL fires, and a rite carrying World modules
+            comes back as the same modules with the same knobs.</p>
+        </div>
+        <div class="box" style="margin-top:4mm">
+          <h4>Panel snapshot &mdash; 37 checks</h4>
+          <p>A travelling lane carries heat, a lane whose A equals its B carries none,
+            and the lane menu is the eighteen with the ten World modules behind their
+            own door, every one selectable.</p>
+        </div>
+        <div class="box" style="margin-top:4mm">
+          <h4>Not verified</h4>
+          <p><b>Nobody has heard it in a DAW yet.</b> Everything above is a machine
+            reading numbers off real audio. None of it is the same as a person
+            listening.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>What is verified</span><span class="n">11</span></div>
+</section>
+
+<section class="page">
+  <div class="pad">
+    <p class="kick">Still missing</p>
+    <h2 class="display">What the panel does not have yet</h2>
+
+    <div class="cols" style="margin-top:6mm">
+      <div class="c-58">
+        <p><b>Seven effects have no mark of their own.</b> The glyph sheet carries
+          eleven marks and the empty brackets; GAP falls back to its name in type. A
+          World module in a lane has none either, and draws its name in the rack's
+          teal instead.</p>
+        <p style="margin-top:3mm"><b>The wordmark is not used.</b> The delivered plank
+          is shorter than its own lettering, so every letter is cut off at the bottom.
+          The panel draws the title in type until that is redrawn.</p>
+
+        <hr class="rule thin" style="margin-top:6mm" />
+
+        <p style="margin-top:4mm; font-size:9.2pt; color:var(--dim)">Without a host clock
+          the plug-in free-runs at 120&nbsp;BPM, so ARRIVAL still lands on a bar of its
+          own clock.</p>
+      </div>
+
+      <div style="padding-top:1mm">
+        <figure class="wide">
+          <img class="shot" src="img/panel-flat.jpg" alt="" style="max-height:60mm; width:auto; margin:0 auto" />
+          <figcaption>At rest. Every lane cold, the marker at zero.</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:5mm">
+          <h4>Licence</h4>
+          <p>AGPLv3. Read it, change it, build it. If you distribute a modified build,
+            publish your changes. The source is in the same repository as this
+            handbook, under <span class="mono" style="font-size:8.2pt">vst3-apps/rite-of-passage/plugin</span>.
+            The artwork is not licensed for reuse.</p>
+        </div>
+
+        <p style="margin-top:6mm; text-align:right; color:var(--brass); font-size:9pt">
+          Brokild &middot; September 2026</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Rite of Passage</span><span class="n">12</span></div>
+</section>
+
+</body>
+</html>
