@@ -358,6 +358,7 @@ struct PSpec
     X(h_loop,     "h_loop",     "HISTORY LOOP",    0.0f,  KP_LIST, 0, 2,     F_NS) \
     X(h_sc2pos,   "h_sc2pos",   "SCENE 2 AT",      0.333f,KP_PCT,  0, 0,     F_NS | F_NM) \
     X(h_sc3pos,   "h_sc3pos",   "SCENE 3 AT",      0.667f,KP_PCT,  0, 0,     F_NS | F_NM) \
+    X(h_rewind,   "h_rewind",   "NEW CHORD REWINDS",0.0f, KP_SW,   0, 0,     F_NS) \
     /* ---- MACROS ------------------------------------------------------ */ \
     X(mac_mass,   "mac_mass",   "MASS",            0.0f,  KP_PCT,  0, 0,     F_NM) \
     X(mac_dread,  "mac_dread",  "DREAD",           0.0f,  KP_PCT,  0, 0,     F_NM) \

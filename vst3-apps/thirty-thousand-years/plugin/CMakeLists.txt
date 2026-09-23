@@ -4,7 +4,7 @@ project(ThirtyThousandYears VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Bump it AND re-run
 # `cmake -S . -B build` or it will not take.
-set(TTY_BUILD_ID "260923.2")
+set(TTY_BUILD_ID "260923.3")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

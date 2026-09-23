@@ -398,6 +398,28 @@ void Engine::tickControl (int n)
     }
     wasPlaying = playing; lastPpq = ppq;
 
+    /*  NEW CHORD REWINDS: play after a silence and the journey starts again.
+        Only voices you are playing count. A drone voice is gated for as long as
+        DRONE is switched on, so counting it would mean the quiet gap never
+        arrives and this would be dead on exactly the patches it suits.
+        The rewind fires on the RISING edge, which is what makes a chord rewind
+        once instead of once per key: the later notes of a chord land while the
+        edge is already up. */
+    {
+        constexpr float REWIND_GAP = 2.0f;          // seconds of no keys before a new entry counts
+        bool held = false;
+        for (auto& v : voices) if (v.gate && ! v.drone) { held = true; break; }
+        if (held)
+        {
+            if (! keysHeld && quietFor >= REWIND_GAP
+                && p.sw (P_h_rewind) && p.sw (P_h_on) && p.li (P_h_mode) > 0)
+            { hAuto = 0.0f; hDone = false; hDir = 1.0f; }   // hDone too, or ONCE never travels again
+            quietFor = 0.0f;
+        }
+        else quietFor += dt;
+        keysHeld = held;
+    }
+
     applyHistory();
 
     bool gateAny = false; for (auto& v : voices) if (v.gate) gateAny = true;

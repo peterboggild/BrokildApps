@@ -361,6 +361,100 @@ static void testLifeHistory()
     e->p[P_h_on] = 0; e->p[P_h_pos] = 0.0f; render (*e, 0.05); e->p[P_h_hold] = 1; e->p[P_h_loop] = 1; e->p[P_h_on] = 1; render (*e, 0.5);
     check (e->historyPos < 0.05f, "HOLD HISTORY stops the traversal", fmt ("%.3f", e->historyPos).c_str());
     delete e;
+
+    /*  NEW CHORD REWINDS. Four claims, because three of them can pass while the
+        feature is useless: that it rewinds at all, that a CHORD rewinds once
+        rather than once per key, that a note arriving with no silence before it
+        does NOT rewind, and that with the switch off nothing happens. */
+    {
+        Engine* r = fresh (48000.0, 0);
+        for (auto& sl : r->life.slots) sl.on = false;
+        r->p[P_h_on] = 1; r->p[P_h_mode] = 1; r->p[P_h_loop] = 0;
+        r->p[P_h_dur] = xunmap (10.0f, 1.0f, 1800.0f);
+        r->p[P_h_rewind] = 1; r->p[P_drone] = 0;
+
+        render (*r, 3.0);                                  // travel ~30 %
+        const float travelled = r->historyPos;
+        r->noteOn (48, 0.8f, 0); render (*r, 0.2);
+        const float afterFirst = r->historyPos;
+        check (travelled > 0.2f && afterFirst < 0.05f,
+               "NEW CHORD REWINDS: a note after a silence starts the journey again",
+               fmt ("%.3f -> %.3f", travelled, afterFirst).c_str());
+
+        /*  the rest of a chord lands while keys are already down: it must not
+            rewind again, or the journey would restart on every finger */
+        render (*r, 1.0);
+        const float mid = r->historyPos;
+        r->noteOn (55, 0.8f, 0); r->noteOn (60, 0.8f, 0); render (*r, 0.2);
+        check (r->historyPos > mid - 1e-4f,
+               "...and the other notes of the same chord do not rewind it again",
+               fmt ("%.3f -> %.3f", mid, r->historyPos).c_str());
+
+        /*  a fresh note with no gap before it is a phrase, not a new entry */
+        r->noteOff (55, 0); r->noteOff (60, 0); render (*r, 0.5);
+        const float during = r->historyPos;
+        r->noteOn (57, 0.8f, 0); render (*r, 0.2);
+        check (r->historyPos > during - 1e-4f,
+               "...and a note while others are still held is not a new entry",
+               fmt ("%.3f -> %.3f", during, r->historyPos).c_str());
+        delete r;
+
+        /*  switch off: the same gesture must leave the journey alone */
+        Engine* q = fresh (48000.0, 0);
+        for (auto& sl : q->life.slots) sl.on = false;
+        q->p[P_h_on] = 1; q->p[P_h_mode] = 1; q->p[P_h_loop] = 0;
+        q->p[P_h_dur] = xunmap (10.0f, 1.0f, 1800.0f);
+        q->p[P_h_rewind] = 0; q->p[P_drone] = 0;
+        render (*q, 3.0);
+        const float before = q->historyPos;
+        q->noteOn (48, 0.8f, 0); render (*q, 0.2);
+        check (q->historyPos > before,
+               "NEW CHORD REWINDS off: a note leaves the journey where it was",
+               fmt ("%.3f -> %.3f", before, q->historyPos).c_str());
+        delete q;
+    }
+
+    /*  Every armed journey has to GO somewhere. A preset can ship four scenes,
+        arm HISTORY and still sound identical from end to end if the scenes name
+        parameters the patch does not use -- which is a journey in name only and
+        is invisible to every other check here. Render each one parked at the
+        start and again parked at the end, and require the two to differ. */
+    {
+        int armed = 0, flat = 0; std::string worst; float worstD = 1e9f;
+        for (int i = 0; i < numPresets(); ++i)
+        {
+            Engine* a = fresh (48000.0, i);
+            if (! a->p.sw (P_h_on)) { delete a; continue; }
+            ++armed;
+            bool anyScene = false; for (bool b : a->sceneSet) if (b) anyScene = true;
+            if (! anyScene) { delete a; continue; }
+
+            a->p[P_h_mode] = 0; a->p[P_h_pos] = 0.0f;          // by hand, parked at the start
+            a->noteOn (48, 0.8f, 0); a->noteOn (55, 0.8f, 0);
+            Take t0 = render (*a, 4.0);
+            delete a;
+
+            Engine* b = fresh (48000.0, i);
+            b->p[P_h_mode] = 0; b->p[P_h_pos] = 1.0f;          // and at the end
+            b->noteOn (48, 0.8f, 0); b->noteOn (55, 0.8f, 0);
+            Take t1 = render (*b, 4.0);
+            delete b;
+
+            const int from = (int) (2.0 * 48000.0);
+            const float r0 = rms (t0, from), r1 = rms (t1, from);
+            double num = 0, den = 0;
+            for (int k = from; k < t0.n() && k < t1.n(); ++k)
+            { const double d = t0.L[(size_t) k] - t1.L[(size_t) k]; num += d * d; den += (double) t0.L[(size_t) k] * t0.L[(size_t) k]; }
+            const float diff = den > 0 ? (float) std::sqrt (num / den) : 0.0f;
+            if (diff < 0.05f) { ++flat; }
+            if (diff < worstD) { worstD = diff; worst = preset (i).name; }
+            (void) r0; (void) r1;
+        }
+        char title[128], detail[160];
+        std::snprintf (title, sizeof title, "every armed journey travels: %d presets, none flat", armed);
+        std::snprintf (detail, sizeof detail, "%d flat, least travelled %s at %.3f", flat, worst.c_str(), worstD);
+        check (flat == 0, title, detail);
+    }
 }
 
 static void testPanicDeterminismRates()

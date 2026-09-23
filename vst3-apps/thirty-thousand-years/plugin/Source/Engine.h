@@ -114,6 +114,15 @@ private:
     float scalaCents[64] = {}; int scalaN = 0; float scalaPeriod = 1200.0f;
     Rng rng; uint32_t seedBase = 17;
     float hAuto = 0.0f, hDir = 1.0f, histNudge = 0.0f; bool hDone = false;
+    /*  NEW CHORD REWINDS: a journey starts again when you play after a silence.
+        keysHeld counts only voices you are playing -- a drone is gated for as
+        long as it is switched on, so counting it would mean the quiet gap never
+        arrives and the feature would be dead. The rewind fires on the RISING
+        edge of keysHeld, which is what makes a chord rewind once rather than
+        once per note: the second and third keys of a chord land while the edge
+        is already up. */
+    bool  keysHeld = false;
+    float quietFor = 1.0e9f;        // seconds since the last key was let go
     float slewA = 0.1f; bool effPrimed = false;
     float freezeOverride = 0.0f, loopKick = 0.0f;
     float specAcc[SPEC_N] = {}; int specW = 0; Fft specFft; std::vector<float> specRe, specIm, specWin;

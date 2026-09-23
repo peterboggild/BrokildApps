@@ -38,3 +38,13 @@ if(MSVC)
 else()
     target_compile_options(ttyash PRIVATE -O2 -fno-fast-math)
 endif()
+
+# Which presets are shrill, and did softening them work.
+add_executable(ttyharsh probe-harsh.cpp ${ENGINE})
+target_include_directories(ttyharsh PRIVATE ../Source)
+if(MSVC)
+    target_compile_options(ttyharsh PRIVATE /O2 /fp:precise /EHsc /bigobj)
+    target_link_options(ttyharsh PRIVATE /STACK:67108864)
+else()
+    target_compile_options(ttyharsh PRIVATE -O2 -fno-fast-math)
+endif()

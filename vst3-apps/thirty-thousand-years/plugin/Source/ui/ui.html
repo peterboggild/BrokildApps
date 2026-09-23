@@ -922,7 +922,8 @@ h_mode:"Who moves HISTORY. MANUAL is you, AUTO runs on its own clock, AUTO SYNC 
 h_dur:"How long AUTO takes to travel the whole way, up to thirty minutes.",
 h_bars:"How many host bars AUTO SYNC takes to travel the whole way.",
 h_loop:"What happens at the end. ONCE stops, LOOP begins again, PING-PONG turns round and travels back.",
-h_sc2pos:"Where scene 2 sits along the travel. Move it to spend longer in the first part of the piece.",
+h_rewind:"Start the journey again when you play after a couple of seconds of no keys. A chord counts once, not once per note; a drone does not count, so this still works under one.",
+  h_sc2pos:"Where scene 2 sits along the travel. Move it to spend longer in the first part of the piece.",
 h_sc3pos:"Where scene 3 sits along the travel. Together with scene 2 it sets the shape of the whole arc.",
 
 mac_mass:"Weight and physical presence. It pushes the low end, the sub and the body of everything forward.",
@@ -1310,7 +1311,7 @@ var VIEWS = [
 { k:"main", tab:"MAIN", rows:[
   { h:294, cols:[{ w:350, sp:"strata", si:0 },{ w:350, sp:"strata", si:1 },
                  { w:350, sp:"strata", si:2 },{ w:350, sp:"strata", si:3 }] },
-  { h:168, cols:[{ w:884, p:[{ t:"HISTORY", sp:"hsc", note:"four scenes, one journey" }] },
+  { h:192, cols:[{ w:884, p:[{ t:"HISTORY", sp:"hsc", note:"four scenes, one journey" }] },
                  { w:0, flex:1, p:[{ t:"SPECTRAL RECORD", cy:1, sp:"rec", note:"48 bands · the strata of what has been played" }] }] }
 ]},
 
@@ -1450,7 +1451,7 @@ var TRAVELC = function (w) {
   return [[ "h_pos", "HISTORY", { w: w } ], A("h_mode","DRIVE",W86), A("h_dur","DURATION"),
           A("h_bars","BARS",W86), A("h_loop","AT THE END",W96)];
 };
-var TRAVELCH = [A("h_on","HISTORY",{cls:"chip"}), A("h_hold","HOLD HIST",{cls:"chip"}), A("l_hold","HOLD LIFE",{cls:"chip"})];
+var TRAVELCH = [A("h_on","HISTORY",{cls:"chip"}), A("h_hold","HOLD HIST",{cls:"chip"}), A("h_rewind","REWIND",{cls:"chip"}), A("l_hold","HOLD LIFE",{cls:"chip"})];
 
 var VE = {}, PANELS = [], CURV = "main", CURP = {}, PLACED = {}, SP = {};
 var SREC = [], SBTN = [], SLAMP = [];       /* scene tiles, in both homes */
@@ -2485,7 +2486,7 @@ NB.on("presetTree", function (d) { if (d) { TREE = d; POPS.forEach(function (p) 
    way to steer or read it (the BWFX.debug() argument).
    ══════════════════════════════════════════════════════════════════════════ */
 window.__TTY = {
-  version: "260923.1",
+  version: "260923.3",
   get: function (id) { return V[id]; },
   set: function (id, v) { setP(id, v); },
   eff: function (id) { return effOf(id); },
