@@ -1,0 +1,23 @@
+{
+  "slug": "thirty-thousand-years",
+  "name": "Thirty Thousand Years (VST3)",
+  "description": "Four ways of making sound, all running at once and exciting one another: analogue weight, a wavetable and phase-modulation voice, granular and spectral memory over anything you capture, and modal bodies held under an exciter. They share an environment whose feedback loop is part of the generator rather than a treatment at the end. A LIFE network listens to the engine's own audio and moves it slowly, on its own. HISTORY carries the whole instrument between four stored scenes over anything from seconds to half an hour. Eight macros, forty-eight presets, and a drone switch, so it is never making one until you ask.",
+  "status": "live",
+  "url": "vst3-apps/thirty-thousand-years/index.html",
+  "icon": "keys",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/thirty-thousand-years.jpg",
+  "note": "Windows VST3 and Standalone · build 260923.1 · free download · four strata, 396 parameters, 48 presets · LIFE network and a 32-slot matrix · HISTORY across four scenes · 5.6 % of a core for a drone · handbook included.",
+  "tags": [
+    "vst3",
+    "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Thirty-Thousand-Years-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Thirty-Thousand-Years-VST3-win64.zip",
+      "bytes": 15331033,
+      "sha256": "8d2bf24cf0c748f83c55d6f8c65d1e1a23a52a28632af6811ca11a7049c82a4e"
+    }
+  ]
+}

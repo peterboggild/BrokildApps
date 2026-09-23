@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thirty Thousand Years &mdash; VST3 drone instrument | BrokildApps</title>
+  <meta name="description" content="Thirty Thousand Years is a free Windows VST3 drone instrument and evolving soundscape. Four strata - analogue MASS, wavetable and additive SIGNAL, granular and spectral MEMORY, modal and waveguide STRUCTURE - in a shared environment whose feedback loop can return into a stratum's input instead of the mix. A LIFE network derives slow control from the engine's own audio, and one HISTORY control travels between four scenes over anything from seconds to thirty minutes." />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%230b0d11'/><rect x='14' y='22' width='72' height='11' fill='%23c8963c'/><rect x='14' y='39' width='72' height='11' fill='%236e5a44'/><rect x='14' y='56' width='72' height='11' fill='%23a9a294'/><rect x='14' y='73' width='72' height='7' fill='%235cc8d8'/></svg>" />
+  <style>
+    :root {
+      --ink:        #0b0d11;
+      --ink-2:      #14171d;
+      --card:       #12151b;
+      --border:     #23272f;
+      --bone:       #e7e1d3;
+      --ash:        #a9a294;
+      --amber:      #c8963c;
+      --amber-hi:   #e0b368;
+      --oxide:      #6e5a44;
+      --verm:       #c2432e;
+      --cyan:       #5cc8d8;
+      --text:       #b6afa1;
+      --text-soft:  #8a8375;
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.55);
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--ink); color: var(--text); line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 0 1.5rem; }
+    a { color: var(--amber-hi); }
+
+    /* --- Brokild chrome ---------------------------------------------
+       The same black bar sits on every page in the catalogue, and this
+       block is identical in all of them. Each plugin keeps its own
+       palette strictly BELOW the bar; the bar never takes it, so the
+       header reads the same wherever you have landed. --- */
+    .topbar {
+      position: sticky; top: 0; z-index: 60;
+      background: rgba(4,6,11,.93);
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+      border-bottom: 1px solid #17212f;
+      box-shadow: 0 1px 0 rgba(94,240,218,.08), 0 10px 30px rgba(0,0,0,.5);
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .72rem 0; }
+    .brand { display: flex; align-items: center; gap: .72rem; text-decoration: none; }
+    .brand-mark {
+      width: 38px; height: 38px; flex: none; display: grid; place-items: center;
+      font: 900 1.2rem/1 "Orbitron", "Segoe UI", system-ui, sans-serif;
+      color: #5ef0da; background: #08101a;
+      border: 1px solid rgba(94,240,218,.42); border-radius: 4px;
+      box-shadow: 0 0 14px rgba(94,240,218,.16), inset 0 0 12px rgba(94,240,218,.07);
+    }
+    .brand-name { font: 600 .95rem/1.4 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .22em; text-transform: uppercase; color: #fff; }
+    .brand-sub  { font: 400 .66rem/1.5 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .2em; text-transform: uppercase; color: #2a9d8f; }
+    .nav a.back { font: 500 .74rem/1 "IBM Plex Mono",ui-monospace,Consolas,"SF Mono",Menlo,monospace;
+                  letter-spacing: .16em; text-transform: uppercase;
+                  color: #ffb454; text-decoration: none;
+                  border: 1px solid rgba(255,180,84,.3); border-radius: 3px;
+                  padding: .5rem .85rem; transition: all .15s; white-space: nowrap; }
+    .nav a.back:hover { color: #fff; border-color: #ffb454; background: rgba(255,180,84,.1);
+                        text-shadow: 0 0 12px rgba(255,180,84,.55); }
+
+    /* ---- hero: strata of rock, lit from one side ---- */
+    .hero {
+      background:
+        radial-gradient(80% 60% at 78% 4%, rgba(200,150,60,.20) 0%, transparent 62%),
+        radial-gradient(60% 60% at 2% 100%, rgba(92,200,216,.10) 0%, transparent 64%),
+        linear-gradient(172deg, #16181e 0%, #0b0d11 100%);
+      color: var(--bone); padding: 3.4rem 0 3rem; border-bottom: 1px solid var(--border);
+    }
+    .kicker {
+      font-size: .74rem; letter-spacing: .34em; text-transform: uppercase;
+      color: var(--amber); margin-bottom: 1rem;
+    }
+    .hero h1 {
+      font-family: "Franklin Gothic Medium", "Segoe UI Semibold", "Segoe UI", Arial, sans-serif;
+      font-weight: 600;
+      font-size: clamp(2.1rem, 6.2vw, 4.1rem); line-height: 1.02; margin: 0;
+      letter-spacing: .15em; text-transform: uppercase;
+      color: #f2ece0;
+      text-shadow: 0 0 46px rgba(200,150,60,.30);
+    }
+    .strataline {
+      height: 3px; border: 0; margin: 1.5rem 0 0; max-width: 520px;
+      background: linear-gradient(90deg, var(--amber) 0%, var(--verm) 30%, var(--oxide) 52%,
+                                  var(--cyan) 72%, rgba(200,150,60,.04) 100%);
+    }
+    .hero .tagline { font-size: 1.2rem; color: var(--amber-hi); margin: 1.2rem 0 0; font-weight: 600; max-width: 62ch; }
+    .hero p.lede { color: #bdb4a4; max-width: 66ch; margin: 1.1rem 0 0; }
+    .hero-shot { margin: 2.4rem 0 0; }
+    .hero-shot img {
+      width: 100%; display: block; border-radius: 10px;
+      border: 1px solid #2c2419; box-shadow: 0 18px 48px rgba(0,0,0,.75); background: var(--ink);
+    }
+    .btnrow { display: flex; flex-wrap: wrap; gap: .8rem; margin: 1.9rem 0 0; }
+    .buildtag { align-self: center; font: 600 .72rem/1 Consolas, ui-monospace, SFMono-Regular, Menlo, monospace;
+                letter-spacing: .14em; text-transform: uppercase; opacity: .62; }
+    .btn {
+      display: inline-flex; align-items: center; gap: .55rem;
+      padding: .78rem 1.3rem; border-radius: 10px; text-decoration: none;
+      font-weight: 600; font-size: .96rem; border: 1px solid transparent;
+    }
+    .btn-primary { background: var(--amber); color: #171208; }
+    .btn-primary:hover { background: var(--amber-hi); }
+    .btn-ghost { border-color: var(--oxide); color: #e0d6c4; }
+    .btn-ghost:hover { border-color: var(--amber); color: var(--amber-hi); }
+    .btn small { font-weight: 400; opacity: .78; }
+
+    /* ---- body sections ---- */
+    section.block { padding: 3rem 0; border-bottom: 1px solid var(--border); }
+    section.block:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.5rem; margin: 0 0 .4rem; letter-spacing: .01em; color: var(--bone); }
+    h3 { font-size: 1rem; margin: 1.6rem 0 .3rem; color: var(--bone); }
+    .sub { color: var(--text-soft); margin: 0 0 1.4rem; max-width: 70ch; }
+    p { max-width: 72ch; }
+    b, strong { color: #e9e3d6; }
+    em { color: var(--amber-hi); font-style: normal; font-weight: 600; }
+    code {
+      font-family: Consolas, "SF Mono", Menlo, monospace; font-size: .86em;
+      background: #191d24; border: 1px solid var(--border);
+      border-radius: 4px; padding: .1em .4em; color: var(--amber-hi);
+    }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-top: 1.4rem; }
+    .c {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1.1rem 1.2rem; box-shadow: var(--shadow);
+      border-top: 2px solid var(--oxide);
+    }
+    .c.a { border-top-color: var(--amber); }
+    .c.v { border-top-color: var(--verm); }
+    .c.o { border-top-color: var(--oxide); }
+    .c.y { border-top-color: var(--cyan); }
+    .c .n { font: 600 .72rem/1 Consolas, monospace; color: var(--amber);
+            letter-spacing: .14em; text-transform: uppercase; }
+    .c h4 { margin: .5rem 0 .35rem; font-size: 1rem; color: var(--bone); }
+    .c p { margin: 0; font-size: .9rem; color: var(--text-soft); max-width: none; }
+
+    figure { margin: 1.6rem 0 0; }
+    figure img {
+      width: 100%; display: block; border-radius: 10px;
+      border: 1px solid var(--border); box-shadow: var(--shadow); background: var(--ink);
+    }
+    figcaption { font-size: .85rem; color: var(--text-soft); margin-top: .55rem; }
+    .figrow { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; align-items: start; }
+    @media (max-width: 700px) { .figrow { grid-template-columns: 1fr; } }
+
+    .note {
+      background: #14171d; border-left: 3px solid var(--verm);
+      padding: .9rem 1.1rem; border-radius: 0 8px 8px 0; margin: 1.3rem 0;
+      font-size: .93rem;
+    }
+    .note.a { border-left-color: var(--amber); }
+    .note.y { border-left-color: var(--cyan); }
+
+    table { width: 100%; border-collapse: collapse; font-size: .92rem; margin-top: 1rem; }
+    th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { font-size: .74rem; text-transform: uppercase; letter-spacing: .12em; color: var(--text-soft); }
+    td:first-child { font-weight: 600; width: 30%; color: var(--bone); }
+
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; margin-top: 1.4rem; }
+    .fact {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1rem 1.1rem; box-shadow: var(--shadow);
+    }
+    .fact .v {
+      font: 700 1.45rem/1.1 Consolas, ui-monospace, monospace; color: var(--amber-hi);
+    }
+    .fact .l { font-size: .84rem; color: var(--text-soft); margin-top: .4rem; }
+
+    footer {
+      background: #0e1116; border-top: 1px solid var(--border);
+      padding: 2.2rem 0; color: var(--text-soft); font-size: .88rem;
+    }
+    footer p { max-width: 76ch; }
+  
+/* ---- the four passages ------------------------------------------------- */
+.listen{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 26px;margin-top:26px}
+.listen figure{margin:0}
+.listen figcaption{font:600 13px/1.5 var(--disp,inherit);letter-spacing:.06em;
+  text-transform:uppercase;color:var(--bone,#e7e1d3);margin-bottom:8px}
+.listen figcaption i{display:block;font:400 12px/1.5 inherit;letter-spacing:.02em;
+  text-transform:none;color:var(--ash,#a9a294);margin-top:2px}
+.listen audio{width:100%;height:34px;filter:grayscale(.35) contrast(1.05)}
+@media (max-width:760px){.listen{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <nav class="nav">
+      <a class="brand" href="../../index.html">
+        <span class="brand-mark">B</span>
+        <span>
+          <span class="brand-name">Brokild</span><br>
+          <span class="brand-sub">Musical instruments</span>
+        </span>
+      </a>
+      <a class="back" href="../../index.html">&larr; All instruments</a>
+    </nav>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">VST3 Instrument &middot; Windows &middot; Free</div>
+    <h1>Thirty Thousand Years</h1>
+    <hr class="strataline" />
+    <p class="tagline">An instrument for humanity's darkest hour.</p>
+    <p class="lede">
+      Four different ways of making sound, all of them available at once, in a
+      shared environment whose feedback loop takes part in generating the sound
+      instead of only treating it. A modulation network that listens to the
+      engine's own output and answers it. And one control that carries the whole
+      thing from one condition to another over anything from a few seconds to
+      half an hour.
+    </p>
+    <p class="lede" style="margin-top:1rem">
+      It is named for how long spent nuclear fuel stays dangerous. The panel is
+      an operational console built to outlive its civilization: severe, precise,
+      tactile, and the same shape wherever you are in it.
+    </p>
+
+    <div class="btnrow">
+      <a class="btn btn-primary" href="https://github.com/peterboggild/BrokildApps/releases/download/downloads/Thirty-Thousand-Years-VST3-win64.zip" download>
+        Download for Windows <small>VST3 + standalone &middot; 14.6 MB</small>
+      </a>
+      <span class="buildtag">Build 260923.1</span>
+      <a class="btn btn-ghost" href="Thirty-Thousand-Years-Manual.pdf">
+        Handbook <small>PDF</small>
+      </a>
+    </div>
+
+    <figure class="hero-shot">
+      <img src="img/panel.jpg" alt="The Thirty Thousand Years panel: the four strata across the top, HISTORY and the spectral record beneath, the eight macros, and the keyboard along the foot" />
+    </figure>
+  </div>
+</header>
+
+<section class="block">
+  <div class="wrap">
+    <h2>A place, not a patch</h2>
+    <p class="sub">The four strata, and the room that helps make the sound.</p>
+    <p>
+      Most synthesizers give you one way of making sound and a chain of effects
+      to put it through. Thirty Thousand Years gives you <b>four</b>, running
+      together, and then an environment that is part of the instrument rather
+      than a finish on it. Each stratum is a complete engine with its own
+      filter, its own envelopes and its own place in the mixer. Any of them can
+      excite any of the others.
+    </p>
+    <p>
+      The consequential control is at the end of the feedback loop, and it is
+      called <em>RETURNS TO</em>. Send the loop back to the mix and you have an
+      echo. Send it into STRUCTURE's exciter and the room is playing the body.
+      Send it into MEMORY's capture and the loop is being remembered. Send it
+      into SIGNAL's ring modulator and it multiplies whatever is already there.
+      The loop has its own high-pass, low-pass, frequency shift, saturation and
+      damping, so it can be run near unity without running away.
+    </p>
+
+    <figure>
+      <img src="img/strata.jpg" alt="The MAIN view: four stratum columns side by side, with HISTORY and the spectral record beneath them" />
+      <figcaption>MAIN. One column per stratum with its own meter; HISTORY and
+        the spectral record underneath. The record draws the output's own
+        spectrum as layers of rock, oldest at the far edge.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>The four strata</h2>
+    <p class="sub">Four theses about how sound is made, in one instrument.</p>
+
+    <div class="cards">
+      <div class="c a">
+        <div class="n">Stratum one</div>
+        <h4>MASS</h4>
+        <p>Virtual analogue. Two oscillators, a sub, a ladder or state-variable
+          filter, and a beat set in hertz rather than cents &mdash; so a drone
+          at 55 Hz and one at 220 Hz beat at exactly the same speed. Weight.</p>
+      </div>
+      <div class="c y">
+        <div class="n">Stratum two</div>
+        <h4>SIGNAL</h4>
+        <p>Eight original wavetables, a phase-modulation pair, a ring modulator
+          and a 64-partial additive bank whose upper partials can walk out of
+          the harmonic series while the fundamental holds. Something has learned
+          to think.</p>
+      </div>
+      <div class="c o">
+        <div class="n">Stratum three</div>
+        <h4>MEMORY</h4>
+        <p>Granular and spectral reading over procedural material, a
+          thirty-second capture or your own imported file, all under one
+          EROSION control that takes it apart four ways at once. The world
+          remembering itself.</p>
+      </div>
+      <div class="c v">
+        <div class="n">Stratum four</div>
+        <h4>STRUCTURE</h4>
+        <p>Seven resonant bodies &mdash; plates, cables, beams, cavities, glass,
+          tubes and combs &mdash; driven by an impulse, a noise burst, a bow, or
+          any other stratum. STRESS carries them to fracture. Architecture under
+          stress.</p>
+      </div>
+    </div>
+
+    <div class="figrow" style="margin-top:1.8rem">
+      <figure style="margin:0">
+        <img src="img/mass.jpg" alt="The MASS page: two oscillators, weight, instability, filter and envelopes" />
+        <figcaption>MASS. Two oscillators, the sub and REINFORCE, the drift, and
+          the two envelopes.</figcaption>
+      </figure>
+      <figure style="margin:0">
+        <img src="img/structure.jpg" alt="The STRUCTURE page: body, geometry, stress, exciter and strike" />
+        <figcaption>STRUCTURE. The body and its material, the exciter with its
+          bow controls, and STRESS.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>It moves by itself</h2>
+    <p class="sub">LIFE: eight LFOs, four envelopes, four drawable shapes, four
+      stochastic sources, two followers, four event lanes, and a network that
+      listens.</p>
+    <p>
+      The LFOs reach from fifty hertz down to one cycle in twenty minutes, free
+      or locked to the host's bars, global or one per voice. The stochastic
+      sources run from a smooth wander through sample-and-hold and cluster
+      bursts to a bounded chaotic trajectory. The event lanes fire with a
+      chance, at a rate, with a refractory wait, at targets like striking the
+      structure or freezing the spectrum.
+    </p>
+    <p>
+      Above all of that is the <b>LIFE NETWORK</b>: detectors measuring energy,
+      brightness and transients on every stratum and on the mix, offered as
+      modulation sources like any other, with hysteresis and refractory periods
+      so the instrument does not flicker on a threshold. <em>COUPLING</em> is
+      how much one stratum answers another. <em>AUTONOMY</em> is how far the
+      world may drift from what you set. <em>RECOVERY</em> pulls it back.
+    </p>
+    <p>
+      Everything meets in a <b>32-slot matrix</b> with signed depth, a second
+      source to scale by, a curve, a slew and a range clamp. Modulation is an
+      offset on what you set &mdash; the value you edited never moves underneath
+      you.
+    </p>
+
+    <div class="figrow" style="margin-top:1.6rem">
+      <figure style="margin:0">
+        <img src="img/life.jpg" alt="The LIFE view: LFOs, envelopes, drawable shapes, stochastic sources, followers and event lanes" />
+        <figcaption>LIFE. Five pages of modulators, and the network's detectors
+          beside them.</figcaption>
+      </figure>
+      <figure style="margin:0">
+        <img src="img/matrix.jpg" alt="The 32-slot modulation matrix" />
+        <figcaption>The matrix. Drag any source onto any control on any view and
+          a slot fills itself.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>One control, thirty minutes</h2>
+    <p class="sub">HISTORY: four scenes, and a journey between them.</p>
+    <p>
+      Set the instrument up the way a piece should start and store it into a
+      scene. Change it and store another. <b>HISTORY</b> then travels between
+      them, interpolating in the domain each parameter belongs to &mdash;
+      pitches in semitones, times and frequencies logarithmically, levels in
+      decibels, and anything that is a list or a switch stepping over at the
+      midpoint rather than smearing. The four scenes are called
+      <em>AWAKENING</em>, <em>OCCUPATION</em>, <em>COLLAPSE</em> and
+      <em>AFTERMATH</em>, and you can rename them.
+    </p>
+    <p>
+      DRIVE is <b>MANUAL</b> &mdash; your hand or a host automation lane &mdash;
+      or <b>AUTO</b>, running on its own clock over anything from one second to
+      thirty minutes, or <b>AUTO SYNC</b>, running on the host's bars. At the
+      end it stops, loops, or turns round and comes back. HOLD HISTORY freezes
+      the journey where it is so you can sit inside one moment.
+    </p>
+
+    <div class="note a">
+      <b>It has to be armed, and it needs two scenes.</b> HISTORY is off in a
+      fresh patch and needs at least two different scenes stored. Until both are
+      true, the slider moves and nothing happens &mdash; so the panel says so
+      itself, in the line under the scene tiles. Ten of the forty-eight factory
+      patches ship with their scenes already stored and HISTORY already on.
+    </div>
+
+    <figure>
+      <img src="img/history.jpg" alt="The HISTORY view: four scene tiles, the determinism controls, the travel controls and the spectral record" />
+      <figcaption>HISTORY. The four scenes, the travel controls, and the line
+        that tells you what is stopping the journey if anything is.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Eight words for what happens next</h2>
+    <p class="sub">MASS, DREAD, VIOLENCE, INSTABILITY, CONTAMINATION, DISTANCE,
+      LIFE, HUMANITY.</p>
+    <p>
+      Eight macros, always visible on every view, each driving up to eight
+      destinations at signed depths. Their meanings are consistent across the
+      bank, so the same word does a recognisable thing on any patch &mdash;
+      except HUMANITY, which is patch-specific by design. VIOLENCE is
+      level-matched by the saturators' own measured trackers, so it is abrasion
+      rather than volume. Click a macro's name to see and change what it
+      reaches.
+    </p>
+    <figure>
+      <img src="img/macros.jpg" alt="The macro row: eight named macros across the width of the panel" />
+      <figcaption>The macro row. It never leaves the screen.</figcaption>
+    </figure>
+
+    <h3>Three ways to play it</h3>
+    <p>
+      <b>DRONE</b> is an explicit switch with a root, a chord, a latch and a
+      spread &mdash; so a fresh instance is exactly silent and never starts
+      droning on its own in a busy session. <b>INSTRUMENT</b> is eight voices,
+      poly, mono or legato, with velocity, bend, sustain, aftertouch and MPE.
+      <b>EXCITATION</b> feeds external audio in on the AUX input, either to
+      excite STRUCTURE and fill MEMORY's capture or to duck the instrument under
+      a voice. Drone and keys share the same eight voices, and each stratum has
+      its own switches for which of the two it takes part in.
+    </p>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Four passages</h2>
+    <p class="sub">Rendered from the instrument, nothing added. The last one
+      sits under a kick and a bass line, to show what it does with room left.</p>
+
+    <div class="listen">
+      <figure>
+        <figcaption>Thirty Thousand Years <i>90 s &middot; the flagship patch, travelling</i></figcaption>
+        <audio controls preload="none" src="audio/01-thirty-thousand-years.mp3"></audio>
+      </figure>
+      <figure>
+        <figcaption>Population Zero <i>60 s &middot; memory and structure, no analogue</i></figcaption>
+        <audio controls preload="none" src="audio/02-population-zero.mp3"></audio>
+      </figure>
+      <figure>
+        <figcaption>A played phrase <i>24 s &middot; eight voices, not a drone</i></figcaption>
+        <audio controls preload="none" src="audio/03-playable-phrase.mp3"></audio>
+      </figure>
+      <figure>
+        <figcaption>In an arrangement <i>24 s &middot; sitting under a kick and a bass</i></figcaption>
+        <audio controls preload="none" src="audio/04-in-an-arrangement.mp3"></audio>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <h2>Specifications</h2>
+    <p class="sub">Measured on the machine it was built on.</p>
+
+    <div class="facts">
+      <div class="fact"><div class="v">401</div><div class="l">host parameters &mdash; 396 plus five BWFX macros</div></div>
+      <div class="fact"><div class="v">48</div><div class="l">factory patches, ten already travelling</div></div>
+      <div class="fact"><div class="v">5.6&nbsp;%</div><div class="l">of one core for a two-voice drone</div></div>
+      <div class="fact"><div class="v">173</div><div class="l">automated checks &mdash; engine, panel and host &mdash; all clear</div></div>
+    </div>
+
+    <table>
+      <tr><td>Formats</td><td>VST3 and Standalone, Windows 64-bit</td></tr>
+      <tr><td>Build</td><td>260923.1</td></tr>
+      <tr><td>Strata</td><td>MASS (virtual analogue), SIGNAL (wavetable, phase modulation, 64 additive partials), MEMORY (granular and spectral), STRUCTURE (modal and waveguide) &mdash; all four at once</td></tr>
+      <tr><td>Environment</td><td>Four channels, two insert lanes of three slots, a spatial send, and a feedback loop that can return into a stratum's input</td></tr>
+      <tr><td>Modulation</td><td>8 LFOs, 4 envelopes, 4 drawable multi-segment shapes, 4 stochastic sources, 2 followers, 4 event lanes, a 32-slot matrix, and the LIFE network</td></tr>
+      <tr><td>History</td><td>Four scenes; manual, free-running or host-synced travel from one second to thirty minutes; once, looped or ping-pong</td></tr>
+      <tr><td>Voices</td><td>1 to 8, poly / mono / legato, MPE, plus an explicit drone</td></tr>
+      <tr><td>Audio in</td><td>One stereo AUX bus, for excitation or ducking</td></tr>
+      <tr><td>Latency</td><td>88 samples at 44.1 kHz &mdash; 2 ms of limiter lookahead, reported to the host</td></tr>
+      <tr><td>CPU</td><td>5.6 % of one core for a two-voice drone; 22.1 % for the flagship at eight voices with every macro up</td></tr>
+      <tr><td>World FX</td><td>The Brokild World FX rack, with its five automatable macros, after the environment</td></tr>
+      <tr><td>Levels</td><td>PATCH TRIM belongs to the patch and is what the bank is levelled with; VOLUME belongs to you and no preset touches it</td></tr>
+      <tr><td>Verification</td><td>67 engine checks, 90 panel checks and 16 host checks, all clear</td></tr>
+      <tr><td>Requirements</td><td>Windows 10 or 11, 64-bit, and the Microsoft WebView2 runtime &mdash; present on any up-to-date Windows 10 or 11</td></tr>
+      <tr><td>Price</td><td>Free. No account, no registration, no telemetry.</td></tr>
+    </table>
+
+    <div class="note y">
+      The engine does not depend on the panel. A patch runs identically with the
+      editor shut, and the instrument is exactly silent until you switch the
+      drone on or play a note.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>Thirty Thousand Years</b> &mdash; a native VST3 drone instrument,
+      September 2026. Native C++ audio, JUCE 8, interface drawn in the plugin's
+      own window. Named for how long spent nuclear fuel stays dangerous, and
+      written under the long shadow of Asimov, Gibson, Bradbury and Huxley, and
+      in the weight of Cult of Luna and LLNN.</p>
+    <p>This VST comes from the curved mind of Professor Brokild, and was programmed with VScode,
+      ChatGPT and Claude. Use of this is on your own peril. It may generate unique, beautiful,
+      scary or useless sounds for you, and it may crash your DAW project. Have fun, play unsafely,
+      unwisely, and unboringly.</p>
+    <p>Cheers, Peter B&oslash;ggild, September 2026.</p>
+  </div>
+</footer>
+
+</body>
+</html>
