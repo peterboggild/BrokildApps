@@ -1,0 +1,11 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2500)})" },
+  { "name": "which decals loaded",
+    "eval": "['panel','plate','knob','glass','wordmark','screw'].map(function(n){return n+':'+(document.documentElement.classList.contains('d-'+n)?'ON':'off')}).join('  ')" },
+  { "name": "brand block", "eval": "(function(){var h=document.querySelector('#brand h1');var r=h.getBoundingClientRect();return 'h1 '+Math.round(r.width)+'x'+Math.round(r.height)+'  brand '+Math.round(document.querySelector('#brand').getBoundingClientRect().width)+'  head '+Math.round(document.querySelector('#head').getBoundingClientRect().height)})()" },
+  { "name": "js errors", "eval": "(window.__ERRS||[]).length + ' errors'" },
+  { "name": "whole panel", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/decals-panel.png", "sel": "#deck", "scale": 1 },
+  { "name": "header", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/decals-head.png", "sel": "#head", "scale": 2 },
+  { "name": "macros", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/decals-macros.png", "sel": "#macros", "scale": 2 },
+  { "name": "spectral record", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/decals-glass.png", "sel": ".cvwrap", "scale": 2 }
+]

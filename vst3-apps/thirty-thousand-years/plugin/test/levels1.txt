@@ -1,0 +1,49 @@
+preset                                 peak      rms    crest  trim dB    trim
+THE MACHINES KEPT WORKING             0.699   0.1890     11.4     -1.0   0.956
+A CITY WITHOUT WITNESSES              0.338   0.0942     11.1      0.0   1.000
+THE LAST HUMAN FREQUENCY              0.225   0.0569     11.9      0.0   1.000
+BENEATH THIRTY KILOMETRES OF CONCRETE    1.346   0.3295     12.2     -6.7   0.719
+NO ONE ANSWERS THE BROADCAST          0.191   0.0275     16.8      0.0   1.000
+AN INTELLIGENCE IN THE WALLS          0.493   0.1127     12.8      0.0   1.000
+THE SEA IS MADE OF IRON               2.253   0.5509     12.2    -11.2   0.533
+WE WERE PROMISED A FUTURE             0.393   0.1043     11.5      0.0   1.000
+POPULATION: ZERO                      0.275   0.0813     10.6      0.0   1.000
+SOMETHING LEARNED TO BREATHE          0.190   0.0414     13.2      0.0   1.000
+ORBITAL DEBRIS CHOIR                  0.393   0.0995     11.9      0.0   1.000
+THE FACTORY DREAMED OF FLESH          0.926   0.2091     12.9     -3.5   0.855
+AFTER THE FINAL TRANSMISSION          0.046   0.0039     21.3      0.0   1.000
+THE SUN BEHIND THE ASH                0.268   0.0727     11.3      0.0   1.000
+A WEAPON WAITING FOR A WAR            0.901   0.2177     12.3     -3.2   0.865
+THIRTY THOUSAND YEARS                 1.014   0.2630     11.7     -4.3   0.822
+CONCRETE BASS                         0.356   0.1141      9.9      0.0   1.000
+IRON BASS                             0.223   0.0678     10.3      0.0   1.000
+CABLE BASS                            1.423   0.3662     11.8     -7.2   0.699
+STEEL CATHEDRAL                       1.295   0.3876     10.5     -6.4   0.734
+HOSTILE COMPUTATION                   0.394   0.0727     14.7      0.0   1.000
+SIRENS OVER THE DISTRICT              0.231   0.0524     12.9      0.0   1.000
+GRANITE PAD                           0.304   0.0856     11.0      0.0   1.000
+THE ROOM IS LISTENING                 0.538   0.1991      8.6      0.0   1.000
+COLD START                            0.380   0.1007     11.5      0.0   1.000
+NAKED SIGNAL                          0.451   0.1197     11.5      0.0   1.000
+NAKED STRUCTURE                       0.000   0.0000     21.4      0.0   1.000
+NAKED MEMORY                          0.128   0.0163     17.9      0.0   1.000
+ABANDONED SUBSTATION                  0.156   0.0552      9.0      0.0   1.000
+THE ARCHIVE BURNS                     0.070   0.0110     16.0      0.0   1.000
+STRESSED PLATE                        1.661   0.4003     12.4     -8.6   0.643
+BREATH OF THE GRID                    0.917   0.1831     14.0     -3.4   0.859
+VOICES UNDER THE ICE                  0.283   0.0559     14.1      0.0   1.000
+SLOW COLLAPSE                         0.318   0.0744     12.6      0.0   1.000
+HOLLOW EARTH                          0.727   0.2044     11.0     -1.4   0.942
+LAST LIGHT IN THE TOWER               0.216   0.0477     13.1      0.0   1.000
+COOLING TOWERS                        0.464   0.1380     10.5      0.0   1.000
+SERVO BASS                            0.149   0.0451     10.4      0.0   1.000
+GLASS RAIN                            0.363   0.0415     18.8      0.0   1.000
+TELEMETRY                             0.866   0.1249     16.8     -2.9   0.879
+THE DEEP FIELD                        0.168   0.0391     12.6      0.0   1.000
+FURNACE                               1.116   0.3371     10.4     -5.1   0.787
+PLATE TECTONICS                       1.401   0.4188     10.5     -7.1   0.705
+RADIO SILENCE                         0.093   0.0139     16.5      0.0   1.000
+MONOLITH                              0.670   0.2399      8.9     -0.7   0.972
+SWARM                                 0.452   0.1182     11.6      0.0   1.000
+THIN AIR                              0.587   0.1946      9.6      0.0   1.000
+THE LAST GENERATOR                    0.786   0.1553     14.1     -2.1   0.914

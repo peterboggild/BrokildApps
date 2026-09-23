@@ -1,0 +1,16 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2600)})" },
+  { "name": "load a patch with four scenes", "eval": "(function(){__TTY.patch(0);return 'asked'})()" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,1600)})" },
+  { "name": "HISTORY view", "eval": "(function(){__TTY.view('history');return __TTY.state().view})()" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+
+  { "name": "stop, rewind (giving the engine a tick to see each step)",
+    "eval": "(function(){__TTY.set('h_on',0);return new Promise(function(r){setTimeout(function(){__TTY.set('h_pos',0);__TTY.set('h_mode',1);__TTY.set('h_dur',0.17);__TTY.set('h_loop',0);setTimeout(function(){r('rewound, mode '+__TTY.text('h_mode')+' dur '+__TTY.text('h_dur'))},400)},400)})})()" },
+  { "name": "engine position at rest", "eval": "(function(){var m=__TTY.meter();return 'engine '+m.history.toFixed(3)+'  slider says '+__TTY.text('h_pos')})()" },
+  { "name": "GO", "eval": "(function(){__TTY.set('h_on',1);return 'armed'})()" },
+
+  { "name": "six samples over 4.2 s: does the SLIDER follow the engine now, and does the strip marker move?",
+    "eval": "(function(){var cs=document.querySelectorAll('#stage canvas');var strip=null;Array.prototype.forEach.call(cs,function(c){if(c.height<=60&&c.width>300)strip=c});var g=strip?strip.getContext('2d'):null;function marker(){if(!g)return -1;var d=g.getImageData(0,0,strip.width,strip.height).data;var sx=0,n=0;for(var y=0;y<strip.height;y++)for(var x=0;x<strip.width;x++){var i=(y*strip.width+x)*4;if(d[i+2]>150&&d[i+1]>140&&d[i]<130){sx+=x;n++}}return n?Math.round(sx/n):-1}var out=[];var p=Promise.resolve();for(var k=0;k<6;k++)p=p.then(function(){return new Promise(function(r){setTimeout(function(){var m=__TTY.meter();out.push('engine '+m.history.toFixed(3)+'  slider '+__TTY.text('h_pos')+'  marker x '+marker());r()},700)})});return p.then(function(){return out.join('   ||   ')})})()" },
+  { "name": "errors", "eval": "(window.__TTYERR||[]).length + ' js errors'" }
+]

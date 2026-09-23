@@ -1,0 +1,103 @@
+Thirty Thousand Years bench  (396 parameters, 48 presets)
+
+[1] the parameter table
+  ok    every parameter id is unique  -- 0 params
+  ok    every default is within its range and every LIST has its names
+  ok    paramIndex by id
+
+[2] silence, drone, notes
+  ok    a fresh instance with the drone off is EXACTLY silent  -- peak 0
+  ok    the drone switch makes sound  -- rms 0.050
+  ok    the drone switch off releases to silence  -- rms 0.00001 after 12 s
+  ok    a note sounds and releases  -- on 0.034, 15 s after off 0.00000
+
+[3] tuning, beat, shift
+  ok    MASS sine at A2 (note 45) measures 110 Hz  -- 110.012 Hz, 0.18 cents
+  ok    BEAT 0.5 Hz beats once every 2.0 s  -- 2.000 s (3 minima)
+  ok    ...and still 2.0 s an octave up  -- 2.006 s
+  ok    FREQ SHIFT +100 Hz moves 110 Hz to 210 Hz (a constant, not a ratio)  -- peak 210.00 Hz, 210/110 power 10520716217x
+  ok    PITCH SHIFT +12 moves 110 Hz to 220 Hz (a ratio)  -- 219.99 Hz
+
+[4] the additive bank
+  ok    SPREAD 0: partials are harmonic (220, 330 Hz present; 270 absent)  -- h2/off 1697019466x
+  ok    SPREAD +50 %: partial 2 lands at 110 * 2^1.3 = 270.8 Hz  -- 270.87 Hz
+  ok    ...while FUNDAMENTAL 100 % holds partial 1 at 110 Hz  -- 110.01 Hz
+  ok    ...and with FUNDAMENTAL 0 partial 1 is still 110 Hz (k=1 has no stretch)
+  ok    GAPS 100 % removes every partial but the fundamental  -- p1/p2 2137575x
+
+[5] STRUCTURE
+  ok    a STRIKE on a plate rings and decays  -- 0-0.1 s 0.1218, 2-2.1 s 0.0045
+  ok    FRICTION sustains a bowed plate (5-6 s at least half of 1-2 s)  -- 0.0353 -> 0.0291
+  ok    the seven bodies have distinct spectral centroids  -- PLATE 800 CABLE 452 BEAM 223 Hz ...
+  ok    STRESS 90 % under a hard bow fractures, bounded  -- peak 0.865
+
+[6] MEMORY
+  ok    grains over the VOICE source make sound  -- rms 0.0168, 0 grains live
+  ok    the SPECTRAL path makes sound  -- rms 0.1011
+  ok    FREEZE holds the spectrum (frame-to-frame change at least halved)  -- frozen 0.344 vs live 0.915
+  ok    EROSION (bandwidth) removes the top (HF share at least halved)  -- HF share 0.030 -> 0.013
+  ok    CAPTURE of the AUX input becomes a source the grains read  -- rms 0.1549, 330 Hz 1525x over 200 Hz
+
+[7] ENVIRONMENT
+  ok    the LOOP at full send/return/saturation for 30 s stays bounded and does not grow  -- peak 0.838, rms 5-10 s 0.171, 25-30 s 0.204
+  ok    SPACE decay 2 s measures within 1.2-3.2 s (RT60 from the 1-2 s slope)  -- 2.03 s (-29.6 dB/s)
+  ok    APPARENT SCALE moves the early reflections later (100-125 ms after the note: large scale carries energy, small does not)  -- 100-125 ms small 0.0000 large 0.0524; 200-225 ms small 0.0000 large 0.0000
+  ok    SAT DRIVE 0 -> 100 % changes the level by under 2.5 dB (measured level match)  -- +0.05 dB
+  info  saturator 1x (LIVE)  : the folded 3rd harmonic sits at -18.5 dB below the fundamental
+  info  saturator 4x (RENDER): the folded 3rd harmonic sits at -76.7 dB below the fundamental
+  ok    at RENDER (4x) the folded harmonic is under -40 dB  -- -76.7 dB
+  ok    the ceiling limiter holds a hot signal at -6 dB  -- peak 0.505 (ceiling 0.501)
+  ok    BASS MONO folds a hard-left 55 Hz to the centre  -- side/mid 0.0018
+
+[8] LIFE and HISTORY
+  ok    a matrix slot LFO -> CUTOFF sweeps the effective value +-0.3 around the base  -- 0.202 .. 0.798
+  ok    ...and a range clamp 0..0.1 keeps it inside 0.5..0.6  -- 0.500 .. 0.600
+  ok    HOLD LIFE freezes the modulation state  -- 0.5000 == 0.5000
+  ok    MACRO MASS raises the effective SUB LEVEL  -- 0.50 -> 0.95
+  ok    an event lane at 4 Hz, chance 100 %, fires about 20 times in 5 s  -- 20
+  ok    ...and a 1 s refractory period holds it to about 5  -- 5
+  ok    the LIFE NETWORK: STRUCTURE energy raises MEMORY density  -- structure energy 1.00, density 0.450 -> 0.800
+  ok    ...and AUTONOMY 0 removes every network offset
+  ok    HISTORY interpolates CUTOFF between AWAKENING and AFTERMATH  -- 0.20 / 0.50 / 0.80
+  ok    HISTORY OFF returns the host value
+  ok    AUTO HISTORY over 2 s reaches 0.5 at 1 s and stops at 1  -- 0.500 then 1.000
+  ok    HOLD HISTORY stops the traversal  -- 0.000
+
+[9] panic, determinism, rates, blocks
+  ok    PANIC fades within 100 ms and is then EXACTLY silent  -- rms after 100 ms 0
+  ok    ...and stays stopped
+  ok    a note restarts it  -- rms 0.044
+  ok    DETERMINISTIC: two renders of the flagship from the same start are bit-identical  -- max |diff| 0 over 6 s
+  ok    at 44100 Hz A2 is still 110 Hz  -- 110.012 Hz
+  ok    at 88200 Hz A2 is still 110 Hz  -- 110.012 Hz
+  ok    at 96000 Hz A2 is still 110 Hz  -- 110.012 Hz
+  ok    block sizes 64 / 512 / 37 agree within 1 dB  -- 0.0495 0.0495 0.0518
+  ok    MPE: a bend on channel 2 moves only that voice (110 and 220 Hz both present)  -- 110: 2.19e+02  220: 2.33e+02
+  ok    SCALA 5-TET: note 63 is three steps of 240 cents above C4  -- 396.51 Hz
+
+[10] random machines, soak, presets
+  ok    120 random machines (random valid parameters, drone + a note, random block size) are finite and inside the ceiling  -- worst peak 0.878
+  ok    the flagship with VIOLENCE, CONTAMINATION and LIFE up runs 90 s through a full HISTORY loop: finite, bounded, alive  -- peak 0.625, rms 10-20 s 0.146, 80-90 s 0.144
+  ok    all 48 presets load, make sound and stay inside the ceiling  -- 0 silent, 0 over
+
+[10b] clicks: a parameter jump mid-note against the settled chain
+  ok    CUTOFF 300 Hz -> 5 kHz  -- settled max step 0.0825 (before/after), across the jump 0.0518
+  ok    MASS LEVEL -6 -> 0 dB  -- settled max step 0.0072 (before/after), across the jump 0.0073
+  ok    SPACE AMOUNT 0 -> 60 %  -- settled max step 0.0047 (before/after), across the jump 0.0046
+  ok    OSC 2 FINE +3 -> +40 c  -- settled max step 0.0048 (before/after), across the jump 0.0032
+  ok    HISTORY 0 -> 1 (two scenes, cutoff 0.3 -> 0.7)  -- settled max step 0.0430 (before/after), across the jump 0.0301
+
+[12] the bank against the output stage
+  ok    the limiter is idle on every factory preset  -- worst 0.000000 on 
+  ok    no preset reaches the output clamp  -- 0 did
+  ok    no preset asks the output stage for more than full scale  -- worst 0.750099 on TELEMETRY
+  ok    the bank's loudness spread is bounded  -- 16.755440 dB
+  info  loudest 2 s across the bank: 0.0233 .. 0.1606 (16.8 dB)
+
+[11] cost at 48 kHz, one core (this machine)
+  info  COLD START, one note                         2.1 % of a core  (1 voices used)
+  info  flagship, drone + 2 notes                   15.1 % of a core  (6 voices used)
+  info  flagship, 8 voices, every macro up          22.1 % of a core  (8 voices used)
+  info  THE SEA IS MADE OF IRON, drone               5.6 % of a core  (2 voices used)
+
+67 checks, 0 failed  ALL CLEAR

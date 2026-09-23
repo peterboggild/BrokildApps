@@ -1,0 +1,9 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2400)})" },
+  { "name": "deck rows",
+    "eval": "(function(){var d=document.querySelector('#deck');var out=['deck '+Math.round(d.getBoundingClientRect().height)+' scrollH '+d.scrollHeight+' clientH '+d.clientHeight];Array.prototype.forEach.call(d.children,function(c){var b=c.getBoundingClientRect();out.push((c.id||c.className||'?')+' h='+Math.round(b.height)+' scrollH='+c.scrollHeight+(c.scrollHeight>c.clientHeight+1?'  OVERFLOWS':''))});return out.join(' | ')})()" },
+  { "name": "one macro cell",
+    "eval": "(function(){var m=document.querySelector('.mac');var b=m.getBoundingClientRect();var cs=getComputedStyle(m);var out=['cell h='+Math.round(b.height)+' padT='+cs.paddingTop+' padB='+cs.paddingBottom+' scrollH='+m.scrollHeight+' clientH='+m.clientHeight];Array.prototype.forEach.call(m.children,function(c){var r=c.getBoundingClientRect();out.push((c.className||c.tagName)+' h='+Math.round(r.height)+' scrollH='+c.scrollHeight+(c.scrollHeight>c.clientHeight+1?'  CLIPPED':''))});var v=m.querySelector('.val');if(v){var vr=v.getBoundingClientRect();var mr=m.getBoundingClientRect();out.push('val bottom '+Math.round(vr.bottom-mr.top)+' of cell '+Math.round(mr.height))}return out.join(' | ')})()" },
+  { "name": "stage slack",
+    "eval": "(function(){var s=document.querySelector('#stage');var b=s.getBoundingClientRect();return 'stage h='+Math.round(b.height)+' scrollH='+s.scrollHeight+' clientH='+s.clientHeight})()" }
+]

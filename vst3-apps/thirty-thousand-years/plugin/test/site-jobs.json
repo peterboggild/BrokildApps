@@ -1,0 +1,28 @@
+[
+  { "name": "open the landing page", "cmd": "Page.navigate", "params": { "url": "http://127.0.0.1:8097/vst3-apps/thirty-thousand-years/index.html" } },
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2200)})" },
+  { "name": "scroll the whole page so lazy images load",
+    "eval": "(function(){return new Promise(function(r){var y=0;var t=setInterval(function(){y+=600;window.scrollTo(0,y);if(y>document.body.scrollHeight){clearInterval(t);window.scrollTo(0,0);setTimeout(r,900)}},90)})})()" },
+  { "name": "the title reads right", "eval": "document.querySelector('h1') ? document.querySelector('h1').textContent.replace(/\\s+/g,' ').trim() : 'no h1'" },
+  { "name": "every image loaded",
+    "eval": "(function(){var bad=[],n=0;Array.prototype.forEach.call(document.images,function(i){n++;if(!i.complete||i.naturalWidth===0)bad.push(i.getAttribute('src'))});return n+' images, '+(bad.length?('BROKEN: '+bad.join(', ')):'none broken')})()" },
+  { "name": "the download button points at the release asset",
+    "eval": "(function(){var a=Array.prototype.slice.call(document.querySelectorAll('a')).filter(function(x){return /\\.zip$/.test(x.getAttribute('href')||'')});return a.length?a.map(function(x){return x.getAttribute('href')+'  [text: '+x.textContent.replace(/\\s+/g,' ').trim().slice(0,60)+']'}).join(' | '):'NO ZIP LINK'})()" },
+  { "name": "no placeholder survived", "eval": "(/DOWNLOAD_URL|DOWNLOAD_SIZE/.test(document.body.innerHTML) ? 'PLACEHOLDER STILL PRESENT' : 'none left')" },
+  { "name": "the manual link resolves",
+    "eval": "(function(){var a=Array.prototype.slice.call(document.querySelectorAll('a')).filter(function(x){return /\\.pdf$/.test(x.getAttribute('href')||'')});return a.length?a[0].getAttribute('href'):'no pdf link'})()" },
+  { "name": "four audio players", "eval": "document.querySelectorAll('audio').length + ' audio elements'" },
+  { "name": "the shared black bar is present", "eval": "document.querySelector('.topbar') ? 'topbar present' : 'NO TOPBAR'" },
+  { "name": "no sideways scroll at desktop width", "eval": "document.documentElement.scrollWidth + ' content in ' + window.innerWidth + ' viewport'" },
+  { "name": "js errors", "eval": "(window.__ERRS||[]).length + ' captured'" },
+  { "name": "shot", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/landing-shot.png", "sel": "body", "scale": 1 },
+
+  { "name": "now the FRONT page", "cmd": "Page.navigate", "params": { "url": "http://127.0.0.1:8097/" } },
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2200)})" },
+  { "name": "scroll to load the cards",
+    "eval": "(function(){return new Promise(function(r){var y=0;var t=setInterval(function(){y+=700;window.scrollTo(0,y);if(y>document.body.scrollHeight){clearInterval(t);setTimeout(r,1200)}},90)})})()" },
+  { "name": "is the card there, and tagged?",
+    "eval": "(function(){var a=Array.prototype.slice.call(document.querySelectorAll('a')).filter(function(x){return /thirty-thousand-years/.test(x.getAttribute('href')||'')});if(!a.length)return 'NO CARD';var card=a[0].closest('article')||a[0].closest('.card')||a[0].parentElement;return 'card found, link '+a[0].getAttribute('href')+'  |  '+card.textContent.replace(/\\s+/g,' ').trim().slice(0,150)})()" },
+  { "name": "its preview drew", "eval": "(function(){var i=Array.prototype.slice.call(document.images).filter(function(x){return /thirty-thousand-years/.test(x.getAttribute('src')||'')});return i.length?(i[0].naturalWidth+'x'+i[0].naturalHeight):'no preview img'})()" },
+  { "name": "front page js errors", "eval": "(window.__ERRS||[]).length + ' captured'" }
+]

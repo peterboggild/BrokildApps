@@ -1,0 +1,18 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2600)})" },
+  { "name": "load a patch that ships four scenes", "eval": "(function(){__TTY.patch(0);return 'asked'})()" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,1600)})" },
+  { "name": "go to the HISTORY view, where the travel strip lives", "eval": "(function(){__TTY.view('history');return 'view = '+__TTY.state().view})()" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "AUTO, short journey, from zero",
+    "eval": "(function(){__TTY.set('h_on',0);__TTY.set('h_mode',1);__TTY.set('h_dur',0.17);__TTY.set('h_loop',0);__TTY.set('h_pos',0);__TTY.set('h_on',1);return 'mode '+__TTY.text('h_mode')+'  dur '+__TTY.text('h_dur')+'  loop '+__TTY.text('h_loop')})()" },
+
+  { "name": "ten samples over 7 s of a running AUTO journey",
+    "eval": "(function(){var out=[];function snap(){var m=__TTY.meter();var lit=[];Array.prototype.forEach.call(document.querySelectorAll('.scene'),function(t,i){if(t.classList.contains('here'))lit.push(i)});out.push('engine '+(m.history===undefined?'n/a':m.history.toFixed(3))+'  slider says '+__TTY.text('h_pos')+'  scene lit '+(lit.length?lit.join(','):'none'))}var p=Promise.resolve();for(var i=0;i<10;i++)p=p.then(function(){return new Promise(function(r){setTimeout(function(){snap();r()},700)})});return p.then(function(){return out.join('   ||   ')})})()" },
+
+  { "name": "is the travel strip repainting while it runs?",
+    "eval": "(function(){var cs=document.querySelectorAll('#stage canvas');var best=null;Array.prototype.forEach.call(cs,function(c){if(c.height<=60&&c.width>300)best=c});if(!best)best=cs[0];if(!best)return 'no canvas';var g=best.getContext('2d');function ink(){var d=g.getImageData(0,0,best.width,best.height).data;var n=0;for(var i=0;i<d.length;i+=4)if(d[i+3]>8&&(d[i]+d[i+1]+d[i+2])>90)n++;return n}var a=ink();return new Promise(function(r){setTimeout(function(){var b=ink();r('travel canvas '+best.width+'x'+best.height+'  lit pixels '+a+' then '+b+(a===b?'  UNCHANGED':'  repainting'))},1500)})})()" },
+  { "name": "restart and watch the cyan marker move along the strip",
+    "eval": "(function(){__TTY.set('h_on',0);__TTY.set('h_pos',0);__TTY.set('h_on',1);var cs=document.querySelectorAll('#stage canvas');var best=null;Array.prototype.forEach.call(cs,function(c){if(c.height<=60&&c.width>300)best=c});if(!best)return 'no strip';var g=best.getContext('2d');function marker(){var d=g.getImageData(0,0,best.width,best.height).data;var sx=0,n=0;for(var y=0;y<best.height;y++)for(var x=0;x<best.width;x++){var i=(y*best.width+x)*4;if(d[i+2]>150&&d[i+1]>140&&d[i]<130){sx+=x;n++}}return n?Math.round(sx/n):-1}var out=[];var p=Promise.resolve();for(var k=0;k<6;k++)p=p.then(function(){return new Promise(function(r){setTimeout(function(){out.push(marker());r()},900)})});return p.then(function(){return 'cyan marker x over 5 s: '+out.join(' -> ')+'  (canvas is '+best.width+' wide)'})})()" },
+  { "name": "errors", "eval": "(window.__TTYERR||[]).length + ' js errors'" }
+]

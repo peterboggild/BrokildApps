@@ -1,0 +1,9 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2400)})" },
+  { "name": "what is 72px tall in the header",
+    "eval": "(function(){var out=[];['#hb1','#hb2'].forEach(function(s){var h=document.querySelector(s);if(!h){out.push(s+' missing');return}var hb=h.getBoundingClientRect();out.push(s+' '+Math.round(hb.width)+'x'+Math.round(hb.height));Array.prototype.forEach.call(h.children,function(c){var r=c.getBoundingClientRect();out.push('   ['+(c.getAttribute('data-id')||c.className||c.tagName)+'] '+Math.round(r.width)+'x'+Math.round(r.height))})});return out.join(' | ')})()" },
+  { "name": "exact deck slack",
+    "eval": "(function(){var d=document.querySelector('#deck');var db=d.getBoundingClientRect();var cs=getComputedStyle(d);var used=0,n=0;Array.prototype.forEach.call(d.children,function(c){used+=c.getBoundingClientRect().height;n++});var gaps=(n-1)*parseFloat(cs.rowGap||0);var pad=parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom);return 'deck '+Math.round(db.height)+' = children '+Math.round(used)+' + gaps '+gaps+' + padding '+pad+' = '+Math.round(used+gaps+pad)+'   SLACK '+Math.round(db.height-(used+gaps+pad))})()" },
+  { "name": "macro gloss on one line?",
+    "eval": "(function(){var out=[];Array.prototype.forEach.call(document.querySelectorAll('.mac .ms'),function(e){var cs=getComputedStyle(e);var probe=e.cloneNode(true);probe.style.cssText='position:absolute;visibility:hidden;height:auto;white-space:nowrap;font:'+cs.font;document.body.appendChild(probe);out.push(Math.round(probe.getBoundingClientRect().width));probe.remove()});return 'gloss widths on one line: '+out.join(', ')+'  (cell text width available ~'+Math.round(document.querySelector('.mac').getBoundingClientRect().width-14)+')'})()" }
+]

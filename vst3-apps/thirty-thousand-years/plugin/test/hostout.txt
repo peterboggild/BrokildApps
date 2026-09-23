@@ -1,0 +1,26 @@
+scanning C:/Program Files/Common Files/VST3/Brokild/Brokild collection/Thirty Thousand Years.vst3
+
+Thirty Thousand Years  -  VST3  -  instrument  -  latency 96
+the host is offered 401 of ours (2482 in all, with the emulated MIDI CCs)
+  [ok] the host sees an instrument
+  [ok] 401 parameters: 396 of the table plus the five BWFX macros
+  [ok] every parameter automatable except QUALITY, SEED, DETERMINISTIC and PATCH
+  [ok] BWFX MACRO 5, HISTORY and HUMANITY are in the list by name
+  [ok] an AUX input bus is declared
+  [ok] reported latency is the limiter's 2 ms (96 samples at 48 k)
+  [ok] no note, drone off: exactly silent
+  [ok] a MIDI note-on plays (peak between 0.02 and 1.0)
+      peak 0.107
+  [ok] DRONE found by name
+  [ok] DRONE on through the host makes sound
+      drone peak 0.172
+  [ok] CUTOFF found by name
+  [ok] CUTOFF set to 0.25 reads back 0.25
+      shows as 112.468 Hz
+  [ok] state saved with 0.25, moved to 0.9, restored: reads 0.25
+      state is 105834 bytes
+  [ok] a second instance instantiates beside the first
+  [ok] 44.1 kHz, 128-sample blocks: plays, finite
+  [ok] 96 kHz, 128-sample blocks: plays, finite
+
+16 checks, 0 failed - ALL CLEAR

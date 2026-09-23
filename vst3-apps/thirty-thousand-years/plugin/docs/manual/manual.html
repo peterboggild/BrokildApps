@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Thirty Thousand Years &mdash; Owner's Handbook</title>
+<style>
+/* ===========================================================================
+   THIRTY THOUSAND YEARS, owner's handbook.
+
+   Landscape, because the deck is four strata side by side across a very wide
+   console and a portrait page would shrink every plate to a stamp. Built for
+   print: each .page is exactly one sheet, and the page background is the same
+   graphite the plates are composited onto, so a full-bleed shot has no seam at
+   its edge.
+
+   The palette is the instrument's: graphite, bone, ash, a muted amber, an
+   oxidised metal, a warning vermilion, and a cold cyan used for nothing except
+   spectral data.
+
+   No web fonts. Everything here is a font that is certainly on the machine.
+   =========================================================================== */
+
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:     #0b0d11;        /* the deck, and the colour the JPEGs sit on */
+  --ink-2:   #14171d;
+  --bone:    #e7e1d3;
+  --ash:     #a9a294;
+  --amber:   #c8963c;
+  --amber-hi:#e0b368;
+  --oxide:   #6e5a44;
+  --verm:    #c2432e;
+  --cyan:    #5cc8d8;
+  --body:    #b6afa1;
+  --dim:     #8a8375;
+  --rule:    rgba(200,150,60,.30);
+  --hair:    rgba(231,225,211,.12);
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; background: var(--ink); }
+
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body);
+  font-size: 9.8pt;
+  line-height: 1.46;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.page{
+  position: relative;
+  width: 297mm; height: 210mm;
+  overflow: hidden;
+  page-break-after: always;
+  background: var(--ink);
+}
+.page:last-child{ page-break-after: auto; }
+
+/*  The standard inner margin. The bottom inset CLEARS the folio strip with
+    room to spare: a .page is a fixed sheet with overflow:hidden, so anything
+    that runs past the box is cut off in silence rather than carried to the
+    next sheet. Content box: 265mm x 178mm. Nothing on any page here is
+    planned above about 150mm of it. */
+.pad{ position:absolute; inset: 12mm 16mm 20mm 16mm; }
+
+/* --- display type --------------------------------------------------------- */
+.display{
+  font-family: "Franklin Gothic Medium", "Segoe UI Semibold", "Segoe UI", Arial, sans-serif;
+  font-weight: 600;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--bone);
+  line-height: 1.06;
+  margin: 0;
+}
+h1.display{ font-size: 40pt; letter-spacing: .19em; }
+h2.display{ font-size: 18pt; }
+h3.display{ font-size: 11.5pt; }
+
+.kick{
+  font: 600 7.8pt/1 "Segoe UI", sans-serif;
+  letter-spacing: .34em; text-transform: uppercase;
+  color: var(--amber);
+  margin: 0 0 4mm 0;
+}
+.kick.c{ color: var(--cyan); }
+.kick.v{ color: var(--verm); }
+
+.sub{
+  font-size: 11pt; color: #ece6da; margin: 4mm 0 0 0; line-height: 1.44;
+  max-width: 190mm;
+}
+
+p{ margin: 0 0 3.2mm 0; }
+p:last-child{ margin-bottom: 0; }
+b, strong{ color: #efe9dd; font-weight: 600; }
+em{ color: var(--amber-hi); font-style: normal; font-weight: 600; }
+.q{ color: var(--amber-hi); font-weight: 600; }
+span.cy{ color: var(--cyan); font-weight: 600; }   /* inline only: a bare .cy
+                    would also match .box.cy and .mod.cy and recolour the whole block */
+
+/* --- rules ---------------------------------------------------------------- */
+.rule{
+  height: 2px; border: 0; margin: 4mm 0 5mm 0;
+  background: linear-gradient(90deg, var(--amber) 0%, rgba(200,150,60,.42) 26%, rgba(200,150,60,.05) 100%);
+}
+.rule.thin{ height:1px; background: var(--hair); margin: 3.5mm 0; }
+
+/* --- plates ----------------------------------------------------------------
+    EVERY plate carries a fixed width AND a fixed height in millimetres, set
+    at the use site from the plate's own measured aspect, so object-fit:contain
+    has no slack to letterbox and the page budget is legible where the picture
+    is placed. The box colour is the PAGE colour, not a darker one, so any
+    slack that does appear cannot draw a rectangle.
+    Aspects: cover/panel 1.60 - the view plates 3.03 - record 3.74 -
+    foot 7.93 - macros 14.8 - head 19.1. */
+figure{ margin:0; }
+figcaption{
+  font-size: 8.2pt; color: var(--dim); margin-top: 2mm; line-height: 1.38;
+}
+figcaption b{ color: var(--amber-hi); font-weight:600; }
+
+.shot{
+  display:block;
+  object-fit: contain;
+  background: var(--ink);
+  border: 1px solid rgba(200,150,60,.20);
+  border-radius: 2px;
+}
+.ctr{ margin-left:auto; margin-right:auto; }
+
+
+.bleed{ position:absolute; inset:0; width:100%; height:100%; object-fit: cover; }
+
+/* --- layout helpers -------------------------------------------------------- */
+.cols{ display:flex; gap: 9mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-38{ flex: 0 0 38%; } .c-42{ flex: 0 0 42%; }
+.c-46{ flex: 0 0 46%; } .c-54{ flex: 0 0 54%; }
+.c-58{ flex: 0 0 58%; } .c-62{ flex: 0 0 62%; }
+.grid2{ display:grid; grid-template-columns: repeat(2, 1fr); gap: 4mm 9mm; }
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 4mm 7mm; }
+.gap4{ margin-top: 4mm; } .gap5{ margin-top: 5mm; } .gap6{ margin-top: 6mm; }
+
+/* --- the control entry ----------------------------------------------------- */
+.knob{ border-left: 2px solid var(--amber); padding-left: 4mm; margin-bottom: 4.5mm; }
+.knob.cy{ border-color: var(--cyan); }
+.knob.ox{ border-color: var(--oxide); }
+.knob.vm{ border-color: var(--verm); }
+.knob:last-child{ margin-bottom: 0; }
+.knob h3{
+  font: 600 10.8pt/1.05 "Franklin Gothic Medium","Segoe UI Semibold","Segoe UI",Arial,sans-serif;
+  color: var(--bone); letter-spacing:.09em; text-transform:uppercase; margin:0 0 1.2mm 0;
+}
+.knob .what{ font-size:7.8pt; color:var(--dim); letter-spacing:.14em;
+             text-transform:uppercase; margin:0 0 1.6mm 0; }
+.knob p{ margin:0 0 1.6mm 0; font-size: 9.2pt; line-height:1.4; }
+.knob p:last-child{ margin-bottom:0; }
+
+/* --- the named-row list ---------------------------------------------------- */
+.mod{ display:flex; gap:4mm; align-items:baseline; padding: 1.5mm 0;
+      border-bottom: 1px solid var(--hair); }
+.mod .nm{
+  flex: 0 0 28mm;
+  font: 600 9.2pt/1.15 "Franklin Gothic Medium","Segoe UI Semibold","Segoe UI",Arial,sans-serif;
+  color: var(--amber-hi); letter-spacing:.08em; text-transform:uppercase;
+}
+.mod .nm.w20{ flex: 0 0 20mm; }
+.mod .nm.w36{ flex: 0 0 36mm; }
+.mod .dc{ flex: 1 1 auto; font-size: 9pt; line-height:1.36; }
+.mod.cy .nm{ color: var(--cyan); }
+.mod.n .nm{ color: var(--bone); }
+
+/* --- callout panels -------------------------------------------------------- */
+.box{
+  border: 1px solid var(--rule);
+  background: linear-gradient(160deg, rgba(200,150,60,.07), rgba(92,200,216,.025));
+  padding: 4mm 5mm;
+  border-radius: 2px;
+}
+.box h4{
+  font: 600 9.4pt/1 "Franklin Gothic Medium","Segoe UI Semibold","Segoe UI",Arial,sans-serif;
+  color: var(--amber-hi); margin:0 0 2.2mm 0; letter-spacing:.11em; text-transform:uppercase;
+}
+.box p{ font-size: 9.1pt; line-height:1.4; }
+.box.cy{ border-color: rgba(92,200,216,.34);
+         background: linear-gradient(160deg, rgba(92,200,216,.075), rgba(92,200,216,.02)); }
+.box.cy h4{ color: var(--cyan); }
+.box.vm{ border-color: rgba(194,67,46,.38);
+         background: linear-gradient(160deg, rgba(194,67,46,.09), rgba(194,67,46,.02)); }
+.box.vm h4{ color: var(--verm); }
+
+/* the console line - the panel's own readouts, and nowhere else */
+.says{
+  font: 600 8.6pt/1.35 "Consolas","SF Mono",ui-monospace,monospace;
+  color: var(--amber-hi); letter-spacing:.1em;
+}
+.says.d{ color: var(--dim); }
+.says.v{ color: var(--verm); }
+
+/* --- tables ---------------------------------------------------------------- */
+table{ width:100%; border-collapse: collapse; font-size: 9pt; }
+th{
+  text-align:left; font: 600 7.5pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.2em; text-transform:uppercase; color: var(--amber);
+  padding: 0 0 1.6mm 0; border-bottom: 1px solid var(--rule);
+}
+td{ padding: 1.5mm 0; border-bottom: 1px solid var(--hair); vertical-align: top; }
+td:first-child{ color: var(--bone); font-weight:600; width: 40%; padding-right: 4mm; }
+td.num{ font-family:"Consolas",ui-monospace,monospace; color:var(--amber-hi); }
+
+/* the patch tables: a name column and a note column, tight */
+table.pt{ font-size: 8.4pt; }
+table.pt td{ padding: 1.1mm 0; }
+table.pt td:first-child{
+  width: 42%; color: var(--amber-hi); font-weight:600; letter-spacing:.02em;
+  padding-right: 3mm;
+  font-family:"Franklin Gothic Medium","Segoe UI Semibold","Segoe UI",Arial,sans-serif;
+}
+table.pt td:last-child{ color: var(--body); line-height:1.32; }
+.cat{
+  font: 600 7.5pt/1 "Segoe UI",sans-serif; letter-spacing:.26em; text-transform:uppercase;
+  color: var(--amber); margin: 4mm 0 1.5mm 0; padding-bottom: 1.3mm;
+  border-bottom: 1px solid var(--rule);
+}
+.cat:first-child{ margin-top: 0; }
+
+/* --- page furniture -------------------------------------------------------- */
+.folio{
+  position:absolute; left:16mm; right:16mm; bottom: 7mm;
+  display:flex; justify-content:space-between; align-items:center;
+  font: 600 7.1pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.24em; text-transform:uppercase; color: rgba(138,131,117,.9);
+  border-top: 1px solid rgba(200,150,60,.16); padding-top: 2.2mm;
+}
+.folio .n{ color: var(--amber-hi); font-weight:700; letter-spacing:.1em; }
+
+/* --- cover / back ---------------------------------------------------------- */
+.cover-art{ position:absolute; left:0; right:0; bottom:0; height: 56%; overflow:hidden; }
+.cover-art img{ width:100%; height:100%; object-fit: cover; object-position: center 46%; }
+.cover-fade{
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, var(--ink) 0%, rgba(11,13,17,.72) 11%, rgba(11,13,17,0) 30%,
+                              rgba(11,13,17,0) 46%, rgba(11,13,17,.95) 62%, var(--ink) 75%);
+}
+.cover-top{ position:absolute; left:20mm; right:20mm; top:19mm; }
+.cover-foot{ position:absolute; left:20mm; right:20mm; bottom:13mm; }
+
+.yearline{
+  height: 3px; border:0; margin: 6mm 0 5mm 0; width: 124mm;
+  background: linear-gradient(90deg, var(--amber) 0%, var(--verm) 30%, var(--oxide) 52%,
+                              var(--cyan) 72%, rgba(200,150,60,.05) 100%);
+}
+</style>
+</head>
+<body>
+
+<!-- ======================================================  1  COVER  ===== -->
+<section class="page">
+  <div class="cover-art">
+    <img src="img/cover.jpg" alt="" />
+    <div class="cover-fade"></div>
+  </div>
+
+  <div class="cover-top">
+    <p class="kick" style="margin-bottom:6mm">Brokild &middot; Windows VST3 &middot; Drone instrument</p>
+    <h1 class="display">Thirty<br>Thousand Years</h1>
+    <hr class="yearline" />
+    <div class="cols" style="align-items:flex-start">
+      <div class="c-62">
+        <p class="display" style="font-size:12pt; letter-spacing:.2em; color:#efe9dd">Four strata, one environment</p>
+        <p class="display" style="font-size:9pt; letter-spacing:.3em; color:var(--dim); margin-top:3mm">Owner's handbook</p>
+      </div>
+      <div style="text-align:right; margin-left:auto">
+        <p class="says" style="margin:0">BUILD 260923.1</p>
+        <p class="says d" style="margin:2mm 0 0 0">401 PARAMETERS</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover-foot">
+    <p style="color:var(--dim); font-size:9pt; max-width:168mm; margin:0">
+      An instrument named for how long spent fuel stays dangerous. Four ways of
+      making sound, a shared environment that helps make it, a modulation
+      network that listens to the engine's own output, and one control that
+      carries the whole thing from one condition to another over up to half an
+      hour. <span style="color:var(--amber-hi)">September 2026.</span>
+    </p>
+  </div>
+</section>
+
+<!-- ================================================  2  WHAT IT IS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">What it is</p>
+    <h2 class="display">A place, not a patch</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-58">
+        <p class="sub" style="margin-top:0">
+          Thirty Thousand Years makes sound four different ways at once, puts
+          all four in the same room, and then lets the room take part in making
+          the sound rather than only treating it.
+        </p>
+        <p class="gap5">
+          The four ways are called <b>strata</b>. <em>MASS</em> is virtual
+          analogue: two oscillators, a sub, and a beat set in hertz. It is the
+          weight. <em>SIGNAL</em> is wavetables, phase modulation and a bank of
+          additive partials &mdash; something has learned to think.
+          <em>MEMORY</em> is granular and spectral reading over material you
+          captured or imported &mdash; the world remembering itself.
+          <em>STRUCTURE</em> is resonant bodies under an exciter &mdash;
+          architecture under stress. Every one of them is a complete instrument,
+          and any combination of them can be on at once.
+        </p>
+        <p>
+          Underneath them is the <b>ENVIRONMENT</b>: a mixer, two lanes of
+          insert processors, a space, and an explicit <b>feedback loop</b> that
+          can return into a stratum's input instead of into the mix. That last
+          choice is the whole design in one control. A loop that returns into
+          the mix is an echo. A loop that returns into STRUCTURE's exciter is
+          the instrument playing itself.
+        </p>
+      </div>
+
+      <div class="c-42">
+        <figure>
+          <img class="shot" style="width:104mm;height:65mm" src="img/panel.jpg" alt="" />
+          <figcaption><b>The deck.</b> The four strata across the top, HISTORY
+            and the spectral record beneath them, the eight macros as one row,
+            and the keyboard, the drone and the output along the foot.</figcaption>
+        </figure>
+
+        <div class="box gap5">
+          <h4>Installing</h4>
+          <p>
+            Copy <b>Thirty Thousand Years.vst3</b> into your VST3 folder
+            &mdash; normally
+            <span class="says" style="font-size:7.8pt">C:\PROGRAM FILES\COMMON FILES\VST3</span>
+            &mdash; and rescan. The standalone in the same download needs
+            nothing installing.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">02</span></div>
+</section>
+
+<!-- ==============================================  3  FOUR STRATA  ======= -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The idea</p>
+    <h2 class="display">The four strata</h2>
+    <hr class="rule" />
+
+    <figure>
+      <img class="shot ctr" style="width:240mm;height:79mm" src="img/strata.jpg" alt="" />
+      <figcaption style="max-width:240mm;margin-left:auto;margin-right:auto"><b>MAIN.</b>
+        One column per stratum, each with its own switches, its nine most-used
+        controls and a live meter. Below them: HISTORY with its four scenes, and
+        the spectral record &mdash; the output's own spectrum, drawn as layers
+        of rock, left to right, oldest at the far edge.</figcaption>
+    </figure>
+
+    <div class="grid2 gap6">
+      <div>
+        <div class="mod"><span class="nm w20">MASS</span><span class="dc">Two analogue oscillators with a sub and a beat measured in hertz. The weight the rest of the instrument is hung on, and the only stratum that is on when you open a fresh instance.</span></div>
+        <div class="mod"><span class="nm w20">SIGNAL</span><span class="dc">Two wavetables, a phase-modulation pair, a ring modulator and a 64-partial additive bank whose upper partials can lose their harmonic alignment while the fundamental holds.</span></div>
+      </div>
+      <div>
+        <div class="mod"><span class="nm w20">MEMORY</span><span class="dc">A granular reader and a spectral resynthesis over procedural material, a 30-second capture or an imported WAV, both under one EROSION control.</span></div>
+        <div class="mod"><span class="nm w20">STRUCTURE</span><span class="dc">Seven resonant bodies driven by an impulse, a noise burst, a bow, or any other stratum. STRESS carries it from a coherent object to fracture.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">03</span></div>
+</section>
+
+<!-- ==================================================  4  THE DECK  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Finding your way</p>
+    <h2 class="display">The header and the six views</h2>
+    <hr class="rule" />
+
+    <p>
+      The panel never changes shape. The header, the eight macros and the foot
+      are always there; only the middle is swapped by the six tabs. Nothing is
+      hidden in a menu, and every control on every view has a written
+      explanation attached to it &mdash; press <b>TOOLTIPS</b> in the header to
+      leave them on, or hold <b>CTRL</b> to see one while you point at
+      something.
+    </p>
+
+    <figure class="gap4">
+      <img class="shot" style="width:265mm;height:14mm" src="img/head.jpg" alt="" />
+      <figcaption><b>The header.</b> The patch window with its name, category
+        and note; then PATCHES, USER, SAVE and OPEN; the A/B pair with STORE;
+        UNDO; MUTATE with its amount and its seven group locks; QUALITY;
+        ASSIGN; MOTION; TOOLTIPS; WORLD FX; and PANIC.</figcaption>
+    </figure>
+
+    <div class="cols gap5">
+      <div class="c-54">
+        <div class="mod"><span class="nm">MAIN</span><span class="dc">The four strata, HISTORY and the spectral record.</span></div>
+        <div class="mod"><span class="nm">SOURCES</span><span class="dc">Four pages, one per stratum, with everything in it.</span></div>
+        <div class="mod"><span class="nm">LIFE</span><span class="dc">Modulators, the network, the event lanes, the matrix.</span></div>
+        <div class="mod"><span class="nm">HISTORY</span><span class="dc">The four scenes and the travel controls.</span></div>
+        <div class="mod"><span class="nm">ENVIRONMENT</span><span class="dc">The insert lanes, the space and the feedback loop.</span></div>
+        <div class="mod"><span class="nm">MIX</span><span class="dc">Four channel strips, output, tuning and voices.</span></div>
+      </div>
+      <div class="c-46">
+        <div class="box vm">
+          <h4>Panic</h4>
+          <p>
+            <b>PANIC</b> fades the output over 20 ms, clears every voice, every
+            delay line and the feedback loop, switches the drone off, and stays
+            stopped. Nothing restarts until you play a note or switch the drone
+            back on. It is the one control in here that is allowed to be rude.
+          </p>
+        </div>
+        <div class="box cy gap5">
+          <h4>Mutate, undo, A/B</h4>
+          <p>
+            <b>MUTATE</b> nudges the patch by the amount beside it. The seven
+            chips lock a group out of it &mdash; MA, SI, ME, ST, EN, LI and GL
+            for the globals, which is locked by default. Levels, the drone
+            switch, the macros and the loop send are never mutated at all.
+            <b>UNDO</b> swaps with the state before the last big move, so a
+            second press is a redo.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">04</span></div>
+</section>
+
+<!-- ============================================  5  WAYS TO PLAY IT  ===== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The foot</p>
+    <h2 class="display">Three ways to play it</h2>
+    <hr class="rule" />
+
+    <p>
+      A fresh instance is <b>exactly silent</b>, and stays silent until you ask
+      it for something. That is deliberate: an instrument that starts droning
+      the moment it is loaded cannot be used on a busy session. There are three
+      ways to ask, and they share the same eight voices &mdash; the drone chord
+      takes as many as its size needs and the keyboard gets the rest.
+    </p>
+
+    <figure class="gap4">
+      <img class="shot" style="width:265mm;height:33mm" src="img/foot.jpg" alt="" />
+      <figcaption><b>The foot.</b> The keyboard with its octave buttons, held
+        notes and voice lamps; the bend and mod wheels; DRONE with its root,
+        chord, latch, spread and force; PLAY with the voice mode and glide; and
+        OUTPUT with VOLUME, CEILING and
+        the bass-mono fold. Along the bottom: the output and limiter meters, the
+        loop and space energy, the voice, grain and memory counts, and the name
+        of the patch on the dial.</figcaption>
+    </figure>
+
+    <div class="grid3 gap5">
+      <div class="knob">
+        <h3>Drone</h3>
+        <p class="what">An explicit switch</p>
+        <p>Switch <b>DRONE</b> on and the instrument sounds with no note held.
+          Set the <em>ROOT</em> as a note name and the <em>CHORD</em> above it,
+          from UNISON to OPEN FIFTHS. <em>SPREAD</em> places those notes across
+          the stereo field; <em>FORCE</em> is how hard they strike.</p>
+      </div>
+      <div class="knob cy">
+        <h3>Instrument</h3>
+        <p class="what">Up to eight voices, MPE</p>
+        <p>POLY, MONO or LEGATO, with velocity, bend, sustain and aftertouch,
+          and <em>MPE</em> for a controller that sends per-note pressure and
+          slide. <em>VOICES</em> caps the count; fewer voices costs less and
+          makes a dense patch behave more like one object.</p>
+      </div>
+      <div class="knob ox">
+        <h3>Excitation</h3>
+        <p class="what">The AUX input</p>
+        <p>Feed audio into the AUX bus and set <em>AUX INPUT</em> on the MIX
+          view. EXCITE drives STRUCTURE with it and feeds MEMORY's capture;
+          DUCK makes the instrument step back for it; EXCITE + DUCK does both.</p>
+      </div>
+    </div>
+
+    <div class="box gap5">
+      <h4>Both at once</h4>
+      <p>
+        Each stratum has its own <b>IN DRONE</b> and <b>ON KEYS</b> switches on
+        the MIX view. That is how you build a patch where the drone is MASS and
+        STRUCTURE while the keyboard plays SIGNAL over the top of it, out of one
+        instance.
+      </p>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">05</span></div>
+</section>
+
+<!-- ==============================================  6  FIVE MINUTES  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Getting started</p>
+    <h2 class="display">Five minutes</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <div class="mod n"><span class="nm w20">ONE</span><span class="dc">In the header, step the patch window to <b>THE SEA IS MADE OF IRON</b>. Its note appears under the name.</span></div>
+        <div class="mod n"><span class="nm w20">TWO</span><span class="dc">Switch <b>DRONE</b> on at the foot. It sounds. Nothing else has to be pressed.</span></div>
+        <div class="mod n"><span class="nm w20">THREE</span><span class="dc">Take the <b>VIOLENCE</b> macro up slowly and back down. It is not a volume: the bowed plate is being pushed, not amplified.</span></div>
+        <div class="mod n"><span class="nm w20">FOUR</span><span class="dc">Move <b>ROOT</b> down a few semitones and change <b>CHORD</b>. The whole world follows the root.</span></div>
+        <div class="mod n"><span class="nm w20">FIVE</span><span class="dc">Open <b>SOURCES &rsaquo; STRUCTURE</b> and move <b>BOW SPEED</b>. You are now inside the instrument.</span></div>
+
+        <div class="box cy gap5">
+          <h4>Then try</h4>
+          <p>
+            <b>THIRTY THOUSAND YEARS</b>, the flagship. Its four scenes are
+            already stored and HISTORY is already switched on. Set
+            <em>DURATION</em> to thirty minutes, put <em>DRIVE</em> on AUTO,
+            and leave it.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-46">
+        <figure>
+          <img class="shot" style="width:116mm;height:38mm" src="img/sources.jpg" alt="" />
+          <figcaption><b>SOURCES.</b> Every stratum has a page like this one,
+            with nothing folded away. MASS is shown: its two oscillators, the
+            weight, the instability, the filter and the two envelopes.</figcaption>
+        </figure>
+
+        <div class="box gap5">
+          <h4>Every control explains itself</h4>
+          <p>
+            This handbook describes what the instrument is for. It does not
+            list all 401 parameters, because the panel already does: every
+            control carries a written line saying what it is and how it is
+            used, placed beside it and never over it. <b>TOOLTIPS</b> in the
+            header leaves them showing; <b>CTRL</b> summons one on demand.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">06</span></div>
+</section>
+
+<!-- ====================================================  7  MASS  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Stratum one</p>
+    <h2 class="display">MASS &mdash; the thing beneath the ground</h2>
+    <hr class="rule" />
+
+    <figure>
+      <img class="shot ctr" style="width:240mm;height:79mm" src="img/mass.jpg" alt="" />
+      <figcaption style="max-width:240mm;margin-left:auto;margin-right:auto"><b>MAIN, the MASS column.</b> It is the first of the four: level, cutoff, resonance and the filter circuit on the top row; the two oscillators, the sub, the beat and the drift below. Everything else MASS owns is on SOURCES &rsaquo; MASS.</figcaption>
+    </figure>
+
+    <div class="cols gap4">
+      <div class="c-58">
+        <p>
+          Two band-limited oscillators &mdash; sine, triangle, saw or pulse
+          &mdash; each with an octave, a semitone, a fine tuning and a level,
+          plus hard sync. Beneath them a sub one or two octaves down, and
+          <em>REINFORCE</em>, which feeds MASS back into itself a little so the
+          low end survives a small speaker. The filter is a four-pole
+          <b>LADDER</b> or a state-variable circuit with low, band, high and
+          notch &mdash; both with drive, and both with saturation inside the
+          resonance so a screaming filter stays a note.
+        </p>
+      </div>
+      <div class="c-42">
+        <div class="mod"><span class="nm">BEAT (HZ)</span><span class="dc">Detunes oscillator 2 by a fixed number of hertz instead of a number of cents, 0.02 to 12 Hz.</span></div>
+        <div class="mod"><span class="nm">DRIFT</span><span class="dc">Up to 50 cents of slow wander, over a DRIFT TIME of 0.2 to 60 seconds.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">07</span></div>
+</section>
+
+<!-- ==================================================  8  SIGNAL  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Stratum two</p>
+    <h2 class="display">SIGNAL &mdash; something has learned to think</h2>
+    <hr class="rule" />
+
+    <figure>
+      <img class="shot ctr" style="width:228mm;height:75mm" src="img/signal.jpg" alt="" />
+      <figcaption style="max-width:228mm;margin-left:auto;margin-right:auto"><b>MAIN, the SIGNAL column.</b> The second of the four: level, cutoff, resonance and the two table positions; then the PM index, the partials, the frequency shift and INTERFERENCE. The rest is on SOURCES &rsaquo; SIGNAL.</figcaption>
+    </figure>
+
+    <div class="cols gap4">
+      <div class="c-58">
+        <p>
+          Eight original wavetables &mdash; GEOMETRIC, MACHINE, FORMANT,
+          HOLLOW, STEPPED, METALLIC, SIREN, ORGANISM &mdash; of eight frames
+          each, on two oscillators that can ring-modulate one another. Behind
+          them a two-operator phase-modulation pair with its own ratio, index
+          and feedback, and an additive bank of up to 64 partials with controls
+          for spread, odd against even, tilt, clustering, gaps and motion.
+          <em>FUNDAMENTAL</em> is the one that matters: it holds the first
+          partial in place while everything above it walks out of the harmonic
+          series.
+        </p>
+      </div>
+      <div class="c-42">
+        <div class="mod"><span class="nm">FREQ SHIFT</span><span class="dc">Moves every frequency by the same number of hertz, up to 2000 either way; the knob is fine near zero.</span></div>
+        <div class="mod"><span class="nm">PITCH SHIFT</span><span class="dc">Transposes by a ratio instead, up to two octaves either way.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">08</span></div>
+</section>
+
+<!-- ==================================================  9  MEMORY  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Stratum three</p>
+    <h2 class="display">MEMORY &mdash; the world remembering itself</h2>
+    <hr class="rule" />
+
+    <figure>
+      <img class="shot ctr" style="width:240mm;height:79mm" src="img/memory.jpg" alt="" />
+      <figcaption style="max-width:240mm;margin-left:auto;margin-right:auto"><b>MAIN, the MEMORY column.</b> The third of the four: the source and the reading mode; then position, density, grain length, jitter, scatter and EROSION. The rest is on SOURCES &rsaquo; MEMORY.</figcaption>
+    </figure>
+
+    <div class="cols gap4">
+      <div class="c-58">
+        <p>
+          Four procedural sources are built into the instrument &mdash;
+          <b>VOICE</b>, <b>BROADCAST</b>, <b>CHOIR</b>, <b>MACHINE</b> &mdash;
+          so a patch works with no files at all. Beyond them a rolling
+          <b>CAPTURE</b> of the last thirty seconds, taken from before the loop,
+          after the space or from the AUX input, and an <b>IMPORT</b> of your
+          own WAV. MEMORY reads that material with grains (5 ms to 2 s each, up
+          to 200 a second), with a spectral resynthesis that can be frozen,
+          smeared, tilted, thinned and displaced, or with both at once.
+        </p>
+      </div>
+      <div class="c-42">
+        <div class="mod"><span class="nm">EROSION</span><span class="dc">One control over four kinds of decay, each still separately reachable underneath it.</span></div>
+        <div class="mod"><span class="nm">SCAN</span><span class="dc">How fast the reading position moves on its own, and in which direction.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">09</span></div>
+</section>
+
+<!-- ==============================================  10  STRUCTURE  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Stratum four</p>
+    <h2 class="display">STRUCTURE &mdash; architecture under stress</h2>
+    <hr class="rule" />
+
+    <figure>
+      <img class="shot ctr" style="width:240mm;height:79mm" src="img/structure.jpg" alt="" />
+      <figcaption style="max-width:240mm;margin-left:auto;margin-right:auto"><b>MAIN, the STRUCTURE column.</b> The fourth: the body and the exciter; then stress, material, coupling, drive, strike and damping, with a STRIKE button that hits it now. The rest is on SOURCES &rsaquo; STRUCTURE.</figcaption>
+    </figure>
+
+    <div class="cols gap4">
+      <div class="c-58">
+        <p>
+          Seven bodies. <b>PLATE</b>, <b>CABLE</b>, <b>BEAM</b>, <b>CAVITY</b>
+          and <b>GLASS</b> are banks of up to 48 tuned resonators; <b>TUBE</b>
+          and <b>COMB</b> are waveguides. They are <em>designed</em> resonances
+          rather than simulations of real objects, and they are meant to be
+          pushed past where a real object would go. The exciter is an impulse,
+          a noise burst, a bowing friction model, or any of MASS, SIGNAL,
+          MEMORY, the loop return and the AUX input &mdash; which is where a
+          stratum stops being a layer and becomes a cause.
+        </p>
+      </div>
+      <div class="c-42">
+        <div class="mod"><span class="nm">STRESS</span><span class="dc">Up, the body detunes, then the modes trade energy and it groans, then it fractures.</span></div>
+        <div class="mod"><span class="nm">SUSTAIN</span><span class="dc">Energy fed in continuously rather than as a strike. It does not erase the strike.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">10</span></div>
+</section>
+
+<!-- ============================================  11  ENVIRONMENT  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The environment</p>
+    <h2 class="display">The space, and the loop that generates</h2>
+    <hr class="rule" />
+
+    <p class="sub" style="margin-top:0">
+      ENVIRONMENT has two pages. <b>SPACE &amp; LOOP</b> holds the reverberator,
+      the perspective controls and the feedback loop; <b>INSERT LANES</b> holds
+      the seven processors and the two lanes they sit in.
+    </p>
+
+    <div class="cols gap5">
+      <div class="c-54">
+        <p>
+          The space is early reflections into an eight-line network, with a
+          decay from a fifth of a second up to a minute, frequency-dependent
+          damping, motion and a freeze. <em>APPARENT SCALE</em> and
+          <em>DISTANCE</em> are separate on purpose: scale moves the reflection
+          pattern, which is what the ear reads as the size of a place, while
+          distance trades direct sound for reflected and loses the high end to
+          the air. Neither of them is an amount, and neither touches the width.
+        </p>
+        <p>
+          The <b>feedback loop</b> is a node of its own, not a send. It has a
+          delay from one millisecond to two seconds, a high-pass and a low-pass,
+          a frequency shift, a saturation and a damping, and its energy is
+          metered on the panel so you can see it settle or climb.
+        </p>
+      </div>
+      <div class="c-46">
+        <div class="box">
+          <h4>Where the loop returns</h4>
+          <p>
+            <b>RETURNS TO</b> has four settings and it is the most consequential
+            control in the environment. <b>MIX</b> makes the loop an echo.
+            <b>STRUCTURE</b> hands it to the exciter, so the room plays the
+            body. <b>MEMORY</b> feeds the capture, so the loop is remembered.
+            <b>SIGNAL</b> feeds the ring modulator.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2 gap5">
+      <div>
+        <div class="mod"><span class="nm">SHIFT</span><span class="dc">Moves the loop's frequencies a little on every pass, so the accumulation climbs or falls instead of ringing on one note.</span></div>
+        <div class="mod"><span class="nm">SATURATION</span><span class="dc">Limits the growth by itself, which is what lets the loop be run near unity without exploding.</span></div>
+      </div>
+      <div>
+        <div class="mod"><span class="nm">HIGH-PASS</span><span class="dc">Without it the loop accumulates weight until nothing else can be heard.</span></div>
+        <div class="mod"><span class="nm">DAMPING</span><span class="dc">The plain safety control. Turn it up if the loop is running away from you.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">11</span></div>
+</section>
+
+<!-- ===============================================  12  LANES  =========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The environment</p>
+    <h2 class="display">Insert lanes</h2>
+    <hr class="rule" />
+
+    <figure>
+      <img class="shot ctr" style="width:167mm;height:55mm" src="img/lanes.jpg" alt="" />
+      <figcaption style="max-width:167mm;margin-left:auto;margin-right:auto"><b>ENVIRONMENT &rsaquo; INSERT LANES.</b>
+        The two lanes on the left; every processor's controls are on the page
+        beside them whether it is in a lane or not.</figcaption>
+    </figure>
+
+    <p class="gap4">
+      Two lanes of three slots. <b>Lane A</b> sits on the mix bus, <b>lane B</b> on
+      the way into the space &mdash; so B dirties the room without dirtying what
+      stands in front of it. Any slot holds any of the seven, in any order.
+    </p>
+
+    <div class="grid2 gap4">
+      <div>
+        <div class="mod"><span class="nm w20">SATURATE</span><span class="dc">Asymmetric valve saturation, level-matched by measurement so DRIVE is not simply louder.</span></div>
+        <div class="mod"><span class="nm w20">FOLD</span><span class="dc">Wavefolding, symmetrical or not. It adds harmonics unrelated to the original spectrum.</span></div>
+        <div class="mod"><span class="nm w20">MULTIBAND</span><span class="dc">Three bands driven separately, with the low band protected so the weight survives.</span></div>
+        <div class="mod"><span class="nm w20">SHIFT</span><span class="dc">Single-sideband shifting in signed hertz, with feedback for a rising staircase.</span></div>
+      </div>
+      <div>
+        <div class="mod"><span class="nm w20">DELAY</span><span class="dc">1 ms to 2 s. TAPE detunes and dulls every pass; CLEAN repeats what it was given.</span></div>
+        <div class="mod"><span class="nm w20">COMB</span><span class="dc">A resonant comb tuned in semitones, with damping and diffusion.</span></div>
+        <div class="mod"><span class="nm w20">CRUSH</span><span class="dc">Bit and rate reduction, with an anti-alias switch for the grit without the folding.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">12</span></div>
+</section>
+
+<!-- =================================================  13  LIFE  ========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Life</p>
+    <h2 class="display">The instrument moves by itself</h2>
+    <hr class="rule" />
+
+    <figure>
+      <img class="shot ctr" style="width:230mm;height:76mm" src="img/life.jpg" alt="" />
+      <figcaption style="max-width:230mm;margin-left:auto;margin-right:auto"><b>LIFE &rsaquo; LFO.</b>
+        One of the five pages behind the tabs at the top: LFO, ENVELOPES &amp;
+        SHAPES, RANDOM &amp; FOLLOW, EVENTS &amp; NETWORK, and MATRIX. Eight
+        oscillators, each with a shape, a rate, a sync division, a phase offset,
+        a scope and a live readout.</figcaption>
+    </figure>
+
+    <div class="grid2 gap4">
+      <div>
+        <div class="mod"><span class="nm w36">8 LFOs</span><span class="dc">Six shapes, 0.0008 Hz to 50 Hz, so one cycle can last twenty minutes. Free or locked to the host's bars; global or one per voice.</span></div>
+        <div class="mod"><span class="nm w36">4 envelopes</span><span class="dc">Triggered by a note, by the drone starting, or by an event lane.</span></div>
+        <div class="mod"><span class="nm w36">4 shapes</span><span class="dc">Drawable multi-segment envelopes. Click to add a point, drag to move it, alt-click to remove it.</span></div>
+      </div>
+      <div>
+        <div class="mod"><span class="nm w36">4 random sources</span><span class="dc">Smooth noise, a random walk with a restoring force, sample and hold, probability, cluster bursts, or bounded chaos.</span></div>
+        <div class="mod"><span class="nm w36">2 followers</span><span class="dc">Turn the loudness of any stratum, the mix or the AUX input into a modulation source.</span></div>
+        <div class="mod"><span class="nm w36">4 event lanes</span><span class="dc">Each fires with a chance, at a rate, with a refractory wait, at one of seven targets.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">13</span></div>
+</section>
+
+<!-- ===============================================  14  MATRIX  ========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Life</p>
+    <h2 class="display">The matrix, and the network</h2>
+    <hr class="rule" />
+
+    <p class="sub" style="margin-top:0">
+      Thirty-two slots on the last of the LIFE pages. Each takes a source, a
+      destination, a signed depth, a second source to scale it by, a curve, a
+      slew and a range clamp.
+    </p>
+
+    <div class="cols gap5">
+      <div class="c-54">
+        <p>
+          Drag a source out of the palette on the RANDOM &amp; FOLLOW page onto
+          any control on any view and a slot is filled for you. Modulation is
+          applied as an <em>offset</em> on the value you set, clamped to the
+          parameter's own range &mdash; the value you edited never moves
+          underneath you, so a modulated patch is still the patch you built.
+        </p>
+        <p>
+          <b>ASSIGN</b> in the header is the short way here. The matrix is a
+          blob inside the patch rather than a set of host parameters, which is
+          deliberate: thirty-two routings would flood an automation list and
+          none of them is the kind of thing you draw a lane for.
+        </p>
+      </div>
+      <div class="c-46">
+        <div class="box cy">
+          <h4>The LIFE network</h4>
+          <p>
+            Detectors measure energy, brightness and transients on each stratum
+            and on the mix, and offer them as modulation sources like any other.
+            <em>COUPLING</em> scales every one of those cross-stratum terms;
+            <em>AUTONOMY</em> sets how far the world may drift from the state you
+            edited; <em>RECOVERY</em> pulls it back. <b>HOLD LIFE</b> freezes
+            every modulator where it stands while the sound goes on.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2 gap6">
+      <div>
+        <div class="mod"><span class="nm w36">SOURCE</span><span class="dc">Any LFO, envelope, shape, random source, follower or event lane; any of the network's detectors; velocity, pressure, key, wheel or bend; any macro; HISTORY itself; or a constant.</span></div>
+        <div class="mod"><span class="nm w36">DEPTH and VIA</span><span class="dc">A signed amount, and a second source that scales it &mdash; so one modulation can gate another without a utility module in between.</span></div>
+      </div>
+      <div>
+        <div class="mod"><span class="nm w36">CURVE and SLEW</span><span class="dc">How the source is shaped on its way to the destination, and how fast it is allowed to move once it gets there.</span></div>
+        <div class="mod"><span class="nm w36">RANGE</span><span class="dc">A clamp on the result, so a modulation can be prevented from reaching either end of the parameter it drives.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">14</span></div>
+</section>
+
+<!-- ==============================================  15  HISTORY  ========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">History</p>
+    <h2 class="display">Four scenes, one journey</h2>
+    <hr class="rule" />
+
+    <figure>
+      <img class="shot ctr" style="width:240mm;height:79mm" src="img/history.jpg" alt="" />
+      <figcaption style="max-width:240mm;margin-left:auto;margin-right:auto"><b>HISTORY.</b>
+        The four scenes along the top with their lamps and their names, the
+        determinism controls beside them, TRAVEL below, and the spectral record
+        to the right. The line under the scenes says what is stopping the
+        journey, if anything is.</figcaption>
+    </figure>
+
+    <div class="box vm gap5">
+      <h4>It has to be armed, and it needs two scenes</h4>
+      <p>
+        <b>HISTORY is off in a fresh patch and it needs at least two different
+        scenes stored.</b> Until both of those are true the HISTORY slider moves
+        and nothing happens, which looks exactly like a broken control. The
+        panel says so itself, in the line under the scene tiles: it will tell
+        you there are no scenes stored, that there is only one, or that the
+        scenes exist but HISTORY is switched off. Read that line first.
+      </p>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">15</span></div>
+</section>
+
+<!-- ========================================  16  HISTORY, TRAVEL  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">History</p>
+    <h2 class="display">Storing scenes, and travelling</h2>
+    <hr class="rule" />
+
+    <div class="mod n"><span class="nm w20">ONE</span><span class="dc">Set the instrument up the way the piece should <b>start</b>. Press <b>STORE</b> on scene 1. Its lamp lights and the tile reads STORED.</span></div>
+    <div class="mod n"><span class="nm w20">TWO</span><span class="dc">Change something &mdash; anything musical &mdash; and store scene 2. A scene holds every musical parameter; it deliberately does not hold the output calibration, the quality setting, the drone switch, the file state or the seeds.</span></div>
+    <div class="mod n"><span class="nm w20">THREE</span><span class="dc">Switch <b>HISTORY</b> on. The slider now travels from scene 1 through the scenes you have stored. Scenes 2 and 3 can be moved along that line, so you can spend longer in one part of the piece than another.</span></div>
+    <div class="mod n"><span class="nm w20">FOUR</span><span class="dc">Set <b>DRIVE</b>. MANUAL is you, by hand or by host automation. AUTO runs on its own clock over a <b>DURATION</b> of anything from one second to thirty minutes. AUTO SYNC runs on the host's bars instead, from 1 to 128 of them. At the end it can stop <b>ONCE</b>, <b>LOOP</b>, or <b>PING-PONG</b> back the way it came.</span></div>
+
+    <div class="cols gap5">
+      <div class="c-54">
+        <div class="box cy">
+          <h4>What a scene does not hold</h4>
+          <p>
+            A scene stores the musical state and nothing else. The output
+            calibration, the quality setting, PANIC, the file state, the drone
+            switch and the seeds all stay where you left them, so travelling
+            through a piece can never change your monitoring level or start the
+            instrument on its own. MUTE and SOLO are outside a scene too.
+          </p>
+        </div>
+      </div>
+      <div class="c-46">
+        <div class="box">
+          <h4>How it interpolates, and how to stop it</h4>
+          <p>
+            Pitches move in semitones, times and frequencies logarithmically,
+            levels in decibels, and anything that is a list or a switch steps
+            over at the midpoint rather than smearing. <b>HOLD HISTORY</b>
+            stops the journey where it is without switching it off, so you can
+            sit inside one moment for as long as you like.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">16</span></div>
+</section>
+
+<!-- ===============================================  17  MACROS  ========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The macros</p>
+    <h2 class="display">Eight words for what happens next</h2>
+    <hr class="rule" />
+
+    <figure>
+      <img class="shot" style="width:265mm;height:18mm" src="img/macros.jpg" alt="" />
+      <figcaption><b>The macro row.</b> Always visible, on every view. Click a
+        macro's <b>name</b> to open its map and see or change what it reaches.</figcaption>
+    </figure>
+
+    <p class="gap4">
+      Each macro drives up to eight destinations at signed depths, and the map
+      is stored in the patch. The meanings are consistent across the bank, so
+      the same word does a recognisable thing on any preset &mdash; except
+      <b>HUMANITY</b>, which is patch-specific by design and is mapped
+      individually on the presets that use it.
+    </p>
+
+    <div class="grid2 gap4">
+      <div>
+        <div class="mod"><span class="nm">MASS</span><span class="dc">Weight and physical presence: the low end, the sub and the body of everything.</span></div>
+        <div class="mod"><span class="nm">DREAD</span><span class="dc">Suspense. The sound leans somewhere without arriving.</span></div>
+        <div class="mod"><span class="nm">VIOLENCE</span><span class="dc">Abrasion and force &mdash; drive, stress and saturation. Level-matched, so it is not simply louder.</span></div>
+        <div class="mod"><span class="nm">INSTABILITY</span><span class="dc">Loss of equilibrium: drift, wander, and the network's autonomy together.</span></div>
+      </div>
+      <div>
+        <div class="mod"><span class="nm">CONTAMINATION</span><span class="dc">The strata stop being separate and start exciting each other.</span></div>
+        <div class="mod"><span class="nm">DISTANCE</span><span class="dc">From near presence to a remote trace: space, damping, loss of detail.</span></div>
+        <div class="mod"><span class="nm">LIFE</span><span class="dc">How much the instrument moves when you are not touching it.</span></div>
+        <div class="mod"><span class="nm">HUMANITY</span><span class="dc">Recognisable vulnerability. What is left that a person could have made.</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">17</span></div>
+</section>
+
+<!-- ==================================================  18  MIX  ========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Levels</p>
+    <h2 class="display">The mix, and the two faders</h2>
+    <hr class="rule" />
+
+    <figure>
+      <img class="shot ctr" style="width:240mm;height:79mm" src="img/mix.jpg" alt="" />
+      <figcaption style="max-width:240mm;margin-left:auto;margin-right:auto"><b>MIX.</b>
+        Four channel strips &mdash; level, pan, width, two cuts, the space and
+        loop sends, and the switches for whether that stratum takes part in the
+        drone and on the keys &mdash; then OUTPUT with PATCH TRIM and the AUX
+        input, and TUNING &amp; VOICES.</figcaption>
+    </figure>
+
+    <div class="box vm gap5">
+      <h4>PATCH TRIM belongs to the patch; VOLUME belongs to you</h4>
+      <p>
+        <b>PATCH TRIM</b> on the MIX view is the patch's own output level. It is
+        saved with the patch, it travels through HISTORY, and it is what the
+        forty-eight factory patches are levelled with, so one of them is not
+        three times louder than the next. <b>VOLUME</b> at the foot is yours,
+        and no preset ever touches it. VOLUME runs <em>into</em> the limiter, so
+        pushing it past the point where the meter stops rising is asking for
+        compression rather than for level. The limiter is idle on every factory
+        patch, and the whole bank sits inside a 16.8 dB spread.
+      </p>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">18</span></div>
+</section>
+
+<!-- =================================================  19  BWFX  ========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">After the environment</p>
+    <h2 class="display">The Brokild World FX rack</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <p>
+          <b>WORLD FX</b> in the header opens the rack that every Brokild
+          instrument shares. It sits after the engine's own environment, at the
+          very end of the chain, and it is <em>empty by default</em> &mdash; a
+          patch that does not use it sounds exactly as though it were not there.
+        </p>
+        <p>
+          The rack holds reorderable effect pedals on the left and SPECTRA
+          characters on the right, each with its own dry/wet PRESENCE, and it
+          has its own presets. It is stored inside the patch, so a patch you
+          save carries its rack with it.
+        </p>
+
+        <div class="box cy gap5">
+          <h4>Five automatable macros</h4>
+          <p>
+            <b>BWFX MACRO 1</b> to <b>5</b> are the rack's entire host-parameter
+            surface, and they bring the total offered to a host to 401. Each one
+            maps a destination from one end of its range to the other, so a
+            macro at 100 % runs its control all the way up and a macro at 50 %
+            stops it halfway. Macro 5 ships wired to the rack's own dry/wet, so
+            a fresh rack is exactly today's sound.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-46">
+        <div class="mod"><span class="nm w36">Where it sits</span><span class="dc">After the mix, the space, the loop and the limiter. It is the last thing that happens.</span></div>
+        <div class="mod"><span class="nm w36">What it costs</span><span class="dc">Nothing, until a module is switched on.</span></div>
+        <div class="mod"><span class="nm w36">Reordering</span><span class="dc">Drag a pedal by its grip, or use its UP and DN buttons. Order is part of the sound.</span></div>
+        <div class="mod"><span class="nm w36">SPECTRA</span><span class="dc">Characters that reshape how every voice is built rather than sitting in the chain. MASS and SIGNAL consume their modulation bus.</span></div>
+
+        <div class="box gap5">
+          <h4>It is not the environment</h4>
+          <p>
+            The rack is a finishing chain. The insert lanes, the space and the
+            feedback loop are part of how the instrument makes its sound, and
+            they are not in here. If you want the room to generate, use the
+            ENVIRONMENT view.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">19</span></div>
+</section>
+
+<!-- ============================================  20  BANK ONE  =========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The factory bank</p>
+    <h2 class="display">Forty-eight patches, one</h2>
+    <hr class="rule" />
+
+    <div class="cols" style="gap:9mm">
+      <div>
+        <p class="cat">Drone</p>
+        <table class="pt"><tbody>
+          <tr><td>Beneath Thirty Kilometres of Concrete</td><td>Sub pressure under immense resonances.</td></tr>
+          <tr><td>The Sea Is Made of Iron</td><td>A bowed plate over a sub; the bow breathes.</td></tr>
+          <tr><td>Orbital Debris Choir</td><td>Inharmonic tones; the fundamental holds.</td></tr>
+          <tr><td>Steel Cathedral</td><td>A plate the size of a building, bowed.</td></tr>
+          <tr><td>Abandoned Substation</td><td>Mains hum, a transformer, a warm loop.</td></tr>
+          <tr><td>Hollow Earth</td><td>Hollow tables in a cavity. A mountain's note.</td></tr>
+          <tr><td>Cooling Towers</td><td>Concrete cylinders breathing, wide and slow.</td></tr>
+          <tr><td>Monolith</td><td>One enormous square sub. Nothing moves.</td></tr>
+        </tbody></table>
+
+        <p class="cat">Evolving world</p>
+        <table class="pt"><tbody>
+          <tr><td>The Machines Kept Working</td><td>A process that organises itself.</td></tr>
+          <tr><td>No One Answers the Broadcast</td><td>A message degrades into fragments.</td></tr>
+          <tr><td>The Factory Dreamed of Flesh</td><td>Machine resonances acquire formants.</td></tr>
+          <tr><td>Thirty Thousand Years</td><td>The flagship journey. Thirty minutes.</td></tr>
+          <tr><td>Furnace</td><td>Heat rising through a beam.</td></tr>
+          <tr><td>Swarm</td><td>Organism tables; the network wide awake.</td></tr>
+        </tbody></table>
+      </div>
+
+      <div>
+        <p class="cat">Industrial pulse</p>
+        <table class="pt"><tbody>
+          <tr><td>An Intelligence in the Walls</td><td>Pulses that learn to answer each other.</td></tr>
+          <tr><td>Something Learned to Breathe</td><td>Adapting pulses out of noise.</td></tr>
+          <tr><td>A Weapon Waiting for a War</td><td>Contained energy, then a release.</td></tr>
+          <tr><td>Hostile Computation</td><td>A machine thinking out loud.</td></tr>
+          <tr><td>Breath of the Grid</td><td>A synced gate over a sub. Tempo-locked.</td></tr>
+          <tr><td>Telemetry</td><td>Stepped tables, crushed, a siren behind.</td></tr>
+          <tr><td>The Last Generator</td><td>A gate, a tape delay, the loop in the body.</td></tr>
+        </tbody></table>
+
+        <p class="cat">Restrained bed</p>
+        <table class="pt"><tbody>
+          <tr><td>A City Without Witnesses</td><td>Distant structures and air.</td></tr>
+          <tr><td>Population: Zero</td><td>Almost silence. Turn it up.</td></tr>
+          <tr><td>The Sun Behind the Ash</td><td>Obscured light. Nothing is loud.</td></tr>
+          <tr><td>Granite Pad</td><td>A dry wide pad. Sits under drums.</td></tr>
+          <tr><td>Voices Under the Ice</td><td>Frozen, smeared voices under a sine.</td></tr>
+          <tr><td>Last Light in the Tower</td><td>One fragile sine on glass modes.</td></tr>
+          <tr><td>The Deep Field</td><td>Inharmonic partials rising very slowly.</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">20</span></div>
+</section>
+
+<!-- ============================================  21  BANK TWO  =========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The factory bank</p>
+    <h2 class="display">Forty-eight patches, two</h2>
+    <hr class="rule" />
+
+    <div class="cols" style="gap:9mm">
+      <div>
+        <p class="cat">Transitional texture</p>
+        <table class="pt"><tbody>
+          <tr><td>The Last Human Frequency</td><td>A formant survives hostile spectra.</td></tr>
+          <tr><td>We Were Promised a Future</td><td>A mournful chord goes into the machine.</td></tr>
+          <tr><td>Sirens Over the District</td><td>Sirens sweeping, far away.</td></tr>
+          <tr><td>The Archive Burns</td><td>A frozen choir while the crusher eats it.</td></tr>
+          <tr><td>Slow Collapse</td><td>A clean chord to rubble in four minutes.</td></tr>
+          <tr><td>Radio Silence</td><td>The broadcast, frozen and shifted, thins out.</td></tr>
+        </tbody></table>
+
+        <p class="cat">Resonant gesture</p>
+        <table class="pt"><tbody>
+          <tr><td>After the Final Transmission</td><td>Strike once; the loop takes the residue.</td></tr>
+          <tr><td>The Room Is Listening</td><td>Every note strikes glass. Play sparsely.</td></tr>
+          <tr><td>Stressed Plate</td><td>Strike it and it fractures.</td></tr>
+          <tr><td>Glass Rain</td><td>Noise bursts on glass, scattered by a lane.</td></tr>
+          <tr><td>Plate Tectonics</td><td>Bowed so slowly it creaks, until it gives.</td></tr>
+        </tbody></table>
+      </div>
+
+      <div>
+        <p class="cat">Playable bass</p>
+        <table class="pt"><tbody>
+          <tr><td>Concrete Bass</td><td>Dry sub bass with a ladder growl. Mono.</td></tr>
+          <tr><td>Iron Bass</td><td>A struck cable. Velocity is the hammer.</td></tr>
+          <tr><td>Cable Bass</td><td>A bowed cable; aftertouch presses the bow.</td></tr>
+          <tr><td>Servo Bass</td><td>A machine table, snapping filter, a comb.</td></tr>
+        </tbody></table>
+
+        <p class="cat">Dry</p>
+        <table class="pt"><tbody>
+          <tr><td>Cold Start</td><td>The naked MASS oscillators. A start.</td></tr>
+          <tr><td>Naked Signal</td><td>Only the SIGNAL tables, clean. For building.</td></tr>
+          <tr><td>Naked Structure</td><td>A struck plate and nothing else.</td></tr>
+          <tr><td>Naked Memory</td><td>The voice source through grains, dry.</td></tr>
+          <tr><td>Thin Air</td><td>A sine and a triangle, slowly. The quiet tone.</td></tr>
+        </tbody></table>
+
+        <div class="box gap5">
+          <h4>Ten are already travelling</h4>
+          <p>
+            Ten of the forty-eight ship with their four scenes stored and
+            HISTORY already switched on. On those, set a DURATION and put DRIVE
+            on AUTO and the piece runs itself. The rest wait for you to store
+            scenes of your own.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">21</span></div>
+</section>
+
+<!-- ===========================================  22  SPECS  =============== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Reference</p>
+    <h2 class="display">Specifications</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <table><tbody>
+          <tr><td>Formats</td><td class="num">VST3 and Standalone, Windows 64-bit</td></tr>
+          <tr><td>Build</td><td class="num">260923.1</td></tr>
+          <tr><td>Host parameters</td><td class="num">401 &mdash; 396 plus five BWFX macros</td></tr>
+          <tr><td>Factory patches</td><td class="num">48, ten with scenes stored</td></tr>
+          <tr><td>Voices</td><td class="num">1 to 8, POLY / MONO / LEGATO, MPE</td></tr>
+          <tr><td>Audio in</td><td class="num">One stereo AUX bus</td></tr>
+          <tr><td>Latency</td><td class="num">88 samples at 44.1 kHz (2 ms of lookahead)</td></tr>
+          <tr><td>Sample rates</td><td class="num">44.1 / 48 / 88.2 / 96 kHz</td></tr>
+          <tr><td>Cost, one core</td><td class="num">5.6 % for a two-voice drone; 22.1 % for the flagship at eight voices with every macro up</td></tr>
+          <tr><td>Verification</td><td class="num">67 engine checks, 90 panel checks, 16 host checks, all clear</td></tr>
+        </tbody></table>
+      </div>
+
+      <div class="c-46">
+        <div class="box">
+          <h4>Requirements</h4>
+          <p>
+            Windows 10 or 11, 64-bit, and a VST3 host. The panel is drawn by the
+            <b>Microsoft WebView2</b> runtime, which is present on any
+            up-to-date Windows 10 or 11 installation; if it is missing the
+            plugin says so and tells you where to get it. The engine does not
+            depend on the panel: a patch runs identically with the editor shut.
+          </p>
+        </div>
+
+        <div class="box cy gap5">
+          <h4>Credits</h4>
+          <p>
+            Designed and built by Brokild, September 2026, with the Brokild
+            World FX rack. Named for how long spent nuclear fuel stays
+            dangerous. Written under the long shadow of Asimov, Gibson,
+            Bradbury and Huxley, and in the weight of Cult of Luna and LLNN.
+          </p>
+        </div>
+
+        <p class="says d gap5" style="font-size:8pt">
+          BROKILD &middot; THIRTY THOUSAND YEARS &middot; 260923.1
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thirty Thousand Years &middot; Owner's Handbook</span><span class="n">22</span></div>
+</section>
+
+</body>
+</html>

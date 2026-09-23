@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.22)
+project(TTYTest CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Plain C++, no JUCE: the engine and the bench only.
+set(ENGINE ../Source/Engine.cpp ../Source/Params.cpp ../Source/Presets.cpp)
+
+add_executable(ttytest bench.cpp ${ENGINE})
+target_include_directories(ttytest PRIVATE ../Source)
+if(MSVC)
+    target_compile_options(ttytest PRIVATE /O2 /fp:precise /EHsc /bigobj)
+    target_link_options(ttytest PRIVATE /STACK:67108864)
+else()
+    target_compile_options(ttytest PRIVATE -O2 -fno-fast-math)
+endif()
+
+add_executable(ttyrender render.cpp ${ENGINE})
+target_include_directories(ttyrender PRIVATE ../Source)
+if(MSVC)
+    target_compile_options(ttyrender PRIVATE /O2 /fp:precise /EHsc /bigobj)
+    target_link_options(ttyrender PRIVATE /STACK:67108864)
+endif()
+
+add_executable(ttyprobe probe.cpp ${ENGINE})
+target_include_directories(ttyprobe PRIVATE ../Source)
+if(MSVC)
+    target_compile_options(ttyprobe PRIVATE /O2 /fp:precise /EHsc /bigobj)
+    target_link_options(ttyprobe PRIVATE /STACK:67108864)
+endif()

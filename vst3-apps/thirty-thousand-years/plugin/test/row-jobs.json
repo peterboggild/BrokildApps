@@ -1,0 +1,9 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2000)})" },
+  { "name": "rows vs deck",
+    "eval": "(function(){var d=document.querySelector('#deck').getBoundingClientRect();var out=[];document.querySelectorAll('#foot1,#foot2,#head,#macros').forEach(function(r){var b=r.getBoundingClientRect();out.push(r.id+' w='+Math.round(b.width)+' scrollW='+Math.round(r.scrollWidth)+' right='+Math.round(b.right-d.left)+(r.scrollWidth>r.clientWidth+1?'  OVERFLOWS by '+(r.scrollWidth-r.clientWidth):' ok'))});return 'deck w='+Math.round(d.width)+' | '+out.join(' | ')})()" },
+  { "name": "output panel",
+    "eval": "(function(){var p=document.querySelector('#p-out');var pb=p.getBoundingClientRect();var d=document.querySelector('#deck').getBoundingClientRect();var s=[];p.querySelectorAll('.ctl').forEach(function(c){var b=c.getBoundingClientRect();s.push((c.getAttribute('data-id')||'?')+' r='+Math.round(b.right-d.left))});return 'p-out w='+Math.round(pb.width)+' right='+Math.round(pb.right-d.left)+' scrollW='+p.scrollWidth+' clientW='+p.clientWidth+' | '+s.join(' ')})()" },
+  { "name": "brand b ghost",
+    "eval": "(function(){var b=document.querySelector('#brand h1 b');if(!b)return 'no b element';var c=getComputedStyle(b);var r=b.getBoundingClientRect();return 'b color='+c.color+' w='+Math.round(r.width)})()" }
+]

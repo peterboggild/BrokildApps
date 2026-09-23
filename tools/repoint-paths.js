@@ -55,6 +55,7 @@ const MAP = {
   ArtefactB2311_1: "vst3-apps/proxima-centauri-b/b2311-1",
   ArtefactB2311_67: "vst3-apps/proxima-centauri-b/b2311-67",
   ArtefactB2311_104: "vst3-apps/proxima-centauri-b/b2311-104",
+  ThirtyThousandYears: "vst3-apps/thirty-thousand-years/plugin",
   ArtefactB2311: "vst3-apps/proxima-centauri-b/b2311-22",   // LAST: a prefix of the three above
 };
 /*  BrokildWorldFX is deliberately NOT here. The copy in this repo is still a
