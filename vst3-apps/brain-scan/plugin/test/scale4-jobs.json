@@ -1,0 +1,6 @@
+[
+  { "eval": "__BS.CAM.spin=false; __BS.CAM.yaw=0; __BS.CAM.pitch=0; __BS.CAM.anchors=false; __BS.GLOW.data.fill(0); __BS.GLOW.upload=-1; __BS.GLOW.last=performance.now()+9e5; __BS.draw(); __BS.draw(); 'CORTEX as auto-windowed: ' + JSON.stringify(__bbox(60)) + '  (a unit cube is fw .272 fh .394)'" },
+  { "eval": "(function(){var d=__BS.VOL.data,N=64,row=[];for(var i=0;i<N;i+=2)row.push(d[(32*N+32)*N+i]);return 'density along x at y=z=32: '+row.join(' ');})()" },
+  { "eval": "'window now: lo ' + (__BS.GX.lev-(0.06+__BS.GX.win*1.1)/2).toFixed(3) + ' hi ' + (__BS.GX.lev+(0.06+__BS.GX.win*1.1)/2).toFixed(3)" },
+  { "eval": "__BS.GX.lev=0.30; __BS.GX.win=0.30; __BS.draw(); __BS.draw(); 'with a lower, narrower window: ' + JSON.stringify(__bbox(60))" }
+]

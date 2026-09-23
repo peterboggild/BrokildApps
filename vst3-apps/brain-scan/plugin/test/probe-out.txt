@@ -1,0 +1,18 @@
+patch ENAMEL: specimen 0.714 grain 0.70 contrast 0.35 fold 0.00 unison 0.33 head2 0.00
+loaded specimen 8
+  block   0: rms 0.8481 max 0.9998  active 1 cut 164 lod 0.33 scan 0.561
+  block   1: rms 0.8248 max 0.9989  active 1 cut 64 lod 0.33 scan 0.549
+  block   2: rms 0.6800 max 0.9981  active 1 cut 40 lod 0.33 scan 0.536
+  block   3: rms 0.2044 max 0.2516  active 1 cut 31 lod 0.33 scan 0.524
+  block   4: rms 0.1962 max 0.2455  active 1 cut 27 lod 0.33 scan 0.513
+  block   5: rms 0.2510 max 0.2645  active 1 cut 26 lod 0.33 scan 0.501
+  block  20: rms 0.0169 max 0.0182  active 1 cut 24 lod 0.33 scan 0.355
+  block  40: rms 0.0000 max 0.0000  active 1 cut 24 lod 0.33 scan 0.221
+  block  60: rms 0.0000 max 0.0000  active 1 cut 24 lod 0.33 scan 0.134
+  block  80: rms 0.0001 max 0.0001  active 1 cut 24 lod 0.33 scan 0.077
+  block 100: rms 0.0000 max 0.0000  active 1 cut 131 lod 0.33 scan 0.039
+  block 120: rms 0.0000 max 0.0000  active 1 cut 436 lod 0.33 scan 0.015
+  block 140: rms 0.0385 max 0.0737  active 1 cut 158 lod 0.33 scan 0.000
+  block 160: rms 0.0361 max 0.0643  active 1 cut 162 lod 0.33 scan 0.000
+  block 180: rms 0.0434 max 0.0753  active 1 cut 179 lod 0.33 scan 0.000
+peak 0.9998, nan 0, > 0.99: 220

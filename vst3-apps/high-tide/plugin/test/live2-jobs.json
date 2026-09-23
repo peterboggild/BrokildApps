@@ -1,0 +1,20 @@
+[
+  {"wait": 3000},
+  {"eval": "(()=>{const s=__HT.state(); return {live:s.live, err:window.__err, build:s.build, patch:s.patch, factory:s.factory.length, params:Object.keys(__HT.specs()).length, groups:[...new Set(s.factory.map(e=>e.g))]};})()"},
+  {"eval": "(()=>{const T=__HT.tips(); return {tips:Object.keys(T).length, hasDetune:!!T.detune, hasHints:!!T['btn:hints']};})()"},
+  {"eval": "(()=>{ document.getElementById('b-factory').click(); return 'menu'; })()"},
+  {"wait": 700},
+  {"eval": "(()=>{const m=document.querySelectorAll('.pmenu .pmgrp'); const it=document.querySelectorAll('.pmenu .pmi'); return {groups:Array.from(m).map(e=>e.textContent), items:it.length, first:it[0]&&it[0].textContent};})()"},
+  {"shoot": {"sel": null, "out": "C:/Users/peter/b/HighTide/dist/live-factory.png", "scale": 1}},
+  {"eval": "(()=>{ document.body.click(); return 'closed'; })()"},
+  {"eval": "NB.send({k:'factory',i:5}); 'SAW LEAD'"},
+  {"wait": 1400},
+  {"eval": "(()=>{const s=__HT.state(); const p=__HT.params(); return {patch:s.patch, detune:+p.detune.toFixed(3), unison:+p.unison.toFixed(2), rock:+p.rock.toFixed(2)};})()"},
+  {"eval": "NB.send({k:'note',n:45,on:true,vel:0.85}); 'note'"},
+  {"wait": 1200},
+  {"eval": "(()=>{const n=document.querySelector('.ctl[data-id=detune]'); const t=__HT.tipAt('detune', n); const r=n.getBoundingClientRect(); return {shown:t.on, overlaps: !(t.x+t.w<=r.left||t.x>=r.right||t.y+t.h<=r.top||t.y>=r.bottom), x:Math.round(t.x), ctlLeft:Math.round(r.left)};})()"},
+  {"shoot": {"sel": null, "out": "C:/Users/peter/b/HighTide/dist/live-tip.png", "scale": 1}},
+  {"eval": "(()=>{const n=document.querySelector('[data-tool=stamp]'); const t=__HT.tipAt('tool:stamp', n); return {shown:t.on, x:Math.round(t.x)};})()"},
+  {"shoot": {"sel": null, "out": "C:/Users/peter/b/HighTide/dist/live-tip2.png", "scale": 1}},
+  {"eval": "__HT.tipHide(); NB.send({k:'note',n:45,on:false}); window.__err"}
+]

@@ -1,0 +1,12 @@
+[
+  { "name": "hook", "eval": "typeof window.__N84 === 'object' ? 'ok' : 'NO HOOK'" },
+  { "wait": 1500 },
+  { "name": "which decals loaded", "eval": "(function(){ var d = window.__N84.decals ? window.__N84.decals() : {}; var k = Object.keys(d).filter(function(x){return d[x]}); return k.length + ' loaded: ' + k.join(' '); })()" },
+  { "name": "html classes", "eval": "document.documentElement.className" },
+  { "name": "BLADE BRASS, a chord", "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:0}); [50,57,62,65].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:true, v:0.75}); }); 'held'" },
+  { "wait": 1500 },
+  { "name": "deck with decals", "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\decals-shot.png", "sel": "#deck", "scale": 2 },
+  { "name": "vfd close", "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\decals-vfd.png", "sel": "#vfd", "pad": 6, "scale": 3 },
+  { "name": "release", "eval": "[50,57,62,65].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:false}); }); 'off'" },
+  { "name": "errors", "eval": "(window.__errs || []).length === 0 ? 'no errors' : 'ERRORS: ' + JSON.stringify(window.__errs).slice(0, 300)" }
+]

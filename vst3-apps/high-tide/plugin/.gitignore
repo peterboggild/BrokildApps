@@ -1,0 +1,4 @@
+build/
+test/build/
+dist/
+*.log

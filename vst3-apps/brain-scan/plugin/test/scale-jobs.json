@@ -1,0 +1,9 @@
+[
+  { "eval": "window.__bbox = function(th){ var gl=__BS.gl, cv=gl.canvas, w=cv.width, h=cv.height; var px=new Uint8Array(w*h*4); gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,px); var x0=1e9,x1=-1,y0=1e9,y1=-1,n=0; for(var y=0;y<h;y++)for(var x=0;x<w;x++){var o=(y*w+x)*4; if(px[o]+px[o+1]+px[o+2]>th){n++; if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;}} return {w:w,h:h,n:n,x0:x0,x1:x1,y0:y0,y1:y1,fw:((x1-x0)/w).toFixed(3),fh:((y1-y0)/h).toFixed(3)}; }; 'bbox helper installed'" },
+  { "eval": "__BS.CAM.spin=false; __BS.CAM.yaw=0.0; __BS.CAM.pitch=0.0; __BS.GX.density=1.0; __BS.VOL.data.fill(255); __BS.VOL.dirty=true; __BS.draw(); 'volume filled solid, camera on the +x axis'" },
+  { "wait": 300 },
+  { "eval": "__BS.draw(); JSON.stringify(__bbox(150))" },
+  { "eval": "__BS.VOL.data.fill(0); __BS.VOL.dirty=true; __BS.draw(); __BS.draw(); 'volume emptied - only the wireframe remains'" },
+  { "eval": "JSON.stringify(__bbox(20))" },
+  { "eval": "'expected: a solid unit cube seen face-on at dist ' + __BS.CAM.dist + ' should span 2*atan(0.5/d)/fov of the height = ' + (2*Math.atan(0.5/__BS.CAM.dist)/(2*Math.atan(0.62))).toFixed(3)" }
+]

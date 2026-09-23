@@ -1,0 +1,628 @@
+<title>Full Metal Racket Parts Order</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* ------------------------------------------------------------------
+   A parts manifest for a 1980s drum machine: dark workshop bench,
+   cream steel part cards, red part tags. Single committed world —
+   every colour painted explicitly so it holds on any host ground.
+   ------------------------------------------------------------------ */
+:root{
+  --bench:#141009;
+  --bench-2:#1e1710;
+  --grid:#2b2115;
+  --panel:#e7dcc3;      /* the machine's own cream steel */
+  --panel-lo:#d3c6a6;
+  --ink:#191307;
+  --ink-2:#57492f;
+  --ink-3:#8a7a5b;
+  --cream:#f4ecda;
+  --amber:#ff8f1f;
+  --red:#d8412a;
+  --walnut:#6d4526;
+  --steel:#b7bbbe;
+
+  --f-disp:"Anton",Impact,"Arial Narrow",sans-serif;
+  --f-body:"Archivo",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:
+    repeating-linear-gradient(0deg,var(--grid) 0 1px,#0000 1px 44px),
+    repeating-linear-gradient(90deg,var(--grid) 0 1px,#0000 1px 44px),
+    radial-gradient(120% 90% at 50% 0%,#22190f,var(--bench) 65%);
+  color:#e8dcc4;
+  font-family:var(--f-body);
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1000px;margin:0 auto;padding:0 22px}
+
+h1,h2,h3{margin:0;text-wrap:balance}
+a{color:var(--amber)}
+
+/* ---------- masthead ---------- */
+header{padding:60px 0 30px}
+.eyebrow{
+  font-family:var(--f-mono);font-size:11.5px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--ink-3);display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 10px var(--red)}
+h1{
+  font-family:var(--f-disp);font-size:clamp(44px,8.5vw,92px);line-height:.92;
+  letter-spacing:.012em;text-transform:uppercase;color:var(--cream);margin:14px 0 0;
+}
+h1 em{font-style:normal;color:var(--red)}
+.deck{font-size:18.5px;color:#b5a68a;max-width:60ch;margin:18px 0 0}
+.deck b{color:var(--cream);font-weight:600}
+.rule{height:3px;background:linear-gradient(90deg,var(--red),#0000 70%);border:0;margin:28px 0 0}
+
+/* ---------- how it works ---------- */
+.brief{
+  margin-top:34px;background:var(--bench-2);border:1px solid #322718;border-left:3px solid var(--amber);
+  border-radius:3px;padding:22px 24px;
+}
+.brief h2{
+  font-family:var(--f-disp);font-size:22px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--cream);margin-bottom:10px;
+}
+.brief p{margin:10px 0 0;color:#b5a68a;font-size:15.5px}
+.brief ol{margin:14px 0 0;padding-left:0;list-style:none;counter-reset:s}
+.brief li{counter-increment:s;position:relative;padding-left:34px;margin-top:9px;color:#b5a68a;font-size:15.5px}
+.brief li::before{
+  content:counter(s);position:absolute;left:0;top:1px;width:22px;height:22px;border-radius:2px;
+  background:var(--red);color:#fff;font-family:var(--f-mono);font-size:11px;font-weight:500;
+  display:grid;place-items:center;
+}
+
+/* ---------- section headings ---------- */
+.sec{display:flex;align-items:baseline;gap:14px;margin:52px 0 18px;flex-wrap:wrap}
+.sec h2{
+  font-family:var(--f-disp);font-size:clamp(24px,3.4vw,34px);letter-spacing:.05em;
+  text-transform:uppercase;color:var(--cream);
+}
+.sec span{
+  font-family:var(--f-mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+}
+
+/* ---------- part cards ---------- */
+.part{
+  background:linear-gradient(180deg,#f2ead9,var(--panel) 30%,var(--panel-lo));
+  color:var(--ink);border-radius:4px;margin-top:16px;overflow:hidden;
+  box-shadow:0 12px 28px -14px #000,inset 0 1px 0 #fff9;
+}
+.phead{display:flex;align-items:stretch;gap:0;border-bottom:1px solid #b6a887}
+.pno{
+  flex:none;width:64px;background:var(--red);color:#fff;
+  font-family:var(--f-mono);font-size:19px;font-weight:500;
+  display:grid;place-items:center;letter-spacing:.02em;
+}
+.ptitle{flex:1;min-width:0;padding:13px 18px}
+.ptitle h3{
+  font-family:var(--f-disp);font-size:24px;line-height:1;letter-spacing:.035em;
+  text-transform:uppercase;color:var(--ink);
+}
+.ptitle p{margin:6px 0 0;font-size:14px;color:var(--ink-2);line-height:1.45}
+
+.specs{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px;border-bottom:1px solid #c2b492}
+.chip{
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.05em;
+  background:#00000012;border:1px solid #b6a887;border-radius:2px;padding:4px 9px;color:var(--ink-2);
+}
+.chip b{color:var(--ink);font-weight:500}
+.chip.file{background:#19130712;border-color:#8a7a5b}
+
+.pbody{padding:14px 18px 18px}
+.pbody pre{
+  margin:0;background:var(--ink);color:#ede2cc;border-radius:3px;padding:15px 16px;
+  font-family:var(--f-mono);font-size:13px;line-height:1.62;white-space:pre-wrap;word-break:normal;
+  overflow-x:auto;border:1px solid #000;
+}
+.pact{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+button.copy{
+  font-family:var(--f-body);font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink);background:linear-gradient(180deg,#f6efe0,#c6b795);
+  border:1px solid #9a8a68;border-radius:3px;padding:9px 18px;cursor:pointer;
+  box-shadow:inset 0 1px 0 #fff,0 2px 3px #0003;
+}
+button.copy:hover{background:linear-gradient(180deg,#fffaf0,#d5c6a3)}
+button.copy:active,button.copy.done{background:linear-gradient(180deg,#c95a2e,#a32d12);border-color:#7a2109;color:#fff3e4}
+button.copy:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.pact .hint{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2)}
+
+/* ---------- closing ---------- */
+.closing{
+  margin-top:52px;background:var(--bench-2);border:1px solid #322718;border-radius:3px;padding:24px;
+}
+.closing h2{
+  font-family:var(--f-disp);font-size:26px;letter-spacing:.05em;text-transform:uppercase;color:var(--cream);
+}
+.closing p{color:#b5a68a;margin:12px 0 0;font-size:15.5px}
+.closing code{
+  font-family:var(--f-mono);font-size:13.5px;background:#0d0905;border:1px solid #322718;
+  border-radius:2px;padding:2px 7px;color:var(--amber);
+}
+.filelist{
+  margin-top:16px;font-family:var(--f-mono);font-size:12.5px;line-height:1.9;color:#a2937a;
+  background:#0d0905;border:1px solid #322718;border-radius:3px;padding:14px 16px;overflow-x:auto;
+}
+
+footer{padding:40px 0 70px;color:var(--ink-3);font-family:var(--f-mono);font-size:12px;letter-spacing:.08em}
+
+@media (max-width:620px){
+  header{padding:40px 0 22px}
+  .pno{width:50px;font-size:16px}
+  .ptitle{padding:11px 14px}
+  .pbody{padding:12px 14px 15px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow"><span class="dot"></span>Brokild · Full Metal Racket · parts order · 2026-08-26</div>
+  <h1>Seventeen<br>Panel <em>Parts</em></h1>
+  <p class="deck">Everything the panel needs from an image generator, at the exact pixel
+    sizes the layout uses. <b>Paste part 00 first</b>, then one part per message. Every
+    prompt repeats its own rules, so they work in any order and in a fresh chat.</p>
+  <hr class="rule">
+
+  <div class="brief">
+    <h2>Why parts and not a panel</h2>
+    <p>An image generator cannot hit exact pixel coordinates. Ask for a whole faceplate
+      with ninety-six knob holes registered to a layout and it comes back looking right
+      and being thirty pixels out everywhere — no amount of prompt detail fixes that.</p>
+    <p>What it <em>is</em> superb at is a single isolated object on a transparent
+      background. So: it makes the parts, and I assemble them at the coordinates the
+      panel already uses. That is also why every size below is exact — a knob cap
+      delivered at the wrong aspect gets squashed, and you will see it.</p>
+    <ol>
+      <li>Paste <b>part 00</b> into a new ChatGPT conversation. It sets the world once.</li>
+      <li>Then paste parts 01–17, one message each. Ask for PNG with transparency.</li>
+      <li>Save each with the filename on its card, into a folder called <code style="font-family:var(--f-mono);color:var(--ink);background:#00000012;padding:1px 5px;border-radius:2px">art</code> next to the plugin source.</li>
+      <li>Tell me they are there. I composite, re-measure and send back a screenshot.</li>
+    </ol>
+    <p style="margin-top:14px"><b style="color:#e8dcc4">If it comes back wrong:</b> the two
+      failures worth re-rolling for are a <em>drop shadow baked in</em> (it will double up
+      against the panel's own lighting) and <em>perspective</em> — anything shot at an
+      angle cannot be used, because the panel is dead flat-on.</p>
+  </div>
+</header>
+
+<div class="sec"><h2>00 · The preamble</h2><span>paste this first</span></div>
+<div class="part" data-p="00">
+  <div class="phead">
+    <div class="pno">00</div>
+    <div class="ptitle"><h3>Set the world</h3>
+      <p>One message that establishes the machine, the palette and the invariants. Everything after it inherits this.</p></div>
+  </div>
+  <div class="specs"><span class="chip">no image expected</span><span class="chip">send once</span></div>
+  <div class="pbody">
+    <pre>I am making photographic component decals for a 1980s-style analogue drum
+machine front panel called FULL METAL RACKET. I will ask for one part per
+message. Please generate each as a single isolated object.
+
+The machine: cream painted steel faceplate (#e7dcc3), walnut wood end
+cheeks (#6d4526), black anodised sub-panels (#191307), silver aluminium
+knobs with matte red pointers (#d8412a), amber indicator lamps (#ff8f1f).
+Think Roland TR-808 and Korg Electribe, photographed straight on under
+soft even studio light. Slightly used, not battered. No branding, no
+lettering anywhere unless I ask for it.
+
+Rules that apply to EVERY part I ask for, without exception:
+- Perfectly flat-on and orthographic. No perspective, no tilt, no angle.
+- Transparent background (PNG with alpha). Nothing behind the object.
+- NO drop shadow and no cast shadow of any kind. Self-shading on the
+  object itself is wanted; shadow falling away from it is not.
+- The object fills the frame edge to edge at the exact pixel dimensions
+  I give, with no padding or margin unless I say so.
+- Even, soft, neutral studio lighting from slightly above.
+- Photoreal, not illustration, not 3D-render-looking, not stylised.
+
+Please confirm you have this, then wait for part 01.</pre>
+    <div class="pact"><button class="copy">Copy</button><span class="hint">then send parts 01–17</span></div>
+  </div>
+</div>
+
+<div class="sec"><h2>Group A · The ground</h2><span>three surfaces the whole panel is built on</span></div>
+
+<div class="part">
+  <div class="phead"><div class="pno">01</div><div class="ptitle"><h3>Cream panel texture</h3>
+    <p>The faceplate itself. Tiled across the whole machine, so seams must be invisible.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>tiled</b></span><span class="chip">order <b>4096 × 4096</b></span><span class="chip file"><b>fmr-panel.png</b></span></div>
+  <div class="pbody"><pre>Part 01. A seamless tileable photographic texture of a 1980s Japanese drum
+machine's painted steel front panel, in warm cream-beige #e7dcc3.
+
+Very fine orange-peel texture in the paint. Faint, even, low-contrast wear
+— no scratches, no dents, no dirt patches, nothing that would repeat
+visibly when tiled. Completely uniform overall brightness across the whole
+image so the tile seams disappear.
+
+No lettering, no hardware, no screws, no holes, no edges, no vignette.
+Flat-on, orthographic, evenly lit, fully seamless and tileable.
+4096 x 4096 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">02</div><div class="ptitle"><h3>Black anodised texture</h3>
+    <p>The dark sub-panels: nameplates, the rail, the master band, every strip footer.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>tiled</b></span><span class="chip">order <b>2048 × 2048</b></span><span class="chip file"><b>fmr-anodised.png</b></span></div>
+  <div class="pbody"><pre>Part 02. A seamless tileable photographic texture of black anodised
+aluminium, as used for the recessed sub-panels of 1980s studio equipment.
+
+Near-black #191307 with a very slight warm brown cast. Fine directional
+brushing running horizontally, a soft satin sheen, no strong specular
+highlight anywhere. Completely uniform brightness across the image so it
+tiles invisibly.
+
+No lettering, no hardware, no screws, no edges, no vignette. Flat-on,
+orthographic, evenly lit, fully seamless and tileable.
+2048 x 2048 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">03</div><div class="ptitle"><h3>Walnut end cheek</h3>
+    <p>The wooden sides. Very tall and narrow — the aspect matters more than usual here.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>30 × 830</b></span><span class="chip">order <b>120 × 3320</b></span><span class="chip file"><b>fmr-cheek.png</b></span></div>
+  <div class="pbody"><pre>Part 03. A flat-on photograph of a solid walnut end cheek for a 1980s
+synthesiser — a tall narrow strip of wood, portrait orientation.
+
+Warm mid-brown #6d4526, straight open grain running vertically along the
+long axis, satin oil finish. The left long edge is softly rounded over and
+catches a gentle highlight; the right long edge is square. Slight natural
+colour variation along the length.
+
+No hardware, no screws, no lettering, no shadow, no perspective,
+transparent background. The wood fills the frame completely edge to edge.
+120 x 3320 pixels (very tall and narrow — please keep this exact aspect).</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="sec"><h2>Group B · Controls</h2><span>the five things a hand touches</span></div>
+
+<div class="part">
+  <div class="phead"><div class="pno">04</div><div class="ptitle"><h3>Knob cap</h3>
+    <p>The single biggest win in the whole set — ninety-six of these on the panel. Must be perfectly circular and perfectly centred, or every knob wobbles as it turns.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>50 × 50</b></span><span class="chip">order <b>1024 × 1024</b></span><span class="chip file"><b>fmr-knob.png</b></span></div>
+  <div class="pbody"><pre>Part 04. A single flat-on, top-down photograph of a small silver aluminium
+synthesiser knob cap, as fitted to 1980s Japanese drum machines.
+
+Seen from directly above. Fine concentric brushing on the flat top face; a
+knurled, milled outer skirt catching a ring of small highlights; a very
+slight dome. One matte red pointer line (#d8412a) running from the exact
+centre straight up to the edge, pointing to 12 o'clock.
+
+CRITICAL: perfectly circular, perfectly centred in the frame, and the
+circle must touch all four edges. The pointer must be exactly vertical and
+exactly on the centre — I rotate this image, so any offset makes it wobble.
+
+Transparent background, no shadow, no perspective, no panel behind it.
+1024 x 1024 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">05</div><div class="ptitle"><h3>Fader cap — vertical</h3>
+    <p>The twelve channel level faders. Seen from straight on, cap only.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>26 × 26</b></span><span class="chip">order <b>512 × 512</b></span><span class="chip file"><b>fmr-fadercap-v.png</b></span></div>
+  <div class="pbody"><pre>Part 05. A single flat-on photograph of the cap of a small vertical mixer
+fader, as fitted to 1980s studio equipment — the moving knob only, with no
+slot and no panel behind it.
+
+Squarish with softly rounded corners, moulded from cream-ivory plastic
+(#f2eada) with a darker grey waist band across the middle. A single crisp
+matte red indicator line (#d8412a) running horizontally across the exact
+vertical centre, edge to edge. Slight sheen on the upper half.
+
+Seen from directly in front. The cap fills the frame edge to edge.
+Transparent background, no shadow, no perspective, no slot, no panel.
+512 x 512 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">06</div><div class="ptitle"><h3>Master fader cap</h3>
+    <p>The big one on the master channel at the right. Wider than it is tall.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>46 × 34</b></span><span class="chip">order <b>368 × 272</b></span><span class="chip file"><b>fmr-fadercap-m.png</b></span></div>
+  <div class="pbody"><pre>Part 06. A single flat-on photograph of the cap of a large VERTICAL master
+fader from 1980s studio equipment — the moving knob only, with no slot and
+no panel behind it.
+
+A wide rectangle, wider than it is tall, with softly rounded corners.
+Cream-ivory plastic (#f6efe0) with a darker grey waist band running
+horizontally across the middle. A single crisp matte red indicator line
+(#d8412a) running horizontally across the exact vertical centre, edge to
+edge. Slight sheen on the upper half. Noticeably chunkier and more
+substantial than a channel fader cap.
+
+Seen from directly in front. The cap fills the frame edge to edge.
+Transparent background, no shadow, no perspective, no slot, no panel.
+368 x 272 pixels (landscape — please keep this exact aspect).</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">07</div><div class="ptitle"><h3>Fader slot — vertical</h3>
+    <p>The recessed groove each channel fader runs in, with its end caps.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>26 × 100</b></span><span class="chip">order <b>104 × 400</b></span><span class="chip file"><b>fmr-slot-v.png</b></span></div>
+  <div class="pbody"><pre>Part 07. A flat-on photograph of an empty vertical fader slot cut into a
+cream painted steel panel — the recess only, with NO fader cap in it.
+
+A narrow dark slot running the full height of the frame, with a crisp
+rounded end at the top and at the bottom. The inside of the slot is very
+dark and matte, falling away into shadow. A fine bright highlight along
+the top lip of the recess where the light catches the cut edge, and a
+soft dark line along the bottom lip.
+
+The surrounding area is cream painted steel #e7dcc3, filling the rest of
+the frame. Flat-on, orthographic, no shadow, no perspective, no lettering,
+no scale markings. 104 x 400 pixels (tall and narrow).</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">08</div><div class="ptitle"><h3>Master fader slot</h3>
+    <p>The long travel on the master channel. Stretched vertically, so the middle must be uniform.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>46 × 348</b></span><span class="chip">order <b>184 × 1392</b></span><span class="chip file"><b>fmr-slot-m.png</b></span></div>
+  <div class="pbody"><pre>Part 08. A flat-on photograph of a long empty VERTICAL fader slot cut into
+a cream painted steel panel — the recess only, with NO fader cap in it.
+This is the big one, so it should read as more substantial than part 07.
+
+A slot running the full height of the frame, with a crisp rounded end at
+the top and at the bottom. The inside is very dark and matte, falling away
+into shadow. A fine bright highlight along the left lip of the recess
+where the light catches the cut edge, and a soft dark line along the right
+lip. The middle section must be perfectly uniform along its length,
+because I stretch it.
+
+The surrounding area is cream painted steel #e7dcc3, filling the rest of
+the frame. Flat-on, orthographic, no shadow, no perspective, no lettering,
+no scale markings. 184 x 1392 pixels (very tall and narrow).</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="sec"><h2>Group C · Keys</h2><span>four states, and they must be the same key</span></div>
+
+<div class="part">
+  <div class="phead"><div class="pno">09</div><div class="ptitle"><h3>Model key — unlit</h3>
+    <p>The thirty-eight model selector keys down the strips. Blank: the lettering stays live text.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>106 × 21</b></span><span class="chip">order <b>848 × 168</b></span><span class="chip file"><b>fmr-key.png</b></span></div>
+  <div class="pbody"><pre>Part 09. A flat-on photograph of a single blank rectangular pushbutton key
+from a 1980s drum machine, in its unpressed state.
+
+A wide flat cream-ivory plastic key cap (#f2eada at the top fading to
+#c6b795 at the bottom), slightly rounded corners, a subtle chamfered edge
+all round catching a thin highlight along the top edge and a soft shadow
+line along the bottom edge. Very slightly domed face. Completely blank —
+no lettering, no symbols, no lamp.
+
+The key fills the frame edge to edge. Flat-on, orthographic, transparent
+background, no drop shadow, no perspective, no panel behind it.
+848 x 168 pixels (wide and short).</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">10</div><div class="ptitle"><h3>Model key — lit</h3>
+    <p>The same key, selected. Ask for this immediately after part 09 so it matches.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>106 × 21</b></span><span class="chip">order <b>848 × 168</b></span><span class="chip file"><b>fmr-key-lit.png</b></span></div>
+  <div class="pbody"><pre>Part 10. The SAME key you just made in part 09 — identical shape, identical
+size, identical lighting and camera — but now illuminated and pressed.
+
+The cap is now warm orange-red translucent plastic lit from within
+(#c95a2e at the top to #a32d12 at the bottom), glowing softly. The
+chamfered edge still catches a thin highlight along the top. Sitting very
+slightly lower than the unlit key, as a pressed switch does. Still
+completely blank — no lettering, no symbols.
+
+It must line up pixel for pixel with part 09. The key fills the frame edge
+to edge. Flat-on, orthographic, transparent background, no drop shadow,
+no perspective, no panel behind it. 848 x 168 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">11</div><div class="ptitle"><h3>Rail key — unlit</h3>
+    <p>The big left-hand column: RANDOM, PANIC, oversampling, HAT LINK. Dark, on the black rail.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>98 × 46</b></span><span class="chip">order <b>784 × 368</b></span><span class="chip file"><b>fmr-keydark.png</b></span></div>
+  <div class="pbody"><pre>Part 11. A flat-on photograph of a single large blank rectangular
+pushbutton key from 1980s studio equipment, in its unpressed state — the
+dark version.
+
+A chunky key cap in very dark warm brown-black moulded plastic (#332818 at
+the top to #1a1408 at the bottom), slightly rounded corners, a chamfered
+edge all round catching a thin cool highlight along the top edge and a
+deep shadow line along the bottom edge. Matte, slightly textured surface.
+Completely blank — no lettering, no symbols, no lamp.
+
+The key fills the frame edge to edge. Flat-on, orthographic, transparent
+background, no drop shadow, no perspective, no panel behind it.
+784 x 368 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">12</div><div class="ptitle"><h3>Rail key — lit</h3>
+    <p>The same dark key, engaged. Ask immediately after part 11.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>98 × 46</b></span><span class="chip">order <b>784 × 368</b></span><span class="chip file"><b>fmr-keydark-lit.png</b></span></div>
+  <div class="pbody"><pre>Part 12. The SAME key you just made in part 11 — identical shape, size,
+lighting and camera — but now illuminated and pressed.
+
+The cap is now warm orange-red translucent plastic lit from within
+(#c95a2e at the top to #a32d12 at the bottom), glowing softly, with the
+light strongest through the centre of the face. The chamfered edge still
+catches a thin highlight along the top. Sitting very slightly lower, as a
+pressed switch does. Still completely blank — no lettering.
+
+It must line up pixel for pixel with part 11. The key fills the frame edge
+to edge. Flat-on, orthographic, transparent background, no drop shadow,
+no perspective, no panel behind it. 784 x 368 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="sec"><h2>Group D · Fittings</h2><span>the small parts that sell it</span></div>
+
+<div class="part">
+  <div class="phead"><div class="pno">13</div><div class="ptitle"><h3>Trigger pad</h3>
+    <p>Twelve of these along the bottom of the strips — the thing you actually hit.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>71 × 34</b></span><span class="chip">order <b>568 × 272</b></span><span class="chip file"><b>fmr-pad.png</b></span></div>
+  <div class="pbody"><pre>Part 13. A flat-on photograph of a small rectangular rubber trigger pad
+from a drum machine, seen from directly above.
+
+Matte dark charcoal-brown rubber with a fine even stippled surface,
+slightly rounded corners, and a chamfered edge that catches one soft
+highlight along the top edge. The centre is very slightly dished. No lamp,
+no lettering, no symbols — completely blank.
+
+The pad fills the frame edge to edge. Flat-on, orthographic, transparent
+background, no drop shadow, no perspective, no panel behind it.
+568 x 272 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">14</div><div class="ptitle"><h3>Lamp lens — dark</h3>
+    <p>The amber indicator in each trigger pad, unlit. Perfectly circular and centred.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>12 × 12</b></span><span class="chip">order <b>256 × 256</b></span><span class="chip file"><b>fmr-led.png</b></span></div>
+  <div class="pbody"><pre>Part 14. A flat-on, straight-down photograph of a small round indicator
+lamp lens on a piece of 1980s studio equipment, switched OFF.
+
+A circular domed lens in dark smoky amber-brown translucent plastic, so
+you can just make out the dull unlit element behind it. A thin dark bezel
+ring around the edge, and one small crisp specular highlight at the upper
+left of the dome.
+
+CRITICAL: perfectly circular, perfectly centred, the circle touching all
+four edges of the frame. Transparent background, no shadow, no
+perspective, no panel behind it. 256 x 256 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">15</div><div class="ptitle"><h3>Lamp lens — lit</h3>
+    <p>The same lamp, glowing. Ask immediately after part 14 so the bezel matches.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>12 × 12</b></span><span class="chip">order <b>256 × 256</b></span><span class="chip file"><b>fmr-led-lit.png</b></span></div>
+  <div class="pbody"><pre>Part 15. The SAME lamp you just made in part 14 — identical bezel,
+identical size and position — but now switched ON.
+
+The lens glows bright warm amber (#ff8f1f), brightest at the centre and
+falling off toward the bezel, with the element clearly visible through it.
+Keep the small specular highlight at the upper left. The glow must stay
+INSIDE the lens — no halo or bloom spilling outside the bezel, because I
+add that myself.
+
+It must line up pixel for pixel with part 14: perfectly circular,
+perfectly centred, touching all four edges. Transparent background, no
+shadow, no perspective. 256 x 256 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">16</div><div class="ptitle"><h3>Nameplate</h3>
+    <p>The brushed badge in the top left. Blank — the name goes on as live text so it stays sharp.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>352 × 66</b></span><span class="chip">order <b>1408 × 264</b></span><span class="chip file"><b>fmr-nameplate.png</b></span></div>
+  <div class="pbody"><pre>Part 16. A flat-on photograph of a blank rectangular brushed-aluminium
+badge, of the kind screwed to the front of 1980s studio equipment.
+
+Horizontal directional brushing across the face, a soft graduated sheen
+running from top-left to bottom-right, and a narrow bevelled edge all
+round catching a bright line along the top and a dark line along the
+bottom. Two tiny countersunk screw holes, one near the left end and one
+near the right end, vertically centred.
+
+Completely blank — absolutely no lettering or engraving. The badge fills
+the frame edge to edge. Flat-on, orthographic, transparent background, no
+drop shadow, no perspective. 1408 x 264 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="part">
+  <div class="phead"><div class="pno">17</div><div class="ptitle"><h3>Screw head</h3>
+    <p>Four at the panel corners. A tiny part that does a surprising amount of the work.</p></div></div>
+  <div class="specs"><span class="chip">on panel <b>14 × 14</b></span><span class="chip">order <b>128 × 128</b></span><span class="chip file"><b>fmr-screw.png</b></span></div>
+  <div class="pbody"><pre>Part 17. A flat-on, straight-down photograph of a single small countersunk
+Phillips screw head, seated in cream painted steel.
+
+Dull nickel-plated steel, a shallow conical countersink around it casting
+a fine ring of shadow into the panel, the cross slot dark and crisp, one
+soft highlight across the upper left of the head. Very slightly worn on
+the slot edges.
+
+CRITICAL: perfectly circular, perfectly centred, touching all four edges
+of the frame. Transparent background outside the countersink ring, no
+drop shadow, no perspective. 128 x 128 pixels.</pre>
+  <div class="pact"><button class="copy">Copy</button></div></div>
+</div>
+
+<div class="closing">
+  <h2>Delivering them back</h2>
+  <p>Make a folder <code>C:\Users\peter\b\FullMetalRacket\art</code> and save each PNG with
+    the filename from its card, exactly. Then say the word — I re-measure the panel, wire
+    each part in, and send a screenshot back so we can see what still looks synthetic.</p>
+  <div class="filelist">art\fmr-panel.png          01 · cream faceplate, tileable
+art\fmr-anodised.png       02 · black sub-panels, tileable
+art\fmr-cheek.png          03 · walnut end cheek
+art\fmr-knob.png           04 · knob cap          &lt;- biggest single win
+art\fmr-fadercap-v.png     05 · channel fader cap
+art\fmr-fadercap-m.png     06 · master fader cap
+art\fmr-slot-v.png         07 · channel fader slot
+art\fmr-slot-m.png         08 · master fader slot
+art\fmr-key.png            09 · model key, unlit
+art\fmr-key-lit.png        10 · model key, lit
+art\fmr-keydark.png        11 · rail key, unlit
+art\fmr-keydark-lit.png    12 · rail key, lit
+art\fmr-pad.png            13 · trigger pad
+art\fmr-led.png            14 · lamp, dark
+art\fmr-led-lit.png        15 · lamp, lit
+art\fmr-nameplate.png      16 · nameplate, blank
+art\fmr-screw.png          17 · screw head</div>
+  <p style="margin-top:18px"><b style="color:#e8dcc4">If you only do four:</b> 04, 09, 10
+    and 01. The knob and the two key states are ninety per cent of what currently reads as
+    artificial, and the panel texture is what stops the cream looking like a flat fill.</p>
+</div>
+
+<footer>Full Metal Racket · build 260827.1 · sizes measured from the live panel, not estimated</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  document.querySelectorAll("button.copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var pre = btn.closest(".pbody").querySelector("pre");
+      var text = pre.textContent;
+      var done = function (msg) {
+        var old = btn.textContent;
+        btn.textContent = msg;
+        btn.classList.add("done");
+        setTimeout(function () { btn.textContent = old; btn.classList.remove("done"); }, 1600);
+      };
+      // The clipboard API can be blocked in a sandboxed frame; if it is,
+      // select the text so Ctrl+C still works rather than failing silently.
+      try {
+        navigator.clipboard.writeText(text).then(
+          function () { done("Copied"); },
+          function () { select(pre); done("Press Ctrl+C"); }
+        );
+      } catch (e) { select(pre); done("Press Ctrl+C"); }
+    });
+  });
+
+  function select(node) {
+    try {
+      var r = document.createRange();
+      r.selectNodeContents(node);
+      var s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(r);
+    } catch (e) {}
+  }
+})();
+</script>

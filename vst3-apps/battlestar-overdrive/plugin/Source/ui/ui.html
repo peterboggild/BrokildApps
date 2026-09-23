@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Battlestar Overdrive</title>
+<script>
+/*  FIRST thing in the document, deliberately. An error listener installed at the
+    end of <body> cannot catch anything that threw before it was installed - and
+    the failure mode it is there to detect is exactly "the script died on line
+    one and nothing ran", which then reports as "no JS errors". */
+window.__err = [];
+window.addEventListener("error", e => {
+  window.__err.push((e.message || "error") + " @ " + (e.filename || "?") + ":" + (e.lineno || 0));
+});
+window.addEventListener("unhandledrejection", e => {
+  window.__err.push("unhandled rejection: " + (e.reason && e.reason.message ? e.reason.message : e.reason));
+});
+</script>
+<style>
+  /* ---- the deck -------------------------------------------------------
+     Everything is positioned in PANEL COORDINATES (1536 x 1024) inside a
+     3:2 box that scales to whatever the window is, so one geometry table
+     serves every size and nothing has to be re-measured per resolution. */
+  :root{
+    --panelW: 1536;
+    --panelH: 1024;
+  }
+  *{ box-sizing:border-box; -webkit-user-select:none; user-select:none; }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:#07050a; overflow:hidden;
+    font-family:"Futura","Century Gothic","Trebuchet MS",system-ui,sans-serif;
+    color:#ffd27a;
+  }
+  #stage{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #deck{
+    position:relative;
+    width:min(100vw, calc(100vh * 1536 / 1024));
+    height:min(100vh, calc(100vw * 1024 / 1536));
+    background-image:url("art/panel.jpg");
+    background-size:100% 100%;
+    background-repeat:no-repeat;
+    box-shadow:0 0 60px rgba(0,0,0,.8);
+  }
+
+  /* ---- knobs ----------------------------------------------------------
+     A cell of the sprite strip, rotated. The decal's pointer is drawn
+     straight up, so the rotation IS the value angle. */
+  .knob{
+    position:absolute;
+    background-image:url("art/knobs-chrome.png");
+    background-size:600% 100%;          /* six cells */
+    background-repeat:no-repeat;
+    cursor:ns-resize;
+    will-change:transform;
+    filter:drop-shadow(0 3px 5px rgba(0,0,0,.55));
+    touch-action:none;
+  }
+  body.skin-orange .knob{ background-image:url("art/knobs-orange.png"); }
+
+  /* ---- fuel tube ------------------------------------------------------ */
+  #fuel{
+    position:absolute;
+    background-image:url("art/fuel.png");
+    background-size:1500% 100%;         /* fifteen levels */
+    background-repeat:no-repeat;
+    pointer-events:none;
+  }
+
+  /* ---- Autorefill ----------------------------------------------------- */
+  #refill{
+    position:absolute;
+    background-image:url("art/button.png");
+    background-size:100% 100%;
+    background-repeat:no-repeat;
+    cursor:pointer;
+    border-radius:50%;
+    transition:filter .12s ease, transform .08s ease;
+    filter:brightness(.42) saturate(.7);
+    touch-action:none;
+  }
+  #refill.on{ filter:brightness(1.12) saturate(1.15); }
+  #refill.on::after{
+    content:""; position:absolute; inset:-55%;
+    border-radius:50%; pointer-events:none;
+    background:radial-gradient(circle, rgba(255,50,30,.50) 0%, rgba(255,40,20,0) 68%);
+  }
+  #refill:active{ transform:scale(.94); }
+
+  /* ---- the screen -----------------------------------------------------
+     The canvas sits at the measured glass rect and the panel's OWN glass -
+     its curved highlight, its scratches, its dirt - is laid over it with
+     mix-blend-mode:screen. The visuals therefore sit UNDER the real glass
+     instead of replacing it, which is what keeps the screen photographic
+     rather than a rectangle of CSS pasted onto a photograph. */
+  #screenWrap{ position:absolute; overflow:hidden; }
+  #crt{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  #scan{
+    position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(to bottom,
+      rgba(0,0,0,.30) 0px, rgba(0,0,0,.30) 1px,
+      rgba(0,0,0,0)   1px, rgba(0,0,0,0)   3px);
+    mix-blend-mode:multiply; opacity:.55;
+  }
+  #glass{
+    position:absolute; pointer-events:none;
+    background-image:url("art/screen-glass.jpg");
+    background-size:100% 100%;
+    mix-blend-mode:screen; opacity:.92;
+  }
+
+  #skinBtn{
+    position:absolute; right:.6%; bottom:.5%;
+    font-size:calc(var(--u) * .78); letter-spacing:.18em;
+    color:rgba(255,190,110,.30); cursor:pointer;
+    background:none; border:0; padding:.4em .6em;
+  }
+  #skinBtn:hover{ color:rgba(255,200,130,.85); }
+</style>
+</head>
+<body>
+<div id="stage"><div id="deck">
+  <div id="screenWrap">
+    <canvas id="crt"></canvas>
+    <div id="scan"></div>
+  </div>
+  <div id="glass"></div>
+  <div id="fuel"></div>
+  <div id="refill"></div>
+  <button id="skinBtn" title="swap the knob set">SET</button>
+</div></div>
+
+<script>
+"use strict";
+
+/* ======================================================================
+   panel geometry - the single source of truth, in panel pixels
+   (1536 x 1024). Measured with tools/find-features.ps1 and verified by
+   compositing, because an image generator hits no exact coordinate.
+   ====================================================================== */
+const PW = 1536, PH = 1024;
+const GEO = {
+  screen:    { x:421, y:244, w:682, h:494 },
+  glassPad:  0,                      /* exactly the glass - see tools/ingest-decals.ps1 */
+  knobD:     120,
+  sweepDeg:  270,
+  pots: [
+    { id:"mix",        label:"MIX",        x:264,  y:326, cell:0 },
+    { id:"thrust",     label:"THRUST",     x:264,  y:517, cell:3 },
+    { id:"antithrust", label:"ANTITHRUST", x:264,  y:708, cell:1 },
+    { id:"engine",     label:"ENGINE",     x:1252, y:326, cell:2 },
+    { id:"space",      label:"SPACE",      x:1252, y:517, cell:5 },
+    { id:"spectrum",   label:"SPECTRUM",   x:1252, y:708, cell:4 }
+  ],
+  fuel:   { x:500, y:793, w:376, h:96 },
+  button: { cx:1041, cy:837, d:58 }
+};
+
+/* ---- native bridge -------------------------------------------------- */
+const NB = {
+  send(o){ try{ window.__JUCE__.backend.emitEvent("bo", o); }catch(e){} },
+  on(n,f){ try{ window.__JUCE__.backend.addEventListener(n,f); }catch(e){} },
+  live(){ return !!(window.__JUCE__ && window.__JUCE__.backend); }
+};
+
+/*  A small permanent debug surface. The panel's state lives inside this
+    closure and is otherwise unreadable from a probe, which leaves guessing as
+    the only tool - the argument that BWFX.debug() settled once already.
+    forceFuel also lets a probe hold the gauge still against the 30 Hz meter
+    stream, which would otherwise overwrite it a frame later. */
+window.__BO = {
+  /*  Overrides applied AFTER every meter message, not instead of one: the
+      processor pushes at 30 Hz, so anything a probe writes into `meter`
+      directly is gone a frame later and the thing under test never appears.
+      Set back to null to hand the field to the engine again. */
+  forceFuel: null, forceEmpty: null, forceFizzle: null, forcePeak: null,
+  state(){ return { V:Object.assign({},V), meter:Object.assign({},meter),
+                    engine:engineIndex(), engines:ENGINES.map(e=>e.name), skin:skin }; },
+  fuelFrame(){ return document.getElementById("fuel").style.backgroundPosition; }
+};
+function applyForces(){
+  const f = window.__BO;
+  if (f.forceFuel   !== null) meter.fuel   = f.forceFuel;
+  if (f.forceEmpty  !== null) meter.empty  = f.forceEmpty;
+  if (f.forceFizzle !== null) meter.fizzle = f.forceFizzle;
+  if (f.forcePeak   !== null) meter.peak   = f.forcePeak;
+};
+
+/* ---- state ---------------------------------------------------------- */
+const V    = {};            /* id -> 0..1 */
+const SPEC = {};            /* id -> {name, stepped, steps} */
+let ENGINES = [];
+let meter = { in:0, out:0, peak:0, fuel:1, drive:0, misfire:false, empty:false, fizzle:0 };
+let engineShownAt = -1e9;   /* when the engine name last changed */
+let lastEngineIdx = -1;
+let skin = "chrome";
+
+const deck = document.getElementById("deck");
+const el = {};
+
+/* ======================================================================
+   layout - every element placed from GEO as a percentage of the deck, so
+   the panel image and the controls can never drift apart at any size
+   ====================================================================== */
+function pct(v, total){ return (v / total * 100) + "%"; }
+
+function buildKnobs(){
+  for (const p of GEO.pots){
+    const k = document.createElement("div");
+    k.className = "knob";
+    k.dataset.id = p.id;
+    k.style.left   = pct(p.x - GEO.knobD/2, PW);
+    k.style.top    = pct(p.y - GEO.knobD/2, PH);
+    k.style.width  = pct(GEO.knobD, PW);
+    k.style.height = pct(GEO.knobD, PH);
+    /* six cells across the strip: cell i sits at i/(6-1) of the range */
+    k.style.backgroundPosition = (p.cell / 5 * 100) + "% 0";
+    deck.appendChild(k);
+    el[p.id] = k;
+    wireKnob(k, p);
+  }
+}
+
+function layout(){
+  const s = document.getElementById("screenWrap");
+  s.style.left = pct(GEO.screen.x, PW);
+  s.style.top  = pct(GEO.screen.y, PH);
+  s.style.width  = pct(GEO.screen.w, PW);
+  s.style.height = pct(GEO.screen.h, PH);
+
+  const g = document.getElementById("glass");
+  const pad = GEO.glassPad;
+  g.style.left = pct(GEO.screen.x - pad, PW);
+  g.style.top  = pct(GEO.screen.y - pad, PH);
+  g.style.width  = pct(GEO.screen.w + pad*2, PW);
+  g.style.height = pct(GEO.screen.h + pad*2, PH);
+
+  const f = document.getElementById("fuel");
+  f.style.left = pct(GEO.fuel.x, PW);
+  f.style.top  = pct(GEO.fuel.y, PH);
+  f.style.width  = pct(GEO.fuel.w, PW);
+  f.style.height = pct(GEO.fuel.h, PH);
+
+  const b = document.getElementById("refill");
+  b.style.left = pct(GEO.button.cx - GEO.button.d/2, PW);
+  b.style.top  = pct(GEO.button.cy - GEO.button.d/2, PH);
+  b.style.width  = pct(GEO.button.d, PW);
+  b.style.height = pct(GEO.button.d, PH);
+
+
+  /* one unit = 1% of the deck's width, so type scales with the panel */
+  deck.style.setProperty("--u", (deck.clientWidth * 0.012) + "px");
+  sizeCanvas();
+}
+
+/* ======================================================================
+   knobs
+   ====================================================================== */
+function isStepped(id){ const s = SPEC[id]; return !!(s && s.stepped); }
+function stepsOf(id){ const s = SPEC[id]; return (s && s.steps) ? s.steps : 2; }
+
+function drawKnob(id){
+  const k = el[id]; if (!k) return;
+  let v = V[id]; if (v === undefined) v = 0;
+  if (isStepped(id)){
+    /* a stepped knob must SIT on its detents, not between them */
+    const n = stepsOf(id);
+    v = n > 1 ? Math.round(v * (n - 1)) / (n - 1) : 0;
+  }
+  const ang = (v - 0.5) * GEO.sweepDeg;
+  k.style.transform = "rotate(" + ang.toFixed(2) + "deg)";
+}
+
+function setParam(id, v, fromDrag){
+  v = Math.max(0, Math.min(1, v));
+  V[id] = v;
+  drawKnob(id);
+  NB.send({ k:"p", id:id, v:v });
+  if (fromDrag) showValue(id);
+  if (id === "engine") noteEngine();
+  if (id === "autorefill") paintRefill();
+}
+
+function wireKnob(k, p){
+  let dragging = false, startY = 0, startV = 0, moved = false;
+
+  k.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    dragging = true; moved = false;
+    startY = e.clientY;
+    startV = V[p.id] || 0;
+    try { k.setPointerCapture(e.pointerId); } catch(_){}
+    NB.send({ k:"touch", id:p.id, down:true });
+    showValue(p.id);
+    e.preventDefault();
+  });
+
+  k.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    moved = true;
+    /* 220 px of travel is the whole range; shift is a tenth of that */
+    const span = e.shiftKey ? 2200 : 220;
+    let v = startV + (startY - e.clientY) / span;
+    if (isStepped(p.id)){
+      const n = stepsOf(p.id);
+      v = Math.round(Math.max(0, Math.min(1, v)) * (n - 1)) / (n - 1);
+    }
+    setParam(p.id, v, true);
+  });
+
+  const stop = e => {
+    if (!dragging) return;
+    dragging = false;
+    try { k.releasePointerCapture(e.pointerId); } catch(_){}
+    NB.send({ k:"touch", id:p.id, down:false });
+    hideValueSoon();
+  };
+  k.addEventListener("pointerup", stop);
+  k.addEventListener("pointercancel", stop);
+
+  k.addEventListener("wheel", e => {
+    e.preventDefault();
+    const n = isStepped(p.id) ? stepsOf(p.id) : 0;
+    const d = e.deltaY < 0 ? 1 : -1;
+    const v = n ? (V[p.id] || 0) + d / (n - 1) : (V[p.id] || 0) + d * (e.shiftKey ? 0.004 : 0.03);
+    NB.send({ k:"touch", id:p.id, down:true });
+    setParam(p.id, v, true);
+    NB.send({ k:"touch", id:p.id, down:false });
+    hideValueSoon();
+  }, { passive:false });
+
+  k.addEventListener("dblclick", () => {
+    const d = { mix:1, thrust:0.35, antithrust:0, engine:1/(ENGINES.length-1||1), space:0, spectrum:0.5 };
+    if (d[p.id] !== undefined) setParam(p.id, d[p.id], true);
+    hideValueSoon();
+  });
+}
+
+/* ======================================================================
+   readout
+   ====================================================================== */
+function valueText(id){
+  const v = V[id] || 0;
+  if (id === "engine"){
+    const i = engineIndex();
+    return (ENGINES[i] ? ENGINES[i].name : "?") + "   ·   " + (ENGINES[i] ? ENGINES[i].blurb : "");
+  }
+  if (id === "spectrum"){
+    const p = Math.round((v - 0.5) * 200);
+    if (Math.abs(p) < 3) return "SPECTRUM   FLAT";
+    return "SPECTRUM   " + (p < 0 ? "MID FOCUS " + (-p) : "SCOOPED " + p);
+  }
+  if (id === "space"){
+    if (v < 0.01) return "SPACE   OFF";
+    let stage = "TAPE DELAY";
+    if (v > 0.86) stage = "HARMONIC TREMOLO";
+    else if (v > 0.66) stage = "SHIMMER";
+    else if (v > 0.44) stage = "HALL";
+    else if (v > 0.30) stage = "DELAY INTO HALL";
+    return "SPACE   " + Math.round(v * 100) + "   ·   " + stage;
+  }
+  if (id === "autorefill") return v > 0.5 ? "AUTOREFILL   ON" : "AUTOREFILL   OFF";
+  const s = SPEC[id];
+  return (s ? s.name : id.toUpperCase()) + "   " + Math.round(v * 100);
+}
+function showValue(id){
+  // ENGINE already says its own name in big letters; a second line
+  // underneath repeating it would just be noise.
+  if (id !== "engine") showReadout(valueText(id));
+}
+function hideValueSoon(){ /* the readout fades itself */ }
+
+/* ======================================================================
+   fuel tube and the button
+   ====================================================================== */
+/*  How full each of the 15 frames actually is, MEASURED off the delivered art
+    by tools/measure-fuel-levels.ps1 - regenerate it there, never retype it.
+
+    They are not evenly spaced: they were drawn by eye, and the step between
+    neighbours ranges from 0.010 to 0.114 - an elevenfold spread. Advancing
+    them at a fixed rate therefore makes the liquid lurch: it barely moves for
+    the first three frames and then drops a tenth of the tube in one go.
+    Choosing the frame whose measured fill is NEAREST the tank level makes the
+    liquid fall evenly instead, which is what the eye is actually judging. */
+const FUEL_FILL = [0.998, 0.988, 0.947, 0.845, 0.771, 0.667, 0.582, 0.531,
+                   0.418, 0.341, 0.307, 0.237, 0.143, 0.053, 0.000];
+
+function paintFuel(){
+  const f = Math.max(0, Math.min(1, meter.fuel));
+  let best = 0, bestD = 1e9;
+  for (let i = 0; i < FUEL_FILL.length; ++i){
+    const d = Math.abs(FUEL_FILL[i] - f);
+    if (d < bestD){ bestD = d; best = i; }
+  }
+  document.getElementById("fuel").style.backgroundPosition = (best / 14 * 100) + "% 0";
+}
+function paintRefill(){
+  const on = (V.autorefill || 0) > 0.5;
+  document.getElementById("refill").classList.toggle("on", on);
+}
+document.getElementById("refill").addEventListener("click", () => {
+  // No explanation. The panel says nothing it does not have to - the lamp IS
+  // the indication, and the gauge says the rest.
+  setParam("autorefill", (V.autorefill || 0) > 0.5 ? 0 : 1, true);
+});
+
+document.getElementById("skinBtn").addEventListener("click", () => {
+  skin = (skin === "chrome") ? "orange" : "chrome";
+  document.body.classList.toggle("skin-orange", skin === "orange");
+  NB.send({ k:"skin", v:skin });
+});
+
+/* ======================================================================
+   the screen
+   ====================================================================== */
+const crt = document.getElementById("crt");
+const ctx = crt.getContext("2d");
+let CW = 2, CH = 2;
+
+function sizeCanvas(){
+  const r = crt.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  CW = Math.max(2, Math.round(r.width  * dpr));
+  CH = Math.max(2, Math.round(r.height * dpr));
+  if (crt.width !== CW || crt.height !== CH){ crt.width = CW; crt.height = CH; }
+  makeStars();
+}
+
+/* a starfield flying at the viewer, because the panel is mounted outside */
+let stars = [];
+function makeStars(){
+  stars = [];
+  const n = 300;
+  for (let i = 0; i < n; ++i)
+    stars.push({ x:(Math.random()*2-1), y:(Math.random()*2-1), z:Math.random()*0.98 + 0.02 });
+}
+makeStars();
+
+function engineIndex(){
+  const n = ENGINES.length || 1;
+  return Math.max(0, Math.min(n - 1, Math.round((V.engine || 0) * (n - 1))));
+}
+function noteEngine(){
+  const i = engineIndex();
+  if (i !== lastEngineIdx){ lastEngineIdx = i; engineShownAt = performance.now(); }
+}
+
+let last = performance.now();
+let roll = 0;
+function frame(now){
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  draw(now, dt);
+  requestAnimationFrame(frame);
+}
+
+/*  An envelope for the visuals, followed in the PAGE rather than taken raw
+    from the 30 Hz meter: fast up, slow down, so the fogs breathe with the
+    music instead of stepping once per meter message. */
+let visEnv = 0;
+
+function draw(now, dt){
+  const w = CW, h = CH;
+  const thrust = V.thrust || 0;
+  const anti = V.antithrust || 0;
+  const lvl = Math.min(1, meter.out * 3.0);
+  const fuel = meter.fuel;
+  const space = V.space || 0;
+  const eng = engineIndex();
+  const nEng = Math.max(1, ENGINES.length);
+  const cx = w * 0.5, cy = h * 0.5;
+
+  visEnv += (lvl - visEnv) * (lvl > visEnv ? 0.28 : 0.055);
+
+  /*  Which engine you are on, drawn. Engines 1..6 simply travel faster; the
+      7th is HYPERDRIVE and goes to warp; the 8th is SUPERNOVA and the star
+      ahead of you dies. The engine NAMES already told this story. */
+  const warp = (eng === nEng - 2) ? 1 : 0;
+  const nova = (eng === nEng - 1) ? 1 : 0;
+  const cruise = Math.min(1, eng / Math.max(1, nEng - 3));   // 0 at engine 1, 1 at 6
+
+  /* --- phosphor ground ------------------------------------------- */
+  ctx.globalCompositeOperation = "source-over";
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w,h)*0.62);
+  g.addColorStop(0, "#0a1420");
+  g.addColorStop(1, "#02040a");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+
+  /* a failing engine dims and rolls the raster */
+  const sick = 1 - Math.min(1, fuel / 0.35);
+  if (sick > 0) roll += dt * (10 + 120 * sick);
+
+  /* --- SPACE: nebulae ---------------------------------------------
+     Brighter and more defined than the first pass, and breathing with the
+     music: the pulse rides the playing level, so the fog swells when the
+     part does instead of drifting to its own clock. */
+  if (space > 0.005){
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 3; ++i){
+      const ph = now * 0.00013 * (1 + i * 0.37) + i * 2.1;
+      /* hue walks the stages: tape delay teal -> hall blue -> shimmer violet
+         -> tremolo magenta */
+      const hue = 168 + space * 150 + i * 16 + 18 * Math.sin(ph * 1.7);
+      const bx = w * (0.5 + 0.28 * Math.sin(ph + i));
+      const by = h * (0.45 + 0.20 * Math.cos(ph * 0.83 + i * 1.4));
+      const slow = 0.70 + 0.30 * Math.sin(now * 0.0011 * (1 + i * 0.6) + i);
+      const pulse = slow * (0.74 + 0.62 * visEnv);          /* the music's own breath */
+      const rad = Math.max(w, h) * (0.40 - 0.13 * space) * pulse * (1 + i * 0.20);
+      const a = (0.30 * space) * pulse * (1 - 0.35 * sick);
+      const fg = ctx.createRadialGradient(bx, by, rad * 0.06, bx, by, rad);
+      fg.addColorStop(0,    "hsla(" + hue.toFixed(0) + ",92%,64%," + a.toFixed(3) + ")");
+      fg.addColorStop(0.28, "hsla(" + (hue + 16).toFixed(0) + ",88%,54%," + (a*0.62).toFixed(3) + ")");
+      fg.addColorStop(0.62, "hsla(" + (hue + 30).toFixed(0) + ",84%,44%," + (a*0.22).toFixed(3) + ")");
+      fg.addColorStop(1,    "hsla(" + (hue + 44).toFixed(0) + ",80%,38%,0)");
+      ctx.fillStyle = fg;
+      ctx.fillRect(0, 0, w, h);
+    }
+  }
+
+  /* --- starfield ---------------------------------------------------
+     The first engines barely move. cruise is raised to a power so the low
+     end is genuinely slow rather than merely slower, and the drive's own
+     contribution is scaled back with it - at IDLE BURN you are drifting. */
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+  const cruiseC = Math.pow(cruise, 2.4);
+  const speed = 0.016 + cruiseC * 1.05 + warp * 5.0 + nova * 0.30
+              + (thrust * 0.22 + lvl * 0.26) * (0.12 + 0.88 * cruiseC);
+  const trail = 1 + warp * 7;            // warp: the streak is the point
+  for (const s of stars){
+    const pz = s.z;
+    s.z -= dt * speed * 0.55;
+    if (s.z <= 0.02){ s.x = Math.random()*2-1; s.y = Math.random()*2-1; s.z = 1.0; continue; }
+    const k0 = 0.5 / Math.min(1, pz + (trail - 1) * (pz - s.z));
+    const k1 = 0.5 / s.z;
+    const x0 = cx + s.x * w * k0 * 0.5, y0 = cy + s.y * h * k0 * 0.5;
+    const x1 = cx + s.x * w * k1 * 0.5, y1 = cy + s.y * h * k1 * 0.5;
+    const a = Math.min(1, (1 - s.z) * 1.5) * (0.35 + 0.65 * (1 - sick*0.7));
+    ctx.strokeStyle = warp ? "rgba(200,230,255," + (a*0.95).toFixed(3) + ")"
+                           : "rgba(150,220,255," + a.toFixed(3) + ")";
+    ctx.lineWidth = Math.max(1, (1 - s.z) * (warp ? 2.0 : 2.4) * (h/494));
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  }
+
+  /* --- SUPERNOVA --------------------------------------------------
+     A story, not a firework. A small white star sits there, swells, reddens -
+     the reddening running ahead of the swelling, so it has gone ugly well
+     before it goes - shudders as it loses its grip, and then detonates.
+
+     Everything here is drawn as LIGHT rather than as geometry: the star is a
+     filled sphere with its highlight off centre, and the shock front is an
+     annular gradient, not a stroked arc. A stroked circle reads as an object
+     someone drew; a gradient reads as something glowing. */
+  if (nova){
+    const period = 11.0;                                // time to grow, and to go
+    const t = ((now * 0.001) % period) / period;
+    const DET = 0.80;                                   // the moment it goes
+    ctx.globalCompositeOperation = "lighter";
+
+    if (t < DET){
+      const u = t / DET;                                // 0..1, the star's life
+      /* white -> straw -> orange -> deep red */
+      const red = Math.pow(u, 1.3);
+      const cR = 255;
+      const cG = Math.round(255 - 170 * red);
+      const cB = Math.round(255 - 245 * red);
+      const col  = cR + "," + cG + "," + cB;
+      const colD = cR + "," + Math.round(cG * 0.55) + "," + Math.round(cB * 0.35);
+
+      /* starts SMALL - a point of light - and swells slowly, then not slowly */
+      const R0 = Math.min(w, h) * (0.013 + 0.150 * Math.pow(u, 2.4));
+      const shud = 1 + 0.05 * Math.sin(now * 0.004 * (1 + 9*u*u)) * (0.25 + u);
+      const R = R0 * shud;
+
+      /* the corona it sits in */
+      const cg = ctx.createRadialGradient(cx, cy, R * 0.55, cx, cy, R * 5.0);
+      cg.addColorStop(0,    "rgba(" + col  + "," + (0.34 + 0.26*u).toFixed(3) + ")");
+      cg.addColorStop(0.18, "rgba(" + colD + "," + (0.15 + 0.15*u).toFixed(3) + ")");
+      cg.addColorStop(0.55, "rgba(" + colD + "," + (0.05 + 0.06*u).toFixed(3) + ")");
+      cg.addColorStop(1,    "rgba(" + colD + ",0)");
+      ctx.fillStyle = cg;
+      ctx.fillRect(0, 0, w, h);
+
+      /*  the star itself, a SPHERE: the inner circle of the gradient is offset
+          up and left, which is the whole trick - a gradient concentric with the
+          disc reads as a flat washer, one set off centre reads as a ball. */
+      const sg = ctx.createRadialGradient(cx - R*0.22, cy - R*0.24, R*0.04,
+                                          cx, cy, R);
+      sg.addColorStop(0,    "rgba(255,255,252,0.98)");
+      sg.addColorStop(0.28, "rgba(" + col  + ",0.95)");
+      sg.addColorStop(0.72, "rgba(" + colD + ",0.80)");
+      sg.addColorStop(1,    "rgba(" + colD + ",0.30)");
+      ctx.fillStyle = sg;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2831853); ctx.fill();
+
+      /* a soft limb, so the edge is light and not a line */
+      const lg = ctx.createRadialGradient(cx, cy, R * 0.80, cx, cy, R * 1.30);
+      lg.addColorStop(0, "rgba(" + col + ",0)");
+      lg.addColorStop(0.42, "rgba(" + col + "," + (0.30 + 0.25*u).toFixed(3) + ")");
+      lg.addColorStop(1, "rgba(" + colD + ",0)");
+      ctx.fillStyle = lg;
+      ctx.fillRect(0, 0, w, h);
+    }
+    else {
+      const v = (t - DET) / (1 - DET);                  // 0..1 after it goes
+      // Decays fast and stays tight: a broad, slow glare washes the whole
+      // tube and swamps the shell that is the actual event.
+      const flash = Math.exp(-v * 11.0);
+      const ring = 1 - v;
+
+      if (flash > 0.003){
+        const fgr = ctx.createRadialGradient(cx, cy, 0, cx, cy,
+                                             Math.max(w,h) * (0.10 + 0.50*flash));
+        fgr.addColorStop(0,   "rgba(255,252,246," + (0.98*flash).toFixed(3) + ")");
+        fgr.addColorStop(0.3, "rgba(255,206,130," + (0.60*flash).toFixed(3) + ")");
+        fgr.addColorStop(1,   "rgba(255,110,40,0)");
+        ctx.fillStyle = fgr;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      /*  The shock front, as a GLOWING SHELL. An annular gradient - transparent
+          inside, bright at the radius, transparent outside - so it is a band of
+          light with no edges, rather than a circle someone stroked. */
+      const R = Math.max(w, h) * 1.10 * Math.pow(v, 0.50);
+      const thick = 0.16 + 0.42 * (1 - ring);           // spreads as it cools
+      const inner = Math.max(0.0, R * (1 - thick));
+      const outer = R * (1 + thick) + 2;
+      const hot = Math.round(120 + 135 * ring);
+      const warm = Math.round(55 + 150 * ring * ring);
+      // Bright enough to survive the vignette, which darkens hard from about
+      // a third of the way out - exactly where the shell lives. Measured
+      // before: shell band 40 against a centre of 187, i.e. the front was
+      // dimmer than the background it was supposed to be lighting.
+      const a = 0.98 * ring * ring;
+      const sh = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
+      sh.addColorStop(0,    "rgba(255," + hot + "," + warm + ",0)");
+      sh.addColorStop(0.38, "rgba(255," + hot + "," + warm + "," + (a*0.55).toFixed(3) + ")");
+      sh.addColorStop(0.52, "rgba(255,248,214," + a.toFixed(3) + ")");
+      sh.addColorStop(0.66, "rgba(255," + hot + "," + warm + "," + (a*0.45).toFixed(3) + ")");
+      sh.addColorStop(1,    "rgba(255," + hot + "," + warm + ",0)");
+      ctx.fillStyle = sh;
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillRect(0, 0, w, h);    // twice: lighter caps at 1.0 per pass
+
+      /* what is left of the star, thrown outwards */
+      for (let i = 0; i < 30; ++i){
+        const ang = i * 2.399963 + v * 0.5;
+        const rr = R * (0.62 + 0.38 * ((i * 37) % 17) / 17);
+        const x = cx + Math.cos(ang) * rr, y = cy + Math.sin(ang) * rr * 0.86;
+        ctx.fillStyle = "rgba(255," + Math.round(210 - 110*v) + ",120," + (0.55*ring).toFixed(3) + ")";
+        const sz = Math.max(1, (h/494) * 3.0 * ring);
+        ctx.fillRect(x - sz*0.5, y - sz*0.5, sz, sz);
+      }
+    }
+  }
+
+  /* --- the thrust vector -------------------------------------------
+     ANTITHRUST is a WIDTH control, so the curve splits: two ghosts pulling
+     apart, one cool and one warm, like double vision. What you see is the
+     stereo image opening - the same thing the mid/side stage is doing to the
+     sound, which is the only honest thing for the screen to draw. */
+  const base = h * 0.80;
+  const amp = h * 0.26 * (0.10 + lvl);
+  const hue = 150 - 118 * Math.min(1, thrust * 0.8 + lvl * 0.6);
+  const pts = [];
+  for (let i = 0; i <= 120; ++i){
+    const u = i / 120;
+    const env = Math.sin(Math.PI * u);
+    const wobble = Math.sin(u * 11 + now * 0.0035) * 0.30
+                 + Math.sin(u * 23 - now * 0.0062) * 0.18
+                 + Math.sin(u * 41 + now * 0.011) * 0.09 * lvl;
+    pts.push([u * w, base - amp * env * (1 + wobble) - h * 0.13 * thrust * env]);
+  }
+
+  function plume(dx, dy, stroke, fillTop, alpha, lw){
+    ctx.beginPath();
+    ctx.moveTo(dx, base);
+    for (const pt of pts) ctx.lineTo(pt[0] + dx, pt[1] + dy);
+    ctx.lineTo(w + dx, base);
+    ctx.closePath();
+    if (fillTop){
+      const pg = ctx.createLinearGradient(0, base - amp * 1.6, 0, base);
+      pg.addColorStop(0, fillTop);
+      pg.addColorStop(1, "hsla(" + hue.toFixed(0) + ",100%,50%,0.02)");
+      ctx.fillStyle = pg;
+      ctx.fill();
+    }
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; ++i){
+      const X = pts[i][0] + dx, Y = pts[i][1] + dy;
+      if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+    }
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lw;
+    ctx.globalAlpha = alpha;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.globalCompositeOperation = "lighter";
+  const lwMain = Math.max(1.4, 2.2 * (h/494));
+
+  if (anti > 0.01){
+    /* the two ghosts, pulling apart as the image opens */
+    const dx = anti * w * 0.058;
+    const dy = anti * h * 0.032;
+    const ga = 0.40 + 0.45 * anti;
+    ctx.shadowBlur = 14 * (h/494);
+    ctx.shadowColor = "rgba(90,220,255,0.8)";
+    plume(-dx, -dy, "rgba(120,230,255,0.95)", null, ga, lwMain * 1.0);
+    ctx.shadowColor = "rgba(255,110,200,0.8)";
+    plume( dx,  dy, "rgba(255,130,205,0.95)", null, ga, lwMain * 1.0);
+    ctx.shadowBlur = 0;
+  }
+
+  /* the centre, which stays put - exactly as the mid does in the audio */
+  ctx.shadowBlur = 20 * (h/494);
+  ctx.shadowColor = "hsla(" + hue.toFixed(0) + ",100%,60%,0.95)";
+  plume(0, 0, "hsla(" + hue.toFixed(0) + ",100%,68%,0.92)",
+        "hsla(" + hue.toFixed(0) + ",100%,60%," + (0.34 - 0.16 * anti).toFixed(3) + ")",
+        1, lwMain);
+  ctx.shadowBlur = 0;
+
+  /* a graticule, faint, so the tube reads as an instrument */
+  ctx.strokeStyle = "rgba(90,200,170,0.10)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 1; i < 6; ++i){ const x = w * i / 6; ctx.moveTo(x, h*0.30); ctx.lineTo(x, h*0.88); }
+  ctx.moveTo(0, base); ctx.lineTo(w, base);
+  ctx.stroke();
+
+  /* --- misfire: the raster drops out ------------------------------ */
+  if (meter.misfire){
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    const bandY = (roll * 3) % h;
+    ctx.fillRect(0, bandY, w, h * 0.22);
+  }
+
+  /* --- what the instrument has to say ----------------------------- */
+  if (meter.empty)           drawFuelEmpty(now, w, h);
+  else if (nameShowing(now)) drawEngineName(now, w, h);
+  drawReadout(now, w, h);
+
+  /* --- OVERLOAD ---------------------------------------------------
+     Not by colouring the curve, which already tracks gain. A CRT driven too
+     hard blooms and halates, so the raster glows and the vignette turns red -
+     peripheral, unmistakable, and never covering what the screen is saying. */
+  const over = Math.max(0, (meter.peak - 0.70) / 0.30);
+  const hard = Math.max(0, (meter.peak - 0.93) / 0.07);
+  if (over > 0.001){
+    ctx.globalCompositeOperation = "lighter";
+    const bg = ctx.createRadialGradient(cx, h*0.62, 0, cx, h*0.62, Math.max(w,h)*0.66);
+    bg.addColorStop(0, "rgba(255,120,60," + (0.16 * over).toFixed(3) + ")");
+    bg.addColorStop(1, "rgba(255,40,20,0)");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    if (hard > 0.01){
+      const ty = (now * 0.9) % h;
+      const th = Math.max(2, h * 0.02 * hard);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "rgba(255,60,30," + (0.22 * hard).toFixed(3) + ")";
+      ctx.fillRect(0, ty, w, th);
+    }
+  }
+
+  /* --- barrel vignette so the glass reads as curved ---------------- */
+  ctx.globalCompositeOperation = "source-over";
+  const vg = ctx.createRadialGradient(cx, cy, Math.min(w,h)*0.30, cx, cy, Math.max(w,h)*0.72);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  const vr = Math.round(120 * over), vg2 = Math.round(18 * over);
+  vg.addColorStop(1, "rgba(" + vr + "," + vg2 + ",0,0.72)");
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
+}
+
+
+/*  Peter's spec, exactly: the name shows for two seconds after the knob is
+    touched, then fades QUICKLY while turning to glow, and then nothing.
+
+    Drawn on its OWN layer and composited with "lighter". The scan bands that
+    make it read as a hologram have to fall on the LETTERS, and "source-atop"
+    on the main canvas cannot do that: the starfield behind it is opaque
+    everywhere, so the bands darkened the whole raster into a visible stripe
+    across the screen. On a transparent layer the only opaque thing is the
+    text, which is exactly what the bands should ride on. */
+let nameLayer = null, nctx = null;
+
+/*  The holographic renderer, shared by the engine name and the FUEL EMPTY
+    warning. Takes its colour, because the only difference between "here is
+    your engine" and "you have run out of fuel" should be that it is red and
+    it blinks. */
+function holo(now, w, h, title, sub, rgb, alpha, glow, scale, yFrac, sizeFrac){
+  if (!nameLayer){ nameLayer = document.createElement("canvas"); nctx = nameLayer.getContext("2d"); }
+  if (nameLayer.width !== w || nameLayer.height !== h){ nameLayer.width = w; nameLayer.height = h; }
+  nctx.clearRect(0, 0, w, h);
+
+  const size = h * (sizeFrac || 0.155);
+  const tracked = title.split("").join(" ");
+  const glowCol = "rgba(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ",0.95)";
+
+  nctx.save();
+  nctx.translate(w * 0.5, h * yFrac);
+  nctx.scale(scale, scale);
+  nctx.textAlign = "center";
+  nctx.textBaseline = "middle";
+  nctx.font = "700 " + size.toFixed(1) + "px 'Futura','Century Gothic','Trebuchet MS',sans-serif";
+
+  nctx.shadowColor = glowCol;
+  nctx.shadowBlur = 16 * glow * (h/494);
+  nctx.fillStyle = "rgba(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ",0.92)";
+  nctx.fillText(tracked, 0, 0);
+
+  /* a second, brighter core, so it reads as a hologram and not as text */
+  nctx.shadowBlur = 5 * glow * (h/494);
+  nctx.fillStyle = "rgba(" + Math.min(255, rgb[0]+110) + "," + Math.min(255, rgb[1]+120) + ","
+                           + Math.min(255, rgb[2]+110) + ",0.88)";
+  nctx.fillText(tracked, 0, 0);
+
+  if (sub){
+    nctx.shadowBlur = 9 * glow * (h/494);
+    nctx.font = "500 " + (h*(sizeFrac ? sizeFrac*0.33 : 0.050)).toFixed(1) + "px 'Futura','Century Gothic',sans-serif";
+    nctx.fillStyle = "rgba(" + Math.min(255, rgb[0]+30) + "," + Math.min(255, rgb[1]+40) + ","
+                             + Math.min(255, rgb[2]+30) + ",0.70)";
+    nctx.fillText(sub.toUpperCase().split("").join(" "), 0, h * (sizeFrac ? sizeFrac*0.80 : 0.125));
+  }
+  nctx.restore();
+
+  /* scan bands, confined to the glyphs by living on a transparent layer */
+  nctx.save();
+  nctx.globalCompositeOperation = "destination-out";
+  const bandH = Math.max(1.5, h * 0.011);
+  const off = (now * 0.055) % (bandH * 2);
+  nctx.fillStyle = "rgba(0,0,0,0.45)";
+  for (let y = -off; y < h; y += bandH * 2) nctx.fillRect(0, y, w, bandH);
+  nctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(nameLayer, 0, 0);
+  ctx.restore();
+}
+
+/*  The joke, and it has to land: the tank is dry, the engine is fizzling out
+    over five seconds, and the screen says so in red and will not shut up about
+    it until AUTOREFILL is pressed. A hard blink, not a fade - this is a warning
+    lamp, not a mood. */
+function drawFuelEmpty(now, w, h){
+  const blink = (Math.sin(now * 0.0088) > -0.25) ? 1 : 0.06;
+  const flicker = 0.92 + 0.08 * Math.sin(now * 0.071);
+  const dying = 1 - Math.min(1, meter.fizzle || 0);
+  holo(now, w, h, "FUEL EMPTY",
+       dying > 0.02 ? "engine flame-out" : "press autorefill",
+       [255, 46, 30],
+       blink * flicker, 1.6 + 1.2 * (1 - dying), 1.0, 0.42);
+}
+
+function nameShowing(now){
+  const t = (now - engineShownAt) / 1000;
+  return t >= 0 && t <= 2.05;
+}
+
+/*  The parameter readout, ON THE GLASS in blue holo.
+
+    It used to be an amber DOM label sitting on the METAL just below the bezel
+    - HTML text lying on a photograph, while everything else the instrument
+    says is drawn inside the tube. That was the inconsistency. It goes through
+    the same holo() as the engine name, so it picks up the same scan bands and
+    the same glow for free. */
+let readoutText = "", readoutAt = -1e9;
+function showReadout(txt){ readoutText = txt; readoutAt = performance.now(); }
+
+function drawReadout(now, w, h){
+  const t = (now - readoutAt) / 1000;
+  if (!readoutText || t < 0 || t > 1.45) return;
+  const HOLD = 1.05, FADE = 0.40;
+  let alpha = 1, glow = 1;
+  if (t > HOLD){
+    const u = Math.min(1, (t - HOLD) / FADE);
+    alpha = 1 - u * u;
+    glow = 1 + u * 4.0;
+  }
+  holo(now, w, h, readoutText, "", [120, 215, 255], alpha, glow, 1.0, 0.82, 0.072);
+}
+
+function drawEngineName(now, w, h){
+  const t = (now - engineShownAt) / 1000;
+  if (t < 0 || t > 2.05) return;
+
+  /* Peter's spec, exactly: it holds for two seconds after the knob is touched,
+     then fades QUICKLY while turning to glow, and then nothing. */
+  const HOLD = 1.60, FADE = 0.45;
+  let alpha = 1, glow = 1, scale = 1;
+  if (t > HOLD){
+    const u = Math.min(1, (t - HOLD) / FADE);
+    alpha = 1 - u * u;                 /* goes quickly */
+    glow  = 1 + u * 5.5;               /* and turns to glow on the way out */
+    scale = 1 + u * 0.06;
+  }
+
+  const i = engineIndex();
+  const e = ENGINES[i];
+  if (!e || !e.name) return;
+  holo(now, w, h, e.name, e.blurb, [120, 215, 255], alpha, glow, scale, 0.42);
+}
+
+/* ======================================================================
+   native traffic
+   ====================================================================== */
+NB.on("initialState", d => {
+  if (!d) return;
+  ENGINES = d.engines || [];
+  skin = d.skin || "chrome";
+  document.body.classList.toggle("skin-orange", skin === "orange");
+
+  for (const p of (d.params || [])){
+    SPEC[p.id] = { name:p.name, stepped:!!p.stepped, steps:p.steps|0 };
+    V[p.id] = p.v;
+  }
+  for (const p of GEO.pots) drawKnob(p.id);
+  paintRefill();
+  lastEngineIdx = engineIndex();       /* do NOT flash the name on load */
+  engineShownAt = -1e9;
+  NB.send({ k:"stateack" });
+});
+
+NB.on("hostParam", d => {
+  if (!d || !d.params) return;
+  for (const p of d.params){
+    V[p.id] = p.v;
+    if (el[p.id]) drawKnob(p.id);
+    if (p.id === "autorefill") paintRefill();
+  }
+  noteEngine();                        /* automation moving ENGINE names it too */
+});
+
+NB.on("meter", d => {
+  if (!d) return;
+  meter.in = d.in || 0;
+  meter.out = d.out || 0;
+  meter.fuel = (d.fuel === undefined) ? 1 : d.fuel;
+  meter.drive = d.drive || 0;
+  meter.misfire = !!d.misfire;
+  meter.empty = !!d.empty;
+  meter.fizzle = d.fizzle || 0;
+  meter.peak = d.peak || 0;
+  applyForces();
+  paintFuel();
+});
+
+/* ======================================================================
+   boot
+   ====================================================================== */
+buildKnobs();
+layout();
+paintFuel();
+window.addEventListener("resize", layout);
+new ResizeObserver(layout).observe(deck);   /* an iframe/host resize fires no window resize */
+requestAnimationFrame(frame);
+
+/* The page announces itself on EVERY boot, which clears the processor's
+   "the panel has the state" flag. Without it a reload the editor never sees
+   leaves the processor believing the old acknowledgement and this page waits
+   forever for a state that is never sent again. */
+NB.send({ k:"hello" });
+</script>
+</body>
+</html>

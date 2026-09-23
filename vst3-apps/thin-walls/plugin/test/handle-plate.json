@@ -1,0 +1,19 @@
+[
+  { "name": "settle", "wait": 3500 },
+  { "name": "--- stand in the living room facing the shut door to the box room",
+    "eval": "(function(){ var B=window.__JUCE__.backend; B.emitEvent('tw',{k:'p',id:'door1',v:0}); B.emitEvent('tw',{k:'p',id:'lisx',v:4.50/18}); B.emitEvent('tw',{k:'p',id:'lisy',v:3.60/9}); B.emitEvent('tw',{k:'p',id:'lisyaw',v:90/360}); B.emitEvent('tw',{k:'p',id:'s1x',v:2.0/18}); B.emitEvent('tw',{k:'p',id:'s1y',v:1.4/9}); B.emitEvent('tw',{k:'showrays',v:0}); return 'sent'; })()" },
+  { "name": "let the bridge echo and the scene stream arrive", "wait": 1600 },
+  { "name": "where the page thinks we are",
+    "eval": "(function(){ var s=window.__TW.scene(); return 'lis '+s.lis.map(function(v){return v.toFixed(2);}).join(',')+'  yaw '+s.lisYaw.toFixed(1)+'  room '+s.lisRoom; })()" },
+  { "name": "render, then project the handle",
+    "eval": "(function(){ var TW=window.__TW; TW.render(); var h=TW.handlePos('door1'); var p=TW.project(h); return 'handle at '+(h?h.map(function(v){return v.toFixed(2);}).join(','):'null')+'  ->  screen '+(p?Math.round(p[0])+','+Math.round(p[1]):'OFF SCREEN'); })()" },
+  { "name": "put the pointer on it",
+    "eval": "(function(){ var TW=window.__TW; TW.render(); var p=TW.project(TW.handlePos('door1')); if(!p) return 'NOT ON SCREEN'; var pov=document.getElementById('pov'); pov.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:11,clientX:p[0],clientY:p[1]})); return 'aimed at '+Math.round(p[0])+','+Math.round(p[1])+'  hover='+TW.hoverDoor; })()" },
+  { "name": "let the hot handle draw", "wait": 700 },
+  { "name": "hover still on?", "eval": "String(window.__TW.hoverDoor)" },
+  { "name": "pov-handle (the handle lights up under the pointer)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\pov-handle.png" },
+  { "name": "back to defaults",
+    "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw',{k:'presetDefault'}); return 'defaults'; })()" },
+  { "name": "errors (must be [])", "eval": "JSON.stringify(window.__TW.errors || [])" }
+]

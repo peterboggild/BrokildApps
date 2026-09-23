@@ -1,0 +1,61 @@
+[
+  { "name": "settle", "wait": 3500 },
+
+  { "name": "NOTE: the 3D view draws a source from the PAGE's own state, so a bridge 'p' message alone changes the engine and the plan and leaves the 3D view showing the source it drew before. pov-speaker and pov-pure came out byte-identical that way. Every plate here sets both sides, or uses presetDefault, which native echoes to the page.",
+    "eval": "'noted'" },
+
+  { "name": "--- the factory arrangement, from the native side so both sides agree",
+    "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw',{k:'presetDefault'}); return 'defaults'; })()" },
+  { "name": "let the echo arrive and both views redraw", "wait": 1400 },
+  { "name": "what the page and the engine each think source 1 is doing",
+    "eval": "(function(){ var TW=window.__TW, st=TW.state(), s=TW.scene(); return 'page s1yaw '+(st.s1yaw*360).toFixed(0)+' type '+st.s1type+'   engine yaw '+s.sources[0].yaw.toFixed(0)+' type '+s.sources[0].type; })()" },
+
+  { "name": "rays on",
+    "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw',{k:'showrays',v:1}); return 'rays on'; })()" },
+  { "name": "wait", "wait": 900 },
+
+  { "name": "panel (cover + the panel page + the landing hero)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\panel.png" },
+  { "name": "plan (the plan view, rays on)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\plan.png" },
+  { "name": "pov (the view from where you stand)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\pov.png" },
+  { "name": "hud (the readout in the corner of the 3D view)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\hud.png" },
+  { "name": "status (input, output and DRR along the foot)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\status.png" },
+  { "name": "ctrl-source (the source panel)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\ctrl-source.png" },
+  { "name": "ctrl-levels (levels and head)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\ctrl-levels.png" },
+  { "name": "ctrl-wav (the test signal)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\ctrl-wav.png" },
+
+  { "name": "--- the labelled plan: rays OFF, so the drawing reads as a drawing",
+    "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw',{k:'showrays',v:0}); return 'rays off'; })()" },
+  { "name": "wait", "wait": 900 },
+  { "name": "plan-labels (the flat, clean)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\plan-labels.png" },
+
+  { "name": "--- a loudspeaker close and facing you, for the POV plate",
+    "eval": "(function(){ var B=window.__JUCE__.backend, TW=window.__TW; [['s1type',1],['s1x',4.4/18],['s1y',3.9/9],['s1z',(1.1-0.2)/2.2],['s1yaw',250/360],['lisx',3.4/18],['lisy',1.9/9],['lisyaw',62/360]].forEach(function(p){ B.emitEvent('tw',{k:'p',id:p[0],v:p[1]}); TW.setParam(p[0],p[1]); }); return 'looking at the speaker'; })()" },
+  { "name": "let the 3D view redraw", "wait": 1400 },
+  { "name": "what is drawn there now",
+    "eval": "(function(){ var TW=window.__TW; return 'page type '+TW.state().s1type+'  engine type '+TW.scene().sources[0].type; })()" },
+  { "name": "pov-speaker (the modelled two-way box)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\pov-speaker.png" },
+
+  { "name": "--- the same source as a PURE point on its stand",
+    "eval": "(function(){ var B=window.__JUCE__.backend, TW=window.__TW; [['s1type',0],['s1dir',0.6],['s1z',(1.35-0.2)/2.2]].forEach(function(p){ B.emitEvent('tw',{k:'p',id:p[0],v:p[1]}); TW.setParam(p[0],p[1]); }); return 'pure'; })()" },
+  { "name": "let the 3D view redraw", "wait": 1400 },
+  { "name": "and now",
+    "eval": "(function(){ var TW=window.__TW; return 'page type '+TW.state().s1type+'  engine type '+TW.scene().sources[0].type; })()" },
+  { "name": "pov-pure (a point source on a stand)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\pov-pure.png" },
+
+  { "name": "--- back to the factory arrangement",
+    "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw',{k:'presetDefault'}); return 'defaults'; })()" },
+  { "name": "wait", "wait": 900 },
+  { "name": "errors at the end (must be [])",
+    "eval": "JSON.stringify(window.__TW.errors || [])" }
+]

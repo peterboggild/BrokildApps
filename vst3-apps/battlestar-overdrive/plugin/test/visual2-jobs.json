@@ -1,0 +1,43 @@
+[
+  { "name": "settle", "wait": 2600 },
+  { "name": "JS errors", "eval": "(window.__err&&window.__err.length)?window.__err.join(' | '):'none'" },
+
+  { "name": "starfield speed per engine: how far a star travels in one second",
+    "eval": "(async()=>{const out=[];for(let e=0;e<8;e++){setParam('engine', e/7); setParam('thrust',0.35); await new Promise(r=>setTimeout(r,120));const z0=stars.map(s=>s.z);const t0=performance.now();await new Promise(r=>setTimeout(r,1000));let d=0,n=0;for(let i=0;i<stars.length;i++){const dz=z0[i]-stars[i].z;if(dz>0&&dz<0.9){d+=dz;n++;}}out.push(ENGINES[e].name.slice(0,11).padEnd(11)+' '+(d/Math.max(1,n)).toFixed(4));}return out.join('\\n     ');})()" },
+
+  { "name": "back to engine 1 and look at it", "eval": "setParam('engine',0); 'IDLE BURN'" },
+  { "name": "let the name clear", "wait": 2400 },
+  { "name": "panel, first engine, stars barely moving", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-slow.png" },
+
+  { "name": "SUPERNOVA: catch the star EARLY, white and ominous",
+    "eval": "setParam('engine',1.0); (async()=>{for(let k=0;k<160;k++)await new Promise(r=>requestAnimationFrame(r));for(let k=0;k<600;k++){await new Promise(r=>requestAnimationFrame(r));const t=((performance.now()*0.001)%7.0)/7.0;if(t>0.04&&t<0.10)return 'star phase '+t.toFixed(3);}return 'missed';})()" },
+  { "name": "white ring", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-nova-star.png" },
+
+  { "name": "catch it RED, just before it goes",
+    "eval": "(async()=>{for(let k=0;k<900;k++){await new Promise(r=>requestAnimationFrame(r));const t=((performance.now()*0.001)%7.0)/7.0;if(t>0.68&&t<0.75)return 'red phase '+t.toFixed(3);}return 'missed';})()" },
+  { "name": "red ring", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-nova-red.png" },
+
+  { "name": "catch the detonation",
+    "eval": "(async()=>{for(let k=0;k<900;k++){await new Promise(r=>requestAnimationFrame(r));const t=((performance.now()*0.001)%7.0)/7.0;if(t>0.79&&t<0.84)return 'blast phase '+t.toFixed(3);}return 'missed';})()" },
+  { "name": "detonation", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-nova-blast.png" },
+
+  { "name": "ANTITHRUST: the curve should split into two ghosts",
+    "eval": "setParam('engine',1/7); setParam('antithrust',0.0); setParam('space',0.0); 'anti 0'" },
+  { "name": "let the name clear", "wait": 2400 },
+  { "name": "cyan+magenta ghost pixels with ANTITHRUST at 0",
+    "eval": "(function(){const y0=Math.floor(crt.height*0.55);const d=ctx.getImageData(0,y0,crt.width,Math.floor(crt.height*0.4)).data;let cy=0,mg=0;for(let i=0;i<d.length;i+=4){if(d[i+2]>60&&d[i+1]>60&&d[i]<d[i+2]-30)cy++;if(d[i]>60&&d[i+2]>60&&d[i+1]<d[i]-30)mg++;}return 'cyan '+cy+', magenta '+mg;})()" },
+  { "name": "open ANTITHRUST", "eval": "setParam('antithrust',0.85); 'anti 0.85'" },
+  { "name": "let it paint", "wait": 400 },
+  { "name": "cyan+magenta ghost pixels with ANTITHRUST at 0.85",
+    "eval": "(function(){const y0=Math.floor(crt.height*0.55);const d=ctx.getImageData(0,y0,crt.width,Math.floor(crt.height*0.4)).data;let cy=0,mg=0;for(let i=0;i<d.length;i+=4){if(d[i+2]>60&&d[i+1]>60&&d[i]<d[i+2]-30)cy++;if(d[i]>60&&d[i+2]>60&&d[i+1]<d[i]-30)mg++;}return 'cyan '+cy+', magenta '+mg;})()" },
+  { "name": "split curve", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-split.png" },
+
+  { "name": "SPACE fogs: brightness and how much they move with the level",
+    "eval": "setParam('antithrust',0); setParam('space',0.55); 'space up'" },
+  { "name": "let it paint", "wait": 600 },
+  { "name": "fog brightness quiet vs driven",
+    "eval": "(async()=>{const meas=()=>{const d=ctx.getImageData(0,0,crt.width,crt.height).data;let s=0;for(let i=0;i<d.length;i+=4)s+=d[i]+d[i+1]+d[i+2];return s/(d.length/4);};window.__BO.forceLevel=null;visEnv=0;await new Promise(r=>setTimeout(r,400));const quiet=meas();for(let k=0;k<40;k++){visEnv=1;await new Promise(r=>requestAnimationFrame(r));}const loud=meas();return 'quiet '+quiet.toFixed(1)+'  driven '+loud.toFixed(1)+'  (+'+(loud-quiet).toFixed(1)+')';})()" },
+  { "name": "nebulae", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-nebula.png" },
+
+  { "name": "restore", "eval": "setParam('space',0); setParam('antithrust',0); setParam('engine',1/7); 'done'" }
+]

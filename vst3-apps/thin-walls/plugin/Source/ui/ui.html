@@ -1,0 +1,3622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Thin Walls</title>
+<script>
+/*  FIRST thing in the document, deliberately. A listener installed at the end of
+    <body> cannot catch anything that threw before it was installed - and the
+    failure mode it exists to detect is exactly "the script died on line one and
+    nothing ran", which then reports as "no JS errors". */
+window.__err = [];
+window.addEventListener("error", function (e) {
+  window.__err.push((e.message || "error") + " @ " + (e.filename || "?") + ":" + (e.lineno || 0));
+});
+window.addEventListener("unhandledrejection", function (e) {
+  window.__err.push("unhandled rejection: " + (e.reason && e.reason.message ? e.reason.message : e.reason));
+});
+</script>
+<!-- probe-stub -->
+<style>
+/*  An inline style beats the hidden attribute, and so does any author rule with
+    a display of its own. Stated once, at the top, so nothing further down can
+    quietly un-hide something. */
+[hidden]{ display:none !important; }
+
+:root{
+  --ink:#0d0b0a;
+  --shell:#161311;
+  --shell2:#1d1917;
+  --line:#2e2724;
+  --brass:#d8a45c;
+  --brass1:#e2b170;
+  --brass2:#8a6636;
+  --warm:#f0d2a4;
+  --dim:#9a8a78;
+  --paper:#efe7d6;
+  --paperInk:#2b2a27;
+  --ok:#8fd4a8;
+  --tipbg:#221d19;
+}
+*{ box-sizing:border-box; }
+html,body{
+  margin:0; padding:0; width:100%; height:100%;
+  background:var(--ink); color:var(--warm);
+  font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",sans-serif;
+  font-size:13px;
+  overflow:hidden;
+  -webkit-user-select:none; user-select:none;
+}
+#app{
+  position:absolute; inset:0;
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto auto;
+  background:
+    radial-gradient(1200px 700px at 30% 0%, #241d18 0%, #120f0d 60%, #0b0908 100%);
+}
+
+/* ---------------------------------------------------------------- header */
+#top{
+  display:flex; align-items:baseline; gap:14px;
+  padding:8px 16px 7px 16px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#1a1613 0%, #120f0d 100%);
+}
+#top h1{
+  margin:0;
+  font-family:"Futura","Century Gothic","Trebuchet MS",system-ui,sans-serif;
+  font-size:21px; font-weight:600; letter-spacing:.42em;
+  background:linear-gradient(180deg,#f6dcae 0%, #d9a45c 40%, #9c7440 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow:0 1px 0 rgba(0,0,0,.6);
+  white-space:nowrap;
+}
+#by{
+  font-size:11px; letter-spacing:.20em; color:#8d7a63; text-transform:uppercase;
+  white-space:nowrap;
+}
+#topfill{ flex:1 1 auto; height:1px; background:linear-gradient(90deg,transparent,var(--line)); }
+#topright{ display:flex; gap:14px; align-items:baseline; font-family:Consolas,"SF Mono",monospace; font-size:11px; color:#8d7a63; }
+#topright b{ color:var(--brass1); font-weight:600; }
+
+/* ----------------------------------------------------------------- views */
+#views{
+  display:grid;
+  grid-template-columns:58fr 42fr;
+  min-height:0; gap:0;
+}
+#povWrap, #planWrap{ position:relative; min-width:0; min-height:0; overflow:hidden; }
+/* the same colour the GL context clears to, so a sub-pixel rounding gap at the
+   edge of the drawing buffer cannot show as a black seam */
+#povWrap{ background:#100c0d; border-right:1px solid var(--line); }
+#planWrap{ background:#141110; display:flex; align-items:stretch; }
+canvas{ display:block; width:100%; height:100%; }
+#pov{ cursor:grab; touch-action:none; }
+#pov.look{ cursor:grabbing; }
+#pov.handle{ cursor:pointer; }
+#pov.handling{ cursor:grabbing; }
+#plan{ touch-action:none; }
+
+#hud{
+  position:absolute; left:12px; top:12px; pointer-events:none;
+  font-family:Consolas,"SF Mono",monospace; font-size:11px; line-height:1.55;
+  color:#e7cfa6; text-shadow:0 1px 3px rgba(0,0,0,.95);
+  background:linear-gradient(180deg,rgba(12,9,8,.72),rgba(12,9,8,.42));
+  border:1px solid rgba(216,164,92,.22); border-left:2px solid var(--brass2);
+  padding:7px 11px 7px 9px; border-radius:2px;
+  letter-spacing:.04em;
+}
+#hud .k{ color:#8d7a63; }
+#hud .v{ color:#f3d9ac; }
+#xhair{
+  position:absolute; left:50%; top:50%; width:15px; height:15px; margin:-8px 0 0 -8px;
+  pointer-events:none; opacity:.34;
+}
+#xhair::before,#xhair::after{
+  content:""; position:absolute; background:#ffe4b4;
+}
+#xhair::before{ left:7px; top:0; width:1px; height:15px; }
+#xhair::after{ left:0; top:7px; width:15px; height:1px; }
+#povTip{
+  position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+  pointer-events:none; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  color:#b39a78; text-shadow:0 1px 3px #000;
+  transition:opacity .5s ease;
+}
+#glName{
+  position:absolute; right:10px; top:10px; pointer-events:none;
+  font-family:Consolas,"SF Mono",monospace; font-size:10px; color:#6d5d4b; letter-spacing:.1em;
+}
+
+/* -------------------------------------------------------------- controls */
+#ctrls{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(196px,1fr));
+  gap:9px 12px;
+  padding:9px 14px 8px 14px;
+  border-top:1px solid var(--line);
+  background:linear-gradient(180deg,#191512 0%, #131110 100%);
+  /*  The strip may take half the window, but never so much that the two views
+      are squeezed into a letterbox - at 900x600 an uncapped strip left them
+      157 px tall. It scrolls instead. */
+  max-height:min(50vh, calc(100vh - 320px));
+  overflow-y:auto; overflow-x:hidden;
+}
+/*  A short window is the one case where the strip and the views fight. The
+    rows get tighter rather than the strip getting a scrollbar, and the strip
+    never grows sideways, so there is no horizontal scroll at any size. */
+@media (max-height:760px){
+  #ctrls{ gap:7px 10px; padding:7px 12px 6px 12px; }
+  .grp{ padding:4px 7px 5px 7px; }
+  .grp > h2{ margin-bottom:4px; padding-bottom:2px; }
+  .row{ height:20px; }
+  .btnrow{ margin-bottom:4px; }
+}
+.grp{
+  border:1px solid #241f1c; border-radius:3px;
+  background:linear-gradient(180deg,#1c1815 0%,#171412 100%);
+  padding:5px 8px 7px 8px; min-width:0;
+}
+.grp > h2{
+  margin:0 0 5px 0; font-size:9.5px; font-weight:700; letter-spacing:.24em;
+  color:#9c7a45; text-transform:uppercase;
+  border-bottom:1px solid #241f1c; padding-bottom:3px;
+}
+.row{ display:grid; grid-template-columns:60px minmax(0,1fr) 52px; align-items:center; gap:6px; height:23px; }
+.row.door{ grid-template-columns:44px 18px minmax(0,1fr) 44px; }
+.row.sel{ grid-template-columns:60px minmax(0,1fr); }
+/*  Two groups describe a ROOM rather than a control, and a room has three
+    surfaces and two walls that can be broken - neither fits a 196 px column.
+    They take two, and give it back on a window narrow enough that two tracks
+    do not exist, where a span wider than the grid would force an implicit
+    column and scroll the strip sideways. */
+.grp.wide{ grid-column:span 2; }
+@media (max-width:560px){ .grp.wide{ grid-column:auto; } }
+.matgrid{ display:grid; grid-template-columns:50px repeat(3,minmax(0,1fr)); gap:3px 6px; align-items:center; }
+.mathead{ font-size:8.5px; letter-spacing:.15em; color:#8a7a66; text-transform:uppercase; text-align:center; white-space:nowrap; }
+.matroom{ font-size:10px; letter-spacing:.07em; color:#a08f7a; white-space:nowrap; }
+/*  A broken wall is TWO numbers - how far the split point is pushed and where
+    along the wall it sits - and they are one gesture in the plan, so they are
+    one row here. */
+.row.fold{ grid-template-columns:54px minmax(0,1fr) 52px minmax(0,1fr) 34px; }
+.row.fold .val{ font-size:9.5px; }
+.row.fold.bent .lab{ color:#d07a52; }
+.lab{ font-size:10px; letter-spacing:.07em; color:#a08f7a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.val{
+  font-family:Consolas,"SF Mono",monospace; font-size:10.5px; color:#e8cd9f;
+  text-align:right; white-space:nowrap; overflow:hidden;
+}
+
+/* custom slider - appearance:none so nothing browser-default survives */
+input.sl{
+  -webkit-appearance:none; appearance:none;
+  width:100%; height:16px; background:transparent; margin:0; outline:none; cursor:pointer;
+}
+input.sl::-webkit-slider-runnable-track{
+  height:5px; border-radius:3px;
+  background:linear-gradient(180deg,#0d0b0a,#191513);
+  border:1px solid #2b2522;
+}
+input.sl::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none;
+  width:11px; height:15px; margin-top:-6px; border-radius:2px;
+  background:linear-gradient(180deg,#f0cd97 0%,#c79a5c 48%,#8a6636 100%);
+  border:1px solid #533b1d;
+  box-shadow:0 1px 2px rgba(0,0,0,.7);
+}
+input.sl:focus::-webkit-slider-thumb{ box-shadow:0 0 0 2px rgba(226,177,112,.35); }
+input.sl::-moz-range-track{ height:5px; border-radius:3px; background:#191513; border:1px solid #2b2522; }
+input.sl::-moz-range-thumb{ width:11px; height:15px; border-radius:2px; background:#c79a5c; border:1px solid #533b1d; }
+
+select.sel{
+  -webkit-appearance:none; appearance:none;
+  width:100%; height:20px; padding:0 18px 0 7px;
+  font-family:"Segoe UI",system-ui,sans-serif; font-size:10.5px; letter-spacing:.06em;
+  color:#e8cd9f; background:linear-gradient(180deg,#221d19,#171311);
+  border:1px solid #332b26; border-radius:2px; outline:none; cursor:pointer;
+}
+select.sel:focus{ border-color:#7a5a2e; }
+.selwrap{ position:relative; min-width:0; }
+.selwrap::after{
+  content:""; position:absolute; right:6px; top:8px; pointer-events:none;
+  border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid #9c7a45;
+}
+
+button.b{
+  font-family:"Segoe UI",system-ui,sans-serif; font-size:10px; letter-spacing:.14em;
+  text-transform:uppercase; color:#d8bd90;
+  background:linear-gradient(180deg,#272019,#191411);
+  border:1px solid #382e26; border-radius:2px;
+  padding:4px 8px; cursor:pointer; outline:none; white-space:nowrap;
+}
+button.b:hover{ border-color:#6d5128; color:#f4dcae; }
+button.b:active{ background:#141110; }
+button.b.on{
+  color:#1a1208; border-color:#c79a5c;
+  background:linear-gradient(180deg,#f0cd97,#b98a4c);
+  font-weight:700;
+}
+button.dbtn{
+  font-family:Consolas,monospace; font-size:9.5px; line-height:1;
+  width:18px; height:18px; padding:0; text-align:center;
+  color:#8d7a63; background:#141110; border:1px solid #332b26; border-radius:2px; cursor:pointer;
+}
+button.dbtn.on{ color:#1a1208; background:linear-gradient(180deg,#f0cd97,#b98a4c); border-color:#c79a5c; }
+.btnrow{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:5px; }
+.srctabs{ gap:4px; }
+button.b.srctab{
+  flex:1 1 0; min-width:0; padding:3px 0; text-align:center;
+  font-family:Consolas,monospace; font-size:11px; letter-spacing:0;
+}
+/* a source whose input is OFF: its tab says so without a second control */
+button.b.srctab.silent{ color:#6b5c4a; }
+button.b.srctab.silent.on{ color:#3a2c18; }
+/*  A disabled control is dimmed as a whole row, label and readout with it -
+    DIRECTIVITY belongs to a PURE source and a LOUDSPEAKER carries its own
+    pattern, so leaving it live and inert would be the worse lie. */
+.row.off{ opacity:.38; }
+.row.off input.sl{ cursor:not-allowed; }
+.pos{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:2px 8px; }
+.ro{
+  font-family:Consolas,"SF Mono",monospace; font-size:10px; color:#c9b18b;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:help;
+}
+.ro i{ color:#7d6b57; font-style:normal; }
+
+/* ---------------------------------------------------------------- status */
+#status{
+  display:flex; align-items:center; gap:16px;
+  padding:3px 16px 4px 16px; height:23px;
+  border-top:1px solid var(--line); background:#0d0b0a;
+  font-family:Consolas,"SF Mono",monospace; font-size:10.5px; color:#8d7a63;
+  white-space:nowrap; overflow:hidden;
+}
+#notice{ color:#cdae7d; flex:0 1 auto; overflow:hidden; text-overflow:ellipsis; }
+#statfill{ flex:1 1 auto; }
+#levels b{ color:#c9b18b; font-weight:400; }
+
+/* ------------------------------------------------------------------- tip */
+#tip{
+  position:fixed; z-index:99; max-width:290px; pointer-events:none;
+  padding:6px 9px; border-radius:3px;
+  background:var(--tipbg); border:1px solid #4a3a26;
+  box-shadow:0 6px 18px rgba(0,0,0,.72);
+  font-size:11px; line-height:1.45; color:#ecd6b0;
+}
+#tip b{ display:block; color:#f0c584; letter-spacing:.11em; font-size:9.5px; text-transform:uppercase; margin-bottom:2px; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header id="top">
+    <div id="brand"><h1>THIN WALLS</h1></div>
+    <span id="by">a Brokild apartment</span>
+    <span id="topfill"></span>
+    <div id="topright">
+      <span>BUILD <b id="buildTag">--</b></span>
+    </div>
+  </header>
+
+  <main id="views">
+    <section id="povWrap">
+      <canvas id="pov"></canvas>
+      <div id="hud"></div>
+      <div id="xhair"></div>
+      <div id="glName"></div>
+      <div id="povTip">drag to look &middot; W A S D to walk</div>
+    </section>
+    <section id="planWrap">
+      <canvas id="plan"></canvas>
+    </section>
+  </main>
+
+  <footer id="ctrls"></footer>
+
+  <div id="status">
+    <span id="notice">ready</span>
+    <span id="statfill"></span>
+    <span id="levels"></span>
+  </div>
+
+</div>
+<div id="tip" hidden></div>
+<script>
+/* ======================================================================
+   THIN WALLS - control panel page.
+   A pure VIEW. The APVTS owns every value; nothing here is authoritative
+   except the page-only camera pitch and the showrays preference.
+   ====================================================================== */
+"use strict";
+
+/* ---------------------------------------------------------- the apartment
+   Hard-coded from PROTOCOL.md section 1. Metres, x east, y north, z up. */
+const ROOMS = [
+  { i:0, name:"LARGE", sub:"living room", x0:0, x1:6,  y0:0, y1:5,   h:2.8 },
+  { i:1, name:"SMALL", sub:"box room",    x0:3, x1:6,  y0:5, y1:8.5, h:2.5 },
+  { i:2, name:"GIANT", sub:"hall",        x0:6, x1:18, y0:0, y1:9,   h:5.0 }
+];
+const APT_W = 18, APT_H = 9;
+const DOOR_W = 0.90, DOOR_H = 2.05, EAR_Z = 1.65;
+
+/*  axis "x": the door lies on a wall of constant y, its span runs along x.
+    axis "y": wall of constant x, span along y.
+    hinge/free are span coordinates; the leaf swings from closedAng to openAng
+    (degrees, measured in the plan from +x, counter-clockwise) into `into`. */
+const DOORS = [
+  { i:0, id:"door1", tag:"S-L", name:"SMALL - LARGE", rooms:[1,0], axis:"x", wall:5.0,
+    s0:4.05, s1:4.95, hinge:4.05, free:4.95, closedAng:0,   openAng:90, into:1 },
+  { i:1, id:"door2", tag:"L-G", name:"LARGE - GIANT", rooms:[0,2], axis:"y", wall:6.0,
+    s0:2.05, s1:2.95, hinge:2.05, free:2.95, closedAng:90,  openAng:0,  into:2 },
+  { i:2, id:"door3", tag:"S-G", name:"SMALL - GIANT", rooms:[1,2], axis:"y", wall:6.0,
+    s0:6.05, s1:6.95, hinge:6.95, free:6.05, closedAng:-90, openAng:0,  into:2 }
+];
+/*  The page's OWN default list, used only until initialState arrives - from
+    then on the choices are whatever native sent. Nothing downstream counts
+    the entries of this array, so the engine may grow the list without the
+    page being told twice. */
+const MATS = ["ABSORBING","FURNISHED","PLASTER","TILED","STUDIO"];
+/*  The floor and the ceiling carry one entry the walls do not: AS WALLS, at
+    index 0 and the default, meaning exactly that. A patch that never touches
+    them is the patch it was before they existed. */
+const SURF_MATS = ["AS WALLS"].concat(MATS);
+/*  What a material LOOKS like, keyed by NAME. An index-keyed table hands a
+    new material the appearance of whatever used to sit at its index, which
+    is wrong silently; an unknown name gets a deliberately neutral surface
+    instead. `shade` is the code the fragment shader knows about. */
+const MAT_LOOK = {
+  ABSORBING:{ shade:0, wash:"rgba(150,60,48,.13)",   amb:0.55 },
+  FURNISHED:{ shade:1, wash:"rgba(176,124,58,.13)",  amb:0.82 },
+  PLASTER:  { shade:2, wash:"rgba(120,122,128,.11)", amb:1.00 },
+  TILED:    { shade:3, wash:"rgba(74,126,148,.13)",  amb:1.10 },
+  STUDIO:   { shade:0, wash:"rgba(96,104,120,.13)",  amb:0.70 }
+};
+const MAT_LOOK_DEFAULT = { shade:1, wash:"rgba(150,146,138,.11)", amb:0.85 };
+const SRCTYPES = ["PURE","LOUDSPEAKER"];
+const INPUTS = ["OFF","MAIN L","MAIN R","MAIN L+R","AUX L","AUX R","AUX L+R"];
+const NSRC = 4;
+/*  Protocol section 3, in real units; the normalised defaults are derived so
+    the two cannot disagree. */
+const SRC_DEF = [
+  { x:3.0,  y:2.5, z:1.2, yaw:0,   type:1, dir:0,   inp:3, lvl:0.8 },
+  { x:1.5,  y:1.0, z:1.2, yaw:45,  type:1, dir:0,   inp:0, lvl:0.8 },
+  { x:4.5,  y:7.0, z:1.2, yaw:270, type:0, dir:0.5, inp:0, lvl:0.8 },
+  { x:12.0, y:4.5, z:1.6, yaw:180, type:0, dir:0,   inp:0, lvl:0.8 }
+];
+
+/*  The 19 host parameters, in TW_SPECS order. Defaults are the NORMALISED
+    values; a choice default given as an index in the protocol table is
+    written here already divided by (steps - 1). */
+const SPECS = [];
+for (let n = 1; n <= NSRC; n++){
+  const d = SRC_DEF[n-1];
+  SPECS.push({ id:"s"+n+"x",    name:"SOURCE "+n+" X",           def:d.x/APT_W,           steps:0 });
+  SPECS.push({ id:"s"+n+"y",    name:"SOURCE "+n+" Y",           def:d.y/APT_H,           steps:0 });
+  SPECS.push({ id:"s"+n+"z",    name:"SOURCE "+n+" HEIGHT",      def:(d.z-0.2)/2.2,       steps:0 });
+  SPECS.push({ id:"s"+n+"yaw",  name:"SOURCE "+n+" FACING",      def:d.yaw/360,           steps:0 });
+  SPECS.push({ id:"s"+n+"type", name:"SOURCE "+n+" TYPE",        def:d.type/1,            steps:2,
+               choices:SRCTYPES.join("|") });
+  SPECS.push({ id:"s"+n+"dir",  name:"SOURCE "+n+" DIRECTIVITY", def:d.dir,               steps:0 });
+  SPECS.push({ id:"s"+n+"in",   name:"SOURCE "+n+" INPUT",       def:d.inp/(INPUTS.length-1), steps:INPUTS.length,
+               choices:INPUTS.join("|") });
+  SPECS.push({ id:"s"+n+"lvl",  name:"SOURCE "+n+" LEVEL",       def:d.lvl,               steps:0 });
+}
+SPECS.push(
+  { id:"lisx",   name:"LISTENER X",        def:0.25,   steps:0 },
+  { id:"lisy",   name:"LISTENER Y",        def:0.2778, steps:0 },
+  { id:"lisyaw", name:"LISTENER FACING",   def:0.5,    steps:0 },
+  { id:"door1",  name:"DOOR SMALL-LARGE",  def:1.0,    steps:0 },
+  { id:"door2",  name:"DOOR LARGE-GIANT",  def:1.0,    steps:0 },
+  { id:"door3",  name:"DOOR SMALL-GIANT",  def:0.0,    steps:0 }
+);
+/*  Seven rows per room, in the protocol's own order: the four vertical walls,
+    the floor, the ceiling, and the two walls that can be broken - each of
+    those a push and a position along the wall. The names are only a fallback;
+    native overwrites all of them with its own from initialState. */
+const WALL_DEF = [1, 1, 2];                 /* FURNISHED, FURNISHED, PLASTER */
+for (let n = 1; n <= 3; n++){
+  const R = ROOMS[n-1].name + " ";
+  SPECS.push({ id:"mat"+n, name:R+"ROOM WALLS",   def:WALL_DEF[n-1]/(MATS.length-1), steps:MATS.length,      choices:MATS.join("|") });
+  SPECS.push({ id:"flr"+n, name:R+"ROOM FLOOR",   def:0, steps:SURF_MATS.length, choices:SURF_MATS.join("|") });
+  SPECS.push({ id:"cel"+n, name:R+"ROOM CEILING", def:0, steps:SURF_MATS.length, choices:SURF_MATS.join("|") });
+  for (const k of ["a","b"]){
+    SPECS.push({ id:"fold"+n+k,  name:R+"FOLD "+k.toUpperCase(),        def:0.5, steps:0 });
+    SPECS.push({ id:"foldp"+n+k, name:R+"FOLD "+k.toUpperCase()+" POS", def:0.5, steps:0 });
+  }
+}
+SPECS.push(
+  { id:"direct", name:"DIRECT",            def:0.8,    steps:0 },
+  { id:"early",  name:"EARLY REFLECTIONS", def:0.8,    steps:0 },
+  { id:"reverb", name:"REVERB",            def:0.8,    steps:0 },
+  { id:"mix",    name:"MIX",               def:1.0,    steps:0 },
+  { id:"output", name:"OUTPUT",            def:0.8,    steps:0 },
+  { id:"earspan",name:"EAR SPACING",       def:0.0294, steps:0 }
+);
+const EARSPAN_M = v => 0.15 + v * 0.85;
+
+const HINT = {
+  srctab: ["WHICH SOURCE", "Four sources share this panel. Pick one here and the six controls below belong to it; the plan highlights it and the 3D view draws a ring round its feet. Clicking a source in the plan picks it too."],
+  sx:     ["SOURCE X", "Where this source stands, east-west. Drag its glyph in the plan on the right; there is no fader for it on purpose."],
+  sy:     ["SOURCE Y", "Where this source stands, north-south. Drag its glyph in the plan."],
+  sz:     ["HEIGHT", "How high off the floor, 0.2 to 2.4 m. For a PURE source this is the microphone stand. Low is floor-coupled and boomy, ear height is direct, high throws more into the ceiling."],
+  syaw:   ["FACING", "Which way it points, 0 is east. A LOUDSPEAKER beams with frequency, so this decides how much top end reaches you off-axis; a PURE source only cares if its DIRECTIVITY is up. Also draggable by the arrow in the plan."],
+  stype:  ["TYPE", "PURE is a point source with no box, drawn as a ball on a stand - use DIRECTIVITY to give it a pattern. LOUDSPEAKER is a modelled two-way monitor: nearly omni at 125 Hz, about 22 dB down behind it at 4 kHz, and DIRECTIVITY does not apply."],
+  sdir:   ["DIRECTIVITY", "For a PURE source only: 0 is omnidirectional, 1 is a cardioid, the same at every frequency. Greyed out for a LOUDSPEAKER, which carries its own measured pattern."],
+  sin:    ["INPUT", "Which channel feeds this source. OFF costs nothing and leaves it ghosted in the views but still placeable. MAIN is the track the plugin is on; AUX is a second input bus you route another track into - a sidechain in most hosts."],
+  slvl:   ["LEVEL", "How loud this source is fed, -24 to +6 dB. This is the balance between the four, before the room touches any of them."],
+  lisx:   ["LISTENER X", "Where you are, east-west. Walk with W A S D in the 3D view, or drag the head in the plan."],
+  lisy:   ["LISTENER Y", "Where you are, north-south. Walk with W A S D, or drag the head in the plan."],
+  lisyaw: ["LISTENER FACING", "Which way your head points. Drag inside the 3D view to look around, or drag the head's nose handle in the plan. Turning your head is what makes the binaural rendering move."],
+  door1:  ["DOOR SMALL - LARGE", "Aperture of the door between the box room and the living room. Drag for a continuous opening; the button beside it slams it shut or throws it wide. Below 50 percent you cannot walk through it."],
+  door2:  ["DOOR LARGE - GIANT", "Aperture of the door between the living room and the hall. The hall is the big reverberant space, so this one governs how much of it leaks in."],
+  door3:  ["DOOR SMALL - GIANT", "Aperture of the door between the box room and the hall. Closed by default; open it and the two rooms couple without going through the living room."],
+  mat1:   ["LARGE ROOM WALLS", "Surfaces of the living room. ABSORBING is drapes and thick carpet, FURNISHED warm plaster and parquet, PLASTER bare walls and boards, TILED glazed everywhere and very live. Anything further the engine offers appears in the list."],
+  mat2:   ["SMALL ROOM WALLS", "Surfaces of the box room. A small tiled room rings; a small absorbing one is nearly anechoic."],
+  mat3:   ["GIANT ROOM WALLS", "Surfaces of the hall. This is the long tail you hear through an open door, so it is the one to reach for first."],
+  direct: ["DIRECT", "Level of the straight line-of-sight sound, -24 to +6 dB. Pull it down and the room is all you have left."],
+  early:  ["EARLY REFLECTIONS", "Level of the wall bounces and the sound bent through doorways, -24 to +6 dB. This is the part that tells you the size and shape of the room."],
+  reverb: ["REVERB", "Level of the coupled room tails, -24 to +6 dB. The hall's tail arrives through whatever the doors are doing."],
+  mix:    ["MIX", "Dry against the placed sound. At 100 percent you are entirely in the apartment; below that the untreated input is blended back in."],
+  output: ["OUTPUT", "Final level out, -24 to +6 dB."],
+  earspan:["EAR SPACING", "How far apart the two ears sit, 15 to 100 cm. Widens the stereo image by lengthening the interaural time difference: 17.5 cm is a head, and anything much past that is a spaced microphone pair rather than a person."],
+  rays:   ["RAYS", "Draw the engine's own acoustic paths on the plan: direct, first and second order reflections, doorway portals and sound through a closed leaf. The fastest way to see why a move changed the sound."],
+  def:    ["DEFAULT", "Every parameter back to its factory value. The apartment geometry never changes; only what is in it."],
+  save:   ["SAVE", "Write all " + SPECS.length + " parameters to a JSON file in the house patch folder."],
+  load:   ["LOAD", "Read a saved file back. Every control and both views follow."],
+  doorbtn:["OPEN / SHUT", "Click to slam the door shut or throw it wide open. The slider beside it holds it anywhere in between."],
+  wavload:["LOAD TEST SIGNAL", "Pick a WAV, AIFF, FLAC or MP3 off disk. While it plays it replaces the MAIN pair, both channels, so every source fed from MAIN plays it - which is how you walk the rooms with no DAW running. Sources fed from AUX are untouched."],
+  wavplay:["PLAY / STOP", "Loop the loaded file into the MAIN input. Stop it and the host's own MAIN input passes through again."],
+  wavgain:["TEST SIGNAL LEVEL", "How loud the looped file is fed in, -40 to 0 dB. Not a host parameter and not saved in a patch - it is an audition tool."],
+  wavfile:["LOADED FILE", "The file the test signal is playing and how long it is. Empty until you load one."]
+};
+/*  Nine surfaces and twelve fold controls: the wording is composed room by
+    room rather than typed twenty-one times, and every one of them names the
+    room it belongs to, because a hint that does not is a hint nobody reads
+    twice. */
+(function(){
+  const ROOMDESC = ["the living room", "the box room", "the hall"];
+  const FOLDWALL = [["west","south"], ["west","north"], ["east","north"]];
+  for (let n = 1; n <= 3; n++){
+    const where = ROOMDESC[n-1];
+    HINT["mat"+n] = [ROOMS[n-1].name + " WALLS",
+      "The four vertical walls of " + where + ". ABSORBING is drapes and thick carpet, FURNISHED warm plaster and parquet, " +
+      "PLASTER bare walls and boards, TILED glazed everywhere and very live, STUDIO treated. The floor and the ceiling have " +
+      "their own choices beside this one; anything further the engine offers appears in all three lists."];
+    HINT["flr"+n] = [ROOMS[n-1].name + " FLOOR",
+      "What the floor of " + where + " is made of. AS WALLS - the default - means it follows the choice beside it, so a patch " +
+      "that never touches this is unchanged. Set it to ABSORBING and you have laid a carpet: the FIRST reflection you hear off " +
+      "any source is the one off the floor, so it goes, and the walls stay live. That is the whole point of splitting the three."];
+    HINT["cel"+n] = [ROOMS[n-1].name + " CEILING",
+      "What the ceiling of " + where + " is made of. AS WALLS means it follows the walls. A dead ceiling over live walls is the " +
+      "opposite trade to a carpet: it takes the vertical flutter out and leaves the room's width and depth ringing."];
+    for (let k = 0; k < 2; k++){
+      const kk = k ? "b" : "a";
+      const w = FOLDWALL[n-1][k];
+      HINT["fold"+n+kk] = [ROOMS[n-1].name + " " + w.toUpperCase() + " WALL",
+        "Break the " + w + " wall of " + where + " in two and push the split point. To the right it goes OUT of the room, which " +
+        "makes the room bigger and scatters the reflection instead of returning it - the two panels are no longer parallel to " +
+        "the wall facing them, so the flutter never builds. To the LEFT it bends INTO the room, which is CONCAVE: it focuses " +
+        "the sound at a point and is worse than leaving the wall flat. The plan says so when it does. Middle is flat. " +
+        "Draggable in the plan: take hold of the marker on the wall and pull it."];
+      HINT["foldp"+n+kk] = [ROOMS[n-1].name + " " + w.toUpperCase() + " SPLIT",
+        "Where along the " + w + " wall of " + where + " the break sits, from near one end to near the other. Off centre is " +
+        "worth more than centred - two panels of different lengths scatter over a wider band than two of the same length. " +
+        "Drag the marker ALONG the wall in the plan to set it."];
+    }
+  }
+})();
+
+/* ------------------------------------------------------------ the bridge */
+const NB = {
+  send(o){ try{ window.__JUCE__.backend.emitEvent("tw", o); }catch(e){} },
+  on(n,f){ try{ window.__JUCE__.backend.addEventListener(n,f); }catch(e){} },
+  live(){ return !!(window.__JUCE__ && window.__JUCE__.backend); }
+};
+
+/* ------------------------------------------------------------- page state */
+const V = {};                         /* id -> normalised 0..1 */
+const SPEC = {};                      /* id -> {name, stepped, steps, choices[]} */
+for (const s of SPECS){
+  V[s.id] = s.def;
+  SPEC[s.id] = { name:s.name, stepped:s.steps > 1, steps:s.steps,
+                 choices:s.choices ? s.choices.split("|") : null };
+}
+let showRays = true;
+let selSrc = 0;                       /* 0..3, which source the panel edits */
+let auxConnected = 0;
+let buildId = "--";
+let pitchDeg = 0;                     /* page-only: looking up and down */
+let fovDeg = 62;                      /* page-only */
+let scene = null;                     /* the last scene message */
+let sceneSig = "";
+let inDb = -120, outDb = -120, drrDb = 0;
+let glow = 0;                         /* speaker radiation cue, 0..1 */
+
+/* ------------------------------------------------------------- unit maps */
+const clamp01 = v => v < 0 ? 0 : (v > 1 ? 1 : v);
+/*  n is 1..4 everywhere, matching the parameter ids, so there is never a
+    question of whether a given index is zero based. selSrc alone is 0..3,
+    because that is what the protocol puts on the wire. */
+const SXn   = n => V["s"+n+"x"] * APT_W;
+const SYn   = n => V["s"+n+"y"] * APT_H;
+const SZn   = n => 0.2 + V["s"+n+"z"] * 2.2;
+const SYAWn = n => V["s"+n+"yaw"] * 360;
+/*  A choice parameter travels as index/(steps-1), and how many steps there
+    are is whatever native SAID - never a number typed here. The page boots on
+    its own table and adopts the real one from initialState, so a list that
+    grows in the engine grows here too, with no edit. */
+function choiceList(id){
+  const sp = SPEC[id] || {};
+  return (sp.choices && sp.choices.length) ? sp.choices : [];
+}
+function choiceN(id){
+  const sp = SPEC[id] || {};
+  return Math.max(2, (sp.steps | 0) > 1 ? (sp.steps | 0) : choiceList(id).length);
+}
+function choiceIdx(id){
+  const n = choiceN(id);
+  return Math.min(n - 1, Math.max(0, Math.round(clamp01(V[id]) * (n - 1))));
+}
+function choiceName(id){ return choiceList(id)[choiceIdx(id)] || ""; }
+const srcTypeIdx = n => choiceIdx("s"+n+"type");
+const srcDir = n => clamp01(V["s"+n+"dir"]);
+const srcInIdx = n => choiceIdx("s"+n+"in");
+const srcActive = n => srcInIdx(n) > 0;
+const srcLvlDb = n => -24 + V["s"+n+"lvl"] * 30;
+const LX = () => V.lisx * APT_W,  LY = () => V.lisy * APT_H;
+const LYAW = () => V.lisyaw * 360;
+const dbOf = v => -24 + v * 30;
+const matName = r => choiceName("mat" + (r + 1)) || MATS[0];
+const matLook = r => MAT_LOOK[matName(r)] || MAT_LOOK_DEFAULT;
+const matShade = r => matLook(r).shade;                    /* what the shader knows */
+const apert = d => clamp01(V[d.id]);
+
+function roomAt(x, y){
+  for (const r of ROOMS) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) return r.i;
+  return -1;
+}
+function roomOfPoint(x, y){                 /* never -1: falls back to the nearest */
+  const r = roomAt(x, y);
+  if (r >= 0) return r;
+  let best = 0, bd = 1e9;
+  for (const q of ROOMS){
+    const cx = Math.min(Math.max(x, q.x0), q.x1), cy = Math.min(Math.max(y, q.y0), q.y1);
+    const d = (cx - x) * (cx - x) + (cy - y) * (cy - y);
+    if (d < bd){ bd = d; best = q.i; }
+  }
+  return best;
+}
+function clampIntoApartment(x, y, m){
+  m = m === undefined ? 0.18 : m;
+  if (roomAt(x, y) >= 0){
+    const r = ROOMS[roomAt(x, y)];
+    return [Math.min(Math.max(x, r.x0 + m), r.x1 - m), Math.min(Math.max(y, r.y0 + m), r.y1 - m)];
+  }
+  let bx = x, by = y, bd = 1e9;
+  for (const r of ROOMS){
+    const cx = Math.min(Math.max(x, r.x0 + m), r.x1 - m), cy = Math.min(Math.max(y, r.y0 + m), r.y1 - m);
+    const d = (cx - x) * (cx - x) + (cy - y) * (cy - y);
+    if (d < bd){ bd = d; bx = cx; by = cy; }
+  }
+  return [bx, by];
+}
+/* the strip of the doorway the leaf has uncovered, in span coordinates */
+function opening(d){
+  const w = DOOR_W * apert(d);
+  return d.free > d.hinge ? [d.free - w, d.free] : [d.free, d.free + w];
+}
+function leafAngle(d){ return (d.closedAng + apert(d) * (d.openAng - d.closedAng)) * Math.PI / 180; }
+function hingePt(d){ return d.axis === "x" ? [d.hinge, d.wall] : [d.wall, d.hinge]; }
+function doorCentre(d){
+  const c = (d.s0 + d.s1) / 2;
+  return d.axis === "x" ? [c, d.wall] : [d.wall, c];
+}
+
+/* ============================================================ broken walls
+   Two walls of each room can be split in two and the split point pushed out
+   of the room, or into it. Which two: the ones that carry no doorway, so a
+   fold can never collide with a door. Wall numbering is the protocol's -
+   0 west (x0), 1 east (x1), 2 south (y0), 3 north (y1).
+
+   The polygon is built the way Geometry.h builds it, deliberately: corners
+   anticlockwise from the south-west, edges south / east / north / west, the
+   split vertex inserted after its own edge's START corner and only when the
+   push is not flat. So the shape the page draws with no engine behind it is
+   the shape the engine would have sent, to the last decimal - which is what
+   lets a drag follow the pointer at once and still be a pure view.
+   ==================================================================== */
+const BREAK_WALL = [[0,2], [0,3], [1,3]];       /* LARGE, SMALL, GIANT */
+const EDGE_WALL  = [2, 1, 3, 0];                /* which wall each edge is */
+const EDGE_OUT   = [[0,-1], [1,0], [0,1], [-1,0]];   /* and its outward normal */
+const WALL_NAME  = ["west", "east", "south", "north"];
+const FOLD_KEY   = ["a", "b"];
+const FOLD_FLAT  = 1e-4;                        /* metres; Geometry.h's own bound */
+const FOLD_PUSH  = v => (clamp01(v) - 0.5) * 1.2;    /* metres, +-0.6 */
+const FOLD_ALONG = v => 0.15 + clamp01(v) * 0.7;     /* 0.15 .. 0.85 of the wall */
+const foldId  = (i, k) => "fold"  + (i + 1) + FOLD_KEY[k];
+const foldPId = (i, k) => "foldp" + (i + 1) + FOLD_KEY[k];
+const foldPush  = (i, k) => FOLD_PUSH(V[foldId(i, k)]);
+const foldAlong = (i, k) => FOLD_ALONG(V[foldPId(i, k)]);
+const foldFlat  = (i, k) => Math.abs(foldPush(i, k)) < FOLD_FLAT;
+const foldConcave = (i, k) => foldPush(i, k) < -FOLD_FLAT;
+const foldWallName = (i, k) => WALL_NAME[BREAK_WALL[i][k]];
+function roomCorners(r){ return [[r.x0,r.y0], [r.x1,r.y0], [r.x1,r.y1], [r.x0,r.y1]]; }
+/*  The edge a fold lives on: its two corners in traversal order and the way
+    out. `along` is measured from a towards b, which for the west wall runs
+    NORTH to south - the traversal's direction, not the axis's. */
+function foldEdge(i, k){
+  const r = ROOMS[i], cs = roomCorners(r);
+  const e = EDGE_WALL.indexOf(BREAK_WALL[i][k]);
+  return { e:e, a:cs[e], b:cs[(e + 1) & 3], out:EDGE_OUT[e] };
+}
+function foldPoint(i, k){
+  const g = foldEdge(i, k), t = foldAlong(i, k), d = foldPush(i, k);
+  return [g.a[0] + (g.b[0] - g.a[0])*t + g.out[0]*d,
+          g.a[1] + (g.b[1] - g.a[1])*t + g.out[1]*d];
+}
+/* the point on the FLAT wall the fold came off, which is the handle's track */
+function foldBase(i, k){
+  const g = foldEdge(i, k), t = foldAlong(i, k);
+  return [g.a[0] + (g.b[0] - g.a[0])*t, g.a[1] + (g.b[1] - g.a[1])*t];
+}
+function foldPolyOf(i){
+  const cs = roomCorners(ROOMS[i]), out = [];
+  for (let e = 0; e < 4; e++){
+    out.push(cs[e]);
+    const w = EDGE_WALL[e];
+    const k = BREAK_WALL[i][0] === w ? 0 : (BREAK_WALL[i][1] === w ? 1 : -1);
+    if (k >= 0 && !foldFlat(i, k)) out.push(foldPoint(i, k));
+  }
+  return out;
+}
+/*  What both views are built from. The ENGINE's polygon when it has sent one -
+    it is the authority and may know something this page does not - and the
+    page's own otherwise, which is the same arithmetic and is what a headless
+    page, an older engine and a live drag all fall back on. */
+function roomPoly(i){
+  const p = scene && scene.plan && scene.plan[i];
+  if (p && p.length >= 3) return p;
+  return foldPolyOf(i);
+}
+function polyArea(p){
+  let a = 0;
+  for (let i = 0; i < p.length; i++){
+    const j = (i + 1) % p.length;
+    a += p[i][0]*p[j][1] - p[j][0]*p[i][1];
+  }
+  return Math.abs(a) / 2;
+}
+/*  Which EDGES of a polygon belong to a concave fold, so they can be drawn in
+    the warning colour. The split vertex is matched by POSITION rather than by
+    index, because the polygon may have come from the engine, and then the page
+    does not know where in the list it put it. */
+function concaveEdges(i, poly){
+  const out = new Array(poly.length).fill(false);
+  for (let k = 0; k < 2; k++){
+    if (!foldConcave(i, k)) continue;
+    const p = foldPoint(i, k);
+    let best = -1, bd = 0.05;
+    for (let v = 0; v < poly.length; v++){
+      const d = Math.hypot(poly[v][0] - p[0], poly[v][1] - p[1]);
+      if (d < bd){ bd = d; best = v; }
+    }
+    if (best >= 0){ out[(best - 1 + poly.length) % poly.length] = true; out[best] = true; }
+  }
+  return out;
+}
+/* every concave fold there is, named the way the plan names it */
+function concaveList(){
+  const out = [];
+  for (let i = 0; i < ROOMS.length; i++)
+    for (let k = 0; k < 2; k++)
+      if (foldConcave(i, k)) out.push(ROOMS[i].name + " " + foldWallName(i, k));
+  return out;
+}
+/*  A room has three surfaces now. The floor and the ceiling answer AS WALLS by
+    handing back the wall material, so every consumer asks the same question
+    and none of them has to know about the extra entry. */
+function surfName(room, which){
+  const id = which + (room + 1);
+  const i = choiceIdx(id);
+  return i <= 0 ? matName(room) : (choiceList(id)[i] || matName(room));
+}
+const flrName = r => surfName(r, "flr");
+const celName = r => surfName(r, "cel");
+const lookOfName = nm => MAT_LOOK[nm] || MAT_LOOK_DEFAULT;
+const flrShade = r => lookOfName(flrName(r)).shade;
+const celShade = r => lookOfName(celName(r)).shade;
+
+/* ==================================================================== */
+/*  drawing schedule                                                     */
+/*  Nothing is drawn unless something a view depends on has changed.     */
+/*  Idle means literally no animation frame is pending and the counter   */
+/*  below does not move.                                                 */
+/* ==================================================================== */
+let dirtyPov = false, dirtyPlan = false, rafId = 0, lastFrameT = 0;
+let meshDirty = true;
+let drawCount = 0;
+
+function invalidate(which){
+  if (which !== "plan") dirtyPov = true;
+  if (which !== "pov")  dirtyPlan = true;
+  schedule();
+}
+function schedule(){
+  if (rafId) return;
+  try { rafId = requestAnimationFrame(frame); } catch(e){ rafId = 0; }
+}
+function frame(t){
+  rafId = 0;
+  const now = (typeof t === "number") ? t : nowMs();
+  stepWalk(now);
+  if (dirtyPov){ drawPov(); dirtyPov = false; }
+  if (dirtyPlan){ drawPlan(); dirtyPlan = false; }
+  /*  The ONLY thing that keeps the loop alive is a key actually being held.
+      Everything else invalidates on the event that changed it and stops. */
+  if (walkActive() || doorAnimActive()){ dirtyPov = true; dirtyPlan = true; schedule(); }
+}
+function nowMs(){ try { return performance.now(); } catch(e){ return Date.now(); } }
+
+/* which views a parameter touches - a level fader touches neither, and so
+   moving one must cost exactly zero draw calls */
+const MESH_IDS = { door1:1, door2:1, door3:1, mat1:1, mat2:1, mat3:1 };
+for (let n = 1; n <= NSRC; n++)
+  for (const suf of ["x","y","z","yaw","type","dir","in"]) MESH_IDS["s"+n+suf] = 1;
+/*  A surface and a broken wall both change the room itself, so both views and
+    the mesh follow. (mat1..3 are already in the table above.) */
+for (let n = 1; n <= 3; n++){
+  MESH_IDS["flr"+n] = 1; MESH_IDS["cel"+n] = 1;
+  for (const k of ["a","b"]){ MESH_IDS["fold"+n+k] = 1; MESH_IDS["foldp"+n+k] = 1; }
+}
+const VIEW_IDS = Object.assign({ lisx:1, lisy:1, lisyaw:1 }, MESH_IDS);
+const PLAN_ONLY_IDS = { earspan:1 };     /* the ears are drawn at their real spacing */
+function touchViews(id){
+  if (MESH_IDS[id]) meshDirty = true;
+  if (VIEW_IDS[id]) invalidate("both");
+  else if (PLAN_ONLY_IDS[id]) invalidate("plan");
+}
+
+/* ==================================================================== */
+/*  parameter plumbing                                                   */
+/* ==================================================================== */
+const pend = {};
+let flushRaf = 0, flushTmr = 0;
+
+function doFlush(){
+  if (flushRaf){ try{ cancelAnimationFrame(flushRaf); }catch(e){} flushRaf = 0; }
+  if (flushTmr){ clearTimeout(flushTmr); flushTmr = 0; }
+  for (const id in pend){ NB.send({ k:"p", id:id, v:pend[id] }); delete pend[id]; }
+}
+/*  One p per parameter per frame. The timer is a belt-and-braces flush for
+    contexts where requestAnimationFrame does not tick (a headless probe);
+    whichever arrives first cancels the other. */
+function queueP(id, v){
+  pend[id] = v;
+  if (!flushRaf){ try { flushRaf = requestAnimationFrame(doFlush); } catch(e){ flushRaf = 0; } }
+  if (!flushTmr) flushTmr = setTimeout(doFlush, 24);
+}
+
+function setUser(id, v){               /* the user moved it: send */
+  v = clamp01(v);
+  if (SPEC[id] && SPEC[id].stepped){
+    const n = SPEC[id].steps;
+    v = Math.round(v * (n - 1)) / (n - 1);
+  }
+  if (V[id] === v) { updateControl(id); return; }
+  V[id] = v;
+  updateControl(id);
+  touchViews(id);
+  queueP(id, v);
+}
+function setNative(id, v){             /* it arrived from native: do NOT send */
+  if (!(id in V)) return;
+  V[id] = clamp01(v);
+  updateControl(id);
+  touchViews(id);
+}
+
+/* ==================================================================== */
+/*  the control strip                                                    */
+/* ==================================================================== */
+const ctrls = document.getElementById("ctrls");
+const EL = {};                        /* id -> {input, val, btn, sel} */
+
+function mk(tag, cls, parent){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function hintOn(el, key){
+  const h = HINT[key];
+  if (!h) return el;
+  el.setAttribute("data-tip", h[1]);
+  el.setAttribute("data-tiptitle", h[0]);
+  return el;
+}
+function group(title){
+  const g = mk("div", "grp", ctrls);
+  const h = mk("h2", null, g);
+  h.textContent = title;
+  return g;
+}
+/*  hintKey is separate from the id because four sources share one set of
+    explanations: the id is s3yaw, the hint is "syaw". */
+function sliderRow(g, id, label, cls, hintKey){
+  const row = mk("div", "row" + (cls ? " " + cls : ""), g);
+  const lab = mk("label", "lab", row);
+  lab.textContent = label;
+  let btn = null;
+  if (cls === "door"){
+    btn = mk("button", "dbtn", row);
+    btn.type = "button";
+    btn.setAttribute("data-door", id);
+    hintOn(btn, "doorbtn");
+    btn.addEventListener("click", () => {
+      gesture(id, () => setUser(id, V[id] > 0.5 ? 0 : 1));
+    });
+  }
+  addSlider(row, id, hintKey || id, btn);
+  return row;
+}
+/*  The fader itself and everything that talks to native, lifted out of
+    sliderRow so a row that is NOT the ordinary label-slider-value shape can
+    still carry one - the broken-wall rows carry two. */
+function addSlider(row, id, hintKey, btn){
+  const sl = mk("input", "sl", row);
+  sl.type = "range"; sl.min = "0"; sl.max = "1"; sl.step = "0.001";
+  sl.setAttribute("data-id", id);
+  hintOn(sl, hintKey || id);
+  const val = mk("span", "val", row);
+  let down = false;
+  sl.addEventListener("pointerdown", () => { down = true; NB.send({ k:"touch", id:id, down:true }); });
+  const up = () => { if (!down) return; down = false; doFlush(); NB.send({ k:"touch", id:id, down:false }); };
+  sl.addEventListener("pointerup", up);
+  sl.addEventListener("pointercancel", up);
+  window.addEventListener("pointerup", up);
+  sl.addEventListener("input", () => setUser(id, parseFloat(sl.value)));
+  EL[id] = { input:sl, val:val, btn:btn || null };
+  return { sl:sl, val:val };
+}
+/*  One select, bound, wherever it is put. selectRow builds the ordinary row
+    around it; the material grid puts three of them on a line of their own. */
+function addSelect(parent, id, hintKey){
+  const wrap = mk("div", "selwrap", parent);
+  const sel = mk("select", "sel", wrap);
+  sel.setAttribute("data-id", id);
+  hintOn(sel, hintKey || id);
+  const ch = (SPEC[id] && SPEC[id].choices) || [];
+  ch.forEach((c, i) => { const o = mk("option", null, sel); o.value = String(i); o.textContent = c; });
+  sel.addEventListener("change", () => {
+    const n = Math.max(2, SPEC[id].steps | 0, sel.options.length);
+    gesture(id, () => setUser(id, parseInt(sel.value, 10) / (n - 1)));
+  });
+  EL[id] = { input:sel, val:null, sel:sel };
+  return sel;
+}
+function selectRow(g, id, label, hintKey){
+  const row = mk("div", "row sel", g);
+  const lab = mk("label", "lab", row);
+  lab.textContent = label;
+  addSelect(row, id, hintKey || id);
+  return row;
+}
+function readout(parent, id, label, hintKey){
+  const r = mk("div", "ro", parent);
+  r.setAttribute("data-id", id);
+  r.setAttribute("data-ro", "1");
+  hintOn(r, hintKey || id);
+  const i = mk("i", null, r);
+  i.textContent = label + " ";
+  const s = mk("span", null, r);
+  EL[id] = { input:null, val:s, ro:r };
+  return r;
+}
+function gesture(id, fn){
+  NB.send({ k:"touch", id:id, down:true });
+  fn();
+  doFlush();
+  NB.send({ k:"touch", id:id, down:false });
+}
+
+function buildControls(){
+  const gd = group("Doors");
+  DOORS.forEach(d => sliderRow(gd, d.id, d.tag, "door"));
+  const note = mk("div", "ro", gd);
+  note.style.marginTop = "2px";
+  note.textContent = "click a door in the plan to toggle";
+
+  /*  Nine choices, three per room. Laid out as a grid with the surface names
+      across the top rather than as nine loose selectors: which room a choice
+      belongs to has to be readable without reading the label. */
+  const gm = group("Materials");
+  gm.classList.add("wide");
+  const grid = mk("div", "matgrid", gm);
+  mk("div", null, grid);
+  for (const h of ["Walls", "Floor", "Ceiling"]){
+    const e = mk("div", "mathead", grid); e.textContent = h;
+  }
+  for (let n = 1; n <= 3; n++){
+    const lab = mk("div", "matroom", grid); lab.textContent = ROOMS[n-1].name;
+    addSelect(grid, "mat"+n);
+    addSelect(grid, "flr"+n);
+    addSelect(grid, "cel"+n);
+  }
+  const mnote = mk("div", "ro", gm);
+  mnote.style.marginTop = "4px";
+  mnote.textContent = "floor and ceiling default to AS WALLS";
+
+  buildFoldGroup();
+  buildSourceGroup();
+
+  const gl = group("Levels and head");
+  gl.classList.add("wide");
+  sliderRow(gl, "direct", "DIRECT");
+  sliderRow(gl, "early", "EARLY");
+  sliderRow(gl, "reverb", "REVERB");
+  sliderRow(gl, "mix", "MIX");
+  sliderRow(gl, "output", "OUTPUT");
+  sliderRow(gl, "earspan", "EAR SPAN");
+
+  const gv = group("View and files");
+  gv.classList.add("wide");
+  const br = mk("div", "btnrow", gv);
+  const bRays = mk("button", "b", br); bRays.type = "button"; bRays.id = "bRays"; bRays.textContent = "Rays";
+  hintOn(bRays, "rays");
+  bRays.addEventListener("click", () => setRays(!showRays));
+  const bDef = mk("button", "b", br); bDef.type = "button"; bDef.textContent = "Default";
+  hintOn(bDef, "def");
+  bDef.addEventListener("click", () => NB.send({ k:"presetDefault" }));
+  const bSave = mk("button", "b", br); bSave.type = "button"; bSave.textContent = "Save";
+  hintOn(bSave, "save");
+  bSave.addEventListener("click", () => NB.send({ k:"presetSave" }));
+  const bLoad = mk("button", "b", br); bLoad.type = "button"; bLoad.textContent = "Load";
+  hintOn(bLoad, "load");
+  bLoad.addEventListener("click", () => NB.send({ k:"presetLoad" }));
+
+  const pos = mk("div", "pos", gv);
+  readout(pos, "lisx", "YOU X");
+  readout(pos, "lisy", "YOU Y");
+  readout(pos, "lisyaw", "YOU");
+  const hintPos = mk("div", "ro", gv);
+  hintPos.style.marginTop = "3px";
+  hintPos.textContent = "set in the views";
+
+  buildWavGroup();
+}
+
+/*  ------------------------------------------------------- broken walls
+    Two rows per room, one per breakable wall, each carrying BOTH of that
+    wall's numbers: how far the split point is pushed and where along the wall
+    it sits. They are one gesture in the plan, so they are one line here. */
+function buildFoldGroup(){
+  const g = group("Broken walls");
+  g.classList.add("wide");
+  for (let n = 1; n <= 3; n++){
+    for (let k = 0; k < 2; k++){
+      const kk = FOLD_KEY[k];
+      const row = mk("div", "row fold", g);
+      row.setAttribute("data-fold", String(n) + kk);
+      const lab = mk("label", "lab", row);
+      lab.textContent = ROOMS[n-1].name + " " + foldWallName(n-1, k).charAt(0).toUpperCase();
+      addSlider(row, "fold"+n+kk, "fold"+n+kk);
+      addSlider(row, "foldp"+n+kk, "foldp"+n+kk);
+    }
+  }
+  const note = mk("div", "ro", g);
+  note.id = "foldNote";
+  note.style.marginTop = "3px";
+  note.textContent = "push out to scatter  .  drag the marker in the plan";
+}
+
+/* ------------------------------------------------------- the test signal
+   Not host parameters: three bridge messages and one event back, so Peter can
+   audition the apartment with no DAW around it. The file loops AS the source
+   while it plays. Deliberately no data-id - that attribute is reserved for the
+   APVTS parameters and the probe counts them against the protocol's table. */
+let wav = { name:"", playing:0, seconds:0, gain:0.75 };
+function buildWavGroup(){
+  const g = group("Test signal");
+  g.classList.add("wide");
+  const br = mk("div", "btnrow", g);
+  const bOpen = mk("button", "b", br); bOpen.type = "button"; bOpen.id = "bWavOpen"; bOpen.textContent = "Load";
+  bOpen.setAttribute("data-wav", "open");
+  hintOn(bOpen, "wavload");
+  bOpen.addEventListener("click", () => NB.send({ k:"wavOpen" }));
+  const bPlay = mk("button", "b", br); bPlay.type = "button"; bPlay.id = "bWavPlay"; bPlay.textContent = "Play";
+  bPlay.setAttribute("data-wav", "play");
+  hintOn(bPlay, "wavplay");
+  bPlay.addEventListener("click", () => {
+    wav.playing = wav.playing ? 0 : 1;
+    NB.send({ k:"wavPlay", v:wav.playing });
+    updateWav();
+  });
+
+  const row = mk("div", "row", g);
+  const lab = mk("label", "lab", row); lab.textContent = "LEVEL";
+  const sl = mk("input", "sl", row);
+  sl.type = "range"; sl.min = "0"; sl.max = "1"; sl.step = "0.001"; sl.id = "wavGain";
+  sl.setAttribute("data-wav", "gain");
+  hintOn(sl, "wavgain");
+  sl.addEventListener("input", () => {
+    wav.gain = parseFloat(sl.value);
+    NB.send({ k:"wavGain", v:wav.gain });
+    updateWav();
+  });
+  const val = mk("span", "val", row); val.id = "wavGainVal";
+
+  const f = mk("div", "ro", g);
+  f.id = "wavFile";
+  f.setAttribute("data-wav", "file");
+  hintOn(f, "wavfile");
+  updateWav();
+}
+function updateWav(){
+  const b = document.getElementById("bWavPlay");
+  if (b){ b.classList.toggle("on", !!wav.playing); b.textContent = wav.playing ? "Stop" : "Play"; }
+  const sl = document.getElementById("wavGain");
+  if (sl && document.activeElement !== sl) sl.value = String(wav.gain);
+  const v = document.getElementById("wavGainVal");
+  if (v){ const d = -40 + wav.gain * 40; v.textContent = d.toFixed(1) + " dB"; }
+  const f = document.getElementById("wavFile");
+  if (f) f.textContent = wav.name ? (wav.name + "  " + wav.seconds.toFixed(1) + " s") : "no file loaded";
+}
+
+/* ---------------------------------------------------------- the sources
+   One panel, four sources. All FOUR sets of rows are built and all but the
+   selected one carries `hidden` - so every parameter always has a real
+   control bound to it, and switching source is a class toggle rather than a
+   re-bind. A re-bound control is a control whose id has to be kept in step
+   with the selection in four other places. */
+function buildSourceGroup(){
+  const g = group("Source");
+  const tabs = mk("div", "btnrow srctabs", g);
+  for (let n = 1; n <= NSRC; n++){
+    const b = mk("button", "b srctab", tabs);
+    b.type = "button";
+    b.setAttribute("data-srctab", String(n - 1));
+    b.textContent = String(n);
+    hintOn(b, "srctab");
+    b.addEventListener("click", () => selectSource(n - 1, true));
+  }
+  for (let n = 1; n <= NSRC; n++){
+    const set = mk("div", "srcset", g);
+    set.setAttribute("data-srcset", String(n - 1));
+    selectRow(set, "s"+n+"in", "INPUT", "sin");
+    selectRow(set, "s"+n+"type", "TYPE", "stype");
+    sliderRow(set, "s"+n+"z", "HEIGHT", null, "sz");
+    sliderRow(set, "s"+n+"yaw", "FACING", null, "syaw");
+    sliderRow(set, "s"+n+"dir", "DIRECT.", null, "sdir");
+    sliderRow(set, "s"+n+"lvl", "LEVEL", null, "slvl");
+    const pos = mk("div", "pos", set);
+    readout(pos, "s"+n+"x", "X", "sx");
+    readout(pos, "s"+n+"y", "Y", "sy");
+  }
+}
+function selectSource(i, send){
+  selSrc = Math.max(0, Math.min(NSRC - 1, i | 0));
+  for (const e of document.querySelectorAll("[data-srcset]"))
+    e.hidden = (parseInt(e.getAttribute("data-srcset"), 10) !== selSrc);
+  refreshSrcTabs();
+  applySourceCapabilities();
+  if (send) NB.send({ k:"selsrc", v:selSrc });
+  meshDirty = true;                    /* the selection ring moves */
+  invalidate("both");
+}
+function refreshSrcTabs(){
+  for (const b of document.querySelectorAll("[data-srctab]")){
+    const i = parseInt(b.getAttribute("data-srctab"), 10);
+    b.classList.toggle("on", i === selSrc);
+    b.classList.toggle("silent", !srcActive(i + 1));
+  }
+}
+/*  DIRECTIVITY belongs to a PURE source; a LOUDSPEAKER carries its own
+    measured pattern, so the control is disabled rather than left live and
+    doing nothing. An AUX input the host has not connected is still offered -
+    it is how you find out the bus exists - but it says so. */
+function applySourceCapabilities(){
+  for (let n = 1; n <= NSRC; n++){
+    const ls = srcTypeIdx(n) === 1;
+    const e = EL["s"+n+"dir"];
+    if (e && e.input){
+      e.input.disabled = ls;
+      const row = e.input.closest(".row");
+      if (row) row.classList.toggle("off", ls);
+    }
+    if (e && e.val) e.val.textContent = ls ? "n/a" : Math.round(srcDir(n)*100) + "%";
+    const s = EL["s"+n+"in"];
+    if (s && s.sel){
+      const list = choiceList("s"+n+"in");
+      for (const o of s.sel.options){
+        const idx = parseInt(o.value, 10);
+        const nm = list[idx] || INPUTS[idx] || "";
+        /*  Which entries are AUX is read off the NAME, not off an index -
+            the position of the AUX block is not a promise the protocol makes. */
+        o.textContent = nm + (/^AUX/i.test(nm) && !auxConnected ? "  (not connected)" : "");
+      }
+    }
+  }
+}
+
+function fmtDb(v){ const d = dbOf(v); return (d >= 0 ? "+" : "") + d.toFixed(1) + " dB"; }
+function updateControl(id){
+  const e = EL[id];
+  if (!e) return;
+  const v = V[id];
+  if (e.input && e.input.tagName === "INPUT" && document.activeElement !== e.input) e.input.value = String(v);
+  if (e.sel){
+    syncChoices(id);
+    /*  A degenerate step count would put -0 in the value and leave the
+        selector showing nothing at all, which reads as a broken control. */
+    const n = Math.max(2, SPEC[id].steps | 0, e.sel.options.length);
+    e.sel.value = String(Math.min(n - 1, Math.max(0, Math.round(clamp01(v) * (n - 1)))));
+  }
+  if (e.btn) e.btn.classList.toggle("on", v > 0.5);
+  if (e.val){
+    let t = "";
+    const m = /^s([1-4])(x|y|z|yaw|dir|lvl)$/.exec(id);
+    if (m){
+      const n = m[1];
+      if (m[2] === "x") t = SXn(n).toFixed(2) + " m";
+      else if (m[2] === "y") t = SYn(n).toFixed(2) + " m";
+      else if (m[2] === "z") t = SZn(n).toFixed(2) + " m";
+      else if (m[2] === "yaw") t = Math.round(SYAWn(n)) + " deg";
+      else if (m[2] === "dir") t = srcTypeIdx(n) === 1 ? "n/a" : Math.round(v * 100) + "%";
+      else t = fmtDb(v);
+    }
+    else if (id === "lisyaw") t = Math.round(LYAW()) + " deg";
+    else if (id === "lisx") t = (v * APT_W).toFixed(2) + " m";
+    else if (id === "lisy") t = (v * APT_H).toFixed(2) + " m";
+    else if (id === "earspan") t = (EARSPAN_M(v) * 100).toFixed(1) + " cm";
+    else if (id === "mix") t = Math.round(v * 100) + "%";
+    else if (/^fold[1-3][ab]$/.test(id)){
+      const d = FOLD_PUSH(v);
+      t = Math.abs(d) < FOLD_FLAT ? "flat" : ((d > 0 ? "+" : "") + d.toFixed(2) + " m");
+    }
+    else if (/^foldp[1-3][ab]$/.test(id)) t = Math.round(FOLD_ALONG(v) * 100) + "%";
+    else if (id.indexOf("door") === 0) t = Math.round(v * 100) + "%";
+    else t = fmtDb(v);
+    e.val.textContent = t;
+  }
+  if (/^fold[1-3][ab]$/.test(id)){
+    const m3 = /^fold([1-3])([ab])$/.exec(id);
+    const row = document.querySelector('[data-fold="' + m3[1] + m3[2] + '"]');
+    if (row) row.classList.toggle("bent", foldConcave(parseInt(m3[1],10) - 1, m3[2] === "b" ? 1 : 0));
+  }
+  if (/^s[1-4]type$/.test(id)) applySourceCapabilities();
+  if (/^s[1-4]in$/.test(id)) refreshSrcTabs();
+  if (/^s[1-4](x|y)$/.test(id) || id === "lisx" || id === "lisy" || id === "lisyaw") updateHud();
+}
+/*  The options are built when the panel is, which is BEFORE native has said
+    what the choices are. If the list that arrives is longer - a material the
+    engine has gained - the selector has to grow with it, or the new entry is
+    unreachable and the page reports the wrong name for every value above it. */
+function syncChoices(id){
+  const e = EL[id];
+  if (!e || !e.sel) return;
+  const ch = choiceList(id);
+  const want = Math.max(ch.length, choiceN(id));
+  let same = e.sel.options.length === want;
+  if (same) for (let i = 0; i < want; i++)
+    if (e.sel.options[i].textContent.indexOf(ch[i] || "") !== 0){ same = false; break; }
+  if (same) return;
+  const keep = e.sel.value;
+  while (e.sel.options.length) e.sel.remove(0);
+  for (let i = 0; i < want; i++){
+    const o = mk("option", null, e.sel);
+    o.value = String(i); o.textContent = ch[i] || ("OPTION " + (i+1));
+  }
+  if (keep !== "" && (keep | 0) < want) e.sel.value = keep;
+}
+function updateAllControls(){ for (const s of SPECS) updateControl(s.id); applySourceCapabilities(); }
+
+function setRays(on){
+  showRays = !!on;
+  const b = document.getElementById("bRays");
+  if (b) b.classList.toggle("on", showRays);
+  NB.send({ k:"showrays", v:showRays ? 1 : 0 });
+  invalidate("plan");
+}
+
+/* ------------------------------------------------------------- tooltips */
+const tipEl = document.getElementById("tip");
+function showTip(el){
+  const t = el.getAttribute("data-tip");
+  if (!t) return;
+  const title = el.getAttribute("data-tiptitle") || "";
+  tipEl.innerHTML = "";
+  if (title){ const b = mk("b", null, tipEl); b.textContent = title; }
+  const p = mk("span", null, tipEl);
+  p.textContent = t;
+  tipEl.hidden = false;
+  tipEl.style.left = "0px"; tipEl.style.top = "0px";
+  const r = el.getBoundingClientRect();
+  const tr = tipEl.getBoundingClientRect();
+  let x = r.left + r.width / 2 - tr.width / 2;
+  x = Math.min(Math.max(x, 6), Math.max(6, window.innerWidth - tr.width - 6));
+  /*  ABOVE the control, its bottom edge a clear 10 px above the control's top.
+      The controls live in a strip at the foot of the window with the two views
+      over them, so there is always room; the branch below is the guard, and it
+      still cannot overlap because it starts 10 px past the bottom edge. */
+  let y = r.top - tr.height - 10;
+  if (y < 6) y = r.bottom + 10;
+  tipEl.style.left = Math.round(x) + "px";
+  tipEl.style.top = Math.round(y) + "px";
+}
+function hideTip(){ tipEl.hidden = true; }
+document.addEventListener("pointerover", e => {
+  const el = e.target && e.target.closest ? e.target.closest("[data-tip]") : null;
+  if (el) showTip(el); else hideTip();
+});
+document.addEventListener("pointerdown", e => {
+  const el = e.target && e.target.closest ? e.target.closest("[data-tip]") : null;
+  if (!el) hideTip();
+});
+document.addEventListener("focusin", e => {
+  const el = e.target && e.target.closest ? e.target.closest("[data-tip]") : null;
+  if (el) showTip(el);
+});
+document.addEventListener("focusout", hideTip);
+
+/* ------------------------------------------------------------------ HUD */
+const hudEl = document.getElementById("hud");
+const noticeEl = document.getElementById("notice");
+const levelsEl = document.getElementById("levels");
+const ROOMNAME = ["LARGE", "SMALL", "GIANT"];
+function updateHud(){
+  const lx = LX(), ly = LY();
+  const lr = roomOfPoint(lx, ly);
+  let h = '<span class="k">YOU IN </span><span class="v">' + ROOMNAME[lr] + "</span><br>";
+  /*  One line per source: where it is and how far. An OFF source still gets a
+      line, marked, because knowing which of the four is silent is half of
+      what you come to this readout for. */
+  for (let n = 1; n <= NSRC; n++){
+    const sx = SXn(n), sy = SYn(n);
+    const d = Math.sqrt((sx-lx)*(sx-lx) + (sy-ly)*(sy-ly) + (SZn(n)-EAR_Z)*(SZn(n)-EAR_Z));
+    const on = srcActive(n);
+    const sel = (n - 1 === selSrc) ? "&gt;" : "&nbsp;";
+    h += '<span class="k">' + sel + " SRC " + n + " </span>" +
+         '<span class="' + (on ? "v" : "k") + '">' +
+         (on ? (ROOMNAME[roomOfPoint(sx, sy)] + "&nbsp; " + d.toFixed(2) + " m") : "off") +
+         "</span><br>";
+  }
+  h += '<span class="k">DRR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span class="v">' +
+       (drrDb >= 0 ? "+" : "") + drrDb.toFixed(1) + " dB</span>";
+  hudEl.innerHTML = h;
+}
+let lastLevelPaint = -1e9;
+function updateLevels(){
+  const t = nowMs();
+  if (t - lastLevelPaint < 100) return;     /* DOM text, not a draw - but keep it civil */
+  lastLevelPaint = t;
+  levelsEl.innerHTML = "IN <b>" + (inDb <= -119 ? "-inf" : inDb.toFixed(1)) +
+                       "</b>&nbsp;&nbsp;OUT <b>" + (outDb <= -119 ? "-inf" : outDb.toFixed(1)) +
+                       "</b>&nbsp;&nbsp;DRR <b>" + drrDb.toFixed(1) + "</b>";
+}
+
+/* ==================================================================== */
+/*  3D POV view - WebGL2                                                 */
+/* ==================================================================== */
+const povCv = document.getElementById("pov");
+const planCv = document.getElementById("plan");
+const FOG = [0.052, 0.040, 0.044];
+let gl = null, prog = null, vao = null, vbo = null, U = {}, glMode = "pending";
+
+const VS = "#version 300 es\n" +
+"precision highp float;\n" +
+"in vec3 aPos; in vec3 aNrm; in vec3 aTan; in vec2 aUV; in vec4 aInfo;\n" +
+"uniform mat4 uMVP;\n" +
+"out vec3 vPos; out vec3 vNrm; out vec3 vTan; out vec2 vUV; out vec4 vInfo;\n" +
+"void main(){ vPos=aPos; vNrm=aNrm; vTan=aTan; vUV=aUV; vInfo=aInfo;\n" +
+"  gl_Position = uMVP * vec4(aPos,1.0); }\n";
+
+const FS = [
+"#version 300 es",
+"precision highp float;",
+"in vec3 vPos; in vec3 vNrm; in vec3 vTan; in vec2 vUV; in vec4 vInfo;",
+"out vec4 oCol;",
+"uniform vec3 uCam;",
+"uniform int uLightN;",
+"uniform vec3 uLightPos[12];",
+"uniform vec3 uLightCol[12];",
+"uniform float uLightRoom[12];",
+"uniform float uLightShade[12];",
+"uniform vec3 uRoomMin[3];",
+"uniform vec3 uRoomMax[3];",
+"uniform vec3 uAmb[3];",
+"uniform vec3 uFog;",
+"uniform float uFogK;",
+"uniform float uGlow;",
+"uniform vec2 uRes;",
+"",
+"float hash21(vec2 p){ p = fract(p*vec2(127.31,311.7)); p += dot(p,p+37.72); return fract(p.x*p.y); }",
+"float vnoise(vec2 p){",
+"  vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f);",
+"  float a=hash21(i), b=hash21(i+vec2(1.0,0.0)), c=hash21(i+vec2(0.0,1.0)), d=hash21(i+vec2(1.0,1.0));",
+"  return mix(mix(a,b,u.x), mix(c,d,u.x), u.y); }",
+"float fbm(vec2 p){ float s=0.0, a=0.5; for(int i=0;i<4;i++){ s+=a*vnoise(p); p*=2.07; a*=0.5; } return s; }",
+"float inset(vec2 q, vec2 hf, float soft){ vec2 d=hf-abs(q); float m=min(d.x,d.y); return smoothstep(0.0,soft,m); }",
+"float grid(vec2 uv, float cell, float w){ vec2 f=abs(fract(uv/cell)-0.5); return smoothstep(0.5-w,0.5,max(f.x,f.y)); }",
+"",
+/* height field: the one function the bump normal is differenced from */
+"float hgt(vec2 uv, int m, int k){",
+"  if(k==0){",                                        /* wall */
+"    if(m==0){ float f=sin(uv.x*11.0)*0.5+0.5; f=pow(f,1.7); return f*0.85+fbm(uv*22.0)*0.15; }",
+"    if(m==1) return fbm(uv*3.4)*0.72 + fbm(uv*17.0)*0.28;",
+"    if(m==2) return fbm(uv*2.4)*0.62 + fbm(uv*13.0)*0.22 + fbm(uv*34.0)*0.16;",
+"    return 1.0 - grid(uv, 0.205, 0.055);",
+"  }",
+"  if(k==1){",                                        /* floor */
+"    if(m==0) return fbm(uv*38.0);",
+"    if(m==1){ float row=floor(uv.y/0.155); float off=mod(row,2.0)*0.44;",
+"      float fx=abs(fract((uv.x+off)/0.78)-0.5); float fy=abs(fract(uv.y/0.155)-0.5);",
+"      float g=smoothstep(0.42,0.5,max(fx,fy));",
+"      return 1.0-g*0.85 + fbm(vec2(uv.x*2.0, uv.y*46.0))*0.14; }",
+"    if(m==2){ float row=floor(uv.y/0.20); float off=mod(row,3.0)*0.6;",
+"      float fx=abs(fract((uv.x+off)/1.7)-0.5); float fy=abs(fract(uv.y/0.20)-0.5);",
+"      float g=smoothstep(0.44,0.5,max(fx*0.55,fy));",
+"      return 1.0-g*0.85 + fbm(vec2(uv.x*2.6, uv.y*54.0))*0.12; }",
+"    return 1.0 - grid(uv, 0.30, 0.05);",
+"  }",
+"  if(k==2){ if(m==3) return 1.0-grid(uv,0.30,0.05); return fbm(uv*2.2)*0.5; }",
+"  if(k==4){",                                        /* panelled door leaf */
+"    float a=inset(uv-vec2(0.0,0.50), vec2(0.30,0.38), 0.035);",
+"    float b=inset(uv-vec2(0.0,-0.50), vec2(0.30,0.33), 0.035);",
+"    return 1.0-0.9*max(a,b);",
+"  }",
+"  if(k==3||k==5) return 0.5+fbm(vec2(uv.x*1.4, uv.y*30.0))*0.5;",
+"  if(k==6){ float r=length(uv); return r<0.155 ? 0.35+0.4*sin(r*140.0) : 0.5+fbm(uv*260.0)*0.5; }",
+"  if(k==20) return fbm(uv*46.0);",
+"  if(k==21) return 0.5+0.5*sin(length(uv)*220.0);",
+"  if(k==27) return fbm(uv*60.0);",
+"  if(k==30||k==31) return fbm(uv*24.0);",
+"  return 0.5; }",
+"",
+"float bumpAmt(int m, int k){",
+"  if(k==0){ if(m==0) return 0.010; if(m==3) return 0.0055; return 0.0035; }",
+"  if(k==1){ if(m==0) return 0.0035; return 0.005; }",
+"  if(k==4) return 0.010;",
+"  if(k==6) return 0.0025;",
+"  return 0.0022; }",
+"",
+"struct Mtl { vec3 alb; float shin; float sp; float emis; };",
+"Mtl surf(vec2 uv, int m, int k, float h, vec3 wp){",
+"  Mtl o; o.alb=vec3(0.5); o.shin=26.0; o.sp=0.05; o.emis=0.0;",
+"  if(k==0){",
+"    if(m==0){ o.alb=vec3(0.285,0.135,0.125)*(0.55+0.60*h); o.sp=0.015; o.shin=7.0; }",
+"    else if(m==1){ o.alb=vec3(0.560,0.450,0.335)*(0.80+0.34*h); o.sp=0.045; o.shin=20.0; }",
+"    else if(m==2){ o.alb=vec3(0.760,0.740,0.690)*(0.86+0.20*h); o.sp=0.06; o.shin=30.0; }",
+"    else { float id=hash21(floor(uv/0.205));",
+"           o.alb=mix(vec3(0.70,0.78,0.79), vec3(0.50,0.62,0.66), id)*(0.50+0.58*h);",
+"           o.sp=0.06+0.55*h; o.shin=110.0; }",
+"    if(wp.z < 0.105){ o.alb=vec3(0.235,0.185,0.135)*(0.8+0.4*h); o.sp=0.16; o.shin=48.0; }",
+"    else if(wp.z < 0.125){ o.alb=vec3(0.36,0.30,0.22); o.sp=0.20; o.shin=48.0; }",
+"  } else if(k==1){",
+"    if(m==0){ o.alb=vec3(0.235,0.155,0.135)*(0.6+0.7*h); o.sp=0.01; o.shin=5.0; }",
+"    else if(m==1){ float pl=hash21(vec2(floor(uv.x*1.28+floor(uv.y/0.155)*0.44), floor(uv.y/0.155)));",
+"      o.alb=mix(vec3(0.395,0.235,0.120), vec3(0.285,0.155,0.075), pl)*(0.62+0.62*h);",
+"      o.sp=0.20+0.14*h; o.shin=58.0; }",
+"    else if(m==2){ float pl=hash21(vec2(floor(uv.x*0.59), floor(uv.y/0.20)));",
+"      o.alb=mix(vec3(0.430,0.320,0.205), vec3(0.340,0.245,0.150), pl)*(0.66+0.55*h);",
+"      o.sp=0.16+0.12*h; o.shin=46.0; }",
+"    else { float id=hash21(floor(uv/0.30));",
+"      o.alb=mix(vec3(0.60,0.63,0.62), vec3(0.44,0.49,0.52), id)*(0.50+0.60*h);",
+"      o.sp=0.10+0.65*h; o.shin=130.0; }",
+"  } else if(k==2){",
+"    if(m==3){ o.alb=vec3(0.66,0.70,0.71)*(0.60+0.50*h); o.sp=0.25*h; o.shin=90.0; }",
+"    else if(m==0){ o.alb=vec3(0.235,0.195,0.185)*(0.8+0.3*h); o.sp=0.01; o.shin=6.0; }",
+"    else { o.alb=vec3(0.640,0.615,0.575)*(0.86+0.22*h); o.sp=0.03; o.shin=20.0; }",
+"  } else if(k==3){",
+"    o.alb=vec3(0.430,0.330,0.225)*(0.72+0.50*h); o.sp=0.18; o.shin=55.0;",
+"  } else if(k==4){",
+"    o.alb=vec3(0.400,0.300,0.200)*(0.62+0.60*h); o.sp=0.20; o.shin=62.0;",
+"  } else if(k==5){",
+"    o.alb=vec3(0.270,0.140,0.062)*(0.70+0.55*h); o.sp=0.30; o.shin=90.0;",
+"  } else if(k==6){",
+"    float r=length(uv);",
+"    if(r<0.048){ o.alb=vec3(0.52,0.40,0.24); o.sp=0.55; o.shin=140.0; }",
+"    else if(r<0.155){ float rg=0.5+0.5*sin(r*150.0); o.alb=vec3(0.115,0.085,0.070)*(0.55+0.75*rg); o.sp=0.12; o.shin=40.0; }",
+"    else { float w=0.5+0.5*sin(uv.x*520.0)*sin(uv.y*520.0); o.alb=vec3(0.135,0.115,0.100)*(0.7+0.6*w); o.sp=0.06; o.shin=22.0; }",
+"    o.emis = uGlow * exp(-r*7.0) * 1.9;",
+"  } else if(k==7){",
+"    o.alb=vec3(1.0,0.86,0.62); o.emis=2.7; o.sp=0.0;",
+"  } else if(k==8){",
+"    float g=clamp(uv.y*0.55+0.5,0.0,1.0);",
+"    o.alb=mix(vec3(0.16,0.24,0.42), vec3(0.42,0.46,0.62), g); o.emis=1.35+0.9*g; o.sp=0.0;",
+"  } else if(k==11){ o.alb=vec3(0.055,0.050,0.045); o.sp=0.25; o.shin=70.0;",
+"  } else if(k==12){ o.alb=vec3(0.115,0.100,0.085)*(0.8+0.4*h); o.sp=0.45; o.shin=120.0;",
+"  } else if(k==13){ o.alb=vec3(0.62,0.44,0.18); o.sp=0.80; o.shin=170.0;",
+/* ---- the door handle, and the same brass with the light on inside ------ */
+"  } else if(k==14){ o.alb=vec3(0.64,0.45,0.18); o.sp=0.88; o.shin=190.0; o.emis=0.12;",
+"  } else if(k==15){ o.alb=vec3(0.98,0.80,0.36); o.sp=0.95; o.shin=220.0; o.emis=0.58;",
+/* ---- the studio monitor ------------------------------------------------ */
+"  } else if(k==20){",                      /* cabinet: matte dark MDF */
+"    float gr=fbm(uv*46.0);",
+"    o.alb=vec3(0.052,0.050,0.050)*(0.72+0.60*gr); o.sp=0.16; o.shin=44.0;",
+"  } else if(k==21){",                      /* woofer cone: doped paper */
+"    float rad=fbm(vec2(uv.x*120.0, uv.y*6.0));",
+"    o.alb=vec3(0.128,0.118,0.112)*(0.74+0.55*rad); o.sp=0.10; o.shin=26.0;",
+"  } else if(k==22){",                      /* rubber surround */
+"    o.alb=vec3(0.036,0.034,0.034); o.sp=0.34; o.shin=58.0;",
+"  } else if(k==23){",                      /* dust cap and tweeter dome */
+"    o.alb=vec3(0.36,0.345,0.335); o.sp=0.82; o.shin=190.0;",
+"  } else if(k==24){",                      /* tweeter waveguide */
+"    o.alb=vec3(0.085,0.082,0.080); o.sp=0.30; o.shin=90.0;",
+"  } else if(k==25){",                      /* the bass port, a hole */
+"    o.alb=vec3(0.012,0.011,0.011); o.sp=0.05; o.shin=20.0;",
+"  } else if(k==26){",                      /* badge and the cardioid blade */
+"    o.alb=vec3(0.60,0.47,0.24); o.sp=0.72; o.shin=150.0;",
+"  } else if(k==27){",                      /* terminal plate */
+"    o.alb=vec3(0.075,0.073,0.072)*(0.85+0.3*h); o.sp=0.22; o.shin=64.0;",
+"  } else if(k==28){",                      /* heatsink fins, bare alloy */
+"    o.alb=vec3(0.30,0.305,0.312); o.sp=0.52; o.shin=120.0;",
+"  } else if(k==29){",                      /* rubber foot */
+"    o.alb=vec3(0.028,0.027,0.027); o.sp=0.18; o.shin=40.0;",
+"  } else if(k==30){",                      /* mic stand: dark satin metal */
+"    o.alb=vec3(0.105,0.105,0.110)*(0.85+0.3*h); o.sp=0.60; o.shin=150.0;",
+"  } else if(k==31){",                      /* the pure source: a matte ball */
+"    o.alb=vec3(0.70,0.685,0.665)*(0.88+0.18*h); o.sp=0.16; o.shin=42.0;",
+"    o.emis = uGlow * 0.55;",
+"  } else if(k==32){",                      /* selection ring on the floor */
+"    o.alb=vec3(0.30,0.85,0.78); o.emis=1.5; o.sp=0.0;",
+"  } else if(k==33){",                      /* lamp bloom disc */
+"    o.alb=vec3(1.0,0.80,0.52); o.emis=1.15; o.sp=0.0;",
+"  }",
+"  return o; }",
+"",
+"void main(){",
+"  int m=int(vInfo.x+0.5), k=int(vInfo.y+0.5), rm=int(vInfo.z+0.5);",
+"  float alpha = vInfo.w;",
+"  vec3 gn=normalize(vNrm), T=normalize(vTan); vec3 B=cross(gn,T);",
+"  float e=0.012;",
+"  float h0=hgt(vUV,m,k), hx=hgt(vUV+vec2(e,0.0),m,k), hy=hgt(vUV+vec2(0.0,e),m,k);",
+"  float ba=bumpAmt(m,k);",
+"  vec3 N=normalize(gn - ba*(((hx-h0)/e)*T + ((hy-h0)/e)*B));",
+"  Mtl mt=surf(vUV,m,k,h0,vPos);",
+"",
+/* corner darkening, analytic against the room box the surface belongs to */
+"  vec3 bmin=uRoomMin[rm], bmax=uRoomMax[rm];",
+"  vec3 d=min(vPos-bmin, bmax-vPos);",
+"  float ax = abs(gn.x)>0.5 ? 1.0 : 1.0-exp(-max(d.x,0.0)/0.55);",
+"  float ay = abs(gn.y)>0.5 ? 1.0 : 1.0-exp(-max(d.y,0.0)/0.55);",
+"  float az = abs(gn.z)>0.5 ? 1.0 : 1.0-exp(-max(d.z,0.0)/0.45);",
+"  float ao = mix(1.0, clamp(ax*ay*az,0.0,1.0), 0.80);",
+"",
+"  vec3 Vv=normalize(uCam-vPos);",
+"  vec3 col = mt.alb * uAmb[rm] * ao;",
+"  for(int i=0;i<12;i++){",
+"    if(i>=uLightN) break;",
+"    if(abs(uLightRoom[i]-float(rm))>0.5) continue;",
+"    vec3 Lv=uLightPos[i]-vPos; float dist=length(Lv); vec3 L=Lv/max(dist,0.0001);",
+"    float att=1.0/(1.0+0.30*dist+0.085*dist*dist);",
+/*  A pendant has a shade over it, so almost nothing goes up. This one factor
+    is what makes a room read as lit rather than as evenly filled: it darkens
+    the ceiling and the tops of the walls and leaves a pool on the floor. */
+"    float shade = mix(1.0, 0.085, smoothstep(-0.55, 0.05, -L.z));",
+"    shade = mix(1.0, shade, uLightShade[i]);",
+"    float ndl=max(dot(N,L),0.0);",
+"    col += mt.alb*uLightCol[i]*ndl*att*ao*shade;",
+"    vec3 H=normalize(L+Vv);",
+"    col += uLightCol[i]*mt.sp*pow(max(dot(N,H),0.0), mt.shin)*att*ao*shade;",
+/*  A hint of reflection on a hard floor: the lamp smeared back at you along
+    the mirror direction. Not a real reflection - a wide, vertically drawn
+    highlight is what a waxed floor or a glazed tile actually shows. */
+"    if(k==1 && m>=1){",
+"      vec3 R=reflect(-Vv, N);",
+"      float fl=pow(max(dot(R,L),0.0), 7.0);",
+"      float gloss = (m==3) ? 0.55 : ((m==1) ? 0.34 : 0.26);",
+"      col += uLightCol[i]*fl*att*gloss*ao*shade;",
+"    }",
+"  }",
+"  col += mt.alb*mt.emis + vec3(mt.emis*0.22);",
+"",
+"  float dc=length(uCam-vPos);",
+"  col = mix(col, uFog, clamp(1.0-exp(-uFogK*dc), 0.0, 0.86));",
+"  vec2 q = (gl_FragCoord.xy/uRes)*2.0-1.0;",
+"  col *= 1.0 - 0.34*dot(q,q)*0.5;",
+"  col = vec3(1.0)-exp(-col*1.05);",
+"  oCol = vec4(pow(max(col,vec3(0.0)), vec3(1.0/2.2)), alpha);",
+"}"
+].join("\n");
+
+/* ------------------------------------------------------------ mesh build */
+/* where the four pendants hang, in plan. Deliberately off the source's own
+   default spot so the speaker is not standing inside a lamp. */
+const LAMPS = [[2.15,3.45],[4.50,6.75],[9.50,3.20],[14.50,5.80]];
+
+const M = { pos:[], nrm:[], tan:[], uv:[], info:[], n:0 };
+const sub = (a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const crs = (a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const dot3 = (a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+function nrm3(a){ const l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; }
+const add3 = (a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const mul3 = (a,s)=>[a[0]*s,a[1]*s,a[2]*s];
+
+/*  ALPHA is the fourth channel of aInfo: an inactive source is drawn ghosted
+    rather than hidden, so it can still be seen and dragged. Everything with
+    alpha below 1 is built AFTER the opaque geometry and drawn in a second
+    pass with blending on and depth writes off. */
+let curAlpha = 1;
+function addV(p,n,t,uv,mat,kind,room){
+  M.pos.push(p[0],p[1],p[2]); M.nrm.push(n[0],n[1],n[2]); M.tan.push(t[0],t[1],t[2]);
+  M.uv.push(uv[0],uv[1]); M.info.push(mat,kind,room,curAlpha); M.n++;
+}
+function axisTan(n){
+  if (Math.abs(n[2]) > 0.5) return [1,0,0];
+  if (Math.abs(n[0]) > 0.5) return [0,1,0];
+  return [1,0,0];
+}
+/*  mode 0 = world-axis projected uv (everything axis aligned),
+    mode 1 = local metres from corner a, mode 2 = local metres from the centre. */
+function quad(a,b,c,d,mat,kind,room,mode){
+  const n = nrm3(crs(sub(b,a), sub(d,a)));
+  let t, o;
+  if (!mode){ t = axisTan(n); o = [0,0,0]; }
+  else { t = nrm3(sub(b,a)); o = mode === 2 ? mul3(add3(a,c),0.5) : a; }
+  const bt = crs(n,t);
+  const f = p => { const q = sub(p,o); return [dot3(q,t), dot3(q,bt)]; };
+  const ua=f(a), ub=f(b), uc=f(c), ud=f(d);
+  addV(a,n,t,ua,mat,kind,room); addV(b,n,t,ub,mat,kind,room); addV(c,n,t,uc,mat,kind,room);
+  addV(a,n,t,ua,mat,kind,room); addV(c,n,t,uc,mat,kind,room); addV(d,n,t,ud,mat,kind,room);
+}
+/* a rectangle in a vertical plane. axis "x": plane y = coord, span u along x. */
+function rectV(axis, coord, u0, u1, z0, z1, want, mat, kind, room){
+  const P = (u,z) => axis === "x" ? [u,coord,z] : [coord,u,z];
+  let a=P(u0,z0), b=P(u1,z0), c=P(u1,z1), d=P(u0,z1);
+  if (dot3(crs(sub(b,a),sub(d,a)), want) < 0){ const t=b; b=d; d=t; }
+  quad(a,b,c,d,mat,kind,room,0);
+}
+function rectH(z, x0, x1, y0, y1, want, mat, kind, room){
+  let a=[x0,y0,z], b=[x1,y0,z], c=[x1,y1,z], d=[x0,y1,z];
+  if (dot3(crs(sub(b,a),sub(d,a)), want) < 0){ const t=b; b=d; d=t; }
+  quad(a,b,c,d,mat,kind,room,0);
+}
+function wallWithHoles(axis, coord, s0, s1, h, want, holes, mat, room){
+  holes = holes.slice().sort((p,q)=>p.s0-q.s0);
+  let u = s0;
+  for (const ho of holes){
+    if (ho.s0 > u + 1e-4) rectV(axis, coord, u, ho.s0, 0, h, want, mat, 0, room);
+    if (h > DOOR_H + 1e-4) rectV(axis, coord, ho.s0, ho.s1, DOOR_H, h, want, mat, 0, room);
+    u = ho.s1;
+  }
+  if (u < s1 - 1e-4) rectV(axis, coord, u, s1, 0, h, want, mat, 0, room);
+}
+function holesOn(axis, coord, s0, s1){
+  return DOORS.filter(d => d.axis === axis && Math.abs(d.wall - coord) < 1e-4 && d.s0 >= s0 - 1e-4 && d.s1 <= s1 + 1e-4);
+}
+/*  Every face states the outward normal it WANTS and the winding is corrected
+    to match. The speaker's own basis is the camera-style forward/right/up,
+    which is LEFT handed - taken on trust it turns the cabinet inside out and
+    puts the loudspeaker's baffle on the back, where back-face culling then
+    hides it. Cheaper to check than to remember. */
+function faceQuad(a, b, c, d, want, mat, kind, room, mode){
+  if (dot3(crs(sub(b,a), sub(d,a)), want) < 0){ const t = b; b = d; d = t; }
+  quad(a, b, c, d, mat, kind, room, mode);
+}
+function boxOriented(c, au, av, aw, hu, hv, hw, mat, kinds, room, mode){
+  const U2 = mul3(au,hu), Vv = mul3(av,hv), W = mul3(aw,hw);
+  const P = (su,sv,sw) => add3(c, add3(mul3(U2,su), add3(mul3(Vv,sv), mul3(W,sw))));
+  const md = mode === undefined ? 2 : mode;
+  const nu = nrm3(au), nv = nrm3(av), nw = nrm3(aw);
+  const neg = v => [-v[0],-v[1],-v[2]];
+  /* +u, -u, +v, -v, +w, -w */
+  faceQuad(P(1,-1,-1),P(1,1,-1),P(1,1,1),P(1,-1,1),      nu,      mat,kinds[0],room,md);
+  faceQuad(P(-1,1,-1),P(-1,-1,-1),P(-1,-1,1),P(-1,1,1),  neg(nu), mat,kinds[1],room,md);
+  faceQuad(P(1,1,-1),P(-1,1,-1),P(-1,1,1),P(1,1,1),      nv,      mat,kinds[2],room,md);
+  faceQuad(P(-1,-1,-1),P(1,-1,-1),P(1,-1,1),P(-1,-1,1),  neg(nv), mat,kinds[3],room,md);
+  faceQuad(P(-1,-1,1),P(1,-1,1),P(1,1,1),P(-1,1,1),      nw,      mat,kinds[4],room,md);
+  faceQuad(P(-1,1,-1),P(1,1,-1),P(1,-1,-1),P(-1,-1,-1),  neg(nw), mat,kinds[5],room,md);
+}
+function coneRing(cx, cy, zTop, zBot, rTop, rBot, seg, mat, kind, room){
+  for (let i=0;i<seg;i++){
+    const a0 = i/seg*Math.PI*2, a1 = (i+1)/seg*Math.PI*2;
+    const p0=[cx+Math.cos(a0)*rTop, cy+Math.sin(a0)*rTop, zTop];
+    const p1=[cx+Math.cos(a1)*rTop, cy+Math.sin(a1)*rTop, zTop];
+    const p2=[cx+Math.cos(a1)*rBot, cy+Math.sin(a1)*rBot, zBot];
+    const p3=[cx+Math.cos(a0)*rBot, cy+Math.sin(a0)*rBot, zBot];
+    /* wound so the skin faces OUT - the other way round a lamp shade is only
+       visible from inside itself */
+    quad(p0,p3,p2,p1, mat, kind, room, 1);
+  }
+}
+function disc(cx, cy, z, r, seg, down, mat, kind, room){
+  const n = [0,0, down ? -1 : 1], t = [1,0,0], bt = crs(n,t);
+  for (let i=0;i<seg;i++){
+    let a0 = i/seg*Math.PI*2, a1 = (i+1)/seg*Math.PI*2;
+    if (down){ const s=a0; a0=a1; a1=s; }
+    const c=[cx,cy,z], p1=[cx+Math.cos(a0)*r, cy+Math.sin(a0)*r, z], p2=[cx+Math.cos(a1)*r, cy+Math.sin(a1)*r, z];
+    const f = p => [ (p[0]-cx)*t[0]+(p[1]-cy)*t[1], (p[0]-cx)*bt[0]+(p[1]-cy)*bt[1] ];
+    addV(c,n,t,f(c),mat,kind,room); addV(p1,n,t,f(p1),mat,kind,room); addV(p2,n,t,f(p2),mat,kind,room);
+  }
+}
+function sphere(cx, cy, cz, r, seg, rings, mat, kind, room){
+  for (let j=0;j<rings;j++){
+    const t0 = j/rings*Math.PI, t1 = (j+1)/rings*Math.PI;
+    for (let i=0;i<seg;i++){
+      const p0 = i/seg*Math.PI*2, p1 = (i+1)/seg*Math.PI*2;
+      const S = (t,p)=>[cx+r*Math.sin(t)*Math.cos(p), cy+r*Math.sin(t)*Math.sin(p), cz+r*Math.cos(t)];
+      quad(S(t0,p0),S(t1,p0),S(t1,p1),S(t0,p1), mat, kind, room, 1);   /* outward */
+    }
+  }
+}
+
+function pendant(x, y, zc, mat, room){
+  ceilingRose(x, y, zc, mat, room);
+  boxOriented([x,y,zc-0.20],[1,0,0],[0,1,0],[0,0,1],0.014,0.014,0.17, mat,[11,11,11,11,11,11], room);
+  coneRing(x,y, zc-0.37, zc-0.55, 0.075, 0.235, 16, mat, 12, room);
+  disc(x,y, zc-0.554, 0.225, 16, true, mat, 7, room);
+  /* the bulb itself, just inside the shade - it is what the bloom comes from */
+  sphere(x, y, zc-0.505, 0.055, 12, 8, mat, 7, room);
+}
+
+/* ------------------------------------------------------------ the handle
+   A LEVER, not a knob. At three metres a 5 cm knob is a speck, and the point
+   of this thing is that you can see it is a handle and reach for it. One on
+   each face of the leaf, on the side away from the hinge, at 1.05 m - the
+   height a handle is actually mounted at.
+
+   HANDLE_U is the ONE number that says where it is; the picking rectangle
+   below is written against it, so the thing you grab and the thing you see
+   cannot drift apart. */
+const HANDLE_U = 0.75;          /* along the leaf, from the hinge */
+const HANDLE_Z = 1.05;          /* off the floor */
+const LEAF_T   = 0.022;         /* the leaf's own half thickness */
+const HANDLE_CU = 0.705, HANDLE_HU = 0.125, HANDLE_HZ = 0.090;   /* the grab target */
+const HANDLE_REACH = 2.5;       /* metres; past this it is not yours to turn */
+let hoverDoor = null;           /* the door whose handle the pointer is on */
+
+function doorHandle(d, dir, per, hp, mat){
+  const hot = hoverDoor === d;
+  const k = hot ? 15 : 14, kk = [k,k,k,k,k,k];
+  /*  The lever lies back towards the hinge and falls a little as it goes -
+      a bar straight across the door reads as a peg, and the droop is what
+      says "press me down" at a glance. Its own basis, so the whole thing is
+      one straight box rather than a stair of little ones. */
+  const la = nrm3([-dir[0], -dir[1], -0.30]);
+  const lw = nrm3(crs(la, per));
+  for (const side of [1, -1]){
+    const at = t => [hp[0] + dir[0]*HANDLE_U + per[0]*side*t,
+                     hp[1] + dir[1]*HANDLE_U + per[1]*side*t, HANDLE_Z];
+    /*  Each face is lit by the room it FACES, not by the room the leaf swings
+        into: with the door shut those are different, and the side you are
+        looking at would otherwise be lit by a lamp in the next room. */
+    const rm = roomOfPoint(hp[0] + dir[0]*HANDLE_U + per[0]*side*0.30,
+                           hp[1] + dir[1]*HANDLE_U + per[1]*side*0.30);
+    /* the rose, a plate lying flat on the leaf */
+    boxOriented(at(LEAF_T + 0.006), dir, per, [0,0,1], 0.036, 0.006, 0.062, mat, kk, rm, 2);
+    /* the neck standing out of it */
+    boxOriented(at(LEAF_T + 0.028), dir, per, [0,0,1], 0.024, 0.016, 0.024, mat, kk, rm, 2);
+    /* the lever itself */
+    const root = at(LEAF_T + 0.044);
+    const L = 0.150;
+    boxOriented([root[0] + la[0]*L/2, root[1] + la[1]*L/2, root[2] + la[2]*L/2],
+                la, per, lw, L/2, 0.015, 0.017, mat, kk, rm, 2);
+    /* and a thumb-stop at the free end, turned down */
+    boxOriented([root[0] + la[0]*(L+0.012), root[1] + la[1]*(L+0.012), root[2] + la[2]*(L+0.012) - 0.014],
+                dir, per, [0,0,1], 0.016, 0.015, 0.026, mat, kk, rm, 2);
+  }
+}
+
+/*  A floor or a ceiling that is no longer a rectangle: a fan from the
+    polygon's own centroid. A fan is only valid on a shape the centroid can
+    see all of, and this one is - the deepest a fold can bite is 0.6 m into a
+    room at least 3 m across, so the centroid is never behind an edge. The uv
+    is world x,y exactly as rectH's mode 0 gave it, so the boards do not
+    shift when a wall moves. */
+function polyDeck(poly, z, want, mat, kind, room){
+  let cx = 0, cy = 0;
+  for (const p of poly){ cx += p[0]; cy += p[1]; }
+  cx /= poly.length; cy /= poly.length;
+  const n = nrm3(want), t = axisTan(n), bt = crs(n, t);
+  const f = p => [dot3(p, t), dot3(p, bt)];
+  for (let i = 0; i < poly.length; i++){
+    const j = (i + 1) % poly.length;
+    const A = [cx, cy, z];
+    let B = [poly[i][0], poly[i][1], z], C = [poly[j][0], poly[j][1], z];
+    if (dot3(crs(sub(B, A), sub(C, A)), want) < 0){ const sw = B; B = C; C = sw; }
+    addV(A, n, t, f(A), mat, kind, room);
+    addV(B, n, t, f(B), mat, kind, room);
+    addV(C, n, t, f(C), mat, kind, room);
+  }
+}
+/*  One edge of the plan, standing up to the ceiling. An edge still parallel
+    to an axis takes the path it always did, doorways cut out of it and all -
+    which is every edge of an unbroken room, and every edge of a broken one
+    that is not a panel, since the two breakable walls are the two that carry
+    no door. A panel gets a plain quad with its own basis: axisTan would hand
+    a non-axis normal a tangent that is not perpendicular to it and the
+    texture would come out sheared. */
+function wallSeg(a, b, h, mat, room){
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const L = Math.hypot(dx, dy);
+  if (L < 1e-4) return;
+  const inw = [-dy/L, dx/L, 0];              /* the polygon runs anticlockwise */
+  if (Math.abs(dy) < 1e-6){
+    const s0 = Math.min(a[0], b[0]), s1 = Math.max(a[0], b[0]);
+    wallWithHoles("x", a[1], s0, s1, h, inw, holesOn("x", a[1], s0, s1), mat, room);
+    return;
+  }
+  if (Math.abs(dx) < 1e-6){
+    const s0 = Math.min(a[1], b[1]), s1 = Math.max(a[1], b[1]);
+    wallWithHoles("y", a[0], s0, s1, h, inw, holesOn("y", a[0], s0, s1), mat, room);
+    return;
+  }
+  quad([b[0],b[1],0], [a[0],a[1],0], [a[0],a[1],h], [b[0],b[1],h], mat, 0, room, 1);
+}
+
+function buildMesh(){
+  M.pos.length = 0; M.nrm.length = 0; M.tan.length = 0; M.uv.length = 0; M.info.length = 0; M.n = 0;
+
+  for (const r of ROOMS){
+    const mat = matShade(r.i);
+    /*  The floor and the ceiling have their own materials now, and the room
+        is its plan polygon rather than its rectangle - one wall per EDGE, so
+        a broken wall is simply two edges and nothing downstream knows. */
+    const poly = roomPoly(r.i);
+    polyDeck(poly, 0,   [0,0,1],  flrShade(r.i), 1, r.i);
+    polyDeck(poly, r.h, [0,0,-1], celShade(r.i), 2, r.i);
+    for (let e = 0; e < poly.length; e++)
+      wallSeg(poly[e], poly[(e + 1) % poly.length], r.h, mat, r.i);
+  }
+
+  for (const d of DOORS){
+    const m0 = matShade(d.rooms[0]);
+    const rv = 0.075, arw = 0.11, aoff = 0.078;
+    /* the reveal: jambs and head face the opening, so one set serves both rooms */
+    if (d.axis === "x"){
+      rectV("y", d.s0, d.wall-rv, d.wall+rv, 0, DOOR_H, [1,0,0],  m0, 3, d.rooms[0]);
+      rectV("y", d.s1, d.wall-rv, d.wall+rv, 0, DOOR_H, [-1,0,0], m0, 3, d.rooms[0]);
+      rectH(DOOR_H, d.s0, d.s1, d.wall-rv, d.wall+rv, [0,0,-1], m0, 3, d.rooms[0]);
+      /* architrave on each face, facing into the room on that side */
+      for (const side of [1,-1]){
+        const room = side > 0 ? roomOfPoint((d.s0+d.s1)/2, d.wall+0.3) : roomOfPoint((d.s0+d.s1)/2, d.wall-0.3);
+        const y = d.wall + side*aoff, want = [0,side,0];
+        rectV("x", y, d.s0-arw, d.s0, 0, DOOR_H+arw, want, m0, 3, room);
+        rectV("x", y, d.s1, d.s1+arw, 0, DOOR_H+arw, want, m0, 3, room);
+        rectV("x", y, d.s0, d.s1, DOOR_H, DOOR_H+arw, want, m0, 3, room);
+      }
+    } else {
+      rectV("x", d.s0, d.wall-rv, d.wall+rv, 0, DOOR_H, [0,1,0],  m0, 3, d.rooms[0]);
+      rectV("x", d.s1, d.wall-rv, d.wall+rv, 0, DOOR_H, [0,-1,0], m0, 3, d.rooms[0]);
+      rectH(DOOR_H, d.wall-rv, d.wall+rv, d.s0, d.s1, [0,0,-1], m0, 3, d.rooms[0]);
+      for (const side of [1,-1]){
+        const room = roomOfPoint(d.wall + side*0.3, (d.s0+d.s1)/2);
+        const x = d.wall + side*aoff, want = [side,0,0];
+        rectV("y", x, d.s0-arw, d.s0, 0, DOOR_H+arw, want, m0, 3, room);
+        rectV("y", x, d.s1, d.s1+arw, 0, DOOR_H+arw, want, m0, 3, room);
+        rectV("y", x, d.s0, d.s1, DOOR_H, DOOR_H+arw, want, m0, 3, room);
+      }
+    }
+    /* the leaf, swung on its hinge */
+    const ang = leafAngle(d), hp = hingePt(d);
+    const dir = [Math.cos(ang), Math.sin(ang), 0];
+    const per = [-dir[1], dir[0], 0];
+    const cen = [hp[0] + dir[0]*DOOR_W/2, hp[1] + dir[1]*DOOR_W/2, 1.02];
+    boxOriented(cen, dir, per, [0,0,1], DOOR_W/2, 0.022, 1.005, m0, [3,3,4,4,3,3], d.into, 2);
+    doorHandle(d, dir, per, hp, m0);
+  }
+
+  /* lamps - one table, so the fitting you can see and the light it casts can
+     never drift apart */
+  pendant(LAMPS[0][0], LAMPS[0][1], ROOMS[0].h, matShade(0), 0);
+  pendant(LAMPS[1][0], LAMPS[1][1], ROOMS[1].h, matShade(1), 1);
+  pendant(LAMPS[2][0], LAMPS[2][1], ROOMS[2].h, matShade(2), 2);
+  pendant(LAMPS[3][0], LAMPS[3][1], ROOMS[2].h, matShade(2), 2);
+
+  /* the hall's high window, facing south into the room */
+  const wx0 = 10.0, wx1 = 13.2, wz0 = 3.0, wz1 = 4.6, wy = 9.0;
+  rectV("x", wy-0.03, wx0, wx1, wz0, wz1, [0,-1,0], matShade(2), 8, 2);
+  rectV("x", wy-0.07, wx0-0.10, wx0, wz0-0.10, wz1+0.10, [0,-1,0], matShade(2), 3, 2);
+  rectV("x", wy-0.07, wx1, wx1+0.10, wz0-0.10, wz1+0.10, [0,-1,0], matShade(2), 3, 2);
+  rectV("x", wy-0.07, wx0, wx1, wz1, wz1+0.10, [0,-1,0], matShade(2), 3, 2);
+  rectV("x", wy-0.07, wx0, wx1, wz0-0.10, wz0, [0,-1,0], matShade(2), 3, 2);
+  for (let i=1;i<=2;i++){
+    const mx = wx0 + (wx1-wx0)*i/3;
+    rectV("x", wy-0.07, mx-0.035, mx+0.035, wz0, wz1, [0,-1,0], matShade(2), 3, 2);
+  }
+
+  /*  Opaque geometry ends here. Everything after this line is blended, drawn
+      in a second pass with depth writes off, so a ghosted source cannot
+      punch a hole through the room behind it. */
+  buildSources(false);
+  MESH_OPAQUE = M.n;
+  buildSources(true);
+  meshDirty = false;
+}
+let MESH_OPAQUE = 0;
+
+/* the source models live in the next block */
+
+/* ------------------------------------------------------------- matrices */
+function matMul(a,b){
+  const o = new Float32Array(16);
+  for (let i=0;i<4;i++) for (let j=0;j<4;j++){
+    let s = 0;
+    for (let k=0;k<4;k++) s += a[i+4*k]*b[k+4*j];
+    o[i+4*j] = s;
+  }
+  return o;
+}
+function perspective(fovy, asp, near, far){
+  const t = 1/Math.tan(fovy/2);
+  const o = new Float32Array(16);
+  o[0]=t/asp; o[5]=t; o[10]=(far+near)/(near-far); o[11]=-1; o[14]=2*far*near/(near-far);
+  return o;
+}
+function viewMat(eye, yawRad, pitchRad){
+  const cp = Math.cos(pitchRad), sp = Math.sin(pitchRad);
+  const f = [Math.cos(yawRad)*cp, Math.sin(yawRad)*cp, sp];
+  const r = [Math.sin(yawRad), -Math.cos(yawRad), 0];
+  const u = crs(r,f);
+  const o = new Float32Array(16);
+  o[0]=r[0]; o[4]=r[1]; o[8]=r[2];
+  o[1]=u[0]; o[5]=u[1]; o[9]=u[2];
+  o[2]=-f[0]; o[6]=-f[1]; o[10]=-f[2];
+  o[12]=-dot3(r,eye); o[13]=-dot3(u,eye); o[14]=dot3(f,eye);
+  o[15]=1;
+  return o;
+}
+
+/* --------------------------------------------------------------- lights */
+function buildLights(){
+  const lamps = [
+    { p:LAMPS[0].concat([ROOMS[0].h-0.55]), c:[1.00,0.70,0.36], i:2.1, room:0, sh:1 },
+    { p:LAMPS[1].concat([ROOMS[1].h-0.55]), c:[1.00,0.64,0.32], i:1.5, room:1, sh:1 },
+    { p:LAMPS[2].concat([ROOMS[2].h-0.55]), c:[1.00,0.72,0.40], i:3.6, room:2, sh:1 },
+    { p:LAMPS[3].concat([ROOMS[2].h-0.55]), c:[1.00,0.68,0.36], i:3.6, room:2, sh:1 },
+    { p:[11.6,8.7,3.8], c:[0.34,0.46,0.78], i:4.2, room:2, sh:0 }
+  ];
+  /*  Only a source that is actually fed casts the radiation cue. A ghosted
+      one is a placement marker, not a thing making sound. */
+  for (let n = 1; n <= 4; n++){
+    if (!srcActive(n)) continue;
+    const r = roomOfPoint(SXn(n), SYn(n));
+    lamps.push({ p:[SXn(n), SYn(n), Math.min(Math.max(SZn(n),0.3), ROOMS[r].h-0.3)],
+                 c:[1.00,0.52,0.22], i:0.30 + 2.2*glow, room:r, sh:0 });
+  }
+  const out = lamps.map(l => ({ p:l.p, c:mul3(l.c,l.i), room:l.room, pri:l.i, sh:l.sh }));
+  for (const d of DOORS){
+    const a = apert(d);
+    if (a <= 0.02) continue;
+    const dc = doorCentre(d), cp = [dc[0], dc[1], 1.05];
+    for (const l of lamps){
+      let other = -1;
+      if (d.rooms[0] === l.room) other = d.rooms[1];
+      else if (d.rooms[1] === l.room) other = d.rooms[0];
+      if (other < 0) continue;
+      const dd = Math.hypot(l.p[0]-cp[0], l.p[1]-cp[1], l.p[2]-cp[2]);
+      const att = 1/(1 + 0.30*dd + 0.085*dd*dd);
+      const k = a * att * 1.3;
+      if (l.i * k < 0.05) continue;
+      out.push({ p:cp, c:mul3(l.c, l.i*k), room:other, pri:l.i*k, sh:0 });
+    }
+  }
+  out.sort((p,q)=>q.pri-p.pri);
+  return out.slice(0,12);
+}
+
+/* ==================================================================== */
+/*  the sources, drawn as objects rather than as markers                 */
+/*                                                                       */
+/*  Two models, both built from the same primitives as the room:         */
+/*  LOUDSPEAKER is a two-way studio monitor - MDF cabinet with chamfered */
+/*  baffle edges, a 6.5 inch woofer sunk into the baffle with a rubber   */
+/*  surround and a dust cap, a 1 inch dome in a shallow waveguide, a     */
+/*  front port, a badge, rubber feet, and a real back: recessed terminal */
+/*  plate and a block of heatsink fins, so walking round it is worth it. */
+/*  PURE is a 12 cm matte ball on a microphone stand.                    */
+/* ==================================================================== */
+
+/* a ring of quads standing in a plane, used for cone walls and recesses */
+function ringBetween(c, au, av, aw, r0, d0, r1, d1, seg, mat, kind, room, flip){
+  for (let i = 0; i < seg; i++){
+    const a0 = i/seg*Math.PI*2, a1 = (i+1)/seg*Math.PI*2;
+    const P = (ang, r, d) => add3(c, add3(mul3(av, Math.cos(ang)*r),
+                                  add3(mul3(aw, Math.sin(ang)*r), mul3(au, d))));
+    const p0 = P(a0, r0, d0), p1 = P(a1, r0, d0), p2 = P(a1, r1, d1), p3 = P(a0, r1, d1);
+    if (flip) quad(p0, p1, p2, p3, mat, kind, room, 1);
+    else quad(p0, p3, p2, p1, mat, kind, room, 1);
+  }
+}
+/* a filled disc standing in a plane, facing +au */
+function discFacing(c, au, av, aw, r, seg, mat, kind, room){
+  const n = nrm3(au), t = nrm3(av), bt = crs(n, t);
+  for (let i = 0; i < seg; i++){
+    const a0 = i/seg*Math.PI*2, a1 = (i+1)/seg*Math.PI*2;
+    const P = ang => add3(c, add3(mul3(av, Math.cos(ang)*r), mul3(aw, Math.sin(ang)*r)));
+    const p1 = P(a0), p2 = P(a1);
+    const f = p => { const q = sub(p, c); return [dot3(q,t), dot3(q,bt)]; };
+    addV(c,n,t,[0,0],mat,kind,room); addV(p1,n,t,f(p1),mat,kind,room); addV(p2,n,t,f(p2),mat,kind,room);
+  }
+}
+/* a shallow dome (half an ellipsoid) rising out of a plane along +au */
+function dome(c, au, av, aw, r, hgtD, seg, rings, mat, kind, room){
+  for (let j = 0; j < rings; j++){
+    const t0 = j/rings*Math.PI/2, t1 = (j+1)/rings*Math.PI/2;
+    for (let i = 0; i < seg; i++){
+      const p0 = i/seg*Math.PI*2, p1 = (i+1)/seg*Math.PI*2;
+      const S = (t,p) => add3(c, add3(mul3(av, Math.cos(t)*Math.cos(p)*r),
+                              add3(mul3(aw, Math.cos(t)*Math.sin(p)*r), mul3(au, Math.sin(t)*hgtD))));
+      quad(S(t0,p0), S(t0,p1), S(t1,p1), S(t1,p0), mat, kind, room, 1);
+    }
+  }
+}
+
+function buildMonitor(sx, sy, zc, yaw, room, mat){
+  const fwd = [Math.cos(yaw), Math.sin(yaw), 0];
+  const rgt = [Math.sin(yaw), -Math.cos(yaw), 0];
+  const up  = [0,0,1];
+  const HU = 0.145, HV = 0.115, HW = 0.185;        /* half depth, width, height */
+  const C  = [sx, sy, zc];
+  const P = (u,v,w) => [ C[0] + fwd[0]*u + rgt[0]*v, C[1] + fwd[1]*u + rgt[1]*v, C[2] + w ];
+  const CH = 0.020;                                 /* baffle chamfer */
+
+  /* ---- cabinet: five plain faces, the front left for the baffle ------- */
+  const K = 20;
+  quad(P(-HU,HV,-HW), P(-HU,-HV,-HW), P(-HU,-HV,HW), P(-HU,HV,HW), mat, K, room, 2);   /* back  */
+  quad(P(HU-CH,HV,-HW), P(-HU,HV,-HW), P(-HU,HV,HW), P(HU-CH,HV,HW), mat, K, room, 2); /* left  */
+  quad(P(-HU,-HV,-HW), P(HU-CH,-HV,-HW), P(HU-CH,-HV,HW), P(-HU,-HV,HW), mat, K, room, 2);
+  quad(P(-HU,-HV,HW), P(HU-CH,-HV,HW), P(HU-CH,HV,HW), P(-HU,HV,HW), mat, K, room, 2); /* top   */
+  quad(P(-HU,HV,-HW), P(HU-CH,HV,-HW), P(HU-CH,-HV,-HW), P(-HU,-HV,-HW), mat, K, room, 2);
+
+  /* ---- the baffle, inset, with four chamfer strips round it ----------- */
+  const BV = HV - CH, BW = HW - CH;
+  quad(P(HU,-BV,-BW), P(HU,BV,-BW), P(HU,BV,BW), P(HU,-BV,BW), mat, 20, room, 2);
+  quad(P(HU-CH,HV,-HW), P(HU,BV,-BW), P(HU,BV,BW), P(HU-CH,HV,HW), mat, 20, room, 1);
+  quad(P(HU,-BV,-BW), P(HU-CH,-HV,-HW), P(HU-CH,-HV,HW), P(HU,-BV,BW), mat, 20, room, 1);
+  quad(P(HU,-BV,BW), P(HU,BV,BW), P(HU-CH,HV,HW), P(HU-CH,-HV,HW), mat, 20, room, 1);
+  quad(P(HU-CH,-HV,-HW), P(HU,-BV,-BW), P(HU,BV,-BW), P(HU-CH,HV,-HW), mat, 20, room, 1);
+
+  /* ---- the 6.5 inch woofer, sunk into the baffle ---------------------- */
+  const WC = P(HU, 0, -0.050), RW = 0.083;
+  ringBetween(WC, fwd, rgt, up, RW, 0.001, RW*0.90, -0.012, 24, mat, 22, room, false); /* surround */
+  ringBetween(WC, fwd, rgt, up, RW*0.90, -0.012, RW*0.80, 0.004, 24, mat, 22, room, true);
+  ringBetween(WC, fwd, rgt, up, RW*0.80, 0.004, 0.022, -0.048, 24, mat, 21, room, true); /* cone */
+  dome(WC, fwd, rgt, up, 0.024, 0.014, 20, 4, mat, 23, room);                            /* dust cap */
+  ringBetween(WC, fwd, rgt, up, RW+0.009, 0.002, RW, 0.001, 24, mat, 20, room, false);   /* trim ring */
+
+  /* ---- the 1 inch dome tweeter in its waveguide ----------------------- */
+  const TC = P(HU, 0, 0.108);
+  ringBetween(TC, fwd, rgt, up, 0.044, 0.001, 0.019, -0.017, 20, mat, 24, room, true);
+  dome(TC, fwd, rgt, up, 0.0155, 0.009, 18, 3, mat, 23, room);
+
+  /* ---- the front bass port -------------------------------------------- */
+  const PC = P(HU, 0, -0.146);
+  ringBetween(PC, fwd, rgt, up, 0.024, 0.0, 0.024, -0.055, 14, mat, 25, room, true);
+  discFacing(add3(PC, mul3(fwd, -0.055)), fwd, rgt, up, 0.024, 14, mat, 25, room);
+
+  /* ---- a badge ---------------------------------------------------------*/
+  const BC = P(HU + 0.0015, 0, 0.160);
+  quad(add3(BC, add3(mul3(rgt,-0.030), [0,0,-0.006])),
+       add3(BC, add3(mul3(rgt, 0.030), [0,0,-0.006])),
+       add3(BC, add3(mul3(rgt, 0.030), [0,0, 0.006])),
+       add3(BC, add3(mul3(rgt,-0.030), [0,0, 0.006])), mat, 26, room, 2);
+
+  /* ---- the back: a recessed terminal plate and a heatsink ------------- */
+  const back = -HU - 0.0015;
+  const TP = P(back, 0, -0.085);
+  quad(add3(TP, add3(mul3(rgt, 0.055), [0,0,-0.048])),
+       add3(TP, add3(mul3(rgt,-0.055), [0,0,-0.048])),
+       add3(TP, add3(mul3(rgt,-0.055), [0,0, 0.048])),
+       add3(TP, add3(mul3(rgt, 0.055), [0,0, 0.048])), mat, 27, room, 2);
+  for (const dv of [-0.026, 0.026])
+    ringBetween(add3(TP, mul3(rgt, dv)), mul3(fwd,-1), rgt, up, 0.011, 0.002, 0.011, -0.010, 10, mat, 23, room, true);
+  for (let i = 0; i < 6; i++){
+    const w0 = 0.020 + i*0.0205;
+    const F = P(back, 0, w0);
+    quad(add3(F, add3(mul3(rgt,-0.058), [0,0,-0.0045])),
+         add3(F, add3(mul3(rgt, 0.058), [0,0,-0.0045])),
+         add3(F, add3(mul3(rgt, 0.058), [0,0, 0.0045])),
+         add3(F, add3(mul3(rgt,-0.058), [0,0, 0.0045])), mat, 28, room, 2);
+    quad(add3(F, add3(mul3(rgt,-0.058), [0,0, 0.0045])),
+         add3(F, add3(mul3(rgt, 0.058), [0,0, 0.0045])),
+         add3(add3(F, mul3(fwd, 0.012)), add3(mul3(rgt, 0.058), [0,0, 0.0045])),
+         add3(add3(F, mul3(fwd, 0.012)), add3(mul3(rgt,-0.058), [0,0, 0.0045])), mat, 28, room, 1);
+  }
+
+  /* ---- rubber feet ------------------------------------------------------*/
+  for (const du of [-0.09, 0.09]) for (const dv of [-0.075, 0.075]){
+    const F = P(du, dv, -HW - 0.011);
+    coneRing(F[0], F[1], F[2]+0.011, F[2], 0.016, 0.018, 8, mat, 29, room);
+    disc(F[0], F[1], F[2], 0.018, 8, true, mat, 29, room);
+  }
+}
+
+function buildPureSource(sx, sy, zc, yaw, dir, room, mat){
+  const R = 0.06;                                   /* a 12 cm ball */
+  sphere(sx, sy, zc, R, 18, 12, mat, 31, room);
+  /*  the stand: a weighted base, a telescopic tube in two diameters and a
+      little boom clip under the ball */
+  const base = 0.010;
+  disc(sx, sy, base, 0.135, 18, false, mat, 30, room);
+  coneRing(sx, sy, base, 0.002, 0.135, 0.150, 18, mat, 30, room);
+  const clip = zc - R - 0.030;
+  const mid = Math.max(base + 0.05, clip * 0.55);
+  coneRing(sx, sy, mid, base, 0.0135, 0.0175, 10, mat, 30, room);
+  if (clip > mid) coneRing(sx, sy, clip, mid, 0.0095, 0.0135, 10, mat, 30, room);
+  coneRing(sx, sy, clip + 0.012, clip - 0.004, 0.021, 0.021, 10, mat, 30, room);
+  coneRing(sx, sy, zc - R + 0.012, clip + 0.010, 0.0075, 0.0075, 8, mat, 30, room);
+  /*  the cardioid, when there is one: a blade standing off the nose of the
+      ball. A decal painted on a sphere cannot be read from the side, and the
+      direction is the whole point of the control. */
+  if (dir > 0.02){
+    const fwd = [Math.cos(yaw), Math.sin(yaw), 0];
+    const rgt = [Math.sin(yaw), -Math.cos(yaw), 0];
+    const L = 0.055 + 0.075 * dir;
+    const A = [sx + fwd[0]*(R+0.004), sy + fwd[1]*(R+0.004), zc];
+    const B = [A[0] + fwd[0]*L, A[1] + fwd[1]*L, zc];
+    const wide = 0.018 + 0.020*dir;
+    for (const s of [1,-1]){
+      const n = [0,0,s];
+      const p0 = [A[0]+rgt[0]*wide, A[1]+rgt[1]*wide, zc];
+      const p1 = [A[0]-rgt[0]*wide, A[1]-rgt[1]*wide, zc];
+      addV(B,n,fwd,[0,0],mat,26,room);
+      if (s > 0){ addV(p0,n,fwd,[wide,0],mat,26,room); addV(p1,n,fwd,[-wide,0],mat,26,room); }
+      else { addV(p1,n,fwd,[-wide,0],mat,26,room); addV(p0,n,fwd,[wide,0],mat,26,room); }
+    }
+  }
+}
+
+/*  A thin ring on the floor under whichever source the SOURCE panel is
+    editing - the one piece of chrome in the 3D view, and the only way to see
+    at a glance which of four the knobs belong to. */
+function buildSelectRing(sx, sy, room){
+  const r = 0.30, w = 0.028, z = 0.004;
+  for (let i = 0; i < 28; i++){
+    const a0 = i/28*Math.PI*2, a1 = (i+1)/28*Math.PI*2;
+    const P = (a, rr) => [sx + Math.cos(a)*rr, sy + Math.sin(a)*rr, z];
+    quad(P(a0, r-w), P(a1, r-w), P(a1, r+w), P(a0, r+w), 0, 32, room, 1);
+  }
+}
+
+function buildSources(ghostPass){
+  for (let n = 1; n <= 4; n++){
+    const on = srcActive(n);
+    if (ghostPass === on) continue;             /* one pass each, never both */
+    const sx = SXn(n), sy = SYn(n);
+    const room = roomOfPoint(sx, sy), mat = matShade(room);
+    const yaw = SYAWn(n) * Math.PI / 180;
+    curAlpha = on ? 1 : 0.34;
+    if (srcTypeIdx(n) === 1){
+      const zc = Math.min(Math.max(SZn(n), 0.20), ROOMS[room].h - 0.24);
+      buildMonitor(sx, sy, zc, yaw, room, mat);
+      /*  If it is off the floor it is standing on something - a slim pillar
+          stand, not a plinth the width of the cabinet. */
+      const foot = zc - 0.185;
+      if (foot > 0.10){
+        coneRing(sx, sy, foot, 0.030, 0.036, 0.050, 12, mat, 30, room);
+        disc(sx, sy, 0.030, 0.150, 16, false, mat, 30, room);
+        coneRing(sx, sy, 0.030, 0.006, 0.150, 0.165, 16, mat, 30, room);
+      }
+    } else {
+      const zc = Math.min(Math.max(SZn(n), 0.22), ROOMS[room].h - 0.16);
+      buildPureSource(sx, sy, zc, yaw, srcDir(n), room, mat);
+    }
+    if (n - 1 === selSrc && ghostPass === false) { /* drawn opaque, always visible */ }
+    curAlpha = 1;
+  }
+  /*  The ring goes in the blended pass so it reads over the floor without
+      fighting it for depth. */
+  if (ghostPass){
+    const n = selSrc + 1;
+    curAlpha = 0.85;
+    buildSelectRing(SXn(n), SYn(n), roomOfPoint(SXn(n), SYn(n)));
+    curAlpha = 1;
+  }
+}
+
+/* a ceiling rose and a warm bloom disc under each pendant */
+function ceilingRose(x, y, zc, mat, room){
+  disc(x, y, zc - 0.004, 0.19, 16, true, mat, 3, room);
+  coneRing(x, y, zc - 0.004, zc - 0.030, 0.19, 0.12, 16, mat, 3, room);
+  coneRing(x, y, zc - 0.030, zc - 0.036, 0.12, 0.055, 16, mat, 3, room);
+}
+
+/* ------------------------------------------------------------- GL setup */
+function compile(g, type, src){
+  const s = g.createShader(type);
+  g.shaderSource(s, src); g.compileShader(s);
+  if (!g.getShaderParameter(s, g.COMPILE_STATUS)){
+    window.__err.push("shader: " + g.getShaderInfoLog(s));
+    return null;
+  }
+  return s;
+}
+function initGL(){
+  try {
+    gl = povCv.getContext("webgl2", {
+      antialias:true, depth:true, alpha:false,
+      /*  so a probe (and a screenshot) can read the picture back after the
+          frame is done - without it a read returns black whatever was drawn */
+      preserveDrawingBuffer:true,
+      powerPreference:"high-performance"
+    });
+  } catch(e){ gl = null; }
+  if (!gl){ glMode = "fallback"; return false; }
+  const vs = compile(gl, gl.VERTEX_SHADER, VS);
+  const fs = compile(gl, gl.FRAGMENT_SHADER, FS);
+  if (!vs || !fs){ gl = null; glMode = "fallback"; return false; }
+  prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs);
+  gl.bindAttribLocation(prog, 0, "aPos"); gl.bindAttribLocation(prog, 1, "aNrm");
+  gl.bindAttribLocation(prog, 2, "aTan"); gl.bindAttribLocation(prog, 3, "aUV");
+  gl.bindAttribLocation(prog, 4, "aInfo");
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)){
+    window.__err.push("link: " + gl.getProgramInfoLog(prog));
+    gl = null; glMode = "fallback"; return false;
+  }
+  gl.useProgram(prog);
+  const names = ["uMVP","uCam","uLightN","uLightPos","uLightCol","uLightRoom","uLightShade",
+                 "uRoomMin","uRoomMax","uAmb","uFog","uFogK","uGlow","uRes"];
+  for (const n of names) U[n] = gl.getUniformLocation(prog, n);
+  vao = gl.createVertexArray();
+  vbo = gl.createBuffer();
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  const STR = 15*4;
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, STR, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, STR, 12);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, STR, 24);
+  gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 2, gl.FLOAT, false, STR, 36);
+  gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4, 4, gl.FLOAT, false, STR, 44);
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.BACK);
+  gl.frontFace(gl.CCW);
+  gl.clearColor(FOG[0], FOG[1], FOG[2], 1);
+  glMode = "webgl2";
+  /*  uRoomMin / uRoomMax are uploaded per FRAME, in drawPov - a wall pushed
+      out of the room puts geometry outside the rectangle, and the corner
+      darkening measures its distance from that box: left at the rectangle
+      the pushed panel would shade to black at exactly the point that was
+      moved. */
+  return true;
+}
+let vertsUploaded = 0;
+function uploadMesh(){
+  const n = M.n;
+  const buf = new Float32Array(n*15);
+  for (let i=0;i<n;i++){
+    const o = i*15;
+    buf[o]   = M.pos[i*3];   buf[o+1] = M.pos[i*3+1]; buf[o+2] = M.pos[i*3+2];
+    buf[o+3] = M.nrm[i*3];   buf[o+4] = M.nrm[i*3+1]; buf[o+5] = M.nrm[i*3+2];
+    buf[o+6] = M.tan[i*3];   buf[o+7] = M.tan[i*3+1]; buf[o+8] = M.tan[i*3+2];
+    buf[o+9] = M.uv[i*2];    buf[o+10]= M.uv[i*2+1];
+    buf[o+11]= M.info[i*4];  buf[o+12]= M.info[i*4+1];
+    buf[o+13]= M.info[i*4+2]; buf[o+14]= M.info[i*4+3];
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, buf, gl.DYNAMIC_DRAW);
+  vertsUploaded = n;
+}
+
+function sizeCanvas(cv){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(2, Math.round(cv.clientWidth * dpr));
+  const h = Math.max(2, Math.round(cv.clientHeight * dpr));
+  if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; return true; }
+  return false;
+}
+
+function drawPov(){
+  drawCount++;
+  sizeCanvas(povCv);
+  if (glMode === "pending") initGL();
+  if (!gl){ drawPovFallback(); return; }
+  if (meshDirty || vertsUploaded === 0){ buildMesh(); uploadMesh(); }
+  const w = povCv.width, h = povCv.height;
+  gl.viewport(0,0,w,h);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(prog);
+  gl.bindVertexArray(vao);
+
+  const eye = [LX(), LY(), EAR_Z];
+  const P = perspective(fovDeg*Math.PI/180, w/h, 0.04, 90);
+  const Vm = viewMat(eye, LYAW()*Math.PI/180, pitchDeg*Math.PI/180);
+  gl.uniformMatrix4fv(U.uMVP, false, matMul(P, Vm));
+  gl.uniform3f(U.uCam, eye[0], eye[1], eye[2]);
+  gl.uniform3f(U.uFog, FOG[0], FOG[1], FOG[2]);
+  gl.uniform1f(U.uFogK, 0.042);
+  gl.uniform1f(U.uGlow, glow);
+  gl.uniform2f(U.uRes, w, h);
+
+  /*  The box each room's corner darkening is measured against: the plan
+      polygon's own bounds, so a wall pushed OUT is still inside its room. */
+  const rmn = new Float32Array(9), rmx = new Float32Array(9);
+  ROOMS.forEach((r, i) => {
+    const poly = roomPoly(i);
+    let x0 = r.x0, x1 = r.x1, y0 = r.y0, y1 = r.y1;
+    for (const q of poly){
+      x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]);
+      y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]);
+    }
+    rmn[i*3] = x0; rmn[i*3+1] = y0; rmn[i*3+2] = 0;
+    rmx[i*3] = x1; rmx[i*3+1] = y1; rmx[i*3+2] = r.h;
+  });
+  gl.uniform3fv(U.uRoomMin, rmn);
+  gl.uniform3fv(U.uRoomMax, rmx);
+
+  const amb = new Float32Array(9);
+  for (let i=0;i<3;i++){
+    const k = matLook(i).amb * 0.042;
+    amb[i*3] = k*1.06; amb[i*3+1] = k*0.94; amb[i*3+2] = k*0.88;
+  }
+  amb[6] *= 1.15; amb[7] *= 1.15; amb[8] *= 1.35;    /* the hall's window keeps it cooler */
+  gl.uniform3fv(U.uAmb, amb);
+
+  const L = buildLights();
+  const lp = new Float32Array(36), lc = new Float32Array(36), lr = new Float32Array(12), ls = new Float32Array(12);
+  for (let i=0;i<L.length;i++){
+    lp[i*3]=L[i].p[0]; lp[i*3+1]=L[i].p[1]; lp[i*3+2]=L[i].p[2];
+    lc[i*3]=L[i].c[0]; lc[i*3+1]=L[i].c[1]; lc[i*3+2]=L[i].c[2];
+    lr[i]=L[i].room; ls[i]=L[i].sh ? 1 : 0;
+  }
+  gl.uniform3fv(U.uLightPos, lp);
+  gl.uniform3fv(U.uLightCol, lc);
+  gl.uniform1fv(U.uLightRoom, lr);
+  gl.uniform1fv(U.uLightShade, ls);
+  gl.uniform1i(U.uLightN, L.length);
+
+  /*  Opaque first with depth writes on, then the ghosted sources and the
+      selection ring blended with depth writes OFF - otherwise a translucent
+      cabinet punches a hole in the wall behind it. */
+  gl.disable(gl.BLEND);
+  gl.depthMask(true);
+  gl.drawArrays(gl.TRIANGLES, 0, Math.min(MESH_OPAQUE, vertsUploaded));
+  if (vertsUploaded > MESH_OPAQUE){
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.depthMask(false);
+    gl.drawArrays(gl.TRIANGLES, MESH_OPAQUE, vertsUploaded - MESH_OPAQUE);
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+  }
+}
+
+/*  If WebGL2 cannot be had (some headless configurations), the view still has
+    to say something true rather than sit blank. A flat plan-projection of the
+    room you are standing in, drawn on a 2D context. */
+function drawPovFallback(){
+  const c = povCv.getContext("2d");
+  if (!c) return;
+  const w = povCv.width, h = povCv.height;
+  const g = c.createLinearGradient(0,0,0,h);
+  g.addColorStop(0, "#241b15"); g.addColorStop(0.55, "#140f0c"); g.addColorStop(1, "#0a0807");
+  c.fillStyle = g; c.fillRect(0,0,w,h);
+  const rm = ROOMS[roomOfPoint(LX(), LY())];
+  const s = Math.min(w/(rm.x1-rm.x0+2), h/(rm.y1-rm.y0+2));
+  const ox = w/2 - ((rm.x0+rm.x1)/2)*s, oy = h/2 + ((rm.y0+rm.y1)/2)*s;
+  c.save();
+  c.strokeStyle = "#7a5c33"; c.lineWidth = Math.max(2, s*0.06);
+  c.strokeRect(ox+rm.x0*s, oy-rm.y1*s, (rm.x1-rm.x0)*s, (rm.y1-rm.y0)*s);
+  c.fillStyle = "rgba(160,110,50,.10)";
+  c.fillRect(ox+rm.x0*s, oy-rm.y1*s, (rm.x1-rm.x0)*s, (rm.y1-rm.y0)*s);
+  for (const d of DOORS){
+    const o = opening(d);
+    c.strokeStyle = "#e0b06a"; c.lineWidth = Math.max(3, s*0.09);
+    c.beginPath();
+    if (d.axis === "x"){ c.moveTo(ox+o[0]*s, oy-d.wall*s); c.lineTo(ox+o[1]*s, oy-d.wall*s); }
+    else { c.moveTo(ox+d.wall*s, oy-o[0]*s); c.lineTo(ox+d.wall*s, oy-o[1]*s); }
+    c.stroke();
+  }
+  for (let n = 1; n <= NSRC; n++){
+    c.fillStyle = srcActive(n) ? "#ff9a3c" : "rgba(255,154,60,.35)";
+    c.beginPath(); c.arc(ox+SXn(n)*s, oy-SYn(n)*s, Math.max(5,s*0.18), 0, 7); c.fill();
+  }
+  c.fillStyle = "#f6e3bd";
+  c.beginPath(); c.arc(ox+LX()*s, oy-LY()*s, Math.max(5,s*0.16), 0, 7); c.fill();
+  c.restore();
+  const fs = Math.max(11, Math.round(h*0.028));
+  c.fillStyle = "#c8a878"; c.font = "600 " + fs + "px Consolas, monospace";
+  c.textAlign = "center";
+  c.fillText("3D VIEW UNAVAILABLE - NO WEBGL2 CONTEXT", w/2, fs*2.0);
+  c.fillStyle = "#8d7a63"; c.font = (fs*0.8) + "px Consolas, monospace";
+  c.fillText("showing a flat sketch of " + ROOMS[roomOfPoint(LX(),LY())].name + " instead", w/2, fs*3.3);
+}
+
+/* ==================================================================== */
+/*  the plan - an architect's drawing on paper                           */
+/* ==================================================================== */
+const PAPER = [239, 231, 214];
+/*  Strip reserved at the foot of the plan for the key. Fixed at 64 px it eats
+    a quarter of a short panel, so it shrinks with the canvas. */
+function planLeg(h){ return Math.min(64, Math.max(30, h * 0.15)); }
+/*  A path now carries the source it belongs to, so HUE says which source and
+    the line STYLE says which kind - the two questions are independent and a
+    single colour axis cannot answer both. */
+const SRC_HUE = [[200,70,30], [38,104,168], [34,132,86], [136,74,164]];
+const SRC_CSS = SRC_HUE.map(c => "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")");
+function rayStyle(t){
+  if (t === "direct") return { w:0.058, dash:null, lift:0.00 };
+  if (t === "r1")     return { w:0.034, dash:null, lift:0.22 };
+  if (t === "r2")     return { w:0.026, dash:null, lift:0.40 };
+  if (t === "portal") return { w:0.040, dash:[7,3], lift:0.10 };
+  return { w:0.028, dash:[4,4], lift:0.34 };        /* leaf and wall */
+}
+function srcRgba(s, a, lift){
+  const c = SRC_HUE[s & 3];
+  const f = x => Math.round(x + (238 - x) * (lift || 0));
+  return "rgba(" + f(c[0]) + "," + f(c[1]) + "," + f(c[2]) + "," + a + ")";
+}
+
+function planFit(){
+  const w = planCv.clientWidth || 1, h = planCv.clientHeight || 1;
+  const m = 14, leg = planLeg(h);
+  const s = Math.max(4, Math.min((w - 2*m) / APT_W, (h - 2*m - leg) / APT_H));
+  const ox = (w - APT_W*s) / 2;
+  /* the drawing and its key are centred as ONE block, so the key sits under
+     the plan rather than adrift at the bottom of the sheet */
+  const oy = m + Math.max(0, (h - 2*m - (APT_H*s + leg)) / 2);
+  return { s:s, ox:ox, oy:oy, w:w, h:h, leg:leg };
+}
+let PF = null;
+const PX = x => PF.ox + x * PF.s;
+const PY = y => PF.oy + (APT_H - y) * PF.s;
+function planToWorld(cx, cy){
+  const r = planCv.getBoundingClientRect();
+  const x = (cx - r.left - PF.ox) / PF.s;
+  const y = APT_H - (cy - r.top - PF.oy) / PF.s;
+  return [x, y];
+}
+
+/*  What the plan actually WROTE on the paper this time round - pushed where
+    the text is drawn, not where it is decided, so a note that is in here is a
+    note that reached the sheet. */
+let planNotes = [];
+function drawPlan(){
+  drawCount++;
+  planNotes = [];
+  sizeCanvas(planCv);
+  const c = planCv.getContext("2d");
+  if (!c) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  PF = planFit();
+  const W = PF.w, H = PF.h, s = PF.s;
+
+  /* paper */
+  c.fillStyle = "rgb(" + PAPER[0] + "," + PAPER[1] + "," + PAPER[2] + ")";
+  c.fillRect(0, 0, W, H);
+  const vg = c.createRadialGradient(W*0.5, H*0.42, Math.min(W,H)*0.2, W*0.5, H*0.5, Math.max(W,H)*0.78);
+  vg.addColorStop(0, "rgba(255,252,244,.55)");
+  vg.addColorStop(1, "rgba(150,132,102,.20)");
+  c.fillStyle = vg; c.fillRect(0, 0, W, H);
+
+  /* grid, half metre faint, whole metre stronger */
+  c.lineWidth = 1;
+  for (let i = 0; i <= APT_W*2; i++){
+    const x = PX(i/2);
+    c.strokeStyle = (i % 2) ? "rgba(90,86,74,.075)" : "rgba(90,86,74,.15)";
+    c.beginPath(); c.moveTo(x, PY(APT_H)); c.lineTo(x, PY(0)); c.stroke();
+  }
+  for (let i = 0; i <= APT_H*2; i++){
+    const y = PY(i/2);
+    c.strokeStyle = (i % 2) ? "rgba(90,86,74,.075)" : "rgba(90,86,74,.15)";
+    c.beginPath(); c.moveTo(PX(0), y); c.lineTo(PX(APT_W), y); c.stroke();
+  }
+
+  /*  Room washes, tinted by the WALL material - four walls against one floor
+      and one ceiling, so the walls are what the room is. Each is its own plan
+      polygon, so a broken wall really does change the shape on the paper. */
+  for (const r of ROOMS){
+    c.fillStyle = matLook(r.i).wash;
+    polyPath(c, roomPoly(r.i));
+    c.fill();
+  }
+  /* the solid block is not part of the apartment - hatch it */
+  c.save();
+  c.beginPath(); c.rect(PX(0), PY(8.5), 3*s, 3.5*s); c.clip();
+  c.strokeStyle = "rgba(70,66,58,.20)"; c.lineWidth = 1;
+  for (let i = -4; i < 12; i++){
+    c.beginPath(); c.moveTo(PX(i*0.5), PY(8.5)); c.lineTo(PX(i*0.5 + 3.5), PY(5)); c.stroke();
+  }
+  c.restore();
+
+  /* walls: every segment the 3D view builds, minus the doorways */
+  c.strokeStyle = "#1f1e1b";
+  c.lineWidth = Math.max(1.6, s*0.115);
+  c.lineCap = "butt";
+  /*  One stroke per polygon edge. An edge still on a wall plane keeps the
+      doorway-cutting path; a panel is a plain line. The two panels either
+      side of a CONCAVE break are drawn in the warning colour, because a wall
+      bent into the room focuses rather than scatters. */
+  for (const r of ROOMS){
+    const poly = roomPoly(r.i);
+    const bent = concaveEdges(r.i, poly);
+    for (let e = 0; e < poly.length; e++){
+      c.strokeStyle = bent[e] ? WARN_INK : "#1f1e1b";
+      planSeg(c, poly[e], poly[(e + 1) % poly.length]);
+    }
+    c.strokeStyle = "#1f1e1b";
+  }
+
+  /* doors: the architect's quarter circle plus the leaf where it is */
+  for (const d of DOORS){
+    const hp = hingePt(d), ang = leafAngle(d);
+    const a0 = d.closedAng * Math.PI/180, a1 = ang;
+    c.strokeStyle = "rgba(40,38,34,.32)"; c.lineWidth = 1;
+    c.setLineDash([3,3]);
+    c.beginPath();
+    c.arc(PX(hp[0]), PY(hp[1]), DOOR_W*s, -Math.max(a0,a1), -Math.min(a0,a1));
+    c.stroke();
+    c.setLineDash([]);
+    /* the opening itself, drawn as a gap in the wall with a light sill */
+    const o = opening(d);
+    c.strokeStyle = "rgba(120,150,120,.55)"; c.lineWidth = Math.max(1.4, s*0.07);
+    c.beginPath();
+    if (d.axis === "x"){ c.moveTo(PX(o[0]), PY(d.wall)); c.lineTo(PX(o[1]), PY(d.wall)); }
+    else { c.moveTo(PX(d.wall), PY(o[0])); c.lineTo(PX(d.wall), PY(o[1])); }
+    c.stroke();
+    /* the leaf */
+    const tip = [hp[0] + Math.cos(ang)*DOOR_W, hp[1] + Math.sin(ang)*DOOR_W];
+    c.strokeStyle = "#5a4224"; c.lineWidth = Math.max(2, s*0.075);
+    c.lineCap = "round";
+    c.beginPath(); c.moveTo(PX(hp[0]), PY(hp[1])); c.lineTo(PX(tip[0]), PY(tip[1])); c.stroke();
+    c.fillStyle = "#5a4224";
+    c.beginPath(); c.arc(PX(hp[0]), PY(hp[1]), Math.max(2, s*0.055), 0, 7); c.fill();
+    c.lineCap = "butt";
+    /* percentage, small, beside the hinge */
+    c.fillStyle = "rgba(60,56,48,.72)";
+    c.font = Math.max(8, Math.round(s*0.30)) + "px Consolas, monospace";
+    c.textAlign = "center"; c.textBaseline = "middle";
+    const lc = doorCentre(d);
+    const off = d.axis === "x" ? [0, -0.42] : [-0.46, 0];
+    c.fillText(Math.round(apert(d)*100) + "%", PX(lc[0]+off[0]), PY(lc[1]+off[1]));
+  }
+
+  drawFoldHandles(c);
+
+  /*  Room names go in the TOP-LEFT corner of each room, the way an architect
+      writes them - the centre is where the head and the speaker live, and a
+      label under a draggable glyph is a label nobody can read. */
+  for (const r of ROOMS){
+    const x = PX(r.x0) + s*0.28, y = PY(r.y1) + s*0.34;
+    let ln = 0;
+    const line = (txt, col, font) => {
+      c.fillStyle = col; c.font = font;
+      c.fillText(txt, x, y + ln*Math.max(9, s*0.36));
+      ln++;
+    };
+    c.textAlign = "left"; c.textBaseline = "top";
+    line(r.name, "rgba(38,36,32,.88)", "600 " + Math.max(9, Math.round(s*0.40)) + "px 'Segoe UI', system-ui, sans-serif");
+    /*  Below about 24 px to the metre the five lines are taller than the room
+        they name and start colliding with the glyphs; the name and the tail
+        are the two worth keeping. */
+    if (s >= 24){
+      line(r.sub, "rgba(70,66,58,.62)", Math.max(8, Math.round(s*0.27)) + "px 'Segoe UI', system-ui, sans-serif");
+      /*  A broken room is no longer W x D, so it states the area its polygon
+          actually has - which is the thing a pushed-out wall changes, and the
+          only honest way to say "the room got bigger". */
+      const poly = roomPoly(r.i);
+      const dims = poly.length > 4
+        ? (polyArea(poly).toFixed(1) + " m2  h " + r.h.toFixed(1))
+        : ((r.x1-r.x0).toFixed(1) + " x " + (r.y1-r.y0).toFixed(1) + " m  h " + r.h.toFixed(1));
+      line(dims, "rgba(70,66,58,.74)", Math.max(8, Math.round(s*0.26)) + "px Consolas, monospace");
+      /*  The surfaces, and only the ones that are saying something of their
+          own - AS WALLS is the default and a line repeating it three times is
+          a line nobody reads. */
+      let surf = matName(r.i);
+      if (choiceIdx("flr" + (r.i+1)) > 0) surf += "  flr " + flrName(r.i);
+      if (choiceIdx("cel" + (r.i+1)) > 0) surf += "  cel " + celName(r.i);
+      line(surf, "rgba(60,56,48,.60)", Math.max(8, Math.round(s*0.26)) + "px Consolas, monospace");
+    }
+    if (scene && scene.rt && scene.rt[r.i]){
+      const t = scene.rt[r.i];
+      line("RT60 " + (t[1] !== undefined ? t[1].toFixed(2) : "--") + " s",
+           "rgba(168,58,26,.90)", "600 " + Math.max(8, Math.round(s*0.26)) + "px Consolas, monospace");
+    }
+  }
+
+  if (showRays) drawRays(c);
+  drawSources(c);
+  drawListener(c);
+  drawLegend(c, W, H);
+}
+
+const WARN_INK = "#a8381a";
+function polyPath(c, poly){
+  c.beginPath();
+  c.moveTo(PX(poly[0][0]), PY(poly[0][1]));
+  for (let i = 1; i < poly.length; i++) c.lineTo(PX(poly[i][0]), PY(poly[i][1]));
+  c.closePath();
+}
+/*  One edge of a room. If it still lies on a wall plane it goes through
+    planWall, which cuts the doorways out of it; otherwise it is a panel of a
+    broken wall and there is nothing to cut. */
+function planSeg(c, a, b){
+  if (Math.abs(a[1] - b[1]) < 1e-6){ planWall(c, "x", a[1], Math.min(a[0],b[0]), Math.max(a[0],b[0])); return; }
+  if (Math.abs(a[0] - b[0]) < 1e-6){ planWall(c, "y", a[0], Math.min(a[1],b[1]), Math.max(a[1],b[1])); return; }
+  c.beginPath(); c.moveTo(PX(a[0]), PY(a[1])); c.lineTo(PX(b[0]), PY(b[1])); c.stroke();
+}
+/*  The split point of every breakable wall, drawn as something to take hold
+    of: a diamond sitting on the wall, with a dashed leader back to the flat
+    wall it came off so the push reads as a distance. Concave ones wear the
+    warning colour and say what they are. */
+function drawFoldHandles(c){
+  const s = PF.s;
+  for (let i = 0; i < ROOMS.length; i++){
+    for (let k = 0; k < 2; k++){
+      const p = foldPoint(i, k), conc = foldConcave(i, k), flat = foldFlat(i, k);
+      const x = PX(p[0]), y = PY(p[1]);
+      const rr = Math.max(3.4, s * 0.12);
+      if (!flat){
+        const b = foldBase(i, k);
+        c.strokeStyle = conc ? "rgba(168,56,26,.55)" : "rgba(44,74,120,.45)";
+        c.lineWidth = 1; c.setLineDash([2,3]);
+        c.beginPath(); c.moveTo(PX(b[0]), PY(b[1])); c.lineTo(x, y); c.stroke();
+        c.setLineDash([]);
+      }
+      c.fillStyle = conc ? "rgba(214,110,70,.92)" : "rgba(246,238,222,.94)";
+      c.strokeStyle = conc ? WARN_INK : "#2c4a78";
+      c.lineWidth = 1.4;
+      c.beginPath();
+      c.moveTo(x, y - rr); c.lineTo(x + rr, y); c.lineTo(x, y + rr); c.lineTo(x - rr, y);
+      c.closePath(); c.fill(); c.stroke();
+      if (conc){
+        const g = foldEdge(i, k);
+        const tx = p[0] - g.out[0]*0.62, ty = p[1] - g.out[1]*0.62;
+        c.fillStyle = WARN_INK;
+        c.font = "600 " + Math.max(8, Math.round(s*0.25)) + "px Consolas, monospace";
+        c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillText("CONCAVE", PX(tx), PY(ty));
+        planNotes.push("CONCAVE " + ROOMS[i].name + " " + foldWallName(i, k));
+      }
+    }
+  }
+}
+
+function planWall(c, axis, coord, s0, s1){
+  const holes = holesOn(axis, coord, s0, s1).slice().sort((a,b)=>a.s0-b.s0);
+  let u = s0;
+  const seg = (a, b) => {
+    if (b - a < 1e-4) return;
+    c.beginPath();
+    if (axis === "x"){ c.moveTo(PX(a), PY(coord)); c.lineTo(PX(b), PY(coord)); }
+    else { c.moveTo(PX(coord), PY(a)); c.lineTo(PX(coord), PY(b)); }
+    c.stroke();
+  };
+  for (const h of holes){ seg(u, h.s0); u = h.s1; }
+  seg(u, s1);
+}
+
+function drawRays(c){
+  if (!scene || !scene.paths) return;
+  const order = { r2:0, r1:1, wall:2, leaf:3, portal:4, direct:5 };
+  const ps = scene.paths.slice().sort((a,b)=>(order[a.t]||0)-(order[b.t]||0));
+  for (const p of ps){
+    if (!p.pts || p.pts.length < 2) continue;      /* a kind with no points is not drawn */
+    const st = rayStyle(p.t);
+    const s = (typeof p.s === "number") ? (p.s & 3) : 0;
+    const db = (typeof p.db === "number") ? p.db : -12;
+    const a = Math.max(0.09, Math.min(0.95, 1 - (-db) / 42));
+    c.strokeStyle = srcRgba(s, a, st.lift);
+    c.lineWidth = Math.max(1, PF.s * st.w);
+    c.setLineDash(st.dash || []);
+    c.beginPath();
+    c.moveTo(PX(p.pts[0][0]), PY(p.pts[0][1]));
+    for (let i=1;i<p.pts.length;i++) c.lineTo(PX(p.pts[i][0]), PY(p.pts[i][1]));
+    c.stroke();
+    c.setLineDash([]);
+    c.fillStyle = srcRgba(s, a, st.lift);
+    for (let i=1;i<p.pts.length-1;i++){
+      c.beginPath(); c.arc(PX(p.pts[i][0]), PY(p.pts[i][1]), Math.max(1.4, PF.s*0.055), 0, 7); c.fill();
+    }
+  }
+}
+
+/*  All four, ghosted when their input is OFF - still drawn, still draggable,
+    because placing a source you have not yet fed is a normal thing to do. */
+function drawSources(c){
+  for (let n = 1; n <= NSRC; n++) if (n - 1 !== selSrc) drawOneSource(c, n);
+  drawOneSource(c, selSrc + 1);                  /* the selected one on top */
+}
+function drawOneSource(c, n){
+  const s = PF.s, yaw = SYAWn(n)*Math.PI/180;
+  const x = PX(SXn(n)), y = PY(SYn(n));
+  const on = srcActive(n), sel = (n - 1 === selSrc);
+  const hue = SRC_HUE[n-1];
+  const rgb = a => "rgba(" + hue[0] + "," + hue[1] + "," + hue[2] + "," + a + ")";
+  const A = on ? 1 : 0.40;                       /* the ghost */
+  c.save();
+  if (sel){                                      /* a halo, so which one the panel edits is never in doubt */
+    c.fillStyle = rgb(0.13 * (on ? 1 : 0.7));
+    c.beginPath(); c.arc(x, y, s*0.50, 0, 7); c.fill();
+    c.strokeStyle = rgb(0.55); c.lineWidth = 1.4;
+    c.setLineDash([3,3]);
+    c.beginPath(); c.arc(x, y, s*0.50, 0, 7); c.stroke();
+    c.setLineDash([]);
+  }
+  c.translate(x, y); c.rotate(-yaw);
+  if (srcTypeIdx(n) === 0){
+    /*  PURE: a stand seen from above - a ring on a cross - plus a cardioid
+        petal whose reach IS the directivity. */
+    const d = srcDir(n);
+    if (d > 0.02){
+      c.fillStyle = rgb(0.16 * A);
+      c.beginPath();
+      for (let i = 0; i <= 48; i++){
+        const th = -Math.PI + i/48*Math.PI*2;
+        const r = s * (0.22 + 0.62*d) * (1 - d + d*(0.5 + 0.5*Math.cos(th)));
+        const px = Math.cos(th)*r, py = -Math.sin(th)*r;
+        if (i) c.lineTo(px, py); else c.moveTo(px, py);
+      }
+      c.closePath(); c.fill();
+    }
+    c.strokeStyle = rgb(0.75*A); c.lineWidth = Math.max(1, s*0.032);
+    for (let i = 0; i < 3; i++){                  /* the tripod legs */
+      const th = i/3*Math.PI*2 + Math.PI/2;
+      c.beginPath(); c.moveTo(0,0);
+      c.lineTo(Math.cos(th)*s*0.24, -Math.sin(th)*s*0.24); c.stroke();
+    }
+    c.fillStyle = "rgba(246,238,222," + A + ")";
+    c.strokeStyle = rgb(A); c.lineWidth = Math.max(1.2, s*0.040);
+    c.beginPath(); c.arc(0, 0, s*0.115, 0, 7); c.fill(); c.stroke();
+  } else {
+    /*  LOUDSPEAKER: the cabinet in plan, baffle toward the facing arrow. */
+    c.fillStyle = "rgba(246,238,222," + A + ")";
+    c.strokeStyle = rgb(A); c.lineWidth = Math.max(1.2, s*0.042);
+    c.beginPath(); c.rect(-s*0.145, -s*0.115, s*0.29, s*0.23);
+    c.fill(); c.stroke();
+    c.fillStyle = rgb(0.80*A);                    /* the baffle edge */
+    c.fillRect(s*0.105, -s*0.115, s*0.040, s*0.23);
+    c.beginPath(); c.arc(s*0.02, 0, s*0.058, 0, 7); c.fill();
+  }
+  /* the facing arrow, which is also the handle you turn it by */
+  c.strokeStyle = rgb(0.85*A); c.lineWidth = Math.max(1.2, s*0.036);
+  c.beginPath(); c.moveTo(s*0.20, 0); c.lineTo(s*0.60, 0); c.stroke();
+  c.fillStyle = rgb(0.85*A);
+  c.beginPath(); c.moveTo(s*0.78, 0); c.lineTo(s*0.56, -s*0.095); c.lineTo(s*0.56, s*0.095); c.closePath(); c.fill();
+  c.restore();
+  /* the heading handle */
+  if (0.80*s > 20){
+    const hx = PX(SXn(n) + Math.cos(yaw)*0.80), hy = PY(SYn(n) + Math.sin(yaw)*0.80);
+    c.fillStyle = rgb(0.24*A); c.strokeStyle = rgb(0.85*A); c.lineWidth = 1.2;
+    c.beginPath(); c.arc(hx, hy, Math.max(3.5, s*0.13), 0, 7); c.fill(); c.stroke();
+  }
+  c.fillStyle = on ? "rgba(52,48,42,.88)" : "rgba(90,84,74,.60)";
+  c.font = (sel ? "600 " : "") + Math.max(8, Math.round(s*0.27)) + "px Consolas, monospace";
+  c.textAlign = "center"; c.textBaseline = "top";
+  c.fillText(n + (on ? ("  " + SZn(n).toFixed(2) + " m") : "  off"), x, y + s*0.30);
+}
+
+function drawListener(c){
+  const x = PX(LX()), y = PY(LY()), s = PF.s, yaw = LYAW()*Math.PI/180;
+  const r = s*0.22;
+  c.save();
+  c.translate(x, y); c.rotate(-yaw);
+  /* the ears, at their real spacing - past a head's width they become a
+     spaced pair on a bar, which is exactly what the parameter is doing */
+  const half = EARSPAN_M(V.earspan) / 2 * s;
+  if (half > r*1.15){
+    c.strokeStyle = "#26262a"; c.lineWidth = Math.max(1.4, s*0.05);
+    c.beginPath(); c.moveTo(0, -half); c.lineTo(0, half); c.stroke();
+  }
+  c.fillStyle = "#26262a";
+  c.beginPath(); c.ellipse(0, -half, r*0.17, r*0.32, 0, 0, 7); c.fill();
+  c.beginPath(); c.ellipse(0,  half, r*0.17, r*0.32, 0, 0, 7); c.fill();
+  /* head */
+  c.fillStyle = "#f4ecdc"; c.strokeStyle = "#26262a"; c.lineWidth = 1.6;
+  c.beginPath(); c.arc(0, 0, r, 0, 7); c.fill(); c.stroke();
+  /* nose */
+  c.fillStyle = "#26262a";
+  c.beginPath(); c.moveTo(r*1.32, 0); c.lineTo(r*0.55, -r*0.30); c.lineTo(r*0.55, r*0.30); c.closePath(); c.fill();
+  /* field of view */
+  c.fillStyle = "rgba(40,70,120,.13)";
+  const fv = fovDeg*Math.PI/180*0.9;
+  c.beginPath(); c.moveTo(0,0); c.arc(0, 0, s*2.4, -fv/2, fv/2); c.closePath(); c.fill();
+  c.restore();
+  /* heading handle */
+  const hx = PX(LX() + Math.cos(yaw)*0.95), hy = PY(LY() + Math.sin(yaw)*0.95);
+  c.strokeStyle = "rgba(40,60,100,.55)"; c.lineWidth = 1.2;
+  c.beginPath(); c.moveTo(x, y); c.lineTo(hx, hy); c.stroke();
+  c.fillStyle = "rgba(60,90,150,.35)"; c.strokeStyle = "#2c4a78"; c.lineWidth = 1.2;
+  c.beginPath(); c.arc(hx, hy, Math.max(3.5, s*0.13), 0, 7); c.fill(); c.stroke();
+  c.fillStyle = "rgba(44,74,120,.9)";
+  c.font = "600 " + Math.max(8, Math.round(s*0.26)) + "px Consolas, monospace";
+  c.textAlign = "center"; c.textBaseline = "bottom";
+  c.fillText("YOU", x, y - s*0.34);
+}
+
+function drawLegend(c, W, H){
+  /*  Directly under the drawing, not at the foot of the canvas - the plan is
+      width-limited, so pinning the key to the bottom leaves a hand's width of
+      blank paper between the two and they stop reading as one sheet. */
+  const y0 = Math.min(H - PF.leg + 4, PY(0) + 14);
+  c.textAlign = "left"; c.textBaseline = "middle";
+  c.font = "10px Consolas, monospace";
+  let x = 12;
+  c.fillStyle = "rgba(60,56,48,.85)";
+  c.fillText(showRays ? "PATHS" : "PATHS OFF", x, y0 + 8);
+  x += 60;
+  if (showRays){
+    /*  Hue says WHICH SOURCE, line style says WHICH KIND. Two keys, because
+        one legend mixing the two would have to show 24 swatches. */
+    for (let n = 1; n <= NSRC; n++){
+      const lbl = String(n);
+      const wNeed = 14 + c.measureText(lbl).width + 10;
+      if (x + wNeed > W - 8) break;
+      c.strokeStyle = SRC_CSS[n-1]; c.lineWidth = 2.6;
+      c.beginPath(); c.moveTo(x, y0+8); c.lineTo(x+12, y0+8); c.stroke();
+      c.fillStyle = srcActive(n) ? "rgba(60,56,48,.85)" : "rgba(60,56,48,.40)";
+      c.fillText(lbl, x+16, y0+8);
+      x += wNeed;
+    }
+    x += 8;
+    const kinds = [["direct",null,2.6],["refl",null,1.2],["doorway",[7,3],1.8],["through",[4,4],1.4]];
+    for (const k of kinds){
+      const wNeed = 20 + c.measureText(k[0]).width + 12;
+      if (x + wNeed > W - 8) break;         /* check BEFORE drawing, not after */
+      c.strokeStyle = "rgba(70,66,58,.80)"; c.lineWidth = k[2];
+      c.setLineDash(k[1] || []);
+      c.beginPath(); c.moveTo(x, y0+8); c.lineTo(x+16, y0+8); c.stroke();
+      c.setLineDash([]);
+      c.fillStyle = "rgba(60,56,48,.80)";
+      c.fillText(k[0], x+20, y0+8);
+      x += wNeed;
+    }
+  }
+  c.fillStyle = "rgba(70,66,58,.80)";
+  c.font = "10px Consolas, monospace";
+  const n = selSrc + 1;
+  const posYou = "YOU " + LX().toFixed(2) + ", " + LY().toFixed(2) + " m  " + Math.round(LYAW()) + " deg";
+  const posSrc = "SRC " + n + " " + SXn(n).toFixed(2) + ", " + SYn(n).toFixed(2) + ", " +
+                 SZn(n).toFixed(2) + " m  " + Math.round(SYAWn(n)) + " deg";
+  const one = posYou + "      " + posSrc;
+  let helpY = y0 + 44;
+  if (c.measureText(one).width < W - 24) c.fillText(one, 12, y0 + 28);
+  else { c.fillText(posYou, 12, y0 + 28); c.fillText(posSrc, 12, y0 + 42); helpY = y0 + 56; }
+  /* the help line only if it fits whole - a sentence cut off mid-word reads
+     as a fault rather than as a narrow window */
+  const help = "click a source to select it  .  drag it to move, drag its dot to turn  .  click a door to toggle, drag it to set";
+  /*  and only if the line fits the sheet BOTH ways - a sentence sliced by the
+      bottom edge reads as a fault, exactly as one sliced by the right edge
+      does, and a short panel is where that happens */
+  /*  A wall bent INTO the room is worth more than a reminder of how to drag
+      things, so it takes that line when there is one. */
+  const bent = concaveList();
+  if (helpY + 5 <= H){
+    if (bent.length){
+      c.fillStyle = WARN_INK;
+      const full = "CONCAVE: " + bent.join(", ") + " - bent INTO the room, which focuses sound at a point. Flat is better.";
+      const mid  = "CONCAVE: " + bent.join(", ") + " - focuses sound at a point; flat is better";
+      const txt = c.measureText(full).width < W - 24 ? full
+                : (c.measureText(mid).width < W - 24 ? mid : "CONCAVE WALL - focuses sound");
+      c.fillText(txt, 12, helpY);
+      planNotes.push(txt);
+    } else {
+      c.fillStyle = "rgba(70,66,58,.55)";
+      const shortHelp = "click a source to select, drag to move";
+      const txt = c.measureText(help).width < W - 24 ? help
+                : (c.measureText(shortHelp).width < W - 24 ? shortHelp : null);
+      if (txt) c.fillText(txt, 12, helpY);
+    }
+  }
+}
+
+/* ==================================================================== */
+/*  walking and looking                                                  */
+/* ==================================================================== */
+const WALK = 2.3;                    /* m/s */
+const TURN = 105;                    /* deg/s on the arrow keys */
+const keys = {};
+let walkTouching = false, lastWalkT = 0;
+
+function walkActive(){
+  return !!(keys.w || keys.a || keys.s || keys.d || keys.up || keys.down || keys.left || keys.right);
+}
+/*  At least R inside a polygon: inside it at all, and no closer than R to any
+    of its edges. For an unbroken room that is exactly the shrunk rectangle it
+    used to be; for a broken one it follows the panels in BOTH directions - you
+    can walk into a wall that was pushed out, and you cannot walk through one
+    that was pushed in. */
+function insideBy(poly, x, y, R){
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++){
+    const a = poly[i], b = poly[j];
+    if (((a[1] > y) !== (b[1] > y)) &&
+        (x < (b[0]-a[0]) * (y-a[1]) / (b[1]-a[1]) + a[0])) inside = !inside;
+  }
+  if (!inside) return false;
+  for (let i = 0; i < poly.length; i++){
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    if (nearSeg(x, y, a[0], a[1], b[0], b[1]) < R) return false;
+  }
+  return true;
+}
+function walkable(x, y){
+  const R = 0.30;
+  for (const r of ROOMS) if (insideBy(roomPoly(r.i), x, y, R)) return true;
+  for (const d of DOORS){
+    if (apert(d) < 0.5) continue;                /* the protocol's own rule */
+    const o = opening(d), m = 0.12;
+    if (o[1] - o[0] < 0.30) continue;
+    if (d.axis === "x"){ if (Math.abs(y - d.wall) < 0.45 && x > o[0]+m && x < o[1]-m) return true; }
+    else { if (Math.abs(x - d.wall) < 0.45 && y > o[0]+m && y < o[1]-m) return true; }
+  }
+  return false;
+}
+function tryMove(dx, dy){
+  let x = LX(), y = LY(), moved = false;
+  if (dx && walkable(x+dx, y)){ x += dx; moved = true; }
+  if (dy && walkable(x, y+dy)){ y += dy; moved = true; }
+  if (!moved) return false;
+  V.lisx = clamp01(x / APT_W); V.lisy = clamp01(y / APT_H);
+  updateControl("lisx"); updateControl("lisy");
+  queueP("lisx", V.lisx); queueP("lisy", V.lisy);
+  return true;
+}
+function beginWalkGesture(){
+  if (walkTouching) return;
+  walkTouching = true;
+  NB.send({ k:"touch", id:"lisx", down:true });
+  NB.send({ k:"touch", id:"lisy", down:true });
+  NB.send({ k:"touch", id:"lisyaw", down:true });
+}
+function endWalkGesture(){
+  if (!walkTouching) return;
+  walkTouching = false;
+  doFlush();
+  NB.send({ k:"touch", id:"lisx", down:false });
+  NB.send({ k:"touch", id:"lisy", down:false });
+  NB.send({ k:"touch", id:"lisyaw", down:false });
+}
+function stepWalk(now){
+  if (!walkActive()){ lastWalkT = 0; return; }
+  const dt = lastWalkT ? Math.min(0.1, (now - lastWalkT) / 1000) : 0.016;
+  lastWalkT = now;
+  applyWalk(dt);
+}
+function applyWalk(dt){
+  const yaw = LYAW() * Math.PI / 180;
+  const fx = Math.cos(yaw), fy = Math.sin(yaw);
+  const rx = Math.sin(yaw), ry = -Math.cos(yaw);
+  let f = 0, r = 0, t = 0;
+  if (keys.w || keys.up) f += 1;
+  if (keys.s || keys.down) f -= 1;
+  if (keys.a) r -= 1;
+  if (keys.d) r += 1;
+  if (keys.left) t += 1;
+  if (keys.right) t -= 1;
+  if (t){
+    const nv = (((V.lisyaw + t*TURN*dt/360) % 1) + 1) % 1;
+    V.lisyaw = nv; updateControl("lisyaw"); queueP("lisyaw", nv);
+  }
+  if (f || r){
+    const l = Math.hypot(f, r) || 1;
+    const dx = (fx*f + rx*r) / l * WALK * dt;
+    const dy = (fy*f + ry*r) / l * WALK * dt;
+    tryMove(dx, dy);
+  }
+  invalidate("both");
+}
+function keyName(e){
+  const k = (e.key || "").toLowerCase();
+  if (k === "w" || k === "a" || k === "s" || k === "d") return k;
+  if (k === "arrowup") return "up";
+  if (k === "arrowdown") return "down";
+  if (k === "arrowleft") return "left";
+  if (k === "arrowright") return "right";
+  return null;
+}
+/*  The ONE case where W A S D and the arrows are not movement: somewhere text
+    is genuinely being typed. A range, a checkbox or a button is an INPUT that
+    nobody types into, and a SELECT is exactly the control that used to eat
+    the arrow keys - so neither of those keeps them. There is no text field on
+    this panel today; the guard is here so adding one does not break walking. */
+function textEntry(e){
+  const t = e.target;
+  if (!t || !t.tagName) return false;
+  if (t.isContentEditable) return true;
+  const n = t.tagName.toUpperCase();
+  if (n === "TEXTAREA") return true;
+  if (n !== "INPUT") return false;
+  const ty = (t.type || "text").toLowerCase();
+  return !/^(range|checkbox|radio|button|submit|reset|color|file|image)$/.test(ty);
+}
+function movementKey(e){
+  if (e.ctrlKey || e.metaKey || e.altKey) return null;     /* a shortcut is not a step */
+  return keyName(e);
+}
+/*  CAPTURE phase, at the WINDOW: the very first thing in the event path, so
+    the page sees the key before the focused control does and can take it away. Peter kept getting trapped in a menu -
+    once a select or a slider had the focus the browser gave it the arrows and
+    W A S D, and walking simply stopped. Nothing else is swallowed: Tab,
+    Escape, Enter and Space never reach this. */
+window.addEventListener("keydown", e => {
+  const k = movementKey(e);
+  if (!k || textEntry(e)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  /*  Drop the focus the first time a movement key arrives, so the next key
+      has nothing to fight and the focus ring stops claiming the control is
+      still armed. */
+  const a = document.activeElement;
+  if (a && a !== document.body && a.blur) { try { a.blur(); } catch(_){} }
+  if (!keys[k]){
+    keys[k] = true;
+    beginWalkGesture();
+    lastWalkT = nowMs();
+    /*  One step immediately, so a single press moves you at once instead of
+        waiting for a frame that a headless context may never produce. */
+    applyWalk(0.028);
+  }
+  schedule();
+}, true);
+window.addEventListener("keyup", e => {
+  const k = keyName(e);
+  if (!k) return;
+  keys[k] = false;
+  if (!walkActive()) endWalkGesture();
+}, true);
+window.addEventListener("blur", () => {
+  for (const k in keys) keys[k] = false;
+  endWalkGesture();
+});
+
+/* mouse look */
+let looking = false, lookX = 0, lookY = 0;
+povCv.addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  /*  A handle under the pointer takes the press; only then is this a look.
+      pickHandle is defined further down - it runs on an event, never while
+      the page is still being read. */
+  const grab = pickHandle(e.clientX, e.clientY);
+  if (grab){
+    if (doorAnim[grab.d.id]) delete doorAnim[grab.d.id];   /* the gesture stays open */
+    hdrag = { d:grab.d, moved:false, cx:e.clientX, cy:e.clientY };
+    doorTouch(grab.d.id, true);
+    povCv.classList.add("handling");
+    povCv.classList.remove("handle");
+    try { povCv.setPointerCapture(e.pointerId); } catch(_){}
+    e.preventDefault();
+    return;
+  }
+  looking = true; lookX = e.clientX; lookY = e.clientY;
+  povCv.classList.add("look");
+  try { povCv.setPointerCapture(e.pointerId); } catch(_){}   /* throws on synthetic ids */
+  NB.send({ k:"touch", id:"lisyaw", down:true });
+  const t = document.getElementById("povTip");
+  if (t) t.style.opacity = "0";
+  e.preventDefault();
+});
+window.addEventListener("pointermove", e => {
+  if (!looking) return;
+  const dx = e.clientX - lookX, dy = e.clientY - lookY;
+  lookX = e.clientX; lookY = e.clientY;
+  const sens = 0.22;
+  const nv = (((V.lisyaw - dx * sens / 360) % 1) + 1) % 1;
+  V.lisyaw = nv; updateControl("lisyaw"); queueP("lisyaw", nv);
+  pitchDeg = Math.max(-60, Math.min(60, pitchDeg - dy * sens));
+  invalidate("both");
+});
+const endLook = e => {
+  if (!looking) return;
+  looking = false;
+  povCv.classList.remove("look");
+  try { povCv.releasePointerCapture(e.pointerId); } catch(_){}
+  doFlush();
+  NB.send({ k:"touch", id:"lisyaw", down:false });
+};
+window.addEventListener("pointerup", endLook);
+window.addEventListener("pointercancel", endLook);
+povCv.addEventListener("wheel", e => {
+  e.preventDefault();
+  fovDeg = Math.max(38, Math.min(92, fovDeg + (e.deltaY > 0 ? 3 : -3)));
+  invalidate("both");
+}, { passive:false });
+povCv.addEventListener("dblclick", () => { pitchDeg = 0; fovDeg = 62; invalidate("both"); });
+
+/* ==================================================================== */
+/*  plan dragging                                                        */
+/* ==================================================================== */
+let pdrag = null;                    /* {what, id[], door, moved, x0, y0} */
+
+function nearSeg(px, py, ax, ay, bx, by){
+  const vx = bx-ax, vy = by-ay;
+  const L = vx*vx + vy*vy;
+  let t = L > 0 ? ((px-ax)*vx + (py-ay)*vy) / L : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax+vx*t), py - (ay+vy*t));
+}
+/*  Hit testing is done in PIXELS, not metres. A grab radius written in world
+    units grows as the plan shrinks, and on a small panel the heading handle -
+    which is only 0.8 m from the glyph it belongs to - swallowed the glyph
+    itself, so dragging the speaker turned it instead. */
+function hitPlan(wx, wy){
+  const s = PF ? PF.s : 30;
+  const px = (ax, ay) => Math.hypot((wx-ax)*s, (wy-ay)*s);
+  const lyaw = LYAW()*Math.PI/180;
+  const lh = [LX()+Math.cos(lyaw)*0.95, LY()+Math.sin(lyaw)*0.95];
+  /*  A handle is only offered when it is far enough from its own body to be
+      aimed at; below that the plan is too small for two targets.
+      The SELECTED source is tested first so that four sources standing on top
+      of one another can still be told apart - pick one, then drag it. */
+  const order = [];
+  for (let n = 1; n <= NSRC; n++) order.push(n);
+  order.sort((a,b) => (b-1 === selSrc ? 1 : 0) - (a-1 === selSrc ? 1 : 0));
+  for (const n of order){
+    const yaw = SYAWn(n)*Math.PI/180;
+    const h = [SXn(n)+Math.cos(yaw)*0.80, SYn(n)+Math.sin(yaw)*0.80];
+    if (0.80*s > 20 && px(h[0], h[1]) < 12) return { what:"syaw", n:n };
+  }
+  if (0.95*s > 20 && px(lh[0], lh[1]) < 12) return { what:"lisyaw" };
+  for (const n of order) if (px(SXn(n), SYn(n)) < 15) return { what:"src", n:n };
+  if (px(LX(), LY()) < 15) return { what:"lis" };
+  /*  The break markers sit ON a wall, where a source almost never is, so they
+      are offered AFTER the things that live in the middle of the room - a
+      speaker parked against a wall must still be the thing you pick up. */
+  for (let i = 0; i < ROOMS.length; i++)
+    for (let k = 0; k < 2; k++){
+      const p = foldPoint(i, k);
+      if (px(p[0], p[1]) < 13) return { what:"fold", room:i, k:k };
+    }
+  for (const d of DOORS){
+    const hp = hingePt(d);
+    const a = leafAngle(d), c0 = d.closedAng*Math.PI/180;
+    const tip = [hp[0]+Math.cos(a)*DOOR_W, hp[1]+Math.sin(a)*DOOR_W];
+    const ctip = [hp[0]+Math.cos(c0)*DOOR_W, hp[1]+Math.sin(c0)*DOOR_W];
+    const lim = Math.max(0.16, 11 / s);
+    if (nearSeg(wx, wy, hp[0], hp[1], tip[0], tip[1]) < lim ||
+        nearSeg(wx, wy, hp[0], hp[1], ctip[0], ctip[1]) < lim) return { what:"door", door:d };
+  }
+  return null;
+}
+/*  A value the hand is setting: written, drawn and sent, and skipped outright
+    when it has not actually moved - so a drag straight out of the room leaves
+    the split position bit-identical rather than sending a stream of noise. */
+function setDragged(id, v){
+  v = clamp01(v);
+  if (V[id] === v) return;
+  V[id] = v;
+  updateControl(id);
+  queueP(id, v);
+}
+function doorApertureFrom(d, wx, wy){
+  const hp = hingePt(d);
+  const ang = Math.atan2(wy - hp[1], wx - hp[0]);
+  const c0 = d.closedAng * Math.PI/180, o1 = d.openAng * Math.PI/180;
+  /* the fraction of the way from the closed angle to the open one */
+  let rel = ang - c0;
+  while (rel > Math.PI) rel -= 2*Math.PI;
+  while (rel < -Math.PI) rel += 2*Math.PI;
+  const span = o1 - c0;
+  return Math.max(0, Math.min(1, rel / span));
+}
+planCv.addEventListener("pointerdown", e => {
+  if (e.button !== undefined && e.button !== 0) return;
+  if (!PF) PF = planFit();
+  const w = planToWorld(e.clientX, e.clientY);
+  const hit = hitPlan(w[0], w[1]);
+  if (!hit) return;
+  pdrag = { what:hit.what, door:hit.door, n:hit.n, room:hit.room, k:hit.k,
+            moved:false, cx:e.clientX, cy:e.clientY };
+  /*  Touching a source picks it up AND selects it - the panel below follows
+      whatever your hand is on, which is the only arrangement that does not
+      need explaining. */
+  if (hit.n) selectSource(hit.n - 1, true);
+  const ids = hit.what === "src"  ? ["s"+hit.n+"x", "s"+hit.n+"y"]
+            : hit.what === "syaw" ? ["s"+hit.n+"yaw"]
+            : hit.what === "lis"  ? ["lisx","lisy"]
+            : hit.what === "door" ? [hit.door.id]
+            /*  one marker, two parameters: the gesture is opened on both, so
+                whichever way the hand goes the host has a gesture for it */
+            : hit.what === "fold" ? [foldId(hit.room, hit.k), foldPId(hit.room, hit.k)]
+            : [hit.what];
+  pdrag.ids = ids;
+  for (const id of ids) NB.send({ k:"touch", id:id, down:true });
+  try { planCv.setPointerCapture(e.pointerId); } catch(_){}
+  e.preventDefault();
+});
+window.addEventListener("pointermove", e => {
+  if (!pdrag) return;
+  if (Math.abs(e.clientX - pdrag.cx) > 3 || Math.abs(e.clientY - pdrag.cy) > 3) pdrag.moved = true;
+  const w = planToWorld(e.clientX, e.clientY);
+  if (pdrag.what === "src"){
+    const n = pdrag.n;
+    const p = clampIntoApartment(w[0], w[1], 0.22);
+    V["s"+n+"x"] = clamp01(p[0]/APT_W); V["s"+n+"y"] = clamp01(p[1]/APT_H);
+    updateControl("s"+n+"x"); updateControl("s"+n+"y");
+    queueP("s"+n+"x", V["s"+n+"x"]); queueP("s"+n+"y", V["s"+n+"y"]);
+    meshDirty = true; invalidate("both");
+  } else if (pdrag.what === "lis"){
+    const p = clampIntoApartment(w[0], w[1], 0.22);
+    V.lisx = clamp01(p[0]/APT_W); V.lisy = clamp01(p[1]/APT_H);
+    updateControl("lisx"); updateControl("lisy");
+    queueP("lisx", V.lisx); queueP("lisy", V.lisy);
+    invalidate("both");
+  } else if (pdrag.what === "syaw" || pdrag.what === "lisyaw"){
+    const src = pdrag.what === "syaw";
+    const id = src ? ("s" + pdrag.n + "yaw") : "lisyaw";
+    const cx = src ? SXn(pdrag.n) : LX();
+    const cy = src ? SYn(pdrag.n) : LY();
+    let a = Math.atan2(w[1]-cy, w[0]-cx) * 180 / Math.PI;
+    if (a < 0) a += 360;
+    const nv = clamp01(a/360);
+    V[id] = nv; updateControl(id);
+    queueP(id, nv);
+    if (src) meshDirty = true;
+    invalidate("both");
+  } else if (pdrag.what === "fold"){
+    /*  The pointer decomposed on the wall's own two axes: how far ALONG it,
+        which is the split position, and how far OUT of the room, which is the
+        push. One marker carries both, which is what "drag it perpendicular,
+        drag it along" asks for - and because each move sets an absolute value
+        from where the pointer IS, a drag that ends back on the wall line ends
+        with the position it started with. */
+    const i = pdrag.room, k = pdrag.k, g = foldEdge(i, k);
+    const ax = g.b[0] - g.a[0], ay = g.b[1] - g.a[1];
+    const L = Math.hypot(ax, ay) || 1;
+    const dxw = w[0] - g.a[0], dyw = w[1] - g.a[1];
+    const along = (dxw*ax + dyw*ay) / (L*L);            /* 0..1 down the wall */
+    const outm  = dxw*g.out[0] + dyw*g.out[1];          /* metres out of it */
+    setDragged(foldPId(i, k), (along - 0.15) / 0.7);
+    setDragged(foldId(i, k), outm / 1.2 + 0.5);
+    meshDirty = true; invalidate("both");
+  } else if (pdrag.what === "door"){
+    const a = doorApertureFrom(pdrag.door, w[0], w[1]);
+    V[pdrag.door.id] = a; updateControl(pdrag.door.id);
+    queueP(pdrag.door.id, a);
+    meshDirty = true; invalidate("both");
+  }
+});
+const endPlanDrag = e => {
+  if (!pdrag) return;
+  const p = pdrag; pdrag = null;
+  try { planCv.releasePointerCapture(e.pointerId); } catch(_){}
+  if (!p.moved && p.what === "door"){
+    const id = p.door.id;
+    const nv = V[id] > 0.5 ? 0 : 1;
+    V[id] = nv; updateControl(id); queueP(id, nv);
+    meshDirty = true; invalidate("both");
+  }
+  doFlush();
+  for (const id of (p.ids || [])) NB.send({ k:"touch", id:id, down:false });
+};
+window.addEventListener("pointerup", endPlanDrag);
+window.addEventListener("pointercancel", endPlanDrag);
+
+/* ==================================================================== */
+/*  the door handles, in the 3D view                                     */
+/*                                                                       */
+/*  Everything here is analytic. The leaf is a rectangle whose position   */
+/*  follows from the hinge and the aperture, so a ray can be tested       */
+/*  against it with arithmetic - there is no picking pass on the GPU and  */
+/*  there does not need to be one.                                        */
+/* ==================================================================== */
+
+/*  The camera IS the listener, so the ray starts at the ear. The basis is
+    the one viewMat builds, spelled out again rather than inverted out of the
+    matrix: two lines, and no question about handedness. */
+function povRay(clientX, clientY){
+  const r = povCv.getBoundingClientRect();
+  if (r.width < 4 || r.height < 4) return null;
+  const ndcX = ((clientX - r.left) / r.width) * 2 - 1;
+  const ndcY = 1 - ((clientY - r.top) / r.height) * 2;
+  const yaw = LYAW()*Math.PI/180, pit = pitchDeg*Math.PI/180;
+  const cp = Math.cos(pit), sp = Math.sin(pit);
+  const f  = [Math.cos(yaw)*cp, Math.sin(yaw)*cp, sp];
+  const rt = [Math.sin(yaw), -Math.cos(yaw), 0];
+  const up = crs(rt, f);
+  const th = Math.tan(fovDeg*Math.PI/360), asp = r.width / r.height;
+  const d = nrm3([ f[0] + rt[0]*ndcX*th*asp + up[0]*ndcY*th,
+                   f[1] + rt[1]*ndcX*th*asp + up[1]*ndcY*th,
+                   f[2] + rt[2]*ndcX*th*asp + up[2]*ndcY*th ]);
+  return { o:[LX(), LY(), EAR_Z], d:d };
+}
+
+/*  The interior walls, as segments. A handle two metres away with a wall in
+    between is not reachable however close it is, and grabbing one through a
+    wall is exactly the accident this prevents. */
+const INNER_WALLS = [
+  { axis:"x", coord:5.0, s0:0,   s1:6.0 },
+  { axis:"y", coord:6.0, s0:0,   s1:9.0 },
+  { axis:"y", coord:3.0, s0:5.0, s1:8.5 }
+];
+function wallBetween(x0, y0, x1, y1){
+  /*  the last few centimetres are dropped: the handle SITS on the wall plane
+      when the door is shut, and an endpoint that lands exactly on a wall
+      would otherwise count as crossing it. */
+  const ex = x0 + (x1-x0)*0.97, ey = y0 + (y1-y0)*0.97;
+  for (const w of INNER_WALLS){
+    const a0 = w.axis === "x" ? y0 : x0;
+    const a1 = w.axis === "x" ? ey : ex;
+    if ((a0 - w.coord) * (a1 - w.coord) >= 0) continue;        /* same side */
+    const t = (w.coord - a0) / (a1 - a0);
+    const u = (w.axis === "x" ? x0 + (ex-x0)*t : y0 + (ey-y0)*t);
+    if (u < w.s0 || u > w.s1) continue;                         /* off the end */
+    /*  A DOORWAY is a hole in the wall whatever the leaf is doing - the mesh
+        cuts the full span out and the leaf fills it - so the span, not the
+        aperture, is what you can see through. The leaf in it may be in the
+        way, but the leaf is the thing being picked. */
+    let through = false;
+    for (const d of DOORS){
+      if (d.axis !== w.axis || Math.abs(d.wall - w.coord) > 1e-4) continue;
+      if (u > d.s0 && u < d.s1) through = true;
+    }
+    if (!through) return true;
+  }
+  return false;
+}
+
+/*  Where the handle is, in the world, for a given door. */
+function handlePos(d){
+  const a = leafAngle(d), hp = hingePt(d);
+  return [hp[0] + Math.cos(a)*HANDLE_U, hp[1] + Math.sin(a)*HANDLE_U, HANDLE_Z];
+}
+
+/*  Ray against the leaf's own plane, then the handle rectangle on it. Both
+    faces carry a handle and the leaf is 4 cm thick, so the mid-plane stands
+    for both of them. */
+function pickHandle(clientX, clientY){
+  const ray = povRay(clientX, clientY);
+  if (!ray) return null;
+  let best = null;
+  for (const d of DOORS){
+    const a = leafAngle(d), hp = hingePt(d);
+    const co = Math.cos(a), si = Math.sin(a);
+    const nx = -si, ny = co;                       /* the leaf's normal */
+    const den = ray.d[0]*nx + ray.d[1]*ny;
+    if (Math.abs(den) < 1e-4) continue;            /* edge on */
+    const t = ((hp[0]-ray.o[0])*nx + (hp[1]-ray.o[1])*ny) / den;
+    if (t <= 0.05) continue;                       /* behind you */
+    const px = ray.o[0]+ray.d[0]*t, py = ray.o[1]+ray.d[1]*t, pz = ray.o[2]+ray.d[2]*t;
+    const u = (px-hp[0])*co + (py-hp[1])*si;
+    if (Math.abs(u - HANDLE_CU) > HANDLE_HU) continue;
+    if (Math.abs(pz - HANDLE_Z) > HANDLE_HZ) continue;
+    const h = handlePos(d);
+    const dist = Math.hypot(h[0]-ray.o[0], h[1]-ray.o[1], h[2]-ray.o[2]);
+    if (dist > HANDLE_REACH) continue;             /* out of reach */
+    if (wallBetween(ray.o[0], ray.o[1], h[0], h[1])) continue;
+    if (!best || t < best.t) best = { d:d, t:t, dist:dist };
+  }
+  return best;
+}
+
+function setHover(d){
+  if (hoverDoor === d) return;
+  hoverDoor = d;
+  povCv.classList.toggle("handle", !!d && !hdrag);
+  meshDirty = true;
+  invalidate("pov");
+}
+
+/*  Dragging: the handle travels on a circle about the hinge, so the pointer
+    is put on that circle rather than on a flat plane. A plane at handle
+    height stops working the moment you look up; a cylinder is what the
+    handle actually moves on and works from any angle. */
+function apertureFromRay(d, ray){
+  const hp = hingePt(d);
+  const ox = ray.o[0]-hp[0], oy = ray.o[1]-hp[1];
+  const dx = ray.d[0], dy = ray.d[1];
+  const A = dx*dx + dy*dy;
+  let px = ox, py = oy;
+  if (A > 1e-9){
+    const B = ox*dx + oy*dy;
+    const C = ox*ox + oy*oy - HANDLE_U*HANDLE_U;
+    const disc = B*B - A*C;
+    let t;
+    if (disc > 0){
+      const r = Math.sqrt(disc);
+      const t1 = (-B - r)/A, t2 = (-B + r)/A;
+      t = t1 > 0.05 ? t1 : (t2 > 0.05 ? t2 : -B/A);
+    } else {
+      /*  past the edge of the swing the ray misses the circle entirely; the
+          closest approach keeps the door FOLLOWING the pointer instead of
+          sticking where it was. */
+      t = -B/A;
+    }
+    t = Math.max(0.05, t);
+    px = ox + dx*t; py = oy + dy*t;
+  }
+  return doorApertureFrom(d, hp[0]+px, hp[1]+py);
+}
+
+/*  One place that knows whether a host gesture is open on a door, so a drag
+    that hands over to the click animation cannot leave one hanging. */
+const doorGesture = {};
+function doorTouch(id, down){
+  if (down){
+    if (doorGesture[id]) return;
+    doorGesture[id] = 1;
+    NB.send({ k:"touch", id:id, down:true });
+  } else {
+    if (!doorGesture[id]) return;
+    delete doorGesture[id];
+    doFlush();
+    NB.send({ k:"touch", id:id, down:false });
+  }
+}
+function setDoor(d, v){
+  const id = d.id;
+  V[id] = clamp01(v);
+  updateControl(id);
+  queueP(id, V[id]);
+  meshDirty = true;
+  invalidate("both");
+}
+
+/*  A click with no movement throws the door or slams it, and it SWINGS -
+    a leaf that teleports from shut to open reads as a bug rather than as a
+    door. Driven off a timer, not an animation frame: a headless context
+    produces no frames at all, and the same code has to run there. */
+const doorAnim = {};
+let doorAnimTmr = 0;
+function doorAnimActive(){ for (const k in doorAnim) return true; return false; }
+function startDoorAnim(d, to){
+  doorTouch(d.id, true);
+  doorAnim[d.id] = { d:d, from:V[d.id], to:clamp01(to), u:0, last:nowMs(), ms:340 };
+  if (!doorAnimTmr) doorAnimTmr = setTimeout(doorAnimTick, 16);
+}
+function doorAnimTick(){
+  doorAnimTmr = 0;
+  const now = nowMs();
+  for (const id in doorAnim){
+    const a = doorAnim[id];
+    /*  The step is the real elapsed time, BOUNDED at both ends: never less
+        than a nominal frame, so a context whose clock does not advance still
+        gets a swing rather than a stall; and never more than 40 ms, so a
+        window that was stalled resumes the swing instead of teleporting the
+        door to the far end of it. The same reason the walk clamps its own dt. */
+    const step = Math.min(40, Math.max(16, now - a.last));
+    a.last = now;
+    a.u += a.ms > 0 ? step / a.ms : 1;
+    let u = a.u;
+    if (u > 1) u = 1;
+    const e = u*u*(3 - 2*u);                       /* still at both ends */
+    setDoor(a.d, a.from + (a.to - a.from) * e);
+    if (u >= 1){ delete doorAnim[id]; doorTouch(id, false); }
+  }
+  if (doorAnimActive()) doorAnimTmr = setTimeout(doorAnimTick, 16);
+}
+
+let hdrag = null;                    /* {d, moved, cx, cy} */
+povCv.addEventListener("pointermove", e => {
+  if (looking || hdrag) return;
+  const hit = pickHandle(e.clientX, e.clientY);
+  setHover(hit ? hit.d : null);
+});
+povCv.addEventListener("pointerleave", () => { if (!hdrag) setHover(null); });
+window.addEventListener("pointermove", e => {
+  if (!hdrag) return;
+  if (Math.abs(e.clientX - hdrag.cx) > 3 || Math.abs(e.clientY - hdrag.cy) > 3) hdrag.moved = true;
+  const ray = povRay(e.clientX, e.clientY);
+  if (!ray) return;
+  setDoor(hdrag.d, apertureFromRay(hdrag.d, ray));
+});
+const endHandleDrag = e => {
+  if (!hdrag) return;
+  const h = hdrag; hdrag = null;
+  try { povCv.releasePointerCapture(e.pointerId); } catch(_){}
+  povCv.classList.remove("handling");
+  povCv.classList.toggle("handle", !!hoverDoor);
+  if (!h.moved) startDoorAnim(h.d, V[h.d.id] > 0.5 ? 0 : 1);   /* the gesture stays open */
+  else doorTouch(h.d.id, false);
+};
+window.addEventListener("pointerup", endHandleDrag);
+window.addEventListener("pointercancel", endHandleDrag);
+
+/* ==================================================================== */
+/*  native traffic                                                       */
+/* ==================================================================== */
+NB.on("initialState", d => {
+  if (!d) return;
+  buildId = d.build || "--";
+  document.getElementById("buildTag").textContent = buildId;
+  for (const p of (d.params || [])){
+    if (!(p.id in V)) continue;                 /* a parameter this page predates */
+    const was = SPEC[p.id] || {};
+    /*  Keep what the page already knows where the message is thinner than the
+        page's own table - a choice parameter that arrives with no step count
+        must not turn its selector into an empty box. */
+    SPEC[p.id] = { name:p.name || was.name || p.id,
+                   stepped:!!p.stepped || !!was.stepped,
+                   steps:(p.steps | 0) > 1 ? (p.steps | 0) : (was.steps | 0),
+                   choices:p.choices ? String(p.choices).split("|") : (was.choices || null) };
+    V[p.id] = clamp01(p.v);
+  }
+  if (d.showrays !== undefined){
+    showRays = !!d.showrays;
+    const b = document.getElementById("bRays");
+    if (b) b.classList.toggle("on", showRays);
+  }
+  if (d.auxConnected !== undefined) auxConnected = d.auxConnected ? 1 : 0;
+  if (d.selsrc !== undefined) selectSource(d.selsrc | 0, false);
+  if (d.wav) applyWav(d.wav);
+  updateAllControls();
+  refreshSrcTabs();
+  updateHud();
+  meshDirty = true;
+  invalidate("both");
+  NB.send({ k:"stateack" });
+});
+
+NB.on("hostParam", d => {
+  if (!d || !d.params) return;
+  for (const p of d.params) setNative(p.id, p.v);
+});
+
+NB.on("notice", d => {
+  if (!d) return;
+  noticeEl.textContent = String(d.text === undefined ? d : d.text);
+});
+
+NB.on("wav", d => { if (d) applyWav(d); });
+function applyWav(d){
+  wav.name = d.name || "";
+  wav.playing = d.playing ? 1 : 0;
+  wav.seconds = (typeof d.seconds === "number") ? d.seconds : 0;
+  if (typeof d.gain === "number") wav.gain = clamp01(d.gain);
+  updateWav();
+}
+
+/*  30 Hz. Almost all of it is the same picture as last time, and redrawing an
+    unchanged picture is what the idle rule forbids - so the geometry-bearing
+    part is hashed and only a real change costs a draw. The speaker's glow is
+    the one exception and it is rate-limited and gated on there being signal. */
+let lastGlowPaint = -1e9, glowWasOn = false;
+function sceneSignature(d){
+  let s = "";
+  if (d.sources) for (const q of d.sources)
+    s += (q.pos ? q.pos.map(n=>n.toFixed(3)).join(",") : "") + "/" + q.yaw + "/" + q.type + "/" + q.active + ";";
+  if (d.lis) s += "|" + d.lis.map(n=>n.toFixed(3)).join(",");
+  s += "|" + d.lisRoom;
+  if (d.rt) s += "|" + d.rt.map(r=>r.map(n=>n.toFixed(3)).join("/")).join(";");
+  /*  The plan polygons are geometry, so a room whose wall has moved has to
+      cost a redraw - and one whose has not, still none. */
+  if (d.plan) for (const poly of d.plan){
+    s += "|";
+    if (poly) for (const q of poly) s += q[0].toFixed(3) + "," + q[1].toFixed(3) + ";";
+  }
+  if (d.paths){
+    for (const p of d.paths){
+      s += "|" + p.t + ":" + p.s + ":" + (typeof p.db === "number" ? p.db.toFixed(2) : "");
+      if (p.pts) for (const q of p.pts) s += ";" + q[0].toFixed(3) + "," + q[1].toFixed(3);
+    }
+  }
+  return s;
+}
+NB.on("scene", d => {
+  if (!d) return;
+  scene = d;
+  if (typeof d.in === "number") inDb = d.in;
+  if (typeof d.out === "number") outDb = d.out;
+  if (typeof d.drr === "number") drrDb = d.drr;
+  updateLevels();
+  updateHud();
+  const sig = sceneSignature(d);
+  if (sig !== sceneSig){ sceneSig = sig; invalidate("both"); }
+  /* the radiation cue: at most 10 redraws a second, and none at all in silence */
+  const lvl = Math.max(0, Math.min(1, (inDb + 60) / 54));
+  const on = inDb > -60;
+  if (on){
+    const t = nowMs();
+    if (t - lastGlowPaint >= 100){
+      lastGlowPaint = t; glow = lvl; glowWasOn = true; invalidate("pov");
+    }
+  } else if (glowWasOn){
+    glowWasOn = false; glow = 0; invalidate("pov");      /* one last frame to clear it */
+  }
+});
+
+/* ==================================================================== */
+/*  boot                                                                 */
+/* ==================================================================== */
+function relayout(){
+  const a = sizeCanvas(povCv), b = sizeCanvas(planCv);
+  invalidate("both");
+}
+window.addEventListener("resize", relayout);
+try { new ResizeObserver(relayout).observe(document.getElementById("views")); } catch(e){}
+
+buildControls();
+selectSource(selSrc, false);
+updateAllControls();
+updateHud();
+updateLevels();
+setRaysInitial();
+function setRaysInitial(){
+  const b = document.getElementById("bRays");
+  if (b) b.classList.toggle("on", showRays);
+}
+
+/*  The public face for a probe, and for me when something looks wrong. The
+    page's state lives inside this closure and is otherwise unreadable, which
+    leaves guessing as the only tool. */
+window.__TW = {
+  state(){ const o = {}; for (const id in V) o[id] = V[id]; return o; },
+  setParam(id, v){ setNative(id, v); },       /* as if it came from native: no send */
+  scene(){ return scene; },
+  render(){
+    /*  A frame already asked for has nothing left to do once this has drawn
+        everything, so cancel it - which also makes `pending` below mean
+        exactly "a redraw is owed", with no stale bookings in it. */
+    if (rafId){ try { cancelAnimationFrame(rafId); } catch(e){} rafId = 0; }
+    drawPov(); drawPlan();
+    dirtyPov = false; dirtyPlan = false;
+  },
+  errors: window.__err,
+  /*  Where the plan actually lands on its canvas. A probe that recomputes this
+      for itself is a second copy of the layout, and the two drift the first
+      time the margins change - which is exactly what happened. */
+  planFit(){ if (!PF) PF = planFit(); return { s:PF.s, ox:PF.ox, oy:PF.oy, leg:PF.leg }; },
+  /*  The bounds of the vertices the 3D view is ACTUALLY built from, read off
+      the buffer rather than recomputed - the picture alone cannot tell a wall
+      that moved from a corner-darkening box that moved with it, and a hook
+      that reported the polygon would be reporting the intention. Never builds
+      anything: a mesh built here and not uploaded would leave the GPU showing
+      the one before it. */
+  meshBox(){
+    if (!M.n) return null;
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (let i = 0; i < M.n; i++){
+      const x = M.pos[i*3], y = M.pos[i*3+1];
+      if (x < x0) x0 = x; if (x > x1) x1 = x;
+      if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    return [x0, y0, x1, y1];
+  },
+  /*  The room as it is actually being drawn - the engine's polygon when there
+      is one, the page's own when there is not - and the split point a probe
+      has to aim at to take hold of a broken wall. Both live in this closure
+      and are otherwise unreadable. */
+  roomPoly(i){ return roomPoly(i).map(p => [p[0], p[1]]); },
+  foldPoint(i, k){ return foldPoint(i, k); },
+  /*  What the plan WROTE this time round, recorded where the text is drawn.
+      A hook that reported what the page meant to draw could say CONCAVE on a
+      sheet with nothing on it. */
+  planNotes(){ return planNotes.slice(); },
+  get draws(){ return drawCount; },
+  /*  True when a redraw is owed. The draw counter alone cannot tell a page
+      that scheduled nothing from one whose animation frame simply has not
+      arrived yet, and headless Chrome does not always produce frames. */
+  get pending(){ return !!rafId; },
+  get glow(){ return glow; },
+  get renderer(){ return glMode; },
+  get pitch(){ return pitchDeg; },
+  get rays(){ return showRays; },
+  /*  The door handles: where they are, what the pointer is on, and what a
+      given point on the canvas would pick. The picking lives in this closure
+      and is otherwise unreadable from outside, which leaves guessing. */
+  get hoverDoor(){ return hoverDoor ? hoverDoor.id : null; },
+  get doorAnim(){ return doorAnimActive(); },
+  handlePos(id){ const d = DOORS.filter(x => x.id === id)[0]; return d ? handlePos(d) : null; },
+  pick(x, y){ const h = pickHandle(x, y); return h ? { id:h.d.id, t:h.t, dist:h.dist } : null; },
+  /*  Where a world point lands on the 3D canvas, in CSS pixels relative to
+      the page - the inverse of the ray, so a probe can aim at a handle
+      without keeping its own copy of the camera. */
+  project(p){
+    const r = povCv.getBoundingClientRect();
+    const yaw = LYAW()*Math.PI/180, pit = pitchDeg*Math.PI/180;
+    const cp = Math.cos(pit), sp = Math.sin(pit);
+    const f  = [Math.cos(yaw)*cp, Math.sin(yaw)*cp, sp];
+    const rt = [Math.sin(yaw), -Math.cos(yaw), 0];
+    const up = crs(rt, f);
+    const e = [LX(), LY(), EAR_Z];
+    const v = [p[0]-e[0], p[1]-e[1], p[2]-e[2]];
+    const z = dot3(v, f);
+    if (z <= 0.01) return null;
+    const th = Math.tan(fovDeg*Math.PI/360), asp = r.width / r.height;
+    const ndcX = dot3(v, rt) / (z * th * asp);
+    const ndcY = dot3(v, up) / (z * th);
+    return [r.left + (ndcX*0.5 + 0.5) * r.width, r.top + (0.5 - ndcY*0.5) * r.height];
+  },
+  get selsrc(){ return selSrc; },
+  selectSource(i){ selectSource(i, false); },
+  wav(){ return { name:wav.name, playing:wav.playing, seconds:wav.seconds, gain:wav.gain }; },
+  bg: { pov:FOG.map(v => Math.round(Math.pow(v, 1/2.2) * 255)), plan:PAPER }
+};
+
+/*  Draw once so the panel is never blank, then stop. From here on nothing is
+    drawn until something a view depends on actually changes. */
+drawPov();
+drawPlan();
+document.getElementById("glName").textContent = glMode === "webgl2" ? "WEBGL2" : "2D FALLBACK";
+
+/*  Announced on EVERY boot, which clears the processor's "the panel has the
+    state" flag - without it a reload the editor never sees leaves the
+    processor believing the old acknowledgement and this page waits forever. */
+NB.send({ k:"hello" });
+</script>
+</body>
+</html>

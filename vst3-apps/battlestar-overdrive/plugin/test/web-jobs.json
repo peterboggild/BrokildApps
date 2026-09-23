@@ -1,0 +1,43 @@
+[
+  { "name": "let the front page fetch its manifest and every app.json", "wait": 2500 },
+
+  { "name": "FRONT PAGE: the Battlestar card exists and is not a phantom",
+    "eval": "(function(){var c=[...document.querySelectorAll('a,article,div')].filter(e=>/Battlestar Overdrive/.test(e.textContent||''));return c.length? ('found in '+c.length+' nodes'):'NOT ON THE FRONT PAGE';})()" },
+
+  { "name": "FRONT PAGE: its card links to the landing page",
+    "eval": "(function(){var a=[...document.querySelectorAll('a')].find(x=>/battlestar-overdrive/.test(x.getAttribute('href')||''));return a? a.getAttribute('href'):'NO LINK TO THE SLUG';})()" },
+
+  { "name": "FRONT PAGE: the preview image actually loaded",
+    "eval": "(function(){var i=[...document.images].find(x=>/battlestar-overdrive/.test(x.src));if(!i) return 'NO PREVIEW IMG';return i.complete&&i.naturalWidth>0? ('loaded '+i.naturalWidth+'x'+i.naturalHeight):'PREVIEW BROKEN';})()" },
+
+  { "name": "FRONT PAGE: it is filed as an effect, not a synth",
+    "eval": "(function(){var a=[...document.querySelectorAll('a')].find(x=>/battlestar-overdrive/.test(x.getAttribute('href')||''));if(!a) return 'no card';var card=a.closest('article')||a;return /effect/i.test(card.textContent)? 'tagged effect':'NOT TAGGED EFFECT ('+card.textContent.slice(0,80)+')';})()" },
+
+  { "name": "go to the landing page",
+    "eval": "location.href='/vst3-apps/battlestar-overdrive/index.html'; 'navigating'" },
+  { "name": "load", "wait": 2200 },
+
+  { "name": "LANDING: the heading RENDERS as the product name (grep cannot see a split heading)",
+    "eval": "document.querySelector('h1').textContent.replace(/\\s+/g,' ').trim()" },
+
+  { "name": "LANDING: page title",
+    "eval": "document.title" },
+
+  { "name": "LANDING: every image loaded",
+    "eval": "(function(){var a=[...document.images];var bad=a.filter(i=>!(i.complete&&i.naturalWidth>0)).map(i=>i.getAttribute('src'));return bad.length? ('BROKEN: '+bad.join(', ')):(a.length+' of '+a.length+' images loaded');})()" },
+
+  { "name": "LANDING: the download and the manual are really there (HEAD, not hope)",
+    "eval": "(async()=>{var out=[];for(const h of ['Battlestar-Overdrive-VST3-win64.zip','Battlestar-Overdrive-Manual.pdf']){try{const r=await fetch(h,{method:'HEAD'});out.push(h+' '+r.status+' '+Math.round((r.headers.get('content-length')||0)/1048576*10)/10+'MB');}catch(e){out.push(h+' FAILED');}}return out.join(' | ');})()" },
+
+  { "name": "LANDING: no dead stablemate links in the footer",
+    "eval": "(async()=>{var as=[...document.querySelectorAll('footer a')].filter(a=>/^\\.\\./.test(a.getAttribute('href')||''));var bad=[];for(const a of as){try{const r=await fetch(a.href,{method:'HEAD'});if(!r.ok) bad.push(a.getAttribute('href')+' '+r.status);}catch(e){bad.push(a.getAttribute('href')+' ERR');}}return bad.length? ('DEAD: '+bad.join(', ')):(as.length+' stablemate links all resolve');})()" },
+
+  { "name": "LANDING: the build id on the page matches the one in the download name",
+    "eval": "(function(){var t=document.body.textContent;var m=t.match(/Build\\s+([0-9.]+)/i);return m? ('page says build '+m[1]):'NO BUILD ID ON THE PAGE';})()" },
+
+  { "name": "LANDING: no JS errors",
+    "eval": "(window.__err&&window.__err.length)?window.__err.join(' | '):'none recorded'" },
+
+  { "name": "shot of the landing page",
+    "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/web-landing.png" }
+]

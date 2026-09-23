@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hairfryer — Owner's Manual &amp; Cookbook</title>
+<style>
+  /* ---------------------------------------------------------------- *
+   * Print sheet for the Hairfryer manual. A4, almond paper, burnt
+   * orange accent — set like a 1970s appliance cookbook, because the
+   * instrument is a 1970s kitchen appliance that makes death metal.
+   * Rendered to PDF with: chrome --headless --print-to-pdf
+   * ---------------------------------------------------------------- */
+  @page { size: A4; margin: 17mm 16mm 16mm 16mm; }
+  @page :first { margin: 0; }
+
+  :root{
+    --ink:#221708;
+    --ink-soft:#4c3a1e;
+    --faint:#84714c;
+    --paper:#f7f1e4;
+    --rule:#dfd2b4;
+    --heat:#c25a14;
+    --heat-soft:#f6e6d4;
+    --dark:#17110a;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--paper); }
+  body{
+    color:var(--ink);
+    font:10.6pt/1.55 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3,h4{ font-family:Georgia,"Times New Roman",serif; font-weight:600; margin:0; }
+  p{ margin:.45em 0 .7em; }
+  b,strong{ color:#160e05; font-weight:600; }
+  em{ color:var(--ink-soft); }
+  code{
+    font-family:Consolas,"SF Mono",Menlo,monospace; font-size:9.2pt;
+    background:#efe6d2; border:1px solid #ddcfae; border-radius:3px; padding:0 4px;
+    color:#7c4210;
+  }
+
+  /* ---------- cover ---------- */
+  .cover{
+    background:
+      radial-gradient(120% 80% at 72% 0%, rgba(255,150,50,.30) 0%, transparent 55%),
+      radial-gradient(90% 70% at 10% 100%, rgba(240,180,60,.12) 0%, transparent 60%),
+      linear-gradient(168deg,#2e2010 0%, #120c05 100%);
+    color:#f2e4c8; height:294mm; padding:22mm 22mm 15mm;
+    display:flex; flex-direction:column; break-after:page;
+  }
+  .cover .kicker{ font-size:8.6pt; letter-spacing:.42em; text-transform:uppercase; color:#cf9a52; }
+  .cover h1{
+    font-family:"Brush Script MT","Segoe Script",cursive;
+    font-size:52pt; line-height:1; margin:7mm 0 0; color:#fbeed2;
+    text-shadow:0 2px 0 #6b4a1a, 0 5px 14px rgba(0,0,0,.6);
+  }
+  .cover .tag{ font-size:12.5pt; color:#d3b98a; margin:4mm 0 0; font-family:Georgia,serif; font-style:italic; }
+  .cover .rule{ height:2px; width:34mm; background:#f0922e; margin:6mm 0 0; }
+  .cover .shot{ margin:8mm 0 0; text-align:center; }
+  .cover .shot img{
+    max-height:150mm; max-width:100%; border-radius:4px; border:1px solid #4a3618;
+    box-shadow:0 8mm 20mm rgba(0,0,0,.62);
+  }
+  .cover .foot{
+    margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end;
+    font-size:8.8pt; color:#a08a5e; letter-spacing:.06em;
+  }
+  .cover .foot b{ color:#eeddb8; font-weight:600; display:block; font-size:10pt; letter-spacing:0; }
+
+  /* ---------- structure ---------- */
+  .sec{ break-before:page; }
+  .sec-head{
+    display:flex; align-items:baseline; gap:5mm;
+    border-bottom:1.6px solid var(--ink); padding-bottom:2.4mm; margin-bottom:5mm;
+  }
+  .sec-head .num{
+    font:600 9pt/1 Consolas,monospace; color:var(--heat);
+    border:1.4px solid var(--heat); border-radius:3px; padding:1.6mm 2.2mm; letter-spacing:.06em;
+  }
+  .sec-head h2{ font-size:19pt; letter-spacing:-.01em; }
+  .sec-head .sub{ margin-left:auto; font-size:8.4pt; color:var(--faint); letter-spacing:.2em; text-transform:uppercase; }
+  h3{ font-size:12.6pt; margin:6.5mm 0 1.5mm; color:#1c1206; }
+  .cols2{ column-count:2; column-gap:8mm; }
+  .keep{ break-inside:avoid; }
+
+  .plate{ text-align:center; margin:4mm 0; break-inside:avoid; }
+  .plate img{ max-width:100%; border-radius:3px; border:1px solid #cdbd97;
+              box-shadow:0 2mm 6mm rgba(60,40,10,.25); }
+  .plate .cap{ font-size:8.4pt; color:var(--faint); margin-top:1.6mm; letter-spacing:.06em; }
+
+  .callout{
+    background:var(--heat-soft); border-left:3px solid var(--heat);
+    padding:3mm 4mm; border-radius:0 3px 3px 0; margin:3mm 0; break-inside:avoid;
+    font-size:9.8pt;
+  }
+  .dark{
+    background:linear-gradient(168deg,#241a0c,#171008); color:#e9d7ae;
+    border-radius:4px; padding:4mm 5mm; margin:3mm 0; break-inside:avoid;
+  }
+  .dark h3{ color:#f5c86a; margin-top:0; }
+  .dark code{ background:#33260f; border-color:#584416; color:#f0b23c; }
+
+  table{ border-collapse:collapse; width:100%; margin:2.5mm 0 4mm; font-size:9.6pt; break-inside:avoid; }
+  th{ text-align:left; font-size:8.2pt; letter-spacing:.12em; text-transform:uppercase;
+      color:var(--faint); border-bottom:1.4px solid var(--ink); padding:1.4mm 2.5mm 1.4mm 0; }
+  td{ border-bottom:.6px solid var(--rule); padding:1.7mm 2.5mm 1.7mm 0; vertical-align:top; }
+  td.k{ font-weight:600; white-space:nowrap; color:#181004; }
+  td.mono, .mono{ font-family:Consolas,monospace; font-size:9pt; color:#7c4210; }
+
+  .foot-note{ font-size:8.6pt; color:var(--faint); border-top:.6px solid var(--rule);
+              margin-top:5mm; padding-top:2mm; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ COVER ═══════════════════ -->
+<div class="cover">
+  <div class="kicker">Brokild Kitchen Appliances &middot; Windows VST3 &middot; Owner's Manual &amp; Cookbook</div>
+  <h1>Hairfryer</h1>
+  <div class="tag">A vocal strip that turns a clean singing voice into a metal one &mdash; by wrecking
+  the part of the voice a fuzz pedal can never reach.</div>
+  <div class="rule"></div>
+  <div class="shot"><img src="img/hero.jpg" alt="The Hairfryer front panel"></div>
+  <div class="foot">
+    <div><b>HAIRFRYER</b>gate &middot; de-esser &middot; the basket &middot; tube heat &middot; EQ &middot; compressor &middot; limiter</div>
+    <div style="text-align:right"><b>BROKILD</b>free &middot; VST3 + standalone &middot; 64-bit</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 1 · THE IDEA ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">01</span><h2>Why this should not work, and why it does</h2>
+  <span class="sub">the idea</span></div>
+
+  <div class="cols2">
+    <p>Put a distortion pedal on a voice and you get a distorted voice &mdash; which is not
+    a metal voice at all. The reason is worth one paragraph, because it is the whole
+    design of this plugin.</p>
+
+    <p>A sung note is a <b>source</b> passed through a <b>filter</b>. The source is the
+    glottal pulse train &mdash; the folds slapping together; the filter is your throat and
+    mouth, whose resonances (the <em>formants</em>) are what make an <em>ah</em> an
+    <em>ah</em>. A pedal sits after the filter, so it mangles the formants and
+    intermodulates them with each other. The vowel goes to mush, the words disappear,
+    and the ear says &ldquo;voice through a pedal&rdquo;, never &ldquo;monster&rdquo;.</p>
+
+    <p>A real screamer does the opposite. The vocal tract stays &mdash; that is why you can
+    hear the words in a good growl &mdash; and the <b>source</b> is what changes: the false
+    folds above the true folds are driven into a period-doubled or chaotic vibration.
+    The pitch you hear is still the true folds, which is why growlers can sing melodies.
+    The monster lives in subharmonics at f/2 and f/3 and in turbulence fired in step
+    with the glottal pulses.</p>
+
+    <p>So the Hairfryer takes your voice apart in real time &mdash; an order-18 LPC lattice
+    splits it into glottal source and vocal tract &mdash; then <b>wrecks only the
+    source</b> and puts your own vocal tract back on top. Everything it adds comes out
+    wearing your formants. Your vowels. Your words.</p>
+
+    <div class="callout"><b>Measured, not hoped.</b> The offline bench sings a synthetic
+    vowel through the plugin and measures the claim by Goertzel: the input's
+    formant-to-floor contrast is <span class="mono">35.2&nbsp;dB</span>; the growled
+    output keeps <span class="mono">35.0&nbsp;dB</span> of it; the same voice through a
+    fuzz pedal collapses to <span class="mono">19.7&nbsp;dB</span>. That difference is
+    the entire reason this instrument exists.</div>
+
+    <h3>The chaos is real chaos</h3>
+    <p>Vocal-fold dynamics is a textbook bifurcation system, and so is the logistic map
+    <code>x &larr; r&middot;x&middot;(1&minus;x)</code>. The CHAOS knob drives one
+    iteration of that map per detected glottal period and turns the result into the
+    period's gain, noise and timing. Walking the knob walks the real cascade:</p>
+
+    <table>
+      <tr><th>Knob</th><th>r</th><th>Regime</th><th>What you hear</th></tr>
+      <tr><td class="mono">0 &ndash; .09</td><td class="mono">&lt; 3.0</td><td>steady</td><td>clean, or merely gripped</td></tr>
+      <tr><td class="mono">.09 &ndash; .55</td><td class="mono">3.0 &ndash; 3.57</td><td>period 2, then 4</td><td>an octave-down rasp; the classic low growl</td></tr>
+      <tr><td class="mono">.55 &ndash; .80</td><td class="mono">3.57 &ndash; 3.83</td><td>chaos with windows</td><td>fry &mdash; irregular, torn</td></tr>
+      <tr><td class="mono">.80 &ndash; .90</td><td class="mono">3.8319</td><td><b>period 3</b></td><td>the deep guttural &mdash; the knob has a plateau here so you can find it</td></tr>
+      <tr><td class="mono">.90 &ndash; 1</td><td class="mono">&rarr; 4.0</td><td>full chaos</td><td>everything at once</td></tr>
+    </table>
+
+    <p>The basket window on the panel shows the last forty periods of that gain pattern
+    per rack, and names the regime it measures: STEADY, P2, P3, CHAOS.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ 2 · QUICK START ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">02</span><h2>Thirty seconds of instructions</h2>
+  <span class="sub">quick start</span></div>
+
+  <div class="cols2">
+    <p><b>1.</b> Put the Hairfryer on a vocal channel. It is an insert effect, mono or stereo.</p>
+    <p><b>2.</b> Pick a <b>PROGRAMME</b>. FALSE CORD is the low growl, GUTTURAL is deeper,
+    PIG SQUEAL is the squeal, BLACKENED is the high torn scream. CLEAN PASS and WARM STRIP
+    leave the fryer off &mdash; they are ordinary vocal-strip presets.</p>
+    <p><b>3.</b> <b>Sing loud, clean and supported.</b> The fryer reads the pitch and the
+    pulses of what you give it. A confident full-voice note gives it everything it needs;
+    a whisper gives it nothing to wreck.</p>
+    <p><b>4.</b> Ride <b>BLEND</b>. Even 40&nbsp;% over the clean voice reads as
+    &ldquo;that singer has a torn edge&rdquo;; 100&nbsp;% is the full creature.</p>
+    <p><b>5.</b> Then treat it like any vocal chain: HEAT for density, SEASONING to seat
+    it, PRESSURE to hold it still.</p>
+
+    <div class="plate"><img src="img/prog.jpg" alt="programmes and LCD">
+    <div class="cap">Nine programmes and the LCD. Every knob you touch is narrated there.</div></div>
+
+    <div class="callout"><b>Level honesty.</b> With MATCH on, the wet path is continuously
+    gain-matched to the dry voice, so BLEND compares character, not loudness &mdash; and the
+    growl cannot win the argument by being louder (measured: within 0.2&nbsp;dB).
+    RANDOM cooks a new basket without touching your gain structure.</div>
+
+    <div class="callout"><b>Latency.</b> The analysis, the oversamplers and the limiter's
+    lookahead cost about 4.6&nbsp;ms at 48&nbsp;kHz, reported to the host, and deliberately
+    constant &mdash; switching oversampling does not re-align your session.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 3 · THE BASKET ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">03</span><h2>The basket</h2>
+  <span class="sub">the part that should not be possible</span></div>
+
+  <div class="plate"><img src="img/window.jpg" style="max-width:118mm" alt="the basket window">
+  <div class="cap">The basket window: forty periods of gain pattern per rack, pitch, regime, match.</div></div>
+
+  <div class="cols2">
+    <p>Two <b>racks</b> cook in the same basket. Both are fed the same analysed source;
+    each wrecks it its own way and wears its own vocal tract. A metal vocal on a record
+    is nearly always more than one take stacked &mdash; RACK A is the take, RACK B is the
+    stack. TWO THROATS runs a growl under a shriek.</p>
+
+    <table>
+      <tr><th>Control</th><th>What it actually does</th></tr>
+      <tr><td class="k">FRYER</td><td>the whole basket in or out (the strip stays)</td></tr>
+      <tr><td class="k">BLEND</td><td>clean voice &harr; cooked voice, gain-matched</td></tr>
+      <tr><td class="k">CRISP</td><td>how sharply the noise bursts hug the glottal closures &mdash; low is breath, high is gravel</td></tr>
+      <tr><td class="k">MATCH</td><td>the honesty switch (see &sect;02)</td></tr>
+    </table>
+
+    <div class="plate"><img src="img/racka.jpg" alt="rack A"></div>
+
+    <table>
+      <tr><th>Per rack</th><th></th></tr>
+      <tr><td class="k">LEVEL</td><td>this rack's share of the wet signal</td></tr>
+      <tr><td class="k">CHAOS</td><td>position on the bifurcation cascade (&sect;01) &mdash; the LCD shows the actual r</td></tr>
+      <tr><td class="k">GRIP</td><td>how deep the period pattern carves. At zero the map runs but touches nothing.</td></tr>
+      <tr><td class="k">JITTER</td><td>per-period timing wobble &mdash; roughness sidebands, age, damage</td></tr>
+      <tr><td class="k">RASP</td><td>turbulence, fired at the closures, shaped by your formants, gated by the same chaos &mdash; it breaks up when the voice does</td></tr>
+      <tr><td class="k">TONE</td><td>colour of that turbulence, dark to bright</td></tr>
+      <tr><td class="k">FOLD</td><td>waveshapes the source itself (oversampled). The one knob here that is allowed to sound like a distortion &mdash; on the source, it reads as strain, not fuzz</td></tr>
+      <tr><td class="k">SPLIT</td><td>the false folds: a resonator with a saturator in its feedback, driven by your voice. Low, it colours; high, it self-oscillates and locks to a fraction of your pitch &mdash; two voices at once</td></tr>
+      <tr><td class="k">RATIO</td><td>which fraction SPLIT aims for: f/4, f/3, f/2, f, 1.5f</td></tr>
+      <tr><td class="k">THROAT</td><td>resizes you. Warped-LPC formant slide, &plusmn;35&nbsp;% &mdash; pitch does not move. Down is a bigger chest; up is the pig squeal</td></tr>
+    </table>
+
+    <div class="callout"><b>Silence stays silent.</b> Every wrecking stage is scaled by the
+    voice's own excitation, so the noise, the folds and the chaos all die with your note.
+    RASP at maximum into silence measures 0.000001 RMS out.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 4 · THE STRIP ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">04</span><h2>The strip around it</h2>
+  <span class="sub">prep &middot; heat &middot; seasoning &middot; pressure</span></div>
+
+  <div class="cols2">
+    <h3>PREP</h3>
+    <div class="plate"><img src="img/prep.jpg" style="max-width:70mm" alt="prep"></div>
+    <p>A downward gate with hold (sing through it, it opens; stop, it closes on the spill),
+    a fourth-order low cut, and a de-esser that judges sibilance by the <em>ratio</em> of
+    high band to everything &mdash; a singer getting louder is not an ess and is not ducked
+    like one. Measured: a bare ess ducked 18.8&nbsp;dB while a vowel through the same
+    settings moved 0.00&nbsp;dB.</p>
+
+    <h3>HEAT</h3>
+    <div class="plate"><img src="img/heat.jpg" style="max-width:74mm" alt="heat"></div>
+    <p>The tube stage: an asymmetric soft clip (even harmonics &mdash; warmth), with
+    SPARKLE driving the band above 5.5&nbsp;kHz into its own gentle clip and folding it
+    back &mdash; an exciter. Oversampled 1&times;/2&times;/4&times; at constant latency.
+    The stage is RMS-matched around itself, so DRIVE changes density, not volume &mdash;
+    and at zero it is bit-transparent, measured at 0.33&nbsp;dB worst-harmonic
+    deviation for the whole bypassed strip.</p>
+
+    <h3>SEASONING</h3>
+    <div class="plate"><img src="img/seasoning.jpg" style="max-width:74mm" alt="seasoning"></div>
+    <p>Four bands: low shelf, two parametric mids, high shelf. RBJ curves &mdash; the ones
+    every engineer's ear is calibrated against. For a growl, try cutting 300&ndash;500&nbsp;Hz
+    slightly and adding 2&ndash;4&nbsp;kHz: the words come forward.</p>
+
+    <h3>PRESSURE</h3>
+    <div class="plate"><img src="img/pressure.jpg" style="max-width:70mm" alt="pressure"></div>
+    <p>A soft-knee compressor with two-stage smoothing (a fast stage catches, a slow one
+    breathes &mdash; the analogue read), auto or manual makeup; then a lookahead limiter
+    (3&nbsp;ms) with a soft ceiling behind it that is never off. Measured: 12&nbsp;dB more
+    in &rarr; 4.6&nbsp;dB more out at the default ratio; the ceiling held against a
+    3&times; overdriven input.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ 5 · COOKBOOK ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">05</span><h2>Cookbook</h2>
+  <span class="sub">the nine programmes, and how to sing at them</span></div>
+
+  <div class="cols2">
+    <table>
+      <tr><th>Programme</th><th>What it is</th></tr>
+      <tr><td class="k">CLEAN PASS</td><td>the strip alone, fryer off. A clean vocal channel.</td></tr>
+      <tr><td class="k">WARM STRIP</td><td>strip pushed: tube, glue, sheen. Still a singing voice.</td></tr>
+      <tr><td class="k">AIR FRY</td><td>light fry over the clean voice &mdash; a worn edge, 45&nbsp;% blend.</td></tr>
+      <tr><td class="k">FALSE CORD</td><td>period-2 growl, false folds locked at f/2, throat down. The classic.</td></tr>
+      <tr><td class="k">GUTTURAL</td><td>the period-three plateau, folds at f/3, throat 0.35. The deep one.</td></tr>
+      <tr><td class="k">PIG SQUEAL</td><td>throat shrunk hard, folds pushed above the pitch, bright.</td></tr>
+      <tr><td class="k">BLACKENED</td><td>full chaos, bright pulsed noise, fold, sparkle. High torn screams.</td></tr>
+      <tr><td class="k">DOOM LOW</td><td>slow, huge: f/4, deep grip, big chest, dark EQ.</td></tr>
+      <tr><td class="k">TWO THROATS</td><td>both racks: growl under, shriek over.</td></tr>
+    </table>
+
+    <div class="dark">
+      <h3>How to sing at it</h3>
+      <p><b>Give it pressure.</b> The fryer scales everything by your own excitation.
+      Support the note like you mean it; the wreckage follows your dynamics exactly.</p>
+      <p><b>Sing the melody straight.</b> The pitch survives the growl (measured: f0 beats
+      its neighbours by 40&nbsp;dB). You supply the tune, the basket supplies the monster.</p>
+      <p><b>Vowels are yours.</b> The formants pass through, so diction does what it does
+      on a real growl: open vowels read huge, closed vowels read strangled. Both are
+      idiomatic.</p>
+      <p><b>Doubling.</b> For a chorus, duplicate the track, RANDOM the copy, pan both.
+      Two different baskets on the same take is the cheap version of tracking it twice.</p>
+    </div>
+
+    <div class="callout"><b>What it is not.</b> There is no AI in here, no voice model, no
+    sample of somebody else's scream. It is filtering, chaos and resynthesis, running in a
+    few hundred operations per sample &mdash; your voice is the only voice in the room.
+    Which also means it will not scream <em>for</em> you: it converts commitment. That is,
+    honestly, rather metal.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 6 · APPENDIX ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">06</span><h2>Appendix</h2>
+  <span class="sub">install &middot; measurements &middot; credits</span></div>
+
+  <div class="cols2">
+    <h3>Install</h3>
+    <p>Copy the whole <code>Hairfryer.vst3</code> <b>folder</b> into
+    <code>C:\Program Files\Common Files\VST3\</code> (a sub-folder such as
+    <code>\Brokild\</code> is fine), then rescan plugins in your DAW. It appears as an
+    <b>effect</b> called Hairfryer, by Brokild. Or run <code>Hairfryer.exe</code> &mdash;
+    the same thing, standalone, no install.</p>
+
+    <h3>Presets</h3>
+    <p>SAVE / LOAD write ordinary <code>.json</code> files; the PRESETS menu lists the
+    preset folder, which is <code>Documents\Brokild patches\Hairfryer</code> — every Brokild
+    plugin keeps one of its own under that roof, out of reach of an installer.
+    Presets carry all 62 parameters.</p>
+
+    <h3>What the bench proves</h3>
+    <p>Every build is run through an offline bench (<code>test/</code>) that renders a
+    synthetic sung vowel through the engine and measures &mdash; not inspects,
+    measures:</p>
+    <table>
+      <tr><th>Claim</th><th>Result</th></tr>
+      <tr><td>bypassed strip transparent</td><td class="mono">0.33 dB worst harmonic</td></tr>
+      <tr><td>period-2 raises f/2</td><td class="mono">+15.6 dB over input</td></tr>
+      <tr><td>period-3 raises f/3</td><td class="mono">+13.6 dB over input</td></tr>
+      <tr><td>formant contrast kept vs fuzz</td><td class="mono">35.0 vs 19.7 dB</td></tr>
+      <tr><td>pitch beats off-pitch neighbours</td><td class="mono">by 40 dB</td></tr>
+      <tr><td>chaos knob regimes 1 / 2 / 3</td><td class="mono">measured 1 / 2 / 3</td></tr>
+      <tr><td>false folds lock at f/2</td><td class="mono">+29 dB</td></tr>
+      <tr><td>silence in, RASP max</td><td class="mono">0.000001 RMS out</td></tr>
+      <tr><td>growl vs clean loudness</td><td class="mono">+0.2 dB</td></tr>
+      <tr><td>62 params &times; extremes, 200 random, 4 rates</td><td class="mono">all bounded, no growth</td></tr>
+    </table>
+
+    <h3>Physiology, briefly</h3>
+    <p>The design leans on the source-filter model of speech, on the false
+    (ventricular) folds' role in growled phonation, and on the observation &mdash;
+    Herzel, Titze, Berry and colleagues &mdash; that vocal-fold vibration undergoes
+    period-doubling bifurcations into chaos exactly as simple nonlinear maps do. The
+    logistic map here is not a metaphor; it is the same mathematics driving a different
+    oscillator.</p>
+
+    <p class="foot-note">HAIRFRYER &middot; Brokild Kitchen Appliances &middot; August 2026 &middot;
+    Windows 64-bit VST3 + standalone &middot; free.
+    Built with JUCE. No warranty; the appliance has no thermostat.
+    If you cannot find the growl, raise GRIP before raising CHAOS &mdash; the map can be
+    running with nothing attached to it.</p>
+  </div>
+</div>
+
+</body></html>

@@ -1,0 +1,4 @@
+[
+  {"wait": 600},
+  {"eval": "'1 followed: climate=' + SITE.climate + ' others=' + SITE.others + ' bench=' + Math.round(SITE.kelvin) + ' local=' + Math.round(SITE.local) + ' V.temp=' + (+V.temp).toFixed(3) + ' tval=' + document.querySelector('#tval').textContent + ' distance=' + SITE.distance + ' err=' + window.__err"}
+]

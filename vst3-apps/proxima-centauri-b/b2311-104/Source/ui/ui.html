@@ -1,0 +1,693 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Artefact B2311.104</title>
+<script src="bwfx-rack.js"></script>
+<style>
+  :root{
+    --ink:#d8d3ea; --dim:#6b6488; --faint:#302c48;
+    --violet:#8a6bd8; --amber:#e8a24a; --line:#1a1c2e;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#05060a;color:var(--ink);
+    font:11px/1.4 ui-monospace,Consolas,"DejaVu Sans Mono",monospace;
+    letter-spacing:.06em;overflow:hidden;user-select:none;-webkit-user-select:none}
+
+  #field{position:fixed;inset:0;display:block;touch-action:none;cursor:crosshair}
+
+  /* the rail of capillary gauges, right edge */
+  #rail{position:fixed;top:0;right:0;bottom:26px;width:70px;
+    display:flex;flex-direction:column;justify-content:center;gap:2px;
+    padding:8px 4px;background:linear-gradient(270deg,rgba(6,7,12,.86),rgba(6,7,12,0));
+    z-index:6}
+  .gg{position:relative;height:22px;cursor:ns-resize;display:flex;align-items:center}
+  .gg canvas{width:18px;height:18px;opacity:.7;flex:none}
+  .gg .tube{position:relative;flex:1;height:5px;margin-left:5px;
+    background:#0d0e18;border:1px solid #191b2b;overflow:hidden}
+  .gg .fil{position:absolute;left:0;top:0;bottom:0;width:0;
+    background:linear-gradient(90deg,#3a2d66,var(--violet));
+    box-shadow:0 0 5px rgba(138,107,216,.45)}
+  .gg:hover canvas{opacity:1}
+  .gg:hover .fil{background:linear-gradient(90deg,#5a3d86,#b28ef2)}
+
+  /* header, top-left, faint */
+  #head{position:fixed;top:10px;left:14px;z-index:5;pointer-events:none}
+  #head .a{font-size:9px;color:var(--dim);letter-spacing:.28em}
+  #head .b{font-size:13px;letter-spacing:.22em;color:#c9c2e2;margin-top:2px}
+  #head .c{font-size:8.5px;color:var(--faint);letter-spacing:.18em;margin-top:3px}
+  #head .prov{font-size:8.5px;color:#5a5478;letter-spacing:.16em;margin-top:6px;
+    padding-top:5px;border-top:1px solid #16182400}
+
+  /* the temperature slider — Peter wants it on the face, and it is the finding's
+     central control: heat is pitch, and warming the web brings it to life */
+  #thermo{position:fixed;left:14px;top:118px;z-index:6;width:210px}
+  #thermo .tlab{font-size:8px;color:var(--dim);letter-spacing:.24em;margin-bottom:4px}
+  #ttrack{position:relative;height:10px;cursor:ew-resize;
+    background:linear-gradient(90deg,#0a1020 0%,#12303a 18%,#3a2f5a 45%,#5a3320 74%,#7a2a12 100%);
+    border:1px solid #24263a;border-radius:1px}
+  #tfill{position:absolute;left:0;top:0;bottom:0;background:rgba(180,160,230,.10)}
+  #tknob{position:absolute;top:-3px;width:3px;height:16px;background:#d8cff2;
+    box-shadow:0 0 7px rgba(180,150,255,.7)}
+  #tval{font-size:9px;color:var(--ink);letter-spacing:.12em;margin-top:5px;
+    font-variant-numeric:tabular-nums}
+
+  /* the ledger — translates a control while it is touched */
+  #ledger{position:fixed;left:0;right:70px;bottom:0;height:26px;line-height:26px;
+    text-align:center;font-size:9.5px;letter-spacing:.15em;color:#4f496a;
+    text-transform:uppercase;pointer-events:none;z-index:5;
+    background:linear-gradient(180deg,rgba(5,6,10,0),rgba(5,6,10,.9) 55%)}
+  #ledger b{color:#cfc8e6}
+  #ledger i{color:var(--amber);font-style:normal}
+  #ledger u{color:var(--violet);text-decoration:none}
+
+  /* the survey annotations, earned by triple-clicking the void */
+  #legend{position:fixed;inset:0;background:rgba(5,5,9,.93);z-index:40;
+    display:none;padding:6vh 8vw;overflow:auto;line-height:1.7;
+    font-size:12px;color:#b8b2d0;letter-spacing:.04em}
+  #legend.on{display:block}
+  #legend h2{font-size:11px;letter-spacing:.24em;color:var(--violet);
+    margin:20px 0 8px;font-weight:600}
+  #legend .row{display:flex;gap:16px;margin:4px 0}
+  #legend .row b{min-width:130px;color:#dcd6ee;font-weight:600}
+  #legend .close{position:fixed;top:20px;right:28px;cursor:pointer;color:var(--dim)}
+  #legend p{max-width:640px;color:#8f89ac}
+  #legend .stog{cursor:pointer;color:#dcd6ee;border:1px solid #3a3a58;padding:0 9px;
+    margin-right:12px;letter-spacing:.14em;font-size:10px;text-transform:uppercase}
+  #legend .stog.on{background:#3a2f5a;border-color:#8a6bd8;color:#fff}
+  #legend .sitehint{color:#6a6488}
+  #legend input[type=range]{width:180px;accent-color:#8a6bd8;margin-right:12px}
+
+  /* survey field of specimens */
+  #cat{position:fixed;inset:0;background:rgba(4,5,9,.95);display:none;
+    align-items:center;justify-content:center;z-index:41}
+  #cat.on{display:flex}
+  #catgrid{display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:6px}
+  .sw{width:38px;height:38px;cursor:pointer;opacity:.78;border:1px solid #17192a;
+    background:radial-gradient(circle at 50% 45%,#0c0e18,#07080f);border-radius:3px;
+    transition:opacity .12s,transform .12s,border-color .12s;overflow:hidden}
+  .sw canvas{width:38px;height:38px;display:block}
+  .sw:hover{opacity:1;transform:scale(1.22);border-color:#4a4470;
+    box-shadow:0 0 12px rgba(138,107,216,.4)}
+  #cattitle{position:fixed;left:0;right:0;top:26px;text-align:center;
+    font-size:10px;color:var(--dim);letter-spacing:.2em}
+
+  #foot{position:fixed;left:14px;bottom:30px;z-index:6;display:flex;gap:8px;align-items:center}
+  .btn{font-size:9px;letter-spacing:.16em;color:#9a92bc;border:1px solid #23253a;
+    padding:5px 9px;cursor:pointer;background:rgba(14,15,24,.7)}
+  .btn:hover{color:var(--ink);border-color:#3d4060}
+  #globe{width:20px;height:20px;border-radius:50%;cursor:pointer;
+    background:radial-gradient(circle at 34% 32%,#3a6f7a,#0d2b31 70%);
+    border:1px solid #2f5c63}
+  #globe:hover{box-shadow:0 0 9px rgba(60,150,160,.5)}
+</style>
+
+<canvas id="field"></canvas>
+
+<div id="head">
+  <div class="a">PROXIMS CENTAURI B &nbsp;&middot;&nbsp; ACCESSION 104</div>
+  <div class="b">ARTEFACT B2311.104</div>
+  <div class="c">SPECIMEN <span id="rSpec">000</span> &nbsp;&middot;&nbsp; BUILD <span id="rBuild">dev</span> &nbsp;&middot;&nbsp; <span id="rSing">0</span> CARRYING<span id="rSite"></span></div>
+  <div class="prov">RECOVERED &nbsp;KELL RILLE &middot; LOWER GALLERY &nbsp;&middot;&nbsp; DAY 327 &nbsp;&middot;&nbsp; THE NEWEST FINDING</div>
+</div>
+
+<div id="thermo">
+  <div class="tlab">AMBIENT</div>
+  <div id="ttrack"><div id="tfill"></div><div id="tknob"></div></div>
+  <div id="tval">234 K</div>
+</div>
+
+<div id="rail"></div>
+
+<div id="foot">
+  <span class="btn" id="bCat">survey field</span>
+  <span class="btn" id="bRnd">present another</span>
+  <span class="btn" id="bStill">quench</span>
+  <div id="globe" title="Brokild World FX" data-bwfx-open></div>
+</div>
+
+<div id="ledger"><i>it moves energy. the survey has not established to what end.</i></div>
+
+<div id="legend">
+  <div class="close" id="legClose">[ close ]</div>
+  <h2>SURVEY ANNOTATIONS &middot; FIELD RECORD B2311.104</h2>
+  <p>Recovered the most recently of the four. It is a web of conduits lying on a curved surface our three dimensions cut through. It moves energy along the conduits as very low sound, continuously, without being asked. The hypothesis of record is that it is a distribution device; the survey holds it loosely.</p>
+  <div id="legrows"></div>
+  <h2>WHAT THE HAND DOES</h2>
+  <div class="row"><b>wheel</b>the section &mdash; push the three-space through the fourth axis</div>
+  <div class="row"><b>shift-wheel</b>the veil &mdash; how thick a slice is present</div>
+  <div class="row"><b>drag the ground</b>turn the body through itself</div>
+  <div class="row"><b>drag a conduit</b>pour heat into it &mdash; it glissandos, and may cross onset</div>
+  <div class="row"><b>tap a conduit</b>strike it &mdash; it rings; a touched thing always answers</div>
+  <div class="row"><b>MIDI note</b>a thermal order: it heats a conduit until its resonance is your note</div>
+  <h2>THE SITE &middot; WHAT THE FINDINGS SHARE</h2>
+  <p>Four findings, one bench. Cooled and set close together they fall into step; warm, or far apart, each keeps its own time. These are the bench's settings, not this finding's: change them here and every artefact present sees the change. Off, each finding is exactly what it was.</p>
+  <div class="row"><b>climate</b><span class="stog" id="siteClimate">own</span><span class="sitehint">one temperature for the whole bench</span></div>
+  <div class="row"><b>timing</b><span class="stog" id="siteTiming">own</span><span class="sitehint">cold and close, they fall into step</span></div>
+  <div class="row"><b>distance</b><input type="range" id="siteDist" min="0" max="1" step="0.01" value="0.5"><span id="siteDistRd">the same room</span></div>
+  <div class="row"><b>present</b><span id="siteStatus">only this finding</span></div>
+</div>
+
+<div id="cat">
+  <div id="cattitle">the survey field &mdash; one hundred and twenty eight webs, none the same</div>
+  <div id="catgrid"></div>
+</div>
+
+<script>
+window.__err = null;
+addEventListener("error", e => { window.__err = (e.message||"")+" @"+(e.lineno||"?"); });
+/* ═══════════════════════════════════════════════════════════════════════════
+   0 · the bridge
+   ═══════════════════════════════════════════════════════════════════════════ */
+const NB = (() => {
+  let q = [], sched = false;
+  const flush = () => { sched = false; const b = q; q = [];
+    try { window.__JUCE__.backend.emitEvent("ab104", { b }); } catch (e) {} };
+  return {
+    send(m){ q.push(m); if(!sched){ sched = true; queueMicrotask(flush); } },
+    on(n,f){ try { window.__JUCE__.backend.addEventListener(n,f); } catch(e){} },
+    live(){ return !!(window.__JUCE__ && window.__JUCE__.backend); }
+  };
+})();
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+const TAU = Math.PI*2;
+
+if (window.BWFX) {
+  BWFX.attach({ send: o => { const m = {k:"bwfx"}; for(const k in o) m[k]=o[k]; NB.send(m); } });
+  NB.on("bwfx", p => BWFX.onState(p));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1 · state
+   ═══════════════════════════════════════════════════════════════════════════ */
+const V={}, KIND={}, PNAME={}, GLOSS={};
+let PIDS=[];
+const KP = { PCT:0, INT:1, LIST:2, BIPOL:3, KELVIN:4, HZ:5, VOL:6, SEMI:7 };
+
+// the web
+let nNode=0, nDuct=0, specimen=0;
+let NODES=null;                    // Float32Array, nNode*4
+let DA=null, DB=null, CLOSED=null; // conduit endpoints + end type
+let FPAS=null;                     // passive freqs
+let HEAT=null, AMP=null, SIG=null, CMD=null, CHAOS=null, BRITE=null;
+let rotA=0.31, rotB=0.12, secH=0, veilW=0.3;
+let power=0, sing=0, lvl=0;
+let PKT=[];                        // {d,t}
+
+function fmt(id,v){
+  const k = KIND[id];
+  if (k===KP.KELVIN){ const K = 77*Math.pow(800/77, v); return Math.round(K)+" K"; }
+  if (k===KP.SEMI) return ((v*2-1)*12).toFixed(1)+" st";
+  if (k===KP.BIPOL) return Math.round((v*2-1)*100)+" %";
+  if (k===KP.VOL){ const g=2.4*v*v; return g<=0?"-inf":(20*Math.log10(g)).toFixed(1)+" dB"; }
+  return Math.round(v*100)+" %";
+}
+function setParam(id,v,quiet){
+  V[id] = clamp(v,0,1);
+  NB.send({k:"p", id, v:V[id]});
+  paintGauge(id);
+  if(id==="ambient" && typeof thermoDraw==="function") thermoDraw();
+  if(!quiet) sayCtl(id);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2 · the rail of capillary gauges
+
+   Not labelled. Each gauge wears a procedural glyph derived from its id, and
+   the ledger translates it while it is touched — the controls are entirely on
+   the object and refuse to explain themselves, which is what the survey found.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function glyphFor(id, cv){
+  const cx = cv.getContext("2d");
+  cx.clearRect(0,0,18,18);
+  let s = 0; for(let i=0;i<id.length;i++) s = (s*131 + id.charCodeAt(i))>>>0;
+  const rnd = () => { s = (s*1664525 + 1013904223)>>>0; return s/4294967296; };
+  cx.strokeStyle = "rgba(180,160,230,.9)"; cx.lineWidth = 1.1;
+  cx.translate(9,9);
+  const n = 2 + (s%3);
+  for(let k=0;k<=n;k++){
+    cx.beginPath();
+    const r0 = 2 + rnd()*5, r1 = 3 + rnd()*5;
+    const a0 = rnd()*TAU, a1 = a0 + 0.6 + rnd()*2.2;
+    cx.arc(0,0, 3+k*1.6, a0, a1);
+    cx.stroke();
+    if (rnd()<0.5){ cx.beginPath(); cx.moveTo(Math.cos(a0)*r0,Math.sin(a0)*r0);
+      cx.lineTo(Math.cos(a1)*r1,Math.sin(a1)*r1); cx.stroke(); }
+  }
+  cx.setTransform(1,0,0,1,0,0);
+}
+let dragG = null;
+function buildRail(){
+  const host = $("#rail"); host.innerHTML = "";
+  for (const id of PIDS){
+    const d = document.createElement("div");
+    d.className = "gg"; d.dataset.id = id;
+    d.innerHTML = '<canvas width="18" height="18"></canvas>'
+                + '<div class="tube"><div class="fil"></div></div>';
+    glyphFor(id, d.querySelector("canvas"));
+    host.appendChild(d);
+    d.addEventListener("pointerdown", ev => {
+      ev.preventDefault();
+      try{ d.setPointerCapture(ev.pointerId); }catch(e){}
+      dragG = { id, y0: ev.clientY, base: V[id] };
+      sayCtl(id);
+    });
+    paintGauge(id);
+  }
+}
+function paintGauge(id){
+  const d = document.querySelector('.gg[data-id="'+id+'"]'); if(!d) return;
+  d.querySelector(".fil").style.width = (clamp(V[id]||0,0,1)*100)+"%";
+}
+addEventListener("pointermove", ev => {
+  if(!dragG) return;
+  const span = ev.shiftKey ? -900 : -260;   // up = more
+  setParam(dragG.id, clamp(dragG.base + (ev.clientY - dragG.y0)/span, 0, 1));
+});
+addEventListener("pointerup", () => { dragG = null; });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2b · the temperature slider — AMBIENT, exponential 2.7..1216 K
+   ═══════════════════════════════════════════════════════════════════════════ */
+function kelvinOf(v){ return 77*Math.pow(800/77, clamp(v,0,1)); }
+function thermoDraw(){
+  const v = clamp(V.ambient!==undefined?V.ambient:0.4748, 0, 1);
+  const k = Math.round(kelvinOf(v));
+  $("#tfill").style.width = (v*100)+"%";
+  $("#tknob").style.left = "calc("+(v*100)+"% - 1px)";
+  $("#tval").textContent = k+" K"
+    + (k<=85 ? "  · frozen, it obeys"
+      : k<180 ? "  · stiff and disciplined"
+      : Math.abs(k-234)<9 ? "  · the operating point"
+      : k<350 ? "  · civil"
+      : k<560 ? "  · warm, it begins to wander" : "  · it will not settle");
+}
+(function(){
+  const tr=$("#ttrack"); let td=false;
+  const set=ev=>{ const r=tr.getBoundingClientRect();
+    setParam("ambient", clamp((ev.clientX-r.left)/r.width,0,1), true); thermoDraw();
+    say("<b>AMBIENT</b> &nbsp;<i>"+$("#tval").textContent+"</i>"); };
+  tr.addEventListener("pointerdown", ev=>{ td=true; ev.preventDefault();
+    try{tr.setPointerCapture(ev.pointerId);}catch(e){} set(ev); });
+  tr.addEventListener("pointermove", ev=>{ if(td) set(ev); });
+  addEventListener("pointerup", ()=>{ td=false; });
+})();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3 · the ledger
+   ═══════════════════════════════════════════════════════════════════════════ */
+let ledHold = 0;
+function say(html){ $("#ledger").innerHTML = html; ledHold = 130; }
+function sayCtl(id){
+  say("<b>"+(PNAME[id]||id)+"</b> &nbsp;<i>"+fmt(id,V[id])+"</i> &nbsp;"+(GLOSS[id]||""));
+}
+function sayIdle(){ $("#ledger").innerHTML = "<i>it moves energy. the survey has not established to what end.</i>"; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4 · the field — a stereographic projection of the web on the 3-sphere
+
+   Every conduit is a geodesic arc; under stereographic projection a geodesic
+   is a circle, so the web is drawn as curves and never as straight lines. A
+   slow double rotation turns the body through itself: the silhouette is never
+   twice the same, and no three-dimensional object could cast it.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const cv = $("#field"), cx = cv.getContext("2d");
+let W=0, H=0, DPR=1, CXp=0, CYp=0, SCALE=1;
+function layout(){
+  DPR = Math.min(2, devicePixelRatio||1);
+  W = innerWidth; H = innerHeight;
+  cv.style.width=W+"px"; cv.style.height=H+"px";
+  cv.width=Math.round(W*DPR); cv.height=Math.round(H*DPR);
+  cx.setTransform(DPR,0,0,DPR,0,0);
+  CXp = (W-70)/2; CYp = H/2;
+  SCALE = Math.min(W-90, H-70) * 0.30;
+}
+addEventListener("resize", layout);
+
+// rotate a 4-vector: (x,w) by rotA, (y,z) by rotB
+function rot4(v){
+  const ca=Math.cos(rotA), sa=Math.sin(rotA), cb=Math.cos(rotB), sb=Math.sin(rotB);
+  return [ v[0]*ca - v[3]*sa, v[1]*cb - v[2]*sb, v[1]*sb + v[2]*cb, v[0]*sa + v[3]*ca ];
+}
+// stereographic S3 -> R3 from the north pole, then flatten with a little depth
+function project(v){
+  const r = rot4(v);
+  const d = 1.0 - r[3]*0.9;
+  const s = 1.0 / Math.max(0.14, d);
+  const X = r[0]*s, Y = r[1]*s, Z = r[2]*s;
+  const persp = 1.0/(1.0 + Z*0.14);
+  return { x: CXp + X*SCALE*persp, y: CYp + Y*SCALE*persp, w: r[3], z: Z, near: persp };
+}
+function node4(i){ return [NODES[i*4],NODES[i*4+1],NODES[i*4+2],NODES[i*4+3]]; }
+function mid4(a,b){
+  const x=NODES[a*4]+NODES[b*4], y=NODES[a*4+1]+NODES[b*4+1],
+        z=NODES[a*4+2]+NODES[b*4+2], w=NODES[a*4+3]+NODES[b*4+3];
+  const L=Math.hypot(x,y,z,w)||1; return [x/L,y/L,z/L,w/L];
+}
+
+let SCREEN=[];   // per-conduit {ax,ay,cx,cy,bx,by,sig,heat,amp,cmd,mid}
+function computeScreen(){
+  SCREEN.length = 0;
+  if(!NODES||!DA) return;
+  for(let i=0;i<nDuct;i++){
+    const pa = project(node4(DA[i])), pb = project(node4(DB[i]));
+    const pm = project(mid4(DA[i],DB[i]));
+    // quadratic control so the curve passes through the projected geodesic mid
+    const cxp = 2*pm.x - 0.5*(pa.x+pb.x), cyp = 2*pm.y - 0.5*(pa.y+pb.y);
+    SCREEN.push({ ax:pa.x, ay:pa.y, bx:pb.x, by:pb.y, cx:cxp, cy:cyp,
+      mx:pm.x, my:pm.y, w:pm.w, near:pm.near,
+      sig: SIG?SIG[i]/255:0, heat: HEAT?(HEAT[i]-128)/96:0,
+      amp: AMP?AMP[i]/255:0, cmd: CMD?CMD[i]:0,
+      chaos: CHAOS?CHAOS[i]/255:0, brite: BRITE?BRITE[i]/255:0.5 });
+  }
+}
+
+function draw(){
+  cx.clearRect(0,0,W,H);
+  // the curved ground: a faint radial suggestion of the sphere
+  const bg = cx.createRadialGradient(CXp,CYp,0,CXp,CYp,Math.max(W,H)*0.7);
+  bg.addColorStop(0,"rgba(20,18,40,.5)"); bg.addColorStop(1,"rgba(5,6,10,0)");
+  cx.fillStyle = bg; cx.fillRect(0,0,W,H);
+
+  if(!SCREEN.length){ return; }
+
+  // draw order: ghosts (out of section) first, then present, then hot/carrying
+  const order = SCREEN.map((s,i)=>i).sort((a,b)=> SCREEN[a].sig - SCREEN[b].sig);
+  for(const i of order){
+    const s = SCREEN[i];
+    const present = s.sig;
+    const hot = clamp(Math.abs(s.heat),0,1);
+    const hotSign = s.heat;
+    const carry = s.amp;
+
+    // the conduit itself — ghost thin when out of section, violet where hot.
+    // BRIGHTNESS (from the 4D projection) whitens it, so a conduit's colour is
+    // the timbre you hear; CHAOS shreds the stroke into a jitter, so a conduit
+    // that SOUNDS turbulent LOOKS turbulent — sight and sound are one object.
+    const baseA = 0.05 + 0.45*present;
+    const br = s.brite;
+    let r=90,g=88,b=120;
+    if (hotSign>0){ r=138+80*hot; g=90+30*hot; b=216; }           // heat = violet
+    else if (hotSign<0){ r=70; g=90+40*hot; b=150; }              // cool = blue
+    // brightness lifts towards white/amber (upper partials), darkness deepens
+    r = r + (235-r)*br*0.55; g = g + (225-g)*br*0.5; b = b + (255-b)*br*0.2;
+    cx.strokeStyle = "rgba("+(r|0)+","+(g|0)+","+(b|0)+","+baseA.toFixed(3)+")";
+    cx.lineWidth = (0.5 + 1.8*present) * (0.7+0.6*s.near);
+    if (s.chaos > 0.06 && present > 0.04){
+      // a turbulent conduit is drawn as a shivering broken line
+      const jn = 7, jitt = 3.5*s.chaos;
+      cx.beginPath();
+      for(let q=0;q<=jn;q++){
+        const t=q/jn, u=1-t;
+        const px=u*u*s.ax+2*u*t*s.cx+t*t*s.bx, py=u*u*s.ay+2*u*t*s.cy+t*t*s.by;
+        const jx=(Math.random()-0.5)*jitt, jy=(Math.random()-0.5)*jitt;
+        if(q===0) cx.moveTo(px+jx,py+jy); else cx.lineTo(px+jx,py+jy);
+      }
+      cx.stroke();
+    } else {
+      cx.beginPath(); cx.moveTo(s.ax,s.ay); cx.quadraticCurveTo(s.cx,s.cy,s.bx,s.by); cx.stroke();
+    }
+
+    if (present<0.04) continue;
+
+    // carried power: amber running pulses, in the direction of transfer
+    if (carry>0.02){
+      const nSeg = 5;
+      for(let k=0;k<nSeg;k++){
+        let t = (k/nSeg + (perfNow()*0.0004*(1+i%3)) )%1;
+        // quadratic point at t
+        const u=1-t;
+        const px = u*u*s.ax + 2*u*t*s.cx + t*t*s.bx;
+        const py = u*u*s.ay + 2*u*t*s.cy + t*t*s.by;
+        const a = carry * present * (0.5+0.5*Math.sin(t*Math.PI));
+        cx.beginPath(); cx.arc(px,py, 1.2+2.6*carry, 0, TAU);
+        cx.fillStyle = "rgba(232,162,74,"+(0.55*a).toFixed(3)+")";
+        cx.fill();
+      }
+      // an amber core along the whole conduit
+      cx.strokeStyle = "rgba(232,170,90,"+(0.30*carry*present).toFixed(3)+")";
+      cx.lineWidth = 0.6+1.4*carry;
+      cx.beginPath(); cx.moveTo(s.ax,s.ay); cx.quadraticCurveTo(s.cx,s.cy,s.bx,s.by); cx.stroke();
+    }
+
+    // an ordered conduit gets a soft violet halo
+    if (s.cmd){
+      cx.strokeStyle = "rgba(178,142,242,"+(0.22*present).toFixed(3)+")";
+      cx.lineWidth = 4+3*carry;
+      cx.beginPath(); cx.moveTo(s.ax,s.ay); cx.quadraticCurveTo(s.cx,s.cy,s.bx,s.by); cx.stroke();
+    }
+  }
+
+  // junctions bloom when a packet is on an adjacent conduit
+  const bloom = {};
+  for(const p of PKT){
+    if(p.d<0||p.d>=nDuct) continue;
+    bloom[DA[p.d]] = Math.max(bloom[DA[p.d]]||0, 1-Math.abs(p.t-0.0));
+    bloom[DB[p.d]] = Math.max(bloom[DB[p.d]]||0, p.t);
+    // the packet itself, a moving amber spark along the conduit
+    const s = SCREEN[p.d]; if(!s) continue;
+    const u=1-p.t;
+    const px=u*u*s.ax+2*u*p.t*s.cx+p.t*p.t*s.bx;
+    const py=u*u*s.ay+2*u*p.t*s.cy+p.t*p.t*s.by;
+    const gl = cx.createRadialGradient(px,py,0,px,py,10);
+    gl.addColorStop(0,"rgba(255,200,120,.75)"); gl.addColorStop(1,"rgba(255,190,110,0)");
+    cx.fillStyle=gl; cx.fillRect(px-10,py-10,20,20);
+  }
+  // node dots
+  for(let i=0;i<nNode;i++){
+    const p = project(node4(i));
+    const bl = bloom[i]||0;
+    const rr = 1.4 + 3.5*bl;
+    cx.beginPath(); cx.arc(p.x,p.y,rr,0,TAU);
+    cx.fillStyle = bl>0.02 ? "rgba(255,205,130,"+(0.4+0.5*bl)+")" : "rgba(150,140,200,.28)";
+    cx.fill();
+  }
+
+  // the point at infinity — a small void, the projection pole. triple-click it.
+  cx.beginPath(); cx.arc(CXp,CYp,7,0,TAU);
+  cx.fillStyle="#04050a"; cx.fill();
+  cx.strokeStyle="rgba(120,110,170,.25)"; cx.lineWidth=1; cx.stroke();
+
+  // the section, drawn as a faint band across the foot
+  cx.fillStyle="rgba(138,107,216,.06)";
+  const sy = CYp + secH*SCALE*1.1;
+  cx.fillRect(0, sy-veilW*40, W-70, veilW*80);
+}
+let _pn = performance.now();
+function perfNow(){ return performance.now(); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5 · interaction on the field
+   ═══════════════════════════════════════════════════════════════════════════ */
+function nearestConduit(px,py){
+  let best=-1, bd=16;
+  for(let i=0;i<SCREEN.length;i++){
+    const s = SCREEN[i];
+    if(s.sig<0.05) continue;
+    for(let k=0;k<=10;k++){
+      const t=k/10, u=1-t;
+      const x=u*u*s.ax+2*u*t*s.cx+t*t*s.bx;
+      const y=u*u*s.ay+2*u*t*s.cy+t*t*s.by;
+      const d=Math.hypot(px-x,py-y);
+      if(d<bd){ bd=d; best=i; }
+    }
+  }
+  return best;
+}
+let gest = null;   // {kind, x0,y0,duct,t0,moved}
+let voidClicks = [], voidTimer=0;
+cv.addEventListener("pointerdown", ev=>{
+  ev.preventDefault();
+  try{ cv.setPointerCapture(ev.pointerId); }catch(e){}
+  const x = ev.clientX, y = ev.clientY;
+  // the void — triple click for the legend
+  if(Math.hypot(x-CXp,y-CYp)<12){
+    const now=performance.now();
+    voidClicks = voidClicks.filter(t=> now-t<600); voidClicks.push(now);
+    if(voidClicks.length>=3){ $("#legend").classList.add("on"); voidClicks=[]; }
+  }
+  const d = nearestConduit(x,y);
+  gest = { x0:x, y0:y, duct:d, t0:performance.now(), moved:0, lx:x, ly:y };
+});
+cv.addEventListener("pointermove", ev=>{
+  if(!gest) return;
+  const dx = ev.clientX-gest.lx, dy = ev.clientY-gest.ly;
+  gest.lx=ev.clientX; gest.ly=ev.clientY;
+  gest.moved += Math.hypot(dx,dy);
+  if(gest.duct>=0 && gest.moved>4){
+    // pour heat into the conduit — vertical drag = kelvin
+    NB.send({k:"pour", d:gest.duct, t:-dy*7});
+    if(gest.moved<40) say("<b>POUR</b> &nbsp;heat into a conduit &mdash; it glissandos");
+  } else if(gest.duct<0){
+    // drag the ground: turn the body through itself
+    NB.send({k:"spin", a:dx*0.0022, b:dy*0.0022});
+  }
+});
+cv.addEventListener("pointerup", ()=>{
+  if(gest && gest.duct>=0 && gest.moved<5 && performance.now()-gest.t0<320){
+    NB.send({k:"strike", d:gest.duct, a:0.34});
+    say("<b>STRIKE</b> &nbsp;a conduit rings");
+  }
+  gest = null;
+});
+// the wheel pushes the section; shift-wheel the veil
+cv.addEventListener("wheel", ev=>{
+  ev.preventDefault();
+  const id = ev.shiftKey ? "veil" : "section";
+  setParam(id, clamp((V[id]||0.5) - ev.deltaY*0.0009, 0, 1));
+}, {passive:false});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   6 · the survey field and buttons
+   ═══════════════════════════════════════════════════════════════════════════ */
+/*  Each swatch is a MINIATURE of that specimen's web — a little constellation
+    of nodes joined by curved arcs, drawn from the specimen's own seed, so the
+    survey field reads as a sky of star-signs and you can see, roughly, the
+    shape you are about to summon. */
+function drawMini(cv, idx){
+  const cx = cv.getContext("2d"); const W=cv.width, H=cv.height;
+  cx.clearRect(0,0,W,H);
+  let s=(idx*2654435761 ^ 0x9e3779b9)>>>0;
+  const r=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+  const n = 7 + (s%6);
+  const P=[];
+  for(let k=0;k<n;k++){ const a=r()*TAU, rad=(0.2+0.72*r())*W*0.42;
+    P.push([W/2+Math.cos(a)*rad, H/2+Math.sin(a)*rad*0.92]); }
+  // a per-specimen hue pair (violet family, matched luminance) — like the panel
+  const hue = 250 + 60*r();
+  cx.lineWidth = 1;
+  for(let k=0;k<n;k++){
+    // connect to the two nearest, with a curved (bulging) arc
+    const ds = P.map((q,j)=>[j, Math.hypot(q[0]-P[k][0], q[1]-P[k][1])])
+      .filter(e=>e[0]!==k).sort((a,b)=>a[1]-b[1]).slice(0,2);
+    for(const [j] of ds){ if(j<k) continue;
+      const mx=(P[k][0]+P[j][0])/2, my=(P[k][1]+P[j][1])/2;
+      const nx=-(P[j][1]-P[k][1]), ny=(P[j][0]-P[k][0]);
+      const bulge=(r()-0.5)*0.5;
+      cx.strokeStyle="hsla("+(hue+(r()*30-15))+",55%,"+(52+18*r())+"%,.55)";
+      cx.beginPath(); cx.moveTo(P[k][0],P[k][1]);
+      cx.quadraticCurveTo(mx+nx*bulge, my+ny*bulge, P[j][0],P[j][1]); cx.stroke();
+    }
+  }
+  for(const q of P){ cx.beginPath(); cx.arc(q[0],q[1],1.3,0,TAU);
+    cx.fillStyle="hsla("+hue+",40%,78%,.85)"; cx.fill(); }
+}
+function buildCat(){
+  const g = $("#catgrid"); if(g.childElementCount) return;
+  for(let i=0;i<128;i++){
+    const d = document.createElement("div"); d.className="sw"; d.title="specimen "+i;
+    const cv = document.createElement("canvas"); cv.width=64; cv.height=64;
+    d.appendChild(cv); drawMini(cv, i);
+    d.addEventListener("click", ()=>{ NB.send({k:"specimen",n:i}); $("#cat").classList.remove("on"); });
+    g.appendChild(d);
+  }
+}
+$("#bCat").addEventListener("click", ()=>{ buildCat(); $("#cat").classList.add("on"); });
+$("#cat").addEventListener("click", ev=>{ if(ev.target.id==="cat") $("#cat").classList.remove("on"); });
+$("#bRnd").addEventListener("click", ()=> NB.send({k:"random"}));
+$("#bStill").addEventListener("click", ()=>{ NB.send({k:"panic"}); say("<b>QUENCH</b> &nbsp;every valve let go"); });
+$("#legClose").addEventListener("click", ()=> $("#legend").classList.remove("on"));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   7 · what the object sends back
+   ═══════════════════════════════════════════════════════════════════════════ */
+function b64bytes(s){ const bin=atob(s); const u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+function b64floats(s){ const u=b64bytes(s); return new Float32Array(u.buffer, u.byteOffset, u.byteLength>>2); }
+
+NB.on("initialState", p=>{
+  PIDS=[];
+  for(const e of (p.params||[])){
+    PIDS.push(e.id); V[e.id]=e.v; KIND[e.id]=e.kind; PNAME[e.id]=e.name; GLOSS[e.id]=e.gloss;
+  }
+  specimen = p.specimen||0;
+  $("#rBuild").textContent = p.build||"dev";
+  $("#rSpec").textContent = String(specimen).padStart(3,"0");
+  buildRail(); buildLegendRows(); thermoDraw();
+});
+
+function buildLegendRows(){
+  const host = $("#legrows"); if(!host||host.childElementCount) return;
+  for(const id of PIDS){
+    const r = document.createElement("div"); r.className="row";
+    r.innerHTML = "<b>"+(PNAME[id]||id)+"</b>"+(GLOSS[id]||"");
+    host.appendChild(r);
+  }
+}
+
+NB.on("web", p=>{
+  rotA=p.rotA; rotB=p.rotB; secH=p.secH; veilW=p.veil;
+  power=p.power||0; sing=p.sing||0; lvl=p.lvl||0;
+  if(p.spec!==undefined && p.spec!==specimen){ specimen=p.spec; $("#rSpec").textContent=String(specimen).padStart(3,"0"); }
+  if(p.nodes!==undefined){
+    nNode=p.nNode; nDuct=p.nDuct;
+    NODES=b64floats(p.nodes);
+    const db=b64bytes(p.ducts); DA=new Uint8Array(nDuct); DB=new Uint8Array(nDuct); CLOSED=new Uint8Array(nDuct);
+    for(let i=0;i<nDuct;i++){ DA[i]=db[i*3]; DB[i]=db[i*3+1]; CLOSED[i]=db[i*3+2]; }
+    FPAS=b64floats(p.fpas);
+  }
+  if(p.heat) HEAT=b64bytes(p.heat);
+  if(p.amp)  AMP =b64bytes(p.amp);
+  if(p.sig)  SIG =b64bytes(p.sig);
+  if(p.cmd)  CMD =b64bytes(p.cmd);
+  if(p.chaos)CHAOS=b64bytes(p.chaos);
+  if(p.brite)BRITE=b64bytes(p.brite);
+  PKT = p.pkt||[];
+  $("#rSing").textContent = sing;
+});
+
+NB.on("notice", p=> say("<b>"+String(p.msg)+"</b>"));
+
+/* a host-parameter change the page did not make (automation, the site): the
+   slider follows, or the sound moves while the gauge stays put */
+NB.on("hostParam", p=>{ for(const e of (p.b||[])){ V[e.id]=e.v; paintGauge(e.id); if(e.id==="ambient") thermoDraw(); } });
+
+/* ── the site: what the four findings share (settings are the bench's) ── */
+const SITE = {open:false, climate:false, timing:false, distance:0.5, others:0, coh:0, pull:0, kelvin:0, local:0};
+function siteDistWord(d){ return d<0.15?"the same bench":d<0.4?"the same table":d<0.7?"the same room":d<0.9?"across the hall":"different rooms"; }
+function renderSite(){
+  const c=$("#siteClimate"), t=$("#siteTiming");
+  c.textContent = SITE.climate?"shared":"own"; c.classList.toggle("on", !!SITE.climate);
+  t.textContent = SITE.timing?"shared":"own";  t.classList.toggle("on", !!SITE.timing);
+  if(document.activeElement!==$("#siteDist")) $("#siteDist").value = SITE.distance;
+  $("#siteDistRd").textContent = siteDistWord(SITE.distance);
+  let st = !SITE.open ? "no bench (the site is unavailable here)"
+         : SITE.others>0 ? SITE.others+" other finding"+(SITE.others>1?"s":"")+" present" : "only this finding";
+  if(SITE.open && SITE.others>0 && SITE.timing)
+    st += " · coherence "+(+SITE.coh).toFixed(2)+(SITE.pull>0.05 ? " · pulling "+Math.round(SITE.pull*100)+"%" : " · too warm or too far to lock");
+  if(SITE.open && SITE.climate && SITE.kelvin>0)
+    st += " · bench "+Math.round(SITE.kelvin)+" K"+(SITE.local>0 && Math.abs(SITE.local-SITE.kelvin)>1 ? " · here "+Math.round(SITE.local)+" K" : "");
+  $("#siteStatus").textContent = st;
+  $("#rSite").textContent = (SITE.open && SITE.others>0 && (SITE.timing||SITE.climate))
+    ? "  ·  BENCH "+(SITE.others+1)+" PRESENT"+(SITE.timing?" · LOCK "+(+SITE.coh).toFixed(2):"") : "";
+}
+NB.on("site", p=>{ Object.assign(SITE, p); renderSite(); });
+$("#siteClimate").addEventListener("click", ()=> NB.send({k:"site", climate: !SITE.climate}));
+$("#siteTiming").addEventListener("click",  ()=> NB.send({k:"site", timing:  !SITE.timing}));
+$("#siteDist").addEventListener("input",  e=>{ SITE.distance=+e.target.value; $("#siteDistRd").textContent=siteDistWord(SITE.distance); });
+$("#siteDist").addEventListener("change", e=> NB.send({k:"site", distance:+e.target.value}));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   8 · the frame
+   ═══════════════════════════════════════════════════════════════════════════ */
+function frame(){
+  computeScreen();
+  draw();
+  if(ledHold>0 && --ledHold===0) sayIdle();
+  requestAnimationFrame(frame);
+}
+layout(); frame();
+NB.send({k:"hello"});
+
+if(!NB.live()){
+  // opened outside the plug-in: draw a placeholder web so the page can be worked on
+  nNode=20; nDuct=30; NODES=new Float32Array(nNode*4);
+  for(let i=0;i<nNode;i++){ let a=Math.random()*TAU,b=Math.random()*TAU;
+    NODES[i*4]=Math.cos(a)*Math.cos(b); NODES[i*4+1]=Math.sin(a)*Math.cos(b);
+    NODES[i*4+2]=Math.cos(a)*Math.sin(b); NODES[i*4+3]=Math.sin(a)*Math.sin(b); }
+  DA=new Uint8Array(nDuct); DB=new Uint8Array(nDuct); CLOSED=new Uint8Array(nDuct);
+  SIG=new Uint8Array(nDuct).fill(200); HEAT=new Uint8Array(nDuct).fill(150);
+  AMP=new Uint8Array(nDuct); FPAS=new Float32Array(nDuct).fill(60);
+  for(let i=0;i<nDuct;i++){ DA[i]=i%nNode; DB[i]=(i*7+3)%nNode; }
+}
+</script>
+

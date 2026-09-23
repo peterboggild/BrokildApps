@@ -1,0 +1,12 @@
+[
+  { "name": "settle", "wait": 3500 },
+  { "name": "what does the page hold for the doors, before anything is sent",
+    "eval": "(function(){ var TW=window.__TW; var s=TW.state?TW.state():null; return JSON.stringify({door1:(s&&s.door1), door2:(s&&s.door2), door3:(s&&s.door3)}); })()" },
+  { "name": "set door1 shut with the page's own setter, as uiprobe does",
+    "eval": "(function(){ var TW=window.__TW; TW.setParam('door1',0); TW.setParam('lisx',4.50/18); TW.setParam('lisy',3.60/9); TW.setParam('lisyaw',90/360); TW.render(); return 'set'; })()" },
+  { "name": "wait", "wait": 900 },
+  { "name": "now where is the handle, and where does it project",
+    "eval": "(function(){ var TW=window.__TW; TW.render(); var h=TW.handlePos('door1'); var p=TW.project(h); var s=TW.state?TW.state():null; return 'door1='+(s&&s.door1)+'  handle '+(h?h.map(function(v){return v.toFixed(2);}).join(','):'null')+'  screen '+(p?Math.round(p[0])+','+Math.round(p[1]):'OFF'); })()" },
+  { "name": "project a point one metre straight ahead, as a sanity check",
+    "eval": "(function(){ var TW=window.__TW; var p=TW.project([4.50,4.60,1.65]); return 'straight ahead -> '+(p?Math.round(p[0])+','+Math.round(p[1]):'OFF')+'   pov canvas '+document.getElementById('pov').getBoundingClientRect().width+' x '+document.getElementById('pov').getBoundingClientRect().height; })()" }
+]

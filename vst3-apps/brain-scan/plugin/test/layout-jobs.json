@@ -1,0 +1,19 @@
+[
+  { "wait": 2600 },
+  { "eval": "__BS.CAM.spin=false; 'err ' + JSON.stringify(window.__err) + ' | deck scale ' + __BS.DECK.scale.toFixed(3) + ' | overflow: ' + Array.from(document.querySelectorAll('#console .mod, #lineMod')).map(m => (m.querySelector('.plate')||{textContent:'?'}).textContent.trim() + ' ' + m.scrollHeight + '/' + m.clientHeight + ' w' + m.scrollWidth + '/' + m.clientWidth).join(' | ')" },
+  { "eval": "'labels cut: ' + JSON.stringify(Array.from(document.querySelectorAll('#console .ctl .nm')).filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent)) + ' | bench rows: ' + document.querySelectorAll('#lineMod .row').length + ' | bench buttons: ' + Array.from(document.querySelectorAll('#lineMod .tinybtn')).map(b => b.textContent).join(',')" },
+  { "shoot": { "sel": null, "out": "shots/panel-layout.png", "scale": 2 } },
+  { "shoot": { "sel": "#console", "out": "shots/console-layout.png", "pad": 2, "scale": 2 } },
+  { "shoot": { "sel": "#lineMod", "out": "shots/m-lines.png", "pad": 3, "scale": 3 } },
+  { "shoot": { "sel": "#console .mod:nth-child(2)", "out": "shots/m-read.png", "pad": 3, "scale": 3 } },
+  { "shoot": { "sel": "#console .mod:nth-child(4)", "out": "shots/m-modulator.png", "pad": 3, "scale": 3 } },
+  { "shoot": { "sel": "#console .mod:nth-child(6)", "out": "shots/m-voice.png", "pad": 3, "scale": 3 } },
+  { "eval": "__BS.setParam('specimen', 8/14); 'dialled CORTEX for the hero'" },
+  { "wait": 3200 },
+  { "eval": "__BS.CAM.yaw=0.72; __BS.CAM.pitch=0.38; __BS.CAM.dist=2.0; __BS.setPlane(0); __BS.TOMO.table = 0.53; __BS.TOMO.dirty = true; __BS.draw(); 'plate ' + document.getElementById('hdSpec').textContent" },
+  { "wait": 600 },
+  { "shoot": { "sel": null, "out": "shots/hero.png", "scale": 2 } },
+  { "eval": "__BS.setParam('specimen', 1/14); 'restored SPINE'" },
+  { "wait": 1200 },
+  { "eval": "'final err ' + JSON.stringify(window.__err)" }
+]

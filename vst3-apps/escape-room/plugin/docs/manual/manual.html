@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Escape Room — Manual</title>
+<style>
+  /* ---------------------------------------------------------------- *
+   * Print sheet for the Escape Room manual. A4, cream paper, rust
+   * accent taken from the instrument's own faceplate.
+   * Rendered to PDF with: chrome --headless --print-to-pdf
+   * ---------------------------------------------------------------- */
+  @page { size: A4; margin: 17mm 16mm 16mm 16mm; }
+  @page :first { margin: 0; }
+
+  :root{
+    --ink:#17150f;
+    --ink-soft:#463f34;
+    --faint:#7a7264;
+    --paper:#faf7f1;
+    --rule:#ddd4c3;
+    --rust:#a8501f;
+    --rust-soft:#f5e7dc;
+    --dark:#0b0b0c;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--paper); }
+  body{
+    color:var(--ink);
+    font:10.6pt/1.55 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3,h4{ font-family:Georgia,"Times New Roman",serif; font-weight:600; margin:0; }
+  p{ margin:.45em 0 .7em; }
+  b,strong{ color:#0f0d09; font-weight:600; }
+  em{ color:var(--ink-soft); }
+  code,.k{
+    font-family:Consolas,"SF Mono",Menlo,monospace; font-size:9.2pt;
+    background:#f1ebe1; border:1px solid #e2d8c8; border-radius:3px; padding:0 4px;
+    color:#5c3a20;
+  }
+  .g{ font-family:Consolas,monospace; color:var(--rust); font-weight:600; }
+
+  /* ---------- cover ---------- */
+  .cover{
+    background:
+      radial-gradient(120% 80% at 76% 4%, rgba(255,122,47,.22) 0%, transparent 56%),
+      radial-gradient(90% 70% at 8% 100%, rgba(110,242,160,.08) 0%, transparent 62%),
+      linear-gradient(170deg,#131211 0%, #070707 100%);
+    color:#efe7d8; height:294mm; padding:24mm 22mm 16mm;
+    display:flex; flex-direction:column; break-after:page;
+  }
+  .cover .kicker{ font-size:8.6pt; letter-spacing:.42em; text-transform:uppercase; color:#c08a5a; }
+  .cover h1{
+    font-size:42pt; line-height:1.02; margin:8mm 0 0; letter-spacing:.02em; color:#fbf3e4;
+  }
+  .cover h1 span{ color:#ff7a2f; }
+  .cover .tag{ font-size:12.5pt; color:#c9bda6; margin:5mm 0 0; font-family:Georgia,serif; font-style:italic; }
+  .cover .rule{ height:2px; width:34mm; background:#ff7a2f; margin:7mm 0 0; }
+  .cover .shot{ margin:8mm 0 0; text-align:center; }
+  .cover .shot img{
+    max-height:126mm; max-width:100%; border-radius:4px; border:1px solid #37302a;
+    box-shadow:0 8mm 20mm rgba(0,0,0,.6);
+  }
+  .cover .foot{
+    margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end;
+    font-size:8.8pt; color:#968c78; letter-spacing:.06em;
+  }
+  .cover .foot b{ color:#e6d9c0; font-weight:600; display:block; font-size:10pt; letter-spacing:0; }
+
+  /* ---------- structure ---------- */
+  .sec{ break-before:page; }
+  .sec-head{
+    display:flex; align-items:baseline; gap:5mm;
+    border-bottom:1.6px solid var(--ink); padding-bottom:2.4mm; margin-bottom:5mm;
+  }
+  .sec-head .num{
+    font:600 9pt/1 Consolas,monospace; color:var(--rust);
+    border:1.4px solid var(--rust); border-radius:3px; padding:1.6mm 2.2mm; letter-spacing:.06em;
+  }
+  .sec-head h2{ font-size:19pt; letter-spacing:-.01em; }
+  .sec-head .sub{ margin-left:auto; font-size:8.4pt; color:var(--faint); letter-spacing:.2em; text-transform:uppercase; }
+
+  h3{ font-size:12.6pt; margin:6.5mm 0 1.5mm; color:#120f0a; }
+  h3:first-child{ margin-top:0; }
+  h4{ font-size:10.4pt; margin:4mm 0 1mm; color:var(--rust); letter-spacing:.02em; }
+  .lead{ font-size:11.4pt; color:var(--ink-soft); font-family:Georgia,serif; margin:0 0 5mm; }
+
+  /* ---------- figures ---------- */
+  figure{ margin:4mm 0 5mm; break-inside:avoid; }
+  figure img{
+    width:100%; display:block; border-radius:4px;
+    border:1px solid #cec4b2; background:var(--dark);
+    box-shadow:0 1.4mm 4mm rgba(30,22,10,.14);
+  }
+  figcaption{
+    font-size:8.5pt; color:var(--faint); margin-top:1.8mm; line-height:1.4;
+    padding-left:2.6mm; border-left:2px solid var(--rust);
+  }
+  figure.narrow{ width:76%; }
+  figure.tall img{ max-height:148mm; width:auto; margin:0 auto; }
+  figure.tall{ text-align:center; }
+  .figrow{ display:flex; gap:5mm; align-items:flex-start; break-inside:avoid; }
+  .figrow figure{ flex:1 1 0; margin-top:0; }
+
+  /* ---------- tables ---------- */
+  table{ width:100%; border-collapse:collapse; margin:2.5mm 0 5mm; font-size:9.5pt; break-inside:avoid; }
+  th,td{ text-align:left; padding:1.9mm 2.4mm; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th{
+    font:600 8.2pt/1.3 "Segoe UI",sans-serif; text-transform:uppercase; letter-spacing:.13em;
+    color:var(--faint); border-bottom:1.4px solid var(--ink-soft);
+  }
+  td:first-child{ width:26%; color:#100d09; font-weight:600; }
+  tr:last-child td{ border-bottom:none; }
+  table.tight td:first-child{ width:20%; }
+  table.wide td:first-child{ width:34%; }
+
+  /* ---------- callouts ---------- */
+  .note{
+    background:var(--rust-soft); border-left:3px solid var(--rust);
+    padding:3mm 4mm; margin:4mm 0; font-size:9.6pt; border-radius:0 3px 3px 0;
+    break-inside:avoid;
+  }
+  .note b{ color:#7d3a0d; }
+  .quiet{ font-size:9.2pt; color:var(--faint); }
+
+  /* ---------- quick start steps ---------- */
+  ol.steps{ list-style:none; counter-reset:s; margin:0; padding:0; }
+  ol.steps li{
+    counter-increment:s; position:relative; padding:0 0 3.6mm 11mm; margin-bottom:2.2mm;
+    break-inside:avoid;
+  }
+  ol.steps li::before{
+    content:counter(s); position:absolute; left:0; top:-.4mm;
+    width:7.4mm; height:7.4mm; border-radius:50%;
+    background:var(--rust); color:#fff;
+    font:600 10pt/7.4mm Georgia,serif; text-align:center;
+  }
+  ol.steps li > b:first-child{ display:block; font-size:10.8pt; margin-bottom:.5mm; }
+
+  /* ---------- recipes ---------- */
+  .recipe{
+    border:1px solid var(--rule); border-top:2.6px solid var(--rust); border-radius:4px;
+    padding:3.4mm 4mm 3mm; margin:0 0 4mm; break-inside:avoid; background:#fdfbf7;
+  }
+  .recipe h4{ margin:0 0 1.4mm; font-size:11pt; color:#120f0a; font-family:Georgia,serif; }
+  .recipe .how{ font-size:9.5pt; color:var(--ink-soft); margin:0; }
+  .recipe .how b{ color:#6d3813; }
+  .recipe .out{ font-size:9pt; color:var(--faint); font-style:italic; margin:1.6mm 0 0; }
+  .grid2{ display:flex; gap:5mm; }
+  .grid2 > div{ flex:1 1 0; min-width:0; }
+
+  ul.plain{ margin:.3em 0 .8em; padding-left:5mm; }
+  ul.plain li{ margin:.28em 0; }
+
+  .colophon{ margin-top:6mm; border-top:1px solid var(--rule); padding-top:3.5mm;
+    font-size:8.8pt; color:var(--faint); }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<section class="cover">
+  <div class="kicker">Brokild Apps · VST3 Instrument</div>
+  <h1>ESCAPE <span>ROOM</span></h1>
+  <div class="tag">A noise machine that will not tell you what its knobs do.</div>
+  <div class="rule"></div>
+  <div class="shot"><img src="shots/hero.jpg" alt="The Escape Room panel"></div>
+  <div class="foot">
+    <div>
+      <b>User Manual</b>
+      Quick start · Reference · Try this
+    </div>
+    <div style="text-align:right">
+      <b>Version 1.0</b>
+      August 2026 · Windows VST3 · build 260822.2
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">01</span><h2>What this instrument is</h2>
+    <span class="sub">Introduction</span></div>
+
+  <p class="lead">Escape Room is a noise machine built as a puzzle. Five sound cells, a
+  playable resonant door, three traps, and a six-bit lock that decides — invisibly, but
+  never randomly — what everything in the room does to everything else.</p>
+
+  <p>Most synthesisers are laid out so you can predict them. This one is laid out so you
+  have to <em>learn</em> it. The knobs are marked <span class="g">MASS</span>,
+  <span class="g">ALEPH</span> and <span class="g">BETH</span>; the cells are called
+  SKRA, VELM, ONDA, KRYS and GORR; and none of that tells you anything on the first day.</p>
+
+  <p>What makes it worth the trouble is the <b>SIGIL</b>. It is a number from 0 to 63,
+  shown as six lamps on the lock. Each sigil seeds eight wires: each wire listens to
+  something in the room and moves something else. Sigil 41 always builds the same eight
+  wires — on your machine, on mine, tomorrow, next year. So the machine is baffling, but
+  it is not random, and anything you stumble into can be found again.</p>
+
+  <h3>The five things to know before you touch anything</h3>
+  <table class="wide">
+    <tr><td>It makes sound on its own</td><td>Load it and it is already running. MIDI notes
+      are not required — they tune the resonant filter rather than start the sound.</td></tr>
+    <tr><td>BIND is the master mystery knob</td><td>At zero, the wires do nothing and every
+      control does exactly what it says. Turn it up and the room starts moving itself.</td></tr>
+    <tr><td>The lock is repeatable</td><td>Sixty-four rooms, each one fixed. The
+      <span class="g">KART</span> in the bottom right remembers which ones you have visited.</td></tr>
+    <tr><td>There is a limiter</td><td>Permanently, after everything. There are three feedback
+      paths in here and they can all be opened at once.</td></tr>
+    <tr><td>There is a legend</td><td>Hidden. Section 09 tells you where — but you may prefer
+      to find it yourself.</td></tr>
+  </table>
+
+  <div class="note"><b>Escape hatch.</b> The red <span class="g">⎋</span> button at the top
+  right empties every feedback store in the room instantly. Nothing is lost except the
+  ringing. Use it freely.</div>
+
+  <h3>What is in the box</h3>
+  <ul class="plain">
+    <li><b>Escape Room.vst3</b> — 64-bit Windows VST3 instrument, MIDI in, stereo out.</li>
+    <li><b>Escape Room.exe</b> — the same instrument as a standalone application, if you
+      want to play with it without opening a DAW.</li>
+    <li>This manual.</li>
+  </ul>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">02</span><h2>Quick start</h2>
+    <span class="sub">Ten minutes</span></div>
+
+  <p class="lead">Do these six things in order and you will have heard everything the
+  machine can do, without needing to know what anything is called.</p>
+
+  <ol class="steps">
+    <li><b>Load it and listen.</b> Put Escape Room on a MIDI instrument track. It starts
+      making sound immediately — a wash with clicks in it. Nothing needs playing.</li>
+
+    <li><b>Play some notes.</b> Use your keyboard, your MIDI controller, or the scratched
+      key strip at the bottom of the panel. The noise snaps into pitch: you are playing a
+      resonant filter, four voices of it, so chords work.</li>
+
+    <li><b>Turn BIND all the way down.</b> Bottom of the middle panel, left knob. The room
+      goes still. This is the honest state: every knob now does one thing and only that
+      thing. Move a few and hear what they are.</li>
+
+    <li><b>Turn BIND back up to about two-thirds.</b> The room starts modulating itself
+      along the eight wires drawn in the diagram above the knob. Watch the sparks: they run
+      from source to destination, and the dotted arcs outside the knobs show you exactly
+      where the room has pushed each one.</li>
+
+    <li><b>Change the sigil.</b> Click any of the six lamps on the lock, or drag the big
+      number, or click a square in the <span class="g">KART</span>. The eight wires are
+      rebuilt instantly and the machine becomes a different animal. Sixty-four of them.</li>
+
+    <li><b>Press the dice.</b> Third button, top right. It shuffles the whole room. Press
+      the arrow next to it to put it back. This is the fastest way to find something you
+      would never have dialled up on purpose.</li>
+  </ol>
+
+  <figure>
+    <img src="shots/panel.jpg" alt="The whole panel">
+    <figcaption>The whole room. Five cells down the left, the lock in the middle, the door
+    on the right; traps, output, oracle along the bottom; keys and the map of sixty-four
+    sigils underneath.</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">03</span><h2>The room at a glance</h2>
+    <span class="sub">Layout</span></div>
+
+  <table class="wide">
+    <tr><td>Left column — five cells</td><td>The sound sources. Each is a different species
+      of noise; none of them is an ordinary oscillator. Each has a rocker (open / sealed),
+      a <span class="g">MASS</span> level and two unmarked knobs,
+      <span class="g">ALEPH</span> and <span class="g">BETH</span>.</td></tr>
+    <tr><td><span class="g">SEGL</span> — the lock</td><td>Six bit-lamps, the sigil number,
+      the wiring diagram, and the three knobs that decide how hard the room moves itself:
+      BIND, DRIFT, PULSE.</td></tr>
+    <tr><td><span class="g">PORT</span> — the door</td><td>The playable four-voice resonant
+      filter, the peephole oscilloscope, and the filter shape.</td></tr>
+    <tr><td><span class="g">SKIRV · DRAUP · MJØL</span></td><td>The three traps: a slice
+      repeater, a delay, a reverb.</td></tr>
+    <tr><td><span class="g">UTVEI</span></td><td>Saturation, output level, master meter, and
+      the CLAMP lamp that lights when the limiter is holding the door shut.</td></tr>
+    <tr><td><span class="g">ORAKEL</span></td><td>The terminal. It reports the wiring, and
+      it tells you the real value of any knob while you are dragging it.</td></tr>
+    <tr><td><span class="g">TANGENT</span></td><td>Three octaves of keys, C2 to C5. Playable
+      with the mouse and lit by incoming MIDI.</td></tr>
+    <tr><td><span class="g">KART</span></td><td>Sixty-four squares, one per sigil. Dim means
+      never visited, warm means visited, bright means you are in it. Click to travel.</td></tr>
+  </table>
+
+  <h3>Reading a knob</h3>
+  <p>A knob shows its own position as a solid arc. When the loom is pushing it, a
+  <b>dotted ghost arc</b> appears just outside, spanning from where you set it to where the
+  room has actually put it. That is the single most useful thing on the panel: it is how you
+  see modulation rather than guess at it.</p>
+
+  <p>Drag a knob and the <span class="g">ORAKEL</span> prints its real value in real units —
+  hertz, milliseconds, per cent. Hold <code>Shift</code> while dragging for fine control,
+  double-click to reset to default, and the scroll wheel nudges.</p>
+
+  <figure class="narrow">
+    <img src="shots/cell.jpg" alt="A single cell strip">
+    <figcaption>One cell: roman numeral and glyph, the rocker with its lamp, MASS / ALEPH /
+    BETH, and an activity meter. A sealed cell dims and its meter falls to nothing.</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 4 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">04</span><h2>The five cells</h2>
+    <span class="sub">Sources</span></div>
+
+  <figure class="tall"><img src="shots/cells.jpg" alt="The five cells">
+    <figcaption>All five cells. Sealed cells dim and their meters fall away — cell II and
+    cell V are sealed by default.</figcaption></figure>
+
+  <p class="lead">Each cell makes noise a different way. ALEPH and BETH mean something
+  different in every one of them — that is deliberate, and it is the main thing there is to
+  learn about the machine.</p>
+
+  <h3><span class="g">I · SKRA</span> — the geiger cloud</h3>
+  <p>Random impulses. Each one is a short pitched click with a random polarity, a random
+  pan and a randomised pitch around the setting.</p>
+  <table class="tight">
+    <tr><td>ALEPH</td><td>How often it ticks, from a third of a click a second to 2600 a
+      second. Low is a crackle; high is a hiss with grain in it.</td></tr>
+    <tr><td>BETH</td><td>The size and pitch of each tick, from 0.5 ms at 7.5 kHz down to
+      160 ms at 110 Hz. Low is dust; high is a bag of dropped marbles.</td></tr>
+  </table>
+  <div class="note"><b>The hidden coupling.</b> SKRA also strikes the strings in
+  <span class="g">KRYS</span> — whether or not SKRA itself is switched on. If cell IV is
+  ringing and you cannot find out why, this is why.</div>
+
+  <h3><span class="g">II · VELM</span> — the cross-modulated pair</h3>
+  <p>Two sine oscillators, each modulating the other's frequency. Below about 60 % this is
+  a metallic FM tone. Above it, the pair stops being periodic and starts screaming.</p>
+  <table class="tight">
+    <tr><td>ALEPH</td><td>Pitch and ratio at the same time — 17 Hz to 2.8 kHz, with the
+      second oscillator's ratio widening as you go up. One knob, two jobs.</td></tr>
+    <tr><td>BETH</td><td>The modulation depth. This is the knob that decides whether the
+      cell is an instrument or an emergency.</td></tr>
+  </table>
+
+  <h3><span class="g">III · ONDA</span> — the wandering formants</h3>
+  <p>Pink noise through three resonant band-passes at an inharmonic spacing, whose centres
+  take a random walk. The most "musical" cell, and the one to leave on while learning
+  the door.</p>
+  <table class="tight">
+    <tr><td>ALEPH</td><td>Where the three bands sit, 65 Hz to 6 kHz.</td></tr>
+    <tr><td>BETH</td><td>Two things at once: how tight the bands are (Q 2 to 46) and how
+      fast they roam (0.05 to 9 Hz). Low is a slow wide wash; high is a chattering swarm.</td></tr>
+  </table>
+
+  <h3><span class="g">IV · KRYS</span> — the string bank</h3>
+  <p>Five delay lines tuned to an inharmonic series — bell-like rather than harmonic —
+  struck by an internal spark and by SKRA.</p>
+  <table class="tight">
+    <tr><td>ALEPH</td><td>Tuning, 42 Hz to 1.7 kHz for the lowest string.</td></tr>
+    <tr><td>BETH</td><td>Decay and brightness together, from a short damped tick to a ring
+      that lasts most of a minute. High settings also strike less often, because they do not
+      need to.</td></tr>
+  </table>
+
+  <h3><span class="g">V · GORR</span> — the maw</h3>
+  <p>The strange one. GORR does not generate anything; it eats the room's own output —
+  everything, after the door — and destroys it: sample-rate crusher, then bit crusher, then
+  a wavefolder. What comes out goes back into the room. This is the feedback loop, and it
+  is the reason the machine can surprise you.</p>
+  <table class="tight">
+    <tr><td>ALEPH</td><td>Destruction. Sample rate divided by up to 111, bit depth from 15
+      down to just over 1.</td></tr>
+    <tr><td>BETH</td><td>Fold amount, <em>and</em> how much of the room GORR is fed. Turning
+      this up tightens the feedback loop; at the top the room is howling at itself.</td></tr>
+  </table>
+
+  <div class="note"><b>If it is stuck howling</b> — press <span class="g">⎋</span>, or pull
+  GORR's BETH down, or seal the cell. The limiter will keep it from being dangerous, but it
+  will not make it stop.</div>
+</section>
+
+<!-- ================= 5 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">05</span><h2>PORT — the door</h2>
+    <span class="sub">The playable part</span></div>
+
+  <p class="lead">Everything the cells make passes through the door. It is a state-variable
+  filter that can be driven to a very high Q, it has four independently played voices, and
+  it is where noise becomes music.</p>
+
+  <div class="figrow">
+    <figure><img src="shots/door.jpg" alt="The door panel"></figure>
+    <figure><img src="shots/peep.jpg" alt="The peephole oscilloscope">
+      <figcaption>The peephole: an oscilloscope of the output, drawn on tired
+      phosphor.</figcaption></figure>
+  </div>
+
+  <h3>Playing it</h3>
+  <p>A MIDI note does not start a sound — the room is already making sound. A note opens a
+  filter voice tuned to that note, with its own envelope. Four notes can be held; a fifth
+  steals the oldest voice.</p>
+
+  <table>
+    <tr><td>WHEEL</td><td>Cutoff, 25 Hz to 16 kHz. With <b>TRACK</b> at 100 % the played
+      notes own the pitch and this only sets the untriggered drone; below 100 % it blends
+      back in.</td></tr>
+    <tr><td>TEETH</td><td>Resonance, Q 0.55 to 58. Above about 90 % the filter sings on its
+      own and the cells become an excitation rather than a sound.</td></tr>
+    <tr><td>SHAPE</td><td>Low, band, high or notch. Band is the default and the most
+      musical for noise; notch is the one to reach for when you want a hole rather than a
+      note.</td></tr>
+    <tr><td>TRACK</td><td>Key follow. At 100 % a played note is exactly in tune. At 0 % the
+      notes still open the envelope but the pitch stays where WHEEL puts it. Halfway is a
+      squelch that only half agrees with you.</td></tr>
+    <tr><td>CREEP</td><td>Portamento between notes, up to 1.6 seconds.</td></tr>
+    <tr><td>ONSET / LETGO</td><td>Attack and release of the voice envelope: 0.8 ms to 4 s,
+      and 4 ms to 8 s.</td></tr>
+    <tr><td>RESIDUE</td><td>The level of the untriggered drone — a fifth filter that is
+      always open at WHEEL's frequency. At zero the instrument is silent until you play it;
+      at maximum it drones under everything.</td></tr>
+    <tr><td>SWEEP</td><td>Envelope to cutoff. Below 50 % the envelope sweeps down, above it
+      sweeps up, by as much as three octaves at the extremes.</td></tr>
+    <tr><td>TWIN</td><td>A second resonance, 0 to 24 semitones above the first. At zero it
+      is shut. A fifth or an octave turns single notes into intervals.</td></tr>
+    <tr><td>TWIN·M</td><td>How much of the twin is mixed in.</td></tr>
+  </table>
+
+  <div class="note"><b>To make it sound tuned:</b> TRACK 100 %, TEETH above 75 %, SHAPE on
+  band, and one broadband cell open — ONDA is the easiest. Then play. To make it sound like
+  a machine that has been left running for forty years, do the same with RESIDUE up and BIND
+  at two-thirds.</div>
+
+  <figure><img src="shots/keys.jpg" alt="The key strip">
+    <figcaption>TANGENT: three octaves, C2 to C5. Keys light for mouse clicks and for
+    incoming MIDI alike.</figcaption></figure>
+
+  <h3>The four lamps</h3>
+  <p>The row of small lamps under the shape buttons is the four voices. They light with the
+  envelope, and the frequencies of everything currently sounding are printed to their right
+  in hertz. Keys on the strip below light for both mouse and MIDI notes.</p>
+</section>
+
+<!-- ================= 6 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">06</span><h2>SEGL — the lock and the loom</h2>
+    <span class="sub">The big idea</span></div>
+
+  <p class="lead">This is the part of the instrument that is actually unusual. Everything
+  else is a good noise machine; the lock is what makes it a room you can get lost in.</p>
+
+  <div class="figrow">
+    <figure><img src="shots/lock.jpg" alt="The lock panel"></figure>
+    <figure><img src="shots/wire.jpg" alt="The wiring diagram">
+      <figcaption>Nine nodes: five cells, the door, the traps, the exit, and the chaos core
+      in the middle. Arcs are wires; sparks run the way the signal runs.</figcaption></figure>
+  </div>
+
+  <h3>How a sigil becomes a machine</h3>
+  <p>The sigil is six bits — sixty-four values. That number seeds a small deterministic
+  generator which strings <b>eight wires</b>. Each wire has:</p>
+  <ul class="plain">
+    <li>a <b>source</b>: one of twelve things it can listen to,</li>
+    <li>a <b>destination</b>: one of twenty-one knobs it can move,</li>
+    <li>a <b>depth</b> and a sign — it either raises or lowers,</li>
+    <li>a <b>curve</b>: straight, squared, or stepped, which is why two wires with the same
+      source and destination still do not feel alike.</li>
+  </ul>
+  <p>The first four wires always land on a cell parameter, so no sigil is completely inert.
+  The other four can go anywhere — the door's cutoff and resonance, the traps, the output
+  drive, or a cell's level.</p>
+
+  <h3>What a wire can listen to</h3>
+  <table class="tight">
+    <tr><td>I – V</td><td>The loudness of each cell. A sealed cell contributes nothing, so
+      the rocker switches are also modulation switches.</td></tr>
+    <tr><td>ξ ψ ζ</td><td>The three axes of a Rössler attractor — a chaotic oscillator that
+      never repeats and never runs away. PULSE sets its speed.</td></tr>
+    <tr><td>⌂</td><td>The door's envelope: how hard you are playing.</td></tr>
+    <tr><td>∿ ≈</td><td>Two slow drunken walks.</td></tr>
+    <tr><td>⊙</td><td>The output level, which closes the biggest loop of all.</td></tr>
+  </table>
+
+  <h3>The three knobs</h3>
+  <table class="tight">
+    <tr><td>BIND</td><td>How hard every wire pulls. <b>At zero the room is inert</b> and
+      every knob does exactly what it says. This is the setting to learn on.</td></tr>
+    <tr><td>DRIFT</td><td>A slow random walk added to every destination, wired or not. Even
+      a completely unwired room will not sit still with this up.</td></tr>
+    <tr><td>PULSE</td><td>The speed of the chaos core and of the drift, 0.03 Hz to 5 Hz.</td></tr>
+  </table>
+
+  <h3>Reading the diagram</h3>
+  <p>A <b>solid</b> arc with a filled spark pushes its destination up. A <b>dashed</b> arc
+  with a hollow spark pulls it down. The colour of the arc tells you which node it comes
+  from. A node swells while it is being moved, and glows while it is making sound. Wires
+  whose source and destination are the same node loop back on themselves — those are the
+  self-feeding ones, and they are usually the most interesting.</p>
+
+  <div class="note"><b>The map remembers.</b> Every sigil you visit lights a square in the
+  <span class="g">KART</span> and the counter at the top counts them. It is kept between
+  sessions. Sixty-four is the whole instrument.</div>
+</section>
+
+<!-- ================= 7 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">07</span><h2>The three traps</h2>
+    <span class="sub">Effects</span></div>
+
+  <p class="lead">Three effects, in this order, after the door. Each one has fewer knobs
+  than it needs — the knobs it has do more than one thing.</p>
+
+  <div class="figrow">
+    <figure><img src="shots/t1.jpg" alt="SKIRV"></figure>
+    <figure><img src="shots/t2.jpg" alt="DRAUP"></figure>
+    <figure><img src="shots/t3.jpg" alt="MJØL"></figure>
+  </div>
+
+  <h3><span class="g">SKIRV</span> — the slice repeater</h3>
+  <table class="tight">
+    <tr><td>CHANCE</td><td>Both the odds that any given slice gets caught and repeated,
+      <em>and</em> how much of the repeat you hear. At zero it is off; at maximum the
+      original is almost entirely replaced.</td></tr>
+    <tr><td>SHARD</td><td>The slice length, 18 ms to 450 ms. Short is a granular buzz; long
+      is a bar-length stutter.</td></tr>
+  </table>
+  <p class="quiet">A caught slice plays forward, backward, at double speed or at half speed,
+  chosen at random. You do not get to pick.</p>
+
+  <h3><span class="g">DRAUP</span> — the delay</h3>
+  <table class="tight">
+    <tr><td>DEPTH</td><td>Delay time, 7 ms to 1.9 s, with a slow tape warble on the tap and
+      a cross-fed ping-pong between the channels.</td></tr>
+    <tr><td>RETURN</td><td>Feedback <em>and</em> wet level in one knob. Below about half it
+      is a delay; above it, the loop starts to sustain; at the top it is a resonator.</td></tr>
+    <tr><td>GRAIN</td><td>Tilts the tone inside the loop — dark and thick at the bottom,
+      thin and papery at the top.</td></tr>
+  </table>
+
+  <h3><span class="g">MJØL</span> — the reverb</h3>
+  <table class="tight">
+    <tr><td>SPACE</td><td>Size and tail together, 0.35 s to 16 s, getting darker as it gets
+      bigger.</td></tr>
+    <tr><td>VEIL</td><td>Dry / wet mix.</td></tr>
+    <tr><td>ASCENT</td><td>Feeds an octave-up shimmer back into the reverb. A little is a
+      halo; a lot climbs forever.</td></tr>
+  </table>
+
+  <h3><span class="g">UTVEI</span> — the way out</h3>
+  <figure class="narrow"><img src="shots/wayout.jpg" alt="The output section"></figure>
+  <table class="tight">
+    <tr><td>GABB</td><td>Saturation before the output, level-compensated so it thickens
+      rather than simply gets louder.</td></tr>
+    <tr><td>UTVEI</td><td>Output level.</td></tr>
+    <tr><td>CLAMP</td><td>Not a control. The lamp lights when the limiter is holding the
+      output down. Some of the best settings in this instrument live with it lit.</td></tr>
+  </table>
+</section>
+
+<!-- ================= 8 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">08</span><h2>The oracle, the map and the keyhole</h2>
+    <span class="sub">Finding your way</span></div>
+
+  <div class="figrow">
+    <figure><img src="shots/term.jpg" alt="The ORAKEL terminal"></figure>
+    <figure><img src="shots/kart.jpg" alt="The KART sigil map"></figure>
+  </div>
+
+  <h3><span class="g">ORAKEL</span></h3>
+  <p>The terminal is the only place in the instrument that speaks plainly, and it only does
+  it when asked. It prints:</p>
+  <ul class="plain">
+    <li>the <b>real value</b> of any knob while you are dragging it, in real units — this is
+      how you find out what a knob actually is;</li>
+    <li>the sigil and the first three of its eight wires, whenever the lock changes;</li>
+    <li>the state of a cell rocker or the door shape when you change it;</li>
+    <li>occasional remarks. Some of them are hints.</li>
+  </ul>
+
+  <h3><span class="g">KART</span></h3>
+  <p>Sixty-four squares, one per sigil, laid out 16 across. Dark means you have never been
+  there, warm means you have, and the bright one is where you are. Click any square to
+  travel there. The counter at the top of the panel reads <code>ROOMS n/64</code>.</p>
+
+  <h3>The keyhole</h3>
+  <p>There is a legend — a full plain-English decoding of every mark on the panel, plus this
+  room's eight wires written out in words. It is not on a menu.</p>
+  <p class="quiet">Tap the keyhole three times. There is one at the foot of the door, and
+  the small glowing one at the top right of the panel does the same thing. Once found it
+  stays found, and either keyhole opens it from then on.</p>
+
+  <figure><img src="shots/legend.jpg" alt="The legend, unlocked">
+    <figcaption>The legend, once found. The block at the bottom is generated from the sigil
+    you are actually in — it changes as you travel.</figcaption></figure>
+</section>
+
+<!-- ================= 9 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">09</span><h2>How to learn a room</h2>
+    <span class="sub">Method</span></div>
+
+  <p class="lead">Sixty-four rooms is a lot to hold in your head. This is the routine that
+  works.</p>
+
+  <ol class="steps">
+    <li><b>Go inert.</b> BIND to zero, DRIFT to zero. Now the room is just five noise
+      sources, a filter and three effects, and everything is honest.</li>
+    <li><b>Seal everything but one cell.</b> Learn ALEPH and BETH on that one cell with the
+      ORAKEL open. Two knobs, five minutes. Then move on.</li>
+    <li><b>Find a sound you like</b> with the cells and the door only, traps at zero.</li>
+    <li><b>Now open BIND slowly.</b> Watch which knobs grow ghost arcs. Those are this
+      sigil's destinations, and they are the same every time you come back to it.</li>
+    <li><b>Write the number down</b> — or just let the KART remember it. A sigil plus the
+      knob positions is the whole patch; your DAW saves both.</li>
+    <li><b>When you are stuck, press the dice.</b> Then press the arrow if it was a mistake.
+      Most rooms are found this way rather than reasoned into.</li>
+  </ol>
+
+  <h3>Three things that are not obvious</h3>
+  <ul class="plain">
+    <li><b>Sealing a cell also unplugs it from the loom.</b> Its loudness is a modulation
+      source, so the rocker is a modulation switch as well as a mute.</li>
+    <li><b>KRYS is struck by SKRA even when SKRA is sealed.</b> Cell IV can be alive with
+      cell I silent.</li>
+    <li><b>GORR closes a loop through the door.</b> Its character therefore depends on
+      TEETH, on SHAPE, and on what you are playing. The same GORR setting is a different
+      effect in every room.</li>
+  </ul>
+</section>
+
+<!-- ================= 10 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">10</span><h2>Try this</h2>
+    <span class="sub">Recipes</span></div>
+
+  <p class="lead">Starting points. All of them assume you have pressed the escape hatch
+  first, and all of them want you to move on quickly.</p>
+
+  <div class="grid2">
+    <div>
+      <div class="recipe">
+        <h4>Playable rust organ</h4>
+        <p class="how">ONDA only, MASS <b>60</b>. BIND <b>0</b>. TEETH <b>84</b>, SHAPE
+        <b>band</b>, TRACK <b>100</b>, RESIDUE <b>0</b>, ONSET <b>25</b>, LETGO <b>55</b>.
+        TWIN <b>29</b> (a fifth), TWIN·M <b>50</b>. MJØL VEIL <b>35</b>.</p>
+        <p class="out">Chords out of noise. The cleanest thing this instrument does.</p>
+      </div>
+      <div class="recipe">
+        <h4>The geiger counter</h4>
+        <p class="how">SKRA only, ALEPH <b>15</b>, BETH <b>20</b>. RESIDUE <b>80</b>, TEETH
+        <b>92</b>, WHEEL <b>30</b>. DRAUP DEPTH <b>18</b>, RETURN <b>55</b>.</p>
+        <p class="out">Sparse ticks that each ring the filter. Play a slow melody over it.</p>
+      </div>
+      <div class="recipe">
+        <h4>Bell mine</h4>
+        <p class="how">SKRA ALEPH <b>44</b> and <b>sealed</b>; KRYS open, ALEPH <b>28</b>,
+        BETH <b>88</b>, MASS <b>55</b>. MJØL SPACE <b>75</b>, VEIL <b>45</b>, ASCENT
+        <b>30</b>.</p>
+        <p class="out">Sealed cell I is still striking the strings. Nothing on the panel says
+        so.</p>
+      </div>
+      <div class="recipe">
+        <h4>Something is wrong with the tape</h4>
+        <p class="how">ONDA + KRYS. SKIRV CHANCE <b>45</b>, SHARD <b>22</b>. DRAUP DEPTH
+        <b>60</b>, RETURN <b>48</b>, GRAIN <b>25</b>. BIND <b>50</b>, PULSE <b>20</b>.</p>
+        <p class="out">Glitching, warbling, and never twice the same.</p>
+      </div>
+    </div>
+    <div>
+      <div class="recipe">
+        <h4>The room eats itself</h4>
+        <p class="how">GORR open, MASS <b>35</b>, ALEPH <b>60</b>, BETH <b>70</b>. TEETH
+        <b>88</b>. Any one other cell at MASS <b>25</b> to feed it. GABB <b>35</b>.</p>
+        <p class="out">A feedback instrument. Play notes to steer the howl; the CLAMP lamp
+        will be lit and that is fine.</p>
+      </div>
+      <div class="recipe">
+        <h4>Insect weather</h4>
+        <p class="how">VELM ALEPH <b>70</b>, BETH <b>72</b>. ONDA BETH <b>85</b>. BIND
+        <b>80</b>, DRIFT <b>35</b>, PULSE <b>62</b>. Sigil <b>41</b>.</p>
+        <p class="out">Nothing is stable. Leave it running and come back in a minute.</p>
+      </div>
+      <div class="recipe">
+        <h4>Cathedral of dropped marbles</h4>
+        <p class="how">SKRA ALEPH <b>62</b>, BETH <b>80</b>. MJØL SPACE <b>92</b>, VEIL
+        <b>60</b>, ASCENT <b>55</b>. TEETH <b>40</b>, SHAPE <b>low</b>.</p>
+        <p class="out">Enormous, slow, and climbing. Good under everything.</p>
+      </div>
+      <div class="recipe">
+        <h4>Sixty-four doors</h4>
+        <p class="how">Any patch you like. BIND <b>65</b>. Now walk the KART, one square at a
+        time, and give each one ten seconds.</p>
+        <p class="out">This is the instrument's real use. Half of them will be wrong and
+        three of them will be yours.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 11 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">11</span><h2>Reference</h2>
+    <span class="sub">Every control</span></div>
+
+  <h3>Controls, in the order the host lists them</h3>
+  <table class="tight" style="font-size:9pt">
+    <tr><th>Parameter</th><th>Range</th><th>What it is</th></tr>
+    <tr><td>CELL <i>n</i> · OPEN</td><td>sealed / open</td><td>Cell on. Also unplugs the cell from the loom.</td></tr>
+    <tr><td>CELL <i>n</i> · MASS</td><td>0 – 100</td><td>Cell level into the room.</td></tr>
+    <tr><td>CELL <i>n</i> · ALEPH</td><td>0 – 100</td><td>First character knob — see section 04.</td></tr>
+    <tr><td>CELL <i>n</i> · BETH</td><td>0 – 100</td><td>Second character knob — see section 04.</td></tr>
+    <tr><td>DOOR · WHEEL</td><td>25 Hz – 16 kHz</td><td>Cutoff.</td></tr>
+    <tr><td>DOOR · TEETH</td><td>Q 0.55 – 58</td><td>Resonance.</td></tr>
+    <tr><td>DOOR · SHAPE</td><td>low / band / high / notch</td><td>Filter response.</td></tr>
+    <tr><td>DOOR · TRACK</td><td>0 – 100</td><td>Key follow.</td></tr>
+    <tr><td>DOOR · CREEP</td><td>0.8 ms – 1.6 s</td><td>Portamento.</td></tr>
+    <tr><td>DOOR · ONSET</td><td>0.8 ms – 4 s</td><td>Envelope attack.</td></tr>
+    <tr><td>DOOR · LETGO</td><td>4 ms – 8 s</td><td>Envelope release.</td></tr>
+    <tr><td>DOOR · RESIDUE</td><td>0 – 100</td><td>Untriggered drone level.</td></tr>
+    <tr><td>DOOR · SWEEP</td><td>0 – 100</td><td>Envelope to cutoff, ±3 octaves about 50.</td></tr>
+    <tr><td>DOOR · TWIN</td><td>0 – 24 semitones</td><td>Second resonance interval; 0 is shut.</td></tr>
+    <tr><td>DOOR · TWIN MASS</td><td>0 – 100</td><td>Twin level.</td></tr>
+    <tr><td>SIGIL</td><td>0 – 63</td><td>The lock. Rebuilds all eight wires.</td></tr>
+    <tr><td>LOOM · BIND</td><td>0 – 100</td><td>Wire depth. Zero is inert.</td></tr>
+    <tr><td>LOOM · DRIFT</td><td>0 – 100</td><td>Slow random walk on every destination.</td></tr>
+    <tr><td>LOOM · PULSE</td><td>0.03 – 5 Hz</td><td>Chaos and drift speed.</td></tr>
+    <tr><td>TRAP ⧗ · CHANCE</td><td>0 – 100</td><td>Stutter probability and mix.</td></tr>
+    <tr><td>TRAP ⧗ · SHARD</td><td>18 – 450 ms</td><td>Slice length.</td></tr>
+    <tr><td>TRAP ∞ · DEPTH</td><td>7 ms – 1.9 s</td><td>Delay time.</td></tr>
+    <tr><td>TRAP ∞ · RETURN</td><td>0 – 100</td><td>Feedback and wet level.</td></tr>
+    <tr><td>TRAP ∞ · GRAIN</td><td>0 – 100</td><td>Tone tilt inside the loop.</td></tr>
+    <tr><td>TRAP ☁ · SPACE</td><td>0.35 – 16 s</td><td>Reverb size and tail.</td></tr>
+    <tr><td>TRAP ☁ · VEIL</td><td>0 – 100</td><td>Reverb mix.</td></tr>
+    <tr><td>TRAP ☁ · ASCENT</td><td>0 – 100</td><td>Octave-up shimmer into the tail.</td></tr>
+    <tr><td>MOUTH</td><td>0 – 100</td><td>Saturation (marked GABB on the panel).</td></tr>
+    <tr><td>EXIT</td><td>0 – 100</td><td>Output level (marked UTVEI).</td></tr>
+  </table>
+  <p class="quiet">Forty-five parameters in all, every one automatable. The host shows real
+  units for the ones that have them and a rune plus a percentage for the ones that do not —
+  the panel keeps its secrets, but your automation lane does not have to.</p>
+
+  <h3>Mouse and keyboard</h3>
+  <table class="tight">
+    <tr><td>Drag a knob</td><td>Change it. The ORAKEL shows the real value.</td></tr>
+    <tr><td>Shift-drag</td><td>Fine.</td></tr>
+    <tr><td>Double-click</td><td>Back to default.</td></tr>
+    <tr><td>Scroll wheel</td><td>Nudge.</td></tr>
+    <tr><td>Drag the sigil number</td><td>Scroll through all sixty-four.</td></tr>
+    <tr><td>Computer keys</td><td><code>Z S X D C V G B H N J M</code> and
+      <code>Q 2 W 3 E R 5 T 6 Y 7 U</code> play two octaves from C3.</td></tr>
+    <tr><td>Escape</td><td>Shuts the legend.</td></tr>
+  </table>
+
+  <figure><img src="shots/hdr.jpg" alt="The header bar">
+    <figcaption>The header: wordmark, the count of rooms visited, the build number, and the
+    four buttons — keyhole, undo, dice, escape.</figcaption></figure>
+
+  <h3>The buttons in the header</h3>
+  <table class="tight">
+    <tr><td><span class="g">ENCODE</span></td><td>Writes this patch to a file. See below.</td></tr>
+    <tr><td><span class="g">DECODE</span></td><td>Reads one back in.</td></tr>
+    <tr><td><span class="g">⎋</span> red</td><td>Empties every feedback store. Parameters are
+      untouched.</td></tr>
+    <tr><td><span class="g">⚄</span> dice</td><td>Shuffles the whole room, sigil included.</td></tr>
+    <tr><td><span class="g">↺</span> arrow</td><td>Undoes the last shuffle.</td></tr>
+    <tr><td><span class="g">⚿</span> keyhole</td><td>See section 08.</td></tr>
+  </table>
+
+  <h3>ENCODE and DECODE</h3>
+  <p>A patch is the forty-five numbers and nothing else, so it is a small readable file rather
+  than a blob. <b>ENCODE</b> puts an ordinary Save dialog in front of you, opened on the patch
+  folder and already suggesting the room you are in — <code>Room 41.json</code>. <b>DECODE</b>
+  opens the folder as a menu.</p>
+
+  <figure><img src="shots/patch.jpg" alt="The DECODE menu, with a folder flying out">
+    <figcaption>Sub-folders fly out sideways and sit beside the loose patches. <b>BROWSE…</b>
+    reaches anywhere on disk; <b>PATCH FOLDER…</b> moves the whole library, and the plugin
+    remembers where it went.</figcaption></figure>
+
+  <table class="tight">
+    <tr><td>Where they go</td><td><code>Documents\Brokild patches\Escape Room</code>, where every
+      Brokild plugin keeps a folder of its own. Earlier versions kept rooms beside the installed
+      <code>.vst3</code>, which an installer can reach and replace; anything saved that way is
+      copied across the first time this version runs, and the originals are left where they
+      were. Encoding a patch somewhere else moves the library there from then on — though not
+      when you simply file one in a sub-folder of the library it already has.</td></tr>
+    <tr><td>What is in one</td><td>Every parameter, sigil included, plus the build that wrote it.
+      Plain JSON: you can read it, diff it, or mail someone a room.</td></tr>
+    <tr><td>What is not</td><td>The KART's memory of which rooms you have been in, and whether
+      you have found the legend. Those live on the machine rather than in a patch, because they
+      are about you rather than about the sound.</td></tr>
+  </table>
+
+  <h3>Saving in a project</h3>
+  <p>All forty-five parameters are stored in the DAW's session and in the host's own preset
+  system as well, so reopening a project restores the room without touching the patch folder at
+  all. The folder is for the rooms you want to reach for again; the project looks after itself.</p>
+</section>
+
+
+<!-- ================= 12. THE WORLD RACK ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">12</span>
+    <h2>The world rack</h2>
+    <span class="sub">Brokild World FX</span>
+  </div>
+
+  <p class="lead">Every Brokild synth carries the same rack. Not a copy of it and not a
+  similar one: the identical set of effects and characters, compiled into each
+  instrument and saved inside each patch. Learn it here and you have learned it
+  in all of them.</p>
+
+  <p>The globe on the panel opens it. What appears is two racks side by side &mdash; <b>effects</b> on the left, <b>characters</b> on the right &mdash; and they do very different things. An effect processes what the synth has already made. A character reaches back into the instrument and changes how it makes it.</p>
+  <figure>
+    <img src="shots/world-rack.jpg" alt="The Brokild World FX rack">
+    <figcaption>The world rack. Twelve effect pedals on the left, six characters on the right, and one <b>RACK MIX</b> over the lot. Here <b>TUBE</b>, <b>ECHO</b>, <b>SPACE</b> and <b>ROTARY</b> are lit, with <b>GLASS CATHEDRAL</b> and <b>TAPE SEANCE</b> holding the instrument.</figcaption>
+  </figure>
+  <p>Nothing is on when you start, and an empty rack is not a bypass &mdash; it is an absence. The audio never enters it. A patch you made before the rack existed sounds exactly as it did, to the sample, and the plugin's own test bench checks that on every build.</p>
+  <h3>The pedals</h3>
+  <p>Twelve, in the order they run: <b>TUBE</b> (asymmetric valve saturation, and its DRIVE holds its level as you turn it up, so the pedal gets dirtier rather than louder), <b>SWEEP</b> (four-stage phaser), <b>ENSEMBLE</b> (dual-line chorus), <b>HARMONIC</b> (the brownface split-band tremolo, plus plain tremolo and true vibrato), <b>GATE</b> (rhythmic stutter), <b>GRIT</b> (crusher and dirt), <b>STRIP</b> (compressor and five-band EQ), <b>ECHO</b> (stereo tape echo up to five seconds), <b>SPACE</b> (true convolution reverb), <b>SHIMMER</b> (a feedback network with the octave folded back into the loop), <b>ROTARY</b> (a Leslie with real inertia &mdash; the horn takes about a second to change its mind, the drum about four) and <b>KIERANATOR</b> (the step glitcher). ECHO, GATE and HARMONIC lock to the host clock.</p>
+  <figure>
+    <img src="shots/rack-pedal.jpg" alt="One pedal opened">
+    <figcaption>Every pedal carries one control it does not own itself: <b>PRESENCE</b>, in the rack's own colour. It is how much of that pedal is in the signal at all &mdash; at zero the pedal is inert and the audio passes it untouched.</figcaption>
+  </figure>
+  <p>Drag a pedal by its grip to reorder the chain, or use the arrows. Reordering while sound is playing is safe: the rack dips through the change and comes back on the other side.</p>
+  <h3>The characters</h3>
+  <p>The right-hand rack is <b>SPECTRA</b>, and it does not process the sound &mdash; it possesses the instrument. A character reaches into the voices themselves: how far they drift out of tune with each other, how wide they sit, whether they breathe, whether they sag flat as they die, how dark the filter runs. Two synths under the same character do not sound alike. They sound like themselves, haunted the same way.</p>
+  <p><b>DARK DRONE</b> is a cluster gone dark, with a drift that takes minutes to come round. <b>PSYCHEDELIC PINK</b> breathes the width, tuning and filter over a wash of phaser, chorus and reverse reverb it carries itself. <b>INDUSTRIAL BLACK</b> is grind, chop and clang. <b>GLASS CATHEDRAL</b> is a hall of its own and a breath on the tuning. <b>TAPE SEANCE</b> is the wow of a dying machine. <b>INSECT SWARM</b> is sixteen wings, none of them agreeing.</p>
+  <figure>
+    <img src="shots/rack-character.jpg" alt="A character opened">
+    <figcaption>A character opened. <b>PRESENCE</b> here is how hard it grips, so you can have a suggestion of one character and the full weight of another.</figcaption>
+  </figure>
+  <p>Characters stack: arm two and both take hold, in the order you armed them. Their pitch sag is keyed to each note's gate rather than its volume, so a held note stays in tune and only sinks as it dies. In the Escape Room the characters take the door itself. What they detune is the resonance you play, and a released voice sinks away flat — the room letting go of the note.</p>
+  <h3>The step glitcher</h3>
+  <p><b>KIERANATOR</b> keeps the last ten seconds of everything the synth has played, and every one of its effects is a different way of reading that buffer back. Paint a bar of sixteen steps with the brushes &mdash; RETRIG, TAPE STOP, REVERSE, SHUFFLE, PITCH, CRUSH, GATE &mdash; and it plays the pattern against the host's bars. The same brush again clears a step. With no host transport it free-runs on its own clock. It is named for the late Kieran Foster, whose Glitch made this kind of thing worth doing.</p>
+  <h3>What the rack remembers</h3>
+  <p>The rack belongs to the patch. Save a patch and its rack goes with it; load one from before the rack existed and it comes back rack-empty, which is exactly the sound it promised. The <b>PRESETS</b> menu in the header holds ten made-up racks to start from. And because the rack is shared code, every Brokild synth gets new modules and fixes on its next build &mdash; the effects are the same effects, wherever you opened them.</p>
+</section>
+
+<!-- ================= 12 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">13</span><h2>Installing &amp; specifications</h2>
+    <span class="sub">Practical</span></div>
+
+  <h3>Installing</h3>
+  <ol class="steps">
+    <li><b>Unzip.</b> Copy <code>Escape Room.vst3</code> — the whole folder — into
+      <code>C:\Program Files\Common Files\VST3\</code>. A sub-folder such as
+      <code>...\VST3\Brokild\</code> is fine; hosts look inside.</li>
+    <li><b>Rescan.</b> Start your DAW and let it rescan plugins. Escape Room appears as an
+      <b>instrument</b>, manufacturer Brokild.</li>
+    <li><b>Or just run it.</b> <code>Escape Room.exe</code> in the same zip is the standalone
+      version; it needs no installation and picks its audio device from its own options
+      menu.</li>
+  </ol>
+
+  <div class="note"><b>If the panel does not appear</b> — the interface is drawn in a
+  WebView2 surface, which every up-to-date Windows 10 and 11 already has. If yours does not,
+  install the free Microsoft Edge WebView2 Runtime and reopen the plugin. The instrument
+  keeps making sound with the window shut either way.</div>
+
+  <h3>Specifications</h3>
+  <table class="tight">
+    <tr><td>Format</td><td>VST3, 64-bit Windows. Standalone included.</td></tr>
+    <tr><td>Type</td><td>Instrument. MIDI in, stereo out, no audio input.</td></tr>
+    <tr><td>Voices</td><td>Four filter voices, last-note priority with oldest-voice
+      stealing.</td></tr>
+    <tr><td>Parameters</td><td>45, all host-automatable.</td></tr>
+    <tr><td>Sample rates</td><td>Any. Tested 44.1, 48, 88.2 and 96 kHz.</td></tr>
+    <tr><td>Latency</td><td>None reported. Nothing in the signal path looks ahead.</td></tr>
+    <tr><td>Tail</td><td>Declared 8 seconds. MJØL can be considerably longer than that at
+      full SPACE — leave room at the end of a bounce.</td></tr>
+    <tr><td>CPU</td><td>Modest and roughly constant. The reverb and the shimmer are the only
+      parts that switch off when unused.</td></tr>
+  </table>
+
+  <h3>A word about levels</h3>
+  <p>This is a noise machine with three feedback paths, and it is loud. A brick-wall limiter
+  sits permanently after the output stage, so it cannot exceed full scale, but that is a
+  safety device and not a mix decision — put it on a track with a fader like anything else,
+  and watch the CLAMP lamp if you care about how hard it is working.</p>
+
+  <div class="colophon">
+    <b>Escape Room</b> — Brokild Apps. Build 260822.2, August 2026.<br>
+    Native C++ audio, JUCE 8, interface drawn in the plugin's own window.<br>
+    Free to use. No installer, no account, no telemetry, nothing phones home.
+  </div>
+</section>
+
+</body>
+</html>

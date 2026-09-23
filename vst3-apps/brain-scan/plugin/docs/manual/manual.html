@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Brain Scan — Owner's Manual</title>
+<style>
+  /* Print sheet for the Brain Scan manual. A4, cool off-white paper, the
+     console's CT blue as the accent, against the panel's painted-steel grey.
+     Rendered to PDF with: chrome --headless --print-to-pdf */
+  @page { size: A4; margin: 16mm 16mm 15mm 16mm; }
+  @page :first { margin: 0; }
+
+  :root{
+    --ink:#15181c;
+    --ink-soft:#3b434c;
+    --faint:#767f89;
+    --paper:#f2f1ec;
+    --rule:#d7d9d6;
+    --acc:#1f6ea8;
+    --acc-soft:#e2edf5;
+    --dark:#0d1115;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--paper); }
+  body{
+    color:var(--ink);
+    font:10.6pt/1.55 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3,h4{ font-family:Georgia,"Times New Roman",serif; font-weight:600; margin:0; }
+  p{ margin:.45em 0 .7em; }
+  b,strong{ color:#0c0f12; font-weight:600; }
+  em{ color:var(--ink-soft); }
+  code{
+    font-family:Consolas,"SF Mono",Menlo,monospace; font-size:9.2pt;
+    background:#e7e9e6; border:1px solid #cfd3cf; border-radius:3px; padding:0 4px;
+    color:#1f6ea8;
+  }
+
+  /* ---------- cover ---------- */
+  .cover{
+    background:
+      radial-gradient(120% 80% at 76% 6%, rgba(47,140,200,.30) 0%, transparent 54%),
+      radial-gradient(90% 70% at 6% 100%, rgba(57,255,136,.13) 0%, transparent 60%),
+      linear-gradient(168deg,#101c26 0%, #06090c 100%);
+    color:#e7ecef; height:294mm; padding:22mm 22mm 15mm;
+    display:flex; flex-direction:column; break-after:page; position:relative;
+  }
+  .cover:before, .cover:after{ content:""; position:absolute; top:0; bottom:0; width:11mm;
+    background:linear-gradient(90deg,#5c6167,#c9ccd0 30%,#7d8288 55%,#e4e7ea 80%,#5c6167);
+    box-shadow:inset 0 0 8mm rgba(0,0,0,.6); }
+  .cover:before{ left:0; } .cover:after{ right:0; }
+  .cover > *{ position:relative; z-index:2; }
+  .cover .kicker{ font-size:8.6pt; letter-spacing:.42em; text-transform:uppercase; color:#7fc9ee; }
+  .cover h1{
+    font-family:Georgia,serif; font-weight:700;
+    font-size:46pt; line-height:1; margin:8mm 0 0; color:#f1f4f6; letter-spacing:.08em;
+    text-shadow:0 2px 0 #000, 0 5px 16px rgba(0,0,0,.6);
+  }
+  .cover .tag{ font-size:12.5pt; color:#b8c4cc; margin:5mm 0 0; font-family:Georgia,serif; font-style:italic; max-width:150mm; }
+  .cover .rule{ height:.8mm; background:linear-gradient(90deg,#2f8cc8,transparent); margin:7mm 0 0; }
+  .cover .shot{ margin-top:8mm; }
+  .cover .shot img{ width:100%; border-radius:2mm; box-shadow:0 6mm 18mm rgba(0,0,0,.55); }
+  .cover .foot{ margin-top:auto; display:flex; justify-content:space-between; gap:8mm;
+    font-size:8.8pt; color:#93a1ab; border-top:.4mm solid rgba(255,255,255,.16); padding-top:4mm; }
+  .cover .foot b{ color:#dfe7ec; display:block; letter-spacing:.16em; font-size:8.2pt; margin-bottom:1mm; }
+
+  /* ---------- sections ---------- */
+  .sec{ break-before:page; }
+  .sec-head{
+    display:flex; align-items:baseline; gap:4mm; border-bottom:.5mm solid var(--acc);
+    padding-bottom:2mm; margin-bottom:5mm;
+  }
+  .sec-head .num{ font:700 22pt/1 Georgia,serif; color:var(--acc); }
+  .sec-head h2{ font-size:18pt; letter-spacing:.01em; }
+  .sec-head .sub{ margin-left:auto; font-size:8.6pt; letter-spacing:.24em;
+    text-transform:uppercase; color:var(--faint); }
+  h3{ font-size:11.6pt; margin:4mm 0 1mm; color:#0d1013; }
+  h4{ font-size:10.2pt; margin:3mm 0 .5mm; color:var(--acc); letter-spacing:.04em; }
+  .cols2{ column-count:2; column-gap:8mm; }
+  .keep{ break-inside:avoid; }
+
+  .plate{ text-align:center; margin:4mm 0; break-inside:avoid; }
+  .plate img{ max-width:100%; border-radius:1.6mm; box-shadow:0 1.6mm 5mm rgba(0,0,0,.28); }
+  .plate .cap{ font-size:8.4pt; color:var(--faint); margin-top:1.6mm; font-style:italic; }
+  .trip{ display:flex; gap:3mm; break-inside:avoid; margin:4mm 0; }
+  .trip figure{ margin:0; flex:1; }
+  .trip img{ width:100%; border-radius:1.4mm; box-shadow:0 1.2mm 4mm rgba(0,0,0,.28); }
+  .trip figcaption{ font-size:8pt; color:var(--faint); text-align:center; margin-top:1.2mm; }
+
+  .callout{
+    background:var(--acc-soft); border-left:1.2mm solid var(--acc); border-radius:0 1.6mm 1.6mm 0;
+    padding:3mm 4mm; margin:3mm 0; font-size:10pt; break-inside:avoid;
+  }
+  .dark{
+    background:var(--dark); color:#d5dde3; border-radius:1.6mm; padding:4mm 5mm; margin:3mm 0;
+    font-size:9.6pt; break-inside:avoid;
+  }
+  .dark b{ color:#7fc9ee; }
+  table{ width:100%; border-collapse:collapse; font-size:9.1pt; margin:2mm 0 4mm; break-inside:avoid; }
+  th{ text-align:left; font:600 8.2pt/1.4 "Segoe UI",sans-serif; letter-spacing:.14em;
+      text-transform:uppercase; color:var(--faint); border-bottom:.4mm solid var(--acc); padding:1.4mm 2mm; }
+  td{ border-bottom:.3px solid var(--rule); padding:1.4mm 2mm; vertical-align:top; }
+  td:first-child{ font-weight:600; white-space:nowrap; }
+  .foot-note{ font-size:8.6pt; color:var(--faint); border-top:.6px solid var(--rule);
+    margin-top:5mm; padding-top:2mm; }
+  ul{ margin:.3em 0 .7em; padding-left:5mm; }
+  li{ margin:.15em 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ COVER ═══════════════════ -->
+<div class="cover">
+  <div class="kicker">Brokild &middot; Windows VST3 &middot; Owner's Manual</div>
+  <h1>BRAIN&nbsp;SCAN</h1>
+  <div class="tag">A synth that stores no waveforms. A specimen is a volume; a scan line is a curve
+  through it; one cycle of the sound is the field along that curve. The filter's cutoff and the
+  modulator are the same thing read slower. And SCAN blends the geometry of two lines, so halfway
+  between two sounds is tissue neither of them has visited.</div>
+  <div class="rule"></div>
+  <div class="shot"><img src="img/hero.jpg" alt="The Brain Scan console: the tomography slice, the gantry, the monitor, and the control desk"></div>
+  <div class="foot">
+    <div><b>BRAIN SCAN</b>fifteen specimens &middot; three scanners &middot; six lines &middot; tomography &middot; gantry &middot; world rack</div>
+    <div style="text-align:right"><b>BROKILD</b>free &middot; VST3 + standalone &middot; 64-bit</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 1 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">01</span><h2>The answer and the question</h2>
+    <span class="sub">what it is</span></div>
+  <div class="cols2">
+    <p>A wavetable synth stores a waveform and reads it with a phasor. To move between two sounds
+    it crossfades two answers. Brain Scan keeps the idea of a stored thing and changes what is
+    stored, and the whole instrument follows from that one change.</p>
+    <p><b>A specimen is a volume.</b> Not a table of samples but a scalar field <code>V(x,y,z)</code>
+    filling a cube — a density, exactly like the numbers a scanner records. Fifteen of them ship,
+    in two families. Nine are <em>phantoms</em> — calibration objects, each a formula and each a
+    promise: six give ordinary, useful waveforms, three are made of edges, spikes and beats. Six are
+    <em>bodies</em>, built in Hounsfield units the way a scanner would record them: a head, the
+    same head as bare skull, a chest, three lumbar vertebrae, a thigh, and a jaw with its teeth.</p>
+    <p><b>A scan line is a curve through it.</b> Two to sixteen control points with a smooth curve
+    through them, open or closed. One cycle of the waveform is the field read along that curve:
+    <code>w(s) = V(g(s))</code>, where <code>s</code> is the phase. Drive the curve straight across
+    the cube and you read the specimen's natural waveform. Bend it, loop it, tangle it, and you
+    read something the specimen contains but nobody put there on purpose.</p>
+    <h3>What the geometry gives you for nothing</h3>
+    <ul>
+      <li>A <b>closed loop</b> has no edge, so the cycle joins itself: soft.</li>
+      <li>An <b>open segment</b> jumps between its ends once per cycle: bright, saw-like. That jump
+      is band-limited so it does not alias.</li>
+      <li>A <b>corner</b> is a kink at a fixed phase.</li>
+      <li>A <b>self-crossing</b> is one value visited at two phases.</li>
+      <li><b>WARP</b> reads the same shape unevenly: phase distortion, free.</li>
+      <li>Move the whole line and the timbre evolves while the instrument stays itself.</li>
+    </ul>
+    <h3>The claim, and how it is different</h3>
+    <p><b>SCAN blends the positions, not the samples.</b> Every scanner has two anchor lines, A and
+    B. At SCAN 50&nbsp;% the instrument does not mix the two waveforms; it builds the line halfway
+    between the two <em>curves</em> and reads the field once, along that. A wavetable crossfades
+    two answers. This moves the question.</p>
+    <div class="callout"><b>It is measurable, and it is measured.</b> Take two pulses of duty
+    0.23 and 0.77. Both have a null at the fifth harmonic, so any crossfade of them keeps that null:
+    the bench reads it at &minus;66&nbsp;dB. The midway <em>path</em> reads a pulse of duty 0.50,
+    whose fifth harmonic is &minus;14.0&nbsp;dB, exactly the formula. Fifty decibels of difference,
+    from the same two endpoints.</div>
+    <p><b>The filter and the modulator are the same mechanism read slower.</b> The cutoff is a scan
+    line traversed once per note, or looping; so is the modulator. Three scanners, six lines, one
+    law, and one SCAN control that moves all three at once.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ 2 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">02</span><h2>Thirty seconds of instructions</h2>
+    <span class="sub">start here</span></div>
+  <div class="cols2">
+    <p><b>Play something.</b> The keyboard along the bottom is playable with the mouse, and the
+    computer keys work too: <code>z x c v</code> for the lower octave, <code>q w e r</code> for the
+    one above. The instrument opens on a patch called ADMISSION.</p>
+    <p><b>Turn SCAN.</b> It is the wide slider under SPECIMEN, on the left of the desk. Watch the
+    bright line on the slice move between its two dim anchors while the sound travels. That is the
+    whole instrument in one gesture.</p>
+    <p><b>Change the specimen.</b> The window at the top left of the desk steps through the fifteen.
+    The gantry and the slice reload; the lines stay where they are, so the same drawing reads a
+    different body.</p>
+    <p><b>Draw.</b> Pick <b>W A</b> in the SCAN LINES panel, then work on the tomography slice:
+    drag a numbered point to move it, click bare tissue to add one, alt-click a point to take it
+    away. A point keeps its depth when dragged; the TABLE slider decides which depth new points
+    land at.</p>
+    <p><b>Give SCAN somewhere to go.</b> <b>RANDOMISE BOTH</b> draws fresh walks for both anchors
+    of the selected scanner. <b>A&nbsp;&rarr;&nbsp;B</b> copies A onto B so you can nudge B away
+    from a shape you already like.</p>
+    <h3>The four regions</h3>
+    <p>Left, the <b>tomography</b>: one plane through the specimen, and the only place lines are
+    edited. Middle, the <b>gantry</b>: the specimen in three dimensions with the lines glowing
+    inside it — for looking, not for editing. Right, the <b>monitor</b> and the <b>scan lines</b>
+    bench. Below, the <b>desk</b>: specimen and scan, filter, modulator, envelope, voice.</p>
+    <div class="callout"><b>Every control says what it is.</b> Hover anything — a knob, a button, a
+    tab, the slice itself — and a note appears beside it saying what it does and how it is used.
+    The <b>HINTS</b> button in the header turns them off; so does the <code>?</code> key.</div>
+    <p><b>If it goes wrong.</b> The red mushroom stops every voice. Double-click any knob for its
+    default. <b>PATCHES</b> holds sixteen factory studies and everything in your patch folder.</p>
+  </div>
+  <div class="plate"><img src="img/hero.jpg" alt="The whole console">
+    <div class="cap">The console. Tomography left, gantry centre, monitor and scan lines right, the desk below.</div></div>
+</div>
+
+<!-- ═══════════════════ 3 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">03</span><h2>The fifteen specimens</h2>
+    <span class="sub">what is in the cube</span></div>
+  <div class="cols2">
+    <p>The <code>x</code> axis is the phase axis. A straight line along <code>x</code> reads the
+    specimen's natural waveform at whatever <code>(y, z)</code> it sits at, so an ordinary wavetable
+    is a special case: a straight line, moved sideways. The other two axes are the timbre axes and
+    each specimen says what they mean.</p>
+    <table>
+      <tr><th>Specimen</th><th>A straight line reads</th><th>y</th><th>z</th></tr>
+      <tr><td>SINUS</td><td>a sine</td><td>amplitude</td><td>a touch of second harmonic</td></tr>
+      <tr><td>SPINE</td><td>a harmonic stack</td><td>brightness</td><td>parity: saw to square</td></tr>
+      <tr><td>PULSE</td><td>a pulse</td><td>width, 5–95 %</td><td>edge softness</td></tr>
+      <tr><td>MARROW</td><td>a ramp</td><td>curvature</td><td>folds toward a triangle</td></tr>
+      <tr><td>NERVE</td><td>a phase-modulated sine</td><td>index</td><td>modulator ratio</td></tr>
+      <tr><td>RETINA</td><td>two decaying formants</td><td>first formant</td><td>second formant</td></tr>
+      <tr><td>THORAX</td><td>a chest CT</td><td colspan="2">ribs, sternum, spine, two lungs with their vessels, the heart and aorta</td></tr>
+      <tr><td>SKULL</td><td>the skull alone</td><td colspan="2">vault, orbits, sinuses, cheekbones, jaw and teeth — no soft tissue</td></tr>
+      <tr><td>CORTEX</td><td>a head CT</td><td colspan="2">the same skull with brain, ventricles, eyes and scalp</td></tr>
+      <tr><td>SUTURE</td><td>a random staircase</td><td>steps per cycle, 4–32</td><td>walks eight patterns</td></tr>
+      <tr><td>ENAMEL</td><td>a comb of spikes</td><td>their width</td><td>how many per cycle, 1–8</td></tr>
+      <tr><td>TENDON</td><td>four partials</td><td>harmonic to a bell's ratios</td><td>brightness</td></tr>
+      <tr><td>VERTEBRA</td><td>three lumbar levels</td><td colspan="2">bodies, discs, the canal and its roots, processes, the muscles around</td></tr>
+      <tr><td>FEMUR</td><td>a thigh</td><td colspan="2">the femoral shaft flaring into its ends, marrow, muscle compartments, vessels</td></tr>
+      <tr><td>JAW</td><td>the mandible</td><td colspan="2">both rows of teeth with enamel, dentine and pulp; the tongue and the palate</td></tr>
+    </table>
+    <p><b>Musically normal by construction.</b> SPINE at a given <code>(y, z)</code> is exactly a
+    harmonic series with a known rolloff and a known parity; PULSE at a given <code>y</code> is
+    exactly a pulse of a known width. The bench checks both against their formulas — the duty cycle
+    lands within 0.001 of what the formula says. SPINE is the instrument's bread.</p>
+    <p><b>The bodies are anatomy, in Hounsfield units.</b> Air is &minus;1000, fat about
+    &minus;90, brain and muscle around 40, trabecular bone a few hundred, the cortical tables above a
+    thousand and enamel at the top of the scale; the cube's 0 to 1 spans &minus;1000 to 2000 HU. So
+    WINDOW and LEVEL read in HU on a body, the four presets on the gantry are a radiographer's, and
+    a bone is a bone: a line through CORTEX reads scalp, skull, cerebrospinal fluid, folded cortex,
+    a ventricle — a waveform with hard edges, a smooth stretch, a burst of detail and a plateau, and
+    moving the line an inch changes which of those it meets and in what order. SKULL is the same
+    head with every soft tissue removed, the way a bone reconstruction shows it. None of them is
+    designed to be tidy. They are designed to be somewhere.</p>
+    <p><b>The gritty three are made of edges.</b> SUTURE is a random staircase — <code>y</code> the
+    number of steps per cycle, <code>z</code> a walk through eight patterns — and a step is a hard
+    edge held for a while: every harmonic, then nothing until the next. ENAMEL is a comb of spikes,
+    <code>z</code> how many per cycle and <code>y</code> their width; one spike a texel wide is the
+    buzziest thing in the instrument. TENDON is four partials whose ratios slide from harmonic to a
+    bell's. Cut to one cycle their content is harmonic, as every single-cycle read must be; what
+    they carry is the strike at the wrap. Measured above the eighth harmonic, against the
+    fundamental: SPINE's middle &minus;25 dB, SUTURE +4, ENAMEL +10.</p>
+  </div>
+  <div class="trip">
+    <figure><img src="img/spine-slice.jpg" alt="SPINE"><figcaption>SPINE — a harmonic stack, sliced</figcaption></figure>
+    <figure><img src="img/pulse-slice.jpg" alt="PULSE"><figcaption>PULSE — width across y</figcaption></figure>
+    <figure><img src="img/cortex-axial.jpg" alt="CORTEX"><figcaption>CORTEX — an axial slice, brain window</figcaption></figure>
+  </div>
+  <div class="trip">
+    <figure><img src="img/skull-gantry.jpg" alt="SKULL"><figcaption>SKULL in the gantry, bone window</figcaption></figure>
+    <figure><img src="img/thorax-axial.jpg" alt="THORAX"><figcaption>THORAX — axial, lung window</figcaption></figure>
+    <figure><img src="img/jaw-axial.jpg" alt="JAW"><figcaption>JAW — axial through the lower teeth</figcaption></figure>
+  </div>
+  <div class="trip">
+    <figure><img src="img/vertebra-axial.jpg" alt="VERTEBRA"><figcaption>VERTEBRA — axial through a body</figcaption></figure>
+    <figure><img src="img/femur-gantry.jpg" alt="FEMUR"><figcaption>FEMUR in the gantry</figcaption></figure>
+    <figure><img src="img/skull-coronal.jpg" alt="SKULL coronal"><figcaption>SKULL — coronal through the orbits</figcaption></figure>
+  </div>
+
+  <div class="cols2" style="margin-top:5mm">
+    <h3>How the tissue is read</h3>
+    <p>The field is stored as texels and a read lands between them, so a kernel decides what a point
+    between texels is worth. <b>GRAIN</b> is that kernel. At 0 it is a smoothing B-spline, which
+    rounds every corner and takes the top of the texel band down by up to 16 dB — the soft read the
+    first build shipped with. At 1 it is an interpolating Catmull-Rom, which passes every texel as
+    it is, kinks included. It is not a tone control: on a bright SPINE, harmonic 20 moves by a
+    decibel between the two and harmonic 40 by five.</p>
+    <p><b>CONTRAST</b> is a CT window applied to the sound. Narrowing it scales the read up — to
+    sixteen times — and saturates it against the window's edges: a sine leans toward a square, and
+    there is more for the filter to bite on. <b>FOLD</b> is what the window does past its edges: at
+    0 it clips, at 1 it folds the wave back in, which adds harmonics the tissue never had. Both are
+    anti-derivative anti-aliased; the hardest window at C5 on the brightest field aliases at
+    &minus;51 dB and a full fold at &minus;65. At CONTRAST 0 and FOLD 0 the window is not there at
+    all, and the plain read stays the plain read.</p>
+    <p>And the volume itself doubled: 128 texels across where the first build had 64. A straight
+    line across the cube carried at most 32 harmonics; now 64. Every specimen was rebuilt for the
+    resolution — PULSE's edge is half a texel wide at the bottom of <code>z</code>, SPINE reaches
+    48 harmonics and a brightness past a saw. The panel still renders 64<sup>3</sup>, the same bytes
+    averaged; the engine reads all 128<sup>3</sup>.</p>
+    <figure><img src="img/read.jpg" alt="READ · WINDOW"><figcaption>READ &middot; WINDOW — GRAIN, CONTRAST and FOLD</figcaption></figure>
+  </div>
+
+  <div class="cols2" style="margin-top:5mm">
+    <h3>A volume of your own</h3>
+    <p><b>IMPORT</b>, under the specimen window, reads a real volume off disk and uses it instead
+    of the fifteen. It takes a <b>NIfTI</b> file (<code>.nii</code> or <code>.nii.gz</code>), a folder
+    of <b>DICOM</b> slices, or a folder of images. Any volumetric data will do — a CT or MR of a
+    head, a micro-CT of a fossil, a confocal stack, an industrial scan of a casting.</p>
+    <p>It does not join the fifteen: it <em>overrides</em> them. The window says IMPORTED while it
+    is in use; <b>CLEAR</b> gives the dial back, and so does simply turning the dial — a dial that
+    moved without changing anything read as broken, so now it wins. Adding an entry to the dial
+    re-points every patch anyone has already saved, which is why the specimens that arrived in
+    260904.3 and 260905.1 came with a one-time remap of older patches and projects, and why an
+    import still does not join the dial. An import has Hounsfield units of its own (its cube spans
+    the window it was read with), so the presets light on it too.</p>
+    <h4>What it does to the data, and why</h4>
+    <p><b>It resamples in millimetres, not in voxels.</b> A clinical CT is typically 0.5 mm across
+    a slice and 1–5 mm between them. Resampling by index would squash the body along the slice
+    axis by exactly that ratio. The spacing is read from the file, the physical extents are fitted
+    into the cube, and a sphere stays a sphere.</p>
+    <p><b>It averages when it shrinks.</b> 512 × 512 × 300 into 64³ is about 8 × 8 × 5 source
+    voxels for every destination voxel. Point-sampling that is aliasing, and aliasing introduced
+    here is in the specimen for good — no later filtering can reach it. Each axis is resampled with
+    a filter as wide as that axis's own ratio.</p>
+    <p><b>It picks the window from the data.</b> A single surgical clip at 3000 HU would otherwise
+    push every brain voxel into the bottom two per cent of the range. The window is a percentile of
+    the data rather than its extremes, and the values it chose are printed under the strip in the
+    file's own units — Hounsfield units, for a CT.</p>
+    <h4>The two controls</h4>
+    <p><b>PHASE AXIS</b> chooses which axis of the body is read as one cycle. A head read
+    left-to-right, front-to-back and foot-to-head are three quite different instruments.
+    <b>SHAPE</b> chooses FIT, which keeps the body's real proportions and pads the rest of the cube
+    with air — silence at those phases — or FILL, which stretches it to the cube. Both re-read the
+    file, because they change how it is read rather than how it is shown.</p>
+    <div class="callout"><b>The window controls are now literal.</b> With a CT loaded, WINDOW and
+    LEVEL are a real radiographer's window width and level, in Hounsfield units: air is −1000,
+    cerebrospinal fluid about 0 to 15, grey matter 35 to 45, bone 300 and up. A brain window is
+    about 80 wide centred on 40, and it is the only way to see cortical detail — at a window wide
+    enough to hold the skull, the tissue is all one grey.</div>
+    <p>An imported volume is <em>saved with the patch and with the project</em>, compressed, so a
+    patch is still the whole machine when the folder it came from has been tidied away.</p>
+  </div>
+  <div class="plate"><img src="img/import.jpg" style="max-width:78mm" alt="The import strip">
+    <div class="cap">IMPORTED in the window, and what the file turned out to be underneath.</div></div>
+  <div class="trip">
+    <figure><img src="img/import-slice.jpg" alt="an imported CT"><figcaption>An imported scan, at the window the data chose</figcaption></figure>
+    <figure><img src="img/import-window.jpg" alt="a brain window"><figcaption>The same slice, narrowed to a brain window</figcaption></figure>
+    <figure><img src="img/import-gantry.jpg" alt="the imported volume in the gantry"><figcaption>And in the gantry, with the lines inside it</figcaption></figure>
+  </div>
+</div>
+
+<!-- ═══════════════════ 4 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">04</span><h2>The three scanners, and the one SCAN</h2>
+    <span class="sub">the mechanism</span></div>
+  <div class="cols2">
+    <table>
+      <tr><th>Scanner</th><th>Reads</th><th>Rate</th></tr>
+      <tr><td>WAVE</td><td>the audio waveform</td><td>once per cycle of the note</td></tr>
+      <tr><td>FILTER</td><td>the cutoff of the filter</td><td>once per note (SWEEP), or looping (LOOP)</td></tr>
+      <tr><td>MOD</td><td>a modulator: scan, pitch, pan</td><td>looping, free or on the host clock</td></tr>
+    </table>
+    <p>Each has two anchors, A and B. <b>SCAN</b> is where between them every scanner is read, and
+    it moves all three together. It has three sources that add up:</p>
+    <ul>
+      <li>the <b>SCAN</b> slider, the base position;</li>
+      <li>the <b>scan envelope</b> — SCAN ATK, SCAN DEC and SCAN ENV, which is bipolar, so the
+      envelope can travel toward B or back toward A;</li>
+      <li><b>MOD&gt;SCAN</b>, the modulator's own contribution.</li>
+    </ul>
+    <p>Because the blend is of geometry, a scan envelope is not a filter sweep and not a crossfade.
+    It is the reading head travelling through the specimen while the note sounds, and what it finds
+    on the way is whatever is there.</p>
+    <div class="dark"><b>Why the anchors matter more than the knobs.</b> Two anchors that lie on top
+    of each other give a SCAN that does nothing. Two anchors in different rooms of the specimen give
+    a SCAN that is the most powerful control on the panel. RANDOMISE BOTH exists for this reason,
+    and it is the fastest way to find out what a specimen contains.</div>
+  </div>
+  <div class="trip">
+    <figure><img src="img/scan0.jpg" alt="scan 0"><figcaption>SCAN 0 — read at anchor A</figcaption></figure>
+    <figure><img src="img/scan50.jpg" alt="scan 50"><figcaption>SCAN 50 % — a line neither anchor draws</figcaption></figure>
+    <figure><img src="img/scan100.jpg" alt="scan 100"><figcaption>SCAN 100 % — read at anchor B</figcaption></figure>
+  </div>
+  <p style="font-size:9pt;color:#767f89;text-align:center;margin-top:-1mm">The bright line is what is being read. The two faint ones are the anchors; the numbered squares are the control points of the line being edited.</p>
+</div>
+
+<!-- ═══════════════════ 5 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">05</span><h2>Drawing a line</h2>
+    <span class="sub">tomography</span></div>
+  <div class="cols2">
+    <p>A curve in a cube cannot be drawn with a mouse — but a curve on a plane can, and a plane can
+    be driven through the cube. That is what the tomograph is for, and it is the only place lines
+    are edited.</p>
+    <h3>The plane</h3>
+    <p><b>AXIAL</b>, <b>CORONAL</b> and <b>SAGITTAL</b> cut the volume on XY, XZ and YZ. The
+    <b>TABLE</b> slider under the slice drives the plane through the specimen; so does the wheel
+    over the slice. The heading in the corner always says which plane and which depth.</p>
+    <h3>The gestures</h3>
+    <ul>
+      <li><b>Drag a numbered point</b> to move it in this plane. <em>Its depth is kept</em> — you
+      are moving it on the plane, not to the plane.</li>
+      <li><b>Click bare tissue</b> to add a point at the plane's current depth, inserted into the
+      segment it is nearest to.</li>
+      <li><b>Alt-click a point</b> to remove it. Two is the minimum.</li>
+      <li><b>Wheel</b> moves the table. Hold shift for one texel at a time.</li>
+    </ul>
+    <p>Points off the plane are drawn hollow and fade with distance, so you can always see where the
+    rest of the line has got to. Every line's crossing of the current plane is ringed in that
+    scanner's colour — red for WAVE, cyan for FILTER, amber for MOD.</p>
+    <h3>Split, flatten, undo — and the gantry</h3>
+    <p><b>SPLIT</b> (the ◂ ▸ pair on the line bench) makes a line two segments instead of one
+    curve: the first half of the cycle reads the points before the split, the second half the
+    points after it. One cycle, two edges, both band-limited — a family of timbre a single curve
+    cannot make. It needs four points or more, and the slice draws the two segments apart.</p>
+    <p><b>FLATTEN</b> starts the selected scanner over — two straight lines along x through the
+    middle of the body, A a little below B so SCAN still has somewhere to go — and <b>FLATTEN
+    ALL</b> does all six: the simplest state the instrument has, to build up from again.
+    <b>REVERT</b> puts back the six lines the current patch, study or project was loaded with.
+    <b>UNDO</b> takes back the last change to the lines, one step, from any gesture on the slice,
+    the gantry or the bench.</p>
+    <p>And the gantry is no longer only for looking: the selected line's control points are drawn
+    on it as white dots. Drag one to move it across the view; hold <b>shift</b> to push it along the
+    line of sight — the one direction the slice cannot reach.</p>
+    <h3>The bench</h3>
+    <p>The <b>SCAN LINES</b> panel on the right chooses which of the six lines you are editing and
+    carries its own properties.</p>
+    <table>
+      <tr><td>CLOSED</td><td>loop or segment — no edge, or one edge per cycle</td></tr>
+      <tr><td>&minus; / +</td><td>take a point off the end, or add one; two to sixteen</td></tr>
+      <tr><td>START</td><td>where a closed loop's cycle begins: moves the phase, not the shape</td></tr>
+      <tr><td>WARP</td><td>phase distortion — the reader runs faster over one half of the line</td></tr>
+      <tr><td>LINE … LOOP</td><td>lay a shape through the line's present centre. WALK and LOOP are
+      new every time you press them</td></tr>
+      <tr><td>RANDOMISE BOTH</td><td>fresh walks for both anchors of this scanner</td></tr>
+      <tr><td>A &rarr; B</td><td>copy this scanner's A anchor onto its B anchor</td></tr>
+    </table>
+  </div>
+  <div class="plate"><img src="img/lines.jpg" alt="The SCAN LINES bench">
+    <div class="cap">The scan-line bench. Six lines, and the tools for the one you are editing.</div></div>
+  <div class="trip">
+    <figure><img src="img/coronal.jpg" alt="coronal"><figcaption>CORONAL — the same lines, cut on XZ</figcaption></figure>
+    <figure><img src="img/sagittal.jpg" alt="sagittal"><figcaption>SAGITTAL — cut on YZ</figcaption></figure>
+    <figure><img src="img/tomo.jpg" alt="the tomograph"><figcaption>The tomograph and its table</figcaption></figure>
+  </div>
+</div>
+
+<!-- ═══════════════════ 6 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">06</span><h2>The gantry</h2>
+    <span class="sub">looking</span></div>
+  <div class="cols2">
+    <p>The middle screen is the specimen in three dimensions, ray-marched, with the scan lines
+    glowing inside it. It is for looking: nothing is edited here. Drag to turn the specimen, wheel
+    to come closer, <b>HOME</b> to put it back, <b>ROTATE</b> to let it turn on its own.</p>
+    <p>The bright line is what is being read at the present SCAN; the two dimmer ones are its
+    anchors, and <b>ANCHORS</b> hides them. The small travelling dots are the reading heads — the
+    audio-rate one shown slowed down, because nothing about 300 revolutions a second is watchable.</p>
+    <h3>DENSITY, WINDOW and LEVEL</h3>
+    <p>These three are the transfer function, and they are the scanner's own vocabulary.</p>
+    <ul>
+      <li><b>DENSITY</b> is opacity. Low, and the specimen is a ghost the lines blaze through;
+      high, and the tissue closes over them.</li>
+      <li><b>WINDOW</b> is the window's <em>width</em> — how much of the density range is shown at
+      all.</li>
+      <li><b>LEVEL</b> is the window's <em>centre</em> — which density it is looking at.</li>
+    </ul>
+    <p>WINDOW and LEVEL also drive the slice, exactly as a window and level pair drives a real
+    radiograph. They are set for you when a specimen loads, from that specimen's own histogram, and
+    then stay where you put them until the next one.</p>
+    <h3>The presets, in Hounsfield units</h3>
+    <p>Under the sliders sit <b>BRAIN</b> (W80 L40), <b>SOFT</b> (W400 L40), <b>LUNG</b> (W1500
+    L&minus;600) and <b>BONE</b> (W2000 L500) — a radiographer's windows. They light on the bodies
+    and on an import, both of which carry real CT numbers, and each body opens on its own: the
+    head on BRAIN, the chest on LUNG, the bones on BONE. A preset also raises DENSITY, because bone
+    is a thin shell and the gantry needs opacity to show it; and on a body the gantry draws nothing
+    below a third of the window, so a bone window shows bone and not a fog of soft tissue. The
+    phantoms have no HU: the buttons dim, and the sliders work as they always did.</p>
+    <h3>SOLID and SURFACE</h3>
+    <p>A specimen with air around it and a specimen whose field fills the cube want opposite
+    treatments, so the treatment is a button.</p>
+    <ul>
+      <li><b>SOLID</b> shows everything denser than the window's floor. That is how a scanned object
+      should read: the brain, the skull.</li>
+      <li><b>SURFACE</b> is opaque only in the middle of the window, so a field that fills the cube
+      becomes the single surface where it crosses the level. Sweep LEVEL in this mode and you travel
+      out through the specimen one shell at a time.</li>
+    </ul>
+    <p>It is chosen for you when a specimen loads — SOLID if more than a third of the cube is empty
+    — and you can override it.</p>
+  </div>
+  <div class="trip">
+    <figure><img src="img/gantry.jpg" alt="the gantry"><figcaption>CORTEX in SOLID, the lines glowing through</figcaption></figure>
+    <figure><img src="img/surface.jpg" alt="surface mode"><figcaption>SPINE in SURFACE — one level of the field</figcaption></figure>
+  </div>
+</div>
+
+<!-- ═══════════════════ 7 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">07</span><h2>The filter, the modulator, the voice</h2>
+    <span class="sub">the desk</span></div>
+  <div class="cols2">
+    <h3>FILTER</h3>
+    <p><b>CIRCUIT</b> chooses what the filter is made of. <b>SVF</b> is the state-variable filter
+    the instrument shipped with. The other three are Black Rider's, ported whole: <b>GROWL</b>, a
+    Sallen-Key with a diode clipper in its feedback — a gnarly resonance that screams only at the
+    top of RESONANCE; <b>SCREAM</b>, the same circuit pushed harder, self-oscillating from two
+    o'clock up, in tune, so with KEY TRACK it plays from the keyboard; <b>LADDER</b>, the four-pole
+    transistor ladder, its bass thinning as the resonance rises. Each of the three is a LOW or a
+    HIGH pass by the row above it — the highpass is the same circuit with its stages swapped — and
+    BAND stays the SVF's, dimming when a circuit is chosen. The bench measures SCREAM and LADDER
+    singing at the cutoff within a few cents at full resonance, and all three keep their aliasing
+    under &minus;67 dB below the oscillation edge without any oversampling.</p>
+    <p>A state-variable filter with <b>LOW</b>, <b>BAND</b>, <b>HIGH</b> and <b>OFF</b>. CUTOFF is
+    where it sits when the FILTER line has no say; <b>F DEPTH</b> is how much of the say the line
+    has. At F DEPTH 0 the filter is an ordinary filter. Turn it up and the cutoff becomes a reading
+    of the specimen along the FILTER line — which means a filter sweep with the shape of whatever
+    the line passes through, not a curve from a table.</p>
+    <p><b>F MODE</b> chooses <b>SWEEP</b>, one traversal per note, or <b>LOOP</b>, going round for
+    as long as the note lasts. <b>F RATE</b> is the sweep time or the loop rate, and <b>F SYNC</b>
+    locks the loop to the host clock. <b>KEY TRACK</b> is how much the cutoff follows the note.</p>
+    <h3>MODULATOR</h3>
+    <p>A third line, read at <b>MOD RATE</b> (or on the host clock through <b>MOD SYNC</b>), whose
+    reading is sent three places: <b>MOD&gt;SCAN</b>, <b>MOD&gt;PITCH</b> and <b>MOD&gt;PAN</b>.
+    All three are bipolar. A modulator whose line loops through a rough part of the specimen is a
+    very different animal from one that loops through a smooth part; the shape of the modulation is
+    the shape of the tissue.</p>
+    <h3>The second head, and the MOD line on the read</h3>
+    <p><b>2ND HEAD</b> puts a second reader on the same blended line and mixes it in. At <b>HEAD
+    RATIO</b> ×1.00 with <b>HEAD PHASE</b> offset it is a fixed-interval double without a second
+    voice — at 50 % it cancels the odd harmonics and leaves a hollow. Off the whole numbers it is
+    something a single-cycle read can never be on its own: a partial that is not a harmonic. At
+    ×1.50 the bench measures a partial at 1.5 f<sub>0</sub> within 0.3 dB of the fundamental and
+    no second harmonic at all. Whole ratios give harmonics; anything else beats.</p>
+    <p><b>MOD&gt;WINDOW</b> and <b>MOD&gt;GRAIN</b> let the MOD line drive the read itself: the
+    tissue under the MOD line narrows the CONTRAST window or sharpens GRAIN as it travels, so the
+    body decides how hard it is read. Centred, they do nothing — the bench checks the knob values
+    pass through untouched. <b>SCAN SPREAD</b>, in VOICE, spreads unison readers through the SCAN
+    as well as in pitch: each reads the body a little further along than the last, and a chord of
+    readers widens without detuning.</p>
+    <h3>ENVELOPE and VOICE</h3>
+    <p>ATTACK, DECAY, SUSTAIN and RELEASE with VELOCITY sensitivity, and the usual voice controls:
+    <b>POLY</b> (eight voices) or <b>MONO</b> with legato glide, <b>UNISON</b> of one to four
+    readers per note, <b>DETUNE</b> and <b>SPREAD</b> for them, <b>GLIDE</b>, <b>TUNE</b> and
+    <b>LEVEL</b>.</p>
+    <div class="callout"><b>Unison is literal here.</b> Four readers walk the same line at slightly
+    different rates. They are reading the same tissue, so they stay related to one another however
+    strange the line is.</div>
+    <h3>The monitor</h3>
+    <p>Three leads: <b>LEAD&nbsp;I</b> is the cycle the WAVE scanner is reading, <b>LEAD&nbsp;II</b>
+    the FILTER line, <b>LEAD&nbsp;III</b> the MOD line. Under them, the note being played, the
+    cutoff in hertz, and where SCAN has actually got to — which is not the same as where the slider
+    is, once the envelope and the modulator have had their say.</p>
+  </div>
+  <div class="trip">
+    <figure><img src="img/filter.jpg" alt="filter"><figcaption>FILTER</figcaption></figure>
+    <figure><img src="img/modulator.jpg" alt="modulator"><figcaption>MODULATOR</figcaption></figure>
+    <figure><img src="img/voice.jpg" alt="voice"><figcaption>VOICE</figcaption></figure>
+  </div>
+  <div class="plate"><img src="img/monitor.jpg" alt="monitor and vitals">
+    <div class="cap">The monitor, the vitals, and the scan-line bench.</div></div>
+</div>
+
+<!-- ═══════════════════ 8 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">08</span><h2>Patches, and the world rack</h2>
+    <span class="sub">keeping things</span></div>
+  <div class="cols2">
+    <p><b>PATCHES</b> in the header holds sixteen factory studies and everything in your patch folder.
+    A patch is every control, both anchors of all three scanners, the specimen and the rack — the
+    whole machine. <b>SAVE</b> writes one.</p>
+    <p>Patches live in <code>Documents\Brokild patches\Brain Scan</code>, the same house folder every
+    Brokild plug-in uses. You can point the plug-in somewhere else from the PATCHES menu, and it
+    will remember. A patch is plain JSON; it can be sent to somebody.</p>
+    <table>
+      <tr><td>ADMISSION</td><td>where a fresh instance opens</td></tr>
+      <tr><td>SINUS RHYTHM</td><td>a sine that will not sit still</td></tr>
+      <tr><td>CORTEX</td><td>the brain, played as an instrument</td></tr>
+      <tr><td>PULSE OX</td><td>width where width is not a knob</td></tr>
+      <tr><td>MARROW</td><td>the ramp, folded</td></tr>
+      <tr><td>NERVE</td><td>phase modulation read as a landscape</td></tr>
+      <tr><td>RETINAL</td><td>two formants and a scan between them</td></tr>
+      <tr><td>VENTILATOR</td><td>slow, breathing, on the host clock</td></tr>
+      <tr><td>ARRHYTHMIA</td><td>a line that should not work</td></tr>
+      <tr><td>STAPLES</td><td>the staircase, read texel by texel</td></tr>
+      <tr><td>ENAMEL</td><td>spikes through a narrow window</td></tr>
+      <tr><td>TENDON</td><td>bell ratios, folded</td></tr>
+      <tr><td>SKULL</td><td>through the orbits, then through the teeth</td></tr>
+      <tr><td>VERTEBRA</td><td>a second head at ×1.50 — a beating partial</td></tr>
+      <tr><td>FEMUR</td><td>a split line: bone, then muscle, two edges a cycle</td></tr>
+      <tr><td>JAW</td><td>the MOD line narrowing the window as it goes</td></tr>
+    </table>
+    <h3>Brokild World FX</h3>
+    <p>The globe in the header opens the shared rack every Brokild instrument carries: twelve
+    effect modules and four character modules, dragged into whatever order you like, and five
+    <b>MACROS</b> that appear as host parameters so the rack can be automated. A fresh rack is
+    empty and changes nothing.</p>
+    <div class="callout"><b>Five macros, and they map rather than add.</b> A macro sweeps its
+    destination across the destination's whole range, so a macro at 100&nbsp;% is that control at its
+    top and 0&nbsp;% is its bottom. MACRO&nbsp;5 arrives assigned to the rack's dry/wet, which is why
+    a fresh instance sounds exactly as it would with no rack at all.</div>
+  </div>
+  <div class="plate"><img src="img/bwfx.jpg" alt="the world rack">
+    <div class="cap">Brokild World FX, over the console.</div></div>
+</div>
+
+<!-- ═══════════════════ 9 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">09</span><h2>What is measured</h2>
+    <span class="sub">the bench</span></div>
+  <div class="cols2">
+    <p>Nothing in this manual is a claim somebody thought sounded right. The engine has an offline
+    bench that renders real audio and asserts on it — 126 checks — and the panel has a second one
+    that loads the real page and drives it through the plug-in's own message vocabulary — 48 checks.
+    Both are in the source tree.</p>
+    <table>
+      <tr><th>What</th><th>Measured</th></tr>
+      <tr><td>SINUS is a sine</td><td>total harmonic distortion &minus;120.9 dB</td></tr>
+      <tr><td>SPINE obeys its formula</td><td>centroid rises with y; at z = 1 the even harmonics sit
+        47.4 dB under the odd</td></tr>
+      <tr><td>PULSE obeys its width</td><td>duty 0.229 / 0.500 / 0.771 against a formula saying
+        0.230 / 0.500 / 0.770</td></tr>
+      <tr><td>Aliasing</td><td>the roughest specimen (THORAX, grain and all) at C6: non-harmonic
+        energy &minus;70.1 dB, and +0.6 dB with the mip pyramid disabled</td></tr>
+      <tr><td>The edge of an open line</td><td>&minus;53.4 dB with the band-limiting step,
+        &minus;20.0 dB without: it is worth 33 dB</td></tr>
+      <tr><td>Offset</td><td>&minus;114.0 dB of DC after a second</td></tr>
+      <tr><td><b>The claim</b></td><td>the fifth harmonic at SCAN 50 %: &minus;13.6 dB, the formula
+        &minus;14.0; the crossfade of the same two anchors &minus;61.2</td></tr>
+      <tr><td>The filter follows its line</td><td>worst error 0.000 octaves against the field read
+        along the blended line</td></tr>
+      <tr><td>Cost</td><td>16.7 % of one core for eight voices of four-way unison — 32 readers, the
+        maximum; 18.5 % with GRAIN 1, the window and the fold all on; 39 % with a second head on
+        every reader</td></tr>
+      <tr><td>The second head</td><td>at ×1.00 and PHASE 50 % the odd harmonics fall from +3.9 dB
+        over the even to &minus;106 dB under; at ×1.50 a partial at 1.5 f<sub>0</sub> sits 0.3 dB
+        from the fundamental with the 2nd harmonic at &minus;111 dB; at ×4 on the brightest field at
+        C5 the floor is &minus;56 dB</td></tr>
+      <tr><td>A split line</td><td>reads its first segment to the end and jumps to the second at
+        exactly half a cycle; at C5 the two edges band-limited give &minus;64.3 dB of non-harmonic
+        energy, &minus;31.8 without — the second polyBLEP is worth 33 dB</td></tr>
+      <tr><td>The MOD line on the window</td><td>centred, SINUS reads &minus;120.6 dB of THD; at
+        &minus;100 % with the MOD line parked in the sine's trough, &minus;8.5 dB</td></tr>
+      <tr><td>The bodies</td><td>tissue fractions per body (air where there is air, a few per
+        cent of bone, enamel where there are teeth); five rays from the centre of the head all cross
+        bone and the SKULL's cranium is empty while CORTEX's holds white matter; the chest has two
+        lungs; the vertebra has a canal of CSF between two pedicles of bone</td></tr>
+      <tr><td>The circuits</td><td>each lowpass at 500 Hz pulls a bright SPINE's centroid from
+        1308 Hz to under 310, each highpass at 2 kHz pushes it past 3400; SCREAM and LADDER at full
+        resonance sing at a 1 kHz cutoff within a few cents; below the oscillation edge the
+        non-harmonic floor at C5 is &minus;67 to &minus;69 dB at 1× — no oversampling needed; the
+        SVF at CIRCUIT's default is bit-identical to the filter as it shipped; 32 ladders cost
+        19.7 % of a core</td></tr>
+      <tr><td>GRAIN</td><td>SPINE at y = 1, A2: harmonic 40 rises 4.6 dB from GRAIN 0 to 1 while
+        harmonic 20 moves 1.3 dB — a kernel, not a tilt</td></tr>
+      <tr><td>CONTRAST</td><td>SINUS THD &minus;120.6 / &minus;18.3 / &minus;10.3 / &minus;7.9 /
+        &minus;6.9 dB at CONTRAST 0 / &frac14; / &frac12; / &frac34; / 1: nothing at zero, monotonic
+        to a square's order</td></tr>
+      <tr><td>The window's aliasing</td><td>brightest SPINE, GRAIN 1, C5: &minus;58.3 dB plain,
+        &minus;51.2 dB with CONTRAST 1, &minus;64.9 dB with a full FOLD at gain 4</td></tr>
+      <tr><td>The gritty three</td><td>energy above the 8th harmonic against the fundamental:
+        SPINE's middle &minus;24.6 dB, SUTURE +4.4, ENAMEL +10.1, TENDON &minus;2.6</td></tr>
+      <tr><td>The build</td><td>a 128<sup>3</sup> specimen builds in 21 ms on twenty threads; the
+        panel's copy is published from a worker, never from the timer</td></tr>
+      <tr><td><b>The import</b></td><td>a volume that is 80 × 80 × 20 voxels but physically cubic
+        fills the cube, and a sphere in it still measures the same on all three axes — resampling
+        by index would read about 12 voxels on the coarse one</td></tr>
+      <tr><td>Decimation</td><td>a one-voxel checkerboard, decimated 4:1, flattens to standard
+        deviation 0.00005; point sampling would leave 0.5</td></tr>
+      <tr><td>No shift</td><td>a ramp resamples to a ramp within 0.006 — the half-voxel error that
+        breaks a resampler without looking broken</td></tr>
+      <tr><td>Outliers</td><td>with one voxel at 30000 among values of 0 to 100, the window comes
+        out 0 to 103</td></tr>
+      <tr><td>Readers</td><td>NIfTI and DICOM round-tripped from bytes built in memory: dimensions,
+        spacing, rescale to Hounsfield units, and slices ordered by their position rather than the
+        order they arrived. Compressed DICOM and NIfTI-2 are refused by name.</td></tr>
+    </table>
+    <div class="dark"><b>One number is worth reading twice.</b> The mip pyramid — reading the volume
+    at a coarseness matched to the pitch and the length of the path — is worth 44 dB of aliasing at
+    C6. A volume read naively at high pitch is not a slightly rougher instrument; it is a broken
+    one.</div>
+    <p>The panel probe checks, among other things, that a straight line of four collinear control
+    points reads exactly straight — that the panel evaluates a curve the same way the engine does,
+    to five decimal places. What you see drawn is what you hear.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ 10 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">10</span><h2>Every control</h2>
+    <span class="sub">reference</span></div>
+  <div class="cols2">
+    <h4>SPECIMEN &middot; SCAN</h4>
+    <table>
+      <tr><td>SPECIMEN</td><td>which volume the lines read. Not automatable: it rebuilds two million
+        texels on a worker thread, and a lane fighting that is unusable</td></tr>
+      <tr><td>SCAN</td><td>where between A and B every scanner is read</td></tr>
+      <tr><td>SCAN ATK</td><td>how fast the scan envelope rises</td></tr>
+      <tr><td>SCAN DEC</td><td>how fast it falls back</td></tr>
+      <tr><td>SCAN ENV</td><td>how far the envelope moves the scan, either way &plusmn;100 %</td></tr>
+    </table>
+    <h4>READ &middot; WINDOW</h4>
+    <table>
+      <tr><td>GRAIN</td><td>the read kernel: 0 smooths across texels, 1 passes every texel as it is</td></tr>
+      <tr><td>CONTRAST</td><td>the CT window on the sound: narrower saturates the read toward a square,
+        up to sixteen times the gain</td></tr>
+      <tr><td>FOLD</td><td>past the window's edges: 0 clips flat, 1 folds the wave back in</td></tr>
+      <tr><td>2ND HEAD</td><td>a second reader on the same line, mixed in</td></tr>
+      <tr><td>HEAD RATIO</td><td>its speed against the note, ×0.25 to ×4 with exactly ×1.00 in the middle</td></tr>
+      <tr><td>HEAD PHASE</td><td>where along the cycle it starts — the interval, at ×1.00</td></tr>
+    </table>
+    <h4>THE READ, MODULATED</h4>
+    <table>
+      <tr><td>MOD&gt;WINDOW</td><td>how much the MOD line narrows the window (in MODULATOR)</td></tr>
+      <tr><td>MOD&gt;GRAIN</td><td>how much the MOD line sharpens the read (in MODULATOR)</td></tr>
+      <tr><td>SCAN SPREAD</td><td>unison readers spread through the scan, each a little off the others (in VOICE)</td></tr>
+    </table>
+    <h4>FILTER</h4>
+    <table>
+      <tr><td>FILTER</td><td>LOW, BAND, HIGH, OFF</td></tr>
+      <tr><td>CIRCUIT</td><td>SVF, or Black Rider's GROWL, SCREAM and LADDER — each low or high by the row above</td></tr>
+      <tr><td>CUTOFF</td><td>the cutoff when the FILTER line has no say</td></tr>
+      <tr><td>RESONANCE</td><td>the filter's resonance</td></tr>
+      <tr><td>F DEPTH</td><td>how much the FILTER line decides the cutoff</td></tr>
+      <tr><td>F MODE</td><td>SWEEP once per note, or LOOP</td></tr>
+      <tr><td>F RATE</td><td>the sweep time, or the loop rate, 0.05–40 Hz</td></tr>
+      <tr><td>F SYNC</td><td>FREE, or 4/1 down to 1/16 and the triplets</td></tr>
+      <tr><td>KEY TRACK</td><td>how much the cutoff follows the note</td></tr>
+    </table>
+    <h4>MODULATOR</h4>
+    <table>
+      <tr><td>MOD RATE</td><td>how fast the MOD line is read, 0.02–30 Hz</td></tr>
+      <tr><td>MOD SYNC</td><td>lock it to the host clock</td></tr>
+      <tr><td>MOD&gt;SCAN</td><td>how much it moves the scan, &plusmn;100 %</td></tr>
+      <tr><td>MOD&gt;PITCH</td><td>how much it bends the pitch</td></tr>
+      <tr><td>MOD&gt;PAN</td><td>how much it moves the voice in the field</td></tr>
+    </table>
+    <h4>ENVELOPE</h4>
+    <table>
+      <tr><td>ATTACK · DECAY · SUSTAIN · RELEASE</td><td>1 ms to 10 s on the timed three</td></tr>
+      <tr><td>VELOCITY</td><td>how much velocity decides the level</td></tr>
+    </table>
+    <h4>VOICE</h4>
+    <table>
+      <tr><td>VOICES</td><td>POLY (eight) or MONO with legato glide</td></tr>
+      <tr><td>UNISON</td><td>one to four readers per note</td></tr>
+      <tr><td>DETUNE</td><td>how far they are spread in pitch, 0–40 cents</td></tr>
+      <tr><td>SPREAD</td><td>how wide they sit in the stereo field</td></tr>
+      <tr><td>GLIDE</td><td>portamento between notes</td></tr>
+      <tr><td>TUNE</td><td>master tuning, &plusmn;12 semitones</td></tr>
+      <tr><td>LEVEL</td><td>output level</td></tr>
+    </table>
+    <h4>IMPORT</h4>
+    <table>
+      <tr><td>IMPORT…</td><td>read a NIfTI file, a DICOM folder or a folder of images</td></tr>
+      <tr><td>CLEAR</td><td>throw it away and give the SPECIMEN dial back</td></tr>
+      <tr><td>PHASE AXIS</td><td>which axis of the body is one cycle of the waveform</td></tr>
+      <tr><td>SHAPE</td><td>FIT keeps the body's proportions; FILL stretches it to the cube</td></tr>
+    </table>
+
+    <h4>The screens</h4>
+    <table>
+      <tr><td>AXIAL / CORONAL / SAGITTAL</td><td>which plane the tomograph cuts</td></tr>
+      <tr><td>GRID</td><td>show the 128 texels the engine reads across the plane</td></tr>
+      <tr><td>BRAIN / SOFT / LUNG / BONE</td><td>a radiographer's windows, on a body or an import</td></tr>
+      <tr><td>SPLIT ◂ ▸</td><td>make the line two segments; move the split; back to one curve</td></tr>
+      <tr><td>FLATTEN / FLATTEN ALL</td><td>the scanner, or every line, back to straight reads through the middle</td></tr>
+      <tr><td>REVERT</td><td>the six lines as they were loaded</td></tr>
+      <tr><td>UNDO</td><td>the last change to the lines, one step</td></tr>
+      <tr><td>TABLE</td><td>the depth of that plane</td></tr>
+      <tr><td>DENSITY</td><td>the gantry's opacity</td></tr>
+      <tr><td>WINDOW / LEVEL</td><td>the width and centre of the display window, both screens</td></tr>
+      <tr><td>SOLID / SURFACE</td><td>how the window is read in the gantry</td></tr>
+      <tr><td>HOME / ROTATE / ANCHORS</td><td>the camera, its spin, and whether the anchors show</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════ 11 ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">11</span><h2>Installing, and the small print</h2>
+    <span class="sub">practicalities</span></div>
+  <div class="cols2">
+    <p><b>Windows, 64-bit.</b> The download holds a VST3 and a standalone. Put
+    <code>Brain Scan.vst3</code> in <code>C:\Program Files\Common Files\VST3\</code> — a subfolder
+    is fine, hosts scan recursively — and rescan in your host. The standalone needs nothing but
+    itself.</p>
+    <p><b>The panel is a web view.</b> It needs the Microsoft Edge WebView2 runtime, which is
+    present on every up-to-date Windows 10 and 11. If the panel comes up blank, that runtime is what
+    to install.</p>
+    <p><b>It is not signed.</b> Windows may say so on first run, and Smart App Control may refuse an
+    unsigned binary outright; that is a Windows setting, not a fault in the file.</p>
+    <h3>Host notes</h3>
+    <ul>
+      <li>Forty parameters are automatable, plus five rack macros. SPECIMEN is deliberately not:
+      it rebuilds the volume.</li>
+      <li>The scan lines are saved with the project and with a patch, but they are not host
+      parameters. A curve of sixteen points in three dimensions is not a fader.</li>
+      <li>F SYNC and MOD SYNC take the host's tempo. With no host clock they fall back to their
+      own rate.</li>
+      <li>MIDI: notes, velocity, pitch bend, sustain, and the modulation wheel.</li>
+    </ul>
+    <h3>If something is wrong</h3>
+    <ul>
+      <li><b>No sound.</b> Check the specimen actually has tissue where the WAVE line is — the
+      slice will show you. A line entirely in air reads silence, correctly.</li>
+      <li><b>A patch sounds different after reloading.</b> It should not; if it does, that is a bug
+      worth reporting.</li>
+      <li><b>Everything is buzzing.</b> RESONANCE with F DEPTH high can find a place in the tissue
+      that sweeps the cutoff faster than it can be believed. That is the instrument working. LEVEL
+      and the limiter in the rack are both downstream.</li>
+    </ul>
+    <div class="callout"><b>Brokild plug-ins are free.</b> No licence, no key, no phoning home.
+    They are made for the pleasure of making them.</div>
+    <div class="foot-note">Brain Scan &middot; Brokild &middot; build 260905.2 &middot;
+    <a href="https://peterboggild.github.io/BrokildApps/" style="color:#1f6ea8">peterboggild.github.io/BrokildApps</a></div>
+  </div>
+</div>
+
+</body>
+</html>

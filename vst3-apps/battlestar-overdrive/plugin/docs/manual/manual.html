@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Battlestar Overdrive — Operator's Handbook</title>
+<style>
+/* ===========================================================================
+   Battlestar Overdrive, operator's handbook.
+
+   Landscape, because the panel is 3:2 and a portrait page would shrink every
+   plate to a stamp. Built for print: each .page is exactly one sheet and the
+   page background is the same near-black the plates were composited onto, so
+   a full-bleed shot has no seam at its edge.
+   =========================================================================== */
+
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:      #090705;      /* the page, and the colour the JPEGs sit on */
+  --ink-2:    #120d08;
+  --yellow:   #f5b912;
+  --orange:   #e8761a;
+  --red:      #d4291c;
+  --holo:     #7fd8ff;      /* what the screen says */
+  --green:    #7de08a;      /* the response curve */
+  --body:     #cdc3b2;
+  --dim:      #8a7f6d;
+  --rule:     rgba(245,185,18,.34);
+}
+
+*{ box-sizing: border-box; }
+
+html,body{ margin:0; padding:0; background: var(--ink); }
+
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body);
+  font-size: 10.2pt;
+  line-height: 1.52;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.page{
+  position: relative;
+  width: 297mm; height: 210mm;
+  overflow: hidden;
+  page-break-after: always;
+  background: var(--ink);
+}
+.page:last-child{ page-break-after: auto; }
+
+/*  The standard inner margin. The bottom inset must CLEAR the folio strip,
+    not merely meet it: at 13mm the content box ended exactly where the page
+    number began, and a paragraph that filled its column sat on top of it. */
+.pad{ position:absolute; inset: 14mm 16mm 18mm 16mm; }
+
+/* --- display type ---------------------------------------------------------
+   The wordmark on the metal is a heavy italic slab with a hot gradient and a
+   hard black shadow. This is the nearest honest approximation in fonts that
+   are certainly on the machine, and it is used only for headings so the body
+   stays readable. */
+.display{
+  font-family: "Arial Black", "Segoe UI Black", Impact, sans-serif;
+  font-weight: 900;
+  letter-spacing: .012em;
+  transform: skewX(-7deg);
+  transform-origin: left bottom;
+  background: linear-gradient(177deg, #ffe07a 0%, var(--yellow) 30%, var(--orange) 62%, var(--red) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  line-height: .95;
+  margin: 0;
+}
+
+h1.display{ font-size: 52pt; }
+h2.display{ font-size: 25pt; }
+h3.display{ font-size: 14pt; }
+
+/* a plain heavy heading where a gradient would fight the artwork */
+.plain{
+  font-family: "Arial Black", "Segoe UI Black", Impact, sans-serif;
+  font-weight: 900; letter-spacing: .02em;
+  transform: skewX(-7deg); transform-origin: left bottom;
+  line-height: .98; margin: 0; color: var(--yellow);
+}
+
+.kick{
+  font: 700 8.2pt/1 "Segoe UI", sans-serif;
+  letter-spacing: .34em; text-transform: uppercase;
+  color: var(--orange);
+  margin: 0 0 4mm 0;
+}
+.kick.holo{ color: var(--holo); }
+
+.sub{
+  font-size: 11.4pt; color: #efe4cf; margin: 4mm 0 0 0; line-height: 1.45;
+  max-width: 150mm;
+}
+
+p{ margin: 0 0 3.4mm 0; }
+b, strong{ color: #f3e9d6; font-weight: 700; }
+em{ color: var(--yellow); font-style: normal; font-weight: 600; }
+
+/* --- rules and plates ------------------------------------------------------ */
+.rule{
+  height: 2px; border: 0; margin: 5mm 0 6mm 0;
+  background: linear-gradient(90deg, var(--red) 0%, var(--orange) 22%, var(--yellow) 44%, rgba(245,185,18,.08) 100%);
+}
+.rule.thin{ height:1px; background: var(--rule); margin: 4mm 0; }
+
+img{ display:block; max-width:100%; }
+
+figure{ margin:0; }
+figcaption{
+  font-size: 8.4pt; color: var(--dim); margin-top: 2mm; line-height: 1.4;
+}
+figcaption b{ color: var(--yellow); font-weight:700; }
+
+.bleed{ position:absolute; inset:0; width:100%; height:100%; object-fit: cover; }
+
+.shot{
+  border: 1px solid rgba(245,185,18,.22);
+  border-radius: 2px;
+}
+
+/*  A plate left to fill its column is 78mm tall in a 40% column, and three of
+    those plus captions is half a metre of page. Every sheet here is a FIXED
+    height with overflow:hidden, so the excess is not pushed anywhere - it is
+    silently cut off, and the DOM still looks correct. Cap the side-column and
+    grid plates by HEIGHT and let the width follow. */
+.c-40 .shot, .c-46 .shot{ max-height: 44mm; width: auto; }
+.grid3 .shot{ max-height: 40mm; width: auto; }
+/*  The fuel page stacks FOUR plates in one column, which is one more than
+    the standard cap allows. .pad is not clipped, so the excess does not
+    vanish - it sits on the page number. These are the tighter caps. */
+.stack4 .shot{ max-height: 30mm; }
+.stack4 figure{ margin-top: 3.5mm !important; }
+.stack4 figure:first-child{ margin-top: 0 !important; }
+
+/* --- layout helpers -------------------------------------------------------- */
+.cols{ display:flex; gap: 9mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-40{ flex: 0 0 40%; }
+.c-46{ flex: 0 0 46%; }
+.c-55{ flex: 0 0 55%; }
+.c-58{ flex: 0 0 58%; }
+
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 6mm 7mm; }
+.grid2{ display:grid; grid-template-columns: repeat(2, 1fr); gap: 5mm 9mm; }
+
+/* --- the knob entry, used on the control pages ----------------------------- */
+.knob{
+  border-left: 3px solid var(--orange);
+  padding-left: 5mm;
+  margin-bottom: 6mm;
+}
+.knob h3{
+  font: 900 12.5pt/1 "Arial Black","Segoe UI Black",Impact,sans-serif;
+  color: var(--yellow); letter-spacing:.04em; margin:0 0 1.5mm 0;
+  transform: skewX(-7deg); transform-origin:left bottom;
+}
+.knob .what{ font-size:8.4pt; color:var(--dim); letter-spacing:.14em;
+             text-transform:uppercase; margin:0 0 2mm 0; }
+.knob p{ margin:0 0 2mm 0; }
+
+/* --- the engine list ------------------------------------------------------- */
+.eng{ display:flex; gap:5mm; align-items:baseline; padding: 1.9mm 0;
+      border-bottom: 1px solid rgba(245,185,18,.14); }
+.eng .n{
+  flex: 0 0 9mm;
+  font: 900 15pt/1 "Arial Black","Segoe UI Black",Impact,sans-serif;
+  color: rgba(245,185,18,.32);
+  transform: skewX(-7deg);
+}
+.eng .nm{
+  flex: 0 0 38mm;
+  font: 900 11pt/1.15 "Arial Black","Segoe UI Black",Impact,sans-serif;
+  color: var(--yellow); letter-spacing:.02em;
+  transform: skewX(-7deg); transform-origin:left bottom;
+}
+.eng .dc{ flex: 1 1 auto; font-size: 9.6pt; line-height:1.4; }
+.eng.hot .nm{ color: var(--red); }
+.eng.hot .n{ color: rgba(212,41,28,.42); }
+
+/* --- callout panels -------------------------------------------------------- */
+.box{
+  border: 1px solid var(--rule);
+  background: linear-gradient(160deg, rgba(245,185,18,.07), rgba(212,41,28,.04));
+  padding: 5mm 6mm;
+  border-radius: 2px;
+}
+.box h4{
+  font: 900 10pt/1 "Arial Black","Segoe UI Black",Impact,sans-serif;
+  color: var(--yellow); margin:0 0 2.5mm 0; letter-spacing:.04em;
+  transform: skewX(-7deg); transform-origin:left bottom;
+}
+.box.holo{
+  border-color: rgba(127,216,255,.34);
+  background: linear-gradient(160deg, rgba(127,216,255,.08), rgba(127,216,255,.02));
+}
+.box.holo h4{ color: var(--holo); }
+.box p:last-child{ margin-bottom:0; }
+
+/*  A pull line across the foot of a page. Big, skewed, and deliberately
+    low-contrast: it is there to fill a void with attitude rather than to
+    be read first. */
+.pull{
+  font: 900 19pt/1.12 "Arial Black","Segoe UI Black",Impact,sans-serif;
+  transform: skewX(-7deg); transform-origin:left bottom;
+  color: transparent;
+  background: linear-gradient(92deg, rgba(245,185,18,.85), rgba(232,118,26,.6) 52%, rgba(212,41,28,.30));
+  -webkit-background-clip:text; background-clip:text;
+  margin:0; letter-spacing:.01em;
+}
+
+/* the little screen-speak line */
+.says{
+  font: 700 9.4pt/1.35 "Consolas","SF Mono",ui-monospace,monospace;
+  color: var(--holo); letter-spacing:.16em;
+}
+
+/* --- tables ---------------------------------------------------------------- */
+table{ width:100%; border-collapse: collapse; font-size: 9.2pt; }
+th{
+  text-align:left; font: 700 7.8pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.2em; text-transform:uppercase; color: var(--orange);
+  padding: 0 0 2mm 0; border-bottom: 1px solid var(--rule);
+}
+td{ padding: 2mm 0; border-bottom: 1px solid rgba(245,185,18,.11);
+    vertical-align: top; }
+td:first-child{ color: var(--yellow); font-weight:600; width: 34%; }
+td.num{ font-family:"Consolas",ui-monospace,monospace; color:#efe4cf; }
+
+/* --- page furniture -------------------------------------------------------- */
+.folio{
+  position:absolute; left:16mm; right:16mm; bottom: 7mm;
+  display:flex; justify-content:space-between; align-items:center;
+  font: 600 7.4pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.24em; text-transform:uppercase; color: rgba(138,127,109,.8);
+  border-top: 1px solid rgba(245,185,18,.16); padding-top: 2.6mm;
+}
+.folio .n{ color: var(--yellow); font-weight:800; letter-spacing:.1em; }
+
+/* --- cover -----------------------------------------------------------------
+   The panel carries its OWN wordmark, in the same italic slab this manual
+   sets headings in. A title laid over the whole shot collides with it and
+   both become unreadable, so the art is banded across the lower page and
+   framed to start BELOW the metal's own lettering: object-position pushes the
+   crop down past it, leaving the screen, the knobs and the fuel tube. */
+.cover-art{
+  position:absolute; left:0; right:0; bottom:0; height: 62%;
+  overflow:hidden;
+}
+.cover-art img{
+  width:100%; height:100%; object-fit: cover; object-position: center 64%;
+}
+.cover-fade{
+  position:absolute; inset:0;
+  /*  The foot line sits over this, and the panel under it is bright yellow:
+      grey type on that is unreadable. The bottom of the fade goes all the
+      way to solid ink so there is something to read against. */
+  background: linear-gradient(180deg, var(--ink) 0%, rgba(9,7,5,.55) 11%, rgba(9,7,5,0) 30%,
+                              rgba(9,7,5,0) 55%, rgba(9,7,5,.72) 78%, var(--ink) 93%);
+}
+.cover-top{ position:absolute; left:18mm; right:18mm; top:16mm; }
+.cover-foot{ position:absolute; left:18mm; right:18mm; bottom:12mm; }
+
+.stamp{
+  display:inline-block;
+  border: 1.6px solid var(--red);
+  color: var(--red);
+  font: 800 7.6pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.3em; text-transform:uppercase;
+  padding: 2mm 4mm; transform: rotate(-3deg);
+  border-radius: 1.5px;
+}
+</style>
+</head>
+<body>
+
+<!-- =====================================================  1  COVER  ===== -->
+<section class="page">
+  <div class="cover-art">
+    <img src="img/panel-nova.jpg" alt="" />
+    <div class="cover-fade"></div>
+  </div>
+
+  <div class="cover-top">
+    <p class="kick" style="color:var(--yellow); margin-bottom:6mm">Brokild &middot; Windows VST3 &middot; Overdrive</p>
+    <h1 class="display" style="font-size:58pt">BATTLESTAR<br>OVERDRIVE</h1>
+    <hr class="rule" style="margin:7mm 0 5mm 0" />
+    <div class="cols" style="align-items:flex-start">
+      <div class="c-58">
+        <p class="plain" style="font-size:14pt; color:#f3e9d6">OPERATOR'S HANDBOOK</p>
+      </div>
+      <div style="text-align:right; margin-left:auto">
+        <p class="says" style="margin:0">BUILD 260919.2</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover-foot">
+    <p style="color:var(--dim); font-size:9.4pt; max-width:150mm; margin:0">
+      Eight drive engines, a tube that tells you which one you are on, and a
+      tank that runs dry if you play too long. Built with Max Christensen, for
+      the band of the same name. <span style="color:var(--yellow)">September 2026.</span>
+    </p>
+  </div>
+</section>
+
+<!-- ===============================================  2  THE TRIBUTE  ===== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">What this is</p>
+    <h2 class="display">A BATTLESTAR OVERDRIVE<br>FOR BATTLESTAR OVERDRIVE</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-55">
+        <p>
+          I suggested to make a VST3 for Max, and he asked for a Battlestar
+          Overdrive, named after his solo band. That was too good not to do.
+          So here it is, built with his blessing.
+        </p>
+        <p>
+          <b>Battlestar Overdrive</b> is Max Christensen, out of Copenhagen, and
+          it crash-lands somewhere between a late-night discotheque and a sweaty
+          basement venue: garage rock swagger welded to soul, disco and slacker
+          electronica. He takes the stage alone, with a mashed-up rig of synths,
+          sequencers and samplers and a screen of zany visuals behind him. It is
+          bonkers, it is hyper-charged, and it is unreasonably optimistic about
+          it. <em>Go and listen to it.</em> This plugin makes more sense
+          afterwards, and so, probably, does everything else.
+        </p>
+        <p>
+          Eight drive engines on one knob, running from a polite tube to a
+          fold-crush-chaos cascade with no musical justification whatsoever; a
+          CRT that tells you which one you are on, speeds its starfield up as
+          you climb, goes to warp on the seventh and blows up a star on the
+          eighth. SPACE flies through no less than five different FX, because
+          too much is never enough.
+        </p>
+        <p style="color:var(--yellow)">
+          It is very good at ruining things, beautifully and thoroughly.
+        </p>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/scr-nova.jpg" alt="" />
+          <figcaption><b>The eighth engine.</b> SUPERNOVA. The star ahead of
+          you swells, reddens, shudders, and then does not survive it.</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:6mm">
+          <h4>IN SHORT</h4>
+          <p style="font-size:9.4pt">
+            Six knobs, one button, one screen. Everything is on the front and
+            everything does something. Turn it up and find out which.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div style="position:absolute; left:0; right:0; bottom:4mm;">
+      <hr class="rule" style="margin-bottom:6mm" />
+      <p class="pull">FOR THE MISFITS, THE OUTSIDERS, AND ANYONE READY TO
+      RIDE A WAVE OF SPACE-TRAVELLING ROCK &rsquo;N&rsquo; ROLL.</p>
+    </div>
+  </div>
+  <div class="folio"><span>Battlestar Overdrive &middot; Operator's Handbook</span><span class="n">02</span></div>
+</section>
+
+<!-- ==============================================  3  AT A GLANCE  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The panel</p>
+    <h2 class="display">EVERYTHING IS ON THE FRONT</h2>
+
+    <div class="cols" style="margin-top:6mm">
+      <div class="c-58">
+        <figure>
+          <img class="shot" src="img/panel.jpg" alt="" />
+          <figcaption><b>Left, top to bottom:</b> Mix, Thrust, Antithrust.
+            <b>Right:</b> Engine, Space, Spectrum. Below the tube: the fuel
+            gauge and the Autorefill button.</figcaption>
+        </figure>
+      </div>
+
+      <div style="padding-top:2mm">
+        <h3 class="plain" style="font-size:12pt">INSTALLING</h3>
+        <p style="margin-top:3mm">
+          Copy <b>Battlestar Overdrive.vst3</b> into your VST3 folder &mdash;
+          normally <span class="says" style="font-size:8.4pt">C:\PROGRAM FILES\COMMON FILES\VST3</span>
+          &mdash; and rescan in your DAW. The standalone in the same download
+          needs nothing installing; double-click it.
+        </p>
+
+        <hr class="rule thin" />
+
+        <h3 class="plain" style="font-size:12pt">THE FIRST MINUTE</h3>
+        <p style="margin-top:3mm">
+          Put it on a guitar, a drum bus or a whole mix. Turn <em>Thrust</em>
+          up until it stops being polite. Turn <em>Engine</em> until you find
+          the one that suits the damage you want. Everything else is taste.
+        </p>
+
+        <div class="box holo" style="margin-top:5mm">
+          <h4>THE TUBE IS THE READOUT</h4>
+          <p style="font-size:9.4pt">
+            There are no numbers printed on the metal. Touch a knob and its
+            value appears on the glass in blue, then fades. The instrument only
+            ever speaks inside the screen.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The panel</span><span class="n">03</span></div>
+</section>
+
+<!-- ============================================  4  THRUST AND MIX  ===== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Controls, 1 of 3</p>
+    <h2 class="display">THRUST &amp; MIX</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-55">
+        <div class="knob">
+          <h3>THRUST</h3>
+          <p class="what">how hard you drive it</p>
+          <p>
+            Gain into the engine. Every engine is <b>level-matched</b> by a
+            table the plugin measures for itself when it starts, so turning
+            THRUST up changes what it sounds like without simply making it
+            louder. Six of the eight engines sit inside 4&ndash;6 dB across the
+            whole sweep; the two folders are wider, because a wavefolder's
+            loudness genuinely depends on what you feed it and no honest
+            compensation can pretend otherwise.
+          </p>
+        </div>
+
+        <div class="knob">
+          <h3>MIX</h3>
+          <p class="what">dry against everything else</p>
+          <p>
+            A plain linear blend, and the dry path is delayed to match the
+            processed one sample for sample &mdash; so at MIX 0 what comes out
+            is what went in, measured to zero difference, with no comb and no
+            phase smear. Park it around three quarters for parallel dirt under
+            an intact transient.
+          </p>
+        </div>
+
+        <div class="box" style="margin-top:8mm">
+          <h4>PARALLEL IS WHERE IT LIVES</h4>
+          <p style="font-size:9.4pt">
+            It is usually more useful to wreck the signal completely and blend
+            it back than to half-wreck it. Drive hard, then ride MIX.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/scr-readout.jpg" alt="" />
+          <figcaption><b>Touch a knob</b> and the tube says what it is set to,
+          in blue, for a second. Then it goes back to the starfield.</figcaption>
+        </figure>
+
+        <figure style="margin-top:7mm">
+          <img class="shot" src="img/scr-overload.jpg" alt="" />
+          <figcaption><b>Clipping.</b> When the output is genuinely running out
+          of room the tube blooms red and the raster tears. The green curve
+          keeps tracking gain as it always did &mdash; the warning is the
+          picture around it.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thrust &amp; Mix</span><span class="n">04</span></div>
+</section>
+
+<!-- ===============================================  5  THE ENGINES  ===== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Controls, 2 of 3</p>
+    <h2 class="display">ENGINE</h2>
+    <p class="sub">Eight of them, ordered from polite to unhinged, because that
+    is what putting them on one knob promises.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-58">
+        <div class="eng"><span class="n">1</span><span class="nm">IDLE BURN</span>
+          <span class="dc">Soft asymmetric tube. Warmth and a second harmonic. The one you leave on.</span></div>
+        <div class="eng"><span class="n">2</span><span class="nm">ION DRIVE</span>
+          <span class="dc">The classic soft knee. Transparent until pushed, then obliging.</span></div>
+        <div class="eng"><span class="n">3</span><span class="nm">PLASMA COIL</span>
+          <span class="dc">Tape saturation with memory &mdash; it remembers the last thing you hit it with.</span></div>
+        <div class="eng"><span class="n">4</span><span class="nm">AFTERBURNER</span>
+          <span class="dc">Asymmetric fuzz, squashed. Where it starts sounding like a decision.</span></div>
+        <div class="eng"><span class="n">5</span><span class="nm">RAZOR WING</span>
+          <span class="dc">Tanh into a hard clip. Flat-topped and mean.</span></div>
+        <div class="eng hot"><span class="n">6</span><span class="nm">WARP FOLD</span>
+          <span class="dc">A wavefolder. Past a point, louder stops meaning brighter and starts meaning stranger.</span></div>
+        <div class="eng hot"><span class="n">7</span><span class="nm">HYPERDRIVE</span>
+          <span class="dc">Harmonic injection &mdash; Chebyshev, so it adds harmonics that were never in there.</span></div>
+        <div class="eng hot"><span class="n">8</span><span class="nm">SUPERNOVA</span>
+          <span class="dc">Fold, crush and chaos. No musical justification is offered or implied.</span></div>
+
+        <div class="box" style="margin-top:7mm">
+          <h4>THE KNOB IS STEPPED</h4>
+          <p style="font-size:9.4pt">
+            It lands on one of eight, and the tube names it in blue for two
+            seconds. So you can change engine mid-take and read what you
+            landed on without looking away from the screen.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/scr-engine.jpg" alt="" />
+          <figcaption><b>Every engine announces itself.</b> Held, then it
+          brightens and goes.</figcaption>
+        </figure>
+        <figure style="margin-top:6mm">
+          <img class="shot" src="img/scr-warp.jpg" alt="" />
+          <figcaption><b>HYPERDRIVE, the seventh.</b> The stars stop being
+          points and stretch into lines.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Engine</span><span class="n">05</span></div>
+</section>
+
+<!-- =======================================  6  ANTITHRUST / SPECTRUM  == -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Controls, 3 of 3</p>
+    <h2 class="display">ANTITHRUST &amp; SPECTRUM</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-55">
+        <div class="knob">
+          <h3>ANTITHRUST</h3>
+          <p class="what">width, after the damage</p>
+          <p>
+            Distortion is the enemy of a stereo image: two slightly different
+            signals through two shapers make wildly different harmonics and the
+            picture smears. So ANTITHRUST works <b>after</b> the drive, and it
+            only ever <b>adds</b> decorrelated width derived from the middle of
+            the signal &mdash; it never touches the middle itself.
+          </p>
+          <p>
+            Two things follow from that, and both are measured. Whatever the
+            knob is doing, <b>the mono sum is unchanged</b> (0.02 dB across the
+            whole sweep), so nothing collapses on a club system or a phone. And
+            an incoming stereo image survives: what arrived is passed through
+            and only added to, never replaced.
+          </p>
+          <p style="color:var(--dim); font-size:9.4pt">
+            At zero it is ordinary stereo and completely out of the way.
+          </p>
+        </div>
+
+        <div class="knob" style="border-color:var(--yellow)">
+          <h3>SPECTRUM</h3>
+          <p class="what">one knob, the whole tone stack</p>
+          <p>
+            Counter-clockwise is mid-focused with the highs rolled off and the
+            bass tucked in. Noon is flat-ish with the mids just starting to
+            scoop. Clockwise is scooped mids with the bass and treble up &mdash;
+            about 20 dB of swing between the middle and the two ends, and
+            normalised so it changes the tone rather than the loudness.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/scr-width.jpg" alt="" />
+          <figcaption><b>ANTITHRUST up.</b> The response curve splits into a
+          ghosted pair &mdash; the two sides of the image pulling apart. At zero
+          they sit exactly on top of one another.</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:7mm">
+          <h4>MONO-SAFE, NOT LEVEL-FLAT</h4>
+          <p style="font-size:9.4pt">
+            Adding decorrelated width genuinely raises total energy. The only
+            way to hold the level perfectly while widening is to pull the middle
+            down &mdash; which is exactly what breaks the mono sum. This one
+            picks mono, and caps the width so the rise reads as <em>bigger</em>
+            rather than louder.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Antithrust &amp; Spectrum</span><span class="n">06</span></div>
+</section>
+
+<!-- ===================================================  7  SPACE  ======= -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">One knob, four effects</p>
+    <h2 class="display">SPACE</h2>
+    <p class="sub">Five effects on one knob, overlapping, so there is no point
+    where one stops and the next begins. Too much is never enough.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-58">
+        <table>
+          <tr><th>Where the knob is</th><th>What is happening</th></tr>
+          <tr><td>Off</td><td>Nothing. Exactly nothing &mdash; the whole section is bypassed.</td></tr>
+          <tr><td>Early</td><td><b>Tape delay.</b> The time traces 30&nbsp;ms out to 600 and back to 30 again in a single arch, so the knob passes <em>through</em> the useful range instead of ending on it. Feedback climbs to about half.</td></tr>
+          <tr><td>Middle</td><td><b>A large hall</b> fades in underneath and its decay grows as you go.</td></tr>
+          <tr><td>Three quarters</td><td><b>Shimmer.</b> An octave folds back into the room. The hall shortens as it comes up &mdash; a six-second tail has no loop gain left to lend.</td></tr>
+          <tr><td>Late</td><td><b>Harmonic tremolo.</b> The band splits at 800 Hz and the halves sway against each other in opposite phase. It stops pretending to be a room at all.</td></tr>
+          <tr><td>Top</td><td><b>Vibrato,</b> true pitch, arriving last and on top of everything already happening.</td></tr>
+        </table>
+
+        <div class="box" style="margin-top:7mm">
+          <h4>IT IS MIXED, NOT ADDED</h4>
+          <p style="font-size:9.4pt">
+            The wet path is blended in rather than piled on top, so turning
+            SPACE up does not simply make everything louder and hotter into the
+            ceiling. If you want more or less of the whole section than the
+            knob gives you, that is what <b>SPACE&nbsp;WET</b> is for &mdash;
+            see page 9.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/scr-nebula.jpg" alt="" />
+          <figcaption><b>SPACE paints.</b> Turn it up and translucent nebulae
+          drift across the tube, changing colour and shape with the
+          setting.</figcaption>
+        </figure>
+
+        <figure style="margin-top:7mm">
+          <img class="shot" src="img/scr-giant.jpg" alt="" />
+          <figcaption><b>Meanwhile, on SUPERNOVA.</b> The reddening runs ahead
+          of the swelling, so the star has gone ugly well before it
+          goes.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Space</span><span class="n">07</span></div>
+</section>
+
+<!-- ====================================================  8  FUEL  ======= -->
+<section class="page">
+  <div class="pad">
+    <p class="kick" style="color:var(--red)">A word of advice</p>
+    <h2 class="display">FUEL</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-55">
+        <p class="pull" style="font-size:22pt; margin-top:6mm">WATCH THE FUEL.</p>
+        <p style="font-size:13pt; color:#efe4cf; margin-top:7mm; max-width:118mm">
+          You don&rsquo;t want to run out. Thrust me.
+        </p>
+        <p style="margin-top:12mm; color:var(--dim); font-size:9.4pt; max-width:110mm">
+          The <b style="color:var(--yellow)">Autorefill</b> button is lit by
+          default, and while it is lit there is nothing to think about.
+        </p>
+      </div>
+
+      <div class="c-40 stack4" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/fuel-full.jpg" alt="" style="max-width:78mm" />
+          <figcaption><b>Full.</b></figcaption>
+        </figure>
+        <figure style="margin-top:4mm">
+          <img class="shot" src="img/fuel-low.jpg" alt="" style="max-width:78mm" />
+          <figcaption><b>Getting low.</b></figcaption>
+        </figure>
+        <figure style="margin-top:4mm">
+          <img class="shot" src="img/fuel-empty.jpg" alt="" style="max-width:78mm" />
+          <figcaption><b>Dry.</b></figcaption>
+        </figure>
+        <figure style="margin-top:4mm">
+          <img class="shot" src="img/scr-empty.jpg" alt="" style="max-height:48mm" />
+          <figcaption><b>Told you.</b></figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Fuel</span><span class="n">08</span></div>
+</section>
+
+<!-- ==============================================  9  IN THE DAW  ======= -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">In the DAW</p>
+    <h2 class="display">AUTOMATION &amp; THE TWO<br>CONTROLS WITH NO KNOB</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-55">
+        <p>
+          Everything on the metal is a host parameter and automates normally.
+          Two more exist that the panel has no room for &mdash; the decal came
+          first and nothing was allowed to need a control the metal does not
+          have &mdash; so they live in your DAW's automation list only.
+        </p>
+
+        <div class="knob" style="margin-top:6mm">
+          <h3>SPACE WET</h3>
+          <p class="what">overall level of the SPACE section</p>
+          <p>
+            Bipolar about the centre. <b>Centre is exactly what SPACE does on
+            its own</b>, so leaving it alone changes nothing. <b>Zero</b> shuts
+            the whole section off however far SPACE is turned up. <b>Maximum</b>
+            is the same journey, wetter.
+          </p>
+        </div>
+
+        <div class="knob">
+          <h3>SPACE SYNC</h3>
+          <p class="what">lock the delay to the host</p>
+          <p>
+            <span class="says" style="font-size:8.6pt">FREE &middot; 1/1 &middot; 1/2 &middot; 1/4 &middot; 1/4T &middot; 1/8D &middot; 1/8 &middot; 1/16</span>
+          </p>
+          <p style="margin-top:2mm">
+            On <b>FREE</b> &mdash; the default &mdash; the delay sweeps with the
+            SPACE knob as described on page 7. Choose a division and it locks to
+            the transport instead. Engaging it snaps rather than glides, because
+            gliding into a new delay time lands the first echo early.
+          </p>
+        </div>
+
+        <div class="box" style="margin-top:6mm">
+          <h4>NOT SEEING THEM?</h4>
+          <p style="font-size:9.4pt">
+            A plugin instance already sitting in a project keeps the parameter
+            list it was created with. Drag in a fresh one, or rescan your
+            plugins, and both appear.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <h3 class="plain" style="font-size:12pt">MEASURED</h3>
+        <table style="margin-top:3mm">
+          <tr><td>Oversampling</td><td class="num">4&times;, always</td></tr>
+          <tr><td>Worst-case aliasing</td><td class="num">&minus;99.8 dB</td></tr>
+          <tr><td>Oversampler flatness</td><td class="num">&plusmn;0.002 dB to 19 kHz</td></tr>
+          <tr><td>Noise floor</td><td class="num">&minus;221 dBFS</td></tr>
+          <tr><td>Mono sum vs ANTITHRUST</td><td class="num">0.02 dB</td></tr>
+          <tr><td>Level drift after a step</td><td class="num">0.00 dB</td></tr>
+          <tr><td>MIX 0 against the input</td><td class="num">exact</td></tr>
+          <tr><td>CPU</td><td class="num">~2.5 % of one core</td></tr>
+          <tr><td>Latency</td><td class="num">reported to the host</td></tr>
+        </table>
+
+        <div class="box holo" style="margin-top:6mm">
+          <h4>NO WORLD RACK HERE</h4>
+          <p style="font-size:9.4pt">
+            The Brokild World FX rack is in the synths. This is an effect and
+            you already have a chain &mdash; it stays out of it.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Automation</span><span class="n">09</span></div>
+</section>
+
+<!-- ============================================  10  THE SCREEN  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick holo">The tube</p>
+    <h2 class="display">WHAT THE SCREEN<br>IS TELLING YOU</h2>
+    <hr class="rule" />
+
+    <div class="grid3" style="margin-top:2mm">
+      <figure>
+        <img class="shot" src="img/scr-idle.jpg" alt="" />
+        <figcaption><b>Speed is the engine.</b> The starfield crawls on IDLE
+        BURN and accelerates with every step up the knob.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/scr-warp.jpg" alt="" />
+        <figcaption><b>Seven is warp.</b> HYPERDRIVE stretches the stars into
+        streaks.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/scr-giant.jpg" alt="" />
+        <figcaption><b>Eight is worse.</b> On SUPERNOVA a star sits ahead of
+        you and slowly stops being well.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/scr-nova.jpg" alt="" />
+        <figcaption><b>And then it goes.</b> The shock front is drawn as light
+        rather than as a circle someone drew.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/scr-nebula.jpg" alt="" />
+        <figcaption><b>SPACE paints fog.</b> Colour and shape follow the
+        setting.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/scr-overload.jpg" alt="" />
+        <figcaption><b>Red is a warning.</b> Hard clipping blooms the tube and
+        tears the raster.</figcaption>
+      </figure>
+    </div>
+
+    <div class="box holo" style="margin-top:7mm">
+      <h4>THE GREEN CURVE</h4>
+      <p style="font-size:9.6pt; max-width:210mm">
+        Running along the bottom of every one of these is the response curve,
+        and it tracks the gain you are applying in real time. It is the only
+        thing on the tube that is strictly an instrument rather than a view out
+        of a window &mdash; watch it lean and swell as THRUST comes up, and
+        split into a ghosted pair as ANTITHRUST widens the image.
+      </p>
+    </div>
+  </div>
+  <div class="folio"><span>The screen</span><span class="n">10</span></div>
+</section>
+
+<!-- ===========================================  11  SETTINGS  =========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Somewhere to start</p>
+    <h2 class="display">SIX SETTINGS</h2>
+    <p class="sub">None of these is correct. They are just places the knobs
+    have been where something good happened.</p>
+    <hr class="rule" />
+
+    <div class="grid2" style="margin-top:2mm">
+      <div class="box">
+        <h4>ALWAYS ON</h4>
+        <p style="font-size:9.4pt">IDLE BURN &middot; Thrust 30 &middot; Mix 100 &middot; Spectrum 50 &middot; everything else off.
+        A little weight and a second harmonic. Leave it across the bus and forget it.</p>
+      </div>
+      <div class="box">
+        <h4>GARAGE GUITAR</h4>
+        <p style="font-size:9.4pt">AFTERBURNER &middot; Thrust 65 &middot; Spectrum 30 &middot; Antithrust 20 &middot; Space 15.
+        Mids forward, a slap of room, just enough width to stop it sitting in the middle of your head.</p>
+      </div>
+      <div class="box">
+        <h4>DISCO DRUM BUS</h4>
+        <p style="font-size:9.4pt">PLASMA COIL &middot; Thrust 45 &middot; Mix 70 &middot; Spectrum 68 &middot; Antithrust 35.
+        Parallel, so the transient survives. The scoop makes room for everything else.</p>
+      </div>
+      <div class="box">
+        <h4>THE VOCAL THAT SHOULD NOT WORK</h4>
+        <p style="font-size:9.4pt">RAZOR WING &middot; Thrust 55 &middot; Mix 45 &middot; Spectrum 42 &middot; Space 30.
+        Flat-topped and nasty underneath a clean take. Ride MIX, not THRUST.</p>
+      </div>
+      <div class="box">
+        <h4>SYNTH, RUINED</h4>
+        <p style="font-size:9.4pt">WARP FOLD &middot; Thrust 80 &middot; Spectrum 75 &middot; Space 55 &middot; Antithrust 60.
+        The fold makes harmonics that were not there and the hall makes them somebody else's problem.</p>
+      </div>
+      <div class="box" style="border-color:rgba(212,41,28,.45)">
+        <h4 style="color:var(--red)">TOTAL LOSS</h4>
+        <p style="font-size:9.4pt">SUPERNOVA &middot; Thrust 100 &middot; Space 85 &middot; Antithrust 70 &middot; Autorefill OFF.
+        Runs for about a minute and then dies in front of you. Record the whole thing.</p>
+      </div>
+    </div>
+
+    <hr class="rule thin" style="margin-top:7mm" />
+    <div class="cols" style="margin-top:4mm">
+      <div>
+        <h3 class="plain" style="font-size:11.5pt">SET THE ENGINE FIRST</h3>
+        <p style="margin-top:2.5mm; font-size:9.4pt">
+          They differ in character far more than in amount. Picking one before
+          you start turning THRUST saves you finding the same sound eight times.
+        </p>
+      </div>
+      <div>
+        <h3 class="plain" style="font-size:11.5pt">MIX IS THE REAL DRIVE</h3>
+        <p style="margin-top:2.5mm; font-size:9.4pt">
+          It is usually more useful to wreck the signal completely and blend it
+          back than to half-wreck it. Ride MIX and leave THRUST where it bites.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Settings</span><span class="n">11</span></div>
+</section>
+
+<!-- ==============================================  12  BACK  ============ -->
+<section class="page">
+  <!--  The art is a BAND at the foot with nothing written on it. The first
+        version laid the credits across the warp shot, and the panel under them
+        is bright yellow metal: grey type on that cannot be read at any size,
+        and darkening the art enough to fix it would have thrown the picture
+        away. Text on ink, picture on its own.  -->
+  <div class="cover-art" style="height:38%">
+    <img src="img/panel-warp.jpg" alt="" style="object-position:center 70%" />
+    <div class="cover-fade"></div>
+  </div>
+
+  <div style="position:absolute; left:18mm; right:18mm; top:16mm;">
+    <p class="kick" style="color:var(--yellow)">Credits</p>
+    <h2 class="display" style="font-size:30pt">GO AND LISTEN TO<br>THE BAND</h2>
+
+    <hr class="rule" style="margin:7mm 0 6mm 0" />
+
+    <div class="cols">
+      <div class="c-46">
+        <p style="font-size:10pt">
+          <b>Battlestar Overdrive</b> is Max Christensen, out of Copenhagen.
+          Garage rock swagger welded to soul, disco and slacker electronica,
+          performed alone on a mashed-up rig of synths, sequencers and samplers,
+          with a screen of zany visuals behind him.
+        </p>
+        <p style="font-size:10pt">
+          Eclectic, wildly entertaining, and the reason this plugin exists. The
+          idea was his and so was the blessing. The damage is yours.
+        </p>
+        <p style="font-size:10pt; color:var(--yellow)">
+          Put the band on. Then come back and turn ENGINE all the way up.
+        </p>
+      </div>
+
+      <div style="margin-left:auto; text-align:right">
+        <p class="plain" style="font-size:14pt; color:#f3e9d6">BROKILD</p>
+        <p style="font-size:9.2pt; color:var(--dim); margin-top:2.5mm">
+          Free, and free to pass on.<br>
+          peterboggild.github.io/BrokildApps
+        </p>
+        <p class="says" style="margin-top:6mm; font-size:8.6pt">BUILD 260919.2 &middot; WINDOWS VST3</p>
+        <p style="margin-top:7mm"><span class="stamp">Fuel not included</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

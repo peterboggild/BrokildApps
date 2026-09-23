@@ -1,0 +1,9 @@
+[
+  {"wait": 2500},
+  {"eval": "'104 sees: timing=' + SITE.timing + ' others=' + SITE.others + ' coh=' + (+SITE.coh).toFixed(3) + ' pull=' + (+SITE.pull).toFixed(3) + ' rSite=[' + document.querySelector('#rSite').textContent + ']'"},
+  {"wait": 4000},
+  {"eval": "'104 later: coh=' + (+SITE.coh).toFixed(3) + ' pull=' + (+SITE.pull).toFixed(3) + ' phase=' + (+SITE.phase).toFixed(2)"},
+  {"eval": "NB.send({k:'site', timing:false}); 'timing restored off from 104'"},
+  {"wait": 1200},
+  {"eval": "'104 final: timing=' + SITE.timing + ' climate=' + SITE.climate + ' distance=' + SITE.distance"}
+]

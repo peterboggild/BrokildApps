@@ -1,0 +1,11 @@
+[
+  { "eval": "__BS.setParam('specimen', 8/11); 'dialled CORTEX for the hero'" },
+  { "wait": 2600 },
+  { "eval": "__BS.CAM.spin=false; __BS.CAM.yaw=0.72; __BS.CAM.pitch=0.38; __BS.setPlane(0); __BS.draw(); 'plate ' + document.getElementById('hdSpec').textContent + ' | err ' + JSON.stringify(window.__err)" },
+  { "wait": 600 },
+  { "shoot": { "sel": null, "out": "shots/hero.png", "scale": 2 } },
+  { "shoot": { "sel": "#console .mod:nth-child(1)", "out": "shots/m-specimen.png", "pad": 3, "scale": 3 } },
+  { "eval": "__BS.setParam('specimen', 1/11); 'restored SPINE'" },
+  { "wait": 1200 },
+  { "eval": "'plate ' + document.getElementById('hdSpec').textContent" }
+]

@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Photo Synth — Manual</title>
+<style>
+  /* ---------------------------------------------------------------- *
+   * Print sheet for the Photo Synth manual. A4, cream paper, amber
+   * accent taken from the instrument's own faceplate palette.
+   * Rendered to PDF with: chrome --headless --print-to-pdf
+   * ---------------------------------------------------------------- */
+  @page { size: A4; margin: 17mm 16mm 16mm 16mm; }
+  @page :first { margin: 0; }
+
+  :root{
+    --ink:#191510;
+    --ink-soft:#4a4034;
+    --faint:#7d7466;
+    --paper:#fbf8f2;
+    --rule:#ded5c4;
+    --amber:#b4762b;
+    --amber-soft:#f3e6d0;
+    --dark:#0c0a07;
+    --panel:#1b1610;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--paper); }
+  body{
+    color:var(--ink);
+    font:10.6pt/1.55 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3,h4{ font-family:Georgia,"Times New Roman",serif; font-weight:600; margin:0; }
+  p{ margin:.45em 0 .7em; }
+  b,strong{ color:#0f0c08; font-weight:600; }
+  em{ color:var(--ink-soft); }
+  code,.k{
+    font-family:Consolas,"SF Mono",Menlo,monospace; font-size:9.2pt;
+    background:#f1ebdd; border:1px solid #e2d8c4; border-radius:3px; padding:0 4px;
+    color:#5c4520;
+  }
+
+  /* ---------- cover ---------- */
+  .cover{
+    background:
+      radial-gradient(120% 80% at 78% 6%, rgba(240,168,72,.20) 0%, transparent 55%),
+      radial-gradient(90% 70% at 10% 100%, rgba(127,212,193,.10) 0%, transparent 60%),
+      linear-gradient(170deg,#14100b 0%, #0b0906 100%);
+    color:#f3ecdb; height:294mm; padding:26mm 22mm 18mm;
+    display:flex; flex-direction:column; break-after:page;
+  }
+  .cover .kicker{
+    font-size:8.6pt; letter-spacing:.42em; text-transform:uppercase; color:#c8a978;
+  }
+  .cover h1{
+    font-size:44pt; line-height:1.02; margin:9mm 0 0; letter-spacing:-.015em;
+    color:#fdf6e6;
+  }
+  .cover h1 span{ color:#f0a848; }
+  .cover .tag{
+    font-size:12.5pt; color:#cdbf9f; margin:5mm 0 0; font-family:Georgia,serif; font-style:italic;
+  }
+  .cover .rule{ height:2px; width:34mm; background:#f0a848; margin:8mm 0 0; }
+  .cover .shot{ margin:9mm 0 0; text-align:center; }
+  .cover .shot img{
+    max-height:132mm; max-width:100%; border-radius:5px; border:1px solid #3a3025;
+    box-shadow:0 8mm 20mm rgba(0,0,0,.55);
+  }
+  .cover .foot{
+    margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end;
+    font-size:8.8pt; color:#9a8f79; letter-spacing:.06em;
+  }
+  .cover .foot b{ color:#e8dcc2; font-weight:600; display:block; font-size:10pt; letter-spacing:0; }
+
+  /* ---------- structure ---------- */
+  .sec{ break-before:page; }
+  .sec-head{
+    display:flex; align-items:baseline; gap:5mm;
+    border-bottom:1.6px solid var(--ink); padding-bottom:2.4mm; margin-bottom:5mm;
+  }
+  .sec-head .num{
+    font:600 9pt/1 Consolas,monospace; color:var(--amber);
+    border:1.4px solid var(--amber); border-radius:3px; padding:1.6mm 2.2mm; letter-spacing:.06em;
+  }
+  .sec-head h2{ font-size:19pt; letter-spacing:-.01em; }
+  .sec-head .sub{ margin-left:auto; font-size:8.4pt; color:var(--faint); letter-spacing:.2em; text-transform:uppercase; }
+
+  h3{ font-size:12.6pt; margin:6.5mm 0 1.5mm; color:#120e0a; }
+  h3:first-child{ margin-top:0; }
+  h4{ font-size:10.4pt; margin:4mm 0 1mm; color:var(--amber); letter-spacing:.02em; }
+  .lead{ font-size:11.4pt; color:var(--ink-soft); font-family:Georgia,serif; margin:0 0 5mm; }
+
+  /* ---------- figures ---------- */
+  figure{ margin:4mm 0 5mm; break-inside:avoid; }
+  figure img{
+    width:100%; display:block; border-radius:4px;
+    border:1px solid #cfc4ae; background:var(--dark);
+    box-shadow:0 1.4mm 4mm rgba(30,22,10,.14);
+  }
+  figcaption{
+    font-size:8.5pt; color:var(--faint); margin-top:1.8mm; line-height:1.4;
+    padding-left:2.6mm; border-left:2px solid var(--amber);
+  }
+  figure.narrow{ width:74%; }
+  figure.half{ width:48%; }
+  figure.tall img{ max-height:150mm; width:auto; margin:0 auto; }
+  figure.tall{ text-align:center; }
+  .figrow{ display:flex; gap:5mm; align-items:flex-start; break-inside:avoid; }
+  .figrow figure{ flex:1 1 0; margin-top:0; }
+
+  /* ---------- tables ---------- */
+  table{ width:100%; border-collapse:collapse; margin:2.5mm 0 5mm; font-size:9.5pt; break-inside:avoid; }
+  th,td{ text-align:left; padding:1.9mm 2.4mm; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th{
+    font:600 8.2pt/1.3 "Segoe UI",sans-serif; text-transform:uppercase; letter-spacing:.13em;
+    color:var(--faint); border-bottom:1.4px solid var(--ink-soft);
+  }
+  td:first-child{ width:32%; color:#100d09; font-weight:600; }
+  tr:last-child td{ border-bottom:none; }
+  table.tight td:first-child{ width:24%; }
+
+  /* ---------- callouts ---------- */
+  .note{
+    background:var(--amber-soft); border-left:3px solid var(--amber);
+    padding:3mm 4mm; margin:4mm 0; font-size:9.6pt; border-radius:0 3px 3px 0;
+    break-inside:avoid;
+  }
+  .note b{ color:#7d4d0d; }
+  .quiet{ font-size:9.2pt; color:var(--faint); }
+
+  /* ---------- quick start steps ---------- */
+  ol.steps{ list-style:none; counter-reset:s; margin:0; padding:0; }
+  ol.steps li{
+    counter-increment:s; position:relative; padding:0 0 3.6mm 11mm; margin-bottom:2.2mm;
+    break-inside:avoid;
+  }
+  ol.steps li::before{
+    content:counter(s); position:absolute; left:0; top:-.4mm;
+    width:7.4mm; height:7.4mm; border-radius:50%;
+    background:var(--amber); color:#fff;
+    font:600 10pt/7.4mm Georgia,serif; text-align:center;
+  }
+  /* only the leading title is a block; bold inside the prose stays inline */
+  ol.steps li > b:first-child{ display:block; font-size:10.8pt; margin-bottom:.5mm; }
+
+  /* ---------- try-this recipes ---------- */
+  .recipe{
+    border:1px solid var(--rule); border-top:2.6px solid var(--amber); border-radius:4px;
+    padding:3.4mm 4mm 3mm; margin:0 0 4mm; break-inside:avoid; background:#fdfbf6;
+  }
+  .recipe h4{ margin:0 0 1.4mm; font-size:11pt; color:#120e0a; font-family:Georgia,serif; }
+  .recipe .how{ font-size:9.5pt; color:var(--ink-soft); margin:0; }
+  .recipe .how b{ color:#6d4413; }
+  .recipe .out{ font-size:9pt; color:var(--faint); font-style:italic; margin:1.6mm 0 0; }
+  .grid2{ display:flex; gap:5mm; }
+  .grid2 > div{ flex:1 1 0; min-width:0; }
+
+  ul.plain{ margin:.3em 0 .8em; padding-left:5mm; }
+  ul.plain li{ margin:.28em 0; }
+
+  .colophon{
+    margin-top:6mm; border-top:1px solid var(--rule); padding-top:3.5mm;
+    font-size:8.8pt; color:var(--faint);
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<section class="cover">
+  <div class="kicker">Brokild Apps · VST3 Instrument</div>
+  <h1>Photo <span>Synth</span></h1>
+  <div class="tag">Play the colours of four photographs.</div>
+  <div class="rule"></div>
+  <div class="shot"><img src="shots/hero-play.jpg" alt="Photo Synth in Play mode"></div>
+  <div class="foot">
+    <div>
+      <b>User Manual</b>
+      Quick start · Reference · Try this
+    </div>
+    <div style="text-align:right">
+      <b>Version 1.3</b>
+      August 2026 · Windows VST3 · build 260822.1
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1. WHAT IT IS ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">01</span>
+    <h2>What this instrument is</h2>
+    <span class="sub">Introduction</span>
+  </div>
+
+  <p class="lead">Photo Synth turns photographs into a playable synthesiser. You do not
+  edit sound with numbers; you drag a finger — or a mouse — across a picture, and the colour
+  under the cursor becomes the sound.</p>
+
+  <p>There are four photo pads, and each one listens to colour in a different way. The
+  <b>first</b> is the oscillator: hue chooses the pitch, saturation morphs the waveform,
+  brightness sets the loudness. The <b>second</b> is the filter. The <b>third</b> is the
+  envelope. The <b>fourth</b> drives three effect parameters of your choosing. All four work
+  at once, and each can be latched in place or set looping along a recorded gesture, so the
+  instrument keeps moving on its own while you play something else.</p>
+
+  <p>Underneath the pictures is a complete virtual-analog voice — two band-limited oscillators
+  that drift a few cents apart, a zero-delay-feedback ladder filter with a saturating core, a
+  sixteen-voice pool, and a seven-module stereo effects rack you can reorder. All of it runs in
+  native C++ inside your DAW, sample-accurate on host MIDI, and every control is automatable.</p>
+
+  <h3>How the four pads divide the work</h3>
+  <table>
+    <tr><th>Pad</th><th>What the colour under the cursor does</th></tr>
+    <tr><td>1 · Tone</td><td>Hue → pitch (red is your base note, violet the top of the range). Saturation → waveform, from a pale sine to a full saw or pulse. Green → detune and vocal edge. Brightness → loudness.</td></tr>
+    <tr><td>2 · Filter</td><td>Brightness → cut-off, from 80 Hz in the shadows to 14 kHz in the highlights. Saturation → resonance. Hue → a resonant peak swept from 180 Hz to 6 kHz.</td></tr>
+    <tr><td>3 · Envelope</td><td>Red → attack (from a 1.5 s swell down to 2 ms). Green → sustain level. Blue → decay and release (30 ms up to a 4 s tail).</td></tr>
+    <tr><td>4 · FX</td><td>The red, green and blue strengths each drive one effect parameter, chosen in the menus under the pad. Black is all three off, white is all three full.</td></tr>
+  </table>
+
+  <p>Above all that sits a shelf of <b>Spectra</b> — six characters that do not process the
+  sound so much as re-decide how every voice is built: a drone engine, a liquid swirl, a
+  bit-crushed industrial machine, a cathedral, a haunted tape and a swarm of insects. Arm any
+  combination; each hands back exactly what it changed when you switch it off.</p>
+
+  <div class="note"><b>Nothing leaves your machine.</b> Photos are decoded and sampled locally,
+  audio is synthesised in the plugin. There is no network access of any kind.</div>
+
+  <h3>Installing</h3>
+  <ul class="plain">
+    <li>Unzip the download and copy the whole <code>Photo Synth.vst3</code> <em>folder</em> into
+      <code>C:\Program Files\Common Files\VST3\</code>.</li>
+    <li>Rescan plugins in your DAW. The instrument appears as <b>Photo Synth</b> by Brokild.</li>
+    <li>Windows 10/11, 64-bit. The editor uses the Microsoft Edge WebView2 runtime, which is
+      already present on current Windows installations.</li>
+  </ul>
+</section>
+
+<!-- ================= 2. QUICK START ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">02</span>
+    <h2>Quick start</h2>
+    <span class="sub">Five minutes</span>
+  </div>
+
+  <p class="lead">A new instance opens on <b>Dreamy Hoover</b> — a stacked, gliding,
+  pentatonic pad with a cursor already resting on the first photo. It waits in silence:
+  the cursor is placed but not latched, so the patch is ready to play rather than already
+  playing. Touch photo 1, or press a key, and there it is. Reach for <b>Naked Oscillator</b>
+  in the Presets panel when you want the bare engine with nothing between the photo and
+  your ears.</p>
+
+  <p class="lead">Load it, drag on the first photo, and you are playing. Everything below the
+  first two steps is refinement.</p>
+
+  <ol class="steps">
+    <li><b>Add the instrument to a track.</b>
+      It arrives with four demo photos already loaded, so it makes sound immediately — you do
+      not need to import anything to start.</li>
+    <li><b>Drag slowly across photo 1.</b>
+      The note follows the colour: warm reds are low, cool blues and violets are high. Lift the
+      cursor and the note releases. This is the whole instrument in one gesture.</li>
+    <li><b>Rest the cursor somewhere on photo 2.</b>
+      A dark patch mutes the tone, a bright patch opens it up, and a saturated colour adds
+      resonance. Photo 2 keeps whatever colour you left it on — it is a setting, not a gesture.</li>
+    <li><b>Press <em>Keys</em> in the top bar and play the keyboard.</b>
+      A key sets the <b>base note</b>. Everything the photo does is an interval above it, so the
+      same picture can be played in any key. Chords work in Polyphonic voice mode, and MIDI from
+      your DAW plays it too.</li>
+    <li><b>Switch to <em>Edit</em> and open <em>Sound</em>.</b>
+      Here are the voice, the scale, the envelope and the filter type. Then open
+      <b>Effects</b> for the pedal rack. Play while you change things; nothing needs to be stopped.</li>
+  </ol>
+
+  <figure>
+    <img src="shots/hero-edit.jpg" alt="Edit mode: photo pads on the left, panels on the right">
+    <figcaption><b>Edit mode.</b> The photos and the analysis strip stay on the left; every panel
+    lives in the right-hand column. <b>Play</b> mode hides all of it and leaves only the photos —
+    that is the performance view.</figcaption>
+  </figure>
+
+  <h3>The top bar</h3>
+  <figure>
+    <img src="shots/topbar.jpg" alt="The top bar controls">
+    <figcaption>From the left: the Play / Edit switch, audio <b>Record</b>, the on-screen
+    <b>Keys</b>, <b>Freeze</b>, <b>Halt</b>, <b>About</b>, then console <b>Light</b>,
+    <b>Motion</b> speed and the interface <b>Zoom</b>.</figcaption>
+  </figure>
+  <table class="tight">
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Play / Edit</td><td>Play shows only the four photos. Edit reveals the transport, the analysis strip and all panels.</td></tr>
+    <tr><td>Record</td><td>Captures the plugin's own output. <b>Save WAV</b> in the File panel writes it as 24-bit stereo. Maximum 180 seconds.</td></tr>
+    <tr><td>Keys</td><td>Shows or hides the on-screen keyboard docked at the bottom.</td></tr>
+    <tr><td>Freeze</td><td>Holds the delay tail forever: the loop's input closes, feedback goes to unity under a soft limiter, damping opens wide. Play over the frozen bed.</td></tr>
+    <tr><td>Halt</td><td>A tape stop. Pitch spins down to a halt; press again to spin back up.</td></tr>
+    <tr><td>Light</td><td>Lifts the whole console out of the dark — panels, pads, buttons and the page behind them — without touching the photographs, which keep their own contrast. Off by default; double-click the slider to return there. It is remembered for this installation, like Zoom, rather than saved with a patch.</td></tr>
+    <tr><td>Save</td><td>Writes the whole patch — controls, chain, cursors, paths and small copies of the photographs — to a file, through an ordinary Save dialog opened on your preset folder. It is in the title bar rather than in a panel so it is reachable in Play mode, when you are least likely to want to go hunting for it.</td></tr>
+    <tr><td>Load</td><td>Opens a menu of everything in the preset folder. Sub-folders fly out sideways as sub-menus and sit alongside the loose presets, so a library can be sorted by kind. <b>Browse…</b> at the foot of the menu reaches anywhere on disk; <b>Preset folder…</b> moves the library.</td></tr>
+    <tr><td>Random</td><td>Throws a new set of numbers at every sound control at once. It deliberately leaves the photographs, the cursor positions and the motion paths exactly where they are — so a patch you have choreographed keeps its choreography and only changes its voice. Volume, Limit and Motion are left alone too.</td></tr>
+    <tr><td>Motion</td><td>How fast every path and recorded gesture replays, from a quarter speed to four times — a master over the per-pad speeds in Automotion. It lives up here rather than in a panel because the panels are hidden in Play mode, which is exactly when a moving cursor matters.</td></tr>
+    <tr><td>Zoom</td><td>Scales the whole console uniformly, for large or small plugin windows.</td></tr>
+  </table>
+
+  <h3>Volume and the limiter</h3>
+  <figure class="narrow">
+    <img src="shots/transport.jpg" alt="Volume and Limit sliders">
+    <figcaption><b>Vol</b> is the master level. <b>Limit</b> is a transparent peak limiter.</figcaption>
+  </figure>
+  <p>The limiter is deliberately plain: pure downward gain riding above a threshold, no makeup
+  gain and no tone shaping, so it does not colour the sound. It is there because a resonant
+  ladder filter with the envelope sweeping it can produce sudden peaks. At the default 40 % it
+  catches those without ever touching ordinary playing. Turn it up if you are pushing resonance
+  and drive hard; turn it to zero if you would rather do all the limiting yourself downstream.</p>
+</section>
+
+<!-- ================= 3. THE PHOTO PADS ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">03</span>
+    <h2>The photo pads</h2>
+    <span class="sub">Reference</span>
+  </div>
+
+  <p class="lead">Every pad carries the same controls — <b>Rec</b>, <b>Latch</b>, <b>Pause</b>
+  and <b>Clear</b> along the top, <b>Photos</b> and <b>Demo</b> underneath — and differs only
+  in what it does with the colour it samples.</p>
+
+  <div class="figrow">
+    <figure>
+      <img src="shots/pad-tone.jpg" alt="The Tone pad with the loupe visible">
+      <figcaption><b>Pad 1 · Tone.</b> While you drag, a magnifier shows the pixels under the
+      cursor, and the readout gives the exact frequency, the nearest note with its cents offset,
+      the sampled wavelength, saturation and brightness.</figcaption>
+    </figure>
+    <figure>
+      <img src="shots/pad-fx.jpg" alt="The FX pad with its three channel menus">
+      <figcaption><b>Pad 4 · FX.</b> Three menus assign what red, green and blue each drive.
+      Out of the box: red → reverb length, green → delay mix, blue → tube drive. <b>Reset</b>
+      returns those three sliders to their defaults and releases the pad.</figcaption>
+    </figure>
+  </div>
+
+  <h3>Pad controls</h3>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Photos</td><td>Loads an image from disk (JPEG, PNG, and anything else Windows can decode). The photo is stored inside the plugin, so it travels with your project and your presets.</td></tr>
+    <tr><td>Demo</td><td>Loads the pad's generated demo image — a hue sweep for Tone, soft colour blobs for Filter, a red-to-blue ramp for Envelope, and an RGB field for FX.</td></tr>
+    <tr><td>Latch</td><td>Leaves the cursor where you lifted it. On Tone the note keeps sounding; on the other pads the setting is held. Tap the pad again to move it, or switch Latch off to release.</td></tr>
+    <tr><td>Rec</td><td>Arms motion recording for that pad alone — see below.</td></tr>
+    <tr><td>Pause</td><td>Holds a replaying gesture exactly where it stands, without touching the recording. Release it and the loop carries on from that point rather than jumping — it is credited the time it stood still. Greyed out until the pad has a motion.</td></tr>
+    <tr><td>Clear</td><td>Throws the recorded gesture away. The cursor stays where it was.</td></tr>
+  </table>
+
+  <h3>Motion: gestures that loop</h3>
+  <figure class="narrow">
+    <img src="shots/pad-motion.jpg" alt="A recorded gesture looping on the Tone pad, paused">
+    <figcaption>A recorded gesture, held with <b>Pause</b>. The dashed line is the path, and the
+    <b>white dot marks where the loop begins</b> — aim for it as you finish drawing and the gesture
+    closes into a seamless loop. <b>AUTO</b> lights whenever a pad has one armed.</figcaption>
+  </figure>
+  <p>Press <b>Rec</b> on the pad you want to automate, then draw. Release, and the gesture starts
+  looping immediately — the cursor retraces your path, sampling colour as it goes, at the speed set
+  by <b>Motion</b> in the top bar. Every new note re-phases all running motions, so a phrase lands
+  the same way each time. Dragging an automated cursor takes manual control without erasing the
+  loop; a single tap starts it again.</p>
+  <p><b>Pause</b> stops the cursor where it stands and leaves everything else alone: the path is
+  still armed, still drawn, and releasing the button picks the loop up where it left off instead of
+  snapping to a new phase. It is the difference between freezing a texture for a bar and losing the
+  gesture you spent a minute getting right. <b>Clear</b> is the one that discards it.</p>
+
+  <h3>Automotion: lines and circles you draw in one gesture</h3>
+  <p>Recording a gesture is the free-hand way. The other way needs no arming at all: hold a
+  modifier and drag straight across the photograph.</p>
+  <table class="tight">
+    <tr><td><b>Shift</b> + drag</td><td>Lays down a <b>line</b> from where you pressed to where you let go. The cursor walks up and down it.</td></tr>
+    <tr><td><b>Ctrl</b> + drag</td><td>Lays down a <b>circle</b> centred on the point you pressed, with the drag setting the radius. A small cross marks the centre while you draw.</td></tr>
+  </table>
+  <p>Drawing a path makes no sound — you are describing a shape, not performing one — and the
+  moment you release, the path arms and starts walking. The panel opens on the pad you drew,
+  everything else folds away, and the row for that pad flashes.</p>
+
+  <figure class="tall">
+    <img src="shots/automotion.jpg" alt="The Automotion panel: one row per pad">
+    <figcaption>One row per photo pad. A control that cannot apply goes grey rather than
+    disappearing, so the row never moves: direction is a circle idea, travel shape a line idea,
+    and a recorded gesture uses Speed and Loop only.</figcaption>
+  </figure>
+
+  <table class="tight">
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Speed</td><td>0.1× to 4× for this pad alone, multiplied by <b>Motion</b> in the title bar. Safe to move while the path is running: the replay carries an accumulated phase rather than a start time, so the cursor never jumps to catch up with a new formula.</td></tr>
+    <tr><td>Loop / One shot</td><td>Loop walks the path for ever. One shot walks it once and stops where it ends, leaving the cursor — and the colour under it — exactly there. The path stays armed: the next note, or a tap on the pad, fires it again. That turns a one-shot line into a sweep you play rather than a loop you fight.</td></tr>
+    <tr><td>Clockwise / Counter</td><td>Which way a circle turns. Switching it reverses the cursor in place rather than restarting the circle.</td></tr>
+    <tr><td>Triangle / Sine</td><td>How a line travels between its ends. Triangle holds one speed the whole way and turns sharply at each end. Sine eases into both ends and is quickest through the middle — the difference between a scan and a breath.</td></tr>
+    <tr><td>Clear</td><td>Discards the path for that pad. The same button sits on the pad itself.</td></tr>
+  </table>
+  <p>Every pad keeps its own path and its own four settings, and all of it travels in the preset
+  and in the DAW project along with everything else.</p>
+
+  <div class="note"><b>Live camera is not part of the plugin.</b> A DAW plugin has no business
+  opening your webcam, so the browser version's camera capture and live feed were left out.
+  Everything else from the original is here.</div>
+
+  <h3>The envelope photo</h3>
+  <figure class="narrow">
+    <img src="shots/pad-env.jpg" alt="The Envelope pad">
+    <figcaption><b>Pad 3 · Envelope.</b> Red sets the attack, green the sustain level, blue the
+    decay and release, and the two sliders beneath decide where that shape is sent. Untouched,
+    the fallback sliders in <em>Sound → Envelope</em> rule the shape instead.</figcaption>
+  </figure>
+  <p><b>→ Amp</b> and <b>→ Filter</b> appear under this photo, because this is where the envelope
+  is made — and unlike the panels they stay reachable in Play mode. The same pair also appears in
+  <em>Sound → Envelope</em> beside the fallback shape; they are two faces of one control, so
+  whichever you move, the other follows.
+  <b>→ Amp</b> is how much of the shape goes to loudness: below 100 % the level blends toward a
+  plain click-free gate, organ-like, so the envelope can be spent on the filter instead.
+  <b>→ Filter</b> sweeps the cut-off with the envelope, up to five octaves at full — closed when
+  the envelope is down, landing exactly on your filter setting at its peak. Both apply to
+  whichever envelope is in force, the photo's or the sliders'.</p>
+
+  <p>This is the pad that changes how the instrument <em>feels</em> rather than how it sounds.
+  A red corner gives you a percussive pluck; a deep blue gives a long ringing tail; a bright
+  green area holds notes up indefinitely. Because it is a photo like any other, you can latch a
+  spot or loop a gesture across it and let the articulation drift while you play.</p>
+
+  <h3>Seeing what the extra voices read</h3>
+  <figure class="narrow">
+    <img src="shots/pad-tone-spread.jpg" alt="The Tone pad showing the spread halo">
+    <figcaption>Twelve voices at a Spread of 46 px: the halo is the patch of photo in play, and
+    every dot is a point that feeds a voice.</figcaption>
+  </figure>
+  <p>Stack more than one voice and they stop reading a single pixel. Voice one plays the colour
+  directly under the cursor; the others sample a ring around it at the <b>Spread</b> radius, so
+  the local texture of the photograph becomes a chord. Past seven voices a second, wider ring
+  appears at 1.9× the radius. In <b>Polyphonic</b> mode it is each note's oscillators that
+  spread, at 1.0, 1.3 and 1.6× instead.</p>
+  <p>The tone pad shows you this directly: a soft brightening out to the widest radius in play,
+  a dashed hairline at the Spread radius itself, and a dot on every point that is actually being
+  sampled. Move the Spread slider — now up to 60 px — and you can see the patch of picture the
+  chord is being drawn from. It is the surest way to understand why one part of a photo sounds
+  rich and another sounds flat.</p>
+
+  <h3>The analysis strip</h3>
+  <figure>
+    <img src="shots/scope.jpg" alt="The spectrum strip">
+    <figcaption>Bars are the harmonics of the tone you are playing; the curve is the filter your
+    second cursor is describing. Faint bars are the raw harmonic, solid bars are what survives
+    the filter.</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 4. SOUND PANEL ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">04</span>
+    <h2>The Sound panel</h2>
+    <span class="sub">Reference</span>
+  </div>
+
+  <p class="lead">Four engraved units: the voice itself, how colour maps to pitch, the fallback
+  envelope, and the filter. Each one folds away — click a nameplate to close it, and click the
+  folded strip anywhere to open it again — so you can keep only the section you are working on
+  in view.</p>
+
+  <figure class="narrow">
+    <img src="shots/sound-units-folded.jpg" alt="The four Sound units folded to their nameplates">
+    <figcaption>All four folded. A closed unit is nothing but its nameplate, so there is no small
+    target to hit.</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/sound-voice.jpg" alt="The Voice and Pitch and scale units">
+    <figcaption>The <b>Voice</b> and <b>Pitch &amp; scale</b> units.</figcaption>
+  </figure>
+
+  <h3>Voice</h3>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Engine</td><td><b>Analog</b> is the virtual-analog voice: two band-limited oscillators through a Moog-style ladder filter, running at twice the output rate. <b>Additive</b> is ten pure sine partials and a clean biquad — glassier, simpler.</td></tr>
+    <tr><td>Waveform</td><td><b>Photo</b> lets the picture morph the wave from sine through triangle to saw or pulse, as saturation rises. The other four — <b>Sine</b>, <b>Triangle</b>, <b>Sawtooth</b>, <b>Square</b> — pin both oscillators to that shape, band-limited and alias-free, and the photo then only affects pitch, loudness and detune.</td></tr>
+    <tr><td>Voice mode</td><td><b>Mono / Unison</b> plays one note with stacked voices. <b>Polyphonic</b> plays up to four notes at once.</td></tr>
+    <tr><td>Unison voices</td><td>1–12. Extra voices sample the colours in rings around your cursor, so the local texture of the photo becomes a chord riding on one note. Uniform areas thicken into unison; detailed areas scatter into intervals.</td></tr>
+    <tr><td>Notes / Osc per note</td><td>Polyphonic mode only: how many simultaneous notes (1–4) and how many photo-sampling oscillators each note carries (1–4). Oldest note is stolen when you exceed the count.</td></tr>
+    <tr><td>Drive</td><td>How hard the ladder's saturating core is pushed. Thickens rather than distorts — the level is compensated.</td></tr>
+    <tr><td>Spread</td><td>The radius, in pixels, of the ring the extra voices sample from. Small values give a tight unison, large values a wide scatter.</td></tr>
+    <tr><td>Width</td><td>Stereo width. At zero the two channels are identical for true mono compatibility.</td></tr>
+    <tr><td>Voice pan</td><td>Whether voices are panned by the <b>hue</b> they sampled or by their horizontal <b>cursor position</b>.</td></tr>
+    <tr><td>Pad size</td><td>The proportions of all four photo pads, 60–130 %. Taller pads give a gesture more room; shorter ones leave more of the window for the panels. This is not the same as <b>Zoom</b>, which scales the whole console including the pads.</td></tr>
+  </table>
+
+  <figure class="narrow">
+    <img src="shots/sound-voice-spread.jpg" alt="The Voice unit">
+    <figcaption><b>Voices</b> and <b>Spread</b> decide how wide a patch of photo one note reads.</figcaption>
+  </figure>
+
+  <h3>Pitch &amp; scale</h3>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Colour → pitch</td><td><b>Spectral</b> reads hue as a wavelength and follows photon energy, so the intervals feel physical. <b>Hue angle</b> is a plain linear sweep around the colour wheel.</td></tr>
+    <tr><td>Scale</td><td>Continuous, Chromatic, Major, Minor pentatonic, Major pentatonic or Whole tone. Anything but Continuous snaps the colour's interval onto the scale, which makes the pads far easier to play in tune.</td></tr>
+    <tr><td>Base note</td><td>The note a pure red pixel plays. Also set by the keyboard, by your computer keys, and by incoming MIDI.</td></tr>
+    <tr><td>Range</td><td>How many octaves the full colour sweep covers, 1 to 4.</td></tr>
+    <tr><td>Glide</td><td>How long the pitch takes to slide when the colour changes. A little glide makes dragging sound like an instrument; none makes it sound like a scanner.</td></tr>
+  </table>
+
+  <figure class="narrow">
+    <img src="shots/sound-pitch.jpg" alt="The Pitch and scale unit with Tune, Fine and the tuner">
+    <figcaption>Tuning: <b>Tune</b> and <b>Fine</b> shift everything the synth plays, and
+    <b>Match to</b> is a tuner that does the arithmetic for you.</figcaption>
+  </figure>
+
+  <h3>Tuning the whole instrument</h3>
+  <p><b>Tune</b> slides continuously over ±12 semitones — no steps of its own, so it can sit
+  between notes — and <b>Fine</b> adds ±100 cents on top. Both offset every note the instrument
+  plays: the base note, the keyboard, DAW MIDI and an imported MIDI file. They move the base
+  frequency only, so a held note glides to the new pitch rather than retriggering, and you can
+  tune into something while it sounds.</p>
+  <p>The <b>Match to</b> row is a tuner. Its readout is live — the note sounding right now, and
+  how far away the note you picked is, in cents. <b>Match</b> then moves Tune and Fine so the
+  sounding note becomes that one, always by the shortest distance: a G matched to A goes up two
+  semitones, never down ten, and never by whole octaves. It reads the frequency the instrument
+  is actually synthesising rather than analysing the output, so it stays exact even while a
+  recorded motion sweeps the pitch around — it catches the note as of the moment you press it.
+  Because the colour under the cursor sets the interval, moving the cursor afterwards moves the
+  pitch again: Match tunes the instrument, it does not pin one note. <b>Reset</b> returns both
+  sliders to concert pitch.</p>
+
+  <figure>
+    <img src="shots/sound-env.jpg" alt="The Envelope unit">
+    <figcaption>The <b>Envelope</b> unit. The drone engine that used to sit beside it now lives
+    in <b>Spectra</b>, as Dark Drone Spectrum.</figcaption>
+  </figure>
+
+  <h3>Envelope · fallback shape</h3>
+  <p>Photo 3 takes the envelope over the moment you touch it, and from then on these two sliders
+  are the fallback. <b>Shaped by</b> decides which is in charge: <em>Photo 3 when it is touched</em>
+  is the normal behaviour, and <em>These sliders only</em> hands control back without having to
+  clear the photo. While the photo is in charge the two sliders grey out and go inert, so you can
+  see at a glance why they are doing nothing.</p>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Shaped by</td><td>Photo 3 when touched, or these sliders only.</td></tr>
+    <tr><td>Attack / Release</td><td>The basic shape, used whenever photo 3 is not in charge. Without the photo the decay is fixed at 250 ms and the sustain is full, so this is a plain attack-and-release envelope.</td></tr>
+    <tr><td>→ Amp / → Filter</td><td>The same routing that sits under photo 3, repeated here beside the shape. Move either copy and the other follows.</td></tr>
+    <tr><td>Legato</td><td>How long the note is held after you lift off photo 1, up to half a second, so tapping from colour to colour glides instead of retriggering every note.</td></tr>
+  </table>
+
+  <p class="quiet"><b>Looking for Dark drone?</b> It has moved, with five new companions, into
+  the <b>Spectra</b> panel — see section 05.</p>
+
+  <figure class="narrow">
+    <img src="shots/sound-filter.jpg" alt="The Filter unit: type, key follow and Q factor">
+    <figcaption>The <b>Filter</b> unit: the five types, how far the cut-off tracks the keyboard,
+    and the resonance scaler.</figcaption>
+  </figure>
+
+  <h3>Filter type</h3>
+  <table class="tight">
+    <tr><th>Type</th><th>Character</th></tr>
+    <tr><td>Low</td><td>The classic 24 dB ladder low-pass. Dark patches of photo 2 mute the tone.</td></tr>
+    <tr><td>Band</td><td>Keeps a band around the cut-off and discards the rest — thin, vocal, focused.</td></tr>
+    <tr><td>High</td><td>Removes everything below the cut-off. Bright patches become airy and thin.</td></tr>
+    <tr><td>Notch</td><td>The inverse of band-pass: sweeps a hollow through the sound instead of a peak.</td></tr>
+    <tr><td>Comb</td><td>A tuned feedback delay whose resonances sit at every multiple of the cut-off. With high resonance it rings like a struck string — superb for metallic drones.</td></tr>
+  </table>
+  <h3>Key follow</h3>
+  <p>By default the cut-off comes from photo 2 alone, so a bass note and a high one are filtered
+  identically — which makes the low notes sound dull and the high ones thin. <b>Key follow</b>
+  ties the cut-off to the keyboard instead: <b>Full</b> moves it an octave for every octave you
+  play, <b>Half</b> moves it half as far, and <b>Off</b> is the old behaviour. It follows the
+  <em>lowest</em> note sounding — the bass of a chord rather than whichever key you pressed last —
+  and it measures from C3, so a patch dialled in around there is unchanged and everything above
+  it opens up. Notes from the on-screen keys, your DAW and the poly slots all count.</p>
+
+  <h3>Q factor</h3>
+  <p>The photo sets the resonance — saturation in photo 2 pushes it up — and <b>Q factor</b>
+  scales what it asks for, from <b>0.05× to 4×</b>, with the centre position leaving the original
+  behaviour exactly as it was. It reaches every mode: the ladder's resonance in Low, Band, High
+  and Notch, the comb's internal feedback, and the biquad Q of the additive engine. Turn it up
+  for singing band-passes and a comb that rings like a string; turn it right down and the
+  resonance all but disappears, which is the setting for a photograph that is making the filter
+  shout, or for a clean sweep with no peak at the corner at all.</p>
+  <p class="quiet">On the notch, more resonance deepens and widens the hollow rather than
+  narrowing it — that is the nature of the ladder-derived notch, and the drawn curve in the
+  analysis strip shows you exactly what the filter is doing.</p>
+
+</section>
+
+<!-- ================= 5. SPECTRA ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">05</span>
+    <h2>Spectra</h2>
+    <span class="sub">Reference</span>
+  </div>
+
+  <p class="lead">A Spectrum is a character rather than an effect. It does not sit in the
+  signal path waiting for audio; it changes how every voice is built in the first place — which
+  is why each one wears its own enclosure instead of a shared faceplate, and why none of them
+  costs anything at all while its switch is off.</p>
+
+  <figure>
+    <img src="shots/spectra-panel.jpg" alt="The Spectra panel with six characters">
+    <figcaption>Six characters, one switch each. <b>Tape Séance</b> is armed here — the lens
+    lights in the module's own colour.</figcaption>
+  </figure>
+
+  <h3>Arming, combining, releasing</h3>
+  <p>The illuminated rocker arms a character. You may arm <b>any combination</b>: they stack, and
+  where two of them reach for the same control the most recently armed one wins. Switching one
+  off unwinds the stack to that point and re-applies whatever was armed after it, so every
+  release hands back exactly what that character changed and nothing else. Your own chain order,
+  power switches and slider positions survive untouched.</p>
+  <p>The <b>(?)</b> beside each switch unfolds a description of what that character actually does,
+  and opens the controls if they are collapsed. The panel has one of its own, at the top right, for
+  what a Spectrum is in the first place. Plates stay tight until you ask.</p>
+
+  <h3>Whatever you touch is yours</h3>
+  <p>A character takes over a handful of the instrument's controls while it is armed, and hands them
+  back when you release it. But if <em>you</em> move one of them in the meantime, it stops being the
+  character's: your value stays where you put it, releasing leaves it alone, and the character will
+  not write over it again. Without that rule an edit made while a character was armed would quietly
+  disappear on release, and the patch would sound different the next time you armed it.</p>
+  <p>The <b>&#8634;</b> beside the (?) undoes your meddling with that one character: its own knobs go
+  back to the positions they arrive with, and it takes back any of its controls you have borrowed.
+  What the patch looked like <em>before</em> you armed it is still remembered, so releasing afterwards
+  still puts that back. Nothing else on the instrument is touched.</p>
+
+  <figure>
+    <img src="shots/spectra-module.jpg" alt="Tape Séance Spectrum expanded">
+    <figcaption><b>Tape Séance Spectrum</b> open, with its explanation unfolded by the (?).</figcaption>
+  </figure>
+
+  <p>Four of the six switch on effects of their own, and they arrive in whatever order your rack
+  is already in — a character never rearranges your chain. If you want Industrial Black's crush
+  heard by the reverb, put the reverb after the crusher yourself, once, and every character will
+  respect it. Dark Drone and Insect Choir add no effects at all; they work entirely on the voices.</p>
+
+  <figure class="narrow">
+    <img src="shots/spectra-black.jpg" alt="Industrial Black Spectrum armed">
+    <figcaption><b>Industrial Black Spectrum</b>, armed. Grind is drive and bit-crush, Chop the
+    gate, Clang the metal.</figcaption>
+  </figure>
+
+  <h3>The six characters</h3>
+  <table>
+    <tr><th>Character</th><th>What it does to the instrument</th></tr>
+    <tr><td>Dark Drone</td><td>A sub-oscillator under every voice through the same filter, an
+      irregular microtonal cluster instead of tidy unison, an ultra-slow random walk leaning on
+      cut-off, detune and delay time, and notes that sag toward an octave down as they decay.
+      <em>Sub level, Sub octave, Cluster, Env → Pitch, Drift, Drift time.</em></td></tr>
+    <tr><td>Psychedelic Pink</td><td>Everything smeared and slowly rotating: the stereo image
+      swirls, a slow wave bends the tuning, the filter breathes on its own, and the reverb becomes
+      the reverse character so tails swell in rather than die away.
+      <em>Swirl, Smear, Bloom.</em></td></tr>
+    <tr><td>Industrial Black</td><td>A square wave into the crusher <em>before</em> the filter, so
+      the ladder has to smooth the wreckage; a comb resonance and a tight metal slapback, a
+      stutter on the gate, and notes that stop dead instead of releasing.
+      <em>Grind, Chop, Clang.</em></td></tr>
+    <tr><td>Glass Cathedral</td><td>Your own tone sent to church: notes open a little more slowly
+      and take their time to leave, the envelope is sent into the filter so every note dawns, and a
+      long hall stands behind it. It is deliberately restrained — the oscillator stays in front, and
+      only the effects that would muddy a long tail step aside. <em>Air, Halo, Shine.</em></td></tr>
+    <tr><td>Tape Séance</td><td>A reel that has been in the attic too long: wow and flutter bend
+      the pitch and the echoes together, notes sag flat as they die, and there is dust on
+      everything — hiss, crackle, a dull top end. <em>Wobble, Sag, Dust.</em></td></tr>
+    <tr><td>Insect Choir</td><td>The voices stop agreeing: they detune into a cluster instead of a
+      chord, each one trembles at its own rate, and small random jumps keep the swarm moving.
+      Arming it raises the voice count. <em>Swarm, Flutter, Skitter.</em></td></tr>
+  </table>
+
+  <div class="note"><b>They are macros, not extra DSP.</b> Every character works by moving the
+  instrument's own controls and by adding a little motion of its own, which is why arming one
+  costs nothing you were not already paying for, why the result is visible on the panels, and why
+  releasing it can put everything back precisely.</div>
+
+  <p class="quiet"><b>They leave your tuning alone.</b> A character may spread the voices into a
+  cluster, wow the pitch or drop a sub-octave underneath — those are the instruments. But the note
+  you played stays the note you played: voice one sits exactly on it and the cluster grows around
+  it, and no character rewrites <em>Spread</em>, which would re-pitch the whole stack by moving
+  where on the photograph the extra voices read.</p>
+</section>
+
+<!-- ================= 6. EFFECTS ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">06</span>
+    <h2>The effects rack</h2>
+    <span class="sub">Reference</span>
+  </div>
+
+  <p class="lead">Seven stereo modules in a real serial chain. The order shown <em>is</em> the
+  signal path: drag the ⋮⋮ handle, or use the arrows, and the audio graph is rewired under a
+  short master dip so it never pops.</p>
+
+  <figure>
+    <img src="shots/effects-rack.jpg" alt="The effects rack in the Boutique skin">
+    <figcaption>Every unit wears its own enclosure and its own illuminated rocker — the same switch
+    the Spectra characters use, at pedal size. <b>Tube</b>, <b>Delay</b> and <b>Reverb</b> start
+    switched on; the other four start off. A module that is off is removed from the audio graph
+    entirely, so bypassing genuinely saves CPU. The rack starts in the order Tube · Stutter · LoFi ·
+    Phaser · Chorus · Delay · Reverb, and from there it is yours to arrange.</figcaption>
+  </figure>
+
+  <div class="grid2">
+    <div>
+      <h4>Tube — asymmetric soft saturation</h4>
+      <p class="quiet"><b>Drive</b> 0–24 dB, <b>Tone</b>. A biased triode-style curve adds gentle
+      even harmonics; four-times oversampled with DC blocking. Loudness-compensated, so driving it
+      thickens the sound without getting louder.</p>
+
+      <h4>Delay — stereo echo</h4>
+      <p class="quiet"><b>Mix</b>, <b>Time</b> 40–900 ms, <b>Feedback</b> up to 112 %,
+      <b>Offset L↔R</b> ±250 ms, <b>Character</b>. Past unity the loop self-oscillates into a soft
+      limiter instead of blowing up.</p>
+
+      <h4>Reverb — stereo convolution</h4>
+      <p class="quiet"><b>Mix</b>, <b>Character</b>, <b>Length</b> 0.2–6 s. Room, Hall, Plate,
+      <b>Spring</b> (a chain of dispersive chirps — the classic boing) and <b>Reverse</b>, whose
+      impulse swells in so notes arrive with a drawn-in breath.</p>
+
+      <h4>Phaser — vintage 4-stage sweep</h4>
+      <p class="quiet"><b>Mix</b>, <b>Rate</b>, <b>Depth</b>. Four swept all-pass stages with a
+      little feedback: the slow hollow swoosh of a seventies stomp box.</p>
+    </div>
+    <div>
+      <h4>Chorus — vintage dual-line ensemble</h4>
+      <p class="quiet"><b>Mix</b>, <b>Rate</b>, <b>Depth</b>. Two delay lines modulated in
+      opposite phase, wet path rolled off dark like an old bucket-brigade unit.</p>
+
+      <h4>Stutter — rhythmic gate chop</h4>
+      <p class="quiet"><b>Amount</b>, <b>Rate</b> 1–16 Hz. A smoothed gate, so the chopping never
+      clicks. Put it <em>before</em> delay and reverb and the tails survive the cuts.</p>
+
+      <h4>Lofi — crush · grit · noise · dirt</h4>
+      <p class="quiet"><b>Crush</b> (sample-rate reduction and bit grit), <b>Noise</b> (hiss plus
+      sparse crackle), <b>Dirt</b> (soft normalised saturation). Everything is smoothed per sample,
+      so the FX photo can drive it without clicks.</p>
+
+      <figure style="margin-top:5mm">
+        <img src="shots/fx-delay.jpg" alt="The Delay module expanded">
+        <figcaption>Tap a module's name to fold its controls open or shut.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <h4>Delay character</h4>
+  <p><b>Clean</b> gives digital repeats. <b>Tape</b> runs the feedback loop through gentle
+  saturation, darker damping, a low cut and a slow wow, so every repeat gets softer, dirtier and
+  slightly unstable — a worn analog echo. Combined with <b>Freeze</b> in the top bar, tape mode
+  degenerates into a beautiful saturating murk you can play over.</p>
+</section>
+
+
+<!-- ================= 7. THE WORLD RACK ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">07</span>
+    <h2>The world rack</h2>
+    <span class="sub">Brokild World FX</span>
+  </div>
+
+  <p class="lead">Every Brokild synth carries the same rack. Not a copy of it and not a
+  similar one: the identical set of effects and characters, compiled into each
+  instrument and saved inside each patch. Learn it here and you have learned it
+  in all of them.</p>
+
+  <p>The globe on the panel opens it. What appears is two racks side by side &mdash; <b>effects</b> on the left, <b>characters</b> on the right &mdash; and they do very different things. An effect processes what the synth has already made. A character reaches back into the instrument and changes how it makes it.</p>
+  <figure>
+    <img src="shots/world-rack.jpg" alt="The Brokild World FX rack">
+    <figcaption>The world rack. Twelve effect pedals on the left, six characters on the right, and one <b>RACK MIX</b> over the lot. Here <b>TUBE</b>, <b>ECHO</b>, <b>SPACE</b> and <b>ROTARY</b> are lit, with <b>GLASS CATHEDRAL</b> and <b>TAPE SEANCE</b> holding the instrument.</figcaption>
+  </figure>
+  <p>Nothing is on when you start, and an empty rack is not a bypass &mdash; it is an absence. The audio never enters it. A patch you made before the rack existed sounds exactly as it did, to the sample, and the plugin's own test bench checks that on every build.</p>
+  <h3>The pedals</h3>
+  <p>Twelve, in the order they run: <b>TUBE</b> (asymmetric valve saturation, and its DRIVE holds its level as you turn it up, so the pedal gets dirtier rather than louder), <b>SWEEP</b> (four-stage phaser), <b>ENSEMBLE</b> (dual-line chorus), <b>HARMONIC</b> (the brownface split-band tremolo, plus plain tremolo and true vibrato), <b>GATE</b> (rhythmic stutter), <b>GRIT</b> (crusher and dirt), <b>STRIP</b> (compressor and five-band EQ), <b>ECHO</b> (stereo tape echo up to five seconds), <b>SPACE</b> (true convolution reverb), <b>SHIMMER</b> (a feedback network with the octave folded back into the loop), <b>ROTARY</b> (a Leslie with real inertia &mdash; the horn takes about a second to change its mind, the drum about four) and <b>KIERANATOR</b> (the step glitcher). ECHO, GATE and HARMONIC lock to the host clock.</p>
+  <figure>
+    <img src="shots/rack-pedal.jpg" alt="One pedal opened">
+    <figcaption>Every pedal carries one control it does not own itself: <b>PRESENCE</b>, in the rack's own colour. It is how much of that pedal is in the signal at all &mdash; at zero the pedal is inert and the audio passes it untouched.</figcaption>
+  </figure>
+  <p>Drag a pedal by its grip to reorder the chain, or use the arrows. Reordering while sound is playing is safe: the rack dips through the change and comes back on the other side.</p>
+  <h3>The characters</h3>
+  <p>The right-hand rack is <b>SPECTRA</b>, and it does not process the sound &mdash; it possesses the instrument. A character reaches into the voices themselves: how far they drift out of tune with each other, how wide they sit, whether they breathe, whether they sag flat as they die, how dark the filter runs. Two synths under the same character do not sound alike. They sound like themselves, haunted the same way.</p>
+  <p><b>DARK DRONE</b> is a cluster gone dark, with a drift that takes minutes to come round. <b>PSYCHEDELIC PINK</b> breathes the width, tuning and filter over a wash of phaser, chorus and reverse reverb it carries itself. <b>INDUSTRIAL BLACK</b> is grind, chop and clang. <b>GLASS CATHEDRAL</b> is a hall of its own and a breath on the tuning. <b>TAPE SEANCE</b> is the wow of a dying machine. <b>INSECT SWARM</b> is sixteen wings, none of them agreeing.</p>
+  <figure>
+    <img src="shots/rack-character.jpg" alt="A character opened">
+    <figcaption>A character opened. <b>PRESENCE</b> here is how hard it grips, so you can have a suggestion of one character and the full weight of another.</figcaption>
+  </figure>
+  <p>Characters stack: arm two and both take hold, in the order you armed them. Their pitch sag is keyed to each note's gate rather than its volume, so a held note stays in tune and only sinks as it dies. In Photo Synth the characters reach the whole sixteen-voice pool: the detuning fans across the voices a photograph is already spreading, and the sag follows each note's gate, so a held chord stays in tune.</p>
+  <h3>The step glitcher</h3>
+  <p><b>KIERANATOR</b> keeps the last ten seconds of everything the synth has played, and every one of its effects is a different way of reading that buffer back. Paint a bar of sixteen steps with the brushes &mdash; RETRIG, TAPE STOP, REVERSE, SHUFFLE, PITCH, CRUSH, GATE &mdash; and it plays the pattern against the host's bars. The same brush again clears a step. With no host transport it free-runs on its own clock. It is named for the late Kieran Foster, whose Glitch made this kind of thing worth doing.</p>
+  <h3>What the rack remembers</h3>
+  <p>The rack belongs to the patch. Save a patch and its rack goes with it; load one from before the rack existed and it comes back rack-empty, which is exactly the sound it promised. The <b>PRESETS</b> menu in the header holds ten made-up racks to start from. And because the rack is shared code, every Brokild synth gets new modules and fixes on its next build &mdash; the effects are the same effects, wherever you opened them.</p>
+</section>
+
+<!-- ================= 6. KEYBOARD, MIDI, FILES ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">08</span>
+    <h2>Keyboard, MIDI and files</h2>
+    <span class="sub">Reference</span>
+  </div>
+
+  <figure>
+    <img src="shots/keyboard.jpg" alt="The on-screen keyboard">
+    <figcaption>The keyboard sets the <b>base note</b> — the note a pure red pixel plays. It
+    adapts to the window width, and the teal marker shows the current base.</figcaption>
+  </figure>
+
+  <p>Use <b>− oct</b> and <b>+ oct</b> to move the range, and <b>Hold</b> to keep the last key
+  down. On a computer keyboard the rows <code>z s x d c v g b h n j m</code> and
+  <code>q 2 w 3 e r 5 t 6 y 7 u</code> play two octaves from the leftmost key. In Polyphonic
+  voice mode, several keys — or several MIDI notes — sound together as a real chord.</p>
+
+  <div class="note"><b>Your DAW plays it too.</b> MIDI from the host is handled natively and
+  sample-accurately, with the same note allocation as the on-screen keyboard. Record a MIDI part
+  on the track and the photos shape every note of it.</div>
+
+  <figure class="narrow">
+    <img src="shots/file.jpg" alt="The File panel">
+    <figcaption>MIDI file playback, tempo scaling, offline render and the audio recorder.</figcaption>
+  </figure>
+
+  <h3>Playing a MIDI file</h3>
+  <p><b>Choose .mid</b> imports a standard MIDI file, or <b>Demo tune</b> loads a short pentatonic
+  phrase to try the path. Its melody drives the base note while the photos keep shaping the sound;
+  the tempo comes from the file and <b>Tempo</b> scales it from a quarter speed to four times. In
+  Mono/Unison mode overlapping notes are reduced to the highest one; in Polyphonic mode the file's
+  chords play for real, up to your Notes setting.</p>
+
+  <h3>Recording and export</h3>
+  <table class="tight">
+    <tr><th>Action</th><th>What happens</th></tr>
+    <tr><td>Record</td><td>Captures the plugin's output — playing, MIDI, filter sweeps and all — up to 180 seconds.</td></tr>
+    <tr><td>Save WAV</td><td>Writes the capture as 24-bit stereo WAV at the session's sample rate, through a normal Windows save dialog.</td></tr>
+    <tr><td>Render MIDI → WAV</td><td>Renders the loaded MIDI file offline, faster than real time and sample-accurate, at 48 kHz — using the colours currently under the cursors.</td></tr>
+  </table>
+
+  <h3>Locking the delay and the stutter to the tempo</h3>
+  <figure class="narrow">
+    <img src="shots/fx-delay-sync.jpg" alt="The Delay module with tempo sync engaged">
+    <figcaption>The <b>Sync</b> switch reads the host tempo back to you; the menu beside it picks
+    the note division.</figcaption>
+  </figure>
+  <p>Delay and Stutter can lock to the DAW. Press <b>Sync</b>, choose a division — 1/1 down to
+  1/32, dotted and triplet — and the module's own Time or Rate control is driven from the tempo
+  the host reports, following it when you change it. The control is held while synced so a drag
+  cannot fight it, and the switch reads back the current tempo.</p>
+  <p class="quiet">Because the page follows the tempo, a tempo change while the plugin window is
+  closed is not tracked; the last synced value is held until you open it again.</p>
+
+  <h3>Factory patches and what the instrument opens on</h3>
+  <p>Two patches are built in. <b>Dreamy Hoover</b> is what a new instance greets you with: seven
+  voices stacked and gliding, pentatonic so every position on the photograph is musical, chorus
+  and a long hall behind it, and a cursor already resting on the first photo. <b>Naked
+  Oscillator</b> is the opposite — one voice, no effects, nothing between the picture and your
+  ears — and it is the honest place to start building a sound of your own. Neither carries
+  photographs, so both dress whatever pictures are loaded.</p>
+  <p>Dreamy Hoover places its cursor but does not latch it, so a new instance is silent until you
+  touch it. Once you have a patch you would rather be greeted by, <b>Set as default</b> freezes it —
+  controls, chain, armed characters, cursors, motions and small copies of the photographs — and
+  new instances open on that instead. <b>Clear default</b> returns to Dreamy Hoover. A patch
+  saved inside a DAW project always wins over both.</p>
+
+  <h3>Presets are files in a folder you choose</h3>
+  <figure class="narrow">
+    <img src="shots/presets.jpg" alt="The Presets panel: folder, list, save, factory and startup">
+    <figcaption>Presets keep everything, photographs included — and they are ordinary files, so
+    they can live on a drive you back up.</figcaption>
+  </figure>
+  <p>A preset captures every control, the effect chain and its power switches, the FX matrix
+  assignments, the cursor positions, the armed motions, and small copies of all four photos. It is
+  written as an ordinary <code>.json</code> file into a folder of your choosing, so a preset library
+  is something you can back up, copy to another machine, or sort in Explorer like any other work.</p>
+  <table class="tight">
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>Choose…</td><td>Picks the preset folder. It is remembered in the plugin's own settings — not in the session — so the same library is there in every project, every host, and after a restart. Until you pick one, the plugin uses <code>Documents\Brokild patches\Photo Synth</code>, creating it on first use. Every Brokild plugin keeps its own folder under that same roof. Earlier versions kept presets beside the installed <code>.vst3</code>, which an installer can reach and replace — anything saved that way is copied across the first time this version runs, and the originals are left where they were.</td></tr>
+    <tr><td>Refresh</td><td>Re-reads the folder, for when you have added or removed files behind the plugin's back.</td></tr>
+    <tr><td>Load</td><td>Every preset in the folder, in one menu. Subfolders become submenus, so a library can be sorted by kind — <em>Pads</em>, <em>Leads</em>, <em>Textures</em>. Choosing one loads it.</td></tr>
+    <tr><td>Save as</td><td>Type a name and press <b>Save</b>. Type <b>Pads/Warm bells</b> instead and it is filed in that subfolder, which is created if it does not exist yet.</td></tr>
+  </table>
+  <div class="note"><b>You do not have to open this panel.</b> <b>Save</b> and <b>Load</b> in the
+  title bar do the same two jobs and are reachable in Play mode. Save opens a real Save dialog on
+  the preset folder, so you can name the file, drop it in a sub-folder, or put it somewhere else
+  entirely — and if you do, that becomes the folder from then on. Load opens the library as a
+  menu, sub-folders flying out sideways beside the loose presets.</div>
+
+  <p>Your DAW project stores the same thing independently, so reopening a session restores the
+  sound <em>and</em> the pictures without touching the preset folder at all. The folder is for the
+  sounds you want to reach for again; the project looks after itself.</p>
+</section>
+
+<!-- ================= 7. TRY THIS ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">09</span>
+    <h2>Try this</h2>
+    <span class="sub">Recipes</span>
+  </div>
+
+  <p class="lead">Nine short experiments, roughly in order of adventurousness. Each one is a
+  handful of moves — the point is to hear what the instrument does, not to build a patch.</p>
+
+  <div class="recipe">
+    <h4>1 · The first thirty seconds</h4>
+    <p class="how">Drag slowly across photo 1 in a wide arc, then leave the cursor on a bright
+    saturated area of photo 2. Now drag on photo 1 again.</p>
+    <p class="out">Everything else in this manual is a variation on this.</p>
+  </div>
+
+  <div class="recipe">
+    <h4>2 · Play it in tune</h4>
+    <p class="how">Sound → Pitch &amp; scale: set <b>Scale</b> to <b>Minor pentatonic</b> and
+    <b>Range</b> to <b>2 oct</b>. Add a little <b>Glide</b>.</p>
+    <p class="out">Suddenly the photo is an instrument rather than a colour meter — every colour
+    lands on a usable note.</p>
+  </div>
+
+  <div class="recipe">
+    <h4>3 · One photo, one chord</h4>
+    <p class="how">Voice mode <b>Mono / Unison</b>, <b>Unison voices</b> to 8, <b>Spread</b> to
+    about 30 px. Put the cursor on a <em>busy</em>, detailed part of photo 1 — then on a smooth
+    gradient.</p>
+    <p class="out">Detail scatters the eight voices into a chord; smooth areas collapse them into
+    a thick unison. The texture of the picture becomes harmony.</p>
+  </div>
+
+  <div class="recipe">
+    <h4>4 · Real chords from your DAW</h4>
+    <p class="how">Voice mode <b>Polyphonic</b>, <b>Notes</b> 4, <b>Osc / note</b> 2. Record a
+    slow four-note chord progression on the track and let it play while you move the cursor on
+    photo 1.</p>
+    <p class="out">The chord holds while the timbre of every note travels with your cursor.</p>
+  </div>
+
+  <div class="recipe">
+    <h4>5 · A filter that plays itself</h4>
+    <p class="how">Press <b>Rec</b> on photo 2 and draw a slow circle over a colourful area,
+    ending where you began — the white dot marks the start — then release. Set <b>Motion</b> in
+    the top bar to about 0.5×.</p>
+    <p class="out">A slow endless filter sweep that follows the picture rather than an LFO — hold
+    a note and listen to it breathe.</p>
+  </div>
+
+  <div class="recipe">
+    <h4>6 · Percussive from a photograph</h4>
+    <p class="how">Latch a <b>deep red</b> spot on photo 3 (fast attack, short tail), set
+    <b>Envelope → Filter</b> to about 60 %, filter type <b>Low</b>, and play staccato notes on
+    the keyboard.</p>
+    <p class="out">Plucks and blips, with the filter snapping shut behind each note.</p>
+  </div>
+
+  <div class="recipe">
+    <h4>7 · Metallic drone</h4>
+    <p class="how">Filter type <b>Comb</b>. Latch photo 1 on a saturated colour and photo 2 on
+    something bright. Engage <b>Dark Drone</b>, <b>Sub level</b> up, <b>Cluster</b> around 30 ¢,
+    <b>Drift</b> 60 %, <b>Drift time</b> long. Leave it running for a few minutes.</p>
+    <p class="out">A struck-string resonance that never quite repeats itself and slowly comes
+    apart. This is what the instrument is best at.</p>
+  </div>
+
+  <div class="recipe">
+    <h4>8 · Freeze and play over it</h4>
+    <p class="how">Delay <b>Character</b> to <b>Tape</b>, <b>Feedback</b> around 90 %, <b>Mix</b>
+    up. Play a phrase, then hit <b>Freeze</b> in the top bar and keep playing.</p>
+    <p class="out">The phrase is held forever as a saturating tape bed while you improvise on top.
+    Press Freeze again to let it decay.</p>
+  </div>
+
+  <div class="recipe">
+    <h4>9 · Let the fourth photo run the effects</h4>
+    <p class="how">Assign the FX pad's three menus to <b>Lofi crush</b>, <b>Chorus mix</b> and
+    <b>Reverb mix</b>, switch those three modules on, then press <b>Rec</b> on photo 4 and draw a
+    long wandering gesture.</p>
+    <p class="out">The effects morph continuously along a path you drew, in combinations no
+    three LFOs would find. Finish with <b>Halt</b>.</p>
+  </div>
+</section>
+
+<!-- ================= 8. IN THE DAW ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">10</span>
+    <h2>In the DAW</h2>
+    <span class="sub">Practicalities</span>
+  </div>
+
+  <h3>Automation</h3>
+  <p>Around forty controls are exposed to the host as automatable parameters, named exactly as
+  they are labelled in the panels — <code>vol</code>, <code>limiter</code>, <code>drive</code>,
+  <code>attack</code>, <code>release</code>, <code>envAmp</code>, <code>envFlt</code>,
+  <code>satGain</code>, <code>delayMix</code>, <code>delayTime</code>, <code>delayFeedback</code>,
+  <code>reverbMix</code>, <code>reverbLength</code>, the phaser, chorus, stutter and lofi
+  controls, and the Dark Drone set. Write automation for them as you would for any synth.</p>
+
+  <p>Added since version 1.0, and automatable like the rest: <code>tune</code> and
+  <code>fine</code> (global tuning), <code>filterQ</code> (the resonance scaler, now reaching
+  0.05×), and <code>spread</code> now reaching 60 px. The Spectra characters, the tempo-sync
+  switches, <b>Key follow</b> and the tuner's Match button are panel controls rather than
+  parameters — they move the automatable sliders on your behalf, or are stored with the patch, so
+  what they do is recorded in the project and visible on the panels.</p>
+
+  <h3>What the project remembers</h3>
+  <p>Saving your session stores every control, the effect order and power switches, the FX matrix,
+  the cursor positions, the armed motions and compressed copies of all four photographs. Reopening
+  the session restores the instrument exactly, pictures included, with no external files to keep
+  track of.</p>
+
+  <h3>Two things worth knowing</h3>
+  <ul class="plain">
+    <li><b>The window may be left open for gestures.</b> The engine keeps sounding with the editor
+      closed and host MIDI plays normally, but the parts that are genuinely driven by the interface
+      — looping motions, the Dark Drone drift walk, the FX photo, and re-sampling of the photos —
+      need the plugin window open to run. For a fixed sound, close it freely.</li>
+    <li><b>Resonance plus drive can peak.</b> That is the nature of a ladder filter with the
+      envelope sweeping it, and it is why <b>Limit</b> exists. It is on at 40 % by default and
+      transparent at that setting.</li>
+    <li><b>The offline MIDI render takes the filter as a snapshot.</b> Key follow, the photo drift
+      and the Spectra modulations do not track note by note there, exactly as they did not before.
+      Live playing and the audio recorder follow normally.</li>
+  </ul>
+
+  <figure class="narrow" style="margin-top:7mm">
+    <img src="shots/about-build.jpg" alt="The About box showing the build number">
+    <figcaption>The <b>About</b> button, in the top bar.</figcaption>
+  </figure>
+
+  <div class="colophon">
+    <p><b>Photo Synth</b> · Brokild Apps · August 2026. Native VST3 and standalone port of the
+    browser instrument Photo Synth. The interface is the original page; the audio engine — voice
+    pool, ladder filter, effects rack, recorder and offline render — is native C++.</p>
+    <p>This VST comes from the curved mind of Professor Brokild, and was programmed with VScode,
+    ChatGPT and Claude. Use of this is on your own peril. It may generate unique, beautiful, scary
+    or useless sounds for you, and it may crash your DAW project. Have fun, play unsafely,
+    unwisely, and unboringly.</p>
+    <p style="color:#5d5548"><b>Cheers, Peter Bøggild, August 2026.</b></p>
+  </div>
+</section>
+
+</body>
+</html>

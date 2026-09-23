@@ -1,0 +1,22 @@
+[
+  {"wait": 3000},
+  {"eval": "NB.send({k:'factory',i:18}); 'BOX TIDE'"},
+  {"wait": 1300},
+  {"eval": "__HT.lock(true); NB.send({k:'note',n:45,on:true,vel:0.85}); 'note'"},
+  {"wait": 1400},
+  {"shoot": {"sel": null, "out": "C:/Users/peter/b/HighTide/docs/manual/shots/hero.png", "scale": 2}},
+  {"shoot": {"sel": "#hdr", "out": "C:/Users/peter/b/HighTide/docs/manual/shots/header.png", "scale": 2}},
+  {"eval": "NB.send({k:'note',n:45,on:false}); 'off'"},
+  {"eval": "NB.send({k:'factory',i:5}); 'SAW LEAD'"},
+  {"wait": 1300},
+  {"shoot": {"sel": "#rail-r", "out": "C:/Users/peter/b/HighTide/docs/manual/shots/controls.png", "scale": 2}},
+  {"eval": "NB.send({k:'note',n:45,on:true,vel:0.85}); 'note'"},
+  {"wait": 900},
+  {"eval": "(()=>{const n=document.querySelector('.ctl[data-id=detune]'); return __HT.tipAt('detune', n).on;})()"},
+  {"shoot": {"sel": null, "out": "C:/Users/peter/b/HighTide/docs/manual/shots/hints.png", "scale": 2}},
+  {"eval": "__HT.tipHide(); NB.send({k:'note',n:45,on:false}); 'off'"},
+  {"eval": "(()=>{ document.getElementById('b-factory').click(); return 'menu'; })()"},
+  {"wait": 800},
+  {"shoot": {"sel": null, "out": "C:/Users/peter/b/HighTide/docs/manual/shots/starters.png", "scale": 2}},
+  {"eval": "(()=>{ document.body.click(); return window.__err; })()"}
+]

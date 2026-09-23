@@ -1,0 +1,23 @@
+[
+  { "name": "page alive, debug hook present", "eval": "typeof window.__N84 === 'object' && typeof window.__N84.set === 'function' ? 'hook ok, version ' + window.__N84.version : 'NO HOOK'" },
+  { "name": "zero JS errors so far", "eval": "(window.__errs || []).length === 0 ? 'no errors' : 'ERRORS: ' + JSON.stringify(window.__errs).slice(0, 400)" },
+  { "name": "bridge live and initialState applied", "eval": "(function(){ var s = window.__N84.state(); var n = Object.keys(s.values || s).length; return (n > 100 ? 'params on page: ' + n : 'ONLY ' + n + ' PARAMS'); })()" },
+  { "name": "one BWFX button", "eval": "document.querySelectorAll('[data-bwfx-open]').length === 1 ? 'one globe' : 'GLOBE COUNT ' + document.querySelectorAll('[data-bwfx-open]').length" },
+  { "name": "set rank I cutoff to 0.3 through the page", "eval": "window.__N84.set('a_lpf', 0.3); 'sent'" },
+  { "wait": 400 },
+  { "name": "native side has it (read back via hostParam echo path)", "eval": "Math.abs(window.__N84.get('a_lpf') - 0.3) < 1e-4 ? 'a_lpf = 0.3 on the page' : 'PAGE SAYS ' + window.__N84.get('a_lpf')" },
+  { "name": "load factory patch 5 (CS STRINGS)", "eval": "window.__N84.patch ? (window.__N84.patch(5), 'asked') : (window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:5}), 'asked via bridge')" },
+  { "wait": 600 },
+  { "name": "the patch name arrived and the values moved", "eval": "(function(){ var s = window.__N84.state(); return 'patch shows: ' + (s.patchName || s.patch || '?') + ' / a_lpf now ' + window.__N84.get('a_lpf').toFixed(3); })()" },
+  { "name": "circuit selectors show what the patch says (CS STRINGS: both CS 12 dB)", "eval": "'a_fmode ' + window.__N84.get('a_fmode') + ' b_fmode ' + window.__N84.get('b_fmode') + ' / lit: ' + Array.from(document.querySelectorAll('[data-id=a_fmode] .on, [data-id=a_fmode] .sel, [data-id=a_fmode] .active')).map(function(e){return e.textContent.trim()}).join('|')" },
+  { "name": "play a note from the page", "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'note', n:57, on:true, v:0.8}); 'note on'" },
+  { "wait": 700 },
+  { "name": "meter shows the voice and level", "eval": "(function(){ var m = window.__N84.meter(); return 'notes ' + JSON.stringify(m.notes) + ' out ' + (m.out||0).toFixed(3) + ' cut ' + JSON.stringify((m.cut||[]).map(function(x){return Math.round(x)})); })()" },
+  { "name": "turn the tape on and check the reels are told", "eval": "window.__N84.set('tape_mode', 1); 'tape on'" },
+  { "wait": 500 },
+  { "name": "tape state on the page", "eval": "(function(){ var m = window.__N84.meter(); return 'tape_mode ' + window.__N84.get('tape_mode') + ' wow ' + (m.wow||0).toFixed(3); })()" },
+  { "name": "note off", "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'note', n:57, on:false}); 'note off'" },
+  { "wait": 300 },
+  { "name": "screenshot", "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\live-shot.png" },
+  { "name": "errors at the end", "eval": "(window.__errs || []).length === 0 ? 'no errors' : 'ERRORS: ' + JSON.stringify(window.__errs).slice(0, 400)" }
+]

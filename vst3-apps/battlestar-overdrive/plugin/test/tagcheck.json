@@ -1,0 +1,15 @@
+[
+  { "name": "wait for the cards", "wait": 2500 },
+
+  { "name": "the Battlestar card's own tag chips",
+    "eval": "(function(){var a=[...document.querySelectorAll('a')].find(x=>String(x.getAttribute('href')||'').indexOf('battlestar-overdrive/index')>=0);if(!a)return 'no link';var card=a.closest('.card')||a.closest('article')||a.parentElement;var t=card.querySelector('.card-tags');return t?('tags: '+t.textContent.replace(/[ ]+/g,' ').trim()):('NO .card-tags; card class='+card.className);})()" },
+
+  { "name": "the Effect filter chip count across the whole site",
+    "eval": "(function(){var c=[...document.querySelectorAll('.chip')].find(x=>/effect/i.test(x.textContent));return c?c.textContent.replace(/[ ]+/g,' ').trim():'no effect chip';})()" },
+
+  { "name": "the card heading reads as the product",
+    "eval": "(function(){var a=[...document.querySelectorAll('a')].find(x=>String(x.getAttribute('href')||'').indexOf('battlestar-overdrive/index')>=0);var card=a.closest('.card')||a.closest('article');var h=card&&card.querySelector('h3');return h?h.textContent.trim():'no h3';})()" },
+
+  { "name": "it sits where the manifest put it, second in the list",
+    "eval": "(function(){var cards=[...document.querySelectorAll('.card')];var i=cards.findIndex(c=>/Battlestar Overdrive/.test(c.textContent));return i<0?'not found':('card '+(i+1)+' of '+cards.length);})()" }
+]

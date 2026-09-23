@@ -1,0 +1,6 @@
+build/
+dist/stage/
+test/build/
+*.old*
+test/bench-out*.txt
+build/live/

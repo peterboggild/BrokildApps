@@ -1,0 +1,8 @@
+[
+  { "eval": "window.__bbox = function(th){ var gl=__BS.gl, cv=gl.canvas, w=cv.width, h=cv.height; var px=new Uint8Array(w*h*4); gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,px); var x0=1e9,x1=-1,y0=1e9,y1=-1,n=0; for(var y=0;y<h;y++)for(var x=0;x<w;x++){var o=(y*w+x)*4; if(px[o]+px[o+1]+px[o+2]>th){n++; if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;}} return {n:n,w:w,h:h,fw:((x1-x0)/w).toFixed(3),fh:((y1-y0)/h).toFixed(3)}; }; 'ok'" },
+  { "eval": "__BS.CAM.spin=false; __BS.CAM.yaw=0; __BS.CAM.pitch=0; __BS.CAM.anchors=false; __BS.GLOW.data.fill(0); __BS.GLOW.last=performance.now(); __BS.GLOW.upload=-1; 'glow cleared, camera face-on'" },
+  { "eval": "__BS.VOL.data.fill(0); __BS.VOL.dirty=true; __BS.draw(); __BS.draw(); 'WIREFRAME ONLY: ' + JSON.stringify(__bbox(60))" },
+  { "eval": "__BS.GX.band=false; __BS.GX.lev=0.5; __BS.GX.win=0.9; __BS.GX.density=1.0; __BS.VOL.data.fill(255); __BS.VOL.dirty=true; __BS.draw(); __BS.draw(); 'SOLID VOLUME: ' + JSON.stringify(__bbox(60))" },
+  { "eval": "'expected fraction of the height for a unit cube face at 2.05: ' + ((0.5/2.05)/0.62).toFixed(3) + '   (of the full height, x2 = ' + (2*(0.5/2.05)/0.62/2).toFixed(3) + ')'" },
+  { "eval": "__BS.CAM.anchors=true; __BS.GLOW.dirty=true; __BS.NB.send({k:'p', id:'specimen', v:1.0}); 'restored'" }
+]

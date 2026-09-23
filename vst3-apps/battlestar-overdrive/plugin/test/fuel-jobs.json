@@ -1,0 +1,17 @@
+[
+  { "name": "settle", "wait": 2600 },
+  { "name": "JS errors", "eval": "(window.__err&&window.__err.length)?window.__err.join(' | '):'none'" },
+
+  { "name": "sweep the tank 1.00 -> 0.00 and record which frame the gauge picks",
+    "eval": "(function(){const seen=[];for(let k=0;k<=100;k++){const f=1-k/100;window.__BO.forceFuel=f;applyForces();paintFuel();const p=parseFloat(window.__BO.fuelFrame());const idx=Math.round(p/100*14);if(seen.length===0||seen[seen.length-1][1]!==idx)seen.push([f.toFixed(2),idx]);}return seen.map(s=>s[0]+'->'+s[1]).join('  ');})()" },
+
+  { "name": "every frame is used, in order, no skips and no reversals",
+    "eval": "(function(){const idx=[];for(let k=0;k<=200;k++){const f=1-k/200;window.__BO.forceFuel=f;applyForces();paintFuel();idx.push(Math.round(parseFloat(window.__BO.fuelFrame())/100*14));}const uniq=[];for(const i of idx)if(uniq.length===0||uniq[uniq.length-1]!==i)uniq.push(i);let mono=true;for(let i=1;i<uniq.length;i++)if(uniq[i]<uniq[i-1])mono=false;const missing=[];for(let i=0;i<=14;i++)if(uniq.indexOf(i)<0)missing.push(i);return 'sequence '+uniq.join(',')+'  | monotonic '+mono+'  | frames never shown: '+(missing.length?missing.join(','):'none');})()" },
+
+  { "name": "hold it at half a tank for a look",
+    "eval": "window.__BO.forceFuel=0.5; applyForces(); paintFuel(); 'frame '+window.__BO.fuelFrame()" },
+  { "name": "let it paint", "wait": 300 },
+  { "name": "half a tank", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-halffuel.png" },
+
+  { "name": "release", "eval": "window.__BO.forceFuel=null; 'released'" }
+]

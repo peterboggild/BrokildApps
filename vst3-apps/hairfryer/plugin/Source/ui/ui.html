@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hairfryer</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   HAIRFRYER — a 1970s counter-top kitchen appliance that makes death metal.
+   Almond enamel, walnut cheeks, a chrome fridge-badge script, chunky cream
+   knobs, one harvest-gold LCD. The panel is a pure view: every value lives
+   in the plugin.
+   ═══════════════════════════════════════════════════════════════════════ */
+*{ margin:0; padding:0; box-sizing:border-box; user-select:none;
+   -webkit-user-select:none; font-family:"Arial Narrow","Roboto Condensed",Arial,sans-serif; }
+html,body{ width:100%; height:100%; background:#17120c; overflow:hidden; }
+
+#fit{ position:absolute; inset:0; display:flex; align-items:flex-start; justify-content:center; }
+#deck{ width:1300px; transform-origin:top center; position:relative; padding:10px 0 16px; }
+
+/* ---- the appliance body ---- */
+#shell{
+  position:relative; border-radius:26px; padding:14px 26px 20px;
+  background:
+    linear-gradient(175deg,#efe4cd 0%,#e6d8bc 30%,#dccca9 70%,#cbb890 100%);
+  box-shadow:
+    0 24px 60px rgba(0,0,0,.65), 0 4px 12px rgba(0,0,0,.4),
+    inset 0 2px 0 rgba(255,255,250,.75), inset 0 -3px 8px rgba(120,90,40,.35);
+}
+/* walnut cheeks */
+#shell::before,#shell::after{
+  content:""; position:absolute; top:24px; bottom:24px; width:16px; border-radius:8px;
+  background:repeating-linear-gradient(93deg,#5a3a20 0 3px,#6b4728 3px 6px,#4e3018 6px 9px);
+  box-shadow:inset 0 0 6px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.4);
+}
+#shell::before{ left:-8px; } #shell::after{ right:-8px; }
+
+/* ---- header ---- */
+#head{ display:flex; align-items:center; gap:18px; padding:4px 4px 10px; }
+#badge{
+  font-family:"Brush Script MT","Segoe Script",cursive;
+  font-size:46px; font-weight:bold; color:#f8f4ea; letter-spacing:1px;
+  text-shadow:0 1px 0 #888,0 2px 0 #666,0 3px 1px #444,0 4px 6px rgba(0,0,0,.5);
+  background:linear-gradient(180deg,#fdfdfb,#b9bec4 45%,#7e858d 55%,#dfe3e6);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,.45)); padding:0 6px; line-height:1.05;
+}
+#tag{ font-size:9.5px; letter-spacing:2.4px; color:#7c6034; font-weight:bold; margin-top:-4px; }
+
+#hbtns{ display:flex; gap:8px; align-items:center; margin-left:auto; }
+.hbtn.bwfxhb{color:#0d8f88;display:flex;align-items:center;gap:5px}
+.hbtn.bwfxhb .bwfx-globe{filter:drop-shadow(0 0 3px rgba(13,143,136,.5));flex:none}
+.hbtn{
+  padding:7px 14px 6px; border-radius:7px; cursor:pointer;
+  font-size:10.5px; font-weight:bold; letter-spacing:1.6px; color:#4a3618;
+  background:linear-gradient(180deg,#f6ecd7,#dfcda6);
+  border:1px solid #a98f5e; box-shadow:0 2px 3px rgba(0,0,0,.3), inset 0 1px 0 #fff;
+}
+.hbtn:active{ transform:translateY(1px); box-shadow:0 1px 1px rgba(0,0,0,.3); }
+.hbtn.warn{ color:#7c1f10; }
+
+#lightwrap{ display:flex; align-items:center; gap:7px; margin-left:6px; }
+#lightwrap span{ font-size:9px; letter-spacing:1.6px; color:#7c6034; font-weight:bold; }
+#uiLight{ width:74px; accent-color:#c96a1e; }
+
+/* ---- programme dial row ---- */
+#progrow{ display:flex; gap:14px; align-items:stretch; margin-bottom:12px; }
+#progpanel{
+  flex:0 0 340px; border-radius:14px; padding:10px 12px;
+  background:linear-gradient(180deg,#3a2c1a,#241a0e);
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,240,.5);
+}
+#progpanel h3{ font-size:9px; letter-spacing:2.4px; color:#c9a86a; margin-bottom:7px; }
+#progs{ display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
+.prog{
+  padding:6px 4px; text-align:center; border-radius:6px; cursor:pointer;
+  font-size:9.5px; font-weight:bold; letter-spacing:.8px; color:#d8c193;
+  background:linear-gradient(180deg,#4c3920,#332512);
+  border:1px solid #5e4626; box-shadow:0 1px 2px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,240,200,.12);
+}
+.prog:hover{ color:#ffe9b8; border-color:#8a6a38; }
+.prog.lit{ color:#2b1c08; background:linear-gradient(180deg,#ffc94e,#e69b22);
+           border-color:#8a6014; box-shadow:0 0 10px rgba(255,180,60,.5), inset 0 1px 0 #ffe9b0; }
+
+/* the LCD */
+#lcd{
+  flex:1; border-radius:14px; padding:9px 16px; position:relative; overflow:hidden;
+  background:linear-gradient(180deg,#241d08,#1a1504 60%,#131002);
+  border:2px solid #6b5730;
+  box-shadow:inset 0 3px 14px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,240,.5);
+  display:flex; flex-direction:column; justify-content:center; gap:3px;
+}
+#lcdmain{
+  font-family:"Consolas","Lucida Console",monospace; font-size:15px; font-weight:bold;
+  color:#ffb733; letter-spacing:1.4px; text-shadow:0 0 8px rgba(255,170,40,.55);
+  white-space:nowrap; overflow:hidden;
+}
+#lcdsub{
+  font-family:"Consolas",monospace; font-size:10.5px; color:#a97f2e;
+  letter-spacing:1px; white-space:nowrap; overflow:hidden;
+}
+#lcd::after{ content:""; position:absolute; inset:0;
+  background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.13) 2px 3px); pointer-events:none; }
+
+/* ---- section panels ---- */
+#cols{ display:flex; gap:14px; align-items:flex-start; }
+.col{ display:flex; flex-direction:column; gap:12px; }
+#colL{ flex:0 0 300px; } #colC{ flex:1; } #colR{ flex:0 0 322px; }
+
+.panel{
+  border-radius:14px; padding:10px 12px 12px; position:relative;
+  background:linear-gradient(178deg,#e7dabd,#d9c7a0);
+  box-shadow:inset 0 1px 0 rgba(255,255,250,.8), inset 0 -2px 5px rgba(120,90,40,.25),
+             0 2px 5px rgba(0,0,0,.25);
+  border:1px solid #b49a68;
+}
+.panel h2{
+  font-size:10px; letter-spacing:3px; color:#6b4f22; margin-bottom:8px;
+  border-bottom:1px solid #bfa877; padding-bottom:4px; display:flex; align-items:center; gap:8px;
+}
+.panel h2 .sub{ margin-left:auto; font-size:8px; letter-spacing:1.4px; color:#96794a; }
+
+.krow{ display:flex; flex-wrap:wrap; gap:4px 6px; justify-content:flex-start; }
+
+/* ---- knobs ---- */
+.kn{ width:64px; display:flex; flex-direction:column; align-items:center; gap:2px; cursor:ns-resize; }
+.kn.big{ width:84px; }
+.kn .cap{ position:relative; width:46px; height:46px; }
+.kn.big .cap{ width:64px; height:64px; }
+.kn .ring{ position:absolute; inset:0; border-radius:50%;
+  background:conic-gradient(from 225deg, #c96a1e var(--arc,0deg), #4d3c22 var(--arc,0deg) 270deg, transparent 270deg); }
+.kn .ring::after{ content:""; position:absolute; inset:3px; border-radius:50%;
+  background:linear-gradient(180deg,#efe6d2,#cbb488); }
+.kn .body{ position:absolute; inset:5px; border-radius:50%;
+  background:
+    radial-gradient(circle at 32% 26%, #fdf8ec, #e8dcC2 45%, #c4ad82 88%, #9c8352);
+  box-shadow:0 3px 5px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,250,.9), inset 0 -2px 4px rgba(110,80,30,.5);
+}
+.kn .ptr{ position:absolute; left:50%; top:50%; width:3.5px; height:38%;
+  background:linear-gradient(#5a3714,#8a5a24); border-radius:2px;
+  transform-origin:50% 0%; transform:translate(-50%,0) rotate(var(--rot,0deg));
+  box-shadow:0 0 2px rgba(0,0,0,.4); }
+.kn .lb{ font-size:8.5px; font-weight:bold; letter-spacing:1.1px; color:#5f4720; text-align:center; }
+.kn .vl{ font-family:"Consolas",monospace; font-size:9px; color:#9a6f1d;
+  background:rgba(35,26,8,.85); color:#f0b23c; border-radius:3px; padding:1px 5px; min-width:44px;
+  text-align:center; letter-spacing:.5px; }
+
+/* ---- rocker switches ---- */
+.rk{ display:flex; flex-direction:column; align-items:center; gap:3px; width:58px; cursor:pointer; }
+.rk .well{ width:34px; height:44px; border-radius:8px; position:relative;
+  background:linear-gradient(180deg,#3d2f1a,#241a0c);
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,240,.6); }
+.rk .paddle{ position:absolute; left:3px; right:3px; height:22px; border-radius:6px;
+  transition:top .08s ease, background .08s ease; top:19px;
+  background:linear-gradient(180deg,#e9dcc0,#bda87c);
+  box-shadow:0 2px 3px rgba(0,0,0,.5), inset 0 1px 0 #fff; }
+.rk.on .paddle{ top:3px; background:linear-gradient(180deg,#ffc94e,#df9a26); }
+.rk .dot{ position:absolute; bottom:5px; left:50%; transform:translateX(-50%);
+  width:6px; height:6px; border-radius:50%; background:#432; }
+.rk.on .dot{ background:#ffb733; box-shadow:0 0 6px rgba(255,170,40,.8); }
+.rk .lb{ font-size:8.5px; font-weight:bold; letter-spacing:1px; color:#5f4720; text-align:center; }
+
+/* ---- OS three-way ---- */
+.osrow{ display:flex; flex-direction:column; gap:3px; align-items:center; width:58px; }
+.osrow .lb{ font-size:8.5px; font-weight:bold; letter-spacing:1px; color:#5f4720; }
+.osbtns{ display:flex; gap:3px; }
+.osb{ padding:4px 7px; font-size:9px; font-weight:bold; color:#6a5124; border-radius:5px; cursor:pointer;
+  background:linear-gradient(180deg,#e7dabb,#c8b283); border:1px solid #a08349; }
+.osb.lit{ color:#2b1c08; background:linear-gradient(180deg,#ffc94e,#e69b22); border-color:#8a6014; }
+
+/* ---- the basket window ---- */
+#basketwin{ border-radius:12px; overflow:hidden; margin-bottom:8px; position:relative;
+  border:3px solid #7c6134; box-shadow:inset 0 4px 18px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,240,.55);
+  background:#120d04; }
+#bcan{ display:block; width:100%; height:150px; }
+#basketwin::after{ content:""; position:absolute; inset:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse at 50% -30%, rgba(255,230,170,.10), transparent 55%),
+    repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.12) 2px 3px); }
+
+/* rack plates */
+.rack{ border-radius:12px; padding:8px 10px 10px; margin-top:8px;
+  background:linear-gradient(180deg,#4a3213,#33220b);
+  border:1px solid #6d5124; box-shadow:inset 0 1px 0 rgba(255,235,180,.15), inset 0 -3px 8px rgba(0,0,0,.5); }
+.rack h2{ font-size:9.5px; letter-spacing:2.6px; color:#e8b95a; border-bottom:1px solid #6d5124;
+  padding-bottom:4px; margin-bottom:7px; display:flex; }
+.rack h2 .mode{ margin-left:auto; font-family:"Consolas",monospace; font-size:9.5px; color:#ffb733; }
+.rack .kn .lb{ color:#c8a05a; }
+.rack .kn .ring::after{ background:linear-gradient(180deg,#5c4520,#3a2a12); }
+.rack .kn .body{ background:radial-gradient(circle at 32% 26%, #6e5426, #4c3915 50%, #33250c 90%);
+  box-shadow:0 3px 5px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,220,150,.25), inset 0 -2px 4px rgba(0,0,0,.6); }
+.rack .kn .ptr{ background:linear-gradient(#ffd98a,#c9962f); }
+.rackB h2{ color:#ff9668; }
+.rackB .kn .ring{ background:conic-gradient(from 225deg, #d84f1e var(--arc,0deg), #4d2c1a var(--arc,0deg) 270deg, transparent 270deg); }
+
+/* ---- meters ---- */
+#meters{ display:flex; gap:10px; align-items:flex-end; padding:2px 4px; }
+.vm{ display:flex; flex-direction:column; align-items:center; gap:3px; }
+.vm .well{ width:16px; height:92px; border-radius:4px; position:relative; overflow:hidden;
+  background:#1c1406; box-shadow:inset 0 2px 6px rgba(0,0,0,.8); }
+.vm .bar{ position:absolute; left:2px; right:2px; bottom:2px; height:0%;
+  background:linear-gradient(0deg,#7a9c33,#c9b23a 60%,#e07a24 85%,#e03c1c);
+  border-radius:2px; }
+.vm.gr .bar{ top:2px; bottom:auto; background:linear-gradient(180deg,#e0a12c,#8a5a14); }
+.vm .lb{ font-size:8px; font-weight:bold; letter-spacing:.8px; color:#5f4720; }
+
+/* preset flyout */
+#pmenu{ position:absolute; z-index:60; display:none; min-width:230px; max-height:420px; overflow:auto;
+  background:#2a1f0f; border:1px solid #8a6a38; border-radius:9px; padding:6px;
+  box-shadow:0 12px 34px rgba(0,0,0,.7); }
+#pmenu .it{ padding:6px 10px; font-size:11px; color:#e3c78f; border-radius:5px; cursor:pointer; letter-spacing:.6px; }
+#pmenu .it:hover{ background:#4a3517; color:#ffe2a0; }
+#pmenu .dir{ padding:6px 10px 2px; font-size:9px; color:#9a7a44; letter-spacing:1.6px; }
+#pmenu .none{ padding:8px 10px; font-size:10px; color:#8a6f42; }
+#pmenu .act{ border-top:1px solid #4d3a1c; margin-top:5px; padding-top:5px; }
+
+#vig{ position:fixed; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse at 50% 30%, transparent 55%, rgba(0,0,0,.35)); }
+
+svg.defs{ position:absolute; width:0; height:0; }
+</style>
+</head>
+<body>
+<svg class="defs"><filter id="f-lift" color-interpolation-filters="sRGB">
+  <feComponentTransfer><feFuncR type="gamma" exponent="1" offset="0"/>
+  <feFuncG type="gamma" exponent="1" offset="0"/><feFuncB type="gamma" exponent="1" offset="0"/>
+  </feComponentTransfer></filter></svg>
+
+<div id="fit"><div id="deck"><div id="shell">
+
+  <div id="head">
+    <div>
+      <div id="badge">Hairfryer</div>
+      <div id="tag">BROKILD KITCHEN APPLIANCES &nbsp;&middot;&nbsp; VOCAL DESTRUCTION UNIT</div>
+    </div>
+    <div id="hbtns">
+      <div class="hbtn bwfxhb" data-bwfx-open title="BROKILD WORLD FX — the world rack: the same global FX modules in every Brokild synth">BWFX</div>
+      <div class="hbtn" data-act="save">SAVE</div>
+      <div class="hbtn" data-act="open">LOAD</div>
+      <div class="hbtn" data-act="presets">PRESETS &#9662;</div>
+      <div class="hbtn warn" data-act="random">RANDOM</div>
+      <div class="hbtn" data-act="panic">RESET</div>
+      <div id="lightwrap"><span>LIGHT</span><input id="uiLight" type="range" min="0" max="100" value="0"></div>
+    </div>
+  </div>
+
+  <div id="progrow">
+    <div id="progpanel">
+      <h3>PROGRAMME</h3>
+      <div id="progs"></div>
+    </div>
+    <div id="lcd">
+      <div id="lcdmain">HAIRFRYER PREHEATING &#8230;</div>
+      <div id="lcdsub">insert one clean loud voice &middot; close the lid</div>
+    </div>
+  </div>
+
+  <div id="cols">
+    <div class="col" id="colL"></div>
+    <div class="col" id="colC"></div>
+    <div class="col" id="colR"></div>
+  </div>
+
+</div></div></div>
+
+<div id="pmenu"></div>
+<div id="vig"></div>
+
+<script src="bwfx-rack.js"></script>
+<script>
+"use strict";
+/* ═══════════ 0 · the bridge ═══════════ */
+const NB = (()=>{
+  let q=[], sched=false;
+  const flush=()=>{ sched=false; const b=q; q=[];
+    try{ window.__JUCE__.backend.emitEvent("hf",{b}); }catch(e){} };
+  return {
+    send(m){ q.push(m); if(!sched){ sched=true; queueMicrotask(flush); } },
+    on(n,f){ try{ window.__JUCE__.backend.addEventListener(n,f); }catch(e){} },
+    live(){ return !!(window.__JUCE__ && window.__JUCE__.backend); }
+  };
+})();
+const $=s=>document.querySelector(s);
+const el=(t,c,p)=>{ const e=document.createElement(t); if(c)e.className=c; if(p)p.appendChild(e); return e; };
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const xmap=(t,lo,hi)=>lo*Math.pow(hi/lo,clamp(t,0,1));
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+/* BROKILD WORLD FX: wire the shared rack overlay to the native rack */
+if (window.BWFX) {
+  BWFX.attach({ send: o => { const m = { k: "bwfx" }; for (const kk in o) m[kk] = o[kk]; NB.send(m); } });
+  NB.on("bwfx", p => BWFX.onState(p));
+}
+
+/* ═══════════ 1 · state ═══════════ */
+const V={}, DEF={}, META={};   // value, default, {kind,flo,fhi,name} per id
+let RECIPES=[], BLURBS=[], BUILD="dev", LATENCY=0;
+let M={in:0,out:0,ggr:0,dgr:0,cgr:0,lgr:0,f0:0,cl:0,mdb:0,oa:1,ob:1,ga:[],gb:[]};
+const KNOBS=[];   // {id, update()}
+
+/* chaos map mirror, for the LCD */
+function chaosR(t){ t=clamp(t,0,1);
+  if(t<0.55) return 2.90+(t/0.55)*(3.5699-2.90);
+  if(t<0.80) return 3.5699+((t-0.55)/0.25)*(3.8284-3.5699);
+  if(t<0.90) return 3.8319;
+  return 3.8415+((t-0.90)/0.10)*(4.0-3.8415); }
+function subRatio(t){ const pts=[0.25,0.3333,0.5,1.0,1.5];
+  const ft=clamp(t,0,1)*4, i=Math.min(3,Math.floor(ft));
+  return lerp(pts[i],pts[i+1],ft-i); }
+
+const KIND={PCT:0,SW:1,HZ:2,MS:3,DB:4,CEIL:5,RATIO:6,OS:7,CHAOS:8,SUB:9,THROAT:10};
+function fmt(id,v){
+  const m=META[id]||{kind:0,flo:0,fhi:1};
+  switch(m.kind){
+    case KIND.SW: return v>=0.5?"ON":"OFF";
+    case KIND.HZ:{ const f=xmap(v,m.flo,m.fhi); return f<1000? f.toFixed(0)+" Hz" : (f/1000).toFixed(2)+" k"; }
+    case KIND.MS:{ const ms=xmap(v,m.flo,m.fhi); return ms<100? ms.toFixed(1)+" ms" : ms.toFixed(0)+" ms"; }
+    case KIND.DB:{
+      if(id==="gatethr") return (lerp(-70,-20,v)).toFixed(1)+" dB";
+      if(id==="cthr")    return (lerp(-50,0,v)).toFixed(1)+" dB";
+      if(id==="cknee")   return (lerp(0.5,18,v)).toFixed(1)+" dB";
+      if(id==="cmake")   return (v*24).toFixed(1)+" dB";
+      const d=(v-0.5)*m.flo; return (d>=0?"+":"")+d.toFixed(1)+" dB"; }
+    case KIND.CEIL: return lerp(m.flo,m.fhi,v).toFixed(1)+" dB";
+    case KIND.RATIO:{ const r=xmap(v,m.flo,m.fhi);
+      return id.endsWith("q")? "Q "+r.toFixed(1) : r.toFixed(1)+" : 1"; }
+    case KIND.OS: return v<0.5?"1x":(v<1.5?"2x":"4x");
+    case KIND.CHAOS: return "r "+chaosR(v).toFixed(3);
+    case KIND.SUB:{ const r=subRatio(v);
+      if(Math.abs(r-0.25)<0.02)return"f / 4"; if(Math.abs(r-0.3333)<0.02)return"f / 3";
+      if(Math.abs(r-0.5)<0.03)return"f / 2"; if(Math.abs(r-1.0)<0.05)return"f";
+      return r.toFixed(2)+" f"; }
+    case KIND.THROAT:{ const pc=(v-0.5)*70; return (pc>=0?"+":"")+pc.toFixed(0)+" %"; }
+    default: return Math.round(v*100)+" %";
+  }
+}
+
+function say(main,sub){
+  $("#lcdmain").textContent=main;
+  if(sub!==undefined) $("#lcdsub").textContent=sub;
+}
+
+function setParam(id,v){
+  const hi=(META[id]&&META[id].kind===KIND.OS)?2:1;
+  v=clamp(v,0,hi);
+  V[id]=v;
+  NB.send({k:"p",id,v});
+  refresh(id);
+  say((META[id]?META[id].name:id)+"   "+fmt(id,v));
+}
+function refresh(id){ for(const k of KNOBS) if(k.id===id) k.update(); }
+
+/* ═══════════ 2 · widgets ═══════════ */
+function knob(parent,id,label,big){
+  const box=el("div","kn"+(big?" big":""),parent);
+  const cap=el("div","cap",box);
+  const ring=el("div","ring",cap);
+  const body=el("div","body",cap);
+  const ptr=el("div","ptr",body);
+  const lb=el("div","lb",box); lb.textContent=label;
+  const vl=el("div","vl",box);
+  const range=()=> (META[id]&&META[id].kind===KIND.OS)?2:1;
+  const update=()=>{
+    const t=clamp((V[id]||0)/range(),0,1);
+    ring.style.setProperty("--arc",(t*270)+"deg");
+    ptr.style.setProperty("--rot",(t*270-135)+"deg");
+    vl.textContent=fmt(id,V[id]||0);
+  };
+  let sy=0,sv=0,drag=false;
+  box.addEventListener("pointerdown",e=>{ drag=true; sy=e.clientY; sv=V[id]||0;
+    box.setPointerCapture(e.pointerId); });
+  box.addEventListener("pointermove",e=>{ if(!drag)return;
+    const fine=e.shiftKey?0.25:1;
+    setParam(id, sv + (sy-e.clientY)/170*range()*fine); });
+  const stop=()=>{ drag=false; };
+  box.addEventListener("pointerup",stop); box.addEventListener("pointercancel",stop);
+  box.addEventListener("dblclick",()=> setParam(id, DEF[id]!==undefined?DEF[id]:0.5));
+  box.addEventListener("wheel",e=>{ e.preventDefault();
+    setParam(id,(V[id]||0)+(e.deltaY<0?1:-1)*0.02*range()); },{passive:false});
+  KNOBS.push({id,update});
+  return box;
+}
+
+function rocker(parent,id,label){
+  const box=el("div","rk",parent);
+  const well=el("div","well",box);
+  el("div","paddle",well); el("div","dot",well);
+  const lb=el("div","lb",box); lb.textContent=label;
+  const update=()=> box.classList.toggle("on",(V[id]||0)>=0.5);
+  box.addEventListener("click",()=> setParam(id,(V[id]||0)>=0.5?0:1));
+  KNOBS.push({id,update});
+  return box;
+}
+
+function osSwitch(parent,id){
+  const box=el("div","osrow",parent);
+  const lb=el("div","lb",box); lb.textContent="OVERSAMPLE";
+  const btns=el("div","osbtns",box);
+  const bs=[];
+  ["1x","2x","4x"].forEach((t,i)=>{
+    const b=el("div","osb",btns); b.textContent=t;
+    b.addEventListener("click",()=> setParam(id,i));
+    bs.push(b);
+  });
+  const update=()=>{ const i=Math.round(clamp(V[id]||0,0,2));
+    bs.forEach((b,j)=> b.classList.toggle("lit",j===i)); };
+  KNOBS.push({id,update});
+  return box;
+}
+
+function panel(parent,title,sub){
+  const p=el("div","panel",parent);
+  const h=el("h2",null,p); h.textContent=title;
+  if(sub){ const s=el("span","sub",h); s.textContent=sub; }
+  return p;
+}
+
+/* ═══════════ 3 · the fascia ═══════════ */
+function build(){
+  const L=$("#colL"), C=$("#colC"), R=$("#colR");
+
+  // ---- PREP ----
+  {
+    const p=panel(L,"PREP","before anything is cooked");
+    const r1=el("div","krow",p);
+    rocker(r1,"gateon","GATE");
+    knob(r1,"gatethr","THRESH"); knob(r1,"gateatt","ATTACK");
+    knob(r1,"gatehold","HOLD"); knob(r1,"gaterel","RELEASE");
+    const r2=el("div","krow",p); r2.style.marginTop="6px";
+    knob(r2,"hpf","LOW CUT");
+    rocker(r2,"dson","DE-ESS");
+    knob(r2,"dsfrq","ESS FREQ"); knob(r2,"dsamt","ESS AMT");
+  }
+  // ---- PRESSURE ----
+  {
+    const p=panel(L,"PRESSURE","compressor & limiter");
+    const r1=el("div","krow",p);
+    rocker(r1,"compon","COMP");
+    knob(r1,"cthr","THRESH"); knob(r1,"cratio","RATIO");
+    knob(r1,"catt","ATTACK"); knob(r1,"crel","RELEASE");
+    const r2=el("div","krow",p); r2.style.marginTop="6px";
+    knob(r2,"cknee","KNEE"); knob(r2,"cmake","MAKEUP");
+    rocker(r2,"cauto","AUTO");
+    const r3=el("div","krow",p); r3.style.marginTop="6px";
+    rocker(r3,"limon","LIMIT");
+    knob(r3,"limceil","CEILING"); knob(r3,"limrel","REL");
+    // meters
+    const mw=el("div","krow",p); mw.style.marginTop="8px"; mw.id="meters";
+    const mk=(lab,gr)=>{ const v=el("div","vm"+(gr?" gr":""),mw);
+      const w=el("div","well",v); el("div","bar",w);
+      const l=el("div","lb",v); l.textContent=lab; return v; };
+    mk("IN"); mk("GATE",1); mk("ESS",1); mk("COMP",1); mk("LIM",1); mk("OUT");
+  }
+
+  // ---- THE BASKET ----
+  {
+    const p=panel(C,"THE BASKET","the part that should not be possible");
+    const win=el("div",null,p); win.id="basketwin";
+    const can=el("canvas",null,win); can.id="bcan"; can.width=640; can.height=150;
+    const r1=el("div","krow",p);
+    rocker(r1,"engon","FRYER");
+    knob(r1,"blend","BLEND",true);
+    knob(r1,"crisp","CRISP");
+    rocker(r1,"match","MATCH");
+    knob(r1,"ingain","INPUT"); knob(r1,"outgain","OUTPUT"); knob(r1,"mix","MIX");
+
+    const mkRack=(pre,cls,name,tag)=>{
+      const rk=el("div","rack "+cls,p);
+      const h=el("h2",null,rk); h.textContent=name;
+      const md=el("span","mode",h); md.id=pre+"mode"; md.textContent="P1";
+      const t=el("span","sub",h); t.textContent=tag; t.style.marginLeft="10px"; t.style.color="#9a7a44"; t.style.fontSize="8px";
+      const r=el("div","krow",rk);
+      knob(r,pre+"level","LEVEL",true);
+      knob(r,pre+"chaos","CHAOS",true);
+      knob(r,pre+"grip","GRIP");
+      knob(r,pre+"jit","JITTER");
+      knob(r,pre+"rasp","RASP");
+      knob(r,pre+"tone","TONE");
+      knob(r,pre+"fold","FOLD");
+      knob(r,pre+"split","SPLIT");
+      knob(r,pre+"ratio","RATIO");
+      knob(r,pre+"throat","THROAT");
+    };
+    mkRack("a","rackA","RACK A","the growl underneath");
+    mkRack("b","rackB","RACK B","the second throat");
+  }
+
+  // ---- HEAT ----
+  {
+    const p=panel(R,"HEAT","tube warmth & sparkle");
+    const r1=el("div","krow",p);
+    knob(r1,"drive","DRIVE",true);
+    knob(r1,"tube","TUBE"); knob(r1,"sparkle","SPARKLE");
+    osSwitch(r1,"os");
+  }
+  // ---- SEASONING ----
+  {
+    const p=panel(R,"SEASONING","four-band equaliser");
+    rocker(el("div","krow",p),"eqon","EQ");
+    const r1=el("div","krow",p); r1.style.marginTop="4px";
+    knob(r1,"lof","LOW F"); knob(r1,"log","LOW G");
+    knob(r1,"hif","HIGH F"); knob(r1,"hig","HIGH G");
+    const r2=el("div","krow",p); r2.style.marginTop="6px";
+    knob(r2,"p1f","MID1 F"); knob(r2,"p1g","MID1 G"); knob(r2,"p1q","MID1 Q");
+    const r3=el("div","krow",p); r3.style.marginTop="6px";
+    knob(r3,"p2f","MID2 F"); knob(r3,"p2g","MID2 G"); knob(r3,"p2q","MID2 Q");
+  }
+  // ---- plaque ----
+  {
+    const p=panel(R,"SERVING SUGGESTION");
+    const t=el("div",null,p);
+    t.style.cssText="font-size:10px;line-height:1.55;color:#6b5124;letter-spacing:.4px";
+    t.innerHTML="Sing <b>loud, clean and supported</b> into the fryer &mdash; it wrecks "+
+      "the source of your voice and keeps the vowels. CHAOS walks from clean "+
+      "through a doubled rasp to the guttural window to fry. THROAT resizes "+
+      "you. Do not whisper at it; it wants pressure.<br><br>"+
+      "<span style='font-size:9px;color:#96794a'>Serves 1&ndash;2 vocal chains &middot; "+
+      "approx. "+"</span><span id='latms' style='font-size:9px;color:#96794a'></span>";
+  }
+
+  // ---- programmes ----
+  const pg=$("#progs");
+  for(let i=0;i<9;i++){
+    const b=el("div","prog",pg); b.dataset.i=i; b.textContent="P"+(i+1);
+    b.addEventListener("click",()=>{
+      NB.send({k:"recipe",i});
+      [...pg.children].forEach(c=>c.classList.toggle("lit",c===b));
+    });
+  }
+
+  // ---- header buttons ----
+  document.querySelectorAll(".hbtn").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const a=b.dataset.act;
+      if(a==="save")   NB.send({k:"save"});
+      else if(a==="open")   NB.send({k:"open"});
+      else if(a==="random") NB.send({k:"random"});
+      else if(a==="panic")  NB.send({k:"panic"});
+      else if(a==="presets") openPresetMenu(b);
+    });
+  });
+}
+
+/* ═══════════ 4 · preset flyout ═══════════ */
+let presetTree=null;
+function openPresetMenu(anchor){
+  NB.send({k:"presetScan"});
+  const m=$("#pmenu");
+  const r=anchor.getBoundingClientRect();
+  m.style.left=Math.min(innerWidth-260,r.left)+"px";
+  m.style.top=(r.bottom+6)+"px";
+  m.style.display="block";
+  renderPresetMenu();
+  const close=e=>{ if(!m.contains(e.target)){ m.style.display="none";
+    document.removeEventListener("pointerdown",close,true);} };
+  setTimeout(()=>document.addEventListener("pointerdown",close,true),0);
+}
+function renderPresetMenu(){
+  const m=$("#pmenu"); m.innerHTML="";
+  const add=(items,depth)=>{
+    for(const it of items){
+      if(it.d){ const d=el("div","dir",m); d.textContent=it.n.toUpperCase();
+        add(it.i,depth+1); }
+      else{ const b=el("div","it",m); b.textContent=it.n;
+        b.style.paddingLeft=(10+depth*14)+"px";
+        b.addEventListener("click",()=>{ NB.send({k:"presetLoad",path:it.p});
+          m.style.display="none"; }); }
+    }
+  };
+  if(presetTree && presetTree.items && presetTree.items.length) add(presetTree.items,0);
+  else { const n=el("div","none",m); n.textContent="no presets saved yet"; }
+  const act=el("div","act",m);
+  const pick=el("div","it",act); pick.textContent="choose preset folder…";
+  pick.addEventListener("click",()=>{ NB.send({k:"presetFolder"}); });
+  m.appendChild(act);
+}
+
+/* ═══════════ 5 · the basket window ═══════════ */
+const NOTES=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+function noteName(f){
+  if(!(f>20)) return "--";
+  const n=Math.round(12*Math.log2(f/440)+69);
+  return NOTES[((n%12)+12)%12]+(Math.floor(n/12)-1);
+}
+function drawBasket(){
+  const can=$("#bcan"); if(!can) return;
+  const g=can.getContext("2d");
+  const W=can.width,H=can.height;
+  g.clearRect(0,0,W,H);
+  g.fillStyle="#120d04"; g.fillRect(0,0,W,H);
+
+  // faint grid
+  g.strokeStyle="rgba(255,180,70,.07)"; g.lineWidth=1;
+  for(let y=0;y<5;y++){ g.beginPath(); g.moveTo(8,20+y*26); g.lineTo(W-8,20+y*26); g.stroke(); }
+
+  const bars=(arr,y0,h,col,glow)=>{
+    const n=arr.length||1, bw=(W-190)/n;
+    for(let i=0;i<n;i++){
+      const v=clamp(arr[i]||0,0,1.2);
+      const bh=v*h;
+      g.fillStyle=col;
+      g.shadowColor=glow; g.shadowBlur=6;
+      g.fillRect(10+i*bw, y0+h-bh, Math.max(2,bw-2), bh);
+    }
+    g.shadowBlur=0;
+  };
+  bars(M.ga,12,56,"#f0a232","rgba(255,170,50,.6)");
+  bars(M.gb,80,56,"#e0602a","rgba(230,90,40,.6)");
+
+  // right block: readouts
+  const rx=W-172;
+  g.fillStyle="rgba(255,190,80,.12)"; g.fillRect(rx,10,162,H-20);
+  g.font="bold 11px Consolas,monospace";
+  g.fillStyle="#a97f2e";
+  g.fillText("NOTE",rx+12,30); g.fillText("PITCH",rx+12,56);
+  g.fillText("PATTERN A",rx+12,86); g.fillText("PATTERN B",rx+12,112);
+  g.fillText("MATCH",rx+12,138);
+  g.font="bold 15px Consolas,monospace";
+  g.fillStyle="#ffb733"; g.shadowColor="rgba(255,170,40,.6)"; g.shadowBlur=7;
+  g.fillText(noteName(M.f0),rx+92,31);
+  g.fillText(M.f0>20?M.f0.toFixed(0)+" Hz":"--",rx+92,57);
+  const pat=o=> o===0?"CHAOS":(o===1?"STEADY":"PERIOD "+o);
+  g.font="bold 12px Consolas,monospace";
+  g.fillStyle=M.oa===0?"#ff7a3a":"#ffb733";
+  g.fillText(pat(M.oa),rx+92,87);
+  g.fillStyle=M.ob===0?"#ff7a3a":"#ffb733";
+  g.fillText(pat(M.ob),rx+92,113);
+  g.fillStyle="#ffb733";
+  g.fillText((M.mdb>=0?"+":"")+M.mdb.toFixed(1)+" dB",rx+92,139);
+  g.shadowBlur=0;
+
+  // voiced lamp
+  g.beginPath(); g.arc(rx+150,26,5,0,7);
+  g.fillStyle=M.cl>0.5?"#7ee24a":"#3a2f14";
+  if(M.cl>0.5){ g.shadowColor="rgba(140,230,80,.8)"; g.shadowBlur=8; }
+  g.fill(); g.shadowBlur=0;
+}
+
+function drawMeters(){
+  const vms=document.querySelectorAll("#meters .vm");
+  if(vms.length<6) return;
+  const set=(i,frac)=>{ vms[i].querySelector(".bar").style.height=(clamp(frac,0,1)*100)+"%"; };
+  const dbFrac=v=> clamp((20*Math.log10(Math.max(1e-5,v))+60)/60,0,1);
+  set(0,dbFrac(M.in));
+  set(1,clamp(M.ggr*1.6,0,1));
+  set(2,clamp(M.dgr*2.2,0,1));
+  set(3,clamp(M.cgr/18,0,1));
+  set(4,clamp(M.lgr*2.2,0,1));
+  set(5,dbFrac(M.out));
+}
+
+/* ═══════════ 6 · light ═══════════ */
+function applyLight(){
+  const k=(+$("#uiLight").value)/100;
+  const f=$("#fit");
+  const fl=document.querySelector("#f-lift feComponentTransfer");
+  if(k<=0.001){ f.style.filter=""; return; }
+  const ex=(1/(1+1.15*k)).toFixed(4), off=(0.045*k).toFixed(4);
+  fl.querySelectorAll("feFuncR,feFuncG,feFuncB").forEach(fn=>{
+    fn.setAttribute("exponent",ex); fn.setAttribute("offset",off); });
+  f.style.filter="url(#f-lift) saturate("+(1+0.12*k).toFixed(3)+")";
+  try{ localStorage.setItem("hairfryer.light",String(k)); }catch(e){}
+}
+
+/* ═══════════ 7 · wiring ═══════════ */
+NB.on("initialState",st=>{
+  for(const p of (st.params||[])){
+    V[p.id]=p.v; DEF[p.id]=p.def;
+    META[p.id]={kind:p.kind,flo:p.flo,fhi:p.fhi,name:p.n};
+  }
+  RECIPES=st.recipes||[]; BLURBS=st.blurbs||[];
+  BUILD=st.build||"dev"; LATENCY=st.latency||0;
+  const pg=$("#progs");
+  [...pg.children].forEach((b,i)=>{
+    b.textContent=RECIPES[i]||("P"+(i+1));
+    b.title=BLURBS[i]||"";
+  });
+  for(const k of KNOBS) k.update();
+  const lat=$("#latms"); if(lat) lat.textContent=(LATENCY/48000*1000).toFixed(1)+" ms latency at 48 k";
+  say("HAIRFRYER READY · BUILD "+BUILD,"pick a programme, or cook your own");
+  NB.send({k:"ack"});
+  NB.send({k:"ready"});
+  NB.send({k:"presetScan"});
+});
+
+NB.on("hostParam",msg=>{
+  for(const p of (msg.p||[])){ V[p.id]=p.v; refresh(p.id); }
+});
+
+NB.on("meter",m=>{ M=m;
+  const pat=o=> o===0?"CHAOS":(o===1?"STEADY":"P"+o);
+  const am=$("#amode"), bm=$("#bmode");
+  if(am) am.textContent=pat(M.oa);
+  if(bm) bm.textContent=pat(M.ob);
+});
+
+NB.on("notice",n=>{ say(n.msg||""); });
+
+NB.on("presetTree",t=>{ presetTree=t;
+  if($("#pmenu").style.display==="block") renderPresetMenu(); });
+
+/* ═══════════ 8 · boot ═══════════ */
+function fitDeck(){
+  const d=$("#deck");
+  // fit BOTH ways: the fascia is taller than most plugin windows
+  d.style.transform="scale(1)";
+  const h=d.scrollHeight||1200;
+  const s=Math.min(1,(innerWidth-20)/1300,(innerHeight-8)/h);
+  d.style.transform="scale("+s+")";
+}
+addEventListener("resize",fitDeck);
+
+build();
+fitDeck();
+NB.send({k:"hello"});   // ask for state: covers reloads the editor never sees
+$("#uiLight").addEventListener("input",applyLight);
+try{ const k=parseFloat(localStorage.getItem("hairfryer.light")||"0");
+  if(k>0){ $("#uiLight").value=Math.round(k*100); applyLight(); } }catch(e){}
+
+(function frame(){
+  drawBasket();
+  drawMeters();
+  requestAnimationFrame(frame);
+})();
+
+// If the plugin never answers (opened in a plain browser), demo values so
+// the fascia is at least inspectable.
+setTimeout(()=>{
+  if(Object.keys(META).length===0){
+    say("NO KITCHEN DETECTED","this page belongs inside the Hairfryer plugin");
+  }
+},1500);
+</script>
+</body></html>

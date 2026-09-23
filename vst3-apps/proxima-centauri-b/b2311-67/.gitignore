@@ -1,0 +1,23 @@
+# Build output. This MUST be here before the first `git add`: build/ is 770 MB
+# and test/build/ another 19 MB, and anything added once stays in history for
+# good, however thoroughly it is deleted afterwards.
+build/
+test/build/
+
+# Generated, and regenerable: probe renders and panel captures.
+aud/
+shots/
+
+# Loose artefacts from the SAC hash-nudge dance and from bench runs.
+*.exe
+*.wav
+*.old*
+q.exe
+w.exe
+
+# Editors and the OS
+.vs/
+.vscode/
+*.user
+Thumbs.db
+desktop.ini

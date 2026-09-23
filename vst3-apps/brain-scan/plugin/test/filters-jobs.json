@@ -1,0 +1,16 @@
+[
+  { "wait": 2600 },
+  { "eval": "__BS.CAM.spin=false; 'err ' + JSON.stringify(window.__err) + ' | params ' + Object.keys(__BS.P).length + ' | circuit ' + (__BS.P.fmodel ? __BS.P.fmodel.list.join('/') : 'MISSING') + ' | filter module h ' + Math.round(document.querySelector('#console .mod:nth-child(3)').getBoundingClientRect().height) + ' of column ' + Math.round(document.querySelector('#console').getBoundingClientRect().height)" },
+  { "shoot": { "sel": "#console .mod:nth-child(3)", "out": "shots/m-filter.png", "pad": 3, "scale": 3 } },
+  { "eval": "__BS.setParam('fmodel', 2/3); __BS.setParam('ftype', 0); __BS.setParam('reso', 0.9); __BS.setParam('cutoff', 0.5); __BS.NB.send({k:'note', n:45, on:true, vel:0.9}); 'SCREAM low, resonance 0.9, A2'" },
+  { "wait": 900 },
+  { "eval": "'sounding: lvl ' + __BS.VIEW.lvl.toFixed(4) + ' | cutoff readout ' + document.getElementById('vCut').textContent + ' | band dim ' + document.querySelectorAll('#console .mod:nth-child(3) .seg')[0].querySelectorAll('button')[1].classList.contains('dim')" },
+  { "shoot": { "sel": "#console .mod:nth-child(3)", "out": "shots/m-filter-scream.png", "pad": 3, "scale": 3 } },
+  { "eval": "__BS.NB.send({k:'note', n:45, on:false}); __BS.setParam('fmodel', 1); __BS.setParam('ftype', 2/3); __BS.NB.send({k:'note', n:45, on:true, vel:0.9}); 'LADDER high'" },
+  { "wait": 700 },
+  { "eval": "'sounding: lvl ' + __BS.VIEW.lvl.toFixed(4) + ' | err ' + JSON.stringify(window.__err)" },
+  { "eval": "__BS.NB.send({k:'note', n:45, on:false}); __BS.setParam('fmodel', 0); __BS.setParam('ftype', 0); __BS.setParam('reso', 0.2); __BS.setParam('cutoff', 0.7); 'restored SVF low'" },
+  { "wait": 500 },
+  { "shoot": { "sel": null, "out": "shots/panel-filters.png", "scale": 2 } },
+  { "eval": "'final err ' + JSON.stringify(window.__err)" }
+]

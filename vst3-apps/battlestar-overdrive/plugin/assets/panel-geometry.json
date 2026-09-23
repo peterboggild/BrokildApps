@@ -1,0 +1,68 @@
+{
+  "_note": "Single source of truth for where everything sits on the panel decal. All coordinates are in PANEL PIXELS (1536 x 1024, exactly 3:2). The UI works in fractions of these, so the deck can be any size. Measured with tools/find-features.ps1 and tools/profile-sheets.ps1, then verified by compositing (tools/composite-test.ps1) and looking at the result - an image generator hits no exact coordinate, so the art is fitted to this table, never the other way round.",
+
+  "panel": { "w": 1536, "h": 1024 },
+
+  "screen": {
+    "_note": "The dark CRT glass inside the chrome bezel. Miniature visuals are drawn here.",
+    "x": 421, "y": 244, "w": 682, "h": 494
+  },
+
+  "knobDiameter": 120,
+  "knobSweepDeg": 270,
+
+  "pots": [
+    { "id": "mix",        "label": "Mix",        "x": 264,  "y": 326, "sheetIndex": 0 },
+    { "id": "thrust",     "label": "Thrust",     "x": 264,  "y": 517, "sheetIndex": 3 },
+    { "id": "antithrust", "label": "Antithrust", "x": 264,  "y": 708, "sheetIndex": 1 },
+    { "id": "engine",     "label": "Engine",     "x": 1252, "y": 326, "sheetIndex": 2 },
+    { "id": "space",      "label": "Space",      "x": 1252, "y": 517, "sheetIndex": 5 },
+    { "id": "spectrum",   "label": "Spectrum",   "x": 1252, "y": 708, "sheetIndex": 4 }
+  ],
+
+  "fuelGlass": {
+    "_note": "The glass barrel between the two chrome collars. A fuel decal is drawn to fill exactly this box, replacing the panel's own glass.",
+    "x": 500, "y": 793, "w": 376, "h": 96
+  },
+
+  "button": {
+    "_note": "The Autorefill hole inside the octagonal nut. The red cap decal is drawn centred here.",
+    "cx": 1041, "cy": 837, "d": 58
+  },
+
+  "sheets": {
+    "knobChrome": {
+      "file": "knob-chrome-sheet.png",
+      "_note": "Steel bezel. parts[] are tight alpha boxes measured from the sheet.",
+      "parts": [
+        { "x": 126,  "y": 29,  "w": 340, "h": 346 },
+        { "x": 595,  "y": 27,  "w": 343, "h": 348 },
+        { "x": 1067, "y": 27,  "w": 341, "h": 348 },
+        { "x": 124,  "y": 425, "w": 343, "h": 349 },
+        { "x": 595,  "y": 425, "w": 344, "h": 348 },
+        { "x": 1067, "y": 426, "w": 343, "h": 349 }
+      ],
+      "button": { "x": 683, "y": 817, "w": 170, "h": 170 }
+    },
+    "knobOrange": {
+      "file": "knob-orange-sheet.png",
+      "_note": "Painted orange bezel, no metal ring. Kept as a full alternative set.",
+      "parts": [
+        { "x": 124,  "y": 29,  "w": 347, "h": 346 },
+        { "x": 589,  "y": 27,  "w": 355, "h": 349 },
+        { "x": 1062, "y": 27,  "w": 352, "h": 348 },
+        { "x": 118,  "y": 419, "w": 355, "h": 356 },
+        { "x": 589,  "y": 419, "w": 356, "h": 355 },
+        { "x": 1062, "y": 419, "w": 355, "h": 355 }
+      ],
+      "button": { "x": 678, "y": 802, "w": 180, "h": 182 }
+    },
+    "fuel": {
+      "file": "fuel-sheet.png",
+      "_note": "15 levels, index 0 = full, 14 = empty. Uniform grid, measured by profile.",
+      "cols": [43, 586, 1129],
+      "rows": [77, 237, 397, 558, 717],
+      "w": 504, "h": 110
+    }
+  }
+}

@@ -1,0 +1,111 @@
+﻿manual has 18 pages
+target: 1984 — Owner&#39;s Handbook
+  room to scroll the last page to the top
+     spacer added
+  pages found
+     18 pages in the DOM, 18 counted in the source
+  plates: how many are shot yet
+     9 of 9 images loaded (the layout must hold with NONE of them)
+  no scroll bar / exact page width
+     page width 1122.5 in window 1147
+  OVERFLOW: nothing may fall off its own page
+     clean - every element fits its page
+  FOLIO: nothing may overlap the page-number strip
+     clean - folios are clear
+  SLACK: mm left inside .pad on each page (negative = overrun)
+     2:24  3:22  4:11  5:16  6:25  7:5  8:41  9:28  10:8  11:9  12:13  13:12  14:6  15:29  16:11  17:9  18:33
+  FOLIO NUMBERS: 02..N, in order, none missing
+     clean - 17 folios, numbered in order
+  PLATES: a missing picture must not collapse its slot
+     clean - 8 plate slots hold their height with no image
+  scroll to page 1
+     top 0
+  page 1
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p01.png
+  scroll to page 2
+     top 794
+  page 2
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p02.png
+  scroll to page 3
+     top 1587
+  page 3
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p03.png
+  scroll to page 4
+     top 2381
+  page 4
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p04.png
+  scroll to page 5
+     top 3175
+  page 5
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p05.png
+  scroll to page 6
+     top 3968
+  page 6
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p06.png
+  scroll to page 7
+     top 4762
+  page 7
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p07.png
+  scroll to page 8
+     top 5556
+  page 8
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p08.png
+  scroll to page 9
+     top 6350
+  page 9
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p09.png
+  scroll to page 10
+     top 7143
+  page 10
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p10.png
+  scroll to page 11
+     top 7937
+  page 11
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p11.png
+  scroll to page 12
+     top 8731
+  page 12
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p12.png
+  scroll to page 13
+     top 9524
+  page 13
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p13.png
+  scroll to page 14
+     top 10318
+  page 14
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p14.png
+  scroll to page 15
+     top 11112
+  page 15
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p15.png
+  scroll to page 16
+     top 11905
+  page 16
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p16.png
+  scroll to page 17
+     top 12699
+  page 17
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p17.png
+  scroll to page 18
+     top 13493
+  page 18
+     C:/Users/peter/b/Nineteen84/docs/manual/pages/p18.png
+
+  p01.png      361 KB
+  p02.png      225 KB
+  p03.png       88 KB
+  p04.png      169 KB
+  p05.png      128 KB
+  p06.png       75 KB
+  p07.png      152 KB
+  p08.png      108 KB
+  p09.png      111 KB
+  p10.png      136 KB
+  p11.png      121 KB
+  p12.png       89 KB
+  p13.png       98 KB
+  p14.png      206 KB
+  p15.png      236 KB
+  p16.png       92 KB
+  p17.png      138 KB
+  p18.png      122 KB

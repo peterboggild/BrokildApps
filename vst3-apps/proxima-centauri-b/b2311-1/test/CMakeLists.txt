@@ -1,0 +1,33 @@
+cmake_minimum_required(VERSION 3.22)
+project(AB1Bench CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(ab1test bench.cpp ../Source/Engine.cpp)
+if(MSVC)
+    target_compile_definitions(ab1test PRIVATE _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(ab1test PRIVATE /O2 /fp:precise)
+    # the bench holds engines on the stack; give it room
+    target_link_options(ab1test PRIVATE /STACK:67108864)
+endif()
+
+add_executable(ab1regime regime.cpp ../Source/Engine.cpp)
+if(MSVC)
+    target_compile_definitions(ab1regime PRIVATE _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(ab1regime PRIVATE /O2 /fp:precise)
+    target_link_options(ab1regime PRIVATE /STACK:67108864)
+endif()
+
+add_executable(ab1render render.cpp ../Source/Engine.cpp)
+if(MSVC)
+    target_compile_definitions(ab1render PRIVATE _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(ab1render PRIVATE /O2 /fp:precise)
+    target_link_options(ab1render PRIVATE /STACK:67108864)
+endif()
+
+add_executable(ab1colour colour.cpp ../Source/Engine.cpp legacy/EngineLegacy.cpp)
+if(MSVC)
+    target_compile_definitions(ab1colour PRIVATE _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(ab1colour PRIVATE /O2 /fp:precise)
+    target_link_options(ab1colour PRIVATE /STACK:67108864)
+endif()

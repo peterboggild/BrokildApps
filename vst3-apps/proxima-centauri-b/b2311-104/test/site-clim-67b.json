@@ -1,0 +1,6 @@
+[
+  {"wait": 600},
+  {"eval": "document.querySelector('#bSite').click(); 'overlay on: ' + document.querySelector('#site').classList.contains('on') + ' status=' + document.querySelector('#siteStatus').textContent"},
+  {"eval": "'67 final: bench=' + Math.round(SITE.kelvin) + ' local=' + Math.round(SITE.local) + ' tVal=' + document.querySelector('#tVal').textContent + ' distance=' + SITE.distance + ' rSite=[' + document.querySelector('#rSite').textContent + '] tau=' + document.querySelector('#rTau').textContent"},
+  {"eval": "document.querySelector('#siteclose').click(); 'closed: ' + !document.querySelector('#site').classList.contains('on')"}
+]

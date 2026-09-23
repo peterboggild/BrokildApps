@@ -1,0 +1,59 @@
+[
+  { "name": "catch every error from the very first line, on every document",
+    "cmd": "Page.addScriptToEvaluateOnNewDocument",
+    "params": { "source": "window.__err=[];addEventListener('error',function(e){window.__err.push((e.message||'')+' @ '+(e.filename||''))},true);addEventListener('unhandledrejection',function(e){window.__err.push('promise: '+e.reason)});" } },
+
+  { "name": "--- THE FRONT PAGE, over http (it builds its cards from JSON at runtime)",
+    "cmd": "Page.navigate", "params": { "url": "http://127.0.0.1:8099/index.html" } },
+  { "name": "let the manifest and every app.json land", "wait": 3500 },
+
+  { "name": "the Thin Walls card is there, and what it says",
+    "eval": "(function(){var c=[].slice.call(document.querySelectorAll('.card')).filter(function(a){return /Thin Walls/.test(a.textContent)});if(!c.length)return 'CARD MISSING';var k=c[0];var h=k.querySelector('h3');var a=k.querySelector('a[href]');return 'cards with the name: '+c.length+'  |  h3: '+(h?h.textContent.trim():'none')+'  |  href: '+(a?a.getAttribute('href'):'none');})()" },
+
+  { "name": "it is tagged VST3 and Effect (measured on the CARD, not on a link inside it)",
+    "eval": "(function(){var c=[].slice.call(document.querySelectorAll('.card')).filter(function(a){return /Thin Walls/.test(a.textContent)})[0];if(!c)return 'CARD MISSING';var t=c.textContent.replace(/\\s+/g,' ');var vst=/VST3/.test(t), fx=/Effect/.test(t);return (vst&&fx?'TAGGED ':'NOT TAGGED ')+'vst3='+vst+' effect='+fx;})()" },
+
+  { "name": "its preview loaded (and is not a broken image)",
+    "eval": "(function(){var c=[].slice.call(document.querySelectorAll('.card')).filter(function(a){return /Thin Walls/.test(a.textContent)})[0];if(!c)return 'CARD MISSING';var i=c.querySelector('img');if(!i)return 'NO IMG';return (i.complete&&i.naturalWidth>0?'loaded ':'BROKEN ')+i.naturalWidth+'x'+i.naturalHeight+'  '+i.getAttribute('src');})()" },
+
+  { "name": "the card's description is the one from app.json, and its length",
+    "eval": "(function(){var c=[].slice.call(document.querySelectorAll('.card')).filter(function(a){return /Thin Walls/.test(a.textContent)})[0];var p=c.querySelector('p');var t=p?p.textContent.trim():'';return t.split(/\\s+/).length+' words, starts: '+t.slice(0,60);})()" },
+
+  { "name": "nothing on the front page still says nine, or the old counts",
+    "eval": "(function(){var t=document.body.textContent;var bad=[];['four materials','47 param','11 % of a core'].forEach(function(w){if(t.indexOf(w)>=0)bad.push(w)});return bad.length?('STALE: '+bad.join(', ')):'clean';})()" },
+
+  { "name": "the card link, the zip and the PDF all answer 200",
+    "eval": "(async function(){var u=['vst3-apps/thin-walls/index.html','vst3-apps/thin-walls/Thin-Walls-VST3-win64.zip','vst3-apps/thin-walls/Thin-Walls-Manual.pdf','assets/app-previews/thin-walls.jpg'];var out=[];for(var i=0;i<u.length;i++){try{var r=await fetch(u[i],{method:'GET'});out.push(u[i].split('/').pop()+' '+r.status+' ('+((await r.blob()).size/1048576).toFixed(2)+' MB)');}catch(e){out.push(u[i]+' THREW '+e.message);}}return out.join('   |   ');})()" },
+
+  { "name": "front page JS errors (must be [])", "eval": "JSON.stringify(window.__err||[])" },
+
+  { "name": "--- THE LANDING PAGE",
+    "cmd": "Page.navigate", "params": { "url": "http://127.0.0.1:8099/vst3-apps/thin-walls/index.html" } },
+  { "name": "let it load", "wait": 2500 },
+
+  { "name": "the h1, read back as RENDERED",
+    "eval": "document.querySelector('h1').textContent.trim() + '   |   tagline: ' + document.querySelector('.tagline').textContent.trim()" },
+
+  { "name": "every image has pixels",
+    "eval": "(function(){var a=[].slice.call(document.images);var bad=a.filter(function(i){return !(i.complete&&i.naturalWidth>0)}).map(function(i){return i.getAttribute('src')});return a.length+' images, '+(bad.length?('BROKEN: '+bad.join(', ')):'all loaded');})()" },
+
+  { "name": "the counts on the page are the current ones",
+    "eval": "(function(){var t=document.body.textContent.replace(/\\s+/g,' ');var want=['17 pages','90 checks','65','17 %','STUDIO','2.5 m'];var bad=['14 pages','67 checks','47, all automatable','11 %','four grades'];var a=want.filter(function(w){return t.indexOf(w)<0});var b=bad.filter(function(w){return t.indexOf(w)>=0});return 'missing: '+(a.length?a.join(', '):'none')+'   |   stale: '+(b.length?b.join(', '):'none');})()" },
+
+  { "name": "the two download buttons carry the measured size",
+    "eval": "[].slice.call(document.querySelectorAll('a[href$=\"win64.zip\"]')).map(function(a){return a.textContent.replace(/\\s+/g,' ').trim()}).join('  ||  ')" },
+
+  { "name": "every stablemate link and both downloads resolve",
+    "eval": "(async function(){var a=[].slice.call(document.querySelectorAll('a[href]')).map(function(x){return x.getAttribute('href')}).filter(function(h){return h && h.indexOf('http')!==0 && h.indexOf('#')!==0});var seen={},out=[];for(var i=0;i<a.length;i++){if(seen[a[i]])continue;seen[a[i]]=1;try{var r=await fetch(a[i],{method:'GET'});if(r.status!==200)out.push(a[i]+' -> '+r.status);}catch(e){out.push(a[i]+' THREW');}}return Object.keys(seen).length+' distinct links, '+(out.length?('BROKEN: '+out.join(', ')):'all 200');})()" },
+
+  { "name": "landing page JS errors (must be [])", "eval": "JSON.stringify(window.__err||[])" },
+
+  { "name": "--- a real 390 px phone viewport (media queries key off the VIEWPORT)",
+    "cmd": "Emulation.setDeviceMetricsOverride",
+    "params": { "width": 390, "height": 844, "deviceScaleFactor": 2, "mobile": true } },
+  { "name": "let it reflow", "wait": 1200 },
+  { "name": "nothing overflows and there is no sideways scroll",
+    "eval": "(function(){var w=document.documentElement.clientWidth;var over=[];document.querySelectorAll('body *').forEach(function(e){var r=e.getBoundingClientRect();if(r.width===0||r.height===0)return;if(r.right>w+1.5||r.left<-1.5)over.push(e.tagName.toLowerCase()+'.'+String(e.className||'').split(' ')[0]+' ('+Math.round(r.left)+'..'+Math.round(r.right)+')');});return 'viewport '+w+'  scrollWidth '+document.documentElement.scrollWidth+'  h1 '+getComputedStyle(document.querySelector('h1')).fontSize+'  |  '+(over.length?('OVERFLOWS: '+over.slice(0,6).join(', ')+(over.length>6?(' +'+(over.length-6)+' more'):'')):'nothing overflows');})()" },
+  { "name": "phone shot", "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\verify-390.png" },
+  { "name": "clear the override", "cmd": "Emulation.clearDeviceMetricsOverride", "params": {} }
+]

@@ -1,0 +1,13 @@
+[
+  { "wait": 2600 },
+  { "eval": "__BS.CAM.spin=false; __BS.CAM.yaw=0.72; __BS.CAM.pitch=0.38; __BS.NB.send({k:'p', id:'specimen', v:1.0}); 'CORTEX'" },
+  { "wait": 1700 },
+  { "shoot": { "sel": "#gantryScreen", "out": "shots/g4-cortex.png", "scale": 2 } },
+  { "eval": "__BS.NB.send({k:'note', n:52, on:true, vel:0.9}); __BS.NB.send({k:'p', id:'scan', v:0.45}); 'playing'" },
+  { "wait": 900 },
+  { "shoot": { "sel": null, "out": "shots/panel-final.png", "scale": 1 } },
+  { "eval": "__BS.NB.send({k:'note', n:52, on:false}); __BS.NB.send({k:'p', id:'specimen', v:0.125}); 'SPINE'" },
+  { "wait": 1600 },
+  { "shoot": { "sel": "#gantryScreen", "out": "shots/g4-spine.png", "scale": 2 } },
+  { "eval": "'errors ' + JSON.stringify(window.__err)" }
+]

@@ -1,0 +1,18 @@
+[
+  { "wait": 2600 },
+  { "eval": "'err ' + JSON.stringify(window.__err) + ' | specimen ' + document.getElementById('hdSpec').textContent + ' | window ' + (0.06+__BS.GX.win*1.1).toFixed(2) + ' level ' + __BS.GX.lev.toFixed(2) + ' density ' + __BS.GX.density.toFixed(2)" },
+  { "eval": "__BS.CAM.spin=false; __BS.CAM.yaw=0.72; __BS.CAM.pitch=0.42; __BS.draw(); 'camera parked'" },
+  { "wait": 400 },
+  { "shoot": { "sel": "#gantryScreen", "out": "shots/gantry-spine.png", "scale": 2 } },
+  { "eval": "__BS.NB.send({k:'p', id:'specimen', v:1.0}); 'CORTEX'" },
+  { "wait": 1600 },
+  { "eval": "'CORTEX window ' + (0.06+__BS.GX.win*1.1).toFixed(2) + ' level ' + __BS.GX.lev.toFixed(2)" },
+  { "shoot": { "sel": "#gantryScreen", "out": "shots/gantry-cortex.png", "scale": 2 } },
+  { "shoot": { "sel": "#tomoScreen", "out": "shots/tomo-cortex.png", "scale": 2 } },
+  { "eval": "__BS.NB.send({k:'p', id:'specimen', v:0.75}); 'SKULL'" },
+  { "wait": 1600 },
+  { "shoot": { "sel": "#gantryScreen", "out": "shots/gantry-skull.png", "scale": 2 } },
+  { "eval": "__BS.NB.send({k:'p', id:'specimen', v:0.125}); __BS.GX.density=0.28; 'back to SPINE, ghost'" },
+  { "wait": 1500 },
+  { "shoot": { "sel": null, "out": "shots/live-panel2.png", "scale": 1 } }
+]

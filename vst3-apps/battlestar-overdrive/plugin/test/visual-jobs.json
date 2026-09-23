@@ -1,0 +1,110 @@
+[
+  {
+    "name": "settle",
+    "wait": 2600
+  },
+  {
+    "name": "JS errors",
+    "eval": "(window.__err&&window.__err.length)?window.__err.join(' | '):'none'"
+  },
+  {
+    "name": "the amber DOM readout is gone",
+    "eval": "document.getElementById('hint') === null ? 'removed' : 'STILL THERE'"
+  },
+  {
+    "name": "touching a knob draws a blue holo readout on the glass",
+    "eval": "setParam('thrust',0.62,true); readoutText"
+  },
+  {
+    "name": "let it paint",
+    "wait": 260
+  },
+  {
+    "name": "blue pixels in the readout band",
+    "eval": "(function(){const y=Math.floor(crt.height*0.82)-6;const d=ctx.getImageData(0,y,crt.width,12).data;let b=0;for(let i=0;i<d.length;i+=4){if(d[i+2]>70&&d[i+2]>d[i]+25)b++;}return b+' pixels';})()"
+  },
+  {
+    "name": "panel with the readout up",
+    "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-readout.png"
+  },
+  {
+    "name": "AUTOREFILL says its state and nothing more",
+    "eval": "(function(){document.getElementById('refill').click();const t=readoutText;const words=t.split(/\\s+/).filter(x=>x.length);return JSON.stringify(t)+'  ('+words.length+' words, lowercase: '+(/[a-z]/.test(t))+')';})()"
+  },
+  {
+    "name": "restore autorefill",
+    "eval": "document.getElementById('refill').click(); 'ok'"
+  },
+  {
+    "name": "SPACE at 0",
+    "eval": "setParam('space',0.0); 'set'"
+  },
+  {
+    "name": "let it paint",
+    "wait": 400
+  },
+  {
+    "name": "tube brightness, SPACE 0",
+    "eval": "(function(){const d=ctx.getImageData(0,0,crt.width,crt.height).data;let s=0;for(let i=0;i<d.length;i+=4)s+=d[i]+d[i+1]+d[i+2];return (s/(d.length/4)).toFixed(1);})()"
+  },
+  {
+    "name": "SPACE up",
+    "eval": "setParam('space',0.62); 'set'"
+  },
+  {
+    "name": "let it paint",
+    "wait": 500
+  },
+  {
+    "name": "tube brightness, SPACE 0.62 (nebulae)",
+    "eval": "(function(){const d=ctx.getImageData(0,0,crt.width,crt.height).data;let s=0;for(let i=0;i<d.length;i+=4)s+=d[i]+d[i+1]+d[i+2];return (s/(d.length/4)).toFixed(1);})()"
+  },
+  {
+    "name": "panel with nebulae",
+    "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-nebula.png"
+  },
+  {
+    "name": "ENGINE 7 = HYPERDRIVE",
+    "eval": "setParam('engine', 6/7); ENGINES[engineIndex()].name"
+  },
+  {
+    "name": "wait past the name so the starfield is clear",
+    "wait": 2400
+  },
+  {
+    "name": "panel at warp",
+    "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-warp.png"
+  },
+  {
+    "name": "ENGINE 8 = SUPERNOVA",
+    "eval": "setParam('engine', 1.0); ENGINES[engineIndex()].name"
+  },
+  {
+    "name": "wait past the name, then BLOCK until a detonation actually starts",
+    "eval": "(async()=>{for(let k=0;k<160;k++)await new Promise(r=>requestAnimationFrame(r));for(let k=0;k<400;k++){await new Promise(r=>requestAnimationFrame(r));const t=((performance.now()*0.001)%3.4)/3.4;if(t<0.05)return \"caught it at phase \"+t.toFixed(3);}return \"never caught a detonation\";})()"
+  },
+  {
+    "name": "panel at supernova",
+    "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-nova.png"
+  },
+  {
+    "name": "OVERLOAD: hold the peak high (forcePeak, or the meter stream wipes it)",
+    "eval": "window.__BO.forcePeak=0.99; applyForces(); 'peak '+meter.peak"
+  },
+  {
+    "name": "let it paint",
+    "wait": 300
+  },
+  {
+    "name": "red-dominant pixels in the CORNERS, where the hot vignette lives",
+    "eval": "(function(){let r=0,n=0;const q=Math.floor(crt.height*0.22);for(const[x0,y0]of[[0,0],[crt.width-q,0],[0,crt.height-q],[crt.width-q,crt.height-q]]){const d=ctx.getImageData(x0,y0,q,q).data;for(let i=0;i<d.length;i+=4){n++;if(d[i]>35&&d[i]>d[i+2]+15)r++;}}return r+' of '+n;})()"
+  },
+  {
+    "name": "panel overloading",
+    "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-overload.png"
+  },
+  {
+    "name": "restore",
+    "eval": "window.__BO.forcePeak=null; setParam('space',0); setParam('engine',1/7); setParam('thrust',0.35); 'done'"
+  }
+]

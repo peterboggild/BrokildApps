@@ -1,0 +1,239 @@
+[
+ {
+  "name": "hook",
+  "eval": "typeof window.__N84 === 'object' ? 'ok' : 'NO HOOK'"
+ },
+ {
+  "wait": 800
+ },
+ {
+  "name": "VANGELIS CHOIR for the cover",
+  "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:10}); 'asked'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "hold a chord",
+  "eval": "[50,57,62,65,69].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:true, v:0.75}); }); 'held'"
+ },
+ {
+  "wait": 1600
+ },
+ {
+  "name": "cover",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\cover.png",
+  "sel": "#deck",
+  "scale": 2
+ },
+ {
+  "name": "release",
+  "eval": "[50,57,62,65,69].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:false}); }); 'off'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "CS STRINGS for the panel",
+  "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:5}); 'asked'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "hold a chord",
+  "eval": "[45,52,57,60,64].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:true, v:0.7}); }); 'held'"
+ },
+ {
+  "wait": 1800
+ },
+ {
+  "name": "panel",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\panel.png",
+  "sel": "#deck",
+  "scale": 2
+ },
+ {
+  "name": "release",
+  "eval": "[45,52,57,60,64].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:false}); }); 'off'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "BLADE BRASS for the rank strip",
+  "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:0}); 'asked'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "rank I",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\rank.png",
+  "sel": "#sec-rank0",
+  "scale": 2
+ },
+ {
+  "name": "both ranks",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\ranks.png",
+  "scale": 2,
+  "sel": "#sec-rank0",
+  "sel2": "#sec-rank1"
+ },
+ {
+  "name": "POLY-MOD SWEEP for the modulation row",
+  "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:32}); 'asked'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "modrow",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\modrow.png",
+  "sel": "#sec-mod",
+  "scale": 2
+ },
+ {
+  "name": "VANGELIS CHOIR for the chain",
+  "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:10}); 'asked'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "chain",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\chain.png",
+  "sel": "#sec-chain",
+  "scale": 2
+ },
+ {
+  "name": "VHS MEMORY for the tape",
+  "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:34}); 'asked'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "hold a chord",
+  "eval": "[45,52,57,61,64].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:true, v:0.7}); }); 'held'"
+ },
+ {
+  "wait": 1400
+ },
+ {
+  "name": "tape window",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\tape.png",
+  "sel": ".reelwin",
+  "pad": {
+   "l": 10,
+   "t": 26,
+   "r": 36,
+   "b": 8
+  },
+  "scale": 4
+ },
+ {
+  "name": "chain with VHS",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\chain-vhs.png",
+  "sel": "#sec-chain",
+  "scale": 2
+ },
+ {
+  "name": "release",
+  "eval": "[45,52,57,61,64].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:false}); }); 'off'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "HEAVEN AND HELL for the VFD",
+  "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:19}); 'asked'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "hold six notes",
+  "eval": "[38,50,57,62,65,69].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:true, v:0.75}); }); 'held'"
+ },
+ {
+  "wait": 1800
+ },
+ {
+  "name": "vfd",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\vfd.png",
+  "sel": "#vfd",
+  "pad": 6,
+  "scale": 3
+ },
+ {
+  "name": "release",
+  "eval": "[38,50,57,62,65,69].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:false}); }); 'off'"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "TUBULAR DREAM for the display",
+  "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:30}); 'asked'"
+ },
+ {
+  "wait": 1200
+ },
+ {
+  "name": "display",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\display.png",
+  "sel": "#sec-header",
+  "scale": 2
+ },
+ {
+  "name": "open the rack",
+  "eval": "document.querySelector('[data-bwfx-open]').click(); 'clicked'"
+ },
+ {
+  "wait": 1200
+ },
+ {
+  "name": "arm ECHO",
+  "eval": "(function(){ var m = Array.from(document.querySelectorAll('.bwfx-mod')).filter(function(e){ return !e.classList.contains('bwfx-char'); }).find(function(e){ var n = e.querySelector('.bwfx-name'); return n && n.textContent.trim().toUpperCase() === 'ECHO'; }); if (!m) return 'NO ECHO'; m.querySelector('.bwfx-rocker').click(); return 'echo'; })()"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "arm SPACE",
+  "eval": "(function(){ var m = Array.from(document.querySelectorAll('.bwfx-mod')).filter(function(e){ return !e.classList.contains('bwfx-char'); }).find(function(e){ var n = e.querySelector('.bwfx-name'); return n && n.textContent.trim().toUpperCase() === 'SPACE'; }); if (!m) return 'NO SPACE'; m.querySelector('.bwfx-rocker').click(); return 'space'; })()"
+ },
+ {
+  "wait": 900
+ },
+ {
+  "name": "arm TAPE SEANCE",
+  "eval": "(function(){ var m = Array.from(document.querySelectorAll('.bwfx-char')).find(function(e){ var n = e.querySelector('.bwfx-name'); return n && n.textContent.trim().toUpperCase().indexOf('TAPE') === 0; }); if (!m) return 'NO TAPE SEANCE (' + Array.from(document.querySelectorAll('.bwfx-char .bwfx-name')).map(function(e){return e.textContent.trim()}).join(',') + ')'; m.querySelector('.bwfx-rocker').click(); return 'seance'; })()"
+ },
+ {
+  "wait": 1400
+ },
+ {
+  "name": "armed state",
+  "eval": "Array.from(document.querySelectorAll('.bwfx-rocker[aria-pressed=true]')).length + ' rockers on'"
+ },
+ {
+  "name": "bwfx",
+  "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\bwfx.png",
+  "sel": ".bwfx-win",
+  "pad": 4,
+  "scale": 2
+ },
+ {
+  "name": "close the rack",
+  "eval": "var c = document.querySelector('#bwfxClose'); if (c) c.click(); 'closed'"
+ },
+ {
+  "wait": 500
+ },
+ {
+  "name": "errors at the end",
+  "eval": "(window.__errs || []).length === 0 ? 'no errors' : 'ERRORS: ' + JSON.stringify(window.__errs).slice(0, 400)"
+ }
+]

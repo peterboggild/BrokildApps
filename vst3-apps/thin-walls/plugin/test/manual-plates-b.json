@@ -1,0 +1,44 @@
+[
+  { "name": "settle", "wait": 3500 },
+
+  { "name": "NOTE: a bridge 'p' message moves the ENGINE and a __TW.setParam moves the PAGE. The panel's own selectors and faders only follow the second, the plan polygon and the RT readout only the first, so a plate of a CHANGED panel has to send both.",
+    "eval": "'noted'" },
+
+  { "name": "--- nine surfaces: the hall treated as a STUDIO, a carpet and a cloud in the living room",
+    "eval": "(function(){ var B=window.__JUCE__.backend, TW=window.__TW; [['mat3',4/4],['mat1',2/4],['flr1',1/5],['cel1',1/5],['mat2',1/4]].forEach(function(p){ B.emitEvent('tw',{k:'p',id:p[0],v:p[1]}); TW.setParam(p[0],p[1]); }); return 'materials set both sides'; })()" },
+  { "name": "let the rooms retune and both views redraw", "wait": 1200 },
+  { "name": "what the panel now shows, and what the rooms ring for (250/1k/4k/8k)",
+    "eval": "(function(){ var TW=window.__TW; var sel=[].slice.call(document.querySelectorAll('.matgrid select')).map(function(s){ return s.options[s.selectedIndex].textContent; }).join(' '); var s=TW.scene(); return sel + '   |   ' + s.rt.map(function(r){ return r.map(function(v){ return v.toFixed(2); }).join('/'); }).join('  '); })()" },
+  { "name": "ctrl-materials (nine selectors, three rooms by three surfaces)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\ctrl-materials.png" },
+
+  { "name": "--- break four walls: push the split point out of the room",
+    "eval": "(function(){ var B=window.__JUCE__.backend, TW=window.__TW; [['fold1a',0.5+0.45/1.2],['foldp1a',0.3],['fold1b',0.5+0.35/1.2],['foldp1b',0.68],['fold3a',1.0],['foldp3a',0.34],['fold3b',0.5+0.5/1.2],['foldp3b',0.7]].forEach(function(p){ B.emitEvent('tw',{k:'p',id:p[0],v:p[1]}); TW.setParam(p[0],p[1]); }); return 'folded both sides'; })()" },
+  { "name": "let the plan polygons and the 3D room follow", "wait": 1300 },
+  { "name": "the rooms really did get bigger (plan polygon vertex counts)",
+    "eval": "(function(){ var s=window.__TW.scene(); return s.plan.map(function(p){ return p.length+' pts'; }).join(', '); })()" },
+  { "name": "ctrl-folds (the broken-wall rows: depth and where the break sits)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\ctrl-folds.png" },
+  { "name": "plan-folded (the flat with four walls broken and splayed outward)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\plan-folded.png" },
+
+  { "name": "--- flat walls and factory materials again",
+    "eval": "(function(){ var B=window.__JUCE__.backend, TW=window.__TW; ['fold1a','foldp1a','fold1b','foldp1b','fold3a','foldp3a','fold3b','foldp3b'].forEach(function(id){ B.emitEvent('tw',{k:'p',id:id,v:0.5}); TW.setParam(id,0.5); }); [['mat1',1/4],['mat2',1/4],['mat3',2/4],['flr1',0],['cel1',0]].forEach(function(p){ B.emitEvent('tw',{k:'p',id:p[0],v:p[1]}); TW.setParam(p[0],p[1]); }); return 'flat again'; })()" },
+  { "name": "wait", "wait": 1000 },
+
+  { "name": "--- stand in the living room facing the shut door to the box room",
+    "eval": "(function(){ var B=window.__JUCE__.backend, TW=window.__TW; B.emitEvent('tw',{k:'showrays',v:0}); [['door1',0],['lisx',4.50/18],['lisy',3.60/9],['lisyaw',90/360],['s1x',2.0/18],['s1y',1.4/9],['s1type',1],['s1yaw',45/360]].forEach(function(p){ B.emitEvent('tw',{k:'p',id:p[0],v:p[1]}); TW.setParam(p[0],p[1]); }); return 'facing the shut door'; })()" },
+  { "name": "let the leaf settle into the frame and the view redraw", "wait": 1500 },
+  { "name": "put the pointer on the handle",
+    "eval": "(function(){ var TW=window.__TW; TW.render(); var h=TW.handlePos('door1'); var p=TW.project(h); if(!p) return 'HANDLE NOT ON SCREEN (handle at '+h+')'; var pov=document.getElementById('pov'); pov.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:11,clientX:p[0],clientY:p[1]})); return 'handle at '+h.map(function(v){return v.toFixed(2);}).join(',')+' -> screen '+Math.round(p[0])+','+Math.round(p[1])+'  hover='+TW.hoverDoor+'  cursor='+document.getElementById('pov').classList.contains('handle'); })()" },
+  { "name": "let the hot handle draw", "wait": 800 },
+  { "name": "hover still on when the shutter opens?", "eval": "String(window.__TW.hoverDoor)" },
+  { "name": "pov-handle (the handle lights up under the pointer)",
+    "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\manual\\raw\\pov-handle.png" },
+
+  { "name": "--- back to the factory arrangement",
+    "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw',{k:'presetDefault'}); return 'defaults'; })()" },
+  { "name": "wait", "wait": 900 },
+  { "name": "errors at the end (must be [])",
+    "eval": "JSON.stringify(window.__TW.errors || [])" }
+]

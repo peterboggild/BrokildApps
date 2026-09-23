@@ -1,0 +1,7 @@
+[
+  {"wait": 1500},
+  {"eval": "'104 followed 22: bench=' + Math.round(SITE.kelvin) + ' local=' + Math.round(SITE.local) + ' V.ambient=' + V.ambient.toFixed(3) + ' tval=' + document.querySelector('#tval').textContent + ' distance=' + SITE.distance + ' err=' + window.__err"},
+  {"eval": "setParam('ambient', 0.5376, true); NB.send({k:'site', distance:0.5}); 'restored: ambient 271 K (yours), distance 0.5'"},
+  {"wait": 1500},
+  {"eval": "'104 final: climate=' + SITE.climate + ' bench=' + Math.round(SITE.kelvin) + ' local=' + Math.round(SITE.local) + ' distance=' + SITE.distance"}
+]

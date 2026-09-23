@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROXIMS CENTAURI B · ARTEFACT B2311.22</title>
+<!--
+   ARTEFACT B2311.22 — the panel.
+
+   Two layers, by design (ARTEFACT-B2311-DESIGN.md §2):
+
+     THE ARTEFACT  the WebGL canvas: a 2D projection of a 3D cross-section of
+                   the specimen's 4D body. No text, no numbers, no controls in
+                   any human sense. Organs are the connected components of the
+                   visible slice; they are worked with gestures (stir, stroke,
+                   press) and they notice the cursor before they respond.
+
+     THE HARNESS   the DOM: the expedition's bolted-on equipment. Tags with
+                   researcher names and values, the winch, the survey, the
+                   test keys, the BWFX globe. Visibly human, visibly added,
+                   fully removable.
+
+   The rendering rules follow §9 and §12: form is computed (never drawn),
+   the palette is near-equiluminant so contours shimmer rather than lock,
+   and interference fringes carry information that resolves only under
+   MOTION — the artefact communicates in channels at the edge of our vision.
+-->
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+               background:#05070c; cursor:crosshair;
+               font-family:"Consolas","Cascadia Mono",monospace; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  #ov { pointer-events:none; }
+
+  /* ── the harness: human equipment, deliberately plain and nameable ── */
+  #rail { position:absolute; left:0; right:0; bottom:0; z-index:5;
+          display:flex; align-items:center; gap:9px; padding:7px 12px;
+          background:linear-gradient(180deg, rgba(8,12,18,0), rgba(8,12,18,.88) 30%);
+          font-size:10px; letter-spacing:.08em; color:#8fa3a0; user-select:none; }
+  #rail .tag { border:1px solid #24313a; border-radius:3px; padding:3px 7px;
+               background:rgba(10,16,22,.72); cursor:ew-resize; white-space:nowrap; }
+  #rail .tag b { color:#cfe0dc; font-weight:600; }
+  #rail .tag .v { color:#69d2c4; margin-left:5px; }
+  #rail .btn { border:1px solid #2c3a44; border-radius:3px; padding:3px 9px;
+               background:rgba(14,22,30,.8); color:#a9c3be; cursor:pointer; }
+  #rail .btn:hover { color:#e7f5f1; border-color:#3f5560; }
+  #rail .btn.on { background:#69d2c4; color:#06231e; border-color:transparent; }
+  /* ── the two big instruments on the frame: the traverse, and the kelvin
+        reading the frame has always carried ── */
+  #bigs { position:absolute; right:14px; top:52px; z-index:5; width:190px;
+          display:flex; flex-direction:column; gap:14px; user-select:none; }
+  .big { background:rgba(8,13,18,.72); border:1px solid #22303a; border-radius:4px;
+         padding:8px 10px 10px; }
+  .big .lab { font-size:10.5px; letter-spacing:.15em; color:#cfe4df; font-weight:600; }
+  .big .hint { font-size:9.5px; letter-spacing:.07em; color:#7fb8ae; margin-top:2px; }
+  .big .rd { font-size:11px; letter-spacing:.06em; color:#69d2c4; float:right; }
+  .big .trk { position:relative; height:12px; margin-top:9px; cursor:ew-resize;
+              border:1px solid #2a3841; border-radius:6px; background:rgba(4,8,12,.7); }
+  .big .fil { position:absolute; left:1px; top:1px; bottom:1px; border-radius:5px;
+              background:linear-gradient(90deg,#1d4f4a,#69d2c4); pointer-events:none; }
+  .big .kn  { position:absolute; top:-3px; width:6px; height:16px; border-radius:3px;
+              background:#d6efe9; box-shadow:0 0 6px rgba(105,210,196,.7); pointer-events:none; }
+  /*  the empty space either side of the tissue, drawn so the traverse shows
+      you that there IS an outside */
+  .big .void { position:absolute; top:0; bottom:0; background:rgba(90,20,30,.30);
+               pointer-events:none; }
+  #cat { color:#5d716d; margin-right:2px; }
+  #cat b { color:#b9d7d1; }
+  #keys { display:flex; gap:2px; margin-left:auto; }
+  #keys div { width:16px; height:24px; border:1px solid #24313a; border-radius:2px;
+              background:rgba(16,24,32,.8); cursor:pointer; }
+  #keys div:hover { background:#22333e; }
+  #keys div.dn { background:#69d2c4; }
+  #clip { position:absolute; right:10px; top:10px; z-index:6; width:26px; height:26px;
+          border:1px solid #2c3a44; border-radius:50%; background:rgba(10,16,22,.6);
+          color:#7d938f; text-align:center; line-height:24px; cursor:pointer;
+          font-size:13px; }
+  #clip:hover { color:#d8ece8; }
+  #notice { position:absolute; left:14px; top:12px; z-index:6; color:#9fd8ce;
+            font-size:10px; letter-spacing:.14em; opacity:0; transition:opacity .5s; }
+  .railhidden #rail { display:none; }
+  #bwfxBtn svg { width:14px; height:14px; vertical-align:-2px; margin-right:4px; }
+
+  /* ── PROVENANCE. The harness again: the specimen never says where it came
+     from, but the people who lifted it out wrote it down. Shared stationery
+     with B2311.67 — the two came out of the same survey. ── */
+  #prov { position:absolute; inset:0; z-index:9; display:none;
+          background:rgba(3,5,9,.90); backdrop-filter:blur(4px); cursor:default; }
+  #prov.on { display:block; }
+
+  /* ── the site: what the four findings share. Shared stationery again. ── */
+  #site { position:absolute; inset:0; z-index:9; display:none;
+          background:rgba(3,5,9,.90); backdrop-filter:blur(4px); cursor:default; }
+  #site.on { display:block; }
+  #sitecard { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+              width:min(600px,92vw); padding:22px 26px; color:#b9c8cc; font-size:12px; line-height:1.75;
+              background:rgba(9,14,19,.96); border:1px solid #2c3a44; border-radius:4px;
+              box-shadow:0 18px 60px rgba(0,0,0,.85), inset 0 1px 0 #33454f; }
+  #sitecard h2 { font-size:11px; letter-spacing:.24em; color:#9fd8ce; margin:0 0 8px; font-weight:600; }
+  #sitecard p { color:#7f9296; margin:0 0 12px; }
+  #sitecard .row { display:flex; gap:14px; align-items:center; margin:5px 0; }
+  #sitecard .row b { min-width:96px; color:#dfe8ea; font-weight:600; letter-spacing:.1em;
+                     font-size:10px; text-transform:uppercase; }
+  #sitecard .stog { cursor:pointer; color:#dfe8ea; border:1px solid #3a4a52; padding:0 9px;
+                    letter-spacing:.14em; font-size:10px; text-transform:uppercase; }
+  #sitecard .stog.on { background:#1d4a48; border-color:#9fd8ce; color:#fff; }
+  #sitecard .sitehint { color:#5f7277; }
+  #sitecard input[type=range] { width:170px; accent-color:#9fd8ce; }
+  #siteclose { position:absolute; top:10px; right:14px; cursor:pointer; color:#5f7277;
+               font-size:10px; letter-spacing:.2em; }
+  #siteRd { color:#9fd8ce; font-size:10px; letter-spacing:.14em; align-self:center; }
+  #provcard { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+              width:min(920px,92vw); display:flex; gap:24px; padding:22px 24px;
+              background-image:linear-gradient(150deg,rgba(20,28,34,.93) 0%,rgba(9,14,19,.96) 100%),
+                               url("img/tx-alu.png");
+              background-size:auto,220px 220px;
+              border:1px solid #2c3a44; border-radius:4px;
+              box-shadow:0 18px 60px rgba(0,0,0,.85), inset 0 1px 0 #33454f; }
+  #provcard::after { content:""; position:absolute; inset:0; pointer-events:none;
+                     background:url("img/tx-wear.png") 0 0/300px 300px;
+                     opacity:.12; mix-blend-mode:screen; }
+  #globewrap { position:relative; width:320px; height:320px; flex:0 0 auto;
+               border:1px solid #24313a; border-radius:3px; background:#000; overflow:hidden; }
+  #globeimg { width:100%; height:100%; display:block;
+              filter:contrast(1.05) saturate(.88) brightness(.95); }
+  #pin { position:absolute; width:15px; height:15px; margin:-7.5px 0 0 -7.5px; pointer-events:none; }
+  #pin::before, #pin::after { content:""; position:absolute; border-radius:50%; }
+  #pin::before { inset:5px; background:#69d2c4; box-shadow:0 0 9px 2px rgba(105,210,196,.9); }
+  #pin::after { inset:0; border:1px solid rgba(105,210,196,.85); animation:png 2.6s ease-out infinite; }
+  @keyframes png { 0%{transform:scale(.55);opacity:.95} 100%{transform:scale(3.6);opacity:0} }
+  #pin2 { position:absolute; width:9px; height:9px; margin:-4.5px 0 0 -4.5px; pointer-events:none;
+          border:1px solid rgba(150,175,180,.55); border-radius:50%; }
+  .pinlab { position:absolute; font-size:8.5px; letter-spacing:.14em; text-transform:uppercase;
+            white-space:nowrap; text-shadow:0 1px 3px #000; pointer-events:none; }
+  #pinlab { color:#9fe7dc; }
+  #pinlab2 { color:#7e9296; }
+  #provtext { flex:1 1 auto; min-width:0; font-size:11px; line-height:1.62; color:#8fa3a0; }
+  #provtext h2 { margin:0 0 3px; font-size:12.5px; letter-spacing:.20em;
+                 color:#dcecee; font-weight:600; text-transform:uppercase; }
+  #provtext .sub { font-size:9px; letter-spacing:.24em; color:#5d716d;
+                   text-transform:uppercase; margin-bottom:12px; }
+  #provtext dl { display:grid; grid-template-columns:112px 1fr; gap:3px 14px; margin:0 0 12px; }
+  #provtext dt { font-size:8.5px; letter-spacing:.16em; color:#55696d;
+                 text-transform:uppercase; padding-top:2px; }
+  #provtext dd { margin:0; color:#c3d6d9; font-size:10.5px; }
+  #provtext p { margin:0 0 9px; color:#8ba1a5; }
+  #provtext .stamp { display:inline-block; margin-top:4px; padding:3px 9px;
+                     border:1px solid #3f6a63; color:#69d2c4; font-size:8.5px;
+                     letter-spacing:.22em; text-transform:uppercase; transform:rotate(-1.4deg); }
+  #provclose { position:absolute; right:12px; top:11px; border:1px solid #2c3a44;
+               border-radius:3px; padding:3px 9px; background:rgba(14,22,30,.8);
+               color:#a9c3be; cursor:pointer; font-size:10px; letter-spacing:.08em; }
+  #provclose:hover { color:#e7f5f1; border-color:#3f5560; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="ov"></canvas>
+
+<div id="site">
+  <div id="sitecard">
+    <span id="siteclose">CLOSE</span>
+    <h2>THE SITE &middot; WHAT THE FINDINGS SHARE</h2>
+    <p>Four findings, one bench. Cooled and set close together they fall into step; warm, or far apart, each keeps its own time. These are the bench's settings, not this finding's: change them here and every artefact present sees the change. Off, each finding is exactly what it was.</p>
+    <div class="row"><b>climate</b><span class="stog" id="siteClimate">own</span><span class="sitehint">one temperature for the whole bench</span></div>
+    <div class="row"><b>timing</b><span class="stog" id="siteTiming">own</span><span class="sitehint">cold and close, they fall into step</span></div>
+    <div class="row"><b>distance</b><input type="range" id="siteDist" min="0" max="1" step="0.01" value="0.5"><span id="siteDistRd">the same room</span></div>
+    <div class="row"><b>present</b><span id="siteStatus">only this finding</span></div>
+  </div>
+</div>
+
+<div id="prov">
+  <div id="provcard">
+    <span id="provclose">CLOSE</span>
+    <div id="globewrap">
+      <img id="globeimg" src="img/tx-planet.png" alt="">
+      <div id="pin"></div><div class="pinlab" id="pinlab"></div>
+      <div id="pin2"></div><div class="pinlab" id="pinlab2"></div>
+    </div>
+    <div id="provtext">
+      <h2>Artefact B2311.22</h2>
+      <div class="sub">Proxims Centauri B &middot; recovered specimen &middot; pair</div>
+      <dl>
+        <dt>Accession</dt><dd>B2311.22</dd>
+        <dt>Site</dt><dd>Kell Rille, Cistern 4 (north shelf)</dd>
+        <dt>Position</dt><dd>41&deg;07'52" N &nbsp;34&deg;44'30" W &nbsp;&middot;&nbsp; elev. &minus;74 m<br><span style="opacity:.6">longitude from the substellar meridian &middot; lit hemisphere</span></dd>
+        <dt>Recovered</dt><dd>2311.081 (day 81 of survey year 2311)</dd>
+        <dt>Expedition</dt><dd>Second Brokild Survey &middot; vessel ORNAMENT OF THE NINTH</dd>
+        <dt>Finder</dt><dd>T. Okonkwo-Reyes, hydrologist &mdash; nobody on the survey was an archaeologist</dd>
+        <dt>Journal</dt><dd>Field journal 6, pp. 210&ndash;214; specimen log 2311/0022</dd>
+        <dt>Condition</dt><dd>Intact. Recovered as one of a matched pair; the second body remains in situ.</dd>
+      </dl>
+      <p>Found in a dry cistern at the head of a rille, two bodies set facing one another
+      across a gap of four metres and held at that separation by nothing anyone could see.
+      Okonkwo-Reyes was surveying the cistern for relict brine and logged them as
+      concretions. She revised the entry the same evening: on lifting the first, the second
+      changed pitch.</p>
+      <p>The pair is the reason the survey went looking for more. One hundred and
+      twenty-three days later, at the Sabik Terminator on the far side of the twilight band,
+      it found sixty-seven of them laid out on an eightfold plan &mdash; catalogued as
+      <b style="color:#b9d7d1">B2311.67</b> and following.</p>
+      <span class="stamp">Pair &middot; second body left in place</span>
+    </div>
+  </div>
+</div>
+<div id="bigs">
+  <div class="big" id="big4d">
+    <div><span class="lab">4D PULL/PUSH?</span><span class="rd" id="rd4d">0</span></div>
+    <div class="hint">(Try wheel)</div>
+    <div class="trk" id="trk4d">
+      <div class="void" style="left:1px;width:19%"></div>
+      <div class="void" style="right:1px;width:19%"></div>
+      <div class="fil" id="fil4d"></div><div class="kn" id="kn4d"></div>
+    </div>
+  </div>
+  <div class="big" id="bigT">
+    <div><span class="lab">TEMPERATURE</span><span class="rd" id="rdT">293 K</span></div>
+    <div class="hint">77 K &mdash; 800 K</div>
+    <div class="trk" id="trkT">
+      <div class="fil" id="filT"></div><div class="kn" id="knT"></div>
+    </div>
+  </div>
+</div>
+<div id="clip" title="The harness — the expedition's equipment. The artefact does not need it; you might.">⌖</div>
+<div id="notice"></div>
+<div id="rail">
+  <span id="cat">B2311.22 · <b id="catN">SPECIMEN 000</b></span>
+  <span class="btn" id="surveyBtn" title="The survey field: every collected specimen, placed by real spectral similarity. Approach to observe; touch to collect.">SURVEY</span>
+  <span class="btn" id="sidBtn" title="SIDEREAL: the keyboard walks the specimen's own intervals instead of ours.">SIDEREAL</span>
+  <span class="btn" id="provBtn" title="Where this specimen was found, and who carried it.">PROVENANCE</span>
+  <span class="btn" id="logBtn" title="Log the current observation to disk.">LOG</span>
+  <span class="btn" id="resBtn" title="Restore a logged observation.">RESTORE</span>
+  <span class="btn" id="bwfxBtn" data-bwfx-open title="BROKILD WORLD FX — the expedition's signal chain.">BWFX</span>
+  <span class="btn" id="siteBtn" title="THE SITE — what the four findings share: climate, timing, distance.">SITE</span>
+  <span id="siteRd"></span>
+  <span class="btn" id="panicBtn" title="All notes off.">◼</span>
+  <span id="tags" style="display:flex;gap:6px;flex-wrap:wrap;"></span>
+  <div id="keys" title="Field keyboard — the expedition's test tones."></div>
+</div>
+<script src="bwfx-rack.js"></script>
+<script>
+"use strict";
+
+/* ── native bridge ──────────────────────────────────────────────────────── */
+const NB = (() => {
+  let q = [], sched = false;
+  const flush = () => { sched = false; const b = q; q = [];
+    try { window.__JUCE__.backend.emitEvent("ab", { b }); } catch (e) {} };
+  return {
+    send(m) { q.push(m); if (!sched) { sched = true; queueMicrotask(flush); } },
+    on(n, f) { try { window.__JUCE__.backend.addEventListener(n, f); } catch (e) {} }
+  };
+})();
+const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+
+if (window.BWFX) {
+  BWFX.attach({ send: o => { const m = { k: "bwfx" }; for (const kk in o) m[kk] = o[kk]; NB.send(m); } });
+  NB.on("bwfx", p => BWFX.onState(p));
+}
+
+/* ── state ──────────────────────────────────────────────────────────────── */
+const VAL = {}, SPECP = {};                 // params by id
+let SPEC = null;                            // the specimen geometry
+let secW = 0, secV = 0, LUM = [];           // the section stream
+let SPEC2 = null, LUM2 = [], AUD2 = 0;      // THE INTERLOCUTOR: the other body
+let KIN = 0, SAY = 0, ACCENT = 0;           // the state of the conversation
+let lastReadout = "";
+let SCAR = 0, REST = 0;
+let FIELD = null;                           // the survey
+let fieldOpen = false;
+const TAGMAP = ["aperture", "metabolism", "revival", "membrane", "gravity", "depth"];
+
+/* ── the palette: near-equiluminant pair, derived from the catalog ──────── */
+function hsl2rgb(h, s, l) {
+  const f = n => { const k = (n + h * 12) % 12;
+    return l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+  return [f(0), f(8), f(4)];
+}
+function lum(c) { return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+function equiluminant(h, target) {
+  let c = hsl2rgb(h, 0.72, 0.5);
+  const y = lum(c);
+  const k = target / Math.max(1e-4, y);
+  return c.map(x => clamp(x * k, 0, 1));
+}
+let colA = [0.2, 0.4, 0.5], colB = [0.5, 0.3, 0.4], colGlow = [0.9, 0.95, 0.9];
+function setPalette(cat) {
+  const h1 = ((cat * 137.508) % 360) / 360;
+  const h2 = (h1 + 0.31) % 1.0;
+  colA = equiluminant(h1, 0.34);
+  colB = equiluminant(h2, 0.30);            // NEAR-equal: edges shimmer, form survives
+  colGlow = equiluminant((h1 + 0.5) % 1, 0.66);
+}
+
+/* ── WebGL: two passes — field accumulation, then the surface ───────────── */
+const cv = document.getElementById("gl");
+const gl = cv.getContext("webgl2", { antialias: false, alpha: false });
+let glOK = !!gl, fbo = null, fieldTex = null, fw = 0, fh = 0;
+let progBlob = null, progComp = null, quadBuf = null, blobBuf = null;
+let uComp = {}, aBlob = {};
+
+function sh(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    { console.error(gl.getShaderInfoLog(s)); return null; }
+  return s;
+}
+function prog(vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS))
+    { console.error(gl.getProgramInfoLog(p)); return null; }
+  return p;
+}
+
+const BLOB_VS = `#version 300 es
+layout(location=0) in vec2 aPos;
+layout(location=1) in vec2 aUV;
+layout(location=2) in vec4 aData;
+out vec2 vUV; out vec4 vData;
+void main(){ vUV=aUV; vData=aData; gl_Position=vec4(aPos,0.,1.); }`;
+
+const BLOB_FS = `#version 300 es
+precision highp float;
+in vec2 vUV; in vec4 vData; out vec4 o;
+void main(){
+  float d = dot(vUV,vUV);
+  if (d > 1.0) discard;
+  float g = exp(-d*3.1) - exp(-3.1);
+  float tissue = vData.z < 0.5 ? vData.x*g : 0.0;
+  float ghost  = (vData.z >= 0.5 && vData.z < 1.5) ? vData.x*g : 0.0;
+  float glow   = vData.z >= 1.5 ? vData.x*g : 0.0;
+  o = vec4(tissue, ghost, glow, vData.y*tissue);
+}`;
+
+const COMP_VS = `#version 300 es
+layout(location=0) in vec2 aPos;
+out vec2 vXY;
+void main(){ vXY = aPos; gl_Position = vec4(aPos,0.,1.); }`;
+
+/*  The surface pass: everything §12 asks for happens here — computed form lit
+    like a photographed thing, equiluminant hue boundaries, fringes that carry
+    state and resolve only under motion, ghosts refracting through from the
+    fourth dimension, and the glow of the sound living in the tissue.  */
+const COMP_FS = `#version 300 es
+precision highp float;
+in vec2 vXY; out vec4 o;
+uniform sampler2D uField;
+uniform vec2 uRes; uniform float uTime;
+uniform vec3 uColA, uColB, uColGlow;
+uniform float uMotion;            // |section velocity| + cursor speed
+uniform vec2 uAttend; uniform float uAttendR, uAttendA;
+uniform float uSecW;              // where the slice sits (palette phase)
+uniform float uSeed;
+
+float hash21(vec2 p){ p = fract(p*vec2(234.34,435.345)); p += dot(p,p+34.23); return fract(p.x*p.y); }
+float vnoise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f*f*(3.-2.*f);
+  return mix(mix(hash21(i),hash21(i+vec2(1,0)),u.x),
+             mix(hash21(i+vec2(0,1)),hash21(i+vec2(1,1)),u.x),u.y);
+}
+
+void main(){
+  vec2 uv = vXY*0.5+0.5;
+  vec2 px = 1.0/uRes;
+
+  vec4 f  = texture(uField, uv);
+  vec4 fx1 = texture(uField, uv+vec2(px.x*2.0,0.));
+  vec4 fx0 = texture(uField, uv-vec2(px.x*2.0,0.));
+  vec4 fy1 = texture(uField, uv+vec2(0.,px.y*2.0));
+  vec4 fy0 = texture(uField, uv-vec2(0.,px.y*2.0));
+  vec2 grad = vec2(fx1.r-fx0.r, fy1.r-fy0.r);
+
+  /* ── the void: layered, faint, alive at the edge of visibility ── */
+  float n1 = vnoise(uv*3.0 + uSeed*7.0 + vec2(0., uTime*0.006));
+  float n2 = vnoise(uv*11.0 - uSeed*3.0 - vec2(uTime*0.004, 0.));
+  vec3 bg = mix(vec3(0.007,0.010,0.019), vec3(0.020,0.038,0.058), n1*0.75+n2*0.25);
+  float star = pow(hash21(floor(uv*uRes*0.5)), 60.0);
+  bg += vec3(0.5,0.6,0.62) * star * 0.12;
+  float vig = 1.0 - 0.55*dot(vXY,vXY);
+  bg *= vig;
+
+  /* ── the tissue surface ── */
+  float s = smoothstep(0.46, 0.88, f.r);
+  vec3 nrm = normalize(vec3(-grad*74.0, 0.42));
+
+  /* hue: the accumulated field hue, shifted by the iridescent angle term —
+     an angle-dependent colour is a channel our vision only half owns */
+  float hue = f.r > 0.001 ? f.a/f.r : 0.0;
+  float ir = 0.5 + 0.5*sin(f.r*16.0 + dot(nrm.xy, vec2(3.1,2.3))*4.0
+                           + uTime*0.15 + uSecW*2.0);
+  vec3 base = mix(uColA, uColB, clamp(hue*0.55 + ir*0.45, 0., 1.));
+
+  /* lighting: keyed to read as a REAL thing (Peter: realism is a priority).
+     A warm key, a cool counter-light from beneath, a wet specular, and a
+     subsurface rim - cue bundles that never co-occur in one material. */
+  vec3 ldir = normalize(vec3(0.42, 0.62, 0.62));
+  vec3 l2   = normalize(vec3(-0.55, -0.35, 0.45));
+  float dif  = max(dot(nrm, ldir), 0.0);
+  float dif2 = max(dot(nrm, l2), 0.0);
+  float spc  = pow(max(dot(reflect(-ldir, nrm), vec3(0,0,1)), 0.0), 42.0);
+  float sheen= pow(max(dot(reflect(-l2, nrm), vec3(0,0,1)), 0.0), 7.0);
+  float rim  = pow(1.0 - max(nrm.z, 0.0), 1.6);
+  /* slow chromatic waves travel the body: the artefact speaking */
+  float wave = sin(f.r*7.0 + vXY.x*3.0 + vXY.y*2.2 + uTime*0.23 + uSecW*3.0);
+  vec3 deep  = mix(uColA, uColB, 0.5) * 0.22;
+  vec3 tissue = base*(0.20 + 0.85*dif) + deep*dif2*1.3
+              + vec3(0.92,0.99,0.97)*spc*0.85
+              + mix(uColB,uColA,0.5)*sheen*0.30
+              + mix(uColB, uColA, 0.5+0.5*wave)*rim*0.75;
+  tissue *= 0.9 + 0.22*wave;
+
+  /* interference fringes: the artefact SPEAKING in motion-vision — they only
+     resolve while the section moves or the observer does */
+  float fr = sin(f.r*42.0 + grad.x*140.0 + uTime*0.9)
+           * sin(f.r*37.0 - grad.y*120.0 - uTime*0.7);
+  tissue += base * fr * (0.05 + 0.24 * clamp(uMotion, 0.0, 1.0));
+
+  /* attention: the organ nearest the cursor warms and leans */
+  float ad = length(vXY - uAttend);
+  float att = uAttendA * smoothstep(uAttendR, uAttendR*0.25, ad);
+  tissue += base * att * 0.35;
+
+  /* the glow: where the sound currently lives on the body */
+  tissue += uColGlow * f.b * (1.1 + 0.4*sin(uTime*2.3 + f.b*9.0));
+
+  vec3 col = mix(bg, tissue, s);
+
+  /* ghosts: tissue approaching from the fourth dimension — a refracted
+     pre-image, like a shape rising toward the underside of a surface */
+  float g = f.g;
+  if (g > 0.003) {
+    vec2 roff = vec2(fx1.g-fx0.g, fy1.g-fy0.g)*30.0;
+    float shimmer = 0.5+0.5*sin(uTime*2.2 + g*36.0 + (uv.x+uv.y)*20.0);
+    col += mix(uColA,uColB,shimmer) * g * (0.20 + 0.25*shimmer);
+    col += bg * length(roff) * 2.0 * g;
+  }
+
+  /* film grain — the camera admitting it is a camera */
+  col += (hash21(uv*uRes + fract(uTime)*13.7) - 0.5) * 0.014;
+
+  o = vec4(pow(max(col, 0.0), vec3(0.92)), 1.0);
+}`;
+
+function glInit() {
+  if (!glOK) return;
+  gl.getExtension("EXT_color_buffer_float");
+  progBlob = prog(BLOB_VS, BLOB_FS);
+  progComp = prog(COMP_VS, COMP_FS);
+  if (!progBlob || !progComp) { glOK = false; return; }
+
+  quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  blobBuf = gl.createBuffer();
+
+  const u = n => gl.getUniformLocation(progComp, n);
+  uComp = { field:u("uField"), res:u("uRes"), time:u("uTime"),
+            colA:u("uColA"), colB:u("uColB"), colGlow:u("uColGlow"),
+            motion:u("uMotion"), attend:u("uAttend"), attendR:u("uAttendR"),
+            attendA:u("uAttendA"), secW:u("uSecW"), seed:u("uSeed") };
+}
+
+function glResize() {
+  if (!glOK) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.floor(innerWidth * dpr);
+  cv.height = Math.floor(innerHeight * dpr);
+  fw = Math.max(2, Math.floor(cv.width / 2));
+  fh = Math.max(2, Math.floor(cv.height / 2));
+  if (fieldTex) { gl.deleteTexture(fieldTex); gl.deleteFramebuffer(fbo); }
+  fieldTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, fieldTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, fw, fh, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fieldTex, 0);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) glOK = false;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+/* ── projection: 4D body -> 3D slice -> the screen ──────────────────────── */
+let theta = 0;
+let AUD = 0, stirAcc = 0;     // smoothed audio level; sound-driven stirring
+const P = { sx: [], sy: [], size: [], vis: [], ghost: [], comp: [], org: [] };
+const P2 = { sx: [], sy: [], size: [], vis: [], ghost: [] };
+
+function project() {
+  if (!SPEC) return;
+  const t = performance.now() * 0.001;
+  /*  the body's slow stirring accelerates while it SPEAKS and stills when
+      silent — shape motion is now caused by sound, not merely coincident */
+  const tB = t + stirAcc;
+  theta = 0.16 * Math.sin(tB * 0.05) + 0.07 * Math.sin(tB * 0.013);
+  const eps = 0.045 + 0.42 * (VAL.slab !== undefined ? VAL.slab : 0.6);
+  const cx = innerWidth * 0.5, cy = innerHeight * 0.47;
+  const S = Math.min(innerWidth, innerHeight) * 0.335;
+  const n = SPEC.nodes.length;
+  const ct = Math.cos(theta), st = Math.sin(theta);
+  for (let i = 0; i < n; i++) {
+    const nd = SPEC.nodes[i];
+    const x = nd.x * ct + nd.z * st * 0.6;
+    const z = nd.z * ct - nd.x * st * 0.6;
+    P.sx[i] = cx + S * x;
+    P.sy[i] = cy + S * (nd.y - z * 0.16);
+    P.size[i] = S * 0.135 * (1.0 + z * 0.30);
+    const dw = Math.abs(nd.w - secW);
+    const pinnedHere = pin.set && pin.set.has(i);
+    P.vis[i] = dw < eps || pinnedHere;
+    P.ghost[i] = !P.vis[i] && dw < eps + 0.34 ? 1 - (dw - eps) / 0.34 : 0;
+  }
+  /* organs = connected components of the visible slice */
+  const parent = new Array(n);
+  for (let i = 0; i < n; i++) parent[i] = i;
+  const find = a => { while (parent[a] !== a) a = parent[a] = parent[parent[a]]; return a; };
+  for (const [a, b] of SPEC.edges)
+    if (P.vis[a] && P.vis[b]) { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+  for (let i = 0; i < n; i++) P.comp[i] = P.vis[i] ? find(i) : -1;
+  /* organ tag: the visible member with the greatest degree speaks for it */
+  P.org = {};
+  for (let i = 0; i < n; i++) {
+    if (!P.vis[i]) continue;
+    const c = P.comp[i];
+    if (!(c in P.org)) P.org[c] = { nodes: [], cx: 0, cy: 0, r: 0, tag: 0, bestDeg: -1 };
+    const o = P.org[c];
+    o.nodes.push(i);
+    o.cx += P.sx[i]; o.cy += P.sy[i];
+    const deg = SPEC.deg[i];
+    if (deg > o.bestDeg) { o.bestDeg = deg; o.tag = SPEC.tags[i]; }
+  }
+  for (const c in P.org) {
+    const o = P.org[c];
+    o.cx /= o.nodes.length; o.cy /= o.nodes.length;
+    for (const i of o.nodes)
+      o.r = Math.max(o.r, Math.hypot(P.sx[i] - o.cx, P.sy[i] - o.cy) + P.size[i]);
+  }
+}
+
+/*  The other body, further off in the same field and keeping its own time —
+    two creatures, not one creature drawn twice. Mostly ghost, because it is
+    not in your slice; it condenses as it speaks. */
+function project2() {
+  if (!SPEC2 || !(VAL.converse > 0)) return;
+  const t = performance.now() * 0.001;
+  const th = 0.19 * Math.sin(t * 0.041 + 1.7) + 0.08 * Math.sin(t * 0.0093);
+  const eps = 0.045 + 0.42 * (VAL.slab !== undefined ? VAL.slab : 0.6);
+  const S = Math.min(innerWidth, innerHeight) * 0.335;
+  const cx = innerWidth * 0.5 + S * 1.02, cy = innerHeight * 0.47 - S * 0.36;
+  const s2 = S * 0.55;                      // further away, so smaller
+  const ct = Math.cos(th), st = Math.sin(th);
+  const n = SPEC2.nodes.length;
+  for (let i = 0; i < n; i++) {
+    const nd = SPEC2.nodes[i];
+    const x = nd.x * ct + nd.z * st * 0.6;
+    const z = nd.z * ct - nd.x * st * 0.6;
+    P2.sx[i] = cx + s2 * x;
+    P2.sy[i] = cy + s2 * (nd.y - z * 0.16);
+    P2.size[i] = s2 * 0.135 * (1.0 + z * 0.30);
+    const dw = Math.abs(nd.w - secW);
+    P2.vis[i] = dw < eps;
+    P2.ghost[i] = !P2.vis[i] && dw < eps + 0.5 ? 1 - (dw - eps) / 0.5 : 0;
+  }
+}
+
+/* ── the frame ──────────────────────────────────────────────────────────── */
+let verts = new Float32Array(0);
+function drawGL() {
+  if (!glOK || !SPEC) return;
+  project();
+  project2();
+  const dpr = cv.width / innerWidth;
+  const toX = x => (x * dpr / cv.width) * 2 - 1;
+  const toY = y => 1 - (y * dpr / cv.height) * 2;
+
+  /* build the blob quads: tissue nodes, edge strands, ghosts, glow */
+  const items = [];
+  const n = SPEC.nodes.length;
+  for (let i = 0; i < n; i++) {
+    const hue = (SPEC.tags[i] / 6);
+    if (P.vis[i]) {
+      /* tissue SWELLS where the sound lives — the form is the spectrum */
+      const li = LUM[i] || 0;
+      const sw = 1 + li * 0.85;
+      items.push([P.sx[i], P.sy[i], P.size[i] * 1.35 * sw, 0.85, hue + li * 0.05, 0]);
+      /* the gripped organ flares: the body visibly answers the hand */
+      const grip = gest && pin.set && pin.set.has(i) ? 0.5 : 0;
+      const glo = Math.min(1, li * 0.9 + grip);
+      if (glo > 0.01)
+        items.push([P.sx[i], P.sy[i], P.size[i] * (1.7 + li * 0.6), glo, hue + li * 0.05, 2]);
+    } else if (P.ghost[i] > 0.01) {
+      items.push([P.sx[i], P.sy[i], P.size[i] * 1.2, P.ghost[i] * 0.5, hue, 1]);
+    }
+  }
+  for (const [a, b] of SPEC.edges) {
+    if (!P.vis[a] || !P.vis[b]) continue;
+    const hue = ((SPEC.tags[a] + SPEC.tags[b]) / 12);
+    const vein = Math.min(LUM[a] || 0, LUM[b] || 0) * 2.2;
+    for (let s = 1; s <= 3; s++) {
+      const f = s / 4;
+      items.push([P.sx[a] + (P.sx[b] - P.sx[a]) * f,
+                  P.sy[a] + (P.sy[b] - P.sy[a]) * f,
+                  (P.size[a] + (P.size[b] - P.size[a]) * f) * 0.52 * (1 + vein * 0.7),
+                  0.42 + vein * 0.5, hue + vein * 0.05, vein > 0.25 ? 2 : 0]);
+    }
+  }
+
+  /*  ---- THE INTERLOCUTOR ----
+      Another creature. Present as ghost tissue, condensing where it speaks;
+      its own hue, so you never mistake one body for the other. */
+  if (SPEC2 && VAL.converse > 0) {
+    const n2 = SPEC2.nodes.length;
+    const cond = 0.25 + 0.75 * Math.min(1, AUD2 * 2.2);
+    for (let i = 0; i < n2; i++) {
+      const li = LUM2[i] || 0;
+      const hue = 0.52 + 0.10 * ((i * 7) % 5) / 5;
+      if (P2.vis[i]) {
+        items.push([P2.sx[i], P2.sy[i], P2.size[i] * 1.3 * (1 + li * 0.7),
+                    0.30 + 0.55 * cond, hue + li * 0.05, li > 0.02 ? 0 : 1]);
+        if (li > 0.01)
+          items.push([P2.sx[i], P2.sy[i], P2.size[i] * (1.7 + li * 0.6), li * 0.85, hue, 2]);
+      } else if (P2.ghost[i] > 0.01) {
+        items.push([P2.sx[i], P2.sy[i], P2.size[i] * 1.15, P2.ghost[i] * 0.38, hue, 1]);
+      }
+    }
+    for (const [a, b] of SPEC2.edges) {
+      if (!P2.vis[a] || !P2.vis[b]) continue;
+      const vein = Math.min(LUM2[a] || 0, LUM2[b] || 0) * 2.0;
+      for (let s = 1; s <= 2; s++) {
+        const f = s / 3;
+        items.push([P2.sx[a] + (P2.sx[b] - P2.sx[a]) * f,
+                    P2.sy[a] + (P2.sy[b] - P2.sy[a]) * f,
+                    (P2.size[a] + (P2.size[b] - P2.size[a]) * f) * 0.5 * (1 + vein * 0.6),
+                    (0.20 + 0.4 * cond) + vein * 0.45, 0.55, vein > 0.25 ? 2 : 1]);
+      }
+    }
+
+    /*  THE MEMBRANE, drawn: while both bodies sound at once their voices
+        multiply, and the frequencies that makes belong to neither of them.
+        The filaments exist only while that is true. */
+    const mem = (VAL.commune || 0) * Math.min(AUD, AUD2) * 4.0;
+    if (mem > 0.01) {
+      const va = [], vb = [];
+      for (let i = 0; i < SPEC.nodes.length; i++) if (P.vis[i]) va.push(i);
+      for (let i = 0; i < n2; i++) if (P2.vis[i]) vb.push(i);
+      const links = Math.min(6, va.length, vb.length);
+      const ph = performance.now() * 0.001;
+      for (let k = 0; k < links; k++) {
+        const a = va[(k * 7 + 1) % va.length], b = vb[(k * 5 + 2) % vb.length];
+        for (let s = 1; s <= 7; s++) {
+          const f = s / 8;
+          const bow = Math.sin(f * Math.PI) * 26 * Math.sin(ph * 1.7 + k);
+          items.push([P.sx[a] + (P2.sx[b] - P.sx[a]) * f,
+                      P.sy[a] + (P2.sy[b] - P.sy[a]) * f - bow,
+                      3.5 + 2.5 * Math.sin(f * Math.PI),
+                      Math.min(0.9, mem) * (0.35 + 0.5 * Math.sin(f * Math.PI)),
+                      0.80, 2]);
+        }
+      }
+    }
+  }
+
+  const need = items.length * 6 * 8;
+  if (verts.length < need) verts = new Float32Array(need);
+  let vp = 0;
+  for (const [x, y, r, inten, hue, kind] of items) {
+    const x0 = toX(x - r), x1 = toX(x + r), y0 = toY(y - r), y1 = toY(y + r);
+    const quad = [
+      x0, y0, -1, -1, x1, y0, 1, -1, x0, y1, -1, 1,
+      x1, y0, 1, -1, x1, y1, 1, 1, x0, y1, -1, 1
+    ];
+    for (let q = 0; q < 6; q++) {
+      verts[vp++] = quad[q * 4]; verts[vp++] = quad[q * 4 + 1];
+      verts[vp++] = quad[q * 4 + 2]; verts[vp++] = quad[q * 4 + 3];
+      verts[vp++] = inten; verts[vp++] = hue; verts[vp++] = kind; verts[vp++] = 0;
+    }
+  }
+
+  /* pass 1: accumulate the field */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.viewport(0, 0, fw, fh);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(progBlob);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE);
+  gl.bindBuffer(gl.ARRAY_BUFFER, blobBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, verts.subarray(0, vp), gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 32, 0);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 32, 8);
+  gl.enableVertexAttribArray(2);
+  gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 32, 16);
+  gl.drawArrays(gl.TRIANGLES, 0, vp / 8);
+
+  /* pass 2: the surface */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, cv.width, cv.height);
+  gl.disable(gl.BLEND);
+  gl.useProgram(progComp);
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  gl.disableVertexAttribArray(1);
+  gl.disableVertexAttribArray(2);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, fieldTex);
+  gl.uniform1i(uComp.field, 0);
+  gl.uniform2f(uComp.res, cv.width, cv.height);
+  gl.uniform1f(uComp.time, performance.now() * 0.001);
+  gl.uniform3fv(uComp.colA, colA);
+  gl.uniform3fv(uComp.colB, colB);
+  gl.uniform3fv(uComp.colGlow, colGlow);
+  gl.uniform1f(uComp.motion, clamp(Math.abs(secV) * 7 + cursorSpeed * 0.004 + AUD * 0.55, 0, 1));
+  const at = attention();
+  gl.uniform2f(uComp.attend, at.x, at.y);
+  gl.uniform1f(uComp.attendR, at.r);
+  gl.uniform1f(uComp.attendA, at.a);
+  gl.uniform1f(uComp.secW, secW);
+  gl.uniform1f(uComp.seed, SPEC ? SPEC.cat * 0.173 : 0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+/* ── attention: the organ nearest the cursor notices ────────────────────── */
+let mouseX = -1000, mouseY = -1000, cursorSpeed = 0, lastMX = 0, lastMY = 0, lastMT = 0;
+function nearestOrgan(x, y) {
+  if (!SPEC) return null;
+  let best = null, bd = 1e9;
+  for (const c in P.org) {
+    const o = P.org[c];
+    const d = Math.hypot(x - o.cx, y - o.cy) - o.r * 0.4;
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best && bd < Math.min(innerWidth, innerHeight) * 0.3 ? best : null;
+}
+function attention() {
+  const o = nearestOrgan(mouseX, mouseY);
+  if (!o) return { x: 0, y: 0, r: 0, a: 0 };
+  const dpr = cv.width / innerWidth;
+  return { x: (o.cx * dpr / cv.width) * 2 - 1,
+           y: 1 - (o.cy * dpr / cv.height) * 2,
+           r: (o.r * 1.5 * dpr / Math.min(cv.width, cv.height)) * 2,
+           a: 0.9 };
+}
+
+/* ── the gesture grammar: stir, stroke, press ───────────────────────────── */
+/*  Four rules, learned by handling, honoured everywhere:
+    STIR (circling) accumulates the organ's quantity; direction matters.
+    STROKE (fast, straight) perturbs it; the tissue relaxes back.
+    PRESS (still, held) deepens while held; a share of it soaks in.
+    The organ under an active gesture is PINNED: your grip holds that limb
+    while the rest of the body keeps travelling.  */
+const pin = { set: null };
+let gest = null;
+
+function paramOf(organ) { return TAGMAP[organ.tag] || "aperture"; }
+function sendParam(id, v) {
+  v = clamp(v, 0, 1);
+  VAL[id] = v;
+  NB.send({ k: "p", id, v });
+  updateTags();
+}
+
+cv.addEventListener("pointerdown", e => {
+  if (fieldOpen) { fieldClick(e.clientX, e.clientY, e.shiftKey); return; }
+  const o = nearestOrgan(e.clientX, e.clientY);
+  if (!o) return;
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  const id = paramOf(o);
+  /* the touched NODE, not just the organ: the probe excites that tissue,
+     so every gesture is audible by itself — one mouse cannot hold a key
+     and work an organ at the same time */
+  let tn = o.nodes[0], td = 1e9;
+  for (const i of o.nodes) {
+    const d = Math.hypot(e.clientX - P.sx[i], e.clientY - P.sy[i]);
+    if (d < td) { td = d; tn = i; }
+  }
+  NB.send({ k: "touch", n: tn, on: 1, v: 0.85 });
+  gest = { organ: o, id, t0: performance.now(), x0: e.clientX, y0: e.clientY,
+           lx: e.clientX, ly: e.clientY, angle: 0, path: 0, mode: "?",
+           heading: null, rot: 0,
+           v0: VAL[id] !== undefined ? VAL[id] : 0.5, dv: 0, node: tn };
+  pin.set = new Set(o.nodes);
+});
+
+cv.addEventListener("pointermove", e => {
+  const now = performance.now();
+  const dt = Math.max(1, now - lastMT);
+  cursorSpeed = cursorSpeed * 0.85 + (Math.hypot(e.clientX - lastMX, e.clientY - lastMY) / dt * 1000) * 0.15;
+  lastMX = e.clientX; lastMY = e.clientY; lastMT = now;
+  mouseX = e.clientX; mouseY = e.clientY;
+  if (!gest) return;
+
+  const g = gest;
+  const dx = e.clientX - g.lx, dy = e.clientY - g.ly;
+  const step = Math.hypot(dx, dy);
+  g.path += step;
+
+  /* signed angle increment about the organ centre -> STIR */
+  const a1 = Math.atan2(g.ly - g.organ.cy, g.lx - g.organ.cx);
+  const a2 = Math.atan2(e.clientY - g.organ.cy, e.clientX - g.organ.cx);
+  let da = a2 - a1;
+  if (da > Math.PI) da -= 2 * Math.PI;
+  if (da < -Math.PI) da += 2 * Math.PI;
+  g.angle += da;
+  /*  heading rotation: the only honest stir detector. A straight drag past
+      a centroid sweeps centroid-angle too (parallax); only a genuine loop
+      turns its own heading, continuously and in one sense. */
+  if (step > 2.5) {
+    const h = Math.atan2(dy, dx);
+    if (g.heading !== null) {
+      let dh = h - g.heading;
+      if (dh > Math.PI) dh -= 2 * Math.PI;
+      if (dh < -Math.PI) dh += 2 * Math.PI;
+      g.rot += dh;
+    }
+    g.heading = h;
+  }
+  g.lx = e.clientX; g.ly = e.clientY;
+
+  if (g.mode === "?") {
+    /*  A circle grows PATH faster than ANGLE, so a fast stir would read as a
+        stroke without a straightness test - the stroke must actually go
+        somewhere, not merely move. */
+    const net = Math.hypot(e.clientX - g.x0, e.clientY - g.y0);
+    /*  a half-circle arc still measures ~0.78 net/path, so the stroke bar
+        sits at 0.93 - only something that truly goes somewhere is a stroke */
+    if (Math.abs(g.rot) > Math.PI * 1.3) g.mode = "stir";
+    else if (g.path > 90 && (now - g.t0) < 260 && net / g.path > 0.93) g.mode = "stroke";
+    /*  and the gesture everyone actually makes: an ordinary deliberate
+        drag. It KNEADS: the quantity follows the STRETCH — the distance
+        from where you gripped — in any direction. Drag away to wind up,
+        come back to wind down, let go to keep. Without this the commonest
+        gesture of all mapped to NOTHING, which read — correctly — as "the
+        specimen does not respond". */
+    else if (g.path > 22 && (now - g.t0) >= 180) g.mode = "knead";
+  }
+  if (g.mode === "knead" && Math.abs(g.rot) > Math.PI * 1.3) g.mode = "stir";
+  if (g.mode === "stir") {
+    /* circling winds the quantity: one full turn = about a third of range */
+    sendParam(g.id, (VAL[g.id] !== undefined ? VAL[g.id] : 0.5) + da * 0.06);
+  }
+  if (g.mode === "knead") {
+    const stretch = Math.hypot(e.clientX - g.x0, e.clientY - g.y0);
+    sendParam(g.id, clamp(g.v0 + (stretch - 16) * 0.0024, 0, 1));
+  }
+});
+
+cv.addEventListener("pointerup", e => {
+  if (!gest) return;
+  NB.send({ k: "touch", on: 0 });
+  const g = gest;
+  const held = performance.now() - g.t0;
+  if (g.mode === "?") {
+    if (held > 340 && g.path < 14) {
+      /* PRESS: it deepened while held (ramp happened in tick); 30% soaks in */
+      const kept = g.v0 + (VAL[g.id] - g.v0) * 0.3;
+      easeParam(g.id, kept, 700);
+    } else if (g.path < 10) {
+      /* a light touch: the organ answers with a soft pulse of itself */
+      const v = VAL[g.id] !== undefined ? VAL[g.id] : 0.5;
+      sendParam(g.id, clamp(v + 0.06, 0, 1));
+      easeParam(g.id, v, 900);
+    }
+  } else if (g.mode === "stroke") {
+    /* the perturbation relaxes at the tissue's own pace */
+    easeParam(g.id, g.v0, 1400);
+  }
+  gest = null;
+  pin.set = null;
+  try { cv.releasePointerCapture(e.pointerId); } catch (err) {}
+});
+
+/* press-ramp + eased relaxations run on the animation tick */
+const eases = [];
+function easeParam(id, target, ms) {
+  eases.push({ id, from: VAL[id] !== undefined ? VAL[id] : 0.5, to: target,
+               t0: performance.now(), ms });
+}
+function gestureTick() {
+  if (gest && gest.mode === "?" ) {
+    const held = performance.now() - gest.t0;
+    if (held > 340 && gest.path < 14) {
+      /* PRESS in progress: deepen toward the organ's ceiling */
+      sendParam(gest.id, clamp((VAL[gest.id] !== undefined ? VAL[gest.id] : 0.5) + 0.006, 0, 1));
+    }
+  }
+  for (let i = eases.length - 1; i >= 0; i--) {
+    const z = eases[i];
+    const t = clamp((performance.now() - z.t0) / z.ms, 0, 1);
+    const v = z.from + (z.to - z.from) * (t * t * (3 - 2 * t));
+    sendParam(z.id, v);
+    if (t >= 1) eases.splice(i, 1);
+  }
+}
+
+/* ── the overlay: harness drawings + the survey field ───────────────────── */
+const ov = document.getElementById("ov");
+const ox = ov.getContext("2d");
+
+function sigil(ctx, x, y, r, cat, fam) {
+  /* the specimen's mark, drawn from its own numbers — never an alphabet */
+  ctx.save();
+  ctx.translate(x, y);
+  let h = (cat * 2654435761) >>> 0;
+  const rnd = () => { h ^= h << 13; h >>>= 0; h ^= h >> 17; h ^= h << 5; h >>>= 0; return (h >>> 8) / 16777216; };
+  const arms = 3 + (fam % 4);
+  ctx.strokeStyle = "rgba(140,220,205,0.75)";
+  ctx.lineWidth = 1;
+  for (let a = 0; a < arms; a++) {
+    const th = (a / arms) * Math.PI * 2 + rnd() * 0.8;
+    ctx.beginPath();
+    let px = 0, py = 0;
+    ctx.moveTo(0, 0);
+    const segs = 3 + Math.floor(rnd() * 3);
+    for (let sgm = 1; sgm <= segs; sgm++) {
+      const rr = r * sgm / segs;
+      const wob = (rnd() - 0.5) * r * 0.7;
+      px = Math.cos(th) * rr - Math.sin(th) * wob;
+      py = Math.sin(th) * rr + Math.cos(th) * wob;
+      ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    if (rnd() > 0.5) { ctx.beginPath(); ctx.arc(px, py, 1.6, 0, 7); ctx.fillStyle = "rgba(160,235,220,0.8)"; ctx.fill(); }
+  }
+  ctx.restore();
+}
+
+let fieldHover = -1;
+function drawOverlay() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (ov.width !== Math.floor(innerWidth * dpr)) {
+    ov.width = Math.floor(innerWidth * dpr);
+    ov.height = Math.floor(innerHeight * dpr);
+  }
+  ox.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ox.clearRect(0, 0, innerWidth, innerHeight);
+
+  /* containment markings: the LAB's, human, faint — the artefact sits in
+     our equipment, not the other way round */
+  ox.strokeStyle = "rgba(90,120,130,0.10)";
+  ox.lineWidth = 1;
+  const cx = innerWidth / 2, cy = innerHeight * 0.47;
+  const R = Math.min(innerWidth, innerHeight) * 0.44;
+  ox.beginPath(); ox.arc(cx, cy, R, 0.3, 1.2); ox.stroke();
+  ox.beginPath(); ox.arc(cx, cy, R, 2.5, 3.3); ox.stroke();
+  ox.beginPath(); ox.arc(cx, cy, R, 4.4, 5.4); ox.stroke();
+  for (const a of [0.3, 1.2, 2.5, 3.3, 4.4, 5.4]) {
+    ox.beginPath();
+    ox.moveTo(cx + Math.cos(a) * (R - 5), cy + Math.sin(a) * (R - 5));
+    ox.lineTo(cx + Math.cos(a) * (R + 5), cy + Math.sin(a) * (R + 5));
+    ox.stroke();
+  }
+
+  if (fieldOpen && FIELD) {
+    ox.fillStyle = "rgba(3,5,10,0.86)";
+    ox.fillRect(0, 0, innerWidth, innerHeight);
+    ox.fillStyle = "rgba(120,150,145,0.5)";
+    ox.font = "10px Consolas";
+    ox.fillText("THE SURVEY · " + FIELD.x.length + " SPECIMENS · PLACED BY WHAT THEY ARE, NOT WHAT THEY ARE CALLED", 14, 20);
+    const fx = x => innerWidth * 0.5 + x * innerWidth * 0.42;
+    const fy = y => innerHeight * 0.5 + y * innerHeight * 0.4;
+    for (let c = 0; c < FIELD.x.length; c++) {
+      const x = fx(FIELD.x[c]), y = fy(FIELD.y[c]);
+      const near = Math.hypot(mouseX - x, mouseY - y);
+      const r = near < 60 ? 13 - near * 0.08 : 6;
+      ox.globalAlpha = near < 60 ? 1 : 0.55;
+      sigil(ox, x, y, r, c, FIELD.fam[c]);
+      if (c === (SPEC ? SPEC.cat : -1)) {
+        ox.globalAlpha = 0.9;
+        ox.strokeStyle = "rgba(230,255,250,0.6)";
+        ox.beginPath(); ox.arc(x, y, 16, 0, 7); ox.stroke();
+      }
+    }
+    ox.globalAlpha = 1;
+    fieldHover = -1;
+    let bd = 40;
+    for (let c = 0; c < FIELD.x.length; c++) {
+      const d = Math.hypot(mouseX - fx(FIELD.x[c]), mouseY - fy(FIELD.y[c]));
+      if (d < bd) { bd = d; fieldHover = c; }
+    }
+    if (fieldHover >= 0) {
+      const x = fx(FIELD.x[fieldHover]), y = fy(FIELD.y[fieldHover]);
+      ox.strokeStyle = "rgba(160,235,220,0.9)";
+      ox.beginPath(); ox.arc(x, y, 20, 0, 7); ox.stroke();
+      ox.fillStyle = "rgba(160,235,220,0.9)";
+      ox.fillText(String(fieldHover).padStart(3, "0"), x + 24, y + 3);
+    }
+  }
+}
+
+function fieldClick(x, y, shift) {
+  if (fieldHover >= 0) {
+    if (shift) {
+      /*  call it in to talk to, rather than becoming it. The field's own
+          geometry is spectral similarity, so where you click decides
+          whether you will be understood. */
+      VAL.other = fieldHover;
+      NB.send({ k: "p", id: "other", v: fieldHover });
+      if (!(VAL.converse > 0)) sendParam("converse", 0.45);
+    } else {
+      VAL.specimen = fieldHover;
+      NB.send({ k: "p", id: "specimen", v: fieldHover });   // raw catalog number
+    }
+    fieldOpen = false;
+    document.getElementById("surveyBtn").classList.remove("on");
+  }
+}
+
+/* ── the two big instruments ────────────────────────────────────────────── */
+/*  Both are the same shape: a track, a fill, a knob, and a readout. The 4D
+    one is the WINCH parameter under its researchers' name — the id does not
+    change, so every saved observation and every automation lane still finds
+    it. */
+function bindBig (id, track, fill, knob, readout, fmt) {
+  const trk = document.getElementById(track);
+  const fil = document.getElementById(fill);
+  const kn  = document.getElementById(knob);
+  const rd  = document.getElementById(readout);
+  let drag = false;
+  const setFromX = (clientX) => {
+    const r = trk.getBoundingClientRect();
+    sendParam(id, Math.max(0, Math.min(1, (clientX - r.left) / Math.max(1, r.width))));
+  };
+  trk.addEventListener("pointerdown", e => {
+    drag = true; try { trk.setPointerCapture(e.pointerId); } catch (err) {}
+    setFromX(e.clientX); e.preventDefault();
+  });
+  trk.addEventListener("pointermove", e => { if (drag) setFromX(e.clientX); });
+  trk.addEventListener("pointerup",   () => { drag = false; });
+  trk.addEventListener("pointercancel", () => { drag = false; });
+  //  the wheel works on the instrument itself as well as on the face
+  trk.addEventListener("wheel", e => {
+    e.preventDefault();
+    const d = (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 0.008 : 0.075);
+    sendParam(id, (VAL[id] !== undefined ? VAL[id] : 0.5) + d);
+  }, { passive: false });
+  return () => {
+    const v = VAL[id] !== undefined ? VAL[id] : 0.5;
+    const w = trk.clientWidth - 2;
+    fil.style.width = Math.max(0, v * w) + "px";
+    kn.style.left = Math.max(0, Math.min(w - 3, v * w)) + "px";
+    rd.textContent = fmt(v);
+  };
+}
+/*  The traverse reads as where the section stands, not as a percentage: the
+    number the researchers wrote down was the depth, and past about +-1 the
+    tissue is behind you. */
+const draw4d = bindBig("winch", "trk4d", "fil4d", "kn4d", "rd4d", v => {
+  const x = (v - 0.5) * 2;
+  const w = (x < 0 ? -1 : 1) * Math.pow(Math.abs(x), 1.9) * 2.2;
+  return (Math.abs(w) > 1.05 ? "OUT " : "") + w.toFixed(2);
+});
+const drawT = bindBig("temp", "trkT", "filT", "knT", "rdT",
+                      v => Math.round(77 + 723 * v) + " K");
+function updateBigs () { draw4d(); drawT(); }
+
+/* ── the harness rail ───────────────────────────────────────────────────── */
+const RAILTAGS = ["aperture","metabolism","revival","membrane","gravity","depth",
+                  "warmth","wake","transit","slab","retention","volume",
+                  "converse","commune","plastic"];
+function buildTags() {
+  const host = document.getElementById("tags");
+  host.innerHTML = "";
+  for (const id of RAILTAGS) {
+    const t = document.createElement("span");
+    t.className = "tag";
+    t.id = "tag_" + id;
+    t.innerHTML = "<b>" + (SPECP[id] ? SPECP[id].name : id.toUpperCase()) + "</b><span class='v'></span>";
+    t.title = "Harness tap — bolted to the lab frame, not to the artefact. Drag sideways for fine control.";
+    let dragging = null;
+    t.addEventListener("pointerdown", e => {
+      dragging = { x: e.clientX, v: VAL[id] !== undefined ? VAL[id] : 0.5 };
+      t.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    t.addEventListener("pointermove", e => {
+      if (!dragging) return;
+      sendParam(id, dragging.v + (e.clientX - dragging.x) / 260);
+    });
+    t.addEventListener("pointerup", () => { dragging = null; });
+    host.appendChild(t);
+  }
+}
+function updateTags() {
+  updateBigs();
+  for (const id of RAILTAGS) {
+    const t = document.getElementById("tag_" + id);
+    if (!t) continue;
+    const v = VAL[id];
+    const s = SPECP[id];
+    let txt = "";
+    if (s && s.kind === 3) {           // KP_VOL
+      const g = v < 0.005 ? 0 : 2 * v * v;
+      txt = g <= 0 ? "-inf" : (20 * Math.log10(g)).toFixed(1) + "dB";
+    } else txt = Math.round((v !== undefined ? v : 0) * 100) + "%";
+    t.querySelector(".v").textContent = txt;
+  }
+  const sid = document.getElementById("sidBtn");
+  sid.classList.toggle("on", (VAL.sidereal || 0) >= 0.5);
+  if (SPEC) {
+    let txt = "SPECIMEN " + String(SPEC.cat).padStart(3, "0");
+    if (SPEC2 && VAL.converse > 0) {
+      txt += (SAY ? "  \u25b8\u25b8  " : "  \u00b7\u00b7  ")
+           + String(SPEC2.cat).padStart(3, "0")
+           + "  KIN " + Math.round(KIN * 100) + "%";
+    }
+    if (ACCENT > 0) txt += "  ACCENT " + ACCENT;
+    document.getElementById("catN").textContent = txt;
+  }
+}
+
+document.getElementById("surveyBtn").addEventListener("click", () => {
+  fieldOpen = !fieldOpen;
+  document.getElementById("surveyBtn").classList.toggle("on", fieldOpen);
+  if (fieldOpen) NB.send({ k: "survey" });
+});
+document.getElementById("sidBtn").addEventListener("click", () => {
+  sendParam("sidereal", (VAL.sidereal || 0) >= 0.5 ? 0 : 1);
+});
+/*  PROVENANCE — the pin sits where the pair was lifted; the faint second mark
+    is the Sabik vault field, so the two specimens can see each other on the
+    same globe. Fractions of the image, so they hold at any card width. */
+const PIN_HERE = [0.228, 0.251];      // Kell Rille, Cistern 4
+const PIN_OTHER = [0.828, 0.64];     // Sabik Terminator, Vault Field 9 (B2311.67)
+function placePins() {
+  const w = document.getElementById("globewrap");
+  if (!w) return;
+  const put = (pinId, labId, fr, text) => {
+    const x = fr[0] * w.clientWidth, y = fr[1] * w.clientHeight;
+    const pn = document.getElementById(pinId), lb = document.getElementById(labId);
+    pn.style.left = x + "px"; pn.style.top = y + "px";
+    lb.textContent = text; lb.style.left = (x + 12) + "px"; lb.style.top = (y - 5) + "px";
+  };
+  put("pin", "pinlab", PIN_HERE, "KR-4");
+  put("pin2", "pinlab2", PIN_OTHER, "VF-9 \u00b7 B2311.67");
+}
+document.getElementById("provBtn").addEventListener("click", () => {
+  document.getElementById("prov").classList.add("on");
+  placePins();
+});
+document.getElementById("provclose").addEventListener("click", () =>
+  document.getElementById("prov").classList.remove("on"));
+document.getElementById("prov").addEventListener("click", ev => {
+  if (ev.target.id === "prov") document.getElementById("prov").classList.remove("on");
+});
+window.addEventListener("keydown", ev => {
+  if (ev.key === "Escape") document.getElementById("prov").classList.remove("on");
+});
+
+/* ── the site: what the four findings share (settings are the bench's) ── */
+const SITE = {open:false, climate:false, timing:false, distance:0.5, others:0, coh:0, pull:0, kelvin:0};
+function siteDistWord(d){ return d<0.15?"the same bench":d<0.4?"the same table":d<0.7?"the same room":d<0.9?"across the hall":"different rooms"; }
+function renderSite(){
+  const g = id => document.getElementById(id);
+  const c=g("siteClimate"), t=g("siteTiming");
+  c.textContent = SITE.climate?"shared":"own"; c.classList.toggle("on", !!SITE.climate);
+  t.textContent = SITE.timing?"shared":"own";  t.classList.toggle("on", !!SITE.timing);
+  if(document.activeElement!==g("siteDist")) g("siteDist").value = SITE.distance;
+  g("siteDistRd").textContent = siteDistWord(SITE.distance);
+  let st = !SITE.open ? "no bench (the site is unavailable here)"
+         : SITE.others>0 ? SITE.others+" other finding"+(SITE.others>1?"s":"")+" present" : "only this finding";
+  if(SITE.open && SITE.others>0 && SITE.timing)
+    st += " · coherence "+(+SITE.coh).toFixed(2)+(SITE.pull>0.05 ? " · pulling "+Math.round(SITE.pull*100)+"%" : " · too warm or too far to lock");
+  if(SITE.open && SITE.climate && SITE.kelvin>0)
+    st += " · bench "+Math.round(SITE.kelvin)+" K"+(SITE.local>0 && Math.abs(SITE.local-SITE.kelvin)>1 ? " · here "+Math.round(SITE.local)+" K" : "");
+  g("siteStatus").textContent = st;
+  g("siteRd").textContent = (SITE.open && SITE.others>0 && (SITE.timing||SITE.climate))
+    ? "BENCH "+(SITE.others+1)+" PRESENT"+(SITE.timing?" · LOCK "+(+SITE.coh).toFixed(2):"") : "";
+}
+NB.on("site", p => { Object.assign(SITE, p); renderSite(); });
+document.getElementById("siteBtn").addEventListener("click", () => document.getElementById("site").classList.add("on"));
+document.getElementById("siteclose").addEventListener("click", () => document.getElementById("site").classList.remove("on"));
+document.getElementById("site").addEventListener("click", ev => {
+  if (ev.target.id === "site") document.getElementById("site").classList.remove("on");
+});
+window.addEventListener("keydown", ev => {
+  if (ev.key === "Escape") document.getElementById("site").classList.remove("on");
+});
+document.getElementById("siteClimate").addEventListener("click", () => NB.send({k:"site", climate: !SITE.climate}));
+document.getElementById("siteTiming").addEventListener("click",  () => NB.send({k:"site", timing:  !SITE.timing}));
+document.getElementById("siteDist").addEventListener("input",  e => { SITE.distance=+e.target.value; document.getElementById("siteDistRd").textContent=siteDistWord(SITE.distance); });
+document.getElementById("siteDist").addEventListener("change", e => NB.send({k:"site", distance:+e.target.value}));
+
+document.getElementById("logBtn").addEventListener("click", () => NB.send({ k: "presetSave" }));
+document.getElementById("resBtn").addEventListener("click", () => NB.send({ k: "presetOpen" }));
+document.getElementById("panicBtn").addEventListener("click", () => NB.send({ k: "panic" }));
+document.getElementById("clip").addEventListener("click", () => {
+  document.body.classList.toggle("railhidden");
+});
+/*  Peter's idea, and it was already the mechanism: the wheel cranks the
+    WINCH, and the section pull carries the 4D body through your plane with
+    its own inertia — organs condense in and evaporate out as it passes.
+    Shift for a fine crank. Automation-visible, because the winch is. */
+cv.addEventListener("wheel", e => {
+  if (fieldOpen) return;
+  e.preventDefault();
+  const d = (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 0.008 : 0.075);
+  sendParam("winch", (VAL.winch !== undefined ? VAL.winch : 0.5) + d);
+}, { passive: false });
+
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape" && fieldOpen) {
+    fieldOpen = false;
+    document.getElementById("surveyBtn").classList.remove("on");
+  }
+});
+
+/* the field keyboard: the expedition's test tones */
+{
+  const host = document.getElementById("keys");
+  for (let i = 0; i < 13; i++) {
+    const note = 48 + i;
+    const k = document.createElement("div");
+    k.addEventListener("pointerdown", () => {
+      k.classList.add("dn");
+      NB.send({ k: "note", n: note, on: 1, v: 0.85 });
+    });
+    const up = () => {
+      if (!k.classList.contains("dn")) return;
+      k.classList.remove("dn");
+      NB.send({ k: "note", n: note, on: 0 });
+    };
+    k.addEventListener("pointerup", up);
+    k.addEventListener("pointerleave", up);
+    host.appendChild(k);
+  }
+}
+
+/* ── notices ────────────────────────────────────────────────────────────── */
+let noticeT = null;
+function notice(t) {
+  const n = document.getElementById("notice");
+  n.textContent = t;
+  n.style.opacity = 1;
+  clearTimeout(noticeT);
+  noticeT = setTimeout(() => { n.style.opacity = 0; }, 3200);
+}
+
+/* ── native events ──────────────────────────────────────────────────────── */
+NB.on("initialState", p => {
+  for (const e of p.params) {
+    SPECP[e.id] = { name: e.name, kind: e.kind, hi: e.hi };
+    VAL[e.id] = e.v;                                 // specimen arrives raw
+  }
+  buildTags();
+  updateTags();
+  NB.send({ k: "ready" });
+});
+NB.on("params", batch => {
+  for (const e of batch) VAL[e.id] = e.v;
+  updateTags();
+});
+NB.on("specimen", s => {
+  /* precompute degrees for organ speakers */
+  s.deg = new Array(s.nodes.length).fill(0);
+  for (const [a, b] of s.edges) { s.deg[a]++; s.deg[b]++; }
+  SPEC = s;
+  LUM = new Array(s.nodes.length).fill(0);
+  setPalette(s.cat);
+  updateTags();
+});
+NB.on("other", o => {
+  SPEC2 = o;
+  LUM2 = new Array(o.nodes.length).fill(0);
+  lastReadout = "";
+  notice("SECOND BODY " + String(o.cat).padStart(3, "0")
+       + " · LADDER OVERLAP " + Math.round((o.kin || 0) * 100) + "%");
+});
+NB.on("sec", s => {
+  secW = s.w; secV = s.v;
+  if (s.lum && SPEC) for (let i = 0; i < s.lum.length; i++) LUM[i] = s.lum[i];
+  if (s.lum2 && SPEC2) for (let i = 0; i < s.lum2.length; i++) LUM2[i] = s.lum2[i];
+  if (s.kin !== undefined) KIN = s.kin;
+  if (s.say !== undefined) SAY = s.say;
+  if (s.accent !== undefined) ACCENT = s.accent;
+  if (s.scar !== undefined) SCAR = s.scar;
+  if (s.rest !== undefined) REST = s.rest;
+  /*  the readout lives on a stream of its own, not on parameter moves —
+      without this it reported "SPECIMEN 000" throughout a conversation */
+  const sig = (SPEC2 ? SPEC2.cat : -1) + "|" + SAY + "|" + Math.round(KIN * 100)
+            + "|" + ACCENT + "|" + (SPEC ? SPEC.cat : -1);
+  if (sig !== lastReadout) { lastReadout = sig; updateTags(); }
+});
+NB.on("field", f => { FIELD = f; });
+NB.on("notice", n => notice(n.text));
+
+/* ── boot ───────────────────────────────────────────────────────────────── */
+glInit();
+glResize();
+window.addEventListener("resize", glResize);
+function frame() {
+  cursorSpeed *= 0.94;               // motion-vision needs stillness to exist
+  let __ls = 0;
+  for (let i = 0; i < LUM.length; i++) __ls += LUM[i];
+  AUD = AUD * 0.88 + Math.min(1, __ls / (LUM.length * 0.22 + 1)) * 0.12;
+  let __l2 = 0;
+  for (let i = 0; i < LUM2.length; i++) __l2 += LUM2[i];
+  AUD2 = AUD2 * 0.88 + Math.min(1, __l2 / (LUM2.length * 0.62 + 1)) * 0.12;
+  stirAcc += AUD * 0.045;            // the body stirs while it speaks
+  gestureTick();
+  drawGL();
+  drawOverlay();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+NB.send({ k: "hello" });
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+[
+  { "name": "settle", "wait": 2600 },
+  { "name": "JS errors", "eval": "(window.__err&&window.__err.length)?window.__err.join(' | '):'none'" },
+  { "name": "the host sees every parameter; the panel still draws six knobs",
+    "eval": "Object.keys(SPEC).join(', ') + '   |   knobs drawn: ' + GEO.pots.length" },
+  { "name": "the two new ones are NOT on the metal",
+    "eval": "['spacewet','spacesync'].map(id => id + (el[id] ? ' HAS A KNOB' : ' hidden')).join(',  ')" },
+  { "name": "their defaults",
+    "eval": "'spacewet ' + V.spacewet + '   spacesync ' + V.spacesync" },
+  { "name": "and they round-trip through the native side",
+    "eval": "setParam('spacewet', 0.85); setParam('spacesync', 3/7); 'set'" },
+  { "name": "let the echo come back", "wait": 500 },
+  { "name": "read back",
+    "eval": "'spacewet ' + V.spacewet.toFixed(3) + '   spacesync ' + V.spacesync.toFixed(3)" },
+  { "name": "restore", "eval": "setParam('spacewet',0.5); setParam('spacesync',0); 'done'" }
+]

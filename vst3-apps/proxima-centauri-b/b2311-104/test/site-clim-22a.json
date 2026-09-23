@@ -1,0 +1,10 @@
+[
+  {"wait": 500},
+  {"eval": "'22 followed: climate=' + SITE.climate + ' bench=' + Math.round(SITE.kelvin) + ' local=' + Math.round(SITE.local) + ' rdT=' + document.getElementById('rdT').textContent"},
+  {"eval": "NB.send({k:'p', id:'temp', v:0.1}); 'temp moved in 22 to 0.1 (~149 K)'"},
+  {"wait": 1500},
+  {"eval": "'22 after own move: bench=' + Math.round(SITE.kelvin) + ' local=' + Math.round(SITE.local)"},
+  {"eval": "NB.send({k:'site', distance:0.2}); 'distance 0.2 set from 22'"},
+  {"wait": 800},
+  {"eval": "'22 distance: ' + SITE.distance"}
+]

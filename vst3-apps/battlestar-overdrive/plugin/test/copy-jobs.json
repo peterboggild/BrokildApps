@@ -1,0 +1,35 @@
+[
+  { "name": "load", "wait": 2200 },
+
+  { "name": "the hero opens the way Peter wrote it",
+    "eval": "document.querySelector('.lede').textContent.replace(/[ ]+/g,' ').trim().slice(0,150)" },
+
+  { "name": "no stray typo: 'To good' must have become 'Too good'",
+    "eval": "/\\bTo good\\b/.test(document.body.textContent) ? 'TYPO STILL THERE' : 'reads Too good'" },
+
+  { "name": "the dropped sections are gone",
+    "eval": "(function(){var t=document.body.textContent;var bad=[];if(/quality switch/i.test(t))bad.push('quality switch section');if(/Collaborations like this are rare/i.test(t))bad.push('collaborations note');if(/does not have room for/i.test(t))bad.push('metal-has-no-room section');return bad.length?('STILL PRESENT: '+bad.join(', ')):'both dropped';})()" },
+
+  { "name": "the fuel section says one thing and does not explain the joke",
+    "eval": "(function(){var h=[...document.querySelectorAll('h2')].find(x=>/fuel/i.test(x.textContent));if(!h)return 'NO FUEL SECTION';var sec=h.closest('section');var t=sec.textContent.replace(/[ ]+/g,' ').trim();return t.length>140?('TOO LONG ('+t.length+' chars): '+t.slice(0,120)):t;})()" },
+
+  { "name": "Max is not described as a man with a guitar",
+    "eval": "(function(){var t=document.body.textContent;return /with a guitar|on a guitar|one-man band/i.test(t)?'STILL SAYS GUITAR/ONE-MAN BAND':'band described as a solo rig';})()" },
+
+  { "name": "SPACE is described as five",
+    "eval": "(function(){var t=document.body.textContent;return /five different FX|five overlapping|five effects/i.test(t)?'says five':'DOES NOT SAY FIVE';})()" },
+
+  { "name": "the SPACE cards really number five",
+    "eval": "(function(){var h=[...document.querySelectorAll('h2')].find(x=>/SPACE is a journey/i.test(x.textContent));if(!h)return 'no space section';return h.closest('section').querySelectorAll('.c').length + ' cards';})()" },
+
+  { "name": "every image still loads",
+    "eval": "(function(){var a=[...document.images];var bad=a.filter(i=>!(i.complete&&i.naturalWidth>0)).map(i=>i.getAttribute('src'));return bad.length?('BROKEN: '+bad.join(', ')):(a.length+' of '+a.length+' loaded');})()" },
+
+  { "name": "the download and manual still answer",
+    "eval": "(async()=>{var out=[];for(const h of ['Battlestar-Overdrive-VST3-win64.zip','Battlestar-Overdrive-Manual.pdf']){try{const r=await fetch(h,{method:'HEAD'});out.push(h.split('-win64')[0].slice(-12)+' '+r.status);}catch(e){out.push(h+' FAILED');}}return out.join(' | ');})()" },
+
+  { "name": "no JS errors",
+    "eval": "(window.__err&&window.__err.length)?window.__err.join(' | '):'none recorded'" },
+
+  { "name": "shot", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/web-landing.png" }
+]

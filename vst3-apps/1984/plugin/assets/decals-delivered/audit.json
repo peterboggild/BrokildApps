@@ -1,0 +1,359 @@
+[
+  {
+    "file": "panel.png",
+    "size": [
+      1024,
+      1024
+    ],
+    "bbox": [
+      0,
+      0,
+      1024,
+      1024
+    ],
+    "mean_alpha": 255.0,
+    "center_alpha": 255,
+    "crop": [
+      0,
+      0,
+      1254,
+      1254
+    ]
+  },
+  {
+    "file": "cheek-left.png",
+    "size": [
+      300,
+      1400
+    ],
+    "bbox": [
+      0,
+      0,
+      300,
+      1400
+    ],
+    "mean_alpha": 251.89,
+    "center_alpha": 252,
+    "crop": [
+      352,
+      2,
+      722,
+      1464
+    ]
+  },
+  {
+    "file": "cap-red.png",
+    "size": [
+      128,
+      256
+    ],
+    "bbox": [
+      0,
+      0,
+      128,
+      256
+    ],
+    "mean_alpha": 251.61,
+    "center_alpha": 253,
+    "crop": [
+      49,
+      2,
+      838,
+      1772
+    ]
+  },
+  {
+    "file": "cap-amber.png",
+    "size": [
+      128,
+      256
+    ],
+    "bbox": [
+      0,
+      0,
+      128,
+      256
+    ],
+    "mean_alpha": 251.7,
+    "center_alpha": 253,
+    "crop": [
+      47,
+      0,
+      841,
+      1773
+    ]
+  },
+  {
+    "file": "cap-ivory.png",
+    "size": [
+      128,
+      256
+    ],
+    "bbox": [
+      0,
+      0,
+      128,
+      256
+    ],
+    "mean_alpha": 252.07,
+    "center_alpha": 253,
+    "crop": [
+      49,
+      2,
+      838,
+      1772
+    ]
+  },
+  {
+    "file": "cap-teal.png",
+    "size": [
+      128,
+      256
+    ],
+    "bbox": [
+      0,
+      0,
+      128,
+      256
+    ],
+    "mean_alpha": 251.95,
+    "center_alpha": 253,
+    "crop": [
+      47,
+      0,
+      840,
+      1774
+    ]
+  },
+  {
+    "file": "cap-slate.png",
+    "size": [
+      128,
+      256
+    ],
+    "bbox": [
+      0,
+      0,
+      128,
+      256
+    ],
+    "mean_alpha": 251.93,
+    "center_alpha": 253,
+    "crop": [
+      48,
+      0,
+      840,
+      1773
+    ]
+  },
+  {
+    "file": "track.png",
+    "size": [
+      32,
+      1024
+    ],
+    "bbox": [
+      0,
+      0,
+      32,
+      1024
+    ],
+    "mean_alpha": 251.71,
+    "center_alpha": 253,
+    "crop": [
+      333,
+      0,
+      403,
+      2135
+    ]
+  },
+  {
+    "file": "knob.png",
+    "size": [
+      512,
+      512
+    ],
+    "bbox": [
+      0,
+      0,
+      512,
+      512
+    ],
+    "mean_alpha": 196.66,
+    "center_alpha": 253,
+    "crop": [
+      15,
+      9,
+      1240,
+      1242
+    ]
+  },
+  {
+    "file": "toggle-up.png",
+    "size": [
+      128,
+      192
+    ],
+    "bbox": [
+      0,
+      0,
+      128,
+      183
+    ],
+    "mean_alpha": 162.64,
+    "center_alpha": 253,
+    "crop": [
+      35,
+      158,
+      990,
+      1382
+    ]
+  },
+  {
+    "file": "toggle-down.png",
+    "size": [
+      128,
+      192
+    ],
+    "bbox": [
+      0,
+      34,
+      128,
+      192
+    ],
+    "mean_alpha": 153.99,
+    "center_alpha": 253,
+    "crop": [
+      35,
+      158,
+      990,
+      1382
+    ]
+  },
+  {
+    "file": "vfd-glass.png",
+    "size": [
+      1600,
+      320
+    ],
+    "bbox": [
+      0,
+      0,
+      1600,
+      320
+    ],
+    "mean_alpha": 251.81,
+    "center_alpha": 252,
+    "crop": [
+      21,
+      163,
+      2072,
+      573
+    ]
+  },
+  {
+    "file": "reel.png",
+    "size": [
+      512,
+      512
+    ],
+    "bbox": [
+      0,
+      0,
+      512,
+      512
+    ],
+    "mean_alpha": 101.45,
+    "center_alpha": 0,
+    "crop": [
+      0,
+      0,
+      1253,
+      1254
+    ]
+  },
+  {
+    "file": "lamp-on.png",
+    "size": [
+      96,
+      96
+    ],
+    "bbox": [
+      0,
+      0,
+      96,
+      96
+    ],
+    "mean_alpha": 197.11,
+    "center_alpha": 253,
+    "crop": [
+      28,
+      20,
+      1225,
+      1215
+    ]
+  },
+  {
+    "file": "lamp-off.png",
+    "size": [
+      96,
+      96
+    ],
+    "bbox": [
+      0,
+      0,
+      96,
+      96
+    ],
+    "mean_alpha": 197.97,
+    "center_alpha": 253,
+    "crop": [
+      28,
+      20,
+      1225,
+      1215
+    ]
+  },
+  {
+    "file": "wordmark.png",
+    "size": [
+      1200,
+      360
+    ],
+    "bbox": [
+      0,
+      0,
+      1200,
+      360
+    ],
+    "mean_alpha": 186.14,
+    "center_alpha": 253,
+    "crop": [
+      34,
+      71,
+      2139,
+      641
+    ]
+  },
+  {
+    "file": "screw.png",
+    "size": [
+      64,
+      64
+    ],
+    "bbox": [
+      0,
+      0,
+      64,
+      64
+    ],
+    "mean_alpha": 197.01,
+    "center_alpha": 253,
+    "crop": [
+      0,
+      0,
+      1254,
+      1254
+    ]
+  }
+]

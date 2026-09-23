@@ -1,0 +1,14 @@
+[
+  {"wait": 3500},
+  {"eval": "(()=>{const s=__HT.state(); return {live:s.live, err:window.__err, build:s.build, decals:__HT.decals(), classes:document.body.className};})()"},
+  {"eval": "NB.send({k:'factory',i:0}); 'SOFT KEYS'"},
+  {"wait": 1200},
+  {"eval": "NB.send({k:'note',n:45,on:true,vel:0.85}); NB.send({k:'note',n:52,on:true,vel:0.8}); 'notes'"},
+  {"wait": 1600},
+  {"eval": "(()=>{const d=__HT.decals(); return {pearlsDrawn:d._pearls, voices:__HT.state().voices.length};})()"},
+  {"shoot": {"sel": null, "out": "C:/Users/peter/b/HighTide/dist/live-decals.png", "scale": 1}},
+  {"shoot": {"sel": "#view", "out": "C:/Users/peter/b/HighTide/docs/manual/shots/decals-view.png", "scale": 2}},
+  {"shoot": {"sel": "#tl", "out": "C:/Users/peter/b/HighTide/docs/manual/shots/timeline.png", "scale": 2}},
+  {"shoot": {"sel": "#rail-r", "out": "C:/Users/peter/b/HighTide/docs/manual/shots/controls.png", "scale": 2}},
+  {"eval": "NB.send({k:'note',n:45,on:false}); NB.send({k:'note',n:52,on:false}); window.__err"}
+]

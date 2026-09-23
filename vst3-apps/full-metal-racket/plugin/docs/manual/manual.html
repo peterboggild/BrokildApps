@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Full Metal Racket — Manual</title>
+<style>
+  /* ---------------------------------------------------------------- *
+   * Print sheet for the Full Metal Racket manual. A4. The palette is
+   * taken off the instrument's own faceplate: cream painted steel,
+   * walnut cheeks, amber lamps, a red pointer.
+   * Rendered to PDF with: chrome --headless --print-to-pdf
+   * ---------------------------------------------------------------- */
+  @page { size: A4; margin: 17mm 16mm 16mm 16mm; }
+  @page :first { margin: 0; }
+
+  :root{
+    --ink:#241a10;
+    --ink-soft:#5a4733;
+    --faint:#8b7658;
+    --paper:#fbf7ef;
+    --rule:#e3d8c4;
+    --amber:#b4600f;
+    --amber-soft:#faeddc;
+    --walnut:#3b2a1c;
+    --dark:#efe6d6;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--paper); }
+  body{
+    color:var(--ink);
+    font:10.6pt/1.55 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3,h4{ font-family:Georgia,"Times New Roman",serif; font-weight:600; margin:0; }
+  p{ margin:.45em 0 .7em; }
+  b,strong{ color:#160f08; font-weight:600; }
+  em{ color:var(--ink-soft); }
+  code{
+    font-family:Consolas,"SF Mono",Menlo,monospace; font-size:9.2pt;
+    background:#f3ebdc; border:1px solid #e0d3bd; border-radius:3px; padding:0 4px;
+    color:#7a4508;
+  }
+
+  /* ---------- cover ---------- */
+  .cover{
+    background:
+      radial-gradient(115% 80% at 78% 6%, rgba(255,170,60,.22) 0%, transparent 58%),
+      radial-gradient(90% 70% at 6% 100%, rgba(255,120,40,.10) 0%, transparent 62%),
+      linear-gradient(168deg,#3b2a1c 0%, #150d07 100%);
+    color:#f3e7d4; height:294mm; padding:24mm 22mm 16mm;
+    display:flex; flex-direction:column; break-after:page;
+  }
+  .cover .kicker{ font-size:8.6pt; letter-spacing:.42em; text-transform:uppercase; color:#c99a5e; }
+  .cover h1{ font-size:37pt; line-height:1.02; margin:8mm 0 0; letter-spacing:.03em; color:#fdf3e4; }
+  .cover h1 span{ color:#ff9b28; }
+  .cover .tag{ font-size:12.5pt; color:#cbb495; margin:5mm 0 0; font-family:Georgia,serif; font-style:italic; }
+  .cover .rule{ height:2px; width:34mm; background:#ff9b28; margin:7mm 0 0; }
+  .cover .shot{ margin:9mm 0 0; text-align:center; }
+  .cover .shot img{
+    max-height:104mm; max-width:100%; border-radius:4px; border:1px solid #4a3524;
+    box-shadow:0 8mm 20mm rgba(0,0,0,.6);
+  }
+  .cover .foot{
+    margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end;
+    font-size:8.8pt; color:#a08a6c; letter-spacing:.06em;
+  }
+  .cover .foot b{ color:#eeddc5; font-weight:600; display:block; font-size:10pt; letter-spacing:0; }
+
+  /* ---------- structure ---------- */
+  .sec{ break-before:page; }
+  .sec-head{
+    display:flex; align-items:baseline; gap:5mm;
+    border-bottom:1.6px solid var(--ink); padding-bottom:2.4mm; margin-bottom:5mm;
+  }
+  .sec-head .num{
+    font:600 9pt/1 Consolas,monospace; color:var(--amber);
+    border:1.4px solid var(--amber); border-radius:3px; padding:1.6mm 2.2mm; letter-spacing:.06em;
+  }
+  .sec-head h2{ font-size:19pt; letter-spacing:-.01em; }
+  .sec-head .sub{ margin-left:auto; font-size:8.4pt; color:var(--faint); letter-spacing:.2em; text-transform:uppercase; }
+
+  h3{ font-size:12.6pt; margin:6.5mm 0 1.5mm; color:#1d140b; }
+  h3:first-child{ margin-top:0; }
+  h4{ font-size:10.4pt; margin:4mm 0 1mm; color:var(--amber); letter-spacing:.02em; }
+  .lead{ font-size:11.4pt; color:var(--ink-soft); font-family:Georgia,serif; margin:0 0 5mm; }
+
+  /* ---------- figures ---------- */
+  figure{ margin:4mm 0 5mm; break-inside:avoid; }
+  figure img{
+    width:100%; display:block; border-radius:4px;
+    border:1px solid #d8c9ac; background:var(--dark);
+    box-shadow:0 1.4mm 4mm rgba(60,40,15,.15);
+  }
+  figcaption{
+    font-size:8.5pt; color:var(--faint); margin-top:1.8mm; line-height:1.4;
+    padding-left:2.6mm; border-left:2px solid var(--amber);
+  }
+  figure.narrow{ width:70%; }
+  figure.tall img{ max-height:150mm; width:auto; margin:0 auto; }
+  figure.tall{ text-align:center; }
+  .figrow{ display:flex; gap:5mm; align-items:flex-start; break-inside:avoid; }
+  .figrow figure{ flex:1 1 0; margin-top:0; }
+  .figrow figure.thin{ flex:0 0 30%; }
+
+  /* ---------- tables ---------- */
+  table{ width:100%; border-collapse:collapse; margin:2.5mm 0 5mm; font-size:9.5pt; break-inside:avoid; }
+  th,td{ text-align:left; padding:1.9mm 2.4mm; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th{
+    font:600 8.2pt/1.3 "Segoe UI",sans-serif; text-transform:uppercase; letter-spacing:.13em;
+    color:var(--faint); border-bottom:1.4px solid var(--ink-soft);
+  }
+  td:first-child{ width:24%; color:#1a1209; font-weight:600; }
+  tr:last-child td{ border-bottom:none; }
+  table.tight td:first-child{ width:17%; }
+  table.chan td:first-child{ width:13%; }
+  table.chan td:nth-child(2){ width:26%; color:var(--amber); }
+
+  /* ---------- callouts ---------- */
+  .note{
+    background:var(--amber-soft); border-left:3px solid var(--amber);
+    padding:3mm 4mm; margin:4mm 0; font-size:9.6pt; border-radius:0 3px 3px 0;
+    break-inside:avoid;
+  }
+  .note b{ color:#8c4a08; }
+  .quiet{ font-size:9.2pt; color:var(--faint); }
+
+  ol.steps{ list-style:none; counter-reset:s; margin:0; padding:0; }
+  ol.steps li{
+    counter-increment:s; position:relative; padding:0 0 3.6mm 11mm; margin-bottom:2.2mm;
+    break-inside:avoid;
+  }
+  ol.steps li::before{
+    content:counter(s); position:absolute; left:0; top:-.4mm;
+    width:7.4mm; height:7.4mm; border-radius:50%;
+    background:var(--amber); color:#fff;
+    font:600 10pt/7.4mm Georgia,serif; text-align:center;
+  }
+  ol.steps li > b:first-child{ display:block; font-size:10.8pt; margin-bottom:.5mm; }
+
+  .recipe{
+    border:1px solid var(--rule); border-top:2.6px solid var(--amber); border-radius:4px;
+    padding:3.4mm 4mm 3mm; margin:0 0 4mm; break-inside:avoid; background:#fefbf5;
+  }
+  .recipe h4{ margin:0 0 1.4mm; font-size:11pt; color:#1d140b; font-family:Georgia,serif; }
+  .recipe .how{ font-size:9.5pt; color:var(--ink-soft); margin:0; }
+  .recipe .how b{ color:#8c4a08; }
+  .recipe .out{ font-size:9pt; color:var(--faint); font-style:italic; margin:1.6mm 0 0; }
+  .grid2{ display:flex; gap:5mm; }
+  .grid2 > div{ flex:1 1 0; min-width:0; }
+
+  ul.plain{ margin:.3em 0 .8em; padding-left:5mm; }
+  ul.plain li{ margin:.28em 0; }
+
+  .colophon{ margin-top:6mm; border-top:1px solid var(--rule); padding-top:3.5mm;
+    font-size:8.8pt; color:var(--faint); }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<section class="cover">
+  <div class="kicker">Brokild Apps · VST3 Instrument</div>
+  <h1>FULL METAL <span>RACKET</span></h1>
+  <div class="tag">Twelve channels that behave like one kit in one room.</div>
+  <div class="rule"></div>
+  <div class="shot"><img src="shots/hero.jpg" alt="Full Metal Racket panel"></div>
+  <div class="foot">
+    <div>
+      <b>User Manual</b>
+      Quick start · Reference · Try this
+    </div>
+    <div style="text-align:right">
+      <b>Version 1.0</b>
+      August 2026 · Windows VST3 · build 260827.22
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">01</span><h2>What this is</h2>
+    <span class="sub">Introduction</span></div>
+
+  <p class="lead">An analogue drum machine with twelve voices, a thirty-two step sequencer and two
+  hundred kits. Nothing in it is sampled and nothing in it is a clone: every voice is built from the
+  same handful of mechanisms, which is why the machine sounds like one machine rather than twelve
+  circuits sharing a jack.</p>
+
+  <h3>The thesis, in one paragraph</h3>
+  <p>A drum machine is usually twelve independent synthesisers wired to a mixer. The parts never
+  quite belong together, and everyone reaches for bus compression to fake the missing glue. This one
+  is built the other way round. Hit the snare and the toms ring, because <b>THE WEB</b> lets any
+  trigger excite the other channels' resonators. Everything feeds one shared shell, <b>KIT BODY</b>.
+  Everything shares one power rail, so a hard kick dips the whole machine in level <em>and pitch</em>
+  for a few milliseconds — which is the part a compressor cannot imitate. And <b>AGE</b> gives every
+  channel its own component tolerances, drifting slowly, so no two hits are quite identical.</p>
+
+  <p>At zero, every one of those is exactly absent. The machine will render bit-identically with the
+  glue switched off, so you can hear precisely what each one is doing.</p>
+
+  <h3>What it is made of</h3>
+  <table class="tight">
+    <tr><td>Twelve voices</td><td>Two kicks, two snares, three toms, a percussion wildcard, closed
+      and open hats, two cymbals — in the order every classic machine uses, read from the floor
+      upward.</td></tr>
+    <tr><td>No VCA</td><td>On the ping models DECAY <em>is</em> the resonator's Q, the way the 808
+      did it. There is no amplitude envelope shaping a tone; the circuit rings and stops ringing.</td></tr>
+    <tr><td>Sequencer</td><td>32 steps, 16 patterns, per-lane length, division, direction and swing.
+      Derived from the host's bar position, not counted, so looping and relocating are free.</td></tr>
+    <tr><td>200 kits</td><td>Generated from a seed, filed by category, each with a name. The same
+      number is the same kit on any machine, forever.</td></tr>
+    <tr><td>MIDI first</td><td>The sequencer is optional. Play it from a pad controller and it never
+      argues with your DAW.</td></tr>
+    <tr><td>Thirteen outputs</td><td>Main stereo plus a mono aux per channel, all off by default
+      until a host asks for them.</td></tr>
+  </table>
+
+  <div class="note"><b>There is no ACCENT channel.</b> Every classic machine has one, first on the
+  selector, and you will look for it. Accent here is <em>per step</em> — a velocity on each step of
+  each lane — which is the same idea in its modern form and rather more use.</div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">02</span><h2>Thirty seconds</h2>
+    <span class="sub">Quick start</span></div>
+
+  <ol class="steps">
+    <li><b>Put it on a MIDI track.</b> It answers the General MIDI drum map, and also C3–B3 for the
+      twelve channels in panel order — whichever your controller sends.</li>
+    <li><b>Turn the kit dial.</b> The arrows either side of the display step through two hundred
+      kits; clicking the display opens the browser, where they are filed by category. RANDOM on the
+      left rail throws you somewhere at random.</li>
+    <li><b>Press STEPS and draw something.</b> Click a cell to turn it on. Press the ▶ key and it
+      runs, on your DAW's tempo if the transport is rolling and on its own if not.</li>
+    <li><b>Turn RAIL SAG up.</b> Then play the kick hard. That is the machine breathing — one supply,
+      shared by twelve voices.</li>
+    <li><b>Turn REBOUND up on the snare.</b> A little is a flam, more is a drag, a lot is a buzz
+      roll. One knob for three techniques that are otherwise miserable to program.</li>
+  </ol>
+
+  <figure>
+    <img src="shots/hero.jpg" alt="The VOICES page">
+    <figcaption>The VOICES page. Twelve strips, every knob visible at once — the tactile wall is
+      most of the point. The rail on the left switches pages and holds the things you reach for
+      while playing; MASTER is the strip on the right.</figcaption>
+  </figure>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">03</span><h2>The twelve channels</h2>
+    <span class="sub">Voices</span></div>
+
+  <p class="lead">Kick, snare, toms low to high, percussion, then metal. Two conventions are
+  near-universal in the tradition and both are kept: the toms run low to high left to right, and the
+  percussion voice sits between the toms and the metal — which is exactly where the 808 put its
+  claves and cowbell.</p>
+
+  <table class="chan">
+    <tr><th>Channel</th><th>Models</th><th>What it is</th></tr>
+    <tr><td>BD 1 · BD 2</td><td>PING / PUNCH / MEMBRANE</td><td>Two kicks so you can have a long one
+      and a short one, or a body and a click, without robbing another voice.</td></tr>
+    <tr><td>SD 1 · SD 2</td><td>SHELL / WIRES / CLAP</td><td>CLAP is a snare model rather than its
+      own channel — a clap is a snare drum played by a crowd.</td></tr>
+    <tr><td>TOM 1–3</td><td>MEMBRANE / CONGA / BLOCK</td><td>Three is the classic count; the 808 and
+      the 909 both had three.</td></tr>
+    <tr><td>FX</td><td>BELL / WOOD / ZAP / VOX</td><td>The wildcard, in the tradition's percussion
+      slot. WOOD and BELL <em>are</em> the claves and the cowbell.</td></tr>
+    <tr><td>CH · OH</td><td>CRASH / RIDE / SPLASH</td><td>Closed and open hat, shipped LINKed — see
+      below.</td></tr>
+    <tr><td>CY 1 · CY 2</td><td>CRASH / RIDE / SPLASH</td><td>Multi-band decay, so the top goes
+      before the body does, the way a real cymbal dies.</td></tr>
+  </table>
+
+  <h3>The hat is two channels that behave like one</h3>
+  <p>A hi-hat is not one instrument, it is a <em>pair of cymbals with a pedal</em>, and its whole
+  musical function is that the open one is cut off by the closed one. Two channels buy four things a
+  single dual-trigger circuit could not: its own sequencer lane — decisive, you want a CH lane and an
+  OH lane rather than an openness flag per step — its own aux out, its own level and its own pan.</p>
+
+  <p>What that risks losing is that they are one pair of cymbals. So the pair ships <b>LINKed</b>
+  (the button on the left rail): OH mirrors CH's tune and model, and CH chokes OH hard. Unlink and
+  they are independent, which is occasionally wanted and always physically wrong — so link is the
+  default, because the correct thing should be the easy thing. When linked, OH's TUNE and MODEL show
+  and drive the pair, and are ringed to say so.</p>
+
+  <div class="figrow">
+    <figure class="thin">
+      <img src="shots/strip.jpg" alt="One channel strip">
+      <figcaption>One strip: model, six knobs, REBOUND, KEY, level, pan, mute and the trigger pad
+        with its MIDI note.</figcaption>
+    </figure>
+    <div>
+      <h3>The six knobs</h3>
+      <table class="tight">
+        <tr><td>TUNE</td><td>The resonator's frequency. On the metal channels it also moves the band
+          filters, because that is where their pitch actually lives.</td></tr>
+        <tr><td>DECAY</td><td>On the ping models this <em>is</em> the Q. There is no VCA: the circuit
+          rings for as long as it rings.</td></tr>
+        <tr><td>TONE</td><td>The balance of body against noise, and where the noise sits.</td></tr>
+        <tr><td>SNAP</td><td>The attack transient — the stick, before the drum has decided what note
+          it is.</td></tr>
+        <tr><td>BEND</td><td>The pitch envelope. Every good kick is a falling note.</td></tr>
+        <tr><td>DRIVE</td><td>Saturation into the channel's own limiter.</td></tr>
+      </table>
+      <p class="quiet">Underneath, two mechanisms work without a knob: hitting harder makes the
+      drumhead <em>tense</em>, so a hard hit starts sharp and settles; and the resonator's damping
+      depends on amplitude, so a loud hit does not simply sound like a quiet one turned up.</p>
+    </div>
+  </div>
+
+  <h3>REBOUND, and KEY</h3>
+  <p><b>REBOUND</b> turns one trigger into a modelled bounce: shortening intervals, falling velocity,
+  the way a stick actually behaves on a head. Low is a flam, middle a drag, high a buzz roll.</p>
+  <p><b>KEY</b> makes the channel chromatic. MIDI notes track the resonator properly, and the decay
+  scales with pitch so a low note rings longer, like a real one. A tuned kick is the most-used trick
+  in modern production and very few drum machines do it correctly. The exact drum map is consulted
+  first, so a channel in KEY mode never steals another channel's note.</p>
+</section>
+
+<!-- ================= 4 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">04</span><h2>The glue</h2>
+    <span class="sub">One machine, not twelve</span></div>
+
+  <p class="lead">Five controls sit above the strips and none of them belongs to a channel. They are
+  what makes the twelve behave like one kit, and each of them is exactly absent at zero.</p>
+
+  <table>
+    <tr><td>RAIL SAG</td><td>One power supply, shared. A hard hit pulls it down and everything dips
+      for a few milliseconds — level and <em>pitch</em>. The pitch component is why sag glues in a
+      way a compressor cannot: a compressor can duck the level, but it cannot make the whole kit
+      sag flat for an instant and spring back.</td></tr>
+    <tr><td>KIT BODY</td><td>One resonator that every channel feeds, with its own tuning and decay.
+      The shell the machine sits in. Not a reverb — the world rack has a reverb — a coupling.</td></tr>
+    <tr><td>BLEED</td><td>THE WEB. Any trigger <em>excites</em> the other channels' resonators
+      without firing their envelopes, so a snare rings the toms and a kick buzzes the hats. This is
+      the thing bus compression is trying to fake, and it costs almost nothing because the
+      resonators are already there.</td></tr>
+    <tr><td>AGE</td><td>Per-channel component tolerances that drift slowly, so no two instances are
+      identical and no two hits are. At zero, determinism is bit-exact.</td></tr>
+    <tr><td>KIT TUNE</td><td>Transposes the whole machine two octaves, metal included.</td></tr>
+  </table>
+
+  <h3>KIT MORPH, and the A / B slots</h3>
+  <p>A and B are <em>slots</em>, not switches. Press <b>A</b> and it holds whatever the machine is
+  doing at that moment; change the machine as much as you like; press <b>B</b>. The MORPH knob then
+  blends between the two — every continuous parameter interpolated, every switched one flipping at
+  its own threshold along the way, so the kit changes character rather than cross-fading.</p>
+  <p>MORPH is dim until both slots hold something, because until then there is nothing to morph
+  toward. Pressing a lit slot again re-captures it; shift-clicking empties it.</p>
+
+  <div class="note"><b>The morph moves the panel too.</b> It is applied to the engine's copy of the
+  parameters and never written back to the knobs — a fader that silently rewrote a hundred controls
+  would wreck both its own automation and theirs. But the panel computes the same blend for display,
+  so the knobs sweep as you move the fader even though nothing has been overwritten.</div>
+
+  <h3>THE HAND</h3>
+  <p>On the STEPS page, <b>FEEL</b> and <b>GRIP</b> humanise the playing — and not by adding random
+  milliseconds, which never sounds human. A drummer has limbs, and a limb cannot play two things at
+  once: the second hit displaces, which is where flams come from by themselves. Add a little push
+  and pull per subdivision and some velocity carried over from the previous hit on the same limb,
+  and the machine breathes instead of stuttering.</p>
+</section>
+
+<!-- ================= 5 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">05</span><h2>The sequencer</h2>
+    <span class="sub">Steps</span></div>
+
+  <figure>
+    <img src="shots/steps.jpg" alt="The STEPS page">
+    <figcaption>Thirty-two steps, twelve lanes. The dimmed columns are past the lane's LAST step —
+      they hold what you drew, they simply are not in the loop. Each lane's LAST, DIV, DIR and SWNG
+      sit at the right-hand end of its row.</figcaption>
+  </figure>
+
+  <h3>How it keeps time</h3>
+  <p>Every step is <em>derived</em> from the host's bar position rather than counted forward. That
+  is not a detail: it means looping, relocating and tempo changes are free and exact, and a bounce
+  matches what you heard. Measured against the host clock, the worst placement error is one sample.
+  With no transport rolling it free-runs on the TEMPO knob, and the moment your DAW starts, the DAW
+  takes over.</p>
+
+  <h3>The transport</h3>
+  <table class="tight">
+    <tr><td>▶ RUN</td><td>Starts from step one.</td></tr>
+    <tr><td>❚❚ PAUSE</td><td>Stops where it is; press again to continue from there. SPACE does this
+      too. Two keys rather than one toggle, because "start again" and "carry on" are different
+      intentions and a single button has to guess which you meant.</td></tr>
+    <tr><td>■ STOP</td><td>Stops and rewinds to step one.</td></tr>
+    <tr><td>● RECORD</td><td>Writes what you play — pads or MIDI — into the current pattern, at the
+      <em>nearest</em> step of that lane. Not the step just passed: quantising backwards makes
+      everything you played sound late.</td></tr>
+  </table>
+
+  <h3>Per lane, and per step</h3>
+  <table class="tight">
+    <tr><td>LAST</td><td>Where that lane's loop ends, 1 to 32. Set the hats to 16 and the toms to 12
+      and they drift against each other for four bars before they agree again. Right-click a step to
+      set LAST there.</td></tr>
+    <tr><td>DIV</td><td>The lane's clock division, so one lane can run at half or double speed.</td></tr>
+    <tr><td>DIR</td><td>Forward, reverse, pendulum or random.</td></tr>
+    <tr><td>SWNG</td><td>Swing <em>per lane</em>, which is how grooves actually work — swung hats
+      over a straight kick.</td></tr>
+    <tr><td colspan="2" style="padding-top:4mm;border-bottom:1.4px solid var(--ink-soft);
+      font:600 8.2pt/1.3 'Segoe UI',sans-serif;text-transform:uppercase;letter-spacing:.13em;
+      color:var(--faint)">Shift-click a step to select it, then use the five knobs below</td></tr>
+    <tr><td>VELOCITY</td><td>The accent, per step. Fifteen decibels of range, not five.</td></tr>
+    <tr><td>CHANCE</td><td>How often that step actually fires.</td></tr>
+    <tr><td>RATCHET</td><td>Two to eight hits in the space of one, with their own ramp.</td></tr>
+    <tr><td>MICRO</td><td>Nudge the step off the grid, ahead or behind.</td></tr>
+    <tr><td>CONDITION</td><td>Play every other pass, every fourth, on fills, off fills, or only if
+      the previous conditional step played.</td></tr>
+  </table>
+
+  <p><b>PATTERN</b> chooses one of sixteen; <b>BARS</b> stretches the thirty-two steps over one bar
+  or two; <b>COPY</b> takes the current pattern somewhere else and <b>CLEAR</b> empties it.</p>
+</section>
+
+<!-- ================= 6 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">06</span><h2>Kits and patches</h2>
+    <span class="sub">Two hundred, then your own</span></div>
+
+  <div class="figrow">
+    <figure class="thin">
+      <img src="shots/kits.jpg" alt="The kit browser">
+      <figcaption>Two hundred kits, filed by category and filterable.</figcaption>
+    </figure>
+    <div>
+      <h3>The two hundred</h3>
+      <p>Each kit is generated from its number, so the same number is the same kit on any machine
+      and always will be. The category is decided <em>first</em> and the parameters are then made to
+      fit it — which is why a kit filed under TECHNO sounds like techno rather than being labelled
+      after the fact. The names are built from grids that share no nouns between categories, so all
+      two hundred are unique.</p>
+      <p>The arrows either side of the display step through them; clicking the display opens the
+      browser; RANDOM dials one at random.</p>
+
+      <h3>Your own patches</h3>
+      <p>SAVE writes a <code>.fmrkit</code> file — the whole machine, sequencer and world rack
+      included. LOAD opens one. A loaded patch names itself on the display in red, marked
+      <b>USER PATCH</b>, and dialling a kit takes it back.</p>
+      <p>Patches live in <code>Documents\Brokild patches\Full Metal Racket</code>, where every
+      Brokild plugin has a folder of its own — deliberately not beside the installed
+      <code>.vst3</code>, which is somewhere an installer can reach and replace.</p>
+    </div>
+  </div>
+
+  <div class="note"><b>Loading always starts at step one.</b> With a host rolling, every step is
+  derived from the bar so this was already true; free-running, the internal clock used to keep
+  whatever phase it had. Loading a patch, dialling a kit, RUN and STOP all put it back to the
+  top.</div>
+
+  <h3>The world rack</h3>
+  <p>The teal globe at the foot of the rail opens <b>Brokild World FX</b> — the same rack of effects
+  and the same SPECTRA characters that live in every Brokild instrument. A rack built here will open
+  in any of them. It is empty by default and adds nothing until you put something in it.</p>
+  <p>The SPECTRA characters reach further than the effects do: they possess the machine itself,
+  detuning, panning and sagging the twelve voices from the inside rather than treating the mix.</p>
+</section>
+
+<!-- ================= 7 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">07</span><h2>Try this</h2>
+    <span class="sub">Recipes</span></div>
+
+  <div class="grid2">
+    <div>
+      <div class="recipe">
+        <h4>A kit in one room</h4>
+        <p class="how">Any kit. <b>BLEED</b> to about 40, <b>KIT BODY</b> to 30, <b>RAIL SAG</b> to
+          50. Play a kick and snare pattern with nothing else.</p>
+        <p class="out">The toms you are not playing start answering the snare, and the whole machine
+          dips under the kick. This is the sound bus compression is an apology for.</p>
+      </div>
+      <div class="recipe">
+        <h4>A bassline out of the kick</h4>
+        <p class="how">BD 1 to the <b>MEMBRANE</b> model, <b>KEY</b> on, <b>DECAY</b> long,
+          <b>BEND</b> low. Play notes an octave below middle C.</p>
+        <p class="out">A tuned kick that holds pitch and rings longer down low, because the decay
+          scales with the note.</p>
+      </div>
+      <div class="recipe">
+        <h4>The polyrhythm</h4>
+        <p class="how">Hats <b>LAST</b> 16, toms <b>LAST</b> 12, kick <b>LAST</b> 32. Draw something
+          simple in each.</p>
+        <p class="out">Three loops of different lengths that agree only once every four bars. Nothing
+          else on the panel needs touching.</p>
+      </div>
+    </div>
+    <div>
+      <div class="recipe">
+        <h4>A drummer, not a grid</h4>
+        <p class="how">A busy hat pattern. <b>GRIP</b> to 60, <b>FEEL</b> to 40, per-lane
+          <b>SWNG</b> on the hats only.</p>
+        <p class="out">Flams appear where two limbs collide, the hats lean forward, and none of it
+          is random jitter.</p>
+      </div>
+      <div class="recipe">
+        <h4>One fader, two kits</h4>
+        <p class="how">Dial a kit, press <b>A</b>. Dial a very different one, press <b>B</b>.
+          Automate <b>MORPH</b> across eight bars.</p>
+        <p class="out">The kit changes character rather than cross-fading, because the switched
+          parameters flip at staggered points along the way.</p>
+      </div>
+      <div class="recipe">
+        <h4>The buzz roll</h4>
+        <p class="how">SD 1, <b>REBOUND</b> up to about 70, one step per bar. Then try 20.</p>
+        <p class="out">At 70 a press roll; at 20 a flam. One knob, and the intervals shorten the way
+          a real stick does.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 8 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">08</span><h2>Installing, and the rest</h2>
+    <span class="sub">Reference</span></div>
+
+  <ol class="steps">
+    <li><b>Unzip.</b> Copy the whole <code>Full Metal Racket.vst3</code> <em>folder</em> — not just
+      the file inside it — into <code>C:\Program Files\Common Files\VST3\</code>. A sub-folder such
+      as <code>...\VST3\Brokild\</code> is fine; hosts look inside. Windows will ask for
+      administrator permission, which is normal.</li>
+    <li><b>Rescan.</b> In Ableton Live: Preferences → Plug-Ins → Rescan. It appears as an instrument
+      called <b>Full Metal Racket</b>, by Brokild.</li>
+    <li><b>Or just run it.</b> <code>Full Metal Racket.exe</code> in the same zip is the standalone.
+      No installation needed.</li>
+  </ol>
+
+  <h3>Settings</h3>
+  <p><b>SETUP</b> on the rail holds the things that belong to your machine rather than to the patch:
+  the button finish (black or metal), and the panel light. Both are saved on this computer and not
+  in the project, so a session always sounds the way it was saved even if it looks different.</p>
+  <p>The panel light is a gamma curve rather than a brightness control — it lifts the shadows, where
+  everything on a panel this pale actually lives, and leaves the highlights alone instead of
+  flattening them.</p>
+
+  <h3>Outputs and oversampling</h3>
+  <p>Main stereo, plus one mono aux per channel, all disabled until the host enables them. The
+  <b>2X</b> button on the rail sets oversampling: 1× is about six percent of a core, 2× ten, 4×
+  eighteen. Offline renders are not forced to a higher rate — what you hear is what you get.</p>
+
+  <h3>What the bench proves</h3>
+  <p>Every build is run through an offline bench that renders real audio and measures it: tuning
+  within half a cent, a played octave at 2.0004, fifteen decibels of velocity range, sequencer
+  placement inside one sample of the host clock, every one of the two hundred kits bounded and
+  audible and unlike every other, and no channel ringing past its own decay. Sixteen hundred and ten
+  checks at the time of writing. It is run after every change to the sound, and the numbers in this
+  manual come from it rather than from anybody's opinion.</p>
+
+  <div class="note"><b>If the window comes up blank</b>, install the free Microsoft Edge WebView2
+  Runtime and reopen the plugin. The interface is drawn in a WebView2 surface, which every current
+  Windows 10 and 11 already has. The audio keeps working with the window shut either way.</div>
+
+  <div class="colophon">
+    <b>Full Metal Racket</b> — Brokild Apps. Build 260827.22, August 2026.<br>
+    Native C++ audio, JUCE 8, interface drawn in a WebView2 surface. Panel decals generated to
+    specification and composited from measured crop regions. Free: no installer, no account, no
+    telemetry, no network access at all.<br>
+    Peter Boggild / Brokild, August 2026.
+  </div>
+</section>
+
+</body>
+</html>

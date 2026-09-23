@@ -1,0 +1,20 @@
+[
+  {"wait": 1500},
+  {"eval": "'err=' + window.__err + ' NB=' + NB.live() + ' SITE=' + typeof SITE + ' open=' + SITE.open + ' others=' + SITE.others + ' toggles=' + document.querySelectorAll('#legend .stog').length"},
+  {"eval": "document.querySelector('#legend').classList.add('on'); document.querySelector('#siteStatus').textContent"},
+  {"eval": "document.querySelector('#siteTiming').click(); 'clicked timing'"},
+  {"wait": 900},
+  {"eval": "'timing=' + SITE.timing + ' climate=' + SITE.climate + ' status=' + document.querySelector('#siteStatus').textContent + ' | btn=' + document.querySelector('#siteTiming').textContent + ' on=' + document.querySelector('#siteTiming').classList.contains('on')"},
+  {"eval": "document.querySelector('#siteClimate').click(); 'clicked climate'"},
+  {"wait": 900},
+  {"eval": "'timing=' + SITE.timing + ' climate=' + SITE.climate + ' kelvin=' + SITE.kelvin + ' status=' + document.querySelector('#siteStatus').textContent"},
+  {"eval": "const d=document.querySelector('#siteDist'); d.value=0.2; d.dispatchEvent(new Event('input')); d.dispatchEvent(new Event('change')); 'distance set'"},
+  {"wait": 900},
+  {"eval": "'distance=' + SITE.distance + ' word=' + document.querySelector('#siteDistRd').textContent"},
+  {"eval": "document.querySelector('#siteTiming').click(); document.querySelector('#siteClimate').click(); 'restored both'"},
+  {"wait": 900},
+  {"eval": "const d=document.querySelector('#siteDist'); d.value=0.5; d.dispatchEvent(new Event('change')); 'distance restored'"},
+  {"wait": 900},
+  {"eval": "'final timing=' + SITE.timing + ' climate=' + SITE.climate + ' distance=' + SITE.distance + ' rSite=[' + document.querySelector('#rSite').textContent + '] err=' + window.__err"},
+  {"eval": "document.querySelector('#legClose').click(); 'legend closed: ' + !document.querySelector('#legend').classList.contains('on')"}
+]

@@ -1,0 +1,1846 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MARTIAN GAIN</title>
+<style>
+/* ─────────────────────────────────────────────────────────────────────────
+   MARTIAN GAIN — panel
+   Oxblood steel, brass bezels and one reactor that has never been signed off.
+   Everything is drawn here; the plugin only ever sends numbers.
+   ───────────────────────────────────────────────────────────────────────── */
+:root{
+  --ink:#f0d9cc; --dim:#a2786a; --faint:#6d4a41; --hair:#4a2620;
+  --red:#ff2e1a; --hot:#ff6a24; --amb:#ffa32e; --pale:#ffd47a;
+  --b1:#ff2e1a; --b2:#ff6a24; --b3:#ffa32e; --b4:#ff8f6b; --b5:#ffd47a;
+  --panel1:#3a1512; --panel2:#240c0a; --panel3:#160706;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#0b0403;
+  font-family:"Arial Narrow","Franklin Gothic Medium",Impact,sans-serif;
+  color:var(--ink);-webkit-user-select:none;user-select:none;cursor:default}
+#fit{position:fixed;inset:0;overflow:hidden;background:
+  radial-gradient(120% 90% at 50% 4%, #3d1511 0%, #1a0807 52%, #0a0403 100%)}
+#deck{position:absolute;left:0;top:0;width:1440px;height:940px;transform-origin:0 0}
+
+/* ── surface ──────────────────────────────────────────────────────────── */
+.grain{position:absolute;inset:-20px;filter:url(#f-grain);opacity:.15;
+  mix-blend-mode:overlay;pointer-events:none;z-index:60}
+.stain{position:absolute;pointer-events:none;mix-blend-mode:color-burn;opacity:.45;
+  filter:url(#f-rust);z-index:4}
+.vig{position:absolute;inset:0;pointer-events:none;z-index:62;
+  background:radial-gradient(118% 86% at 50% 30%, rgba(0,0,0,0) 32%, rgba(0,0,0,.66) 100%)}
+.glowtop{position:absolute;inset:0;pointer-events:none;z-index:3;
+  background:radial-gradient(60% 40% at 50% -6%, rgba(255,88,40,.16), rgba(0,0,0,0) 70%)}
+.hazard{position:absolute;height:9px;z-index:6;pointer-events:none;opacity:.42;
+  background:repeating-linear-gradient(45deg,#c8891a 0 10px,#1a0908 10px 20px);
+  filter:url(#f-rough)}
+
+.plate{position:absolute;background:
+   linear-gradient(162deg,var(--panel1) 0%,var(--panel2) 42%,var(--panel3) 100%);
+  border:1px solid #000;border-radius:4px;z-index:5;
+  box-shadow:inset 0 1px 0 rgba(255,180,150,.10), inset 0 -16px 30px rgba(0,0,0,.55),
+             0 3px 10px rgba(0,0,0,.65)}
+.plate:before{content:"";position:absolute;inset:3px;border:1px solid rgba(255,150,120,.05);
+  border-radius:3px;pointer-events:none}
+.rivet{position:absolute;width:8px;height:8px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%,#c9986a,#4a2b1e 62%,#000);
+  box-shadow:0 1px 1px rgba(0,0,0,.9);pointer-events:none;z-index:12}
+.pname{position:absolute;font-size:11px;letter-spacing:4px;color:#b98a78;font-weight:700;
+  z-index:13;pointer-events:none;text-shadow:0 1px 0 #000}
+.code{position:absolute;font-size:8px;letter-spacing:2px;color:#6b4136;z-index:13;
+  pointer-events:none;font-family:"Consolas",monospace}
+
+/* ── header ───────────────────────────────────────────────────────────── */
+#hdr{left:12px;top:12px;width:1416px;height:70px;
+  background:linear-gradient(180deg,#54201a 0%,#2c100d 46%,#170807 100%)}
+#mark{position:absolute;left:26px;top:12px;font-size:29px;font-weight:700;letter-spacing:6px;
+  color:#f6ddcd;z-index:13;text-shadow:0 2px 0 #000,0 0 20px rgba(255,70,36,.35);
+  filter:url(#f-rough)}
+#submark{position:absolute;left:28px;top:46px;font-size:9px;letter-spacing:3.4px;
+  color:#9a6455;z-index:13}
+#hdrbtns{position:absolute;right:16px;top:16px;display:flex;gap:9px;z-index:14}
+.hb{height:38px;padding:0 15px;border:1px solid #000;border-radius:3px;cursor:pointer;
+  background:linear-gradient(180deg,#5a241c,#2a100d);display:flex;align-items:center;
+  justify-content:center;font-size:10.5px;font-weight:700;letter-spacing:2.6px;color:#e5c3b1;
+  box-shadow:inset 0 1px 0 rgba(255,180,150,.16),0 2px 5px rgba(0,0,0,.7)}
+.hlight{height:38px;display:flex;align-items:center;gap:9px;padding:0 13px;
+  border:1px solid #000;border-radius:3px;
+  background:linear-gradient(180deg,#3a1712,#1c0a08);
+  box-shadow:inset 0 1px 0 rgba(255,180,150,.12),0 2px 5px rgba(0,0,0,.7)}
+.hlight span{font-size:9px;font-weight:700;letter-spacing:2.2px;color:#c79b88}
+.hlight input{-webkit-appearance:none;appearance:none;width:88px;height:4px;
+  border-radius:2px;background:linear-gradient(90deg,#2a100d,#c2532c);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.9);outline:none;cursor:pointer}
+.hlight input::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:13px;height:19px;border-radius:2px;border:1px solid #000;cursor:pointer;
+  background:linear-gradient(180deg,#e8c39c,#7a4f2c 55%,#3a2413);
+  box-shadow:0 1px 3px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,235,210,.5)}
+.hb:hover{background:linear-gradient(180deg,#722d22,#361511);color:#fff3ea}
+.hb:active{box-shadow:inset 0 3px 8px rgba(0,0,0,.85);transform:translateY(1px)}
+.hb.on{background:linear-gradient(180deg,#a83418,#5e1c0d);color:#fff;
+  box-shadow:0 0 14px rgba(255,74,36,.5),inset 0 1px 0 rgba(255,200,170,.3)}
+#statusline{position:absolute;left:520px;top:26px;width:470px;font-size:10px;
+  letter-spacing:1.8px;color:#9a6a5b;z-index:13;font-family:"Consolas",monospace;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#build{position:absolute;left:520px;top:44px;font-size:8px;letter-spacing:1.4px;
+  color:#5d3a31;z-index:13;font-family:"Consolas",monospace}
+
+/* ── reactor scope ────────────────────────────────────────────────────── */
+#scopeplate{left:12px;top:88px;width:1190px;height:242px}
+#scope{position:absolute;left:14px;top:26px;width:1162px;height:200px;
+  background:#0a0403;border:1px solid #000;border-radius:2px;z-index:14;
+  box-shadow:inset 0 0 40px rgba(0,0,0,.9)}
+#scope canvas{position:absolute;left:0;top:0;width:1162px;height:200px}
+#scope:after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)}
+.xhandle{position:absolute;top:0;width:15px;height:200px;margin-left:-7px;cursor:ew-resize;
+  z-index:16;touch-action:none}
+.xhandle i{position:absolute;left:6px;top:0;width:3px;height:200px;
+  background:rgba(255,220,190,.5);box-shadow:0 0 8px rgba(255,120,60,.6)}
+.xhandle b{position:absolute;left:-17px;top:2px;width:49px;height:17px;border-radius:2px;
+  background:#3d150f;border:1px solid #000;color:#ffcdb4;font:700 8.5px/16px Consolas,monospace;
+  text-align:center;letter-spacing:.4px}
+.xhandle:hover b,.xhandle.drag b{background:#a83418;color:#fff}
+
+#bandsplate{left:1210px;top:88px;width:218px;height:242px}
+.bandbtn{position:absolute;width:34px;height:34px;border:1px solid #000;border-radius:3px;
+  cursor:pointer;background:linear-gradient(180deg,#3a1512,#1c0908);z-index:14;
+  font:700 15px/32px "Arial Narrow",sans-serif;text-align:center;color:#a8776a;
+  box-shadow:inset 0 1px 0 rgba(255,170,140,.1),0 2px 4px rgba(0,0,0,.7)}
+.bandbtn.on{background:linear-gradient(180deg,#c23c1a,#6a1e0c);color:#fff;
+  box-shadow:0 0 12px rgba(255,74,36,.55)}
+.osbtn{position:absolute;width:52px;height:26px;border:1px solid #000;border-radius:2px;
+  cursor:pointer;background:linear-gradient(180deg,#341410,#1a0807);z-index:14;
+  font:700 10px/24px Consolas,monospace;text-align:center;color:#a8776a;letter-spacing:1px}
+.osbtn.on{background:linear-gradient(180deg,#8e2f14,#4a1609);color:#fff}
+.swbtn{position:absolute;height:28px;padding:0 10px;border:1px solid #000;border-radius:2px;
+  cursor:pointer;background:linear-gradient(180deg,#341410,#1a0807);z-index:14;
+  font:700 9.5px/26px "Arial Narrow",sans-serif;letter-spacing:2px;color:#a8776a;text-align:center}
+.swbtn.on{background:linear-gradient(180deg,#2f7a2a,#154012);color:#eaffe6;
+  box-shadow:0 0 10px rgba(80,220,90,.35)}
+.swbtn.warn.on{background:linear-gradient(180deg,#a83418,#5e1c0d);color:#fff;
+  box-shadow:0 0 10px rgba(255,74,36,.45)}
+
+/* ── band strips ──────────────────────────────────────────────────────── */
+.strip{position:absolute;top:336px;width:277px;height:476px;
+  background:linear-gradient(160deg,#3a1512 0%,#230b09 44%,#150605 100%);
+  border:1px solid #000;border-radius:4px;z-index:5;
+  box-shadow:inset 0 1px 0 rgba(255,180,150,.09),inset 0 -14px 26px rgba(0,0,0,.55),
+             0 3px 9px rgba(0,0,0,.62)}
+.strip.off{filter:saturate(.32) brightness(.68)}
+.stripnum{position:absolute;left:12px;top:8px;font-size:19px;font-weight:700;letter-spacing:2px;
+  color:#c08a76;text-shadow:0 1px 0 #000}
+.striprange{position:absolute;left:12px;top:31px;font-size:9px;letter-spacing:1.4px;
+  color:#8a5a4c;font-family:"Consolas",monospace}
+.stripsw{position:absolute;right:10px;top:10px;display:flex;gap:5px}
+.stripsw .swbtn{position:relative;height:24px;line-height:22px;font-size:9px;padding:0 8px}
+.algobox{position:absolute;left:12px;top:50px;width:253px;height:40px;border:1px solid #000;
+  border-radius:2px;background:linear-gradient(180deg,#120504,#080302);cursor:pointer;z-index:14;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.85)}
+.algobox .nm{position:absolute;left:0;right:0;top:9px;text-align:center;font-size:14px;
+  font-weight:700;letter-spacing:2.6px}
+.algobox .ar{position:absolute;top:11px;width:18px;text-align:center;font-size:15px;
+  color:#7a4c40;cursor:pointer}
+.algobox .ar:hover{color:#ffcdb4}
+.algobox .arl{left:5px} .algobox .arr{right:5px}
+.knob{position:absolute;cursor:ns-resize;z-index:14;touch-action:none}
+.knob svg{display:block;overflow:visible}
+.knob text{font-size:7.5px;letter-spacing:1.3px;fill:#8a6255;text-anchor:middle;
+  font-family:"Arial Narrow",sans-serif}
+.knob:hover text{fill:#e8c0ac}
+.vu{position:absolute;left:12px;bottom:12px;width:253px;height:74px;border:1px solid #000;
+  border-radius:2px;background:linear-gradient(180deg,#1b0907,#0c0403);z-index:14;overflow:hidden;
+  box-shadow:inset 0 2px 10px rgba(0,0,0,.85)}
+.vu canvas{position:absolute;left:0;top:0;width:253px;height:74px}
+
+/* ── bottom bar ───────────────────────────────────────────────────────── */
+#outplate{left:12px;top:818px;width:1416px;height:110px}
+.bar{position:absolute;height:13px;background:#0a0403;border:1px solid #000;overflow:hidden;
+  z-index:14;box-shadow:inset 0 1px 5px rgba(0,0,0,.95),0 0 10px rgba(255,60,30,.10)}
+.bar i{display:block;height:100%;width:0%;transition:width .06s linear}
+.bar:after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,transparent 0 6px,#0a0403 6px 8px)}
+#log{position:absolute;left:720px;top:24px;right:16px;bottom:12px;overflow:hidden;z-index:14;
+  font-family:"Consolas",monospace;font-size:11px;line-height:17px;color:#e2a98f;
+  background:#150605;border:1px solid #000;border-radius:2px;padding:6px 10px;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.85)}
+#log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#log div.old{opacity:.42}
+
+
+/* ── menus ────────────────────────────────────────────────────────────── */
+.pmenu{position:fixed;z-index:130;min-width:190px;max-width:360px;max-height:72vh;
+  overflow-y:auto;overflow-x:hidden;background:#200907;border:1px solid #52251d;
+  border-radius:4px;padding:5px;box-shadow:0 18px 46px rgba(0,0,0,.75);
+  font-family:"Consolas",monospace;font-size:11.5px;letter-spacing:1.2px;color:#e0bdac}
+.pmenu .pmi{display:flex;align-items:center;padding:6px 11px;border-radius:2px;
+  cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pmenu .pmi:hover{background:#4a1b14;color:#ffd9c6}
+.pmenu .pmi.sel{color:var(--hot);font-weight:700}
+.pmenu .pmfolder:after{content:"\25B8";margin-left:auto;opacity:.55;padding-left:14px}
+.pmenu .pmdim{color:#7a5347;cursor:default;font-size:9.5px;letter-spacing:.8px}
+.pmenu .pmdim:hover{background:none;color:#7a5347}
+.pmsep{height:1px;background:#3d1912;margin:5px 6px}
+
+/* ── armour: corner brackets, vents, seams ────────────────────────────── */
+.plate,.strip{box-shadow:inset 0 1px 0 rgba(255,180,150,.10),
+  inset 0 -16px 30px rgba(0,0,0,.55),0 3px 10px rgba(0,0,0,.65),
+  0 0 26px rgba(255,58,28,.10)}
+.br{position:absolute;width:30px;height:30px;z-index:11;pointer-events:none;
+  background:linear-gradient(135deg,#7d4531 0%,#3f1d14 40%,#22100c 100%);
+  border:1px solid #000}
+.br:after{content:"";position:absolute;width:6px;height:6px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%,#e0b27c,#4a2b1e 60%,#000)}
+.br.tl{clip-path:polygon(0 0,100% 0,100% 30%,30% 30%,30% 100%,0 100%)}
+.br.tr{clip-path:polygon(0 0,100% 0,100% 100%,70% 100%,70% 30%,0 30%)}
+.br.bl{clip-path:polygon(0 0,30% 0,30% 70%,100% 70%,100% 100%,0 100%)}
+.br.br2{clip-path:polygon(70% 0,100% 0,100% 100%,0 100%,0 70%,70% 70%)}
+.br.tl:after{left:5px;top:5px} .br.tr:after{right:5px;top:5px}
+.br.bl:after{left:5px;bottom:5px} .br.br2:after{right:5px;bottom:5px}
+.vent{position:absolute;z-index:11;pointer-events:none;border-radius:2px;border:1px solid #000;
+  background:repeating-linear-gradient(180deg,#080302 0 2px,#4d2318 2px 5px);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.9),0 1px 0 rgba(255,150,110,.06)}
+.seam{position:absolute;z-index:10;pointer-events:none;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(255,70,34,.35),transparent)}
+
+/* ── caged indicator lamps ────────────────────────────────────────────── */
+.lamp{position:absolute;width:26px;height:26px;border-radius:50%;z-index:15;
+  background:radial-gradient(circle at 36% 30%,#4a1a14,#180706 70%);
+  border:2px solid #2e1611;box-shadow:inset 0 2px 6px rgba(0,0,0,.9),0 1px 2px rgba(0,0,0,.8)}
+.lamp:after{content:"";position:absolute;inset:2px;border-radius:50%;
+  background:repeating-conic-gradient(from 0deg,transparent 0deg 22deg,#2b1410 22deg 26deg)}
+.lamp.on{background:radial-gradient(circle at 36% 30%,#ffd0a0,#ff2e1a 55%,#8c1608 100%);
+  box-shadow:0 0 18px rgba(255,46,26,.75),inset 0 1px 4px rgba(255,220,190,.5)}
+.lamp.green.on{background:radial-gradient(circle at 36% 30%,#d8ffd0,#3ce05a 55%,#126d20 100%);
+  box-shadow:0 0 18px rgba(60,224,90,.7),inset 0 1px 4px rgba(220,255,215,.5)}
+
+/* ── guarded switch, hazard collar ────────────────────────────────────── */
+.guard{position:absolute;z-index:14;border:1px solid #000;border-radius:3px;cursor:pointer;
+  padding:5px;background:repeating-linear-gradient(45deg,#c8891a 0 9px,#1a0908 9px 18px);
+  box-shadow:0 2px 5px rgba(0,0,0,.75)}
+.guard i{display:block;height:100%;border-radius:2px;border:1px solid #000;
+  background:linear-gradient(180deg,#3a1512,#180706);
+  font:700 9.5px/1 "Arial Narrow",sans-serif;letter-spacing:2px;color:#a8776a;
+  text-align:center;padding-top:8px;font-style:normal}
+.guard.on i{background:linear-gradient(180deg,#d8402044,#7a1e0c);color:#fff;
+  box-shadow:inset 0 0 12px rgba(255,90,50,.5)}
+
+/* ── segmented bargraph ───────────────────────────────────────────────── */
+/* ── the patch bay, under the front panel ─────────────────────────────── */
+#bay{position:absolute;left:12px;top:88px;width:1416px;height:724px;z-index:40;
+  border:1px solid #000;border-radius:6px;opacity:0;transform:translateY(-16px);
+  pointer-events:none;transition:opacity .22s ease,transform .22s ease;
+  background:linear-gradient(178deg,#241110 0%,#160a09 30%,#120706 70%,#2a0f0c 100%);
+  box-shadow:inset 0 24px 60px rgba(0,0,0,.92),inset 0 -30px 70px rgba(190,30,14,.16),
+             0 20px 60px rgba(0,0,0,.8)}
+#bay.open{opacity:1;transform:none;pointer-events:auto}
+#bay canvas{position:absolute;left:0;top:0;width:1416px;height:724px;pointer-events:none;z-index:8}
+.baycol{position:absolute;width:172px;border:1px solid #000;border-radius:5px;z-index:2;
+  background:linear-gradient(158deg,#3a2320 0%,#241413 44%,#150b0a 100%);
+  box-shadow:inset 0 1px 0 rgba(255,190,160,.10),0 4px 14px rgba(0,0,0,.7)}
+.baycol.off{filter:saturate(.3) brightness(.62)}
+.baycol b{position:absolute;left:0;right:0;top:6px;text-align:center;font-size:25px;
+  font-weight:700;color:#d9c3a6;text-shadow:0 2px 0 #000;letter-spacing:2px}
+.bayrail{position:absolute;width:52px;border:1px solid #000;border-radius:4px;z-index:2;
+  background:linear-gradient(158deg,#33201d,#160b0a);
+  box-shadow:inset 0 1px 0 rgba(255,190,160,.08),0 3px 10px rgba(0,0,0,.7)}
+/*  A patch point is a block of three holes, not one socket. Three cables can
+    leave the same point because there are three holes to leave it by; a
+    fourth is refused, because there is nowhere to put it. */
+.jblock{position:absolute;width:48px;height:42px;margin:-21px 0 0 -24px;border-radius:6px;
+  z-index:5;cursor:crosshair;border:1px solid #000;
+  background:linear-gradient(158deg,#31201c,#170d0b 70%,#0d0605);
+  box-shadow:inset 0 1px 0 rgba(255,190,150,.11),0 2px 6px rgba(0,0,0,.72)}
+.jhole{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#4a3a30,#150b09 62%,#050202 100%);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.95),0 1px 0 rgba(255,190,150,.09)}
+.jhole:after{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;
+  margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#070302;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,1)}
+.jblock.red   .jhole{background:radial-gradient(circle at 38% 32%,#8e3427,#3a100b 60%,#120504 100%)}
+.jblock.amber .jhole{background:radial-gradient(circle at 38% 32%,#a8762a,#452a0c 60%,#140b03 100%)}
+.jblock.brass .jhole{background:radial-gradient(circle at 38% 32%,#c9a271,#5c4224 60%,#1a1207 100%)}
+.jblock.hot{box-shadow:0 0 16px rgba(255,90,40,.85),inset 0 1px 0 rgba(255,190,150,.11)}
+.jblock.tgt{box-shadow:0 0 18px rgba(120,255,150,.85),inset 0 1px 0 rgba(255,190,150,.11)}
+.jblock.full{opacity:.5}
+.jacklab{position:absolute;font:600 8px/1 Consolas,monospace;letter-spacing:1.2px;
+  color:#9b7460;z-index:9;pointer-events:none;white-space:nowrap;
+  text-shadow:0 0 4px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.8)}
+.baylamp{position:absolute;width:9px;height:9px;border-radius:50%;z-index:5;
+  background:#3a1512;box-shadow:inset 0 1px 2px rgba(0,0,0,.9)}
+.baylamp.on{background:#ff4a24;box-shadow:0 0 10px #ff4a24}
+#bayhint{position:absolute;left:0;right:0;bottom:10px;text-align:center;z-index:6;
+  font:600 9px/1 Consolas,monospace;letter-spacing:1.5px;color:#7d5344}
+/*  The one thing that is not obvious from looking at it: a cable into an
+    AUDIO IN carries audio, and a cable into a knob carries a number. */
+#baylaw{position:absolute;left:24px;right:24px;bottom:26px;text-align:center;z-index:6;
+  white-space:nowrap;font:600 8px/1 Consolas,monospace;letter-spacing:0.9px;color:#96685a}
+#baylaw b{color:#d9a288;letter-spacing:1.6px}
+#baylaw span{color:#5e3a2e}
+#baytitle{position:absolute;left:24px;top:14px;z-index:6;font-size:11px;letter-spacing:4px;
+  font-weight:700;color:#b98a78}
+
+#master:after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,transparent 0 6px,#0a0403 6px 8px)}
+#master{box-shadow:inset 0 1px 5px rgba(0,0,0,.95),0 0 10px rgba(255,60,30,.12)}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <filter id="f-grain" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/>
+    <feColorMatrix type="saturate" values="0"/>
+  </filter>
+  <filter id="f-rust" x="-25%" y="-25%" width="150%" height="150%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.013 0.04" numOctaves="4" seed="9" result="t"/>
+    <feDisplacementMap in="SourceGraphic" in2="t" scale="32" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="f-rough" x="-8%" y="-8%" width="116%" height="116%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="4" result="t"/>
+    <feDisplacementMap in="SourceGraphic" in2="t" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <linearGradient id="g-brass" x1="0" y1="0" x2="0.35" y2="1">
+    <stop offset="0" stop-color="#f0c98a"/><stop offset=".28" stop-color="#9c6b3c"/>
+    <stop offset=".52" stop-color="#4a2e18"/><stop offset=".74" stop-color="#a97a45"/>
+    <stop offset="1" stop-color="#e7bd7e"/>
+  </linearGradient>
+  <radialGradient id="g-cap" cx="34%" cy="26%" r="82%">
+    <stop offset="0" stop-color="#54302a"/><stop offset=".5" stop-color="#22100d"/>
+    <stop offset="1" stop-color="#080302"/>
+  </radialGradient>
+  <linearGradient id="g-spec" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#ffffff" stop-opacity=".30"/>
+    <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+  </linearGradient>
+  <!--  The panel light. gamma: out = in^exponent + offset. Lifting the
+        exponent brightens the shadows AND steepens the slope down there,
+        where every bit of detail on a panel this dark lives, while the
+        highlights stay put instead of clipping flat the way a brightness
+        multiply clips them. sRGB interpolation, or the curve is applied
+        to linear light and behaves nothing like the numbers suggest.  -->
+  <filter id="f-lift" x="0" y="0" width="100%" height="100%"
+          color-interpolation-filters="sRGB">
+    <feComponentTransfer id="f-lift-t">
+      <feFuncR type="gamma" amplitude="1" exponent="1" offset="0"/>
+      <feFuncG type="gamma" amplitude="1" exponent="1" offset="0"/>
+      <feFuncB type="gamma" amplitude="1" exponent="1" offset="0"/>
+    </feComponentTransfer>
+  </filter>
+</defs></svg>
+
+<div id="fit"><div id="deck">
+  <div class="glowtop"></div>
+  <div class="stain" style="left:40px;top:150px;width:340px;height:250px;
+       background:radial-gradient(50% 50% at 30% 20%,#8a3a12,transparent 70%)"></div>
+  <div class="stain" style="left:900px;top:600px;width:420px;height:300px;opacity:.35;
+       background:radial-gradient(50% 50% at 60% 40%,#7a3410,transparent 72%)"></div>
+  <div class="stain" style="left:420px;top:330px;width:380px;height:300px;opacity:.3;
+       background:radial-gradient(50% 50% at 45% 60%,#63290f,transparent 74%)"></div>
+
+  <div class="hazard" style="left:12px;top:930px;width:1416px"></div>
+  <div class="hazard" style="left:2px;top:90px;width:7px;height:720px"></div>
+  <div class="hazard" style="left:1431px;top:90px;width:7px;height:720px"></div>
+
+  <div class="plate" id="hdr">
+    <div id="mark">MARTIAN GAIN</div>
+    <div id="submark">BROKILD &nbsp;·&nbsp; MULTIBAND DISTORTION APPARATUS &nbsp;·&nbsp; ИЗД. 5</div>
+    <div id="statusline">REACTOR NOMINAL</div>
+    <div id="build">—</div>
+    <div id="hdrbtns">
+      <div class="hlight" title="Panel light - lifts the shadows without flattening the contrast">
+        <span>LIGHT</span>
+        <input id="uiLight" type="range" min="0" max="100" step="1" value="0">
+      </div>
+      <div class="hb" id="b-save">SAVE</div>
+      <div class="hb" id="b-load" aria-haspopup="true">LOAD</div>
+      <div class="hb" id="b-random">RANDOM</div>
+      <div class="hb" id="b-bay">PATCH BAY</div>
+    </div>
+  </div>
+
+  <div class="plate" id="scopeplate">
+    <div class="pname" style="left:16px;top:9px">SPECTRUM</div>
+    <div class="code" id="scopehint" style="left:120px;top:11px">MARKER or EDGE = CROSSOVER &nbsp;·&nbsp; DRAG = DRIVE &nbsp;·&nbsp; SHIFT = LEVEL &nbsp;·&nbsp; ALT = MOVE BAND &nbsp;·&nbsp; WHEEL = ALGORITHM &nbsp;·&nbsp; DOUBLE-CLICK = ON/OFF</div>
+    <div class="swbtn" id="curvebtn" style="right:16px;top:5px;width:74px">CURVES</div>
+    <div id="scope"><canvas id="spec" width="2324" height="400"></canvas></div>
+  </div>
+
+  <div class="plate" id="bandsplate">
+    <div class="pname" style="left:16px;top:9px">BANDS</div>
+    <div class="code" style="left:16px;top:74px">OVERSAMPLING</div>
+    <div class="code" style="left:16px;top:130px">GAIN</div>
+    <div class="code" style="left:16px;top:186px">OUTPUT</div>
+  </div>
+
+  <div class="plate" id="outplate">
+    <div class="pname" style="left:16px;top:9px">CONTROL ROOM</div>
+    <div class="code" style="left:300px;top:30px">IN</div>
+    <div class="bar" id="inbar" style="left:330px;top:28px;width:300px"><i></i></div>
+    <div class="code" style="left:296px;top:62px">OUT</div>
+    <div class="bar" id="master" style="left:330px;top:60px;width:300px"><i></i></div>
+    <div class="lamp" id="climp" style="left:652px;top:40px" title="Output limiter working"></div>
+    <div class="code" style="left:648px;top:72px">CLAMP</div>
+    <div id="log"></div>
+  </div>
+
+  <div id="bay">
+    <div id="baytitle">PATCH BAY &nbsp;·&nbsp; WHAT EACH BAND DOES TO THE OTHERS</div>
+    <canvas id="baycv" width="2832" height="1448"></canvas>
+    <div id="baylaw">
+      <b>AUDIO OUT &rarr; AUDIO IN</b> = SIGNAL, MIXED IN BEFORE THE SHAPER
+      <span>&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+      <b>ANYTHING &rarr; A KNOB</b> = CONTROL, ADDED TO IT &nbsp;(AUDIO SOURCES USE THEIR ENVELOPE)
+    </div>
+    <div id="bayhint">DRAG BETWEEN HOLES TO PATCH &nbsp;·&nbsp; WHEEL OVER A CABLE = AMOUNT &nbsp;·&nbsp; DOUBLE-CLICK A CABLE OR A PATCH POINT TO PULL IT OUT &nbsp;·&nbsp; THREE HOLES PER POINT</div>
+  </div>
+
+  <div class="grain"></div>
+  <div class="vig"></div>
+</div></div>
+
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════════════════
+   0 · the bridge
+   ═══════════════════════════════════════════════════════════════════════ */
+const NB = (()=>{
+  let q = [], sched = false;
+  const flush = ()=>{ sched = false; const b = q; q = [];
+    try{ window.__JUCE__.backend.emitEvent("mw",{b}); }catch(e){} };
+  return {
+    send(m){ q.push(m); if(!sched){ sched = true; queueMicrotask(flush); } },
+    on(n,f){ try{ window.__JUCE__.backend.addEventListener(n,f); }catch(e){} },
+    live(){ return !!(window.__JUCE__ && window.__JUCE__.backend); }
+  };
+})();
+
+const $  = s => document.querySelector(s);
+const el = (t,c,p)=>{ const e=document.createElement(t); if(c) e.className=c; if(p) p.appendChild(e); return e; };
+
+/* BROKILD WORLD FX: wire the shared rack overlay to the native rack */
+const svgEl = (t,a)=>{ const e=document.createElementNS("http://www.w3.org/2000/svg",t);
+                       for(const k in a) e.setAttribute(k,a[k]); return e; };
+const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
+const xmap  = (t,lo,hi)=> lo*Math.pow(hi/lo, clamp(t,0,1));
+
+/* ═══════════════════════════════════════════════════════════════════════
+   1 · the machine
+   ═══════════════════════════════════════════════════════════════════════ */
+const NBANDS = 5;
+const BCOL = ["#ff2e1a","#ff6a24","#ffa32e","#ff8f6b","#ffd47a"];
+let ALGOS = ["WARM","VALVE","OVERDRIVE","TAPE","FUZZ","RAZOR","FOLD","SINE FOLD",
+             "RECTIFY","BITCRUSH","DECIMATE","SLEW","RING MOD","CHEBYSHEV","SHRED","ANNIHILATE"];
+let CHARS = ["ROUND","GRID","KNEE","DULL","SQUASH","EDGE","OFFSET","FOLDS",
+             "OCTAVE","DITHER","SMOOTH","SKEW","FREQ","HARMONIC","CHOKE","CHAOS"];
+
+const KNOBS_PER_BAND = [
+  {sfx:"drive", lab:"DRIVE",   big:true},
+  {sfx:"bias",  lab:"BIAS"},
+  {sfx:"char",  lab:"CHARACTER"},
+  {sfx:"tone",  lab:"TONE"},
+  {sfx:"mix",   lab:"MIX"},
+  {sfx:"lvl",   lab:"LEVEL"},
+  {sfx:"ceil",  lab:"CEILING"}
+];
+
+const DEF = {};
+for(let b=1;b<=NBANDS;b++){
+  DEF["b"+b+"on"]   = b<=3 ? 1 : 0;
+  DEF["b"+b+"solo"] = 0;
+  DEF["b"+b+"algo"] = b===1?1:(b===2?2:0);
+  DEF["b"+b+"drive"]=0.35; DEF["b"+b+"bias"]=0.5; DEF["b"+b+"char"]=0.5;
+  DEF["b"+b+"tone"]=0.5; DEF["b"+b+"mix"]=1; DEF["b"+b+"lvl"]=0.5; DEF["b"+b+"ceil"]=0.9;
+}
+DEF.x1=0.47; DEF.x2=0.62; DEF.x3=0.74; DEF.x4=0.85;
+DEF.bands=3; DEF.os=1; DEF.ingain=0.5; DEF.outgain=0.5; DEF.drywet=1;
+DEF.autogain=1; DEF.masterlim=1;
+for(let c=1;c<=8;c++){ DEF["c"+c+"src"]=0; DEF["c"+c+"dst"]=0; DEF["c"+c+"amt"]=0.5; }
+
+const V = Object.assign({}, DEF);
+const HI = { bands:5, os:2 };
+for(let c=1;c<=8;c++){ HI["c"+c+"src"]=12; HI["c"+c+"dst"]=29; }
+for(let b=1;b<=NBANDS;b++) HI["b"+b+"algo"] = ALGOS.length-1;
+
+let SPEC = new Array(64).fill(0);
+let BRMS = [0,0,0,0,0], BGR = [1,1,1,1,1], BAG = [1,1,1,1,1];
+let XHZ = [200,900,3000,8000];
+let OUTL = 0, INL = 0, MGR = 1;
+const KNOBS = [];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   2 · parameters
+   ═══════════════════════════════════════════════════════════════════════ */
+const watchers = {};
+function onParam(id,fn){ (watchers[id]=watchers[id]||[]).push(fn); fn(V[id]); }
+function refresh(id){ const w=watchers[id]; if(w) w.forEach(f=>f(V[id])); }
+function setParam(id,v,push){
+  const hi = HI[id]!==undefined ? HI[id] : 1;
+  v = clamp(v,0,hi);
+  if(V[id]===v) return;
+  V[id]=v;
+  if(push!==false) NB.send({k:"p", id, v});
+  refresh(id);
+}
+const LOG = [];
+function say(t){
+  const s=$("#statusline"); if(s) s.textContent = t;
+  if(LOG[LOG.length-1] === t) return;            // do not fill it with one dragged knob
+  LOG.push(t); if(LOG.length > 24) LOG.shift();
+  const box = $("#log"); if(!box) return;
+  box.textContent = "";
+  const show = LOG.slice(-4);
+  show.forEach((line,i)=>{ el("div", i<show.length-1 ? "old" : "", box).textContent = line; });
+}
+
+function fmtHz(f){ return f<1000 ? Math.round(f)+" Hz" : (f/1000).toFixed(2)+" kHz"; }
+// the marker tag is 49 px wide: it has to fit on one line
+function fmtTag(f){ return f<1000 ? Math.round(f)+" Hz" : (f/1000).toFixed(f<10000?1:0)+" k"; }
+function fmtDb(v){ const g=v*v*4; return g<1e-4 ? "-inf dB" : (20*Math.log10(g)).toFixed(1)+" dB"; }
+function fmtVal(id,v){
+  if(/lvl$|^ingain$|^outgain$/.test(id)) return fmtDb(v);
+  if(/ceil$/.test(id)) return (20*Math.log10(xmap(v,0.02,1))).toFixed(1)+" dB";
+  if(/tone$/.test(id)) return ((v-0.5)*24>=0?"+":"")+((v-0.5)*24).toFixed(1)+" dB";
+  if(/^x[1-4]$/.test(id)) return fmtHz(xmap(v,20,20000));
+  return Math.round(v*100)+" %";
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   3 · knobs — bakelite, brass bezel, bone pointer
+   ═══════════════════════════════════════════════════════════════════════ */
+const A0=-220, A1=40;
+function arcPath(cx,cy,r,a0,a1){
+  const p=a=>[cx+r*Math.cos(a*Math.PI/180), cy+r*Math.sin(a*Math.PI/180)];
+  const s=p(a0), e=p(a1);
+  return "M"+s[0].toFixed(2)+" "+s[1].toFixed(2)+"A"+r+" "+r+" 0 "+
+         (Math.abs(a1-a0)>180?1:0)+" 1 "+e[0].toFixed(2)+" "+e[1].toFixed(2);
+}
+function makeKnob(parent,id,x,y,size,label,colour){
+  const box=el("div","knob",parent);
+  box.style.left=x+"px"; box.style.top=y+"px";
+  box.style.width=size+"px"; box.style.height=(size+13)+"px";
+  const r=size/2-4, cx=size/2, cy=size/2;
+  const s=svgEl("svg",{width:size,height:size+13});
+
+  const g=svgEl("g",{stroke:"#5b3327","stroke-width":"1"});
+  for(let i=0;i<=10;i++){
+    const a=(A0+(A1-A0)*i/10)*Math.PI/180;
+    const r0=r+2, r1=r+(i%5===0?7:4.5);
+    g.appendChild(svgEl("line",{x1:cx+r0*Math.cos(a),y1:cy+r0*Math.sin(a),
+                                x2:cx+r1*Math.cos(a),y2:cy+r1*Math.sin(a)}));
+  }
+  s.appendChild(g);
+  s.appendChild(svgEl("path",{d:arcPath(cx,cy,r,A0,A1),stroke:"#170807",
+                              "stroke-width":3.6,fill:"none","stroke-linecap":"round"}));
+  const arc=svgEl("path",{stroke:colour,"stroke-width":3.6,fill:"none","stroke-linecap":"round"});
+  s.appendChild(arc);
+
+  // brass bezel, knurled bakelite cap, one specular sweep across the top
+  const capR=r-6.5;
+  s.appendChild(svgEl("circle",{cx,cy,r:capR+3,fill:"none",
+                                stroke:"url(#g-brass)","stroke-width":3.4}));
+  s.appendChild(svgEl("circle",{cx,cy,r:capR+4.8,fill:"none",stroke:"#000","stroke-width":1,opacity:.7}));
+  const knurl=svgEl("g",{stroke:"#0b0403","stroke-width":1.1,opacity:.85});
+  for(let i=0;i<28;i++){
+    const a=i*(Math.PI*2/28);
+    knurl.appendChild(svgEl("line",{x1:cx+(capR-1.4)*Math.cos(a),y1:cy+(capR-1.4)*Math.sin(a),
+                                    x2:cx+capR*Math.cos(a),      y2:cy+capR*Math.sin(a)}));
+  }
+  s.appendChild(svgEl("circle",{cx,cy,r:capR,fill:"url(#g-cap)",stroke:"#000","stroke-width":1}));
+  s.appendChild(knurl);
+  s.appendChild(svgEl("ellipse",{cx,cy:cy-capR*0.42,rx:capR*0.62,ry:capR*0.34,
+                                 fill:"url(#g-spec)"}));
+  const ptr=svgEl("line",{x1:cx,y1:cy,x2:cx,y2:cy-capR+1.5,stroke:"#f6e3d4",
+                          "stroke-width":2.6,"stroke-linecap":"round"});
+  s.appendChild(ptr);
+  s.appendChild(svgEl("circle",{cx,cy,r:2.2,fill:"#0d0504",stroke:"#6b452a","stroke-width":.8}));
+
+  const txt=svgEl("text",{x:cx,y:size+10});
+  txt.textContent=label;
+  s.appendChild(txt);
+  box.appendChild(s);
+
+  function paint(){
+    const hi = HI[id]!==undefined?HI[id]:1;
+    const t = V[id]/hi;
+    const a = A0+(A1-A0)*t;
+    arc.setAttribute("d", arcPath(cx,cy,r,A0,Math.max(A0+0.1,a)));
+    const ar=a*Math.PI/180;
+    ptr.setAttribute("x2", cx+(capR-1.5)*Math.cos(ar));
+    ptr.setAttribute("y2", cy+(capR-1.5)*Math.sin(ar));
+  }
+  box._paint=paint; box._id=id; box._txt=txt;
+  KNOBS.push(box);
+  onParam(id,paint);
+
+  let dragging=false, py=0, start=0;
+  box.addEventListener("pointerdown",e=>{
+    dragging=true; py=e.clientY; start=V[id];
+    try{ box.setPointerCapture(e.pointerId); }catch(x){}
+    e.preventDefault();
+    say(label+"   "+fmtVal(id,V[id]));
+  });
+  box.addEventListener("pointermove",e=>{
+    if(!dragging) return;
+    const hi = HI[id]!==undefined?HI[id]:1;
+    setParam(id, start + (py-e.clientY)*(e.shiftKey?0.0012:0.006)*hi);
+    say(label+"   "+fmtVal(id,V[id]));
+  });
+  const stop=e=>{ if(!dragging) return; dragging=false;
+                  try{ box.releasePointerCapture(e.pointerId); }catch(x){} };
+  box.addEventListener("pointerup",stop);
+  box.addEventListener("pointercancel",stop);
+  box.addEventListener("dblclick",()=>{ setParam(id,DEF[id]); say(label+"   reset"); });
+  box.addEventListener("wheel",e=>{
+    e.preventDefault();
+    const hi = HI[id]!==undefined?HI[id]:1;
+    setParam(id, V[id]+(e.deltaY<0?1:-1)*0.02*hi);
+    say(label+"   "+fmtVal(id,V[id]));
+  },{passive:false});
+  return box;
+}
+
+function rivets(host,w,h){
+  [[8,8],[w-16,8],[8,h-16],[w-16,h-16]].forEach(xy=>{
+    const r=el("div","rivet",host); r.style.left=xy[0]+"px"; r.style.top=xy[1]+"px";
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   4 · band strips
+   ═══════════════════════════════════════════════════════════════════════ */
+function buildStrips(){
+  const deck=$("#deck");
+  for(let b=1;b<=NBANDS;b++){
+    const col=BCOL[b-1];
+    const n=el("div","strip",deck);
+    n.id="strip"+b;
+    n.style.left=(12+(b-1)*284)+"px";
+    rivets(n,277,476);
+
+    const num=el("div","stripnum",n); num.textContent="BAND "+b; num.style.color=col;
+    const rng=el("div","striprange",n); rng.id="range"+b; rng.textContent="—";
+
+    const sw=el("div","stripsw",n);
+    const onB=el("div","swbtn",sw); onB.textContent="ON";
+    const soB=el("div","swbtn warn",sw); soB.textContent="SOLO";
+    onB.addEventListener("click",()=>{ const id="b"+b+"on"; setParam(id, V[id]>0.5?0:1);
+      say("BAND "+b+"   "+(V[id]>0.5?"ON":"OFF")); });
+    soB.addEventListener("click",()=>{ const id="b"+b+"solo"; setParam(id, V[id]>0.5?0:1); });
+    onParam("b"+b+"on", v=>{ onB.classList.toggle("on", v>0.5); });
+    onParam("b"+b+"solo", v=>{ soB.classList.toggle("on", v>0.5); });
+
+    // algorithm window
+    const ab=el("div","algobox",n);
+    const nm=el("div","nm",ab); nm.style.color=col;
+    const al=el("div","ar arl",ab); al.textContent="◀";
+    const ar=el("div","ar arr",ab); ar.textContent="▶";
+    const step=d=>{ const id="b"+b+"algo";
+      setParam(id, (Math.round(V[id])+d+ALGOS.length)%ALGOS.length); };
+    al.addEventListener("click",e=>{ e.stopPropagation(); step(-1); });
+    ar.addEventListener("click",e=>{ e.stopPropagation(); step(1); });
+    ab.addEventListener("click",e=>{ e.stopPropagation(); openAlgoMenu(b, ab); });
+    onParam("b"+b+"algo", v=>{
+      const i=clamp(Math.round(v),0,ALGOS.length-1);
+      nm.textContent=ALGOS[i];
+      const ck=KNOBS.filter(k=>k._id==="b"+b+"char")[0];
+      if(ck && ck._txt) ck._txt.textContent = CHARS[i];
+    });
+
+    // knobs
+    makeKnob(n,"b"+b+"drive", 88, 100, 100, "DRIVE", col);
+    const row1=[["bias","BIAS"],["char","CHARACTER"],["tone","TONE"]];
+    row1.forEach((k,i)=> makeKnob(n,"b"+b+k[0], 16+i*88, 226, 62, k[1], col));
+    const row2=[["mix","MIX"],["lvl","LEVEL"],["ceil","CEILING"]];
+    row2.forEach((k,i)=> makeKnob(n,"b"+b+k[0], 16+i*88, 312, 62, k[1], col));
+
+    const vu=el("div","vu",n);
+    const cv=el("canvas","",vu); cv.width=506; cv.height=148; cv.id="vu"+b;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   5 · band count, oversampling, switches, global knobs
+   ═══════════════════════════════════════════════════════════════════════ */
+function buildBandsPlate(){
+  const p=$("#bandsplate"); rivets(p,218,242);
+  for(let i=1;i<=5;i++){
+    const btn=el("div","bandbtn",p);
+    btn.style.left=(16+(i-1)*38)+"px"; btn.style.top="30px";
+    btn.textContent=i;
+    btn.addEventListener("click",()=>{ setParam("bands",i); spreadCrossovers(i); });
+    onParam("bands", v=> btn.classList.toggle("on", Math.round(v)===i));
+  }
+  ["1x","2x","4x"].forEach((t,i)=>{
+    const btn=el("div","osbtn",p);
+    btn.style.left=(16+i*58)+"px"; btn.style.top="94px";
+    btn.textContent=t;
+    btn.addEventListener("click",()=> setParam("os",i));
+    onParam("os", v=> btn.classList.toggle("on", Math.round(v)===i));
+  });
+  const ag=el("div","swbtn",p);
+  ag.style.left="16px"; ag.style.top="150px"; ag.style.width="88px";
+  ag.textContent="AUTO GAIN";
+  ag.addEventListener("click",()=> setParam("autogain", V.autogain>0.5?0:1));
+  onParam("autogain", v=>{ ag.classList.toggle("on", v>0.5); });
+
+  const ml=el("div","guard",p);
+  ml.style.left="112px"; ml.style.top="144px"; ml.style.width="88px"; ml.style.height="40px";
+  const mli=el("i","",ml); mli.textContent="LIMITER";
+  ml.addEventListener("click",()=> setParam("masterlim", V.masterlim>0.5?0:1));
+  onParam("masterlim", v=>{ ml.classList.toggle("on", v>0.5); });
+
+  const rst=el("div","swbtn",p);
+  rst.style.left="16px"; rst.style.top="206px"; rst.style.width="184px";
+  rst.textContent="RESET THE REACTOR";
+  rst.addEventListener("click",()=>{ NB.send({k:"panic"}); say("RESET"); });
+}
+
+function buildOutPlate(){
+  const p=$("#outplate"); rivets(p,560,110);
+  makeKnob(p,"ingain",   26, 24, 66, "INPUT",   "#ffd47a");
+  makeKnob(p,"outgain", 108, 24, 66, "OUTPUT",  "#ffd47a");
+  makeKnob(p,"drywet",  190, 24, 66, "DRY/WET", "#ffa32e");
+}
+
+/*  Changing the band count from the panel re-spaces the crossovers, because
+    a 5-band layout squeezed into two bands is never what anyone wanted.
+    Automation from the host does not do this — only a press here. */
+function spreadCrossovers(n){
+  if(n<2) return;
+  for(let i=1;i<n;i++){
+    const t = i/n;                                  // even in log frequency
+    setParam("x"+i, clamp(0.16+t*0.74, 0.03, 0.97));
+  }
+  say(n+" BANDS   crossovers respaced");
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   6 · the reactor scope: spectrum + crossover handles
+   ═══════════════════════════════════════════════════════════════════════ */
+const specCv=$("#spec"), sctx=specCv.getContext("2d");
+const SCOPE_W=1162, SCOPE_H=200;
+
+function buildHandles(){
+  const host=$("#scope");
+  for(let i=1;i<=4;i++){
+    const h=el("div","xhandle",host);
+    h.id="xh"+i;
+    const bar=el("i","",h);
+    const tag=el("b","",h);
+    let dragging=false;
+    h.addEventListener("pointerdown",e=>{
+      dragging=true; h.classList.add("drag");
+      try{ h.setPointerCapture(e.pointerId); }catch(x){}
+      e.preventDefault(); e.stopPropagation();
+    });
+    h.addEventListener("pointermove",e=>{
+      if(!dragging) return;
+      const r=host.getBoundingClientRect();
+      const scale = r.width / SCOPE_W;
+      const frac = clamp((e.clientX-r.left)/(SCOPE_W*scale), 0, 1);
+      setParam("x"+i, frac);
+      say("CROSSOVER "+i+"   "+fmtHz(xmap(frac,20,20000)));
+    });
+    const stop=e=>{ dragging=false; h.classList.remove("drag");
+                    try{ h.releasePointerCapture(e.pointerId); }catch(x){} };
+    h.addEventListener("pointerup",stop);
+    h.addEventListener("pointercancel",stop);
+    h.addEventListener("dblclick",()=> setParam("x"+i, DEF["x"+i]));
+    onParam("x"+i, v=>{
+      h.style.left=(v*SCOPE_W)+"px";
+      tag.textContent=fmtTag(xmap(v,20,20000));
+    });
+  }
+  onParam("bands", v=>{
+    const n=Math.round(v);
+    for(let i=1;i<=4;i++){
+      const h=$("#xh"+i);
+      if(h) h.style.display = (i < n) ? "block" : "none";
+    }
+  });
+}
+
+/*  Fourth-order Linkwitz-Riley magnitude, worked out straight from the ratio
+    rather than from the biquads: |LP4| = 1/(1+r^4) and |HP4| = r^4/(1+r^4),
+    which meet at -6 dB exactly where they should. A band is every high-pass
+    above it multiplied by its own low-pass, times whatever LEVEL is doing —
+    so the curve shows the band as it actually is, trim included. */
+function bandMag(k, f, nb){
+  let m = 1;
+  for(let j=0;j<k;j++){
+    const r4 = Math.pow(f/Math.max(20,XHZ[j]), 4);
+    m *= r4/(1+r4);
+  }
+  if(k < nb-1){
+    const r4 = Math.pow(f/Math.max(20,XHZ[k]), 4);
+    m *= 1/(1+r4);
+  }
+  return m;
+}
+
+let SHOW_CURVES = true;
+try{ SHOW_CURVES = localStorage.getItem("marsWars.curves") !== "0"; }catch(e){}
+
+function drawCurves(nb){
+  const TOP = 6, BOT = -40;                       // dB across the display
+  for(let k=0;k<nb;k++){
+    const on = V["b"+(k+1)+"on"] > 0.5;
+    const lv = V["b"+(k+1)+"lvl"];
+    const gdb = 20*Math.log10(Math.max(1e-4, lv*lv*4));
+    const pts = [];
+    for(let x=0;x<=SCOPE_W;x+=3){
+      const f = 20*Math.pow(1000, x/SCOPE_W);
+      const dB = 20*Math.log10(Math.max(1e-5, bandMag(k,f,nb))) + gdb;
+      const y = SCOPE_H - ((dB-BOT)/(TOP-BOT))*SCOPE_H;
+      pts.push([x, clamp(y, -20, SCOPE_H+20)]);
+    }
+    sctx.save();
+    sctx.beginPath();
+    sctx.moveTo(0, SCOPE_H);
+    pts.forEach(p=> sctx.lineTo(p[0], p[1]));
+    sctx.lineTo(SCOPE_W, SCOPE_H);
+    sctx.closePath();
+    sctx.fillStyle = BCOL[k];
+    sctx.globalAlpha = on ? 0.15 : 0.05;
+    sctx.fill();
+    sctx.beginPath();
+    pts.forEach((p,i)=> i?sctx.lineTo(p[0],p[1]):sctx.moveTo(p[0],p[1]));
+    sctx.strokeStyle = BCOL[k];
+    sctx.globalAlpha = on ? 0.85 : 0.28;
+    sctx.lineWidth = on ? 1.8 : 1.1;
+    sctx.stroke();
+    sctx.restore();
+  }
+}
+
+/*  The display is not just a picture. Everything here works on the band the
+    pointer is over, so the spectrum doubles as the fastest way to dial the
+    thing in without hunting for the right strip. */
+function scopeFrac(e){
+  const r = $("#scope").getBoundingClientRect();
+  return clamp((e.clientX - r.left) / r.width, 0, 1);
+}
+function bandAt(frac, nb){
+  let bi = 0;
+  for(let k=1;k<nb;k++) if(frac > V["x"+k]) bi = k;
+  return bi;
+}
+function edgeAt(frac, nb){
+  for(let k=1;k<nb;k++)
+    if(Math.abs(frac - V["x"+k]) * SCOPE_W < 9) return k;
+  return 0;
+}
+
+function bindScopeMouse(){
+  const host = $("#scope");
+  let mode = null, band = 0, edge = 0, py = 0, px = 0, start = 0, startLo = 0, startHi = 0;
+
+  host.addEventListener("pointerdown", e=>{
+    const nb = Math.round(V.bands);
+    const frac = scopeFrac(e);
+    band = bandAt(frac, nb);
+    edge = edgeAt(frac, nb);
+    py = e.clientY; px = e.clientX;
+    try{ host.setPointerCapture(e.pointerId); }catch(x){}
+    e.preventDefault();
+
+    if(edge){ mode = "x"; start = V["x"+edge]; say("CROSSOVER "+edge+"   "+fmtHz(xmap(start,20,20000))); }
+    else if(e.altKey){
+      mode = "move";
+      startLo = band>0 ? V["x"+band] : 0;
+      startHi = band<nb-1 ? V["x"+(band+1)] : 1;
+      say("BAND "+(band+1)+"   moving the whole band");
+    }
+    else if(e.shiftKey){ mode = "lvl"; start = V["b"+(band+1)+"lvl"]; }
+    else { mode = "drive"; start = V["b"+(band+1)+"drive"]; }
+  });
+
+  host.addEventListener("pointermove", e=>{
+    if(!mode) return;
+    const nb = Math.round(V.bands);
+    if(mode === "x"){
+      const f = scopeFrac(e);
+      setParam("x"+edge, f);
+      say("CROSSOVER "+edge+"   "+fmtHz(xmap(f,20,20000)));
+    } else if(mode === "move"){
+      const r = host.getBoundingClientRect();
+      const d = (e.clientX - px) / r.width;
+      if(band > 0)      setParam("x"+band,     startLo + d);
+      if(band < nb-1)   setParam("x"+(band+1), startHi + d);
+      say("BAND "+(band+1)+"   "+fmtHz(xmap(V["x"+Math.max(1,band)],20,20000))+"  —  "
+          + (band<nb-1 ? fmtHz(xmap(V["x"+(band+1)],20,20000)) : "20.0 kHz"));
+    } else if(mode === "lvl"){
+      const id = "b"+(band+1)+"lvl";
+      setParam(id, start + (py - e.clientY)*0.004);
+      say("BAND "+(band+1)+" LEVEL   "+fmtVal(id, V[id]));
+    } else {
+      const id = "b"+(band+1)+"drive";
+      setParam(id, start + (py - e.clientY)*0.005);
+      say("BAND "+(band+1)+" DRIVE   "+fmtVal(id, V[id]));
+    }
+  });
+
+  const stop = e=>{ mode = null; try{ host.releasePointerCapture(e.pointerId); }catch(x){} };
+  host.addEventListener("pointerup", stop);
+  host.addEventListener("pointercancel", stop);
+
+  host.addEventListener("wheel", e=>{
+    e.preventDefault();
+    const nb = Math.round(V.bands);
+    const b = bandAt(scopeFrac(e), nb) + 1;
+    const id = "b"+b+"algo";
+    const n = ALGOS.length;
+    setParam(id, (Math.round(V[id]) + (e.deltaY<0?1:-1) + n) % n);
+    say("BAND "+b+"   "+ALGOS[Math.round(V[id])]);
+  }, {passive:false});
+
+  host.addEventListener("dblclick", e=>{
+    const nb = Math.round(V.bands);
+    if(edgeAt(scopeFrac(e), nb)) return;          // that is the crossover reset
+    const b = bandAt(scopeFrac(e), nb) + 1;
+    const id = "b"+b+"on";
+    setParam(id, V[id]>0.5?0:1);
+    say("BAND "+b+"   "+(V[id]>0.5?"ON":"OFF"));
+  });
+
+  const cb = $("#curvebtn");
+  const paint = ()=> cb.classList.toggle("on", SHOW_CURVES);
+  cb.addEventListener("click", ()=>{
+    SHOW_CURVES = !SHOW_CURVES;
+    try{ localStorage.setItem("marsWars.curves", SHOW_CURVES?"1":"0"); }catch(x){}
+    paint();
+    say(SHOW_CURVES ? "CROSSOVER CURVES ON" : "CROSSOVER CURVES OFF");
+  });
+  paint();
+}
+
+function drawScope(){
+  sctx.setTransform(2,0,0,2,0,0);
+  sctx.clearRect(0,0,SCOPE_W,SCOPE_H);
+
+  const nb=Math.round(V.bands);
+  // band zones, tinted by the strip colour they belong to
+  const edges=[0];
+  for(let i=1;i<nb;i++) edges.push(V["x"+i]);
+  edges.push(1);
+  for(let i=0;i<nb;i++){
+    const x0=edges[i]*SCOPE_W, x1=edges[i+1]*SCOPE_W;
+    const live = V["b"+(i+1)+"on"]>0.5;
+    sctx.fillStyle=BCOL[i];
+    sctx.globalAlpha = live ? 0.09 : 0.03;
+    sctx.fillRect(x0,0,x1-x0,SCOPE_H);
+    sctx.globalAlpha=1;
+  }
+
+  // decade grid
+  sctx.strokeStyle="rgba(255,150,110,.10)"; sctx.lineWidth=1;
+  sctx.font="8px Consolas, monospace"; sctx.fillStyle="rgba(255,170,130,.35)";
+  [20,50,100,200,500,1000,2000,5000,10000,20000].forEach(f=>{
+    const x=Math.log(f/20)/Math.log(1000)*SCOPE_W;
+    sctx.beginPath(); sctx.moveTo(x,0); sctx.lineTo(x,SCOPE_H); sctx.stroke();
+    if(f!==20 && f!==20000) sctx.fillText(f>=1000?(f/1000)+"k":f, x+3, SCOPE_H-4);
+  });
+
+  // the spectrum itself
+  const bw=SCOPE_W/SPEC.length;
+  for(let i=0;i<SPEC.length;i++){
+    const v=clamp(SPEC[i],0,1);
+    const h=v*(SCOPE_H-14);
+    const x=i*bw;
+    // which band does this bin fall into
+    let bi=0;
+    const frac=(i+0.5)/SPEC.length;
+    for(let k=1;k<nb;k++) if(frac > V["x"+k]) bi=k;
+    const g=sctx.createLinearGradient(0,SCOPE_H,0,SCOPE_H-h);
+    g.addColorStop(0, "rgba(120,30,14,.9)");
+    g.addColorStop(1, BCOL[bi]);
+    sctx.fillStyle=g;
+    sctx.fillRect(x+0.6, SCOPE_H-h, bw-1.2, h);
+  }
+
+  if(SHOW_CURVES) drawCurves(nb);
+
+  // crossover lines behind the handles
+  sctx.strokeStyle="rgba(255,230,205,.30)";
+  for(let i=1;i<nb;i++){
+    const x=V["x"+i]*SCOPE_W;
+    sctx.beginPath(); sctx.moveTo(x,0); sctx.lineTo(x,SCOPE_H); sctx.stroke();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   7 · the band meters — a needle, and how hard the limiter is working
+   ═══════════════════════════════════════════════════════════════════════ */
+/*  A cream-faced moving-coil meter in a steel bezel: black scale, red zone
+    at the top of the sweep, red needle. The two LED strips either side are
+    the band limiter working (GR) and how much the gain match is adding or
+    taking away (AG). */
+function drawVUs(){
+  const nb=Math.round(V.bands);
+  for(let b=1;b<=NBANDS;b++){
+    const cv=document.getElementById("vu"+b);
+    if(!cv) continue;
+    const g=cv.getContext("2d");
+    g.setTransform(2,0,0,2,0,0);
+    const W=253,H=74;
+    g.clearRect(0,0,W,H);
+    const live = b<=nb;
+    const col=BCOL[b-1];
+
+    // steel bezel with four screws
+    const bez=g.createLinearGradient(0,0,0,H);
+    bez.addColorStop(0,"#4a2a20"); bez.addColorStop(.5,"#2a1310"); bez.addColorStop(1,"#160806");
+    g.fillStyle=bez; g.fillRect(0,0,W,H);
+    g.strokeStyle="#0a0403"; g.lineWidth=1; g.strokeRect(.5,.5,W-1,H-1);
+    [[7,7],[W-7,7],[7,H-7],[W-7,H-7]].forEach(p=>{
+      const sg=g.createRadialGradient(p[0]-1,p[1]-1,0,p[0],p[1],3.4);
+      sg.addColorStop(0,"#d9ad78"); sg.addColorStop(1,"#3a2115");
+      g.fillStyle=sg; g.beginPath(); g.arc(p[0],p[1],3.4,0,7); g.fill();
+      g.strokeStyle="rgba(0,0,0,.7)"; g.lineWidth=.8;
+      g.beginPath(); g.moveTo(p[0]-2.2,p[1]); g.lineTo(p[0]+2.2,p[1]); g.stroke();
+    });
+
+    // cream face
+    const fx=20, fy=7, fw=W-40, fh=H-16;
+    const face=g.createLinearGradient(0,fy,0,fy+fh);
+    if(live){ face.addColorStop(0,"#f7eed6"); face.addColorStop(1,"#bfa87f"); }
+    else    { face.addColorStop(0,"#6b6355"); face.addColorStop(1,"#4a423a"); }
+    g.fillStyle=face; g.fillRect(fx,fy,fw,fh);
+    g.strokeStyle="rgba(10,5,3,.9)"; g.lineWidth=1; g.strokeRect(fx+.5,fy+.5,fw-1,fh-1);
+
+    // the scale
+    const cx=fx+fw/2, cy=fy+fh+7, R=fh*0.94;
+    const A0=Math.PI*1.21, SW=Math.PI*0.58;
+    g.strokeStyle="rgba(24,14,8,.9)"; g.lineWidth=1.3;
+    g.beginPath(); g.arc(cx,cy,R,A0,A0+SW); g.stroke();
+    g.strokeStyle="rgba(178,26,14,.95)"; g.lineWidth=2.6;
+    g.beginPath(); g.arc(cx,cy,R,A0+SW*0.76,A0+SW); g.stroke();
+    for(let i=0;i<=10;i++){
+      const a=A0+SW*i/10, long=(i%5===0);
+      g.strokeStyle = i>7 ? "rgba(178,26,14,.95)" : "rgba(24,14,8,.8)";
+      g.lineWidth = long?1.7:1;
+      g.beginPath();
+      g.moveTo(cx+Math.cos(a)*R, cy+Math.sin(a)*R);
+      g.lineTo(cx+Math.cos(a)*(R-(long?8:5)), cy+Math.sin(a)*(R-(long?8:5)));
+      g.stroke();
+    }
+
+    // needle, with a shadow on the face
+    const v = live ? clamp(BRMS[b-1],0,1) : 0;
+    const a = A0 + SW*Math.pow(v,0.55);
+    if(live){
+      g.strokeStyle="rgba(60,40,20,.25)"; g.lineWidth=2.6; g.lineCap="round";
+      g.beginPath(); g.moveTo(cx+1.5,cy+1); g.lineTo(cx+Math.cos(a)*(R-2)+1.5, cy+Math.sin(a)*(R-2)+1); g.stroke();
+    }
+    g.strokeStyle = live ? "#c01e12" : "#7d7264";
+    g.lineWidth=1.7; g.lineCap="round";
+    g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+Math.cos(a)*(R-2), cy+Math.sin(a)*(R-2)); g.stroke();
+    const pv=g.createRadialGradient(cx-1,cy-1,0,cx,cy,4);
+    pv.addColorStop(0,"#6a5540"); pv.addColorStop(1,"#1a1008");
+    g.fillStyle=pv; g.beginPath(); g.arc(cx,cy,3.4,0,7); g.fill();
+
+    g.fillStyle= live ? "rgba(40,26,14,.65)" : "rgba(40,36,30,.5)";
+    g.font="600 6.5px Consolas, monospace";
+    g.fillText("BAND "+b, fx+5, fy+fh-4);
+    g.fillText(live? (ALGOS[Math.round(V["b"+b+"algo"])]||"") : "IDLE", fx+5, fy+9);
+
+    // LED strips: limiter on the left, gain match on the right
+    const segs=9, sh=(H-22)/segs;
+    const gr = live ? clamp(1-BGR[b-1],0,1) : 0;
+    for(let i=0;i<segs;i++){
+      const on = gr*segs > i;
+      g.fillStyle = on ? (i>6?"#ff2e1a":"#ff8a3a") : "rgba(255,150,110,.10)";
+      g.fillRect(7, H-11-(i+1)*sh+1.5, 6, sh-2.5);
+    }
+    const ag = live ? clamp((Math.log(Math.max(0.06,BAG[b-1]))/Math.log(8))*0.5+0.5,0,1) : 0.5;
+    for(let i=0;i<segs;i++){
+      const mid=Math.round(0.5*segs), lit = live && ((ag>=0.5 && i>=mid && ag*segs>i) || (ag<0.5 && i<mid && ag*segs<=i));
+      g.fillStyle = lit ? col : "rgba(255,150,110,.10)";
+      g.fillRect(W-13, H-11-(i+1)*sh+1.5, 6, sh-2.5);
+    }
+    g.fillStyle="rgba(255,200,170,.35)"; g.font="6px Consolas, monospace";
+    g.fillText("GR", 4, 5.5); g.fillText("AG", W-16, 5.5);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   8 · menus — the algorithm list and the preset library
+   ═══════════════════════════════════════════════════════════════════════ */
+let TREE={folder:"",exists:false,items:[]};
+const pmStack=[];
+function pmClose(from){
+  while(pmStack.length>(from||0)){ const m=pmStack.pop(); if(m&&m.parentNode) m.parentNode.removeChild(m); }
+  if(!pmStack.length){ const b=$("#b-load"); if(b) b.classList.remove("on"); }
+}
+function pmRow(menu,label,cls){ const r=el("div","pmi"+(cls?" "+cls:""),menu); r.textContent=label; return r; }
+function pmPlace(menu,rect,side){
+  const mw=menu.offsetWidth, mh=menu.offsetHeight;
+  let x,y;
+  if(side==="right"){ x=rect.right-4; y=rect.top-6;
+    if(x+mw>innerWidth-8) x=Math.max(8, rect.left-mw+4); }
+  else { x=rect.left; y=rect.bottom+6;
+    if(x+mw>innerWidth-8) x=Math.max(8, innerWidth-mw-8); }
+  if(y+mh>innerHeight-8) y=Math.max(8, innerHeight-mh-8);
+  menu.style.left=x+"px"; menu.style.top=y+"px";
+}
+
+function openAlgoMenu(b, anchor){
+  pmClose(0);
+  const menu=el("div","pmenu"); document.body.appendChild(menu); pmStack[0]=menu;
+  const cur=Math.round(V["b"+b+"algo"]);
+  ALGOS.forEach((nm,i)=>{
+    const r=pmRow(menu, nm, i===cur?"sel":"");
+    r.addEventListener("click",e=>{ e.stopPropagation(); setParam("b"+b+"algo", i);
+      say("BAND "+b+"   "+nm); pmClose(0); });
+  });
+  pmPlace(menu, anchor.getBoundingClientRect(), "below");
+}
+
+function pmBuild(items,rect,level,side){
+  pmClose(level);
+  const menu=el("div","pmenu"); document.body.appendChild(menu);
+  pmStack[level]=menu; pmStack.length=level+1;
+  if(!items.length) pmRow(menu, TREE.exists?"— NO PRESETS HERE —":"— NO FOLDER YET —","pmdim");
+  items.forEach(it=>{
+    if(it.d){
+      const fr=pmRow(menu,it.n,"pmfolder");
+      const open=()=> pmBuild(it.i||[], fr.getBoundingClientRect(), level+1, "right");
+      fr.addEventListener("pointerenter",open);
+      fr.addEventListener("click",e=>{ e.stopPropagation(); open(); });
+    } else {
+      const pr=pmRow(menu,it.n);
+      pr.addEventListener("pointerenter",()=> pmClose(level+1));
+      pr.addEventListener("click",e=>{ e.stopPropagation(); pmClose(0);
+        NB.send({k:"presetLoad", path:it.p}); });
+    }
+  });
+  if(level===0){
+    el("div","pmsep",menu);
+    pmRow(menu,"BROWSE…").addEventListener("click",e=>{ e.stopPropagation(); pmClose(0); NB.send({k:"open"}); });
+    pmRow(menu,"PRESET FOLDER…").addEventListener("click",e=>{ e.stopPropagation(); pmClose(0); NB.send({k:"presetFolder"}); });
+    pmRow(menu,"REFRESH").addEventListener("click",e=>{ e.stopPropagation(); NB.send({k:"presetScan"}); });
+    const inf=pmRow(menu, TREE.folder||"no preset folder yet","pmdim");
+    inf.title=TREE.folder||"";
+  }
+  pmPlace(menu, rect, side);
+  return menu;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   8a · the patch bay
+
+   Five columns, one per band. The top two jacks of a column are what that
+   band gives out — its distorted audio and its envelope — and the five below
+   are what it will take in. Cables therefore run between columns, which is
+   the whole point: this is where the bands stop being independent.
+   ═══════════════════════════════════════════════════════════════════════ */
+let SRCS = ["-","ENV 1","ENV 2","ENV 3","ENV 4","ENV 5","INPUT ENV","OUTPUT ENV",
+            "AUDIO 1","AUDIO 2","AUDIO 3","AUDIO 4","AUDIO 5"];
+let DSTS = ["-","1 DRIVE","2 DRIVE","3 DRIVE","4 DRIVE","5 DRIVE",
+            "1 LEVEL","2 LEVEL","3 LEVEL","4 LEVEL","5 LEVEL",
+            "1 CHAR","2 CHAR","3 CHAR","4 CHAR","5 CHAR",
+            "1 CEIL","2 CEIL","3 CEIL","4 CEIL","5 CEIL",
+            "XOVER 1","XOVER 2","XOVER 3","XOVER 4",
+            "1 IN","2 IN","3 IN","4 IN","5 IN"];
+let NCABLES = 8;
+let MODS = [];
+
+// source / destination numbers, matching the enums in the engine
+const S_ENV1=1, S_INENV=6, S_OUTENV=7, S_AUD1=8;
+const D_DRIVE1=1, D_LEVEL1=6, D_CHAR1=11, D_CEIL1=16, D_XOVER1=21, D_IN1=25;
+
+const BAY_W=1416, BAY_H=724;
+const JACKS = [];                 // {x,y,kind:"src"|"dst",id,label,el}
+
+function bayGeometry(){
+  JACKS.length = 0;
+  // five columns, 212 apart, seven jacks down each — the reference layout
+  const rows = [
+    ["src", b=>S_AUD1+b-1, "AUDIO OUT", "red"],
+    ["src", b=>S_ENV1+b-1, "ENV",       "amber"],
+    ["dst", b=>D_IN1+b-1,  "AUDIO IN",  ""],
+    ["dst", b=>D_DRIVE1+b-1,"DRIVE",    "brass"],
+    ["dst", b=>D_LEVEL1+b-1,"LEVEL",    ""],
+    ["dst", b=>D_CHAR1+b-1, "CHARACTER","brass"],
+    ["dst", b=>D_CEIL1+b-1, "CEILING",  "red"]
+  ];
+  for(let b=1;b<=5;b++){
+    const cx = 198 + (b-1)*212 + 86;
+    rows.forEach((r,i)=>{
+      JACKS.push({ x:cx, y:132 + i*68, kind:r[0], id:r[1](b), label:r[2], cls:r[3], band:b });
+    });
+  }
+  JACKS.push({ x:146,  y:170, kind:"src", id:S_INENV,  label:"INPUT ENV",  cls:"amber", band:0 });
+  JACKS.push({ x:1270, y:170, kind:"src", id:S_OUTENV, label:"OUTPUT ENV", cls:"amber", band:0 });
+  for(let i=0;i<4;i++)
+    JACKS.push({ x:500 + i*140, y:640, kind:"dst", id:D_XOVER1+i, label:"XOVER "+(i+1), cls:"", band:0 });
+}
+
+/*  Where the three holes sit inside a patch point, and therefore where a
+    plug can go. Pointing down, so a cable leaving the lower two has somewhere
+    to sag to without crossing the block it came out of. */
+const HOLES = [[0,-10],[-13,9],[13,9]];
+const PERPOINT = HOLES.length;
+
+function buildBay(){
+  const bay = $("#bay");
+  bayGeometry();
+
+  for(let b=1;b<=5;b++){
+    const col = el("div","baycol",bay);
+    col.id = "baycol"+b;
+    col.style.left = (198 + (b-1)*212)+"px";
+    col.style.top = "56px";
+    col.style.height = "556px";
+    el("b","",col).textContent = b;
+    const lamp = el("div","baylamp",col);
+    lamp.id = "baylamp"+b;
+    lamp.style.left = "82px"; lamp.style.bottom = "10px";
+  }
+  [[120,"bayrailL"],[1244,"bayrailR"]].forEach(r=>{
+    const s = el("div","bayrail",bay);
+    s.style.left = r[0]+"px"; s.style.top = "56px"; s.style.height = "556px";
+  });
+
+  JACKS.forEach((j,i)=>{
+    const blk = el("div","jblock"+(j.cls?" "+j.cls:""),bay);
+    blk.style.left = j.x+"px"; blk.style.top = j.y+"px";
+    blk.dataset.i = i;
+    j.el = blk;
+    HOLES.forEach(h=>{
+      const d = el("div","jhole",blk);
+      d.style.left = (24+h[0])+"px";
+      d.style.top  = (21+h[1])+"px";
+    });
+    blk.title = jackTip(j);
+    const lab = el("div","jacklab",bay);
+    lab.textContent = j.label;
+    if(j.band===0){ lab.style.left=j.x+"px"; lab.style.top=(j.y+25)+"px";
+                     lab.style.transform="translateX(-50%)"; }
+    else { lab.style.left=(j.x+27)+"px"; lab.style.top=(j.y-4)+"px"; }
+  });
+
+  bindBayMouse();
+}
+
+/*  Hovering a patch point should answer the only question that matters:
+    what comes out of it, or what happens to what goes in. */
+const TIPS = {
+  "AUDIO OUT" : b=>"BAND "+b+" AUDIO OUT \u2014 that band's distorted signal, after its shaper and "+
+                   "its ceiling. Into an AUDIO IN it is audio; into a knob it is its envelope.",
+  "ENV"       : b=>"BAND "+b+" ENV \u2014 how loud band "+b+" is right now. A number, not a signal, and the only thing on this page with no knob on the front panel: it is a tap, not a control.",
+  "AUDIO IN"  : b=>"BAND "+b+" AUDIO IN \u2014 whatever is patched here is mixed into band "+b+
+                   " before its shaper, one sample later.",
+  "DRIVE"     : b=>"BAND "+b+" DRIVE \u2014 added to the DRIVE knob. The knob stays put; the value "+
+                   "the engine uses moves.",
+  "LEVEL"     : b=>"BAND "+b+" LEVEL \u2014 added to the LEVEL knob.",
+  "CHARACTER" : b=>"BAND "+b+" CHARACTER \u2014 added to the CHARACTER knob, whatever that means for "+
+                   "the algorithm this band is running.",
+  "CEILING"   : b=>"BAND "+b+" CEILING \u2014 added to the ceiling limiter's threshold."
+};
+function jackTip(j){
+  if(j.label==="INPUT ENV")  return "INPUT ENVELOPE \u2014 how loud the material coming into the plugin is. A tap, not a control: there is nothing to set on the front panel.";
+  if(j.label==="OUTPUT ENV" && j.band===0)
+                          return "OUTPUT ENVELOPE \u2014 how loud the plugin's own output is. A feedback "+
+                                 "path around the whole machine.";
+  if(j.label.indexOf("XOVER")===0)
+                          return j.label+" \u2014 moves that crossover frequency.";
+  const f = TIPS[j.label];
+  return f ? f(j.band) : j.label;
+}
+
+function cableList(){
+  const out = [];
+  for(let c=1;c<=NCABLES;c++){
+    const src = Math.round(V["c"+c+"src"]||0), dst = Math.round(V["c"+c+"dst"]||0);
+    if(src>0 && dst>0) out.push({slot:c, src, dst, amt:(V["c"+c+"amt"]-0.5)*2});
+  }
+  return out;
+}
+function jackFor(kind,id){ return JACKS.find(j=>j.kind===kind && j.id===id); }
+function freeSlot(){
+  for(let c=1;c<=NCABLES;c++) if(Math.round(V["c"+c+"src"]||0)===0) return c;
+  return 0;
+}
+function cableColour(src){
+  if(src>=S_AUD1) return BCOL[src-S_AUD1];
+  if(src>=S_ENV1 && src<=S_ENV1+4) return BCOL[src-S_ENV1];
+  return "#d9b070";
+}
+function pointLoad(kind,id){
+  let n = 0;
+  cableList().forEach(c=>{ if(kind==="src" ? c.src===id : c.dst===id) n++; });
+  return n;
+}
+
+/*  Which hole each end of each cable is in. Worked out once per frame, in
+    slot order, so the drawing, the hit test and the drag preview all agree. */
+function holeMap(){
+  const used = {}, m = {};
+  cableList().forEach(c=>{
+    const sk = "s"+c.src, dk = "d"+c.dst;
+    m[c.slot] = { s:(used[sk] = (used[sk]||0)+1) - 1,
+                  d:(used[dk] = (used[dk]||0)+1) - 1 };
+  });
+  m.used = used;
+  return m;
+}
+function holeAt(j,n){
+  const h = HOLES[Math.min(n||0, HOLES.length-1)];
+  return { x:j.x + h[0], y:j.y + h[1] };
+}
+
+let dangle = null, hoverCable = -1;
+const seatAnim = {};        // slot -> when the plug went in
+const ghosts   = [];        // cables being pulled out, for the moment they take
+
+function cshade(hex,f){
+  const n = parseInt(hex.slice(1),16);
+  let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  if(f<0){ r*=1+f; g*=1+f; b*=1+f; }
+  else   { r+=(255-r)*f; g+=(255-g)*f; b+=(255-b)*f; }
+  return "rgb("+(r|0)+","+(g|0)+","+(b|0)+")";
+}
+
+/*  One curve description, used by the drawing, the hit test and the drag
+    preview alike - so what you click is exactly what you see. Cubic rather
+    than quadratic because the plugs need a defined exit angle at each end. */
+function cablePath(x0,y0,x1,y1,sagK){
+  const dx=x1-x0, dy=y1-y0;
+  /*  A cable bulges because it is longer than the gap, and the bulge comes
+      from the HORIZONTAL span alone - hang two points straight above one
+      another and the cable does not bow, it just hangs. Taking the sag from
+      the straight-line distance instead made a near-vertical patch loop
+      BELOW the hole it went into and hook back up, which draws as a stub of
+      cable poking out from behind the plug. Clamping the control point was
+      worse: it sat a few pixels above the end and whipped the last of the
+      curve sideways into a kink. */
+  const sag=(26 + Math.abs(dx)*0.21)*(sagK==null?1:sagK);
+  return { x0:x0, y0:y0, x1:x1, y1:y1,
+           ax:x0+dx*0.25, ay:y0+dy*0.25+sag,
+           bx:x0+dx*0.75, by:y0+dy*0.75+sag };
+}
+function cubicAt(p,t){
+  const u=1-t, a=u*u*u, b=3*u*u*t, c=3*u*t*t, e=t*t*t;
+  return { x:a*p.x0+b*p.ax+c*p.bx+e*p.x1, y:a*p.y0+b*p.ay+c*p.by+e*p.y1 };
+}
+function tracePath(g,p){
+  g.beginPath(); g.moveTo(p.x0,p.y0);
+  g.bezierCurveTo(p.ax,p.ay,p.bx,p.by,p.x1,p.y1);
+}
+function endAngle(p,which){
+  return which ? Math.atan2(p.y1-p.by, p.x1-p.bx) + Math.PI
+               : Math.atan2(p.ay-p.y0, p.ax-p.x0);
+}
+function nearestJack(x,y,r,notKind){
+  let hit=null, best=r;
+  JACKS.forEach(j=>{
+    if(notKind && j.kind===notKind) return;
+    const d=Math.hypot(j.x-x,j.y-y);
+    if(d<best){ best=d; hit=j; }
+  });
+  return hit;
+}
+function easeBack(t){ const c=1.9;
+  return 1 + (c+1)*Math.pow(t-1,3) + c*Math.pow(t-1,2); }
+
+function drawBay(){
+  const cv = $("#baycv");
+  if(!cv || !$("#bay").classList.contains("open")) return;
+  const g = cv.getContext("2d");
+  g.setTransform(2,0,0,2,0,0);
+  g.clearRect(0,0,BAY_W,BAY_H);
+  const now = performance.now();
+
+  for(let i=ghosts.length-1;i>=0;i--){          // cables on their way out
+    const gh=ghosts[i], t=(now-gh.t0)/300;
+    if(t>=1){ ghosts.splice(i,1); continue; }
+    g.save(); g.globalAlpha=(1-t)*0.8;
+    const p=cablePath(gh.x0,gh.y0+t*26,gh.x1,gh.y1+t*26,1+t*0.9);
+    drawCord(g,p,gh.col,gh.w*(1-t*0.3),false,false);
+    g.restore();
+  }
+
+  /*  Worked out first, then drawn in two passes - all the cords, then all
+      the plugs. One pass per cable would let a later cord run straight over
+      an earlier plug, which no cable has ever done. */
+  const hm = holeMap();
+  const lay = [];
+  cableList().forEach((c,i)=>{
+    const a = jackFor("src",c.src), b = jackFor("dst",c.dst);
+    if(!a||!b) return;
+    let k=1, sagK=1, fade=1;
+    const t0 = seatAnim[c.slot];
+    if(t0!=null){
+      const e=(now-t0)/340;
+      if(e>=1) delete seatAnim[c.slot];
+      else { const t=Math.max(0,e);
+             k    = 0.42 + 0.58*easeBack(t);
+             sagK = 1 + 0.34*Math.sin(t*Math.PI*3)*(1-t);
+             fade = Math.min(1,t*2.6); }
+    }
+    const ha = holeAt(a, hm[c.slot].s), hb = holeAt(b, hm[c.slot].d);
+    lay.push({ c:c, hot:i===hoverCable, k:k, fade:fade,
+               col:cableColour(c.src), w:2.6+Math.abs(c.amt)*3.6,
+               p:cablePath(ha.x,ha.y,hb.x,hb.y,sagK) });
+  });
+
+  /*  Every plug first, then every cord with its own two plugs clipped out
+      of it. A cord has to pass UNDER the plug it is plugged into and OVER
+      every other plug it crosses, and no drawing order can say that: cords
+      first puts a cord behind a plug it merely passes, plugs first puts a
+      plug behind the cord it belongs to, and going cable by cable just
+      moves the fault to whichever cable was drawn first. Clipping says it. */
+  lay.forEach(e=>{
+    g.save(); g.globalAlpha=e.fade;
+    drawPlug(g,e.p.x0,e.p.y0,endAngle(e.p,0),e.col,e.k);
+    drawPlug(g,e.p.x1,e.p.y1,endAngle(e.p,1),e.col,e.k);
+    g.restore();
+  });
+
+  lay.forEach(e=>{
+    g.save(); g.globalAlpha=e.fade;
+    holeOut(g, e.p, 18*(e.k==null?1:e.k));
+    drawCord(g,e.p,e.col,e.w,e.hot,e.c.amt<0);
+    g.restore();
+  });
+
+  lay.forEach(e=>{
+    if(!e.hot) return;
+    const m = cubicAt(e.p,0.5);
+    g.fillStyle="#ffe4d2"; g.font="600 11px Consolas, monospace";
+    g.textAlign="center";
+    g.fillText((e.c.amt>=0?"+":"")+Math.round(e.c.amt*100)+" %", m.x, m.y+16);
+  });
+
+  if(dangle) drawDangle(g, now, hm.used);
+}
+
+/*  Clip the two ends of a cable out of the canvas, so what is drawn next
+    cannot touch its own plugs. Even-odd, so the two discs punch holes in
+    the rectangle rather than filling it. */
+function holeOut(g,p,r){
+  g.beginPath();
+  g.rect(0,0,BAY_W,BAY_H);
+  g.moveTo(p.x0+r,p.y0); g.arc(p.x0,p.y0,r,0,6.28319);
+  g.moveTo(p.x1+r,p.y1); g.arc(p.x1,p.y1,r,0,6.28319);
+  g.clip("evenodd");
+}
+
+/*  The cord the user is carrying. It hangs off a free hole in the point they
+    grabbed, the loose plug swings on the end of it, and it snaps into the
+    next free hole the moment the cursor is near a point that could take it. */
+function drawDangle(g, now, used){
+  const a = dangle.from;
+  const from = holeAt(a, Math.min(a.kind==="src" ? (used["s"+a.id]||0) : (used["d"+a.id]||0), PERPOINT-1));
+  const tgt = nearestJack(dangle.x, dangle.y, 28, a.kind);
+  const full = tgt && pointLoad(tgt.kind, tgt.id) >= PERPOINT;
+  const to = (tgt && !full)
+      ? holeAt(tgt, (used[(tgt.kind==="src"?"s":"d")+tgt.id]||0))
+      : { x:dangle.x, y:dangle.y };
+  const col = a.kind==="src" ? cableColour(a.id) : "#d9b070";
+  const p = cablePath(from.x,from.y,to.x,to.y,(tgt&&!full)?1:1.12);
+  g.save();
+  g.globalAlpha = (tgt && !full) ? 1 : 0.86;
+  drawPlug(g,from.x,from.y,endAngle(p,0),col,1);
+  if(tgt && !full) drawPlug(g,to.x,to.y,endAngle(p,1),col,1);
+  else drawPlug(g,to.x,to.y,endAngle(p,1)+Math.sin(now/120)*0.10,col,0.94);
+  g.save(); holeOut(g,p,18); drawCord(g,p,col,4.4,true,false); g.restore();
+  if(tgt){
+    g.strokeStyle = full ? "rgba(255,110,70,.9)" : "rgba(150,255,170,.9)";
+    g.lineWidth=2;
+    g.beginPath(); g.arc(tgt.x,tgt.y,25+Math.sin(now/110)*1.6,0,7); g.stroke();
+  }
+  g.restore();
+}
+function drawCord(g,p,col,w,hot,neg){
+  g.save(); g.lineCap="round"; g.lineJoin="round";
+  tracePath(g,p); g.strokeStyle="rgba(0,0,0,.80)"; g.lineWidth=w+4.5; g.stroke();
+  tracePath(g,p); g.strokeStyle=cshade(col,-0.55); g.lineWidth=w+1.6; g.stroke();
+  tracePath(g,p); g.strokeStyle=col; g.lineWidth=w;
+  g.globalAlpha *= neg?0.5:1; g.stroke();
+  g.restore();
+  g.save();                               // a lit top edge: rubber, not a line
+  g.translate(0,-Math.max(0.8,w*0.24));
+  tracePath(g,p);
+  g.strokeStyle="rgba(255,238,222,"+(hot?0.46:0.20)+")";
+  g.lineWidth=Math.max(0.9,w*0.30); g.lineCap="round"; g.stroke();
+  g.restore();
+  if(neg){
+    g.save(); g.setLineDash([6,6]); tracePath(g,p);
+    g.strokeStyle="#140705"; g.lineWidth=w*0.45; g.stroke(); g.restore();
+  }
+}
+
+/*  Bronze collar, machined rim, red rubber grommet, and a strain relief
+    boot the cord runs straight out of - the two read as one object instead
+    of a line that stops at a circle. */
+function drawPlug(g,x,y,ang,col,k){
+  k = k==null?1:k;
+  const R = 10.5*k;
+  g.save();
+  g.translate(x,y);
+
+  g.save(); g.rotate(ang);                      // ---- the boot
+  const bl=21*k, w0=5.6*k, w1=3.1*k;
+  g.beginPath();
+  g.moveTo(0,-w0);
+  g.quadraticCurveTo(bl*0.55,-w1*1.20, bl,-w1);
+  g.lineTo(bl,w1);
+  g.quadraticCurveTo(bl*0.55, w1*1.20, 0, w0);
+  g.closePath();
+  const bg=g.createLinearGradient(0,-w0,0,w0);
+  bg.addColorStop(0,"#6d5e51"); bg.addColorStop(.28,"#2f251f");
+  bg.addColorStop(.72,"#100908"); bg.addColorStop(1,"#3c2f26");
+  g.fillStyle=bg; g.fill();
+  g.strokeStyle="rgba(0,0,0,.85)"; g.lineWidth=0.9; g.stroke();
+  for(let i=1;i<=2;i++){                        // moulded ribs
+    const u=bl*(0.30+i*0.20), hw=w0+(w1-w0)*(u/bl);
+    g.beginPath(); g.moveTo(u,-hw*0.92); g.lineTo(u,hw*0.92);
+    g.strokeStyle="rgba(0,0,0,.5)"; g.lineWidth=0.9; g.stroke();
+  }
+  g.restore();
+
+  g.beginPath(); g.arc(0,1.8,R+2.2,0,7);        // ---- shadow under the collar
+  g.fillStyle="rgba(0,0,0,.62)"; g.fill();
+
+  const rg=g.createRadialGradient(-R*0.38,-R*0.44,R*0.10,0,0,R);
+  rg.addColorStop(0,"#f4dcb2"); rg.addColorStop(.28,"#c69d61");
+  rg.addColorStop(.60,"#8a6636"); rg.addColorStop(.86,"#573e21");
+  rg.addColorStop(1,"#2b1e0f");
+  g.beginPath(); g.arc(0,0,R,0,7); g.fillStyle=rg; g.fill();
+  g.strokeStyle="rgba(0,0,0,.92)"; g.lineWidth=1; g.stroke();
+
+  g.strokeStyle="rgba(0,0,0,.38)"; g.lineWidth=0.7;   // knurling
+  for(let i=0;i<14;i++){ const a=i/14*6.28318;
+    g.beginPath();
+    g.moveTo(Math.cos(a)*R*0.84, Math.sin(a)*R*0.84);
+    g.lineTo(Math.cos(a)*R*0.98, Math.sin(a)*R*0.98); g.stroke(); }
+  g.strokeStyle="rgba(255,228,184,.22)"; g.lineWidth=0.8;
+  g.beginPath(); g.arc(0,0,R*0.78,0,7); g.stroke();
+
+  const gg=g.createRadialGradient(-R*0.16,-R*0.20,R*0.04,0,0,R*0.54);
+  gg.addColorStop(0,"#ef6055"); gg.addColorStop(.42,"#bd271c");
+  gg.addColorStop(1,"#560c07");
+  g.beginPath(); g.arc(0,0,R*0.54,0,7); g.fillStyle=gg; g.fill();
+  g.strokeStyle="rgba(0,0,0,.8)"; g.lineWidth=0.9; g.stroke();
+
+  g.beginPath(); g.arc(0,0,R*0.26,0,7);         // the core, coming through
+  g.fillStyle=cshade(col,-0.25); g.fill();
+
+  g.beginPath(); g.arc(-R*0.34,-R*0.42,R*0.20,0,7);
+  g.fillStyle="rgba(255,246,228,.40)"; g.fill();
+  g.restore();
+}
+
+function bayPoint(e){
+  const r = $("#bay").getBoundingClientRect();
+  return { x:(e.clientX-r.left)/r.width*BAY_W, y:(e.clientY-r.top)/r.height*BAY_H };
+}
+function cableAt(p){
+  const hm = holeMap(), cables = cableList();
+  for(let i=0;i<cables.length;i++){
+    const a = jackFor("src",cables[i].src), b = jackFor("dst",cables[i].dst);
+    if(!a||!b) continue;
+    const ha = holeAt(a,hm[cables[i].slot].s), hb = holeAt(b,hm[cables[i].slot].d);
+    const cp = cablePath(ha.x,ha.y,hb.x,hb.y,1);
+    for(let t=0;t<=1;t+=0.03){
+      const q = cubicAt(cp,t);
+      if(Math.hypot(q.x-p.x,q.y-p.y) < 11) return i;
+    }
+  }
+  return -1;
+}
+function unpatch(slot){
+  const src=Math.round(V["c"+slot+"src"]||0), dst=Math.round(V["c"+slot+"dst"]||0);
+  const a=jackFor("src",src), b=jackFor("dst",dst), hm=holeMap();
+  if(a&&b&&hm[slot]){
+    const ha=holeAt(a,hm[slot].s), hb=holeAt(b,hm[slot].d);
+    ghosts.push({ x0:ha.x, y0:ha.y, x1:hb.x, y1:hb.y,
+                  col:cableColour(src),
+                  w:2.6+Math.abs((V["c"+slot+"amt"]-0.5)*2)*3.6,
+                  t0:performance.now() });
+  }
+  setParam("c"+slot+"src",0); setParam("c"+slot+"dst",0);
+}
+
+function bindBayMouse(){
+  const bay = $("#bay");
+
+  bay.addEventListener("pointerdown", e=>{
+    const p = bayPoint(e);
+    const t = e.target.closest && e.target.closest(".jblock");
+    if(t){
+      const j = JACKS[+t.dataset.i];
+      if(pointLoad(j.kind,j.id) >= PERPOINT){
+        say(j.label+" IS FULL \u2014 THREE HOLES, THREE CABLES");
+        return;
+      }
+      dangle = { from:j, x:p.x, y:p.y };
+      j.el.classList.add("hot");
+      JACKS.forEach(k=>{
+        if(k.kind===j.kind) return;
+        k.el.classList.add(pointLoad(k.kind,k.id) >= PERPOINT ? "full" : "tgt");
+      });
+      try{ bay.setPointerCapture(e.pointerId); }catch(x){}
+      e.preventDefault();
+      return;
+    }
+  });
+
+  bay.addEventListener("pointermove", e=>{
+    const p = bayPoint(e);
+    if(dangle){ dangle.x=p.x; dangle.y=p.y; return; }
+    hoverCable = cableAt(p);
+    bay.style.cursor = hoverCable>=0 ? "pointer" : "default";
+  });
+
+  const finish = e=>{
+    if(!dangle) return;
+    const p = bayPoint(e);
+    const hit = nearestJack(p.x, p.y, 28, null);
+    const from = dangle.from;
+    JACKS.forEach(k=>{ k.el.classList.remove("hot","tgt","full"); });
+    dangle = null;
+    try{ bay.releasePointerCapture(e.pointerId); }catch(x){}
+    if(!hit || hit === from) return;
+    if(hit.kind === from.kind){ say("A CABLE NEEDS ONE OUTPUT AND ONE INPUT"); return; }
+    const src = from.kind==="src" ? from : hit;
+    const dst = from.kind==="dst" ? from : hit;
+    if(pointLoad("dst",dst.id) >= PERPOINT){
+      say(dst.label+" IS FULL \u2014 THREE HOLES, THREE CABLES"); return; }
+    if(pointLoad("src",src.id) >= PERPOINT){
+      say(src.label+" IS FULL \u2014 THREE HOLES, THREE CABLES"); return; }
+    if(src.id >= S_AUD1 && !(dst.id >= D_IN1))
+      say("AUDIO INTO A CONTROL \u2014 ITS ENVELOPE IS USED");
+    const slot = freeSlot();
+    if(!slot){ say("ALL "+NCABLES+" CABLES ARE IN USE \u2014 PULL ONE OUT FIRST"); return; }
+    setParam("c"+slot+"src", src.id);
+    setParam("c"+slot+"dst", dst.id);
+    seatAnim[slot] = performance.now();
+    if(Math.abs(V["c"+slot+"amt"]-0.5) < 0.02) setParam("c"+slot+"amt", 0.75);
+    say("PATCHED   "+SRCS[src.id]+"  \u2192  "+DSTS[dst.id]);
+  };
+  bay.addEventListener("pointerup", finish);
+  bay.addEventListener("pointercancel", finish);
+
+  bay.addEventListener("wheel", e=>{
+    const i = cableAt(bayPoint(e));
+    if(i < 0) return;
+    e.preventDefault();
+    const c = cableList()[i];
+    const id = "c"+c.slot+"amt";
+    setParam(id, V[id] + (e.deltaY<0?1:-1)*0.03);
+    say(SRCS[c.src]+" \u2192 "+DSTS[c.dst]+"   "+(((V[id]-0.5)*2>=0)?"+":"")+Math.round((V[id]-0.5)*200)+" %");
+  }, {passive:false});
+
+  bay.addEventListener("dblclick", e=>{
+    const p = bayPoint(e);
+    const i = cableAt(p);
+    if(i >= 0){ const c = cableList()[i]; unpatch(c.slot); say("PULLED OUT   "+SRCS[c.src]+" \u2192 "+DSTS[c.dst]); return; }
+    const t = e.target.closest && e.target.closest(".jblock");
+    if(t){
+      const j = JACKS[+t.dataset.i];
+      let n = 0;
+      cableList().forEach(c=>{ if((j.kind==="src"&&c.src===j.id)||(j.kind==="dst"&&c.dst===j.id)){ unpatch(c.slot); n++; } });
+      if(n) say("PULLED "+n+" CABLE"+(n>1?"S":"")+" OUT OF "+j.label);
+    }
+  });
+}
+
+/*  One slider, one curve. At 0 the filter is removed altogether, so the
+    default costs nothing at all; the panel repaints every frame and a
+    filter it does not need is a filter it should not have. */
+function applyLight(v){
+  const k = Math.max(0, Math.min(1, v/100));
+  const t = document.getElementById("f-lift-t");
+  if(t){
+    const ex = (1/(1 + 1.15*k)).toFixed(4);
+    const of = (0.045*k).toFixed(4);
+    for(let i=0;i<t.children.length;i++){
+      t.children[i].setAttribute("exponent", ex);
+      t.children[i].setAttribute("offset", of);
+    }
+  }
+  /*  gamma pulls the three channels together, so the panel loses a little
+      of its red as it comes up; hand it back. */
+  $("#fit").style.filter = k > 0.001
+    ? "url(#f-lift) saturate(" + (1 + 0.13*k).toFixed(3) + ")" : "";
+  const sl = $("#uiLight");
+  if(sl && Math.round(+sl.value) !== Math.round(v)) sl.value = v;
+  try{ localStorage.setItem("marsWars.light", String(Math.round(v))); }catch(e){}
+}
+
+function bindHeader(){
+  const lt = $("#uiLight");
+  lt.addEventListener("input", e=> applyLight(+e.target.value));
+  lt.addEventListener("dblclick", ()=> applyLight(0));
+  let stored = 0;
+  try{ stored = +(localStorage.getItem("marsWars.light")||0)||0; }catch(e){}
+  applyLight(stored);
+  $("#b-save").addEventListener("click",()=>{ NB.send({k:"save"}); say("SAVING…"); });
+  $("#b-load").addEventListener("click",e=>{
+    e.stopPropagation();
+    if(pmStack.length){ pmClose(0); return; }
+    $("#b-load").classList.add("on");
+    pmBuild(TREE.items||[], $("#b-load").getBoundingClientRect(), 0, "below");
+  });
+  $("#b-random").addEventListener("click",()=> NB.send({k:"random"}));
+  $("#b-bay").addEventListener("click",()=>{
+    const bay = $("#bay");
+    const open = !bay.classList.contains("open");
+    bay.classList.toggle("open", open);
+    $("#b-bay").classList.toggle("on", open);
+    say(open ? "PANEL LIFTED — THE WIRING IS UNDERNEATH" : "PANEL DOWN");
+  });
+
+  document.addEventListener("pointerdown",e=>{
+    if(!pmStack.length) return;
+    for(let i=0;i<pmStack.length;i++) if(pmStack[i].contains(e.target)) return;
+    if($("#b-load").contains(e.target)) return;
+    pmClose(0);
+  },true);
+  addEventListener("keydown",e=>{ if(e.key==="Escape") pmClose(0); });
+  addEventListener("blur",()=> pmClose(0));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   9 · frame loop
+   ═══════════════════════════════════════════════════════════════════════ */
+function frame(){
+  drawScope();
+  drawVUs();
+  drawBay();
+  {
+    const nb = Math.round(V.bands);
+    for(let b=1;b<=5;b++){
+      const c = document.getElementById("baycol"+b);
+      if(c) c.classList.toggle("off", b>nb || V["b"+b+"on"]<=0.5);
+      const l = document.getElementById("baylamp"+b);
+      if(l) l.classList.toggle("on", b<=nb && BRMS[b-1] > 0.04);
+    }
+  }
+
+  const nb=Math.round(V.bands);
+  for(let b=1;b<=NBANDS;b++){
+    const s=document.getElementById("strip"+b);
+    if(s) s.classList.toggle("off", b>nb || V["b"+b+"on"]<=0.5);
+    const r=document.getElementById("range"+b);
+    if(r){
+      const lo = b===1 ? 20 : XHZ[b-2];
+      const hi = b===nb ? 20000 : XHZ[b-1];
+      r.textContent = b>nb ? "not in use" : (fmtHz(lo)+"  —  "+fmtHz(hi));
+    }
+  }
+
+  const mi=$("#master i");
+  if(mi){ mi.style.width = Math.min(100, OUTL*140)+"%";
+          mi.style.background="linear-gradient(90deg,#3f7a3a,#ffa32e 62%,#ff2e1a 90%)"; }
+  const ii=$("#inbar i");
+  if(ii){ ii.style.width = Math.min(100, INL*140)+"%";
+          ii.style.background="linear-gradient(90deg,#3f7a3a,#ffd47a 70%,#ffa32e 95%)"; }
+  const cl=$("#climp");
+  if(cl) cl.classList.toggle("on", MGR < 0.985);
+
+  requestAnimationFrame(frame);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   10 · boot
+   ═══════════════════════════════════════════════════════════════════════ */
+function fitDeck(){
+  const s=Math.min(innerWidth/1440, innerHeight/940);
+  $("#deck").style.transform="translate("+((innerWidth-1440*s)/2)+"px,"+
+                             ((innerHeight-940*s)/2)+"px) scale("+s+")";
+}
+addEventListener("resize", fitDeck);
+
+/*  Armour furniture: an L-bracket with a rivet at each corner of the big
+    plates, and vent grilles down the outer frame. Drawn rather than bitmapped,
+    so it stays crisp at any zoom and never constrains the layout. */
+function brackets(host,w,h){
+  [["tl",0,0],["tr",w-30,0],["bl",0,h-30],["br2",w-30,h-30]].forEach(k=>{
+    const b=el("div","br "+k[0],host);
+    b.style.left=k[1]+"px"; b.style.top=k[2]+"px";
+  });
+}
+function vent(x,y,w,h){
+  const v=el("div","vent",$("#deck"));
+  v.style.left=x+"px"; v.style.top=y+"px"; v.style.width=w+"px"; v.style.height=h+"px";
+}
+function seam(x,y,w){
+  const v=el("div","seam",$("#deck"));
+  v.style.left=x+"px"; v.style.top=y+"px"; v.style.width=w+"px";
+}
+function buildFurniture(){
+  brackets($("#hdr"),1416,70);
+  brackets($("#scopeplate"),1190,242);
+  brackets($("#bandsplate"),218,242);
+  brackets($("#outplate"),1416,110);
+  vent(14,  4, 150, 6);  vent(1276, 4, 150, 6);
+  vent(14,930, 150, 6);  vent(1276,930, 150, 6);
+  vent(2, 118, 7, 120);  vent(1431,118, 7, 120);
+  vent(2, 620, 7, 120);  vent(1431,620, 7, 120);
+  seam(200, 84, 1040);
+  seam(200, 332, 1040);
+  seam(200, 814, 1040);
+}
+
+buildStrips(); buildBandsPlate(); buildOutPlate(); buildHandles(); bindHeader(); buildFurniture(); bindScopeMouse(); buildBay();
+rivets($("#hdr"),1416,70); rivets($("#scopeplate"),1190,242); rivets($("#outplate"),1416,110);
+fitDeck();
+
+NB.on("initialState", d=>{
+  if(Array.isArray(d.algos) && d.algos.length) ALGOS = d.algos;
+  if(Array.isArray(d.chars) && d.chars.length) CHARS = d.chars;
+  if(Array.isArray(d.srcs) && d.srcs.length) SRCS = d.srcs;
+  if(Array.isArray(d.dsts) && d.dsts.length) DSTS = d.dsts;
+  if(d.cables) NCABLES = d.cables;
+  for(let b=1;b<=NBANDS;b++) HI["b"+b+"algo"] = ALGOS.length-1;
+  (d.params||[]).forEach(p=>{
+    if(p.hi!==undefined) HI[p.id]=p.hi;
+    V[p.id]=p.v; refresh(p.id);
+  });
+  $("#build").textContent = "BUILD "+(d.build||"?");
+  NB.send({k:"ack"});
+  NB.send({k:"presetScan"});
+  requestAnimationFrame(()=> NB.send({k:"ready"}));
+});
+NB.on("hostParam", d=>{ (d.p||[]).forEach(p=>{ V[p.id]=p.v; refresh(p.id); }); });
+NB.on("presetTree", d=>{ TREE={folder:d.folder||"",exists:!!d.exists,items:d.items||[]}; });
+NB.on("notice", d=>{ if(d&&d.msg) say(String(d.msg)); });
+
+NB.on("meter", d=>{
+  if(d.sp) SPEC=d.sp;
+  if(d.rms) BRMS=d.rms;
+  if(d.gr) BGR=d.gr;
+  if(d.ag) BAG=d.ag;
+  if(d.hz) XHZ=d.hz;
+  if(d.mod) MODS=d.mod;
+  OUTL=d.out||0; INL=d.in||0; MGR=d.mgr===undefined?1:d.mgr;
+});
+
+/*  Opened in a plain browser — which is how this page gets tested — there is
+    no backend. Fake a spectrum so the panel still shows what it looks like. */
+if(!NB.live()){
+  $("#build").textContent="NO BACKEND";
+  XHZ=[V.x1,V.x2,V.x3,V.x4].map(v=>xmap(v,20,20000));
+  setInterval(()=>{
+    for(let i=0;i<64;i++){
+      const t=i/64;
+      SPEC[i]=Math.max(0, 0.85 - t*0.55 + Math.sin(i*0.7+Date.now()/700)*0.12 + Math.random()*0.08);
+    }
+    BRMS=BRMS.map(()=>0.25+Math.random()*0.45);
+    BGR=BGR.map(()=>0.75+Math.random()*0.25);
+    BAG=BAG.map(()=>0.6+Math.random()*1.2);
+    OUTL=0.35+Math.random()*0.2; INL=0.3+Math.random()*0.2;
+    XHZ=[V.x1,V.x2,V.x3,V.x4].map(v=>xmap(v,20,20000));
+  },70);
+}
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

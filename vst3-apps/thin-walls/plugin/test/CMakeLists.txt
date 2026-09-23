@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.22)
+project(ThinWallsTest LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# The bench measures numbers that get quoted (RT60, DRR, ITD), so no fast-math.
+add_executable(twtest bench.cpp ../Source/Engine.cpp)
+target_include_directories(twtest PRIVATE ../Source)
+
+if(MSVC)
+    target_compile_options(twtest PRIVATE /O2 /fp:precise /W4 /bigobj)
+else()
+    target_compile_options(twtest PRIVATE -O2 -fno-fast-math -Wall -Wextra)
+endif()
+
+add_executable(twprobe probe.cpp ../Source/Engine.cpp)
+target_include_directories(twprobe PRIVATE ../Source)
+if(MSVC)
+    target_compile_options(twprobe PRIVATE /O2 /fp:precise /bigobj)
+endif()
+
+add_executable(twquality quality.cpp ../Source/Engine.cpp)
+target_include_directories(twquality PRIVATE ../Source)
+if(MSVC)
+    target_compile_options(twquality PRIVATE /O2 /fp:precise /bigobj)
+    target_link_options(twquality PRIVATE /STACK:33554432)
+else()
+    target_compile_options(twquality PRIVATE -O2 -fno-fast-math)
+endif()

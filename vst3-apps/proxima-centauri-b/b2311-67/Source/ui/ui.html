@@ -1,0 +1,2285 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Artefact B2311.67</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#07080a;overflow:hidden;
+    font-family:"Iosevka","Consolas","DejaVu Sans Mono",monospace;color:#8fa8ad;
+    -webkit-user-select:none;user-select:none;cursor:default}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #ui{z-index:2}
+  #crate{position:absolute;inset:0;z-index:3;pointer-events:none}
+
+  /* ---- the crate. This rectangle is OURS: the artefact is the octagon. ---- */
+  /* the crate is OURS: a case we built to carry something we do not
+     understand, so it is the one part that should look photographed */
+  .plate{position:absolute;
+    background-image:linear-gradient(150deg,rgba(28,32,36,.86) 0%,rgba(14,17,19,.90) 45%,rgba(9,11,13,.94) 100%),
+                     url("img/tx-alu.png");
+    background-size:auto, 190px 190px;
+    background-blend-mode:multiply, normal;
+    border:1px solid #23282c;box-shadow:inset 0 1px 0 #2b3135, 0 2px 12px rgba(0,0,0,.75)}
+  .plate::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:url("img/tx-wear.png") 0 0 / 260px 260px;opacity:.16;mix-blend-mode:screen}
+  .corner{position:absolute;width:46px;height:46px;pointer-events:none;opacity:.62;
+    background:url("img/tx-corner.png") center/contain no-repeat;
+    filter:brightness(.5) saturate(.35) drop-shadow(0 2px 3px rgba(0,0,0,.8))}
+  #cTL{left:0;top:0;width:220px;height:74px;border-left:none;border-top:none}
+  #cTR{right:0;top:0;width:264px;height:74px;border-right:none;border-top:none}
+  #cBL{left:0;bottom:0;width:250px;height:64px;border-left:none;border-bottom:none}
+  #cBR{right:0;bottom:0;width:222px;height:64px;border-right:none;border-bottom:none}
+  .rail{position:absolute;background:#0a0c0e;border-top:1px solid #1a1e21;border-bottom:1px solid #05060700}
+  #railT{left:0;right:0;top:0;height:3px}
+  #railB{left:0;right:0;bottom:0;height:3px}
+  .sten{font-size:9px;letter-spacing:.20em;color:#4d5f63;text-transform:uppercase}
+  .sten b{color:#93b6bb;font-weight:600}
+  .pad{padding:9px 12px}
+  .rivet{position:absolute;width:5px;height:5px;border-radius:50%;
+    background:radial-gradient(circle at 30% 30%,#3b4348,#12161a 70%);box-shadow:0 1px 1px #000}
+
+  /* ---- the decoding strip: OUR words, written on OUR packaging ---- */
+  #strip{position:absolute;left:0;right:0;bottom:0;height:26px;line-height:26px;
+    text-align:center;font-size:10.5px;letter-spacing:.16em;color:#5f7d83;
+    background:linear-gradient(180deg,rgba(7,8,10,0) 0%,rgba(7,8,10,.9) 55%);
+    text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 14px}
+  #strip .k{color:#cfe6e9}
+  #strip .v{color:#63d6c8}
+  #strip .n{color:#3d5155}
+
+  /* ---- the thermometer: how hard the specimen stirs itself ---- */
+  #thermo{position:absolute;left:50%;transform:translateX(-50%);bottom:54px;
+    pointer-events:auto;display:flex;align-items:center;gap:10px;
+    font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#5f7d83;
+    background:rgba(7,10,12,.72);border:1px solid #1d272b;border-radius:3px;padding:5px 11px}
+  #tTrack{position:relative;width:280px;height:9px;cursor:ew-resize;
+    background:linear-gradient(90deg,#12303a 0%,#1b3a3a 30%,#4a3320 70%,#6d2a18 100%);
+    border:1px solid #24323a;border-radius:2px}
+  #tFill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,196,110,.16);pointer-events:none}
+  #tKnob{position:absolute;top:-3px;width:3px;height:15px;background:#ffc46e;
+    box-shadow:0 0 5px rgba(255,196,110,.7);pointer-events:none}
+  #tTrack .tick{position:absolute;top:-2px;width:1px;height:13px;background:#39474d;pointer-events:none}
+  #tVal{color:#cfe6e9;min-width:46px;text-align:right}
+  #tNote{color:#3d5155}
+
+  /* ---- the catalogue ---- */
+  #cat{position:absolute;inset:0;z-index:6;background:rgba(4,5,6,.93);display:none;
+    backdrop-filter:blur(3px);pointer-events:auto}
+  #cat.on{display:block}
+  #catgrid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:7px}
+  .sw{width:40px;height:40px;position:relative;cursor:pointer;opacity:.82;transition:opacity .12s,transform .12s}
+  .sw:hover{opacity:1;transform:scale(1.16)}
+  .sw.sel{outline:1px solid #6fe0d0;outline-offset:2px;opacity:1}
+  .sw canvas{position:absolute;inset:0;width:40px;height:40px}
+  #cattitle{position:absolute;left:0;right:0;top:26px;text-align:center;font-size:10px;
+    letter-spacing:.28em;color:#6f9096;text-transform:uppercase}
+  #catfoot{position:absolute;left:0;right:0;bottom:26px;text-align:center;font-size:10px;
+    letter-spacing:.18em;color:#4a6165;text-transform:uppercase}
+
+  .btn{pointer-events:auto;cursor:pointer;display:inline-block;font-size:9px;letter-spacing:.16em;
+    padding:4px 9px;border:1px solid #242b2e;color:#7d9ba0;background:#0c1012;text-transform:uppercase}
+  .btn:hover{color:#cfeef0;border-color:#3d6b70;background:#101719}
+  /*  BELOW the top-right corner plate, not on it. The plate is 265x75 and
+      carries the cut/habit/ceiling readouts right up to its edge; at top:22
+      the globe sat on all three of them. Measured clear at top:88. */
+  #globe{position:absolute;right:14px;top:88px;width:28px;height:28px;pointer-events:auto;cursor:pointer;opacity:.55}
+  #globe:hover{opacity:1}
+  #meter{position:absolute;height:2px;bottom:0;left:0;background:#4fd6c4;width:0;box-shadow:0 0 6px #4fd6c4}
+
+  /* ---- PROVENANCE. The artefact came from somewhere, and somebody carried
+     it. This is the paperwork that travelled with it in the crate. ---- */
+  #prov{position:absolute;inset:0;z-index:7;display:none;background:rgba(3,4,5,.90);
+    backdrop-filter:blur(4px);pointer-events:auto}
+  #prov.on{display:block}
+
+  /* the site: what the four findings share. Shared stationery with .22. */
+  #site{position:absolute;inset:0;z-index:9;display:none;background:rgba(3,5,9,.90);backdrop-filter:blur(4px);cursor:default}
+  #site.on{display:block}
+  #sitecard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(600px,92vw);
+    padding:22px 26px;color:#93a9ad;font-size:12px;line-height:1.75;background:rgba(9,14,19,.96);
+    border:1px solid #2a3135;border-radius:3px;box-shadow:0 18px 60px rgba(0,0,0,.85)}
+  #sitecard h2{font-size:11px;letter-spacing:.24em;color:#4fd6c4;margin:0 0 8px;font-weight:600;text-transform:uppercase}
+  #sitecard p{color:#6f8589;margin:0 0 12px}
+  #sitecard .row{display:flex;gap:14px;align-items:center;margin:5px 0}
+  #sitecard .row b{min-width:96px;color:#dcecee;font-weight:600;letter-spacing:.1em;font-size:10px;text-transform:uppercase}
+  #sitecard .stog{cursor:pointer;color:#dcecee;border:1px solid #3a4a52;padding:0 9px;letter-spacing:.14em;font-size:10px;text-transform:uppercase}
+  #sitecard .stog.on{background:#1d4a48;border-color:#4fd6c4;color:#fff}
+  #sitecard .sitehint{color:#5c757a}
+  #sitecard input[type=range]{width:170px;accent-color:#4fd6c4}
+  #siteclose{position:absolute;right:14px;top:12px}
+  #rSite{color:#4fd6c4}
+  #provcard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:min(940px,92vw);display:flex;gap:26px;padding:24px 26px;
+    background-image:linear-gradient(150deg,rgba(30,34,38,.92) 0%,rgba(15,18,20,.95) 100%),url("img/tx-alu.png");
+    background-size:auto,220px 220px;border:1px solid #2b3236;
+    box-shadow:0 18px 60px rgba(0,0,0,.85), inset 0 1px 0 #394145}
+  #provcard::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:url("img/tx-wear.png") 0 0/300px 300px;opacity:.13;mix-blend-mode:screen}
+  #globewrap{position:relative;width:330px;height:330px;flex:0 0 auto;
+    border:1px solid #2a3135;background:#000;overflow:hidden}
+  #globeimg{width:100%;height:100%;display:block;filter:contrast(1.06) saturate(.9) brightness(.95)}
+  #pin{position:absolute;width:15px;height:15px;margin:-7.5px 0 0 -7.5px;pointer-events:none}
+  #pin::before,#pin::after{content:"";position:absolute;border-radius:50%}
+  #pin::before{inset:5px;background:#ff5a3c;box-shadow:0 0 9px 2px rgba(255,90,60,.85)}
+  #pin::after{inset:0;border:1px solid rgba(255,120,90,.85);animation:png 2.6s ease-out infinite}
+  @keyframes png{0%{transform:scale(.55);opacity:.95}100%{transform:scale(3.6);opacity:0}}
+  #pinlab,#pinlab2{position:absolute;font-size:8.5px;letter-spacing:.14em;color:#ffb59c;
+    text-transform:uppercase;white-space:nowrap;text-shadow:0 1px 3px #000;pointer-events:none}
+  #pinlab2{color:#7f9498}
+  #pin2{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;pointer-events:none;
+    border:1px solid rgba(150,175,180,.55);border-radius:50%}
+  #provtext{flex:1 1 auto;min-width:0;font-size:11px;line-height:1.62;color:#93a9ad}
+  #provtext h2{margin:0 0 3px;font-size:12.5px;letter-spacing:.20em;color:#dcecee;font-weight:600;text-transform:uppercase}
+  #provtext .sub{font-size:9px;letter-spacing:.24em;color:#5c757a;text-transform:uppercase;margin-bottom:13px}
+  #provtext dl{display:grid;grid-template-columns:118px 1fr;gap:3px 14px;margin:0 0 13px}
+  #provtext dt{font-size:8.5px;letter-spacing:.16em;color:#556d71;text-transform:uppercase;padding-top:2px}
+  #provtext dd{margin:0;color:#c3d6d9;font-size:10.5px}
+  #provtext p{margin:0 0 9px;color:#8ba1a5}
+  #provtext .stamp{display:inline-block;margin-top:6px;padding:3px 9px;border:1px solid #6b4a3a;
+    color:#c98a63;font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;transform:rotate(-1.4deg)}
+  #provclose{position:absolute;right:14px;top:12px}
+</style>
+
+<canvas id="gl"></canvas>
+<canvas id="ui"></canvas>
+
+<div id="crate">
+  <div class="rail" id="railT"></div>
+  <div class="rail" id="railB"></div>
+  <div class="corner" style="left:-9px;top:-9px"></div>
+  <div class="corner" style="right:-9px;top:-9px;transform:scaleX(-1)"></div>
+  <div class="corner" style="left:-9px;bottom:-9px;transform:scaleY(-1)"></div>
+  <div class="corner" style="right:-9px;bottom:-9px;transform:scale(-1,-1)"></div>
+
+  <div class="plate" id="cTL"><div class="pad sten">
+    <div>Proxims Centauri B</div>
+    <div style="margin-top:3px"><b>ARTEFACT B2311.67</b></div>
+    <div style="margin-top:3px;color:#3c4b4e">collected specimen &middot; unclassified</div>
+  </div></div>
+
+  <div class="plate" id="cTR"><div class="pad sten" style="text-align:right">
+    <div>section depth <b id="rTau">0.000</b></div>
+    <div style="margin-top:3px">cut <b id="rN">0</b> sites &middot; orders <b id="rOrd">0</b></div>
+    <div style="margin-top:3px">habit <b id="rHab">000</b> &middot; <span id="rSig">&mdash;</span></div>
+    <div style="margin-top:3px">ceiling <b id="rGR">0.0 dB</b></div>
+    <div style="margin-top:3px" id="rSite"></div>
+  </div></div>
+
+  <div class="plate" id="cBL"><div class="pad sten">
+    <div style="margin-bottom:5px">
+      <span class="btn" id="bCat">catalogue</span>
+      <span class="btn" id="bRnd">draw</span>
+      <span class="btn" id="bClr">release pins</span>
+      <span class="btn" id="bProv">provenance</span>
+      <span class="btn" id="bSite" title="the site: what the four findings share">site</span>
+    </div>
+    <div style="color:#3c4b4e">wheel &middot; travel in w &nbsp; drag rim &middot; bearing</div>
+  </div></div>
+
+  <div class="plate" id="cBR"><div class="pad sten" style="text-align:right">
+    <div style="margin-bottom:5px">
+      <span class="btn" id="bSave">record</span>
+      <span class="btn" id="bOpen">read</span>
+      <span class="btn" id="bPanic">still</span>
+    </div>
+    <div style="color:#3c4b4e">build <span id="rBuild">dev</span></div>
+  </div></div>
+
+  <div id="thermo" title="how hard this specimen stirs itself">
+    <span>temperature</span>
+    <div id="tTrack"><div id="tFill"></div><div id="tKnob"></div></div>
+    <span id="tVal">293 K</span>
+    <span id="tNote">77 K &middot; still</span>
+  </div>
+
+  <div id="globe" title="Brokild World FX" data-bwfx-open>
+    <svg viewBox="0 0 28 28" width="28" height="28">
+      <circle cx="14" cy="14" r="11" fill="none" stroke="#4fd6c4" stroke-width="1.1"/>
+      <ellipse cx="14" cy="14" rx="4.6" ry="11" fill="none" stroke="#4fd6c4" stroke-width=".8"/>
+      <path d="M3.4 10.6h21.2M3.4 17.4h21.2" stroke="#4fd6c4" stroke-width=".8" fill="none"/>
+    </svg>
+  </div>
+
+  <div id="strip"><span class="n">the artefact does not name its parts. this line is ours.</span></div>
+  <div id="meter"></div>
+</div>
+
+<div id="site">
+  <div id="sitecard">
+    <span class="btn" id="siteclose">close</span>
+    <h2>The site &middot; what the findings share</h2>
+    <p>Four findings, one bench. Cooled and set close together they fall into step; warm, or far apart, each keeps its own time. These are the bench's settings, not this finding's: change them here and every artefact present sees the change. Off, each finding is exactly what it was.</p>
+    <div class="row"><b>climate</b><span class="stog" id="siteClimate">own</span><span class="sitehint">one temperature for the whole bench</span></div>
+    <div class="row"><b>timing</b><span class="stog" id="siteTiming">own</span><span class="sitehint">cold and close, they fall into step</span></div>
+    <div class="row"><b>distance</b><input type="range" id="siteDist" min="0" max="1" step="0.01" value="0.5"><span id="siteDistRd">the same room</span></div>
+    <div class="row"><b>present</b><span id="siteStatus">only this finding</span></div>
+  </div>
+</div>
+
+<div id="prov">
+  <div id="provcard">
+    <span class="btn" id="provclose">close</span>
+    <div id="globewrap">
+      <img id="globeimg" src="img/tx-planet.png" alt="">
+      <div id="pin"></div>
+      <div id="pinlab"></div>
+      <div id="pin2"></div>
+      <div id="pinlab2"></div>
+    </div>
+    <div id="provtext">
+      <h2 id="pvTitle">Artefact B2311.67</h2>
+      <div class="sub" id="pvSub">Proxims Centauri B &middot; recovered specimen</div>
+      <dl>
+        <dt>Accession</dt><dd id="pvAcc"></dd>
+        <dt>Site</dt><dd id="pvSite"></dd>
+        <dt>Position</dt><dd id="pvPos"></dd>
+        <dt>Recovered</dt><dd id="pvDate"></dd>
+        <dt>Expedition</dt><dd id="pvExp"></dd>
+        <dt>Finder</dt><dd id="pvWho"></dd>
+        <dt>Journal</dt><dd id="pvJrn"></dd>
+        <dt>Condition</dt><dd id="pvCond"></dd>
+      </dl>
+      <p id="pvCirc"></p>
+      <p id="pvNote"></p>
+      <p id="pvNote2"></p>
+      <span class="stamp" id="pvStamp"></span>
+    </div>
+  </div>
+</div>
+
+<div id="cat">
+  <div id="cattitle">catalogue of habits &mdash; each is a colouring of the fourth dimension</div>
+  <div id="catgrid"></div>
+  <div id="catfoot">click to dial &middot; esc to close</div>
+</div>
+
+<script src="bwfx-rack.js"></script>
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════════════════════
+   0 · the bridge
+   ═══════════════════════════════════════════════════════════════════════════ */
+const NB = (() => {
+  let q = [], sched = false;
+  const flush = () => { sched = false; const b = q; q = [];
+    try { window.__JUCE__.backend.emitEvent("ab", { b }); } catch (e) {} };
+  return {
+    send(m) { q.push(m); if (!sched) { sched = true; queueMicrotask(flush); } },
+    on(n, f) { try { window.__JUCE__.backend.addEventListener(n, f); } catch (e) {} },
+    live() { return !!(window.__JUCE__ && window.__JUCE__.backend); }
+  };
+})();
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const TAU = Math.PI * 2;
+
+if (window.BWFX) {
+  BWFX.attach({ send: o => { const m = { k: "bwfx" }; for (const kk in o) m[kk] = o[kk]; NB.send(m); } });
+  NB.on("bwfx", p => BWFX.onState(p));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1 · the four-dimensional body, in the page
+
+   The same cut-and-project the engine runs. It is a dozen lines of arithmetic
+   and it has to be here: shipping a thousand vertices across a JSON bridge
+   thirty times a second would be absurd, and the picture has to keep up with
+   the wheel, not with the audio thread.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const SQ2 = Math.SQRT2;
+const SILVER = 1 + SQ2;
+const APO = (1 + SQ2) / 2;
+
+const WIN = { scale: 1, soft: 0.06, bulge: new Float64Array(8) };
+const HAB = { waves: 3, kmag: [2, 3.2, 5.1, 1.3], kdir: [0, 2, 5, 3],
+              kamp: [1, .6, .35, .2], kphi: [0, 1.1, 2.3, .7],
+              radial: 0, crisp: 0, levels: 0, filmBase: 420, filmSpan: 520, glint: .5 };
+let HABTAB = null;                 // all 256, for the catalogue and for dialling
+
+const DIRC = new Float64Array(8), DIRS = new Float64Array(8);
+for (let j = 0; j < 8; j++) { const a = j * Math.PI / 4; DIRC[j] = Math.cos(a); DIRS[j] = Math.sin(a); }
+
+function occupancy(px, py, w) {
+  let m = 1;
+  for (let j = 0; j < 8; j++) {
+    const lim = APO * w.scale + w.bulge[j];
+    const slack = lim - (px * DIRC[j] + py * DIRS[j]);
+    if (slack <= 0) return 0;
+    const t = slack / w.soft;
+    if (t < m) m = t;
+  }
+  return m < 1 ? m * m * (3 - 2 * m) : 1;
+}
+
+function fieldAt(px, py, h) {
+  let v = 0, norm = 0;
+  for (let i = 0; i < h.waves; i++) {
+    const d = h.kdir[i] & 7;
+    v += h.kamp[i] * Math.cos(h.kmag[i] * (px * DIRC[d] + py * DIRS[d]) + h.kphi[i]);
+    norm += Math.abs(h.kamp[i]);
+  }
+  if (norm > 0) v /= norm;
+  v += h.radial * (Math.sqrt(px * px + py * py) / APO - 0.6);
+  if (h.crisp > 0) v = Math.tanh(v / Math.max(1e-3, (1 - h.crisp) * 0.9 + 0.02));
+  let f = 0.5 + 0.5 * clamp(v, -1, 1);
+  if (h.levels >= 2) f = Math.min(1, Math.floor(f * h.levels * 0.9999) / (h.levels - 1));
+  return f;
+}
+
+/* the patch: vertices, edges, tiles — exactly the engine's enumeration */
+const PATCH = { site: [], edge: [], tile: [], byKey: new Map() };
+
+function buildPatch(gx, gy, radius, levels) {
+  PATCH.site.length = 0; PATCH.edge.length = 0; PATCH.tile.length = 0; PATCH.byKey.clear();
+
+  for (let L = 0; L <= levels; L++) {
+    const w = { scale: WIN.scale / Math.pow(SILVER, L), soft: WIN.soft, bulge: WIN.bulge };
+    // the search box has to include the BULGE, or an arrest pushes the
+    // acceptance rim out to hold a site and the enumeration never looks there
+    let maxB = 0; for (let j = 0; j < 8; j++) maxB = Math.max(maxB, WIN.bulge[j]);
+    const lim = APO * w.scale + maxB + 0.5;
+    const R = radius + 1.5, r2 = radius * radius;
+    const xs = [], ys = [];
+
+    const Bmax = Math.ceil((R + Math.abs(gx) + 2) / SQ2) + 2;
+    for (let B = -Bmax; B <= Bmax; B++) {
+      const bq = B / SQ2;
+      for (let A = Math.floor(bq + gx - lim); A <= Math.ceil(bq + gx + lim); A++) {
+        const xp = A + bq, xq = A - bq;
+        if (Math.abs(xq - gx) > lim || Math.abs(xp) > R) continue;
+        xs.push(A, B, xp, xq);
+      }
+    }
+    const Mmax = Math.ceil((R + Math.abs(gy) + 2) / SQ2) + 2;
+    for (let M = -Mmax; M <= Mmax; M++) {
+      const mq = M / SQ2;
+      for (let C = Math.floor(mq - gy - lim); C <= Math.ceil(mq - gy + lim); C++) {
+        const yp = mq + C, yq = mq - C;
+        if (Math.abs(yq - gy) > lim || Math.abs(yp) > R) continue;
+        ys.push(M, C, yp, yq);
+      }
+    }
+
+    const base = PATCH.site.length;
+    for (let a = 0; a < xs.length; a += 4) {
+      const A = xs[a], B = xs[a + 1], xp = xs[a + 2], xq = xs[a + 3];
+      for (let b = 0; b < ys.length; b += 4) {
+        const M = ys[b], C = ys[b + 1], yp = ys[b + 2], yq = ys[b + 3];
+        if (((B ^ M) & 1) !== 0) continue;
+        if (xp * xp + yp * yp > r2) continue;
+        const occ = occupancy(xq - gx, yq - gy, w);
+        if (occ <= 0) continue;
+        PATCH.site.push({
+          x: xp, y: yp, px: xq, py: yq, occ,
+          f: fieldAt(xq, yq, HAB), lvl: L,
+          n0: A, n1: (M + B) / 2, n2: C, n3: (M - B) / 2
+        });
+      }
+    }
+
+    if (L === 0) {
+      const n = PATCH.site.length;
+      for (let i = base; i < n; i++) {
+        const s = PATCH.site[i];
+        PATCH.byKey.set(s.n0 + "," + s.n1 + "," + s.n2 + "," + s.n3, i);
+      }
+      const K = (a, b, c, d) => PATCH.byKey.get(a + "," + b + "," + c + "," + d);
+      for (let i = base; i < n; i++) {
+        const s = PATCH.site[i], v = [s.n0, s.n1, s.n2, s.n3];
+        for (let k = 0; k < 4; k++) {
+          const q = v.slice(); q[k]++;
+          const j = K(q[0], q[1], q[2], q[3]);
+          if (j !== undefined) PATCH.edge.push(i, j);
+        }
+        for (let k = 0; k < 4; k++) for (let l = k + 1; l < 4; l++) {
+          const a1 = v.slice(); a1[k]++;
+          const b1 = v.slice(); b1[l]++;
+          const c1 = v.slice(); c1[k]++; c1[l]++;
+          const ia = K(a1[0], a1[1], a1[2], a1[3]); if (ia === undefined) continue;
+          const ib = K(b1[0], b1[1], b1[2], b1[3]); if (ib === undefined) continue;
+          const ic = K(c1[0], c1[1], c1[2], c1[3]); if (ic === undefined) continue;
+          PATCH.tile.push(i, ia, ic, ib, (l - k === 2) ? 1 : 0);
+        }
+      }
+    } else {
+      // the inflations are drawn as a skeleton: their own edges, at the
+      // silver-scaled length, on top of the tiling they belong to
+      const n = PATCH.site.length;
+      const key = new Map();
+      for (let i = base; i < n; i++) {
+        const s = PATCH.site[i];
+        key.set(s.n0 + "," + s.n1 + "," + s.n2 + "," + s.n3, i);
+      }
+      const d = SILVER * Math.pow(SILVER, L - 1) * 1.02;
+      for (let i = base; i < n; i++) {
+        const s = PATCH.site[i];
+        for (let j = i + 1; j < n; j++) {
+          const t = PATCH.site[j];
+          const dx = t.x - s.x, dy = t.y - s.y, r = Math.sqrt(dx * dx + dy * dy);
+          if (Math.abs(r - d) < 0.06 * d) PATCH.edge.push(i, j);
+        }
+      }
+      key.clear();
+    }
+  }
+}
+
+/* the cut: the sounding chain, the same enumeration the engine uses */
+const CUT = { site: [], ang: 0, off: 0 };
+function buildCut(gx, gy, bearing, offset, want) {
+  CUT.site.length = 0;
+  const cx = Math.cos(bearing), sy = Math.sin(bearing);
+  const qx = -sy, qy = cx;
+  let maxB = 0; for (let j = 0; j < 8; j++) maxB = Math.max(maxB, WIN.bulge[j]);
+  const lim = APO * WIN.scale + maxB + 0.5;
+  const half = 0.62, slack = half + lim * 1.5 + 0.6;
+  const S = 0.75 * want + 6;
+  const hits = [];
+  const emit = (xp, xq, yp, yq) => {
+    const occ = occupancy(xq - gx, yq - gy, WIN);
+    if (occ <= 0) return;
+    if (Math.abs(xp * qx + yp * qy - offset) > half) return;
+    const s = xp * cx + yp * sy;
+    if (Math.abs(s) > S) return;
+    hits.push({ s, x: xp, y: yp, px: xq, py: yq, occ, f: fieldAt(xq, yq, HAB) });
+  };
+  if (Math.abs(cx) >= Math.abs(sy)) {
+    const Bmax = Math.ceil((S / Math.max(0.7, Math.abs(cx)) + Math.abs(gx) + 3) / SQ2) + 2;
+    for (let B = -Bmax; B <= Bmax; B++) {
+      const bq = B / SQ2;
+      for (let A = Math.floor(bq + gx - lim); A <= Math.ceil(bq + gx + lim); A++) {
+        const xp = A + bq, xq = A - bq;
+        if (Math.abs(xq - gx) > lim) continue;
+        const lo = (offset - slack - xp * qx) / qy, hi = (offset + slack - xp * qx) / qy;
+        const ylo = Math.min(lo, hi), yhi = Math.max(lo, hi);
+        for (let M = Math.floor((ylo + gy - lim) * SQ2 * 0.5) - 1; M <= Math.ceil((yhi + gy + lim) * SQ2 * 0.5) + 1; M++) {
+          if (((B ^ M) & 1) !== 0) continue;
+          const mq = M / SQ2;
+          for (let C = Math.floor(mq - gy - lim); C <= Math.ceil(mq - gy + lim); C++) {
+            const yp = mq + C, yq = mq - C;
+            if (Math.abs(yq - gy) > lim) continue;
+            emit(xp, xq, yp, yq);
+          }
+        }
+      }
+    }
+  } else {
+    const Mmax = Math.ceil((S / Math.max(0.7, Math.abs(sy)) + Math.abs(gy) + 3) / SQ2) + 2;
+    for (let M = -Mmax; M <= Mmax; M++) {
+      const mq = M / SQ2;
+      for (let C = Math.floor(mq - gy - lim); C <= Math.ceil(mq - gy + lim); C++) {
+        const yp = mq + C, yq = mq - C;
+        if (Math.abs(yq - gy) > lim) continue;
+        const lo = (offset - slack - yp * qy) / qx, hi = (offset + slack - yp * qy) / qx;
+        const xlo = Math.min(lo, hi), xhi = Math.max(lo, hi);
+        for (let B = Math.floor((xlo - gx - lim) * SQ2 * 0.5) - 1; B <= Math.ceil((xhi - gx + lim) * SQ2 * 0.5) + 1; B++) {
+          if (((B ^ M) & 1) !== 0) continue;
+          const bq = B / SQ2;
+          for (let A = Math.floor(bq + gx - lim); A <= Math.ceil(bq + gx + lim); A++) {
+            const xp = A + bq, xq = A - bq;
+            if (Math.abs(xq - gx) > lim) continue;
+            emit(xp, xq, yp, yq);
+          }
+        }
+      }
+    }
+  }
+  hits.sort((a, b) => a.s - b.s);
+  const uniq = [];
+  for (const c of hits) {
+    if (!uniq.length || c.s - uniq[uniq.length - 1].s > 1e-6) uniq.push(c);
+    else if (c.occ > uniq[uniq.length - 1].occ) uniq[uniq.length - 1] = c;
+  }
+  if (uniq.length <= want) { CUT.site = uniq; return; }
+  let best = 0, bd = 1e18;
+  for (let i = 0; i + want <= uniq.length; i++) {
+    const mid = 0.5 * (uniq[i].s + uniq[i + want - 1].s);
+    if (Math.abs(mid) < bd) { bd = Math.abs(mid); best = i; }
+  }
+  CUT.site = uniq.slice(best, best + want);
+}
+
+/* the diffraction star: peaks at p + q*sqrt2, intensity from the conjugate */
+let STAR = [];
+function buildStar(wid, tilt, want) {
+  const all = [];
+  for (let p = -18; p <= 18; p++) for (let q = -13; q <= 13; q++) {
+    const lam = p + q * SQ2;
+    if (lam < 0.06 || lam > 64) continue;
+    const cj = p - q * SQ2;
+    const x = wid * cj;
+    const sc = Math.abs(x) < 1e-9 ? 1 : Math.sin(x) / x;
+    const a = Math.abs(sc) * Math.exp(-tilt * Math.abs(cj)) / (0.35 + Math.pow(lam, 1.15));
+    if (a < 1e-5) continue;
+    all.push({ lam, cj, a, p, q });
+  }
+  all.sort((u, v) => v.a - u.a);
+  STAR = all.slice(0, want);
+  const mx = STAR.length ? STAR[0].a : 1;
+  for (const s of STAR) s.a /= mx;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2 · parameters
+   ═══════════════════════════════════════════════════════════════════════════ */
+const V = {}, DEF = {}, HI = {}, KIND = {}, LO = {}, FHI = {}, PNAME = {}, GLOSS = {}, NAMES = {};
+let PIDS = [];
+const KP = { PCT: 0, SW: 1, LIST: 2, INT: 3, BIPOL: 4, CENT: 5, VOL: 6, SEMI: 7, HZ: 8, KELVIN: 9 };
+
+function setParam(id, v, silent) {
+  const hi = HI[id] !== undefined ? HI[id] : 1;
+  v = clamp(v, 0, hi);
+  if (V[id] === v) return;
+  V[id] = v;
+  NB.send({ k: "p", id, v });
+  if (!silent) say(PNAME[id] || id, fmt(id, v), GLOSS[id]);
+  onParamChanged(id);
+}
+function fmt(id, v) {
+  const k = KIND[id];
+  if (k === KP.LIST && NAMES[id]) return NAMES[id][Math.round(v)] || String(v);
+  if (k === KP.INT) return String(Math.round(v));
+  if (k === KP.BIPOL) { const x = LO[id] + (FHI[id] - LO[id]) * v; return (x >= 0 ? "+" : "") + x.toFixed(2); }
+  if (k === KP.KELVIN) return Math.round(LO[id] + (FHI[id] - LO[id]) * v) + " K";
+  if (k === KP.VOL) { const g = 2.2 * v * v; return g <= 0 ? "-inf dB" : (20 * Math.log10(g)).toFixed(1) + " dB"; }
+  if (k === KP.SEMI) { const s = Math.round((v - 0.5) * 6); return (s > 0 ? "+" : "") + s + " oct"; }
+  if (k === KP.CENT) { const c = (v - 0.5) * LO[id]; return (c >= 0 ? "+" : "") + c.toFixed(0) + " cents"; }
+  return Math.round(v * 100) + " %";
+}
+
+/* the decoding strip. The artefact never speaks; this line is the collector's
+   annotation, written on the crate. */
+let stripHold = 0;
+function say(k, v, note) {
+  const el = $("#strip");
+  el.innerHTML = '<span class="k">' + k + '</span>' + (v !== undefined ? ' &nbsp;<span class="v">' + v + '</span>' : '')
+               + (note ? ' &nbsp;<span class="n">' + note + '</span>' : '');
+  stripHold = 150;
+}
+function sayIdle() {
+  $("#strip").innerHTML = '<span class="n">wheel &mdash; travel in w &nbsp;&middot;&nbsp; '
+    + 'drag the cut &nbsp;&middot;&nbsp; click a vertex to arrest it &nbsp;&middot;&nbsp; drag a rosette ring L-R or D-U</span>';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3 · the rosettes — winding controls, no stops, no pointer, no numerals
+
+   Eight of them at the rim, five concentric rings each: forty controls, laid
+   out the way the body is laid out. A rosette answers with an eightfold
+   figure you read as a pattern; the strip tells you what it was, afterwards.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const ROSETTE = [
+  ["extent",  "contrast", "bondlaw",  "damp",     "damptilt"],
+  ["blend",   "peaks",    "starwid",  "startilt", "stardec" ],
+  ["strike",  "place",    "follow",   "spread",   "nonlin"  ],
+  ["attack",  "decay",    "sustain",  "release",  "drift"   ],
+  ["aperture","rim",      "cutpos",   "cutang",   "tilt4"   ],
+  ["drive",   "drivecol", "cavity",   "cavtone",  "air"     ],
+  ["conform", "ref",      "octave",   "glide",    "bendr"   ],
+  ["voices",  "level",    "sat",      "habit",    "travel"  ]
+];
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4 · WebGL — the artefact itself
+   ═══════════════════════════════════════════════════════════════════════════ */
+const glc = $("#gl");
+const gl = glc.getContext("webgl2", { antialias: true, alpha: false, premultipliedAlpha: false });
+let GLOK = !!gl;
+
+const VS_TILE = `#version 300 es
+precision highp float;
+layout(location=0) in vec2 aPos;
+layout(location=1) in vec2 aPerp;     // the TILE's shadow in the fourth dimension
+layout(location=2) in vec3 aFOA;      // field, occupancy, kind
+layout(location=3) in vec2 aUV;
+layout(location=4) in vec2 aAxis;     // the tile's two edge directions
+layout(location=5) in vec2 aAxis2;
+layout(location=6) in vec2 aCent;     // the tile's centre, in our plane
+uniform vec2 uCentre; uniform float uScale; uniform vec2 uRes;
+uniform float uPresence;
+out vec2 vPerp; out vec3 vFOA; out vec2 vUV; out vec2 vAxis; out vec2 vAxis2;
+out vec2 vCent; out vec2 vWorld;
+/*  DECONSTRUCTION. The hash is taken from the tile CENTRE, which every vertex
+    of a tile shares, so a tile leaves whole rather than tearing. Survivors
+    also shrink towards their own centres, so the body comes apart into
+    scattered plates and then into nothing — and nothing is exactly where the
+    sound has gone too, because both are driven by the same number. */
+float h21(vec2 q){ return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }
+void main(){
+  if (uPresence < 0.999) {
+    if (uPresence <= 0.0005 || h21(aCent) > uPresence) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);   // off the clip volume: gone
+      vPerp = aPerp; vFOA = aFOA; vUV = aUV; vAxis = aAxis; vAxis2 = aAxis2;
+      vCent = aCent; vWorld = aPos;
+      return;
+    }
+  }
+  vec2 shrunk = mix(aCent, aPos, clamp(uPresence * 1.4, 0.0, 1.0));
+  vec2 p = (shrunk - uCentre) * uScale;
+  vWorld = shrunk; vPerp = aPerp; vFOA = aFOA; vUV = aUV;
+  vAxis = aAxis; vAxis2 = aAxis2; vCent = aCent;
+  gl_Position = vec4(p / (uRes * 0.5) * vec2(1.0,-1.0), 0.0, 1.0);
+}`;
+
+/*  The fragment shader is where the realism has to come from. Nothing here is
+    a "look": the colour is thin-film interference computed from an optical
+    path length that IS the site's coordinate in the fourth dimension, so hue
+    encodes distance in w. The glint is anisotropic along the tile's own edge
+    directions, which is why the surface throws an eightfold star as the light
+    moves. */
+const FS_TILE_OLD = `#version 300 es
+precision highp float;
+in vec2 vPerp; in vec3 vFOA; in vec2 vUV; in vec2 vAxis; in vec2 vWorld;
+uniform float uTime; uniform vec3 uFilm;   // base, span, glint
+uniform vec2 uLight; uniform float uEnergy;
+out vec4 frag;
+
+float hash(vec2 p){ p=fract(p*vec2(443.897,441.423)); p+=dot(p,p+19.19); return fract(p.x*p.y); }
+float vnoise(vec2 p){
+  vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  float a=hash(i), b=hash(i+vec2(1,0)), c=hash(i+vec2(0,1)), d=hash(i+vec2(1,1));
+  return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+}
+
+// thin-film reflectance, sampled across the visible band
+vec3 film(float d, float cosT){
+  vec3 c = vec3(0.0);
+  const int N = 6;
+  for(int i=0;i<N;i++){
+    float t = float(i)/float(N-1);
+    float lam = mix(430.0, 660.0, t);
+    float ph = 6.2831853 * 1.42 * d * cosT / lam;
+    float I = 0.5 - 0.5*cos(ph);
+    // crude but well-behaved spectral -> RGB
+    vec3 w = vec3(exp(-pow((lam-605.0)/48.0,2.0)),
+                  exp(-pow((lam-540.0)/48.0,2.0)),
+                  exp(-pow((lam-462.0)/44.0,2.0)));
+    c += I * w;
+  }
+  return c / 2.2;
+}
+
+void main(){
+  float fld = vFOA.x, occ = vFOA.y, kind = vFOA.z;
+
+  // distance to the tile's boundary, for the seam and the bevel
+  vec2 e = min(vUV, 1.0 - vUV);
+  float edge = min(e.x, e.y);
+
+  // a height field: the habit's field plus micro-relief. The normal comes from
+  // its screen-space derivatives, so the surface is genuinely shaded.
+  float h = fld * 0.85
+          + 0.16 * vnoise(vWorld * 7.3 + vPerp * 2.1)
+          + 0.07 * vnoise(vWorld * 23.0)
+          - 0.55 * smoothstep(0.12, 0.0, edge);
+  float hx = dFdx(h) * 26.0, hy = dFdy(h) * 26.0;
+  vec3 n = normalize(vec3(-hx, -hy, 1.0));
+
+  vec3 Ldir = normalize(vec3(uLight, 0.85));
+  vec3 Vdir = vec3(0.0, 0.0, 1.0);
+  vec3 H = normalize(Ldir + Vdir);
+  float ndl = max(dot(n, Ldir), 0.0);
+  float ndh = max(dot(n, H), 0.0);
+
+  // anisotropic glint along the tile's own edge direction
+  vec3 T = normalize(vec3(vAxis, 0.0));
+  float th = dot(H, T);
+  float aniso = exp(-th*th*34.0) * pow(ndh, 90.0);
+
+  // the optical path is the fourth-dimensional coordinate
+  float d = uFilm.x + uFilm.y * fld + 130.0 * length(vPerp) + 40.0*sin(uTime*0.11 + vPerp.x*3.0);
+  float cosT = clamp(n.z, 0.25, 1.0);
+  vec3 irid = film(d, cosT);
+
+  vec3 body = mix(vec3(0.030,0.052,0.061), vec3(0.075,0.115,0.125), fld);
+  vec3 col = body * (0.30 + 0.85*ndl)
+           + irid * (0.34 + 0.52*ndl) * (0.55 + 0.45*kind)
+           + vec3(0.65,0.92,0.98) * aniso * uFilm.z * 1.5
+           + vec3(0.05,0.16,0.19) * pow(1.0 - max(n.z,0.0), 3.0);   // rim
+
+  // the seam between tiles: a fine bright filament, the tiling's own drawing
+  float seam = smoothstep(0.055, 0.0, edge);
+  col += vec3(0.18,0.42,0.46) * seam * (0.35 + 0.65*occ);
+
+  // the sound, running in the body
+  col += vec3(0.10,0.30,0.34) * uEnergy * (0.2 + 0.8*fld);
+
+  // matter at the rim of the window is only half here
+  float ghost = smoothstep(0.0, 1.0, occ);
+  col = mix(irid*0.42 + vec3(0.012,0.030,0.036), col, ghost);
+  frag = vec4(col, 0.30 + 0.70*ghost);
+}`;
+
+/*  What the artefact is made of, and why it looks like that.
+
+    Nothing here is a style. The colour is thin-film interference computed from
+    an optical path length that IS the site's coordinate in the fourth
+    dimension, so hue encodes distance in w — the same mechanism that colours a
+    beetle's wing case or an opal, and the reason those change as you move.
+    The glint is anisotropic along the tile's own edge directions, which is why
+    the surface throws an eightfold star as the light swings. The platelets are
+    thin and slightly translucent, lit from within as well as from above.
+
+    The first version of this had a heavy value-noise micro-relief and a deep
+    gutter at every tile boundary; between them the tiling came out looking
+    like polished granite. Relief has to be FINE and aligned to the crystal's
+    own axes — growth striations, not gravel — and the gutter has to be a hair
+    wide or every tile reads as an inset square. */
+const FS_TILE = `#version 300 es
+precision highp float;
+in vec2 vPerp; in vec3 vFOA; in vec2 vUV; in vec2 vAxis; in vec2 vAxis2;
+in vec2 vCent; in vec2 vWorld;
+uniform float uTime; uniform vec3 uFilm;
+uniform vec2 uLight; uniform float uEnergy; uniform float uEdge;
+uniform float uMat;
+uniform sampler2D uMcMin, uMcAnod, uMcGlass, uMcFire, uStri;
+out vec4 frag;
+
+float hash(vec2 p){ p=fract(p*vec2(443.897,441.423)); p+=dot(p,p+19.19); return fract(p.x*p.y); }
+float vnoise(vec2 p){
+  vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y);
+}
+// the coating's own thickness, slow across the body
+float coat(vec2 p){ return 0.62*vnoise(p*0.088+3.7) + 0.38*vnoise(p*0.196-9.1); }
+
+vec3 film(float d, float cosT, float k){
+  vec3 c = vec3(0.0);
+  for(int i=0;i<9;i++){
+    float lam = 408.0 + float(i)*31.0;
+    float ph  = 6.2831853 * 1.46 * d * cosT / lam;
+    float sn  = sin(ph*0.5);
+    float I   = (4.0*k*sn*sn) / ((1.0-k)*(1.0-k) + 4.0*k*sn*sn);
+    c += I * vec3(exp(-pow((lam-604.0)/40.0,2.0)),
+                  exp(-pow((lam-540.0)/38.0,2.0)),
+                  exp(-pow((lam-458.0)/36.0,2.0)));
+  }
+  c *= 0.44;
+  float l = dot(c, vec3(0.30,0.59,0.11));
+  return mix(vec3(l), c, 1.30);
+}
+
+void main(){
+  float fld = vFOA.x, occ = vFOA.y, kind = vFOA.z;
+
+  /*  THE SURFACE IS ANALYTIC, and that is the whole difference.
+
+      Three earlier passes built the normal from screen-space derivatives of a
+      height field. It aliases: a striation at a hundred and fifty cycles per
+      unit is five cycles per PIXEL, and a sharp specular on a derivative-based
+      normal turns the chamfers into hard white confetti that looks like broken
+      hardware. Here the normal is written down: a facet whose attitude follows
+      the coating's slope, bevelled at its rim, in closed form. Nothing to
+      alias, and it shades like one cut stone rather than a thousand squares. */
+  vec2 e = min(vUV, 1.0 - vUV);
+  float edge = min(e.x, e.y);
+
+  // the facet's attitude: the gradient of the coating at the tile's CENTRE, so
+  // neighbouring facets lean together and the creases between them are real
+  const float H = 0.9;
+  float c0 = coat(vCent);
+  vec2 grad = vec2(coat(vCent + vec2(H,0.0)) - c0, coat(vCent + vec2(0.0,H)) - c0) / H;
+  vec3 nF = normalize(vec3(-grad * 7.5, 1.0));
+
+  // the bevel at the facet's rim, in closed form, oriented by the tile's axes
+  vec2 bevUV = (e.x < e.y) ? vec2(vUV.x < 0.5 ? -1.0 : 1.0, 0.0)
+                           : vec2(0.0, vUV.y < 0.5 ? -1.0 : 1.0);
+  float bw = smoothstep(0.13, 0.0, edge);
+  vec2 bevW = bevUV.x * vAxis + bevUV.y * vAxis2;
+  vec3 n = normalize(nF + vec3(bevW * bw * 1.15, 0.0));
+
+  vec3 Ld = normalize(vec3(uLight, 0.60));
+  vec3 Vd = vec3(0.0,0.0,1.0);
+  vec3 Hv = normalize(Ld + Vd);
+  float ndl = max(dot(n, Ld), 0.0);
+  float ndh = max(dot(n, Hv), 0.0);
+  float fres = pow(1.0 - max(n.z,0.0), 3.0);
+
+  vec3 T = normalize(vec3(vAxis, 0.0));
+  float th = dot(Hv, T);
+  float aniso = exp(-th*th*36.0) * pow(ndh, 90.0);
+
+  /*  One light, and it rakes. Illumination that varies on the scale of the
+      OBJECT is what makes a picture read as an object; per-tile variation,
+      however carefully made, reads as mosaic. */
+  float key = 0.16 + 0.84 * smoothstep(-15.0, 12.0, dot(vWorld, uLight) * 1.9);
+
+  /*  The optical path IS the coordinate in the fourth dimension — but the slow
+      thickness of the coating is the main term, so the tiles gather into
+      domains instead of each being its own island of colour. */
+  float d = uFilm.x + 1250.0*c0 + uFilm.y*fld*0.18
+          + 62.0*(vPerp.x*0.7 + vPerp.y*0.5) + 26.0*sin(uTime*0.07);
+  vec3 irid = film(d, clamp(n.z, 0.30, 1.0), mix(0.26, 0.46, kind));
+
+  float bloom = 0.52 + 1.25*fres + 0.80*bw;
+
+  /*  Exposure. The analytic surface came out correct and almost unlit: a body
+      at two hundredths and an iridescence gated behind a Fresnel term that a
+      nearly flat facet never reaches. The object has to sit in the picture,
+      not haunt it. */
+  vec3 body = mix(vec3(0.050,0.070,0.088), vec3(0.125,0.170,0.200), fld);
+
+  /*  WHAT THE FACET REFLECTS.
+
+      A matcap is a photograph of a lit sphere: look it up by the direction a
+      facet points and you get what that facet would reflect of the environment
+      the sphere was photographed in. It adds nothing to the geometry and takes
+      nothing away — the tiling, the interference colour and the relief are
+      exactly as they were. It supplies the one thing a faceted surface needs
+      and did not have, which is something to reflect. Real gems look real for
+      this reason and no other.
+
+      The film TINTS the reflection rather than sitting beside it, because that
+      is what a thin film does: it modulates the reflectance spectrum of
+      whatever comes off the surface. */
+  /*  The lookup needs a VIEW that varies across the object.
+
+      A matcap is indexed by the normal in view space. On a nearly flat slab
+      every facet's normal points at the camera, so every facet samples the
+      middle of the sphere — which on the dark-mineral and cold-fire maps is
+      almost black, and the reflections did not appear at all. A real slab this
+      wide is not seen down a single axis: the direction from the eye to a
+      point on it swings as you look across it, and that is what sweeps a
+      reflection over a polished surface. So the eye is put at a finite height
+      above the centre and the view direction is computed per point. The facet
+      normal then supplies the local break-up on top of that sweep, which is
+      exactly the division of labour a cut stone has. */
+  vec3 viewN = normalize(vec3(n.xy * 1.25 + vWorld * 0.031, max(n.z, 0.25)));
+  vec2 mcuv = clamp(viewN.xy * 0.49 + 0.5, 0.002, 0.998);
+  vec3 rMin  = texture(uMcMin,   mcuv).rgb;    // dark polished stone: most of the body
+  vec3 rAnod = texture(uMcAnod,  mcuv).rgb;    // the anodised environment, for the film
+  vec3 rGlas = texture(uMcGlass, mcuv).rgb;    // rim brilliance
+  vec3 rFire = texture(uMcFire,  mcuv).rgb;    // the two coloured sources, as accent
+
+  // fine growth striations, in the tile's own frame — sampled, not computed,
+  // so there is nothing to alias
+  vec2 pr = vec2(dot(vWorld, vAxis), dot(vWorld, vAxis2));
+  float stri = texture(uStri, pr * 0.145).r;
+
+  vec3 env = rMin  * (0.85 + 0.85*fld)
+           + rAnod * (0.20 + 1.9*irid)
+           + rGlas * (0.18 + 1.35*fres) * 1.05
+           + rFire * (0.22 + 0.85*uFilm.z) * 0.70;
+  env *= 0.72 + 0.56 * stri;
+
+  vec3 col = body * (0.42 + 0.95*ndl) * key
+           + irid * bloom * key * (0.66 - 0.26*uMat)
+           + irid * 0.022                                   // never a black face
+           + vec3(0.84,0.98,1.00) * aniso * (0.45 + uFilm.z) * key * 3.10 * (0.60 + 0.55*stri)
+           + vec3(0.022,0.062,0.078) * fres * key
+           + env * (0.35 + 0.65*key) * uMat * 1.75;
+
+  // a fine crease where facets meet, and the tiling draws itself
+  col *= 1.0 - 0.50*smoothstep(0.034, 0.0, edge);
+  col += (vec3(0.07,0.22,0.26) + irid*0.26) * smoothstep(0.012, 0.0, edge) * (0.30+0.70*occ);
+
+  /*  The artefact's own material pattern, as LUMINANCE. Hue has to stay
+      coherent across domains or the thing reads as mosaic — but brightness may
+      vary tile by tile, because that is what the field IS, and a quasiperiodic
+      light-and-dark is exactly the intricacy that makes this object worth
+      looking at. It is also what a real quasicrystal micrograph looks like. */
+  col *= 0.13 + 0.87 * fld * fld;
+
+  col += vec3(0.05,0.19,0.23) * uEnergy * (0.25 + 0.75*fld);
+
+  float ghost = smoothstep(0.0, 1.0, occ);
+  col = mix(irid*0.12*key + vec3(0.003,0.008,0.011), col, ghost);
+
+  float r = length(vWorld);
+  float held = 1.0 - smoothstep(uEdge*0.74, uEdge*1.05, r);
+  frag = vec4(col, (0.20 + 0.80*ghost) * held);
+}`;
+
+const VS_LINE = `#version 300 es
+precision highp float;
+layout(location=0) in vec2 aPos;
+layout(location=1) in vec4 aCol;
+uniform vec2 uCentre; uniform float uScale; uniform vec2 uRes;
+uniform float uPresence;
+out vec4 vCol;
+void main(){
+  vec2 p = (aPos - uCentre) * uScale;
+  /*  The skeleton has no per-line centre to hash, and hashing the endpoints
+      would tear every line in half, so it fades instead of coming apart. */
+  vCol = vec4(aCol.rgb, aCol.a * uPresence);
+  gl_Position = vec4(p / (uRes*0.5) * vec2(1.0,-1.0), 0.0, 1.0);
+}`;
+const FS_LINE = `#version 300 es
+precision highp float;
+in vec4 vCol; out vec4 frag;
+void main(){ frag = vCol; }`;
+
+const VS_PT = `#version 300 es
+precision highp float;
+layout(location=0) in vec2 aPos;
+layout(location=1) in vec2 aSC;      // size, colour index
+uniform vec2 uRes;
+out float vC;
+void main(){
+  vC = aSC.y;
+  gl_PointSize = aSC.x;
+  gl_Position = vec4(aPos / (uRes*0.5) * vec2(1.0,-1.0), 0.0, 1.0);
+}`;
+const FS_PT = `#version 300 es
+precision highp float;
+in float vC; out vec4 frag;
+void main(){
+  vec2 d = gl_PointCoord - 0.5;
+  float r = length(d)*2.0;
+  float a = exp(-r*r*4.5);
+  vec3 c = mix(vec3(0.35,0.95,0.88), vec3(0.95,0.80,0.45), vC);
+  frag = vec4(c*a, a);
+}`;
+
+const FS_POST = `#version 300 es
+precision highp float;
+in vec2 vT; out vec4 frag;
+uniform sampler2D uScene; uniform vec2 uRes; uniform float uTime;
+void main(){
+  vec2 uv = vT;
+  vec2 c = uv - 0.5;
+  float r2 = dot(c,c);
+  // a lens: chromatic aberration grows toward the edge, as it does in glass
+  vec2 off = c * r2 * 0.010;
+  vec3 col;
+  col.r = texture(uScene, uv - off).r;
+  col.g = texture(uScene, uv).g;
+  col.b = texture(uScene, uv + off).b;
+  // bloom, gathered on an eightfold star of taps
+  vec3 bl = vec3(0.0);
+  for(int i=0;i<8;i++){
+    float a = float(i)*0.7853981;
+    vec2 dir = vec2(cos(a), sin(a));
+    for(int j=1;j<=4;j++){
+      vec2 o = dir * float(j) * 2.6 / uRes;
+      vec3 s = texture(uScene, uv + o).rgb;
+      bl += max(s - 0.62, 0.0) / float(j);
+    }
+  }
+  col += bl * 0.042;
+  col *= 1.0 - r2*0.72;                                     // vignette
+  float g = fract(sin(dot(gl_FragCoord.xy + uTime*60.0, vec2(12.9898,78.233)))*43758.5453);
+  col += (g - 0.5) * 0.022;                                 // grain
+  col = col / (col + vec3(0.80)) * 1.34;                    // roll-off
+  col = pow(max(col, vec3(0.0)), vec3(1.16));               // and a little more shadow
+  frag = vec4(col, 1.0);
+}`;
+const VS_POST = `#version 300 es
+precision highp float;
+layout(location=0) in vec2 aPos;
+out vec2 vT;
+void main(){ vT = aPos*0.5+0.5; gl_Position = vec4(aPos,0.0,1.0); }`;
+
+function mkProg(vs, fs) {
+  const c = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o);
+    if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(o), s); }
+    return o; };
+  const p = gl.createProgram();
+  gl.attachShader(p, c(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, c(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(p));
+  return p;
+}
+
+let PROG = {}, BUF = {}, VAO = {}, FBO = null, FTEX = null, FW = 0, FH = 0, FBOOK = false;
+
+/*  MATCAPS. A matcap is a photograph of a lit sphere: look it up by the
+    direction a facet points and you get exactly what that facet would reflect
+    of the environment the sphere was photographed in. It replaces nothing —
+    the tiling, the interference colour, the geometry and the sound are
+    untouched. It supplies the one thing the facets did not have, which is
+    something to reflect. */
+const TEX = {};
+let texReady = 0;
+function loadTex(name, url, wrap) {
+  const t = gl.createTexture();
+  TEX[name] = t;
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,255]));
+  const im = new Image();
+  im.onload = () => {
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, im);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap ? gl.REPEAT : gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap ? gl.REPEAT : gl.CLAMP_TO_EDGE);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    ++texReady;
+  };
+  im.onerror = () => { console.error("texture failed: " + url); };
+  im.src = url;
+}
+let HALF = false;
+function glInit() {
+  if (!GLOK) return;
+  /*  RGBA16F is not a colour-renderable format in WebGL2 without this
+      extension, and the framebuffer comes back incomplete — every draw then
+      fails with INVALID_FRAMEBUFFER_OPERATION and the whole artefact is
+      invisible while the overlay carries on as if nothing were wrong. */
+  HALF = !!gl.getExtension("EXT_color_buffer_float");
+  PROG.tile = mkProg(VS_TILE, FS_TILE);
+  PROG.line = mkProg(VS_LINE, FS_LINE);
+  PROG.pt   = mkProg(VS_PT, FS_PT);
+  PROG.post = mkProg(VS_POST, FS_POST);
+
+  BUF.tile = gl.createBuffer(); BUF.line = gl.createBuffer(); BUF.pt = gl.createBuffer();
+  BUF.quad = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.quad);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+
+  VAO.tile = gl.createVertexArray();
+  gl.bindVertexArray(VAO.tile);
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.tile);
+  const S = 15 * 4;
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, S, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, S, 8);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, S, 16);
+  gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 2, gl.FLOAT, false, S, 28);
+  gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4, 2, gl.FLOAT, false, S, 36);
+  gl.enableVertexAttribArray(5); gl.vertexAttribPointer(5, 2, gl.FLOAT, false, S, 44);
+  gl.enableVertexAttribArray(6); gl.vertexAttribPointer(6, 2, gl.FLOAT, false, S, 52);
+
+  VAO.line = gl.createVertexArray();
+  gl.bindVertexArray(VAO.line);
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.line);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 24, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 24, 8);
+
+  VAO.pt = gl.createVertexArray();
+  gl.bindVertexArray(VAO.pt);
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.pt);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 16, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 16, 8);
+
+  loadTex("anod",  "img/mc-anodised.png",   false);
+  loadTex("min",   "img/mc-mineral.png",    false);
+  loadTex("glass", "img/mc-glass.png",      false);
+  loadTex("fire",  "img/mc-coldfire.png",   false);
+  loadTex("stri",  "img/tx-striations.png", true);
+
+  VAO.quad = gl.createVertexArray();
+  gl.bindVertexArray(VAO.quad);
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.quad);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+}
+
+function glResize(w, h) {
+  if (!GLOK) return;
+  if (w === FW && h === FH) return;
+  FW = w; FH = h;
+  if (FBO) { gl.deleteFramebuffer(FBO); gl.deleteTexture(FTEX); }
+  FTEX = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, FTEX);
+  if (HALF) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  else      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8,   w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  FBO = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, FBO);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, FTEX, 0);
+  const st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  if (st !== gl.FRAMEBUFFER_COMPLETE) { console.error("fbo incomplete " + st); FBOOK = false; }
+  else FBOOK = true;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5 · state, geometry upload, the frame
+   ═══════════════════════════════════════════════════════════════════════════ */
+let MATCAP = 1.0;          // 0 = the procedural surface alone, 1 = with the reflections
+const S = {
+  tau: 0, gx: 0, gy: 0, n: 0, orders: 0, level: 0, peak: 0, w1: 0,
+  energy: new Float32Array(512), nE: 0,
+  arrests: [],
+  hoverSite: -1, hoverRose: -1, hoverRing: -1, hoverCut: 0,
+  scale: 34, dirty: true, t0: performance.now(), build: "dev"
+};
+let VIEW = { cx: 0, cy: 0, r: 300 };
+
+function windowFromParams() {
+  WIN.scale = 0.55 + 1.05 * (V.aperture !== undefined ? V.aperture : 0.5);
+  WIN.soft = 0.01 + 0.16 * (V.rim !== undefined ? V.rim : 0.22);
+  for (let j = 0; j < 8; j++) WIN.bulge[j] = 0;
+  for (const a of S.arrests) {
+    const qx = a.x - S.gx, qy = a.y - S.gy;
+    for (let j = 0; j < 8; j++) {
+      const need = qx * DIRC[j] + qy * DIRS[j] - APO * WIN.scale + 0.02;
+      if (need > WIN.bulge[j]) WIN.bulge[j] = Math.min(need, 2.0 * APO);
+    }
+  }
+}
+
+function paramToTau() {
+  const lo = LO.travel !== undefined ? LO.travel : -12, hi = FHI.travel !== undefined ? FHI.travel : 12;
+  return lo + (hi - lo) * (V.travel !== undefined ? V.travel : 0.5);
+}
+
+let geomDirty = true;
+function onParamChanged(id) {
+  if (["aperture","rim","travel","bearing","cutang","cutpos","extent","habit"].indexOf(id) >= 0) geomDirty = true;
+  if (["starwid","startilt","peaks"].indexOf(id) >= 0) starDirty = true;
+}
+let starDirty = true;
+/*  Set once the engine has sent its own star; from then on the page draws what
+    is being SOUNDED, and its own idealised star is never rebuilt again. Until
+    the first body message arrives the old one stands in, so the plate is never
+    empty at boot. */
+let starFromEngine = false;
+
+function rebuildGeometry() {
+  const tau = paramToTau();
+  const bg = (V.bearing !== undefined ? V.bearing : 0) * TAU;
+  S.gx = tau * Math.cos(bg); S.gy = tau * Math.sin(bg);
+  windowFromParams();
+  buildPatch(S.gx, S.gy, 17.0, 2);
+  const ext = [5, 12, 29, 70, 169, 408][Math.round(V.extent !== undefined ? V.extent : 3)] || 70;
+  CUT.ang = (V.cutang !== undefined ? V.cutang : 0) * Math.PI;
+  CUT.off = ((V.cutpos !== undefined ? V.cutpos : 0.5) - 0.5) * 16;
+  buildCut(S.gx, S.gy, CUT.ang, CUT.off, Math.min(ext, 260));
+  uploadTiles(); uploadLines();
+  geomDirty = false;
+}
+
+let tileCount = 0;
+function uploadTiles() {
+  if (!GLOK) return;
+  const T = PATCH.tile, Ssite = PATCH.site;
+  const nT = T.length / 5;
+  const arr = new Float32Array(nT * 6 * 15);
+  let o = 0, drawn = 0;
+  const UV = [[0,0],[1,0],[1,1], [0,0],[1,1],[0,1]];
+  for (let t = 0; t < nT; t++) {
+    const i0 = T[t*5], i1 = T[t*5+1], i2 = T[t*5+2], i3 = T[t*5+3], kind = T[t*5+4];
+    const c = [Ssite[i0], Ssite[i1], Ssite[i2], Ssite[i3]];
+    if (!c[0] || !c[1] || !c[2] || !c[3]) continue;
+    const ax = c[1].x - c[0].x, ay = c[1].y - c[0].y;
+    const al = Math.hypot(ax, ay) || 1;
+    const bx = c[3].x - c[0].x, by = c[3].y - c[0].y;
+    const bl = Math.hypot(bx, by) || 1;
+    const ccx = (c[0].x + c[1].x + c[2].x + c[3].x) * 0.25;
+    const ccy = (c[0].y + c[1].y + c[2].y + c[3].y) * 0.25;
+    const tpx = (c[0].px + c[1].px + c[2].px + c[3].px) * 0.25;
+    const tpy = (c[0].py + c[1].py + c[2].py + c[3].py) * 0.25;
+    const tf  = (c[0].f + c[1].f + c[2].f + c[3].f) * 0.25;
+    const toc = Math.min(c[0].occ, c[1].occ, c[2].occ, c[3].occ);
+    const idx = [0,1,2, 0,2,3];
+    for (let k = 0; k < 6; k++) {
+      const v = c[idx[k]];
+      arr[o++] = v.x; arr[o++] = v.y;
+      arr[o++] = tpx; arr[o++] = tpy;
+      arr[o++] = tf; arr[o++] = toc; arr[o++] = kind;
+      arr[o++] = UV[k][0]; arr[o++] = UV[k][1];
+      arr[o++] = ax/al; arr[o++] = ay/al;
+      arr[o++] = bx/bl; arr[o++] = by/bl;
+      arr[o++] = ccx;   arr[o++] = ccy;
+    }
+    drawn++;
+  }
+  tileCount = drawn * 6;
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.tile);
+  gl.bufferData(gl.ARRAY_BUFFER, arr.subarray(0, tileCount * 15), gl.DYNAMIC_DRAW);
+}
+
+let lineCount = 0;
+function uploadLines() {
+  if (!GLOK) return;
+  const E = PATCH.edge, Ss = PATCH.site;
+  const extra = CUT.site.length * 2 + 64;
+  const arr = new Float32Array((E.length + extra) * 6);
+  let o = 0, n = 0;
+  const push = (x, y, r, g, b, a) => { arr[o++]=x; arr[o++]=y; arr[o++]=r; arr[o++]=g; arr[o++]=b; arr[o++]=a; n++; };
+  for (let i = 0; i < E.length; i += 2) {
+    const a = Ss[E[i]], b = Ss[E[i+1]];
+    if (!a || !b) continue;
+    const lv = a.lvl;
+    const rr = Math.max(Math.hypot(a.x,a.y), Math.hypot(b.x,b.y));
+    const held = 1 - clamp((rr - 12.0) / 4.3, 0, 1);
+    const al = (0.16 + 0.30 * Math.min(a.occ, b.occ)) * held;
+    if (lv === 0) { push(a.x,a.y, 0.26,0.55,0.60, al*0.55); push(b.x,b.y, 0.26,0.55,0.60, al*0.55); }
+    else {
+      // the artefact contains itself: the inflations, brighter and warmer
+      // the artefact contains itself at the silver ratio; the inflations are
+      // drawn in gold over the cyan so the self-similarity is legible
+      const w = lv === 1 ? 1.0 : 1.25;
+      const al2 = (lv === 1 ? 0.34 : 0.52) * Math.min(a.occ, b.occ) * held;
+      push(a.x,a.y, 1.00*w,0.74*w,0.30*w, al2);
+      push(b.x,b.y, 1.00*w,0.74*w,0.30*w, al2);
+    }
+  }
+  lineCount = n;
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.line);
+  gl.bufferData(gl.ARRAY_BUFFER, arr.subarray(0, n * 6), gl.DYNAMIC_DRAW);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   6 · the frame
+   ═══════════════════════════════════════════════════════════════════════════ */
+let DPR = 1;
+function layout() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  const w = window.innerWidth, h = window.innerHeight;
+  for (const c of [glc, $("#ui")]) { c.width = Math.round(w*DPR); c.height = Math.round(h*DPR); }
+  VIEW.cx = w * 0.5; VIEW.cy = h * 0.5 - 4;
+  VIEW.r = Math.min(w, h) * 0.415;
+  S.scale = VIEW.r / 11.5;
+  glResize(glc.width, glc.height);
+}
+window.addEventListener("resize", layout);
+
+function frame() {
+  const now = performance.now();
+  const t = (now - S.t0) / 1000;
+  if (geomDirty) rebuildGeometry();
+  if (starDirty && !starFromEngine) {
+    buildStar(0.2 + 3.8*(V.starwid !== undefined ? V.starwid : .42),
+              1.4*(V.startilt !== undefined ? V.startilt : .3),
+              Math.round(V.peaks !== undefined ? V.peaks : 72));
+    starDirty = false;
+  }
+  drawGL(t);
+  drawUI(t);
+  if (stripHold > 0) { if (--stripHold === 0) sayIdle(); }
+  requestAnimationFrame(frame);
+}
+
+function drawGL(t) {
+  if (!GLOK) return;
+  const W = glc.width, H = glc.height;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, FBOOK ? FBO : null);
+  gl.viewport(0, 0, W, H);
+  gl.clearColor(0.021, 0.026, 0.031, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+  const cx = (VIEW.cx - window.innerWidth*0.5) / S.scale;
+  const cy = (VIEW.cy - window.innerHeight*0.5) / S.scale;
+  const sc = S.scale * DPR;
+
+  // --- the tiling -----------------------------------------------------------
+  gl.useProgram(PROG.tile);
+  gl.uniform2f(gl.getUniformLocation(PROG.tile, "uCentre"), -cx, -cy);
+  gl.uniform1f(gl.getUniformLocation(PROG.tile, "uScale"), sc);
+  gl.uniform2f(gl.getUniformLocation(PROG.tile, "uRes"), W, H);
+  gl.uniform1f(gl.getUniformLocation(PROG.tile, "uTime"), t);
+  gl.uniform3f(gl.getUniformLocation(PROG.tile, "uFilm"), HAB.filmBase, HAB.filmSpan, HAB.glint);
+  gl.uniform2f(gl.getUniformLocation(PROG.tile, "uLight"), Math.cos(t*0.17)*0.55, Math.sin(t*0.13)*0.55);
+  gl.uniform1f(gl.getUniformLocation(PROG.tile, "uEnergy"), clamp(S.level*3.2, 0, 1));
+  gl.uniform1f(gl.getUniformLocation(PROG.tile, "uEdge"), 15.4);
+  gl.uniform1f(gl.getUniformLocation(PROG.tile, "uPresence"), S.pres === undefined ? 1 : S.pres);
+  gl.uniform1f(gl.getUniformLocation(PROG.tile, "uMat"), (texReady >= 5 ? 1.0 : 0.0) * MATCAP);
+  const bindTex = (nm, unit, uni) => {
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, TEX[nm] || null);
+    gl.uniform1i(gl.getUniformLocation(PROG.tile, uni), unit);
+  };
+  bindTex("min", 1, "uMcMin"); bindTex("anod", 2, "uMcAnod");
+  bindTex("glass", 3, "uMcGlass"); bindTex("fire", 4, "uMcFire");
+  bindTex("stri", 5, "uStri");
+  gl.bindVertexArray(VAO.tile);
+  if (tileCount) gl.drawArrays(gl.TRIANGLES, 0, tileCount);
+
+  // --- edges and the inflation skeleton -------------------------------------
+  gl.useProgram(PROG.line);
+  gl.uniform2f(gl.getUniformLocation(PROG.line, "uCentre"), -cx, -cy);
+  gl.uniform1f(gl.getUniformLocation(PROG.line, "uScale"), sc);
+  gl.uniform2f(gl.getUniformLocation(PROG.line, "uRes"), W, H);
+  gl.uniform1f(gl.getUniformLocation(PROG.line, "uPresence"), S.pres === undefined ? 1 : S.pres);
+  gl.bindVertexArray(VAO.line);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+  if (lineCount) gl.drawArrays(gl.LINES, 0, lineCount);
+
+  // --- the diffraction star, and the aperture figure ------------------------
+  drawFigures(t, W, H);
+
+  // --- post -----------------------------------------------------------------
+  if (!FBOOK) { gl.bindVertexArray(null); return; }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, W, H);
+  gl.disable(gl.BLEND);
+  gl.useProgram(PROG.post);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, FTEX);
+  gl.uniform1i(gl.getUniformLocation(PROG.post, "uScene"), 0);
+  gl.uniform2f(gl.getUniformLocation(PROG.post, "uRes"), W, H);
+  gl.uniform1f(gl.getUniformLocation(PROG.post, "uTime"), t);
+  gl.bindVertexArray(VAO.quad);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.bindVertexArray(null);
+}
+
+/*  Two plates a crystallographer would draw: the diffraction pattern (which is
+    what the STAR aspect is sounding) and the acceptance window with the cloud
+    of perpendicular shadows in it (which is the fourth dimension, seen
+    directly, and where the cut currently sits). */
+function drawFigures(t, W, H) {
+  const pts = [];
+  const sx = window.innerWidth, sy = window.innerHeight;
+
+  // diffraction, bottom-left plate
+  const dcx = (150 - sx*0.5) * DPR, dcy = (sy - 168 - sy*0.5) * DPR, dr = 76*DPR;
+
+  /*  THE SYMMETRY OF THE PLATE SHOULD AGREE WITH THE BODY.
+
+      Not because the physics demands it -- by bond angle this tiling is
+      exactly eightfold wherever you stand, psi8 = 1.000 and psi4 = 0.000 at
+      every depth, aperture and specimen, so a literal diffraction pattern
+      would be eightfold always. But what the EYE reads as cubic does move: the
+      patch is nothing but squares at a small aperture (measured square
+      fraction 1.000 at window scale 0.663) and falls to 0.352 as the window
+      opens. So the four square directions take the light as the squares take
+      the body, and give it back as they are buried in rhombi.
+
+      And OBLIQUITY shears the figure, because a strained body really is a
+      body of lower symmetry -- that is the whole point of the control. */
+  const sqf   = (S.sqFrac !== undefined ? S.sqFrac : 0.438);
+  const cubic = Math.max(0, Math.min(1, (sqf - 0.34) / 0.62)) * 0.85;
+  const shear = (V.tilt4 !== undefined ? V.tilt4 : 0);
+  for (const p of STAR) {
+    for (let j = 0; j < 8; j++) {
+      const base = j * Math.PI / 4 + 0.3926991;
+      const wj = Math.max(0.16, 1 + cubic * ((j % 2 === 0) ? 1 : -1));
+      const a  = base + shear * 0.10 * Math.sin(2 * base);
+      const rr = Math.log(1 + p.lam) / Math.log(1 + 45) * dr
+               * (1 + shear * 0.11 * Math.cos(2 * base));
+      pts.push(dcx + rr*Math.cos(a), dcy + rr*Math.sin(a),
+               (1.2 + 15*p.a*DPR) * wj, 0.15);
+    }
+  }
+  // the acceptance window and its shadows, bottom-right plate
+  const wcx = (sx - 150 - sx*0.5) * DPR, wcy = (sy - 168 - sy*0.5) * DPR, wr = 62*DPR;
+  const k = wr / (APO * WIN.scale + 0.45);
+  for (let i = 0; i < PATCH.site.length; i += 3) {
+    const s = PATCH.site[i];
+    if (s.lvl !== 0) continue;
+    pts.push(wcx + (s.px - S.gx)*k, wcy + (s.py - S.gy)*k, 1.6 + 2.4*s.occ*DPR, 0.85*(1-s.occ));
+  }
+  for (const c of CUT.site) {
+    pts.push(wcx + (c.px - S.gx)*k, wcy + (c.py - S.gy)*k, 3.4*DPR, 0.02);
+  }
+  if (!pts.length) return;
+  const arr = new Float32Array(pts);
+  gl.useProgram(PROG.pt);
+  gl.uniform2f(gl.getUniformLocation(PROG.pt, "uRes"), W, H);
+  gl.bindVertexArray(VAO.pt);
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.pt);
+  gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+  gl.drawArrays(gl.POINTS, 0, arr.length / 4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   7 · the 2D overlay: the cut, the arrests, the rosettes, the grade
+   ═══════════════════════════════════════════════════════════════════════════ */
+const uic = $("#ui");
+const cx2 = uic.getContext("2d");
+
+function w2s(x, y) { return [VIEW.cx + x * S.scale, VIEW.cy + y * S.scale]; }
+function s2w(px, py) { return [(px - VIEW.cx) / S.scale, (py - VIEW.cy) / S.scale]; }
+
+const ROSE = [];   // {x,y,ang,nom}
+function roseLayout() {
+  ROSE.length = 0;
+  for (let j = 0; j < 8; j++) {
+    const a = j * Math.PI / 4 - Math.PI/8;
+    const nx = Math.cos(a) * 10.05, ny = Math.sin(a) * 10.05;
+    /*  A rosette does not sit at a fixed place on a panel: it sits ON the
+        body, at the vertex nearest where it belongs. Travel through w and the
+        controls MOVE, because the thing they are attached to has moved. */
+    let bi = -1, bd = 1e9;
+    for (let i = 0; i < PATCH.site.length; i++) {
+      const s = PATCH.site[i];
+      if (s.lvl !== 1 || s.occ < 0.55) continue;
+      const d = (s.x-nx)*(s.x-nx) + (s.y-ny)*(s.y-ny);
+      if (d < bd) { bd = d; bi = i; }
+    }
+    const s = bi >= 0 ? PATCH.site[bi] : { x: nx, y: ny };
+    ROSE.push({ wx: s.x, wy: s.y, ang: a, j });
+  }
+}
+
+function drawUI(t) {
+  const W = uic.width, H = uic.height;
+  cx2.setTransform(DPR, 0, 0, DPR, 0, 0);
+  cx2.clearRect(0, 0, W/DPR, H/DPR);
+  roseLayout();
+
+  /*  OUT OF RANGE: the body has come apart and there is nothing to hear, so
+      the only thing on the plate is a slow pulse at the centre of the section
+      — the apparatus still running with nothing in front of it. It is drawn
+      from the same presence the engine silenced the object with, so it can
+      only appear where there is genuinely no cross-section. */
+  if (S.pres !== undefined && S.pres < 0.02) {
+    const gone = 1 - S.pres / 0.02;
+    const ph = 0.5 - 0.5 * Math.cos(t * 1.9);
+    const r = 2.2 + 2.6 * ph;
+    cx2.save();
+    cx2.globalAlpha = (0.30 + 0.55 * ph) * gone;
+    const g = cx2.createRadialGradient(VIEW.cx, VIEW.cy, 0, VIEW.cx, VIEW.cy, r * 7);
+    g.addColorStop(0, "rgba(79,214,196,.95)");
+    g.addColorStop(1, "rgba(79,214,196,0)");
+    cx2.fillStyle = g;
+    cx2.beginPath(); cx2.arc(VIEW.cx, VIEW.cy, r * 7, 0, 6.2831853); cx2.fill();
+    cx2.globalAlpha = (0.55 + 0.45 * ph) * gone;
+    cx2.fillStyle = "#9ff0e4";
+    cx2.beginPath(); cx2.arc(VIEW.cx, VIEW.cy, r, 0, 6.2831853); cx2.fill();
+    cx2.restore();
+  }
+
+  // ---- the cut: a luminous line across the body, with its own sites --------
+  {
+    const ca = Math.cos(CUT.ang), sa = Math.sin(CUT.ang);
+    const ox = -sa * CUT.off, oy = ca * CUT.off;
+    const L = 13.6;
+    const [x0, y0] = w2s(ox - ca*L, oy - sa*L);
+    const [x1, y1] = w2s(ox + ca*L, oy + sa*L);
+    cx2.save();
+    cx2.beginPath();
+    for (let k = 0; k <= 8; k++) {
+      const a = k*Math.PI/4 - Math.PI/8, rr = VIEW.r*1.02;
+      k ? cx2.lineTo(VIEW.cx+rr*Math.cos(a), VIEW.cy+rr*Math.sin(a))
+        : cx2.moveTo(VIEW.cx+rr*Math.cos(a), VIEW.cy+rr*Math.sin(a));
+    }
+    cx2.closePath(); cx2.clip();
+    const g = cx2.createLinearGradient(x0, y0, x1, y1);
+    g.addColorStop(0, "rgba(90,235,215,0)");
+    g.addColorStop(.5, "rgba(120,255,236,.50)");
+    g.addColorStop(1, "rgba(90,235,215,0)");
+    cx2.strokeStyle = g; cx2.lineWidth = S.hoverCut ? 2.6 : 1.4;
+    cx2.beginPath(); cx2.moveTo(x0, y0); cx2.lineTo(x1, y1); cx2.stroke();
+
+    // the sounding sites, lit by what they are actually doing
+    for (let i = 0; i < CUT.site.length; i++) {
+      const c = CUT.site[i];
+      // the chain is far longer than the window on it — seventy sites is
+      // nearly sixty edge lengths, and the aperture shows eleven. What falls
+      // outside the aperture belongs on the rail, not scattered into the crate.
+      if (c.x*c.x + c.y*c.y > 12.4*12.4) continue;
+      const [sx, sy] = w2s(c.x, c.y);
+      if (sx < -20 || sy < -20 || sx > W/DPR+20 || sy > H/DPR+20) continue;
+      const e = S.nE > 0 ? S.energy[Math.min(S.nE-1, Math.round(i * S.nE / Math.max(1,CUT.site.length)))] : 0;
+      const r = 1.2 + 3.6*e + 1.1*c.occ;
+      cx2.beginPath(); cx2.arc(sx, sy, r, 0, TAU);
+      cx2.fillStyle = "rgba(" + Math.round(120+120*e) + "," + Math.round(240) + ",228," + (0.20 + 0.72*e) + ")";
+      cx2.fill();
+      if (e > 0.25) {
+        cx2.beginPath(); cx2.arc(sx, sy, r*2.9, 0, TAU);
+        cx2.fillStyle = "rgba(90,240,220," + (0.10*e) + ")"; cx2.fill();
+      }
+    }
+    cx2.restore();
+    // the two ends, draggable
+    for (const [ex, ey] of [[x0,y0],[x1,y1]]) {
+      cx2.beginPath(); cx2.arc(ex, ey, 4.5, 0, TAU);
+      cx2.strokeStyle = "rgba(140,255,240,.55)"; cx2.lineWidth = 1.1; cx2.stroke();
+    }
+  }
+  drawRail();
+
+  // ---- arrests: the player's deformation of the four-dimensional body -----
+  for (const a of S.arrests) {
+    let bi = -1, bd = 1e9;
+    for (let i = 0; i < PATCH.site.length; i++) {
+      const s = PATCH.site[i];
+      const d = (s.px-a.x)*(s.px-a.x) + (s.py-a.y)*(s.py-a.y);
+      if (d < bd) { bd = d; bi = i; }
+    }
+    if (bi < 0) continue;
+    const s = PATCH.site[bi];
+    const [sx, sy] = w2s(s.x, s.y);
+    /*  A pin under strain pulls: the ring tightens toward the direction it is
+        being dragged, reddens as it approaches what the body will carry, and
+        at the limit it tears loose. Without that the gesture looks inert right
+        up to the moment it silently fails. */
+    const st = Math.max(0, Math.min(1, a.s || 0));
+    const pull = 1 + 2.6*st;
+    const dirx = (a.x - S.gx), diry = (a.y - S.gy);
+    const dl = Math.hypot(dirx, diry) || 1;
+    cx2.beginPath();
+    for (let j = 0; j <= 8; j++) {
+      const an = j*Math.PI/4 + t*(0.25 + 1.6*st);
+      const rr = (7.5 + 2.2*Math.sin(t*(2.1 + 6*st) + j)) * (1 - 0.25*st);
+      const ex = sx + rr*Math.cos(an) + (dirx/dl)*3.2*st*pull;
+      const ey = sy + rr*Math.sin(an) + (diry/dl)*3.2*st*pull;
+      j ? cx2.lineTo(ex, ey) : cx2.moveTo(ex, ey);
+    }
+    cx2.strokeStyle = "rgba(" + Math.round(255) + "," + Math.round(196 - 150*st) + "," + Math.round(96 - 60*st) + "," + (0.55 + 0.45*st) + ")";
+    cx2.lineWidth = 1.2 + 1.4*st; cx2.stroke();
+    if (st > 0.55) {
+      cx2.beginPath(); cx2.arc(sx, sy, 13 + 9*st, 0, TAU);
+      cx2.strokeStyle = "rgba(255,90,60," + (0.10 + 0.30*st) + ")"; cx2.lineWidth = 1; cx2.stroke();
+    }
+    cx2.beginPath(); cx2.arc(sx, sy, 2.2 + 1.4*st, 0, TAU);
+    cx2.fillStyle = "rgba(255," + Math.round(214 - 120*st) + "," + Math.round(140 - 90*st) + ",.95)"; cx2.fill();
+  }
+
+  // ---- the hovered vertex -------------------------------------------------
+  if (S.hoverSite >= 0 && S.hoverSite < PATCH.site.length) {
+    const s = PATCH.site[S.hoverSite];
+    const [sx, sy] = w2s(s.x, s.y);
+    cx2.beginPath(); cx2.arc(sx, sy, 6.5, 0, TAU);
+    cx2.strokeStyle = "rgba(190,255,246,.65)"; cx2.lineWidth = 1; cx2.stroke();
+  }
+
+  // ---- the bearing ring: which way you are travelling in w ----------------
+  drawBearing(t);
+
+  // ---- the rosettes -------------------------------------------------------
+  for (let j = 0; j < 8; j++) drawRosette(j, t);
+
+  // ---- the grade: the artefact's own scale, made playable -----------------
+  drawGrade();
+
+  // ---- plate labels -------------------------------------------------------
+  cx2.font = "9px Consolas,monospace";
+  cx2.fillStyle = "rgba(90,140,146,.55)";
+  cx2.textAlign = "center";
+  cx2.fillText("DIFFRACTION", 150, window.innerHeight - 78);
+  cx2.fillText("ACCEPTANCE  ⊥", window.innerWidth - 150, window.innerHeight - 78);
+}
+
+/*  The rail. The aperture is a window on a body that goes on well past it, so
+    the whole cut is laid out here in order — every site of the filament, lit
+    by its own displacement. This is where you watch the sound run along the
+    chain, and where the quasiperiodic spacing is visible as a pattern. */
+function drawRail() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const x0 = 262, x1 = w - 234, y = h - 74;
+  const n = CUT.site.length;
+  if (!n) return;
+  const s0 = CUT.site[0].s, s1 = CUT.site[n-1].s, sp = (s1 - s0) || 1;
+  cx2.strokeStyle = "rgba(48,96,102,.35)"; cx2.lineWidth = 1;
+  cx2.beginPath(); cx2.moveTo(x0, y); cx2.lineTo(x1, y); cx2.stroke();
+  for (let i = 0; i < n; i++) {
+    const c = CUT.site[i];
+    const x = x0 + (x1 - x0) * (c.s - s0) / sp;
+    const e = S.nE > 0 ? S.energy[Math.min(S.nE - 1, Math.round(i * S.nE / n))] : 0;
+    const hgt = 2 + 13 * e;
+    cx2.strokeStyle = "rgba(" + Math.round(80 + 150*e) + ",235,222," + (0.20 + 0.70*e) + ")";
+    cx2.lineWidth = 1 + 1.3 * c.occ;
+    cx2.beginPath(); cx2.moveTo(x, y - hgt); cx2.lineTo(x, y + hgt); cx2.stroke();
+  }
+  // the part of the chain the aperture is actually showing
+  let a0 = -1, a1 = -1;
+  for (let i = 0; i < n; i++) {
+    const c = CUT.site[i];
+    if (c.x*c.x + c.y*c.y <= 12.4*12.4) { if (a0 < 0) a0 = i; a1 = i; }
+  }
+  if (a0 >= 0) {
+    const ax0 = x0 + (x1-x0)*(CUT.site[a0].s - s0)/sp, ax1 = x0 + (x1-x0)*(CUT.site[a1].s - s0)/sp;
+    cx2.strokeStyle = "rgba(150,255,240,.30)"; cx2.lineWidth = 1;
+    cx2.strokeRect(ax0 - 2, y - 17, (ax1 - ax0) + 4, 34);
+  }
+  cx2.font = "8.5px Consolas,monospace"; cx2.textAlign = "left";
+  cx2.fillStyle = "rgba(80,130,136,.6)";
+  cx2.fillText("THE CUT — " + n + " SITES, THE BOX IS WHAT THE APERTURE SHOWS", x0, y - 21);
+}
+
+function drawBearing(t) {
+  const r = VIEW.r * 1.035;
+  const bg = (V.bearing !== undefined ? V.bearing : 0) * TAU;
+  cx2.save();
+  cx2.translate(VIEW.cx, VIEW.cy);
+  cx2.beginPath();
+  for (let j = 0; j <= 8; j++) {
+    const a = j*Math.PI/4 - Math.PI/8;
+    j ? cx2.lineTo(r*Math.cos(a), r*Math.sin(a)) : cx2.moveTo(r*Math.cos(a), r*Math.sin(a));
+  }
+  cx2.closePath();
+  cx2.strokeStyle = "rgba(60,120,126,.13)"; cx2.lineWidth = 1; cx2.stroke();
+  // the heading
+  cx2.beginPath();
+  cx2.moveTo(0,0);
+  cx2.lineTo(r*0.965*Math.cos(bg), r*0.965*Math.sin(bg));
+  cx2.strokeStyle = "rgba(80,220,205,.16)"; cx2.lineWidth = 1; cx2.stroke();
+  const hx = r*Math.cos(bg), hy = r*Math.sin(bg);
+  cx2.beginPath(); cx2.arc(hx, hy, 5.2, 0, TAU);
+  cx2.fillStyle = "rgba(110,245,226,.85)"; cx2.fill();
+  cx2.beginPath(); cx2.arc(hx, hy, 11 + 3*Math.sin(t*1.7), 0, TAU);
+  cx2.strokeStyle = "rgba(110,245,226,.22)"; cx2.lineWidth = 1; cx2.stroke();
+  cx2.restore();
+}
+
+function roseScreen(j) {
+  const rr = ROSE[j];
+  return w2s(rr.wx, rr.wy);
+}
+function roseRadius(j) { return (S.hoverRose === j) ? 52 : 27; }
+
+/*  A rosette. Five concentric rings, one parameter each, and no pointer: the
+    value is the sweep of the ring, so there is nothing that reads as a stop.
+    Its core carries a sigil built from the parameter's own index — the
+    artefact's notation, not a word. */
+function drawRosette(j, t) {
+  const [sx, sy] = roseScreen(j);
+  const R = roseRadius(j);
+  const hov = S.hoverRose === j;
+  cx2.save();
+  cx2.translate(sx, sy);
+
+  // the ground the rosette sits on
+  const g = cx2.createRadialGradient(0,0,1, 0,0,R*1.25);
+  g.addColorStop(0, "rgba(10,26,29,.55)");
+  g.addColorStop(1, "rgba(10,26,29,0)");
+  cx2.fillStyle = g; cx2.beginPath(); cx2.arc(0,0,R*1.25,0,TAU); cx2.fill();
+
+  for (let ring = 0; ring < 5; ring++) {
+    const id = ROSETTE[j][ring];
+    /*  Drawn from the EFFECTIVE value, not the stored one. At 77 K they are the
+        same number and this changes nothing; warm the specimen and the rings
+        breathe, because the thing they are attached to is breathing. A ring
+        being dragged follows the hand instead, or it would lag a frame behind
+        the finger. */
+    const dragging = (drag && drag.kind === "rose" && drag.id === id);
+    const ev0 = (!dragging && S.eff && S.eff[id] !== undefined)
+              ? S.eff[id] : (V[id] !== undefined ? V[id] : 0) / (HI[id] || 1);
+    const v = clamp(ev0, 0, 1);
+    const r0 = R * (0.30 + 0.145 * ring);
+    const lit = hov && S.hoverRing === ring;
+
+    // the octagonal ring
+    cx2.beginPath();
+    for (let k = 0; k <= 8; k++) {
+      const a = k*Math.PI/4 - Math.PI/8;
+      k ? cx2.lineTo(r0*Math.cos(a), r0*Math.sin(a)) : cx2.moveTo(r0*Math.cos(a), r0*Math.sin(a));
+    }
+    cx2.closePath();
+    cx2.strokeStyle = lit ? "rgba(150,255,240,.85)" : "rgba(70,150,156," + (hov?.55:.30) + ")";
+    cx2.lineWidth = lit ? 1.7 : 1;
+    cx2.stroke();
+
+    // the winding: an arc from the eightfold origin, so the figure IS the value
+    cx2.beginPath();
+    cx2.arc(0, 0, r0, -Math.PI/2, -Math.PI/2 + TAU*v);
+    cx2.strokeStyle = lit ? "rgba(120,255,232,.95)" : "rgba(90,215,200," + (hov?.75:.42) + ")";
+    cx2.lineWidth = lit ? 3.2 : 2.0;
+    cx2.stroke();
+
+    // interference ticks: the pattern you read instead of a number
+    const nt = 8;
+    for (let k = 0; k < nt; k++) {
+      const a = -Math.PI/2 + TAU*(k/nt) + v*TAU/nt;
+      const on = ((k/nt) < v);
+      cx2.beginPath();
+      cx2.moveTo(r0*0.93*Math.cos(a), r0*0.93*Math.sin(a));
+      cx2.lineTo(r0*1.07*Math.cos(a), r0*1.07*Math.sin(a));
+      cx2.strokeStyle = on ? "rgba(150,255,240,"+(hov?.7:.35)+")" : "rgba(60,120,126,.22)";
+      cx2.lineWidth = 1;
+      cx2.stroke();
+    }
+  }
+
+  // the core sigil — the artefact's own mark for this cluster
+  cx2.beginPath();
+  const cr = R*0.26;
+  for (let k = 0; k < 8; k++) {
+    const a1 = k*Math.PI/4, a2 = ((k*(j+3))%8)*Math.PI/4;
+    cx2.moveTo(cr*Math.cos(a1), cr*Math.sin(a1));
+    cx2.lineTo(cr*Math.cos(a2), cr*Math.sin(a2));
+  }
+  cx2.strokeStyle = "rgba(120,220,215," + (hov?.72:.38) + ")";
+  cx2.lineWidth = .9; cx2.stroke();
+  cx2.restore();
+}
+
+/* the grade: seventeen unequal cells per silver octave, in the silver word's
+   own order — wide for L, narrow for S. The scale made visible and playable. */
+const WORD = [0,0,1, 0,0,1, 0, 0,0,1, 0,0,1, 0, 0,0,1];
+const GRADE_N = 17;
+let KEYCELL = [];
+let KB_BASE = 48;
+function drawGrade() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const x0 = 262, x1 = w - 234, y = h - 46, hh = 22;
+  const nCells = 34;
+  let tot = 0;
+  const wid = [];
+  for (let i = 0; i < nCells; i++) { const L = WORD[i % GRADE_N] === 0; wid.push(L ? SILVER : 1); tot += L ? SILVER : 1; }
+  KEYCELL = [];
+  let x = x0;
+  const held = window.__held || {};
+  for (let i = 0; i < nCells; i++) {
+    const cw = (x1 - x0) * wid[i] / tot;
+    const note = KB_BASE + i;
+    const isL = WORD[i % GRADE_N] === 0;
+    const on = !!held[note];
+    cx2.fillStyle = on ? "rgba(110,250,232,.62)"
+                       : (isL ? "rgba(22,34,37,.85)" : "rgba(12,20,22,.85)");
+    cx2.fillRect(x + 0.8, y, cw - 1.6, hh);
+    cx2.strokeStyle = "rgba(60,124,130,.35)"; cx2.lineWidth = 1;
+    cx2.strokeRect(x + 0.8, y, cw - 1.6, hh);
+    if (i % GRADE_N === 0) {
+      cx2.fillStyle = "rgba(120,230,215,.55)";
+      cx2.fillRect(x + 0.8, y, 2, hh);
+    }
+    KEYCELL.push({ x: x, w: cw, note });
+    x += cw;
+  }
+  cx2.font = "8.5px Consolas,monospace"; cx2.textAlign = "left";
+  cx2.fillStyle = "rgba(80,130,136,.6)";
+  cx2.fillText("THE GRADE — 17 STEPS TO THE SILVER OCTAVE", x0, y - 6);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   8 · pointer
+   ═══════════════════════════════════════════════════════════════════════════ */
+let drag = null;
+
+function nearestSite(mx, my, maxPx) {
+  const [wx, wy] = s2w(mx, my);
+  let bi = -1, bd = (maxPx / S.scale) * (maxPx / S.scale);
+  for (let i = 0; i < PATCH.site.length; i++) {
+    const s = PATCH.site[i];
+    if (s.lvl !== 0 || s.occ < 0.4) continue;
+    const d = (s.x-wx)*(s.x-wx) + (s.y-wy)*(s.y-wy);
+    if (d < bd) { bd = d; bi = i; }
+  }
+  return bi;
+}
+
+function hitRosette(mx, my) {
+  for (let j = 0; j < 8; j++) {
+    const [sx, sy] = roseScreen(j);
+    const R = roseRadius(j);
+    const d = Math.hypot(mx - sx, my - sy);
+    if (d < R * 1.18) {
+      const ring = clamp(Math.round((d / R - 0.30) / 0.145), 0, 4);
+      return { j, ring, d };
+    }
+  }
+  return null;
+}
+
+function hitCut(mx, my) {
+  const ca = Math.cos(CUT.ang), sa = Math.sin(CUT.ang);
+  const [wx, wy] = s2w(mx, my);
+  const ox = -sa * CUT.off, oy = ca * CUT.off;
+  const perp = (wx - ox) * (-sa) + (wy - oy) * ca;
+  const along = (wx - ox) * ca + (wy - oy) * sa;
+  if (Math.abs(perp) * S.scale < 9 && Math.abs(along) < 14) return Math.abs(along) > 11 ? 2 : 1;
+  return 0;
+}
+
+function hitBearing(mx, my) {
+  const d = Math.hypot(mx - VIEW.cx, my - VIEW.cy);
+  return Math.abs(d - VIEW.r * 1.035) < 15;
+}
+
+uic.style.pointerEvents = "auto";
+uic.addEventListener("pointermove", ev => {
+  const mx = ev.clientX, my = ev.clientY;
+  if (drag) { doDrag(ev); return; }
+  const r = hitRosette(mx, my);
+  S.hoverRose = r ? r.j : -1;
+  S.hoverRing = r ? r.ring : -1;
+  S.hoverCut = r ? 0 : hitCut(mx, my);
+  S.hoverSite = (r || S.hoverCut) ? -1 : nearestSite(mx, my, 13);
+
+  if (r) {
+    const id = ROSETTE[r.j][r.ring];
+    say(PNAME[id] || id, fmt(id, V[id] || 0), GLOSS[id]);
+  } else if (S.hoverCut) {
+    say("THE CUT", "", "where in the body you are listening — drag it");
+  } else if (hitBearing(mx, my)) {
+    say("BEARING", fmt("bearing", V.bearing || 0), "the heading of travel in the unseen plane");
+  } else if (S.hoverSite >= 0) {
+    const s = PATCH.site[S.hoverSite];
+    say("VERTEX", "⊥ " + s.px.toFixed(3) + " , " + s.py.toFixed(3),
+        "click to arrest it — the window will deform to keep holding it");
+  } else if (stripHold <= 1) sayIdle();
+});
+
+uic.addEventListener("pointerdown", ev => {
+  const mx = ev.clientX, my = ev.clientY;
+  ev.preventDefault();
+  try { uic.setPointerCapture(ev.pointerId); } catch (e) {}
+
+  // the grade
+  for (const c of KEYCELL) {
+    if (my > window.innerHeight - 50 && mx >= c.x && mx < c.x + c.w) {
+      noteOn(c.note, 0.85); drag = { kind: "key", note: c.note }; return;
+    }
+  }
+  const r = hitRosette(mx, my);
+  if (r) {
+    const id = ROSETTE[r.j][r.ring];
+    const [sx, sy] = roseScreen(r.j);
+    drag = { kind: "rose", id, x0: mx, y0: my,
+             base: (V[id] !== undefined ? V[id] : 0) };
+    void sx; void sy;
+    return;
+  }
+  const hc = hitCut(mx, my);
+  if (hc) { drag = { kind: hc === 2 ? "cutang" : "cutpos", mx, my,
+                     a0: V.cutang || 0, p0: V.cutpos !== undefined ? V.cutpos : .5 }; return; }
+  if (hitBearing(mx, my)) {
+    drag = { kind: "bearing", ang: Math.atan2(my - VIEW.cy, mx - VIEW.cx), b0: V.bearing || 0 };
+    return;
+  }
+  const si = nearestSite(mx, my, 13);
+  if (si >= 0) {
+    const s = PATCH.site[si];
+    const on = !ev.shiftKey;
+    NB.send({ k: "arrest", px: s.px, py: s.py, on });
+    say(on ? "ARRESTED" : "RELEASED", "⊥ " + s.px.toFixed(2) + " , " + s.py.toFixed(2),
+        on ? "the window now bulges to keep this site — every slice is different from here on"
+           : "the deformation relaxes");
+    return;
+  }
+  drag = { kind: "pan", mx, my, cx: VIEW.cx, cy: VIEW.cy };
+});
+
+function doDrag(ev) {
+  const mx = ev.clientX, my = ev.clientY;
+  if (drag.kind === "rose") {
+    /*  A STRAIGHT DRAG, not a circle.
+
+        The rings are drawn as rings, so winding them in a circle was the
+        obvious gesture and it is the wrong one: the mouse wheel is already
+        spoken for (it drags the body through w), and tracing an arc accurately
+        with a mouse is a job, not a gesture. Peter, plainly: "a straight
+        movement L-R or D-U should be enough to turn the rings from minimum to
+        maximum."
+
+        So: right and up both raise, left and down both lower, and the two add,
+        which means a diagonal works and neither axis has to be found exactly.
+        Full range in 300 px; hold SHIFT and it takes 1200, because forty of
+        these carry no numerals and some of them want a hair's width.
+
+        Measured from the PRESS POINT rather than accumulated per move, so
+        coming back to where you started puts the value back where it was --
+        and so that rounding a stepped parameter can never eat the increment,
+        which is the bug that once left EXTENT, APERTURES and BEND RANGE
+        unwindable while the thirty-six continuous controls all worked. The
+        press point is the state; the parameter is a view of it. */
+    const span = ev.shiftKey ? 1200 : 300;
+    const hi = HI[drag.id] || 1;
+    const stepped = (KIND[drag.id] === KP.INT || KIND[drag.id] === KP.LIST);
+    const t = ((mx - drag.x0) - (my - drag.y0)) / span;
+    const v = clamp(drag.base + t * hi, 0, hi);
+    setParam(drag.id, stepped ? Math.round(v) : v);
+  } else if (drag.kind === "bearing") {
+    const a = Math.atan2(my - VIEW.cy, mx - VIEW.cx);
+    let d = a - drag.ang;
+    while (d > Math.PI) d -= TAU;
+    while (d < -Math.PI) d += TAU;
+    drag.ang = a;
+    let b = (V.bearing || 0) + d / TAU;
+    b = b - Math.floor(b);
+    setParam("bearing", b);
+  } else if (drag.kind === "cutpos") {
+    const [wx, wy] = s2w(mx, my);
+    const ca = Math.cos(CUT.ang), sa = Math.sin(CUT.ang);
+    const perp = wx * (-sa) + wy * ca;
+    setParam("cutpos", clamp(perp / 16 + 0.5, 0, 1));
+  } else if (drag.kind === "cutang") {
+    const [wx, wy] = s2w(mx, my);
+    let a = Math.atan2(wy, wx);
+    if (a < 0) a += Math.PI;
+    if (a >= Math.PI) a -= Math.PI;
+    setParam("cutang", a / Math.PI);
+  } else if (drag.kind === "key") {
+    for (const c of KEYCELL)
+      if (mx >= c.x && mx < c.x + c.w && c.note !== drag.note) {
+        noteOff(drag.note); drag.note = c.note; noteOn(c.note, 0.85); break;
+      }
+  } else if (drag.kind === "pan") {
+    VIEW.cx = drag.cx + (mx - drag.mx);
+    VIEW.cy = drag.cy + (my - drag.my);
+  }
+}
+
+const endDrag = () => {
+  if (drag && drag.kind === "key") noteOff(drag.note);
+  drag = null;
+};
+uic.addEventListener("pointerup", endDrag);
+uic.addEventListener("pointercancel", endDrag);
+
+/*  The wheel drags the artefact through our slice. This is the whole
+    instrument: the body is four-dimensional and we see one plane of it, so
+    moving along w brings different matter into the section and the tiling
+    reorganises by phason flips. */
+/*  THE WHEEL HAS NO END. TRAVERSE is a host parameter and therefore lives on
+    nought to one, and the slider keeps that limit — but the wheel does not.
+    Once the slider is against a stop the rest of the turn accumulates in the
+    engine's own offset, which is unbounded, and unwinds first on the way back
+    so that returning is not a long scroll against a pinned control.
+
+    Nothing happens out there. Almost nothing. */
+S.tauOff = 0;
+window.addEventListener("wheel", ev => {
+  if (ev.target && ev.target.closest && ev.target.closest(".bwfx-veil")) return;
+  ev.preventDefault();
+  const lo = LO.travel !== undefined ? LO.travel : -12, hi = FHI.travel !== undefined ? FHI.travel : 12;
+  const span = hi - lo;
+  const d = -ev.deltaY / 1400 * (ev.shiftKey ? 0.22 : 1.0) * (24 / span);
+  let dTau = d * 24;
+
+  //  unwind whatever the wheel has already banked, before moving the slider
+  if (S.tauOff !== 0 && (dTau > 0) !== (S.tauOff > 0)) {
+    const take = Math.sign(dTau) * Math.min(Math.abs(dTau), Math.abs(S.tauOff));
+    S.tauOff += take; dTau -= take;
+    NB.send({ k: "twheel", d: take });
+  }
+  if (dTau !== 0) {
+    const cur = V.travel !== undefined ? V.travel : .5;
+    const want = cur + dTau / 24;
+    const got = clamp(want, 0, 1);
+    if (got !== cur) setParam("travel", got, true);
+    const spill = (want - got) * 24;
+    if (spill !== 0) { S.tauOff += spill; NB.send({ k: "twheel", d: spill }); }
+  }
+  const total = paramToTau() + S.tauOff;
+  say("TRAVERSE", total.toFixed(2),
+      Math.abs(total) > 10.4 ? "the plane has left the fragment"
+                             : "depth of the cut in the fourth dimension");
+}, { passive: false });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   9 · playing
+   ═══════════════════════════════════════════════════════════════════════════ */
+window.__held = {};
+function noteOn(n, v) { if (window.__held[n]) return; window.__held[n] = 1; NB.send({ k: "note", n, on: true, v }); }
+function noteOff(n) { if (!window.__held[n]) return; delete window.__held[n]; NB.send({ k: "note", n, on: false }); }
+
+const PCROW = "zsxdcvgbhnjm,l.;/q2w3er5t6y7ui9o0p";
+const pcDown = {};
+window.addEventListener("keydown", ev => {
+  if (ev.repeat) return;
+  if (ev.key === "Escape") { $("#cat").classList.remove("on"); $("#prov").classList.remove("on"); return; }
+  const k = ev.key.toLowerCase();
+  const i = PCROW.indexOf(k);
+  if (i >= 0 && pcDown[k] === undefined) { pcDown[k] = KB_BASE + i; noteOn(pcDown[k], 0.85); }
+  if (k === "[") { KB_BASE = Math.max(0, KB_BASE - GRADE_N); }
+  if (k === "]") { KB_BASE = Math.min(100, KB_BASE + GRADE_N); }
+});
+window.addEventListener("keyup", ev => {
+  const k = ev.key.toLowerCase();
+  if (pcDown[k] !== undefined) { noteOff(pcDown[k]); delete pcDown[k]; }
+});
+window.addEventListener("blur", () => { for (const n in window.__held) noteOff(+n); });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   10 · the catalogue
+   ═══════════════════════════════════════════════════════════════════════════ */
+function habitFromTable(i) {
+  if (!HABTAB) return null;
+  const H = HABTAB[i];
+  return H ? {
+    waves: H.w, kmag: H.km, kdir: H.kd, kamp: H.ka, kphi: H.kp,
+    radial: H.r, crisp: H.c, levels: H.l, filmBase: H.fb, filmSpan: H.fs, glint: H.g
+  } : null;
+}
+
+function buildCatalogue() {
+  const grid = $("#catgrid");
+  grid.innerHTML = "";
+  if (!HABTAB) return;
+  for (let i = 0; i < HABTAB.length; i++) {
+    const d = document.createElement("div");
+    d.className = "sw"; d.dataset.i = i;
+    const c = document.createElement("canvas");
+    c.width = 40; c.height = 40;
+    const g = c.getContext("2d");
+    const h = habitFromTable(i);
+    const img = g.createImageData(40, 40);
+    for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) {
+      const px = (x/40 - .5) * 2.5, py = (y/40 - .5) * 2.5;
+      const inside = occupancy(px, py, { scale: 1, soft: .08, bulge: new Float64Array(8) }) > 0;
+      const f = inside ? fieldAt(px, py, h) : 0;
+      const dth = h.filmBase + h.filmSpan * f;
+      let r = 0, gg = 0, b = 0;
+      for (let s = 0; s < 5; s++) {
+        const lam = 430 + s * 57.5;
+        const I = 0.5 - 0.5 * Math.cos(TAU * 1.42 * dth / lam);
+        r += I * Math.exp(-Math.pow((lam-605)/48, 2));
+        gg += I * Math.exp(-Math.pow((lam-540)/48, 2));
+        b += I * Math.exp(-Math.pow((lam-462)/44, 2));
+      }
+      const o = (y*40+x)*4;
+      img.data[o]   = inside ? clamp(r*95 + 14, 0, 255) : 8;
+      img.data[o+1] = inside ? clamp(gg*95 + 22, 0, 255) : 10;
+      img.data[o+2] = inside ? clamp(b*95 + 26, 0, 255) : 12;
+      img.data[o+3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    d.appendChild(c);
+    d.title = "habit " + i;
+    d.addEventListener("click", () => {
+      NB.send({ k: "habit", n: i });
+      $("#cat").classList.remove("on");
+      say("HABIT", String(i).padStart(3, "0"), "a colouring of the fourth dimension");
+    });
+    grid.appendChild(d);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   10b · provenance — where it was found, and who carried it
+
+   The one place in the instrument where a human voice is allowed: the artefact
+   never speaks, but the people who dug it up wrote things down.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const PROV = {
+  acc:  "B2311.67",
+  site: "Sabik Terminator, Vault Field 9",
+  // fractions of the globe image; the terminator runs across it diagonally
+  pin:  [0.828, 0.64],
+  pinLabel: "VF-9",
+  // the sister specimen, so the two can see each other on one globe
+  pin2: [0.228, 0.251],
+  pin2Label: "KR-4 \u00b7 B2311.22",
+  pos:  "17\u00b042'11\" S  89\u00b019'06\" E  \u00b7  elev. \u2212310 m",
+  date: "2311.204 (day 204 of survey year 2311)",
+  exp:  "Second Brokild Survey \u00b7 vessel ORNAMENT OF THE NINTH",
+  who:  "M. Halvarsen, sediment geologist \u2014 not, she noted, an archaeologist",
+  jrn:  "Field journal 14, pp. 88\u201391; specimen log 2311/0067",
+  cond: "Intact. No tooling marks. No wear consistent with handling.",
+  circ: "Recovered from a collapsed evaporite vault in the permanent twilight band, "
+      + "eleven metres below a salt pan that has not been wet in four hundred thousand years. "
+      + "It was not buried: the vault formed around it. Sixty-six other bodies lay in the same "
+      + "field on an eightfold plan, each at the centre of its own void, none touching.",
+  note: "It was recorded as mineral. It was reclassified when the survey's own seismometers, "
+      + "left running overnight beside the crate, returned a spectrum with gaps at every scale "
+      + "\u2014 and no one could say what had been driving them.",
+  note2: "The field was surveyed at all because of B2311.22, a pair lifted from a dry cistern "
+      + "at Kell Rille a hundred and twenty-three days earlier, on the near side of the "
+      + "twilight band. On lifting the first of those two, the second changed pitch.",
+  stamp: "Classification withheld"
+};
+
+function fillProvenance() {
+  const g = (id, v) => { const e = $(id); if (e) e.textContent = v; };
+  g("#pvAcc", PROV.acc); g("#pvSite", PROV.site); g("#pvPos", PROV.pos);
+  g("#pvDate", PROV.date); g("#pvExp", PROV.exp); g("#pvWho", PROV.who);
+  g("#pvJrn", PROV.jrn); g("#pvCond", PROV.cond);
+  g("#pvCirc", PROV.circ); g("#pvNote", PROV.note); g("#pvStamp", PROV.stamp);
+  const n2 = $("#pvNote2");
+  if (n2) { n2.innerHTML = PROV.note2.replace("B2311.22", '<b style="color:#cfe6e9">B2311.22</b>'); }
+  const w = $("#globewrap");
+  if (w) {
+    const px = PROV.pin[0] * w.clientWidth, py = PROV.pin[1] * w.clientHeight;
+    $("#pin").style.left = px + "px";
+    $("#pin").style.top = py + "px";
+    const lab = $("#pinlab");
+    lab.textContent = PROV.pinLabel;
+    lab.style.left = (px + 13) + "px";
+    lab.style.top = (py - 5) + "px";
+    const qx = PROV.pin2[0] * w.clientWidth, qy = PROV.pin2[1] * w.clientHeight;
+    $("#pin2").style.left = qx + "px";
+    $("#pin2").style.top = qy + "px";
+    const lab2 = $("#pinlab2");
+    lab2.textContent = PROV.pin2Label;
+    lab2.style.left = (qx + 11) + "px";
+    lab2.style.top = (qy - 5) + "px";
+  }
+}
+/*  THE THERMOMETER.
+
+    77 K is liquid nitrogen and the instrument is frozen: the specimen's own
+    wiring is switched off entirely, and what you hear is what the artefact did
+    before any of it was built. Room temperature is the default, and there the
+    material breathes about nine per cent of its range. By 800 K it is thirty,
+    and above 500 K even the scene controls — the cross-section itself, and the
+    sounding line — begin to drift, which is exactly why they are left alone
+    anywhere below that.  */
+const TEMP_LO = 77, TEMP_HI = 800;
+function thermoDraw() {
+  const t = clamp(V.temp !== undefined ? V.temp : 0.298755, 0, 1);
+  const k = Math.round(TEMP_LO + (TEMP_HI - TEMP_LO) * t);
+  const fill = $("#tFill"), knob = $("#tKnob"), val = $("#tVal"), note = $("#tNote");
+  if (!fill) return;
+  fill.style.width = (t * 100) + "%";
+  knob.style.left = "calc(" + (t * 100) + "% - 1px)";
+  val.textContent = k + " K";
+  note.textContent = k <= 80 ? "frozen · nothing stirs"
+    : (k < 200 ? "barely stirring"
+    : (k < 340 ? "room · the material breathes"
+    : (k < 500 ? "warm · the material wanders"
+    : (k < 700 ? "hot · the scene begins to drift" : "the body will not hold still"))));
+}
+(function thermoInit() {
+  const tr = $("#tTrack");
+  if (!tr) return;
+  for (const k of [293, 500]) {
+    const d = document.createElement("div");
+    d.className = "tick";
+    d.style.left = ((k - TEMP_LO) / (TEMP_HI - TEMP_LO) * 100) + "%";
+    tr.appendChild(d);
+  }
+  let td = false;
+  const setFromX = ev => {
+    const r = tr.getBoundingClientRect();
+    setParam("temp", clamp((ev.clientX - r.left) / r.width, 0, 1));
+    thermoDraw();
+  };
+  tr.addEventListener("pointerdown", ev => {
+    td = true; ev.preventDefault();
+    try { tr.setPointerCapture(ev.pointerId); } catch (e) {}
+    setFromX(ev);
+  });
+  tr.addEventListener("pointermove", ev => { if (td) setFromX(ev); });
+  const end = () => { td = false; };
+  tr.addEventListener("pointerup", end);
+  tr.addEventListener("pointercancel", end);
+  thermoDraw();
+})();
+
+$("#bProv").addEventListener("click", () => {
+  $("#prov").classList.add("on");
+  fillProvenance();
+  say("PROVENANCE", PROV.acc, "where it was found, and who carried it");
+});
+$("#provclose").addEventListener("click", () => $("#prov").classList.remove("on"));
+$("#prov").addEventListener("click", ev => { if (ev.target.id === "prov") $("#prov").classList.remove("on"); });
+
+$("#bCat").addEventListener("click", () => {
+  const c = $("#cat");
+  c.classList.toggle("on");
+  if (c.classList.contains("on") && !$("#catgrid").children.length) buildCatalogue();
+});
+$("#cat").addEventListener("click", ev => { if (ev.target.id === "cat") $("#cat").classList.remove("on"); });
+$("#bRnd").addEventListener("click", () => NB.send({ k: "random" }));
+$("#bClr").addEventListener("click", () => { NB.send({ k: "clearArrests" }); say("PINS RELEASED", "", "the body relaxes"); });
+$("#bSave").addEventListener("click", () => NB.send({ k: "save" }));
+$("#bOpen").addEventListener("click", () => NB.send({ k: "open" }));
+$("#bPanic").addEventListener("click", () => { NB.send({ k: "panic" }); say("STILL", "", "everything let go"); });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   11 · from the native side
+   ═══════════════════════════════════════════════════════════════════════════ */
+NB.on("initialState", p => {
+  PIDS = [];
+  for (const e of p.params) {
+    PIDS.push(e.id);
+    V[e.id] = e.v; DEF[e.id] = e.def; HI[e.id] = e.hi; KIND[e.id] = e.kind;
+    LO[e.id] = e.lo; FHI[e.id] = e.fhi; PNAME[e.id] = e.n; GLOSS[e.id] = e.g;
+    if (e.names) NAMES[e.id] = e.names;
+  }
+  if (p.habitTable) { HABTAB = p.habitTable; $("#catgrid").innerHTML = ""; }
+  S.build = p.build || "dev";
+  $("#rBuild").textContent = S.build;
+  applyHabitVisual();
+  geomDirty = true; starDirty = true;
+  NB.send({ k: "ack" });
+  sayIdle();
+});
+
+NB.on("hostParam", p => {
+  for (const e of p.p) {
+    V[e.id] = e.v;
+    onParamChanged(e.id);
+    if (e.id === "habit") applyHabitVisual();
+    if (e.id === "temp") thermoDraw();      // the bench moves this one; the strip must follow
+  }
+});
+
+NB.on("body", p => {
+  /*  How much of the fragment the cut is passing through. The page does NOT
+      recompute the face law — one number, from the engine, so the picture
+      cannot disagree with the sound about whether there is an object here. */
+  if (p.pres !== undefined) S.pres = p.pres;
+  S.tau = p.tau; S.n = p.n; S.orders = p.orders; S.level = p.lvl; S.peak = p.peak; S.w1 = p.w1;
+  S.arrests = p.arrests || [];
+  if (p.sqf !== undefined) S.sqFrac = p.sqf;
+  /*  The effective values -- the stored knob positions after the specimen's own
+      wiring has stirred them. The rings are drawn from these, so what moves in
+      the sound moves on the panel. */
+  if (p.eff) {
+    const eb = atob(p.eff);
+    if (!S.eff) S.eff = {};
+    for (let i = 0; i < eb.length && i < PIDS.length; i++)
+      S.eff[PIDS[i]] = eb.charCodeAt(i) / 255;
+  }
+  /*  The star as the engine actually sounds it. Once this has arrived the
+      page's own idealised buildStar is retired for good -- it drew a plate
+      that could not move for travel, the cut, the aperture or obliquity. */
+  if (p.starLam && p.starAmp && p.starLam.length) {
+    const out = [];
+    for (let i = 0; i < p.starLam.length; i++)
+      out.push({ lam: +p.starLam[i], a: +p.starAmp[i], cj: 0 });
+    STAR = out;
+    starFromEngine = true;
+    starDirty = false;
+  }
+  if (p.e) {
+    const bin = atob(p.e);
+    S.nE = bin.length;
+    for (let i = 0; i < bin.length && i < 512; i++) S.energy[i] = bin.charCodeAt(i) / 255;
+  }
+  $("#rTau").textContent = (p.tau).toFixed(3);
+  $("#rN").textContent = p.n;
+  $("#rOrd").textContent = p.orders;
+  $("#meter").style.width = Math.min(100, p.lvl * 260) + "%";
+  if (p.gr !== undefined) {
+    const db = 20 * Math.log10(Math.max(1e-4, p.gr));
+    const el = $("#rGR");
+    el.textContent = (db > -0.05 ? "0.0" : db.toFixed(1)) + " dB";
+    el.style.color = db < -0.05 ? "#ffb59c" : "#93b6bb";
+  }
+  geomDirty = true;
+});
+
+NB.on("notice", p => say(String(p.msg), "", ""));
+
+/* ── the site: what the four findings share (settings are the bench's) ── */
+const SITE = {open:false, climate:false, timing:false, distance:0.5, others:0, coh:0, pull:0, kelvin:0, local:0};
+function siteDistWord(d){ return d<0.15?"the same bench":d<0.4?"the same table":d<0.7?"the same room":d<0.9?"across the hall":"different rooms"; }
+function renderSite(){
+  const c=$("#siteClimate"), t=$("#siteTiming");
+  c.textContent = SITE.climate?"shared":"own"; c.classList.toggle("on", !!SITE.climate);
+  t.textContent = SITE.timing?"shared":"own";  t.classList.toggle("on", !!SITE.timing);
+  if(document.activeElement!==$("#siteDist")) $("#siteDist").value = SITE.distance;
+  $("#siteDistRd").textContent = siteDistWord(SITE.distance);
+  let st = !SITE.open ? "no bench (the site is unavailable here)"
+         : SITE.others>0 ? SITE.others+" other finding"+(SITE.others>1?"s":"")+" present" : "only this finding";
+  if(SITE.open && SITE.others>0 && SITE.timing)
+    st += " · coherence "+(+SITE.coh).toFixed(2)+(SITE.pull>0.05 ? " · pulling "+Math.round(SITE.pull*100)+"%" : " · too warm or too far to lock");
+  if(SITE.open && SITE.climate && SITE.kelvin>0)
+    st += " · bench "+Math.round(SITE.kelvin)+" K"+(SITE.local>0 && Math.abs(SITE.local-SITE.kelvin)>1 ? " · here "+Math.round(SITE.local)+" K" : "");
+  $("#siteStatus").textContent = st;
+  $("#rSite").textContent = (SITE.open && SITE.others>0 && (SITE.timing||SITE.climate))
+    ? "bench "+(SITE.others+1)+" present"+(SITE.timing?" · lock "+(+SITE.coh).toFixed(2):"") : "";
+}
+NB.on("site", p => { Object.assign(SITE, p); renderSite(); });
+$("#bSite").addEventListener("click", () => $("#site").classList.add("on"));
+$("#siteclose").addEventListener("click", () => $("#site").classList.remove("on"));
+$("#site").addEventListener("click", ev => { if (ev.target.id === "site") $("#site").classList.remove("on"); });
+window.addEventListener("keydown", ev => { if (ev.key === "Escape") $("#site").classList.remove("on"); });
+$("#siteClimate").addEventListener("click", () => NB.send({k:"site", climate: !SITE.climate}));
+$("#siteTiming").addEventListener("click",  () => NB.send({k:"site", timing:  !SITE.timing}));
+$("#siteDist").addEventListener("input",  e => { SITE.distance=+e.target.value; $("#siteDistRd").textContent=siteDistWord(SITE.distance); });
+$("#siteDist").addEventListener("change", e => NB.send({k:"site", distance:+e.target.value}));
+NB.on("patchTree", p => {});
+
+function applyHabitVisual() {
+  const i = Math.round(V.habit || 0);
+  const h = habitFromTable(i);
+  if (h) { for (const k in h) HAB[k] = h[k]; }
+  $("#rHab").textContent = String(i).padStart(3, "0");
+  if (HABTAB && HABTAB[i]) $("#rSig").textContent = HABTAB[i].sig || "—";
+  geomDirty = true;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   12 · boot
+   ═══════════════════════════════════════════════════════════════════════════ */
+layout();
+glInit();
+buildStar(1.4, 0.42, 72);
+// stand up on our own so the panel is never a white rectangle waiting
+if (!V.travel) { V.travel = 0.5; V.bearing = 0; V.aperture = .5; V.rim = .22;
+  V.cutang = 0; V.cutpos = .5; V.extent = 3; V.habit = 0; }
+rebuildGeometry();
+sayIdle();
+requestAnimationFrame(frame);
+NB.send({ k: "hello" });
+setTimeout(() => NB.send({ k: "ready" }), 60);
+</script>

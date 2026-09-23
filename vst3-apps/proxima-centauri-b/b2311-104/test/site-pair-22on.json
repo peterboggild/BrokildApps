@@ -1,0 +1,8 @@
+[
+  {"wait": 800},
+  {"eval": "'22: err=' + window.__err + ' SITE=' + typeof SITE + ' open=' + SITE.open + ' others=' + SITE.others + ' siteBtn=' + !!document.getElementById('siteBtn')"},
+  {"eval": "document.getElementById('siteBtn').click(); 'overlay on: ' + document.getElementById('site').classList.contains('on') + ' status=' + document.getElementById('siteStatus').textContent"},
+  {"eval": "document.getElementById('siteTiming').click(); 'clicked timing'"},
+  {"wait": 1500},
+  {"eval": "'22 after: timing=' + SITE.timing + ' others=' + SITE.others + ' coh=' + SITE.coh + ' pull=' + SITE.pull + ' status=' + document.getElementById('siteStatus').textContent + ' rd=[' + document.getElementById('siteRd').textContent + ']'"}
+]

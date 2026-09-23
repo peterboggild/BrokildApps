@@ -39,6 +39,7 @@ const ROOT = path.resolve(__dirname, "..");
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")));
 const [tree, slug] = args.filter((a) => !a.startsWith("--"));
+const destFlag = args.find((a) => a.startsWith("--dest="));
 const DRY = flags.has("--dry");
 const FORCE = flags.has("--force");
 
@@ -55,7 +56,16 @@ const DROP_DIR = [
   "test/build", "test/wav", "test/aud", "test/renders",
 ];
 const DROP_EXT = [".wav", ".aiff", ".flac"];
-const DROP_GLOB = [/^docs\/.*\.pdf$/i, /(^|\/)[^/]*\.vst3$/i, /(^|\/)[^/]*\.exe$/i];
+const DROP_GLOB = [
+  /^docs\/.*\.pdf$/i,              // the published manual sits beside the page
+  /^docs\/[^/]*\.png$/i,           // loose captures at the docs root: session
+                                   // diagnostics, never referenced by any
+                                   // document — checked across the fleet, and
+                                   // every one scored zero references. Plates
+                                   // live in docs/manual/img/ and are kept.
+  /(^|\/)[^/]*\.vst3$/i,
+  /(^|\/)[^/]*\.exe$/i,
+];
 
 function dropped(rel) {
   const p = rel.replace(/\\/g, "/");
@@ -66,10 +76,14 @@ function dropped(rel) {
 }
 
 /* ------------------------------------------------------- the CMake repoint */
-/*  The plug-in sits at vst3-apps/<slug>/plugin/, so the repo root is three up
- *  and BWFX is a sibling of vst3-apps. JUCE is not vendored: a local build
- *  passes -DJUCE_DIR, and anything else (a fresh clone, CI) fetches it. */
-function repointCMake(text) {
+/*  BWFX is at the repository root, so the hop out is computed from where this
+ *  plug-in actually lands rather than assumed: most sit at
+ *  vst3-apps/<slug>/plugin/ and need three, the Artefacts sit one level
+ *  shallower inside their shared survey folder and need two. Assuming a depth
+ *  is how a tree builds on one machine and not in CI.
+ *  JUCE is not vendored: a local build passes -DJUCE_DIR, and anything else,
+ *  a fresh clone or CI, fetches it. */
+function repointCMake(text, upToRoot) {
   const notes = [];
   let out = text;
 
@@ -108,10 +122,10 @@ endif()`;
   const bwfxAbs = /set\(BWFX_DIR "C:\/Users\/peter\/b\/BrokildWorldFX"\)/;
   if (bwfxAbs.test(out)) {
     out = out.replace(bwfxAbs,
-      `set(BWFX_DIR "\${CMAKE_CURRENT_SOURCE_DIR}/../../../BrokildWorldFX")`);
+      `set(BWFX_DIR "\${CMAKE_CURRENT_SOURCE_DIR}/${upToRoot}/BrokildWorldFX")`);
     notes.push("BWFX: absolute path replaced with a path relative to this file");
   } else if (/BWFX_DIR/.test(out)) {
-    notes.push(/CMAKE_CURRENT_SOURCE_DIR\}\/\.\.\/\.\.\/\.\.\/BrokildWorldFX/.test(out)
+    notes.push(out.includes("CMAKE_CURRENT_SOURCE_DIR}/" + upToRoot + "/BrokildWorldFX")
       ? "BWFX: already relative, left alone"
       : "BWFX: mentioned but not the expected absolute path — check by hand");
   } else {
@@ -137,7 +151,13 @@ if (dirty.length && !FORCE) {
   process.exit(1);
 }
 
-const dest = path.join(ROOT, "vst3-apps", slug, "plugin");
+/*  Default is vst3-apps/<slug>/plugin. --dest=<path relative to the repo root>
+ *  places it anywhere, which is what the four Artefacts need: they live inside
+ *  their shared survey folder rather than each having a page of its own. */
+const destRel = destFlag ? destFlag.slice(7).replace(/\\/g, "/")
+                         : "vst3-apps/" + slug + "/plugin";
+const dest = path.join(ROOT, destRel);
+const upToRoot = destRel.split("/").filter(Boolean).map(() => "..").join("/");
 if (fs.existsSync(dest) && !FORCE) {
   console.error("REFUSING: " + path.relative(ROOT, dest) + " already exists. Pass --force to replace it.");
   process.exit(1);
@@ -153,7 +173,7 @@ for (const f of files) {
   else keep.push(f);
 }
 
-console.log(`\n${slug}  <-  ${tree}  @ ${head}`);
+console.log(`\n${destRel}  <-  ${tree}  @ ${head}`);
 console.log(`  tracked ${files.length} files, keeping ${keep.length}`);
 for (const [why, n] of [...skip].sort((a, b) => b[1] - a[1]))
   console.log(`    dropped ${String(n).padStart(4)}  ${why}`);
@@ -177,15 +197,39 @@ for (const f of keep) {
 const cml = path.join(stage, "CMakeLists.txt");
 if (fs.existsSync(cml)) {
   const raw = fs.readFileSync(cml, "utf8");
-  const { out, notes } = repointCMake(raw);
+  const { out, notes } = repointCMake(raw, upToRoot);
   fs.writeFileSync(cml, out);
   notes.forEach((n) => console.log("    " + n));
 } else {
   console.log("    NO CMakeLists.txt at the tree root — check by hand");
 }
 
-if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
-fs.mkdirSync(path.dirname(dest), { recursive: true });
-fs.renameSync(stage, dest);
+/*  THE DROPBOX EPERM TRAP. This repository lives inside Dropbox, and
+ *  fs.rmSync(dir, {recursive:true}) there deletes the CONTENTS and then throws
+ *  EPERM on the folder itself, leaving an empty directory and a half-run
+ *  script. Walk the children instead, and treat a folder that will not go as
+ *  fine, because the contents are what matter. Same reason the final placement
+ *  moves child by child rather than renaming the staging folder over the top. */
+function rmTree(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) rmTree(p);
+    else fs.rmSync(p, { force: true, maxRetries: 5, retryDelay: 120 });
+  }
+  try { fs.rmdirSync(dir); } catch (e) { /* held by Dropbox; it is empty now */ }
+}
+function moveInto(from, to) {
+  fs.mkdirSync(to, { recursive: true });
+  for (const e of fs.readdirSync(from, { withFileTypes: true })) {
+    const a = path.join(from, e.name), b = path.join(to, e.name);
+    if (e.isDirectory()) moveInto(a, b);
+    else { fs.copyFileSync(a, b); fs.rmSync(a, { force: true, maxRetries: 5, retryDelay: 120 }); }
+  }
+  try { fs.rmdirSync(from); } catch (e) { /* the temp folder can linger */ }
+}
 
-console.log(`  -> vst3-apps/${slug}/plugin/   ${(bytes / 1048576).toFixed(1)} MB\n`);
+rmTree(dest);
+moveInto(stage, dest);
+
+console.log(`  -> ${destRel}/   ${(bytes / 1048576).toFixed(1)} MB\n`);

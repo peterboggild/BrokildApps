@@ -1,0 +1,4 @@
+[
+  {"wait": 600},
+  {"eval": "'1 final: bench=' + Math.round(SITE.kelvin) + ' local=' + Math.round(SITE.local) + ' tval=' + document.querySelector('#tval').textContent + ' distance=' + SITE.distance + ' siteRd=[' + document.querySelector('#siteRd').textContent + ']'"}
+]
