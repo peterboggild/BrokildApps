@@ -1,62 +1,88 @@
 {
   "_comment": [
-    "What the Brokild Collection zip is supposed to contain, declared rather than inferred.",
+    "The three Brokild collections, declared rather than inferred.",
     "",
     "A collection is a DERIVED artefact: it goes stale the moment the fleet gains or",
-    "renames a plugin, and it had done so twice before anyone noticed. So every plugin",
-    "that ships a -VST3-win64.zip must appear in exactly one of the two lists below,",
-    "and tools/check-links.js fails if it does not, or if the archive on disk disagrees",
-    "with 'includes', or if the site's wording contradicts the count.",
+    "renames a plug-in, and it had done so twice before anyone noticed. So every",
+    "plug-in that ships a download must appear in exactly one collection's `includes`",
+    "or in `excludes`, and tools/check-links.js fails if it does not, if an archive on",
+    "disk disagrees with its list, or if a page's wording contradicts a count.",
     "",
-    "Adding a plugin to the fleet therefore forces a decision about the collection",
-    "instead of leaving one to be remembered. Re-cutting the zip is a Windows job -",
-    "see HANDOVER-STATIONARY-PC.md."
+    "Adding a plug-in to the fleet therefore forces a decision about the collections",
+    "instead of leaving one to be remembered.",
+    "",
+    "The split was agreed 2026-09-23; see REPO-CONSOLIDATION.md. The three match the",
+    "three folders install-fleet.ps1 already creates, so the site and the disk are",
+    "the same idea."
   ],
-  "includes": [
-    "battlestar-overdrive",
-    "black-rider",
-    "blade-ruiner",
-    "brain-scan",
-    "clone-wars",
-    "escape-room",
-    "full-metal-racket",
-    "high-tide",
-    "martian-gain",
-    "photo-synth",
-    "thin-walls"
-  ],
+  "collections": {
+    "brokild": {
+      "title": "The Brokild Collection",
+      "folder": "vst3-apps/collection",
+      "installGroup": "Brokild collection",
+      "blurb": "The instruments and effects that are finished and meant to be used.",
+      "shape": "bundle + application + handbook",
+      "_shapeNote": "Every folder in this archive holds a plug-in, a standalone and a PDF. That promise is what makes the whole archive worth downloading, so the builder asserts it per plug-in and aborts rather than shipping a folder that is short.",
+      "includes": [
+        "1984",
+        "black-rider",
+        "blade-ruiner",
+        "clone-wars",
+        "escape-room",
+        "full-metal-racket",
+        "thirty-thousand-years",
+        "battlestar-overdrive",
+        "martian-gain",
+        "rite-of-passage",
+        "thin-walls"
+      ],
+      "claims": {
+        "count": 11,
+        "phrase": "seven instruments and four effects"
+      }
+    },
+    "experimental": {
+      "title": "The Experimental Collection",
+      "folder": "vst3-apps/experimental",
+      "installGroup": "Experimental",
+      "blurb": "Instruments that exist to ask a question about how sound can be made. Each one is a thesis rather than a product.",
+      "shape": "bundle + whatever documentation exists",
+      "_shapeNote": "The rule is relaxed here ON PURPOSE. A plug-in with a bundle and a README is an honest thing to find in this archive; holding it back until it has a standalone would mean never shipping the experiments at all.",
+      "_framing": "PURPOSE, NOT POLISH. Do not call these unfinished: Photo Synth carries the largest manual in the fleet at 38 pages, and Brain Scan and High Tide both ship full handbooks. What they are not is useful the way a compressor is useful, and that is the thing to say.",
+      "includes": [
+        "brain-scan",
+        "hairfryer",
+        "high-tide",
+        "legion",
+        "photo-synth"
+      ],
+      "claims": {
+        "count": 5,
+        "phrase": "three instruments and two effects"
+      }
+    },
+    "proxima": {
+      "title": "Proxima Centauri B — the findings",
+      "folder": "vst3-apps/proxima-centauri-b",
+      "installGroup": "Proxima Centauri B findings",
+      "blurb": "Four alien instruments recovered from one fiction, sharing a survey and a findings document but deliberately sharing no mechanisms.",
+      "shape": "bundle + whatever documentation exists",
+      "_shapeNote": "The four ship from one folder and share one Field Findings PDF, so the archive is four bundles and one document rather than four of everything.",
+      "includes": [
+        "b2311-1",
+        "b2311-22",
+        "b2311-67",
+        "b2311-104"
+      ],
+      "_includesNote": "These are the four zips inside vst3-apps/proxima-centauri-b, not folders of their own: the survey is the page they share.",
+      "claims": {
+        "count": 4,
+        "phrase": "all four objects",
+        "_comment": "The phrase the card already uses. Declared here so a change of membership forces the card to be rewritten, rather than imposing wording the page never chose."
+      }
+    }
+  },
   "excludes": {
-    "hairfryer": "In development - its own card says so, and a collection billed as finished work should not carry it.",
-    "rite-of-passage": "Left out on purpose: its zip carries the .vst3 bundle and a GUIDE.md, with no standalone and no manual, so it does not have the shape the other entries do - every plugin in the archive gets a folder with a bundle, an application and a handbook. Peter also asked for it to be kept minimal (\"you can just store it in the VST3 folder\"). Give it a standalone and a manual and it belongs here.",
-    "legion": "Same reason as rite-of-passage: VST3 only, no standalone and no manual yet."
-  },
-  "pending": {
-    "1984": "INTO the Brokild Collection. A finished instrument with a standalone, an 18-page handbook, 40 patches and a bench of 87 checks; it was simply never placed.",
-    "_comment": [
-      "DECIDED, not yet cut. A plug-in here is agreed to move and will do so at the",
-      "next re-cut of the collections; until then `includes` goes on describing what",
-      "the archive on disk really holds. check-links.js accepts a plug-in in exactly",
-      "one of includes, excludes or pending, and refuses one that appears in two.",
-      "",
-      "The three collections were agreed on 2026-09-23. See REPO-CONSOLIDATION.md."
-    ],
-    "rite-of-passage": "INTO the Brokild Collection, once it has a standalone and a manual. It ships a bundle and a GUIDE.md today, and every folder in that archive holds a bundle, an application and a handbook.",
-    "thirty-thousand-years": "INTO the Brokild Collection, once it is finished. Another session is still building it.",
-    "brain-scan": "OUT, into the Experimental Collection.",
-    "high-tide": "OUT, into the Experimental Collection.",
-    "photo-synth": "OUT, into the Experimental Collection.",
-    "hairfryer": "Moves from excluded INTO the Experimental Collection, where a plug-in that is still in development belongs.",
-    "legion": "INTO the Experimental Collection, once it has a landing page of its own so it is findable outside the archive."
-  },
-  "claims": {
-    "count": 11,
-    "phrase": "eight instruments and three effects",
-    "_comment": "Repeated across app.json, the collection page and the front page. Checked so a re-cut cannot update the zip and leave the prose saying ten. While `pending` is non-empty this describes the CURRENT archive, not the agreed one."
-  },
-  "download": {
-    "url": "https://github.com/peterboggild/BrokildApps/releases/download/collection-2026-09-22/Brokild-Collection-win64.zip",
-    "bytes": 106040644,
-    "sha256": "6b6a18a1af9b4881e8d31e644de3605955242325e7a5c4475bf59f3a66ea9552",
-    "_comment": "The archive is a GitHub RELEASE ASSET, not a file in this repository. At eleven plugins it is 101 MB and GitHub refuses any file over 100 MB outright - the push is rejected, so there is no choice to make. Git LFS is not an option either: GitHub Pages serves an LFS pointer rather than the file. Re-cutting therefore means uploading a new asset and pointing this url at it. The zip is kept on the PC beside this file, untracked, which is why the archive check in tools/check-links.js still runs there and skips in CI."
+    "_comment": "Ships a download, deliberately in no collection."
   }
-}
+}

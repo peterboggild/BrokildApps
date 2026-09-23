@@ -1,0 +1,23 @@
+{
+  "slug": "experimental-collection",
+  "name": "The Experimental Collection (all 5)",
+  "description": "Instruments that exist to ask a question about how sound can be made. Each one is a thesis rather than a product. Three instruments and two effects for Windows, with whatever documentation each one has. Each plug-in in here is byte-for-byte the same file as its own download.",
+  "status": "live",
+  "collection": true,
+  "url": "vst3-apps/experimental/index.html",
+  "icon": "more",
+  "cta": "Download all 5 →",
+  "preview": "assets/app-previews/experimental-collection.jpg",
+  "note": "Windows VST3 · 35 MB · three instruments and two effects · source included.",
+  "tags": [
+    "vst3"
+  ],
+  "downloads": [
+    {
+      "name": "Brokild-Experimental-Collection-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Brokild-Experimental-Collection-win64.zip",
+      "bytes": 36850726,
+      "sha256": "b0ba8603300a0ed549e886f23ff70f867db1ffe8d51a42a2e00a871cb48074f1"
+    }
+  ]
+}

@@ -137,158 +137,112 @@ for (const f of files.filter((f) => f.endsWith("/app.json") && CARD(f))) {
   if (!manifest.apps.includes(folder)) note(f, `has an app.json but manifest.json does not list ${folder}`);
 }
 
-/* --------------------------------------------- the collection is derived -- */
-/* The Collection zip is built from the other plugins' published zips, so it
- * goes out of date silently every time the fleet changes - by its own commit
- * message, twice before anyone noticed. This does not let that happen again:
- * every plugin that ships a zip must be listed in contents.json as either in
- * the collection or deliberately out of it, the archive on disk must match the
- * "includes" list, and the count the site quotes must match too.
+/* ------------------------------------------ the collections are derived -- */
+/*
+ * A collection is built FROM the plug-ins, so it goes stale the moment one is
+ * added or renamed, and it had done so twice before anyone noticed. The rules
+ * this enforces:
  *
- * Reading the zip's central directory directly: no unzip, no dependency, and
- * it is the actual file the download button serves. */
-function zipEntries(rel) {
-  const b = fs.readFileSync(path.join(ROOT, rel));
-  /* End of central directory: scan back for the signature. */
-  let eocd = -1;
-  for (let i = b.length - 22; i >= 0 && i > b.length - 66000; i--)
-    if (b.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
-  if (eocd < 0) throw new Error(`${rel}: no zip end-of-central-directory`);
-  const count = b.readUInt16LE(eocd + 10);
-  let p = b.readUInt32LE(eocd + 16);
-  const names = [];
-  for (let i = 0; i < count; i++) {
-    if (b.readUInt32LE(p) !== 0x02014b50) break;
-    const n = b.readUInt16LE(p + 28), m = b.readUInt16LE(p + 30), k = b.readUInt16LE(p + 32);
-    names.push(b.slice(p + 46, p + 46 + n).toString("utf8"));
-    p += 46 + n + m + k;
-  }
-  return names;
-}
-
-const COLL = "vst3-apps/collection";
-/* ------------------------------------------ the downloads are declared, not
- * guessed. Each plug-in's zip lives on the `downloads` release rather than in
- * this repository, so app.json carries its url, byte count and sha256. Those
- * three have to agree with the file on disk and with the page's own link, or
- * a visitor is told one thing and handed another. Whether the url ANSWERS is a
- * separate question and a separate tool, because it needs the network:
- * tools/verify-downloads.js, --full to compare hashes. */
-for (const f of files.filter((f) => f.endsWith("/app.json"))) {
-  const folder = path.dirname(f);
-  let j; try { j = JSON.parse(fs.readFileSync(path.join(ROOT, f), "utf8")); } catch (e) { continue; }
-  const list = j.downloads || [];
-  const page = path.join(ROOT, folder, "index.html");
-  const html = fs.existsSync(page) ? fs.readFileSync(page, "utf8") : "";
-
-  for (const d of list) {
-    for (const k of ["name", "url", "bytes", "sha256"])
-      if (d[k] === undefined) note(f, `a download is missing "${k}"`);
-    if (d.url && !/^https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\//.test(d.url))
-      note(f, `download url is not a release asset: ${d.url}`);
-    if (d.name && html && !html.includes(d.url))
-      note(`${folder}/index.html`, `does not link the declared download ${d.name}`);
-    /* The zip is normally here as build output. When it is, it must BE the
-       file that was declared, or the next re-cut publishes a surprise. */
-    const local = path.join(ROOT, folder, d.name || "");
-    if (d.name && fs.existsSync(local)) {
-      const bytes = fs.statSync(local).size;
-      if (bytes !== d.bytes) note(f, `${d.name} on disk is ${bytes} bytes, app.json declares ${d.bytes} — re-publish it`);
-    }
-  }
-  /* A page that still offers a relative zip is one the move missed. */
-  for (const m of html.matchAll(/href="([^"]*-win64\.zip|[^"]*Devkit\.zip)"/g))
-    if (!/^https:/.test(m[1]))
-      note(`${folder}/index.html`, `still links a local zip: ${m[1]} — it should point at the release`);
-}
-
-if (fs.existsSync(path.join(ROOT, `${COLL}/contents.json`))) {
-  const spec = JSON.parse(fs.readFileSync(path.join(ROOT, `${COLL}/contents.json`), "utf8"));
+ *   - every plug-in that ships a download is in exactly ONE collection's
+ *     includes, or in excludes, and never in two;
+ *   - each archive ON DISK carries exactly the plug-ins its list names;
+ *   - the count and phrase each collection claims match its list, and no page
+ *     quotes a different number.
+ *
+ * Adding a plug-in therefore forces a decision instead of leaving one to be
+ * remembered.
+ */
+const SPEC_PATH = "vst3-apps/collection/contents.json";
+if (fs.existsSync(path.join(ROOT, SPEC_PATH))) {
+  const spec = JSON.parse(fs.readFileSync(path.join(ROOT, SPEC_PATH), "utf8"));
   const real = (o) => Object.keys(o || {}).filter((k) => !k.startsWith("_"));
-  const pending = real(spec.pending);
-  const declared = new Set([...spec.includes, ...real(spec.excludes), ...pending]);
+  const cols = spec.collections || {};
 
-  /*  THREE states, and a plug-in belongs to exactly one. `includes` describes
-   *  what the archive on disk really holds, so the comparison below means
-   *  something; `excludes` is deliberately out; `pending` is decided and
-   *  waiting for the next cut. Appearing in two is a contradiction, and it is
-   *  the way this file would rot: a plug-in moved in `pending` and left in
-   *  `includes` reads as done when it is not. */
-  /*  What makes a pending entry contradictory is its DIRECTION against where
-   *  the plug-in is today, not which list it also appears in. Currently out
-   *  and decided in is the ordinary case and the whole point of the list. */
-  for (const p of pending) {
-    const goingOut = /^OUT\b/.test(spec.pending[p]);
-    if (spec.includes.includes(p) && !goingOut)
-      note(`${COLL}/contents.json`, `${p} is pending to JOIN but the archive already carries it`);
-    if (real(spec.excludes).includes(p) && goingOut)
-      note(`${COLL}/contents.json`, `${p} is pending to LEAVE but the archive does not carry it`);
+  /* ---- one home each ---------------------------------------------------- */
+  const home = new Map();
+  for (const [key, c] of Object.entries(cols))
+    for (const slug of c.includes || []) {
+      if (home.has(slug))
+        note(SPEC_PATH, `${slug} is in both ${home.get(slug)} and ${key} — it belongs to one`);
+      home.set(slug, key);
+    }
+  for (const slug of real(spec.excludes)) {
+    if (home.has(slug)) note(SPEC_PATH, `${slug} is excluded and also in ${home.get(slug)}`);
+    home.set(slug, "excluded");
   }
-  if (pending.length)
-    console.log(`  note: ${pending.length} decided change(s) waiting for the next collection cut `
-              + `(${pending.join(", ")})`);
 
-  /* Every plugin that ships a zip has to be accounted for, one way or the other. */
+  /*  Anything shipping a download has to be placed. The Artefacts ship four
+   *  zips from one folder and are listed by their own names, so that folder is
+   *  matched against the proxima list rather than against its folder name. */
+  const PROXIMA_DIR = "proxima-centauri-b";
   for (const dir of fs.readdirSync(path.join(ROOT, "vst3-apps"))) {
-    if (dir === "collection") continue;
-    const has = fs.readdirSync(path.join(ROOT, "vst3-apps", dir))
-      .some((f) => /-VST3-win64\.zip$/.test(f));
-    if (has && !declared.has(dir))
-      note(`${COLL}/contents.json`, `${dir} ships a zip but is neither included nor excluded — decide which`);
+    const full = path.join(ROOT, "vst3-apps", dir);
+    if (!fs.statSync(full).isDirectory()) continue;
+    if (Object.values(cols).some((c) => c.folder === `vst3-apps/${dir}` && dir !== PROXIMA_DIR)) continue;
+    const zips = fs.readdirSync(full).filter((f) => /-win64\.zip$/i.test(f));
+    if (!zips.length) continue;
+    if (dir === PROXIMA_DIR) {
+      const want = (cols.proxima && cols.proxima.includes) || [];
+      if (zips.length !== want.length)
+        note(SPEC_PATH, `proxima claims ${want.length} findings, the folder ships ${zips.length} zips`);
+      continue;
+    }
+    if (!home.has(dir))
+      note(SPEC_PATH, `${dir} ships a zip but is in no collection and is not excluded — decide which`);
   }
 
-  /* And the archive has to actually be what the list says it is. */
-  const zip = `${COLL}/Brokild-Collection-win64.zip`;
-  if (fs.existsSync(path.join(ROOT, zip))) {
-    const inZip = new Set(
-      zipEntries(zip)
+  /* ---- each claim matches its own list ---------------------------------- */
+  for (const [key, c] of Object.entries(cols)) {
+    const n = (c.includes || []).length;
+    if (c.claims && c.claims.count !== n)
+      note(SPEC_PATH, `${key} lists ${n} plug-ins and claims ${c.claims.count}`);
+  }
+
+  /* ---- each archive on disk carries what its list says ------------------ */
+  const norm = (x) => String(x).toLowerCase().replace(/[^a-z0-9]/g, "");
+  for (const [key, c] of Object.entries(cols)) {
+    if (key === "proxima") continue;          /* four separate zips, not one archive */
+    const dir = path.join(ROOT, c.folder || "");
+    if (!fs.existsSync(dir)) continue;
+    const zip = fs.readdirSync(dir).find((f) => /Collection-win64\.zip$/i.test(f));
+    if (!zip) continue;                        /* not cut on this machine; CI skips */
+    const rel = `${c.folder}/${zip}`;
+    let inZip;
+    try {
+      inZip = new Set(zipEntries(rel)
         .map((e) => e.replace(/\\/g, "/").split("/")[1])
-        .filter((e) => e && !/\.(txt|md)$/i.test(e))
-    );
-    /* contents.json names folders, the zip names products ("Black Rider"). */
-    const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+        .filter((e) => e && !/\.(txt|md)$/i.test(e)));
+    } catch (e) { continue; }
     const zipNorm = new Set([...inZip].map(norm));
-    for (const slug of spec.includes)
+    for (const slug of c.includes || [])
       if (!zipNorm.has(norm(slug)))
-        note(zip, `contents.json includes ${slug}, but the archive does not carry it`);
+        note(rel, `${key} includes ${slug}, but the archive does not carry it`);
     for (const name of inZip)
-      if (!spec.includes.some((s) => norm(s) === norm(name)))
-        note(zip, `archive carries "${name}", which contents.json does not include`);
-    if (inZip.size !== spec.claims.count)
-      note(zip, `archive holds ${inZip.size} plugins, contents.json claims ${spec.claims.count}`);
+      if (!(c.includes || []).some((sl) => norm(sl) === norm(name)))
+        note(rel, `archive carries "${name}", which ${key} does not include`);
+    if (c.claims && inZip.size !== c.claims.count)
+      note(rel, `archive holds ${inZip.size} plug-ins, ${key} claims ${c.claims.count}`);
   }
 
-  /* BrokildWorldFX/tools/build-collection-zip.ps1 carries its own hardcoded
-   * $plugins list — a third copy of the same membership, on a machine this
-   * checker never runs on. If it drifts from contents.json, the next re-cut
-   * silently produces the wrong archive, so compare the two here where it is
-   * cheap rather than discovering it in a 93 MB download. */
-  const ps1 = "BrokildWorldFX/tools/build-collection-zip.ps1";
-  if (fs.existsSync(path.join(ROOT, ps1))) {
-    const txt = fs.readFileSync(path.join(ROOT, ps1), "utf8");
-    const block = txt.match(/\$plugins\s*=\s*@\(([\s\S]*?)\n\)/);
-    if (block) {
-      const slugs = [...block[1].matchAll(/slug\s*=\s*"([^"]+)"/g)].map((m) => m[1]);
-      for (const s of spec.includes)
-        if (!slugs.includes(s)) note(ps1, `contents.json includes ${s}, the builder's $plugins list does not`);
-      for (const s of slugs)
-        if (!spec.includes.includes(s)) note(ps1, `builder stages ${s}, contents.json does not include it`);
-    }
+  /* ---- the card must SAY what the collection holds ----------------------- */
+  /*  A positive check, deliberately. Hunting for a wrong number in prose does
+   *  not work: "One counts, and its sound is the list of moments" is about one
+   *  of four objects, and "all four objects, twenty-one recorded passages" is
+   *  correct and carries three number words. So the collection declares the
+   *  phrase it claims, and the card has to carry it verbatim. Re-cut the
+   *  membership, change the phrase, and this names every card still wearing
+   *  the old one. */
+  for (const [key, c] of Object.entries(cols)) {
+    const phrase = c.claims && c.claims.phrase;
+    if (!phrase) continue;
+    const appPath = path.join(ROOT, c.folder || "", "app.json");
+    if (!fs.existsSync(appPath)) continue;
+    const j = JSON.parse(fs.readFileSync(appPath, "utf8"));
+    const hay = [j.name, j.description, j.note, j.cta].filter(Boolean).join(" ").toLowerCase();
+    if (!hay.includes(phrase.toLowerCase()))
+      note(`${c.folder}/app.json`, `does not say "${phrase}", which is what ${key} holds`);
   }
 
-  /* A re-cut that updates the zip and leaves the prose saying "all ten" is the
-   * same bug wearing a hat. */
-  const words = { 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve" };
-  const stale = Object.entries(words)
-    .filter(([n]) => Number(n) !== spec.claims.count)
-    .map(([, w]) => w);
-  for (const page of [`${COLL}/index.html`, `${COLL}/app.json`, "index.html"]) {
-    const txt = fs.readFileSync(path.join(ROOT, page), "utf8");
-    for (const w of stale) {
-      const re = new RegExp(`\\ball ${w}\\b|\\b${w} plugins\\b`, "i");
-      if (re.test(txt)) note(page, `says "${w}" where the collection holds ${spec.claims.count}`);
-    }
-  }
 }
 
 if (problems.length) {

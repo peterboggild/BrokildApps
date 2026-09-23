@@ -39,15 +39,16 @@ $plugins = @(
   @{ dir = "EscapeRoom";       name = "Escape Room";        group = "Brokild collection" },
   @{ dir = "FullMetalRacket";  name = "Full Metal Racket";  group = "Brokild collection" },
   @{ dir = "MarsWars";         name = "Martian Gain";       group = "Brokild collection" },
-  @{ dir = "PhotoSynth";       name = "Photo Synth";        group = "Brokild collection" },
-  @{ dir = "HighTide";         name = "High Tide";          group = "Brokild collection" },
-  @{ dir = "BrainScan";        name = "Brain Scan";         group = "Brokild collection" },
+  @{ dir = "PhotoSynth";       name = "Photo Synth";        group = "Experimental" },
+  @{ dir = "HighTide";         name = "High Tide";          group = "Experimental" },
+  @{ dir = "BrainScan";        name = "Brain Scan";         group = "Experimental" },
   @{ dir = "BattlestarOverdrive"; name = "Battlestar Overdrive"; group = "Brokild collection" },
   @{ dir = "ThinWalls";         name = "Thin Walls";         group = "Brokild collection" },
   @{ dir = "Nineteen84";        name = "1984";               group = "Brokild collection" },
+  @{ dir = "ThirtyThousandYears"; name = "Thirty Thousand Years"; group = "Brokild collection" },
   # Legion's source lives in the WEBSITE repo (like Clone Wars), so it has no
   # tree under b\ — it is built to b\_build\Legion and named here explicitly.
-  @{ dir = "Legion";           name = "Legion";             group = "Brokild collection";
+  @{ dir = "Legion";           name = "Legion";             group = "Experimental";
      build = "C:\Users\peter\b\_build\Legion\plugin" }
   # Rite of Passage: same arrangement - source in the website repo (checked out
   # to b\_worktrees\rop), built to b\_build\RiteOfPassage\plugin.

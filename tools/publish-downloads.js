@@ -84,12 +84,15 @@ function findZips(dir, out = []) {
     if (e.name === ".git" || e.name === "node_modules" || e.name === "build") continue;
     const rel = `${dir}/${e.name}`;
     if (e.isDirectory()) findZips(rel, out);
-    else if (e.name.toLowerCase().endsWith(".zip") && !/Brokild-Collection/i.test(e.name)) out.push(rel);
+    else if (e.name.toLowerCase().endsWith(".zip")) out.push(rel);
   }
   return out;
 }
 let zips = findZips("vst3-apps").sort();
 if (only.length) zips = zips.filter((z) => only.some((o) => z.includes(o)));
+/*  The collection archives are 150 MB between them and change only when they
+ *  are re-cut, so a bulk run leaves them alone. Name one and it uploads. */
+else zips = zips.filter((z) => !/Collection-win64\.zip$/i.test(path.basename(z)));
 if (!zips.length) { console.error("no zips found under vst3-apps" + (only.length ? " matching " + only.join(" ") : "")); process.exit(1); }
 
 const report = [];
