@@ -34,7 +34,7 @@ juce_add_plugin(RITEOFPASSAGE
     PLUGIN_CODE               Rop1
     COMPANY_NAME              "Brokild"
     BUNDLE_ID                 "dk.brokild.riteofpassage"
-    FORMATS                   VST3
+    FORMATS                   VST3 Standalone
     IS_SYNTH                  FALSE
     NEEDS_MIDI_INPUT          FALSE
     NEEDS_MIDI_OUTPUT         FALSE

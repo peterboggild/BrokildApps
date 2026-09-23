@@ -30,7 +30,7 @@
     "vst3-apps/collection",
     "vst3-apps/1984",
     "vst3-apps/thirty-thousand-years",
-"vst3-apps/thin-walls",
+    "vst3-apps/thin-walls",
     "vst3-apps/rite-of-passage",
     "vst3-apps/battlestar-overdrive",
     "vst3-apps/clone-wars",
@@ -44,6 +44,7 @@
     "vst3-apps/martian-gain",
     "vst3-apps/blade-ruiner",
     "vst3-apps/escape-room",
+    "vst3-apps/legion",
     "vst3-apps/hairfryer",
     "health-apps/sleep-noise"
   ]

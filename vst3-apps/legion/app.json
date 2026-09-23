@@ -1,0 +1,23 @@
+{
+  "slug": "legion",
+  "name": "Legion (VST3, in development)",
+  "description": "One voice in, a choir of it out. Up to four copies, each with its own pitch AND its own body size, because a voice shifted without separating those two is a chipmunk rather than a singer. FOLLOW decides how much the body rides the note, so the same person can sing higher instead of becoming a cartoon. HUMANISE gives each copy uncorrelated detune, level shimmer and timing stagger, which is the difference between a section and a stack. The Brokild World rack sits on the harmony bus by default, so it grinds the copies and leaves the lead alone. Measured but not yet heard: 113 engine checks pass and nobody has put a scream through it.",
+  "status": "live",
+  "url": "vst3-apps/legion/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/legion.jpg",
+  "note": "Windows VST3 · in development · free download · 4 voices · independent pitch and formant · BWFX rack · source included.",
+  "tags": [
+    "vst3",
+    "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Legion-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Legion-VST3-win64.zip",
+      "bytes": 2424749,
+      "sha256": "15b0cad44356a50e6bec30df48ee38ecf6d2718ecc979c30854464fe6d662aab"
+    }
+  ]
+}
