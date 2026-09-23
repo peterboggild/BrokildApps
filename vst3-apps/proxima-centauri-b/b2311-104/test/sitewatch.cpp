@@ -12,7 +12,7 @@
       sitewatch            one snapshot
       sitewatch 30         watch for 30 seconds, printing every change
 */
-#include "../../BrokildWorldFX/adapter/proxima_site.h"
+#include "BrokildWorldFX/adapter/proxima_site.h"
 #include <cstdio>
 #include <cstdlib>
 #include <string>

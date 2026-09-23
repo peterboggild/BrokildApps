@@ -6,7 +6,7 @@
     Kuramoto step pulls phases together when cold and close and leaves them
     alone when hot or far; coupling OFF gives a pull of exactly zero; and a
     closed client's slot goes free. Run it after any change to proxima_site.h. */
-#include "../../BrokildWorldFX/adapter/proxima_site.h"
+#include "BrokildWorldFX/adapter/proxima_site.h"
 #include <cstdio>
 #include <cmath>
 

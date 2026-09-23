@@ -13,7 +13,7 @@
       * no ping-pong: after a move, everything settles and stays settled
       * climate off changes nobody's temperature, ever
 */
-#include "../../BrokildWorldFX/adapter/proxima_site.h"
+#include "BrokildWorldFX/adapter/proxima_site.h"
 #include <cstdio>
 #include <cmath>
 #include <vector>
