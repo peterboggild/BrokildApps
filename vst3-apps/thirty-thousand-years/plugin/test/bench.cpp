@@ -455,6 +455,35 @@ static void testLifeHistory()
         std::snprintf (detail, sizeof detail, "%d flat, least travelled %s at %.3f", flat, worst.c_str(), worstD);
         check (flat == 0, title, detail);
     }
+
+    /*  ...AND AN ARMED JOURNEY MUST NOT FREEZE THE REST OF THE INSTRUMENT.
+        A scene is stored as a full copy of the patch, so the obvious reading of
+        "interpolate every scene parameter" writes the same number over every
+        knob the scenes happen not to move. Peter found it: with HISTORY armed,
+        SIGNAL's LEVEL did nothing and its ON would not stop the sound. Any
+        preset with scenes will do -- the point is a control the journey never
+        names. */
+    {
+        int idx = -1;
+        for (int i = 0; i < numPresets() && idx < 0; ++i)
+        { Engine* e = fresh (48000.0, i); if (e->p.sw (P_h_on)) idx = i; delete e; }
+
+        /*  Assert on the value that REACHES the engine, not on loudness: a
+            preset whose MEMORY and STRUCTURE are also sounding will not halve
+            when only MASS and SIGNAL are pulled, and that says nothing about
+            whether the knob was heard. */
+        Engine* a = fresh (48000.0, idx);
+        a->p[P_h_mode] = 0; a->p[P_h_pos] = 0.4f;
+        a->noteOn (48, 0.8f, 0); render (*a, 0.5);
+        const float held = a->eff[P_s_gain];
+        a->p[P_s_gain] = 0.0f;                       // the player turns SIGNAL down
+        render (*a, 0.5);
+        const float after = a->eff[P_s_gain];
+        check (held > 0.05f && after < 0.02f,
+               "an armed HISTORY leaves the knobs it does not travel alone",
+               [&]{ static char d[160]; std::snprintf (d, sizeof d, "%s: SIGNAL LEVEL %.3f, then %.3f after the hand", preset (idx).name, held, after); return d; }());
+        delete a;
+    }
 }
 
 static void testPanicDeterminismRates()

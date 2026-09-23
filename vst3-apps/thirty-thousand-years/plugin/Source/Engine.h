@@ -123,6 +123,18 @@ private:
         is already up. */
     bool  keysHeld = false;
     float quietFor = 1.0e9f;        // seconds since the last key was let go
+
+    /*  YOUR HAND BEATS THE JOURNEY. HISTORY writes effTarget every control
+        tick, so a parameter it is travelling cannot be moved by its own knob --
+        the next tick puts it back. Touch one and it is FREED: HISTORY stops
+        writing it and it stays where you left it, until the journey is re-armed
+        or a patch is loaded. Marked, never removed from the scenes, so the
+        stored journey is still intact when it is re-armed.
+        The touch is detected by watching the HOST value, which only the player
+        and the host ever write -- HISTORY never writes p. */
+    float hSeen[NUM_PARAMS] = {};
+    bool  hFreed[NUM_PARAMS] = {};
+    bool  hSeenValid = false, hWasOn = false;
     float slewA = 0.1f; bool effPrimed = false;
     float freezeOverride = 0.0f, loopKick = 0.0f;
     float specAcc[SPEC_N] = {}; int specW = 0; Fft specFft; std::vector<float> specRe, specIm, specWin;

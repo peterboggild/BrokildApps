@@ -102,6 +102,7 @@ void Engine::reset()
     mem.reset(); life.reset(); space.reset(); loop.reset(); out.lim.reset();
     monoDepth = 0; wasDrone = false; lastDroneChord = -1; lastDroneRoot = -1;
     sustain = false;   // the pedal is a held control, not state to carry through a reset
+    hSeenValid = false;   // a patch load re-arms the journey over every knob
     panicFade = false; panicGain = 1.0f;
     freezeOverride = 0.0f; loopKick = 0.0f; histNudge = 0.0f;
     std::fill (std::begin (loopRetL), std::end (loopRetL), 0.0f); std::fill (std::begin (loopRetR), std::end (loopRetR), 0.0f);
@@ -370,7 +371,38 @@ void Engine::applyHistory()
     for (int i = 0; i < 4; ++i) if (sceneSet[i]) order[cnt++] = i;
     effTarget = p;
     if (cnt == 0) return;
-    if (cnt == 1) { const Params& a = scene[order[0]]; for (int i = 0; i < NUM_PARAMS; ++i) if (paramInScene (paramSpec (i))) effTarget.v[i] = a.v[i]; return; }
+
+    /*  HISTORY OWNS ONLY WHAT THE SCENES ACTUALLY MOVE.
+        A scene is stored as a FULL copy of the patch, so without this test
+        every parameter in every scene is written over the live value on every
+        control tick -- and since most of them hold the same number in all four
+        scenes, the result is that arming HISTORY silently freezes every knob
+        the journey does not use. Peter found it the honest way: SIGNAL's LEVEL
+        did nothing and its ON would not stop the sound.
+        A parameter that is identical in every stored scene is not travelling,
+        so it belongs to the player, not to the journey. */
+    auto travels = [&] (int i)
+    {
+        const float v0 = scene[order[0]].v[i];
+        for (int k = 1; k < cnt; ++k) if (scene[order[k]].v[i] != v0) return true;
+        return false;
+    };
+
+    /*  and a parameter you have moved by hand is yours from then on */
+    const bool on = p.sw (P_h_on);
+    if (! hSeenValid || (on && ! hWasOn))            // arming re-arms everything
+    {
+        for (int i = 0; i < NUM_PARAMS; ++i) { hSeen[i] = p.v[i]; hFreed[i] = false; }
+        hSeenValid = true;
+    }
+    else
+    {
+        for (int i = 0; i < NUM_PARAMS; ++i)
+            if (p.v[i] != hSeen[i]) { hFreed[i] = true; hSeen[i] = p.v[i]; }
+    }
+    hWasOn = on;
+
+    if (cnt == 1) return;   // one scene is not a journey: nothing travels, so nothing is owned
     int ia = order[0], ib = order[cnt - 1]; float ta = sp[order[0]], tb = sp[order[cnt - 1]];
     for (int k = 0; k + 1 < cnt; ++k)
         if (pos >= sp[order[k]] && pos <= sp[order[k + 1]]) { ia = order[k]; ib = order[k + 1]; ta = sp[ia]; tb = sp[ib]; break; }
@@ -380,6 +412,8 @@ void Engine::applyHistory()
     {
         const PSpec& s = paramSpec (i);
         if (! paramInScene (s)) continue;
+        if (! travels (i)) continue;            // the knob keeps it
+        if (hFreed[i]) continue;                // and so does a hand that moved it
         if (paramStepped (s)) effTarget.v[i] = t < 0.5f ? A.v[i] : B.v[i];
         else effTarget.v[i] = lerp (A.v[i], B.v[i], t);      // normalised space is already log for Hz/ms, linear for semitones
     }

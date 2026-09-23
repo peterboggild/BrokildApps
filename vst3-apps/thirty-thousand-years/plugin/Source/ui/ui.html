@@ -1311,7 +1311,7 @@ var VIEWS = [
 { k:"main", tab:"MAIN", rows:[
   { h:294, cols:[{ w:350, sp:"strata", si:0 },{ w:350, sp:"strata", si:1 },
                  { w:350, sp:"strata", si:2 },{ w:350, sp:"strata", si:3 }] },
-  { h:192, cols:[{ w:884, p:[{ t:"HISTORY", sp:"hsc", note:"four scenes, one journey" }] },
+  { h:168, cols:[{ w:884, p:[{ t:"HISTORY", sp:"hsc", note:"four scenes, one journey" }] },
                  { w:0, flex:1, p:[{ t:"SPECTRAL RECORD", cy:1, sp:"rec", note:"48 bands · the strata of what has been played" }] }] }
 ]},
 
@@ -1379,7 +1379,7 @@ var VIEWS = [
   { k:"rnd",  tab:"RANDOM & FOLLOW",  cols:[
       { w:700, p:[{ t:"RANDOM SOURCES", sp:"rnd" }] },
       { w:432, p:[{ t:"FOLLOWERS", sp:"fol" }] },
-      { w:0, flex:1, p:[{ t:"MODULATION SOURCES", cy:1, sp:"srcpal", note:"drag a source onto any control" }] }] },
+      { w:0, flex:1, p:[{ t:"SOURCES", cy:1, sp:"srcpal", note:"drag a source onto any control" }] }] },
   { k:"evt",  tab:"EVENTS & NETWORK", cols:[
       { w:700, p:[{ t:"EVENT LANES", sp:"evt" }] },
       { w:430, p:[{ t:"THE LIFE NETWORK", amb:1, c:[A("l_autonomy","AUTONOMY"),A("l_coupling","COUPLING"),A("l_recovery","RECOVERY"),A("l_smooth","SMOOTH"),A("l_hyst","HYSTERESIS"),A("l_hold","HOLD LIFE")] }] },
@@ -1415,7 +1415,7 @@ var VIEWS = [
     { w:520, p:[
       { t:"SPACE", cy:1, c:[A("e_rv_mix","AMOUNT"),A("e_rv_pre","PRE-DELAY"),A("e_rv_size","SIZE"),A("e_rv_decay","DECAY"),A("e_rv_diff","DIFFUSION"),A("e_rv_damp","HIGH DAMP"),A("e_rv_low","LOW DECAY"),A("e_rv_mod","MOTION"),A("e_rv_early","EARLY/LATE"),A("e_rv_freeze","FREEZE")] }] },
     { w:340, p:[
-      { t:"PERSPECTIVE", c:[A("e_scale","APPARENT SCALE"),A("e_distance","DISTANCE")], sp:"spaceE" }] },
+      { t:"PERSPECTIVE", c:[A("e_scale","SCALE"),A("e_distance","DISTANCE")], sp:"spaceE" }] },
     { w:0, flex:1, p:[
       { t:"FEEDBACK LOOP", amb:1, c:[A("e_fb_send","SEND"),A("e_fb_ret","RETURN"),A("e_fb_delay","DELAY"),A("e_fb_hp","HIGH-PASS"),A("e_fb_lp","LOW-PASS"),A("e_fb_shift","SHIFT"),A("e_fb_sat","SATURATION"),A("e_fb_damp","DAMPING"),A("e_fb_to","RETURNS TO",W104)], sp:"loopE" }] }
   ]}
@@ -1449,9 +1449,9 @@ var FOOTP = [
    ══════════════════════════════════════════════════════════════════════════ */
 var TRAVELC = function (w) {
   return [[ "h_pos", "HISTORY", { w: w } ], A("h_mode","DRIVE",W86), A("h_dur","DURATION"),
-          A("h_bars","BARS",W86), A("h_loop","AT THE END",W96)];
+          A("h_bars","BARS",W86), A("h_loop","AT THE END",W96), A("h_rewind","NEW CHORD",W86)];
 };
-var TRAVELCH = [A("h_on","HISTORY",{cls:"chip"}), A("h_hold","HOLD HIST",{cls:"chip"}), A("h_rewind","REWIND",{cls:"chip"}), A("l_hold","HOLD LIFE",{cls:"chip"})];
+var TRAVELCH = [A("h_on","HISTORY",{cls:"chip"}), A("h_hold","HOLD HIST",{cls:"chip"}), A("l_hold","HOLD LIFE",{cls:"chip"})];
 
 var VE = {}, PANELS = [], CURV = "main", CURP = {}, PLACED = {}, SP = {};
 var SREC = [], SBTN = [], SLAMP = [];       /* scene tiles, in both homes */
@@ -1672,7 +1672,7 @@ SP.hsc = function (p) {
   tr.style.marginTop = "4px"; tr.style.alignItems = "flex-start"; tr.style.gap = "4px";
   var pw = el("div", "panel", tr);
   pw.dataset.panel = "TRAVEL SMALL"; pw.style.cssText = "flex:1;padding:0;border:none;background:none;box-shadow:none";
-  pw._row = el("div", "row", pw); pw._want = TRAVELC(360); PANELS.push(pw);
+  pw._row = el("div", "row", pw); pw._want = TRAVELC(300); PANELS.push(pw);
   var cw = el("div", "panel", tr);
   cw.dataset.panel = "HOLDS"; cw.style.cssText = "flex:none;width:80px;padding:0;border:none;background:none;box-shadow:none";
   cw._row = el("div", "col", cw); cw._row.style.gap = "2px"; cw._want = TRAVELCH; PANELS.push(cw);
@@ -2486,7 +2486,7 @@ NB.on("presetTree", function (d) { if (d) { TREE = d; POPS.forEach(function (p) 
    way to steer or read it (the BWFX.debug() argument).
    ══════════════════════════════════════════════════════════════════════════ */
 window.__TTY = {
-  version: "260923.3",
+  version: "260923.4",
   get: function (id) { return V[id]; },
   set: function (id, v) { setP(id, v); },
   eff: function (id) { return effOf(id); },

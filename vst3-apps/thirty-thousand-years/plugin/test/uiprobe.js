@@ -363,6 +363,24 @@ const DRIVER = String.raw`
                   var where = (p.dataset.panel || p.className || "?");
                   if (p.scrollHeight > p.clientHeight + 2 && cs.overflowY !== "auto") over.push(v.join("/") + " " + where + " h" + p.scrollHeight + ">" + p.clientHeight);
                   if (p.scrollWidth > p.clientWidth + 2 && cs.overflowX !== "auto") over.push(v.join("/") + " " + where + " w" + p.scrollWidth + ">" + p.clientWidth);
+                  /*  scrollHeight does not always grow for a clipped child, so
+                      a control can be cut off by the panel edge with the two
+                      checks above passing -- which is how a chip ended up
+                      almost entirely hidden under the panel below it. Measure
+                      every control against the box it sits in. */
+                  var pb = p.getBoundingClientRect();
+                  Array.prototype.forEach.call(p.querySelectorAll(".ctl"), function (c) {
+                    var cb = c.getBoundingClientRect();
+                    if (cb.width < 1 && cb.height < 1) return;          // genuinely hidden, not clipped
+                    if (cb.bottom > pb.bottom + 1 || cb.right > pb.right + 1 || cb.top < pb.top - 1 || cb.left < pb.left - 1)
+                      over.push(v.join("/") + " " + where + " CLIPPED " + (c.dataset.id || c.textContent.trim().slice(0, 12)));
+                  });
+                  /*  ...and TEXT that does not fit its own box, which is what a
+                      truncated label looks like from the outside. */
+                  Array.prototype.forEach.call(p.querySelectorAll(".ctl .lab, .ctl .val, .pt, .psub"), function (t) {
+                    if (t.scrollWidth > t.clientWidth + 1 && t.clientWidth > 0)
+                      over.push(v.join("/") + " " + where + " TRUNCATED \"" + t.textContent.trim().slice(0, 18) + "\" " + t.scrollWidth + ">" + t.clientWidth);
+                  });
                 });
               });
             });
