@@ -53,8 +53,22 @@ The two halves of the job are therefore independent: **source in, binaries out.*
 | BrokildWorldFX | The copy in this repo becomes **the only one**. The mirror step disappears. |
 | CI | **One plugin first**, proven, then the rest as each is next touched. |
 
-Expected result: a clone of roughly **60 MB**, holding every plugin's source,
-every landing page and every manual, with the binaries hanging off releases.
+Expected result, **corrected against the measurement**: a checkout of about
+**208 MB**, not the 60 MB estimated before the move. The estimate counted the
+manuals and the source and forgot the art. What is actually there:
+
+| | |
+|---|---|
+| PNG, 266 files | 103 MB |
+| Manuals, 16 PDFs | 38 MB |
+| JPEG plates, 322 files | 35 MB |
+| Demo audio, 34 mp3s | 18 MB |
+| Everything else, source included | 14 MB |
+
+The art is the repository now, and that is the cost of a tree someone can
+actually rebuild a panel from. The history strip still takes the CLONE from
+1.9 GB to roughly that 208 MB, which is the win it was always going to be;
+it just does not make the art disappear.
 
 ---
 
@@ -208,11 +222,35 @@ builds the plug-in and `render_test` and never the probe targets. They are kept,
 excluded from the default build, with the date and the reason on them. **A
 target nothing ever builds is a target that rots silently.**
 
-**Stage 2 — binaries out, history stripped.**
-Zips to per-plugin release assets, `app.json` declaring url, bytes and sha256.
-`tools/check-links.js` extended to verify every declared download the way it
-already verifies the collection's. Then `git filter-repo` over the old zip
-blobs, and a fresh clone measured.
+**Stage 2 — binaries out. DONE 2026-09-23. History strip HELD, see below.**
+
+All nineteen plug-in zips are assets on a single `downloads` release, the same
+answer the collection archive already needed at the 100 MB limit. One stable
+tag rather than a dated one: a plug-in carries its own build id, so what
+matters is "the current download", and re-cutting replaces one asset.
+
+Each `app.json` declares `downloads: [{name, url, bytes, sha256}]` and each
+landing page links the release. **Verified before anything was deleted:** every
+asset fetched back from its public url, unauthenticated, and its sha256
+compared with the local file. 19 of 19 byte-identical. `tools/verify-downloads.js`
+does it again on demand, `--full` for hashes.
+
+`check-links.js` now proves each declared download agrees with the file on disk
+and with the page's own link, and refuses a page still offering a relative zip.
+
+**THE HISTORY STRIP IS NOT DONE, and holding it is deliberate:**
+
+1. **Another session is working in this repository right now**, on Thirty
+   Thousand Years, writing files minutes apart. A history rewrite is a
+   force-push by definition and would orphan whatever they have committed.
+2. **The tools are not on this machine.** No `git filter-repo`, no Python to
+   install it with, no Java for BFG. `git filter-branch` is built in but
+   deprecated and slow over a pack this size.
+3. **It wants a quiet moment and a re-clone.** Every commit hash changes, so
+   the working copy here has to be re-cloned immediately afterwards.
+
+The right shape is one deliberate operation once Thirty Thousand Years has
+landed and the other session is done. Nothing else waits on it.
 
 **Stage 3 — Rite of Passage gets a standalone and a manual.**
 The standalone is a CMake format flag and a rebuild. GUIDE.md is already 19 KB
