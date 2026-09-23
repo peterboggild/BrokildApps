@@ -195,7 +195,29 @@ for (const f of files.filter((f) => f.endsWith("/app.json"))) {
 
 if (fs.existsSync(path.join(ROOT, `${COLL}/contents.json`))) {
   const spec = JSON.parse(fs.readFileSync(path.join(ROOT, `${COLL}/contents.json`), "utf8"));
-  const declared = new Set([...spec.includes, ...Object.keys(spec.excludes)]);
+  const real = (o) => Object.keys(o || {}).filter((k) => !k.startsWith("_"));
+  const pending = real(spec.pending);
+  const declared = new Set([...spec.includes, ...real(spec.excludes), ...pending]);
+
+  /*  THREE states, and a plug-in belongs to exactly one. `includes` describes
+   *  what the archive on disk really holds, so the comparison below means
+   *  something; `excludes` is deliberately out; `pending` is decided and
+   *  waiting for the next cut. Appearing in two is a contradiction, and it is
+   *  the way this file would rot: a plug-in moved in `pending` and left in
+   *  `includes` reads as done when it is not. */
+  /*  What makes a pending entry contradictory is its DIRECTION against where
+   *  the plug-in is today, not which list it also appears in. Currently out
+   *  and decided in is the ordinary case and the whole point of the list. */
+  for (const p of pending) {
+    const goingOut = /^OUT\b/.test(spec.pending[p]);
+    if (spec.includes.includes(p) && !goingOut)
+      note(`${COLL}/contents.json`, `${p} is pending to JOIN but the archive already carries it`);
+    if (real(spec.excludes).includes(p) && goingOut)
+      note(`${COLL}/contents.json`, `${p} is pending to LEAVE but the archive does not carry it`);
+  }
+  if (pending.length)
+    console.log(`  note: ${pending.length} decided change(s) waiting for the next collection cut `
+              + `(${pending.join(", ")})`);
 
   /* Every plugin that ships a zip has to be accounted for, one way or the other. */
   for (const dir of fs.readdirSync(path.join(ROOT, "vst3-apps"))) {

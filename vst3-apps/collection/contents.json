@@ -30,10 +30,28 @@
     "rite-of-passage": "Left out on purpose: its zip carries the .vst3 bundle and a GUIDE.md, with no standalone and no manual, so it does not have the shape the other entries do - every plugin in the archive gets a folder with a bundle, an application and a handbook. Peter also asked for it to be kept minimal (\"you can just store it in the VST3 folder\"). Give it a standalone and a manual and it belongs here.",
     "legion": "Same reason as rite-of-passage: VST3 only, no standalone and no manual yet."
   },
+  "pending": {
+    "1984": "INTO the Brokild Collection. A finished instrument with a standalone, an 18-page handbook, 40 patches and a bench of 87 checks; it was simply never placed.",
+    "_comment": [
+      "DECIDED, not yet cut. A plug-in here is agreed to move and will do so at the",
+      "next re-cut of the collections; until then `includes` goes on describing what",
+      "the archive on disk really holds. check-links.js accepts a plug-in in exactly",
+      "one of includes, excludes or pending, and refuses one that appears in two.",
+      "",
+      "The three collections were agreed on 2026-09-23. See REPO-CONSOLIDATION.md."
+    ],
+    "rite-of-passage": "INTO the Brokild Collection, once it has a standalone and a manual. It ships a bundle and a GUIDE.md today, and every folder in that archive holds a bundle, an application and a handbook.",
+    "thirty-thousand-years": "INTO the Brokild Collection, once it is finished. Another session is still building it.",
+    "brain-scan": "OUT, into the Experimental Collection.",
+    "high-tide": "OUT, into the Experimental Collection.",
+    "photo-synth": "OUT, into the Experimental Collection.",
+    "hairfryer": "Moves from excluded INTO the Experimental Collection, where a plug-in that is still in development belongs.",
+    "legion": "INTO the Experimental Collection, once it has a landing page of its own so it is findable outside the archive."
+  },
   "claims": {
     "count": 11,
     "phrase": "eight instruments and three effects",
-    "_comment": "Repeated across app.json, the collection page and the front page. Checked so a re-cut cannot update the zip and leave the prose saying ten."
+    "_comment": "Repeated across app.json, the collection page and the front page. Checked so a re-cut cannot update the zip and leave the prose saying ten. While `pending` is non-empty this describes the CURRENT archive, not the agreed one."
   },
   "download": {
     "url": "https://github.com/peterboggild/BrokildApps/releases/download/collection-2026-09-22/Brokild-Collection-win64.zip",
