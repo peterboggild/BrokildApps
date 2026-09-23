@@ -11,6 +11,11 @@ the world rack: its modules, the overlay, the rack machinery, SPECTRA.)
 
 ## Open
 
+### 18. Fleet rebuild for BWFX 1.7.1 (RACK MIX drives macro 5) — awaiting go *(2026-09-23)*
+
+Found on 1984: with the rack on and RACK MIX dragged to zero, the effects kept playing. Macro 5 ships wired to `mix` at −100 % and a macro MAPS its destination, so the rack recomputed `mixOff = mapped − base` every block and put a raw mix write straight back. BWFX 1.7.1 fixes it in the FRAGMENT (`driveOwned()`: a hand on any macro-owned control — mix, a module parameter, a presence — inverts the mapping and moves the macro's host parameter instead). The fragment is compiled into every plugin, so **every synth built against 1.7.0 still has the dead RACK MIX slider until it is rebuilt**: Black Rider, Blade Ruiner, Escape Room, Full Metal Racket, Photo Synth, Clone Wars (CI dispatch), High Tide, Brain Scan, the four Artefacts, Legion and Rite of Passage (native panels — check whether their RACK MIX writes the base too). 1984 carries 1.7.1 already. Rebuild = `cmake --build` per tree + `install-fleet.ps1` + re-cut each zip; nothing else changes (core untouched, bench 409 ALL CLEAR).
+
+
 ### 2-wave-2. PS2 retirement + MW/HF rack removal (Peter's decisions
 2026-08-26 evening, recorded verbatim; build AFTER he has played with
 phase C):

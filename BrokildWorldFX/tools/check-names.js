@@ -27,7 +27,7 @@ const SITE = "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps";
 const DIRS = ["ArtefactB2311_1", "ArtefactB2311", "ArtefactB2311_67", "ArtefactB2311_104",
               "BlackRider", "BladeRuiner",
               "CloneWars", "EscapeRoom", "FullMetalRacket", "Hairfryer",
-              "MarsWars", "PhotoSynth", "HighTide", "BrainScan", "ThinWalls",
+              "MarsWars", "PhotoSynth", "HighTide", "BrainScan", "ThinWalls", "Nineteen84",
               { name: "CloneWars(site)",    root: SITE + "/vst3-apps/clone-wars/plugin" },
               { name: "Legion",             root: SITE + "/vocal-harmonizer" },
               { name: "RiteOfPassage",      root: SITE + "/rite-of-passage" }];

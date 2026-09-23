@@ -157,7 +157,7 @@
     { name: "POSSESSED CHOIR", blob: {"modules":{"chorus":{"on":1,"p":{"mix":35}}},"spectra":{"darkdrone":{"on":1,"p":{"cluster":28}},"glass":{"on":1,"p":{"halo":60,"shine":65}}}}, params: [] }
   ];
 
-  var VERSION = "1.7.0";
+  var VERSION = "1.7.1";
   var desc = DEFAULT_DESC;
   var charDesc = DEFAULT_CDESC;
   var presets = DEFAULT_PRESETS;
@@ -577,8 +577,10 @@
     });
 
     mixIn.addEventListener("input", function () {
-      state.mix = parseInt(mixIn.value, 10) / 100;
+      var mv = parseInt(mixIn.value, 10) / 100;
       mixOut.textContent = mixIn.value + " %";
+      if (driveOwned("mix", mv, 0, 1)) return;      // macro 5 holds it: move the macro
+      state.mix = mv;
       if (send) send({ op: "mix", v: state.mix });
     });
 
@@ -782,6 +784,7 @@
         inp.addEventListener("input", function () {
           var nv = parseInt(inp.value, 10);
           out.textContent = nv + " %";
+          if (driveOwned(id + ".pr", nv / 100, 0, 1)) return;             // owned: the macro moves
           ms.pr = nv / 100;
           if (send) send({ op: "presence", m: id, v: ms.pr });
         });
@@ -947,6 +950,7 @@
                          base: function () { return parseFloat(inp.value); } });
           inp.addEventListener("input", function () {
             var nv = parseFloat(inp.value);
+            if (driveOwned(id + "." + pd.id, nv, pd.lo, pd.hi)) return;   // owned: the macro moves
             out.textContent = fmt(pd, nv);
             setParamLocal(id, pd, nv);
             drawModValues();
@@ -1079,6 +1083,28 @@
     for (var i = 0; i < macros.length; i++)
       for (var j = 0; j < macros[i].length; j++) if (macros[i][j].d === dest) return macros[i][j].a;
     return 0;
+  }
+
+  /*  A macro OWNS this destination - it maps the control across its range -
+     so a hand on the control has nowhere to go except THROUGH the macro:
+     invert the mapping and move the macro's host parameter instead. Before
+     this, dragging RACK MIX to zero sent a raw mix write that macro 5 put
+     straight back on the next audio block: the slider moved, the effects
+     stayed (Peter, 1984, 2026-09-23). Returns true when it took the gesture;
+     the caller then leaves the base value alone. */
+  function driveOwned(dest, value, lo, hi) {
+    var m = macroOwning(dest);
+    if (m < 0 || !macroVals) return false;
+    var depth = depthOf(dest) / 100;
+    if (!depth || hi === lo) return false;
+    var from = depth >= 0 ? lo : hi;
+    var v = (value - from) / (depth * (hi - lo));
+    v = v < 0 ? 0 : (v > 1 ? 1 : v);
+    macroVals[m] = v;
+    if (send) send({ op: "macro", i: m, v: v });
+    drawMacros();
+    drawModValues();
+    return true;
   }
 
   /*  Arming is a mode, and the only one in the overlay — it has to be easy

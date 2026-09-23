@@ -24,7 +24,7 @@ namespace
     }
 }
 
-const char* Rack::version() { return "1.7.0"; }
+const char* Rack::version() { return "1.7.1"; }
 
 // Parsed form of a state blob, defaults pre-filled.
 struct Rack::BlobState

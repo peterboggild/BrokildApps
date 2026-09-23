@@ -154,6 +154,11 @@ CHECK(SRC.indexOf("bwfx-past") > 0, "no past-LAST dimming");
 CHECK(SRC.indexOf("function tint(") > 0, "no brush tint helper");
 CHECK(SRC.indexOf("NSTEP = 32") > 0, "the grid is still 16 steps");
 CHECK(SRC.indexOf("function packed()") > 0, "no 16/32 compaction on save");
+//  1.7.1: a drag on a macro-owned control goes THROUGH the macro
+CHECK(SRC.indexOf("function driveOwned(") > 0, "no driveOwned: an owned control still writes its base");
+CHECK(/driveOwned\("mix", mv, 0, 1\)/.test(SRC), "RACK MIX does not route through macro 5");
+CHECK(/driveOwned\(id \+ "\." \+ pd\.id/.test(SRC), "module rows do not route through their macro");
+CHECK(/driveOwned\(id \+ "\.pr"/.test(SRC), "presence rows do not route through their macro");
 
 console.log("\n" + checks + " checks, " + fails + " failures");
 process.exit(fails ? 1 : 0);

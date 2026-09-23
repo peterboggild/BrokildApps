@@ -44,6 +44,7 @@ $plugins = @(
   @{ dir = "BrainScan";        name = "Brain Scan";         group = "Brokild collection" },
   @{ dir = "BattlestarOverdrive"; name = "Battlestar Overdrive"; group = "Brokild collection" },
   @{ dir = "ThinWalls";         name = "Thin Walls";         group = "Brokild collection" },
+  @{ dir = "Nineteen84";        name = "1984";               group = "Brokild collection" },
   # Legion's source lives in the WEBSITE repo (like Clone Wars), so it has no
   # tree under b\ — it is built to b\_build\Legion and named here explicitly.
   @{ dir = "Legion";           name = "Legion";             group = "Brokild collection";
