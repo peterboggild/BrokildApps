@@ -3,7 +3,7 @@
 project(ArtefactB2311_67 VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number.
-set(AB_BUILD_ID "260904.1")
+set(AB_BUILD_ID "260923.1")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

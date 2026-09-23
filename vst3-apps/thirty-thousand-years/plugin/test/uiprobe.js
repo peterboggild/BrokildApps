@@ -136,6 +136,31 @@ const DRIVER = String.raw`
     return n;
   }
 
+  /*  A window that loses focus never sees the keyup, so a note played on the
+      computer keyboard would sound on until this window was clicked again and
+      that same key pressed and released.
+
+      NB.send batches into a queueMicrotask, so every stage below has to wait
+      a tick -- read synchronously, a working panel reports as broken. */
+  function blurCheck() {
+    var before, afterOn;
+    return tick().then(function () {
+      before = msgs().length;
+      window.noteOn(45, 0.8);
+      return tick();
+    }).then(function () {
+      afterOn = msgs().length;
+      window.dispatchEvent(new Event('blur'));
+      return tick();
+    }).then(function () {
+      var afterBlur = msgs().length;
+      var stillHeld = Object.keys(window.KDOWN || {}).length;
+      ok('a note on the computer keyboard is released when the window loses focus',
+         afterOn > before && afterBlur > afterOn && stillHeld === 0,
+         'note-on sent=' + (afterOn - before) + '  sent on blur=' + (afterBlur - afterOn) + '  still held=' + stillHeld);
+    }, function (e) { ok('the blur check could reach the page', false, String(e)); });
+  }
+
   function run() {
     /* ---- 1. boot ---------------------------------------------------- */
     ok("hello was sent before anything else", msgs().length > 0 && msgs()[0].k === "hello", JSON.stringify(msgs()[0] || null));
@@ -530,7 +555,7 @@ const DRIVER = String.raw`
     pre.textContent = "@@TTY@@" + JSON.stringify(R) + "@@END@@";
     document.body.appendChild(pre);
   }
-  Promise.resolve().then(run).catch(function (e) {
+  Promise.resolve().then(blurCheck).then(run).catch(function (e) {
     R.push({ n: "the driver ran to the end", ok: false, d: String(e && e.stack || e).slice(0, 500) });
     done();
   });

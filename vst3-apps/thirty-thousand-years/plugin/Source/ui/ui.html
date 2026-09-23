@@ -2427,6 +2427,7 @@ document.addEventListener("keyup", function (e) {
 /*  A window that loses focus never sees the keyup, so CTRL would stay stuck on. */
 window.addEventListener("blur", function () {
   CTRLHOVER = false;
+  allOff();   // and no keyup arrives for a note either
   if (!HINTS_ON && tipFor && !tipFor.classList.contains("drag")) hideTip();
 });
 

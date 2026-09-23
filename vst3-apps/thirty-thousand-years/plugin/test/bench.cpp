@@ -585,6 +585,27 @@ int main (int argc, char** argv)
     if (argc > 1 && ! std::strcmp (argv[1], "--cost")) { testCost(); return 0; }
     if (argc > 1 && ! std::strcmp (argv[1], "--presets")) { listPresets(); return 0; }
     testTable(); testSilenceAndDrone(); testTuning(); testAdditive(); testStructure(); testMemory(); testEnvironment(); testLifeHistory(); testPanicDeterminismRates(); testRandomAndSoak(); testClicks(); testBankLevels(); testCost();
+
+    /*  A PANIC LETS GO OF THE PEDAL.  Dropping the gates without releasing
+        the sustain pedal silences the note that is ringing and leaves the
+        next one held for ever by a pedal nobody is pressing -- and the
+        panel's PANIC button routes here too, so there is no way out.
+        Measured against a control engine that never touched the pedal, so
+        this holds whatever the default patch does. */
+    {
+        double t[2] = { 0, 0 };
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            Engine* e = fresh();
+            if (pass == 0) { e->setSustain (true); e->allNotesOff(); }
+            e->noteOn (45, 0.8f); render (*e, 0.5);
+            e->noteOff (45);      render (*e, 1.0);
+            const Take tail = render (*e, 1.0);
+            for (size_t i = 0; i < tail.L.size(); ++i) t[pass] = std::max (t[pass], (double) std::abs (tail.L[i]));
+        }
+        check (t[0] <= t[1] + 1.0e-4, "a panic lets go of the pedal: a note played afterwards still stops");
+    }
+
     std::printf ("\n%d checks, %d failed  %s\n", passed + failed, failed, failed == 0 ? "ALL CLEAR" : "");
     return failed == 0 ? 0 : 1;
 }

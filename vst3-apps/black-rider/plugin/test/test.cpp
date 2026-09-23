@@ -776,6 +776,26 @@ int main (int argc, char** argv)
         std::printf ("\nwrote %d recipe renders to %s\n", NUM_RECIPES, wavDir.c_str());
     }
 
+
+    /*  A PANIC LETS GO OF THE PEDAL.  Dropping the gates without releasing
+        the sustain pedal silences the note that is ringing and leaves the
+        next one held for ever by a pedal nobody is pressing -- and the
+        panel's PANIC button routes here too, so there is no way out.
+        Measured against a control engine that never touched the pedal, so
+        this holds whatever the default patch does. */
+    {
+        Params pp;
+        const std::vector<std::tuple<double, int, int, float>> ev { { 0.05, 57, 1, 0.8f }, { 0.35, 57, 0, 0.0f } };
+        Engine* a = makeEngine (pp); a->setSustain (true); a->allNotesOff();
+        Engine* b = makeEngine (pp);
+        const Render ra = render (*a, 48000.0, 256, 2.0, ev), rb = render (*b, 48000.0, 256, 2.0, ev);
+        double ta = 0, tb = 0;
+        for (size_t i = ra.L.size() / 2; i < ra.L.size(); ++i)
+        { ta = std::max (ta, (double) std::abs (ra.L[i])); tb = std::max (tb, (double) std::abs (rb.L[i])); }
+        CHECK (ta <= tb + 1.0e-4, "a panic lets go of the pedal: a note played afterwards still stops", ta, tb);
+        delete a; delete b;
+    }
+
     std::printf ("\n%d checks, %d failed — %s\n", checks, fails, fails ? "NOT CLEAR" : "ALL CLEAR");
     return fails ? 1 : 0;
 }

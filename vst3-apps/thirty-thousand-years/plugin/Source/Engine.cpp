@@ -101,6 +101,7 @@ void Engine::reset()
     for (auto& v : voices) { v.mass.reset(); v.sig.reset(); v.st.reset(); v.note = -1; v.gate = false; v.drone = false; v.sustained = false; v.gateSm = 0.0f; for (auto& e : v.envV) e.kill(); for (auto& m : v.msegV) { m.running = false; m.gate = false; } }
     mem.reset(); life.reset(); space.reset(); loop.reset(); out.lim.reset();
     monoDepth = 0; wasDrone = false; lastDroneChord = -1; lastDroneRoot = -1;
+    sustain = false;   // the pedal is a held control, not state to carry through a reset
     panicFade = false; panicGain = 1.0f;
     freezeOverride = 0.0f; loopKick = 0.0f; histNudge = 0.0f;
     std::fill (std::begin (loopRetL), std::end (loopRetL), 0.0f); std::fill (std::begin (loopRetR), std::end (loopRetR), 0.0f);
@@ -265,7 +266,7 @@ void Engine::setSustain (bool on)
     sustain = on;
     if (! on) for (auto& v : voices) if (v.sustained) { v.sustained = false; releaseVoice (v); }
 }
-void Engine::allNotesOff() { for (auto& v : voices) if (! v.drone) releaseVoice (v); monoDepth = 0; }
+void Engine::allNotesOff() { sustain = false; for (auto& v : voices) if (! v.drone) releaseVoice (v); monoDepth = 0; }
 void Engine::panic() { panicFade = true; }
 void Engine::strike (float amt)
 {

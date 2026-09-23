@@ -719,6 +719,22 @@ int main (int argc, char** argv)
         }
     }
 
+
+    /*  A PANIC LETS GO OF THE PEDAL.  Dropping the gates without releasing
+        the sustain pedal silences the note that is ringing and leaves the
+        next one held for ever by a pedal nobody is pressing -- and the
+        panel's PANIC button routes here too, so there is no way out.
+        Measured against a control engine that never touched the pedal, so
+        this holds whatever the default patch does. */
+    {
+        Rig a, b;
+        a.e.setSustain (true); a.e.allNotesOff();      // the host's CC123, or the panel's PANIC
+        for (Rig* r : { &a, &b })
+        { r->e.noteOn (57, 0.8f); r->render (12000); r->e.noteOff (57); r->renderAppend (72000); }
+        const double ta = a.rms ((int) a.L.size() - 24000), tb = b.rms ((int) b.L.size() - 24000);
+        check (ta <= tb + 1.0e-5, "a panic lets go of the pedal: a note played afterwards still stops", ta, tb);
+    }
+
     std::printf ("\n%d checks, %d failed%s\n", checks, fails, fails ? "" : " — ALL CLEAR");
     return fails ? 1 : 0;
 }

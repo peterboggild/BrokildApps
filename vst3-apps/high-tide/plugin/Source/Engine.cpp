@@ -634,6 +634,7 @@ void Engine::noteOff (int note)
 
 void Engine::allNotesOff()
 {
+    sustain = false;   // a panic lets go of the pedal, or it holds the next note
     monoN = 0;
     for (auto& v : voices) v = Voice();
 }

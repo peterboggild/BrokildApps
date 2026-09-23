@@ -828,6 +828,29 @@ int main (int argc, char** argv)
         ok (s1 / 5.0 < 0.05, "an ordinary four-note chord under 5 % of a core");
     }
 
+
+    /*  A PANIC LETS GO OF THE PEDAL.  Dropping the gates without releasing
+        the sustain pedal silences the note that is ringing and leaves the
+        next one held for ever by a pedal nobody is pressing -- and the
+        panel's PANIC button routes here too, so there is no way out.
+        Measured against a control engine that never touched the pedal, so
+        this holds whatever the default patch does. */
+    {
+        double t[2] = { 0, 0 };
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            Engine e; fresh (e);
+            if (pass == 0) { e.setSustain (true); e.allNotesOff(); }
+            std::vector<float> L (BLK), R (BLK);
+            e.noteOn (57, 0.8f);
+            for (int k = 0; k < 40; ++k) e.process (L.data(), R.data(), BLK);
+            e.noteOff (57);
+            for (int k = 0; k < 400; ++k) e.process (L.data(), R.data(), BLK);
+            for (int i = 0; i < BLK; ++i) t[pass] = std::max (t[pass], (double) std::abs (L[(size_t) i]));
+        }
+        ok (t[0] <= t[1] + 1.0e-4, "a panic lets go of the pedal: a note played afterwards still stops");
+    }
+
     std::printf ("\n%d checks, %d failed — %s\n", checks, fails, fails ? "SEE ABOVE" : "ALL CLEAR");
     return fails ? 1 : 0;
 }

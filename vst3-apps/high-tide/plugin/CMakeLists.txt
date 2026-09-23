@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 project(HighTide VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Re-run cmake -S . -B build after bumping.
-set(HT_BUILD_ID "260904.4")
+set(HT_BUILD_ID "260923.1")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

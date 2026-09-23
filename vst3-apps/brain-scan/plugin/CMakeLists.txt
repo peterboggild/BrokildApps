@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 project(BrainScan VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Re-run cmake -S . -B build after bumping.
-set(BS_BUILD_ID "260905.2")
+set(BS_BUILD_ID "260923.1")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

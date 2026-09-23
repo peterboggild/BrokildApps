@@ -586,6 +586,7 @@ void Engine::noteOff (int note)
 
 void Engine::allNotesOff()
 {
+    sustain = false;   // a panic lets go of the pedal, or it holds the next note
     heldN = 0; heldKeys.fill (false); susKeys.fill (false);
     for (auto& v : voices) { v.gate = false; v.eg1.gate (false); v.eg2.gate (false); }
     assignPans();

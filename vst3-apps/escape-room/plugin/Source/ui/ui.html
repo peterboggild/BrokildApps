@@ -1249,7 +1249,11 @@ function bindPatchButtons(){
     if(dec && dec.contains(e.target)) return;
     pmClose(0);
   }, true);
-  addEventListener("blur", ()=> pmClose(0));
+  addEventListener("blur", ()=> {
+  pmClose(0);
+  /*  No keyup arrives once focus is gone, so let every held note go. */
+  Array.from(held).forEach(n=> playNote(n,false));
+});
 }
 
 function bindHeader(){

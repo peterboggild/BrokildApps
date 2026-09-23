@@ -1245,6 +1245,29 @@ int main()
         ok (rLock > 0.05 && rLock > rFree * 2.0, "the rock is heard: the output breathes with the bench");
     }
 
+
+    /*  A PANIC LETS GO OF THE PEDAL.  Dropping the gates without releasing
+        the sustain pedal silences the note that is ringing and leaves the
+        next one held for ever by a pedal nobody is pressing -- and the
+        panel's PANIC button routes here too, so there is no way out.
+        Measured against a control engine that never touched the pedal, so
+        this holds whatever the default patch does. */
+    {
+        double t[2] = { 0, 0 };
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            ax::Engine e; e.prepare (48000.0, 256); e.service();
+            if (pass == 0) { e.setSustainPedal (true); e.allNotesOff(); }
+            std::vector<float> L (256), R (256);
+            e.noteOn (48, 0.9f);
+            for (int k = 0; k < 40; ++k) e.process (L.data(), R.data(), 256);
+            e.noteOff (48);
+            for (int k = 0; k < 400; ++k) e.process (L.data(), R.data(), 256);
+            for (int i = 0; i < 256; ++i) t[pass] = std::max (t[pass], (double) std::abs (L[(size_t) i]));
+        }
+        ok (t[0] <= t[1] + 1.0e-4, "a panic lets go of the pedal: a note played afterwards still stops");
+    }
+
     std::printf ("\n%d checks, %d failed  —  %s\n", checks, fails, fails == 0 ? "ALL CLEAR" : "SEE ABOVE");
     return fails == 0 ? 0 : 1;
 }

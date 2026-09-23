@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 project(EscapeRoom VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus the build number that day.
-set(ER_BUILD_ID "260827.1")
+set(ER_BUILD_ID "260923.1")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
