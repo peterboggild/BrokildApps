@@ -146,11 +146,55 @@ from the remote's own tree: 28 and 37 blobs, heads matching, both private.
 Thirty Thousand Years gets the same treatment the moment the other session
 lets go of it — **it is the last tree in the fleet with no copy anywhere.**
 
-**Stage 1 — the licence and the layout.**
-`LICENSE` at the repo root. Every tree moved to `vst3-apps/<slug>/plugin/`,
-history preserved per plugin where it is worth keeping. `BWFX_DIR` and every
-tool path repointed. Each plugin's bench, host test and panel probe must pass
-from the new location before that plugin's move is accepted.
+**Stage 1 — the licence and the layout. DONE 2026-09-23, bar the build sweep.**
+
+`LICENSE` is the AGPLv3 text fetched from gnu.org and checked section by
+section; `LICENSING.md` says what that means in practice, which subtrees are
+also MIT, and that the artwork is reserved.
+
+Eighteen trees now live beside their pages. Sixteen came in from `b\` through
+`tools/migrate-plugin.js`; Rite of Passage and Legion were already here at the
+repository root and moved with `git mv`, so their history came with them.
+Thirty Thousand Years is the one tree still outside, because another session
+is building it.
+
+| | |
+|---|---|
+| Plug-ins configuring from the repo | 17 of 17 |
+| Tracked source brought in | about 90 MB |
+| Files left behind per tree | built output, bench renders, demo masters, loose screenshots |
+| Tool scripts repointed at their own tree | 70 |
+| Live absolute paths left | 5, every one deliberate |
+
+**The tools, all kept:**
+
+- `tools/migrate-plugin.js` takes a tree from `git archive HEAD`, drops the
+  built artefacts, and repoints CMake. It refuses a dirty source tree, because
+  archiving HEAD would migrate silently without the edits you are looking at.
+  `--dest=` places a plug-in anywhere, which is what the Artefacts need.
+- `tools/repoint-paths.js` rewrites a tree's own tooling to find itself, and
+  parses every `.js` it touches, putting the file back if the rewrite broke it.
+- `tools/verify-migrated.js` configures or builds every plug-in in the repo.
+- `tools/run-exe-past-sac.ps1` runs a freshly linked bench, nudging a copy's
+  hash past Smart App Control rather than failing on a dice roll.
+
+**Four things that cost a round each, worth not repeating:**
+
+1. **PowerShell binds a `param()` block's defaults before the body runs**, so a
+   `$BrokildRoot` assigned in the body is empty exactly where these scripts use
+   it most: `"$BrokildRoot\test\jobs.json"` binds as `"\test\jobs.json"`. Proven
+   with a one-line repro before the fix. `$PSScriptRoot` works during binding
+   and is the only form correct in both places. How deep the script sits decides
+   how many hops back, so `docs/manual/` gets two where `tools/` gets one.
+2. **`fs.rmSync(dir, {recursive:true})` inside Dropbox** deletes the contents
+   and then throws EPERM on the folder, leaving a half-migrated tree. Walk the
+   children instead. This was already written down and was walked into anyway.
+3. **`juceaide` blocked at configure time is Smart App Control**, not a broken
+   tree: it cleared on the second attempt every time. The gate retries and says
+   that it did, rather than crying wolf on a good tree.
+4. **A blanket path replacement cannot catch a relative path that was correct
+   before the move.** The Rite of Passage workflow copies a README by a path
+   relative to its working directory, and there was no old string to search for.
 
 **Stage 2 — binaries out, history stripped.**
 Zips to per-plugin release assets, `app.json` declaring url, bytes and sha256.
