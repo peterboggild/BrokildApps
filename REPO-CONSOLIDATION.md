@@ -160,7 +160,8 @@ is building it.
 
 | | |
 |---|---|
-| Plug-ins configuring from the repo | 17 of 17 |
+| Plug-ins building from the repo | 17 of 17 |
+| Benches passing from the repo | 18 of 18 |
 | Tracked source brought in | about 90 MB |
 | Files left behind per tree | built output, bench renders, demo masters, loose screenshots |
 | Tool scripts repointed at their own tree | 70 |
@@ -193,8 +194,19 @@ is building it.
    tree: it cleared on the second attempt every time. The gate retries and says
    that it did, rather than crying wolf on a good tree.
 4. **A blanket path replacement cannot catch a relative path that was correct
-   before the move.** The Rite of Passage workflow copies a README by a path
-   relative to its working directory, and there was no old string to search for.
+   before the move**, because there is no old string to search for. It happened
+   three times: the Rite of Passage workflow copying a README relative to its
+   working directory, the same plug-in's BENCH build file reaching BWFX two
+   levels up, and three of B2311.104's site checks including a header relative
+   to the source file. **Only running the benches found the last two.** A build
+   sweep proves the plug-ins; it says nothing about the tests beside them.
+
+**And the sweep found one fault that had nothing to do with the move.** Two
+Clone Wars scratch probes read `cw::vfEnvA`, which the 260826.5 core removed on
+2026-08-26. They have not compiled for a month, and nothing noticed because CI
+builds the plug-in and `render_test` and never the probe targets. They are kept,
+excluded from the default build, with the date and the reason on them. **A
+target nothing ever builds is a target that rots silently.**
 
 **Stage 2 — binaries out, history stripped.**
 Zips to per-plugin release assets, `app.json` declaring url, bytes and sha256.
