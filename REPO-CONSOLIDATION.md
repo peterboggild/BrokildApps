@@ -262,7 +262,7 @@ Same shell as the others, built from its README and a snapshot of the real
 editor. It has no WebView and no standalone, so the plate comes from
 `legionshot`, the console harness that renders the JUCE editor directly.
 
-**Stage 5 — the three collections.** *Blocked on Thirty Thousand Years.*
+**Stage 5 — the three collections. DONE 2026-09-23.**
 `contents.json` becomes three files, and `build-collection-zip.ps1` takes the
 collection as an argument and reads them, so there is one code path and three
 data files rather than three scripts. Pages, `manifest.json`, `app.json` counts
