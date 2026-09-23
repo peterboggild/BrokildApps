@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Blade-Ruiner-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Blade-Ruiner-VST3-win64.zip",
+      "bytes": 7352517,
+      "sha256": "7e7c7d7228c6a9ccb0b9526aab080771a335840bce69b9bdfa80d01f1a73a6eb"
+    }
   ]
 }

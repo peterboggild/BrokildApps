@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Battlestar-Overdrive-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Battlestar-Overdrive-VST3-win64.zip",
+      "bytes": 15969674,
+      "sha256": "0523f24d3be4c2bba68abfb055a3d9f600ddbe3d1ecb674556ec2e76e54fa83e"
+    }
   ]
 }

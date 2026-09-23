@@ -58,3 +58,12 @@ desktop.ini
 # at eleven plugins it is 101 MB and GitHub rejects any file over 100 MB.
 # See vst3-apps/collection/contents.json for the url it is published at.
 vst3-apps/collection/Brokild-Collection-win64.zip
+
+# Plug-in downloads. These live on the `downloads` GitHub release, not in the
+# repository: a repo that holds its own binaries grows by the size of a build
+# every time one is cut, which is how this one reached 1.9 GB. Each plug-in's
+# app.json declares the url, the byte count and the sha256 of its file, and
+# tools/verify-downloads.js proves a stranger can fetch exactly those bytes.
+# The zips stay on disk here as ordinary build output.
+vst3-apps/*/*.zip
+vst3-apps/*/*/*.zip

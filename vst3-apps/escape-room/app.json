@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Escape-Room-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Escape-Room-VST3-win64.zip",
+      "bytes": 7934823,
+      "sha256": "b81b88b1f1e738bf53efb6b1c16c0fee17ba982c5fec18f27e0cc749e93be4a4"
+    }
   ]
 }

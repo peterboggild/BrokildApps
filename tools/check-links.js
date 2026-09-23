@@ -33,7 +33,13 @@ const SKIP_DIRS = new Set([".git", "node_modules", "build", "webview2", "_deps",
  *                          (bwfx-rack.js) are copied in by CMake at build time
  *   mockup                 a design mockup, not a published page
  */
-const NOT_SERVED_BY_PAGES = /^(dsw\/(web|plugins)\/|.*\/plugin\/Source\/|.*\/mockup\/)/;
+/*  Widened when the plug-in sources moved in. It used to say
+ *  ".*\/plugin\/Source\/", which misses the four Artefacts: they sit at
+ *  vst3-apps/proxima-centauri-b/b2311-*\/Source/ with no "plugin" segment, so
+ *  their ui.html leaked in and was reported for a bwfx-rack.js that CMake
+ *  supplies at build time. Any Source folder is plug-in source, never a page.
+ *  "reference/" is a preserved copy of an app a plug-in was ported FROM. */
+const NOT_SERVED_BY_PAGES = /^(dsw\/(web|plugins)\/|.*\/Source\/|.*\/mockup\/|.*\/reference\/)/;
 
 const problems = [];
 const note = (file, msg) => problems.push(`${file}: ${msg}`);
@@ -112,7 +118,12 @@ for (const folder of manifest.apps) {
 
 /* An app with a finished card that the manifest never picked up is invisible
  * on the front page - which is how Hairfryer sat unreachable from the grid. */
-for (const f of files.filter((f) => f.endsWith("/app.json"))) {
+/*  Only CARDS count. Since the plug-in sources moved in, an app.json can also
+ *  turn up deep inside a tree — Photo Synth keeps the browser app it was
+ *  ported from under plugin/reference/ — and those are not cards and have no
+ *  business in the manifest. A card sits two levels down: <area>/<slug>. */
+const CARD = (f) => f.split("/").length === 3 && !NOT_SERVED_BY_PAGES.test(f);
+for (const f of files.filter((f) => f.endsWith("/app.json") && CARD(f))) {
   const folder = path.dirname(f);
   if (!manifest.apps.includes(folder)) note(f, `has an app.json but manifest.json does not list ${folder}`);
 }
@@ -147,6 +158,41 @@ function zipEntries(rel) {
 }
 
 const COLL = "vst3-apps/collection";
+/* ------------------------------------------ the downloads are declared, not
+ * guessed. Each plug-in's zip lives on the `downloads` release rather than in
+ * this repository, so app.json carries its url, byte count and sha256. Those
+ * three have to agree with the file on disk and with the page's own link, or
+ * a visitor is told one thing and handed another. Whether the url ANSWERS is a
+ * separate question and a separate tool, because it needs the network:
+ * tools/verify-downloads.js, --full to compare hashes. */
+for (const f of files.filter((f) => f.endsWith("/app.json"))) {
+  const folder = path.dirname(f);
+  let j; try { j = JSON.parse(fs.readFileSync(path.join(ROOT, f), "utf8")); } catch (e) { continue; }
+  const list = j.downloads || [];
+  const page = path.join(ROOT, folder, "index.html");
+  const html = fs.existsSync(page) ? fs.readFileSync(page, "utf8") : "";
+
+  for (const d of list) {
+    for (const k of ["name", "url", "bytes", "sha256"])
+      if (d[k] === undefined) note(f, `a download is missing "${k}"`);
+    if (d.url && !/^https:\/\/github\.com\/[^/]+\/[^/]+\/releases\/download\//.test(d.url))
+      note(f, `download url is not a release asset: ${d.url}`);
+    if (d.name && html && !html.includes(d.url))
+      note(`${folder}/index.html`, `does not link the declared download ${d.name}`);
+    /* The zip is normally here as build output. When it is, it must BE the
+       file that was declared, or the next re-cut publishes a surprise. */
+    const local = path.join(ROOT, folder, d.name || "");
+    if (d.name && fs.existsSync(local)) {
+      const bytes = fs.statSync(local).size;
+      if (bytes !== d.bytes) note(f, `${d.name} on disk is ${bytes} bytes, app.json declares ${d.bytes} — re-publish it`);
+    }
+  }
+  /* A page that still offers a relative zip is one the move missed. */
+  for (const m of html.matchAll(/href="([^"]*-win64\.zip|[^"]*Devkit\.zip)"/g))
+    if (!/^https:/.test(m[1]))
+      note(`${folder}/index.html`, `still links a local zip: ${m[1]} — it should point at the release`);
+}
+
 if (fs.existsSync(path.join(ROOT, `${COLL}/contents.json`))) {
   const spec = JSON.parse(fs.readFileSync(path.join(ROOT, `${COLL}/contents.json`), "utf8"));
   const declared = new Set([...spec.includes, ...Object.keys(spec.excludes)]);

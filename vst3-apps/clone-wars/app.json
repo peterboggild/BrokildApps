@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Clone-Wars-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Clone-Wars-VST3-win64.zip",
+      "bytes": 8981952,
+      "sha256": "c6f98832ad3ff85755b95c7a2ae545e3d98dd03e5b40fdf83751510d25b64163"
+    }
   ]
 }

@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Thin-Walls-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Thin-Walls-VST3-win64.zip",
+      "bytes": 8539483,
+      "sha256": "976d7234699ccfb6407fcd02e45dad3a93a57047c04355cc8723b0e054db2f1a"
+    }
   ]
 }

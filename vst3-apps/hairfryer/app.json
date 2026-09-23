@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Hairfryer-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Hairfryer-VST3-win64.zip",
+      "bytes": 6800155,
+      "sha256": "2703599d7be9e38bd62c4b56bb7ece802d04cbee60e40dfe483115d80921da8a"
+    }
   ]
 }

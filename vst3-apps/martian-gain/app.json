@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Martian-Gain-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Martian-Gain-VST3-win64.zip",
+      "bytes": 7094566,
+      "sha256": "85e3ff3eaffc34dc6653e0a3235b3e8625a1b33fe28df6e32001eea06f727990"
+    }
   ]
 }

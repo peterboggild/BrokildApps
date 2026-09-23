@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Rite-of-Passage-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Rite-of-Passage-VST3-win64.zip",
+      "bytes": 3725313,
+      "sha256": "bcf24bc403de454d70927f75fe7a7299bf086a41d515698d65f53412bb1d3e5b"
+    }
   ]
 }

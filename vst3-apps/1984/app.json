@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "synth"
+  ],
+  "downloads": [
+    {
+      "name": "1984-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/1984-VST3-win64.zip",
+      "bytes": 15608484,
+      "sha256": "53d1a5591080dce7f0dc1a28ac667ba85056327662a412858d5da07aa8b0c907"
+    }
   ]
 }

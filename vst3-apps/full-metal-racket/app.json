@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Full-Metal-Racket-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Full-Metal-Racket-VST3-win64.zip",
+      "bytes": 15229207,
+      "sha256": "b094507168790ef4ef0a94ad8dd90f75c53f75ba93016536c09217fc011c6cf2"
+    }
   ]
 }

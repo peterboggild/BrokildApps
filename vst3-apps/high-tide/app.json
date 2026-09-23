@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "synth"
+  ],
+  "downloads": [
+    {
+      "name": "High-Tide-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/High-Tide-VST3-win64.zip",
+      "bytes": 9723509,
+      "sha256": "a22529e3cef58e12e5e9d29c35b6c8f2adc72ffb1b21782a8f718c089ef0b22c"
+    }
   ]
 }

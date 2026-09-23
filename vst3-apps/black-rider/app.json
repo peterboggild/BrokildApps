@@ -11,5 +11,13 @@
   "tags": [
     "vst3",
     "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Black-Rider-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Black-Rider-VST3-win64.zip",
+      "bytes": 7505417,
+      "sha256": "3818938ba6865da628ebda91eb9c21f68d5ab14de233e32ba2c30085e366a720"
+    }
   ]
 }

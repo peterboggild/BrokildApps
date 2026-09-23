@@ -11,5 +11,19 @@
   "tags": [
     "vst3",
     "synth"
+  ],
+  "downloads": [
+    {
+      "name": "HTML-to-VST3-Devkit.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/HTML-to-VST3-Devkit.zip",
+      "bytes": 4036068,
+      "sha256": "799534150eff4f92a2db3a8d800cc75632cad6b68fcb45f60d7a5aaee16efb93"
+    },
+    {
+      "name": "Photo-Synth-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Photo-Synth-VST3-win64.zip",
+      "bytes": 9889801,
+      "sha256": "22f48e24e6ce8d8ad29b2b7344c4d7ee4c484a2edb819770720a6e862d9d0639"
+    }
   ]
 }

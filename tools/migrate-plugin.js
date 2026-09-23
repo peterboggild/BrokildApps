@@ -49,15 +49,23 @@ if (!tree || !slug) {
 }
 
 /* ------------------------------------------------------------- what to drop */
+/*  NOT docs/manual/shots: in five trees that IS the plate folder, holding the
+ *  JPEGs the manual references, and dropping it cost Photo Synth, Blade
+ *  Ruiner, Escape Room, Full Metal Racket and Martian Gain the ability to
+ *  rebuild their own manuals. The line is CONTENT, not folder name: a
+ *  converted plate is a JPEG and is kept wherever it lives; a raw capture is a
+ *  PNG in raw/, pages/ or shots/ and is dropped. */
 const DROP_DIR = [
   "dist", "build",
-  "docs/manual/raw", "docs/manual/pages", "docs/manual/shots",
+  "docs/manual/raw", "docs/manual/pages",
   "docs/audio", "docs/parts",
   "test/build", "test/wav", "test/aud", "test/renders",
 ];
 const DROP_EXT = [".wav", ".aiff", ".flac"];
 const DROP_GLOB = [
   /^docs\/.*\.pdf$/i,              // the published manual sits beside the page
+  /^docs\/manual\/shots\/.*\.png$/i,  // raw captures in a plate folder; the
+                                      // JPEGs beside them are the plates
   /^docs\/[^/]*\.png$/i,           // loose captures at the docs root: session
                                    // diagnostics, never referenced by any
                                    // document — checked across the fleet, and
