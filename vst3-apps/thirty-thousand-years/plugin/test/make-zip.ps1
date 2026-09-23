@@ -1,3 +1,4 @@
+param([string] $BuildDir = "")   # the house rule builds OUTSIDE Dropbox; point this there
 # Package Thirty Thousand Years for the website.
 #
 # An inner folder with the .vst3 bundle, the standalone, the manual and a README.
@@ -16,7 +17,7 @@ $root  = "$PSScriptRoot\.."
 $stage = "$root\dist\stage"
 $web   = "C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\thirty-thousand-years"
 $out   = Join-Path $web "Thirty-Thousand-Years-VST3-win64.zip"
-$build = "$root\build\ThirtyThousandYears_artefacts\Release"
+$build = if ($BuildDir) { $BuildDir } else { "$root\build\ThirtyThousandYears_artefacts\Release" }
 $name  = "Thirty Thousand Years"
 $buildId = (Select-String -Path "$root\CMakeLists.txt" -Pattern 'TTY_BUILD_ID "([0-9.]+)"').Matches[0].Groups[1].Value
 
@@ -45,10 +46,14 @@ if ($exe) { Copy-Item $exe.FullName (Join-Path $inner "$name.exe") -Force
             Write-Output ("  standalone: " + [int]($exe.Length/1MB) + " MB") }
 else { Write-Output "  NO STANDALONE"; exit 1 }
 
+#  The manual is PUBLISHED beside the page and no longer lives in the plug-in
+#  tree: stage 1 deliberately left PDFs out of the source migration.
 $manual = "$root\docs\manual\Thirty-Thousand-Years-Manual.pdf"
+if (-not (Test-Path $manual)) { $manual = Join-Path $web "Thirty-Thousand-Years-Manual.pdf" }
 if (Test-Path $manual) {
     Copy-Item $manual (Join-Path $inner "Thirty-Thousand-Years-Manual.pdf") -Force
-    Copy-Item $manual (Join-Path $web "Thirty-Thousand-Years-Manual.pdf") -Force
+    $pub = Join-Path $web "Thirty-Thousand-Years-Manual.pdf"
+    if ((Resolve-Path $manual).Path -ne (Resolve-Path $pub -ErrorAction SilentlyContinue).Path) { Copy-Item $manual $pub -Force }
     Write-Output "  manual included and published"
 } else { Write-Output "  NO MANUAL at $manual"; exit 1 }
 
