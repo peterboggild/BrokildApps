@@ -39,5 +39,5 @@
     "eval": "(window.__err&&window.__err.length)?window.__err.join(' | '):'none recorded'" },
 
   { "name": "shot of the landing page",
-    "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/web-landing.png" }
+    "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/web-landing.png" }
 ]

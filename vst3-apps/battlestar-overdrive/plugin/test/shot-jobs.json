@@ -4,13 +4,13 @@
   { "name": "dial in a working setting",
     "eval": "setParam('thrust',0.62); setParam('space',0.55); setParam('spectrum',0.72); setParam('antithrust',0.35); setParam('mix',1.0); 'thrust .62  space .55  spectrum .72  antithrust .35'" },
   { "name": "let it paint", "wait": 600 },
-  { "name": "panel, nothing overlaid", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-panel.png" },
+  { "name": "panel, nothing overlaid", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/live-panel.png" },
   { "name": "select an engine", "eval": "setParam('engine', 4/7); ENGINES[engineIndex()].name" },
   { "name": "let it paint", "wait": 260 },
-  { "name": "panel with the engine name", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-name.png" },
+  { "name": "panel with the engine name", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/live-name.png" },
   { "name": "hold the gauge at a low tank (forceFuel, or the 30 Hz meter stream overwrites it)",
     "eval": "setParam('autorefill',0); window.__BO.forceFuel=0.12; paintFuel(); window.__BO.fuelFrame()" },
   { "name": "let it paint", "wait": 300 },
-  { "name": "panel with a nearly empty tank", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-lowfuel.png" },
+  { "name": "panel with a nearly empty tank", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/live-lowfuel.png" },
   { "name": "restore", "eval": "setParam('autorefill',1); 'done'" }
 ]

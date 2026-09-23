@@ -1,7 +1,7 @@
 # How opaque is each fuel frame? An "empty" tube is still GLASS, and glass that
 # is translucent lets the panel's own full tube show straight through the
 # overlay - which renders as a full tank however the frame index is set.
-param([string]$Strip = "C:\Users\peter\b\BattlestarOverdrive\Source\ui\art\fuel.png")
+param([string]$Strip = "$PSScriptRoot\..\Source\ui\art\fuel.png")
 Add-Type -AssemblyName System.Drawing
 $bm = [System.Drawing.Bitmap]::FromFile((Resolve-Path $Strip))
 $W = $bm.Width; $H = $bm.Height

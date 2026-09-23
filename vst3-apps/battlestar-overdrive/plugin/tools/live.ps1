@@ -10,8 +10,8 @@
 #    loader.
 param(
   [int]$Port = 9244,
-  [string]$Jobs = "C:\Users\peter\b\BattlestarOverdrive\test\live-jobs.json",
-  [string]$Exe  = "C:\Users\peter\b\BattlestarOverdrive\build\BattlestarOverdrive_artefacts\Release\Standalone\Battlestar Overdrive.exe",
+  [string]$Jobs = "$PSScriptRoot\..\test\live-jobs.json",
+  [string]$Exe  = "$PSScriptRoot\..\build\BattlestarOverdrive_artefacts\Release\Standalone\Battlestar Overdrive.exe",
   [switch]$KeepOpen
 )
 
@@ -42,7 +42,7 @@ if (-not $proc) { Write-Output "could not start the standalone"; exit 1 }
 Write-Output ("standalone up, pid {0}, CDP on {1}" -f $proc.Id, $Port)
 
 Start-Sleep -Seconds 2
-& node "C:\Users\peter\b\BattlestarOverdrive\tools\cdp.js" $Port $Jobs
+& node "$PSScriptRoot\..\tools\cdp.js" $Port $Jobs
 $code = $LASTEXITCODE
 
 if (-not $KeepOpen) {

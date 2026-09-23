@@ -1,7 +1,8 @@
+const BROKILD_ROOT = require("path").resolve(__dirname, "..").replace(/\\/g, "/");
 /* Rebuild the manual's screenshot page from the current plugin UI:
    the native stub, plus a __M hook the job setups drive. */
 const fs = require("fs");
-const SRC = "C:/Users/peter/b/PhotoSynth/Source/ui/ui.html";
+const SRC = "" + BROKILD_ROOT + "/Source/ui/ui.html";
 const STUB = process.argv[2];
 const OUT = process.argv[3];
 

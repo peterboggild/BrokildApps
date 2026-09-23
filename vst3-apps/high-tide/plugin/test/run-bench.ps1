@@ -3,11 +3,11 @@
 # new hash the loader ignores (overlay after the last PE section).
 #   powershell -File test\run-bench.ps1 [-Exe httest] [-Args "..."]
 param([string] $Exe = "httest", [string] $ArgLine = "")
-$src = "C:\Users\peter\b\HighTide\test\build\Release\$Exe.exe"
+$src = "$PSScriptRoot\..\test\build\Release\$Exe.exe"
 if (-not (Test-Path $src)) { Write-Output "no $src"; exit 2 }
 $rand = New-Object System.Random
 for ($i = 0; $i -lt 8; $i++) {
-    $copy = "C:\Users\peter\b\HighTide\test\build\Release\$Exe-run$i.exe"
+    $copy = "$PSScriptRoot\..\test\build\Release\$Exe-run$i.exe"
     Copy-Item $src $copy -Force
     $b = New-Object byte[] ($rand.Next(3, 17)); $rand.NextBytes($b)
     Add-Content -Path $copy -Value $b -Encoding Byte

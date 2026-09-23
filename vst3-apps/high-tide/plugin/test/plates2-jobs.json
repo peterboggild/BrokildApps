@@ -4,9 +4,9 @@
   {"wait": 1200},
   {"eval": "__HT.setParam('tide', 0.95); NB.send({k:'note',n:50,on:true,vel:0.7}); 'note'"},
   {"wait": 1200},
-  {"shoot": {"sel": "#view", "out": "C:/Users/peter/b/HighTide/docs/manual/shots/hightide.png", "scale": 2}},
+  {"shoot": {"sel": "#view", "out": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/high-tide/plugin/docs/manual/shots/hightide.png", "scale": 2}},
   {"eval": "__HT.setParam('tide', 0.05); 'low'"},
   {"wait": 900},
-  {"shoot": {"sel": "#view", "out": "C:/Users/peter/b/HighTide/docs/manual/shots/lowtide.png", "scale": 2}},
+  {"shoot": {"sel": "#view", "out": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/high-tide/plugin/docs/manual/shots/lowtide.png", "scale": 2}},
   {"eval": "NB.send({k:'note',n:50,on:false}); __HT.ledger()"}
 ]

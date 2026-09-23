@@ -1,5 +1,5 @@
 # Run the bench past Smart App Control: nudge-copy loop (the house trick).
-$dir = "C:\Users\peter\b\ArtefactB2311\test\build\Release"
+$dir = "$PSScriptRoot\..\test\build\Release"
 $src = Join-Path $dir "abtest.exe"
 $out = Join-Path $dir "bench-out.txt"
 $r = New-Object System.Random

@@ -44,7 +44,7 @@ CLAUDE.md has a "Thin Walls" section.
 2. **Release phase 2** — everything is written and waits for the final panel:
    plates `tools/live.ps1 -Jobs test/manual-plates.json` → `tools/crop-plates.ps1`
    (reconcile its crop table with the "rects" job output) → `tools/shoot-manual.ps1`
-   (overflow gate) → `powershell -File C:\Users\peter\b\PhotoSynth\devkit\tools\make-pdf.ps1
+   (overflow gate) → `powershell -File C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin\devkit\tools\make-pdf.ps1
    -Html docs\manual\manual.html -Pdf docs\manual\Thin-Walls-Manual.pdf` →
    `tools/make-preview.ps1` → `powershell -File test\make-zip.ps1` (relink cleanly first:
    live.ps1 may have appended SAC hash-nudge bytes to the exe) → put the zip size into the

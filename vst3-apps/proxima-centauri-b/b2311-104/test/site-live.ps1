@@ -39,13 +39,13 @@ function Launch($exe, $port) {
     return $p
 }
 
-$p104 = Launch "C:\Users\peter\b\ArtefactB2311_104\build\ArtefactB2311_104_artefacts\Release\Standalone\Artefact B2311.104.exe" 9241
+$p104 = Launch "$PSScriptRoot\..\build\ArtefactB2311_104_artefacts\Release\Standalone\Artefact B2311.104.exe" 9241
 Start-Sleep -Seconds 3
-$p22  = Launch "C:\Users\peter\b\ArtefactB2311\build\ArtefactB2311_artefacts\Release\Standalone\Artefact B2311.22.exe" 9242
+$p22  = Launch "$PSScriptRoot\..\build\ArtefactB2311_artefacts\Release\Standalone\Artefact B2311.22.exe" 9242
 Start-Sleep -Seconds 3
-$p1   = Launch "C:\Users\peter\b\ArtefactB2311_1\build\ArtefactB2311_1_artefacts\Release\Standalone\Artefact B2311.1.exe" 9243
+$p1   = Launch "$PSScriptRoot\..\build\ArtefactB2311_1_artefacts\Release\Standalone\Artefact B2311.1.exe" 9243
 Start-Sleep -Seconds 3
-$p67  = Launch "C:\Users\peter\b\ArtefactB2311_67\build\ArtefactB2311_67_artefacts\Release\Standalone\Artefact B2311.67.exe" 9244
+$p67  = Launch "$PSScriptRoot\..\build\ArtefactB2311_67_artefacts\Release\Standalone\Artefact B2311.67.exe" 9244
 Start-Sleep -Seconds 9
 
 Write-Output ("pids: 104=" + $p104.Id + " 22=" + $p22.Id + " 1=" + $p1.Id + " 67=" + $p67.Id)

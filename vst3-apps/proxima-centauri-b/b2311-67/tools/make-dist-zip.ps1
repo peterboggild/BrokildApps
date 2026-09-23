@@ -25,7 +25,7 @@
 #>
 param(
     [switch] $Verify,
-    [string] $Repo = "C:\Users\peter\b\ArtefactB2311_67",
+    [string] $Repo = "$PSScriptRoot\..",
     [string] $Site = "C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\proxima-centauri-b"
 )
 

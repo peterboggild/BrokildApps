@@ -7,7 +7,7 @@
 set -u
 
 REPO="c:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps"
-SRC="C:/Users/peter/b/FullMetalRacket"
+SRC="C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/full-metal-racket/plugin"
 SET_DIR="$REPO/assets/fmr-panel-decals"
 
 echo "== pulling BrokildApps =="

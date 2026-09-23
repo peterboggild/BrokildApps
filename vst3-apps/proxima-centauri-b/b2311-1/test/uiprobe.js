@@ -1,3 +1,4 @@
+const BROKILD_ROOT = require("path").resolve(__dirname, "..").replace(/\\/g, "/");
 /*  Does the PANEL actually show the mark?
 
     The engine can be perfect and the page can silently not read the field —
@@ -10,7 +11,7 @@
     same frame with no marks.
 */
 const fs = require('fs');
-const path = 'C:/Users/peter/b/ArtefactB2311_1/Source/ui/ui.html';
+const path = '" + BROKILD_ROOT + "/Source/ui/ui.html';
 const html = fs.readFileSync(path, 'utf8');
 
 const fails = [];
@@ -27,7 +28,7 @@ ok(/"weight"/.test(html), 'WEIGHT is on the panel');
 //  every id the panel lists must exist in the engine's table
 const groups = html.match(/const GROUPS = \[([\s\S]*?)\];/);
 ok(!!groups, 'GROUPS block found');
-const cpp = fs.readFileSync('C:/Users/peter/b/ArtefactB2311_1/Source/Engine.cpp', 'utf8');
+const cpp = fs.readFileSync('" + BROKILD_ROOT + "/Source/Engine.cpp', 'utf8');
 const specIds = [...cpp.matchAll(/\{ "([a-z]+)",\s+"[A-Z]/g)].map(m => m[1]);
 const panelIds = groups ? [...groups[1].matchAll(/"([a-z]+)"/g)].map(m => m[1]) : [];
 const phantom = panelIds.filter(id => !specIds.includes(id));

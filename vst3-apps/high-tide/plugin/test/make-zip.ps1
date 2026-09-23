@@ -6,7 +6,7 @@
 # must not ship. The script loads the DLL OUT of the archive it just wrote and
 # refuses to publish if it does not load.
 
-$root  = "C:\Users\peter\b\HighTide"
+$root  = "$PSScriptRoot\.."
 $stage = "$root\dist\stage"
 $web   = "c:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\high-tide"
 $out   = Join-Path $web "High-Tide-VST3-win64.zip"

@@ -5,7 +5,7 @@
   {"eval": "NB.send({k:'note',n:45,on:true,vel:0.8}); 'note on'"},
   {"wait": 900},
   {"eval": "(()=>{const s=__HT.state(); return {voices:s.voices.length, wakeN:s.wakeN, ledger:__HT.ledger()};})()"},
-  {"shoot": {"sel": null, "out": "C:/Users/peter/b/HighTide/dist/live-1.png", "scale": 1}},
+  {"shoot": {"sel": null, "out": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/high-tide/plugin/dist/live-1.png", "scale": 1}},
   {"eval": "NB.send({k:'note',n:45,on:false}); 'note off'"},
   {"eval": "(()=>{__HT.lock(false); const j=Math.round(0.3*(__HT.NZ-1)); const before=__HT.terrain()[j*__HT.NX+100]; __HT.sculpt('push',-0.9,0.3,1); const after=__HT.terrain()[j*__HT.NX+100]; window.__rt={j,before,after}; return window.__rt;})()"},
   {"wait": 400},
@@ -23,11 +23,11 @@
   {"eval": "NB.send({k:'note',n:38,on:true,vel:0.9}); 'note on'"},
   {"wait": 1800},
   {"eval": "(()=>{const s=__HT.state(); return {voices:s.voices.length, wakeN:s.wakeN};})()"},
-  {"shoot": {"sel": null, "out": "C:/Users/peter/b/HighTide/dist/live-2.png", "scale": 1}},
+  {"shoot": {"sel": null, "out": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/high-tide/plugin/dist/live-2.png", "scale": 1}},
   {"eval": "NB.send({k:'note',n:38,on:false}); 'note off'"},
   {"eval": "(()=>{const b=document.querySelector('[data-bwfx-open]'); b.click(); return 'bwfx opened';})()"},
   {"wait": 1200},
   {"eval": "(()=>{const o=document.querySelector('.bwfx-overlay, #bwfx-overlay, [class*=bwfx]'); return {overlay: !!o, visible: o ? (getComputedStyle(o).display!=='none') : false, pedals: document.querySelectorAll('[class*=bwfx-ped], .bwfx-module').length};})()"},
-  {"shoot": {"sel": null, "out": "C:/Users/peter/b/HighTide/dist/live-3.png", "scale": 1}},
+  {"shoot": {"sel": null, "out": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/high-tide/plugin/dist/live-3.png", "scale": 1}},
   {"eval": "(()=>{ try { BWFX.close(); } catch(e) { const c=document.querySelector('[data-bwfx-close], .bwfx-close'); if(c) c.click(); } return window.__err; })()"}
 ]

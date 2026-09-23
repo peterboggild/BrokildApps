@@ -5,7 +5,7 @@
 # access the file" — the house trick is to rename the loaded bundle out of the
 # way and copy the new one in, which works while the old DLL is still mapped.
 set -u
-SRC="C:/Users/peter/b/FullMetalRacket/build/FullMetalRacket_artefacts/Release/VST3/Full Metal Racket.vst3"
+SRC="C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/full-metal-racket/plugin/build/FullMetalRacket_artefacts/Release/VST3/Full Metal Racket.vst3"
 
 powershell -NoProfile -Command "
 \$src = '$(cygpath -w "$SRC" 2>/dev/null || echo "$SRC")'

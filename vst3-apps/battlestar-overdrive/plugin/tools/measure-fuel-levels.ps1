@@ -5,8 +5,8 @@
 # gauge jumps. Measure the amber column in every frame and let the numbers say
 # what the order should be.
 param(
-  [string]$Sheet = "C:\Users\peter\b\BattlestarOverdrive\assets\decals\fuel-sheet.png",
-  [string]$Geo   = "C:\Users\peter\b\BattlestarOverdrive\assets\panel-geometry.json"
+  [string]$Sheet = "$PSScriptRoot\..\assets\decals\fuel-sheet.png",
+  [string]$Geo   = "$PSScriptRoot\..\assets\panel-geometry.json"
 )
 Add-Type -AssemblyName System.Drawing
 $g = Get-Content $Geo -Raw | ConvertFrom-Json

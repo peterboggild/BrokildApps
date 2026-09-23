@@ -1,8 +1,9 @@
+const BROKILD_ROOT = require("path").resolve(__dirname, "..").replace(/\\/g, "/");
 // Numbers for ears that are not here: per-file peak, integrated RMS, crest,
 // DC, and a spectral centroid (from 4096-point DFT bins over the whole file).
 "use strict";
 const fs = require("fs"), path = require("path");
-const dir = process.argv[2] || "C:/Users/peter/b/Nineteen84/docs/audio";
+const dir = process.argv[2] || "" + BROKILD_ROOT + "/docs/audio";
 function readWav(file) {
   const b = fs.readFileSync(file);
   let pos = 12, fmt = null, data = null;

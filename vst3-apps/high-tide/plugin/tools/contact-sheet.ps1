@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 
 if (-not $Src) { $Src = Join-Path $env:USERPROFILE "Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\assets\high-tide-decals" }
-if (-not $Out) { $Out = "C:\Users\peter\b\HighTide\dist\decal-sheet.png" }
+if (-not $Out) { $Out = "$PSScriptRoot\..\dist\decal-sheet.png" }
 $files = Get-ChildItem (Join-Path $Src "*.png") | Sort-Object Name
 
 $cell = 300; $cols = 4

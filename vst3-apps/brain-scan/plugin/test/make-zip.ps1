@@ -6,7 +6,7 @@
 # ship. The script loads the DLL OUT of the archive it just wrote and refuses
 # to publish if it does not load, then compares hashes with the build.
 
-$root  = "C:\Users\peter\b\BrainScan"
+$root  = "$PSScriptRoot\.."
 $stage = "$root\dist\stage"
 $web   = "c:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\brain-scan"
 $out   = Join-Path $web "Brain-Scan-VST3-win64.zip"

@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 
 $src = "c:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\assets\high-tide-decals"
-$dst = "C:\Users\peter\b\HighTide\dist\decals-cropped"
+$dst = "$PSScriptRoot\..\dist\decals-cropped"
 New-Item -ItemType Directory -Force $dst | Out-Null
 
 foreach ($f in (Get-ChildItem (Join-Path $src "*.png") | Sort-Object Name)) {

@@ -8,8 +8,8 @@
 # ASCII only - Windows PowerShell 5.1 reads a UTF-8-no-BOM .ps1 as ANSI and an
 # em dash is a parser error.
 param(
-  [string]$Html = "C:\Users\peter\b\BattlestarOverdrive\docs\manual\manual.html",
-  [string]$Dest = "C:\Users\peter\b\BattlestarOverdrive\docs\manual\pages",
+  [string]$Html = "$PSScriptRoot\..\docs\manual\manual.html",
+  [string]$Dest = "$PSScriptRoot\..\docs\manual\pages",
   [int]$Port = 9301
 )
 
@@ -118,7 +118,7 @@ $jobsFile = Join-Path $env:TEMP 'manual-shot-jobs.json'
 $json = $jobs | ConvertTo-Json -Depth 4
 [System.IO.File]::WriteAllText($jobsFile, $json, (New-Object System.Text.UTF8Encoding($false)))
 
-& node "C:\Users\peter\b\BattlestarOverdrive\tools\cdp.js" $Port $jobsFile
+& node "$PSScriptRoot\..\tools\cdp.js" $Port $jobsFile
 
 Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
 Write-Host ""

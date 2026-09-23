@@ -3,7 +3,7 @@
 # few random bytes appended is the same program with a new hash.
 # ASCII only: Windows PowerShell 5.1 reads a UTF-8-no-BOM .ps1 as ANSI.
 param([switch]$NoBuild, [string]$Args = "")
-$root = "C:\Users\peter\b\Nineteen84"
+$root = "$PSScriptRoot\.."
 if (-not $NoBuild) {
     if (-not (Test-Path "$root\test\build\CMakeCache.txt")) {
         cmake -S "$root\test" -B "$root\test\build" -A x64 | Out-Null

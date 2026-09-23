@@ -1,6 +1,7 @@
 "use strict";
+const BROKILD_ROOT = require("path").resolve(__dirname, "..").replace(/\\/g, "/");
 const fs = require("fs");
-const p = "C:/Users/peter/b/HighTide/test/patch-docs.js";
+const p = "" + BROKILD_ROOT + "/test/patch-docs.js";
 let s = fs.readFileSync(p, "utf8");
 const A = "  [`    <p>HIGH TIDE is a Brokild instrument. Free. Windows VST3 and standalone,`,\n" +
           "   `    <p>Every control, button, tool and timeline lane carries a hint, and the panel probe refuses\n" +

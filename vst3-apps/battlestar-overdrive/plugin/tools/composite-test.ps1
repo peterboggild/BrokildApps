@@ -2,7 +2,7 @@
 # assets/panel-geometry.json, so the numbers can be CHECKED by looking rather
 # than trusted. Renders both knob sets for comparison.
 param(
-  [string]$Root = "C:\Users\peter\b\BattlestarOverdrive",
+  [string]$Root = "$PSScriptRoot\..",
   [ValidateSet("knobChrome","knobOrange")][string]$Set = "knobChrome",
   [double]$Value = 0.5,          # 0..1, drives every knob's pointer
   [int]$FuelIndex = 0,           # 0 = full .. 14 = empty

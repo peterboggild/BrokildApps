@@ -12,7 +12,7 @@
 #
 # ASCII only - Windows PowerShell 5.1 reads a UTF-8-no-BOM .ps1 as ANSI.
 param(
-  [string]$Src  = "C:\Users\peter\b\ThinWalls\docs\manual\img\panel.jpg",
+  [string]$Src  = "$PSScriptRoot\..\docs\manual\img\panel.jpg",
   [string]$Out  = "C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\assets\app-previews\thin-walls.jpg",
   [int]$W = 1280,
   [int]$H = 720,

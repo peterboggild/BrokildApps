@@ -10,8 +10,8 @@
 #    before cutting a zip: those bytes must not ship.
 param(
   [int]$Port = 9245,
-  [string]$Jobs = "C:\Users\peter\b\ThinWalls\test\live-jobs.json",
-  [string]$Exe  = "C:\Users\peter\b\ThinWalls\build\ThinWalls_artefacts\Release\Standalone\Thin Walls.exe",
+  [string]$Jobs = "$PSScriptRoot\..\test\live-jobs.json",
+  [string]$Exe  = "$PSScriptRoot\..\build\ThinWalls_artefacts\Release\Standalone\Thin Walls.exe",
   [switch]$KeepOpen
 )
 
@@ -41,7 +41,7 @@ if (-not $proc) { Write-Output "could not start the standalone"; exit 1 }
 Write-Output ("standalone up, pid {0}, CDP on {1}" -f $proc.Id, $Port)
 
 Start-Sleep -Seconds 3
-& node "C:\Users\peter\b\ThinWalls\tools\cdp.js" $Port $Jobs
+& node "$PSScriptRoot\..\tools\cdp.js" $Port $Jobs
 $code = $LASTEXITCODE
 
 if (-not $KeepOpen) {

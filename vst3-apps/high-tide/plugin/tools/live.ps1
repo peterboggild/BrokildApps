@@ -14,7 +14,7 @@ Get-Process "High Tide" -ErrorAction SilentlyContinue | Stop-Process -Force -Err
 Start-Sleep -Milliseconds 400
 
 $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$Port"
-$exe = "C:\Users\peter\b\HighTide\build\HighTide_artefacts\Release\Standalone\High Tide.exe"
+$exe = "$PSScriptRoot\..\build\HighTide_artefacts\Release\Standalone\High Tide.exe"
 $rand = New-Object System.Random
 $started = $false
 for ($i = 0; $i -lt 6 -and -not $started; $i++) {

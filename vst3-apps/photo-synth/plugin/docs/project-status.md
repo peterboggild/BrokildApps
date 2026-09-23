@@ -5,7 +5,7 @@ It is intended to track what has been completed, what currently works, what is s
 
 ## Goal
 
-Port the original browser Photo Synth from [reference/photo-synth](C:/Users/peter/b/PhotoSynth/reference/photo-synth) into a native JUCE VST3/Standalone instrument while preserving:
+Port the original browser Photo Synth from [reference/photo-synth](C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/photo-synth/plugin/reference/photo-synth) into a native JUCE VST3/Standalone instrument while preserving:
 
 - the original look and layout
 - the original interaction model

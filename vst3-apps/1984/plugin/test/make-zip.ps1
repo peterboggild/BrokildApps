@@ -11,7 +11,7 @@
 #
 # ASCII only - Windows PowerShell 5.1 reads a UTF-8-no-BOM .ps1 as ANSI.
 
-$root  = "C:\Users\peter\b\Nineteen84"
+$root  = "$PSScriptRoot\.."
 $stage = "$root\dist\stage"
 $web   = "C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\1984"
 $out   = Join-Path $web "1984-VST3-win64.zip"

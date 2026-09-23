@@ -1,3 +1,4 @@
+const BROKILD_ROOT = require("path").resolve(__dirname, "..").replace(/\\/g, "/");
 /*  THE MARS WARS becomes MARTIAN GAIN, and loses the world rack.
 
     Two of Peter's calls, both right. "The Mars Wars" reads as a sibling of
@@ -25,7 +26,7 @@
 "use strict";
 const fs = require("fs");
 const miss = [];
-const R = "C:/Users/peter/b/MarsWars/";
+const R = "" + BROKILD_ROOT + "/";
 const Q = String.fromCharCode(34);
 
 function edit(rel, subs) {

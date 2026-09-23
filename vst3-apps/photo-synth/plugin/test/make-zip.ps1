@@ -7,10 +7,10 @@
 # The README is carried over from the old zip with the name swept, so nothing
 # it says about the plugin is lost.
 
-$stage = "C:\Users\peter\b\PhotoSynth\dist\stage"
+$stage = "$PSScriptRoot\..\dist\stage"
 $out   = "c:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth-2\Photo-Synth-VST3-win64.zip"
 $old   = "c:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth-2\Photo-Synth2-VST3-win64.zip"
-$build = "C:\Users\peter\b\PhotoSynth\build\PhotoSynth_artefacts\Release"
+$build = "$PSScriptRoot\..\build\PhotoSynth_artefacts\Release"
 
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force $stage | Out-Null
@@ -37,7 +37,7 @@ if ($exe) { Copy-Item $exe.FullName (Join-Path $stage "Photo Synth.exe") -Force;
 else { Write-Output "  standalone NOT FOUND" }
 
 # 3. the manual
-Copy-Item "C:\Users\peter\b\PhotoSynth\docs\manual\Photo-Synth-Manual.pdf" (Join-Path $stage "Photo Synth Manual.pdf") -Force
+Copy-Item "$PSScriptRoot\..\docs\manual\Photo-Synth-Manual.pdf" (Join-Path $stage "Photo Synth Manual.pdf") -Force
 
 # 4. the README, carried over from the shipped zip with the name swept
 $tmp = Join-Path $env:TEMP ("psreadme" + (Get-Random))

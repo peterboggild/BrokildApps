@@ -11,7 +11,7 @@
   { "name": "hold it at half a tank for a look",
     "eval": "window.__BO.forceFuel=0.5; applyForces(); paintFuel(); 'frame '+window.__BO.fuelFrame()" },
   { "name": "let it paint", "wait": 300 },
-  { "name": "half a tank", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-halffuel.png" },
+  { "name": "half a tank", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/live-halffuel.png" },
 
   { "name": "release", "eval": "window.__BO.forceFuel=null; 'released'" }
 ]

@@ -10,8 +10,8 @@
 #    before cutting a zip: those bytes must not ship.
 param(
   [int]$Port = 9251,
-  [string]$Jobs = "C:\Users\peter\b\Nineteen84\test\live-jobs.json",
-  [string]$Exe  = "C:\Users\peter\b\Nineteen84\build\Nineteen84_artefacts\Release\Standalone\1984.exe",
+  [string]$Jobs = "$PSScriptRoot\..\test\live-jobs.json",
+  [string]$Exe  = "$PSScriptRoot\..\build\Nineteen84_artefacts\Release\Standalone\1984.exe",
   [switch]$KeepOpen
 )
 
@@ -41,7 +41,7 @@ if (-not $proc) { Write-Output "could not start the standalone"; exit 1 }
 Write-Output ("standalone up, pid {0}, CDP on {1}" -f $proc.Id, $Port)
 
 Start-Sleep -Seconds 3
-& node "C:\Users\peter\b\Nineteen84\tools\cdp.js" $Port $Jobs
+& node "$PSScriptRoot\..\tools\cdp.js" $Port $Jobs
 $code = $LASTEXITCODE
 
 if (-not $KeepOpen) {

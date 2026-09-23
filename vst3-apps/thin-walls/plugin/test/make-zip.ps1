@@ -12,7 +12,7 @@
 #
 # ASCII only - Windows PowerShell 5.1 reads a UTF-8-no-BOM .ps1 as ANSI.
 
-$root  = "C:\Users\peter\b\ThinWalls"
+$root  = "$PSScriptRoot\.."
 $stage = "$root\dist\stage"
 $web   = "C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\thin-walls"
 $out   = Join-Path $web "Thin-Walls-VST3-win64.zip"

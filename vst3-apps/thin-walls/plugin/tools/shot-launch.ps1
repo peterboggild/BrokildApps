@@ -3,8 +3,8 @@
 # developer kits": WebView2Loader.dll must not be found by accident on the PATH.
 # ASCII only.
 param(
-  [string]$Exe = "C:\Users\peter\b\ThinWalls\build\ThinWalls_artefacts\Release\Standalone\Thin Walls.exe",
-  [string]$Out = "C:\Users\peter\b\ThinWalls\docs\launch-shot.png",
+  [string]$Exe = "$PSScriptRoot\..\build\ThinWalls_artefacts\Release\Standalone\Thin Walls.exe",
+  [string]$Out = "$PSScriptRoot\..\docs\launch-shot.png",
   [int]$WaitSec = 7,
   [switch]$StripPath
 )

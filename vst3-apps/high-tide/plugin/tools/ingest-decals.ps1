@@ -14,7 +14,7 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 
 $src = Join-Path $env:USERPROFILE "Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\assets\high-tide-decals"
-$dst = "C:\Users\peter\b\HighTide\Source\ui\decals"
+$dst = "$PSScriptRoot\..\Source\ui\decals"
 New-Item -ItemType Directory -Force $dst | Out-Null
 
 # part -> target size on disk, whether to turn it a quarter turn first, and

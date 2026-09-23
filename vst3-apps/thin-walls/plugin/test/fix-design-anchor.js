@@ -1,8 +1,9 @@
+const BROKILD_ROOT = require("path").resolve(__dirname, "..").replace(/\\/g, "/");
 /*  A backtick inside a JS template literal ENDS it - so the code span I
     spliced into the replacement body broke patch-design-doc.js itself. The
     body carries no backtick now; the file name is set in plain prose.       */
 const fs = require("fs");
-const p = "C:/Users/peter/b/ThinWalls/test/patch-design-doc.js";
+const p = "" + BROKILD_ROOT + "/test/patch-design-doc.js";
 let s = fs.readFileSync(p, "utf8");
 const BT = String.fromCharCode(96);
 

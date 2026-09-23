@@ -5,10 +5,10 @@
 # The findings report travels with the object rather than a manual, because
 # there is no manual: nothing about these objects is operated.
 
-$stage = "C:\Users\peter\b\ArtefactB2311\dist\stage"
+$stage = "$PSScriptRoot\..\dist\stage"
 $web   = "c:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\proxima-centauri-b"
 $out   = Join-Path $web "Artefact-B2311-22-win64.zip"
-$build = "C:\Users\peter\b\ArtefactB2311\build\ArtefactB2311_artefacts\Release"
+$build = "$PSScriptRoot\..\build\ArtefactB2311_artefacts\Release"
 
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force $stage | Out-Null

@@ -7,7 +7,7 @@
 # vanished. So: probe with LoadLibraryW, and if it is blocked, relink for a
 # fresh hash and probe again.
 set -u
-SRC="C:/Users/peter/b/FullMetalRacket"
+SRC="C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/full-metal-racket/plugin"
 DLL="$SRC/build/FullMetalRacket_artefacts/Release/VST3/Full Metal Racket.vst3/Contents/x86_64-win/Full Metal Racket.vst3"
 
 probe() {

@@ -14,12 +14,12 @@
 
   { "name": "hold it bright for the shot",
     "eval": "(async()=>{const y=Math.floor(crt.height*0.42)-7;for(let k=0;k<70;k++){await new Promise(r=>requestAnimationFrame(r));const d=ctx.getImageData(0,y,crt.width,14).data;let red=0;for(let i=0;i<d.length;i+=4){if(d[i]>80&&d[i]>d[i+2]+35)red++;}if(red>300)return 'caught it lit at '+red;}return 'never caught lit';})()" },
-  { "name": "panel with FUEL EMPTY up", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-empty.png" },
+  { "name": "panel with FUEL EMPTY up", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/live-empty.png" },
 
   { "name": "release the overrides and press AUTOREFILL",
     "eval": "window.__BO.forceFuel=null; window.__BO.forceEmpty=null; window.__BO.forceFizzle=null; setParam('autorefill',1); 'released'" },
   { "name": "let the native side refill", "wait": 1400 },
   { "name": "state after the refill",
     "eval": "'fuel '+meter.fuel.toFixed(3)+'  empty '+meter.empty+'  frame '+window.__BO.fuelFrame()" },
-  { "name": "panel restored", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/live-restored.png" }
+  { "name": "panel restored", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/live-restored.png" }
 ]

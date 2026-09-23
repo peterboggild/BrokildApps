@@ -3,8 +3,8 @@
 Add-Type -AssemblyName System.Drawing
 
 $src  = "C:\Users\peter\AppData\Local\Temp\claude\c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE\cd01d138-dfc1-41c5-9c61-caa69b695d83\scratchpad\manual\shots-new"
-$dst  = "C:\Users\peter\b\PhotoSynth\docs\manual\shots"
-$man  = Get-Content "C:\Users\peter\b\PhotoSynth\docs\manual\manual.html" -Raw
+$dst  = "$PSScriptRoot\..\..\docs\manual\shots"
+$man  = Get-Content "$PSScriptRoot\..\..\docs\manual\manual.html" -Raw
 
 $wanted = [regex]::Matches($man, 'src="shots/([^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
 

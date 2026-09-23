@@ -16,7 +16,7 @@ The goal is to preserve the original look, feel, workflow, and musical behavior 
 
 ## Repository facts
 
-- Project root: `C:\Users\peter\b\PhotoSynth`
+- Project root: `C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin`
 - JUCE source used by this project: `C:\Users\peter\AudioDev\Projects\BrokildVSTTemplate\external\JUCE`
 - Reference copy of the original browser app: `reference/photo-synth/`
 - Current native plugin scaffold exists and already builds successfully.
@@ -89,8 +89,8 @@ The goal is to preserve the original look, feel, workflow, and musical behavior 
 Use the out-of-tree build directory:
 
 ```powershell
-cmake -S C:\Users\peter\b\PhotoSynth -B C:\Users\peter\b\PhotoSynth\build -G "Visual Studio 18 2026" -A x64
-cmake --build C:\Users\peter\b\PhotoSynth\build --config Release
+cmake -S C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin -B C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin\build -G "Visual Studio 18 2026" -A x64
+cmake --build C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin\build --config Release
 ```
 
 ## Expected outcome

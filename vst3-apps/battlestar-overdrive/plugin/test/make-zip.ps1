@@ -12,7 +12,7 @@
 #
 # ASCII only - Windows PowerShell 5.1 reads a UTF-8-no-BOM .ps1 as ANSI.
 
-$root  = "C:\Users\peter\b\BattlestarOverdrive"
+$root  = "$PSScriptRoot\.."
 $stage = "$root\dist\stage"
 $web   = "C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\battlestar-overdrive"
 $out   = Join-Path $web "Battlestar-Overdrive-VST3-win64.zip"

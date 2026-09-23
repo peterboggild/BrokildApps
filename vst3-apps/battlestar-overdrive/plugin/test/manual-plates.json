@@ -6,58 +6,58 @@
   { "name": "a working setting: ION DRIVE, a little space, tone up",
     "eval": "setParam('engine',1/7); setParam('thrust',0.55); setParam('space',0.38); setParam('spectrum',0.66); setParam('antithrust',0.22); setParam('mix',1.0); 'set'" },
   { "name": "wait past the engine name so the tube is clean", "wait": 2600 },
-  { "name": "PLATE 1 - the panel", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-panel.png" },
+  { "name": "PLATE 1 - the panel", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-panel.png" },
 
   { "name": "touch a knob so the readout comes up on the glass",
     "eval": "setParam('thrust',0.62,true); readoutText" },
   { "name": "let it paint", "wait": 240 },
-  { "name": "PLATE 2 - the readout", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-readout.png" },
+  { "name": "PLATE 2 - the readout", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-readout.png" },
 
   { "name": "engine 1 = IDLE BURN, the slow stars",
     "eval": "setParam('engine',0); ENGINES[engineIndex()].name" },
   { "name": "let the name glow", "wait": 500 },
-  { "name": "PLATE 3 - an engine announces itself", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-engine.png" },
+  { "name": "PLATE 3 - an engine announces itself", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-engine.png" },
 
   { "name": "wait past the name", "wait": 2200 },
-  { "name": "PLATE 4 - idle, the stars barely move", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-idle.png" },
+  { "name": "PLATE 4 - idle, the stars barely move", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-idle.png" },
 
   { "name": "engine 7 = HYPERDRIVE", "eval": "setParam('engine',6/7); ENGINES[engineIndex()].name" },
   { "name": "wait past the name so the streaks are clear", "wait": 2600 },
-  { "name": "PLATE 5 - warp", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-warp.png" },
+  { "name": "PLATE 5 - warp", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-warp.png" },
 
   { "name": "engine 8 = SUPERNOVA", "eval": "setParam('engine',1.0); ENGINES[engineIndex()].name" },
   { "name": "wait past the name, then BLOCK until the star is a swollen red giant (phase .70-.78)",
     "eval": "(async()=>{for(let k=0;k<150;k++)await new Promise(r=>requestAnimationFrame(r));for(let k=0;k<1400;k++){await new Promise(r=>requestAnimationFrame(r));const t=((performance.now()*0.001)%11.0)/11.0;if(t>0.70&&t<0.78)return 'caught the giant at phase '+t.toFixed(3);}return 'NEVER caught the giant';})()" },
-  { "name": "PLATE 6 - the red giant", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-nova-giant.png" },
+  { "name": "PLATE 6 - the red giant", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-nova-giant.png" },
 
   { "name": "BLOCK until the shock front is out (phase .83-.87)",
     "eval": "(async()=>{for(let k=0;k<1400;k++){await new Promise(r=>requestAnimationFrame(r));const t=((performance.now()*0.001)%11.0)/11.0;if(t>0.83&&t<0.87)return 'caught the shell at phase '+t.toFixed(3);}return 'NEVER caught the shell';})()" },
-  { "name": "PLATE 7 - it goes", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-nova-shell.png" },
+  { "name": "PLATE 7 - it goes", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-nova-shell.png" },
 
   { "name": "SPACE up for the nebulae, back to a mid engine",
     "eval": "setParam('engine',3/7); setParam('space',0.68); 'set'" },
   { "name": "wait past the name and let the fog build", "wait": 3200 },
-  { "name": "PLATE 8 - SPACE paints nebulae", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-nebula.png" },
+  { "name": "PLATE 8 - SPACE paints nebulae", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-nebula.png" },
 
   { "name": "ANTITHRUST wide - the curve splits into a ghost pair",
     "eval": "setParam('antithrust',0.85); setParam('space',0.20); 'set'" },
   { "name": "let it paint", "wait": 900 },
-  { "name": "PLATE 9 - width", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-width.png" },
+  { "name": "PLATE 9 - width", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-width.png" },
 
   { "name": "OVERLOAD: hold the peak up (forcePeak, or the 30 Hz meter wipes it)",
     "eval": "setParam('antithrust',0.25); setParam('thrust',0.95); window.__BO.forcePeak=0.99; applyForces(); 'peak '+meter.peak" },
   { "name": "let it bloom", "wait": 420 },
-  { "name": "PLATE 10 - overload", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-overload.png" },
+  { "name": "PLATE 10 - overload", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-overload.png" },
 
   { "name": "release the peak, run the tank down to one notch",
     "eval": "window.__BO.forcePeak=null; setParam('autorefill',0); window.__BO.forceFuel=0.10; applyForces(); 'fuel held low'" },
   { "name": "let it paint", "wait": 420 },
-  { "name": "PLATE 11 - a dry tank", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-fuel-low.png" },
+  { "name": "PLATE 11 - a dry tank", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-fuel-low.png" },
 
   { "name": "empty, and the screen says so",
     "eval": "window.__BO.forceFuel=0.0; window.__BO.forceEmpty=true; applyForces(); 'empty'" },
   { "name": "catch the blink ON", "wait": 300 },
-  { "name": "PLATE 12 - FUEL EMPTY", "shoot": "C:/Users/peter/b/BattlestarOverdrive/docs/m-fuel-empty.png" },
+  { "name": "PLATE 12 - FUEL EMPTY", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-fuel-empty.png" },
 
   { "name": "restore everything",
     "eval": "window.__BO.forceFuel=null; window.__BO.forceEmpty=null; window.__BO.forcePeak=null; setParam('autorefill',1); setParam('thrust',0.35); setParam('antithrust',0); setParam('space',0); setParam('engine',1/7); 'restored'" }

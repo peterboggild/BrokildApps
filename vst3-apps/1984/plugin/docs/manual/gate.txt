@@ -21,75 +21,75 @@ target: 1984 — Owner&#39;s Handbook
   scroll to page 1
      top 0
   page 1
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p01.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p01.png
   scroll to page 2
      top 794
   page 2
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p02.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p02.png
   scroll to page 3
      top 1587
   page 3
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p03.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p03.png
   scroll to page 4
      top 2381
   page 4
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p04.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p04.png
   scroll to page 5
      top 3175
   page 5
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p05.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p05.png
   scroll to page 6
      top 3968
   page 6
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p06.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p06.png
   scroll to page 7
      top 4762
   page 7
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p07.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p07.png
   scroll to page 8
      top 5556
   page 8
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p08.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p08.png
   scroll to page 9
      top 6350
   page 9
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p09.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p09.png
   scroll to page 10
      top 7143
   page 10
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p10.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p10.png
   scroll to page 11
      top 7937
   page 11
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p11.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p11.png
   scroll to page 12
      top 8731
   page 12
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p12.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p12.png
   scroll to page 13
      top 9524
   page 13
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p13.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p13.png
   scroll to page 14
      top 10318
   page 14
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p14.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p14.png
   scroll to page 15
      top 11112
   page 15
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p15.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p15.png
   scroll to page 16
      top 11905
   page 16
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p16.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p16.png
   scroll to page 17
      top 12699
   page 17
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p17.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p17.png
   scroll to page 18
      top 13493
   page 18
-     C:/Users/peter/b/Nineteen84/docs/manual/pages/p18.png
+     C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/1984/plugin/docs/manual/pages/p18.png
 
   p01.png      361 KB
   p02.png      225 KB

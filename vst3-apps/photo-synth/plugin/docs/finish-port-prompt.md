@@ -7,7 +7,7 @@ Use this prompt verbatim or adapt it slightly for the next coding agent.
 You are continuing work on an in-progress JUCE VST3/Standalone port of the browser app Photo Synth.
 
 Project root:
-`C:\Users\peter\b\PhotoSynth`
+`C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin`
 
 Your job is to finish the port from the current state, not to restart it from scratch.
 
@@ -145,8 +145,8 @@ After each meaningful phase, rebuild in Release mode.
 Build commands:
 
 ```powershell
-cmake -S C:\Users\peter\b\PhotoSynth -B C:\Users\peter\b\PhotoSynth\build -G "Visual Studio 18 2026" -A x64
-cmake --build C:\Users\peter\b\PhotoSynth\build --config Release
+cmake -S C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin -B C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin\build -G "Visual Studio 18 2026" -A x64
+cmake --build C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin\build --config Release
 ```
 
 Then update the installed bundle at:
@@ -216,6 +216,6 @@ Implement the changes, build the plugin, validate the result, and update the ins
 
 Suggested companion context for the next agent:
 
-- Current factual project snapshot: [project-status.md](C:/Users/peter/b/PhotoSynth/docs/project-status.md)
-- Existing parity tracker: [feature-parity.md](C:/Users/peter/b/PhotoSynth/docs/feature-parity.md)
-- Original app reference: [index.html](C:/Users/peter/b/PhotoSynth/reference/photo-synth/index.html)
+- Current factual project snapshot: [project-status.md](C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/photo-synth/plugin/docs/project-status.md)
+- Existing parity tracker: [feature-parity.md](C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/photo-synth/plugin/docs/feature-parity.md)
+- Original app reference: [index.html](C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/photo-synth/plugin/reference/photo-synth/index.html)

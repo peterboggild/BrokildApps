@@ -7,10 +7,10 @@
 # Cut AFTER a clean relink: the working standalone accumulates Smart App
 # Control hash-nudge bytes and those must not ship.
 
-$stage = "C:\Users\peter\b\ArtefactB2311_104\dist\stage"
+$stage = "$PSScriptRoot\..\dist\stage"
 $web   = "c:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\proxima-centauri-b"
 $out   = Join-Path $web "Artefact-B2311-104-win64.zip"
-$build = "C:\Users\peter\b\ArtefactB2311_104\build\ArtefactB2311_104_artefacts\Release"
+$build = "$PSScriptRoot\..\build\ArtefactB2311_104_artefacts\Release"
 
 if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 New-Item -ItemType Directory -Force $stage | Out-Null

@@ -9,7 +9,7 @@
 #  - the screen's own highlights and scratches are lifted into their own part, so
 #    the miniature visuals can be drawn UNDER the real glass instead of replacing it
 param(
-  [string]$Root = "C:\Users\peter\b\BattlestarOverdrive"
+  [string]$Root = "$PSScriptRoot\.."
 )
 Add-Type -AssemblyName System.Drawing
 $geo = Get-Content (Join-Path $Root "assets\panel-geometry.json") -Raw | ConvertFrom-Json

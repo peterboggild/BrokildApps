@@ -16,7 +16,7 @@
 
 param(
   [string]$SetDir = "c:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\assets\fmr-panel-decals",
-  [string]$ArtDir = "C:\Users\peter\b\FullMetalRacket\art"
+  [string]$ArtDir = "$PSScriptRoot\..\art"
 )
 
 Add-Type -AssemblyName System.Drawing

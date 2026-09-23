@@ -14,8 +14,8 @@
 # em dash is a parser error.
 
 param(
-  [string]$Raw  = "C:\Users\peter\b\ThinWalls\docs\manual\raw",
-  [string]$Dest = "C:\Users\peter\b\ThinWalls\docs\manual\img",
+  [string]$Raw  = "$PSScriptRoot\..\docs\manual\raw",
+  [string]$Dest = "$PSScriptRoot\..\docs\manual\img",
   [int]$MaxWide = 1700,
   [int]$Quality = 88,
   # the window the shots were taken in; a run at another size is refused rather

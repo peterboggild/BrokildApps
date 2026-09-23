@@ -29,8 +29,8 @@ See `docs/feature-parity.md` for the exact parity status.
 Use a build directory outside the repository:
 
 ```powershell
-cmake -S C:\Users\peter\b\PhotoSynth -B C:\Users\peter\b\PhotoSynth\build -G "Visual Studio 18 2026" -A x64
-cmake --build C:\Users\peter\b\PhotoSynth\build --config Release
+cmake -S C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin -B C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin\build -G "Visual Studio 18 2026" -A x64
+cmake --build C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\photo-synth\plugin\build --config Release
 ```
 
 Install: copy `build\PhotoSynth_artefacts\Release\VST3\Photo-Synth2.vst3` to

@@ -1,8 +1,9 @@
+const BROKILD_ROOT = require("path").resolve(__dirname, "..").replace(/\\/g, "/");
 /*  Repair the refill/skin handlers, which a line-range edit computed against a
  *  STALE line numbering merged into one another. Verifies the exact bounds
  *  before writing rather than trusting the numbers again. */
 const fs = require("fs");
-const p = "C:/Users/peter/b/BattlestarOverdrive/Source/ui/ui.html";
+const p = "" + BROKILD_ROOT + "/Source/ui/ui.html";
 let s = fs.readFileSync(p, "utf8");
 const NL = s.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
 const lines = s.split(NL);

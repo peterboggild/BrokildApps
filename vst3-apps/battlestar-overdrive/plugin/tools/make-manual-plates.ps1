@@ -10,8 +10,8 @@
 # ASCII only - a UTF-8-no-BOM .ps1 with an em dash is a PARSER ERROR in
 # Windows PowerShell 5.1, which reads the file as ANSI.
 param(
-  [string]$Src  = "C:\Users\peter\b\BattlestarOverdrive\docs",
-  [string]$Dest = "C:\Users\peter\b\BattlestarOverdrive\docs\manual\img",
+  [string]$Src  = "$PSScriptRoot\..\docs",
+  [string]$Dest = "$PSScriptRoot\..\docs\manual\img",
   [int]$Quality = 90
 )
 

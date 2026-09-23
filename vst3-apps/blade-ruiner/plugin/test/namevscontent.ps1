@@ -3,8 +3,8 @@ Add-Type -Namespace NC -Name N -MemberDefinition '[DllImport("kernel32", SetLast
 $tmp = 'C:\Users\peter\b\_sactest'
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 
-$br = 'C:\Users\peter\b\BladeRuiner\build\BladeRuiner_artefacts\Release\VST3\Blade Ruiner.vst3\Contents\x86_64-win\Blade Ruiner.vst3'
-$mw = 'C:\Users\peter\b\MarsWars\build\MarsWars_artefacts\Release\VST3\The Mars Wars.vst3\Contents\x86_64-win\The Mars Wars.vst3'
+$br = '$PSScriptRoot\..\build\BladeRuiner_artefacts\Release\VST3\Blade Ruiner.vst3\Contents\x86_64-win\Blade Ruiner.vst3'
+$mw = '$PSScriptRoot\..\build\MarsWars_artefacts\Release\VST3\The Mars Wars.vst3\Contents\x86_64-win\The Mars Wars.vst3'
 
 function Try-Load($path, $label) {
     $h = [NC.N]::LoadLibraryW($path)
