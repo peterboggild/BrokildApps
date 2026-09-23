@@ -67,3 +67,7 @@ vst3-apps/collection/Brokild-Collection-win64.zip
 # The zips stay on disk here as ordinary build output.
 vst3-apps/*/*.zip
 vst3-apps/*/*/*.zip
+
+# The publish tool' scratch report: which zips it last uploaded, and their
+# hashes. Transient, rewritten every run, and it was tracked by accident.
+tools/.downloads-report.json
