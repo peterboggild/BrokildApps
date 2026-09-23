@@ -26,7 +26,7 @@ else()
 endif()
 
 # BWFX — compiled IN, never a DLL (BWFX-DESIGN.md)
-set(BWFX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../BrokildWorldFX" CACHE PATH "Brokild World FX")
+set(BWFX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../BrokildWorldFX" CACHE PATH "Brokild World FX")
 add_subdirectory(${BWFX_DIR} bwfx)
 
 juce_add_plugin(RITEOFPASSAGE

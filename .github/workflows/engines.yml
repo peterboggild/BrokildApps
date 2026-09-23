@@ -21,12 +21,12 @@ name: Engines (Linux, headless)
 on:
   push:
     paths:
-      - "vocal-harmonizer/**"
+      - "vst3-apps/legion/plugin/**"
       - "dsw/**"
       - ".github/workflows/engines.yml"
   pull_request:
     paths:
-      - "vocal-harmonizer/**"
+      - "vst3-apps/legion/plugin/**"
       - "dsw/**"
       - ".github/workflows/engines.yml"
   workflow_dispatch:
@@ -46,12 +46,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Build the bench
-        working-directory: vocal-harmonizer
+        working-directory: vst3-apps/legion/plugin
         run: |
           cmake -S test -B test/build -DCMAKE_BUILD_TYPE=Release
           cmake --build test/build --parallel
       - name: Run the bench
-        working-directory: vocal-harmonizer/test
+        working-directory: vst3-apps/legion/plugin/test
         run: ./build/legiontest
 
   dsw:

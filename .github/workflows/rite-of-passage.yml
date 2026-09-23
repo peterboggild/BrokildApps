@@ -3,7 +3,7 @@ name: Rite of Passage VST3 (win64)
 on:
   push:
     paths:
-      - "rite-of-passage/**"
+      - "vst3-apps/rite-of-passage/plugin/**"
       - "BrokildWorldFX/**"        # the shared BWFX rack is compiled in, and
                                    # ten of its modules are slot effects
       - ".github/workflows/rite-of-passage.yml"
@@ -28,9 +28,9 @@ jobs:
       # different plugin from the one this job ships.
       - name: Build and run the Rite of Passage bench
         run: |
-          cmake -S rite-of-passage/test -B rite-of-passage/test/build -DCMAKE_BUILD_TYPE=Release
-          cmake --build rite-of-passage/test/build -j
-          ./rite-of-passage/test/build/roptest
+          cmake -S vst3-apps/rite-of-passage/plugin/test -B vst3-apps/rite-of-passage/plugin/test/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build vst3-apps/rite-of-passage/plugin/test/build -j
+          ./vst3-apps/rite-of-passage/plugin/test/build/roptest
       - name: Build and run the BWFX bench (the shared world rack)
         working-directory: BrokildWorldFX/test
         run: |
@@ -47,24 +47,24 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Configure (fetches JUCE 8)
-        working-directory: rite-of-passage
+        working-directory: vst3-apps/rite-of-passage/plugin
         # No -G: the runner's default generator is whichever Visual Studio is
         # installed (the 2026 images dropped VS 2022, so naming a year breaks).
         run: cmake -S . -B build -A x64
       - name: Build Release
-        working-directory: rite-of-passage
+        working-directory: vst3-apps/rite-of-passage/plugin
         # The VST3 target only. The host harness and the panel shooter are
         # built and run on Linux; they are not what this job ships.
         run: cmake --build build --config Release --target RITEOFPASSAGE_VST3
       - name: Package
         shell: pwsh
-        working-directory: rite-of-passage
+        working-directory: vst3-apps/rite-of-passage/plugin
         run: |
           $out = "package/Rite-of-Passage-VST3-win64"
           New-Item -ItemType Directory -Force $out | Out-Null
           Copy-Item -Recurse "build/RITEOFPASSAGE_artefacts/Release/VST3/Rite of Passage.vst3" "$out/"
           Copy-Item "GUIDE.md" "$out/"
-          Copy-Item "../vst3-apps/rite-of-passage/README.txt" "$out/"
+          Copy-Item "../README.txt" "$out/"
           # The manifest step is off in CMakeLists (VST3_AUTO_MANIFEST FALSE),
           # so there is nothing to strip here — but a zero-byte moduleinfo.json
           # is worse than none, and this is where one would appear.

@@ -40,7 +40,7 @@ endif()
 # ---------------------------------------------------------------------------
 # BWFX — compiled IN, never a DLL (BWFX-DESIGN.md: Smart App Control blocks
 # fresh DLL hashes per file, and patches must stay a promise on every machine)
-set(BWFX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../BrokildWorldFX" CACHE PATH "Brokild World FX")
+set(BWFX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../BrokildWorldFX" CACHE PATH "Brokild World FX")
 add_subdirectory(${BWFX_DIR} bwfx)
 
 # ---------------------------------------------------------------------------
