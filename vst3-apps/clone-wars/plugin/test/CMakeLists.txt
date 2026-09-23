@@ -74,7 +74,14 @@ if(MSVC)
 endif()
 
 # scratch probe (safe to delete): oscillator aliasing, isolated from the ensemble
-add_executable(cwalias aliasprobe.cpp ../Source/Core/cw_core.cpp)
+
+# STALE SINCE 2026-08-26, kept but not built by default. This reads
+# cw::vfEnvA, which the 260826.5 core removed, so it has not compiled for a
+# month. Nothing noticed because CI builds the plug-in and render_test, never
+# the probe targets; the repo-wide bench sweep is the first thing that tried.
+# EXCLUDE_FROM_ALL keeps the source for whoever wants to repair it while
+# letting a plain build of this folder come back green.
+add_executable(cwalias EXCLUDE_FROM_ALL aliasprobe.cpp ../Source/Core/cw_core.cpp)
 target_include_directories(cwalias PRIVATE ../Source/Core)
 target_compile_definitions(cwalias PRIVATE _USE_MATH_DEFINES)
 if(MSVC)
@@ -98,7 +105,14 @@ if(MSVC)
 endif()
 
 # scratch probe (safe to delete): voice-chain response at max cut, per tier
-add_executable(cwvresp vresp.cpp ../Source/Core/cw_core.cpp)
+
+# STALE SINCE 2026-08-26, kept but not built by default. This reads
+# cw::vfEnvA, which the 260826.5 core removed, so it has not compiled for a
+# month. Nothing noticed because CI builds the plug-in and render_test, never
+# the probe targets; the repo-wide bench sweep is the first thing that tried.
+# EXCLUDE_FROM_ALL keeps the source for whoever wants to repair it while
+# letting a plain build of this folder come back green.
+add_executable(cwvresp EXCLUDE_FROM_ALL vresp.cpp ../Source/Core/cw_core.cpp)
 target_include_directories(cwvresp PRIVATE ../Source/Core)
 target_compile_definitions(cwvresp PRIVATE _USE_MATH_DEFINES)
 if(MSVC)
