@@ -17,7 +17,10 @@ Windows builds are downloadable from each plugin's own landing page.
 
 | App | Folder | What it does |
 |-----|--------|--------------|
-| The Brokild Collection (all eleven) | [`vst3-apps/collection`](vst3-apps/collection) | Every Brokild plugin in one download: eight instruments and three effects for Windows, with their manuals and their standalones. |
+| The Brokild Collection (all 11) | [`vst3-apps/collection`](vst3-apps/collection) | The instruments and effects that are finished and meant to be used. Seven instruments and four effects for Windows, with their manuals and their… |
+| The Experimental Collection (all 5) | [`vst3-apps/experimental`](vst3-apps/experimental) | Instruments that exist to ask a question about how sound can be made. Each one is a thesis rather than a product. |
+| 1984 (VST3) | [`vst3-apps/1984`](vst3-apps/1984) | A vintage analog polysynth built the way the big ones were: eight voices, each of two complete ranks with their own oscillator, resonant high-pass… |
+| Thirty Thousand Years (VST3) | [`vst3-apps/thirty-thousand-years`](vst3-apps/thirty-thousand-years) | Four ways of making sound, all running at once and exciting one another: analogue weight, a wavetable and phase-modulation voice, granular and… |
 | Thin Walls (VST3) | [`vst3-apps/thin-walls`](vst3-apps/thin-walls) | An apartment of three rooms and three doors that you put the sound inside and then walk around in. |
 | Rite of Passage (VST3) | [`vst3-apps/rite-of-passage`](vst3-apps/rite-of-passage) | A transition processor: one slider is the journey, and the landing is a separate thing you fire. |
 | Battlestar Overdrive (VST3) | [`vst3-apps/battlestar-overdrive`](vst3-apps/battlestar-overdrive) | An overdrive, and a tribute: named after Max Christensen's Copenhagen solo project and built with his blessing. |
@@ -32,6 +35,7 @@ Windows builds are downloadable from each plugin's own landing page.
 | Martian Gain (VST3) | [`vst3-apps/martian-gain`](vst3-apps/martian-gain) | A multiband distortion. One to five bands, each running one of sixteen algorithms, each with its own limiter — and each level-matched by measurement… |
 | Blade Ruiner (VST3) | [`vst3-apps/blade-ruiner`](vst3-apps/blade-ruiner) | Three layers at once: a drone city of nine detuned saws and filtered rain, an eight-voice polysynth with a ladder filter, and a sixteen-step… |
 | Escape Room (VST3) | [`vst3-apps/escape-room`](vst3-apps/escape-room) | Five noise cells, a playable filter, three traps — and a SIGIL, a number from 0 to 63 that seeds eight modulation wires deterministically. |
+| Legion (VST3, in development) | [`vst3-apps/legion`](vst3-apps/legion) | One voice in, a choir of it out. Up to four copies, each with its own pitch AND its own body size, because a voice shifted without separating those… |
 | Hairfryer (VST3) (in development) | [`vst3-apps/hairfryer`](vst3-apps/hairfryer) | A free Windows VST3 vocal strip that attempts to convert a clean, loud singing voice into a metal-ish one — growls, gutturals, pig squeals, fry based… |
 | Sleeper Agent (HTML) | [`health-apps/sleep-noise`](health-apps/sleep-noise) | A five-fader mixer for sleeping sound: brown noise, green noise, rain, soft rain and ocean, in any combination rather than one at a time. |
 | DSW | [`dsw`](dsw) | **Digital Science Workstation** (build from source): a native host that runs C++/HTML digital-experiment plugins the way a DAW runs VST3s — drop a bundle in `plugins/`, the browser is the GUI, the math runs native. Ships with Gray–Scott and double-slit wave-tank experiments. |
