@@ -1,0 +1,153 @@
+# Thin Walls — collected, awaiting go
+
+House rule (CLAUDE.md): Peter's suggestions are specced here and built in batches when
+he says go. Nothing on this list has been started.
+
+---
+
+## 1. SIX SOURCES instead of four — awaiting go
+Asked 2026-09-22. Assessment below is measured against build 260922.1, not estimated.
+
+**Verdict: worth doing, about half a day. The path budget is the only part that needs
+care, and it is the part that fails silently.**
+
+### The easy half
+- `MAX_SOURCES = 4` in `Source/Engine.h:48` → 6. Every loop in the engine, the processor
+  and the param table already runs off it.
+- `const NSRC = 4` in `Source/ui/ui.html:377` → 6. The panel is one constant plus three
+  cosmetic things: the source tab strip has to fit six tabs in the width four use now,
+  `HINT.srctab` says "Four sources", and `PROTOCOL.md` is headed "v3: four sources" with
+  `selsrc` documented as 0..3.
+- Cost, measured: **19 % of a core for one source, 39 % for four** → ~6.7 % per extra
+  source → **six ≈ 52 %**. It fits, but the bench's own bound is `secs < 6.0`
+  ("under 60 % of a core", `test/bench.cpp:726`) and that headroom is then gone. The
+  bound wants re-deriving rather than re-typing, and the six-source figure must be
+  measured in the worst case (all six in the listener's room), not the busy default.
+
+### The three traps, all silent
+1. **`MAX_PATHS = 96` (`Engine.h:291`) is the real constraint, and it truncates without
+   a word.** A source in the listener's room generates up to **25 image paths**
+   (1 direct + 6 first order + 18 second order — which is exactly the "25 paths active"
+   the one-source bench prints). Four such sources want 100 paths, so **the cap already
+   bites at four when they share the listener's room**; the recorded 72-path four-source
+   figure is with sources spread across rooms, where the out-of-room ones only get
+   portal and transmission paths. The guards are bare early returns
+   (`if (nspecs >= MAX_PATHS - 8) return;`), so reflections simply stop appearing —
+   no message, no meter, nothing in the panel. Six sources needs MAX_PATHS ≈ 160, and
+   `std::array<PathSlot, MAX_PATHS> slots` grows with it (a delay line and a band filter
+   each), so that is memory and per-block work, not just a number.
+   **Whatever is decided, the truncation should be reported** — a path count against the
+   cap in the scene stream, so a clipped scene is visible instead of merely quieter.
+2. **Five arrays are initialised with four values written out longhand**
+   (`Engine.h:476-480`): `lastSrcRoomAc`, `lastTypeAc`, `lastDirAc`, `lastActiveAc`,
+   `lastLevelAc`, all `{ -1, -1, -1, -1 }`. C++ zero-fills the rest, so sources 5 and 6
+   would start at 0 — which for `lastSrcRoomAc` and `lastTypeAc` reads as "already up to
+   date with room 0, type PURE" and skips their first update. This is the Black Rider
+   `std::array<int,5> uiNotes { -1,-1,-1 }` lesson verbatim: **every -1 must be written
+   out**, or better, use a loop like `reset()` at `Engine.cpp:705` already does.
+3. **The param table's seven default arrays are `[4]`** (`PluginProcessor.cpp:20-26`:
+   `sx sy sz syaw stype sdir sin_`). They are indexed by `n` over `MAX_SOURCES`, so
+   growing the constant without growing the arrays is an out-of-bounds read the compiler
+   need not catch. Two more entries each, and the two new sources want sensible homes
+   (the giant room is the obvious gap).
+
+### What does NOT break
+Adding sources **inserts 16 parameters in the middle** of the table, because the
+per-source block comes first. Existing projects and automation survive anyway: the VST3
+param id is a hash of the id STRING (`ParameterID { s.id, 1 }`, and there is no
+`JUCE_FORCE_USE_LEGACY_PARAM_IDS` in CMakeLists), and APVTS state is keyed by id too.
+Only the ORDER of the host's automation list changes, which is cosmetic. Worth proving
+by reading the ids out of both DLLs the way `b/PhotoSynth/test/classid.js` proves a
+class id, rather than asserting it.
+
+---
+
+## 2. SIDECHAINING SIX SOURCES — awaiting go, and it is a HOST limit, not a plugin one
+Asked in the same breath as item 1.
+
+**Sidechaining already works.** Each source's INPUT is
+`OFF | MAIN L | MAIN R | MAIN L+R | AUX L | AUX R | AUX L+R`
+(`PluginProcessor.cpp:37`) against a declared stereo "Aux In" bus
+(`PluginProcessor.cpp:112`), which is the sidechain in every host that has one. So today
+there are **four independent mono feeds**: main L, main R, aux L, aux R — exactly enough
+for four sources, which is not a coincidence.
+
+**Six independent sources need six channels, and the plugin side is nearly free:**
+widen the aux to quad (main L/R + aux 1-4 = 6), or add a second stereo aux bus. Then
+`isBusesLayoutSupported` (`PluginProcessor.cpp:126`) stops rejecting anything but
+mono/stereo on the aux — one line — `processBlock` reads the extra pointers where it
+already reads `aL`/`aR`, and the INPUT choice list grows. Half an hour.
+
+**The problem is Ableton Live.** Live hands a plugin exactly ONE stereo sidechain and
+exposes no multi-channel plugin inputs at all, so in Live the ceiling is four independent
+feeds however the plugin is built — which is what it has now. Reaper, Bitwig and Nuendo
+can feed a 4- or 6-channel aux, so six independent feeds would work there.
+
+So the choice is Peter's, and it is about where he works:
+- **(a) Six sources sharing four feeds** — works everywhere including Live, costs nothing
+  beyond item 1. Two sources double up on a feed, which is musically fine (two speakers
+  fed the same signal in different rooms is a real thing).
+- **(b) A wider aux bus** — six genuinely independent sources in Reaper; in Live the two
+  extra channels are simply unreachable and the panel should say so rather than offer a
+  selector that silently reads silence. A greyed option with a reason, per the house rule
+  about controls that look live and do nothing.
+- **(c) A second instance** — six sources across two plugins, four feeds each, no code at
+  all. Loses the shared apartment, which is most of the point.
+
+Recommendation: **(a) now, (b) only if Reaper is in the picture** — and if (b) is built,
+the unreachable-channel case must be visible on the panel.
+
+---
+
+## 3. THE DOORWAY BUMP — BUILT in 260924.1 (all three fixes; see the commit)
+Reported 2026-09-24: walking continuously through an open doorway, both rooms sound
+right but there is a small bump exactly at the threshold. **Real, and it is the
+architecture.** Measured with `test/doorwalk.cpp` (target `twdoorwalk`): listener
+walked through LARGE-GIANT at 1 m/s, source in LARGE, noise low-passed at 1.5 kHz,
+10 ms windows, parts isolated with the DIRECT/EARLY/REVERB trims.
+
+### What happens at x = 6.00
+`roomOf (listener)` flips, and `buildPaths()` swaps one path model for another in a
+single 128-sample sub-block (2.7 ms linear gain fade):
+- **Before**: the in-room image model - direct + 24 image paths (orders 1-2) of the
+  source's room.
+- **After**: the portal model - direct-through-the-door, only the source room's
+  FIRST-order images that pass the aperture, and first-order reflections in the new room.
+- Measured: the EARLY part (about -29 dB, as loud as the direct at -32) drops to nothing
+  in one window; the portal paths replacing it do not make up the energy, so the total
+  falls ~1 dB in one step, the reflection pattern (the comb colouring) changes
+  instantly, and there is a ~3 dB dip in the 10 ms window of the swap itself while the
+  old and new direct slots cross.
+- The late field is NOT the culprit: the room weights glide over 200 ms and the reverb
+  level measured steady through the crossing (only its colour changes, which is right).
+- No click (HF artefact energy at the door is no worse than anywhere else).
+- Physically the two models should agree AT the door plane: a listener standing in the
+  opening sees every source-room image whose line passes through the opening, i.e.
+  nearly all of them. The portal model's order-1-only limit is what makes them disagree.
+
+### Two fixes, recommended together
+1. **A transition zone** (the standard game-audio answer, "rooms and portals" engines
+   do the same). Within ~0.4 m either side of the door plane, and within the doorway's
+   span, build BOTH path sets - listener-as-in-room-A and listener-as-in-room-B - and
+   scale each set's gains by a smooth weight `w` (raised cosine across the zone). The
+   two sets have different keys, so they are simply different slots. Crossfade on
+   AMPLITUDE, not power: the two sets are mostly the same arrivals, i.e. correlated
+   (the SWARM / TUBE lesson). Drive the room weights and the DoorField paths from the
+   same `w` instead of a hard switch plus a 200 ms ramp. Cost: roughly double the path
+   count for a source while the listener is in the zone - which collides with item 1's
+   silent `MAX_PATHS` truncation, so do that cap/report first.
+2. **Longer fades for any path that appears or disappears**: today a new or retired slot
+   ramps over ONE sub-block (2.7 ms). A per-slot fade envelope over ~20-30 ms softens
+   every visibility event in the model (a door edge passing the line of sight, a
+   reflection point leaving a wall), not just the threshold. Cheap, global, and on its
+   own it would already turn the bump into a short smear.
+
+Optional, for accuracy rather than smoothness: extend portal (b) to second-order
+source-room images, so the two models already nearly agree at the plane and the zone
+has less to hide.
+
+### How to know it is fixed
+Extend `twdoorwalk` into a bench check: the 50 ms level of the total and of
+direct+early must move no more across the threshold than across the same distance
+elsewhere on the walk, and the early energy must not step by more than ~1 dB in any
+10 ms window. Run it through all three doors, both directions.

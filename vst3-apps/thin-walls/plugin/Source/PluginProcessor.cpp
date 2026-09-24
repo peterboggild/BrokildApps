@@ -525,6 +525,7 @@ void ThinWallsAudioProcessor::emitScene()
     obj->setProperty ("lis", vec (sc.lis));
     obj->setProperty ("lisRoom", sc.lisRoom);
     obj->setProperty ("lisYaw", sc.lisYaw);
+    obj->setProperty ("pathsDropped", sc.pathsDropped);
 
     juce::Array<juce::var> paths;
     for (int i = 0; i < sc.npaths; ++i)

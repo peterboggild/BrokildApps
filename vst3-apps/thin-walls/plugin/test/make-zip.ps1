@@ -12,11 +12,15 @@
 #
 # ASCII only - Windows PowerShell 5.1 reads a UTF-8-no-BOM .ps1 as ANSI.
 
+# -BuildDir: the CMake build folder. Since stage 1 the source is in the repo
+# (inside Dropbox) and the build lives outside it, at b\_build\ThinWalls\plugin.
+param([string] $BuildDir = "C:\Users\peter\b\_build\ThinWalls\plugin")
+
 $root  = "$PSScriptRoot\.."
-$stage = "$root\dist\stage"
+$stage = "$BuildDir\dist\stage"
 $web   = "C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\thin-walls"
 $out   = Join-Path $web "Thin-Walls-VST3-win64.zip"
-$build = "$root\build\ThinWalls_artefacts\Release"
+$build = "$BuildDir\ThinWalls_artefacts\Release"
 $buildId = (Select-String -Path "$root\CMakeLists.txt" -Pattern 'TW_BUILD_ID "([0-9.]+)"').Matches[0].Groups[1].Value
 
 Write-Output "`nThin Walls, build $buildId`n"
@@ -46,11 +50,13 @@ if ($exe) { Copy-Item $exe.FullName (Join-Path $inner "Thin Walls.exe") -Force
             Write-Output ("  standalone: " + [int]($exe.Length/1MB) + " MB") }
 else { Write-Output "  NO STANDALONE"; exit 1 }
 
+# stage 1 left built PDFs out of the source tree, so fall back to the published copy
 $manual = "$root\docs\manual\Thin-Walls-Manual.pdf"
+if (-not (Test-Path $manual)) { $manual = Join-Path $web "Thin-Walls-Manual.pdf" }
 if (Test-Path $manual) {
     Copy-Item $manual (Join-Path $inner "Thin-Walls-Manual.pdf") -Force
-    Copy-Item $manual (Join-Path $web "Thin-Walls-Manual.pdf") -Force
-    Write-Output "  manual included and published"
+    if ($manual -ne (Join-Path $web "Thin-Walls-Manual.pdf")) { Copy-Item $manual (Join-Path $web "Thin-Walls-Manual.pdf") -Force }
+    Write-Output "  manual included: $manual"
 } else { Write-Output "  NO MANUAL at $manual"; exit 1 }
 
 $readme = @"
@@ -76,7 +82,7 @@ $size = [math]::Round((Get-Item $out).Length / 1MB, 1)
 Write-Output "  zip: $out ($size MB)"
 
 # --- verify, out of the archive ---------------------------------------------
-$probe = "$root\dist\zipprobe"
+$probe = "$BuildDir\dist\zipprobe"
 if (Test-Path $probe) { Remove-Item $probe -Recurse -Force }
 Expand-Archive -Path $out -DestinationPath $probe -Force
 $dll = Join-Path $probe "Thin-Walls-VST3-win64\Thin Walls.vst3\Contents\x86_64-win\Thin Walls.vst3"

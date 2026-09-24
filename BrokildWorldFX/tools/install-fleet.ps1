@@ -43,7 +43,8 @@ $plugins = @(
   @{ dir = "HighTide";         name = "High Tide";          group = "Experimental" },
   @{ dir = "BrainScan";        name = "Brain Scan";         group = "Experimental" },
   @{ dir = "BattlestarOverdrive"; name = "Battlestar Overdrive"; group = "Brokild collection" },
-  @{ dir = "ThinWalls";         name = "Thin Walls";         group = "Brokild collection" },
+  @{ dir = "ThinWalls";         name = "Thin Walls";         group = "Brokild collection";
+     build = "C:\Users\peter\b\_build\ThinWalls\plugin" },   # source is vst3-apps\thin-walls\plugin since stage 1; b\ThinWalls is the stale copy
   @{ dir = "Nineteen84";        name = "1984";               group = "Brokild collection" },
   @{ dir = "ThirtyThousandYears"; name = "Thirty Thousand Years"; group = "Brokild collection" },
   # Legion's source lives in the WEBSITE repo (like Clone Wars), so it has no

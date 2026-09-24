@@ -288,9 +288,17 @@ struct PathSpec
     Vec3  pts[6];
 };
 
-constexpr int MAX_PATHS = 96;
+/*  96 was already too few for four sources in the listener's room (25 image paths
+    each) and the doorway transition zone roughly doubles a source's paths near a
+    door. A refused path is COUNTED (Scene::pathsDropped) - it used to vanish in
+    silence. There are more slots than paths because a retiring path keeps its
+    slot for its fade-out while its replacement fades in. */
+constexpr int MAX_PATHS = 192;
+constexpr int MAX_SLOTS = 256;
 constexpr int MAX_TAPS  = 384;
 constexpr int SUB_BLOCK = 128;
+constexpr float PATH_FADE_S = 0.025f;   // a path that appears or disappears fades over this
+constexpr float DOOR_ZONE_M = 0.4f;     // the doorway transition zone, either side of the plane
 
 //------------------------------------------------------------------------------
 // a rendering slot that follows a PathSpec with smoothing and its own FIR state
@@ -308,6 +316,7 @@ struct PathSlot
     BandFilter filt, filtTarget;
     std::array<float, MAX_TAPS> hL {}, hR {}, hLTarget {}, hRTarget {};
     bool fresh = true;                    // just (re)assigned: snap instead of slew
+    float env = 0, envTarget = 0;         // appear / disappear fade, 0..1 over PATH_FADE_S
 
     // crossfading delay jumps: reader B fades in while A fades out
     float delayB = 0; float xfade = 0; bool crossing = false;
@@ -409,6 +418,7 @@ struct Scene
     SceneSource sources[MAX_SOURCES];
     Vec3 lis; int lisRoom = 0; float lisYaw = 0;
     int npaths = 0; ScenePath paths[MAX_PATHS];
+    int pathsDropped = 0;                 // paths refused at the MAX_PATHS cap in the last build (0 = none)
     float rt[NUM_ROOMS][4] = {};          // seconds at 250, 1k, 4k, 8k
     // each room's plan polygon, following the folds
     int   planN[NUM_ROOMS] = {};
@@ -434,6 +444,7 @@ public:
     const Scene& scene() const { return sceneBuf[sceneIdx.load()]; }
     float sampleRate() const { return (float) fs; }
     int   numActivePaths() const { return activePaths; }
+    int   numPathsDropped() const { return pathsDropped; }
     const RoomField& field (int r) const { return rooms[(size_t) r]; }
     const PathSlot&  slot (int i) const { return slots[(size_t) i]; }
     void  roomRt60 (int r, float* out7) const { for (int b = 0; b < NBAND; ++b) out7[b] = rooms[(size_t) r].rt60[b]; }
@@ -491,7 +502,12 @@ private:
     std::vector<float> monoIn[MAX_SOURCES];
     int curSrc = 0;
 
-    std::array<PathSlot, MAX_PATHS> slots;
+    std::array<PathSlot, MAX_SLOTS> slots;
+    int pathsDropped = 0;                 // this build's refusals, see MAX_PATHS
+    bool pathsFull (int margin) { if (nspecs < MAX_PATHS - margin) return false; ++pathsDropped; return true; }
+    bool snapFades = true;                // the first block after reset: no fade-in
+    bool throughOpenDoor (const Vec3& a, const Vec3& b) const;
+    float doorZone (int d, const Vec3& P, float& past) const;
     int activePaths = 0;
     std::array<RoomField, NUM_ROOMS> rooms;
     std::vector<Coupling> couplings;
@@ -515,7 +531,7 @@ private:
     bool roomIsBroken (int room) const;
     void addPortalPaths (const Vec3& S, int rs, int rl);
     void addTransmissionPaths (const Vec3& S, int rs, int rl);
-    void addDoorFieldPaths();
+    void addDoorFieldPaths (int rl, float scale);
     bool imagePath (int room, const Vec3& S, const Vec3& L, int nx, int ny, int nz,
                     Vec3* bounces, int& nb, int* wallIds, float& length);
     bool bounceHitsOpening (int room, int wall, const Vec3& p) const;
