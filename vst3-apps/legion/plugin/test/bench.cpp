@@ -19,6 +19,7 @@
 // Prints ALL CLEAR, or lists what failed.
 
 #include "../engine/legion_harmonizer.h"
+#include "../engine/legion_leveller.h"
 
 #include <algorithm>
 #include <chrono>
@@ -856,6 +857,204 @@ int main()
         std::printf ("  four voices            %7.1f x real time (%.1f %% of one core)\n",
                      4.0 / secs, 100.0 * secs / 4.0);
         CHECK (measure (r.harmL.data(), n).finite, "the cost run produced a non-finite sample");
+    }
+
+    // -- 17. the LEVELLER --------------------------------------------------------
+    //  Measured on its own, the way the plugin uses it: the detector hears the
+    //  input as it arrives, the gain lands on a bus delayed by the latency.
+    {
+        std::printf ("\n  LEVELLER\n");
+
+        //  run: in (mono, both sides) -> the delayed bus, levelled
+        auto runLev = [] (Leveller& lv, const LevellerParams& p, const std::vector<float>& in,
+                          int latency, std::vector<float>& out, std::vector<float>* dly = nullptr)
+        {
+            const int n = (int) in.size();
+            out.assign ((size_t) n, 0.0f);
+            for (int i = latency; i < n; ++i) out[(size_t) i] = in[(size_t) (i - latency)];
+            if (dly != nullptr) *dly = out;
+            std::vector<float> r = out;
+            for (int i = 0; i < n; i += 256)
+            {
+                const int m = std::min (256, n - i);
+                float* bufs[2] = { out.data() + i, r.data() + i };
+                lv.process (p, in.data() + i, in.data() + i, m, latency, bufs, 2);
+            }
+            for (int i = 0; i < n; ++i)
+                if (out[(size_t) i] != r[(size_t) i]) { out[(size_t) i] = NAN; break; }   // the two buses must agree
+        };
+        auto sine = [] (std::vector<float>& s, int from, int to, double f, double rmsDb, double fs)
+        {
+            const double a = std::sqrt (2.0) * std::pow (10.0, rmsDb / 20.0);
+            for (int i = from; i < to; ++i) s[(size_t) i] = (float) (a * std::sin (2.0 * M_PI * f * i / fs));
+        };
+        auto rmsDb = [] (const std::vector<float>& s, int a, int b)
+        {
+            double e = 0; for (int i = a; i < b; ++i) e += (double) s[(size_t) i] * s[(size_t) i];
+            return 10.0 * std::log10 (e / std::max (1, b - a) + 1e-30);
+        };
+
+        LevellerParams P; P.on = true; P.topDb = -20; P.ratio = 3; P.liftDb = 6; P.floorDb = -50; P.speed = 0.5f;
+        const int latN = 2048 + kTapPad;                // NATURAL at 48 k
+
+        //  (a) the static curve, level by level
+        {
+            float worst = 0.0f;
+            for (float L : { -70.0f, -55.0f, -45.0f, -35.0f, -26.0f, -20.0f, -14.0f, -6.0f })
+            {
+                const int n = (int) (kFs * 2.5);
+                std::vector<float> in ((size_t) n), out;
+                sine (in, 0, n, 1000.0, L, kFs);
+                Leveller lv; lv.prepare (kFs, 16384);
+                runLev (lv, P, in, latN, out);
+                const int a = n - (int) (kFs * 0.5);
+                const float got = (float) (rmsDb (out, a, n) - rmsDb (in, a - latN, n - latN));
+                const float want = Leveller::curveDb (P, L);
+                worst = std::max (worst, std::abs (got - want));
+                std::printf ("    %6.1f dB in  -> gain %+6.2f dB (curve %+6.2f)\n", L, got, want);
+            }
+            CHECK (worst < 0.10f, "the leveller misses its own static curve by %.3f dB", worst);
+        }
+
+        //  (b) a steady note gets a CONSTANT gain: no distortion, low or high,
+        //      compressing or lifting. Residual after the best constant gain.
+        {
+            float worstDb = -300.0f;
+            for (double f : { 82.0, 110.0, 220.0, 1000.0, 6000.0 })
+                for (float L : { -8.0f, -34.0f })
+                {
+                    const int n = (int) (kFs * 3.0);
+                    std::vector<float> in ((size_t) n), out, d;
+                    sine (in, 0, n, f, L, kFs);
+                    Leveller lv; lv.prepare (kFs, 16384);
+                    runLev (lv, P, in, latN, out, &d);
+                    const int a = n - (int) (kFs * 1.0);
+                    double num = 0, den = 0;
+                    for (int i = a; i < n; ++i) { num += (double) out[(size_t) i] * d[(size_t) i]; den += (double) d[(size_t) i] * d[(size_t) i]; }
+                    const double g = num / den;
+                    double res = 0;
+                    for (int i = a; i < n; ++i) { const double e = out[(size_t) i] - g * d[(size_t) i]; res += e * e; }
+                    const float db = (float) (10.0 * std::log10 (res / (g * g * den) + 1e-30));
+                    worstDb = std::max (worstDb, db);
+                }
+            std::printf ("    steady-note gain modulation, worst  %7.1f dB\n", worstDb);
+            CHECK (worstDb < -100.0f, "a steady note is modulated by the gain (%.1f dB)", worstDb);
+        }
+
+        //  (c) OFF is not even a multiply: bit-identical to the delayed input
+        {
+            const int n = (int) (kFs * 1.0);
+            std::vector<float> in ((size_t) n), out, d;
+            makeVowel (in, n, kFs, 140.0, 700.0, 1200.0, 2600.0);
+            LevellerParams off = P; off.on = false;
+            Leveller lv; lv.prepare (kFs, 16384);
+            runLev (lv, off, in, latN, out, &d);
+            CHECK (std::memcmp (out.data(), d.data(), sizeof (float) * (size_t) n) == 0,
+                   "the leveller switched OFF touched the audio");
+
+            std::vector<float> z ((size_t) n, 0.0f), zo;
+            Leveller lz; lz.prepare (kFs, 16384);
+            runLev (lz, P, z, latN, zo);
+            bool silent = true; for (float v : zo) silent = silent && v == 0.0f;
+            CHECK (silent, "silence in did not give silence out");
+        }
+
+        //  (d) the FLOOR: noise between phrases is NOT lifted
+        {
+            const int n = (int) (kFs * 2.0);
+            for (float L : { -75.0f, -62.0f })
+            {
+                std::vector<float> in ((size_t) n), out;
+                const float a = std::pow (10.0f, L / 20.0f) * std::sqrt (3.0f);
+                for (auto& v : in) v = a * rndPm();
+                Leveller lv; lv.prepare (kFs, 16384);
+                runLev (lv, P, in, latN, out);
+                const float g = (float) (rmsDb (out, n / 2, n) - rmsDb (in, n / 2 - latN, n - latN));
+                std::printf ("    noise at %5.1f dB rms, below FLOOR -50: lifted %+5.2f dB\n", L, g);
+                CHECK (std::abs (g) < 0.3f, "noise below the floor was lifted %.2f dB", g);
+            }
+        }
+
+        //  (e) LOOK-AHEAD: a +35 dB step is already being turned down when it
+        //      arrives, so it does not overshoot — at every rate, at TIGHT
+        for (double fs : { 44100.0, 48000.0, 96000.0 })
+        {
+            const int latT = (fs > 64000.0 ? 4096 : 2048) / 2 + kTapPad;
+            const int n = (int) (fs * 2.0), s0 = (int) (fs * 1.0);
+            std::vector<float> in ((size_t) n), out, d;
+            sine (in, 0, s0, 1000.0, -40.0, fs);
+            sine (in, s0, n, 1000.0, -5.0, fs);
+            Leveller lv; lv.prepare (fs, 16384);
+            CHECK (lv.lookaheadNeeded() <= latT, "TIGHT at %.0f Hz is shorter than the look-ahead", fs);
+            runLev (lv, P, in, latT, out, &d);
+            const int s = s0 + latT;                  // where the step leaves
+            auto pk = [&] (int a, int b) { float m = 0; for (int i = a; i < b; ++i) m = std::max (m, std::abs (out[(size_t) i])); return m; };
+            const int cyc = (int) (fs / 1000.0);
+            const float settled = pk (n - 4 * cyc, n);
+            float worst = 0.0f;
+            for (int c = 0; c < 40; ++c) worst = std::max (worst, pk (s + c * cyc, s + (c + 1) * cyc));
+            const float overDb = 20.0f * std::log10 (worst / settled);
+            std::printf ("    step +35 dB at %5.0f Hz: overshoot %+5.2f dB over the settled level\n", fs, overDb);
+            CHECK (overDb < 1.5f, "the step overshoots %.2f dB at %.0f Hz", overDb, fs);
+        }
+
+        //  (f) it LEVELS: a phrase alternating 23 dB apart comes out close
+        {
+            const int seg = (int) (kFs * 1.0), n = seg * 8;
+            std::vector<float> in ((size_t) n), out, loud, quiet;
+            std::vector<float> v ((size_t) seg);
+            makeVowel (v, seg, kFs, 150.0, 700.0, 1200.0, 2600.0);
+            const double vr = rmsDb (v, 0, seg);
+            for (int k2 = 0; k2 < 8; ++k2)
+            {
+                const double want = (k2 % 2) ? -12.0 : -35.0;
+                const float s = (float) std::pow (10.0, (want - vr) / 20.0);
+                for (int i = 0; i < seg; ++i) in[(size_t) (k2 * seg + i)] = v[(size_t) i] * s;
+            }
+            Leveller lv; lv.prepare (kFs, 16384);
+            runLev (lv, P, in, latN, out);
+            const double q = rmsDb (out, 6 * seg + latN + seg / 2, 7 * seg + latN);
+            const double l = rmsDb (out, 5 * seg + latN + seg / 2, 6 * seg + latN);
+            std::printf ("    phrases 23.0 dB apart come out %.1f dB apart\n", l - q);
+            CHECK (l - q < 12.0, "the leveller did not level (%.1f dB apart)", l - q);
+        }
+
+        //  (g) SPEED is the release: faster recovers sooner
+        {
+            double t[2] { -1.0, -1.0 };   // -1 = never recovered, not "instantly"
+            for (int k2 = 0; k2 < 2; ++k2)
+            {
+                LevellerParams q = P; q.speed = k2 == 0 ? 0.0f : 1.0f;
+                const int n = (int) (kFs * 6.0), s0 = (int) (kFs * 2.0);
+                std::vector<float> in ((size_t) n), out, d;
+                sine (in, 0, s0, 1000.0, -5.0, kFs);
+                sine (in, s0, n, 1000.0, -26.0, kFs);
+                Leveller lv; lv.prepare (kFs, 16384);
+                runLev (lv, q, in, latN, out, &d);
+                const float target = Leveller::curveDb (q, -26.0f);
+                const int cyc = 48;
+                for (int i = s0 + latN; i + cyc < n; i += cyc)
+                {
+                    const double g = rmsDb (out, i, i + cyc) - rmsDb (d, i, i + cyc);
+                    if (std::abs (g - target) < 1.0) { t[k2] = (i - s0 - latN) / kFs; break; }
+                }
+            }
+            std::printf ("    release to within 1 dB: SPEED 0 %.3f s, SPEED 100 %.3f s\n", t[0], t[1]);
+            CHECK (t[1] > 0.0 && t[0] > t[1] && t[0] < 3.5, "SPEED does not set the release (%.3f / %.3f)", t[0], t[1]);
+        }
+
+        //  (h) cost, stereo, on
+        {
+            const int n = (int) (kFs * 10.0);
+            std::vector<float> in ((size_t) n), out;
+            makeVowel (in, n, kFs, 130.0, 650.0, 1100.0, 2500.0);
+            Leveller lv; lv.prepare (kFs, 16384);
+            const auto t0 = std::chrono::steady_clock::now();
+            runLev (lv, P, in, latN, out);
+            const double secs = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
+            std::printf ("    cost %.2f %% of one core\n", 100.0 * secs / 10.0);
+            CHECK (measure (out.data(), n).finite, "the leveller produced a non-finite sample (or the buses disagree)");
+        }
     }
 
     std::printf ("\n%d checks", checks);

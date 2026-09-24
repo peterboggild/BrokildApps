@@ -17,7 +17,7 @@ cmake_minimum_required(VERSION 3.22)
 # version in Ableton?" precisely because it did not: it is the one question
 # a version number exists to answer BY LOOKING. Bump it AND re-run
 # cmake -S . -B <dir> or it does not take.
-set(LEGION_BUILD_ID "260922.1")
+set(LEGION_BUILD_ID "260924.1")
 project(LEGION VERSION 0.1.0 LANGUAGES C CXX)   # JUCE pulls in C sources
 
 set(CMAKE_CXX_STANDARD 17)
@@ -69,7 +69,8 @@ target_sources(LEGION PRIVATE
     engine/legion_fft.cpp
     engine/legion_analysis.cpp
     engine/legion_shifter.cpp
-    engine/legion_harmonizer.cpp)
+    engine/legion_harmonizer.cpp
+    engine/legion_leveller.cpp)
 
 target_compile_definitions(LEGION PUBLIC
     JUCE_WEB_BROWSER=0

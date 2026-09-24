@@ -22,6 +22,14 @@ namespace legion_ids
     static constexpr const char* detail   = "detail";
     static constexpr const char* rackPos  = "rackpos";
 
+    //  the LEVELLER (engine/legion_leveller.h)
+    static constexpr const char* levOn    = "lev_on";
+    static constexpr const char* levTop   = "lev_top";
+    static constexpr const char* levRatio = "lev_ratio";
+    static constexpr const char* levLift  = "lev_lift";
+    static constexpr const char* levFloor = "lev_floor";
+    static constexpr const char* levSpeed = "lev_speed";
+
     //  per voice — "v1_pitch" and so on. Built once, never spelled by hand.
     inline juce::String voice (int v, const char* what)
     {

@@ -42,6 +42,34 @@ juce::AudioProcessorValueTreeState::ParameterLayout LegionProcessor::layout()
         juce::ParameterID { legion_ids::rackPos, 1 }, "BWFX ON",
         juce::StringArray { "HARMONY", "MASTER" }, 0));
 
+    // ---- the LEVELLER: off by default, so no existing project changes ----
+    {
+        auto levDb = [] (float v, int) { return juce::String (v, 1) + " dB"; };
+        l.add (std::make_unique<juce::AudioParameterBool> (
+            juce::ParameterID { legion_ids::levOn, 1 }, "LEVELLER", false));
+        l.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { legion_ids::levTop, 1 }, "LEV TOP",
+            juce::NormalisableRange<float> (-40.0f, 0.0f), -20.0f,
+            juce::AudioParameterFloatAttributes().withStringFromValueFunction (levDb)));
+        l.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { legion_ids::levRatio, 1 }, "LEV RATIO",
+            juce::NormalisableRange<float> (1.0f, 10.0f, 0.0f, 0.45f), 3.0f,
+            juce::AudioParameterFloatAttributes().withStringFromValueFunction (
+                [] (float v, int) { return juce::String (v, 1) + ":1"; })));
+        l.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { legion_ids::levLift, 1 }, "LEV LIFT",
+            juce::NormalisableRange<float> (0.0f, 18.0f), 6.0f,
+            juce::AudioParameterFloatAttributes().withStringFromValueFunction (levDb)));
+        l.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { legion_ids::levFloor, 1 }, "LEV FLOOR",
+            juce::NormalisableRange<float> (-80.0f, -30.0f), -50.0f,
+            juce::AudioParameterFloatAttributes().withStringFromValueFunction (levDb)));
+        l.add (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { legion_ids::levSpeed, 1 }, "LEV SPEED",
+            juce::NormalisableRange<float> (0.0f, 100.0f), 50.0f,
+            juce::AudioParameterFloatAttributes().withStringFromValueFunction (pctText)));
+    }
+
     for (int v = 0; v < legion::kVoices; ++v)
     {
         l.add (std::make_unique<juce::AudioParameterBool> (
@@ -84,6 +112,12 @@ LegionProcessor::LegionProcessor()
     pHumanize = apvts.getRawParameterValue (legion_ids::humanize);
     pDetail   = apvts.getRawParameterValue (legion_ids::detail);
     pRackPos  = apvts.getRawParameterValue (legion_ids::rackPos);
+    pLevOn    = apvts.getRawParameterValue (legion_ids::levOn);
+    pLevTop   = apvts.getRawParameterValue (legion_ids::levTop);
+    pLevRatio = apvts.getRawParameterValue (legion_ids::levRatio);
+    pLevLift  = apvts.getRawParameterValue (legion_ids::levLift);
+    pLevFloor = apvts.getRawParameterValue (legion_ids::levFloor);
+    pLevSpeed = apvts.getRawParameterValue (legion_ids::levSpeed);
 
     for (int v = 0; v < legion::kVoices; ++v)
     {
@@ -147,6 +181,8 @@ void LegionProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     engine.setDetail ((int) pDetail->load());
     engine.prepare (sampleRate, samplesPerBlock);
     bwfxRack.prepare (sampleRate, samplesPerBlock);
+    //  sized for the longest window, so a DETAIL switch never reallocates
+    leveller.prepare (sampleRate, engine.latencyFor (legion::kDetails - 1));
 
     harmBuf.setSize (2, samplesPerBlock, false, false, true);
     dryBuf .setSize (2, samplesPerBlock, false, false, true);
@@ -194,6 +230,24 @@ void LegionProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                     harmBuf.getWritePointer (0), harmBuf.getWritePointer (1),
                     dryBuf .getWritePointer (0), dryBuf .getWritePointer (1));
 
+    // ---- the LEVELLER --------------------------------------------------------
+    /*  Listens to the input as it arrives (inL/inR are still untouched: the
+        engine wrote to its own buses) and turns down/up the DELAYED buses, so
+        it looks ahead by exactly the latency Legion already has. Before the
+        rack, like a channel strip: the harmony's pedals get a levelled voice.
+        Both buses get the same gain, so singer and choir stay in proportion. */
+    levParams.on      = pLevOn->load() > 0.5f;
+    levParams.topDb   = pLevTop->load();
+    levParams.ratio   = pLevRatio->load();
+    levParams.liftDb  = pLevLift->load();
+    levParams.floorDb = pLevFloor->load();
+    levParams.speed   = pLevSpeed->load() * 0.01f;
+    {
+        float* bufs[4] = { dryBuf.getWritePointer (0), dryBuf.getWritePointer (1),
+                           harmBuf.getWritePointer (0), harmBuf.getWritePointer (1) };
+        leveller.process (levParams, inL, inR, n, engine.activeLatency(), bufs, 4);
+    }
+
     // ---- BWFX --------------------------------------------------------------
     double bpm = 0.0, ppq = -1.0;
     bool playing = false;
@@ -216,9 +270,15 @@ void LegionProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         travel. MIX 0 is the singer alone and bit-identical to the input up
         to the output trim (the dry path is a delay line and nothing else);
         MIX 100 is the choir alone. */
+    /*  With EVERY voice off there is no choir to mix against, so MIX steps
+        aside: the singer passes at unity and the harmony bus is multiplied by
+        exactly zero. Without this, MIX 50 turned a plain vocal down 3 dB. */
+    bool anyVoice = false;
+    for (int v = 0; v < legion::kVoices; ++v) anyVoice = anyVoice || params.v[v].on;
+
     const float m = juce::jlimit (0.0f, 1.0f, pMix->load() * 0.01f);
-    dryGain.setTargetValue (std::cos (m * 0.5f * juce::MathConstants<float>::pi));
-    wetGain.setTargetValue (std::sin (m * 0.5f * juce::MathConstants<float>::pi));
+    dryGain.setTargetValue (anyVoice ? std::cos (m * 0.5f * juce::MathConstants<float>::pi) : 1.0f);
+    wetGain.setTargetValue (anyVoice ? std::sin (m * 0.5f * juce::MathConstants<float>::pi) : 0.0f);
     outGain.setTargetValue (juce::Decibels::decibelsToGain (pOutput->load(), -24.0f));
 
     float* outL = buffer.getWritePointer (0);

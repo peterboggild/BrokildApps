@@ -62,6 +62,15 @@ private:
     };
     VoiceStrip strips[legion::kVoices];
 
+    //  the LEVELLER: its own panel in the globals row, with a gain meter that
+    //  shows reduction downward and lift upward from a 0 dB centre line
+    juce::ToggleButton levOn { "LEVELLER" };
+    std::unique_ptr<ButtonAttach> levOnAttach;
+    juce::Label levHint;
+    std::vector<std::unique_ptr<Knob>> levKnobs;
+    juce::Rectangle<int> levPanel, levMeter;
+    float levShown = 0.0f;
+
     //  the BWFX rack, generated from bwfx::moduleDescriptor()
     juce::TextButton rackButton { "BWFX" };
 

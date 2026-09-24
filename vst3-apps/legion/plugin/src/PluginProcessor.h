@@ -15,6 +15,7 @@
 #include <JuceHeader.h>
 
 #include "../engine/legion_harmonizer.h"
+#include "../engine/legion_leveller.h"
 #include "Params.h"
 #include <bwfx.h>
 #include <bwfx_juce.h>
@@ -58,6 +59,7 @@ public:
     bool handleRackMessage (const juce::var& m) { return bwfx_juce::handleMessage (bwfxRack, apvts, m); }
 
     float detectedF0() const { return engine.lastF0(); }
+    float levellerGainDb() const { return leveller.gainDb(); }
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
@@ -66,6 +68,8 @@ private:
 
     legion::Harmonizer engine;
     legion::Params     params;
+    legion::Leveller       leveller;
+    legion::LevellerParams levParams;
 
     bwfx::Rack bwfxRack;
     std::atomic<bool> latencyDirty { false };
@@ -81,6 +85,12 @@ private:
     std::atomic<float>* pRackPos = nullptr;
     std::atomic<float>* pVoice[legion::kVoices][kNumVoiceSpecs] {};
     std::atomic<float>* pVoiceOn[legion::kVoices] {};
+    std::atomic<float>* pLevOn = nullptr;
+    std::atomic<float>* pLevTop = nullptr;
+    std::atomic<float>* pLevRatio = nullptr;
+    std::atomic<float>* pLevLift = nullptr;
+    std::atomic<float>* pLevFloor = nullptr;
+    std::atomic<float>* pLevSpeed = nullptr;
 
     juce::LinearSmoothedValue<float> dryGain, wetGain, outGain;
 

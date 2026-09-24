@@ -72,6 +72,9 @@ public:
     int  windowFor (int d) const;
     int  latencyFor (int d) const { return windowFor (d) + kTapPad; }
     int  latencySamples() const   { return latencyFor (detail()); }
+    //  the delay the buses carry RIGHT NOW (audio thread; follows a DETAIL
+    //  switch the moment process() adopts it, not when it is requested)
+    int  activeLatency() const    { return N + kTapPad; }
 
     // audio thread. harm* is the harmony bus, dry* the input delayed to
     // match it. All four pointers must be distinct from the inputs.

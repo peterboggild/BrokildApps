@@ -99,7 +99,7 @@ int main()
         const int before = ids.size();
         ids.removeDuplicates (false);
         CHECK (ids.size() == before, "a parameter id is declared twice");
-        CHECK (before == 5 + legion::kVoices * (1 + kNumVoiceSpecs) + bwfx::kMacros,
+        CHECK (before == 5 + 6 + legion::kVoices * (1 + kNumVoiceSpecs) + bwfx::kMacros,
                "the parameter count is %d, not what Params.h describes", before);
         std::printf ("  %d host parameters, all uniquely named\n", before);
     }
@@ -120,6 +120,64 @@ int main()
         std::printf ("  latency %d samples (%.1f ms); MIX 0 error %.3g\n",
                      lat, 1000.0 * lat / kFs, worst);
         CHECK (worst < 1.0e-6f, "MIX 0 is not the input (%.3g)", worst);
+    }
+
+    // -- VOICES OFF IS A WIRE: at ANY mix, the input delayed and nothing else ---
+    //  (before this, MIX 50 with every voice off turned the singer down 3 dB)
+    for (float mixPct : { 50.0f, 100.0f })
+    {
+        setParam (proc.apvts, legion_ids::mix, mixPct);
+        proc.prepareToPlay (kFs, kBlock);
+        run (proc, in, out);
+        const int lat = proc.getLatencySamples();
+        float worst = 0;
+        for (int ch = 0; ch < 2; ++ch)
+            for (int i = lat + 2400; i < n; ++i)      //  past the 20 ms fade-up
+                worst = std::max (worst, std::abs (out.getSample (ch, i) - in.getSample (ch, i - lat)));
+        std::printf ("  voices off, MIX %3.0f: error %.3g\n", mixPct, worst);
+        CHECK (worst == 0.0f, "voices off at MIX %.0f is not the input (%.3g)", mixPct, worst);
+    }
+
+    // -- the LEVELLER through the real wrapper, voices off -------------------
+    //  a phrase alternating 24 dB apart; it must come out much closer, on
+    //  both sides, identically (stereo-linked), with nothing non-finite
+    {
+        const int seg = (int) kFs, nn = seg * 6;
+        juce::AudioBuffer<float> ph (2, nn), lo;
+        for (int k = 0; k < 6; ++k)
+        {
+            const float s = (k % 2) ? 1.0f : 0.063f;          //  -24 dB
+            for (int ch = 0; ch < 2; ++ch)
+                for (int i = 0; i < seg; ++i)
+                    ph.setSample (ch, k * seg + i, in.getSample (ch, (k * seg + i) % n) * s);
+        }
+        setParam (proc.apvts, legion_ids::mix, 50.0f);
+        setParam (proc.apvts, legion_ids::levOn, 1.0f);
+        setParam (proc.apvts, legion_ids::levTop, -24.0f);
+        setParam (proc.apvts, legion_ids::levLift, 12.0f);
+        proc.prepareToPlay (kFs, kBlock);
+        run (proc, ph, lo);
+        const int lat = proc.getLatencySamples();
+        auto segDb = [&] (const juce::AudioBuffer<float>& b, int k, int off)
+        {
+            double e = 0; const int a = k * seg + off + seg / 2, z = (k + 1) * seg + off;
+            for (int i = a; i < z; ++i) e += (double) b.getSample (0, i) * b.getSample (0, i);
+            return 10.0 * std::log10 (e / (z - a) + 1e-30);
+        };
+        const double inSpread  = segDb (ph, 5, 0) - segDb (ph, 4, 0);
+        const double outSpread = segDb (lo, 5, lat) - segDb (lo, 4, lat);
+        float lr = 0;
+        for (int i = 0; i < nn; ++i) lr = std::max (lr, std::abs (lo.getSample (0, i) - lo.getSample (1, i)));
+        std::printf ("  LEVELLER: %.1f dB apart in, %.1f dB apart out, L/R differ by %.3g\n",
+                     inSpread, outSpread, lr);
+        CHECK (outSpread < inSpread - 10.0, "the LEVELLER did not level in the plugin (%.1f -> %.1f)", inSpread, outSpread);
+        CHECK (lr == 0.0f, "the LEVELLER moved the stereo image (%.3g)", lr);
+        CHECK (peakOf (lo) < 1.0f && std::isfinite (lo.getSample (0, nn - 1)), "the LEVELLER went wild");
+
+        setParam (proc.apvts, legion_ids::levOn, 0.0f);
+        setParam (proc.apvts, legion_ids::levTop, -20.0f);
+        setParam (proc.apvts, legion_ids::levLift, 6.0f);
+        proc.prepareToPlay (kFs, kBlock);
     }
 
     // -- a voice on, MIX up, and something actually happens -----------------

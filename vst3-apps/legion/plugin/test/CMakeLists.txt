@@ -10,7 +10,8 @@ add_executable(legiontest
     ../engine/legion_fft.cpp
     ../engine/legion_analysis.cpp
     ../engine/legion_shifter.cpp
-    ../engine/legion_harmonizer.cpp)
+    ../engine/legion_harmonizer.cpp
+    ../engine/legion_leveller.cpp)
 
 target_compile_features(legiontest PRIVATE cxx_std_17)
 if(MSVC)

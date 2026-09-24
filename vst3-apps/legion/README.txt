@@ -44,8 +44,9 @@ WHAT IT DOES
     HUMANISE   uncorrelated slow detune, level shimmer and timing stagger
                across the voices: the difference between four singers and one
                singer that got louder
-    MIX        equal-power dry/wet. At MIX 0 the output is the input, delayed
-               by the reported latency and otherwise untouched, to the bit
+    MIX        equal-power dry/wet. At MIX 0, or with every voice switched off,
+               the output is the input, delayed by the reported latency and
+               otherwise untouched, to the bit
     DETAIL     TIGHT / NATURAL / SMOOTH analysis window, 21 / 43 / 85 ms at
                48 kHz. Lower voices want a longer one
     BWFX ON    the Brokild World rack sits on the HARMONY bus by default, so it
@@ -53,11 +54,30 @@ WHAT IT DOES
                for the whole choir
 
 
+THE LEVELLER
+------------
+
+A vocal compressor that works from both ends, off by default:
+
+    TOP        where the downward compression starts (RMS, -40 .. 0 dB)
+    RATIO      how hard the loud parts come down above TOP (1:1 .. 10:1)
+    LIFT       the most a quiet part is lifted toward TOP (0 .. 18 dB)
+    FLOOR      below this nothing is lifted, so breaths and room noise
+               between phrases stay where they were (-80 .. -30 dB)
+    SPEED      how quickly it lets go (release 800 ms .. 60 ms)
+
+It listens to the input before Legion's delay and sets the gain after it, so
+it looks ahead by the latency Legion already has and adds none of its own. It
+only changes the volume: no saturation, and no filter on the audio. Both
+channels get the same gain. Switch every voice off and it is a leveller on its
+own. Switched off, it does not touch the audio at all.
+
+
 STATUS — PLEASE READ
 --------------------
 
-This is IN DEVELOPMENT and it has NOT BEEN HEARD IN A DAW. 113 engine checks
-and 22 wrapper checks pass, the panel renders and the rack round-trips, but
+This is IN DEVELOPMENT and it has NOT BEEN HEARD IN A DAW. 128 engine checks
+and 27 wrapper checks pass, the panel renders and the rack round-trips, but
 nobody has put a real scream through it. The name is provisional.
 
 There is no standalone application and no handbook yet. What there is instead

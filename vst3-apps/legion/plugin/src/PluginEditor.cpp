@@ -6,7 +6,10 @@ namespace
         it used to be written out in each. Giving the globals row the height it
         needed moved one copy and not the other, so the first strip was painted
         over the global knobs. One source, so that cannot happen again. */
-    constexpr int kStripTop = 154;   //  header 58 + globals 96
+    constexpr int kHeadH    = 58;
+    constexpr int kGlobH    = 132;   //  the globals row, which holds the LEVELLER
+    constexpr int kStripTop = kHeadH + kGlobH;
+    constexpr float kMeterDb = 18.0f;   //  the meter spans +/- this
     constexpr int kStripH   = 148;
     constexpr int kStripGap = 8;
 
@@ -146,6 +149,24 @@ LegionEditor::LegionEditor (LegionProcessor& p)
         }
     }
 
+    // ---- the LEVELLER ------------------------------------------------------
+    levOn.setColour (juce::ToggleButton::tickColourId, kAmber);
+    levOn.setColour (juce::ToggleButton::textColourId, kAmber);
+    addAndMakeVisible (levOn);
+    levOnAttach = std::make_unique<ButtonAttach> (proc.apvts, legion_ids::levOn, levOn);
+
+    levHint.setText ("down from the top, up from the bottom", juce::dontSendNotification);
+    levHint.setColour (juce::Label::textColourId, kDim);
+    levHint.setFont (juce::FontOptions (10.5f));
+    levHint.setJustificationType (juce::Justification::centredRight);
+    addAndMakeVisible (levHint);
+
+    addKnob (legion_ids::levTop,   "TOP",   *this, levKnobs);
+    addKnob (legion_ids::levRatio, "RATIO", *this, levKnobs);
+    addKnob (legion_ids::levLift,  "LIFT",  *this, levKnobs);
+    addKnob (legion_ids::levFloor, "FLOOR", *this, levKnobs);
+    addKnob (legion_ids::levSpeed, "SPEED", *this, levKnobs);
+
     // ---- BWFX -------------------------------------------------------------
     rackButton.setClickingTogglesState (true);
     rackButton.setColour (juce::TextButton::textColourOffId, kTeal);
@@ -171,8 +192,8 @@ LegionEditor::LegionEditor (LegionProcessor& p)
     addAndMakeVisible (rackButton);
 
 
-    setSize (940, kStripTop + legion::kVoices * (kStripH + kStripGap) + 12);
-    startTimerHz (8);
+    setSize (1060, kStripTop + legion::kVoices * (kStripH + kStripGap) + 12);
+    startTimerHz (15);
 }
 
 LegionEditor::~LegionEditor() { stopTimer(); }
@@ -184,7 +205,34 @@ void LegionEditor::paint (juce::Graphics& g)
 
     auto r = getLocalBounds();
     g.setColour (kPanel);
-    g.fillRect (r.removeFromTop (58));
+    g.fillRect (r.removeFromTop (kHeadH));
+
+    //  the LEVELLER panel, and its meter: 0 dB is the centre line, reduction
+    //  runs down in amber, lift runs up in teal. Dim while the switch is off.
+    if (! levPanel.isEmpty())
+    {
+        const bool on = levOn.getToggleState();
+        g.setColour (on ? kPanel : kPanel.withAlpha (0.55f));
+        g.fillRoundedRectangle (levPanel.toFloat(), 6.0f);
+
+        const auto m = levMeter.toFloat();
+        g.setColour (kBack);
+        g.fillRoundedRectangle (m, 3.0f);
+        const float mid = m.getCentreY();
+        const float h = juce::jlimit (-1.0f, 1.0f, levShown / kMeterDb) * (m.getHeight() * 0.5f - 2.0f);
+        if (on && std::abs (h) > 0.5f)
+        {
+            g.setColour (h > 0 ? kTeal : kAmber);
+            if (h > 0) g.fillRect (m.getX() + 3.0f, mid - h, m.getWidth() - 6.0f, h);
+            else       g.fillRect (m.getX() + 3.0f, mid, m.getWidth() - 6.0f, -h);
+        }
+        g.setColour (kDim);
+        g.drawHorizontalLine ((int) mid, m.getX(), m.getRight());
+        g.setFont (juce::FontOptions (9.5f));
+        g.drawText (on ? juce::String (levShown, 1) + " dB" : juce::String ("off"),
+                    levMeter.withY (levMeter.getBottom() + 1).withHeight (12).expanded (14, 0),
+                    juce::Justification::centred);
+    }
 
     //  the voice strips
     const int stripTop = kStripTop;
@@ -201,7 +249,7 @@ void LegionEditor::paint (juce::Graphics& g)
 void LegionEditor::resized()
 {
     auto r = getLocalBounds();
-    auto head = r.removeFromTop (58).reduced (14, 8);
+    auto head = r.removeFromTop (kHeadH).reduced (14, 8);
 
     title.setBounds (head.removeFromLeft (110));
     buildLabel.setBounds (head.removeFromLeft (70).withTrimmedTop (10));
@@ -209,22 +257,41 @@ void LegionEditor::resized()
     rackButton.setBounds (head.removeFromRight (90).reduced (2, 6));
 
     //  globals
-    auto row = r.removeFromTop (96).reduced (14, 2);
+    auto row = r.removeFromTop (kGlobH).reduced (14, 4);
     const int kw = 86;
     for (auto& k : globalKnobs)
     {
-        auto cell = row.removeFromLeft (kw);
+        auto cell = row.removeFromLeft (kw).withSizeKeepingCentre (kw, 96);
         k->label.setBounds (cell.removeFromTop (13));
         k->slider.setBounds (cell);
         row.removeFromLeft (6);
     }
     auto box1 = row.removeFromLeft (110);
     detailLabel.setBounds (box1.removeFromTop (13));
-    detailBox.setBounds (box1.reduced (2, 8));
+    detailBox.setBounds (box1.withSizeKeepingCentre (box1.getWidth() - 4, 30));
     row.removeFromLeft (8);
     auto box2 = row.removeFromLeft (110);
     rackPosLabel.setBounds (box2.removeFromTop (13));
-    rackPosBox.setBounds (box2.reduced (2, 8));
+    rackPosBox.setBounds (box2.withSizeKeepingCentre (box2.getWidth() - 4, 30));
+
+    //  the LEVELLER takes the rest of the row
+    row.removeFromLeft (16);
+    levPanel = row;
+    {
+        auto lp = row.reduced (10, 4);
+        auto top = lp.removeFromTop (20);
+        levOn.setBounds (top.removeFromLeft (110));
+        levHint.setBounds (top);
+        levMeter = lp.removeFromRight (30).withTrimmedBottom (14).withTrimmedTop (2);
+        lp.removeFromRight (8);
+        const int cw = lp.getWidth() / (int) levKnobs.size();
+        for (auto& k : levKnobs)
+        {
+            auto cell = lp.removeFromLeft (cw);
+            k->label.setBounds (cell.removeFromTop (13));
+            k->slider.setBounds (cell);
+        }
+    }
 
     //  the voice strips
     const int stripH = kStripH;
@@ -260,5 +327,11 @@ void LegionEditor::timerCallback()
     //  the strips are behind the overlay while the rack is open — no point
     //  redrawing them, and it would drag the whole overlay with them
     if (overlay == nullptr || ! overlay->isVisible())
-        repaint (0, 154, getWidth(), getHeight() - 154);
+        repaint (0, kStripTop, getWidth(), getHeight() - kStripTop);
+
+    //  the meter at 15 Hz, a little ballistic so it reads rather than flickers
+    const float gdb = proc.levellerGainDb();
+    levShown += 0.5f * (gdb - levShown);
+    if (overlay == nullptr || ! overlay->isVisible())
+        repaint (levPanel);
 }

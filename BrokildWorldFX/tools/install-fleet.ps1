@@ -49,7 +49,7 @@ $plugins = @(
   # Legion's source lives in the WEBSITE repo (like Clone Wars), so it has no
   # tree under b\ — it is built to b\_build\Legion and named here explicitly.
   @{ dir = "Legion";           name = "Legion";             group = "Experimental";
-     build = "C:\Users\peter\b\_build\Legion\plugin" }
+     build = "C:\Users\peter\b\_build\Legion\plugin2" }   # plugin2: configured from vst3-apps\legion\plugin after the move
   # Rite of Passage: same arrangement - source in the website repo (checked out
   # to b\_worktrees\rop), built to b\_build\RiteOfPassage\plugin.
   @{ dir = "RiteOfPassage";    name = "Rite of Passage";    group = "Brokild collection";
