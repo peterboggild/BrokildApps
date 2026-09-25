@@ -262,11 +262,11 @@
 
     <div class="btnrow">
       <a class="btn btn-primary" href="https://github.com/peterboggild/BrokildApps/releases/download/downloads/Thin-Walls-VST3-win64.zip" download>
-        Download for Windows <small>VST3 + standalone &middot; 8.1 MB</small>
+        Download for Windows <small>VST3 + standalone &middot; 10.1 MB</small>
       </a>
-      <span class="buildtag">Build 260925.3</span>
+      <span class="buildtag">Build 260925.4</span>
       <a class="btn btn-ghost" href="Thin-Walls-Manual.pdf">
-        Handbook <small>PDF, 17 pages</small>
+        Handbook <small>PDF, 24 pages</small>
       </a>
     </div>
 
@@ -570,12 +570,38 @@
           (720p to 4K, 30 or 60 fps, as shown, cinematic or photo quality).
         </p>
         <p>
-          The sound is re-rendered offline at full quality and every frame is
-          redrawn from the same recording, so picture and sound cannot drift
-          apart. Files land in <b>Documents\Thin Walls videos</b>.
+          The sound is re-rendered offline and every frame is redrawn from the
+          same recording, so picture and sound cannot drift apart. Files land
+          in <b>Documents\Thin Walls videos</b>; <b>BOUNCE WAV</b> writes the
+          sound alone.
         </p>
       </div>
     </div>
+
+    <h3>Render it properly: HIGH, ULTRA, ULTRA + BASS</h3>
+    <p>
+      Offline there is no audio thread to keep up with, so a take's sound can be
+      worked out with far less approximation &mdash; and none of it changes what
+      you hear while you play, or what that costs. <b>HIGH</b> traces wall
+      reflections to the fourth order instead of the second. <b>ULTRA</b> goes to
+      the sixth and replaces the statistical reverb with one <b>traced ray by ray
+      through the actual rooms</b>: the folded walls, the furniture, the rug, the
+      doors as they stand. Each room rings with its own shape, and the hall next
+      door comes round the door or through the wall. <b>ULTRA + BASS</b> also
+      simulates everything below 220 Hz as <b>a real sound wave</b> on a 10 cm
+      grid of the whole flat: room modes, bass bending round a door, a door
+      swinging open mid-take. A four-second take renders in about ten seconds.
+    </p>
+
+    <h3>Your own head</h3>
+    <p>
+      The built-in head is the MIT KEMAR dummy. <b>LOAD SOFA</b> takes any
+      measured head in the standard SOFA format (AES69) &mdash; your own ears,
+      if you have had them measured, or one from a public set such as SADIE,
+      ARI or HUTUBS &mdash; live and in every render. It is diffuse-field
+      equalised the same way, so the two compare fairly by ear, and it is kept
+      with the project.
+    </p>
   </div>
 </section>
 
@@ -624,8 +650,9 @@
 <section class="block">
   <div class="wrap">
     <h2>What the bench proves</h2>
-    <p class="sub">90 checks, all clear, beside 73 that drive the panel. The
-      bench renders real audio and measures it; these are its numbers.</p>
+    <p class="sub">90 checks, 26 for furniture and light and 33 for the offline
+      renders, all clear, beside 141 that drive the panel. The bench renders
+      real audio and measures it; these are its numbers.</p>
 
     <div class="facts">
       <div class="fact"><div class="v">−708 µs</div><div class="l">interaural delay at 90°, against Woodworth's 666</div></div>
@@ -636,6 +663,8 @@
       <div class="fact"><div class="v">−23 dB</div><div class="l">at 1 kHz from shutting a door &mdash; and 4 kHz loses 12 dB more than 250 Hz</div></div>
       <div class="fact"><div class="v">31 dB</div><div class="l">down through the party wall and a shut door, against the same distance in your own room</div></div>
       <div class="fact"><div class="v">0.09 dB</div><div class="l">how far the general path search lands from the exact shoebox on a wall broken by 2 mm</div></div>
+      <div class="fact"><div class="v">0.4–0.9 dB</div><div class="l">between the ray-traced tail and the statistical one, in four materials &mdash; two models, one answer</div></div>
+      <div class="fact"><div class="v">28.6 / 34.3 Hz</div><div class="l">the living room's axial modes in the wave simulation, exactly where c&nbsp;/&nbsp;2L puts them</div></div>
     </div>
 
     <div class="note">
@@ -655,10 +684,10 @@
     <h2>Get it</h2>
     <div class="btnrow" style="margin-top:.6rem">
       <a class="btn btn-primary" href="https://github.com/peterboggild/BrokildApps/releases/download/downloads/Thin-Walls-VST3-win64.zip" download>
-        Thin-Walls-VST3-win64.zip <small>VST3 + standalone &middot; 8.1 MB</small>
+        Thin-Walls-VST3-win64.zip <small>VST3 + standalone &middot; 10.1 MB</small>
       </a>
       <a class="btn btn-ghost" href="Thin-Walls-Manual.pdf">
-        Thin-Walls-Manual.pdf <small>17 pages</small>
+        Thin-Walls-Manual.pdf <small>24 pages</small>
       </a>
     </div>
     <p style="margin-top:1.2rem">
@@ -678,28 +707,28 @@
       <tr><td>Rooms</td><td>Three: 6×5×2.8 m, 3×3.5×2.5 m and 12×9×5 m, joined by three 0.90 m doors. Two walls of each can be broken and pushed ±0.6 m</td></tr>
       <tr><td>Materials</td><td>Five &mdash; absorbing, furnished, plaster, tiled, studio &mdash; chosen per surface: walls, floor and ceiling of each room</td></tr>
       <tr><td>Sources</td><td>Four, each a modelled two-way loudspeaker or a point source, each with its own input</td></tr>
-      <tr><td>Reflections</td><td>Image sources to second order; a general surface-sequence search once a wall is broken, validated against the exact arithmetic to 0.09 dB</td></tr>
-      <tr><td>Reverberation</td><td>One 16-line feedback delay network per room, allpass diffusers inside every line, per-band decay from Eyring, coupled through the doors and walls</td></tr>
+      <tr><td>Reflections</td><td>Image sources to second order (fourth and sixth in offline renders); a general surface-sequence search once a wall is broken, validated against the exact arithmetic to 0.09 dB</td></tr>
+      <tr><td>Reverberation</td><td>One 16-line feedback delay network per room, allpass diffusers inside every line, per-band decay from Eyring, coupled through the doors and walls. Offline (ULTRA): tails ray-traced through the actual geometry; below 220 Hz (ULTRA + BASS) a finite-difference wave simulation of the whole flat</td></tr>
       <tr><td>Delay reader</td><td>16-tap windowed sinc; the direct path holds to a tenth of a decibel from 10 Hz to 16 kHz</td></tr>
-      <tr><td>Head</td><td>MIT KEMAR compact set, 368 directions, resampled at prepare; EAR SPACING 15 to 100 cm</td></tr>
+      <tr><td>Head</td><td>MIT KEMAR compact set, 368 directions, resampled at prepare, or any SOFA file (AES69); EAR SPACING 15 to 100 cm</td></tr>
       <tr><td>Parameters</td><td>65, all automatable &mdash; including every source position, every surface, every broken wall and your own position</td></tr>
       <tr><td>Furniture</td><td>Ten pieces, up to 24: absorption per octave band into the room's decay, scattering, occlusion by edge diffraction, reflection off hard tops</td></tr>
       <tr><td>Pictures</td><td>Up to eight, loaded from image files and stored in the project; print (visual only) or acoustic panel (a 5 cm printed absorber)</td></tr>
       <tr><td>Picture</td><td>Ordinary, CINEMATIC (shadows, ambient occlusion, bloom, 1.5&times; or 2&times; resolution) and PHOTO (traced light, converging while you stand still); LIGHT SYNC for the lamps</td></tr>
-      <tr><td>Video</td><td>Record up to four minutes; export an MP4 (H.264 + AAC) at 720p to 4K, 30 or 60 fps, sound re-rendered offline</td></tr>
+      <tr><td>Video</td><td>Record up to four minutes; export an MP4 (H.264 + AAC) at 720p to 4K, 30 or 60 fps, or the sound alone as a 24-bit WAV, rendered offline at LIVE, HIGH, ULTRA or ULTRA + BASS</td></tr>
       <tr><td>CPU</td><td>One source about 18 % of a core at 48 kHz; four sources and ten pieces of furniture, about 44 %</td></tr>
       <tr><td>Sample rates</td><td>Any. Bench-tested at 44.1 and 96 kHz.</td></tr>
       <tr><td>Hosts</td><td>Any VST3 host &mdash; developed against Ableton Live 12</td></tr>
       <tr><td>Price</td><td>Free. No account, no registration, no telemetry.</td></tr>
     </table>
     <p style="margin-top:1.2rem; font-size:.88rem; color:var(--text-soft)">
-      Honest limits: furniture and pictures act geometrically (absorption,
-      scattering, blocking, reflection) rather than on low-frequency room
-      modes; the handbook in the download predates the furniture, pictures,
-      cinematic view and video export. Also in the handbook: where the rooms are and which doors
-      join them cannot change; reflections are specular (only STUDIO scatters)
-      and stop at the second order; breaking a wall moves the early reflections
-      rather than the room's standing waves; and two sources in one room share
+      Honest limits: while you play, furniture and pictures act geometrically
+      (absorption, scattering, blocking, reflection) and there are no
+      low-frequency room modes &mdash; only an ULTRA + BASS render has them.
+      Where the rooms are and which doors join them cannot change; live
+      reflections are specular (only STUDIO scatters) and stop at the second
+      order; breaking a wall moves the early reflections rather than the room's
+      standing waves; and two sources in one room share
       that room's field &mdash; correct, but the share each hands it is taken
       at 1 kHz rather than per band.
     </p>

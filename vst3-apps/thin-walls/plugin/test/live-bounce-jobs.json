@@ -1,0 +1,6 @@
+[
+  { "name": "settle", "wait": 4000 },
+  { "name": "head + signal", "eval": "(async function(){ var b = window.__JUCE__.backend; window.__hr = null; b.addEventListener('hrtf', function(h){ window.__hr = h; }); b.addEventListener('rec', function(r){ window.__rec = r; }); b.emitEvent('tw', { k:'hrtfPath', path:'C:/Users/peter/b/_build/ThinWalls/test/_deps/tw_libmysofa-src/share/MIT_KEMAR_normal_pinna.sofa' }); b.emitEvent('tw', { k:'wavPath', path:'C:/Users/peter/b/ThinWalls/test/testsignal.wav' }); await new Promise(function(r){ setTimeout(r, 1500); }); return JSON.stringify(window.__hr); })()" },
+  { "name": "record 3 s", "eval": "(async function(){ var b = window.__JUCE__.backend; b.emitEvent('tw', { k:'recStart' }); await new Promise(function(r){ setTimeout(r, 3000); }); b.emitEvent('tw', { k:'recStop' }); await new Promise(function(r){ setTimeout(r, 500); }); return JSON.stringify(window.__rec); })()" },
+  { "name": "bounce HIGH", "eval": "(async function(){ var b = window.__JUCE__.backend; var t0 = performance.now(); b.emitEvent('tw', { k:'bounce', sound:1 }); for (var i = 0; i < 600; i++){ await new Promise(function(r){ setTimeout(r, 100); }); if (window.__rec && (window.__rec.state === 'done' || window.__rec.state === 'error')) break; } return ((performance.now()-t0)/1000).toFixed(1) + ' s: ' + JSON.stringify(window.__rec); })()" }
+]

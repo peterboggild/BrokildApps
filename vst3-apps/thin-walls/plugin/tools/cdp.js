@@ -129,11 +129,37 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       continue;
     }
     if (j.shoot) {
-      const r = await ws.send("Page.captureScreenshot", { format: "png" });
+      /* Optional crop, measured LIVE at the moment of the shot, so a plate can
+         never be cut by a rectangle from an older layout:
+           sel  - a CSS selector (or several, comma-joined: their union)
+           rect - [x, y, w, h] in CSS pixels, when there is no element
+           pad  - CSS pixels added on every side (default 0)
+         The clip is in CSS pixels; Emulation's deviceScaleFactor sets how many
+         image pixels each one becomes. */
+      const shotParams = { format: "png" };
+      if (j.sel || j.rect) {
+        let box = j.rect || null;
+        if (j.sel) {
+          const q = await ws.send("Runtime.evaluate", { returnByValue: true, expression:
+            "(function(){ var els=document.querySelectorAll(" + JSON.stringify(j.sel) + "); " +
+            "var x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; for (var i=0;i<els.length;i++){ var b=els[i].getBoundingClientRect(); " +
+            "if(!b.width||!b.height) continue; x0=Math.min(x0,b.left); y0=Math.min(y0,b.top); x1=Math.max(x1,b.right); y1=Math.max(y1,b.bottom);} " +
+            "return x1>x0 ? [x0,y0,x1-x0,y1-y0] : null; })()" });
+          box = q.result && q.result.result && q.result.result.value;
+          if (!box) { failures++; console.log(`  ${j.name || "shot"}\n     FAILED: nothing visible matches ${j.sel}`); continue; }
+        }
+        const pad = j.pad || 0;
+        const x = Math.max(0, box[0] - pad), y = Math.max(0, box[1] - pad);
+        shotParams.clip = { x, y, width: box[2] + 2 * pad - (x - (box[0] - pad)),
+                            height: box[3] + 2 * pad - (y - (box[1] - pad)), scale: 1 };
+      }
+      const r = await ws.send("Page.captureScreenshot", shotParams);
       const b64 = r.result && r.result.data;
       if (b64) {
         require("fs").writeFileSync(j.shoot, Buffer.from(b64, "base64"));
-        console.log(`  ${j.name || "shot"}\n     ${j.shoot}`);
+        const c = shotParams.clip;
+        console.log(`  ${j.name || "shot"}\n     ${j.shoot}` +
+          (c ? `   clip ${Math.round(c.x)},${Math.round(c.y)} ${Math.round(c.width)}x${Math.round(c.height)}` : ""));
       } else {
         failures++;
         console.log(`  ${j.name || "shot"}\n     FAILED to capture`);

@@ -36,6 +36,8 @@
 #include <cmath>
 #include <cstdint>
 #include <atomic>
+#include <memory>
+#include <string>
 
 namespace tw
 {
@@ -194,6 +196,11 @@ struct Params
     float directDb = 0, earlyDb = 0, reverbDb = 0, outputDb = 0;
     float mix = 1.0f;
     float earSpan = 0.175f;                                       // metres between the ears, 0.15 .. 1.0
+    /*  Render-only: the offline ULTRA+BASS render splits what comes through the
+        solid parts (door leaves, party walls) from what comes through the air,
+        because the wave simulation below the crossover only does the air. The
+        live plug-in never touches these, and 0 dB is an exact 1.0. */
+    float transmitDb = 0, airborneDb = 0;
     // the furniture layout: project state, not host parameters
     FurnItem furn[MAX_FURN];
     int nfurn = 0;
@@ -252,16 +259,28 @@ struct BandFilter
 class Hrtf
 {
 public:
-    void prepare (double fs);
+    void prepare (double fs);                   // the built-in MIT KEMAR set
+    /*  A PERSONAL set from a SOFA file (AES69), resampled to fs, sampled onto the
+        same elevation rings as the built-in set but around the FULL circle (a
+        real head is not symmetric, so nothing is mirrored), and diffuse-field
+        equalised as the built-in set is, so the two can be compared by ear.
+        Needs libmysofa (HrtfSofa.cpp); false with a reason when it fails. */
+    bool loadSofa (const std::string& file, double fs, std::string& error);
     int  numTaps() const { return ntap; }
     // az: degrees, 0 front, 90 right; el: degrees, up positive.
     // Writes ntap taps for each ear and the ITD in samples (positive = right ear later).
     void lookup (float azDeg, float elDeg, float* left, float* right, float& itdSamples) const;
+    const std::string& name() const { return label; }
+    const std::string& file() const { return path; }
+    bool personal() const { return full; }
 private:
     int ntap = 0;
     double fs = 48000.0;
     std::vector<float> taps;   // [dir][ear][ntap]
     std::vector<float> itd;    // [dir] in samples at fs
+    bool full = false;         // a loaded set: whole circles per ring
+    std::vector<int> ringN, ringFirst;
+    std::string label = "MIT KEMAR", path;
     void blendDir (int dir, float w, float* l, float* r, float& it) const;
 };
 
@@ -340,7 +359,7 @@ struct PathSpec
     float bandDb[NBAND] = {};    // frequency-dependent part, dB (0 = flat)
     float az = 0, el = 0;        // arrival direction, head-relative, degrees
     int   npts = 0;              // for the picture
-    Vec3  pts[6];
+    Vec3  pts[10];              // source, up to 7 bounces (or a doorway), listener
     int   selfItem = -1;         // a reflection OFF this furniture piece: it cannot block itself
 };
 
@@ -353,7 +372,19 @@ constexpr int MAX_PATHS = 192;
 constexpr int MAX_SLOTS = 256;
 constexpr int MAX_TAPS  = 384;
 constexpr int SUB_BLOCK = 128;
-constexpr float PATH_FADE_S = 0.025f;   // a path that appears or disappears fades over this
+constexpr float PATH_FADE_S = 0.025f;
+
+/*  How hard the engine may work. The DEFAULT is the live plug-in, exactly: the
+    offline render of a take (the video export, the bounce) may ask for more -
+    image sources to a higher order, and path and slot budgets to carry them.
+    Broken rooms stay at second order (their general search grows as surfaces
+    to the power of the order). */
+struct RenderQuality
+{
+    int order = 2;              // image-source order in the listener's room
+    int maxPaths = 192;         // = MAX_PATHS
+    int maxSlots = 256;         // = MAX_SLOTS
+};   // a path that appears or disappears fades over this
 constexpr float DOOR_ZONE_M = 0.4f;     // the doorway transition zone, either side of the plane
 
 //------------------------------------------------------------------------------
@@ -463,7 +494,7 @@ struct Coupling
 // the picture the panel draws
 struct ScenePath
 {
-    PathKind kind; int src; int npts; Vec3 pts[6]; float db; float ms;
+    PathKind kind; int src; int npts; Vec3 pts[10]; float db; float ms;
 };
 struct SceneSource
 {
@@ -488,7 +519,16 @@ struct Scene
 class Engine
 {
 public:
-    void prepare (double sampleRate, int maxBlock);
+    void prepare (double sampleRate, int maxBlock, const RenderQuality& q = RenderQuality());
+    // the identity of the image (nx, ny, nz) - unique to order 7 either side
+    static uint32_t imageKey (int nx, int ny, int nz) { return (uint32_t) ((nx + 8) * 289 + (ny + 8) * 17 + (nz + 8)); }
+    const RenderQuality& renderQuality() const { return quality; }
+    /*  Swap the head. Called on the audio thread between blocks (the processor
+        hands the set over with a try-lock), or before rendering; the caller keeps
+        the old set alive so nothing is freed here. prepare() keeps a personal set
+        (the caller reloads it at a new rate) and otherwise builds MIT KEMAR. */
+    void setHrtf (std::shared_ptr<const Hrtf> h);
+    const Hrtf& hrtf() const { return *hrtfSet; }
     void reset();
     void setParams (const Params& p);
     // four input channels (main L/R, aux L/R; aux may be null), binaural out.
@@ -525,6 +565,12 @@ public:
     float lightLevel (int r) const { return lightOut[r]; }
     static float diffractionDb (float fresnelN);
     static float airDbPerMetre (int band);
+    // the apartment's fixed facts, for the offline ray tracer (LateRays.cpp)
+    static float leafTransmission (int band);   // a closed door leaf, energy fraction
+    static float wallTransmission (int band);   // a party wall, energy fraction
+    static void  doorOpenStrip (int door, float aperture, float& lo, float& hi);
+    static int   doorWallOf (int room, int door);          // 0 x0, 1 x1, 2 y0, 3 y1, -1 none
+    static bool  partyWall (int ra, int rb, int& axis, float& pos, float& s0, float& s1, float& h);
     // directivity of a source (dB, <= 0) at cos(theta) off its axis, per band
     static float directivityDb (const SourceParams& s, float cosTheta, int band);
     // the radiated-power correction of that directivity (dB, <= 0): what the field gets
@@ -540,7 +586,8 @@ private:
     double fs = 48000.0;
     int maxBlock = 512;
     int ntap = 128;
-    Hrtf hrtf;
+    std::shared_ptr<const Hrtf> hrtfSet;       // swapped whole, never edited in place
+    void rebuildDiffuseHrtf();
 
     Params target, cur;
     // smoothed geometry
@@ -571,9 +618,10 @@ private:
     std::vector<float> monoIn[MAX_SOURCES];
     int curSrc = 0;
 
-    std::array<PathSlot, MAX_SLOTS> slots;
+    RenderQuality quality;
+    std::vector<PathSlot> slots;           // quality.maxSlots, sized at prepare
     int pathsDropped = 0;                 // this build's refusals, see MAX_PATHS
-    bool pathsFull (int margin) { if (nspecs < MAX_PATHS - margin) return false; ++pathsDropped; return true; }
+    bool pathsFull (int margin) { if (nspecs < quality.maxPaths - margin) return false; ++pathsDropped; return true; }
     bool snapFades = true;                // the first block after reset: no fade-in
     bool throughOpenDoor (const Vec3& a, const Vec3& b) const;
     float doorZone (int d, const Vec3& P, float& past) const;
@@ -598,7 +646,7 @@ private:
 
     // sub-block scratch
     std::vector<float> wetL, wetR, tmpA, tmpB;
-    std::array<PathSpec, MAX_PATHS> specs; int nspecs = 0;
+    std::vector<PathSpec> specs; int nspecs = 0;   // quality.maxPaths, sized at prepare
 
     // metering
     float inSq = 0, outSq = 0, directSq = 0, revSq = 0;

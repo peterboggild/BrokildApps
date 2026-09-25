@@ -302,3 +302,40 @@ Asked 2026-09-25.
 ### Cost
 CPU/audio: none measurable (panels are a constant in A). GPU: one texture per
 picture. Work: half a day to a day with probe checks and a live check.
+
+---
+
+## 8. RENDER QUALITY - an offline "ultra realism" render for exports and bounces - BUILT in 260925.4 (all four tiers)
+
+**Built, and what it measured** (`test/render.cpp`, twrender, 33 checks ALL CLEAR):
+- Tier 3, HIGH/ULTRA image order 4/6: 24 -> 128 -> 376 reflections, energy at 1 kHz within 0.2 dB (the late field hands over). Order 6 needed `pts[10]` and `b[8]`: the old arrays overflowed (0xC0000409).
+- Tier 4, a personal head from SOFA (libmysofa + zlib compiled from pinned sources, `cmake/sofa.cmake`): KEMAR from its own SOFA file reproduces the built-in set, ITD -729 vs -708 us, ILD at 4 kHz 9.9 vs 9.5 dB. Live and in every render; kept with the project.
+- Tier 2, traced tails (`Source/LateRays.*`): 16 000 rays through the real geometry, excluding exactly the specular chains the engine renders; transmission as a second stage from each closed leaf and party wall. Against the statistical field: +0.4 to +0.9 dB in four materials, T20 within Eyring (tiled 13 % long), through a shut wall +0.6 dB. **Bug on the way: every level 15 dB high** - a ray's band energy is the whole broadband impulse with that band's losses, so the noise must NOT be divided by the band's share of the spectrum (1/0.034 = 15 dB at 1 kHz).
+- Tier 1, the wave below 220 Hz (`Source/Fdtd.*`): SLF leapfrog at the Courant limit, 10 cm cells so every wall lands on a cell face, face-centred impedance boundaries, the actual source signals injected, doors and furniture rebuilt when they move. Free field +0.23 dB against 1/r, axial modes 28.6 / 34.3 Hz exactly, 1 kHz untouched (0.02 dB). **Two bugs only a LIVE bounce found**: a pressure source that never takes back the air it pushes fills a closed room (DC 0.78 of full scale in 4 s) - fixed with a 10 Hz 2nd-order high pass (zero area and zero first moment); and the lowest traced band spread flat to 0 Hz rang at DC - it now stops at 25 Hz.
+
+(The original spec follows.)
+
+Asked 2026-09-25. The take export already re-renders the sound offline through a
+fresh engine; this adds a quality choice to it (and a plain "bounce the take to
+WAV"). Real-time playing is untouched.
+
+What the real-time engine approximates, and what offline can do instead, ranked
+by audible gain:
+1. LOW-END WAVE SIMULATION (biggest gain, most work, ~a week). Geometric
+   acoustics has no room modes: no corner boom in the box room, no exact
+   low-frequency diffraction at doorways. FDTD on the GPU below ~400 Hz over the
+   real geometry (furniture included), recording pressure + velocity at the
+   listener's recorded path points (one run per source serves every point),
+   rendered binaurally and crossed over to the geometric part. Hall at 500 Hz:
+   ~1.6 M cells x ~17 k steps for a 2 s response - roughly 10-30 s per source on
+   the RTX 5070.
+2. ROOM-SPECIFIC TAILS (days). Stochastic ray tracing per room with the real
+   geometry, scattering and door coupling, band energy-decay curves turned into
+   the late response (the ODEON/RAVEN hybrid), replacing the statistical FDN. IRs
+   along the path every ~0.1 m: about a minute for a one-minute walk.
+3. LIFT THE REAL-TIME CAPS (about a day). Image sources to order 4-6 with full
+   visibility, no MAX_PATHS, a denser late network, finer HRTF interpolation.
+   Renders a few times slower than real time.
+4. PERSONAL HRTF (cheap). Import a SOFA file in place of the MIT KEMAR set.
+
+Recommended order: 3 + 4 together, then 2, then 1.

@@ -4,7 +4,7 @@ project(ThinWalls VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Bump it AND re-run
 # `cmake -S . -B build` or it will not take.
-set(TW_BUILD_ID "260925.3")
+set(TW_BUILD_ID "260925.4")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -59,6 +59,10 @@ target_sources(ThinWalls
     PRIVATE
         Source/Engine.cpp
         Source/TakeExport.cpp
+        Source/OfflineRender.cpp
+        Source/LateRays.cpp
+        Source/Fdtd.cpp
+        Source/HrtfSofa.cpp
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp)
 
@@ -87,6 +91,10 @@ target_link_libraries(ThinWalls
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags)
+
+# Personal heads: libmysofa + zlib, compiled from pinned sources (cmake/sofa.cmake)
+include(cmake/sofa.cmake)
+target_link_libraries(ThinWalls PRIVATE tw_mysofa)
 
 # The MP4 export: Media Foundation, part of Windows (H.264 + AAC), no extra libraries.
 if(WIN32)

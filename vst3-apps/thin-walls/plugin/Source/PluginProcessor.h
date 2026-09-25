@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "TakeExport.h"
+#include "OfflineRender.h"
 #include <map>
 #include "Engine.h"
 #include <string>
@@ -154,6 +155,22 @@ private:
     void finishExport();
     void failExport (const juce::String& why);
     std::unique_ptr<juce::Thread> renderJob;
+    int vidSound = 0;                          // the export's sound quality (tw::SoundQuality)
+    double lastHeadRate = 0;
+    void beginBounce (int sound);
+    void finishBounce();
+
+    // ---- the head: MIT KEMAR, or a personal set from a SOFA file
+    std::shared_ptr<const tw::Hrtf> head;      // the personal set in use (null = built-in)
+    juce::String headPath;
+    juce::SpinLock headLock;                   // the audio thread only TRIES it
+    std::shared_ptr<const tw::Hrtf> headPending;
+    std::atomic<int> headVersion { 0 };
+    int headVersionAudio = 0;
+    std::vector<std::shared_ptr<const tw::Hrtf>> headRetired;   // never freed on the audio thread
+    bool loadHead (const juce::String& file, bool quiet);
+    void resetHead();
+    void emitHead();
     std::unique_ptr<tw::Mp4Writer> mp4;
     juce::File mp4File;
     int vidW = 0, vidH = 0, vidFps = 30, vidN = 0, vidNext = 0;

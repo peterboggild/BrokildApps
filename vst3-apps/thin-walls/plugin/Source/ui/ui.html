@@ -165,6 +165,9 @@ canvas{ display:block; width:100%; height:100%; }
 .row{ display:grid; grid-template-columns:60px minmax(0,1fr) 52px; align-items:center; gap:6px; height:23px; }
 .row.door{ grid-template-columns:44px 18px minmax(0,1fr) 44px; }
 .row.sel{ grid-template-columns:60px minmax(0,1fr); }
+.row.headrow{ grid-template-columns:60px minmax(0,1fr) auto auto; }
+.row.headrow .headname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.row.headrow .b{ padding:2px 6px; }
 /*  Two groups describe a ROOM rather than a control, and a room has three
     surfaces and two walls that can be broken - neither fits a 196 px column.
     They take two, and give it back on a window narrow enough that two tracks
@@ -500,7 +503,7 @@ const HINT = {
   syaw:   ["FACING", "Which way it points, 0 is east. A LOUDSPEAKER beams with frequency, so this decides how much top end reaches you off-axis; a PURE source only cares if its DIRECTIVITY is up. Also draggable by the arrow in the plan."],
   stype:  ["TYPE", "PURE is a point source with no box, drawn as a ball on a stand - use DIRECTIVITY to give it a pattern. LOUDSPEAKER is a modelled two-way monitor: nearly omni at 125 Hz, about 22 dB down behind it at 4 kHz, and DIRECTIVITY does not apply."],
   sdir:   ["DIRECTIVITY", "For a PURE source only: 0 is omnidirectional, 1 is a cardioid, the same at every frequency. Greyed out for a LOUDSPEAKER, which carries its own measured pattern."],
-  sin:    ["INPUT", "Which channel feeds this source. OFF costs nothing and leaves it ghosted in the views but still placeable. MAIN is the track the plugin is on; AUX is a second input bus you route another track into - a sidechain in most hosts."],
+  sin:    ["INPUT", "Which channel feeds this source. OFF costs nothing; the source stays in the views, unlit, and can still be placed. MAIN is the track the plugin is on; AUX is a second input bus you route another track into - a sidechain in most hosts."],
   slvl:   ["LEVEL", "How loud this source is fed, -24 to +6 dB. This is the balance between the four, before the room touches any of them."],
   lisx:   ["LISTENER X", "Where you are, east-west. Walk with W A S D in the 3D view, or drag the head in the plan."],
   lisy:   ["LISTENER Y", "Where you are, north-south. Walk with W A S D, or drag the head in the plan."],
@@ -1021,6 +1024,18 @@ function buildControls(){
   sliderRow(gl, "mix", "MIX");
   sliderRow(gl, "output", "OUTPUT");
   sliderRow(gl, "earspan", "EAR SPAN");
+  {
+    const hr = mk("div", "row headrow", gl);
+    const lab = mk("label", "lab", hr); lab.textContent = "HEAD";
+    const nm = mk("span", "ro headname", hr); nm.id = "headName"; nm.textContent = "MIT KEMAR (built in)";
+    hintOn(nm, "head");
+    const bl = mk("button", "b", hr); bl.type = "button"; bl.id = "bHeadLoad"; bl.textContent = "Load SOFA";
+    hintOn(bl, "headload");
+    bl.addEventListener("click", () => NB.send({ k:"hrtfOpen" }));
+    const bd = mk("button", "b", hr); bd.type = "button"; bd.id = "bHeadDef"; bd.textContent = "Built in";
+    hintOn(bd, "headdef");
+    bd.addEventListener("click", () => NB.send({ k:"hrtfDefault" }));
+  }
 
   /*  One column, not two: four buttons and three readouts do not need 400 px,
       and the furniture group below does. Rebalanced rather than crammed. */
@@ -5729,7 +5744,8 @@ const EXP_KEY = "thinwalls.export";
 const RES_OPTS = [[1280,720], [1920,1080], [2560,1440], [3840,2160]];
 const FPS_OPTS = [30, 60];
 const PIC_OPTS = [["shown","AS SHOWN"], ["cine","CINEMATIC"], ["photo16","PHOTO 16"], ["photo64","PHOTO 64"]];
-let expOpt = { res:0, fps:0, pic:"shown", inset:false };
+const SND_OPTS = [["0","LIVE"], ["1","HIGH"], ["2","ULTRA"], ["3","ULTRA + BASS"]];
+let expOpt = { res:0, fps:0, pic:"shown", inset:false, sound:0 };
 try {
   const s = JSON.parse(localStorage.getItem(EXP_KEY) || "null");
   if (s && typeof s === "object"){
@@ -5737,6 +5753,7 @@ try {
     if (s.fps >= 0 && s.fps < FPS_OPTS.length) expOpt.fps = s.fps | 0;
     if (PIC_OPTS.some(p => p[0] === s.pic)) expOpt.pic = s.pic;
     expOpt.inset = !!s.inset;
+    if (s.sound >= 0 && s.sound <= 3) expOpt.sound = s.sound | 0;
   }
 } catch(e){}
 function expSave(){ try { localStorage.setItem(EXP_KEY, JSON.stringify(expOpt)); } catch(e){} }
@@ -5756,7 +5773,12 @@ Object.assign(HINT, {
   expgo:   ["EXPORT", "Render the last take to an MP4 in Documents / Thin Walls videos: native renders the sound first, then the page draws every frame from the recorded values. The panel is locked while it runs; CANCEL stops it and deletes the partial file."],
   expreveal:["REVEAL", "Show the last exported video in Explorer."],
   expcancel:["CANCEL", "Stop the export. The partial file is deleted and the panel comes back exactly as it was."],
-  expnote: ["EXPORT STATUS", "Why EXPORT is not available yet, or the name of the last video written."]
+  expnote: ["EXPORT STATUS", "Why EXPORT is not available yet, or the name of the last video written."],
+  expsound:["SOUND", "How the take's sound is rendered for the video or the bounce - offline, so it can take far longer than the live engine is allowed. LIVE is exactly what you heard. HIGH traces wall reflections to the 4th order instead of the 2nd. ULTRA goes to the 6th and replaces the statistical reverb with one traced ray by ray through the actual rooms, doors, furniture and walls: each room's own tail, the hall next door heard round the door, through the wall. ULTRA + BASS also simulates everything below 220 Hz as a real sound wave on a 10 cm grid of the whole apartment - room modes, bass bending round doors. None of it changes the live sound or its CPU; ULTRA + BASS takes about as long as the take itself, ULTRA less."],
+  expbounce:["BOUNCE", "Render the last take's sound alone, at the SOUND quality chosen above, to a 24-bit WAV in Documents / Thin Walls videos. No picture - quick even at ULTRA."],
+  head:    ["HEAD", "The head you listen with. Built in is the MIT KEMAR dummy head. LOAD SOFA takes a measured head in the standard SOFA format (AES69) - your own, if you have had your ears measured, or one from a public database such as SADIE, ARI or HUTUBS. It is used live and in every render, is diffuse-field equalised like the built-in set so the two compare fairly, and is remembered with the project."],
+  headload:["LOAD SOFA", "Choose a .sofa file with a measured head."],
+  headdef: ["BUILT IN", "Go back to the built-in MIT KEMAR head."]
 });
 
 function fmtClock(s){
@@ -5827,6 +5849,14 @@ function buildRecGroup(){
   hintOn(sPic, "exppic");
   sPic.addEventListener("change", () => { expOpt.pic = sPic.value; expSave(); });
 
+  const r3 = mk("div", "row sel", g);
+  const l3 = mk("label", "lab", r3); l3.textContent = "SOUND";
+  const w4 = mk("div", "selwrap", r3);
+  const sSnd = mk("select", "sel", w4); sSnd.id = "expSnd";
+  SND_OPTS.forEach(p => { const o = mk("option", null, sSnd); o.value = p[0]; o.textContent = p[1]; });
+  hintOn(sSnd, "expsound");
+  sSnd.addEventListener("change", () => { expOpt.sound = sSnd.value | 0; expSave(); });
+
   const b2 = mk("div", "btnrow", g);
   const bIn = mk("button", "b", b2); bIn.type = "button"; bIn.id = "bInset"; bIn.textContent = "Inset";
   hintOn(bIn, "expinset");
@@ -5837,12 +5867,18 @@ function buildRecGroup(){
   const bRv = mk("button", "b", b2); bRv.type = "button"; bRv.id = "bReveal"; bRv.textContent = "Reveal";
   hintOn(bRv, "expreveal");
   bRv.addEventListener("click", () => NB.send({ k:"reveal" }));
+  const bBn = mk("button", "b", b2); bBn.type = "button"; bBn.id = "bBounce"; bBn.textContent = "Bounce WAV";
+  hintOn(bBn, "expbounce");
+  bBn.addEventListener("click", () => {
+    if (!takeHeld() || EXP.active || EXP.waitingPlan) return;
+    NB.send({ k:"bounce", sound:expOpt.sound | 0 });
+  });
 
   const bar = mk("div", "xbar", g); bar.id = "expBar";
   mk("i", null, bar);
   const note = mk("div", "ro", g); note.id = "expNote";
   hintOn(note, "expnote");
-  sRes.value = String(expOpt.res); sFps.value = String(expOpt.fps); sPic.value = expOpt.pic;
+  sRes.value = String(expOpt.res); sFps.value = String(expOpt.fps); sPic.value = expOpt.pic; sSnd.value = String(expOpt.sound | 0);
   updateRecUI();
 }
 function takeHeld(){ return recSt.state === "ready" || recSt.state === "done" || (recSt.state === "error" && recSt.sec > 0); }
@@ -5867,6 +5903,8 @@ function updateRecUI(){
   bEx.disabled = !!why;
   const bRv = document.getElementById("bReveal");
   bRv.disabled = !recSt.file || busy;
+  const bBn = document.getElementById("bBounce");
+  if (bBn) bBn.disabled = !!why;
   const note = document.getElementById("expNote");
   if (why) note.textContent = why;
   else if (recSt.file) note.textContent = String(recSt.file).split(/[\\/]/).pop();
@@ -5936,7 +5974,7 @@ function startExport(){
   doFlush();
   if (furnSendTmr) sendFurnNow();
   EXP.waitingPlan = true; EXP.cancelled = false;
-  NB.send({ k:"vidBegin", w:r[0], h:r[1], fps:FPS_OPTS[expOpt.fps] || 30 });
+  NB.send({ k:"vidBegin", w:r[0], h:r[1], fps:FPS_OPTS[expOpt.fps] || 30, sound:expOpt.sound | 0 });
   expModalShow(true);
   updateRecUI();
 }
@@ -6814,6 +6852,7 @@ NB.on("initialState", d => {
   if (d.auxConnected !== undefined) auxConnected = d.auxConnected ? 1 : 0;
   if (d.selsrc !== undefined) selectSource(d.selsrc | 0, false);
   if (d.wav) applyWav(d.wav);
+  if (d.hrtf) applyHead(d.hrtf);
   /*  The catalogue first - the layout is read against it - and neither is
       required: an engine that predates furniture sends no key at all, and the
       page keeps its own copy of the engine's numbers. */
@@ -6839,6 +6878,14 @@ NB.on("notice", d => {
 });
 
 NB.on("wav", d => { if (d) applyWav(d); });
+function applyHead(h){
+  const nm = document.getElementById("headName"), bd = document.getElementById("bHeadDef");
+  if (!h || !nm) return;
+  nm.textContent = String(h.name || "MIT KEMAR (built in)");
+  nm.title = h.path ? String(h.path) : "";
+  if (bd) bd.disabled = !h.personal;
+}
+NB.on("hrtf", applyHead);
 NB.on("pics", d => { if (d && Array.isArray(d.items)) applyPicsNative(d.items, d.images); });
 
 /*  The layout changed for a reason the page did not cause - a preset, a

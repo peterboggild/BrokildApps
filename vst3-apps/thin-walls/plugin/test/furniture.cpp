@@ -145,7 +145,7 @@ int main()
         const float want = 1.0f - std::exp (-2.0f * sum / S);
         check (std::abs (e1->roomScatter (0) - want) < 1e-5f, "room scattering = 1 - exp(-2 sum / S)", e1->roomScatter (0), want);
         // the ceiling image (nz = +1): key (0+2)*25 + (0+2)*5 + (1+2) = 63, source 0
-        const PathSpec* a = findKey (*e0, 63u), * b = findKey (*e1, 63u);
+        const PathSpec* a = findKey (*e0, Engine::imageKey (0, 0, 1)), * b = findKey (*e1, Engine::imageKey (0, 0, 1));
         const float lost = (a && b) ? a->bandDb[3] - b->bandDb[3] : -1.0f;
         const float wantDb = -10.0f * std::log10 (1.0f - want);
         check (a && b && std::abs (lost - wantDb) < 1e-3f, "the ceiling reflection loses 10 log10(1 - s) (dB)", lost, wantDb);
@@ -168,9 +168,9 @@ int main()
         const Vec3 S (10.0f, 4.5f, 1.2f), L (14.0f, 4.5f, EAR_HEIGHT);
         const float got = eng->furnitureDelta (0, S, L);
         check (std::abs (got - want) < 1e-3, "path difference round the bookcase (m), against a hand calculation", got, want);
-        const PathSpec* d = findKey (*eng, (uint32_t) (2 * 25 + 2 * 5 + 2));
+        const PathSpec* d = findKey (*eng, Engine::imageKey (0, 0, 0));
         auto e0 = fresh (fs); render (*e0, p, fs, 0.2, impulseAt (0));
-        const PathSpec* d0 = findKey (*e0, (uint32_t) (2 * 25 + 2 * 5 + 2));
+        const PathSpec* d0 = findKey (*e0, Engine::imageKey (0, 0, 0));
         for (int band : { 0, 3, 5 })
         {
             const float lost = (d && d0) ? d0->bandDb[band] - d->bandDb[band] : -1.0f;

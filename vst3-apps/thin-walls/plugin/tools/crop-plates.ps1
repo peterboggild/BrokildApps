@@ -26,30 +26,44 @@ param(
 
 Add-Type -AssemblyName System.Drawing
 
-# name = x, y, w, h  in the shot's own pixels, plus the scale the plate is
-# rendered at (a small control group needs more than a full window does).
-# These are the layout at the editor's own 1400 x 900, measured 2026-09-22:
-# a 42 px header, the two views over 424 px splitting 812 / 588, then TWO
-# rows of control groups at y 476 and y 696, and a 23 px status strip.
-# Overwrite them from the "rects" job whenever the panel's layout moves.
+# From 260925.3 every plate is shot by ELEMENT: test\manual-plates-260925.json
+# names a selector per shot and tools\cdp.js measures that element in the
+# live panel at the instant of the shot (at deviceScaleFactor 2), so the PNG
+# already IS the plate and no rectangle can be left over from an older
+# layout. An entry of 'whole' takes the image as it is; a numeric entry
+# (x, y, w, h, scale in the shot's own pixels) still works for a plate cut
+# from a whole-window shot. A PNG with no entry at all is refused.
 $CROPS = @{
-  'panel'          = @(0,      0, 1400, 900, 1)
-  'pov'            = @(0,     42,  812, 424, 2)
-  'pov-speaker'    = @(0,     42,  812, 424, 2)
-  'pov-pure'       = @(0,     42,  812, 424, 2)
-  'pov-handle'     = @(0,     42,  812, 424, 2)
-  'plan'           = @(812,   42,  588, 424, 2)
-  'plan-labels'    = @(812,   42,  588, 424, 2)
-  'plan-open'      = @(812,   42,  588, 424, 2)
-  'plan-shut'      = @(812,   42,  588, 424, 2)
-  'plan-folded'    = @(812,   42,  588, 424, 2)
-  'ctrl-materials' = @(245,  476,  449, 132, 3)
-  'ctrl-folds'     = @(706,  476,  449, 190, 3)
-  'ctrl-source'    = @(1167, 476,  219, 211, 3)
-  'ctrl-levels'    = @(14,   696,  449, 173, 3)
-  'ctrl-wav'       = @(937,  696,  449, 173, 3)
-  'hud'            = @(12,    54,  159, 118, 4)
-  'status'         = @(0,    877, 1400,  23, 2)
+  'panel'           = 'whole'
+  'pov'             = 'whole'
+  'plan'            = 'whole'
+  'plan-labels'     = 'whole'
+  'plan-open'       = 'whole'
+  'plan-shut'       = 'whole'
+  'plan-folded'     = 'whole'
+  'pov-speaker'     = 'whole'
+  'pov-pure'        = 'whole'
+  'ctrl-materials'  = 'whole'
+  'ctrl-folds'      = 'whole'
+  'ctrl-source'     = 'whole'
+  'ctrl-levels'     = 'whole'
+  'ctrl-view'       = 'whole'
+  'ctrl-wav'        = 'whole'
+  'ctrl-furn'       = 'whole'
+  'hud'             = 'whole'
+  'status'          = 'whole'
+  'hdr'             = 'whole'
+  'hdr-rec'         = 'whole'
+  'plan-furn'       = 'whole'
+  'pov-furn'        = 'whole'
+  'plan-pics'       = 'whole'
+  'pov-pics'        = 'whole'
+  'cine-off'        = 'whole'
+  'cine-on'         = 'whole'
+  'photo'           = 'whole'
+  'exp-pop'         = 'whole'
+  'sync-flare'      = 'whole'
+  'gallery'         = 'whole'
 }
 
 $PAGE = [System.Drawing.Color]::FromArgb(13, 11, 10)   # --ink, the manual's page
@@ -70,6 +84,7 @@ Get-ChildItem $Raw -Filter *.png -ErrorAction SilentlyContinue | ForEach-Object 
   }
   $c = $CROPS[$name]
   $src = [System.Drawing.Image]::FromFile($_.FullName)
+  if ($c -is [string] -and $c -eq 'whole') { $c = @(0, 0, $src.Width, $src.Height, 1) }
 
   if ($ShotW -gt 0 -and ($src.Width -ne $ShotW -or $src.Height -ne $ShotH)) {
     Write-Output ("  {0,-14} SHOT IS {1}x{2}, EXPECTED {3}x{4} - crops would be wrong" -f `

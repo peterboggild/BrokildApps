@@ -402,6 +402,32 @@ void Hrtf::blendDir (int dir, float w, float* l, float* r, float& it) const
 void Hrtf::lookup (float azDeg, float elDeg, float* left, float* right, float& itdSamples) const
 {
     float az = std::fmod (azDeg, 360.0f); if (az < 0) az += 360.0f;
+    if (full)
+    {
+        // a personal set: rings of the same elevations, azimuths all the way round
+        const float el = std::max ((float) hrtfdata::RING_ELEV[0], std::min ((float) hrtfdata::RING_ELEV[hrtfdata::NRING - 1], elDeg));
+        float rf = (el - hrtfdata::RING_ELEV[0]) / 10.0f;
+        int r0 = (int) std::floor (rf); if (r0 >= hrtfdata::NRING - 1) r0 = hrtfdata::NRING - 2;
+        const float wr = rf - r0;
+        std::fill (left, left + ntap, 0.0f); std::fill (right, right + ntap, 0.0f);
+        float it = 0;
+        for (int k = 0; k < 2; ++k)
+        {
+            const int ring = r0 + k;
+            const float wring = k == 0 ? 1.0f - wr : wr;
+            if (wring <= 0) continue;
+            const int n = ringN[(size_t) ring], first = ringFirst[(size_t) ring];
+            if (n == 1) { blendDir (first, wring, left, right, it); continue; }
+            const float step = 360.0f / (float) n;
+            const float af = az / step;
+            const int a0 = ((int) std::floor (af)) % n, a1 = (a0 + 1) % n;
+            const float wa = af - std::floor (af);
+            blendDir (first + a0, wring * (1.0f - wa), left, right, it);
+            blendDir (first + a1, wring * wa,          left, right, it);
+        }
+        itdSamples = it;
+        return;
+    }
     bool mirror = false;
     if (az > 180.0f) { az = 360.0f - az; mirror = true; }
     const float el = std::max ((float) hrtfdata::RING_ELEV[0], std::min ((float) hrtfdata::RING_ELEV[hrtfdata::NRING - 1], elDeg));
@@ -485,6 +511,11 @@ void DelayLine::clear() { std::fill (buf.begin(), buf.end(), 0.0f); w = 0; }
 
 //==============================================================================
 float Engine::airDbPerMetre (int band) { return AIR_DB_PER_KM[band] * 0.001f; }
+float Engine::leafTransmission (int band) { return std::pow (10.0f, -LEAF_TL_DB[band] * 0.1f); }
+float Engine::wallTransmission (int band) { return std::pow (10.0f, -WALL_TL_DB[band] * 0.1f); }
+void  Engine::doorOpenStrip (int door, float aperture, float& lo, float& hi) { openStrip (door, aperture, lo, hi); }
+int   Engine::doorWallOf (int room, int door) { return doorWall (room, door); }
+bool  Engine::partyWall (int ra, int rb, int& axis, float& pos, float& s0, float& s1, float& h) { return sharedWall (ra, rb, axis, pos, s0, s1, h); }
 
 /*  Maekawa's barrier formula (1968; ISO 9613-2 uses the same curve): attenuation
     10 log10 (3 + 20 N) for a Fresnel number N = 2 delta / lambda, delta being how
@@ -641,11 +672,22 @@ void Engine::absorptionArea (int room, const int* materials, const float* doorAp
 }
 
 //==============================================================================
-void Engine::prepare (double sampleRate, int maxBlockSize)
+void Engine::prepare (double sampleRate, int maxBlockSize, const RenderQuality& q)
 {
+    quality = q;
+    quality.order = std::max (1, std::min (7, quality.order));
+    quality.maxPaths = std::max (64, quality.maxPaths);
+    quality.maxSlots = std::max (quality.maxPaths + 32, quality.maxSlots);
+    slots.assign ((size_t) quality.maxSlots, PathSlot());
+    specs.assign ((size_t) quality.maxPaths, PathSpec());
     fs = sampleRate; maxBlock = std::max (16, maxBlockSize);
-    hrtf.prepare (fs);
-    ntap = hrtf.numTaps();
+    if (hrtfSet == nullptr || ! hrtfSet->personal())
+    {
+        auto h = std::make_shared<Hrtf>();
+        h->prepare (fs);
+        hrtfSet = h;
+    }
+    ntap = hrtfSet->numTaps();
 
     const int maxItd = (int) (0.0045 * fs) + 2;      // up to a 1 m pair
     for (int s = 0; s < MAX_SOURCES; ++s)
@@ -660,9 +702,9 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     for (auto& s : slots)
     {
         s = PathSlot();
-        int n = 64; while (n < ntap + maxItd + SUB_BLOCK + 4 * FracDelay::TAPS) n <<= 1;
+        int n = 64; while (n < MAX_TAPS + maxItd + SUB_BLOCK + 4 * FracDelay::TAPS) n <<= 1;
         s.hist.assign ((size_t) n, 0.0f); s.hmask = n - 1; s.hw = 0;
-        s.zL.assign ((size_t) (SUB_BLOCK + maxItd + ntap + 4 * FracDelay::TAPS + 32), 0.0f);
+        s.zL.assign ((size_t) (SUB_BLOCK + maxItd + MAX_TAPS + 4 * FracDelay::TAPS + 32), 0.0f);
         s.zR.assign (s.zL.size(), 0.0f);
         s.filt.setCoeffs ((float) fs); s.filtTarget.setCoeffs ((float) fs);
     }
@@ -723,24 +765,7 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
         F.weight = F.weightTarget = 0;
     }
 
-    // the eight fixed diffuse directions, ITD baked into the taps
-    {
-        std::vector<float> l ((size_t) ntap), rr ((size_t) ntap);
-        for (int j = 0; j < 8; ++j)
-        {
-            const float az = 22.5f + 45.0f * j;
-            const float el = (j & 1) ? 20.0f : -10.0f;
-            float it = 0;
-            hrtf.lookup (az, el, l.data(), rr.data(), it);
-            const int dl = it > 0 ? 0 : (int) std::lround (-it);
-            const int dr = it > 0 ? (int) std::lround (it) : 0;
-            for (int r = 0; r < NUM_ROOMS; ++r)
-            {
-                storeReversed (l.data(), ntap, dl, rooms[(size_t) r].dL[(size_t) j].data(), MAX_TAPS);
-                storeReversed (rr.data(), ntap, dr, rooms[(size_t) r].dR[(size_t) j].data(), MAX_TAPS);
-            }
-        }
-    }
+    rebuildDiffuseHrtf();
 
     geomStore.assign (sizeof (RoomGeom) * NUM_ROOMS, 0);
     {
@@ -755,6 +780,42 @@ void Engine::prepare (double sampleRate, int maxBlockSize)
     paramsFresh = true;
     for (int s = 0; s < MAX_SOURCES; ++s) { lastSrcRoomAc[s] = -1; lastTypeAc[s] = -1; lastDirAc[s] = -1; lastActiveAc[s] = false; lastLevelAc[s] = -1; }
     updateRoomAcoustics (true);
+}
+
+void Engine::setHrtf (std::shared_ptr<const Hrtf> h)
+{
+    if (h == nullptr) return;
+    hrtfSet = std::move (h);
+    ntap = hrtfSet->numTaps();
+    rebuildDiffuseHrtf();
+}
+
+// the eight fixed diffuse directions, ITD baked into the taps
+void Engine::rebuildDiffuseHrtf()
+{
+    for (int r = 0; r < NUM_ROOMS; ++r)
+        for (int j = 0; j < 8; ++j)
+        {
+            std::fill (rooms[(size_t) r].dL[(size_t) j].begin(), rooms[(size_t) r].dL[(size_t) j].end(), 0.0f);
+            std::fill (rooms[(size_t) r].dR[(size_t) j].begin(), rooms[(size_t) r].dR[(size_t) j].end(), 0.0f);
+        }
+    {
+        std::vector<float> l ((size_t) ntap), rr ((size_t) ntap);
+        for (int j = 0; j < 8; ++j)
+        {
+            const float az = 22.5f + 45.0f * j;
+            const float el = (j & 1) ? 20.0f : -10.0f;
+            float it = 0;
+            hrtfSet->lookup (az, el, l.data(), rr.data(), it);
+            const int dl = it > 0 ? 0 : (int) std::lround (-it);
+            const int dr = it > 0 ? (int) std::lround (it) : 0;
+            for (int r = 0; r < NUM_ROOMS; ++r)
+            {
+                storeReversed (l.data(), ntap, dl, rooms[(size_t) r].dL[(size_t) j].data(), MAX_TAPS);
+                storeReversed (rr.data(), ntap, dr, rooms[(size_t) r].dR[(size_t) j].data(), MAX_TAPS);
+            }
+        }
+    }
 }
 
 void Engine::reset()
@@ -1427,11 +1488,11 @@ void Engine::addImagePaths (int room, const Vec3& S, const Vec3& L, int maxOrder
                 {
                     if (std::abs (nx) + std::abs (ny) + std::abs (nz) != order) continue;
                     if (pathsFull (8)) return;
-                    Vec3 b[4]; int nb = 0, walls[4]; float len;
+                    Vec3 b[8]; int nb = 0, walls[8]; float len;
                     if (! imagePath (room, S, L, nx, ny, nz, b, nb, walls, len)) continue;
                     PathSpec& s = specs[(size_t) nspecs];
                     s = PathSpec();
-                    s.key = keyBase + (uint32_t) ((nx + 2) * 25 + (ny + 2) * 5 + (nz + 2));
+                    s.key = keyBase + imageKey (nx, ny, nz);
                     s.kind = order == 0 ? PathKind::Direct : (order == 1 ? PathKind::Refl1 : PathKind::Refl2);
                     /*  Per bounce: what THAT surface absorbs, and what it scatters
                         out of the specular direction. The scattered part is not
@@ -1601,11 +1662,11 @@ void Engine::addPortalPaths (const Vec3& S, int rs, int rl)
                         const Vec3 I = imageOf (rs, S, nx, ny, nz);
                         Vec3 Xp; float delta;
                         if (! portalPoint (d, doorNow[d], I, lisPos, Xp, delta)) continue;
-                        Vec3 b[4]; int nb = 0, walls[4]; float dummy;
+                        Vec3 b[8]; int nb = 0, walls[8]; float dummy;
                         if (order > 0 && ! imagePath (rs, S, Xp, nx, ny, nz, b, nb, walls, dummy)) continue;
                         const bool lit = delta <= 0.0f;
                         PathSpec& s = specs[(size_t) nspecs]; s = PathSpec();
-                        s.key = (uint32_t) ((nx + 2) * 25 + (ny + 2) * 5 + (nz + 2));
+                        s.key = imageKey (nx, ny, nz);
                         s.kind = order == 0 ? (lit ? PathKind::Direct : PathKind::Portal)
                                             : (order == 1 ? PathKind::Refl1 : PathKind::Refl2);
                         for (int i = 0; i < nb; ++i)
@@ -1650,7 +1711,7 @@ void Engine::addPortalPaths (const Vec3& S, int rs, int rl)
             const Vec3 Q = imageOf (rl, lisPos, nx, ny, nz);
             Vec3 Xp; float delta;
             if (! portalPoint (d, doorNow[d], S, Q, Xp, delta)) continue;
-            Vec3 b[4]; int nb = 0, walls[4]; float dummy;
+            Vec3 b[8]; int nb = 0, walls[8]; float dummy;
             if (! imagePath (rl, Xp, lisPos, nx, ny, nz, b, nb, walls, dummy)) continue;
             PathSpec& s = specs[(size_t) nspecs]; s = PathSpec();
             s.key = 0x20000u + (uint32_t) d * 8u + (uint32_t) w;
@@ -2062,7 +2123,7 @@ void Engine::buildPaths()
         curSrc = s;
         const Vec3& S = srcPos[s];
         const int rs = roomOf (S.x, S.y);
-        if (rs >= 0 && rs == rl) addImagePaths (rs, S, lisPos, 2, 0u);
+        if (rs >= 0 && rs == rl) addImagePaths (rs, S, lisPos, quality.order, 0u);
         addPortalPaths (S, rs, rl);
         addTransmissionPaths (S, rs, rl);
         addFurnitureReflections (S, rs, rl);
@@ -2142,13 +2203,15 @@ void Engine::assignSlots()
         slot->kind = sp.kind; slot->feed = sp.feed; slot->envTarget = 1.0f;
         const float trim = (sp.kind == PathKind::Refl1 || sp.kind == PathKind::Refl2) ? trimEarly
                          : (sp.kind == PathKind::DoorField ? trimReverb : trimDirect);
-        const float level = sp.kind == PathKind::DoorField ? 1.0f : srcLevel[sp.src];
+        float level = sp.kind == PathKind::DoorField ? 1.0f : srcLevel[sp.src];
+        if (target.transmitDb != 0.0f || target.airborneDb != 0.0f)
+            level *= dbToLin ((sp.kind == PathKind::Leaf || sp.kind == PathKind::Wall) ? target.transmitDb : target.airborneDb);
         slot->gainTarget = sp.gain * trim * level;
         slot->gLTarget = sp.gainL; slot->gRTarget = sp.gainR;
         slot->delayTarget = std::max ((float) FracDelay::MIN_DELAY, sp.length / SPEED_OF_SOUND * (float) fs);
         slot->filtTarget.setBandsDb (sp.bandDb);
         float it;
-        hrtf.lookup (sp.az, sp.el, tmpA.data(), tmpB.data(), it);
+        hrtfSet->lookup (sp.az, sp.el, tmpA.data(), tmpB.data(), it);
         slot->itdTarget = it * (target.earSpan / (2.0f * HEAD_RADIUS));   // a wider pair, a longer ITD
         const int ntapPad = (ntap + 15) & ~15;
         storeReversed (tmpA.data(), ntap, 0, slot->hLTarget.data(), ntapPad);

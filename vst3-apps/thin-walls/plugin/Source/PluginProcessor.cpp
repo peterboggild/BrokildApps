@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "OfflineRender.h"
 #include "PluginEditor.h"
 #include "brokild_paths.h"
 
@@ -147,6 +148,9 @@ void ThinWallsAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
 {
     hostRate = sampleRate;
     engine.prepare (sampleRate, samplesPerBlock);
+    // a personal head is resampled when the set is loaded: load it again at this rate
+    if (headPath.isNotEmpty() && (head == nullptr || std::abs (sampleRate - lastHeadRate) > 0.5)) loadHead (headPath, true);
+    if (head != nullptr) engine.setHrtf (head);
     setLatencySamples (0);
 }
 
@@ -200,54 +204,45 @@ static void rawToParams (const float* raw, tw::Params& current)
 
 namespace
 {
-    /*  Renders a take through a fresh engine, block by block on the take's own
-        parameter grid, off the message thread. Nothing here touches the live
-        engine, so the plug-in keeps playing while an export renders. */
+    /*  Renders a take offline at a chosen quality (OfflineRender), off the
+        message thread. Nothing here touches the live engine, so the plug-in
+        keeps playing while an export or a bounce renders. */
     struct RenderJob : juce::Thread
     {
         std::shared_ptr<TakeData> take;
         juce::AudioBuffer<float> out;
         std::atomic<float> progress { 0.0f };
-        std::atomic<bool> ok { false };
-        int fps = 30, nextFrame = 0;
+        std::atomic<bool> ok { false }, cancel { false };
+        int fps = 30;
+        bool bounce = false;
+        tw::SoundQuality quality = tw::SoundQuality::Live;
+        std::shared_ptr<const tw::Hrtf> head;
         std::vector<float> light;          // NUM_ROOMS per video frame
+        juce::String note;
         explicit RenderJob (std::shared_ptr<TakeData> t) : juce::Thread ("Thin Walls take render"), take (std::move (t)) {}
+        ~RenderJob() override { cancel = true; stopThread (8000); }
         void run() override
         {
             const TakeData& T = *take;
-            const int n = T.length.load();
-            out.setSize (2, std::max (1, n));
-            out.clear();
-            auto eng = std::make_unique<Engine>();
-            eng->prepare (T.rate, TakeData::PBLOCK);
-            const int nb = T.nblocks.load(), nf = T.nfurn.load();
-            int fi = -1;
-            Params P;
-            for (int s = 0; s < n; s += TakeData::PBLOCK)
+            tw::TakeView v;
+            v.rate = T.rate; v.length = T.length.load(); v.pblock = TakeData::PBLOCK; v.nblocks = T.nblocks.load();
+            for (int c = 0; c < T.input.getNumChannels() && c < 4; ++c) v.in[c] = T.input.getReadPointer (c);
+            if (! T.aux) { v.in[2] = nullptr; v.in[3] = nullptr; }
+            const float* raw = T.params.data(); const int np = T.np;
+            v.paramsAt = [raw, np] (int b, tw::Params& p) { rawToParams (raw + (size_t) b * (size_t) np, p); };
+            for (int f = 0; f < T.nfurn.load(); ++f)
             {
-                if (threadShouldExit()) return;
-                const int m = std::min (TakeData::PBLOCK, n - s);
-                const int b = std::min (s / TakeData::PBLOCK, nb - 1);
-                if (b >= 0) rawToParams (&T.params[(size_t) b * (size_t) T.np], P);
-                while (fi + 1 < nf && T.furn[(size_t) (fi + 1)].sample <= s) ++fi;
-                if (fi >= 0)
-                {
-                    P.nfurn = T.furn[(size_t) fi].n;
-                    for (int i = 0; i < MAX_FURN; ++i) P.furn[i] = T.furn[(size_t) fi].items[i];
-                    for (int r = 0; r < NUM_ROOMS; ++r) P.panelArea[r] = T.furn[(size_t) fi].panelArea[r];
-                }
-                eng->setParams (P);
-                eng->process (T.input.getReadPointer (0, s), T.input.getReadPointer (1, s),
-                              T.aux ? T.input.getReadPointer (2, s) : nullptr, T.aux ? T.input.getReadPointer (3, s) : nullptr,
-                              out.getWritePointer (0, s), out.getWritePointer (1, s), m);
-                progress = (float) (s + m) / (float) std::max (1, n);
-                // the lamps' light at every video frame that falls in this block
-                while (fps > 0 && (double) nextFrame / fps * T.rate < (double) (s + m))
-                {
-                    for (int r = 0; r < NUM_ROOMS; ++r) light.push_back (eng->lightLevel (r));
-                    ++nextFrame;
-                }
+                const auto& s = T.furn[(size_t) f];
+                v.layouts.push_back ({ s.sample, s.n, s.items, s.panelArea });
             }
+            tw::RenderOptions o; o.quality = quality; o.head = head; o.fps = bounce ? 0 : fps;
+            tw::RenderOutput r;
+            if (! tw::renderTake (v, o, r, &progress, &cancel)) return;
+            out.setSize (2, (int) r.L.size());
+            out.copyFrom (0, 0, r.L.data(), (int) r.L.size());
+            out.copyFrom (1, 0, r.R.data(), (int) r.R.size());
+            light = std::move (r.light);
+            note = r.note;
             ok = true;
         }
     };
@@ -279,6 +274,13 @@ void ThinWallsAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     }
     readParams();
     engine.setParams (current);
+
+    // a new head, if the message thread loaded one (the old one is kept alive there)
+    if (headVersion.load() != headVersionAudio)
+    {
+        const juce::SpinLock::ScopedTryLockType tl (headLock);
+        if (tl.isLocked() && headPending != nullptr) { engine.setHrtf (headPending); headVersionAudio = headVersion.load(); }
+    }
 
     // the host's clock (for the lamps' beat lock), when it has one
     if (auto* ph = getPlayHead())
@@ -392,6 +394,7 @@ void ThinWallsAudioProcessor::getStateInformation (juce::MemoryBlock& dest)
         xml->setAttribute ("wavgain", (double) wavGain.load());
         xml->setAttribute ("furn", juce::JSON::toString (furnJson(), true));
         xml->setAttribute ("pics", juce::JSON::toString (picsJson (true), true));
+        xml->setAttribute ("hrtf", headPath);
         {
             const juce::ScopedLock sl (wavLock);
             if (wav != nullptr) xml->setAttribute ("wavpath", wav->path);
@@ -416,7 +419,12 @@ void ThinWallsAudioProcessor::setStateInformation (const void* data, int size)
         const juce::var pv = juce::JSON::parse (xml->getStringAttribute ("pics", "{}"));
         setPicsFromVar (pv.getProperty ("items", {}), pv.getProperty ("images", {}));
     }
-    for (auto* a : { "showrays", "selsrc", "wavgain", "wavpath", "furn", "pics" }) xml->removeAttribute (a);
+    {
+        const juce::String hp = xml->getStringAttribute ("hrtf", {});
+        if (hp.isNotEmpty()) { if (hp != headPath) loadHead (hp, true); }
+        else if (headPath.isNotEmpty()) resetHead();
+    }
+    for (auto* a : { "showrays", "selsrc", "wavgain", "wavpath", "furn", "pics", "hrtf" }) xml->removeAttribute (a);
     apvts.replaceState (juce::ValueTree::fromXml (*xml));
 
     if (wavPath.isNotEmpty())
@@ -464,6 +472,65 @@ void ThinWallsAudioProcessor::applyPatchJson (const juce::var& v)
         setPicsFromVar (pv.getProperty ("items", {}), pv.getProperty ("images", {}));
     }
     uiHasState = false;
+}
+
+//==============================================================================
+/*  The head. A personal set is loaded and resampled on the message thread and
+    handed to the audio thread through a lock it only tries; the previous set is
+    kept here so nothing is freed while the audio thread might hold it. */
+bool ThinWallsAudioProcessor::loadHead (const juce::String& file, bool quiet)
+{
+    const juce::File f (file);
+    juce::String text;
+    bool ok = false;
+    if (! f.existsAsFile()) text = "no such file: " + f.getFileName();
+    else
+    {
+        auto h = std::make_shared<tw::Hrtf>();
+        std::string err;
+        if (h->loadSofa (f.getFullPathName().toStdString(), hostRate > 0 ? hostRate : 48000.0, err))
+        {
+            {
+                const juce::SpinLock::ScopedLockType sl (headLock);
+                if (headPending != nullptr) headRetired.push_back (headPending);
+                headPending = h;
+                ++headVersion;
+            }
+            if (headRetired.size() > 4) headRetired.erase (headRetired.begin());
+            head = h; headPath = f.getFullPathName(); lastHeadRate = hostRate; ok = true;
+            text = "head: " + f.getFileName();
+        }
+        else text = "could not use " + f.getFileName() + ": " + juce::String (err);
+    }
+    if (! ok && ! quiet && emitToUi) { auto* o = new juce::DynamicObject(); o->setProperty ("text", text); emitToUi ("notice", juce::var (o)); }
+    if (ok && ! quiet && emitToUi) { auto* o = new juce::DynamicObject(); o->setProperty ("text", text); emitToUi ("notice", juce::var (o)); }
+    emitHead();
+    return ok;
+}
+
+void ThinWallsAudioProcessor::resetHead()
+{
+    auto h = std::make_shared<tw::Hrtf>();
+    h->prepare (hostRate > 0 ? hostRate : 48000.0);
+    {
+        const juce::SpinLock::ScopedLockType sl (headLock);
+        if (headPending != nullptr) headRetired.push_back (headPending);
+        headPending = h;
+        ++headVersion;
+    }
+    if (headRetired.size() > 4) headRetired.erase (headRetired.begin());
+    head = nullptr; headPath = {};
+    emitHead();
+}
+
+void ThinWallsAudioProcessor::emitHead()
+{
+    if (! emitToUi) return;
+    auto* h = new juce::DynamicObject();
+    h->setProperty ("name", head != nullptr ? juce::String (head->name()) : juce::String ("MIT KEMAR (built in)"));
+    h->setProperty ("path", headPath);
+    h->setProperty ("personal", head != nullptr ? 1 : 0);
+    emitToUi ("hrtf", juce::var (h));
 }
 
 //==============================================================================
@@ -680,8 +747,25 @@ void ThinWallsAudioProcessor::handleUiMessage (const juce::var& payload)
     }
     if (k == "vidBegin")
     {
+        vidSound = juce::jlimit (0, 3, (int) payload.getProperty ("sound", 0));
         beginExport ((int) payload.getProperty ("w", 1920), (int) payload.getProperty ("h", 1080), (int) payload.getProperty ("fps", 30));
         return;
+    }
+    if (k == "bounce") { beginBounce (juce::jlimit (0, 3, (int) payload.getProperty ("sound", 0))); return; }
+    if (k == "hrtfOpen")
+    {
+        chooser = std::make_unique<juce::FileChooser> ("Choose a SOFA file (a measured head, AES69)",
+                                                       juce::File::getSpecialLocation (juce::File::userDocumentsDirectory), "*.sofa");
+        chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                              [this] (const juce::FileChooser& fc)
+        {
+            const juce::File f = fc.getResult();
+            if (f.getFullPathName().isNotEmpty()) loadHead (f.getFullPathName(), false);
+        });
+        return;
+    }
+    if (k == "hrtfPath") { loadHead (payload.getProperty ("path", {}).toString(), false); return; }
+    if (k == "hrtfDefault") { resetHead(); return;
     }
     if (k == "vidFrame")
     {
@@ -711,7 +795,7 @@ void ThinWallsAudioProcessor::handleUiMessage (const juce::var& payload)
     if (k == "vidEnd") { finishExport(); return; }
     if (k == "vidCancel")
     {
-        if (renderJob != nullptr) { renderJob->stopThread (4000); renderJob.reset(); }
+        if (renderJob != nullptr) renderJob.reset();       // the job cancels itself on the way out
         if (mp4 != nullptr) mp4->abandon();
         mp4.reset();
         recState = take != nullptr && take->length.load() > 0 ? "ready" : "idle";
@@ -832,6 +916,13 @@ void ThinWallsAudioProcessor::emitInitialState()
     }
     furnDirtyUi = false;
     picsDirtyUi = false;
+    {
+        auto* h = new juce::DynamicObject();
+        h->setProperty ("name", head != nullptr ? juce::String (head->name()) : juce::String ("MIT KEMAR (built in)"));
+        h->setProperty ("path", headPath);
+        h->setProperty ("personal", head != nullptr ? 1 : 0);
+        obj->setProperty ("hrtf", juce::var (h));
+    }
     emitToUi ("initialState", juce::var (obj));
 }
 
@@ -1086,10 +1177,60 @@ void ThinWallsAudioProcessor::beginExport (int w, int h, int fps)
     {
         auto job = std::make_unique<RenderJob> (take);
         job->fps = vidFps;
+        job->quality = (tw::SoundQuality) vidSound;
+        job->head = head;
         renderJob = std::move (job);
     }
     renderJob->startThread();
-    recState = "rendering"; recText = "rendering the sound of the take"; recProgress = 0; recDirty = true;
+    static const char* qn[] = { "", " (HIGH)", " (ULTRA)", " (ULTRA + BASS)" };
+    recState = "rendering"; recText = juce::String ("rendering the sound of the take") + qn[vidSound]; recProgress = 0; recDirty = true;
+}
+
+/*  BOUNCE: the take's sound alone, rendered offline at the chosen quality and
+    written as a 24-bit WAV beside the videos. */
+void ThinWallsAudioProcessor::beginBounce (int sound)
+{
+    if (recState == "recording") stopRecording ("take held");
+    if (take == nullptr || take->length.load() <= 0) { failExport ("there is no take - record one first"); return; }
+    if (renderJob != nullptr || (mp4 != nullptr && mp4->isOpen())) return;
+    auto job = std::make_unique<RenderJob> (take);
+    job->bounce = true;
+    job->quality = (tw::SoundQuality) sound;
+    job->head = head;
+    renderJob = std::move (job);
+    renderJob->startThread();
+    static const char* qn[] = { "", " (HIGH)", " (ULTRA)", " (ULTRA + BASS)" };
+    recState = "rendering"; recText = juce::String ("bouncing the take") + qn[sound]; recProgress = 0; recDirty = true;
+}
+
+void ThinWallsAudioProcessor::finishBounce()
+{
+    auto* job = dynamic_cast<RenderJob*> (renderJob.get());
+    if (job == nullptr) return;
+    const juce::File f = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                             .getChildFile ("Thin Walls videos")
+                             .getChildFile ("Thin Walls take " + juce::Time::getCurrentTime().formatted ("%Y-%m-%d %H%M%S") + ".wav");
+    f.getParentDirectory().createDirectory();
+    bool written = false;
+    {
+        juce::WavAudioFormat wav;
+        std::unique_ptr<juce::FileOutputStream> os (f.createOutputStream());
+        if (os != nullptr)
+            if (auto* w = wav.createWriterFor (os.get(), take->rate, 2, 24, {}, 0))
+            {
+                os.release();
+                std::unique_ptr<juce::AudioFormatWriter> writer (w);
+                written = writer->writeFromAudioSampleBuffer (job->out, 0, job->out.getNumSamples());
+            }
+    }
+    const juce::String note = job->note;
+    renderJob.reset();
+    if (! written) { failExport ("could not write " + f.getFullPathName()); return; }
+    lastFile = f.getFullPathName();
+    recState = "done"; recProgress = 1.0;
+    recText = "bounced " + f.getFileName() + " - " + note;
+    recDirty = true;
+    if (emitToUi) { auto* o = new juce::DynamicObject(); o->setProperty ("text", recText); emitToUi ("notice", juce::var (o)); }
 }
 
 void ThinWallsAudioProcessor::sendPlan()
@@ -1097,6 +1238,7 @@ void ThinWallsAudioProcessor::sendPlan()
     auto* job = dynamic_cast<RenderJob*> (renderJob.get());
     if (job == nullptr) return;
     if (! job->ok.load()) { failExport ("the render stopped"); return; }
+    if (job->bounce) { finishBounce(); return; }
     const TakeData& T = *take;
     const int n = T.length.load();
 
