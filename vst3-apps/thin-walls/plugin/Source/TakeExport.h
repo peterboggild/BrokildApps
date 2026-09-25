@@ -33,9 +33,10 @@ struct TakeData
 
     int np = 0;                                 // host parameters per grid point
     std::vector<float> params;                  // np raw values per grid point
+    std::vector<float> beat;                    // 3 per grid point: ppq, bpm, playing (the host's clock)
     std::atomic<int> nblocks { 0 };
 
-    struct FurnSnap { int sample = 0; int n = 0; FurnItem items[MAX_FURN]; };
+    struct FurnSnap { int sample = 0; int n = 0; FurnItem items[MAX_FURN]; float panelArea[NUM_ROOMS] = { 0, 0, 0 }; };
     std::vector<FurnSnap> furn;                 // preallocated; written by the audio thread
     std::atomic<int> nfurn { 0 };
 

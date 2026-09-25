@@ -81,6 +81,8 @@ const float BAND_HZ[NBAND] = { 125, 250, 500, 1000, 2000, 4000, 8000 };
     curtain is a heavy pleated drape. The hard pieces absorb little and matter
     by what they block and reflect. Scattering areas are an equivalent
     rough-surface area: books and upholstery high, a flat-fronted wardrobe low. */
+const float PANEL_ALPHA[NBAND] = { 0.25f, 0.60f, 0.95f, 0.99f, 0.99f, 0.99f, 0.99f };
+
 const FurnSpec FURN[NUM_FURN_TYPES] =
 {
     //  id          name            w     d     h     zb    zt    occl   top    topA   floor  absorption 125 .. 8k                               scatter
@@ -548,7 +550,7 @@ float Engine::radiatedPowerDb (const SourceParams& s, int band)
 static void roomAbsorption (int room, const RoomSurfaces& surf, const float* doorAperture,
                             float* alphaBar7, float* sabineArea7, float* rt7,
                             float planArea = 0, float perimeter = 0,
-                            const FurnItem* furn = nullptr, int nfurn = 0)
+                            const FurnItem* furn = nullptr, int nfurn = 0, float panelArea = 0)
 {
     const Room& R = ROOMS[room];
     // a broken wall really does change the room's size: take the polygon's own
@@ -591,6 +593,8 @@ static void roomAbsorption (int room, const RoomSurfaces& surf, const float* doo
             if (F.coversFloor) a -= F.w * F.d * MATERIAL_ALPHA[surf.floorMat()][b];
             A += std::max (0.0f, a);
         }
+        // acoustic art panels: their absorber in place of the wall behind them
+        if (panelArea > 0) A += panelArea * std::max (0.0f, PANEL_ALPHA[b] - MATERIAL_ALPHA[surf.wall][b]);
         const float abar = std::min (0.98f, A / S);
         const float m = AIR_DB_PER_KM[b] / (1000.0f * 4.343f);
         alphaBar7[b] = abar;
@@ -772,6 +776,7 @@ void Engine::reset()
     for (auto& c : couplings) c.filt.reset();
     inSq = outSq = directSq = revSq = 0;
     activePaths = 0;
+    for (int r = 0; r < NUM_ROOMS; ++r) { lightFast[r] = lightSlow[r] = lightOut[r] = 0; fieldAcc[r] = 0; }
     snapFades = true;
 }
 
@@ -857,6 +862,8 @@ void Engine::updateRoomAcoustics (bool force)
             if (acoustic) changed = true;
         }
     }
+    for (int r = 0; r < NUM_ROOMS; ++r)
+        if (cur.panelArea[r] != panelAreaAc[r]) { panelAreaAc[r] = cur.panelArea[r]; changed = true; }
     if (! changed && ! sourcesChanged) return;
 
     // rebuild the plan of every room whose walls have moved
@@ -885,10 +892,10 @@ void Engine::updateRoomAcoustics (bool force)
             RoomField& F = rooms[(size_t) r];
             const RoomGeom* gg = reinterpret_cast<const RoomGeom*> (geomStore.data());
             float abar[NBAND], A[NBAND];
-            roomAbsorption (r, surfNow[r], doorNow, abar, A, F.rt60, gg[r].area, gg[r].perimeter, cur.furn, nfurnNow);
+            roomAbsorption (r, surfNow[r], doorNow, abar, A, F.rt60, gg[r].area, gg[r].perimeter, cur.furn, nfurnNow, cur.panelArea[r]);
             // what the furniture adds, the engine's own way (the panel shows this, not a sum of its own)
             furnAbs1k[r] = 0.0f;
-            if (nfurnNow > 0)
+            if (nfurnNow > 0 || cur.panelArea[r] > 0)
             {
                 float a0[NBAND], A0[NBAND], rt0[NBAND];
                 roomAbsorption (r, surfNow[r], doorNow, a0, A0, rt0, gg[r].area, gg[r].perimeter);
@@ -1791,6 +1798,38 @@ void Engine::addDoorFieldPaths (int rl, float scale)
 }
 
 //==============================================================================
+/*  THE LIGHT. How much sound is in each room right now, for the lamps to follow:
+    what its sources play (at their level) plus the room's own late field, as an
+    RMS per sub-block. A fast envelope (5 ms up, 90 ms down) against a slow one
+    (0.45 s) gives the PUNCH - an onset reads as fast/slow above 1 - and the
+    fast one on a -48..-12 dB scale gives the LEVEL. The lamps take half of
+    each, so a sustained pad glows and a drum hit flashes. Silence is exactly 0. */
+void Engine::updateLight (int n)
+{
+    const float dt = (float) n / (float) fs;
+    const float att = 1.0f - std::exp (-dt / 0.005f), rel = 1.0f - std::exp (-dt / 0.09f);
+    const float slow = 1.0f - std::exp (-dt / 0.45f);
+    for (int r = 0; r < NUM_ROOMS; ++r)
+    {
+        double e = fieldAcc[r]; fieldAcc[r] = 0;
+        for (int s = 0; s < MAX_SOURCES; ++s)
+        {
+            if (! cur.src[s].active() || roomOf (srcPos[s].x, srcPos[s].y) != r) continue;
+            const float* mi = monoIn[s].data();
+            double a = 0; for (int i = 0; i < n; ++i) a += (double) mi[i] * mi[i];
+            e += a * (double) srcLevel[s] * srcLevel[s];
+        }
+        const float rms = (float) std::sqrt (e / std::max (1, n));
+        lightFast[r] += (rms > lightFast[r] ? att : rel) * (rms - lightFast[r]);
+        lightSlow[r] += slow * (lightFast[r] - lightSlow[r]);
+        if (lightFast[r] < 1.0e-7f) { lightOut[r] = 0.0f; continue; }
+        const float level = std::max (0.0f, std::min (1.0f, (20.0f * std::log10 (lightFast[r]) + 48.0f) / 36.0f));
+        const float punch = std::max (0.0f, std::min (1.0f, (lightFast[r] / (lightSlow[r] + 1.0e-6f) - 1.0f) / 1.5f));
+        lightOut[r] = std::max (0.0f, std::min (1.0f, 0.5f * level + 0.5f * punch * std::min (1.0f, 2.0f * level)));
+    }
+}
+
+//==============================================================================
 // furniture geometry
 namespace
 {
@@ -2140,6 +2179,7 @@ void Engine::publishScene()
     sc.lis = lisPos; sc.lisYaw = lisYaw;
     sc.lisRoom = std::max (0, roomOf (lisPos.x, lisPos.y));
     sc.pathsDropped = pathsDropped;
+    for (int r = 0; r < NUM_ROOMS; ++r) sc.light[r] = lightOut[r];
     for (int r = 0; r < NUM_ROOMS; ++r) sc.furnA[r] = furnAbs1k[r];
     sc.npaths = 0;
     for (int i = 0; i < nspecs && sc.npaths < MAX_PATHS; ++i)
@@ -2240,6 +2280,7 @@ void Engine::renderSubBlock (int n)
         {
             cur.material[r] = target.material[r]; cur.floorMat[r] = target.floorMat[r]; cur.ceilMat[r] = target.ceilMat[r];
             if (r == 0) { cur.nfurn = target.nfurn; for (int i = 0; i < MAX_FURN; ++i) cur.furn[i] = target.furn[i]; }
+            cur.panelArea[r] = target.panelArea[r];
             for (int k = 0; k < 2; ++k)
             {
                 cur.breakAlong[r][k] += k1 * (target.breakAlong[r][k] - cur.breakAlong[r][k]);
@@ -2269,6 +2310,7 @@ void Engine::renderSubBlock (int n)
 
     // ---- late fields first (their feeds are read by the door paths)
     tickFields (n);
+    updateLight (n);
 
     // ---- discrete paths
     float dsq = 0, rsq = 0;
@@ -2426,6 +2468,7 @@ void Engine::tickFields (int n)
                 F.out[(size_t) k] = v; y += SGN_OUT[k] * v;
             }
             F.y = y * 0.25f;
+            fieldAcc[r] += (double) F.y * F.y;
             F.feed.write (F.y);
             dbgFieldEnergy[r] += (double) F.y * F.y;
         }

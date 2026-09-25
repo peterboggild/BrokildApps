@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/thin-walls.jpg",
-  "note": "Windows VST3 · build 260925.1 · free download · 3 rooms, 3 doors, 4 sources · 5 materials per surface, breakable walls · measured MIT KEMAR head · 17-page handbook included.",
+  "note": "Windows VST3 · build 260925.2 · free download · 3 rooms, 3 doors, 4 sources · 5 materials per surface, breakable walls · measured MIT KEMAR head · 17-page handbook included.",
   "tags": [
     "vst3",
     "effect"
@@ -16,8 +16,8 @@
     {
       "name": "Thin-Walls-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Thin-Walls-VST3-win64.zip",
-      "bytes": 8699670,
-      "sha256": "b3b2eb0e56c305c9807a3b545afd0d8560c0c0c9f5fdd09a636bdf005f938fe8"
+      "bytes": 8745550,
+      "sha256": "ae02f9e5e0feefe3cdb151dd50cdbb06d184680fd50d67d4d1458af988cc58bc"
     }
   ]
 }

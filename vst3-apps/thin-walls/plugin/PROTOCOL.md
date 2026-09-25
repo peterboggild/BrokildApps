@@ -263,3 +263,53 @@ Native -> page:
 ```
 The page renders frame i from those values (NOT from the live controls), encodes it
 as a JPEG and sends it. `vidAck` `{ i }` answers each frame.
+
+---
+
+# v5 additions (2026-09-25): light sync and wall pictures
+
+## 9. Light sync (page preference, per profile; the data comes from native)
+
+`scene` gains:
+```
+light: [l0, l1, l2]            // 0..1 per room: how much sound is in that room now
+beat:  { bpm, ppq, playing }   // the host's clock (bpm 0 when the host has none)
+```
+`light` is the engine's own follower: what the room's sources play plus its late
+field; half LEVEL (fast envelope on -48..-12 dB) and half PUNCH (fast over slow
+envelope, so an onset flashes and a held sound glows). Exactly 0 in silence.
+Measured: an onset reads 0.93 where the same noise held reads 0.44; a sealed room
+next door reads 0.000.
+
+Two drives, the page's choice: FOLLOW (a room's pendants follow `light[room]`) and
+BEAT (pulse on the host's beats: phase = frac(ppq), extrapolated between scenes
+with bpm/60 per second while `playing`; fall back to FOLLOW when not playing).
+The slider scales the effect; 0 = exactly today's lamps and today's idle rule.
+
+`vidPlan` gains, per frame: `light:[[l0,l1,l2],...]` (the offline render's own
+follower at that frame's time) and `beat:[[ppq,bpm,playing],...]` (the recorded
+host clock), so an exported video pulses exactly with its sound.
+
+## 10. Wall pictures
+
+Up to 8. A picture hangs on a wall of a room's BOX: `room` 0..2, `wall` 0 = x0
+(west), 1 = x1 (east), 2 = y0 (south), 3 = y1 (north); `along` = metres from the
+wall's lower-coordinate end (from y0 for walls 0/1, from x0 for walls 2/3) to the
+picture's centre; `z` = centre height, m; `w` = width, m; `aspect` = height / width;
+`frame` 0 thin black, 1 oak, 2 gilt, 3 unframed canvas; `kind` 0 PRINT (visual
+only), 1 ACOUSTIC PANEL (5 cm printed absorber: its face area w*w*aspect adds
+PANEL_ALPHA - wall alpha per band into the room's absorption; measured: 4 m^2
+halves the tiled living room's RT60 at 1 kHz, 3.42 -> 1.69 s). On a folded
+(broken) wall the page draws the picture on the panel under its centre, at that
+panel's angle.
+
+Page -> native:
+| message | meaning |
+|---|---|
+| `{k:"picAdd", id, jpg}` | store an image once (base64 JPEG, no data: prefix, ~1024 px max side) |
+| `{k:"pics", items:[{id, room, wall, along, z, w, aspect, frame, kind}, ...]}` | the whole layout, on every change (throttle drags to <= 30 Hz, final on release) |
+
+Native -> page: `initialState` gains `pics:[...]` and `picImages:{id: jpg}`; a `pics`
+event `{ items, images }` when a preset or project brings a layout. Images no
+picture uses are dropped. `presetDefault` clears the pictures. Saved in the
+project and in preset files.

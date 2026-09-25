@@ -319,6 +319,7 @@ button.b.fs{ padding:3px 5px; letter-spacing:.06em; }
   text-shadow:0 1px 3px #000; background:rgba(12,9,8,.45); padding:2px 6px; border-radius:2px;
 }
 /* ---------------------------------------------------- record and export */
+.pgrid{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:0 12px; }
 .row.xrow{ grid-template-columns:40px minmax(0,1fr) 66px; }
 .grp > h2.sub{ margin-top:9px; }
 .xbar{ height:4px; margin:3px 0 3px 0; background:#0d0b0a; border:1px solid #2b2522; border-radius:2px; overflow:hidden; }
@@ -807,6 +808,7 @@ function frame(t){
   if (EXP.active) return;            /* an export draws its own frames; nothing else may */
   const now = (typeof t === "number") ? t : nowMs();
   stepWalk(now);
+  if (SYNC.s > 0) syncStep(now);
   if (dirtyPov){ drawPov(); dirtyPov = false; }
   if (dirtyPlan){ drawPlan(); dirtyPlan = false; }
   /*  The ONLY thing that keeps the loop alive is a key actually being held.
@@ -814,7 +816,7 @@ function frame(t){
   if (walkActive() || doorAnimActive()){ dirtyPov = true; dirtyPlan = true; schedule(); }
   /*  Cinematic keeps the 3D view alive - dust, flicker, the photo converging -
       until the photo is done. Off, cineLoop() is false and nothing changes. */
-  else if (cineLoop()){ dirtyPov = true; schedule(); }
+  else if (cineLoop() || syncActive()){ dirtyPov = true; schedule(); }
 }
 function nowMs(){ try { return performance.now(); } catch(e){ return Date.now(); } }
 
@@ -1044,9 +1046,11 @@ function buildControls(){
   const hintPos = mk("div", "ro", gv);
   hintPos.style.marginTop = "3px";
   hintPos.textContent = "set in the views";
+  buildSyncControls(gv);
 
   buildWavGroup();
   buildFurnGroup();
+  buildPicsSection(document.getElementById("grpFurn"));
   buildRecGroup();
 }
 
@@ -1393,7 +1397,10 @@ const FS = [
 "uniform float uFogK;",
 "uniform float uGlow;",
 "uniform vec2 uRes;",
-"uniform int uHN;",                       /* always 3: a uniform bound, so the compiler keeps ONE copy of hgt() */
+"uniform int uHN;",
+"uniform float uLampK[3];",
+"uniform float uWinK;",
+"uniform sampler2D uPicTex;",                       /* always 3: a uniform bound, so the compiler keeps ONE copy of hgt() */
 "",
 "float hash21(vec2 p){ p = fract(p*vec2(127.31,311.7)); p += dot(p,p+37.72); return fract(p.x*p.y); }",
 "float vnoise(vec2 p){",
@@ -1595,6 +1602,10 @@ const FS = [
 "  float ba=bumpAmt(m,k);",
 "  vec3 N=normalize(gn - ba*(((hx-h0)/e)*T + ((hy-h0)/e)*B));",
 "  Mtl mt=surf(vUV,m,k,h0,vPos);",
+"  vec2 dux=dFdx(vUV), duy=dFdy(vUV);",
+"  if(k==7||k==33) mt.emis*=uLampK[rm];",
+"  if(k==8) mt.emis*=uWinK;",
+"  if(k==60){ vec3 tc=textureGrad(uPicTex, vUV, dux, duy).rgb; mt.alb=pow(tc,vec3(2.2))*0.92; mt.sp= m==1 ? 0.02 : 0.07; mt.shin= m==1 ? 8.0 : 40.0; }",
 "",
 /* corner darkening, analytic against the room box the surface belongs to */
 "  vec3 bmin=uRoomMin[rm], bmax=uRoomMax[rm];",
@@ -1940,7 +1951,8 @@ function buildMesh(){
   /*  Opaque geometry ends here. Everything after this line is blended, drawn
       in a second pass with depth writes off, so a ghosted source cannot
       punch a hole through the room behind it. */
-  buildFurnitureMesh();                 /* opaque, lit by the room its centre is in */
+  buildFurnitureMesh();
+  buildPictureMesh();                   /* opaque, lit by the room its centre is in */
   buildSources(false);
   MESH_OPAQUE = M.n;
   buildSources(true);
@@ -1990,6 +2002,8 @@ function buildLights(){
     { p:LAMPS[3].concat([ROOMS[2].h-0.55]), c:[1.00,0.68,0.36], i:3.6, room:2, sh:1 },
     { p:[11.6,8.7,3.8], c:[0.34,0.46,0.78], i:4.2, room:2, sh:0 }
   ];
+  /*  Light sync: an exact multiply by 1 when it is off. */
+  for (const l of lamps){ l.i0 = l.i; if (l.sh) l.i *= lampK(l.room); else l.i *= winK(); }
   /*  Only a source that is actually fed casts the radiation cue. A ghosted
       one is a placement marker, not a thing making sound. */
   for (let n = 1; n <= 4; n++){
@@ -2011,8 +2025,10 @@ function buildLights(){
       const dd = Math.hypot(l.p[0]-cp[0], l.p[1]-cp[1], l.p[2]-cp[2]);
       const att = 1/(1 + 0.30*dd + 0.085*dd*dd);
       const k = a * att * 1.3;
-      if (l.i * k < 0.05) continue;
-      out.push({ p:cp, c:mul3(l.c, l.i*k), room:other, pri:l.i*k, sh:0 });
+      /*  The light a room spills through a doorway stays at its unsynced level:
+          flashing the walls of the NEXT room reads as the wrong room pulsing. */
+      if (l.i0 * k < 0.05) continue;
+      out.push({ p:cp, c:mul3(l.c, l.i0*k), room:other, pri:l.i0*k, sh:0 });
     }
   }
   out.sort((p,q)=>q.pri-p.pri);
@@ -2274,7 +2290,7 @@ function initGL(){
     gl = null; glMode = "fallback"; return false;
   }
   gl.useProgram(prog);
-  const names = ["uHN","uMVP","uCam","uLightN","uLightPos","uLightCol","uLightRoom","uLightShade",
+  const names = ["uLampK","uWinK","uPicTex","uHN","uMVP","uCam","uLightN","uLightPos","uLightCol","uLightRoom","uLightShade",
                  "uRoomMin","uRoomMax","uAmb","uFog","uFogK","uGlow","uRes"];
   for (const n of names) U[n] = gl.getUniformLocation(prog, n);
   vao = gl.createVertexArray();
@@ -2349,6 +2365,8 @@ function drawPov(){
   gl.uniform1f(U.uGlow, glow);
   gl.uniform2f(U.uRes, w, h);
   gl.uniform1i(U.uHN, 3);
+  syncUniforms({ k:U.uLampK, w:U.uWinK });
+  gl.uniform1i(U.uPicTex, PIC_UNIT);
 
   /*  The box each room's corner darkening is measured against: the plan
       polygon's own bounds, so a wall pushed OUT is still inside its room. */
@@ -2392,7 +2410,7 @@ function drawPov(){
       cabinet punches a hole in the wall behind it. */
   gl.disable(gl.BLEND);
   gl.depthMask(true);
-  gl.drawArrays(gl.TRIANGLES, 0, Math.min(MESH_OPAQUE, vertsUploaded));
+  drawOpaque(U.uPicTex);
   if (vertsUploaded > MESH_OPAQUE){
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -2545,6 +2563,7 @@ function drawPlan(){
   /*  Furniture lies on the floor, so it goes under the walls, the doors, the
       break markers and every glyph you can pick up - those stay on top. */
   drawFurniturePlan(c);
+  drawPicturesPlan(c);
 
   /* walls: every segment the 3D view builds, minus the doorways */
   c.strokeStyle = "#1f1e1b";
@@ -4630,6 +4649,10 @@ const MAIN_HEAD = [
 "  vec3 N=normalize(gn - ba*(((hx-h0)/e)*T + ((hy-h0)/e)*B));",
 "  if(!gl_FrontFacing){ N=-N; gn=-gn; }",
 "  Mtl mt=surf(vUV,m,k,h0,vPos);",
+"  vec2 dux=dFdx(vUV), duy=dFdy(vUV);",
+"  if(k==7||k==33) mt.emis*=uLampK[rm];",
+"  if(k==8) mt.emis*=uWinK;",
+"  if(k==60){ vec3 tc=textureGrad(uPicTex, vUV, dux, duy).rgb; mt.alb=pow(tc,vec3(2.2))*0.92; mt.sp= m==1 ? 0.02 : 0.07; mt.shin= m==1 ? 8.0 : 40.0; }",
 "  bool metal=(k==13||k==14||k==15||k==23||k==26||k==28||k==30);",
 "  float ar=clamp(sqrt(2.0/(mt.shin+2.0)),0.045,1.0);",
 "  vec3 f0 = metal ? clamp(mt.alb*1.35,0.0,1.0) : vec3(mix(0.02,0.07,clamp(mt.sp*1.6,0.0,1.0)));",
@@ -5262,6 +5285,11 @@ function cineBoxes(){
     if (ls) add([SXn(n), SYn(n), zc], SYAWn(n)*Math.PI/180, 0.13, 0.11, 0.19, [0.05,0.05,0.05]);
     else add([SXn(n), SYn(n), zc], 0, 0.06, 0.06, 0.06, [0.68,0.67,0.65]);
   }
+  for (const it of pics){
+    const pf = picPlace(it), rec = picImg[it.id];
+    add([pf.c[0] + pf.n[0]*pf.d/2, pf.c[1] + pf.n[1]*pf.d/2, pf.zc], Math.atan2(pf.t[1], pf.t[0]), pf.w/2, pf.d/2, pf.h/2,
+        rec && rec.avg ? rec.avg : [0.4, 0.4, 0.4]);
+  }
   return B;
 }
 function cineUploadBoxes(){
@@ -5287,10 +5315,10 @@ function cineLights(t, life){
   const L = [];
   for (let i = 0; i < 4; i++){
     const f = life ? cineFlicker(i, t) : 1;
-    L.push({ p:lampPos(i), c:mul3(LAMP_LIGHT[i].c, LAMP_LIGHT[i].i * f), room:-1, ty:1, cube:i, sh:1 });
+    L.push({ p:lampPos(i), c:mul3(LAMP_LIGHT[i].c, LAMP_LIGHT[i].i * f * lampK(lampRoom(i))), room:-1, ty:1, cube:i, sh:1 });
   }
-  L.push({ p:[11.6,8.7,3.8], c:mul3([0.34,0.46,0.78], 4.2*0.45), room:2, ty:0, cube:0, sh:0 });
-  L.push({ p:SUN_POS, c:SUN_COL, room:-1, ty:2, cube:0, sh:0 });
+  L.push({ p:[11.6,8.7,3.8], c:mul3([0.34,0.46,0.78], 4.2*0.45*winK()), room:2, ty:0, cube:0, sh:0 });
+  L.push({ p:SUN_POS, c:mul3(SUN_COL, winK()), room:-1, ty:2, cube:0, sh:0 });
   for (let n = 1; n <= NSRC; n++){
     if (!srcActive(n)) continue;
     const r = roomOfPoint(SXn(n), SYn(n));
@@ -5389,9 +5417,10 @@ function cineScene(vw, t, life){
   g.uniform1i(pr.u("uLightN"), L.length);
   g.uniform1i(pr.u("uGhost"), 0);
   g.uniform1i(pr.u("uHN"), 3);
+  syncUniforms({ k:pr.u("uLampK"), w:pr.u("uWinK") });
+  g.uniform1i(pr.u("uPicTex"), PIC_UNIT);
   cineBindShadows(pr, 2);
-  const opq = Math.min(MESH_OPAQUE, vertsUploaded);
-  g.drawArrays(g.TRIANGLES, 0, opq);
+  drawOpaque(pr.u("uPicTex"));
   if (vertsUploaded > MESH_OPAQUE){
     g.drawBuffers([g.COLOR_ATTACHMENT0, g.NONE, g.NONE]);
     g.uniform1i(pr.u("uGhost"), 1);
@@ -5500,11 +5529,11 @@ function cineComposite(vw, t, photo, life, bloomTex){
   g.uniform3f(pr.u("uCR"), vw.r[0], vw.r[1], vw.r[2]);
   g.uniform3f(pr.u("uCU"), vw.u[0], vw.u[1], vw.u[2]);
   g.uniform1f(pr.u("uTanX"), vw.tanX); g.uniform1f(pr.u("uTanY"), vw.tanY);
-  g.uniform3f(pr.u("uSunCol"), SUN_COL[0], SUN_COL[1], SUN_COL[2]);
+  g.uniform3f(pr.u("uSunCol"), SUN_COL[0]*winK(), SUN_COL[1]*winK(), SUN_COL[2]*winK());
   const lp = new Float32Array(12), lc = new Float32Array(12);
   for (let i = 0; i < 4; i++){
     lp.set(lampPos(i), i*3);
-    lc.set(mul3(LAMP_LIGHT[i].c, LAMP_LIGHT[i].i * (life ? cineFlicker(i, t) : 1)), i*3);
+    lc.set(mul3(LAMP_LIGHT[i].c, LAMP_LIGHT[i].i * (life ? cineFlicker(i, t) : 1) * lampK(lampRoom(i))), i*3);
   }
   g.uniform3fv(pr.u("uLP"), lp); g.uniform3fv(pr.u("uLC"), lc);
   g.uniform1f(pr.u("uVolK"), 1.0);
@@ -5530,8 +5559,10 @@ function cinePhotoSample(t){
   g.uniformMatrix4fv(pr.u("uView"), false, vw.V);
   g.uniform1f(pr.u("uGlow"), CX.glowFreeze);
   g.uniform1i(pr.u("uHN"), 3);
+  syncUniforms({ k:pr.u("uLampK"), w:pr.u("uWinK") });
+  g.uniform1i(pr.u("uPicTex"), PIC_UNIT);
   cineRoomUniforms(pr);
-  g.drawArrays(g.TRIANGLES, 0, Math.min(MESH_OPAQUE, vertsUploaded));
+  drawOpaque(pr.u("uPicTex"));
   pr = CX.P.pt;
   g.useProgram(pr.p);
   g.disable(g.DEPTH_TEST); g.disable(g.CULL_FACE);
@@ -5545,9 +5576,9 @@ function cinePhotoSample(t){
   g.uniform1i(pr.u("uBounces"), 2);
   g.uniform3f(pr.u("uEye"), vw.eye[0], vw.eye[1], vw.eye[2]);
   const lp = new Float32Array(12), lc = new Float32Array(12);
-  for (let i = 0; i < 4; i++){ lp.set(lampPos(i), i*3); lc.set(mul3(LAMP_LIGHT[i].c, LAMP_LIGHT[i].i), i*3); }
+  for (let i = 0; i < 4; i++){ lp.set(lampPos(i), i*3); lc.set(mul3(LAMP_LIGHT[i].c, LAMP_LIGHT[i].i * lampK(lampRoom(i))), i*3); }
   g.uniform3fv(pr.u("uLP"), lp); g.uniform3fv(pr.u("uLC"), lc);
-  g.uniform3f(pr.u("uSunCol"), SUN_COL[0], SUN_COL[1], SUN_COL[2]);
+  g.uniform3f(pr.u("uSunCol"), SUN_COL[0]*winK(), SUN_COL[1]*winK(), SUN_COL[2]*winK());
   g.uniform3f(pr.u("uSkyCol"), SKY_COL[0], SKY_COL[1], SKY_COL[2]);
   cineRoomUniforms(pr);
   CX.accCur ^= 1;
@@ -5580,6 +5611,9 @@ function cineDraw(){
       const key = [vw.eye.map(v => v.toFixed(4)).join(","), LYAW().toFixed(3), pitchDeg.toFixed(3), fovDeg.toFixed(3),
                    w, h, meshGen, CX.q].join("|");
       if (key !== CX.pkey){ CX.pkey = key; CX.still = now; CX.photo = false; CX.pn = 0; CX.converged = false; }
+      /*  Moving light cannot be averaged: while light sync is modulating the
+          lamps the view stays real-time, and PHOTO waits for it to settle. */
+      if (syncActive()){ CX.still = now; if (CX.photo){ CX.photo = false; CX.pn = 0; CX.converged = false; } }
       if (!CX.photo && !CX.hold && now - CX.still >= PHOTO_STILL_MS){ CX.photo = true; CX.pn = 0; CX.glowFreeze = glow; }
       if (CX.photo){
         mode = "photo";
@@ -5946,6 +5980,14 @@ function expApplyFrame(plan, i){
   pitchDeg = isFinite(cam.pitch) ? Math.max(-80, Math.min(80, cam.pitch)) : EXP.livePitch;
   fovDeg = isFinite(cam.fov) && cam.fov > 5 ? cam.fov : EXP.liveFov;
   EXP.t = i / plan.fps;
+  const tg = expSyncTarget(plan, i);
+  if (i === 0 || !SYNC.exp) SYNC.exp = tg.slice(); else syncSmooth(SYNC.exp, tg, 1 / plan.fps);
+}
+function expSyncTarget(plan, i){
+  const b = plan.beat && plan.beat[i];
+  if (SYNC.mode === "beat" && b && b[2] && b[1] > 0){ const p = beatPulseAt(+b[0] || 0); return [p, p, p]; }
+  const l = plan.light && plan.light[i];
+  return [0, 1, 2].map(k => l ? syncShape(l[k]) : 0);
 }
 function expDrawFrame(plan, comp){
   const w = plan.w, h = plan.h;
@@ -6024,6 +6066,7 @@ async function runExport(plan){
   furnSel = EXP.liveFurnSel < furn.length ? EXP.liveFurnSel : -1;
   pitchDeg = EXP.livePitch; fovDeg = EXP.liveFov; glow = EXP.liveGlow; showRays = EXP.liveRays;
   EXP.active = false;
+  SYNC.exp = null;
   EXP.cine = false; EXP.photoN = 0;
   meshDirty = true;
   CX.pkey = ""; CX.converged = false;
@@ -6085,6 +6128,657 @@ function cineBench(mode, n){
 })();
 
 /* ==================================================================== */
+/*  LIGHT SYNC (protocol section 9, page preference per profile)         */
+/*                                                                       */
+/*  A room's pendants follow the sound in that room (FOLLOW) or pulse on */
+/*  the host's beat (BEAT). The factor multiplies the lamp's light, its  */
+/*  glowing shade and the bloom that comes off it; at SYNC 0 it is 1.0,  */
+/*  an exact multiply, so the lamps and the idle rule are today's.       */
+/* ==================================================================== */
+const SYNC_KEY = "thinwalls.lightsync";
+const SYNC = { s:0.2, mode:"follow", win:false, tgt:[0,0,0], L:[0,0,0], beat:null, beatAt:0, last:0,
+               exp:null };
+try {
+  const o = JSON.parse(localStorage.getItem(SYNC_KEY) || "null");
+  if (o && typeof o === "object"){
+    if (typeof o.s === "number" && isFinite(o.s)) SYNC.s = clamp01(o.s);
+    if (o.mode === "beat" || o.mode === "follow") SYNC.mode = o.mode;
+    SYNC.win = !!o.win;
+  }
+} catch(e){}
+function syncSave(){ try { localStorage.setItem(SYNC_KEY, JSON.stringify({ s:SYNC.s, mode:SYNC.mode, win:SYNC.win })); } catch(e){} }
+/*  The slider's curve: LOW (0.2) moves the lamps by a few percent, the top of
+    the travel is theatre - dim to half in silence, up to double on a hit. */
+function syncAmt(){ const s = SYNC.s; return s * s * 0.5 + s * 0.5; }
+function beatPlaying(b){ return !!(b && b.playing && b.bpm > 0); }
+/*  A pulse on every beat: exp(-5 * phase), the phase carried forward between
+    scenes at bpm/60 per second so it does not step at the 30 Hz scene rate. */
+function beatPulseAt(ppq){ const f = ppq - Math.floor(ppq); return Math.exp(-5 * f); }
+function syncTargets(now){
+  if (SYNC.mode === "beat" && beatPlaying(SYNC.beat)){
+    const b = SYNC.beat;
+    const p = beatPulseAt(b.ppq + (now - SYNC.beatAt) / 1000 * b.bpm / 60);
+    return [p, p, p];
+  }
+  return SYNC.tgt;
+}
+/*  Attack fast, release in about a tenth of a second: the lamps rise with a
+    hit and settle rather than stepping every scene. */
+function syncSmooth(L, tgt, dt){
+  for (let r = 0; r < 3; r++){
+    const t = tgt[r] || 0, tau = t > L[r] ? 0.018 : 0.10;
+    L[r] += (t - L[r]) * (1 - Math.exp(-Math.max(0, dt) / tau));
+    if (L[r] < 1e-4 && t === 0) L[r] = 0;
+  }
+}
+function syncStep(now){
+  const dt = SYNC.last ? Math.min(0.1, (now - SYNC.last) / 1000) : 0.016;
+  SYNC.last = now;
+  syncSmooth(SYNC.L, syncTargets(now), dt);
+}
+function lampK(r){
+  if (SYNC.s <= 0) return 1;
+  const L = EXP.active && SYNC.exp ? SYNC.exp[r] : SYNC.L[r];
+  const e = syncAmt();
+  return (1 - 0.5 * e) + 1.5 * e * L;
+}
+function winK(){ return SYNC.win ? lampK(2) : 1; }
+/*  Moving means: the slider is up AND there is something to follow - sound in
+    a room, a lamp still settling, or a beat playing. Silence goes idle. */
+function syncActive(){
+  if (SYNC.s <= 0 || EXP.active) return false;
+  if (SYNC.mode === "beat" && beatPlaying(SYNC.beat)) return true;
+  for (let r = 0; r < 3; r++) if (SYNC.tgt[r] > 0.001 || SYNC.L[r] > 0.002) return true;
+  return false;
+}
+function syncUniforms(loc){
+  if (!gl) return;
+  if (loc.k) gl.uniform1fv(loc.k, [lampK(0), lampK(1), lampK(2)]);
+  if (loc.w) gl.uniform1f(loc.w, winK());
+}
+/*  The follower sits between about 0.2 (a held sound) and 0.9 (an onset);
+    stretched so that range spans the lamps' whole travel. 0 stays 0. */
+function syncShape(v){ v = +v; return isFinite(v) ? clamp01((v - 0.12) / 0.5) : 0; }
+function syncOnScene(d){
+  if (Array.isArray(d.light)) for (let r = 0; r < 3; r++) SYNC.tgt[r] = syncShape(d.light[r]);
+  if (d.beat && typeof d.beat === "object"){ SYNC.beat = { bpm:+d.beat.bpm || 0, ppq:+d.beat.ppq || 0, playing:!!d.beat.playing }; SYNC.beatAt = nowMs(); }
+  if (syncActive()) invalidate("pov");
+}
+Object.assign(HINT, {
+  sync:     ["LIGHT SYNC", "How much the lamps follow the sound. 0 is off - the lamps are exactly as they always were. LOW (the default) breathes a few percent; all the way up the lamps dim in silence and flare on every hit. Remembered on this computer."],
+  syncfollow:["FOLLOW", "Each room's pendants follow the sound IN THAT ROOM: a hit flashes, a held note glows, and a room the sound cannot reach stays steady. Uses the engine's own measure of each room."],
+  syncbeat: ["BEAT", "The pendants pulse on the host's beat while its transport is playing. With the transport stopped, or no host clock, they follow the sound instead."],
+  syncwin:  ["WINDOW", "Let the hall's daylight window join in. Off by default - daylight does not usually dance."]
+});
+function buildSyncControls(g){
+  const hd = mk("h2", "sub", g); hd.textContent = "Light sync";
+  const row = mk("div", "row", g);
+  const lab = mk("label", "lab", row); lab.textContent = "SYNC";
+  const sl = mk("input", "sl", row);
+  sl.type = "range"; sl.min = "0"; sl.max = "1"; sl.step = "0.01"; sl.id = "syncS";
+  hintOn(sl, "sync");
+  const val = mk("span", "val", row); val.id = "syncVal";
+  sl.addEventListener("input", () => { SYNC.s = clamp01(parseFloat(sl.value)); syncSave(); updateSyncUI(); invalidate("pov"); });
+  const br = mk("div", "btnrow", g);
+  const bF = mk("button", "b", br); bF.type = "button"; bF.id = "syncFollow"; bF.textContent = "Follow"; hintOn(bF, "syncfollow");
+  const bB = mk("button", "b", br); bB.type = "button"; bB.id = "syncBeat"; bB.textContent = "Beat"; hintOn(bB, "syncbeat");
+  const bW = mk("button", "b", br); bW.type = "button"; bW.id = "syncWin"; bW.textContent = "Window"; hintOn(bW, "syncwin");
+  bF.addEventListener("click", () => { SYNC.mode = "follow"; syncSave(); updateSyncUI(); invalidate("pov"); });
+  bB.addEventListener("click", () => { SYNC.mode = "beat"; syncSave(); updateSyncUI(); invalidate("pov"); });
+  bW.addEventListener("click", () => { SYNC.win = !SYNC.win; syncSave(); updateSyncUI(); invalidate("pov"); });
+  updateSyncUI();
+}
+function updateSyncUI(){
+  const sl = document.getElementById("syncS");
+  if (!sl) return;
+  if (document.activeElement !== sl) sl.value = String(SYNC.s);
+  document.getElementById("syncVal").textContent = SYNC.s <= 0 ? "off" : Math.round(SYNC.s * 100) + "%";
+  document.getElementById("syncFollow").classList.toggle("on", SYNC.mode === "follow");
+  document.getElementById("syncBeat").classList.toggle("on", SYNC.mode === "beat");
+  document.getElementById("syncWin").classList.toggle("on", SYNC.win);
+}
+
+/* ==================================================================== */
+/*  WALL PICTURES (protocol section 10)                                  */
+/* ==================================================================== */
+const PIC_MAX = 8;
+const PIC_UNIT = 14;                       /* the texture unit the pictures are drawn with */
+const PIC_SIZES = [["S", 0.4], ["M", 0.7], ["L", 1.0], ["XL", 1.5]];
+const PIC_FRAMES = ["THIN BLACK", "OAK", "GILT", "CANVAS"];
+const PIC_KINDS = ["PRINT", "ACOUSTIC PANEL"];
+const PIC_WALLNAME = ["west", "east", "south", "north"];
+let pics = [];                             /* [{id, room, wall, along, z, w, aspect, frame, kind}] */
+const picImg = {};                         /* id -> {jpg, img, ok, aspect, avg, tex} */
+let picSel = -1, picArm = null, picDrag = null;
+const picDef = { w:0.7, frame:1, kind:0 };
+let PIC_RANGES = [], PIC_TEX_START = -1, PIC_TEX_END = -1;
+let picSendTmr = 0, picLastSend = -1e9;
+let planPicsDrawn = [];
+
+function picWall(room, wall){
+  const r = ROOMS[room];
+  if (wall === 0) return { p0:[r.x0, r.y0], dir:[0,1], n:[1,0],  len:r.y1 - r.y0, axis:"y", coord:r.x0, low:r.y0, h:r.h };
+  if (wall === 1) return { p0:[r.x1, r.y0], dir:[0,1], n:[-1,0], len:r.y1 - r.y0, axis:"y", coord:r.x1, low:r.y0, h:r.h };
+  if (wall === 2) return { p0:[r.x0, r.y0], dir:[1,0], n:[0,1],  len:r.x1 - r.x0, axis:"x", coord:r.y0, low:r.x0, h:r.h };
+  return               { p0:[r.x0, r.y1], dir:[1,0], n:[0,-1], len:r.x1 - r.x0, axis:"x", coord:r.y1, low:r.x0, h:r.h };
+}
+/*  Where a picture really hangs: on the room's own wall, or - where that wall
+    is broken - on the panel under its centre, at that panel's angle. */
+function picPlace(it){
+  const W = picWall(it.room, it.wall);
+  const P = [W.p0[0] + W.dir[0] * it.along, W.p0[1] + W.dir[1] * it.along];
+  let c = P, t = W.dir;
+  const poly = roomPoly(it.room);
+  let best = null, bd = 1e9;
+  for (let e = 0; e < poly.length; e++){
+    const a = poly[e], b = poly[(e + 1) % poly.length];
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy);
+    if (L < 1e-4) continue;
+    const ux = dx / L, uy = dy / L;
+    if (Math.abs(ux * W.dir[0] + uy * W.dir[1]) < 0.5) continue;       /* a side wall, not this one */
+    let k = ((P[0] - a[0]) * ux + (P[1] - a[1]) * uy);
+    k = Math.max(0, Math.min(L, k));
+    const q = [a[0] + ux * k, a[1] + uy * k];
+    const d = Math.hypot(q[0] - P[0], q[1] - P[1]);
+    if (d < bd){ bd = d; best = { q:q, u:[ux, uy] }; }
+  }
+  if (best && bd < 0.9){
+    c = best.q;
+    t = (best.u[0] * W.dir[0] + best.u[1] * W.dir[1]) >= 0 ? best.u : [-best.u[0], -best.u[1]];
+  }
+  let n = [-t[1], t[0]];
+  if (n[0] * W.n[0] + n[1] * W.n[1] < 0) n = [-n[0], -n[1]];
+  const h = it.w * it.aspect;
+  const d = it.kind === 1 ? 0.05 : (it.frame === 3 ? 0.035 : 0.012);
+  return { c:c, t:t, n:n, zc:it.z, w:it.w, h:h, d:d, W:W };
+}
+/*  Inside the wall's extent, under the ceiling, off the floor, and clear of
+    every door opening in that wall (the architrave included). */
+function picClamp(it){
+  const W = picWall(it.room, it.wall);
+  it.aspect = Math.max(0.2, Math.min(5, +it.aspect || 0.75));
+  it.w = Math.max(0.2, Math.min(2.0, W.len - 0.2, (W.h - 0.35) / it.aspect, +it.w || 0.7));
+  const h = it.w * it.aspect;
+  const lo = it.w / 2 + 0.05, hi = W.len - it.w / 2 - 0.05;
+  it.along = Math.max(lo, Math.min(hi, +it.along || W.len / 2));
+  it.z = Math.max(h / 2 + 0.15, Math.min(W.h - h / 2 - 0.08, +it.z || 1.5));
+  for (const d of DOORS){
+    if (d.axis !== W.axis || Math.abs(d.wall - W.coord) > 1e-3) continue;
+    const a0 = d.s0 - W.low - 0.12, a1 = d.s1 - W.low + 0.12;
+    const overlap = it.along + it.w / 2 > a0 && it.along - it.w / 2 < a1;
+    if (!overlap || it.z - h / 2 > DOOR_H + 0.12) continue;
+    const left = a0 - it.w / 2 - 0.01, right = a1 + it.w / 2 + 0.01;
+    const okL = left >= lo, okR = right <= hi;
+    if (okL && (!okR || Math.abs(left - it.along) <= Math.abs(right - it.along))) it.along = left;
+    else if (okR) it.along = right;
+    else it.z = Math.min(W.h - h / 2 - 0.05, DOOR_H + 0.18 + h / 2);
+  }
+  it.frame = Math.max(0, Math.min(3, it.frame | 0));
+  it.kind = it.kind ? 1 : 0;
+  return it;
+}
+function picItemsOut(){
+  return pics.map(p => ({ id:p.id, room:p.room, wall:p.wall, along:Math.round(p.along * 1000) / 1000,
+    z:Math.round(p.z * 1000) / 1000, w:Math.round(p.w * 1000) / 1000, aspect:Math.round(p.aspect * 10000) / 10000,
+    frame:p.frame, kind:p.kind }));
+}
+function picSendNow(){
+  if (picSendTmr){ clearTimeout(picSendTmr); picSendTmr = 0; }
+  picLastSend = nowMs();
+  NB.send({ k:"pics", items:picItemsOut() });
+}
+function picSendSoon(){
+  const dt = nowMs() - picLastSend;
+  if (dt >= 34){ picSendNow(); return; }
+  if (!picSendTmr) picSendTmr = setTimeout(picSendNow, Math.max(1, 34 - dt));
+}
+function picChanged(final){
+  meshDirty = true;
+  invalidate("both");
+  updatePicUI();
+  if (final) picSendNow(); else picSendSoon();
+}
+
+/* ---- images ---- */
+function picImageFromJpg(id, jpg){
+  if (!id || typeof jpg !== "string" || !jpg) return;
+  const rec = picImg[id] = picImg[id] || {};
+  if (rec.jpg === jpg && rec.img) return;
+  rec.jpg = jpg; rec.ok = false;
+  if (rec.tex && gl){ gl.deleteTexture(rec.tex); }
+  rec.tex = null;
+  const im = new Image();
+  im.onload = () => {
+    rec.ok = true;
+    rec.aspect = im.naturalHeight / Math.max(1, im.naturalWidth);
+    try {
+      const c = document.createElement("canvas"); c.width = 16; c.height = 16;
+      const g2 = c.getContext("2d"); g2.drawImage(im, 0, 0, 16, 16);
+      const d = g2.getImageData(0, 0, 16, 16).data; let r = 0, gg = 0, b = 0;
+      for (let i = 0; i < d.length; i += 4){ r += d[i]; gg += d[i+1]; b += d[i+2]; }
+      const n = d.length / 4;
+      rec.avg = [Math.pow(r / n / 255, 2.2), Math.pow(gg / n / 255, 2.2), Math.pow(b / n / 255, 2.2)];
+    } catch(e){ rec.avg = [0.4, 0.4, 0.4]; }
+    CX.boxGen = -1;
+    meshDirty = true;
+    invalidate("both");
+  };
+  im.src = "data:image/jpeg;base64," + jpg;
+  rec.img = im;
+}
+function picTex(id){
+  const rec = picImg[id];
+  if (!gl) return null;
+  if (rec && rec.tex) return rec.tex;
+  if (!rec || !rec.ok){
+    if (!CX.picGrey){
+      CX.picGrey = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, CX.picGrey);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([150, 146, 138, 255]));
+    }
+    return CX.picGrey;
+  }
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, rec.img);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  rec.tex = t;
+  return t;
+}
+/*  LOAD: the page shrinks the picture itself (max 1024 px a side, JPEG 0.9)
+    and hands it to native ONCE; after that only the layout travels. */
+function picLoadFile(file){
+  if (!file) return;
+  if (pics.length >= PIC_MAX){ noticeEl.textContent = PIC_MAX + " pictures is the limit - delete one first"; return; }
+  const url = URL.createObjectURL(file);
+  const im = new Image();
+  im.onload = () => {
+    URL.revokeObjectURL(url);
+    const k = Math.min(1, 1024 / Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+    const g2 = c.getContext("2d");
+    g2.fillStyle = "#fff"; g2.fillRect(0, 0, c.width, c.height);
+    g2.drawImage(im, 0, 0, c.width, c.height);
+    const jpg = c.toDataURL("image/jpeg", 0.9).split(",")[1];
+    const id = "p" + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+    picImageFromJpg(id, jpg);
+    picImg[id].aspect = c.height / c.width;
+    NB.send({ k:"picAdd", id:id, jpg:jpg });
+    picArm = id;
+    picSel = -1;
+    noticeEl.textContent = "click a wall in the plan or in the 3D view to hang it";
+    updatePicUI();
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); noticeEl.textContent = "that file is not an image the page can read"; };
+  im.src = url;
+}
+function picHang(room, wall, along, z){
+  if (!picArm || pics.length >= PIC_MAX) return -1;
+  const rec = picImg[picArm];
+  const it = picClamp({ id:picArm, room:room, wall:wall, along:along, z:z || 1.55, w:picDef.w,
+                        aspect:rec && rec.aspect ? rec.aspect : 0.75, frame:picDef.frame, kind:picDef.kind });
+  pics.push(it);
+  picSel = pics.length - 1;
+  picArm = null;
+  noticeEl.textContent = "hung on the " + ROOMS[room].name + " " + PIC_WALLNAME[wall] + " wall - drag it to move it";
+  picChanged(true);
+  return picSel;
+}
+function picDelete(){
+  if (picSel < 0) return;
+  pics.splice(picSel, 1);
+  picSel = -1;
+  picChanged(true);
+}
+function picSetSel(k, v){
+  if (picSel >= 0){ const it = pics[picSel]; it[k] = v; picClamp(it); picChanged(true); }
+  else { picDef[k] = v; updatePicUI(); }
+}
+function picSanitize(items){
+  const out = [];
+  for (const q of (items || [])){
+    if (!q || !q.id) continue;
+    const room = q.room | 0, wall = q.wall | 0;
+    if (room < 0 || room > 2 || wall < 0 || wall > 3) continue;
+    out.push(picClamp({ id:String(q.id), room:room, wall:wall, along:+q.along, z:+q.z, w:+q.w, aspect:+q.aspect,
+                        frame:q.frame | 0, kind:q.kind | 0 }));
+    if (out.length >= PIC_MAX) break;
+  }
+  return out;
+}
+/*  From native (initialState, a preset, a project): replace, send nothing. */
+function applyPicsNative(items, images){
+  if (images && typeof images === "object") for (const id in images) picImageFromJpg(id, images[id]);
+  pics = picSanitize(items);
+  if (picSel >= pics.length) picSel = -1;
+  picDrag = null;
+  meshDirty = true;
+  invalidate("both");
+  updatePicUI();
+}
+
+/* ---- the POV mesh ---- */
+function picBar(center, t3, n3, hu, hv, hw, mat, kind, room){
+  boxOriented(center, t3, n3, [0,0,1], hu, hv, hw, mat, [kind,kind,kind,kind,kind,kind], room, 2);
+}
+function buildPictureMesh(){
+  PIC_RANGES = []; PIC_TEX_START = -1; PIC_TEX_END = -1;
+  if (!pics.length) return;
+  const F = pics.map(picPlace);
+  /* frames first: ordinary material kinds, drawn with the rest of the room */
+  pics.forEach((it, i) => {
+    const f = F[i], t3 = [f.t[0], f.t[1], 0], n3 = [f.n[0], f.n[1], 0];
+    const at = (u, v, z) => [f.c[0] + f.t[0]*u + f.n[0]*v, f.c[1] + f.t[1]*u + f.n[1]*v, f.zc + z];
+    if (it.frame === 3) return;                          /* canvas: the picture wraps its own edge */
+    const fw = it.frame === 0 ? 0.018 : 0.055;
+    const kind = it.frame === 0 ? 11 : (it.frame === 1 ? 41 : 13);
+    const dep = f.d + (it.frame === 0 ? 0.012 : 0.022);
+    const W = f.w / 2, H = f.h / 2;
+    /* four bars of the moulding, mitred square */
+    picBar(at(0, dep/2, H + fw/2),  t3, n3, W + fw, dep/2, fw/2, 0, kind, it.room);
+    picBar(at(0, dep/2, -H - fw/2), t3, n3, W + fw, dep/2, fw/2, 0, kind, it.room);
+    picBar(at(-W - fw/2, dep/2, 0), t3, n3, fw/2, dep/2, H, 0, kind, it.room);
+    picBar(at( W + fw/2, dep/2, 0), t3, n3, fw/2, dep/2, H, 0, kind, it.room);
+    if (it.frame !== 0){
+      /* the bevel: a narrower, prouder lip on the inside edge of oak and gilt */
+      const lw = fw * 0.34, ld = dep + 0.014;
+      picBar(at(0, ld/2, H + lw/2),  t3, n3, W + lw, ld/2, lw/2, 0, kind, it.room);
+      picBar(at(0, ld/2, -H - lw/2), t3, n3, W + lw, ld/2, lw/2, 0, kind, it.room);
+      picBar(at(-W - lw/2, ld/2, 0), t3, n3, lw/2, ld/2, H, 0, kind, it.room);
+      picBar(at( W + lw/2, ld/2, 0), t3, n3, lw/2, ld/2, H, 0, kind, it.room);
+    }
+  });
+  /* then the textured faces, one run per picture, drawn with its own texture */
+  PIC_TEX_START = M.n;
+  pics.forEach((it, i) => {
+    const f = F[i], start = M.n;
+    const R = [-f.n[1], f.n[0]];                  /* the viewer's right, facing the wall */
+    const P = (u, v, z) => [f.c[0] + R[0]*u + f.n[0]*v, f.c[1] + R[1]*u + f.n[1]*v, f.zc + z];
+    const W = f.w / 2, H = f.h / 2, D = f.d, n3 = [f.n[0], f.n[1], 0], m = it.kind;
+    quadUV(P(-W, D, -H), P(W, D, -H), P(W, D, H), P(-W, D, H), [0,0], [1,0], [1,1], [0,1], n3, m, 60, it.room);
+    if (it.frame === 3){
+      /* the canvas wraps: its sides carry the outermost strip of the picture */
+      const e = 0.03;
+      quadUV(P(-W, 0, H), P(W, 0, H), P(W, D, H), P(-W, D, H), [0,1-e], [1,1-e], [1,1], [0,1], [0,0,1], m, 60, it.room);
+      quadUV(P(-W, 0, -H), P(W, 0, -H), P(W, D, -H), P(-W, D, -H), [0,e], [1,e], [1,0], [0,0], [0,0,-1], m, 60, it.room);
+      quadUV(P(-W, 0, -H), P(-W, 0, H), P(-W, D, H), P(-W, D, -H), [e,0], [e,1], [0,1], [0,0], [-R[0],-R[1],0], m, 60, it.room);
+      quadUV(P(W, 0, -H), P(W, 0, H), P(W, D, H), P(W, D, -H), [1-e,0], [1-e,1], [1,1], [1,0], [R[0],R[1],0], m, 60, it.room);
+    } else {
+      /* the board's edge, hidden by the frame; flat colour from the picture's edge */
+      quadUV(P(-W, 0, H), P(W, 0, H), P(W, D, H), P(-W, D, H), [0,1], [1,1], [1,1], [0,1], [0,0,1], m, 60, it.room);
+    }
+    PIC_RANGES.push({ id:it.id, start:start, count:M.n - start });
+  });
+  PIC_TEX_END = M.n;
+}
+/*  The opaque draw, split round the pictures so each one can have its own
+    texture. With no pictures this is the single call it always was. */
+function drawOpaque(picLoc){
+  const opq = Math.min(MESH_OPAQUE, vertsUploaded);
+  if (!PIC_RANGES.length || PIC_TEX_START < 0 || PIC_TEX_END > opq){ gl.drawArrays(gl.TRIANGLES, 0, opq); return; }
+  gl.drawArrays(gl.TRIANGLES, 0, PIC_TEX_START);
+  gl.activeTexture(gl.TEXTURE0 + PIC_UNIT);
+  if (picLoc) gl.uniform1i(picLoc, PIC_UNIT);
+  for (const r of PIC_RANGES){
+    gl.bindTexture(gl.TEXTURE_2D, picTex(r.id));
+    gl.drawArrays(gl.TRIANGLES, r.start, r.count);
+  }
+  gl.activeTexture(gl.TEXTURE0);
+  if (opq > PIC_TEX_END) gl.drawArrays(gl.TRIANGLES, PIC_TEX_END, opq - PIC_TEX_END);
+}
+
+/* ---- the plan ---- */
+function drawPicturesPlan(c){
+  planPicsDrawn = [];
+  if (!pics.length) return;
+  const s = PF.s;
+  pics.forEach((it, i) => {
+    const f = picPlace(it), rec = picImg[it.id];
+    const cx = f.c[0] + f.n[0] * 0.05, cy = f.c[1] + f.n[1] * 0.05;
+    const th = Math.max(5, 0.08 * s), len = f.w * s;
+    c.save();
+    c.translate(PX(cx), PY(cy));
+    c.rotate(-Math.atan2(f.t[1], f.t[0]));
+    if (rec && rec.ok){
+      const iw = rec.img.naturalWidth, ih = rec.img.naturalHeight;
+      c.drawImage(rec.img, 0, ih * 0.38, iw, ih * 0.24, -len / 2, -th / 2, len, th);
+    } else { c.fillStyle = "#8a8378"; c.fillRect(-len / 2, -th / 2, len, th); }
+    c.lineWidth = i === picSel ? 2.4 : 1;
+    c.strokeStyle = i === picSel ? "#c07a1c" : (it.kind ? "#2f7a74" : "#2b2a27");
+    c.strokeRect(-len / 2 - 0.5, -th / 2 - 0.5, len + 1, th + 1);
+    c.restore();
+    planPicsDrawn.push(it.id);
+  });
+}
+function picHitPlan(wx, wy){
+  let best = -1, bd = 0.16;
+  pics.forEach((it, i) => {
+    const f = picPlace(it);
+    const a = [f.c[0] - f.t[0]*f.w/2, f.c[1] - f.t[1]*f.w/2], b = [f.c[0] + f.t[0]*f.w/2, f.c[1] + f.t[1]*f.w/2];
+    const d = nearSeg(wx, wy, a[0], a[1], b[0], b[1]);
+    if (d < bd){ bd = d; best = i; }
+  });
+  return best;
+}
+/*  The nearest wall segment within 0.4 m, preferring the room the click is
+    inside - the two faces of a party wall belong to two different rooms. */
+function picWallAtPlan(wx, wy){
+  let best = null;
+  for (let room = 0; room < 3; room++){
+    const r = ROOMS[room];
+    const inside = wx >= r.x0 - 0.05 && wx <= r.x1 + 0.05 && wy >= r.y0 - 0.05 && wy <= r.y1 + 0.05;
+    for (let wall = 0; wall < 4; wall++){
+      const W = picWall(room, wall);
+      const b = [W.p0[0] + W.dir[0]*W.len, W.p0[1] + W.dir[1]*W.len];
+      const d = nearSeg(wx, wy, W.p0[0], W.p0[1], b[0], b[1]);
+      const side = (wx - W.p0[0]) * W.n[0] + (wy - W.p0[1]) * W.n[1];
+      if (d > 0.4 || side < -0.05) continue;
+      const score = d + (inside ? 0 : 1);
+      if (!best || score < best.score){
+        const along = (wx - W.p0[0]) * W.dir[0] + (wy - W.p0[1]) * W.dir[1];
+        best = { room:room, wall:wall, along:along, score:score };
+      }
+    }
+  }
+  return best;
+}
+planCv.addEventListener("pointerdown", e => {
+  if (e.button !== undefined && e.button !== 0) return;
+  if (!PF) PF = planFit();
+  const w = planToWorld(e.clientX, e.clientY);
+  if (picArm){
+    const hit = picWallAtPlan(w[0], w[1]);
+    e.stopImmediatePropagation(); e.preventDefault();
+    if (!hit){ noticeEl.textContent = "click on or near a wall to hang the picture"; return; }
+    picHang(hit.room, hit.wall, hit.along, 1.55);
+    return;
+  }
+  const i = picHitPlan(w[0], w[1]);
+  if (i < 0){ if (picSel >= 0){ picSel = -1; updatePicUI(); invalidate("both"); } return; }
+  e.stopImmediatePropagation(); e.preventDefault();
+  picSel = i;
+  picDrag = { view:"plan", i:i, moved:false };
+  try { planCv.setPointerCapture(e.pointerId); } catch(_){}
+  updatePicUI(); invalidate("both");
+}, true);
+
+/* ---- the POV ---- */
+function picRayHit(ray){
+  let best = -1, bt = 1e9;
+  pics.forEach((it, i) => {
+    const f = picPlace(it);
+    const n3 = [f.n[0], f.n[1], 0];
+    const dn = dot3(ray.d, n3);
+    if (dn >= -1e-4) return;
+    const P0 = [f.c[0] + f.n[0]*f.d, f.c[1] + f.n[1]*f.d, f.zc];
+    const t = dot3(sub(P0, ray.o), n3) / dn;
+    if (t <= 0 || t >= bt) return;
+    const p = add3(ray.o, mul3(ray.d, t));
+    const u = (p[0] - f.c[0]) * f.t[0] + (p[1] - f.c[1]) * f.t[1];
+    if (Math.abs(u) <= f.w/2 + 0.06 && Math.abs(p[2] - f.zc) <= f.h/2 + 0.06){ bt = t; best = i; }
+  });
+  return best >= 0 ? { i:best, t:bt } : null;
+}
+function picWallRay(ray){
+  let best = null, bt = 1e9;
+  for (let room = 0; room < 3; room++) for (let wall = 0; wall < 4; wall++){
+    const W = picWall(room, wall);
+    const n3 = [W.n[0], W.n[1], 0], dn = dot3(ray.d, n3);
+    if (dn >= -1e-4) continue;
+    const t = ((W.p0[0] - ray.o[0]) * W.n[0] + (W.p0[1] - ray.o[1]) * W.n[1]) / dn;
+    if (t <= 0.05 || t >= bt) continue;
+    const p = add3(ray.o, mul3(ray.d, t));
+    const along = (p[0] - W.p0[0]) * W.dir[0] + (p[1] - W.p0[1]) * W.dir[1];
+    if (along < 0 || along > W.len || p[2] < 0 || p[2] > W.h) continue;
+    /* an open doorway lets the ray through to the room beyond */
+    let hole = false;
+    for (const d of DOORS){
+      if (d.axis !== W.axis || Math.abs(d.wall - W.coord) > 1e-3) continue;
+      const a = along + W.low;
+      if (a > d.s0 && a < d.s1 && p[2] < DOOR_H) hole = true;
+    }
+    if (hole) continue;
+    bt = t; best = { room:room, wall:wall, along:along, z:p[2], t:t };
+  }
+  return best;
+}
+povCv.addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  const ray = povRay(e.clientX, e.clientY);
+  if (!ray) return;
+  if (picArm){
+    const hit = picWallRay(ray);
+    e.stopImmediatePropagation(); e.preventDefault();
+    if (!hit){ noticeEl.textContent = "point at a wall to hang the picture"; return; }
+    picHang(hit.room, hit.wall, hit.along, hit.z);
+    return;
+  }
+  const h = picRayHit(ray);
+  if (!h) return;
+  const wh = picWallRay(ray);
+  if (wh && wh.t + 0.02 < h.t) return;                /* a wall in front of it: not yours to grab */
+  e.stopImmediatePropagation(); e.preventDefault();
+  picSel = h.i;
+  const it = pics[h.i];
+  const W = picWall(it.room, it.wall);
+  const dn = dot3(ray.d, [W.n[0], W.n[1], 0]);
+  const t = ((W.p0[0] - ray.o[0]) * W.n[0] + (W.p0[1] - ray.o[1]) * W.n[1]) / dn;
+  const p = add3(ray.o, mul3(ray.d, t));
+  picDrag = { view:"pov", i:h.i, moved:false,
+              offA:it.along - ((p[0] - W.p0[0]) * W.dir[0] + (p[1] - W.p0[1]) * W.dir[1]), offZ:it.z - p[2] };
+  try { povCv.setPointerCapture(e.pointerId); } catch(_){}
+  updatePicUI(); invalidate("both");
+}, true);
+window.addEventListener("pointermove", e => {
+  if (!picDrag) return;
+  const it = pics[picDrag.i];
+  if (!it){ picDrag = null; return; }
+  const W = picWall(it.room, it.wall);
+  if (picDrag.view === "plan"){
+    const w = planToWorld(e.clientX, e.clientY);
+    it.along = (w[0] - W.p0[0]) * W.dir[0] + (w[1] - W.p0[1]) * W.dir[1];
+  } else {
+    const ray = povRay(e.clientX, e.clientY);
+    if (!ray) return;
+    const dn = dot3(ray.d, [W.n[0], W.n[1], 0]);
+    if (dn >= -1e-4) return;
+    const t = ((W.p0[0] - ray.o[0]) * W.n[0] + (W.p0[1] - ray.o[1]) * W.n[1]) / dn;
+    const p = add3(ray.o, mul3(ray.d, t));
+    it.along = (p[0] - W.p0[0]) * W.dir[0] + (p[1] - W.p0[1]) * W.dir[1] + picDrag.offA;
+    it.z = p[2] + picDrag.offZ;
+  }
+  picClamp(it);
+  picDrag.moved = true;
+  picChanged(false);
+});
+const endPicDrag = () => { if (!picDrag) return; const m = picDrag.moved; picDrag = null; if (m) picSendNow(); };
+window.addEventListener("pointerup", endPicDrag);
+window.addEventListener("pointercancel", endPicDrag);
+
+/* ---- the controls ---- */
+Object.assign(HINT, {
+  picload:  ["LOAD PICTURE", "Pick an image file. The page shrinks it to 1024 px, keeps it with the project, and then waits for you to click a wall - in the plan or in the 3D view - to hang it. Up to eight."],
+  picdel:   ["DELETE", "Take the selected picture off the wall."],
+  piccount: ["PICTURES", "How many pictures hang in the flat, of the eight allowed. Click one in the plan or the 3D view to select it; drag it along the wall, and in the 3D view up and down too."],
+  picsize:  ["SIZE", "Quick widths: S 40 cm, M 70 cm, L 1 m, XL 1.5 m. The height follows the picture's own proportions. With nothing selected this sets the size of the next one you hang."],
+  picw:     ["WIDTH", "The picture's width in metres, 20 cm to 2 m. Its height follows the image's proportions, and it is kept on its wall, under the ceiling and clear of any door."],
+  picframe: ["FRAME", "Thin black, oak or gilt moulding, or an unframed canvas whose picture wraps round its edges. Purely visual."],
+  pickind:  ["KIND", "PRINT is a picture on paper behind glass: it changes nothing you hear - a print is acoustically part of the wall. ACOUSTIC PANEL is a 5 cm printed absorber of the same size, the kind sold for studios: it absorbs like one, so a few square metres of them shorten a live room's reverberation audibly (four square metres halve the tiled living room's RT60 at 1 kHz)."],
+  picnote:  ["PICTURE", "What is selected, where it hangs, or what to do next."]
+});
+function buildPicsSection(g){
+  const hd = mk("h2", "sub", g); hd.textContent = "Wall pictures";
+  const grid = mk("div", "pgrid", g);
+  const c1 = mk("div", null, grid), c2 = mk("div", null, grid);
+  const b1 = mk("div", "btnrow", c1);
+  const inp = mk("input", null, b1);
+  inp.type = "file"; inp.accept = "image/*"; inp.id = "picFile"; inp.hidden = true; hintOn(inp, "picload");
+  inp.addEventListener("change", () => { const f = inp.files && inp.files[0]; if (f) picLoadFile(f); inp.value = ""; });
+  const bL = mk("button", "b", b1); bL.type = "button"; bL.id = "picLoad"; bL.textContent = "Load"; hintOn(bL, "picload");
+  bL.addEventListener("click", () => inp.click());
+  const bD = mk("button", "b", b1); bD.type = "button"; bD.id = "picDel"; bD.textContent = "Delete"; hintOn(bD, "picdel");
+  bD.addEventListener("click", picDelete);
+  const cnt = mk("span", "ro", b1); cnt.id = "picCount"; cnt.style.alignSelf = "center"; hintOn(cnt, "piccount");
+  const b2 = mk("div", "btnrow", c1);
+  PIC_SIZES.forEach(s => {
+    const b = mk("button", "b fs", b2); b.type = "button"; b.textContent = s[0];
+    b.setAttribute("data-picsize", String(s[1])); hintOn(b, "picsize");
+    b.addEventListener("click", () => picSetSel("w", s[1]));
+  });
+  const rw = mk("div", "row", c2);
+  const lw = mk("label", "lab", rw); lw.textContent = "WIDTH";
+  const sw = mk("input", "sl", rw); sw.type = "range"; sw.min = "0.2"; sw.max = "2"; sw.step = "0.01"; sw.id = "picW"; hintOn(sw, "picw");
+  const vw = mk("span", "val", rw); vw.id = "picWVal";
+  sw.addEventListener("input", () => {
+    const v = parseFloat(sw.value);
+    if (picSel >= 0){ const it = pics[picSel]; it.w = v; picClamp(it); picChanged(false); } else { picDef.w = v; updatePicUI(); }
+  });
+  sw.addEventListener("change", () => { if (picSel >= 0) picSendNow(); });
+  const rf = mk("div", "row sel", c2);
+  const lf = mk("label", "lab", rf); lf.textContent = "FRAME";
+  const wf = mk("div", "selwrap", rf);
+  const sf = mk("select", "sel", wf); sf.id = "picFrame"; hintOn(sf, "picframe");
+  PIC_FRAMES.forEach((n, i) => { const o = mk("option", null, sf); o.value = String(i); o.textContent = n; });
+  sf.addEventListener("change", () => picSetSel("frame", sf.value | 0));
+  const rk = mk("div", "row sel", c2);
+  const lk = mk("label", "lab", rk); lk.textContent = "KIND";
+  const wk = mk("div", "selwrap", rk);
+  const sk = mk("select", "sel", wk); sk.id = "picKind"; hintOn(sk, "pickind");
+  PIC_KINDS.forEach((n, i) => { const o = mk("option", null, sk); o.value = String(i); o.textContent = n; });
+  sk.addEventListener("change", () => picSetSel("kind", sk.value | 0));
+  const note = mk("div", "ro", g); note.id = "picNote"; hintOn(note, "picnote");
+  updatePicUI();
+}
+function updatePicUI(){
+  const cnt = document.getElementById("picCount");
+  if (!cnt) return;
+  cnt.textContent = pics.length + " / " + PIC_MAX;
+  const it = pics[picSel];
+  const w = it ? it.w : picDef.w, fr = it ? it.frame : picDef.frame, kd = it ? it.kind : picDef.kind;
+  const sw = document.getElementById("picW");
+  if (document.activeElement !== sw) sw.value = String(w);
+  document.getElementById("picWVal").textContent = w.toFixed(2) + " m";
+  document.getElementById("picFrame").value = String(fr);
+  document.getElementById("picKind").value = String(kd);
+  document.getElementById("picDel").disabled = !it;
+  document.getElementById("picLoad").disabled = pics.length >= PIC_MAX;
+  for (const b of document.querySelectorAll("[data-picsize]"))
+    b.classList.toggle("on", Math.abs(parseFloat(b.getAttribute("data-picsize")) - w) < 0.005);
+  const note = document.getElementById("picNote");
+  if (picArm) note.textContent = "click a wall to hang it";
+  else if (it) note.textContent = PIC_KINDS[it.kind] + " " + it.w.toFixed(2) + " x " + (it.w * it.aspect).toFixed(2) +
+                                  " m, " + ROOMS[it.room].name + " " + PIC_WALLNAME[it.wall] + " wall";
+  else note.textContent = pics.length ? "click a picture to select it" : "load an image to hang it on a wall";
+}
+
+/* ==================================================================== */
 /*  native traffic                                                       */
 /* ==================================================================== */
 NB.on("initialState", d => {
@@ -6116,6 +6810,7 @@ NB.on("initialState", d => {
       page keeps its own copy of the engine's numbers. */
   if (Array.isArray(d.furniture) && d.furniture.length) applyFurnCatalogue(d.furniture);
   if (Array.isArray(d.furn)) applyFurnNative(d.furn);
+  if (Array.isArray(d.pics)) applyPicsNative(d.pics, d.picImages);
   updateAllControls();
   refreshSrcTabs();
   updateHud();
@@ -6135,6 +6830,7 @@ NB.on("notice", d => {
 });
 
 NB.on("wav", d => { if (d) applyWav(d); });
+NB.on("pics", d => { if (d && Array.isArray(d.items)) applyPicsNative(d.items, d.images); });
 
 /*  The layout changed for a reason the page did not cause - a preset, a
     project restore, DEFAULT. Native is the authority: replace, send nothing. */
@@ -6176,6 +6872,7 @@ function sceneSignature(d){
 NB.on("scene", d => {
   if (!d) return;
   scene = d;
+  syncOnScene(d);
   if (typeof d.in === "number") inDb = d.in;
   if (typeof d.out === "number") outDb = d.out;
   if (typeof d.drr === "number") drrDb = d.drr;
@@ -6317,6 +7014,18 @@ window.__TW = {
   furnRoom(i){ const it = furn[i]; return it ? furnRoom(it) : -1; },
   planFurn(){ return planFurnDrawn.slice(); },
   get verts(){ return M.n; },
+  sync(){ return { s:SYNC.s, mode:SYNC.mode, win:SYNC.win, L:SYNC.L.slice(), tgt:SYNC.tgt.slice(), k:[lampK(0), lampK(1), lampK(2)],
+                   active:syncActive(), stored:(function(){ try { return localStorage.getItem(SYNC_KEY); } catch(e){ return null; } })() }; },
+  setSync(o){ if (o){ if (typeof o.s === "number") SYNC.s = clamp01(o.s); if (o.mode) SYNC.mode = o.mode === "beat" ? "beat" : "follow"; if (o.win !== undefined) SYNC.win = !!o.win; } syncSave(); updateSyncUI(); invalidate("pov"); },
+  syncSettle(){ const t = syncTargets(nowMs()); for (let r = 0; r < 3; r++) SYNC.L[r] = t[r]; },
+  pics(){ return pics.map(p => Object.assign({}, p)); },
+  setPics(items, images){ applyPicsNative(items || [], images || null); },
+  get picSel(){ return picSel; },
+  get picArmed(){ return picArm; },
+  selectPic(i){ picSel = (i >= 0 && i < pics.length) ? i : -1; updatePicUI(); invalidate("both"); },
+  picPlace(i){ const it = pics[i]; if (!it) return null; const p = picPlace(it); return { c:p.c, t:p.t, n:p.n, zc:p.zc, w:p.w, h:p.h, d:p.d }; },
+  picReady(id){ const r = picImg[id]; return !!(r && r.ok); },
+  planPics(){ return planPicsDrawn.slice(); },
   fsSource(){ return FS; },
   swapFS(src){
     if (!gl) return "no gl";

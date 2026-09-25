@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "TakeExport.h"
+#include <map>
 #include "Engine.h"
 #include <string>
 #include <vector>
@@ -119,6 +120,19 @@ private:
     std::atomic<int> furnVersion { 0 };
     int furnVersionAudio = -1;                 // audio thread: what it last copied
     bool furnDirtyUi = false;                  // message thread: tell the page
+    float panelAreaLayout[tw::NUM_ROOMS] = { 0, 0, 0 };   // guarded by furnLock, like the furniture
+
+    // ---- wall pictures: layout + images (base64 JPEG), message thread only
+    struct Pic { juce::String id; int room = 0, wall = 0; float along = 0, z = 1.5f, w = 0.8f, aspect = 0.75f; int frame = 0, kind = 0; };
+    std::vector<Pic> pics;
+    std::map<juce::String, juce::String> picImages;
+    bool picsDirtyUi = false;
+    juce::var picsJson (bool withImages) const;
+    void setPicsFromVar (const juce::var& items, const juce::var& images);
+
+    // ---- the host's clock, for the lamps' beat lock
+    std::atomic<double> hostPpq { 0.0 }, hostBpm { 0.0 };
+    std::atomic<bool> hostPlaying { false };
     juce::var furnJson() const;
     void setFurnFromVar (const juce::var& items);
 

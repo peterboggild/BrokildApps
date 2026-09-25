@@ -245,3 +245,60 @@ layout is memcmp-identical to today.
 Everything stays geometric-acoustic: no low-frequency modal effects (a
 sofa in a corner damping a bass mode), and nothing that moves with a person
 sitting down. MAX_PATHS is 192 now, so the budget has room for item 4.
+
+---
+
+## 6. LIGHT SYNC - BUILT in 260925.2
+Asked 2026-09-25: "optional lamps and window light beat sync with sound,
+adjustable with slider, default low", plus a CPU assessment.
+
+### Design
+- LIGHT SYNC slider (off .. strong, default low) and a WINDOW switch (default
+  off - pulsing daylight reads wrong). Page preference, per profile.
+- Two drives:
+  - FOLLOW: each room's pendants follow the sound IN THAT ROOM - a native
+    envelope/onset follower per room (source level x the room's field and its
+    direct share), sent in the scene stream. Arrives 30-50 ms late (30 Hz stream
+    plus a frame), so a hard transient can look a touch behind.
+  - LOCK: pulses on the host's beats from the playhead (BPM + ppq), exact and
+    latency-free, only while the transport runs (FOLLOW otherwise).
+- Export: the per-frame light levels are computed from the take's OWN rendered
+  audio at each frame's time, so a video is exactly in sync.
+- PHOTO mode cannot converge under moving light: pause sync while photo refines,
+  or refine only in silence.
+
+### Cost (measured figures from 260925.1)
+- Native follower: well under 0.1 % of a core (engine is 18-44 %).
+- Messages: one small field in the 30 Hz scene (or a 60 Hz `light` event) - negligible.
+- OFF view: goes from zero idle draws to continuous redraw WHILE SOUND PLAYS -
+  ~0.3 ms GPU and ~0.2-0.6 ms main-thread per frame, i.e. ~2-4 % of one core in
+  the WebView process. Cinematic already redraws continuously: nothing extra.
+- None of it on the audio thread; sync off = exactly today, idle rule intact.
+
+---
+
+## 7. WALL PICTURES - BUILT in 260925.2
+Asked 2026-09-25.
+
+### Design
+- PICTURE: load a JPEG/PNG (a file input in the page works in WebView2); the page
+  downsizes to ~1024 px, sends it to native, which stores it. Place by clicking a
+  wall in the plan or the POV; slide along the wall, set the height.
+- Size: S / M / L / XL presets or a width in cm, aspect kept. Frame: thin black,
+  oak, gilt, unframed canvas.
+- Drawn: a strip on the wall in the plan; textured quad + frame in 3D (a new
+  material kind sampling a per-picture texture), lit, shadowed in cinematic, in
+  the photo path tracer's box model (average albedo), and in exported videos.
+- Stored with the project and presets as embedded JPEG base64 (~100-200 KB each,
+  cap ~8), so a project opens on another machine intact.
+
+### Acoustics, honestly
+- PRINT: visual only - a framed print does essentially nothing audible, and the
+  panel should say so.
+- ACOUSTIC PANEL: the artwork printed on a 5 cm fabric absorber (a real product
+  category), alpha ~0.25/0.60/0.95/1.0/1.0/1.0/1.0 over 125 .. 8k Hz times its
+  area, added into Eyring's A less the wall it covers - same route as the rug.
+
+### Cost
+CPU/audio: none measurable (panels are a constant in A). GPU: one texture per
+picture. Work: half a day to a day with probe checks and a live check.

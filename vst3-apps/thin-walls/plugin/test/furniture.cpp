@@ -272,6 +272,42 @@ int main()
         check (sec / 5.0 < 0.6 && eng->numPathsDropped() == 0, buf, sec / 5.0 * 100.0, 60);
     }
 
+    std::printf ("\n8. acoustic art panels\n");
+    {
+        Params p; p.material[0] = 3; p.door[0] = p.door[1] = p.door[2] = 0;
+        p.src[0].x = 1.8f; p.src[0].y = 1.5f; p.lisX = 4.2f; p.lisY = 3.6f;
+        Params q = p; q.panelArea[0] = 4.0f;                     // four square metres of printed absorber
+        auto e0 = fresh (fs); render (*e0, p, fs, 0.2, impulseAt (0));
+        auto e1 = fresh (fs); render (*e1, q, fs, 0.2, impulseAt (0));
+        float r0[NBAND], r1[NBAND]; e0->roomRt60 (0, r0); e1->roomRt60 (0, r1);
+        const float want = 4.0f * (PANEL_ALPHA[3] - MATERIAL_ALPHA[3][3]);
+        check (std::abs (e1->scene().furnA[0] - want) < 1e-3f, "4 m^2 of panel adds exactly its absorber less the tiles behind it at 1 kHz (m^2)", e1->scene().furnA[0], want);
+        char buf[160]; std::snprintf (buf, sizeof buf, "and the tiled room's RT60 at 1 kHz falls from %.2f s to %.2f s", r0[3], r1[3]);
+        check (r1[3] < 0.85f * r0[3], buf, r1[3], r0[3]);
+        check (e0->scene().furnA[0] == 0.0f, "no panels, nothing added (exactly 0)");
+    }
+
+    std::printf ("\n9. the light follows the sound in each room\n");
+    {
+        Params p; p.door[0] = p.door[1] = p.door[2] = 0;       // LARGE sealed off from the hall
+        p.src[0].x = 2.0f; p.src[0].y = 2.0f; p.lisX = 4.0f; p.lisY = 3.0f;
+        auto eng = fresh (fs);
+        render (*eng, p, fs, 0.5, [] (int) { return 0.0f; });
+        check (eng->lightLevel (0) == 0.0f && eng->lightLevel (2) == 0.0f, "silence: every lamp exactly at rest");
+        // a burst of noise from silence: the onset, then the same noise held
+        auto noise = [] (int i) { unsigned s = (unsigned) i * 2654435761u; return ((s >> 9) / 4194304.0f - 1.0f) * 0.25f; };
+        render (*eng, p, fs, 0.04, noise);
+        const float onset = eng->lightLevel (0);
+        render (*eng, p, fs, 1.5, noise);
+        const float held = eng->lightLevel (0), hall = eng->lightLevel (2);
+        char buf[200]; std::snprintf (buf, sizeof buf, "an onset flashes (%.2f) above the same sound held (%.2f)", onset, held);
+        check (onset > held + 0.15f, buf, onset, held);
+        std::snprintf (buf, sizeof buf, "a held sound still glows (%.2f), in its own room only: the sealed hall reads %.3f", held, hall);
+        check (held > 0.2f && hall < 0.25f * held, buf, held, hall);
+        render (*eng, p, fs, 1.0, [] (int) { return 0.0f; });
+        check (eng->lightLevel (0) < 0.05f, "and it falls back when the sound stops", eng->lightLevel (0), 0.05);
+    }
+
     std::printf ("\n%d checks, %d failed  -  %s\n", checks, failures, failures ? "FAILURES" : "ALL CLEAR");
     return failures ? 1 : 0;
 }

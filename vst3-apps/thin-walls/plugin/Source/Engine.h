@@ -167,6 +167,10 @@ struct FurnSpec
     float scatter;           // equivalent scattering area, m^2
 };
 extern const FurnSpec FURN[NUM_FURN_TYPES];
+/*  An ACOUSTIC PANEL: artwork printed on a 5 cm fabric-wrapped absorber, the
+    real product. Per unit area, in place of the wall it hangs on. A plain PRINT
+    is visual only and never reaches the engine. */
+extern const float PANEL_ALPHA[NBAND];
 
 struct FurnItem
 {
@@ -193,6 +197,8 @@ struct Params
     // the furniture layout: project state, not host parameters
     FurnItem furn[MAX_FURN];
     int nfurn = 0;
+    // acoustic art panels on the walls: their total face area per room, m^2
+    float panelArea[NUM_ROOMS] = { 0, 0, 0 };
 
     Params()
     {
@@ -475,6 +481,7 @@ struct Scene
     float planX[NUM_ROOMS][10] = {}, planY[NUM_ROOMS][10] = {};
     float inDb = -120, outDb = -120, drrDb = 0;
     float furnA[NUM_ROOMS] = {};           // absorption the furniture adds at 1 kHz, m^2 (net: a rug less the floor it covers)
+    float light[NUM_ROOMS] = {};           // 0..1: how much sound is in each room right now (the lamps follow it)
 };
 
 //------------------------------------------------------------------------------
@@ -514,6 +521,8 @@ public:
     int   numSpecs() const { return nspecs; }
     const PathSpec& specAt (int i) const { return specs[(size_t) i]; }
     float roomScatter (int r) const { return furnScatter[r]; }
+    // the light follower's output for room r, 0..1 (what the scene carries as light)
+    float lightLevel (int r) const { return lightOut[r]; }
     static float diffractionDb (float fresnelN);
     static float airDbPerMetre (int band);
     // directivity of a source (dB, <= 0) at cos(theta) off its axis, per band
@@ -578,7 +587,12 @@ private:
     FurnItem lastFurnAc[MAX_FURN]; int lastNfurnAc = -1;
     int furnKeyAc[MAX_FURN] = {}; int furnKeyN = -1;   // type and room per piece: what the Eyring sums depend on
     float furnScatter[NUM_ROOMS] = {};     // the extra scattering coefficient furniture gives each room
-    float furnAbs1k[NUM_ROOMS] = {};       // what the furniture adds to A at 1 kHz, measured the engine's own way
+    float furnAbs1k[NUM_ROOMS] = {};
+    float panelAreaAc[NUM_ROOMS] = { -1, -1, -1 };
+    // the light follower: fast and slow envelopes per room, field energy gathered by tickFields
+    float lightFast[NUM_ROOMS] = {}, lightSlow[NUM_ROOMS] = {}, lightOut[NUM_ROOMS] = {};
+    double fieldAcc[NUM_ROOMS] = {};
+    void updateLight (int n);       // what the furniture adds to A at 1 kHz, measured the engine's own way
     float furnScatterDb[NUM_ROOMS] = {};   // 10 log10 (1 - that), added per wall bounce (exactly 0 with none)
     float wallTau[3][NBAND] = {};          // per room pair (0-1, 0-2, 1-2)
 
