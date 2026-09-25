@@ -1,0 +1,6 @@
+[
+  { "name": "settle", "wait": 4500 },
+  { "name": "face source 2 (off)", "eval": "(function(){ var b = window.__JUCE__.backend; b.emitEvent('tw', { k:'p', id:'lisx', v: 4.2/18 }); b.emitEvent('tw', { k:'p', id:'lisy', v: 2.2/9 }); b.emitEvent('tw', { k:'p', id:'lisyaw', v: 206/360 }); b.emitEvent('tw', { k:'p', id:'s2in', v: 0 }); return 'ok'; })()" },
+  { "name": "wait", "wait": 2500 },
+  { "name": "shot", "shoot": "C:/Users/peter/AppData/Local/Temp/claude/dw/solid.png" }
+]

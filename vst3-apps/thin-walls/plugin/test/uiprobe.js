@@ -1180,6 +1180,8 @@ const DRIVER = `
         "and a list that shrinks again takes the selector back with it",
         back.length + " options [" + back.join(",") + "]");
 
+    furnitureChecks();
+
     /*  Back to where the rest of the gate expects to find things, and drawn
         once so nothing is owed - otherwise the idle checks below would be
         measuring this block instead of the page. */
@@ -1189,8 +1191,520 @@ const DRIVER = `
       fireScenes(1, -10);              /* past the 100 ms window: allowed again */
       chk(TW.pending === true, "past 100 ms the glow may redraw again", "booked " + TW.pending);
       TW.render();
-      idleCheck();
+      cineAndExportChecks(idleCheck);
     }, 160);
+  }
+
+  /* --- 19 cinematic mode and the video export (protocol 7 and 8) --------- */
+  /*  Everything here drives the page's own buttons and answers exactly as
+      native would; the export is checked on the JPEGs themselves, decoded, not
+      on the fact that some string was sent. No backslash may appear in this
+      block: it lives inside a template literal. */
+  function cineAndExportChecks(done){
+    var TWc = window.__TW;
+    var bC = document.getElementById("bCine"), qC = document.getElementById("cineQ");
+    chk(!!bC && !!qC && !!bC.getAttribute("data-tip") && !!qC.getAttribute("data-tip"),
+        "the CINEMATIC toggle and its quality are in the header, both hinted");
+    /* REC and EXPORT live in the header, always on screen, and fit it */
+    var topEl = document.getElementById("top");
+    var hdr = ["bCine", "cineQ", "bRec", "recTime", "bExpOpen"].map(function (id){ return document.getElementById(id); });
+    var hdrBad = [];
+    hdr.forEach(function (e, k){
+      if (!e){ hdrBad.push("missing " + k); return; }
+      var q = e.getBoundingClientRect();
+      if (!topEl.contains(e)) hdrBad.push(e.id + " not in header");
+      if (q.width < 8 || q.height < 8 || q.left < 0 || q.right > window.innerWidth || q.top < 0) hdrBad.push(e.id + " off screen");
+      if (!e.getAttribute("data-tip")) hdrBad.push(e.id + " no hint");
+    });
+    chk(hdrBad.length === 0 && topEl.scrollWidth <= topEl.clientWidth + 1,
+        "REC, its time and EXPORT sit in the header beside CINEMATIC, on screen and hinted",
+        (hdrBad.join(", ") || "all five") + "; header " + topEl.scrollWidth + "/" + topEl.clientWidth);
+    var pop = document.getElementById("expPop");
+    chk(!!pop && pop.hidden, "the export panel starts closed");
+    document.getElementById("bExpOpen").click();
+    var pr = pop.getBoundingClientRect(), tr = topEl.getBoundingClientRect();
+    var inner = ["expRes", "expFps", "expPic", "bInset", "bExport", "bReveal", "expBar", "expNote"];
+    var popBad = [];
+    inner.forEach(function (id){
+      var e = document.getElementById(id);
+      if (!e || !pop.contains(e)){ popBad.push(id + " not in panel"); return; }
+      var q = e.getBoundingClientRect();
+      if (q.width < 4 || q.height < 3 || q.left < pr.left - 1 || q.right > pr.right + 1 || q.bottom > pr.bottom + 1) popBad.push(id + " clipped");
+      if (id !== "expBar" && !e.getAttribute("data-tip")) popBad.push(id + " no hint");
+    });
+    chk(!pop.hidden && popBad.length === 0 && pr.left >= 0 && pr.right <= window.innerWidth && pr.top >= tr.bottom - 1 &&
+        pr.bottom <= window.innerHeight && pop.scrollWidth <= pop.clientWidth + 1 && pop.scrollHeight <= pop.clientHeight + 1,
+        "EXPORT opens a panel under the header holding every option, fully on screen and hinted",
+        (popBad.join(", ") || "8 controls") + "; panel " + Math.round(pr.left) + "," + Math.round(pr.top) + " " + Math.round(pr.width) + "x" + Math.round(pr.height));
+    var er = document.getElementById("expRes"), eq = er.getBoundingClientRect();
+    er.dispatchEvent(new PointerEvent("pointerover", { bubbles:true, clientX:eq.left + 2, clientY:eq.top + 2 }));
+    var tipEl2 = document.getElementById("tip"), tq = tipEl2.getBoundingClientRect();
+    chk(!tipEl2.hidden && (tq.right <= eq.left || tq.left >= eq.right || tq.bottom <= eq.top || tq.top >= eq.bottom),
+        "a hint in the panel does not cover its control");
+    tipEl2.hidden = true;
+    document.getElementById("status").dispatchEvent(new PointerEvent("pointerdown", { bubbles:true }));
+    chk(pop.hidden && !document.getElementById("bExpOpen").classList.contains("on"), "a click elsewhere closes the panel");
+
+    var c0 = TWc.cine();
+    chk(c0.on === false && c0.stored === null, "cinematic is off on a fresh profile", JSON.stringify(c0));
+
+    function povHash(){
+      var cv = document.getElementById("pov");
+      var off = document.createElement("canvas"); off.width = cv.width; off.height = cv.height;
+      var c = off.getContext("2d"); c.drawImage(cv, 0, 0);
+      var d = c.getImageData(0, 0, off.width, off.height).data, h = 0, n = 0;
+      for (var i = 0; i < d.length; i += 4){ h = (h * 31 + d[i] * 3 + d[i+1] * 5 + d[i+2] * 7) % 1000000007; if (d[i] + d[i+1] + d[i+2] > 30) n++; }
+      return { h:h, lit:n / (d.length / 4) };
+    }
+    TWc.render();
+    var before = povHash();
+
+    /*  The OFF shader's bump heights run in ONE loop now (it cut the D3D
+        compile from 7 s to 2 s). Proven here, not asserted: the old three-call
+        form is rebuilt from the live source, drawn at the same camera, and the
+        two pictures must hash the same. */
+    var fsNow = TWc.fsSource();
+    var LOOP0 = "  float hs[3];", LOOP1 = "  float h0=hs[0], hx=hs[1], hy=hs[2];";
+    var i0 = fsNow.indexOf(LOOP0), i1 = fsNow.indexOf(LOOP1);
+    var legacy = (i0 > 0 && i1 > i0) ? fsNow.slice(0, i0) +
+      "  float h0=hgt(vUV,m,k), hx=hgt(vUV+vec2(e,0.0),m,k), hy=hgt(vUV+vec2(0.0,e),m,k);" +
+      fsNow.slice(i1 + LOOP1.length) : "";
+    var sw1 = legacy ? TWc.swapFS(legacy) : "no loop in FS";
+    TWc.render();
+    var old = povHash();
+    var sw2 = TWc.swapFS(null);
+    TWc.render();
+    var back = povHash();
+    chk(sw1 === "ok" && sw2 === "ok" && legacy.indexOf("j<uHN") < 0 && fsNow.indexOf("j<uHN") > 0 &&
+        old.h === before.h && back.h === before.h,
+        "the looped bump in the OFF shader draws exactly the picture the old three-call form drew",
+        sw1 + "/" + sw2 + ", hash old " + old.h + ", loop " + before.h + ", again " + back.h);
+    bC.click();
+    var on = TWc.cine();
+    var stOn = null; try { stOn = JSON.parse(on.stored); } catch(e){}
+    chk(on.on === true && stOn && stOn.on === true && bC.classList.contains("on"),
+        "the toggle turns it on and remembers it", on.stored);
+    bC.click();
+    var off = TWc.cine();
+    var stOff = null; try { stOff = JSON.parse(off.stored); } catch(e){}
+    chk(off.on === false && stOff && stOff.on === false && !bC.classList.contains("on"),
+        "and off again, remembered as off", off.stored);
+    TWc.render();
+    var after = povHash();
+    chk(before.lit > 0.3 && before.h === after.h,
+        "with it off the 3D view is the same picture, pixel for pixel",
+        "lit " + (before.lit * 100).toFixed(0) + "%, hash " + before.h + " / " + after.h);
+
+    /* --- recording */
+    function sentAfter(mark, kind){ return window.__sent.slice(mark).filter(function (s){ return s.msg && s.msg.k === kind; }); }
+    var bR = document.getElementById("bRec"), bE = document.getElementById("bExport");
+    window.__fire("rec", { state:"idle", sec:0, max:240, progress:0, file:"", text:"" });
+    chk(!!bR && !!bE && bE.disabled && /record a take/i.test(document.getElementById("expNote").textContent),
+        "EXPORT is disabled with a reason until there is a take", document.getElementById("expNote").textContent);
+    var m0 = window.__sent.length;
+    bR.click();
+    chk(sentAfter(m0, "recStart").length === 1, "RECORD sends recStart");
+    window.__fire("rec", { state:"recording", sec:1.25, max:240, progress:0 });
+    setTimeout(function (){
+      var cams = sentAfter(m0, "recCam");
+      var last = cams.length ? cams[cams.length - 1].msg : null;
+      chk(cams.length >= 3 && last && last.t === 1.25 && typeof last.pitch === "number" && typeof last.fov === "number",
+          "while recording the page streams recCam with the latest rec.sec", cams.length + " sent, last " + JSON.stringify(last));
+      chk(/0:01/.test(document.getElementById("recTime").textContent) && bR.classList.contains("on"),
+          "the running time shows and RECORD reads as on", document.getElementById("recTime").textContent);
+      var m1 = window.__sent.length;
+      bR.click();
+      chk(sentAfter(m1, "recStop").length === 1, "pressing it again sends recStop");
+      window.__fire("rec", { state:"ready", sec:3.2, max:240, progress:0 });
+      var n1 = sentAfter(m0, "recCam").length;
+      setTimeout(function (){
+        chk(sentAfter(m0, "recCam").length === n1, "recCam stops when the take stops", n1 + " -> " + sentAfter(m0, "recCam").length);
+        chk(!bE.disabled, "EXPORT is enabled once a take is held");
+        exportChecks(done);
+      }, 200);
+    }, 260);
+  }
+
+  function exportChecks(done){
+    var TWx = window.__TW;
+    TWx.setParam("lisx", 0.25); TWx.setParam("lisy", 0.2778); TWx.setParam("lisyaw", 0.5);
+    TWx.setFurn([{ t:"sofa", x:2.2, y:4.4, yaw:180 }]);
+    TWx.render();
+    var liveState = JSON.stringify(TWx.state()), liveFurn = JSON.stringify(TWx.furn()), livePF = JSON.stringify(TWx.pitchFov);
+    var mark = window.__sent.length;
+    document.getElementById("bExport").click();
+    var begins = window.__sent.slice(mark).filter(function (s){ return s.msg.k === "vidBegin"; });
+    chk(begins.length === 1 && begins[0].msg.w === 1280 && begins[0].msg.h === 720 && begins[0].msg.fps === 30,
+        "EXPORT sends vidBegin at the chosen size and rate", begins.length ? JSON.stringify(begins[0].msg) : "none");
+    var modal = document.getElementById("expModal");
+    chk(!!modal && !modal.hidden, "a modal covers the panel while it exports");
+    var ids = PARAMS.map(function (p){ return p[0]; });
+    var base = PARAMS.map(function (p){ return p[2]; });
+    var ix = ids.indexOf("lisx"), iy = ids.indexOf("lisy"), iw = ids.indexOf("lisyaw");
+    var frames = [4.5, 6.0, 7.5].map(function (x){
+      var r = base.slice(); r[ix] = x / 18; r[iy] = 2.5 / 9; r[iw] = 0; return r;
+    });
+    window.__fire("vidPlan", { fps:30, n:3, seconds:0.1, w:64, h:36, ids:ids, frames:frames,
+      furn:[{ f:0, items:[{ t:"piano", x:10, y:6, yaw:20 }] }],
+      cam:[{ t:0, pitch:-5, fov:70 }, { t:0.1, pitch:5, fov:60 }] });
+    var r = modal.getBoundingClientRect();
+    var hitEl = document.elementFromPoint(r.left + 20, r.top + 20);
+    chk(!!hitEl && modal.contains(hitEl), "while exporting a click lands on the modal, not on a control");
+    var acked = 0, ahead = false, jpgs = [], t0 = Date.now();
+    function poll(){
+      var fr = window.__sent.slice(mark).filter(function (s){ return s.msg.k === "vidFrame"; });
+      if (fr.length > acked + 1) ahead = true;
+      if (fr.length > acked){
+        var m = fr[acked].msg;
+        jpgs.push(m);
+        window.__fire("vidAck", { i:m.i });
+        acked++;
+      }
+      var ends = window.__sent.slice(mark).filter(function (s){ return s.msg.k === "vidEnd"; });
+      if (ends.length || Date.now() - t0 > 6000) return finish();
+      setTimeout(poll, 15);
+    }
+    function finish(){
+      var slice = window.__sent.slice(mark);
+      var fr = slice.filter(function (s){ return s.msg.k === "vidFrame"; });
+      var endAt = -1, lastFrameAt = -1;
+      slice.forEach(function (s, k){ if (s.msg.k === "vidEnd") endAt = k; if (s.msg.k === "vidFrame") lastFrameAt = k; });
+      chk(fr.length === 3 && !ahead && fr.map(function (s){ return s.msg.i; }).join(",") === "0,1,2",
+          "exactly three frames, 0 1 2, and never one before the last was acknowledged",
+          fr.length + " frames, ahead " + ahead);
+      chk(endAt > lastFrameAt && endAt >= 0, "vidEnd follows the last frame");
+      var bad = slice.filter(function (s){ return s.msg.k === "p" || s.msg.k === "furn" || s.msg.k === "touch"; });
+      chk(bad.length === 0, "the export sends no p, furn or touch - the live instrument is left alone",
+          bad.length ? JSON.stringify(bad[0].msg) : "0");
+      chk(jpgs.every(function (m){ return typeof m.jpg === "string" && m.jpg.length > 100 && m.jpg.indexOf("data:") !== 0; }),
+          "each frame is base64 JPEG without a data: prefix");
+      window.__fire("rec", { state:"done", sec:3.2, max:240, progress:1, file:"C:/Users/x/Documents/Thin Walls videos/take.mp4", text:"video written" });
+      var sameV = JSON.stringify(TWx.state()) === liveState, sameF = JSON.stringify(TWx.furn()) === liveFurn,
+          sameC = JSON.stringify(TWx.pitchFov) === livePF;
+      chk(sameV && sameF && sameC && !TWx.exporting && modal.hidden,
+          "afterwards the live values, furniture and camera are exactly as they were",
+          "values " + sameV + ", furniture " + sameF + ", camera " + sameC + ", exporting " + TWx.exporting + ", modal hidden " + modal.hidden);
+      chk(/take.mp4/.test(document.getElementById("expNote").textContent) && !document.getElementById("bReveal").disabled,
+          "when native says done the file name shows and REVEAL is live", document.getElementById("expNote").textContent);
+      var mr = window.__sent.length; document.getElementById("bReveal").click();
+      chk(window.__sent.slice(mr).some(function (s){ return s.msg.k === "reveal"; }), "REVEAL sends reveal");
+      var imgs = [], left = jpgs.length;
+      jpgs.forEach(function (m, k){
+        var im = new Image();
+        im.onload = im.onerror = function (){ imgs[k] = im; if (--left === 0) decoded(); };
+        im.src = "data:image/jpeg;base64," + m.jpg;
+      });
+      if (!jpgs.length) decoded();
+      function px(im){
+        var c = document.createElement("canvas"); c.width = 64; c.height = 36;
+        var g = c.getContext("2d"); g.drawImage(im, 0, 0);
+        return g.getImageData(0, 0, 64, 36).data;
+      }
+      function decoded(){
+        var sizes = imgs.map(function (im){ return im ? im.naturalWidth + "x" + im.naturalHeight : "none"; });
+        chk(imgs.length === 3 && sizes.every(function (s){ return s === "64x36"; }),
+            "every frame decodes as a JPEG of exactly the planned size", sizes.join(" "));
+        if (imgs.length === 3 && sizes[0] === "64x36"){
+          var d0 = px(imgs[0]), d2 = px(imgs[2]);
+          var s = 0, s2 = 0, n = 0, diff = 0;
+          for (var i = 0; i < d0.length; i += 4){
+            var L = (d0[i] + d0[i+1] + d0[i+2]) / 3; s += L; s2 += L * L; n++;
+            diff += Math.abs(d0[i] - d2[i]) + Math.abs(d0[i+1] - d2[i+1]) + Math.abs(d0[i+2] - d2[i+2]);
+          }
+          var mean = s / n, sd = Math.sqrt(Math.max(0, s2 / n - mean * mean));
+          chk(sd > 6 && mean > 8, "the first frame is a real picture, not a flat fill", "mean " + mean.toFixed(1) + ", sd " + sd.toFixed(1));
+          chk(diff / (n * 3) > 4, "frame 0 at 4.5 m and frame 2 at 7.5 m are different pictures",
+              "mean abs difference " + (diff / (n * 3)).toFixed(1));
+        }
+        TWx.render();
+        done();
+      }
+    }
+    poll();
+  }
+
+  /* --- 18 furniture ----------------------------------------------------- */
+  /*  Protocol section 6. Every check drives the page's OWN path - the tray,
+      the plan's pointer handlers, the buttons, the keys, the native events -
+      and reads the evidence back out of what was SENT, what the plan DREW and
+      what the 3D view was BUILT from. A layout that merely changed in memory
+      would pass a check that only asked __TW.furn(). */
+  function furnitureChecks(){
+    var TWf = window.__TW;
+    function fmsgs(){ return sentOf("furn"); }
+    function lastF(){ var a = fmsgs(); return a.length ? a[a.length - 1].msg : null; }
+    function near(a, b, tol){ return Math.abs(a - b) < tol; }
+    TWf.setFurn([]);
+    TWf.render();
+
+    /* the tray: ten pieces in catalogue order, each with ink in its icon */
+    var items = document.querySelectorAll("[data-furn-item]");
+    var ids = Array.prototype.map.call(items, function (b){ return b.getAttribute("data-furn-item"); });
+    var iconInk = Array.prototype.map.call(items, function (b){
+      var cv = b.querySelector("canvas");
+      if (!cv || !cv.width) return 0;
+      var d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data, n = 0;
+      for (var i = 3; i < d.length; i += 4) if (d[i] > 100) n++;
+      return n;
+    });
+    var WANT = "sofa,armchair,bed,rug,curtain,bookcase,table,piano,wardrobe,person";
+    chk(items.length === 10 && ids.join(",") === WANT &&
+        iconInk.every(function (n){ return n > 25; }),
+        "the tray offers the ten pieces, each with a drawn icon",
+        items.length + " [" + ids.join(",") + "], icon ink " + iconInk.join("/"));
+
+    /* every furniture control carries a hint */
+    var grp = document.getElementById("grpFurn");
+    var fctl = grp ? grp.querySelectorAll("button,input,select,[data-furn],[data-furn-item]") : [];
+    var fbare = Array.prototype.filter.call(fctl, function (e){
+      return !(e.getAttribute("data-tip") || "").trim();
+    }).map(function (e){ return e.getAttribute("data-furn") || e.getAttribute("data-furn-item") || e.tagName; });
+    chk(!!grp && fctl.length >= 17 && fbare.length === 0,
+        "every furniture control carries a hint",
+        fctl.length + " controls, bare: " + (fbare.join(",") || "none"));
+
+    /* arm the sofa in the tray and click the plan */
+    var f0 = fmsgs().length;
+    document.querySelector('[data-furn-item="sofa"]').click();
+    var armed = TWf.furnArmed;
+    var at = w2s(2.0, 3.8);
+    plan.dispatchEvent(new PointerEvent("pointerdown", { bubbles:true, pointerId:31, button:0, buttons:1, clientX:at[0], clientY:at[1] }));
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles:true, pointerId:31, buttons:0, clientX:at[0], clientY:at[1] }));
+    var L = lastF();
+    chk(armed === "sofa" && fmsgs().length > f0 && L && L.items.length === 1 && L.items[0].t === "sofa" &&
+        near(L.items[0].x, 2.0, 0.03) && near(L.items[0].y, 3.8, 0.03) &&
+        TWf.furnArmed === null && TWf.furnSel === 0,
+        "arming the sofa and clicking the plan sets it down there and sends the layout",
+        "armed " + armed + ", furn messages " + (fmsgs().length - f0) + ", sent " + JSON.stringify(L && L.items));
+
+    /* the plan really draws it: the sofa's own footprint on the paper differs
+       from the same paper with nothing on it, and the plan says what it drew */
+    function planRegion(x0, y0, x1, y1){
+      var k = plan.width / plan.clientWidth, f = TWf.planFit();
+      var X0 = Math.round((f.ox + x0 * f.s) * k), X1 = Math.round((f.ox + x1 * f.s) * k);
+      var Y0 = Math.round((f.oy + (9 - y1) * f.s) * k), Y1 = Math.round((f.oy + (9 - y0) * f.s) * k);
+      var off = document.createElement("canvas");
+      off.width = plan.width; off.height = plan.height;
+      var c = off.getContext("2d");
+      c.drawImage(plan, 0, 0);
+      return c.getImageData(X0, Y0, Math.max(1, X1 - X0), Math.max(1, Y1 - Y0)).data;
+    }
+    TWf.render();
+    var regWith = planRegion(1.1, 3.45, 2.9, 4.15), drew = TWf.planFurn();
+    var kept = TWf.furn();
+    TWf.setFurn([]); TWf.render();
+    var regWithout = planRegion(1.1, 3.45, 2.9, 4.15), drewNone = TWf.planFurn();
+    var planMoved = sigMoved(regWith, regWithout);
+    chk(drew.join(",") === "sofa" && drewNone.length === 0 && planMoved > 30,
+        "the sofa's footprint is drawn on the plan",
+        "plan drew [" + drew.join(",") + "], footprint pixels changed " + planMoved.toFixed(1) + "%");
+
+    /*  Every piece's top view stays inside its own footprint - the engine's
+        box. A drawing that spills past it misplaces the thing on the paper,
+        and the first piano keyboard ran a metre past its own case without any
+        other check noticing. Each piece alone, turned 20 degrees, unselected:
+        pixels that changed from the empty sheet are counted OUTSIDE the
+        footprint (grown by 3 cm and two pixels for the outline stroke) and INSIDE it. */
+    function spill(t){
+      var P = { x:12.0, y:4.5, yaw:20 };
+      var cat = TWf.furnCat().filter(function (c){ return c.id === t; })[0];
+      var k = plan.width / plan.clientWidth, f = TWf.planFit();
+      var R = Math.hypot(cat.w, cat.d) / 2 + 0.6;
+      var X0 = Math.round((f.ox + (P.x - R) * f.s) * k), X1 = Math.round((f.ox + (P.x + R) * f.s) * k);
+      var Y0 = Math.round((f.oy + (9 - P.y - R) * f.s) * k), Y1 = Math.round((f.oy + (9 - P.y + R) * f.s) * k);
+      function grab(){
+        var off = document.createElement("canvas");
+        off.width = plan.width; off.height = plan.height;
+        var c = off.getContext("2d"); c.drawImage(plan, 0, 0);
+        return c.getImageData(X0, Y0, X1 - X0, Y1 - Y0).data;
+      }
+      TWf.setFurn([]); TWf.render();
+      var empty = grab();
+      TWf.setFurn([{ t:t, x:P.x, y:P.y, yaw:P.yaw }]); TWf.selectFurn(-1); TWf.render();
+      var full = grab();
+      var a = P.yaw * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+      /*  the outline's own stroke and its antialiasing are a couple of PIXELS
+          whatever the scale, so part of the allowance is in pixels */
+      var g = 0.03 + 2 / f.s;
+      var outN = 0, inN = 0, W = X1 - X0;
+      for (var i = 0; i < full.length; i += 4){
+        if (Math.abs(full[i]-empty[i]) + Math.abs(full[i+1]-empty[i+1]) + Math.abs(full[i+2]-empty[i+2]) < 30) continue;
+        var px = (i / 4) % W, py = Math.floor(i / 4 / W);
+        var wx = ((X0 + px + 0.5) / k - f.ox) / f.s, wy = 9 - ((Y0 + py + 0.5) / k - f.oy) / f.s;
+        var dx = wx - P.x, dy = wy - P.y;
+        var lx = dx * ca + dy * sa, ly = -dx * sa + dy * ca;
+        if (Math.abs(lx) <= cat.w / 2 + g && Math.abs(ly) <= cat.d / 2 + g) inN++; else outN++;
+      }
+      return { out:outN, inside:inN };
+    }
+    var spills = [], spillTxt = [];
+    TWf.furnCat().forEach(function (c){
+      var r = spill(c.id);
+      spillTxt.push(c.id + " " + r.inside + "/" + r.out);
+      if (r.out > 0 || r.inside < 40) spills.push(c.id);
+    });
+    TWf.setFurn([]); TWf.render();       /* the 3D check below starts from an empty room */
+    chk(spills.length === 0,
+        "every piece's plan drawing lies inside its own footprint, and is drawn at all",
+        (spills.length ? "SPILLS: " + spills.join(",") + "  " : "") + "inside/outside " + spillTxt.join(", "));
+
+    /* and the 3D view is built with it, and shows it */
+    TWf.setParam("lisx", 4.5/18); TWf.setParam("lisy", 2.5/9);
+    TWf.setParam("lisyaw", (Math.atan2(3.8 - 2.5, 2.0 - 4.5) * 180 / Math.PI) / 360);
+    TWf.render();
+    var v0 = TWf.verts, povNone = povSig();
+    TWf.setFurn(kept); TWf.selectFurn(0); TWf.render();
+    var v1 = TWf.verts, povSofa = povSig();
+    chk(v1 - v0 > 300 && sigMoved(povNone, povSofa) > 2,
+        "the 3D mesh grows with the sofa and the view shows it",
+        "vertices " + v0 + " -> " + v1 + ", view changed " + sigMoved(povNone, povSofa).toFixed(2) + "%");
+
+    /* drag it */
+    var b4 = TWf.furn()[0], fn = fmsgs().length;
+    planDrag(b4.x, b4.y, b4.x - 0.6, b4.y - 0.5);
+    var af = TWf.furn()[0], L2 = lastF();
+    chk(near(af.x, b4.x - 0.6, 0.05) && near(af.y, b4.y - 0.5, 0.05) && fmsgs().length > fn &&
+        L2 && near(L2.items[0].x, af.x, 0.002) && near(L2.items[0].y, af.y, 0.002),
+        "dragging a piece in the plan moves it and the release sends where it ended",
+        b4.x.toFixed(2) + "," + b4.y.toFixed(2) + " -> " + af.x.toFixed(2) + "," + af.y.toFixed(2) +
+        ", last sent " + (L2 ? L2.items[0].x + "," + L2.items[0].y : "none"));
+
+    /* a burst of moves in one tick is throttled, and the final state still goes */
+    var pa = w2s(af.x, af.y), n0 = fmsgs().length;
+    plan.dispatchEvent(new PointerEvent("pointerdown", { bubbles:true, pointerId:32, button:0, buttons:1, clientX:pa[0], clientY:pa[1] }));
+    for (var mv = 1; mv <= 12; mv++)
+      window.dispatchEvent(new PointerEvent("pointermove", { bubbles:true, pointerId:32, buttons:1, clientX:pa[0] + mv * 3, clientY:pa[1] }));
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles:true, pointerId:32, buttons:0, clientX:pa[0] + 36, clientY:pa[1] }));
+    var burst = fmsgs().length - n0, fin = lastF(), now3 = TWf.furn()[0];
+    chk(burst >= 1 && burst <= 3 && fin && near(fin.items[0].x, now3.x, 0.002),
+        "twelve moves in one tick send at most three layouts, the last one final",
+        burst + " furn messages, final x " + (fin ? fin.items[0].x : "-") + " vs " + now3.x.toFixed(3));
+
+    /* turn it by its handle: dragged due east of the centre, the front
+       faces east, so the yaw is 270 */
+    var cen = TWf.furn()[0], hnd = TWf.furnHandle(0);
+    planDrag(hnd[0], hnd[1], cen.x + 1.3, cen.y);
+    var yawH = TWf.furn()[0].yaw;
+    /* then the buttons and the fader */
+    document.querySelector('[data-furn="rotp"]').click();
+    var yawP = TWf.furn()[0].yaw;
+    document.querySelector('[data-furn="rotm"]').click();
+    document.querySelector('[data-furn="rotm"]').click();
+    var yawM = TWf.furn()[0].yaw;
+    var tsl = document.querySelector('[data-furn="turn"]');
+    tsl.value = "100";
+    tsl.dispatchEvent(new Event("input", { bubbles:true }));
+    tsl.dispatchEvent(new Event("change", { bubbles:true }));
+    var yawS = TWf.furn()[0].yaw, L3 = lastF();
+    chk(near(yawH, 270, 0.01) && near(yawP, 285, 0.01) && near(yawM, 255, 0.01) && near(yawS, 100, 0.01) &&
+        L3 && near(L3.items[0].yaw, 100, 0.05),
+        "the turn handle, the 15 degree buttons and the fader all turn it, and the turn is sent",
+        "handle " + yawH + ", +15 " + yawP + ", -15 -15 " + yawM + ", fader " + yawS +
+        ", sent " + (L3 ? L3.items[0].yaw : "-"));
+
+    /* duplicate, then Delete while the plan has the pointer */
+    document.querySelector('[data-furn="dup"]').click();
+    var nDup = TWf.furn().length, selDup = TWf.furnSel;
+    plan.dispatchEvent(new PointerEvent("pointerenter", { bubbles:false, pointerId:33, clientX:pa[0], clientY:pa[1] }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key:"Delete", bubbles:true, cancelable:true }));
+    var nDel = TWf.furn().length, L4 = lastF();
+    chk(nDup === 2 && selDup === 1 && nDel === 1 && L4 && L4.items.length === 1 && TWf.furnSel === -1,
+        "DUPLICATE adds a second piece and Delete over the plan removes the selected one",
+        "after duplicate " + nDup + " (selected " + selDup + "), after Delete " + nDel +
+        ", last sent " + (L4 ? L4.items.length : "-") + " items");
+    TWf.selectFurn(0);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key:"Escape", bubbles:true, cancelable:true }));
+    chk(TWf.furnSel === -1, "Escape lets go of the selection", "selected " + TWf.furnSel);
+
+    /* drag a piece straight out of the tray onto the plan */
+    var tb = document.querySelector('[data-furn-item="armchair"]').getBoundingClientRect();
+    var drop = w2s(12.0, 4.5), nT = fmsgs().length;
+    document.querySelector('[data-furn-item="armchair"]').dispatchEvent(new PointerEvent("pointerdown",
+      { bubbles:true, pointerId:34, button:0, buttons:1, clientX:tb.left + 8, clientY:tb.top + 8 }));
+    window.dispatchEvent(new PointerEvent("pointermove", { bubbles:true, pointerId:34, buttons:1, clientX:tb.left + 40, clientY:tb.top - 60 }));
+    window.dispatchEvent(new PointerEvent("pointermove", { bubbles:true, pointerId:34, buttons:1, clientX:drop[0], clientY:drop[1] }));
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles:true, pointerId:34, buttons:0, clientX:drop[0], clientY:drop[1] }));
+    var tl = TWf.furn(), ta = tl[tl.length - 1];
+    chk(tl.length === 2 && ta.t === "armchair" && near(ta.x, 12.0, 0.05) && near(ta.y, 4.5, 0.05) &&
+        TWf.furnRoom(1) === 2 && fmsgs().length > nT,
+        "dragging a piece from the tray onto the plan sets it down where it is dropped",
+        tl.length + " pieces, last " + (ta ? ta.t + " at " + ta.x.toFixed(2) + "," + ta.y.toFixed(2) + " room " + TWf.furnRoom(1) : "-"));
+
+    /* the centre is kept inside a room and the footprint inside its walls */
+    TWf.setFurn([{ t:"bed", x:5.9, y:0.1, yaw:0 }]);
+    var bc = TWf.furn()[0];
+    planDrag(bc.x, bc.y, 1.5, 7.5);          /* into the solid block: nobody's room */
+    var bd = TWf.furn()[0];
+    chk(bd.x - 1.025 >= -0.001 && bd.x + 1.025 <= 6.001 && bd.y - 0.8 >= -0.001 && bd.y + 0.8 <= 8.501 &&
+        !(bd.x < 3 && bd.y > 5),
+        "a piece dragged into solid ground or into a wall stays whole inside a room",
+        "bed at " + bd.x.toFixed(2) + "," + bd.y.toFixed(2) + " (room " + TWf.furnRoom(0) + ")");
+
+    /* a native furn event replaces the layout, drops what it does not know,
+       and sends nothing back */
+    var fb = fmsgs().length;
+    window.__fire("furn", { items:[{ t:"bed", x:4.6, y:7.6, yaw:0 }, { t:"piano", x:11.5, y:5.5, yaw:20 },
+                                   { t:"hovercraft", x:1, y:1, yaw:0 }] });
+    var got = TWf.furn();
+    chk(got.length === 2 && got[0].t === "bed" && got[1].t === "piano" && fmsgs().length === fb &&
+        TWf.furnRoom(0) === 1 && TWf.furnRoom(1) === 2,
+        "a furn event replaces the layout, drops an unknown piece and echoes nothing",
+        got.map(function (q){ return q.t; }).join(",") + ", furn sent back " + (fmsgs().length - fb));
+
+    /* CLEAR ALL asks once */
+    var clr = document.querySelector('[data-furn="clear"]');
+    clr.click();
+    var one = TWf.furn().length, warned = clr.classList.contains("warn");
+    clr.click();
+    var two = TWf.furn().length, L5 = lastF();
+    chk(one === 2 && warned && two === 0 && L5 && L5.items.length === 0,
+        "CLEAR ALL asks first and clears on the second click",
+        "after one click " + one + " (warning " + warned + "), after two " + two);
+
+    /* walking into a sofa is blocked; walking over a rug is not */
+    function walkNorth(){
+      TWf.setParam("lisx", 3.0/18); TWf.setParam("lisy", 1.0/9); TWf.setParam("lisyaw", 90/360);
+      press("w", 18);
+      return TWf.state().lisy * 9;
+    }
+    TWf.setFurn([]);
+    var yFree = walkNorth();
+    TWf.setFurn([{ t:"sofa", x:3.0, y:2.5, yaw:0 }]);
+    var ySofa = walkNorth();
+    TWf.setFurn([{ t:"rug", x:3.0, y:2.5, yaw:0 }]);
+    var yRug = walkNorth();
+    chk(yFree > 2.0 && ySofa < 1.84 && ySofa > 1.4 && yRug > 2.0,
+        "walking into a sofa is blocked, walking over a rug is not",
+        "free reached y " + yFree.toFixed(2) + ", sofa stopped at " + ySofa.toFixed(2) + ", rug reached " + yRug.toFixed(2));
+
+    /* the catalogue and the layout from initialState, and the readout that
+       reports the engine's own absorption and RT60 for your room */
+    var CAT = [
+      { id:"sofa", name:"SOFA", w:2.10, d:0.90, h:0.85, zb:0, zt:0.85, occludes:1, reflectTop:0, absorb1k:1.70 },
+      { id:"armchair", name:"ARMCHAIR", w:0.85, d:0.85, h:0.90, zb:0, zt:0.90, occludes:1, reflectTop:0, absorb1k:0.70 },
+      { id:"bed", name:"BED", w:2.05, d:1.60, h:0.55, zb:0, zt:0.55, occludes:1, reflectTop:0, absorb1k:2.60 },
+      { id:"rug", name:"RUG", w:2.40, d:1.70, h:0.02, zb:0, zt:0.02, occludes:0, reflectTop:0, absorb1k:0.90 },
+      { id:"curtain", name:"CURTAIN", w:2.40, d:0.15, h:2.50, zb:0, zt:2.50, occludes:0, reflectTop:0, absorb1k:3.00 },
+      { id:"bookcase", name:"BOOKCASE", w:1.00, d:0.35, h:2.00, zb:0, zt:2.00, occludes:1, reflectTop:0, absorb1k:0.60 },
+      { id:"table", name:"TABLE", w:1.60, d:0.90, h:0.75, zb:0.71, zt:0.75, occludes:1, reflectTop:1, absorb1k:0.10 },
+      { id:"piano", name:"GRAND PIANO", w:2.10, d:1.50, h:1.00, zb:0.35, zt:1.00, occludes:1, reflectTop:1, absorb1k:0.30 },
+      { id:"wardrobe", name:"WARDROBE", w:1.20, d:0.60, h:2.10, zb:0, zt:2.10, occludes:1, reflectTop:0, absorb1k:0.50 },
+      { id:"person", name:"PERSON", w:0.50, d:0.30, h:1.75, zb:0, zt:1.75, occludes:1, reflectTop:0, absorb1k:0.45 }
+    ];
+    window.__fire("initialState", {
+      build:"260925.1", showrays:1, selsrc:0, auxConnected:0,
+      wav:{ name:"", playing:0, seconds:0, gain:0.75 },
+      params: PARAMS.map(function (p){ return { id:p[0], name:p[1], v:p[2], stepped:!!p[3], steps:p[4], choices:p[5] }; }),
+      furniture: CAT,
+      furn: [{ t:"sofa", x:2.2, y:4.4, yaw:180 }, { t:"rug", x:2.4, y:2.8, yaw:0 }, { t:"bed", x:4.6, y:7.6, yaw:0 }]
+    });
+    var rd = (document.getElementById("furnRead") || {}).textContent || "";
+    chk(TWf.furn().length === 3 && TWf.furnCat()[0].absorb1k === 1.70 &&
+        /LARGE/.test(rd) && rd.indexOf("+2.6 m") >= 0 && rd.indexOf("RT60 0.48 s") >= 0,
+        "initialState brings the catalogue and the layout, and the readout reports your room from them",
+        JSON.stringify(rd));
+    TWf.setFurn([]);
+    TWf.render();
   }
 
   /* --- 15 idle costs nothing ---------------------------------------------- */

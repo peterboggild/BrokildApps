@@ -129,6 +129,52 @@ struct SourceParams
     bool  active() const { return input != IN_OFF; }
 };
 
+//------------------------------------------------------------------------------
+/*  FURNITURE. Each piece is a catalogue entry placed at (x, y) and turned by yaw.
+    What it does to the sound, in order of how much you hear it:
+      * ABSORPTION - an equivalent absorption area per octave band, the way the
+        acoustics tables give it per object (an upholstered sofa, a person
+        standing). It adds straight into the room's A, so RT60, the late field and
+        the direct-to-reverberant ratio all follow. A rug REPLACES the floor under
+        it, so the floor's own absorption over its area is taken back out.
+      * SCATTERING - a room full of furniture breaks specular reflections up. Each
+        piece carries an equivalent scattering area; the room's extra scattering
+        coefficient is 1 - exp(-2 sum / S), and every wall bounce keeps (1 - s)
+        of its specular energy - the scattered part the late field picks up.
+      * OCCLUSION - a path whose leg passes through a piece's box loses the
+        Maekawa attenuation of the shortest way round it (over, under or beside),
+        and one that passes NEAR an edge gets the lit-side part of the same curve,
+        so walking behind a bookcase darkens the sound without a step.
+      * REFLECTION - a hard top (a table, a closed piano lid) gives a first-order
+        reflection, bent at its edges the same way when the mirror point leaves it.
+    An empty layout adds nothing anywhere: every one of these is a loop over zero
+    pieces, and the scattering term is an exact +0 dB. */
+constexpr int MAX_FURN = 24;
+enum FurnType { F_SOFA = 0, F_ARMCHAIR, F_BED, F_RUG, F_CURTAIN, F_BOOKCASE, F_TABLE,
+                F_PIANO, F_WARDROBE, F_PERSON, NUM_FURN_TYPES };
+
+struct FurnSpec
+{
+    const char* id;          // stable id, used in saved layouts
+    const char* name;
+    float w, d, h;           // footprint along its own x (width) and y (depth), height, metres
+    float zb, zt;            // the part that blocks sound, bottom and top (zb > 0: a gap under it)
+    bool  occludes;          // rugs and curtains let sound through
+    bool  reflectTop;        // a hard horizontal top that reflects
+    float topAlpha;          // what that top absorbs (broadband)
+    bool  coversFloor;       // a rug: replaces the floor under it
+    float absorb[NBAND];     // equivalent absorption area, m^2, 125 .. 8000 Hz
+    float scatter;           // equivalent scattering area, m^2
+};
+extern const FurnSpec FURN[NUM_FURN_TYPES];
+
+struct FurnItem
+{
+    int   type = -1;         // -1: an empty slot
+    float x = 0, y = 0;      // centre, metres
+    float yaw = 0;           // degrees, 0 = its width along +x
+};
+
 struct Params
 {
     // real units, already mapped from the host's 0..1 (see PluginProcessor / PROTOCOL.md)
@@ -144,6 +190,9 @@ struct Params
     float directDb = 0, earlyDb = 0, reverbDb = 0, outputDb = 0;
     float mix = 1.0f;
     float earSpan = 0.175f;                                       // metres between the ears, 0.15 .. 1.0
+    // the furniture layout: project state, not host parameters
+    FurnItem furn[MAX_FURN];
+    int nfurn = 0;
 
     Params()
     {
@@ -286,6 +335,7 @@ struct PathSpec
     float az = 0, el = 0;        // arrival direction, head-relative, degrees
     int   npts = 0;              // for the picture
     Vec3  pts[6];
+    int   selfItem = -1;         // a reflection OFF this furniture piece: it cannot block itself
 };
 
 /*  96 was already too few for four sources in the listener's room (25 image paths
@@ -424,6 +474,7 @@ struct Scene
     int   planN[NUM_ROOMS] = {};
     float planX[NUM_ROOMS][10] = {}, planY[NUM_ROOMS][10] = {};
     float inDb = -120, outDb = -120, drrDb = 0;
+    float furnA[NUM_ROOMS] = {};           // absorption the furniture adds at 1 kHz, m^2 (net: a rug less the floor it covers)
 };
 
 //------------------------------------------------------------------------------
@@ -450,10 +501,19 @@ public:
     void  roomRt60 (int r, float* out7) const { for (int b = 0; b < NBAND; ++b) out7[b] = rooms[(size_t) r].rt60[b]; }
     static void  eyringRt60 (int room, const int* materials, const float* doorAperture, float* out7);
     static void  eyringRt60 (int room, const RoomSurfaces& surf, const float* doorAperture, float* out7);
+    // the same with a furniture layout in the rooms
+    static void  eyringRt60 (int room, const RoomSurfaces& surf, const float* doorAperture, const FurnItem* furn, int nfurn, float* out7);
     // the room's equivalent absorption area per band, m^2: the material over every
     // surface, each door counted at its own aperture, the party walls at what they pass
     static void  absorptionArea (int room, const int* materials, const float* doorAperture, float* out7);
     static void  absorptionArea (int room, const RoomSurfaces& surf, const float* doorAperture, float* out7);
+    static void  absorptionArea (int room, const RoomSurfaces& surf, const float* doorAperture, const FurnItem* furn, int nfurn, float* out7);
+    // furniture, for the bench and the panel: the Maekawa path difference of a leg P->Q
+    // round piece i (positive: blocked; negative: how close it passes; very negative: nowhere near)
+    float furnitureDelta (int i, const Vec3& P, const Vec3& Q) const;
+    int   numSpecs() const { return nspecs; }
+    const PathSpec& specAt (int i) const { return specs[(size_t) i]; }
+    float roomScatter (int r) const { return furnScatter[r]; }
     static float diffractionDb (float fresnelN);
     static float airDbPerMetre (int band);
     // directivity of a source (dB, <= 0) at cos(theta) off its axis, per band
@@ -512,6 +572,14 @@ private:
     std::array<RoomField, NUM_ROOMS> rooms;
     std::vector<Coupling> couplings;
     float doorTau[NUM_DOORS][NBAND] = {};
+    // furniture as the engine sees it this block
+    struct FurnPose { float cx = 0, cy = 0, c = 1, s = 0, hw = 0, hd = 0, zb = 0, zt = 0; int type = -1, room = -1; };
+    FurnPose furnPose[MAX_FURN]; int nfurnNow = 0;
+    FurnItem lastFurnAc[MAX_FURN]; int lastNfurnAc = -1;
+    int furnKeyAc[MAX_FURN] = {}; int furnKeyN = -1;   // type and room per piece: what the Eyring sums depend on
+    float furnScatter[NUM_ROOMS] = {};     // the extra scattering coefficient furniture gives each room
+    float furnAbs1k[NUM_ROOMS] = {};       // what the furniture adds to A at 1 kHz, measured the engine's own way
+    float furnScatterDb[NUM_ROOMS] = {};   // 10 log10 (1 - that), added per wall bounce (exactly 0 with none)
     float wallTau[3][NBAND] = {};          // per room pair (0-1, 0-2, 1-2)
 
     // sub-block scratch
@@ -532,6 +600,9 @@ private:
     void addPortalPaths (const Vec3& S, int rs, int rl);
     void addTransmissionPaths (const Vec3& S, int rs, int rl);
     void addDoorFieldPaths (int rl, float scale);
+    void addFurnitureReflections (const Vec3& S, int rs, int rl);
+    void applyOcclusion();
+    void updateFurniture();
     bool imagePath (int room, const Vec3& S, const Vec3& L, int nx, int ny, int nz,
                     Vec3* bounces, int& nb, int* wallIds, float& length);
     bool bounceHitsOpening (int room, int wall, const Vec3& p) const;

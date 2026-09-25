@@ -1,0 +1,10 @@
+[
+ {
+  "name": "settle",
+  "wait": 3500
+ },
+ {
+  "name": "export again",
+  "eval": "(async function(){ var b = window.__JUCE__.backend; var plan = null, acks = 0, lastAck = -1; b.addEventListener('vidPlan', function(p){ plan = p; }); b.addEventListener('vidAck', function(a){ acks++; lastAck = a.i; }); b.emitEvent('tw', { k:'vidBegin', w:640, h:360, fps:30 }); var t0 = performance.now(); while (!plan && performance.now() - t0 < 60000) await new Promise(function(r){ setTimeout(r, 100); }); if (!plan) return 'no plan: ' + JSON.stringify(window.__lastRec); var ix = plan.ids.indexOf('lisx'); var c = document.createElement('canvas'); c.width = plan.w; c.height = plan.h; var g = c.getContext('2d'); for (var i = 0; i < plan.n; i++) { var x = plan.frames[i][ix] * 18; g.fillStyle = 'rgb(' + Math.round(40 + 200*(x-4.5)/3) + ',60,90)'; g.fillRect(0,0,c.width,c.height); g.fillStyle = '#fff'; g.font = '48px sans-serif'; g.fillText('frame ' + i + '  x ' + x.toFixed(2), 30, 120); var jpg = c.toDataURL('image/jpeg', 0.9).split(',')[1]; var before = acks; b.emitEvent('tw', { k:'vidFrame', i:i, jpg:jpg }); var t1 = performance.now(); while (acks === before && performance.now() - t1 < 10000) await new Promise(function(r){ setTimeout(r, 5); }); if (acks === before) return 'no ack for frame ' + i + ': ' + JSON.stringify(window.__lastRec); } b.emitEvent('tw', { k:'vidEnd' }); await new Promise(function(r){ setTimeout(r, 1500); }); var xs = [plan.frames[0][ix]*18, plan.frames[plan.n-1][ix]*18]; var probe = [6,30,60,90,114].map(function(k){ return +(plan.frames[k][ix]*18).toFixed(3); }); return JSON.stringify({ probe: probe, n: plan.n, fps: plan.fps, seconds: plan.seconds, furnSnaps: plan.furn.length, cam: plan.cam.length, x0: xs[0], x1: xs[1], lastAck: lastAck, rec: window.__lastRec }); })()"
+ }
+]

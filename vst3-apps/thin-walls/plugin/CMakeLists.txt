@@ -4,7 +4,7 @@ project(ThinWalls VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Bump it AND re-run
 # `cmake -S . -B build` or it will not take.
-set(TW_BUILD_ID "260924.1")
+set(TW_BUILD_ID "260925.1")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -58,6 +58,7 @@ juce_add_binary_data(ThinWallsAssets
 target_sources(ThinWalls
     PRIVATE
         Source/Engine.cpp
+        Source/TakeExport.cpp
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp)
 
@@ -86,6 +87,11 @@ target_link_libraries(ThinWalls
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags)
+
+# The MP4 export: Media Foundation, part of Windows (H.264 + AAC), no extra libraries.
+if(WIN32)
+    target_link_libraries(ThinWalls PRIVATE mfplat mfreadwrite mfuuid)
+endif()
 
 # Every number in this plug-in is a measurement (RT60, DRR, ITD): no fast-math.
 if(MSVC)

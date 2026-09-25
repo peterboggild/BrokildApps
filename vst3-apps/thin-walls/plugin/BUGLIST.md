@@ -151,3 +151,97 @@ Extend `twdoorwalk` into a bench check: the 50 ms level of the total and of
 direct+early must move no more across the threshold than across the same distance
 elsewhere on the walk, and the early energy must not step by more than ~1 dB in any
 10 ms window. Run it through all three doors, both directions.
+
+---
+
+## 4. CINEMATIC MODE — BUILT in 260925.1 (with the MP4 export)
+Asked 2026-09-25: a switch that trades load for game-level picture quality.
+
+### What the view is today (read from `Source/ui/ui.html`)
+One WebGL2 forward pass: procedural materials (bump-mapped fbm plaster, planks,
+tiles, carpet), Blinn-Phong, up to 12 point lights (5 in use: four pendants and
+the hall window), fog, a corner-darkening term instead of real ambient
+occlusion, **no shadows**, no HDR, no post-processing, device-pixel ratio capped
+at 2, and **nothing drawn while idle** (the loop runs only while a key is held
+or a door swings).
+
+### Verdict: yes, and it costs GPU, not the audio
+The panel runs in WebView2's own GPU process; the DSP runs on the host's audio
+thread. A heavy picture cannot glitch the sound (it can warm a laptop), so the
+"high load" is paid by the graphics card. This machine has an RTX 5070.
+
+### Two layers, in this order
+1. **Real-time "cinematic" (~a day).** HDR render target + ACES tone mapping
+   + bloom (lamps, window, the glowing source); GGX/PBR in place of Phong;
+   **shadow maps** from the four pendants (cube maps) and the window; SSAO in
+   place of the corner-darkening term; a render scale of 1.5-2x on top of the
+   device ratio with a proper downsample (or TAA); continuous rendering with
+   subtle life (dust in the window light, lamp flicker). All of this is
+   standard WebGL2 (float render targets, depth textures, multiple render targets).
+2. **"Photo" mode when you stand still (~a day more).** The apartment is a few
+   dozen boxes, so a **progressive path tracer** in a fragment shader (analytic
+   box intersection, 2-3 bounces, accumulating frame over frame) converges to a
+   near-photoreal still in a few seconds: soft shadows, colour bleeding off the
+   walls, light spilling through the open doors. Moving drops back to layer 1.
+   This goes past most games' look, because games cannot afford it and we can:
+   the camera stands still most of the time.
+
+### Things to hold on to
+- The idle rule stays true when the mode is OFF (no draws when idle), and the
+  mode is remembered per profile, not per project.
+- Layer 2's accumulation must STOP once converged, or a still room runs the
+  GPU flat out for nothing.
+- Door swings and source moves already invalidate the mesh; for the path tracer
+  they must also reset the accumulation.
+- Measure: frame time at 1x/1.5x/2x, and GPU use when converged (should be 0).
+
+---
+
+## 5. FURNITURE — BUILT in 260925.1 (all four acoustic parts)
+Asked 2026-09-25. A big job, but it has three independent halves, and the
+acoustic half is what makes it worth doing in an instrument about hearing a room.
+
+### The acoustics, in order of value
+1. **Absorption (cheap, exact, the biggest audible effect).** Acousticians give
+   furniture an *equivalent absorption area per object, per octave band* (a
+   sofa ~1-2 m² at mid frequencies, a person ~0.5, a full bookcase
+   more at high frequencies than low). That adds straight into `A` in Eyring, so
+   the late field, RT60 and the direct-to-reverberant ratio all follow with no new
+   machinery. A sofa and a rug in the TILED box should visibly and audibly
+   shorten its decay.
+2. **Scattering.** Furniture breaks up specular reflections: raise the room's
+   effective scattering coefficient with the furnished surface area. The STUDIO
+   material already proved the route (the scattered part goes to the late field
+   for free).
+3. **Occlusion.** A bookcase or a sofa back between source and listener: test
+   each path's segments against the furniture boxes and, where one is blocked,
+   bend it over the top edge with the existing Maekawa `addDiffraction`. The
+   same test covers reflections that would pass through furniture.
+4. **Reflections OFF furniture (optional, the most work).** A table top or a
+   piano lid gives a strong early reflection. First-order images off finite
+   rectangles fit the general surface search in `Geometry.h` (a mirror plus a
+   point-in-rectangle check). Only the large flat faces are worth it.
+
+### The picture
+A catalogue built from boxes and rounded boxes in the existing mesh builder
+(sofa, armchair, table, bed, bookcase, piano, rug, curtains), with the house
+procedural materials. It reads well in the current style and even better
+under item 4. Imported glTF models are possible but mean a loader and a few MB
+of BinaryData each, so they're not recommended for a first version.
+
+### The panel
+Place, drag and rotate in the PLAN view, with the catalogue as a tray. The layout
+is state, not host parameters (the BWFX-blob precedent: an opaque attribute on
+the APVTS state, empty = today's apartment, so old projects are untouched).
+
+### Estimate
+Absorption + catalogue + plan placement + visual models: about 1.5 days.
+Occlusion: +0.5 day. Furniture reflections: +1 day. Scattering: hours. Bench:
+RT60 falls by Eyring's own prediction when a sofa is added; a bookcase
+between source and listener costs the direct path the Maekawa figure; an empty
+layout is memcmp-identical to today.
+
+### Honest limits
+Everything stays geometric-acoustic: no low-frequency modal effects (a
+sofa in a corner damping a bass mode), and nothing that moves with a person
+sitting down. MAX_PATHS is 192 now, so the budget has room for item 4.

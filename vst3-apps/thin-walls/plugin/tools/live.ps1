@@ -22,7 +22,7 @@ Start-Sleep -Milliseconds 600
 $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$Port --remote-allow-origins=*"
 
 $proc = $null
-for ($attempt = 1; $attempt -le 6; $attempt++) {
+for ($attempt = 1; $attempt -le 20; $attempt++) {
   try {
     $proc = Start-Process -FilePath $Exe -PassThru -ErrorAction Stop
     Start-Sleep -Milliseconds 900

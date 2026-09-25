@@ -180,3 +180,86 @@ through an open doorway; `leaf` through a closed door leaf; `wall` through the p
   along a door to set an aperture. Rays from `scene` when `showrays` is on.
 - Controls under the two views, every one with a hint.
 - `window.__TW` debug hook: `{ state(), setParam(id,v), scene(), render(), draws, errors }`.
+
+---
+
+# v4 additions (2026-09-25): furniture, cinematic mode, video export
+
+## 6. Furniture
+
+The layout is PROJECT STATE, not host parameters (like `showrays`): saved in the
+project and in preset files, never automated. Up to 24 pieces. Native owns the
+catalogue; the page draws from it, so sizes can never drift.
+
+`initialState` gains:
+```
+furniture: [ { id:"sofa", name:"SOFA", w:2.10, d:0.90, h:0.85, zb:0, zt:0.85,
+               occludes:1, reflectTop:0, absorb1k:1.70 }, ... ],   // the catalogue, in engine order
+furn:      [ { t:"sofa", x:1.5, y:4.3, yaw:0 }, ... ]              // the layout
+```
+Catalogue ids: `sofa armchair bed rug curtain bookcase table piano wardrobe person`.
+`w` is the extent along the piece's own x (its width), `d` along its own y (depth),
+`h` its height; yaw in degrees, 0 = width along +x, counter-clockwise positive (as
+everywhere). `zb..zt` is the part that blocks sound (a table: only its top slab,
+0.71-0.75; a grand piano: its body 0.35-1.00 above its legs). `occludes:0` for the
+rug and the curtain. `reflectTop:1` for the table and the piano (hard tops).
+
+Page -> native: `{k:"furn", items:[{t, x, y, yaw}, ...]}` - the WHOLE layout, every
+time it changes (throttle to <= 30 Hz while dragging, always send the final state
+on release). Unknown ids are dropped, extra pieces beyond 24 are dropped.
+
+Native -> page: `furn` event `{ items:[...] }` whenever the layout changes for a
+reason the page did not cause (preset load, project restore, preset default = empty).
+
+A piece belongs to the room its CENTRE is in. The page should keep centres inside a
+room and, where it can, keep the footprint inside that room's plan polygon.
+`presetDefault` clears the layout.
+
+What the engine does with it (so the panel can say so honestly): absorption per
+octave band added to the room's Eyring A (a rug replaces the floor under it);
+scattering (every wall bounce weakened, the late field gains it); occlusion (a path
+through a piece's box bends over, under or round it with Maekawa's loss, smoothly
+on both sides of the shadow edge); a hard top reflects. `scene.rt` and the path
+`db` values already include all of it.
+
+## 7. Cinematic mode (page only)
+
+A page preference remembered in localStorage (per profile, not per project). OFF
+must leave the view exactly as it is today, including "no draws while idle".
+
+## 8. Recording a take and exporting an MP4
+
+Page -> native:
+
+| message | meaning |
+|---|---|
+| `{k:"recStart"}` | start capturing a take: the input audio (after the test signal replaces MAIN), every host parameter per audio block, and furniture changes. Cap 4 minutes. |
+| `{k:"recStop"}` | stop capturing |
+| `{k:"recCam", t, pitch, fov}` | while recording, the page's own camera (pitch and field of view are page-only), about 20 per second; `t` = the latest `rec.sec` the page received |
+| `{k:"vidBegin", w, h, fps}` | start an export of the last take at this size (even numbers) and frame rate. Native first renders the take's AUDIO offline with a fresh engine (progress in `rec`), then sends `vidPlan`. |
+| `{k:"vidFrame", i, jpg}` | frame `i` (0-based) as a base64 JPEG (no `data:` prefix), exactly `w` x `h`. Send the next one only after `vidAck` for this one. |
+| `{k:"vidEnd"}` | all frames sent; native finishes the MP4 |
+| `{k:"vidCancel"}` | abandon the export (the partial file is deleted) |
+| `{k:"reveal"}` | show the last exported file in Explorer |
+
+Native -> page:
+
+`rec`, ~10 Hz while anything is happening and once on every change of state:
+```
+{ state:"idle"|"recording"|"ready"|"rendering"|"exporting"|"done"|"error",
+  sec: <recorded seconds so far, or the take's length>, max: 240,
+  progress: 0..1, file:"C:\...\take.mp4", text:"one line for the status strip" }
+```
+`ready` = a take is held and can be exported.
+
+`vidPlan` (after the audio render):
+```
+{ fps, n:<frames>, seconds, w, h,
+  ids:[ param ids in TW_SPECS order ],
+  frames:[ [v0, v1, ...], ... ],       // n arrays, normalised 0..1 (choices as index/(steps-1)),
+                                       // the host parameters at each frame's time
+  furn:[ { f:<first frame>, items:[{t,x,y,yaw},...] }, ... ],   // layout changes, frame-stamped
+  cam:[ { t, pitch, fov }, ... ] }     // what the page sent while recording
+```
+The page renders frame i from those values (NOT from the live controls), encodes it
+as a JPEG and sends it. `vidAck` `{ i }` answers each frame.

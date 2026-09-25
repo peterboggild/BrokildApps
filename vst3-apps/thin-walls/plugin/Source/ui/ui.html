@@ -263,6 +263,23 @@ button.b.srctab.silent.on{ color:#3a2c18; }
 }
 .ro i{ color:#7d6b57; font-style:normal; }
 
+/* ------------------------------------------------------------- furniture */
+button.b:disabled{ opacity:.36; cursor:not-allowed; }
+button.b:disabled:hover{ border-color:#382e26; color:#d8bd90; }
+button.b.warn{ color:#ffe0cc; border-color:#b0482a; background:linear-gradient(180deg,#5c2616,#3a170e); }
+.ftray{ display:grid; grid-template-columns:repeat(auto-fill,minmax(33px,1fr)); gap:4px; margin-bottom:5px; }
+button.b.fitem{ height:29px; padding:0; min-width:0; display:flex; align-items:center; justify-content:center; letter-spacing:0; }
+button.b.fitem canvas{ width:30px; height:21px; pointer-events:none; }
+.frow{ display:flex; align-items:center; gap:5px; height:23px; min-width:0; }
+.frow .fname{
+  flex:1 1 auto; min-width:0; font-family:Consolas,"SF Mono",monospace; font-size:10.5px; color:#e8cd9f;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.frow .fname.none{ color:#7d6b57; }
+.frow.turn{ display:grid; grid-template-columns:44px 38px minmax(0,1fr) 38px 46px; gap:5px; }
+button.b.fs{ padding:3px 5px; letter-spacing:.06em; }
+#furnRead{ margin-top:2px; }
+
 /* ---------------------------------------------------------------- status */
 #status{
   display:flex; align-items:center; gap:16px;
@@ -284,6 +301,36 @@ button.b.srctab.silent.on{ color:#3a2c18; }
   font-size:11px; line-height:1.45; color:#ecd6b0;
 }
 #tip b{ display:block; color:#f0c584; letter-spacing:.11em; font-size:9.5px; text-transform:uppercase; margin-bottom:2px; font-weight:700; }
+/* ------------------------------------------------------------ cinematic */
+#cineBox{ display:flex; gap:5px; align-items:center; align-self:center; }
+#cineBox .selwrap{ width:92px; }
+#recBox{ display:flex; gap:6px; align-items:center; align-self:center; }
+#recTime{ font-family:Consolas,"SF Mono",monospace; font-size:10.5px; color:#c9b18b; white-space:nowrap; min-width:86px; }
+#bRec.on{ color:#ffe0cc; border-color:#b0482a; background:linear-gradient(180deg,#8a2c16,#5a1a0c); }
+#expPop{ position:fixed; z-index:80; width:300px; padding:8px 10px 8px 10px;
+  border:1px solid #4a3a26; border-radius:3px; background:linear-gradient(180deg,#221d19,#171311);
+  box-shadow:0 10px 26px rgba(0,0,0,.8); }
+#expPop > h2{ margin:0 0 6px 0; font-size:9.5px; font-weight:700; letter-spacing:.24em; color:#9c7a45; text-transform:uppercase;
+  border-bottom:1px solid #241f1c; padding-bottom:3px; }
+@media (max-width:1100px){ #by{ display:none; } }
+#cineHud{
+  position:absolute; right:10px; bottom:9px; pointer-events:none;
+  font-family:Consolas,"SF Mono",monospace; font-size:10px; color:#b39a78; letter-spacing:.08em;
+  text-shadow:0 1px 3px #000; background:rgba(12,9,8,.45); padding:2px 6px; border-radius:2px;
+}
+/* ---------------------------------------------------- record and export */
+.row.xrow{ grid-template-columns:40px minmax(0,1fr) 66px; }
+.grp > h2.sub{ margin-top:9px; }
+.xbar{ height:4px; margin:3px 0 3px 0; background:#0d0b0a; border:1px solid #2b2522; border-radius:2px; overflow:hidden; }
+.xbar i{ display:block; height:100%; width:0; background:linear-gradient(90deg,#8a6636,#e2b170); }
+#recTime{ margin-left:4px; }
+#expNote{ margin-top:1px; }
+#expModal{ position:fixed; inset:0; z-index:90; background:rgba(8,6,5,.72); display:flex; align-items:center; justify-content:center; }
+#expModal .xbox{ width:min(420px,86vw); padding:14px 16px 12px 16px; border:1px solid #4a3a26; border-radius:3px;
+  background:linear-gradient(180deg,#221d19,#171311); box-shadow:0 10px 30px rgba(0,0,0,.8); }
+#expModal h3{ margin:0 0 8px 0; font-size:10px; letter-spacing:.24em; text-transform:uppercase; color:#d8a45c; }
+#expModal .xstage{ font-family:Consolas,monospace; font-size:11px; color:#e8cd9f; margin-bottom:6px; }
+#expModal .xbar{ height:6px; margin-bottom:10px; }
 </style>
 </head>
 <body>
@@ -293,6 +340,15 @@ button.b.srctab.silent.on{ color:#3a2c18; }
     <div id="brand"><h1>THIN WALLS</h1></div>
     <span id="by">a Brokild apartment</span>
     <span id="topfill"></span>
+    <div id="cineBox">
+      <button class="b" id="bCine" type="button">Cinematic</button>
+      <div class="selwrap"><select class="sel" id="cineQ"><option value="high">HIGH 1.5x</option><option value="ultra">ULTRA 2x</option></select></div>
+    </div>
+    <div id="recBox">
+      <button class="b" id="bRec" type="button">Rec</button>
+      <span id="recTime">0:00.0</span>
+      <button class="b" id="bExpOpen" type="button">Export</button>
+    </div>
     <div id="topright">
       <span>BUILD <b id="buildTag">--</b></span>
     </div>
@@ -304,6 +360,7 @@ button.b.srctab.silent.on{ color:#3a2c18; }
       <div id="hud"></div>
       <div id="xhair"></div>
       <div id="glName"></div>
+      <div id="cineHud" hidden></div>
       <div id="povTip">drag to look &middot; W A S D to walk</div>
     </section>
     <section id="planWrap">
@@ -747,6 +804,7 @@ function schedule(){
 }
 function frame(t){
   rafId = 0;
+  if (EXP.active) return;            /* an export draws its own frames; nothing else may */
   const now = (typeof t === "number") ? t : nowMs();
   stepWalk(now);
   if (dirtyPov){ drawPov(); dirtyPov = false; }
@@ -754,6 +812,9 @@ function frame(t){
   /*  The ONLY thing that keeps the loop alive is a key actually being held.
       Everything else invalidates on the event that changed it and stops. */
   if (walkActive() || doorAnimActive()){ dirtyPov = true; dirtyPlan = true; schedule(); }
+  /*  Cinematic keeps the 3D view alive - dust, flicker, the photo converging -
+      until the photo is done. Off, cineLoop() is false and nothing changes. */
+  else if (cineLoop()){ dirtyPov = true; schedule(); }
 }
 function nowMs(){ try { return performance.now(); } catch(e){ return Date.now(); } }
 
@@ -810,6 +871,7 @@ function setUser(id, v){               /* the user moved it: send */
 }
 function setNative(id, v){             /* it arrived from native: do NOT send */
   if (!(id in V)) return;
+  if (EXP.active){ EXP.liveV[id] = clamp01(v); return; }   /* the live state is parked while frames are drawn */
   V[id] = clamp01(v);
   updateControl(id);
   touchViews(id);
@@ -958,8 +1020,9 @@ function buildControls(){
   sliderRow(gl, "output", "OUTPUT");
   sliderRow(gl, "earspan", "EAR SPAN");
 
+  /*  One column, not two: four buttons and three readouts do not need 400 px,
+      and the furniture group below does. Rebalanced rather than crammed. */
   const gv = group("View and files");
-  gv.classList.add("wide");
   const br = mk("div", "btnrow", gv);
   const bRays = mk("button", "b", br); bRays.type = "button"; bRays.id = "bRays"; bRays.textContent = "Rays";
   hintOn(bRays, "rays");
@@ -983,6 +1046,8 @@ function buildControls(){
   hintPos.textContent = "set in the views";
 
   buildWavGroup();
+  buildFurnGroup();
+  buildRecGroup();
 }
 
 /*  ------------------------------------------------------- broken walls
@@ -1017,7 +1082,6 @@ function buildFoldGroup(){
 let wav = { name:"", playing:0, seconds:0, gain:0.75 };
 function buildWavGroup(){
   const g = group("Test signal");
-  g.classList.add("wide");
   const br = mk("div", "btnrow", g);
   const bOpen = mk("button", "b", br); bOpen.type = "button"; bOpen.id = "bWavOpen"; bOpen.textContent = "Load";
   bOpen.setAttribute("data-wav", "open");
@@ -1283,6 +1347,7 @@ function updateHud(){
   h += '<span class="k">DRR&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><span class="v">' +
        (drrDb >= 0 ? "+" : "") + drrDb.toFixed(1) + " dB</span>";
   hudEl.innerHTML = h;
+  updateFurnReadout();       /* which room you are in decides what it reports */
 }
 let lastLevelPaint = -1e9;
 function updateLevels(){
@@ -1328,6 +1393,7 @@ const FS = [
 "uniform float uFogK;",
 "uniform float uGlow;",
 "uniform vec2 uRes;",
+"uniform int uHN;",                       /* always 3: a uniform bound, so the compiler keeps ONE copy of hgt() */
 "",
 "float hash21(vec2 p){ p = fract(p*vec2(127.31,311.7)); p += dot(p,p+37.72); return fract(p.x*p.y); }",
 "float vnoise(vec2 p){",
@@ -1370,6 +1436,12 @@ const FS = [
 "  if(k==21) return 0.5+0.5*sin(length(uv)*220.0);",
 "  if(k==27) return fbm(uv*60.0);",
 "  if(k==30||k==31) return fbm(uv*24.0);",
+/* ---- furniture: upholstery, wood, rug, curtain, linen ---- */
+"  if(k==40) return fbm(uv*26.0)*0.6 + fbm(uv*83.0)*0.4;",
+"  if(k==41) return 0.5+0.5*fbm(vec2(uv.x*1.3, uv.y*34.0));",
+"  if(k==44) return fbm(uv*vec2(60.0,42.0));",
+"  if(k==45) return 0.5+0.5*sin(uv.x*52.0+fbm(uv*5.0)*3.0);",
+"  if(k==48) return fbm(uv*40.0);",
 "  return 0.5; }",
 "",
 "float bumpAmt(int m, int k){",
@@ -1377,6 +1449,8 @@ const FS = [
 "  if(k==1){ if(m==0) return 0.0035; return 0.005; }",
 "  if(k==4) return 0.010;",
 "  if(k==6) return 0.0025;",
+"  if(k==40) return 0.0040;",
+"  if(k==45) return 0.0060;",
 "  return 0.0022; }",
 "",
 "struct Mtl { vec3 alb; float shin; float sp; float emis; };",
@@ -1461,6 +1535,52 @@ const FS = [
 "    o.alb=vec3(0.30,0.85,0.78); o.emis=1.5; o.sp=0.0;",
 "  } else if(k==33){",                      /* lamp bloom disc */
 "    o.alb=vec3(1.0,0.80,0.52); o.emis=1.15; o.sp=0.0;",
+/* ---- furniture. m is a colour VARIANT here, not a room material ------- */
+"  } else if(k==40){",                      /* upholstery: 0 sofa, 1 armchair, 2 duvet */
+"    vec3 c = m==0 ? vec3(0.105,0.215,0.205) : (m==1 ? vec3(0.520,0.330,0.090) : vec3(0.250,0.300,0.400));",
+"    o.alb=c*(0.72+0.42*h); o.sp=0.035; o.shin=9.0;",
+"  } else if(k==41){",                      /* wood: 0 oak, 1 walnut, 2 painted */
+"    vec3 c = m==0 ? vec3(0.470,0.330,0.185) : (m==1 ? vec3(0.225,0.125,0.070) : vec3(0.690,0.655,0.585));",
+"    o.alb=c*(0.72+0.50*h); o.sp = m==2 ? 0.10 : 0.24; o.shin = m==2 ? 30.0 : 70.0;",
+"  } else if(k==42){",                      /* black lacquer */
+"    o.alb=vec3(0.018,0.017,0.019); o.sp=0.95; o.shin=210.0;",
+"  } else if(k==43){",                      /* book spines: u metres, v 0..1 up the shelf */
+"    float id=floor(uv.x/0.032); float r=hash21(vec2(id,3.7)); float r2=hash21(vec2(id,9.1));",
+"    float top=0.58+0.38*r2; float f=fract(uv.x/0.032);",
+"    vec3 pal = r<0.2 ? vec3(0.42,0.08,0.06) : (r<0.4 ? vec3(0.08,0.16,0.30) : (r<0.55 ? vec3(0.10,0.24,0.14) :",
+"               (r<0.7 ? vec3(0.62,0.52,0.34) : (r<0.85 ? vec3(0.30,0.18,0.10) : vec3(0.72,0.66,0.55)))));",
+"    float band = step(0.84, fract(uv.y*5.0 + r*3.0));",
+"    o.alb = pal*(0.75+0.35*r2) + vec3(0.30,0.24,0.10)*band*step(0.5,r); o.sp=0.10; o.shin=30.0;",
+"    if(f<0.07||f>0.95) o.alb*=0.45;",
+"    if(uv.y>top){ o.alb=vec3(0.040,0.030,0.024); o.sp=0.0; }",
+"  } else if(k==44){",                      /* a knotted rug, uv -1..1 over the piece */
+"    vec2 a=abs(uv); float e=min((1.0-a.x)*1.2, (1.0-a.y)*0.85);",
+"    vec3 red=vec3(0.46,0.09,0.07), ind=vec3(0.09,0.10,0.22), cre=vec3(0.78,0.68,0.50);",
+"    vec3 c=red;",
+"    float dia=a.x*1.1+a.y*1.5;",
+"    float lat=clamp(step(0.82,fract(uv.x*9.0))+step(0.82,fract(uv.y*6.0)),0.0,1.0);",
+"    c=mix(c, ind*1.5, lat*0.30);",
+"    if(dia<0.60) c=mix(ind, cre, step(0.5,fract(dia*6.0)));",
+"    if(dia<0.14) c=red*1.2;",
+"    if(e<0.21) c=ind;",
+"    if(e<0.16 && e>0.12) c=cre;",
+"    if(e<0.06) c=red*0.8;",
+"    if(a.x>0.975) c=cre*(0.7+0.3*step(0.5,fract(uv.y*60.0)));",
+"    o.alb=c*(0.70+0.45*h); o.sp=0.015; o.shin=6.0;",
+"  } else if(k==45){",                      /* heavy velvet curtain */
+"    o.alb=vec3(0.330,0.070,0.085)*(0.55+0.60*h); o.sp=0.08; o.shin=14.0;",
+"  } else if(k==46){",                      /* the mannequin: 0 head and hands, 1 shirt, 2 trousers */
+"    vec3 c = m==0 ? vec3(0.60,0.54,0.47) : (m==1 ? vec3(0.17,0.25,0.36) : vec3(0.11,0.11,0.13));",
+"    o.alb=c*(0.90+0.15*h); o.sp = m==0 ? 0.22 : 0.05; o.shin = m==0 ? 40.0 : 12.0;",
+"  } else if(k==48){",                      /* linen */
+"    o.alb=vec3(0.80,0.78,0.73)*(0.86+0.18*h); o.sp=0.05; o.shin=16.0;",
+"  } else if(k==50){",                      /* piano keys: uv.y along the keyboard, uv.x front to back */
+"    float wk=0.0235; float p=mod(uv.y+0.6, wk*7.0)/wk; float fw=fract(p);",
+"    vec3 c=vec3(0.88,0.86,0.80); if(fw<0.06) c*=0.55;",
+"    float bk=0.0;",
+"    if(abs(p-1.0)<0.30||abs(p-2.0)<0.30||abs(p-4.0)<0.30||abs(p-5.0)<0.30||abs(p-6.0)<0.30) bk=1.0;",
+"    if(bk>0.5 && uv.x>-0.03) c=vec3(0.03,0.03,0.035);",
+"    o.alb=c; o.sp=0.35; o.shin=90.0;",
 "  }",
 "  return o; }",
 "",
@@ -1469,7 +1589,9 @@ const FS = [
 "  float alpha = vInfo.w;",
 "  vec3 gn=normalize(vNrm), T=normalize(vTan); vec3 B=cross(gn,T);",
 "  float e=0.012;",
-"  float h0=hgt(vUV,m,k), hx=hgt(vUV+vec2(e,0.0),m,k), hy=hgt(vUV+vec2(0.0,e),m,k);",
+"  float hs[3]; hs[0]=0.5; hs[1]=0.5; hs[2]=0.5;",
+"  for(int j=0;j<uHN;j++){ vec2 o= j==1 ? vec2(e,0.0) : (j==2 ? vec2(0.0,e) : vec2(0.0)); hs[j]=hgt(vUV+o,m,k); }",
+"  float h0=hs[0], hx=hs[1], hy=hs[2];",
 "  float ba=bumpAmt(m,k);",
 "  vec3 N=normalize(gn - ba*(((hx-h0)/e)*T + ((hy-h0)/e)*B));",
 "  Mtl mt=surf(vUV,m,k,h0,vPos);",
@@ -1818,10 +1940,12 @@ function buildMesh(){
   /*  Opaque geometry ends here. Everything after this line is blended, drawn
       in a second pass with depth writes off, so a ghosted source cannot
       punch a hole through the room behind it. */
+  buildFurnitureMesh();                 /* opaque, lit by the room its centre is in */
   buildSources(false);
   MESH_OPAQUE = M.n;
   buildSources(true);
   meshDirty = false;
+  meshGen++;
 }
 let MESH_OPAQUE = 0;
 
@@ -2072,11 +2196,14 @@ function buildSelectRing(sx, sy, room){
 function buildSources(ghostPass){
   for (let n = 1; n <= 4; n++){
     const on = srcActive(n);
-    if (ghostPass === on) continue;             /* one pass each, never both */
+    /*  Every source is solid now (Peter: "make loudspeakers non transparent"),
+        on or off, so all four are built in the opaque pass; what still tells an
+        unfed one apart is that only a fed source glows. */
+    if (ghostPass) continue;
     const sx = SXn(n), sy = SYn(n);
     const room = roomOfPoint(sx, sy), mat = matShade(room);
     const yaw = SYAWn(n) * Math.PI / 180;
-    curAlpha = on ? 1 : 0.34;
+    curAlpha = 1;
     if (srcTypeIdx(n) === 1){
       const zc = Math.min(Math.max(SZn(n), 0.20), ROOMS[room].h - 0.24);
       buildMonitor(sx, sy, zc, yaw, room, mat);
@@ -2147,7 +2274,7 @@ function initGL(){
     gl = null; glMode = "fallback"; return false;
   }
   gl.useProgram(prog);
-  const names = ["uMVP","uCam","uLightN","uLightPos","uLightCol","uLightRoom","uLightShade",
+  const names = ["uHN","uMVP","uCam","uLightN","uLightPos","uLightCol","uLightRoom","uLightShade",
                  "uRoomMin","uRoomMax","uAmb","uFog","uFogK","uGlow","uRes"];
   for (const n of names) U[n] = gl.getUniformLocation(prog, n);
   vao = gl.createVertexArray();
@@ -2201,10 +2328,11 @@ function sizeCanvas(cv){
 
 function drawPov(){
   drawCount++;
-  sizeCanvas(povCv);
+  if (!EXP.active) sizeCanvas(povCv);    /* an export has set the frame size itself */
   if (glMode === "pending") initGL();
   if (!gl){ drawPovFallback(); return; }
   if (meshDirty || vertsUploaded === 0){ buildMesh(); uploadMesh(); }
+  if (cineWanted() && cineDraw()) return;
   const w = povCv.width, h = povCv.height;
   gl.viewport(0,0,w,h);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -2220,6 +2348,7 @@ function drawPov(){
   gl.uniform1f(U.uFogK, 0.042);
   gl.uniform1f(U.uGlow, glow);
   gl.uniform2f(U.uRes, w, h);
+  gl.uniform1i(U.uHN, 3);
 
   /*  The box each room's corner darkening is measured against: the plan
       polygon's own bounds, so a wall pushed OUT is still inside its room. */
@@ -2412,6 +2541,10 @@ function drawPlan(){
     c.beginPath(); c.moveTo(PX(i*0.5), PY(8.5)); c.lineTo(PX(i*0.5 + 3.5), PY(5)); c.stroke();
   }
   c.restore();
+
+  /*  Furniture lies on the floor, so it goes under the walls, the doors, the
+      break markers and every glyph you can pick up - those stay on top. */
+  drawFurniturePlan(c);
 
   /* walls: every segment the 3D view builds, minus the doorways */
   c.strokeStyle = "#1f1e1b";
@@ -2824,8 +2957,11 @@ function insideBy(poly, x, y, R){
   }
   return true;
 }
-function walkable(x, y){
+function walkable(x, y, fx, fy){
   const R = 0.30;
+  /*  A piece of furniture that blocks sound blocks you too - the same rule
+      the walls follow. A rug and a curtain do not. */
+  if (furnBlocks(x, y, fx, fy)) return false;
   for (const r of ROOMS) if (insideBy(roomPoly(r.i), x, y, R)) return true;
   for (const d of DOORS){
     if (apert(d) < 0.5) continue;                /* the protocol's own rule */
@@ -2838,8 +2974,8 @@ function walkable(x, y){
 }
 function tryMove(dx, dy){
   let x = LX(), y = LY(), moved = false;
-  if (dx && walkable(x+dx, y)){ x += dx; moved = true; }
-  if (dy && walkable(x, y+dy)){ y += dy; moved = true; }
+  if (dx && walkable(x+dx, y, x, y)){ x += dx; moved = true; }
+  if (dy && walkable(x, y+dy, x, y)){ y += dy; moved = true; }
   if (!moved) return false;
   V.lisx = clamp01(x / APT_W); V.lisy = clamp01(y / APT_H);
   updateControl("lisx"); updateControl("lisy");
@@ -2926,6 +3062,7 @@ function movementKey(e){
 window.addEventListener("keydown", e => {
   const k = movementKey(e);
   if (!k || textEntry(e)) return;
+  if (EXP.active){ e.preventDefault(); e.stopPropagation(); return; }
   e.preventDefault();
   e.stopPropagation();
   /*  Drop the focus the first time a movement key arrives, so the next key
@@ -3087,10 +3224,37 @@ planCv.addEventListener("pointerdown", e => {
   if (e.button !== undefined && e.button !== 0) return;
   if (!PF) PF = planFit();
   const w = planToWorld(e.clientX, e.clientY);
-  const hit = hitPlan(w[0], w[1]);
-  if (!hit) return;
+  /*  A piece armed in the tray takes the click whatever is under it: arming
+      is an explicit mode, and the piece is picked straight up so a press and
+      a drag places it exactly. */
+  if (furnPlace){
+    const at = furnAdd(furnPlace, w[0], w[1], 0);
+    furnArm(null);
+    if (at < 0) return;
+    pdrag = { what:"furn", i:at, offx:furn[at].x - w[0], offy:furn[at].y - w[1],
+              moved:false, cx:e.clientX, cy:e.clientY, ids:[] };
+    try { planCv.setPointerCapture(e.pointerId); } catch(_){}
+    e.preventDefault();
+    return;
+  }
+  /*  Sources, the listener, their handles, the break markers and the doors
+      come first; furniture only when none of them is under the pointer. A
+      sofa is big, and must never swallow the speaker standing in front of it. */
+  const hit = hitPlan(w[0], w[1]) || hitFurn(w[0], w[1]);
+  if (!hit){ if (furnSel >= 0) furnSelect(-1); return; }
+  const onFurn = hit.what === "furn" || hit.what === "furnrot";
+  if (!onFurn && furnSel >= 0) furnSelect(-1);
   pdrag = { what:hit.what, door:hit.door, n:hit.n, room:hit.room, k:hit.k,
             moved:false, cx:e.clientX, cy:e.clientY };
+  if (onFurn){
+    furnSelect(hit.i);
+    pdrag.i = hit.i;
+    pdrag.offx = furn[hit.i].x - w[0]; pdrag.offy = furn[hit.i].y - w[1];
+    pdrag.ids = [];                    /* layout is project state, not a host gesture */
+    try { planCv.setPointerCapture(e.pointerId); } catch(_){}
+    e.preventDefault();
+    return;
+  }
   /*  Touching a source picks it up AND selects it - the panel below follows
       whatever your hand is on, which is the only arrangement that does not
       need explaining. */
@@ -3153,6 +3317,23 @@ window.addEventListener("pointermove", e => {
     setDragged(foldPId(i, k), (along - 0.15) / 0.7);
     setDragged(foldId(i, k), outm / 1.2 + 0.5);
     meshDirty = true; invalidate("both");
+  } else if (pdrag.what === "furn"){
+    const it = furn[pdrag.i];
+    if (!it) return;
+    it.x = w[0] + pdrag.offx; it.y = w[1] + pdrag.offy;
+    clampFurn(it);
+    furnChanged(false);
+  } else if (pdrag.what === "furnrot"){
+    /*  The handle stands off the piece's FRONT, so the pointer's bearing
+        from the centre minus a quarter turn is the yaw. 15 degree steps;
+        Shift lets go of them. */
+    const it = furn[pdrag.i];
+    if (!it) return;
+    let a = Math.atan2(w[1] - it.y, w[0] - it.x) * 180 / Math.PI - 90;
+    if (!e.shiftKey) a = Math.round(a / 15) * 15;
+    it.yaw = normYaw(a);
+    clampFurn(it);
+    furnChanged(false);
   } else if (pdrag.what === "door"){
     const a = doorApertureFrom(pdrag.door, w[0], w[1]);
     V[pdrag.door.id] = a; updateControl(pdrag.door.id);
@@ -3164,6 +3345,8 @@ const endPlanDrag = e => {
   if (!pdrag) return;
   const p = pdrag; pdrag = null;
   try { planCv.releasePointerCapture(e.pointerId); } catch(_){}
+  /* the final state always goes, whatever the throttle was holding back */
+  if (p.what === "furn" || p.what === "furnrot"){ if (p.moved) sendFurnNow(); return; }
   if (!p.moved && p.what === "door"){
     const id = p.door.id;
     const nv = V[id] > 0.5 ? 0 : 1;
@@ -3397,6 +3580,2511 @@ window.addEventListener("pointerup", endHandleDrag);
 window.addEventListener("pointercancel", endHandleDrag);
 
 /* ==================================================================== */
+/*  furniture                                                            */
+/*                                                                       */
+/*  Project state, not host parameters (protocol section 6). Native owns */
+/*  the catalogue and sends it in initialState; the copy below carries   */
+/*  the engine's own numbers, so a page with no engine behind it - or an */
+/*  engine that predates furniture - still draws every piece to scale.   */
+/*  A piece's own axes: x along its WIDTH, y along its DEPTH, and +y is  */
+/*  its FRONT - the side of a sofa you sit on, the face of a bookcase,   */
+/*  the way a person looks. Yaw turns that frame anticlockwise from east. */
+/* ==================================================================== */
+const FURN_MAX = 24;
+const FURN_CAT_DEFAULT = [
+  { id:"sofa",     name:"SOFA",        w:2.10, d:0.90, h:0.85, zb:0.00, zt:0.85, occludes:1, reflectTop:0 },
+  { id:"armchair", name:"ARMCHAIR",    w:0.85, d:0.85, h:0.90, zb:0.00, zt:0.90, occludes:1, reflectTop:0 },
+  { id:"bed",      name:"BED",         w:2.05, d:1.60, h:0.55, zb:0.00, zt:0.55, occludes:1, reflectTop:0 },
+  { id:"rug",      name:"RUG",         w:2.40, d:1.70, h:0.02, zb:0.00, zt:0.02, occludes:0, reflectTop:0 },
+  { id:"curtain",  name:"CURTAIN",     w:2.40, d:0.15, h:2.50, zb:0.00, zt:2.50, occludes:0, reflectTop:0 },
+  { id:"bookcase", name:"BOOKCASE",    w:1.00, d:0.35, h:2.00, zb:0.00, zt:2.00, occludes:1, reflectTop:0 },
+  { id:"table",    name:"TABLE",       w:1.60, d:0.90, h:0.75, zb:0.71, zt:0.75, occludes:1, reflectTop:1 },
+  { id:"piano",    name:"GRAND PIANO", w:2.10, d:1.50, h:1.00, zb:0.35, zt:1.00, occludes:1, reflectTop:1 },
+  { id:"wardrobe", name:"WARDROBE",    w:1.20, d:0.60, h:2.10, zb:0.00, zt:2.10, occludes:1, reflectTop:0 },
+  { id:"person",   name:"PERSON",      w:0.50, d:0.30, h:1.75, zb:0.00, zt:1.75, occludes:1, reflectTop:0 }
+];
+let furnCat = FURN_CAT_DEFAULT.map(c => Object.assign({}, c));
+let furn = [];               /* the layout: [{t, x, y, yaw}], metres and degrees */
+let furnSel = -1;            /* index into furn, or -1 */
+let furnPlace = null;        /* a catalogue id armed in the tray, or null */
+let planHover = false, planFocus = false;
+let planHoverW = null;       /* the pointer over the plan in metres, for the placement ghost */
+let planFurnDrawn = [];      /* what the plan DREW this time round, pushed where it is drawn */
+let trayDrag = null, trayDropped = false;
+let furnClearArm = 0;
+const FEL = {};
+
+/* ---------------------------------------------------------------- hints */
+const FURN_WHAT = {
+  sofa:     "A three-seat sofa, 2.1 m long. Upholstery is one of the best broadband absorbers a room has, and below 85 cm it stands in the way of the sound.",
+  armchair: "An upholstered armchair. A smaller absorber than the sofa and a smaller obstacle - two either side of a speaker tame a live room without killing it.",
+  bed:      "A double bed, 2.05 by 1.6 m. A mattress and a duvet are a big soft absorber, which is why a bedroom sounds dead - but only 55 cm high, so sound passes over it.",
+  rug:      "A thick rug. It replaces the floor under it, which takes away the first reflection a hard floor gives you. It blocks nothing - it is two centimetres high.",
+  curtain:  "A heavy pleated curtain, 2.4 m wide and 2.5 m tall. Hang it against a wall and it kills that wall's reflection in the mid and top. It does not stand in the way of the direct sound.",
+  bookcase: "A full bookcase, 2 m tall. An uneven face of spines scatters as much as it absorbs - books are a diffuser - and the case blocks whatever is behind it.",
+  table:    "A dining table. Only its top blocks sound, 71 to 75 cm up, and that top is HARD: it throws a reflection up at a seated head - the classic table bounce.",
+  piano:    "A grand piano, lid closed. Its lacquered body blocks sound from 35 cm to 1 m, and its lid reflects like a table top.",
+  wardrobe: "A wardrobe full of clothes: a tall obstacle. Stand it between a source and you and the direct sound has to go round it.",
+  person:   "A standing person. People absorb - an audience is most of a concert hall's absorption - and a body between you and a source takes the top end off it."
+};
+function furnHintKey(t){
+  const c = furnCatOf(t);
+  HINT["furn_" + t] = [c ? c.name : String(t).toUpperCase(),
+    (FURN_WHAT[t] || "A piece the engine knows about: it absorbs, scatters and blocks according to its size.") +
+    " Click to arm it, then click in the plan to set it down - or drag it straight onto the plan."];
+  return "furn_" + t;
+}
+HINT.fname  = ["SELECTED PIECE", "The piece you are editing, the room it stands in and where. Click a piece in the plan to pick it up, click empty floor to let go - Escape does the same. Delete or Backspace removes it while the pointer is over the plan."];
+HINT.frot   = ["TURN 15 DEGREES", "Turn the selected piece one 15 degree step. In the plan you can also drag the round handle standing off its front; that snaps to the same steps, and holding Shift lets go of them."];
+HINT.fturn  = ["FACING", "Which way the selected piece faces, 0 to 360 degrees anticlockwise from east - the same convention as the sources and your head. Its front is the side you sit on, the face of the shelves, the way a person looks."];
+HINT.fdup   = ["DUPLICATE", "A second copy of the selected piece, set down beside it. Up to " + FURN_MAX + " pieces in the whole apartment."];
+HINT.fdel   = ["DELETE", "Take the selected piece out. Delete or Backspace does the same while the pointer is over the plan."];
+HINT.fclear = ["CLEAR ALL", "Take every piece out of every room. It asks once - click again within a couple of seconds to confirm."];
+HINT.fread  = ["WHAT THE FURNITURE ADDS", "For the room you are standing in: how much absorption its furniture adds at 1 kHz, and the reverberation time the engine calculates with it. The engine also scatters every wall reflection and bends a path that runs into a piece over, under or round it - that part you hear rather than read."];
+
+/* -------------------------------------------------------------- geometry */
+function furnCatOf(t){ for (const c of furnCat) if (c.id === t) return c; return null; }
+function normYaw(y){ y = +y || 0; return ((y % 360) + 360) % 360; }
+/*  Which room a point is in by the rooms' PLAN POLYGONS, so a piece standing in
+    the bay of a wall pushed outwards still belongs to the room it stands in. */
+function roomAtPoly(x, y){
+  for (let i = 0; i < ROOMS.length; i++) if (insideBy(roomPoly(i), x, y, 0)) return i;
+  return -1;
+}
+function furnRoom(it){ const r = roomAtPoly(it.x, it.y); return r >= 0 ? r : roomOfPoint(it.x, it.y); }
+function furnLocal(it, x, y){
+  const a = it.yaw * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const dx = x - it.x, dy = y - it.y;
+  return [dx*c + dy*s, -dx*s + dy*c];
+}
+function furnContains(it, cat, x, y, grow){
+  const l = furnLocal(it, x, y);
+  return Math.abs(l[0]) <= cat.w/2 + grow && Math.abs(l[1]) <= cat.d/2 + grow;
+}
+function furnDepth(it, cat, x, y, grow){
+  const l = furnLocal(it, x, y);
+  return Math.min(cat.w/2 + grow - Math.abs(l[0]), cat.d/2 + grow - Math.abs(l[1]));
+}
+function furnCorners(it, cat){
+  const a = it.yaw * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const hw = cat.w/2, hd = cat.d/2;
+  return [[-1,-1],[1,-1],[1,1],[-1,1]].map(q =>
+    [it.x + c*hw*q[0] - s*hd*q[1], it.y + s*hw*q[0] + c*hd*q[1]]);
+}
+/* the turn handle stands off the piece's FRONT, its own +y */
+function furnHandlePos(it){
+  const cat = furnCatOf(it.t) || { d:0.5 };
+  const L = cat.d/2 + 0.45, a = it.yaw * Math.PI / 180;
+  return [it.x - Math.sin(a)*L, it.y + Math.cos(a)*L];
+}
+/*  The CENTRE is always inside a room - that is the room the engine files the
+    piece under. The footprint is kept inside that room's plan polygon too
+    wherever it fits: first by the polygon's bounding box, then, for a wall
+    bent into the room, by easing the centre towards the middle of the room
+    until every corner is inside. A piece wider than its room sits centred. */
+function clampFurn(it){
+  it.yaw = normYaw(it.yaw);
+  const cat = furnCatOf(it.t);
+  if (!cat) return it;
+  let r = roomAtPoly(it.x, it.y);
+  if (r < 0) r = roomOfPoint(it.x, it.y);
+  const poly = roomPoly(r), R = ROOMS[r];
+  let bx0 = 1e9, bx1 = -1e9, by0 = 1e9, by1 = -1e9;
+  for (const q of poly){
+    bx0 = Math.min(bx0, q[0]); bx1 = Math.max(bx1, q[0]);
+    by0 = Math.min(by0, q[1]); by1 = Math.max(by1, q[1]);
+  }
+  const a = it.yaw * Math.PI / 180, ca = Math.abs(Math.cos(a)), sa = Math.abs(Math.sin(a));
+  const ex = cat.w/2*ca + cat.d/2*sa, ey = cat.w/2*sa + cat.d/2*ca, m = 0.02;
+  const fit = (v, lo, hi) => lo > hi ? (lo + hi) / 2 : Math.min(Math.max(v, lo), hi);
+  let x = fit(it.x, bx0 + ex + m, bx1 - ex - m);
+  let y = fit(it.y, by0 + ey + m, by1 - ey - m);
+  const cx = (R.x0 + R.x1) / 2, cy = (R.y0 + R.y1) / 2;
+  const fits = (px, py) => furnCorners({ t:it.t, x:px, y:py, yaw:it.yaw }, cat)
+                             .every(p => insideBy(poly, p[0], p[1], 0.004));
+  for (let k = 0; k < 40 && !fits(x, y); k++){ x += (cx - x) * 0.12; y += (cy - y) * 0.12; }
+  if (!insideBy(poly, x, y, 0.01)){ x = cx; y = cy; }
+  it.x = x; it.y = y;
+  return it;
+}
+/*  Walking: a piece that blocks sound blocks you, with the same 22 cm body
+    margin the walls use in spirit. If one has been set down ON you, you may
+    walk out of it - never further in. */
+function furnBlocks(x, y, fx, fy){
+  const R = 0.22;
+  for (const it of furn){
+    const cat = furnCatOf(it.t);
+    if (!cat || !cat.occludes) continue;
+    if (!furnContains(it, cat, x, y, R)) continue;
+    if (fx !== undefined && furnContains(it, cat, fx, fy, R) &&
+        furnDepth(it, cat, x, y, R) < furnDepth(it, cat, fx, fy, R)) continue;
+    return true;
+  }
+  return false;
+}
+
+/* ------------------------------------------------------ talking to native */
+let furnSendTmr = 0, lastFurnSend = -1e9;
+function furnItemsOut(){
+  return furn.map(it => ({ t:it.t, x:Math.round(it.x * 1000) / 1000, y:Math.round(it.y * 1000) / 1000,
+                           yaw:Math.round(normYaw(it.yaw) * 10) / 10 }));
+}
+/*  The WHOLE layout every time, never a delta: a lost message then costs one
+    frame of staleness rather than a piece that never arrives. */
+function sendFurnNow(){
+  if (furnSendTmr){ clearTimeout(furnSendTmr); furnSendTmr = 0; }
+  lastFurnSend = nowMs();
+  NB.send({ k:"furn", items:furnItemsOut() });
+}
+/*  30 Hz at most while a hand is moving something; the release always sends
+    the final state through sendFurnNow. Timer, not animation frame, so a
+    context with no frames still gets the trailing message. */
+function sendFurnSoon(){
+  const dt = nowMs() - lastFurnSend;
+  if (dt >= 34){ sendFurnNow(); return; }
+  if (!furnSendTmr) furnSendTmr = setTimeout(sendFurnNow, Math.max(1, 34 - dt));
+}
+function furnChanged(final){
+  meshDirty = true;
+  invalidate("both");
+  updateFurnUI();
+  updateFurnReadout();
+  if (final) sendFurnNow(); else sendFurnSoon();
+}
+function sanitizeFurn(items){
+  const out = [];
+  for (const q of (items || [])){
+    if (!q || !furnCatOf(q.t)) continue;
+    const x = +q.x, y = +q.y;
+    if (!isFinite(x) || !isFinite(y)) continue;
+    out.push({ t:String(q.t), x:x, y:y, yaw:normYaw(q.yaw) });
+    if (out.length >= FURN_MAX) break;
+  }
+  return out;
+}
+/*  From native: replace outright and send nothing back. The engine clamped
+    it already, and a page that "corrected" native's copy would start a
+    conversation with itself. */
+function applyFurnNative(items){
+  if (EXP.active){ EXP.liveFurn = sanitizeFurn(items); return; }
+  furn = sanitizeFurn(items);
+  if (furnSel >= furn.length) furnSel = -1;
+  if (typeof pdrag !== "undefined" && pdrag && (pdrag.what === "furn" || pdrag.what === "furnrot")) pdrag = null;
+  meshDirty = true;
+  invalidate("both");
+  updateFurnUI();
+  updateFurnReadout();
+}
+function applyFurnCatalogue(list){
+  const out = [];
+  for (const c of list){
+    if (!c || !c.id) continue;
+    const n = k => { const v = +c[k]; return isFinite(v) ? v : 0; };
+    const o = { id:String(c.id), name:String(c.name || c.id).toUpperCase(),
+                w:n("w"), d:n("d"), h:n("h"), zb:n("zb"), zt:n("zt"),
+                occludes:c.occludes ? 1 : 0, reflectTop:c.reflectTop ? 1 : 0 };
+    if (!(o.zt > 0)) o.zt = o.h;
+    if (typeof c.absorb1k === "number" && isFinite(c.absorb1k)) o.absorb1k = c.absorb1k;
+    if (o.w > 0 && o.d > 0 && o.h > 0) out.push(o);
+  }
+  if (!out.length) return;
+  furnCat = out;
+  furn = sanitizeFurn(furn);
+  if (furnSel >= furn.length) furnSel = -1;
+  if (furnPlace && !furnCatOf(furnPlace)) furnPlace = null;
+  buildFurnTray();
+  meshDirty = true;
+  invalidate("both");
+  updateFurnUI();
+}
+
+/* ------------------------------------------------------------ editing */
+function furnAdd(t, x, y, yaw){
+  if (!furnCatOf(t)) return -1;
+  if (furn.length >= FURN_MAX){
+    noticeEl.textContent = FURN_MAX + " pieces is the limit - delete one first";
+    return -1;
+  }
+  furn.push(clampFurn({ t:t, x:x, y:y, yaw:normYaw(yaw || 0) }));
+  furnSel = furn.length - 1;
+  furnChanged(true);
+  return furnSel;
+}
+function furnSelect(i){
+  furnSel = (i >= 0 && i < furn.length) ? i : -1;
+  updateFurnUI();
+  invalidate("plan");                   /* the highlight is a plan thing only */
+}
+function furnDelete(){
+  if (furnSel < 0 || !furn[furnSel]) return;
+  furn.splice(furnSel, 1);
+  furnSel = -1;
+  furnChanged(true);
+}
+function furnDuplicate(){
+  const it = furn[furnSel];
+  if (!it) return;
+  furnAdd(it.t, it.x + 0.35, it.y - 0.35, it.yaw);
+}
+function furnClearAll(){
+  furn = [];
+  furnSel = -1;
+  furnChanged(true);
+}
+function furnClearClick(){
+  if (!furn.length) return;
+  if (furnClearArm){ clearTimeout(furnClearArm); furnClearArm = 0; furnClearAll(); return; }
+  furnClearArm = setTimeout(() => { furnClearArm = 0; updateFurnUI(); }, 2600);
+  updateFurnUI();
+}
+function furnTurnTo(deg, snap, final){
+  const it = furn[furnSel];
+  if (!it) return;
+  it.yaw = normYaw(snap ? Math.round(deg / 15) * 15 : deg);
+  clampFurn(it);                        /* a turn can put a corner through a wall */
+  furnChanged(final);
+}
+function furnArm(t){
+  furnPlace = (t && furnCatOf(t)) ? t : null;
+  planCv.style.cursor = furnPlace ? "crosshair" : "";
+  if (!furnPlace) planHoverW = null;
+  updateFurnUI();
+  invalidate("plan");
+}
+
+/* -------------------------------------------------------- the controls */
+function fbtn(parent, text, key, hint, fn){
+  const b = mk("button", "b fs", parent);
+  b.type = "button";
+  b.textContent = text;
+  b.setAttribute("data-furn", key);
+  hintOn(b, hint);
+  b.addEventListener("click", fn);
+  return b;
+}
+function buildFurnGroup(){
+  const g = group("Furniture");
+  g.classList.add("wide");
+  g.id = "grpFurn";
+  const tray = mk("div", "ftray", g);
+  tray.id = "furnTray";
+  const r1 = mk("div", "frow", g);
+  const nm = mk("span", "fname", r1);
+  nm.setAttribute("data-furn", "name");
+  hintOn(nm, "fname");
+  FEL.name = nm;
+  FEL.dup = fbtn(r1, "Duplicate", "dup", "fdup", () => furnDuplicate());
+  FEL.del = fbtn(r1, "Delete", "del", "fdel", () => furnDelete());
+  FEL.clear = fbtn(r1, "Clear all", "clear", "fclear", () => furnClearClick());
+  const r2 = mk("div", "frow turn", g);
+  const lab = mk("label", "lab", r2);
+  lab.textContent = "FACING";
+  FEL.rotm = fbtn(r2, "−15°", "rotm", "frot", () => { const it = furn[furnSel]; if (it) furnTurnTo(it.yaw - 15, true, true); });
+  const sl = mk("input", "sl", r2);
+  sl.type = "range"; sl.min = "0"; sl.max = "359"; sl.step = "1";
+  sl.setAttribute("data-furn", "turn");
+  hintOn(sl, "fturn");
+  sl.addEventListener("input", () => furnTurnTo(parseFloat(sl.value), false, false));
+  sl.addEventListener("change", () => { if (furn[furnSel]) sendFurnNow(); });
+  FEL.turn = sl;
+  FEL.rotp = fbtn(r2, "+15°", "rotp", "frot", () => { const it = furn[furnSel]; if (it) furnTurnTo(it.yaw + 15, true, true); });
+  FEL.turnVal = mk("span", "val", r2);
+  const rd = mk("div", "ro", g);
+  rd.id = "furnRead";
+  rd.setAttribute("data-furn", "readout");
+  hintOn(rd, "fread");
+  FEL.read = rd;
+  buildFurnTray();
+  updateFurnUI();
+  updateFurnReadout();
+}
+/*  The tray: one button per catalogue entry, each carrying a small drawing of
+    the piece from above - the SAME drawing the plan uses, so what you pick is
+    what you get. Click to arm and click the plan, or drag it onto the plan. */
+function buildFurnTray(){
+  const tray = document.getElementById("furnTray");
+  if (!tray) return;
+  tray.innerHTML = "";
+  for (const cat of furnCat){
+    const id = cat.id;
+    const b = mk("button", "b fitem", tray);
+    b.type = "button";
+    b.setAttribute("data-furn-item", id);
+    hintOn(b, furnHintKey(id));
+    mk("canvas", null, b);
+    b.addEventListener("pointerdown", e => {
+      if (e.button !== undefined && e.button !== 0) return;
+      trayDrag = { t:id, cx:e.clientX, cy:e.clientY, moved:false };
+    });
+    b.addEventListener("click", () => {
+      if (trayDropped){ trayDropped = false; return; }
+      furnArm(furnPlace === id ? null : id);
+    });
+  }
+  drawTrayIcons(true);
+}
+let trayIconSig = "";
+function drawTrayIcons(force){
+  const sig = (furnPlace || "") + "|" + furnCat.map(c => c.id + ":" + c.w + "x" + c.d).join(",");
+  if (!force && sig === trayIconSig) return;
+  trayIconSig = sig;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  for (const b of document.querySelectorAll("[data-furn-item]")){
+    const cat = furnCatOf(b.getAttribute("data-furn-item"));
+    const cv = b.querySelector("canvas");
+    if (!cat || !cv) continue;
+    const W = 30, H = 21;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    const c = cv.getContext("2d");
+    if (!c) continue;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, W, H);
+    /*  Each icon fits its own box - an icon is for recognising, not for
+        comparing sizes. The plan is where things are to scale. */
+    const s = Math.min((W - 4) / cat.w, (H - 4) / cat.d);
+    c.translate(W / 2, H / 2);
+    c.scale(s, -s);
+    drawFurnTop(c, cat, cat.id === furnPlace ? PLAN_PAL : TRAY_PAL, 1 / s);
+  }
+}
+function updateFurnUI(){
+  if (!FEL.name) return;
+  const it = furn[furnSel], cat = it ? furnCatOf(it.t) : null;
+  const on = !!(it && cat);
+  if (on){
+    FEL.name.textContent = cat.name + " · " + ROOMNAME[furnRoom(it)] + " · " + it.x.toFixed(2) + ", " + it.y.toFixed(2) + " m";
+    FEL.name.classList.remove("none");
+  } else {
+    const armed = furnPlace ? furnCatOf(furnPlace) : null;
+    FEL.name.textContent = armed ? ("click the plan to set down the " + armed.name.toLowerCase())
+                         : (furn.length ? (furn.length + " placed  .  click one in the plan")
+                                        : "pick a piece, then click the plan");
+    FEL.name.classList.add("none");
+  }
+  FEL.dup.disabled = !on || furn.length >= FURN_MAX;
+  FEL.del.disabled = !on;
+  FEL.rotm.disabled = !on;
+  FEL.rotp.disabled = !on;
+  FEL.turn.disabled = !on;
+  if (on && document.activeElement !== FEL.turn) FEL.turn.value = String(Math.round(it.yaw) % 360);
+  FEL.turnVal.textContent = on ? (Math.round(it.yaw) % 360) + " deg" : "--";
+  FEL.clear.disabled = !furn.length;
+  FEL.clear.classList.toggle("warn", !!furnClearArm);
+  FEL.clear.textContent = furnClearArm ? "Sure?" : "Clear all";
+  for (const b of document.querySelectorAll("[data-furn-item]"))
+    b.classList.toggle("on", b.getAttribute("data-furn-item") === furnPlace);
+  drawTrayIcons(false);
+}
+/*  What the furniture in YOUR room adds, in the engine's own terms. The
+    absorption is the catalogue's number, summed; the RT60 is the scene's,
+    which already includes it. Nothing here is estimated by the page - if the
+    catalogue carries no absorption the line simply does not state one. */
+function updateFurnReadout(){
+  if (!FEL.read) return;
+  const lr = roomOfPoint(LX(), LY());
+  const here = furn.filter(it => furnRoom(it) === lr);
+  let txt = ROOMNAME[lr] + ": ";
+  if (!here.length) txt += "no furniture";
+  else {
+    let sum = 0, known = true;
+    /* the engine's own net figure when it sends one (a rug REPLACES the floor
+       under it, which a plain sum of the catalogue cannot know) */
+    if (scene && Array.isArray(scene.furnA) && typeof scene.furnA[lr] === "number" && isFinite(scene.furnA[lr])) sum = scene.furnA[lr];
+    else for (const it of here){
+      const c = furnCatOf(it.t);
+      if (c && typeof c.absorb1k === "number") sum += c.absorb1k; else known = false;
+    }
+    txt += known ? ("+" + sum.toFixed(1) + " m² absorption at 1 kHz")
+                 : (here.length + (here.length === 1 ? " piece" : " pieces"));
+  }
+  const t = scene && scene.rt && scene.rt[lr] ? scene.rt[lr][1] : undefined;
+  if (typeof t === "number" && isFinite(t)) txt += "  ·  RT60 " + t.toFixed(2) + " s";
+  FEL.read.textContent = txt;
+}
+
+/* ------------------------------------------------------- pointer and keys */
+planCv.addEventListener("pointerenter", () => { planHover = true; });
+planCv.addEventListener("pointerleave", () => {
+  planHover = false;
+  if (planHoverW && !trayDrag){ planHoverW = null; invalidate("plan"); }
+});
+planCv.addEventListener("pointermove", e => {
+  if (!furnPlace || pdrag) return;
+  if (!PF) PF = planFit();
+  planHoverW = planToWorld(e.clientX, e.clientY);
+  invalidate("plan");
+});
+/*  "The plan has the focus" means the last press landed on it. Capture phase,
+    so it is settled before any handler below looks at it. */
+document.addEventListener("pointerdown", e => { planFocus = (e.target === planCv); }, true);
+window.addEventListener("pointermove", e => {
+  if (!trayDrag) return;
+  if (!trayDrag.moved && Math.hypot(e.clientX - trayDrag.cx, e.clientY - trayDrag.cy) > 5){
+    trayDrag.moved = true;
+    document.body.style.cursor = "copy";
+  }
+  if (!trayDrag.moved) return;
+  const r = planCv.getBoundingClientRect();
+  const over = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+  if (!PF) PF = planFit();
+  planHoverW = over ? planToWorld(e.clientX, e.clientY) : null;
+  invalidate("plan");
+});
+window.addEventListener("pointerup", e => {
+  const d = trayDrag;
+  trayDrag = null;
+  if (!d) return;
+  document.body.style.cursor = "";
+  if (!d.moved) return;
+  /*  a drag that ends back on the button would also fire its click - which
+      must not then ARM the piece that was just dropped */
+  trayDropped = true;
+  setTimeout(() => { trayDropped = false; }, 0);
+  const r = planCv.getBoundingClientRect();
+  if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom){
+    if (!PF) PF = planFit();
+    const w = planToWorld(e.clientX, e.clientY);
+    furnAdd(d.t, w[0], w[1], 0);
+  }
+  planHoverW = null;
+  invalidate("plan");
+});
+window.addEventListener("keydown", e => {
+  if (textEntry(e)) return;
+  if (e.key === "Escape"){
+    if (furnPlace) furnArm(null);
+    if (furnSel >= 0) furnSelect(-1);
+    return;
+  }
+  if ((e.key === "Delete" || e.key === "Backspace") && furnSel >= 0 && (planHover || planFocus)){
+    e.preventDefault();
+    furnDelete();
+  }
+});
+
+/*  Picking in the plan, called only after everything else has been offered.
+    The selected piece's turn handle first, then the pieces top-down, so a rug
+    under a sofa is the last thing a click finds. */
+function furnDrawOrder(){
+  const lay = i => {
+    if (i === furnSel) return 2;
+    const c = furnCatOf(furn[i].t);
+    return (c && !c.occludes && c.h < 0.1) ? 0 : 1;    /* floor coverings under everything */
+  };
+  return furn.map((_, i) => i).sort((a, b) => (lay(a) - lay(b)) || (a - b));
+}
+function hitFurn(wx, wy){
+  if (!furn.length) return null;
+  const s = PF ? PF.s : 30;
+  const sel = furn[furnSel];
+  if (sel){
+    const h = furnHandlePos(sel);
+    if (Math.hypot((wx - h[0]) * s, (wy - h[1]) * s) < 11) return { what:"furnrot", i:furnSel };
+  }
+  const order = furnDrawOrder().reverse();
+  for (const i of order){
+    const it = furn[i], cat = furnCatOf(it.t);
+    if (cat && furnContains(it, cat, wx, wy, 3 / s)) return { what:"furn", i:i };
+  }
+  return null;
+}
+
+/* ---------------------------------------------------------- in the plan */
+const PLAN_PAL = {
+  ink:"rgba(44,38,32,.90)", thin:"rgba(44,38,32,.42)",
+  fab:"rgba(112,146,136,.62)", fab2:"rgba(84,118,110,.74)",
+  fabB:"rgba(206,160,82,.66)", fabB2:"rgba(170,122,52,.76)", duvet:"rgba(124,140,172,.64)",
+  wood:"rgba(178,132,84,.58)", wood2:"rgba(118,78,48,.68)", woodL:"rgba(222,212,192,.88)",
+  lac:"rgba(28,26,28,.92)", lacInk:"rgba(232,222,200,.85)",
+  rug:"rgba(176,72,54,.34)", rug2:"rgba(58,62,110,.36)", rugInk:"rgba(128,52,40,.75)",
+  linen:"rgba(250,247,238,.96)", cur:"rgba(136,40,54,.55)",
+  skin:"rgba(226,204,178,.96)", cloth:"rgba(72,96,134,.76)", book:"rgba(168,76,52,.62)"
+};
+const TRAY_PAL = {
+  ink:"rgba(240,214,170,.95)", thin:"rgba(240,214,170,.50)",
+  fab:"rgba(110,160,150,.55)", fab2:"rgba(90,140,130,.72)",
+  fabB:"rgba(214,168,86,.62)", fabB2:"rgba(190,140,60,.76)", duvet:"rgba(130,150,190,.62)",
+  wood:"rgba(190,140,90,.55)", wood2:"rgba(140,94,58,.72)", woodL:"rgba(220,210,190,.55)",
+  lac:"rgba(10,9,9,.96)", lacInk:"rgba(240,214,170,.90)",
+  rug:"rgba(190,82,60,.55)", rug2:"rgba(80,90,150,.62)", rugInk:"rgba(240,190,150,.80)",
+  linen:"rgba(240,236,226,.90)", cur:"rgba(170,60,74,.72)",
+  skin:"rgba(230,208,182,.95)", cloth:"rgba(100,130,180,.86)", book:"rgba(200,100,70,.72)"
+};
+/*  A grand piano's case in its own normalised terms: u from the keyboard
+    (0) to the tail (1), v across it from the straight side (-1) to the
+    curved one (+1). Anticlockwise, so its right-hand side is outside. */
+const PIANO_UV = [[0,-1],[0.92,-1],[0.985,-0.93],[1.0,-0.78],[0.98,-0.60],[0.90,-0.42],[0.76,-0.18],
+                  [0.62,0.12],[0.50,0.45],[0.40,0.72],[0.30,0.92],[0.18,1.0],[0,1]];
+function pianoKeyDepth(w){ return Math.min(0.26, w * 0.14); }
+function pianoOutline(w, d){
+  const hw = w/2, hd = d/2, x0 = -hw + pianoKeyDepth(w);
+  return PIANO_UV.map(p => [x0 + p[0] * (hw - x0), p[1] * hd]);
+}
+/*  One piece seen from above, in its own frame: metres, x along its width,
+    y UP and towards its front. The caller has already translated, turned and
+    scaled; px is the size of one screen pixel in these units, so line widths
+    stay in pixels whatever the zoom. */
+function drawFurnTop(c, cat, P, px){
+  const t = cat.id, w = cat.w, d = cat.d, hw = w/2, hd = d/2;
+  c.lineJoin = "round"; c.lineCap = "round";
+  c.setLineDash([]);
+  const LW = k => { c.lineWidth = px * k; };
+  const box = (x0, y0, x1, y1, fill, r) => {
+    c.beginPath();
+    if (r && c.roundRect) c.roundRect(x0, y0, x1 - x0, y1 - y0, r); else c.rect(x0, y0, x1 - x0, y1 - y0);
+    if (fill){ c.fillStyle = fill; c.fill(); }
+    c.stroke();
+  };
+  const line = (x0, y0, x1, y1) => { c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); };
+  c.strokeStyle = P.ink; LW(1.1);
+  if (t === "sofa" || t === "armchair"){
+    const aw = Math.min(0.17, w * 0.18), bd = Math.min(0.22, d * 0.26);
+    const F1 = t === "sofa" ? P.fab : P.fabB, F2 = t === "sofa" ? P.fab2 : P.fabB2;
+    box(-hw, -hd, hw, hd, F1, 0.05);
+    box(-hw + aw, -hd, hw - aw, -hd + bd, F2, 0.03);            /* the back */
+    box(-hw, -hd, -hw + aw, hd, F2, 0.06);                       /* the arms */
+    box(hw - aw, -hd, hw, hd, F2, 0.06);
+    const n = w > 1.4 ? 3 : 1, cw = (w - 2*aw) / n;
+    LW(0.8);
+    for (let i = 0; i < n; i++)
+      box(-hw + aw + i*cw + 0.025, -hd + bd + 0.03, -hw + aw + (i+1)*cw - 0.025, hd - 0.04, null, 0.05);
+  } else if (t === "bed"){
+    box(-hw, -hd, hw, hd, P.wood);
+    box(-hw, -hd, -hw + 0.06, hd, P.wood2);                      /* headboard */
+    box(-hw + 0.08, -hd + 0.03, hw - 0.02, hd - 0.03, P.linen, 0.04);
+    box(-hw + 0.60, -hd + 0.01, hw - 0.01, hd - 0.01, P.duvet, 0.04);
+    LW(0.7);
+    line(-hw + 0.78, -hd + 0.03, -hw + 0.78, hd - 0.03);         /* the turned-down edge */
+    LW(1.0);
+    box(-hw + 0.12, 0.05, -hw + 0.52, hd - 0.10, P.linen, 0.07); /* pillows */
+    box(-hw + 0.12, -hd + 0.10, -hw + 0.52, -0.05, P.linen, 0.07);
+  } else if (t === "rug"){
+    LW(0.9);
+    box(-hw + 0.06, -hd, hw - 0.06, hd, P.rug);
+    c.strokeStyle = P.rugInk;
+    box(-hw + 0.20, -hd + 0.14, hw - 0.20, hd - 0.14, P.rug2);
+    c.beginPath();
+    c.moveTo(0, -hd * 0.55); c.lineTo(hw * 0.5, 0); c.lineTo(0, hd * 0.55); c.lineTo(-hw * 0.5, 0);
+    c.closePath(); c.fillStyle = P.rug; c.fill(); c.stroke();
+    LW(0.8);
+    for (let yy = -hd + 0.04; yy < hd - 0.02; yy += 0.08){    /* the fringe at both ends */
+      line(-hw, yy, -hw + 0.06, yy); line(hw - 0.06, yy, hw, yy);
+    }
+    c.strokeStyle = P.ink;
+  } else if (t === "curtain"){
+    c.fillStyle = P.cur;
+    c.fillRect(-hw, -hd, w, d);
+    LW(1.0);
+    const n = Math.max(6, Math.round(w / 0.12));
+    c.beginPath();
+    for (let i = 0; i <= n; i++){
+      const x = -hw + i * w / n, y = (i % 2 ? 1 : -1) * hd * 0.85;
+      if (i) c.lineTo(x, y); else c.moveTo(x, y);
+    }
+    c.stroke();
+    c.strokeStyle = P.thin; LW(0.7);
+    line(-hw, 0, hw, 0);                                         /* the rail */
+    c.strokeStyle = P.ink;
+  } else if (t === "bookcase"){
+    box(-hw, -hd, hw, hd, P.wood);
+    c.fillStyle = P.book;
+    const nb = Math.max(4, Math.round((w - 0.08) / 0.05));
+    for (let i = 0; i < nb; i++) if (i % 3 !== 2)
+      c.fillRect(-hw + 0.04 + i * (w - 0.08) / nb, -hd + 0.05, (w - 0.08) / nb * 0.8, d - 0.10);
+    LW(2.2);
+    line(-hw, -hd + px * 1.1, hw, -hd + px * 1.1);               /* the back, stroked inside the edge */
+  } else if (t === "table"){
+    box(-hw, -hd, hw, hd, P.wood2, 0.05);
+    c.strokeStyle = P.thin; LW(0.7);
+    box(-hw + 0.07, -hd + 0.07, hw - 0.07, hd - 0.07, null, 0.03);
+    c.strokeStyle = P.ink;
+  } else if (t === "wardrobe"){
+    box(-hw, -hd, hw, hd, P.woodL);
+    c.strokeStyle = P.thin; LW(0.8);
+    c.setLineDash([px * 4, px * 3]);
+    line(-hw + 0.06, 0, hw - 0.06, 0);                          /* the hanging rail */
+    c.setLineDash([]);
+    for (let x = -hw + 0.12; x < hw - 0.08; x += 0.09) line(x, -hd * 0.62, x, hd * 0.62);  /* hangers */
+    c.strokeStyle = P.ink; LW(1.4);
+    line(-hw, hd, hw, hd);                                       /* the doors */
+    LW(1.0);
+    line(0, hd, 0, hd - 0.06);
+  } else if (t === "piano"){
+    const kb = pianoKeyDepth(w), x0 = -hw + kb;
+    const pts = pianoOutline(w, d);
+    c.beginPath();
+    pts.forEach((p, i) => { if (i) c.lineTo(p[0], p[1]); else c.moveTo(p[0], p[1]); });
+    c.closePath();
+    c.fillStyle = P.lac; c.fill(); c.stroke();
+    box(-hw, -hd * 0.90, x0, hd * 0.90, P.linen);                /* the keys */
+    c.strokeStyle = P.lac; LW(1.3);
+    const wk = 0.0235;
+    for (let k = 0; (k + 1) * wk < d * 0.90; k++){    /* the keyboard spans 0.9 of d */
+      const pos = k % 7;
+      if (pos === 1 || pos === 2 || pos === 4 || pos === 5 || pos === 6){
+        const yy = -hd * 0.90 + k * wk;
+        line(-hw + kb * 0.42, yy, x0 - 0.01, yy);
+      }
+    }
+    c.strokeStyle = P.lacInk; LW(0.7);
+    line(x0 + 0.05, -hd + 0.05, x0 + 0.88 * (hw - x0), -hd + 0.05);   /* the lid hinge */
+    c.strokeStyle = P.ink;
+  } else if (t === "person"){
+    c.fillStyle = P.cloth;
+    c.beginPath(); c.ellipse(0, -0.01, hw, hd * 0.72, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+    const r = Math.min(0.105, hw * 0.42);
+    c.fillStyle = P.skin;
+    c.beginPath(); c.arc(0, 0.02, r, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.fillStyle = P.ink;                                         /* the nose: which way it looks */
+    c.beginPath(); c.moveTo(0, 0.02 + r * 1.45); c.lineTo(-r * 0.32, 0.02 + r * 0.8); c.lineTo(r * 0.32, 0.02 + r * 0.8);
+    c.closePath(); c.fill();
+  } else {
+    box(-hw, -hd, hw, hd, P.woodL);
+    line(-hw, -hd, hw, hd); line(-hw, hd, hw, -hd);
+  }
+}
+function drawFurniturePlan(c){
+  planFurnDrawn = [];
+  const s = PF.s, px = 1 / s;
+  for (const i of furnDrawOrder()){
+    const it = furn[i], cat = furnCatOf(it.t);
+    if (!cat) continue;
+    c.save();
+    c.translate(PX(it.x), PY(it.y));
+    c.rotate(-it.yaw * Math.PI / 180);
+    c.scale(s, -s);
+    drawFurnTop(c, cat, PLAN_PAL, px);
+    if (i === furnSel){
+      c.strokeStyle = "#2c4a78"; c.lineWidth = px * 1.5;
+      c.setLineDash([px * 4, px * 3]);
+      c.beginPath(); c.rect(-cat.w/2 - 0.07, -cat.d/2 - 0.07, cat.w + 0.14, cat.d + 0.14); c.stroke();
+      c.setLineDash([]);
+    }
+    c.restore();
+    planFurnDrawn.push(it.t);
+  }
+  const sel = furn[furnSel], scat = sel ? furnCatOf(sel.t) : null;
+  if (sel && scat){
+    /*  the turn handle: a stalk off the front edge and a round grip, in the
+        same blue as the listener's own heading handle */
+    const a = sel.yaw * Math.PI / 180;
+    const fe = [sel.x - Math.sin(a) * scat.d/2, sel.y + Math.cos(a) * scat.d/2];
+    const h = furnHandlePos(sel);
+    c.strokeStyle = "rgba(40,60,100,.60)"; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(PX(fe[0]), PY(fe[1])); c.lineTo(PX(h[0]), PY(h[1])); c.stroke();
+    c.fillStyle = "rgba(60,90,150,.35)"; c.strokeStyle = "#2c4a78"; c.lineWidth = 1.3;
+    c.beginPath(); c.arc(PX(h[0]), PY(h[1]), Math.max(4, s * 0.14), 0, 7); c.fill(); c.stroke();
+    /*  the name, on a paper halo - it has to read over black lacquer and
+        teal upholstery alike */
+    c.font = "600 " + Math.max(8, Math.round(s * 0.24)) + "px Consolas, monospace";
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.lineJoin = "round"; c.lineWidth = 3.2;
+    c.strokeStyle = "rgba(246,240,228,.88)";
+    c.strokeText(scat.name, PX(sel.x), PY(sel.y));
+    c.fillStyle = "rgba(44,74,120,.95)";
+    c.fillText(scat.name, PX(sel.x), PY(sel.y));
+  }
+  /* the ghost of a piece about to be set down */
+  const gt = furnPlace || (trayDrag && trayDrag.moved ? trayDrag.t : null);
+  const gcat = gt ? furnCatOf(gt) : null;
+  if (gcat && planHoverW){
+    const g = clampFurn({ t:gt, x:planHoverW[0], y:planHoverW[1], yaw:0 });
+    c.save();
+    c.globalAlpha = 0.45;
+    c.translate(PX(g.x), PY(g.y));
+    c.scale(s, -s);
+    drawFurnTop(c, gcat, PLAN_PAL, px);
+    c.restore();
+  }
+}
+
+/* ------------------------------------------------------------ in 3D */
+/*  A piece's frame: L maps its own metres to the world, and box() builds an
+    oriented box between two corners in that frame. Everything is built to
+    the catalogue's w, d and h, so the drawing and the engine's box are the
+    same box. */
+function furnFrame(it, room){
+  const a = it.yaw * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+  const ux = [ca, sa, 0], uy = [-sa, ca, 0], uz = [0, 0, 1];
+  const L = (lx, ly, z) => [it.x + ca*lx - sa*ly, it.y + sa*lx + ca*ly, z];
+  const F = { ux:ux, uy:uy, uz:uz, L:L, room:room };
+  F.box = (x0, x1, y0, y1, z0, z1, mat, k, kinds) => {
+    if (x1 - x0 < 1e-4 || y1 - y0 < 1e-4 || z1 - z0 < 1e-4) return;
+    boxOriented(L((x0 + x1)/2, (y0 + y1)/2, (z0 + z1)/2), ux, uy, uz,
+                (x1 - x0)/2, (y1 - y0)/2, (z1 - z0)/2, mat, kinds || [k,k,k,k,k,k], room, 2);
+  };
+  return F;
+}
+/* a quad with its own uv at each corner, wound to face `want` */
+function quadUV(a, b, c, d, ua, ub, uc, ud, want, mat, kind, room){
+  let n = nrm3(crs(sub(b, a), sub(d, a)));
+  if (dot3(n, want) < 0){ let t = b; b = d; d = t; t = ub; ub = ud; ud = t; n = mul3(n, -1); }
+  const tg = nrm3(sub(b, a));
+  addV(a,n,tg,ua,mat,kind,room); addV(b,n,tg,ub,mat,kind,room); addV(c,n,tg,uc,mat,kind,room);
+  addV(a,n,tg,ua,mat,kind,room); addV(c,n,tg,uc,mat,kind,room); addV(d,n,tg,ud,mat,kind,room);
+}
+function capTri(p0, a, b, z, want, mat, kind, room){
+  let A = [p0[0], p0[1], z], B = [a[0], a[1], z], C = [b[0], b[1], z];
+  if (dot3(crs(sub(B, A), sub(C, A)), want) < 0){ const t = B; B = C; C = t; }
+  const n = want, t = [1,0,0], bt = crs(n, t);
+  const f = p => [dot3(p, t), dot3(p, bt)];
+  addV(A,n,t,f(A),mat,kind,room); addV(B,n,t,f(B),mat,kind,room); addV(C,n,t,f(C),mat,kind,room);
+}
+/*  An upright prism on an outline given in the piece's frame, anticlockwise.
+    The caps are fanned from `inner`, a point that can see the whole outline. */
+function prismLocal(F, pts, inner, z0, z1, mat, kind){
+  const P = pts.map(p => F.L(p[0], p[1], 0));
+  const C = F.L(inner[0], inner[1], 0);
+  for (let i = 0; i < P.length; i++){
+    const a = P[i], b = P[(i + 1) % P.length];
+    const ex = b[0] - a[0], ey = b[1] - a[1], L = Math.hypot(ex, ey);
+    if (L < 1e-5) continue;
+    faceQuad([a[0],a[1],z0], [b[0],b[1],z0], [b[0],b[1],z1], [a[0],a[1],z1], [ey/L, -ex/L, 0], mat, kind, F.room, 1);
+    capTri(C, a, b, z1, [0,0,1], mat, kind, F.room);
+    capTri(C, a, b, z0, [0,0,-1], mat, kind, F.room);
+  }
+}
+const FB = {};
+/*  Material kinds, all new in the shader: 40 upholstery (m 0 teal sofa,
+    1 mustard armchair, 2 slate duvet), 41 wood (m 0 oak, 1 walnut, 2 painted),
+    42 black lacquer, 43 book spines, 44 rug, 45 velvet, 46 the mannequin
+    (m 0 head and hands, 1 shirt, 2 trousers), 48 linen, 50 piano keys. */
+FB.sofa = FB.armchair = (F, c) => {
+  const hw = c.w/2, hd = c.d/2, H = c.h, sz = H / (c.id === "sofa" ? 0.85 : 0.90);
+  const aw = Math.min(0.17, c.w * 0.18), bd = Math.min(0.22, c.d * 0.26);
+  const foot = 0.08*sz, seatB = 0.40*sz, seatT = 0.51*sz, armT = 0.64*sz;
+  const col = c.id === "sofa" ? 0 : 1;
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]){
+    const fx = sx * (hw - 0.06), fy = sy * (hd - 0.06);
+    F.box(fx - 0.025, fx + 0.025, fy - 0.025, fy + 0.025, 0, foot, 1, 41);
+  }
+  F.box(-hw, hw, -hd, hd, foot, seatB, col, 40);
+  F.box(-hw, -hw + aw, -hd, hd, seatB, armT, col, 40);
+  F.box(hw - aw, hw, -hd, hd, seatB, armT, col, 40);
+  F.box(-hw + aw, hw - aw, -hd, -hd + bd, seatB, H, col, 40);
+  const n = c.w > 1.4 ? 3 : 1, cw = (c.w - 2*aw) / n;
+  for (let i = 0; i < n; i++){
+    const x0 = -hw + aw + i*cw + 0.006, x1 = -hw + aw + (i+1)*cw - 0.006;
+    F.box(x0, x1, -hd + bd, hd - 0.015, seatB, seatT, col, 40);                 /* seat */
+    F.box(x0 + 0.01, x1 - 0.01, -hd + bd, -hd + bd + 0.15, seatT, H - 0.07*sz, col, 40);   /* back */
+  }
+};
+FB.bed = (F, c) => {
+  const hw = c.w/2, hd = c.d/2, H = c.h, s = H / 0.55;
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]){
+    const fx = sx * (hw - 0.09), fy = sy * (hd - 0.08);
+    F.box(fx - 0.03, fx + 0.03, fy - 0.03, fy + 0.03, 0, 0.06*s, 1, 41);
+  }
+  F.box(-hw + 0.06, hw, -hd, hd, 0.06*s, 0.24*s, 0, 41);                        /* frame */
+  F.box(-hw, -hw + 0.06, -hd, hd, 0, H, 1, 41);                                 /* headboard */
+  F.box(-hw + 0.08, hw - 0.02, -hd + 0.03, hd - 0.03, 0.24*s, 0.43*s, 0, 48);   /* mattress */
+  F.box(-hw + 0.60, hw - 0.005, -hd + 0.005, hd - 0.005, 0.30*s, 0.47*s, 2, 40); /* duvet */
+  F.box(-hw + 0.12, -hw + 0.52, 0.05, hd - 0.10, 0.43*s, 0.52*s, 0, 48);        /* pillows */
+  F.box(-hw + 0.12, -hw + 0.52, -hd + 0.10, -0.05, 0.43*s, 0.52*s, 0, 48);
+};
+FB.rug = (F, c) => {
+  const hw = c.w/2, hd = c.d/2;
+  /*  Lifted clear of the floor it lies on - 2 cm is plenty for the depth
+      buffer at any distance in this apartment, and it is the rug's height. */
+  const zt = Math.max(0.012, Math.min(c.zt || c.h, 0.05));
+  F.box(-hw, hw, -hd, hd, 0.002, zt - 0.0015, 0, 44);
+  quadUV(F.L(-hw, -hd, zt), F.L(hw, -hd, zt), F.L(hw, hd, zt), F.L(-hw, hd, zt),
+         [-1,-1], [1,-1], [1,1], [-1,1], [0,0,1], 0, 44, F.room);
+};
+FB.curtain = (F, c) => {
+  const hw = c.w/2, hd = c.d/2, H = c.h;
+  F.box(-hw, hw, -0.018, 0.018, H - 0.035, H, 0, 30);                           /* the rail */
+  const n = Math.max(6, Math.round(c.w / 0.12));
+  const z0 = 0.03, z1 = H - 0.05;
+  let u = 0;
+  for (let i = 0; i < n; i++){
+    const xa = -hw + i * c.w / n, xb = -hw + (i + 1) * c.w / n;
+    const ya = (i % 2 ? 1 : -1) * hd * 0.85, yb = ((i + 1) % 2 ? 1 : -1) * hd * 0.85;
+    const a = F.L(xa, ya, z0), b = F.L(xb, yb, z0), cc = F.L(xb, yb, z1), dd = F.L(xa, ya, z1);
+    const seg = Math.hypot(xb - xa, yb - ya);
+    const out = nrm3(crs(sub(b, a), [0,0,1]));
+    /*  both faces - a curtain is seen from the room and from the wall side */
+    quadUV(a, b, cc, dd, [u,z0], [u+seg,z0], [u+seg,z1], [u,z1], out, 0, 45, F.room);
+    quadUV(a, b, cc, dd, [u,z0], [u+seg,z0], [u+seg,z1], [u,z1], mul3(out, -1), 0, 45, F.room);
+    u += seg;
+  }
+};
+FB.bookcase = (F, c) => {
+  const hw = c.w/2, hd = c.d/2, H = c.h, t = 0.025, pl = 0.07;
+  F.box(-hw, -hw + t, -hd, hd, 0, H, 0, 41);                                    /* sides */
+  F.box(hw - t, hw, -hd, hd, 0, H, 0, 41);
+  F.box(-hw + t, hw - t, -hd, hd, H - t, H, 0, 41);                             /* top */
+  F.box(-hw + t, hw - t, -hd, hd - 0.02, 0, pl, 1, 41);                         /* plinth */
+  F.box(-hw + t, hw - t, -hd, hd, pl, pl + t, 0, 41);                           /* bottom */
+  F.box(-hw + t, hw - t, -hd, -hd + 0.012, pl + t, H - t, 0, 41);               /* back */
+  const nC = Math.max(2, Math.round((H - 0.2) / 0.38));
+  const clear = (H - t - (pl + t) - (nC - 1) * t) / nC;
+  for (let k = 0; k < nC; k++){
+    const z0 = pl + t + k * (clear + t);
+    if (k > 0) F.box(-hw + t, hw - t, -hd + 0.012, hd, z0 - t, z0, 0, 41);     /* a shelf */
+    /*  The books: one face per shelf, u in metres (offset per shelf so no two
+        shelves carry the same row), v 0..1 up the opening - the shader gives
+        each 3 cm spine its own colour and its own height. */
+    const yb = hd - 0.035, xl = -hw + t + 0.004, xr = hw - t - 0.004, zt = z0 + clear * 0.95;
+    const off = k * 1.37;
+    quadUV(F.L(xl, yb, z0), F.L(xr, yb, z0), F.L(xr, yb, zt), F.L(xl, yb, zt),
+           [off, 0], [off + (xr - xl), 0], [off + (xr - xl), 1], [off, 1], F.uy, 0, 43, F.room);
+  }
+};
+FB.table = (F, c) => {
+  const hw = c.w/2, hd = c.d/2, zt = c.zt || c.h;
+  const zb = (c.zb > 0 && c.zb < zt - 0.01) ? c.zb : zt - 0.04;
+  F.box(-hw, hw, -hd, hd, zb, zt, 1, 41);                                       /* the top */
+  F.box(-hw + 0.07, hw - 0.07, -hd + 0.07, hd - 0.07, zb - 0.08, zb, 1, 41);    /* apron */
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]){
+    const fx = sx * (hw - 0.08), fy = sy * (hd - 0.08);
+    F.box(fx - 0.028, fx + 0.028, fy - 0.028, fy + 0.028, 0, zb, 1, 41);
+  }
+};
+FB.wardrobe = (F, c) => {
+  const hw = c.w/2, hd = c.d/2, H = c.h;
+  F.box(-hw + 0.02, hw - 0.02, -hd + 0.02, hd - 0.05, 0, 0.08, 1, 41);          /* plinth */
+  F.box(-hw + 0.01, hw - 0.01, -hd, hd - 0.035, 0.08, H - 0.04, 2, 41);         /* carcass */
+  F.box(-hw, hw, -hd, hd, H - 0.04, H, 2, 41);                                  /* cornice */
+  for (const s of [-1, 1]){
+    const x0 = s < 0 ? -hw + 0.02 : 0.004, x1 = s < 0 ? -0.004 : hw - 0.02;
+    F.box(x0, x1, hd - 0.035, hd - 0.015, 0.10, H - 0.07, 2, 41);               /* a door */
+    const hx = s * 0.045;
+    F.box(hx - 0.008, hx + 0.008, hd - 0.015, hd, 0.95, 1.25, 0, 13);           /* its handle */
+  }
+};
+FB.piano = (F, c) => {
+  const hw = c.w/2, hd = c.d/2, H = c.h, kb = pianoKeyDepth(c.w), x0 = -hw + kb;
+  const zb = c.zb > 0 ? c.zb : 0.35;
+  const caseB = zb + (H - zb) * 0.42;           /* the rim; the legs carry it */
+  prismLocal(F, pianoOutline(c.w, c.d), [x0 + 0.3 * (hw - x0), -0.3 * hd], caseB, H, 0, 42);
+  const legs = [[x0 + 0.12, -hd + 0.16], [x0 + 0.12, hd - 0.20], [x0 + 0.86 * (hw - x0), -hd + 0.18]];
+  for (const l of legs){
+    const p = F.L(l[0], l[1], 0);
+    coneRing(p[0], p[1], caseB, 0.04, 0.05, 0.036, 10, 0, 42, F.room);
+    coneRing(p[0], p[1], 0.04, 0.0, 0.036, 0.03, 8, 0, 13, F.room);            /* brass castor */
+  }
+  F.box(-hw, x0, -hd * 0.95, hd * 0.95, caseB, caseB + 0.07, 0, 42);            /* keybed */
+  F.box(-hw + 0.01, x0 - 0.03, -hd * 0.86, hd * 0.86, caseB + 0.07, caseB + 0.095, 0, 0,
+        [42, 48, 42, 42, 50, 42]);                                              /* the keys */
+  F.box(-hw, x0, hd * 0.86, hd * 0.95, caseB + 0.07, caseB + 0.17, 0, 42);      /* cheeks */
+  F.box(-hw, x0, -hd * 0.95, -hd * 0.86, caseB + 0.07, caseB + 0.17, 0, 42);
+  F.box(x0 - 0.03, x0, -hd * 0.86, hd * 0.86, caseB + 0.07, caseB + 0.19, 0, 42); /* fallboard */
+  F.box(x0 + 0.06, x0 + 0.12, -0.06, 0.06, 0.06, caseB, 0, 42);                 /* lyre */
+  F.box(x0 - 0.02, x0 + 0.10, -0.07, 0.07, 0.02, 0.05, 0, 13);                  /* pedals */
+};
+FB.person = (F, c) => {
+  const s = c.h / 1.75, sw = c.w / 0.5, sd = c.d / 0.3;
+  for (const sx of [-1, 1]){
+    const lx = sx * 0.095 * sw;
+    F.box(lx - 0.062*sw, lx + 0.062*sw, -0.07*sd, 0.07*sd, 0.06*s, 0.84*s, 2, 46);   /* leg */
+    F.box(lx - 0.052*sw, lx + 0.052*sw, -0.07*sd, 0.13*sd, 0, 0.06*s, 0, 29);        /* shoe */
+    const ax = sx * 0.205 * sw;
+    F.box(ax - 0.045*sw, ax + 0.045*sw, -0.05*sd, 0.05*sd, 0.84*s, 1.40*s, 1, 46);   /* arm */
+    F.box(ax - 0.035*sw, ax + 0.035*sw, -0.04*sd, 0.04*sd, 0.72*s, 0.84*s, 0, 46);   /* hand */
+  }
+  F.box(-0.165*sw, 0.165*sw, -0.10*sd, 0.10*sd, 0.82*s, 1.36*s, 1, 46);             /* torso */
+  F.box(-0.249*sw, 0.249*sw, -0.09*sd, 0.09*sd, 1.34*s, 1.45*s, 1, 46);             /* shoulders */
+  const nk = F.L(0, 0, 0), hc = F.L(0, 0.01*sd, 0);
+  coneRing(nk[0], nk[1], 1.53*s, 1.45*s, 0.05*s, 0.055*s, 10, 0, 46, F.room);       /* neck */
+  sphere(hc[0], hc[1], 1.62*s, 0.105*s, 14, 10, 0, 46, F.room);                     /* head */
+  F.box(-0.014, 0.014, 0.08*sd, 0.125*sd, 1.59*s, 1.635*s, 0, 46);                  /* nose */
+};
+function furnGeneric(F, c){ F.box(-c.w/2, c.w/2, -c.d/2, c.d/2, c.zb || 0, c.zt || c.h, 2, 41); }
+function buildFurnitureMesh(){
+  for (const it of furn){
+    const c = furnCatOf(it.t);
+    if (!c) continue;
+    (FB[it.t] || furnGeneric)(furnFrame(it, furnRoom(it)), c);
+  }
+}
+
+/* ==================================================================== */
+/*  CINEMATIC MODE (protocol section 7, page only)                       */
+/*                                                                       */
+/*  A second renderer over the SAME mesh and the SAME material code:     */
+/*  the fragment library (hgt, bumpAmt, surf) is lifted out of FS as it  */
+/*  stands, so a material kind cannot look one way here and another way  */
+/*  in the ordinary view. What changes is everything around it:          */
+/*    HDR target at 1.5x / 2x with MSAA, resolved by blit;               */
+/*    GGX specular + energy-conserving diffuse in place of Blinn-Phong;  */
+/*    omnidirectional cube shadows for the four pendants, a window-      */
+/*    shaped shadowed light for the hall, both re-rendered ONLY when the */
+/*    mesh is rebuilt;                                                   */
+/*    SSAO on the ambient term instead of the analytic corner darkening; */
+/*    bloom, ACES, vignette, grain, a supersampled downsample;           */
+/*    dust in the window's shaft, volumetric beams, lamp flicker;        */
+/*    and PHOTO: once still for 0.6 s, a progressive path tracer over    */
+/*    a G-buffer of the detailed mesh, tracing against a box model of    */
+/*    the flat, and stopping - GPU idle - once it has converged.         */
+/*  OFF never reaches any of this: drawPov only calls in when it is on.  */
+/* ==================================================================== */
+const CINE_KEY = "thinwalls.cinematic";
+const CINE_SCALE = { high:1.5, ultra:2.0 };
+const CINE_CAP_PX = 3840 * 2160;          /* render target never bigger than a 4K frame */
+const PHOTO_MAX = { high:256, ultra:512 };
+const PHOTO_STILL_MS = 600;
+const SUN_POS = [11.6, 13.5, 8.0];        /* the daylight outside the hall's window */
+const SUN_AIM = [11.6, 4.6, 0.4];
+const SUN_COL = [1.00*26, 0.93*26, 0.80*26];
+const SKY_COL = [0.34*2.6, 0.46*2.6, 0.78*2.6];
+const MOTES = 1500;
+const CX = {
+  on:false, q:"high", ok:null, why:"", gl:null, P:{}, fb:{}, tx:{}, rb:{},
+  size:"", rw:0, rh:0, samples:0, shadowGen:-1, boxGen:-1, boxN:0,
+  pkey:"", still:0, photo:false, pn:0, converged:false, glowFreeze:0,
+  ftMs:0, ftN:0, frameNo:0, lastHud:0, emptyVao:null, flags:[]
+};
+let meshGen = 0;                          /* bumped by buildMesh: what the shadows follow */
+(function(){
+  try {
+    const s = JSON.parse(localStorage.getItem(CINE_KEY) || "null");
+    if (s && typeof s === "object"){ CX.on = !!s.on; if (s.q === "ultra" || s.q === "high") CX.q = s.q; }
+  } catch(e){}
+})();
+function cineSave(){
+  try { localStorage.setItem(CINE_KEY, JSON.stringify({ on:CX.on, q:CX.q })); } catch(e){}
+}
+
+/* ---------------------------------------------------------- GLSL pieces */
+const CINE_FUNCS = [
+"precision highp sampler2D; precision highp samplerCube;",
+"const float PI=3.14159265;",
+"uniform vec3 uSunPos;",
+"uniform mat4 uSunVP;",
+"uniform highp sampler2DShadow uSunSh;",
+"uniform sampler2D uOct;",
+"const vec2 POIS[16]=vec2[16](vec2(-0.94,-0.40),vec2(0.95,-0.77),vec2(-0.09,-0.93),vec2(0.34,0.29),",
+"  vec2(-0.92,0.46),vec2(-0.82,-0.88)*0.6,vec2(-0.38,0.28),vec2(0.97,0.76),vec2(0.44,-0.92),vec2(0.54,0.64)*0.7,",
+"  vec2(-0.26,-0.18),vec2(-0.58,0.87),vec2(0.19,0.89),vec2(0.73,-0.29),vec2(-0.72,-0.05),vec2(0.05,-0.47));",
+/*  The hall's daylight comes from a point OUTSIDE the window; a point in the
+    room sees it only where the line to it crosses the glass between the
+    mullions. That is what shapes the patch on the floor. */
+"float goboAt(vec3 L, vec3 p){",
+"  if(p.y>8.99) return 0.0;",
+"  float t=(9.0-L.y)/(p.y-L.y); if(t<=0.0||t>=1.0) return 0.0;",
+"  vec3 x=L+(p-L)*t; float e=0.025;",
+"  float m=smoothstep(10.0,10.0+e,x.x)*smoothstep(13.2,13.2-e,x.x)*smoothstep(3.0,3.0+e,x.z)*smoothstep(4.6,4.6-e,x.z);",
+"  m*=smoothstep(0.035,0.035+e,abs(x.x-11.0667))*smoothstep(0.035,0.035+e,abs(x.x-12.1333));",
+"  return m; }",
+"float sunShadow(vec3 p, int taps){",
+"  vec4 c=uSunVP*vec4(p,1.0); if(c.w<=0.0) return 1.0; vec3 q=c.xyz/c.w*0.5+0.5;",
+"  if(q.x<=0.0||q.x>=1.0||q.y<=0.0||q.y>=1.0||q.z>=1.0) return 1.0;",
+"  if(taps<=1) return textureLod(uSunSh, vec3(q.xy, q.z-0.0009), 0.0);",
+"  float s=0.0; vec2 ts=vec2(1.0/2048.0)*1.7;",
+"  for(int i=0;i<12;i++) s+=textureLod(uSunSh, vec3(q.xy+POIS[i]*ts*1.6, q.z-0.0009), 0.0);",
+"  return s/12.0; }",
+"vec2 octEnc(vec3 n){ n/=(abs(n.x)+abs(n.y)+abs(n.z)); vec2 e=n.xy;",
+"  if(n.z<0.0) e=(1.0-abs(n.yx))*vec2(n.x>=0.0?1.0:-1.0, n.y>=0.0?1.0:-1.0); return e*0.5+0.5; }",
+"float cubeFetch(int c, vec3 d){ vec2 e=clamp(octEnc(normalize(d)), 0.5/1024.0, 1.0-0.5/1024.0);",
+"  vec2 tile=vec2(float(c-2*(c/2)), float(c/2)); return textureLod(uOct,(tile+e)*0.5,0.0).r; }",
+/*  PCSS-lite: a blocker search sets the filter width, so the shadow of a
+    table leg is sharp at the floor and the shadow of the table top is soft. */
+"float cubeShadow(int c, vec3 lp, vec3 p, vec3 n){",
+"  vec3 d=p+n*0.025-lp; float dist=length(d); vec3 nd=d/max(dist,1e-4);",
+"  vec3 t=normalize(cross(nd, abs(nd.z)<0.9?vec3(0.0,0.0,1.0):vec3(1.0,0.0,0.0))); vec3 b=cross(nd,t);",
+"  float bias=0.03+0.012*dist; float bs=0.0, bn=0.0;",
+"  for(int i=0;i<8;i++){ vec2 o=POIS[i*2]*0.07; float sd=cubeFetch(c, nd+t*o.x+b*o.y); if(sd<dist-bias){ bs+=sd; bn+=1.0; } }",
+"  if(bn<0.5) return 1.0;",
+"  float avg=bs/bn; float pen=clamp((dist-avg)/max(avg,0.05)*0.11, 0.004, 0.09);",
+"  float s=0.0;",
+"  for(int i=0;i<16;i++){ vec2 o=POIS[i]*pen; float sd=cubeFetch(c, nd+t*o.x+b*o.y); s+=(dist-bias>sd)?0.0:1.0; }",
+"  return s/16.0; }",
+"float cubeVis1(int c, vec3 lp, vec3 p){ vec3 d=p-lp; float dist=length(d); return (dist-0.05>cubeFetch(c,d/dist))?0.0:1.0; }",
+"float D_GGX(float NoH, float a){ float a2=a*a; float d=NoH*NoH*(a2-1.0)+1.0; return a2/(PI*d*d); }",
+"float V_SmithGGX(float NoV, float NoL, float a){ float k=a*0.5; return 0.25/((NoV*(1.0-k)+k)*(NoL*(1.0-k)+k)); }",
+"vec3 F_Schlick(vec3 f0, float c){ return f0+(1.0-f0)*pow(1.0-c,5.0); }",
+""].join("\n");
+
+const FSQ_VS = "#version 300 es\n" +
+"void main(){ vec2 p=vec2(float((gl_VertexID<<1)&2), float(gl_VertexID&2)); gl_Position=vec4(p*2.0-1.0,0.0,1.0); }\n";
+
+const VSC = "#version 300 es\n" +
+"precision highp float;\n" +
+"in vec3 aPos; in vec3 aNrm; in vec3 aTan; in vec2 aUV; in vec4 aInfo;\n" +
+"uniform mat4 uMVP; uniform mat4 uView;\n" +
+"out vec3 vPos; out vec3 vNrm; out vec3 vTan; out vec2 vUV; out vec4 vInfo; out float vVZ;\n" +
+"void main(){ vPos=aPos; vNrm=aNrm; vTan=aTan; vUV=aUV; vInfo=aInfo; vVZ=-(uView*vec4(aPos,1.0)).z;\n" +
+"  gl_Position = uMVP * vec4(aPos,1.0); }\n";
+
+/*  The ordinary FS up to its main(), with its one `out` replaced by the
+    outputs this pass needs. Anchors are checked: if FS is ever restructured
+    the mode says so instead of compiling something subtly different. */
+function cineLib(outs){
+  const head = FS.slice(0, FS.indexOf("void main(){"));
+  const A = "in vec3 vPos; in vec3 vNrm; in vec3 vTan; in vec2 vUV; in vec4 vInfo;";
+  const B = "out vec4 oCol;";
+  if (FS.indexOf("void main(){") < 0 || head.indexOf(A) < 0 || head.indexOf(B) < 0)
+    throw new Error("cinematic: the FS anchors moved");
+  return head.replace(A, A + " in float vVZ;").replace(B, outs) + "\n" + CINE_FUNCS;
+}
+const MAIN_HEAD = [
+"  int m=int(vInfo.x+0.5), k=int(vInfo.y+0.5), rm=int(vInfo.z+0.5);",
+"  float alpha = vInfo.w;",
+"  vec3 gn=normalize(vNrm), T=normalize(vTan); vec3 B=cross(gn,T);",
+"  float e=0.012;",
+"  float hs[3]; hs[0]=0.5; hs[1]=0.5; hs[2]=0.5;",
+"  for(int j=0;j<uHN;j++){ vec2 o= j==1 ? vec2(e,0.0) : (j==2 ? vec2(0.0,e) : vec2(0.0)); hs[j]=hgt(vUV+o,m,k); }",
+"  float h0=hs[0], hx=hs[1], hy=hs[2];",
+"  float ba=bumpAmt(m,k);",
+"  vec3 N=normalize(gn - ba*(((hx-h0)/e)*T + ((hy-h0)/e)*B));",
+"  if(!gl_FrontFacing){ N=-N; gn=-gn; }",
+"  Mtl mt=surf(vUV,m,k,h0,vPos);",
+"  bool metal=(k==13||k==14||k==15||k==23||k==26||k==28||k==30);",
+"  float ar=clamp(sqrt(2.0/(mt.shin+2.0)),0.045,1.0);",
+"  vec3 f0 = metal ? clamp(mt.alb*1.35,0.0,1.0) : vec3(mix(0.02,0.07,clamp(mt.sp*1.6,0.0,1.0)));",
+""].join("\n");
+
+function cineSceneFS(){
+  return cineLib("layout(location=0) out vec4 o0; layout(location=1) out vec4 o1; layout(location=2) out vec4 o2;") + [
+"uniform float uLType[12];",
+"uniform float uLCube[12];",
+"uniform int uGhost;",
+"void main(){",
+MAIN_HEAD,
+"  vec3 Vv=normalize(uCam-vPos); float NoV=max(dot(N,Vv),1e-3);",
+"  vec3 kd = metal ? vec3(0.0) : (vec3(1.0)-F_Schlick(f0,NoV));",
+"  vec3 dif=vec3(0.0), spc=vec3(0.0);",
+"  for(int i=0;i<uLightN;i++){",
+"    int ty=int(uLType[i]+0.5);",
+"    if(ty==0 && abs(uLightRoom[i]-float(rm))>0.5) continue;",
+"    vec3 Lv=uLightPos[i]-vPos; float dist=length(Lv); vec3 L=Lv/max(dist,1e-4);",
+"    float NoL=max(dot(N,L),0.0); if(NoL<=0.0) continue;",
+"    float att=1.0/(1.0+0.30*dist+0.085*dist*dist);",
+"    float sh=1.0, vis=1.0;",
+"    if(ty==1){ sh=mix(1.0,0.085,smoothstep(-0.55,0.05,-L.z)); vis=cubeShadow(int(uLCube[i]+0.5), uLightPos[i], vPos, gn); }",
+"    else if(ty==2){ vis=goboAt(uLightPos[i], vPos); if(vis>0.0) vis*=sunShadow(vPos+gn*0.02, 12); }",
+"    else { sh=mix(1.0, mix(1.0,0.085,smoothstep(-0.55,0.05,-L.z)), uLightShade[i]); }",
+"    if(vis<=0.0) continue;",
+"    vec3 E=uLightCol[i]*NoL*att*sh*vis;",
+"    vec3 H=normalize(L+Vv); float NoH=max(dot(N,H),0.0), VoH=max(dot(Vv,H),0.0);",
+"    dif+=kd*mt.alb*E;",
+"    spc+=PI*D_GGX(NoH,ar)*V_SmithGGX(NoV,NoL,ar)*F_Schlick(f0,VoH)*E;",
+"  }",
+"  vec3 emis=mt.alb*mt.emis + vec3(mt.emis*0.22);",
+"  vec3 amb=(metal? mt.alb*0.55 : mt.alb)*uAmb[rm]*2.3 + F_Schlick(f0,NoV)*uAmb[rm]*1.2;",
+"  if(uGhost==1){ o0=vec4(dif+spc+emis+amb, alpha); o1=vec4(0.0); o2=vec4(0.0); return; }",
+"  o0=vec4(dif+spc+emis, 1.0);",
+"  o1=vec4(amb, 1.0);",
+"  o2=vec4(N, vVZ);",
+"}"].join("\n");
+}
+
+/*  The photo G-buffer: the detailed surface, its bump, its material. The path
+    tracer never sees the mesh - it sees these three textures - so every grain
+    of every floorboard survives into the traced picture. */
+function cineGbufFS(){
+  return cineLib("layout(location=0) out vec4 g0; layout(location=1) out vec4 g1; layout(location=2) out vec4 g2;") + [
+"void main(){",
+MAIN_HEAD,
+"  g0=vec4(mt.alb, mt.emis);",
+"  g1=vec4(N, float(rm)*2.0+ar);",
+"  g2=vec4(vPos, metal ? -1.0 : f0.x);",
+"}"].join("\n");
+}
+
+const SHADOW_VS = "#version 300 es\nprecision highp float;\nin vec3 aPos;\nuniform mat4 uVP;\nout vec3 vPos;\n" +
+"void main(){ vPos=aPos; gl_Position=uVP*vec4(aPos,1.0); }\n";
+/*  The fixture around a lamp would put the lamp in its own shadow: it is
+    left out of the lamp's map (its shade is modelled in the lighting). The
+    hall's wall and glass are left out of the window light's map - the gobo
+    already says where the window is. */
+const SHADOW_CUBE_FS = "#version 300 es\nprecision highp float;\nin vec3 vPos;\nuniform vec3 uLP;\nout vec4 o;\n" +
+"void main(){ float d=length(vPos-uLP); if(d<0.34) discard; o=vec4(d,0.0,0.0,1.0); }\n";
+const OCT_FS = "#version 300 es\nprecision highp float;\nprecision highp samplerCube;\nuniform samplerCube uCube; uniform vec2 uOrg;\nout vec4 o;\n" +
+"vec3 octDec(vec2 e){ e=e*2.0-1.0; vec3 n=vec3(e.x,e.y,1.0-abs(e.x)-abs(e.y)); float t=max(-n.z,0.0);\n" +
+"  n.x+= n.x>=0.0 ? -t : t; n.y+= n.y>=0.0 ? -t : t; return normalize(n); }\n" +
+"void main(){ vec2 e=(gl_FragCoord.xy-uOrg)/1024.0; o=vec4(textureLod(uCube, octDec(e), 0.0).r, 0.0, 0.0, 1.0); }\n";
+const SHADOW_SUN_FS = "#version 300 es\nprecision highp float;\nin vec3 vPos;\n" +
+"void main(){ if(vPos.y>8.85) discard; }\n";
+
+const MOTE_VS = "#version 300 es\nprecision highp float;\n" +
+"uniform mat4 uMVP; uniform float uTime; uniform float uPx;\n" + CINE_FUNCS +
+"out float vB; out vec3 vW;\n" +
+"float h1(float n){ return fract(sin(n*12.9898)*43758.5453); }\n" +
+"void main(){\n" +
+"  float i=float(gl_VertexID);\n" +
+"  vec3 b=vec3(h1(i*1.13+0.2), h1(i*2.37+7.1), h1(i*3.71+3.3));\n" +
+"  vec3 p=vec3(7.0+9.2*b.x, 1.0+7.8*b.y, 0.15+4.6*b.z);\n" +
+"  float t=uTime;\n" +
+"  p+=vec3(sin(t*0.11+i*0.7)*0.30+sin(t*0.37+i)*0.05, cos(t*0.09+i*1.7)*0.30, 0.0);\n" +
+"  p.z=0.15+mod(p.z-0.15+sin(t*0.05+i*2.9)*0.2-t*0.010*(0.4+b.x), 4.6);\n" +
+"  float g=goboAt(uSunPos,p); vW=p;\n" +
+"  vB=g*(0.35+0.65*h1(i*5.1));\n" +
+"  vec4 c=uMVP*vec4(p,1.0);\n" +
+"  gl_Position = vB>0.002 ? c : vec4(2.0,2.0,2.0,1.0);\n" +
+"  gl_PointSize = clamp(uPx*0.0034/max(c.w,0.2), 1.0, 6.0);\n" +
+"}\n";
+const MOTE_FS = "#version 300 es\nprecision highp float;\nin float vB; in vec3 vW;\nuniform float uK;\n" + CINE_FUNCS +
+"layout(location=0) out vec4 o0;\n" +
+"void main(){ vec2 q=gl_PointCoord*2.0-1.0; float r=dot(q,q); if(r>1.0) discard;\n" +
+"  float s=sunShadow(vW,1); if(s<=0.0) discard;\n" +
+"  o0=vec4(vec3(1.0,0.93,0.80)*vB*s*uK*(1.0-r)*(1.0-r), 1.0); }\n";
+
+const SSAO_FS = "#version 300 es\nprecision highp float;\n" +
+"uniform sampler2D uND; uniform vec2 uOut; uniform mat4 uView; uniform float uTanX; uniform float uTanY;\n" +
+"out vec4 o;\n" +
+"vec3 vp(vec2 uv, float z){ return vec3((uv.x*2.0-1.0)*uTanX*z, (uv.y*2.0-1.0)*uTanY*z, -z); }\n" +
+"void main(){\n" +
+"  vec2 uv=gl_FragCoord.xy/uOut; vec4 nd=texture(uND,uv); float z=nd.w;\n" +
+"  if(z<=0.001){ o=vec4(1.0); return; }\n" +
+"  vec3 P=vp(uv,z); vec3 N=normalize(mat3(uView)*nd.xyz);\n" +
+"  float ang=fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056,0.00583715))))*6.2832;\n" +
+"  vec3 rv=vec3(cos(ang),sin(ang),0.3); vec3 T=normalize(rv-N*dot(rv,N)); vec3 Bt=cross(N,T);\n" +
+"  float occ=0.0; float R=0.42;\n" +
+"  for(int i=0;i<16;i++){ float fi=float(i);\n" +
+"    float u=fract(sin(fi*7.13+1.0)*431.7), v=fract(sin(fi*3.91+2.0)*917.3), w=fract(sin(fi*5.37+3.0)*113.1);\n" +
+"    float th=u*6.2832, r=sqrt(v); vec3 s=vec3(r*cos(th), r*sin(th), sqrt(max(0.0,1.0-v))*0.9+0.1);\n" +
+"    float sc=(fi+1.0)/16.0; sc=mix(0.12,1.0,sc*sc)*(0.6+0.4*w);\n" +
+"    vec3 sp=P+(T*s.x+Bt*s.y+N*s.z)*R*sc;\n" +
+"    if(sp.z>=-0.01) continue;\n" +
+"    vec2 su=vec2(sp.x/(-sp.z*uTanX), sp.y/(-sp.z*uTanY))*0.5+0.5;\n" +
+"    float sz=texture(uND,su).w; if(sz<=0.001) continue;\n" +
+"    float range=smoothstep(0.0,1.0,R/abs(z-sz));\n" +
+"    occ+=(sz < -sp.z-0.025 ? 1.0 : 0.0)*range;\n" +
+"  }\n" +
+"  float ao=1.0-occ/16.0; o=vec4(vec3(pow(clamp(ao,0.0,1.0),1.4)),1.0);\n" +
+"}\n";
+const BLUR_FS = "#version 300 es\nprecision highp float;\nuniform sampler2D uT; uniform vec2 uOut;\nout vec4 o;\n" +
+"void main(){ vec2 px=1.0/uOut; vec2 uv=gl_FragCoord.xy*px; float s=0.0;\n" +
+"  for(int j=-2;j<2;j++) for(int i=-2;i<2;i++) s+=texture(uT, uv+(vec2(i,j)+0.5)*px).r;\n" +
+"  o=vec4(vec3(s/16.0),1.0); }\n";
+/*  Bright pass on the way down, a 16-texel box per level, and a tent on the
+    way back up - the usual mip-chain bloom, done without float blending. */
+const DOWN_FS = "#version 300 es\nprecision highp float;\nuniform sampler2D uT; uniform vec2 uSrc; uniform vec2 uOut; uniform int uBright; uniform float uDiv;\nout vec4 o;\n" +
+"void main(){ vec2 uv=gl_FragCoord.xy/uOut; vec2 px=1.0/uSrc; vec3 c=vec3(0.0);\n" +
+"  c+=texture(uT,uv+vec2(-1.0,-1.0)*px).rgb; c+=texture(uT,uv+vec2(1.0,-1.0)*px).rgb;\n" +
+"  c+=texture(uT,uv+vec2(-1.0,1.0)*px).rgb; c+=texture(uT,uv+vec2(1.0,1.0)*px).rgb; c*=0.25*uDiv;\n" +
+"  if(uBright==1){ float l=max(max(c.r,c.g),c.b); float k=clamp((l-1.2)/1.6,0.0,1.0); c*=k*k; c=min(c,vec3(60.0)); }\n" +
+"  o=vec4(c,1.0); }\n";
+const UP_FS = "#version 300 es\nprecision highp float;\nuniform sampler2D uT; uniform sampler2D uAdd; uniform vec2 uSrc; uniform vec2 uOut;\nout vec4 o;\n" +
+"void main(){ vec2 uv=gl_FragCoord.xy/uOut; vec2 px=1.0/uSrc; vec3 c=vec3(0.0);\n" +
+"  c+=texture(uT,uv).rgb*4.0;\n" +
+"  c+=(texture(uT,uv+vec2(px.x,0.0)).rgb+texture(uT,uv-vec2(px.x,0.0)).rgb+texture(uT,uv+vec2(0.0,px.y)).rgb+texture(uT,uv-vec2(0.0,px.y)).rgb)*2.0;\n" +
+"  c+=texture(uT,uv+px).rgb+texture(uT,uv-px).rgb+texture(uT,uv+vec2(px.x,-px.y)).rgb+texture(uT,uv+vec2(-px.x,px.y)).rgb;\n" +
+"  o=vec4(c/16.0+texture(uAdd,uv).rgb,1.0); }\n";
+
+const COMP_FS = "#version 300 es\nprecision highp float;\n" +
+"uniform sampler2D uCol; uniform sampler2D uAmbT; uniform sampler2D uAO; uniform sampler2D uND; uniform sampler2D uBloom;\n" +
+"uniform vec2 uOut; uniform vec2 uSrc; uniform int uPhoto; uniform float uDiv;\n" +
+"uniform vec3 uFog; uniform float uFogK; uniform float uExpo; uniform float uTime; uniform float uGrain; uniform float uBloomK;\n" +
+"uniform vec3 uEye; uniform vec3 uCF; uniform vec3 uCR; uniform vec3 uCU; uniform float uTanX; uniform float uTanY;\n" +
+"uniform vec3 uSunCol; uniform vec3 uLP[4]; uniform vec3 uLC[4]; uniform float uVolK;\n" + CINE_FUNCS +
+"out vec4 oCol;\n" +
+"vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0); }\n" +
+"vec3 rayDir(vec2 uv){ vec2 n=uv*2.0-1.0; return normalize(uCF+uCR*n.x*uTanX+uCU*n.y*uTanY); }\n" +
+"float distAt(vec2 uv){\n" +
+"  if(uPhoto==1) return texture(uCol,uv).a*uDiv;\n" +
+"  float z=texture(uND,uv).w; if(z<=0.001) return 60.0; return z/max(dot(rayDir(uv),uCF),0.05); }\n" +
+"vec3 tap(vec2 uv, vec3 add){\n" +
+"  vec3 c; float d;\n" +
+"  if(uPhoto==1){ vec4 a=texture(uCol,uv); c=a.rgb*uDiv; d=a.a*uDiv; }\n" +
+"  else { c=texture(uCol,uv).rgb + texture(uAmbT,uv).rgb*texture(uAO,uv).r; d=distAt(uv); }\n" +
+"  c=mix(c, uFog, clamp(1.0-exp(-uFogK*d),0.0,0.86));\n" +
+"  return aces((c+add)*uExpo); }\n" +
+"vec3 volume(vec2 uv, float dist){\n" +
+"  vec3 dir=rayDir(uv); float tMax=min(dist,24.0); const int S=20; float dt=tMax/float(S);\n" +
+"  float j=fract(52.9829189*fract(dot(gl_FragCoord.xy+uTime*7.0, vec2(0.06711056,0.00583715))));\n" +
+"  vec3 acc=vec3(0.0);\n" +
+"  for(int i=0;i<S;i++){ float t=(float(i)+j)*dt; vec3 p=uEye+dir*t;\n" +
+"    float g=goboAt(uSunPos,p); if(g>0.001){ g*=sunShadow(p,1); vec3 Ls=uSunPos-p; float ds=length(Ls);\n" +
+"      float mu=dot(dir, Ls/ds); float ph=0.30+0.45*pow(max(mu,0.0),8.0);\n" +
+"      acc+=uSunCol*g*ph/(1.0+0.30*ds+0.085*ds*ds)*0.017; }\n" +
+"    for(int l=0;l<4;l++){ vec3 d=p-uLP[l]; float dd=length(d); if(d.z>=0.0||dd>6.0) continue;\n" +
+"      float cone=smoothstep(0.30,0.80,-d.z/dd); if(cone<=0.0) continue;\n" +
+"      acc+=uLC[l]*cone*cubeVis1(l,uLP[l],p)/(1.0+0.30*dd+0.085*dd*dd)*0.010; }\n" +
+"  }\n" +
+"  return acc*dt*uVolK; }\n" +
+"void main(){\n" +
+"  vec2 uv=gl_FragCoord.xy/uOut; vec2 h=0.25/uOut;\n" +
+"  vec3 add=texture(uBloom,uv).rgb*uBloomK;\n" +
+"  if(uVolK>0.0) add+=volume(uv, distAt(uv));\n" +
+"  vec3 c=(tap(uv+vec2(-h.x,-h.y),add)+tap(uv+vec2(h.x,-h.y),add)+tap(uv+vec2(-h.x,h.y),add)+tap(uv+vec2(h.x,h.y),add))*0.25;\n" +
+"  vec2 q=uv*2.0-1.0; c*=1.0-0.20*pow(dot(q,q)*0.5,1.3);\n" +
+"  float n=fract(sin(dot(gl_FragCoord.xy+fract(uTime)*97.0, vec2(12.9898,78.233)))*43758.5453)-0.5;\n" +
+"  c=pow(max(c,vec3(0.0)), vec3(1.0/2.2)); c+=n*uGrain;\n" +
+"  oCol=vec4(c,1.0);\n" +
+"}\n";
+
+/*  The path tracer. Primary visibility comes from the G-buffer; everything a
+    ray does after that - shadow rays to the lamps and the window, one or two
+    cosine-weighted bounces - is traced against a box model of the flat built
+    from the same data the mesh builder uses: room shells with the door gaps
+    left open, the door leaves, the furniture, the sources. That is how light
+    reaches a room through an open door, and how a red rug tints the ceiling. */
+const PT_FS = "#version 300 es\nprecision highp float;\nprecision highp int;\n" +
+"uniform sampler2D uG0; uniform sampler2D uG1; uniform sampler2D uG2; uniform sampler2D uAcc; uniform highp sampler2D uBox;\n" +
+"uniform int uBoxN; uniform int uFirst; uniform int uSeed; uniform int uBounces; uniform vec3 uEye;\n" +
+"uniform vec3 uLP[4]; uniform vec3 uLC[4]; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform vec3 uAmb[3]; uniform float uGlow;\n" +
+CINE_FUNCS +
+"out vec4 o;\n" +
+"uint sd;\n" +
+"uint pcg(){ sd=sd*747796405u+2891336453u; uint w=((sd>>((sd>>28u)+4u))^sd)*277803737u; return (w>>22u)^w; }\n" +
+"float rnd(){ return float(pcg())*(1.0/4294967296.0); }\n" +
+"bool boxHit(int i, vec3 ro, vec3 rd, out float tn, out vec3 nw){\n" +
+"  vec4 A=texelFetch(uBox, ivec2(i*3,0),0); vec4 Bx=texelFetch(uBox, ivec2(i*3+1,0),0);\n" +
+"  float c=cos(A.w), s=sin(A.w); vec3 o=ro-A.xyz;\n" +
+"  vec3 lo=vec3(o.x*c+o.y*s, -o.x*s+o.y*c, o.z); vec3 ld=vec3(rd.x*c+rd.y*s, -rd.x*s+rd.y*c, rd.z);\n" +
+"  vec3 inv=1.0/(ld+vec3(1e-9)); vec3 t0=(-Bx.xyz-lo)*inv, t1=(Bx.xyz-lo)*inv;\n" +
+"  vec3 a=min(t0,t1), b=max(t0,t1); float n0=max(max(a.x,a.y),a.z), f0=min(min(b.x,b.y),b.z);\n" +
+"  if(f0<n0||n0<=0.0) return false;\n" +
+"  tn=n0; vec3 ln = (n0==a.x)? vec3(-sign(ld.x),0.0,0.0) : ((n0==a.y)? vec3(0.0,-sign(ld.y),0.0) : vec3(0.0,0.0,-sign(ld.z)));\n" +
+"  nw=vec3(ln.x*c-ln.y*s, ln.x*s+ln.y*c, ln.z); return true; }\n" +
+"bool occl(vec3 ro, vec3 rd, float tmax){ float t; vec3 n;\n" +
+"  for(int i=0;i<uBoxN;i++){ if(boxHit(i,ro,rd,t,n) && t<tmax) return true; } return false; }\n" +
+"bool trace(vec3 ro, vec3 rd, out float tb, out vec3 nb, out int ib){ tb=1e9; ib=-1; float t; vec3 n;\n" +
+"  for(int i=0;i<uBoxN;i++){ if(boxHit(i,ro,rd,t,n) && t<tb){ tb=t; nb=n; ib=i; } } return ib>=0; }\n" +
+"float att(float d){ return 1.0/(1.0+0.30*d+0.085*d*d); }\n" +
+"vec3 cosDir(vec3 n){ float u=rnd(), v=rnd(); float r=sqrt(u), th=6.2831853*v;\n" +
+"  vec3 t=normalize(cross(n, abs(n.z)<0.9?vec3(0.0,0.0,1.0):vec3(1.0,0.0,0.0))); vec3 b=cross(n,t);\n" +
+"  return normalize(t*r*cos(th)+b*r*sin(th)+n*sqrt(max(0.0,1.0-u))); }\n" +
+/*  One light per shading point, chosen in proportion to what it would give
+    unshadowed; the estimate is divided by that probability, so the average
+    is exact and the samples go where the light is. */
+"vec3 direct(vec3 p, vec3 n, out vec3 Ls){\n" +
+"  float w[6]; float sum=0.0;\n" +
+"  for(int l=0;l<4;l++){ vec3 d=uLP[l]-p; float dd=length(d); vec3 L=d/dd;\n" +
+"    float sh=mix(1.0,0.085,smoothstep(-0.55,0.05,-L.z));\n" +
+"    w[l]=dot(uLC[l],vec3(0.333))*max(dot(n,L),0.0)*att(dd)*sh; sum+=w[l]; }\n" +
+"  { vec3 d=uSunPos-p; float dd=length(d); w[4]=dot(uSunCol,vec3(0.333))*max(dot(n,d/dd),0.0)*att(dd)*goboAt(uSunPos,p); sum+=w[4]; }\n" +
+"  { vec3 d=vec3(11.6,8.93,3.8)-p; float dd=length(d); vec3 L=d/dd; w[5]=dot(uSkyCol,vec3(0.333))*max(dot(n,L),0.0)*max(L.y,0.0)*att(dd)*0.55+1e-5; sum+=w[5]; }\n" +
+"  Ls=vec3(0.0,0.0,1.0);\n" +
+"  if(sum<=1e-7) return vec3(0.0);\n" +
+"  float r=rnd()*sum; int k=5; float acc=0.0;\n" +
+"  for(int l=0;l<6;l++){ acc+=w[l]; if(r<=acc){ k=l; break; } }\n" +
+"  float pmf=w[k]/sum; vec3 ro=p+n*0.012;\n" +
+"  if(k<4){ vec3 q=uLP[k]+(vec3(rnd(),rnd(),rnd())-0.5)*0.12; vec3 d=q-ro; float dd=length(d); vec3 L=d/dd; Ls=L;\n" +
+"    float sh=mix(1.0,0.085,smoothstep(-0.55,0.05,-L.z)); float nl=max(dot(n,L),0.0);\n" +
+"    if(nl<=0.0||occl(ro,L,dd-0.1)) return vec3(0.0);\n" +
+"    return uLC[k]*nl*att(dd)*sh/pmf; }\n" +
+"  if(k==4){ vec3 q=uSunPos+vec3(rnd()-0.5, 0.0, rnd()-0.5)*0.9; vec3 d=q-ro; float dd=length(d); vec3 L=d/dd; Ls=L;\n" +
+"    float g=goboAt(q,ro); float nl=max(dot(n,L),0.0); if(g<=0.0||nl<=0.0||L.y<=0.0) return vec3(0.0);\n" +
+"    if(occl(ro,L,(8.9-ro.y)/L.y)) return vec3(0.0);\n" +
+"    return uSunCol*nl*att(dd)*g/pmf; }\n" +
+"  vec3 q=vec3(10.0+3.2*rnd(), 8.93, 3.0+1.6*rnd()); vec3 d=q-ro; float dd=length(d); vec3 L=d/dd; Ls=L;\n" +
+"  float nl=max(dot(n,L),0.0); if(nl<=0.0||L.y<=0.0||occl(ro,L,dd-0.03)) return vec3(0.0);\n" +
+"  return uSkyCol*nl*max(L.y,0.0)*att(dd)*0.55/pmf; }\n" +
+"void main(){\n" +
+"  ivec2 px=ivec2(gl_FragCoord.xy);\n" +
+"  sd=uint(px.x)*1973u+uint(px.y)*9277u+uint(uSeed)*26699u; pcg(); pcg();\n" +
+"  vec4 G0=texelFetch(uG0,px,0), G1=texelFetch(uG1,px,0), G2=texelFetch(uG2,px,0);\n" +
+"  vec3 col=vec3(0.0); float dist=60.0;\n" +
+"  if(dot(G1.xyz,G1.xyz)>0.25){\n" +
+"    vec3 alb=G0.rgb; float em=G0.a; vec3 N=normalize(G1.xyz); float rmf=floor(G1.w*0.5); float ar=G1.w-rmf*2.0; int rm=int(rmf+0.5);\n" +
+"    vec3 p=G2.xyz; bool metal=G2.w<0.0; vec3 f0=metal? clamp(alb*1.35,0.0,1.0) : vec3(G2.w);\n" +
+"    vec3 V=normalize(uEye-p); float NoV=max(dot(N,V),1e-3); dist=length(uEye-p);\n" +
+"    vec3 kd=metal? vec3(0.0) : vec3(1.0)-F_Schlick(f0,NoV);\n" +
+"    vec3 L; vec3 E=direct(p,N,L);\n" +
+"    vec3 H=normalize(L+V); float NoL=max(dot(N,L),1e-3), NoH=max(dot(N,H),0.0), VoH=max(dot(V,H),0.0);\n" +
+"    col=kd*alb*E + PI*D_GGX(NoH,ar)*V_SmithGGX(NoV,NoL,ar)*F_Schlick(f0,VoH)*E;\n" +
+"    vec3 thr=metal? alb*0.5 : kd*alb; vec3 ro=p+N*0.012; vec3 nn=N;\n" +
+"    for(int b=0;b<uBounces;b++){\n" +
+"      vec3 rd=cosDir(nn); float t; vec3 hn; int id;\n" +
+"      if(!trace(ro,rd,t,hn,id)) break;\n" +
+"      vec3 hp=ro+rd*t; vec4 C=texelFetch(uBox, ivec2(id*3+2,0),0);\n" +
+"      if(C.a>0.5 && hp.y>8.8 && hp.x>10.0 && hp.x<13.2 && hp.z>3.0 && hp.z<4.6){ col+=thr*uSkyCol*0.35; break; }\n" +
+"      vec3 Lh; vec3 Eh=direct(hp,hn,Lh); col+=thr*C.rgb*Eh; thr*=C.rgb; ro=hp+hn*0.012; nn=hn; }\n" +
+"    col+=alb*em+vec3(em*0.22);\n" +
+"    col+=alb*uAmb[rm]*0.30;\n" +
+"  }\n" +
+"  vec4 s=vec4(col,dist);\n" +
+"  if(uFirst==1) o=s; else o=texelFetch(uAcc,px,0)+s;\n" +
+"}\n";
+
+/* ---------------------------------------------------------- GL plumbing */
+/*  Compiled WITHOUT asking for the result: with KHR_parallel_shader_compile
+    the driver builds the programs in the background and the ordinary view
+    keeps drawing until every one of them reports complete. Asking for the
+    status is what blocks, so it is asked only once they are done. */
+function cineProg(name, vs, fs, attribs){
+  const g = gl;
+  const v = g.createShader(g.VERTEX_SHADER), f = g.createShader(g.FRAGMENT_SHADER);
+  g.shaderSource(v, vs); g.compileShader(v);
+  g.shaderSource(f, fs); g.compileShader(f);
+  const p = g.createProgram();
+  g.attachShader(p, v); g.attachShader(p, f);
+  if (attribs){
+    g.bindAttribLocation(p, 0, "aPos"); g.bindAttribLocation(p, 1, "aNrm");
+    g.bindAttribLocation(p, 2, "aTan"); g.bindAttribLocation(p, 3, "aUV"); g.bindAttribLocation(p, 4, "aInfo");
+  }
+  g.linkProgram(p);
+  const cache = {};
+  return { p:p, name:name,
+    ready(){ return !CX.par || !!g.getProgramParameter(p, CX.par.COMPLETION_STATUS_KHR); },
+    check(){
+      if (g.getProgramParameter(p, g.LINK_STATUS)) return;
+      const log = (g.getShaderInfoLog(f) || "") + " " + (g.getShaderInfoLog(v) || "") + " " + (g.getProgramInfoLog(p) || "");
+      window.__err.push("cinematic " + name + ": " + log.trim().slice(0, 400));
+      throw new Error("cinematic " + name + " did not compile");
+    },
+    u(n){ if (!(n in cache)) cache[n] = g.getUniformLocation(p, n); return cache[n]; } };
+}
+function cineTex(w, h, ifmt, fmt, type, filter){
+  const g = gl, t = g.createTexture();
+  g.bindTexture(g.TEXTURE_2D, t);
+  g.texImage2D(g.TEXTURE_2D, 0, ifmt, w, h, 0, fmt, type, null);
+  g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, filter);
+  g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, filter);
+  g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE);
+  g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+  return t;
+}
+function cineFbo(texs, depthRb){
+  const g = gl, f = g.createFramebuffer();
+  g.bindFramebuffer(g.FRAMEBUFFER, f);
+  texs.forEach((t, i) => g.framebufferTexture2D(g.FRAMEBUFFER, g.COLOR_ATTACHMENT0 + i, g.TEXTURE_2D, t, 0));
+  if (depthRb) g.framebufferRenderbuffer(g.FRAMEBUFFER, g.DEPTH_ATTACHMENT, g.RENDERBUFFER, depthRb);
+  const st = g.checkFramebufferStatus(g.FRAMEBUFFER);
+  g.bindFramebuffer(g.FRAMEBUFFER, null);
+  if (st !== g.FRAMEBUFFER_COMPLETE) throw new Error("cinematic: framebuffer incomplete (" + st + ")");
+  return f;
+}
+function cineDel(){
+  const g = gl;
+  for (const k in CX.fb) if (CX.fb[k] && !/^(cube|sun|oct)/.test(k)) g.deleteFramebuffer(CX.fb[k]);
+  for (const k in CX.tx) if (CX.tx[k] && !/^(cube|sun|box|oct)/.test(k)) g.deleteTexture(CX.tx[k]);
+  for (const k in CX.rb) if (CX.rb[k] && !/^cubeD|^sun/.test(k)) g.deleteRenderbuffer(CX.rb[k]);
+  const keepFb = {}, keepTx = {}, keepRb = {};
+  for (const k in CX.fb) if (/^(cube|sun|oct)/.test(k)) keepFb[k] = CX.fb[k];
+  for (const k in CX.tx) if (/^(cube|sun|box|oct)/.test(k)) keepTx[k] = CX.tx[k];
+  for (const k in CX.rb) if (/^cubeD|^sun/.test(k)) keepRb[k] = CX.rb[k];
+  CX.fb = keepFb; CX.tx = keepTx; CX.rb = keepRb;
+}
+
+/*  Once, on first use. Anything missing is said out loud and the mode stands
+    down: the ordinary view keeps drawing. */
+function cineInit(){
+  if (CX.ok !== null) return CX.ok;
+  if (!gl){ CX.ok = false; CX.why = "no WebGL2 context"; return false; }
+  const g = gl;
+  if (!CX.pending){
+    if (!g.getExtension("EXT_color_buffer_float")){ CX.ok = false; CX.why = "EXT_color_buffer_float missing - no float render targets"; return false; }
+    CX.flags = [];
+    if (!g.getExtension("OES_texture_float_linear")) CX.flags.push("no float filtering");
+    CX.par = g.getExtension("KHR_parallel_shader_compile");
+    if (!CX.par) CX.flags.push("shaders compile in the foreground");
+    try { cineMakeProgs(); }
+    catch(e){ CX.ok = false; CX.why = String(e && e.message || e); window.__err.push("cinematic unavailable: " + CX.why); return false; }
+    CX.pending = true; CX.compileT0 = nowMs();
+  }
+  /*  Still compiling: the ordinary view draws meanwhile. An export or a bench
+      cannot wait for the next frame, so they block here instead. */
+  if (!EXP.active && !CX.bench) for (const k in CX.P) if (!CX.P[k].ready()) return false;
+  CX.pending = false;
+  CX.ok = false;
+  try {
+    for (const k in CX.P) CX.P[k].check();
+    CX.compileMs = Math.round(nowMs() - CX.compileT0);
+    cineMakeResources();
+  } catch(e){
+    CX.why = String(e && e.message || e);
+    window.__err.push("cinematic unavailable: " + CX.why);
+    try { g.bindFramebuffer(g.FRAMEBUFFER, null); } catch(_){}
+    return false;
+  }
+  CX.ok = true;
+  return true;
+}
+function cineMakeProgs(){
+    CX.P.scene = cineProg("scene", VSC, cineSceneFS(), true);
+    CX.P.gbuf  = cineProg("gbuffer", VSC, cineGbufFS(), true);
+    CX.P.shCube = cineProg("cube shadow", SHADOW_VS, SHADOW_CUBE_FS, true);
+    CX.P.shSun  = cineProg("sun shadow", SHADOW_VS, SHADOW_SUN_FS, true);
+    CX.P.oct    = cineProg("octahedral", FSQ_VS, OCT_FS, false);
+    CX.P.mote  = cineProg("motes", MOTE_VS, MOTE_FS, false);
+    CX.P.ssao  = cineProg("ssao", FSQ_VS, SSAO_FS, false);
+    CX.P.blur  = cineProg("blur", FSQ_VS, BLUR_FS, false);
+    CX.P.down  = cineProg("bloom down", FSQ_VS, DOWN_FS, false);
+    CX.P.up    = cineProg("bloom up", FSQ_VS, UP_FS, false);
+    CX.P.comp  = cineProg("composite", FSQ_VS, COMP_FS, false);
+    CX.P.pt    = cineProg("path tracer", FSQ_VS, PT_FS, false);
+}
+function cineMakeResources(){
+    const g = gl;
+    CX.emptyVao = g.createVertexArray();
+    /* shadows: four R16F cubes for the pendants, one depth map for the window */
+    const CS = 512;
+    CX.rb.cubeD = g.createRenderbuffer();
+    g.bindRenderbuffer(g.RENDERBUFFER, CX.rb.cubeD);
+    g.renderbufferStorage(g.RENDERBUFFER, g.DEPTH_COMPONENT24, CS, CS);
+    CX.fb.cube = g.createFramebuffer();
+    for (let i = 0; i < 4; i++){
+      const t = g.createTexture();
+      g.bindTexture(g.TEXTURE_CUBE_MAP, t);
+      for (let f = 0; f < 6; f++)
+        g.texImage2D(g.TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, g.R16F, CS, CS, 0, g.RED, g.HALF_FLOAT, null);
+      g.texParameteri(g.TEXTURE_CUBE_MAP, g.TEXTURE_MIN_FILTER, g.NEAREST);
+      g.texParameteri(g.TEXTURE_CUBE_MAP, g.TEXTURE_MAG_FILTER, g.NEAREST);
+      g.texParameteri(g.TEXTURE_CUBE_MAP, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE);
+      g.texParameteri(g.TEXTURE_CUBE_MAP, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+      g.texParameteri(g.TEXTURE_CUBE_MAP, g.TEXTURE_WRAP_R, g.CLAMP_TO_EDGE);
+      CX.tx["cube" + i] = t;
+    }
+    g.bindFramebuffer(g.FRAMEBUFFER, CX.fb.cube);
+    g.framebufferRenderbuffer(g.FRAMEBUFFER, g.DEPTH_ATTACHMENT, g.RENDERBUFFER, CX.rb.cubeD);
+    g.framebufferTexture2D(g.FRAMEBUFFER, g.COLOR_ATTACHMENT0, g.TEXTURE_CUBE_MAP_POSITIVE_X, CX.tx.cube0, 0);
+    if (g.checkFramebufferStatus(g.FRAMEBUFFER) !== g.FRAMEBUFFER_COMPLETE) throw new Error("cube shadow target incomplete");
+    CX.tx.oct = g.createTexture();
+    g.bindTexture(g.TEXTURE_2D, CX.tx.oct);
+    g.texImage2D(g.TEXTURE_2D, 0, g.R16F, 2048, 2048, 0, g.RED, g.HALF_FLOAT, null);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.NEAREST); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.NEAREST);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+    CX.fb.oct = cineFbo([CX.tx.oct]);
+    const SS = 2048;
+    const st = g.createTexture();
+    g.bindTexture(g.TEXTURE_2D, st);
+    g.texImage2D(g.TEXTURE_2D, 0, g.DEPTH_COMPONENT24, SS, SS, 0, g.DEPTH_COMPONENT, g.UNSIGNED_INT, null);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_COMPARE_MODE, g.COMPARE_REF_TO_TEXTURE);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_COMPARE_FUNC, g.LEQUAL);
+    CX.tx.sunD = st;
+    CX.fb.sun = g.createFramebuffer();
+    g.bindFramebuffer(g.FRAMEBUFFER, CX.fb.sun);
+    g.framebufferTexture2D(g.FRAMEBUFFER, g.DEPTH_ATTACHMENT, g.TEXTURE_2D, st, 0);
+    g.drawBuffers([g.NONE]); g.readBuffer(g.NONE);
+    if (g.checkFramebufferStatus(g.FRAMEBUFFER) !== g.FRAMEBUFFER_COMPLETE) throw new Error("window shadow target incomplete");
+    g.bindFramebuffer(g.FRAMEBUFFER, null);
+    CX.tx.box = g.createTexture();
+    CX.maxSamples = g.getParameter(g.MAX_SAMPLES) | 0;
+}
+
+/*  Size-dependent targets. Rebuilt only when the canvas or the quality
+    changes; the shadow maps and programs survive. */
+function cineTargets(w, h, scale){
+  let rw = Math.max(2, Math.round(w * scale)), rh = Math.max(2, Math.round(h * scale));
+  if (rw * rh > CINE_CAP_PX){ const k = Math.sqrt(CINE_CAP_PX / (rw * rh)); rw = Math.round(rw * k); rh = Math.round(rh * k); }
+  const key = w + "x" + h + "@" + rw + "x" + rh;
+  if (key === CX.size) return;
+  const g = gl;
+  cineDel();
+  CX.size = key; CX.rw = rw; CX.rh = rh; CX.w = w; CX.h = h;
+  const px = rw * rh;
+  CX.samples = Math.max(0, Math.min(CX.maxSamples || 4, px > 6e6 ? 2 : 4));
+  try {
+    const ok = g.getInternalformatParameter(g.RENDERBUFFER, g.RGBA16F, g.SAMPLES);
+    if (ok && ok.length){ let best = 0; for (const v of ok) if (v <= CX.samples && v > best) best = v; CX.samples = best; }
+  } catch(e){}
+  const mkRb = (fmt) => {
+    const r = g.createRenderbuffer();
+    g.bindRenderbuffer(g.RENDERBUFFER, r);
+    if (CX.samples > 1) g.renderbufferStorageMultisample(g.RENDERBUFFER, CX.samples, fmt, rw, rh);
+    else g.renderbufferStorage(g.RENDERBUFFER, fmt, rw, rh);
+    return r;
+  };
+  CX.rb.c0 = mkRb(g.RGBA16F); CX.rb.c1 = mkRb(g.RGBA16F); CX.rb.c2 = mkRb(g.RGBA16F); CX.rb.d = mkRb(g.DEPTH_COMPONENT24);
+  CX.fb.ms = g.createFramebuffer();
+  g.bindFramebuffer(g.FRAMEBUFFER, CX.fb.ms);
+  g.framebufferRenderbuffer(g.FRAMEBUFFER, g.COLOR_ATTACHMENT0, g.RENDERBUFFER, CX.rb.c0);
+  g.framebufferRenderbuffer(g.FRAMEBUFFER, g.COLOR_ATTACHMENT1, g.RENDERBUFFER, CX.rb.c1);
+  g.framebufferRenderbuffer(g.FRAMEBUFFER, g.COLOR_ATTACHMENT2, g.RENDERBUFFER, CX.rb.c2);
+  g.framebufferRenderbuffer(g.FRAMEBUFFER, g.DEPTH_ATTACHMENT, g.RENDERBUFFER, CX.rb.d);
+  if (g.checkFramebufferStatus(g.FRAMEBUFFER) !== g.FRAMEBUFFER_COMPLETE) throw new Error("cinematic: MSAA target incomplete");
+  g.bindFramebuffer(g.FRAMEBUFFER, null);
+  const F16 = [g.RGBA16F, g.RGBA, g.HALF_FLOAT];
+  CX.tx.col = cineTex(rw, rh, F16[0], F16[1], F16[2], g.LINEAR);
+  CX.tx.amb = cineTex(rw, rh, F16[0], F16[1], F16[2], g.LINEAR);
+  CX.tx.nd  = cineTex(rw, rh, F16[0], F16[1], F16[2], g.NEAREST);
+  CX.fb.rCol = cineFbo([CX.tx.col]); CX.fb.rAmb = cineFbo([CX.tx.amb]); CX.fb.rNd = cineFbo([CX.tx.nd]);
+  const aw = Math.max(1, rw >> 1), ah = Math.max(1, rh >> 1);
+  CX.tx.aoA = cineTex(aw, ah, g.RGBA8, g.RGBA, g.UNSIGNED_BYTE, g.LINEAR);
+  CX.tx.aoB = cineTex(aw, ah, g.RGBA8, g.RGBA, g.UNSIGNED_BYTE, g.LINEAR);
+  CX.fb.aoA = cineFbo([CX.tx.aoA]); CX.fb.aoB = cineFbo([CX.tx.aoB]);
+  CX.aw = aw; CX.ah = ah;
+  CX.bl = [];
+  let bw = rw, bh = rh;
+  for (let i = 0; i < 6; i++){
+    bw = Math.max(1, bw >> 1); bh = Math.max(1, bh >> 1);
+    const dn = cineTex(bw, bh, F16[0], F16[1], F16[2], g.LINEAR);
+    const up = cineTex(bw, bh, F16[0], F16[1], F16[2], g.LINEAR);
+    CX.tx["bd" + i] = dn; CX.tx["bu" + i] = up;
+    CX.fb["bd" + i] = cineFbo([dn]); CX.fb["bu" + i] = cineFbo([up]);
+    CX.bl.push({ w:bw, h:bh, dn:dn, up:up, fdn:CX.fb["bd" + i], fup:CX.fb["bu" + i] });
+  }
+  /* photo: G-buffer and accumulation at the canvas's own size (jitter is the AA) */
+  CX.rb.gd = g.createRenderbuffer();
+  g.bindRenderbuffer(g.RENDERBUFFER, CX.rb.gd);
+  g.renderbufferStorage(g.RENDERBUFFER, g.DEPTH_COMPONENT24, w, h);
+  CX.tx.g0 = cineTex(w, h, F16[0], F16[1], F16[2], g.NEAREST);
+  CX.tx.g1 = cineTex(w, h, F16[0], F16[1], F16[2], g.NEAREST);
+  CX.tx.g2 = cineTex(w, h, g.RGBA32F, g.RGBA, g.FLOAT, g.NEAREST);
+  CX.fb.g = cineFbo([CX.tx.g0, CX.tx.g1, CX.tx.g2], CX.rb.gd);
+  CX.tx.accA = cineTex(w, h, g.RGBA32F, g.RGBA, g.FLOAT, g.NEAREST);
+  CX.tx.accB = cineTex(w, h, g.RGBA32F, g.RGBA, g.FLOAT, g.NEAREST);
+  CX.fb.accA = cineFbo([CX.tx.accA]); CX.fb.accB = cineFbo([CX.tx.accB]);
+  CX.accCur = 0;
+  CX.pkey = "";                         /* a resize is a change */
+  CX.warm = 3; CX.ftN = 0;              /* the first frames on new targets are not what the mode costs */
+}
+
+/* ------------------------------------------------------------- matrices */
+function lookAtM(eye, at, up){
+  const f = nrm3(sub(at, eye)), s = nrm3(crs(f, up)), u = crs(s, f);
+  const o = new Float32Array(16);
+  o[0]=s[0]; o[4]=s[1]; o[8]=s[2];
+  o[1]=u[0]; o[5]=u[1]; o[9]=u[2];
+  o[2]=-f[0]; o[6]=-f[1]; o[10]=-f[2];
+  o[12]=-dot3(s,eye); o[13]=-dot3(u,eye); o[14]=dot3(f,eye); o[15]=1;
+  return o;
+}
+const CUBE_DIRS = [[[1,0,0],[0,-1,0]], [[-1,0,0],[0,-1,0]], [[0,1,0],[0,0,1]],
+                   [[0,-1,0],[0,0,-1]], [[0,0,1],[0,-1,0]], [[0,0,-1],[0,-1,0]]];
+const LAMP_LIGHT = [
+  { c:[1.00,0.70,0.36], i:2.1, room:0 }, { c:[1.00,0.64,0.32], i:1.5, room:1 },
+  { c:[1.00,0.72,0.40], i:3.6, room:2 }, { c:[1.00,0.68,0.36], i:3.6, room:2 }
+];
+const lampRoom = i => i < 2 ? i : 2;
+const lampPos = i => [LAMPS[i][0], LAMPS[i][1], ROOMS[lampRoom(i)].h - 0.55];
+function sunVP(){
+  return matMul(perspective(52*Math.PI/180, 1, 1.0, 26), lookAtM(SUN_POS, SUN_AIM, [0,0,1]));
+}
+
+/*  The shadow maps follow the MESH: a door, a piece of furniture, a source or
+    a wall moving rebuilds the mesh and bumps meshGen. Walking, looking and the
+    lamps' flicker cost nothing here. */
+function cineShadows(){
+  if (CX.shadowGen === meshGen) return;
+  const g = gl;
+  CX.shadowGen = meshGen;
+  g.bindVertexArray(vao);
+  g.disable(g.CULL_FACE);
+  g.disable(g.BLEND);
+  g.enable(g.DEPTH_TEST); g.depthMask(true);
+  const opq = Math.min(MESH_OPAQUE, vertsUploaded);
+  /* cubes */
+  g.useProgram(CX.P.shCube.p);
+  g.bindFramebuffer(g.FRAMEBUFFER, CX.fb.cube);
+  g.drawBuffers([g.COLOR_ATTACHMENT0]);
+  g.viewport(0, 0, 512, 512);
+  const P = perspective(Math.PI/2, 1, 0.05, 40);
+  for (let i = 0; i < 4; i++){
+    const lp = lampPos(i);
+    g.uniform3f(CX.P.shCube.u("uLP"), lp[0], lp[1], lp[2]);
+    for (let f = 0; f < 6; f++){
+      g.framebufferTexture2D(g.FRAMEBUFFER, g.COLOR_ATTACHMENT0, g.TEXTURE_CUBE_MAP_POSITIVE_X + f, CX.tx["cube" + i], 0);
+      const d = CUBE_DIRS[f];
+      g.uniformMatrix4fv(CX.P.shCube.u("uVP"), false, matMul(P, lookAtM(lp, add3(lp, d[0]), d[1])));
+      g.clearBufferfv(g.COLOR, 0, [100, 0, 0, 1]);
+      g.clear(g.DEPTH_BUFFER_BIT);
+      g.drawArrays(g.TRIANGLES, 0, opq);
+    }
+  }
+  /* each cube folded into its octahedral tile: one sampler serves all four lamps */
+  g.disable(g.DEPTH_TEST);
+  g.useProgram(CX.P.oct.p);
+  g.bindVertexArray(CX.emptyVao);
+  for (let i = 0; i < 4; i++){
+    const ox = (i & 1) * 1024, oy = (i >> 1) * 1024;
+    g.activeTexture(g.TEXTURE0); g.bindTexture(g.TEXTURE_CUBE_MAP, CX.tx["cube" + i]);
+    g.uniform1i(CX.P.oct.u("uCube"), 0);
+    g.uniform2f(CX.P.oct.u("uOrg"), ox, oy);
+    g.bindFramebuffer(g.FRAMEBUFFER, CX.fb.oct);
+    g.viewport(ox, oy, 1024, 1024);
+    g.drawArrays(g.TRIANGLES, 0, 3);
+  }
+  g.bindTexture(g.TEXTURE_CUBE_MAP, null);
+  g.enable(g.DEPTH_TEST);
+  g.bindVertexArray(vao);
+  /* the window */
+  g.useProgram(CX.P.shSun.p);
+  g.bindFramebuffer(g.FRAMEBUFFER, CX.fb.sun);
+  g.viewport(0, 0, 2048, 2048);
+  g.clear(g.DEPTH_BUFFER_BIT);
+  g.uniformMatrix4fv(CX.P.shSun.u("uVP"), false, sunVP());
+  g.enable(g.POLYGON_OFFSET_FILL); g.polygonOffset(2.0, 4.0);
+  g.drawArrays(g.TRIANGLES, 0, opq);
+  g.disable(g.POLYGON_OFFSET_FILL);
+  g.bindFramebuffer(g.FRAMEBUFFER, null);
+  g.enable(g.CULL_FACE);
+}
+
+/* ------------------------------------------------------- the box model */
+const WALL_ALB  = [[0.23,0.11,0.10], [0.54,0.43,0.32], [0.73,0.71,0.66], [0.50,0.58,0.60]];
+const FLOOR_ALB = [[0.24,0.16,0.14], [0.34,0.20,0.10], [0.37,0.27,0.17], [0.42,0.46,0.47]];
+const CEIL_ALB  = [[0.23,0.19,0.18], [0.64,0.61,0.57], [0.64,0.61,0.57], [0.56,0.60,0.61]];
+const FURN_ALB = { sofa:[0.10,0.20,0.19], armchair:[0.48,0.30,0.09], bed:[0.66,0.66,0.64], rug:[0.40,0.10,0.08],
+  curtain:[0.28,0.06,0.07], bookcase:[0.33,0.22,0.14], table:[0.44,0.31,0.17], piano:[0.03,0.03,0.03],
+  wardrobe:[0.42,0.30,0.17], person:[0.20,0.24,0.32] };
+function cineBoxes(){
+  const B = [];
+  const add = (c, yaw, hx, hy, hz, alb, win) => B.push([c[0], c[1], c[2], yaw, hx, hy, hz, 0, alb[0], alb[1], alb[2], win ? 1 : 0]);
+  const T = 0.06;
+  for (const r of ROOMS){
+    const poly = roomPoly(r.i);
+    const wa = WALL_ALB[matShade(r.i)] || WALL_ALB[1];
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const q of poly){ x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
+    add([(x0+x1)/2, (y0+y1)/2, -T], 0, (x1-x0)/2, (y1-y0)/2, T, FLOOR_ALB[flrShade(r.i)] || FLOOR_ALB[1]);
+    add([(x0+x1)/2, (y0+y1)/2, r.h + T], 0, (x1-x0)/2, (y1-y0)/2, T, CEIL_ALB[celShade(r.i)] || CEIL_ALB[1]);
+    for (let e = 0; e < poly.length; e++){
+      const a = poly[e], b = poly[(e + 1) % poly.length];
+      const dx = b[0]-a[0], dy = b[1]-a[1], L = Math.hypot(dx, dy);
+      if (L < 1e-4) continue;
+      const axis = Math.abs(dy) < 1e-6 ? "x" : (Math.abs(dx) < 1e-6 ? "y" : null);
+      const seg = (s0, s1, z0, z1) => {
+        if (s1 - s0 < 1e-4 || z1 - z0 < 1e-4) return;
+        const sm = (s0 + s1) / 2;
+        const c = axis === "x" ? [sm, a[1], (z0+z1)/2] : [a[0], sm, (z0+z1)/2];
+        const win = r.i === 2 && axis === "x" && Math.abs(a[1] - 9) < 1e-3;
+        add(c, axis === "x" ? 0 : Math.PI/2, (s1-s0)/2 + 0.01, T, (z1-z0)/2, wa, win);
+      };
+      if (!axis){
+        add([(a[0]+b[0])/2, (a[1]+b[1])/2, r.h/2], Math.atan2(dy, dx), L/2 + 0.02, T, r.h/2 + 0.02, wa, false);
+        continue;
+      }
+      const s0 = axis === "x" ? Math.min(a[0], b[0]) : Math.min(a[1], b[1]);
+      const s1 = axis === "x" ? Math.max(a[0], b[0]) : Math.max(a[1], b[1]);
+      const coord = axis === "x" ? a[1] : a[0];
+      const holes = holesOn(axis, coord, s0, s1).slice().sort((p, q) => p.s0 - q.s0);
+      let u = s0;
+      for (const ho of holes){ seg(u, ho.s0, 0, r.h); seg(ho.s0, ho.s1, DOOR_H, r.h); u = ho.s1; }
+      seg(u, s1, 0, r.h);
+    }
+  }
+  for (const d of DOORS){
+    const ang = leafAngle(d), hp = hingePt(d);
+    const dir = [Math.cos(ang), Math.sin(ang)];
+    add([hp[0] + dir[0]*DOOR_W/2, hp[1] + dir[1]*DOOR_W/2, 1.02], ang, DOOR_W/2, 0.022, 1.005, [0.36,0.27,0.18]);
+  }
+  for (const it of furn){
+    const c = furnCatOf(it.t);
+    if (!c) continue;
+    const zb = c.zb || 0, zt = c.zt || c.h;
+    add([it.x, it.y, (zb+zt)/2], normYaw(it.yaw)*Math.PI/180, c.w/2, c.d/2, Math.max(0.01, (zt-zb)/2), FURN_ALB[it.t] || [0.4,0.35,0.3]);
+  }
+  for (let n = 1; n <= NSRC; n++){
+    if (!srcActive(n)) continue;
+    const room = roomOfPoint(SXn(n), SYn(n));
+    const ls = srcTypeIdx(n) === 1;
+    const zc = ls ? Math.min(Math.max(SZn(n), 0.20), ROOMS[room].h - 0.24) : Math.min(Math.max(SZn(n), 0.22), ROOMS[room].h - 0.16);
+    if (ls) add([SXn(n), SYn(n), zc], SYAWn(n)*Math.PI/180, 0.13, 0.11, 0.19, [0.05,0.05,0.05]);
+    else add([SXn(n), SYn(n), zc], 0, 0.06, 0.06, 0.06, [0.68,0.67,0.65]);
+  }
+  return B;
+}
+function cineUploadBoxes(){
+  if (CX.boxGen === meshGen) return;
+  CX.boxGen = meshGen;
+  const B = cineBoxes();
+  const n = Math.min(B.length, 160);
+  const data = new Float32Array(Math.max(1, n * 3) * 4);
+  for (let i = 0; i < n; i++) for (let k = 0; k < 12; k++) data[i*12 + k] = B[i][k];
+  const g = gl;
+  g.bindTexture(g.TEXTURE_2D, CX.tx.box);
+  g.texImage2D(g.TEXTURE_2D, 0, g.RGBA32F, Math.max(1, n * 3), 1, 0, g.RGBA, g.FLOAT, data);
+  g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.NEAREST);
+  g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.NEAREST);
+  CX.boxN = n;
+}
+
+/* ---------------------------------------------------------- the lights */
+function cineFlicker(i, t){
+  return 1 + 0.018*Math.sin(t*13.1 + i*1.7)*Math.sin(t*7.3 + i*2.1) + 0.008*Math.sin(t*31.0 + i*3.3);
+}
+function cineLights(t, life){
+  const L = [];
+  for (let i = 0; i < 4; i++){
+    const f = life ? cineFlicker(i, t) : 1;
+    L.push({ p:lampPos(i), c:mul3(LAMP_LIGHT[i].c, LAMP_LIGHT[i].i * f), room:-1, ty:1, cube:i, sh:1 });
+  }
+  L.push({ p:[11.6,8.7,3.8], c:mul3([0.34,0.46,0.78], 4.2*0.45), room:2, ty:0, cube:0, sh:0 });
+  L.push({ p:SUN_POS, c:SUN_COL, room:-1, ty:2, cube:0, sh:0 });
+  for (let n = 1; n <= NSRC; n++){
+    if (!srcActive(n)) continue;
+    const r = roomOfPoint(SXn(n), SYn(n));
+    L.push({ p:[SXn(n), SYn(n), Math.min(Math.max(SZn(n),0.3), ROOMS[r].h-0.3)],
+             c:mul3([1.00,0.52,0.22], 0.30 + 2.2*glow), room:r, ty:0, cube:0, sh:0 });
+  }
+  return L.slice(0, 12);
+}
+function cineRoomUniforms(pr){
+  const g = gl;
+  const rmn = new Float32Array(9), rmx = new Float32Array(9);
+  ROOMS.forEach((r, i) => {
+    rmn[i*3] = r.x0; rmn[i*3+1] = r.y0; rmx[i*3] = r.x1; rmx[i*3+1] = r.y1; rmx[i*3+2] = r.h;
+  });
+  g.uniform3fv(pr.u("uRoomMin"), rmn); g.uniform3fv(pr.u("uRoomMax"), rmx);
+  const amb = new Float32Array(9);
+  for (let i = 0; i < 3; i++){
+    const k = matLook(i).amb * 0.042;
+    amb[i*3] = k*1.06; amb[i*3+1] = k*0.94; amb[i*3+2] = k*0.88;
+  }
+  amb[6] *= 1.15; amb[7] *= 1.15; amb[8] *= 1.35;
+  g.uniform3fv(pr.u("uAmb"), amb);
+}
+function cineBindShadows(pr, unit0){
+  const g = gl;
+  g.activeTexture(g.TEXTURE0 + unit0);
+  g.bindTexture(g.TEXTURE_2D, CX.tx.oct);
+  g.uniform1i(pr.u("uOct"), unit0);
+  g.activeTexture(g.TEXTURE0 + unit0 + 4);
+  g.bindTexture(g.TEXTURE_2D, CX.tx.sunD);
+  g.uniform1i(pr.u("uSunSh"), unit0 + 4);
+  g.uniformMatrix4fv(pr.u("uSunVP"), false, sunVP());
+  g.uniform3f(pr.u("uSunPos"), SUN_POS[0], SUN_POS[1], SUN_POS[2]);
+  g.activeTexture(g.TEXTURE0);
+}
+function cineTex2(pr, name, unit, tex){
+  const g = gl;
+  g.activeTexture(g.TEXTURE0 + unit);
+  g.bindTexture(g.TEXTURE_2D, tex);
+  g.uniform1i(pr.u(name), unit);
+}
+function cineFsq(fbo, w, h){
+  const g = gl;
+  g.bindFramebuffer(g.FRAMEBUFFER, fbo);
+  g.viewport(0, 0, w, h);
+  g.bindVertexArray(CX.emptyVao);
+  g.drawArrays(g.TRIANGLES, 0, 3);
+}
+
+/*  The camera, once per frame: the same eye, yaw, pitch and field of view the
+    ordinary view uses, so switching modes never moves you. */
+function cineView(w, h, jx, jy){
+  const eye = [LX(), LY(), EAR_Z];
+  const yaw = LYAW()*Math.PI/180, pit = pitchDeg*Math.PI/180;
+  const P = perspective(fovDeg*Math.PI/180, w/h, 0.04, 90);
+  if (jx || jy){ P[8] += jx; P[9] += jy; }
+  const Vm = viewMat(eye, yaw, pit);
+  const cp = Math.cos(pit), sp = Math.sin(pit);
+  const f = [Math.cos(yaw)*cp, Math.sin(yaw)*cp, sp];
+  const r = [Math.sin(yaw), -Math.cos(yaw), 0];
+  const u = crs(r, f);
+  const tanY = Math.tan(fovDeg*Math.PI/360);
+  return { eye:eye, P:P, V:Vm, MVP:matMul(P, Vm), f:f, r:r, u:u, tanY:tanY, tanX:tanY*w/h };
+}
+
+/* ------------------------------------------------------------ passes */
+function cineScene(vw, t, life){
+  const g = gl, pr = CX.P.scene;
+  g.bindFramebuffer(g.FRAMEBUFFER, CX.fb.ms);
+  g.viewport(0, 0, CX.rw, CX.rh);
+  g.drawBuffers([g.COLOR_ATTACHMENT0, g.COLOR_ATTACHMENT1, g.COLOR_ATTACHMENT2]);
+  g.clearBufferfv(g.COLOR, 0, [FOG[0], FOG[1], FOG[2], 1]);
+  g.clearBufferfv(g.COLOR, 1, [0, 0, 0, 1]);
+  g.clearBufferfv(g.COLOR, 2, [0, 0, 1, 0]);
+  g.clear(g.DEPTH_BUFFER_BIT);
+  g.enable(g.DEPTH_TEST); g.enable(g.CULL_FACE); g.depthMask(true); g.disable(g.BLEND);
+  g.useProgram(pr.p);
+  g.bindVertexArray(vao);
+  g.uniformMatrix4fv(pr.u("uMVP"), false, vw.MVP);
+  g.uniformMatrix4fv(pr.u("uView"), false, vw.V);
+  g.uniform3f(pr.u("uCam"), vw.eye[0], vw.eye[1], vw.eye[2]);
+  g.uniform3f(pr.u("uFog"), FOG[0], FOG[1], FOG[2]);
+  g.uniform1f(pr.u("uFogK"), 0.042);
+  g.uniform1f(pr.u("uGlow"), glow);
+  g.uniform2f(pr.u("uRes"), CX.rw, CX.rh);
+  cineRoomUniforms(pr);
+  const L = cineLights(t, life);
+  const lp = new Float32Array(36), lc = new Float32Array(36), lr = new Float32Array(12),
+        ls = new Float32Array(12), lt = new Float32Array(12), lcu = new Float32Array(12);
+  L.forEach((l, i) => {
+    lp.set(l.p, i*3); lc.set(l.c, i*3); lr[i] = l.room; ls[i] = l.sh; lt[i] = l.ty; lcu[i] = l.cube;
+  });
+  g.uniform3fv(pr.u("uLightPos"), lp); g.uniform3fv(pr.u("uLightCol"), lc);
+  g.uniform1fv(pr.u("uLightRoom"), lr); g.uniform1fv(pr.u("uLightShade"), ls);
+  g.uniform1fv(pr.u("uLType"), lt); g.uniform1fv(pr.u("uLCube"), lcu);
+  g.uniform1i(pr.u("uLightN"), L.length);
+  g.uniform1i(pr.u("uGhost"), 0);
+  g.uniform1i(pr.u("uHN"), 3);
+  cineBindShadows(pr, 2);
+  const opq = Math.min(MESH_OPAQUE, vertsUploaded);
+  g.drawArrays(g.TRIANGLES, 0, opq);
+  if (vertsUploaded > MESH_OPAQUE){
+    g.drawBuffers([g.COLOR_ATTACHMENT0, g.NONE, g.NONE]);
+    g.uniform1i(pr.u("uGhost"), 1);
+    g.enable(g.BLEND); g.blendFunc(g.SRC_ALPHA, g.ONE_MINUS_SRC_ALPHA); g.depthMask(false);
+    g.drawArrays(g.TRIANGLES, MESH_OPAQUE, vertsUploaded - MESH_OPAQUE);
+    g.depthMask(true); g.disable(g.BLEND);
+  }
+  if (life){
+    const pm = CX.P.mote;
+    g.drawBuffers([g.COLOR_ATTACHMENT0, g.NONE, g.NONE]);
+    g.useProgram(pm.p);
+    g.bindVertexArray(CX.emptyVao);
+    g.uniformMatrix4fv(pm.u("uMVP"), false, vw.MVP);
+    g.uniform1f(pm.u("uTime"), t);
+    g.uniform1f(pm.u("uPx"), CX.rh);
+    g.uniform1f(pm.u("uK"), 3.2);
+    cineBindShadows(pm, 2);
+    g.enable(g.BLEND); g.blendFunc(g.ONE, g.ONE); g.depthMask(false);
+    g.drawArrays(g.POINTS, 0, MOTES);
+    g.depthMask(true); g.disable(g.BLEND);
+  }
+  /* resolve each attachment by blit */
+  g.bindFramebuffer(g.READ_FRAMEBUFFER, CX.fb.ms);
+  const rs = [[CX.fb.rCol, g.LINEAR], [CX.fb.rAmb, g.LINEAR], [CX.fb.rNd, g.NEAREST]];
+  rs.forEach((q, i) => {
+    g.readBuffer(g.COLOR_ATTACHMENT0 + i);
+    g.bindFramebuffer(g.DRAW_FRAMEBUFFER, q[0]);
+    g.blitFramebuffer(0, 0, CX.rw, CX.rh, 0, 0, CX.rw, CX.rh, g.COLOR_BUFFER_BIT, g.NEAREST);
+  });
+  g.bindFramebuffer(g.READ_FRAMEBUFFER, null);
+  g.bindFramebuffer(g.DRAW_FRAMEBUFFER, null);
+  g.bindFramebuffer(g.FRAMEBUFFER, CX.fb.ms);
+  g.drawBuffers([g.COLOR_ATTACHMENT0, g.COLOR_ATTACHMENT1, g.COLOR_ATTACHMENT2]);
+}
+function cineSSAO(vw){
+  const g = gl;
+  g.disable(g.DEPTH_TEST); g.disable(g.BLEND); g.disable(g.CULL_FACE);
+  let pr = CX.P.ssao;
+  g.useProgram(pr.p);
+  cineTex2(pr, "uND", 0, CX.tx.nd);
+  g.uniform2f(pr.u("uOut"), CX.aw, CX.ah);
+  g.uniformMatrix4fv(pr.u("uView"), false, vw.V);
+  g.uniform1f(pr.u("uTanX"), vw.tanX); g.uniform1f(pr.u("uTanY"), vw.tanY);
+  cineFsq(CX.fb.aoA, CX.aw, CX.ah);
+  pr = CX.P.blur;
+  g.useProgram(pr.p);
+  cineTex2(pr, "uT", 0, CX.tx.aoA);
+  g.uniform2f(pr.u("uOut"), CX.aw, CX.ah);
+  cineFsq(CX.fb.aoB, CX.aw, CX.ah);
+}
+function cineBloom(src, sw, sh, div){
+  const g = gl;
+  g.disable(g.DEPTH_TEST); g.disable(g.BLEND); g.disable(g.CULL_FACE);
+  let pr = CX.P.down;
+  g.useProgram(pr.p);
+  let s = src, w = sw, h = sh;
+  CX.bl.forEach((b, i) => {
+    cineTex2(pr, "uT", 0, s);
+    g.uniform2f(pr.u("uSrc"), w, h); g.uniform2f(pr.u("uOut"), b.w, b.h);
+    g.uniform1i(pr.u("uBright"), i === 0 ? 1 : 0);
+    g.uniform1f(pr.u("uDiv"), i === 0 ? div : 1);
+    cineFsq(b.fdn, b.w, b.h);
+    s = b.dn; w = b.w; h = b.h;
+  });
+  pr = CX.P.up;
+  g.useProgram(pr.p);
+  const n = CX.bl.length;
+  let up = CX.bl[n-1].dn;
+  for (let i = n - 2; i >= 0; i--){
+    const b = CX.bl[i], c = CX.bl[i+1];
+    cineTex2(pr, "uT", 0, up);
+    cineTex2(pr, "uAdd", 1, b.dn);
+    g.uniform2f(pr.u("uSrc"), c.w, c.h); g.uniform2f(pr.u("uOut"), b.w, b.h);
+    cineFsq(b.fup, b.w, b.h);
+    up = b.up;
+  }
+  return up;
+}
+function cineComposite(vw, t, photo, life, bloomTex){
+  const g = gl, pr = CX.P.comp, w = povCv.width, h = povCv.height;
+  g.useProgram(pr.p);
+  g.disable(g.DEPTH_TEST); g.disable(g.BLEND); g.disable(g.CULL_FACE);
+  if (photo){
+    cineTex2(pr, "uCol", 0, CX.accCur ? CX.tx.accB : CX.tx.accA);
+    cineTex2(pr, "uAmbT", 1, CX.tx.aoB); cineTex2(pr, "uAO", 2, CX.tx.aoB); cineTex2(pr, "uND", 3, CX.tx.nd);
+    g.uniform2f(pr.u("uSrc"), w, h);
+    g.uniform1f(pr.u("uDiv"), 1 / Math.max(1, CX.pn));
+  } else {
+    cineTex2(pr, "uCol", 0, CX.tx.col); cineTex2(pr, "uAmbT", 1, CX.tx.amb);
+    cineTex2(pr, "uAO", 2, CX.tx.aoB);  cineTex2(pr, "uND", 3, CX.tx.nd);
+    g.uniform2f(pr.u("uSrc"), CX.rw, CX.rh);
+    g.uniform1f(pr.u("uDiv"), 1);
+  }
+  cineTex2(pr, "uBloom", 4, bloomTex);
+  cineBindShadows(pr, 5);
+  g.uniform1i(pr.u("uPhoto"), photo ? 1 : 0);
+  g.uniform2f(pr.u("uOut"), w, h);
+  g.uniform3f(pr.u("uFog"), FOG[0], FOG[1], FOG[2]);
+  g.uniform1f(pr.u("uFogK"), 0.042);
+  g.uniform1f(pr.u("uExpo"), 1.05);
+  g.uniform1f(pr.u("uTime"), t);
+  g.uniform1f(pr.u("uGrain"), photo && !EXP.active ? 0.006 : 0.012);
+  g.uniform1f(pr.u("uBloomK"), 0.38);
+  g.uniform3f(pr.u("uEye"), vw.eye[0], vw.eye[1], vw.eye[2]);
+  g.uniform3f(pr.u("uCF"), vw.f[0], vw.f[1], vw.f[2]);
+  g.uniform3f(pr.u("uCR"), vw.r[0], vw.r[1], vw.r[2]);
+  g.uniform3f(pr.u("uCU"), vw.u[0], vw.u[1], vw.u[2]);
+  g.uniform1f(pr.u("uTanX"), vw.tanX); g.uniform1f(pr.u("uTanY"), vw.tanY);
+  g.uniform3f(pr.u("uSunCol"), SUN_COL[0], SUN_COL[1], SUN_COL[2]);
+  const lp = new Float32Array(12), lc = new Float32Array(12);
+  for (let i = 0; i < 4; i++){
+    lp.set(lampPos(i), i*3);
+    lc.set(mul3(LAMP_LIGHT[i].c, LAMP_LIGHT[i].i * (life ? cineFlicker(i, t) : 1)), i*3);
+  }
+  g.uniform3fv(pr.u("uLP"), lp); g.uniform3fv(pr.u("uLC"), lc);
+  g.uniform1f(pr.u("uVolK"), 1.0);
+  cineFsq(null, w, h);
+}
+
+/*  One path-traced sample: a G-buffer at a sub-pixel jitter (the jitter is
+    the anti-aliasing), then the tracer, added into the running sum. */
+function cinePhotoSample(t){
+  const g = gl, w = povCv.width, h = povCv.height;
+  const jx = (Math.random() - 0.5) * 2 / w, jy = (Math.random() - 0.5) * 2 / h;
+  const vw = cineView(w, h, jx, jy);
+  let pr = CX.P.gbuf;
+  g.bindFramebuffer(g.FRAMEBUFFER, CX.fb.g);
+  g.viewport(0, 0, w, h);
+  g.drawBuffers([g.COLOR_ATTACHMENT0, g.COLOR_ATTACHMENT1, g.COLOR_ATTACHMENT2]);
+  g.clearBufferfv(g.COLOR, 0, [0,0,0,0]); g.clearBufferfv(g.COLOR, 1, [0,0,0,0]); g.clearBufferfv(g.COLOR, 2, [0,0,0,0]);
+  g.clear(g.DEPTH_BUFFER_BIT);
+  g.enable(g.DEPTH_TEST); g.enable(g.CULL_FACE); g.depthMask(true); g.disable(g.BLEND);
+  g.useProgram(pr.p);
+  g.bindVertexArray(vao);
+  g.uniformMatrix4fv(pr.u("uMVP"), false, vw.MVP);
+  g.uniformMatrix4fv(pr.u("uView"), false, vw.V);
+  g.uniform1f(pr.u("uGlow"), CX.glowFreeze);
+  g.uniform1i(pr.u("uHN"), 3);
+  cineRoomUniforms(pr);
+  g.drawArrays(g.TRIANGLES, 0, Math.min(MESH_OPAQUE, vertsUploaded));
+  pr = CX.P.pt;
+  g.useProgram(pr.p);
+  g.disable(g.DEPTH_TEST); g.disable(g.CULL_FACE);
+  cineTex2(pr, "uG0", 0, CX.tx.g0); cineTex2(pr, "uG1", 1, CX.tx.g1); cineTex2(pr, "uG2", 2, CX.tx.g2);
+  cineTex2(pr, "uAcc", 3, CX.accCur ? CX.tx.accB : CX.tx.accA);
+  cineTex2(pr, "uBox", 4, CX.tx.box);
+  cineBindShadows(pr, 5);
+  g.uniform1i(pr.u("uBoxN"), CX.boxN);
+  g.uniform1i(pr.u("uFirst"), CX.pn === 0 ? 1 : 0);
+  g.uniform1i(pr.u("uSeed"), (CX.pn * 7919 + 17) | 0);
+  g.uniform1i(pr.u("uBounces"), 2);
+  g.uniform3f(pr.u("uEye"), vw.eye[0], vw.eye[1], vw.eye[2]);
+  const lp = new Float32Array(12), lc = new Float32Array(12);
+  for (let i = 0; i < 4; i++){ lp.set(lampPos(i), i*3); lc.set(mul3(LAMP_LIGHT[i].c, LAMP_LIGHT[i].i), i*3); }
+  g.uniform3fv(pr.u("uLP"), lp); g.uniform3fv(pr.u("uLC"), lc);
+  g.uniform3f(pr.u("uSunCol"), SUN_COL[0], SUN_COL[1], SUN_COL[2]);
+  g.uniform3f(pr.u("uSkyCol"), SKY_COL[0], SKY_COL[1], SKY_COL[2]);
+  cineRoomUniforms(pr);
+  CX.accCur ^= 1;
+  cineFsq(CX.accCur ? CX.fb.accB : CX.fb.accA, w, h);
+  CX.pn++;
+}
+
+/*  The whole cinematic frame. Returns false only if the mode could not start,
+    in which case drawPov carries on with the ordinary picture. */
+function cineDraw(){
+  if (!cineInit()){ cineHud(); return false; }
+  const g = gl, w = povCv.width, h = povCv.height;
+  const now = nowMs();
+  const t0 = now;
+  try {
+    const scale = EXP.active ? (EXP.scale || CINE_SCALE.high) : CINE_SCALE[CX.q];
+    cineTargets(w, h, scale);
+    cineShadows();
+    cineUploadBoxes();
+    const t = EXP.active ? EXP.t : now / 1000;
+    const vw = cineView(w, h);
+    let mode = "rt";
+    if (EXP.active){
+      if (EXP.photoN > 0){
+        CX.pn = 0; CX.glowFreeze = glow;
+        for (let i = 0; i < EXP.photoN; i++) cinePhotoSample(t);
+        mode = "photo";
+      }
+    } else {
+      const key = [vw.eye.map(v => v.toFixed(4)).join(","), LYAW().toFixed(3), pitchDeg.toFixed(3), fovDeg.toFixed(3),
+                   w, h, meshGen, CX.q].join("|");
+      if (key !== CX.pkey){ CX.pkey = key; CX.still = now; CX.photo = false; CX.pn = 0; CX.converged = false; }
+      if (!CX.photo && !CX.hold && now - CX.still >= PHOTO_STILL_MS){ CX.photo = true; CX.pn = 0; CX.glowFreeze = glow; }
+      if (CX.photo){
+        mode = "photo";
+        const max = PHOTO_MAX[CX.q];
+        if (CX.pn < max){
+          const per = CX.q === "ultra" ? 3 : 2;
+          for (let i = 0; i < per && CX.pn < max; i++) cinePhotoSample(t);
+          if (CX.pn >= max) CX.converged = true;
+        }
+      }
+    }
+    const life = true;
+    let bloom;
+    if (mode === "photo"){
+      bloom = cineBloom(CX.accCur ? CX.tx.accB : CX.tx.accA, w, h, 1 / Math.max(1, CX.pn));
+      cineComposite(vw, t, true, false, bloom);
+    } else {
+      cineScene(vw, t, life);
+      cineSSAO(vw);
+      bloom = cineBloom(CX.tx.col, CX.rw, CX.rh, 1);
+      cineComposite(vw, t, false, life, bloom);
+    }
+    g.bindFramebuffer(g.FRAMEBUFFER, null);
+    g.bindVertexArray(vao);
+    g.useProgram(prog);
+    g.enable(g.DEPTH_TEST); g.enable(g.CULL_FACE);
+    g.activeTexture(g.TEXTURE0);
+    CX.mode = mode;
+    /*  Honest cost: every 20th frame waits for the GPU (a one-pixel read)
+        and times the whole frame from its first call. */
+    CX.frameNo++;
+    if (CX.warm > 0) CX.warm--;
+    else if (CX.frameNo % 20 === 1 || CX.bench){
+      const px = new Uint8Array(4);
+      g.readPixels(0, 0, 1, 1, g.RGBA, g.UNSIGNED_BYTE, px);
+      const ms = nowMs() - t0;
+      CX.ftMs = CX.ftN ? CX.ftMs * 0.6 + ms * 0.4 : ms; CX.ftN++;
+      CX.lastMs = ms;
+    }
+  } catch(e){
+    window.__err.push("cinematic frame: " + (e && e.message || e));
+    CX.ok = false; CX.why = String(e && e.message || e);
+    try { g.bindFramebuffer(g.FRAMEBUFFER, null); g.useProgram(prog); g.bindVertexArray(vao); } catch(_){}
+    cineHud();
+    return false;
+  }
+  cineHud();
+  return true;
+}
+/*  Whether drawPov should hand the frame over, and whether the loop should
+    keep running without anything else asking for a frame. */
+function cineWanted(){ return EXP.active ? !!EXP.cine : (CX.on && CX.ok !== false); }
+function cineLoop(){
+  if (!CX.on || CX.ok === false || EXP.active || !gl) return false;
+  if (document.hidden) return false;
+  return !CX.converged;
+}
+const cineHudEl = document.getElementById("cineHud");
+function cineHud(){
+  if (!cineHudEl) return;
+  if (!CX.on || EXP.active){ cineHudEl.hidden = true; return; }
+  const t = nowMs();
+  if (t - CX.lastHud < 180 && !CX.converged) return;
+  CX.lastHud = t;
+  cineHudEl.hidden = false;
+  let s;
+  if (CX.ok === false) s = "CINEMATIC UNAVAILABLE - " + CX.why;
+  else if (CX.pending) s = "CINEMATIC  compiling shaders " + ((nowMs() - CX.compileT0) / 1000).toFixed(1) + " s";
+  else if (CX.mode === "photo"){
+    const max = PHOTO_MAX[CX.q];
+    s = CX.converged ? ("PHOTO  " + CX.pn + " spp  done") : ("PHOTO " + Math.floor(100 * CX.pn / max) + "%");
+  } else {
+    s = "CINEMATIC " + CX.q.toUpperCase() + " " + CINE_SCALE[CX.q] + "x  MSAA " + CX.samples +
+        (CX.ftN ? ("  " + CX.ftMs.toFixed(1) + " ms") : "");
+  }
+  if (CX.flags.length && CX.ok) s += "  (" + CX.flags.join(", ") + ")";
+  cineHudEl.textContent = s;
+}
+function cineSet(on, q){
+  CX.on = !!on;
+  if (q === "high" || q === "ultra") CX.q = q;
+  cineSave();
+  CX.pkey = ""; CX.converged = false; CX.photo = false;
+  const b = document.getElementById("bCine");
+  if (b) b.classList.toggle("on", CX.on);
+  const sel = document.getElementById("cineQ");
+  if (sel) sel.value = CX.q;
+  if (!CX.on && cineHudEl) cineHudEl.hidden = true;
+  invalidate("pov");
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && CX.on) invalidate("pov"); });
+
+/* ==================================================================== */
+/*  RECORD and EXPORT (protocol section 8)                               */
+/*                                                                       */
+/*  Native records the take and renders its sound; the page renders the  */
+/*  pictures. Each frame is drawn from the take's OWN values - pushed    */
+/*  into the renderer only, never sent back - and the live state is put  */
+/*  back exactly afterwards.                                             */
+/* ==================================================================== */
+const EXP = { active:false, waitingPlan:false, cancelled:false, cine:false, photoN:0, scale:1.5, t:0,
+              ackWait:null, liveV:null, liveFurn:null, frame:0, n:0, stage:"" };
+const EXP_KEY = "thinwalls.export";
+const RES_OPTS = [[1280,720], [1920,1080], [2560,1440], [3840,2160]];
+const FPS_OPTS = [30, 60];
+const PIC_OPTS = [["shown","AS SHOWN"], ["cine","CINEMATIC"], ["photo16","PHOTO 16"], ["photo64","PHOTO 64"]];
+let expOpt = { res:0, fps:0, pic:"shown", inset:false };
+try {
+  const s = JSON.parse(localStorage.getItem(EXP_KEY) || "null");
+  if (s && typeof s === "object"){
+    if (s.res >= 0 && s.res < RES_OPTS.length) expOpt.res = s.res | 0;
+    if (s.fps >= 0 && s.fps < FPS_OPTS.length) expOpt.fps = s.fps | 0;
+    if (PIC_OPTS.some(p => p[0] === s.pic)) expOpt.pic = s.pic;
+    expOpt.inset = !!s.inset;
+  }
+} catch(e){}
+function expSave(){ try { localStorage.setItem(EXP_KEY, JSON.stringify(expOpt)); } catch(e){} }
+let recSt = { state:"idle", sec:0, max:240, progress:0, file:"", text:"" };
+let recCamTmr = 0;
+
+Object.assign(HINT, {
+  cine:    ["CINEMATIC", "A second, much heavier renderer for the 3D view: an HDR picture at 1.5 or 2 times the screen's resolution with multisampling, real shadows from the pendants and the hall's window, ambient occlusion, physically based highlights, bloom and a filmic tone curve. It runs continuously while it is on - dust in the window light, a faint beam under each lamp - and once you stand still for a moment it switches to PHOTO and path-traces the picture until it has converged, then stops. The GPU cost is shown in the corner of the view. Off is the ordinary view, exactly as before. Remembered on this computer."],
+  cineq:   ["CINEMATIC QUALITY", "HIGH renders at 1.5 times the screen's pixels, ULTRA at 2 times, both with 4x multisampling on top. ULTRA also takes the still PHOTO further, to 512 samples a pixel instead of 256."],
+  rec:     ["RECORD", "Capture a take: the input audio, every parameter as it moves and the furniture, up to four minutes. Walk the rooms, open doors, move sources - all of it is recorded. Press again to stop. The take can then be exported as a video with its sound."],
+  rectime: ["TAKE LENGTH", "How long the take is, against the four minute limit. Counts while recording."],
+  expres:  ["VIDEO SIZE", "The exported frame size. 1920 x 1080 is ordinary HD; 3840 x 2160 is 4K and takes much longer to render, especially with PHOTO."],
+  expfps:  ["FRAME RATE", "30 or 60 frames a second. 60 doubles the rendering time and makes walking look smoother."],
+  exppic:  ["PICTURE", "AS SHOWN renders the frames the way the 3D view is set now. CINEMATIC uses the heavy renderer whatever the view is set to. PHOTO 16 and PHOTO 64 add that many path-traced samples to every frame - light through the doors and off the walls, soft shadows - at a cost of seconds per frame."],
+  expopen: ["EXPORT", "Open the export panel: video size, frame rate, picture quality, the plan inset, and the button that renders the last take to an MP4 with its sound. Record a take with REC first."],
+  expinset:["PLAN INSET", "Put a small copy of the plan in the corner of the video, so a viewer can see where the listener is walking."],
+  expgo:   ["EXPORT", "Render the last take to an MP4 in Documents / Thin Walls videos: native renders the sound first, then the page draws every frame from the recorded values. The panel is locked while it runs; CANCEL stops it and deletes the partial file."],
+  expreveal:["REVEAL", "Show the last exported video in Explorer."],
+  expcancel:["CANCEL", "Stop the export. The partial file is deleted and the panel comes back exactly as it was."],
+  expnote: ["EXPORT STATUS", "Why EXPORT is not available yet, or the name of the last video written."]
+});
+
+function fmtClock(s){
+  s = Math.max(0, +s || 0);
+  const m = Math.floor(s / 60), r = s - m * 60;
+  return m + ":" + (r < 10 ? "0" : "") + r.toFixed(1);
+}
+/*  REC and EXPORT live in the HEADER, where they are always on screen; the
+    export options open as a popover under EXPORT. */
+let expPop = null;
+function expPopPlace(){
+  const b = document.getElementById("bExpOpen");
+  if (!b || !expPop) return;
+  const r = b.getBoundingClientRect();
+  const w = expPop.offsetWidth || 300;
+  const hb = document.getElementById("top").getBoundingClientRect().bottom;   /* clear of the header, not just the button */
+  expPop.style.top = Math.round(Math.max(r.bottom, hb) + 4) + "px";
+  expPop.style.left = Math.round(Math.max(6, Math.min(r.right - w, window.innerWidth - w - 6))) + "px";
+}
+function expPopShow(on){
+  if (!expPop) return;
+  expPop.hidden = !on;
+  document.getElementById("bExpOpen").classList.toggle("on", !!on);
+  if (on){ expPopPlace(); updateRecUI(); }
+}
+window.addEventListener("resize", () => { if (expPop && !expPop.hidden) expPopPlace(); });
+document.addEventListener("pointerdown", e => {
+  if (!expPop || expPop.hidden) return;
+  if (expPop.contains(e.target) || e.target.closest && e.target.closest("#bExpOpen")) return;
+  expPopShow(false);
+});
+window.addEventListener("keydown", e => { if (e.key === "Escape" && expPop && !expPop.hidden) expPopShow(false); });
+function buildRecGroup(){
+  expPop = mk("div", null, document.body);
+  expPop.id = "expPop"; expPop.hidden = true;
+  const g = expPop;
+  const hd = mk("h2", null, g); hd.textContent = "Export the last take";
+  const bOpen = document.getElementById("bExpOpen");
+  hintOn(bOpen, "expopen");
+  bOpen.addEventListener("click", () => expPopShow(expPop.hidden));
+  const bRec = document.getElementById("bRec");
+  hintOn(bRec, "rec");
+  bRec.addEventListener("click", () => {
+    if (recSt.state === "recording") NB.send({ k:"recStop" });
+    else NB.send({ k:"recStart" });
+  });
+  const tm = document.getElementById("recTime");
+  hintOn(tm, "rectime");
+
+  const r1 = mk("div", "row xrow", g);
+  const l1 = mk("label", "lab", r1); l1.textContent = "SIZE";
+  const w1 = mk("div", "selwrap", r1);
+  const sRes = mk("select", "sel", w1); sRes.id = "expRes";
+  RES_OPTS.forEach((r, i) => { const o = mk("option", null, sRes); o.value = String(i); o.textContent = r[0] + "x" + r[1]; });
+  hintOn(sRes, "expres");
+  sRes.addEventListener("change", () => { expOpt.res = sRes.value | 0; expSave(); });
+  const w2 = mk("div", "selwrap", r1);
+  const sFps = mk("select", "sel", w2); sFps.id = "expFps";
+  FPS_OPTS.forEach((f, i) => { const o = mk("option", null, sFps); o.value = String(i); o.textContent = f + " fps"; });
+  hintOn(sFps, "expfps");
+  sFps.addEventListener("change", () => { expOpt.fps = sFps.value | 0; expSave(); });
+
+  const r2 = mk("div", "row sel", g);
+  const l2 = mk("label", "lab", r2); l2.textContent = "PICTURE";
+  const w3 = mk("div", "selwrap", r2);
+  const sPic = mk("select", "sel", w3); sPic.id = "expPic";
+  PIC_OPTS.forEach(p => { const o = mk("option", null, sPic); o.value = p[0]; o.textContent = p[1]; });
+  hintOn(sPic, "exppic");
+  sPic.addEventListener("change", () => { expOpt.pic = sPic.value; expSave(); });
+
+  const b2 = mk("div", "btnrow", g);
+  const bIn = mk("button", "b", b2); bIn.type = "button"; bIn.id = "bInset"; bIn.textContent = "Inset";
+  hintOn(bIn, "expinset");
+  bIn.addEventListener("click", () => { expOpt.inset = !expOpt.inset; expSave(); updateRecUI(); });
+  const bEx = mk("button", "b", b2); bEx.type = "button"; bEx.id = "bExport"; bEx.textContent = "Render MP4";
+  hintOn(bEx, "expgo");
+  bEx.addEventListener("click", startExport);
+  const bRv = mk("button", "b", b2); bRv.type = "button"; bRv.id = "bReveal"; bRv.textContent = "Reveal";
+  hintOn(bRv, "expreveal");
+  bRv.addEventListener("click", () => NB.send({ k:"reveal" }));
+
+  const bar = mk("div", "xbar", g); bar.id = "expBar";
+  mk("i", null, bar);
+  const note = mk("div", "ro", g); note.id = "expNote";
+  hintOn(note, "expnote");
+  sRes.value = String(expOpt.res); sFps.value = String(expOpt.fps); sPic.value = expOpt.pic;
+  updateRecUI();
+}
+function takeHeld(){ return recSt.state === "ready" || recSt.state === "done" || (recSt.state === "error" && recSt.sec > 0); }
+function updateRecUI(){
+  const bRec = document.getElementById("bRec");
+  if (!bRec) return;
+  const recording = recSt.state === "recording";
+  const busy = recSt.state === "rendering" || recSt.state === "exporting" || EXP.active || EXP.waitingPlan;
+  bRec.classList.toggle("on", recording);
+  bRec.classList.toggle("warn", recording);
+  bRec.textContent = recording ? "Stop" : "Rec";
+  bRec.disabled = busy;
+  document.getElementById("recTime").textContent =
+    (recording || takeHeld() ? fmtClock(recSt.sec) : "0:00.0") + " / " + fmtClock(recSt.max || 240).replace(/\.0$/, "");
+  const bIn = document.getElementById("bInset");
+  bIn.classList.toggle("on", !!expOpt.inset);
+  const bEx = document.getElementById("bExport");
+  let why = "";
+  if (recording) why = "stop recording to export";
+  else if (busy) why = "export in progress";
+  else if (!takeHeld()) why = "record a take to export it";
+  bEx.disabled = !!why;
+  const bRv = document.getElementById("bReveal");
+  bRv.disabled = !recSt.file || busy;
+  const note = document.getElementById("expNote");
+  if (why) note.textContent = why;
+  else if (recSt.file) note.textContent = String(recSt.file).split(/[\\/]/).pop();
+  else note.textContent = "take " + fmtClock(recSt.sec) + " ready";
+  const bar = document.querySelector("#expBar i");
+  const p = busy ? Math.max(0, Math.min(1, EXP.active ? (EXP.frame / Math.max(1, EXP.n)) : (recSt.progress || 0))) : 0;
+  bar.style.width = (p * 100).toFixed(1) + "%";
+  expModalUpdate();
+}
+function recCamTick(){
+  if (recSt.state !== "recording"){ clearInterval(recCamTmr); recCamTmr = 0; return; }
+  NB.send({ k:"recCam", t:recSt.sec, pitch:pitchDeg, fov:fovDeg });
+}
+NB.on("rec", d => {
+  if (!d) return;
+  for (const k of ["state","sec","max","progress","file","text"]) if (d[k] !== undefined) recSt[k] = d[k];
+  if (d.text) noticeEl.textContent = String(d.text);
+  if (recSt.state === "recording" && !recCamTmr){ recCamTick(); recCamTmr = setInterval(recCamTick, 50); }
+  if (recSt.state !== "recording" && recCamTmr){ clearInterval(recCamTmr); recCamTmr = 0; }
+  if (EXP.waitingPlan && (recSt.state === "error" || recSt.state === "idle")){ EXP.waitingPlan = false; expModalShow(false); }
+  if (!EXP.active && !EXP.waitingPlan && (recSt.state === "done" || recSt.state === "error")) expModalShow(false);
+  updateRecUI();
+});
+
+/* ---------------------------------------------------------------- modal */
+let expModal = null;
+function expModalBuild(){
+  expModal = mk("div", null, document.body);
+  expModal.id = "expModal"; expModal.hidden = true;
+  const box = mk("div", "xbox", expModal);
+  const h = mk("h3", null, box); h.textContent = "Exporting video";
+  const st = mk("div", "xstage", box); st.id = "expMStage";
+  const bar = mk("div", "xbar", box); mk("i", null, bar); bar.id = "expMBar";
+  const bc = mk("button", "b", box); bc.type = "button"; bc.id = "expCancel"; bc.textContent = "Cancel";
+  hintOn(bc, "expcancel");
+  bc.addEventListener("click", cancelExport);
+}
+function expModalShow(on){
+  if (!expModal) expModalBuild();
+  expModal.hidden = !on;
+}
+function expModalUpdate(){
+  if (!expModal || expModal.hidden) return;
+  const st = document.getElementById("expMStage");
+  const bar = document.querySelector("#expMBar i");
+  let p = 0, s = "";
+  if (EXP.active){ p = EXP.frame / Math.max(1, EXP.n); s = "drawing frame " + Math.min(EXP.n, EXP.frame + 1) + " of " + EXP.n; }
+  else if (recSt.state === "rendering"){ p = recSt.progress || 0; s = "rendering the sound  " + Math.round(p * 100) + "%"; }
+  else if (recSt.state === "exporting"){ p = recSt.progress || 1; s = "writing the MP4"; }
+  else s = recSt.text || "starting";
+  st.textContent = s;
+  bar.style.width = (Math.max(0, Math.min(1, p)) * 100).toFixed(1) + "%";
+}
+
+function expLimits(w, h){
+  if (!gl) return "no WebGL2 context to draw the frames with";
+  const vp = gl.getParameter(gl.MAX_VIEWPORT_DIMS), rb = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), tx = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  if (w > vp[0] || h > vp[1] || w > rb || h > rb || w > tx || h > tx)
+    return w + "x" + h + " is larger than this GPU can draw (" + Math.min(vp[0], rb, tx) + " px)";
+  return "";
+}
+function startExport(){
+  if (EXP.active || EXP.waitingPlan || !takeHeld()) return;
+  const r = RES_OPTS[expOpt.res] || RES_OPTS[0];
+  const why = expLimits(r[0], r[1]);
+  if (why){ noticeEl.textContent = why; document.getElementById("expNote").textContent = why; return; }
+  doFlush();
+  if (furnSendTmr) sendFurnNow();
+  EXP.waitingPlan = true; EXP.cancelled = false;
+  NB.send({ k:"vidBegin", w:r[0], h:r[1], fps:FPS_OPTS[expOpt.fps] || 30 });
+  expModalShow(true);
+  updateRecUI();
+}
+function cancelExport(){
+  EXP.cancelled = true;
+  NB.send({ k:"vidCancel" });
+  if (EXP.ackWait){ const a = EXP.ackWait; EXP.ackWait = null; a.res(false); }
+  if (!EXP.active){ EXP.waitingPlan = false; expModalShow(false); updateRecUI(); }
+}
+NB.on("vidPlan", d => { if (d && EXP.waitingPlan && !EXP.cancelled) runExport(d); });
+NB.on("vidAck", d => {
+  if (!d || !EXP.ackWait) return;
+  if ((d.i | 0) === EXP.ackWait.i){ const a = EXP.ackWait; EXP.ackWait = null; a.res(true); }
+});
+
+/*  The layout in force at frame i: the last stamp at or before it. */
+function expFurnAt(plan, i){
+  let items = null;
+  for (const e of (plan.furn || [])) if ((e.f | 0) <= i) items = e.items;
+  return items ? sanitizeFurn(items) : EXP.liveFurn.map(q => Object.assign({}, q));
+}
+function expCamAt(plan, t){
+  const c = plan.cam || [];
+  if (!c.length) return { pitch:EXP.livePitch, fov:EXP.liveFov };
+  if (t <= c[0].t) return { pitch:+c[0].pitch, fov:+c[0].fov };
+  for (let k = 1; k < c.length; k++){
+    if (t <= c[k].t){
+      const a = c[k-1], b = c[k], u = (t - a.t) / Math.max(1e-6, b.t - a.t);
+      return { pitch:a.pitch + (b.pitch - a.pitch) * u, fov:a.fov + (b.fov - a.fov) * u };
+    }
+  }
+  const z = c[c.length - 1];
+  return { pitch:+z.pitch, fov:+z.fov };
+}
+let expMeshSig = "";
+function expApplyFrame(plan, i){
+  const row = plan.frames[i] || [];
+  const ids = plan.ids || [];
+  let sig = "";
+  for (let k = 0; k < ids.length; k++){
+    const id = ids[k];
+    if (!(id in V) || typeof row[k] !== "number") continue;
+    V[id] = clamp01(row[k]);
+    if (MESH_IDS[id]) sig += id + "=" + V[id].toFixed(5) + ";";
+  }
+  furn = expFurnAt(plan, i);
+  sig += JSON.stringify(furn);
+  if (sig !== expMeshSig){ expMeshSig = sig; meshDirty = true; }
+  const cam = expCamAt(plan, i / plan.fps);
+  pitchDeg = isFinite(cam.pitch) ? Math.max(-80, Math.min(80, cam.pitch)) : EXP.livePitch;
+  fovDeg = isFinite(cam.fov) && cam.fov > 5 ? cam.fov : EXP.liveFov;
+  EXP.t = i / plan.fps;
+}
+function expDrawFrame(plan, comp){
+  const w = plan.w, h = plan.h;
+  if (povCv.width !== w || povCv.height !== h){ povCv.width = w; povCv.height = h; }
+  glow = EXP.anyActive ? 0.55 : 0;
+  hoverDoor = null;
+  drawPov();
+  const c = comp.getContext("2d");
+  c.drawImage(povCv, 0, 0, w, h);
+  if (expOpt.inset){
+    drawPlan();
+    const ih = Math.round(h * 0.34), iw = Math.round(ih * planCv.width / Math.max(1, planCv.height));
+    const x = w - iw - Math.round(h * 0.025), y = h - ih - Math.round(h * 0.025);
+    c.fillStyle = "rgba(10,8,7,.55)"; c.fillRect(x - 3, y - 3, iw + 6, ih + 6);
+    c.drawImage(planCv, x, y, iw, ih);
+  }
+  return comp.toDataURL("image/jpeg", 0.92).split(",")[1];
+}
+async function runExport(plan){
+  EXP.waitingPlan = false;
+  const w = plan.w | 0, h = plan.h | 0, n = plan.n | 0;
+  const why = !(w > 1 && h > 1 && n > 0 && plan.fps > 0 && Array.isArray(plan.frames)) ? "the plan native sent is empty" : expLimits(w, h);
+  if (why){ NB.send({ k:"vidCancel" }); noticeEl.textContent = why; expModalShow(false); updateRecUI(); return; }
+  /* ---- freeze the live state */
+  EXP.active = true; EXP.cancelled = false; EXP.frame = 0; EXP.n = n;
+  EXP.liveV = Object.assign({}, V);
+  EXP.liveFurn = furn.map(q => ({ t:q.t, x:q.x, y:q.y, yaw:q.yaw }));
+  EXP.livePitch = pitchDeg; EXP.liveFov = fovDeg; EXP.liveGlow = glow; EXP.liveRays = showRays;
+  EXP.liveFurnSel = furnSel;
+  for (const k in keys) keys[k] = false;
+  endWalkGesture();
+  if (rafId){ try { cancelAnimationFrame(rafId); } catch(e){} rafId = 0; }
+  const pic = expOpt.pic;
+  EXP.cine = pic !== "shown" || (CX.on && CX.ok !== false);
+  EXP.photoN = pic === "photo16" ? 16 : (pic === "photo64" ? 64 : 0);
+  EXP.scale = CX.on ? CINE_SCALE[CX.q] : CINE_SCALE.high;
+  if (EXP.cine && !cineInit()){ EXP.cine = false; EXP.photoN = 0; noticeEl.textContent = "cinematic unavailable (" + CX.why + ") - exporting the ordinary view"; }
+  EXP.anyActive = false;
+  const ids = plan.ids || [];
+  for (let s = 1; s <= NSRC; s++){
+    const k = ids.indexOf("s" + s + "in");
+    if (k >= 0 && plan.frames.some(r => r && r[k] > 0.001)) EXP.anyActive = true;
+  }
+  showRays = false; furnSel = -1;
+  expMeshSig = "";
+  expModalShow(true);
+  const comp = document.createElement("canvas");
+  comp.width = w; comp.height = h;
+  let ok = true;
+  try {
+    for (let i = 0; i < n; i++){
+      if (EXP.cancelled){ ok = false; break; }
+      EXP.frame = i;
+      expApplyFrame(plan, i);
+      const jpg = expDrawFrame(plan, comp);
+      const acked = new Promise(res => { EXP.ackWait = { i:i, res:res }; });
+      const tmo = new Promise(res => setTimeout(() => res("timeout"), 30000));
+      NB.send({ k:"vidFrame", i:i, jpg:jpg });
+      if (i % 3 === 0) updateRecUI();
+      const r = await Promise.race([acked, tmo]);
+      if (r !== true){
+        if (r === "timeout"){ noticeEl.textContent = "native did not acknowledge frame " + i + " - export abandoned"; NB.send({ k:"vidCancel" }); }
+        ok = false; break;
+      }
+    }
+    if (ok && !EXP.cancelled){ EXP.frame = n; NB.send({ k:"vidEnd" }); }
+  } catch(e){
+    window.__err.push("export: " + (e && e.message || e));
+    NB.send({ k:"vidCancel" });
+    ok = false;
+  }
+  /* ---- put the live state back exactly */
+  EXP.ackWait = null;
+  for (const id in EXP.liveV) V[id] = EXP.liveV[id];
+  furn = EXP.liveFurn;
+  furnSel = EXP.liveFurnSel < furn.length ? EXP.liveFurnSel : -1;
+  pitchDeg = EXP.livePitch; fovDeg = EXP.liveFov; glow = EXP.liveGlow; showRays = EXP.liveRays;
+  EXP.active = false;
+  EXP.cine = false; EXP.photoN = 0;
+  meshDirty = true;
+  CX.pkey = ""; CX.converged = false;
+  updateAllControls(); updateFurnUI(); updateFurnReadout(); updateHud();
+  invalidate("both");
+  if (!ok || EXP.cancelled) expModalShow(false);
+  else updateRecUI();
+  if (recSt.state === "done" || recSt.state === "error") expModalShow(false);
+  updateRecUI();
+}
+
+/*  Frame time, for the report and for anyone wondering what the mode costs:
+    n frames drawn back to back, each waited for with a one-pixel read. */
+function cineBench(mode, n){
+  const was = { on:CX.on, q:CX.q };
+  const out = { mode:mode, n:n };
+  CX.bench = true;
+  n = Math.max(1, n | 0);
+  if (mode === "off") CX.on = false; else { CX.on = true; if (mode === "high" || mode === "ultra") CX.q = mode; }
+  if (mode === "photo"){ CX.q = was.q; }
+  const px = new Uint8Array(4);
+  let tot = 0;
+  for (let i = 0; i < n + 1; i++){
+    if (mode === "photo"){ CX.pkey = "bench"; CX.photo = true; CX.converged = false; CX.still = -1e9; }
+    else { CX.pkey = ""; }
+    const t0 = nowMs();
+    CX.bench = true;
+    if (mode === "off"){ drawPov(); }
+    else if (mode === "photo"){
+      if (!cineInit()){ CX.bench = false; return { error:CX.why }; }
+      cineTargets(povCv.width, povCv.height, CINE_SCALE[CX.q]);
+      cineShadows(); cineUploadBoxes();
+      cinePhotoSample(0);
+      const vw = cineView(povCv.width, povCv.height);
+      const bl = cineBloom(CX.accCur ? CX.tx.accB : CX.tx.accA, povCv.width, povCv.height, 1 / Math.max(1, CX.pn));
+      cineComposite(vw, 0, true, false, bl);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.useProgram(prog); gl.bindVertexArray(vao);
+    }
+    else { CX.photo = false; CX.still = nowMs(); drawPov(); }
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    if (i > 0) tot += nowMs() - t0;          /* the first frame builds targets */
+  }
+  CX.bench = false;
+  out.ms = +(tot / n).toFixed(2);
+  out.canvas = povCv.width + "x" + povCv.height;
+  out.target = CX.rw + "x" + CX.rh;
+  out.samples = CX.samples;
+  CX.on = was.on; CX.q = was.q; CX.pkey = ""; CX.converged = false;
+  invalidate("pov");
+  return out;
+}
+
+/*  The header's two controls. The page already knows the stored preference;
+    this only puts the controls in step with it and wires them. */
+(function(){
+  const b = document.getElementById("bCine"), q = document.getElementById("cineQ");
+  if (b){ hintOn(b, "cine"); b.classList.toggle("on", CX.on); b.addEventListener("click", () => cineSet(!CX.on)); }
+  if (q){ hintOn(q, "cineq"); q.value = CX.q; q.addEventListener("change", () => cineSet(CX.on, q.value)); }
+})();
+
+/* ==================================================================== */
 /*  native traffic                                                       */
 /* ==================================================================== */
 NB.on("initialState", d => {
@@ -3423,6 +6111,11 @@ NB.on("initialState", d => {
   if (d.auxConnected !== undefined) auxConnected = d.auxConnected ? 1 : 0;
   if (d.selsrc !== undefined) selectSource(d.selsrc | 0, false);
   if (d.wav) applyWav(d.wav);
+  /*  The catalogue first - the layout is read against it - and neither is
+      required: an engine that predates furniture sends no key at all, and the
+      page keeps its own copy of the engine's numbers. */
+  if (Array.isArray(d.furniture) && d.furniture.length) applyFurnCatalogue(d.furniture);
+  if (Array.isArray(d.furn)) applyFurnNative(d.furn);
   updateAllControls();
   refreshSrcTabs();
   updateHud();
@@ -3442,6 +6135,10 @@ NB.on("notice", d => {
 });
 
 NB.on("wav", d => { if (d) applyWav(d); });
+
+/*  The layout changed for a reason the page did not cause - a preset, a
+    project restore, DEFAULT. Native is the authority: replace, send nothing. */
+NB.on("furn", d => { if (d && Array.isArray(d.items)) applyFurnNative(d.items); });
 function applyWav(d){
   wav.name = d.name || "";
   wav.playing = d.playing ? 1 : 0;
@@ -3604,6 +6301,48 @@ window.__TW = {
   get selsrc(){ return selSrc; },
   selectSource(i){ selectSource(i, false); },
   wav(){ return { name:wav.name, playing:wav.playing, seconds:wav.seconds, gain:wav.gain }; },
+  /*  Furniture. furn() is the layout as the page holds it; setFurn applies one
+      exactly as a native `furn` event would (no message back). The rest is
+      read-only: which piece is selected, where its turn handle is, what the
+      plan actually drew this time round, and how many vertices the 3D view
+      is built from - the evidence a probe needs, all of it otherwise locked
+      inside this closure. */
+  furn(){ return furn.map(it => ({ t:it.t, x:it.x, y:it.y, yaw:it.yaw })); },
+  setFurn(items){ applyFurnNative(items || []); },
+  furnCat(){ return furnCat.map(c => Object.assign({}, c)); },
+  get furnSel(){ return furnSel; },
+  selectFurn(i){ furnSelect(i); },
+  get furnArmed(){ return furnPlace; },
+  furnHandle(i){ const it = furn[i]; return it ? furnHandlePos(it) : null; },
+  furnRoom(i){ const it = furn[i]; return it ? furnRoom(it) : -1; },
+  planFurn(){ return planFurnDrawn.slice(); },
+  get verts(){ return M.n; },
+  fsSource(){ return FS; },
+  swapFS(src){
+    if (!gl) return "no gl";
+    const fs2 = compile(gl, gl.FRAGMENT_SHADER, src || FS), vs2 = compile(gl, gl.VERTEX_SHADER, VS);
+    if (!fs2 || !vs2) return "compile failed";
+    const p = gl.createProgram();
+    gl.attachShader(p, vs2); gl.attachShader(p, fs2);
+    ["aPos","aNrm","aTan","aUV","aInfo"].forEach((n, i) => gl.bindAttribLocation(p, i, n));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) return "link failed";
+    prog = p; gl.useProgram(prog);
+    for (const n in U) U[n] = gl.getUniformLocation(prog, n);
+    return "ok";
+  },
+  /*  Cinematic and export: the state that is otherwise locked in this
+      closure, and a bench that times a mode frame by frame. */
+  cine(){ return { on:CX.on, q:CX.q, ok:CX.ok, why:CX.why, mode:CX.mode || null, pn:CX.pn, converged:CX.converged,
+                   ms:CX.ftMs, samples:CX.samples, target:CX.rw + "x" + CX.rh, flags:CX.flags.slice(),
+                   stored:(function(){ try { return localStorage.getItem(CINE_KEY); } catch(e){ return null; } })(), compileMs:CX.compileMs || null }; },
+  setCine(on, q){ cineSet(on, q); },
+  cineHold(on){ CX.hold = !!on; CX.pkey = ""; invalidate("pov"); },
+  cineBench(mode, n){ return cineBench(mode, n); },
+  rec(){ return Object.assign({}, recSt); },
+  get exporting(){ return EXP.active || EXP.waitingPlan; },
+  expOpt(o){ if (o) Object.assign(expOpt, o); return Object.assign({}, expOpt); },
+  get pitchFov(){ return [pitchDeg, fovDeg]; },
   bg: { pov:FOG.map(v => Math.round(Math.pow(v, 1/2.2) * 255)), plan:PAPER }
 };
 

@@ -1,0 +1,26 @@
+[
+ {
+  "name": "settle",
+  "wait": 3500
+ },
+ {
+  "name": "signal, furniture, start at the LARGE-GIANT doorway facing east",
+  "eval": "(function(){ var b=window.__JUCE__.backend, T=window.__TW; b.emitEvent('tw',{k:'wavPath', path:'C:/Users/peter/b/ThinWalls/test/testsignal.wav'}); b.emitEvent('tw',{k:'wavPlay', v:1}); var L=[{t:'sofa',x:2.2,y:4.4,yaw:180},{t:'armchair',x:0.8,y:2.6,yaw:270},{t:'rug',x:2.4,y:2.8,yaw:0},{t:'bookcase',x:0.25,y:1.2,yaw:270},{t:'piano',x:11.5,y:5.5,yaw:20},{t:'person',x:13.5,y:2.5,yaw:120},{t:'rug',x:14.5,y:5.0,yaw:30}]; b.emitEvent('tw',{k:'furn', items:L}); T.setFurn(L); var P={lisx:4.5/18, lisy:2.5/9, lisyaw:0, door2:1}; for (var k in P){ b.emitEvent('tw',{k:'p', id:k, v:P[k]}); T.setParam(k,P[k]); } T.setCine(true,'high'); T.expOpt({res:0, fps:0, pic:'photo16', inset:false}); return JSON.stringify({x:T.state().lisx*18, cine:T.cine().on}); })()"
+ },
+ {
+  "name": "wait for the shaders, then measure the live frame rate",
+  "eval": "(async function(){ var t0=performance.now(); while(window.__TW.cine().ok!==true && performance.now()-t0<60000) await new Promise(function(r){setTimeout(r,100);}); window.__TW.cineHold(true); var d0=window.__TW.draws; await new Promise(function(r){setTimeout(r,1000);}); var fps=window.__TW.draws-d0; window.__TW.cineHold(false); return 'compiled in ' + Math.round(performance.now()-t0) + ' ms; realtime cinematic draws/s ' + fps + ', ' + JSON.stringify(window.__TW.cine()); })()"
+ },
+ {
+  "name": "wait",
+  "wait": 1500
+ },
+ {
+  "name": "record: stand, walk through the doorway with W, stand",
+  "eval": "(async function(){ var T=window.__TW; var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});}; document.getElementById('bRec').click(); var t0=performance.now(); while(T.rec().state!=='recording' && performance.now()-t0<3000) await sleep(50); await sleep(1400); var x0=T.state().lisx*18; window.dispatchEvent(new KeyboardEvent('keydown',{key:'w', bubbles:true})); var t1=performance.now(); while(T.state().lisx*18 < 7.5 && performance.now()-t1 < 4000) await sleep(20); window.dispatchEvent(new KeyboardEvent('keyup',{key:'w', bubbles:true})); var x1=T.state().lisx*18; await sleep(2200); document.getElementById('bRec').click(); await sleep(600); return JSON.stringify({x0:x0, x1:x1, y:T.state().lisy*9, walkMs:Math.round(performance.now()-t1), rec:T.rec()}); })()"
+ },
+ {
+  "name": "export 1280x720 30 fps PHOTO 16",
+  "eval": "(async function(){ var T=window.__TW; var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});}; var before=JSON.stringify(T.state()); document.getElementById('bExport').click(); var t0=performance.now(); var seen={}; while(performance.now()-t0 < 600000){ var s=T.rec().state; seen[s]=1; if((s==='done'||s==='error') && !T.exporting) break; await sleep(250); } var after=JSON.stringify(T.state()); return JSON.stringify({ms:Math.round(performance.now()-t0), seen:Object.keys(seen), rec:T.rec(), restored: before===after, errs:T.errors.slice(0,4)}); })()"
+ }
+]
