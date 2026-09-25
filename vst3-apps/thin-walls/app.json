@@ -1,13 +1,13 @@
 {
   "slug": "thin-walls",
   "name": "Thin Walls (VST3)",
-  "description": "An apartment of three rooms and three doors that you put the sound inside and then walk around in. Place up to four sources anywhere, stand where you like, turn your head, open a door or shut it. Every arrival is a journey the engine traced: the straight line, the bounces, the path bent round a door frame, the muffled part through a shut leaf or the party wall, and each room's own tail. Five surface treatments, chosen separately for walls, floor and ceiling; two walls of every room can be splayed outward. There is no reverb amount, because the amount is decided by where you stood.",
+  "description": "An apartment of three rooms and three doors that you put the sound inside and then walk around in. Place up to four sources, stand where you like, open a door or shut it: every arrival is a path the engine traced, and there is no reverb amount, because where you stand decides it. Furnish it - a sofa, a bookcase, a grand piano - and you hear the furniture absorb, scatter and block. Hang your own pictures, as prints or as acoustic panels. Turn on CINEMATIC for shadows and traced light, let the lamps follow the sound, and record a walk to export as a video with its sound.",
   "status": "live",
   "url": "vst3-apps/thin-walls/index.html",
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/thin-walls.jpg",
-  "note": "Windows VST3 · build 260925.2 · free download · 3 rooms, 3 doors, 4 sources · 5 materials per surface, breakable walls · measured MIT KEMAR head · 17-page handbook included.",
+  "note": "Windows VST3 · build 260925.3 · free download · 3 rooms, 3 doors, 4 sources · furniture and wall pictures · cinematic view, MP4 export · measured MIT KEMAR head · handbook included.",
   "tags": [
     "vst3",
     "effect"
@@ -16,8 +16,8 @@
     {
       "name": "Thin-Walls-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Thin-Walls-VST3-win64.zip",
-      "bytes": 8745550,
-      "sha256": "ae02f9e5e0feefe3cdb151dd50cdbb06d184680fd50d67d4d1458af988cc58bc"
+      "bytes": 8746121,
+      "sha256": "5ecb7a6e339eded5ceec15937c4d8d917b266b61c23646b316d717a1b0df38c2"
     }
   ]
 }
