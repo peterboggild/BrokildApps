@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "OfflineRender.h"
+#include "MotionTrack.h"
 #include "PluginEditor.h"
 #include "brokild_paths.h"
 
@@ -1282,13 +1283,31 @@ void ThinWallsAudioProcessor::sendPlan()
     plan->setProperty ("ids", ids);
     juce::Array<juce::var> frames;
     const int nb = T.nblocks.load();
+    // Motion is read from a TRACK, not sampled: the panel records a position
+    // once per frame it draws, and sampling that at the video's frame rate
+    // repeats and jumps whenever the panel drew slower (see MotionTrack.h).
+    // Everything else is sampled at the frame exactly as before.
+    std::vector<MotionTrack> tracks (specs.size());
+    std::vector<char> isMotion (specs.size(), 0);
+    if (nb > 0)
+        for (size_t j = 0; j < specs.size(); ++j)
+        {
+            bool circ = false;
+            if (specs[j].stepped || ! isMotionParam (specs[j].id, circ)) continue;
+            isMotion[j] = 1;
+            tracks[j] = MotionTrack::build (T.params.data() + j, T.np, nb, circ);
+        }
+    const double maxGapBlocks = 0.30 * T.rate / TakeData::PBLOCK;     // longer than this is a stop
     for (int i = 0; i < vidN; ++i)
     {
-        const int b = juce::jlimit (0, std::max (0, nb - 1), (int) ((double) i / vidFps * T.rate / TakeData::PBLOCK));
+        const double tb = juce::jlimit (0.0, (double) std::max (0, nb - 1), (double) i / vidFps * T.rate / TakeData::PBLOCK);
+        const int b = (int) tb;
         juce::Array<juce::var> row;
         for (size_t j = 0; j < specs.size(); ++j)
         {
-            const float raw = nb > 0 ? T.params[(size_t) b * (size_t) T.np + j] : 0.0f;
+            const float raw = nb <= 0 ? 0.0f
+                            : isMotion[j] ? tracks[j].valueAt (tb, maxGapBlocks)
+                            : T.params[(size_t) b * (size_t) T.np + j];
             const float v = specs[j].stepped ? raw / (float) std::max (1, specs[j].steps - 1) : raw;
             row.add (std::round (v * 100000.0f) / 100000.0f);
         }

@@ -5,6 +5,7 @@
 */
 #include "Engine.h"
 #include "Geometry.h"
+#include "MotionTrack.h"
 #include <cstdio>
 #include <cstring>
 #include <chrono>
@@ -978,6 +979,88 @@ int main (int argc, char** argv)
             check (moving < -45.0, buf);
             delete e;
         }
+    }
+
+
+    // ---------------------------------------------------------------- smooth motion in the export
+    {
+        std::printf ("\nsmooth motion in the video export (MotionTrack)\n");
+        // A take on the real grid: 48 kHz, 256-sample blocks. A listener walks
+        // at 1.4 m/s for 3 s; the PANEL records the position only when it draws,
+        // here 12 fps. The export reads it at 60 fps.
+        const double rate = 48000.0, blk = 256.0, fps = 60.0, panelFps = 12.0;
+        const double walk0 = 1.0, walk1 = 4.0;                 // seconds
+        const int nb = (int) (6.0 * rate / blk);
+        const double maxGap = 0.30 * rate / blk;
+        auto truth = [&] (double t) { return t < walk0 ? 0.0 : t < walk1 ? 1.4 * (t - walk0) : 1.4 * (walk1 - walk0); };
+        std::vector<float> rec ((size_t) nb);
+        double lastDraw = -1.0; float held = 0.0f;
+        for (int b = 0; b < nb; ++b)
+        {
+            const double t = b * blk / rate;
+            if (t - lastDraw >= 1.0 / panelFps - 1e-9) { lastDraw = t; held = (float) truth (t); }
+            rec[(size_t) b] = held;
+        }
+        const auto track = tw::MotionTrack::build (rec.data(), 1, nb, false);
+        int frames = 0, moved = 0, stuck = 0; double worst = 0.0;
+        double prevNaive = -1, prevSmooth = -1;
+        for (int i = 0; i < (int) (6.0 * fps); ++i)
+        {
+            const double t = i / fps, tb = t * rate / blk;
+            const double sm = track.valueAt (tb, maxGap);
+            const double nv = rec[(size_t) std::min (nb - 1, (int) tb)];
+            if (t > walk0 + 0.15 && t < walk1 - 0.05)
+            {
+                ++frames;
+                if (i > 0 && sm != prevSmooth) ++moved;
+                if (i > 0 && nv == prevNaive) ++stuck;
+                // each recorded point sits at the moment it was drawn, so blending between
+                // points follows the true walk itself - compare with the truth at t
+                worst = std::max (worst, std::fabs (sm - truth (t)));
+            }
+            prevNaive = nv; prevSmooth = sm;
+        }
+        char buf[220];
+        std::snprintf (buf, sizeof buf, "without it, %d of %d video frames during the walk repeat the previous position", stuck, frames);
+        check (stuck > frames / 2, buf);
+        std::snprintf (buf, sizeof buf, "with it, the position moves on %d of %d video frames of the walk", moved, frames);
+        check (moved == frames, buf);
+        std::snprintf (buf, sizeof buf, "and stays within %.1f cm of the true walk", worst * 100.0);
+        check (worst < 0.03, buf, worst);
+        // a real stop holds: before the walk and after it the value is exactly the recorded one
+        check (track.valueAt (0.5 * rate / blk, maxGap) == 0.0f
+               && track.valueAt (5.5 * rate / blk, maxGap) == rec[(size_t) nb - 1],
+               "a real stop holds, before the walk and after it");
+        // the walk eases in: no frame jumps more than two frames of walking
+        double biggest = 0.0; double p = track.valueAt (0.0, maxGap);
+        for (int i = 1; i < (int) (6.0 * fps); ++i)
+        {
+            const double q = track.valueAt (i / fps * rate / blk, maxGap);
+            biggest = std::max (biggest, std::fabs (q - p)); p = q;
+        }
+        std::snprintf (buf, sizeof buf, "no video frame jumps more than %.1f cm (a frame of walking is %.1f cm)", biggest * 100, 1.4 / fps * 100);
+        check (biggest < 2.0 * 1.4 / fps, buf, biggest);
+        // a teleport - one isolated change - stays a snap
+        std::vector<float> tp ((size_t) nb, 0.2f);
+        for (int b = nb / 2; b < nb; ++b) tp[(size_t) b] = 0.8f;
+        const auto tt = tw::MotionTrack::build (tp.data(), 1, nb, false);
+        check (tt.valueAt (nb / 2 - 1, maxGap) == 0.2f && tt.valueAt (nb / 2, maxGap) == 0.8f,
+               "an isolated change (a preset, a typed value) stays a snap");
+        // a facing blends the short way round 0/360
+        std::vector<float> yaw ((size_t) nb, 0.97f);
+        for (int b = 100; b < nb; ++b) yaw[(size_t) b] = 0.01f;
+        for (int b = 110; b < nb; ++b) yaw[(size_t) b] = 0.05f;
+        const auto ty = tw::MotionTrack::build (yaw.data(), 1, nb, true);
+        const float mid = ty.valueAt (105.0, maxGap);
+        check (mid > 0.01f && mid < 0.05f, "a facing blends the short way round (between 3.6 and 18 deg, not back through 180)", mid);
+        const float wrap = ty.valueAt (99.5, maxGap);
+        check (wrap >= 0.0f && wrap < 1.0f && (wrap > 0.97f || wrap < 0.01f), "and crosses 0/360 without passing through the far side", wrap);
+        // the parameter list: what counts as motion
+        bool c = false;
+        check (tw::isMotionParam ("lisx", c) && ! c && tw::isMotionParam ("lisyaw", c) && c
+               && tw::isMotionParam ("s3yaw", c) && c && tw::isMotionParam ("s2z", c) && ! c
+               && tw::isMotionParam ("door2", c) && ! tw::isMotionParam ("s1lvl", c) && ! tw::isMotionParam ("mat1", c),
+               "motion = positions, facings and doors; levels and materials are sampled as before");
     }
 
     std::printf ("\n%d checks, %d failed%s\n", checks, failures, failures == 0 ? "  -  ALL CLEAR" : "");

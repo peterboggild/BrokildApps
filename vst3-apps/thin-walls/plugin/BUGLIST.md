@@ -5,7 +5,7 @@ he says go. Nothing on this list has been started.
 
 ---
 
-## 1. SIX SOURCES instead of four — awaiting go
+## 1. SIX SOURCES instead of four — DROPPED (Peter, 2026-09-25)
 Asked 2026-09-22. Assessment below is measured against build 260922.1, not estimated.
 
 **Verdict: worth doing, about half a day. The path budget is the only part that needs
@@ -62,7 +62,7 @@ class id, rather than asserting it.
 
 ---
 
-## 2. SIDECHAINING SIX SOURCES — awaiting go, and it is a HOST limit, not a plugin one
+## 2. SIDECHAINING SIX SOURCES — DROPPED (Peter, 2026-09-25)
 Asked in the same breath as item 1.
 
 **Sidechaining already works.** Each source's INPUT is
@@ -340,7 +340,7 @@ by audible gain:
 
 Recommended order: 3 + 4 together, then 2, then 1.
 
-## 9. SMOOTH MOTION IN THE VIDEO EXPORT - awaiting go (2026-09-25)
+## 9. SMOOTH MOTION IN THE VIDEO EXPORT - BUILT in 260925.6
 Peter: "Video export is a bit janky, skipping many frames - is there a better way of doing it? Especially at high resolution."
 
 **The export is not dropping frames.** Every frame is rendered, encoded and acknowledged before the next (`runExport`). What judders is the TAKE: the panel sends the listener's position once per drawn frame (`stepWalk` -> `queueP`, flushed per rAF), the audio thread records what arrives, and `vidPlan` samples that record per video frame with no interpolation. Whenever the panel draws slower than the export's frame rate, positions repeat and then jump.
@@ -354,3 +354,11 @@ Proposed fix (native, in the `vidPlan` builder; the audio is untouched):
 - A check: record a walk while the panel is artificially throttled to 10 fps. The exported position must change on every frame of the walk, and must match the unthrottled walk within a few cm.
 
 Cheaper stopgaps that need no build: export at 30 fps (the panel almost always manages that), and record with CINEMATIC off or the window smaller, then turn CINEMATIC on for the export itself. The export draws offline, so its own resolution and quality cost time, not smoothness.
+
+**Built in 260925.6** (`Source/MotionTrack.h`, used by the vidPlan builder in PluginProcessor.cpp): positions, facings and doors are read from a track of change points instead of sampled - blended between points closer than 0.3 s, held across a longer gap (a real stop), eased in when a walk starts after a stop, and left as a snap for an isolated change. Facings blend the short way round. Audio untouched.
+
+Measured: bench (a 12 fps panel, 60 fps export) - without it 134 of 167 frames of the walk repeat, with it the position moves on 167 of 167 and stays within 3 cm of the true walk; live standalone, walk recorded and the export plan captured - 100 % of frames move at 56 fps (ordinary, cinematic HIGH, ULTRA; was 83-86 %) and at 12.9 fps with the panel deliberately throttled.
+
+Still true: below 10 fps the walk itself is recorded SLOWER than real time (`stepWalk` clamps dt at 0.1 s). The export is now smooth whatever the rate; the pace is what was recorded.
+
+Note left from item 1: MAX_PATHS = 96 still truncates silently if four sources sit in the listener's room at once (4 x 25 image paths). Not reported anywhere yet.

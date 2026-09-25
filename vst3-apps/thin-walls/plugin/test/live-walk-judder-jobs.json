@@ -1,9 +1,34 @@
 [
-  { "name": "settle", "wait": 4500 },
-  { "name": "hooks", "eval": "(function(){ var B = window.__JUCE__.backend; window.__P = function(id, v){ window.__TW.setParam(id, v); B.emitEvent('tw', { k:'p', id:id, v:v }); }; window.__plans = []; window.runExport = function(plan){ window.__plans.push(plan); EXP.waitingPlan = false; B.emitEvent('tw', { k:'vidCancel' }); expModalShow(false); updateRecUI(); }; window.__walk = async function(label){ __P('lisx', 1.2/18); __P('lisy', 2.5/9); __P('lisyaw', 0); await new Promise(function(r){ setTimeout(r, 800); }); var fr = 0, t0 = performance.now(); var cnt = function(){ fr++; if (performance.now() - t0 < 3500) requestAnimationFrame(cnt); }; requestAnimationFrame(cnt); B.emitEvent('tw', { k:'recStart' }); await new Promise(function(r){ setTimeout(r, 300); }); window.dispatchEvent(new KeyboardEvent('keydown', { key:'w', bubbles:true })); await new Promise(function(r){ setTimeout(r, 2500); }); window.dispatchEvent(new KeyboardEvent('keyup', { key:'w', bubbles:true })); await new Promise(function(r){ setTimeout(r, 300); }); B.emitEvent('tw', { k:'recStop' }); await new Promise(function(r){ setTimeout(r, 1500); }); var fps = fr / 3.5; var n0 = window.__plans.length; startExport(); for (var i = 0; i < 400 && window.__plans.length === n0; i++) await new Promise(function(r){ setTimeout(r, 100); }); var p = window.__plans[window.__plans.length - 1]; if (!p) return label + ': NO PLAN ' + JSON.stringify(window.__TW.rec()); var k = p.ids.indexOf('lisx'); var xs = p.frames.map(function(r){ return r[k]; }); var moving = 0, held = 0, runs = [], run = 0; for (var j = 1; j < xs.length; j++){ var d = Math.abs(xs[j] - xs[j-1]); if (d > 1e-6){ moving++; if (run) runs.push(run); run = 0; } else if (moving) { held++; run++; } } var lastMove = 0; for (var j = 1; j < xs.length; j++) if (Math.abs(xs[j]-xs[j-1]) > 1e-6) lastMove = j; var first = -1; for (var j = 1; j < xs.length; j++) if (Math.abs(xs[j]-xs[j-1]) > 1e-6){ first = j; break; } var span = lastMove - first + 1; return label + ': panel ' + fps.toFixed(1) + ' fps | export ' + p.fps + ' fps, walk spans ' + span + ' frames, position changes on ' + moving + ' of them (' + (100*moving/Math.max(1,span)).toFixed(0) + '%), longest hold ' + Math.max.apply(null, runs.concat([0])) + ' frames'; }; return 'ok'; })()" },
-  { "name": "export at 60 fps", "eval": "(function(){ var i = FPS_OPTS.indexOf(60); if (i >= 0) expOpt.fps = i; return JSON.stringify(FPS_OPTS) + ' -> ' + expOpt.fps; })()" },
-  { "name": "ordinary view", "eval": "(async function(){ window.__TW.setCine(false, 'high'); await new Promise(function(r){ setTimeout(r, 800); }); return await window.__walk('ordinary view'); })()" },
-  { "name": "cinematic HIGH", "eval": "(async function(){ window.__TW.setCine(true, 'high'); window.__TW.cineHold(true); for (var i = 0; i < 120 && !(window.__TW.cine().ok && window.__TW.cine().ms > 0); i++) await new Promise(function(r){ setTimeout(r, 250); }); return await window.__walk('cinematic HIGH'); })()" },
-  { "name": "cinematic ULTRA", "eval": "(async function(){ window.__TW.setCine(true, 'ultra'); window.__TW.cineHold(true); await new Promise(function(r){ setTimeout(r, 3000); }); return await window.__walk('cinematic ULTRA'); })()" },
-  { "name": "tidy", "eval": "(function(){ window.__TW.cineHold(false); window.__TW.setCine(false, 'high'); window.__JUCE__.backend.emitEvent('tw', { k:'presetDefault' }); return JSON.stringify(window.__TW.errors || []); })()" }
+  {
+    "name": "settle",
+    "wait": 4500
+  },
+  {
+    "name": "hooks",
+    "eval": "(function(){ var B = window.__JUCE__.backend; window.__P = function(id, v){ window.__TW.setParam(id, v); B.emitEvent('tw', { k:'p', id:id, v:v }); }; window.__plans = []; window.runExport = function(plan){ window.__plans.push(plan); EXP.waitingPlan = false; B.emitEvent('tw', { k:'vidCancel' }); expModalShow(false); updateRecUI(); }; window.__walk = async function(label){ __P('lisx', 1.2/18); __P('lisy', 2.5/9); __P('lisyaw', 0); await new Promise(function(r){ setTimeout(r, 800); }); var fr = 0, t0 = performance.now(); var cnt = function(){ fr++; if (performance.now() - t0 < 3500) requestAnimationFrame(cnt); }; requestAnimationFrame(cnt); B.emitEvent('tw', { k:'recStart' }); await new Promise(function(r){ setTimeout(r, 300); }); window.dispatchEvent(new KeyboardEvent('keydown', { key:'w', bubbles:true })); await new Promise(function(r){ setTimeout(r, 2500); }); window.dispatchEvent(new KeyboardEvent('keyup', { key:'w', bubbles:true })); await new Promise(function(r){ setTimeout(r, 300); }); B.emitEvent('tw', { k:'recStop' }); await new Promise(function(r){ setTimeout(r, 1500); }); var fps = fr / 3.5; var n0 = window.__plans.length; startExport(); for (var i = 0; i < 400 && window.__plans.length === n0; i++) await new Promise(function(r){ setTimeout(r, 100); }); var p = window.__plans[window.__plans.length - 1]; if (!p) return label + ': NO PLAN ' + JSON.stringify(window.__TW.rec()); var k = p.ids.indexOf('lisx'); var xs = p.frames.map(function(r){ return r[k]; }); var moving = 0, held = 0, runs = [], run = 0; for (var j = 1; j < xs.length; j++){ var d = Math.abs(xs[j] - xs[j-1]); if (d > 1e-6){ moving++; if (run) runs.push(run); run = 0; } else if (moving) { held++; run++; } } var lastMove = 0; for (var j = 1; j < xs.length; j++) if (Math.abs(xs[j]-xs[j-1]) > 1e-6) lastMove = j; var first = -1; for (var j = 1; j < xs.length; j++) if (Math.abs(xs[j]-xs[j-1]) > 1e-6){ first = j; break; } var span = lastMove - first + 1; return label + ': panel ' + fps.toFixed(1) + ' fps | export ' + p.fps + ' fps, walk spans ' + span + ' frames, position changes on ' + moving + ' of them (' + (100*moving/Math.max(1,span)).toFixed(0) + '%), longest hold ' + Math.max.apply(null, runs.concat([0])) + ' frames'; }; return 'ok'; })()"
+  },
+  {
+    "name": "export at 60 fps",
+    "eval": "(function(){ var i = FPS_OPTS.indexOf(60); if (i >= 0) expOpt.fps = i; return JSON.stringify(FPS_OPTS) + ' -> ' + expOpt.fps; })()"
+  },
+  {
+    "name": "ordinary view",
+    "eval": "(async function(){ window.__TW.setCine(false, 'high'); await new Promise(function(r){ setTimeout(r, 800); }); return await window.__walk('ordinary view'); })()"
+  },
+  {
+    "name": "cinematic HIGH",
+    "eval": "(async function(){ window.__TW.setCine(true, 'high'); window.__TW.cineHold(true); for (var i = 0; i < 120 && !(window.__TW.cine().ok && window.__TW.cine().ms > 0); i++) await new Promise(function(r){ setTimeout(r, 250); }); return await window.__walk('cinematic HIGH'); })()"
+  },
+  {
+    "name": "cinematic ULTRA",
+    "eval": "(async function(){ window.__TW.setCine(true, 'ultra'); window.__TW.cineHold(true); await new Promise(function(r){ setTimeout(r, 3000); }); return await window.__walk('cinematic ULTRA'); })()"
+  },
+  {
+    "name": "panel throttled to ~12 fps (a slow window)",
+    "eval": "(async function(){ window.__TW.cineHold(false); window.__TW.setCine(false, 'high'); var raf = window.__rafOrig || window.requestAnimationFrame; window.__rafOrig = raf; window.requestAnimationFrame = function(f){ return setTimeout(function(){ raf.call(window, f); }, 70); }; await new Promise(function(r){ setTimeout(r, 800); }); var s = await window.__walk('panel at ~12 fps'); window.requestAnimationFrame = raf; return s; })()"
+  },
+  {
+    "name": "tidy",
+    "eval": "(function(){ window.__TW.cineHold(false); window.__TW.setCine(false, 'high'); window.__JUCE__.backend.emitEvent('tw', { k:'presetDefault' }); return JSON.stringify(window.__TW.errors || []); })()"
+  }
 ]
