@@ -339,3 +339,18 @@ by audible gain:
 4. PERSONAL HRTF (cheap). Import a SOFA file in place of the MIT KEMAR set.
 
 Recommended order: 3 + 4 together, then 2, then 1.
+
+## 9. SMOOTH MOTION IN THE VIDEO EXPORT - awaiting go (2026-09-25)
+Peter: "Video export is a bit janky, skipping many frames - is there a better way of doing it? Especially at high resolution."
+
+**The export is not dropping frames.** Every frame is rendered, encoded and acknowledged before the next (`runExport`). What judders is the TAKE: the panel sends the listener's position once per drawn frame (`stepWalk` -> `queueP`, flushed per rAF), the audio thread records what arrives, and `vidPlan` samples that record per video frame with no interpolation. Whenever the panel draws slower than the export's frame rate, positions repeat and then jump.
+
+Measured live (`test/live-walk-judder-jobs.json`, 260925.5, standalone at its default window): panel 56 fps in the ordinary view, CINEMATIC HIGH and ULTRA alike. Against a 60 fps export the recorded position changes on only 83-86 % of frames, so one frame in six or seven is a repeat. A bigger window, a higher render scale or a slower GPU lowers the panel rate, and the repeats become longer holds; that is the "especially at high resolution". `stepWalk` also clamps dt at 0.1 s, so below 10 fps the walk also runs slower than real time.
+
+Proposed fix (native, in the `vidPlan` builder; the audio is untouched):
+- For the motion parameters (lisx, lisy, lisyaw, s1..s4 x/y/z/yaw), replace each held run by linear interpolation between the neighbouring CHANGE points, taking time from the block index. Yaw goes the short way round the circle.
+- Only bridge gaps shorter than ~0.25 s, so a deliberate stop stays a stop.
+- Optionally, a light 2-3 frame smoothing of the camera path for a steadier "dolly" look.
+- A check: record a walk while the panel is artificially throttled to 10 fps. The exported position must change on every frame of the walk, and must match the unthrottled walk within a few cm.
+
+Cheaper stopgaps that need no build: export at 30 fps (the panel almost always manages that), and record with CINEMATIC off or the window smaller, then turn CINEMATIC on for the export itself. The export draws offline, so its own resolution and quality cost time, not smoothness.
