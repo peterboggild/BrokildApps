@@ -1,0 +1,23 @@
+{
+  "slug": "kickstart",
+  "name": "Kickstart (VST3)",
+  "description": "A kick drum synthesiser: no samples, every hit synthesised. Acoustic kicks, the classic drum machines, and gabber, hardstyle, dubstep, techno rumble and the trap 808, from twenty-one controls rather than one simulation per style. The trick is that they all live on the same few physical axes: how far the pitch falls and how fast, how the body dies away, how much of a real drum head is in it, what the beater is made of. Then a transient shaper that reads the kick's own envelopes, four drives from Battlestar Overdrive, a compressor, and thirty-one presets in three banks.",
+  "status": "live",
+  "url": "vst3-apps/kickstart/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/kickstart.jpg",
+  "note": "Windows VST3 + standalone · build 260925.1 · free download · 21 controls · acoustic / classic / modern · 4 Battlestar drives · transient + comp · 31 presets · manual included.",
+  "tags": [
+    "vst3",
+    "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Kickstart-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Kickstart-VST3-win64.zip",
+      "bytes": 6334871,
+      "sha256": "dfd34dc4727021e0cf73c9f6479bd07593081c2da6d6565865f89c0351c7ec76"
+    }
+  ]
+}

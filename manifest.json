@@ -29,6 +29,7 @@
   "apps": [
     "vst3-apps/collection",
     "vst3-apps/experimental",
+    "vst3-apps/kickstart",
     "vst3-apps/1984",
     "vst3-apps/thirty-thousand-years",
     "vst3-apps/thin-walls",

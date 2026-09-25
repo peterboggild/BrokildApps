@@ -34,11 +34,12 @@
         "battlestar-overdrive",
         "martian-gain",
         "rite-of-passage",
-        "thin-walls"
+        "thin-walls",
+        "kickstart"
       ],
       "claims": {
-        "count": 11,
-        "phrase": "seven instruments and four effects"
+        "count": 12,
+        "phrase": "eight instruments and four effects"
       }
     },
     "experimental": {
@@ -85,4 +86,4 @@
   "excludes": {
     "_comment": "Ships a download, deliberately in no collection."
   }
-}
+}

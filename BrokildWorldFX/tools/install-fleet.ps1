@@ -55,6 +55,9 @@ $plugins = @(
   # to b\_worktrees\rop), built to b\_build\RiteOfPassage\plugin.
   @{ dir = "RiteOfPassage";    name = "Rite of Passage";    group = "Brokild collection";
      build = "C:\Users\peter\b\_build\RiteOfPassage\plugin" }
+  # Kickstart: source in the website repo (vst3-apps\kickstart\plugin), built outside Dropbox
+  @{ dir = "Kickstart";        name = "Kickstart";          group = "Brokild collection";
+     build = "C:\Users\peter\b\_build\Kickstart\plugin" }
   # Clone Wars is deliberately absent: its binary comes from a CI-built zip,
   # never a local build (house rule).
 )
