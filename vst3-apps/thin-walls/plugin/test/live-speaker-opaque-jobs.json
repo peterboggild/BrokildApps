@@ -1,0 +1,14 @@
+[
+  { "name": "settle", "wait": 4500 },
+  { "name": "helper", "eval": "(function(){ var T = window.__TW, B = window.__JUCE__.backend; window.__P = function(id, v){ T.setParam(id, v); B.emitEvent('tw', { k:'p', id:id, v:v }); }; return 'ok'; })()" },
+  { "name": "speaker 1.2 m ahead, a lit wall behind it, cinematic off", "eval": "(function(){ window.__TW.setCine(false, 'high'); __P('s1type',1); __P('s1in',3/6); __P('s1x',2.4/18); __P('s1y',2.5/9); __P('s1z',(1.2-0.2)/2.2); __P('s1yaw',0); __P('lisx',3.6/18); __P('lisy',2.5/9); __P('lisyaw',180/360); __P('door1',1); __P('door2',1); return JSON.stringify(window.__TW.cine()).slice(0,80); })()" },
+  { "name": "wait", "wait": 1500 },
+  { "name": "ordinary view", "shoot": "C:/Users/peter/AppData/Local/Temp/tw-opaque-ordinary.png", "sel": "#povWrap" },
+  { "name": "cinematic on", "eval": "(function(){ window.__TW.setCine(true, 'high'); window.__TW.cineHold(true); return 'on'; })()" },
+  { "name": "wait", "wait": 9000 },
+  { "name": "cinematic view", "shoot": "C:/Users/peter/AppData/Local/Temp/tw-opaque-cine.png", "sel": "#povWrap" },
+  { "name": "from behind the cabinet, cinematic off", "eval": "(function(){ window.__TW.setCine(false, 'high'); __P('s1yaw',180/360); return 'rear'; })()" },
+  { "name": "wait", "wait": 1500 },
+  { "name": "ordinary view, rear", "shoot": "C:/Users/peter/AppData/Local/Temp/tw-opaque-rear.png", "sel": "#povWrap" },
+  { "name": "build", "eval": "document.getElementById('buildTag').textContent" }
+]

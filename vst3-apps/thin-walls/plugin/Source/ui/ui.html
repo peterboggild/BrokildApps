@@ -2099,7 +2099,14 @@ function dome(c, au, av, aw, r, hgtD, seg, rings, mat, kind, room){
 
 function buildMonitor(sx, sy, zc, yaw, room, mat){
   const fwd = [Math.cos(yaw), Math.sin(yaw), 0];
-  const rgt = [Math.sin(yaw), -Math.cos(yaw), 0];
+  /*  The SIDEWAYS axis points LEFT, not right: (forward, left, up) is right
+      handed, which is what every quad below was wound for. With a right-
+      pointing axis the basis is left handed, every face comes out inside out,
+      and once the cabinet moved into the opaque pass back-face culling threw
+      away the faces towards you - the "transparent" loudspeaker was the
+      inside of its own far walls. The model is symmetric across its width, so
+      nothing else changes. */
+  const rgt = [-Math.sin(yaw), Math.cos(yaw), 0];
   const up  = [0,0,1];
   const HU = 0.145, HV = 0.115, HW = 0.185;        /* half depth, width, height */
   const C  = [sx, sy, zc];
