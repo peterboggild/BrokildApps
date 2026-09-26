@@ -136,14 +136,38 @@ BwfxPanel::BwfxPanel (bwfx::Rack& r, juce::AudioProcessorValueTreeState& s)
     mix.setRange (0.0, 1.0, 0.001);
     mix.textFromValueFunction = [] (double v)
         { return juce::String (juce::roundToInt (v * 100.0)) + " %"; };
-    mix.setValue (rack.getMix(), juce::dontSendNotification);
+    mix.setValue (rack.getMixEffective(), juce::dontSendNotification);
     mix.updateText();
     mix.setColour (juce::Slider::thumbColourId, kTeal);
     mix.setColour (juce::Slider::trackColourId, kTeal.withAlpha (0.55f));
     mix.setColour (juce::Slider::backgroundColourId, kGround);
     mix.setColour (juce::Slider::textBoxTextColourId, kAsh);
     mix.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
-    mix.onValueChange = [this] { rack.setMix ((float) mix.getValue()); };
+    mix.onValueChange = [this]
+    {
+        /*  A macro MAPS its destination, so a raw setMix() is cancelled on
+            the next block - macro 5 ships wired to "mix" at -100 %.  Invert
+            the mapping and move the macro's own host parameter instead:
+            the fragment's driveOwned(), in C++.  Without the gesture pair
+            Ableton's Configure never sees the touch. */
+        const float v = (float) mix.getValue();
+        float depth = 0.0f;
+        const int m = rack.macroOwning ("mix", &depth);
+        if (m >= 0 && depth != 0.0f)
+        {
+            const float from = depth >= 0.0f ? 0.0f : 1.0f;   // mix runs 0..1
+            float t = (v - from) / depth;
+            t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+            if (auto* p = apvts.getParameter (bwfx_juce::macroParamId (m)))
+            {
+                p->beginChangeGesture();
+                p->setValueNotifyingHost (t);
+                p->endChangeGesture();
+                return;
+            }
+        }
+        rack.setMix (v);
+    };
     addAndMakeVisible (mixLabel);
     addAndMakeVisible (mix);
 
@@ -348,7 +372,7 @@ void BwfxPanel::moveModule (int type, int delta)
 
 void BwfxPanel::refreshFromRack()
 {
-    mix.setValue (rack.getMix(), juce::dontSendNotification);
+    mix.setValue (rack.getMixEffective(), juce::dontSendNotification);
     rebuild();
     resized();
 }

@@ -4,7 +4,12 @@ Collected, not built. Nothing here is started until Peter says go for a batch.
 
 ---
 
-## 1. HISTORY should be able to restart when the keys are released and pressed again — AWAITING GO
+## 1. HISTORY should be able to restart when the keys are released and pressed again — SHIPPED in 260923.3
+
+**Verified 2026-09-26:** it is the `h_rewind` parameter, "NEW CHORD REWINDS" (`Params.h:361`),
+firing on the rising edge of keysHeld after a 2.0 s gap (`Engine.cpp:435-449`) — so a chord
+rewinds once, and drone voices are excluded. The heading below said AWAITING GO for three days
+after it shipped. The design notes are kept because they are the record of why it is an option.
 
 **Peter, 2026-09-23:** *"so if i lift up the keys, and press down, shouldn't the
 history start over? or maybe have that as an option in a meaningful way? i

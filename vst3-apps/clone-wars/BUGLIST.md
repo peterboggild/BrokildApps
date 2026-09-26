@@ -7,6 +7,9 @@ with the build number that fixed them.
 
 ## Open
 
+**Nothing is open.** The one entry below is marked FIXED 2026-08-30 in its own heading and was
+never moved to Done; checked and corrected 2026-09-26.
+
 ### 5. Patina dirt decals read as panel discoloration — FIXED 2026-08-30
 
 Measured over the whole patina at heavy wear, the dirt sat **148.1 degrees**

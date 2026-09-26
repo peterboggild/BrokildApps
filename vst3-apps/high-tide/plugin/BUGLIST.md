@@ -5,7 +5,18 @@ for a batch (the standing rule, 2026-08-26). Each entry is a spec, not a wish.
 
 ## Awaiting go
 
-### 3. One decal still to fix: `ht-nameplate` (order sent 2026-09-04)
+### 3. One decal still to fix: `ht-nameplate` — CLOSED, WILL NOT HAPPEN (Peter, 2026-09-26)
+
+*"There wont be anymore decals, so if they are missing, its too bad."* Two deliveries failed
+the same way and a third was never going to fix it, because it is a composition fault rather
+than a crop: the plate is drawn shorter than its own lettering. **Nothing is broken** — the
+panel draws the name itself, which is what it has shipped with since 260904.1. The
+`--decal-nameplate` hook and the two rules that would hide the drawn name stay in
+`test/patch-decals-fix.js` if this is ever revisited. `ht-knob` and `ht-cover` were delivered
+and have no home on this panel; that is now permanent rather than pending.
+
+The original entry follows as the record.
+
 `BrokildApps/assets/high-tide-decals/REDO.md` now asks for that one part only.
 Both deliveries drew the plate as a thin bar while the lettering kept its full
 size, so the plate's own bottom edge cuts through the capitals — a composition

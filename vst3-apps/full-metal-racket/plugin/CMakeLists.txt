@@ -4,7 +4,7 @@ project(FullMetalRacket VERSION 0.1.0)
 
 # Build id: date (YYMMDD) plus the build number that day. Bump it AND re-run
 # cmake -S . -B build, or the compiled-in value does not change.
-set(FM_BUILD_ID "260830.1")
+set(FM_BUILD_ID "260926.1")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

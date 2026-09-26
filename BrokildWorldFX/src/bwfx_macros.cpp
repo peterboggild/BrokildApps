@@ -269,6 +269,31 @@ std::string Rack::macroAssignJson() const
 
 bool Rack::macroIsDefault() const { return macroDefaulted; }
 
+int Rack::macroOwning (const std::string& dest, float* depthOut) const
+{
+    /*  One destination belongs to exactly one macro, so the first hit is
+        the answer.  A rack nobody has rewired carries no assignments at
+        all - macro 5 holds the dry/wet by default - so that case is
+        answered from the same constants macroAssignJson() reports. */
+    if (macroDefaulted)
+    {
+        if (dest == kDefaultDest)
+        {
+            if (depthOut) *depthOut = kDefaultDepth;
+            return kDefaultMacro;
+        }
+        return -1;
+    }
+    for (int m = 0; m < kMacros; ++m)
+        for (const auto& a : macroAssign[(size_t) m])
+            if (a.dest == dest)
+            {
+                if (depthOut) *depthOut = a.depth;
+                return m;
+            }
+    return -1;
+}
+
 std::string Rack::macroDebugJson() const
 {
     char buf[256];

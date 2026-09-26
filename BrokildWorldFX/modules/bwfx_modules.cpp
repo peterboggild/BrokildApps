@@ -72,6 +72,7 @@ public:
         toneBq.set (Biquad::lowpass, toneHz (getParam (1)), 1.0, 0, fs);
         drive.init (getParam (0));
         tone.init (getParam (1));
+        mixS.init (getParam (3));
         comp = satComp (drive.current);
         lastCompDrive = drive.current;
         agMsIn = agMsWet = 0.0; agGain = 1.0f;
@@ -110,6 +111,7 @@ public:
     {
         drive.set (getParam (0));
         tone.set (getParam (1));
+        mixS.set (getParam (3));
         const float d = drive.tick (fs, n, 0.03f);
         const float t = tone.tick (fs, n, 0.03f);
         if (std::abs (d - lastCompDrive) > 0.02f) { comp = satComp (d); lastCompDrive = d; }
@@ -121,7 +123,14 @@ public:
             weights sum to +3 dB at mid drive, which was the 'DRIVE raises
             the volume' report. Correlated signals crossfade at equal
             AMPLITUDE, so the level holds across the whole DRIVE range. */
-        const float m = clampf (d / 24.0f, 0.0f, 1.0f);
+        /*  BLEND: DRIVE-LINKED is the original and the default, so a rack that
+            has never touched it is bit-identical (the Kemper rule) - an old blob
+            carries no "blend" key at all. MANUAL frees the dry/wet from the drive,
+            which is what Photo-Synth's satDry/satWet could always do and this
+            could not: "full wet, gentle drive" and "a hint of hard drive" were
+            both unreachable while one knob meant both things. */
+        const float mixManual = clampf (mixS.tick (fs, n, 0.03f) / 100.0f, 0.0f, 1.0f);
+        const float m = getParam (2) < 0.5f ? clampf (d / 24.0f, 0.0f, 1.0f) : mixManual;
         const float dryG = 1.0f - m;
         const float wetG = m * comp;
         double agAccIn = 0.0, agAccWet = 0.0;
@@ -182,7 +191,7 @@ private:
     double fs = 48000;
     HalfBand upA_L, upB_L, upA_R, upB_R;
     Biquad satDC, toneBq;
-    Smooth drive, tone;
+    Smooth drive, tone, mixS;
     float comp = 1, lastCompDrive = -1;
     double agMsIn = 0.0, agMsWet = 0.0;
     float agGain = 1.0f;
@@ -1543,6 +1552,8 @@ namespace
     const ParamDesc TUBE_PARAMS[] = {
         { "drive", "DRIVE", 8,   0,   24,  0, "dB", nullptr },
         { "tone",  "TONE",  72,  0,   100, 0, "%",  nullptr },
+        { "blend", "BLEND", 0,   0,   1,   0, "",   "DRIVE-LINKED|MANUAL" },
+        { "mix",   "MIX",   50,  0,   100, 0, "%",  nullptr },
     };
     const ParamDesc PHASER_PARAMS[] = {
         { "mix",   "MIX",   35,  0,   100, 0, "%",   nullptr },
@@ -1630,7 +1641,7 @@ namespace
     };
 
     const Descriptor DESCS[] = {
-        { "saturation", "TUBE",     "asymmetric valve saturation", 1, TUBE_PARAMS,    2 },
+        { "saturation", "TUBE",     "asymmetric valve saturation", 1, TUBE_PARAMS,    4 },
         { "phaser",     "SWEEP",    "vintage 4-stage phaser",      1, PHASER_PARAMS,  3 },
         { "chorus",     "ENSEMBLE", "dual-line chorus",            1, CHORUS_PARAMS,  3 },
         { "trem",       "HARMONIC", "harmonic tremolo & vibrato",  1, TREM_PARAMS,    6 },

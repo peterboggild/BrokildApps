@@ -5,6 +5,13 @@ go for a batch. A question like "can it do X?" gets an answer and an entry.
 
 ## Open — awaiting go
 
+**Nothing is open.** Item 1 (decals) is CLOSED, Peter 2026-09-26: *"There wont be anymore
+decals, so if they are missing, its too bad."* No loss — the panel is fully procedural and
+always has been; the `--decal-*` hooks stay in place and cost nothing if art ever arrives.
+Items 2-5 SHIPPED in 260905.1 — the 260905.1 section below says so
+in its own words ("items 2 ... 3 ... 4 ... 5 ...; Still open: item 1, the decals"). This
+heading had not been trimmed to match; checked and corrected 2026-09-26.
+
 1. **Decals.** `BrokildApps/assets/brain-scan-decals/BRIEF.md` asks ChatGPT for
    twelve isolated parts in the CT-console register (knob cap, membrane button,
    bezel, nameplate, painted-steel texture, screen glass…). None delivered yet.

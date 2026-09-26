@@ -11,18 +11,78 @@ the world rack: its modules, the overlay, the rack machinery, SPECTRA.)
 
 ## Open
 
-### 18. Fleet rebuild for BWFX 1.7.1 (RACK MIX drives macro 5) — awaiting go *(2026-09-23)*
+### 18. Fleet rebuild for BWFX 1.7.1 (RACK MIX drives macro 5) — SHIPPED 2026-09-26
 
 Found on 1984: with the rack on and RACK MIX dragged to zero, the effects kept playing. Macro 5 ships wired to `mix` at −100 % and a macro MAPS its destination, so the rack recomputed `mixOff = mapped − base` every block and put a raw mix write straight back. BWFX 1.7.1 fixes it in the FRAGMENT (`driveOwned()`: a hand on any macro-owned control — mix, a module parameter, a presence — inverts the mapping and moves the macro's host parameter instead). The fragment is compiled into every plugin, so **every synth built against 1.7.0 still has the dead RACK MIX slider until it is rebuilt**: Black Rider, Blade Ruiner, Escape Room, Full Metal Racket, Photo Synth, Clone Wars (CI dispatch), High Tide, Brain Scan, the four Artefacts, Legion and Rite of Passage (native panels — check whether their RACK MIX writes the base too). 1984 carries 1.7.1 already. Rebuild = `cmake --build` per tree + `install-fleet.ps1` + re-cut each zip; nothing else changes (core untouched, bench 409 ALL CLEAR).
 
+**DONE 2026-09-26, and the open question in this entry had an answer nobody
+would have liked.** Sixteen plugins rebuilt at build id **260926.1** and
+installed in both houses, every one verified by reading the string back out
+of the INSTALLED bytes rather than trusting the build output.
 
-### 2-wave-2. PS2 retirement + MW/HF rack removal (Peter's decisions
-2026-08-26 evening, recorded verbatim; build AFTER he has played with
-phase C):
+* **The two NATIVE racks had exactly the same fault**, which is what this
+  entry asked someone to check. Legion and Rite of Passage both carried
+  `mix.onValueChange = [this] { rack.setMix (...); };` — a raw write that
+  macro 5 cancels on the next block, identical to the fragment before 1.7.1.
+  Ported: the core gained `macroOwning(dest, &depth)` so a C++ panel can ask
+  who owns a destination, and the panels now invert the mapping and move the
+  macro’s own host parameter, wrapped in a gesture pair so Ableton’s
+  Configure sees the touch.
+* **And the SLIDER lied as well as the write — a second half nobody had
+  named.** `getMix()` returns the BASE while the audio uses `base + mixOff`,
+  so a native panel showed a number the ear never hears. New
+  `getMixEffective()`; both refresh sites read it. The fragment already did
+  this by painting the slider where the macro put it.
+* **A bench check that could not fail, caught on its first run.** The new
+  `testMacroOwning` measured base against effective on an EMPTY rack — which
+  early-outs before `applyMacros` ever runs, so `mixOff` is never stored and
+  the accessor would have reported the base whether it worked or not. The
+  fixture enables a module now. 470 checks ALL CLEAR, and the 462 that
+  predate this round are unmoved, which is what makes the core addition
+  provably behaviour-neutral.
+* **Not rebuilt, each for a reason:** Clone Wars (its binary must come from a
+  green CI run — it needs a `workflow_dispatch` once this is pushed),
+  Beetmachine (another session is working in that tree today), and the four
+  plugins that carry no rack.
+* **Both build failures were Smart App Control, not code, and one exposed a
+  real gap.** Rite of Passage died at CONFIGURE ("Testing juceaide failed"
+  with empty output — the documented signature); deleting the freshly built
+  `juceaide.exe` and reconfiguring cleared it. **Legion died at the VST3
+  MANIFEST step with exit 0x4000000A**, after its C++ had compiled cleanly —
+  SAC refusing the fresh `vst3_helper.exe`. Legion turned out to be the ONE
+  tree in the fleet without `VST3_AUTO_MANIFEST FALSE`, which is why it was
+  the one that failed that way; it has the guard now, worded as Rite’s.
+  **A build that fails after the DLL is already good is worth reading before
+  it is blamed on the change being made** — the log named MSBuild, not a
+  compiler, and the error list was one shell script quoted line by line.
+* **The published zips are now BEHIND the installed builds.** This was a
+  rebuild, not a release: re-cutting sixteen downloads would mean publishing
+  into the shared `downloads` release while another session is re-cutting the
+  collection tooling. Left deliberately, and it is the one loose end.
+
+
+### 2-wave-2. PS2 retirement (open) + MW/HF rack removal — **HF DONE 2026-09-26**
+Peter’s decisions, 2026-08-26 evening, recorded verbatim; build AFTER
+he has played with phase C:
 - **Mars Wars and Hairfryer are FX plugins, not synths — they do NOT
   get BWFX.** Their racks (added 1.1.0) are to be REMOVED COMPLETELY
   (button, overlay, processing, state); stale rack blobs in day-old
   projects are silently ignored (his OK on record).
+  **Hairfryer’s half is DONE (2026-09-26, build 260926.1):** button, overlay,
+  processing, state and the five `BWFX MACRO` host parameters are gone, and
+  the tree now has Martian Gain’s exact shape — `BWFX_DIR` still set so
+  `brokild_paths.h` stays on the include path, the library not built. The
+  installed DLL was read back: no `BWFX MACRO`, no `bwfx-rack.js`, no module
+  names. One kept line, `xml->removeAttribute("bwfx")`, discards a
+  pre-removal project’s blob instead of letting it become a dead APVTS
+  property that is written out for ever. **Removing those five parameters is
+  irreversible for a saved project’s automation lanes — that is the point of
+  the decision, not a side effect.** Its landing page, app.json and manual
+  never mentioned the rack, so nothing published needed correcting.
+  **A leftover `emitBwfx();` survived a case-sensitive residue grep** —
+  `emitBwfx` contains neither `bwfx` nor `BWFX`. The compiler caught it.
+  Sweep case-insensitively.
+  **Martian Gain is unchanged** and PS2 retirement is still open.
 - **PS2 retirement**: internal FX chain + native SPECTRA panels retire
   from the VST3 — **HARD CUT** (his call): old presets/projects load
   with the FX/SPECTRA portion gone, no migration. The **FX photo REMAPS
@@ -823,7 +883,23 @@ Probe kept at `test/tempoprobe.cpp` (target `tempoprobe`).
 
 ---
 
-## SHIMMER: the bench proves BOUNDED, not STABLE — AWAITING GO *(found 2026-09-18)*
+## SHIMMER: the bench proves BOUNDED, not STABLE — CHECKED AND CLEAN 2026-09-26
+
+**SHIMMER does not oscillate anywhere in its range.** `testShimmerDecays()` in
+`test/bench.cpp` now sweeps decay x shimmer (3 x 5) and, for each, plays a 0.25 s burst,
+stops, and measures the tail at 1-2 s, 4-5 s and 8-9 s. Every one of the fifteen cases
+falls monotonically. The worst survival is **-63.3 dB over seven seconds** at decay 100 /
+shimmer 75.
+
+The shimmer path IS adding real loop gain — at decay 100 the seven-second survival goes
+-81.5 dB at shimmer 0 to -63.3 dB at shimmer 75 — so the concern was not idle. It simply
+stays well under unity. Bench 455 checks, ALL CLEAR.
+
+**The check stays**, because it is the only measurement that separates a long tail from an
+oscillator, and because bounds checks cannot: a ceiling makes a runaway look tidy. That is
+what hid the Battlestar fault for a whole build.
+
+The original entry follows as the record of the reasoning.
 
 Building Battlestar Overdrive turned up a genuine self-oscillator in an FDN
 with an octave-up folded into its feedback — the same architecture SHIMMER

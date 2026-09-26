@@ -273,14 +273,24 @@ is something to play through.
 
 ---
 
-## 4. Release work — NOT STARTED
+## 4. Release work — DONE 2026-09-19
+
+Landing page, 12-page landscape manual, 15.3 MB zip, `app.json`, manifest entry and a
+1200x794 preview all shipped (BrokildApps `1c9e4cb`). Verified 2026-09-26: the folder
+`vst3-apps/battlestar-overdrive/` holds the manual, the zip, `app.json`, `img/` and
+`index.html`. The original text follows as the record of what was outstanding.
 
 Battlestar Overdrive is built, measured and installed, but it is **not shipped**
 by the house definition: no manual, no landing page, no dist zip, no `app.json`
 or manifest entry, and no preview. `RELEASE-CHECKLIST.md` in the BWFX tools
 folder is the order of operations.
 
-## 5. No backup repo — the local commits are the only copy
+## 5. No backup repo — DONE 2026-09-19
+
+`brokild-battlestar-overdrive`, private, created through the GitHub API with the token from
+`git credential fill` (there is still no `gh` here) and verified from the remote own tree at
+95 blobs. Verified again 2026-09-26: `origin` in `bBattlestarOverdrive` points at it.
+The original text follows as the record.
 
 Every other plugin in `b\` has a private GitHub repo, because `C:\Users\peter\b`
 is in neither Dropbox nor OneDrive and **committing and pushing IS the backup**.

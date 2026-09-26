@@ -46,8 +46,6 @@ html,body{ width:100%; height:100%; background:#17120c; overflow:hidden; }
 #tag{ font-size:9.5px; letter-spacing:2.4px; color:#7c6034; font-weight:bold; margin-top:-4px; }
 
 #hbtns{ display:flex; gap:8px; align-items:center; margin-left:auto; }
-.hbtn.bwfxhb{color:#0d8f88;display:flex;align-items:center;gap:5px}
-.hbtn.bwfxhb .bwfx-globe{filter:drop-shadow(0 0 3px rgba(13,143,136,.5));flex:none}
 .hbtn{
   padding:7px 14px 6px; border-radius:7px; cursor:pointer;
   font-size:10.5px; font-weight:bold; letter-spacing:1.6px; color:#4a3618;
@@ -232,7 +230,6 @@ svg.defs{ position:absolute; width:0; height:0; }
       <div id="tag">BROKILD KITCHEN APPLIANCES &nbsp;&middot;&nbsp; VOCAL DESTRUCTION UNIT</div>
     </div>
     <div id="hbtns">
-      <div class="hbtn bwfxhb" data-bwfx-open title="BROKILD WORLD FX — the world rack: the same global FX modules in every Brokild synth">BWFX</div>
       <div class="hbtn" data-act="save">SAVE</div>
       <div class="hbtn" data-act="open">LOAD</div>
       <div class="hbtn" data-act="presets">PRESETS &#9662;</div>
@@ -264,7 +261,6 @@ svg.defs{ position:absolute; width:0; height:0; }
 <div id="pmenu"></div>
 <div id="vig"></div>
 
-<script src="bwfx-rack.js"></script>
 <script>
 "use strict";
 /* ═══════════ 0 · the bridge ═══════════ */
@@ -283,12 +279,6 @@ const el=(t,c,p)=>{ const e=document.createElement(t); if(c)e.className=c; if(p)
 const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
 const xmap=(t,lo,hi)=>lo*Math.pow(hi/lo,clamp(t,0,1));
 const lerp=(a,b,t)=>a+(b-a)*t;
-
-/* BROKILD WORLD FX: wire the shared rack overlay to the native rack */
-if (window.BWFX) {
-  BWFX.attach({ send: o => { const m = { k: "bwfx" }; for (const kk in o) m[kk] = o[kk]; NB.send(m); } });
-  NB.on("bwfx", p => BWFX.onState(p));
-}
 
 /* ═══════════ 1 · state ═══════════ */
 const V={}, DEF={}, META={};   // value, default, {kind,flo,fhi,name} per id

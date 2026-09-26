@@ -1,6 +1,5 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "bwfx_juce.h"
 #include "brokild_paths.h"
 
 namespace
@@ -77,9 +76,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout HairfryerAudioProcessor::cre
             juce::AudioParameterFloatAttributes().withStringFromValueFunction (
                 [i] (float v, int) { return fmtValue (hf::paramSpec (i), v); })));
     }
-    //  the rack's five automatable macros, declared by shared code so
-    //  every synth carries the identical five (see bwfx_juce.h)
-    bwfx_juce::addMacroParameters (layout);
     return layout;
 }
 
@@ -94,8 +90,6 @@ HairfryerAudioProcessor::HairfryerAudioProcessor()
     raw.reserve ((size_t) ids.size());
     for (const auto& id : ids) raw.push_back (apvts.getRawParameterValue (id));
     lastSent.assign ((size_t) ids.size(), -999.0f);
-
-    startTimerHz (15);        // bwfxRack.service() - editor open or not
 }
 
 HairfryerAudioProcessor::~HairfryerAudioProcessor() = default;
@@ -111,8 +105,6 @@ bool HairfryerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts
 void HairfryerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     engine.prepare (sampleRate, samplesPerBlock);
-    bwfxRack.prepare (sampleRate, juce::jmax (64, samplesPerBlock));
-    bwfxMonoR.assign ((size_t) juce::jmax (64, samplesPerBlock), 0.0f);
     setLatencySamples (engine.latencySamples());
 }
 
@@ -133,25 +125,6 @@ void HairfryerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 
     engine.process (buffer.getWritePointer (0),
                     nch >= 2 ? buffer.getWritePointer (1) : nullptr, n);
-
-    // host tempo for the world rack's synced modules
-    if (auto* ph = getPlayHead())
-        if (auto pos = ph->getPosition())
-            if (auto bpm = pos->getBpm())
-                bwfxRack.setBpm (*bpm);
-
-    bwfx_juce::pushMacros (bwfxRack, apvts);   // the five host macros
-
-    // The world rack: one extra stage after the engine (empty = untouched).
-    auto* L = buffer.getWritePointer (0);
-    if (nch >= 2)
-        bwfxRack.process (L, buffer.getWritePointer (1), n);
-    else if ((int) bwfxMonoR.size() >= n)
-    {
-        std::memcpy (bwfxMonoR.data(), L, sizeof (float) * (size_t) n);
-        bwfxRack.process (L, bwfxMonoR.data(), n);
-        for (int i = 0; i < n; ++i) L[i] = 0.5f * (L[i] + bwfxMonoR[(size_t) i]);
-    }
 }
 
 //==============================================================================
@@ -159,7 +132,6 @@ void HairfryerAudioProcessor::getStateInformation (juce::MemoryBlock& dest)
 {
     if (auto xml = apvts.copyState().createXml())
     {
-        xml->setAttribute ("bwfx", juce::String (bwfxRack.toJson()));
         copyXmlToBinary (*xml, dest);
     }
 }
@@ -169,9 +141,7 @@ void HairfryerAudioProcessor::setStateInformation (const void* data, int size)
     if (auto xml = getXmlFromBinary (data, size))
         if (xml->hasTagName (apvts.state.getType()))
         {
-            bwfxRack.fromJson (xml->getStringAttribute ("bwfx").toStdString());
-            emitBwfx();
-            xml->removeAttribute ("bwfx");
+            xml->removeAttribute ("bwfx");   // discard a pre-removal project rack blob
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
             uiHasState = false;
             lastSent.assign ((size_t) ids.size(), -999.0f);
@@ -291,12 +261,9 @@ void HairfryerAudioProcessor::handleOne (const juce::var& m)
         hf::Params q;
         hf::applyRecipe (i, q);
         applyParamsStruct (q);
-        bwfxRack.clearState();               // a patch stores its own rack
-        emitBwfx();
         notice (juce::String ("PROGRAMME ") + hf::recipeName (i) + " " + DOT + " "
                 + juce::String (hf::recipeBlurb (i)).toUpperCase());
     }
-    else if (k == "bwfx")   { if (bwfx_juce::handleMessage (bwfxRack, apvts, m)) emitBwfx(); }
     else if (k == "save")   { presetSaveAs(); }
     else if (k == "open")   { presetOpenDialog(); }
     else if (k == "presetScan")   { presetScan(); }
@@ -344,13 +311,6 @@ void HairfryerAudioProcessor::emitInitialState()
     obj->setProperty ("build", juce::String ("dev"));
    #endif
     emitToUi ("initialState", juce::var (obj));
-    emitBwfx();
-}
-
-void HairfryerAudioProcessor::emitBwfx()
-{
-    if (emitToUi)
-        emitToUi ("bwfx", bwfx_juce::stateVar (bwfxRack));
 }
 
 //==============================================================================
@@ -567,7 +527,6 @@ juce::String HairfryerAudioProcessor::patchJson (const juce::String& name)
     o->setProperty ("build", juce::String (HF_BUILD_ID));
    #endif
     o->setProperty ("params", juce::var (pv));
-    o->setProperty ("bwfx", juce::String (bwfxRack.toJson()));   // a patch stores its own rack
     return juce::JSON::toString (juce::var (o), false);
 }
 
@@ -584,9 +543,6 @@ void HairfryerAudioProcessor::applyPatchJson (const juce::String& json, const ju
         for (const auto& kv : o->getProperties())
             if (apvts.getParameter (kv.name.toString()) != nullptr)
             { setParamById (kv.name.toString(), (float) (double) kv.value); ++applied; }
-
-    bwfxRack.fromJson (v.getProperty ("bwfx", juce::var ("")).toString().toStdString());
-    emitBwfx();
 
     lastSent.assign ((size_t) ids.size(), -999.0f);
     notice ("LOADED \"" + name.toUpperCase() + "\" " + DOT + " " + juce::String (applied) + " VALUES");

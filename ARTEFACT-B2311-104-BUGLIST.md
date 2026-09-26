@@ -2,7 +2,10 @@
 
 House rule: items are collected here and built when Peter says go, in batches.
 
-## 1. THE TEMPERATURE LAW IS A BOWL AND MUST BECOME A SLOPE (Peter, 2026-09-03)
+## 1. THE TEMPERATURE LAW IS A BOWL AND MUST BECOME A SLOPE — SHIPPED in 260903.1
+
+**Verified 2026-09-26:** `warmthS` now gates the auto-song, turbulence, stiffness, hunt and
+leak (`Engine.cpp:487-489`), one axis cold=order / hot=disorder over 77-800 K.
 
 **His reports, verbatim where it matters:**
 - "the middle temperatures are the calmest ones, whereas often lowering the
@@ -68,7 +71,10 @@ by Rayleigh's criterion stated properly: only the FLUCTUATING heat release
 enters the loop (a 6 Hz thermal-inertia high-pass on the King branch).
 62 bench checks ALL CLEAR, tuning untouched (worst 3.30 c).
 
-## 2. THE SITE LAYER (cross-artefact coupling) — see PROXIMA-SITE-DESIGN.md
+## 2. THE SITE LAYER (cross-artefact coupling) — SHIPPED in 260903.1, all four findings by 260904.1
+
+**Verified 2026-09-26:** `proxima_site.h` is included by both `Engine.h` and
+`PluginProcessor.h`. See PROXIMA-SITE-DESIGN.md.
 
 **SHIPPED 2026-09-03** in .104, .1 and .22 (section 7 of the design doc has the
 measurements and the recipe for .67). Coupling defaults OFF and is bench-proven

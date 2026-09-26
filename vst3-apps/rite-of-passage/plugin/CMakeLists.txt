@@ -74,7 +74,7 @@ target_sources(RITEOFPASSAGE PRIVATE
 
 # The build id. Bump it for a new build AND re-run cmake -S . -B <dir>, or
 # it will not take — the same rule every other plugin in the fleet has.
-set(ROP_BUILD_ID "260922.1")
+set(ROP_BUILD_ID "260926.1")
 
 target_compile_definitions(RITEOFPASSAGE PUBLIC
     ROP_BUILD_ID="${ROP_BUILD_ID}"

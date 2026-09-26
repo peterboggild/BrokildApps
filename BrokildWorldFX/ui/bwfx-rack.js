@@ -24,7 +24,9 @@
   var DEFAULT_DESC = [
     { id: "saturation", name: "TUBE", sub: "asymmetric valve saturation", ver: 1, params: [
       { id: "drive", name: "DRIVE", def: 8, lo: 0, hi: 24, step: 0, unit: "dB" },
-      { id: "tone", name: "TONE", def: 72, lo: 0, hi: 100, step: 0, unit: "%" }
+      { id: "tone", name: "TONE", def: 72, lo: 0, hi: 100, step: 0, unit: "%" },
+      { id: "blend", name: "BLEND", def: 0, lo: 0, hi: 1, step: 0, unit: "", choices: "DRIVE-LINKED|MANUAL" },
+      { id: "mix", name: "MIX", def: 50, lo: 0, hi: 100, step: 0, unit: "%" }
     ] },
     { id: "phaser", name: "SWEEP", sub: "vintage 4-stage phaser", ver: 1, params: [
       { id: "mix", name: "MIX", def: 35, lo: 0, hi: 100, step: 0, unit: "%" },

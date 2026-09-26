@@ -362,3 +362,88 @@ Measured: bench (a 12 fps panel, 60 fps export) - without it 134 of 167 frames o
 Still true: below 10 fps the walk itself is recorded SLOWER than real time (`stepWalk` clamps dt at 0.1 s). The export is now smooth whatever the rate; the pace is what was recorded.
 
 Note left from item 1: MAX_PATHS = 96 still truncates silently if four sources sit in the listener's room at once (4 x 25 image paths). Not reported anywhere yet.
+
+---
+
+## 10. THE DOORWAY GLITCH, RE-REPORTED at 260925.7 — AWAITING GO
+
+**Peter, 2026-09-26:** *"there is a glitch when i continuously move through an open
+doorway. Can this be avoided?"*
+
+Item 3 is the same complaint, and it was BUILT in 260924.1. So the first job was to
+find out whether it had come back. It has not.
+
+### What was ruled out, with measurements
+
+**Not a stale install.** Both houses carry **260925.7** in their own bytes
+(`Brokild collection\Thin Walls.vst3`, installed 2026-09-26 09:16) — so he is running
+the build that contains all three item-3 fixes. Worth stating because this plugin has
+the recorded history of `b\BrokildWorldFX\tools\install-fleet.ps1` being the stale copy
+and installing an older build while still reporting "loads".
+
+**Not a regression of the item-3 bump.** `twdoorwalk` — the probe written for that
+report — now measures the threshold as QUIETER than the rest of the walk on every
+part. Worst 10 ms level step, near the door vs elsewhere on the same walk:
+
+| part | at the door | elsewhere |
+|---|---|---|
+| all | 4.43 dB | 6.11 dB |
+| direct | 3.27 | 5.75 |
+| early | **3.47** | 8.29 |
+| reverb | 3.59 | 7.28 |
+
+The EARLY part was the whole of the original fault (it dropped to nothing in one
+window); it is now the best-behaved of the three. HF artefact energy at the door is
+−61 to −69 dB, in every case BELOW the worst elsewhere. The transition zone is doing
+its job.
+
+Also worth recording, because the buglist's own recommendation was not what shipped:
+item 3 recommended building BOTH path sets in the zone and crossfading them, and
+warned that this roughly doubles the path count. What was actually built is better —
+`addPortalPaths` was extended to second order and made to emit **the same keys** as
+the in-room model (`imageKey(nx,ny,nz)`), so the two models agree at the plane and
+every slot simply carries across instead of one set fading out while another fades in.
+The sets are either/or, never both, so the zone does not double the path count.
+
+### So it is something the probe does not cover
+
+`doorwalk.cpp` walks the listener **straight through, perpendicular, at a steady
+1 m/s, with ONE source**. Two candidates, both found by reading rather than measured —
+neither is confirmed:
+
+**(a) The listener TELEPORTS instead of gliding, near a jamb or when turning.**
+`Engine.cpp:2339`:
+
+    if (roomOf (lT.x, lT.y) != roomOf (lisPos.x, lisPos.y) && ! throughOpenDoor (lisPos, lT))
+        lisPos = lT;                                   // snap
+    else lisPos = lisPos + (lT - lisPos) * k;          // glide
+
+The glide is a 25 ms time constant, so at walking pace the smoothed position lags the
+target by roughly 5–10 cm. `throughOpenDoor` asks whether the segment from the
+**smoothed** position to the **target** crosses the door plane inside the open strip.
+Cross near the frame, or turn while crossing, and that short segment can cross through
+the WALL while the player is genuinely walking through the opening — and the listener
+jumps up to 10 cm in one sub-block. That moves every path delay at once: a click, not
+a bump, and intermittent and position-dependent, which is what "a glitch" rather than
+"a bump" sounds like. The snap is correct for a teleport and wrong for a walk; it
+needs to ask whether the player is in the doorway, not whether one short segment
+threads it.
+
+**(b) Silent path truncation with several sources.** A source in the listener's room
+generates up to 25 image paths, so four of them fill 100 of `MAX_PATHS` (192) before
+portal, transmission and furniture paths. `pathsFull()` refuses the rest and counts
+them in `Scene::pathsDropped` — and **nothing on the panel ever shows that number**
+(checked: `ui.html` has no reader for it). Reflections would simply stop appearing,
+and which ones are refused changes as the listener moves. Item 1 flagged this and it
+was never surfaced.
+
+### What would settle it
+
+Three questions to him, because the two candidates behave differently: does it happen
+on EVERY crossing or only some; is he walking straight through the middle or at an
+angle / close to the frame / turning as he goes; and how many sources are active.
+
+Then extend `doorwalk.cpp`, which already has the machinery: a diagonal crossing and a
+brush past the jamb for (a), and a four-source walk printing `pathsDropped` for (b).
+A teleport is a large single-window HF spike, so the probe's existing artefact metric
+will catch (a) the moment the path provokes it.

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.22)
 project(Hairfryer VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus the build number that day.
-set(HF_BUILD_ID "260826.5")
+set(HF_BUILD_ID "260926.1")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,11 +21,13 @@ else()
     FetchContent_MakeAvailable(JUCE)
 endif()
 
-# Brokild World FX — the shared global rack, compiled in (BWFX-DESIGN.md).
+# Brokild World FX — the shared global rack, which this effect does not carry (BWFX-DESIGN.md).
 if(NOT DEFINED BWFX_DIR)
     set(BWFX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../BrokildWorldFX")
 endif()
-add_subdirectory("${BWFX_DIR}" bwfx)
+# NOT built here any more: this is an effect, and BWFX is a rack of effects.
+# The adapter folder is still on the include path for brokild_paths.h,
+# which is header-only and depends on nothing but juce_core.
 
 juce_add_plugin(Hairfryer
     COMPANY_NAME "Brokild"
@@ -51,14 +53,15 @@ juce_add_binary_data(HairfryerAssets
     HEADER_NAME BinaryData.h
     NAMESPACE BinaryData
     SOURCES
-        Source/ui/ui.html
-        "${BWFX_DIR}/ui/bwfx-rack.js")
+        Source/ui/ui.html)
 
 target_sources(Hairfryer
     PRIVATE
         Source/Engine.cpp
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp)
+
+target_include_directories(Hairfryer PRIVATE "${BWFX_DIR}/adapter")
 
 target_compile_definitions(Hairfryer
     PUBLIC
@@ -71,7 +74,6 @@ target_compile_definitions(Hairfryer
 target_link_libraries(Hairfryer
     PRIVATE
         HairfryerAssets
-        bwfx
         juce::juce_audio_utils
         juce::juce_dsp
         juce::juce_gui_extra

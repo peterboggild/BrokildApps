@@ -17,7 +17,7 @@ cmake_minimum_required(VERSION 3.22)
 # version in Ableton?" precisely because it did not: it is the one question
 # a version number exists to answer BY LOOKING. Bump it AND re-run
 # cmake -S . -B <dir> or it does not take.
-set(LEGION_BUILD_ID "260924.1")
+set(LEGION_BUILD_ID "260926.1")
 project(LEGION VERSION 0.1.0 LANGUAGES C CXX)   # JUCE pulls in C sources
 
 set(CMAKE_CXX_STANDARD 17)
@@ -55,6 +55,11 @@ juce_add_plugin(LEGION
     NEEDS_MIDI_OUTPUT         FALSE
     IS_MIDI_EFFECT            FALSE
     COPY_PLUGIN_AFTER_BUILD   FALSE
+    // Smart App Control on the build machine blocks the freshly linked
+    // vst3_helper.exe, and JUCE runs it to write moduleinfo.json - so the
+    // manifest step fails the whole build after the DLL is already good.
+    // The file is optional and hosts scan the binary without it.
+    VST3_AUTO_MANIFEST        FALSE
     VST3_CATEGORIES           Fx Pitch Shift
     PRODUCT_NAME              "Legion")
 

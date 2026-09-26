@@ -276,6 +276,12 @@ public:
     void clearMacroAssigns (int macro);
     std::string macroAssignJson() const;      // for the overlay: [[{d,a}...] x5]
     bool macroIsDefault() const;              // never edited: macro 5 holds the dry/wet
+    /*  Which macro owns a destination, and at what depth (-1..+1); -1 when
+        none does.  A NATIVE panel needs this to do what the fragment
+        does in driveOwned(): a hand on a macro-owned control has to move
+        the MACRO, because a macro MAPS its destination and would put a
+        direct write straight back on the next block. */
+    int macroOwning (const std::string& dest, float* depth = nullptr) const;
     /*  What the rack RESOLVED and what it is currently adding — the one
         link in the macro chain a panel probe cannot see. */
     std::string macroDebugJson() const;
@@ -306,6 +312,10 @@ public:
     float getPresence (int type) const;
     void  getOrder (int* types) const;             // numModuleTypes() entries
     float getMix() const;
+    /*  What the ear actually gets: the base plus whatever a macro is
+        adding right now.  A panel showing getMix() alone shows the number
+        the macro is about to override. */
+    float getMixEffective() const;
 
     // --- state: the opaque string blob hosts store verbatim ----------------
     std::string toJson() const;                    // message thread

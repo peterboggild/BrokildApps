@@ -2,15 +2,13 @@
 
 #include <JuceHeader.h>
 #include "Engine.h"
-#include "bwfx.h"
 
 /*  The processor owns every value; the panel is a view. Same architecture as
     The Mars Wars and Blade Ruiner, with one refinement: the APVTS layout,
     the engine copy in processBlock, the recipes and the randomiser all walk
     hf::paramSpec(), the one table in Engine.cpp — so the "parameter list
     and read order drift apart" class of bug has nowhere to live. */
-class HairfryerAudioProcessor : public juce::AudioProcessor,
-                                private juce::Timer
+class HairfryerAudioProcessor : public juce::AudioProcessor
 {
 public:
     HairfryerAudioProcessor();
@@ -47,9 +45,6 @@ public:
     hf::Engine engine;
     juce::AudioProcessorValueTreeState apvts;
 
-    // Brokild World FX - the shared rack, additive and default empty.
-    bwfx::Rack bwfxRack;
-
     std::atomic<bool> uiHasState { false };
     std::atomic<bool> uiReady    { false };
 
@@ -58,9 +53,6 @@ public:
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    void timerCallback() override { bwfxRack.service(); }   // editor open or not
-    void emitBwfx();
-    std::vector<float> bwfxMonoR;                            // mono-bus scratch
 
     void handleOne (const juce::var& m);
     void emitInitialState();

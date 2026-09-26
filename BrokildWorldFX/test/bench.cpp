@@ -1706,7 +1706,252 @@ static void testPresenceAndMorph()
     }
 }
 
+
 // ---------------------------------------------------------------------------
+/*  SHIMMER: the tail must DECAY, not merely stay BOUNDED.
+
+    Battlestar Overdrive shipped an FDN with an octave-up folded into its
+    feedback that grew to full scale and SAT there across a third of the knob,
+    and passed every bounds check the whole time - an output ceiling keeps a
+    runaway neatly inside full scale, so "bounded" measures the same either way.
+    Peter found it by ear; no test did.
+
+    SHIMMER is the same architecture. 'sh' is derived from two of the eight
+    lines and injected into ALL EIGHT, on top of fb (max 0.945). That rank-1
+    path adds up to about 1.4 * shAmt to the state norm in the worst case, and
+    nothing in the structure alone holds the sum under unity - the damping on
+    the read, the 300 Hz high-pass and ceilSoft make it SAFER than Battlestar's
+    was, not provably stable.
+
+    The only measurement that separates a long tail from an oscillator is to
+    stop the input and watch. Sweep decay x shimmer: the Battlestar fault lived
+    in a BAND of the knob, so a spot check would have walked straight past it. */
+static void testShimmerDecays()
+{
+    std::printf ("-- shimmer: a stopped tail keeps falling (an oscillator holds or grows)\n");
+    const double fs = 48000;
+    const int tShim = typeByName ("shimmer");
+    CHECK (tShim >= 0, "no shimmer module in the registry");
+    if (tShim < 0) return;
+
+    const int burst = (int) (0.25 * fs);
+    const int total = (int) (10.0 * fs);
+    float worstRatio = 0.0f; float worstDecay = 0, worstSh = 0;
+
+    for (int di = 0; di < 3; ++di)
+        for (int si = 0; si < 5; ++si)
+        {
+            const float decay = (float) di * 50.0f;      // 0, 50, 100
+            const float shAmt = (float) si * 25.0f;      // 0, 25, 50, 75, 100
+            Rack r;
+            r.prepare (fs, 512);
+            r.setEnabled (tShim, true);
+            r.setParam (tShim, 0, 100.0f);               // full wet: the dry must not mask the tail
+            r.setParam (tShim, 1, 70.0f);                // size
+            r.setParam (tShim, 2, decay);
+            r.setParam (tShim, 3, shAmt);
+            r.setParam (tShim, 4, 60.0f);                // tone
+            serviceRack (r);
+
+            std::vector<float> L ((size_t) total, 0.0f), R ((size_t) total, 0.0f);
+            for (int i = 0; i < burst; ++i)
+            { const float v = 0.5f * rndPm(); L[(size_t) i] = v; R[(size_t) i] = v * 0.8f; }
+            renderRack (r, L.data(), R.data(), total);
+
+            auto win = [&] (double t0, double t1) -> float
+            {
+                const int a = (int) (t0 * fs), b = (int) (t1 * fs);
+                return measure (L.data() + a, R.data() + a, b - a).rms;
+            };
+            const float w1 = win (1.0, 2.0), w2 = win (4.0, 5.0), w3 = win (8.0, 9.0);
+            const Stats all = measure (L.data(), R.data(), total);
+
+            CHECK (all.finite, "shimmer decay %.0f sh %.0f: not finite", (double) decay, (double) shAmt);
+
+            /*  A case that is already silent at 1 s says nothing about growth,
+                so it is asserted the other way: it must STAY silent. */
+            if (w1 < 1e-7f)
+            {
+                CHECK (w3 < 1e-6f, "shimmer decay %.0f sh %.0f: silent at 1 s then LOUDER at 8 s (%.2e -> %.2e)",
+                       (double) decay, (double) shAmt, (double) w1, (double) w3);
+                continue;
+            }
+            CHECK (w2 <= w1 * 0.9f, "shimmer decay %.0f sh %.0f: tail does not fall 1-2 s -> 4-5 s (%.2e -> %.2e) - OSCILLATING?",
+                   (double) decay, (double) shAmt, (double) w1, (double) w2);
+            CHECK (w3 <= w2 * 0.9f, "shimmer decay %.0f sh %.0f: tail does not fall 4-5 s -> 8-9 s (%.2e -> %.2e) - OSCILLATING?",
+                   (double) decay, (double) shAmt, (double) w2, (double) w3);
+            const float ratio = w3 / w1;
+            if (ratio > worstRatio) { worstRatio = ratio; worstDecay = decay; worstSh = shAmt; }
+            std::printf ("   decay %3.0f  shimmer %3.0f   1-2s %.2e   4-5s %.2e   8-9s %.2e   (%.1f dB over 7 s)\n",
+                         (double) decay, (double) shAmt, (double) w1, (double) w2, (double) w3,
+                         20.0 * std::log10 (std::max (1e-12f, ratio)));
+        }
+    std::printf ("   worst survival: %.1f dB over 7 s at decay %.0f shimmer %.0f\n",
+                 20.0 * std::log10 (std::max (1e-12f, worstRatio)), (double) worstDecay, (double) worstSh);
+}
+
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+/*  TUBE's BLEND: DRIVE used to BE the dry/wet, so "full wet, gentle drive" and
+    "a hint of hard drive" were both unreachable - the parity gap against
+    Photo-Synth's satDry/satWet. BLEND=MANUAL frees them.
+
+    The Kemper rule is the load-bearing check here: a blob written before this
+    existed carries no "blend" key at all, and must render EXACTLY as it did. */
+static void testMacroOwning()
+{
+    std::printf ("-- MACROS: who owns a destination, and what the ear gets\n");
+    const double fs = 48000;
+    const int N = 4096;
+
+    /*  A rack nobody has rewired: macro 5 holds the dry/wet at -100 %.  The
+        NATIVE panels (Legion, Rite of Passage) read exactly this to decide
+        whether a hand on RACK MIX should move the macro instead. */
+    {
+        Rack r; r.prepare (fs, 512);
+        float depth = 99.0f;
+        const int m = r.macroOwning ("mix", &depth);
+        CHECK (m == 4, "a default rack does not report macro 5 as owning mix");
+        CHECK (std::fabs (depth + 1.0f) < 1e-6f, "the default mix depth is not -100 %");
+        CHECK (r.macroOwning ("echo.time") < 0, "something claims to own an unassigned destination");
+    }
+
+    /*  An explicit assignment is reported by NAME, and it replaces the
+        default rather than sitting beside it. */
+    {
+        Rack r; r.prepare (fs, 512);
+        r.setMacroAssign (0, "echo.time", 0.5f);
+        float depth = 0.0f;
+        CHECK (r.macroOwning ("echo.time", &depth) == 0, "an assignment is not reported back");
+        CHECK (std::fabs (depth - 0.5f) < 1e-6f, "the reported depth is not the one assigned");
+    }
+
+    /*  getMixEffective is the whole point: the base is what the panel used
+        to show, and it is NOT what the ear gets once a macro maps it.
+        mix = 1 + macro * (-1), so macro 0.25 lands on 0.75. */
+    {
+        /*  An EMPTY rack early-outs before applyMacros ever runs, so
+            mixOff is never stored and the accessor would report the base
+            whether it worked or not.  Give it something to process. */
+        Rack r; r.prepare (fs, 512);
+        r.setEnabled (typeByName ("saturation"), true);
+        std::vector<float> L ((size_t) N, 0.0f), R ((size_t) N, 0.0f);
+        fillTone (L.data(), R.data(), N, fs, 220.0, 0.4f);
+        r.setMacro (4, 0.25f);
+        renderRack (r, L.data(), R.data(), N);
+        const float base = r.getMix();
+        const float eff  = r.getMixEffective();
+        CHECK (std::fabs (base - 1.0f) < 1e-6f, "the base mix moved, and nothing should have moved it");
+        CHECK (std::fabs (eff - 0.75f) < 0.02f, "the effective mix does not follow macro 5");
+        CHECK (std::fabs (eff - base) > 0.1f, "base and effective agree, so the accessor proves nothing");
+    }
+}
+
+static void testTubeBlend()
+{
+    std::printf ("-- TUBE: BLEND frees MIX from DRIVE, and pre-BLEND blobs are untouched\n");
+    const double fs = 48000;
+    const int N = 48000;
+    const int tTube = typeByName ("saturation");
+    CHECK (tTube >= 0, "no saturation module in the registry");
+    if (tTube < 0) return;
+
+    {
+        Rack d; d.prepare (fs, 512);
+        CHECK (d.getParam (tTube, 2) < 0.5f, "BLEND does not default to DRIVE-LINKED");
+    }
+
+    auto renderRack220 = [&] (Rack& r, std::vector<float>& L, std::vector<float>& R)
+    {
+        L.assign ((size_t) N, 0.0f); R.assign ((size_t) N, 0.0f);
+        fillTone (L.data(), R.data(), N, fs, 220.0, 0.4f);
+        renderRack (r, L.data(), R.data(), N);
+    };
+    auto same = [&] (const std::vector<float>& a, const std::vector<float>& b)
+    { return std::memcmp (a.data(), b.data(), a.size() * sizeof (float)) == 0; };
+    /*  From a quarter in: the two paths reach the same blend by different
+        glides (DRIVE smooths, MIX smooths), so the opening transient differs
+        even where the settled arithmetic is identical. Measuring it was the
+        probe being wrong, not the code. */
+    auto apart = [&] (const std::vector<float>& a, const std::vector<float>& b)
+    {
+        double num = 0, den = 0;
+        for (size_t i = a.size() / 4; i < a.size(); ++i)
+        { const double d0 = (double) a[i] - b[i]; num += d0 * d0; den += (double) a[i] * a[i]; }
+        return std::sqrt (num / std::max (1e-12, den));
+    };
+
+    // ---- a blob from before BLEND existed, made by deleting the two new keys
+    std::vector<float> Lold, Rold, Lnew, Rnew;
+    {
+        Rack a; a.prepare (fs, 512);
+        a.setEnabled (tTube, true);
+        a.setParam (tTube, 0, 14.0f);
+        std::string blob = a.toJson();
+        const std::string newKeys = ",\"blend\":0,\"mix\":50";
+        const bool found = blob.find (newKeys) != std::string::npos;
+        CHECK (found, "the blob does not carry blend+mix where expected - the strip below is vacuous");
+        if (found) blob.erase (blob.find (newKeys), newKeys.size());
+
+        Rack old; old.prepare (fs, 512);
+        old.fromJson (blob);
+        renderRack220 (old, Lold, Rold);
+
+        Rack cur; cur.prepare (fs, 512);
+        cur.setEnabled (tTube, true);
+        cur.setParam (tTube, 0, 14.0f);
+        cur.setParam (tTube, 2, 0.0f);
+        renderRack220 (cur, Lnew, Rnew);
+        CHECK (same (Lold, Lnew) && same (Rold, Rnew),
+               "a pre-BLEND blob does not render identically to DRIVE-LINKED (residual %.3e)",
+               apart (Lold, Lnew));
+    }
+
+    // ---- MANUAL fed the linked value IS the linked path: same arithmetic, not a second one
+    {
+        const float drive = 12.0f;
+        std::vector<float> La, Ra, Lb, Rb;
+        Rack a; a.prepare (fs, 512); a.setEnabled (tTube, true);
+        a.setParam (tTube, 0, drive); a.setParam (tTube, 2, 0.0f);
+        renderRack220 (a, La, Ra);
+        Rack b; b.prepare (fs, 512); b.setEnabled (tTube, true);
+        b.setParam (tTube, 0, drive); b.setParam (tTube, 2, 1.0f);
+        b.setParam (tTube, 3, 100.0f * drive / 24.0f);
+        renderRack220 (b, Lb, Rb);
+        CHECK (apart (La, Lb) < 1e-4, "MANUAL at the linked mix is not the linked path (residual %.3e)", apart (La, Lb));
+    }
+
+    // ---- and it is a real control, not a wire to nothing
+    {
+        const float drive = 8.0f;
+        std::vector<float> L0, R0, L1, R1;
+        Rack a; a.prepare (fs, 512); a.setEnabled (tTube, true);
+        a.setParam (tTube, 0, drive); a.setParam (tTube, 2, 1.0f); a.setParam (tTube, 3, 0.0f);
+        renderRack220 (a, L0, R0);
+        Rack b; b.prepare (fs, 512); b.setEnabled (tTube, true);
+        b.setParam (tTube, 0, drive); b.setParam (tTube, 2, 1.0f); b.setParam (tTube, 3, 100.0f);
+        renderRack220 (b, L1, R1);
+        const double d1 = apart (L0, L1);
+        CHECK (d1 > 0.2, "MIX 0 and MIX 100 barely differ under MANUAL (%.3f apart)", d1);
+        std::printf ("   MANUAL mix 0 vs 100 at DRIVE 8: %.2f apart\n", d1);
+    }
+
+    // ---- the thing that was unreachable: full wet at a gentle drive
+    {
+        std::vector<float> Ll, Rl, Lm, Rm;
+        Rack a; a.prepare (fs, 512); a.setEnabled (tTube, true);
+        a.setParam (tTube, 0, 2.0f); a.setParam (tTube, 2, 0.0f);           // linked: m = 2/24
+        renderRack220 (a, Ll, Rl);
+        Rack b; b.prepare (fs, 512); b.setEnabled (tTube, true);
+        b.setParam (tTube, 0, 2.0f); b.setParam (tTube, 2, 1.0f); b.setParam (tTube, 3, 100.0f);
+        renderRack220 (b, Lm, Rm);
+        const double d2 = apart (Ll, Lm);
+        CHECK (d2 > 0.05, "full wet at DRIVE 2 is still unreachable (%.3f apart from linked)", d2);
+        std::printf ("   DRIVE 2 dB, linked vs full wet: %.2f apart (was unreachable)\n", d2);
+    }
+}
+
 int main (int argc, char** argv)
 {
     // `bwfxtest --desc` prints descriptorJson() so the UI fragment's
@@ -1748,9 +1993,12 @@ int main (int argc, char** argv)
     testSpectra();
     testSpectraPhaseB();
     testTubeDriveNeutral();
+    testTubeBlend();
+    testMacroOwning();
     testPresets();
     testPresenceAndMorph();
     testReverbLive();
+    testShimmerDecays();
     testFuzz();
 
     std::printf ("\n%d checks, %d failures\n", checks, failures);

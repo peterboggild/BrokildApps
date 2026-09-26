@@ -12,15 +12,6 @@ namespace
         return r;
     }
 
-    juce::WebBrowserComponent::Resource bwfxResource()   // the shared BWFX rack overlay
-    {
-        juce::WebBrowserComponent::Resource r;
-        r.data.resize ((size_t) BinaryData::bwfxrack_jsSize);
-        std::memcpy (r.data.data(), BinaryData::bwfxrack_js, (size_t) BinaryData::bwfxrack_jsSize);
-        r.mimeType = "application/javascript";
-        return r;
-    }
-
     juce::WebBrowserComponent::Options buildOptions (HairfryerAudioProcessor& p)
     {
         using BO = juce::WebBrowserComponent::Options;
@@ -31,7 +22,6 @@ namespace
             .withResourceProvider ([] (const juce::String& path) -> std::optional<juce::WebBrowserComponent::Resource>
             {
                 if (path == "/" || path == "/index.html" || path == "/ui.html") return uiResource();
-                if (path == "/bwfx-rack.js") return bwfxResource();
                 return std::nullopt;
             })
             .withEventListener ("hf", [&p] (juce::var payload) { p.handleUiMessage (payload); });

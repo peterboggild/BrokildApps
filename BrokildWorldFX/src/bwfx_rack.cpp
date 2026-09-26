@@ -286,6 +286,11 @@ float Rack::getPresence (int type) const
 }
 void Rack::getOrder (int* types) const { unpackOrder (orderPacked.load (std::memory_order_relaxed), types); }
 float Rack::getMix() const { return mixIn.load (std::memory_order_relaxed); }
+float Rack::getMixEffective() const
+{
+    return clampf (mixIn.load (std::memory_order_relaxed)
+                 + mixOff.load (std::memory_order_relaxed), 0.0f, 1.0f);
+}
 
 // Audio characters run BEFORE the pedal chain: a character possesses the
 // synth itself, and the pedals then shape the possessed sound. Each armed
