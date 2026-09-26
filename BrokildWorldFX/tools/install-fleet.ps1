@@ -65,6 +65,10 @@ $plugins = @(
   # Hats Off: the third of the trilogy, the same arrangement (vst3-apps\hats-off\plugin)
   @{ dir = "HatsOff";          name = "Hats Off";           group = "Beetmachine collection";
      build = "C:\Users\peter\b\_build\HatsOff\plugin" }
+  # Beetmachine: the kit that plays all three - eight slots, each a real instance
+  # of one of the drums above, compiled from their own source (vst3-apps\beetmachine\plugin)
+  @{ dir = "Beetmachine";      name = "Beetmachine";        group = "Beetmachine collection";
+     build = "C:\Users\peter\b\_build\Beetmachine\plugin" }
   # Clone Wars is deliberately absent: its binary comes from a CI-built zip,
   # never a local build (house rule).
 )

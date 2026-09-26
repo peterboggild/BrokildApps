@@ -33,7 +33,8 @@ const DIRS = ["ArtefactB2311_1", "ArtefactB2311", "ArtefactB2311_67", "ArtefactB
               { name: "RiteOfPassage",      root: SITE + "/vst3-apps/rite-of-passage/plugin" },
               { name: "Kickstart",          root: SITE + "/vst3-apps/kickstart/plugin" },
               { name: "SnareTactics",       root: SITE + "/vst3-apps/snare-tactics/plugin" },
-              { name: "HatsOff",            root: SITE + "/vst3-apps/hats-off/plugin" }];
+              { name: "HatsOff",            root: SITE + "/vst3-apps/hats-off/plugin" },
+  { name: "Beetmachine",        root: SITE + "/vst3-apps/beetmachine/plugin" }];
 
 let bad = 0;
 const claimed = new Set();
