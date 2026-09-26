@@ -69,6 +69,38 @@ int main (int argc, char** argv)
     ed->selectSlot (2);
     check (drumPanel() != nullptr, "changing the selected slot's drum swaps its panel without crashing");
 
+    //  --- what a DAW session does, each followed by "is the panel there?" ---
+    //  (Peter saw "SLOT 1 IS EMPTY" on a Kickstart slot in the host.)
+    std::printf ("\nsession replay\n");
+    auto panelFor = [&] (int s, const char* what) {
+        ed->selectSlot (s);
+        auto* d = drumPanel();
+        check (d != nullptr, juce::String (what) + ": slot " + juce::String (s + 1) + " shows its drum's panel");
+    };
+    panelFor (0, "first open");
+    p.setSlotPreset (0, 8);                                  panelFor (0, "after a preset change");
+    p.loadKit (1);                                           panelFor (0, "after loading another kit");
+    p.setSlotType (0, beet::EMPTY);  ed->selectSlot (0);
+    p.setSlotType (0, beet::KICK);                           panelFor (0, "emptied and refilled");
+    {
+        juce::MemoryBlock mb; p.getStateInformation (mb);
+        p.setStateInformation (mb.getData(), (int) mb.getSize());
+    }                                                        panelFor (0, "after the project reloads its state");
+    ed.reset();                                              // the DAW closes the window
+    ed.reset (dynamic_cast<BeetEditor*> (p.createEditor()));
+    ed->setSize (beetui::W, beetui::H);                      panelFor (0, "window closed and reopened");
+    panelFor (4, "then another slot");
+    panelFor (0, "and back");
+    {
+        //  the host reloads state while the window is CLOSED, then opens it
+        juce::MemoryBlock mb; p.getStateInformation (mb);
+        ed.reset();
+        p.setStateInformation (mb.getData(), (int) mb.getSize());
+        ed.reset (dynamic_cast<BeetEditor*> (p.createEditor()));
+        ed->setSize (beetui::W, beetui::H);
+    }                                                        panelFor (0, "state loaded with the window closed");
+    for (int s = 0; s < beet::NUM_SLOTS; ++s)                panelFor (s, "every slot in turn");
+
     ed.reset();
     std::printf ("\n%s\n\n", fails == 0 ? "ALL CLEAR" : "FAILURES");
     return fails == 0 ? 0 : 1;

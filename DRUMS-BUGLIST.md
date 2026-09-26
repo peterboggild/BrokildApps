@@ -1,0 +1,73 @@
+# The drum family - list (Kickstart, Snare Tactics, Hats Off, Beetmachine)
+
+House rule: things get **collected here** and built in batches when Peter says go.
+One list for the four, because most items span them: Beetmachine shows each drum's
+OWN panel, so anything done to a drum's panel shows up inside Beetmachine too.
+
+---
+
+## 1. Reskin the three daughter VST3s in the machine style (awaiting go)
+
+Peter, 2026-09-26: "wouldn't it make sense if the three daughter VST3s were styled in the
+same way, aesthetically?" Yes - the art for it is already delivered, in `assets/drum-decals/`
+(brief: BRIEF.md, delivery note: DELIVERED.md, crop rectangles: manifest.json):
+
+- **Kickstart** = the steam pile-driver: `kickstart-ground.png` (red-lead primer on cast iron),
+  `kickstart-nameplate.png` (raised cast-iron letters).
+- **Snare Tactics** = military field gear: `snare-tactics-ground.png` (olive drab),
+  `snare-tactics-nameplate.png` (white stencil on olive).
+- **Hats Off** = the lathe in a cymbal foundry: `hats-off-ground.png` (machine-tool grey-green),
+  `hats-off-nameplate.png` (engraved brass).
+- **Shared parts**, the same as Beetmachine uses: bakelite knobs (red for DRIVE), the palm HIT
+  button, jewel lamps, label tape, the chicken-head selector for stepped choices (ENGINE, KEYS).
+
+How: each drum's panel is native JUCE drawn by its own LookAndFeel (KsLook / StLook / HoLook), so
+it is a reskin of an existing layout - the geometry does not move - not a redesign. Beetmachine's
+`BeetLook` + `tools/ingest-decals.ps1` are the working pattern to copy (nine-slice for framed parts,
+knobs rotated from a pointer-up decal with an amber mark on the scale so the setting stays readable).
+
+Known limits of the delivery, to honour in every panel:
+- The switch/button "pressed" drawings are NOT registered with the "up" ones (they jump) - use the
+  UP drawing and press it in code. The lamp on/off pairs ARE registered.
+- A steel knob skirt over the scale made settings unreadable in Beetmachine - left out there.
+
+Coordinate with whoever owns the drums' trees at the time (another session built them).
+
+## 2. A drive for the whole kit? (question, 2026-09-26)
+
+Peter: "is there a global drive on some kits? I cannot see any such control."
+**There isn't one.** Each drum has its own DRIVE section inside its own panel (the four Battlestar
+engines IDLE BURN / HYPERDRIVE / RAZOR WING / SUPERNOVA, with DRIVE and COLOUR), and a kit only sets
+what each drum's preset sets. Beetmachine itself adds level, pan, chokes and routing, no processing.
+Possible addition: a BUS DRIVE on Beetmachine's main mix (one of the same four engines, one knob,
+maybe a parallel blend), so a whole kit can be pushed together - the way drums are often crushed as a
+bus. Would sit in the header beside MASTER. Awaiting Peter's call.
+
+## 3. Beetmachine: a proper BEETMACHINE nameplate
+
+The delivered plate reads BEET (ordered before the rename). Today the blank enamel plate is lettered
+BEETMACHINE in code. Order one plate: "BEETMACHINE in white on a black enamel sign, chipped, four
+rivets", same prompt style as BRIEF.md sheet 8.
+
+## 4. Beetmachine: per-slot articulation (idea)
+
+Send Hats Off's closed / pedal / open / bell / edge, or Snare Tactics' snare / rim / cross-stick / clap,
+from one slot's choice - so one hi-hat preset can be closed in slot 5 and open in slot 6. Needs the
+drum's KEYS on GM KIT; Beetmachine already reads KEYS live.
+
+## 5. Beetmachine: the drum's own HIT pad does not choke other slots (known)
+
+The pad inside a drum's panel plays that drum directly, so Beetmachine never sees the hit: no lamp,
+no chokes. Beetmachine's own palm button on the slot does both.
+
+---
+
+## SHIPPED
+
+- **Beetmachine 260926.2** (2026-09-26): a slot selected for the SECOND time showed "SLOT n IS EMPTY"
+  (Peter, in the host). JUCE's editor destructor does not tell its processor it is gone - the host
+  must call `editorBeingDeleted()` first, and inside Beetmachine, Beetmachine is the host. The drum
+  kept a dangling "active editor" and refused to make another. Fixed, and `beetshot` now replays a
+  DAW session (reopen, preset, kit, empty/refill, state load open and closed, every slot twice).
+  Same build: the NOTES readout said CUSTOM over a plain C3 row - the layout is now computed from the
+  notes instead of stored.

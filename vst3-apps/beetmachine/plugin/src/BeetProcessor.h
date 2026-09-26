@@ -76,7 +76,20 @@ public:
 
     //  notes
     enum { MAP_C3 = 0, MAP_GM, MAP_CUSTOM };
-    int  noteMap() const                      { return noteMapMode.load(); }
+    //  what the notes ARE, worked out from the notes themselves - a stored flag
+    //  went stale (LEARN and a project load set it without checking) and read
+    //  CUSTOM over a plain C3 row
+    int  noteMap() const
+    {
+        bool c3 = true, gm = true;
+        for (int s = 0; s < beet::NUM_SLOTS; ++s)
+        {
+            const int n = slots[(size_t) s].note.load();
+            c3 = c3 && n == beet::C3_ROW[s];
+            gm = gm && n == beet::GM_ROW[s];
+        }
+        return c3 ? MAP_C3 : gm ? MAP_GM : MAP_CUSTOM;
+    }
     void setNoteMap (int map);
     void learnNote (int s)                    { learnSlot = s; }
     int  learningSlot() const                 { return learnSlot.load(); }

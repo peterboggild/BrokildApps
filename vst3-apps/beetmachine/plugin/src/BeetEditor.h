@@ -84,6 +84,7 @@ private:
 
     void timerCallback() override;
     void syncChild();
+    void releaseChild();
     void refreshHeader();
 
     BeetProcessor& p;

@@ -336,8 +336,7 @@ BeetEditor::BeetEditor (BeetProcessor& proc)
 BeetEditor::~BeetEditor()
 {
     stopTimer();
-    child.reset();                 // the drum's editor goes before anything it points at
-    childOwner = nullptr;
+    releaseChild();                // the drum's editor goes before anything it points at
     p.collectGarbage();
     for (auto& c : cards) c.reset();
     content.setLookAndFeel (nullptr);
@@ -461,16 +460,28 @@ void BeetEditor::selectSlot (int s)
     syncChild();
 }
 
+//  Closing a drum's panel the way a host must. JUCE's editor destructor does
+//  NOT tell its processor it is gone - the HOST calls editorBeingDeleted()
+//  first, and here Beetmachine is the host. Without it the drum keeps a
+//  dangling "active editor", refuses to create another one, and the slot shows
+//  as empty the second time it is selected (Peter, 2026-09-26).
+void BeetEditor::releaseChild()
+{
+    if (child != nullptr && childOwner != nullptr)
+        childOwner->editorBeingDeleted (child.get());
+    child.reset();
+    childOwner = nullptr;
+}
+
 void BeetEditor::syncChild()
 {
     auto* want = p.slotProcessor (selected);
     if (want == childOwner && (want == nullptr) == (child == nullptr)) return;
 
-    child.reset();                           // let go of the old drum's editor FIRST
-    childOwner = nullptr;
+    releaseChild();                           // let go of the old drum's editor FIRST
     if (want != nullptr)
     {
-        child.reset (want->createEditorIfNeeded());
+        child.reset (want->createEditorAndMakeActive());
         childOwner = want;
         if (child != nullptr)
         {
