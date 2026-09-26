@@ -1,23 +1,16 @@
 #include "BeetLook.h"
-#if BEET_HAS_ART
- #include "BeetArt.h"
-#endif
+#include "MachineArt.h"
 
 using namespace beetcol;
 
+//  one parts set for the whole drum family (vst3-apps/machine-art); two of
+//  Beetmachine's own names map onto the shared files
 juce::Image BeetLook::art (const char* file)
 {
-   #if BEET_HAS_ART
-    for (int i = 0; i < BeetArt::namedResourceListSize; ++i)
-        if (juce::String (BeetArt::originalFilenames[i]) == file)
-        {
-            int size = 0;
-            if (const char* data = BeetArt::getNamedResource (BeetArt::namedResourceList[i], size))
-                return juce::ImageCache::getFromMemory (data, size);
-        }
-   #endif
-    juce::ignoreUnused (file);
-    return {};
+    const juce::String f (file);
+    if (f == "ground.jpg") return machineart::image ("ground-beet.jpg");
+    if (f == "plate.png")  return machineart::image ("plate-blank.png");
+    return machineart::image (file);
 }
 
 void BeetLook::drawNineSlice (juce::Graphics& g, const juce::Image& img, juce::Rectangle<float> d, int b, float db)

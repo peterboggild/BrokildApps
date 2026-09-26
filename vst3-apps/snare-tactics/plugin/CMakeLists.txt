@@ -10,7 +10,7 @@ cmake_minimum_required(VERSION 3.22)
 
 # The build id goes on the face of the plugin. Bump it AND re-run
 # cmake -S . -B <dir>, or it does not take.
-set(ST_BUILD_ID "260926.1")
+set(ST_BUILD_ID "260926.2")
 project(SnareTactics VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -49,6 +49,10 @@ juce_add_plugin(SnareTactics
     VST3_CATEGORIES          "Instrument" "Drum")
 
 juce_generate_juce_header(SnareTactics)
+
+# the drum family's shared machine-style parts (vst3-apps/machine-art)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../machine-art/machine-art.cmake")
+brokild_add_machine_art(SnareTactics)
 
 target_sources(SnareTactics PRIVATE
     src/PluginProcessor.cpp

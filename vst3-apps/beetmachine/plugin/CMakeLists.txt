@@ -4,7 +4,7 @@ project(Beetmachine VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Bump it AND re-run
 # `cmake -S . -B <dir>` or it will not take.
-set(BEET_BUILD_ID "260926.2")
+set(BEET_BUILD_ID "260926.3")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -84,14 +84,10 @@ juce_add_plugin(Beetmachine
 
 juce_generate_juce_header(Beetmachine)
 
-file(GLOB BEET_DECALS "${CMAKE_CURRENT_SOURCE_DIR}/art/*.png" "${CMAKE_CURRENT_SOURCE_DIR}/art/*.jpg")
-list(LENGTH BEET_DECALS BEET_DECAL_COUNT)
-message(STATUS "Beetmachine: ${BEET_DECAL_COUNT} decal file(s) embedded (re-run configure after adding art)")
-if(BEET_DECAL_COUNT GREATER 0)
-    juce_add_binary_data(BeetmachineArt HEADER_NAME BeetArt.h NAMESPACE BeetArt SOURCES ${BEET_DECALS})
-    target_link_libraries(Beetmachine PRIVATE BeetmachineArt)
-    target_compile_definitions(Beetmachine PUBLIC BEET_HAS_ART=1)
-endif()
+# The drum family's shared machine-style parts (vst3-apps/machine-art). The
+# drums' panels are compiled in here and draw with them too: ONE set.
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../machine-art/machine-art.cmake")
+brokild_add_machine_art(Beetmachine)
 
 target_sources(Beetmachine PRIVATE
     src/BeetProcessor.cpp

@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "MachineArt.h"      // the drum family's shared machine parts
 
 #include <complex>
 
@@ -94,6 +95,14 @@ void HoLook::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h, fl
     arc.addCentredArc (c.x, c.y, r - 2.0f, r - 2.0f, 0.0f, juce::jmin (aFrom, aVal), juce::jmax (aFrom, aVal), true);
     g.setColour (accent);
     g.strokePath (arc, juce::PathStrokeType (3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    {
+        //  the cap: the bakelite knob decal, turned to the value; the drawn cap
+        //  below is the fallback if the art is missing
+        const juce::String file = s.getProperties().getWithDefault ("knob", "knob.png").toString();
+        const float kd = (r - 5.0f) * 2.0f;
+        if (machineart::drawKnob (g, juce::Rectangle<float> (kd, kd).withCentre (c), aVal, file.toRawUTF8(), s.isEnabled()))
+            return;
+    }
     const float cr = r - 8.0f;
     juce::ColourGradient cap (juce::Colour (0xff3a3f47), c.x - cr * 0.5f, c.y - cr * 0.7f,
                               juce::Colour (0xff121417), c.x + cr * 0.4f, c.y + cr * 0.8f, false);
@@ -109,22 +118,15 @@ void HoLook::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h, fl
 
 void HoLook::drawButtonBackground (juce::Graphics& g, juce::Button& b, const juce::Colour&, bool over, bool down)
 {
-    auto r = b.getLocalBounds().toFloat().reduced (0.5f);
-    const bool on = b.getToggleState();
-    const auto accent = b.findColour (juce::TextButton::buttonOnColourId);
-    g.setColour (on ? accent : (down ? kFaint.brighter (0.2f) : (over ? kFaint.brighter (0.1f) : kPanel2)));
-    g.fillRoundedRectangle (r, 4.0f);
-    g.setColour (on ? accent.brighter (0.3f) : kFaint);
-    g.drawRoundedRectangle (r, 4.0f, 1.0f);
+    //  a steel-bezel push button, lit in its section colour when on
+    machineart::drawSteelButton (g, b.getLocalBounds().toFloat(), b.getToggleState(),
+                                 b.findColour (juce::TextButton::buttonOnColourId), over, down, b.isEnabled());
 }
 
 void HoLook::drawComboBox (juce::Graphics& g, int w, int h, bool, int, int, int, int, juce::ComboBox&)
 {
     auto r = juce::Rectangle<float> (0, 0, (float) w, (float) h).reduced (0.5f);
-    g.setColour (kPanel2);
-    g.fillRoundedRectangle (r, 4.0f);
-    g.setColour (kFaint);
-    g.drawRoundedRectangle (r, 4.0f, 1.0f);
+    machineart::drawTape (g, r);                  // embossed label tape
     juce::Path tri;
     const float ax = (float) w - 14.0f, ay = (float) h * 0.5f;
     tri.addTriangle (ax - 5, ay - 3, ax + 5, ay - 3, ax, ay + 4);
@@ -172,8 +174,7 @@ void HitDisplay::paint (juce::Graphics& g)
     auto b = getLocalBounds().toFloat();
     g.setColour (kBack);
     g.fillRoundedRectangle (b, 8.0f);
-    g.setColour (kFaint);
-    g.drawRoundedRectangle (b.reduced (0.5f), 8.0f, 1.0f);
+    machineart::drawBezel (g, b, 8.0f);
 
     auto area = b.reduced (14.0f, 12.0f).withTrimmedTop (30.0f).withTrimmedBottom (18.0f);
     const float mid = area.getCentreY();
@@ -281,10 +282,7 @@ namespace
 void HitPad::paint (juce::Graphics& g)
 {
     auto b = getLocalBounds().toFloat();
-    g.setColour (kPanel);
-    g.fillRoundedRectangle (b, 8.0f);
-    g.setColour (kFaint);
-    g.drawRoundedRectangle (b.reduced (0.5f), 8.0f, 1.0f);
+    machineart::drawPlate (g, b);
 
     auto m = b.removeFromRight (70.0f).reduced (12.0f, 16.0f);
     auto bar = [&] (juce::Rectangle<float> r, float frac, juce::Colour c, const char* label, const juce::String& val)
@@ -386,6 +384,8 @@ HatsOffEditor::HatsOffEditor (HatsOffProcessor& p)
         k->slider.setColour (juce::Slider::rotarySliderFillColourId, colourFor (s.section, s.id));
         k->slider.setTooltip (s.hint);
         if (juce::String (s.unit) == "bi" || juce::String (s.id) == "pitch") k->slider.getProperties().set ("bipolar", true);
+        if (juce::String (s.section) == "METAL") k->slider.getProperties().set ("knob", "knob-bronze.png");
+        if (juce::String (s.id) == "drive")      k->slider.getProperties().set ("knob", "knob-red.png");
         k->slider.setDoubleClickReturnValue (true, s.def);
         k->label.setText (s.label, juce::dontSendNotification);
         k->label.setJustificationType (juce::Justification::centred);
@@ -644,13 +644,22 @@ bool HatsOffEditor::keyPressed (const juce::KeyPress& k)
 //==============================================================================
 void HatsOffEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (kBack);
+    //  the machine: a lathe in a cymbal foundry, machine-tool green
+    machineart::drawGround (g, getLocalBounds().toFloat(), "ground-hats.jpg", 0.75f, 0.30f);
     auto head = getLocalBounds().removeFromTop (64);
-    juce::ColourGradient hg (kPanel2, 0, 0, kBack, 0, 64, false);
-    g.setGradientFill (hg);
+    g.setColour (juce::Colours::black.withAlpha (0.35f));
     g.fillRect (head);
     g.setColour (kBrass);
     g.fillRect (0, 62, getWidth(), 2);
+    const auto plate = machineart::drawNameplate (g, { 14.0f, 4.0f, 320.0f, 56.0f }, "plate-hats.png");
+    if (! plate.isEmpty())
+    {
+        g.setColour (kInk.withAlpha (0.7f));
+        g.setFont (mono (11.0f));
+        g.drawText (juce::String ("BROKILD  ") + HO_BUILD_ID, (int) plate.getRight() + 10, 38, 150, 14, juce::Justification::left);
+    }
+    else
+    {
 
     //  the wordmark: a cymbal on edge, then the name
     {
@@ -670,11 +679,11 @@ void HatsOffEditor::paint (juce::Graphics& g)
     g.setColour (kDim);
     g.setFont (mono (11.0f));
     g.drawText (juce::String ("BROKILD  ") + HO_BUILD_ID, 66, 44, 200, 14, juce::Justification::left);
+    }
 
     for (const auto& s : sections)
     {
-        g.setColour (kPanel);
-        g.fillRoundedRectangle (s.r.toFloat(), 8.0f);
+        machineart::drawPlate (g, s.r.toFloat());
         g.setColour (s.colour);
         g.fillRoundedRectangle (s.r.toFloat().removeFromTop (3.0f).reduced (8.0f, 0.0f), 1.5f);
         g.setFont (sans (13.0f, true));
