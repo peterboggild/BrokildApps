@@ -4,7 +4,7 @@ project(Beetmachine VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Bump it AND re-run
 # `cmake -S . -B <dir>` or it will not take.
-set(BEET_BUILD_ID "260926.3")
+set(BEET_BUILD_ID "260926.4")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

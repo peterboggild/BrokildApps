@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Beetmachine — Manual</title>
+<style>
+/* ===========================================================================
+   Beetmachine, the manual.
+
+   Landscape A4, one fixed sheet per .page with overflow hidden - so anything
+   too tall is cut off rather than moved, and tools/shoot-manual.ps1 measures
+   every page before the PDF is trusted. The page is a darker shade of the
+   cabinet's hammer-finish grey-blue; the type is the panel's cream label ink,
+   and the accent is the amber of its jewel lamps.
+   =========================================================================== */
+
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:    #161b20;
+  --ink-2:  #1f262d;
+  --cab:    #34414b;
+  --amber:  #ffb23e;
+  --lamp:   #ffcf7a;
+  --red:    #e0452f;
+  --body:   #cfcabf;
+  --dim:    #8e8b83;
+  --white:  #e9e4d8;
+  --rule:   rgba(255,178,62,.34);
+  /* the three drums, as they are dressed */
+  --d-kick: #c4502e; --d-snare: #8f9a4a; --d-hats: #c9a24a; --d-beet: #ffb23e;
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; background: var(--ink); }
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body); font-size: 10.8pt; line-height: 1.5;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
+.page{
+  position: relative; width: 297mm; height: 210mm; overflow: hidden;
+  page-break-after: always; background: var(--ink);
+}
+.page:last-child{ page-break-after: auto; }
+.pad{ position:absolute; inset: 14mm 16mm 18mm 16mm; }
+
+/* --- type ------------------------------------------------------------------ */
+.display{
+  font-family: "Segoe UI Black", "Arial Black", "Segoe UI", sans-serif;
+  font-weight: 900; letter-spacing: .09em; line-height: 1;
+  color: var(--white); margin: 0;
+}
+h1.display{ font-size: 54pt; letter-spacing: .1em; }
+h2.display{ font-size: 24pt; }
+
+.kick{
+  font: 700 8.2pt/1 Consolas, "SF Mono", ui-monospace, monospace;
+  letter-spacing: .3em; text-transform: uppercase;
+  color: var(--amber); margin: 0 0 4mm 0;
+}
+.sub{ font-size: 11pt; color: #e3ddd0; margin: 3.5mm 0 0 0; max-width: 190mm; line-height: 1.45; }
+p{ margin: 0 0 3mm 0; }
+b, strong{ color: var(--white); font-weight: 700; }
+em{ color: var(--amber); font-style: normal; font-weight: 600; }
+.mono{ font-family: Consolas, "SF Mono", ui-monospace, monospace; font-size: .92em; color: #efe9dc; }
+
+.rule{
+  height: 3px; border: 0; margin: 5mm 0 6mm 0;
+  background: linear-gradient(90deg, var(--amber) 0%, var(--white) 38%, rgba(233,228,216,.04) 100%);
+}
+
+img{ display:block; max-width:100%; }
+figure{ margin:0; }
+figcaption{ font-size: 8.3pt; color: var(--dim); margin-top: 1.8mm; line-height: 1.4; }
+figcaption b{ color: var(--amber); }
+.shot{ border: 1px solid rgba(255,255,255,.12); border-radius: 3px; }
+
+.cols{ display:flex; gap: 9mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-30{ flex: 0 0 30%; }
+.c-40{ flex: 0 0 40%; }
+.c-55{ flex: 0 0 55%; }
+.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 0 9mm; }
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 4mm 8mm; }
+
+/* --- a control entry ------------------------------------------------------- */
+.knob{ border-left: 3px solid var(--sec, var(--amber)); padding-left: 4.5mm; margin-bottom: 4.6mm; }
+.knob h3{
+  font: 900 10.6pt/1 "Segoe UI Black","Arial Black",sans-serif;
+  letter-spacing: .1em; color: var(--white); margin: 0 0 1.2mm 0;
+}
+.knob h3 .rng{ font: 600 8pt/1 Consolas, monospace; letter-spacing: .04em; color: var(--sec, var(--amber)); margin-left: 2.5mm; }
+.knob p{ margin: 0; font-size: 10pt; line-height: 1.43; }
+
+/* --- boxes ----------------------------------------------------------------- */
+.box{
+  border: 1px solid var(--rule); background: linear-gradient(160deg, rgba(255,178,62,.08), rgba(52,65,75,.22));
+  padding: 4.5mm 5.5mm; border-radius: 3px;
+}
+.box h4{ font: 900 9.6pt/1 "Segoe UI Black","Arial Black",sans-serif; letter-spacing:.12em;
+         color: var(--amber); margin: 0 0 2.2mm 0; }
+.box p{ font-size: 10pt; }
+.box p:last-child{ margin-bottom: 0; }
+.box.stop{ border-color: rgba(224,69,47,.5); background: linear-gradient(160deg, rgba(224,69,47,.10), rgba(52,65,75,.2)); }
+.box.stop h4{ color: var(--red); }
+
+/* --- tables ---------------------------------------------------------------- */
+table{ width:100%; border-collapse: collapse; font-size: 9.8pt; }
+th{ text-align:left; font: 700 7.6pt/1 Consolas, monospace; letter-spacing:.18em;
+    text-transform:uppercase; color: var(--amber); padding: 0 0 1.8mm 0; border-bottom: 1px solid var(--rule); }
+td{ padding: 1.6mm 3mm 1.6mm 0; border-bottom: 1px solid rgba(255,255,255,.07); vertical-align: top; }
+td:first-child{ color: var(--white); font-weight: 600; white-space: nowrap; }
+td.num{ font-family: Consolas, monospace; color: var(--amber); white-space: nowrap; }
+table.kits{ font-size: 8.4pt; table-layout: fixed; }
+table.kits td{ padding: 1.45mm 2mm 1.45mm 0; line-height: 1.25; }
+table.kits th{ letter-spacing: .12em; }
+table.kits td:first-child{ font: 900 8.6pt/1.25 "Segoe UI Black","Arial Black",sans-serif; letter-spacing:.06em; color: var(--amber); }
+
+/* --- contents -------------------------------------------------------------- */
+.toc{ display:flex; gap: 5mm; align-items: baseline; padding: 2.1mm 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+.toc .n{ flex: 0 0 10mm; font: 900 13pt/1 "Segoe UI Black","Arial Black",sans-serif; color: var(--amber); }
+.toc .t{ flex: 0 0 62mm; font-weight: 700; color: var(--white); letter-spacing: .06em; text-transform: uppercase; font-size: 9.4pt; }
+.toc .d{ flex: 1 1 auto; font-size: 9.2pt; color: var(--dim); }
+
+/* --- the drums' own colours on a tag --------------------------------------- */
+.tag{ display:inline-block; font: 700 7.6pt/1 Consolas, monospace; letter-spacing: .14em;
+      padding: 1mm 1.8mm; border-radius: 2px; color: #14181c; background: var(--sec, var(--amber)); }
+
+/* --- page furniture -------------------------------------------------------- */
+.folio{
+  position:absolute; left:16mm; right:16mm; bottom: 7mm;
+  display:flex; justify-content:space-between; align-items:center;
+  font: 600 7.3pt/1 Consolas, monospace; letter-spacing:.2em; text-transform:uppercase;
+  color: rgba(142,139,131,.85); border-top: 1px solid rgba(255,178,62,.2); padding-top: 2.6mm;
+}
+.folio .n{ color: var(--amber); font-weight: 800; letter-spacing: .1em; }
+
+/* --- cover -----------------------------------------------------------------
+   The panel carries its own BEETMACHINE nameplate at the top left. The art is
+   a band across the lower page, cropped to start BELOW that header, so the
+   only title on the page is the one set on plain ink above it. */
+.cover-art{ position:absolute; left:0; right:0; bottom:0; height: 50%; overflow:hidden; }
+.cover-art img{ width:100%; height:100%; object-fit: cover; object-position: center 10%; }
+.cover-fade{ position:absolute; inset:0;
+  background: linear-gradient(180deg, var(--ink) 0%, rgba(22,27,32,.25) 7%, rgba(22,27,32,0) 16%); }
+.cover-top{ position:absolute; left:18mm; right:18mm; top:22mm; }
+</style>
+</head>
+<body>
+
+<!-- ==================================================  1  COVER  ====== -->
+<section class="page">
+  <div class="cover-top">
+    <p class="kick" style="margin-bottom:6mm">Brokild &middot; Windows VST3 &middot; Drum kit instrument</p>
+    <h1 class="display">BEETMACHINE</h1>
+    <hr class="rule" style="margin:7mm 0 5mm 0; max-width:170mm" />
+    <div class="cols" style="align-items:flex-end">
+      <div class="c-55">
+        <p style="font-size:12.5pt; color:#e3ddd0; margin:0">
+          Eight slots, three drum synthesisers, one kit. No samples.
+        </p>
+      </div>
+      <div style="text-align:right">
+        <p class="mono" style="margin:0; color:var(--amber); letter-spacing:.14em">MANUAL &middot; BUILD 260926.4</p>
+      </div>
+    </div>
+  </div>
+  <div class="cover-art">
+    <img src="../../../img/panel.jpg" alt="" />
+    <div class="cover-fade"></div>
+  </div>
+</section>
+
+<!-- ===============================================  2  CONTENTS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Contents</p>
+    <h2 class="display">WHAT IS IN HERE</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <div class="toc"><span class="n">03</span><span class="t">One kit, three drums</span><span class="d">What it is, and the first minute.</span></div>
+        <div class="toc"><span class="n">04</span><span class="t">The slot card</span><span class="d">Everything on one card, top to bottom.</span></div>
+        <div class="toc"><span class="n">05</span><span class="t">Notes</span><span class="d">C3, General MIDI, LEARN, layering.</span></div>
+        <div class="toc"><span class="n">06</span><span class="t">Chokes</span><span class="d">One hit silencing another.</span></div>
+        <div class="toc"><span class="n">07</span><span class="t">Outputs &amp; timing</span><span class="d">MIX, OWN, BOTH, and why it lands on the beat.</span></div>
+        <div class="toc"><span class="n">08</span><span class="t">The drum panels</span><span class="d">Each drum&rsquo;s own panel, inside.</span></div>
+        <div class="toc"><span class="n">09</span><span class="t">The header</span><span class="d">Kits, notes, master, STOP, automation.</span></div>
+        <div class="toc"><span class="n">10</span><span class="t">The ten kits</span><span class="d">Every slot of every kit.</span></div>
+        <div class="toc"><span class="n">11</span><span class="t">Specifications</span><span class="d">The numbers.</span></div>
+      </div>
+      <div>
+        <div class="box">
+          <h4>IN SHORT</h4>
+          <p>Beetmachine is a drum kit. It has eight slots, and each one holds
+          a real copy of one of three Brokild drum synthesisers &mdash;
+          <b>Kickstart</b>, <b>Snare Tactics</b> or <b>Hats Off</b> &mdash;
+          or nothing at all.</p>
+          <p>Click a slot and that drum&rsquo;s own full panel opens underneath.
+          Nothing is sampled: every hit is synthesised as you play it.</p>
+        </div>
+        <div class="box" style="margin-top:6mm">
+          <h4>THE FIRST TEN SECONDS</h4>
+          <p>Open it and play C3 to G3 on a keyboard: that is the whole
+          <b>STUDIO</b> kit. Then press <b>&gt;</b> beside <b>KIT</b> and play
+          them again.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Beetmachine &middot; Manual</span><span class="n">02</span></div>
+</section>
+
+<!-- ============================================  3  WHAT IT IS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">What it is</p>
+    <h2 class="display">ONE KIT, THREE DRUMS</h2>
+    <hr class="rule" />
+    <figure>
+      <img class="shot" src="../../../img/strip.jpg" alt="" />
+      <figcaption><b>The kit strip.</b> The header, then eight slot cards. The
+      STUDIO kit: two Kickstarts, two Snare Tactics, four Hats Off.</figcaption>
+    </figure>
+    <div class="cols" style="margin-top:6mm">
+      <div>
+        <p>An occupied slot runs a <b>real copy</b> of that drum, built from the
+        drum&rsquo;s own source &mdash; not a cut-down version of it. Whatever
+        the drum can do on its own, it can do here.</p>
+        <p>An <b>empty slot costs nothing</b>: there is no drum in it to run.
+        Eight empty slots measure 0.011 % of one core.</p>
+        <p>There is a convention, and it is not enforced: kicks in slots 1&ndash;2,
+        snares in 3&ndash;4, hi-hats, ride, crash and splash in 5&ndash;8. Any
+        slot can hold any drum.</p>
+      </div>
+      <div>
+        <div class="knob" style="--sec:var(--d-kick)"><h3>1 &middot; INSTALL</h3>
+          <p>Copy <b>Beetmachine.vst3</b> into
+          <span class="mono">C:\Program Files\Common Files\VST3\</span> and
+          rescan. The standalone needs no installing.</p></div>
+        <div class="knob" style="--sec:var(--d-snare)"><h3>2 &middot; PLAY</h3>
+          <p>Slot 1 is on C3, slot 8 on G3. Or click the black <b>HIT</b>
+          button on any card.</p></div>
+        <div class="knob" style="--sec:var(--d-hats)"><h3>3 &middot; EDIT</h3>
+          <p>Click a card. That drum&rsquo;s own panel opens below the strip,
+          with every control it has.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>One kit, three drums</span><span class="n">03</span></div>
+</section>
+
+<!-- ============================================  4  THE SLOT CARD  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Anatomy</p>
+    <h2 class="display">THE SLOT CARD</h2>
+    <hr class="rule" style="margin-bottom:5mm" />
+    <div class="cols" style="gap:10mm">
+      <div style="flex:0 0 84mm">
+        <figure>
+          <img class="shot" src="../../../img/card-selected.jpg" alt="" style="width:84mm" />
+          <figcaption><b>Slot 5, selected.</b> The amber rim marks the card whose
+          panel is open below.</figcaption>
+        </figure>
+      </div>
+      <div class="grid2" style="gap:0 8mm">
+        <div>
+          <div class="knob"><h3>NUMBER &amp; TYPE</h3>
+            <p>The slot&rsquo;s number, and what it holds: <b>EMPTY</b>,
+            <b>KICKSTART</b>, <b>SNARE TACTICS</b> or <b>HATS OFF</b>.</p></div>
+          <div class="knob"><h3>PRESET &nbsp;&lt; &gt;</h3>
+            <p>The drum&rsquo;s own factory presets. The arrows step through
+            them; the name opens the list.</p></div>
+          <div class="knob"><h3>HIT &amp; LAMP</h3>
+            <p>The black palm button plays the slot. The amber jewel lamp
+            beside it lights on every hit, from MIDI too. Then the slot&rsquo;s
+            note.</p></div>
+          <div class="knob"><h3>&minus; &nbsp;+ &nbsp;LEARN</h3>
+            <p>Note down or up a semitone. <b>LEARN</b>: press it, then play a
+            key &mdash; that key now triggers this slot.</p></div>
+        </div>
+        <div>
+          <div class="knob"><h3>LEVEL &amp; PAN</h3>
+            <p>The amber mark on each knob&rsquo;s scale shows its setting.
+            Double-click: <b>0 dB</b>, and <b>centre</b>.</p></div>
+          <div class="knob"><h3>M &amp; S</h3>
+            <p>Mute and solo. While any slot is soloed, only soloed slots
+            sound.</p></div>
+          <div class="knob"><h3>CHOKED BY 1&ndash;8</h3>
+            <p>Light another slot&rsquo;s number and a hit there silences this
+            one. The card&rsquo;s own number is dimmed: a slot cannot choke
+            itself. See page 6.</p></div>
+          <div class="knob"><h3>OUT</h3>
+            <p><b>MIX</b>, <b>OWN</b> or <b>BOTH</b>: where the slot&rsquo;s
+            sound goes. See page 7.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The slot card</span><span class="n">04</span></div>
+</section>
+
+<!-- ==================================================  5  NOTES  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">MIDI</p>
+    <h2 class="display">NOTES</h2>
+    <p class="sub">One note per slot. Two rows are built in; any slot can be moved.</p>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <table>
+          <tr><th>Slot</th><th>Convention</th><th>C3 row</th><th>GM row</th></tr>
+          <tr><td>1</td><td>kick</td><td class="num">C3 &middot; 60</td><td class="num">C1 &middot; 36</td></tr>
+          <tr><td>2</td><td>kick</td><td class="num">C#3 &middot; 61</td><td class="num">B0 &middot; 35</td></tr>
+          <tr><td>3</td><td>snare</td><td class="num">D3 &middot; 62</td><td class="num">D1 &middot; 38</td></tr>
+          <tr><td>4</td><td>snare</td><td class="num">D#3 &middot; 63</td><td class="num">E1 &middot; 40</td></tr>
+          <tr><td>5</td><td>closed hat</td><td class="num">E3 &middot; 64</td><td class="num">F#1 &middot; 42</td></tr>
+          <tr><td>6</td><td>open hat</td><td class="num">F3 &middot; 65</td><td class="num">A#1 &middot; 46</td></tr>
+          <tr><td>7</td><td>ride</td><td class="num">F#3 &middot; 66</td><td class="num">D#2 &middot; 51</td></tr>
+          <tr><td>8</td><td>crash</td><td class="num">G3 &middot; 67</td><td class="num">C#2 &middot; 49</td></tr>
+        </table>
+        <p style="margin-top:3.5mm; font-size:8.8pt; color:var(--dim)">Note names
+        follow Ableton Live, where C3 is MIDI note 60.</p>
+      </div>
+      <div>
+        <div class="knob"><h3>C3 &amp; GM</h3>
+          <p><b>C3</b> puts the kit on eight neighbouring keys from C3 up.
+          <b>GM</b> sets the General MIDI drum notes, so a MIDI file or groove
+          written for GM plays the right drums. Once any note has been moved,
+          the header reads <b>CUSTOM</b>.</p></div>
+        <div class="knob"><h3>&minus; &nbsp;+ &nbsp;LEARN</h3>
+          <p>Nudge a slot a semitone at a time, or press <b>LEARN</b> and play
+          the key you want.</p></div>
+        <div class="knob"><h3>LAYERING</h3>
+          <p>Two slots on the same note both play. Put a Kickstart and a
+          Snare Tactics on one key and it is one hit.</p></div>
+        <div class="box" style="margin-top:4mm">
+          <h4>KEYS STILL WORKS</h4>
+          <p>Each drum&rsquo;s own <b>KEYS</b> switch still works in its panel.
+          Whatever it is set to, Beetmachine plays the sound dialled on that
+          drum.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Notes</span><span class="n">05</span></div>
+</section>
+
+<!-- =================================================  6  CHOKES  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">One hit silencing another</p>
+    <h2 class="display">CHOKES</h2>
+    <hr class="rule" />
+    <div class="cols" style="gap:10mm">
+      <div style="flex:0 0 84mm">
+        <figure>
+          <img class="shot" src="../../../img/card-choke.jpg" alt="" style="width:84mm" />
+          <figcaption><b>Slot 6, the open hat.</b> The lit <b>5</b> in CHOKED
+          BY: a hit on the closed hat silences it.</figcaption>
+        </figure>
+      </div>
+      <div>
+        <p>A real open hi-hat stops ringing the moment the pedal closes it. A
+        kit without that sounds wrong straight away, and this is how
+        Beetmachine does it.</p>
+        <div class="knob"><h3>CHOKED BY</h3>
+          <p>On each card, light any other slot&rsquo;s number. A hit on that
+          slot now silences this one, with a <b>3 ms</b> fade so it does not
+          click. Light several numbers and any of them will do it.</p></div>
+        <div class="knob"><h3>AFTERWARDS</h3>
+          <p>A choked slot is not switched off. It plays normally on its next
+          hit.</p></div>
+        <div class="knob"><h3>IN THE KITS</h3>
+          <p>In every kit the open hat in slot 6 is choked by the closed hat in
+          slot 5. <b>LO-FI</b> also chokes its splash, slot 8, from the ride in
+          slot 7.</p></div>
+        <div class="box" style="margin-top:4mm">
+          <h4>TRY THIS</h4>
+          <p>Light <b>2</b> on the crash in slot 8. Now a hit on the second kick
+          grabs the crash &mdash; a stop hit, the way a drummer would catch the
+          cymbal.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Chokes</span><span class="n">06</span></div>
+</section>
+
+<!-- ======================================  7  OUTPUTS & TIMING  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Routing</p>
+    <h2 class="display">OUTPUTS &amp; TIMING</h2>
+    <p class="sub">Stereo is the default. Eight more stereo outputs, one per slot, are there when you want them.</p>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <table>
+          <tr><th>OUT</th><th>Where the slot goes</th></tr>
+          <tr><td>MIX</td><td>The main stereo mix. Every slot starts here.</td></tr>
+          <tr><td>OWN</td><td>Only the slot&rsquo;s own stereo output pair. It is taken out of the mix, so it is not heard twice.</td></tr>
+          <tr><td>BOTH</td><td>The main mix and its own pair.</td></tr>
+        </table>
+        <div class="knob" style="margin-top:5mm"><h3>ENABLING AN OUTPUT</h3>
+          <p>The eight extra pairs are switched off until the host enables
+          one. Hosts list them as <b>Mix</b> and <b>Slot 1</b> to
+          <b>Slot 8</b>; route one to a track in your DAW and it comes up.</p></div>
+        <div class="knob"><h3>OFF IN HOST</h3>
+          <p>A slot set to OWN whose pair is off in the host stays in the mix
+          rather than going silent, and its card says <b>OFF IN HOST</b>.</p></div>
+      </div>
+      <div>
+        <div class="box">
+          <h4>EVERY SLOT ON THE SAME SAMPLE</h4>
+          <p>The three drums have different built-in latencies: at 48 kHz,
+          Kickstart <b>95</b> samples, Snare Tactics <b>95</b>, Hats Off
+          <b>103</b>.</p>
+          <p>Beetmachine delays the quicker ones to match, so drums played
+          together land on the same sample, and it tells the host its latency
+          so the host can compensate.</p>
+        </div>
+        <div class="box" style="margin-top:6mm">
+          <h4>WHAT A KIT DOES NOT TOUCH</h4>
+          <p>Loading a kit changes the sounds, levels, pans and chokes. It never
+          changes your notes or your output routing.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Outputs &amp; timing</span><span class="n">07</span></div>
+</section>
+
+<!-- =========================================  8  THE DRUM PANELS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Full editing</p>
+    <h2 class="display">THE DRUM PANELS</h2>
+    <hr class="rule" style="margin-bottom:5mm" />
+    <div class="grid2" style="gap:0 8mm">
+      <figure>
+        <img class="shot" src="../../../img/panel.jpg" alt="" />
+        <figcaption><b>Slot 1 selected.</b> Kickstart&rsquo;s own panel opens
+        under the strip &mdash; the display, the HIT pad, every section.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="../../../img/panel-hats.jpg" alt="" />
+        <figcaption><b>Slot 5 selected.</b> Hats Off, with its cymbal pad and
+        its CLOSED, PEDAL and OPEN buttons.</figcaption>
+      </figure>
+    </div>
+    <div class="grid3" style="margin-top:5mm; gap:0 8mm">
+      <div class="knob"><h3>CLICK A CARD</h3>
+        <p>That drum&rsquo;s own panel opens below, unchanged: every control,
+        its preset browser, its SAVE and LOAD.</p></div>
+      <div class="knob"><h3>SAVED WITH THE PROJECT</h3>
+        <p>Everything set in a drum&rsquo;s panel is kept with the project. It
+        is not automated control by control.</p></div>
+      <div class="knob"><h3>ONE FAMILY</h3>
+        <p><span class="tag" style="--sec:var(--d-kick)">KICKSTART</span> a red-lead steam pile-driver,
+        <span class="tag" style="--sec:var(--d-snare)">SNARE TACTICS</span> olive-drab field gear,
+        <span class="tag" style="--sec:var(--d-hats)">HATS OFF</span> a lathe in a cymbal foundry.</p></div>
+    </div>
+  </div>
+  <div class="folio"><span>The drum panels</span><span class="n">08</span></div>
+</section>
+
+<!-- ============================================  9  THE HEADER  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Across the top</p>
+    <h2 class="display">THE HEADER</h2>
+    <hr class="rule" style="margin-bottom:5mm" />
+    <figure>
+      <img class="shot" src="../../../img/header.jpg" alt="" />
+      <figcaption><b>The header.</b> Nameplate, KIT, NOTES, MASTER, the build
+      number and the red STOP.</figcaption>
+    </figure>
+    <div class="cols" style="margin-top:6mm">
+      <div class="grid2" style="gap:0 7mm">
+        <div>
+          <div class="knob"><h3>KIT &nbsp;&lt; &gt;</h3>
+            <p>Ten themed kits. The arrows step through them; the name opens
+            the list. The kits are on page 10.</p></div>
+          <div class="knob"><h3>NOTES</h3>
+            <p><b>C3</b> or <b>GM</b>, and <b>CUSTOM</b> once a note has been
+            moved. See page 5.</p></div>
+          <div class="knob" style="--sec:var(--red)"><h3>MASTER</h3>
+            <p>The red knob: the level of the whole kit.</p></div>
+        </div>
+        <div>
+          <div class="box stop">
+            <h4>STOP</h4>
+            <p>The red emergency stop. Every slot fades out at once.</p>
+          </div>
+          <div class="knob" style="margin-top:5mm"><h3>AUTOMATION</h3>
+            <p>The host sees each slot&rsquo;s <b>level</b>, <b>pan</b> and
+            <b>mute</b>, and <b>Master</b>. The drums&rsquo; own controls are
+            saved with the project but not automated one by one.</p></div>
+        </div>
+      </div>
+      <div style="flex:0 0 118mm">
+        <figure>
+          <!-- a close crop of the message: a background, so the plate can be
+               magnified without the image box running off the page -->
+          <div class="shot" role="img" aria-label="An empty slot selected"
+               style="width:118mm; height:42mm; background:#1b1f23 url(../../../img/panel-empty.jpg) no-repeat;
+                      background-size:180mm auto; background-position:-31mm -65.8mm"></div>
+          <figcaption><b>An empty slot selected.</b> No drum, no panel, no CPU.
+          Choose a drum on its card and its panel opens here.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The header</span><span class="n">09</span></div>
+</section>
+
+<!-- ==============================================  10  THE KITS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Ten themed kits</p>
+    <h2 class="display">THE KITS</h2>
+    <hr class="rule" style="margin-bottom:4mm" />
+    <table class="kits">
+      <colgroup><col style="width:25mm" /><col /><col /><col /><col /><col /><col /><col /><col /></colgroup>
+      <tr><th>Kit</th><th>1 kick</th><th>2 kick</th><th>3 snare</th><th>4 snare</th><th>5 hat</th><th>6 open hat</th><th>7</th><th>8</th></tr>
+      <tr><td>STUDIO</td><td>Studio Kick</td><td>Rock Kick</td><td>Studio Snare</td><td>Rock Rim Shot</td><td>Studio Hi-Hat 14</td><td>Loose Hat</td><td>Jazz Ride 20</td><td>Crash 16</td></tr>
+      <tr><td>808</td><td>808 Boom</td><td>808 Short</td><td>808 Snare</td><td>808 Clap</td><td>808 Closed Hat</td><td>808 Open Hat</td><td>808 Cymbal</td><td>606 Hats</td></tr>
+      <tr><td>909</td><td>909 Classic</td><td>909 Hard</td><td>909 Snare</td><td>909 Tight</td><td>909 Closed Hat</td><td>909 Open Hat</td><td>909 Ride</td><td>909 Crash</td></tr>
+      <tr><td>EIGHTIES</td><td>LinnDrum</td><td>DMX</td><td>Big Eighties</td><td>Simmons SDS-V</td><td>LinnDrum Hat</td><td>707 / 727 Hat</td><td>Ride Bell</td><td>Crash 18</td></tr>
+      <tr><td>BOOM BAP</td><td>SP-12 Boom Bap</td><td>MPC60 Thump</td><td>SP-1200 Crack</td><td>MPC60 Break</td><td>SP-1200 Hat</td><td>Loose Hat</td><td>Sizzle Ride</td><td>Crash 18</td></tr>
+      <tr><td>TECHNO</td><td>Techno Rumble</td><td>Hard Techno</td><td>Techno Crush</td><td>Warehouse Clap</td><td>Techno Closed</td><td>Rolling Open Hat</td><td>Detroit Ride</td><td>Minimal Tick</td></tr>
+      <tr><td>DUB</td><td>Clean Sub</td><td>Felt Beater</td><td>Steppers</td><td>Tubby Throw</td><td>Roots Hi-Hat</td><td>Dub Hat Echo</td><td>Skank Hat</td><td>Space Cymbal</td></tr>
+      <tr><td>INDUSTRIAL</td><td>Industrial Crush</td><td>Gabber</td><td>Metal Shop</td><td>EBM Snap</td><td>Hard Techno Hat</td><td>Kraftwerk Metal</td><td>Metal Plate</td><td>China 18</td></tr>
+      <tr><td>TRAP</td><td>Trap 808</td><td>Dubstep Punch</td><td>Trap Snare Clap</td><td>DnB Snare</td><td>Trap Hat</td><td>UKG Shuffle Hat</td><td>Grime Hat</td><td>Halftime Crash</td></tr>
+      <tr><td>LO-FI</td><td>Lo-Fi Dust</td><td>Towel In The Drum</td><td>Lo-Fi Ghost</td><td>Seventies Dead</td><td>Lo-Fi Hat</td><td>Hats In A Room</td><td>Dark Ride 22</td><td>Splash 10</td></tr>
+    </table>
+    <p style="margin-top:4mm; font-size:9.4pt">Slots 1&ndash;2 are Kickstart,
+    3&ndash;4 Snare Tactics and 5&ndash;8 Hats Off in every kit, and every name
+    is one of that drum&rsquo;s own presets. The open hat in slot 6 is choked by
+    the closed hat in slot 5; in LO-FI the splash is also choked by the ride.
+    A kit sets sounds, levels, pans and chokes &mdash; never notes or routing.</p>
+  </div>
+  <div class="folio"><span>The kits</span><span class="n">10</span></div>
+</section>
+
+<!-- ========================================  11  SPECIFICATIONS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The numbers</p>
+    <h2 class="display">SPECIFICATIONS</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <table>
+          <tr><td>Format</td><td>Windows VST3, 64-bit, and a standalone application</td></tr>
+          <tr><td>Type</td><td>Instrument / Drum. MIDI in; a stereo mix plus eight stereo slot outputs</td></tr>
+          <tr><td>Sound</td><td>Fully synthesised. No samples</td></tr>
+          <tr><td>Slots</td><td>Eight. Each empty, Kickstart, Snare Tactics or Hats Off</td></tr>
+          <tr><td>Kits</td><td>Ten themed kits</td></tr>
+          <tr><td>Notes</td><td>C3 row, General MIDI row, or any note per slot</td></tr>
+          <tr><td>Host parameters</td><td>Level, pan and mute per slot, and Master</td></tr>
+          <tr><td>Licence</td><td>AGPLv3. Source at github.com/peterboggild/BrokildApps</td></tr>
+          <tr><td>Price</td><td>Free</td></tr>
+          <tr><td>Build</td><td class="num">260926.4</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3 class="display" style="font-size:11pt; color:var(--amber)">MEASURED</h3>
+        <table style="margin-top:3mm">
+          <tr><td>Eight empty slots</td><td class="num">0.011 % of one core</td></tr>
+          <tr><td>Full kit, all eight hit on every 16th</td><td class="num">40&ndash;46 % of one core</td></tr>
+          <tr><td>Choke fade</td><td class="num">3 ms</td></tr>
+          <tr><td>Latency at 48 kHz</td><td class="num">103 samples</td></tr>
+          <tr><td>Kickstart &middot; Snare Tactics &middot; Hats Off</td><td class="num">95 &middot; 95 &middot; 103</td></tr>
+        </table>
+        <p style="margin-top:4mm; font-size:8.6pt; color:var(--dim)">
+          The CPU of a full kit is the three drums&rsquo; own cost, not
+          Beetmachine&rsquo;s. Every slot is aligned to the slowest drum, and the
+          latency is reported to the host.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Specifications</span><span class="n">11</span></div>
+</section>
+
+<!-- ================================================  12  BACK  ====== -->
+<section class="page">
+  <div style="position:absolute; left:18mm; right:18mm; top:17mm;">
+    <p class="kick">Credits</p>
+    <h2 class="display" style="font-size:28pt">NOW GO AND<br>HIT SOMETHING</h2>
+    <hr class="rule" style="margin:7mm 0 6mm 0; max-width:170mm" />
+    <div class="cols">
+      <div class="c-55">
+        <p>This VST comes from the curved mind of Professor Brokild, and was
+        programmed with VScode, ChatGPT and Claude. Use of this is on your own
+        peril. It may generate unique, beautiful, scary or useless sounds for
+        you, and it may crash your DAW project. Have fun, play unsafely,
+        unwisely, and unboringly.</p>
+        <p style="color:var(--amber)">Cheers, Peter B&oslash;ggild, September 2026.</p>
+        <p style="font-size:8.4pt; color:var(--dim); margin-top:6mm">Drum machine names are
+        trademarks of their owners, used only to describe the sound a preset is
+        in the spirit of. Beetmachine contains no samples of them.</p>
+      </div>
+      <div style="text-align:right">
+        <p class="display" style="font-size:14pt">BROKILD</p>
+        <p style="font-size:9.2pt; color:var(--dim); margin-top:2.5mm">
+          Free, and free to pass on.<br>peterboggild.github.io/BrokildApps</p>
+        <p class="mono" style="margin-top:6mm; color:var(--amber); letter-spacing:.14em">BUILD 260926.4 &middot; WINDOWS VST3</p>
+      </div>
+    </div>
+  </div>
+  <div class="cover-art" style="height:30%">
+    <img src="../../../img/strip.jpg" alt="" style="object-position:center 60%" />
+    <div class="cover-fade"></div>
+  </div>
+</section>
+
+</body>
+</html>

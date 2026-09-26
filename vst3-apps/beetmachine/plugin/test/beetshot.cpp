@@ -16,9 +16,9 @@ static void check (bool ok, const juce::String& what)
     std::printf ("  %s  %s\n", ok ? "ok  " : "FAIL", what.toRawUTF8());
 }
 
-static void shoot (BeetEditor& ed, const juce::File& f)
+static void shoot (BeetEditor& ed, const juce::File& f, float scale = 1.0f)
 {
-    auto img = ed.contentComponent().createComponentSnapshot (ed.contentComponent().getLocalBounds(), true, 1.0f);
+    auto img = ed.contentComponent().createComponentSnapshot (ed.contentComponent().getLocalBounds(), true, scale);
     f.deleteFile();
     juce::FileOutputStream os (f);
     juce::PNGImageFormat().writeImageToStream (img, os);
@@ -50,16 +50,30 @@ int main (int argc, char** argv)
     if (k) check (k->getBounds().getBottom() <= beetui::H && k->getY() >= beetui::PANEL_Y && k->getRight() <= beetui::W,
                   "and it sits inside its bay (" + k->getBounds().toString() + ")");
     shoot (*ed, dir.getChildFile ("beet-kick.png"));
+    shoot (*ed, dir.getChildFile ("beet-kick-2x.png"), 2.0f);     // for the manual's close-ups
 
     ed->selectSlot (4);
     auto* h = drumPanel();
     check (h != nullptr && h != k, "slot 5 selected: a different drum panel (Hats Off) replaces it");
     if (h) check (h->getBounds().getBottom() <= beetui::H && h->getRight() <= beetui::W, "and it fits (" + h->getBounds().toString() + ")");
     shoot (*ed, dir.getChildFile ("beet-hats.png"));
+    shoot (*ed, dir.getChildFile ("beet-hats-2x.png"), 2.0f);
 
     p.setSlotType (7, beet::EMPTY);
     ed->selectSlot (7);
     check (drumPanel() == nullptr, "an empty slot shows no drum panel");
+    {
+        //  an empty card hides what it cannot use, or its "empty bay" text
+        //  lands on top of disabled knobs (it did, 2026-09-26)
+        std::vector<SlotCard*> cs;
+        for (auto* c : ed->contentComponent().getChildren())
+            if (auto* sc = dynamic_cast<SlotCard*> (c)) cs.push_back (sc);
+        auto shown = [] (juce::Component* c) { int n = 0; for (auto* k : c->getChildren()) n += k->isVisible() ? 1 : 0; return n; };
+        check (cs.size() == (size_t) beet::NUM_SLOTS, "eight slot cards");
+        if (cs.size() == (size_t) beet::NUM_SLOTS)
+            check (shown (cs[7]) + 8 == shown (cs[6]), "the empty card hides its preset row, pad, knobs and M/S ("
+                   + juce::String (shown (cs[7])) + " shown against " + juce::String (shown (cs[6])) + ")");
+    }
     shoot (*ed, dir.getChildFile ("beet-empty.png"));
 
     //  change a slot's type while its panel is open: the old panel must go

@@ -6,7 +6,7 @@ OWN panel, so anything done to a drum's panel shows up inside Beetmachine too.
 
 ---
 
-## 1. Reskin the three daughter VST3s in the machine style (awaiting go)
+## 1. Reskin the three daughter VST3s in the machine style - SHIPPED 2026-09-26 (see below)
 
 Peter, 2026-09-26: "wouldn't it make sense if the three daughter VST3s were styled in the
 same way, aesthetically?" Yes - the art for it is already delivered, in `assets/drum-decals/`
@@ -71,3 +71,15 @@ no chokes. Beetmachine's own palm button on the slot does both.
   DAW session (reopen, preset, kit, empty/refill, state load open and closed, every slot twice).
   Same build: the NOTES readout said CUSTOM over a plain C3 row - the layout is now computed from the
   notes instead of stored.
+
+- **The daughters in the machine style** (2026-09-26, Kickstart 260926.1, Snare Tactics 260926.2, Hats Off
+  260926.2, Beetmachine 260926.3). One shared parts set, st3-apps/machine-art/ (ingest.ps1 cuts the art,
+  MachineArt.h/.cpp draws it, machine-art.cmake embeds it; refresh-shots.ps1 remakes each drum's page and manual
+  images from its panel test). Layout untouched; knobs keep their coloured value arcs; DRIVE red, Hats Off's METAL
+  bronze; Kickstart's pad became the palm button, while the snare's and the cymbal's pads kept their drawings
+  because WHERE you hit them matters. Beetmachine's private art copy retired - one set for the family.
+
+- **Beetmachine 260926.4** (2026-09-26): an EMPTY card drew "empty bay / costs nothing" on top of its
+  greyed-out knobs and note buttons. An empty card now hides its preset row, pad, LEVEL/PAN and M/S and
+  centres the text where the knobs were; `beetshot` asserts it (15 controls shown against a live card's 23).
+  Released with the manual, the landing page, and the Beetmachine Collection re-cut as FOUR (49 MB).

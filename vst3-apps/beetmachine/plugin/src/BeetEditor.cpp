@@ -170,6 +170,9 @@ void SlotCard::refresh()
     const bool live = t != beet::EMPTY;
     for (juce::Component* c : std::initializer_list<juce::Component*> { &preset, &prev, &next, &hit, &level, &pan, &mute, &solo, &noteDown, &noteUp, &learn })
         c->setEnabled (live);
+    //  an empty bay shows nothing it cannot use: no preset, pad, knobs or M/S
+    for (juce::Component* c : std::initializer_list<juce::Component*> { &preset, &prev, &next, &hit, &level, &pan, &mute, &solo })
+        c->setVisible (live);
     solo.setToggleState (p.slotSolo (s), juce::dontSendNotification);
     refreshChokes();
     refreshOuts();
@@ -248,8 +251,11 @@ void SlotCard::paint (juce::Graphics& g)
 
     g.setFont (BeetLook::mono (10.0f));
     g.setColour (faint);
-    g.drawText ("LEVEL", 6, 182, 54, 12, juce::Justification::centred, false);
-    g.drawText ("PAN", 62, 182, 54, 12, juce::Justification::centred, false);
+    if (live)
+    {
+        g.drawText ("LEVEL", 6, 182, 54, 12, juce::Justification::centred, false);
+        g.drawText ("PAN", 62, 182, 54, 12, juce::Justification::centred, false);
+    }
     g.drawText ("CHOKED BY", 8, 197, 120, 12, juce::Justification::centredLeft, false);
 
     if (warnOut)
@@ -260,9 +266,9 @@ void SlotCard::paint (juce::Graphics& g)
 
     if (! live)
     {
-        g.setColour (ink.withAlpha (0.35f));
+        g.setColour (ink.withAlpha (0.45f));
         g.setFont (BeetLook::mono (11.0f));
-        g.drawFittedText ("empty bay\ncosts nothing", 72, 130, CARD_W - 80, 40, juce::Justification::centredLeft, 2);
+        g.drawFittedText ("empty bay\ncosts nothing", 8, 134, CARD_W - 16, 48, juce::Justification::centred, 2);
     }
 }
 
@@ -456,6 +462,12 @@ void BeetEditor::refreshHeader()
 void BeetEditor::selectSlot (int s)
 {
     selected = juce::jlimit (0, beet::NUM_SLOTS - 1, s);
+    if (const int v = p.layoutVersion.load(); v != seenLayout)   // apply a pending layout now, not a timer tick later
+    {
+        seenLayout = v;
+        for (auto& c : cards) c->refresh();
+        refreshHeader();
+    }
     for (int i = 0; i < beet::NUM_SLOTS; ++i) cards[(size_t) i]->setSelected (i == selected);
     syncChild();
 }
