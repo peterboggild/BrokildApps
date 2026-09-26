@@ -56,11 +56,13 @@ function encode (wav, kbps) {
 }
 
 const inDir = process.argv[2], outDir = process.argv[3];
+// optional third argument: the file prefix (Beetmachine renders beetmachine-NN-*.wav)
+const prefix = process.argv[4] || 'kickstart';
 if (!inDir || !outDir) { console.log('usage: node towav2mp3.js <indir> <outdir>'); process.exit(1); }
 fs.mkdirSync(outDir, { recursive: true });
 
-const files = fs.readdirSync(inDir).filter(f => /^kickstart-\d\d-.*\.wav$/.test(f)).sort();
-if (!files.length) { console.log('no kickstart-* wavs in ' + inDir); process.exit(1); }
+const files = fs.readdirSync(inDir).filter(f => new RegExp('^' + prefix + '-\\d\\d-.*\\.wav$').test(f)).sort();
+if (!files.length) { console.log('no ' + prefix + '-* wavs in ' + inDir); process.exit(1); }
 
 for (const f of files) {
   const wav = readWav(path.join(inDir, f));

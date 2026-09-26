@@ -345,6 +345,58 @@ int main()
                "and the slot strip parameters");
     }
 
+    //  --- BWFX on the main mix ----------------------------------------------
+    std::printf ("\nBWFX\n");
+    {
+        int echo = -1;
+        for (int t = 0; t < bwfx::numModuleTypes(); ++t)
+            if (juce::String (bwfx::moduleDescriptor (t).id) == "delay" || juce::String (bwfx::moduleDescriptor (t).name) == "ECHO") echo = t;
+        check (echo >= 0, "the rack knows ECHO");
+
+        const std::string emptyRack = bwfx::Rack().toJson();
+        auto plain = fresh (true);
+        check (plain->rack().toJson() == emptyRack, "a fresh instance has the EMPTY rack (nothing changes until you arm something)");
+
+        //  slot 1 goes to its OWN output as well, so the rack's reach can be seen
+        std::vector<Note> groove;
+        for (int b = 0; b < 8; ++b) { groove.push_back ({ b * 0.25, beet::C3_ROW[0], 0.9f }); groove.push_back ({ b * 0.25 + 0.125, beet::C3_ROW[4], 0.6f }); }
+        auto wet = fresh (true);
+        for (auto* q : { plain.get(), wet.get() }) q->setSlotOut (0, beet::OUT_BOTH);
+        if (echo >= 0) wet->rack().setEnabled (echo, true);
+        auto a = render (*plain, groove, 2.5), b = render (*wet, groove, 2.5);
+        double diffMain = 0, diffOwn = 0;
+        for (int c = 0; c < 2; ++c)
+            for (int i = 0; i < a.getNumSamples(); ++i)
+            {
+                diffMain += std::pow ((double) a.getSample (c, i) - b.getSample (c, i), 2.0);
+                diffOwn  += std::pow ((double) a.getSample (2 + c, i) - b.getSample (2 + c, i), 2.0);
+            }
+        check (diffMain > 1e-3 * energy (a, 0, 0, a.getNumSamples()), "ECHO on changes the main mix", db (diffMain / juce::jmax (1e-30, energy (a, 0, 0, a.getNumSamples()))));
+        check (diffOwn == 0.0, "and leaves a slot's OWN output bit for bit alone: the rack is on the mix bus only");
+
+        juce::MemoryBlock mb;
+        wet->getStateInformation (mb);
+        auto back = fresh (false);
+        back->setStateInformation (mb.getData(), (int) mb.getSize());
+        check (back->rack().toJson() == wet->rack().toJson() && echo >= 0 && back->rack().getEnabled (echo),
+               "the rack is saved with the project and comes back");
+
+        //  a project saved before BWFX existed carries no rack at all
+        auto xml = juce::AudioProcessor::getXmlFromBinary (mb.getData(), (int) mb.getSize());
+        xml->removeAttribute ("bwfx");
+        juce::MemoryBlock old;
+        juce::AudioProcessor::copyXmlToBinary (*xml, old);
+        auto older = fresh (false);
+        if (echo >= 0) older->rack().setEnabled (echo, true);
+        older->setStateInformation (old.getData(), (int) old.getSize());
+        check (older->rack().toJson() == emptyRack, "a project from before BWFX loads with the empty rack");
+        check (! older->apvts.state.hasProperty ("bwfx"), "and the blob never lingers in the parameter state");
+
+        const int before = wet->rack().getEnabled (echo) ? 1 : 0;
+        wet->loadKit (3);
+        check (before == 1 && wet->rack().getEnabled (echo), "loading a kit leaves the rack alone (a kit is the drums, the rack is the bus)");
+    }
+
     std::printf ("\n%d checks, %d failed - %s\n\n", checks, fails, fails == 0 ? "ALL CLEAR" : "FAILURES");
     return fails == 0 ? 0 : 1;
 }

@@ -1,7 +1,7 @@
 BEETMACHINE - the kit that plays the three drum synthesisers (VST3 + standalone)
 ================================================================================
 
-Build 260926.4. Free. Every hit is synthesised; there are no samples in it.
+Build 260926.5. Free. Every hit is synthesised; there are no samples in it.
 
 
 INSTALL
@@ -48,6 +48,8 @@ OUT       MIX (the stereo mix), OWN (the slot's own output pair), BOTH.
           Stereo is the default; enable the extra outputs in your DAW.
 KITS      STUDIO, 808, 909, EIGHTIES, BOOM BAP, TECHNO, DUB, INDUSTRIAL,
           TRAP, LO-FI. A kit never changes your notes or routing.
+BWFX      the Brokild World FX rack on the main mix (FX + SPECTRA, five
+          automatable macros). A slot sent to its OWN output goes round it.
 STOP      the red emergency stop: every slot fades out at once.
 
 Hover over any control for a one-line explanation. The manual has the rest.

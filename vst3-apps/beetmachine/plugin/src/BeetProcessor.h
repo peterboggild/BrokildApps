@@ -16,6 +16,8 @@
 
 #include <JuceHeader.h>
 #include "BeetKits.h"
+#include <bwfx.h>
+#include <bwfx_juce.h>
 
 class BeetProcessor  : public juce::AudioProcessor,
                        private juce::Timer
@@ -96,6 +98,10 @@ public:
 
     //  kits
     void loadKit (int index);
+
+    //  the BWFX rack on the main mix. A kit leaves it alone: a kit is the
+    //  drums' sounds, levels, pans and chokes, and the rack is the bus.
+    bwfx::Rack& rack() { return bwfxRack; }
     int  kitIndex() const                     { return currentKit; }
     juce::StringArray missingPresets;         // names a kit asked for that a drum does not have
 
@@ -112,6 +118,7 @@ public:
     std::atomic<int> layoutVersion { 0 };
 
 private:
+    bwfx::Rack bwfxRack;
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
     void timerCallback() override;
     std::unique_ptr<juce::AudioProcessor> makeDrum (int type) const;

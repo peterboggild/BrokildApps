@@ -252,24 +252,19 @@ void BeetLook::drawButtonBackground (juce::Graphics& g, juce::Button& b, const j
 
     if (role == "hit" || role == "panic")                            // the mushroom buttons
     {
-        //  The decal is the RELEASED button. Its "pressed" drawing is a
-        //  separate painting with a different housing, so swapping to it would
-        //  make the whole button jump; pressing is done here instead - the
-        //  button sinks a little and darkens, and the plate stays put.
-        static const juce::Image hitImg = art ("hit.png"), stopImg = art ("estop.png");
+        //  Up and pressed are separate drawings REGISTERED on the same plate
+        //  (05-buttons.png, checked at ingest), so holding the button swaps
+        //  the picture and nothing jumps.
+        static const juce::Image hitImg = art ("hit.png"), stopImg = art ("estop.png"),
+                                 hitDown = art ("hit-down.png"), stopDown = art ("estop-down.png");
         const auto& img = role == "panic" ? stopImg : hitImg;
+        const auto& imgDown = role == "panic" ? stopDown : hitDown;
         if (img.isValid())
         {
             const float d0 = juce::jmin (r.getWidth(), r.getHeight());
             auto box = r.withSizeKeepingCentre (d0, d0);
-            if (down) box = box.reduced (d0 * 0.025f).translated (0.0f, d0 * 0.015f);
-            g.drawImage (img, box, juce::RectanglePlacement::centred);
-            if (down)
-            {
-                g.setColour (juce::Colours::black.withAlpha (0.28f));
-                g.fillEllipse (box.reduced (d0 * 0.2f));
-            }
-            else if (over)
+            g.drawImage (down && imgDown.isValid() ? imgDown : img, box, juce::RectanglePlacement::centred);
+            if (! down && over)
             {
                 g.setColour (juce::Colours::white.withAlpha (0.06f));
                 g.fillEllipse (box.reduced (d0 * 0.2f));
@@ -302,12 +297,13 @@ void BeetLook::drawButtonBackground (juce::Graphics& g, juce::Button& b, const j
     g.setGradientFill (bz);
     g.fillRoundedRectangle (r, 3.0f);
     auto face = r.reduced (2.0f).translated (0, down ? 1.0f : 0.0f);
+    const juce::Colour lit = role == "bwfx" ? bwfxTeal : amber;     // the rack button lights teal
     const juce::Colour fc = ! b.isEnabled() ? juce::Colour (0xff2a2f33)
-                          : on ? amber : juce::Colour (0xff202528);
+                          : on ? lit : juce::Colour (0xff202528);
     juce::ColourGradient fg (fc.brighter (0.25f), face.getX(), face.getY(), fc.darker (0.35f), face.getX(), face.getBottom(), false);
     g.setGradientFill (fg);
     g.fillRoundedRectangle (face, 2.0f);
-    if (on) { g.setColour (amber.withAlpha (0.25f)); g.drawRoundedRectangle (r.expanded (1.0f), 3.0f, 2.0f); }
+    if (on) { g.setColour (lit.withAlpha (0.25f)); g.drawRoundedRectangle (r.expanded (1.0f), 3.0f, 2.0f); }
     if (over && ! down) { g.setColour (juce::Colours::white.withAlpha (0.07f)); g.fillRoundedRectangle (face, 2.0f); }
 }
 
@@ -323,6 +319,20 @@ void BeetLook::drawButtonText (juce::Graphics& g, juce::TextButton& b, bool, boo
         return;
     }
     const bool on = b.getToggleState();
+    if (role == "bwfx")
+    {
+        //  the BWFX globe beside the word, as every Brokild synth wears it
+        auto r = b.getLocalBounds().toFloat().reduced (2.0f).translated (0.0f, down ? 1.0f : 0.0f);
+        const juce::Colour c = on ? juce::Colours::black : bwfxTeal;
+        const float d = r.getHeight() * 0.62f;
+        auto globe = juce::Rectangle<float> (d, d).withCentre ({ r.getX() + 6.0f + d * 0.5f, r.getCentreY() });
+        g.setColour (c);
+        g.drawEllipse (globe, 1.4f);
+        g.drawEllipse (globe.reduced (d * 0.28f, 0.0f), 1.0f);
+        g.drawLine (globe.getX(), globe.getCentreY(), globe.getRight(), globe.getCentreY(), 1.0f);
+        g.drawText ("BWFX", r.withTrimmedLeft (d + 10.0f), juce::Justification::centred, false);
+        return;
+    }
     g.setColour (! b.isEnabled() ? faint.withAlpha (0.4f) : on ? juce::Colours::black : ink);
     g.drawText (b.getButtonText(), b.getLocalBounds().reduced (2).translated (0, down ? 1 : 0), juce::Justification::centred, false);
 }

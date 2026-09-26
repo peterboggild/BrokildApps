@@ -6,10 +6,10 @@
 #
 # Parts are cropped to the ALPHA BOUNDS the delivery's manifest measured,
 # squared where the part is round, and scaled to roughly twice their size on
-# screen. The switch "pressed" drawings are NOT used: the delivery note says
-# they are separate drawings, not registered with the "up" ones, so swapping
-# them would make a button jump; pressing is drawn in code. The lamp pairs are
-# registered and both are used.
+# screen. The first delivery's switch "pressed" drawings are NOT used (not
+# registered with the "up" ones); the push buttons come from 05-buttons.png,
+# whose up/pressed pairs ARE registered (ingest-buttons.ps1). The lamp pairs
+# are registered and both are used.
 #
 # ASCII only: Windows PowerShell 5.1 reads a no-BOM .ps1 as ANSI.
 param(
@@ -81,8 +81,9 @@ Cut "04-labels-plates.png" "black-tape" "tape.png" 512 64
 Cut "01-knobs.png" "bakelite-large" "knob.png" 256 256 -Square
 Cut "01-knobs.png" "red-bakelite" "knob-red.png" 256 256 -Square
 Cut "01-knobs.png" "bronze-knob" "knob-bronze.png" 256 256 -Square
-Cut "02-switches.png" "hit-up" "hit.png" 320 320 -Square
-Cut "02-switches.png" "estop-up" "estop.png" 256 256 -Square
+# the push buttons (hit / estop, up AND pressed) come from the second, registered
+# delivery - see ingest-buttons.ps1, run here so one command still makes everything
+& (Join-Path $PSScriptRoot "ingest-buttons.ps1") -Out $Out
 Cut "03-lamps-gauges.png" "amber-off" "lamp-off.png" 128 128 -Square
 Cut "03-lamps-gauges.png" "amber-on" "lamp-on.png" 128 128 -Square
 ""

@@ -312,6 +312,12 @@ BeetEditor::BeetEditor (BeetProcessor& proc)
     masterAtt = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (p.apvts, "master", master);
     content.addAndMakeVisible (master);
 
+    rackButton.getProperties().set ("role", "bwfx");
+    rackButton.setClickingTogglesState (true);
+    rackButton.setTooltip ("Brokild World FX: the effects rack on the main mix. Slots sent to their OWN outputs go round it.");
+    rackButton.onClick = [this] { showRack (rackButton.getToggleState()); };
+    content.addAndMakeVisible (rackButton);
+
     panic.getProperties().set ("role", "panic");
     panic.setTooltip ("Emergency stop: every slot fades out at once");
     panic.onClick = [this] { p.panic(); };
@@ -339,9 +345,29 @@ BeetEditor::BeetEditor (BeetProcessor& proc)
     startTimerHz (30);
 }
 
+void BeetEditor::showRack (bool show)
+{
+    if (show && overlay == nullptr)
+    {
+        overlay = std::make_unique<BwfxPanel> (p.rack(), p.apvts);
+        overlay->ground = BeetLook::art ("ground.jpg");         // the machine's own metal behind it
+        overlay->onClose = [this] { rackButton.setToggleState (false, juce::sendNotificationSync); };
+        addAndMakeVisible (*overlay);
+        overlay->setBounds (getLocalBounds());
+    }
+    else if (show) overlay->refreshFromRack();
+    if (overlay != nullptr)
+    {
+        overlay->setVisible (show);
+        if (show) overlay->toFront (true);
+    }
+    if (rackButton.getToggleState() != show) rackButton.setToggleState (show, juce::dontSendNotification);
+}
+
 BeetEditor::~BeetEditor()
 {
     stopTimer();
+    overlay.reset();
     releaseChild();                // the drum's editor goes before anything it points at
     p.collectGarbage();
     for (auto& c : cards) c.reset();
@@ -360,7 +386,9 @@ void BeetEditor::resized()
     mapC3.setBounds (622, 16, 44, 26);
     mapGM.setBounds (670, 16, 44, 26);
     master.setBounds (830, 4, 48, 48);
+    rackButton.setBounds (920, 15, 96, 28);
     panic.setBounds (1310, 3, 50, 50);
+    if (overlay != nullptr) overlay->setBounds (getLocalBounds());
 }
 
 void BeetEditor::paint (juce::Graphics& g)

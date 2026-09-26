@@ -8,6 +8,7 @@
 #include <JuceHeader.h>
 #include "BeetProcessor.h"
 #include "BeetLook.h"
+#include "BwfxPanel.h"
 
 namespace beetui
 {
@@ -72,6 +73,9 @@ public:
     void selectSlot (int s);
     int  selectedSlot() const { return selected; }
     juce::Component& contentComponent() { return content; }
+    void openRack (bool show)            { showRack (show); }
+    juce::Component* rackPanel()         { return overlay.get(); }
+    juce::Component& rackToggle()        { return rackButton; }
 
 private:
     class Content  : public juce::Component
@@ -96,6 +100,14 @@ private:
     juce::TextButton kitPrev { "<" }, kitNext { ">" }, mapC3 { "C3" }, mapGM { "GM" }, panic { "STOP" };
     juce::Slider master;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> masterAtt;
+
+    //  the BWFX rack on the main mix: ONE button on the machine, and the
+    //  STANDARD rack panel (FX left, SPECTRA right, UP/DN, macros) over the
+    //  whole window. It is opaque and eats every click, so it carries its
+    //  own CLOSE; the button is underneath it.
+    juce::TextButton rackButton { "BWFX" };
+    std::unique_ptr<BwfxPanel> overlay;
+    void showRack (bool);
 
     std::array<std::unique_ptr<SlotCard>, beet::NUM_SLOTS> cards;
     std::unique_ptr<juce::AudioProcessorEditor> child;

@@ -4,7 +4,7 @@ project(Beetmachine VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Bump it AND re-run
 # `cmake -S . -B <dir>` or it will not take.
-set(BEET_BUILD_ID "260926.4")
+set(BEET_BUILD_ID "260926.5")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,6 +23,8 @@ endif()
 if(NOT DEFINED BWFX_DIR)
     set(BWFX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../BrokildWorldFX")
 endif()
+# BWFX, compiled IN (never a DLL): the rack on the main mix
+add_subdirectory(${BWFX_DIR} bwfx)
 
 # ---------------------------------------------------------------------------
 # The three drums, compiled from THEIR OWN source folders - no copies. A fix to
@@ -94,6 +96,7 @@ target_sources(Beetmachine PRIVATE
     src/BeetEditor.cpp
     src/BeetKits.cpp
     src/BeetLook.cpp
+    src/BwfxPanel.cpp
     ${DRUM_SOURCES})
 
 target_include_directories(Beetmachine PRIVATE "${BWFX_DIR}/adapter")
@@ -112,6 +115,7 @@ target_compile_definitions(Beetmachine PUBLIC
 
 target_link_libraries(Beetmachine
     PRIVATE
+        bwfx
         juce::juce_audio_utils
         juce::juce_dsp
     PUBLIC
@@ -127,9 +131,9 @@ endif()
 # Gates. beettest drives the processor with no host; beetshot renders the
 # editor to PNG, because a panel is checked by LOOKING at it.
 # ---------------------------------------------------------------------------
-foreach(t beettest beetshot)
+foreach(t beettest beetshot beetrender)
     add_executable(${t} test/${t}.cpp)
-    target_link_libraries(${t} PRIVATE Beetmachine)
+    target_link_libraries(${t} PRIVATE Beetmachine bwfx)
     target_include_directories(${t} PRIVATE $<TARGET_PROPERTY:Beetmachine,INCLUDE_DIRECTORIES>)
     target_compile_definitions(${t} PRIVATE $<TARGET_PROPERTY:Beetmachine,COMPILE_DEFINITIONS>)
 endforeach()

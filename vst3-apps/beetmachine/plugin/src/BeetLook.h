@@ -15,6 +15,7 @@ namespace beetcol
     const juce::Colour ink      (0xffe9e4d8);   // cream lettering
     const juce::Colour faint    (0xff7d8a93);
     const juce::Colour amber    (0xffffb23e);
+    const juce::Colour bwfxTeal (0xff35c9c0);     // BWFX's one mandated accent, fleet-wide
     const juce::Colour red      (0xffd8342a);
     const juce::Colour green    (0xff7fdc7a);
     const juce::Colour tape     (0xff111315);   // embossed label tape

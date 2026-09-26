@@ -227,6 +227,19 @@
       td:first-child { width: 36%; }
       th, td { padding: .5rem .3rem; }
     }
+    /* ---- the six passages ---- */
+    .plays { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem 1.6rem; margin-top: 1.5rem; }
+    @media (max-width: 760px) { .plays { grid-template-columns: 1fr; } }
+    .play {
+      border: 1px solid var(--border); border-radius: 12px; background: var(--card);
+      padding: .95rem 1.05rem 1.05rem; box-shadow: var(--shadow);
+    }
+    .play .t {
+      font: 600 .74rem/1.3 Consolas, ui-monospace, monospace; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--accent);
+    }
+    .play p { margin: .45rem 0 .7rem; font-size: .89rem; color: var(--text-soft); max-width: none; }
+    .play audio { width: 100%; height: 34px; display: block; }
   </style>
 </head>
 <body>
@@ -275,7 +288,7 @@
         Browse the source
       </a>
     </div>
-    <p class="smallnote">Windows VST3 + standalone &middot; free download &middot; source included &middot; build 260926.4</p>
+    <p class="smallnote">Windows VST3 + standalone &middot; free download &middot; source included &middot; build 260926.5</p>
 
     <figure class="hero-shot">
       <img src="img/panel.jpg" alt="The Beetmachine panel: a header with KIT, NOTES, MASTER and a red STOP button, eight slot cards, and below them Kickstart's own full panel for the selected slot" />
@@ -320,6 +333,48 @@
 
 <section class="block">
   <div class="wrap">
+    <h2>Listen</h2>
+    <p class="sub">Whole kits, straight out of the factory: every hit is one of the three
+      drums inside Beetmachine, played from one MIDI pattern with the kit&rsquo;s own
+      levels, pans and chokes. Nothing added afterwards.</p>
+
+    <div class="plays">
+      <div class="play">
+        <div class="t">STUDIO</div>
+        <p>A rock beat at 96 bpm on two Kickstarts, two Snare Tactics and the Hats Off cymbals.</p>
+        <audio controls preload="none" src="audio/beetmachine-01-studio.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">808</div>
+        <p>Electro at 112 bpm. The open hat in slot 6 is cut off every time the closed hat in slot 5 plays.</p>
+        <audio controls preload="none" src="audio/beetmachine-02-808.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">909</div>
+        <p>Four on the floor at 124 bpm, with the open hat on the off-beats.</p>
+        <audio controls preload="none" src="audio/beetmachine-03-909.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">BOOM BAP</div>
+        <p>A lazy 88 bpm shuffle with ghost notes on the second snare.</p>
+        <audio controls preload="none" src="audio/beetmachine-04-boom-bap.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">TECHNO</div>
+        <p>132 bpm: rolling sixteenths, open hats on the off-beats and a ride on top.</p>
+        <audio controls preload="none" src="audio/beetmachine-05-techno.mp3"></audio>
+      </div>
+      <div class="play">
+        <div class="t">Dub &middot; Industrial &middot; Trap &middot; Lo-Fi</div>
+        <p>Four more kits, four bars each, each at its own tempo, loaded one after the other.</p>
+        <audio controls preload="none" src="audio/beetmachine-06-tour.mp3"></audio>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
     <h2>The slot card</h2>
     <p class="sub">Everything a kit needs from a slot, on one card.</p>
 
@@ -357,10 +412,12 @@
         of the mix), or both. The eight extra pairs are off until your host
         enables one; until then an OWN slot stays in the mix and its card says
         <b>OFF IN HOST</b>.</p></div>
-      <div class="c"><div class="n">Header</div><h4>Kit, notes, master, STOP</h4>
+      <div class="c"><div class="n">Header</div><h4>Kit, notes, master, BWFX, STOP</h4>
         <p><b>KIT</b> with <b>&lt; &gt;</b>, <b>NOTES C3 / GM</b>, the red
-        <b>MASTER</b> knob, and <b>STOP</b>, the red emergency stop: every slot
-        fades out at once.</p></div>
+        <b>MASTER</b> knob, <b>BWFX</b> &mdash; the Brokild World FX rack on the
+        main mix, the same one every Brokild synth has, with a slot on its OWN
+        output going round it &mdash; and <b>STOP</b>, the red emergency stop:
+        every slot fades out at once.</p></div>
     </div>
   </div>
 </section>
@@ -386,7 +443,7 @@
     <div class="note">
       Loading a kit changes the sounds, levels, pans and chokes &mdash; never your
       notes or your output routing. The host can automate each slot&rsquo;s level,
-      pan and mute, and the master; the drums&rsquo; own controls are edited in
+      pan and mute, the master and the five BWFX macros; the drums&rsquo; own controls are edited in
       their panels and saved with the project.
     </div>
   </div>
@@ -484,10 +541,10 @@
       <tr><td>Kits</td><td>Ten themed kits</td></tr>
       <tr><td>Notes</td><td>C3 upwards, General MIDI, or any note per slot. LEARN from a key</td></tr>
       <tr><td>Chokes</td><td>Any slot can be choked by any others, with a 3 ms fade</td></tr>
-      <tr><td>Automation</td><td>Level, pan and mute per slot, and master</td></tr>
+      <tr><td>Automation</td><td>Level, pan and mute per slot, master, BWFX macros 1&ndash;5</td></tr>
       <tr><td>Latency</td><td>103 samples at 48 kHz, reported to the host; every slot aligned</td></tr>
       <tr><td>CPU</td><td>An empty slot costs nothing; a full kit hit on every 16th, about 40&ndash;46 % of one core</td></tr>
-      <tr><td>Build</td><td>260926.4</td></tr>
+      <tr><td>Build</td><td>260926.5</td></tr>
       <tr><td>Licence</td><td>AGPLv3, <a href="https://github.com/peterboggild/BrokildApps/tree/main/vst3-apps/beetmachine/plugin" target="_blank" rel="noopener">source on GitHub</a></td></tr>
       <tr><td>Price</td><td>Free. No account, no registration, no telemetry.</td></tr>
     </table>

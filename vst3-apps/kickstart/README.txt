@@ -1,7 +1,7 @@
 KICKSTART - the kick drum synthesiser (VST3 + standalone)
 ==========================================================
 
-Build 260926.1. Free. Every kick is synthesised; there are no samples in it.
+Build 260926.2. Free. Every kick is synthesised; there are no samples in it.
 
 
 INSTALL

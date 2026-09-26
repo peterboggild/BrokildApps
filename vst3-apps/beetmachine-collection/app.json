@@ -8,7 +8,7 @@
   "icon": "more",
   "cta": "Download all 4 →",
   "preview": "assets/app-previews/beetmachine-collection.jpg",
-  "note": "Windows VST3 · 49 MB · four drum instruments · all manuals included.",
+  "note": "Windows VST3 · 51 MB · four drum instruments · all manuals included.",
   "tags": [
     "vst3"
   ],
@@ -16,8 +16,8 @@
     {
       "name": "Brokild-Beetmachine-Collection-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Brokild-Beetmachine-Collection-win64.zip",
-      "bytes": 51824781,
-      "sha256": "c9cdfd3c2c6c8f5f32dedd5255e16935cc0d038193be370bfc1b027822e6f7ed"
+      "bytes": 53979528,
+      "sha256": "d21d242684dd9723982ec19c19cc05b259953a5ebc96d9570c7e4bcec19ca076"
     }
   ]
 }

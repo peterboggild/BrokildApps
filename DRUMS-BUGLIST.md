@@ -55,6 +55,16 @@ Send Hats Off's closed / pedal / open / bell / edge, or Snare Tactics' snare / r
 from one slot's choice - so one hi-hat preset can be closed in slot 5 and open in slot 6. Needs the
 drum's KEYS on GM KIT; Beetmachine already reads KEYS live.
 
+## 6. Beetmachine: the kits' mix runs hot (found 2026-09-26, rendering the demos)
+
+At MASTER 0 dB the raw main mix of a kit playing a normal groove peaks ABOVE full scale:
+STUDIO 1.76 (+4.9 dBFS, kick + snare + crash together), 909 1.53, TECHNO 1.49, 808 1.41,
+BOOM BAP 1.27. Inside a DAW's float mix that is harmless until the master bus, but a user
+who bounces or monitors straight out clips. The demos are normalised to -1 dBFS, so they
+hide it. Options, Peter's call: bring the kits' own slot levels down ~6 dB (a kit edit,
+nothing else moves), or a MASTER default of -6 dB, or a soft ceiling on the mix bus.
+Measure with `beetrender` (it prints the gain it had to apply per demo).
+
 ## 5. Beetmachine: the drum's own HIT pad does not choke other slots (known)
 
 The pad inside a drum's panel plays that drum directly, so Beetmachine never sees the hit: no lamp,
@@ -83,3 +93,16 @@ no chokes. Beetmachine's own palm button on the slot does both.
   greyed-out knobs and note buttons. An empty card now hides its preset row, pad, LEVEL/PAN and M/S and
   centres the text where the knobs were; `beetshot` asserts it (15 controls shown against a live card's 23).
   Released with the manual, the landing page, and the Beetmachine Collection re-cut as FOUR (49 MB).
+
+- **Kickstart 260926.2 + Beetmachine 260926.5** (2026-09-26): Peter's new head-on push buttons
+  (`assets/drum-decals/05-buttons.png`, cut by `machine-art/ingest-buttons.ps1`). Unlike the first
+  delivery, up and pressed are REGISTERED (checked at ingest: plate masks best at zero shift), so a held
+  button now shows the real pressed drawing instead of a sunk-and-darkened up one.
+- **Beetmachine 260926.5: the BWFX rack** on the main mix (Peter: a BWFX button on Beetmachine, not
+  on the daughters). One machine-style steel button with the teal globe; the STANDARD native panel
+  (Rite of Passage's, a port of `BrokildWorldFX/ui/bwfx-rack.js`; Legion carries the same code); five
+  macros as host parameters. A slot on its OWN output goes round the rack; a kit load leaves it alone;
+  pre-BWFX projects load with the empty rack. beettest 33, beetshot checks the rack opens opaque and draws.
+- **Beetmachine demos**: six on the landing page (`test/beetrender.cpp` -> Kickstart's `wav2mp3.js`,
+  now with a prefix argument). No hat pattern puts closed and open on the same step - the closed hat
+  chokes the open one, so a shared step would silence it the instant it starts.

@@ -76,6 +76,35 @@ int main (int argc, char** argv)
     }
     shoot (*ed, dir.getChildFile ("beet-empty.png"));
 
+    //  --- the BWFX button and the rack behind it ---------------------------
+    std::printf ("\nBWFX rack\n");
+    {
+        auto& btn = ed->rackToggle();
+        check (btn.isVisible() && btn.getParentComponent() == &ed->contentComponent(), "the BWFX button is on the machine");
+        const auto bb = btn.getBounds();
+        check (bb.getBottom() <= beetui::HEADER_H && bb.getX() > 880 && bb.getRight() < 1140, "and sits in the header between MASTER and the build number (" + bb.toString() + ")");
+        ed->openRack (true);
+        auto* rp = ed->rackPanel();
+        check (rp != nullptr && rp->isVisible() && rp->isOpaque() && rp->getBounds() == ed->getLocalBounds(),
+               "pressing it opens the rack OPAQUE over the whole window, so nothing shows through");
+        //  the panel must actually DRAW (a layer that paints nothing passes every static check)
+        auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
+        int teal = 0;
+        for (int y = 0; y < img.getHeight(); y += 2)
+            for (int x = 0; x < img.getWidth(); x += 2)
+            {
+                const auto c = img.getPixelAt (x, y);
+                if (c.getGreen() > 150 && c.getBlue() > 140 && c.getRed() < 120) ++teal;
+            }
+        check (teal > 200, "and the rack draws: FX RACK, SPECTRA RACK and its teal lettering are there (" + juce::String (teal) + " teal samples)");
+        auto file = dir.getChildFile ("beet-bwfx.png");
+        file.deleteFile();
+        { juce::FileOutputStream os (file); juce::PNGImageFormat().writeImageToStream (img, os); }
+        std::printf ("  wrote %s\n", file.getFullPathName().toRawUTF8());
+        ed->openRack (false);
+        check (! rp->isVisible(), "and CLOSE puts the machine back");
+    }
+
     //  change a slot's type while its panel is open: the old panel must go
     //  before the old drum does (this is where a dangling editor would crash)
     ed->selectSlot (2);

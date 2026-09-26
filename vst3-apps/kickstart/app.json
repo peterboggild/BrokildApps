@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/kickstart.jpg",
-  "note": "Windows VST3 + standalone · build 260926.1 · free download · 21 controls · acoustic / classic / modern · 4 Battlestar drives · transient + comp · 31 presets · manual included.",
+  "note": "Windows VST3 + standalone · build 260926.2 · free download · 21 controls · acoustic / classic / modern · 4 Battlestar drives · transient + comp · 31 presets · manual included.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Kickstart-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Kickstart-VST3-win64.zip",
-      "bytes": 12412662,
-      "sha256": "28bb5c7edd8a6d96d8ccfa5f9a16870427d6693d39ebf963cdeb529cfc1d0806"
+      "bytes": 13393224,
+      "sha256": "b93b7dc7652ad00faef60bcd7db63e47de9805651b4622b267410b62968fe44c"
     }
   ]
 }

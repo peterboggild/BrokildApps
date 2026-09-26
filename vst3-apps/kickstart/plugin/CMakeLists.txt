@@ -10,7 +10,7 @@ cmake_minimum_required(VERSION 3.22)
 
 # The build id goes on the face of the plugin. Bump it AND re-run
 # cmake -S . -B <dir>, or it does not take.
-set(KS_BUILD_ID "260926.1")
+set(KS_BUILD_ID "260926.2")
 project(Kickstart VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)

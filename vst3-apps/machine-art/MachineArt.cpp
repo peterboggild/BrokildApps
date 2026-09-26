@@ -120,10 +120,11 @@ namespace machineart
             g.setGradientFill (halo);
             g.fillEllipse (b.expanded (d0 * 0.12f));
         }
-        if (pressed) b = b.reduced (d0 * 0.025f).translated (0.0f, d0 * 0.015f);
-        g.drawImage (img, b, juce::RectanglePlacement::centred);
-        const auto head = b.reduced (d0 * 0.22f).translated (0.0f, -d0 * 0.03f);
-        if (pressed) { g.setColour (juce::Colours::black.withAlpha (0.28f)); g.fillEllipse (head); }
+        //  the pressed drawing is registered with the up one (05-buttons.png),
+        //  so holding the button swaps the picture and the plate stays put
+        const auto down = image ("hit-down.png");
+        g.drawImage (pressed && down.isValid() ? down : img, b, juce::RectanglePlacement::centred);
+        const auto head = b.reduced (d0 * 0.24f);
         if (glow > 0.01f) { g.setColour (glowColour.withAlpha (0.22f * glow)); g.fillEllipse (head); }
         return true;
     }

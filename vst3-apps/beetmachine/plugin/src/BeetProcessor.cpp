@@ -40,6 +40,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout BeetProcessor::layout()
     l.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "master", 1 }, "Master",
                juce::NormalisableRange<float> (-24.0f, 6.0f, 0.1f), 0.0f,
                juce::AudioParameterFloatAttributes().withLabel ("dB")));
+    bwfx_juce::addMacroParameters (l);        // BWFX MACRO 1..5, the rack's whole host surface
     return l;
 }
 
@@ -65,7 +66,7 @@ BeetProcessor::BeetProcessor()
     pMaster = apvts.getRawParameterValue ("master");
 
     loadKit (0);          // a fresh instance is a whole kit, not eight empty bays
-    startTimerHz (4);
+    startTimerHz (15);    // the rack's service() (IR builds) must run with the editor closed
 }
 
 BeetProcessor::~BeetProcessor()
@@ -97,6 +98,7 @@ void BeetProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     sr = sampleRate;
     blockSize = juce::jmax (16, samplesPerBlock);
+    bwfxRack.prepare (sampleRate, blockSize);
 
     //  Every drum type's latency, measured on a throwaway instance, so the
     //  alignment does not change when a slot changes type (a latency that
@@ -276,6 +278,7 @@ void BeetProcessor::collectGarbage()
 
 void BeetProcessor::timerCallback()
 {
+    bwfxRack.service();
     //  with no editor open nothing can still be showing a replaced drum
     if (getActiveEditor() == nullptr) collectGarbage();
 }
@@ -445,6 +448,22 @@ void BeetProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
         }
     }
 
+    //  --- BWFX on the main mix (an empty rack is bit-transparent) ---------
+    {
+        double bpm = 0.0, ppq = -1.0;
+        bool playing = false;
+        if (auto* ph = getPlayHead())
+            if (auto pos = ph->getPosition())
+            {
+                bpm = pos->getBpm().orFallback (0.0);
+                ppq = pos->getPpqPosition().orFallback (-1.0);
+                playing = pos->getIsPlaying();
+            }
+        bwfxRack.setTransport (bpm, ppq, playing);
+        bwfx_juce::pushMacros (bwfxRack, apvts);
+        bwfxRack.process (mainL, mainR, n);
+    }
+
     clock += n;
     midi.clear();
 }
@@ -456,6 +475,7 @@ void BeetProcessor::getStateInformation (juce::MemoryBlock& dest)
     state.setProperty ("build", BEET_BUILD_ID, nullptr);
     state.setProperty ("kit", currentKit, nullptr);
     state.setProperty ("noteMap", noteMapMode.load(), nullptr);
+    state.setProperty ("bwfx", juce::String (bwfxRack.toJson()), nullptr);   // one opaque string
 
     juce::ValueTree slotsTree ("SLOTS");
     for (int s = 0; s < beet::NUM_SLOTS; ++s)
@@ -491,7 +511,10 @@ void BeetProcessor::setStateInformation (const void* data, int size)
     auto slotsTree = tree.getChildWithName ("SLOTS");
     tree.removeChild (slotsTree, nullptr);
     currentKit = juce::jlimit (0, beet::numKits() - 1, (int) tree.getProperty ("kit", 0));
+    const juce::String rackBlob = tree.getProperty ("bwfx", juce::String()).toString();
+    tree.removeProperty ("bwfx", nullptr);
     apvts.replaceState (tree);
+    bwfxRack.fromJson (rackBlob.toStdString());     // "" (a pre-BWFX project) = the empty rack
 
     for (int s = 0; s < beet::NUM_SLOTS && s < slotsTree.getNumChildren(); ++s)
     {
