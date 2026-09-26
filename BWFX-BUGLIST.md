@@ -852,3 +852,30 @@ Pattern to copy: `b/BattlestarOverdrive/test/quality.cpp` §7.
 
 Worth pointing the same check at Blade Ruiner's LOS ANGELES shimmer and High
 Tide, for the same reason.
+
+## The NATIVE racks look like a different product — AWAITING GO *(Peter, 2026-09-26)*
+
+Peter, on Beetmachine's new rack: "the BWFX racks look quite different from those from most
+VSTs, i.e. [Black Rider] or Clone Wars". He is right. There are two renderings of the one rack:
+
+- **The fragment** `ui/bwfx-rack.js` (1374 lines), shown by every WebView synth. Each module has a
+  personality of its own: its colour (`--fxc`: TUBE hot red, SWEEP amber, ENSEMBLE ice blue...),
+  its own lettering (SWEEP in italic serif, ENSEMBLE wide-spaced), glows, rocker switches.
+- **The native port** `BwfxPanel.{h,cpp}` in Rite of Passage, Legion and now Beetmachine (three
+  copies, identical but for two host sentences). It copies the LAYOUT — FX left, SPECTRA right,
+  UP/DN, macros — and none of the look: every pedal is the same plain row in the host's own skin.
+
+**Recommendation: show the real fragment in the native plug-ins too**, in a small WebView that
+holds nothing but the rack, instead of porting 1374 lines of look into C++ a second time.
+- One source of truth: a module added or restyled in BWFX appears identically everywhere on the
+  next rebuild, and the three BwfxPanel copies are deleted rather than kept in step.
+- The protocol already exists: `bwfx_juce::handleMessage` speaks the fragment's `{k:"bwfx", op}`
+  messages; the host page is a few lines that load bwfx-rack.js and open it full-window.
+- Cost/risk: the three native plug-ins gain a WebView2 dependency. Do it the Thin Walls way —
+  `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1` (no loader DLL on the PATH needed) and the
+  `GetAvailableCoreWebView2BrowserVersionString` check, falling back to the native panel when
+  the runtime is missing, so the rack never becomes unreachable.
+- The alternative, a native re-draw with per-module colours and lettering, costs more and
+  drifts from the fragment the first time a module is added.
+
+Affects: Rite of Passage, Legion, Beetmachine. Nothing else in the fleet uses the native panel.
