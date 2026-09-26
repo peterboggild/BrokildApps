@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Hats Off — Manual</title>
+<style>
+/* ===========================================================================
+   Hats Off, the manual. The trilogy's handbook, in brass.
+
+   Landscape A4, one fixed sheet per .page with overflow hidden - so anything
+   too tall is cut off rather than moved, and tools/shoot-manual.ps1 measures
+   every page before the PDF is trusted. The page is the panel's charcoal, so
+   a plate sits on it without a seam.
+   =========================================================================== */
+
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:    #0e0f13;
+  --ink-2:  #16181e;
+  --steel:  #e8b64c;
+  --orange: #6fd0ff;
+  --amber:  #ffb020;
+  --body:   #cfccc6;
+  --dim:    #8a867f;
+  --white:  #f4f2ee;
+  --rule:   rgba(232,182,76,.34);
+  /* the section colours on the panel */
+  --s-metal: #e8b64c; --s-hat: #ff7b54; --s-hit: #f5d76e; --s-eq: #6fd0ff; --s-era: #36c9bd; --s-echo: #8ee06a;
+  --s-tr: #a184ff; --s-drive:#ff3d4a; --s-comp:#4a7dff; --s-out:#cfd3da;
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; background: var(--ink); }
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body); font-size: 10.8pt; line-height: 1.5;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
+.page{
+  position: relative; width: 297mm; height: 210mm; overflow: hidden;
+  page-break-after: always; background: var(--ink);
+}
+.page:last-child{ page-break-after: auto; }
+.pad{ position:absolute; inset: 14mm 16mm 18mm 16mm; }
+
+.display{
+  font-family: "Segoe UI Black", "Arial Black", "Segoe UI", sans-serif;
+  font-weight: 900; letter-spacing: .09em; line-height: 1;
+  color: var(--white); margin: 0;
+}
+h1.display{ font-size: 50pt; letter-spacing: .1em; }
+h2.display{ font-size: 24pt; }
+.sticks{ display:inline-block; width:.82em; height:.82em; margin-right:.32em; vertical-align:-.04em; }
+
+.kick{
+  font: 700 8.2pt/1 Consolas, "SF Mono", ui-monospace, monospace;
+  letter-spacing: .3em; text-transform: uppercase;
+  color: var(--steel); margin: 0 0 4mm 0;
+}
+.sub{ font-size: 11pt; color: #e9e5de; margin: 3.5mm 0 0 0; max-width: 190mm; line-height: 1.45; }
+p{ margin: 0 0 3mm 0; }
+b, strong{ color: var(--white); font-weight: 700; }
+em{ color: var(--amber); font-style: normal; font-weight: 600; }
+.mono{ font-family: Consolas, "SF Mono", ui-monospace, monospace; font-size: .92em; color: #efe9df; }
+
+.rule{
+  height: 3px; border: 0; margin: 5mm 0 6mm 0;
+  background: linear-gradient(90deg, var(--steel) 0%, var(--orange) 40%, rgba(255,90,31,.05) 100%);
+}
+
+img{ display:block; max-width:100%; }
+figure{ margin:0; }
+figcaption{ font-size: 8.3pt; color: var(--dim); margin-top: 1.8mm; line-height: 1.4; }
+figcaption b{ color: var(--amber); }
+.shot{ border: 1px solid rgba(255,255,255,.12); border-radius: 3px; }
+.strip{ width: auto; max-width: 100%; max-height: 36mm; }
+
+.cols{ display:flex; gap: 9mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-40{ flex: 0 0 40%; }
+.c-44{ flex: 0 0 44%; }
+.c-55{ flex: 0 0 55%; }
+.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 0 9mm; }
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 4mm 8mm; }
+.grid4{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 0 7mm; }
+
+.knob{ border-left: 3px solid var(--sec, var(--steel)); padding-left: 4.5mm; margin-bottom: 4.6mm; }
+.knob h3{
+  font: 900 11pt/1 "Segoe UI Black","Arial Black",sans-serif;
+  letter-spacing: .1em; color: var(--white); margin: 0 0 1.2mm 0;
+}
+.knob h3 .rng{ font: 600 8pt/1 Consolas, monospace; letter-spacing: .04em; color: var(--sec, var(--steel)); margin-left: 2.5mm; }
+.knob p{ margin: 0; font-size: 10pt; line-height: 1.43; }
+
+.sechead{ display:flex; align-items:center; gap: 4mm; }
+.sechead .bar{ width: 16mm; height: 3px; background: var(--sec); }
+
+.box{
+  border: 1px solid var(--rule); background: linear-gradient(160deg, rgba(232,182,76,.08), rgba(111,208,255,.03));
+  padding: 4.5mm 5.5mm; border-radius: 3px;
+}
+.box h4{ font: 900 9.6pt/1 "Segoe UI Black","Arial Black",sans-serif; letter-spacing:.12em;
+         color: var(--amber); margin: 0 0 2.2mm 0; }
+.box p{ font-size: 10pt; }
+.box p:last-child{ margin-bottom: 0; }
+
+table{ width:100%; border-collapse: collapse; font-size: 9.8pt; }
+th{ text-align:left; font: 700 7.6pt/1 Consolas, monospace; letter-spacing:.18em;
+    text-transform:uppercase; color: var(--steel); padding: 0 0 1.8mm 0; border-bottom: 1px solid var(--rule); }
+td{ padding: 1.5mm 3mm 1.5mm 0; border-bottom: 1px solid rgba(255,255,255,.07); vertical-align: top; }
+td:first-child{ color: var(--white); font-weight: 600; white-space: nowrap; }
+td.num{ font-family: Consolas, monospace; color: var(--amber); white-space: nowrap; }
+
+.toc{ display:flex; gap: 5mm; align-items: baseline; padding: 1.8mm 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+.toc .n{ flex: 0 0 10mm; font: 900 13pt/1 "Segoe UI Black","Arial Black",sans-serif; color: var(--steel); }
+.toc .t{ flex: 0 0 58mm; font-weight: 700; color: var(--white); letter-spacing: .06em; text-transform: uppercase; font-size: 9.4pt; }
+.toc .d{ flex: 1 1 auto; font-size: 9.2pt; color: var(--dim); }
+
+.bank h3{ font: 900 10pt/1 "Segoe UI Black","Arial Black",sans-serif; letter-spacing:.16em; color: var(--steel); margin:0 0 2.5mm 0; }
+.pl{ font-size: 9.2pt; line-height: 1.32; margin: 0 0 2.3mm 0; }
+.pl b{ display:block; color: var(--white); }
+.pl span{ color: var(--dim); }
+
+.recipe{ border-top: 3px solid var(--sec, var(--steel)); background: var(--ink-2); padding: 3.6mm 5mm; border-radius: 0 0 3px 3px; }
+.recipe h4{ font: 900 10pt/1.1 "Segoe UI Black","Arial Black",sans-serif; letter-spacing:.08em; color: var(--white); margin:0 0 2.2mm 0; }
+.recipe ol{ margin: 0; padding-left: 4.5mm; font-size: 9.8pt; line-height: 1.42; }
+.recipe li{ margin-bottom: .6mm; }
+
+.folio{
+  position:absolute; left:16mm; right:16mm; bottom: 7mm;
+  display:flex; justify-content:space-between; align-items:center;
+  font: 600 7.3pt/1 Consolas, monospace; letter-spacing:.2em; text-transform:uppercase;
+  color: rgba(138,134,127,.85); border-top: 1px solid rgba(232,182,76,.2); padding-top: 2.6mm;
+}
+.folio .n{ color: var(--steel); font-weight: 800; letter-spacing: .1em; }
+
+.cover-art{ position:absolute; left:0; right:0; bottom:0; height: 47%; overflow:hidden; }
+.cover-art img{ width:100%; height:100%; object-fit: cover; object-position: center 100%; }
+.cover-fade{ position:absolute; inset:0;
+  background: linear-gradient(180deg, var(--ink) 0%, rgba(14,15,19,.35) 16%, rgba(14,15,19,0) 34%); }
+.cover-top{ position:absolute; left:18mm; right:18mm; top:24mm; }
+</style>
+</head>
+<body>
+
+<!-- ==================================================  1  COVER  ====== -->
+<section class="page">
+  <div class="cover-top">
+    <p class="kick" style="color:var(--amber); margin-bottom:6mm">Brokild &middot; Windows VST3 &middot; Hi-hat and cymbal synthesiser</p>
+    <h1 class="display"><svg class="sticks" viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="22" rx="19" ry="6" fill="#e8b64c"/><ellipse cx="20" cy="20.5" rx="19" ry="5" fill="#f5d76e"/><ellipse cx="20" cy="18.5" rx="5" ry="2.4" fill="#c9942e"/><rect x="19" y="3" width="2" height="16" fill="#6fd0ff"/></svg>HATS OFF</h1>
+    <hr class="rule" style="margin:7mm 0 5mm 0; max-width:190mm" />
+    <div class="cols" style="align-items:flex-end">
+      <div class="c-55">
+        <p style="font-size:12.5pt; color:#e9e5de; margin:0">
+          A plate of bronze, two of them on a pedal, and the circuits that copied
+          them. Every hat and cymbal, from those. No samples.
+        </p>
+      </div>
+      <div style="text-align:right">
+        <p class="mono" style="margin:0; color:var(--amber); letter-spacing:.14em">MANUAL &middot; BUILD 260926.1</p>
+      </div>
+    </div>
+  </div>
+  <div class="cover-art">
+    <img src="../../../img/panel.jpg" alt="" />
+    <div class="cover-fade"></div>
+  </div>
+</section>
+
+<!-- ===============================================  2  CONTENTS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Contents</p>
+    <h2 class="display">WHAT IS IN HERE</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <div class="toc"><span class="n">03</span><span class="t">Quick start</span><span class="d">Install it, hit it, pick a preset.</span></div>
+        <div class="toc"><span class="n">04</span><span class="t">The idea</span><span class="d">Bronze, a circuit, and a wash.</span></div>
+        <div class="toc"><span class="n">05</span><span class="t">Metal</span><span class="d">The cymbal itself: eight knobs.</span></div>
+        <div class="toc"><span class="n">06</span><span class="t">Hat</span><span class="d">Two plates on a pedal.</span></div>
+        <div class="toc"><span class="n">07</span><span class="t">Hit &amp; EQ</span><span class="d">Where the stick lands; what the mic hears.</span></div>
+        <div class="toc"><span class="n">08</span><span class="t">Era &amp; Echo</span><span class="d">The machine, the room, the width, the dub.</span></div>
+        <div class="toc"><span class="n">09</span><span class="t">Transient &amp; Drive</span><span class="d">Front and back; four engines.</span></div>
+        <div class="toc"><span class="n">10</span><span class="t">Comp &amp; Out</span><span class="d">Roll or pump; level, touch and keys.</span></div>
+        <div class="toc"><span class="n">11</span><span class="t">The display &amp; the pad</span><span class="d">The hit, its brightness, a cymbal from above.</span></div>
+        <div class="toc"><span class="n">12</span><span class="t">Recipes</span><span class="d">From one style to another.</span></div>
+        <div class="toc"><span class="n">13</span><span class="t">Presets</span><span class="d">Forty-four, in six banks.</span></div>
+        <div class="toc"><span class="n">15</span><span class="t">Specifications</span><span class="d">And what the bench measured.</span></div>
+      </div>
+      <div>
+        <div class="box">
+          <h4>IN SHORT</h4>
+          <p>Hats Off synthesises hi-hats and cymbals: the real ones in a
+          studio, the drum machines that made the records, and what techno,
+          dub and dubstep did with them next.</p>
+          <p>It does not carry a simulation per machine. It models what every
+          cymbal is &mdash; a plate that rings, closed or free &mdash; and the
+          circuit that imitated it, with thirty-one controls, and lets you walk
+          from one to the next.</p>
+        </div>
+        <div class="box" style="margin-top:6mm">
+          <h4>THE FIRST TEN SECONDS</h4>
+          <p>Open it and click the cymbal in the corner &mdash; the bell in the
+          middle, then out towards the edge. Then <b>CLOSED</b>, <b>PEDAL</b>
+          and <b>OPEN</b>. Press <b>&gt;</b> beside the preset name until
+          something makes you grin.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Hats Off &middot; Manual</span><span class="n">02</span></div>
+</section>
+
+<!-- ============================================  3  QUICK START  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Quick start</p>
+    <h2 class="display">INSTALL, HIT, PLAY</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <figure>
+          <img class="shot" src="../../../img/panel.jpg" alt="" />
+          <figcaption><b>The panel.</b> The display and the cymbal pad across
+          the top. Below, the controls in the order the sound meets them:
+          Metal, Hat, Hit, EQ, then Era, Echo, Transient, Drive, Comp and Out.</figcaption>
+        </figure>
+      </div>
+      <div>
+        <div class="knob" style="--sec:var(--s-metal)"><h3>1 &middot; INSTALL</h3>
+          <p>Copy <b>Hats Off.vst3</b> into
+          <span class="mono">C:\Program Files\Common Files\VST3\</span> and
+          rescan. It files under Instrument / Drum. The standalone,
+          <b>Hats Off.exe</b>, needs no installing.</p></div>
+        <div class="knob" style="--sec:var(--s-hit)"><h3>2 &middot; FIRST HIT</h3>
+          <p>Click the cymbal: the middle is the bell, the rim is the edge.
+          Keys: <b>space</b> as dialled, <b>C</b> closed, <b>P</b> pedal,
+          <b>O</b> open, <b>B</b> bell, <b>E</b> edge.</p></div>
+        <div class="knob" style="--sec:var(--s-hat)"><h3>3 &middot; PICK A PRESET</h3>
+          <p><b>&lt;</b> and <b>&gt;</b> step through the banks; the name opens
+          the list. Presets are level-matched, so you compare cymbals, not volumes.</p></div>
+        <div class="knob" style="--sec:var(--s-echo)"><h3>4 &middot; FROM MIDI</h3>
+          <p>With <b>KEYS</b> on GM KIT (the default), 42 is the closed hat,
+          44 the pedal, 46 the open hat, 53 the bell, and 49, 52, 55 and 57 the
+          edge &mdash; the General MIDI drum map, so a drum rack just works.</p></div>
+        <div class="knob" style="--sec:var(--s-out)"><h3>5 &middot; KEEP IT</h3>
+          <p><b>SAVE</b> and <b>LOAD</b> use
+          <span class="mono">Documents\Brokild patches\Hats Off</span>.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Quick start</span><span class="n">03</span></div>
+</section>
+
+<!-- ===============================================  4  THE IDEA  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The idea</p>
+    <h2 class="display">BRONZE, A CIRCUIT, A WASH</h2>
+    <p class="sub">A cymbal is a plate of bronze with a great many modes that
+    do not line up. A drum machine faked that with square waves. Hats Off
+    builds both, and lets one turn into the other.</p>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <table>
+          <tr><th>What</th><th>808 / 606</th><th>A real cymbal</th><th>Hats Off</th></tr>
+          <tr><td>The tone</td><td>six squares, not in tune</td><td>a plate&rsquo;s modes</td><td>BRONZE walks between them</td></tr>
+          <tr><td>The top</td><td>a band-pass</td><td>too dense to hear as notes</td><td>DENSITY: modes, then a wash</td></tr>
+          <tr><td>Where it is hit</td><td>&mdash;</td><td>bell, bow, edge</td><td>STRIKE</td></tr>
+          <tr><td>The build</td><td>&mdash;</td><td>brighter after the hit</td><td>BLOOM</td></tr>
+          <tr><td>Open or closed</td><td>two sounds</td><td>one pedal</td><td>OPEN, CHICK, CHOKE</td></tr>
+          <tr><td>The stick</td><td>&mdash;</td><td>a tick on the ride</td><td>STICK</td></tr>
+        </table>
+        <p style="margin-top:4mm">The plate&rsquo;s low and middle modes are
+        rung one by one, because that is where a cymbal&rsquo;s pitch lives: a
+        14-inch and a 20-inch are different instruments. Above a few kHz a
+        real cymbal&rsquo;s modes crowd and couple until no ear hears them as
+        notes, so there Hats Off lays a <b>wash</b> of noise bands that obey
+        the same laws &mdash; the same decay, the same tilt with the strike,
+        the same damping as the hat closes.</p>
+      </div>
+      <div>
+        <figure>
+          <img class="shot strip" src="../../../img/hit-808open.jpg" alt="" />
+          <figcaption><b>808 Open Hat.</b> Six squares through a band-pass.</figcaption>
+        </figure>
+        <figure style="margin-top:3.5mm">
+          <img class="shot strip" src="../../../img/hit-hat.jpg" alt="" />
+          <figcaption><b>Studio Hi-Hat 14.</b> Bronze, nearly closed.</figcaption>
+        </figure>
+        <figure style="margin-top:3.5mm">
+          <img class="shot strip" src="../../../img/hit-crash.jpg" alt="" />
+          <figcaption><b>Crash 18.</b> The explosion, then the bloom.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The idea</span><span class="n">04</span></div>
+</section>
+
+<!-- ==================================================  5  METAL  ====== -->
+<section class="page" style="--sec:var(--s-metal)">
+  <div class="pad">
+    <div class="sechead"><span class="bar"></span><p class="kick" style="margin:0">Metal</p></div>
+    <h2 class="display" style="margin-top:3mm">METAL</h2>
+    <hr class="rule" />
+    <div class="grid2">
+      <div>
+        <div class="knob"><h3>PITCH<span class="rng">&plusmn;24 semitones</span></h3>
+          <p>Moves every mode and every square together, so the cymbal keeps
+          its character and changes its register.</p></div>
+        <div class="knob"><h3>SIZE<span class="rng">8&ndash;24 inches</span></h3>
+          <p>The diameter. The lowest mode falls as the plate grows: a splash
+          is high and quick, a 22-inch ride low and dark. The display names it.</p></div>
+        <div class="knob"><h3>BRONZE<span class="rng">circuit &rarr; plate</span></h3>
+          <p>At 0, the 808&rsquo;s six square waves through a band-pass. At
+          100, the plate. Between, both &mdash; the 909&rsquo;s trick.</p></div>
+        <div class="knob"><h3>DENSITY</h3>
+          <p>How many modes, from ten to sixty-four, and how much wash above
+          them. Low is a bell-like ping; high is the continuum of a crash.</p></div>
+      </div>
+      <div>
+        <div class="knob"><h3>BLOOM</h3>
+          <p>A struck cymbal gets brighter for a moment after the stick, as
+          the energy climbs into the high modes. BLOOM sets how much and how
+          slowly: the swell of a crash.</p></div>
+        <div class="knob"><h3>TRASH</h3>
+          <p>The plate rattles against its own lowest modes: a china, an
+          upturned cymbal, a cracked one.</p></div>
+        <div class="knob"><h3>DECAY<span class="rng">30 ms&ndash;8 s</span></h3>
+          <p>Time for the lowest mode to fall 60 dB with the hat fully open.
+          Higher modes die sooner, as on a real plate.</p></div>
+        <div class="knob"><h3>NOISE</h3>
+          <p>Plain white noise under the envelope: a CR-78, a 606, or grit for
+          a machine hat.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Metal</span><span class="n">05</span></div>
+</section>
+
+<!-- ====================================================  6  HAT  ====== -->
+<section class="page" style="--sec:var(--s-hat)">
+  <div class="pad">
+    <div class="sechead"><span class="bar"></span><p class="kick" style="margin:0">Hat</p></div>
+    <h2 class="display" style="margin-top:3mm">HAT</h2>
+    <p class="sub">Two plates on a pedal. The foot decides how long they ring.</p>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-44">
+        <div class="knob"><h3>OPEN</h3>
+          <p>How far apart the plates are. Closed, the upper plate damps the
+          lower and the high modes die first, so a closed hat is short and
+          dark; fully open is a free cymbal ringing for DECAY.</p></div>
+        <div class="knob"><h3>SIZZLE</h3>
+          <p>Half-open plates touch and buzz against each other. The rattle
+          follows the plate&rsquo;s own motion, and it cannot happen when the
+          hat is shut.</p></div>
+        <div class="knob"><h3>CHICK</h3>
+          <p>The pedal note: the two plates clapped together by the foot, a
+          short, woody chick at about 2.4 kHz.</p></div>
+        <div class="knob"><h3>CHOKE<span class="rng">OFF / ON</span></h3>
+          <p>With CHOKE on, a closed hit stops an open hat ringing &mdash; the
+          foot coming down. Off, they overlap like two separate cymbals.</p></div>
+      </div>
+      <div>
+        <div class="box">
+          <h4>WHAT OPEN DOES, MEASURED</h4>
+          <p>From fully open to fully closed, the time for a hit to fall 40
+          dB goes from <em>1339 ms</em> to <em>38 ms</em>. A closed hit after
+          an open one leaves the open hat <em>113 dB</em> down 400 ms later
+          with CHOKE, against 28 dB without.</p>
+        </div>
+        <div class="box" style="margin-top:5mm">
+          <h4>THREE WAYS TO PLAY THE HAT</h4>
+          <p><b>CLOSED</b> clamps OPEN to a few percent; <b>PEDAL</b> is the
+          chick on its own with a little plate; <b>OPEN</b> opens it to at
+          least 80 %. All three from the same patch, so a preset is a whole
+          pair of hats, not one sound.</p>
+        </div>
+        <figure style="margin-top:5mm">
+          <img class="shot strip" src="../../../img/hit-909.jpg" alt="" />
+          <figcaption><b>909 Closed Hat.</b> Bronze through six bits, choked short.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Hat</span><span class="n">06</span></div>
+</section>
+
+<!-- ===============================================  7  HIT & EQ  ====== -->
+<section class="page" style="--sec:var(--s-hit)">
+  <div class="pad">
+    <div class="sechead"><span class="bar"></span><p class="kick" style="margin:0">Hit and EQ</p></div>
+    <h2 class="display" style="margin-top:3mm">HIT &amp; EQ</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-44">
+        <div class="knob"><h3>STRIKE<span class="rng">bell &rarr; edge</span></h3>
+          <p>Where the stick lands. On the <b>bell</b> the dome rings: a
+          clear ping that lasts. On the <b>bow</b>, the ride. On the
+          <b>edge</b> the high modes explode: the crash, brighter and shorter.</p></div>
+        <div class="knob"><h3>STICK</h3>
+          <p>The tip of the stick on the metal: the tick that defines a ride
+          pattern over the wash.</p></div>
+        <div class="knob" style="--sec:var(--s-eq)"><h3>CUT<span class="rng">20 Hz&ndash;8 kHz</span></h3>
+          <p>A high-pass, as every engineer puts on the overheads. At its
+          bottom it is not there at all.</p></div>
+        <div class="knob" style="--sec:var(--s-eq)"><h3>AIR</h3>
+          <p>The top octave. Down for a dark, dusty cymbal; fully up is no
+          filter.</p></div>
+      </div>
+      <div>
+        <p class="kick" style="color:var(--s-hit); margin-bottom:3mm">Six ways to hit it</p>
+        <table>
+          <tr><th>Articulation</th><th>GM note</th><th>Pad / key</th><th>What changes</th></tr>
+          <tr><td>As dialled</td><td class="num">any other</td><td>cymbal &middot; space</td><td>as the controls say</td></tr>
+          <tr><td>Closed</td><td class="num">42</td><td>CLOSED &middot; C</td><td>the hat shut</td></tr>
+          <tr><td>Pedal</td><td class="num">44</td><td>PEDAL &middot; P</td><td>the chick, the foot</td></tr>
+          <tr><td>Open</td><td class="num">46</td><td>OPEN &middot; O</td><td>at least 80 % open</td></tr>
+          <tr><td>Bell</td><td class="num">53</td><td>middle &middot; B</td><td>STRIKE on the bell</td></tr>
+          <tr><td>Edge</td><td class="num">49 52 55 57</td><td>rim &middot; E</td><td>STRIKE on the edge</td></tr>
+        </table>
+        <p style="margin-top:3.5mm">Measured from bell to edge the brightness
+        (spectral centroid) rises from <em>4.3 kHz</em> to <em>8.5 kHz</em>,
+        and the bell rings on for <em>3.9 s</em> against 2.7 s for the edge.</p>
+        <figure style="margin-top:3mm">
+          <img class="shot strip" src="../../../img/hit-bell.jpg" alt="" />
+          <figcaption><b>Ride Bell.</b> The dome: bright from the first moment, and long.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Hit &amp; EQ</span><span class="n">07</span></div>
+</section>
+
+<!-- ============================================  8  ERA & ECHO  ====== -->
+<section class="page">
+  <div class="pad">
+    <div class="sechead" style="--sec:var(--s-era)"><span class="bar"></span><p class="kick" style="margin:0">Era and Echo</p></div>
+    <h2 class="display" style="margin-top:3mm">ERA &amp; ECHO</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div>
+        <p class="kick" style="color:var(--s-era); margin-bottom:3mm">Era &middot; the machine, the room, the width</p>
+        <div class="knob" style="--sec:var(--s-era)"><h3>GRIT</h3>
+          <p>Lower sample rate and bit depth. A little is the 12-bit SP-1200;
+          more is the 909&rsquo;s six-bit cymbal ROM and the 8-bit Linn.</p></div>
+        <div class="knob" style="--sec:var(--s-era)"><h3>ROOM</h3>
+          <p>A room around the cymbal &mdash; the overheads rather than the
+          close mic. It sits before the drive and the compressor.</p></div>
+        <div class="knob" style="--sec:var(--s-era)"><h3>WIDTH</h3>
+          <p>A cymbal is wide: its modes radiate to different sides. WIDTH
+          spreads them across the stereo field and decorrelates the wash.
+          At 0 the cymbal is mono, both sides the same sample for sample.</p></div>
+      </div>
+      <div>
+        <p class="kick" style="color:var(--s-echo); margin-bottom:3mm">Echo &middot; the dub</p>
+        <div class="knob" style="--sec:var(--s-echo)"><h3>ECHO</h3>
+          <p>A tape echo, ping-pong: the first repeat on the left, the next on
+          the right. One knob raises the send and the feedback together. Each
+          pass comes back darker and thinner, and saturates, so it can be
+          pushed to the top without running away.</p></div>
+        <div class="knob" style="--sec:var(--s-echo)"><h3>TIME<span class="rng">1/16 &hellip; 1/2</span></h3>
+          <p>Locked to the host tempo, which is shown beneath it; 120 BPM when
+          the standalone has no host.</p></div>
+        <figure style="margin-top:1mm">
+          <img class="shot strip" src="../../../img/hit-dub.jpg" alt="" />
+          <figcaption><b>Dub Hat Echo.</b> A half-open hat and its repeats on a
+          dotted eighth.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Era &amp; Echo</span><span class="n">08</span></div>
+</section>
+
+<!-- =====================================  9  TRANSIENT & DRIVE  ====== -->
+<section class="page">
+  <div class="pad">
+    <div class="sechead" style="--sec:var(--s-drive)"><span class="bar"></span><p class="kick" style="margin:0">Transient and Drive</p></div>
+    <h2 class="display" style="margin-top:3mm">TRANSIENT &amp; DRIVE</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-40">
+        <p class="kick" style="color:var(--s-tr); margin-bottom:3mm">Transient</p>
+        <div class="knob" style="--sec:var(--s-tr)"><h3>ATTACK<span class="rng">bipolar</span></h3>
+          <p>More or less of the first milliseconds: the stick.</p></div>
+        <div class="knob" style="--sec:var(--s-tr)"><h3>SUSTAIN<span class="rng">bipolar</span></h3>
+          <p>More or less of the ring: the wash and the room.</p></div>
+        <p style="font-size:10pt">A transient shaper usually has to guess
+        from the audio. Hats Off is the synthesiser, so it reads its own
+        envelopes &mdash; plate, stick and chick &mdash; and the gain it
+        makes cannot ripple.</p>
+      </div>
+      <div>
+        <p class="kick" style="color:var(--s-drive); margin-bottom:3mm">Drive &middot; four engines from Battlestar Overdrive</p>
+        <table>
+          <tr><th>Engine</th><th>What it does</th></tr>
+          <tr><td>IDLE BURN</td><td>A warm, asymmetric tube. Thickens without shouting.</td></tr>
+          <tr><td>HYPERDRIVE</td><td>Harmonic injection: a techno hat that cuts on small speakers.</td></tr>
+          <tr><td>RAZOR WING</td><td>Tanh into a hard clip. Hard techno, gabber.</td></tr>
+          <tr><td>SUPERNOVA</td><td>Fold, crush and chaos. Industrial sheet metal.</td></tr>
+        </table>
+        <div class="grid2" style="margin-top:4mm">
+          <div class="knob" style="--sec:var(--s-drive)"><h3>DRIVE</h3>
+            <p>How hard the engine is pushed. Level-matched by measurement: more
+            drive is more character, not more volume.</p></div>
+          <div class="knob" style="--sec:var(--s-drive)"><h3>COLOUR</h3>
+            <p>The drive&rsquo;s low-pass. Fully open is no filter at all.</p></div>
+        </div>
+        <p style="font-size:9.4pt; color:var(--dim); margin-top:1mm">A cymbal
+        is nearly all top end, so the drive runs at eight times the sample
+        rate: its harmonics land above hearing and are filtered away instead of
+        folding back.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Transient &amp; Drive</span><span class="n">09</span></div>
+</section>
+
+<!-- ===========================================  10  COMP & OUT  ====== -->
+<section class="page">
+  <div class="pad">
+    <div class="sechead" style="--sec:var(--s-comp)"><span class="bar"></span><p class="kick" style="margin:0">Comp and Out</p></div>
+    <h2 class="display" style="margin-top:3mm">COMP &amp; OUT</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div>
+        <p class="kick" style="color:var(--s-comp); margin-bottom:3mm">Comp</p>
+        <div class="knob" style="--sec:var(--s-comp)"><h3>COMP</h3>
+          <p>Threshold and ratio on one knob, with its own make-up, so turning
+          it up makes the cymbal denser, not quieter.</p></div>
+        <div class="knob" style="--sec:var(--s-comp)"><h3>SPEED</h3>
+          <p>Slow lets the stick through before the compressor grabs the wash.
+          Fast flattens it and brings the ring up to meet the hit &mdash; the
+          pumping open hat. It looks 1.5 ms ahead, so even fast it catches the
+          front.</p></div>
+        <div class="box" style="margin-top:5mm">
+          <h4>ROLLS AND WASHES</h4>
+          <p>Six cymbals ring at once, and they overlap the way real ones do.
+          A seventh fades the oldest rather than cutting it, so a trap roll or
+          sixteen crashes in a row stay smooth.</p>
+        </div>
+      </div>
+      <div>
+        <p class="kick" style="color:var(--s-out); margin-bottom:3mm">Out</p>
+        <div class="knob" style="--sec:var(--s-out)"><h3>LEVEL</h3>
+          <p>Output. A soft ceiling holds everything under 0 dBFS.</p></div>
+        <div class="knob" style="--sec:var(--s-out)"><h3>VELO</h3>
+          <p>How much harder hits are louder and brighter. At 0, every velocity
+          is the same hit, exactly.</p></div>
+        <div class="knob" style="--sec:var(--s-out)"><h3>KEYS</h3>
+          <p><b>FIXED</b>: every note plays the cymbal as dialled. <b>GM
+          KIT</b>: 42 closed, 44 pedal, 46 open, 53 bell, 49 / 52 / 55 / 57
+          edge. <b>CHROMATIC</b>: the note tunes the cymbal, with F#1 (42) at
+          PITCH &mdash; a tuned bell line, or a gong played in the key.</p></div>
+        <div class="box" style="margin-top:3mm">
+          <h4>NO MACHINE GUN</h4>
+          <p>No two hits are the same: each mode&rsquo;s amplitude moves a
+          little every time, as the stick never lands in the same place twice.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Comp &amp; Out</span><span class="n">10</span></div>
+</section>
+
+<!-- ======================================  11  DISPLAY & PAD  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The top of the panel</p>
+    <h2 class="display">THE DISPLAY &amp; THE PAD</h2>
+    <hr class="rule" />
+    <figure>
+      <img class="shot" src="../../../img/hit-ride.jpg" alt="" style="max-height:62mm; width:auto; max-width:100%" />
+      <figcaption><b>Jazz Ride 20.</b> The hit in brass, its brightness over
+      time in steel; the readouts along the top.</figcaption>
+    </figure>
+    <div class="grid3" style="margin-top:6mm">
+      <div class="knob" style="--sec:var(--s-metal)"><h3>THE HIT</h3>
+        <p>Rendered by the same engine every time a control moves. OPEN is a
+        hit that stops; DECAY one that does not.</p></div>
+      <div class="knob" style="--sec:var(--s-eq)"><h3>ITS BRIGHTNESS</h3>
+        <p>The steel curve is the spectral centroid over time. BLOOM shows as a
+        curve that rises after the stick; a closed hat as one that falls at once.</p></div>
+      <div class="knob" style="--sec:var(--s-out)"><h3>PAD &amp; METERS</h3>
+        <p>A cymbal seen from above: click the bell, the bow or the edge.
+        CLOSED, PEDAL and OPEN below it; OUT and GR meters beside.</p></div>
+    </div>
+  </div>
+  <div class="folio"><span>The display &amp; the pad</span><span class="n">11</span></div>
+</section>
+
+<!-- ==============================================  12  RECIPES  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Walking the space</p>
+    <h2 class="display">RECIPES</h2>
+    <p class="sub">From one style to another, a few knobs at a time.</p>
+    <hr class="rule" style="margin-bottom:5mm" />
+    <div class="grid3" style="gap:5mm 7mm">
+      <div class="recipe" style="--sec:var(--s-metal)"><h4>808 &rarr; REAL HAT</h4><ol>
+        <li>Start on <b>808 Closed Hat</b>.</li>
+        <li>BRONZE up to 100 %.</li>
+        <li>DENSITY 70 %, SIZE 14 inches.</li>
+        <li>STICK and CHICK up; a little ROOM.</li></ol></div>
+      <div class="recipe" style="--sec:var(--s-hat)"><h4>CLOSED &rarr; SIZZLING</h4><ol>
+        <li>A studio hat, OPEN 15 %.</li>
+        <li>SIZZLE up to 70 %.</li>
+        <li>Walk OPEN up to 35 %: the plates touch.</li>
+        <li>Automate OPEN: that is the foot.</li></ol></div>
+      <div class="recipe" style="--sec:var(--s-hit)"><h4>RIDE &rarr; CRASH</h4><ol>
+        <li>Start on <b>Jazz Ride 20</b>.</li>
+        <li>SIZE down to 18, STRIKE to the edge.</li>
+        <li>BLOOM up to 70 %, STICK down.</li>
+        <li>DECAY to 4 s. It explodes now.</li></ol></div>
+      <div class="recipe" style="--sec:var(--s-echo)"><h4>DUB HAT</h4><ol>
+        <li>A half-open hat, OPEN 30 %.</li>
+        <li>ECHO up, TIME 1/8D.</li>
+        <li>AIR down a touch, COLOUR down.</li>
+        <li>Ride ECHO from the host on the last beat.</li></ol></div>
+      <div class="recipe" style="--sec:var(--s-drive)"><h4>HARD TECHNO</h4><ol>
+        <li>BRONZE 50 %: circuit and plate.</li>
+        <li>CUT to 3 kHz, NOISE 20 %.</li>
+        <li>RAZOR WING, DRIVE 60 %.</li>
+        <li>COMP 70 %, SPEED fast. Roll it.</li></ol></div>
+      <div class="recipe" style="--sec:var(--s-era)"><h4>THE CHINA</h4><ol>
+        <li>Any crash.</li>
+        <li>TRASH up to 70 %.</li>
+        <li>STRIKE to the edge, DENSITY up.</li>
+        <li>A little SUPERNOVA for a cracked one.</li></ol></div>
+    </div>
+  </div>
+  <div class="folio"><span>Recipes</span><span class="n">12</span></div>
+</section>
+
+<!-- =========================================  13  PRESETS (1)  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Forty-four, plus Init &middot; 1 of 2</p>
+    <h2 class="display">PRESETS</h2>
+    <hr class="rule" style="margin-bottom:4.5mm" />
+    <div class="grid3" style="gap:0 8mm">
+      <div class="bank">
+        <h3>ACOUSTIC</h3>
+        <p class="pl"><b>Studio Hi-Hat 14</b><span>A pair of 14-inch hats, mic&rsquo;d close: closed, pedal and open.</span></p>
+        <p class="pl"><b>Loose Hat</b><span>The pedal eased off: the plates touch and sizzle.</span></p>
+        <p class="pl"><b>Jazz Ride 20 &middot; Sizzle Ride</b><span>A stick over a wash that builds &mdash; and one with rivets.</span></p>
+        <p class="pl"><b>Ride Bell &middot; Dark Ride 22</b><span>The ping; and a big, dark, dry ride.</span></p>
+        <p class="pl"><b>Crash 16 &middot; Crash 18</b><span>Thin and fast; the explosion, then the bloom.</span></p>
+        <p class="pl"><b>Splash 10 &middot; China 18</b><span>Short and bright; trashy, upturned, rude.</span></p>
+        <p class="pl"><b>Hats In A Room</b><span>The hi-hat heard from the overheads.</span></p>
+        <p class="pl" style="margin-top:3mm"><b>Init</b><span>A 14-inch hat, nearly closed: a place to start.</span></p>
+      </div>
+      <div class="bank">
+        <h3>VINTAGE</h3>
+        <p class="pl"><b>808 Closed &middot; Open &middot; Cymbal</b><span>Six squares and a band-pass; the closed one chokes the open.</span></p>
+        <p class="pl"><b>909 Closed &middot; Open &middot; Ride &middot; Crash</b><span>A real cymbal through six bits &mdash; the house open hat.</span></p>
+        <p class="pl"><b>606 Hats</b><span>Squares and noise, thin and ticking.</span></p>
+        <p class="pl"><b>CR-78 Hat</b><span>A burst of noise, politely filtered.</span></p>
+        <p class="pl"><b>LinnDrum &middot; 707 / 727</b><span>A real hat, 8-bit; the mid-eighties Roland.</span></p>
+        <p class="pl"><b>SP-1200 Hat</b><span>12-bit, filtered, pushed.</span></p>
+        <p class="pl"><b>Kraftwerk Metal</b><span>A ring-modulated circuit cymbal with an echo.</span></p>
+      </div>
+      <div class="bank">
+        <h3>TECHNO</h3>
+        <p class="pl"><b>Techno Closed</b><span>Circuit, noise and bronze through HYPERDRIVE.</span></p>
+        <p class="pl"><b>Rolling Open Hat</b><span>The off-beat open hat, compressed to roll.</span></p>
+        <p class="pl"><b>Minimal Tick</b><span>A tiny, wide, dry tick.</span></p>
+        <p class="pl"><b>Detroit Ride</b><span>A gritty machine ride.</span></p>
+        <p class="pl"><b>Hard Techno Hat</b><span>RAZOR WING and a compressor.</span></p>
+        <p class="pl"><b>Warehouse Ride</b><span>A ride in a big concrete room.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Presets</span><span class="n">13</span></div>
+</section>
+
+<!-- =========================================  14  PRESETS (2)  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Forty-four, plus Init &middot; 2 of 2</p>
+    <h2 class="display">PRESETS</h2>
+    <hr class="rule" style="margin-bottom:4.5mm" />
+    <div class="grid3" style="gap:0 8mm">
+      <div class="bank">
+        <h3>DUB</h3>
+        <p class="pl"><b>Dub Hat Echo</b><span>A half-open hat into a dotted-eighth tape echo.</span></p>
+        <p class="pl"><b>Roots Hi-Hat</b><span>A loose real hat with a sixteenth-note echo.</span></p>
+        <p class="pl"><b>Dub Techno Hat</b><span>Dark, open; the echo does the rest.</span></p>
+        <p class="pl"><b>Skank Hat</b><span>A closed hat with an eighth-note echo.</span></p>
+        <p class="pl"><b>Space Cymbal</b><span>A crash thrown into the echo and the room.</span></p>
+      </div>
+      <div class="bank">
+        <h3>DUBSTEP</h3>
+        <p class="pl"><b>Dubstep Hat</b><span>Tight, bright, compressed, all attack.</span></p>
+        <p class="pl"><b>Halftime Crash</b><span>A big crash in a room for the drop.</span></p>
+        <p class="pl"><b>Trap Hat</b><span>A short hat for rolls; velocity does the rest.</span></p>
+        <p class="pl"><b>Grime Hat</b><span>A crushed circuit hat.</span></p>
+        <p class="pl"><b>UKG Shuffle Hat</b><span>A half-open hat for the shuffle.</span></p>
+      </div>
+      <div class="bank">
+        <h3>MODERN</h3>
+        <p class="pl"><b>House Open Hat</b><span>The open hat on the off-beat.</span></p>
+        <p class="pl"><b>Lo-Fi Hat</b><span>A hat left in a drawer since 1994.</span></p>
+        <p class="pl"><b>Metal Plate</b><span>A 24-inch sheet of trash through SUPERNOVA.</span></p>
+        <p class="pl"><b>Psytrance Hat</b><span>A bright, wide, half-open hat.</span></p>
+      </div>
+    </div>
+    <div class="box" style="margin-top:6mm">
+      <h4>LEVEL-MATCHED</h4>
+      <p>Every preset is levelled by measurement: &minus;17 dB RMS over the
+      first 80 ms, the part of a cymbal the ear judges its loudness by, and no
+      clean preset above &minus;1 dBFS &mdash; so flicking through compares
+      cymbals, not volumes. The machine names are in the spirit of the
+      originals; nothing is sampled from them.</p>
+    </div>
+  </div>
+  <div class="folio"><span>Presets</span><span class="n">14</span></div>
+</section>
+
+<!-- ========================================  15  SPECIFICATIONS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The numbers</p>
+    <h2 class="display">SPECIFICATIONS</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <table>
+          <tr><td>Format</td><td>Windows VST3, 64-bit, and a standalone application</td></tr>
+          <tr><td>Type</td><td>Instrument / Drum. MIDI in, stereo out</td></tr>
+          <tr><td>Sound</td><td>Fully synthesised. No samples</td></tr>
+          <tr><td>Controls</td><td>31: Metal, Hat, Hit, EQ, Era, Echo, Transient, Drive, Comp, Out</td></tr>
+          <tr><td>Articulations</td><td>As dialled, closed, pedal, open, bell, edge</td></tr>
+          <tr><td>Keys</td><td>FIXED, GM KIT (42 / 44 / 46 / 53 / 49), CHROMATIC</td></tr>
+          <tr><td>Polyphony</td><td>Six ringing cymbals; the oldest fades</td></tr>
+          <tr><td>The plate</td><td>Up to 64 modes and 8 bell partials, plus an 8-band wash</td></tr>
+          <tr><td>Drive engines</td><td>IDLE BURN, HYPERDRIVE, RAZOR WING, SUPERNOVA</td></tr>
+          <tr><td>Presets</td><td>44 factory in six banks, plus Init</td></tr>
+          <tr><td>User patches</td><td><span class="mono">Documents\Brokild patches\Hats Off</span></td></tr>
+          <tr><td>Licence</td><td>AGPLv3. Source at github.com/peterboggild/BrokildApps</td></tr>
+          <tr><td>Build</td><td class="num">260926.1</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3 class="display" style="font-size:11pt; color:var(--amber)">MEASURED</h3>
+        <table style="margin-top:3mm">
+          <tr><td>Lowest mode against SIZE</td><td class="num">within 0.001 cents</td></tr>
+          <tr><td>DECAY against its &minus;60 dB time</td><td class="num">within 0.3 %</td></tr>
+          <tr><td>Oversampling</td><td class="num">4x; drive at 8x</td></tr>
+          <tr><td>Aliasing, RAZOR WING at 100 %</td><td class="num">&minus;84 dB</td></tr>
+          <tr><td>Open hat after a choke, 400 ms on</td><td class="num">&minus;113 dB</td></tr>
+          <tr><td>Echo, 1/8D at 120 BPM</td><td class="num">375 ms, left then right</td></tr>
+          <tr><td>Drive level change</td><td class="num">within 1.4 dB</td></tr>
+          <tr><td>Latency at 48 kHz</td><td class="num">103 samples, 2.1 ms</td></tr>
+          <tr><td>CPU, a ride with six ringing</td><td class="num">about 11 % of a core</td></tr>
+        </table>
+        <p style="margin-top:4mm; font-size:8.6pt; color:var(--dim)">
+          Latency is reported to the host and compensated. Every number here
+          comes from the bench in the source, which renders real audio and
+          measures it: 53 engine checks, 76 in a plugin host, 12 on the panel.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Specifications</span><span class="n">15</span></div>
+</section>
+
+<!-- ================================================  16  BACK  ====== -->
+<section class="page">
+  <div style="position:absolute; left:18mm; right:18mm; top:17mm;">
+    <p class="kick" style="color:var(--amber)">Credits</p>
+    <h2 class="display" style="font-size:28pt">HATS OFF TO<br>THE DRUMMERS</h2>
+    <hr class="rule" style="margin:7mm 0 6mm 0; max-width:170mm" />
+    <div class="cols">
+      <div class="c-55">
+        <p>This VST comes from the curved mind of Professor Brokild, and was
+        programmed with VScode, ChatGPT and Claude. Use of this is on your own
+        peril. It may generate unique, beautiful, scary or useless sounds for
+        you, and it may crash your DAW project. Have fun, play unsafely,
+        unwisely, and unboringly.</p>
+        <p>It finishes a trilogy with <b>Kickstart</b>, the kick drum
+        synthesiser, and <b>Snare Tactics</b>, the snare. The demos on the
+        website play all three together.</p>
+        <p style="color:var(--amber)">Cheers, Peter B&oslash;ggild, September 2026.</p>
+        <p style="font-size:8.4pt; color:var(--dim); margin-top:5mm">Drum machine names are
+        trademarks of their owners, used only to describe the sound a preset is
+        in the spirit of. Hats Off contains no samples of them.</p>
+      </div>
+      <div style="text-align:right">
+        <p class="display" style="font-size:14pt">BROKILD</p>
+        <p style="font-size:9.2pt; color:var(--dim); margin-top:2.5mm">
+          Free, and free to pass on.<br>peterboggild.github.io/BrokildApps</p>
+        <p class="mono" style="margin-top:6mm; color:var(--amber); letter-spacing:.14em">BUILD 260926.1 &middot; WINDOWS VST3</p>
+      </div>
+    </div>
+  </div>
+  <div class="cover-art" style="height:30%">
+    <img src="../../../img/hit-china.jpg" alt="" style="object-position:left center" />
+    <div class="cover-fade"></div>
+  </div>
+</section>
+
+</body>
+</html>

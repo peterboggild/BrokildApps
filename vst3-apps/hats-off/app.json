@@ -1,0 +1,23 @@
+{
+  "slug": "hats-off",
+  "name": "Hats Off (VST3)",
+  "description": "A hi-hat and cymbal synthesiser: no samples, every hit synthesised. Studio hats, rides, crashes and a china, the drum machines' circuit cymbals, and hats for techno, dub and dubstep, from a ringing plate of bronze and the square waves that imitated it. The plate rings its low modes one by one, where a cymbal's pitch lives, and lays a wash over the top the way a real one does. Closed, pedal and open on the GM notes with a choke, bell to edge, bloom, sizzle, a tempo-synced dub echo, four drives from Battlestar Overdrive and forty-four presets in six banks. The third of the trilogy, after Kickstart and Snare Tactics.",
+  "status": "live",
+  "url": "vst3-apps/hats-off/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/hats-off.jpg",
+  "note": "Windows VST3 + standalone · build 260926.1 · free download · 31 controls · closed, pedal, open, bell, edge · choke · wide stereo + dub echo · 4 Battlestar drives · 44 presets · manual included.",
+  "tags": [
+    "vst3",
+    "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Hats-Off-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Hats-Off-VST3-win64.zip",
+      "bytes": 6618151,
+      "sha256": "c7aa8d1a5323d842b8fcaf452a03a77698506594ae24a44b08d5e1838173f54e"
+    }
+  ]
+}

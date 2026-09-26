@@ -62,6 +62,9 @@ $plugins = @(
   # Snare Tactics: Kickstart's sibling, the same arrangement (vst3-apps\snare-tactics\plugin)
   @{ dir = "SnareTactics";     name = "Snare Tactics";      group = "Brokild collection";
      build = "C:\Users\peter\b\_build\SnareTactics\plugin" }
+  # Hats Off: the third of the trilogy, the same arrangement (vst3-apps\hats-off\plugin)
+  @{ dir = "HatsOff";          name = "Hats Off";           group = "Brokild collection";
+     build = "C:\Users\peter\b\_build\HatsOff\plugin" }
   # Clone Wars is deliberately absent: its binary comes from a CI-built zip,
   # never a local build (house rule).
 )
