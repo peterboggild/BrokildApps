@@ -2,6 +2,8 @@
   { "name": "settle", "wait": 2800 },
   { "name": "JS errors", "eval": "(window.__err&&window.__err.length)?window.__err.join(' | '):'none'" },
   { "name": "build id on the splash", "eval": "(typeof BUILD_ID!=='undefined')?BUILD_ID:'(not exposed)'" },
+  { "name": "hold the ghost transmission OFF: it is random, and would drift into plates about other things",
+    "eval": "window.__BO.forceGhost=0; 'ghost held off'" },
 
   { "name": "a working setting: ION DRIVE, a little space, tone up",
     "eval": "setParam('engine',1/7); setParam('thrust',0.55); setParam('space',0.38); setParam('spectrum',0.66); setParam('antithrust',0.22); setParam('mix',1.0); 'set'" },
@@ -59,6 +61,11 @@
   { "name": "catch the blink ON", "wait": 300 },
   { "name": "PLATE 12 - FUEL EMPTY", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-fuel-empty.png" },
 
+  { "name": "back to a clean running state for the ghost",
+    "eval": "window.__BO.forceFuel=null; window.__BO.forceEmpty=null; setParam('autorefill',1); setParam('thrust',0.35); setParam('antithrust',0); setParam('space',0); window.__BO.forceGhost=0.42; 'ghost held at 0.42'" },
+  { "name": "let the tank refill and the link settle", "wait": 1500 },
+  { "name": "PLATE 13 - the transmission", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/battlestar-overdrive/plugin/docs/m-ghost.png" },
+
   { "name": "restore everything",
-    "eval": "window.__BO.forceFuel=null; window.__BO.forceEmpty=null; window.__BO.forcePeak=null; setParam('autorefill',1); setParam('thrust',0.35); setParam('antithrust',0); setParam('space',0); setParam('engine',1/7); 'restored'" }
+    "eval": "window.__BO.forceGhost=null; window.__BO.forceFuel=null; window.__BO.forceEmpty=null; window.__BO.forcePeak=null; setParam('autorefill',1); setParam('thrust',0.35); setParam('antithrust',0); setParam('space',0); setParam('engine',1/7); 'restored'" }
 ]

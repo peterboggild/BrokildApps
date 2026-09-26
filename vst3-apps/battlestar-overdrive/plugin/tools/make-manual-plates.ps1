@@ -92,6 +92,7 @@ Save-Plate -From 'm-nebula.png'      -To 'scr-nebula.jpg'  -Region screen
 Save-Plate -From 'm-width.png'       -To 'scr-width.jpg'   -Region screen
 Save-Plate -From 'm-overload.png'    -To 'scr-overload.jpg' -Region screen
 Save-Plate -From 'm-fuel-empty.png'  -To 'scr-empty.jpg'   -Region screen
+Save-Plate -From 'm-ghost.png'       -To 'scr-ghost.jpg'   -Region screen
 
 # --- the fuel tube -----------------------------------------------------------
 Save-Plate -From 'm-panel.png'      -To 'fuel-full.jpg'  -Region fuel -Zoom 1.6

@@ -4,7 +4,7 @@ project(BattlestarOverdrive VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Bump it AND re-run
 # `cmake -S . -B build` or it will not take.
-set(BO_BUILD_ID "260919.2")
+set(BO_BUILD_ID "260926.2")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -57,6 +57,7 @@ juce_add_binary_data(BattlestarOverdriveAssets
         Source/ui/ui.html
         Source/ui/art/panel.jpg
         Source/ui/art/screen-glass.jpg
+        Source/ui/art/ghost-1.jpg
         Source/ui/art/knobs-chrome.png
         Source/ui/art/knobs-orange.png
         Source/ui/art/button.png

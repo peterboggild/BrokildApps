@@ -19,8 +19,8 @@
   --ink:      #090705;      /* the page, and the colour the JPEGs sit on */
   --ink-2:    #120d08;
   --yellow:   #f5b912;
-  --orange:   #e8761a;
-  --red:      #d4291c;
+  --orange:   #ff3d9a;      /* the panther's magenta (was the old livery's orange) */
+  --red:      #c21a7c;
   --holo:     #7fd8ff;      /* what the screen says */
   --green:    #7de08a;      /* the response curve */
   --body:     #cdc3b2;
@@ -133,6 +133,8 @@ figcaption b{ color: var(--yellow); font-weight:700; }
     grid plates by HEIGHT and let the width follow. */
 .c-40 .shot, .c-46 .shot{ max-height: 44mm; width: auto; }
 .grid3 .shot{ max-height: 40mm; width: auto; }
+.grid3.tight .shot{ max-height: 33mm; }
+.grid3.tight{ gap: 4mm 7mm; }
 /*  The fuel page stacks FOUR plates in one column, which is one more than
     the standard cap allows. .pad is not clipped, so the excess does not
     vanish - it sits on the page number. These are the tighter caps. */
@@ -290,14 +292,14 @@ td.num{ font-family:"Consolas",ui-monospace,monospace; color:#efe4cf; }
 
   <div class="cover-top">
     <p class="kick" style="color:var(--yellow); margin-bottom:6mm">Brokild &middot; Windows VST3 &middot; Overdrive</p>
-    <h1 class="display" style="font-size:58pt">BATTLESTAR<br>OVERDRIVE</h1>
+    <h1 style="margin:0"><img src="img/logo.png" alt="BattleStar Overdrive" style="height:40mm; width:auto; display:block" /></h1>
     <hr class="rule" style="margin:7mm 0 5mm 0" />
     <div class="cols" style="align-items:flex-start">
       <div class="c-58">
         <p class="plain" style="font-size:14pt; color:#f3e9d6">OPERATOR'S HANDBOOK</p>
       </div>
       <div style="text-align:right; margin-left:auto">
-        <p class="says" style="margin:0">BUILD 260919.2</p>
+        <p class="says" style="margin:0">BUILD 260926.2</p>
       </div>
     </div>
   </div>
@@ -789,7 +791,7 @@ td.num{ font-family:"Consolas",ui-monospace,monospace; color:#efe4cf; }
     <h2 class="display">WHAT THE SCREEN<br>IS TELLING YOU</h2>
     <hr class="rule" />
 
-    <div class="grid3" style="margin-top:2mm">
+    <div class="grid3 tight" style="margin-top:2mm">
       <figure>
         <img class="shot" src="img/scr-idle.jpg" alt="" />
         <figcaption><b>Speed is the engine.</b> The starfield crawls on IDLE
@@ -822,15 +824,26 @@ td.num{ font-family:"Consolas",ui-monospace,monospace; color:#efe4cf; }
       </figure>
     </div>
 
-    <div class="box holo" style="margin-top:7mm">
-      <h4>THE GREEN CURVE</h4>
-      <p style="font-size:9.6pt; max-width:210mm">
-        Running along the bottom of every one of these is the response curve,
-        and it tracks the gain you are applying in real time. It is the only
-        thing on the tube that is strictly an instrument rather than a view out
-        of a window &mdash; watch it lean and swell as THRUST comes up, and
-        split into a ghosted pair as ANTITHRUST widens the image.
-      </p>
+    <div class="grid2" style="margin-top:4mm; align-items:stretch">
+      <div class="box holo">
+        <h4>THE GREEN CURVE</h4>
+        <p style="font-size:9.4pt">
+          Along the bottom of every one of these runs the response curve,
+          tracking the gain you apply in real time &mdash; the one thing on the
+          tube that is an instrument rather than a view out of a window. It swells
+          as THRUST comes up and splits into a ghosted pair as ANTITHRUST widens.
+        </p>
+      </div>
+      <div class="box holo" style="display:flex; gap:5mm; align-items:center">
+        <img class="shot" src="img/scr-ghost.jpg" alt="" style="max-height:30mm; width:auto; margin:0" />
+        <div>
+          <h4>THE TRANSMISSION</h4>
+          <p style="font-size:9.4pt">
+            Something is coming through from a long way off. Push the output
+            towards clipping and it comes in clearer.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
   <div class="folio"><span>The screen</span><span class="n">10</span></div>
@@ -940,7 +953,7 @@ td.num{ font-family:"Consolas",ui-monospace,monospace; color:#efe4cf; }
           Free, and free to pass on.<br>
           peterboggild.github.io/BrokildApps
         </p>
-        <p class="says" style="margin-top:6mm; font-size:8.6pt">BUILD 260919.2 &middot; WINDOWS VST3</p>
+        <p class="says" style="margin-top:6mm; font-size:8.6pt">BUILD 260926.2 &middot; WINDOWS VST3</p>
         <p style="margin-top:7mm"><span class="stamp">Fuel not included</span></p>
       </div>
     </div>

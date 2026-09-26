@@ -177,8 +177,13 @@ window.__BO = {
       directly is gone a frame later and the thing under test never appears.
       Set back to null to hand the field to the engine again. */
   forceFuel: null, forceEmpty: null, forceFizzle: null, forcePeak: null,
+  forceGhost: null,          /* 0..1 holds the transmission's strength still */
   state(){ return { V:Object.assign({},V), meter:Object.assign({},meter),
-                    engine:engineIndex(), engines:ENGINES.map(e=>e.name), skin:skin }; },
+                    engine:engineIndex(), engines:ENGINES.map(e=>e.name), skin:skin,
+                    ghost:{ ready:GHOST.ready, strength:+GHOST.strength.toFixed(3),
+                            clip:+GHOST.clip.toFixed(3), blur:GHOST.blurLevel } }; },
+  /* a probe with no plugin behind it can hand the page a start-up state */
+  init(d){ onInitialState(d); },
   fuelFrame(){ return document.getElementById("fuel").style.backgroundPosition; }
 };
 function applyForces(){
@@ -414,6 +419,172 @@ document.getElementById("skinBtn").addEventListener("click", () => {
 });
 
 /* ======================================================================
+   the ghost transmission
+   A picture arriving from a very long way off on a weak link: faint, only
+   slightly coloured, sliding in and out of focus, tearing sideways, dropping
+   out - and pulling itself together as the output nears clipping, when the
+   machine is pushing hardest. Drawn behind everything the instrument says.
+
+   The source can be a still or (later) a <video>: GHOST.src is anything
+   drawImage accepts. A still is prepared once; a video would be re-prepared
+   each frame at a lower resolution.
+   ====================================================================== */
+const GHOST = {
+  list: ["art/ghost-1.jpg"],
+  src: null, ready: false,
+  layers: [],            /* [blur level] -> {cy, mg} tinted canvases */
+  strength: 0, clip: 0, wander: 0,
+  blurLevel: 1, nextSwitch: 0, drop: 0, rollY: 0, tear: []
+};
+const GHOST_BLUR = [0, 2.5, 7];           /* px at the layer's own resolution */
+const GW = 1024, GH = 742;                /* layer size, screen aspect */
+
+function loadGhost(i){
+  const im = new Image();
+  im.onload = () => { GHOST.src = im; prepareGhost(); };
+  im.src = GHOST.list[i % GHOST.list.length];
+}
+
+/* cover-fit the source into the screen's aspect, then make the tinted copies */
+function prepareGhost(){
+  const s = GHOST.src; if (!s) return;
+  const sw = s.videoWidth || s.naturalWidth || s.width, sh = s.videoHeight || s.naturalHeight || s.height;
+  if (!sw || !sh) return;
+  const k = Math.max(GW / sw, GH / sh) * 0.86;   /* a little inside the tube's curve */
+  const dw = sw * k, dh = sh * k;
+  const base = document.createElement("canvas"); base.width = GW; base.height = GH;
+  const b = base.getContext("2d");
+  b.filter = "grayscale(0.8) contrast(1.35) brightness(1.05)";
+  b.drawImage(s, (GW - dw) / 2, (GH - dh) * 0.5 + GH * 0.07, dw, dh);   /* head clear of the top edge */
+  b.filter = "none";
+  keyGhost(b, GW, GH);
+
+  GHOST.layers = GHOST_BLUR.map(px => {
+    const tint = rgb => {
+      const c = document.createElement("canvas"); c.width = GW; c.height = GH;
+      const g = c.getContext("2d");
+      g.filter = px > 0 ? "blur(" + px + "px)" : "none";
+      g.drawImage(base, 0, 0);
+      g.filter = "none";
+      g.globalCompositeOperation = "multiply";
+      g.fillStyle = rgb; g.fillRect(0, 0, GW, GH);
+      return c;
+    };
+    /* two slightly different tints, drawn a hair apart: the misregistration of
+       a weak colour signal, and the only colour the ghost is allowed */
+    return { cy: tint("rgb(150,220,255)"), mg: tint("rgb(255,170,225)") };
+  });
+  GHOST.ready = true;
+}
+
+/*  A transmission is a FIGURE coming through, not a rectangle of light. The
+    press still stands on a flat, bright backdrop, and drawn additively that
+    backdrop lit the whole tube like a lamp. So a flat, bright, low-detail
+    background is pushed down to near black, and the edges fade out, leaving the
+    person. Done once per still; a video would do it per frame at low res. */
+function keyGhost(g, w, h){
+  let img;
+  try { img = g.getImageData(0, 0, w, h); } catch(_){ return; }   /* tainted: leave it */
+  const d = img.data;
+  /* the backdrop level: the median brightness of the outer border */
+  const edge = [];
+  for (let x = 0; x < w; x += 7){ edge.push(d[(x)*4+1]); edge.push(d[((h-1)*w + x)*4+1]); }
+  for (let y = 0; y < h; y += 7){ edge.push(d[(y*w)*4+1]);  edge.push(d[(y*w + w-1)*4+1]); }
+  edge.sort((a,b) => a-b);
+  const bg = edge[edge.length >> 1];
+  for (let y = 0; y < h; ++y){
+    const vy = Math.min(1, Math.min(y, h-1-y) / (h * 0.07));
+    for (let x = 0; x < w; ++x){
+      const i = (y*w + x) * 4;
+      const l = (d[i] + d[i+1] + d[i+2]) / 3;
+      /* near the backdrop level = backdrop; darker or much brighter = figure */
+      const near = Math.max(0, 1 - Math.abs(l - bg) / 38);
+      const vx = Math.min(1, Math.min(x, w-1-x) / (w * 0.14));
+      const k = (1 - 0.9 * near) * Math.min(vx, vy);
+      d[i] *= k; d[i+1] *= k; d[i+2] *= k;
+    }
+  }
+  g.putImageData(img, 0, 0);
+}
+
+function drawGhost(now, dt, w, h, sick){
+  if (!GHOST.ready) return;
+  const G = GHOST;
+
+  /* how close to clipping: fast in, slow out, so a hit holds the picture */
+  const c = Math.max(0, Math.min(1, (meter.peak - 0.55) / 0.43));
+  G.clip += (c - G.clip) * (c > G.clip ? Math.min(1, dt * 14) : Math.min(1, dt * 1.1));
+
+  /* the link wanders on its own: long stretches of almost nothing, then a
+     stretch where the picture nearly locks. Incommensurate periods, so it
+     never settles into a pattern. */
+  const s = now * 0.001;
+  const wan = 0.5 + 0.5 * (0.55 * Math.sin(s * 0.23 + 1.3) + 0.30 * Math.sin(s * 0.61 + 0.2)
+                         + 0.15 * Math.sin(s * 1.7 + 2.9));
+  G.wander = Math.max(0, (wan - 0.38) / 0.62);
+
+  /* dropouts: the link simply goes, for a moment */
+  if (G.drop > 0) G.drop -= dt;
+  else if (Math.random() < dt * (0.9 - 0.8 * G.clip)) G.drop = 0.05 + Math.random() * 0.35;
+
+  let strength = 0.10 * G.wander + 0.20 * G.wander * G.wander + 0.70 * G.clip;
+  strength *= 1 - 0.85 * sick;                           /* a dying engine loses the link */
+  if (G.drop > 0) strength *= 0.12;
+  if (window.__BO.forceGhost !== null) strength = window.__BO.forceGhost;
+  G.strength = Math.max(0, Math.min(1, strength));
+  if (G.strength < 0.01) return;
+
+  /* focus: flicks between sharp and soft at irregular intervals; the stronger
+     the signal, the more of the time it spends sharp */
+  if (now > G.nextSwitch){
+    const r = Math.random();
+    G.blurLevel = r < 0.15 + 0.7 * G.strength ? 0 : (r < 0.75 ? 1 : 2);
+    G.nextSwitch = now + 50 + Math.random() * (260 - 180 * G.strength);
+  }
+  const L = G.layers[G.blurLevel];
+
+  /* vertical hold slips now and then on a weak link */
+  if (Math.random() < dt * 0.25 * (1 - G.strength)) G.rollY = h * (0.15 + Math.random() * 0.5);
+  G.rollY *= Math.pow(0.02, dt);
+
+  const weak = 1 - G.strength;
+  const alpha = 0.05 + 0.40 * G.strength;               /* ghostly, never solid */
+  const bands = 18;
+  const bh = GH / bands;
+  const sep = (1.5 + 5 * weak) * (w / 682);             /* colour misregistration */
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = 0; i < bands; ++i){
+    /* each band slides sideways on its own - a tear, bigger when weak */
+    const n = Math.sin(i * 1.93 + s * 3.1) * Math.sin(i * 0.71 - s * 5.3);
+    let dx = n * w * 0.022 * weak;
+    if (Math.random() < 0.012 * weak) dx += (Math.random() - 0.5) * w * 0.18;
+    /* bands butt exactly: an overlap drawn additively is a bright seam */
+    const ya = Math.round(i * h / bands), yb = Math.round((i + 1) * h / bands);
+    const y = (((ya + Math.round(G.rollY)) % h) + h) % h;
+    const dh = yb - ya;
+    const a = alpha * (0.75 + 0.25 * Math.random());
+    ctx.globalAlpha = a;
+    ctx.drawImage(L.cy, 0, i * bh, GW, bh, dx - sep, y, w, dh);
+    ctx.globalAlpha = a * 0.8;
+    ctx.drawImage(L.mg, 0, i * bh, GW, bh, dx + sep, y, w, dh);
+  }
+  ctx.restore();
+
+  /* snow on a weak signal */
+  if (weak > 0.3){
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "rgba(190,220,255," + (0.18 * weak).toFixed(3) + ")";
+    const nsp = Math.floor(160 * weak * (w / 682));
+    for (let i = 0; i < nsp; ++i) ctx.fillRect(Math.random() * w, Math.random() * h, 1.2, 1.2);
+    ctx.restore();
+  }
+}
+loadGhost(0);
+
+/* ======================================================================
    the screen
    ====================================================================== */
 const crt = document.getElementById("crt");
@@ -452,6 +623,7 @@ let last = performance.now();
 let roll = 0;
 function frame(now){
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  applyForces();          /* forced values hold even with no meter stream */
   draw(now, dt);
   requestAnimationFrame(frame);
 }
@@ -544,6 +716,9 @@ function draw(now, dt){
     ctx.lineWidth = Math.max(1, (1 - s.z) * (warp ? 2.0 : 2.4) * (h/494));
     ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
   }
+
+  /* --- the ghost transmission, behind everything the tube has to say --- */
+  drawGhost(now, dt, w, h, sick);
 
   /* --- SUPERNOVA --------------------------------------------------
      A story, not a firework. A small white star sits there, swells, reddens -
@@ -776,6 +951,7 @@ function draw(now, dt){
   vg.addColorStop(1, "rgba(" + vr + "," + vg2 + ",0,0.72)");
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, w, h);
+
 }
 
 
@@ -912,7 +1088,7 @@ function drawEngineName(now, w, h){
 /* ======================================================================
    native traffic
    ====================================================================== */
-NB.on("initialState", d => {
+function onInitialState(d){
   if (!d) return;
   ENGINES = d.engines || [];
   skin = d.skin || "chrome";
@@ -927,7 +1103,8 @@ NB.on("initialState", d => {
   lastEngineIdx = engineIndex();       /* do NOT flash the name on load */
   engineShownAt = -1e9;
   NB.send({ k:"stateack" });
-});
+}
+NB.on("initialState", onInitialState);
 
 NB.on("hostParam", d => {
   if (!d || !d.params) return;

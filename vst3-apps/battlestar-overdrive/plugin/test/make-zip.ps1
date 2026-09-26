@@ -16,7 +16,8 @@ $root  = "$PSScriptRoot\.."
 $stage = "$root\dist\stage"
 $web   = "C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps\vst3-apps\battlestar-overdrive"
 $out   = Join-Path $web "Battlestar-Overdrive-VST3-win64.zip"
-$build = "$root\build\BattlestarOverdrive_artefacts\Release"
+# Built outside Dropbox since 260926.2 (the repo copy is the source; see install-fleet.ps1).
+$build = "C:\Users\peter\b\_build\BattlestarOverdrive\plugin\BattlestarOverdrive_artefacts\Release"
 $buildId = (Select-String -Path "$root\CMakeLists.txt" -Pattern 'BO_BUILD_ID "([0-9.]+)"').Matches[0].Groups[1].Value
 
 Write-Output "`nBattlestar Overdrive, build $buildId`n"

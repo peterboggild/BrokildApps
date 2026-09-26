@@ -301,3 +301,62 @@ This tree has a local git repo and nothing else. One `gh repo create` away, if
   video only when muted, and everything must come through the plugin's own
   resource provider or `getImageData` taints the canvas and every pixel probe
   in `test/` stops working.
+
+
+---
+
+## SPACE PANTHER skin (2026-09-26, awaiting the art, then go)
+
+A second PANEL skin from the band's Space Panther artwork, beside the chrome/orange knob sets.
+The ChatGPT order is Downloads\BSO_Art\panther-skin-pack\PROMPT-FOR-CHATGPT.md (edit of the
+shipped panel.png; livery repainted in teal/magenta/gold, the existing title kept and only
+re-coloured, the panther as a worn airbrushed mural; every piece of hardware unchanged).
+
+When panel-panther.png arrives:
+- **Measure it against panel-geometry.json before trusting it** (	ools/find-features.ps1, composite-test.ps1).
+  An image generator hits no exact coordinate. Where the hardware drifted, paste the ORIGINAL hardware
+  (CRT bezel, knob scales + labels, fuel collars, button nut, screws) back from panel.png through a mask,
+  so the geometry table stays the single source for both skins.
+- **Re-cut the screen glass overlay from the new panel**, exactly to the screen rect (the 8 px overhang lesson).
+- Plumbing: SET currently toggles knob sets only; make it cycle panel+knobs as skins
+  (e.g. YELLOW/chrome, YELLOW/orange, PANTHER/chrome), persist via the existing {k:"skin"} message.
+  Old projects saving chrome/orange must load unchanged.
+- Bump the build id, re-shoot the product plates if the panther becomes a default anywhere.
+## BAND-LOGO title (2026-09-26, trying it out)
+
+Third option: the band's own logo (Downloads\BSO_Art\Logo.png, 9000x3600, transparent) replaces the
+painted title. Mockups in Downloads\BSO_Art\logo-panel-mockups\ (A = one-line lockup on a black
+nameplate, B = the stacked logo, which comes out too small in a 1220x168 band). A reads well; the
+code-drawn plate does not match the photograph, so ChatGPT paints a BLANK plate (or paints the old title
+out) and Claude composites the exact logo. The logo is never handed to the image generator.
+Applies to either livery (yellow or panther): the title is an independent layer.
+## SHIPPED in 260926.1: skin 2 (Space Panther) + the ghost transmission
+
+- **Skin picked on the screen**: press the CRT, a terminal prompt types out `SELECT SKIN : 1 2`;
+  click a number or type it, Esc / a click elsewhere / 8 s cancels. Skin 2 = ChatGPT's integrated-logo
+  panther panel (`assets/decals/panel-panther.png`), with its OWN glass cut from it
+  (`tools/ingest-skin2.ps1`). Measured before use: every pot, the CRT, tube and button align at 0,0.
+- **Memory**: the project state carries `panelSkin` (a project saved before skins existed reopens on 1);
+  the last pick is also written to `%APPDATA%\Brokild\Battlestar Overdrive.settings` and is what a
+  FRESH instance opens with. Proven live: clean machine -> 1; pick 2 -> new instance opens 2; saved state
+  beats a global default of 1.
+- **Ghost transmission**: `art/ghost-1.jpg` (the press photo) drawn additively behind everything the
+  tube says - flat backdrop keyed out, edges faded, 3 pre-blurred levels flicked between, 18 bands tearing
+  sideways, cyan/magenta misregistration, snow, dropouts, vertical-hold slips. Strength = a slow wandering
+  link + a clip follower on the output peak (fast in, slow out), so it firms up approaching clipping.
+  A dry fuel tank loses the link.
+- **Video later**: `GHOST.src` takes anything drawImage accepts; a `<video>` needs prepareGhost()
+  re-run per frame at lower resolution, and the resource provider an `video/mp4` mime type.
+- Build source moved to the repo copy; `install-fleet.ps1` now carries a `build` key for it.
+## SHIPPED in 260926.2: Space Panther is the only panel
+
+Peter: one skin, the panther; keep the original stored; no prompt. The panther now IS `assets/decals/panel.png` /
+`art/panel.jpg` / `art/screen-glass.jpg`; the original panel and its own glass are in `assets/skins/original/`
+(README there says how to put it back). Prompt and switching code removed - it is in 260926.1's history.
+Manual re-shot (13 plates + a new `scr-ghost`), cover carries the band's real logo, headings yellow -> magenta,
+landing page re-shot with a third row (idle / readout / transmission), zip + Brokild Collection re-cut and verified.
+
+**Found on the way, NOT fixed (belongs to the collection tooling):** `BrokildWorldFX/tools/build-collection-pages.js`
+copies its whole `<head>` from Black Rider's page, so every run rewrites the collection pages' canonical, og:url and
+share image to BLACK RIDER's - undoing the hand-fixed heads. Reverted by hand this time (git checkout of the two pages).
+The builder should keep each page's own head, or generate it.
