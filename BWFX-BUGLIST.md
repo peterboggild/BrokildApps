@@ -879,3 +879,8 @@ holds nothing but the rack, instead of porting 1374 lines of look into C++ a sec
   drifts from the fragment the first time a module is added.
 
 Affects: Rite of Passage, Legion, Beetmachine. Nothing else in the fleet uses the native panel.
+
+Also on the native panel: a SPECTRA character that only writes the modulation bus (TAPE SEANCE,
+DARK DRONE...) still arms and shows its knobs in a host that does not consume the bus, and only a
+general sentence says it does nothing there. The fragment marks this per character; the native
+panel should too - or would get it for free from the recommendation above.

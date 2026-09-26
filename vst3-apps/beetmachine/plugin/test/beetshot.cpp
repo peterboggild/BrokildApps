@@ -83,6 +83,16 @@ int main (int argc, char** argv)
         check (btn.isVisible() && btn.getParentComponent() == &ed->contentComponent(), "the BWFX button is on the machine");
         const auto bb = btn.getBounds();
         check (bb.getBottom() <= beetui::HEADER_H && bb.getX() > 880 && bb.getRight() < 1140, "and sits in the header between MASTER and the build number (" + bb.toString() + ")");
+        //  a rack somebody would actually have: two pedals and a character on,
+        //  so the picture shows knobs and not only headers
+        auto byName = [] (const char* n) { for (int t = 0; t < bwfx::numModuleTypes(); ++t) if (juce::String (bwfx::moduleDescriptor (t).name) == n) return t; return -1; };
+        const int tube = byName ("TUBE"), echo = byName ("ECHO");
+        int tape = -1;
+        for (int c = 0; c < bwfx::numCharacters(); ++c) if (juce::String (bwfx::characterDescriptor (c).name) == "TAPE SEANCE") tape = c;
+        check (tube >= 0 && echo >= 0 && tape >= 0, "found TUBE, ECHO and TAPE SEANCE by name");
+        if (tube >= 0) p.rack().setEnabled (tube, true);
+        if (echo >= 0) p.rack().setEnabled (echo, true);
+        if (tape >= 0) p.rack().setCharArmed (tape, true);
         ed->openRack (true);
         auto* rp = ed->rackPanel();
         check (rp != nullptr && rp->isVisible() && rp->isOpaque() && rp->getBounds() == ed->getLocalBounds(),
@@ -101,6 +111,32 @@ int main (int argc, char** argv)
         file.deleteFile();
         { juce::FileOutputStream os (file); juce::PNGImageFormat().writeImageToStream (img, os); }
         std::printf ("  wrote %s\n", file.getFullPathName().toRawUTF8());
+
+        //  REORDERING: press the first pedal's DN and read the RACK's own order
+        //  back - buttons wired to a list nothing reads would pass a picture
+        std::vector<juce::TextButton*> downs;
+        std::function<void (juce::Component&)> walk = [&] (juce::Component& c) {
+            for (auto* k : c.getChildren())
+            {
+                if (auto* b = dynamic_cast<juce::TextButton*> (k)) if (b->getButtonText() == "DN" && b->isVisible()) downs.push_back (b);
+                walk (*k);
+            }
+        };
+        walk (*rp);
+        std::sort (downs.begin(), downs.end(), [rp] (auto* a, auto* b) {
+            return rp->getLocalPoint (a, juce::Point<int>()).y < rp->getLocalPoint (b, juce::Point<int>()).y; });
+        std::vector<int> before ((size_t) bwfx::numModuleTypes()), after (before.size());
+        p.rack().getOrder (before.data());
+        if (! downs.empty() && downs.front()->onClick) downs.front()->onClick();     // triggerClick() is async; call it
+        p.rack().getOrder (after.data());
+        check (downs.size() >= 2 && after[0] == before[1] && after[1] == before[0],
+               "DN on the first pedal swaps it with the second IN THE RACK (" + juce::String (bwfx::moduleDescriptor (before[0]).name)
+               + " now follows " + juce::String (bwfx::moduleDescriptor (after[0]).name) + ")");
+        auto img2 = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
+        auto file2 = dir.getChildFile ("beet-bwfx-reordered.png");
+        file2.deleteFile();
+        { juce::FileOutputStream os (file2); juce::PNGImageFormat().writeImageToStream (img2, os); }
+        p.rack().setOrder (before.data(), (int) before.size());
         ed->openRack (false);
         check (! rp->isVisible(), "and CLOSE puts the machine back");
     }
