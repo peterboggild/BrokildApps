@@ -28,6 +28,7 @@
   ],
   "apps": [
     "vst3-apps/collection",
+    "vst3-apps/beetmachine-collection",
     "vst3-apps/experimental",
     "vst3-apps/kickstart",
     "vst3-apps/snare-tactics",

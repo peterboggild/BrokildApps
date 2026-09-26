@@ -2,6 +2,7 @@
 #
 #   powershell -File build-collection.ps1 -Collection brokild
 #   powershell -File build-collection.ps1 -Collection experimental
+#   powershell -File build-collection.ps1 -Collection beetmachine
 #
 # Replaces build-collection-zip.ps1, which carried its own hardcoded list of
 # plug-ins. There are three collections now, and a second hardcoded list is a
@@ -33,7 +34,7 @@
 # ASCII only - Windows PowerShell 5.1 reads a UTF-8-no-BOM .ps1 as ANSI.
 
 param(
-  [Parameter(Mandatory = $true)][ValidateSet("brokild", "experimental")][string]$Collection,
+  [Parameter(Mandatory = $true)][ValidateSet("brokild", "experimental", "beetmachine")][string]$Collection,
   [string]$Repo = "C:\Users\peter\Dropbox\ACTIVITIES\00 VSCODE\BrokildApps"
 )
 
@@ -46,7 +47,7 @@ if (-not $c) { Write-Output "no such collection: $Collection"; exit 1 }
 
 $strict = ($c.shape -like "*application*")
 $folder = Join-Path $Repo ($c.folder -replace "/", "\")
-$inner  = if ($Collection -eq "brokild") { "Brokild-Collection-win64" } else { "Brokild-Experimental-Collection-win64" }
+$inner  = if ($c.archive) { $c.archive } elseif ($Collection -eq "brokild") { "Brokild-Collection-win64" } else { "Brokild-Experimental-Collection-win64" }
 $out    = Join-Path $folder ("{0}.zip" -f $inner)
 $work   = Join-Path $env:TEMP ("brokild-coll-" + $Collection)
 

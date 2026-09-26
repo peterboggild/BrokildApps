@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*  build-collection-pages.js — the landing page and card for each collection.
  *
- *    node BrokildWorldFX/tools/build-collection-pages.js [brokild|experimental]
+ *    node BrokildWorldFX/tools/build-collection-pages.js [brokild|experimental|beetmachine]
  *
  *  Replaces build-collection-page.js, which knew one collection and carried
  *  its own ITEMS table: a third copy of the membership, after contents.json
@@ -123,7 +123,7 @@ for (const [key, c] of Object.entries(SPEC.collections)) {
     <h1>${esc(c.title)}</h1>
     <div class="rule"></div>
     <p class="tagline">${esc(c.blurb)}</p>
-    <p class="lede">${isExp
+    <p class="lede">${c.lede ? esc(c.lede) : isExp
       ? `Each of these exists to ask a question about how sound can be made. A synth
       played by photographs, a synth that reads a scanned volume, a ball rolling on
       terrain, surgery on a singing voice, one voice becoming four. They are not
@@ -197,11 +197,26 @@ ${list(effects)}
 
 `;
 
-  fs.writeFileSync(path.join(dir, "index.html"), (pageHead + body + foot).replace(/\n/g, NL));
+  /*  The footer came from the same shell and introduced every collection as
+   *  "Black Rider - a native VST3 instrument". Its first paragraph is the
+   *  shell plug-in's own; replace it with one that names this collection and
+   *  links the others. */
+  const others = Object.entries(SPEC.collections).filter(([k]) => k !== key)
+      .map(([, o]) => `<a href="../${o.folder.split("/").pop()}/index.html">${esc(o.title)}</a>`);
+  const footRe = /<footer>\s*<div class="wrap">\s*<p>[\s\S]*?<\/p>/;
+  if (!footRe.test(foot)) { console.error("shell footer has no first paragraph to replace"); process.exit(1); }
+  const pageFoot = foot.replace(footRe, `<footer>
+  <div class="wrap">
+    <p><b>${esc(c.title)}</b> &mdash; one download of ${esc(c.claims.phrase)}, native
+      C++ and JUCE 8. Source and issues:
+      <a href="https://github.com/peterboggild/BrokildApps" target="_blank" rel="noopener">github.com/peterboggild/BrokildApps</a>.
+      The other collections are ${others.slice(0, -1).join(", ")} and ${others[others.length - 1]}.</p>`);
+
+  fs.writeFileSync(path.join(dir, "index.html"), (pageHead + body + pageFoot).replace(/\n/g, NL));
 
   /* ---- the card --------------------------------------------------------- */
   const app = {
-    slug: key === "brokild" ? "collection" : "experimental-collection",
+    slug: c.cardSlug || (key === "brokild" ? "collection" : "experimental-collection"),
     name: `${c.title} (all ${c.claims.count})`,
     description: cardDesc,
     status: "live",
@@ -209,7 +224,7 @@ ${list(effects)}
     url: `${c.folder}/index.html`,
     icon: "more",
     cta: `Download all ${c.claims.count} \u2192`,
-    preview: `assets/app-previews/${key === "brokild" ? "collection" : "experimental-collection"}.jpg`,
+    preview: `assets/app-previews/${c.cardSlug || (key === "brokild" ? "collection" : "experimental-collection")}.jpg`,
     note: `Windows VST3 \u00b7 ${MB} MB \u00b7 ${c.claims.phrase}` +
           (isExp ? " \u00b7 source included." : " \u00b7 all manuals included."),
     tags: ["vst3"],

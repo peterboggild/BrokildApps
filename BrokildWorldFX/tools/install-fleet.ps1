@@ -57,13 +57,13 @@ $plugins = @(
   @{ dir = "RiteOfPassage";    name = "Rite of Passage";    group = "Brokild collection";
      build = "C:\Users\peter\b\_build\RiteOfPassage\plugin" }
   # Kickstart: source in the website repo (vst3-apps\kickstart\plugin), built outside Dropbox
-  @{ dir = "Kickstart";        name = "Kickstart";          group = "Brokild collection";
+  @{ dir = "Kickstart";        name = "Kickstart";          group = "Beetmachine collection";
      build = "C:\Users\peter\b\_build\Kickstart\plugin" }
   # Snare Tactics: Kickstart's sibling, the same arrangement (vst3-apps\snare-tactics\plugin)
-  @{ dir = "SnareTactics";     name = "Snare Tactics";      group = "Brokild collection";
+  @{ dir = "SnareTactics";     name = "Snare Tactics";      group = "Beetmachine collection";
      build = "C:\Users\peter\b\_build\SnareTactics\plugin" }
   # Hats Off: the third of the trilogy, the same arrangement (vst3-apps\hats-off\plugin)
-  @{ dir = "HatsOff";          name = "Hats Off";           group = "Brokild collection";
+  @{ dir = "HatsOff";          name = "Hats Off";           group = "Beetmachine collection";
      build = "C:\Users\peter\b\_build\HatsOff\plugin" }
   # Clone Wars is deliberately absent: its binary comes from a CI-built zip,
   # never a local build (house rule).

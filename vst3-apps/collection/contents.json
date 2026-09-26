@@ -34,14 +34,32 @@
         "battlestar-overdrive",
         "martian-gain",
         "rite-of-passage",
-        "thin-walls",
+        "thin-walls"
+      ],
+      "claims": {
+        "count": 11,
+        "phrase": "seven instruments and four effects"
+      }
+    },
+    "beetmachine": {
+      "title": "The Beetmachine Collection",
+      "folder": "vst3-apps/beetmachine-collection",
+      "installGroup": "Beetmachine collection",
+      "archive": "Brokild-Beetmachine-Collection-win64",
+      "cardSlug": "beetmachine-collection",
+      "blurb": "The drums: a kick, a snare and the hats and cymbals, every hit synthesised and no samples anywhere.",
+      "lede": "Three drum synthesisers built as a set, each on physical controls rather than a simulation per machine: Kickstart for the kick, Snare Tactics for the snare, Hats Off for the hats and cymbals. They share one panel and one way of working, and the demos on their pages play all three together.",
+      "shape": "bundle + application + handbook",
+      "_shapeNote": "The same promise as the Brokild Collection: every folder holds a plug-in, its standalone and its handbook.",
+      "_pending": "Beetmachine, the kit plug-in that plays all three from one MIDI pattern, is being written in another session (2026-09-26). Add its slug here when it ships a download; the count and phrase then move with it.",
+      "includes": [
         "kickstart",
         "snare-tactics",
         "hats-off"
       ],
       "claims": {
-        "count": 14,
-        "phrase": "ten instruments and four effects"
+        "count": 3,
+        "phrase": "three drum synthesisers"
       }
     },
     "experimental": {

@@ -17,7 +17,8 @@ Windows builds are downloadable from each plugin's own landing page.
 
 | App | Folder | What it does |
 |-----|--------|--------------|
-| The Brokild Collection (all 14) | [`vst3-apps/collection`](vst3-apps/collection) | The instruments and effects that are finished and meant to be used. Ten instruments and four effects for Windows, with their manuals and their… |
+| The Brokild Collection (all 11) | [`vst3-apps/collection`](vst3-apps/collection) | The instruments and effects that are finished and meant to be used. Seven instruments and four effects for Windows, with their manuals and their… |
+| The Beetmachine Collection (all 3) | [`vst3-apps/beetmachine-collection`](vst3-apps/beetmachine-collection) | The drums: a kick, a snare and the hats and cymbals, every hit synthesised and no samples anywhere. |
 | The Experimental Collection (all 5) | [`vst3-apps/experimental`](vst3-apps/experimental) | Instruments that exist to ask a question about how sound can be made. Each one is a thesis rather than a product. |
 | Kickstart (VST3) | [`vst3-apps/kickstart`](vst3-apps/kickstart) | A kick drum synthesiser: no samples, every hit synthesised. Acoustic kicks, the classic drum machines, and gabber, hardstyle, dubstep, techno rumble… |
 | Snare Tactics (VST3) | [`vst3-apps/snare-tactics`](vst3-apps/snare-tactics) | A snare drum synthesiser: no samples, every hit synthesised. Studio snares, the classic drum machines, and snares for techno, dub, industrial and… |
