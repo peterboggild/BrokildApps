@@ -97,6 +97,26 @@ for (const [key, c] of Object.entries(SPEC.collections)) {
 
   const isExp = key === "experimental";
 
+  /*  The card's description, and the page's own: one sentence of copy, used
+   *  for both. */
+  const cardDesc =
+      `${c.blurb} ${c.claims.phrase[0].toUpperCase() + c.claims.phrase.slice(1)} for Windows` +
+      (isExp ? ", with whatever documentation each one has." : ", with their manuals and their standalones.") +
+      " Each plug-in in here is byte-for-byte the same file as its own download.";
+
+  /*  The shell is Black Rider's landing page, and its <head> came along whole:
+   *  both collection pages shipped with Black Rider's <title> and meta
+   *  description, so the browser tab, search results and every link preview
+   *  (sync-site.js builds those FROM the title and description) announced the
+   *  collection as "Black Rider — VST3 analogue monosynth". A page built from
+   *  another page's shell must replace the head's identity, not just the body. */
+  const escAttr = (t) => esc(t).replace(/"/g, "&quot;");
+  const titleRe = /<title>[\s\S]*?<\/title>/, descRe = /<meta name="description" content="[^"]*" \/>/;
+  if (!titleRe.test(head) || !descRe.test(head)) { console.error("shell head has no <title> or meta description to replace"); process.exit(1); }
+  const pageHead = head
+      .replace(titleRe, `<title>${esc(c.title)} &mdash; Windows VST3 collection | BrokildApps</title>`)
+      .replace(descRe, `<meta name="description" content="${escAttr(cardDesc)}" />`);
+
   const body = `<header class="hero">
   <div class="wrap">
     <div class="kicker">Windows VST3 &middot; one download &middot; free</div>
@@ -177,16 +197,13 @@ ${list(effects)}
 
 `;
 
-  fs.writeFileSync(path.join(dir, "index.html"), (head + body + foot).replace(/\n/g, NL));
+  fs.writeFileSync(path.join(dir, "index.html"), (pageHead + body + foot).replace(/\n/g, NL));
 
   /* ---- the card --------------------------------------------------------- */
   const app = {
     slug: key === "brokild" ? "collection" : "experimental-collection",
     name: `${c.title} (all ${c.claims.count})`,
-    description:
-      `${c.blurb} ${c.claims.phrase[0].toUpperCase() + c.claims.phrase.slice(1)} for Windows` +
-      (isExp ? ", with whatever documentation each one has." : ", with their manuals and their standalones.") +
-      " Each plug-in in here is byte-for-byte the same file as its own download.",
+    description: cardDesc,
     status: "live",
     collection: true,
     url: `${c.folder}/index.html`,

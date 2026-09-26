@@ -35,11 +35,12 @@
         "martian-gain",
         "rite-of-passage",
         "thin-walls",
-        "kickstart"
+        "kickstart",
+        "snare-tactics"
       ],
       "claims": {
-        "count": 12,
-        "phrase": "eight instruments and four effects"
+        "count": 13,
+        "phrase": "nine instruments and four effects"
       }
     },
     "experimental": {

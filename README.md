@@ -17,9 +17,10 @@ Windows builds are downloadable from each plugin's own landing page.
 
 | App | Folder | What it does |
 |-----|--------|--------------|
-| The Brokild Collection (all 12) | [`vst3-apps/collection`](vst3-apps/collection) | The instruments and effects that are finished and meant to be used. Eight instruments and four effects for Windows, with their manuals and their… |
+| The Brokild Collection (all 13) | [`vst3-apps/collection`](vst3-apps/collection) | The instruments and effects that are finished and meant to be used. Nine instruments and four effects for Windows, with their manuals and their… |
 | The Experimental Collection (all 5) | [`vst3-apps/experimental`](vst3-apps/experimental) | Instruments that exist to ask a question about how sound can be made. Each one is a thesis rather than a product. |
 | Kickstart (VST3) | [`vst3-apps/kickstart`](vst3-apps/kickstart) | A kick drum synthesiser: no samples, every hit synthesised. Acoustic kicks, the classic drum machines, and gabber, hardstyle, dubstep, techno rumble… |
+| Snare Tactics (VST3) | [`vst3-apps/snare-tactics`](vst3-apps/snare-tactics) | A snare drum synthesiser: no samples, every hit synthesised. Studio snares, the classic drum machines, and snares for techno, dub, industrial and… |
 | 1984 (VST3) | [`vst3-apps/1984`](vst3-apps/1984) | A vintage analog polysynth built the way the big ones were: eight voices, each of two complete ranks with their own oscillator, resonant high-pass… |
 | Thirty Thousand Years (VST3) | [`vst3-apps/thirty-thousand-years`](vst3-apps/thirty-thousand-years) | Four ways of making sound, all running at once and exciting one another: analogue weight, a wavetable and phase-modulation voice, granular and… |
 | Thin Walls (VST3) | [`vst3-apps/thin-walls`](vst3-apps/thin-walls) | An apartment of three rooms and three doors that you put the sound inside and then walk around in. |

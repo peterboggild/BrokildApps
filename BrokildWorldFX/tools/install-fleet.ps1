@@ -59,6 +59,9 @@ $plugins = @(
   # Kickstart: source in the website repo (vst3-apps\kickstart\plugin), built outside Dropbox
   @{ dir = "Kickstart";        name = "Kickstart";          group = "Brokild collection";
      build = "C:\Users\peter\b\_build\Kickstart\plugin" }
+  # Snare Tactics: Kickstart's sibling, the same arrangement (vst3-apps\snare-tactics\plugin)
+  @{ dir = "SnareTactics";     name = "Snare Tactics";      group = "Brokild collection";
+     build = "C:\Users\peter\b\_build\SnareTactics\plugin" }
   # Clone Wars is deliberately absent: its binary comes from a CI-built zip,
   # never a local build (house rule).
 )

@@ -1,14 +1,14 @@
 {
   "slug": "collection",
-  "name": "The Brokild Collection (all 12)",
-  "description": "The instruments and effects that are finished and meant to be used. Eight instruments and four effects for Windows, with their manuals and their standalones. Each plug-in in here is byte-for-byte the same file as its own download.",
+  "name": "The Brokild Collection (all 13)",
+  "description": "The instruments and effects that are finished and meant to be used. Nine instruments and four effects for Windows, with their manuals and their standalones. Each plug-in in here is byte-for-byte the same file as its own download.",
   "status": "live",
   "collection": true,
   "url": "vst3-apps/collection/index.html",
   "icon": "more",
-  "cta": "Download all 12 →",
+  "cta": "Download all 13 →",
   "preview": "assets/app-previews/collection.jpg",
-  "note": "Windows VST3 · 122 MB · eight instruments and four effects · all manuals included.",
+  "note": "Windows VST3 · 129 MB · nine instruments and four effects · all manuals included.",
   "tags": [
     "vst3"
   ],
@@ -16,8 +16,8 @@
     {
       "name": "Brokild-Collection-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Brokild-Collection-win64.zip",
-      "bytes": 128268584,
-      "sha256": "2c1c316d6ff24aef4814644af959866da8b2cbc537794b5265b0145dac2bd7ed"
+      "bytes": 134988902,
+      "sha256": "b2acfa88f81fc1597474e7358976721badbebb50e54cd62d5dcd5c21d24f4053"
     }
   ]
 }

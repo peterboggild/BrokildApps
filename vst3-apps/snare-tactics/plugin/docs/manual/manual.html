@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Snare Tactics — Manual</title>
+<style>
+/* ===========================================================================
+   Snare Tactics, the manual. Kickstart's handbook, in the snare's colours.
+
+   Landscape A4, one fixed sheet per .page with overflow hidden - so anything
+   too tall is cut off rather than moved, and tools/shoot-manual.ps1 measures
+   every page before the PDF is trusted. The page is the panel's charcoal, so
+   a plate sits on it without a seam.
+   =========================================================================== */
+
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:    #0e0f13;
+  --ink-2:  #16181e;
+  --steel:  #6fd0ff;
+  --orange: #ff5a1f;
+  --amber:  #ffb020;
+  --body:   #cfccc6;
+  --dim:    #8a867f;
+  --white:  #f4f2ee;
+  --rule:   rgba(111,208,255,.34);
+  /* the section colours on the panel */
+  --s-head: #ff5a1f; --s-wires: #6fd0ff; --s-hit: #ffb020; --s-era: #36c9bd; --s-echo: #8ee06a;
+  --s-tr: #a184ff; --s-drive:#ff3d4a; --s-comp:#4a7dff; --s-out:#cfd3da;
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; background: var(--ink); }
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body); font-size: 10.8pt; line-height: 1.5;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
+.page{
+  position: relative; width: 297mm; height: 210mm; overflow: hidden;
+  page-break-after: always; background: var(--ink);
+}
+.page:last-child{ page-break-after: auto; }
+.pad{ position:absolute; inset: 14mm 16mm 18mm 16mm; }
+
+.display{
+  font-family: "Segoe UI Black", "Arial Black", "Segoe UI", sans-serif;
+  font-weight: 900; letter-spacing: .09em; line-height: 1;
+  color: var(--white); margin: 0;
+}
+h1.display{ font-size: 50pt; letter-spacing: .1em; }
+h2.display{ font-size: 24pt; }
+.sticks{ display:inline-block; width:.82em; height:.82em; margin-right:.32em; vertical-align:-.04em; }
+
+.kick{
+  font: 700 8.2pt/1 Consolas, "SF Mono", ui-monospace, monospace;
+  letter-spacing: .3em; text-transform: uppercase;
+  color: var(--steel); margin: 0 0 4mm 0;
+}
+.sub{ font-size: 11pt; color: #e9e5de; margin: 3.5mm 0 0 0; max-width: 190mm; line-height: 1.45; }
+p{ margin: 0 0 3mm 0; }
+b, strong{ color: var(--white); font-weight: 700; }
+em{ color: var(--amber); font-style: normal; font-weight: 600; }
+.mono{ font-family: Consolas, "SF Mono", ui-monospace, monospace; font-size: .92em; color: #efe9df; }
+
+.rule{
+  height: 3px; border: 0; margin: 5mm 0 6mm 0;
+  background: linear-gradient(90deg, var(--steel) 0%, var(--orange) 40%, rgba(255,90,31,.05) 100%);
+}
+
+img{ display:block; max-width:100%; }
+figure{ margin:0; }
+figcaption{ font-size: 8.3pt; color: var(--dim); margin-top: 1.8mm; line-height: 1.4; }
+figcaption b{ color: var(--amber); }
+.shot{ border: 1px solid rgba(255,255,255,.12); border-radius: 3px; }
+.strip{ width: auto; max-width: 100%; max-height: 36mm; }
+
+.cols{ display:flex; gap: 9mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-40{ flex: 0 0 40%; }
+.c-44{ flex: 0 0 44%; }
+.c-55{ flex: 0 0 55%; }
+.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 0 9mm; }
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 4mm 8mm; }
+.grid4{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 0 7mm; }
+
+.knob{ border-left: 3px solid var(--sec, var(--steel)); padding-left: 4.5mm; margin-bottom: 4.6mm; }
+.knob h3{
+  font: 900 11pt/1 "Segoe UI Black","Arial Black",sans-serif;
+  letter-spacing: .1em; color: var(--white); margin: 0 0 1.2mm 0;
+}
+.knob h3 .rng{ font: 600 8pt/1 Consolas, monospace; letter-spacing: .04em; color: var(--sec, var(--steel)); margin-left: 2.5mm; }
+.knob p{ margin: 0; font-size: 10pt; line-height: 1.43; }
+
+.sechead{ display:flex; align-items:center; gap: 4mm; }
+.sechead .bar{ width: 16mm; height: 3px; background: var(--sec); }
+
+.box{
+  border: 1px solid var(--rule); background: linear-gradient(160deg, rgba(111,208,255,.08), rgba(255,90,31,.03));
+  padding: 4.5mm 5.5mm; border-radius: 3px;
+}
+.box h4{ font: 900 9.6pt/1 "Segoe UI Black","Arial Black",sans-serif; letter-spacing:.12em;
+         color: var(--amber); margin: 0 0 2.2mm 0; }
+.box p{ font-size: 10pt; }
+.box p:last-child{ margin-bottom: 0; }
+
+table{ width:100%; border-collapse: collapse; font-size: 9.8pt; }
+th{ text-align:left; font: 700 7.6pt/1 Consolas, monospace; letter-spacing:.18em;
+    text-transform:uppercase; color: var(--steel); padding: 0 0 1.8mm 0; border-bottom: 1px solid var(--rule); }
+td{ padding: 1.5mm 3mm 1.5mm 0; border-bottom: 1px solid rgba(255,255,255,.07); vertical-align: top; }
+td:first-child{ color: var(--white); font-weight: 600; white-space: nowrap; }
+td.num{ font-family: Consolas, monospace; color: var(--amber); white-space: nowrap; }
+
+.toc{ display:flex; gap: 5mm; align-items: baseline; padding: 1.8mm 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+.toc .n{ flex: 0 0 10mm; font: 900 13pt/1 "Segoe UI Black","Arial Black",sans-serif; color: var(--steel); }
+.toc .t{ flex: 0 0 58mm; font-weight: 700; color: var(--white); letter-spacing: .06em; text-transform: uppercase; font-size: 9.4pt; }
+.toc .d{ flex: 1 1 auto; font-size: 9.2pt; color: var(--dim); }
+
+.bank h3{ font: 900 10pt/1 "Segoe UI Black","Arial Black",sans-serif; letter-spacing:.16em; color: var(--steel); margin:0 0 2.5mm 0; }
+.pl{ font-size: 9.2pt; line-height: 1.32; margin: 0 0 2.3mm 0; }
+.pl b{ display:block; color: var(--white); }
+.pl span{ color: var(--dim); }
+
+.recipe{ border-top: 3px solid var(--sec, var(--steel)); background: var(--ink-2); padding: 3.6mm 5mm; border-radius: 0 0 3px 3px; }
+.recipe h4{ font: 900 10pt/1.1 "Segoe UI Black","Arial Black",sans-serif; letter-spacing:.08em; color: var(--white); margin:0 0 2.2mm 0; }
+.recipe ol{ margin: 0; padding-left: 4.5mm; font-size: 9.8pt; line-height: 1.42; }
+.recipe li{ margin-bottom: .6mm; }
+
+.folio{
+  position:absolute; left:16mm; right:16mm; bottom: 7mm;
+  display:flex; justify-content:space-between; align-items:center;
+  font: 600 7.3pt/1 Consolas, monospace; letter-spacing:.2em; text-transform:uppercase;
+  color: rgba(138,134,127,.85); border-top: 1px solid rgba(111,208,255,.2); padding-top: 2.6mm;
+}
+.folio .n{ color: var(--steel); font-weight: 800; letter-spacing: .1em; }
+
+.cover-art{ position:absolute; left:0; right:0; bottom:0; height: 47%; overflow:hidden; }
+.cover-art img{ width:100%; height:100%; object-fit: cover; object-position: center 100%; }
+.cover-fade{ position:absolute; inset:0;
+  background: linear-gradient(180deg, var(--ink) 0%, rgba(14,15,19,.35) 16%, rgba(14,15,19,0) 34%); }
+.cover-top{ position:absolute; left:18mm; right:18mm; top:24mm; }
+</style>
+</head>
+<body>
+
+<!-- ==================================================  1  COVER  ====== -->
+<section class="page">
+  <div class="cover-top">
+    <p class="kick" style="color:var(--amber); margin-bottom:6mm">Brokild &middot; Windows VST3 &middot; Snare drum synthesiser</p>
+    <h1 class="display"><svg class="sticks" viewBox="0 0 40 40" aria-hidden="true"><path d="M3 7 L7 3 L37 33 L33 37 Z" fill="#6fd0ff"/><path d="M33 3 L37 7 L7 37 L3 33 Z" fill="#ff5a1f"/><circle cx="4" cy="4" r="3.6" fill="#6fd0ff"/><circle cx="36" cy="4" r="3.6" fill="#ff5a1f"/></svg>SNARE TACTICS</h1>
+    <hr class="rule" style="margin:7mm 0 5mm 0; max-width:190mm" />
+    <div class="cols" style="align-items:flex-end">
+      <div class="c-55">
+        <p style="font-size:12.5pt; color:#e9e5de; margin:0">
+          A head, a set of wires and a stick. Every snare there is, from those three. No samples.
+        </p>
+      </div>
+      <div style="text-align:right">
+        <p class="mono" style="margin:0; color:var(--amber); letter-spacing:.14em">MANUAL &middot; BUILD 260926.1</p>
+      </div>
+    </div>
+  </div>
+  <div class="cover-art">
+    <img src="../../../img/panel.jpg" alt="" />
+    <div class="cover-fade"></div>
+  </div>
+</section>
+
+<!-- ===============================================  2  CONTENTS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Contents</p>
+    <h2 class="display">WHAT IS IN HERE</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <div class="toc"><span class="n">03</span><span class="t">Quick start</span><span class="d">Install it, hit it, pick a preset.</span></div>
+        <div class="toc"><span class="n">04</span><span class="t">The idea</span><span class="d">Three sources, coupled.</span></div>
+        <div class="toc"><span class="n">05</span><span class="t">Head</span><span class="d">The drum itself: eight knobs.</span></div>
+        <div class="toc"><span class="n">06</span><span class="t">Wires</span><span class="d">The snare in the snare drum.</span></div>
+        <div class="toc"><span class="n">07</span><span class="t">Hit</span><span class="d">Where, with what, and the clap.</span></div>
+        <div class="toc"><span class="n">08</span><span class="t">Era &amp; Echo</span><span class="d">The machine, the room, the gate, the dub.</span></div>
+        <div class="toc"><span class="n">09</span><span class="t">Transient &amp; Drive</span><span class="d">Front and back; four engines.</span></div>
+        <div class="toc"><span class="n">10</span><span class="t">Comp &amp; Out</span><span class="d">Crack or pump; level, touch and keys.</span></div>
+        <div class="toc"><span class="n">11</span><span class="t">The display &amp; the pad</span><span class="d">Head, wires, pitch, and four ways to hit.</span></div>
+        <div class="toc"><span class="n">12</span><span class="t">Recipes</span><span class="d">From one style to another.</span></div>
+        <div class="toc"><span class="n">13</span><span class="t">Presets</span><span class="d">Forty-four, in seven banks.</span></div>
+        <div class="toc"><span class="n">15</span><span class="t">Specifications</span><span class="d">And what the bench measured.</span></div>
+      </div>
+      <div>
+        <div class="box">
+          <h4>IN SHORT</h4>
+          <p>Snare Tactics synthesises snare drums: the studio snare, the
+          drum machines that made the records, and what techno, dub,
+          industrial and digital hardcore did with them next.</p>
+          <p>It does not carry a simulation per machine. It models what every
+          snare is &mdash; a head, wires and a stick, coupled &mdash; with
+          thirty-one controls, and lets you walk from one drum to the next.</p>
+        </div>
+        <div class="box" style="margin-top:6mm">
+          <h4>THE FIRST TEN SECONDS</h4>
+          <p>Open it and click the <b>HIT</b> pad &mdash; then the chrome hoop
+          around it for a rim shot. Press <b>&gt;</b> beside the preset name
+          until something makes you grin.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Snare Tactics &middot; Manual</span><span class="n">02</span></div>
+</section>
+
+<!-- ============================================  3  QUICK START  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Quick start</p>
+    <h2 class="display">INSTALL, HIT, PLAY</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <figure>
+          <img class="shot" src="../../../img/panel.jpg" alt="" />
+          <figcaption><b>The panel.</b> The display and the pad across the
+          top. Below, the controls in the order the sound meets them: Head,
+          Wires, Hit, then Era, Echo, Transient, Drive, Comp and Out.</figcaption>
+        </figure>
+      </div>
+      <div>
+        <div class="knob" style="--sec:var(--s-head)"><h3>1 &middot; INSTALL</h3>
+          <p>Copy <b>Snare Tactics.vst3</b> into
+          <span class="mono">C:\Program Files\Common Files\VST3\</span> and
+          rescan. It files under Instrument / Drum. The standalone,
+          <b>Snare Tactics.exe</b>, needs no installing.</p></div>
+        <div class="knob" style="--sec:var(--s-hit)"><h3>2 &middot; FIRST HIT</h3>
+          <p>Click the <b>HIT</b> pad &mdash; the centre is the hardest hit
+          &mdash; or its hoop for a rim shot. Keys: <b>space</b> snare,
+          <b>R</b> rim shot, <b>X</b> cross-stick, <b>C</b> clap.</p></div>
+        <div class="knob" style="--sec:var(--s-wires)"><h3>3 &middot; PICK A PRESET</h3>
+          <p><b>&lt;</b> and <b>&gt;</b> step through the banks; the name opens
+          the list. Presets are level-matched, so you compare drums, not volumes.</p></div>
+        <div class="knob" style="--sec:var(--s-echo)"><h3>4 &middot; FROM MIDI</h3>
+          <p>With <b>KEYS</b> on GM KIT (the default), note 38 is the snare,
+          40 a rim shot, 37 a cross-stick and 39 the clap &mdash; the General
+          MIDI drum map, so a drum rack just works.</p></div>
+        <div class="knob" style="--sec:var(--s-out)"><h3>5 &middot; KEEP IT</h3>
+          <p><b>SAVE</b> and <b>LOAD</b> use
+          <span class="mono">Documents\Brokild patches\Snare Tactics</span>.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Quick start</span><span class="n">03</span></div>
+</section>
+
+<!-- ===============================================  4  THE IDEA  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The idea</p>
+    <h2 class="display">THREE SOURCES, COUPLED</h2>
+    <p class="sub">A snare is a head, a set of wires and a stick &mdash; and they
+    are not independent. The wires are driven by the head. That coupling is
+    most of what makes a real snare sound real.</p>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <table>
+          <tr><th>What</th><th>808 / 909</th><th>Studio snare</th><th>Snare Tactics</th></tr>
+          <tr><td>The head</td><td>two oscillators, 1 : 1.8</td><td>a membrane&rsquo;s modes</td><td>SKIN walks between them</td></tr>
+          <tr><td>Where it is hit</td><td>&mdash;</td><td>centre, edge, rim</td><td>STRIKE picks the modes</td></tr>
+          <tr><td>The wires</td><td>filtered noise</td><td>driven by the head</td><td>lag, buzz and ring along</td></tr>
+          <tr><td>Wire tension</td><td>&mdash;</td><td>loose to tight</td><td>TENSION</td></tr>
+          <tr><td>The stick</td><td>&mdash;</td><td>click, rim, cross-stick</td><td>STICK, STRIKE, articulations</td></tr>
+          <tr><td>Hands</td><td>the clap</td><td>&mdash;</td><td>CLAP and SPREAD</td></tr>
+        </table>
+        <p style="margin-top:4mm">A drum machine&rsquo;s noise ignores the
+        head. Real wires start a fraction of a millisecond after the stick,
+        slap against the head once a cycle when they are loose, and keep
+        sizzling for as long as the head rings. Snare Tactics does all three
+        &mdash; which is why a loose snare here buzzes <b>at the drum&rsquo;s own
+        pitch</b>.</p>
+      </div>
+      <div>
+        <figure>
+          <img class="shot strip" src="../../../img/hit-808.jpg" alt="" />
+          <figcaption><b>808 Snare.</b> Two tones and a little noise.</figcaption>
+        </figure>
+        <figure style="margin-top:3.5mm">
+          <img class="shot strip" src="../../../img/hit-909.jpg" alt="" />
+          <figcaption><b>909 Snare.</b> Triangles, the drop, bright noise.</figcaption>
+        </figure>
+        <figure style="margin-top:3.5mm">
+          <img class="shot strip" src="../../../img/hit-studio.jpg" alt="" />
+          <figcaption><b>Studio Snare.</b> A membrane, wires, a stick.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The idea</span><span class="n">04</span></div>
+</section>
+
+<!-- ===================================================  5  HEAD  ====== -->
+<section class="page" style="--sec:var(--s-head)">
+  <div class="pad">
+    <div class="sechead"><span class="bar"></span><p class="kick" style="margin:0">Head</p></div>
+    <h2 class="display" style="margin-top:3mm">HEAD</h2>
+    <hr class="rule" />
+    <div class="grid2">
+      <div>
+        <div class="knob"><h3>TUNE<span class="rng">100&ndash;420 Hz</span></h3>
+          <p>The head&rsquo;s settled pitch. The display names the note, so the
+          snare can sit in the key of the song.</p></div>
+        <div class="knob"><h3>DROP<span class="rng">0&ndash;24 semitones</span></h3>
+          <p>How far above TUNE the hit starts. A few semitones is a real head
+          being hit hard; a lot is a zap.</p></div>
+        <div class="knob"><h3>BEND<span class="rng">2&ndash;200 ms</span></h3>
+          <p>How fast the pitch falls back. Short is a snap; long, with a big
+          DROP, is the Simmons sweep.</p></div>
+        <div class="knob"><h3>DECAY<span class="rng">40 ms&ndash;2 s</span></h3>
+          <p>Time for the head to fall 60 dB. The wires have their own.</p></div>
+      </div>
+      <div>
+        <div class="knob"><h3>WAVE<span class="rng">sine &rarr; square</span></h3>
+          <p>The wave of the electronic pair: sine (808), triangle (909, at
+          50 %), rounded square. The membrane is always sines.</p></div>
+        <div class="knob"><h3>SKIN<span class="rng">0&ndash;100 %</span></h3>
+          <p>At 0, the drum-machine body: two oscillators near 1 : 1.83. At
+          100, a real membrane &mdash; ten modes at the Bessel ratios, and a
+          pitch that starts sharp when hit hard and then settles.</p></div>
+        <div class="knob"><h3>RING<span class="rng">0&ndash;100 %</span></h3>
+          <p>How undamped the head is. Low is gel and tape: the overtones die
+          at once. High leaves the famous snare ring wide open.</p></div>
+        <div class="knob"><h3>BODY<span class="rng">0&ndash;100 %</span></h3>
+          <p>How much of the head you hear. All the way down for a clap or the
+          wires on their own.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Head</span><span class="n">05</span></div>
+</section>
+
+<!-- ==================================================  6  WIRES  ====== -->
+<section class="page" style="--sec:var(--s-wires)">
+  <div class="pad">
+    <div class="sechead"><span class="bar"></span><p class="kick" style="margin:0">Wires</p></div>
+    <h2 class="display" style="margin-top:3mm">WIRES</h2>
+    <p class="sub">The steel coils under the bottom head &mdash; the snare in
+    the snare drum.</p>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-44">
+        <div class="knob"><h3>WIRES</h3>
+          <p>Their level. The 808 called this SNAPPY.</p></div>
+        <div class="knob"><h3>SIZZLE<span class="rng">30 ms&ndash;2 s</span></h3>
+          <p>Time for the wires to fall 60 dB. It also sets how long a clap
+          hangs.</p></div>
+        <div class="knob"><h3>TENSION<span class="rng">loose &rarr; tight</span></h3>
+          <p>The one that makes it a real snare. <b>Loose</b> wires are dark,
+          start late, slap against the head once a cycle &mdash; a buzz at the
+          drum&rsquo;s own pitch &mdash; and keep ringing along with the head.
+          <b>Tight</b> wires are bright, short and crisp.</p></div>
+        <div class="knob"><h3>AIR</h3>
+          <p>The top end of the wires and of the clap.</p></div>
+      </div>
+      <div>
+        <div class="box">
+          <h4>WHAT TENSION DOES, MEASURED</h4>
+          <p>From loose to tight the wires&rsquo; brightness (spectral
+          centroid) rises from <em>3.7 kHz</em> to <em>7.8 kHz</em>. Loose,
+          their noise is chopped at the head&rsquo;s pitch <em>45 dB</em> more
+          than tight; they arrive <em>3.2 ms</em> later; and with a long-ringing
+          head they are still sizzling when tight wires have long gone.</p>
+        </div>
+        <div class="box" style="margin-top:5mm">
+          <h4>GHOST NOTES</h4>
+          <p>Play softly and the balance tips toward the wires, the way it does
+          on a real drum: a ghost note is mostly snare, not head. With VELO up
+          that is <em>7 dB</em> of difference in the mix between a ghost and a
+          full hit.</p>
+        </div>
+        <figure style="margin-top:5mm">
+          <img class="shot strip" src="../../../img/hit-eighties.jpg" alt="" />
+          <figcaption><b>The wires in steel, the head in orange.</b> Big
+          Eighties: loose-ish wires into a gated room.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Wires</span><span class="n">06</span></div>
+</section>
+
+<!-- ====================================================  7  HIT  ====== -->
+<section class="page" style="--sec:var(--s-hit)">
+  <div class="pad">
+    <div class="sechead"><span class="bar"></span><p class="kick" style="margin:0">Hit</p></div>
+    <h2 class="display" style="margin-top:3mm">HIT</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-44">
+        <div class="knob"><h3>STRIKE<span class="rng">centre &rarr; rim</span></h3>
+          <p>Where the stick lands. A centre hit can only excite the
+          head&rsquo;s round-symmetric modes; out toward the edge the others
+          join in and the ring grows; past 70 % it becomes a rim shot, with
+          the shell and hoop ringing too.</p></div>
+        <div class="knob"><h3>STICK</h3>
+          <p>The stick&rsquo;s own click.</p></div>
+        <div class="knob"><h3>CLAP</h3>
+          <p>An 808-style hand clap layered on the snare: noise through a
+          band-pass, several bursts, then a tail.</p></div>
+        <div class="knob"><h3>SPREAD</h3>
+          <p>The clap&rsquo;s burst spacing. At 0, one tight burst; up from
+          there, four hands a little out of time with each other.</p></div>
+      </div>
+      <div>
+        <p class="kick" style="color:var(--s-hit); margin-bottom:3mm">Four ways to hit it</p>
+        <table>
+          <tr><th>Articulation</th><th>GM note</th><th>Pad / key</th><th>What changes</th></tr>
+          <tr><td>Snare</td><td class="num">38</td><td>head &middot; space</td><td>as the controls say</td></tr>
+          <tr><td>Rim shot</td><td class="num">40</td><td>hoop &middot; R</td><td>edge and rim, louder, the shell rings</td></tr>
+          <tr><td>Cross-stick</td><td class="num">37</td><td>X-STICK &middot; X</td><td>head choked, wires still, shell only</td></tr>
+          <tr><td>Clap</td><td class="num">39</td><td>CLAP &middot; C</td><td>the clap alone</td></tr>
+        </table>
+        <p style="margin-top:3.5mm">All four come from the same controls, so a
+        patch is a whole snare, not one sound. A rim shot measured
+        <em>+15 dB</em> of the shell&rsquo;s 520 Hz mode over a centre hit; a
+        cross-stick carries 22 dB less wire.</p>
+        <figure style="margin-top:3mm">
+          <img class="shot strip" src="../../../img/hit-clap.jpg" alt="" />
+          <figcaption><b>Warehouse Clap.</b> Four bursts at SPREAD 55 %, then
+          the tail.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Hit</span><span class="n">07</span></div>
+</section>
+
+<!-- ============================================  8  ERA & ECHO  ====== -->
+<section class="page">
+  <div class="pad">
+    <div class="sechead" style="--sec:var(--s-era)"><span class="bar"></span><p class="kick" style="margin:0">Era and Echo</p></div>
+    <h2 class="display" style="margin-top:3mm">ERA &amp; ECHO</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div>
+        <p class="kick" style="color:var(--s-era); margin-bottom:3mm">Era &middot; the machine and the room</p>
+        <div class="knob" style="--sec:var(--s-era)"><h3>GRIT</h3>
+          <p>Lower sample rate and bit depth. Around <em>30 %</em> is the
+          12-bit SP-1200 and Akai; around <em>55 %</em> the 8-bit Linn and
+          DMX; beyond that, an Atari.</p></div>
+        <div class="knob" style="--sec:var(--s-era)"><h3>ROOM</h3>
+          <p>A room behind the drum; more is bigger as well as louder. It sits
+          before the drive and the compressor, so it can be crushed.</p></div>
+        <div class="knob" style="--sec:var(--s-era)"><h3>GATE<span class="rng">OFF, 20&ndash;600 ms</span></h3>
+          <p>The 80s gate. The room &mdash; and the drum &mdash; is cut this
+          long after each hit. It is keyed by the hit itself, not by a
+          threshold, so it opens on the stick and closes exactly on time.</p></div>
+      </div>
+      <div>
+        <p class="kick" style="color:var(--s-echo); margin-bottom:3mm">Echo &middot; the dub</p>
+        <div class="knob" style="--sec:var(--s-echo)"><h3>ECHO</h3>
+          <p>A tape echo, ping-pong: the first repeat on the left, the next on
+          the right. One knob raises the send and the feedback together. Each
+          pass comes back darker and thinner, and saturates, so it can be
+          pushed to the top without running away.</p></div>
+        <div class="knob" style="--sec:var(--s-echo)"><h3>TIME<span class="rng">1/16 &hellip; 1/2</span></h3>
+          <p>Locked to the host tempo, which is shown beneath it; 120 BPM when
+          the standalone has no host. Dotted eighth is the default for a
+          reason.</p></div>
+        <figure style="margin-top:1mm">
+          <img class="shot strip" src="../../../img/hit-tubby.jpg" alt="" />
+          <figcaption><b>Tubby Throw.</b> A rim shot and its first repeat, 375
+          ms later &mdash; a dotted eighth at 120.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Era &amp; Echo</span><span class="n">08</span></div>
+</section>
+
+<!-- =====================================  9  TRANSIENT & DRIVE  ====== -->
+<section class="page">
+  <div class="pad">
+    <div class="sechead" style="--sec:var(--s-drive)"><span class="bar"></span><p class="kick" style="margin:0">Transient and Drive</p></div>
+    <h2 class="display" style="margin-top:3mm">TRANSIENT &amp; DRIVE</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-40">
+        <p class="kick" style="color:var(--s-tr); margin-bottom:3mm">Transient</p>
+        <div class="knob" style="--sec:var(--s-tr)"><h3>ATTACK<span class="rng">bipolar</span></h3>
+          <p>More or less of the first milliseconds: the crack.</p></div>
+        <div class="knob" style="--sec:var(--s-tr)"><h3>SUSTAIN<span class="rng">bipolar</span></h3>
+          <p>More or less of the tail: the wires and the room.</p></div>
+        <p style="font-size:10pt">A transient shaper usually has to guess
+        from the audio. Snare Tactics is the synthesiser, so it reads its own
+        envelopes &mdash; head, wires, stick and clap &mdash; and the gain it
+        makes cannot ripple.</p>
+      </div>
+      <div>
+        <p class="kick" style="color:var(--s-drive); margin-bottom:3mm">Drive &middot; four engines from Battlestar Overdrive</p>
+        <table>
+          <tr><th>Engine</th><th>What it does</th></tr>
+          <tr><td>IDLE BURN</td><td>A warm, asymmetric tube. Thickens without shouting.</td></tr>
+          <tr><td>HYPERDRIVE</td><td>Harmonic injection: an EBM snap, a snare that cuts on small speakers.</td></tr>
+          <tr><td>RAZOR WING</td><td>Tanh into a hard clip. Gabber, breakcore, hard techno.</td></tr>
+          <tr><td>SUPERNOVA</td><td>Fold, crush and chaos. Digital hardcore, industrial.</td></tr>
+        </table>
+        <div class="grid2" style="margin-top:4mm">
+          <div class="knob" style="--sec:var(--s-drive)"><h3>DRIVE</h3>
+            <p>How hard the engine is pushed. Level-matched by measurement: more
+            drive is more character, not more volume.</p></div>
+          <div class="knob" style="--sec:var(--s-drive)"><h3>COLOUR</h3>
+            <p>The drive&rsquo;s low-pass. Fully open is no filter at all.</p></div>
+        </div>
+        <figure>
+          <img class="shot strip" src="../../../img/hit-metal.jpg" alt="" style="max-height:30mm" />
+          <figcaption><b>Metal Shop.</b> A ringing rim struck hard, through SUPERNOVA.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Transient &amp; Drive</span><span class="n">09</span></div>
+</section>
+
+<!-- ===========================================  10  COMP & OUT  ====== -->
+<section class="page">
+  <div class="pad">
+    <div class="sechead" style="--sec:var(--s-comp)"><span class="bar"></span><p class="kick" style="margin:0">Comp and Out</p></div>
+    <h2 class="display" style="margin-top:3mm">COMP &amp; OUT</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div>
+        <p class="kick" style="color:var(--s-comp); margin-bottom:3mm">Comp</p>
+        <div class="knob" style="--sec:var(--s-comp)"><h3>COMP</h3>
+          <p>Threshold and ratio on one knob, with its own make-up, so turning
+          it up makes the snare denser, not quieter.</p></div>
+        <div class="knob" style="--sec:var(--s-comp)"><h3>SPEED</h3>
+          <p>Slow lets the crack through before the compressor grabs the body.
+          Fast flattens it and brings the wires and room up to meet the hit.
+          It looks 1.5 ms ahead, so even fast it catches the front.</p></div>
+        <div class="box" style="margin-top:5mm">
+          <h4>ROLLS</h4>
+          <p>Four hits sound at once and they overlap the way a real drum does.
+          A fifth fades the oldest over 3 ms rather than cutting it, so a
+          32nd-note roll at 170 BPM stays smooth.</p>
+        </div>
+      </div>
+      <div>
+        <p class="kick" style="color:var(--s-out); margin-bottom:3mm">Out</p>
+        <div class="knob" style="--sec:var(--s-out)"><h3>LEVEL</h3>
+          <p>Output. A soft ceiling holds everything under 0 dBFS.</p></div>
+        <div class="knob" style="--sec:var(--s-out)"><h3>VELO</h3>
+          <p>How much harder hits are louder, brighter, and further from a
+          ghost note. At 0, every velocity is the same hit, exactly.</p></div>
+        <div class="knob" style="--sec:var(--s-out)"><h3>KEYS</h3>
+          <p><b>FIXED</b>: every note is the snare. <b>GM KIT</b>: 38 snare,
+          40 rim shot, 37 cross-stick, 39 clap, everything else the snare.
+          <b>CHROMATIC</b>: the note tunes the head, with D1 (38) at TUNE
+          &mdash; a tuned snare line, or a pitched rim melody.</p></div>
+        <div class="box" style="margin-top:3mm">
+          <h4>STEREO</h4>
+          <p>The drum is mono, both sides the same sample for sample. The only
+          thing that spreads it is the echo, ping-ponging.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Comp &amp; Out</span><span class="n">10</span></div>
+</section>
+
+<!-- ======================================  11  DISPLAY & PAD  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The top of the panel</p>
+    <h2 class="display">THE DISPLAY &amp; THE PAD</h2>
+    <hr class="rule" />
+    <figure>
+      <img class="shot" src="../../../img/hit-studio.jpg" alt="" style="max-height:62mm; width:auto; max-width:100%" />
+      <figcaption><b>Studio Snare.</b> The head in orange over the whole drum
+      in steel, the head&rsquo;s pitch in amber; the readouts along the top.</figcaption>
+    </figure>
+    <div class="grid3" style="margin-top:6mm">
+      <div class="knob" style="--sec:var(--s-head)"><h3>HEAD &amp; WIRES</h3>
+        <p>The hit is rendered twice every time a control moves: the head on
+        its own in orange, and the whole drum in steel behind it. Whatever is
+        steel and not orange is the wires, the stick, the clap and the room.</p></div>
+      <div class="knob" style="--sec:var(--amber)"><h3>THE READOUT</h3>
+        <p>TUNE and its note, where the pitch starts, how long the head and
+        the wires take to fall 60 dB, and the echo time at the current tempo.</p></div>
+      <div class="knob" style="--sec:var(--s-out)"><h3>PAD &amp; METERS</h3>
+        <p>The head is the snare, the centre hardest. The chrome hoop is a rim
+        shot. RIM, X-STICK and CLAP below it. OUT and GR meters beside.</p></div>
+    </div>
+  </div>
+  <div class="folio"><span>The display &amp; the pad</span><span class="n">11</span></div>
+</section>
+
+<!-- ==============================================  12  RECIPES  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Walking the space</p>
+    <h2 class="display">RECIPES</h2>
+    <p class="sub">From one style to another, a few knobs at a time.</p>
+    <hr class="rule" style="margin-bottom:5mm" />
+    <div class="grid3" style="gap:5mm 7mm">
+      <div class="recipe" style="--sec:var(--s-head)"><h4>808 &rarr; 909</h4><ol>
+        <li>Start on <b>808 Snare</b>.</li>
+        <li>WAVE to 50 %: triangles.</li>
+        <li>DROP up to about 7, BEND 10 ms.</li>
+        <li>TENSION and AIR up: brighter, tighter noise.</li></ol></div>
+      <div class="recipe" style="--sec:var(--s-wires)"><h4>MACHINE &rarr; REAL DRUM</h4><ol>
+        <li>SKIN up to 90 %.</li>
+        <li>STRIKE to 30 %, RING to taste.</li>
+        <li>TENSION down a little, so the wires buzz.</li>
+        <li>STICK up, a little ROOM.</li></ol></div>
+      <div class="recipe" style="--sec:var(--s-era)"><h4>THE BIG 80s SNARE</h4><ol>
+        <li>A studio snare, STRIKE 60 %.</li>
+        <li>ROOM up to 75 %.</li>
+        <li>COMP 55 %, SPEED fast: the room comes up.</li>
+        <li>GATE to 240 ms. Done.</li></ol></div>
+      <div class="recipe" style="--sec:var(--s-echo)"><h4>DUB THROW</h4><ol>
+        <li>Tune up high, STRIKE to 100 %: a rim shot.</li>
+        <li>ECHO up, TIME 1/8D.</li>
+        <li>COLOUR down a touch.</li>
+        <li>Ride ECHO from the host: throw it on the last hit of the bar.</li></ol></div>
+      <div class="recipe" style="--sec:var(--s-drive)"><h4>DIGITAL HARDCORE</h4><ol>
+        <li>A break snare: SKIN 80 %, STRIKE 50 %.</li>
+        <li>GRIT to 60 %.</li>
+        <li>SUPERNOVA, DRIVE 80 %.</li>
+        <li>COMP 60 %, SPEED fast. Roll it at 180.</li></ol></div>
+      <div class="recipe" style="--sec:var(--s-hit)"><h4>SNARE + CLAP STACK</h4><ol>
+        <li>Any electronic snare.</li>
+        <li>CLAP up to 70 %, SPREAD 50 %.</li>
+        <li>SIZZLE sets how long the clap hangs.</li>
+        <li>A little ROOM behind both.</li></ol></div>
+    </div>
+  </div>
+  <div class="folio"><span>Recipes</span><span class="n">12</span></div>
+</section>
+
+<!-- =========================================  13  PRESETS (1)  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Forty-four, plus Init &middot; 1 of 2</p>
+    <h2 class="display">PRESETS</h2>
+    <hr class="rule" style="margin-bottom:4.5mm" />
+    <div class="grid3" style="gap:0 8mm">
+      <div class="bank">
+        <h3>ACOUSTIC</h3>
+        <p class="pl"><b>Studio Snare</b><span>A 14-inch wooden snare, mic&rsquo;d close, a little room.</span></p>
+        <p class="pl"><b>Piccolo Funk</b><span>Cranked tight: high, dry, snapping.</span></p>
+        <p class="pl"><b>Seventies Dead</b><span>Tuned low, damped with a wallet, wires loose.</span></p>
+        <p class="pl"><b>Rock Rim Shot</b><span>Every hit a rim shot, pushed.</span></p>
+        <p class="pl"><b>Jazz Snare</b><span>Open and ringing; play it soft for ghosts.</span></p>
+        <p class="pl"><b>Loose Garage</b><span>Wires hanging off it, buzzing at pitch.</span></p>
+        <p class="pl"><b>Big Eighties</b><span>A huge room, compressed, gated shut.</span></p>
+        <p class="pl" style="margin-top:4mm"><b>Init</b><span>Half head, half machine: a place to start.</span></p>
+      </div>
+      <div class="bank">
+        <h3>MACHINES</h3>
+        <p class="pl"><b>808 Snare &middot; 808 Snappy</b><span>Two tones and a little noise &mdash; and SNAPPY up.</span></p>
+        <p class="pl"><b>909 Snare &middot; 909 Tight</b><span>Two triangles, the drop, bright noise &mdash; tuned up and short.</span></p>
+        <p class="pl"><b>707 / 727</b><span>The brittle mid-eighties Roland sample snare.</span></p>
+        <p class="pl"><b>LinnDrum &middot; DMX</b><span>A real snare, 8-bit &mdash; and bigger, roomier.</span></p>
+        <p class="pl"><b>SP-1200 Crack &middot; MPC60 Break</b><span>12-bit, pushed and filtered; a chopped break snare.</span></p>
+        <p class="pl"><b>CR-78</b><span>Short, high and polite.</span></p>
+        <p class="pl"><b>Simmons SDS-V</b><span>A long pitch sweep into a gated room.</span></p>
+        <p class="pl"><b>808 Clap</b><span>The hand clap on its own.</span></p>
+      </div>
+      <div class="bank">
+        <h3>TECHNO</h3>
+        <p class="pl"><b>Techno Crush</b><span>A 909 through RAZOR WING into a small room.</span></p>
+        <p class="pl"><b>Warehouse Clap</b><span>Claps in a big concrete room.</span></p>
+        <p class="pl"><b>Minimal Rim</b><span>A rim shot and a dotted-eighth echo.</span></p>
+        <p class="pl"><b>Detroit Stack</b><span>909 snare and clap together.</span></p>
+        <p class="pl"><b>Dark Room</b><span>From the far end of the room, the lights off.</span></p>
+        <p class="pl"><b>House Clap Snare</b><span>A warm snare, clap on top.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Presets</span><span class="n">13</span></div>
+</section>
+
+<!-- =========================================  14  PRESETS (2)  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Forty-four, plus Init &middot; 2 of 2</p>
+    <h2 class="display">PRESETS</h2>
+    <hr class="rule" style="margin-bottom:4.5mm" />
+    <div class="grid4">
+      <div class="bank">
+        <h3>DUB</h3>
+        <p class="pl"><b>Roots Rim Shot</b><span>A cracked high rim shot into a dotted-eighth tape echo.</span></p>
+        <p class="pl"><b>Steppers</b><span>A steady snare with a quarter-note echo.</span></p>
+        <p class="pl"><b>Dub Techno Space</b><span>Soft, dark; the echo does the rest.</span></p>
+        <p class="pl"><b>Tubby Throw</b><span>The echo right up: a rim shot thrown into the tape.</span></p>
+        <p class="pl"><b>Space Echo Clap</b><span>A clap ping-ponging on a dotted quarter.</span></p>
+      </div>
+      <div class="bank">
+        <h3>INDUSTRIAL</h3>
+        <p class="pl"><b>Metal Shop</b><span>A ringing rim struck hard, crushed by SUPERNOVA.</span></p>
+        <p class="pl"><b>Gated Machine</b><span>An electronic snare in a gated room, clipped.</span></p>
+        <p class="pl"><b>EBM Snap</b><span>Square wave, tight noise, HYPERDRIVE, flattened.</span></p>
+        <p class="pl"><b>Power Electronics</b><span>Loose wires, full drive, a gated wall of noise.</span></p>
+        <p class="pl"><b>Factory Floor</b><span>A snare in a vast gated hall.</span></p>
+      </div>
+      <div class="bank">
+        <h3>HARDCORE</h3>
+        <p class="pl"><b>Atari Riot</b><span>8-bit grit and SUPERNOVA: digital hardcore.</span></p>
+        <p class="pl"><b>Amen Chop</b><span>The break snare: bright, 12-bit, squashed.</span></p>
+        <p class="pl"><b>Breakcore Blast</b><span>RAZOR WING at the top, the compressor pumping.</span></p>
+        <p class="pl"><b>Speedcore Snap</b><span>A short zap for rolls at any tempo.</span></p>
+        <p class="pl"><b>Gabber Snare</b><span>A 909 snare clipped as hard as the kick.</span></p>
+      </div>
+      <div class="bank">
+        <h3>MODERN</h3>
+        <p class="pl"><b>Trap Snare Clap</b><span>Snare and clap, stacked and tight.</span></p>
+        <p class="pl"><b>DnB Snare</b><span>Bright, high, all crack.</span></p>
+        <p class="pl"><b>Dubstep Snare</b><span>Snare, clap and a gated room, pushed.</span></p>
+        <p class="pl"><b>Lo-Fi Ghost</b><span>Dusty and dark; play it soft.</span></p>
+      </div>
+    </div>
+    <div class="box" style="margin-top:4mm">
+      <h4>LEVEL-MATCHED</h4>
+      <p>Every preset is levelled by measurement: &minus;15 dB RMS over the
+      first 150 ms, and no clean snare above &minus;1 dBFS &mdash; so flicking
+      through compares drums, not volumes. The machine names are in the spirit
+      of the originals; nothing is sampled from them.</p>
+    </div>
+  </div>
+  <div class="folio"><span>Presets</span><span class="n">14</span></div>
+</section>
+
+<!-- ========================================  15  SPECIFICATIONS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The numbers</p>
+    <h2 class="display">SPECIFICATIONS</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <table>
+          <tr><td>Format</td><td>Windows VST3, 64-bit, and a standalone application</td></tr>
+          <tr><td>Type</td><td>Instrument / Drum. MIDI in, stereo out</td></tr>
+          <tr><td>Sound</td><td>Fully synthesised. No samples</td></tr>
+          <tr><td>Controls</td><td>31: Head, Wires, Hit, Era, Echo, Transient, Drive, Comp, Out</td></tr>
+          <tr><td>Articulations</td><td>Snare, rim shot, cross-stick, clap</td></tr>
+          <tr><td>Keys</td><td>FIXED, GM KIT (38 / 40 / 37 / 39), CHROMATIC</td></tr>
+          <tr><td>Polyphony</td><td>Four overlapping hits; the oldest fades in 3 ms</td></tr>
+          <tr><td>Drive engines</td><td>IDLE BURN, HYPERDRIVE, RAZOR WING, SUPERNOVA</td></tr>
+          <tr><td>Presets</td><td>44 factory in seven banks, plus Init</td></tr>
+          <tr><td>User patches</td><td><span class="mono">Documents\Brokild patches\Snare Tactics</span></td></tr>
+          <tr><td>Sample rates</td><td>Any. Bench-tested at 44.1, 48 and 96 kHz</td></tr>
+          <tr><td>Licence</td><td>AGPLv3. Source at github.com/peterboggild/BrokildApps</td></tr>
+          <tr><td>Build</td><td class="num">260926.1</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3 class="display" style="font-size:11pt; color:var(--amber)">MEASURED</h3>
+        <table style="margin-top:3mm">
+          <tr><td>Tuning against TUNE</td><td class="num">within 0.01 cents</td></tr>
+          <tr><td>Oversampling</td><td class="num">4x, always</td></tr>
+          <tr><td>Aliasing, RAZOR WING at 100 %</td><td class="num">&minus;88 dB</td></tr>
+          <tr><td>DECAY against its &minus;60 dB time</td><td class="num">within 6 %</td></tr>
+          <tr><td>SIZZLE against its &minus;60 dB time</td><td class="num">within 2 %</td></tr>
+          <tr><td>Echo time against the tempo</td><td class="num">within 0.6 ms</td></tr>
+          <tr><td>Drive level change</td><td class="num">within 4.1 dB</td></tr>
+          <tr><td>Latency at 48 kHz</td><td class="num">95 samples, 2 ms</td></tr>
+          <tr><td>CPU, everything on, 8 hits/s</td><td class="num">about 10 % of a core</td></tr>
+        </table>
+        <p style="margin-top:4mm; font-size:8.6pt; color:var(--dim)">
+          Latency is reported to the host and compensated. Every number here
+          comes from the bench in the source, which renders real audio and
+          measures it: 72 engine checks, 72 in a plugin host, 12 on the panel.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Specifications</span><span class="n">15</span></div>
+</section>
+
+<!-- ================================================  16  BACK  ====== -->
+<section class="page">
+  <div style="position:absolute; left:18mm; right:18mm; top:17mm;">
+    <p class="kick" style="color:var(--amber)">Credits</p>
+    <h2 class="display" style="font-size:28pt">NOW GO AND<br>HIT SOMETHING</h2>
+    <hr class="rule" style="margin:7mm 0 6mm 0; max-width:170mm" />
+    <div class="cols">
+      <div class="c-55">
+        <p>This VST comes from the curved mind of Professor Brokild, and was
+        programmed with VScode, ChatGPT and Claude. Use of this is on your own
+        peril. It may generate unique, beautiful, scary or useless sounds for
+        you, and it may crash your DAW project. Have fun, play unsafely,
+        unwisely, and unboringly.</p>
+        <p>Its sibling is <b>Kickstart</b>, the kick drum synthesiser. The
+        demos on the website play the two together.</p>
+        <p style="color:var(--amber)">Cheers, Peter B&oslash;ggild, September 2026.</p>
+        <p style="font-size:8.4pt; color:var(--dim); margin-top:5mm">Drum machine names are
+        trademarks of their owners, used only to describe the sound a preset is
+        in the spirit of. Snare Tactics contains no samples of them.</p>
+      </div>
+      <div style="text-align:right">
+        <p class="display" style="font-size:14pt">BROKILD</p>
+        <p style="font-size:9.2pt; color:var(--dim); margin-top:2.5mm">
+          Free, and free to pass on.<br>peterboggild.github.io/BrokildApps</p>
+        <p class="mono" style="margin-top:6mm; color:var(--amber); letter-spacing:.14em">BUILD 260926.1 &middot; WINDOWS VST3</p>
+      </div>
+    </div>
+  </div>
+  <div class="cover-art" style="height:30%">
+    <img src="../../../img/hit-amen.jpg" alt="" style="object-position:left center" />
+    <div class="cover-fade"></div>
+  </div>
+</section>
+
+</body>
+</html>
