@@ -302,10 +302,10 @@ BeetEditor::BeetEditor (BeetProcessor& proc)
     kitPrev.onClick = [this] { p.loadKit ((p.kitIndex() + beet::numKits() - 1) % beet::numKits()); };
     kitNext.onClick = [this] { p.loadKit ((p.kitIndex() + 1) % beet::numKits()); };
 
-    for (auto* b : { &mapC3, &mapGM }) { b->setClickingTogglesState (false); content.addAndMakeVisible (*b); }
-    mapC3.setTooltip ("Notes C3 upwards: slot 1 on C3, slot 2 on C#3 ... slot 8 on G3");
+    for (auto* b : { &mapC1, &mapGM }) { b->setClickingTogglesState (false); content.addAndMakeVisible (*b); }
+    mapC1.setTooltip ("Notes C1 upwards: slot 1 on C1, slot 2 on C#1 ... slot 8 on G1");
     mapGM.setTooltip ("General MIDI drum notes: kicks 36/35, snares 38/40, closed hat 42, open hat 46, ride 51, crash 49");
-    mapC3.onClick = [this] { p.setNoteMap (BeetProcessor::MAP_C3); refreshHeader(); };
+    mapC1.onClick = [this] { p.setNoteMap (BeetProcessor::MAP_C1); refreshHeader(); };
     mapGM.onClick = [this] { p.setNoteMap (BeetProcessor::MAP_GM); refreshHeader(); };
 
     master.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
@@ -494,7 +494,7 @@ void BeetEditor::resized()
     kitPrev.setBounds (310, 16, 22, 26);
     kit.setBounds (334, 16, 190, 26);
     kitNext.setBounds (526, 16, 22, 26);
-    mapC3.setBounds (622, 16, 44, 26);
+    mapC1.setBounds (622, 16, 44, 26);
     mapGM.setBounds (670, 16, 44, 26);
     master.setBounds (830, 4, 48, 48);
     rackButton.setBounds (920, 15, 96, 28);
@@ -594,7 +594,7 @@ void BeetEditor::Content::paint (juce::Graphics& g)
 void BeetEditor::refreshHeader()
 {
     kit.setSelectedId (p.kitIndex() + 1, juce::dontSendNotification);
-    mapC3.setToggleState (p.noteMap() == BeetProcessor::MAP_C3, juce::dontSendNotification);
+    mapC1.setToggleState (p.noteMap() == BeetProcessor::MAP_C1, juce::dontSendNotification);
     mapGM.setToggleState (p.noteMap() == BeetProcessor::MAP_GM, juce::dontSendNotification);
     content.repaint();
 }
@@ -659,6 +659,6 @@ void BeetEditor::timerCallback()
     }
     syncChild();
     for (auto& c : cards) c->tick();
-    const bool gmOn = p.noteMap() == BeetProcessor::MAP_GM, c3On = p.noteMap() == BeetProcessor::MAP_C3;
-    if (mapGM.getToggleState() != gmOn || mapC3.getToggleState() != c3On) refreshHeader();
+    const bool gmOn = p.noteMap() == BeetProcessor::MAP_GM, c1On = p.noteMap() == BeetProcessor::MAP_C1;
+    if (mapGM.getToggleState() != gmOn || mapC1.getToggleState() != c1On) refreshHeader();
 }

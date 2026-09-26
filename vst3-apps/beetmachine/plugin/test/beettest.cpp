@@ -222,7 +222,7 @@ int main()
             for (int s = 0; s < 8; ++s) q->setSlotOut (s, beet::OUT_OWN);
             q->setSlotPreset (slot, 1);
             neutral (*q, slot);                // level 0 dB, centre: the check is about TIME, not level
-            auto out = render (*q, { { 0.0, beet::C3_ROW[slot], 0.85f } }, 0.5);
+            auto out = render (*q, { { 0.0, beet::C1_ROW[slot], 0.85f } }, 0.5);
             const int inBeet = onset (out, 2 + 2 * slot, 1.0e-4f);
             const int expect = alone + (maxLat - q->typeLatency (t));
             check (inBeet == expect, juce::String (beet::typeShort (t)) + ": onset lands where alignment puts it",
@@ -234,12 +234,12 @@ int main()
     std::printf ("\nnotes and routing\n");
     for (int map = 0; map < 2; ++map)
     {
-        const int* row = map == 0 ? beet::C3_ROW : beet::GM_ROW;
+        const int* row = map == 0 ? beet::C1_ROW : beet::GM_ROW;
         bool allRight = true; juce::String bad;
         for (int s = 0; s < beet::NUM_SLOTS; ++s)
         {
             auto p = fresh (true);
-            p->setNoteMap (map == 0 ? BeetProcessor::MAP_C3 : BeetProcessor::MAP_GM);
+            p->setNoteMap (map == 0 ? BeetProcessor::MAP_C1 : BeetProcessor::MAP_GM);
             for (int i = 0; i < 8; ++i) p->setSlotOut (i, beet::OUT_OWN);
             auto out = render (*p, { { 0.01, row[s], 0.9f } }, 0.4);
             const double mine = energy (out, 2 + 2 * s, 0, out.getNumSamples());
@@ -247,13 +247,32 @@ int main()
             for (int i = 0; i < 8; ++i) if (i != s) others += energy (out, 2 + 2 * i, 0, out.getNumSamples());
             if (! (mine > 1e-3 && others == 0.0)) { allRight = false; bad << "slot " << (s + 1) << " (note " << row[s] << ") "; }
         }
-        check (allRight, juce::String (map == 0 ? "C3 row" : "GM row") + ": each note plays its slot, on that slot's own output only", bad);
+        check (allRight, juce::String (map == 0 ? "C1 row" : "GM row") + ": each note plays its slot, on that slot's own output only", bad);
+    }
+    {
+        //  260926.8: the row moved from C3 (60) to C1 (36), where drum MIDI lives
+        auto p = fresh (true);
+        check (p->slotNote (0) == 36 && p->slotNote (7) == 43 && p->noteMap() == BeetProcessor::MAP_C1,
+               "a fresh instance sits on C1 (MIDI 36) to G1 (43)");
+        //  ...and a project saved on the OLD row must keep its notes, or every
+        //  clip recorded against it would go silent or hit the wrong drum
+        auto old = fresh (true);
+        for (int s = 0; s < beet::NUM_SLOTS; ++s) old->setSlotNote (s, 60 + s);
+        juce::MemoryBlock mb;
+        old->getStateInformation (mb);
+        auto back = fresh (true);
+        back->setStateInformation (mb.getData(), (int) mb.getSize());
+        for (int i = 0; i < 8; ++i) back->setSlotOut (i, beet::OUT_OWN);
+        auto out = render (*back, { { 0.01, 60, 0.9f } }, 0.3);
+        check (back->slotNote (0) == 60 && back->slotNote (7) == 67 && back->noteMap() == BeetProcessor::MAP_CUSTOM
+               && energy (out, 2, 0, out.getNumSamples()) > 1e-3,
+               "a project saved on the old C3 row keeps its notes (60-67 still play, the map reads CUSTOM)");
     }
     {
         auto p = fresh (true);
         for (int i = 0; i < 8; ++i) p->setSlotOut (i, beet::OUT_OWN);
-        p->setSlotNote (2, beet::C3_ROW[0]);                                   // slot 3 now shares slot 1's note
-        auto out = render (*p, { { 0.01, beet::C3_ROW[0], 0.9f } }, 0.3);
+        p->setSlotNote (2, beet::C1_ROW[0]);                                   // slot 3 now shares slot 1's note
+        auto out = render (*p, { { 0.01, beet::C1_ROW[0], 0.9f } }, 0.3);
         check (energy (out, 2, 0, out.getNumSamples()) > 1e-3 && energy (out, 6, 0, out.getNumSamples()) > 1e-3,
                "two slots on one note layer (both sound)");
         check (p->noteMap() == BeetProcessor::MAP_CUSTOM, "an edited note makes the map read CUSTOM");
@@ -262,14 +281,14 @@ int main()
         //  OWN with the host having left the pair switched off falls back to the mix
         auto p = fresh (false);
         for (int i = 0; i < 8; ++i) p->setSlotOut (i, beet::OUT_OWN);
-        auto out = render (*p, { { 0.01, beet::C3_ROW[0], 0.9f } }, 0.3);
+        auto out = render (*p, { { 0.01, beet::C1_ROW[0], 0.9f } }, 0.3);
         check (energy (out, 0, 0, out.getNumSamples()) > 1e-3, "OWN with the output pair off in the host falls back to the mix (never silent)");
     }
     {
         //  the mix is exactly the sum of what OWN sends to the pairs
         std::vector<Note> groove;
-        for (int b = 0; b < 8; ++b) { groove.push_back ({ b * 0.25, beet::C3_ROW[0], 0.9f }); groove.push_back ({ b * 0.25 + 0.125, beet::C3_ROW[4], 0.6f }); }
-        groove.push_back ({ 0.5, beet::C3_ROW[2], 0.9f }); groove.push_back ({ 1.5, beet::C3_ROW[2], 0.9f });
+        for (int b = 0; b < 8; ++b) { groove.push_back ({ b * 0.25, beet::C1_ROW[0], 0.9f }); groove.push_back ({ b * 0.25 + 0.125, beet::C1_ROW[4], 0.6f }); }
+        groove.push_back ({ 0.5, beet::C1_ROW[2], 0.9f }); groove.push_back ({ 1.5, beet::C1_ROW[2], 0.9f });
         auto a = fresh (true);
         auto mixOut = render (*a, groove, 2.2);
         auto b = fresh (true);
@@ -290,15 +309,15 @@ int main()
     {
         auto p = fresh (true);
         for (int i = 0; i < 8; ++i) p->setSlotOut (i, beet::OUT_BOTH);
-        auto out = render (*p, { { 0.01, beet::C3_ROW[0], 0.9f } }, 0.3);
+        auto out = render (*p, { { 0.01, beet::C1_ROW[0], 0.9f } }, 0.3);
         check (energy (out, 0, 0, out.getNumSamples()) > 1e-3 && energy (out, 2, 0, out.getNumSamples()) > 1e-3, "BOTH sends to the mix and the slot's pair");
     }
     {
         auto p = fresh (true);
         p->setSlotSolo (2, true);
-        auto out = render (*p, { { 0.01, beet::C3_ROW[0], 0.9f }, { 0.01, beet::C3_ROW[2], 0.9f } }, 0.3);
+        auto out = render (*p, { { 0.01, beet::C1_ROW[0], 0.9f }, { 0.01, beet::C1_ROW[2], 0.9f } }, 0.3);
         auto q = fresh (true);
-        auto only = render (*q, { { 0.01, beet::C3_ROW[2], 0.9f } }, 0.3);
+        auto only = render (*q, { { 0.01, beet::C1_ROW[2], 0.9f } }, 0.3);
         double d = 0; for (int i = 0; i < out.getNumSamples(); ++i) d = juce::jmax (d, (double) std::abs (out.getSample (0, i) - only.getSample (0, i)));
         check (d < 1.0e-6, "solo: with slot 3 soloed, the mix is exactly slot 3 alone", "worst " + juce::String (d, 8));
     }
@@ -312,12 +331,12 @@ int main()
         for (int i = 0; i < 8; ++i) a->setSlotOut (i, beet::OUT_OWN);
         a->setSlotChokedBy (5, 1u << 4);
         presetByName (*a, 5, "Crash 16");
-        auto with = render (*a, { { 0.0, beet::C3_ROW[5], 0.9f }, { tc, beet::C3_ROW[4], 0.9f } }, 0.8);
+        auto with = render (*a, { { 0.0, beet::C1_ROW[5], 0.9f }, { tc, beet::C1_ROW[4], 0.9f } }, 0.8);
         auto b = fresh (true);
         for (int i = 0; i < 8; ++i) b->setSlotOut (i, beet::OUT_OWN);
         b->setSlotChokedBy (5, 1u << 4);
         presetByName (*b, 5, "Crash 16");
-        auto without = render (*b, { { 0.0, beet::C3_ROW[5], 0.9f } }, 0.8);
+        auto without = render (*b, { { 0.0, beet::C1_ROW[5], 0.9f } }, 0.8);
 
         const int at = (int) (tc * SR) + maxLat;
         const int w0 = at + (int) (0.015 * SR), w1 = at + (int) (0.200 * SR);
@@ -339,7 +358,7 @@ int main()
         for (int i = 0; i < 8; ++i) c->setSlotOut (i, beet::OUT_OWN);
         c->setSlotChokedBy (5, 1u << 4);
         presetByName (*c, 5, "Crash 16");
-        auto again = render (*c, { { 0.0, beet::C3_ROW[5], 0.9f }, { tc, beet::C3_ROW[4], 0.9f }, { 0.5, beet::C3_ROW[5], 0.9f } }, 0.8);
+        auto again = render (*c, { { 0.0, beet::C1_ROW[5], 0.9f }, { tc, beet::C1_ROW[4], 0.9f }, { 0.5, beet::C1_ROW[5], 0.9f } }, 0.8);
         const int a2 = (int) (0.5 * SR) + maxLat;
         check (energy (again, 12, a2, a2 + 4800) > 1e-3, "a choked slot plays again on its next hit");
 
@@ -347,7 +366,7 @@ int main()
         for (int i = 0; i < 8; ++i) d->setSlotOut (i, beet::OUT_OWN);
         d->setSlotChokedBy (5, 0);                  // the kit sets it; this check needs it OFF
         presetByName (*d, 5, "Crash 16");
-        auto noChoke = render (*d, { { 0.0, beet::C3_ROW[5], 0.9f }, { tc, beet::C3_ROW[4], 0.9f } }, 0.8);
+        auto noChoke = render (*d, { { 0.0, beet::C1_ROW[5], 0.9f }, { tc, beet::C1_ROW[4], 0.9f } }, 0.8);
         check (energy (noChoke, 12, w0, w1) > 0.5 * eWithout, "with the choke switched off, the open hat rings on");
     }
 
@@ -356,7 +375,7 @@ int main()
     {
         std::vector<Note> busy;
         for (int b = 0; b < 32; ++b)
-            for (int s = 0; s < 8; ++s) busy.push_back ({ b * 0.125 + s * 0.011, beet::C3_ROW[s], 0.8f });
+            for (int s = 0; s < 8; ++s) busy.push_back ({ b * 0.125 + s * 0.011, beet::C1_ROW[s], 0.8f });
         auto full = fresh (false);
         auto t0 = juce::Time::getMillisecondCounterHiRes();
         auto o1 = render (*full, busy, 4.0);
@@ -432,7 +451,7 @@ int main()
 
         //  slot 1 goes to its OWN output as well, so the rack's reach can be seen
         std::vector<Note> groove;
-        for (int b = 0; b < 8; ++b) { groove.push_back ({ b * 0.25, beet::C3_ROW[0], 0.9f }); groove.push_back ({ b * 0.25 + 0.125, beet::C3_ROW[4], 0.6f }); }
+        for (int b = 0; b < 8; ++b) { groove.push_back ({ b * 0.25, beet::C1_ROW[0], 0.9f }); groove.push_back ({ b * 0.25 + 0.125, beet::C1_ROW[4], 0.6f }); }
         auto wet = fresh (true);
         for (auto* q : { plain.get(), wet.get() }) q->setSlotOut (0, beet::OUT_BOTH);
         if (echo >= 0) wet->rack().setEnabled (echo, true);

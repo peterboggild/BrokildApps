@@ -61,7 +61,7 @@ BeetProcessor::BeetProcessor()
         pLevel[(size_t) s] = apvts.getRawParameterValue (pid (s, "level"));
         pPan[(size_t) s]   = apvts.getRawParameterValue (pid (s, "pan"));
         pMute[(size_t) s]  = apvts.getRawParameterValue (pid (s, "mute"));
-        slots[(size_t) s].note = beet::C3_ROW[s];
+        slots[(size_t) s].note = beet::C1_ROW[s];
     }
     pMaster = apvts.getRawParameterValue ("master");
 
@@ -223,10 +223,10 @@ void BeetProcessor::setSlotNote (int s, int note)
         bool c3 = true, gm = true;
         for (int j = 0; j < beet::NUM_SLOTS; ++j)
         {
-            c3 = c3 && slots[(size_t) j].note.load() == beet::C3_ROW[j];
+            c3 = c3 && slots[(size_t) j].note.load() == beet::C1_ROW[j];
             gm = gm && slots[(size_t) j].note.load() == beet::GM_ROW[j];
         }
-        if (c3) noteMapMode = MAP_C3; else if (gm) noteMapMode = MAP_GM;
+        if (c3) noteMapMode = MAP_C1; else if (gm) noteMapMode = MAP_GM;
         break;
     }
 }
@@ -235,7 +235,7 @@ void BeetProcessor::setNoteMap (int map)
 {
     if (map == MAP_CUSTOM) return;
     for (int s = 0; s < beet::NUM_SLOTS; ++s)
-        slots[(size_t) s].note = (map == MAP_GM ? beet::GM_ROW[s] : beet::C3_ROW[s]);
+        slots[(size_t) s].note = (map == MAP_GM ? beet::GM_ROW[s] : beet::C1_ROW[s]);
     noteMapMode = map;
 }
 
@@ -539,7 +539,7 @@ void BeetProcessor::setStateInformation (const void* data, int size)
     {
         auto t = slotsTree.getChild (s);
         setSlotType (s, (int) t.getProperty ("type", beet::EMPTY));
-        slots[(size_t) s].note = juce::jlimit (0, 127, (int) t.getProperty ("note", beet::C3_ROW[s]));
+        slots[(size_t) s].note = juce::jlimit (0, 127, (int) t.getProperty ("note", beet::C1_ROW[s]));
         setSlotOut (s, (int) t.getProperty ("out", beet::OUT_MIX));
         setSlotChokedBy (s, (unsigned) (int) t.getProperty ("chokedBy", 0));
         setSlotSolo (s, (bool) t.getProperty ("solo", false));
@@ -550,7 +550,7 @@ void BeetProcessor::setStateInformation (const void* data, int size)
                 p->setStateInformation (mb.getData(), (int) mb.getSize());
         }
     }
-    noteMapMode = juce::jlimit (0, 2, (int) tree.getProperty ("noteMap", MAP_C3));
+    noteMapMode = juce::jlimit (0, 2, (int) tree.getProperty ("noteMap", MAP_C1));
     ++layoutVersion;
 }
 

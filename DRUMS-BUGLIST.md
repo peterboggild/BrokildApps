@@ -81,6 +81,27 @@ default sans, so every label, combo box and value readout has to be re-measured 
 (three zips, the Beetmachine Collection re-cut, both houses). Since Beetmachine shows each drum's own
 panel, the change shows up inside Beetmachine too - which is the point.
 
+## 8. Recordable pad hits (Peter, 2026-09-26)
+
+"when recording in ableton and clicking the pad to get the different nuances, the hits are not recorded".
+Not a user error: a pad click plays the drum directly inside the plug-in (`onHit` -> `uiHit`), and all
+three are built with `NEEDS_MIDI_OUTPUT FALSE` / `producesMidi() false`, so no MIDI leaves the plug-in and
+Live has nothing to record. Live records what arrives at a track's INPUT, never what a plug-in plays itself.
+
+What the pads do today, and the MIDI that reproduces it:
+- Kickstart: distance from centre -> velocity 1.0 at the centre down to 0.3 at the rim. MIDI velocity
+  reproduces it exactly.
+- Snare Tactics: the head -> ART_SNARE with velocity by distance; the hoop (outer fifth) -> ART_RIM at
+  full velocity. With KEYS on GM KIT, note 38 = snare, 40 = rim shot, 37 = cross-stick, 39 = clap.
+- Hats Off: the pad picks a continuous STRIKE position (bell -> edge) at fixed velocity 0.9. MIDI only
+  reaches the two ends (GM KIT 53 = bell, 49/52/55/57 = edge) plus 42/44/46 closed/pedal/open; anything
+  between is the STRIKE knob, i.e. automation, not notes.
+
+Possible build: the pads also SEND the equivalent MIDI note out (`NEEDS_MIDI_OUTPUT TRUE`, note + velocity
+per the table above; for Hats Off either the nearest GM note or a STRIKE automation gesture). In Live a
+second MIDI track with "MIDI From" set to the drum's track records it. Needs a live check in Live before it
+is promised. Beetmachine would need the same for its slot pads. Awaiting Peter's go.
+
 ## 5. Beetmachine: the drum's own HIT pad does not choke other slots (known)
 
 The pad inside a drum's panel plays that drum directly, so Beetmachine never sees the hit: no lamp,

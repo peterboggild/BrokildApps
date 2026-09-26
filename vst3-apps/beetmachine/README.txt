@@ -1,7 +1,7 @@
 BEETMACHINE - the kit that plays the three drum synthesisers (VST3 + standalone)
 ================================================================================
 
-Build 260926.7. Free. Every hit is synthesised; there are no samples in it.
+Build 260926.8. Free. Every hit is synthesised; there are no samples in it.
 
 
 INSTALL
@@ -40,7 +40,8 @@ Tactics or a Hats Off. Click a slot and that drum's own full panel opens
 underneath. By convention the kicks sit in slots 1-2, the snares in 3-4 and the
 hats and cymbals in 5-8, but any slot can hold any drum.
 
-NOTES     C3 upwards (Ableton's C3 = MIDI 60): slot 1 on C3 ... slot 8 on G3.
+NOTES     C1 upwards (Ableton's C1 = MIDI 36): slot 1 on C1 ... slot 8 on G1.
+          A project saved on the old C3 row keeps its notes; click C1 to move it.
           GM switches to the General MIDI drum notes. LEARN takes a key.
 CHOKE     each slot's CHOKED BY row: a hit on a lit slot silences this one.
           In every kit the closed hat (5) chokes the open hat (6).

@@ -55,9 +55,11 @@ namespace beet
     //  closed hit - so a note GM leaves undefined is sent instead.
     int neutralNote (int type, int keys = 2);
 
-    //  The two note rows. C3 is Ableton's C3 = MIDI 60. The GM row follows the
+    //  The two note rows. C1 is Ableton's C1 = MIDI 36, where drum racks and
+    //  most drum MIDI start (it was C3 = 60 until 260926.8; a project saved on
+    //  the old row keeps its notes and reads CUSTOM). The GM row follows the
     //  slot convention: kicks, snares, closed hat, open hat, ride, crash.
-    extern const int C3_ROW[NUM_SLOTS];
+    extern const int C1_ROW[NUM_SLOTS];
     extern const int GM_ROW[NUM_SLOTS];
 
     juce::String noteName (int midiNote);   // Ableton naming: 60 = C3

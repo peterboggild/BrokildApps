@@ -3,7 +3,7 @@
 
 namespace beet
 {
-    const int C3_ROW[NUM_SLOTS] = { 60, 61, 62, 63, 64, 65, 66, 67 };
+    const int C1_ROW[NUM_SLOTS] = { 36, 37, 38, 39, 40, 41, 42, 43 };
     const int GM_ROW[NUM_SLOTS] = { 36, 35, 38, 40, 42, 46, 51, 49 };
 
     const char* typeName (int t)

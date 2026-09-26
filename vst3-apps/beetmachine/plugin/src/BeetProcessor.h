@@ -6,7 +6,7 @@
 // way a host would, so every drum sounds and edits exactly as it does alone.
 //
 // What Beetmachine adds on top:
-//   - a note per slot (C3 row or the GM row, or learnt), layering allowed;
+//   - a note per slot (C1 row or the GM row, or learnt), layering allowed;
 //   - latency alignment, so a kick and a snare played together land together;
 //   - chokes: any slot can be silenced by a hit on any other (a 3 ms fade,
 //     applied at the exact output sample the choking hit sounds);
@@ -77,20 +77,20 @@ public:
     void panic()                              { panicRequest = true; }
 
     //  notes
-    enum { MAP_C3 = 0, MAP_GM, MAP_CUSTOM };
+    enum { MAP_C1 = 0, MAP_GM, MAP_CUSTOM };
     //  what the notes ARE, worked out from the notes themselves - a stored flag
     //  went stale (LEARN and a project load set it without checking) and read
-    //  CUSTOM over a plain C3 row
+    //  CUSTOM over a plain C1 row
     int  noteMap() const
     {
         bool c3 = true, gm = true;
         for (int s = 0; s < beet::NUM_SLOTS; ++s)
         {
             const int n = slots[(size_t) s].note.load();
-            c3 = c3 && n == beet::C3_ROW[s];
+            c3 = c3 && n == beet::C1_ROW[s];
             gm = gm && n == beet::GM_ROW[s];
         }
-        return c3 ? MAP_C3 : gm ? MAP_GM : MAP_CUSTOM;
+        return c3 ? MAP_C1 : gm ? MAP_GM : MAP_CUSTOM;
     }
     void setNoteMap (int map);
     void learnNote (int s)                    { learnSlot = s; }
@@ -170,7 +170,7 @@ private:
     juce::int64 clock = 0;
 
     int currentKit = 0;
-    std::atomic<int>  noteMapMode { MAP_C3 };
+    std::atomic<int>  noteMapMode { MAP_C1 };
     std::atomic<int>  learnSlot { -1 };
     std::atomic<bool> panicRequest { false };
 

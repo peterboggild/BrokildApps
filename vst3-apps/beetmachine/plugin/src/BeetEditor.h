@@ -100,7 +100,7 @@ private:
     juce::TooltipWindow tips { this, 500 };
 
     juce::ComboBox kit;
-    juce::TextButton kitPrev { "<" }, kitNext { ">" }, mapC3 { "C3" }, mapGM { "GM" }, panic { "STOP" };
+    juce::TextButton kitPrev { "<" }, kitNext { ">" }, mapC1 { "C1" }, mapGM { "GM" }, panic { "STOP" };
     juce::Slider master;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> masterAtt;
 

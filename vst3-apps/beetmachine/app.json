@@ -1,13 +1,13 @@
 {
   "slug": "beetmachine",
   "name": "Beetmachine (VST3)",
-  "description": "The kit that plays the three drum synthesisers. Eight slots, each empty or holding a real Kickstart, Snare Tactics or Hats Off, and a click on a slot opens that drum's own full panel underneath. A MIDI pattern from C3 upwards, or on the General MIDI notes, plays a whole kit. Any slot can cut off any other, so a closed hat chokes the open one; each slot has its level, pan, mute and solo, and goes to the stereo mix, to its own output, or both. Empty slots cost nothing. Twenty-four themed kits, from STUDIO and 808 to DUB SPACE, DNB, DOOM, BLACK METAL and HARD TECHNO, many with their own BWFX rack.",
+  "description": "The kit that plays the three drum synthesisers. Eight slots, each empty or holding a real Kickstart, Snare Tactics or Hats Off, and a click on a slot opens that drum's own full panel underneath. A MIDI pattern from C1 upwards, or on the General MIDI notes, plays a whole kit. Any slot can cut off any other, so a closed hat chokes the open one; each slot has its level, pan, mute and solo, and goes to the stereo mix, to its own output, or both. Empty slots cost nothing. Twenty-four themed kits, from STUDIO and 808 to DUB SPACE, DNB, DOOM, BLACK METAL and HARD TECHNO, many with their own BWFX rack.",
   "status": "live",
   "url": "vst3-apps/beetmachine/index.html",
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/beetmachine.jpg",
-  "note": "Windows VST3 + standalone · build 260926.7 · free download · 8 slots · Kickstart, Snare Tactics, Hats Off inside · chokes · 8 extra outputs · 24 kits · BWFX rack · manual included.",
+  "note": "Windows VST3 + standalone · build 260926.8 · free download · 8 slots · Kickstart, Snare Tactics, Hats Off inside · chokes · 8 extra outputs · 24 kits · BWFX rack · manual included.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Beetmachine-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Beetmachine-VST3-win64.zip",
-      "bytes": 13689853,
-      "sha256": "467793d83455d7ce968b1756bffaf3d2350999064d4136c2697cbf4fd891dfa3"
+      "bytes": 13700397,
+      "sha256": "6816f0c463d764ed46a2557f2faf34c2625890361dc73660b18052e3d3d99c10"
     }
   ]
 }
