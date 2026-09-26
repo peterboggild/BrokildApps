@@ -452,6 +452,28 @@ int main()
             check (std::abs (d) < 3.0, buf, d, 3.0);
         }
 
+        // (f) a long take stays a long take: one kick, then silence, and the field must
+        //     die away. The constant part of the grid's pressure is inaudible (the ears
+        //     high-pass it), so it is measured in the grid itself - a float 1/3 that
+        //     rounded up once let it grow threefold every three seconds until a real
+        //     take detonated 88 s in.
+        {
+            Params p;
+            p.src[0].x = 3.0f; p.src[0].y = 2.5f; p.src[0].z = 1.3f; p.lisX = 4.5f; p.lisY = 3.2f;
+            const double secs = 16.0;
+            const int n = (int) (secs * fs), nb = (n + 255) / 256;
+            std::vector<Params> blocks ((size_t) nb, p);
+            std::vector<float> mono[MAX_SOURCES];
+            mono[0].assign ((size_t) n, 0.0f);
+            for (int i = 0; i < (int) (0.5 * fs); ++i) { const double t = i / fs; mono[0][(size_t) i] = (float) (0.8 * std::sin (2 * 3.14159265358979 * 55.0 * t) * std::exp (-t / 0.15)); }
+            FdtdStats st; std::vector<float> l, r;
+            fdtdLowBand (blocks, 256, mono, n, fs, l, r, &st);
+            const size_t k = st.fieldAbs.size();
+            const double early = k > 2 ? st.fieldAbs[2] : 0, late = k > 0 ? st.fieldAbs[k - 1] : 1e30, mid = k > 8 ? st.fieldAbs[8] : 0;
+            char buf[220]; std::snprintf (buf, sizeof buf, "one kick, then 15 s of silence: the grid's field falls %.0f dB and keeps falling (nothing grows where the ears cannot hear)", -2.0 * db (late / std::max (early, 1e-30)));
+            check (k >= 15 && late < 0.05 * early && late <= mid, buf, late, early);
+        }
+
         // (e) a door swinging open mid-take rebuilds the air, and nothing blows up
         {
             Params p; p.material[0] = 2; p.material[2] = 2; p.door[0] = p.door[1] = p.door[2] = 0;

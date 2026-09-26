@@ -364,6 +364,7 @@ bool fdtdLowBand (const std::vector<Params>& blocks, int pblock, const std::vect
                   std::atomic<float>* progress, float p0, float p1, const std::atomic<bool>* cancel)
 {
     const auto tStart = std::chrono::steady_clock::now();
+    if (stats != nullptr) stats->fieldAbs.clear();
     L.assign ((size_t) std::max (1, n), 0.0f);
     R.assign ((size_t) std::max (1, n), 0.0f);
     if (n <= 0 || blocks.empty()) return true;
@@ -434,7 +435,19 @@ bool fdtdLowBand (const std::vector<Params>& blocks, int pblock, const std::vect
     Barrier bar; bar.n = nth;
     std::atomic<bool> quit { false };
     int step = 0;
-    const float third = 1.0f / 3.0f;
+    /*  lambda^2, a hair INSIDE the Courant limit, and the hair is the point.
+        1/3 is not a float: it rounds UP, to 0.33333334, so an interior cell
+        computed 6 x third = 2.00000006 where the scheme needs exactly 2 - and
+        for a field that is the same everywhere the leapfrog then reads
+        z^2 - (2 + e) z + 1 = 0, whose larger root is 1 + sqrt(e): a growth of
+        2.4e-4 per step, invisible because the ears never hear a constant, and
+        a factor of about three every three seconds until, a minute or so into
+        a take, float precision gives out under it and the room detonates
+        (measured on a real take: clean to 88 s, full-scale thumps doubling
+        every 2 s after). The float just below 1/3 makes the sum 1.99999988:
+        the constant field becomes a neutral 0.3 Hz sway the walls absorb and
+        the ears' 10 Hz high pass removes. */
+    const float third = std::nextafter (1.0f / 3.0f, 0.0f);
     const int sy = G.sy, sz = G.sz;
 
     auto update = [&] (int t)
@@ -496,6 +509,12 @@ bool fdtdLowBand (const std::vector<Params>& blocks, int pblock, const std::vect
             const int c = trilinear (G, posAt (step, 0, true, e == 0 ? -1.0f : 1.0f), id, w);
             float acc = 0; for (int i = 0; i < c; ++i) acc += cur[id[i]] * w[i];
             (e == 0 ? outL : outR)[(size_t) step] = acc;
+        }
+        const int perSec = (int) std::lround (fsf);
+        if (stats != nullptr && step % perSec == 0)
+        {
+            double a = 0; for (size_t i = 0; i < N; ++i) a += std::abs (cur[i]);
+            stats->fieldAbs.push_back (a);
         }
         ++step;
         if (step >= M) return false;

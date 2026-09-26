@@ -39,6 +39,8 @@ struct FdtdStats
     long long steps = 0;
     int rebuilds = 0;           // geometry changes during the take
     double seconds = 0;         // wall-clock
+    std::vector<double> fieldAbs; // sum of |pressure| over the air, once per second of the take:
+                                  // the part of the field the ears never hear (a constant) shows here
 };
 
 /*  Simulate the take's low end. blocks: the full parameters at every parameter
