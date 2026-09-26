@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/beetmachine.jpg",
-  "note": "Windows VST3 + standalone · build 260926.5 · free download · 8 slots · Kickstart, Snare Tactics, Hats Off inside · chokes · 8 extra outputs · 10 kits · BWFX rack · manual included.",
+  "note": "Windows VST3 + standalone · build 260926.6 · free download · 8 slots · Kickstart, Snare Tactics, Hats Off inside · chokes · 8 extra outputs · 10 kits · BWFX rack · manual included.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Beetmachine-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Beetmachine-VST3-win64.zip",
-      "bytes": 15224586,
-      "sha256": "6f05533db06c59e869ef955dd73e1b1de9b0ce40b8eb157c8804eda115adbb63"
+      "bytes": 13325560,
+      "sha256": "5289542623585166286267a1eb8fc0829253be7840445ab7759763d55dcf46b6"
     }
   ]
 }

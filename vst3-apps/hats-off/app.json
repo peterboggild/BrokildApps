@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/hats-off.jpg",
-  "note": "Windows VST3 + standalone · build 260926.2 · free download · 31 controls · closed, pedal, open, bell, edge · choke · wide stereo + dub echo · 4 Battlestar drives · 44 presets · manual included.",
+  "note": "Windows VST3 + standalone · build 260926.3 · free download · 31 controls · closed, pedal, open, bell, edge · choke · wide stereo + dub echo · 4 Battlestar drives · 44 presets · manual included.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Hats-Off-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Hats-Off-VST3-win64.zip",
-      "bytes": 12648167,
-      "sha256": "b7dfc35e710cec1f776959b8c8242148ca96ec1cf1515dc952cb5200b476404d"
+      "bytes": 11770472,
+      "sha256": "5cc9d5ab38aa5d1add234b465028b0fb254b5cff04cb9e19f1935726a83f4620"
     }
   ]
 }

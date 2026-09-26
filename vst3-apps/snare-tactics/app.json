@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/snare-tactics.jpg",
-  "note": "Windows VST3 + standalone · build 260926.2 · free download · 31 controls · snare, rim shot, cross-stick, clap · gated room + dub echo · 4 Battlestar drives · 44 presets · manual included.",
+  "note": "Windows VST3 + standalone · build 260926.3 · free download · 31 controls · snare, rim shot, cross-stick, clap · gated room + dub echo · 4 Battlestar drives · 44 presets · manual included.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Snare-Tactics-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Snare-Tactics-VST3-win64.zip",
-      "bytes": 12719513,
-      "sha256": "2a81556d4b12e8048d06d8d4f00d34b40da37087a25c8dec9b5a43ffdee6d4f8"
+      "bytes": 11850428,
+      "sha256": "76c77cb1562e7022c0b99e88c79a4056dc9fca8ea5f70322ada6a0ded952d685"
     }
   ]
 }

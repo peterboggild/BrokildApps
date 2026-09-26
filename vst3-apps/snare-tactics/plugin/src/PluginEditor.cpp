@@ -314,23 +314,12 @@ void HitPad::paint (juce::Graphics& g)
     bar (left, (pkDb + 48.0f) / 48.0f, kHot, "OUT", meterPeak > 1.0e-4f ? juce::String (pkDb, 0) : juce::String ("-"));
     bar (m, -meterGr / 24.0f, kComp, "GR", juce::String (meterGr, 0));
 
-    //  the drum from above: a chrome hoop (the rim shot) around the head
+    //  the drum from above: a chrome hoop (the rim shot) around the head,
+    //  drawn by the family's shared pad; the hoop spans exactly kRimFrom..1
     const auto a = padArea (getLocalBounds().toFloat());
     const float r = padRadius (a);
     const auto c = padCentre (a);
-    g.setColour (juce::Colour (0xff5d636d).interpolatedWith (kAmber, 0.6f * glow));
-    g.drawEllipse (c.x - r * 0.9f, c.y - r * 0.9f, r * 1.8f, r * 1.8f, r * 0.2f);
-    const float hr = r * kRimFrom;
-    juce::ColourGradient face (kSteel.interpolatedWith (juce::Colours::white, 0.25f * glow).withAlpha (0.14f + 0.7f * glow),
-                               c.x - hr * 0.3f, c.y - hr * 0.4f,
-                               kSteel.darker (0.9f).withAlpha (0.35f + 0.5f * glow), c.x + hr, c.y + hr, true);
-    g.setGradientFill (face);
-    g.fillEllipse (c.x - hr, c.y - hr, hr * 2, hr * 2);
-    g.setColour (kSteel.withAlpha (0.5f + 0.45f * glow));
-    g.drawEllipse (c.x - hr, c.y - hr, hr * 2, hr * 2, 1.5f);
-    g.setColour (kInk);
-    g.setFont (sans (22.0f, true));
-    g.drawText ("HIT", juce::Rectangle<float> (c.x - hr, c.y - 14, hr * 2, 28).toNearestInt(), juce::Justification::centred);
+    machineart::drawPad (g, c, r, machineart::Pad::Snare, glow, kHot, kRimFrom, "HIT", sans (22.0f, true));
     g.setColour (kDim);
     g.setFont (sans (11.5f));
     g.drawText ("head: snare   hoop: rim shot", juce::Rectangle<float> (a.getX(), c.y + r + 4, a.getWidth(), 16).toNearestInt(),

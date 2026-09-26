@@ -293,27 +293,11 @@ void HitPad::paint (juce::Graphics& g)
     bar (left, (pkDb + 48.0f) / 48.0f, kHot, "OUT", meterPeak > 1.0e-4f ? juce::String (pkDb, 0) : juce::String ("-"));
     bar (m, -meterGr / 24.0f, kComp, "GR", juce::String (meterGr, 0));
 
-    //  the pad
+    //  the pad: a bass drum from the front, drawn by the family's shared
+    //  machine-art pad (the snare and the cymbal use the same drawing)
     const float r = juce::jmin (b.getWidth(), b.getHeight()) * 0.40f;
     const auto c = b.getCentre().translated (0.0f, -6.0f);
-    if (machineart::drawPalmButton (g, juce::Rectangle<float> (r * 2.3f, r * 2.3f).withCentre (c), glow > 0.85f, glow, kHot))
-    {
-        g.setColour (kDim);
-        g.setFont (sans (11.5f));
-        g.drawText ("click, space or MIDI", juce::Rectangle<float> (b.getX(), c.y + r + 6, b.getWidth(), 16).toNearestInt(),
-                    juce::Justification::centred);
-        return;
-    }
-    juce::ColourGradient face (kHot.interpolatedWith (juce::Colours::white, 0.25f * glow).withAlpha (0.18f + 0.8f * glow),
-                               c.x - r * 0.3f, c.y - r * 0.4f,
-                               kHot.darker (0.9f).withAlpha (0.45f + 0.5f * glow), c.x + r, c.y + r, true);
-    g.setGradientFill (face);
-    g.fillEllipse (c.x - r, c.y - r, r * 2, r * 2);
-    g.setColour (kHot.withAlpha (0.55f + 0.45f * glow));
-    g.drawEllipse (c.x - r, c.y - r, r * 2, r * 2, 2.0f);
-    g.setColour (kInk);
-    g.setFont (sans (26.0f, true));
-    g.drawText ("HIT", juce::Rectangle<float> (c.x - r, c.y - 16, r * 2, 32).toNearestInt(), juce::Justification::centred);
+    machineart::drawPad (g, c, r, machineart::Pad::Kick, glow, kHot, 0.0f, "HIT", sans (26.0f, true));
     g.setColour (kDim);
     g.setFont (sans (11.5f));
     g.drawText ("click, space or MIDI", juce::Rectangle<float> (b.getX(), c.y + r + 6, b.getWidth(), 16).toNearestInt(),

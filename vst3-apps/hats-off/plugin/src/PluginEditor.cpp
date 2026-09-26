@@ -305,28 +305,12 @@ void HitPad::paint (juce::Graphics& g)
     bar (left, (pkDb + 48.0f) / 48.0f, kBrass, "OUT", meterPeak > 1.0e-4f ? juce::String (pkDb, 0) : juce::String ("-"));
     bar (m, -meterGr / 24.0f, kComp, "GR", juce::String (meterGr, 0));
 
-    //  a cymbal from above: lathe rings on the bow, the dome in the middle
+    //  a cymbal from above: lathe rings on the bow, the bell inside kBellFrom,
+    //  drawn by the family's shared pad
     const auto a = padArea (getLocalBounds().toFloat());
     const float r = padRadius (a);
     const auto c = padCentre (a);
-    juce::ColourGradient face (kBrass.interpolatedWith (juce::Colours::white, 0.3f * glow).withAlpha (0.30f + 0.55f * glow),
-                               c.x - r * 0.35f, c.y - r * 0.45f,
-                               kBrass.darker (1.2f).withAlpha (0.55f + 0.35f * glow), c.x + r, c.y + r, true);
-    g.setGradientFill (face);
-    g.fillEllipse (c.x - r, c.y - r, r * 2, r * 2);
-    g.setColour (kBrass.withAlpha (0.18f + 0.3f * glow));
-    for (int i = 1; i < 9; ++i)
-    {
-        const float rr = r * (kBellFrom + (1.0f - kBellFrom) * i / 9.0f);
-        g.drawEllipse (c.x - rr, c.y - rr, rr * 2, rr * 2, 0.8f);
-    }
-    g.setColour (kBrass.withAlpha (0.8f + 0.2f * glow));
-    g.drawEllipse (c.x - r, c.y - r, r * 2, r * 2, 2.0f);
-    const float br = r * kBellFrom;
-    g.setColour (kBrass.brighter (0.4f).withAlpha (0.55f + 0.4f * glow));
-    g.fillEllipse (c.x - br, c.y - br, br * 2, br * 2);
-    g.setColour (kBack.withAlpha (0.9f));
-    g.fillEllipse (c.x - 3, c.y - 3, 6, 6);
+    machineart::drawPad (g, c, r, machineart::Pad::Hats, glow, kBrass, kBellFrom, {}, sans (12.0f));
     g.setColour (kDim);
     g.setFont (sans (11.5f));
     g.drawText ("bell: ping   bow: ride   edge: crash", juce::Rectangle<float> (a.getX(), c.y + r + 4, a.getWidth(), 16).toNearestInt(),

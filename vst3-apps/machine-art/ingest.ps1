@@ -81,9 +81,9 @@ Cut "04-labels-plates.png" "black-tape" "tape.png" 512 64
 Cut "01-knobs.png" "bakelite-large" "knob.png" 256 256 -Square
 Cut "01-knobs.png" "red-bakelite" "knob-red.png" 256 256 -Square
 Cut "01-knobs.png" "bronze-knob" "knob-bronze.png" 256 256 -Square
-# the push buttons (hit / estop, up AND pressed) come from the second, registered
-# delivery - see ingest-buttons.ps1, run here so one command still makes everything
-& (Join-Path $PSScriptRoot "ingest-buttons.ps1") -Out $Out
+# The push buttons (05-buttons.png) are NOT embedded: Peter chose drawn pads for
+# every drum and for STOP (machineart::drawPad) so the family stays consistent.
+# ingest-buttons.ps1 still cuts them, should the mushrooms ever come back.
 Cut "03-lamps-gauges.png" "amber-off" "lamp-off.png" 128 128 -Square
 Cut "03-lamps-gauges.png" "amber-on" "lamp-on.png" 128 128 -Square
 ""

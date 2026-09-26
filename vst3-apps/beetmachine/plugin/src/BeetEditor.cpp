@@ -165,6 +165,7 @@ void SlotCard::refresh()
 {
     const int t = p.slotType (s);
     type.setSelectedId (t + 1, juce::dontSendNotification);
+    hit.getProperties().set ("drum", t);                   // the pad is drawn in this drum's colours
     if (t != shownType) { rebuildPresets(); shownType = t; }
 
     const bool live = t != beet::EMPTY;

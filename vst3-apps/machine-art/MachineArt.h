@@ -40,9 +40,19 @@ namespace machineart
     //  Returns false if the image is absent, so the caller draws its own cap.
     bool drawKnob (juce::Graphics&, juce::Rectangle<float> box, float angle, const char* file = "knob.png", bool enabled = true);
 
-    //  the palm push-button ("hit.png"): sinks and darkens while pressed, and
-    //  glows in `glowColour` for `glow` (0..1) after a hit
-    bool drawPalmButton (juce::Graphics&, juce::Rectangle<float> box, bool pressed, float glow, juce::Colour glowColour);
+    //  THE HIT PADS, one drawing for the whole family (Peter, 2026-09-26: "it has
+    //  to be consistent" + "style these a bit more like the overall design").
+    //  Drawn, not decals: each pad's ZONES are part of what it does, so the
+    //  drawing must show them exactly where the mouse test puts them.
+    //    Kick  - a cast-iron hoop with tension lugs round a worn coated head
+    //    Snare - a chrome hoop that IS the rim-shot zone (from `zone` out)
+    //    Hats  - a bronze cymbal, lathe grooves, the bell raised inside `zone`
+    //    Stop  - a glossy red head in a chipped yellow-painted ring
+    //  `glow` (0..1) lights the head in `glowColour` after a hit. `label` is
+    //  lettered on the head in dark ink; pass {} for none.
+    enum class Pad { Kick, Snare, Hats, Stop };
+    void drawPad (juce::Graphics&, juce::Point<float> centre, float radius, Pad, float glow,
+                  juce::Colour glowColour, float zone, const juce::String& label, const juce::Font& font);
 
     //  a square steel-bezel push button, lit in `onColour` when on
     void drawSteelButton (juce::Graphics&, juce::Rectangle<float>, bool on, juce::Colour onColour,

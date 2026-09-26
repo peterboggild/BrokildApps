@@ -107,26 +107,172 @@ namespace machineart
         return true;
     }
 
-    bool drawPalmButton (juce::Graphics& g, juce::Rectangle<float> box, bool pressed, float glow, juce::Colour glowColour)
+    namespace
     {
-        const auto img = image ("hit.png");
-        if (! img.isValid()) return false;
-        const float d0 = juce::jmin (box.getWidth(), box.getHeight());
-        auto b = box.withSizeKeepingCentre (d0, d0);
-        if (glow > 0.01f)
+        juce::Rectangle<float> disc (juce::Point<float> c, float r) { return { c.x - r, c.y - r, r * 2.0f, r * 2.0f }; }
+
+        //  a metal ring between radii r0 < r1: lit from the top left, a bevel
+        //  highlight on the outer edge and a shadow on the inner one
+        void drawRing (juce::Graphics& g, juce::Point<float> c, float r0, float r1, juce::Colour light, juce::Colour dark)
         {
-            juce::ColourGradient halo (glowColour.withAlpha (0.55f * glow), b.getCentreX(), b.getCentreY(),
-                                       glowColour.withAlpha (0.0f), b.getCentreX() + d0 * 0.62f, b.getCentreY(), true);
-            g.setGradientFill (halo);
-            g.fillEllipse (b.expanded (d0 * 0.12f));
+            juce::Path ring;
+            ring.addEllipse (disc (c, r1));
+            ring.addEllipse (disc (c, r0));
+            ring.setUsingNonZeroWinding (false);
+            juce::ColourGradient m (light, c.x - r1 * 0.7f, c.y - r1 * 0.7f, dark, c.x + r1 * 0.7f, c.y + r1 * 0.7f, false);
+            m.addColour (0.5, light.interpolatedWith (dark, 0.55f));
+            g.setGradientFill (m);
+            g.fillPath (ring);
+            g.setColour (juce::Colours::white.withAlpha (0.28f));
+            g.drawEllipse (disc (c, r1 - 0.8f), 1.0f);
+            g.setColour (juce::Colours::black.withAlpha (0.55f));
+            g.drawEllipse (disc (c, r1), 1.2f);
+            g.drawEllipse (disc (c, r0), 1.4f);
         }
-        //  the pressed drawing is registered with the up one (05-buttons.png),
-        //  so holding the button swaps the picture and the plate stays put
-        const auto down = image ("hit-down.png");
-        g.drawImage (pressed && down.isValid() ? down : img, b, juce::RectanglePlacement::centred);
-        const auto head = b.reduced (d0 * 0.24f);
-        if (glow > 0.01f) { g.setColour (glowColour.withAlpha (0.22f * glow)); g.fillEllipse (head); }
-        return true;
+
+        //  a slotted screw head, the kind the decals carry on every plate
+        void drawScrew (juce::Graphics& g, juce::Point<float> p, float r, float angle)
+        {
+            juce::ColourGradient s (juce::Colour (0xffcdb892), p.x - r * 0.5f, p.y - r * 0.6f,
+                                    juce::Colour (0xff5a4a33), p.x + r, p.y + r, true);
+            g.setGradientFill (s);
+            g.fillEllipse (disc (p, r));
+            g.setColour (juce::Colours::black.withAlpha (0.6f));
+            g.drawEllipse (disc (p, r), 0.8f);
+            const auto d = juce::Point<float> (std::cos (angle), std::sin (angle)) * (r * 0.8f);
+            g.drawLine ({ p - d, p + d }, juce::jmax (0.8f, r * 0.28f));
+        }
+
+        //  a coated drum head: cream, mottled, darker at the rim, worn in the middle
+        void drawCoatedHead (juce::Graphics& g, juce::Point<float> c, float r, float glow, juce::Colour glowColour, int seed)
+        {
+            juce::ColourGradient h (juce::Colour (0xffe6dfcd), c.x - r * 0.35f, c.y - r * 0.4f,
+                                    juce::Colour (0xff8e866f), c.x + r, c.y + r, true);
+            g.setGradientFill (h);
+            g.fillEllipse (disc (c, r));
+            juce::Random rnd (seed);                                       // fixed: the grain never crawls
+            for (int i = 0; i < (int) (r * r * 0.06f); ++i)
+            {
+                const float a = rnd.nextFloat() * juce::MathConstants<float>::twoPi, d = r * std::sqrt (rnd.nextFloat()) * 0.97f;
+                g.setColour (juce::Colour (0xff3b3326).withAlpha (0.05f + 0.10f * rnd.nextFloat()));
+                g.fillEllipse (c.x + std::cos (a) * d, c.y + std::sin (a) * d, 1.0f + rnd.nextFloat(), 1.0f + rnd.nextFloat());
+            }
+            juce::ColourGradient wear (juce::Colour (0xff4a4031).withAlpha (0.28f), c.x, c.y,
+                                       juce::Colour (0xff4a4031).withAlpha (0.0f), c.x + r * 0.42f, c.y, true);
+            g.setGradientFill (wear);                                      // where the beater lands
+            g.fillEllipse (disc (c, r * 0.42f));
+            if (glow > 0.01f)
+            {
+                juce::ColourGradient lit (glowColour.withAlpha (0.75f * glow), c.x, c.y,
+                                          glowColour.withAlpha (0.12f * glow), c.x + r, c.y, true);
+                g.setGradientFill (lit);
+                g.fillEllipse (disc (c, r));
+            }
+            g.setColour (juce::Colours::black.withAlpha (0.35f));
+            g.drawEllipse (disc (c, r), 1.0f);
+        }
+    }
+
+    void drawPad (juce::Graphics& g, juce::Point<float> c, float r, Pad pad, float glow,
+                  juce::Colour glowColour, float zone, const juce::String& label, const juce::Font& font)
+    {
+        //  it sits ON the panel: a soft shadow first
+        for (int i = 3; i > 0; --i)
+        {
+            g.setColour (juce::Colours::black.withAlpha (0.12f));
+            g.fillEllipse (disc (c.translated (0.0f, r * 0.05f), r + (float) i * r * 0.025f));
+        }
+
+        float headR = r;
+        if (pad == Pad::Kick || pad == Pad::Snare)
+        {
+            //  the hoop. On the snare it spans exactly the rim-shot zone.
+            const float inner = pad == Pad::Snare ? r * zone : r * 0.86f;
+            const bool chrome = pad == Pad::Snare;
+            const auto warm = juce::Colour (0xffffb020);
+            drawRing (g, c, inner, r,
+                      (chrome ? juce::Colour (0xffe4e8ea) : juce::Colour (0xff7d8186)).interpolatedWith (warm, 0.35f * glow),
+                      (chrome ? juce::Colour (0xff3c4248) : juce::Colour (0xff1f2124)).interpolatedWith (warm.darker (0.8f), 0.35f * glow));
+            const int lugs = chrome ? 10 : 8;                              // tension rods, one screw each
+            for (int i = 0; i < lugs; ++i)
+            {
+                const float a = juce::MathConstants<float>::twoPi * ((float) i + 0.5f) / (float) lugs;
+                drawScrew (g, c.getPointOnCircumference ((inner + r) * 0.5f, a), (r - inner) * 0.30f, a * 1.7f + 0.4f);
+            }
+            headR = inner - 1.0f;
+            drawCoatedHead (g, c, headR, glow, glowColour, pad == Pad::Kick ? 31 : 47);
+        }
+        else if (pad == Pad::Hats)
+        {
+            //  bronze: a lathe-turned bow, a raised bell inside `zone`
+            juce::ColourGradient bz (juce::Colour (0xffe9c46a).interpolatedWith (juce::Colours::white, 0.25f * glow),
+                                     c.x - r * 0.45f, c.y - r * 0.5f,
+                                     juce::Colour (0xff6b4a17), c.x + r, c.y + r, true);
+            bz.addColour (0.55, juce::Colour (0xffb98a33));
+            g.setGradientFill (bz);
+            g.fillEllipse (disc (c, r));
+            for (int i = 0; i < 28; ++i)                                   // lathe grooves
+            {
+                const float rr = r * (zone + (1.0f - zone) * ((float) i + 0.5f) / 28.0f);
+                g.setColour ((i % 2 == 0 ? juce::Colour (0xff3a2708) : juce::Colours::white).withAlpha (i % 2 == 0 ? 0.16f : 0.07f));
+                g.drawEllipse (disc (c, rr), 0.7f);
+            }
+            for (int k = 0; k < 2; ++k)                                    // the sheen a lathe leaves: two opposite wedges
+            {
+                juce::Path w;
+                const float a0 = -2.25f + (float) k * juce::MathConstants<float>::pi;
+                w.addPieSegment (disc (c, r), a0, a0 + 0.55f, zone);
+                g.setColour (juce::Colours::white.withAlpha (0.10f));
+                g.fillPath (w);
+            }
+            if (glow > 0.01f)
+            {
+                juce::ColourGradient lit (glowColour.withAlpha (0.55f * glow), c.x, c.y, glowColour.withAlpha (0.0f), c.x + r, c.y, true);
+                g.setGradientFill (lit);
+                g.fillEllipse (disc (c, r));
+            }
+            g.setColour (juce::Colour (0xff3a2708).withAlpha (0.8f));
+            g.drawEllipse (disc (c, r), 1.4f);
+            const float br = r * zone;                                     // the bell
+            g.setColour (juce::Colours::black.withAlpha (0.35f));
+            g.fillEllipse (disc (c.translated (0.0f, br * 0.12f), br * 1.04f));
+            juce::ColourGradient bell (juce::Colour (0xfff4d98f), c.x - br * 0.4f, c.y - br * 0.5f,
+                                       juce::Colour (0xff8a6320), c.x + br, c.y + br, true);
+            g.setGradientFill (bell);
+            g.fillEllipse (disc (c, br));
+            g.setColour (juce::Colour (0xff1a1206));                        // the mounting hole
+            g.fillEllipse (disc (c, juce::jmax (2.0f, br * 0.16f)));
+            headR = 0.0f;                                                  // no lettering on a cymbal
+        }
+        else                                                               // Stop
+        {
+            const float inner = r * 0.72f;
+            drawRing (g, c, inner, r, juce::Colour (0xfff0cf3a), juce::Colour (0xff9a7a10));
+            juce::Random rnd (73);                                         // chipped paint
+            for (int i = 0; i < 26; ++i)
+            {
+                const float a = rnd.nextFloat() * juce::MathConstants<float>::twoPi, d = inner + (r - inner) * rnd.nextFloat();
+                g.setColour (juce::Colour (0xff2a2418).withAlpha (0.55f));
+                g.fillEllipse (c.x + std::cos (a) * d, c.y + std::sin (a) * d, 1.0f + 1.5f * rnd.nextFloat(), 1.0f + rnd.nextFloat());
+            }
+            const float hr = inner - 1.0f;
+            juce::ColourGradient red (juce::Colour (0xffff6a55).interpolatedWith (juce::Colours::white, 0.2f * glow),
+                                      c.x - hr * 0.35f, c.y - hr * 0.45f, juce::Colour (0xff6e0c08), c.x + hr, c.y + hr, true);
+            g.setGradientFill (red);
+            g.fillEllipse (disc (c, hr));
+            g.setColour (juce::Colours::white.withAlpha (0.35f));          // the gloss
+            g.fillEllipse (c.x - hr * 0.55f, c.y - hr * 0.65f, hr * 0.7f, hr * 0.35f);
+            g.setColour (juce::Colours::black.withAlpha (0.5f));
+            g.drawEllipse (disc (c, hr), 1.0f);
+            headR = 0.0f;
+        }
+
+        if (headR > 0.0f && label.isNotEmpty())
+        {
+            g.setFont (font);
+            g.setColour (juce::Colour (0xff2b241c).withAlpha (0.82f));     // stencilled in dark ink on the head
+            g.drawText (label, disc (c, headR).toNearestInt(), juce::Justification::centred, false);
+        }
     }
 
     void drawSteelButton (juce::Graphics& g, juce::Rectangle<float> r, bool on, juce::Colour onColour,

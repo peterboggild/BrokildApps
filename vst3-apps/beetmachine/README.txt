@@ -1,7 +1,7 @@
 BEETMACHINE - the kit that plays the three drum synthesisers (VST3 + standalone)
 ================================================================================
 
-Build 260926.5. Free. Every hit is synthesised; there are no samples in it.
+Build 260926.6. Free. Every hit is synthesised; there are no samples in it.
 
 
 INSTALL

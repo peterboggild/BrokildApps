@@ -1,7 +1,7 @@
 HATS OFF - the hi-hat and cymbal synthesiser (VST3 + standalone)
 ================================================================
 
-Build 260926.2. Free. Every hat and cymbal is synthesised; there are no
+Build 260926.3. Free. Every hat and cymbal is synthesised; there are no
 samples in it.
 
 

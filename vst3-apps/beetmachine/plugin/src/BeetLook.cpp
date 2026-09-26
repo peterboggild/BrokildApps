@@ -1,5 +1,6 @@
 #include "BeetLook.h"
 #include "MachineArt.h"
+#include "BeetKits.h"          // the drum types a slot pad is drawn as
 
 using namespace beetcol;
 
@@ -250,43 +251,20 @@ void BeetLook::drawButtonBackground (juce::Graphics& g, juce::Button& b, const j
     const auto role = b.getProperties()["role"].toString();
     const bool on = b.getToggleState();
 
-    if (role == "hit" || role == "panic")                            // the mushroom buttons
+    if (role == "hit" || role == "panic")                            // the drawn pads
     {
-        //  Up and pressed are separate drawings REGISTERED on the same plate
-        //  (05-buttons.png, checked at ingest), so holding the button swaps
-        //  the picture and nothing jumps.
-        static const juce::Image hitImg = art ("hit.png"), stopImg = art ("estop.png"),
-                                 hitDown = art ("hit-down.png"), stopDown = art ("estop-down.png");
-        const auto& img = role == "panic" ? stopImg : hitImg;
-        const auto& imgDown = role == "panic" ? stopDown : hitDown;
-        if (img.isValid())
-        {
-            const float d0 = juce::jmin (r.getWidth(), r.getHeight());
-            auto box = r.withSizeKeepingCentre (d0, d0);
-            g.drawImage (down && imgDown.isValid() ? imgDown : img, box, juce::RectanglePlacement::centred);
-            if (! down && over)
-            {
-                g.setColour (juce::Colours::white.withAlpha (0.06f));
-                g.fillEllipse (box.reduced (d0 * 0.2f));
-            }
-            return;
-        }
+        //  the family's shared pad (machine-art): each slot's pad is its own
+        //  drum - a kick head, a snare in its chrome hoop, a bronze cymbal - and
+        //  STOP is the red head in the yellow ring. Pressing lights it.
         const float d = juce::jmin (r.getWidth(), r.getHeight());
-        auto c = r.withSizeKeepingCentre (d, d);
-        const juce::Colour collar = role == "panic" ? juce::Colour (0xffe8c228) : juce::Colour (0xffb7bfc4);
-        g.setColour (juce::Colours::black.withAlpha (0.5f));
-        g.fillEllipse (c.translated (0, 3));
-        g.setColour (collar);
-        g.fillEllipse (c);
-        g.setColour (juce::Colours::black.withAlpha (0.4f));
-        g.drawEllipse (c, 1.0f);
-        auto head = c.reduced (d * (down ? 0.19f : 0.14f));
-        const juce::Colour hc = role == "panic" ? red : juce::Colour (0xff1b1b1d);
-        juce::ColourGradient hg (hc.brighter (down ? 0.1f : 0.55f), head.getX() + head.getWidth() * 0.3f, head.getY() + head.getHeight() * 0.25f,
-                                 hc.darker (0.6f), head.getRight(), head.getBottom(), true);
-        g.setGradientFill (hg);
-        g.fillEllipse (head);
-        if (over && ! down) { g.setColour (juce::Colours::white.withAlpha (0.06f)); g.fillEllipse (head); }
+        const float glow = down ? 1.0f : (over ? 0.2f : 0.0f);
+        const int drum = (int) b.getProperties().getWithDefault ("drum", (int) beet::KICK);
+        machineart::Pad kind = machineart::Pad::Kick;
+        float zone = 0.0f;
+        if (role == "panic")        kind = machineart::Pad::Stop;
+        else if (drum == beet::SNARE) { kind = machineart::Pad::Snare; zone = 0.80f; }   // Snare Tactics' kRimFrom
+        else if (drum == beet::HATS)  { kind = machineart::Pad::Hats;  zone = 0.22f; }   // Hats Off's kBellFrom
+        machineart::drawPad (g, r.getCentre(), d * 0.46f, kind, glow, amber, zone, {}, stencil (12.0f));
         return;
     }
 
@@ -313,8 +291,8 @@ void BeetLook::drawButtonText (juce::Graphics& g, juce::TextButton& b, bool, boo
     g.setFont (getTextButtonFont (b, b.getHeight()));
     if (role == "hit" || role == "panic")
     {
-        if (art (role == "panic" ? "estop.png" : "hit.png").isValid()) return;   // the decal says it
-        g.setColour (role == "panic" ? juce::Colours::white.withAlpha (0.92f) : ink.withAlpha (0.85f));
+        return;             // the drawn pad is the button; STOP's label is beside it
+        g.setColour (ink.withAlpha (0.92f));
         g.drawText (b.getButtonText(), b.getLocalBounds().translated (0, down ? 1 : 0), juce::Justification::centred, false);
         return;
     }
