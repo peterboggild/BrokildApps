@@ -4,7 +4,7 @@ project(Beetmachine VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Bump it AND re-run
 # `cmake -S . -B <dir>` or it will not take.
-set(BEET_BUILD_ID "260926.6")
+set(BEET_BUILD_ID "260926.7")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -79,6 +79,9 @@ juce_add_plugin(Beetmachine
     NEEDS_MIDI_OUTPUT        FALSE
     IS_MIDI_EFFECT           FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS TRUE
+    # the BWFX rack is the standard web rack (bwfx-rack.js), as in Black Rider
+    NEEDS_WEB_BROWSER        TRUE
+    NEEDS_WEBVIEW2           TRUE
     # Smart App Control blocks the freshly built vst3_helper and fails the build
     # at the manifest step; the manifest is optional.
     VST3_AUTO_MANIFEST       FALSE
@@ -91,6 +94,11 @@ juce_generate_juce_header(Beetmachine)
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../machine-art/machine-art.cmake")
 brokild_add_machine_art(Beetmachine)
 
+# the host page and the standard rack fragment, served from memory
+juce_add_binary_data(BeetWeb HEADER_NAME BeetWebData.h NAMESPACE BeetWebData SOURCES
+    src/web/bwfx-host.html
+    "${BWFX_DIR}/ui/bwfx-rack.js")
+
 target_sources(Beetmachine PRIVATE
     src/BeetProcessor.cpp
     src/BeetEditor.cpp
@@ -102,7 +110,11 @@ target_sources(Beetmachine PRIVATE
 target_include_directories(Beetmachine PRIVATE "${BWFX_DIR}/adapter")
 
 target_compile_definitions(Beetmachine PUBLIC
-    JUCE_WEB_BROWSER=0
+    JUCE_WEB_BROWSER=1
+    JUCE_USE_WIN_WEBVIEW2=1
+    # link the WebView2 loader in, so no WebView2Loader.dll has to be on the PATH
+    # (the Thin Walls lesson: it was only found here because of a dev kit)
+    JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0
@@ -116,6 +128,7 @@ target_compile_definitions(Beetmachine PUBLIC
 target_link_libraries(Beetmachine
     PRIVATE
         bwfx
+        BeetWeb
         juce::juce_audio_utils
         juce::juce_dsp
     PUBLIC

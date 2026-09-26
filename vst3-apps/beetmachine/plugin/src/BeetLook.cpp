@@ -54,14 +54,8 @@ BeetLook::BeetLook()
     setColour (juce::Label::textColourId, ink);
 }
 
-juce::Font BeetLook::stencil (float h)
-{
-    return juce::Font (juce::FontOptions ("Arial Black", h, juce::Font::bold));
-}
-juce::Font BeetLook::mono (float h)
-{
-    return juce::Font (juce::FontOptions ("Consolas", h, juce::Font::bold));
-}
+juce::Font BeetLook::stencil (float h) { return machineart::stencil (h); }
+juce::Font BeetLook::mono (float h)    { return machineart::mono (h); }
 
 void BeetLook::drawRivet (juce::Graphics& g, float cx, float cy, float r)
 {

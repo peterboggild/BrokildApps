@@ -65,6 +65,22 @@ hide it. Options, Peter's call: bring the kits' own slot levels down ~6 dB (a ki
 nothing else moves), or a MASTER default of -6 dB, or a soft ceiling on the mix bus.
 Measure with `beetrender` (it prints the gain it had to apply per demo).
 
+## 7. The daughters' type in Beetmachine's style (Peter, 2026-09-26)
+
+"remake the fonts in the daughter vst3 to match the very consistent and cool font style in the mother."
+Beetmachine uses exactly two faces through `BeetLook::stencil()` = Arial Black and `BeetLook::mono()` =
+Consolas bold. The three drums use the system default sans + default monospace, through two helpers
+(`sans()` / `mono()`) at the top of each `PluginEditor.cpp`, plus a handful of direct `FontOptions`
+calls (7 per drum; the nameplate title is one of them).
+
+Size of the job: SMALL in code, about an hour per drum mostly in checking. Move the two faces into
+`machine-art` (`machineart::stencil/mono`) so there is one definition for the family, point each drum's
+helpers at them, and fix the direct calls. The real work is fit: Arial Black is much wider than the
+default sans, so every label, combo box and value readout has to be re-measured - the snapshot tests
+(`ksshot`/`stshot`/`hoshot`) already fail on cut-off text, which is the gate. Then the usual release
+(three zips, the Beetmachine Collection re-cut, both houses). Since Beetmachine shows each drum's own
+panel, the change shows up inside Beetmachine too - which is the point.
+
 ## 5. Beetmachine: the drum's own HIT pad does not choke other slots (known)
 
 The pad inside a drum's panel plays that drum directly, so Beetmachine never sees the hit: no lamp,

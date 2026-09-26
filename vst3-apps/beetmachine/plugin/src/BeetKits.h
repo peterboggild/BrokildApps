@@ -23,12 +23,22 @@ namespace beet
         float       levelDb;
         float       pan;        // -1 .. +1
         unsigned    chokedBy;   // bit j set: a hit on slot j (0-based) chokes this slot
+        //  Adjustments to the drum's own controls AFTER its preset loads, in the
+        //  drum's real units and by parameter ID: "decay=150 click=0.9". A kit
+        //  can shape a drum for its style without the drums growing a preset
+        //  for every kit. An unknown id or a value out of range is reported by
+        //  the bench. TRAILING, so a row that leaves it out gets nullptr.
+        const char* tweaks = nullptr;
     };
 
     struct Kit
     {
         const char* name;
         KitSlot     slots[NUM_SLOTS];
+        //  The BWFX rack this kit brings, as a rack blob. Loading a kit SETS the
+        //  rack, the way loading a patch does on every Brokild synth: a kit
+        //  without one (nullptr) loads with the empty rack.
+        const char* rack = nullptr;
     };
 
     int         numKits();

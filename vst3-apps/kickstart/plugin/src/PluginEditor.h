@@ -23,6 +23,10 @@ public:
     void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool over, bool down) override;
     void drawComboBox (juce::Graphics&, int w, int h, bool down, int bx, int by, int bw, int bh, juce::ComboBox&) override;
     juce::Font getComboBoxFont (juce::ComboBox&) override;
+    juce::Font getTextButtonFont (juce::TextButton&, int) override;
+    juce::Font getPopupMenuFont() override;
+    juce::Font getLabelFont (juce::Label&) override;
+    void drawToggleButton (juce::Graphics&, juce::ToggleButton&, bool, bool) override;
     void positionComboBoxText (juce::ComboBox&, juce::Label&) override;
     void drawTooltip (juce::Graphics&, const juce::String&, int w, int h) override;
     juce::Rectangle<int> getTooltipBounds (const juce::String&, juce::Point<int>, juce::Rectangle<int>) override;

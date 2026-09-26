@@ -74,6 +74,9 @@ public:
     int  selectedSlot() const { return selected; }
     juce::Component& contentComponent() { return content; }
     void openRack (bool show)            { showRack (show); }
+    //  the snapshot harness has no message loop for a WebView2; it turns this
+    //  off before opening an editor and tests the rack through the native panel
+    static inline bool useWebRack = true;
     juce::Component* rackPanel()         { return overlay.get(); }
     juce::Component& rackToggle()        { return rackButton; }
 
@@ -106,8 +109,13 @@ private:
     //  whole window. It is opaque and eats every click, so it carries its
     //  own CLOSE; the button is underneath it.
     juce::TextButton rackButton { "BWFX" };
-    std::unique_ptr<BwfxPanel> overlay;
+    std::unique_ptr<juce::WebBrowserComponent> rackWeb;   // the standard web rack
+    std::unique_ptr<BwfxPanel> overlay;                   // fallback: no WebView2 runtime
+    bool rackShown = false;
     void showRack (bool);
+    void parkRackWeb();
+    void onRackMessage (const juce::var&);
+    juce::WebBrowserComponent::Options rackOptions();
 
     std::array<std::unique_ptr<SlotCard>, beet::NUM_SLOTS> cards;
     std::unique_ptr<juce::AudioProcessorEditor> child;

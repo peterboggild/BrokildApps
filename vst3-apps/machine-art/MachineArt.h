@@ -21,6 +21,12 @@
 
 namespace machineart
 {
+    //  THE FAMILY'S TWO FACES (Beetmachine's, 2026-09-26): a heavy stencil for
+    //  titles and pads, a bold typewriter mono for everything a player reads.
+    //  Every panel in the family takes its type from here and nowhere else.
+    juce::Font stencil (float h);
+    juce::Font mono (float h);
+
     //  an embedded part by its file name (e.g. "knob.png"); invalid if absent
     juce::Image image (const char* file);
 

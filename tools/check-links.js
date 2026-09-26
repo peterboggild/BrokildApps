@@ -38,9 +38,11 @@ const SKIP_DIRS = new Set([".git", "node_modules", "build", "webview2", "_deps",
  *  vst3-apps/proxima-centauri-b/b2311-*\/Source/ with no "plugin" segment, so
  *  their ui.html leaked in and was reported for a bwfx-rack.js that CMake
  *  supplies at build time. Any Source folder is plug-in source, never a page.
- *  "reference/" is a preserved copy of an app a plug-in was ported FROM. */
+ *  "reference/" is a preserved copy of an app a plug-in was ported FROM.
+ *  plugin/src/ is the same thing spelled the way the drum family spells it:
+ *  Beetmachine's src/web/bwfx-host.html is served by the plug-in, from memory. */
 const NOT_SERVED_BY_PAGES =
-  /^(dsw\/(web|plugins)\/|.*\/Source\/|.*\/mockup\/|.*\/reference\/|.*\/plugin\/docs\/landing\.html$)/;
+  /^(dsw\/(web|plugins)\/|.*\/Source\/|.*\/plugin\/src\/|.*\/mockup\/|.*\/reference\/|.*\/plugin\/docs\/landing\.html$)/;
 /*  plugin/docs/landing.html is the SOURCE a landing page was built from, and
  *  its images resolve at the published location rather than beside it. The
  *  published page is the one that has to be whole, and it is checked. Thirty

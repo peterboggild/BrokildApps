@@ -31,6 +31,7 @@ int main (int argc, char** argv)
     const juce::File dir (argc > 1 ? juce::String (argv[1]) : juce::File::getCurrentWorkingDirectory().getFullPathName());
     dir.createDirectory();
 
+    BeetEditor::useWebRack = false;       // no message loop here for a WebView2; the web rack is proven live
     BeetProcessor p;
     p.setRateAndBufferSizeDetails (48000.0, 256);
     p.prepareToPlay (48000.0, 256);

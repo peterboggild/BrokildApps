@@ -256,6 +256,22 @@ void BeetProcessor::loadKit (int index)
                 if (p->getProgramName (i) == ks.preset) { found = i; break; }
             if (found < 0) { missingPresets.add (juce::String (beet::typeShort (ks.type)) + ": " + ks.preset); found = 1; }
             p->setCurrentProgram (found);
+
+            //  the kit's own adjustments to that drum, by parameter ID in real units
+            for (auto& t : juce::StringArray::fromTokens (ks.tweaks != nullptr ? ks.tweaks : "", " ", ""))
+            {
+                const auto id = t.upToFirstOccurrenceOf ("=", false, false);
+                const float v = t.fromFirstOccurrenceOf ("=", false, false).getFloatValue();
+                juce::RangedAudioParameter* hit = nullptr;
+                for (auto* prm : p->getParameters())
+                    if (auto* r = dynamic_cast<juce::RangedAudioParameter*> (prm))
+                        if (r->getParameterID() == id) { hit = r; break; }
+                if (hit == nullptr || ! t.containsChar ('=')
+                    || v < hit->getNormalisableRange().start || v > hit->getNormalisableRange().end)
+                    missingPresets.add (juce::String (beet::typeShort (ks.type)) + " tweak: " + t);
+                else
+                    hit->setValueNotifyingHost (hit->convertTo0to1 (v));
+            }
         }
         auto set = [this] (const juce::String& id, float v) {
             if (auto* prm = apvts.getParameter (id)) prm->setValueNotifyingHost (prm->convertTo0to1 (v)); };
@@ -267,6 +283,9 @@ void BeetProcessor::loadKit (int index)
         //  notes and outputs are NOT part of a kit: changing the sound must not
         //  change the wiring someone has set up in their session
     }
+    //  A kit SETS the rack, as a patch does on every Brokild synth: a kit with
+    //  a rack brings it, a kit without one loads the empty rack.
+    bwfxRack.fromJson (k.rack != nullptr ? k.rack : "");
     ++layoutVersion;
 }
 

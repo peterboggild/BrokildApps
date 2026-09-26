@@ -3,6 +3,9 @@
 
 namespace machineart
 {
+juce::Font stencil (float h) { return juce::Font (juce::FontOptions ("Arial Black", h, juce::Font::bold)); }
+juce::Font mono (float h)    { return juce::Font (juce::FontOptions ("Consolas", h, juce::Font::bold)); }
+
     juce::Image image (const char* file)
     {
         for (int i = 0; i < MachineArtData::namedResourceListSize; ++i)

@@ -34,15 +34,12 @@ namespace
         return -1;
     }
 
-    juce::Font mono (float h, bool bold = false)
-    {
-        return juce::Font (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), h,
-                                              bold ? juce::Font::bold : juce::Font::plain));
-    }
-    juce::Font sans (float h, bool bold = false)
-    {
-        return juce::Font (juce::FontOptions (h, bold ? juce::Font::bold : juce::Font::plain));
-    }
+    //  the family's two faces (machine-art), as Beetmachine wears them: the
+    //  typewriter mono for everything read, the stencil for titles and the pad.
+    //  "sans" survives as a name so the layout code reads as it did.
+    juce::Font mono (float h, bool = false)    { return machineart::mono (h); }
+    juce::Font sans (float h, bool = false)    { return machineart::mono (h); }
+    juce::Font stencil (float h)               { return machineart::stencil (h); }
 
     juce::String msText (double s)
     {
@@ -131,13 +128,33 @@ void StLook::drawComboBox (juce::Graphics& g, int w, int h, bool, int, int, int,
     g.fillPath (tri);
 }
 
-juce::Font StLook::getComboBoxFont (juce::ComboBox& b) { return sans (b.getHeight() > 30 ? 17.0f : 14.0f, true); }
+juce::Font StLook::getComboBoxFont (juce::ComboBox& b) { return mono (b.getHeight() > 30 ? 15.0f : 13.0f); }
 
 void StLook::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
 {
     label.setBounds (8, 1, box.getWidth() - 28, box.getHeight() - 2);
     label.setFont (getComboBoxFont (box));
     label.setJustificationType (juce::Justification::centredLeft);
+}
+
+juce::Font StLook::getTextButtonFont (juce::TextButton&, int h) { return mono (juce::jmin ((float) h * 0.55f, 13.0f)); }
+juce::Font StLook::getPopupMenuFont()                          { return mono (15.0f); }
+
+//  a knob's value box is a Label inside its Slider: the typewriter too
+juce::Font StLook::getLabelFont (juce::Label& l)
+{
+    if (dynamic_cast<juce::Slider*> (l.getParentComponent()) != nullptr) return mono (13.0f);
+    return juce::LookAndFeel_V4::getLabelFont (l);
+}
+
+void StLook::drawToggleButton (juce::Graphics& g, juce::ToggleButton& b, bool over, bool down)
+{
+    const float box = juce::jmin (15.0f, (float) b.getHeight() * 0.75f);
+    drawTickBox (g, b, 4.0f, ((float) b.getHeight() - box) * 0.5f, box, box, b.getToggleState(), b.isEnabled(), over, down);
+    g.setColour (b.findColour (juce::ToggleButton::textColourId).withMultipliedAlpha (b.isEnabled() ? 1.0f : 0.5f));
+    g.setFont (mono (juce::jmin (13.0f, (float) b.getHeight() * 0.6f)));
+    g.drawFittedText (b.getButtonText(), b.getLocalBounds().withTrimmedLeft (juce::roundToInt (box) + 10).withTrimmedRight (2),
+                      juce::Justification::centredLeft, 1);
 }
 
 void StLook::drawTooltip (juce::Graphics& g, const juce::String& text, int w, int h)
@@ -319,7 +336,7 @@ void HitPad::paint (juce::Graphics& g)
     const auto a = padArea (getLocalBounds().toFloat());
     const float r = padRadius (a);
     const auto c = padCentre (a);
-    machineart::drawPad (g, c, r, machineart::Pad::Snare, glow, kHot, kRimFrom, "HIT", sans (22.0f, true));
+    machineart::drawPad (g, c, r, machineart::Pad::Snare, glow, kHot, kRimFrom, "HIT", stencil (19.0f));
     g.setColour (kDim);
     g.setFont (sans (11.5f));
     g.drawText ("head: snare   hoop: rim shot", juce::Rectangle<float> (a.getX(), c.y + r + 4, a.getWidth(), 16).toNearestInt(),
@@ -630,7 +647,7 @@ void SnareTacticsEditor::paint (juce::Graphics& g)
         g.fillEllipse (i == 0 ? x0 - 2.0f : x1 - 5.0f, y0 - 3.0f, 7.0f, 7.0f);   // the tips
     }
     g.setColour (kInk);
-    g.setFont (juce::Font (juce::FontOptions (34.0f, juce::Font::bold)).withExtraKerningFactor (0.10f));
+    g.setFont (stencil (30.0f));
     g.drawText ("SNARE TACTICS", 64, 12, 330, 40, juce::Justification::left);
     g.setColour (kDim);
     g.setFont (mono (11.0f));
@@ -642,7 +659,7 @@ void SnareTacticsEditor::paint (juce::Graphics& g)
         machineart::drawPlate (g, s.r.toFloat());
         g.setColour (s.colour);
         g.fillRoundedRectangle (s.r.toFloat().removeFromTop (3.0f).reduced (8.0f, 0.0f), 1.5f);
-        g.setFont (sans (13.0f, true));
+        g.setFont (stencil (14.5f));
         g.drawText (s.title, s.r.getX() + 12, s.r.getY() + 8, s.r.getWidth() - 24, 16, juce::Justification::left);
     }
 }

@@ -109,8 +109,81 @@ int main()
         juce::StringArray missing;
         for (int k = 0; k < beet::numKits(); ++k) { p->loadKit (k); missing.addArray (p->missingPresets); }
         check (missing.isEmpty(), "every kit's presets exist by name in their drum (" + juce::String (beet::numKits()) + " kits)", missing.joinIntoString ("; "));
+        bool allChoked = true;
+        juce::StringArray unchoked;
+        for (int k = 0; k < beet::numKits(); ++k)
+        {
+            p->loadKit (k);
+            if ((p->slotChokedBy (5) & (1u << 4)) == 0) { allChoked = false; unchoked.add (beet::kit (k).name); }
+        }
+        check (allChoked, "in every kit the open hat (slot 6) is choked by the closed hat (slot 5)", unchoked.joinIntoString (", "));
+        check (beet::numKits() == 24, "24 kits", juce::String (beet::numKits()));
+
+        //  a kit's tweaks land on the drum, in real units, after its preset
+        auto realValue = [] (juce::AudioProcessor* d, const juce::String& id) -> float {
+            for (auto* prm : d->getParameters())
+                if (auto* r = dynamic_cast<juce::RangedAudioParameter*> (prm))
+                    if (r->getParameterID() == id) return r->convertFrom0to1 (r->getValue());
+            return -1.0e9f; };
+        int bm = -1;
+        for (int k = 0; k < beet::numKits(); ++k) if (juce::String (beet::kit (k).name) == "BLACK METAL") bm = k;
+        check (bm >= 0, "the BLACK METAL kit exists");
+        if (bm >= 0)
+        {
+            p->loadKit (bm);
+            const float d0 = realValue (p->slotProcessor (0), "decay"), c0 = realValue (p->slotProcessor (0), "click");
+            const float pt0 = realValue (p->slotProcessor (0), "pitch"), pt1 = realValue (p->slotProcessor (1), "pitch");
+            check (std::abs (d0 - 150.0f) < 1.0f && std::abs (c0 - 0.9f) < 0.01f,
+                   "a kit's tweaks land on the drum after its preset (BLACK METAL kick: decay 150 ms, click 0.9)",
+                   juce::String (d0, 1) + " ms, " + juce::String (c0, 2));
+            check (std::abs (pt0 - 62.0f) < 0.5f && std::abs (pt1 - 61.0f) < 0.5f,
+                   "and its two kicks are the two feet: the same drum a hair apart in tune",
+                   juce::String (pt0, 1) + " / " + juce::String (pt1, 1) + " Hz");
+            p->loadKit (0);
+            check (std::abs (realValue (p->slotProcessor (0), "decay") - 380.0f) < 1.0f,
+                   "and the next kit starts from its own preset, not from the tweaked drum");
+        }
+
+        //  every rack a kit carries must PARSE into the rack as written: a module
+        //  or parameter id the rack does not know would be dropped in silence
+        const std::string emptyRack = bwfx::Rack().toJson();
+        juce::StringArray rackFaults;
+        int withRack = 0;
+        for (int k = 0; k < beet::numKits(); ++k)
+        {
+            p->loadKit (k);
+            const auto& kit = beet::kit (k);
+            if (kit.rack == nullptr)
+            {
+                if (p->rack().toJson() != emptyRack) rackFaults.add (juce::String (kit.name) + ": not empty");
+                continue;
+            }
+            ++withRack;
+            auto v = juce::JSON::parse (juce::String (kit.rack));
+            auto* mods = v.getProperty ("modules", {}).getDynamicObject();
+            if (mods == nullptr) { rackFaults.add (juce::String (kit.name) + ": no modules"); continue; }
+            for (auto& m : mods->getProperties())
+            {
+                int t = -1;
+                for (int i = 0; i < bwfx::numModuleTypes(); ++i)
+                    if (m.name.toString() == bwfx::moduleDescriptor (i).id) t = i;
+                if (t < 0 || ! p->rack().getEnabled (t)) { rackFaults.add (juce::String (kit.name) + ": " + m.name.toString()); continue; }
+                const auto& d = bwfx::moduleDescriptor (t);
+                if (auto* ps = m.value.getProperty ("p", {}).getDynamicObject())
+                    for (auto& q : ps->getProperties())
+                    {
+                        int pi = -1;
+                        for (int i = 0; i < d.numParams; ++i) if (q.name.toString() == d.params[i].id) pi = i;
+                        const float want = (float) q.value;
+                        if (pi < 0 || std::abs (p->rack().getParam (t, pi) - want) > 1e-3f)
+                            rackFaults.add (juce::String (kit.name) + ": " + m.name.toString() + "." + q.name.toString());
+                    }
+            }
+        }
+        check (rackFaults.isEmpty() && withRack >= 12,
+               "every kit rack lands as written (" + juce::String (withRack) + " kits carry one), and a kit without one loads the empty rack",
+               rackFaults.joinIntoString ("; "));
         p->loadKit (0);
-        check ((p->slotChokedBy (5) & (1u << 4)) != 0, "the open hat (slot 6) is choked by the closed hat (slot 5) in the kits");
     }
 
     //  --- latency / alignment ------------------------------------------------
@@ -392,9 +465,12 @@ int main()
         check (older->rack().toJson() == emptyRack, "a project from before BWFX loads with the empty rack");
         check (! older->apvts.state.hasProperty ("bwfx"), "and the blob never lingers in the parameter state");
 
+        //  a kit SETS the rack, as a patch does on every Brokild synth
         const int before = wet->rack().getEnabled (echo) ? 1 : 0;
         wet->loadKit (3);
-        check (before == 1 && wet->rack().getEnabled (echo), "loading a kit leaves the rack alone (a kit is the drums, the rack is the bus)");
+        check (before == 1 && wet->rack().toJson() == emptyRack, "loading a kit without a rack clears the rack (the fleet rule: a patch sets the rack)");
+        wet->setStateInformation (mb.getData(), (int) mb.getSize());
+        check (wet->rack().getEnabled (echo), "and a saved project still brings back ITS rack, whatever kit it was");
     }
 
     std::printf ("\n%d checks, %d failed - %s\n\n", checks, fails, fails == 0 ? "ALL CLEAR" : "FAILURES");

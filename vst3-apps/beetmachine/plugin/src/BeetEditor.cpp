@@ -1,4 +1,9 @@
 #include "BeetEditor.h"
+#include "BeetWebData.h"
+#include "MachineArtData.h"
+#if JUCE_WINDOWS
+ #include <WebView2.h>
+#endif
 
 #ifndef BEET_BUILD_ID
  #define BEET_BUILD_ID "0.0.0"
@@ -343,11 +348,115 @@ BeetEditor::BeetEditor (BeetProcessor& proc)
 
     selectSlot (0);
     refreshHeader();
+
+    //  the web rack, if this machine has the WebView2 runtime (without it JUCE
+    //  would fall back to the old Internet Explorer control - Thin Walls' lesson)
+    bool haveWebView = useWebRack;
+   #if JUCE_WINDOWS
+    if (haveWebView)
+    {
+        LPWSTR ver = nullptr;
+        const HRESULT hr = GetAvailableCoreWebView2BrowserVersionString (nullptr, &ver);
+        haveWebView = SUCCEEDED (hr) && ver != nullptr;
+        if (ver != nullptr) CoTaskMemFree (ver);
+    }
+   #endif
+    if (haveWebView)
+    {
+        rackWeb = std::make_unique<juce::WebBrowserComponent> (rackOptions());
+        addAndMakeVisible (*rackWeb);
+        parkRackWeb();
+        rackWeb->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
+    }
     startTimerHz (30);
+}
+
+//  THE BWFX RACK is the standard web rack - BrokildWorldFX/ui/bwfx-rack.js,
+//  what Black Rider and every WebView synth show - in a WebView2 over the
+//  whole window. Created with the editor and PARKED off to the side until
+//  the button is pressed: no start-up wait on the first press, and a parked
+//  browser still takes events (a hidden one would not - emitEventIfBrowser-
+//  IsVisible tests isVisible()).
+juce::WebBrowserComponent::Options BeetEditor::rackOptions()
+{
+    using BO = juce::WebBrowserComponent::Options;
+    auto options = BO{}
+        .withNativeIntegrationEnabled()
+        .withKeepPageLoadedWhenBrowserIsHidden()
+        .withResourceProvider ([] (const juce::String& path) -> std::optional<juce::WebBrowserComponent::Resource>
+        {
+            auto make = [] (const char* data, int size, const char* mime)
+            {
+                juce::WebBrowserComponent::Resource r;
+                r.data.resize ((size_t) size);
+                std::memcpy (r.data.data(), data, (size_t) size);
+                r.mimeType = mime;
+                return r;
+            };
+            if (path == "/" || path == "/index.html") return make (BeetWebData::bwfxhost_html, BeetWebData::bwfxhost_htmlSize, "text/html");
+            if (path == "/bwfx-rack.js")             return make (BeetWebData::bwfxrack_js, BeetWebData::bwfxrack_jsSize, "application/javascript");
+            if (path == "/ground.jpg")
+            {
+                int n = 0;
+                if (auto* d = MachineArtData::getNamedResource ("groundbeet_jpg", n)) return make (d, n, "image/jpeg");
+            }
+            return std::nullopt;
+        })
+        .withEventListener ("beet", [this] (juce::var m) { onRackMessage (m); });
+   #if JUCE_WINDOWS
+    //  its own profile, and the standalone another: WebView2 joins a RUNNING
+    //  browser process per user-data folder (Black Rider's lesson)
+    const bool standalone = juce::JUCEApplicationBase::isStandaloneApp();
+    auto userData = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+                        .getChildFile ("Brokild").getChildFile ("Beetmachine")
+                        .getChildFile (standalone ? "WebView2-standalone" : "WebView2");
+    userData.createDirectory();
+    options = options.withBackend (BO::Backend::webview2)
+                     .withWinWebView2Options (BO::WinWebView2{}
+                         .withStatusBarDisabled()
+                         .withBuiltInErrorPageDisabled()
+                         .withBackgroundColour (juce::Colour (0xff1c2329))
+                         .withUserDataFolder (userData));
+   #endif
+    return options;
+}
+
+void BeetEditor::onRackMessage (const juce::var& m)
+{
+    const auto k = m.getProperty ("k", {}).toString();
+    if (k == "bwfx")
+    {
+        if (bwfx_juce::handleMessage (p.rack(), p.apvts, m) && rackWeb != nullptr)
+            rackWeb->emitEventIfBrowserIsVisible ("bwfx", bwfx_juce::stateVar (p.rack()));
+    }
+    else if (k == "close")
+    {
+        juce::Component::SafePointer<BeetEditor> self (this);
+        juce::MessageManager::callAsync ([self] { if (self != nullptr) self->showRack (false); });
+    }
+}
+
+void BeetEditor::parkRackWeb()
+{
+    if (rackWeb != nullptr) rackWeb->setBounds (getLocalBounds().withPosition (getWidth() + 32, 0));
 }
 
 void BeetEditor::showRack (bool show)
 {
+    if (rackWeb != nullptr)
+    {
+        rackShown = show;
+        if (show)
+        {
+            rackWeb->setBounds (getLocalBounds());
+            rackWeb->toFront (true);
+            rackWeb->emitEventIfBrowserIsVisible ("open", juce::var());
+            rackWeb->emitEventIfBrowserIsVisible ("bwfx", bwfx_juce::stateVar (p.rack()));
+        }
+        else parkRackWeb();
+        if (rackButton.getToggleState() != show) rackButton.setToggleState (show, juce::dontSendNotification);
+        return;
+    }
     if (show && overlay == nullptr)
     {
         overlay = std::make_unique<BwfxPanel> (p.rack(), p.apvts);
@@ -368,6 +477,7 @@ void BeetEditor::showRack (bool show)
 BeetEditor::~BeetEditor()
 {
     stopTimer();
+    rackWeb.reset();
     overlay.reset();
     releaseChild();                // the drum's editor goes before anything it points at
     p.collectGarbage();
@@ -390,6 +500,7 @@ void BeetEditor::resized()
     rackButton.setBounds (920, 15, 96, 28);
     panic.setBounds (1310, 3, 50, 50);
     if (overlay != nullptr) overlay->setBounds (getLocalBounds());
+    if (rackWeb != nullptr) { if (rackShown) rackWeb->setBounds (getLocalBounds()); else parkRackWeb(); }
 }
 
 void BeetEditor::paint (juce::Graphics& g)
@@ -542,6 +653,9 @@ void BeetEditor::timerCallback()
         seenLayout = v;
         for (auto& c : cards) c->refresh();
         refreshHeader();
+        //  a kit sets the rack, so the rack's page must hear about it
+        if (rackWeb != nullptr) rackWeb->emitEventIfBrowserIsVisible ("bwfx", bwfx_juce::stateVar (p.rack()));
+        if (overlay != nullptr && overlay->isVisible()) overlay->refreshFromRack();
     }
     syncChild();
     for (auto& c : cards) c->tick();
