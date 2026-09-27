@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signal lost — BrokildApps</title>
+  <meta name="description" content="That page is not here. The Brokild instruments are." />
+  <meta name="robots" content="noindex" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#04060b" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%23070b13'/><rect x='3' y='3' width='94' height='94' rx='14' fill='none' stroke='%235ef0da' stroke-width='5'/><text x='50' y='69' font-size='54' font-family='Arial,sans-serif' font-weight='700' text-anchor='middle' fill='%235ef0da'>B</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    /* The front page's palette and chrome, kept in step by hand because a 404
+       must render from nothing: GitHub Pages serves this file for any missing
+       path, at any depth, so every link here is absolute from the site root
+       and there is no script and no fetch. */
+    :root {
+      --void:  #04060b;
+      --panel: #0a0f1a;
+      --line:  #17212f;
+      --cyan:  #5ef0da;
+      --amber: #ffb454;
+      --ink:   #d7e2f0;
+      --dim:   #8496ad;
+      --faint: #5c6c83;
+      --mono: "IBM Plex Mono", ui-monospace, Consolas, "SF Mono", Menlo, monospace;
+      --display: "Orbitron", "Segoe UI", system-ui, sans-serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 1.6rem; padding: 3rem 1rem;
+      background: var(--void); color: var(--ink);
+      font-family: var(--sans); line-height: 1.62; text-align: center;
+    }
+    body::after {
+      content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 90;
+      background: repeating-linear-gradient(to bottom,
+        rgba(255,255,255,.021) 0px, rgba(255,255,255,.021) 1px,
+        transparent 1px, transparent 3px);
+      mix-blend-mode: screen;
+    }
+    .code {
+      font-family: var(--mono); font-size: .74rem; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--amber);
+      border: 1px solid rgba(255,180,84,.35); border-radius: 3px;
+      padding: .45rem .9rem;
+    }
+    h1 {
+      font-family: var(--display); font-weight: 900;
+      font-size: clamp(2.4rem, 9vw, 4.6rem); line-height: 1.02;
+      margin: 0; color: var(--cyan); letter-spacing: .02em;
+      text-shadow: 0 0 38px rgba(94,240,218,.22);
+    }
+    p { margin: 0; max-width: 44ch; color: var(--dim); }
+    .links { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center; margin-top: .5rem; }
+    .links a {
+      font-family: var(--mono); font-size: .76rem; font-weight: 500;
+      letter-spacing: .14em; text-transform: uppercase; text-decoration: none;
+      padding: .7rem 1.15rem; border-radius: 3px;
+      border: 1px solid var(--line); background: var(--panel); color: var(--dim);
+      transition: color .15s, border-color .15s;
+    }
+    .links a:hover, .links a:focus-visible { color: var(--cyan); border-color: rgba(94,240,218,.45); }
+    .links a.primary { background: var(--cyan); border-color: var(--cyan); color: #041210; font-weight: 600; }
+    .links a.primary:hover, .links a.primary:focus-visible { color: #041210; }
+    .foot { font-family: var(--mono); font-size: .68rem; letter-spacing: .18em; text-transform: uppercase; color: var(--faint); }
+  </style>
+</head>
+<body>
+  <span class="code">Error 404 · signal lost</span>
+  <h1>Nothing<br>on this<br>frequency</h1>
+  <p>That page is not here — it may have been renamed, or it may never have existed. The instruments are all still where they were.</p>
+  <div class="links">
+    <a class="primary" href="/BrokildApps/">All instruments →</a>
+    <a href="/BrokildApps/vst3-apps/collection/index.html">The Collection</a>
+    <a href="https://github.com/peterboggild/BrokildApps">Source</a>
+  </div>
+  <span class="foot">Professor Brokild’s Unusual and Sometimes Useful Music Machines</span>
+</body>
+</html>

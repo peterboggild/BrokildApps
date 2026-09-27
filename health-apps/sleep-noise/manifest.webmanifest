@@ -1,0 +1,14 @@
+{
+  "name": "Sleeper Agent",
+  "short_name": "Sleeper",
+  "description": "A mixer of brown noise, green noise, rain, soft rain and ocean, with slow ambient synth themes over the top, five presets, a sleep timer and a blackout screen.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#06070a",
+  "theme_color": "#06070a",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

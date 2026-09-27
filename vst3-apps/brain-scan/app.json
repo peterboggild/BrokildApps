@@ -1,0 +1,23 @@
+{
+  "slug": "brain-scan",
+  "name": "Brain Scan (VST3)",
+  "description": "A synth that stores no waveforms but a volume — a scalar field filling a cube, the kind of number a scanner records — and reads a curve through it. One cycle of the sound is the field along that curve, so bending the curve changes the timbre because the curve is now somewhere else in the body. SCAN blends the geometry of two curves before anything is read, so halfway between two sounds is tissue neither has visited. Fifteen specimens, or load a real scan of your own.",
+  "status": "live",
+  "url": "vst3-apps/brain-scan/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/brain-scan.jpg",
+  "note": "Windows VST3 - build 260905.2 - free download - 15 specimens (nine phantoms, six bodies in HU) plus your own volume (NIfTI, DICOM or an image stack) - hints on every control - 18-page manual.",
+  "tags": [
+    "vst3",
+    "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Brain-Scan-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Brain-Scan-VST3-win64.zip",
+      "bytes": 8022261,
+      "sha256": "0697453f0151591b6c76ef67d7269cf6c7a9ae021a5e9f10aaff9cee4d829641"
+    }
+  ]
+}

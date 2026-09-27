@@ -1,0 +1,8 @@
+[
+  { "eval": "(function(){var d=__BS.VOL.data,h=new Array(10).fill(0);for(var i=0;i<d.length;i++)h[Math.min(9,Math.floor(d[i]/25.6))]++;return 'CORTEX histogram (deciles of density): '+h.map(function(n){return (100*n/d.length).toFixed(1)}).join(' ')})()" },
+  { "eval": "(function(){var d=__BS.VOL.data,n=0,s=0;for(var k=0;k<64;k++){var v=d[(32*64+32)*64+k];s+=v;}return 'centre row through the head: '+(function(){var o=[];for(var k=0;k<64;k+=4)o.push(d[(32*64+32)*64+k]);return o.join(',')})()})()" },
+  { "eval": "__BS.NB.send({k:'p', id:'specimen', v:0.125}); 'specimen -> SPINE'" },
+  { "wait": 1200 },
+  { "eval": "(function(){var d=__BS.VOL.data,h=new Array(10).fill(0);for(var i=0;i<d.length;i++)h[Math.min(9,Math.floor(d[i]/25.6))]++;return 'SPINE histogram: '+h.map(function(n){return (100*n/d.length).toFixed(1)}).join(' ')})()" },
+  { "eval": "__BS.NB.send({k:'p', id:'specimen', v:1.0}); 'back to CORTEX'" }
+]

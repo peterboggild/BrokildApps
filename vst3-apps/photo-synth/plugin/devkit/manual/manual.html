@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HTML → VST3 Developer Kit</title>
+<style>
+  /* Same print system as the instrument manual, in a colder accent: this is
+     a developer document, not a product one. A4, cream paper, dark cover. */
+  @page { size: A4; margin: 17mm 16mm 16mm 16mm; }
+  @page :first { margin: 0; }
+
+  :root{
+    --ink:#181613; --ink-soft:#474038; --faint:#7b7368;
+    --paper:#fbf9f5; --rule:#ddd7cb;
+    --accent:#1d6f63; --accent-soft:#e2efec;
+    --code:#f0ede6; --code-br:#e0dacd;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--paper); }
+  body{
+    color:var(--ink);
+    font:10.4pt/1.55 "Segoe UI",-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3,h4{ font-family:Georgia,"Times New Roman",serif; font-weight:600; margin:0; }
+  p{ margin:.45em 0 .7em; max-width:none; }
+  b,strong{ color:#0e0c0a; font-weight:600; }
+  code,.k{
+    font-family:Consolas,"SF Mono",Menlo,monospace; font-size:9pt;
+    background:var(--code); border:1px solid var(--code-br); border-radius:3px;
+    padding:0 4px; color:#3f5c56;
+  }
+  pre{
+    font-family:Consolas,"SF Mono",Menlo,monospace; font-size:8.6pt; line-height:1.45;
+    background:#14201e; color:#dfe9e6; border-radius:5px; padding:3.4mm 4mm;
+    margin:2.5mm 0 4mm; overflow:hidden; break-inside:avoid;
+  }
+  pre .c{ color:#7fa79f; }
+  pre .s{ color:#e0b978; }
+
+  /* cover */
+  .cover{
+    background:
+      radial-gradient(120% 80% at 82% 4%, rgba(45,160,142,.20) 0%, transparent 56%),
+      linear-gradient(168deg,#101917 0%, #070d0c 100%);
+    color:#e9f1ef; height:294mm; padding:26mm 22mm 18mm; display:flex;
+    flex-direction:column; break-after:page;
+  }
+  .cover .kicker{ font-size:8.6pt; letter-spacing:.4em; text-transform:uppercase; color:#7fbdb1; }
+  .cover h1{ font-size:40pt; line-height:1.04; margin:9mm 0 0; color:#f4faf8; letter-spacing:-.015em; }
+  .cover h1 span{ color:#4fc3ad; }
+  .cover .tag{ font-size:12.5pt; color:#a9bfba; margin:5mm 0 0; font-family:Georgia,serif; font-style:italic; }
+  .cover .rule{ height:2px; width:34mm; background:#4fc3ad; margin:8mm 0 0; }
+  .cover .box{
+    margin:11mm 0 0; border:1px solid #2b3d39; border-radius:6px; padding:6mm 7mm;
+    background:rgba(255,255,255,.03);
+  }
+  .cover .box h3{ font-size:11pt; color:#cfe4df; margin:0 0 2.5mm; }
+  .cover .box p{ font-size:9.6pt; color:#93aaa5; margin:0; }
+  .cover .foot{
+    margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end;
+    font-size:8.8pt; color:#7d918d; letter-spacing:.06em;
+  }
+  .cover .foot b{ color:#dbe9e6; font-weight:600; display:block; font-size:10pt; letter-spacing:0; }
+
+  /* structure */
+  .sec{ break-before:page; }
+  .sec-head{
+    display:flex; align-items:baseline; gap:5mm;
+    border-bottom:1.6px solid var(--ink); padding-bottom:2.4mm; margin-bottom:5mm;
+  }
+  .sec-head .num{
+    font:600 9pt/1 Consolas,monospace; color:var(--accent);
+    border:1.4px solid var(--accent); border-radius:3px; padding:1.6mm 2.2mm;
+  }
+  .sec-head h2{ font-size:18.5pt; letter-spacing:-.01em; }
+  .sec-head .sub{ margin-left:auto; font-size:8.4pt; color:var(--faint); letter-spacing:.2em; text-transform:uppercase; }
+  h3{ font-size:12.4pt; margin:6mm 0 1.5mm; }
+  h3:first-child{ margin-top:0; }
+  h4{ font-size:10.2pt; margin:4mm 0 1mm; color:var(--accent); }
+  .lead{ font-size:11.2pt; color:var(--ink-soft); font-family:Georgia,serif; margin:0 0 5mm; }
+
+  table{ width:100%; border-collapse:collapse; margin:2.5mm 0 5mm; font-size:9.3pt; break-inside:avoid; }
+  th,td{ text-align:left; padding:1.9mm 2.4mm; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th{ font:600 8.1pt/1.3 "Segoe UI",sans-serif; text-transform:uppercase; letter-spacing:.13em;
+      color:var(--faint); border-bottom:1.4px solid var(--ink-soft); }
+  td:first-child{ width:31%; color:#100d09; font-weight:600; }
+  table.wide td:first-child{ width:42%; }
+
+  .note{
+    background:var(--accent-soft); border-left:3px solid var(--accent);
+    padding:3mm 4mm; margin:4mm 0; font-size:9.5pt; border-radius:0 3px 3px 0; break-inside:avoid;
+  }
+  .note b{ color:#134b43; }
+  ul.plain{ margin:.3em 0 .8em; padding-left:5mm; }
+  ul.plain li{ margin:.3em 0; }
+
+  ol.steps{ list-style:none; counter-reset:s; margin:0; padding:0; }
+  ol.steps li{ counter-increment:s; position:relative; padding:0 0 3.4mm 11mm; break-inside:avoid; }
+  ol.steps li::before{
+    content:counter(s); position:absolute; left:0; top:-.4mm;
+    width:7.4mm; height:7.4mm; border-radius:50%; background:var(--accent); color:#fff;
+    font:600 10pt/7.4mm Georgia,serif; text-align:center;
+  }
+  ol.steps li > b:first-child{ display:block; font-size:10.6pt; margin-bottom:.5mm; }
+
+  /* the architecture diagram, drawn in CSS */
+  .arch{ margin:4mm 0 5mm; break-inside:avoid; }
+  .arch .row{ display:flex; align-items:stretch; gap:0; margin-bottom:2mm; }
+  .arch .cell{
+    flex:1 1 0; border:1px solid var(--rule); border-radius:5px; padding:3mm 3.5mm;
+    background:#fff;
+  }
+  .arch .cell.web{ background:#f4f7f6; border-color:#c9d8d5; }
+  .arch .cell.cpp{ background:#eef4f2; border-color:#a9c9c2; }
+  .arch .cell h4{ margin:0 0 1mm; font-size:9.4pt; color:var(--accent); font-family:"Segoe UI",sans-serif; letter-spacing:.06em; text-transform:uppercase; }
+  .arch .cell p{ margin:0; font-size:9pt; color:var(--ink-soft); }
+  .arch .arrow{ text-align:center; font-size:11pt; color:var(--accent); padding:1.5mm 0; }
+
+  figure{ margin:4mm 0 5mm; break-inside:avoid; }
+  figure img{ width:100%; display:block; border-radius:4px; border:1px solid #cfc7b6; background:#0c0a07; }
+  figcaption{ font-size:8.5pt; color:var(--faint); margin-top:1.8mm; padding-left:2.6mm; border-left:2px solid var(--accent); }
+
+  .colophon{ margin-top:6mm; border-top:1px solid var(--rule); padding-top:3.5mm; font-size:8.8pt; color:var(--faint); }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div class="kicker">Brokild Apps · Developer Kit</div>
+  <h1>HTML <span>→</span> VST3</h1>
+  <div class="tag">Turning a browser audio prototype into a native plugin.</div>
+  <div class="rule"></div>
+
+  <div class="box">
+    <h3>The idea in one paragraph</h3>
+    <p>Do not rewrite the interface. Embed the original page in a JUCE
+    WebBrowserComponent and hand its JavaScript proxy objects with the same
+    shape as the Web Audio nodes it already uses — so <code style="color:#bfe0d9;background:none;border:none;padding:0">node.gain.setTargetAtTime(v, t, 0.03)</code>
+    keeps working, but marshals over a lock-free queue into a C++ engine. Look,
+    layout and logic are then identical by construction, because they are the
+    same code, and the engineering goes where it belongs: reproducing Web Audio
+    semantics exactly, and keeping the audio thread real-time safe.</p>
+  </div>
+
+  <div class="foot">
+    <div>
+      <b>Developer Manual</b>
+      Setup · Method · Templates · Gotchas
+    </div>
+    <div style="text-align:right">
+      <b>Version 1.0</b>
+      August 2026 · Windows · JUCE 8
+    </div>
+  </div>
+</section>
+
+<!-- ============ 01 ============ -->
+<section class="sec">
+  <div class="sec-head"><span class="num">01</span><h2>What this kit is</h2><span class="sub">Introduction</span></div>
+
+  <p class="lead">A method, a set of templates and a set of scripts for porting
+  a working browser audio app into a VST3 plugin that a musician cannot tell
+  apart from the original — with the DSP rewritten in real-time-safe C++.</p>
+
+  <p>It is written to be driven by an AI coding assistant. The whole method is
+  packaged as a loadable <b>skill</b>; you point Claude Code, ChatGPT or a
+  VS Code chat extension at it, give it a prototype from a folder or a GitHub
+  page, and it has the phases, the code templates and — most valuable — the
+  list of traps that would otherwise cost a day each.</p>
+
+  <h3>The architecture, which is not negotiable</h3>
+
+  <div class="arch">
+    <div class="row">
+      <div class="cell web">
+        <h4>Unchanged original page</h4>
+        <p>Markup, CSS, canvas drawing, gestures, app logic, panels, presets.
+        Embedded in the plugin editor exactly as it was written.</p>
+      </div>
+    </div>
+    <div class="arrow">▼ &nbsp; proxy objects with the Web Audio node shape</div>
+    <div class="row">
+      <div class="cell web">
+        <h4>Bridge (JavaScript)</h4>
+        <p>Parameter proxies, voice-message translation, batching, an
+        interpolated clock. A few hundred lines, spliced in by script.</p>
+      </div>
+    </div>
+    <div class="arrow">▼ &nbsp; one batched IPC message per microtask</div>
+    <div class="row">
+      <div class="cell cpp">
+        <h4>Processor (C++, message thread)</h4>
+        <p>Command queue, APVTS parameters, project state including embedded
+        assets, file dialogs, offline rendering.</p>
+      </div>
+    </div>
+    <div class="arrow">▼ &nbsp; lock-free FIFO of POD commands</div>
+    <div class="row">
+      <div class="cell cpp">
+        <h4>Engine (C++, audio thread)</h4>
+        <p>Oscillators, filters, voices, effects, mixing. No allocation, no
+        locks, no logging, sample-accurate MIDI.</p>
+      </div>
+    </div>
+  </div>
+
+  <p>Everything follows from the top row. If you find yourself reimplementing a
+  slider, a canvas or a layout rule in C++, you have taken a wrong turn: the
+  fidelity you are trying to achieve was free a moment ago.</p>
+
+  <div class="note"><b>What you trade.</b> A WebView costs memory and a little
+  startup time compared with a native interface. In return the port takes days
+  instead of months, and the result is visually identical rather than
+  approximately similar. For an instrument whose interface <em>is</em> the
+  idea, that is the right trade.</div>
+
+  <h3>Contents of the kit</h3>
+  <table>
+    <tr><th>Item</th><th>What it is</th></tr>
+    <tr><td>skill/html-to-vst3/</td><td>The method as a Claude Code skill: <code>SKILL.md</code> plus nine short reference files, one per phase, read on demand.</td></tr>
+    <tr><td>skill/PROMPT.md</td><td>The same method as a portable system prompt for ChatGPT, Copilot Chat, a VS Code extension or a local model.</td></tr>
+    <tr><td>template/</td><td>Working skeletons: <code>CMakeLists.txt</code>, an engine with Web Audio parameter and biquad semantics and a command FIFO, a processor with the bridge and state handling, a WebView2 editor, and the JavaScript proxy layer.</td></tr>
+    <tr><td>tools/</td><td>Six PowerShell scripts: toolchain check, bridge splice, headless UI probe, screenshot capture, PDF manual rendering, release packaging.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 02 ============ -->
+<section class="sec">
+  <div class="sec-head"><span class="num">02</span><h2>Setting the machine up</h2><span class="sub">Step one</span></div>
+
+  <p class="lead">One time, about an hour, mostly downloading. All free, no
+  developer account, no plugin SDK licence.</p>
+
+  <table>
+    <tr><th>Component</th><th>Version used</th><th>Notes</th></tr>
+    <tr><td>Visual Studio Community</td><td>2026 (18.9)</td><td>Only the <b>Desktop development with C++</b> workload is required. 2022 also works.</td></tr>
+    <tr><td>CMake</td><td>4.4.2</td><td>3.22+ suffices. Tick “add to PATH”.</td></tr>
+    <tr><td>JUCE</td><td>8.0.13</td><td>Source only, cloned once and shared by every project.</td></tr>
+    <tr><td>WebView2 runtime</td><td>151.x</td><td>Already on current Windows; only needed if the editor is blank.</td></tr>
+    <tr><td>Chrome or Edge</td><td>any</td><td>For headless probes, screenshots and rendering manuals to PDF.</td></tr>
+  </table>
+
+  <p>VST3 needs no separate Steinberg SDK — JUCE ships the headers.</p>
+
+  <ol class="steps">
+    <li><b>Install Visual Studio Community.</b>
+      In the installer choose <em>Workloads → Desktop development with C++</em>.
+      Everything else can be left unticked.</li>
+    <li><b>Install CMake</b> from cmake.org, choosing <em>Add CMake to the
+      system PATH</em>.</li>
+    <li><b>Clone JUCE</b> somewhere permanent and outside your projects:
+      <pre>git clone --depth 1 --branch 8.0.13 <span class="s">https://github.com/juce-framework/JUCE.git</span> C:\AudioDev\JUCE</pre></li>
+    <li><b>Verify.</b> Run the kit's checker; it prints what is missing and the
+      exact CMake generator string for your Visual Studio:
+      <pre>powershell -ExecutionPolicy Bypass -File tools\check-toolchain.ps1</pre></li>
+    <li><b>Build the template</b> to prove the toolchain end to end. If a
+      <code>.vst3</code> folder appears, the machine is ready.</li>
+  </ol>
+
+  <h3>The two build commands</h3>
+  <p>Always out of tree, always Release — a Debug plugin is slow enough to
+  glitch in a DAW.</p>
+<pre>cmake -S C:\b\MyPlugin -B C:\b\MyPlugin\build -G <span class="s">"Visual Studio 18 2026"</span> -A x64
+cmake --build C:\b\MyPlugin\build --config Release</pre>
+
+  <p>Artefacts appear under
+  <code>build\&lt;Target&gt;_artefacts\Release\VST3\</code> and
+  <code>...\Standalone\</code>.</p>
+
+  <h3>Installing a build for testing</h3>
+  <p>A VST3 “file” is really a folder; copy the <b>whole bundle</b> into
+  <code>C:\Program Files\Common Files\VST3\&lt;Vendor&gt;\</code> and rescan in
+  the DAW.</p>
+
+  <div class="note"><b>Two things that waste an afternoon.</b> A running DAW
+  holds the plugin DLL open, so the copy fails — rename the loaded file to
+  <code>.old</code>, copy the new one in, delete the old later. And a host maps
+  a plugin once per session: after updating, <b>restart the DAW</b>. Removing
+  and re-adding the device is not enough.</div>
+
+  <h3>Identity codes</h3>
+  <p><code>PLUGIN_CODE</code> and <code>PLUGIN_MANUFACTURER_CODE</code> are four
+  characters each, and together they generate the VST3 class ID that projects
+  store. Two plugins sharing them are indistinguishable to the host. Choose
+  them once, and <b>never change them after release</b>. Building a variant
+  alongside an existing plugin? Change the code (<code>Psyn</code> →
+  <code>Psy2</code>) and the product name.</p>
+
+  <p>Keep the project path short — <code>C:\b\MyPlugin</code>. Deeply nested
+  paths hit MSVC's path-length limit during JUCE builds.</p>
+</section>
+
+<!-- ============ 03 ============ -->
+<section class="sec">
+  <div class="sec-head"><span class="num">03</span><h2>The method</h2><span class="sub">Eight phases</span></div>
+
+  <p class="lead">Work in this order, and build after every phase. Each phase
+  has a short reference file in the skill; read the one you are in.</p>
+
+  <table class="wide">
+    <tr><th>Phase</th><th>What happens</th></tr>
+    <tr><td>0 · Set up</td><td>Toolchain installed and verified by a build. <code>00-setup.md</code></td></tr>
+    <tr><td>1 · Recon</td><td>Read the entire prototype. Inventory every audio node, parameter, worklet message and browser-only feature. Decide, in writing, what cannot come across. <code>01-recon.md</code></td></tr>
+    <tr><td>2 · Bridge</td><td>Proxy objects in JS, a command FIFO in C++. First milestone: the original page renders inside the plugin window. <code>02-bridge.md</code></td></tr>
+    <tr><td>3 · DSP</td><td>Port worklets line by line; reproduce Web Audio node semantics exactly. <code>03-dsp-parity.md</code></td></tr>
+    <tr><td>4 · Real-time safety</td><td>Preallocate, never lock, never log, keep MIDI sample-accurate. <code>04-realtime-safety.md</code></td></tr>
+    <tr><td>5 · Host integration</td><td>Automatable parameters, full project state including assets, sensible behaviour with the editor closed. <code>05-host-integration.md</code></td></tr>
+    <tr><td>6 · Verify</td><td>Headless probe, Release build, screenshot of the running plugin, then a DAW. <code>06-verification.md</code></td></tr>
+    <tr><td>7 · Package</td><td>Zip with the bundle as a folder, a PDF manual, a readme, and an honest parity document. <code>07-packaging.md</code></td></tr>
+  </table>
+
+  <h3>Phase 1 in a little more detail</h3>
+  <p>Read the prototype end to end — all of it, including the worklets. This is
+  the phase people skip and then regret, because the whole method rests on
+  keeping code you did not read, and you can only do that safely once you know
+  exactly where the audio boundary is. While reading, mark: where the graph is
+  built (usually one function), where parameters are pushed, every
+  <code>registerProcessor</code>, every <code>postMessage</code> shape,
+  anything scheduled ahead of time, and everything the browser provides that a
+  plugin does not.</p>
+
+  <p>Then write the inventory: a table of node type → count → native
+  equivalent, and a numbered list of every parameter the UI writes to. Those
+  numbers become the wire protocol — an <code>enum</code> in
+  <code>Engine.h</code> mirrored by an object in <code>bridge.js</code>. Keep
+  them in the same order and never renumber one without the other.</p>
+
+  <div class="note"><b>Be honest about what cannot come across.</b> Camera and
+  microphone capture have no place in a plugin. A WebView cannot start
+  downloads, and <code>prompt()</code>/<code>confirm()</code> are suppressed —
+  route those through native dialogs and defaults. <code>localStorage</code>
+  and <code>IndexedDB</code> do work, but they live in the plugin's own
+  profile, not in the DAW project: anything the user expects to survive a
+  project reload must go through <code>getStateInformation</code>. Write all
+  of this down in <code>docs/feature-parity.md</code> as you go.</div>
+</section>
+
+<!-- ============ 04 ============ -->
+<section class="sec">
+  <div class="sec-head"><span class="num">04</span><h2>The bridge</h2><span class="sub">The core idea</span></div>
+
+  <p class="lead">The bridge lets the prototype's own JavaScript keep running
+  untouched while the sound is made in C++. Everything else in this kit is
+  ordinary plugin engineering; this is the part that makes 1:1 fidelity cheap.</p>
+
+<pre><span class="c">// original page (unchanged)        bridge (JS)                    C++</span>
+g.master.gain                        mkParam(ctx, PID.master)       NativeParam[pMaster]
+  .setTargetAtTime(v, t, 0.03)   →   NB.send({k:"p", i, m:1, …})  →  Command{setParamTarget}
+                                                                     → lock-free FIFO
+voice.port.postMessage(              NVoice.postMessage             Voice::setField
+  {type:"params", p:{…}})        →   NB.send({k:"v", v, f:[…]})  →  Voice::addEvents</pre>
+
+  <h3>Four kinds of proxy</h3>
+  <table>
+    <tr><th>Proxy</th><th>Stands in for</th></tr>
+    <tr><td><code>mkParam(ctx, id)</code></td><td>An <code>AudioParam</code>: <code>value</code>, <code>setValueAtTime</code>, <code>setTargetAtTime</code>, <code>linearRampToValueAtTime</code>, <code>cancelScheduledValues</code>.</td></tr>
+    <tr><td>node stubs</td><td>Gain, delay, panner and so on — whatever properties the page touches. <code>connect()</code> is usually a no-op, because the C++ graph is fixed and only the <em>order</em> of effects is data.</td></tr>
+    <tr><td><code>mkBiquadProxy</code></td><td>A filter, including <code>getFrequencyResponse()</code>, which many prototypes use to draw a response curve. Implement it from the same coefficient formulas the engine uses, so the drawn curve matches what you hear.</td></tr>
+    <tr><td><code>NVoice(ctx, i)</code></td><td>An <code>AudioWorkletNode</code>: a <code>.port.postMessage()</code> that translates the worklet's message protocol into voice field and event messages.</td></tr>
+  </table>
+
+  <h3>Three details that matter</h3>
+  <ul class="plain">
+    <li><b>Batch.</b> One UI gesture can touch two hundred parameters. Queue
+      messages and flush once per microtask
+      (<code>Promise.resolve().then(flush)</code>) so that is one IPC message,
+      not two hundred.</li>
+    <li><b>Interpolate the clock.</b> The page needs <code>currentTime</code>
+      for scheduling. The engine pushes <code>{t, fs}</code> about thirty times
+      a second; add <code>performance.now()</code> since the last push so time
+      advances smoothly between them.</li>
+    <li><b>Add a collector mode.</b> Give the same factory an alternative
+      context that <em>records</em> parameters and events instead of sending
+      them, and offline rendering falls out for free: the page builds its
+      schedule exactly as it would for live playback, and you hand the
+      recording to a private engine instance running faster than real time.</li>
+  </ul>
+
+  <h3>The C++ side</h3>
+  <p>One POD <code>Command</code> struct through a
+  <code>juce::AbstractFifo</code>, drained at the top of
+  <code>processBlock</code>. The message thread writes, the audio thread reads,
+  never the reverse. Bulk payloads — an event schedule of thousands of items —
+  travel by pointer: the audio thread copies them and sets an atomic
+  <code>consumed</code> flag, and the message thread frees them on its next
+  timer tick. Never <code>delete</code> on the audio thread.</p>
+
+  <p>Make the queue generous (65 536 entries) and have the push retry briefly
+  rather than drop. Applying a preset bursts thousands of commands at once, and
+  a dropped command is a wrong parameter value forever.</p>
+
+  <h3>Splice, do not retype</h3>
+  <p>You will replace a handful of named functions in the page — the ones that
+  build the audio graph. Do it with a script that cuts between markers
+  (<code>tools/splice-bridge.ps1</code>), keeping the replacement bodies in
+  separate files. Then updating the prototype is a re-run, not a re-port.</p>
+</section>
+
+<!-- ============ 05 ============ -->
+<section class="sec">
+  <div class="sec-head"><span class="num">05</span><h2>Making it sound the same</h2><span class="sub">DSP parity</span></div>
+
+  <p class="lead">Treat the Web Audio API as a specification you must
+  reproduce, not an approximation you are free to improve. Every place you “do
+  it better” is a place the plugin stops sounding like the prototype.</p>
+
+  <h3>Port worklets line by line</h3>
+  <p>An <code>AudioWorkletProcessor</code> maps almost directly onto a C++
+  class. Keep the same variable names so the two can be diffed, the same
+  constants — do not round them — the same order of operations including where
+  clamps happen, and the same state layout. Keep JavaScript's
+  <code>double</code> precision for state; use <code>float</code> only at the
+  buffer boundary.</p>
+
+  <h4>The 128-sample cadence</h4>
+  <p>A worklet's <code>process()</code> runs once per 128-sample quantum, so
+  anything computed at the top of it updates at about 375 Hz, not per sample.
+  Move that per-sample “for accuracy” and you change the sound: smoothing
+  coefficients, LFO steps and drift walks all shift. Replicate it:</p>
+<pre>if (blockCounter == 0) {
+    <span class="c">// everything the worklet computed once per process() call</span>
+    drift = clamp (drift * 0.9985 + (rand01() - 0.5) * 0.02, -1, 1);
+    lfo  += 6.2831853 * rate * 128.0 / fs;
+    blockCounter = 128;
+}
+--blockCounter;</pre>
+
+  <h3>Node semantics worth memorising</h3>
+  <table class="wide">
+    <tr><th>Node</th><th>What to reproduce</th></tr>
+    <tr><td><code>setTargetAtTime</code></td><td>A one-pole exponential approach, not a ramp: per block, <code>current += (target - current) * (1 - exp(-n / (tc * fs)))</code>. Values may be scheduled in the future, so a parameter needs a small time-ordered queue.</td></tr>
+    <tr><td><code>BiquadFilterNode</code></td><td><b>Q is in decibels for lowpass and highpass</b> (<code>q = 10^(Q/20)</code>) and linear for the rest; peaking gain is in dB. <b>Clamp swept frequencies away from 0 Hz</b> — at zero the biquad degenerates and the signal vanishes.</td></tr>
+    <tr><td><code>StereoPannerNode</code></td><td>The stereo-input pan law is not the mono one. Use whichever matches how the prototype fed the node.</td></tr>
+    <tr><td><code>ConvolverNode</code></td><td><code>normalize</code> defaults to <b>true</b>, with a specific calibrated formula. Reproduce it, then load the impulse with normalisation off.</td></tr>
+    <tr><td><code>WaveShaperNode</code></td><td>A curve over [−1, 1] with 4× oversampling. Apply the same transfer function inside a <code>juce::dsp::Oversampling</code> block.</td></tr>
+    <tr><td><code>DynamicsCompressor</code></td><td>No exact public algorithm. Approximate it, and say so in the parity document. If it is doing musical work rather than catching peaks, replace it with something you can match on both sides.</td></tr>
+  </table>
+
+  <div class="note"><b>A real bug from the reference port.</b> A four-stage
+  phaser sounded right at low depth and periodically <em>vanished</em> at high
+  depth. The LFO was sweeping the all-pass frequencies below 0 Hz, where the
+  biquad degenerates. The browser clamps internally, so the prototype was fine.
+  One <code>clamp(f, 20, fs*0.49)</code> fixed it. Expect this class of bug:
+  the browser's silent safety rails are part of the specification you are
+  reproducing.</div>
+
+  <h3>Randomness and gain staging</h3>
+  <p>Anything that must be reproducible — generated impulse responses, demo
+  images — needs the <em>same</em> PRNG algorithm; a 32-bit LCG behaves
+  identically in JavaScript and C++ and gives bit-identical results. Where the
+  original used randomness for genuinely aleatoric things, any decent generator
+  is fine. Copy the prototype's staging constants exactly: they are the
+  difference between “the same patch” and “the same patch but 4 dB louder and
+  clipping”.</p>
+
+  <p>When something is wrong, suspect in this order: Q units, a missing clamp,
+  per-block versus per-sample cadence, gain staging, smoothing constants.</p>
+</section>
+
+<!-- ============ 06 ============ -->
+<section class="sec">
+  <div class="sec-head"><span class="num">06</span><h2>Real-time safety and the host</h2><span class="sub">Phases 4–5</span></div>
+
+  <h3>What the audio thread may never do</h3>
+  <p>A 128-sample buffer at 48 kHz is 2.7 ms. Miss it and the user hears a
+  click. Forbidden in <code>processBlock</code> and anything it calls:
+  allocation or deallocation of any kind (including <code>juce::String</code>,
+  growing a <code>std::vector</code>, assigning a <code>std::function</code>),
+  locks, file or network I/O, logging, calls into the WebView, and unbounded
+  loops. Allocate everything in <code>prepareToPlay</code>, which runs on the
+  message thread with audio stopped.</p>
+
+  <p>Split each block into short sub-blocks (32 samples) so parameter smoothing
+  and scheduled events land close to their true time without per-sample
+  overhead; handle note events sample-accurately inside the voice against an
+  absolute frame counter.</p>
+
+  <ul class="plain">
+    <li><b>Idle voices must cost nothing.</b> A voice whose envelope has died
+      and which has no event due returns exact silence and skips its DSP. Snap
+      its smoothers to their targets first so it wakes correctly. This is what
+      makes a sixteen-voice pool cost only what is sounding.</li>
+    <li><b>Fold buffer indices.</b> A circular-buffer write index grows
+      forever; an <code>int</code> overflowing to negative turns
+      <code>&amp; mask</code> into an out-of-bounds read after a few hours.</li>
+    <li><b>Survive a re-prepare.</b> <code>prepareToPlay</code> can be called
+      again with a new sample rate while state exists. Keep atomic shadow
+      copies of every parameter and restore from them, or changing the rate in
+      the DAW silently resets the patch.</li>
+  </ul>
+
+  <h3>Parameters</h3>
+  <p>Expose the sliders a user would automate, in the slider's <em>own</em>
+  units so the automation lane reads like the interface. Handle both
+  directions: when the page moves a control, mirror it to the host with
+  <code>setValueNotifyingHost</code> (guarded by a suppress flag so it does not
+  bounce); when the host moves a parameter, record the id as dirty in
+  <code>parameterChanged</code> — which can arrive on the audio thread — and
+  push it to the page from the editor's timer, letting the page's own handler
+  update the readout, the curve and the sound.</p>
+
+  <p><b>With the editor closed there is no page.</b> Reimplement those value
+  mappings natively for the parameters that can work headless, and list the
+  ones that genuinely cannot in the parity document rather than pretending.</p>
+
+  <h3>State, including assets</h3>
+  <p><code>getStateInformation</code> must capture everything needed to
+  reproduce what the user hears <em>and sees</em>: the parameter tree, an engine
+  snapshot, and the page's own preset blob — with assets. Let the page produce
+  a compact copy of each image (a ≤640 px JPEG data URL is tens of kB, enough
+  for both display and sampling) and push it on a debounce; the processor
+  stores the blob opaquely and hands it back when an editor appears. Never
+  restore a held note: filter gate fields out, or a reopened project starts
+  screaming.</p>
+
+  <p>Long operations — offline rendering, image decoding — belong on a
+  <code>ThreadPool</code> with the result returned via
+  <code>MessageManager::callAsync</code>. For an offline render, instantiate a
+  second private engine; never reuse the live one.</p>
+</section>
+
+<!-- ============ 07 ============ -->
+<section class="sec">
+  <div class="sec-head"><span class="num">07</span><h2>Verification</h2><span class="sub">Phase 6</span></div>
+
+  <p class="lead">There is no test suite for “does it look and sound like the
+  prototype”. Build one from three cheap, repeatable checks.</p>
+
+  <h3>1 · Probe the page headlessly</h3>
+  <p>The bridged page still runs in a plain browser, because every bridge call
+  is wrapped in <code>try/catch</code>. Load it in headless Chrome with a stub
+  backend, drive it with synthetic pointer events, and assert on the DOM —
+  three seconds, no build required. Every run should confirm: no JavaScript
+  threw, the controls hold the values you expect, canvases have non-black
+  pixels where content belongs, and a simulated drag produces a sane readout
+  and a burst of bridge messages. <code>tools/probe-ui.ps1</code> does this.</p>
+
+  <h3>2 · Build in Release, and read the warnings</h3>
+<pre>cmake --build build --config Release 2>&amp;1 | Select-String <span class="s">"error|warning C4|-> C:"</span></pre>
+
+  <h3>3 · Run it and look at it</h3>
+  <p>Launch the standalone, screenshot the window, and compare it with the
+  original page — fonts, spacing, colours, toggle states, plausible readouts.
+  This is what catches “the resource provider is serving a stale copy” and
+  “the theme is subtly wrong in WebView2”. Then load it in a DAW for the things
+  only a host can exercise: MIDI timing, automation, project save and reload,
+  opening and closing the window repeatedly, and CPU with everything on.</p>
+
+  <figure>
+    <img src="shots/example-plugin.png" alt="The worked example running as a plugin">
+    <figcaption>The worked example — <b>Photo-Synth 2</b>, a four-photo browser
+    instrument — running as a VST3. The interface is the original page,
+    unmodified apart from a spliced bridge; the entire audio engine is C++.</figcaption>
+  </figure>
+
+  <h3>Comparing sound numerically</h3>
+  <p>For deterministic paths, render the same short sequence from the prototype
+  (<code>OfflineAudioContext</code> → WAV) and from the plugin's offline render,
+  then compare peak, RMS and spectral centroid. A constant offset points at
+  gain staging; a brightness difference points at filter Q units or a missing
+  clamp.</p>
+
+  <div class="note"><b>Report honestly.</b> State what you ran and what it
+  produced. “Built clean and the standalone renders correctly; not yet tested
+  in a DAW” is a useful sentence. “Everything works” is not.</div>
+</section>
+
+<!-- ============ 08 ============ -->
+<section class="sec">
+  <div class="sec-head"><span class="num">08</span><h2>Gotchas</h2><span class="sub">Hours, saved</span></div>
+
+  <p class="lead">Every one of these cost real time on the reference port.</p>
+
+  <h4>WebView2 — the plugin editor</h4>
+  <table class="wide">
+    <tr><th>Symptom</th><th>Cause and fix</th></tr>
+    <tr><td>Editor is blank</td><td>WebView2 runtime missing, or the user-data folder is not writable. Point it at <code>%APPDATA%\&lt;Vendor&gt;\&lt;Product&gt;</code>.</td></tr>
+    <tr><td><code>prompt()</code>/<code>confirm()</code> do nothing</td><td>Suppressed. Wrap in <code>try/catch</code>, supply a default, make destructive actions immediate with a toast.</td></tr>
+    <tr><td>Download links do nothing</td><td>A WebView cannot download. Read the Blob with <code>FileReader</code> and save through a native <code>FileChooser</code>.</td></tr>
+    <tr><td>Dropdowns unreadable</td><td>Native <code>&lt;select&gt;</code> popups take the page's text colour on a system background. Style <code>select option</code> explicitly.</td></tr>
+  </table>
+
+  <h4>Headless Chrome — probes, screenshots, PDFs</h4>
+  <table class="wide">
+    <tr><th>Symptom</th><th>Cause and fix</th></tr>
+    <tr><td>No stdout from <code>--dump-dom</code></td><td>In restricted shells the call operator returns nothing. Use <code>Start-Process -RedirectStandardOutput</code> and read the file.</td></tr>
+    <tr><td>“Multiple targets are not supported”</td><td>An argument containing a comma (<code>--window-size=1400,900</code>) was split and the remainder read as a second URL. Pass the command line as one quoted string.</td></tr>
+    <tr><td><code>--screenshot</code> “Access is denied”</td><td>Lingering headless instances. Give each run its own <code>--user-data-dir</code> and kill strays between batches.</td></tr>
+    <tr><td>Blank canvas in the capture</td><td>The page draws on <code>requestAnimationFrame</code>. Allow real time: <code>--virtual-time-budget</code> plus a <code>setTimeout</code>.</td></tr>
+    <tr><td>Stray blank page in the PDF</td><td>A full-bleed cover exactly the page height. Make it 2–3 mm shorter.</td></tr>
+  </table>
+
+  <h4>PowerShell 5.1</h4>
+  <table class="wide">
+    <tr><th>Symptom</th><th>Cause and fix</th></tr>
+    <tr><td>A function silently does nothing</td><td>You assigned to <code>$args</code> — an automatic variable. Rename it.</td></tr>
+    <tr><td>A multi-line commit message is mangled</td><td>Here-strings passed to native commands are re-parsed. Write to a file and use <code>git commit -F</code>.</td></tr>
+    <tr><td>Em dashes become mojibake</td><td>Save scripts as UTF-8 <b>with BOM</b>, and use <code>[IO.File]::ReadAllText/WriteAllText</code> with explicit encoding instead of <code>Get-Content -Raw</code>/<code>Out-File</code>.</td></tr>
+  </table>
+
+  <h4>Building, installing and DSP</h4>
+  <table class="wide">
+    <tr><th>Symptom</th><th>Cause and fix</th></tr>
+    <tr><td>“Being used by another process”</td><td>The DAW holds the DLL. Rename the loaded binary to <code>.old</code>, copy the new one in.</td></tr>
+    <tr><td>DAW still shows the old build</td><td>A host maps a plugin once per session. Restart the DAW.</td></tr>
+    <tr><td>Two plugins collide</td><td>Same plugin + manufacturer code. They form the class ID.</td></tr>
+    <tr><td>A swept filter goes silent</td><td>Biquad driven to 0 Hz. Clamp to ≥ 20 Hz.</td></tr>
+    <tr><td>Filters all the wrong width</td><td><code>lowpass</code>/<code>highpass</code> take Q in dB.</td></tr>
+    <tr><td>Reverb wildly wrong level</td><td><code>ConvolverNode</code> normalises by default.</td></tr>
+    <tr><td>Clicks on a setting change</td><td>A value applied per block. Smooth it, and land graph changes under a ~60 ms master dip.</td></tr>
+    <tr><td>Patch resets on sample-rate change</td><td><code>prepareToPlay</code> re-ran and reset the DSP. Restore from shadow copies.</td></tr>
+  </table>
+</section>
+
+<!-- ============ 09 ============ -->
+<section class="sec">
+  <div class="sec-head"><span class="num">09</span><h2>Driving it with an AI</h2><span class="sub">How to use the kit</span></div>
+
+  <p class="lead">The method is packaged so an assistant can follow it: one
+  entry file that fits in context, and nine short references it reads only when
+  it needs them.</p>
+
+  <h3>Claude Code</h3>
+  <p>Copy the skill folder into your project or user profile:</p>
+<pre>&lt;project&gt;\.claude\skills\html-to-vst3\        <span class="c">(this project only)</span>
+%USERPROFILE%\.claude\skills\html-to-vst3\   <span class="c">(every project)</span></pre>
+  <p>It then appears as <code>/html-to-vst3</code>, and is offered
+  automatically when you ask for a prototype to be turned into a plugin.</p>
+
+  <h3>ChatGPT, Copilot Chat, a VS Code extension, a local model</h3>
+  <p>Paste <code>skill/PROMPT.md</code> as the system or custom instruction and
+  attach the <code>references/</code> files — or paste the relevant one at the
+  start of each phase. The content is identical; only the packaging differs.</p>
+
+  <h3>What to say</h3>
+  <p>The opening request that works:</p>
+  <div class="note">Here is a browser audio app I want as a VST3:
+  <em>&lt;path or GitHub URL&gt;</em>. Follow the html-to-vst3 method: keep the
+  page, bridge its audio layer to a C++ engine, port the DSP exactly, build in
+  Release after every phase. Start with phase 1 — read the whole prototype and
+  give me the inventory and the list of things that cannot come across.</div>
+
+  <p>Then let it work phase by phase, and hold it to the rules: build after
+  every phase, never edit the reference prototype, never guess at DSP maths,
+  and say plainly what could not be ported. Decide two things yourself early —
+  the product name, and the four-character plugin and manufacturer codes, which
+  must be unique and must never change after release.</p>
+
+  <h3>What good progress looks like</h3>
+  <ul class="plain">
+    <li>Phase 1 ends with an inventory table and an explicit omissions list.</li>
+    <li>Phase 2 ends with the <em>original page rendering inside the plugin
+      window</em>, even if it is silent. That milestone proves the hard part.</li>
+    <li>Phase 3 ends with sound that is recognisably the prototype; parity
+      hunting comes after.</li>
+    <li>Every phase ends with a Release build and a sentence about what was
+      actually run.</li>
+  </ul>
+
+  <div class="colophon">
+    <p><b>HTML → VST3 Developer Kit</b> · Brokild Apps · August 2026. Written
+    alongside a real port: <b>Photo-Synth 2</b>, a four-photo browser
+    instrument turned into a VST3 with its interface unchanged. Kit and example:
+    <code>github.com/peterboggild/BrokildApps</code>.</p>
+    <p>Use it freely. It documents one route that worked, not the only one — if
+    something here is wrong for your prototype, trust your prototype.</p>
+    <p style="color:#5a5347"><b>Peter Bøggild, August 2026.</b></p>
+  </div>
+</section>
+
+</body>
+</html>

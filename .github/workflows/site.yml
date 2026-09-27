@@ -1,0 +1,51 @@
+name: Site
+
+# The site is hand-written HTML around one generated layer (the Open Graph
+# tags, the noscript list, the README table, the sitemap). Both halves go
+# stale silently: a rename leaves a download button pointing at a file that
+# is no longer there, and an app.json edit leaves the preview tags quoting
+# the old copy. Neither shows up until someone clicks, or pastes a link.
+
+on:
+  push:
+    paths:
+      - "**.html"
+      - "**/app.json"
+      - "manifest.json"
+      - "assets/**"
+      - "README.md"
+      - "sitemap.xml"
+      - "tools/sync-site.js"
+      - "tools/check-links.js"
+      - ".github/workflows/site.yml"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  site:
+    name: Links and generated metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Dead hrefs, missing previews, app.json tags that name no label, an
+      # app.json the manifest never picked up, and two apps sharing a preview
+      # image - which is how the Collection card became a picture of Full
+      # Metal Racket without anyone noticing.
+      - name: Every local link and asset resolves
+        run: node tools/check-links.js
+
+      # The generated blocks must match the data they are generated from. If
+      # this fails, run `node tools/sync-site.js` and commit the result.
+      - name: Generated metadata is in step with manifest.json and the app.json files
+        run: node tools/sync-site.js --check

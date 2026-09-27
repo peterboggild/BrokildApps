@@ -1,0 +1,98 @@
+[
+ {
+  "name": "settle",
+  "wait": 3500
+ },
+ {
+  "name": "layout + living room, cinematic off",
+  "eval": "(function(){ var T=window.__TW; T.setCine(false); T.setFurn([{t:'sofa',x:2.2,y:4.4,yaw:180},{t:'armchair',x:0.8,y:2.6,yaw:270},{t:'rug',x:2.4,y:2.8,yaw:0},{t:'table',x:2.3,y:1.2,yaw:0},{t:'bookcase',x:0.25,y:1.2,yaw:270},{t:'bed',x:4.6,y:7.6,yaw:0},{t:'wardrobe',x:3.4,y:6.2,yaw:270},{t:'curtain',x:5.9,y:7.6,yaw:90},{t:'piano',x:11.5,y:5.5,yaw:20},{t:'person',x:9.0,y:3.5,yaw:200},{t:'person',x:13.5,y:2.5,yaw:120},{t:'bookcase',x:16.0,y:8.8,yaw:0},{t:'curtain',x:17.9,y:4.0,yaw:90},{t:'rug',x:14.5,y:5.0,yaw:30}]); T.setParam('lisx',5.2/18); T.setParam('lisy',1.2/9); T.setParam('lisyaw',145/360); T.render(); return JSON.stringify({renderer:T.renderer, errs:T.errors.slice(0,3)}); })()"
+ },
+ {
+  "name": "wait",
+  "wait": 700
+ },
+ {
+  "name": "living room OFF",
+  "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/4ed32785-f420-4c49-adc7-81af4c7d4139/scratchpad/L-large-off.png"
+ },
+ {
+  "name": "cinematic on, high, hold realtime",
+  "eval": "(function(){ window.__TW.cineHold(true); window.__TW.setCine(true,'high'); return 'on'; })()"
+ },
+ {
+  "name": "wait for the shaders",
+  "eval": "(async function(){ var t0=performance.now(); while(window.__TW.cine().ok!==true && performance.now()-t0<60000) await new Promise(function(r){setTimeout(r,100);}); return 'ready after ' + Math.round(performance.now()-t0) + ' ms, compile ' + window.__TW.cine().compileMs; })()"
+ },
+ {
+  "name": "wait",
+  "wait": 1500
+ },
+ {
+  "name": "wait",
+  "wait": 1200
+ },
+ {
+  "name": "state",
+  "eval": "JSON.stringify(window.__TW.cine())"
+ },
+ {
+  "name": "living room CINEMATIC realtime",
+  "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/4ed32785-f420-4c49-adc7-81af4c7d4139/scratchpad/L-large-cine.png"
+ },
+ {
+  "name": "release photo",
+  "eval": "(function(){ window.__TW.cineHold(false); return 'photo allowed'; })()"
+ },
+ {
+  "name": "wait for photo",
+  "eval": "(async function(){ var t0=performance.now(); while(!window.__TW.cine().converged && performance.now()-t0<30000) await new Promise(function(r){setTimeout(r,200);}); return JSON.stringify(window.__TW.cine()) + ' after ' + Math.round(performance.now()-t0) + ' ms'; })()"
+ },
+ {
+  "name": "living room PHOTO",
+  "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/4ed32785-f420-4c49-adc7-81af4c7d4139/scratchpad/L-large-photo.png"
+ },
+ {
+  "name": "idle after convergence",
+  "eval": "(async function(){ var d0=window.__TW.draws; await new Promise(function(r){setTimeout(r,1500);}); return 'draws over 1.5 s after converging: ' + (window.__TW.draws-d0); })()"
+ },
+ {
+  "name": "hold realtime",
+  "eval": "(function(){ window.__TW.cineHold(true); return 1; })()"
+ },
+ {
+  "name": "to the hall",
+  "eval": "(function(){ var T=window.__TW; T.setParam('lisx',7.2/18); T.setParam('lisy',1.2/9); T.setParam('lisyaw',40/360); return 'moved'; })()"
+ },
+ {
+  "name": "wait",
+  "wait": 1200
+ },
+ {
+  "name": "hall CINEMATIC realtime",
+  "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/4ed32785-f420-4c49-adc7-81af4c7d4139/scratchpad/L-giant-cine.png"
+ },
+ {
+  "name": "release photo",
+  "eval": "(function(){ window.__TW.cineHold(false); return 'photo allowed'; })()"
+ },
+ {
+  "name": "wait for photo",
+  "eval": "(async function(){ var t0=performance.now(); while(!window.__TW.cine().converged && performance.now()-t0<30000) await new Promise(function(r){setTimeout(r,200);}); return JSON.stringify(window.__TW.cine()) + ' after ' + Math.round(performance.now()-t0) + ' ms'; })()"
+ },
+ {
+  "name": "hall PHOTO",
+  "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/4ed32785-f420-4c49-adc7-81af4c7d4139/scratchpad/L-giant-photo.png"
+ },
+ {
+  "name": "hall OFF",
+  "eval": "(function(){ window.__TW.setCine(false); window.__TW.render(); return 'off'; })()"
+ },
+ {
+  "name": "hall OFF shot",
+  "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/4ed32785-f420-4c49-adc7-81af4c7d4139/scratchpad/L-giant-off.png"
+ },
+ {
+  "name": "bench",
+  "eval": "(function(){ var T=window.__TW; var o=[T.cineBench('off',20), T.cineBench('high',20), T.cineBench('ultra',20), T.cineBench('photo',20)]; return JSON.stringify(o) + ' errs ' + JSON.stringify(T.errors.slice(0,4)); })()"
+ }
+]

@@ -1,0 +1,23 @@
+{
+  "slug": "full-metal-racket",
+  "name": "Full Metal Racket (VST3)",
+  "description": "An analogue drum machine whose twelve voices share a power rail, a shell and a bleed web — so a hard kick dips the whole machine in pitch as well as level, and hitting the snare rings the toms. A thirty-two step sequencer with a last step per lane, so polyrhythms cost one number. Two hundred generated kits and a fader that morphs between any two.",
+  "status": "live",
+  "url": "vst3-apps/full-metal-racket/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/full-metal-racket.jpg",
+  "note": "Windows VST3 · build 260827.22 · free download · 13-page manual included.",
+  "tags": [
+    "vst3",
+    "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Full-Metal-Racket-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Full-Metal-Racket-VST3-win64.zip",
+      "bytes": 15229207,
+      "sha256": "b094507168790ef4ef0a94ad8dd90f75c53f75ba93016536c09217fc011c6cf2"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+build/
+dist/
+test/build/
+test/host/build/
+*.old*
+*.log
+test/level.txt
+test/host/last.txt

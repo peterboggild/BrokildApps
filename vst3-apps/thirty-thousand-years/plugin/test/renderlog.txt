@@ -1,0 +1,4 @@
+  docs/audio/01-thirty-thousand-years (90.0 s)  peak 0.515  rms -18.8 dBFS
+  docs/audio/02-population-zero (60.0 s)  peak 0.619  rms -18.2 dBFS
+  docs/audio/03-playable-phrase (24.0 s)  peak 0.616  rms -23.7 dBFS
+  docs/audio/04-in-an-arrangement (24.0 s)  peak 0.890  rms -13.9 dBFS

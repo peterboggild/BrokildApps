@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Black Rider — Owner's Manual</title>
+<style>
+  /* Print sheet for the Black Rider manual. A4, warm off-white paper, amber
+     accent, set against the instrument's matte-black and walnut look.
+     Rendered to PDF with: chrome --headless --print-to-pdf */
+  @page { size: A4; margin: 16mm 16mm 15mm 16mm; }
+  @page :first { margin: 0; }
+
+  :root{
+    --ink:#1a1712;
+    --ink-soft:#443c30;
+    --faint:#7d7161;
+    --paper:#f4f1ea;
+    --rule:#ddd6c8;
+    --amber:#b06a12;
+    --amber-soft:#f4e9d8;
+    --dark:#131311;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--paper); }
+  body{
+    color:var(--ink);
+    font:10.6pt/1.55 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3,h4{ font-family:Georgia,"Times New Roman",serif; font-weight:600; margin:0; }
+  p{ margin:.45em 0 .7em; }
+  b,strong{ color:#0f0d09; font-weight:600; }
+  em{ color:var(--ink-soft); }
+  code{
+    font-family:Consolas,"SF Mono",Menlo,monospace; font-size:9.2pt;
+    background:#ece5d6; border:1px solid #d8cdb4; border-radius:3px; padding:0 4px;
+    color:#8a5210;
+  }
+
+  /* ---------- cover ---------- */
+  .cover{
+    background:
+      radial-gradient(120% 80% at 74% 4%, rgba(255,170,70,.20) 0%, transparent 52%),
+      radial-gradient(90% 70% at 8% 100%, rgba(120,70,30,.30) 0%, transparent 60%),
+      linear-gradient(168deg,#211f1c 0%, #0c0c0b 100%);
+    color:#ece7dd; height:294mm; padding:22mm 22mm 15mm;
+    display:flex; flex-direction:column; break-after:page; position:relative;
+  }
+  .cover:before, .cover:after{ content:""; position:absolute; top:0; bottom:0; width:11mm;
+    background:linear-gradient(90deg,#4a2c1b,#6b3f25 20%,#3d2415 50%,#5c3620 78%,#2e1a0f);
+    box-shadow:inset 0 0 8mm rgba(0,0,0,.6); }
+  .cover:before{ left:0; } .cover:after{ right:0; }
+  .cover > *{ position:relative; z-index:2; }
+  .cover .kicker{ font-size:8.6pt; letter-spacing:.42em; text-transform:uppercase; color:#c79a5c; }
+  .cover h1{
+    font-family:Georgia,serif; font-weight:700;
+    font-size:46pt; line-height:1; margin:8mm 0 0; color:#f4efe4; letter-spacing:.06em;
+    text-shadow:0 2px 0 #000, 0 5px 16px rgba(0,0,0,.6);
+  }
+  .cover .tag{ font-size:12.5pt; color:#cdbb9c; margin:5mm 0 0; font-family:Georgia,serif; font-style:italic; max-width:150mm; }
+  .cover .rule{ height:2px; width:34mm; background:#e08a2a; margin:6mm 0 0; }
+  .cover .shot{ margin:9mm 0 0; text-align:center; }
+  .cover .shot img{
+    max-height:150mm; max-width:100%; border-radius:4px; border:1px solid #3a3630;
+    box-shadow:0 8mm 20mm rgba(0,0,0,.6);
+  }
+  .cover .foot{
+    margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end;
+    font-size:8.8pt; color:#9a8c74; letter-spacing:.06em;
+  }
+  .cover .foot b{ color:#ece0c6; font-weight:600; display:block; font-size:10pt; letter-spacing:0; }
+
+  /* ---------- structure ---------- */
+  .sec{ break-before:page; }
+  .sec-head{
+    display:flex; align-items:baseline; gap:5mm;
+    border-bottom:1.6px solid var(--ink); padding-bottom:2.4mm; margin-bottom:5mm;
+  }
+  .sec-head .num{
+    font:600 9pt/1 Consolas,monospace; color:var(--amber);
+    border:1.4px solid var(--amber); border-radius:3px; padding:1.6mm 2.2mm; letter-spacing:.06em;
+  }
+  .sec-head h2{ font-size:19pt; letter-spacing:-.01em; }
+  .sec-head .sub{ margin-left:auto; font-size:8.4pt; color:var(--faint); letter-spacing:.2em; text-transform:uppercase; }
+  h3{ font-size:12.6pt; margin:6.5mm 0 1.5mm; color:#14110c; }
+  .cols2{ column-count:2; column-gap:8mm; }
+  .keep{ break-inside:avoid; }
+
+  .plate{ text-align:center; margin:4mm 0; break-inside:avoid; }
+  .plate img{ max-width:100%; border-radius:3px; border:1px solid #c9c0ac;
+              box-shadow:0 2mm 6mm rgba(40,30,10,.22); background:#0b0b0c; }
+  .plate.wide img{ max-width:100%; }
+  .plate .cap{ font-size:8.4pt; color:var(--faint); margin-top:1.6mm; letter-spacing:.06em; }
+
+  .callout{
+    background:var(--amber-soft); border-left:3px solid var(--amber);
+    padding:3mm 4mm; border-radius:0 3px 3px 0; margin:3mm 0; break-inside:avoid;
+    font-size:9.8pt;
+  }
+  .dark{
+    background:linear-gradient(168deg,#211f1b,#131210); color:#e4ddce;
+    border-radius:4px; padding:4mm 5mm; margin:3mm 0; break-inside:avoid;
+  }
+  .dark h3{ color:#eabf6a; margin-top:0; }
+  .dark code{ background:#2c2a24; border-color:#4e4630; color:#f0b23c; }
+
+  table{ border-collapse:collapse; width:100%; margin:2.5mm 0 4mm; font-size:9.6pt; break-inside:avoid; }
+  th{ text-align:left; font-size:8.2pt; letter-spacing:.12em; text-transform:uppercase;
+      color:var(--faint); border-bottom:1.4px solid var(--ink); padding:1.4mm 2.5mm 1.4mm 0; }
+  td{ border-bottom:.6px solid var(--rule); padding:1.7mm 2.5mm 1.7mm 0; vertical-align:top; }
+  td.k{ font-weight:600; white-space:nowrap; color:#120e07; }
+  td.mono, .mono{ font-family:Consolas,monospace; font-size:9pt; color:#8a5210; }
+
+  .foot-note{ font-size:8.6pt; color:var(--faint); border-top:.6px solid var(--rule);
+              margin-top:5mm; padding-top:2mm; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ COVER ═══════════════════ -->
+<div class="cover">
+  <div class="kicker">Brokild &middot; Windows VST3 &middot; Owner's Manual</div>
+  <h1>BLACK&nbsp;RIDER</h1>
+  <div class="tag">An analogue monosynth that sits between the screaming Sallen-Key and the
+  round Moog ladder &mdash; two oscillators that drift and lock, a patch bay that wires
+  anything to anything, and the effects a monosynth actually gets played through.</div>
+  <div class="rule"></div>
+  <div class="shot"><img src="img/panel.jpg" alt="The Black Rider front panel"></div>
+  <div class="foot">
+    <div><b>BLACK RIDER</b>two VCO &middot; scream / ladder &middot; patch bay &middot; spring &middot; tape &middot; chorus &middot; drive</div>
+    <div style="text-align:right"><b>BROKILD</b>free &middot; VST3 + standalone &middot; 64-bit</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 1 · THE IDEA ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">01</span><h2>Between two great machines</h2>
+  <span class="sub">the idea</span></div>
+
+  <div class="cols2">
+    <p>Two monosynths define the ground this instrument stands on. One is the Korg MS-20:
+    a Sallen-Key filter with a pair of diodes in its feedback path, which keeps its bass
+    when you turn the resonance up and, past the edge, squeals with harmonics &mdash; a
+    thin, eerie, aggressive voice. The other is the Moog: a four-pole transistor ladder
+    whose resonance is round, whose bass thins as the resonance rises, and which sings a
+    clean sine when it takes off &mdash; the fat bass every record is built on.</p>
+
+    <p>Black Rider is not a copy of either. It is a new instrument that carries both
+    filters and lets you decide, per patch, which circuit the sound goes through. Around
+    them sit two oscillators built to behave like real analogue oscillators &mdash; not
+    perfect ones &mdash; and a patch bay in the spirit of both the MS-20 and the Moog
+    Grandmother, where the modules stop being wired for you and start being wired by you.</p>
+
+    <div class="callout"><b>The difference between &ldquo;nearly there&rdquo; and
+    &ldquo;there&rdquo;</b> is behaviour under pressure. Every stage here does the thing
+    its analogue equivalent does when you push it: the oscillators drift and slowly fall
+    into lock, the mixer and both filters saturate in their own different ways, the
+    envelopes are RC curves and never restart from zero, and each of the three voices has
+    its own component tolerances. None of it is decoration; it is what the ear uses to
+    decide a sound is real.</p></div>
+
+    <h3>What is measured, not hoped</h3>
+    <p>An offline bench renders real audio through the engine and checks the claims by
+    Goertzel analysis and zero-crossing tracking. Both filters self-oscillate within
+    <span class="mono">6&nbsp;cents</span> of their set cutoff across the range; at 2&times;
+    and 4&times; oversampling every alias sits below <span class="mono">&minus;60&nbsp;dB</span>;
+    with VINTAGE at zero the tuning wanders <span class="mono">0.07&nbsp;cents</span> and
+    the output is dead silent with no note held, while at full VINTAGE it wanders a musical
+    couple of cents. The instrument is warm because those numbers are warm, not because a
+    label says so.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ 2 · QUICK START ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">02</span><h2>Thirty seconds of instructions</h2>
+  <span class="sub">quick start</span></div>
+
+  <div class="cols2">
+    <p><b>1.</b> Load Black Rider as an instrument, or run the standalone. It answers your
+    MIDI keyboard, and it has its own keyboard along the bottom with a pitch and a mod
+    wheel.</p>
+    <p><b>2.</b> Press <b>PATCHES</b> and pick one. BLACK BASS and ACID RIDER are the low
+    end; RIDER LEAD and SCREAM SWEEP show off the Sallen-Key; THREE RIDERS and GHOST ORGAN
+    are the polyphonic, stereo-spread patches; FEEDBACK HOWL is the old MS-20 trick wired
+    through the bay.</p>
+    <p><b>3.</b> Turn the two big <b>CUTOFF</b> knobs and the <b>PEAK</b> beside the low
+    pass. Flip the filter between <b>SCREAM</b> and <b>LADDER</b> and hear the whole
+    character change under the same setting.</p>
+    <p><b>4.</b> Press <b>PATCH BAY</b>. The panel grows a wing to the right. Drag a cable
+    from a red hole to a black one &mdash; the LFO into a cutoff, an envelope into a pitch.
+    Roll the mouse wheel over a cable to set how much. Double-click it to pull it out.</p>
+    <p><b>5.</b> Press <b>RANDOM</b> when you want a whole new machine, and <b>SAVE</b> when
+    one is worth keeping.</p>
+
+    <div class="dark">
+      <h3>The one thing to know</h3>
+      <p>Everything on the panel is one instrument, wired left to right: two oscillators and
+      the extras are summed in the <b>MIXER</b>, the mix runs through the <b>FILTER</b>, the
+      filter through the <b>VCA</b>, and the VCA through the effects to the output. The two
+      envelopes and the LFO shape it; the patch bay lets you break that order wherever you
+      like.</p>
+    </div>
+  </div>
+
+  <div class="plate wide"><img src="img/panel.jpg" alt="The whole panel">
+    <div class="cap">The front panel. Signal flows left to right, top to bottom; the keyboard and wheels are yours to play.</div></div>
+</div>
+
+<!-- ═══════════════════ 3 · THE OSCILLATORS ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">03</span><h2>The two oscillators</h2>
+  <span class="sub">VCO 1 &middot; VCO 2</span></div>
+
+  <div class="cols2">
+    <p>Each oscillator is a phase accumulator with polynomial band-limited steps and ramps,
+    run oversampled, so a saw is a saw all the way up the keyboard without the digital
+    grit of a naïve ramp. Four waves: <b>saw</b>, <b>triangle</b>, <b>pulse</b> (with width
+    and PWM) and <b>sine</b>. <b>RANGE</b> sets the octave (32&prime; to 4&prime;),
+    <b>SEMITONE</b> and <b>FINE</b> the interval, <b>LEVEL</b> how much reaches the mixer.</p>
+
+    <p>What makes them sound like circuits is what they get wrong, on purpose, under
+    <b>VINTAGE</b>: a slow temperature walk, a faster jitter, an exponential converter that
+    goes slightly flat at the very top of its range the way a real one does, and per-voice
+    component tolerances so a five-note chord is five slightly different synthesizers.
+    Turn VINTAGE down and it is clean and stable; turn it up and it breathes.</p>
+
+    <div class="plate"><img src="img/vco1.jpg" alt="VCO 1"><div class="cap">VCO 1 &mdash; wave, range, semitone, fine, width and PWM.</div></div>
+
+    <h3>VCO 2 &mdash; sync, FM and lock</h3>
+    <p>VCO 2 adds three things. <b>SYNC</b> hard-syncs it to VCO 1: the reset is
+    band-limited by the actual size of the jump, so a swept sync is a clean, glassy tone,
+    not a bag of aliases. <b>FM</b> is exponential modulation of VCO 2 by VCO 1 &mdash;
+    small amounts are vibrato and growl, large amounts are bells and clangs. <b>KBD</b>
+    lets you take VCO 2 off the keyboard so it holds a fixed pitch, a drone under the notes.</p>
+
+    <p>And when the two oscillators sit within a few cents of each other, VCO 2 is weakly
+    pulled towards VCO 1 and the pair slowly falls into lock &mdash; exactly as two
+    oscillators on one circuit board do. The <b>LOCK</b> lamp on VCO 1 lights when they
+    have. VINTAGE sets how strong the pull is.</p>
+
+    <div class="plate"><img src="img/vco2.jpg" alt="VCO 2"><div class="cap">VCO 2 &mdash; the same, plus SYNC, FM and a keyboard switch.</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 4 · MIXER + FILTER ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">04</span><h2>The mixer and the two filters</h2>
+  <span class="sub">mixer &middot; scream / ladder</span></div>
+
+  <div class="cols2">
+    <p>The <b>MIXER</b> sums the two oscillators and adds three things of its own: a
+    <b>SUB</b> square one or two octaves below VCO 1 (it is divided off VCO 1's own edges,
+    so it carries every wobble VCO 1 has); <b>NOISE</b>, white or pink; and <b>RING</b>, the
+    ring modulation of the two oscillators. The whole sum passes through <b>DRIVE</b>, a
+    saturating stage before the filter &mdash; this is where a monosynth gets its body, and
+    turning it up thickens everything downstream.</p>
+
+    <div class="plate"><img src="img/mixer.jpg" alt="Mixer"><div class="cap">MIXER &mdash; sub, noise, ring, and the pre-filter drive.</div></div>
+
+    <div class="dark">
+      <h3>Three filters, one switch</h3>
+      <p><b>GROWL</b> and <b>SCREAM</b> are the same two-pole Sallen-Key circuit &mdash; a
+      diode clipper in its feedback path, solved as a zero-delay loop &mdash; the MS-20
+      idea. They keep their low end as PEAK rises. The difference is how hard PEAK pushes:
+      GROWL only crosses into self-oscillation near the very top of the dial, so for most of
+      the travel it is a gnarly, thin resonance; SCREAM crosses <b>just past two
+      o'clock</b> and is then pushed far harder into the diodes, so the top of its dial is a
+      loud, filthy howl. Because the oscillation is exactly at the cutoff and the filter
+      tracks the keyboard through KEY, a SCREAM patch past the edge with KEY up is a
+      playable oscillator in its own right &mdash; turn the oscillator LEVELs down
+      and play the filter. <b>LADDER</b> is a four-pole transistor ladder with saturation in
+      every stage; its resonance is round, its bass thins as PEAK rises, and it
+      self-oscillates into a pure sine &mdash; the Moog voice. The same patch flipped
+      between the three is three different instruments.</p>
+    </div>
+    <div class="callout"><b>Measured.</b> All three self-oscillate within a cent or two of the
+    set cutoff across the range &mdash; the correction follows how hard the clipper is being
+    driven, so the scream stays in tune however far you push it. SCREAM sings at
+    <span class="mono">0.18</span> RMS just past two o'clock while GROWL is silent there and
+    only wakes near the top; a SCREAM tone played an octave apart on the keyboard, KEY full,
+    comes out at a <span class="mono">2.00</span> ratio &mdash; in tune.</div>
+
+    <p>The filter has a full <b>HIGH PASS</b> (with its own PEAK) ahead of the
+    <b>LOW PASS</b>, so you can hollow the sound out from both ends &mdash; a very MS-20
+    thing to do. Below the cutoffs sit the modulation trims: <b>EG&nbsp;1</b> (how far the
+    filter envelope sweeps the cutoff, either direction), <b>KEY</b> (how much the cutoff
+    tracks the note), and <b>LFO</b>.</p>
+
+    <div class="plate"><img src="img/filter.jpg" alt="Filter"><div class="cap">FILTER &mdash; high pass, low pass, the SCREAM/LADDER switch, and the modulation trims.</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 5 · ENVELOPES, LFO, VCA ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">05</span><h2>Envelopes, the LFO and the amplifier</h2>
+  <span class="sub">EG 1 &middot; EG 2 &middot; LFO &middot; VCA</span></div>
+
+  <div class="cols2">
+    <p><b>EG&nbsp;1</b> is the filter envelope, <b>EG&nbsp;2</b> the amplifier envelope.
+    Both are the analogue RC shapes &mdash; a fast-then-slowing attack, exponential decay
+    and release &mdash; and a retrigger continues from wherever the envelope already is,
+    never a click back to zero. <b>VEL</b> sets how much key velocity scales each one. The
+    small window in each panel draws the shape and shows the live level.</p>
+
+    <div class="plate"><img src="img/eg1.jpg" alt="EG 1"><div class="cap">EG 1 sweeps the cutoff; how far is the EG&nbsp;1 knob over in the filter.</div></div>
+
+    <p>The <b>VCA</b> switch under EG 2 chooses what opens the amplifier: <b>EG2</b> (the
+    normal case), <b>GATE</b> (a hard on/off, for stabs and organ tones), or <b>DRONE</b>
+    (always open &mdash; the synth makes sound with no note held, for the patch bay and for
+    pads).</p>
+
+    <h3>The LFO</h3>
+    <p>The <b>LFO</b> runs from <span class="mono">0.02&nbsp;Hz</span> to
+    <span class="mono">2&nbsp;kHz</span> &mdash; slow enough for a minutes-long sweep, fast
+    enough to be an audio-rate modulation source. Six shapes, including S&amp;H and a smooth
+    random DRIFT. <b>PITCH</b> is the standing vibrato it always applies; <b>WHEEL</b> is the
+    vibrato your mod wheel adds on top; <b>KEY RESET</b> restarts its phase on each new note.
+    The LFO is also a source in the patch bay, so it can reach anything.</p>
+
+    <p>The row along the bottom locks the LFO to the <b>host clock</b>: FREE leaves the RATE
+    knob in charge; 1/1 to 1/16 are divisions of a bar at the song tempo, and <b>T</b> and
+    <b>D</b> make the chosen division triplet or dotted. The tape delay has the same row.</p>
+
+    <div class="plate"><img src="img/lfo.jpg" alt="LFO"><div class="cap">LFO &mdash; six shapes, 0.02&nbsp;Hz to 2&nbsp;kHz, vibrato depth and wheel amount.</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 6 · VOICE ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">06</span><h2>One rider, or five</h2>
+  <span class="sub">voice &middot; the stereo spread</span></div>
+
+  <div class="cols2">
+    <p>The <b>MODE</b> switch chooses <b>MONO</b>, <b>UNISON</b> (three voices on one
+    note, detuned by <b>DETUNE</b> and fanned across the stereo field), or <b>POLY&nbsp;5</b>
+    &mdash; five-note polyphony. It breaks the monosynth illusion a little, and it is worth
+    it.</p>
+
+    <p><b>GLIDE</b> is the portamento; <b>LEGATO</b> makes it, and the envelopes, only
+    retrigger when you actually lift off between notes &mdash; the classic mono lead
+    behaviour. <b>TUNE</b> and <b>BEND</b> set master tuning and the pitch-wheel range;
+    <b>VINTAGE</b> is the master &ldquo;how much circuit&rdquo; control described earlier.
+    <b>QUALITY</b> sets the oversampling &mdash; 2&times; is the sensible default, 4&times;
+    for the most aggressive sync and FM.</p>
+
+    <div class="callout"><b>The chord stereo spread.</b> In POLY&nbsp;5 there are five stereo
+    stations &mdash; far left, half left, middle, half right, far right. A chord struck
+    together is ranked by pitch and placed across them: two notes go hard left and right,
+    three put the <b>bottom note in the centre</b> with the upper voices opened out, four
+    take the outer stations, five fill the row. A note added to a chord that is already
+    sounding takes the nearest free station &mdash; <b>nothing that is already playing ever
+    moves</b>, so overlapping lines sit still instead of wandering across the field. The
+    <b>SPREAD</b> knob sets how wide, from dead centre to fully panned. It is the fastest
+    way to make a handful of oscillators sound like a small string section.</p></div>
+
+    <div class="plate"><img src="img/voice.jpg" alt="Voice"><div class="cap">VOICE &mdash; mode, spread, detune, glide, tuning, bend, vintage and quality.</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 7 · THE SEED DIAL ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">07</span><h2>Two hundred patches on a dial</h2>
+  <span class="sub">the seed library</span></div>
+
+  <div class="cols2">
+    <p>The red LED in the header is the <b>SEED</b> dial, and it runs from 000 to 199. Every
+    one of those two hundred numbers <b>is</b> a patch: dialling it generates a complete
+    sound &mdash; oscillators, filter, envelopes, effects, even patch-bay cables &mdash; from
+    the number alone. The same number is always the same instrument, on any machine, in any
+    project. Drag the digits, roll the wheel over them, or use the two arrows; <b>RANDOM</b>
+    dials one at random.</p>
+
+    <p>The patches are honest about what they are, because each seed is given a
+    <b>category</b> first and its parameters are then generated to fit &mdash; so the name
+    and the category on the menu always match the sound. The <b>PATCHES</b> menu lists all
+    two hundred grouped by category, with your twelve hand-made <b>SIGNATURE</b> patches at
+    the top.</p>
+
+    <table>
+      <tr><th>Category</th><th>Count</th><th>What it makes</th></tr>
+      <tr><td class="k">BASS</td><td class="mono">26</td><td>low, mono, EG-swept &mdash; the ladder's home ground</td></tr>
+      <tr><td class="k">ACID</td><td class="mono">12</td><td>resonant, gliding, driven &mdash; the 303 idea</td></tr>
+      <tr><td class="k">LEAD</td><td class="mono">24</td><td>mono leads with glide and vibrato</td></tr>
+      <tr><td class="k">PLUCK</td><td class="mono">20</td><td>fast, short, percussive</td></tr>
+      <tr><td class="k">PAD</td><td class="mono">22</td><td>slow, wide, chorused and sprung</td></tr>
+      <tr><td class="k">STRINGS</td><td class="mono">16</td><td>unison, ensemble-chorused sections</td></tr>
+      <tr><td class="k">ORGAN</td><td class="mono">16</td><td>drawbar tones, no filter sweep, fast gate</td></tr>
+      <tr><td class="k">BRASS</td><td class="mono">12</td><td>the filter-swell brass staple</td></tr>
+      <tr><td class="k">KEYS</td><td class="mono">14</td><td>bells and electric pianos</td></tr>
+      <tr><td class="k">DRONE</td><td class="mono">16</td><td>self-sounding, evolving, no key needed</td></tr>
+      <tr><td class="k">SYNC</td><td class="mono">10</td><td>hard-synced sweeps</td></tr>
+      <tr><td class="k">NOISE</td><td class="mono">12</td><td>percussion and effects</td></tr>
+    </table>
+
+    <div class="callout"><b>The dial reads the seed; the sound is whatever is on the panel.</b>
+    Dial a seed and everything jumps to it. Tweak a knob afterwards and the sound is yours,
+    though the dial still shows the seed you started from. A saved patch, or a DAW project,
+    keeps the actual values &mdash; the seed rides along as a label. A fresh instance opens
+    on seed 000.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 8 · PATCH BAY ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">08</span><h2>The patch bay</h2>
+  <span class="sub">anything into anything</span></div>
+
+  <div class="cols2">
+    <p>Press <b>PATCH BAY</b> and the panel grows a wing to the right. Eight cables, each
+    from any <b>source</b> (a red hole &mdash; the oscillators, the noise, the filter or VCA
+    output, the two envelopes, the LFO, the S&amp;H, and every keyboard control) to any
+    <b>destination</b> (a black hole &mdash; the pitches, the pulse widths, the cutoffs and
+    peaks, the filter and VCA inputs, the LFO rate, the pan, the drive, the delay time).</p>
+
+    <p>Drag from a red hole to a black one to make a cable. Roll the mouse wheel over a cable
+    to set the amount; negative amounts invert and draw as a dashed cord. Double-click a
+    cable, or a patch point, to pull it out. A cable <b>adds</b> to whatever the front-panel
+    knob is already doing &mdash; it never replaces it.</p>
+
+    <div class="dark">
+      <h3>Nothing here cares what is &ldquo;audio&rdquo; and what is &ldquo;control&rdquo;</h3>
+      <p>That is the whole point, and it is where the good accidents live. An oscillator into
+      a cutoff is filter FM. An envelope into the delay time is a pitch-shifting echo. The
+      LFO into its own rate is a runaway. And the <b>VCA output back into the filter
+      input</b> is the famous MS-20 feedback patch &mdash; wired here in one cable
+      (it is the FEEDBACK&nbsp;HOWL factory patch).</p>
+    </div>
+
+    <p>Cables are part of the patch: they save, they load, and they ride in the DAW project
+    with everything else. Each patch point is a block of three holes, so up to three cables
+    can share a source or a destination.</p>
+  </div>
+
+  <div class="plate"><img src="img/bay.jpg" alt="The patch bay wing">
+    <div class="cap">The patch bay wing. Red holes give, black holes take; three cables here run EG&nbsp;1&rarr;VCO&nbsp;2 pitch, LFO&rarr;cutoff, and VCA&rarr;filter in.</div></div>
+</div>
+
+<!-- ═══════════════════ 9 · EFFECTS ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">09</span><h2>The effects a monosynth gets played through</h2>
+  <span class="sub">drive &middot; chorus &middot; tape &middot; spring</span></div>
+
+  <div class="cols2">
+    <p><b>DRIVE</b> is an asymmetric overdrive with a biased shaper, so it adds both even
+    and odd harmonics &mdash; grit and thickness, with a <b>TONE</b> control to keep the top
+    end under control. It runs oversampled, after the voices.</p>
+
+    <div class="plate"><img src="img/drive.jpg" alt="Drive"><div class="cap">DRIVE.</div></div>
+
+    <p><b>CHORUS</b> is a bucket-brigade (BBD) chorus &mdash; a short modulated delay per
+    side with the gentle high-frequency loss and the faint clock whisper of a real BBD chip.
+    <b>RATE</b>, <b>DEPTH</b>, <b>MIX</b>. It is stereo, and it is what turns UNISON into a
+    wall.</p>
+
+    <div class="plate"><img src="img/chorus.jpg" alt="Chorus"><div class="cap">CHORUS &mdash; BBD.</div></div>
+
+    <p><b>TAPE DELAY</b> is a tape echo, not a clean digital one. <b>TIME</b> really does
+    bend the pitch while you move it &mdash; the tape has to speed up or slow down to get
+    there. <b>FEEDBACK</b>, a <b>TONE</b> that darkens each repeat, and <b>WOW</b> for the
+    wow-and-flutter of a worn transport &mdash; a smooth wander, never a step. The sync row
+    locks the time to the host clock (1/1 to 1/16, with triplet and dotted feels), and a
+    tempo change bends the pitch of the repeats exactly as the TIME knob would. The reels
+    on the panel turn while it runs.</p>
+
+    <div class="plate"><img src="img/delay.jpg" alt="Tape delay"><div class="cap">TAPE DELAY &mdash; the TIME knob bends the pitch as it moves.</div></div>
+
+    <div class="dark">
+      <h3>SPRING is a real spring</h3>
+      <p>The spring reverb is built from three dispersive spring lines, each a long cascade
+      of allpass sections. A real spring passes high frequencies faster than low ones, so
+      every reflection arrives as a downward chirp &mdash; that unmistakable
+      &ldquo;boing&rdquo;. Here the boing is the dispersion, not an EQ trick. <b>DWELL</b>
+      is the decay, <b>TONE</b> the brightness, <b>MIX</b> the amount.</p>
+    </div>
+
+    <div class="plate"><img src="img/spring.jpg" alt="Spring"><div class="cap">SPRING &mdash; three dispersive springs.</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 10 · KEYBOARD + OUTPUT ═══════════════════ -->
+
+<!-- ================= 10. THE WORLD RACK ================= -->
+<div class="sec">
+  <div class="sec-head">
+    <span class="num">10</span>
+    <h2>The world rack</h2>
+    <span class="sub">the rack every Brokild synth carries</span>
+  </div>
+
+  <p class="lead">Every Brokild synth carries the same rack. Not a copy of it and not a
+  similar one: the identical set of effects and characters, compiled into each
+  instrument and saved inside each patch. Learn it here and you have learned it
+  in all of them.</p>
+
+  <div class="cols2">
+    <p>The globe on the panel opens it. What appears is two racks side by side &mdash; <b>effects</b> on the left, <b>characters</b> on the right &mdash; and they do very different things. An effect processes what the synth has already made. A character reaches back into the instrument and changes how it makes it.</p>
+    <div class="plate"><img src="img/world-rack.jpg" alt="The Brokild World FX rack"><div class="cap">The world rack. Twelve effect pedals on the left, six characters on the right, and one <b>RACK MIX</b> over the lot. Here <b>TUBE</b>, <b>ECHO</b>, <b>SPACE</b> and <b>ROTARY</b> are lit, with <b>GLASS CATHEDRAL</b> and <b>TAPE SEANCE</b> holding the instrument.</div></div>
+    <p>Nothing is on when you start, and an empty rack is not a bypass &mdash; it is an absence. The audio never enters it. A patch you made before the rack existed sounds exactly as it did, to the sample, and the plugin's own test bench checks that on every build.</p>
+  <h3>The pedals</h3>
+    <p>Twelve, in the order they run: <b>TUBE</b> (asymmetric valve saturation, and its DRIVE holds its level as you turn it up, so the pedal gets dirtier rather than louder), <b>SWEEP</b> (four-stage phaser), <b>ENSEMBLE</b> (dual-line chorus), <b>HARMONIC</b> (the brownface split-band tremolo, plus plain tremolo and true vibrato), <b>GATE</b> (rhythmic stutter), <b>GRIT</b> (crusher and dirt), <b>STRIP</b> (compressor and five-band EQ), <b>ECHO</b> (stereo tape echo up to five seconds), <b>SPACE</b> (true convolution reverb), <b>SHIMMER</b> (a feedback network with the octave folded back into the loop), <b>ROTARY</b> (a Leslie with real inertia &mdash; the horn takes about a second to change its mind, the drum about four) and <b>KIERANATOR</b> (the step glitcher). ECHO, GATE and HARMONIC lock to the host clock.</p>
+    <div class="plate"><img src="img/rack-pedal.jpg" alt="One pedal opened"><div class="cap">Every pedal carries one control it does not own itself: <b>PRESENCE</b>, in the rack's own colour. It is how much of that pedal is in the signal at all &mdash; at zero the pedal is inert and the audio passes it untouched.</div></div>
+    <p>Drag a pedal by its grip to reorder the chain, or use the arrows. Reordering while sound is playing is safe: the rack dips through the change and comes back on the other side.</p>
+  <h3>The characters</h3>
+    <p>The right-hand rack is <b>SPECTRA</b>, and it does not process the sound &mdash; it possesses the instrument. A character reaches into the voices themselves: how far they drift out of tune with each other, how wide they sit, whether they breathe, whether they sag flat as they die, how dark the filter runs. Two synths under the same character do not sound alike. They sound like themselves, haunted the same way.</p>
+    <p><b>DARK DRONE</b> is a cluster gone dark, with a drift that takes minutes to come round. <b>PSYCHEDELIC PINK</b> breathes the width, tuning and filter over a wash of phaser, chorus and reverse reverb it carries itself. <b>INDUSTRIAL BLACK</b> is grind, chop and clang. <b>GLASS CATHEDRAL</b> is a hall of its own and a breath on the tuning. <b>TAPE SEANCE</b> is the wow of a dying machine. <b>INSECT SWARM</b> is sixteen wings, none of them agreeing.</p>
+    <div class="plate"><img src="img/rack-character.jpg" alt="A character opened"><div class="cap">A character opened. <b>PRESENCE</b> here is how hard it grips, so you can have a suggestion of one character and the full weight of another.</div></div>
+    <p>Characters stack: arm two and both take hold, in the order you armed them. Their pitch sag is keyed to each note's gate rather than its volume, so a held note stays in tune and only sinks as it dies. In Black Rider the characters get inside the two oscillators and the filter — the detuning spreads across the five voices, the sag is keyed to each note's gate, and a drone held open by the VCA never sags at all.</p>
+  <h3>The step glitcher</h3>
+    <p><b>KIERANATOR</b> keeps the last ten seconds of everything the synth has played, and every one of its effects is a different way of reading that buffer back. Paint a bar of sixteen steps with the brushes &mdash; RETRIG, TAPE STOP, REVERSE, SHUFFLE, PITCH, CRUSH, GATE &mdash; and it plays the pattern against the host's bars. The same brush again clears a step. With no host transport it free-runs on its own clock. It is named for the late Kieran Foster, whose Glitch made this kind of thing worth doing.</p>
+  <h3>What the rack remembers</h3>
+    <p>The rack belongs to the patch. Save a patch and its rack goes with it; load one from before the rack existed and it comes back rack-empty, which is exactly the sound it promised. The <b>PRESETS</b> menu in the header holds ten made-up racks to start from. And because the rack is shared code, every Brokild synth gets new modules and fixes on its next build &mdash; the effects are the same effects, wherever you opened them.</p>
+  </div>
+</div>
+
+<div class="sec">
+  <div class="sec-head"><span class="num">11</span><h2>Playing it, and the output</h2>
+  <span class="sub">keyboard &middot; wheels &middot; output</span></div>
+
+  <div class="cols2">
+    <p>The keyboard along the bottom plays the synth with the mouse (click a key; the
+    vertical position sets velocity) or from your computer keyboard &mdash; the home row
+    <code>Z S X D C V G B H N J M</code> is an octave, <code>Q</code> and <code>W</code>
+    shift it down and up. The <b>PITCH</b> wheel springs back to centre; the <b>MOD</b>
+    wheel stays where you leave it and feeds the LFO's WHEEL amount. Both mirror your
+    hardware controller in real time, and both are sources in the patch bay.</p>
+
+    <div class="plate"><img src="img/keyboard.jpg" alt="Keyboard and wheels"><div class="cap">The keyboard, the pitch and mod wheels, and the octave buttons.</div></div>
+
+    <p>At the far right, <b>OUTPUT</b> has the master <b>VOLUME</b>, a stereo meter with RMS
+    and peak, a <b>CEILING</b> lamp that lights when the transparent output limiter is
+    catching a peak, and a <b>PANIC</b> button that silences every voice and resets the
+    effects. A soft ceiling sits on the master unconditionally, so nothing here &mdash; not
+    a screaming filter, not a feedback patch &mdash; can put a spike into your monitors.</p>
+
+    <div class="plate"><img src="img/output.jpg" alt="Output"><div class="cap">OUTPUT &mdash; volume, meters, the ceiling lamp and panic.</div></div>
+
+    <p>The <b>LIGHT</b> slider in the header lifts the panel's shadows without flattening its
+    contrast, for a brighter room. <b>ABOUT</b> tells you whose fault all this is.</p>
+
+    <div class="plate"><img src="img/about.jpg" alt="About box"><div class="cap">ABOUT.</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 11 · REFERENCE ═══════════════════ -->
+<div class="sec">
+  <div class="sec-head"><span class="num">12</span><h2>Patch-bay reference</h2>
+  <span class="sub">sources &amp; destinations</span></div>
+
+  <table>
+    <tr><th>Source (red)</th><th>What it is</th></tr>
+    <tr><td class="k">VCO 1 / VCO 2</td><td>the raw oscillator, audio &mdash; into a cutoff it is filter FM</td></tr>
+    <tr><td class="k">NOISE</td><td>white noise, audio</td></tr>
+    <tr><td class="k">FILTER OUT / VCA OUT</td><td>the signal after the filter, and after the amplifier</td></tr>
+    <tr><td class="k">EG 1 / EG 2</td><td>the filter and amplifier envelopes, 0&ndash;1</td></tr>
+    <tr><td class="k">LFO / S&amp;H</td><td>the LFO, and noise sampled once per LFO cycle</td></tr>
+    <tr><td class="k">KEY CV / VELOCITY / GATE</td><td>the note as a voltage, how hard it was hit, and whether a key is down</td></tr>
+    <tr><td class="k">MOD WHEEL / AFTERTOUCH / PITCH BEND</td><td>the performance controls</td></tr>
+  </table>
+
+  <table>
+    <tr><th>Destination (black)</th><th>What it does</th></tr>
+    <tr><td class="k">VCO1 / VCO2 / BOTH PITCH</td><td>oscillator pitch &mdash; an envelope here is a sync or bell sweep</td></tr>
+    <tr><td class="k">VCO1 / VCO2 WIDTH</td><td>pulse width</td></tr>
+    <tr><td class="k">VCO2 LIN FM</td><td>linear FM of VCO 2 &mdash; audio in here makes bells and metal</td></tr>
+    <tr><td class="k">HPF / LPF CUTOFF, HPF / LPF PEAK</td><td>the filter frequencies and resonances</td></tr>
+    <tr><td class="k">FILTER IN</td><td>audio straight into the filter &mdash; the feedback patch lives here</td></tr>
+    <tr><td class="k">VCA CV / VCA IN</td><td>the amplifier's gain, and audio into it past the filter</td></tr>
+    <tr><td class="k">LFO RATE</td><td>speeds or slows the LFO, up to four octaves either way</td></tr>
+    <tr><td class="k">PAN / DRIVE / DELAY TIME</td><td>stereo position, the drive amount, and the tape time (which bends)</td></tr>
+  </table>
+
+  <div class="callout"><b>Everything is automatable</b> from the host except QUALITY (the
+  oversampling), which would glitch if a lane moved it mid-note. Patches save as
+  <code>.json</code> files beside the plugin; the DAW project keeps its own full copy.</div>
+
+  <div class="foot-note">Black Rider &mdash; Brokild, August 2026. Built with VS Code and
+  Claude. This is free software given as-is; play unwisely. The number on the header is the
+  build id &mdash; quote it if something is wrong and I will know which one you have.</div>
+</div>
+
+</body>
+</html>

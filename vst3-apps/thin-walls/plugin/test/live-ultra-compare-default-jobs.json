@@ -1,0 +1,42 @@
+[
+ {
+  "name": "settle",
+  "wait": 4000
+ },
+ {
+  "name": "DEFAULT",
+  "eval": "(async function(){ window.__JUCE__.backend.emitEvent('tw', { k:'presetDefault' }); await new Promise(function(r){ setTimeout(r, 1500); }); return 'default'; })()"
+ },
+ {
+  "name": "signal",
+  "eval": "(async function(){ var b = window.__JUCE__.backend; b.addEventListener('rec', function(r){ window.__rec = r; }); b.emitEvent('tw', { k:'wavPath', path:'C:/Users/peter/b/ThinWalls/test/testsignal.wav' }); await new Promise(function(r){ setTimeout(r, 1500); }); return 'ok'; })()"
+ },
+ {
+  "name": "the scene as it stands",
+  "eval": "(async function(){ return JSON.stringify({ furn: (typeof furn!=='undefined'? furn.length : -1), s1: V.sin1, s2: V.sin2, s3: V.sin3, s4: V.sin4, mat1: V.mat1, mat2: V.mat2, mat3: V.mat3, rev: V.reverb, mix: V.mix }); })()"
+ },
+ {
+  "name": "record 4 s",
+  "eval": "(async function(){ var b = window.__JUCE__.backend; b.emitEvent('tw', { k:'recStart' }); await new Promise(function(r){ setTimeout(r, 4000); }); b.emitEvent('tw', { k:'recStop' }); await new Promise(function(r){ setTimeout(r, 600); }); return JSON.stringify(window.__rec); })()"
+ },
+ {
+  "name": "bounce LIVE",
+  "eval": "(async function(){ var b = window.__JUCE__.backend; window.__rec = null; b.emitEvent('tw', { k:'bounce', sound:0 }); for (var i = 0; i < 1200; i++){ await new Promise(function(r){ setTimeout(r, 100); }); if (window.__rec && (window.__rec.state === 'done' || window.__rec.state === 'error')) break; } return window.__rec && window.__rec.file; })()"
+ },
+ {
+  "name": "pause",
+  "wait": 1500
+ },
+ {
+  "name": "bounce ULTRA",
+  "eval": "(async function(){ var b = window.__JUCE__.backend; window.__rec = null; b.emitEvent('tw', { k:'bounce', sound:2 }); for (var i = 0; i < 1200; i++){ await new Promise(function(r){ setTimeout(r, 100); }); if (window.__rec && (window.__rec.state === 'done' || window.__rec.state === 'error')) break; } return window.__rec && window.__rec.file; })()"
+ },
+ {
+  "name": "pause",
+  "wait": 1500
+ },
+ {
+  "name": "bounce ULTRA+BASS",
+  "eval": "(async function(){ var b = window.__JUCE__.backend; window.__rec = null; b.emitEvent('tw', { k:'bounce', sound:3 }); for (var i = 0; i < 1200; i++){ await new Promise(function(r){ setTimeout(r, 100); }); if (window.__rec && (window.__rec.state === 'done' || window.__rec.state === 'error')) break; } return window.__rec && window.__rec.file; })()"
+ }
+]

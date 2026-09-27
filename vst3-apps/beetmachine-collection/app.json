@@ -1,0 +1,23 @@
+{
+  "slug": "beetmachine-collection",
+  "name": "The Beetmachine Collection (all 4)",
+  "description": "The drums: a kick, a snare and the hats and cymbals, every hit synthesised and no samples anywhere, and Beetmachine, the kit that plays all three. Four drum instruments for Windows, with their manuals and their standalones. Each plug-in in here is byte-for-byte the same file as its own download.",
+  "status": "live",
+  "collection": true,
+  "url": "vst3-apps/beetmachine-collection/index.html",
+  "icon": "more",
+  "cta": "Download all 4 →",
+  "preview": "assets/app-previews/beetmachine-collection.jpg",
+  "note": "Windows VST3 · 47 MB · four drum instruments · all manuals included.",
+  "tags": [
+    "vst3"
+  ],
+  "downloads": [
+    {
+      "name": "Brokild-Beetmachine-Collection-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Brokild-Beetmachine-Collection-win64.zip",
+      "bytes": 48762347,
+      "sha256": "6157ea785f85a5ca70cbd4f00d7b2cc869abd071be49747877a995e11bbffba8"
+    }
+  ]
+}

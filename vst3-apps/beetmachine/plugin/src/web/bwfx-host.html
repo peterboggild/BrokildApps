@@ -1,0 +1,58 @@
+<!doctype html>
+<!--
+  BEETMACHINE - the host page for the BWFX rack.
+
+  Beetmachine's panel is native JUCE, but its rack is the STANDARD one: the very
+  same BrokildWorldFX/ui/bwfx-rack.js that Black Rider, Clone Wars and every
+  WebView synth show (Peter, 2026-09-26: "it has to be consistent - use Black
+  Rider's as template"). This page holds nothing but that rack.
+
+  Protocol, the one every Brokild synth speaks:
+    page -> plug-in   event "beet": {k:"bwfx", op, ...}  the rack's own edits
+                                    {k:"close"}          the rack's CLOSE was pressed
+                                    {k:"ready"}          the page has loaded
+    plug-in -> page   event "bwfx": {desc, cdesc, state, busLive, presets, macros...}
+                      event "open": open the rack again
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Beetmachine - Brokild World FX</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  /*  Beetmachine's own metal behind the rack's veil */
+  body { background: #1c2329 url("ground.jpg") repeat; background-size: 512px auto; }
+</style>
+</head>
+<body>
+<script src="bwfx-rack.js"></script>
+<script>
+(function () {
+  var B = window.__JUCE__ && window.__JUCE__.backend;
+  function send (m) { if (B) B.emitEvent ("beet", m); }
+
+  if (window.BWFX) {
+    //  listen BEFORE attaching: attach() asks for the native state at once
+    if (B) {
+      B.addEventListener ("bwfx", function (p) { BWFX.onState (p); });
+      B.addEventListener ("open", function () { BWFX.open(); });
+    }
+    BWFX.attach ({ send: function (o) { var m = { k: "bwfx" }; for (var k in o) m[k] = o[k]; send (m); } });
+    BWFX.open();
+
+    //  The rack's CLOSE (and Escape, and a click outside it) only hides its
+    //  own layer inside this page. Tell the plug-in, so it hides the page and
+    //  the machine is back.
+    (function watch () {
+      var veil = document.querySelector (".bwfx-veil");
+      if (! veil) { setTimeout (watch, 50); return; }
+      new MutationObserver (function () {
+        if (! veil.classList.contains ("open")) send ({ k: "close" });
+      }).observe (veil, { attributes: true, attributeFilter: ["class"] });
+    })();
+  }
+  send ({ k: "ready" });
+})();
+</script>
+</body>
+</html>

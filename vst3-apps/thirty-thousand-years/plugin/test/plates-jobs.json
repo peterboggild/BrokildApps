@@ -1,0 +1,65 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2600)})" },
+  { "name": "hints off, a patch with all four strata", "eval": "(function(){try{localStorage.setItem('tty.tooltips','0')}catch(e){};__TTY.patch(0);return 'ok'})()" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,1400)})" },
+
+  { "name": "cover", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/cover.png", "sel": "#deck", "scale": 2 },
+  { "name": "panel", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/panel.png", "sel": "#deck", "scale": 2 },
+  { "name": "head", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/head.png", "sel": "#head", "scale": 2 },
+  { "name": "macros", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/macros.png", "sel": "#macros", "scale": 2 },
+  { "name": "foot", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/foot.png", "sel": "#foot", "scale": 2 },
+  { "name": "strata", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/strata.png", "sel": "#stage", "scale": 2 },
+  { "name": "record", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/record.png", "sel": ".cvwrap", "scale": 2 },
+
+  { "name": "to MASS", "eval": "__TTY.view('mass')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "mass", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/mass.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "to SIGNAL", "eval": "__TTY.view('signal')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "signal", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/signal.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "to MEMORY", "eval": "__TTY.view('memory')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "memory", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/memory.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "to STRUCTURE", "eval": "__TTY.view('structure')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "structure", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/structure.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "to SOURCES", "eval": "__TTY.view('sources')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "sources", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/sources.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "to LIFE", "eval": "__TTY.view('life')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "life", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/life.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "to MATRIX", "eval": "__TTY.view('matrix')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "matrix", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/matrix.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "to HISTORY", "eval": "__TTY.view('history')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "history", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/history.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "to ENVIRONMENT", "eval": "__TTY.view('env')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "env", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/env.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "to INSERT LANES", "eval": "__TTY.view('lanes')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "lanes", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/lanes.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "to MIX", "eval": "__TTY.view('mix')" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,700)})" },
+  { "name": "mix", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/mix.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "back to MAIN, hints on for one plate", "eval": "(function(){__TTY.view('main');var b=document.querySelector('[data-hints]')||Array.prototype.slice.call(document.querySelectorAll('button,.btn')).filter(function(e){return /TOOLTIP/i.test(e.textContent)})[0];if(b)b.click();return b?b.textContent.trim():'no hints button'})()" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,500)})" },
+  { "name": "hover a control for the hint plate", "eval": "(function(){var c=__TTY.ctl('m_cut');if(!c)return 'no m_cut';var r=c.getBoundingClientRect();['pointerover','pointerenter','mousemove'].forEach(function(t){c.dispatchEvent(new MouseEvent(t,{bubbles:true,clientX:r.left+r.width/2,clientY:r.top+r.height/2}))});return 'hovered'})()" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,900)})" },
+  { "name": "hint", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/manual/shots/hint.png", "sel": "#stage", "scale": 2 },
+
+  { "name": "errors", "eval": "(window.__TTYERR||[]).length + ' js errors'" }
+]

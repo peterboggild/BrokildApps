@@ -1,0 +1,902 @@
+{
+  "01-knobs.png": {
+    "canvas": [
+      2048,
+      1536
+    ],
+    "items": [
+      {
+        "name": "bakelite-large",
+        "crop": [
+          0,
+          0,
+          512,
+          512
+        ],
+        "alpha_bounds": [
+          24,
+          24,
+          488,
+          487
+        ]
+      },
+      {
+        "name": "bakelite-small",
+        "crop": [
+          512,
+          0,
+          1024,
+          512
+        ],
+        "alpha_bounds": [
+          588,
+          76,
+          948,
+          435
+        ]
+      },
+      {
+        "name": "star-knob",
+        "crop": [
+          1024,
+          0,
+          1536,
+          512
+        ],
+        "alpha_bounds": [
+          1048,
+          35,
+          1512,
+          476
+        ]
+      },
+      {
+        "name": "chicken-head",
+        "crop": [
+          1536,
+          0,
+          2048,
+          512
+        ],
+        "alpha_bounds": [
+          1675,
+          24,
+          1908,
+          488
+        ]
+      },
+      {
+        "name": "handwheel",
+        "crop": [
+          0,
+          512,
+          512,
+          1024
+        ],
+        "alpha_bounds": [
+          24,
+          548,
+          488,
+          987
+        ]
+      },
+      {
+        "name": "steel-set-knob",
+        "crop": [
+          512,
+          512,
+          1024,
+          1024
+        ],
+        "alpha_bounds": [
+          587,
+          561,
+          948,
+          976
+        ]
+      },
+      {
+        "name": "crank-lever",
+        "crop": [
+          1024,
+          512,
+          1536,
+          1024
+        ],
+        "alpha_bounds": [
+          1184,
+          536,
+          1376,
+          1000
+        ]
+      },
+      {
+        "name": "red-bakelite",
+        "crop": [
+          1536,
+          512,
+          2048,
+          1024
+        ],
+        "alpha_bounds": [
+          1562,
+          537,
+          2022,
+          1000
+        ]
+      },
+      {
+        "name": "bronze-knob",
+        "crop": [
+          0,
+          1024,
+          512,
+          1536
+        ],
+        "alpha_bounds": [
+          25,
+          1051,
+          488,
+          1508
+        ]
+      },
+      {
+        "name": "pointer-skirt",
+        "crop": [
+          512,
+          1024,
+          1024,
+          1536
+        ],
+        "alpha_bounds": [
+          538,
+          1048,
+          997,
+          1512
+        ]
+      },
+      {
+        "name": "detent-plate",
+        "crop": [
+          1024,
+          1024,
+          1536,
+          1536
+        ],
+        "alpha_bounds": [
+          1052,
+          1048,
+          1509,
+          1512
+        ]
+      },
+      {
+        "name": "empty",
+        "crop": [
+          1536,
+          1024,
+          2048,
+          1536
+        ],
+        "alpha_bounds": null
+      }
+    ]
+  },
+  "02-switches.png": {
+    "canvas": [
+      2048,
+      2048
+    ],
+    "items": [
+      {
+        "name": "bat-up",
+        "crop": [
+          0,
+          0,
+          512,
+          512
+        ],
+        "alpha_bounds": [
+          47,
+          24,
+          464,
+          488
+        ]
+      },
+      {
+        "name": "bat-down",
+        "crop": [
+          512,
+          0,
+          1024,
+          512
+        ],
+        "alpha_bounds": [
+          540,
+          24,
+          996,
+          488
+        ]
+      },
+      {
+        "name": "guard-closed",
+        "crop": [
+          1024,
+          0,
+          1536,
+          512
+        ],
+        "alpha_bounds": [
+          1059,
+          24,
+          1500,
+          487
+        ]
+      },
+      {
+        "name": "guard-open",
+        "crop": [
+          1536,
+          0,
+          2048,
+          512
+        ],
+        "alpha_bounds": [
+          1604,
+          25,
+          1979,
+          487
+        ]
+      },
+      {
+        "name": "hit-up",
+        "crop": [
+          0,
+          512,
+          512,
+          1024
+        ],
+        "alpha_bounds": [
+          29,
+          536,
+          483,
+          999
+        ]
+      },
+      {
+        "name": "hit-pressed",
+        "crop": [
+          512,
+          512,
+          1024,
+          1024
+        ],
+        "alpha_bounds": [
+          536,
+          569,
+          1000,
+          966
+        ]
+      },
+      {
+        "name": "estop-up",
+        "crop": [
+          1024,
+          512,
+          1536,
+          1024
+        ],
+        "alpha_bounds": [
+          1048,
+          537,
+          1512,
+          999
+        ]
+      },
+      {
+        "name": "estop-pressed",
+        "crop": [
+          1536,
+          512,
+          2048,
+          1024
+        ],
+        "alpha_bounds": [
+          1560,
+          567,
+          2024,
+          968
+        ]
+      },
+      {
+        "name": "square-up",
+        "crop": [
+          0,
+          1024,
+          512,
+          1536
+        ],
+        "alpha_bounds": [
+          24,
+          1069,
+          488,
+          1490
+        ]
+      },
+      {
+        "name": "square-pressed",
+        "crop": [
+          512,
+          1024,
+          1024,
+          1536
+        ],
+        "alpha_bounds": [
+          537,
+          1069,
+          1000,
+          1491
+        ]
+      },
+      {
+        "name": "cam-up",
+        "crop": [
+          1024,
+          1024,
+          1536,
+          1536
+        ],
+        "alpha_bounds": [
+          1048,
+          1062,
+          1511,
+          1498
+        ]
+      },
+      {
+        "name": "cam-right",
+        "crop": [
+          1536,
+          1024,
+          2048,
+          1536
+        ],
+        "alpha_bounds": [
+          1560,
+          1084,
+          2024,
+          1476
+        ]
+      },
+      {
+        "name": "slide-top",
+        "crop": [
+          0,
+          1536,
+          512,
+          2048
+        ],
+        "alpha_bounds": [
+          113,
+          1560,
+          398,
+          2024
+        ]
+      },
+      {
+        "name": "slide-bottom",
+        "crop": [
+          512,
+          1536,
+          1024,
+          2048
+        ],
+        "alpha_bounds": [
+          606,
+          1560,
+          929,
+          2023
+        ]
+      },
+      {
+        "name": "key-up",
+        "crop": [
+          1024,
+          1536,
+          1536,
+          2048
+        ],
+        "alpha_bounds": [
+          1062,
+          1560,
+          1497,
+          2024
+        ]
+      },
+      {
+        "name": "key-right",
+        "crop": [
+          1536,
+          1536,
+          2048,
+          2048
+        ],
+        "alpha_bounds": [
+          1560,
+          1590,
+          2024,
+          1993
+        ]
+      }
+    ]
+  },
+  "03-lamps-gauges.png": {
+    "canvas": [
+      2048,
+      1536
+    ],
+    "items": [
+      {
+        "name": "amber-off",
+        "crop": [
+          0,
+          0,
+          512,
+          512
+        ],
+        "alpha_bounds": [
+          24,
+          57,
+          487,
+          454
+        ]
+      },
+      {
+        "name": "amber-on",
+        "crop": [
+          512,
+          0,
+          1024,
+          512
+        ],
+        "alpha_bounds": [
+          536,
+          56,
+          1000,
+          455
+        ]
+      },
+      {
+        "name": "red-off",
+        "crop": [
+          1024,
+          0,
+          1536,
+          512
+        ],
+        "alpha_bounds": [
+          1048,
+          56,
+          1512,
+          455
+        ]
+      },
+      {
+        "name": "red-on",
+        "crop": [
+          1536,
+          0,
+          2048,
+          512
+        ],
+        "alpha_bounds": [
+          1560,
+          55,
+          2024,
+          456
+        ]
+      },
+      {
+        "name": "green-off",
+        "crop": [
+          0,
+          512,
+          512,
+          1024
+        ],
+        "alpha_bounds": [
+          24,
+          568,
+          488,
+          968
+        ]
+      },
+      {
+        "name": "green-on",
+        "crop": [
+          512,
+          512,
+          1024,
+          1024
+        ],
+        "alpha_bounds": [
+          536,
+          567,
+          1000,
+          967
+        ]
+      },
+      {
+        "name": "bullseye-off",
+        "crop": [
+          1024,
+          512,
+          1536,
+          1024
+        ],
+        "alpha_bounds": [
+          1048,
+          567,
+          1512,
+          968
+        ]
+      },
+      {
+        "name": "bullseye-on",
+        "crop": [
+          1536,
+          512,
+          2048,
+          1024
+        ],
+        "alpha_bounds": [
+          1560,
+          567,
+          2024,
+          969
+        ]
+      },
+      {
+        "name": "pressure-gauge",
+        "crop": [
+          0,
+          1024,
+          512,
+          1536
+        ],
+        "alpha_bounds": [
+          24,
+          1048,
+          487,
+          1512
+        ]
+      },
+      {
+        "name": "pressure-needle",
+        "crop": [
+          512,
+          1024,
+          1024,
+          1536
+        ],
+        "alpha_bounds": [
+          710,
+          1072,
+          826,
+          1488
+        ]
+      },
+      {
+        "name": "panel-meter",
+        "crop": [
+          1024,
+          1024,
+          1536,
+          1536
+        ],
+        "alpha_bounds": [
+          1048,
+          1117,
+          1512,
+          1442
+        ]
+      },
+      {
+        "name": "meter-needle",
+        "crop": [
+          1536,
+          1024,
+          2048,
+          1536
+        ],
+        "alpha_bounds": [
+          1743,
+          1072,
+          1840,
+          1487
+        ]
+      }
+    ]
+  },
+  "04-labels-plates.png": {
+    "canvas": [
+      2048,
+      1024
+    ],
+    "items": [
+      {
+        "name": "black-tape",
+        "crop": [
+          0,
+          32,
+          1024,
+          160
+        ],
+        "alpha_bounds": [
+          0,
+          32,
+          1024,
+          160
+        ]
+      },
+      {
+        "name": "red-tape",
+        "crop": [
+          0,
+          192,
+          1024,
+          320
+        ],
+        "alpha_bounds": [
+          0,
+          192,
+          1024,
+          320
+        ]
+      },
+      {
+        "name": "olive-tape",
+        "crop": [
+          0,
+          352,
+          1024,
+          480
+        ],
+        "alpha_bounds": [
+          0,
+          352,
+          1024,
+          480
+        ]
+      },
+      {
+        "name": "black-enamel-plate",
+        "crop": [
+          0,
+          640,
+          512,
+          896
+        ],
+        "alpha_bounds": [
+          11,
+          646,
+          501,
+          890
+        ]
+      },
+      {
+        "name": "brass-plate",
+        "crop": [
+          512,
+          640,
+          1024,
+          896
+        ],
+        "alpha_bounds": [
+          526,
+          646,
+          1010,
+          890
+        ]
+      },
+      {
+        "name": "olive-stencil-plate",
+        "crop": [
+          1024,
+          640,
+          1536,
+          896
+        ],
+        "alpha_bounds": [
+          1036,
+          646,
+          1524,
+          890
+        ]
+      }
+    ]
+  },
+  "kickstart-ground.png": {
+    "canvas": [
+      1024,
+      1024
+    ],
+    "items": [
+      {
+        "name": "seamless-ground",
+        "crop": [
+          0,
+          0,
+          1024,
+          1024
+        ]
+      }
+    ]
+  },
+  "snare-tactics-ground.png": {
+    "canvas": [
+      1024,
+      1024
+    ],
+    "items": [
+      {
+        "name": "seamless-ground",
+        "crop": [
+          0,
+          0,
+          1024,
+          1024
+        ]
+      }
+    ]
+  },
+  "hats-off-ground.png": {
+    "canvas": [
+      1024,
+      1024
+    ],
+    "items": [
+      {
+        "name": "seamless-ground",
+        "crop": [
+          0,
+          0,
+          1024,
+          1024
+        ]
+      }
+    ]
+  },
+  "beet-ground.png": {
+    "canvas": [
+      1024,
+      1024
+    ],
+    "items": [
+      {
+        "name": "seamless-ground",
+        "crop": [
+          0,
+          0,
+          1024,
+          1024
+        ]
+      }
+    ]
+  },
+  "kickstart-nameplate.png": {
+    "canvas": [
+      1600,
+      400
+    ],
+    "items": [
+      {
+        "name": "kickstart",
+        "crop": [
+          0,
+          0,
+          1600,
+          400
+        ],
+        "alpha_bounds": [
+          138,
+          5,
+          1462,
+          396
+        ]
+      }
+    ]
+  },
+  "snare-tactics-nameplate.png": {
+    "canvas": [
+      1600,
+      400
+    ],
+    "items": [
+      {
+        "name": "snare-tactics",
+        "crop": [
+          0,
+          0,
+          1600,
+          400
+        ],
+        "alpha_bounds": [
+          97,
+          4,
+          1503,
+          396
+        ]
+      }
+    ]
+  },
+  "hats-off-nameplate.png": {
+    "canvas": [
+      1600,
+      400
+    ],
+    "items": [
+      {
+        "name": "hats-off",
+        "crop": [
+          0,
+          0,
+          1600,
+          400
+        ],
+        "alpha_bounds": [
+          210,
+          4,
+          1390,
+          396
+        ]
+      }
+    ]
+  },
+  "beet-nameplate.png": {
+    "canvas": [
+      1600,
+      400
+    ],
+    "items": [
+      {
+        "name": "beet",
+        "crop": [
+          0,
+          0,
+          1600,
+          400
+        ],
+        "alpha_bounds": [
+          112,
+          4,
+          1488,
+          396
+        ]
+      }
+    ]
+  },
+  "beet-machine-bay.png": {
+    "canvas": [
+      1024,
+      1400
+    ],
+    "items": [
+      {
+        "name": "machine-bay",
+        "crop": [
+          0,
+          0,
+          1024,
+          1400
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          1024,
+          1394
+        ]
+      }
+    ]
+  }
+}

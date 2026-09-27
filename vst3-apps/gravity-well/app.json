@@ -1,0 +1,23 @@
+{
+  "slug": "gravity-well",
+  "name": "Gravity Well (VST3)",
+  "description": "Gravity Well covers a huge sonic ground, capable of classic analog to wild and aggressive modern sounds. A bass synthesiser for heavy, potent and aggressive sound - doom, dubstep, industrial, techno - that is just as able to play an elastic analogue bass in the Moog tradition. Seven filter circuits in two banks, analogue and wavetable oscillators with sync, phase and ring modulation, a sub, noise and a unison disk, three envelopes, three LFOs, random and chirp sources and an eight-slot modulation matrix give it a very wide range. At its heart is one control, MASS: turn it up and every movement in the sound slows, deepens and finally freezes, as clocks do near a black hole, while the note stays exactly in tune. Thirty-two presets, from the ordinary to the strange.",
+  "status": "live",
+  "url": "vst3-apps/gravity-well/index.html",
+  "icon": "atom",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/gravity-well.jpg",
+  "note": "Windows VST3 + standalone · build 260927.8 · free download · 7 filter circuits, two banks · 32 presets · 168 user slots · flight manual included.",
+  "tags": [
+    "vst3",
+    "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Gravity-Well-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Gravity-Well-VST3-win64.zip",
+      "bytes": 7521195,
+      "sha256": "c6564df6cf7b1be928bae61214912a67531d16f87c46df438848e2aeecc4f3be"
+    }
+  ]
+}

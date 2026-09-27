@@ -1,0 +1,11 @@
+[
+  { "eval": "window.__px = function(){ var gl=__BS.gl, cv=gl.canvas, w=cv.width, h=cv.height; var p=new Uint8Array(4); gl.readPixels(w>>1, h>>1, 1,1, gl.RGBA, gl.UNSIGNED_BYTE, p); return p[0]+','+p[1]+','+p[2]; }; 'ok'" },
+  { "eval": "__BS.CAM.spin=false; __BS.CAM.yaw=0; __BS.CAM.pitch=0; __BS.GX.density=1.0; __BS.VOL.data.fill(255); __BS.VOL.dirty=true; __BS.draw(); 'centre pixel with a solid volume: ' + __px() + '  (lev ' + __BS.GX.lev.toFixed(2) + ' win ' + (0.06+__BS.GX.win*1.1).toFixed(2) + ' band ' + __BS.GX.band + ')'" },
+  { "eval": "__BS.GX.lev=0.5; __BS.GX.win=0.85; __BS.draw(); 'wide window, solid: ' + __px()" },
+  { "eval": "(function(){var d=__BS.VOL.data; for(var i=0;i<d.length;i++) d[i]=128; __BS.VOL.dirty=true; __BS.draw(); return 'half density everywhere: ' + __px();})()" },
+  { "eval": "'the shader log: ' + JSON.stringify(window.__err)" },
+  { "eval": "(function(){var gl=__BS.gl; return 'uniform locations: uBand ' + !!gl.getUniformLocation(__BS.GL.pVol,'uBand') + ' uDensity ' + !!gl.getUniformLocation(__BS.GL.pVol,'uDensity') + ' uGlow ' + !!gl.getUniformLocation(__BS.GL.pVol,'uGlow');})()" },
+  { "eval": "__BS.NB.send({k:'p', id:'specimen', v:1.0}); 'reload CORTEX'" },
+  { "wait": 1500 },
+  { "eval": "(function(){var d=__BS.VOL.data,N=64,lo=[99,99,99],hi=[-1,-1,-1]; for(var k=0;k<N;k++)for(var j=0;j<N;j++)for(var i=0;i<N;i++){ if(d[(k*N+j)*N+i]>40){ if(i<lo[0])lo[0]=i; if(i>hi[0])hi[0]=i; if(j<lo[1])lo[1]=j; if(j>hi[1])hi[1]=j; if(k<lo[2])lo[2]=k; if(k>hi[2])hi[2]=k; } } return 'CORTEX occupies x '+lo[0]+'-'+hi[0]+'  y '+lo[1]+'-'+hi[1]+'  z '+lo[2]+'-'+hi[2]+' of 0-63';})()" }
+]

@@ -1,0 +1,4 @@
+[
+  {"wait": 600},
+  {"eval": "'67 followed: climate=' + SITE.climate + ' others=' + SITE.others + ' bench=' + Math.round(SITE.kelvin) + ' local=' + Math.round(SITE.local) + ' V.temp=' + (+V.temp).toFixed(3) + ' tVal=' + document.querySelector('#tVal').textContent + ' distance=' + SITE.distance + ' bSite=' + !!document.querySelector('#bSite') + ' err=' + window.__err"}
+]

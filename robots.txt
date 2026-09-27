@@ -1,0 +1,13 @@
+# BrokildApps — https://peterboggild.github.io/BrokildApps/
+#
+# Everything here is meant to be found. The only paths kept out of the index
+# are the two redirect stubs left behind by renames (Photo-Synth 2 -> Photo
+# Synth, The Mars Wars -> Martian Gain), which exist to forward a visitor and
+# would otherwise compete with the pages they forward to.
+
+User-agent: *
+Allow: /
+Disallow: /vst3-apps/mars-wars/
+Disallow: /vst3-apps/photo-synth-2/
+
+Sitemap: https://peterboggild.github.io/BrokildApps/sitemap.xml

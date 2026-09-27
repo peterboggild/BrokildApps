@@ -1,0 +1,7 @@
+build/
+test/build/
+dist/
+*.old*
+docs/*.png
+docs/manual/pages/
+docs/manual/raw/

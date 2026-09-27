@@ -1,0 +1,22 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2600)})" },
+  { "name": "load THE MACHINES KEPT WORKING (it stores four scenes)", "eval": "(function(){__TTY.patch(0);return 'asked'})()" },
+  { "name": "wait for the patch", "eval": "new Promise(function(r){setTimeout(r,1500)})" },
+
+  { "name": "are the four scenes marked stored?",
+    "eval": "(function(){var s=__TTY.state();return 'sceneSet flags from the panel: '+JSON.stringify(s.scenes&&s.scenes.set)+'  names '+JSON.stringify(s.scenes&&s.scenes.names)})()" },
+  { "name": "HISTORY switch state as loaded", "eval": "'h_on = ' + __TTY.text('h_on') + ',  h_pos = ' + __TTY.text('h_pos') + ',  drive = ' + __TTY.text('h_mode')" },
+
+  { "name": "arm HISTORY", "eval": "(function(){__TTY.set('h_on',1);return __TTY.text('h_on')})()" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,600)})" },
+
+  { "name": "sweep HISTORY and read the effective values the scenes differ in",
+    "eval": "(function(){var ids=['e_fb_send','l_coupling','st_couple','m_cut'];var out=[];function row(p){__TTY.set('h_pos',p);return new Promise(function(r){setTimeout(function(){out.push('pos '+p.toFixed(2)+': '+ids.map(function(i){return i+'='+(__TTY.eff(i)).toFixed(4)}).join('  '));r()},420)})}return row(0).then(function(){return row(0.33)}).then(function(){return row(0.67)}).then(function(){return row(1)}).then(function(){return out.join('  |  ')})})()" },
+
+  { "name": "now with HISTORY OFF the same sweep must do nothing",
+    "eval": "(function(){__TTY.set('h_on',0);var ids=['e_fb_send','l_coupling'];var out=[];function row(p){__TTY.set('h_pos',p);return new Promise(function(r){setTimeout(function(){out.push('pos '+p.toFixed(2)+': '+ids.map(function(i){return i+'='+(__TTY.eff(i)).toFixed(4)}).join('  '));r()},420)})}return row(0).then(function(){return row(1)}).then(function(){return out.join('  |  ')})})()" },
+
+  { "name": "does the meter/readout show a HISTORY position at all?",
+    "eval": "(function(){var m=__TTY.meter();return 'meter keys: '+Object.keys(m||{}).join(',')})()" },
+  { "name": "errors", "eval": "(window.__TTYERR||[]).length + ' js errors'" }
+]

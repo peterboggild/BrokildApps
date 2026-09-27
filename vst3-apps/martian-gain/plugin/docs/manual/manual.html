@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Martian Gain — Manual</title>
+<style>
+  /* ---------------------------------------------------------------- *
+   * Print sheet for Martian Gain manual. A4, warm paper, oxblood
+   * accent taken from the instrument's own faceplate.
+   * Rendered to PDF with: chrome --headless --print-to-pdf
+   * ---------------------------------------------------------------- */
+  @page { size: A4; margin: 17mm 16mm 16mm 16mm; }
+  @page :first { margin: 0; }
+
+  :root{
+    --ink:#1a1210;
+    --ink-soft:#4a3a33;
+    --faint:#7d6c62;
+    --paper:#faf6f2;
+    --rule:#e0d3c9;
+    --rust:#a8341c;
+    --rust-soft:#f7e6df;
+    --dark:#140807;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--paper); }
+  body{
+    color:var(--ink);
+    font:10.6pt/1.55 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3,h4{ font-family:Georgia,"Times New Roman",serif; font-weight:600; margin:0; }
+  p{ margin:.45em 0 .7em; }
+  b,strong{ color:#0f0a08; font-weight:600; }
+  em{ color:var(--ink-soft); }
+  code{
+    font-family:Consolas,"SF Mono",Menlo,monospace; font-size:9.2pt;
+    background:#f2eae4; border:1px solid #e2d5cb; border-radius:3px; padding:0 4px;
+    color:#6a3320;
+  }
+
+  /* ---------- cover ---------- */
+  .cover{
+    background:
+      radial-gradient(120% 80% at 74% 4%, rgba(255,74,36,.26) 0%, transparent 56%),
+      radial-gradient(90% 70% at 8% 100%, rgba(255,160,60,.10) 0%, transparent 62%),
+      linear-gradient(170deg,#2a0f0b 0%, #0c0403 100%);
+    color:#f2ddd0; height:294mm; padding:24mm 22mm 16mm;
+    display:flex; flex-direction:column; break-after:page;
+  }
+  .cover .kicker{ font-size:8.6pt; letter-spacing:.42em; text-transform:uppercase; color:#c8825e; }
+  .cover h1{ font-size:40pt; line-height:1.02; margin:8mm 0 0; letter-spacing:.03em; color:#fdf0e6; }
+  .cover h1 span{ color:#ff5a2e; }
+  .cover .tag{ font-size:12.5pt; color:#cbb0a2; margin:5mm 0 0; font-family:Georgia,serif; font-style:italic; }
+  .cover .rule{ height:2px; width:34mm; background:#ff5a2e; margin:7mm 0 0; }
+  .cover .shot{ margin:8mm 0 0; text-align:center; }
+  .cover .shot img{
+    max-height:120mm; max-width:100%; border-radius:4px; border:1px solid #3a2019;
+    box-shadow:0 8mm 20mm rgba(0,0,0,.62);
+  }
+  .cover .foot{
+    margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end;
+    font-size:8.8pt; color:#9b8175; letter-spacing:.06em;
+  }
+  .cover .foot b{ color:#e9d3c4; font-weight:600; display:block; font-size:10pt; letter-spacing:0; }
+
+  /* ---------- structure ---------- */
+  .sec{ break-before:page; }
+  .sec-head{
+    display:flex; align-items:baseline; gap:5mm;
+    border-bottom:1.6px solid var(--ink); padding-bottom:2.4mm; margin-bottom:5mm;
+  }
+  .sec-head .num{
+    font:600 9pt/1 Consolas,monospace; color:var(--rust);
+    border:1.4px solid var(--rust); border-radius:3px; padding:1.6mm 2.2mm; letter-spacing:.06em;
+  }
+  .sec-head h2{ font-size:19pt; letter-spacing:-.01em; }
+  .sec-head .sub{ margin-left:auto; font-size:8.4pt; color:var(--faint); letter-spacing:.2em; text-transform:uppercase; }
+
+  h3{ font-size:12.6pt; margin:6.5mm 0 1.5mm; color:#140d0a; }
+  h3:first-child{ margin-top:0; }
+  h4{ font-size:10.4pt; margin:4mm 0 1mm; color:var(--rust); letter-spacing:.02em; }
+  .lead{ font-size:11.4pt; color:var(--ink-soft); font-family:Georgia,serif; margin:0 0 5mm; }
+
+  /* ---------- figures ---------- */
+  figure{ margin:4mm 0 5mm; break-inside:avoid; }
+  figure img{
+    width:100%; display:block; border-radius:4px;
+    border:1px solid #d4c4b8; background:var(--dark);
+    box-shadow:0 1.4mm 4mm rgba(40,20,12,.16);
+  }
+  figcaption{
+    font-size:8.5pt; color:var(--faint); margin-top:1.8mm; line-height:1.4;
+    padding-left:2.6mm; border-left:2px solid var(--rust);
+  }
+  figure.narrow{ width:74%; }
+  figure.tall img{ max-height:150mm; width:auto; margin:0 auto; }
+  figure.tall{ text-align:center; }
+  .figrow{ display:flex; gap:5mm; align-items:flex-start; break-inside:avoid; }
+  .figrow figure{ flex:1 1 0; margin-top:0; }
+
+  /* ---------- tables ---------- */
+  table{ width:100%; border-collapse:collapse; margin:2.5mm 0 5mm; font-size:9.5pt; break-inside:avoid; }
+  th,td{ text-align:left; padding:1.9mm 2.4mm; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th{
+    font:600 8.2pt/1.3 "Segoe UI",sans-serif; text-transform:uppercase; letter-spacing:.13em;
+    color:var(--faint); border-bottom:1.4px solid var(--ink-soft);
+  }
+  td:first-child{ width:26%; color:#120b09; font-weight:600; }
+  tr:last-child td{ border-bottom:none; }
+  table.tight td:first-child{ width:19%; }
+  table.algo td:first-child{ width:17%; }
+  table.algo td:nth-child(2){ width:14%; color:var(--rust); }
+
+  /* ---------- callouts ---------- */
+  .note{
+    background:var(--rust-soft); border-left:3px solid var(--rust);
+    padding:3mm 4mm; margin:4mm 0; font-size:9.6pt; border-radius:0 3px 3px 0;
+    break-inside:avoid;
+  }
+  .note b{ color:#8a2a12; }
+  .quiet{ font-size:9.2pt; color:var(--faint); }
+
+  ol.steps{ list-style:none; counter-reset:s; margin:0; padding:0; }
+  ol.steps li{
+    counter-increment:s; position:relative; padding:0 0 3.6mm 11mm; margin-bottom:2.2mm;
+    break-inside:avoid;
+  }
+  ol.steps li::before{
+    content:counter(s); position:absolute; left:0; top:-.4mm;
+    width:7.4mm; height:7.4mm; border-radius:50%;
+    background:var(--rust); color:#fff;
+    font:600 10pt/7.4mm Georgia,serif; text-align:center;
+  }
+  ol.steps li > b:first-child{ display:block; font-size:10.8pt; margin-bottom:.5mm; }
+
+  .recipe{
+    border:1px solid var(--rule); border-top:2.6px solid var(--rust); border-radius:4px;
+    padding:3.4mm 4mm 3mm; margin:0 0 4mm; break-inside:avoid; background:#fdf9f6;
+  }
+  .recipe h4{ margin:0 0 1.4mm; font-size:11pt; color:#140d0a; font-family:Georgia,serif; }
+  .recipe .how{ font-size:9.5pt; color:var(--ink-soft); margin:0; }
+  .recipe .how b{ color:#7a2a12; }
+  .recipe .out{ font-size:9pt; color:var(--faint); font-style:italic; margin:1.6mm 0 0; }
+  .grid2{ display:flex; gap:5mm; }
+  .grid2 > div{ flex:1 1 0; min-width:0; }
+
+  ul.plain{ margin:.3em 0 .8em; padding-left:5mm; }
+  ul.plain li{ margin:.28em 0; }
+
+  .colophon{ margin-top:6mm; border-top:1px solid var(--rule); padding-top:3.5mm;
+    font-size:8.8pt; color:var(--faint); }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<section class="cover">
+  <div class="kicker">Brokild Apps · VST3 Effect</div>
+  <h1>MARTIAN <span>GAIN</span></h1>
+  <div class="tag">Five bands, sixteen ways to ruin them, and a gain match that keeps you honest.</div>
+  <div class="rule"></div>
+  <div class="shot"><img src="shots/hero.jpg" alt="Martian Gain panel"></div>
+  <div class="foot">
+    <div>
+      <b>User Manual</b>
+      Quick start · Reference · Try this
+    </div>
+    <div style="text-align:right">
+      <b>Version 1.0</b>
+      August 2026 · Windows VST3 · build 260827.2
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">01</span><h2>What this is</h2>
+    <span class="sub">Introduction</span></div>
+
+  <p class="lead">A multiband distortion. One to five bands, each running its own algorithm out of
+  sixteen, its own limiter and its own trim — and every one of them level-matched, so turning
+  DRIVE up changes what it sounds like without changing how loud it is.</p>
+
+  <p>That last part is the whole design. Distortion sells itself by getting louder: turn the knob,
+  it gets fatter, and the ear says yes before the brain has had a chance. Here every band measures
+  its own loudness either side of the shaper and corrects the difference, so an A/B is an honest
+  one. If it sounds better with the drive up, it <em>is</em> better.</p>
+
+  <h3>The five things to know first</h3>
+  <table>
+    <tr><td>Bands are a button, not a mode</td><td>One to five, changed at any time. The crossovers
+      re-space themselves when you press a band-count button, and the machine fades through the
+      rebuild rather than clicking.</td></tr>
+    <tr><td>Every band is its own pedal</td><td>Algorithm, drive, bias, character, tone, mix, level
+      and a ceiling limiter — per band. Nothing is shared except the crossovers.</td></tr>
+    <tr><td>AUTO GAIN is on</td><td>And should stay on until you have a reason. Switch it off and
+      DRIVE becomes a volume knob again, which is occasionally what you want.</td></tr>
+    <tr><td>There is a limiter on every band</td><td>Plus a brick wall on the output. Sixteen
+      algorithms, five bands, and a fold that can multiply its own harmonics — something has to
+      hold the line.</td></tr>
+    <tr><td>The front panel comes off</td><td>Under it is a patch bay: eight cables, and every band's
+      audio and envelope on tap to drive any other band's knobs. Section 08.</td></tr>
+  </table>
+
+  <div class="note"><b>It is an effect, not an instrument.</b> Stereo in, stereo out, no MIDI. Put
+  it on a channel, a bus, or the whole mix.</div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">02</span><h2>Quick start</h2>
+    <span class="sub">Five minutes</span></div>
+
+  <ol class="steps">
+    <li><b>Put it on something with a full spectrum.</b> A drum bus, a synth, a whole mix. Multiband
+      distortion on a single sine wave is a waste of four bands.</li>
+    <li><b>Watch the spectrum.</b> The display is live, and each band's zone is tinted with that
+      band's colour. Drag the markers to put the crossovers where the interesting parts of your
+      material actually are.</li>
+    <li><b>Turn one band's DRIVE up.</b> It will not get louder — that is the point. Listen for
+      what it does to the texture instead.</li>
+    <li><b>Change that band's algorithm.</b> The arrows step through; clicking the window opens the
+      whole list of sixteen. Everything from WARM to ANNIHILATE, and they are in that order.</li>
+    <li><b>SOLO the band</b> to hear what you are actually doing to it, then un-solo and listen to
+      it in place. The two are rarely the same decision.</li>
+    <li><b>Press RANDOM when you are stuck.</b> It re-rolls every algorithm, drive and character —
+      and deliberately leaves your input, output, dry/wet and band trims alone, so it changes the
+      sound without changing the balance.</li>
+  </ol>
+
+  <figure>
+    <img src="shots/hero.jpg" alt="The whole panel">
+    <figcaption>The spectrum and its crossover markers across the top, five band strips beneath,
+    the control room along the bottom.</figcaption>
+  </figure>
+
+  <div class="note"><b>LIGHT</b>, at the left of the header, is for rooms this panel was not
+  designed for. It is a gamma curve rather than a brightness control: it lifts the shadows &mdash;
+  where everything on a panel this dark actually lives &mdash; and steepens the contrast down there,
+  while leaving the highlights where they are instead of flattening them into white. Double-click
+  the slider to put it back to nothing. It is a view setting, not part of the patch: it is
+  remembered per machine and never saved into a preset or a project.</div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">03</span><h2>Bands and crossovers</h2>
+    <span class="sub">The spectrum</span></div>
+
+  <figure>
+    <img src="shots/scope.jpg" alt="The spectrum display with crossover markers">
+    <figcaption>Each band's zone is tinted in its own colour, and the spectrum bars are coloured by
+    the band they fall into — so you can see which band is doing the work before you hear it.</figcaption>
+  </figure>
+
+  <p>The strip of small type along the top of the display is the whole set of shortcuts. The
+  spectrum is not a picture of the sound; it is the fastest way to drive the plugin.</p>
+
+  <table class="tight">
+    <tr><td>Drag a marker <span class="quiet">&mdash; or the edge of a zone</span></td><td>Moves that
+      crossover. The readout on the marker follows in real frequency, and the two curves either
+      side of it move with it.</td></tr>
+    <tr><td>Double-click a marker</td><td>Back to its default.</td></tr>
+    <tr><td>Drag inside a zone</td><td>That band&rsquo;s <b>DRIVE</b>. Up is more.</td></tr>
+    <tr><td>Shift-drag inside a zone</td><td>That band&rsquo;s <b>LEVEL</b>.</td></tr>
+    <tr><td>Alt-drag inside a zone</td><td>Moves the whole band &mdash; both its crossovers together,
+      keeping its width.</td></tr>
+    <tr><td>Wheel over a zone</td><td>Steps that band&rsquo;s <b>algorithm</b>.</td></tr>
+    <tr><td>Double-click inside a zone</td><td>That band on or off.</td></tr>
+    <tr><td><b>CURVES</b></td><td>The translucent filled response curves, one per band, showing what
+      each crossover is really doing to the signal rather than where a line has been drawn. On by
+      default; switch them off if you would rather watch the bare spectrum.</td></tr>
+    <tr><td>1 – 5</td><td>The band count. Pressing one of these <em>also re-spaces the crossovers</em>
+      evenly across the audio band, because a five-band layout squeezed into two bands is never what
+      anyone wanted. Automation from the host changes the count without re-spacing.</td></tr>
+  </table>
+
+  <div class="figrow">
+    <figure><img src="shots/bands.jpg" alt="Band count, oversampling and the master switches">
+      <figcaption>Band count, oversampling, and the two switches that decide how honest and how
+      safe the output is.</figcaption></figure>
+    <div style="flex:1 1 0">
+      <h4>Under the crossovers</h4>
+      <p style="font-size:9.6pt">Fourth-order Linkwitz-Riley, with the all-pass compensation that
+      keeps the sum flat: every band split off early is run through an all-pass matching each later
+      split, or the crossovers start notching each other. Measured on the bench at every band
+      count, the summed response is flat to within <b>0.08 dB</b> from 30 Hz to 14 kHz.</p>
+      <p style="font-size:9.6pt">Crossovers cannot cross. Push one past its neighbour and it stops
+      a semitone short.</p>
+    </div>
+  </div>
+
+  <h3>Oversampling</h3>
+  <p>Shapers alias, and the mild ones suffer most — a tube emulation that folds its own harmonics
+  back down the spectrum does not sound like a tube. <b>2×</b> is the default and costs little;
+  <b>4×</b> is for when the top band is doing something violent. <b>1×</b> is there for when you
+  want the aliasing, which with BITCRUSH and DECIMATE you very well might.</p>
+  <p class="quiet">The resampling is a 63-tap polyphase half-band pair; measured transparency in
+  the audio band is within 0.02 dB at both ratios.</p>
+</section>
+
+<!-- ================= 4 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">04</span><h2>A band strip</h2>
+    <span class="sub">The controls</span></div>
+
+  <div class="figrow">
+    <figure style="flex:0 0 38%"><img src="shots/strip.jpg" alt="One band strip"></figure>
+    <div style="flex:1 1 0">
+      <p class="lead" style="margin-top:0">Every band is the same nine controls. Learn one strip and
+      you have learned all five.</p>
+      <p>The frequency range under the band number is live — it follows the crossovers, so you
+      always know what this strip is actually working on.</p>
+      <p>At the foot of the strip is a moving-coil meter showing the band's own level, with two LED
+      strips beside it: <b>GR</b> on the left is the band limiter working, <b>AG</b> on the right is
+      how much the gain match is adding or taking away.</p>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td>ON / SOLO</td><td>Bypass this band, or hear it alone. Solo on any band mutes the rest;
+      several bands can be soloed at once.</td></tr>
+    <tr><td>Algorithm window</td><td>Arrows step through the sixteen; clicking the window opens the
+      list. Section 05.</td></tr>
+    <tr><td>DRIVE</td><td>How hard the shaper is pushed. With AUTO GAIN on this changes the
+      character and not the level.</td></tr>
+    <tr><td>BIAS</td><td>Shifts the operating point of the shaper, which makes it lopsided — and a
+      lopsided shaper makes <em>even</em> harmonics. This works on all sixteen, so BIAS means the
+      same thing everywhere. The DC it leaves behind is removed automatically.</td></tr>
+    <tr><td>CHARACTER</td><td>A different control on every algorithm, and it is labelled with
+      whatever it currently is. See the table in section 05.</td></tr>
+    <tr><td>TONE</td><td>A ±12 dB tilt after the shaper, pivoting at 700 Hz. Dark at the bottom,
+      bright at the top, same loudness either way.</td></tr>
+    <tr><td>MIX</td><td>Dry and wet <em>within this band</em>. Parallel distortion per band, which
+      is the most useful control here after DRIVE.</td></tr>
+    <tr><td>LEVEL</td><td>The band's trim into the sum, −∞ to +12 dB. Unity is straight up.</td></tr>
+    <tr><td>CEILING</td><td>Where this band's limiter starts working, −34 dB to full scale. Pull it
+      down and the band compresses into itself; leave it up and it only catches peaks.</td></tr>
+  </table>
+</section>
+
+<!-- ================= 5 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">05</span><h2>The sixteen algorithms</h2>
+    <span class="sub">Reference</span></div>
+
+  <p class="lead">Roughly in order of how much damage they do. The first four flatter, the last four
+  do not pretend to.</p>
+
+  <h3>Mild</h3>
+  <table class="algo">
+    <tr><th>Name</th><th>Character</th><th>What it is</th></tr>
+    <tr><td>WARM</td><td>ROUND</td><td>A cubic soft clip — the gentlest thing here. CHARACTER rounds it further toward a pure tanh curve.</td></tr>
+    <tr><td>VALVE</td><td>GRID</td><td>A triode: it conducts differently either side of zero, so it is lopsided even with BIAS centred. That asymmetry is where the second harmonic comes from, and why it flatters almost anything. CHARACTER sets the grid conduction.</td></tr>
+    <tr><td>OVERDRIVE</td><td>KNEE</td><td>A soft clip sliding toward a hard one. CHARACTER is the knee: soft at the bottom, abrupt at the top.</td></tr>
+    <tr><td>TAPE</td><td>DULL</td><td>Saturation with a memory — the shaper's own recent output is folded back in, which smears transients the way tape does. CHARACTER is how much of that memory you hear.</td></tr>
+  </table>
+
+  <h3>Harsh</h3>
+  <table class="algo">
+    <tr><td>FUZZ</td><td>SQUASH</td><td>A hard clip with a <em>different</em> threshold each way up. Cheap, nasty and honest about it. CHARACTER sets the positive threshold, so it decides how lopsided the squash is.</td></tr>
+    <tr><td>RAZOR</td><td>EDGE</td><td>Straight from tanh to a razor-hard clip. CHARACTER is that blend. The one to reach for when you want the edge and nothing else.</td></tr>
+    <tr><td>FOLD</td><td>OFFSET</td><td>A triangle wavefolder: past full scale the waveform turns back on itself instead of flattening, which multiplies harmonics rather than merely adding them. CHARACTER offsets the fold so it happens asymmetrically.</td></tr>
+    <tr><td>SINE FOLD</td><td>FOLDS</td><td>Folding through a sine instead of a triangle — smoother folds, far more inharmonic. Metallic and bell-like at high drive. CHARACTER is how many folds you get.</td></tr>
+  </table>
+
+  <h3>Digital</h3>
+  <table class="algo">
+    <tr><td>RECTIFY</td><td>OCTAVE</td><td>Blends the signal toward its own rectified self, which puts an octave up on top of it. CHARACTER is how far toward full rectification it goes.</td></tr>
+    <tr><td>BITCRUSH</td><td>DITHER</td><td>A quantiser, fifteen bits down to about one. CHARACTER adds dither, which turns the quantisation buzz into quantisation hiss.</td></tr>
+    <tr><td>DECIMATE</td><td>SMOOTH</td><td>Sample and hold, up to one sample in seventy-one. CHARACTER smooths the steps, from a hard staircase to something almost filtered.</td></tr>
+    <tr><td>SLEW</td><td>SKEW</td><td>A slew-rate limiter: the output can only move so fast, so anything quick gets rounded off into a ramp. CHARACTER makes it asymmetric — faster one way than the other — which is where the character lives.</td></tr>
+  </table>
+
+  <h3>Unreasonable</h3>
+  <table class="algo">
+    <tr><td>RING MOD</td><td>FREQ</td><td>Ring modulation inside the band, 12 Hz to 4 kHz. At the bottom of the range it is tremolo; at the top it is a completely different instrument. DRIVE is the depth.</td></tr>
+    <tr><td>CHEBYSHEV</td><td>HARMONIC</td><td>Not distortion so much as harmonic injection: Chebyshev polynomials add one specific partial at a time. CHARACTER slides the emphasis from the second up to the fifth.</td></tr>
+    <tr><td>SHRED</td><td>CHOKE</td><td>Hard saturation into a clip that tightens as DRIVE rises, then a gate underneath. CHARACTER is the choke — how much of the quiet part gets swallowed. Gated, spitting, and very loud-sounding without being loud.</td></tr>
+    <tr><td>ANNIHILATE</td><td>CHAOS</td><td>A fold, then a crush, then a clip, then a sine folded through the result. CHARACTER is how much of that last stage you get. There is no musical justification for this one.</td></tr>
+  </table>
+
+  <div class="note"><b>BIAS works on all sixteen.</b> It shifts the operating point before the
+  shaper, so every algorithm can be made asymmetric — and asymmetry is what produces even
+  harmonics. On the mild four it is the difference between clean and characterful; on the last four
+  it is mostly just further damage.</div>
+</section>
+
+<!-- ================= 6 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">06</span><h2>Why DRIVE is not a volume knob</h2>
+    <span class="sub">Gain matching</span></div>
+
+  <p class="lead">Every band measures its own RMS immediately before the shaper and immediately
+  after it, and applies whatever correction makes those two match.</p>
+
+  <p>It is measured rather than modelled, so it works for all sixteen algorithms without a lookup
+  table — including the ones that change the crest factor completely, and including whatever BIAS
+  and CHARACTER are doing at the time. It holds where it is when the band goes quiet, so silence
+  cannot ramp the gain up to meet a noise floor.</p>
+
+  <p>Measured on the bench, sweeping DRIVE from nothing to maximum with pink noise, the output
+  level moves by:</p>
+
+  <table class="tight" style="font-size:9pt">
+    <tr><th>Algorithm</th><th>Level change across the whole DRIVE range</th></tr>
+    <tr><td>WARM, VALVE, TAPE, DECIMATE</td><td>0.04 dB</td></tr>
+    <tr><td>BITCRUSH, SLEW, OVERDRIVE, RING MOD</td><td>0.06 – 0.08 dB</td></tr>
+    <tr><td>RAZOR, SINE FOLD, RECTIFY, FUZZ</td><td>0.10 – 0.19 dB</td></tr>
+    <tr><td>CHEBYSHEV, SHRED</td><td>0.27 dB</td></tr>
+    <tr><td>FOLD, ANNIHILATE</td><td>0.40 – 0.44 dB</td></tr>
+  </table>
+
+  <p>Under half a decibel at the very worst, and under a fifth of one for most of them. That is
+  well inside the range where the ear is judging the sound rather than the volume.</p>
+
+  <div class="note"><b>Switch it off deliberately.</b> With AUTO GAIN off, DRIVE behaves like every
+  other distortion you have ever used — the level rises with it. That is occasionally exactly what
+  a part needs, and it is one button.</div>
+
+  <h3>The limiters</h3>
+  <p>Each band has its own, set by CEILING, with a fast attack and a ninety-millisecond release.
+  Its gain reduction is the left-hand LED strip on that band's meter. Because it sits <em>after</em>
+  the gain match, pulling CEILING down turns the band into a compressor that the distortion feeds —
+  which on a drum bus is frequently the whole point.</p>
+  <p>After everything there is a brick wall on the output. It is on by default, behind a hazard
+  guard, and the CLAMP lamp in the control room lights when it is working. Some of the best
+  settings in this plugin live with that lamp lit.</p>
+</section>
+
+<!-- ================= 7 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">07</span><h2>Presets and randomising</h2>
+    <span class="sub">Getting about</span></div>
+
+  <table>
+    <tr><td>SAVE</td><td>An ordinary Save dialog, opened on your preset folder and already
+      suggesting a name. Save somewhere else and that becomes your preset folder from then on —
+      unless you were simply filing into one of its own sub-folders.</td></tr>
+    <tr><td>LOAD</td><td>The whole library as a menu, with sub-folders flying out sideways beside
+      the loose presets. <b>BROWSE…</b> at the foot reaches anywhere on disk; <b>PRESET FOLDER…</b>
+      moves the library.</td></tr>
+    <tr><td>RANDOM</td><td>Re-rolls the band count, the crossovers, and every algorithm, drive,
+      bias, character, tone, mix and ceiling. It deliberately does <em>not</em> touch input, output,
+      dry/wet or the band levels, so the balance you set survives the roll.</td></tr>
+  </table>
+
+  <p>Presets live in <code>Documents\Brokild patches\Martian Gain</code>. Every Brokild plugin keeps
+  its own folder under the same roof, which means a library survives an update: earlier versions
+  kept presets beside the installed <code>.vst3</code>, where an installer can reach them. Anything
+  saved under the old scheme is copied across the first time this version runs, and the originals
+  are left exactly where they were. A preset is the sixty-one numbers and nothing else: plain JSON
+  you can read, diff, back up or send to somebody.</p>
+
+  <p class="quiet">Your DAW project stores the same thing independently, so reopening a session
+  restores the plugin without touching the preset folder at all.</p>
+</section>
+
+<!-- ================= 8 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">08</span><h2>The patch bay</h2>
+    <span class="sub">What each band does to the others</span></div>
+
+  <p class="lead">A multiband processor normally runs its bands in parallel and in silence: five
+  separate distortions that never learn of each other&rsquo;s existence, summed at the end. That is
+  tidy, and it is why multiband distortion so often sounds like five things happening rather than
+  one. Under this panel is the answer to it.</p>
+
+  <p>Press <b>PATCH BAY</b> in the header and the front panel lifts off. Underneath is a column
+  per band, an outlet and an inlet for everything worth connecting, and eight cables. What you
+  wire is what one band does to another.</p>
+
+  <figure>
+    <img src="shots/bay.jpg" alt="The patch bay with cables">
+    <figcaption>Five columns, one per band, with the input and output envelopes on the side rails
+    and the four crossover frequencies along the floor. Each patch point is a block of three holes.
+    A cable is coloured by the band it comes out of, and hangs thicker the harder it is turned
+    up.</figcaption>
+  </figure>
+
+  <h3>What comes out</h3>
+
+  <p>Nothing in this list has a knob on the front panel, and it is not supposed to. These are
+  <em>taps</em> &mdash; places to listen to what the machine is already doing &mdash; rather than
+  controls. An <b>envelope</b> is simply how loud something is at this instant, as a number: patch
+  one into a knob and the knob follows that loudness.</p>
+
+  <table class="tight">
+    <tr><td><b>AUDIO OUT</b> <span class="quiet">per band</span></td><td>That band&rsquo;s distorted
+      signal, after its shaper and its ceiling. Patched into another band&rsquo;s AUDIO IN it is real
+      audio; patched into a knob it is that signal&rsquo;s envelope.</td></tr>
+    <tr><td><b>ENV</b> <span class="quiet">per band</span></td><td>How loud that band is, right
+      now &mdash; a follower, not a signal. This is the useful one.</td></tr>
+    <tr><td><b>INPUT ENV</b> / <b>OUTPUT ENV</b> <span class="quiet">the side rails</span></td><td>The
+      envelope of the whole input, and of the whole output. The first is your material driving the
+      plugin; the second is a feedback path around the entire machine.</td></tr>
+  </table>
+
+  <h3>What goes in</h3>
+  <table class="tight">
+    <tr><td><b>AUDIO IN</b></td><td>Mixes a signal into that band before its shaper. This is how you
+      make one band distort another band&rsquo;s output rather than the source.</td></tr>
+    <tr><td><b>DRIVE</b>, <b>LEVEL</b>, <b>CHARACTER</b>, <b>CEILING</b></td><td>Adds to that knob,
+      continuously. The knob on the panel stays where you left it; the cable moves the value the
+      engine actually uses.</td></tr>
+    <tr><td><b>XOVER 1 &ndash; 4</b></td><td>Moves a crossover frequency. A cable from a band&rsquo;s
+      envelope to the crossover above it makes the band breathe wider as it works harder.</td></tr>
+  </table>
+
+  <h3>Wiring it</h3>
+  <table class="tight">
+    <tr><td>Drag jack to jack</td><td>Take hold of an outlet and carry the plug to an inlet. The
+      cord follows your hand and snaps home when you are near enough. Either direction works &mdash;
+      out to in, or in to out.</td></tr>
+    <tr><td>Wheel over a cable</td><td>The amount, from &minus;100 % to +100 %. The cable thickens with
+      it, and goes hollow and dashed when it is negative &mdash; a cable that turns a knob <em>down</em>
+      as the source gets louder.</td></tr>
+    <tr><td>Double-click a cable</td><td>Pulls it out.</td></tr>
+    <tr><td>Double-click a jack</td><td>Pulls out everything plugged into it.</td></tr>
+  </table>
+
+  <div class="note"><b>One plug per hole.</b> Every patch point is a little block of <b>three</b>
+  holes, so three cables can leave or arrive at the same point &mdash; each in its own hole, and you
+  can count them. A fourth is refused, because there is nowhere to put it. Several cables arriving
+  at the same knob simply add up. Eight cables in all.</div>
+
+  <h3>Three that are worth trying</h3>
+  <table class="tight">
+    <tr><td>Band 1 <b>ENV</b> &rarr; band 4 <b>DRIVE</b>, about &minus;60 %</td><td>The top of the
+      spectrum backs off when the bass hits. Ducking, but per band and inside the distortion rather
+      than after it.</td></tr>
+    <tr><td>Band 3 <b>AUDIO OUT</b> &rarr; band 5 <b>AUDIO IN</b>, about +40 %</td><td>The top band
+      distorts the middle band&rsquo;s output as well as its own share of the source. Harmonics of
+      harmonics; this is where it stops sounding like a multiband.</td></tr>
+    <tr><td><b>OUTPUT ENV</b> &rarr; <b>XOVER 3</b>, about +50 %</td><td>The crossover walks
+      upward as the whole thing gets loud. Nothing is modulating anything obvious, and yet the
+      machine will not sit still.</td></tr>
+  </table>
+
+  <h3>Whether it can run away</h3>
+  <p>Audio cables make loops, and a loop through five distortions with the gain up is the
+  definition of a feedback path. Three things stop it becoming one. Every audio cable is delayed by
+  a single sample, so a ring is a comb filter rather than an algebraic impossibility. Every band
+  ends in its own ceiling limiter, and the master limiter sits after all of them. And the auto gain
+  is measuring, not modelling &mdash; it hears the loop getting louder and takes it back down.</p>
+  <p class="quiet">Bench: five audio cables wired in a ring across all five bands, every drive at
+  maximum, held for thirty seconds &mdash; peak 1.000, and 1.000 still after the input is cut. Two
+  hundred random patchings at random settings: peak 1.000, nothing unbounded, no failures.</p>
+
+  <div class="note"><b>The cables are parameters.</b> Each of the eight is three of them &mdash; FROM,
+  TO and AMOUNT &mdash; so the host can automate a patching, and a preset carries the wiring along with
+  the knobs. <b>RANDOM</b> will throw in a couple of control cables, never an audio one; a random
+  audio ring is a howl, not a preset.</div>
+</section>
+<!-- ================= 9 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">09</span><h2>Try this</h2>
+    <span class="sub">Recipes</span></div>
+
+  <div class="grid2">
+    <div>
+      <div class="recipe">
+        <h4>Glue that is not compression</h4>
+        <p class="how">3 bands. All three <b>VALVE</b>, DRIVE <b>35</b>, BIAS <b>58</b>, MIX
+        <b>100</b>, CEILING right up. 2× oversampling.</p>
+        <p class="out">On a mix bus: denser, no louder, and nothing is moving.</p>
+      </div>
+      <div class="recipe">
+        <h4>Low end you can feel on a phone</h4>
+        <p class="how">2 bands, crossover about <b>140 Hz</b>. Band 1 <b>RECTIFY</b>, CHARACTER
+        <b>70</b>, MIX <b>40</b>. Band 2 clean, DRIVE <b>0</b>.</p>
+        <p class="out">An octave up on the bass only, mixed underneath. The note survives small
+        speakers.</p>
+      </div>
+      <div class="recipe">
+        <h4>Drum bus with teeth</h4>
+        <p class="how">4 bands. Band 1 <b>WARM</b> 30, band 2 <b>OVERDRIVE</b> 55, band 3
+        <b>FUZZ</b> 45 with MIX <b>55</b>, band 4 <b>RAZOR</b> 30. CEILING on band 3 down to
+        <b>−9 dB</b>.</p>
+        <p class="out">The snare gets angry, the kick stays whole, the cymbals stay.</p>
+      </div>
+      <div class="recipe">
+        <h4>The tape that has been used too often</h4>
+        <p class="how">3 bands, all <b>TAPE</b>, DRIVE <b>60</b>, CHARACTER <b>70</b> on the top
+        band and <b>20</b> on the bottom. TONE down a little on band 3.</p>
+        <p class="out">Softened transients and a dulled top, without an EQ move in sight.</p>
+      </div>
+    </div>
+    <div>
+      <div class="recipe">
+        <h4>Bells out of anything</h4>
+        <p class="how">5 bands. Bands 3, 4 and 5 on <b>SINE FOLD</b> with DRIVE <b>70</b> and
+        different CHARACTER on each. MIX <b>45</b>. 4× oversampling.</p>
+        <p class="out">Inharmonic metal on the top three bands, the fundamental untouched.</p>
+      </div>
+      <div class="recipe">
+        <h4>Broken transmission</h4>
+        <p class="how">3 bands. Band 2 <b>DECIMATE</b> DRIVE <b>75</b> CHARACTER <b>10</b>, band 3
+        <b>BITCRUSH</b> DRIVE <b>60</b>. Oversampling <b>1×</b> — you want the aliasing.</p>
+        <p class="out">Radio from somewhere it should not be coming from.</p>
+      </div>
+      <div class="recipe">
+        <h4>The one that ate the mix</h4>
+        <p class="how">5 bands, all <b>ANNIHILATE</b>, DRIVE <b>90</b>, CHAOS <b>70</b>. Then bring
+        <b>DRY/WET</b> back to about <b>18 %</b>.</p>
+        <p class="out">Wet, it is unusable. At a fifth, it is a texture nothing else makes.</p>
+      </div>
+      <div class="recipe">
+        <h4>Just press it</h4>
+        <p class="how"><b>RANDOM</b>. Then again. Then adjust one crossover.</p>
+        <p class="out">Because the levels do not move, you can do this while the track plays and
+        nobody has to touch the monitor knob.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 10 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">10</span><h2>Installing &amp; specifications</h2>
+    <span class="sub">Practical</span></div>
+
+  <h3>Installing</h3>
+  <ol class="steps">
+    <li><b>Unzip.</b> Copy <code>Martian Gain.vst3</code> — the whole folder — into
+      <code>C:\Program Files\Common Files\VST3\</code>. A sub-folder such as
+      <code>...\VST3\Brokild\</code> is fine; hosts look inside.</li>
+    <li><b>Rescan.</b> Start your DAW and let it rescan plugins. It appears as an <b>effect</b>,
+      manufacturer Brokild.</li>
+    <li><b>Or just run it.</b> <code>Martian Gain.exe</code> in the same zip is the standalone
+      version; it picks its audio device from its own options menu.</li>
+  </ol>
+
+  <div class="note"><b>If the panel does not appear</b> — the interface is drawn in a WebView2
+  surface, which every up-to-date Windows 10 and 11 already has. If yours does not, install the
+  free Microsoft Edge WebView2 Runtime and reopen the plugin. The audio keeps working with the
+  window shut either way.</div>
+
+  <h3>Specifications</h3>
+  <table class="tight">
+    <tr><td>Format</td><td>VST3 effect, 64-bit Windows. Standalone included.</td></tr>
+    <tr><td>Bus</td><td>Stereo in, stereo out. Mono is supported. No MIDI.</td></tr>
+    <tr><td>Bands</td><td>1 – 5, fourth-order Linkwitz-Riley with all-pass compensation.</td></tr>
+    <tr><td>Algorithms</td><td>16 per band, independently chosen.</td></tr>
+    <tr><td>Oversampling</td><td>1× / 2× / 4×, 63-tap polyphase half-band.</td></tr>
+    <tr><td>Parameters</td><td>85, all host-automatable &mdash; 61 on the panel, 24 in the patch bay.</td></tr>
+    <tr><td>Sample rates</td><td>Any. Tested at 44.1, 48, 88.2 and 96 kHz against every oversampling ratio.</td></tr>
+    <tr><td>Latency</td><td>None reported; nothing in the signal path looks ahead. The oversampling
+      filters add a fixed group delay of a little over half a millisecond at 2×, which is not
+      compensated and does not need to be for an effect used in isolation.</td></tr>
+    <tr><td>CPU</td><td>Rises with band count and oversampling. Five bands at 4× is the expensive
+      corner; two bands at 2× is not.</td></tr>
+    <tr><td>Patch bay</td><td>8 cables, 12 sources, 28 destinations. One-sample delay on audio
+      paths; saved in presets and in the project.</td></tr>
+    <tr><td>Network</td><td>None. It does not open a socket, and there is nothing to allow through
+      a firewall.</td></tr>
+  </table>
+
+  <div class="colophon">
+    <b>Martian Gain</b> — Brokild Apps. Build 260827.2, August 2026.<br>
+    Native C++ audio, JUCE 8, interface drawn in the plugin's own window.<br>
+    Free to use. No installer, no account, no telemetry, nothing phones home.
+  </div>
+</section>
+
+</body>
+</html>

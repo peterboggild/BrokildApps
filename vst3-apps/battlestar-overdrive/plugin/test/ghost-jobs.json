@@ -1,0 +1,20 @@
+[
+  {"name":"boot","wait":1500},
+  {"name":"fake start-up state: eight engines on IDLE BURN (without it a headless page thinks it is on SUPERNOVA)","eval":"window.__BO.init({engines:[1,2,3,4,5,6,7,8].map(i=>({name:'E'+i,blurb:''})),params:[{id:'engine',name:'ENGINE',stepped:true,steps:8,v:0}],skin:'chrome'}); 'ok'"},
+  {"name":"no JS errors at boot","eval":"JSON.stringify(window.__err)"},
+  {"name":"ghost prepared from the still","eval":"JSON.stringify(window.__BO.state().ghost)"},
+  {"name":"ghost forced to 0.12 (the usual weak link)","eval":"window.__BO.forcePeak=0.1; window.__BO.forceGhost=0.12; \u0027ok\u0027"},
+  {"name":"settle","wait":600},
+  {"name":"shot g012","shoot":"C:/Users/peter/AppData/Local/Temp/bo-g012.png"},
+  {"name":"ghost forced to 0.45","eval":"window.__BO.forceGhost=0.45; \u0027ok\u0027"},
+  {"name":"settle","wait":600},
+  {"name":"shot g045","shoot":"C:/Users/peter/AppData/Local/Temp/bo-g045.png"},
+  {"name":"from the meter: peak 0.97 and the ghost left to itself","eval":"window.__BO.forceGhost=null; window.__BO.forcePeak=0.97; \u0027ok\u0027"},
+  {"name":"let the clip follower rise","wait":900},
+  {"name":"clip follower near 1, strength high","eval":"JSON.stringify(window.__BO.state().ghost)"},
+  {"name":"shot clip","shoot":"C:/Users/peter/AppData/Local/Temp/bo-gclip.png"},
+  {"name":"back to quiet","eval":"window.__BO.forcePeak=0.1; \u0027ok\u0027"},
+  {"name":"release is slow (a hit holds the picture)","wait":700},
+  {"name":"clip follower part way down, not gone","eval":"JSON.stringify(window.__BO.state().ghost)"},
+  {"name":"errors at the end","eval":"JSON.stringify(window.__err)"}
+]

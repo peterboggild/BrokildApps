@@ -1,0 +1,5 @@
+[
+  {"wait": 1200},
+  {"eval": "'22 final: timing=' + SITE.timing + ' others=' + SITE.others + ' status=' + document.getElementById('siteStatus').textContent + ' err=' + window.__err"},
+  {"eval": "document.getElementById('siteclose').click(); 'overlay closed: ' + !document.getElementById('site').classList.contains('on')"}
+]

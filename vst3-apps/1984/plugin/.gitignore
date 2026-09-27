@@ -1,0 +1,6 @@
+build/
+test/build/
+dist/
+*.old*
+docs/manual/raw/
+docs/audio/*.wav

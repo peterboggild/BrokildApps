@@ -1,0 +1,4 @@
+[
+  {"wait": 1200},
+  {"eval": "'104: err=' + window.__err + ' open=' + SITE.open + ' others=' + SITE.others + ' timing=' + SITE.timing + ' climate=' + SITE.climate + ' distance=' + SITE.distance + ' rSite=[' + document.querySelector('#rSite').textContent + ']'"}
+]

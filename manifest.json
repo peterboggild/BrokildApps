@@ -1,0 +1,58 @@
+{
+  "labels": [
+    {
+      "id": "vst3",
+      "name": "VST3 Plugin",
+      "description": "Native audio plugins you download and install — they run inside your DAW."
+    },
+    {
+      "id": "browser",
+      "name": "Browser",
+      "description": "Runs in a tab. Nothing to install, nothing uploaded — the sound is made on your own machine."
+    },
+    {
+      "id": "synth",
+      "name": "Synth",
+      "description": "Instruments that make sound — play them from a keyboard, or let them drone."
+    },
+    {
+      "id": "effect",
+      "name": "Effect",
+      "description": "Processors that transform the sound running through them."
+    },
+    {
+      "id": "phone",
+      "name": "Phone",
+      "description": "Works on a phone screen — touch-first, and installable to the home screen."
+    }
+  ],
+  "apps": [
+    "vst3-apps/collection",
+    "vst3-apps/beetmachine-collection",
+    "vst3-apps/beetmachine",
+    "vst3-apps/kickstart",
+    "vst3-apps/snare-tactics",
+    "vst3-apps/hats-off",
+    "vst3-apps/gravity-well",
+    "vst3-apps/1984",
+    "vst3-apps/thirty-thousand-years",
+    "vst3-apps/thin-walls",
+    "vst3-apps/rite-of-passage",
+    "vst3-apps/battlestar-overdrive",
+    "vst3-apps/clone-wars",
+    "vst3-apps/black-rider",
+    "vst3-apps/proxima-centauri-b",
+    "vst3-apps/full-metal-racket",
+    "vst3-apps/martian-gain",
+    "vst3-apps/blade-ruiner",
+    "vst3-apps/escape-room",
+    "vst3-apps/experimental",
+    "vst3-apps/brain-scan",
+    "vst3-apps/high-tide",
+    "vst3-apps/photo-synth",
+    "vst3-apps/legion",
+    "vst3-apps/hairfryer",
+    "music-apps/photo-synth",
+    "health-apps/sleep-noise"
+  ]
+}

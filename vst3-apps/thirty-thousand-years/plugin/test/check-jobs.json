@@ -1,0 +1,25 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2600)})" },
+
+  { "name": "macro cell now fits its children",
+    "eval": "(function(){var m=document.querySelector('.mac');var out=['cell '+Math.round(m.getBoundingClientRect().height)+' clientH '+m.clientHeight+' scrollH '+m.scrollHeight+(m.scrollHeight>m.clientHeight+1?'  STILL CLIPPED':'  fits')];Array.prototype.forEach.call(m.children,function(c){out.push((c.className||c.tagName)+' h='+Math.round(c.getBoundingClientRect().height)+' needs '+c.scrollHeight+(c.scrollHeight>c.clientHeight+1?'  CLIPPED':''))});var v=m.querySelector('.val'),ctl=m.querySelector('.ctl');if(v&&ctl){out.push('value bottom '+Math.round(v.getBoundingClientRect().bottom-ctl.getBoundingClientRect().top)+' inside a ctl of '+Math.round(ctl.getBoundingClientRect().height))}return out.join(' | ')})()" },
+  { "name": "every macro name is drawn at full size",
+    "eval": "(function(){var bad=[];Array.prototype.forEach.call(document.querySelectorAll('.mac'),function(m){var n=m.querySelector('.mn');if(n.scrollHeight>n.clientHeight+1||n.scrollWidth>n.clientWidth+1)bad.push(n.textContent.trim()+' '+n.scrollWidth+'x'+n.scrollHeight+' in '+n.clientWidth+'x'+n.clientHeight)});return bad.length?('CLIPPED: '+bad.join(', ')):'all eight names fit'})()" },
+  { "name": "header no longer overflows",
+    "eval": "(function(){var h=document.querySelector('#head');return 'head h='+Math.round(h.getBoundingClientRect().height)+' scrollH='+h.scrollHeight+(h.scrollHeight>h.clientHeight+1?'  STILL OVERFLOWS':'  fits')})()" },
+  { "name": "deck still does not scroll",
+    "eval": "(function(){var d=document.querySelector('#deck');return Math.round(d.getBoundingClientRect().height)+' box, '+d.scrollHeight+' content'})()" },
+
+  { "name": "HISTORY status with no preset loaded", "eval": "(function(){var n=document.querySelector('[data-panel=HISTORY] .pt i');return n?n.textContent:'no status'})()" },
+  { "name": "load THE MACHINES KEPT WORKING", "eval": "(function(){__TTY.patch(0);return 'asked'})()" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,1600)})" },
+  { "name": "HISTORY is armed by the preset now", "eval": "'h_on = ' + __TTY.text('h_on')" },
+  { "name": "and the panel says what it is doing", "eval": "(function(){var n=document.querySelector('[data-panel=HISTORY] .pt i');return n?n.textContent:'no status'})()" },
+  { "name": "switch it off and the panel says that too", "eval": "(function(){__TTY.set('h_on',0);var n=document.querySelector('[data-panel=HISTORY] .pt i');return n?n.textContent:'no status'})()" },
+  { "name": "back on", "eval": "(function(){__TTY.set('h_on',1);return __TTY.text('h_on')})()" },
+
+  { "name": "macros", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/macros-fixed.png", "sel": "#macros", "scale": 2 },
+  { "name": "header", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/head-fixed.png", "sel": "#head", "scale": 2 },
+  { "name": "history panel", "shoot": "C:/Users/peter/Dropbox/ACTIVITIES/00 VSCODE/BrokildApps/vst3-apps/thirty-thousand-years/plugin/docs/history-fixed.png", "sel": "[data-panel=HISTORY]", "scale": 2 },
+  { "name": "errors", "eval": "(window.__TTYERR||[]).length + ' js errors'" }
+]

@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Thin Walls &mdash; Handbook</title>
+<style>
+/* ===========================================================================
+   THIN WALLS, handbook.
+
+   Landscape, because the panel is 1400 x 900 and a portrait page would shrink
+   every plate to a stamp. Built for print: each .page is exactly one sheet and
+   the page background is the same near-black the plates are composited onto,
+   so a full-bleed shot has no seam at its edge.
+
+   The palette is the panel's own :root - lamp-lit brass on dark walnut, with
+   the architect's plan on paper. Nothing here invents a colour the instrument
+   does not already use.
+   =========================================================================== */
+
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:     #0d0b0a;   /* the page, and the colour the JPEGs sit on */
+  --shell:   #161311;
+  --line:    #2e2724;
+  --brass:   #d8a45c;
+  --brass1:  #e2b170;
+  --brass2:  #8a6636;
+  --warm:    #f0d2a4;
+  --paper:   #efe7d6;
+  --body:    #cabaa4;
+  --dim:     #8d8172;
+  --cool:    #7fb9d8;   /* what comes through a doorway */
+  --rule:    rgba(216,164,92,.34);
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; background: var(--ink); }
+
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body);
+  font-size: 10.2pt;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.page{
+  position: relative;
+  width: 297mm; height: 210mm;
+  overflow: hidden;
+  page-break-after: always;
+  background: var(--ink);
+}
+.page:last-child{ page-break-after: auto; }
+
+/*  The standard inner margin. The bottom inset CLEARS the folio strip rather
+    than merely meeting it: at 13mm a filled column sits on the page number. */
+.pad{ position:absolute; inset: 14mm 16mm 18mm 16mm; }
+
+/* --- display type ----------------------------------------------------------
+   The panel sets its own headings in a geometric sans, wide-tracked and upper
+   case, because the right half of it is an architect's drawing. The manual
+   does the same. No gradient: brass on walnut is the instrument. */
+.display{
+  font-family: "Futura", "Century Gothic", "Trebuchet MS", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--warm);
+  line-height: 1.04;
+  margin: 0;
+}
+h1.display{ font-size: 40pt; letter-spacing: .14em; }
+h2.display{ font-size: 21pt; }
+h3.display{ font-size: 12.5pt; color: var(--brass); letter-spacing: .13em; }
+
+.kick{
+  font: 600 8pt/1 "Segoe UI", sans-serif;
+  letter-spacing: .34em; text-transform: uppercase;
+  color: var(--brass2);
+  margin: 0 0 4mm 0;
+}
+.kick.cool{ color: #5f8ea6; }
+
+.sub{
+  font-size: 11pt; color: var(--warm); margin: 4mm 0 0 0; line-height: 1.42;
+  max-width: 155mm;
+}
+
+p{ margin: 0 0 3.2mm 0; }
+b, strong{ color: var(--warm); font-weight: 600; }
+em{ color: var(--brass); font-style: normal; font-weight: 600; }
+.mono{ font-family: Consolas, "SF Mono", ui-monospace, monospace; font-size: .92em; color: var(--warm); }
+
+/* --- rules and plates ------------------------------------------------------ */
+.rule{
+  height: 2px; border: 0; margin: 5mm 0 6mm 0;
+  background: linear-gradient(90deg, var(--brass) 0%, var(--brass2) 40%, rgba(216,164,92,.06) 100%);
+}
+.rule.thin{ height:1px; background: var(--rule); margin: 4mm 0; }
+
+img{ display:block; max-width:100%; }
+figure{ margin:0; }
+figcaption{ font-size: 8.3pt; color: var(--dim); margin-top: 2mm; line-height: 1.38; }
+figcaption b{ color: var(--brass); font-weight:600; }
+
+.bleed{ position:absolute; inset:0; width:100%; height:100%; object-fit: cover; }
+
+.shot{ border: 1px solid rgba(216,164,92,.22); border-radius: 2px; }
+
+/*  Every sheet is a FIXED height with overflow:hidden, so anything too tall is
+    not pushed onto a new page - it is silently cut off, and the DOM still
+    measures correct. Cap plates by HEIGHT and let the width follow. */
+.c-36 .shot, .c-40 .shot, .c-44 .shot, .c-46 .shot{ max-height: 62mm; width: auto; }
+.grid2 .shot{ max-height: 72mm; width: auto; margin: 0 auto; }
+/*  The "behind a door" page carries two plan plates AND three control entries
+    AND a callout: the standard cap overran the sheet by 23px, which would have
+    been cut off in silence. */
+.grid2.tight-plates .shot{ max-height: 58mm; }
+.grid3 .shot{ max-height: 40mm; width: auto; }
+/*  The panel plate is 1400 x 900; filling its column gives 95mm of height,
+    which is the whole of the room it has. Cap by WIDTH, not height. */
+.wide .shot{ width: 100%; height: auto; }
+/*  The status strip is 1400 x 23 - about sixty to one. Capping THAT by height
+    at 16mm would make it a metre wide. A strip is capped by width; everything
+    else on these pages is capped by height. */
+.strip .shot{ width: 100%; height: auto; }
+.card .shot{ max-height: 34mm; width: auto; }
+/*  From 260925.3 the plates are shot at twice the panel's pixels and the 3D
+    view is 2.1 to 1, so a grid of three takes the width and follows it. */
+.grid3.views .shot{ max-height: none; width: 100%; height: auto; }
+.fit .shot{ width: 100%; height: auto; max-height: none; }
+.ctl.small p{ font-size: 9pt; }
+.pad.tight .rule{ margin: 4mm 0 4.5mm 0; }
+.specs table.tight{ font-size: 8.1pt; }
+.specs table.tight td{ padding: 0.9mm 1.5mm 0.9mm 0; }
+
+/* --- layout helpers -------------------------------------------------------- */
+.cols{ display:flex; gap: 9mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-36{ flex: 0 0 36%; }
+.c-40{ flex: 0 0 40%; }
+.c-44{ flex: 0 0 44%; }
+.c-46{ flex: 0 0 46%; }
+.c-54{ flex: 0 0 54%; }
+.c-58{ flex: 0 0 58%; }
+.c-62{ flex: 0 0 62%; }
+
+.grid2{ display:grid; grid-template-columns: repeat(2, 1fr); gap: 5mm 9mm; }
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 5mm 7mm; }
+
+/* --- the control entry ----------------------------------------------------- */
+.ctl{
+  border-left: 2.5px solid var(--brass2);
+  padding-left: 4.5mm;
+  margin-bottom: 5mm;
+}
+.ctl h3{
+  font: 700 11pt/1 "Futura","Century Gothic","Trebuchet MS",sans-serif;
+  color: var(--brass); letter-spacing:.1em; text-transform:uppercase;
+  margin:0 0 1.4mm 0;
+}
+.ctl .what{ font-size:8.1pt; color:var(--dim); letter-spacing:.14em;
+            text-transform:uppercase; margin:0 0 1.8mm 0; }
+.ctl p{ margin:0 0 1.8mm 0; font-size: 9.5pt; }
+
+/* --- callout panels -------------------------------------------------------- */
+.box{
+  border: 1px solid var(--rule);
+  background: linear-gradient(160deg, rgba(216,164,92,.07), rgba(216,164,92,.02));
+  padding: 4.5mm 5.5mm;
+  border-radius: 2px;
+}
+.box h4{
+  font: 700 9.6pt/1 "Futura","Century Gothic","Trebuchet MS",sans-serif;
+  color: var(--brass); margin:0 0 2.2mm 0; letter-spacing:.12em; text-transform:uppercase;
+}
+.box p{ font-size: 9.3pt; }
+.box p:last-child{ margin-bottom:0; }
+.box.cool{ border-color: rgba(127,185,216,.32);
+           background: linear-gradient(160deg, rgba(127,185,216,.08), rgba(127,185,216,.02)); }
+.box.cool h4{ color: var(--cool); }
+
+/* --- tables ---------------------------------------------------------------- */
+table{ width:100%; border-collapse: collapse; font-size: 9pt; }
+th{
+  text-align:left; font: 600 7.6pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.2em; text-transform:uppercase; color: var(--brass2);
+  padding: 0 1.5mm 2mm 0; border-bottom: 1px solid var(--rule);
+}
+td{ padding: 1.7mm 1.5mm 1.7mm 0; border-bottom: 1px solid rgba(216,164,92,.11);
+    vertical-align: top; }
+td:first-child{ color: var(--brass); font-weight:600; }
+td.num{ font-family:"Consolas",ui-monospace,monospace; color:var(--warm); text-align:right; }
+th.num{ text-align:right; }
+table.tight td{ padding: 1.2mm 1.5mm 1.2mm 0; }
+table.tight{ font-size: 8.6pt; }
+
+/* --- page furniture -------------------------------------------------------- */
+.folio{
+  position:absolute; left:16mm; right:16mm; bottom: 7mm;
+  display:flex; justify-content:space-between; align-items:center;
+  font: 600 7.2pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.24em; text-transform:uppercase; color: rgba(141,129,114,.85);
+  border-top: 1px solid rgba(216,164,92,.16); padding-top: 2.4mm;
+}
+.folio .n{ color: var(--brass); font-weight:700; letter-spacing:.1em; }
+
+/* --- cover -----------------------------------------------------------------
+   The panel carries its own wordmark, top left. The title is banded across the
+   UPPER page and the art across the lower two thirds, framed to start below
+   that lettering: text on ink, picture on its own. */
+.cover-art{ position:absolute; left:0; right:0; bottom:0; height: 60%; overflow:hidden; }
+.cover-art img{ width:100%; height:100%; object-fit: cover; object-position: center 40%; }
+.cover-fade{
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, var(--ink) 0%, rgba(13,11,10,.60) 12%, rgba(13,11,10,0) 32%,
+                              rgba(13,11,10,0) 62%, rgba(13,11,10,.78) 84%, var(--ink) 96%);
+}
+.cover-top{ position:absolute; left:18mm; right:18mm; top:16mm; }
+.cover-foot{ position:absolute; left:18mm; right:18mm; bottom:12mm; }
+
+.stamp{
+  display:inline-block;
+  border: 1.4px solid var(--brass2); color: var(--brass);
+  font: 600 7.4pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.3em; text-transform:uppercase;
+  padding: 2mm 4mm; transform: rotate(-2deg); border-radius: 1.5px;
+}
+
+.says{
+  font: 600 9pt/1.35 "Consolas","SF Mono",ui-monospace,monospace;
+  color: var(--brass); letter-spacing:.14em;
+}
+
+/* the little inline plan key */
+.key{ display:flex; gap:5mm; flex-wrap:wrap; font-size:8.4pt; color:var(--dim); margin-top:2.5mm; }
+.key span{ display:flex; align-items:center; gap:1.8mm; }
+.key i{ width:7mm; height:2px; display:block; border-radius:2px; }
+</style>
+</head>
+<body>
+
+<!-- =====================================================  1  COVER  ===== -->
+<section class="page">
+  <div class="cover-art" style="height:56%">
+    <img src="img/photo.jpg" alt="" style="object-position:center 55%" />
+    <div class="cover-fade"></div>
+  </div>
+
+  <div class="cover-top">
+    <p class="kick" style="color:var(--brass); margin-bottom:6mm">Brokild &middot; Windows VST3 &middot; Binaural room</p>
+    <h1 class="display">Thin Walls</h1>
+    <hr class="rule" style="margin:7mm 0 5mm 0" />
+    <div class="cols" style="align-items:flex-start">
+      <div class="c-62">
+        <p class="display" style="font-size:13pt; color:var(--paper); letter-spacing:.18em">Handbook</p>
+      </div>
+      <div style="text-align:right; margin-left:auto">
+        <p class="says" style="margin:0">BUILD 260925.7</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover-foot" style="top:62mm; bottom:auto">
+    <p style="color:var(--dim); font-size:9.2pt; max-width:160mm; margin:0">
+      Three rooms, three doors, four sources, whatever furniture you put in them,
+      and a head you can walk around with. Everything you hear is a path the
+      engine has actually traced &mdash; through the air, off the walls, over the
+      sofa, round the door frame or straight through the leaf.
+      <span style="color:var(--brass)">September 2026.</span>
+    </p>
+  </div>
+</section>
+
+<!-- ================================================  2  WHAT THIS IS  === -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">What this is</p>
+    <h2 class="display">An apartment you can put<br>a sound inside</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <p>
+          Thin Walls is a small flat: a <em>living room</em>, a <em>box room</em>
+          and a <em>hall</em>, joined by three doors that you can open, shut or
+          leave ajar. You place up to four sound sources in it, you stand in it
+          yourself, and what comes out of the plugin is what your two ears would
+          pick up from where you are standing and which way you are facing.
+        </p>
+        <p>
+          It is not a reverb with a room preset. Every arrival is computed as a
+          journey: the straight line to each ear, the first and second bounces
+          off the walls, the path that bends round a door frame, the muffled
+          fraction that gets through a shut door or a party wall, and the tail
+          each room builds for itself. Move the source a metre and the whole set
+          of journeys changes, which is why close, far and next-door sound
+          different in character and not merely in level.
+        </p>
+        <p>
+          There is no reverb-amount control, because the amount is decided by
+          where you stood. You can furnish the rooms, hang your own pictures on
+          the walls, and record a walk through the flat as a video with its own
+          sound.
+        </p>
+
+        <hr class="rule thin" />
+
+        <h3 class="display">Installing</h3>
+        <p style="margin-top:2.5mm">
+          Copy the whole <b>Thin Walls.vst3</b> folder into your VST3 folder
+          &mdash; normally
+          <span class="mono">C:\PROGRAM FILES\COMMON FILES\VST3</span> &mdash;
+          and rescan in your DAW. The standalone in the same download needs no
+          installing; double-click it.
+        </p>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/plan-labels.jpg" alt="" />
+          <figcaption><b>The flat.</b> Living room bottom left, box room above
+            it, hall to the east. The dark block top left is outside the
+            apartment: nothing can stand there.</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:6mm">
+          <h4>The first minute</h4>
+          <p>
+            Put it on a track. Drag the loudspeaker glyph in the plan away from
+            the head and back. Then click the door between the living room and
+            the hall to shut it, and drag the source through into the hall.
+            That is the whole instrument in three gestures.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Thin Walls &middot; Handbook</span><span class="n">02</span></div>
+</section>
+
+<!-- ===================================================  3  THE PANEL  === -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The panel</p>
+    <h2 class="display">Two views and a row of controls</h2>
+
+    <div class="cols" style="margin-top:6mm">
+      <div class="c-62">
+        <figure class="wide">
+          <img class="shot" src="img/panel.jpg" alt="" style="max-height:84mm; width:auto; margin:0 auto" />
+          <figcaption><b>Top:</b> CINEMATIC, REC and EXPORT, and the build.
+            <b>Left:</b> the view from where you are standing. <b>Right:</b> the
+            plan. <b>Below:</b> eight groups of controls, in two rows &mdash; the
+            second row scrolls into view. <b>Foot:</b> input, output and the
+            direct-to-reverberant ratio.</figcaption>
+        </figure>
+      </div>
+
+      <div style="padding-top:1mm">
+        <h3 class="display">Every control explains itself</h3>
+        <p style="margin-top:2.5mm; font-size:9.6pt">
+          Hover any slider, button or menu and a panel appears naming it and
+          saying what it is for. Nothing in this handbook is hidden from the
+          instrument itself; the handbook is here for the things that need a
+          picture or a table.
+        </p>
+
+        <hr class="rule thin" />
+
+        <h3 class="display">Nothing is modal</h3>
+        <p style="margin-top:2.5mm; font-size:9.6pt">
+          The two views and the controls are always live at once. A drag in the
+          plan moves the 3D view as it happens, and walking in the 3D view moves
+          the glyph in the plan. Both write the same host parameters, so both
+          are recorded by your DAW's automation.
+        </p>
+
+        <div class="box cool" style="margin-top:5mm">
+          <h4>Rays</h4>
+          <p>
+            The <em>Rays</em> button draws the engine's own paths on the plan:
+            direct, first and second order reflections, doorway portals, and
+            sound through a shut leaf. It is the fastest way to see why a move
+            changed the sound.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <hr class="rule thin" style="margin-top:7mm" />
+
+    <h3 class="display" style="font-size:11pt">The eight groups, and the header</h3>
+    <table class="tight" style="margin-top:3mm">
+      <tr>
+        <td>Doors</td><td style="color:var(--body)">one aperture each, and a button for the two ends</td>
+        <td>Source</td><td style="color:var(--body)">everything about whichever of the four is selected</td>
+        <td>Test signal</td><td style="color:var(--body)">a file of your own, looped into the input</td>
+      </tr>
+      <tr>
+        <td>Materials</td><td style="color:var(--body)">nine choices &mdash; walls, floor and ceiling of each room</td>
+        <td>Levels and head</td><td style="color:var(--body)">the three trims, mix, output and ear spacing</td>
+        <td>Furniture</td><td style="color:var(--body)">the tray of ten pieces, and the wall pictures</td>
+      </tr>
+      <tr>
+        <td>Broken walls</td><td style="color:var(--body)">split a wall and push the break out, per room</td>
+        <td>View and files</td><td style="color:var(--body)">rays, defaults, save and load, where you stand, and light sync</td>
+        <td>Header</td><td style="color:var(--body)">CINEMATIC and its quality, REC, EXPORT</td>
+      </tr>
+    </table>
+  </div>
+  <div class="folio"><span>The panel</span><span class="n">03</span></div>
+</section>
+
+<!-- ============================================  4  THE TWO VIEWS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Getting about</p>
+    <h2 class="display">Walk, look, drag</h2>
+    <hr class="rule" />
+
+    <div class="grid2">
+      <figure>
+        <img class="shot" src="img/pov.jpg" alt="" />
+        <figcaption><b>The 3D view is you.</b> The camera is the listener's head,
+          at 1.65 m. Drag inside it to look around; <span class="mono">W A S D</span>
+          to walk. Walls stop you, so does a door less than half open, and so
+          does any furniture that stands in the way of sound.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/plan.jpg" alt="" />
+        <figcaption><b>The plan is the architect's drawing.</b> Drag any source
+          or the head. Turn either by its heading handle. Click a source to
+          select it for the controls below; click a door to toggle it, or drag
+          along it to set it part open.</figcaption>
+      </figure>
+    </div>
+
+    <hr class="rule thin" style="margin-top:6mm" />
+
+    <div class="cols" style="margin-top:4mm">
+      <div>
+        <h3 class="display">Turning your head</h3>
+        <p style="margin-top:2.5mm; font-size:9.6pt">
+          Facing is not decoration. The binaural rendering is driven by the
+          direction each arrival comes from <b>relative to your head</b>, so
+          turning on the spot moves every source around you &mdash; including
+          the ones you cannot see, behind a shut door.
+        </p>
+        <h3 class="display" style="margin-top:4mm">Where you may stand</h3>
+        <p style="margin-top:2.5mm; font-size:9.6pt">
+          Anywhere inside the three rooms. The area north-west of the living
+          room is outside the flat and is solid; the plan will not let you drag
+          there, and if automation sends you there the engine puts you back in
+          the nearest room. Walking through an open doorway is seamless: for
+          0.4 m either side of the door the engine hears both rooms at once and
+          hands one to the other (page 15).
+        </p>
+      </div>
+      <div>
+        <h3 class="display">Take hold of the handle</h3>
+        <p style="margin-top:2.5mm; font-size:9.6pt">
+          Every door in the 3D view has a handle. Walk up to one &mdash; within
+          <b>2.5 m</b>, in front of you and not through a wall &mdash; and it
+          lights up as the pointer crosses it. <b>Click</b> to slam it or throw
+          it wide; <b>drag</b> to swing it to anywhere in between. Grabbing a
+          handle is not a look, so the room does not spin while you do it.
+        </p>
+        <h3 class="display" style="margin-top:4mm">The keys always win</h3>
+        <p style="margin-top:2.5mm; font-size:9.6pt">
+          <span class="mono">W A S D</span> and the arrow keys walk and turn
+          <em>even when a menu or a fader has the focus</em>. Set a material,
+          then walk &mdash; the key never reaches the menu behind it. A key
+          typed into a text field is still the field's.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The two views</span><span class="n">04</span></div>
+</section>
+
+<!-- ==============================================  5  THE FLOOR PLAN  === -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The floor plan</p>
+    <h2 class="display">Three rooms, three doors</h2>
+    <p class="sub">Fixed, and deliberately so: every room is a different size and
+      every pair of rooms has a door, so every &ldquo;behind that one&rdquo; case
+      exists, including the two-door route through the third room.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <h3 class="display">Rooms</h3>
+        <table style="margin-top:3mm">
+          <tr><th>Room</th><th class="num">Size (m)</th><th class="num">Height</th><th class="num">Volume</th><th>What it is</th></tr>
+          <tr><td>LARGE</td><td class="num">6.0 &times; 5.0</td><td class="num">2.8</td><td class="num">84 m&sup3;</td><td>the living room</td></tr>
+          <tr><td>SMALL</td><td class="num">3.0 &times; 3.5</td><td class="num">2.5</td><td class="num">26 m&sup3;</td><td>the box room</td></tr>
+          <tr><td>GIANT</td><td class="num">12.0 &times; 9.0</td><td class="num">5.0</td><td class="num">540 m&sup3;</td><td>the hall</td></tr>
+        </table>
+
+        <h3 class="display" style="margin-top:7mm">Doors</h3>
+        <table style="margin-top:3mm">
+          <tr><th>Door</th><th>Between</th><th>Hinged</th><th class="num">Default</th></tr>
+          <tr><td>SMALL &ndash; LARGE</td><td>box room and living room</td><td>west side</td><td class="num">open</td></tr>
+          <tr><td>LARGE &ndash; GIANT</td><td>living room and hall</td><td>south side</td><td class="num">open</td></tr>
+          <tr><td>SMALL &ndash; GIANT</td><td>box room and hall</td><td>north side</td><td class="num">shut</td></tr>
+        </table>
+        <p style="margin-top:3mm; font-size:9.3pt; color:var(--dim)">
+          Every door is 0.90 m wide and 2.05 m high. Your ears are at 1.65 m; a
+          source can stand between 0.2 and 2.4 m off the floor.
+        </p>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/plan-labels.jpg" alt="" />
+          <figcaption><b>Origin</b> is the south-west corner of the living room.
+            X runs east, Y runs north. A facing of 0&deg; is east and the angle
+            increases anti-clockwise, so 90&deg; is north.</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:6mm">
+          <h4>The two-door route</h4>
+          <p>
+            Shut the living room door and the hall is not silent: it still
+            reaches the box room through its own door, and from there back to
+            you. Opening both doors of that route brings the sound up by
+            <b>18 dB</b>. The path bends twice, and it is drawn.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The floor plan</span><span class="n">05</span></div>
+</section>
+
+<!-- ==================================================  6  SOURCES  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Sources</p>
+    <h2 class="display">Four of them, and two kinds</h2>
+    <p class="sub">Each source has its own position, height, facing, type, level
+      and input. The numbered tabs pick which one the controls belong to;
+      clicking a source in the plan picks it too.</p>
+    <hr class="rule" />
+
+    <div class="grid2" style="margin-top:2mm">
+      <figure>
+        <img class="shot" src="img/pov-speaker.jpg" alt="" />
+        <figcaption><b>LOUDSPEAKER</b> &mdash; a modelled two-way monitor:
+          a 6.5&Prime; woofer below 2.2 kHz, a 1&Prime; tweeter above. Nearly
+          omnidirectional at 125 Hz, beaming with frequency in front, and about
+          <b>22 dB down straight behind it at 4 kHz</b>.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/pov-pure.jpg" alt="" />
+        <figcaption><b>PURE</b> &mdash; a point source with no box, on a stand.
+          DIRECTIVITY runs from omnidirectional to a cardioid and is the same at
+          every frequency. The HEIGHT control is the stand.</figcaption>
+      </figure>
+    </div>
+
+    <hr class="rule thin" style="margin-top:5mm" />
+
+    <div class="cols" style="margin-top:4mm">
+      <div>
+        <h3 class="display">Facing matters</h3>
+        <p style="margin-top:2.5mm; font-size:9.5pt">
+          Turning a loudspeaker away from you takes <b>21.5 dB</b> off 4 kHz and
+          only <b>5.5 dB</b> off 250 Hz. That is what a speaker pointed at the
+          wall sounds like, and it is why aiming one into the hall and standing
+          behind it is a usable effect rather than just a volume drop.
+        </p>
+      </div>
+      <div>
+        <h3 class="display">A directional source drives the room less</h3>
+        <p style="margin-top:2.5mm; font-size:9.5pt">
+          The room's tail is fed by the source's radiated <b>power</b>, not by
+          what is aimed at you. Narrowing the pattern removes power, so a
+          cardioid excites the room <b>4.8 dB</b> less than an omni at the same
+          on-axis level. Point a speaker away and the room gets brighter
+          relative to it, not darker.
+        </p>
+      </div>
+      <div>
+        <h3 class="display">Height</h3>
+        <p style="margin-top:2.5mm; font-size:9.5pt">
+          0.2 to 2.4 m. Low is floor-coupled and boomy, ear height is the most
+          direct, high throws more into the ceiling. It also changes which ear
+          is nearer, which is audible inside about a metre.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Sources</span><span class="n">06</span></div>
+</section>
+
+<!-- ============================================  7  INPUTS AND AUX  ===== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Inputs</p>
+    <h2 class="display">Feeding the four</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-58">
+        <p>
+          Every source has an <em>INPUT</em> menu with seven positions. Its
+          first is <b>OFF</b>: the source makes no sound, costs nothing, and
+          stays in the views, drawn solid but unlit &mdash; only a fed source
+          glows &mdash; so you can place it before you use it.
+          The other six take a channel from one of two stereo buses.
+        </p>
+        <table style="margin-top:4mm">
+          <tr><th>Setting</th><th>What feeds the source</th></tr>
+          <tr><td>OFF</td><td>nothing &mdash; silent, unlit, still placeable</td></tr>
+          <tr><td>MAIN L / R</td><td>one channel of the track the plugin is on</td></tr>
+          <tr><td>MAIN L+R</td><td>both, summed</td></tr>
+          <tr><td>AUX L / R</td><td>one channel of the second input bus</td></tr>
+          <tr><td>AUX L+R</td><td>both, summed</td></tr>
+        </table>
+        <p style="margin-top:4mm">
+          The obvious use of MAIN L and MAIN R is a stereo pair: two
+          loudspeakers, one fed each channel, standing where you would put them
+          in a room. The obvious use of AUX is a second instrument in a
+          different room, sharing one apartment.
+        </p>
+      </div>
+
+      <div class="c-36" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/ctrl-source.jpg" alt="" />
+          <figcaption><b>The source panel.</b> The tabs across the top pick which
+            of the four you are editing.</figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <hr class="rule thin" style="margin-top:5mm" />
+
+    <div class="cols" style="margin-top:4mm">
+      <div class="c-46">
+        <h3 class="display">Routing the AUX bus</h3>
+        <p style="margin-top:2.5mm; font-size:9.5pt">
+          The plugin declares a second stereo input bus named <b>Aux In</b>,
+          disabled until the host enables it. Most DAWs call this a
+          <b>sidechain</b>. In Ableton Live, open the plugin's device title bar,
+          switch on <b>Sidechain</b> and pick the track you want to send; in
+          Reaper, add channels 3&ndash;4 to the track and pin the other track's
+          send into them; in Cubase and Studio One, use the plugin's own
+          side-chain button and route a send to it.
+        </p>
+        <p style="font-size:9.5pt">
+          The panel greys the AUX entries out until the host has actually
+          enabled the bus, so a source can never be pointed at silence without
+          saying so.
+        </p>
+      </div>
+      <div class="c-46" style="margin-left:auto">
+        <div class="box">
+          <h4>Four sources, one apartment</h4>
+          <p>
+            Sources in the same room share that room's tail, which is correct:
+            one room has one reverberant field however many things are shouting
+            into it. Sources in different rooms drive their own rooms and reach
+            you through the doors.
+          </p>
+          <p>
+            One source costs about <b>18 %</b> of a core at 48 kHz. Four, with
+            ten pieces of furniture in the flat, about <b>44 %</b>. Switching a
+            source to OFF gives its share straight back.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Inputs and the AUX bus</span><span class="n">07</span></div>
+</section>
+
+<!-- ======================================  8  ROOMS AND MATERIALS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Rooms and materials</p>
+    <h2 class="display">What the walls are made of</h2>
+    <p class="sub">Five surface treatments, and any of them on any surface of
+      any room. These are published octave-band absorption coefficients, not
+      voicing presets, and the reverberation time follows from them.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-44">
+        <h3 class="display">The five</h3>
+        <table class="tight" style="margin-top:3mm">
+          <tr><th>Material</th><th>What it is</th></tr>
+          <tr><td>ABSORBING</td><td>heavy drapes, thick carpet, soft furniture</td></tr>
+          <tr><td>FURNISHED</td><td>a lived-in living room: plaster, carpet, curtains</td></tr>
+          <tr><td>PLASTER</td><td>bare plaster on brick, wooden floor</td></tr>
+          <tr><td>TILED</td><td>glazed tiles, a little glass and wood</td></tr>
+          <tr><td>STUDIO</td><td>treated: broadband absorbers, bass traps and diffusers &mdash; <b>page 10</b></td></tr>
+        </table>
+
+        <p style="margin-top:4mm; font-size:9.3pt">
+          Absorption rises with frequency on the first four, which is why a
+          live room here gets darker as it decays rather than simply longer.
+          ABSORBING takes 80 % at 4 kHz and only 20 % at 125 Hz, so a dead room
+          still has a bloom in the bottom octave &mdash; as real ones do.
+          STUDIO is the one that does not, and that is its whole point.
+        </p>
+
+        <div class="box" style="margin-top:5mm">
+          <h4>An open door is a hole</h4>
+          <p>
+            Sound that leaves through a doorway does not come back, so the
+            engine counts an open door as a perfect absorber. The box room in
+            bare plaster rings for <b>1.32 s</b> at 1 kHz with its doors shut
+            and <b>0.58 s</b> with both wide open. You can hear a room change
+            size by opening a door into it.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-54" style="margin-left:auto">
+        <h3 class="display">Reverberation time, doors shut</h3>
+        <p style="margin-top:2mm; font-size:8.8pt; color:var(--dim)">
+          Seconds, from Eyring's formula with ISO 9613-1 air absorption &mdash;
+          the same arithmetic the engine runs at every change. STUDIO is on
+          page 10.
+        </p>
+        <table class="tight" style="margin-top:3mm">
+          <tr><th>Room</th><th>Material</th><th class="num">125 Hz</th><th class="num">500 Hz</th><th class="num">1 kHz</th><th class="num">4 kHz</th></tr>
+          <tr><td>LARGE</td><td>ABSORBING</td><td class="num">0.51</td><td class="num">0.13</td><td class="num">0.09</td><td class="num">0.07</td></tr>
+          <tr><td>LARGE</td><td>FURNISHED</td><td class="num">1.07</td><td class="num">0.65</td><td class="num">0.51</td><td class="num">0.34</td></tr>
+          <tr><td>LARGE</td><td>PLASTER</td><td class="num">3.57</td><td class="num">2.16</td><td class="num">1.77</td><td class="num">1.17</td></tr>
+          <tr><td>LARGE</td><td>TILED</td><td class="num">5.24</td><td class="num">5.18</td><td class="num">3.42</td><td class="num">2.07</td></tr>
+          <tr><td>SMALL</td><td>ABSORBING</td><td class="num">0.38</td><td class="num">0.10</td><td class="num">0.07</td><td class="num">0.06</td></tr>
+          <tr><td>SMALL</td><td>FURNISHED</td><td class="num">0.78</td><td class="num">0.48</td><td class="num">0.38</td><td class="num">0.25</td></tr>
+          <tr><td>SMALL</td><td>PLASTER</td><td class="num">2.50</td><td class="num">1.59</td><td class="num">1.32</td><td class="num">0.90</td></tr>
+          <tr><td>SMALL</td><td>TILED</td><td class="num">3.59</td><td class="num">3.83</td><td class="num">2.57</td><td class="num">1.64</td></tr>
+          <tr><td>GIANT</td><td>ABSORBING</td><td class="num">0.92</td><td class="num">0.23</td><td class="num">0.15</td><td class="num">0.13</td></tr>
+          <tr><td>GIANT</td><td>FURNISHED</td><td class="num">1.94</td><td class="num">1.16</td><td class="num">0.90</td><td class="num">0.58</td></tr>
+          <tr><td>GIANT</td><td>PLASTER</td><td class="num">6.58</td><td class="num">3.80</td><td class="num">3.06</td><td class="num">1.88</td></tr>
+          <tr><td>GIANT</td><td>TILED</td><td class="num">9.78</td><td class="num">8.90</td><td class="num">5.75</td><td class="num">3.06</td></tr>
+        </table>
+
+        <p style="margin-top:4mm; font-size:9.3pt">
+          Each door slider is an aperture, continuous from shut to wide open;
+          the button beside it does the two ends. Clicking a door in the plan
+          does the same thing, dragging along one sets it part open, and in the
+          3D view you can simply take hold of its handle.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Rooms and materials</span><span class="n">08</span></div>
+</section>
+
+
+<!-- =====================================  9  A MATERIAL PER SURFACE  ==== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">A material per surface</p>
+    <h2 class="display">Walls, floor and ceiling,<br>each its own</h2>
+    <p class="sub">Nine choices, three for each room. Floor and ceiling start
+      at AS WALLS, so a room you never touch is exactly the room it always
+      was.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <p>
+          A real room is not made of one thing. Between a source standing on
+          the floor and a listener standing on the floor, the <b>first two
+          reflections to arrive are the one off the floor and the one off the
+          ceiling</b> &mdash; they are the shortest detours there are. They
+          arrive within a few milliseconds of the direct sound, which is
+          exactly the window the ear uses to decide how big a room is and
+          where in it you are.
+        </p>
+        <p>
+          So the floor and the ceiling are worth their own choices, and they
+          are the two a real studio treats first.
+        </p>
+
+        <div class="box" style="margin-top:5mm">
+          <h4>A carpet is the most lopsided absorber in the flat</h4>
+          <p>
+            Thick carpet takes almost nothing below 250 Hz and a great deal
+            above 2 kHz. Setting <em>floor</em> to ABSORBING therefore kills
+            the floor bounce and the flutter with it while leaving the bottom
+            of the room exactly where it was &mdash; which is what laying a rug
+            in a hard room really does, and why it is the first thing anyone
+            tries.
+          </p>
+        </div>
+
+        <div class="box" style="margin-top:5mm">
+          <h4>A cloud over the desk</h4>
+          <p>
+            <em>Ceiling</em> set to ABSORBING is the cloud every control room
+            has above the listening position. It is the opposite trade to a
+            carpet: it takes the vertical flutter out and leaves the room's
+            width and depth ringing.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/ctrl-materials.jpg" alt="" />
+          <figcaption><b>Nine selectors.</b> A row per room, a column per
+            surface. AS WALLS is not a fifth material, it is a pointer: that
+            surface follows whatever the walls are set to.</figcaption>
+        </figure>
+
+        <hr class="rule thin" style="margin-top:6mm" />
+
+        <h3 class="display" style="font-size:11.5pt">What it is worth</h3>
+        <p style="margin-top:2.5mm; font-size:9.3pt">
+          The living room in bare plaster rings for <b>2.71 s</b> at 250 Hz and
+          <b>1.77 s</b> at 1 kHz. Leave the walls in plaster and put a carpet
+          down and a cloud up &mdash; two menu changes &mdash; and the same
+          room measures:
+        </p>
+        <table class="tight" style="margin-top:2mm">
+          <tr><th>Surfaces</th><th class="num">250&nbsp;Hz</th><th class="num">1&nbsp;kHz</th><th class="num">4&nbsp;kHz</th></tr>
+          <tr><td>plaster throughout</td><td class="num">2.71</td><td class="num">1.77</td><td class="num">1.17</td></tr>
+          <tr><td>+ carpet and cloud</td><td class="num">0.39</td><td class="num">0.20</td><td class="num">0.17</td></tr>
+        </table>
+        <p style="margin-top:2.5mm; font-size:8.8pt; color:var(--dim)">
+          Read off the panel's own readout with the engine running. Two of the
+          six surfaces carry most of the room.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>A material per surface</span><span class="n">09</span></div>
+</section>
+
+
+<!-- =============================================  10  THE STUDIO  ======= -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The fifth material</p>
+    <h2 class="display">STUDIO: treated,<br>and still live</h2>
+    <p class="sub">A room whose decay does not move with frequency, and whose
+      treatment is diffusion rather than absorption.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <p>
+          The other four materials are measured surfaces. STUDIO is not: its
+          absorption was <b>solved backwards from Eyring's formula</b> for the
+          one property a control room is built to have &mdash; a reverberation
+          time that is the same at the bottom of the band as at the top.
+        </p>
+        <p>
+          What comes out is <b>constant absorption near a quarter</b>, with a
+          little relief at the very top to pay for the air absorption that
+          takes the top octave anyway. That is not a coincidence: broadband
+          absorbers plus bass traps are exactly what it takes to flatten a
+          real room, and this is the coefficient curve they add up to.
+        </p>
+
+        <table class="tight" style="margin-top:4mm">
+          <tr><th>Room as a STUDIO</th><th class="num">125&nbsp;Hz</th><th class="num">500&nbsp;Hz</th><th class="num">1&nbsp;kHz</th><th class="num">4&nbsp;kHz</th><th class="num">spread</th></tr>
+          <tr><td>LARGE &middot; living room</td><td class="num">0.39</td><td class="num">0.40</td><td class="num">0.40</td><td class="num">0.41</td><td class="num">1.04&times;</td></tr>
+          <tr><td>SMALL &middot; box room</td><td class="num">0.29</td><td class="num">0.29</td><td class="num">0.30</td><td class="num">0.31</td><td class="num">1.06&times;</td></tr>
+          <tr><td>GIANT &middot; hall</td><td class="num">0.71</td><td class="num">0.71</td><td class="num">0.71</td><td class="num">0.71</td><td class="num">1.00&times;</td></tr>
+          <tr><td>GIANT &middot; the same hall, TILED</td><td class="num">9.78</td><td class="num">8.90</td><td class="num">5.75</td><td class="num">3.06</td><td class="num">3.09&times;</td></tr>
+        </table>
+        <p style="margin-top:2.5mm; font-size:8.8pt; color:var(--dim)">
+          Spread is the ratio of the longest of 250 Hz, 1 kHz and 4 kHz to the
+          shortest, measured on the rendered audio. The hall as a studio is
+          <b style="color:var(--brass)">1.00&times;</b>: flat to the digit.
+        </p>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <div class="box cool">
+          <h4>Diffusion, not absorption</h4>
+          <p>
+            The other four materials return a reflection in the specular
+            direction and take a bite out of it. A studio's diffusers do
+            something quite different: they <b>keep the energy and throw away
+            the direction</b>.
+          </p>
+          <p>
+            So what comes back off a treated wall is still in the room &mdash;
+            it just no longer arrives as a single sharp image, and it no longer
+            bounces between two parallel walls in step with itself. Measured:
+            the specular reflections carry <b>17.6 %</b> of what the same room
+            in plaster returns, and the rest is scattered into the room rather
+            than absorbed out of it.
+          </p>
+        </div>
+
+        <div class="box" style="margin-top:6mm">
+          <h4>Which is why it is not dead</h4>
+          <p>
+            A hall that rings for 0.71 s is a live room, not an anechoic
+            chamber. You can still hear that it is big. What you cannot hear is
+            a flutter echo, or the bottom end arriving late: the early response
+            of a centred source measures <b>1.1 dB</b> uneven across the middle
+            of the band, where the same room in plaster measures
+            <b>2.4 dB</b>.
+          </p>
+        </div>
+
+        <p style="margin-top:6mm; font-size:9.3pt">
+          STUDIO also splays its walls very slightly, which is the same trick
+          the next page gives you by hand &mdash; and the two add up.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The studio</span><span class="n">10</span></div>
+</section>
+
+
+<!-- =========================================  11  BREAKING A WALL  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Breaking a wall</p>
+    <h2 class="display">The rooms are not<br>shoeboxes any more</h2>
+    <p class="sub">Two walls of every room can be split at a movable point and
+      that point pushed out, so the room stops being rectangular. Drag the
+      diamond in the plan, or use the two faders.</p>
+    <hr class="rule" />
+
+    <div class="grid2 tight-plates" style="margin-top:1mm">
+      <figure>
+        <img class="shot" src="img/plan-folded.jpg" alt="" style="max-height:49mm" />
+        <figcaption><b>Four walls broken.</b> The diamond on each is the break:
+          drag it along the wall, or out of it. Area, volume and reverberation
+          time all follow &mdash; the hall's floor goes from 108.0 to
+          <b>113.7 m&sup2;</b>, and its own decay from 1.766 s to
+          <b>1.801 s</b>.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/ctrl-folds.jpg" alt="" style="max-height:49mm" />
+        <figcaption><b>Two faders per wall.</b> How far the break is pushed
+          (&plusmn;0.6 m, <em>flat</em> at the centre) and where along the wall
+          it sits. The two walls offered are always the ones with no doorway,
+          so a break can never collide with a door.</figcaption>
+      </figure>
+    </div>
+
+    <div class="cols" style="margin-top:5mm">
+      <div>
+        <div class="ctl">
+          <h3>Push it out</h3>
+          <p class="what">Splay</p>
+          <p>
+            Two panels that are no longer parallel to the wall facing them
+            cannot sustain a flutter between them, and they spread a reflection
+            over a range of angles instead of returning it whole. Off centre is
+            worth more than centred: two panels of different lengths scatter
+            over a wider band than two of the same length.
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="ctl" style="border-left-color:#a5453a">
+          <h3 style="color:#c8695c">Do not pull it in</h3>
+          <p class="what">Concave focuses</p>
+          <p>
+            Pushed the other way the wall bends <b>into</b> the room, and a
+            concave surface gathers sound to a point instead of spreading it.
+            That is worse than leaving the wall flat &mdash; real rooms are
+            splayed outward, never inward. The plan says so when you do it.
+            It is offered because it is audible and instructive, not because
+            it is good.
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="ctl">
+          <h3>What it really does</h3>
+          <p class="what">Honestly</p>
+          <p>
+            In this model the splay acts on the <b>early reflections</b>, not
+            on the room's standing waves: the late field is statistical rather
+            than modal. Above the Schroeder frequency &mdash; about 72 Hz in
+            the hall as a studio &mdash; that is where splay does its audible
+            work in a real room too. Below it, absorption is what helps.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin:0; font-size:9.3pt">
+      <b>A room that is not a box needs a different search.</b> A room is now a
+      list of planar surfaces and a path a sequence of them, traced back from
+      the listener and validated at every step; a square room still takes the
+      exact arithmetic. A wall broken by <b>two millimetres</b> is the same
+      room, and the general search reproduces the exact one to <b>0.09 dB</b>
+      overall and <b>0.20 dB</b> over the first 50 ms.
+    </p>
+  </div>
+  <div class="folio"><span>Breaking a wall</span><span class="n">11</span></div>
+</section>
+
+<!-- ==========================================  FURNITURE: PLACING  ====== -->
+<section class="page">
+  <div class="pad tight">
+    <p class="kick">Furniture</p>
+    <h2 class="display">Furnish the flat</h2>
+    <p class="sub">Ten pieces, up to 24 in the apartment, placed and turned in
+      the plan and built in the 3D view. Every one is heard as well as seen.</p>
+    <hr class="rule" />
+
+    <div class="grid2">
+      <figure>
+        <img class="shot" src="img/plan-furn.jpg" alt="" />
+        <figcaption><b>The plan.</b> A rug, a sofa (selected, with its turn
+          handle on its front), an armchair, a bookcase, a table, a curtain on
+          the west wall and a standing person. The room's RT60 under its name
+          is the engine's, furniture included.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/pov-furn.jpg" alt="" />
+        <figcaption><b>The same room from where you stand.</b> The loudspeaker
+          on the left is fed; the one beside it is switched off and is drawn
+          solid, only unlit.</figcaption>
+      </figure>
+    </div>
+
+    <div class="cols" style="margin-top:4mm">
+      <div>
+        <div class="ctl small">
+          <h3>The tray</h3>
+          <p class="what">Click, then click the plan</p>
+          <p>The ten pieces sit as a row of icons at the top of the
+            <b>Furniture</b> group: sofa, armchair, bed, rug, curtain,
+            bookcase, table, grand piano, wardrobe and a person. Click one to
+            arm it and click in the plan to set it down &mdash; or drag it
+            straight onto the plan.</p>
+        </div>
+      </div>
+      <div>
+        <div class="ctl small">
+          <h3>Pick up, turn, copy</h3>
+          <p class="what">In the plan</p>
+          <p>Click a piece to select it and drag it about. Turn it by the round
+            handle on its front, in 15&deg; steps (Shift lets go of them), or
+            with <b>FACING</b> and its &minus;15&deg; / +15&deg; buttons.
+            <b>DUPLICATE</b> sets a copy beside it; <b>DELETE</b> or the Delete
+            key takes it out; Escape lets go. <b>CLEAR ALL</b> asks twice.</p>
+        </div>
+      </div>
+      <div>
+        <div class="ctl small">
+          <h3>You cannot walk through it</h3>
+          <p class="what">Rooms, and your body</p>
+          <p>A piece belongs to the room its centre is in, and stays inside it.
+            Anything that blocks sound blocks you as well, so the sofa and the
+            bookcase stop you walking; the rug and the curtain do not. If a
+            piece is set down on top of you, you may walk out of it.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Furniture</span><span class="n">12</span></div>
+</section>
+
+<!-- ==========================================  FURNITURE: THE SOUND  ==== -->
+<section class="page">
+  <div class="pad tight">
+    <p class="kick">Furniture</p>
+    <h2 class="display">What it does to the sound</h2>
+    <p class="sub">Four things, each from the acoustics tables or from the
+      geometry, and each measured in the rendered audio.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <div class="grid2" style="gap:1mm 7mm">
+          <div class="ctl small">
+            <h3>Absorption</h3>
+            <p class="what">Per octave band</p>
+            <p>Every piece brings its own equivalent absorption area, and it
+              adds straight into the room's Eyring decay. Furnishing the tiled
+              living room takes its reverberation time at 1 kHz from
+              <b>3.42 s to 1.03 s</b>; the rendered decay measures 1.13 s. A rug
+              replaces the floor it covers rather than adding to it.</p>
+          </div>
+          <div class="ctl small">
+            <h3>Scattering</h3>
+            <p class="what">Reflections broken up</p>
+            <p>A furnished room returns its wall reflections less cleanly. What
+              each bounce loses is not thrown away: it goes to the room's tail,
+              the same route the STUDIO material uses.</p>
+          </div>
+          <div class="ctl small">
+            <h3>Blocking</h3>
+            <p class="what">Over, under or round</p>
+            <p>A path that runs into a piece bends over, under or round it, with the doorways' edge-diffraction law. A bookcase between you and a source costs the direct sound <b>18.2 dB at 4 kHz</b>, matching a hand calculation; walking out from behind it the loss changes by at most <b>0.19 dB per centimetre</b>, so an edge never clicks.</p>
+          </div>
+          <div class="ctl small">
+            <h3>A hard top</h3>
+            <p class="what">Table, piano lid</p>
+            <p>The table's top and the closed piano lid are hard, and throw a
+              reflection up at a head above them &mdash; the classic table
+              bounce. It fades off the edge rather than vanishing. Only the
+              table's top slab blocks, 71 to 75 cm up; the piano's body blocks
+              from 35 cm to 1 m.</p>
+          </div>
+        </div>
+
+        <div class="box" style="margin-top:0; padding:3mm 5mm">
+          <h4>The readout line</h4>
+          <p>Under the tray, for the room you are standing in: how much
+            absorption its furniture adds at 1 kHz, and the reverberation time
+            the engine now calculates. The room on the previous page, tiled and
+            with its two doors open, reads <span class="mono">RT60 1.73 s</span>
+            empty and <span class="mono">+9.1 m&sup2; &middot; RT60 0.76 s</span>
+            with those seven pieces in it.</p>
+        </div>
+      </div>
+
+      <div class="c-40" style="margin-left:auto">
+        <h3 class="display" style="font-size:11pt">The ten pieces</h3>
+        <table class="tight" style="margin-top:2.5mm">
+          <tr><th>Piece</th><th class="num">W &times; D &times; H (m)</th><th>Stands in the way</th></tr>
+          <tr><td>SOFA</td><td class="num">2.10 &times; 0.90 &times; 0.85</td><td>yes</td></tr>
+          <tr><td>ARMCHAIR</td><td class="num">0.85 &times; 0.85 &times; 0.90</td><td>yes</td></tr>
+          <tr><td>BED</td><td class="num">2.05 &times; 1.60 &times; 0.55</td><td>yes, low</td></tr>
+          <tr><td>RUG</td><td class="num">2.40 &times; 1.70 &times; 0.02</td><td>no &mdash; it replaces the floor</td></tr>
+          <tr><td>CURTAIN</td><td class="num">2.40 &times; 0.15 &times; 2.50</td><td>no &mdash; it kills a wall</td></tr>
+          <tr><td>BOOKCASE</td><td class="num">1.00 &times; 0.35 &times; 2.00</td><td>yes; also scatters</td></tr>
+          <tr><td>TABLE</td><td class="num">1.60 &times; 0.90 &times; 0.75</td><td>its top only; hard</td></tr>
+          <tr><td>GRAND PIANO</td><td class="num">2.10 &times; 1.50 &times; 1.00</td><td>its body; lid hard</td></tr>
+          <tr><td>WARDROBE</td><td class="num">1.20 &times; 0.60 &times; 2.10</td><td>yes, tall</td></tr>
+          <tr><td>PERSON</td><td class="num">0.50 &times; 0.30 &times; 1.75</td><td>yes; absorbs the top</td></tr>
+        </table>
+        <p style="margin-top:3mm; font-size:8.8pt; color:var(--dim)">
+          Hover a piece in the tray for what it is and why it sounds the way it
+          does. The layout is saved with the project and in patch files; it is
+          not a set of host parameters, so it is not automated.
+        </p>
+        <div class="box cool" style="margin-top:3mm">
+          <h4>Honestly</h4>
+          <p>Everything is geometric acoustics. A sofa in a corner does not
+            damp a bass mode here, and nothing changes when a person sits
+            down.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Furniture</span><span class="n">13</span></div>
+</section>
+
+<!-- ==========================================  WALL PICTURES  =========== -->
+<section class="page">
+  <div class="pad tight">
+    <p class="kick">Wall pictures</p>
+    <h2 class="display">Your own pictures on the walls</h2>
+    <p class="sub">Load an image, click a wall to hang it. As a print it is
+      only a picture; as an acoustic panel it is heard.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <div class="ctl small">
+          <h3>Hanging one</h3>
+          <p class="what">Load, then click a wall</p>
+          <p><b>LOAD</b> under <b>Wall pictures</b> picks a JPEG or PNG. The
+            panel shrinks it to 1024 px, keeps it with the project, and waits
+            for you to click a wall &mdash; in the plan or in the 3D view. Click
+            a picture to select it; drag it along its wall, and in the 3D view
+            up and down too. It is kept on its wall, under the ceiling and clear
+            of any door. <b>DELETE</b> takes the selected one down. Up to
+            <b>eight</b>; the counter beside the buttons says how many hang.</p>
+        </div>
+        <div class="ctl small">
+          <h3>Size and frame</h3>
+          <p class="what">S / M / L / XL, WIDTH, FRAME</p>
+          <p>Quick widths: S 40 cm, M 70 cm, L 1 m, XL 1.5 m; or <b>WIDTH</b>
+            anywhere from 20 cm to 2 m. The height follows the image's own
+            proportions. With nothing selected they set the size of the next one
+            you hang. <b>FRAME</b> is thin black, oak or gilt moulding, or an
+            unframed canvas whose picture wraps round its edges &mdash; purely
+            visual.</p>
+        </div>
+        <div class="box" style="margin-top:2mm">
+          <h4>PRINT or ACOUSTIC PANEL</h4>
+          <p>A <b>PRINT</b> is paper behind glass: acoustically it is part of
+            the wall, and it changes nothing you hear. The panel says so.</p>
+          <p>An <b>ACOUSTIC PANEL</b> is the same picture printed on a 5 cm
+            fabric absorber, the kind sold for studios. Its face area joins the
+            room's absorption in place of the wall it covers:
+            <b>4 m&sup2;</b> of them halve the tiled living room's decay at
+            1 kHz, <b>3.42 s to 1.69 s</b>.</p>
+        </div>
+        <p style="margin-top:3mm; font-size:9pt; color:var(--dim)">
+          Pictures are stored inside the project and in patch files, image and
+          all, so a project opens complete on another computer. They are drawn
+          in the plan, the 3D view, CINEMATIC and PHOTO, and in exported
+          videos. On a broken wall a picture hangs on the panel under its
+          centre, at that panel's angle.
+        </p>
+      </div>
+
+      <div class="c-40 fit" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/pov-pics.jpg" alt="" />
+          <figcaption><b>Three pictures on the west wall</b> of the living
+            room, above a stereo pair of loudspeakers.</figcaption>
+        </figure>
+        <figure style="margin-top:4mm">
+          <img class="shot" src="img/ctrl-furn.jpg" alt="" />
+          <figcaption><b>The Furniture group</b>, with <b>Wall pictures</b>
+            below the tray. The line at the foot names what is selected: here a
+            print, 0.85 &times; 0.87 m, on the living room's west wall.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Wall pictures</span><span class="n">14</span></div>
+</section>
+
+<!-- =========================================  BEHIND A DOOR  =========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick cool">Behind a door</p>
+    <h2 class="display">Three different ways in</h2>
+    <p class="sub">A sound in the next room reaches you by several routes at
+      once, and they do not sound alike. This is the part of the instrument the
+      name is about.</p>
+    <hr class="rule" />
+
+    <div class="grid2 tight-plates" style="margin-top:1mm">
+      <figure>
+        <img class="shot" src="img/plan-open.jpg" alt="" style="max-height:49mm" />
+        <figcaption><b>Door open.</b> The path bends at the edge of the opening
+          and the sound is localised <b>at the doorway</b>, not at the source
+          &mdash; exactly as it is in a real flat.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/plan-shut.jpg" alt="" style="max-height:49mm" />
+        <figcaption><b>Door shut.</b> What is left comes through the leaf and
+          through the party wall, radiated from the point of each nearest the
+          straight line, so it still comes from the right direction.</figcaption>
+      </figure>
+    </div>
+
+    <div class="cols" style="margin-top:6mm">
+      <div>
+        <div class="ctl">
+          <h3>Round the frame</h3>
+          <p class="what">Diffraction</p>
+          <p>
+            Inside the open strip it is line of sight. Outside it, the path bends
+            at the nearest point of the opening and pays Maekawa's attenuation,
+            which costs high frequencies far more than low ones &mdash; the bent
+            path loses <b>6 dB more at 4 kHz</b> than the clear one. The edge
+            fades in rather than switching on, so walking past a doorway never
+            clicks.
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="ctl">
+          <h3>Through the leaf</h3>
+          <p class="what">A light interior door</p>
+          <p>
+            A shut door is not a wall. It passes the mass law of a light leaf
+            &mdash; <b>14 dB</b> of loss at 125 Hz rising to <b>32 dB</b> at
+            8 kHz. Shutting it drops 1 kHz by <b>20 dB</b> and darkens what is
+            left: 4 kHz loses <b>8 dB more</b> than 250 Hz. That is the sound of
+            a party next door.
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="ctl">
+          <h3>Through the wall</h3>
+          <p class="what">The party wall</p>
+          <p>
+            Heavier: <b>30 dB</b> at 125 Hz to <b>53 dB</b> at 8 kHz. It is
+            usually below the door, but with every door shut it is what you are
+            left with &mdash; measured <b>24 dB</b> below the same source at the
+            same distance in your own room. Bass, and almost nothing else.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin:1mm 0 0 0; font-size:9.1pt; color:var(--cool)">
+      A door part open sits between the two, continuously: the engine does not
+      crossfade a shut sound into an open one. <b style="color:var(--cool)">Walking
+      through</b> an open door is continuous too: the doorway carries the room
+      behind you to second order, and for 0.4 m either side of the plane both
+      rooms are heard and handed over. Walking into the source's room holds
+      about &minus;24.5 dB through the plane, where it used to step 2 dB down.
+    </p>
+  </div>
+  <div class="folio"><span>Behind a door</span><span class="n">15</span></div>
+</section>
+
+<!-- ===================================  10  THE LATE FIELD AND DRR  ===== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The late field</p>
+    <h2 class="display">Why there is no reverb amount</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-58">
+        <p>
+          Each room runs its own sixteen-line reverberator, with delays from
+          that room's mean free path and a decay per octave band from its
+          materials, its open doors and the air in it. The rooms are coupled
+          through the doors and walls with the energy balance of coupled-room
+          theory, so the hall's long tail genuinely arrives in the living room.
+        </p>
+        <p>
+          Inside every one of those lines sits a chain of <b>allpass
+          diffusers</b>. An allpass has unity gain at every frequency, so it
+          cannot change the decay &mdash; but its length counts towards the
+          loop, which decides whether the network's resonances are close
+          enough together to hear as a room rather than as ringing, and it
+          splits each echo into a train, which decides whether the tail has
+          grain. A perfectly diffuse field has a spectral roughness of
+          <b>5.57 dB</b>; this one measures <b>5.6 to 6.6</b>, where before
+          the diffusers it measured <b>6.1 to 10.7</b>.
+        </p>
+        <p>
+          What that field is <b>worth</b>, relative to the direct sound, is not
+          a taste decision. For a diffuse field it is fixed by the room's total
+          absorption, and the engine calibrates it to exactly that &mdash; so
+          the direct-to-reverberant ratio, your ears' strongest distance cue,
+          comes out right by construction. Walk twice as far away and it falls
+          by <b>6.2 to 7.0 dB</b>; walk in to half the distance and it rises by
+          <b>3.6 to 5.5</b>. At the critical distance it reads between
+          <b>&minus;1.3 and &minus;0.4 dB</b> against the <b>+0.9 dB</b> of the
+          head's own frontal gain, for every one of the five materials.
+        </p>
+        <p>
+          That is why there is no &ldquo;reverb amount&rdquo;: turning one up
+          would lie about how far away you stood. You get three trims instead
+          &mdash; DIRECT, EARLY and REVERB &mdash; each at 0 dB, for when you
+          want the lie on purpose.
+        </p>
+
+        <hr class="rule thin" />
+
+        <h3 class="display" style="font-size:11.5pt">The double slope</h3>
+        <p style="margin-top:2.5mm; font-size:9.6pt">
+          A flat does not have one reverberation time, it has as many as it has
+          rooms. Stand in the box room lined in drapes with the hall in tiles:
+          its own field is <b>16 dB down inside 40 ms</b> and gone, then the
+          hall's answer arrives through the doorway at the hall's own
+          <b>5.8 seconds</b>. The decay falls off a cliff and then keeps
+          going &mdash; what a small dead room inside a live building does, and
+          a single reverb cannot. Shut the door and that slope goes with it.
+        </p>
+      </div>
+
+      <div class="c-36" style="margin-left:auto">
+        <figure class="card">
+          <img class="shot" src="img/hud.jpg" alt="" />
+          <figcaption><b>Top left of the 3D view:</b> which room you are in, and
+            for each of the four sources its room and its distance from you.
+            An OFF source still gets a line, marked, because knowing which one
+            is silent is half of what the readout is for.</figcaption>
+        </figure>
+
+        <figure class="strip" style="margin-top:6mm">
+          <img class="shot" src="img/status.jpg" alt="" style="height:7mm; object-fit:cover; object-position:right center" />
+          <figcaption><b>The right end of the foot:</b> input and output level, and the
+            direct-to-reverberant ratio in dB. Positive means you are inside the
+            critical distance.</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:6mm">
+          <h4>Reading the DRR</h4>
+          <p>
+            It counts every arrival that took the shortest route &mdash;
+            including through a doorway or a shut leaf &mdash; as
+            &ldquo;direct&rdquo;. That is the useful reading rather than the
+            textbook one: it tells you how much of what you hear is the sound
+            itself and how much is the building.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The late field</span><span class="n">16</span></div>
+</section>
+
+<!-- ====================================  11  LEVELS AND EAR SPACING  ==== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Levels and the head</p>
+    <h2 class="display">Seven controls at the end of the chain</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-62">
+        <div class="grid2">
+          <div class="ctl">
+            <h3>Direct</h3>
+            <p class="what">&minus;24 to +6 dB, default 0</p>
+            <p>The straight line of sight. Pull it down and the room is all you
+              have left &mdash; a way of moving a source further away without
+              moving it.</p>
+          </div>
+          <div class="ctl">
+            <h3>Early</h3>
+            <p class="what">&minus;24 to +6 dB, default 0</p>
+            <p>The wall bounces and the doorway paths. This is the part that
+              tells you the size and the shape of the room you are in.</p>
+          </div>
+          <div class="ctl">
+            <h3>Reverb</h3>
+            <p class="what">&minus;24 to +6 dB, default 0</p>
+            <p>The coupled tails. The hall's arrives through whatever the doors
+              are doing, so this and the doors do different jobs.</p>
+          </div>
+          <div class="ctl">
+            <h3>Mix</h3>
+            <p class="what">0 to 100 %, default 100</p>
+            <p>Dry against placed. At 100 you are entirely in the apartment.
+              At 0 the input passes through untouched, exactly.</p>
+          </div>
+          <div class="ctl">
+            <h3>Output</h3>
+            <p class="what">&minus;24 to +6 dB, default 0</p>
+            <p>The last thing in the chain. Two sources in one room and four in
+              three can add up to more than one did, so there is somewhere to
+              give it back.</p>
+          </div>
+          <div class="ctl">
+            <h3>Ear spacing</h3>
+            <p class="what">15 to 100 cm, default 17.5</p>
+            <p>How far apart your two ears sit. 17.5 cm is a head; a metre is a
+              spaced pair of microphones, and the image opens out accordingly.</p>
+          </div>
+          <div class="ctl">
+            <h3>Head</h3>
+            <p class="what">Built in, or a SOFA file</p>
+            <p>The ears you listen with. <b>Load SOFA</b> takes any measured
+              head in the standard SOFA format (AES69) &mdash; your own, or one
+              from a public set such as SADIE, ARI or HUTUBS &mdash; for live
+              playing and every render; <b>Built in</b> goes back. It is kept
+              with the project.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="c-36" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/ctrl-levels.jpg" alt="" />
+          <figcaption><b>Levels and head.</b> Rays, Default, Save and Load
+            sit in the group beside it, View and files, with a readout of where
+            you are standing (page 20).</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:6mm">
+          <h4>What EAR SPACING really does</h4>
+          <p>
+            It stretches the interaural time difference and the two ear
+            distances, leaving the pinna colouration alone &mdash; so it is a
+            head on a wider neck, not a bigger head. Past about 25 cm it stops
+            being a person and becomes a spaced microphone pair, which is a
+            perfectly good thing to be: it widens the image without the phase
+            trouble a stereo widener brings.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Levels and the head</span><span class="n">17</span></div>
+</section>
+
+<!-- ======================================  12  TEST SIGNAL / ALONE  ==== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Auditioning</p>
+    <h2 class="display">The test signal and the standalone</h2>
+    <p class="sub">Walking around a room is not something you can do with one
+      hand on a transport bar, so the plugin can play its own sound.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-58">
+        <p>
+          <em>Load</em> picks a WAV, AIFF, FLAC or MP3 off disk. <em>Play</em>
+          loops it into the <b>MAIN</b> input &mdash; both channels &mdash; so
+          every source fed from MAIN plays it, and you are free to spend both
+          hands on the views. Sources fed from AUX are untouched, so you can
+          audition one thing while a second track keeps running in another room.
+        </p>
+        <p>
+          <em>Stop</em> hands MAIN back to the host, immediately. The test signal
+          is not a host parameter and is not saved in a patch: it is an audition
+          tool, not part of the sound.
+        </p>
+        <p>
+          The same controls are in the VST3 and in the standalone. The
+          standalone needs no host at all &mdash; open it, load a loop, and walk
+          the flat.
+        </p>
+
+        <hr class="rule thin" />
+
+        <h3 class="display">Patches</h3>
+        <p style="margin-top:2.5mm; font-size:9.6pt">
+          <em>Save</em> and <em>Load</em> write and read a JSON file in
+          <span class="mono">DOCUMENTS\BROKILD PATCHES\THIN WALLS</span>. A
+          patch holds every surface, every broken wall, the doors, all four
+          sources, the levels, the furniture and the pictures &mdash; the whole
+          arrangement. <em>Default</em> puts every parameter back and empties
+          the rooms; the floor plan itself never changes.
+        </p>
+
+        <hr class="rule thin" />
+
+        <h3 class="display" style="font-size:11.5pt">What to walk around to</h3>
+        <p style="margin-top:2.5mm; font-size:9.6pt">
+          Something broadband and rhythmic. A shut door takes <b>20 dB</b> off
+          1 kHz and a good deal more off the top, so a loop with transients and
+          some air in it tells you where you are far faster than a pad does
+          &mdash; a drum loop, a spoken word, a strummed chord. Sustained,
+          low-passed material is exactly the hardest case for the ear to place,
+          and the flat will sound less impressive than it is.
+        </p>
+      </div>
+
+      <div class="c-36" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/ctrl-wav.jpg" alt="" />
+          <figcaption><b>The test signal group.</b> The line underneath names
+            the loaded file and its length.</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:6mm">
+          <h4>Automation</h4>
+          <p>
+            All <b>65</b> parameters are host parameters, including every
+            source position, every surface, every broken wall and your own
+            position. Walking is recorded as automation, so a move you made by
+            hand can be replayed exactly &mdash; and a source can be given a
+            path by drawing one in your DAW.
+          </p>
+          <p>
+            A source moving at 2 m/s on a held tone keeps everything above
+            6 kHz <b>84 dB down</b>, and a wall moved under a sounding note
+            <b>92 dB down</b>: the geometry changes continuously and nothing
+            clicks.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The test signal</span><span class="n">18</span></div>
+</section>
+
+<!-- ==========================================  CINEMATIC AND PHOTO  ===== -->
+<section class="page">
+  <div class="pad tight">
+    <p class="kick">The picture</p>
+    <h2 class="display">CINEMATIC and PHOTO</h2>
+    <p class="sub">A second, much heavier renderer for the 3D view. It costs the
+      graphics card and never the audio.</p>
+    <hr class="rule" />
+
+    <div class="grid3 views">
+      <figure>
+        <img class="shot" src="img/cine-off.jpg" alt="" />
+        <figcaption><b>The ordinary view.</b> Still draws nothing at all while
+          nothing changes.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/cine-on.jpg" alt="" />
+        <figcaption><b>CINEMATIC, HIGH.</b> Shadows from the lamp, ambient
+          occlusion, bloom, film tone curve. The corner reads the frame
+          time.</figcaption>
+      </figure>
+      <figure>
+        <img class="shot" src="img/photo.jpg" alt="" />
+        <figcaption><b>PHOTO, ULTRA,</b> converged: light traced off the walls,
+          soft shadows under the stands. 512 samples a pixel, 5.6 s.</figcaption>
+      </figure>
+    </div>
+
+    <div class="cols" style="margin-top:4mm">
+      <div>
+        <div class="ctl small">
+          <h3>Cinematic</h3>
+          <p class="what">The header button</p>
+          <p>An HDR picture with multisampling, real shadows from the pendants
+            and the hall's window, ambient occlusion, physically based
+            highlights, bloom and a filmic tone curve. It runs continuously
+            while on &mdash; dust in the window light, a faint beam under each
+            lamp. The first time it is switched on it compiles its shaders, a
+            couple of seconds. Remembered on this computer, not in the project.</p>
+        </div>
+      </div>
+      <div>
+        <div class="ctl small">
+          <h3>HIGH or ULTRA</h3>
+          <p class="what">The menu beside it</p>
+          <p><b>HIGH</b> renders at 1.5 times the screen's pixels, <b>ULTRA</b>
+            at 2 times, both with 4&times; multisampling. About <b>2 ms</b> of
+            graphics card per frame at HIGH on a current card; the corner of the
+            view shows what yours takes. ULTRA also takes PHOTO further: 512
+            samples a pixel instead of 256.</p>
+        </div>
+      </div>
+      <div>
+        <div class="ctl small">
+          <h3>PHOTO</h3>
+          <p class="what">When you stand still</p>
+          <p>Stand still for 0.6 s and PHOTO takes over: the light is traced,
+            bouncing off the walls and through the open doors, and the picture
+            refines itself over a few seconds. The corner counts it up to
+            <span class="mono">done</span> &mdash; and then the graphics card
+            rests. Move, and the live picture is back at once.</p>
+        </div>
+      </div>
+    </div>
+
+    <figure class="strip" style="margin-top:1mm; width:95mm">
+      <img class="shot" src="img/hdr.jpg" alt="" />
+      <figcaption><b>The header</b>, CINEMATIC on: its quality, REC with the
+        take clock, and EXPORT.</figcaption>
+    </figure>
+  </div>
+  <div class="folio"><span>The picture</span><span class="n">19</span></div>
+</section>
+
+<!-- ==========================================  LIGHT SYNC  ============== -->
+<section class="page">
+  <div class="pad tight">
+    <p class="kick">Light sync</p>
+    <h2 class="display">Lamps that follow the sound</h2>
+    <p class="sub">Each room's pendants can follow the sound in that room, or
+      pulse on your host's beat. At zero they are exactly the lamps they always
+      were.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-58">
+        <p>
+          The engine measures how much sound is in each room: what that room's
+          sources play plus its own late field, half by level and half by
+          <b>punch</b> &mdash; a fast envelope over a slow one, so an onset
+          flashes and a held sound glows. Measured, an onset reads
+          <b>0.93</b> where the same noise held reads <b>0.44</b>; silence is
+          exactly zero, and a sealed room next door stays at <b>0.000</b>. The
+          lamps you see are the rooms you would hear.
+        </p>
+
+        <div class="grid2" style="gap:1mm 7mm; margin-top:3mm">
+          <div class="ctl small">
+            <h3>Sync</h3>
+            <p class="what">0 to 100 %, default 20</p>
+            <p>How much the lamps follow. At 0 they are off the hook entirely.
+              The default breathes a few percent; all the way up the lamps dim
+              in silence and flare on every hit.</p>
+          </div>
+          <div class="ctl small">
+            <h3>Follow</h3>
+            <p class="what">The default drive</p>
+            <p>Each room's pendants follow the sound in that room. The picture
+              is fed by the 30 Hz scene stream, so a hard transient can look a
+              frame behind.</p>
+          </div>
+          <div class="ctl small">
+            <h3>Beat</h3>
+            <p class="what">The host's clock</p>
+            <p>The pendants pulse on the host's beats while its transport plays.
+              Stopped, or with no host clock, they follow the sound instead.</p>
+          </div>
+          <div class="ctl small">
+            <h3>Window</h3>
+            <p class="what">Off by default</p>
+            <p>Lets the hall's daylight window join in. Daylight does not
+              usually dance, which is why it waits to be asked.</p>
+          </div>
+        </div>
+
+        <p style="margin-top:2mm; font-size:9.2pt">
+          Like CINEMATIC, light sync is remembered on this computer rather than
+          in the project. It costs nothing on the audio thread; with the
+          ordinary view it means the view redraws while sound plays instead of
+          resting. An exported video uses the offline render's own light and
+          the recorded host clock for every frame, so it pulses exactly with
+          its sound.
+        </p>
+      </div>
+
+      <div class="c-36" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/ctrl-view.jpg" alt="" />
+          <figcaption><b>View and files</b>, with <b>Light sync</b> at its
+            foot.</figcaption>
+        </figure>
+        <div class="box" style="margin-top:4mm">
+          <h4>The rest of the group</h4>
+          <p><em>Rays</em> draws the engine's paths on the plan;
+            <em>Default</em>, <em>Save</em> and <em>Load</em> are the patch
+            buttons of page 18. The readout is where you stand and which way
+            you face &mdash; set in the views, never here.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Light sync</span><span class="n">20</span></div>
+</section>
+
+<!-- ==========================================  RECORD AND EXPORT  ======= -->
+<section class="page">
+  <div class="pad tight">
+    <p class="kick">Record and export</p>
+    <h2 class="display">Film a walk through the flat</h2>
+    <p class="sub">Record a take of up to four minutes, then render it as an MP4
+      with its own sound.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <div class="ctl small">
+          <h3>Rec</h3>
+          <p class="what">In the header</p>
+          <p>Captures a take: the sound going in (the test signal, if it is
+            playing), every host parameter as it moves, the furniture, and
+            where you look. Walk the rooms, open doors, move sources &mdash; all
+            of it is recorded. The button reads <b>STOP</b> while it runs and
+            the clock beside it counts against the <b>4:00</b> limit. Press it
+            again to stop; the take is held until you record another.</p>
+        </div>
+        <div class="ctl small">
+          <h3>Export</h3>
+          <p class="what">The panel under the header button</p>
+          <table class="tight" style="margin-top:1mm">
+            <tr><td>SIZE</td><td>1280&times;720, 1920&times;1080, 2560&times;1440 or 3840&times;2160</td></tr>
+            <tr><td>fps</td><td>30 or 60; 60 doubles the rendering time</td></tr>
+            <tr><td>PICTURE</td><td>AS SHOWN, CINEMATIC, PHOTO 16 or 64 &mdash; PHOTO traces that many samples into every frame</td></tr>
+            <tr><td>SOUND</td><td>LIVE, HIGH, ULTRA or ULTRA + BASS &mdash; how the take's sound is rendered (next page)</td></tr>
+            <tr><td>INSET</td><td>a small plan in the corner; <b>off by default</b></td></tr>
+            <tr><td>RENDER MP4</td><td>renders the last take; CANCEL deletes the partial file</td></tr>
+            <tr><td>REVEAL</td><td>shows the last video in Explorer</td></tr>
+            <tr><td>BOUNCE WAV</td><td>the take's sound alone, at the SOUND chosen, as a 24-bit WAV beside the videos</td></tr>
+          </table>
+        </div>
+        <div class="box" style="margin-top:2mm">
+          <h4>Why picture and sound cannot drift</h4>
+          <p>Sound and every frame come from the same recording, so they
+            share one timeline; movement is blended between recorded
+            positions, so a walk stays smooth at any frame rate. In
+            <span class="mono">DOCUMENTS\THIN WALLS VIDEOS</span>.</p>
+        </div>
+      </div>
+
+      <div class="c-40 fit" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/hdr-rec.jpg" alt="" />
+          <figcaption><b>Recording.</b> REC has become STOP, and the take is
+            3.2 seconds old.</figcaption>
+        </figure>
+        <figure style="margin-top:5mm">
+          <img class="shot" src="img/exp-pop.jpg" alt="" />
+          <figcaption><b>The export panel</b>, with a take held and SOUND at ULTRA + BASS. Until there is
+            one, the line at its foot says what is missing; afterwards it names
+            the last video written.</figcaption>
+        </figure>
+        <div class="box cool" style="margin-top:5mm">
+          <h4>What it is for</h4>
+          <p>Showing someone what a room does &mdash; a walk out of the living
+            room and into the hall, the door closing behind you &mdash; with the
+            sound it actually makes. The panel is locked while an export
+            runs.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Record and export</span><span class="n">21</span></div>
+</section>
+
+<!-- ================================================  RENDERING  ======== -->
+<section class="page">
+  <div class="pad tight">
+    <p class="kick">Rendering</p>
+    <h2 class="display">Four ways to hear a take</h2>
+    <p class="sub">Offline there is no audio thread to keep up with. None of this
+      changes what you hear while you play, or what it costs.</p>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-58">
+        <div class="grid2" style="gap:1mm 7mm">
+          <div class="ctl small">
+            <h3>Live</h3>
+            <p class="what">What you heard</p>
+            <p>The live engine, sample for sample: reflections to the second
+              order, a statistical late field per room.</p>
+          </div>
+          <div class="ctl small">
+            <h3>High</h3>
+            <p class="what">Reflections to the 4th order</p>
+            <p>Five times as many wall reflections (128 against 24 in the tiled
+              living room) and twice the distinct early echoes; the late field
+              hands over exactly what they now carry.</p>
+          </div>
+          <div class="ctl small">
+            <h3>Ultra</h3>
+            <p class="what">6th order, and traced tails</p>
+            <p>The statistical reverb is replaced by one traced through the
+              actual rooms: rays bounce off the folded walls, the furniture, the
+              rug and the doors as they stand, and what crosses a sphere round
+              your head becomes the tail, band by band and direction by
+              direction. Each room rings with its own shape, and the hall next
+              door comes round the door &mdash; or through the wall.</p>
+          </div>
+          <div class="ctl small">
+            <h3>Ultra + bass</h3>
+            <p class="what">Below 220 Hz, a real wave</p>
+            <p>Under the crossover the whole apartment is simulated as air on a
+              10 cm grid: room modes, bass bending round a door, a door opening
+              mid-take. Sound through walls and leaves still comes from the
+              measured transmission losses.</p>
+          </div>
+        </div>
+
+        <div class="box" style="margin-top:3mm">
+          <h4>Checked against the live engine</h4>
+          <p>The traced tail lands within <b>0.4 to 0.9 dB</b> of the
+            statistical one in four materials, decays within Eyring's times,
+            and puts the hall's tail <b>60 dB</b> louder into a dead room once
+            the door opens. Through a shut wall it is within <b>0.6 dB</b>.
+            The wave gives the living room's axial modes at <b>28.6</b> and
+            <b>34.3 Hz</b>, where c&nbsp;/&nbsp;2L puts them, and its direct
+            sound lands within <b>0.2 dB</b> of the engine's. Above the
+            crossover ULTRA + BASS changes 1 kHz by <b>0.02 dB</b>.</p>
+        </div>
+      </div>
+
+      <div class="c-36 fit" style="margin-left:auto">
+        <figure>
+          <img class="shot" src="img/exp-pop.jpg" alt="" />
+          <figcaption><b>SOUND</b>, for the MP4 and BOUNCE WAV alike.</figcaption>
+        </figure>
+        <div class="box cool" style="margin-top:3mm">
+          <h4>What it costs</h4>
+          <p>Only time, and only when you render: on a many-core desktop a
+            four-second take takes about 6 s at HIGH or ULTRA and 10 s at ULTRA
+            + BASS. A take that moves is traced again every 25 cm.</p>
+        </div>
+        <div class="box" style="margin-top:3mm">
+          <h4>Honestly</h4>
+          <p>Rays know nothing of room modes &mdash; that is what ULTRA + BASS
+            is for. Below its crossover the wave is DIRECT, EARLY and REVERB at
+            once, so those three do not reach there.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Rendering</span><span class="n">22</span></div>
+</section>
+
+<!-- ============================================  SPECIFICATIONS  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Specifications</p>
+    <h2 class="display">What was measured</h2>
+    <p class="sub">The bench renders real audio and measures it &mdash; 90
+      checks, 26 for furniture, pictures and light and 33 for the offline
+      renders, all clear, beside 141 that drive the panel. These are its numbers, not estimates.</p>
+    <hr class="rule" />
+
+    <div class="cols specs">
+      <div class="c-46">
+        <table class="tight">
+          <tr><th>Item</th><th>Measured</th></tr>
+          <tr><td>Interaural delay at 90&deg;</td><td>&minus;708 &micro;s (Woodworth's formula gives 666)</td></tr>
+          <tr><td>Front against back</td><td>5.0 dB apart in spectral shape at 4 and 8 kHz, 1.0 dB in level &mdash; the pinna</td></tr>
+          <tr><td>Level with distance</td><td>6.1 dB per doubling &mdash; and the interaural level difference grows 4.6 dB by 0.3 m, out of the geometry</td></tr>
+          <tr><td>Direct path</td><td>within a tenth of a decibel of the physics from 10 Hz to 16 kHz, wherever a source stands</td></tr>
+          <tr><td>Air absorption</td><td>8 kHz costs 0.73 dB more than 250 Hz over 11 m (ISO 9613-1: 0.78)</td></tr>
+          <tr><td>Reverberation time</td><td>against Eyring in all fifteen room and material cases; the tail's spectral roughness 5.6 to 6.6 dB, against the 5.57 dB of a perfectly diffuse field</td></tr>
+          <tr><td>Direct-to-reverberant</td><td>&minus;1.3 to &minus;0.4 dB at the critical distance against the head's own +0.9; +3.6 / &minus;7.0 at half and double</td></tr>
+          <tr><td>Shutting a door</td><td>&minus;23 dB at 1 kHz, and 4 kHz loses 12 dB more than 250 Hz</td></tr>
+          <tr><td>Party wall and shut door</td><td>31 dB below the same distance in your own room</td></tr>
+          <tr><td>Moving a source</td><td>2 m/s on a pure tone: everything above 6 kHz stays 84 dB down</td></tr>
+          <tr><td>MIX at 0</td><td>bit-exact passthrough</td></tr>
+          <tr><td>Furnishing</td><td>tiled living room, 1 kHz: 3.42 s to 1.03 s by Eyring, 1.13 s in the rendered decay</td></tr>
+          <tr><td>A bookcase in the way</td><td>18.2 dB off the direct sound at 4 kHz; at most 0.19 dB per cm at its edge</td></tr>
+        </table>
+      </div>
+
+      <div class="c-46" style="margin-left:auto">
+        <table class="tight">
+          <tr><th>Item</th><th></th></tr>
+          <tr><td>Format</td><td>Windows VST3 (64-bit), plus a standalone application</td></tr>
+          <tr><td>Type</td><td>Effect &mdash; stereo in and out, plus &ldquo;Aux In&rdquo;, the host's sidechain</td></tr>
+          <tr><td>Parameters</td><td>65, all automatable</td></tr>
+          <tr><td>Materials</td><td>Five, per surface: nine choices. Two walls of every room break and push &plusmn;0.6 m</td></tr>
+          <tr><td>Head</td><td>MIT KEMAR compact set, 368 directions, diffuse-field equalised, minimum phase with a separate onset delay; or any SOFA file</td></tr>
+          <tr><td>Reflections</td><td>image sources to second order (4th and 6th offline); a general surface-sequence search once a wall is broken</td></tr>
+          <tr><td>Reverberator</td><td>one 16-line feedback delay network per room, coupled through the doors and walls. Offline: tails traced through the rooms, and a wave simulation below 220 Hz</td></tr>
+          <tr><td>Delay reader</td><td>16-tap windowed sinc</td></tr>
+          <tr><td>Furniture</td><td>ten pieces, up to 24; up to eight pictures, print or acoustic panel</td></tr>
+          <tr><td>Picture</td><td>ordinary, CINEMATIC, PHOTO; light sync</td></tr>
+          <tr><td>Video</td><td>takes up to 4 minutes; MP4 (H.264 + AAC), 720p to 4K, 30 or 60 fps</td></tr>
+          <tr><td>CPU</td><td>one source about 18 % of a core at 48 kHz; four sources and ten pieces of furniture, about 44 %. The picture runs on the graphics card</td></tr>
+          <tr><td>Sample rates</td><td>any; bench-tested at 44.1 and 96 kHz. Hosts: any VST3 host, developed against Ableton Live 12</td></tr>
+          <tr><td>Price</td><td>free. No account, no registration, no telemetry.</td></tr>
+        </table>
+
+        <p style="margin-top:2.4mm; font-size:7.8pt; line-height:1.35; color:var(--dim)">
+          The head data is the MIT KEMAR HRTF measurements of
+          <b style="color:var(--brass2)">W. G. Gardner and K. D. Martin (1994)</b>,
+          MIT Media Lab, used with thanks. Absorption coefficients from the
+          standard tables (Kuttruff; Vorl&auml;nder). Diffraction after Maekawa;
+          air absorption after ISO 9613-1.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Specifications</span><span class="n">23</span></div>
+</section>
+
+<!-- ===============================================  14  BACK  =========== -->
+<section class="page">
+  <!--  The art is a BAND at the foot with nothing written on it. Text on ink,
+        picture on its own - the plate under grey type is unreadable at any
+        size and darkening it enough to fix that throws the picture away. -->
+  <div class="cover-art" style="height:19%">
+    <img src="img/cine-on.jpg" alt="" style="object-position:center 62%" />
+    <div class="cover-fade"></div>
+  </div>
+
+  <div style="position:absolute; left:18mm; right:18mm; top:15mm;">
+    <p class="kick" style="color:var(--brass)">Honest limits</p>
+    <h2 class="display" style="font-size:24pt">What it is not</h2>
+
+    <hr class="rule" style="margin:6mm 0 5mm 0" />
+
+    <div class="cols">
+      <div class="c-58">
+        <p style="font-size:9.8pt">
+          <b>The floor plan is fixed.</b> One apartment, three rooms, three
+          doors. Two walls of each room can be broken and pushed, so the rooms
+          are not stuck as boxes &mdash; but where the rooms are, and which
+          doors join them, you cannot change. A second plan would be a
+          different instrument.
+        </p>
+        <p style="font-size:9.8pt">
+          <b>Reflections are specular and go to second order.</b> Only STUDIO
+          scatters, and there is no diffraction round the edges of the
+          reflections themselves. Beyond the second bounce the room's own
+          reverberator takes over, which is where that energy belongs anyway.
+        </p>
+        <p style="font-size:9.8pt">
+          <b>Two sources in one room share its field.</b> That is correct &mdash;
+          a room has one reverberant field &mdash; but the share each hands it is
+          taken at 1 kHz rather than per band.
+        </p>
+        <p style="font-size:9.8pt">
+          <b>Furniture is geometric.</b> It absorbs, scatters, blocks and
+          reflects; it does not damp a room's bass modes, and a print on the
+          wall does nothing you can hear. PHOTO traces a simplified box model of
+          the flat, so what it lights is the rooms and their furniture, not
+          every detail of the ordinary view.
+        </p>
+        <p style="font-size:9.8pt">
+          <b>Breaking a wall moves the early reflections, not the modes.</b>
+          The late field here is statistical, so splaying a wall does not
+          redistribute a room's standing waves; above the Schroeder frequency
+          that is where splay works in a real room too.
+        </p>
+        <p style="font-size:9.8pt">
+          <b>The DRR readout is the useful reading, not the textbook one.</b>
+          It counts an arrival that came through a doorway or a shut leaf as
+          direct, because that is the sound rather than the building. And the
+          test signal <b>replaces</b> the MAIN input while it plays, rather than
+          mixing with it; AUX carries on regardless.
+        </p>
+        <p style="font-size:9.8pt; color:var(--brass)">
+          None of these is a placeholder. They are the edges of what was built,
+          written down so you know where they are.
+        </p>
+      </div>
+
+      <div style="margin-left:auto; text-align:right">
+        <p class="display" style="font-size:14pt; color:var(--paper)">Brokild</p>
+        <p style="font-size:9pt; color:var(--dim); margin-top:2.5mm">
+          Free, and free to pass on.<br>
+          peterboggild.github.io/BrokildApps
+        </p>
+        <p class="says" style="margin-top:6mm; font-size:8.4pt">BUILD 260925.7 &middot; WINDOWS VST3</p>
+        <p style="margin-top:7mm"><span class="stamp">Mind the neighbours</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,1630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Full Metal Racket</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   FULL METAL RACKET — the panel.
+
+   Cream painted steel, walnut cheeks, amber lamps, silver knobs with red
+   pointers. The structure is BLOCKS, not floating controls: every channel is
+   a module with an inked nameplate, a family stripe, stacked model keys and
+   a black footer. Heavy condensed display type throughout — the machine is
+   called Full Metal Racket, and it should not whisper.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --panel:#e7dcc3; --panel-hi:#f6efe0; --panel-lo:#d3c6a6; --panel-dk:#bfb08c;
+  --ink:#191307; --ink2:#57492f; --ink3:#8a7a5b;
+  --wood:#6d4526; --wood-lo:#3f2714;
+  --amber:#ff8f1f; --red:#d8412a; --teal:#33bfa9;
+  --cream:#f4ecda;
+  /*  One family throughout. The condensed display face was loud where this is
+      confident, and Peter is right that the buttons always read better than
+      the headings. Segoe runs much wider than Impact at the same size, so
+      every display size below came down with it. */
+  --f-disp:"Segoe UI",system-ui,-apple-system,sans-serif;
+  --f-lab:"Segoe UI",system-ui,sans-serif;
+  --f-mono:ui-monospace,Consolas,monospace;
+  /* family stripes — grouping at a glance, kept inside the warm palette */
+  --fam-kick:#a8391a; --fam-snare:#b8721a; --fam-tom:#7e7d28;
+  --fam-perc:#2c7a66; --fam-metal:#4f6f9e;
+}
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;font-family:var(--f-lab);color:var(--ink);
+  /*  The ground a letterbox shows. Deliberately the colour of the bench the
+      machine sits on, so an odd window shape reads as space around it rather
+      than as something having gone wrong. */
+  background:radial-gradient(120% 100% at 50% 40%,#2a1f13,#0b0805 72%)}
+#fit{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+/*  flex:0 0 auto is load-bearing. #deck is a flex item, and a flex item
+    shrinks below its width unless it is told not to — so below 1800px the
+    deck got NARROWER as well as scaled, and the layout reflowed instead of
+    shrinking: strips squeezed, labels ran together. transform does not
+    change layout size; flex-shrink does. */
+#deck{width:1800px;height:830px;flex:0 0 auto;transform-origin:center center;display:grid;
+  grid-template-columns:30px 1fr 30px;
+  /*  A grid row is auto-sized by default, so the face grew PAST the deck's fixed
+      height and overflow:hidden cut the difference — 885px of steps page
+      inside an 830px deck. minmax(0,1fr) holds it to the deck instead, and
+      the min-height:0 chain below lets that pressure reach the lanes, which
+      were always able to compress and were simply never asked to. */
+  grid-template-rows:minmax(0,1fr);
+  border-radius:6px;overflow:hidden;
+  box-shadow:0 34px 80px -20px #000,0 0 0 1px #0008}
+.cheek{background:
+    repeating-linear-gradient(180deg,#00000020 0 2px,#0000 2px 8px),
+    linear-gradient(96deg,var(--wood-lo),var(--wood) 40%,#835633 68%,var(--wood-lo))}
+.cheek.r{transform:scaleX(-1)}
+#face{background:
+    radial-gradient(130% 70% at 50% -10%,#ffffff38,#0000 55%),
+    linear-gradient(180deg,var(--panel-hi),var(--panel) 18%,var(--panel-lo) 92%,var(--panel-dk));
+  padding:13px 14px;display:flex;flex-direction:column;gap:9px;min-width:0;min-height:0}
+
+/* ── shared bits ────────────────────────────────────────────────────────── */
+.lab{font:700 10px/1 var(--f-lab);letter-spacing:.19em;text-transform:uppercase;color:var(--ink2)}
+.blk{background:linear-gradient(180deg,#241c10,var(--ink));border:1px solid #0a0703;
+  border-radius:3px;box-shadow:inset 0 1px 0 #ffffff14,0 1px 2px #0006}
+
+/* buttons: big, uppercase, readable across the room */
+.k{font:700 13px/1 var(--f-lab);letter-spacing:.13em;text-transform:uppercase;color:var(--ink);
+  background:linear-gradient(180deg,#f2eada,#c6b795);border:1px solid #9a8a68;border-radius:3px;
+  cursor:pointer;box-shadow:inset 0 1px 0 #fffe,0 2px 3px #0004;padding:0;
+  display:flex;align-items:center;justify-content:center;text-align:center}
+.k:hover{background:linear-gradient(180deg,#fdf7e8,#d5c6a3)}
+.k:active,.k.on{background:linear-gradient(180deg,#c95a2e,#a32d12);border-color:#7a2109;
+  color:#fff3e4;box-shadow:inset 0 1px 0 #ffffff44,0 0 12px #d8412a55}
+.k.dark{background:linear-gradient(180deg,#332818,#1a1408);border-color:#0a0703;color:#e6d9bd;
+  box-shadow:inset 0 1px 0 #ffffff18,0 2px 3px #0006}
+.k.dark:hover{background:linear-gradient(180deg,#453720,#241b0d)}
+.k.dark.on{background:linear-gradient(180deg,#c95a2e,#a32d12);border-color:#7a2109;color:#fff3e4}
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+#hdr{flex:none;height:66px;display:flex;align-items:stretch;gap:12px}
+#plate{flex:none;width:352px;padding:8px 16px;display:flex;flex-direction:column;justify-content:center;
+  background:linear-gradient(168deg,#d6d9db,#8b8f92 52%,#b7bbbe);
+  border:1px solid #6e7376;border-radius:3px;box-shadow:inset 0 1px 0 #ffffffc0,0 2px 4px #0007}
+#plate b{font:700 24px/1 var(--f-disp);letter-spacing:.015em;color:#191d22;text-transform:uppercase}
+#plate i{display:block;font:700 8.5px/1 var(--f-lab);letter-spacing:.19em;color:#4d5359;font-style:normal;margin-top:5px;
+  white-space:nowrap}
+#kitbox{flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:0 14px}
+#kitname{font:700 23px/1 var(--f-disp);letter-spacing:.03em;text-transform:uppercase;
+  color:var(--amber);text-shadow:0 0 16px #ff8f1f60;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#kitno{font:700 10px/1 var(--f-mono);letter-spacing:.16em;color:#9a6a2a;margin-top:5px}
+.step{width:40px;height:40px;flex:none;font-size:16px;letter-spacing:0}
+#status{flex:none;width:236px;padding:0 4px;display:flex;flex-direction:column;justify-content:center;
+  gap:5px;text-align:right}
+#msg{font:700 10px/1.25 var(--f-lab);letter-spacing:.13em;text-transform:uppercase;color:var(--red);
+  min-height:12px;overflow:hidden}
+
+/* ── THE WEB band ───────────────────────────────────────────────────────── */
+#web{flex:none;height:96px;display:flex;align-items:stretch;gap:0}
+#webtag{flex:none;width:158px;display:flex;flex-direction:column;justify-content:center;
+  padding:0 14px;border-radius:3px 0 0 3px}
+#webtag b{font:700 20px/1.05 var(--f-disp);letter-spacing:.03em;color:var(--cream);text-transform:uppercase}
+#webtag i{font:700 8px/1.35 var(--f-lab);letter-spacing:.13em;color:#a08e6c;font-style:normal;margin-top:4px}
+#webk{flex:1;display:flex;align-items:center;gap:4px;padding:0 16px;min-width:0;
+  background:linear-gradient(180deg,#00000018,#0000 45%),var(--panel-lo);
+  border:1px solid #a89876;border-left:none;border-radius:0 3px 3px 0}
+#webk .gk{display:flex;flex-direction:column;align-items:center;gap:6px;width:86px;flex:none}
+#webk .sep{flex:1}
+#webk .note{font:700 9px/1.6 var(--f-lab);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink3);text-align:right;max-width:440px;flex:none}
+
+/* ── main: rail + strips ────────────────────────────────────────────────── */
+#main{flex:1;display:flex;gap:9px;min-height:0}
+#rail{flex:none;width:116px;display:flex;flex-direction:column;gap:6px;padding:9px;border-radius:3px}
+#rail .k{height:42px;width:100%;flex:none}
+#rail .rl{font:700 7.5px/1 var(--f-lab);letter-spacing:.18em;text-transform:uppercase;
+  color:#8d7d5e;text-align:center;flex:none}
+#rail .fill{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+
+/* ── the master channel, thirteenth strip on the right ──────────────────── */
+#mstrip{flex:none;width:132px}
+#mstrip .np .nm{font-size:16px}
+#vu{flex:none;height:126px;margin:0 -5px;padding:8px 26px;display:flex;gap:6px;
+  align-items:stretch;justify-content:center;
+  background:linear-gradient(180deg,#241c10,var(--ink));border-bottom:1px solid #0a0703}
+#vu .col{flex:1;border-radius:2px;position:relative;overflow:hidden;
+  background:linear-gradient(180deg,#0c0803,#1d160c);box-shadow:inset 0 0 5px #000}
+#vu .col b{position:absolute;left:0;right:0;bottom:0;height:0;display:block;
+  background:linear-gradient(180deg,#ff4a1c,#ffb35c 42%,#c2600f);box-shadow:0 0 9px #ff8f1f99}
+#mwrap{flex:1;display:flex;align-items:stretch;justify-content:center;min-height:0;padding:8px 0}
+.fader.big{width:46px;height:auto}
+.fader.big .trk{width:11px;margin-left:-5.5px;border-radius:6px}
+.fader.big .cap{left:0;width:46px;height:34px;border-radius:4px;
+  background:linear-gradient(180deg,#f6efe0 0 40%,#8e8064 40% 60%,#c6b795 60%)}
+.fader.big .cap::after{left:4px;right:4px;height:3px}
+#mval{flex:none;margin:0 -5px;padding:9px 0;text-align:center;
+  background:linear-gradient(180deg,#241c10,var(--ink));border-top:1px solid #0a0703;
+  font:700 17px/1 var(--f-mono);color:var(--amber);text-shadow:0 0 12px #ff8f1f55}
+#globe{width:100%;height:54px;flex:none;border-radius:3px;cursor:pointer;border:1px solid #0b3f38;
+  background:linear-gradient(180deg,#3fd9c1,#128173);color:#04302a;
+  box-shadow:inset 0 1px 0 #ffffff55,0 0 16px #33bfa955;
+  display:flex;align-items:center;justify-content:center;
+  font:700 14px/1 var(--f-lab);letter-spacing:.16em}
+#globe:hover{background:linear-gradient(180deg,#5ceed6,#17998a)}
+
+#strips{flex:1;display:grid;grid-template-columns:repeat(12,1fr);gap:5px;min-width:0}
+.strip{display:flex;flex-direction:column;gap:5px;min-width:0;
+  background:linear-gradient(180deg,#00000014,#0000 22%),var(--panel-lo);
+  border:1px solid #a89876;border-radius:3px;padding:0 5px 0;overflow:hidden}
+.strip.mut{opacity:.4}
+.stripe{height:5px;margin:0 -5px;flex:none}
+.np{flex:none;height:46px;margin:0 -5px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;
+  background:linear-gradient(180deg,#2b2213,var(--ink));border-bottom:1px solid #0a0703}
+.np .nm{font:700 17px/1 var(--f-disp);letter-spacing:.03em;color:var(--cream);text-transform:uppercase}
+.np .fm{font:700 7px/1 var(--f-lab);letter-spacing:.2em;color:#9a7f4d;text-transform:uppercase}
+/*  Fixed height, room for four keys. FX has four models and everything
+    else has three; letting the block shrink dropped FX's knobs a row out of
+    line with the other eleven and the grid stopped reading as a grid. */
+.mods{flex:none;display:flex;flex-direction:column;gap:2px;height:90px;justify-content:flex-start}
+.mods .k{height:21px;font-size:10.5px;letter-spacing:.09em;border-radius:2px}
+.kgrid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 5px;align-content:space-evenly;min-height:0}
+.kw{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.kw .kl{font:700 9px/1 var(--f-lab);letter-spacing:.11em;text-transform:uppercase;color:var(--ink2);
+  white-space:nowrap}
+.knob{width:100%;max-width:52px;aspect-ratio:1;border-radius:50%;position:relative;cursor:ns-resize;
+  background:
+    radial-gradient(circle at 50% 118%,#ffffff30,#0000 55%),
+    radial-gradient(circle at 36% 26%,#ffffff,#d2d5d7 34%,#93979a 64%,#63676a);
+  border:1px solid #5b5f62;
+  box-shadow:0 2px 3px #00000055,inset 0 -3px 5px #00000048,inset 0 2px 3px #ffffff55;touch-action:none}
+.knob::before{content:"";position:absolute;inset:17%;border-radius:50%;
+  background:radial-gradient(circle at 38% 30%,#ffffff70,#0000 60%);pointer-events:none}
+.knob::after{content:"";position:absolute;left:50%;top:7%;width:3px;height:40%;margin-left:-1.5px;
+  background:var(--red);border-radius:2px;transform-origin:50% 100%;transform:rotate(var(--a,-135deg));
+  box-shadow:0 0 3px #d8412a80}
+.knob.inert{opacity:.42;filter:saturate(.25)}
+.knob.big{max-width:50px}
+/*  A slaved control is not disabled — it still works, it just belongs to the
+    pair rather than to this channel. Marked with the link colour rather than
+    greyed out, because greyed-out reads as broken. */
+.knob.slaved{box-shadow:0 0 0 2px #2c7a6688,0 2px 3px #00000055,inset 0 -3px 5px #00000048!important}
+.k.slaved{box-shadow:inset 0 0 0 1px #2c7a6699!important}
+
+/* the per-channel level fader — a mixer strip, and it fills the panel honestly */
+.lvrow{flex:none;display:flex;gap:8px;align-items:flex-end;justify-content:center;padding-bottom:2px}
+.fader{position:relative;width:26px;height:100px;flex:none;cursor:ns-resize;touch-action:none}
+.fader .trk{position:absolute;left:50%;top:0;bottom:0;width:7px;margin-left:-3.5px;border-radius:4px;
+  background:linear-gradient(180deg,#1c1509,#3a2f1c);box-shadow:inset 0 0 3px #000,0 1px 0 #ffffff40}
+.fader .cap{position:absolute;left:0;width:26px;height:26px;border-radius:3px;
+  background:linear-gradient(180deg,#f2eada 0 42%,#8e8064 42% 58%,#c6b795 58%);
+  border:1px solid #6f6247;box-shadow:0 2px 4px #0007,inset 0 1px 0 #fff9;pointer-events:none}
+.fader .cap::after{content:"";position:absolute;left:2px;right:2px;top:50%;height:2px;margin-top:-1px;
+  background:var(--red);box-shadow:0 0 4px #d8412a90}
+
+/* the black footer of every strip */
+.foot{flex:none;margin:0 -5px;padding:6px 5px;display:flex;gap:5px;align-items:center;
+  background:linear-gradient(180deg,#241c10,var(--ink));border-top:1px solid #0a0703}
+.mute{flex:none;width:30px;height:34px;border-radius:2px;cursor:pointer;
+  border:1px solid #0a0703;background:linear-gradient(180deg,#3a2e1b,#1d1609);color:#c0ae8a;
+  font:700 12px/32px var(--f-lab);letter-spacing:.06em;text-align:center}
+.mute.on{background:linear-gradient(180deg,#d8552f,#a32d12);border-color:#7a2109;color:#fff3e4;
+  box-shadow:0 0 10px #d8412a70}
+.pad{flex:1;height:34px;border-radius:2px;cursor:pointer;position:relative;min-width:0;
+  background:linear-gradient(180deg,#4a3d2a,#241c11);border:1px solid #0a0703;
+  box-shadow:inset 0 1px 0 #ffffff22,inset 0 -6px 10px #00000055;
+  display:flex;align-items:center;justify-content:center;touch-action:none}
+.pad:active{background:linear-gradient(180deg,#6b5738,#312616)}
+.pad .led{width:12px;height:12px;border-radius:50%;background:#4a3110;box-shadow:inset 0 1px 2px #000}
+.pad .kb{position:absolute;right:4px;bottom:1px;font:700 7.5px/1 var(--f-mono);color:#7c6942}
+
+/* ── footer ─────────────────────────────────────────────────────────────── */
+#foot{flex:none;height:16px;display:flex;align-items:center;gap:18px;
+  font:700 8.5px/1 var(--f-mono);letter-spacing:.14em;color:var(--ink3);text-transform:uppercase}
+#foot .sp{flex:1}
+
+/* ── the sequencer page ─────────────────────────────────────────────────── */
+#seqpage{flex:1;display:none;flex-direction:column;gap:6px;min-width:0;min-height:0}
+#seqpage.on{display:flex}
+#strips.off{display:none}
+.seqhead{flex:none;display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:3px}
+.pats{display:flex;gap:3px}
+/*  A transport, in symbols. Sized so they are hit targets rather than
+    decorations, and RECORD is red when armed because a record button that
+    does not shout is how you lose a take. */
+.tport{display:flex;gap:4px;align-items:center}
+.tport .k{width:38px;height:32px;padding:0;font-size:13px;letter-spacing:0}
+.tport .k.rec.on{background:linear-gradient(180deg,#e0473a,#a3120a)!important;
+  border-color:#7a0d06!important;color:#fff!important;
+  box-shadow:inset 0 1px 0 #ffffff44,0 0 14px #d8412a99!important}
+.tport .k.run.on{background:linear-gradient(180deg,#4fbf6a,#1f7a3a)!important;
+  border-color:#155c2a!important;color:#f0fff4!important;
+  box-shadow:inset 0 1px 0 #ffffff44,0 0 14px #35b25a88!important}
+#kitno.user{color:var(--red)}
+.pats .k{width:26px;height:30px;font-size:11px;letter-spacing:0;border-radius:2px}
+.seqhead .gk{display:flex;flex-direction:column;align-items:center;gap:4px;width:62px}
+.seqhead .k{height:30px;padding:0 12px}
+.seqhead .sp{flex:1}
+.lanes{flex:1;display:flex;flex-direction:column;gap:3px;min-height:0}
+.lane{flex:1;display:flex;align-items:stretch;gap:5px;min-height:0;overflow:hidden}
+.lname{flex:none;width:96px;display:flex;align-items:center;gap:5px;padding:0 7px;border-radius:2px;
+  background:linear-gradient(180deg,#2b2213,var(--ink));border:1px solid #0a0703}
+.lname b{flex:1;font:700 13px/1 var(--f-disp);letter-spacing:.04em;color:var(--cream);text-transform:uppercase}
+.lname .lm{width:20px;height:20px;border-radius:2px;cursor:pointer;flex:none;
+  border:1px solid #0a0703;background:#3a2e1b;color:#c0ae8a;font:700 9px/18px var(--f-lab);text-align:center}
+.lname .lm.on{background:linear-gradient(180deg,#d8552f,#a32d12);color:#fff}
+.cells{flex:1;display:grid;grid-template-columns:repeat(32,1fr);gap:2px;min-width:0}
+.cell{border-radius:2px;cursor:pointer;position:relative;
+  background:linear-gradient(180deg,#cfc2a3,#b3a482);border:1px solid #9a8a68;
+  box-shadow:inset 0 1px 0 #ffffff70}
+.cell:nth-child(4n+1){background:linear-gradient(180deg,#e2d7bb,#c2b492)}
+.cell.on{background:linear-gradient(180deg,#ffb35c,#d8721a);border-color:#95470c;
+  box-shadow:inset 0 1px 0 #ffffff88,0 0 8px #ff8f1f55}
+.cell.acc{background:linear-gradient(180deg,#ef8a5e,#c5411f);border-color:#8d2413}
+.cell.past{outline:2px solid var(--red);outline-offset:-2px}
+.cell.sel{outline:2px solid #2f8a74;outline-offset:-2px}
+.cell.dim{opacity:.28}
+.cell i{position:absolute;left:2px;right:2px;bottom:1px;height:2px;border-radius:1px;
+  background:#00000055;display:block}
+.lopts{flex:none;width:176px;display:flex;align-items:stretch;gap:3px;padding:2px;border-radius:2px;min-height:0;
+  background:linear-gradient(180deg,#2b2213,var(--ink));border:1px solid #0a0703}
+/*  These read as buttons now. They always were controls; drawn as dim text on
+    a dark block they looked like a readout, and a control nobody can find is
+    a control that does not exist. */
+.lopts .o{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
+  cursor:pointer;border-radius:2px;padding:1px 0;min-height:0;overflow:hidden;
+  background:linear-gradient(180deg,#4a3a22,#2a2013);border:1px solid #0f0b06;
+  box-shadow:inset 0 1px 0 #ffffff22,0 1px 2px #0006;
+  font:700 7.5px/1 var(--f-lab);letter-spacing:.12em;color:#a8946f}
+.lopts .o:hover{background:linear-gradient(180deg,#5f4b2c,#372a19);color:#d8c5a0}
+.lopts .o:active{background:linear-gradient(180deg,#c95a2e,#a32d12);color:#fff3e4}
+.lopts .o b{display:block;font:700 13px/1.15 var(--f-lab);letter-spacing:.02em;color:var(--cream)}
+.lopts .o.wide{flex:1.25}
+.stepedit{flex:none;display:flex;align-items:center;gap:14px;padding:6px 12px;border-radius:3px}
+.stepedit .gk{display:flex;flex-direction:column;align-items:center;gap:4px;width:64px}
+.stepedit .who{font:700 15px/1 var(--f-disp);letter-spacing:.04em;color:var(--amber);
+  text-transform:uppercase;min-width:150px}
+.stepedit .hintx{font:700 9px/1.5 var(--f-lab);letter-spacing:.12em;text-transform:uppercase;
+  color:#8d7d5e;text-align:right;flex:1}
+
+/* ── about ──────────────────────────────────────────────────────────────── */
+/*  Positioned and shown by toggling style.display. NOT by the hidden
+    attribute: this element needs an inline display for centring, and an
+    inline style beats [hidden] — which is how Black Rider's About once
+    appeared at boot and darkened a batch of manual plates. */
+#about{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;
+  background:#000000b0}
+#aboutbox{width:600px;max-height:86vh;overflow-y:auto;border-radius:5px;
+  background:linear-gradient(180deg,#f2ead9,#e7dcc3 30%,#d3c6a6);color:var(--ink);
+  border:1px solid #9a8a68;box-shadow:0 30px 80px -18px #000,inset 0 1px 0 #fff}
+#aboutbox .ah{padding:20px 24px 16px;border-bottom:1px solid #b6a887;
+  background:linear-gradient(168deg,#d6d9db,#8b8f92 52%,#b7bbbe)}
+#aboutbox .ah b{display:block;font:700 26px/1 var(--f-disp);letter-spacing:.015em;
+  text-transform:uppercase;color:#191d22}
+#aboutbox .ah i{display:block;font:700 8.5px/1 var(--f-lab);letter-spacing:.19em;
+  color:#4d5359;font-style:normal;margin-top:6px}
+#aboutbox .ab{padding:18px 24px 22px}
+#aboutbox p{margin:0 0 11px;font:400 13.5px/1.62 var(--f-lab);color:#3a3122}
+#aboutbox p b{color:var(--ink)}
+#aboutbox .row{display:flex;gap:10px;font:700 9px/1.5 var(--f-lab);letter-spacing:.13em;
+  text-transform:uppercase;color:#6b5c42;border-top:1px solid #c2b492;padding-top:12px;margin-top:14px;
+  flex-wrap:wrap}
+#aboutbox .row span{background:#00000010;border:1px solid #b6a887;border-radius:2px;padding:4px 8px}
+#aboutbox .af{display:flex;justify-content:flex-end;padding:0 24px 20px}
+#aboutbox .af .k{height:34px;padding:0 20px}
+
+/* ── settings: how the machine looks ────────────────────────────────────── */
+#setwin{position:fixed;z-index:72;display:none;flex-direction:column;width:430px;
+  border-radius:4px;overflow:hidden;background:linear-gradient(180deg,#241c10,#141009);
+  border:1px solid #000;box-shadow:0 22px 60px -14px #000,inset 0 1px 0 #ffffff18}
+#setwin.on{display:flex}
+#setwin .mh{flex:none;display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border-bottom:1px solid #000;background:linear-gradient(180deg,#33291a,#221a0f)}
+#setwin .mh b{flex:1;font:700 17px/1 var(--f-disp);letter-spacing:.04em;
+  text-transform:uppercase;color:var(--cream)}
+#setwin .mh .k{height:28px;padding:0 12px;font-size:11px}
+#setwin .sect{padding:14px}
+#setwin .sect + .sect{border-top:1px solid #000}
+#setwin .st{font:700 9px/1 var(--f-lab);letter-spacing:.22em;text-transform:uppercase;
+  color:#a08e6c;margin-bottom:9px}
+#setwin .opts{display:flex;gap:6px}
+#setwin .opts .k{flex:1;height:38px;font-size:11px}
+#setwin .why{margin-top:9px;font:700 9px/1.6 var(--f-lab);letter-spacing:.1em;
+  text-transform:uppercase;color:#7a6a4d}
+#setwin .lightrow{display:flex;align-items:center;gap:12px}
+#setwin .lightrow input{flex:1;accent-color:#d8721a}
+#setwin .lightrow span{width:44px;text-align:right;font:700 12px/1 var(--f-mono);color:var(--amber)}
+
+/*  A brushed-aluminium key, drawn. The decal wins by default; this only
+    applies when the metal finish is chosen, so it has to out-specify it. */
+body.keys-metal .k.dark{
+  background:linear-gradient(180deg,#d9dcde,#9aa0a4 46%,#7d8286 54%,#b6babd)!important;
+  border:1px solid #63686b!important;color:#1a1d20!important;
+  box-shadow:inset 0 1px 0 #ffffffcc,inset 0 -1px 0 #00000040,0 2px 3px #0005!important}
+body.keys-metal .k.dark:hover{background:linear-gradient(180deg,#eaeced,#a9afb3 46%,#8b9094 54%,#c4c8cb)!important}
+body.keys-metal .k.dark.on,body.keys-metal .k.dark:active{
+  background:linear-gradient(180deg,#e07a4a,#a8330f 52%,#8d2409)!important;
+  border-color:#6d1c06!important;color:#fff4e8!important}
+body.keys-metal .lopts .o{
+  background:linear-gradient(180deg,#c8cbcd,#8f9599)!important;border-color:#63686b!important;color:#3a3d40!important}
+body.keys-metal .lopts .o b{color:#14171a!important}
+body.keys-metal .mute{background:linear-gradient(180deg,#cfd2d4,#8f9599)!important;color:#22262a!important}
+body.keys-metal .mute.on{background:linear-gradient(180deg,#e07a4a,#a8330f)!important;color:#fff4e8!important}
+
+/*  Panel light. A gamma lift, not a brightness multiply: multiplying does
+    almost nothing to a dark panel and flattens the highlights, where gamma
+    lifts the shadows and leaves the top end alone. (The Mars Wars lesson.) */
+#deck{filter:var(--lift,none)}
+
+/* ── the kit browser ────────────────────────────────────────────────────── */
+#scrim{position:fixed;inset:0;z-index:70;display:none}
+#scrim.on{display:block}
+#menu{position:fixed;z-index:71;display:none;flex-direction:column;
+  max-height:82vh;width:520px;border-radius:4px;overflow:hidden;
+  background:linear-gradient(180deg,#241c10,#141009);border:1px solid #000;
+  box-shadow:0 22px 60px -14px #000,inset 0 1px 0 #ffffff18}
+#menu.on{display:flex}
+#menu .mh{flex:none;display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border-bottom:1px solid #000;background:linear-gradient(180deg,#33291a,#221a0f)}
+#menu .mh b{flex:1;font:700 17px/1 var(--f-disp);letter-spacing:.04em;
+  text-transform:uppercase;color:var(--cream)}
+#menu .mh .k{height:28px;padding:0 12px;font-size:11px}
+#mfilter{flex:1;min-width:0;background:#0c0803;border:1px solid #3a2e1b;border-radius:2px;
+  color:var(--cream);font:700 12px/1 var(--f-lab);letter-spacing:.08em;padding:8px 10px;outline:none}
+#mfilter::placeholder{color:#7a6a4d}
+#mlist{flex:1;overflow-y:auto;overflow-x:hidden}
+#mlist .grp{position:sticky;top:0;background:linear-gradient(180deg,#2b2213,#1d1609);
+  font:700 9px/1 var(--f-lab);letter-spacing:.22em;text-transform:uppercase;color:#a08e6c;
+  padding:8px 14px;border-top:1px solid #000;border-bottom:1px solid #000}
+#mlist .row{display:flex;align-items:baseline;gap:10px;padding:7px 14px;cursor:pointer;
+  border-bottom:1px solid #ffffff08}
+#mlist .row:hover{background:#ffffff14}
+#mlist .row.cur{background:linear-gradient(90deg,#a32d1255,#0000);box-shadow:inset 3px 0 0 var(--red)}
+#mlist .row .no{flex:none;width:34px;font:700 10px/1.3 var(--f-mono);color:#7a6a4d;text-align:right}
+#mlist .row .nm{flex:1;min-width:0;font:700 13px/1.3 var(--f-lab);letter-spacing:.06em;
+  color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mlist .row .tag{flex:none;font:700 9px/1.3 var(--f-lab);letter-spacing:.14em;color:#8d7d5e;
+  text-transform:uppercase}
+#menu .mf{flex:none;display:flex;gap:6px;padding:9px 12px;border-top:1px solid #000;
+  background:linear-gradient(180deg,#241c10,#181207)}
+#menu .mf .k{flex:1;height:32px;font-size:11px}
+#kitbox{cursor:pointer}
+#kitbox:hover #kitname{text-shadow:0 0 22px #ff8f1f90}
+
+#tip{position:fixed;pointer-events:none;z-index:60;padding:6px 11px;border-radius:3px;
+  background:var(--ink);color:var(--cream);border:1px solid #000;
+  font:700 12px/1 var(--f-lab);letter-spacing:.09em;text-transform:uppercase;
+  box-shadow:0 4px 12px #000a;opacity:0;transition:opacity .1s}
+#tip.on{opacity:1}
+</style>
+</head>
+<body>
+<div id="fit"><div id="deck">
+  <div class="cheek"></div>
+  <div id="face">
+
+    <div id="hdr">
+      <div id="plate"><b>Full Metal Racket</b><i>Polyrhythmic Beat Composer</i></div>
+      <div id="kitbox" class="blk">
+        <button class="k dark step" id="kprev">&#9664;</button>
+        <div style="flex:1;min-width:0">
+          <div id="kitname">&mdash;</div>
+          <div id="kitno">KIT 00</div>
+        </div>
+        <button class="k dark step" id="knext">&#9654;</button>
+      </div>
+      <div id="status">
+        <div class="lab">Brokild &middot; Polyrhythmic Beat Composer</div>
+        <div id="msg"></div>
+      </div>
+    </div>
+
+    <div id="web">
+      <div id="webtag" class="blk"><b>The Web</b><i>One hit rings<br>the other shells</i></div>
+      <div id="webk"></div>
+    </div>
+
+    <div id="main">
+      <div id="rail" class="blk"></div>
+      <div id="strips"></div>
+      <div id="seqpage">
+        <div class="seqhead blk">
+          <span class="lab" style="color:#a08e6c">Pattern</span>
+          <div class="pats" id="pats"></div>
+          <button class="k dark" id="patclear">Clear</button>
+          <button class="k dark" id="patcopy">Copy &#9654;</button>
+          <span class="lab" style="color:#a08e6c;margin-left:6px">Bars</span>
+          <button class="k dark" id="bars1" style="width:34px;padding:0">1</button>
+          <button class="k dark" id="bars2" style="width:34px;padding:0">2</button>
+          <div class="sp"></div>
+          <div class="tport">
+            <button class="k dark run" id="t-run" title="Run from step one">&#9654;</button>
+            <button class="k dark" id="t-pause" title="Pause where it is">&#10074;&#10074;</button>
+            <button class="k dark" id="t-stop" title="Stop and rewind to step one">&#9632;</button>
+            <button class="k dark rec" id="t-rec" title="Record: play the pads or MIDI to write steps">&#9679;</button>
+          </div>
+          <div class="gk"><div class="knob big" data-g="tempo"></div><div class="lab" style="color:#a08e6c">Tempo</div></div>
+          <div class="gk"><div class="knob big" data-g="swing"></div><div class="lab" style="color:#a08e6c">Swing</div></div>
+          <div class="gk"><div class="knob big" data-g="feel"></div><div class="lab" style="color:#a08e6c">Feel</div></div>
+          <div class="gk"><div class="knob big" data-g="grip"></div><div class="lab" style="color:#a08e6c">Grip</div></div>
+        </div>
+        <div class="lanes" id="lanes"></div>
+        <div class="stepedit blk">
+          <div class="who" id="stepwho">No step selected</div>
+          <div class="gk"><div class="knob big" data-s="vel"></div><div class="lab" style="color:#a08e6c">Velocity</div></div>
+          <div class="gk"><div class="knob big" data-s="prob"></div><div class="lab" style="color:#a08e6c">Chance</div></div>
+          <div class="gk"><div class="knob big" data-s="rt"></div><div class="lab" style="color:#a08e6c">Ratchet</div></div>
+          <div class="gk"><div class="knob big" data-s="mic"></div><div class="lab" style="color:#a08e6c">Micro</div></div>
+          <div class="gk"><div class="knob big" data-s="cond"></div><div class="lab" style="color:#a08e6c">Condition</div></div>
+          <div class="hintx">Click a step to toggle &middot; shift-click to select it &middot; right-click to set the last step</div>
+        </div>
+      </div>
+      <div id="mstrip" class="strip">
+        <div class="stripe" style="background:linear-gradient(90deg,#7d8184,#c9cccf,#7d8184)"></div>
+        <div class="np"><div class="nm">Master</div><div class="fm">Output</div></div>
+        <div id="vu"><div class="col"><b></b></div><div class="col"><b></b></div></div>
+        <div id="mwrap"><div id="mfader" class="fader big"><div class="trk"></div><div class="cap"></div></div></div>
+        <div id="mval">&mdash;</div>
+      </div>
+    </div>
+
+    <div id="foot">
+      <span id="buildid">Build &mdash;</span>
+      <span class="sp"></span>
+      <span id="mapnote"></span>
+    </div>
+
+  </div>
+  <div class="cheek r"></div>
+</div></div>
+<div id="scrim"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="f-lift" color-interpolation-filters="sRGB">
+  <feComponentTransfer><feFuncR type="gamma" exponent="1" offset="0"/><feFuncG type="gamma" exponent="1" offset="0"/><feFuncB type="gamma" exponent="1" offset="0"/></feComponentTransfer>
+</filter></svg>
+<div id="about"><div id="aboutbox">
+  <div class="ah"><b>Full Metal Racket</b><i>Polyrhythmic Beat Composer</i></div>
+  <div class="ab">
+    <p><b>Twelve analogue drum voices, and they are one instrument.</b> They ring
+      each other through THE WEB, they share a power rail that dips in level
+      <em>and in pitch</em> when something hits it hard, they sit in one shell,
+      and they age together. That is the whole design idea.</p>
+    <p>Every voice is built from the same six mechanisms rather than being its own
+      circuit: a resonator whose damping grows with amplitude, tension that makes a
+      hard hit start sharp and fall to pitch, coupled inharmonic modes, a
+      six-oscillator metal core, bands that decay at different rates, and a shaped
+      excitation pulse — because the trigger <em>is</em> the attack.</p>
+    <p>The sequencer is derived from the host's bar position rather than counted, so
+      looping and tempo changes take care of themselves. Each lane keeps its own
+      last step, division and direction, which is what the name is about.</p>
+    <p><b>Two hundred kits</b> are generated from their seed: the category is decided
+      first and the parameters are made to fit it, so a kit's name always describes
+      its sound. A kit is reproducible anywhere from one integer.</p>
+    <p style="margin-top:15px;color:#6b5c42;font-size:12.5px">Brokild &middot; part of the
+      Brokild World FX family, so the rack behind the globe is the same rack in every
+      Brokild instrument. Panel decals generated to specification and composited from
+      measured crop regions.</p>
+    <div class="row">
+      <span id="ab-build">Build</span><span>12 channels</span><span>200 kits</span>
+      <span>1609 bench checks</span><span id="ab-decals">decals</span>
+    </div>
+  </div>
+  <div class="af"><button class="k dark" id="aboutclose">Close</button></div>
+</div></div>
+<div id="setwin">
+  <div class="mh"><b>Settings</b><button class="k dark" id="setclose">Close</button></div>
+  <div class="sect">
+    <div class="st">Button finish</div>
+    <div class="opts">
+      <button class="k dark" id="fin-black">Black</button>
+      <button class="k dark" id="fin-metal">Metal</button>
+    </div>
+    <div class="why">Applies to the rail, the lane fields and the mutes</div>
+  </div>
+  <div class="sect">
+    <div class="st">Panel light</div>
+    <div class="lightrow"><input type="range" id="setlight" min="0" max="100" value="0"><span id="setlightv">0</span></div>
+    <div class="why">Lifts the shadows without flattening the highlights</div>
+  </div>
+  <div class="sect">
+    <div class="opts"><button class="k dark" id="setabout">About this machine</button></div>
+  </div>
+  <div class="sect">
+    <div class="why" id="setnote">Saved on this machine, not in the patch &mdash; a project keeps the sound it was saved with</div>
+  </div>
+</div>
+<div id="menu">
+  <div class="mh"><b>Kits</b><input id="mfilter" placeholder="Type to filter"><button class="k dark" id="mclose">Close</button></div>
+  <div id="mlist"></div>
+  <div class="mf">
+    <button class="k dark" id="msave">Save as&hellip;</button>
+    <button class="k dark" id="mopen">Open&hellip;</button>
+    <button class="k dark" id="mscan">Rescan</button>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script src="bwfx-rack.js"></script>
+<script>
+"use strict";
+/* ─── 0 · the bridge ─────────────────────────────────────────────────────── */
+const NB = (() => {
+  let q = [], sched = false;
+  const flush = () => { sched = false; const b = q; q = [];
+    try { window.__JUCE__.backend.emitEvent("fm", { b }); } catch (e) {} };
+  return {
+    send(m) { q.push(m); if (!sched) { sched = true; queueMicrotask(flush); } },
+    on(n, f) { try { window.__JUCE__.backend.addEventListener(n, f); } catch (e) {} }
+  };
+})();
+const $ = s => document.querySelector(s);
+const el = (t, c, p) => { const e = document.createElement(t); if (c) e.className = c; if (p) p.appendChild(e); return e; };
+const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+const xmap = (t, lo, hi) => lo * Math.pow(hi / lo, clamp(t, 0, 1));
+
+if (window.BWFX) {
+  BWFX.attach({ send: o => { const m = { k: "bwfx" }; for (const kk in o) m[kk] = o[kk]; NB.send(m); } });
+  NB.on("bwfx", p => BWFX.onState(p));
+}
+
+/* ─── 1 · parameters ─────────────────────────────────────────────────────── */
+const SPEC = {}, VAL = {}, WIDG = {};
+let CHANS = [], KITS = [], kitIdx = 0;
+const KIND = { PCT: 0, SW: 1, HZ: 2, MS: 3, LIST: 4, BIPOL: 5, VOL: 6, INT: 7, SEMI: 8 };
+
+function fmt(id) {
+  const s = SPEC[id], v = VAL[id];
+  if (!s) return "";
+  switch (s.kind) {
+    case KIND.SW:    return v >= 0.5 ? "ON" : "OFF";
+    case KIND.HZ:  { const f = xmap(v, s.lo, s.fhi); return f < 1000 ? f.toFixed(1) + " Hz" : (f / 1000).toFixed(2) + " kHz"; }
+    case KIND.MS:  { const m = xmap(v, s.lo, s.fhi); return m < 1000 ? m.toFixed(0) + " ms" : (m / 1000).toFixed(2) + " s"; }
+    case KIND.LIST:  return (s.names && s.names[Math.round(v)]) || String(Math.round(v));
+    case KIND.BIPOL: { const c = (v - 0.5) * 200; return (c >= 0 ? "+" : "") + c.toFixed(0) + " %"; }
+    case KIND.SEMI:  { const st = (v - 0.5) * s.lo; return (st >= 0 ? "+" : "") + st.toFixed(1) + " semi"; }
+    case KIND.VOL:  { const g = v < 0.005 ? 0 : 2 * v * v; return g <= 0 ? "-INF dB" : (20 * Math.log10(g)).toFixed(1) + " dB"; }
+    default:         return Math.round(v * 100) + " %";
+  }
+}
+/*  While HAT LINK is on the open hat takes the closed hat's tuning and model.
+    Rather than leave OH's knobs dead, they drive the PAIR — which is what a
+    player reaching for them means. Only for edits made here: a value arriving
+    from the host is never redirected, or automation on ch_tune would bounce
+    between the two. */
+const LINKED = { oh_tune: "ch_tune", oh_model: "ch_model" };
+
+/*  The two captured kits, and the same blend the engine computes. Doing the
+    arithmetic in both places sounds like a way to have them disagree; it is
+    the opposite — the alternative was the panel showing the endpoints while
+    the ears heard something between them, which is what made a working morph
+    look broken. */
+let KITA = null, KITB = null;
+//  does the host have a transport at all? It decides who owns SPACE.
+let HOSTXPORT = 0, FREERUN = 0;
+function morphView(id) {
+  if (!KITA || !KITB) return null;
+  const t = VAL.morph || 0;
+  if (t <= 0) return null;
+  const a = KITA[id], b = KITB[id];
+  if (typeof a !== "number" || typeof b !== "number") return null;
+  const sp = SPEC[id];
+  //  stepped choices do not morph at all any more, so the panel shows the
+  //  live value for them — null means "not being morphed"
+  if (sp && (sp.kind === KIND.LIST || sp.kind === KIND.SW)) return null;
+  return a + (b - a) * t;
+}
+function viewVal(id) {
+  const m = morphView(id);
+  return m === null ? (VAL[id] || 0) : m;
+}
+function linkTarget(id) {
+  return (VAL.hatlink >= 0.5 && LINKED[id]) ? LINKED[id] : id;
+}
+
+function setVal(id, v, push) {
+  if (push !== false && LINKED[id] && VAL.hatlink >= 0.5) return setVal(LINKED[id], v);
+  const s = SPEC[id]; if (!s) return;
+  const hi = s.hi || 1;
+  v = clamp(v, 0, hi);
+  if (s.kind === KIND.LIST || s.kind === KIND.SW) v = Math.round(v);
+  VAL[id] = v;
+  (WIDG[id] || []).forEach(w => w.draw());
+  if (push !== false) NB.send({ k: "p", id, v });
+}
+const reg = (id, w) => { (WIDG[id] = WIDG[id] || []).push(w); w.draw(); return w; };
+
+/* ─── 2 · widgets ────────────────────────────────────────────────────────── */
+const tip = $("#tip"); let tipT = 0;
+function showTip(e, text) {
+  tip.textContent = text;
+  tip.style.left = clamp(e.clientX + 16, 4, window.innerWidth - 230) + "px";
+  tip.style.top = clamp(e.clientY - 34, 4, window.innerHeight - 40) + "px";
+  tip.classList.add("on");
+  clearTimeout(tipT); tipT = setTimeout(() => tip.classList.remove("on"), 1200);
+}
+
+/*  One drag handler for knobs and faders alike: pointer capture, shift for
+    fine, double-click for the default, wheel for a nudge. */
+function dragify(node, id, span, horiz) {
+  const s = SPEC[id]; if (!s) return;
+  const hi = s.hi || 1;
+  let d = null;
+  node.addEventListener("pointerdown", e => {
+    e.preventDefault(); node.setPointerCapture(e.pointerId);
+    d = { p: horiz ? e.clientX : e.clientY, v: VAL[id] || 0 };
+    showTip(e, s.n + "  " + fmt(id));
+  });
+  node.addEventListener("pointermove", e => {
+    if (!d) return;
+    const cur = horiz ? e.clientX : e.clientY;
+    const delta = (horiz ? (cur - d.p) : (d.p - cur)) / span * (e.shiftKey ? 0.22 : 1) * hi;
+    setVal(id, d.v + delta);
+    showTip(e, s.n + "  " + fmt(id));
+  });
+  const end = e => { if (d) { d = null; try { node.releasePointerCapture(e.pointerId); } catch (x) {} } };
+  node.addEventListener("pointerup", end);
+  node.addEventListener("pointercancel", end);
+  node.addEventListener("dblclick", e => { setVal(id, s.def); showTip(e, s.n + "  " + fmt(id)); });
+  node.addEventListener("wheel", e => {
+    e.preventDefault();
+    setVal(id, (VAL[id] || 0) - Math.sign(e.deltaY) * hi / 60);
+    showTip(e, s.n + "  " + fmt(id));
+  }, { passive: false });
+}
+
+function makeKnob(node, id) {
+  const s = SPEC[id]; if (!s) return;
+  const hi = s.hi || 1;
+  dragify(node, id, 170, false);
+  const w = { draw() {
+    const eff = linkTarget(id);
+    const t = clamp(viewVal(eff) / hi, 0, 1);
+    node.style.setProperty("--a", (-135 + 270 * t) + "deg");
+    node.classList.toggle("slaved", eff !== id);
+    node.title = eff !== id
+      ? s.n + "  " + fmt(eff) + "   (linked to the closed hat)"
+      : s.n + "  " + fmt(id);
+  } };
+  reg(id, w);
+  //  redraw when the LINK switch moves, or the slaved mark goes stale
+  if (LINKED[id]) reg("hatlink", { draw: () => w.draw() });
+}
+
+function makeFader(node, id) {           // vertical, per-channel level
+  const s = SPEC[id]; if (!s) return;
+  el("div", "trk", node);
+  const cap = el("div", "cap", node);
+  dragify(node, id, 110, false);
+  reg(id, { draw() {
+    const t = clamp(viewVal(id) / (s.hi || 1), 0, 1);
+    cap.style.top = ((1 - t) * Math.max(0, node.clientHeight - 26)) + "px";
+    node.title = s.n + "  " + fmt(id) + (KNOBNOTE[id.replace(/^.*_/, "")] || "");
+  } });
+}
+
+function makeSegs(box, id) {              // stacked model keys, one lit
+  const s = SPEC[id]; if (!s) return;
+  const keys = (s.names || []).map((n, i) => {
+    const b = el("button", "k", box);
+    b.textContent = n;
+    b.addEventListener("click", () => setVal(id, i));
+    return b;
+  });
+  const w = { draw() {
+    const eff = linkTarget(id);
+    const v = Math.round(viewVal(eff));
+    keys.forEach((b, i) => {
+      b.classList.toggle("on", i === v);
+      b.classList.toggle("slaved", eff !== id);
+    });
+  } };
+  reg(id, w);
+  if (LINKED[id]) reg("hatlink", { draw: () => w.draw() });
+}
+
+/* ─── 3 · the panel ──────────────────────────────────────────────────────── */
+const KNOBS = [["tune", "Tune"], ["decay", "Decay"], ["tone", "Tone"],
+               ["snap", "Snap"], ["bend", "Bend"], ["drive", "Drive"],
+               ["rebound", "Rebound"]];
+const WEBK  = [["railsag", "Rail sag"], ["body", "Kit body"], ["bleed", "Bleed"],
+               ["age", "Age"], ["kittune", "Kit tune"], ["punch", "Punch"]];
+/*  PUNCH and SNAP are cousins and people will assume one of them is broken
+    unless the panel says which is which. SNAP changes what the drum IS;
+    PUNCH changes how it SITS. */
+const KNOBNOTE = {
+  snap:  "\n\nShapes the excitation — what the drum IS.\nPunch (in the kit row) shapes how it sits.",
+  punch: "\n\nLifts every strike and leans on every body, keyed to each\nvoice's own trigger, so it cannot mis-fire. Shapes how the\ndrum SITS; Snap shapes what it IS."
+};
+const FAMCOL = { KICK: "--fam-kick", SNARE: "--fam-snare", TOM: "--fam-tom",
+                 PERC: "--fam-perc", METAL: "--fam-metal" };
+let built = false;
+const VUCOL = [null, null];
+let vuHold = [0, 0];
+const PAGEBTN = [], CAPBTN = {};
+let MORPHNOTE = null, HAVE_A = false, HAVE_B = false;
+
+/*  The row says what to do next, and what it says changes as you go.
+    MORPH goes dim until there is something at both ends: it was already
+    inert then, and an inert fader that looks live is its own bug. */
+function drawMorphHint() {
+  if (!MORPHNOTE) return;
+  const both = HAVE_A && HAVE_B;
+  MORPHNOTE.textContent = both
+    ? "Morph blends A into B. Press A or B again to re-capture, shift-click to empty a slot."
+    : (HAVE_A || HAVE_B)
+      ? ("Slot " + (HAVE_A ? "A" : "B") + " is holding a kit. Now change the machine and press "
+         + (HAVE_A ? "B" : "A") + ".")
+      : "Press A to hold this kit, change the machine, then press B \u2014 Morph blends between them.";
+  const mk = document.querySelector(".knob.big");
+  if (mk) mk.classList.toggle("inert", !both);
+}
+let NSTEP = 32, NPAT = 16, curPat = 0, playStep = -1, recArm = false;
+function drawTransport() {
+  const run = $("#t-run"), rec = $("#t-rec"), pause = $("#t-pause");
+  if (run) run.classList.toggle("on", VAL.seq >= 0.5);
+  if (rec) rec.classList.toggle("on", recArm);
+  if (pause) pause.title = VAL.seq >= 0.5 ? "Pause where it is" : "Continue from here";
+}
+const laneStep = new Array(12).fill(-1);
+let SEQ = null;                       // the native sequencer state, mirrored
+let sel = null;                       // {c, s} — the step being edited
+
+function showPage(i) {
+  PAGEBTN.forEach((b, j) => b.classList.toggle("on", j === i));
+  $("#strips").classList.toggle("off", i === 1);
+  $("#seqpage").classList.toggle("on", i === 1);
+  if (i === 1) NB.send({ k: "seqget" });
+}
+
+/*  A blank lane, so the page can be drawn before the native side has said
+    anything — the alternative is a page that is empty until a round trip
+    completes, which reads as broken. */
+function blankLane() {
+  const st = [];
+  for (let k = 0; k < NSTEP; k++) st.push({ on: 0, vel: 100, prob: 100, rt: 1, cond: 0, mic: 0 });
+  return { len: 16, div: 1, dir: 0, sw: 0, m: 0, st };
+}
+function blankSeq() {
+  const p = [];
+  for (let i = 0; i < NPAT; i++) { const lanes = []; for (let c = 0; c < 12; c++) lanes.push(blankLane()); p.push(lanes); }
+  return p;
+}
+
+const DIVNAME = ["1/32", "1/16", "1/8", "1/4"];
+const DIRNAME = ["FWD", "REV", "PEND", "RAND"];
+const CONDNAME = ["--", "1:2", "1:3", "1:4", "PREV", "!PREV"];
+
+function build() {
+  if (built) return; built = true;
+
+  /* ---- the rail: every button in one vertical column, big enough to read */
+  const rail = $("#rail");
+  rail.innerHTML = "";
+  const rbtn = (label, fn) => {
+    const b = el("button", "k dark", rail);
+    b.textContent = label; b.addEventListener("click", fn); return b;
+  };
+  /*  Two pages. The strips are the machine's identity so they are page one;
+      the sequencer gets the same room rather than a strip along the bottom. */
+  { const v = rbtn("Voices", () => showPage(0));
+    const q = rbtn("Steps",  () => showPage(1));
+    PAGEBTN.push(v, q); }
+  el("div", "rl", rail).textContent = "Page";
+  rbtn("Random", () => NB.send({ k: "random" }));
+  rbtn("Panic", () => NB.send({ k: "panic" }));
+  rbtn("Setup", openSettings);
+  rbtn("Save", () => NB.send({ k: "save" }));
+  rbtn("Load", () => NB.send({ k: "open" }));
+  {
+    const b = rbtn("2x", () => setVal("os", (Math.round(VAL.os || 0) + 1) % ((SPEC.os.hi || 2) + 1)));
+    reg("os", { draw() { b.textContent = (SPEC.os.names || [])[Math.round(VAL.os || 0)] || "1x"; } });
+    el("div", "rl", rail).textContent = "Oversampling";
+  }
+  {
+    const b = rbtn("Hat link", () => setVal("hatlink", VAL.hatlink >= 0.5 ? 0 : 1));
+    reg("hatlink", { draw() { b.classList.toggle("on", VAL.hatlink >= 0.5); } });
+    el("div", "rl", rail).textContent = "CH chokes OH";
+  }
+  el("div", "fill", rail);
+  const g = el("div", "", rail);
+  g.id = "globe"; g.setAttribute("data-bwfx-open", ""); g.title = "Brokild World FX";
+  g.textContent = "BWFX";
+  /*  The shared fragment scans for [data-bwfx-open] once, when it loads. This
+      button is built later, from initialState, so the scan never sees it and
+      the attribute alone does nothing. Bind it here. */
+  g.addEventListener("click", () => {
+    if (window.BWFX && typeof BWFX.toggle === "function") BWFX.toggle();
+    else if (window.BWFX && typeof BWFX.open === "function") BWFX.open();
+  });
+
+  /* ---- THE WEB band */
+  const wk = $("#webk");
+  wk.innerHTML = "";
+  WEBK.forEach(([id, label]) => {
+    const w = el("div", "gk", wk);
+    makeKnob(el("div", "knob big", w), id);
+    el("div", "lab", w).textContent = label;
+  });
+  el("div", "sep", wk);
+
+  /*  MORPH lives here rather than on a strip because it belongs to the whole
+      machine. It is inert until BOTH kits are captured — a fader with nothing
+      to morph toward should do nothing, not sweep to silence. */
+  { const w = el("div", "gk", wk); w.style.width = "86px";
+    makeKnob(el("div", "knob big", w), "morph");
+    // the whole panel is a view of the morph, so it repaints when it moves
+    reg("morph", { draw: () => { if (KITA && KITB) redrawMorphed(); } });
+    el("div", "lab", w).textContent = "Morph"; }
+  { const w = el("div", "gk", wk); w.style.width = "104px";
+    const row = el("div", "", w); row.style.cssText = "display:flex;gap:4px";
+    const ba = el("button", "k", row); ba.textContent = "A"; ba.style.cssText = "width:48px;height:30px";
+    const bb = el("button", "k", row); bb.textContent = "B"; bb.style.cssText = "width:48px;height:30px";
+    /*  A and B are SLOTS, not switches: a plain press fills one with what
+        the machine is doing right now, and pressing a full one fills it
+        again. Shift-clears, so the lamp can go out — without that the
+        buttons read as toggles that have jammed. */
+    const cap = (slot, ev) => NB.send({ k: "capture", slot, clear: ev.shiftKey ? 1 : 0 });
+    ba.addEventListener("click", ev => cap("a", ev));
+    bb.addEventListener("click", ev => cap("b", ev));
+    ba.title = bb.title = "Click: hold what the machine is doing now  \u00b7  Shift-click: empty the slot";
+    CAPBTN.a = ba; CAPBTN.b = bb;
+    el("div", "lab", w).textContent = "Capture"; }
+  MORPHNOTE = el("div", "note", wk);
+  el("div", "note", wk).textContent =
+    "Rail sag \u2014 one supply, so a hard hit dips the whole kit. " +
+    "Kit body \u2014 one shell they all sit in.";
+  drawMorphHint();
+
+  /* ---- the twelve strips */
+  const sp = $("#strips");
+  sp.innerHTML = "";
+  CHANS.forEach((c, i) => {
+    const st = el("div", "strip", sp);
+    el("div", "stripe", st).style.background = "var(" + (FAMCOL[c.fam] || "--fam-kick") + ")";
+
+    const np = el("div", "np", st);
+    el("div", "nm", np).textContent = c.name;
+    el("div", "fm", np).textContent = c.fam;
+
+    makeSegs(el("div", "mods", st), c.id + "_model");
+
+    const kg = el("div", "kgrid", st);
+    KNOBS.forEach(([suf, label]) => {
+      const w = el("div", "kw", kg);
+      makeKnob(el("div", "knob", w), c.id + "_" + suf);
+      el("div", "kl", w).textContent = label;
+    });
+    /*  KEY MODE is a switch, so it gets a key rather than a knob — and it
+        sits in the grid's last cell beside REBOUND, because both of them
+        change what a trigger MEANS rather than what it sounds like. */
+    { const w = el("div", "kw", kg);
+      const kid = c.id + "_key";
+      const b = el("button", "k", w);
+      b.textContent = "KEY";
+      b.style.cssText = "width:100%;height:32px;font-size:10px";
+      b.addEventListener("click", () => setVal(kid, VAL[kid] >= 0.5 ? 0 : 1));
+      reg(kid, { draw() { b.classList.toggle("on", VAL[kid] >= 0.5); } });
+      el("div", "kl", w).textContent = "Chromatic"; }
+
+    const lr = el("div", "lvrow", st);
+    { const w = el("div", "kw", lr);
+      makeFader(el("div", "fader", w), c.id + "_level");
+      el("div", "kl", w).textContent = "Level"; }
+    { const w = el("div", "kw", lr);
+      makeKnob(el("div", "knob", w), c.id + "_pan");
+      el("div", "kl", w).textContent = "Pan"; }
+
+    const ft = el("div", "foot", st);
+    const muid = c.id + "_mute";
+    const mu = el("div", "mute", ft); mu.textContent = "M";
+    mu.addEventListener("click", () => setVal(muid, VAL[muid] >= 0.5 ? 0 : 1));
+    reg(muid, { draw() {
+      const on = VAL[muid] >= 0.5;
+      mu.classList.toggle("on", on); st.classList.toggle("mut", on);
+    } });
+
+    const pad = el("div", "pad", ft);
+    c._led = el("div", "led", pad);
+    el("i", "", c._led);                       // the lit lamp layer, if a decal arrives
+    el("div", "kb", pad).textContent = c.note;
+    pad.addEventListener("pointerdown", e => {
+      e.preventDefault();
+      const r = pad.getBoundingClientRect();
+      NB.send({ k: "hit", c: i, v: clamp(0.22 + 0.78 * ((e.clientX - r.left) / Math.max(1, r.width)), 0.05, 1) });
+    });
+  });
+
+  /* ---- the master channel */
+  const mf = $("#mfader");
+  const mcap = mf.querySelector(".cap");
+  dragify(mf, "volume", 300, false);
+  reg("volume", { draw() {
+    const t = clamp((VAL.volume || 0) / (SPEC.volume.hi || 1), 0, 1);
+    mcap.style.top = ((1 - t) * Math.max(0, mf.clientHeight - 34)) + "px";
+    $("#mval").textContent = fmt("volume");
+  } });
+  VUCOL[0] = $("#vu").children[0].firstElementChild;
+  VUCOL[1] = $("#vu").children[1].firstElementChild;
+
+  buildSeq();
+  showPage(0);
+  loadSettings();
+  applySettings();
+  $("#mapnote").textContent = "MIDI \u00b7 GM map, or C3\u2013B3 for the twelve in panel order";
+}
+
+/* ─── 3b · the sequencer page ────────────────────────────────────────────── */
+const CELL = [];         // CELL[c][s] -> element
+
+function laneOf(c) { return (SEQ || (SEQ = blankSeq()))[curPat][c]; }
+
+function buildSeq() {
+  //  pattern keys
+  const pats = $("#pats");
+  pats.innerHTML = "";
+  for (let i = 0; i < NPAT; i++) {
+    const b = el("button", "k dark", pats);
+    b.textContent = String(i + 1);
+    b.addEventListener("click", () => { curPat = i; NB.send({ k: "pat", i }); drawSeq(); });
+    b._pat = i;
+  }
+  /*  Set every lane at once. A lane already carrying an odd length is left
+      as it is: that is deliberate polymeter, and a global control that
+      silently flattened it would be worse than no control. */
+  const setBars = bars => {
+    const len = bars * 16;
+    CHANS.forEach((c, ci) => {
+      const L = laneOf(ci);
+      if (L.len !== 16 && L.len !== 32) return;      // somebody's polymeter, leave it
+      L.len = len;
+      NB.send({ k: "lane", p: curPat, c: ci, len: L.len, div: L.div, dir: L.dir, sw: L.sw });
+    });
+    drawSeq();
+    say(bars === 1 ? "ONE BAR" : "TWO BARS");
+  };
+  $("#bars1").addEventListener("click", () => setBars(1));
+  $("#bars2").addEventListener("click", () => setBars(2));
+  $("#patclear").addEventListener("click", () => NB.send({ k: "clearpat" }));
+  $("#patcopy").addEventListener("click", () => NB.send({ k: "copypat", to: (curPat + 1) % NPAT }));
+  /*  RUN restarts from step one; the pause key is what continues from where
+      it stopped. Two keys rather than one toggle, because "start again" and
+      "carry on" are different intentions and a single button has to guess. */
+  $("#t-run").addEventListener("click", () => NB.send({ k: "transport", what: "run" }));
+  $("#t-pause").addEventListener("click", () => NB.send({ k: "transport", what: VAL.seq >= 0.5 ? "pause" : "cont" }));
+  $("#t-stop").addEventListener("click", () => NB.send({ k: "transport", what: "stop" }));
+  $("#t-rec").addEventListener("click", () => { recArm = !recArm; NB.send({ k: "rec", on: recArm ? 1 : 0 }); drawTransport(); });
+  reg("seq", { draw: drawTransport });
+
+  document.querySelectorAll("#seqpage [data-g]").forEach(n => makeKnob(n, n.dataset.g));
+
+  //  twelve lanes
+  const box = $("#lanes");
+  box.innerHTML = "";
+  CELL.length = 0;
+  CHANS.forEach((c, ci) => {
+    const ln = el("div", "lane", box);
+
+    const nm = el("div", "lname", ln);
+    el("b", "", nm).textContent = c.name;
+    const lm = el("div", "lm", nm); lm.textContent = "M";
+    lm.addEventListener("click", () => {
+      const L = laneOf(ci); L.m = L.m ? 0 : 1;
+      NB.send({ k: "lane", p: curPat, c: ci, m: L.m }); drawSeq();
+    });
+    nm._mute = lm;
+
+    const cells = el("div", "cells", ln);
+    const row = [];
+    for (let k = 0; k < NSTEP; k++) {
+      const cell = el("div", "cell", cells);
+      el("i", "", cell);
+      /*  The most direct way to say where a loop ends: point at the step it
+          should end on. Right-click, so it cannot be confused with painting. */
+      cell.addEventListener("contextmenu", ev => {
+        ev.preventDefault();
+        const L = laneOf(ci);
+        L.len = k + 1;
+        NB.send({ k: "lane", p: curPat, c: ci, len: L.len, div: L.div, dir: L.dir, sw: L.sw });
+        drawSeq();
+        say(CHANS[ci].name + " LAST STEP " + L.len);
+      });
+      cell.addEventListener("pointerdown", ev => {
+        ev.preventDefault();
+        const L = laneOf(ci);
+        if (ev.shiftKey) { sel = { c: ci, s: k }; drawStepEdit(); drawSeq(); return; }
+        L.st[k].on = L.st[k].on ? 0 : 1;
+        //  a fresh step takes the velocity of the one being edited, so a run
+        //  of ghost notes is painted rather than typed
+        if (L.st[k].on && sel) L.st[k].vel = laneOf(sel.c).st[sel.s].vel;
+        NB.send({ k: "step", p: curPat, c: ci, s: k, on: L.st[k].on, vel: L.st[k].vel });
+        sel = { c: ci, s: k };
+        drawSeq(); drawStepEdit();
+      });
+      row.push(cell);
+    }
+    CELL.push(row);
+
+    const o = el("div", "lopts", ln);
+    const sendLane = () => {
+      const L = laneOf(ci);
+      NB.send({ k: "lane", p: curPat, c: ci, len: L.len, div: L.div, dir: L.dir, sw: L.sw });
+    };
+    /*  drag, when given, makes the field continuous — click still jumps
+        through the sensible values, which is what you want nine times in ten. */
+    const mk = (label, get, next, drag) => {
+      const b = el("div", "o", o);
+      b.innerHTML = "<b></b>" + label;
+      b.addEventListener("click", ev => {
+        const L = laneOf(ci);
+        next(L, ev.shiftKey ? -1 : 1);
+        sendLane(); drawSeq();
+      });
+      if (drag) {
+        let d = null;
+        b.style.cursor = "ns-resize";
+        b.addEventListener("pointerdown", ev => {
+          ev.preventDefault(); b.setPointerCapture(ev.pointerId);
+          d = { y: ev.clientY, v: drag.get(laneOf(ci)), moved: false };
+        });
+        b.addEventListener("pointermove", ev => {
+          if (!d) return;
+          const step = Math.round((d.y - ev.clientY) / 7);
+          if (step === 0) return;
+          d.moved = true;
+          drag.set(laneOf(ci), d.v + step);
+          sendLane(); drawSeq();
+        });
+        const end = ev => {
+          if (!d) return;
+          //  a drag that moved must not also fire the click
+          if (d.moved) { const stop = e2 => { e2.stopPropagation(); b.removeEventListener("click", stop, true); };
+                         b.addEventListener("click", stop, true); }
+          d = null;
+          try { b.releasePointerCapture(ev.pointerId); } catch (x) {}
+        };
+        b.addEventListener("pointerup", end);
+        b.addEventListener("pointercancel", end);
+      }
+      b._get = () => get(laneOf(ci));
+      return b;
+    };
+    /*  Musical lengths rather than one step at a time. The odd ones are the
+        point of per-lane length: a three or a twelve against a sixteen is
+        polymeter, which is free here and is most of why the lanes are
+        independent at all. */
+    const LENS = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32];
+    ln._opts = [
+      mk("LAST", L => L.len, (L, d) => {
+        let i = LENS.indexOf(L.len);
+        if (i < 0) {   // an odd length set by hand: step to the nearest musical one
+          i = 0;
+          for (let k = 0; k < LENS.length; k++) if (Math.abs(LENS[k] - L.len) < Math.abs(LENS[i] - L.len)) i = k;
+        } else i = clamp(i + d, 0, LENS.length - 1);
+        L.len = LENS[i];
+      }, { get: L => L.len, set: (L, v) => { L.len = clamp(Math.round(v), 1, NSTEP); } }),
+      mk("DIV",  L => DIVNAME[L.div], (L, d) => { L.div = (L.div + d + 4) % 4; }),
+      mk("DIR",  L => DIRNAME[L.dir], (L, d) => { L.dir = (L.dir + d + 4) % 4; }),
+      mk("SWNG", L => L.sw, (L, d) => { L.sw = clamp(L.sw + d * 5, -50, 50); })
+    ];
+    ln._nm = nm;
+  });
+
+  //  the step editor's five knobs are not APVTS parameters, so they get their
+  //  own tiny widget rather than being forced through the parameter system
+  document.querySelectorAll("#seqpage [data-s]").forEach(n => makeStepKnob(n, n.dataset.s));
+  drawSeq(); drawStepEdit();
+}
+
+const SFIELD = {
+  vel:  { lo: 1, hi: 127, fmt: v => String(v) },
+  prob: { lo: 0, hi: 100, fmt: v => v + " %" },
+  rt:   { lo: 1, hi: 8,   fmt: v => "x" + v },
+  mic:  { lo: -50, hi: 50, fmt: v => (v > 0 ? "+" : "") + v + " %" },
+  cond: { lo: 0, hi: 5,   fmt: v => CONDNAME[v] }
+};
+const SKNOB = {};
+
+function makeStepKnob(node, field) {
+  const f = SFIELD[field];
+  let drag = null;
+  const cur = () => (sel ? laneOf(sel.c).st[sel.s][field] : f.lo);
+  const put = v => {
+    if (!sel) return;
+    const L = laneOf(sel.c);
+    L.st[sel.s][field] = Math.round(clamp(v, f.lo, f.hi));
+    const m = { k: "step", p: curPat, c: sel.c, s: sel.s };
+    m[field] = L.st[sel.s][field];
+    NB.send(m);
+    drawStepEdit(); drawSeq();
+  };
+  node.addEventListener("pointerdown", e => {
+    if (!sel) return;
+    e.preventDefault(); node.setPointerCapture(e.pointerId);
+    drag = { y: e.clientY, v: cur() };
+  });
+  node.addEventListener("pointermove", e => {
+    if (!drag) return;
+    put(drag.v + (drag.y - e.clientY) / 150 * (f.hi - f.lo));
+  });
+  const end = e => { if (drag) { drag = null; try { node.releasePointerCapture(e.pointerId); } catch (x) {} } };
+  node.addEventListener("pointerup", end);
+  node.addEventListener("pointercancel", end);
+  SKNOB[field] = node;
+}
+
+function drawStepEdit() {
+  const on = !!sel;
+  $("#stepwho").textContent = on
+    ? (CHANS[sel.c] ? CHANS[sel.c].name : "?") + "  step " + (sel.s + 1)
+    : "No step selected";
+  Object.keys(SFIELD).forEach(f => {
+    const node = SKNOB[f]; if (!node) return;
+    const spec = SFIELD[f];
+    const v = on ? laneOf(sel.c).st[sel.s][f] : spec.lo;
+    node.style.setProperty("--a", (-135 + 270 * clamp((v - spec.lo) / (spec.hi - spec.lo), 0, 1)) + "deg");
+    node.style.opacity = on ? "1" : "0.35";
+    node.title = f.toUpperCase() + "  " + spec.fmt(v);
+  });
+}
+
+function drawSeq() {
+  if (!SEQ) SEQ = blankSeq();
+  $("#pats").childNodes.forEach && null;
+  Array.prototype.forEach.call($("#pats").children, b => b.classList.toggle("on", b._pat === curPat));
+  const lanes = $("#lanes").children;
+  for (let c = 0; c < CELL.length; c++) {
+    const L = laneOf(c);
+    const ln = lanes[c];
+    if (ln && ln._nm && ln._nm._mute) ln._nm._mute.classList.toggle("on", !!L.m);
+    if (ln && ln._opts) ln._opts.forEach(b => { b.querySelector("b").textContent = b._get(); });
+    if (c === 0) {
+      //  the header lamps follow lane one, which is what "the pattern length"
+      //  means when the lanes agree — and they usually do
+      const b1 = $("#bars1"), b2 = $("#bars2");
+      if (b1) b1.classList.toggle("on", L.len === 16);
+      if (b2) b2.classList.toggle("on", L.len === 32);
+    }
+    for (let k = 0; k < NSTEP; k++) {
+      const cell = CELL[c][k];
+      const st = L.st[k];
+      cell.classList.toggle("on", !!st.on);
+      cell.classList.toggle("acc", !!st.on && st.vel > 110);
+      cell.classList.toggle("dim", k >= L.len);
+      cell.classList.toggle("sel", !!sel && sel.c === c && sel.s === k);
+      //  the little bar under a step shows its velocity at a glance
+      cell.firstChild.style.width = st.on ? (6 + 88 * (st.vel / 127)) + "%" : "0";
+      cell.classList.toggle("past", laneStep[c] === k && VAL.seq >= 0.5);
+    }
+  }
+}
+
+/* ─── 3c · the kit browser ───────────────────────────────────────────────────
+   Built on document.body, deliberately: the deck carries the scale-to-fit
+   transform, so a menu positioned from a rect measured inside it lands in the
+   wrong place. (The Photo-Synth lesson.)                                     */
+let CATS = [], KITCAT = [], PATCHES = [], patchDir = "";
+
+function closeMenu() {
+  $("#menu").classList.remove("on");
+  $("#scrim").classList.remove("on");
+}
+
+function openMenu() {
+  const m = $("#menu"), box = $("#kitbox").getBoundingClientRect();
+  m.classList.add("on");
+  $("#scrim").classList.add("on");
+  //  measured AFTER it is shown, or the height is zero and it hangs off screen
+  const h = Math.min(m.offsetHeight, Math.round(window.innerHeight * 0.82));
+  m.style.left = clamp(box.left, 8, window.innerWidth - m.offsetWidth - 8) + "px";
+  m.style.top = clamp(box.bottom + 6, 8, Math.max(8, window.innerHeight - h - 8)) + "px";
+  $("#mfilter").value = "";
+  drawMenu("");
+  setTimeout(() => { try { $("#mfilter").focus(); } catch (e) {} }, 30);
+}
+
+function drawMenu(filter) {
+  const list = $("#mlist");
+  list.innerHTML = "";
+  const f = (filter || "").trim().toUpperCase();
+
+  const row = (no, name, tag, cur, fn) => {
+    const r = el("div", "row" + (cur ? " cur" : ""), list);
+    el("div", "no", r).textContent = no;
+    el("div", "nm", r).textContent = name;
+    if (tag) el("div", "tag", r).textContent = tag;
+    r.addEventListener("click", () => { fn(); closeMenu(); });
+  };
+
+  //  the two hundred, under their categories
+  let shownAny = false;
+  CATS.forEach((cat, ci) => {
+    const mine = [];
+    for (let i = 0; i < KITS.length; i++)
+      if (KITCAT[i] === ci && (!f || KITS[i].indexOf(f) >= 0 || cat.toUpperCase().indexOf(f) >= 0))
+        mine.push(i);
+    if (!mine.length) return;
+    shownAny = true;
+    el("div", "grp", list).textContent = cat + "  \u00b7  " + mine.length;
+    mine.forEach(i => row(String(i + 1).padStart(3, "0"), KITS[i], "", i === kitIdx,
+                          () => loadKit(i)));
+  });
+
+  //  then the saved patches, grouped by their subfolder
+  const pats = PATCHES.filter(p => !f || p.n.toUpperCase().indexOf(f) >= 0);
+  if (pats.length) {
+    const subs = {};
+    pats.forEach(p => { const k = p.sub || "PATCHES"; (subs[k] = subs[k] || []).push(p); });
+    Object.keys(subs).sort().forEach(k => {
+      el("div", "grp", list).textContent = k.toUpperCase() + "  \u00b7  " + subs[k].length;
+      subs[k].forEach(p => row("", p.n, "FILE", false, () => NB.send({ k: "presetLoad", path: p.p })));
+    });
+    shownAny = true;
+  }
+
+  if (!shownAny) {
+    const r = el("div", "row", list);
+    el("div", "nm", r).textContent = "Nothing matches \u201c" + filter + "\u201d";
+  }
+}
+
+$("#kitbox").addEventListener("click", ev => {
+  //  the arrows keep working as arrows
+  if (ev.target.closest("#kprev") || ev.target.closest("#knext")) return;
+  openMenu();
+});
+$("#scrim").addEventListener("click", () => { closeMenu(); closeSettings(); });
+$("#mclose").addEventListener("click", closeMenu);
+$("#mfilter").addEventListener("input", e => drawMenu(e.target.value));
+$("#mfilter").addEventListener("keydown", e => { if (e.key === "Escape") closeMenu(); });
+$("#msave").addEventListener("click", () => { closeMenu(); NB.send({ k: "save" }); });
+$("#mopen").addEventListener("click", () => { closeMenu(); NB.send({ k: "open" }); });
+$("#mscan").addEventListener("click", () => NB.send({ k: "presetScan" }));
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape") { closeMenu(); closeSettings(); closeAbout(); return; }
+  /*  SPACE runs and stops it, the way it does on every machine with a
+      transport. Not while typing in the kit filter, and not while a button
+      has focus — otherwise space would "press" that button instead, which is
+      the browser's own default and would be baffling here. */
+  if (e.code === "Space" || e.key === " ") {
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (t && typeof t.blur === "function" && t.tagName === "BUTTON") t.blur();
+    /*  When the host has a transport, SPACE belongs to the host. Eating it
+        here is why space never started Ableton — and now that the machine
+        follows the DAW, letting it through gives one transport instead of
+        two arguing. With no host transport (the standalone) we still
+        handle it ourselves. */
+    if (HOSTXPORT) return;
+    e.preventDefault();
+    if (SPEC.seq) NB.send({ k: "transport", what: VAL.seq >= 0.5 ? "pause" : "cont" });
+  }
+});
+
+/* ─── 3d · settings ──────────────────────────────────────────────────────── */
+const SET = { finish: "black", light: 0 };
+
+function loadSettings() {
+  //  a private browsing profile, or a host that sandboxes storage, throws on
+  //  read as well as on write — so the defaults have to survive that
+  try {
+    const raw = window.localStorage.getItem("fmr.settings");
+    if (raw) { const v = JSON.parse(raw); if (v.finish) SET.finish = v.finish; if (typeof v.light === "number") SET.light = v.light; }
+  } catch (e) {}
+}
+function saveSettings() {
+  try { window.localStorage.setItem("fmr.settings", JSON.stringify(SET)); } catch (e) {}
+}
+
+function applySettings() {
+  document.body.classList.toggle("keys-metal", SET.finish === "metal");
+  const b = $("#fin-black"), m = $("#fin-metal");
+  if (b) b.classList.toggle("on", SET.finish === "black");
+  if (m) m.classList.toggle("on", SET.finish === "metal");
+
+  const k = clamp(SET.light, 0, 100) / 100;
+  const f = document.querySelector("#f-lift feComponentTransfer");
+  if (f) {
+    //  exponent below 1 lifts the shadows; the small offset stops the very
+    //  darkest pixels staying pinned at black
+    const exp = (1 / (1 + 1.15 * k)).toFixed(4), off = (0.045 * k).toFixed(4);
+    ["feFuncR", "feFuncG", "feFuncB"].forEach(t => {
+      const e = f.querySelector(t);
+      if (e) { e.setAttribute("exponent", exp); e.setAttribute("offset", off); }
+    });
+  }
+  //  at zero the filter is removed entirely, so the default costs nothing
+  $("#deck").style.setProperty("--lift", k > 0.001 ? "url(#f-lift)" : "none");
+  const sl = $("#setlight"), sv = $("#setlightv");
+  if (sl) sl.value = String(Math.round(SET.light));
+  if (sv) sv.textContent = String(Math.round(SET.light));
+}
+
+function openSettings() {
+  const w = $("#setwin"), box = $("#rail").getBoundingClientRect();
+  w.classList.add("on");
+  $("#scrim").classList.add("on");
+  w.style.left = clamp(box.right + 8, 8, window.innerWidth - w.offsetWidth - 8) + "px";
+  w.style.top = clamp(box.top, 8, Math.max(8, window.innerHeight - w.offsetHeight - 8)) + "px";
+}
+function closeSettings() { $("#setwin").classList.remove("on"); $("#scrim").classList.remove("on"); }
+
+function openAbout() {
+  $("#ab-build").textContent = $("#buildid").textContent;
+  $("#ab-decals").textContent = (window.__decals ? window.__decals() : 0) + " panel decals";
+  //  style.display, not the hidden attribute — see the note in the CSS
+  $("#about").style.display = "flex";
+}
+function closeAbout() { $("#about").style.display = "none"; }
+$("#aboutclose").addEventListener("click", closeAbout);
+$("#about").addEventListener("click", e => { if (e.target === $("#about")) closeAbout(); });
+$("#plate").addEventListener("click", openAbout);
+$("#plate").style.cursor = "pointer";
+$("#plate").title = "About Full Metal Racket";
+
+$("#setclose").addEventListener("click", closeSettings);
+$("#setabout").addEventListener("click", () => { closeSettings(); openAbout(); });
+$("#fin-black").addEventListener("click", () => { SET.finish = "black"; saveSettings(); applySettings(); });
+$("#fin-metal").addEventListener("click", () => { SET.finish = "metal"; saveSettings(); applySettings(); });
+$("#setlight").addEventListener("input", e => { SET.light = parseInt(e.target.value, 10) || 0; applySettings(); });
+$("#setlight").addEventListener("change", saveSettings);
+
+/* ─── 4 · kit stepper ────────────────────────────────────────────────────── */
+function showKit(i) {
+  kitIdx = clamp(i, 0, Math.max(0, KITS.length - 1));
+  $("#kitname").textContent = KITS[kitIdx] || "—";
+  $("#kitno").textContent = "KIT " + String(kitIdx + 1).padStart(2, "0") +
+                            " OF " + String(KITS.length).padStart(2, "0");
+}
+function loadKit(i) { showKit(i); NB.send({ k: "kit", i: kitIdx }); }
+$("#kprev").addEventListener("click", () => loadKit(kitIdx - 1));
+$("#knext").addEventListener("click", () => loadKit(kitIdx + 1));
+
+function say(m) { const n = $("#msg"); n.textContent = m; clearTimeout(say._t); say._t = setTimeout(() => { n.textContent = ""; }, 3000); }
+
+/* ─── 5 · native events ──────────────────────────────────────────────────── */
+NB.on("initialState", p => {
+  (p.params || []).forEach(s => { SPEC[s.id] = s; VAL[s.id] = s.v; });
+  CHANS = p.chans || [];
+  KITS = (p.kits || []).map(x => (typeof x === "string" ? x : x.n));
+  if (p.nstep) NSTEP = p.nstep;
+  if (p.npat)  NPAT = p.npat;
+  if (typeof p.kit === "number") kitIdx = p.kit;
+  CATS = p.cats || [];
+  KITCAT = (p.kits || []).map(x => (typeof x === "string" ? 0 : (x.c | 0)));
+  NB.send({ k: "presetScan" });
+  $("#buildid").textContent = "Build " + (p.build || "dev");
+  build();
+  showKit(kitIdx);
+  Object.keys(WIDG).forEach(id => WIDG[id].forEach(w => w.draw()));
+  NB.send({ k: "ack" });
+});
+NB.on("hostParam", p => { (p.p || []).forEach(e => { if (SPEC[e.id]) setVal(e.id, e.v, false); }); });
+
+NB.on("seq", p => {
+  //  the native side is the truth; rebuild the mirror from it
+  SEQ = blankSeq();
+  const v = p.seq || {};
+  curPat = clamp(v.cur | 0, 0, NPAT - 1);
+  (v.pats || []).forEach(po => {
+    const pi = clamp(po.i | 0, 0, NPAT - 1);
+    (po.lanes || []).forEach(lo => {
+      const c = clamp(lo.c | 0, 0, 11);
+      const L = SEQ[pi][c];
+      L.len = lo.len; L.div = lo.div; L.dir = lo.dir; L.sw = lo.sw; L.m = lo.m;
+      (lo.st || []).forEach(e => {
+        const st = L.st[clamp(e[0] | 0, 0, NSTEP - 1)];
+        st.on = 1; st.vel = e[1]; st.prob = e[2]; st.rt = e[3]; st.cond = e[4]; st.mic = e[5];
+      });
+    });
+  });
+  drawSeq(); drawStepEdit();
+});
+
+function redrawAll() { Object.keys(WIDG).forEach(id => WIDG[id].forEach(w => w.draw())); }
+function redrawMorphed() {
+  Object.keys(WIDG).forEach(id => { if (id !== "morph" && morphView(id) !== null) WIDG[id].forEach(w => w.draw()); });
+}
+
+NB.on("kit", p => {
+  KITA = p.kitA || null;
+  KITB = p.kitB || null;
+  kitIdx = clamp(p.i | 0, 0, Math.max(0, KITS.length - 1));
+  showKit(kitIdx);
+  /*  What you are hearing came from a file, and the panel should say so —
+      it used to keep naming whichever seed was last dialled. */
+  if (p.user) {
+    $("#kitname").textContent = p.name || "\u2014";
+    $("#kitno").textContent = "USER PATCH";
+    $("#kitno").classList.add("user");
+  } else if (p.cat) {
+    $("#kitno").textContent = "KIT " + String(kitIdx + 1).padStart(3, "0") + "  \u00b7  " + p.cat;
+    $("#kitno").classList.remove("user");
+  }
+  if (typeof p.rec === "boolean") { recArm = p.rec; drawTransport(); }
+  if (CAPBTN.a) CAPBTN.a.classList.toggle("on", !!p.a);
+  if (CAPBTN.b) CAPBTN.b.classList.toggle("on", !!p.b);
+  HAVE_A = !!p.a; HAVE_B = !!p.b;
+  drawMorphHint();
+  redrawAll();
+});
+
+NB.on("patches", p => {
+  PATCHES = p.files || [];
+  patchDir = p.dir || "";
+  if ($("#menu").classList.contains("on")) drawMenu($("#mfilter").value);
+});
+NB.on("notice", p => say(p.msg || ""));
+NB.on("meter", p => {
+  const m = p.m || [];
+  if (p.xport !== undefined) HOSTXPORT = p.xport ? 1 : 0;
+  if (p.free !== undefined) FREERUN = p.free ? 1 : 0;
+  /*  Per lane, so a lane with its own LAST step or its own division shows its
+      own position — a single counter could only ever be right for one lane. */
+  if (p.steps && p.steps.length) {
+    let moved = false;
+    for (let i = 0; i < p.steps.length; i++) if (p.steps[i] !== laneStep[i]) { laneStep[i] = p.steps[i]; moved = true; }
+    if (moved && $("#seqpage").classList.contains("on")) drawSeq();
+  }
+  /*  A master meter from the channel levels we already have: the sum is what
+      reaches the bus, and it falls back slowly so a hit stays visible for
+      longer than the 15 Hz the values arrive at. */
+  let sum = 0;
+  for (let i = 0; i < m.length; i++) sum += m[i] || 0;
+  const lvl = clamp(sum * 0.85, 0, 1);
+  for (let ch = 0; ch < 2; ch++) {
+    vuHold[ch] = Math.max(lvl, vuHold[ch] * 0.78);
+    if (VUCOL[ch]) VUCOL[ch].style.height = (vuHold[ch] * 100).toFixed(1) + "%";
+  }
+  CHANS.forEach((c, i) => {
+    if (!c._led) return;
+    const v = clamp(m[i] || 0, 0, 1);
+    if (v < 0.002) { c._led.style.setProperty("--glow", "0"); c._led.style.background = "#4a3110"; c._led.style.boxShadow = "inset 0 1px 2px #000"; }
+    else {
+      const a = clamp(0.3 + v * 3.0, 0, 1);
+      c._led.style.setProperty("--glow", a.toFixed(3));       // used by the decal layer
+      c._led.style.background = "rgba(255,155,50," + a.toFixed(3) + ")";
+      c._led.style.boxShadow = "0 0 " + (5 + 16 * a).toFixed(1) + "px rgba(255,143,31," + (a * 0.85).toFixed(3) + ")";
+    }
+  });
+});
+
+/* ─── 6 · fit and boot ───────────────────────────────────────────────────── */
+let lastFit = "";
+function fitDeck() {
+  /*  Measure the element we draw into, not the window. In a plugin the
+      WebView is embedded, and window.innerHeight has been seen reporting a
+      size the view no longer has — which left the deck scaled too large and
+      its bottom under the edge of the panel. */
+  const fit = $("#fit");
+  const w = fit.clientWidth || document.documentElement.clientWidth || window.innerWidth;
+  const h = fit.clientHeight || document.documentElement.clientHeight || window.innerHeight;
+  if (w < 40 || h < 40) return;                       // mid-resize; wait for the next one
+  const sc = Math.min(w / 1800, h / 830);
+  const key = w + "x" + h;
+  $("#deck").style.transform = "scale(" + sc.toFixed(4) + ")";
+  if (key !== lastFit) {
+    lastFit = key;
+    //  the faders position their caps from a measured height, so they have to
+    //  be redrawn after a resize or the cap sits at the old place
+    requestAnimationFrame(() => {
+      if (WIDG.volume) WIDG.volume.forEach(x => x.draw());
+      Object.keys(WIDG).forEach(id => { if (id.endsWith("_level")) WIDG[id].forEach(x => x.draw()); });
+    });
+  }
+}
+window.addEventListener("resize", fitDeck);
+/*  A ResizeObserver as well: a host that resizes the view directly does not
+    always produce a window resize event, and that is exactly the case that
+    left the panel scaled for a window it no longer had. */
+try { new ResizeObserver(fitDeck).observe($("#fit")); } catch (e) {}
+//  and a few late ones, for hosts that size the view after the first paint
+[60, 200, 600, 1500].forEach(t => setTimeout(fitDeck, t));
+fitDeck();
+
+/* ─── 7 · panel decals ───────────────────────────────────────────────────────
+   Each part is probed; only the ones that load replace their CSS equivalent,
+   so a missing or misnamed file costs the look of that one part and nothing
+   else. Rules are injected into a single stylesheet rather than set per
+   element — twelve strips share one rule, and the panel repaints once.        */
+(function () {
+  const sheet = document.createElement("style");
+  document.head.appendChild(sheet);
+  const add = css => sheet.sheet.insertRule(css, sheet.sheet.cssRules.length);
+  const url = f => "/art/" + f;
+
+  const PARTS = [
+    ["fmr-panel.png", u => {
+      /*  The texture is the GROUND, with the lighting over it. Multiplying it
+          into the cream gradient underneath made cream times cream, which is
+          tan, and the whole machine went muddy. */
+      add('#face{background:radial-gradient(130% 70% at 50% -10%,#ffffff44,#0000 52%),' +
+          'linear-gradient(180deg,#ffffff22,#0000 22%,#00000018),url("' + u + '") 0 0/512px 512px!important}');
+      add('.strip,#webk{background:linear-gradient(180deg,#00000018,#0000 26%,#0000001c),' +
+          'url("' + u + '") 0 0/512px 512px!important}');
+    }],
+    ["fmr-anodised.png", u => {
+      add('.blk,.np,.foot,#vu,#mval{background-image:url("' + u + '")!important;background-size:320px 320px}');
+    }],
+    ["fmr-cheek.png", u => {
+      add('.cheek{background:url("' + u + '") top center/100% auto repeat-y!important}');
+    }],
+    /*  The pointer is painted into the knob image, so the ELEMENT turns and the
+        drawn pointer is switched off. Same variable drives both, so nothing in
+        the widget code has to know which of the two is in play. */
+    ["fmr-knob.png", u => {
+      add('.knob{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important;box-shadow:none!important;transform:rotate(var(--a,-135deg))}');
+      add('.knob::after,.knob::before{display:none!important}');
+    }],
+    ["fmr-fadercap-v.png", u => {
+      add('.fader .cap{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important;box-shadow:none!important}');
+      add('.fader .cap::after{display:none!important}');
+    }],
+    ["fmr-fadercap-m.png", u => {
+      add('.fader.big .cap{background:url("' + u + '") center/100% 100% no-repeat!important}');
+    }],
+    ["fmr-slot-v.png", u => {
+      add('.fader .trk{background:url("' + u + '") center/100% 100% no-repeat!important;box-shadow:none!important;left:0;right:0;width:auto;margin-left:0}');
+    }],
+    ["fmr-slot-m.png", u => {
+      add('.fader.big .trk{background:url("' + u + '") center/100% 100% no-repeat!important;box-shadow:none!important;left:0;right:0;width:auto;margin-left:0}');
+    }],
+    ["fmr-key.png", u => {
+      add('.k{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important;box-shadow:none!important}');
+    }],
+    ["fmr-key-lit.png", u => {
+      add('.k.on,.k:active{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important}');
+    }],
+    ["fmr-keydark.png", u => {
+      add('.k.dark{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important;box-shadow:none!important}');
+    }],
+    ["fmr-keydark-lit.png", u => {
+      add('.k.dark.on,.k.dark:active{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important}');
+    }],
+    ["fmr-pad.png", u => {
+      add('.pad{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important;box-shadow:none!important}');
+    }],
+    ["fmr-led.png", u => {
+      add('.pad .led{background:url("' + u + '") center/100% 100% no-repeat!important;box-shadow:none!important;position:relative}');
+      document.body.classList.add("led-decal");
+    }],
+    ["fmr-led-lit.png", u => {
+      add('.pad .led i{position:absolute;inset:0;display:block;background:url("' + u + '") center/100% 100% no-repeat;opacity:var(--glow,0);border-radius:50%;filter:drop-shadow(0 0 calc(var(--glow,0)*9px) #ff8f1f)}');
+    }],
+    ["fmr-step.png", u => {
+      add('.cell{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important;box-shadow:none!important}');
+      //  the downbeat of each group of four stays a shade brighter, which is
+      //  most of how a step grid stays readable at a glance
+      add('.cell:nth-child(4n+1){filter:brightness(1.11)}');
+    }],
+    ["fmr-step-on.png", u => {
+      add('.cell.on{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important}');
+    }],
+    ["fmr-step-acc.png", u => {
+      add('.cell.acc{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important}');
+    }],
+    ["fmr-nameplate.png", u => {
+      add('#plate{background:url("' + u + '") center/100% 100% no-repeat!important;border:none!important;box-shadow:none!important}');
+    }],
+    /*  Four screws at the corners of the faceplate. Tiny, and it is remarkable
+        how much of "this is a real object" they carry. */
+    ["fmr-screw.png", u => {
+      const s = 'position:absolute;width:14px;height:14px;background:url("' + u + '") center/100% 100% no-repeat;pointer-events:none;z-index:5';
+      ["left:8px;top:8px", "right:8px;top:8px", "left:8px;bottom:8px", "right:8px;bottom:8px"].forEach(pos => {
+        const d = document.createElement("div");
+        d.style.cssText = s + ";" + pos;
+        document.getElementById("face").appendChild(d);
+      });
+      document.getElementById("face").style.position = "relative";
+    }]
+  ];
+
+  let found = 0;   // 20 parts now: the three step states joined the set
+  PARTS.forEach(([file, apply]) => {
+    const img = new Image();
+    img.onload = () => { try { apply(url(file)); ++found; } catch (e) {} };
+    img.onerror = () => {};          // not delivered: keep the drawn version
+    img.src = url(file);
+  });
+  window.__decals = () => found;
+})();
+
+/*  The hello handshake (from Hairfryer): the page announces itself on EVERY
+    boot, so a reload the editor never saw cannot leave the processor
+    believing an old ack while the new page waits forever for state. */
+NB.send({ k: "hello" });
+requestAnimationFrame(() => NB.send({ k: "ready" }));
+</script>
+</body>
+</html>

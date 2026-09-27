@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.22)
+project(MWTest CXX)
+set(CMAKE_CXX_STANDARD 17)
+add_executable(mwtest test.cpp ../Source/Engine.cpp)
+target_include_directories(mwtest PRIVATE ../Source)

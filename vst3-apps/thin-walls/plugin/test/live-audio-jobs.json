@@ -1,0 +1,17 @@
+[
+  { "name": "settle", "wait": 3500 },
+  { "name": "load", "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw', { k:'wavPath', path:'C:\\\\Users\\\\peter\\\\b\\\\ThinWalls\\\\test\\\\testsignal.wav' }); return 'sent'; })()" },
+  { "name": "wait", "wait": 2500 },
+  { "name": "levels", "eval": "(function(){ var sc = window.__TW.scene(); return JSON.stringify({ inDb: sc.in, outDb: sc.out, drr: sc.drr, paths: sc.paths.length }); })()" },
+  { "name": "wavstate", "eval": "(function(){ var s = document.body.innerText; var m = s.match(/testsignal[^\\n]*/); return m ? m[0] : 'no file name on screen'; })()" },
+  { "name": "move-src-into-hall", "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw', { k:'p', id:'s1x', v: 12/18 }); window.__JUCE__.backend.emitEvent('tw', { k:'p', id:'s1y', v: 4.5/9 }); return 'moved'; })()" },
+  { "name": "wait2", "wait": 2500 },
+  { "name": "levels-hall", "eval": "(function(){ var sc = window.__TW.scene(); return JSON.stringify({ inDb: sc.in, outDb: sc.out, drr: sc.drr, paths: sc.paths.length, srcRoom: sc.sources[0].room, kinds: sc.paths.map(function(p){ return p.t; }).join(',') }); })()" },
+  { "name": "shut-door", "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw', { k:'p', id:'door2', v: 0 }); return 'shut'; })()" },
+  { "name": "wait3", "wait": 2500 },
+  { "name": "levels-shut", "eval": "(function(){ var sc = window.__TW.scene(); return JSON.stringify({ outDb: sc.out, paths: sc.paths.length, kinds: sc.paths.map(function(p){ return p.t; }).join(',') }); })()" },
+  { "name": "stop", "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw', { k:'wavPlay', v:0 }); return 'stopped'; })()" },
+  { "name": "wait4", "wait": 1500 },
+  { "name": "levels-stopped", "eval": "(function(){ var sc = window.__TW.scene(); return JSON.stringify({ inDb: sc.in, outDb: sc.out }); })()" },
+  { "name": "shot", "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\live-audio-shot.png" }
+]

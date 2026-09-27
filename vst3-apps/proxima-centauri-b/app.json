@@ -1,0 +1,47 @@
+{
+  "slug": "proxima-centauri-b",
+  "name": "Proxima Centauri B findings (Collection)",
+  "description": "Four objects recovered from Proxima Centauri b, each making sound continuously by means that have no counterpart among our instruments. One counts, and its sound is the list of moments at which something happened. One rings with its own connectedness, and did not come up alone. One is a lattice that is perfectly ordered and never repeats. One is a power grid, tuned by warming a conduit, so to name a note is to command a temperature. None has controls and none has an off state. The findings report is included.",
+  "status": "live",
+  "collection": true,
+  "url": "vst3-apps/proxima-centauri-b/index.html",
+  "icon": "moon",
+  "cta": "Read the findings →",
+  "preview": "assets/app-previews/proxima-centauri-b.jpg",
+  "note": "Windows VST3 · field record B2311 · 4 of 4 recovered · all four objects, twenty-one recorded passages, and the findings report.",
+  "tags": [
+    "vst3"
+  ],
+  "downloads": [
+    {
+      "name": "Artefact-B2311-1-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Artefact-B2311-1-win64.zip",
+      "bytes": 6336209,
+      "sha256": "4f92ea41349c82147fc32cbc88209008f2269f3e7e689c09d5dfcaeebf5705cb"
+    },
+    {
+      "name": "Artefact-B2311-104-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Artefact-B2311-104-win64.zip",
+      "bytes": 6350164,
+      "sha256": "38aef2a084049ca1a02c81583b31133b26a9d19a77a618580c58b26320061675"
+    },
+    {
+      "name": "Artefact-B2311-22-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Artefact-B2311-22-win64.zip",
+      "bytes": 8091031,
+      "sha256": "9533385aa19026567ae7fb5a2f99e43ff37b131b26df016ae918643d2d4b6b9f"
+    },
+    {
+      "name": "Artefact-B2311-67-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Artefact-B2311-67-win64.zip",
+      "bytes": 12163056,
+      "sha256": "e7004993a1fa643e83b7899ac483e5daf6c44f1c7fddb85ec23c69129bfac252"
+    },
+    {
+      "name": "Brokild-Proxima-Centauri-B-Collection-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Brokild-Proxima-Centauri-B-Collection-win64.zip",
+      "bytes": 31465098,
+      "sha256": "969df184a91c54175872bf4cbb16278c5356b010563a8aa1891e2177b70ff2c1"
+    }
+  ]
+}

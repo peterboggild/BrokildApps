@@ -1,0 +1,14 @@
+build/
+test/build/
+docs/composite-*.png
+docs/live-*.png
+test/host/build/
+
+# Zip staging and the extraction used to verify it - both regenerable.
+dist/
+# Working shots: the full-window plates the manual's plates are cut FROM, and
+# the per-page renders the layout gates measure. docs/manual/img/ is tracked,
+# because that is what the manual actually references.
+docs/m-*.png
+docs/web-*.png
+docs/manual/pages/

@@ -1,0 +1,23 @@
+{
+  "slug": "blade-ruiner",
+  "name": "Blade Ruiner (VST3)",
+  "description": "Three layers at once: a drone city of nine detuned saws and filtered rain, an eight-voice polysynth with a ladder filter, and a sixteen-step sequencer built from a six-bit seed. At least one layer is always playing. A mood organ sits over all of it: dial a number from 0 to 999 and get an instrument and a line of text that belong to each other. All thousand are distinct, and a handful are Philip K. Dick's own codes.",
+  "status": "live",
+  "url": "vst3-apps/blade-ruiner/index.html",
+  "icon": "keys",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/blade-ruiner.jpg",
+  "note": "Windows VST3 · build 260826.5 · free download · 18-page manual included.",
+  "tags": [
+    "vst3",
+    "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Blade-Ruiner-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Blade-Ruiner-VST3-win64.zip",
+      "bytes": 7352517,
+      "sha256": "7e7c7d7228c6a9ccb0b9526aab080771a335840bce69b9bdfa80d01f1a73a6eb"
+    }
+  ]
+}

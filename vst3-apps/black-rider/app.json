@@ -1,0 +1,23 @@
+{
+  "slug": "black-rider",
+  "name": "Black Rider (VST3)",
+  "description": "An analogue monosynth sitting between the MS-20 and the Moog. Two oscillators you can push into instability, drift and injection-lock, and one filter with three circuits on a switch — two Sallen-Key tempers and a transistor ladder, all three in tune when they scream. An eight-cable patch bay on a wing that folds out of the side, including the MS-20 trick of patching the amplifier back into the filter. Two hundred seed patches on a red LED dial.",
+  "status": "live",
+  "url": "vst3-apps/black-rider/index.html",
+  "icon": "keys",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/black-rider.jpg",
+  "note": "Windows VST3 · build 260826.5 · free download · 200 seed patches · 18-page manual.",
+  "tags": [
+    "vst3",
+    "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Black-Rider-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Black-Rider-VST3-win64.zip",
+      "bytes": 7505417,
+      "sha256": "3818938ba6865da628ebda91eb9c21f68d5ab14de233e32ba2c30085e366a720"
+    }
+  ]
+}

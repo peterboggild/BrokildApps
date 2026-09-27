@@ -1,0 +1,5 @@
+build/
+wavs/
+*.wav
+package/
+webview2/

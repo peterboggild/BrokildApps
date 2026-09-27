@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>1984 &mdash; Owner's Handbook</title>
+<style>
+/* ===========================================================================
+   1984, owner's handbook.
+
+   Landscape, because the deck is two long rows of sliders side by side and a
+   portrait page would shrink every plate to a stamp. Built for print: each
+   .page is exactly one sheet and the page background is the same near-black
+   the plates are composited onto, so a full-bleed shot has no seam at its
+   edge.
+
+   The look is the instrument's: black anodised deck, cream silkscreen, an
+   amber VFD, and the five slider-cap colours - oxblood, amber, ivory, teal,
+   slate - used for nothing except what they mean on the panel.
+
+   No web fonts. Everything here is a font that is certainly on the machine.
+   =========================================================================== */
+
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:     #08090c;        /* the deck, and the colour the JPEGs sit on */
+  --ink-2:   #101319;
+  --cream:   #e9e3d4;        /* the silkscreen */
+  --vfd:     #ffb642;        /* the display */
+  --vfd-hi:  #ffd9a2;
+  --ox:      #b0424a;        /* slider caps */
+  --amber:   #d99a2b;
+  --ivory:   #e6dfcf;
+  --teal:    #3aa39c;
+  --slate:   #7d8ea0;
+  --body:    #beb7a8;
+  --dim:     #837c6f;
+  --rule:    rgba(255,182,66,.28);
+  --hair:    rgba(233,227,212,.13);
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; background: var(--ink); }
+
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body);
+  font-size: 10.1pt;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.page{
+  position: relative;
+  width: 297mm; height: 210mm;
+  overflow: hidden;
+  page-break-after: always;
+  background: var(--ink);
+}
+.page:last-child{ page-break-after: auto; }
+
+/*  The standard inner margin. The bottom inset must CLEAR the folio strip,
+    not merely meet it: at 13mm the content box ends exactly where the page
+    number begins, and a column that fills its space sits on top of it. */
+.pad{ position:absolute; inset: 12mm 16mm 15mm 16mm; }
+
+/* --- display type ---------------------------------------------------------
+   Panel legends in 1984 are wide-tracked caps in a plain grotesque, cut
+   into cream on black. So are the headings. */
+.display{
+  font-family: "Franklin Gothic Medium", "Segoe UI Semibold", "Segoe UI", Arial, sans-serif;
+  font-weight: 600;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--cream);
+  line-height: 1.06;
+  margin: 0;
+}
+h1.display{ font-size: 46pt; letter-spacing: .2em; }
+h2.display{ font-size: 21pt; }
+h3.display{ font-size: 12pt; }
+
+.kick{
+  font: 600 8pt/1 "Segoe UI", sans-serif;
+  letter-spacing: .34em; text-transform: uppercase;
+  color: var(--amber);
+  margin: 0 0 4mm 0;
+}
+.kick.t{ color: var(--teal); }
+.kick.o{ color: var(--ox); }
+
+.sub{
+  font-size: 11.2pt; color: #efe8d8; margin: 4mm 0 0 0; line-height: 1.44;
+  max-width: 190mm;
+}
+
+p{ margin: 0 0 3.2mm 0; }
+b, strong{ color: #f2ece0; font-weight: 600; }
+em{ color: var(--vfd); font-style: normal; font-weight: 600; }
+.q{ color: var(--vfd); font-weight: 600; }
+
+/* --- rules ---------------------------------------------------------------- */
+.rule{
+  height: 2px; border: 0; margin: 5mm 0 6mm 0;
+  background: linear-gradient(90deg, var(--vfd) 0%, rgba(255,182,66,.45) 26%, rgba(255,182,66,.06) 100%);
+}
+.rule.thin{ height:1px; background: var(--hair); margin: 4mm 0; }
+
+/* --- plates ----------------------------------------------------------------
+    EVERY plate slot has a FIXED HEIGHT in millimetres. A .page is a fixed
+    sheet with overflow:hidden, so a plate left to fill its column pushes the
+    excess off the bottom where it is silently cut off rather than carried to
+    the next page - and a plate that has not been shot yet must not collapse
+    its page either, or the layout is only checkable once the pictures exist.
+    object-fit:contain means nothing is cropped or stretched whatever arrives;
+    the aspect each plate should be shot at is in PLATES.md. */
+figure{ margin:0; }
+figcaption{
+  font-size: 8.2pt; color: var(--dim); margin-top: 2mm; line-height: 1.38;
+}
+figcaption b{ color: var(--vfd); font-weight:600; }
+
+.shot{
+  display:block; width:100%;
+  object-fit: contain;
+  /*  The box colour is the PAGE colour, not a darker one: contain letterboxes
+      whenever a plate is not shot at exactly the box's aspect, and a box that
+      is darker than the sheet turns that slack into a visible rectangle. Each
+      slot below is sized to its own plate's aspect ratio anyway - the numbers
+      are in PLATES.md - so there should be no slack to see. */
+  background: var(--ink);
+  border: 1px solid rgba(255,182,66,.20);
+  border-radius: 2px;
+}
+/*  Heights chosen per plate, against the column it sits in:
+    a 265mm full-width box, a 100.7mm c-38, a 111.3mm c-42, a 121.9mm c-46. */
+.h17{ height: 17mm; } .h19{ height: 19mm; } .h24{ height: 24mm; }
+.h27{ height: 27mm; }
+.h28{ height: 28mm; } .h32{ height: 32mm; } .h68{ height: 68mm; }
+.h78{ height: 78mm; }
+/*  Where a plate's aspect does not match the column it lands in, the box is
+    given its WIDTH as well and centred, so the box IS the picture's shape and
+    there is no letterbox to explain away. The pairs below are each plate's
+    measured aspect: rank 8.60, modrow and chain 12.50, vfd 7.07, tape 1.50. */
+.w41{ width: 41mm; } .w48{ width: 48mm; } .w198{ width: 198mm; } .w206{ width: 206mm; }
+.w212{ width: 212mm; }
+.w41, .w48, .w198, .w206, .w212{ margin-left:auto; margin-right:auto; }
+
+.bleed{ position:absolute; inset:0; width:100%; height:100%; object-fit: cover; }
+
+/* --- layout helpers -------------------------------------------------------- */
+.cols{ display:flex; gap: 9mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-38{ flex: 0 0 38%; } .c-42{ flex: 0 0 42%; }
+.c-46{ flex: 0 0 46%; } .c-54{ flex: 0 0 54%; }
+.c-58{ flex: 0 0 58%; } .c-62{ flex: 0 0 62%; }
+.grid2{ display:grid; grid-template-columns: repeat(2, 1fr); gap: 5mm 9mm; }
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 5mm 7mm; }
+
+/* --- the control entry ----------------------------------------------------- */
+.knob{ border-left: 2px solid var(--amber); padding-left: 4.5mm; margin-bottom: 5mm; }
+.knob.ox{ border-color: var(--ox); }
+.knob.tl{ border-color: var(--teal); }
+.knob.iv{ border-color: var(--ivory); }
+.knob.sl{ border-color: var(--slate); }
+.knob h3{
+  font: 600 11pt/1.05 "Franklin Gothic Medium","Segoe UI Semibold","Segoe UI",Arial,sans-serif;
+  color: var(--cream); letter-spacing:.09em; text-transform:uppercase; margin:0 0 1.2mm 0;
+}
+.knob .what{ font-size:8pt; color:var(--dim); letter-spacing:.14em;
+             text-transform:uppercase; margin:0 0 1.8mm 0; }
+.knob p{ margin:0 0 1.8mm 0; font-size: 9.5pt; }
+.knob p:last-child{ margin-bottom:0; }
+
+/* --- the mode list --------------------------------------------------------- */
+.mod{ display:flex; gap:4mm; align-items:baseline; padding: 1.5mm 0;
+      border-bottom: 1px solid var(--hair); }
+.mod .nm{
+  flex: 0 0 26mm;
+  font: 600 9.4pt/1.15 "Franklin Gothic Medium","Segoe UI Semibold","Segoe UI",Arial,sans-serif;
+  color: var(--vfd); letter-spacing:.09em; text-transform:uppercase;
+}
+.mod .dc{ flex: 1 1 auto; font-size: 9.1pt; line-height:1.36; }
+.mod.off .nm{ color: var(--dim); }
+
+/* --- callout panels -------------------------------------------------------- */
+.box{
+  border: 1px solid var(--rule);
+  background: linear-gradient(160deg, rgba(255,182,66,.065), rgba(58,163,156,.03));
+  padding: 4.5mm 5.5mm;
+  border-radius: 2px;
+}
+.box h4{
+  font: 600 9.5pt/1 "Franklin Gothic Medium","Segoe UI Semibold","Segoe UI",Arial,sans-serif;
+  color: var(--vfd); margin:0 0 2.4mm 0; letter-spacing:.11em; text-transform:uppercase;
+}
+.box p{ font-size: 9.2pt; }
+.box p:last-child{ margin-bottom:0; }
+.box.tl{ border-color: rgba(58,163,156,.34);
+         background: linear-gradient(160deg, rgba(58,163,156,.085), rgba(58,163,156,.02)); }
+.box.tl h4{ color: var(--teal); }
+.box.ox{ border-color: rgba(176,66,74,.36);
+         background: linear-gradient(160deg, rgba(176,66,74,.09), rgba(176,66,74,.02)); }
+.box.ox h4{ color: var(--ox); }
+
+/* the VFD line - the display speaks in amber and nowhere else does */
+.says{
+  font: 600 9pt/1.35 "Consolas","SF Mono",ui-monospace,monospace;
+  color: var(--vfd); letter-spacing:.14em;
+}
+.says.d{ color: var(--dim); }
+
+/* --- tables ---------------------------------------------------------------- */
+table{ width:100%; border-collapse: collapse; font-size: 9pt; }
+th{
+  text-align:left; font: 600 7.6pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.2em; text-transform:uppercase; color: var(--amber);
+  padding: 0 0 1.8mm 0; border-bottom: 1px solid var(--rule);
+}
+td{ padding: 1.7mm 0; border-bottom: 1px solid var(--hair); vertical-align: top; }
+td:first-child{ color: var(--cream); font-weight:600; width: 36%; padding-right: 4mm; }
+td.num{ font-family:"Consolas",ui-monospace,monospace; color:var(--vfd-hi); }
+
+/* the patch tables: a name column and a note column, tight */
+table.pt{ font-size: 8.4pt; }
+table.pt td{ padding: 1.4mm 0; }
+table.pt td:first-child{
+  width: 38%; color: var(--vfd); font-weight:600; letter-spacing:.03em;
+  font-family:"Franklin Gothic Medium","Segoe UI Semibold","Segoe UI",Arial,sans-serif;
+}
+table.pt td:last-child{ color: var(--body); line-height:1.34; }
+.cat{
+  font: 600 7.6pt/1 "Segoe UI",sans-serif; letter-spacing:.26em; text-transform:uppercase;
+  color: var(--amber); margin: 4mm 0 1.6mm 0; padding-bottom: 1.4mm;
+  border-bottom: 1px solid var(--rule);
+}
+.cat:first-child{ margin-top: 0; }
+
+/* --- page furniture -------------------------------------------------------- */
+.folio{
+  position:absolute; left:16mm; right:16mm; bottom: 7mm;
+  display:flex; justify-content:space-between; align-items:center;
+  font: 600 7.2pt/1 "Segoe UI",sans-serif;
+  letter-spacing:.24em; text-transform:uppercase; color: rgba(131,124,111,.85);
+  border-top: 1px solid rgba(255,182,66,.15); padding-top: 2.4mm;
+}
+.folio .n{ color: var(--vfd); font-weight:700; letter-spacing:.1em; }
+
+/* --- cover / back ---------------------------------------------------------- */
+.cover-art{ position:absolute; left:0; right:0; bottom:0; height: 58%; overflow:hidden; }
+.cover-art img{ width:100%; height:100%; object-fit: cover; object-position: center 55%; }
+.cover-fade{
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, var(--ink) 0%, rgba(8,9,12,.62) 12%, rgba(8,9,12,0) 32%,
+                              rgba(8,9,12,0) 54%, rgba(8,9,12,.86) 78%, var(--ink) 93%);
+}
+.cover-top{ position:absolute; left:20mm; right:20mm; top:20mm; }
+.cover-foot{ position:absolute; left:20mm; right:20mm; bottom:13mm; }
+
+/* the amber year rule under the wordmark */
+.yearline{
+  height: 3px; border:0; margin: 6mm 0 5mm 0; width: 128mm;
+  background: linear-gradient(90deg, var(--vfd) 0%, var(--ox) 34%, var(--teal) 62%, rgba(255,182,66,.05) 100%);
+}
+
+/* --- the signal-path diagram ------------------------------------------------ */
+.diagram{ width: 100%; height: 104mm; display:block; }
+.dg-box{ fill: #11151c; stroke: rgba(233,227,212,.42); stroke-width: 1.4; }
+.dg-box.hot{ stroke: var(--vfd); fill: #171313; }
+.dg-box.tl{ stroke: var(--teal); fill: #0d1616; }
+.dg-box.ox{ stroke: var(--ox); fill: #160f11; }
+.dg-t{ font: 600 11.5px "Franklin Gothic Medium","Segoe UI Semibold","Segoe UI",Arial,sans-serif;
+       letter-spacing: .1em; fill: var(--cream); text-transform: uppercase; }
+.dg-s{ font: 400 9px "Consolas",ui-monospace,monospace; fill: #8e8678; letter-spacing:.04em; }
+.dg-l{ font: 600 9.5px "Segoe UI",sans-serif; letter-spacing:.16em; fill: var(--amber); text-transform:uppercase; }
+.dg-w{ stroke: rgba(233,227,212,.5); stroke-width: 1.6; fill:none; }
+.dg-w.mod{ stroke: var(--ox); stroke-width: 1.4; stroke-dasharray: 5 3; }
+.dg-w.env{ stroke: var(--teal); stroke-width: 1.4; stroke-dasharray: 2 3; }
+.dg-head{ fill: rgba(233,227,212,.5); }
+.dg-head.mod{ fill: var(--ox); }
+.dg-head.env{ fill: var(--teal); }
+.dg-brk{ fill: none; stroke: rgba(255,182,66,.34); stroke-width: 1.2; stroke-dasharray: 4 3; }
+
+/* --- the envelope diagram --------------------------------------------------- */
+.envdiag{ width:100%; height: 61mm; display:block; }
+.ev-axis{ stroke: rgba(233,227,212,.26); stroke-width: 1.2; }
+.ev-grid{ stroke: rgba(233,227,212,.11); stroke-width: 1; }
+.ev-feg{ fill:none; stroke: var(--vfd); stroke-width: 2.4; stroke-linejoin:round; }
+.ev-aeg{ fill:none; stroke: var(--teal); stroke-width: 2.2; stroke-linejoin:round; }
+.ev-t{ font: 600 13px "Segoe UI",sans-serif; letter-spacing:.14em; fill: var(--amber); text-transform:uppercase; }
+.ev-t.tl{ fill: var(--teal); }
+.ev-s{ font: 400 11px "Consolas",ui-monospace,monospace; fill: #97907f; }
+.ev-g{ stroke: rgba(176,66,74,.7); stroke-width: 1.4; stroke-dasharray: 3 3; }
+</style>
+</head>
+<body>
+
+<!-- ======================================================  1  COVER  ===== -->
+<section class="page">
+  <div class="cover-art">
+    <img src="img/cover.jpg" alt="" />
+    <div class="cover-fade"></div>
+  </div>
+
+  <div class="cover-top">
+    <p class="kick" style="color:var(--vfd); margin-bottom:7mm">Brokild &middot; Windows VST3 &middot; Polysynth</p>
+    <h1 class="display">1984</h1>
+    <hr class="yearline" />
+    <div class="cols" style="align-items:flex-start">
+      <div class="c-62">
+        <p class="display" style="font-size:12.5pt; letter-spacing:.2em; color:#f2ece0">A Brokild polysynth</p>
+        <p class="display" style="font-size:9.5pt; letter-spacing:.3em; color:var(--dim); margin-top:3mm">Owner's handbook</p>
+      </div>
+      <div style="text-align:right; margin-left:auto">
+        <p class="says" style="margin:0">BUILD 260923.1</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover-foot">
+    <p style="color:var(--dim); font-size:9.2pt; max-width:170mm; margin:0">
+      Eight voices of two ranks each. Sync, poly-mod, a ring modulator and
+      unison. A formant choir behind a three-phase ensemble. Then everything
+      goes to tape before it goes to the hall.
+      <span style="color:var(--vfd)">September 2026.</span>
+    </p>
+  </div>
+</section>
+
+<!-- ================================================  2  WHAT IT IS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">What it is</p>
+    <h2 class="display">Eight voices, sixteen ranks,<br>one tape</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-42">
+        <figure>
+          <img class="shot h68" src="img/panel.jpg" alt="" />
+          <figcaption><b>The deck.</b> Rank I above, rank II below, each a row
+            of long-throw sliders in the five cap colours. The amber display
+            names the patch and draws the filter envelopes and the eight voice
+            lamps. The chain runs left to right along the bottom, and the tape
+            reels turn when the tape is on.</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:6mm">
+          <h4>Installing</h4>
+          <p>
+            Copy <b>1984.vst3</b> into your VST3 folder &mdash; normally
+            <span class="says" style="font-size:8pt">C:\PROGRAM FILES\COMMON FILES\VST3</span>
+            &mdash; and rescan. The standalone in the same download needs
+            nothing installing.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <p class="sub" style="margin-top:0">
+          A voice in 1984 is not one synthesizer. It is <b>two</b>, called rank
+          I and rank II, sharing a keyboard, a ring modulator and a
+          sub-oscillator. Each rank has its own oscillator, its own resonant
+          high-pass into its own resonant low-pass, its own filter envelope, its
+          own amplifier envelope, and its own level and pan. Eight voices is
+          therefore sixteen complete ranks, and every patch on the dial is two
+          instruments played as one.
+        </p>
+        <p style="margin-top:5mm">
+          The architecture is the one the big polysynth of 1977 used and nobody
+          has really used since: two ranks per voice, a high-pass and a low-pass
+          in series, and a filter envelope with an <em>initial level</em> and an
+          <em>attack level</em> instead of a sustain. The strange part &mdash;
+          hard sync, poly-mod, unison &mdash; comes from the other side of the
+          Atlantic. The choir is a fixed formant bank behind a three-phase
+          ensemble.
+        </p>
+        <p>
+          The eight voices are summed and go through one chain: drive, ensemble,
+          choir, tape, hall, and then the Brokild World FX rack. Everything up
+          to and including the tape runs oversampled, so nothing that saturates
+          can alias. The hall runs at the base rate, because it is linear and
+          long.
+        </p>
+        <div class="box tl" style="margin-top:5mm">
+          <h4>The first minute</h4>
+          <p>
+            Dial up <b>CS STRINGS</b> and hold a chord. Then take
+            <em>UNISON DETUNE</em> up, put the voice mode on <b>DUO</b>, and
+            listen to eight oscillator boards instead of four. Everything else
+            in this handbook is detail.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>1984 &middot; Owner's Handbook</span><span class="n">02</span></div>
+</section>
+
+<!-- ==============================================  3  SIGNAL PATH  ======= -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The mechanism</p>
+    <h2 class="display">The signal path</h2>
+    <hr class="rule" style="margin-bottom:4mm" />
+
+    <svg class="diagram" viewBox="0 0 1090 430" role="img"
+         aria-label="Signal path: two ranks per voice, each oscillator into a high-pass into a low-pass into an amplifier, with sync and poly-mod between them, then ring, pan, and a chain of drive, ensemble, choir, tape, decimation, hall and the world rack">
+
+      <!-- the oversampled bracket: the voices, and the first four of the chain -->
+      <path class="dg-brk" d="M 14 26 L 14 16 L 830 16 L 830 26" />
+      <text class="dg-l" x="422" y="12" text-anchor="middle">Oversampled domain &mdash; 1x / 2x / 4x</text>
+      <path class="dg-brk" d="M 1050 34 L 1058 34 L 1058 232 L 1050 232" />
+      <text class="dg-l" transform="translate(1076,133) rotate(-90)" text-anchor="middle">Oversampled</text>
+
+      <!-- KEY -->
+      <rect class="dg-box" x="16" y="106" width="62" height="70" rx="3" />
+      <text class="dg-t" x="47" y="136" text-anchor="middle">Key</text>
+      <text class="dg-s" x="47" y="152" text-anchor="middle">8 voices</text>
+      <path class="dg-w" d="M 78 128 L 104 128 L 104 62 L 126 62" />
+      <path class="dg-w" d="M 78 154 L 104 154 L 104 236 L 126 236" />
+      <polygon class="dg-head" points="126,62 118,58 118,66" />
+      <polygon class="dg-head" points="126,236 118,232 118,240" />
+
+      <!-- RANK I row, y = 34..92 -->
+      <text class="dg-l" x="128" y="28" text-anchor="start">Rank I</text>
+      <rect class="dg-box" x="128" y="34" width="122" height="58" rx="3" />
+      <text class="dg-t" x="189" y="58" text-anchor="middle">VCO</text>
+      <text class="dg-s" x="189" y="74" text-anchor="middle">saw pulse tri sine</text>
+      <text class="dg-s" x="189" y="86" text-anchor="middle">noise &middot; 32' to 2'</text>
+
+      <path class="dg-w" d="M 250 63 L 276 63" /><polygon class="dg-head" points="276,63 268,59 268,67" />
+      <rect class="dg-box" x="278" y="34" width="86" height="58" rx="3" />
+      <text class="dg-t" x="321" y="58" text-anchor="middle">HPF</text>
+      <text class="dg-s" x="321" y="74" text-anchor="middle">12 dB</text>
+      <text class="dg-s" x="321" y="86" text-anchor="middle">resonant</text>
+
+      <path class="dg-w" d="M 364 63 L 390 63" /><polygon class="dg-head" points="390,63 382,59 382,67" />
+      <rect class="dg-box" x="392" y="34" width="100" height="58" rx="3" />
+      <text class="dg-t" x="442" y="58" text-anchor="middle">LPF</text>
+      <text class="dg-s" x="442" y="74" text-anchor="middle">CS 12 dB or</text>
+      <text class="dg-s" x="442" y="86" text-anchor="middle">ladder 24 dB</text>
+
+      <path class="dg-w" d="M 492 63 L 518 63" /><polygon class="dg-head" points="518,63 510,59 510,67" />
+      <rect class="dg-box" x="520" y="34" width="74" height="58" rx="3" />
+      <text class="dg-t" x="557" y="58" text-anchor="middle">VCA</text>
+      <text class="dg-s" x="557" y="76" text-anchor="middle">level &middot; ADSR</text>
+
+      <!-- rank I filter envelope -->
+      <rect class="dg-box tl" x="278" y="108" width="214" height="34" rx="3" />
+      <text class="dg-t" x="385" y="130" text-anchor="middle" style="font-size:10.5px">Filter env &middot; IL AL A D R</text>
+      <path class="dg-w env" d="M 321 108 L 321 96" /><polygon class="dg-head env" points="321,92 316,101 326,101" />
+      <path class="dg-w env" d="M 442 108 L 442 96" /><polygon class="dg-head env" points="442,92 437,101 447,101" />
+
+      <!-- rank I amp envelope -->
+      <rect class="dg-box tl" x="520" y="108" width="74" height="34" rx="3" />
+      <text class="dg-t" x="557" y="130" text-anchor="middle" style="font-size:10.5px">Amp env</text>
+      <path class="dg-w env" d="M 557 108 L 557 96" /><polygon class="dg-head env" points="557,92 552,101 562,101" />
+
+      <!-- RANK II row, y = 208..266 -->
+      <text class="dg-l" x="128" y="202" text-anchor="start">Rank II</text>
+      <rect class="dg-box" x="128" y="208" width="122" height="58" rx="3" />
+      <text class="dg-t" x="189" y="232" text-anchor="middle">VCO</text>
+      <text class="dg-s" x="189" y="248" text-anchor="middle">saw pulse tri sine</text>
+      <text class="dg-s" x="189" y="260" text-anchor="middle">noise &middot; 32' to 2'</text>
+
+      <path class="dg-w" d="M 250 237 L 276 237" /><polygon class="dg-head" points="276,237 268,233 268,241" />
+      <rect class="dg-box" x="278" y="208" width="86" height="58" rx="3" />
+      <text class="dg-t" x="321" y="232" text-anchor="middle">HPF</text>
+      <text class="dg-s" x="321" y="250" text-anchor="middle">12 dB</text>
+
+      <path class="dg-w" d="M 364 237 L 390 237" /><polygon class="dg-head" points="390,237 382,233 382,241" />
+      <rect class="dg-box" x="392" y="208" width="100" height="58" rx="3" />
+      <text class="dg-t" x="442" y="232" text-anchor="middle">LPF</text>
+      <text class="dg-s" x="442" y="250" text-anchor="middle">CS or ladder</text>
+
+      <path class="dg-w" d="M 492 237 L 518 237" /><polygon class="dg-head" points="518,237 510,233 510,241" />
+      <rect class="dg-box" x="520" y="208" width="74" height="58" rx="3" />
+      <text class="dg-t" x="557" y="232" text-anchor="middle">VCA</text>
+      <text class="dg-s" x="557" y="250" text-anchor="middle">level</text>
+
+      <rect class="dg-box tl" x="278" y="282" width="214" height="32" rx="3" />
+      <text class="dg-t" x="385" y="303" text-anchor="middle" style="font-size:10.5px">Filter env</text>
+      <path class="dg-w env" d="M 321 282 L 321 270" /><polygon class="dg-head env" points="321,266 316,275 326,275" />
+      <path class="dg-w env" d="M 442 282 L 442 270" /><polygon class="dg-head env" points="442,266 437,275 447,275" />
+      <rect class="dg-box tl" x="520" y="282" width="74" height="32" rx="3" />
+      <text class="dg-t" x="557" y="303" text-anchor="middle" style="font-size:10.5px">Amp env</text>
+      <path class="dg-w env" d="M 557 282 L 557 270" /><polygon class="dg-head env" points="557,266 552,275 562,275" />
+
+      <!-- HARD SYNC: rank II's wrap resets rank I's phase (rank I is the slave) -->
+      <path class="dg-w mod" d="M 205 208 L 205 92" />
+      <polygon class="dg-head mod" points="205,92 200,101 210,101" />
+      <text class="dg-l" x="212" y="152" text-anchor="start" style="fill:var(--ox)">Sync</text>
+
+      <!-- POLY-MOD: rank II pre-filter -> rank I pitch / width, and -> both LPFs.
+           One bus, tapped off rank II ahead of its high-pass, with two ends:
+           back into rank I's oscillator, and up into rank I's low-pass
+           through the clear channel between the envelope box and the VCA. -->
+      <path class="dg-w mod" d="M 264 237 L 264 330 L 84 330 L 84 46 L 126 46" />
+      <polygon class="dg-head mod" points="126,46 118,42 118,50" />
+      <path class="dg-w mod" d="M 264 330 L 506 330 L 506 78 L 498 78" />
+      <polygon class="dg-head mod" points="492,78 500,74 500,82" />
+      <text class="dg-l" x="96" y="322" text-anchor="start" style="fill:var(--ox)">Poly-mod</text>
+      <text class="dg-s" x="96" y="352" text-anchor="start" style="fill:#a06a6e">rank II, taken before its filter, into rank I's pitch, its width and both low-pass cutoffs</text>
+
+      <!-- RING -->
+      <path class="dg-w" d="M 594 63 L 622 63 L 622 118 L 640 118" /><polygon class="dg-head" points="640,118 632,114 632,122" />
+      <path class="dg-w" d="M 594 237 L 622 237 L 622 160 L 640 160" /><polygon class="dg-head" points="640,160 632,156 632,164" />
+      <rect class="dg-box ox" x="642" y="92" width="88" height="94" rx="3" />
+      <text class="dg-t" x="686" y="122" text-anchor="middle">Ring</text>
+      <text class="dg-s" x="686" y="140" text-anchor="middle">carrier</text>
+      <text class="dg-s" x="686" y="152" text-anchor="middle">or I x II</text>
+      <text class="dg-s" x="686" y="170" text-anchor="middle">off by default</text>
+
+      <!-- SUB-OSC and TOUCH: one of each per voice, reaching every stage above -->
+      <text class="dg-l" x="16" y="392" text-anchor="start">Per voice</text>
+      <rect class="dg-box" x="128" y="374" width="196" height="46" rx="3" />
+      <text class="dg-t" x="226" y="394" text-anchor="middle" style="font-size:10.5px">Sub-oscillator</text>
+      <text class="dg-s" x="226" y="410" text-anchor="middle">pitch &middot; width &middot; filter &middot; level</text>
+      <rect class="dg-box" x="336" y="374" width="196" height="46" rx="3" />
+      <text class="dg-t" x="434" y="394" text-anchor="middle" style="font-size:10.5px">Touch &amp; wheel</text>
+      <text class="dg-s" x="434" y="410" text-anchor="middle">velocity &middot; pressure &middot; wheel</text>
+      <rect class="dg-box ox" x="544" y="374" width="196" height="46" rx="3" />
+      <text class="dg-t" x="642" y="394" text-anchor="middle" style="font-size:10.5px">Vintage</text>
+      <text class="dg-s" x="642" y="410" text-anchor="middle">tuning &middot; cutoff &middot; times &middot; drift</text>
+
+      <!-- PAN and the summing -->
+      <path class="dg-w" d="M 730 139 L 756 139" /><polygon class="dg-head" points="756,139 748,135 748,143" />
+      <rect class="dg-box" x="758" y="110" width="66" height="58" rx="3" />
+      <text class="dg-t" x="791" y="134" text-anchor="middle">Pan</text>
+      <text class="dg-s" x="791" y="152" text-anchor="middle">x 8 voices</text>
+
+      <!-- eight voices summed, up into the head of the chain -->
+      <path class="dg-w" d="M 824 139 L 838 139 L 838 55 L 850 55" />
+      <polygon class="dg-head" points="852,55 844,51 844,59" />
+
+      <g>
+        <rect class="dg-box hot" x="854" y="34" width="190" height="42" rx="3" />
+        <text class="dg-t" x="949" y="54" text-anchor="middle" style="font-size:10.5px">Drive</text>
+        <text class="dg-s" x="949" y="68" text-anchor="middle">valve &middot; tape &middot; fuzz &middot; fold</text>
+
+        <rect class="dg-box hot" x="854" y="86" width="190" height="42" rx="3" />
+        <text class="dg-t" x="949" y="106" text-anchor="middle" style="font-size:10.5px">Ensemble</text>
+        <text class="dg-s" x="949" y="120" text-anchor="middle">three taps, two LFOs</text>
+
+        <rect class="dg-box hot" x="854" y="138" width="190" height="42" rx="3" />
+        <text class="dg-t" x="949" y="158" text-anchor="middle" style="font-size:10.5px">Choir</text>
+        <text class="dg-s" x="949" y="172" text-anchor="middle">five formants, U to I</text>
+
+        <rect class="dg-box hot" x="854" y="190" width="190" height="42" rx="3" />
+        <text class="dg-t" x="949" y="210" text-anchor="middle" style="font-size:10.5px">Tape / VHS</text>
+        <text class="dg-s" x="949" y="224" text-anchor="middle">wow flutter sat age drop</text>
+
+        <rect class="dg-box" x="854" y="242" width="190" height="34" rx="3" />
+        <text class="dg-t" x="949" y="264" text-anchor="middle" style="font-size:10.5px">Decimate &rarr; base rate</text>
+
+        <rect class="dg-box" x="854" y="286" width="190" height="42" rx="3" />
+        <text class="dg-t" x="949" y="306" text-anchor="middle" style="font-size:10.5px">Hall</text>
+        <text class="dg-s" x="949" y="320" text-anchor="middle">8-line FDN, shimmer</text>
+
+        <rect class="dg-box tl" x="854" y="338" width="190" height="42" rx="3" />
+        <text class="dg-t" x="949" y="358" text-anchor="middle" style="font-size:10.5px">Brokild World FX</text>
+        <text class="dg-s" x="949" y="372" text-anchor="middle">the shared rack</text>
+
+        <text class="dg-l" x="949" y="400" text-anchor="middle">Out</text>
+      </g>
+
+      <path class="dg-w" d="M 949 76 L 949 84" /><polygon class="dg-head" points="949,86 944,77 954,77" />
+      <path class="dg-w" d="M 949 128 L 949 136" /><polygon class="dg-head" points="949,138 944,129 954,129" />
+      <path class="dg-w" d="M 949 180 L 949 188" /><polygon class="dg-head" points="949,190 944,181 954,181" />
+      <path class="dg-w" d="M 949 232 L 949 240" /><polygon class="dg-head" points="949,242 944,233 954,233" />
+      <path class="dg-w" d="M 949 276 L 949 284" /><polygon class="dg-head" points="949,286 944,277 954,277" />
+      <path class="dg-w" d="M 949 328 L 949 336" /><polygon class="dg-head" points="949,338 944,329 954,329" />
+      <path class="dg-w" d="M 949 380 L 949 388" /><polygon class="dg-head" points="949,390 944,381 954,381" />
+    </svg>
+
+    <div class="grid3" style="margin-top:4mm">
+      <p style="font-size:9.2pt; margin:0">
+        <b>Solid lines are audio, broken red lines are modulation, dotted teal
+        lines are envelopes.</b> One filter envelope drives <em>both</em>
+        filters of its rank, and that is the thing that makes this architecture
+        sound the way it does: the high-pass and the low-pass move together, so
+        the note changes shape from both ends at once.
+      </p>
+      <p style="font-size:9.2pt; margin:0">
+        Rank II's wrap resets rank I's phase when <em>SYNC</em> is on: the
+        audible rank is the slave, the way the Prophet does it. Rank
+        II's output, taken <em>before</em> its filter, can bend rank I's pitch,
+        its pulse width and both low-pass cutoffs &mdash; so rank II can be an
+        audible layer, a silent modulator, or both at once.
+      </p>
+      <p style="font-size:9.2pt; margin:0">
+        Everything up to and including the tape runs oversampled, so nothing
+        that saturates can fold back into the band. The hall runs at the base
+        rate, because it is linear and long and gains nothing from the extra
+        work. The whole voice is drawn once here; there are eight of them.
+      </p>
+    </div>
+  </div>
+  <div class="folio"><span>The signal path</span><span class="n">03</span></div>
+</section>
+
+<!-- =============================================  4  THE OSCILLATOR  ===== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The rank strip, 1 of 3</p>
+    <h2 class="display">The oscillator</h2>
+    <hr class="rule" style="margin-bottom:4mm" />
+
+    <figure>
+      <img class="shot h24 w206" src="img/rank.jpg" alt="" />
+      <figcaption><b>One rank strip, end to end.</b> Waves and tuning, the two
+        filters, the two envelopes, and level, pan and velocity. Rank II carries
+        the same strip again, plus SYNC.</figcaption>
+    </figure>
+
+    <div class="cols" style="margin-top:6mm">
+      <div class="c-58">
+        <p style="margin-bottom:5mm">
+          One phase accumulator per rank, four band-limited waves out of it at
+          once, each with its own slider. They are not a selector: saw plus a
+          little pulse plus a little sine is one sound, and it is the brass
+          recipe.
+        </p>
+
+        <div class="knob iv">
+          <h3>Saw &middot; Pulse &middot; Triangle &middot; Sine</h3>
+          <p class="what">four levels, not a switch</p>
+          <p>
+            Mix them. The saw is the body, the pulse the reed, the triangle
+            the flute, and the sine weight underneath. The sine is taken after
+            the filter, so it survives when everything else has been shut away.
+          </p>
+        </div>
+
+        <div class="knob iv">
+          <h3>Width &middot; PWM</h3>
+          <p class="what">50 to 95 per cent</p>
+          <p>
+            <em>WIDTH</em> sets the pulse; <em>PWM</em> hands it to the
+            sub-oscillator. A slow PWM on two ranks is most of a string patch.
+          </p>
+        </div>
+
+        <div class="knob iv">
+          <h3>Noise</h3>
+          <p class="what">white, per voice, into the filter</p>
+          <p>
+            It goes in ahead of the high-pass, so the filters shape it exactly
+            as they shape the oscillator.
+          </p>
+        </div>
+
+      </div>
+
+      <div class="c-38" style="margin-left:auto">
+        <div class="knob iv" style="margin-bottom:6mm">
+          <h3>Feet &middot; Semitone &middot; Fine</h3>
+          <p class="what">32' 16' 8' 4' 2' &middot; &plusmn;12 semitones &middot; &plusmn;50 cents</p>
+          <p>
+            Nearly every factory patch puts rank II a handful of cents off rank
+            I and leaves it there: that beat is the sound of two oscillator
+            boards.
+          </p>
+        </div>
+
+        <div class="box">
+          <h4>Sync</h4>
+          <p>
+            <em>SYNC I TO II</em> resets rank I's phase every time rank II
+            wraps, band-limited at the actual jump height &mdash; so a synced
+            rank is a hard edge and not a burst of aliasing. Rank II is the
+            master because the envelope's pitch route lands on rank I: turn
+            rank II's level down, and the envelope sweeps the synced, audible
+            rank over a note the silent master holds.
+          </p>
+        </div>
+
+        <div class="box tl" style="margin-top:5mm">
+          <h4>Measured</h4>
+          <p>
+            Both ranks sit within <b>one cent</b> at every footage. A saw at
+            A6 keeps its worst non-harmonic component below <b>&minus;60 dB</b>
+            at 2x.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The oscillator</span><span class="n">04</span></div>
+</section>
+
+<!-- ================================================  5  THE FILTERS  ===== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The rank strip, 2 of 3</p>
+    <h2 class="display">Two filters, one envelope</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <div class="knob">
+          <h3>HPF &middot; HPF Res</h3>
+          <p class="what">10 Hz to 12 kHz, 12 dB per octave</p>
+          <p>
+            A resonant high-pass ahead of the low-pass. This is what makes a
+            string patch thin and a choir patch hollow, and it is the half of
+            the architecture that most synthesizers do not have. Push the
+            resonance and it will sing; the band-pass state is softly limited so
+            a screaming resonance stays a note instead of a spike.
+          </p>
+        </div>
+
+        <div class="knob">
+          <h3>LPF &middot; LPF Res</h3>
+          <p class="what">20 Hz to 20 kHz</p>
+          <p>
+            The main filter. Resonance runs to self-oscillation in both
+            circuits, and the last few per cent of the sweep are where it
+            crosses over into oscillating on its own.
+          </p>
+        </div>
+
+        <div class="knob">
+          <h3>Filter</h3>
+          <p class="what">two circuits, per rank</p>
+          <div class="mod"><span class="nm">CS 12 dB</span><span class="dc">A state-variable pair. Open, glassy, and the one that lets the high-pass be heard.</span></div>
+          <div class="mod"><span class="nm">Ladder 24 dB</span><span class="dc">Four poles with a soft saturator at the summing node. Thicker, and it takes a bass line down where a 12 dB filter cannot.</span></div>
+          <p style="margin-top:2.5mm">
+            The two ranks can run different circuits. A ladder rank under a CS
+            rank is most of what the brass patches are doing.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-42" style="margin-left:auto">
+        <div class="box">
+          <h4>What sets a cutoff</h4>
+          <p class="says" style="font-size:8.2pt; letter-spacing:.06em; margin-bottom:3mm">
+            CUTOFF = slider x 2^(env + key + brilliance<br>&nbsp;&nbsp;&nbsp;&nbsp;+ velocity + touch + sub + poly-mod)
+          </p>
+          <p>
+            Everything that opens a filter does it in octaves and they add. The
+            filter envelope alone is worth up to six of them.
+          </p>
+        </div>
+
+        <div class="knob sl" style="margin-top:6mm">
+          <h3>Brilliance &middot; Resonance</h3>
+          <p class="what">global, bipolar, on both ranks</p>
+          <p>
+            Two performance trims that ride over whatever the patch set:
+            <em>BRILLIANCE</em> shifts both cutoffs, <em>RESONANCE</em> scales
+            both resonances. They read from &minus;100 to +100 per cent, with
+            the centre meaning "as the patch has it".
+          </p>
+        </div>
+
+        <div class="knob sl">
+          <h3>Key Track</h3>
+          <p class="what">how far the cutoff follows the note</p>
+          <p>
+            At zero the filter stays put and the top of the keyboard goes dull;
+            at full it follows the note and the timbre is even everywhere.
+          </p>
+        </div>
+
+        <div class="box tl" style="margin-top:6mm">
+          <h4>Measured</h4>
+          <p>
+            Asked to self-oscillate at 1 kHz, the state-variable filter sits at
+            <b>1000.0 Hz</b> and the ladder at <b>996.5 Hz</b> &mdash; 0.35 per
+            cent &mdash; and both stay bounded. Resonance at 80 per cent puts
+            the cutoff <b>14.5 dB</b> over the octave above it.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The filters</span><span class="n">05</span></div>
+</section>
+
+<!-- ==============================================  6  THE ENVELOPES  ===== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The rank strip, 3 of 3</p>
+    <h2 class="display">The envelopes, and the end of the rank</h2>
+    <hr class="rule" style="margin-bottom:4mm" />
+
+    <svg class="envdiag" viewBox="0 0 1080 250" role="img"
+         aria-label="The filter envelope jumps to the initial level at note on, moves to the attack level over the attack time, decays to zero over the decay time, and releases to zero from wherever it is; the amplifier envelope is an ordinary attack decay sustain release">
+      <!-- baseline and zero -->
+      <line class="ev-axis" x1="56" y1="20" x2="56" y2="230" />
+      <line class="ev-grid" x1="56" y1="132" x2="1050" y2="132" />
+      <text class="ev-s" x="48" y="136" text-anchor="end">0</text>
+      <text class="ev-s" x="48" y="46" text-anchor="end">+1</text>
+      <text class="ev-s" x="48" y="222" text-anchor="end">&minus;1</text>
+      <line class="ev-grid" x1="56" y1="42" x2="1050" y2="42" />
+      <line class="ev-grid" x1="56" y1="218" x2="1050" y2="218" />
+
+      <!-- gate marks -->
+      <line class="ev-g" x1="96" y1="20" x2="96" y2="236" />
+      <line class="ev-g" x1="660" y1="20" x2="660" y2="236" />
+      <text class="ev-t" x="96" y="248" text-anchor="middle" style="fill:var(--ox)">Key down</text>
+      <text class="ev-t" x="660" y="248" text-anchor="middle" style="fill:var(--ox)">Key up</text>
+
+      <!-- FILTER ENVELOPE: jump to IL, charge to AL, decay to 0, release to 0 -->
+      <path class="ev-feg" d="M 56 132 L 96 132 L 96 192
+        C 130 192 150 90 210 74
+        C 250 64 262 68 278 70
+        C 330 78 400 116 470 128
+        C 530 130 590 132 660 132" />
+      <path class="ev-feg" d="M 660 132 L 700 132" opacity=".4" />
+
+      <!-- a second, released early, to show the release limb -->
+      <path class="ev-feg" style="stroke-dasharray:4 3; opacity:.55"
+            d="M 300 76 C 320 100 340 124 372 130" />
+
+      <text class="ev-t" x="106" y="206" text-anchor="start">IL</text>
+      <text class="ev-s" x="106" y="222" text-anchor="start">initial level, bipolar</text>
+      <text class="ev-t" x="248" y="56" text-anchor="middle">AL</text>
+      <text class="ev-s" x="248" y="40" text-anchor="middle">attack level, bipolar</text>
+      <text class="ev-t" x="168" y="120" text-anchor="middle">A</text>
+      <text class="ev-t" x="412" y="106" text-anchor="middle">D</text>
+      <text class="ev-t" x="352" y="122" text-anchor="start">R</text>
+      <text class="ev-s" x="352" y="138" text-anchor="start">the release limb, if you let go early</text>
+      <text class="ev-t tl" x="706" y="126" text-anchor="start">R</text>
+
+      <!-- AMPLIFIER ENVELOPE, plotted 0..1 on the upper half only -->
+      <path class="ev-aeg" d="M 56 132 L 96 132
+        C 108 132 116 52 134 48
+        C 170 44 196 82 236 90
+        C 300 96 460 96 660 96
+        C 686 96 716 130 760 132 L 1050 132" />
+      <text class="ev-t tl" x="790" y="78" text-anchor="start">Amplifier envelope &mdash; A D S R</text>
+      <text class="ev-s" x="790" y="96" text-anchor="start">sustain is a level, held until key up</text>
+    </svg>
+
+    <div class="cols" style="margin-top:5mm">
+      <div>
+        <div class="knob">
+          <h3>Initial Level &middot; Attack Level</h3>
+          <p class="what">both bipolar, &minus;100 to +100 per cent</p>
+          <p>
+            The filter envelope has no sustain, because <em>IL</em> and
+            <em>AL</em> <b>are</b> the sustain. At key down it jumps to IL, moves
+            to AL over the attack time, then decays to zero. Both are bipolar,
+            so a filter can open from below (IL negative, AL positive) or slam
+            shut from above.
+          </p>
+        </div>
+        <div class="knob">
+          <h3>VCF Attack &middot; Decay &middot; Release</h3>
+          <p class="what">1 ms to 10 s &middot; 2 ms to 20 s</p>
+          <p>
+            Release runs from wherever the envelope had got to when you let go,
+            not from a fixed point &mdash; so a short note releases from high up
+            and a held one from near zero.
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="knob tl">
+          <h3>VCA Attack &middot; Decay &middot; Sustain &middot; Release</h3>
+          <p class="what">the ordinary one</p>
+          <p>
+            An RC-shaped ADSR that retriggers from its current level, so a
+            repeated note does not click. Sustain at 100 with a long decay is an
+            organ; sustain at 0 with a short decay is a bell.
+          </p>
+        </div>
+        <div class="knob iv">
+          <h3>Level &middot; Pan &middot; Velocity &middot; Vel&gt;Brill</h3>
+          <p class="what">the end of the strip</p>
+          <p>
+            <em>LEVEL</em> is the rank in the voice &mdash; set rank II to zero
+            and it is a silent modulator. <em>PAN</em> places it; the global
+            <em>STEREO SPREAD</em> widens the eight voices around it.
+            <em>VELOCITY</em> is how hard you have to play for full level, and
+            <em>VEL&gt;BRILL</em> hands velocity to the filter instead.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The envelopes</span><span class="n">06</span></div>
+</section>
+
+<!-- ===========================================  7  TOUCH AND THE SUB  ==== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Performance</p>
+    <h2 class="display">Touch, wheel and the sub-oscillator</h2>
+    <hr class="rule" style="margin-bottom:4mm" />
+
+    <figure>
+      <img class="shot h17 w212" src="img/modrow.jpg" alt="" />
+      <figcaption><b>The modulation row.</b> Sub-oscillator, ring modulator,
+        poly-mod, and the touch and wheel depths.</figcaption>
+    </figure>
+
+    <div class="cols" style="margin-top:5mm">
+      <div class="c-58">
+        <div class="knob ox">
+          <h3>Touch</h3>
+          <p class="what">aftertouch, channel or polyphonic</p>
+          <p>
+            Lean into a held key and the note answers. Four destinations, each
+            with its own depth: <em>TOUCH&gt;PITCH</em>, <em>TOUCH&gt;BRILL</em>,
+            <em>TOUCH&gt;LEVEL</em> and <em>TOUCH&gt;SUB</em>, which brings in
+            vibrato only when you press. If the keyboard sends both channel and
+            polyphonic pressure, the higher of the two wins for that note.
+          </p>
+        </div>
+
+        <div class="knob ox">
+          <h3>Wheel</h3>
+          <p class="what">vibrato, brilliance, rate</p>
+          <p>
+            <em>WHEEL&gt;VIBRATO</em> and <em>WHEEL&gt;BRILL</em> with a
+            dedicated <em>WHEEL RATE</em> from 2 to 10 Hz, so the wheel's
+            vibrato is its own speed and does not disturb whatever the
+            sub-oscillator is already doing.
+          </p>
+        </div>
+
+        <div class="knob">
+          <h3>The sub-oscillator</h3>
+          <p class="what">one per voice &middot; 0.05 to 40 Hz &middot; seven shapes</p>
+          <p>
+            Sine, triangle, saw, ramp, square, sample-and-hold and smooth
+            noise, with a delay from 10 ms to 5 s so vibrato arrives after the
+            note has settled. Four destinations:
+          </p>
+          <table style="margin-top:2.5mm">
+            <tr><td>Sub&gt;Pitch</td><td>vibrato</td></tr>
+            <tr><td>Sub&gt;Width</td><td>PWM &mdash; the string sound</td></tr>
+            <tr><td>Sub&gt;Filter</td><td>a growl, or a very slow tide</td></tr>
+            <tr><td>Sub&gt;Level</td><td>tremolo</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="c-38" style="margin-left:auto">
+        <div class="box">
+          <h4>Sub phase &mdash; the one that matters</h4>
+          <div class="mod"><span class="nm">Free</span><span class="dc">Every voice runs its own. Eight voices wandering independently is a section of players.</span></div>
+          <div class="mod"><span class="nm">Reset</span><span class="dc">From zero at each note-on. Tight, deliberate, good for a lead.</span></div>
+          <div class="mod"><span class="nm">One</span><span class="dc">All eight share a phase. A chord modulated in lockstep is a synthesizer on a tape.</span></div>
+          <p style="margin-top:3mm">
+            This is one switch and it changes what the instrument <em>is</em>.
+            Try the same pad on FREE and on ONE.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Touch and the sub-oscillator</span><span class="n">07</span></div>
+</section>
+
+<!-- =========================================  8  RING AND POLY-MOD  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The strange things</p>
+    <h2 class="display">Ring modulator &amp; poly-mod</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div>
+        <div class="knob ox">
+          <h3>Ring &mdash; three modes</h3>
+          <div class="mod off"><span class="nm">Off</span><span class="dc">Where it sits on a fresh instrument.</span></div>
+          <div class="mod"><span class="nm">Carrier</span><span class="dc">A sine carrier of its own, 0.1 Hz to 4 kHz. Slow it down and it is tremolo; speed it up and it is metal.</span></div>
+          <div class="mod"><span class="nm">Ranks</span><span class="dc">Rank I multiplied by rank II. Tune them apart and you get sums and differences that have nothing to do with the key.</span></div>
+        </div>
+
+        <div class="knob ox">
+          <h3>Key &middot; Speed &middot; Depth</h3>
+          <p class="what">the carrier</p>
+          <p>
+            With <em>KEY</em> off, <em>SPEED</em> is a fixed frequency in hertz
+            and the ring is inharmonic everywhere on the keyboard &mdash; which
+            is exactly what a bell wants. With KEY on, SPEED becomes a ratio of
+            the note, from a quarter to eight times, and the modulation tracks
+            the key. <em>DEPTH</em> crossfades from dry to fully ring-modulated.
+          </p>
+        </div>
+
+        <div class="knob ox">
+          <h3>Attack &middot; Decay &middot; Mod</h3>
+          <p class="what">the carrier has an envelope of its own</p>
+          <p>
+            <em>MOD</em> is bipolar: positive sweeps the carrier up over the
+            note, negative sweeps it down. A downward sweep with a long decay is
+            a struck bar; an upward one is the sound of a machine starting.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div class="knob">
+          <h3>Poly-mod</h3>
+          <p class="what">two sources, five destinations</p>
+          <p>
+            Modulation inside the voice, at audio rate, per voice &mdash; so
+            eight notes each modulate themselves rather than sharing one LFO.
+            There are two sources. One is <b>rank II, taken before its
+            filter</b>; the other is <b>rank I's own filter envelope</b>.
+          </p>
+          <table style="margin-top:2.5mm">
+            <tr><td>II&gt;I Pitch</td><td>exponential FM at audio rate. A little is a growl; a lot is a klaxon.</td></tr>
+            <tr><td>II&gt;I Width</td><td>rank II opens and shuts rank I's pulse, cycle by cycle.</td></tr>
+            <tr><td>II&gt;Filter</td><td>filter FM into both low-passes.</td></tr>
+            <tr><td>Env&gt;I Pitch</td><td>bipolar. The classic sweep: the envelope bends the note.</td></tr>
+            <tr><td>Env&gt;I Width</td><td>bipolar. The pulse opens as the filter does.</td></tr>
+          </table>
+        </div>
+
+        <div class="box ox" style="margin-top:5mm">
+          <h4>Set rank II's level to zero</h4>
+          <p>
+            Poly-mod takes rank II from <em>before</em> its amplifier, so its
+            LEVEL slider decides only whether you also hear it. At zero it is a
+            pure modulator and rank I is the whole sound. Leave it up and it is
+            both at once. <b>POLY-MOD SWEEP</b> on the patch dial is the first
+            case; go and look at it.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Ring and poly-mod</span><span class="n">08</span></div>
+</section>
+
+<!-- ============================================  9  VOICES, VINTAGE  ===== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The instrument as a whole</p>
+    <h2 class="display">Voice modes, glide, vintage</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <div class="knob sl">
+          <h3>Voice mode</h3>
+          <div class="mod"><span class="nm">Poly</span><span class="dc">Eight voices, one per key. A ninth note steals the oldest.</span></div>
+          <div class="mod"><span class="nm">Duo</span><span class="dc">Two voices per key, detuned and panned apart: four-note polyphony, but every note is a pair of players.</span></div>
+          <div class="mod"><span class="nm">Unison</span><span class="dc">All eight on one note, fanned symmetrically around it by UNISON DETUNE, up to 60 cents.</span></div>
+          <div class="mod"><span class="nm">Mono</span><span class="dc">Last note wins, with legato if you want it.</span></div>
+          <p style="margin-top:3mm">
+            DUO and UNISON both read <em>UNISON DETUNE</em>. It is the single
+            most effective control on the panel for making an eight-voice
+            machine sound like a wall.
+          </p>
+        </div>
+
+        <div class="knob sl">
+          <h3>Glide &middot; Glissando &middot; Legato</h3>
+          <p class="what">5 ms to 5 s, or OFF</p>
+          <p>
+            <em>GLISSANDO</em> makes the slide step through semitones instead of
+            sweeping. <em>LEGATO</em> only glides when you are already holding a
+            note, so a phrase slides and a fresh attack does not.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-42" style="margin-left:auto">
+        <div class="knob ox">
+          <h3>Vintage</h3>
+          <p class="what">one knob, five tolerances</p>
+          <p>
+            At zero the eight voices are identical, which no analogue
+            polysynth ever was. Turn it up and each voice gets its own
+            oscillator tuning error, its own cutoff offset, its own envelope
+            times, a slow wandering drift and a fast jitter &mdash; separately
+            per rank. A poly patch stops being one synthesizer played eight
+            times and becomes eight slightly different synthesizers.
+          </p>
+          <p>
+            Most factory patches sit between 40 and 55 per cent. Very high is a
+            machine that needs servicing, which is occasionally what you want.
+          </p>
+        </div>
+
+        <div class="knob sl">
+          <h3>Master tune &middot; Fine &middot; Bend range</h3>
+          <p class="what">&plusmn;12 semitones &middot; &plusmn;50 cents &middot; 0 to 24</p>
+          <p>
+            These four, with <em>VOLUME</em> and <em>QUALITY</em>, are the only
+            controls a factory patch does not touch &mdash; load a patch and
+            your tuning, your bend range and your output level stay where you
+            put them.
+          </p>
+        </div>
+
+        <div class="box tl">
+          <h4>Quality</h4>
+          <p>
+            <em>1X / 2X / 4X</em>. Everything up to and including the tape runs
+            at this rate. <b>2X is the default and what the patches were made
+            on.</b> Eight voices with every stage running measure
+            <b>2.5 per cent</b> of one core at 1x, <b>4.6</b> at 2x and
+            <b>10.4</b> at 4x. It is not automatable, and it is not saved into a
+            patch.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Voice modes and vintage</span><span class="n">09</span></div>
+</section>
+
+<!-- ===========================================  10  CHAIN 1 OF 2  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The chain, 1 of 2</p>
+    <h2 class="display">Drive, ensemble, choir</h2>
+    <hr class="rule" style="margin-bottom:4mm" />
+
+    <figure>
+      <img class="shot h17 w212" src="img/chain.jpg" alt="" />
+      <figcaption><b>The chain row.</b> Drive, ensemble, choir, tape and hall, in
+        the order the sound meets them.</figcaption>
+    </figure>
+
+    <div class="cols" style="margin-top:5mm">
+      <div class="c-58">
+        <div class="knob">
+          <h3>Drive</h3>
+          <p class="what">before the decimator, so it cannot alias</p>
+          <div class="mod off"><span class="nm">Off</span><span class="dc">Where a fresh instrument sits.</span></div>
+          <div class="mod"><span class="nm">Valve</span><span class="dc">Asymmetric, biased, and therefore <b>even</b> harmonics. Warmth rather than dirt.</span></div>
+          <div class="mod"><span class="nm">Tape</span><span class="dc">A soft knee, symmetric. Thickens without changing the shape much.</span></div>
+          <div class="mod"><span class="nm">Fuzz</span><span class="dc">Hard, with a tilt ahead of it. For leads that have to cut.</span></div>
+          <div class="mod"><span class="nm">Fold</span><span class="dc">A sine folder. Past a point it stops being distortion and becomes a different instrument.</span></div>
+          <p style="margin-top:3mm">
+            <em>DRIVE TONE</em> is a tilt afterwards, bipolar. Each mode
+            carries a fixed trim measured on the bench, so turning DRIVE up
+            changes what it sounds like rather than simply making it louder.
+          </p>
+        </div>
+
+        <div class="knob">
+          <h3>Ensemble</h3>
+          <p class="what">three taps per channel, two LFOs, 120 degrees apart</p>
+          <div class="mod"><span class="nm">Chorus I</span><span class="dc">Two taps, the slow LFO only. Gentle.</span></div>
+          <div class="mod"><span class="nm">Chorus II</span><span class="dc">Two taps, the fast wobble. Closer to a flutter than a chorus.</span></div>
+          <div class="mod"><span class="nm">Ensemble</span><span class="dc">Three taps, both LFOs. The string machine.</span></div>
+          <div class="mod"><span class="nm">Cathedral</span><span class="dc">Three taps, both LFOs, deeper, the wet path darkened as a bucket brigade darkens it.</span></div>
+        </div>
+      </div>
+
+      <div class="c-38" style="margin-left:auto">
+        <div class="knob tl">
+          <h3>Choir</h3>
+          <p class="what">five formants, U &rarr; O &rarr; A &rarr; E &rarr; I</p>
+          <p>
+            A fixed bank of five band-passes at the formants of a vowel.
+            <em>VOWEL</em> slides continuously through all five &mdash; it is a
+            position, not a selector, and everything between two vowels exists.
+            <em>REGISTER</em> shifts the whole bank up to 40 per cent either
+            way, which is the difference between a man and a boy.
+            <em>AIR</em> adds breath on top. <em>MIX</em> is how much of it you
+            want.
+          </p>
+          <p>
+            Feed it a pulse-rich rank and it is a human voice. Put the ensemble
+            behind it and it is a choir.
+          </p>
+        </div>
+
+        <div class="box tl" style="margin-top:5mm">
+          <h4>Measured</h4>
+          <p>
+            Three modulated taps partly cancel &mdash; <b>&minus;4.3 dB</b> at
+            full mix &mdash; so the wet path is normalised between the amplitude
+            sum and the power sum rather than by either.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Drive, ensemble, choir</span><span class="n">10</span></div>
+</section>
+
+<!-- ===========================================  11  CHAIN 2 OF 2  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The chain, 2 of 2</p>
+    <h2 class="display">The tape, and the hall</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-58">
+        <div class="knob">
+          <h3>Tape &mdash; three positions</h3>
+          <div class="mod off"><span class="nm">Off</span><span class="dc">Straight through.</span></div>
+          <div class="mod"><span class="nm">Tape</span><span class="dc">Wow, flutter, a saturator with a head bump, loss with age, dropouts and hiss.</span></div>
+          <div class="mod"><span class="nm">VHS</span><span class="dc">Head-switching instead of flutter: a 50 Hz tracking wobble, a tick per field, bandwidth capped near 6 kHz, dropouts far more often.</span></div>
+          <table style="margin-top:3mm">
+            <tr><td>Wow &middot; Wow Rate</td><td>a 0.1 to 3 Hz sine plus a slewed walk &mdash; a wander, never a step</td></tr>
+            <tr><td>Flutter</td><td>sines at 4.3, 8.7 and 13.1 Hz, plus a fast random part</td></tr>
+            <tr><td>Tape Sat</td><td>the saturator and its head bump</td></tr>
+            <tr><td>Tape Age</td><td>how much top the tape has lost</td></tr>
+            <tr><td>Dropouts</td><td>raised-cosine dips with extra loss</td></tr>
+            <tr><td>Hiss</td><td>added last, never inside a loop</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="c-38" style="margin-left:auto">
+        <figure>
+          <img class="shot h27 w41" src="img/tape.jpg" alt="" />
+          <figcaption><b>The tape window.</b> The reels turn while the tape runs.</figcaption>
+        </figure>
+
+        <div class="knob" style="margin-top:5mm">
+          <h3>Hall</h3>
+          <p class="what">eight lines behind four diffusers</p>
+          <table>
+            <tr><td>Mix &middot; Predelay</td><td>wet share; 1 to 250 ms</td></tr>
+            <tr><td>Size</td><td>half to double</td></tr>
+            <tr><td>Decay</td><td>a real RT60, 0.2 to 20 s</td></tr>
+            <tr><td>Damping</td><td>1 to 16 kHz, per line</td></tr>
+            <tr><td>Motion</td><td>two lines never stand still</td></tr>
+            <tr><td>Shimmer</td><td>an octave up, budgeted against the decay</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="box tl" style="margin-top:5mm">
+      <h4>Measured</h4>
+      <div class="grid2">
+        <p>
+          <em>WOW</em> at full and 0.5 Hz moves the pitch <b>2.15 per cent</b>
+          peak to peak; the sine alone would give 1.1 and the walk adds the
+          rest. <em>FLUTTER</em> at full: <b>0.35</b>. Both at zero:
+          <b>0.0003</b> &mdash; nothing. <em>HISS</em> and <em>AGE</em> at full:
+          <b>&minus;57 dBFS</b> in the second after a note, and exactly silent
+          when nothing plays.
+        </p>
+        <p>
+          A 2 s <em>DECAY</em> measures <b>1.68 s</b>. At maximum decay, size,
+          shimmer and motion the tail is <b>97 dB</b> lower forty seconds after
+          the note than in its first seconds: bounded, and falling.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Tape and hall</span><span class="n">11</span></div>
+</section>
+
+<!-- ==========================================  12  PATCHES 1 OF 2  ======= -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Forty factory patches, 1 of 2</p>
+    <h2 class="display">Brass, strings, choir, lead, bass</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div>
+        <p class="cat">Brass</p>
+        <table class="pt">
+          <tr><td>Blade Brass</td><td>Saw, pulse and sine on both ranks, rank II nine cents sharp; ensemble, tape and a 2.4 s hall. Touch opens it.</td></tr>
+          <tr><td>Chariots Brass</td><td>Full saws, rank II a 16' ladder underneath six cents flat; a wide filter swing into a 3.2 s hall.</td></tr>
+          <tr><td>Tight Brass</td><td>Two 8' saws through closed ladders, 70 ms attack, short decay. Velocity straight into the brightness.</td></tr>
+          <tr><td>French Horns</td><td>Saw, pulse and sine, rank II at 16', both filters dark; a 300 ms swell and a 4.5 s hall.</td></tr>
+          <tr><td>Brass Section</td><td>DUO mode with eight cents of detune: two players per key, wide, in a 3 s hall.</td></tr>
+        </table>
+
+        <p class="cat">Strings</p>
+        <table class="pt">
+          <tr><td>CS Strings</td><td>Two saws, rank II at 16' and eight cents sharp, high-passed at 120 Hz; ensemble at 55 per cent, a 3.5 s hall.</td></tr>
+          <tr><td>VP Strings</td><td>Saw and pulse, high-passed at 200 Hz, filters wide open. Ensemble at 75 per cent depth and 70 wet: the string machine on its own.</td></tr>
+          <tr><td>Cathedral Strings</td><td>A 900 ms swell and a 2.5 s release, rank II at 4'; CATHEDRAL ensemble and a 7 s hall with shimmer.</td></tr>
+          <tr><td>Solina Room</td><td>Bright saws high-passed at 300 Hz, ensemble at 80 per cent wet, a small 1.2 s room, and a tape that drops out.</td></tr>
+        </table>
+      </div>
+
+      <div>
+        <p class="cat">Choir</p>
+        <table class="pt">
+          <tr><td>Human Voice</td><td>Pulse-led ranks through the formant bank at 85 per cent, vowel just past the middle. One voice, not yet a choir.</td></tr>
+          <tr><td>Vangelis Choir</td><td>Choir at 90 per cent on a dark vowel with the register lowered; CATHEDRAL ensemble and an 8 s hall with shimmer.</td></tr>
+          <tr><td>Boys Choir</td><td>Both ranks at 4', choir at 90 per cent on a close vowel, register up, plenty of air; a 5 s hall.</td></tr>
+        </table>
+
+        <p class="cat">Lead</p>
+        <table class="pt">
+          <tr><td>Blade Lead</td><td>MONO, legato, 90 ms glide. Saw with sine, rank II eleven cents sharp; vibrato on the wheel and on touch.</td></tr>
+          <tr><td>Sync Lead</td><td>MONO with glide. Rank I is synced to a silent rank II and starts seven semitones up; the filter envelope sweeps it. A little VALVE.</td></tr>
+          <tr><td>Screaming Lead</td><td>UNISON at fourteen cents, both ranks through resonant ladders at 900 Hz, FUZZ at 45 per cent.</td></tr>
+          <tr><td>Duo Lead</td><td>Two voices per key twelve cents apart, 70 ms glide, ladders at 1.8 kHz, vibrato on touch.</td></tr>
+        </table>
+
+        <p class="cat">Bass</p>
+        <table class="pt">
+          <tr><td>Vintage Bass</td><td>MONO legato. Saw with pulse and a lot of sine, ladders at 500 and 400 Hz, 8 ms attack, TAPE drive.</td></tr>
+          <tr><td>Moogish Bass</td><td>MONO legato, two saws, ladders at 350 Hz with the resonance up, 5 ms attack and a fast decay.</td></tr>
+          <tr><td>Pulse Bass</td><td>MONO legato. A 70 per cent pulse with PWM from a 0.9 Hz sub-oscillator, a little VALVE, almost no hall.</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The factory patches</span><span class="n">12</span></div>
+</section>
+
+<!-- ==========================================  13  PATCHES 2 OF 2  ======= -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Forty factory patches, 2 of 2</p>
+    <h2 class="display">Pad, keys, bells, strange</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div>
+        <p class="cat">Pad</p>
+        <table class="pt">
+          <tr><td>Heaven and Hell</td><td>Saw, pulse and sine with PWM from a 0.25 Hz sub-oscillator, a 1.8 s filter attack; CATHEDRAL, a 9 s hall with shimmer.</td></tr>
+          <tr><td>Antarctic Pad</td><td>Saw with triangle and a little noise, 2.5 s attack, high-passed at 200 Hz; a 0.12 Hz triangle on the cutoff and a 14 s hall.</td></tr>
+          <tr><td>Glass Pad</td><td>Triangle and sine at 4' and 2', key-tracked ring modulation at 35 per cent; a 7 s hall with shimmer at 40.</td></tr>
+          <tr><td>Tape Wash</td><td>Saws with a little noise and a 3 s attack, onto a tape at 70 per cent wow, 75 age, dropouts and hiss; a 12 s hall.</td></tr>
+          <tr><td>Wide Unison Pad</td><td>UNISON at twenty-two cents with the spread at full; slow filters and a 6 s hall.</td></tr>
+          <tr><td>The Planets</td><td>16' and 8' saws with sine, filters closed to 600 Hz, a 0.15 Hz sub-oscillator on the cutoff; a 12 s hall.</td></tr>
+        </table>
+
+        <p class="cat">Keys</p>
+        <table class="pt">
+          <tr><td>Electric Grand</td><td>A struck rank I with a 2 ms attack and a long decay, a bright 4' triangle rank II with no sustain; both hard on velocity.</td></tr>
+          <tr><td>Clavinet 84</td><td>Narrow pulses at 88 and 92 per cent, high-passed at 200 Hz, resonant ladders, 1 ms attack, no sustain, VALVE.</td></tr>
+          <tr><td>Organ 84</td><td>Sine and pulse at 8' and 4', filters open, no envelope to speak of, and a 6.5 Hz tremolo shared by every voice.</td></tr>
+          <tr><td>Soft Keys</td><td>Saw, triangle and sine, a 4 ms attack and a long decay to a low sustain; CHORUS I and a 2.8 s hall.</td></tr>
+        </table>
+      </div>
+
+      <div>
+        <p class="cat">Bells</p>
+        <table class="pt">
+          <tr><td>Ring Bells</td><td>Two triangle ranks a fourth apart at 4' and 2', RANKS ring modulation at 80 per cent, no sustain; a 6 s hall with shimmer.</td></tr>
+          <tr><td>Tubular Dream</td><td>Triangle and pulse with a key-tracked carrier sweeping downward over a 900 ms ring decay; an 8 s hall.</td></tr>
+          <tr><td>Sequencer Pluck</td><td>Two saws, ladders at 500 Hz with the envelope full open, 1 ms attack, no sustain, 60 ms of predelay.</td></tr>
+        </table>
+
+        <p class="cat">Strange</p>
+        <table class="pt">
+          <tr><td>Poly-Mod Sweep</td><td>Rank II is a silent triangle modulator: 45 per cent into rank I's pitch, 30 into both filters, and the envelope on top.</td></tr>
+          <tr><td>Stranger Things</td><td>Two 16' saws twelve cents apart through resonant ladders, a short hard envelope, VALVE drive and the VHS.</td></tr>
+          <tr><td>VHS Memory</td><td>Saw, pulse and sine on a worn VHS: 60 per cent wow, 60 flutter, 25 dropouts, 55 hiss, CATHEDRAL, a 6 s hall.</td></tr>
+          <tr><td>Insect Swarm</td><td>UNISON at forty cents, 94 per cent pulses with noise, high-passed at 800 Hz; a noise sub-oscillator at 12 Hz and a 37 Hz ring.</td></tr>
+          <tr><td>Machine Hum</td><td>MONO. A 16' rank closed to 180 Hz with a 3 s attack, a 0.08 Hz triangle on the cutoff, TAPE drive and a 9 s hall.</td></tr>
+          <tr><td>Filter Sweep Drone</td><td>Saw and pulse with PWM through resonant ladders at 400 Hz, a 4 s filter attack and a 10 s hall.</td></tr>
+          <tr><td>Ghost Hall</td><td>Triangle, sine and noise at 4' and 8', the choir half in on a dark vowel, VHS at 70 per cent age, a 16 s hall with shimmer.</td></tr>
+          <tr><td>Naked Rank I</td><td>One 8' saw, filters open, a gate instead of an envelope, no hall and no vintage. The engine with nothing on it.</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The factory patches</span><span class="n">13</span></div>
+</section>
+
+<!-- ============================================  14  PATCHES ON DISK  ==== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Keeping your own</p>
+    <h2 class="display">Patches on disk</h2>
+    <hr class="rule" style="margin-bottom:4mm" />
+
+    <figure>
+      <img class="shot h28 w198" src="img/vfd.jpg" alt="" />
+      <figcaption><b>The display.</b> Amber, and the only place in the
+        instrument that prints a number: the patch, the two filter envelopes,
+        the eight voice lamps and the output.</figcaption>
+    </figure>
+
+    <div class="cols" style="margin-top:5mm">
+      <div class="c-58">
+        <p>
+          The forty on the dial are read-only. Everything you make goes to
+          disk as plain JSON, in the house folder every Brokild instrument
+          uses:
+        </p>
+        <p class="says" style="margin:3mm 0 4mm 0; font-size:8.4pt">
+          DOCUMENTS \ BROKILD PATCHES \ 1984
+        </p>
+        <p>
+          <em>SAVE</em> and <em>OPEN</em> are ordinary file dialogs, so you can
+          keep patches in folders or send one to somebody; the browser beside
+          them lists the house folder, subfolders and all, without a dialog.
+          A patch file carries the whole instrument: all 126 parameters,
+          <b>and the Brokild World FX rack blob inside it</b>, so a patch that
+          was made with an echo and a room in the rack comes back with them.
+          The performance controls do not travel &mdash; master tune, fine, bend
+          range, volume and quality stay as you have them when a patch loads.
+        </p>
+
+      </div>
+
+      <div class="c-38" style="margin-left:auto">
+        <div class="box ox">
+          <h4>Random</h4>
+          <p>
+            <em>RANDOM</em> rolls a whole instrument, not a spray of values: the
+            oscillators land on shapes that go together, the filters inside
+            musical ranges, the envelopes in usable times, and the master and
+            the performance controls are left alone.
+          </p>
+        </div>
+
+        <div class="box" style="margin-top:5mm">
+          <h4>What the numbers mean</h4>
+          <p>
+            Frequencies and times run on an exponential sweep, so a slider is
+            fine where it needs to be: a cutoff covers 20 Hz to 20 kHz, an
+            attack 1 ms to 10 s. A bipolar control reads &minus;100 to +100 per
+            cent about a centre of zero, tuning is in cents, width 50 to 95 per
+            cent, and a glide under one per cent reads
+            <span class="says" style="font-size:8pt">OFF</span>.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <figure style="margin-top:5mm">
+      <img class="shot h19" src="img/display.jpg" alt="" />
+      <figcaption><b>The patch strip.</b> The dial, the patch name and its
+        category, with the browser and RANDOM, SAVE, OPEN, USER and PANIC
+        beside it. Move any control and its value replaces the name, then the
+        name comes back.</figcaption>
+    </figure>
+  </div>
+  <div class="folio"><span>Patches on disk</span><span class="n">14</span></div>
+</section>
+
+<!-- ==================================================  15  BWFX  ========= -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The world rack</p>
+    <h2 class="display">Brokild World FX, and the five macros</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-46">
+        <figure>
+          <img class="shot h78" src="img/bwfx-wide.jpg" alt="" />
+          <figcaption><b>The rack.</b> Effects down the left in the order they run,
+            SPECTRA characters down the right, and the rack's own mix in the
+            header. ECHO is open; every pedal unfolds like it.</figcaption>
+        </figure>
+
+        <div class="box" style="margin-top:5mm">
+          <h4>Two rooms in a row</h4>
+          <p>
+            1984 has a hall of its own and the rack has a SPACE. Running both is
+            legitimate and occasionally wonderful, but the usual answer is to
+            pick one: the instrument's hall for the sound of the machine, the
+            rack's for the sound of the record.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <p>
+          Every Brokild instrument carries the same rack at the end of its
+          chain, and 1984 is no exception. Open it with the globe and you get a
+          pedalboard: a column of effect modules you can switch on, reorder and
+          set, and a second column of SPECTRA characters that reach into the
+          instrument itself rather than filtering its output. A fresh instrument
+          has an empty rack and sounds exactly as though the rack were not
+          there; a patch you save carries whatever you built in it. It is the
+          same rack, with the same modules and the same presets, as the one in
+          every other machine on the shelf, so a chain you like moves with you.
+        </p>
+        <p>
+          <b>BWFX MACRO 1 to 5</b> are the rack's only host parameters, and they
+          are the reason it can be automated at all. A macro <em>maps</em> a
+          control in the rack: assign one and it takes that control from the
+          bottom of its range to the top as the macro sweeps from 0 to 100 per
+          cent, or the other way round with a negative depth, and the control
+          visibly moves as it does. One destination belongs to one macro.
+          <b>Macro 5 arrives assigned to the rack's own dry/wet at full negative
+          depth</b>, so a fresh instrument with the macro at rest is exactly the
+          sound it always was, and pushing it up is one global effects fader.
+        </p>
+
+        <div class="box tl" style="margin-top:5mm">
+          <h4>Where the rack sits</h4>
+          <p>
+            After the hall and before the output. The instrument's own drive,
+            ensemble, choir, tape and hall are not part of it and do not
+            duplicate it &mdash; they are the machine, and the rack is what you
+            put the machine through.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The world rack</span><span class="n">15</span></div>
+</section>
+
+<!-- =========================================  16  SPECIFICATIONS  ======== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Reference</p>
+    <h2 class="display">Specifications</h2>
+    <hr class="rule" />
+
+    <div class="grid2">
+      <div>
+        <table>
+          <tr><td>Format</td><td>Windows VST3 (64-bit), plus a standalone application</td></tr>
+          <tr><td>Type</td><td>Instrument &mdash; MIDI in, stereo out</td></tr>
+          <tr><td>Voices</td><td>Eight, each of two complete ranks &mdash; sixteen ranks in all</td></tr>
+          <tr><td>Oscillator</td><td>Per rank: band-limited saw, pulse, triangle and sine at once, each with its own level, plus white noise. 32' / 16' / 8' / 4' / 2', &plusmn;12 semitones, &plusmn;50 cents</td></tr>
+          <tr><td>Pulse width</td><td>50 to 95 per cent, with PWM from the sub-oscillator and from poly-mod</td></tr>
+          <tr><td>Filters</td><td>Per rank: resonant 12 dB high-pass, 10 Hz to 12 kHz, into a resonant low-pass, 20 Hz to 20 kHz, switchable between a 12 dB state-variable circuit and a 24 dB ladder. One filter envelope drives both</td></tr>
+          <tr><td>Envelopes</td><td>Per rank: a filter envelope with initial level, attack level, attack, decay and release (1 ms to 10 s, 2 ms to 20 s), and an ADSR amplifier envelope</td></tr>
+          <tr><td>Sync</td><td>Rank I hard-synced to rank II, band-limited at the actual jump height</td></tr>
+          <tr><td>Poly-mod</td><td>Rank II pre-filter into rank I pitch, width and both cutoffs; rank I's filter envelope into its own pitch and width. Per voice, at audio rate</td></tr>
+          <tr><td>Ring modulator</td><td>Per voice. A carrier of its own from 0.1 Hz to 4 kHz, or a ratio of the note from 0.25x to 8x, with attack, decay and a bipolar sweep; or rank I multiplied by rank II</td></tr>
+        </table>
+      </div>
+
+      <div>
+        <table>
+          <tr><td>Sub-oscillator</td><td>Per voice. Seven shapes, 0.05 to 40 Hz, delay to 5 s, phase free, reset or shared, into pitch, width, filter and level</td></tr>
+          <tr><td>Touch</td><td>Velocity into level and brilliance; aftertouch, channel or polyphonic, into pitch, brilliance, level and the sub-oscillator; mod wheel into vibrato and brilliance at its own 2 to 10 Hz</td></tr>
+          <tr><td>Voice modes</td><td>Poly 8, Duo, Unison 8 with up to 60 cents of detune, Mono with legato. Glide 5 ms to 5 s, optionally glissando</td></tr>
+          <tr><td>Chain</td><td>Drive (valve, tape, fuzz, fold), ensemble (four modes), choir (five formants, U to I), tape or VHS, hall (eight-line FDN, 0.2 to 20 s, predelay to 250 ms, shimmer)</td></tr>
+          <tr><td>Oversampling</td><td>1x, 2x or 4x up to and including the tape; the hall runs at the base rate. 2x by default</td></tr>
+          <tr><td>Parameters</td><td>126, plus the five BWFX macros. All automatable except the patch dial and the quality switch</td></tr>
+          <tr><td>Patches</td><td>Forty factory, in nine categories. Your own are JSON in <span class="says" style="font-size:7.6pt">DOCUMENTS \ BROKILD PATCHES \ 1984</span>, carrying the rack with them</td></tr>
+          <tr><td>CPU</td><td>Eight voices, every stage running: 2.5 per cent of one core at 1x, 4.6 at 2x, 10.4 at 4x</td></tr>
+          <tr><td>Sample rates</td><td>Any. Bench-tested at 44.1, 48 and 96 kHz</td></tr>
+          <tr><td>Price</td><td>Free. No account, no registration, no telemetry</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Specifications</span><span class="n">16</span></div>
+</section>
+
+<!-- ============================================  17  THE BENCH  ========== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Evidence</p>
+    <h2 class="display">What the bench proves</h2>
+    <hr class="rule" />
+
+    <p class="sub" style="margin-top:0; margin-bottom:5mm">
+      Eighty-six checks, all clear, at 48 kHz and again at 44.1 and 96. The
+      bench renders real audio and measures it. These are its numbers, and they
+      are the only numbers in this handbook.
+    </p>
+
+    <div class="cols">
+      <div>
+        <div class="mod"><span class="nm" style="flex:0 0 34mm">Tuning</span><span class="dc">Both ranks within <b>one cent</b> at every footage. Rank II asked for +25 cents lands on <b>+25.0</b>.</span></div>
+        <div class="mod"><span class="nm" style="flex:0 0 34mm">Aliasing</span><span class="dc">A saw at A6, worst non-harmonic component below 20 kHz: under <b>&minus;40 dB</b> at 1x and under <b>&minus;60 dB</b> at 2x. A 5 per cent pulse at 2x, under <b>&minus;50 dB</b>. FUZZ at full drive at 2x, under <b>&minus;36 dB</b>.</span></div>
+        <div class="mod"><span class="nm" style="flex:0 0 34mm">Filters</span><span class="dc">Asked to self-oscillate at 1 kHz, the state-variable circuit sits at <b>1000.0 Hz</b> and the ladder at <b>996.5 Hz</b> &mdash; 0.35 per cent &mdash; and both stay bounded. Resonance at 80 per cent: <b>14.5 dB</b> over the octave above.</span></div>
+        <div class="mod"><span class="nm" style="flex:0 0 34mm">Valve drive</span><span class="dc">A second harmonic of <b>&minus;16 dB</b> at 30 per cent drive. An asymmetric clipper with unequal tops is DC and odd harmonics; the even harmonics need an even term, and this one has it.</span></div>
+        <div class="mod"><span class="nm" style="flex:0 0 34mm">Ensemble</span><span class="dc">Three modulated taps partly cancel &mdash; <b>&minus;4.3 dB</b> at full mix &mdash; so the wet path is normalised between the amplitude sum and the power sum.</span></div>
+      </div>
+
+      <div>
+        <div class="mod"><span class="nm" style="flex:0 0 34mm">Tape</span><span class="dc">WOW at full and 0.5 Hz: <b>2.15 per cent</b> peak to peak. FLUTTER at full: <b>0.35 per cent</b>. Both at zero: <b>0.0003 per cent</b>. HISS and AGE both at full: <b>&minus;57 dBFS</b> in the second after a note, and exactly silent when nothing is playing.</span></div>
+        <div class="mod"><span class="nm" style="flex:0 0 34mm">Hall</span><span class="dc">A 2 s setting measures <b>1.68 s</b>. At maximum decay, size, shimmer and motion the tail is <b>97 dB</b> lower forty seconds after the note than in its first seconds &mdash; bounded, and still falling. Stopping the input and watching is the only test that tells a tail from an oscillator.</span></div>
+        <div class="mod"><span class="nm" style="flex:0 0 34mm">Cost</span><span class="dc">Eight voices with every stage running: <b>2.5 per cent</b> of one core at 1x, <b>4.6</b> at 2x, <b>10.4</b> at 4x.</span></div>
+        <div class="mod"><span class="nm" style="flex:0 0 34mm">And</span><span class="dc">Silence at rest; the envelope shapes; the velocity range; sync making harmonics at the master; ring making sums and differences; poly-mod moving the spectrum; unison beating at the detune; glide times; eight notes sounding and a ninth stealing the oldest; mono legato; choir formant peaks; dropouts counted; DC; two hundred random machines bounded; renders identical to the byte twice over; every parameter driven to both extremes.</span></div>
+      </div>
+    </div>
+
+    <div class="box ox" style="margin-top:6mm">
+      <h4>Probes that lied before the code did</h4>
+      <p>
+        Six of them, and each was rewritten rather than loosened: a
+        zero-crossing pitch estimator that read 46 per cent of wobble out of a
+        two-tap chorus's own cancellation nulls; a pulse source with a spectral
+        null sitting exactly on the formant under test; a pluck measured after
+        it had already decayed; a glide test reading voice 0 of a polyphonic
+        allocation; a vintage test on the one voice whose tolerance happened to
+        be small; and a sustain test reading past the end of its own buffer.
+      </p>
+    </div>
+  </div>
+  <div class="folio"><span>What the bench proves</span><span class="n">17</span></div>
+</section>
+
+<!-- ================================================  18  BACK PAGE  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Credits</p>
+    <h2 class="display">1984</h2>
+    <hr class="rule" />
+
+    <div class="cols">
+      <div class="c-54">
+        <p class="sub" style="margin-top:0">
+          The CS-80, the Prophet-5 and the VP-330 are the machines it is after,
+          and it copies none of them.
+        </p>
+        <p style="margin-top:6mm">
+          What it takes from each is the idea, not the circuit. From the first:
+          two ranks per voice, a high-pass in series with a low-pass, and a
+          filter envelope built out of an initial level and an attack level
+          instead of a sustain. From the second: hard sync, poly-mod and unison,
+          and the habit of letting an oscillator modulate a filter at audio
+          rate. From the third: a fixed formant bank behind a three-phase
+          ensemble, which is how a machine can sound like people.
+        </p>
+        <p>
+          Everything in it was written from scratch, measured on a bench, and
+          kept only if the measurement agreed with the claim. Nothing was tuned
+          by ear afterwards and then described as physics.
+        </p>
+
+        <div class="box" style="margin-top:7mm">
+          <h4>Where to start</h4>
+          <p>
+            <b>CS Strings</b> for what the architecture is for. <b>Vangelis
+            Choir</b> for the choir and the hall. <b>Poly-Mod Sweep</b> for the
+            strange half. <b>Naked Rank I</b> for one oscillator with nothing on
+            it at all, which is where to go when you want to build something
+            yourself.
+          </p>
+        </div>
+      </div>
+
+      <div class="c-42" style="margin-left:auto">
+        <table>
+          <tr><td>Instrument</td><td>1984, a Brokild polysynth</td></tr>
+          <tr><td>Build</td><td class="num">260923.1</td></tr>
+          <tr><td>Written by</td><td>Peter B&oslash;ggild, 2026</td></tr>
+          <tr><td>Built with</td><td>JUCE 8, native C++ audio, the interface drawn in the plugin's own window</td></tr>
+          <tr><td>World rack</td><td>Brokild World FX, the same rack every Brokild instrument carries</td></tr>
+          <tr><td>Home</td><td>peterboggild.github.io/BrokildApps</td></tr>
+        </table>
+
+        <div class="box ox" style="margin-top:8mm">
+          <h4>The usual warning</h4>
+          <p>
+            This VST comes from the curved mind of Professor Brokild, and was
+            programmed with VScode, ChatGPT and Claude. Use of this is on your
+            own peril. It may generate unique, beautiful, scary or useless
+            sounds for you, and it may crash your DAW project. Have fun, play
+            unsafely, unwisely, and unboringly.
+          </p>
+        </div>
+
+        <p class="says" style="margin-top:9mm; font-size:8.4pt">
+          A LATE NIGHT IN 1984
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Credits</span><span class="n">18</span></div>
+</section>
+
+</body>
+</html>

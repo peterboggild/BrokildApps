@@ -1,0 +1,11 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2400)})" },
+  { "name": "deck gaps and padding",
+    "eval": "(function(){var d=document.querySelector('#deck');var cs=getComputedStyle(d);return 'display='+cs.display+' gap='+cs.rowGap+' padT='+cs.paddingTop+' padB='+cs.paddingBottom+' h='+Math.round(d.getBoundingClientRect().height)})()" },
+  { "name": "what is in hbtns",
+    "eval": "(function(){var h=document.querySelector('#hbtns');var hb=h.getBoundingClientRect();var cs=getComputedStyle(h);var out=['hbtns h='+Math.round(hb.height)+' scrollH='+h.scrollHeight+' display='+cs.display+' wrap='+cs.flexWrap+' gap='+cs.rowGap];Array.prototype.forEach.call(h.children,function(c){var r=c.getBoundingClientRect();out.push('['+(c.textContent||'').trim().slice(0,14)+'] '+Math.round(r.width)+'x'+Math.round(r.height)+' top='+Math.round(r.top-hb.top))});return out.join(' | ')})()" },
+  { "name": "macro cell width",
+    "eval": "(function(){var m=document.querySelector('.mac');var r=m.getBoundingClientRect();return 'cell '+Math.round(r.width)+'x'+Math.round(r.height)+'  of 8 in '+Math.round(document.querySelector('#macros').getBoundingClientRect().width)})()" },
+  { "name": "history controls present",
+    "eval": "(function(){var ids=['h_on','h_pos','h_mode','h_dur','h_loop','h_hold'];return ids.map(function(i){var c=__TTY.ctl(i);return i+'='+(c?__TTY.text(i):'NOT PLACED')}).join('  ')})()" }
+]

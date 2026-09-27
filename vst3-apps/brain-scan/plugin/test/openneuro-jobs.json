@@ -1,0 +1,21 @@
+[
+  { "wait": 2600 },
+  { "eval": "__BS.CAM.spin=false; __BS.CAM.yaw=0.72; __BS.CAM.pitch=0.38; 'err ' + JSON.stringify(window.__err) + ' | specimen ' + document.getElementById('hdSpec').textContent + ' | import on ' + __BS.IMP.on" },
+  { "eval": "__BS.NB.send({k:'importPath', path:'C:/Users/peter/Downloads/OpenNeuro-ds000001-sub-01_T1w.nii.gz'}); 'importing the OpenNeuro T1w'" },
+  { "wait": 6000 },
+  { "eval": "'import on: ' + __BS.IMP.on + ' | name ' + __BS.IMP.name + ' | note [' + __BS.IMP.note + '] | err [' + __BS.IMP.err + '] | window ' + Math.round(__BS.IMP.lo) + ' to ' + Math.round(__BS.IMP.hi) + ' | filled ' + JSON.stringify(__BS.IMP.filled)" },
+  { "eval": "'specimen plate now: ' + document.getElementById('hdSpec').textContent + ' | dial window says: ' + document.querySelector('#console .mod .step .cur').textContent" },
+  { "eval": "(function(){var d=__BS.VOL.data,N=64,lo=[99,99,99],hi=[-1,-1,-1],nz=0;for(var k=0;k<N;k++)for(var j=0;j<N;j++)for(var i=0;i<N;i++){var v=d[(k*N+j)*N+i]; if(v>60){nz++;var p=[i,j,k];for(var a=0;a<3;a++){if(p[a]<lo[a])lo[a]=p[a];if(p[a]>hi[a])hi[a]=p[a];}}}return 'the head occupies ' + (hi[0]-lo[0]+1) + ' x ' + (hi[1]-lo[1]+1) + ' x ' + (hi[2]-lo[2]+1) + ' voxels of 64, ' + nz + ' texels of tissue';})()" },
+  { "eval": "__BS.setPlane(0); __BS.draw(); 'axial slice sum ' + __BS.sliceSum() + ' | gantry glow ' + __BS.glowSum()" },
+  { "shoot": { "sel": null, "out": "shots/openneuro-panel.png", "scale": 1 } },
+  { "shoot": { "sel": "#tomoScreen", "out": "shots/openneuro-axial.png", "scale": 2 } },
+  { "eval": "__BS.setPlane(2); __BS.draw(); 'sagittal slice sum ' + __BS.sliceSum()" },
+  { "shoot": { "sel": "#tomoScreen", "out": "shots/openneuro-sagittal.png", "scale": 2 } },
+  { "shoot": { "sel": "#gantryScreen", "out": "shots/openneuro-gantry.png", "scale": 2 } },
+  { "eval": "__BS.NB.send({k:'note', n:47, on:true, vel:0.9}); 'playing the scan'" },
+  { "wait": 900 },
+  { "eval": "'sounding: lvl ' + __BS.VIEW.lvl.toFixed(4) + ' | voices ' + __BS.VIEW.voices.length + ' | note ' + document.getElementById('vNote').textContent" },
+  { "eval": "__BS.NB.send({k:'note', n:47, on:false}); __BS.NB.send({k:'importClear'}); 'note off, import cleared (left as found)'" },
+  { "wait": 1500 },
+  { "eval": "'after clear: on ' + __BS.IMP.on + ' | plate ' + document.getElementById('hdSpec').textContent + ' | errors ' + JSON.stringify(window.__err)" }
+]

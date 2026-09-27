@@ -1,0 +1,23 @@
+{
+  "slug": "martian-gain",
+  "name": "Martian Gain (VST3)",
+  "description": "A multiband distortion. One to five bands, each running one of sixteen algorithms, each with its own limiter — and each level-matched by measurement, so turning DRIVE up changes what a band sounds like without changing how loud it is. The front panel comes off. Underneath is a patch bay where any band's audio or envelope can drive any other band's knobs, or move the crossovers themselves.",
+  "status": "live",
+  "url": "vst3-apps/martian-gain/index.html",
+  "icon": "chart",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/martian-gain.jpg",
+  "note": "Windows VST3 · build 260827.2 · free download · 18-page manual included.",
+  "tags": [
+    "vst3",
+    "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Martian-Gain-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Martian-Gain-VST3-win64.zip",
+      "bytes": 7094566,
+      "sha256": "85e3ff3eaffc34dc6653e0a3235b3e8625a1b33fe28df6e32001eea06f727990"
+    }
+  ]
+}

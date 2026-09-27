@@ -1,0 +1,173 @@
+[
+ {
+  "name": "hero-play",
+  "setup": "window.__M.setMode('play'); window.scrollTo(0,0);",
+  "wait": 1200
+ },
+ {
+  "name": "hero-edit",
+  "setup": "window.__M.setMode('edit'); ['settings','effectsPanel','spectrumPanel','presetsPanel','midiPanel'].forEach(function(id){var d=document.getElementById(id); if(d) d.open=(id==='settings');}); var u=document.querySelectorAll('.unit'); u[0].open=true; u[1].open=false; u[2].open=false; u[3].open=false; window.scrollTo(0,0);",
+  "wait": 1100
+ },
+ {
+  "name": "topbar",
+  "selector": "header",
+  "pad": 4,
+  "setup": "window.__M.setMode('edit'); window.scrollTo(0,0);",
+  "wait": 500
+ },
+ {
+  "name": "transport",
+  "selector": ".transport",
+  "pad": 4,
+  "setup": "window.scrollTo(0,0);",
+  "wait": 400
+ },
+ {
+  "name": "pad-tone",
+  "selector": "#pad-tone",
+  "pad": 4,
+  "setup": "var M=window.__M, p=M.padTone; p.pos={x:p.w*0.46,y:p.h*0.44}; M.apply(p); p.dirty=true; p.draw(); M.updateReadouts();",
+  "wait": 600
+ },
+ {
+  "name": "pad-fx",
+  "selector": "#pad-fx",
+  "pad": 4,
+  "setup": "var M=window.__M, p=M.padFx; p.pos={x:p.w*0.58,y:p.h*0.52}; M.apply(p); p.dirty=true; p.draw();",
+  "wait": 600
+ },
+ {
+  "name": "pad-env",
+  "selector": "#pad-env",
+  "pad": 4,
+  "setup": "var M=window.__M, p=M.padEnv; p.pos={x:p.w*0.36,y:p.h*0.60}; M.apply(p); p.dirty=true; p.draw();",
+  "wait": 600
+ },
+ {
+  "name": "pad-motion",
+  "selector": "#pad-tone",
+  "pad": 4,
+  "setup": "var M=window.__M, p=M.padTone; p.pos={x:p.w*0.30,y:p.h*0.62}; var pts=[]; for(var i=0;i<=48;i++){var t=i/48; pts.push({t:t*2.4, dx:Math.sin(t*6.2832)*p.w*0.22, dy:-Math.sin(t*12.5664)*p.h*0.16});} p.motion={kind:'recorded',dur:2.4,dx:0,dy:0,pts:pts}; p.auto=M.startAuto(p,p.pos); M.updateMotionUI(); M.setPadPaused(p,true); var k=pts[14]; p.pos={x:p.auto.x0+k.dx, y:p.auto.y0+k.dy}; M.apply(p); p.dirty=true; p.draw();",
+  "wait": 700
+ },
+ {
+  "name": "pad-tone-spread",
+  "selector": "#pad-tone",
+  "pad": 4,
+  "setup": "var M=window.__M,$=function(i){return document.getElementById(i);}; var p=M.padTone; M.setPadPaused(p,false); p.motion=null; p.auto=null; M.updateMotionUI(); $('voices').value='12'; $('voices').dispatchEvent(new Event('input')); $('spread').value='46'; $('spread').dispatchEvent(new Event('input')); p.pos={x:p.w*0.46,y:p.h*0.44}; M.apply(p); p.dirty=true; p.draw();",
+  "wait": 700
+ },
+ {
+  "name": "scope",
+  "selector": ".scope",
+  "pad": 4,
+  "setup": "window.__M.setMode('edit');",
+  "wait": 700
+ },
+ {
+  "name": "sound-voice",
+  "selector": ".unit:nth-of-type(1)",
+  "pad": 4,
+  "setup": "var $=function(i){return document.getElementById(i);}; $('settings').open=true; var u=document.querySelectorAll('.unit'); u[0].open=true; u[1].open=false; u[2].open=false; u[3].open=false; $('voices').value='7'; $('voices').dispatchEvent(new Event('input')); $('spread').value='34'; $('spread').dispatchEvent(new Event('input'));",
+  "wait": 600
+ },
+ {
+  "name": "sound-units-folded",
+  "selector": "#settings",
+  "pad": 4,
+  "setup": "var u=document.querySelectorAll('.unit'); u[0].open=false; u[1].open=false; u[2].open=false; u[3].open=false;",
+  "wait": 500
+ },
+ {
+  "name": "sound-pitch",
+  "selector": ".unit:nth-of-type(2)",
+  "pad": 4,
+  "setup": "var $=function(i){return document.getElementById(i);}; var u=document.querySelectorAll('.unit'); u[1].open=true; $('tune').value='-3'; $('tune').dispatchEvent(new Event('input')); $('fine').value='18'; $('fine').dispatchEvent(new Event('input')); $('tuneTarget').value='9'; $('tuneTarget').dispatchEvent(new Event('change'));",
+  "wait": 600
+ },
+ {
+  "name": "sound-env",
+  "selector": ".unit:nth-of-type(3)",
+  "pad": 4,
+  "setup": "var u=document.querySelectorAll('.unit'); u[1].open=false; u[2].open=true;",
+  "wait": 500
+ },
+ {
+  "name": "sound-filter",
+  "selector": ".unit:nth-of-type(4)",
+  "pad": 4,
+  "setup": "var $=function(i){return document.getElementById(i);}; var u=document.querySelectorAll('.unit'); u[2].open=false; u[3].open=true; document.querySelector('[data-keyfollow=\"0.5\"]').click(); $('filterQ').value='72'; $('filterQ').dispatchEvent(new Event('input'));",
+  "wait": 600
+ },
+ {
+  "name": "spectra-panel",
+  "selector": "#spectrumPanel",
+  "pad": 4,
+  "setup": "var $=function(i){return document.getElementById(i);}; $('settings').open=false; $('spectrumPanel').open=true; var n=document.querySelectorAll('.spec-controls'); for(var i=0;i<n.length;i++) n[i].style.display='none'; window.__M.specToggle('tape'); window.scrollTo(0,0);",
+  "wait": 800
+ },
+ {
+  "name": "spectra-module",
+  "selector": "[data-spec=\"tape\"]",
+  "pad": 4,
+  "setup": "var m=document.querySelector('[data-spec=\"tape\"]'); m.querySelector('.spec-controls').style.display=''; var t=m.querySelector('.spec-toggle'); if(t && t.getAttribute('aria-expanded')!=='true') t.click(); var h=m.querySelector('.spec-help'); if(m.querySelector('.spec-controls .note').hidden) h.click();",
+  "wait": 600
+ },
+ {
+  "name": "spectra-black",
+  "selector": "[data-spec=\"black\"]",
+  "pad": 4,
+  "setup": "window.__M.specToggle('tape'); var m=document.querySelector('[data-spec=\"black\"]'); m.querySelector('.spec-controls').style.display=''; var t=m.querySelector('.spec-toggle'); if(t && t.getAttribute('aria-expanded')!=='true') t.click(); window.__M.specToggle('black');",
+  "wait": 700
+ },
+ {
+  "name": "effects-rack",
+  "selector": "#fxList",
+  "pad": 4,
+  "setup": "var $=function(i){return document.getElementById(i);}; window.__M.specToggle('black'); $('spectrumPanel').open=false; $('effectsPanel').open=true; var c=document.querySelectorAll('.fx-controls'); for(var i=0;i<c.length;i++) c[i].style.display='none'; window.scrollTo(0,0);",
+  "wait": 800
+ },
+ {
+  "name": "fx-delay",
+  "selector": "[data-fx=\"delay\"]",
+  "pad": 4,
+  "setup": "var m=document.querySelector('[data-fx=\"delay\"]'); m.querySelector('.fx-controls').style.display=''; var t=m.querySelector('.fx-toggle'); if(t.getAttribute('aria-expanded')!=='true') t.click();",
+  "wait": 600
+ },
+ {
+  "name": "fx-delay-sync",
+  "selector": "[data-fx=\"delay\"]",
+  "pad": 4,
+  "setup": "var b=document.getElementById('delaySyncBtn'); if(b && b.getAttribute('aria-pressed')!=='true') b.click();",
+  "wait": 700
+ },
+ {
+  "name": "presets",
+  "selector": "#presetsPanel",
+  "pad": 4,
+  "setup": "var $=function(i){return document.getElementById(i);}; $('effectsPanel').open=false; $('presetsPanel').open=true; window.scrollTo(0,0);",
+  "wait": 900
+ },
+ {
+  "name": "file",
+  "selector": "#midiPanel",
+  "pad": 4,
+  "setup": "var $=function(i){return document.getElementById(i);}; $('presetsPanel').open=false; $('midiPanel').open=true; window.scrollTo(0,0);",
+  "wait": 700
+ },
+ {
+  "name": "keyboard",
+  "selector": "#kbdPanel",
+  "pad": 4,
+  "setup": "document.getElementById('keysBtn').click();",
+  "wait": 800
+ },
+ {
+  "name": "about-build",
+  "selector": "#aboutBox > div",
+  "pad": 4,
+  "setup": "document.getElementById('keysBtn').click(); document.getElementById('aboutBtn').click();",
+  "wait": 700
+ }
+]

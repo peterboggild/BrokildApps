@@ -1,0 +1,23 @@
+{
+  "slug": "high-tide",
+  "name": "High Tide (VST3)",
+  "description": "A wavetable synth that stores no waveforms either: every frame is a bowl on a sculpted terrain, and the sound is what a mass does when it is dropped into it, integrated by Newton's law at audio rate. A parabola is a sine; a pit in the floor is a pulse. A rising tide floods the passes between the valleys so the ball can be towed anywhere, and pins on a timeline put it exactly where you want it, when you want it there. A photograph makes a landscape of bowls.",
+  "status": "live",
+  "url": "vst3-apps/high-tide/index.html",
+  "icon": "keys",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/high-tide.jpg",
+  "note": "Windows VST3 · build 260904.4 · free download · 17 starters + 12 terrains · hints on every control · 15-page manual.",
+  "tags": [
+    "vst3",
+    "synth"
+  ],
+  "downloads": [
+    {
+      "name": "High-Tide-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/High-Tide-VST3-win64.zip",
+      "bytes": 9723509,
+      "sha256": "a22529e3cef58e12e5e9d29c35b6c8f2adc72ffb1b21782a8f718c089ef0b22c"
+    }
+  ]
+}

@@ -1,0 +1,453 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Gravity Well - the well</title>
+<!--
+  The panel's centrepiece, built standalone first so it can be LOOKED at
+  before it is wired to anything.  Every element is a formula, not a styling
+  choice:
+
+    Flamm's paraboloid   z = 2*sqrt(rs*(r - rs))        the embedding diagram
+    point-lens imaging   beta = theta * (1 - (thetaE/theta)^2)   exact for a
+                                                        point mass: it gives
+                                                        the Einstein ring and
+                                                        the inversion inside
+    photon sphere        r = 1.5 rs
+    relativistic beaming I ~ D^3, D = 1/(gamma(1 - v.n))  the approaching side
+                                                        of the disk is brighter,
+                                                        which is why the EHT and
+                                                        Interstellar images look
+                                                        lopsided
+    Keplerian orbits     Omega ~ r^(-3/2)
+    time dilation        dtau/dt = sqrt(1 - rs/r)        the modulators' rates
+
+  Here MASS is driven by a fake envelope so the motion can be judged; in the
+  plug-in it is the live signal.
+-->
+<style>
+  :root{ --ink:#e8eef6; --dim:#70839a; }
+  html,body{margin:0;height:100%;background:#05070c;color:var(--ink);
+            font:12px/1.5 ui-monospace,Consolas,monospace;overflow:hidden}
+  #wrap{position:fixed;inset:0;display:grid;grid-template-rows:1fr auto}
+  canvas{width:100%;height:100%;display:block}
+  #foot{padding:10px 16px;border-top:1px solid #16202e;background:#070a11;
+        display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+  .rd{color:var(--dim)} .rd b{color:#ffb469;font-weight:600}
+  label{display:flex;gap:8px;align-items:center;color:var(--dim)}
+  input[type=range]{width:150px}
+  .tag{letter-spacing:.22em;color:#4d5f76}
+</style>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="foot">
+    <span class="tag">GRAVITY WELL</span>
+    <label>MASS <input id="mass" type="range" min="0" max="100" value="0"></label>
+    <label>HORIZON <input id="hor" type="range" min="0" max="100" value="60"></label>
+    <label><input id="pulse" type="checkbox" checked> pulse</label>
+    <span class="rd">rs <b id="rrs">0.00</b></span>
+    <span class="rd">modulator dilation <b id="rdil">-</b></span>
+    <span class="rd">frame <b id="rfps">-</b></span>
+    <span class="rd" id="rfrozen"></span>
+  </div>
+</div>
+<script>
+"use strict";
+const R_NEAR = 1.0, R_FAR = 12.0, R_HORIZON_MAX = 6.0;
+
+//  Six modulators at radii, exactly as the engine lays them out.
+const MODS = [
+  { name:"ENV2",  r:0.30, rate:0.55, hue:[1.00,0.72,0.36] },
+  { name:"LFO1",  r:0.46, rate:0.90, hue:[0.45,0.86,1.00] },
+  { name:"LFO2",  r:0.62, rate:0.60, hue:[0.62,1.00,0.78] },
+  { name:"LFO3",  r:0.78, rate:1.30, hue:[1.00,0.55,0.80] },
+  { name:"RND",   r:0.90, rate:0.40, hue:[0.85,0.80,1.00] },
+  { name:"CHIRP", r:1.00, rate:0.75, hue:[1.00,0.92,0.60] }
+];
+
+const cv = document.getElementById("c");
+const gl = cv.getContext("webgl2", { antialias:true, alpha:false });
+if (!gl) document.body.innerHTML = "<p style='padding:2rem'>WebGL2 is needed for this page.</p>";
+
+function sh (type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function prog (vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+
+/* ---------------------------------------------------------------- pass 1
+   Sky: a procedural starfield, lensed by the point-mass lens equation, with
+   the horizon punched out and the photon ring laid on.                     */
+const SKY_VS = `#version 300 es
+in vec2 pos; out vec2 uv;
+void main(){ uv = pos; gl_Position = vec4(pos,0.,1.); }`;
+
+const SKY_FS = `#version 300 es
+precision highp float;
+in vec2 uv; out vec4 frag;
+uniform float uAspect, uRs, uTime, uMass, uCy, uAz;
+
+//  A sin-free hash (Hoskins). fract(sin(big)) loses float precision on a GPU
+//  and neighbouring cells correlate: the stars fell into rows of dots.
+float h21(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+
+//  A starfield that can be sampled in any direction, so lensing can move it.
+vec3 sky(vec2 d){
+  vec3 c = vec3(0.0);
+  //  The Milky Way: a tilted band, clumped along its length, where the stars
+  //  crowd.  The old field was three layers down to a third of a pixel, and
+  //  a star that small shimmers like an LED the moment anything moves.
+  float bx = d.y*1.6 + d.x*0.35;
+  float band = exp(-bx*bx*4.0);
+  float clump = 0.55 + 0.45*sin(d.x*5.3 + 1.7)*sin(d.x*2.1 - d.y*4.2 + 0.4);
+  float dens = band * clump;
+  for (int L = 0; L < 2; ++L){
+    float s = 48.0 * pow(2.0, float(L));
+    float thr = 0.963 - 0.10 * dens;               // more stars inside the band, not a crowd
+    vec2 g = d * s;
+    vec2 id = floor(g), f = fract(g);
+    for (int j=-1;j<=1;++j) for (int i=-1;i<=1;++i){
+      vec2 o = vec2(float(i), float(j));
+      vec2 q = id + o;
+      float r = h21(q);
+      if (r < thr) continue;                        // most cells are empty
+      vec2 sp = o + vec2(h21(q+7.1), h21(q+3.3));
+      float d2 = dot(f - sp, f - sp);
+      //  most stars faint, a few bright: brightness is a steep power law
+      float br = pow((r - thr) / (1.0 - thr), 2.6) * (L == 0 ? 1.7 : 0.9);
+      //  a slow breath, not a twinkle: a tenth of the old rate and depth
+      float tw = 0.92 + 0.08 * sin(uTime * (0.12 + 0.3*h21(q+11.0)) + r*30.0);
+      vec3 tint = mix(vec3(0.72,0.82,1.0), vec3(1.0,0.87,0.70), h21(q+19.0));
+      //  at least a pixel wide at this cell size, with a halo on the bright ones
+      float k = (L == 0) ? 14.0 : 7.0;
+      c += tint * br * tw * (exp(-d2 * k) + 0.10 * br * exp(-d2 * k * 0.12)) * 0.9;
+    }
+  }
+  //  the unresolved stars: the band's own glow, mottled by dust lanes
+  float dust = 0.55 + 0.45*sin(d.x*19.0 + sin(d.y*13.0)*1.3)*sin(d.y*15.0 - d.x*5.0);
+  c += vec3(0.034,0.044,0.070) * band * (0.5 + 0.9*clump) * dust;
+  return c;
+}
+
+void main(){
+  vec2 th = vec2(uv.x * uAspect, uv.y - uCy);    // image-plane angle, on the throat
+  float t = length(th);
+
+  //  Einstein radius grows as sqrt(M): thetaE^2 ~ rs
+  float thE = sqrt(max(uRs, 0.0)) * 0.030;
+
+  //  the point-mass lens equation, which is exact and gives the ring for free
+  //  The lens equation is exact, but beta runs away as theta -> 0 and the
+  //  star hash then collapses numerically and returns black - which reads
+  //  as a shadow that is not there.  Clamp the impact parameter so the
+  //  deflection stays bounded; the funnel covers the middle anyway.
+  float tc = max(t, thE * 0.75);
+  vec2 beta = th * (1.0 - (thE*thE) / (tc*tc));
+  //  the sky is far away: it turns a quarter as fast as the old parallax
+  vec3 col = sky(beta * 1.9 + vec2(uAz * 0.04, 0.0));
+
+  //  horizon and photon ring, in image-plane units
+  //  The throat and its photon ring are drawn later, in the funnel own
+  //  projection, so that they sit ON the well instead of floating in front.
+
+  frag = vec4(col, 1.0);
+}`;
+
+/* ---------------------------------------------------------------- pass 2
+   The funnel: a polar grid displaced by Flamm's paraboloid.  Drawn as lines
+   so it reads as curved SPACE rather than as a solid object.               */
+const GRID_VS = `#version 300 es
+in vec2 rt;                 // (radius01, theta01)
+uniform float uRs, uAspect, uElev, uScale, uCy, uAz;
+uniform vec2 uOff;          // a pixel or two of offset: the same lines, redrawn for weight and glow
+out float vDepth; out float vR;
+void main(){
+  float rMax = 13.0;
+  float r = mix(0.30, rMax, rt.x);
+  float a = rt.y * 6.283185307 + uAz;
+  //  Flamm's paraboloid, only defined outside the horizon
+  float z = (r > uRs && uRs > 0.001) ? -2.0 * sqrt(uRs * (r - uRs)) : 0.0;
+  vec2 w = vec2(cos(a), sin(a)) * r;
+  float sx = w.x;
+  float sy = w.y * sin(uElev) - z * cos(uElev);
+  vDepth = -z;  vR = r;
+  gl_Position = vec4(sx / (rMax*uScale) / uAspect + uOff.x, sy / (rMax*uScale) + uCy + uOff.y, 0.0, 1.0);
+}`;
+
+const GRID_FS = `#version 300 es
+precision highp float;
+in float vDepth; in float vR; out vec4 frag;
+uniform float uRs, uMass, uGain;
+void main(){
+  float deep = clamp(vDepth / 9.0, 0.0, 1.0);
+  //  cool far out, hot near the throat - it is a potential, so show it
+  vec3 c = mix(vec3(0.18,0.30,0.45), vec3(1.00,0.52,0.20), pow(deep, 0.75));
+  float fade = smoothstep(13.0, 5.0, vR) * 0.55 + 0.12;
+  float lit  = 0.35 + 0.65 * uMass;
+  frag = vec4(c * fade * lit * uGain, 1.0);
+}`;
+
+/* ---------------------------------------------------------------- pass 3
+   The accretion disk, with relativistic beaming: the side coming towards
+   you is brighter, by the Doppler factor cubed.                           */
+const DISK_VS = `#version 300 es
+in vec2 rt;
+uniform float uRs, uAspect, uElev, uScale, uSpin, uCy, uAz;
+out float vB; out float vR;
+void main(){
+  //  The ISCO really is at 3 rs, but at a heavy mass that is most of the
+  //  visible plane and the disk stops reading as a ring round the throat.
+  //  Hug the throat instead, and stay inside the grid.
+  float rIn = clamp(uRs * 1.08, 0.40, 9.0), rOut = min(rIn * 2.4, 11.5);
+  float r = mix(rIn, rOut, rt.x);
+  float a = rt.y * 6.283185307 + uAz;
+  vec2 w = vec2(cos(a), sin(a)) * r;
+  //  sit ON the funnel surface, not on a flat plane through it
+  float z = (r > uRs && uRs > 0.001) ? -2.0 * sqrt(uRs * (r - uRs)) : 0.0;
+  float sx = w.x;
+  float sy = w.y * sin(uElev) - z * cos(uElev);
+
+  //  orbital speed ~ 1/sqrt(r); the component towards the camera is what beams
+  float v = 0.62 / sqrt(max(r, 0.2));
+  float towards = -cos(a);                       // +x side approaches
+  float g = 1.0 / sqrt(max(1.0 - v*v, 1e-3));
+  float D = 1.0 / (g * (1.0 - v * towards));
+  vB = pow(D, 3.0) * smoothstep(rOut, rIn, r);
+  vR = rt.x;
+  gl_Position = vec4(sx / (13.0*uScale) / uAspect, sy / (13.0*uScale) + uCy, 0.0, 1.0);
+}`;
+
+const DISK_FS = `#version 300 es
+precision highp float;
+in float vB; in float vR; out vec4 frag;
+uniform float uMass;
+void main(){
+  float body = exp(-pow((vR - 0.18) / 0.26, 2.0));
+  vec3 hot = mix(vec3(1.0,0.42,0.12), vec3(1.0,0.93,0.72), clamp(vB*0.35,0.0,1.0));
+  frag = vec4(hot * body * vB * (0.05 + 0.55*uMass), 1.0);
+}`;
+
+/* ---------------------------------------------------------------- pass 4
+   The modulators: bodies on Keplerian orbits, ticking at their own dilated
+   rates.  A frozen one visibly stops.                                     */
+const PT_VS = `#version 300 es
+in vec2 xy; in float sz;
+uniform float uAspect, uScale, uCy;
+void main(){
+  gl_Position = vec4(xy.x / (13.0*uScale) / uAspect, xy.y / (13.0*uScale) + uCy, 0.0, 1.0);
+  gl_PointSize = sz;
+}`;
+const PT_FS = `#version 300 es
+precision highp float;
+uniform vec3 uCol; uniform float uAlpha; out vec4 frag;
+void main(){
+  vec2 d = gl_PointCoord - 0.5;
+  float r = length(d) * 2.0;
+  float core = exp(-r*r*9.0);
+  float halo = exp(-r*r*2.2) * 0.45;
+  frag = vec4(uCol * (core + halo) * uAlpha, 1.0);
+}`;
+
+const pSky  = prog(SKY_VS,  SKY_FS);
+const pGrid = prog(GRID_VS, GRID_FS);
+const pDisk = prog(DISK_VS, DISK_FS);
+const pPt   = prog(PT_VS,   PT_FS);
+
+//  full-screen quad
+const quad = gl.createVertexArray();
+gl.bindVertexArray(quad);
+const qb = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, qb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+
+//  polar line grid: rings and spokes
+function buildGrid(){
+  const v = [], RINGS = 22, SPOKES = 48, SEG = 128;
+  for (let i=0;i<RINGS;i++){ const t=i/(RINGS-1);
+    for (let s=0;s<SEG;s++){ v.push(t, s/SEG, t, (s+1)/SEG); } }
+  for (let k=0;k<SPOKES;k++){ const a=k/SPOKES;
+    for (let s=0;s<SEG;s++){ v.push(s/SEG, a, (s+1)/SEG, a); } }
+  return new Float32Array(v);
+}
+const gridData = buildGrid();
+const gridVao = gl.createVertexArray(); gl.bindVertexArray(gridVao);
+const gridBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf);
+gl.bufferData(gl.ARRAY_BUFFER, gridData, gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+
+//  disk: a triangle strip annulus
+function buildDisk(){
+  const v = [], SEG = 220;
+  for (let s=0;s<=SEG;s++){ const a=s/SEG; v.push(0,a, 1,a); }
+  return new Float32Array(v);
+}
+const diskData = buildDisk();
+const diskVao = gl.createVertexArray(); gl.bindVertexArray(diskVao);
+const diskBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, diskBuf);
+gl.bufferData(gl.ARRAY_BUFFER, diskData, gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+
+const ptVao = gl.createVertexArray(); gl.bindVertexArray(ptVao);
+const ptBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, ptBuf);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,12,0);
+gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1,1,gl.FLOAT,false,12,8);
+
+const U = (p,n) => gl.getUniformLocation(p,n);
+let ELEV = 0.40;                     // ~23 degrees: a low drone-camera angle
+const VIEW  = 1.18;                    // how much of the frame the funnel fills
+let AZ = 0.0, azVel = 0.0;
+let   CY    = 0.12;                    // the throat, in NDC y - refitted every frame
+
+let phase = MODS.map(()=>Math.random());
+let fps = 0, fpsAcc = 0, fpsN = 0;
+function downNow(){ return false; }   // inertia always decays; drag overwrites AZ directly
+//  #mass=75&hor=60&pulse=0 - so a screenshot can pin a state without a jobs file
+(function(){
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (q.has("mass"))  document.getElementById("mass").value = q.get("mass");
+  if (q.has("hor"))   document.getElementById("hor").value  = q.get("hor");
+  if (q.has("pulse")) document.getElementById("pulse").checked = q.get("pulse") !== "0";
+})();
+
+
+//  Drag to orbit, wheel for elevation.  Inertia so a flick keeps turning,
+//  and a slow idle drift so the thing is never quite still.
+(function(){
+  let down = false, lastX = 0, lastY = 0;
+  cv.addEventListener("pointerdown", e => { down = true; lastX = e.clientX; lastY = e.clientY;
+                                            try { cv.setPointerCapture(e.pointerId); } catch(_){} });
+  cv.addEventListener("pointerup",   e => { down = false; });
+  cv.addEventListener("pointercancel", () => { down = false; });
+  cv.addEventListener("pointermove", e => {
+    if (!down) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    azVel = -dx * 0.006;
+    AZ   += azVel;
+    ELEV  = Math.max(0.09, Math.min(1.35, ELEV + dy * 0.004));
+  });
+  cv.addEventListener("wheel", e => {
+    e.preventDefault();
+    ELEV = Math.max(0.09, Math.min(1.35, ELEV + Math.sign(e.deltaY) * 0.035));
+  }, { passive:false });
+})();
+let t0 = performance.now(), last = t0;
+const el = id => document.getElementById(id);
+
+function frame(){
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const T  = (now - t0) / 1000;
+  if (!downNow()) { AZ += azVel; azVel *= 0.94; AZ += 0.0012; }   // idle drift
+  fpsAcc += dt; fpsN++;
+  if (fpsAcc > 0.5) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
+
+  //  MASS: the manual knob plus a fake bass envelope so the motion is visible
+  let m = +el("mass").value / 100;
+  if (el("pulse").checked){
+    const beat = (T * 2.0) % 1.0;                       // 120 bpm
+    m = Math.min(1, m + 0.55 * Math.pow(1 - beat, 3.2));
+  }
+  const horizon = +el("hor").value / 100;
+  const rs = m * horizon * R_HORIZON_MAX;
+
+  const w = cv.clientWidth, h = cv.clientHeight, dpr = Math.min(2, devicePixelRatio||1);
+  if (cv.width !== w*dpr || cv.height !== h*dpr){ cv.width = w*dpr; cv.height = h*dpr; }
+  gl.viewport(0,0,cv.width,cv.height);
+  const aspect = cv.width / cv.height;
+  //  The funnel gets deeper as mass rises, so a fixed zoom overflows.
+  //  Fit it: the outermost ring must stay inside the frame in both axes.
+  const rMax = 13.0;
+  const zMax = rs > 0.001 ? 2 * Math.sqrt(rs * (rMax - rs)) : 0;
+  const extentY = rMax * Math.sin(ELEV) + zMax * Math.cos(ELEV);
+  //  FILL THE GLASS.  The old fit made the whole funnel a third of the frame
+  //  and parked the throat at a fixed height, so at the default mass it used
+  //  35% of the width and 34% of the height (Peter: "could be larger - to
+  //  fill out the centre better").  Now: the real top is the far rim, the
+  //  real bottom the throat or the near rim, whichever is lower; size that
+  //  span to FILL_Y of the height, never wider than FILL_X, and centre it a
+  //  little high so the throat clears the telemetry.  CY moves with it, and
+  //  the lens and the lights read CY, so they stay on the throat.
+  const FILL_Y = 0.82, FILL_X = 0.97, LIFT = 0.07;
+  const topY = rMax * Math.sin(ELEV) + zMax * Math.cos(ELEV);
+  const botY = Math.min(0, -rMax * Math.sin(ELEV) + zMax * Math.cos(ELEV));
+  const scale = Math.max((topY - botY) / (rMax * 2 * FILL_Y), 1 / (aspect * FILL_X)) * (VIEW / 1.18);
+  CY = LIFT - ((topY + botY) / 2) / (rMax * scale);
+
+  gl.disable(gl.BLEND);
+  gl.useProgram(pSky); gl.bindVertexArray(quad);
+  gl.uniform1f(U(pSky,"uAspect"), aspect);
+  gl.uniform1f(U(pSky,"uRs"), rs);
+  gl.uniform1f(U(pSky,"uTime"), T);
+  gl.uniform1f(U(pSky,"uMass"), m);
+  gl.uniform1f(U(pSky,"uCy"), CY); gl.uniform1f(U(pSky,"uAz"), AZ);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+
+  gl.useProgram(pGrid); gl.bindVertexArray(gridVao);
+  gl.uniform1f(U(pGrid,"uRs"), rs);       gl.uniform1f(U(pGrid,"uAspect"), aspect);
+  gl.uniform1f(U(pGrid,"uElev"), ELEV);   gl.uniform1f(U(pGrid,"uScale"), scale); gl.uniform1f(U(pGrid,"uCy"), CY); gl.uniform1f(U(pGrid,"uAz"), AZ);
+  gl.uniform1f(U(pGrid,"uMass"), m);
+  //  WebGL draws a line one pixel wide whatever lineWidth says, so weight
+  //  and glow come from drawing the same small mesh again a pixel or two
+  //  off: the core, two passes that thicken it, four faint ones that glow.
+  //  Seven draws of a few thousand vertices - nothing next to the sky pass.
+  {
+    const dprG = Math.min(2, devicePixelRatio || 1);
+    const px = 2 * dprG / gl.drawingBufferWidth, py = 2 * dprG / gl.drawingBufferHeight;
+    const passes = [[0, 0, 1.0], [px, 0, 0.55], [0, py, 0.55],
+                    [2*px, 2*py, 0.10], [-2*px, 2*py, 0.10], [2*px, -2*py, 0.10], [-2*px, -2*py, 0.10]];
+    for (const q of passes) {
+      gl.uniform2f(U(pGrid,"uOff"), q[0], q[1]);
+      gl.uniform1f(U(pGrid,"uGain"), q[2]);
+      gl.drawArrays(gl.LINES, 0, gridData.length/2);
+    }
+  }
+
+  gl.useProgram(pDisk); gl.bindVertexArray(diskVao);
+  gl.uniform1f(U(pDisk,"uRs"), rs);       gl.uniform1f(U(pDisk,"uAspect"), aspect);
+  gl.uniform1f(U(pDisk,"uElev"), ELEV);   gl.uniform1f(U(pDisk,"uScale"), scale); gl.uniform1f(U(pDisk,"uCy"), CY); gl.uniform1f(U(pDisk,"uAz"), AZ);
+  gl.uniform1f(U(pDisk,"uMass"), m);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, diskData.length/2);
+
+  //  the modulators
+  gl.useProgram(pPt); gl.bindVertexArray(ptVao);
+  gl.uniform1f(U(pPt,"uAspect"), aspect); gl.uniform1f(U(pPt,"uScale"), scale); gl.uniform1f(U(pPt,"uCy"), CY);
+  let dilTxt = [], frozen = [];
+  for (let i=0;i<MODS.length;i++){
+    const M = MODS[i];
+    const r = R_NEAR + M.r * (R_FAR - R_NEAR);
+    const dil = r > rs ? Math.sqrt(Math.max(0, 1 - rs/r)) : 0;
+    //  Keplerian orbit, slowed by the very dilation the engine applies
+    phase[i] = (phase[i] + dt * M.rate * Math.pow(r, -1.5) * 2.6 * dil) % 1;
+    const a = phase[i] * Math.PI * 2 + AZ;
+    const z = r > rs && rs > 0.001 ? -2 * Math.sqrt(rs * (r - rs)) : 0;
+    const sx = Math.cos(a) * r;
+    const sy = Math.sin(a) * r * Math.sin(ELEV) - z * Math.cos(ELEV);
+    const sz = (10 + 16 * dil) * dpr;
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([sx, sy, sz]), gl.DYNAMIC_DRAW);
+    gl.uniform3f(U(pPt,"uCol"), M.hue[0], M.hue[1], M.hue[2]);
+    gl.uniform1f(U(pPt,"uAlpha"), dil > 0 ? 1.0 : 0.30);
+    gl.drawArrays(gl.POINTS, 0, 1);
+    dilTxt.push(dil.toFixed(2));
+    if (dil <= 0) frozen.push(M.name);
+  }
+
+  el("rrs").textContent  = rs.toFixed(2);
+  el("rfps").textContent = fps.toFixed(0) + " fps  elev " + (ELEV*57.3).toFixed(0) + String.fromCharCode(176);
+  el("rdil").textContent = dilTxt.join("  ");
+  el("rfrozen").innerHTML = frozen.length
+      ? "<b style='color:#ff6b6b'>FROZEN: " + frozen.join(" ") + "</b>" : "";
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>

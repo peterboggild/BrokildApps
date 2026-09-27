@@ -1,0 +1,4 @@
+[
+  {"wait": 600},
+  {"eval": "'22 final: climate=' + SITE.climate + ' bench=' + Math.round(SITE.kelvin) + ' local=' + Math.round(SITE.local) + ' rdT=' + document.getElementById('rdT').textContent + ' distance=' + SITE.distance + ' err=' + window.__err"}
+]

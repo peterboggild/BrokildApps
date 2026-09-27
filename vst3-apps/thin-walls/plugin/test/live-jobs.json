@@ -1,0 +1,9 @@
+[
+  { "name": "settle", "wait": 3500 },
+  { "name": "bridge", "eval": "JSON.stringify({ live: !!(window.__JUCE__ && window.__JUCE__.backend), errors: window.__err, hasTW: !!window.__TW, renderer: window.__TW && window.__TW.renderer })" },
+  { "name": "state", "eval": "(function(){ var s = window.__TW && window.__TW.state ? window.__TW.state() : null; return JSON.stringify({ keys: s ? Object.keys(s).length : 0, lisx: s && s.lisx, s1x: s && s.s1x, srcx: s && s.srcx }); })()" },
+  { "name": "scene", "eval": "(function(){ var sc = window.__TW && window.__TW.scene ? window.__TW.scene() : null; return JSON.stringify({ has: !!sc, sources: sc && sc.sources ? sc.sources.length : -1, paths: sc && sc.paths ? sc.paths.length : -1, rt: sc && sc.rt, inDb: sc && sc.in, drr: sc && sc.drr }); })()" },
+  { "name": "wait", "wait": 1500 },
+  { "name": "scene2", "eval": "(function(){ var sc = window.__TW && window.__TW.scene ? window.__TW.scene() : null; return JSON.stringify({ paths: sc && sc.paths ? sc.paths.length : -1, first: sc && sc.paths && sc.paths[0] }); })()" },
+  { "name": "shot", "shoot": "C:\\Users\\peter\\b\\ThinWalls\\docs\\live-shot.png" }
+]

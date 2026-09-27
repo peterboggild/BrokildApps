@@ -1,0 +1,12 @@
+[
+  { "wait": 2600 },
+  { "eval": "__BS.CAM.spin=false; __BS.CAM.yaw=0.72; __BS.CAM.pitch=0.38; document.getElementById('btnHints').classList.remove('on'); 'ready'" },
+  { "eval": "__BS.NB.send({k:'importPath', path:'C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/4b3f67b0-cb16-4946-bd9e-d4e84757933e/scratchpad/phantom.nii'}); 'importing'" },
+  { "wait": 2600 },
+  { "eval": "'filled ' + JSON.stringify(__BS.IMP.filled) + ' window ' + Math.round(__BS.IMP.lo) + '..' + Math.round(__BS.IMP.hi)" },
+  { "shoot": { "sel": "#console .mod:nth-child(1)", "out": "shots/m-import.png", "pad": 3, "scale": 3 } },
+  { "eval": "__BS.GX.lev=0.47; __BS.GX.win=0.06; __BS.draw(); 'a brain window on the slice'" },
+  { "wait": 300 },
+  { "shoot": { "sel": "#tomoScreen", "out": "shots/m-import-window.png", "scale": 2 } },
+  { "eval": "__BS.NB.send({k:'importClear'}); 'cleared'" }
+]

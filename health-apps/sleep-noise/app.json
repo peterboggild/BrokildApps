@@ -1,0 +1,15 @@
+{
+  "slug": "sleep-noise",
+  "name": "Sleeper Agent (HTML)",
+  "description": "A five-fader mixer for sleeping sound: brown noise, green noise, rain, soft rain and ocean, in any combination rather than one at a time. A space slider runs from mono through plain stereo to a binaural render, so over headphones the noise fills the room instead of sitting on the phone. Sleep timer, fades, tone, swell and a blackout screen underneath; five slow ambient themes on a fader of their own. Generated privately in the browser.",
+  "status": "live",
+  "url": "health-apps/sleep-noise/index.html",
+  "icon": "moon",
+  "preview": "assets/app-previews/sleep-noise.png",
+  "note": "Designed for overnight use on a phone. The ambient themes are optional and off by default.",
+  "tags": [
+    "browser",
+    "phone",
+    "synth"
+  ]
+}

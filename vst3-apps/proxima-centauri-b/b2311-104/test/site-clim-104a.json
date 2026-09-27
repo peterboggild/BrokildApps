@@ -1,0 +1,11 @@
+[
+  {"wait": 1200},
+  {"eval": "'104 start: climate=' + SITE.climate + ' others=' + SITE.others + ' local=' + Math.round(SITE.local) + ' V.ambient=' + V.ambient.toFixed(3) + ' tval=' + document.querySelector('#tval').textContent"},
+  {"eval": "NB.send({k:'site', climate:false}); 'climate set OFF (clean start)'"},
+  {"wait": 800},
+  {"eval": "setParam('ambient', 0.8, true); 'ambient moved by the page to 0.8 (~500 K) while climate is off'"},
+  {"wait": 800},
+  {"eval": "NB.send({k:'site', climate:true}); 'climate set ON from 104 -> the bench should take 500 K'"},
+  {"wait": 1500},
+  {"eval": "'104 after choosing: climate=' + SITE.climate + ' bench=' + Math.round(SITE.kelvin) + ' local=' + Math.round(SITE.local) + ' tval=' + document.querySelector('#tval').textContent"}
+]

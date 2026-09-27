@@ -1,0 +1,74 @@
+name: Engines (Linux, headless)
+
+# The benches that are in the repo but run nowhere else.
+#
+# Each plugin that ships has its own workflow, and those already cover their
+# own engine and the shared rack: clone-wars.yml and rite-of-passage.yml both
+# trigger on BrokildWorldFX/** and both run the BWFX bench, and
+# rite-of-passage.yml runs roptest. Repeating either here would just run the
+# same bench a third time on every push to the rack, so this file is only the
+# projects nothing else gates:
+#
+#   Legion   a full bench (113 checks) and no workflow of its own - it has no
+#            published zip yet, so no release job exists to carry it
+#   DSW      no bench, so a compile gate: the host and both shipped
+#            experiments must still build
+#
+# Both are plain C++17 with no JUCE and no audio device, so they cost well
+# under a minute between them. When Legion ships and gains a release
+# workflow, move its bench there and this file becomes DSW alone.
+
+on:
+  push:
+    paths:
+      - "vst3-apps/legion/plugin/**"
+      - "dsw/**"
+      - ".github/workflows/engines.yml"
+  pull_request:
+    paths:
+      - "vst3-apps/legion/plugin/**"
+      - "dsw/**"
+      - ".github/workflows/engines.yml"
+  workflow_dispatch:
+
+# A second push to the same branch makes the first one's answer irrelevant.
+concurrency:
+  group: engines-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  legion:
+    name: Legion bench (vocal harmoniser)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the bench
+        working-directory: vst3-apps/legion/plugin
+        run: |
+          cmake -S test -B test/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build test/build --parallel
+      - name: Run the bench
+        working-directory: vst3-apps/legion/plugin/test
+        run: ./build/legiontest
+
+  dsw:
+    name: DSW host + experiment plugins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # The host is a headless HTTP server - the browser is the GUI - so it
+      # needs no display here.
+      - name: Build the host and its plugins
+        working-directory: dsw
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel
+      - name: The bundles the host loads must exist
+        working-directory: dsw
+        run: |
+          test -x dsw
+          test -f plugins/gray-scott/gray-scott.so
+          test -f plugins/wave-tank/wave-tank.so

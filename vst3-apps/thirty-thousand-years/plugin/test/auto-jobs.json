@@ -1,0 +1,18 @@
+[
+  { "name": "settle", "eval": "new Promise(function(r){setTimeout(r,2600)})" },
+  { "name": "load a patch that ships four scenes", "eval": "(function(){__TTY.patch(0);return 'asked'})()" },
+  { "name": "wait", "eval": "new Promise(function(r){setTimeout(r,1600)})" },
+
+  { "name": "arm HISTORY, DRIVE = AUTO, a short journey so it is watchable",
+    "eval": "(function(){__TTY.set('h_on',1);__TTY.set('h_mode',1);__TTY.set('h_pos',0);__TTY.set('h_loop',0);var c=__TTY.ctl('h_dur');return 'mode='+__TTY.text('h_mode')+'  dur='+__TTY.text('h_dur')+'  loop='+__TTY.text('h_loop')})()" },
+  { "name": "set the duration to about 8 s", "eval": "(function(){__TTY.set('h_dur',0.17);return 'dur = '+__TTY.text('h_dur')})()" },
+  { "name": "restart the journey from zero", "eval": "(function(){__TTY.set('h_on',0);__TTY.set('h_pos',0);__TTY.set('h_on',1);return 'armed at '+__TTY.text('h_pos')})()" },
+
+  { "name": "sample every 700 ms for 7 s: engine position, the slider's own readout, the slider's drawn fill, and which scene tile is lit",
+    "eval": "(function(){var out=[];function snap(){var m=__TTY.meter();var ctl=__TTY.ctl('h_pos');var fill='-';if(ctl){var f=ctl.querySelector('.fill')||ctl.querySelector('.bar')||ctl.querySelector('.sl');if(f)fill=Math.round(parseFloat(getComputedStyle(f).width)||0)+'px'}var lit=[];document.querySelectorAll('.scene').forEach(function(t,i){if(t.classList.contains('here'))lit.push(i)});var note=document.querySelector('[data-panel=HISTORY] .pt i');out.push('engine '+(m.history===undefined?'n/a':m.history.toFixed(3))+'  slider reads '+__TTY.text('h_pos')+'  fill '+fill+'  lit '+(lit.length?lit.join(','):'none'))}var p=Promise.resolve();for(var i=0;i<10;i++)p=p.then(function(){return new Promise(function(r){setTimeout(function(){snap();r()},700)})});return p.then(function(){return out.join('\n     ')})})()" },
+
+  { "name": "is the travel canvas being repainted at all?",
+    "eval": "(function(){var c=document.querySelector('[data-panel=HISTORY] canvas')||document.querySelector('#stage canvas');if(!c)return 'no travel canvas found on this view';var g=c.getContext('2d');function ink(){var d=g.getImageData(0,0,c.width,c.height).data;var n=0;for(var i=0;i<d.length;i+=4)if(d[i+3]>8&&(d[i]+d[i+1]+d[i+2])>60)n++;return n}var a=ink();return new Promise(function(r){setTimeout(function(){var b=ink();r('canvas '+c.width+'x'+c.height+'  ink '+a+' then '+b+(a===b?'  (UNCHANGED over 1.2 s)':'  (repainting)'))},1200)})})()" },
+
+  { "name": "errors", "eval": "(window.__TTYERR||[]).length + ' js errors'" }
+]

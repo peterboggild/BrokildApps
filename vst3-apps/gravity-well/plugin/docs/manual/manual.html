@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Gravity Well — Flight Manual</title>
+<style>
+/* ===========================================================================
+   Gravity Well, flight manual.
+
+   Landscape, the house format since Battlestar Overdrive: the panel is wide
+   and a portrait page shrinks every plate to a stamp.  Each .page is exactly
+   one sheet with overflow:hidden, so tools/shoot-manual.ps1 measures every
+   element against its own page - content that is too tall is CUT OFF, not
+   pushed on, and the DOM alone would not show it.
+   =========================================================================== */
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:   #05080d;
+  --ink-2: #0a111b;
+  --cyan:  #4fc3f7;
+  --pale:  #bfe9ff;
+  --amber: #ffb347;
+  --hot:   #ff7a45;
+  --body:  #c3cfdb;
+  --dim:   #6f8396;
+  --rule:  rgba(79,195,247,.30);
+}
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; background: var(--ink); }
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body); font-size: 9.9pt; line-height: 1.5;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.page{ position: relative; width: 297mm; height: 210mm; overflow: hidden;
+       page-break-after: always; background: var(--ink); }
+.page:last-child{ page-break-after: auto; }
+.pad{ position:absolute; inset: 13mm 16mm 18mm 16mm; }
+
+/* the panel's own voice: mono, spaced, upper case */
+.kick{ font: 700 7.8pt/1 Consolas, "Cascadia Mono", monospace; letter-spacing: .34em;
+       text-transform: uppercase; color: var(--cyan); margin: 0 0 3mm 0; }
+.kick.amber{ color: var(--amber); }
+h1,h2,h3{ font-family: "Segoe UI", sans-serif; font-weight: 300; letter-spacing: .18em;
+          text-transform: uppercase; color: #eaf6ff; margin: 0; }
+h1{ font-size: 44pt; letter-spacing: .28em; line-height: 1; }
+h2{ font-size: 22pt; line-height: 1.05; }
+h3{ font-size: 10.5pt; font-weight: 600; letter-spacing: .16em; color: var(--pale); margin: 0 0 1.6mm 0; }
+.sub{ font-size: 11pt; color: #dfeaf4; margin: 3mm 0 0 0; line-height: 1.45; max-width: 170mm; }
+p{ margin: 0 0 2.8mm 0; }
+b, strong{ color: #eef7ff; font-weight: 600; }
+em{ color: var(--amber); font-style: normal; font-weight: 600; }
+code{ font-family: Consolas, monospace; font-size: 9pt; color: var(--pale); }
+
+.rule{ height: 1px; border:0; margin: 4.5mm 0 5mm 0;
+       background: linear-gradient(90deg, var(--cyan) 0%, rgba(79,195,247,.35) 45%, rgba(79,195,247,0) 100%); }
+img{ display:block; max-width:100%; }
+figure{ margin:0; }
+figcaption{ font-size: 8.1pt; color: var(--dim); margin-top: 1.6mm; line-height: 1.38; }
+figcaption b{ color: var(--cyan); }
+.shot{ border: 1px solid rgba(79,195,247,.25); border-radius: 2px; }
+.desk{ width: 100%; }
+
+.cols{ display:flex; gap: 8mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-40{ flex: 0 0 40% !important; }
+.c-55{ flex: 0 0 55% !important; }
+.c-62{ flex: 0 0 62% !important; }
+.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 5mm 8mm; }
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm 7mm; }
+
+.ctl{ border-left: 2px solid var(--cyan); padding-left: 3.4mm; margin-bottom: 3.4mm; }
+.ctl h3{ margin-bottom: .8mm; }
+.ctl p{ margin: 0; font-size: 9.3pt; line-height: 1.42; }
+.ctl.amber{ border-left-color: var(--amber); }
+.ctl.amber h3{ color: #ffe1b8; }
+
+.box{ border: 1px solid var(--rule); background: linear-gradient(160deg, rgba(79,195,247,.07), rgba(255,179,71,.03));
+      padding: 4mm 5mm; border-radius: 2px; }
+.box h3{ color: var(--cyan); }
+.phys{ font-family: Consolas, monospace; color: var(--amber); font-size: 10pt; letter-spacing: .02em; }
+
+.chain{ display:flex; align-items:center; gap: 1.6mm 1.6mm; flex-wrap: wrap; margin: 3mm 0 4mm 0; }
+.chain .n{ border: 1px solid var(--cyan); color: #eaf6ff; font: 600 8.1pt/1.2 Consolas, monospace;
+           letter-spacing: .05em; padding: 1.6mm 2mm; text-align:center; border-radius: 2px; white-space: nowrap; }
+.chain .n.new{ border-color: var(--amber); color: #ffe1b8; }
+.chain .a{ color: var(--cyan); font-size: 11pt; }
+
+.tbl{ width:100%; border-collapse: collapse; font-size: 9pt; }
+.tbl td{ padding: 1.35mm 2mm 1.35mm 0; border-bottom: 1px solid rgba(79,195,247,.13); vertical-align: top; }
+.tbl td:first-child{ font: 600 8.6pt/1.4 Consolas, monospace; color: var(--pale); letter-spacing:.06em; white-space: nowrap; width: 30mm; }
+
+.plist h3{ color: var(--cyan); margin-top: 0; }
+.plist ol{ list-style: none; margin: 0 0 1.5mm 0; padding: 0; columns: 1; }
+.plist li{ font: 8.8pt/1.55 Consolas, monospace; color: #dfeaf4; letter-spacing: .05em; }
+.plist li span{ color: var(--dim); display:inline-block; width: 7mm; }
+.plist .blurb{ font-size: 8.6pt; color: var(--dim); margin: 0 0 2.4mm 0; line-height: 1.38; }
+
+.folio{ position:absolute; left: 16mm; right: 16mm; bottom: 8mm; display:flex; justify-content: space-between;
+        font: 600 7pt/1 Consolas, monospace; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; }
+.folio b{ color: var(--cyan); font-weight: 600; }
+
+/* cover: the well on its own, the words on ink below it */
+.cover-art{ position:absolute; left:0; right:0; top:0; height: 128mm; overflow:hidden; }
+.cover-art img{ width:100%; height:100%; object-fit: cover; object-position: 50% 38%; }
+.cover-art:after{ content:""; position:absolute; left:0; right:0; bottom:0; height: 26mm;
+                  background: linear-gradient(180deg, rgba(5,8,13,0), var(--ink)); }
+.cover-text{ position:absolute; left: 16mm; right: 16mm; top: 136mm; }
+</style>
+</head>
+<body>
+
+<!-- 1  COVER -->
+<section class="page">
+  <div class="cover-art"><img src="img/cover.jpg" alt="" /></div>
+  <div class="cover-text">
+    <p class="kick">Brokild &middot; VST3 + standalone &middot; flight manual</p>
+    <h1>Gravity Well</h1>
+    <p class="sub">A bassline synthesiser built on one idea: mass curves time. Turn it up and every movement
+       in the sound slows, deepens and finally stops at the horizon &mdash; while the note stays exactly in tune.</p>
+  </div>
+  <div class="folio"><span>Gravity Well</span><span>build 260927.8</span></div>
+</section>
+
+<!-- 2  THE ONE IDEA -->
+<section class="page"><div class="pad">
+  <p class="kick">01 &middot; The one idea</p>
+  <h2>Mass curves time</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div>
+      <p>Near a heavy object, clocks run slow. A clock at distance <code>r</code> from a black hole ticks at</p>
+      <p class="phys">&nbsp;&nbsp;rate = sqrt( 1 &minus; r<sub>s</sub> / r )</p>
+      <p>of its normal speed, where <b>r<sub>s</sub></b>, the Schwarzschild radius, grows with the mass.
+         Gravity Well uses that exact formula as its modulation system. Every wobble in the sound &mdash;
+         each LFO, the filter and third envelopes, the random source &mdash; is a clock sitting at a
+         <b>RADIUS</b> you choose. Turn up <em>MASS</em> and the clocks near the hole slow down while the
+         far ones barely notice.</p>
+      <p>Because the factor bends steeply near the horizon, the <b>ratios</b> between modulators change as
+         the mass rises. A shared &ldquo;mod speed&rdquo; knob makes the same patch slower; this makes a
+         <i>different</i> patch &mdash; the movement re-orders itself.</p>
+      <p>And at the horizon the formula reaches zero. A modulator that falls inside it <b>freezes and holds its
+         last value</b>: a wobble stopped mid-swing at the bottom of a heavy note, which picks up again from
+         where it stopped when you let go.</p>
+    </div>
+    <div>
+      <h3>Why it does not go out of tune</h3>
+      <p>Light climbing out of a gravity well loses energy and arrives redder &mdash; lower in frequency. Applied
+         to a bass note that would pull every note flat. So the <em>redshift</em> is applied to the
+         <b>colour</b> of the sound, never its pitch: the filters and the vowel bank sink, the fundamental
+         stays where you played it. The sound gets darker and heavier and stays in tune.</p>
+      <h3 style="margin-top:4mm">Where the mass comes from</h3>
+      <p>MASS is three things added together: the knob, how loud the voice is playing, and how hard you
+         struck the key. Play harder and the well deepens by itself; back off and it lifts. At MASS 0 the
+         well is flat and Gravity Well is an ordinary, very good bass synth.</p>
+    </div>
+  </div>
+  <div class="grid2" style="margin-top:5mm">
+    <figure><img class="shot" src="img/well-flat.jpg" alt="" style="max-height:56mm; width:auto" /><figcaption><b>Light.</b> A shallow well: the clocks run nearly free.</figcaption></figure>
+    <figure><img class="shot" src="img/well-deep.jpg" alt="" style="max-height:56mm; width:auto" /><figcaption><b>Heavy.</b> The funnel deep, the horizon ring bright at the throat, every clock at 0.87.</figcaption></figure>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>02</b></span></div></section>
+
+<!-- 3  THE PANEL -->
+<section class="page"><div class="pad">
+  <p class="kick">02 &middot; The cockpit</p>
+  <h2>The panel at a glance</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div class="c-62"><figure><img class="shot" src="img/panel.jpg" alt="" style="max-height:118mm" />
+      <figcaption><b>REESE</b> held, MASS at 72 %: the well deep, every clock slowed to 0.87 of its speed.</figcaption></figure></div>
+    <div>
+      <div class="ctl"><h3>The viewscreen</h3><p>The well is Flamm&rsquo;s paraboloid, the real embedding diagram of the
+        Schwarzschild metric. Its depth is the mass the engine is using right now, and the coloured lights are the
+        modulators at their own radii. When a light stops on screen, it has stopped in the sound. Drag to orbit, wheel for elevation.</p></div>
+      <div class="ctl"><h3>The readout</h3><p><code>RS</code> the horizon radius, <code>MASS</code> the live mass,
+        <code>DILATION</code> each modulator&rsquo;s clock speed (1.00 = free, 0.00 = frozen).</p></div>
+      <div class="ctl"><h3>The pillars</h3><p>Left: filter A&rsquo;s cutoff, resonance and circuit, always in reach.
+        Right: the six macros.</p></div>
+      <div class="ctl"><h3>The desk</h3><p>Seven consoles &mdash; HELM, REACTOR, HORIZONS, CHRONO, ORBITS, MATRIX,
+        OUTPUT &mdash; plus WORLD FX and SETTINGS. Each is flanked by line displays drawn from the engine.</p></div>
+      <div class="ctl"><h3>The header</h3><p>The patch window (click the name for the chart), SAVE, and PANIC.
+        KEYS opens a four-octave keyboard in the foot.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>03</b></span></div></section>
+
+<!-- 4  MACROS -->
+<section class="page"><div class="pad">
+  <p class="kick">03 &middot; Six macros</p>
+  <h2>Most of the way in six knobs</h2>
+  <hr class="rule" />
+  <figure><img class="shot desk" src="img/pillars.jpg" alt="" style="max-height:72mm; width:auto" /></figure>
+  <div class="grid3" style="margin-top:5mm">
+    <div class="ctl amber"><h3>Mass</h3><p>The weight of the hole. Deepens the well, slows the clocks, sinks the colour.
+      Past noon it acts on the sound directly: the top darkens and the sub gathers.</p></div>
+    <div class="ctl"><h3>Depth</h3><p>Opens the <b>singularity</b>: a protected low core that goes round the filters
+      and drive, so the bottom survives whatever you do to the rest.</p></div>
+    <div class="ctl"><h3>Energy</h3><p>Drives the chain harder. It adds to the drive amount on OUTPUT, and every drive
+      is level-matched, so it adds grind, not loudness.</p></div>
+    <div class="ctl"><h3>Horizon</h3><p>How large the hole can grow for a given mass, and a tilt on both filter cutoffs
+      together: down is darker and more captured, up is brighter and freer.</p></div>
+    <div class="ctl"><h3>Time</h3><p>The master clock for every free-running LFO and the random source, before gravity
+      slows them. Noon is neutral; one side quarters the speed, the other quadruples it. Tempo-synced LFOs ignore it.</p></div>
+    <div class="ctl"><h3>Space</h3><p>Stereo width: how far the accretion disk&rsquo;s voices spread across the field.</p></div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>04</b></span></div></section>
+
+<!-- 5  HELM -->
+<section class="page"><div class="pad">
+  <p class="kick">04 &middot; Helm</p>
+  <h2>The quick console</h2>
+  <hr class="rule" />
+  <figure><img class="shot desk" src="img/helm.jpg" alt="" /><figcaption><b>HELM</b> gathers the controls you reach for most, each marked with the console it lives on. The left display is the filter response you are hearing.</figcaption></figure>
+  <div class="cols" style="margin-top:5mm">
+    <div>
+      <h3>Gravity</h3>
+      <table class="tbl">
+        <tr><td>TRACK</td><td>How much the playing level adds to the mass. High: loud notes weigh more.</td></tr>
+        <tr><td>VELOCITY</td><td>How much the key strike adds to the mass.</td></tr>
+        <tr><td>REDSHIFT</td><td>How far the colour sinks with the mass &mdash; every filter circuit, and the vowel bank most of all. Never the pitch.</td></tr>
+        <tr><td>RINGDOWN</td><td>The body. A black hole that is disturbed rings at its own inharmonic tones, and more mass rings lower and longer. This is that bank of tones, struck by each note.</td></tr>
+        <tr><td>RING DECAY / TONE</td><td>How long the body rings, and how bright it is.</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>The rest of the helm</h3>
+      <p><b>SOURCE</b> is oscillator A&rsquo;s shape and level and the sub. <b>HORIZON A</b> is the first filter&rsquo;s
+         mode, envelope depth, drive and key follow. <b>DRIVE</b>, <b>AMP</b> and <b>OUT</b> mirror their consoles.</p>
+      <p>Everything on the helm is the same control as on its home console, not a copy: move it in one place and
+         it moves in the other.</p>
+      <div class="box" style="margin-top:3mm"><h3>First five minutes</h3>
+        <p style="margin:0">Pick <b>SCHWARZSCHILD</b>, hold a low note and turn <em>MASS</em> slowly up. Watch the
+          lights slow on the screen and listen to the movement thicken. Past noon, hear the top sink into the sub.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>05</b></span></div></section>
+
+<!-- 6  REACTOR -->
+<section class="page"><div class="pad">
+  <p class="kick">05 &middot; Reactor</p>
+  <h2>The sources</h2>
+  <hr class="rule" />
+  <figure><img class="shot desk" src="img/reactor.jpg" alt="" /><figcaption><b>SWARM</b>: oscillator A on the wavetable engine, eight disk voices on Keplerian orbits. The left display draws one cycle of each oscillator.</figcaption></figure>
+  <div class="grid3" style="margin-top:5mm">
+    <div class="ctl"><h3>Oscillators A and B</h3><p><b>ANALOGUE</b> is band-limited saw, pulse and triangle morphed by SHAPE,
+      with WIDTH for the pulse. <b>WAVETABLE</b> reads eight precomputed tables &mdash; BASIC, OCTAVE, FORMANT, METAL,
+      GLASS, GROWL, FOLD, SWARM &mdash; clean at every pitch. OCTAVE spans &plusmn;3, SEMI and FINE tune.</p></div>
+    <div class="ctl"><h3>Cross</h3><p><b>SYNC</b> hard-resets B from A for the tearing sync sweep. <b>PHASE MOD</b> lets A
+      bend B&rsquo;s phase &mdash; bright and stable at any sample rate. <b>RING MOD</b> multiplies them for metal.</p></div>
+    <div class="ctl"><h3>Sub and noise</h3><p>The <b>sub</b> sits one or two octaves below oscillator A, sine or square, and
+      stays in phase with it so it reinforces rather than cancels. <b>NOISE</b> with COLOUR from dark to bright.</p></div>
+    <div class="ctl amber"><h3>Accretion disk</h3><p>Unison, but not a flat detune: up to eight voices orbit at Keplerian
+      radii, where the inner ones run faster than the outer. SPREAD is how far out the disk reaches, ORBIT how fast
+      it turns, WIDTH how wide it sits in stereo. The shear between orbits is the beating.</p></div>
+    <div class="ctl"><h3>Cost</h3><p>Wavetables are read from ready-made tables, so even an eight-voice swarm costs a few percent
+      of a core. The heaviest factory patch is measured on every build.</p></div>
+    <div class="ctl"><h3>Engines per oscillator</h3><p>A and B choose their engine independently, so an analogue
+      body under a wavetable top is one click each.</p></div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>06</b></span></div></section>
+
+<!-- 7  HORIZONS -->
+<section class="page"><div class="pad">
+  <p class="kick">06 &middot; Horizons</p>
+  <h2>Two filters, seven circuits</h2>
+  <hr class="rule" />
+  <figure><img class="shot desk" src="img/horizons.jpg" alt="" /><figcaption><b>EVENT HORIZON</b>: a vowel bank into a state-variable high-pass, in series. The right display is the signal path as it is wired now.</figcaption></figure>
+  <div class="cols" style="margin-top:4.5mm">
+    <div class="c-55">
+      <table class="tbl">
+        <tr><td>LADDER</td><td>The warm four-pole classic. Resonance thins the bass, as it should.</td></tr>
+        <tr><td>GROWL</td><td>A Sallen-Key with diodes in the feedback: the aggressive MS-20 bite.</td></tr>
+        <tr><td>SCREAM</td><td>The same circuit pushed hot; it sings from noon and can be played on its resonance.</td></tr>
+        <tr><td>SVF</td><td>Clean state-variable, low, band, high-pass and notch. The high-pass keeps mud out.</td></tr>
+        <tr><td>DIODE</td><td>The 303 ladder: 18 dB/oct, and its resonance keeps the bass (+2.3 dB at 40 Hz where a ladder loses 17). The diodes clip unevenly, so it adds even harmonics.</td></tr>
+        <tr><td>COMB</td><td>A tuned comb: metallic, hollow, and tunable to the note.</td></tr>
+        <tr><td>FORMANT</td><td>A vowel bank that morphs u&ndash;o&ndash;a&ndash;e&ndash;i with no jumps. Talking bass, growl.</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="ctl"><h3>Routing</h3><p><b>SERIES</b> A into B. <b>PARALLEL</b> both at once, blended by A/B.
+        <b>SPLIT</b> sends everything below the SPLIT frequency to A and above to B &mdash; wreck the mids, keep the floor.</p></div>
+      <div class="ctl"><h3>Per filter</h3><p>CUTOFF, RESONANCE and DRIVE; KEY follow; ENV is how far the filter
+        envelope opens it (also on CHRONO). Modes that a circuit does not have are dimmed.</p></div>
+      <div class="ctl amber"><h3>Singularity</h3><p>A low band below FREQ taken around the whole filter and drive chain
+        and added back at the end, as the filtered low of the source or a pure sine. LEVEL here, or the DEPTH macro.
+        The bottom nothing can destroy.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>07</b></span></div></section>
+
+<!-- 8  CHRONO + THE CHAIN -->
+<section class="page"><div class="pad">
+  <p class="kick">07 &middot; Chrono</p>
+  <h2>Envelopes, and the order of things</h2>
+  <hr class="rule" />
+  <figure><img class="shot desk" src="img/chrono.jpg" alt="" /><figcaption><b>TECHNO PLUCK</b>, struck five times. Left: the three envelope shapes. Right: what each envelope actually did, live.</figcaption></figure>
+  <div class="cols" style="margin-top:4.5mm">
+    <div>
+      <div class="ctl"><h3>Amp envelope</h3><p>Level only. It sits after the filters and the drive, so a loud strike and a quiet
+        sustain have the same tone &mdash; the amp shapes the loudness and nothing else.</p></div>
+      <div class="ctl"><h3>Filter envelope</h3><p>Opens the filters by the amounts in <b>DEPTH</b> (TO A CUT, TO B CUT).
+        Every note in DUO has its own. Every factory patch has it wired, even where it only holds the filter still.</p></div>
+      <div class="ctl"><h3>Env 3 &middot; free</h3><p>Routes anywhere through the MATRIX. CURVE bends each stage;
+        RADIUS puts the filter and third envelopes into the well, so gravity stretches them too.</p></div>
+    </div>
+    <div>
+      <h3>The signal chain</h3>
+      <div class="chain">
+        <span class="n">OSC A &middot; B<br/>SUB &middot; NOISE</span><span class="a">&rarr;</span>
+        <span class="n new">DRIVE<br/>PRE</span><span class="a">&rarr;</span>
+        <span class="n">HORIZON<br/>A &middot; B</span><span class="a">&rarr;</span>
+        <span class="n new">DRIVE<br/>POST</span><span class="a">&rarr;</span>
+        <span class="n">AMP</span><span class="a">&rarr;</span>
+        <span class="n">RINGDOWN<br/>CORE &middot; OUT</span>
+      </div>
+      <p>The drive sits in <b>one</b> of its two places, chosen on OUTPUT. <b>PRE</b> (the default) distorts the raw
+         oscillators and lets the filters shape what it made, as most hardware does. <b>POST</b> distorts the filtered
+         sound, which is rougher and more obvious.</p>
+      <p>The singularity core bypasses everything between the source and the output, then joins it at the end.</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>08</b></span></div></section>
+
+<!-- 9  ORBITS -->
+<section class="page"><div class="pad">
+  <p class="kick">08 &middot; Orbits</p>
+  <h2>The clocks in the well</h2>
+  <hr class="rule" />
+  <figure><img class="shot desk" src="img/orbits.jpg" alt="" /><figcaption><b>WOBBLE</b>: LFO 1 on a tempo division. The right display is every modulator&rsquo;s output, live &mdash; a clock inside the horizon draws a flat line and reads FROZEN.</figcaption></figure>
+  <div class="grid3" style="margin-top:5mm">
+    <div class="ctl"><h3>LFO 1&ndash;3</h3><p>RATE, and SHAPE: sine, triangle, saw, square or <b>chirp</b>. SYNC locks it to
+      the host tempo in straight, dotted and triplet divisions, aligned to the bar while the transport runs.</p></div>
+    <div class="ctl amber"><h3>Radius</h3><p>Where the clock sits in the well. At 100 % it is far out and runs free;
+      bring it in and gravity slows it as the mass rises. The light on the screen wears the knob&rsquo;s colour.</p></div>
+    <div class="ctl"><h3>Target and amount</h3><p>Each LFO can drive one destination directly: pick it under TARGET,
+      set AMT (either way). It shows in the MATRIX alongside the eight slots, and leaves them free.</p></div>
+    <div class="ctl"><h3>Random</h3><p>A drifting random value, RATE and SMOOTH &mdash; from stepped to a slow wander.
+      It has a radius too.</p></div>
+    <div class="ctl"><h3>Chirp</h3><p>The inspiral: two masses spiralling together sweep up faster and faster,
+      <code>f &prop; (t<sub>c</sub> &minus; t)<sup>&minus;3/8</sup></code>. TIME is how long the sweep takes. A shape, not a button.</p></div>
+    <div class="ctl"><h3>The TIME macro</h3><p>Every free-running clock and the random source run at TIME&rsquo;s speed
+      before gravity slows them. Noon changes nothing.</p></div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>09</b></span></div></section>
+
+<!-- 10  MATRIX -->
+<section class="page"><div class="pad">
+  <p class="kick">09 &middot; Matrix</p>
+  <h2>Eight routes, and the ones built in</h2>
+  <hr class="rule" />
+  <figure><img class="shot desk" src="img/matrix.jpg" alt="" /><figcaption><b>WOBBLE</b>: slot 1 sends LFO 1 to A CUTOFF. The dashed curves are the built-in routes &mdash; the amp envelope to LEVEL and the filter envelope to the cutoff.</figcaption></figure>
+  <div class="cols" style="margin-top:5mm">
+    <div>
+      <div class="ctl"><h3>A slot</h3><p>SOURCE, DEST and AMOUNT. Amount is bipolar: negative runs the route backwards.</p></div>
+      <div class="ctl"><h3>Sources</h3><p>ENV1&ndash;3, LFO1&ndash;3, RANDOM, CHIRP, MASS, VELOCITY, KEY, WHEEL and PRESSURE.
+        MASS as a source means the weight of the note can move anything.</p></div>
+    </div>
+    <div>
+      <div class="ctl"><h3>Destinations</h3><p>Pitch, both shapes, width, phase mod, ring, sub, noise, both cutoffs and
+        resonances, split, A/B blend, disk, drive, mass, redshift, ringdown, pan and level.</p></div>
+      <div class="ctl"><h3>The network</h3><p>Solid lines are the slots and the ORBITS targets; dashed lines are what
+        is always wired. Each line breathes with its source, so you can see which routes are doing the work.</p></div>
+    </div>
+    <div>
+      <div class="box"><h3>Mass on mass</h3><p style="margin:0">Route an LFO to <b>MASS</b> and the hole itself
+        breathes: the clocks near the horizon slow and speed up with it, and a slow cycle freezes them at the bottom
+        of every swing.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>10</b></span></div></section>
+
+<!-- 11  OUTPUT -->
+<section class="page"><div class="pad">
+  <p class="kick">10 &middot; Output</p>
+  <h2>Drive, voice, level</h2>
+  <hr class="rule" />
+  <figure><img class="shot desk" src="img/output.jpg" alt="" /><figcaption><b>DOOM WEIGHT</b>: PLASMA after the filters. The right display is the output level over time, amber where the ceiling is shaping the peaks.</figcaption></figure>
+  <div class="cols" style="margin-top:4.5mm">
+    <div>
+      <h3>Four drives</h3>
+      <table class="tbl">
+        <tr><td>IDLE BURN</td><td>A gentle rounding: warmth and a little thickness.</td></tr>
+        <tr><td>ION</td><td>A symmetric saturator that hardens towards a clip: odd harmonics, edge.</td></tr>
+        <tr><td>PLASMA</td><td>Lopsided, so it adds even harmonics too: the thickest and dirtiest.</td></tr>
+        <tr><td>COLLAPSE</td><td>Turns from saturation into a wavefolder as AMOUNT rises: the wave folds back on itself.</td></tr>
+      </table>
+      <p style="margin-top:2.5mm">Each drive is level-matched against its own measured make-up, so turning AMOUNT up changes the grind
+         and not the loudness. <b>POSITION</b> puts it before (PRE) or after (POST) the filters.</p>
+    </div>
+    <div>
+      <div class="ctl"><h3>Voice</h3><p><b>MONO</b> or <b>DUO</b> (two notes, each with its own envelopes). <b>GLIDE</b>:
+        overlapping notes slide into each other instead of retriggering, which is how acid lines are played from a piano roll.
+        <b>BEND</b> is the pitch wheel&rsquo;s range, <b>TRANSPOSE</b> moves the whole instrument up to an octave either way,
+        and <b>VELOCITY</b> sets how hard each note hits.</p></div>
+      <div class="ctl"><h3>Character</h3><p><b>VINTAGE</b> adds drift and small tolerances that keep a held bass alive.
+        <b>TILT</b> leans the whole tone darker or brighter.</p></div>
+      <div class="ctl"><h3>Level</h3><p>TRIM is the patch&rsquo;s own level: the factory bank is levelled to within about
+        a decibel of each other. A soft ceiling guards the output.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>11</b></span></div></section>
+
+<!-- 12  WORLD FX, SETTINGS, PATCHES -->
+<section class="page"><div class="pad">
+  <p class="kick">11 &middot; World FX, settings, patches</p>
+  <h2>Around the edges</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div class="c-40"><figure><img class="shot" src="img/worldfx.jpg" alt="" style="max-height:112mm; width:auto" />
+      <figcaption><b>WORLD FX</b>, the rack every Brokild synth shares.</figcaption></figure></div>
+    <div>
+      <div class="ctl"><h3>World FX</h3><p>Twelve effects you can switch on, reorder and blend &mdash; tube, phaser, chorus,
+        tremolo, gate, grit, compressor, echo, space, shimmer, rotary, a step glitcher &mdash; with presets, a rack mix and
+        five macros your host can automate. Saved with the patch.</p></div>
+      <div class="ctl"><h3>Patches</h3><p>Everything happens in the <b>patch chart</b>. 00&ndash;31 are the factory bank and cannot be
+        overwritten; your own go in numbered slots 032&ndash;199, each a file in <code>Documents\Brokild patches\Gravity Well</code>,
+        shared by every project. <b>SAVE</b> opens the chart with your slots in view: name the sound, click a slot to aim at it,
+        SAVE &mdash; or REPLACE, in amber, if the slot is taken. CLEAR SLOT (two clicks) moves a patch to a Deleted folder, so nothing is
+        ever lost by accident. The header arrows step through the bank and then your slots.</p></div>
+      <div class="ctl"><h3>Settings</h3><p>PANEL BRIGHTNESS lifts or dims the whole ship; HUD LINES sets how bold the line
+        displays are. Both belong to this computer, not to a patch.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>12</b></span></div></section>
+
+<!-- 13  PRESETS -->
+<section class="page"><div class="pad">
+  <p class="kick">12 &middot; The bank</p>
+  <h2>Thirty-two patches, ordinary to strange</h2>
+  <hr class="rule" />
+  <div class="cols plist">
+    <div><h3>Foundation</h3><p class="blurb">Honest bass. Mass low; the well mostly flat.</p><ol>
+      <li><span>00</span>SCHWARZSCHILD</li><li><span>01</span>FLAT SPACE</li><li><span>02</span>SOLID BODY</li>
+      <li><span>03</span>ROUND DUB</li><li><span>04</span>TECHNO PLUCK</li><li><span>05</span>SQUARE ONE</li>
+      <li><span>06</span>SUB ONLY</li><li><span>07</span>SOFT ORBIT</li><li><span>08</span>SHORT FALL</li><li><span>09</span>SLOW MASS</li></ol></div>
+    <div><h3>Working</h3><p class="blurb">The genre tools: acid, reese, growl, wobble, doom.</p><ol>
+      <li><span>10</span>ACID 303</li><li><span>11</span>ACID SCREAM</li><li><span>12</span>REESE</li>
+      <li><span>13</span>GROWL</li><li><span>14</span>WOBBLE</li><li><span>15</span>INDUSTRIAL</li>
+      <li><span>16</span>DOOM WEIGHT</li><li><span>17</span>PICK ATTACK</li><li><span>18</span>RUBBER</li><li><span>19</span>GLASS BASS</li></ol></div>
+    <div><h3>Character</h3><p class="blurb">One feature each, pushed to be heard.</p><ol>
+      <li><span>20</span>COMB TUNED</li><li><span>21</span>FORMANT TALK</li><li><span>22</span>RING METAL</li>
+      <li><span>23</span>CHIRP DROP</li><li><span>24</span>SWARM</li><li><span>25</span>REDSHIFT</li>
+      <li><span>26</span>RINGDOWN</li><li><span>27</span>FROZEN CLOCK</li></ol></div>
+    <div><h3>Event horizon</h3><p class="blurb">The physics as the instrument. Deep mass, frozen clocks.</p><ol>
+      <li><span>28</span>EVENT HORIZON</li><li><span>29</span>TIDAL</li><li><span>30</span>SINGULARITY</li><li><span>31</span>HAWKING</li></ol>
+      <div class="box" style="margin-top:4mm"><h3>Levels</h3><p style="margin:0; font-size:8.8pt">Every factory patch is
+        measured on its loudest 200 ms and trimmed to the same level, so stepping through the bank does not jump.</p></div></div>
+  </div>
+  <figure style="margin-top:6mm"><img class="shot" src="img/chart.jpg" alt="" style="max-height:66mm; width:auto" />
+    <figcaption><b>The patch chart</b>, saving: slot 036 aimed at, in amber. Six columns of seven slots slide a column (&#9666; &#9656;, or the
+      arrow keys) or a page (&#9666;&#9666; &#9656;&#9656;, PageUp/PageDown) at a time. Open it on your patches by clicking the patch name in the header.</figcaption></figure>
+</div><div class="folio"><span>Gravity Well</span><span><b>13</b></span></div></section>
+
+<!-- 14  BACK -->
+<section class="page"><div class="pad">
+  <p class="kick">13 &middot; Specifications</p>
+  <h2>Gravity Well</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div>
+      <table class="tbl">
+        <tr><td>Format</td><td>Windows VST3 instrument and a standalone application</td></tr>
+        <tr><td>Parameters</td><td>143 host parameters, plus five World FX macros</td></tr>
+        <tr><td>Sources</td><td>two oscillators (analogue or eight wavetables), sub, noise, sync, phase and ring mod, an eight-voice accretion disk</td></tr>
+        <tr><td>Filters</td><td>seven circuits in two banks: series, parallel or split</td></tr>
+        <tr><td>Modulation</td><td>three envelopes, three LFOs with tempo sync, random, chirp, eight matrix slots and three orbit targets</td></tr>
+        <tr><td>Drive</td><td>four level-matched drives, before or after the filters</td></tr>
+        <tr><td>Voices</td><td>mono or duo, with glide</td></tr>
+        <tr><td>Patches</td><td>32 factory, levelled; 168 numbered user slots (32&ndash;199), one file each, shared by every project</td></tr>
+        <tr><td>Panel</td><td>needs the Microsoft WebView2 runtime, present on almost every current Windows</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Installing</h3>
+      <p>Copy the <b>Gravity Well.vst3</b> folder into <code>Program Files\Common Files\VST3</code> and rescan in your host.
+         <b>Gravity Well.exe</b> is the standalone and needs no installation.</p>
+      <h3 style="margin-top:4mm">The physics, honestly</h3>
+      <p>The formulas are the real ones &mdash; Schwarzschild time dilation for the clocks, the embedding diagram for the
+         picture, the published quasi-normal mode ratios for the ringdown, the inspiral law for the chirp. What they drive
+         is sound, not a simulation: nothing here claims to be a black hole, only to borrow how one bends time.</p>
+      <h3 style="margin-top:4mm">Credits</h3>
+      <p>Peter B&oslash;ggild, September 2026. The newest member of the Brokild Collection.
+         Free. Source: github.com/peterboggild/BrokildApps</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Gravity Well</span><span><b>14</b></span></div></section>
+
+</body>
+</html>

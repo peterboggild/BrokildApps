@@ -1,0 +1,348 @@
+# GRAVITY WELL — HANDOVER
+
+**Read this first, then `BrokildApps/GRAVITY-WELL-DESIGN.md`.**
+Written 2026-09-26 so that nothing is lost to a context compaction. Update it
+whenever a decision is made or a stage completes.
+
+---
+
+## 0. PETER'S STANDING PRIORITY
+
+> *"I am particularly interested in the sound, so if too much going on
+> threatens that objective, I'd rather scale down on number of controls and
+> presets."*
+
+**SOUND FIRST.** If effort has to be cut, cut content and chrome, never DSP
+quality or the measurements that protect it. He has also said he is running
+out of time and wants it finished and pushed.
+
+---
+
+## 1. IDENTITY
+
+| | |
+|---|---|
+| product | **Gravity Well** |
+| plugin code | **`GrvW`** (checked unique against all 24 in the fleet) |
+| source | `BrokildApps/vst3-apps/gravity-well/plugin/` (in the website repo, like Clone Wars / Kickstart / the drums) |
+| build dir | `C:\Users\peter\b\_build\GravityWell\plugin` (**outside Dropbox** — house rule) |
+| build id | `GW_BUILD_ID` in CMakeLists, currently `260926.1`. Bump it AND re-run `cmake -S . -B <dir>` or it does not take. |
+| formats | VST3 + Standalone, IS_SYNTH TRUE, Instrument/Synth |
+| BWFX | YES — it is an instrument. Already wired in CMakeLists. Brokild Collection. |
+| patches | `Documents\Brokild patches\Gravity Well` |
+
+**Build command** (JUCE 8.0.13 local checkout, the one the fleet uses):
+
+    cmake -S "<repo>/vst3-apps/gravity-well/plugin" -B C:/Users/peter/b/_build/GravityWell/plugin -A x64 \
+          -DJUCE_DIR=C:/Users/peter/AudioDev/Projects/BrokildVSTTemplate/external/JUCE
+    cmake --build C:/Users/peter/b/_build/GravityWell/plugin --config Release
+
+`VST3_AUTO_MANIFEST FALSE` is already set (Smart App Control blocks the fresh
+`vst3_helper.exe` and fails the build *after* the DLL is good).
+`JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1` is set too — only Thin Walls had
+that, and without it a machine with no Windows Performance Toolkit on PATH
+shows Internet Explorer's error page instead of a panel.
+
+---
+
+## 2. THE ONE IDEA — do not lose this
+
+A single scalar **MASS** (signal energy + velocity + a manual knob) sets a
+Schwarzschild radius `rs`. Everything follows from `rs` by the real formula:
+
+* **Time dilation.** Every modulator sits at a RADIUS `r` and runs at
+  `sqrt(1 - rs/r)` of nominal. At `r <= rs` it **FREEZES and holds its last
+  value** (it must resume from the held phase, never from zero, or every
+  release clicks). Because the factor is nonlinear in `r`, the RATIOS between
+  modulators change — movement re-orders itself rather than just slowing.
+* **Redshift on the FORMANT BANK, never on pitch.** `f0` must not move. This
+  separation is the reason the idea is usable at musically interesting depths
+  on a bass instrument, and it is the single most important engineering
+  decision in the plug-in.
+* **Ringdown.** Quasi-normal modes, `omega ~ 1/M`, `tau ~ M`, so more mass
+  rings lower and longer. Ratios are published numbers (`QNM_F` / `QNM_D` in
+  Engine.cpp), not a designer's guess.
+* **At MASS 0 the well is flat** and the instrument is an ordinary excellent
+  bass synth. The bench must assert a MASS-0 render is memcmp-identical to one
+  from a build that never had the well (the Kemper rule).
+
+**Do NOT drift into High Tide.** High Tide is a ball in a potential well whose
+motion IS the waveform. Here the well shapes TIME and SPECTRUM and never draws
+the wave. If a design discussion reaches "the orbit is the oscillator", stop.
+
+---
+
+## 3. SCOPE, AS AGREED 2026-09-26 (scaled down for sound)
+
+| | decision |
+|---|---|
+| factory presets | **32, slots 0-31** — ordered ordinary -> esoteric. Biggest saving in the job, near-zero musical cost. |
+| user presets | **32-199** (168 slots, on disk) — Peter set this numbering 2026-09-26 |
+| HORIZON second visual mode | **deferred** |
+| gravitational-wave ripples, spectral disk colouring | **deferred to a polish pass** |
+| manual | **another day** - Peter, 2026-09-26: "you can write the manual tomorrow/some other day" |
+| GW ripples | optional, at the very end, only if there is road left |
+| everything DSP | **kept in full** — seven circuits, oversampling, ADAA drives, the well, the sequencer |
+| bench | **kept in full** — it is what protects the sound |
+
+---
+
+## 4. FILE STATE
+
+```
+vst3-apps/gravity-well/
+  HANDOVER.md                 <- this file
+  plugin/
+    CMakeLists.txt            DONE
+    Source/
+      Engine.h                DONE   135 params in ONE X-macro table
+      Engine.cpp              DONE   DSP blocks; ends with #include "EngineImpl.inl"
+      EngineImpl.inl          DONE   voice, well, sequencer, process()
+      Presets.cpp             DONE   32 factory presets, LEVELLED (trims written in)
+      PluginProcessor.{h,cpp} DONE   APVTS from the table, BWFX + 5 macros, state, MIDI
+      PluginEditor.{h,cpp}    DONE   WebView2, splash, runtime-missing message
+      ui/ui.html              GENERATED by tools/build-ui.js - do not hand-edit
+    test/
+      bench.cpp               DONE   94 checks, ALL CLEAR
+      loudness.h              DONE   the ONE loudness rule, shared with the leveller
+      probe.cpp               DONE   gwprobe onset|presets|shape|bisect|levels|303
+      variants.cpp            DONE   gwvariants <dir> - the A/B that found the click
+      hosttest.cpp            DONE   the real wrapper, no DAW
+      CMakeLists.txt          DONE   gwtest, gwprobe, gwvariants
+    tools/
+      build-ui.js             DONE   composes ui.html from well-demo.html + the shell
+      level-presets.js        DONE   re-runnable; SAC-nudges the probe itself
+      well-demo.html          DONE   the well, standalone, still openable in a browser
+      shoot-well.ps1, cdp.js  DONE
+```
+
+### The bench
+
+    cmake -S test -B C:/Users/peter/b/_build/GravityWell/bench -A x64
+    cmake --build C:/Users/peter/b/_build/GravityWell/bench --config Release
+    <build>/Release/gwtest.exe               94 checks, ALL CLEAR
+    <build>/Release/gwtest.exe --render <dir>   eight WAVs to LISTEN to
+
+---
+
+## 5. WHAT THE CLICK WAS - and why five probes missed it
+
+Peter heard a click at the start of most bass notes.  It took four wrong
+metrics and one A/B before it was found, and the reason is worth keeping.
+
+**The bug: `noteOn` reset the voice while the previous note was still
+sounding.**  `noteOff` clears `held` but leaves the release running, so
+`wasOn = tgt.on && tgt.held` was false and the code called `Voice::reset()` -
+zeroing every filter state, re-randomising every oscillator phase and
+dropping the envelope to 0 - mid-ring.  A hard step on every note AFTER THE
+FIRST.  Fixed: reset only from silence, otherwise retrigger (Env::gate()
+climbs from the level it is already at, so there is nothing to step).
+
+**EVERY PROBE RENDERED ONE NOTE.**  That is why nothing found it, and why
+ACID 303 was clean (the sequencer gates envelopes without calling reset).
+`testNoteTransition` in the bench is the gate now: with the bug back it
+measures **92.34x** the waveform own step, with the fix **1.36x**.
+
+Four metrics that disagreed with his ears first, each for the same kind of
+reason - the window or the denominator moved with the thing under test:
+
+* HF-over-settled-HF: the denominator tracked resonance, so the sweep ran
+  BACKWARDS (click fell as Q rose).
+* the settled window at 150-450 ms: a 60 ms pluck is long gone, so the
+  ratio divided by silence and reported 236 and 668 for TECHNO PLUCK and
+  SHORT FALL.
+* 1 ms rms bins: a 41 Hz note has a 24 ms period, so the bins tracked the
+  WAVEFORM.  The "burst at 8 ms" reported to Peter was the cycle.
+* biggest sample step: on SINGULARITY that is the slope of legitimate 6 kHz
+  content, not a discontinuity.
+
+**What worked: `gwvariants`** - the same patch, one thing switched off per
+file, eight short files, and one listening pass.  All eight came back clean,
+which located the fault in the multi-note RENDER rather than in the note.
+
+Two real bugs were found on the way and are worth keeping in mind:
+
+* **Every ADSR was a dead control.**  ta/td/su/tr/curve were never assigned
+  from the parameters.  Proven by measurement before reading any code: a
+  0.5 ms attack and a 50 ms attack rendered BYTE-IDENTICAL output.
+* **Every SEC value was written in seconds against a normalised parameter.**
+  `timeSec(x) = 0.0005 * 12000^x`, so AMP DECAY 0.25 meant 250 ms and
+  rendered as 5 ms.  Converted (defaults + 36 preset values).  This is what
+  brought the drives into spec: PLASMA and COLLAPSE went +4.73/+4.75 dB ->
+  +0.61/-0.28 dB across the knob, with no change to the drives themselves.
+* **ATT_FLOOR = 2 ms** is measured, not guessed: with the floor removed the
+  click knee sits at 1.5-2.5 ms (0.22 -> 0.03 on the click metric).
+
+---
+
+## 5b. THE 303 FILTER
+
+Peter: *"the 18dB resonant low-pass filter, and some kind of asymmetric
+diode distortion - whatever makes the 303 sound like a 303."*
+
+DIODE was a three-pole MOOG: it lost **20.5 dB** of fundamental between
+resonance 0.05 and 0.90, the exact opposite of a 303.  Three things were
+changed and all three are measured in the bench (`testAcidFilter`):
+
+| | |
+|---|---|
+| 18 dB/oct | three poles, not four - already true |
+| resonance KEEPS the bass | a Moog subtracts feedback from the input so its low end falls as 1/(1+kW); the passband is now restored by (1 + k*W). **DIODE +2.33 dB where LADDER is -16.94 dB** |
+| asymmetric diodes | `tanh(x + b) - tanh(b)`: bounded, monotonic, exactly zero at zero so it pushes no DC into a loop of lowpasses. **2nd harmonic from a pure SINE: DIODE -33.7 dB, LADDER -63.5 dB** |
+
+**Measure a filter with NOISE.**  The first probe drove a 41 Hz saw, whose
+partials are 41 Hz apart, so "the level at 600 Hz" was really "the 15th
+partial" - it reported 2 dB/oct for an 18 dB/oct filter.  And measure
+asymmetry with a **SINE**: a saw already carries every harmonic, so the
+2nd/3rd ratio reported the SAW spectrum (+3.5 dB) for every circuit.
+
+---
+
+## 5c. LEVELLING
+
+`tools/level-presets.js` is re-runnable and converges: **24.9 dB spread ->
+3.9 dB**, loudest peak 0.674.  Run it after ANY change that moves levels
+(the DIODE rework needed a second pass).
+
+The loudness rule lives in `test/loudness.h` and is shared by the bench and
+the leveller, so the tool that sets the trims and the check that polices
+them cannot drift.  It is the **loudest 200 ms window**: the bank holds
+drones AND 60 ms plucks, and the old fixed 0.2-1.8 s window reported SHORT
+FALL at 0.0003 because the note was over before the window opened.
+
+FROZEN CLOCK sits 3.9 dB below target because it would have to clip to
+reach it (trim capped at the parameter maximum).  That is deliberate.
+
+---
+
+## 6. DESIGN DECISIONS ALREADY PAID FOR
+
+* **The panel's well is a FUNNEL (Flamm's paraboloid), not a lensed black
+  hole.** Both were tried composited and they fight badly — the screen-space
+  lens smeared the sky into an orange dust cloud. The funnel wins because it
+  SHOWS the modulator radii, which makes it a readout rather than decoration.
+* **The lens must be centred on the funnel's THROAT** (uniform `uCy`), not on
+  screen centre, or the photon ring orbits nothing. That was a real bug.
+* **The accretion disk hugs the throat.** The ISCO really is at `3*rs`, but at
+  a heavy mass that is most of the visible plane and its empty middle reads as
+  a false shadow — which is exactly what it did, and I misdiagnosed it once as
+  the star hash collapsing.
+* **Orbiting the camera is FREE.** Measured 60 fps in headless Chrome on
+  SwiftShader (software rendering, no GPU). The cost is the full-screen
+  starfield, which does not depend on camera angle. Drag to turn, wheel for
+  elevation, inertia + idle drift.
+* **The view must report the SOUND** (Peter, and §5.5 of the design doc):
+  level is already `rs`; transients will launch gravitational-wave ripples in
+  the mesh; spectral centroid colours the disk; treble shears the sky. Rule:
+  **the picture may never lie about the sound.**
+* **The sequencer's per-step data is 6 bytes x 32 in the STATE BLOB**, never
+  host parameters — 160 automation lanes would be unusable (FMR's precedent).
+* **The accent circuit ACCUMULATES** over consecutive accented steps and
+  decays with ~0.28 s. That build-up is the squelch; a fixed per-note accent
+  does not sound like a 303.
+* **Width is applied ABOVE the crossover only**, so `L+R` is exactly the mono
+  core. A bass instrument that collapses on a mono system is useless.
+
+---
+
+## 7. THE BENCH MUST MEASURE THE CLAIMS
+
+Bounded proves nothing (the Martian Gain rule). Required:
+
+1. dilation equals `sqrt(1 - rs/r)` across a sweep of both
+2. the horizon freezes, and resuming does not click (energy > 6 kHz)
+3. **redshift moves the spectrum and NOT the pitch** — centroid falls, `f0`
+   holds within a cent. This protects the central idea.
+4. ringdown ratios are the QNM ratios; `omega ~ 1/M`, `tau ~ M`
+5. **MASS 0 is memcmp-identical** to a well-free render
+6. the SINGULARITY survives full drive with both filters shut
+7. the sub is phase-coherent with the fundamental (reinforcement, not
+   cancellation)
+8. every drive is power-neutral: output rms flat across DRIVE, per type
+9. tuning: every filter self-oscillates at 0 cents; the comb tunes within a
+   couple of cents
+10. **"bounded is not stable"** — stop the input and watch, for the comb, the
+    ringdown and the disk
+11. aliasing, DC, 300 random machines bounded, 44.1/48/96 k
+
+---
+
+## 8. TRAPS ALREADY HIT IN THIS BUILD (do not repeat)
+
+* **`file:///` with spaces in the path kills Chrome silently** — "00 VSCODE"
+  is in every path here. `shoot-well.ps1` stages the page to `%TEMP%` first.
+* **`--virtual-time-budget` hangs on a never-ending rAF loop.** Use CDP and
+  wait in real time.
+* **This `cdp.js`'s `shoot` job takes a PLAIN PATH STRING**, not the
+  `{sel,out,pad,scale}` object other trees' drivers use.
+* **Inline `node -e` inside bash breaks on parentheses, apostrophes and
+  backslashes.** Patch scripts go in a FILE via the Write tool. This was
+  re-learned twice in this build alone.
+* **The design doc uses EM DASHES.** An anchor typed with a hyphen matches
+  nothing.
+* **A `X(...)` line in the table must end with a backslash** at column 100 —
+  it is one macro.
+
+---
+
+## 9. OPEN QUESTIONS FOR PETER
+
+1. Camera angle in the well view is **23°**. Right?
+2. The accretion disk is currently subtle — brighter?
+3. Mono or mono + DUO? (`voicing` parameter exists, defaults MONO.)
+4. How far may REDSHIFT go before it stops being weight and becomes a
+   cartoon? A listening call, floored at 0.35 for now.
+
+
+## STATUS 2026-09-27 - SHIPPED
+
+* Engine, wrapper and panel all built and pushed (af07063, c6e60eb).
+* Installed in both houses; installed bytes verified at build 260926.1.
+* Landing page, app.json, manifest entry, images and a release-asset
+  download, all render-verified over http.
+* Gates: gwtest 94, gwhost 18, test/uiprobe.js 16 - all clear.
+
+### What is left
+
+1. **The manual** - deferred by Peter. Until it exists Gravity Well stays
+   out of the Brokild Collection, which asks every member for a bundle, an
+   application AND a handbook. The exclusion and its reason are recorded in
+   vst3-apps/collection/contents.json; add it to brokild.includes and move
+   the phrase to "eight instruments and four effects" the day it is written.
+2. **Nobody has heard it in a DAW.** Installed and host-tested is not the
+   same claim.
+3. Deferred by agreement: the HORIZON second visual mode, and gravitational-
+   wave ripples in the mesh.
+
+
+## STATUS 2026-09-27 - 260927.3 SHIPPED
+
+* HUD displays, WORLD FX tab, SETTINGS page, the control audit's fixes,
+  slower stars, LFO divisions - see BUGLIST "Shipped in 260927.3".
+* Installed in both houses, installed bytes carry 260927.3. The zip was cut
+  from a clean relink of the standalone (the CDP shoots nudge it in place)
+  and its sha256 matches the public release asset.
+* Gates: gwtest 136, gwhost 18, test/uiprobe.js 68 - all clear. The live
+  standalone was driven over CDP: meters, traces and the TEMPO division
+  ("1/4T") all read back from the real processor.
+* uiprobe's bounded-frames regex had lost its backslash (`(d+)`), so
+  ?frames=N never bounded anything; fixed.
+
+## STATUS 2026-09-27 - 260927.4 SHIPPED
+* See BUGLIST "Shipped in 260927.4". `gwprobe cost` times every preset (denormals flushed, as the plug-in does - without FTZ the decaying plucks read 25-30 % and are nothing of the kind).
+
+## STATUS 2026-09-27 - 260927.6 SHIPPED
+Chain reorder (DRIVE PRE/POST, VCA last), per-voice filter envelope, ORBIT targets,
+OCTAVE +-3, TIME neutral, the pitch-wheel fix + TRANSPOSE, numbered user slots 32-199,
+the 14-page flight manual (docs/manual, gate tools/shoot-manual.ps1, PDF via
+make-pdf.ps1), and membership of the Brokild Collection. Gates: gwtest 150,
+gwhost 18, uiprobe 72, manual overflow/folio clean. Details in BUGLIST.md.
+Plates: scratchpad-era scripts (live standalone COPY over CDP, then crop) - re-shoot
+whenever the panel changes; the OUTPUT plate went stale within the same hour.
+
+## STATUS 2026-09-27 - 260927.8 SHIPPED, project wrapped (Peter: "that concludes this project")
+Ringdown tails ring out instead of being cut (bench `testVoiceEndsQuietly`, 151 checks);
+the patch chart loads / saves / clears with a sliding slot window. Download, manual
+(14 pp), landing page and Brokild Collection (12, 123.5 MB) all at 260927.8, public
+sha256 verified. Gates: gwtest 151, gwhost 18, uiprobe 72, manual gate clean.
+Collected, not built: scope auto-gain; a drawn wheel pair in the KEYS foot.

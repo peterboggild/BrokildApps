@@ -1,0 +1,12 @@
+[
+  { "wait": 2600 },
+  { "eval": "__BS.NB.send({k:'importPath', path:'C:/Users/peter/Downloads/OpenNeuro-ds000114-sub-01_T1w.nii.gz'}); 'importing the second OpenNeuro T1w (float32, 256x156x256)'" },
+  { "wait": 9000 },
+  { "eval": "'import on: ' + __BS.IMP.on + ' | name ' + __BS.IMP.name + ' | note [' + __BS.IMP.note + '] | err [' + __BS.IMP.err + '] | window ' + Math.round(__BS.IMP.lo) + ' to ' + Math.round(__BS.IMP.hi) + ' | filled ' + JSON.stringify(__BS.IMP.filled)" },
+  { "eval": "(function(){var d=__BS.VOL.data,N=64,lo=[99,99,99],hi=[-1,-1,-1],nz=0;for(var k=0;k<N;k++)for(var j=0;j<N;j++)for(var i=0;i<N;i++){var v=d[(k*N+j)*N+i]; if(v>60){nz++;var p=[i,j,k];for(var a=0;a<3;a++){if(p[a]<lo[a])lo[a]=p[a];if(p[a]>hi[a])hi[a]=p[a];}}}return 'the head occupies ' + (hi[0]-lo[0]+1) + ' x ' + (hi[1]-lo[1]+1) + ' x ' + (hi[2]-lo[2]+1) + ' voxels of 64, ' + nz + ' texels of tissue';})()" },
+  { "eval": "__BS.setPlane(2); __BS.draw(); 'sagittal slice sum ' + __BS.sliceSum()" },
+  { "shoot": { "sel": "#tomoScreen", "out": "shots/openneuro2-sagittal.png", "scale": 2 } },
+  { "eval": "__BS.NB.send({k:'importClear'}); 'import cleared (left as found)'" },
+  { "wait": 1500 },
+  { "eval": "'after clear: on ' + __BS.IMP.on + ' | plate ' + document.getElementById('hdSpec').textContent + ' | errors ' + JSON.stringify(window.__err)" }
+]

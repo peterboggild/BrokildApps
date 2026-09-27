@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.22)
+project(HighTideBench CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(httest bench.cpp ../Source/Engine.cpp ../Source/Factory.cpp)
+if(MSVC)
+    target_compile_definitions(httest PRIVATE _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(httest PRIVATE /O2 /fp:precise)
+    target_link_options(httest PRIVATE /STACK:67108864)
+endif()
+
+add_executable(htrender render.cpp ../Source/Engine.cpp ../Source/Factory.cpp)
+if(MSVC)
+    target_compile_definitions(htrender PRIVATE _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS)
+    target_compile_options(htrender PRIVATE /O2 /fp:precise)
+    target_link_options(htrender PRIVATE /STACK:67108864)
+endif()

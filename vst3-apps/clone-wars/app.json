@@ -1,0 +1,23 @@
+{
+  "slug": "clone-wars",
+  "name": "Clone Wars (VST3)",
+  "description": "Sixteen detuned oscillators in two armies of eight, crossfaded by a single fader — THE WAR — which can be set to take up to five minutes to cross. Three filter circuits per army, three held notes addressable per strip, and seed families you can morph between. The panel visibly ages as you play it: there is a service bay if you want the scars repaired, and a slider that runs the sixteen from perfectly locked to completely adrift.",
+  "status": "live",
+  "url": "vst3-apps/clone-wars/index.html",
+  "icon": "keys",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/clone-wars.jpg",
+  "note": "Windows VST3 · build 260923.1 · free download · 16 clones · seed morphing · the hull remembers.",
+  "tags": [
+    "vst3",
+    "synth"
+  ],
+  "downloads": [
+    {
+      "name": "Clone-Wars-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Clone-Wars-VST3-win64.zip",
+      "bytes": 8981952,
+      "sha256": "c6f98832ad3ff85755b95c7a2ae545e3d98dd03e5b40fdf83751510d25b64163"
+    }
+  ]
+}

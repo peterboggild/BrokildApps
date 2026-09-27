@@ -1,0 +1,54 @@
+[
+  {
+    "name": "hook",
+    "eval": "typeof window.__N84 === 'object' ? 'ok' : 'NO HOOK'"
+  },
+  {
+    "wait": 800
+  },
+  {
+    "name": "VHS MEMORY",
+    "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'patch', i:34}); 'asked'"
+  },
+  {
+    "wait": 900
+  },
+  {
+    "name": "hold a chord",
+    "eval": "[45,52,57,61,64].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:true, v:0.7}); }); 'held'"
+  },
+  {
+    "wait": 1400
+  },
+  {
+    "name": "tape group geometry",
+    "eval": "(function(){ var r = document.querySelector('.reelwin').getBoundingClientRect(); return JSON.stringify({x:Math.round(r.left), y:Math.round(r.top), w:Math.round(r.width), h:Math.round(r.height)}); })()"
+  },
+  {
+    "name": "tape window with its nameplate",
+    "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\manual\\raw\\tape.png",
+    "scale": 4,
+    "sel": ".reelwin",
+    "pad": {
+      "l": 10,
+      "t": 26,
+      "r": 36,
+      "b": 8
+    }
+  },
+  {
+    "name": "release",
+    "eval": "[45,52,57,61,64].forEach(function(n){ window.__JUCE__.backend.emitEvent('n84', {k:'note', n:n, on:false}); }); 'off'"
+  },
+  {
+    "wait": 600
+  },
+  {
+    "name": "SYNC LEAD label reads I to II",
+    "eval": "(function(){ var e = document.querySelector('[data-id=b_sync]'); return e ? e.textContent.replace(/\\s+/g,' ').trim() : 'no b_sync element'; })()"
+  },
+  {
+    "name": "errors",
+    "eval": "(window.__errs || []).length === 0 ? 'no errors' : 'ERRORS: ' + JSON.stringify(window.__errs).slice(0, 300)"
+  }
+]

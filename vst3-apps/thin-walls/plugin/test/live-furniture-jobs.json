@@ -1,0 +1,15 @@
+[
+  { "name": "settle", "wait": 4000 },
+  { "name": "catalogue from native", "eval": "(function(){ var c = window.__TW.furnCat ? window.__TW.furnCat() : null; return JSON.stringify({ n: c ? c.length : -1, first: c && c[0], absorb: c && c[0] && c[0].absorb1k }); })()" },
+  { "name": "clear", "eval": "(function(){ window.__JUCE__.backend.emitEvent('tw', { k:'presetDefault' }); return 'default'; })()" },
+  { "name": "wait", "wait": 1500 },
+  { "name": "empty after default", "eval": "(function(){ return JSON.stringify({ furn: window.__TW.furn(), rt: window.__TW.scene().rt[0] }); })()" },
+  { "name": "place sofa+rug+bookcase from the page", "eval": "(function(){ var items = [ {t:'sofa', x:1.5, y:4.3, yaw:0}, {t:'rug', x:3.0, y:2.5, yaw:0}, {t:'bookcase', x:0.3, y:2.5, yaw:90} ]; window.__JUCE__.backend.emitEvent('tw', { k:'furn', items: items }); return 'sent'; })()" },
+  { "name": "wait", "wait": 1500 },
+  { "name": "RT60 of LARGE falls", "eval": "(function(){ return JSON.stringify({ rt: window.__TW.scene().rt[0] }); })()" },
+  { "name": "reload the page: native must hand the layout back", "eval": "(function(){ location.reload(); return 'reloading'; })()" },
+  { "name": "wait", "wait": 5000 },
+  { "name": "layout after reload", "eval": "(function(){ return JSON.stringify(window.__TW.furn()); })()" },
+  { "name": "readout", "eval": "(function(){ var s = document.body.innerText; var m = s.match(/[A-Z]+: \\+[^\\n]*/); return m ? m[0] : ('no readout; ' + (s.match(/LARGE:[^\\n]*/) || [''])[0]); })()" },
+  { "name": "shot", "shoot": "C:\\Users\\peter\\AppData\\Local\\Temp\\claude\\dw\\live-furn.png" }
+]

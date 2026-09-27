@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "size": [1024, 1024],
+  "background": "#808080",
+  "view": "top-down",
+  "lighting": "soft upper-left",
+  "files": [
+    {"file": "01-deep-gouge.png", "category": "damage", "name": "Deep gouge"},
+    {"file": "02-hairline-scratch.png", "category": "damage", "name": "Hairline scratch"},
+    {"file": "03-parallel-scuff.png", "category": "damage", "name": "Parallel scuff"},
+    {"file": "04-paint-chip.png", "category": "damage", "name": "Paint chip"},
+    {"file": "05-shallow-dent.png", "category": "damage", "name": "Shallow dent"},
+    {"file": "06-worn-abrasion.png", "category": "damage", "name": "Worn abrasion"},
+    {"file": "07-cracked-paint.png", "category": "damage", "name": "Cracked paint"},
+    {"file": "08-rust-hole-round.png", "category": "damage", "name": "Round rust hole"},
+    {"file": "09-pitted-corrosion.png", "category": "damage", "name": "Pitted corrosion"},
+    {"file": "10-impact-puncture.png", "category": "damage", "name": "Impact puncture"},
+    {"file": "11-rust-hole-elongated.png", "category": "damage", "name": "Elongated rust hole"},
+    {"file": "12-rust-hole-angular.png", "category": "damage", "name": "Angular rust hole"},
+    {"file": "13-rust-hole-twin-lobed.png", "category": "damage", "name": "Twin-lobed rust hole"},
+    {"file": "14-dirt-dust-smear.png", "category": "dirt", "name": "Dust smear"},
+    {"file": "15-dirt-oily-fingerprint.png", "category": "dirt", "name": "Oily fingerprint"},
+    {"file": "16-dirt-grease-wipe.png", "category": "dirt", "name": "Grease wipe"},
+    {"file": "17-dirt-dried-spatter.png", "category": "dirt", "name": "Dried spatter"}
+  ]
+}

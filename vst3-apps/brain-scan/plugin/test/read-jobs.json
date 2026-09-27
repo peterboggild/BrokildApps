@@ -1,0 +1,22 @@
+[
+  { "wait": 2600 },
+  { "eval": "'err ' + JSON.stringify(window.__err) + ' | modules ' + document.querySelectorAll('#console .mod').length + ' | params ' + Object.keys(__BS.P).length + ' | grain ' + (__BS.P.grain ? __BS.P.grain.v.toFixed(2) : 'MISSING') + ' contrast ' + (__BS.P.contrast ? __BS.P.contrast.v.toFixed(2) : 'MISSING') + ' fold ' + (__BS.P.fold ? __BS.P.fold.v.toFixed(2) : 'MISSING') + ' | specimen slots ' + (__BS.P.specimen.list ? __BS.P.specimen.list.length : '?') + ' [' + (__BS.P.specimen.list || []).join(',') + '] | plate ' + document.getElementById('hdSpec').textContent + ' | vol n ' + __BS.VOL.n + ' | module titles ' + Array.from(document.querySelectorAll('#console .mod')).map(m => (m.querySelector('.mtitle, .title, h3, .modname') || {textContent: '?'}).textContent.trim()).join(' / ')" },
+  { "eval": "(function(){var d=__BS.VOL.data,s=0;for(var i=0;i<d.length;i+=97)s=(s*31+d[i])>>>0;window.__sum0=s;return 'volume checksum ' + s + ' over ' + d.length + ' texels';})()" },
+  { "eval": "__BS.setParam('specimen', 9/11); 'dialled SUTURE (9 of 12)'" },
+  { "wait": 1800 },
+  { "eval": "(function(){var d=__BS.VOL.data,s=0;for(var i=0;i<d.length;i+=97)s=(s*31+d[i])>>>0;return 'plate ' + document.getElementById('hdSpec').textContent + ' | dial ' + document.querySelector('#console .mod .step .cur').textContent + ' | checksum ' + s + (s===window.__sum0 ? ' UNCHANGED' : ' changed') + ' | n ' + __BS.VOL.n;})()" },
+  { "eval": "__BS.setPlane(0); __BS.draw(); 'axial slice sum ' + __BS.sliceSum()" },
+  { "shoot": { "sel": "#tomoScreen", "out": "shots/read-suture-axial.png", "scale": 2 } },
+  { "eval": "__BS.setParam('grain', 1.0); __BS.setParam('contrast', 0.6); __BS.setParam('fold', 0.3); __BS.NB.send({k:'note', n:45, on:true, vel:0.9}); 'A2 with GRAIN 1, CONTRAST 0.6, FOLD 0.3'" },
+  { "wait": 900 },
+  { "eval": "'sounding: lvl ' + __BS.VIEW.lvl.toFixed(4) + ' | voices ' + __BS.VIEW.voices.length + ' | note ' + document.getElementById('vNote').textContent + ' | err ' + JSON.stringify(window.__err)" },
+  { "shoot": { "sel": "#console .mod:nth-child(2)", "out": "shots/m-read.png", "pad": 3, "scale": 3 } },
+  { "shoot": { "sel": "#console", "out": "shots/read-console.png", "pad": 3, "scale": 2 } },
+  { "shoot": { "sel": null, "out": "shots/m-panel.png", "scale": 2 } },
+  { "eval": "__BS.NB.send({k:'note', n:45, on:false}); __BS.setParam('specimen', 8/11); 'note off, dialled CORTEX'" },
+  { "wait": 2500 },
+  { "eval": "(function(){var d=__BS.VOL.data,s=0;for(var i=0;i<d.length;i+=97)s=(s*31+d[i])>>>0;return 'plate ' + document.getElementById('hdSpec').textContent + ' | checksum ' + s + ' | err ' + JSON.stringify(window.__err);})()" },
+  { "eval": "__BS.setParam('specimen', 1/11); __BS.setParam('grain', 0.35); __BS.setParam('contrast', 0); __BS.setParam('fold', 0); 'restored SPINE and the read defaults'" },
+  { "wait": 1200 },
+  { "eval": "'final: plate ' + document.getElementById('hdSpec').textContent + ' | err ' + JSON.stringify(window.__err)" }
+]

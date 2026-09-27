@@ -1,0 +1,23 @@
+{
+  "slug": "thin-walls",
+  "name": "Thin Walls (VST3)",
+  "description": "An apartment of three rooms and three doors that you put the sound inside and then walk around in. Place up to four sources, stand where you like, open a door or shut it: every arrival is a path the engine traced, and there is no reverb amount, because where you stand decides it. Furnish it - a sofa, a bookcase, a grand piano - and you hear the furniture absorb, scatter and block. Hang your own pictures, as prints or as acoustic panels. Turn on CINEMATIC for shadows and traced light, let the lamps follow the sound, and record a walk to export as a video with its sound.",
+  "status": "live",
+  "url": "vst3-apps/thin-walls/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/thin-walls.jpg",
+  "note": "Windows VST3 · build 260925.7 · free download · 3 rooms, 3 doors, 4 sources · furniture and wall pictures · cinematic view, MP4 export · ray-traced and wave-simulated offline renders · MIT KEMAR or your own SOFA head · handbook included.",
+  "tags": [
+    "vst3",
+    "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Thin-Walls-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Thin-Walls-VST3-win64.zip",
+      "bytes": 10548402,
+      "sha256": "12842d9a22600b3a22e7f67e811cde65054fac634babfc390838066ff595e314"
+    }
+  ]
+}

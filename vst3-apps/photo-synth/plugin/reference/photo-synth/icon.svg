@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Photo Synth app icon: two photo frames, one carrying a waveform -->
+  <rect width="128" height="128" rx="28" fill="#08090d"/>
+  <g transform="rotate(-8 52 56)">
+    <rect x="22" y="26" width="60" height="46" rx="8" fill="#151823" stroke="#e0a3ff" stroke-width="3"/>
+    <circle cx="38" cy="42" r="6" fill="#e0a3ff" opacity=".85"/>
+    <path d="M28 64l14-14 10 9 12-12 14 17z" fill="#e0a3ff" opacity=".45"/>
+  </g>
+  <g transform="rotate(6 76 84)">
+    <rect x="46" y="56" width="60" height="46" rx="8" fill="#101219" stroke="#7fd4c1" stroke-width="3"/>
+    <path d="M52 79c4-12 8-12 12 0s8 12 12 0 8-12 12 0 8 12 12 0"
+          fill="none" stroke="#7fd4c1" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+</svg>

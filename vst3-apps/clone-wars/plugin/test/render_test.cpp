@@ -1,0 +1,408 @@
+// Headless validation of the Clone Wars engine core.
+//
+//   g++ -O2 -std=c++17 -I../Source/Core render_test.cpp ../Source/Core/cw_core.cpp -o render_test
+//   ./render_test [outdir]
+//
+// Renders several scenarios to WAV, asserts basic sanity (no NaN, no
+// silence, no hard clipping, bounded DC), prints stats. Exit 0 = pass.
+
+#include "cw_core.h"
+#include "bwfx.h"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <string>
+#include <vector>
+
+static bool writeWav (const std::string& path, const std::vector<float>& L,
+                      const std::vector<float>& R, int fs)
+{
+    FILE* f = fopen (path.c_str(), "wb");
+    if (! f) return false;
+    const uint32_t n = (uint32_t) L.size();
+    const uint32_t dataBytes = n * 2 * 2;
+    auto u32 = [f] (uint32_t v) { fwrite (&v, 4, 1, f); };
+    auto u16 = [f] (uint16_t v) { fwrite (&v, 2, 1, f); };
+    fwrite ("RIFF", 1, 4, f); u32 (36 + dataBytes); fwrite ("WAVE", 1, 4, f);
+    fwrite ("fmt ", 1, 4, f); u32 (16); u16 (1); u16 (2);
+    u32 ((uint32_t) fs); u32 ((uint32_t) fs * 4); u16 (4); u16 (16);
+    fwrite ("data", 1, 4, f); u32 (dataBytes);
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        auto conv = [] (float x)
+        {
+            x = x < -1.0f ? -1.0f : (x > 1.0f ? 1.0f : x);
+            return (int16_t) (x * 32767.0f);
+        };
+        int16_t s[2] = { conv (L[i]), conv (R[i]) };
+        fwrite (s, 2, 2, f);
+    }
+    fclose (f);
+    return true;
+}
+
+struct Stats { float peak = 0, rms = 0, dc = 0; bool nan = false; };
+
+static Stats analyze (const std::vector<float>& L, const std::vector<float>& R,
+                      size_t skip)
+{
+    Stats st;
+    double sum2 = 0, sum = 0;
+    size_t cnt = 0;
+    for (size_t i = skip; i < L.size(); ++i)
+        for (float x : { L[i], R[i] })
+        {
+            if (! std::isfinite (x)) st.nan = true;
+            const float a = std::fabs (x);
+            if (a > st.peak) st.peak = a;
+            sum2 += (double) x * x;
+            sum  += x;
+            ++cnt;
+        }
+    st.rms = (float) std::sqrt (sum2 / (double) cnt);
+    st.dc  = (float) (sum / (double) cnt);
+    return st;
+}
+
+static int failures = 0;
+static void check (bool ok, const char* what)
+{
+    printf ("  %-46s %s\n", what, ok ? "ok" : "FAIL");
+    if (! ok) ++failures;
+}
+
+static void render (cw::Engine& e, std::vector<float>& L, std::vector<float>& R,
+                    int fs, double seconds)
+{
+    const size_t n = (size_t) (seconds * fs);
+    const size_t start = L.size();
+    L.resize (start + n); R.resize (start + n);
+    size_t done = 0;
+    while (done < n)
+    {
+        const int m = (int) std::min<size_t> (512, n - done);
+        e.process (L.data() + start + done, R.data() + start + done, m);
+        done += (size_t) m;
+    }
+}
+
+int main (int argc, char** argv)
+{
+    const std::string out = argc > 1 ? std::string (argv[1]) + "/" : "";
+    const int fs = 48000;
+
+    // ---- scenario 1: silent on open, then the DRONE power switch ----------
+    {
+        cw::Engine e;
+        e.prepare (fs, 512);
+        std::vector<float> S1, S2;
+        render (e, S1, S2, fs, 1.0);
+        const auto quiet = analyze (S1, S2, 0);
+        check (quiet.rms < 1.0e-4f, "default patch opens silent (VST3 manners)");
+
+        e.setGlobal (cw::gDrone, 1);
+        std::vector<float> L, R;
+        render (e, L, R, fs, 10.0);
+        writeWav (out + "cw-default-drone.wav", L, R, fs);
+        const auto st = analyze (L, R, (size_t) fs / 2);
+        printf ("default drone: peak %.3f rms %.4f dc %.5f\n", st.peak, st.rms, st.dc);
+        check (! st.nan, "no NaN/inf");
+        check (st.rms > 0.01f, "not silent");
+        check (st.peak <= 1.01f, "no hard clipping");
+        check (std::fabs (st.dc) < 0.02f, "no DC offset");
+    }
+
+    // ---- scenario 2: all five seed categories -----------------------------
+    for (uint32_t seed : { 5u, 25u, 45u, 65u, 85u })   // one per band
+    {
+        cw::Engine e;
+        cw::Patch p;
+        const char* cat = cw::generatePatch (seed, p);
+        e.applyPatch (p);
+        e.prepare (fs, 512);
+        e.noteOn (36); e.noteOn (43); e.noteOn (48);
+        std::vector<float> L, R;
+        render (e, L, R, fs, 8.0);
+        char name[128];
+        snprintf (name, sizeof name, "%scw-seed-%03u-%s.wav", out.c_str(), seed, cat);
+        writeWav (name, L, R, fs);
+        const auto st = analyze (L, R, (size_t) fs);
+        printf ("seed %03u (%s): peak %.3f rms %.4f\n", seed, cat, st.peak, st.rms);
+        check (! st.nan, "no NaN/inf");
+        check (st.rms > 0.005f, "not silent");
+        check (st.peak <= 1.01f, "no hard clipping");
+    }
+
+    // ---- scenario 3: MIDI chord, latch, then WAR sweep --------------------
+    {
+        cw::Engine e;
+        e.prepare (fs, 512);                  // silent until played, by default
+        std::vector<float> L, R;
+        render (e, L, R, fs, 0.5);
+        const auto silent = analyze (L, R, 0);
+        check (silent.rms < 0.001f, "drone off + no notes = silence");
+
+        e.setGlobal (cw::gLatchA, 1);                  // engage HOLD explicitly
+        e.setGlobal (cw::gLatchB, 1);
+        e.noteOn (36); e.noteOn (43); e.noteOn (48);   // C2 G2 C3
+        render (e, L, R, fs, 3.0);
+        e.noteOff (36); e.noteOff (43); e.noteOff (48); // latched: keeps sounding
+        e.setGlobal (cw::gWarSlew, 0.15f);
+        e.setGlobal (cw::gWar, 1.0f);                   // march to army B
+        render (e, L, R, fs, 5.0);
+        writeWav (out + "cw-chord-war.wav", L, R, fs);
+        const auto st = analyze (L, R, (size_t) fs);
+        printf ("chord+war: peak %.3f rms %.4f\n", st.peak, st.rms);
+        check (! st.nan, "no NaN/inf");
+        check (st.rms > 0.01f, "latched chord sustains");
+        check (st.peak <= 1.01f, "no hard clipping");
+    }
+
+    // ---- scenario 4: every temper at high resonance stays stable ----------
+    for (int temper = 0; temper < 3; ++temper)
+    {
+        cw::Engine e;
+        e.prepare (fs, 512);
+        e.setGlobal (cw::gDrone, 1);
+        e.setGlobal (cw::gTemperA, (float) temper);
+        e.setGlobal (cw::gTemperB, (float) temper);
+        for (int v = 0; v < cw::kVoices; ++v)
+        {
+            e.setVoice (v, cw::vfRes, 0.95f);
+            e.setVoice (v, cw::vfCut, 0.75f);
+        }
+        std::vector<float> L, R;
+        render (e, L, R, fs, 4.0);
+        const auto st = analyze (L, R, (size_t) fs / 2);
+        printf ("temper %d res=0.95: peak %.3f rms %.4f\n", temper, st.peak, st.rms);
+        check (! st.nan, "no NaN/inf at high resonance");
+        check (st.peak <= 1.01f, "stable at high resonance");
+    }
+
+    // ---- scenario 5: THE RANKS extremes + 64'/2' footage stay stable ------
+    {
+        cw::Engine e;
+        e.prepare (fs, 512);
+        e.setGlobal (cw::gDrone, 1);
+        for (int v = 0; v < cw::kVoices; ++v)
+        {
+            e.setVoice (v, cw::vfFoot, (float) (v % 6));   // includes 64' and 2'
+            e.setVoice (v, cw::vfTune, (v % 2 ? 0.8f : -0.8f));
+            e.setVoice (v, cw::vfCut,  0.3f + 0.05f * (float) (v % 8));
+        }
+        std::vector<float> L, R;
+        e.setGlobal (cw::gRanks, 1.0f);                    // full mutiny
+        render (e, L, R, fs, 3.0);
+        e.setGlobal (cw::gRanks, 0.0f);                    // one perfect machine
+        render (e, L, R, fs, 3.0);
+        writeWav (out + "cw-ranks-footage.wav", L, R, fs);
+        const auto st = analyze (L, R, (size_t) fs / 2);
+        printf ("ranks+footage: peak %.3f rms %.4f\n", st.peak, st.rms);
+        check (! st.nan, "no NaN/inf at ranks extremes with 64'/2'");
+        check (st.rms > 0.005f, "still sounds at ranks extremes");
+        check (st.peak <= 1.01f, "no hard clipping at ranks extremes");
+
+        // unison really is unison: with ranks at 0 the per-army spread of the
+        // working cutoffs collapses, so two very different strips converge.
+        // (Indirect check: a render with ranks 0 differs from ranks 0.5.)
+        // Engines are ~2 MB each, so these live on the heap.
+        auto mkEngine = [fs] (float ranksVal)
+        {
+            auto ep = std::make_unique<cw::Engine>();
+            ep->prepare (fs, 512);
+            ep->setGlobal (cw::gDrone, 1);
+            for (int v = 0; v < cw::kVoices; ++v)
+                ep->setVoice (v, cw::vfCut, 0.2f + 0.07f * (float) v);
+            ep->setGlobal (cw::gRanks, ranksVal);
+            return ep;
+        };
+        std::vector<float> a1, b1, a2, b2;
+        render (*mkEngine (0.5f), a1, b1, fs, 2.0);
+        render (*mkEngine (0.0f), a2, b2, fs, 2.0);
+        check (std::memcmp (a1.data(), a2.data(), a1.size() * 4) != 0,
+               "ranks 0 audibly differs from ranks centre");
+    }
+
+    // ---- sticky seats: no phantom note between a chord's tones on release --
+    {
+        cw::Engine e;
+        e.prepare (fs, 512);
+        e.setGlobal (cw::gTolerance, 0.f); e.setGlobal (cw::gDriftMaster, 0.f);
+        e.setGlobal (cw::gSpread, 0.f);    e.setGlobal (cw::gTide, 0.f);
+        e.setGlobal (cw::gDrone, 0.f);     e.setGlobal (cw::gNoteMode, 1.f);  // treaty
+        for (int v = 0; v < cw::kVoices; ++v)
+        {
+            e.setVoice (v, cw::vfWave, 3.f);   // sine - clean partials
+            e.setVoice (v, cw::vfFoot, 3.f);   // 8' - as played
+            e.setVoice (v, cw::vfTune, 0.f);   e.setVoice (v, cw::vfDrift, 0.f);
+            e.setVoice (v, cw::vfCut, 1.f);    e.setVoice (v, cw::vfRes, 0.f);
+            e.setVoice (v, cw::vfLfoAmp, 0.f); e.setVoice (v, cw::vfLfoFlt, 0.f);
+        }
+        std::vector<float> L, R;
+        const size_t n1 = (size_t) fs, nGap = (size_t) fs / 20, nTail = (size_t) fs * 2;
+        L.assign (n1 + nGap + nTail, 0.f); R.assign (L.size(), 0.f);
+        auto run = [&] (size_t from, size_t len)
+        {
+            size_t done = from;
+            while (done < from + len)
+            {
+                const int m = (int) std::min<size_t> (512, from + len - done);
+                e.process (L.data() + done, R.data() + done, m); done += (size_t) m;
+            }
+        };
+        e.noteOn (48); e.noteOn (60);       // C3 + C4
+        run (0, n1);
+        e.noteOff (48);                     // release the low note first...
+        run (n1, nGap);
+        e.noteOff (60);                     // ...then the high, 50 ms later
+        run (n1 + nGap, nTail);
+        // the release tail must hold energy at C3 and C4 partials ONLY -
+        // the old redistribution left clones frozen mid-glide in between
+        auto goert = [&] (double f)
+        {
+            const double w = 2.0 * 3.14159265358979 * f / fs, c = 2.0 * std::cos (w);
+            double s1 = 0, s2 = 0;
+            const size_t from = n1 + nGap + (size_t) (0.2 * fs);
+            for (size_t i = from; i < L.size(); ++i)
+            { const double s0 = L[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+            return std::sqrt (std::max (0.0, s1 * s1 + s2 * s2 - c * s1 * s2));
+        };
+        const double c3 = goert (130.81), c4 = goert (261.63);
+        double worstBetween = 0;
+        for (int cents = 150; cents <= 1050; cents += 25)   // strictly between
+        {
+            const double f = 130.81 * std::pow (2.0, cents / 1200.0);
+            worstBetween = std::max (worstBetween, goert (f));
+        }
+        const double notesMag = std::max (c3, c4);
+        printf ("sticky release: C3 %.4g C4 %.4g worst-between %.4g\n", c3, c4, worstBetween);
+        check (notesMag > 1e-4, "release tail still sounds the played notes");
+        check (worstBetween < notesMag * 0.1, "no phantom pitch between the released notes");
+    }
+
+    // ---- scenario 6: determinism — same seed twice is bit-identical -------
+    {
+        auto renderSeed = [fs] (std::vector<float>& L, std::vector<float>& R)
+        {
+            cw::Engine e;
+            cw::Patch p;
+            cw::generatePatch (42, p);
+            e.applyPatch (p);
+            e.setUnitSeed (777);
+            e.prepare (fs, 512);
+            e.noteOn (40);
+            render (e, L, R, fs, 2.0);
+        };
+        std::vector<float> L1, R1, L2, R2;
+        renderSeed (L1, R1);
+        renderSeed (L2, R2);
+        check (std::memcmp (L1.data(), L2.data(), L1.size() * 4) == 0,
+               "same seed → bit-identical render");
+    }
+
+    // ---- scenario 7: BWFX — the additive contract ------------------------
+    // The world rack sits after the engine in processBlock. Empty (nothing
+    // enabled) it must be BIT-identical: the day Clone Wars adopted BWFX,
+    // every existing patch and factory seed provably kept its sound.
+    {
+        auto renderDrone = [fs] (std::vector<float>& L, std::vector<float>& R,
+                                 int rackMode)   // 0 none, 1 empty rack, 2 delay on
+        {
+            auto ep = std::make_unique<cw::Engine>();
+            ep->prepare (fs, 512);
+            ep->setGlobal (cw::gDrone, 1);
+            bwfx::Rack rack;
+            rack.prepare (fs, 512);
+            if (rackMode == 2)
+            {
+                for (int t = 0; t < bwfx::numModuleTypes(); ++t)
+                    if (std::string (bwfx::moduleDescriptor (t).id) == "delay")
+                        rack.setEnabled (t, true);
+            }
+            const size_t n = (size_t) fs * 3;
+            L.assign (n, 0.0f); R.assign (n, 0.0f);
+            size_t done = 0;
+            while (done < n)
+            {
+                const int m = (int) std::min<size_t> (512, n - done);
+                ep->process (L.data() + done, R.data() + done, m);
+                if (rackMode != 0)
+                    rack.process (L.data() + done, R.data() + done, m);
+                done += (size_t) m;
+            }
+        };
+        std::vector<float> L0, R0, L1, R1, L2, R2;
+        renderDrone (L0, R0, 0);
+        renderDrone (L1, R1, 1);
+        renderDrone (L2, R2, 2);
+        check (std::memcmp (L0.data(), L1.data(), L0.size() * 4) == 0
+            && std::memcmp (R0.data(), R1.data(), R0.size() * 4) == 0,
+               "empty BWFX rack is bit-identical (additive contract)");
+        check (std::memcmp (L0.data(), L2.data(), L0.size() * 4) != 0,
+               "an enabled BWFX module audibly does something");
+        const auto st = analyze (L2, R2, (size_t) fs / 2);
+        check (! st.nan && st.peak < 1.3f, "engine + BWFX delay stays bounded");
+    }
+
+    // ---- scenario 8: the SPECTRA world-mod bus on the clones -------------
+    {
+        auto renderDroneWm = [fs] (std::vector<float>& L, std::vector<float>& R,
+                                   int mode)   // 0 no call, 1 neutral, 2 sag, 3 detune, 4 dull
+        {
+            auto ep = std::make_unique<cw::Engine>();
+            ep->prepare (fs, 512);
+            ep->setGlobal (cw::gDrone, 1);
+            ep->setGlobal (cw::gTolerance, 0.f);
+            ep->setGlobal (cw::gDriftMaster, 0.f);
+            ep->setGlobal (cw::gTide, 0.f);
+            if (mode == 1) ep->setWorldMod (0, 0, 0, 0, 0, 1);
+            if (mode == 2) ep->setWorldMod (0, 0, 0, 0, 1.0f, 1);   // 1 st sag
+            if (mode == 3) ep->setWorldMod (30, 0, 0, 0, 0, 1);
+            if (mode == 4) ep->setWorldMod (0, 0, 0, 0, 0, 0.25f);
+            const size_t n = (size_t) fs * 3;
+            L.assign (n, 0.0f); R.assign (n, 0.0f);
+            size_t done = 0;
+            while (done < n)
+            {
+                const int m = (int) std::min<size_t> (512, n - done);
+                ep->process (L.data() + done, R.data() + done, m);
+                done += (size_t) m;
+            }
+        };
+        auto goertz = [fs] (const std::vector<float>& L, double f0)
+        {
+            const double w = 2.0 * 3.14159265358979 * f0 / fs, c = 2.0 * std::cos (w);
+            double s1 = 0, s2 = 0;
+            for (size_t i = (size_t) fs; i < L.size(); ++i)
+            { const double s0 = L[i] + c * s1 - s2; s2 = s1; s1 = s0; }
+            return std::sqrt (std::max (0.0, s1 * s1 + s2 * s2 - c * s1 * s2));
+        };
+        std::vector<float> L0, R0, L1, R1, L2, R2, L3, R3, L4, R4;
+        renderDroneWm (L0, R0, 0);
+        renderDroneWm (L1, R1, 1);
+        renderDroneWm (L2, R2, 2);
+        renderDroneWm (L3, R3, 3);
+        renderDroneWm (L4, R4, 4);
+        check (std::memcmp (L0.data(), L1.data(), L0.size() * 4) == 0,
+               "neutral world-mod bus is bit-identical");
+        // sag keys to the GATE: a held drone must NOT go flat (PS2 lesson)
+        const double f0 = 110.0;
+        const double e0 = goertz (L0, f0), e2 = goertz (L2, f0);
+        printf ("world-mod sag on held drone: f0 energy %.3g vs %.3g\n", e0, e2);
+        check (e2 > e0 * 0.5, "sag detuned a HELD note (the PS2 bug reborn)");
+        check (std::memcmp (L0.data(), L3.data(), L0.size() * 4) != 0,
+               "world-mod detune audibly does something");
+        double hi0 = 0, hi4 = 0;
+        for (double f = 3000; f <= 6000; f += 500) { hi0 += goertz (L0, f); hi4 += goertz (L4, f); }
+        printf ("world-mod dull: HF energy %.3g -> %.3g\n", hi0, hi4);
+        check (hi4 < hi0 * 0.6, "filterMul does not darken");
+        const auto st = analyze (L3, R3, (size_t) fs / 2);
+        check (! st.nan && st.peak <= 1.01f, "world-mod render stays bounded");
+    }
+
+    printf ("\n%s (%d failure%s)\n", failures == 0 ? "ALL PASS" : "FAILURES",
+            failures, failures == 1 ? "" : "s");
+    return failures == 0 ? 0 : 1;
+}

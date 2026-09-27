@@ -1,0 +1,20 @@
+cmake_minimum_required(VERSION 3.22)
+project(N84Test CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Plain C++, no JUCE: the engine and the bench only.
+add_executable(n84test bench.cpp ../Source/Engine.cpp ../Source/Patches.cpp)
+target_include_directories(n84test PRIVATE ../Source)
+if(MSVC)
+    target_compile_options(n84test PRIVATE /O2 /fp:precise /EHsc /bigobj)
+    target_link_options(n84test PRIVATE /STACK:33554432)
+else()
+    target_compile_options(n84test PRIVATE -O2 -fno-fast-math)
+endif()
+
+add_executable(n84render render.cpp ../Source/Engine.cpp ../Source/Patches.cpp)
+target_include_directories(n84render PRIVATE ../Source)
+if(MSVC)
+    target_compile_options(n84render PRIVATE /O2 /fp:precise /EHsc)
+endif()

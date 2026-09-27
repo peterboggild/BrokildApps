@@ -1,0 +1,113 @@
+{
+  "_comment": [
+    "The three Brokild collections, declared rather than inferred.",
+    "",
+    "A collection is a DERIVED artefact: it goes stale the moment the fleet gains or",
+    "renames a plug-in, and it had done so twice before anyone noticed. So every",
+    "plug-in that ships a download must appear in exactly one collection's `includes`",
+    "or in `excludes`, and tools/check-links.js fails if it does not, if an archive on",
+    "disk disagrees with its list, or if a page's wording contradicts a count.",
+    "",
+    "Adding a plug-in to the fleet therefore forces a decision about the collections",
+    "instead of leaving one to be remembered.",
+    "",
+    "The split was agreed 2026-09-23; see REPO-CONSOLIDATION.md. The three match the",
+    "three folders install-fleet.ps1 already creates, so the site and the disk are",
+    "the same idea."
+  ],
+  "collections": {
+    "brokild": {
+      "title": "The Brokild Collection",
+      "folder": "vst3-apps/collection",
+      "installGroup": "Brokild collection",
+      "blurb": "The instruments and effects that are finished and meant to be used.",
+      "shape": "bundle + application + handbook",
+      "_shapeNote": "Every folder in this archive holds a plug-in, a standalone and a PDF. That promise is what makes the whole archive worth downloading, so the builder asserts it per plug-in and aborts rather than shipping a folder that is short.",
+      "includes": [
+        "1984",
+        "black-rider",
+        "blade-ruiner",
+        "clone-wars",
+        "escape-room",
+        "full-metal-racket",
+        "thirty-thousand-years",
+        "gravity-well",
+        "battlestar-overdrive",
+        "martian-gain",
+        "rite-of-passage",
+        "thin-walls"
+      ],
+      "claims": {
+        "count": 12,
+        "phrase": "eight instruments and four effects"
+      }
+    },
+    "beetmachine": {
+      "title": "The Beetmachine Collection",
+      "folder": "vst3-apps/beetmachine-collection",
+      "installGroup": "Beetmachine collection",
+      "archive": "Brokild-Beetmachine-Collection-win64",
+      "cardSlug": "beetmachine-collection",
+      "blurb": "The drums: a kick, a snare and the hats and cymbals, every hit synthesised and no samples anywhere, and Beetmachine, the kit that plays all three.",
+      "lede": "Three drum synthesisers built as a set, each on physical controls rather than a simulation per machine: Kickstart for the kick, Snare Tactics for the snare, Hats Off for the hats and cymbals. Beetmachine puts them together: eight slots, each a real copy of one of the three with its own full panel, played from one MIDI pattern, with chokes, outputs, a BWFX rack and twenty-four themed kits, from STUDIO and 808 to DUB SPACE, DOOM and BLACK METAL. All four wear the same vintage machine controls and type.",
+      "shape": "bundle + application + handbook",
+      "_shapeNote": "The same promise as the Brokild Collection: every folder holds a plug-in, its standalone and its handbook.",
+      "includes": [
+        "kickstart",
+        "snare-tactics",
+        "hats-off",
+        "beetmachine"
+      ],
+      "claims": {
+        "count": 4,
+        "phrase": "four drum instruments"
+      }
+    },
+    "experimental": {
+      "title": "The Experimental Collection",
+      "folder": "vst3-apps/experimental",
+      "installGroup": "Experimental",
+      "blurb": "Instruments that exist to ask a question about how sound can be made. Each one is a thesis rather than a product.",
+      "shape": "bundle + whatever documentation exists",
+      "_shapeNote": "The rule is relaxed here ON PURPOSE. A plug-in with a bundle and a README is an honest thing to find in this archive; holding it back until it has a standalone would mean never shipping the experiments at all.",
+      "_framing": "PURPOSE, NOT POLISH. Do not call these unfinished: Photo Synth carries the largest manual in the fleet at 38 pages, and Brain Scan and High Tide both ship full handbooks. What they are not is useful the way a compressor is useful, and that is the thing to say.",
+      "includes": [
+        "brain-scan",
+        "hairfryer",
+        "high-tide",
+        "legion",
+        "photo-synth"
+      ],
+      "claims": {
+        "count": 5,
+        "phrase": "three instruments and two effects"
+      }
+    },
+    "proxima": {
+      "title": "Proxima Centauri B — the findings",
+      "folder": "vst3-apps/proxima-centauri-b",
+      "installGroup": "Proxima Centauri B findings",
+      "archive": "Brokild-Proxima-Centauri-B-Collection-win64",
+      "sharedDoc": "Proxima Centauri b - Field Findings.pdf",
+      "_archiveNote": "All four findings in one download (build-collection.ps1 -Collection proxima): each bundle with its standalone and README, and the one Field Findings PDF at the top. Its button lives on the hand-made survey page, which the page builder never writes.",
+      "blurb": "Four alien instruments recovered from one fiction, sharing a survey and a findings document but deliberately sharing no mechanisms.",
+      "shape": "bundle + whatever documentation exists",
+      "_shapeNote": "The four ship from one folder and share one Field Findings PDF, so the archive is four bundles and one document rather than four of everything.",
+      "includes": [
+        "b2311-1",
+        "b2311-22",
+        "b2311-67",
+        "b2311-104"
+      ],
+      "_includesNote": "These are the four zips inside vst3-apps/proxima-centauri-b, not folders of their own: the survey is the page they share.",
+      "claims": {
+        "count": 4,
+        "phrase": "all four objects",
+        "_comment": "The phrase the card already uses. Declared here so a change of membership forces the card to be rewritten, rather than imposing wording the page never chose."
+      }
+    }
+  },
+  "excludes": {
+    "_comment": "Ships a download, deliberately in no collection."
+  }
+}

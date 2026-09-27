@@ -1,0 +1,23 @@
+{
+  "slug": "battlestar-overdrive",
+  "name": "Battlestar Overdrive (VST3)",
+  "description": "An overdrive, and a tribute: named after Max Christensen's Copenhagen solo project and built with his blessing. Eight drive engines on one knob, running from a polite tube to a fold-crush-chaos cascade with no musical justification whatsoever, every one of them level-matched by a table the plugin measures for itself at startup. The CRT is part of the instrument: it names the engine you landed on, speeds its starfield up as you climb the knob, goes to warp on the seventh and blows up a star on the eighth. And watch the fuel.",
+  "status": "live",
+  "url": "vst3-apps/battlestar-overdrive/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/battlestar-overdrive.jpg",
+  "note": "Windows VST3 · build 260926.2 · free download · 8 engines · 12-page handbook included.",
+  "tags": [
+    "vst3",
+    "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Battlestar-Overdrive-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Battlestar-Overdrive-VST3-win64.zip",
+      "bytes": 16721228,
+      "sha256": "eb08428e65a00879ac5c7fafed4c43a94dd364899d2d4ba273a1574dfd9cfec4"
+    }
+  ]
+}

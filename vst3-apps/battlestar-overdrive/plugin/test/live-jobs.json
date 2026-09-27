@@ -1,0 +1,83 @@
+[
+  { "name": "wait for the page", "wait": 2500 },
+
+  { "name": "JS errors on the page",
+    "eval": "(window.__err && window.__err.length) ? window.__err.join(' | ') : 'none'" },
+
+  { "name": "bridge is live",
+    "eval": "NB.live()" },
+
+  { "name": "initialState arrived: parameter ids",
+    "eval": "Object.keys(SPEC).join(', ')" },
+
+  { "name": "engines received from the processor",
+    "eval": "ENGINES.length + ': ' + ENGINES.map(e=>e.name).join(', ')" },
+
+  { "name": "six knobs exist and are positioned on their pots",
+    "eval": "GEO.pots.map(p=>{const k=el[p.id];const r=k.getBoundingClientRect();const d=deck.getBoundingClientRect();return p.id+'@'+Math.round((r.left+r.width/2-d.left)/d.width*1536)+','+Math.round((r.top+r.height/2-d.top)/d.height*1024);}).join('  ')" },
+
+  { "name": "knob art actually loaded (naturalWidth of the strip)",
+    "eval": "(async()=>{const i=new Image();i.src='art/knobs-chrome.png';await i.decode();return i.naturalWidth+'x'+i.naturalHeight;})()" },
+
+  { "name": "panel art loaded",
+    "eval": "(async()=>{const i=new Image();i.src='art/panel.jpg';await i.decode();return i.naturalWidth+'x'+i.naturalHeight;})()" },
+
+  { "name": "fuel strip loaded",
+    "eval": "(async()=>{const i=new Image();i.src='art/fuel.png';await i.decode();return i.naturalWidth+'x'+i.naturalHeight;})()" },
+
+  { "name": "screen glass loaded",
+    "eval": "(async()=>{const i=new Image();i.src='art/screen-glass.jpg';await i.decode();return i.naturalWidth+'x'+i.naturalHeight;})()" },
+
+  { "name": "the CRT canvas has a real backing size",
+    "eval": "crt.width+'x'+crt.height" },
+
+  { "name": "the CRT is actually being painted (non-black pixel count in a 40x40 sample)",
+    "eval": "(function(){const d=ctx.getImageData(Math.floor(crt.width*0.3),Math.floor(crt.height*0.3),40,40).data;let n=0;for(let i=0;i<d.length;i+=4){if(d[i]>12||d[i+1]>12||d[i+2]>12)n++;}return n+' of 1600 lit';})()" },
+
+  { "name": "set THRUST to 0.8 and read it back",
+    "eval": "setParam('thrust',0.8); V.thrust.toFixed(3)" },
+
+  { "name": "wait for the native echo", "wait": 400 },
+
+  { "name": "THRUST survived the native round trip",
+    "eval": "V.thrust.toFixed(3)" },
+
+  { "name": "step ENGINE to SUPERNOVA and check the knob snapped to a detent",
+    "eval": "setParam('engine',1.0); el.engine.style.transform" },
+
+  { "name": "let the raster repaint before reading it", "wait": 250 },
+
+  { "name": "engine name is showing on the screen",
+    "eval": "(function(){const t=(performance.now()-engineShownAt)/1000; return 'index '+engineIndex()+' = '+ENGINES[engineIndex()].name+', shown '+t.toFixed(2)+' s ago';})()" },
+
+  { "name": "the name is drawn as blue holographic letters (blue-dominant pixels in the title band)",
+    "eval": "(function(){const y=Math.floor(crt.height*0.42)-6;const d=ctx.getImageData(0,y,crt.width,12).data;let blue=0;for(let i=0;i<d.length;i+=4){if(d[i+2]>70&&d[i+2]>d[i]+25)blue++;}return blue+' blue-dominant pixels across the title band';})()" },
+
+  { "name": "panel with the engine name up", "shoot": "C:\\Users\\peter\\b\\BattlestarOverdrive\\docs\\live-name.png" },
+
+  { "name": "wait past the 2 s hold", "wait": 2400 },
+
+  { "name": "the name has gone",
+    "eval": "(function(){const y=Math.floor(crt.height*0.42)-6;const d=ctx.getImageData(0,y,crt.width,12).data;let blue=0;for(let i=0;i<d.length;i+=4){if(d[i+2]>70&&d[i+2]>d[i]+25)blue++;}return blue+' blue-dominant pixels (was hundreds)';})()" },
+
+  { "name": "toggle AUTOREFILL off and check the lamp goes out",
+    "eval": "setParam('autorefill',0); 'class=[' + document.getElementById('refill').className + '] brightness=' + getComputedStyle(document.getElementById('refill')).filter" },
+
+  { "name": "turn it back on and check the lamp lights",
+    "eval": "setParam('autorefill',1); 'class=[' + document.getElementById('refill').className + '] brightness=' + getComputedStyle(document.getElementById('refill')).filter" },
+
+  { "name": "meters are arriving from the processor",
+    "eval": "JSON.stringify(meter)" },
+
+  { "name": "fuel tube frame follows the tank",
+    "eval": "document.getElementById('fuel').style.backgroundPosition" },
+
+  { "name": "swap to the orange knob set",
+    "eval": "document.getElementById('skinBtn').click(); document.body.className + ' / ' + getComputedStyle(el.mix).backgroundImage.slice(-24)" },
+
+  { "name": "swap back to chrome",
+    "eval": "document.getElementById('skinBtn').click(); document.body.className||'(chrome)'" },
+
+  { "name": "restore AUTOREFILL",
+    "eval": "setParam('autorefill',1); 'done'" }
+]

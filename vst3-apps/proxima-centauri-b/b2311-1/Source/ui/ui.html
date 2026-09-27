@@ -1,0 +1,571 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Artefact B2311.1</title>
+<script src="bwfx-rack.js"></script>
+<style>
+  :root{
+    --plate:#0b0c0e; --ink:#e8e0d4; --dim:#7a6f61; --faint:#3a352e;
+    --brass:#c9963f; --brass-hi:#ffd98a; --rule:#22242a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--plate);color:var(--ink);
+    font:12px/1.4 ui-monospace,Consolas,"DejaVu Sans Mono",monospace;
+    letter-spacing:.06em;overflow:hidden;user-select:none;-webkit-user-select:none}
+
+  /* the crate's inner face: milled plate, lit from above */
+  #plate{position:fixed;inset:0;
+    background:
+      radial-gradient(120% 90% at 50% -20%, #17181c 0%, #0b0c0e 55%, #060607 100%),
+      repeating-linear-gradient(115deg, rgba(255,255,255,.010) 0 2px, rgba(0,0,0,0) 2px 5px);
+  }
+  #vig{position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(75% 60% at 50% 42%, rgba(0,0,0,0) 40%, rgba(0,0,0,.62) 100%)}
+
+  #wrap{position:fixed;inset:0;display:grid;
+    grid-template-columns:250px 1fr 216px;grid-template-rows:52px 1fr 92px}
+
+  #head{grid-column:1/4;display:flex;align-items:center;gap:18px;
+    padding:0 20px;border-bottom:1px solid var(--rule)}
+  #head .mark{font-size:10px;color:var(--dim);letter-spacing:.30em}
+  #head .name{font-size:15px;font-weight:700;letter-spacing:.26em}
+  #head .spacer{flex:1}
+  #head .kv{font-size:10px;color:var(--dim);letter-spacing:.14em}
+  #head .kv b{color:var(--brass-hi);font-weight:600}
+
+  #left,#right{padding:12px 14px;overflow:hidden}
+  #left{border-right:1px solid var(--rule)}
+  #right{border-left:1px solid var(--rule)}
+  .grp{font-size:9px;color:var(--dim);letter-spacing:.22em;margin:10px 0 6px}
+  .grp:first-child{margin-top:0}
+
+  .ctl{position:relative;height:19px;margin:0 0 3px;cursor:ew-resize}
+  .ctl .lab{position:absolute;left:0;top:2px;font-size:9.5px;letter-spacing:.12em;
+    color:#9a9084;pointer-events:none;white-space:nowrap}
+  .ctl .val{position:absolute;right:0;top:2px;font-size:9.5px;color:var(--brass);
+    pointer-events:none}
+  .ctl .trk{position:absolute;left:0;right:0;bottom:2px;height:3px;
+    background:#191b1f;border-top:1px solid #000;border-bottom:1px solid #24262b}
+  .ctl .fil{position:absolute;left:0;top:0;bottom:0;
+    background:linear-gradient(90deg,#6b4d1c,var(--brass));box-shadow:0 0 6px rgba(201,150,63,.35)}
+  .ctl:hover .lab{color:var(--ink)}
+
+  #face{position:relative;display:flex;align-items:center;justify-content:center}
+  #grid{cursor:crosshair;touch-action:none}
+  #legend{position:absolute;left:16px;bottom:10px;font-size:9px;color:var(--faint);
+    letter-spacing:.16em}
+  #siteRd{color:var(--ink);margin-left:14px}
+
+  /* the site: what the four findings share */
+  #site{position:fixed;inset:0;background:rgba(4,5,9,.94);display:none;
+    align-items:center;justify-content:center;z-index:41}
+  #site.on{display:flex}
+  #sitecard{position:relative;width:min(580px,90vw);padding:22px 26px;color:#b8b8c4;
+    font-size:12px;line-height:1.75;background:#0b0c11;border:1px solid #23252f}
+  #sitecard h2{font-size:11px;letter-spacing:.24em;color:var(--ink);margin:0 0 8px;font-weight:600}
+  #sitecard p{color:#7c7c8c;margin:0 0 12px}
+  #sitecard .row{display:flex;gap:14px;align-items:center;margin:5px 0}
+  #sitecard .row b{min-width:96px;color:var(--ink);font-weight:600;letter-spacing:.1em;
+    font-size:10px;text-transform:uppercase}
+  #sitecard .stog{cursor:pointer;color:var(--ink);border:1px solid #33353f;padding:0 9px;
+    letter-spacing:.14em;font-size:10px;text-transform:uppercase}
+  #sitecard .stog.on{background:#2a2c36;border-color:var(--ink);color:#fff}
+  #sitecard .sitehint{color:#5c5c6c}
+  #sitecard input[type=range]{width:170px;accent-color:#d8d2c0}
+  #siteclose{position:absolute;top:10px;right:14px;cursor:pointer;color:#5c5c6c;
+    font-size:10px;letter-spacing:.2em}
+
+  .ro{margin-bottom:12px}
+  .ro .k{font-size:9px;color:var(--dim);letter-spacing:.2em}
+  .ro .v{font-size:19px;letter-spacing:.06em;font-variant-numeric:tabular-nums}
+  .ro .v small{font-size:10px;color:var(--dim);letter-spacing:.14em}
+  #leanbar{height:4px;background:#191b1f;margin-top:5px;position:relative}
+  #leanfil{position:absolute;left:0;top:0;bottom:0;background:var(--brass)}
+
+  #foot{grid-column:1/4;border-top:1px solid var(--rule);display:flex;
+    align-items:center;gap:14px;padding:0 20px}
+  .btn{font-size:9px;letter-spacing:.18em;color:#9a9084;border:1px solid #2b2e34;
+    padding:5px 10px;cursor:pointer;background:#111316}
+  .btn:hover{color:var(--ink);border-color:#454a52}
+  #therm{display:flex;align-items:center;gap:10px;font-size:9px;
+    letter-spacing:.18em;color:var(--dim)}
+  #ttrack{position:relative;width:250px;height:9px;cursor:ew-resize;
+    background:linear-gradient(90deg,#12303a 0%,#1b3a3a 26%,#4a3320 70%,#7a2a12 100%);
+    border:1px solid #2a2d33}
+  #tfill{position:absolute;left:0;top:0;bottom:0;background:rgba(255,217,138,.14)}
+  #tknob{position:absolute;top:-3px;width:3px;height:15px;background:var(--brass-hi);
+    box-shadow:0 0 6px rgba(255,217,138,.7)}
+  #tval{color:var(--ink);min-width:52px;text-align:right}
+  #tnote{color:var(--faint);min-width:186px}
+  .fspacer{flex:1}
+  #globe{width:22px;height:22px;border-radius:50%;cursor:pointer;
+    background:radial-gradient(circle at 34% 32%,#2f6f7a,#0d2b31 70%);
+    border:1px solid #2f5c63}
+  #globe:hover{box-shadow:0 0 10px rgba(60,150,160,.5)}
+
+  #strip{position:fixed;left:0;right:0;bottom:0;height:22px;line-height:22px;
+    text-align:center;font-size:9.5px;letter-spacing:.16em;color:#5d564c;
+    text-transform:uppercase;pointer-events:none;
+    background:linear-gradient(180deg,rgba(6,6,7,0),rgba(6,6,7,.92) 60%)}
+  #strip b{color:var(--ink);font-weight:600}
+  #strip i{color:var(--brass);font-style:normal}
+
+  #cat{position:fixed;inset:0;background:rgba(5,5,6,.94);display:none;
+    align-items:center;justify-content:center;z-index:40}
+  #cat.on{display:flex}
+  #catgrid{display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:6px}
+  .sw{width:34px;height:34px;cursor:pointer;opacity:.84;border:1px solid #1d1f23;
+    transition:opacity .1s,transform .1s}
+  .sw:hover{opacity:1;transform:scale(1.15)}
+  #cattitle{position:fixed;left:0;right:0;top:28px;text-align:center;
+    font-size:10px;color:var(--dim);letter-spacing:.22em}
+</style>
+
+<div id="plate"></div>
+<div id="wrap">
+  <div id="head">
+    <span class="mark">PROXIMS CENTAURI B</span>
+    <span class="name">ARTEFACT B2311.1</span>
+    <span class="spacer"></span>
+    <span class="kv">ACCESSION <b>001</b></span>
+    <span class="kv">SPECIMEN <b id="rSpec">000</b></span>
+    <span class="kv">BUILD <b id="rBuild">dev</b></span>
+  </div>
+
+  <div id="left"></div>
+
+  <div id="face">
+    <canvas id="grid"></canvas>
+    <div id="legend">DRAG THE FACE TO SHOVE IT &nbsp;&middot;&nbsp; SHIFT TO HOLD IT BACK<span id="siteRd"></span></div>
+  </div>
+
+  <div id="right">
+    <div class="ro"><div class="k">COUNTED</div><div class="v" id="rCount">0</div></div>
+    <div class="ro"><div class="k">LAST EVENT</div><div class="v" id="rCasc">0</div></div>
+    <div class="ro"><div class="k">LEANING</div><div class="v" id="rLean">0.00</div>
+      <div id="leanbar"><div id="leanfil"></div></div></div>
+    <div class="ro"><div class="k">OUTPUT</div><div class="v" id="rLvl">&mdash;</div></div>
+  </div>
+
+  <div id="foot">
+    <span class="btn" id="bCat">catalogue</span>
+    <span class="btn" id="bRnd">draw</span>
+    <span class="btn" id="bStill">still</span>
+    <span class="btn" id="bSite" title="The site: what the four findings share.">site</span>
+    <span class="fspacer"></span>
+    <div id="therm">
+      <span>TEMPERATURE</span>
+      <div id="ttrack"><div id="tfill"></div><div id="tknob"></div></div>
+      <span id="tval">293 K</span><span id="tnote">room</span>
+    </div>
+    <span class="fspacer"></span>
+    <div id="globe" title="Brokild World FX" data-bwfx-open></div>
+  </div>
+</div>
+<div id="vig"></div>
+<div id="strip"><i>the object counts. nobody established what it counts.</i></div>
+
+<div id="site">
+  <div id="sitecard">
+    <span id="siteclose">CLOSE</span>
+    <h2>THE SITE &middot; WHAT THE FINDINGS SHARE</h2>
+    <p>Four findings, one bench. Cooled and set close together they fall into step; warm, or far apart, each keeps its own time. These are the bench's settings, not this finding's: change them here and every artefact present sees the change. Off, each finding is exactly what it was.</p>
+    <div class="row"><b>climate</b><span class="stog" id="siteClimate">own</span><span class="sitehint">one temperature for the whole bench</span></div>
+    <div class="row"><b>timing</b><span class="stog" id="siteTiming">own</span><span class="sitehint">cold and close, they fall into step</span></div>
+    <div class="row"><b>distance</b><input type="range" id="siteDist" min="0" max="1" step="0.01" value="0.5"><span id="siteDistRd">the same room</span></div>
+    <div class="row"><b>present</b><span id="siteStatus">only this finding</span></div>
+  </div>
+</div>
+
+<div id="cat">
+  <div id="cattitle">the catalogue &mdash; two hundred and fifty six objects, each counting differently</div>
+  <div id="catgrid"></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   0 · the bridge
+   ═══════════════════════════════════════════════════════════════════════════ */
+const NB = (() => {
+  let q = [], sched = false;
+  const flush = () => { sched = false; const b = q; q = [];
+    try { window.__JUCE__.backend.emitEvent("ab1", { b }); } catch (e) {} };
+  return {
+    send(m){ q.push(m); if(!sched){ sched = true; queueMicrotask(flush); } },
+    on(n,f){ try { window.__JUCE__.backend.addEventListener(n,f); } catch(e){} },
+    live(){ return !!(window.__JUCE__ && window.__JUCE__.backend); }
+  };
+})();
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+const TAU = Math.PI*2;
+
+if (window.BWFX) {
+  BWFX.attach({ send: o => { const m = {k:"bwfx"}; for(const k in o) m[k]=o[k]; NB.send(m); } });
+  NB.on("bwfx", p => BWFX.onState(p));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1 · state
+   ═══════════════════════════════════════════════════════════════════════════ */
+const V={}, HI={}, KIND={}, LO={}, FHI={}, PNAME={}, GLOSS={}, NAMES={};
+let PIDS=[];
+let NXG=32, NYG=32;
+let PH=null, HT=null, RT=null, MK=null;
+let beat=0, lean=0, lvl=0, casc=0, counted=0, specimen=0;
+
+const KP = { PCT:0, INT:1, LIST:2, BIPOL:3, KELVIN:4, HZ:5, VOL:6 };
+
+function fmt(id,v){
+  const k = KIND[id];
+  if (k===KP.LIST && NAMES[id]) return NAMES[id][Math.round(v)] || String(v);
+  if (k===KP.INT) return String(Math.round(v));
+  if (k===KP.KELVIN) return Math.round(LO[id] + (FHI[id]-LO[id])*v) + " K";
+  if (k===KP.VOL){ const g = 2.4*v*v; return g<=0 ? "-inf" : (20*Math.log10(g)).toFixed(1)+" dB"; }
+  return Math.round(v*100) + " %";
+}
+function setParam(id,v,quiet){
+  const hi = HI[id]!==undefined ? HI[id] : 1;
+  V[id] = clamp(v,0,hi);
+  NB.send({k:"p", id, v:V[id]});
+  paintCtl(id);
+  if(!quiet) say(PNAME[id]||id, fmt(id,V[id]), GLOSS[id]);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2 · the controls
+
+   Straight drags, left to right, which is the lesson B2311.67 taught: its rings
+   were drawn as rings and so were wound in a circle, and tracing an arc
+   accurately with a mouse is a job, not a gesture. Full range in 300 px, SHIFT
+   for a quarter of that. Measured from the press point, so coming back to where
+   you started puts the value back exactly.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const GROUPS = [
+  ["THE COUNTING", ["ratelo","ratehi","couple","dead","leak","memory"]],
+  ["THE IMPOSED PULSE", ["division","grip","reach","freehz"]],
+  ["THE SECTION", ["projx","projy","projz","projw","spanx","tilt"]],
+  ["THE BODY", ["shape","damp","strat","persist","traverse","weight","space","sat","level"]],
+];
+let drag = null;
+
+function buildControls(){
+  const host = $("#left");
+  host.innerHTML = "";
+  for (const [title, ids] of GROUPS){
+    const g = document.createElement("div");
+    g.className = "grp"; g.textContent = title; host.appendChild(g);
+    for (const id of ids){
+      if (V[id] === undefined) continue;
+      const d = document.createElement("div");
+      d.className = "ctl"; d.dataset.id = id;
+      d.innerHTML = '<div class="trk"><div class="fil"></div></div>'
+                  + '<div class="lab"></div><div class="val"></div>';
+      d.querySelector(".lab").textContent = PNAME[id] || id;
+      host.appendChild(d);
+      d.addEventListener("pointerdown", ev => {
+        ev.preventDefault();
+        try { d.setPointerCapture(ev.pointerId); } catch(e){}
+        drag = { id, x0: ev.clientX, base: V[id] };
+        say(PNAME[id]||id, fmt(id,V[id]), GLOSS[id]);
+      });
+      paintCtl(id);
+    }
+  }
+}
+function paintCtl(id){
+  const d = document.querySelector('.ctl[data-id="'+id+'"]');
+  if(!d) return;
+  const hi = HI[id]||1;
+  d.querySelector(".fil").style.width = (clamp((V[id]||0)/hi,0,1)*100) + "%";
+  d.querySelector(".val").textContent = fmt(id, V[id]||0);
+}
+addEventListener("pointermove", ev => {
+  if(!drag) return;
+  const span = ev.shiftKey ? 1200 : 300;
+  const hi = HI[drag.id]||1;
+  const stepped = (KIND[drag.id]===KP.INT || KIND[drag.id]===KP.LIST);
+  const t = (ev.clientX - drag.x0)/span;
+  const v = clamp(drag.base + t*hi, 0, hi);
+  setParam(drag.id, stepped ? Math.round(v) : v);
+});
+addEventListener("pointerup", () => { drag = null; });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3 · the face
+
+   A thousand and twenty four counters, drawn as the thing they are: a dial with
+   a hand, whose angle IS that unit's phase. So what is on screen is the object's
+   actual state and not an impression of it. A unit that fires flares and its
+   hand snaps back to the top, because that is what firing is.
+
+   Nothing here is decorative. The grid is a cross-section — two of the four
+   axes, taken at the middle of the other two.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const cv = $("#grid"), cx = cv.getContext("2d");
+let CELL = 17, DPR = 1;
+
+function layoutFace(){
+  const box = $("#face").getBoundingClientRect();
+  const avail = Math.min(box.width - 40, box.height - 40);
+  CELL = Math.max(8, Math.floor(avail / NXG));
+  DPR = Math.min(2, devicePixelRatio || 1);
+  const w = CELL*NXG, h = CELL*NYG;
+  cv.style.width = w+"px"; cv.style.height = h+"px";
+  cv.width = Math.round(w*DPR); cv.height = Math.round(h*DPR);
+  cx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener("resize", layoutFace);
+
+function drawFace(){
+  const w = CELL*NXG, h = CELL*NYG;
+
+  /*  Not cleared: painted over at nine tenths, so a cascade crossing the face
+      leaves a wake for a few frames. The object's recent history, which is the
+      only part of it a still picture could ever show. */
+  const g = cx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,"rgba(20,21,25,.80)"); g.addColorStop(1,"rgba(10,11,13,.80)");
+  cx.fillStyle = g; cx.fillRect(0,0,w,h);
+
+  cx.strokeStyle = "rgba(255,255,255,.030)"; cx.lineWidth = 1;
+  for(let i=0;i<=NXG;i+=8){ cx.beginPath(); cx.moveTo(i*CELL+.5,0); cx.lineTo(i*CELL+.5,h); cx.stroke(); }
+  for(let j=0;j<=NYG;j+=8){ cx.beginPath(); cx.moveTo(0,j*CELL+.5); cx.lineTo(w,j*CELL+.5); cx.stroke(); }
+
+  if(PH){
+    const r = CELL*0.34;
+    for(let y=0;y<NYG;y++){
+      for(let x=0;x<NXG;x++){
+        const i = y*NXG+x;
+        const p = PH[i]/255;
+        const warm = HT ? HT[i]/255 : 0;
+        const px = x*CELL + CELL/2, py = y*CELL + CELL/2;
+
+        if (CELL >= 11){
+          cx.beginPath(); cx.arc(px,py,r,0,TAU);
+          cx.fillStyle = "rgba(255,255,255,.020)"; cx.fill();
+        }
+        const a = -Math.PI/2 + p*TAU;
+        /*  The hue is the unit's own RATE. Units near each other in rate run
+            together, so the regions you can see ARE the layers — the thing the
+            brief calls several timings correlated by the object, made visible
+            instead of left as structure nobody could see. */
+        const rq = RT ? RT[i]/255 : 0.5;
+        let rr = Math.round(120 + 135*rq), gg = Math.round(96 + 118*rq), bb = Math.round(190 - 150*rq);
+        /*  THE MARK. A touched unit counts at a different rate, which is to say
+            it has been moved into another layer — so it is drawn as one: pulled
+            towards green where it was sped up and towards violet where it was
+            slowed, by how deep the mark still is. It fades as the mark fades,
+            which is what makes MEMORY legible without a readout. */
+        const mq = MK ? (MK[i]-128)/127 : 0;
+        const ma = Math.min(1, Math.abs(mq));
+        if (ma > 0.004){
+          const tr = mq > 0 ?  90 : 214, tg = mq > 0 ? 255 : 120, tb = mq > 0 ? 168 : 255;
+          rr = Math.round(rr + (tr-rr)*ma); gg = Math.round(gg + (tg-gg)*ma); bb = Math.round(bb + (tb-bb)*ma);
+          cx.beginPath(); cx.arc(px,py,r*(0.55+0.75*ma),0,TAU);
+          cx.fillStyle = "rgba("+tr+","+tg+","+tb+","+(0.10*ma).toFixed(3)+")"; cx.fill();
+        }
+        cx.strokeStyle = warm > 0.015
+          ? "rgba(255,"+Math.round(198+57*warm)+","+Math.round(140+90*warm)+","+(0.45+0.55*warm).toFixed(3)+")"
+          : "rgba("+rr+","+gg+","+bb+","+(0.26 + 0.60*p + 0.40*ma).toFixed(3)+")";
+        cx.lineWidth = warm > 0.25 ? 2.2 : 1.15;
+        cx.beginPath();
+        cx.moveTo(px,py);
+        cx.lineTo(px + Math.cos(a)*r, py + Math.sin(a)*r);
+        cx.stroke();
+
+        if (warm > 0.03){
+          const rg = cx.createRadialGradient(px,py,0,px,py,CELL*1.5);
+          rg.addColorStop(0,"rgba(255,220,150,"+(0.62*warm).toFixed(3)+")");
+          rg.addColorStop(1,"rgba(255,214,140,0)");
+          cx.fillStyle = rg;
+          cx.fillRect(px-CELL*1.5,py-CELL*1.5,CELL*3,CELL*3);
+        }
+      }
+    }
+  }
+
+  // the imposed pulse, along the foot of the face
+  cx.fillStyle = "rgba(255,255,255,.05)"; cx.fillRect(0,h-3,w,3);
+  cx.fillStyle = "rgba(255,217,138,"+(0.85 - 0.6*beat).toFixed(3)+")";
+  cx.fillRect(0,h-3, w*beat, 3);
+}
+
+/*  Dragging the face shoves the counts under the hand forward. This is the whole
+    of the interaction, and it is the SAME thing the imposed pulse does — which
+    is why the object answers a hand and a clock in one language. */
+function pokeAt(ev, amount){
+  const b = cv.getBoundingClientRect();
+  const x = Math.floor((ev.clientX-b.left)/CELL);
+  const y = Math.floor((ev.clientY-b.top)/CELL);
+  if(x<0||x>=NXG||y<0||y>=NYG) return;
+  NB.send({k:"poke", x, y, r:2, a:amount});
+}
+let poking = 0;
+cv.addEventListener("pointerdown", ev => {
+  ev.preventDefault();
+  try { cv.setPointerCapture(ev.pointerId); } catch(e){}
+  poking = ev.shiftKey ? -1 : 1;
+  pokeAt(ev, poking*0.28);
+  say("THE FACE", "", ev.shiftKey ? "held back" : "shoved forward");
+});
+cv.addEventListener("pointermove", ev => { if(poking) pokeAt(ev, poking*0.12); });
+addEventListener("pointerup", () => { poking = 0; });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4 · the strip and the thermometer
+   ═══════════════════════════════════════════════════════════════════════════ */
+let stripHold = 0;
+function say(k,v,note){
+  $("#strip").innerHTML = "<b>"+k+"</b>" + (v?" &nbsp;<i>"+v+"</i>":"")
+                        + (note?" &nbsp;"+note:"");
+  stripHold = 130;
+}
+function sayIdle(){
+  $("#strip").innerHTML = "<i>the object counts. nobody established what it counts.</i>";
+}
+
+const TLO=77, THI=800;
+function thermoDraw(){
+  const t = clamp(V.temp!==undefined?V.temp:0.298755,0,1);
+  const k = Math.round(TLO + (THI-TLO)*t);
+  $("#tfill").style.width = (t*100)+"%";
+  $("#tknob").style.left = "calc("+(t*100)+"% - 1px)";
+  $("#tval").textContent = k+" K";
+  $("#tnote").textContent = k<=80 ? "frozen · it does not count"
+    : (k<200 ? "barely counting" : (k<340 ? "room" : (k<520 ? "warm" : "it will not settle")));
+}
+(function(){
+  const tr = $("#ttrack"); let td=false;
+  const set = ev => { const r = tr.getBoundingClientRect();
+    setParam("temp", clamp((ev.clientX-r.left)/r.width,0,1), true); thermoDraw();
+    say("TEMPERATURE", $("#tval").textContent, "cold it does not count; warm it counts faster"); };
+  tr.addEventListener("pointerdown", ev => { td=true; ev.preventDefault();
+    try{tr.setPointerCapture(ev.pointerId);}catch(e){} set(ev); });
+  tr.addEventListener("pointermove", ev => { if(td) set(ev); });
+  addEventListener("pointerup", () => { td=false; });
+})();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5 · the catalogue
+   ═══════════════════════════════════════════════════════════════════════════ */
+function buildCatalogue(){
+  const g = $("#catgrid");
+  if (g.childElementCount) return;
+  for(let i=0;i<256;i++){
+    const d = document.createElement("div");
+    d.className="sw"; d.title = "specimen "+i;
+    /*  The swatch is that specimen's own numbers drawn: the spread of its rates
+        and its conduction, from the same index the engine's generator uses. */
+    let s = (i*2654435761)>>>0;
+    const rnd = () => { s = (s*1664525 + 1013904223)>>>0; return s/4294967296; };
+    const lo = 0.05+0.40*rnd(), hi = Math.min(1, lo+0.10+0.55*rnd()), cp = 0.10+0.62*rnd();
+    d.style.background = "linear-gradient(180deg,rgba("
+      + Math.round(120+120*cp) + "," + Math.round(80+70*hi) + "," + Math.round(40+40*lo) + ",.55) "
+      + Math.round(lo*100) + "%, #0c0d10 " + Math.round(60+hi*38) + "%)";
+    d.addEventListener("click", () => { NB.send({k:"specimen", n:i});
+      $("#cat").classList.remove("on"); });
+    g.appendChild(d);
+  }
+}
+$("#bCat").addEventListener("click", () => { buildCatalogue(); $("#cat").classList.add("on"); });
+$("#cat").addEventListener("click", ev => { if(ev.target.id==="cat") $("#cat").classList.remove("on"); });
+$("#bRnd").addEventListener("click", () => NB.send({k:"random"}));
+$("#bStill").addEventListener("click", () => { NB.send({k:"panic"}); say("STILL","","everything let go"); });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   6 · what the object sends back
+   ═══════════════════════════════════════════════════════════════════════════ */
+NB.on("initialState", p => {
+  PIDS = [];
+  for (const e of (p.params||[])){
+    PIDS.push(e.id);
+    V[e.id]=e.v; HI[e.id]=e.max; KIND[e.id]=e.kind;
+    LO[e.id]=e.lo; FHI[e.id]=e.hi; PNAME[e.id]=e.name; GLOSS[e.id]=e.gloss;
+    if (e.names) NAMES[e.id]=e.names;
+  }
+  NXG = p.nx || 32; NYG = p.ny || 32;
+  specimen = p.specimen||0;
+  $("#rBuild").textContent = p.build || "dev";
+  $("#rSpec").textContent = String(specimen).padStart(3,"0");
+  buildControls(); layoutFace(); thermoDraw();
+});
+
+NB.on("body", p => {
+  if (p.ph){ const b = atob(p.ph);
+             if(!PH || PH.length!==b.length) PH = new Uint8Array(b.length);
+             for(let i=0;i<b.length;i++) PH[i]=b.charCodeAt(i); }
+  if (p.ht){ const b = atob(p.ht);
+             if(!HT || HT.length!==b.length) HT = new Uint8Array(b.length);
+             for(let i=0;i<b.length;i++) HT[i]=b.charCodeAt(i); }
+  if (p.mk){ const b = atob(p.mk);
+             if(!MK || MK.length!==b.length) MK = new Uint8Array(b.length);
+             for(let i=0;i<b.length;i++) MK[i]=b.charCodeAt(i); }
+  if (p.rt){ const b = atob(p.rt);
+             if(!RT || RT.length!==b.length) RT = new Uint8Array(b.length);
+             for(let i=0;i<b.length;i++) RT[i]=b.charCodeAt(i); }
+  beat = p.beat||0; lean = p.lean||0; lvl = p.lvl||0; casc = p.casc||0;
+  if (p.specimen!==undefined && p.specimen!==specimen){
+    specimen = p.specimen; $("#rSpec").textContent = String(specimen).padStart(3,"0"); }
+  //  the object's own total, not a number this page invented by adding the
+  //  same cascade to itself every frame
+  counted = p.fired || 0;
+  $("#rCount").textContent = counted.toLocaleString("en");
+  $("#rCasc").innerHTML = casc.toLocaleString("en") + ' <small>UNITS</small>';
+  $("#rLean").textContent = lean.toFixed(2);
+  $("#leanfil").style.width = clamp(lean,0,1)*100 + "%";
+  $("#rLvl").textContent = lvl>0.00005 ? (20*Math.log10(lvl)).toFixed(0)+" dB" : "—";
+});
+
+NB.on("notice", p => say(String(p.msg),"",""));
+
+/* a host-parameter change the page did not make (automation, a dialled
+   specimen, the site): the control follows, or the sound moves while the
+   slider stays put */
+NB.on("hostParam", p => { for (const e of (p.b||[])) { V[e.id]=e.v; paintCtl(e.id); if (e.id==="temp") thermoDraw(); } });
+
+/* ── the site: what the four findings share (settings are the bench's) ── */
+const SITE = {open:false, climate:false, timing:false, distance:0.5, others:0, coh:0, pull:0, kelvin:0, local:0};
+function siteDistWord(d){ return d<0.15?"the same bench":d<0.4?"the same table":d<0.7?"the same room":d<0.9?"across the hall":"different rooms"; }
+function renderSite(){
+  const c=$("#siteClimate"), t=$("#siteTiming");
+  c.textContent = SITE.climate?"shared":"own"; c.classList.toggle("on", !!SITE.climate);
+  t.textContent = SITE.timing?"shared":"own";  t.classList.toggle("on", !!SITE.timing);
+  if(document.activeElement!==$("#siteDist")) $("#siteDist").value = SITE.distance;
+  $("#siteDistRd").textContent = siteDistWord(SITE.distance);
+  let st = !SITE.open ? "no bench (the site is unavailable here)"
+         : SITE.others>0 ? SITE.others+" other finding"+(SITE.others>1?"s":"")+" present" : "only this finding";
+  if(SITE.open && SITE.others>0 && SITE.timing)
+    st += " · coherence "+(+SITE.coh).toFixed(2)+(SITE.pull>0.05 ? " · pulling "+Math.round(SITE.pull*100)+"%" : " · too warm or too far to lock");
+  if(SITE.open && SITE.climate && SITE.kelvin>0)
+    st += " · bench "+Math.round(SITE.kelvin)+" K"+(SITE.local>0 && Math.abs(SITE.local-SITE.kelvin)>1 ? " · here "+Math.round(SITE.local)+" K" : "");
+  $("#siteStatus").textContent = st;
+  $("#siteRd").textContent = (SITE.open && SITE.others>0 && (SITE.timing||SITE.climate))
+    ? "·  BENCH "+(SITE.others+1)+" PRESENT"+(SITE.timing?" · LOCK "+(+SITE.coh).toFixed(2):"") : "";
+}
+NB.on("site", p => { Object.assign(SITE, p); renderSite(); });
+$("#bSite").addEventListener("click", () => $("#site").classList.add("on"));
+$("#siteclose").addEventListener("click", () => $("#site").classList.remove("on"));
+$("#site").addEventListener("click", ev => { if (ev.target.id === "site") $("#site").classList.remove("on"); });
+window.addEventListener("keydown", ev => { if (ev.key === "Escape") $("#site").classList.remove("on"); });
+$("#siteClimate").addEventListener("click", () => NB.send({k:"site", climate: !SITE.climate}));
+$("#siteTiming").addEventListener("click",  () => NB.send({k:"site", timing:  !SITE.timing}));
+$("#siteDist").addEventListener("input",  e => { SITE.distance=+e.target.value; $("#siteDistRd").textContent=siteDistWord(SITE.distance); });
+$("#siteDist").addEventListener("change", e => NB.send({k:"site", distance:+e.target.value}));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   7 · the frame
+   ═══════════════════════════════════════════════════════════════════════════ */
+function frame(){
+  drawFace();
+  if (stripHold>0 && --stripHold===0) sayIdle();
+  requestAnimationFrame(frame);
+}
+layoutFace();
+frame();
+NB.send({k:"hello"});
+if (!NB.live()){
+  //  opened outside the plug-in: give the face something to show, so the page
+  //  can be worked on without a host
+  PH = new Uint8Array(NXG*NYG); HT = new Uint8Array(NXG*NYG);
+  for(let i=0;i<PH.length;i++) PH[i] = (i*37)%255;
+}
+</script>

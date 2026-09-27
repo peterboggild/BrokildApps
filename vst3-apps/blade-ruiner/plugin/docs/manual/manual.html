@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Blade Ruiner — Manual</title>
+<style>
+  /* ---------------------------------------------------------------- *
+   * Print sheet for the Blade Ruiner manual. A4, cool paper, the two
+   * accents taken from the instrument itself: sodium amber and the
+   * cyan of a screen in a dark room.
+   * Rendered to PDF with: chrome --headless --print-to-pdf
+   * ---------------------------------------------------------------- */
+  @page { size: A4; margin: 17mm 16mm 16mm 16mm; }
+  @page :first { margin: 0; }
+
+  :root{
+    --ink:#101820;
+    --ink-soft:#38474f;
+    --faint:#6a7a84;
+    --paper:#f7f8f8;
+    --rule:#d5dde1;
+    --amber:#b5651a;
+    --amber-soft:#fbf0e2;
+    --cyan:#12716c;
+    --cyan-soft:#e6f2f1;
+    --dark:#080d13;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:var(--paper); }
+  body{
+    color:var(--ink);
+    font:10.6pt/1.56 "Segoe UI", -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3,h4{ font-family:Georgia,"Times New Roman",serif; font-weight:600; margin:0; }
+  p{ margin:.45em 0 .7em; }
+  b,strong{ color:#050a0f; font-weight:600; }
+  em{ color:var(--ink-soft); }
+  code{
+    font-family:Consolas,"SF Mono",Menlo,monospace; font-size:9.2pt;
+    background:#eceff1; border:1px solid #dbe2e6; border-radius:3px; padding:0 4px;
+    color:#1c5a56;
+  }
+
+  /* ---------- cover ---------- */
+  .cover{
+    background:
+      radial-gradient(120% 80% at 76% 6%, rgba(55,220,214,.20) 0%, transparent 58%),
+      radial-gradient(90% 70% at 10% 100%, rgba(255,162,60,.16) 0%, transparent 62%),
+      linear-gradient(172deg,#132330 0%, #050a10 100%);
+    color:#dfeaf1; height:294mm; padding:24mm 22mm 16mm;
+    display:flex; flex-direction:column; break-after:page;
+  }
+  .cover .kicker{ font-size:8.6pt; letter-spacing:.42em; text-transform:uppercase; color:#6f97a6; }
+  .cover h1{ font-size:38pt; line-height:1.02; margin:8mm 0 0; letter-spacing:.06em; color:#f0f6f9; }
+  .cover h1 span{ color:#ffa23c; }
+  .cover .tag{ font-size:12.5pt; color:#9fb6c2; margin:5mm 0 0; font-family:Georgia,serif; font-style:italic; }
+  .cover .rule{ height:2px; width:34mm; background:#37dcd6; margin:7mm 0 0; }
+  .cover .shot{ margin:8mm 0 0; text-align:center; }
+  .cover .shot img{
+    max-height:118mm; max-width:100%; border-radius:4px; border:1px solid #22333f;
+    box-shadow:0 8mm 20mm rgba(0,0,0,.6);
+  }
+  .cover .foot{
+    margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end;
+    font-size:8.8pt; color:#7d94a1; letter-spacing:.06em;
+  }
+  .cover .foot b{ color:#dce9f0; font-weight:600; display:block; font-size:10pt; letter-spacing:0; }
+
+  /* ---------- structure ---------- */
+  .sec{ break-before:page; }
+  .sec-head{
+    display:flex; align-items:baseline; gap:5mm;
+    border-bottom:1.6px solid var(--ink); padding-bottom:2.4mm; margin-bottom:5mm;
+  }
+  .sec-head .num{
+    font:600 9pt/1 Consolas,monospace; color:var(--cyan);
+    border:1.4px solid var(--cyan); border-radius:3px; padding:1.6mm 2.2mm; letter-spacing:.06em;
+  }
+  .sec-head h2{ font-size:19pt; letter-spacing:-.01em; }
+  .sec-head .sub{ margin-left:auto; font-size:8.4pt; color:var(--faint); letter-spacing:.2em; text-transform:uppercase; }
+
+  h3{ font-size:12.6pt; margin:6.5mm 0 1.5mm; color:#0a1218; }
+  h3:first-child{ margin-top:0; }
+  h4{ font-size:10.4pt; margin:4mm 0 1mm; color:var(--amber); letter-spacing:.02em; }
+  .lead{ font-size:11.4pt; color:var(--ink-soft); font-family:Georgia,serif; margin:0 0 5mm; }
+
+  /* ---------- figures ---------- */
+  figure{ margin:4mm 0 5mm; break-inside:avoid; }
+  figure img{
+    width:100%; display:block; border-radius:4px;
+    border:1px solid #c8d2d8; background:var(--dark);
+    box-shadow:0 1.4mm 4mm rgba(12,25,35,.16);
+  }
+  figcaption{
+    font-size:8.5pt; color:var(--faint); margin-top:1.8mm; line-height:1.42;
+    padding-left:2.6mm; border-left:2px solid var(--cyan);
+  }
+  .figrow{ display:flex; gap:5mm; align-items:flex-start; break-inside:avoid; }
+  .figrow figure{ flex:1 1 0; margin-top:0; }
+
+  /* ---------- tables ---------- */
+  table{ width:100%; border-collapse:collapse; margin:2.5mm 0 5mm; font-size:9.5pt; break-inside:avoid; }
+  th,td{ text-align:left; padding:1.9mm 2.4mm; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th{
+    font:600 8.2pt/1.3 "Segoe UI",sans-serif; text-transform:uppercase; letter-spacing:.13em;
+    color:var(--faint); border-bottom:1.4px solid var(--ink-soft);
+  }
+  td:first-child{ width:26%; color:#08111a; font-weight:600; }
+  tr:last-child td{ border-bottom:none; }
+  table.tight td:first-child{ width:20%; }
+  table.moods td:first-child{ width:12%; font-family:Consolas,monospace; color:var(--amber); }
+
+  /* ---------- callouts ---------- */
+  .note{
+    background:var(--cyan-soft); border-left:3px solid var(--cyan);
+    padding:3mm 4mm; margin:4mm 0; font-size:9.6pt; border-radius:0 3px 3px 0;
+    break-inside:avoid;
+  }
+  .note b{ color:#0d5551; }
+  .warm{ background:var(--amber-soft); border-left-color:var(--amber); }
+  .warm b{ color:#8a4610; }
+  .quiet{ font-size:9.2pt; color:var(--faint); }
+
+  ol.steps{ list-style:none; counter-reset:s; margin:0; padding:0; }
+  ol.steps li{
+    counter-increment:s; position:relative; padding:0 0 3.6mm 11mm; margin-bottom:2.2mm;
+    break-inside:avoid;
+  }
+  ol.steps li::before{
+    content:counter(s); position:absolute; left:0; top:-.4mm;
+    width:7.4mm; height:7.4mm; border-radius:50%;
+    background:var(--cyan); color:#fff;
+    font:600 10pt/7.4mm Georgia,serif; text-align:center;
+  }
+  ol.steps li > b:first-child{ display:block; font-size:10.8pt; margin-bottom:.5mm; }
+
+  .recipe{
+    border:1px solid var(--rule); border-top:2.6px solid var(--amber); border-radius:4px;
+    padding:3.4mm 4mm 3mm; margin:0 0 4mm; break-inside:avoid; background:#fdfdfd;
+  }
+  .recipe h4{ margin:0 0 1.4mm; font-size:11pt; color:#0a1218; font-family:Georgia,serif; }
+  .recipe .how{ font-size:9.5pt; color:var(--ink-soft); margin:0; }
+  .recipe .how b{ color:#8a4610; }
+  .recipe .out{ font-size:9pt; color:var(--faint); font-style:italic; margin:1.6mm 0 0; }
+  .grid2{ display:flex; gap:5mm; }
+  .grid2 > div{ flex:1 1 0; min-width:0; }
+
+  ul.plain{ margin:.3em 0 .8em; padding-left:5mm; }
+  ul.plain li{ margin:.28em 0; }
+
+  .colophon{ margin-top:6mm; border-top:1px solid var(--rule); padding-top:3.5mm;
+    font-size:8.8pt; color:var(--faint); }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<section class="cover">
+  <div class="kicker">Brokild Apps · VST3 Instrument</div>
+  <h1>BLADE <span>RUINER</span></h1>
+  <div class="tag">Three synthesisers, one city, and at least one of them always awake.</div>
+  <div class="rule"></div>
+  <div class="shot"><img src="shots/hero.jpg" alt="The Blade Ruiner panel"></div>
+  <div class="foot">
+    <div>
+      <b>User Manual</b>
+      Quick start · The three layers · Try this
+    </div>
+    <div style="text-align:right">
+      <b>Version 1.0</b>
+      August 2026 · Windows VST3 · build 260822.6
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">01</span><h2>What this is</h2>
+    <span class="sub">Introduction</span></div>
+
+  <p class="lead">An atmospheric synthesiser in three layers, each with its own engine and its own
+  room. <b>LOS ANGELES</b> is the city: a drone that does not stop. <b>DECKARD</b> is the
+  instrument you play over it. <b>REPLICANT</b> is the machine in the next room that has been
+  counting all along.</p>
+
+  <p>They are not three presets of one synthesiser. They are three different synthesisers that
+  share an output stage, and they can run in any combination — one, two, or all three at once.
+  Each has its own page, and each page looks like the place it comes from.</p>
+
+  <h3>The five things to know first</h3>
+  <table>
+    <tr><td>Something is always playing</td><td>The last live layer cannot be switched off. Press
+      its lamp and the panel says <em>SOMETHING HAS TO BE PLAYING</em> and puts it back. This is
+      deliberate: the instrument is an atmosphere, and an atmosphere that can be silenced by one
+      click is a mixer channel.</td></tr>
+    <tr><td>LOS ANGELES does not need a keyboard</td><td>It is a drone. Load the plugin and it is
+      already sounding. Switch its TRIGGER to <b>KEYED</b> if you would rather it waited for
+      you.</td></tr>
+    <tr><td>DECKARD is the one you play</td><td>Eight voices, two oscillators and a sub each, a
+      ladder filter with its own envelope, and the ensemble chorus that does most of the emotional
+      work.</td></tr>
+    <tr><td>REPLICANT keeps its own time</td><td>A sixteen-step sequence locked to the host tempo,
+      built from a six-bit seed. Same seed, same machine, always.</td></tr>
+    <tr><td>RANDOM is a mood organ</td><td>It dials a number and tells you what the number means.
+      Section 07.</td></tr>
+  </table>
+
+  <div class="note"><b>It is an instrument, not an effect.</b> Stereo out, MIDI in, no audio input.
+  There is a two-octave keyboard along the bottom of the panel for when there is no MIDI keyboard
+  in the room.</div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">02</span><h2>Quick start</h2>
+    <span class="sub">Five minutes</span></div>
+
+  <ol class="steps">
+    <li><b>Load it and listen.</b> LOS ANGELES is already running. Nothing has to be played for
+      the instrument to be doing something.</li>
+    <li><b>Turn SMOG down and DRIFT up.</b> The city opens out and starts moving. These two
+      controls do more for the atmosphere than anything else on the page.</li>
+    <li><b>Play a slow chord.</b> That is DECKARD, over the top. Minor triads, held, low in the
+      keyboard — this instrument is not in a hurry.</li>
+    <li><b>Turn ENSEMBLE up.</b> Somewhere around 70 % it stops being a chorus and becomes the
+      sound. Then lengthen RELEASE until the chords overlap.</li>
+    <li><b>Light the REPLICANT lamp.</b> A sequence starts, in time with the host. Drag the
+      <b>SEED</b> slider and it becomes a different machine at every step.</li>
+    <li><b>Press RANDOM when you are stuck.</b> It re-rolls the character of all three layers and
+      leaves the output, the tuning and the three layer levels exactly where they are.</li>
+  </ol>
+
+  <figure>
+    <img src="shots/tabs.jpg" alt="The three layer tabs">
+    <figcaption>Click a name to open its page; click its lamp to switch the layer on or off. The
+    bar on the right of each tab is that layer's own level, so you can see which one is making the
+    noise you are hearing without opening its page.</figcaption>
+  </figure>
+
+  <div class="note"><b>LIGHT</b>, at the left of the header, is for rooms this panel was not
+  designed for. It is a gamma curve rather than a brightness control: it lifts the shadows — where
+  everything on a panel this dark lives — and steepens the contrast down there, while leaving the
+  highlights where they are instead of flattening them into white. Double-click the slider to put
+  it back to nothing. It is a view setting, remembered per machine, never saved into a patch.</div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">03</span><h2>The three layers</h2>
+    <span class="sub">What they share</span></div>
+
+  <p class="lead">Everything below is per layer. The only things they share are the keyboard, the
+  tuning, and the output.</p>
+
+  <table class="tight">
+    <tr><td>The lamp</td><td>On or off. The tab dims when the layer is dark. The last one refuses
+      to go out.</td></tr>
+    <tr><td>LEVEL</td><td>Each layer's own trim, printed in dB. Unity is at about 71 %. RANDOM
+      never touches these, so a roll of the dice changes the character and not the
+      balance.</td></tr>
+    <tr><td>MIDI</td><td>All three layers hear the same notes. DECKARD plays them. LOS ANGELES
+      follows the lowest held note when its TRIGGER is KEYED. REPLICANT transposes its sequence
+      from the lowest held note when its CLOCK is KEYED.</td></tr>
+    <tr><td>OUTPUT / TUNE</td><td>In the footer. TUNE is &plusmn;100 cents and moves all three
+      layers together, including the sequence.</td></tr>
+    <tr><td>LIMITER</td><td>A smooth, musical gain reduction on the output. The lamp beside the
+      meter lights when it is working.</td></tr>
+  </table>
+
+  <div class="warm note"><b>The limiter switch does not remove the ceiling.</b> It turns off the
+  smooth gain reduction; a soft ceiling stays in place either way, because an instrument has no
+  business emitting anything above full scale. It is transparent below about 70 % of full scale
+  and asymptotic above it, so it only ever catches the first millisecond of a transient the
+  limiter has not reached yet — measured at 1.75 before it was there.</div>
+
+  <h3>Playing all three at once</h3>
+  <p>The layers are summed, not mixed cleverly, and they occupy different places on purpose: the
+  drone is wide and low, the polysynth sits in the middle, the sequence is narrow and bright and
+  panned by step. If it gets crowded, the first thing to reach for is <b>SMOG</b> on LOS ANGELES —
+  darkening the city is what makes room for everything else.</p>
+</section>
+
+<!-- ================= 4 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">04</span><h2>Los Angeles</h2>
+    <span class="sub">The drone</span></div>
+
+  <p class="lead">Nine oscillators on one chord, a rain of filtered noise, grains of dust, and a
+  reverb big enough to lose a city in. It is the only layer that plays itself.</p>
+
+  <figure>
+    <img src="shots/la.jpg" alt="The Los Angeles page">
+    <figcaption>The skyline is lit by the instrument: each building's windows brighten with the
+    energy in that part of the spectrum, the rain thickens with the RAIN control, and the haze
+    over the whole thing is SMOG. The searchlight sweeps whether or not anyone is watching.</figcaption>
+  </figure>
+
+  <h3>The stack</h3>
+  <table class="tight">
+    <tr><td>VOICING</td><td>Which chord the nine oscillators are spread across.
+      <b>OCTAVES</b> is bare and enormous. <b>FIFTHS</b> is open and old. <b>MINOR</b> and
+      <b>SUSPENDED</b> are the two that sound like weather. <b>CLUSTER</b> is crowded.
+      <b>TRITONE</b> is the one that makes the city feel wrong.</td></tr>
+    <tr><td>ROOT</td><td>&plusmn;12 semitones from A. The drone is rooted low — a bass instrument
+      that happens to fill the room.</td></tr>
+    <tr><td>SPRAWL</td><td>How far apart the nine are detuned, up to about a third of a semitone
+      end to end. Small values beat slowly; large ones stop being a chord and become a
+      place.</td></tr>
+    <tr><td>SUB</td><td>A sine an octave under the root. It goes to the speakers but never into
+      the reverb, because a 40 Hz drone smeared over eight seconds is mud, not depth.</td></tr>
+  </table>
+
+  <h3>The weather</h3>
+  <table class="tight">
+    <tr><td>SMOG</td><td>How dark. This is a filter, and it is the master control of the whole
+      layer: everything else is quieter and further away with the smog up.</td></tr>
+    <tr><td>RAIN</td><td>Filtered noise through three wandering resonances, panned apart. The
+      rain on the picture is the same number.</td></tr>
+    <tr><td>KIPPLE</td><td>Entropy. It does two things at once: it drives the stack into an
+      asymmetric saturation and a slowly-moving comb, and it starts throwing grains — short
+      decaying resonances at random pitches, panned at random. Up at the top it is genuinely
+      dirty.</td></tr>
+    <tr><td>DRIFT</td><td>How much everything moves. Each oscillator has its own drift running at
+      its own speed, between forty seconds and two minutes a cycle, and the smog moves with them.
+      Slow enough that you never catch it.</td></tr>
+  </table>
+
+  <h3>The distance</h3>
+  <table class="tight">
+    <tr><td>NEON</td><td>Shimmer. An octave-up copy of the reverb tail is folded back into its own
+      input, so the top of the sound keeps climbing. A little is a glow; a lot is a chorus of
+      ghosts.</td></tr>
+    <tr><td>DECAY</td><td>How long the reverb holds on. Near the top the tail is measured in tens
+      of seconds and the layer stops having a beginning.</td></tr>
+    <tr><td>TRIGGER</td><td><b>DRONE</b>: it plays, always. <b>KEYED</b>: it swells in when you
+      hold a note and falls away over four seconds when you let go, following the lowest note you
+      are holding.</td></tr>
+  </table>
+
+  <div class="note"><b>KIPPLE</b> is Philip K. Dick's word, from <em>Do Androids Dream of Electric
+  Sheep?</em> — the useless matter that accumulates in an empty building whether or not anybody
+  adds to it. It seemed the right name for a control that only ever makes things dirtier.</div>
+</section>
+
+<!-- ================= 5 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">05</span><h2>Deckard</h2>
+    <span class="sub">The polysynth</span></div>
+
+  <p class="lead">Eight voices built the way the big Japanese polysynth of 1977 was built: two
+  oscillators and a sub per voice, a four-pole ladder with its own envelope, a vibrato that
+  arrives late, and an ensemble chorus doing more work than anything else in the signal path.</p>
+
+  <figure>
+    <img src="shots/dk.jpg" alt="The Deckard page">
+    <figcaption>The envelope, thrown across the wall like a projection: attack, decay, sustain and
+    release, drawn from the four knobs below it. The blinds and the lamp are the room; the eight
+    lamps top right are the eight voices, lighting as you play.</figcaption>
+  </figure>
+
+  <h3>Oscillator</h3>
+  <table class="tight">
+    <tr><td>SHAPE</td><td><b>SAW</b> is the pad. <b>PULSE</b> has a slow width modulation shared by
+      the whole keyboard, as the hardware did. <b>SAW+PULSE</b> is the two together, one per
+      oscillator. <b>RING</b> replaces the second oscillator with a sine and multiplies — metallic,
+      and much quieter, which is correct.</td></tr>
+    <tr><td>OCTAVE</td><td>&plusmn;2 octaves.</td></tr>
+    <tr><td>DETUNE</td><td>The two oscillators apart, up to 16 cents each way. This is the
+      thickness control.</td></tr>
+    <tr><td>RING</td><td>Mixes in the product of the two oscillators regardless of SHAPE. Small
+      amounts add a hollow edge; large amounts remove the fundamental.</td></tr>
+  </table>
+
+  <h3>Filter and contour</h3>
+  <table class="tight">
+    <tr><td>BRILLIANCE</td><td>The cutoff, printed in Hz. It key-tracks, so a chord does not get
+      duller as it goes up.</td></tr>
+    <tr><td>RESONANCE</td><td>Feedback around the four poles, through a saturator — which is what
+      makes a ladder sound like a ladder rather than like four filters.</td></tr>
+    <tr><td>ENVELOPE</td><td>How much the contour opens the filter, scaled by how hard the note was
+      played. This and BRILLIANCE together are the instrument.</td></tr>
+    <tr><td>ATTACK · DECAY · SUSTAIN · RELEASE</td><td>Amplitude, and a second slightly faster copy
+      of the same shape driving the filter. Attack is linear so it can be instant; decay and
+      release are exponential, because a pad whose tail falls off a cliff is a pad you can hear
+      stopping.</td></tr>
+  </table>
+
+  <h3>The room</h3>
+  <table class="tight">
+    <tr><td>ENSEMBLE</td><td>Three modulated taps a third of a cycle apart. Below 40 % it is a
+      widener; above 70 % it is the sound.</td></tr>
+    <tr><td>VIBRATO</td><td>Arrives late, over about a second of held note, and stops when you let
+      go. It is not an effect on the note; it is something a player does to a note that is already
+      sounding.</td></tr>
+    <tr><td>GLIDE</td><td>Portamento, up to 1.6 s. Prints OFF at zero.</td></tr>
+    <tr><td>SPACE</td><td>The layer's own reverb, smaller and warmer than the city's.</td></tr>
+  </table>
+</section>
+
+<!-- ================= 6 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">06</span><h2>Replicant</h2>
+    <span class="sub">The machine</span></div>
+
+  <p class="lead">A sixteen-step sequence driving a two-operator FM voice with an inharmonic ratio,
+  a bit-crusher, and a heartbeat on the downbeat. It runs on the host's clock and it does not get
+  tired.</p>
+
+  <figure>
+    <img src="shots/rp.jpg" alt="The Replicant page">
+    <figcaption>The row across the middle is the sequence: filled steps play, brighter ones are
+    accented, and the outlined one is where the machine is now. The iris top right is a
+    Voigt-Kampff readout — its pupil contracts on every note. The steps beyond the LENGTH you have
+    set are dimmed rather than hidden, because the pattern is still there underneath.</figcaption>
+  </figure>
+
+  <h3>Nexus-6</h3>
+  <p>The <b>SEED</b> is a six-bit number, 0 to 63, and it is the whole pattern. Every seed produces
+  a different arrangement of gates, pitches and accents, deterministically — the same seed is
+  always the same machine, in this session, in this project, and on anybody else's computer. The
+  six lamps under the slider are the number in binary, which is the only reason it is six bits and
+  not eight.</p>
+
+  <table class="tight">
+    <tr><td>SEED</td><td>0 – 63. Drag it and the machine rebuilds at every step. All 64 are audibly
+      different; the bench checks that.</td></tr>
+    <tr><td>RATE</td><td>The step length, as a note division of the host tempo — from a half note
+      down to a thirty-second, with two triplet settings.</td></tr>
+    <tr><td>LENGTH</td><td>4 to 16 steps. Shorter lengths turn a pattern into a loop you can
+      recognise; 16 is long enough to stay unfamiliar.</td></tr>
+    <tr><td>CLOCK</td><td><b>FREE</b>: it runs whenever the layer is live. <b>KEYED</b>: it runs
+      only while a note is held, and transposes to the lowest one.</td></tr>
+  </table>
+
+  <h3>The voice</h3>
+  <table class="tight">
+    <tr><td>METAL</td><td>Walks the modulator up a ladder of ratios a bell has and a piano does
+      not — 1, 2, &radic;2, 3, &pi;-ish, and on up to 7.07 — and increases the modulation depth as
+      it goes. At the bottom it is a soft mallet; at the top there is no fundamental you could
+      name.</td></tr>
+    <tr><td>DECAY</td><td>How long each step rings, 15 ms to 1.6 s. Long decays over a fast RATE is
+      how the layer stops being a sequence and becomes a texture.</td></tr>
+    <tr><td>MENACE</td><td>Drive, filter resonance, and the sub heartbeat that lands on step one.
+      This is the danger control.</td></tr>
+  </table>
+
+  <h3>The fault</h3>
+  <table class="tight">
+    <tr><td>GLITCH</td><td>Sample-and-hold plus bit reduction, and above about 45 % it starts
+      occasionally stuttering — repeating the last quarter of a step. Which steps stutter is
+      decided fresh each time, so it never becomes part of the pattern.</td></tr>
+    <tr><td>SPREAD</td><td>Alternate steps panned apart.</td></tr>
+    <tr><td>SPACE</td><td>A short, hard room. Not the city's.</td></tr>
+  </table>
+</section>
+
+<!-- ================= 7 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">07</span><h2>Patches and the mood organ</h2>
+    <span class="sub">Saving, loading, dialling</span></div>
+
+  <h3>SAVE and LOAD</h3>
+  <p>A patch is a small JSON file holding all 46 values and nothing else — no audio, no window
+  size, no machine-specific paths. <b>SAVE</b> opens a dialog; <b>LOAD</b> drops a menu of whatever
+  is in your patch folder, with sub-folders as sub-menus.</p>
+
+  <p>The folder starts as <code>Documents\Brokild patches\Blade Ruiner</code>, where every Brokild
+  plugin keeps one of its own. Earlier versions kept presets beside the installed
+  <code>.vst3</code> — somewhere an installer can reach and replace — so anything saved that way
+  is copied across the first time this version runs, and the originals are left where they were.
+  Saving somewhere else once makes that the new folder. The choice is remembered in your own
+  settings rather than in the project, so it survives across hosts.</p>
+
+  <h3>The mood organ</h3>
+  <p class="lead">There is a dial in the header marked <b>MOOD</b>, and it goes from 0 to 999.
+  Every one of those thousand numbers <em>is</em> a patch.</p>
+
+  <p>Dialling a number writes every character parameter in all three layers — which are live,
+  the voicing, the weather, the oscillator, the seed, the shape of everything — and prints the
+  line of text that belongs to that number. <b>RANDOM</b> simply dials a number at random. The
+  levels, the tuning and the limiter are never touched, so a mood changes what the machine is
+  thinking about and not how loud it is.</p>
+
+  <div class="note"><b>Every mood makes a sound on its own.</b> Not just “one layer live” &mdash;
+  DECKARD needs keys, and so does a keyed LOS ANGELES or a keyed REPLICANT, so a perfectly legal
+  combination could leave the dial silent until you played a note. 134 of the thousand did, including
+  42. If nothing would be free-running, the city comes on and stays on.</div>
+
+  <div class="note"><b>The same number is always the same instrument.</b> Nothing about a mood
+  depends on the clock, the session, or which machine it is running on: the seed drives the
+  generator and nothing else does. 481 today is 481 next year and 481 on somebody else's
+  computer, which is the only thing that makes a three-digit number worth writing down.</div>
+
+  <div class="note"><b>The dial reads &mdash; until you turn it.</b> The patch the plugin ships with
+  is hand-made and is not one of the thousand, and printing a number over a patch that number did not
+  produce is a small lie &mdash; it shows the moment you dial away and come back. Loading a patch from
+  disk brings its mood back with it.</div>
+
+  <p>Drag the number, roll the wheel over it, or step it with the two buttons. Shift moves ten at
+  a time, which matters when there are a thousand of them.</p>
+
+  <h3>The thousand lines</h3>
+  <p>Nineteen of the descriptions are written by hand. <b>Five of those are Philip K. Dick's
+  own</b>, near enough, from <em>Do Androids Dream of Electric Sheep?</em>:</p>
+
+  <table class="moods">
+    <tr><th>Code</th><th>What you have dialled</th></tr>
+    <tr><td>3</td><td>a stimulus to dial, for when you cannot face dialling</td></tr>
+    <tr><td>382</td><td>six hours of self-accusatory depression</td></tr>
+    <tr><td>481</td><td>awareness of the manifold possibilities open to me in the future</td></tr>
+    <tr><td>594</td><td>pleased acknowledgment of a spouse's superior wisdom in all matters</td></tr>
+    <tr><td>888</td><td>the desire to watch television, no matter what is on it</td></tr>
+  </table>
+
+  <p>Two are not Dick at all. <b>451</b> and <b>42</b> belong to other books by other authors, and
+  it would be a poor sort of dystopia that did not nod to its neighbours &mdash; <em>the wish to
+  remember a book by heart, in case</em>, and <em>the calm of having the answer, and no longer the
+  question</em>. Neither of them winks. They are written as moods, and if you do not already know
+  the two numbers you will read straight past them.</p>
+
+  <p>Twelve more are ours, written in the same voice — 127, <em>placid recognition of one's own
+  obsolescence</em>; 741, <em>the wish to be looked at by something that can see</em>; 964,
+  <em>the calm of a room where the television has just been turned off</em>. The dial marks the
+  written ones as you pass them.</p>
+
+  <p>The other 981 are generated from the seed by a small grammar — nine sentence shapes, each
+  with its own vocabulary chosen so that every combination inside it is a sentence somebody might
+  actually write. Which is why there are nine small tables rather than one big one: a shared noun
+  list would eventually produce <em>gratitude for one's own obsolescence</em>, and half of it
+  would read as nonsense.</p>
+
+  <table class="tight">
+    <tr><td>0</td><td>a clear view of the distance to the nearest real thing</td></tr>
+    <tr><td>17</td><td>willingness to begin again on a Tuesday</td></tr>
+    <tr><td>250</td><td>a long memory of a name one has stopped using</td></tr>
+    <tr><td>613</td><td>a small, clean sense of weather that is not dust</td></tr>
+    <tr><td>999</td><td>a flicker of resentment at weather arriving on schedule</td></tr>
+  </table>
+
+  <div class="warm note"><b>No two of the thousand share a line.</b> Drawing the words at random
+  gave 664 distinct descriptions out of 1000 — a third of the dial repeating itself — so the
+  mapping is injective by construction instead: the seed is permuted, split between the sentence
+  shapes by a fixed allocation, and each shape walks its own combinations by a stride coprime with
+  its size. The bench checks all thousand, both ways, on every build.</div>
+
+  <h3>Automation</h3>
+  <p>All 46 sound parameters are host-automatable and print properly in an automation lane —
+  <em>MINOR</em>, <em>1/8T</em>, <em>N-06</em>, <em>954 Hz</em>, <em>810 ms</em> — rather than as
+  bare numbers. <b>MOOD is deliberately not automatable</b>: it rewrites forty other parameters,
+  and a lane that fights forty other lanes is a lane nobody can use. It is saved in the patch and
+  in the project like everything else. The three layer switches are among them, so a host can turn a layer on and off in
+  time. If a host manages to switch all three off at once, the plugin keeps the last one sounding
+  and puts the parameter back.</p>
+</section>
+
+<!-- ================= 8 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">08</span><h2>Try this</h2>
+    <span class="sub">Recipes</span></div>
+
+  <div class="grid2">
+    <div>
+      <div class="recipe">
+        <h4>The opening shot</h4>
+        <p class="how">LOS ANGELES alone. <b>VOICING</b> FIFTHS, <b>SPRAWL</b> 70 %,
+          <b>SMOG</b> 25 %, <b>RAIN</b> 55 %, <b>NEON</b> 60 %, <b>DECAY</b> 90 %,
+          <b>DRIFT</b> 70 %, <b>KIPPLE</b> 15 %.</p>
+        <p class="out">Enormous, slow, and it never quite repeats. Leave it running while you do
+          something else and it will still be interesting when you come back.</p>
+      </div>
+      <div class="recipe">
+        <h4>Held brass</h4>
+        <p class="how">DECKARD. <b>SHAPE</b> SAW, <b>DETUNE</b> 45 %, <b>BRILLIANCE</b> 25 %,
+          <b>ENVELOPE</b> 80 %, <b>RESONANCE</b> 30 %, <b>ATTACK</b> 35 %, <b>RELEASE</b> 70 %,
+          <b>ENSEMBLE</b> 85 %, <b>SPACE</b> 70 %.</p>
+        <p class="out">The chord that opens slowly and then keeps opening. Play it low and in
+          fourths.</p>
+      </div>
+      <div class="recipe">
+        <h4>The dust</h4>
+        <p class="how">LOS ANGELES. <b>KIPPLE</b> 85 %, <b>SMOG</b> 70 %, <b>SUB</b> 20 %,
+          <b>VOICING</b> CLUSTER, <b>SPRAWL</b> 30 %.</p>
+        <p class="out">A room that has not been opened in years. Almost no pitch left, and a great
+          deal of grit.</p>
+      </div>
+    </div>
+    <div>
+      <div class="recipe">
+        <h4>Something in the building</h4>
+        <p class="how">REPLICANT alone. <b>RATE</b> 1/16, <b>LENGTH</b> 12, <b>METAL</b> 70 %,
+          <b>DECAY</b> 20 %, <b>MENACE</b> 65 %, <b>GLITCH</b> 55 %, <b>SPREAD</b> 90 %.
+          Then walk the <b>SEED</b>.</p>
+        <p class="out">Mechanical, wrong, and it will not stop. Drop the layer level and put it
+          under the other two rather than in front of them.</p>
+      </div>
+      <div class="recipe">
+        <h4>The whole film</h4>
+        <p class="how">All three live. LOS ANGELES <b>TRITONE</b> at 40 % level; DECKARD with a
+          long <b>RELEASE</b> and <b>ENSEMBLE</b> at 90 %; REPLICANT at <b>1/8T</b>, low level,
+          <b>SPACE</b> 60 %.</p>
+        <p class="out">Play two chords, four bars apart, and let the rest of it happen.</p>
+      </div>
+      <div class="recipe">
+        <h4>Keyed city</h4>
+        <p class="how">LOS ANGELES <b>TRIGGER</b> to KEYED, <b>DECAY</b> 95 %, DECKARD off,
+          REPLICANT off. Hold one note. Let go. Hold another.</p>
+        <p class="out">The city as an instrument: enormous swells that take four seconds to arrive
+          and eight to leave.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ================= 9. THE WORLD RACK ================= -->
+<section class="sec">
+  <div class="sec-head">
+    <span class="num">09</span>
+    <h2>The world rack</h2>
+    <span class="sub">Brokild World FX</span>
+  </div>
+
+  <p class="lead">Every Brokild synth carries the same rack. Not a copy of it and not a
+  similar one: the identical set of effects and characters, compiled into each
+  instrument and saved inside each patch. Learn it here and you have learned it
+  in all of them.</p>
+
+  <p>The globe on the panel opens it. What appears is two racks side by side &mdash; <b>effects</b> on the left, <b>characters</b> on the right &mdash; and they do very different things. An effect processes what the synth has already made. A character reaches back into the instrument and changes how it makes it.</p>
+  <figure>
+    <img src="shots/world-rack.jpg" alt="The Brokild World FX rack">
+    <figcaption>The world rack. Twelve effect pedals on the left, six characters on the right, and one <b>RACK MIX</b> over the lot. Here <b>TUBE</b>, <b>ECHO</b>, <b>SPACE</b> and <b>ROTARY</b> are lit, with <b>GLASS CATHEDRAL</b> and <b>TAPE SEANCE</b> holding the instrument.</figcaption>
+  </figure>
+  <p>Nothing is on when you start, and an empty rack is not a bypass &mdash; it is an absence. The audio never enters it. A patch you made before the rack existed sounds exactly as it did, to the sample, and the plugin's own test bench checks that on every build.</p>
+  <h3>The pedals</h3>
+  <p>Twelve, in the order they run: <b>TUBE</b> (asymmetric valve saturation, and its DRIVE holds its level as you turn it up, so the pedal gets dirtier rather than louder), <b>SWEEP</b> (four-stage phaser), <b>ENSEMBLE</b> (dual-line chorus), <b>HARMONIC</b> (the brownface split-band tremolo, plus plain tremolo and true vibrato), <b>GATE</b> (rhythmic stutter), <b>GRIT</b> (crusher and dirt), <b>STRIP</b> (compressor and five-band EQ), <b>ECHO</b> (stereo tape echo up to five seconds), <b>SPACE</b> (true convolution reverb), <b>SHIMMER</b> (a feedback network with the octave folded back into the loop), <b>ROTARY</b> (a Leslie with real inertia &mdash; the horn takes about a second to change its mind, the drum about four) and <b>KIERANATOR</b> (the step glitcher). ECHO, GATE and HARMONIC lock to the host clock.</p>
+  <figure>
+    <img src="shots/rack-pedal.jpg" alt="One pedal opened">
+    <figcaption>Every pedal carries one control it does not own itself: <b>PRESENCE</b>, in the rack's own colour. It is how much of that pedal is in the signal at all &mdash; at zero the pedal is inert and the audio passes it untouched.</figcaption>
+  </figure>
+  <p>Drag a pedal by its grip to reorder the chain, or use the arrows. Reordering while sound is playing is safe: the rack dips through the change and comes back on the other side.</p>
+  <h3>The characters</h3>
+  <p>The right-hand rack is <b>SPECTRA</b>, and it does not process the sound &mdash; it possesses the instrument. A character reaches into the voices themselves: how far they drift out of tune with each other, how wide they sit, whether they breathe, whether they sag flat as they die, how dark the filter runs. Two synths under the same character do not sound alike. They sound like themselves, haunted the same way.</p>
+  <p><b>DARK DRONE</b> is a cluster gone dark, with a drift that takes minutes to come round. <b>PSYCHEDELIC PINK</b> breathes the width, tuning and filter over a wash of phaser, chorus and reverse reverb it carries itself. <b>INDUSTRIAL BLACK</b> is grind, chop and clang. <b>GLASS CATHEDRAL</b> is a hall of its own and a breath on the tuning. <b>TAPE SEANCE</b> is the wow of a dying machine. <b>INSECT SWARM</b> is sixteen wings, none of them agreeing.</p>
+  <figure>
+    <img src="shots/rack-character.jpg" alt="A character opened">
+    <figcaption>A character opened. <b>PRESENCE</b> here is how hard it grips, so you can have a suggestion of one character and the full weight of another.</figcaption>
+  </figure>
+  <p>Characters stack: arm two and both take hold, in the order you armed them. Their pitch sag is keyed to each note's gate rather than its volume, so a held note stays in tune and only sinks as it dies. All three layers go through it. The characters reach each one where it makes sense: DECKARD's eight voices take the full treatment, LOS ANGELES fans the detuning across its nine oscillators, and REPLICANT takes the filter and the tremolo but keeps its pitch — a single voice detuned is just a wrong note.</p>
+  <h3>The step glitcher</h3>
+  <p><b>KIERANATOR</b> keeps the last ten seconds of everything the synth has played, and every one of its effects is a different way of reading that buffer back. Paint a bar of sixteen steps with the brushes &mdash; RETRIG, TAPE STOP, REVERSE, SHUFFLE, PITCH, CRUSH, GATE &mdash; and it plays the pattern against the host's bars. The same brush again clears a step. With no host transport it free-runs on its own clock. It is named for the late Kieran Foster, whose Glitch made this kind of thing worth doing.</p>
+  <h3>What the rack remembers</h3>
+  <p>The rack belongs to the patch. Save a patch and its rack goes with it; load one from before the rack existed and it comes back rack-empty, which is exactly the sound it promised. The <b>PRESETS</b> menu in the header holds ten made-up racks to start from. And because the rack is shared code, every Brokild synth gets new modules and fixes on its next build &mdash; the effects are the same effects, wherever you opened them.</p>
+</section>
+
+<!-- ================= 9 ================= -->
+<section class="sec">
+  <div class="sec-head"><span class="num">10</span><h2>Installing &amp; specifications</h2>
+    <span class="sub">Practical</span></div>
+
+  <h3>Installing</h3>
+  <ol class="steps">
+    <li><b>Unzip.</b> Copy <code>Blade Ruiner.vst3</code> — the whole folder — into
+      <code>C:\Program Files\Common Files\VST3\</code>. A sub-folder such as
+      <code>...\VST3\Brokild\</code> is fine; hosts look inside.</li>
+    <li><b>Rescan.</b> Start your DAW and let it rescan plugins. It appears as an
+      <b>instrument</b>, manufacturer Brokild.</li>
+    <li><b>Or just run it.</b> <code>Blade Ruiner.exe</code> in the same zip is the standalone
+      version; it picks its audio and MIDI devices from its own options menu.</li>
+  </ol>
+
+  <div class="note"><b>If the panel does not appear</b> — the interface is drawn in a WebView2
+  surface, which every up-to-date Windows 10 and 11 already has. If yours does not, install the
+  free Microsoft Edge WebView2 Runtime and reopen the plugin. The audio keeps working with the
+  window shut either way.</div>
+
+  <div class="warm note"><b>If Windows refuses to load it at all</b> and reports
+  <em>"An Application Control policy has blocked this file"</em>, that is <b>Smart App Control</b>.
+  It decides <em>per file</em>, from a cloud reputation lookup, and it can return a block for one
+  unsigned binary while happily loading another — build 260822.1 of this plugin was blocked on the
+  machine it was written on, while three other unsigned plugins in the same folder loaded, and a
+  rebuild of the identical program cleared it. So the block attaches to that exact copy of the
+  file rather than to the plugin: a later build may well load where an earlier one did not.
+  Failing that, Windows Security &rarr; App &amp; browser control &rarr; Smart App Control lets you
+  turn it off — note that switching it off is not reversible without reinstalling Windows. Most
+  machines do not have it enabled at all.</div>
+
+  <h3>Specifications</h3>
+  <table class="tight">
+    <tr><td>Format</td><td>VST3 instrument, 64-bit Windows. Standalone included.</td></tr>
+    <tr><td>Bus</td><td>Stereo out. MIDI in. No audio input.</td></tr>
+    <tr><td>Layers</td><td>Three independent engines, any combination, at least one always
+      live.</td></tr>
+    <tr><td>Polyphony</td><td>Deckard: 8 voices with oldest-note stealing. Los Angeles: 9
+      oscillators plus a sub, always. Replicant: monophonic by design.</td></tr>
+    <tr><td>Parameters</td><td>47. The 46 sound parameters are host-automatable; MOOD is state.</td></tr>
+    <tr><td>Sample rates</td><td>Any. Tested at 44.1, 48, 88.2 and 96 kHz — the drone lands on the
+      same frequency at all four.</td></tr>
+    <tr><td>Tempo</td><td>Replicant follows the host. With no host tempo it runs at 120.</td></tr>
+    <tr><td>Latency</td><td>None reported, and none introduced.</td></tr>
+    <tr><td>CPU</td><td>Rises with the number of live layers and with Deckard's polyphony. The
+      city is the cheapest of the three; the reverbs are the expensive part.</td></tr>
+    <tr><td>Network</td><td>None. It does not open a socket, and there is nothing to allow through
+      a firewall.</td></tr>
+  </table>
+
+  <h3>What was measured</h3>
+  <p class="quiet">The engine has an offline bench that renders real audio and looks at it: every
+  control at both extremes, 300 random machines with all three layers live, all 64 seeds (bounded,
+  audible, and no two alike), four sample rates, a sixty-second run at maximum shimmer and kipple
+  to prove nothing creeps upward, and a Goertzel check that the A1 drone really is at 55 Hz and
+  that the tuning control really moves it. It also dials all thousand moods twice over and proves
+  that each gives the same patch and the same line both times, that every value lands inside its own
+  range, and that no two of the thousand collide. A separate check reads the source and proves that the
+  parameter tables, the automation order and the panel all name the same 46 things in the same
+  order.</p>
+
+  <div class="colophon">
+    <b>Blade Ruiner</b> — Brokild Apps. Build 260822.6, August 2026.<br>
+    Native C++ audio, JUCE 8, interface drawn in the plugin's own window.<br>
+    With acknowledgements to Philip K. Dick, <em>Do Androids Dream of Electric Sheep?</em> (1968),
+    from which the kipple, the mood organ, the Voigt-Kampff scale and the Rosen Association are
+    borrowed.<br>
+    Free to use. No installer, no account, no telemetry, nothing phones home.
+  </div>
+</section>
+
+</body>
+</html>

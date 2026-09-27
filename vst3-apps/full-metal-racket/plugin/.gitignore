@@ -1,0 +1,7 @@
+build/
+test/build/
+dist/
+*.old*
+FMRprobe.exe
+probe.exe
+test/fakeart/

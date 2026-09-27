@@ -1,0 +1,23 @@
+{
+  "slug": "hairfryer",
+  "name": "Hairfryer (VST3)",
+  "description": "A free Windows VST3 vocal strip that attempts to convert a clean, loud singing voice into a metal-ish one — growls, gutturals, pig squeals, fry based on physics. No AI and no voice model: it splits the voice into glottal source and vocal tract in real time, wrecks only the source with a genuine chaotic map locked to your glottal pulses plus a self-oscillating false-fold resonator, and puts your own vowels back on top. The melody survives, the words survive, the voice is a monster — right now it distorts the voice in weird ways, and I don't know if it is useful to make a \"metallize\" VST3 for voice. It's fun to try, because it is probably impossible to do. It also has gate, de-esser, EQ, tube heat, compressor and limiter like any other vocal strip :)",
+  "status": "live",
+  "url": "vst3-apps/hairfryer/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/hairfryer.jpg",
+  "note": "Windows VST3 · build 260826.5 · free download · 9-page manual & cookbook included.",
+  "tags": [
+    "vst3",
+    "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Hairfryer-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Hairfryer-VST3-win64.zip",
+      "bytes": 6800155,
+      "sha256": "2703599d7be9e38bd62c4b56bb7ece802d04cbee60e40dfe483115d80921da8a"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+[
+  { "name": "hook", "eval": "typeof window.__N84 === 'object' ? 'ok' : 'NO HOOK'" },
+  { "wait": 1500 },
+  { "name": "fragment version", "eval": "window.BWFX && window.BWFX.version ? window.BWFX.version : (window.BWFX ? 'no version field' : 'NO BWFX')" },
+  { "name": "open the rack", "eval": "window.BWFX.open(); 'opened'" },
+  { "wait": 900 },
+  { "name": "arm ECHO so something is audible in the rack", "eval": "(function(){ var r = document.querySelector('[data-bwfx-module=echo] .bwfx-rocker') || document.querySelector('.bwfx-rocker'); if (r) r.click(); return r ? 'clicked a rocker' : 'NO ROCKER'; })()" },
+  { "wait": 700 },
+  { "name": "before: macro values and the rack's own resolution of mix", "eval": "(function(){ var d = window.BWFX.debug(); return 'vals ' + JSON.stringify(d.macroVals) + ' | macros ' + JSON.stringify(d.macros) + ' | rack ' + JSON.stringify(d.rack); })()" },
+  { "name": "drag RACK MIX to zero", "eval": "(function(){ var m = document.getElementById('bwfxMix'); m.value = 0; m.dispatchEvent(new Event('input', {bubbles:true})); return 'sent; readout ' + document.getElementById('bwfxMixOut').textContent + ', slider now ' + m.value; })()" },
+  { "wait": 900 },
+  { "name": "ask the native side for a fresh state (several audio blocks later)", "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'bwfx', op:'init'}); 'asked'" },
+  { "wait": 500 },
+  { "name": "after: macro 5 fader, values, THE RACK's resolution (base + off = what the audio uses)", "eval": "(function(){ var d = window.BWFX.debug(); var r = document.querySelectorAll('#bwfxMacros input[type=range]'); return 'macro5 fader ' + r[4].value + ' | vals ' + JSON.stringify(d.macroVals) + ' | rack ' + JSON.stringify(d.rack) + ' | mix slider ' + document.getElementById('bwfxMix').value + ' readout ' + document.getElementById('bwfxMixOut').textContent; })()" },
+  { "name": "rack header with the mix at zero", "shoot": "C:\\Users\\peter\\b\\Nineteen84\\docs\\bwfx-mix-zero.png", "sel": ".bwfx-mixrow", "sel2": "#bwfxMacros", "pad": 12, "scale": 2 },
+  { "name": "drag RACK MIX back to full", "eval": "(function(){ var m = document.getElementById('bwfxMix'); m.value = 100; m.dispatchEvent(new Event('input', {bubbles:true})); return 'sent'; })()" },
+  { "wait": 900 },
+  { "name": "fresh state again", "eval": "window.__JUCE__.backend.emitEvent('n84', {k:'bwfx', op:'init'}); 'asked'" },
+  { "wait": 500 },
+  { "name": "restored", "eval": "(function(){ var d = window.BWFX.debug(); var r = document.querySelectorAll('#bwfxMacros input[type=range]'); return 'macro5 fader ' + r[4].value + ' | vals ' + JSON.stringify(d.macroVals) + ' | rack ' + JSON.stringify(d.rack); })()" },
+  { "name": "errors", "eval": "(window.__errs || []).length === 0 ? 'no errors' : 'ERRORS: ' + JSON.stringify(window.__errs).slice(0, 300)" }
+]
