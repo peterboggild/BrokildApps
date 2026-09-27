@@ -8,7 +8,7 @@
   "icon": "more",
   "cta": "Download all 12 →",
   "preview": "assets/app-previews/collection.jpg",
-  "note": "Windows VST3 · 123 MB · eight instruments and four effects · all manuals included.",
+  "note": "Windows VST3 · 124 MB · eight instruments and four effects · all manuals included.",
   "tags": [
     "vst3"
   ],
@@ -16,8 +16,8 @@
     {
       "name": "Brokild-Collection-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Brokild-Collection-win64.zip",
-      "bytes": 129453972,
-      "sha256": "ba494136b48069c8019a706fa9c1cda461ad3ed244a9d93cf742265a411cc7c2"
+      "bytes": 130235699,
+      "sha256": "9b6d05b8b8f089743007d5a740890ecc1f1cda6208e356b8addf7e9039f64434"
     }
   ]
 }

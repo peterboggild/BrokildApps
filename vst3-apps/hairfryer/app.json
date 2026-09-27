@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/hairfryer.jpg",
-  "note": "Windows VST3 · build 260826.5 · free download · 9-page manual & cookbook included.",
+  "note": "Windows VST3 · build 260926.1 · free download · 9-page manual & cookbook included.",
   "tags": [
     "vst3",
     "effect"
@@ -16,8 +16,8 @@
     {
       "name": "Hairfryer-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Hairfryer-VST3-win64.zip",
-      "bytes": 6800155,
-      "sha256": "2703599d7be9e38bd62c4b56bb7ece802d04cbee60e40dfe483115d80921da8a"
+      "bytes": 6640956,
+      "sha256": "9fcc8e65aebe102c66692612251db188ce0b9864768471ba3d61e24a5593bb1e"
     }
   ]
 }

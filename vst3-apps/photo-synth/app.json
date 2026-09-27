@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/photo-synth-vst3.jpg",
-  "note": "Windows VST3 · build 260830.1 · free download · manual and developer kit included.",
+  "note": "Windows VST3 · build 260926.1 · free download · manual and developer kit included.",
   "tags": [
     "vst3",
     "synth"
@@ -22,8 +22,8 @@
     {
       "name": "Photo-Synth-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Photo-Synth-VST3-win64.zip",
-      "bytes": 9889801,
-      "sha256": "22f48e24e6ce8d8ad29b2b7344c4d7ee4c484a2edb819770720a6e862d9d0639"
+      "bytes": 9891751,
+      "sha256": "f3695488483abfbf85dff4e5ed5cb880edd59eb051c101a57b33f9d3a5f08ed6"
     }
   ]
 }

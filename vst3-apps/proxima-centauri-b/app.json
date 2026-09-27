@@ -16,32 +16,32 @@
     {
       "name": "Artefact-B2311-1-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Artefact-B2311-1-win64.zip",
-      "bytes": 6336209,
-      "sha256": "4f92ea41349c82147fc32cbc88209008f2269f3e7e689c09d5dfcaeebf5705cb"
+      "bytes": 6336950,
+      "sha256": "b38beabfb3de207b27a2d5e720ef230212b98d5731f049ae9adfdc671181cfed"
     },
     {
       "name": "Artefact-B2311-104-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Artefact-B2311-104-win64.zip",
-      "bytes": 6350164,
-      "sha256": "38aef2a084049ca1a02c81583b31133b26a9d19a77a618580c58b26320061675"
+      "bytes": 6351471,
+      "sha256": "e07c2f4ae8aa0ad6252b81ba9b99af3b6f05b2fb388f21c578284d7f8071dc56"
     },
     {
       "name": "Artefact-B2311-22-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Artefact-B2311-22-win64.zip",
-      "bytes": 8091031,
-      "sha256": "9533385aa19026567ae7fb5a2f99e43ff37b131b26df016ae918643d2d4b6b9f"
+      "bytes": 8091685,
+      "sha256": "1a4fc14ffe20ff5ae91de2de404028ca674fae7be16bc1627ca5f55d64f5bc6a"
     },
     {
       "name": "Artefact-B2311-67-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Artefact-B2311-67-win64.zip",
-      "bytes": 12163056,
-      "sha256": "e7004993a1fa643e83b7899ac483e5daf6c44f1c7fddb85ec23c69129bfac252"
+      "bytes": 12164439,
+      "sha256": "3a2b07a442b70bff557edd99e132d79ee8945af76a39ba1dce6c7b29c780923b"
     },
     {
       "name": "Brokild-Proxima-Centauri-B-Collection-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Brokild-Proxima-Centauri-B-Collection-win64.zip",
-      "bytes": 31465098,
-      "sha256": "969df184a91c54175872bf4cbb16278c5356b010563a8aa1891e2177b70ff2c1"
+      "bytes": 31469323,
+      "sha256": "7575653120e80171ee3d87ba959cc2fe77445e0186e7bc5b9304ebf1cf786bd5"
     }
   ]
 }
