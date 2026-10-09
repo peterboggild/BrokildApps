@@ -58,7 +58,7 @@
 <text x="665" y="648.0" font-size="22" fill="#a0401a">▶ UD</text>
 <line x1="120" y1="730" x2="680" y2="730" stroke="#3b2f1e" stroke-width="1"/>
 <text x="400" y="765" text-anchor="middle" font-size="26" fill="#3b2f1e" letter-spacing="3">DEN KRYPTEREDE BESKED</text>
-<text x="400" y="805" text-anchor="middle" font-size="18" font-style="italic" fill="#5a4a32">Antallet af felter er din nøgle. Flyt hvert bogstav lige så mange pladser tilbage.</text>
+<text x="400" y="805" text-anchor="middle" font-size="18" font-style="italic" fill="#5a4a32">Antallet af felter er din nøgle. Flyt hvert bogstav lige så mange pladser tilbage – uden Æ, Ø og Å.</text>
 <text x="400" y="865" text-anchor="middle" font-size="30" font-family="Courier New, monospace" font-weight="bold" fill="#2a2015" letter-spacing="3">RAQRA NS XBQRA RE AHY FLI</text>
 <text x="400" y="910" text-anchor="middle" font-size="18" fill="#5a4a32">A B C D E F G H I J K L M N O P Q R S T U V W X Y Z</text>
 <text x="400" y="955" text-anchor="middle" font-size="30" fill="#3b2f1e" letter-spacing="10">KODE: ☐☐ ☐☐</text>
