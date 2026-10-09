@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000" font-family="Georgia, serif">
+<rect width="800" height="1000" fill="#f6efdf"/>
+<rect x="20" y="20" width="760" height="960" fill="none" stroke="#3b2f1e" stroke-width="3"/>
+<rect x="30" y="30" width="740" height="940" fill="none" stroke="#3b2f1e" stroke-width="1"/>
+<text x="400" y="95" text-anchor="middle" font-size="30" fill="#3b2f1e" letter-spacing="3">PRIMTALSLABYRINTEN</text>
+<text x="400" y="140" text-anchor="middle" font-size="18" font-style="italic" fill="#5a4a32">Træd kun på primtal. Gå op, ned eller til siden – aldrig på skrå. Tæl felterne, også start og mål.</text>
+<rect x="150" y="190" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="250" y="190" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="350" y="190" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="450" y="190" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="550" y="190" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="150" y="290" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="250" y="290" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="350" y="290" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="450" y="290" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="550" y="290" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="150" y="390" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="250" y="390" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="350" y="390" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="450" y="390" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="550" y="390" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="150" y="490" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="250" y="490" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="350" y="490" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="450" y="490" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="550" y="490" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="150" y="590" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="250" y="590" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="350" y="590" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="450" y="590" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<rect x="550" y="590" width="100" height="100" fill="#fbf7ec" stroke="#3b2f1e" stroke-width="2"/>
+<text x="200.0" y="253.0" text-anchor="middle" font-size="36" fill="#2a2015">2</text>
+<text x="300.0" y="253.0" text-anchor="middle" font-size="36" fill="#2a2015">91</text>
+<text x="400.0" y="253.0" text-anchor="middle" font-size="36" fill="#2a2015">23</text>
+<text x="500.0" y="253.0" text-anchor="middle" font-size="36" fill="#2a2015">41</text>
+<text x="600.0" y="253.0" text-anchor="middle" font-size="36" fill="#2a2015">53</text>
+<text x="200.0" y="353.0" text-anchor="middle" font-size="36" fill="#2a2015">7</text>
+<text x="300.0" y="353.0" text-anchor="middle" font-size="36" fill="#2a2015">51</text>
+<text x="400.0" y="353.0" text-anchor="middle" font-size="36" fill="#2a2015">19</text>
+<text x="500.0" y="353.0" text-anchor="middle" font-size="36" fill="#2a2015">57</text>
+<text x="600.0" y="353.0" text-anchor="middle" font-size="36" fill="#2a2015">61</text>
+<text x="200.0" y="453.0" text-anchor="middle" font-size="36" fill="#2a2015">11</text>
+<text x="300.0" y="453.0" text-anchor="middle" font-size="36" fill="#2a2015">13</text>
+<text x="400.0" y="453.0" text-anchor="middle" font-size="36" fill="#2a2015">5</text>
+<text x="500.0" y="453.0" text-anchor="middle" font-size="36" fill="#2a2015">87</text>
+<text x="600.0" y="453.0" text-anchor="middle" font-size="36" fill="#2a2015">73</text>
+<text x="200.0" y="553.0" text-anchor="middle" font-size="36" fill="#2a2015">37</text>
+<text x="300.0" y="553.0" text-anchor="middle" font-size="36" fill="#2a2015">27</text>
+<text x="400.0" y="553.0" text-anchor="middle" font-size="36" fill="#2a2015">79</text>
+<text x="500.0" y="553.0" text-anchor="middle" font-size="36" fill="#2a2015">49</text>
+<text x="600.0" y="553.0" text-anchor="middle" font-size="36" fill="#2a2015">89</text>
+<text x="200.0" y="653.0" text-anchor="middle" font-size="36" fill="#2a2015">43</text>
+<text x="300.0" y="653.0" text-anchor="middle" font-size="36" fill="#2a2015">1</text>
+<text x="400.0" y="653.0" text-anchor="middle" font-size="36" fill="#2a2015">21</text>
+<text x="500.0" y="653.0" text-anchor="middle" font-size="36" fill="#2a2015">33</text>
+<text x="600.0" y="653.0" text-anchor="middle" font-size="36" fill="#2a2015">97</text>
+<text x="135" y="248.0" text-anchor="end" font-size="22" fill="#a0401a">START ▶</text>
+<text x="665" y="648.0" font-size="22" fill="#a0401a">▶ UD</text>
+<line x1="120" y1="730" x2="680" y2="730" stroke="#3b2f1e" stroke-width="1"/>
+<text x="400" y="765" text-anchor="middle" font-size="26" fill="#3b2f1e" letter-spacing="3">DEN KRYPTEREDE BESKED</text>
+<text x="400" y="805" text-anchor="middle" font-size="18" font-style="italic" fill="#5a4a32">Antallet af felter er din nøgle. Flyt hvert bogstav lige så mange pladser tilbage.</text>
+<text x="400" y="865" text-anchor="middle" font-size="30" font-family="Courier New, monospace" font-weight="bold" fill="#2a2015" letter-spacing="3">RAQRA NS XBQRA RE AHY FLI</text>
+<text x="400" y="910" text-anchor="middle" font-size="18" fill="#5a4a32">A B C D E F G H I J K L M N O P Q R S T U V W X Y Z</text>
+<text x="400" y="955" text-anchor="middle" font-size="30" fill="#3b2f1e" letter-spacing="10">KODE: ☐☐ ☐☐</text>
+</svg>
