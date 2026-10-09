@@ -26,6 +26,11 @@ function noteName(pc) {
 function germanName(pc) {
   return { 10: "B", 11: "H", 3: "Es", 8: "As" }[pc] || noteName(pc);
 }
+// The name shown for a note: German names (S = Es, B = B, H = H) in the German
+// system, English names in the French one.
+function shownName(pc) {
+  return state.sys === "de" ? germanName(pc) : noteName(pc);
+}
 
 /* ---------- state ---------- */
 
@@ -100,14 +105,14 @@ function renderStrip() {
     const b = document.createElement("b");
     b.textContent = e.kind === "note" && e.text.length > 1 ? e.text[0] + e.text[1].toLowerCase() : e.text;
     const sp = document.createElement("span");
-    sp.textContent = e.kind === "note" ? noteName(e.pc) : "–";
+    sp.textContent = e.kind === "note" ? shownName(e.pc) : "–";
     c.append(b, sp);
     strip.appendChild(c);
     if (e.kind === "note") notes += e.text.length;
   });
   const sum = $("summary");
   if (!letters) { sum.textContent = ""; return; }
-  const names = events.filter((e) => e.kind === "note").map((e) => noteName(e.pc)).join(" ");
+  const names = events.filter((e) => e.kind === "note").map((e) => shownName(e.pc)).join(" ");
   if (notes === letters) {
     sum.innerHTML = "";
     const strong = document.createElement("strong");
@@ -243,9 +248,9 @@ function renderStaff() {
       const t = el("text", { class: "lbl", x, y: top + SYS_H - TOP - 22 }, g);
       t.textContent = e.text.length > 1 ? e.text[0] + e.text[1].toLowerCase() : e.text;
       const t2 = el("text", { class: "lbl", x, y: top + SYS_H - TOP - 8, "font-size": 10, "font-weight": 400 }, g);
-      t2.textContent = state.sys === "de" ? germanName(e.pc) : noteName(e.pc);
+      t2.textContent = shownName(e.pc);
       const title = el("title", {}, g);
-      title.textContent = `${e.text} → ${noteName(e.pc)}${Math.floor(e.midi / 12) - 1}`;
+      title.textContent = `${e.text} → ${shownName(e.pc)} (${noteName(e.pc)}${Math.floor(e.midi / 12) - 1})`;
     });
   });
   svg.addEventListener("click", (ev) => {
@@ -606,7 +611,7 @@ function renderMap() {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const rows = [["Letter", (ch) => ch], ["Note", (ch) => {
     const pc = state.sys === "de" ? (ch in GERMAN ? GERMAN[ch] : null) : frenchPc(ch);
-    return pc === null ? "–" : noteName(pc);
+    return pc === null ? "–" : shownName(pc);
   }]];
   for (const [head, fn] of rows) {
     const tr = document.createElement("tr");
