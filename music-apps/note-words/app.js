@@ -259,8 +259,29 @@ function renderStaff() {
 
 /* ---------- sound ---------- */
 
-let ctx = null, master = null;
+let ctx = null, master = null, unlocked = false;
+// iPhones play Web Audio through the "ambient" session, which the silent switch
+// mutes. Asking for the "playback" session (Safari 17+), and on older iOS a
+// looping silent <audio> started from a tap, sends it out of the speaker anyway.
+function iosUnlock() {
+  if (unlocked) return;
+  unlocked = true;
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+  try {
+    const n = 4800, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const str = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    str(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); str(8, "WAVEfmt "); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 48000, true);
+    v.setUint32(28, 96000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    str(36, "data"); v.setUint32(40, n * 2, true);
+    const a = new Audio(URL.createObjectURL(new Blob([buf], { type: "audio/wav" })));
+    a.loop = true;
+    a.setAttribute("playsinline", "");
+    a.play().catch(() => {});
+  } catch (e) {}
+}
 function audio() {
+  iosUnlock();
   if (!ctx) {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
     const comp = ctx.createDynamicsCompressor();
