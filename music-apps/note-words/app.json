@@ -1,0 +1,13 @@
+{
+  "slug": "note-words",
+  "name": "Note Words (HTML)",
+  "description": "Spell words in musical notes, the way Bach signed B-A-C-H. In German note names B is B flat, H is B natural and S is Es, E flat, so BAGGAGE, CABBAGE and SAGA are melodies. Type any word to hear it, see it on a stave and save it as MIDI; switch to the French system to give every letter a note; or pick from famous signatures (DSCH, ABEGG, GADE) and a finder of 280 English words made of notes from end to end.",
+  "status": "live",
+  "url": "music-apps/note-words/index.html",
+  "icon": "note",
+  "preview": "assets/app-previews/note-words.png",
+  "tags": [
+    "browser",
+    "phone"
+  ]
+}
