@@ -40,7 +40,10 @@ const state = {
 };
 try {
   const saved = JSON.parse(localStorage.getItem("note-words") || "{}");
-  for (const k of Object.keys(state)) if (k in saved) state[k] = saved[k];
+  // The system is not remembered: a visit always starts in German, and only a
+  // ?sys=fr link (or the switch) turns French on. Remembering it left people
+  // in French after the HAYDN button, reading HANS as B A G E.
+  for (const k of Object.keys(state)) if (k in saved && k !== "sys") state[k] = saved[k];
 } catch (e) {}
 function persist() {
   try { localStorage.setItem("note-words", JSON.stringify(state)); } catch (e) {}
@@ -111,6 +114,7 @@ function renderStrip() {
     if (e.kind === "note") notes += e.text.length;
   });
   const sum = $("summary");
+  $("frNote").hidden = state.sys !== "fr";
   if (!letters) { sum.textContent = ""; return; }
   const names = events.filter((e) => e.kind === "note").map((e) => shownName(e.pc)).join(" ");
   if (notes === letters) {
@@ -491,6 +495,15 @@ function syncControls() {
     : "The French system writes the alphabet under the scale again and again (H–N, O–U, V–Z), so every letter has a note. H keeps its German B, as in the 1909 pieces on HAYDN by Ravel and Debussy.";
 }
 
+function setSys(sys) {
+  if (state.sys === sys) return;
+  state.sys = sys;
+  persist();
+  syncControls();
+  renderMap();
+  update();
+}
+
 function update() {
   if (playing) stop();
   events = parse(wordEl.value);
@@ -557,7 +570,7 @@ function renderMotifs() {
     b.querySelector("b").textContent = w;
     b.querySelector("small").textContent = d;
     b.addEventListener("click", () => {
-      if (w === "HAYDN" && state.sys !== "fr") { state.sys = "fr"; persist(); syncControls(); renderMap(); }
+      setSys(w === "HAYDN" ? "fr" : "de");
       load(w);
     });
     box.appendChild(b);
@@ -582,7 +595,7 @@ function renderWords() {
     b.type = "button";
     b.textContent = w;
     b.addEventListener("click", () => {
-      if (state.sys !== "de") { state.sys = "de"; persist(); syncControls(); renderMap(); }
+      setSys("de");
       load(w);
     });
     frag.appendChild(b);
@@ -597,11 +610,12 @@ function renderWords() {
   document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === state.lang));
 }
 $("find").addEventListener("input", renderWords);
+$("toGerman").addEventListener("click", () => setSys("de"));
 document.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => { state.lang = b.dataset.lang; persist(); renderWords(); }));
 $("random").addEventListener("click", () => {
   const long = wordList().filter((w) => w.length >= 4);
   const w = long[Math.floor(Math.random() * long.length)];
-  if (state.sys !== "de") { state.sys = "de"; persist(); syncControls(); renderMap(); }
+  setSys("de");
   load(w);
 });
 
