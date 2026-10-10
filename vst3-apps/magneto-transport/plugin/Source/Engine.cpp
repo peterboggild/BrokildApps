@@ -1,4 +1,5 @@
 #include "Engine.h"
+#include "stock/stock_456.h"
 
 #include <algorithm>
 #include <cstring>
@@ -12,7 +13,12 @@ namespace mt
 
 namespace
 {
+    namespace S4 = stock456;
+    static_assert (S4::NL == NLAYER, "the record tables and the tape disagree on the layer count");
+    static_assert (S4::NM == 11 && S4::NS <= LayerRecord::NSMAX, "LayerRecord's slice size");
+
     inline double dbToLin (double db) { return std::pow (10.0, db / 20.0); }
+    inline double Phi (double x) { return 0.5 * std::erfc (-x / std::sqrt (2.0)); }
 
     const char* SYNC_LABELS[NUM_SYNC] =
         { "OFF", "1/16", "1/16D", "1/8T", "1/8", "1/8D", "1/4T", "1/4", "1/4D", "1/2", "1/2D", "1/1", "2/1" };
@@ -27,11 +33,16 @@ namespace
               c2 (0.5 * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3)),
               c3 (0.5 * (3.0 * (p1 - p2) + p3 - p0)) {}
         double at (double t) const { return c0 + t * (c1 + t * (c2 + t * c3)); }
-        double prim (double t) const   // antiderivative from 0
-        {
-            return t * (c0 + t * (c1 * 0.5 + t * (c2 / 3.0 + t * c3 * 0.25)));
-        }
+        double prim (double t) const { return t * (c0 + t * (c1 * 0.5 + t * (c2 / 3.0 + t * c3 * 0.25))); }
     };
+
+    // the s axis of the tables: S_GRID[i] = 2.5 sinh(3 t) / sinh(3), t uniform on [-1, 1]
+    const double SINH3 = std::sinh (3.0);
+    inline double sIndex (double s)
+    {
+        const double t = std::asinh (s * SINH3 / 2.5) / 3.0;
+        return std::clamp ((t + 1.0) * 0.5 * (S4::NS - 1), 0.0, (double) (S4::NS - 1));
+    }
 }
 
 const char* syncName (int i) { return (i >= 0 && i < NUM_SYNC) ? SYNC_LABELS[i] : "?"; }
@@ -42,7 +53,7 @@ void Biquad::shelf (bool high, double fs, double f0, double gainDb)
     const double A  = std::pow (10.0, gainDb / 40.0);
     const double w0 = 2.0 * M_PI * f0 / fs;
     const double cs = std::cos (w0), sn = std::sin (w0);
-    const double alpha = sn * 0.5 * std::sqrt (2.0);      // S = 1: steepest with no overshoot
+    const double alpha = sn * 0.5 * std::sqrt (2.0);
     const double sa = 2.0 * std::sqrt (A) * alpha;
     double a0;
     if (! high)
@@ -66,7 +77,6 @@ void Biquad::shelf (bool high, double fs, double f0, double gainDb)
     b0 /= a0; b1 /= a0; b2 /= a0; a1 /= a0; a2 /= a0;
 }
 
-//==============================================================================
 void HalfBand::design()
 {
     constexpr int C = TAPS / 2;
@@ -121,6 +131,13 @@ float HalfBand::down (float a, float b)
 }
 
 //==============================================================================
+TapeStore::TapeStore (int64_t baseCells) : n0 (baseCells)
+{
+    for (int c = 0; c < 2; ++c)
+        for (int l = 0; l < NLAYER; ++l)
+            m[c][l].assign ((size_t) (n0 >> l), 0.0f);
+}
+
 Engine::Engine() = default;
 
 Engine::~Engine()
@@ -132,10 +149,153 @@ Engine::~Engine()
 
 int64_t Engine::cellsNeeded (int m, double loopMeters) const
 {
-    if (m == 0) return (int64_t) std::llround (REEL_WINDOW_CM * CELLS_PER_CM);
-    return (int64_t) std::llround (loopMeters * 100.0 * CELLS_PER_CM);
+    const double cm = (m == 0) ? REEL_WINDOW_CM : loopMeters * 100.0;
+    const int64_t c = (int64_t) std::llround (cm * CELLS_PER_CM);
+    return (c + 7) / 8 * 8;      // every layer's ring an exact fraction of the surface ring
 }
 
+//==============================================================================
+/*  The record head at a bias and a tape speed, one layer at a time: the G slice
+    at the bias amplitude this layer sees and the current speed (both
+    log-interpolated between table planes - a slower tape sees more bias cycles
+    in the zone and records more completely: +0.6 dB at 19 cm/s against 38.1),
+    and the zone kernel - a Gaussian with the measured centroid and rms,
+    convolved with the layer's own cell width. */
+void Engine::buildRecord (double biasDb, double speedCms)
+{
+    const double hb = S4::HB_OPERATING * dbToLin (biasDb);
+    const double lnA0 = std::log (S4::A_GRID[0]), lnSpan = std::log (S4::A_GRID[S4::NA - 1]) - lnA0;
+    const int c = S4::NM / 2;
+    // speed planes are a factor of 2 apart
+    const double fv = std::clamp (std::log2 (speedCms / S4::SPEED_CMS[0]), 0.0, (double) (S4::NV - 1));
+    const int iv = std::min ((int) fv, S4::NV - 2);
+    const double tv = fv - iv;
+    auto aIndex = [&] (double A, int& ia, double& ta) {
+        A = std::clamp (A, S4::A_GRID[0], S4::A_GRID[S4::NA - 1]);
+        const double fa = (std::log (A) - lnA0) / lnSpan * (S4::NA - 1);
+        ia = std::clamp ((int) std::floor (fa), 0, S4::NA - 2);
+        ta = std::clamp (fa - ia, 0.0, 1.0);
+    };
+    auto zone = [&] (const double (&Z)[S4::NV][S4::NL][S4::NA], int l, int ia, double ta) {
+        const double lo = (1.0 - ta) * Z[iv][l][ia] + ta * Z[iv][l][ia + 1];
+        const double hi = (1.0 - ta) * Z[iv + 1][l][ia] + ta * Z[iv + 1][l][ia + 1];
+        return (1.0 - tv) * lo + tv * hi;
+    };
+    // The rail's zero: the gain-weighted zone centroid at OPERATING bias and the
+    // CURRENT speed, so delay = head distance / speed at every speed; moving the
+    // bias then shifts the delay slightly, as it does on a real head.
+    {
+        double gx = 0.0, gs = 0.0;
+        for (int l = 0; l < NLAYER; ++l)
+        {
+            int ia; double ta; aIndex (S4::HB_OPERATING * S4::LAYER_FMAX[l], ia, ta);
+            const double g = zone (S4::ZONE_GAIN, l, ia, ta);
+            gx += g * zone (S4::ZONE_X_UM, l, ia, ta); gs += g;
+        }
+        xRefUm = gs > 0.0 ? gx / gs : 0.0;
+    }
+
+    double msym[S4::NM];
+    for (int i = 0; i < S4::NM; ++i) msym[i] = 0.5 * (S4::M_REM[i] - S4::M_REM[S4::NM - 1 - i]);
+    const double dM = (msym[S4::NM - 1] - msym[0]) / (S4::NM - 1);
+
+    for (int l = 0; l < NLAYER; ++l)
+    {
+        LayerRecord& r = rec[l];
+        const double A = std::clamp (hb * S4::LAYER_FMAX[l], S4::A_GRID[0], S4::A_GRID[S4::NA - 1]);
+        int ia; double ta; aIndex (A, ia, ta);
+
+        float raw[S4::NM][S4::NS];
+        for (int im = 0; im < S4::NM; ++im)
+            for (int is = 0; is < S4::NS; ++is)
+            {
+                const double lo = (1.0 - ta) * S4::G[iv][l][ia][im][is] + ta * S4::G[iv][l][ia + 1][im][is];
+                const double hi = (1.0 - ta) * S4::G[iv + 1][l][ia][im][is] + ta * S4::G[iv + 1][l][ia + 1][im][is];
+                raw[im][is] = (float) ((1.0 - tv) * lo + tv * hi);
+            }
+        // G is odd: G(-M, -s) = -G(M, s). Antisymmetrise the slice so silence on
+        // erased tape records EXACTLY zero, and so table noise cannot add DC.
+        for (int im = 0; im < S4::NM; ++im)
+            for (int is = 0; is < S4::NS; ++is)
+                r.g[im][is] = 0.5f * (raw[im][is] - raw[S4::NM - 1 - im][S4::NS - 1 - is]);
+        // Resample on a uniform s grid, 4.9 mHc apart (0 VU spans 38 steps), so a
+        // cell's lookup is one multiply instead of an asinh, and linear between
+        // these points is -120 dB from the cubic. Antisymmetry survives: the grid
+        // is symmetric about s = 0 and so is the cubic through symmetric data.
+        for (int im = 0; im < S4::NM; ++im)
+            for (int i = 0; i < LayerRecord::NSF; ++i)
+            {
+                const double sv = -LayerRecord::SMAX + i * (2.0 * LayerRecord::SMAX / (LayerRecord::NSF - 1));
+                const double fs = sIndex (sv);
+                const int is = std::min ((int) fs, S4::NS - 2);
+                const double ts = fs - is;
+                const float* g = r.g[im];
+                const int a = std::max (is - 1, 0), d = std::min (is + 2, S4::NS - 1);
+                r.gf[im][i] = (float) CR (g[a], g[is], g[is + 1], g[d]).at (ts);
+            }
+        for (int im = 0; im < S4::NM; ++im) r.gf[im][LayerRecord::NSF / 2] = r.g[im][S4::NS / 2];   // s = 0 exactly
+        r.dM = dM;
+        r.mLo = -0.5 * (S4::NM - 1) * dM;
+
+        r.amp = A;
+        r.xUm = zone (S4::ZONE_X_UM, l, ia, ta);
+        r.wUm = std::max (0.0, zone (S4::ZONE_W_UM, l, ia, ta));
+        r.gain = (r.g[c][S4::NS / 2 + 1] - r.g[c][S4::NS / 2 - 1]) / (S4::S_GRID[S4::NS / 2 + 1] - S4::S_GRID[S4::NS / 2 - 1]);
+
+        const double B = (double) (1 << l);
+        const double mu = 0.5 * B + r.xUm / CELL_UM;                   // kernel centre, from the cell's first surface cell
+        // The kernel is the zone's own. The playback reconstructs each layer with a
+        // smooth (Catmull-Rom) curve through its cells, so the cells are POINT
+        // samples and take no box of their own: adding the cell's box here as well
+        // cost 0.5 dB at 15 kHz at 19 cm/s against the reference.
+        // The deep layers' cells are coarse (2 and 4 um). Where a layer's own
+        // Nyquist frequency (speed / two cells) falls inside the audio band - only
+        // the 2 um layer below 9.5 cm/s and the 4 um layer below 19 cm/s - the
+        // kernel is widened to be 60 dB down there, faded in as the Nyquist drops
+        // from 24 to 16 kHz. Measured: a 15 kHz tone at 4.75 cm/s folded to -25 dB
+        // without it. It costs top end only in those layers at those speeds, where
+        // the playback thickness loss (stage 4) removes those wavelengths anyway.
+        // 0.3 cells only guards a zero width.
+        const double fNyq = speedCms * 1.0e4 / (2.0 * B * CELL_UM);
+        const double ua = std::clamp ((24000.0 - fNyq) / 8000.0, 0.0, 1.0);
+        const double aa = ua * ua * (3.0 - 2.0 * ua);
+        const double sig = std::max ({ r.wUm / CELL_UM, aa * 1.18 * B, 0.3 });
+        int j0 = (int) std::floor (mu - 4.0 * sig), j1 = (int) std::ceil (mu + 4.0 * sig);   // 4 sigma: the dropped mass is 6e-5
+        if (j1 - j0 + 1 > LayerRecord::MAXTAPS) { const int mid = (int) std::lround (mu); j0 = mid - LayerRecord::MAXTAPS / 2; j1 = j0 + LayerRecord::MAXTAPS - 1; }
+        double sum = 0.0;
+        r.tapFirst = j0; r.nTaps = j1 - j0 + 1;
+        for (int j = j0; j <= j1; ++j)
+        {
+            const double w = Phi ((j + 1 - mu) / sig) - Phi ((j - mu) / sig);
+            r.w[j - j0] = (float) w; sum += w;
+        }
+        for (int k = 0; k < r.nTaps; ++k) r.w[k] = (float) (r.w[k] / sum);
+    }
+    recBiasDb = biasDb;
+    recSpeed = speedCms;
+    ++recBuilds;
+}
+
+/*  New remanence for one layer cell: Catmull-Rom along s (the table is fine
+    there but the curve's slope must not kink), linear along M_old. */
+float Engine::recordCell (const LayerRecord& r, float mOld, double s) const
+{
+    const double fm = std::clamp ((mOld - r.mLo) / r.dM, 0.0, (double) (S4::NM - 1));
+    const int im = std::min ((int) fm, S4::NM - 2);
+    const double tm = fm - im;
+    constexpr double K = (LayerRecord::NSF - 1) / (2.0 * LayerRecord::SMAX);
+    const double fs = std::clamp ((s + LayerRecord::SMAX) * K, 0.0, (double) (LayerRecord::NSF - 1));
+    const int is = std::min ((int) fs, LayerRecord::NSF - 2);
+    const double ts = fs - is;
+    const float* g0 = r.gf[im];
+    const double v0 = g0[is] + ts * (g0[is + 1] - g0[is]);
+    if (tm <= 0.0) return (float) v0;
+    const float* g1 = r.gf[im + 1];
+    const double v1 = g1[is] + ts * (g1[is + 1] - g1[is]);
+    return (float) std::clamp (v0 + tm * (v1 - v0), -1.05, 1.05);
+}
+
+//==============================================================================
 void Engine::prepare (double hostSampleRate, int)
 {
     fsHost = hostSampleRate;
@@ -146,8 +306,9 @@ void Engine::prepare (double hostSampleRate, int)
     for (auto& h : up) { h.design(); h.clear(); }
     for (auto& h : dn) { h.design(); h.clear(); }
 
-    // The half-band pair's delay, MEASURED with an impulse rather than taken
-    // from a comment: a symmetric FIR's centroid is its exact group delay.
+    // The half-band pair's delay, MEASURED with an impulse: a symmetric FIR's
+    // centroid is its exact group delay. Up half paid at the record head, the
+    // down half (plus the read box and its correction FIR) by reading ahead.
     double hbDelay = 0.0;
     if (os == 2)
     {
@@ -160,17 +321,11 @@ void Engine::prepare (double hostSampleRate, int)
             const double y = d.down (a, b);
             num += n * y; den += y;
         }
-        hbDelay = num / den;               // host samples
+        hbDelay = num / den;
     }
-    // + half an internal sample: a head's output is its average over the span it
-    // crossed during the sample, which is centred half a sample in the past.
-    // + one more for the 3-tap FIR that undoes that box (its centre tap).
-    // Each half-band is a centred FIR, so the measured pair splits evenly: the
-    // up half is paid at the record head (inLag), the down half here.
     inLag = (int) std::lround (0.5 * hbDelay * os);
     leadS = 0.5 * hbDelay / fsHost + 0.5 * dt + dt;
     {
-        // Fit the FIR to 1/sinc at 16 kHz: within 0.05 dB of exact to 20 kHz at 96 kHz.
         const double x = 16000.0 * dt;
         const double inv = (M_PI * x) / std::sin (M_PI * x);
         const double a = (inv - 1.0) / (2.0 * (1.0 - std::cos (2.0 * M_PI * x)));
@@ -181,7 +336,28 @@ void Engine::prepare (double hostSampleRate, int)
     aMotor = 1.0 - std::exp (-dt / MOTOR_TAU);
     aHost  = 1.0 - std::exp (-1.0 / (fsHost * 0.020));
 
-    // A fresh tape for the transport as it stands.
+    // ---- the record head and its alignment, at OPERATING bias and the machine's
+    //      NOMINAL speed (19.05 cm/s), as a technician would align it: record level
+    //      so 0 VU = 250 nWb/m, repro level so 250 nWb/m = 0 VU. Other biases and
+    //      speeds then change the level and the distortion, as they do on tape.
+    sigScale = S4::HS_0VU / REF_PEAK;
+    buildRecord (0.0, S4::ALIGN_SPEED_CMS);
+    {
+        double ss = 0.0; const int K = 720;
+        for (int k = 0; k < K; ++k)
+        {
+            const double s = S4::HS_0VU * std::sin (2.0 * M_PI * (k + 0.5) / K);
+            double m = 0.0;
+            for (int l = 0; l < NLAYER; ++l) m += recordCell (rec[l], 0.0f, s);
+            m /= NLAYER;
+            ss += m * m;
+        }
+        outK = 0.12589254117941673 / std::sqrt (ss / K);
+    }
+    biasDbSm = params.bias;
+    // (the record head for the current speed is built once the motor speed is set, below)
+
+    // ---- a fresh tape for the transport as it stands
     delete store; store = nullptr;
     delete pending.exchange (nullptr);
     delete retired.exchange (nullptr);
@@ -191,9 +367,9 @@ void Engine::prepare (double hostSampleRate, int)
     loopM = std::clamp (std::round (params.loopLen / 0.05f) * 0.05, 0.5, 6.0);
     pendingLoopM = loopM; loopSettle = 1.0;
 
-    // Controls start where they are, with no glide from nowhere.
     bool clampedNow = false, syncNow = false;
     v = vTarget = targetSpeedCms (clampedNow, syncNow) * CELLS_PER_CM;
+    buildRecord (biasDbSm, v / CELLS_PER_CM);
     for (int i = 0; i < NUM_HEADS; ++i)
     {
         const float* pos[NUM_HEADS] = { &params.h1Pos, &params.h2Pos, &params.h3Pos };
@@ -201,17 +377,17 @@ void Engine::prepare (double hostSampleRate, int)
         hVel[i] = 0.0;
     }
     {
-        // A session saved with two heads inside each other: open them apart.
         double start[NUM_HEADS];
         for (int i = 0; i < NUM_HEADS; ++i) start[i] = hPos[i] - 1.0e-9 * (NUM_HEADS - i);
         separateHeads (start);
         for (int i = 0; i < NUM_HEADS; ++i) hPos[i] = std::clamp (hPos[i], HEAD_MIN_CM, HEAD_MAX_CM);
     }
 
-    adoptStore (new TapeStore (cellsNeeded (mode, loopM)), mode, cellsNeeded (mode, loopM));
+    const int64_t need = cellsNeeded (mode, loopM);
+    adoptStore (new TapeStore (need), mode, need);
     spliceState = 0;
     wetFade = 1.0;
-    recFade = 1.0;                     // the first tape needs no fade
+    recFade = 1.0;
 
     for (auto& b : lowS)  b.reset();
     for (auto& b : highS) b.reset();
@@ -222,9 +398,7 @@ void Engine::prepare (double hostSampleRate, int)
         highS[c].shelf (true, fsInt, 3000.0, trebDb);
     }
 
-    // Snap every smoothed control to its target.
     process (nullptr, nullptr, nullptr, nullptr, 0);
-    gIn = dbToLin (params.drive);
     gDry = (params.killDry > 0.5f) ? 0.0 : std::cos (params.mix * M_PI * 0.5);
     gWet = std::sin (params.mix * M_PI * 0.5);
     gOut = dbToLin (params.output);
@@ -234,39 +408,35 @@ void Engine::adoptStore (TapeStore* s, int newMode, int64_t cells)
 {
     if (store != nullptr)
     {
-        // Hand the old tape back for the message thread to free.
         TapeStore* prev = retired.exchange (store);
         delete prev;   // only reachable from prepare(), where nothing else runs
     }
     store = s;
     viewStore.store (s, std::memory_order_release);
-    tr0 = s->t0.data();
-    tr1 = s->t1.data();
     N = cells;
     mode = newMode;
 
-    T = 0.0;
-    const double lead = v * leadS;
+    T = 0.0; kTick = 0;
+    for (double& x : Thist) x = 0.0;
+    const double lead = v * leadS - xRefUm / CELL_UM;
     for (int i = 0; i < NUM_HEADS; ++i)
         uPrev[i] = T - hPos[i] * CELLS_PER_CM + lead;
-    Tlin = 0.0; kTick = 0;
-    for (double& x : Thist) x = 0.0;
     wPrevU1 = T;
     ePos = T + ERASE_CM * CELLS_PER_CM;
     vPos = T + SUPPLY_CM * CELLS_PER_CM;
     for (int c = 0; c < 2; ++c) { sHist[c][0] = sHist[c][1] = sHist[c][2] = 0.0; wAcc[c] = 0.0; wLen[c] = 0.0; }
-    recFade = 0.0;                     // recording onto a new tape starts from silence
+    std::fill (fieldBuf.get(), fieldBuf.get() + 2 * FIELD, 0.0f);
+    for (auto& k : nextCell) k = 0;
+    recFade = 0.0;
 
     tele.mode = mode;
     tele.loopLenM = loopM;
 }
 
-//==============================================================================
 void Engine::service()
 {
     if (TapeStore* r = retired.exchange (nullptr, std::memory_order_acq_rel))
         delete r;
-
     const int64_t want = wantCells.load (std::memory_order_acquire);
     if (want > 0 && pending.load (std::memory_order_acquire) == nullptr)
     {
@@ -276,66 +446,76 @@ void Engine::service()
 }
 
 //==============================================================================
-double Engine::readPoint (const float* tr, double u) const
+double Engine::readPoint (const float* tr, int64_t ring, double u) const
 {
-    const double x = u - 0.5;                 // cell i's value sits at u = i + 0.5
+    const double x = u - 0.5;
     const double fl = std::floor (x);
     const int64_t i = (int64_t) fl;
     const double t = x - fl;
-    CR seg (tr[wrapIndex (i - 1)], tr[wrapIndex (i)], tr[wrapIndex (i + 1)], tr[wrapIndex (i + 2)]);
+    CR seg (tr[wrapTo (i - 1, ring)], tr[wrapTo (i, ring)], tr[wrapTo (i + 1, ring)], tr[wrapTo (i + 2, ring)]);
     return seg.at (t);
 }
 
-/*  Mean of the Catmull-Rom interpolant over material [a, b] - the head's output
-    integrated over the sample. The integral is closed-form per segment; a
-    full segment is (-p0 + 13 p1 + 13 p2 - p3) / 24. */
-double Engine::readAvg (const float* tr, double a, double b) const
+/*  Mean of the Catmull-Rom interpolant over [a, b] in this layer's own cells,
+    both tracks in one pass (they share every index). */
+void Engine::readAvg2 (const float* t0, const float* t1, int64_t ring, double a, double b, double& r0, double& r1) const
 {
     if (b < a) std::swap (a, b);
     const double w = b - a;
-    if (w < 1.0e-3) return readPoint (tr, 0.5 * (a + b));
+    if (w < 1.0e-3) { r0 = readPoint (t0, ring, 0.5 * (a + b)); r1 = readPoint (t1, ring, 0.5 * (a + b)); return; }
 
     const double xa = a - 0.5, xb = b - 0.5;
     const double fa = std::floor (xa), fb = std::floor (xb);
     const int64_t ia = (int64_t) fa, ib = (int64_t) fb;
     const double ta = xa - fa, tb = xb - fb;
-
-    auto P = [&] (int64_t i) { return (double) tr[wrapIndex (i)]; };
-
+    int64_t k = wrapTo (ia - 1, ring);
+    double p[4], q[4];
+    for (int i = 0; i < 4; ++i) { p[i] = t0[k]; q[i] = t1[k]; if (++k == ring) k = 0; }
+    auto shift = [&] { p[0] = p[1]; p[1] = p[2]; p[2] = p[3]; q[0] = q[1]; q[1] = q[2]; q[2] = q[3];
+                       p[3] = t0[k]; q[3] = t1[k]; if (++k == ring) k = 0; };
     if (ia == ib)
     {
-        CR s (P (ia - 1), P (ia), P (ia + 1), P (ia + 2));
-        return (s.prim (tb) - s.prim (ta)) / w;
+        CR s (p[0], p[1], p[2], p[3]), u (q[0], q[1], q[2], q[3]);
+        r0 = (s.prim (tb) - s.prim (ta)) / w; r1 = (u.prim (tb) - u.prim (ta)) / w;
+        return;
     }
-
-    double sum = 0.0;
-    {
-        CR s (P (ia - 1), P (ia), P (ia + 1), P (ia + 2));
-        sum += s.prim (1.0) - s.prim (ta);
-    }
+    double s0, s1;
+    { CR s (p[0], p[1], p[2], p[3]), u (q[0], q[1], q[2], q[3]); s0 = s.prim (1.0) - s.prim (ta); s1 = u.prim (1.0) - u.prim (ta); }
     for (int64_t i = ia + 1; i < ib; ++i)
-        sum += (-P (i - 1) + 13.0 * P (i) + 13.0 * P (i + 1) - P (i + 2)) * (1.0 / 24.0);
     {
-        CR s (P (ib - 1), P (ib), P (ib + 1), P (ib + 2));
-        sum += s.prim (tb);
+        shift();
+        s0 += (-p[0] + 13.0 * p[1] + 13.0 * p[2] - p[3]) * (1.0 / 24.0);
+        s1 += (-q[0] + 13.0 * q[1] + 13.0 * q[2] - q[3]) * (1.0 / 24.0);
     }
-    return sum / w;
+    shift();
+    { CR s (p[0], p[1], p[2], p[3]), u (q[0], q[1], q[2], q[3]); s0 += s.prim (tb); s1 += u.prim (tb); }
+    r0 = s0 / w; r1 = s1 / w;
 }
 
-/*  The record head passed material u0 -> u1 during one sample, and the record
-    signal over that sample is the Catmull-Rom cubic through p0..p3 (the sample
-    before, the two ends, the sample after). Position is linear in time within
-    a sample, so each cell's share is an exact integral of the cubic, and each
-    cell gets the signal's mean over its own transit.
+/*  The playback head sees the whole coating: here, the mean of the four layers
+    (stage 4 weights them by their distance from the head - thickness loss). */
+void Engine::readLayers (double a, double b, double& outL, double& outR) const
+{
+    double sL = 0.0, sR = 0.0;
+    for (int l = 0; l < NLAYER; ++l)
+    {
+        const double sc = 1.0 / (double) (1 << l);
+        double r0, r1;
+        readAvg2 (store->m[0][l].data(), store->m[1][l].data(), N >> l, a * sc, b * sc, r0, r1);
+        sL += r0; sR += r1;
+    }
+    outL = sL * (1.0 / NLAYER); outR = sR * (1.0 / NLAYER);
+}
 
-    Joining the samples with straight lines instead - the first version - is a
-    triangle filter in time: 0.8 dB down at 16 kHz at 96 kHz, at every speed. */
-void Engine::writeSpan (float* tr, int c, double u0, double u1, double p0, double p1, double p2, double p3)
+/*  The record signal (deep-gap field) onto the field ring at the gap: each
+    surface cell gets the signal's mean over its own transit, from the
+    Catmull-Rom cubic through the samples around it. */
+void Engine::writeField (int c, double u0, double u1, double p0, double p1, double p2, double p3)
 {
     const double du = u1 - u0;
     if (du <= 0.0) return;
     const CR seg (p0, p1, p2, p3);
-    double pos = u0, ta = 0.0, Pa = 0.0;
+    double pos = u0, Pa = 0.0;
     for (;;)
     {
         const double boundary = std::floor (pos) + 1.0;
@@ -345,35 +525,94 @@ void Engine::writeSpan (float* tr, int c, double u0, double u1, double p0, doubl
         wAcc[c] += du * (Pb - Pa);
         wLen[c] += boundary - pos;
         if (wLen[c] > 0.0)
-            tr[wrapIndex ((int64_t) std::floor (pos))] = (float) (wAcc[c] / wLen[c]);
+            field[c][(int64_t) std::floor (pos) & FMASK] = (float) (wAcc[c] / wLen[c]);
         wAcc[c] = 0.0; wLen[c] = 0.0;
-        pos = boundary; ta = tb; Pa = Pb;
+        pos = boundary; Pa = Pb;
     }
     wAcc[c] += du * (seg.prim (1.0) - Pa);
     wLen[c] += u1 - pos;
-    (void) ta;
 }
 
-/*  Return every cell that has passed `newPos` to zero (the erase head, at full
-    field in stage 1; or the supply side of a REEL, where virgin tape enters). */
+/*  Finish every layer cell whose recording zone the field ring has fully
+    passed: average the field over the zone, then look the new remanence up in
+    the reference's table with the cell's old remanence. */
+void Engine::finishCells()
+{
+    const int64_t frontier = (int64_t) std::floor (wPrevU1);     // field cells below this are written
+    for (int l = 0; l < NLAYER; ++l)
+    {
+        const LayerRecord& r = rec[l];
+        const int64_t B = (int64_t) 1 << l;
+        const int64_t ring = N >> l;
+        int64_t k = nextCell[l];
+        int64_t idx = wrapTo (k, ring);
+        for (;; ++k, idx = (idx + 1 == ring) ? 0 : idx + 1)
+        {
+            const int64_t base = k * B + r.tapFirst;
+            if (base + r.nTaps - 1 >= frontier) break;
+            // both tracks in one pass over the taps; a direct pointer unless the
+            // kernel straddles the end of the field ring
+            double s[2] = { 0.0, 0.0 };
+            const int64_t b0 = base & FMASK;
+            if (b0 + r.nTaps <= FIELD)
+            {
+                const float* p0 = field[0] + b0;
+                const float* p1 = field[1] + b0;
+                double a0 = 0.0, a1 = 0.0, c0 = 0.0, c1 = 0.0;     // two chains per track
+                int j = 0;
+                for (; j + 1 < r.nTaps; j += 2)
+                {
+                    const double w0 = r.w[j], w1 = r.w[j + 1];
+                    a0 += w0 * p0[j]; a1 += w1 * p0[j + 1];
+                    c0 += w0 * p1[j]; c1 += w1 * p1[j + 1];
+                }
+                if (j < r.nTaps) { a0 += r.w[j] * p0[j]; c0 += r.w[j] * p1[j]; }
+                s[0] = a0 + a1; s[1] = c0 + c1;
+            }
+            else
+                for (int j = 0; j < r.nTaps; ++j)
+                {
+                    const int64_t q = (base + j) & FMASK;
+                    s[0] += r.w[j] * field[0][q]; s[1] += r.w[j] * field[1][q];
+                }
+            for (int c = 0; c < 2; ++c)
+            {
+                float& m = store->m[c][l][(size_t) idx];
+                m = recordCell (r, m, s[c]);
+                recPk = std::max (recPk, std::abs (m));
+            }
+        }
+        nextCell[l] = k;
+    }
+}
+
+/*  Return every cell that has passed `newPos` to the demagnetised state, in
+    every layer (the erase head at full field; virgin tape onto a REEL). */
 void Engine::clearSpan (double& prevPos, double newPos)
 {
-    const int64_t a = (int64_t) std::floor (prevPos);
-    const int64_t b = (int64_t) std::floor (newPos);
-    for (int64_t i = a; i < b; ++i)
+    for (int l = 0; l < NLAYER; ++l)
     {
-        const int64_t k = wrapIndex (i);
-        tr0[k] = 0.0f; tr1[k] = 0.0f;
+        const double sc = 1.0 / (double) (1 << l);
+        const int64_t a = (int64_t) std::floor (prevPos * sc), b = (int64_t) std::floor (newPos * sc);
+        const int64_t ring = N >> l;
+        if (b <= a) continue;
+        int64_t k = wrapTo (a, ring);
+        for (int64_t i = a; i < b; ++i)
+        {
+            store->m[0][l][(size_t) k] = 0.0f; store->m[1][l][(size_t) k] = 0.0f;
+            if (++k == ring) k = 0;
+        }
     }
     prevPos = newPos;
 }
 
+double Engine::layerM (int track, int layer, double pathCm) const
+{
+    const double u = (T - pathCm * CELLS_PER_CM) / (double) (1 << layer);
+    return store->m[track][layer][(size_t) wrapTo ((int64_t) std::floor (u), N >> layer)];
+}
+
 //==============================================================================
-/*  Three heads on one rail touch the tape on the same line, so they cannot pass
-    through each other. A carriage that runs into its neighbour STOPS against it
-    (its control keeps asking; the head's delay readout shows where it really
-    is). The neighbour is not shoved: it holds its own position. Order along the
-    rail is the order the heads were in before this step. */
 void Engine::separateHeads (const double* before)
 {
     int ord[NUM_HEADS] = { 0, 1, 2 };
@@ -383,15 +622,15 @@ void Engine::separateHeads (const double* before)
         const int a = ord[k], b = ord[k + 1];
         if (hPos[b] - hPos[a] >= HEAD_SPACING_CM) continue;
         const double ma = hPos[a] - before[a], mb = hPos[b] - before[b];
-        if (ma > mb) { hPos[a] = hPos[b] - HEAD_SPACING_CM; hVel[a] = 0.0; }   // a ran into b
-        else         { hPos[b] = hPos[a] + HEAD_SPACING_CM; hVel[b] = 0.0; }   // b ran into a
+        if (ma > mb) { hPos[a] = hPos[b] - HEAD_SPACING_CM; hVel[a] = 0.0; }
+        else         { hPos[b] = hPos[a] + HEAD_SPACING_CM; hVel[b] = 0.0; }
     }
 }
 
 //==============================================================================
 void Engine::tick (float xL, float xR, float& yL, float& yR)
 {
-    // ---- splice fade
+    // ---- splice
     if (spliceState == 1)
     {
         wetFade -= dt / SPLICE_FADE_S;
@@ -409,10 +648,8 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
         if (s != nullptr && retired.load (std::memory_order_acquire) == nullptr)
         {
             pending.store (nullptr, std::memory_order_release);
-            if (s->n == need)
+            if (s->n0 == need)
             {
-                // The panel must never be left looking at a tape that is about
-                // to be freed: publish the new one before retiring the old.
                 viewStore.store (s, std::memory_order_release);
                 TapeStore* old = store;
                 store = nullptr;
@@ -423,7 +660,6 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
             }
             else
             {
-                // A tape cut for an earlier request: send it back, ask again.
                 retired.store (s, std::memory_order_release);
                 wantCells.store (need, std::memory_order_release);
             }
@@ -441,7 +677,7 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
     const float* tgtP[NUM_HEADS] = { &params.h1Pos, &params.h2Pos, &params.h3Pos };
     const double headMax = (mode == 1)
         ? std::min (HEAD_MAX_CM, 0.85 * (loopM * 100.0 - ERASE_CM)) : HEAD_MAX_CM;
-    constexpr double W = 25.0;                         // rad/s, critically damped
+    constexpr double W = 25.0;
     double before[NUM_HEADS];
     for (int i = 0; i < NUM_HEADS; ++i)
     {
@@ -453,31 +689,24 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
     }
     separateHeads (before);
 
-    // ---- the tape moves
+    // ---- the tape moves (T unwrapped; rings index modulo themselves)
     T += v * dt;
-    Tlin += v * dt;
     ++kTick;
-    Thist[kTick & (HIST - 1)] = Tlin;
-    if (Tlin > 1.0e9) { Tlin -= 1.0e9; for (double& x : Thist) x -= 1.0e9; }
-    if (T >= (double) N)
-    {
-        const double n = (double) N;
-        T -= n; wPrevU1 -= n; ePos -= n; vPos -= n;
-        for (double& u : uPrev) u -= n;
-    }
-    const double lead = v * leadS;
+    Thist[kTick & (HIST - 1)] = T;
+    const double lead = v * leadS - xRefUm / CELL_UM;
 
-    // ---- playback: each head reads the material it crossed this sample
+    // ---- playback
     double outL = 0.0, outR = 0.0, fbL = 0.0, fbR = 0.0;
     for (int i = 0; i < NUM_HEADS; ++i)
     {
         const double u1 = T - hPos[i] * CELLS_PER_CM + lead;
-        const double rL = readAvg (tr0, uPrev[i], u1);
-        const double rR = readAvg (tr1, uPrev[i], u1);
-        uPrev[i] = u1;
-
-        const double hL = rL / FLUX_PER_UNIT, hR = rR / FLUX_PER_UNIT;
         const double g = gHead[i];
+        // a head switched off and faded out reads nothing (it would add nothing)
+        if (g < 1.0e-9) { uPrev[i] = u1; continue; }
+        double hL, hR;
+        readLayers (uPrev[i], u1, hL, hR);
+        hL *= outK; hR *= outK;
+        uPrev[i] = u1;
         outL += g * panL[i] * hL;
         outR += g * panR[i] * hR;
         fbL += g * hL;
@@ -485,34 +714,31 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
         const float pk = (float) (g * std::max (std::abs (hL), std::abs (hR)));
         if (pk > pkHead[i]) pkHead[i] = pk;
     }
-
-    // ---- undo the read integration's box (exact: it is a box in time)
     outL = comp[0].tick (outL); outR = comp[1].tick (outR);
     fbL  = comp[2].tick (fbL);  fbR  = comp[3].tick (fbR);
 
-    // ---- the feedback wire, through the tone stage
+    // ---- the feedback wire, through the tone stage. No cap: what contains a
+    //      loop driven past unity is the tape running out of remanence.
     fbL = highS[0].tick (lowS[0].tick (fbL)) * fbEff;
     fbR = highS[1].tick (lowS[1].tick (fbR)) * fbEff;
 
-    // ---- record
+    // ---- record: the signal as a deep-gap field onto the field ring...
     if (recFade < 1.0) recFade = std::min (1.0, recFade + dt / SPLICE_FADE_S);
-    const double sL = (xL * gIn + fbL) * FLUX_PER_UNIT * recFade;
-    const double sR = (xR * gIn + fbR) * FLUX_PER_UNIT * recFade;
-    // one sample late: the segment between k-2 and k-1, with k-3 and k around it
+    const double sL = (xL * gIn + fbL) * sigScale * recFade;
+    const double sR = (xR * gIn + fbR) * sigScale * recFade;
     {
-        // The segment k-2 .. k-1, placed where the tape was when those samples
-        // entered the box (inLag samples further back). Contiguous with the last
-        // write by construction; the end is recomputed from the history.
         const double u0 = wPrevU1;
         const double u1 = posAgo (1 + inLag);
-        writeSpan (tr0, 0, u0, u1, sHist[0][0], sHist[0][1], sHist[0][2], sL);
-        writeSpan (tr1, 1, u0, u1, sHist[1][0], sHist[1][1], sHist[1][2], sR);
+        writeField (0, u0, u1, sHist[0][0], sHist[0][1], sHist[0][2], sL);
+        writeField (1, u0, u1, sHist[1][0], sHist[1][1], sHist[1][2], sR);
         wPrevU1 = u1;
     }
     for (int k = 0; k < 2; ++k) { sHist[k][0] = sHist[k][1]; sHist[k][1] = sHist[k][2]; }
     sHist[0][2] = sL; sHist[1][2] = sR;
+    // ...and every layer cell whose zone has passed becomes remanence
+    finishCells();
 
-    // ---- erase head (full field in stage 1), and virgin tape onto a REEL
+    // ---- erase head (full field), and virgin tape onto a REEL
     clearSpan (ePos, T + ERASE_CM * CELLS_PER_CM);
     if (mode == 0) clearSpan (vPos, T + SUPPLY_CM * CELLS_PER_CM);
 
@@ -545,8 +771,6 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
 {
     const Params& p = params;
 
-    // ---- transport requests: a mode change splices at once, a new loop length
-    //      once the control has been still for 150 ms (loops are cut to 5 cm).
     const int wantMode = p.mode > 0.5f ? 1 : 0;
     const double q = std::clamp (std::round (p.loopLen / 0.05f) * 0.05, 0.5, 6.0);
     if (std::abs (q - pendingLoopM) > 1.0e-9) { pendingLoopM = q; loopSettle = 0.0; }
@@ -563,32 +787,32 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         }
     }
 
-    // ---- motor target: the speed control, or SYNC on the tempo head
     bool clamped = false, syncOn = false;
     vTarget = targetSpeedCms (clamped, syncOn) * CELLS_PER_CM;
 
-    // ---- control targets
+    // ---- bias: smoothed at block rate, the record tables rebuilt as it moves
+    if (n > 0)
+    {
+        biasDbSm += (p.bias - biasDbSm) * (1.0 - std::exp (-n / (fsHost * 0.05)));
+        const double vNow = v / CELLS_PER_CM;
+        if (std::abs (biasDbSm - recBiasDb) > 0.005 || std::abs (std::log (vNow / recSpeed)) > 0.002)
+            buildRecord (biasDbSm, vNow);
+    }
+
     const float* on[NUM_HEADS]  = { &p.h1On, &p.h2On, &p.h3On };
     const float* lvl[NUM_HEADS] = { &p.h1Lvl, &p.h2Lvl, &p.h3Lvl };
     const float* pan[NUM_HEADS] = { &p.h1Pan, &p.h2Pan, &p.h3Pan };
-    double tHead[NUM_HEADS], tPL[NUM_HEADS], tPR[NUM_HEADS], sumHead = 0.0;
+    double tHead[NUM_HEADS], tPL[NUM_HEADS], tPR[NUM_HEADS];
     for (int i = 0; i < NUM_HEADS; ++i)
     {
         tHead[i] = (*on[i] > 0.5f) ? dbToLin (*lvl[i]) : 0.0;
-        sumHead += tHead[i];
         const double pn = std::clamp ((double) *pan[i], -1.0, 1.0);
         tPL[i] = std::min (1.0, 1.0 - pn);
         tPR[i] = std::min (1.0, 1.0 + pn);
     }
     const double gRec = dbToLin (p.recLevel);
     const double tIn = dbToLin (p.drive) * gRec;
-    const double toneMax = std::max ({ 1.0, dbToLin (p.bass), dbToLin (p.treble) });
-    // STAGE 1: the loop cannot exceed unity gain - containment belongs to tape
-    // saturation (stage 3), never to a limiter. The worst case is every head in
-    // phase at the tone stage's largest boost.
-    const double loopMax = toneMax * gRec * sumHead;
-    const double tFb = p.feedback * 0.97 / std::max (1.0, loopMax) * gRec;
-
+    const double tFb = p.feedback * FEEDBACK_MAX * gRec;
     const double tDry = (p.killDry > 0.5f) ? 0.0 : std::cos (p.mix * M_PI * 0.5);
     const double tWet = std::sin (p.mix * M_PI * 0.5);
     const double tOut = dbToLin (p.output);
@@ -596,7 +820,6 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
 
     if (n == 0)
     {
-        // prepare(): snap everything.
         for (int i = 0; i < NUM_HEADS; ++i) { gHead[i] = tHead[i]; panL[i] = tPL[i]; panR[i] = tPR[i]; }
         fbEff = tFb; gIn = tIn;
         return;
@@ -604,7 +827,6 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
 
     for (int k = 0; k < n; ++k)
     {
-        // smoothed controls, stepped at the host rate (20 ms)
         for (int i = 0; i < NUM_HEADS; ++i)
         {
             gHead[i] += (tHead[i] - gHead[i]) * aHost;
@@ -623,7 +845,6 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
             trebDb += (p.treble - trebDb) * 0.1;
             for (int c = 0; c < 2; ++c)
             {
-                // keep the state, change only the coefficients
                 Biquad nl = lowS[c], nh = highS[c];
                 nl.shelf (false, fsInt, 200.0, bassDb);
                 nh.shelf (true, fsInt, 3000.0, trebDb);
@@ -651,9 +872,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
             wr = dn[1].down (y0r, y1r);
         }
         else
-        {
             tick (xl, xr, wl, wr);
-        }
 
         const float ol = (float) ((dl * gDry + wl * gWet) * gOut);
         const float orr = (float) ((dr * gDry + wr * gWet) * gOut);
@@ -663,12 +882,12 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     }
 
     // ---- telemetry
-    const double distM = v * n * os * dt * CELL_UM * 1.0e-6;   // m of tape this block
+    const double distM = v * n * os * dt * CELL_UM * 1.0e-6;
     capAng += distM / CAPSTAN_R_M;
     if (mode == 0)
     {
         playedM += distM;
-        if (playedM >= REEL_PACK_M) playedM -= REEL_PACK_M;       // a fresh pack
+        if (playedM >= REEL_PACK_M) playedM -= REEL_PACK_M;
         const double rs = std::sqrt (REEL_HUB_M * REEL_HUB_M + (REEL_PACK_M - playedM) * TAPE_THICK_M / M_PI);
         const double rt = std::sqrt (REEL_HUB_M * REEL_HUB_M + playedM * TAPE_THICK_M / M_PI);
         supAng += distM / rs;
@@ -676,9 +895,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         tele.supplyR = rs; tele.takeupR = rt;
     }
     else
-    {
         loopAng += distM / 0.03;
-    }
     viewT.store (T, std::memory_order_relaxed);
     tele.speedCms = v / CELLS_PER_CM;
     tele.targetCms = vTarget / CELLS_PER_CM;
@@ -692,45 +909,46 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     tele.syncActive = syncOn;
     tele.splicing = spliceState != 0;
 
-    // peaks, held for the panel's 30 Hz read, then decayed
     tele.inPeak = std::max (tele.inPeak.load(), pkIn);
     tele.outPeak = std::max (tele.outPeak.load(), pkOut);
+    tele.recPeak = std::max (tele.recPeak.load(), recPk);
     for (int i = 0; i < NUM_HEADS; ++i)
         tele.headPeak[i] = std::max (tele.headPeak[i].load(), pkHead[i]);
-    pkIn = pkOut = 0.0f;
+    pkIn = pkOut = 0.0f; recPk = 0.0f;
     for (float& x : pkHead) x = 0.0f;
 }
 
 //==============================================================================
 void Engine::tapeView (float* out, int n, double fromCm, double toCm) const
 {
-    // Read-only and unlocked: a display may tear, audio never waits.
     const TapeStore* vs = viewStore.load (std::memory_order_acquire);
-    if (vs == nullptr) { for (int i = 0; i < n; ++i) out[i] = 0.0f; return; }
-    const float* a = vs->t0.data();
-    const float* b = vs->t1.data();
-    const int64_t ring = vs->n;
-    const double t = std::fmod (viewT.load (std::memory_order_relaxed), (double) ring);
-    if (a == nullptr || ring <= 1 || n <= 0) { for (int i = 0; i < n; ++i) out[i] = 0.0f; return; }
-
-    const double peakRef = REF_FLUX * std::sqrt (2.0);
+    if (vs == nullptr || n <= 0) { for (int i = 0; i < n; ++i) out[i] = 0.0f; return; }
+    const double t = viewT.load (std::memory_order_relaxed);
+    // the reference peak in units of mean remanence, through the repro alignment
+    // the audio uses - so the view and the output agree on what 0 VU is
+    const double peakRef = REF_PEAK / outK;
     const bool reel = tele.mode.load() == 0;
     for (int j = 0; j < n; ++j)
     {
         const double x0 = fromCm + (toCm - fromCm) * j / n;
         const double x1 = fromCm + (toCm - fromCm) * (j + 1) / n;
-        double m = 0.0;
-        // On a REEL, tape upstream of the supply guide is still on the supply
-        // reel: virgin. (The ring cells there hold tape 40 cm on, never read.)
-        // On a LOOP the same stretch is the tape coming back round - shown.
         if (reel && x1 <= -SUPPLY_CM) { out[j] = 0.0f; continue; }
-        constexpr int S = 24;
-        for (int s = 0; s < S; ++s)
+        double m = 0.0;
+        constexpr int SMP = 24;
+        for (int s = 0; s < SMP; ++s)
         {
-            const double x = x0 + (x1 - x0) * (s + 0.5) / S;
-            int64_t i = (int64_t) std::floor (t - x * CELLS_PER_CM);
-            i %= ring; if (i < 0) i += ring;
-            m = std::max (m, (double) std::max (std::abs (a[i]), std::abs (b[i])));
+            const double x = x0 + (x1 - x0) * (s + 0.5) / SMP;
+            const double u = t - x * CELLS_PER_CM;
+            for (int c = 0; c < 2; ++c)
+            {
+                double sum = 0.0;
+                for (int l = 0; l < NLAYER; ++l)
+                {
+                    const int64_t ring = vs->nl (l);
+                    sum += vs->m[c][l][(size_t) wrapTo ((int64_t) std::floor (u / (double) (1 << l)), ring)];
+                }
+                m = std::max (m, std::abs (sum / NLAYER));
+            }
         }
         out[j] = (float) (m / peakRef);
     }

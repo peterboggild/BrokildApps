@@ -162,6 +162,16 @@ struct Stair
     std::vector<double> v;       // alternating extrema: M1, m1, M2, m2, ... (maxima falling, minima rising)
     double cur = -Medium::HS;    // current field; even size = rising from the last minimum
     void reset() { v.clear(); cur = -Medium::HS; }
+    /*  The AC-demagnetised state: what an erase head (or a bulk eraser) leaves,
+        and what the real-time tape calls M = 0. A default staircase is NEGATIVE
+        SATURATION - the first reference run measured everything on tape in that
+        state, which is not what a recorder ever records onto. */
+    void demag (double amp0 = Medium::HS, int steps = 400)
+    {
+        reset();
+        for (int i = 0; i < steps; ++i) { const double A = amp0 * (1.0 - (double) i / steps); apply (i % 2 ? -A : A); }
+        apply (0.0);
+    }
     void apply (double h)
     {
         h = std::clamp (h, -Medium::HS, Medium::HS);
@@ -214,7 +224,9 @@ struct Tape
         ncell = cells; nl = layers; delta = coating;
         y.resize ((size_t) nl);
         for (int l = 0; l < nl; ++l) y[(size_t) l] = (l + 0.5) * delta / nl;
-        st.assign ((size_t) ncell * nl, Stair{});
+        // fresh tape is demagnetised (one prepared state, copied)
+        Stair d; d.demag();
+        st.assign ((size_t) ncell * nl, d);
     }
     Stair& at (int c, int l) { return st[(size_t) c * nl + l]; }
     const Stair& at (int c, int l) const { return st[(size_t) c * nl + l]; }
@@ -466,6 +478,65 @@ static double idealHd3 (const Medium& m, double mPeak)
     return std::abs (c3 / c1);
 }
 
+//------------------------------------------------------------------------------ the alignment, as the sheet defines it
+// 10 kHz playback output vs bias at a fixed small signal: its peak, found by a
+// coarse scan then golden-section (the curve is unimodal).
+static double peak10Bias (const Lab& L, double& best10)
+{
+    auto p10 = [&] (double hb) { double a, p; L.measure (hb, 0.08, 10000.0, a, p); return p; };
+    const double grid[] = { 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 8.0 };
+    const int NG = 12;
+    int bi = 0; double bv = -1.0;
+    for (int i = 0; i < NG; ++i) { const double v = p10 (grid[i]); if (v > bv) { bv = v; bi = i; } }
+    double a = grid[std::max (0, bi - 1)], b = grid[std::min (NG - 1, bi + 1)];
+    const double gr = 0.5 * (std::sqrt (5.0) - 1.0);
+    double c = b - gr * (b - a), d = a + gr * (b - a), fc = p10 (c), fd = p10 (d);
+    for (int it = 0; it < 14; ++it)
+    {
+        if (fc > fd) { b = d; d = c; fd = fc; c = b - gr * (b - a); fc = p10 (c); }
+        else         { a = c; c = d; fc = fd; d = a + gr * (b - a); fd = p10 (d); }
+    }
+    best10 = std::max (fc, fd);
+    return 0.5 * (a + b);
+}
+// operating bias: 10 kHz 3 dB past its peak (overbias)
+static double operatingBias (const Lab& L, double bestB, double best10)
+{
+    double lo = bestB, hi = 40.0;
+    for (int it = 0; it < 16; ++it)
+    {
+        const double hb = 0.5 * (lo + hi);
+        double a10, p10; L.measure (hb, 0.08, 10000.0, a10, p10);
+        (dB (p10 / best10) > -3.0 ? lo : hi) = hb;
+    }
+    return 0.5 * (lo + hi);
+}
+// the deep-gap signal field that records 250 nWb/m rms at 1 kHz
+static double calibrateHs (const Lab& L, double hbOp)
+{
+    double lo = 0.001, hi = 5.0;
+    for (int it = 0; it < 22; ++it)
+    {
+        const double hs = std::sqrt (lo * hi);
+        double a, p; L.measure (hbOp, hs, 1000.0, a, p);
+        (a < 250.0 ? lo : hi) = hs;
+    }
+    return std::sqrt (lo * hi);
+}
+// MOL: the level (dB re 250 nWb/m) at which the third harmonic reaches 3 %
+static double molDb (const Lab& L, double hbOp, double hsRef)
+{
+    double lo = 0.0, hi = 22.0;
+    for (int it = 0; it < 16; ++it)
+    {
+        const double lv = 0.5 * (lo + hi);
+        double a, p, hd3; L.measure (hbOp, hsRef * std::pow (10.0, lv / 20.0), 1000.0, a, p, &hd3);
+        (hd3 < 0.03 ? lo : hi) = lv;
+    }
+    double a, p; L.measure (hbOp, hsRef * std::pow (10.0, 0.5 * (lo + hi) / 20.0), 1000.0, a, p);
+    return dB (a / 250.0);
+}
+
 //------------------------------------------------------------------------------ the stage 3 record model, measured
 /*  Per real-time layer l (four of them, at halving resolution), per peak bias
     amplitude A the layer sees, per deep-gap signal field s held constant over
@@ -473,93 +544,154 @@ static double idealHd3 (const Medium& m, double mPeak)
     the new remanence G. And per (l, A): the small-signal recording zone, from a
     narrow pulse - its centroid downstream of the gap and its rms width - which
     is what gives the HF recording loss and the bias-dependent delay shift. */
-static void writeTables (const Lab& L, double hbOp, double hsRef, const std::string& path)
+static void writeTables (const Lab& Lin, double hbOp38, double hsRef38, const std::string& path)
 {
-    constexpr int NLR = 4, NA = 28, NS = 41, NM = 11;
-    const double yR[NLR] = { 0.125 * 14.0, 0.375 * 14.0, 0.625 * 14.0, 0.875 * 14.0 };   // layer centres, tape surface down
+    constexpr int NLR = 4, NA = 28, NS = 41, NM = 11, NV = 5, NSUB = 4;
+    // Speeds a factor of 2 apart, so the real-time model interpolates in log speed
+    // with a fixed step. The machine is ALIGNED at 19.05 cm/s, its nominal speed.
+    const double speeds[NV] = { 4.7625, 9.525, 19.05, 38.1, 76.2 };
+    constexpr int IALIGN = 2;
+    const double yR[NLR] = { 0.125 * 14.0, 0.375 * 14.0, 0.625 * 14.0, 0.875 * 14.0 };
+    // Each real-time layer stands for a SLAB of the coating, its tables averaged
+    // over NSUB sub-depths (16 depths in all, finer than the converged 8). Point
+    // samples at the slab centres were 1.4 dB off near the bias threshold.
+    const double slab = 14.0 / NLR;
+    auto ySub = [&] (int l, int k) { return Lin.rec.d + l * slab + (k + 0.5) * slab / NSUB; };
+
     double Ag[NA], Sg[NS], Mg[NM];
     for (int i = 0; i < NA; ++i) Ag[i] = 0.1 * std::pow (80.0, i / (NA - 1.0));            // 0.1 .. 8 Hc
     for (int i = 0; i < NS; ++i) { const double t = -1.0 + 2.0 * i / (NS - 1.0); Sg[i] = 2.5 * std::sinh (3.0 * t) / std::sinh (3.0); }
     for (int i = 0; i < NM; ++i) Mg[i] = -0.95 + 1.9 * i / (NM - 1.0);
     Sg[NS / 2] = 0.0; Mg[NM / 2] = 0.0;
 
-    std::vector<float> G ((size_t) NLR * NA * NM * NS);
-    double zoneX[NLR][NA], zoneW[NLR][NA], zoneGain[NLR][NA];
-    const double vUm = L.v * 1.0e4;
-
-    for (int l = 0; l < NLR; ++l)
+    // The tape stores REMANENCE: index G by what the prepared state holds.
+    double Mrem[NM], sOld[NM];
+    std::vector<Stair> pre (NM);
+    for (int im = 0; im < NM; ++im)
     {
-        const double y = L.rec.d + yR[l];
-        const double fmax = karlqvist (L.rec.g, 0.0, y);
-       #pragma omp parallel for schedule(dynamic, 1)
-        for (int ia = 0; ia < NA; ++ia)
+        double lo = -20.0, hi = 20.0;
+        for (int it = 0; it < 60; ++it) { const double sv = 0.5 * (lo + hi); (2.0 * Lin.md.PhiU (sv) - 1.0 < Mg[im] ? lo : hi) = sv; }
+        sOld[im] = 0.5 * (lo + hi);
+        Stair S;
+        for (int i = 0; i < 2000; ++i) { const double A = 5.0 * (1.0 - i / 2000.0); S.apply (sOld[im] + (i % 2 ? -A : A)); }
+        S.apply (sOld[im]); S.apply (0.0);
+        pre[(size_t) im] = S;
+        Mrem[im] = S.M (Lin.md);
+    }
+    Stair demagS; demagS.demag();
+
+    // ---- the alignment, at 19.05 cm/s, by the sheet's definition
+    Lab La = Lin; La.lengthUm = Lin.lengthUm * speeds[IALIGN] / Lin.v; La.v = speeds[IALIGN];
+    double b10; const double bb = peak10Bias (La, b10);
+    const double hbOp = operatingBias (La, bb, b10);
+    const double hsRef = calibrateHs (La, hbOp);
+    std::printf ("   alignment at %.2f cm/s: 10 kHz peak at hb %.2f, operating bias %.4f Hc, 0 VU = %.5f Hc deep-gap\n",
+                 speeds[IALIGN], bb, hbOp, hsRef);
+
+    const size_t GN = (size_t) NV * NLR * NA * NM * NS;
+    std::vector<float> G (GN);
+    std::vector<double> zX ((size_t) NV * NLR * NA), zW (zX.size()), zWr (zX.size()), zG (zX.size());
+    auto gi = [&] (int v, int l, int a, int m, int s) { return ((((size_t) v * NLR + l) * NA + a) * NM + m) * NS + s; };
+    auto zi = [&] (int v, int l, int a) { return ((size_t) v * NLR + l) * NA + a; };
+
+    for (int iv = 0; iv < NV; ++iv)
+    {
+        const double t0 = now_s();
+        const double vUm = speeds[iv] * 1.0e4;
+        const double lamB = vUm / Lin.fb;
+        for (int l = 0; l < NLR; ++l)
         {
-            Pass P; P.head = L.rec; P.fb = L.fb; P.v = L.v; P.hb = Ag[ia] / fmax;
-            for (int im = 0; im < NM; ++im)
+            const double fmax = karlqvist (Lin.rec.g, 0.0, Lin.rec.d + yR[l]);
+           #pragma omp parallel for schedule(dynamic, 1)
+            for (int ia = 0; ia < NA; ++ia)
             {
-                // the pre-state: anhysteretic at M_old
-                double lo = -20.0, hi = 20.0;
-                for (int it = 0; it < 60; ++it) { const double sv = 0.5 * (lo + hi); (2.0 * L.md.PhiU (sv) - 1.0 < Mg[im] ? lo : hi) = sv; }
-                const double sOld = 0.5 * (lo + hi);
-                for (int is = 0; is < NS; ++is)
+                Pass P; P.head = Lin.rec; P.fb = Lin.fb; P.v = speeds[iv]; P.hb = Ag[ia] / fmax;
+                // G: averaged over 8 bias phases and NSUB sub-depths
+                constexpr int NPH = 8;
+                for (int im = 0; im < NM; ++im)
+                    for (int is = 0; is < NS; ++is)
+                    {
+                        Pass Q = P; Q.hs = Sg[is]; Q.sig = [] (double) { return 1.0; };
+                        double acc = 0.0;
+                        for (int k = 0; k < NSUB; ++k)
+                        {
+                            const double yk = ySub (l, k);
+                            const double X = zoneHalfWidth (Q, yk);
+                            for (int ph = 0; ph < NPH; ++ph)
+                            {
+                                Stair S = pre[(size_t) im];
+                                advect (S, yk, lamB * ph / NPH, Q, X, vUm);
+                                acc += S.M (Lin.md);
+                            }
+                        }
+                        G[gi (iv, l, ia, im, is)] = (float) (acc / (NPH * NSUB));
+                    }
+                // the zone: a 1.2 um Gaussian pulse at small level, minus the same
+                // cells with no pulse (cancels the bias-phase ripple), averaged over
+                // the slab's sub-depths, pulse width deconvolved
                 {
-                    Stair S;
-                    for (int i = 0; i < 2000; ++i) { const double A = 5.0 * (1.0 - i / 2000.0); S.apply (sOld + (i % 2 ? -A : A)); }
-                    S.apply (sOld); S.apply (0.0);
-                    Pass Q = P; Q.hs = Sg[is]; Q.sig = [] (double) { return 1.0; };
-                    const double X = zoneHalfWidth (Q, y);
-                    advect (S, y, 0.0, Q, X, vUm);
-                    G[(((size_t) l * NA + ia) * NM + im) * NS + is] = (float) S.M (L.md);
+                    const double w = 1.2;
+                    Pass Q = P; Q.hs = 0.02;
+                    Q.sig = [=] (double t) { const double x = vUm * t; return std::exp (-0.5 * x * x / (w * w)); };
+                    Pass Q0 = P; Q0.hs = 0.0;
+                    const int n = 1600; const double pitch = 0.25;
+                    std::vector<double> m (n, 0.0);
+                    for (int k = 0; k < NSUB; ++k)
+                    {
+                        const double yk = ySub (l, k);
+                        const double X = zoneHalfWidth (Q, yk);
+                        for (int c = 0; c < n; ++c)
+                        {
+                            Stair S = demagS, S0 = demagS;
+                            advect (S, yk, (c - n / 2) * pitch, Q, X, vUm);
+                            advect (S0, yk, (c - n / 2) * pitch, Q0, X, vUm);
+                            m[(size_t) c] += (S.M (Lin.md) - S0.M (Lin.md)) / NSUB;
+                        }
+                    }
+                    double s0 = 0, s1 = 0, s2 = 0;
+                    for (int c = 0; c < n; ++c) { const double u = (c - n / 2) * pitch; s0 += m[(size_t) c]; s1 += m[(size_t) c] * u; s2 += m[(size_t) c] * u * u; }
+                    const double cen = (std::abs (s0) > 1e-12) ? s1 / s0 : 0.0;
+                    const double var = (std::abs (s0) > 1e-12) ? s2 / s0 - cen * cen - w * w : 0.0;
+                    zG[zi (iv, l, ia)] = s0 * pitch / (Q.hs * w * std::sqrt (2.0 * PI));
+                    zX[zi (iv, l, ia)] = -cen;
+                    zWr[zi (iv, l, ia)] = var > 0 ? std::sqrt (var) : 0.0;
+                    // The engine models the zone as a Gaussian. The real kernel has a
+                    // heavier tail than a Gaussian, so a Gaussian of the same RMS loses
+                    // too much top end (0.5 dB at 15 kHz at 19 cm/s). Fit the width to
+                    // the kernel's own transfer magnitude over the wavelengths that
+                    // matter (6..40 um), with the probe pulse divided out:
+                    // ln|K(k)/K(0)| = -k^2 w^2 / 2 in the least-squares sense.
+                    double num = 0.0, den = 0.0;
+                    if (std::abs (s0) > 1e-12)
+                        for (double lam : { 40.0, 25.0, 16.0, 12.0, 9.0, 6.0 })
+                        {
+                            const double k = 2.0 * PI / lam;
+                            double re = 0.0, im = 0.0;
+                            for (int c = 0; c < n; ++c)
+                            {
+                                const double u = (c - n / 2) * pitch - cen;
+                                re += m[(size_t) c] * std::cos (k * u); im += m[(size_t) c] * std::sin (k * u);
+                            }
+                            const double ratio = std::sqrt (re * re + im * im) / std::abs (s0) / std::exp (-0.5 * k * k * w * w);
+                            if (ratio < 0.05 || ratio > 1.0) continue;
+                            const double L = std::log (ratio);
+                            num += k * k * L; den += k * k * k * k;
+                        }
+                    const double w2 = den > 0.0 ? -2.0 * num / den : 0.0;
+                    zW[zi (iv, l, ia)] = w2 > 0.0 ? std::sqrt (w2) : 0.0;
                 }
-            }
-            // The zone: a small Gaussian pulse, band-limited below the bias (the
-            // record process samples the signal only at the bias extrema, every
-            // 1.27 um of tape here, so a pulse narrower than that is not a probe),
-            // read back along the tape MINUS the same cells recorded with no pulse:
-            // every cell carries a deterministic bias-phase ripple, and the
-            // subtraction cancels it exactly. The pulse's own width is deconvolved.
-            {
-                // w = 1.2 um: spectral content at the bias sampling rate (one
-                // extremum per 1.27 um) is exp(-k^2 w^2 / 2) = 1.2 %, and the
-                // deconvolution of w^2 from a ~1 um^2 kernel variance stays conditioned.
-                const double up = 0.0, w = 1.2;
-                Pass Q = P; Q.hs = 0.02;
-                Q.sig = [=] (double t) { const double x = vUm * t - up; return std::exp (-0.5 * x * x / (w * w)); };
-                Pass Q0 = P; Q0.hs = 0.0;
-                const double X = zoneHalfWidth (Q, y);
-                const int n = 1600; const double pitch = 0.25;
-                std::vector<double> m (n);
-                for (int c = 0; c < n; ++c)
-                {
-                    Stair S, S0;
-                    for (int i = 0; i < 2000; ++i) { const double A = 5.0 * (1.0 - i / 2000.0); S.apply (i % 2 ? -A : A); }
-                    S.apply (0.0); S0 = S;
-                    advect (S, y, (c - n / 2) * pitch, Q, X, vUm);
-                    advect (S0, y, (c - n / 2) * pitch, Q0, X, vUm);
-                    m[(size_t) c] = S.M (L.md) - S0.M (L.md);
-                }
-                double s0 = 0, s1 = 0, s2 = 0;
-                for (int c = 0; c < n; ++c) { const double u = (c - n / 2) * pitch; s0 += m[(size_t) c]; s1 += m[(size_t) c] * u; s2 += m[(size_t) c] * u * u; }
-                const double gain = s0 * pitch / (Q.hs * w * std::sqrt (2.0 * PI));   // dM/ds per unit deep-gap signal
-                const double cen = (std::abs (s0) > 1e-12) ? s1 / s0 : 0.0;
-                const double var = (std::abs (s0) > 1e-12) ? s2 / s0 - cen * cen - w * w : 0.0;
-                zoneGain[l][ia] = gain;
-                zoneX[l][ia] = -cen;                                 // downstream of the gap
-                zoneW[l][ia] = var > 0 ? std::sqrt (var) : 0.0;
             }
         }
+        std::printf ("   tables at %.2f cm/s (%.0f s)\n", speeds[iv], now_s() - t0);
     }
 
-    // Per-layer small-signal frequency response at 0.7x / 1x / 1.4x operating
-    // bias, the four real-time layers (the reference's layer centres with NL = 4
-    // are exactly theirs), dB re each layer's own 1 kHz: the direct target for
-    // the real-time model's recording loss, beside the kernel.
+    // ---- per-layer small-signal response at the alignment speed, 0.7 / 1 / 1.4 x bias
     constexpr int NF = 6, NB = 3;
     const double fList[NF] = { 1000, 2000, 5000, 10000, 15000, 20000 };
     const double bMul[NB] = { 0.7, 1.0, 1.4 };
     double resp[NB][NLR][NF] {};
     {
-        Lab L4 = L; L4.NL = NLR;
+        Lab L4 = La; L4.NL = NLR * NSUB;
         for (int b = 0; b < NB; ++b)
         {
             double ref1[NLR] {};
@@ -571,46 +703,58 @@ static void writeTables (const Lab& L, double hbOp, double hsRef, const std::str
                 int c0, n; L4.window (fList[fi], c0, n);
                 for (int l = 0; l < NLR; ++l)
                 {
-                    const double a = std::abs (R.amp (fList[fi], L4.v, c0, n, l));
+                    std::complex<double> acc (0, 0);
+                    for (int k = 0; k < NSUB; ++k) acc += R.amp (fList[fi], L4.v, c0, n, l * NSUB + k);
+                    const double a = std::abs (acc) / NSUB;
                     if (fi == 0) ref1[l] = a;
                     resp[b][l][fi] = dB (a / std::max (ref1[l], 1e-30));
                 }
             }
         }
     }
-    std::printf ("   per-layer recording loss at operating bias, dB re 1 kHz (2k 5k 10k 15k 20k):\n");
-    for (int l = 0; l < NLR; ++l)
-        std::printf ("     layer %d: %.2f %.2f %.2f %.2f %.2f\n", l, resp[1][l][1], resp[1][l][2], resp[1][l][3], resp[1][l][4], resp[1][l][5]);
 
+    // ---- write
     FILE* o = std::fopen (path.c_str(), "w");
     if (! o) { std::printf ("   cannot write %s\n", path.c_str()); return; }
     std::fprintf (o, "// GENERATED by mtref --tables (the stage 2 reference model). Do not edit.\n");
-    std::fprintf (o, "// Stock: %s. See docs/physics/03..05.\n#pragma once\nnamespace mt { namespace stock456 {\n", L.stock.name);
-    std::fprintf (o, "constexpr double HC_KAM = %.4f, MR_KAM = %.4f, S_BULK = %.4f, DELTA_UM = %.3f;\n", L.stock.HcKAm, L.stock.MrKAm, L.stock.S, L.stock.deltaUm);
-    std::fprintf (o, "constexpr double FLUX_MR_NWBM = %.3f;   // flux at Mr over the coating: G = 1 is this\n", L.stock.fluxSat() * L.stock.S);
-    std::fprintf (o, "constexpr double SIG_C = %.5f, NU_U = %.5f, GAM_U = %.6f;\n", L.md.sigC, L.md.nu, L.md.gam);
-    std::fprintf (o, "constexpr double REC_GAP_UM = %.3f, REC_SPACING_UM = %.3f, BIAS_HZ = %.1f;\n", L.rec.g, L.rec.d, L.fb);
-    std::fprintf (o, "constexpr double HB_OPERATING = %.5f, HS_0VU = %.6f;   // deep-gap fields in Hc, at 38.1 cm/s\n", hbOp, hsRef);
-    std::fprintf (o, "constexpr int NL = %d, NA = %d, NS = %d, NM = %d;\n", NLR, NA, NS, NM);
+    std::fprintf (o, "// Stock: %s. See docs/physics/03..06.\n#pragma once\nnamespace mt { namespace stock456 {\n", Lin.stock.name);
+    std::fprintf (o, "constexpr double HC_KAM = %.4f, MR_KAM = %.4f, S_BULK = %.4f, DELTA_UM = %.3f;\n", Lin.stock.HcKAm, Lin.stock.MrKAm, Lin.stock.S, Lin.stock.deltaUm);
+    std::fprintf (o, "constexpr double FLUX_MR_NWBM = %.3f;   // flux at Mr over the coating: G = 1 is this\n", Lin.stock.fluxSat() * Lin.stock.S);
+    std::fprintf (o, "constexpr double SIG_C = %.5f, NU_U = %.5f, GAM_U = %.6f;\n", Lin.md.sigC, Lin.md.nu, Lin.md.gam);
+    std::fprintf (o, "constexpr double REC_GAP_UM = %.3f, REC_SPACING_UM = %.3f, BIAS_HZ = %.1f;\n", Lin.rec.g, Lin.rec.d, Lin.fb);
+    std::fprintf (o, "// the machine's alignment, at its nominal speed (deep-gap fields in Hc)\n");
+    std::fprintf (o, "constexpr double ALIGN_SPEED_CMS = %.4f, HB_OPERATING = %.5f, HS_0VU = %.6f;\n", speeds[IALIGN], hbOp, hsRef);
+    std::fprintf (o, "// the reference measurements' alignment at 38.1 cm/s (05-reference-results.md)\n");
+    std::fprintf (o, "constexpr double HB_OP_REF38 = %.5f, HS_0VU_REF38 = %.6f;\n", hbOp38, hsRef38);
+    std::fprintf (o, "constexpr int NV = %d, NL = %d, NA = %d, NS = %d, NM = %d;\n", NV, NLR, NA, NS, NM);
+    std::fprintf (o, "constexpr double SPEED_CMS[NV] = {"); for (int i = 0; i < NV; ++i) std::fprintf (o, " %.4f,", speeds[i]); std::fprintf (o, " };   // a factor of 2 apart\n");
+    std::fprintf (o, "// each layer is a SLAB of %.2f um, its tables averaged over %d sub-depths; centres:\n", slab, NSUB);
     std::fprintf (o, "constexpr double LAYER_Y_UM[NL] = {"); for (int l = 0; l < NLR; ++l) std::fprintf (o, " %.4f,", yR[l]); std::fprintf (o, " };\n");
-    std::fprintf (o, "constexpr double LAYER_FMAX[NL] = {"); for (int l = 0; l < NLR; ++l) std::fprintf (o, " %.6f,", karlqvist (L.rec.g, 0.0, L.rec.d + yR[l])); std::fprintf (o, " };  // peak bias amplitude = hb * this\n");
+    std::fprintf (o, "constexpr double LAYER_FMAX[NL] = {"); for (int l = 0; l < NLR; ++l) std::fprintf (o, " %.6f,", karlqvist (Lin.rec.g, 0.0, Lin.rec.d + yR[l])); std::fprintf (o, " };  // peak bias amplitude = hb * this\n");
     std::fprintf (o, "constexpr double A_GRID[NA] = {"); for (int i = 0; i < NA; ++i) std::fprintf (o, " %.6f,", Ag[i]); std::fprintf (o, " };\n");
     std::fprintf (o, "constexpr double S_GRID[NS] = {"); for (int i = 0; i < NS; ++i) std::fprintf (o, " %.6f,", Sg[i]); std::fprintf (o, " };\n");
-    std::fprintf (o, "constexpr double M_GRID[NM] = {"); for (int i = 0; i < NM; ++i) std::fprintf (o, " %.6f,", Mg[i]); std::fprintf (o, " };\n");
-    std::fprintf (o, "// zone centroid downstream of the gap (um), rms width (um), small-signal gain dM/ds, per [layer][A]\n");
-    for (const char* nm : { "ZONE_X_UM", "ZONE_W_UM", "ZONE_GAIN" })
+    std::fprintf (o, "constexpr double M_GRID[NM] = {"); for (int i = 0; i < NM; ++i) std::fprintf (o, " %.6f,", Mg[i]); std::fprintf (o, " };  // in-field level of the prepared state\n");
+    std::fprintf (o, "constexpr double M_REM[NM] = {"); for (int i = 0; i < NM; ++i) std::fprintf (o, " %.6f,", Mrem[i]); std::fprintf (o, " };   // the REMANENCE it holds: index G by this\n");
+    std::fprintf (o, "// zone centroid downstream of the gap (um), Gaussian width fitted to the kernel transfer over 6..40 um wavelengths (um), small-signal gain dM/ds, per [speed][layer][A]\n");
+    for (int which = 0; which < 3; ++which)
     {
-        std::fprintf (o, "constexpr double %s[NL][NA] = {\n", nm);
-        for (int l = 0; l < NLR; ++l)
+        const char* nm = which == 0 ? "ZONE_X_UM" : which == 1 ? "ZONE_W_UM" : "ZONE_GAIN";
+        const std::vector<double>& src = which == 0 ? zX : which == 1 ? zW : zG;
+        std::fprintf (o, "constexpr double %s[NV][NL][NA] = {\n", nm);
+        for (int iv = 0; iv < NV; ++iv)
         {
-            std::fprintf (o, "  {");
-            for (int i = 0; i < NA; ++i)
-                std::fprintf (o, " %.5f,", ! std::strcmp (nm, "ZONE_X_UM") ? zoneX[l][i] : ! std::strcmp (nm, "ZONE_W_UM") ? zoneW[l][i] : zoneGain[l][i]);
+            std::fprintf (o, " {\n");
+            for (int l = 0; l < NLR; ++l)
+            {
+                std::fprintf (o, "  {");
+                for (int i = 0; i < NA; ++i) std::fprintf (o, " %.5f,", src[zi (iv, l, i)]);
+                std::fprintf (o, " },\n");
+            }
             std::fprintf (o, " },\n");
         }
         std::fprintf (o, "};\n");
     }
-    std::fprintf (o, "// small-signal recording loss per [bias 0.7x,1x,1.4x of operating][layer][f], dB re the layer's 1 kHz\n");
+    std::fprintf (o, "// small-signal recording loss at the alignment speed per [bias 0.7x,1x,1.4x][layer][f], dB re the layer's 1 kHz\n");
     std::fprintf (o, "constexpr int NF = %d, NB = %d;\nconstexpr double RESP_F_HZ[NF] = { 1000, 2000, 5000, 10000, 15000, 20000 };\nconstexpr double RESP_BIAS_MUL[NB] = { 0.7, 1.0, 1.4 };\n", NF, NB);
     std::fprintf (o, "constexpr double RESP_DB[NB][NL][NF] = {\n");
     for (int b = 0; b < NB; ++b)
@@ -620,54 +764,51 @@ static void writeTables (const Lab& L, double hbOp, double hsRef, const std::str
         std::fprintf (o, " },\n");
     }
     std::fprintf (o, "};\n");
-    std::fprintf (o, "// new remanence (M/Ms, G = 1 is Mr) per [layer][A][M_old][s]\n");
-    std::fprintf (o, "constexpr float G[NL][NA][NM][NS] = {\n");
-    for (int l = 0; l < NLR; ++l)
+    std::fprintf (o, "// new remanence (M/Ms, G = 1 is Mr) per [speed][layer][A][M_old][s]\n");
+    std::fprintf (o, "constexpr float G[NV][NL][NA][NM][NS] = {\n");
+    for (int iv = 0; iv < NV; ++iv)
     {
-        std::fprintf (o, " {\n");
-        for (int ia = 0; ia < NA; ++ia)
+        std::fprintf (o, "{\n");
+        for (int l = 0; l < NLR; ++l)
         {
-            std::fprintf (o, "  {\n");
-            for (int im = 0; im < NM; ++im)
+            std::fprintf (o, " {\n");
+            for (int ia = 0; ia < NA; ++ia)
             {
-                std::fprintf (o, "   {");
-                for (int is = 0; is < NS; ++is) std::fprintf (o, "%.5ff,", G[(((size_t) l * NA + ia) * NM + im) * NS + is]);
-                std::fprintf (o, "},\n");
+                std::fprintf (o, "  {\n");
+                for (int im = 0; im < NM; ++im)
+                {
+                    std::fprintf (o, "   {");
+                    for (int is = 0; is < NS; ++is) std::fprintf (o, "%.7ff,", G[gi (iv, l, ia, im, is)]);
+                    std::fprintf (o, "},\n");
+                }
+                std::fprintf (o, "  },\n");
             }
-            std::fprintf (o, "  },\n");
+            std::fprintf (o, " },\n");
         }
-        std::fprintf (o, " },\n");
+        std::fprintf (o, "},\n");
     }
     std::fprintf (o, "};\n} }\n");
     std::fclose (o);
 
-    // what the table says, in words
-    std::printf ("   zone per layer at operating bias (A, centroid um, rms um, gain):\n");
-    for (int l = 0; l < NLR; ++l)
-    {
-        const double A = hbOp * karlqvist (L.rec.g, 0.0, L.rec.d + yR[l]);
-        int ia = 0; while (ia < NA - 1 && Ag[ia + 1] < A) ++ia;
-        const double ds = Sg[NS / 2 + 1] - Sg[NS / 2 - 1];
-        const double slope = (G[(((size_t) l * NA + ia) * NM + NM / 2) * NS + NS / 2 + 1] - G[(((size_t) l * NA + ia) * NM + NM / 2) * NS + NS / 2 - 1]) / ds;
-        const double k20 = 2.0 * PI * 20000.0 / vUm;
-        std::printf ("     layer %d (y %.2f um): A %.2f  zone centroid %.1f um, rms %.2f um, gain %.3f (table slope %.3f); a Gaussian of that rms predicts %.2f dB at 20 kHz, measured %.2f\n",
-                     l, yR[l], A, zoneX[l][ia], zoneW[l][ia], zoneGain[l][ia], slope,
-                     dB (std::exp (-0.5 * k20 * k20 * zoneW[l][ia] * zoneW[l][ia])), resp[1][l][NF - 1]);
-    }
-    // the table's 0 VU vs the full 1 kHz readout
+    // ---- what the tables say, at the alignment speed
+    std::printf ("   zone per layer at %.2f cm/s, operating bias (A, centroid, fitted width (rms), gain vs table slope):\n", speeds[IALIGN]);
     double sum = 0.0;
     for (int l = 0; l < NLR; ++l)
     {
-        const double A = hbOp * karlqvist (L.rec.g, 0.0, L.rec.d + yR[l]);
+        const double A = hbOp * karlqvist (Lin.rec.g, 0.0, Lin.rec.d + yR[l]);
         int ia = 0; while (ia < NA - 1 && Ag[ia + 1] < A) ++ia;
         const double ta = (A - Ag[ia]) / (Ag[ia + 1] - Ag[ia]);
+        const double ds = Sg[NS / 2 + 1] - Sg[NS / 2 - 1];
+        const double slope = (G[gi (IALIGN, l, ia, NM / 2, NS / 2 + 1)] - G[gi (IALIGN, l, ia, NM / 2, NS / 2 - 1)]) / ds;
+        std::printf ("     layer %d: A %.2f  centroid %.2f um  width %.2f um (rms %.2f)  gain %.3f (table slope %.3f)\n",
+                     l, A, zX[zi (IALIGN, l, ia)], zW[zi (IALIGN, l, ia)], zWr[zi (IALIGN, l, ia)], zG[zi (IALIGN, l, ia)], slope);
         int is = 0; while (is < NS - 1 && Sg[is + 1] < hsRef) ++is;
         const double ts = (hsRef - Sg[is]) / (Sg[is + 1] - Sg[is]);
-        auto g = [&] (int a, int sidx) { return (double) G[(((size_t) l * NA + a) * NM + NM / 2) * NS + sidx]; };
+        auto g = [&] (int a, int sidx) { return (double) G[gi (IALIGN, l, a, NM / 2, sidx)]; };
         sum += (1 - ta) * ((1 - ts) * g (ia, is) + ts * g (ia, is + 1)) + ta * ((1 - ts) * g (ia + 1, is) + ts * g (ia + 1, is + 1));
     }
-    std::printf ("   table at 0 VU, DC, 4 layers: %.1f nWb/m peak = %.1f rms (the 1 kHz readout was 250.0)\n",
-                 sum / NLR * L.stock.fluxSat() * L.stock.S, sum / NLR * L.stock.fluxSat() * L.stock.S / std::sqrt (2.0));
+    std::printf ("   table at 0 VU, DC, %.2f cm/s: %.1f nWb/m rms (target 250.0)\n", speeds[IALIGN],
+                 sum / NLR * Lin.stock.fluxSat() * Lin.stock.S / std::sqrt (2.0));
     std::printf ("   written %s\n", path.c_str());
 }
 
@@ -678,12 +819,16 @@ int main (int argc, char** argv)
 {
     std::string out = argc > 1 && argv[1][0] != '-' ? argv[1] : ".";
     bool fast = false;
-    int layersOpt = 0; std::string tablesPath;
+    int layersOpt = 0; std::string tablesPath; double nuOpt = 0.0, speedOpt = 0.0, hbOpt = 0.0, hsOpt = 0.0;
     for (int i = 1; i < argc; ++i)
     {
         if (! std::strcmp (argv[i], "--fast")) fast = true;
         if (! std::strncmp (argv[i], "--layers=", 9)) layersOpt = std::atoi (argv[i] + 9);
         if (! std::strncmp (argv[i], "--tables=", 9)) tablesPath = argv[i] + 9;
+        if (! std::strncmp (argv[i], "--nu=", 5)) nuOpt = std::atof (argv[i] + 5);
+        if (! std::strncmp (argv[i], "--speed=", 8)) speedOpt = std::atof (argv[i] + 8);
+        if (! std::strncmp (argv[i], "--hbop=", 7)) hbOpt = std::atof (argv[i] + 7);
+        if (! std::strncmp (argv[i], "--hs0vu=", 8)) hsOpt = std::atof (argv[i] + 8);
     }
 
     Lab L;
@@ -691,6 +836,10 @@ int main (int argc, char** argv)
     L.stock = Stock { "1970s high-output studio (456 class)", 26.3, 116.2, 14.0, 760.0, 0.12, 0.40, 0.0, 0.80 };
     if (fast) { L.lengthUm = 2500.0; L.NL = 6; }
     if (layersOpt > 0) L.NL = layersOpt;
+    // Another speed under a FIXED alignment (the real-time model keeps the 38.1
+    // cm/s one at every speed): the tape needs more length for the same number
+    // of periods at a higher speed, so scale it.
+    if (speedOpt > 0.0) { L.lengthUm *= speedOpt / L.v; L.v = speedOpt; }
 
     std::printf ("Magneto Transport reference model (stage 2)\n");
    #ifdef _OPENMP
@@ -732,6 +881,33 @@ int main (int argc, char** argv)
     t = now_s();
     L.md.build();
     std::printf ("   Everett table %dx%d built in %.1f s\n", L.md.N, L.md.N, now_s() - t);
+    {
+        // The ideal curve is only a starting point: the real record process
+        // (finite bias decay, the moving zone, the depth of the coating) moves
+        // MOL by most of a dB. Refine nu on the FULL chain - align bias the way
+        // the sheet does, set 0 VU, find 3 % HD3 - until MOL is the sheet's.
+        const double target = dB (L.stock.molRms / 250.0);
+        double lo = std::log (std::max (1.2, 0.4 * L.md.nu)), hi = std::log (8.0 * L.md.nu);
+        if (nuOpt > 0.0) { lo = hi = std::log (nuOpt); }      // --nu=: a fixed coating, e.g. to compare layer counts
+        std::printf ("   refining nu on the full record process for MOL = %+.2f dB re 250:\n", target);
+        t = now_s();
+        for (int it = 0; it < (nuOpt > 0.0 ? 1 : 11); ++it)
+        {
+            const double nu = std::exp (0.5 * (lo + hi));
+            L.md.setU (nu, L.stock.fwhmU); L.md.build();
+            double b10; const double bb = peak10Bias (L, b10);
+            const double op = operatingBias (L, bb, b10);
+            const double hs = calibrateHs (L, op);
+            const double mol = molDb (L, op, hs);
+            std::printf ("     nu %.3f: operating bias %.2f Hc, MOL %+.3f dB\n", nu, op, mol);
+            (mol > target ? hi : lo) = std::log (nu);     // heavier tails (smaller nu) lower the MOL
+        }
+        L.md.setU (std::exp (0.5 * (lo + hi)), L.stock.fwhmU); L.md.build();
+        L.stock.nu = L.md.nu;
+        std::printf ("   nu = %.4f (scale %.4f Hc), fitted on the full process in %.0f s\n", L.md.nu, L.md.gam, now_s() - t);
+        std::printf ("   ideal anhysteretic HD3 at 185 nWb/m with it: %.3f %%; susceptibility chi*Hc/Mr = %.2f\n",
+                     100 * idealHd3 (L.md, 185.0 * std::sqrt (2.0) / (L.stock.fluxSat() * L.stock.S)), 2.0 * L.md.pU0() / L.stock.S);
+    }
     {
         double worst = 0.0;
         for (int i = 0; i < 200; ++i)
@@ -777,34 +953,15 @@ int main (int argc, char** argv)
         if (p10 > best10) { best10 = p10; bestB = hb; }
     }
     std::printf ("   (%.1f s)\n", now_s() - t);
-    // operating bias: 10 kHz 3 dB past its peak - search above the peak
-    double hbOp = bestB;
-    {
-        double lo = bestB, hi = 30.0;
-        for (int it = 0; it < 14; ++it)
-        {
-            const double hb = 0.5 * (lo + hi);
-            double a10, p10; L.measure (hb, 0.08, 10000.0, a10, p10);
-            (dB (p10 / best10) > -3.0 ? lo : hi) = hb;
-        }
-        hbOp = 0.5 * (lo + hi);
-    }
-    std::printf ("   10 kHz peaks at hb = %.1f; OPERATING BIAS (10 kHz -3 dB past peak) hb = %.2f Hc\n", bestB, hbOp);
+    // operating bias: 10 kHz 3 dB past its peak, the peak found properly
+    bestB = peak10Bias (L, best10);
+    const double hbOp = hbOpt > 0.0 ? hbOpt : operatingBias (L, bestB, best10);
+    std::printf ("   10 kHz peaks at hb = %.2f; OPERATING BIAS (10 kHz -3 dB past peak) hb = %.2f Hc\n", bestB, hbOp);
 
     //-------------------------------------------------------------- 3. level sweep
     std::printf ("\n3. LEVEL SWEEP at 1 kHz, operating bias\n");
     // calibrate hs for 250 nWb/m rms
-    double hsRef;
-    {
-        double lo = 0.001, hi = 5.0;
-        for (int it = 0; it < 20; ++it)
-        {
-            const double hs = std::sqrt (lo * hi);
-            double a, p; L.measure (hbOp, hs, 1000.0, a, p);
-            (a < 250.0 ? lo : hi) = hs;
-        }
-        hsRef = std::sqrt (lo * hi);
-    }
+    const double hsRef = hsOpt > 0.0 ? hsOpt : calibrateHs (L, hbOp);
     std::printf ("   0 VU (250 nWb/m rms) = signal deep-gap field %.4f Hc = %.3f of the bias\n", hsRef, hsRef / hbOp);
     std::printf ("   %8s %10s %10s %10s %10s\n", "dB re ref", "flux rms", "re ref dB", "HD3 %", "THD %");
     FILE* f = std::fopen ((out + "/level-sweep.csv").c_str(), "w");

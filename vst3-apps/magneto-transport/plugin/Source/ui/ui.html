@@ -24,19 +24,19 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
     repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 3px),
     var(--steel)}
 /* ---- header */
-#head{position:absolute;left:0;top:0;width:1600px;height:52px;display:flex;align-items:center;gap:26px;
+#head{position:absolute;left:0;top:0;width:1600px;height:52px;display:flex;align-items:center;gap:18px;box-sizing:border-box;
   padding:0 22px;border-bottom:2px solid var(--edge);background:linear-gradient(#202421,#171a18)}
 #wordmark{font-size:22px;letter-spacing:5px;font-weight:700;color:var(--brass);white-space:nowrap}
 #model{font-size:10px;letter-spacing:2px;color:var(--brassDim);line-height:1.3;white-space:nowrap}
-.lampbox{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;color:var(--brassDim)}
+.lampbox{white-space:nowrap;display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;color:var(--brassDim)}
 .lamp{width:11px;height:11px;border-radius:50%;background:#3a2a1a;box-shadow:inset 0 0 3px #000}
 .lamp.on{background:var(--amber);box-shadow:0 0 8px var(--amber)}
 .lamp.red.on{background:var(--red);box-shadow:0 0 8px var(--red)}
-.meter{width:90px;height:8px;background:#0b0c0b;border:1px solid var(--edge);position:relative}
+.meter{width:72px;height:8px;background:#0b0c0b;border:1px solid var(--edge);position:relative}
 .meter i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#6a8f55,#c9b27a 70%,#d2412c);width:0}
-#readout{font-family:Consolas,monospace;font-size:15px;color:var(--amber);min-width:210px}
+#readout{font-family:Consolas,monospace;font-size:15px;color:var(--amber);min-width:190px}
 #spacer{flex:1}
-#build{font-family:Consolas,monospace;font-size:11px;color:var(--brassDim)}
+#build{white-space:nowrap;font-family:Consolas,monospace;font-size:11px;color:var(--brassDim)}
 /* ---- machine */
 #machine{position:absolute;left:0;top:52px;width:1600px;height:528px}
 /* ---- control panel */
@@ -73,7 +73,7 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
 <div id="deck">
   <div id="head">
     <div id="wordmark">Magneto Transport</div>
-    <div id="model">MODEL MT-1<br>STAGE 1 &middot; PLACEHOLDER PANEL</div>
+    <div id="model">MODEL MT-1<br>STAGE 3 &middot; PLACEHOLDER PANEL</div>
     <div id="readout">--.- cm/s</div>
     <div class="lampbox"><span class="lamp" id="lSync"></span>SYNC</div>
     <div class="lampbox"><span class="lamp red" id="lClamp"></span>OUT OF REACH</div>
@@ -81,15 +81,17 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
     <div id="spacer"></div>
     <div class="lampbox">IN <div class="meter"><i id="mIn"></i></div></div>
     <div class="lampbox">OUT <div class="meter"><i id="mOut"></i></div></div>
+    <div class="lampbox" title="Peak remanence written to the tape: full = the coating is saturated">TAPE <div class="meter"><i id="mTape"></i></div></div>
     <div id="build">build ----</div>
   </div>
 
   <canvas id="machine"></canvas>
 
   <div id="panel">
-    <div class="grp" style="width:200px"><h3>INPUT</h3>
+    <div class="grp" style="width:200px"><h3>RECORD</h3>
       <div class="ctl" data-id="drive"></div>
       <div class="ctl" data-id="reclevel"></div>
+      <div class="ctl" data-id="bias"></div>
       <div class="ctl" data-id="inmode" data-type="seg" style="width:170px"></div>
     </div>
     <div class="grp" style="width:300px"><h3>TRANSPORT</h3>
@@ -595,6 +597,8 @@ function updateHeader(){
   document.getElementById("lSplice").classList.toggle("on", !!tele.splice);
   const m = (id, pk) => { const db = 20 * Math.log10(Math.max(1e-6, pk)); document.getElementById(id).style.width = Math.max(0, Math.min(100, (db + 60) / 60 * 100)) + "%"; };
   m("mIn", tele.in); m("mOut", tele.out);
+  // the tape meter is linear in remanence: full width = full remanence
+  if (tele.rec !== undefined) document.getElementById("mTape").style.width = Math.max(0, Math.min(100, tele.rec * 100)) + "%";
   tele.heads.forEach((h, i) => {
     const el = document.getElementById("delay" + (i + 1));
     if (el) el.textContent = (h / tele.speed * 1000).toFixed(0) + " ms";

@@ -1,29 +1,122 @@
 [
-  { "name": "wait for the page", "wait": 3000 },
-  { "name": "JS errors on the page", "eval": "window.__errors.length ? window.__errors.join(' | ') : 'none'" },
-  { "name": "parameters from the processor", "eval": "Object.keys(__MT.P).length + ': ' + Object.keys(__MT.P).join(' ')" },
-  { "name": "build id on the panel", "eval": "document.getElementById('build').textContent" },
-  { "name": "telemetry arriving (speed, mode, heads)", "eval": "__MT.tele ? (__MT.tele.speed.toFixed(3) + ' cm/s, mode ' + __MT.tele.mode + ', heads ' + __MT.tele.heads.map(h=>h.toFixed(2)).join('/')) : 'NO TELE'" },
-  { "name": "tape view points", "eval": "__MT.tele ? __MT.tele.tape.length : 0" },
-  { "name": "controls built (knobs / segs / buttons)", "eval": "document.querySelectorAll('.knob').length + ' / ' + document.querySelectorAll('.seg').length + ' / ' + document.querySelectorAll('.btn').length" },
-  { "name": "every group fits its box", "eval": "[...document.querySelectorAll('.grp')].map(g => g.querySelector('h3').textContent + (g.scrollHeight > g.clientHeight + 1 || g.scrollWidth > g.clientWidth + 1 ? ' OVERFLOWS ' + g.scrollWidth + 'x' + g.scrollHeight + ' in ' + g.clientWidth + 'x' + g.clientHeight : ' ok')).join(' | ')" },
-  { "name": "machine canvas painted (lit pixels in a sample)", "eval": "(()=>{const c=document.getElementById('machine');const x=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=0;i<x.length;i+=16){if(x[i+3]>20&&(x[i]>40||x[i+1]>40||x[i+2]>40))n++;}return n+' of '+(x.length/16)})()" },
-  { "name": "ask for 38 cm/s", "eval": "__MT.P.speed && (window.setParamForTest ? 0 : 0), (()=>{const s=__MT.P.speed; s.v=38; window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'speed',v:38}); return 'sent';})()" },
-  { "name": "motor glides", "wait": 2500 },
-  { "name": "speed after 2.5 s (motor tau 0.35 s)", "eval": "__MT.tele.speed.toFixed(3) + ' cm/s, target ' + __MT.tele.target.toFixed(3)" },
-  { "name": "move head 1 to 10 cm", "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'h1pos',v:10}); 'sent'" },
-  { "name": "carriage travels", "wait": 1500 },
-  { "name": "head 1 position", "eval": "__MT.tele.heads[0].toFixed(3) + ' cm; delay label ' + document.getElementById('delay1').textContent" },
-  { "name": "panel knob followed the host value", "eval": "__MT.P.h1pos.v.toFixed(2) + ' / ' + __MT.ctls.h1pos.el.querySelector('.val').textContent" },
-  { "name": "switch to LOOP", "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'mode',v:1}); 'sent'" },
-  { "name": "splice", "wait": 800 },
-  { "name": "transport mode and loop", "eval": "'mode ' + __MT.tele.mode + ', loop ' + __MT.tele.loopLen.toFixed(2) + ' m, splicing ' + __MT.tele.splice" },
-  { "name": "cut a 0.75 m loop", "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'looplen',v:0.75}); 'sent'" },
-  { "name": "splice", "wait": 1200 },
-  { "name": "new loop length", "eval": "'loop ' + __MT.tele.loopLen.toFixed(2) + ' m, splicing ' + __MT.tele.splice" },
-  { "name": "JS errors after all that", "eval": "window.__errors.length ? window.__errors.join(' | ') : 'none'" },
-  { "name": "screenshot", "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-live.png" },
-  { "name": "back to REEL", "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'mode',v:0}); window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'speed',v:19}); window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'h1pos',v:4}); 'sent'" },
-  { "name": "settle", "wait": 2500 },
-  { "name": "screenshot REEL", "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-live-reel.png" }
+  {
+    "name": "wait for the page",
+    "wait": 3000
+  },
+  {
+    "name": "JS errors on the page",
+    "eval": "window.__errors.length ? window.__errors.join(' | ') : 'none'"
+  },
+  {
+    "name": "parameters from the processor",
+    "eval": "Object.keys(__MT.P).length + ': ' + Object.keys(__MT.P).join(' ')"
+  },
+  {
+    "name": "build id on the panel",
+    "eval": "document.getElementById('build').textContent"
+  },
+  {
+    "name": "header fits (nothing clipped at the right edge)",
+    "eval": "(function(){var h=document.getElementById('head'),b=document.getElementById('build').getBoundingClientRect(),r=h.getBoundingClientRect();return (h.scrollWidth>h.clientWidth+1||b.right>r.right-4)?'CLIPPED: content '+h.scrollWidth+' in '+h.clientWidth+', build ends '+Math.round(b.right)+' of '+Math.round(r.right):'ok, build ends '+Math.round(b.right-r.left)+' of '+Math.round(r.width)})()"
+  },
+  {
+    "name": "telemetry arriving (speed, mode, heads)",
+    "eval": "__MT.tele ? (__MT.tele.speed.toFixed(3) + ' cm/s, mode ' + __MT.tele.mode + ', heads ' + __MT.tele.heads.map(h=>h.toFixed(2)).join('/')) : 'NO TELE'"
+  },
+  {
+    "name": "tape view points",
+    "eval": "__MT.tele ? __MT.tele.tape.length : 0"
+  },
+  {
+    "name": "bias control present, at operating point",
+    "eval": "__MT.P.bias ? (__MT.P.bias.v.toFixed(2)+\" dB, range \"+__MT.P.bias.lo+\"..\"+__MT.P.bias.hi) : \"MISSING\""
+  },
+  {
+    "name": "tape saturation meter exists",
+    "eval": "document.getElementById(\"mTape\") ? \"yes\" : \"MISSING\""
+  },
+  {
+    "name": "controls built (knobs / segs / buttons)",
+    "eval": "document.querySelectorAll('.knob').length + ' / ' + document.querySelectorAll('.seg').length + ' / ' + document.querySelectorAll('.btn').length"
+  },
+  {
+    "name": "every group fits its box",
+    "eval": "[...document.querySelectorAll('.grp')].map(g => g.querySelector('h3').textContent + (g.scrollHeight > g.clientHeight + 1 || g.scrollWidth > g.clientWidth + 1 ? ' OVERFLOWS ' + g.scrollWidth + 'x' + g.scrollHeight + ' in ' + g.clientWidth + 'x' + g.clientHeight : ' ok')).join(' | ')"
+  },
+  {
+    "name": "machine canvas painted (lit pixels in a sample)",
+    "eval": "(()=>{const c=document.getElementById('machine');const x=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=0;i<x.length;i+=16){if(x[i+3]>20&&(x[i]>40||x[i+1]>40||x[i+2]>40))n++;}return n+' of '+(x.length/16)})()"
+  },
+  {
+    "name": "ask for 38 cm/s",
+    "eval": "__MT.P.speed && (window.setParamForTest ? 0 : 0), (()=>{const s=__MT.P.speed; s.v=38; window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'speed',v:38}); return 'sent';})()"
+  },
+  {
+    "name": "motor glides",
+    "wait": 2500
+  },
+  {
+    "name": "speed after 2.5 s (motor tau 0.35 s)",
+    "eval": "__MT.tele.speed.toFixed(3) + ' cm/s, target ' + __MT.tele.target.toFixed(3)"
+  },
+  {
+    "name": "move head 1 to 10 cm",
+    "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'h1pos',v:10}); 'sent'"
+  },
+  {
+    "name": "carriage travels",
+    "wait": 1500
+  },
+  {
+    "name": "head 1 position",
+    "eval": "__MT.tele.heads[0].toFixed(3) + ' cm; delay label ' + document.getElementById('delay1').textContent"
+  },
+  {
+    "name": "page copy after a page-sent value (not echoed back, by design; the head still moved)",
+    "eval": "__MT.P.h1pos.v.toFixed(2) + ' / ' + __MT.ctls.h1pos.el.querySelector('.val').textContent"
+  },
+  {
+    "name": "switch to LOOP",
+    "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'mode',v:1}); 'sent'"
+  },
+  {
+    "name": "splice",
+    "wait": 800
+  },
+  {
+    "name": "transport mode and loop",
+    "eval": "'mode ' + __MT.tele.mode + ', loop ' + __MT.tele.loopLen.toFixed(2) + ' m, splicing ' + __MT.tele.splice"
+  },
+  {
+    "name": "cut a 0.75 m loop",
+    "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'looplen',v:0.75}); 'sent'"
+  },
+  {
+    "name": "splice",
+    "wait": 1200
+  },
+  {
+    "name": "new loop length",
+    "eval": "'loop ' + __MT.tele.loopLen.toFixed(2) + ' m, splicing ' + __MT.tele.splice"
+  },
+  {
+    "name": "JS errors after all that",
+    "eval": "window.__errors.length ? window.__errors.join(' | ') : 'none'"
+  },
+  {
+    "name": "screenshot",
+    "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-live.png"
+  },
+  {
+    "name": "back to REEL",
+    "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'mode',v:0}); window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'speed',v:19}); window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'h1pos',v:4}); 'sent'"
+  },
+  {
+    "name": "settle",
+    "wait": 2500
+  },
+  {
+    "name": "screenshot REEL",
+    "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-live-reel.png"
+  }
 ]

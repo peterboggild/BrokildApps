@@ -200,7 +200,7 @@ Every stage ends with its bench clear. **LISTEN** = stop, install, Peter listens
 |---|---|---|
 | 1 | tape as a medium, ideal heads, simple motor glide, both transport modes, the feedback wire, placeholder panel | **LISTEN A** — a working delay with real Doppler |
 | 2 | physics notes + offline reference: Preisach ferric + explicit-bias record process | FABLE - **DONE 2026-10-11**, `docs/physics/05-reference-results.md` |
-| 3 | real-time record process validated against 2; saturation contains feedback; bias live | **LISTEN B** |
+| 3 | real-time record process validated against 2; saturation contains feedback; bias live | **LISTEN B** - built 2026-10-11 (261011.2): bench 67/67, awaiting the listen |
 | 4 | playback physics, EQ standards, electronics, gain staging, stereo crosstalk/azimuth | |
 | 5 | transport mechanics: motor, capstan, bearings, elastic tape, scrape flutter, reels | FABLE, **LISTEN C** |
 | 6 | tape stock: particle statistics → hiss, modulation noise, dropouts; stocks, age, wear | |
@@ -377,3 +377,15 @@ TAPE grid, not in samples; the deep layers' coarser cells mean the kernel
 there is already wider than a cell, so write the band-limited average, never a
 point; and 2 µm cells on layer 2 at 76 cm/s give a 190 kHz cell rate, still
 far above the band, so the resolution halving is safe at every speed.
+
+## 12. Stage 3 is built (2026-10-11, build 261011.2) - awaiting listening gate B
+
+The real-time record head runs from the reference's tables, now with a SPEED
+axis (4.76-76.2 cm/s), aligned at 19.05 cm/s. BIAS is live; feedback is uncapped
+and held by tape saturation. Against the reference: level transfer within
+0.026 dB, MOL within 0.07 dB, HD3 above 0 VU within 0.4 dB, recording loss
+within 0.18 dB at 19 / 38 / 76 cm/s, speed sensitivity within 0.02 dB, bias
+curve within 0.19 dB. Known deviation kept visible: HD3 at 0 VU is 3.4 dB low.
+14.8 % of a core at the worst case. Full record: `plugin/docs/physics/06-realtime-record.md`
+and `plugin/docs/DECISIONS.md`. Not yet covered: programme-material renders
+against the reference; erase-head tables (stage 7).

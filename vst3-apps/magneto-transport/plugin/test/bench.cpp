@@ -1,10 +1,11 @@
-// Magneto Transport - stage 1 bench.
+// Magneto Transport - bench (stage 3).
 //
 // Measures every claim stage 1 makes. The tape is a medium, so delay, pitch
 // bends and Doppler are consequences of where the heads are and how fast the
 // tape moves; each is checked against the closed-form physics it must obey.
 
 #include "Engine.h"
+#include "stock/stock_456.h"     // the reference's alignment constants - never typed here
 
 #include <chrono>
 #include <cstdio>
@@ -174,23 +175,24 @@ static void testDelay()
             {
                 Params p = wetOnly(); p.speed = (float) v; soloHead (p, h);
                 const double expect = h / v;            // s
-                // A Gaussian pulse and the centroid of its echo's energy. Noise
-                // correlated with a parabola through the peak scattered +/-0.1
-                // sample with random sign (2.4 us at 44.1 kHz) - the probe, not
-                // the tape. The chain is linear-phase, so a symmetric pulse's
-                // centroid moves by exactly the delay.
-                const double t0 = 0.05, sig = 0.0002;
-                const size_t total = (size_t) ((t0 + expect + 0.05) * fs);
+                // A slow Gaussian pulse (sigma 2 ms: content below ~150 Hz) and the
+                // centroid of its echo's energy - the LOW-FREQUENCY group delay.
+                // Since stage 3 the coating records in four layers at slightly
+                // different distances past the gap, and a wideband pulse sees their
+                // spread (3 us at 4.75 cm/s); the defined delay is the long-wave one.
+                const double t0 = 0.05, sig = 0.002;
+                const size_t total = (size_t) ((t0 + expect + 0.06) * fs);
                 std::vector<float> x (total, 0.0f);
                 double cin = 0.0, ein = 0.0;
                 for (size_t i = 0; i < total; ++i)
                 {
                     const double t = (double) i / fs - t0;
-                    x[i] = (float) (0.4 * std::exp (-0.5 * t * t / (sig * sig)));
+                    // small-signal: well under 0 VU, where every layer's gain is its own slope
+                    x[i] = (float) (0.03 * std::exp (-0.5 * t * t / (sig * sig)));
                     cin += (double) x[i] * x[i] * i; ein += (double) x[i] * x[i];
                 }
                 auto r = run (p, fs, x, x);
-                const size_t a = (size_t) ((t0 + expect - 0.004) * fs), b = (size_t) ((t0 + expect + 0.004) * fs);
+                const size_t a = (size_t) ((t0 + expect - 0.012) * fs), b = (size_t) ((t0 + expect + 0.012) * fs);
                 double cout = 0.0, eout = 0.0;
                 for (size_t i = a; i < b; ++i) { const double e = (double) r.L[i] * r.L[i]; cout += e * i; eout += e; }
                 const double lag = cout / eout - cin / ein;
@@ -219,7 +221,7 @@ static void testUnity()
     // Frequency response of the ideal medium. Not a tolerance in stage 1 (stage 4
     // adds the physical gap and spacing losses), but the grid's own loss must be
     // small against them. Printed per speed, asserted at 19 cm/s.
-    std::printf ("   response of the medium, -20 dB re ref (48 kHz):\n");
+    std::printf ("   response record+medium, -20 dB re ref (48 kHz), dB re the 1 kHz at 0 VU:\n");
     const double fs = 48000.0;
     const double freqs[] = { 30, 100, 1000, 5000, 10000, 16000, 20000 };
     double worst19 = 0.0;
@@ -241,7 +243,9 @@ static void testUnity()
         }
         std::printf ("\n");
     }
-    check (worst19 < 0.25, "19 and 76 cm/s flat within 0.25 dB to 16 kHz", fmt ("worst %.3f dB", worst19));
+    // Since stage 3 this includes the RECORDING loss (the zone, the layers'
+    // different distances past the gap) - asserted against the reference in 13.
+    (void) worst19;
 }
 
 static void testSpeedGlide()
@@ -353,29 +357,51 @@ static void testHeadDoppler()
 
 static void testFeedback()
 {
-    std::printf ("\n5. FEEDBACK: STOP THE INPUT AND WATCH (stage 1 loop gain is capped below 1)\n");
+    std::printf ("\n5. FEEDBACK: STOP THE INPUT AND WATCH; SELF-OSCILLATION HELD BY THE TAPE\n");
     const double fs = 48000.0;
-    Params p; p.mix = 1.0f; p.feedback = 1.0f;
-    p.h1On = p.h2On = p.h3On = 1; p.h1Lvl = p.h2Lvl = p.h3Lvl = 6.0f;
-    p.bass = 12.0f; p.treble = 12.0f; p.recLevel = 12.0f;
-    p.speed = 76.0f; p.h1Pos = 1.5f; p.h2Pos = 3.0f; p.h3Pos = 4.5f;   // short loop, many trips
-    const size_t n = (size_t) (40.0 * fs);
-    auto x = noiseBurst (n, (size_t) (0.1 * fs), (size_t) (0.5 * fs), 3, 0.5f);
-    auto r = run (p, fs, x, x);
-    bool finite = true; for (float s : r.L) if (! std::isfinite (s)) { finite = false; break; }
-    check (finite, "no NaN or inf in 40 s at maximum everything", finite ? "finite" : "NOT FINITE");
-    const double e1 = rmsOf (r.L, (size_t) (2 * fs), (size_t) (4 * fs));
-    const double e2 = rmsOf (r.L, (size_t) (20 * fs), (size_t) (22 * fs));
-    const double e3 = rmsOf (r.L, (size_t) (37 * fs), (size_t) (39 * fs));
-    check (e2 < e1 && e3 < e2, "after the input stops the echoes DECAY",
-           fmt ("rms %.2e -> %.2e -> %.2e", e1, e2, e3));
-
-    // Silence in, silence out: exact zeros, not merely small.
+    auto peakOf = [] (const std::vector<float>& x, size_t a, size_t b) { double m = 0.0; for (size_t i = a; i < b; ++i) m = std::max (m, (double) std::abs (x[i])); return m; };
+    {
+        // below unity loop gain the echoes must DECAY once the input stops
+        Params p = wetOnly(); p.feedback = 0.5f; p.speed = 76.0f; soloHead (p, 1.5);
+        const size_t n = (size_t) (12.0 * fs);
+        auto x = noiseBurst (n, (size_t) (0.1 * fs), (size_t) (0.5 * fs), 3, 0.3f);
+        auto r = run (p, fs, x, x);
+        const double e1 = rmsOf (r.L, (size_t) (1 * fs), (size_t) (2 * fs));
+        const double e2 = rmsOf (r.L, (size_t) (10 * fs), (size_t) (11 * fs));
+        check (e2 < e1 * 1e-3, "feedback 50 %: after the input stops the echoes decay", fmt ("rms %.2e -> %.2e", e1, e2));
+    }
+    {
+        // at 100 % the loop runs past unity and sustains on its own - held by the
+        // tape running out of remanence, not by a limiter: the output can never
+        // exceed full remanence through the repro alignment
+        Params p = wetOnly(); p.feedback = 1.0f; p.speed = 19.0f; soloHead (p, 4.0);
+        const size_t n = (size_t) (30.0 * fs);
+        auto x = noiseBurst (n, (size_t) (0.1 * fs), (size_t) (0.3 * fs), 5, 0.3f);
+        Engine e;
+        auto r = run (p, fs, x, x, nullptr, 0.0, &e);
+        const double late = rmsOf (r.L, (size_t) (25 * fs), (size_t) (29 * fs));
+        const double pk = peakOf (r.L, (size_t) (1 * fs), n);
+        const double ceiling = e.outputTrim() * 1.0;     // M = 1, one head at 0 dB
+        check (late > 0.05, "feedback 100 %: the loop self-oscillates (sustains 25 s on)", fmt ("rms %.3f", late));
+        check (pk <= ceiling * 1.06, "and the tape holds it: peak within full remanence", fmt ("peak %.3f, full remanence %.3f (%+.2f dBFS)", pk, ceiling, 20 * std::log10 (ceiling)));
+    }
+    {
+        Params p; p.mix = 1.0f; p.feedback = 1.0f;
+        p.h1On = p.h2On = p.h3On = 1; p.h1Lvl = p.h2Lvl = p.h3Lvl = 6.0f;
+        p.bass = 12.0f; p.treble = 12.0f; p.recLevel = 12.0f;
+        p.speed = 76.0f; p.h1Pos = 1.5f; p.h2Pos = 3.0f; p.h3Pos = 4.5f;
+        const size_t n = (size_t) (40.0 * fs);
+        auto x = noiseBurst (n, (size_t) (0.1 * fs), (size_t) (0.5 * fs), 3, 0.5f);
+        auto r = run (p, fs, x, x);
+        bool finite = true; for (float v : r.L) if (! std::isfinite (v)) { finite = false; break; }
+        const double a = peakOf (r.L, (size_t) (10 * fs), (size_t) (20 * fs)), b = peakOf (r.L, (size_t) (30 * fs), (size_t) (40 * fs));
+        check (finite && b <= a * 1.02, "everything at maximum: finite, and not growing", fmt ("peak %.2f then %.2f", a, b));
+    }
     {
         Params q; q.mix = 1.0f; q.feedback = 0.8f; q.h1On = q.h2On = q.h3On = 1;
         std::vector<float> z ((size_t) (3 * fs), 0.0f);
         auto rz = run (q, fs, z, z);
-        double m = 0.0; for (float s : rz.L) m = std::max (m, (double) std::abs (s));
+        double m = 0.0; for (float v : rz.L) m = std::max (m, (double) std::abs (v));
         check (m == 0.0, "silence in gives exact zeros out", fmt ("max %.3e", m));
     }
 }
@@ -459,11 +485,20 @@ static void testSync()
     const double fs = 48000.0;
     {
         Params p = wetOnly(); p.sync = 7; p.syncHead = 0; p.h1Pos = 4.0f;     // 1/4 at 120 BPM = 0.5 s
-        const size_t start = (size_t) (0.1 * fs), len = (size_t) (0.03 * fs);
-        auto x = noiseBurst ((size_t) (1.0 * fs), start, len, 9, 0.3f);
+        const size_t total = (size_t) (0.75 * fs);
+        std::vector<float> x (total, 0.0f);
+        double cin = 0.0, ein = 0.0;
+        for (size_t i = 0; i < total; ++i)
+        {
+            const double t = (double) i / fs - 0.05;
+            x[i] = (float) (0.03 * std::exp (-0.5 * t * t / (0.002 * 0.002)));   // small: the timing reference is the small-signal group delay, as in section 1
+            cin += (double) x[i] * x[i] * i; ein += (double) x[i] * x[i];
+        }
         Engine e;
         auto r = run (p, fs, x, x, nullptr, 120.0, &e);
-        const double lag = lagOf (x, r.L, (int) (0.5 * fs) - 40, (int) (0.5 * fs) + 40, start, len) / fs;
+        double cout = 0.0, eout = 0.0;
+        for (size_t i = (size_t) (0.538 * fs); i < (size_t) (0.562 * fs); ++i) { const double v = (double) r.L[i] * r.L[i]; cout += v * i; eout += v; }
+        const double lag = (cout / eout - cin / ein) / fs;
         check (std::abs (lag - 0.5) < 1e-6, "1/4 at 120 BPM puts the tempo head at 0.5 s",
                fmt ("%.7f s at %.3f cm/s", lag, e.speedCms()));
     }
@@ -562,6 +597,189 @@ static void testRailAndView()
     }
 }
 
+/*  The real-time model against the stage 2 reference, at the reference's own
+    conditions: 38.1 cm/s, 1 kHz, operating bias. Reference figures are from
+    docs/physics/05-reference-results.md (mtref, full settings). The comparisons
+    are RELATIVE (to 0 VU, to 1 kHz, to the 3.0 Hc bias row): the absolute level
+    is the repro alignment, which is trimmed to 0 VU by construction. */
+static void testAgainstReference()
+{
+    std::printf ("\n13. AGAINST THE REFERENCE (38.1 cm/s, 1 kHz, the reference's operating bias)\n");
+    const double fs = 48000.0, v = 38.1;
+    // The machine is aligned at 19.05 cm/s; the reference was measured at 38.1 with
+    // its own alignment. Set the bias and the 0 VU field to the reference's.
+    namespace S4 = mt::stock456;
+    const double biasRef = 20.0 * std::log10 (S4::HB_OP_REF38 / S4::HB_OPERATING);
+    const double amp0 = REF_AMP * S4::HS_0VU_REF38 / S4::HS_0VU;
+    auto tone = [&] (double f, double amp, double bias, double& fund, double* hd3)
+    {
+        Params p = wetOnly(); p.speed = (float) v; soloHead (p, 4.0); p.bias = (float) bias;
+        const double d = 4.0 / v;
+        const size_t n = (size_t) ((d + 0.5) * fs);
+        auto x = sine (n, f, fs, amp);
+        auto r = run (p, fs, x, x);
+        // a whole number of periods of f, well after the echo arrives
+        const size_t a = (size_t) ((d + 0.15) * fs);
+        const size_t len = (size_t) (std::floor (0.3 * f) / f * fs);
+        fund = goertzelAmp (r.L, a, a + len, f, fs);
+        if (hd3) *hd3 = goertzelAmp (r.L, a, a + len, 3.0 * f, fs) / fund;
+    };
+
+    // ---- level sweep (reference: demagnetised tape, nu fitted on the full process, 2026-10-11)
+    struct LvRow { double db, refRe0, refHd3; };
+    const LvRow rows[] = { { -20, -20.02, 0.00009 }, { -10, -10.00, 0.00059 }, { -6, -5.99, 0.00068 }, { 0, 0.0, 0.00143 },
+                           { 6, 5.82, 0.01019 }, { 10, 9.39, 0.02791 }, { 12, 10.99, 0.04308 }, { 16, 13.65, 0.08920 } };
+    double f0, h0; tone (1000.0, amp0, biasRef, f0, &h0);
+    double worstLv = 0.0, worstHd = 0.0, hdAt0 = 0.0, refHdAt0 = 0.0;
+    std::printf ("   %8s %10s %10s %10s %10s\n", "dB re 0VU", "out re 0VU", "reference", "HD3 %", "ref HD3 %");
+    for (const auto& rw : rows)
+    {
+        double a, h; tone (1000.0, amp0 * std::pow (10.0, rw.db / 20.0), biasRef, a, &h);
+        const double re = 20.0 * std::log10 (a / f0);
+        std::printf ("   %8.0f %10.2f %10.2f %10.3f %10.3f\n", rw.db, re, rw.refRe0, 100 * h, 100 * rw.refHd3);
+        worstLv = std::max (worstLv, std::abs (re - rw.refRe0));
+        if (rw.db >= 6) worstHd = std::max (worstHd, std::abs (20.0 * std::log10 (h / rw.refHd3)));
+        if (rw.db == 0) { hdAt0 = h; refHdAt0 = rw.refHd3; }
+    }
+    check (worstLv < 0.25, "the level transfer follows the reference within 0.25 dB (-20..+16)", fmt ("worst %.3f dB", worstLv));
+    check (worstHd < 1.5, "third harmonic follows the reference within 1.5 dB (+6..+16)", fmt ("worst %.2f dB", worstHd));
+    // KNOWN DEVIATION, not a pass: at 0 VU the DC-table method records less third
+    // harmonic than the AC reference. Excluded as causes: table resolution (41 -> 81
+    // s points moved it by 0.001 %), depth sampling (slab-integrated layers), bias
+    // phase (averaged). Both models share a ~0.06 % level-independent floor from the
+    // finite bias decay; at 0 VU that floor and the curve's own HD3 are comparable.
+    std::printf ("  [note] KNOWN DEVIATION: HD3 at 0 VU %.3f %% vs reference %.3f %% (%+.1f dB; %.0f vs %.0f dB re fundamental)\n",
+                 100 * hdAt0, 100 * refHdAt0, 20.0 * std::log10 (hdAt0 / refHdAt0), 20.0 * std::log10 (hdAt0), 20.0 * std::log10 (refHdAt0));
+    {
+        double lo = 0.0, hi = 20.0;
+        for (int it = 0; it < 18; ++it)
+        {
+            const double db = 0.5 * (lo + hi); double a, h;
+            tone (1000.0, amp0 * std::pow (10.0, db / 20.0), biasRef, a, &h);
+            (h < 0.03 ? lo : hi) = db;
+        }
+        double a, h; tone (1000.0, amp0 * std::pow (10.0, 0.5 * (lo + hi) / 20.0), biasRef, a, &h);
+        const double mol = 20.0 * std::log10 (a / f0);
+        check (std::abs (mol - 9.66) < 0.5, "MOL (3 % third harmonic) within 0.5 dB of the reference's +9.66 dB re 0 VU",
+               fmt ("%+.2f dB re 0 VU = %+.2f dB re 185 nWb/m (sheet +12.3)", mol, mol + 20.0 * std::log10 (250.0 / 185.0)));
+    }
+
+    // ---- response, -20 dB
+    {
+        const double fr[] = { 2000, 5000, 10000, 15000 };
+        const double ref[] = { -0.01, -0.08, -0.32, -0.72 };
+        double r1; tone (1000.0, amp0 * 0.1, biasRef, r1, nullptr);
+        double worst = 0.0;
+        std::printf ("   response:");
+        for (int i = 0; i < 4; ++i)
+        {
+            double a; tone (fr[i], amp0 * 0.1, biasRef, a, nullptr);
+            const double db = 20.0 * std::log10 (a / r1);
+            std::printf ("  %.0f Hz %+.2f (ref %+.2f)", fr[i], db, ref[i]);
+            worst = std::max (worst, std::abs (db - ref[i]));
+        }
+        std::printf ("\n");
+        check (worst < 0.25, "recording loss follows the reference within 0.25 dB to 15 kHz", fmt ("worst %.3f dB", worst));
+    }
+
+    // ---- bias curve at a fixed deep-gap signal of 0.08 Hc, relative to the 3.0 Hc row
+    {
+        struct BRow { double hb, r1, r10; };
+        const BRow br[] = { { 1.5, -13.76, -13.96 }, { 2.0, -11.83, -12.04 }, { 2.5, -10.98, -11.21 }, { 3.0, -10.40, -10.65 },
+                            { 4.0, -9.70, -10.02 }, { 6.0, -11.44, -11.72 }, { 8.0, -13.82, -14.34 } };
+        const double ref1at3 = -10.40, ref10at3 = -10.65;
+        const double hbOp = mt::stock456::HB_OPERATING;
+        const double amp = 0.08 / (mt::stock456::HS_0VU / REF_PEAK);  // deep-gap 0.08 Hc in sample units
+        double base1 = 0, base10 = 0, worst = 0.0;
+        std::printf ("   bias curve, dB re the 3.0 Hc row (1 kHz / 10 kHz):\n    ");
+        for (int pass = 0; pass < 2; ++pass)
+            for (const auto& b : br)
+            {
+                const double db = 20.0 * std::log10 (b.hb / hbOp);
+                double a1, a10; tone (1000.0, amp, db, a1, nullptr); tone (10000.0, amp, db, a10, nullptr);
+                if (pass == 0) { if (b.hb == 3.0) { base1 = a1; base10 = a10; } continue; }
+                const double o1 = 20.0 * std::log10 (a1 / base1), o10 = 20.0 * std::log10 (a10 / base10);
+                const double e1 = o1 - (b.r1 - ref1at3), e10 = o10 - (b.r10 - ref10at3);
+                std::printf (" %.1f: %+.2f/%+.2f (ref %+.2f/%+.2f) ", b.hb, o1, o10, b.r1 - ref1at3, b.r10 - ref10at3);
+                worst = std::max ({ worst, std::abs (e1), std::abs (e10) });
+            }
+        std::printf ("\n");
+        check (worst < 0.5, "the bias curve follows the reference within 0.5 dB (1.5 .. 8 Hc)", fmt ("worst %.3f dB", worst));
+    }
+}
+
+/*  Speed: the record process is not speed-independent - a slower tape sees more
+    bias cycles in the zone. Reference: mtref --speed= at a FIXED bias and 0 VU
+    field (the 38.1 alignment), 05-reference-results.md / 06-realtime-record.md. */
+static void testSpeeds()
+{
+    std::printf ("\n14. SPEED: THE SAME RECORDING AT 19 AND 76 cm/s (fixed bias and field)\n");
+    namespace S4 = mt::stock456;
+    const double fs = 48000.0;
+    const double biasRef = 20.0 * std::log10 (S4::HB_OP_REF38 / S4::HB_OPERATING);
+    const double amp0 = REF_AMP * S4::HS_0VU_REF38 / S4::HS_0VU;
+    auto tone = [&] (double v, double f, double amp, double& fund, double* hd3)
+    {
+        Params p = wetOnly(); p.speed = (float) v; soloHead (p, 4.0); p.bias = (float) biasRef;
+        const double d = 4.0 / v;
+        const size_t n = (size_t) ((d + 0.5) * fs);
+        auto x = sine (n, f, fs, amp);
+        auto r = run (p, fs, x, x);
+        const size_t a = (size_t) ((d + 0.15) * fs);
+        const size_t len = (size_t) (std::floor (0.3 * f) / f * fs);
+        fund = goertzelAmp (r.L, a, a + len, f, fs);
+        if (hd3) *hd3 = goertzelAmp (r.L, a, a + len, 3.0 * f, fs) / fund;
+    };
+    struct SpeedRef { double v, sens, hd6, hd10, l10, l15; };
+    const SpeedRef refs[] = { { 19.05, 0.63, 0.01377, 0.03416, -1.13, -2.38 },
+                              { 76.2, -1.25, 0.00540, 0.01874, -0.10, -0.23 } };
+    double base; tone (38.1, 1000.0, amp0, base, nullptr);
+    for (const auto& r : refs)
+    {
+        double a0, a6, h6, a10, h10, r1, r10, r15;
+        tone (r.v, 1000.0, amp0, a0, nullptr);
+        tone (r.v, 1000.0, amp0 * 2.0, a6, &h6);
+        tone (r.v, 1000.0, amp0 * std::pow (10.0, 0.5), a10, &h10);
+        tone (r.v, 1000.0, amp0 * 0.1, r1, nullptr);
+        tone (r.v, 10000.0, amp0 * 0.1, r10, nullptr);
+        tone (r.v, 15000.0, amp0 * 0.1, r15, nullptr);
+        const double sens = 20.0 * std::log10 (a0 / base);
+        const double l10 = 20.0 * std::log10 (r10 / r1), l15 = 20.0 * std::log10 (r15 / r1);
+        std::printf ("   %.2f cm/s: sensitivity %+.2f dB re 38.1 (ref %+.2f); HD3 +6 dB %.3f %% (ref %.3f), +10 dB %.3f %% (ref %.3f); loss 10k %+.2f (ref %+.2f), 15k %+.2f (ref %+.2f)\n",
+                     r.v, sens, r.sens, 100 * h6, 100 * r.hd6, 100 * h10, 100 * r.hd10, l10, r.l10, l15, r.l15);
+        check (std::abs (sens - r.sens) < 0.25, fmt ("%.2f cm/s: sensitivity follows the reference within 0.25 dB", r.v).c_str(), fmt ("%+.3f dB off", sens - r.sens));
+        const double hdErr = std::max (std::abs (20.0 * std::log10 (h6 / r.hd6)), std::abs (20.0 * std::log10 (h10 / r.hd10)));
+        check (hdErr < 1.5, fmt ("%.2f cm/s: third harmonic within 1.5 dB at +6 and +10 dB", r.v).c_str(), fmt ("worst %.2f dB", hdErr));
+        const double lErr = std::max (std::abs (l10 - r.l10), std::abs (l15 - r.l15));
+        check (lErr < 0.35, fmt ("%.2f cm/s: recording loss within 0.35 dB at 10 and 15 kHz", r.v).c_str(), fmt ("worst %.2f dB", lErr));
+    }
+
+    // The deep layers' cells are 2 and 4 um. At the slowest speed a 15 kHz tone is
+    // 3.2 um on tape and would fold in them; their kernels are widened where their
+    // Nyquist is inside the audio band (it was -25 dB re the tone without that).
+    {
+        const double v = 4.75, f = 15000.0, lamUm = v * 1.0e4 / f;
+        double fund; tone (v, f, amp0 * 0.5, fund, nullptr);
+        Params p = wetOnly(); p.speed = (float) v; soloHead (p, 4.0); p.bias = (float) biasRef;
+        const double d = 4.0 / v;
+        const size_t n = (size_t) ((d + 0.5) * fs);
+        auto x = sine (n, f, fs, amp0 * 0.5);
+        auto rr = run (p, fs, x, x);
+        const size_t a = (size_t) ((d + 0.15) * fs), len = (size_t) (0.3 * fs);
+        std::printf ("   15 kHz at 4.75 cm/s (%.2f um on tape)", lamUm);
+        double worst = -300.0;
+        for (double pitchUm : { 2.0, 4.0 })
+        {
+            const double fa = std::abs (1.0 / lamUm - 1.0 / pitchUm) * v * 1.0e4;
+            const double db = 20.0 * std::log10 (goertzelAmp (rr.L, a, a + len, fa, fs) / fund);
+            std::printf ("; %.0f um cells fold it to %.0f Hz at %+.1f dB re the tone", pitchUm, fa, db);
+            worst = std::max (worst, db);
+        }
+        std::printf ("\n");
+        check (worst < -55.0, "the deep layers' coarse cells do not fold (15 kHz at 4.75 cm/s, < -55 dB re the tone)", fmt ("worst %+.1f dB", worst));
+    }
+}
+
 static void testCost()
 {
     std::printf ("\n12. COST (48 kHz stereo, 76 cm/s, three heads, feedback)\n");
@@ -576,13 +794,14 @@ static void testCost()
         e.process (x.data() + i, x.data() + i, L.data(), R.data(), 256);
     const double sec = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
     const double pct = 100.0 * sec / 10.0;
-    check (pct < 15.0, "stage 1 fits the NORMAL budget (< 15 % of a core)", fmt ("%.2f %% of one core", pct));
+    std::printf ("   record head rebuilt %d times (once in prepare at the alignment speed, once at 76)\n", e.recordBuilds());
+    check (pct < 15.0, "fits the NORMAL budget (< 15 % of a core)", fmt ("%.2f %% of one core", pct));
 }
 
 int main (int argc, char** argv)
 {
     verbose = argc > 1 && std::strcmp (argv[1], "-v") == 0;
-    std::printf ("Magneto Transport - stage 1 bench\n");
+    std::printf ("Magneto Transport - bench (stage 3)\n");
     {
         Engine e; Params p; e.setParams (p); e.prepare (48000.0, 256);
         std::printf ("internal rate %.0f Hz (x%d), read-ahead %.3f us\n",
@@ -598,6 +817,8 @@ int main (int argc, char** argv)
     testSync();
     testEveryControl();
     testRailAndView();
+    testAgainstReference();
+    testSpeeds();
     testCost();
     std::printf ("\n%d checks, %d failed - %s\n", g_pass + g_fail, g_fail, g_fail ? "FAILURES" : "ALL CLEAR");
     return g_fail ? 1 : 0;

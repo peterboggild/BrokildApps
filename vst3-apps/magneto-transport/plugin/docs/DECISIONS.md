@@ -156,3 +156,106 @@ target: RESP_DB per layer and bias, then the section 6 tolerances against
 mtref renders. Rejected: a single depth-averaged kernel (loses the phase
 between layers) and a fitted formula for G (smooths the old-new coupling that
 test 6 showed).
+
+---
+
+# Stage 3 (2026-10-11)
+
+## The reference's fresh tape was SATURATED — every stage 2 figure re-measured
+
+A default Preisach staircase starts at negative saturation, and the stage 2
+reference recorded every measurement onto tape in that state. No recorder does:
+an erase head leaves tape AC-demagnetised. Found when the real-time model, whose
+tables start from demagnetised tape, read 2 dB below the reference at 0 VU while
+agreeing with it layer by layer. Fixed with `Stair::demag`; sections 2-6 of
+05-reference-results.md re-measured. The largest consequence: bias erasure is
+**-42 dB per pass, not -18** (the saturated deep layers had been surviving).
+
+## The interaction tail is fitted on the full record process
+
+On demagnetised tape the ideal anhysteretic curve is 1.3 dB optimistic about
+MOL. nu is now bisected on the whole chain - align bias the sheet's way (10 kHz
+3 dB past its peak), set 0 VU, find 3 % HD3 - until MOL = 760 nWb/m: nu = 2.059.
+HD3 at 185 nWb/m then reads 0.070 % against the sheet's 0.10 % (open, 3 dB).
+
+## Table entries are averaged over 8 bias phases
+
+One cell sees one bias phase; its result carries a phase-specific offset that
+differs from entry to entry, and the first real-time curve had a non-monotonic
+third harmonic because of it. A real tape averages the phases.
+
+## Four layers, each a SLAB averaged over 4 sub-depths
+
+Point layers at the slab centres were 1.4 dB off the converged reference near
+the bias threshold (the recording depth moves through the coating with bias).
+Each layer's tables are now the average over 4 sub-depths of its 3.5 um slab -
+16 depths, finer than the converged 8 - at no runtime cost. Bias curve error
+fell from 1.25 to 0.19 dB. The price: an overdub sees the slab's average
+history, not its depth profile inside the slab.
+
+## The tables have a SPEED axis; the machine is aligned at 19.05 cm/s
+
+At a fixed bias and field the reference records +0.6 dB at 19 cm/s and -1.3 dB
+at 76 cm/s relative to 38.1 (a slower tape sees more bias cycles in the zone).
+Tables measured at 4.76 / 9.53 / 19.05 / 38.1 / 76.2 cm/s, log-interpolated,
+rebuilt as the motor glides (when the speed moves 0.2 %). The machine is aligned
+at its nominal 19.05 cm/s, so unity at defaults holds; at other speeds level and
+distortion move with the physics. The rail's zero is the operating-bias zone
+centroid at the CURRENT speed, so delay = distance / speed at every speed.
+
+## The real-time record process
+
+Field ring at the gap -> per-slab zone kernel (measured centroid, fitted width;
+see below) -> G[v][A][M_old][s] with the cell's old
+remanence. G antisymmetrised (exact silence, no DC). Slices resampled to a
+1025-point uniform s grid once per rebuild, so a cell costs one multiply, not
+an asinh. Repro aligned so 250 nWb/m = 0 VU at operating bias and 19.05 cm/s.
+
+## Feedback is uncapped
+
+FEEDBACK_MAX = 1.5 small-signal loop gain at 100 %. Past unity the loop
+self-oscillates and the tape holds it: with one head at 0 dB the output cannot
+exceed full remanence, +0.16 dBFS (0 VU is -18 dBFS and full remanence is
++18.3 dB above 250 nWb/m).
+
+## Known deviation, kept visible: HD3 at 0 VU
+
+Real time 0.096 %, reference 0.143 % at 38.1 cm/s (-60 vs -57 dB re the
+fundamental). Ruled out: table s resolution (41 -> 81 points: 0.001 % change),
+depth sampling (slabs), bias phase (averaged). Above 0 VU they agree within
+0.4 dB. The bench prints it as a KNOWN DEVIATION line, not a pass.
+
+## Engine memory off the stack
+
+The resampled slices and field rings are ~250 KB; held in the object they
+overflowed the bench's 1 MB stack (exit 127, output lost). Now heap-allocated.
+
+## Slab cells are point samples, and anti-aliased only where they must be
+
+The first speed run lost 0.5 dB more at 15 kHz / 19 cm/s than the reference.
+The zone shape was not the cause: a Gaussian width fitted to the kernel's own
+transfer (6-40 um wavelengths, now what the tables carry) differs from its rms
+by under 5 %. The cause was the cell width counted twice: the kernel took a box
+for it, and playback already reconstructs each slab with a smooth curve through
+its cells. Dropping the box: 19 cm/s within 0.18 dB, 38.1 within 0.07 dB.
+
+The deepest slab carries ~3 % of the output, not the 0.2 % its table gain
+suggests, so its coarse 4 um cells matter. Point-sampled, the coarse slabs
+folded a 15 kHz tone at 4.75 cm/s to -25 dB. So a slab whose own Nyquist
+(speed / two cells) falls inside the audio band gets its kernel widened to be
+60 dB down there, faded in from 24 to 16 kHz: only the 2 um slab below 9.5 cm/s
+and the 4 um slab below 19 cm/s. Folding now -86 dB, asserted in the bench;
+nothing changes at 19 cm/s and above.
+
+## Timing is checked with small signals
+
+The sync check drove a +7 dB pulse and read 2.1 us late at 8 cm/s: at that level
+the slabs' weights shift with the nonlinearity and so does the centroid. The
+rail is defined at small signal (as the section 1 delay check is), so the sync
+check now uses the same small pulse: 0.5000000 s.
+
+## Cost
+
+Kernel cut at 4 sigma (6e-5 of its mass) and both tracks in one pass over the
+taps: 14.8 % of a core at the worst case (76 cm/s, three heads, feedback);
+recording the cells ~8 %, reading them ~5 %.

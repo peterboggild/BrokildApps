@@ -31,6 +31,7 @@ struct Params
 
     float drive     = 0.0f;   // dB, input amplifier
     float recLevel  = 0.0f;   // dB, into the record head
+    float bias      = 0.0f;   // dB re the operating bias (the 456 alignment)
     float mix       = 0.35f;  // 0 dry .. 1 wet, equal power
     float killDry   = 0.0f;
     float output    = 0.0f;   // dB
@@ -90,6 +91,8 @@ inline const Spec SPECS[] =
 
     { "drive",    "INPUT DRIVE",  Kind::Lin, -24.0f, 24.0f, 0.0f, "dB", nullptr, &Params::drive,    "Gain of the input amplifier." },
     { "reclevel", "RECORD LEVEL", Kind::Lin, -24.0f, 12.0f, 0.0f, "dB", nullptr, &Params::recLevel, "How hard the record head drives the tape. 0 dB puts a -18 dBFS tone at 250 nWb/m." },
+    { "bias",     "BIAS",     Kind::Lin, -10.0f, 10.0f, 0.0f, "dB", nullptr, &Params::bias,
+      "Bias current, relative to the alignment point (10 kHz 3 dB past its peak). Less bias: brighter, louder, dirtier. More: cleaner and darker." },
     { "mix",      "MIX",      Kind::Lin, 0.0f, 1.0f, 0.35f, "", nullptr, &Params::mix,     "Dry to wet, equal power." },
     { "killdry",  "KILL DRY", Kind::Toggle, 0, 1, 0, "", nullptr, &Params::killDry,         "Removes the dry signal entirely, for use on a send." },
     { "output",   "OUTPUT",   Kind::Lin, -24.0f, 12.0f, 0.0f, "dB", nullptr, &Params::output, "Output level." },

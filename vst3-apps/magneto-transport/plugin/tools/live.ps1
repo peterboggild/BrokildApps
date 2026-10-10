@@ -1,13 +1,8 @@
 # Launch the standalone with CDP open and run a jobs file against the LIVE panel.
 #
-# Two traps this handles, both already paid for in this workshop:
-#  - WebView2 joins a RUNNING browser process per user-data folder and ignores
-#    WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS if one is already up, so every stale
-#    msedgewebview2 has to die first or the debugging port never opens.
-#  - Smart App Control blocks by file HASH and can refuse a freshly linked exe.
-#    A few random bytes appended past the last PE section change the hash without
-#    changing the program: overlay data after the final section is ignored by the
-#    loader.
+# Smart App Control blocks by file HASH and can refuse a freshly linked exe: a
+# few random bytes appended past the last PE section change the hash without
+# changing the program (overlay data after the final section is ignored).
 param(
   [int]$Port = 9251,
   [string]$Jobs = "$PSScriptRoot\..\test\live-jobs.json",
@@ -15,7 +10,9 @@ param(
   [switch]$KeepOpen
 )
 
-Get-Process msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+# The standalone takes a fresh WebView2 profile per process (PluginEditor.cpp), so
+# no other browser process can hold its folder - and killing every msedgewebview2
+# would blank the panels of any plugin open in a running DAW. Only our own goes.
 Get-Process "Magneto Transport" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 600
 
