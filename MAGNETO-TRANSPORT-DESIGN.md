@@ -192,7 +192,7 @@ Every stage ends with its bench clear. **LISTEN** = stop, install, Peter listens
 | 4 | playback physics, EQ standards, electronics, gain staging, stereo crosstalk/azimuth | |
 | 5 | transport mechanics: motor, capstan, bearings, elastic tape, scrape flutter, reels | FABLE, **LISTEN C** |
 | 6 | tape stock: particle statistics → hiss, modulation noise, dropouts; stocks, age, wear | |
-| 7 | FLUX MEMORY: partial erase, bias-erase overwrite, freeze | **LISTEN D** |
+| 7 | FLUX MEMORY: partial erase, bias-erase overwrite, freeze; **LOOPER** transport (BUGLIST 2, approved) | **LISTEN D** |
 | 8 | panel driven by the simulation, quality tiers, presets, smoothing, bypass, latency, host test, pluginval if available | |
 | 9 | decal brief → **stop**; integrate on return | |
 | 10 | mechanical sounds, manual, landing page, zip; README draft for approval | |
@@ -222,3 +222,80 @@ Prior-art check: when a slot appears, before any page says "never".
 - Erase: full. FLUX MEMORY is stage 7.
 - Changing the loop length or the transport mode **splices a new loop** (fade,
   clear, resume) — honest, since a real machine cannot stretch a loop.
+
+---
+
+## 9. Stage 2 brief — the offline reference (written for the Fable session)
+
+Stage 1 is done (bench 53/53, listened to and liked). Stage 2 is the delicate math.
+**Write `docs/physics/03-hysteresis.md` and `04-record-process.md` first**, then the
+reference program `plugin/reference/` (target `mtref`, plain C++, no JUCE, its own
+CMake beside `test/`). It does not ship; stage 3 is fitted to it.
+
+### The stock to model first: a 1970s high-output studio ferric (Ampex 456 class)
+
+Published figures (Quantegy 456 data sheet as quoted by the searches below; the PDF
+itself would not render here, so re-check if a readable copy turns up):
+
+| | 456 | in model units |
+|---|---|---|
+| coercivity | 330 Oe | Hc = 26.3 kA/m |
+| retentivity | 1460 G | Mr = 116 kA/m (Br / mu0) |
+| oxide coating | 0.55 mil | delta = 14 um |
+| MOL (3 % third harmonic, 1 kHz) | +12.3 dB re 185 nWb/m | 760 nWb/m rms |
+| 3rd harmonic at reference level | 0.1 % | |
+| reference level of the sheet | 185 nWb/m; measured at 15 ips | |
+
+Plausibility, before any code: mu0 * Mr * delta = 4pi e-7 x 116e3 x 14e-6 = 2040 nWb/m
+at long wavelength and full remanence. MOL 760 rms = 1075 peak = 53 % of that - the
+right neighbourhood for 3 % third harmonic. Our 0 VU (250 nWb/m) is +2.6 dB re 185,
+so MOL lands about +9.7 dB above OUR reference. Squareness and SFD are not on the
+sheet: take squareness ~0.8 (Ms ~145 kA/m) and SFD ~0.35 as typical acicular
+gamma-Fe2O3, state them as assumptions, and let the MOL and the 0.1 % figure be
+what they are tested against.
+
+Sources: [zZounds 456 listing](https://www.zzounds.com/item--AMX456173111),
+[456 data sheet copy](http://stereo-hifi.com/wp-content/uploads/2017/10/Quantegy_456.pdf).
+
+### The model
+
+- **Preisach** with a factorised density: lognormal hysteron coercivity hc (median ~Hc,
+  width from SFD) x Gaussian interaction field hu (sigma fitted to squareness).
+  Precompute the **Everett function** E(alpha, beta) on a grid (bilinear lookup);
+  per cell keep the **alternating-extremum staircase** (wiping-out rule), and
+  M = Ms (2 A+ / A_total - 1). Minor loops close by construction - check it:
+  10 000 cycles between fixed fields must return the same M to rounding.
+- **Coating in depth layers** (~8 across 14 um), each with its own state per cell.
+- **Record head = Karlqvist** field Hx(x, y) (gap ~6 um, spacing ~0.2 um),
+  Hg proportional to (signal current + bias current). Bias **150 kHz** (studio
+  practice; the brief said "~100 kHz"), integrated at >= 32 steps per bias cycle
+  (~4.8 MHz). Each tape cell is advected through the field independently (cells do
+  not interact in a scalar Preisach model), so it parallelises over cells.
+- Ignore demagnetising fields and vertical-field (vector) effects in the reference,
+  and SAY SO; both are candidates for later if the HF numbers disagree with data.
+
+### What `mtref` must measure (each is a stage 3 target or a check)
+
+1. The model's own major loop: Ms, Mr, Hc, squareness, SFD vs the targets above.
+2. Bias curve: 1 kHz and 10 kHz output vs bias level; define 0 dB bias as the
+   industry alignment (peak 10 kHz output, then overbias by the 456's +3 dB setting
+   at 15 ips) and record where that lands.
+3. 1 kHz sine at -20 .. +15 dB re reference: depth-averaged flux, THD, **MOL**,
+   the 0.1 % at reference - against the sheet.
+4. HF response vs wavelength at under / optimum / over bias (over-bias must lose
+   treble because the recording zone moves deeper - the physical reason).
+5. **Bias erasure**: record, then a second pass with bias only (no signal): the
+   residual in dB. This is what FLUX MEMORY's and the LOOPER's overdub decay will be.
+   Then the erase head (strong decaying AC): erase depth.
+6. **The one-number-per-cell claim** (DECISIONS): two cells with the same remanence
+   but different histories, recorded over identically with bias + signal - do they
+   end the same? If not, stage 3 needs more state per cell.
+7. Cost per second of tape at 0.5 um cells, so the stage 3 equivalent knows its budget.
+
+### Traps already paid for (see CLAUDE.md for the long versions)
+
+- Write patch scripts and anything with a backslash with the Write tool, never a
+  bash heredoc or `node -e`.
+- A failed build runs the STALE exe - check the build exit code before believing numbers.
+- Run fresh exes through `tools/run-sac.sh` (Smart App Control).
+- Render long enough to reach the effect under test; a probe can lie before the code does.

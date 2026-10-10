@@ -377,10 +377,58 @@ function head(x, label, col, lit, w){
   }
 }
 
-function tapeLine(pts){
-  cx.strokeStyle = "#5a3b22"; cx.lineWidth = 4; cx.lineJoin = "round";
-  cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1]);
-  for (let i = 1; i < pts.length; i++) cx.lineTo(pts[i][0], pts[i][1]);
+/*  The tape path as it really runs: a straight run is the common tangent of two
+    consecutive rollers, and the tape wraps an arc of each roller between its
+    incoming and outgoing tangent points. Each element is {x, y, r, s}: s is the
+    side the roller sits on (+1 = on perp(t), the right-hand side of travel in
+    canvas coordinates); left out, it is taken from the direction the path turns
+    there, since a roller is always on the inside of the turn it makes. The two
+    ends (a reel pack, a tank opening) only send or receive. */
+function tangentRun(a, b){
+  const ra = a.r * a.s, rb = b.r * b.s;
+  const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy);
+  const th = Math.atan2(dy, dx) - Math.asin(Math.max(-1, Math.min(1, (rb - ra) / L)));
+  const tx = Math.cos(th), ty = Math.sin(th), px = -ty, py = tx;
+  return { p: [a.x - ra * px, a.y - ra * py], q: [b.x - rb * px, b.y - rb * py], t: [tx, ty] };
+}
+function tapePath(el){
+  const n = el.length;
+  for (let i = 1; i < n - 1; i++){
+    if (el[i].s !== undefined || !el[i].r) { if (el[i].s === undefined) el[i].s = 1; continue; }
+    const ix = el[i].x - el[i - 1].x, iy = el[i].y - el[i - 1].y;
+    const ox = el[i + 1].x - el[i].x, oy = el[i + 1].y - el[i].y;
+    el[i].s = (ix * oy - iy * ox) >= 0 ? 1 : -1;
+  }
+  // the ends: pick the side that leaves (or meets) the pack on the outward face
+  for (const k of [0, n - 1]){
+    const e = el[k];
+    if (!e.r) { e.s = 1; continue; }
+    if (e.s !== undefined) continue;
+    let best = 1, bx = null;
+    for (const sd of [1, -1]){
+      e.s = sd;
+      const run = k === 0 ? tangentRun(e, el[1]) : tangentRun(el[n - 2], e);
+      const pt = k === 0 ? run.p : run.q;
+      const score = e.prefer === "right" ? pt[0] : -pt[0];
+      if (bx === null || score > bx){ bx = score; best = sd; }
+    }
+    e.s = best;
+  }
+  const runs = [];
+  for (let i = 0; i < n - 1; i++) runs.push(tangentRun(el[i], el[i + 1]));
+  cx.strokeStyle = "#5a3b22"; cx.lineWidth = 4; cx.lineCap = "round";
+  cx.beginPath();
+  cx.moveTo(runs[0].p[0], runs[0].p[1]);
+  for (let i = 0; i < runs.length; i++){
+    cx.lineTo(runs[i].q[0], runs[i].q[1]);
+    const e = el[i + 1];
+    if (i + 1 < n - 1 && e.r > 0){
+      const pin = runs[i].q, pout = runs[i + 1].p, tin = runs[i].t;
+      const a0 = Math.atan2(pin[1] - e.y, pin[0] - e.x), a1 = Math.atan2(pout[1] - e.y, pout[0] - e.x);
+      const cross = (pin[0] - e.x) * tin[1] - (pin[1] - e.y) * tin[0];
+      cx.arc(e.x, e.y, e.r, a0, a1, cross < 0);
+    }
+  }
   cx.stroke();
 }
 
@@ -416,9 +464,14 @@ function drawMachine(){
   if (t.mode === 0){
     reel(SUP, t.supR * 1000 * MM, anim.sup, "SUPPLY");
     reel(TAK, t.takR * 1000 * MM, anim.tak, "TAKE-UP");
-    const p0 = tangentFrom(SUP, t.supR * 1000 * MM, armL, 1);
-    const p9 = tangentFrom(TAK, t.takR * 1000 * MM, armR, -1);
-    tapeLine([p0, [armL[0] - 9, armL[1]], [armL[0], armL[1] + 9], [guideL[0] - 9, Y_T], [X_CAP + 30, Y_T], [guideR[0], Y_T], [armR[0], armR[1] + 9], [armR[0] + 9, armR[1]], p9]);
+    tapePath([
+      { x: SUP.x, y: SUP.y, r: t.supR * 1000 * MM, prefer: "right" },
+      { x: armL[0], y: armL[1], r: 9 },
+      { x: guideL[0], y: guideL[1], r: 9 },
+      { x: X_CAP, y: Y_T - 7.5, r: 7.5, s: -1 },      // tape runs under the capstan, against the pinch roller
+      { x: guideR[0], y: guideR[1], r: 9 },
+      { x: armR[0], y: armR[1], r: 9 },
+      { x: TAK.x, y: TAK.y, r: t.takR * 1000 * MM, prefer: "left" } ]);
   } else {
     // LOOP: the tank, and the loop coming back over the top
     cx.fillStyle = "rgba(0,0,0,0.35)"; cx.strokeStyle = "#4a5046"; cx.lineWidth = 2;
@@ -435,7 +488,16 @@ function drawMachine(){
     cx.fillText("LOOP TANK  " + t.loopLen.toFixed(2) + " m", 205, 378);
     roller(1330, 150, 30, anim.loop * 0.03 / 0.03 * (0.03 / 0.045), "#262b25");
     roller(470, 60, 22, anim.loop * (0.03 / 0.033), "#262b25");
-    tapeLine([[370, 300], [armL[0] - 9, armL[1]], [armL[0], armL[1] + 9], [guideL[0] - 9, Y_T], [X_CAP + 30, Y_T], [guideR[0], Y_T], [armR[0], armR[1] + 9], [armR[0] + 30, armR[1] - 20], [1360, 150], [1330, 120], [470, 38], [448, 60], [370, 90]]);
+    tapePath([
+      { x: 370, y: 300, r: 0 },                          // out of the tank
+      { x: armL[0], y: armL[1], r: 9 },
+      { x: guideL[0], y: guideL[1], r: 9 },
+      { x: X_CAP, y: Y_T - 7.5, r: 7.5, s: -1 },
+      { x: guideR[0], y: guideR[1], r: 9 },
+      { x: armR[0], y: armR[1], r: 9 },
+      { x: 1330, y: 150, r: 30 },
+      { x: 470, y: 60, r: 22 },
+      { x: 370, y: 90, r: 0 } ]);                        // back into the tank
   }
 
   // tension arms
