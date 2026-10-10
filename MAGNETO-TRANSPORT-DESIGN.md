@@ -68,6 +68,8 @@ the component is coded: `plugin/docs/physics/`.
 | GitHub | **install on this PC at every gate; push only when Peter says** |
 | fresh instance | **a well-kept studio machine**: real 456 hiss (~-70 dB under 0 VU), freshly serviced transport (W&F ~0.03 %), optimum bias |
 | mechanical sounds | **main output with their own level**, off by default |
+| away for hours (2026-10-11) | **go on to stage 8 without the listening gates**, each stage its own commit + install so any gate can be heard and stepped back; then the stage 9 decal brief; stage 10 stays local; nothing pushed |
+| model while away | **Fable** for the delicate math (stages 4-5, stage 7 erase tables) |
 
 ---
 
