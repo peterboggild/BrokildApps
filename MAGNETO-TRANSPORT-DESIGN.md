@@ -56,6 +56,18 @@ the component is coded: `plugin/docs/physics/`.
 | repo | BrokildApps, `vst3-apps/magneto-transport/plugin/` |
 | start | design doc, then stage 1 now |
 | model split | I flag the hand-offs where the math is done |
+| **name** | **"Magneto Transport"**, title case (2026-10-10, second round) |
+| wow and flutter | **TRANSPORT CONDITION macro + three cause controls** (CAPSTAN = flutter, REELS/TENSION = wow, SCRAPE = head friction) and a measured DIN/IEC W&F meter. Causes only, never modulation depth |
+| tape stocks | **all four**: 1970s high-output studio (456 class, default), vintage low-output, worn/shedding, budget/echo-machine |
+| EQ standard | **selectable, IEC default** (NAB the alternative) |
+| wear | **static knob + ACCUMULATE switch** (off by default): a LOOP physically wears per pass, saved with the project |
+| capstan motor | **selectable, AC synchronous default** (DC servo the alternative) |
+| LOOPER / FLUX MEMORY controls | **host parameters**: automatable and MIDI-learnable |
+| HEAD PATTERN | **approved, built in stage 8** |
+| looper | **approved** (third transport mode), built in stage 7 with FLUX MEMORY |
+| GitHub | **install on this PC at every gate; push only when Peter says** |
+| fresh instance | **a well-kept studio machine**: real 456 hiss (~-70 dB under 0 VU), freshly serviced transport (W&F ~0.03 %), optimum bias |
+| mechanical sounds | **main output with their own level**, off by default |
 
 ---
 

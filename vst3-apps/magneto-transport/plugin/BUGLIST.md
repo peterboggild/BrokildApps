@@ -4,7 +4,7 @@ Collected, not built, until Peter says go (house rule).
 
 ---
 
-## 1. HEAD PATTERN — heads 2 and 3 snap to synced positions (Peter, 2026-10-10) — awaiting go
+## 1. HEAD PATTERN — heads 2 and 3 snap to synced positions (Peter, 2026-10-10) — APPROVED, built in stage 8
 
 *"is there a way to get head 2 and 3 to swap to relevant positions for different
 standard synced positions, from which they can be moved or nudged?"*
