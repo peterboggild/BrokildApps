@@ -98,3 +98,47 @@ occurrences), so a project saved with the caps build opens the renamed one.
 Windows paths are case-insensitive, so the caps bundles were moved to
 Quarantine before installing - installing over them would have kept the caps
 folder name.
+
+## 2026-10-11 — the reference's interaction field: squareness is NOT the knob
+
+First density: coercivity lognormal + Gaussian interaction field, with squareness
+0.80 supplied by interactions alone. That forced the interaction width to
+0.78 Hc and the model was far too soft: MOL 1150 nWb/m against the sheet's 760,
+and no rising part on the bias curve. In an oriented tape squareness comes mostly
+from particle orientation, which in a scalar model is a moment factor, not an
+interaction. Now: interaction FWHM 0.40 Hc (literature order for gamma-ferric),
+Student-t tail shape fitted to the sheet's MOL, bulk S used only for the flux
+scale. MOL then lands within 0.3 dB. Cost: the DCD-derivative SFD is 0.52, broader
+than real tape, a known limitation of the classical model.
+
+## 2026-10-11 — one number per cell is DEAD; stage 3 carries depth
+
+The reference's test 6: three pre-states with identical flux, overwritten
+identically, leave residuals of -106, -19 and -8.5 dB depending on how deep the
+old recording went. What survives an overwrite is what lies below the new bias's
+reach. So the real-time tape needs a depth structure per cell. Decision for
+stage 3: **four layers per cell, each at its own resolution** - the deep layers
+physically cannot hold short wavelengths (their record zone is long AND playback
+thickness loss removes them), so the surface layer keeps 0.5 um cells and each
+deeper layer doubles the pitch (0.5, 1, 2, 4 um). Memory 30 MB per metre of
+stereo loop (180 MB at 6 m, 60 MB at the 2 m default) against 16 MB/m for one
+layer. The design doc's "8 MB per metre" was wrong by two: one layer, two tracks,
+0.5 um cells is 16 MB/m.
+
+## 2026-10-11 — the stage 3 record model will be a TABLE measured by the reference
+
+Per layer the record process is a function G(A, s, M_old): bias amplitude the
+layer sees, local signal field at the recording zone, the layer's previous
+remanence -> new remanence, plus a zone position and length per layer and bias
+(the HF recording loss). The reference program grows a `--tables` mode that
+measures G on a grid for each stock. Stage 3 interpolates it. A fitted formula
+was rejected: the test-6 coupling between old and new state is exactly what a
+formula would smooth over.
+
+## 2026-10-11 — open: the sheet's two distortion numbers
+
+The sheet gives HD3 0.1 % at 185 nWb/m and 3 % at 760. One tail parameter fits
+the second and leaves the first at 0.19 %. A two-parameter density (flat core,
+heavy tails) or a mean-field term would fit both. Left open: -55 dB instead of
+-60 dB of third harmonic 2.6 dB under 0 VU is not what decides the sound, and
+the brief says to report what is imperfect rather than tune it in.

@@ -100,7 +100,7 @@ capstan. A material point with tape coordinate `u` sits at path position
   stock profile for the whole 730 m pack is procedural (a hash of position), so
   nothing of that length is stored.
 
-Memory: 8 MB per metre of stereo loop (96 MB at 6 m), allocated to the current need, so a REEL instance holds 6.4 MB. Noted in
+Memory: 16 MB per metre of stereo loop for one layer; stage 3 carries four layers at halving resolution, 30 MB/m (180 MB at 6 m, 60 MB at the 2 m default), allocated to the current need. Noted in
 DECISIONS.
 
 Per-cell state: remanent magnetisation `M` (a fluxivity, nWb/m). Why one number
@@ -199,7 +199,7 @@ Every stage ends with its bench clear. **LISTEN** = stop, install, Peter listens
 | # | stage | gate |
 |---|---|---|
 | 1 | tape as a medium, ideal heads, simple motor glide, both transport modes, the feedback wire, placeholder panel | **LISTEN A** — a working delay with real Doppler |
-| 2 | physics notes + offline reference: Preisach ferric + explicit-bias record process | FABLE |
+| 2 | physics notes + offline reference: Preisach ferric + explicit-bias record process | FABLE - **DONE 2026-10-11**, `docs/physics/05-reference-results.md` |
 | 3 | real-time record process validated against 2; saturation contains feedback; bias live | **LISTEN B** |
 | 4 | playback physics, EQ standards, electronics, gain staging, stereo crosstalk/azimuth | |
 | 5 | transport mechanics: motor, capstan, bearings, elastic tape, scrape flutter, reels | FABLE, **LISTEN C** |
@@ -344,3 +344,23 @@ separate layers and pivots, a master style paragraph) PLUS what the fleet learne
   the generator garbles it.
 - On return: an ingest script crops to the measured content, checks alpha and pair
   registration, and reports per part before anything is wired in.
+
+---
+
+## 11. Stage 2 is done (2026-10-11) - what stage 3 inherits
+
+Read `plugin/docs/physics/03-hysteresis.md`, `04-record-process.md`,
+`05-reference-results.md` and the four DECISIONS entries of 2026-10-11. In one
+paragraph: the reference lands MOL within 0.3 dB of the 456 sheet with no
+tuning beyond one tail parameter; bias erasure is -18 dB per pass; the erase
+head's transition is h_e 0.75-1.75; and an overwrite depends on how DEEP the old
+recording went, so **the real-time tape carries four layers per cell at halving
+resolution** and its record process is **a table G(A, s, M_old) per layer that
+the reference measures** (`mtref --tables`, to be written at the start of stage 3),
+with a recording-zone position and length per layer and bias for the HF loss.
+
+Stage 3 then: the table mode in the reference; the real-time tape with four
+layers; the record model as table lookup with the zone averaging; bias live on
+the panel; feedback uncapped (tape saturation is what contains it now); and the
+tolerances of section 6 proven against the reference on sines, sweeps, drums and
+voice. Then LISTEN B.
