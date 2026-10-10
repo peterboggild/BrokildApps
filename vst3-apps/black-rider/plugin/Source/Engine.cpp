@@ -508,15 +508,24 @@ void Engine::noteOn (int note, float vel)
     susKeys[(size_t) note] = false;
     if (p.lkey > 0.5f) lfoPh = 0.0f;
 
+    /*  REAL LEGATO: with LEGATO on, GLIDE happens only between OVERLAPPING
+        notes. A note played after you lifted off starts on its own pitch,
+        even inside the previous note's release tail - "still sounding" is
+        not "still held". Overlap means a gate is up when the new key goes
+        down, so a held sustain pedal counts as holding the note, as on any
+        mono synth. LEGATO off keeps the always-on portamento. */
     if (mode == 2)
     {
+        bool overlap = false;                                // any key (or pedal) still holding a voice
+        for (auto& u : voices) if (u.gate) { overlap = true; break; }
         Voice* v = allocVoice (note);
         const bool wasOn = v->gate;
         const bool wasSounding = v->sounding();              // before the gate goes up, or it always says yes
         v->note = note; v->vel = vel; v->gate = true; v->order = ++noteSerial;
         v->onAt = samplesDone;
         if (! wasSounding || ! wasOn || ! legato) { v->eg1.gate (true); v->eg2.gate (true); }
-        if (! wasSounding) v->pitch = (float) note;          // a fresh voice does not glide from nowhere
+        if (! wasSounding || (legato && ! overlap))          // a fresh voice does not glide from nowhere,
+            v->pitch = (float) note;                         // and a detached legato note does not glide
         v->lastNote = note;
         leadVoice = (int) (v - &voices[0]);
         assignPans();
@@ -538,7 +547,7 @@ void Engine::noteOn (int note, float vel)
         v.note = note; v.vel = vel; v.gate = true; v.order = ++noteSerial;
         v.onAt = samplesDone;
         if (! wasOn || ! legato || ! wasSounding) { v.eg1.gate (true); v.eg2.gate (true); }
-        if (! wasSounding && heldN <= 1) v.pitch = (float) note;
+        if ((! wasSounding && heldN <= 1) || (legato && ! wasOn)) v.pitch = (float) note;
         v.lastNote = note;
     }
     leadVoice = 0;

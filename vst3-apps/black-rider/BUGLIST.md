@@ -8,7 +8,21 @@ BWFX-BUGLIST.md at the repo root instead.
 
 ## Open
 
-### 1. LADDER filter seems to lower the volume — MEASURED 2026-09-26, PETER IS RIGHT
+(nothing open)
+
+## Done
+
+### Real legato — FIXED in 261010.1 (Peter, 2026-10-10: "bends on overlapping notes and not on non-overlapping notes")
+
+The envelopes were already legato; GLIDE was not. Pitch was reset only when the voice had
+gone fully silent, so a detached note played inside the previous note's RELEASE tail glided
+too, and the LEGATO switch did nothing to glide at all - against the manual, which already
+promised legato glide. Now, with LEGATO on, a note glides only when a key (or the pedal) is
+still holding a voice when it goes down; LEGATO off keeps portamento on every note. POLY
+follows the same rule. Bench `[legato]`: mono and unison, overlap 155 Hz (gliding), detached
+in a 0.7 release 220.1 Hz (snapped), LEGATO off 155 Hz. Fails on the old engine (155 Hz).
+
+### LADDER filter seems to lower the volume — FIXED in 261010.1
 
 **LADDER sits a mean 12.0 dB below GROWL** across CUT 0.25-0.90 x PEAK 0.0-0.9
 (`test/levelprobe.cpp`, target `bklevel`; EG1>CUTOFF, KEY TRACK and LFO>CUTOFF all
@@ -62,6 +76,14 @@ the CUT range and across PEAK 0..1. If LADDER sits systematically low:
   better that the filters sound good and right than the existing presets
   are the same") - but confirm before shipping, or remap seed levels.
 
-## Done
 
-(nothing yet)
+**Fixed 2026-10-10 (Peter asked again): the output is scaled by (1 + k)**, so the
+passband holds at unity like the Sallen-Key models and resonance rises above a level low
+end. Chosen by sweep (`b/_build/ladtune`): output compensation 1.0 took the mean deficit
+-9.7 -> -1.3 dB; input-side compensation only recovered half (the summing-node tanh eats it).
+Bench `[ladder]` at CUT 0.64: LADDER - GROWL -2.7 / -0.2 / +0.1 / +1.0 dB at PEAK
+0 / .3 / .6 / .9 (was -2.0 / -8.4 / -11.1 / -12.5). Self-oscillation now ~4 dB above
+SCREAM's (it was 11 dB below). What remains near a closed cutoff is the honest part: 24
+dB/oct eats more of a note sitting at the corner. Every seed that uses LADDER is louder,
+on Peter's Clone Wars ruling quoted above. Landing page, manual and README no longer say
+the ladder thins the bass.

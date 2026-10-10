@@ -7,7 +7,7 @@
   "icon": "keys",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/black-rider.jpg",
-  "note": "Windows VST3 · build 260926.1 · free download · 200 seed patches · 18-page manual.",
+  "note": "Windows VST3 · build 261010.1 · free download · 200 seed patches · 18-page manual.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Black-Rider-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Black-Rider-VST3-win64.zip",
-      "bytes": 7547762,
-      "sha256": "c2d41a87b169101c2554f0e270c3e95584bee468e76458f064e685cf3f842152"
+      "bytes": 7548152,
+      "sha256": "328239dbb8ecf52a60847e00c9e586a30939ee9dade05af2d2fc08199317dab3"
     }
   ]
 }

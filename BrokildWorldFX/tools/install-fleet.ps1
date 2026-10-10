@@ -34,7 +34,8 @@ $plugins = @(
   @{ dir = "ArtefactB2311_67";  name = "Artefact B2311.67";   group = "Proxima Centauri B findings" },
   @{ dir = "ArtefactB2311_104"; name = "Artefact B2311.104";  group = "Proxima Centauri B findings" },
   @{ dir = "Hairfryer";        name = "Hairfryer";          group = "Experimental" },
-  @{ dir = "BlackRider";       name = "Black Rider";        group = "Brokild collection" },
+  @{ dir = "BlackRider";       name = "Black Rider";        group = "Brokild collection";
+     build = "C:\Users\peter\b\_build\stucknote-fleet\black-rider" },   # configured from vst3-apps\black-rider\plugin; b\BlackRider is the stale copy
   @{ dir = "BladeRuiner";      name = "Blade Ruiner";       group = "Brokild collection" },
   @{ dir = "EscapeRoom";       name = "Escape Room";        group = "Brokild collection" },
   @{ dir = "FullMetalRacket";  name = "Full Metal Racket";  group = "Brokild collection" },

@@ -796,6 +796,56 @@ int main (int argc, char** argv)
         delete a; delete b;
     }
 
+    /*  REAL LEGATO (2026-10-10). With LEGATO on, GLIDE is only between
+        OVERLAPPING notes. The old code reset the pitch only when the voice
+        had gone fully silent, so a detached note played inside the previous
+        note's RELEASE TAIL glided too - "still sounding" is not "still held".
+        The detached case is the one that failed; it is placed inside a
+        0.7 release on purpose, or it would pass on the old code. */
+    std::printf ("\n[legato] glide only between overlapping notes\n");
+    {
+        auto pitchAfter = [] (float mode, float legato, bool overlap) {
+            Params p = bare(); p.mode = mode; p.legato = legato; p.glide = 0.6f; p.e2r = 0.7f; p.udet = 0.0f;
+            auto* e = makeEngine (p);
+            std::vector<std::tuple<double, int, int, float>> ev;
+            if (overlap) ev = { {0.0, 45, 1, 0.9f}, {0.50, 57, 1, 0.9f}, {0.55, 45, 0, 0} };
+            else         ev = { {0.0, 45, 1, 0.9f}, {0.45, 45, 0, 0},    {0.50, 57, 1, 0.9f} };
+            auto r = render (*e, 48000, 256, 0.6, ev);
+            const double hz = zcHz (r.L.data() + (int) (0.53 * 48000), (int) (0.04 * 48000), 48000);
+            delete e; return hz;
+        };
+        for (float mode : { 0.0f, 1.0f })
+        {
+            const double ov = pitchAfter (mode, 1, true), de = pitchAfter (mode, 1, false), off = pitchAfter (mode, 0, false);
+            std::printf ("  %s: overlap %.1f Hz, detached in tail %.1f Hz, LEGATO off detached %.1f Hz (target 220)\n",
+                         mode < 0.5f ? "mono" : "unison", ov, de, off);
+            CHECK (ov < 190.0, "legato: an overlapping note glides", ov, 190.0);
+            CHECK (std::abs (de - 220.0) < 6.0, "legato: a detached note inside the release tail does NOT glide", de, 220.0);
+            CHECK (off < 190.0, "LEGATO off: portamento on every note", off, 190.0);
+        }
+    }
+
+    /*  LADDER LEVEL (2026-10-10). Peter, twice: LADDER is quieter than GROWL.
+        Measured -8..-15 dB at ordinary PEAK settings - the raw ladder's
+        passband falls as 1/(1+k). Compensated; held to within 4 dB here. */
+    std::printf ("\n[ladder] level against GROWL\n");
+    for (float peak : { 0.0f, 0.3f, 0.6f, 0.9f })
+    {
+        double lev[2];
+        for (int m = 0; m < 2; ++m)
+        {
+            Params p; p.fmodel = m == 0 ? 0.0f : 2.0f; p.lpf = 0.64f; p.lpeak = peak;
+            p.fenv = 0; p.fkey = 0; p.flfo = 0; p.hpf = 0; p.hpeak = 0; p.e2s = 1; p.e2a = 0; p.drv = 0;
+            auto* e = makeEngine (p);
+            auto r = render (*e, 48000, 256, 1.2, { {0.0, 45, 1, 0.8f} });
+            lev[m] = rms (r.L, 24000, 52800);
+            delete e;
+        }
+        const double d = db (lev[1]) - db (lev[0]);
+        std::printf ("  PEAK %.1f: LADDER - GROWL %+.1f dB\n", (double) peak, d);
+        CHECK (std::abs (d) < 4.0, "LADDER within 4 dB of GROWL", d, 0.0);
+    }
+
     std::printf ("\n%d checks, %d failed — %s\n", checks, fails, fails ? "NOT CLEAR" : "ALL CLEAR");
     return fails ? 1 : 0;
 }

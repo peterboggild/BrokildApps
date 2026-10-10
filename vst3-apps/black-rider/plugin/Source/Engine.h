@@ -608,9 +608,18 @@ struct Korg35
 
 /*  Moog style transistor ladder ("LADDER"): four one-pole stages, each with
     a tanh on its input and output, resonance fed back from the fourth with
-    a half-sample average to compensate the unit delay. The bass thins out as
-    the resonance rises, which is the correct behaviour and the reason the
-    two models feel so different under the same knob. */
+    a half-sample average to compensate the unit delay.
+
+    PASSBAND COMPENSATION (2026-10-10). A raw ladder subtracts its feedback
+    from the input, so its passband falls as 1/(1 + k): at the PEAK settings
+    people actually use it sat 8-15 dB under GROWL and SCREAM, whose
+    Sallen-Key keeps unity gain at DC (levelprobe: mean -12 dB, Peter heard
+    it twice). The output is now scaled by (1 + k), so the passband stays at
+    unity like the other two and the resonance rises ABOVE a level low end
+    instead of the low end sinking under it. Done on the output, not the
+    input: input-side gain is eaten by the summing-node tanh (measured: it
+    recovered half). What is left between the models is the honest part -
+    24 dB/oct against 12 eats more of a note sitting near the cutoff. */
 struct Ladder
 {
     float s1 = 0, s2 = 0, s3 = 0, s4 = 0;
@@ -638,7 +647,7 @@ struct Ladder
         const float y2 = soft (stage (y1, s2));
         const float y3 = soft (stage (y2, s3));
         const float y4 = stage (y3, s4);
-        return y4;
+        return y4 * (1.0f + k);                           // passband held at unity
     }
 };
 
