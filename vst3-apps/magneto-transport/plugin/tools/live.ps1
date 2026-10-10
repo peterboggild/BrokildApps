@@ -11,12 +11,12 @@
 param(
   [int]$Port = 9251,
   [string]$Jobs = "$PSScriptRoot\..\test\live-jobs.json",
-  [string]$Exe  = "C:\Users\peter\b\_build\MagnetoTransport\plugin\MagnetoTransport_artefacts\Release\Standalone\MAGNETO TRANSPORT.exe",
+  [string]$Exe  = "C:\Users\peter\b\_build\MagnetoTransport\plugin\MagnetoTransport_artefacts\Release\Standalone\Magneto Transport.exe",
   [switch]$KeepOpen
 )
 
 Get-Process msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Get-Process "MAGNETO TRANSPORT" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process "Magneto Transport" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 600
 
 $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$Port --remote-allow-origins=*"

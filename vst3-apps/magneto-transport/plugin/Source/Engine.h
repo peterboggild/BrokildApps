@@ -1,5 +1,5 @@
 #pragma once
-// MAGNETO TRANSPORT - engine, stage 1.
+// Magneto Transport - engine, stage 1.
 //
 // The tape is a MEDIUM: an array of magnetisation per 0.5 um, per track. Heads
 // read and write at physical positions; delay, pitch bends and Doppler are what

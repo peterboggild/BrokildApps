@@ -120,7 +120,7 @@ void MagnetoTransportAudioProcessorEditor::paintSplash (juce::Graphics& g)
     }
     g.setColour (juce::Colour (0xffc9b27a));
     g.setFont (juce::Font (juce::FontOptions (juce::jmax (18.0f, getHeight() * 0.05f)).withStyle ("Bold")));
-    g.drawText ("MAGNETO TRANSPORT", getLocalBounds().withTrimmedTop ((int) (r.getCentreY() + rr * 0.9f)),
+    g.drawText ("Magneto Transport", getLocalBounds().withTrimmedTop ((int) (r.getCentreY() + rr * 0.9f)),
                 juce::Justification::centredTop, false);
     g.setColour (juce::Colour (0x99a89a72));
     g.setFont (juce::Font (juce::FontOptions (juce::jmax (10.0f, getHeight() * 0.02f))));
@@ -137,7 +137,7 @@ void MagnetoTransportAudioProcessorEditor::paint (juce::Graphics& g)
         auto r = getLocalBounds().reduced (40);
         g.setColour (juce::Colour (0xffc9b27a));
         g.setFont (juce::Font (juce::FontOptions (22.0f).withStyle ("Bold")));
-        g.drawText ("MAGNETO TRANSPORT needs the Microsoft Edge WebView2 Runtime", r.removeFromTop (60),
+        g.drawText ("Magneto Transport needs the Microsoft Edge WebView2 Runtime", r.removeFromTop (60),
                     juce::Justification::centred, false);
         g.setFont (juce::Font (juce::FontOptions (16.0f)));
         g.drawFittedText ("Install the Evergreen runtime from https://developer.microsoft.com/microsoft-edge/webview2/ "

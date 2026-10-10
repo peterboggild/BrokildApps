@@ -4,7 +4,7 @@
 #include "Engine.h"
 
 //==============================================================================
-/*  MAGNETO TRANSPORT. The APVTS layout, processBlock's read, the panel's initial
+/*  Magneto Transport. The APVTS layout, processBlock's read, the panel's initial
     state and the bench all walk mt::SPECS, so a parameter is one row in one
     table and there is no read order to get wrong. */
 class MagnetoTransportAudioProcessor : public juce::AudioProcessor,

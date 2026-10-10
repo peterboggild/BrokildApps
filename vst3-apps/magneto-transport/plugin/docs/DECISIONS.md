@@ -87,3 +87,14 @@ writing each sample where the tape WAS when it entered the box (a 64-sample
 history of the odometer), the output half by reading ahead. Compensating the
 whole latency at playback speed was measured 69 us wrong for an echo recorded
 during a motor glide; split, 3 us.
+
+## 2026-10-10 — the product is "Magneto Transport", title case
+
+Peter: "for consistency, it should be Magneto Transport (not capital letters)".
+PRODUCT_NAME, panel, splash, installer entry and docs renamed; BRIEF.md keeps his
+original wording because it is verbatim. PLUGIN_CODE MgTr is unchanged, and the
+class-id bytes were COMPARED in the old and new DLLs (identical in all three
+occurrences), so a project saved with the caps build opens the renamed one.
+Windows paths are case-insensitive, so the caps bundles were moved to
+Quarantine before installing - installing over them would have kept the caps
+folder name.

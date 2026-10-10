@@ -1,5 +1,5 @@
 #pragma once
-// MAGNETO TRANSPORT - the parameter surface, in one table.
+// Magneto Transport - the parameter surface, in one table.
 //
 // Every host parameter is one row with a pointer to its Params member. The
 // APVTS layout, the processor's read, the panel's initial state and the bench

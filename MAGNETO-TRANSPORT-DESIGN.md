@@ -1,4 +1,4 @@
-# MAGNETO TRANSPORT — design
+# Magneto Transport — design
 
 The final project: a physically modelled tape echo in which every artefact comes
 from simulated mechanics and magnetics, plus FLUX MEMORY, a variable erase head
@@ -20,7 +20,7 @@ the component is coded: `plugin/docs/physics/`.
 
 | | |
 |---|---|
-| PRODUCT_NAME | **MAGNETO TRANSPORT** (also the patch folder name — house rule) |
+| PRODUCT_NAME | **Magneto Transport** (also the patch folder name — house rule) |
 | target | `MagnetoTransport` |
 | plugin code | **`MgTr`** (checked unique against the 26 codes in the repo) |
 | manufacturer | `Brkd` |

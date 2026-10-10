@@ -1,4 +1,4 @@
-// MAGNETO TRANSPORT - stage 1 bench.
+// Magneto Transport - stage 1 bench.
 //
 // Measures every claim stage 1 makes. The tape is a medium, so delay, pitch
 // bends and Doppler are consequences of where the heads are and how fast the
@@ -582,7 +582,7 @@ static void testCost()
 int main (int argc, char** argv)
 {
     verbose = argc > 1 && std::strcmp (argv[1], "-v") == 0;
-    std::printf ("MAGNETO TRANSPORT - stage 1 bench\n");
+    std::printf ("Magneto Transport - stage 1 bench\n");
     {
         Engine e; Params p; e.setParams (p); e.prepare (48000.0, 256);
         std::printf ("internal rate %.0f Hz (x%d), read-ahead %.3f us\n",

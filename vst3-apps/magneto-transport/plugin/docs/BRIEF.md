@@ -1,6 +1,6 @@
 # MAGNETO TRANSPORT — the brief as given (2026-10-10)
 
-Peter's brief, verbatim. His answers to the open questions, the decisions they
+Peter's brief, verbatim. (He later asked for the name in title case, "Magneto Transport"; the brief keeps his original wording.) His answers to the open questions, the decisions they
 force and the tolerances are in `BrokildApps/MAGNETO-TRANSPORT-DESIGN.md`, which
 takes precedence where the two differ.
 
