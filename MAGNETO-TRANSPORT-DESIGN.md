@@ -311,3 +311,36 @@ Sources: [zZounds 456 listing](https://www.zzounds.com/item--AMX456173111),
 - A failed build runs the STALE exe - check the build exit code before believing numbers.
 - Run fresh exes through `tools/run-sac.sh` (Smart App Control).
 - Render long enough to reach the effect under test; a probe can lie before the code does.
+
+---
+
+## 10. Stage 9 — the decal requests (Peter, 2026-10-10)
+
+*"at the end when building amazing panel, you can make a precise list of decal
+requests that i can have done with ChatGPT."* He has no ChatGPT subscription now
+and will get the art made when the list exists, so the list must work on its own,
+pasted cold, by someone who has seen none of this.
+
+`plugin/docs/decal_brief.md`, written once the panel layout is frozen. Each request
+carries what the brief asked for (sizes at 1x and 2x, transparency, file name,
+placement, materials, one light direction, wear, hex palette, exact lettering,
+separate layers and pivots, a master style paragraph) PLUS what the fleet learned:
+
+- **Order isolated parts, never a registered faceplate**: an image generator cannot
+  hit pixel coordinates. The panel's geometry table places the parts; the art is
+  fitted to it.
+- **Aspect is what matters, not resolution**; anything that rotates gets a square
+  canvas with the pivot at the centre.
+- **Ask the deliverer to measure the drawing's bounding box against the canvas**
+  before writing "no deviations": two deliveries (High Tide, Rite of Passage) came
+  back letterboxed while saying exactly that.
+- Opaque parts state their background; transparent parts state that the alpha must
+  be real (an "empty fuel tube" once came back 7 % opaque).
+- **Lit/unlit and pressed/released pairs must be registered** - same canvas, same
+  object position - or the state change jumps.
+- Textures tile: no end caps on anything meant to repeat.
+- Lettering that must be exact (controls, the wordmark "Magneto Transport", serial
+  plate) is listed verbatim, with the note that the panel can letter it in code if
+  the generator garbles it.
+- On return: an ingest script crops to the measured content, checks alpha and pair
+  registration, and reports per part before anything is wired in.
