@@ -142,3 +142,17 @@ the second and leaves the first at 0.19 %. A two-parameter density (flat core,
 heavy tails) or a mean-field term would fit both. Left open: -55 dB instead of
 -60 dB of third harmonic 2.6 dB under 0 VU is not what decides the sound, and
 the brief says to report what is imperfect rather than tune it in.
+
+## 2026-10-11 — stage 3's record model, as the reference measured it
+
+Per cell, four layers (1.75 / 5.25 / 8.75 / 12.25 um, at 0.5 / 1 / 2 / 4 um
+resolution). Per layer the record head does: s_zone = Gaussian kernel (centroid
+ZONE_X and rms ZONE_W for the layer's bias amplitude A) applied to the deep-gap
+signal field along the tape; then M_new = G[A][M_old][s_zone], quadrilinear.
+A = hb * LAYER_FMAX. The kernel's centroid is a per-layer DELAY (the layer
+records a few um downstream of the gap, more at higher bias), and the layers'
+different centroids are most of the HF recording loss - keep them. Validation
+target: RESP_DB per layer and bias, then the section 6 tolerances against
+mtref renders. Rejected: a single depth-averaged kernel (loses the phase
+between layers) and a fitted formula for G (smooths the old-new coupling that
+test 6 showed).

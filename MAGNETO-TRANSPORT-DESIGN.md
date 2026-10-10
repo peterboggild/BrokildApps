@@ -356,11 +356,24 @@ tuning beyond one tail parameter; bias erasure is -18 dB per pass; the erase
 head's transition is h_e 0.75-1.75; and an overwrite depends on how DEEP the old
 recording went, so **the real-time tape carries four layers per cell at halving
 resolution** and its record process is **a table G(A, s, M_old) per layer that
-the reference measures** (`mtref --tables`, to be written at the start of stage 3),
-with a recording-zone position and length per layer and bias for the HF loss.
+the reference measures** — DONE: `mtref --tables=<path>` writes
+`plugin/Source/stock/stock_456.h` (G, the zone centroid/rms/gain per layer and
+bias, RESP_DB per layer and bias; `05-reference-results.md` §8 and the DECISIONS
+entry "stage 3's record model" say exactly how to use them).
 
-Stage 3 then: the table mode in the reference; the real-time tape with four
-layers; the record model as table lookup with the zone averaging; bias live on
-the panel; feedback uncapped (tape saturation is what contains it now); and the
-tolerances of section 6 proven against the reference on sines, sweeps, drums and
-voice. Then LISTEN B.
+**The math hand-off (Fable → Opus) is here.** Stage 3 is implementation:
+the real-time tape with four layers at halving resolution; the record model as
+Gaussian zone kernel + quadrilinear G lookup per layer; an erase head that
+runs the same G at h_e (erase is the record process with no signal); bias as a
+live panel control; feedback uncapped — tape saturation is what contains it
+now, and the bench's stop-the-input check must still pass; the section 6
+tolerances proven against `mtref` renders on sines, sweeps, drums and voice
+(`mtref` needs a `--render in.wav` mode for that, ~1 µm pitch, minutes per
+second of audio, which is fine for a validation set). Then LISTEN B.
+
+Stage 3 traps to expect: the kernel is in µm, so at 4.75 cm/s a 1 µm kernel is
+21 µs of audio and at 76 cm/s 1.3 µs — the zone convolution must be done on the
+TAPE grid, not in samples; the deep layers' coarser cells mean the kernel
+there is already wider than a cell, so write the band-limited average, never a
+point; and 2 µm cells on layer 2 at 76 cm/s give a 190 kHz cell rate, still
+far above the band, so the resolution halving is safe at every speed.

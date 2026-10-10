@@ -114,3 +114,43 @@ per cell (DECISIONS 2026-10-11).
 A record pass over 9000 cells × 8 layers: 0.08 s on 20 threads = **7× real
 time at 38.1 cm/s**, i.e. one core would run ~140× slower than real time. The
 reference is for measuring, not playing — stage 3's model is what plays.
+
+## 8. The stage 3 record tables (`mtref --tables`, `Source/stock/stock_456.h`)
+
+Four real-time layers at 1.75 / 5.25 / 8.75 / 12.25 µm. Per layer:
+
+- **G[A][M_old][s]** — new remanence for a peak bias amplitude A at the layer
+  (28 values, 0.1–8 H_c), a previous anhysteretic remanence M_old (11 values) and
+  a deep-gap signal field s held over the pass (41 values, dense near 0). At
+  0 VU and DC the four-layer table sums to 246 nWb/m rms against the full
+  1 kHz readout's 250 (−0.13 dB).
+- **the recording zone** from a 1.2 µm Gaussian pulse at −19 dB, read back minus
+  the same cells with no pulse (the bias-phase ripple cancels exactly), pulse
+  width deconvolved. At operating bias:
+
+| layer | A | centroid downstream | rms | gain dM/ds | table slope | Gaussian predicts at 20 kHz | measured |
+|---|---|---|---|---|---|---|---|
+| 0 (1.75 µm) | 2.34 | 5.6 µm | 0.45 µm | 1.07 | 1.18 | −0.10 dB | −0.09 |
+| 1 (5.25) | 1.45 | 4.5 | 1.12 | 1.41 | 1.41 | −0.59 | −0.50 |
+| 2 (8.75) | 1.00 | 2.9 | 1.45 | 0.49 | 0.51 | −1.00 | −1.83 |
+| 3 (12.25) | 0.75 | 2.2 | 1.37 | 0.002 | 0.002 | −0.89 | −0.31 |
+
+- **RESP_DB[bias][layer][f]** — the per-layer small-signal response at 0.7×, 1×
+  and 1.4× operating bias, the direct validation target.
+
+What this says: a Gaussian kernel with the measured centroid and rms reproduces
+the recording loss of a properly biased layer; at the recording threshold
+(layer 2) it under-predicts by 0.8 dB at 20 kHz on a layer that carries 15 % of
+the gain. **The per-layer centroids differ by up to 3 µm, which is 57° of phase
+at 20 kHz** — the depth sum's −3 dB in section 4 is largely layers cancelling,
+not any one layer's width, and a model that keeps a zone position per layer
+gets that for free.
+
+Not in the tables: speed. The kernel is geometry (µm) and the bias extrema fall
+every 1.27 µm at 38.1 cm/s, 2.5 µm at 76 cm/s; if the stage 3 tolerance test at
+76 cm/s misses, the tables grow a speed axis.
+
+The first probe (a 0.5 µm pulse at −45 dB) returned negative gains and an
+−811 µm centroid: shorter than one bias half-cycle, so the process could not
+sample it, and the bias-phase ripple of each cell swamped it. A probe can lie
+before the model does — the table slope was the independent check that caught it.
