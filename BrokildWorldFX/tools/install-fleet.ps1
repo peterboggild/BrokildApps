@@ -74,6 +74,11 @@ $plugins = @(
   # (vst3-apps\gravity-well\plugin), built outside Dropbox like the drums.
   @{ dir = "GravityWell";      name = "Gravity Well";       group = "Brokild collection";
      build = "C:\Users\peter\b\_build\GravityWell\plugin" }
+  # MAGNETO TRANSPORT: the physically modelled tape echo (vst3-apps\magneto-transport\plugin).
+  # In Experimental while it is being built; Peter picks its collection after testing.
+  # Moving it means quarantining the old copy first (install-fleet never looks in another group).
+  @{ dir = "MagnetoTransport"; name = "MAGNETO TRANSPORT";  group = "Experimental";
+     build = "C:\Users\peter\b\_build\MagnetoTransport\plugin" }
   # Clone Wars is deliberately absent: its binary comes from a CI-built zip,
   # never a local build (house rule).
 )

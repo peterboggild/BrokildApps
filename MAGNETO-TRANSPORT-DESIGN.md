@@ -1,0 +1,224 @@
+# MAGNETO TRANSPORT — design
+
+The final project: a physically modelled tape echo in which every artefact comes
+from simulated mechanics and magnetics, plus FLUX MEMORY, a variable erase head
+on a finite tape loop.
+
+Peter's brief is kept verbatim in `vst3-apps/magneto-transport/plugin/docs/BRIEF.md`.
+This document is the brief **plus his answers of 2026-10-10**, the decisions those
+answers force, the tolerances, and the build order. Where this document and the
+brief disagree, this document wins: it is the later word.
+
+Source: `vst3-apps/magneto-transport/plugin/` (built outside Dropbox at
+`C:\Users\peter\b\_build\MagnetoTransport\`). Engineering log:
+`plugin/docs/DECISIONS.md`. Physics notes, one per component, written before
+the component is coded: `plugin/docs/physics/`.
+
+---
+
+## 1. Identity
+
+| | |
+|---|---|
+| PRODUCT_NAME | **MAGNETO TRANSPORT** (also the patch folder name — house rule) |
+| target | `MagnetoTransport` |
+| plugin code | **`MgTr`** (checked unique against the 26 codes in the repo) |
+| manufacturer | `Brkd` |
+| formats | VST3 + Standalone |
+| category | Fx / Delay |
+| build id | `MT_BUILD_ID`, YYMMDD.n, shown on the panel |
+| panel | WebView2 + canvas/WebGL, static WebView2 loader + runtime check (Thin Walls) |
+| BWFX | **none** — it is an effect (the Martian Gain / Battlestar call) |
+| collection | **undecided — Peter tests first.** Experimental or Brokild depending on whether it meets the demands |
+| licence | AGPLv3 like the rest of the repo |
+
+---
+
+## 2. Peter's answers (2026-10-10)
+
+| question | answer |
+|---|---|
+| hiss vs mastering-clean | **particle count is a control**, continuous down to effectively silent |
+| real-time bias | **validated equivalent**: explicit bias in the offline reference only; real time uses anhysteretic recording with a bias-dependent recording zone, proven against it |
+| print-through / self-demag | **dropped** (physically inaudible at loop timescales) |
+| panel | WebView2 + canvas/WebGL |
+| hysteresis | **Preisach-type** |
+| mechanical sounds | last — but the transport exposes its state from stage 1 so they integrate without rework |
+| reels vs loop | **two transport modes**: REEL (open reel, radius changes, endless) and LOOP (closed loop, FLUX MEMORY) |
+| speeds | studio range **4.75–76 cm/s**, continuously variable |
+| CPU | sound first; offer **ECO / NORMAL / HIGH** |
+| prior art | nice to have, not first priority |
+| reel end | effectively endless; quiet automatic rewind |
+| tolerances | **I set them** (§6) |
+| listening | **pause at four gates** (§7) |
+| presets | ~24, grouped clean → strange, loudness-levelled |
+| sync | the user chooses one playback head as the **tempo head**; the motor runs at the speed that puts it on the note value; tempo changes glide with motor inertia |
+| repo | BrokildApps, `vst3-apps/magneto-transport/plugin/` |
+| start | design doc, then stage 1 now |
+| model split | I flag the hand-offs where the math is done |
+
+---
+
+## 3. The architectural decision: the tape is a MEDIUM
+
+The tape is simulated as **an array of magnetisation along its length**, not as a
+delay line of samples. One cell = **0.5 µm** of tape, per track.
+
+Everything the brief asks to "emerge" follows from that one choice:
+
+- a head reads the material under it: **delay = distance / speed** is not a
+  formula in the code, it is what happens;
+- the motor changes speed while echoes are on the tape → they **pitch-shift**;
+- a head moving on its rail reads a different place → **Doppler**, and reading
+  backwards if it outruns the tape;
+- gap, spacing and thickness losses are **spatial filters at the head**, so
+  they scale with speed automatically;
+- the tape's resolution is in micrometres, so behaviour is **independent of
+  the host sample rate**;
+- FLUX MEMORY is simply **not erasing a cell** before the record head reaches it.
+
+Coordinates: the odometer `T(t)` is the length of tape that has passed the
+capstan. A material point with tape coordinate `u` sits at path position
+`x = T − u`; a head at path position `h` sees material `u = T − h`.
+
+- **LOOP**: cells form a ring of the loop's length (0.5–6 m → 1–12 M cells/track).
+- **REEL**: only the stretch between the supply side and the last playback head
+  can ever be read again, so the reel is a ring the size of that window; cells
+  are returned to **virgin** state as they come off the supply reel. The tape
+  stock profile for the whole 730 m pack is procedural (a hash of position), so
+  nothing of that length is stored.
+
+Memory: 8 MB per metre of stereo loop (96 MB at 6 m), allocated to the current need, so a REEL instance holds 6.4 MB. Noted in
+DECISIONS.
+
+Per-cell state: remanent magnetisation `M` (a fluxivity, nWb/m). Why one number
+is enough even with Preisach: AC-biased recording leaves the medium in an
+anhysteretic state, which the Preisach model characterises by its remanence
+alone; the full staircase only matters *during* the record process, which is
+computed at the head, not stored on the tape. (Stage 2 checks this claim against
+the reference model before stage 3 relies on it.)
+
+---
+
+## 4. The machine
+
+Fixed head order along the path: **supply → erase → record → playback 1–3 → capstan**.
+
+- **Record head**: fixed, path 0.
+- **Erase head**: fixed, 2.5 cm upstream of record.
+- **Playback heads**: each on the rail, **1.5–24 cm** downstream of record, moved
+  by a carriage with real inertia and a top speed. At 4.75 cm/s a 24 cm head is
+  5 s of delay; at 76 cm/s a 1.5 cm head is 20 ms.
+- **LOOP length 0.5–6 m.** The head span is clamped below the loop length.
+- **Speed 4.75–76 cm/s**, set by the motor. Sync: tempo head + note value →
+  target speed = distance / note duration, clamped to range (the panel says when
+  a note value is out of reach).
+- **Feedback** is a physical wire: selected playback heads → tone (bass/treble)
+  → back into the record amplifier.
+- **I/O**: mono→mono, mono→stereo, stereo→stereo, from the host layout plus an
+  INPUT STEREO/MONO switch. Two-track head stack; crosstalk and azimuth come in
+  stage 4.
+
+Reference level: **−18 dBFS RMS sine at 1 kHz = 0 VU = 250 nWb/m** (rms
+fluxivity). The tape stores nWb/m; the electronics convert at the documented
+gains.
+
+---
+
+## 5. Physics plan, by stage component
+
+Each gets a note in `docs/physics/` before code: equations, parameters, sources.
+
+- **Hysteresis**: Preisach with a Lorentzian/Gaussian Everett distribution fitted
+  to γ-Fe₂O₃ (coercivity, remanence, squareness, saturation). Minor loops close
+  by construction — the reason it was chosen: FLUX MEMORY rewrites the same tape
+  thousands of times, and Jiles–Atherton's open minor loops would drift.
+- **Record process (reference)**: tape cells advected through the Karlqvist gap
+  field of the record head, signal + AC bias at a realistic frequency (~100 kHz),
+  integrated at MHz rates offline; remanence frozen where the field falls below
+  the switching fields (the recording zone).
+- **Record process (real time)**: anhysteretic recording: remanence = a function
+  of the signal field at the recording zone, whose position and width move with
+  bias — which is what makes over-bias lose treble and under-bias distort,
+  physically. Fitted to and validated against the reference.
+- **AC bias erases**: recording over old material with bias on attenuates it.
+  This is what sets how fast FLUX MEMORY's ghosts fade (with the erase residue).
+  Freeze turns bias off as well as signal.
+- **Playback**: gap loss, spacing loss (exp(−2πd/λ)), thickness loss, head-contour
+  bumps, azimuth, wear; IEC/NAB equalisation per speed (decision in stage 4 on how
+  a continuous speed picks its time constants).
+- **Transport**: capstan motor (AC synchronous or DC servo with a regulation
+  loop), rotor inertia, cogging, eccentricity, bearings; tape as an elastic medium
+  between contact points; stick-slip at the heads → scrape flutter; reels with
+  changing radius and inertia (REEL mode).
+- **Stock**: particle count and size distribution → hiss (statistical: every
+  random draw has a variance derived from physical parameters and is **seeded by
+  tape position**, so a reel behaves the same every time), coating thickness
+  variation → modulation noise, surface roughness → spacing fluctuation and
+  dropouts. Particle count is a user control down to effectively silent.
+- **Erase head**: field strength and decay → incomplete erasure possible.
+
+---
+
+## 6. Tolerances (set by me, per Peter)
+
+Reference = offline model (no shortcuts). Real time = what ships.
+
+| quantity | tolerance | why |
+|---|---|---|
+| unity gain at reference, defaults | **±0.05 dB** | "no hidden gain" |
+| frequency response, real time vs reference, −20 dB re ref, 20 Hz–16 kHz | **±0.25 dB** | below audible level differences |
+| THD at 1 kHz and 100 Hz, −20…+12 dB re ref | **±1.5 dB** of the reference's figure; MOL within **±0.5 dB** | harmonic level, not phase, is what is heard |
+| programme material (sines, sweeps, drums, voice) | 1/3-octave band levels within **0.5 dB**, 50 ms envelope error **< 0.5 dB rms** | hysteresis models null poorly sample by sample even when they sound identical; band levels and envelopes are the perceptual test |
+| delay time | **< 1 µs**; pitch **< 0.5 cent** | |
+| wow & flutter (DIN/IEC weighted) | within **10 %** of the reference | |
+| noise spectrum | 1/3-octave within **1 dB** | |
+| sample-rate identity (44.1–192 kHz) | the same tolerances as real time vs reference, below 16 kHz | |
+| aliasing, 44.1 kHz, NORMAL, particle count at silent | **< −100 dBFS** | brief |
+| CPU at 48 kHz stereo (targets; actuals reported) | ECO **< 8 %**, NORMAL **< 15 %**, HIGH **< 30 %** of one core | sound first |
+
+---
+
+## 7. Stages and gates
+
+Every stage ends with its bench clear. **LISTEN** = stop, install, Peter listens.
+**FABLE** = the delicate math is done; I say so for a model switch.
+
+| # | stage | gate |
+|---|---|---|
+| 1 | tape as a medium, ideal heads, simple motor glide, both transport modes, the feedback wire, placeholder panel | **LISTEN A** — a working delay with real Doppler |
+| 2 | physics notes + offline reference: Preisach ferric + explicit-bias record process | FABLE |
+| 3 | real-time record process validated against 2; saturation contains feedback; bias live | **LISTEN B** |
+| 4 | playback physics, EQ standards, electronics, gain staging, stereo crosstalk/azimuth | |
+| 5 | transport mechanics: motor, capstan, bearings, elastic tape, scrape flutter, reels | FABLE, **LISTEN C** |
+| 6 | tape stock: particle statistics → hiss, modulation noise, dropouts; stocks, age, wear | |
+| 7 | FLUX MEMORY: partial erase, bias-erase overwrite, freeze | **LISTEN D** |
+| 8 | panel driven by the simulation, quality tiers, presets, smoothing, bypass, latency, host test, pluginval if available | |
+| 9 | decal brief → **stop**; integrate on return | |
+| 10 | mechanical sounds, manual, landing page, zip; README draft for approval | |
+
+Prior-art check: when a slot appears, before any page says "never".
+
+### Checks every stage inherits (from the fleet)
+
+- **every control audit** — each control measurably changes the output in a context chosen for it;
+- **stop the input and watch** — bounded is not stable;
+- **render long enough to reach the effect under test** (a loop can be 30 s);
+- **ear beats proxy metrics** — when Peter hears a fault, render one change per file;
+- build id visible; probe the **installed** file past Smart App Control.
+
+---
+
+## 8. Stage 1 specifics (temporary, removed in later stages)
+
+- Ideal record: the signal is written into the tape as its time-average over each
+  cell's transit (a box filter; a real record zone replaces it in stage 3).
+- Ideal playback: the head output is the tape's average over the span it crossed
+  during the sample (the integration that keeps fast reads from aliasing; gap and
+  spacing loss come in stage 4).
+- **Feedback cannot self-oscillate in stage 1**: the loop gain is capped below 1,
+  because containment must come from tape saturation (stage 3), not a limiter.
+- Motor: a first-order speed response (0.35 s) standing in for the stage 5 motor.
+- Erase: full. FLUX MEMORY is stage 7.
+- Changing the loop length or the transport mode **splices a new loop** (fade,
+  clear, resume) — honest, since a real machine cannot stretch a loop.

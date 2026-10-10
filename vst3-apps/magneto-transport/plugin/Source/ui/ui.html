@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MAGNETO TRANSPORT</title>
+<script>
+// Installed first, so nothing can throw before it is listening.
+window.__errors = [];
+window.addEventListener("error", e => { window.__errors.push(String(e.message) + " @" + e.lineno); });
+window.addEventListener("unhandledrejection", e => { window.__errors.push("promise: " + String(e.reason)); });
+</script>
+<style>
+:root{
+  --ink:#0d0f0e; --steel:#1a1d1b; --steel2:#232724; --edge:#33382f;
+  --brass:#c9b27a; --brassDim:#8a7a52; --paper:#d8cfb4; --amber:#ffb340; --red:#d2412c;
+  --green:#7fbf6a; --tape:#4a3220;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
+  font-family:Bahnschrift,"DIN Alternate","Segoe UI",sans-serif;color:var(--paper);user-select:none}
+#deck{position:absolute;left:0;top:0;width:1600px;height:900px;transform-origin:0 0;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.035), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 3px),
+    var(--steel)}
+/* ---- header */
+#head{position:absolute;left:0;top:0;width:1600px;height:52px;display:flex;align-items:center;gap:26px;
+  padding:0 22px;border-bottom:2px solid var(--edge);background:linear-gradient(#202421,#171a18)}
+#wordmark{font-size:22px;letter-spacing:5px;font-weight:700;color:var(--brass);white-space:nowrap}
+#model{font-size:10px;letter-spacing:2px;color:var(--brassDim);line-height:1.3;white-space:nowrap}
+.lampbox{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;color:var(--brassDim)}
+.lamp{width:11px;height:11px;border-radius:50%;background:#3a2a1a;box-shadow:inset 0 0 3px #000}
+.lamp.on{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.lamp.red.on{background:var(--red);box-shadow:0 0 8px var(--red)}
+.meter{width:90px;height:8px;background:#0b0c0b;border:1px solid var(--edge);position:relative}
+.meter i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#6a8f55,#c9b27a 70%,#d2412c);width:0}
+#readout{font-family:Consolas,monospace;font-size:15px;color:var(--amber);min-width:210px}
+#spacer{flex:1}
+#build{font-family:Consolas,monospace;font-size:11px;color:var(--brassDim)}
+/* ---- machine */
+#machine{position:absolute;left:0;top:52px;width:1600px;height:528px}
+/* ---- control panel */
+#panel{position:absolute;left:0;top:580px;width:1600px;height:290px;display:flex;gap:10px;padding:10px 14px;
+  border-top:2px solid var(--edge);background:linear-gradient(#1c1f1d,#151816)}
+.grp{position:relative;border:1px solid var(--edge);background:rgba(0,0,0,0.18);padding:24px 10px 8px;
+  display:flex;flex-wrap:wrap;align-content:flex-start;gap:6px 4px}
+.grp > h3{position:absolute;left:10px;top:5px;font-size:11px;letter-spacing:3px;color:var(--brass);font-weight:600}
+.col{display:flex;flex-direction:column;align-items:center;gap:4px}
+.ctl{width:82px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.ctl label{font-size:10px;letter-spacing:1.5px;color:var(--brassDim);text-align:center;white-space:nowrap}
+.ctl .val{font-family:Consolas,monospace;font-size:11px;color:var(--paper);min-height:14px;white-space:nowrap}
+.knob{width:52px;height:52px;cursor:ns-resize;touch-action:none}
+.knob.big{width:70px;height:70px}
+.seg{display:flex;border:1px solid var(--edge)}
+.seg b{white-space:nowrap;font-weight:600;font-size:10px;letter-spacing:1.5px;padding:5px 7px;color:var(--brassDim);cursor:pointer;background:#141715}
+.seg b.on{color:var(--ink);background:var(--brass)}
+.btn{font-size:10px;letter-spacing:2px;padding:6px 10px;border:1px solid var(--edge);background:#141715;color:var(--brassDim);cursor:pointer;display:flex;align-items:center;gap:6px}
+.btn.on{color:var(--amber);border-color:#6a5530}
+.btn .lamp{width:9px;height:9px}
+.delay{font-family:Consolas,monospace;font-size:11px;color:var(--amber)}
+/* three heads side by side in one group: compact columns */
+.col{width:172px}
+.col .ctl{width:56px}
+.col .knob{width:44px;height:44px}
+.col .ctl label{font-size:9px;letter-spacing:1px}
+.col .ctl.headon{width:150px}
+#hint{position:absolute;left:0;top:870px;width:1600px;height:30px;padding:7px 22px;font-size:12px;letter-spacing:.5px;
+  color:var(--brassDim);border-top:1px solid var(--edge);background:#121413;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hint b{color:var(--brass);font-weight:600;letter-spacing:2px;margin-right:10px}
+</style>
+</head>
+<body>
+<div id="deck">
+  <div id="head">
+    <div id="wordmark">MAGNETO TRANSPORT</div>
+    <div id="model">MODEL MT-1<br>STAGE 1 &middot; PLACEHOLDER PANEL</div>
+    <div id="readout">--.- cm/s</div>
+    <div class="lampbox"><span class="lamp" id="lSync"></span>SYNC</div>
+    <div class="lampbox"><span class="lamp red" id="lClamp"></span>OUT OF REACH</div>
+    <div class="lampbox"><span class="lamp" id="lSplice"></span>SPLICING</div>
+    <div id="spacer"></div>
+    <div class="lampbox">IN <div class="meter"><i id="mIn"></i></div></div>
+    <div class="lampbox">OUT <div class="meter"><i id="mOut"></i></div></div>
+    <div id="build">build ----</div>
+  </div>
+
+  <canvas id="machine"></canvas>
+
+  <div id="panel">
+    <div class="grp" style="width:200px"><h3>INPUT</h3>
+      <div class="ctl" data-id="drive"></div>
+      <div class="ctl" data-id="reclevel"></div>
+      <div class="ctl" data-id="inmode" data-type="seg" style="width:170px"></div>
+    </div>
+    <div class="grp" style="width:300px"><h3>TRANSPORT</h3>
+      <div class="ctl" data-id="speed" data-big="1" style="width:96px"></div>
+      <div class="ctl" data-id="sync"></div>
+      <div class="ctl" data-id="looplen"></div>
+      <div class="ctl" data-id="mode" data-type="seg" style="width:130px"></div>
+      <div class="ctl" data-id="synchead" data-type="seg" style="width:150px"></div>
+    </div>
+    <div class="grp" style="width:560px"><h3>PLAYBACK HEADS</h3>
+      <div class="col" data-head="1"></div>
+      <div class="col" data-head="2"></div>
+      <div class="col" data-head="3"></div>
+    </div>
+    <div class="grp" style="width:270px"><h3>FEEDBACK</h3>
+      <div class="ctl" data-id="feedback"></div>
+      <div class="ctl" data-id="bass"></div>
+      <div class="ctl" data-id="treble"></div>
+    </div>
+    <div class="grp" style="width:190px"><h3>OUTPUT</h3>
+      <div class="ctl" data-id="mix"></div>
+      <div class="ctl" data-id="output"></div>
+      <div class="ctl" data-id="killdry" data-type="btn" style="width:160px"></div>
+    </div>
+  </div>
+  <div id="hint"><b>HINT</b><span id="hintText">Point at a control.</span></div>
+</div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- bridge
+const NB = {
+  send(o){ try{ window.__JUCE__.backend.emitEvent("mt", o); }catch(e){} },
+  on(n,f){ try{ window.__JUCE__.backend.addEventListener(n,f); }catch(e){} }
+};
+
+const P = {};          // id -> spec + current physical value
+let tele = null;       // latest machine state
+let build = "";
+const ctls = {};       // id -> {el, render}
+
+// ---------------------------------------------------------------- value mapping
+function toNorm(s, v){
+  if (s.kind === "log") return Math.log(v / s.lo) / Math.log(s.hi / s.lo);
+  return (v - s.lo) / (s.hi - s.lo);
+}
+function fromNorm(s, t){
+  t = Math.min(1, Math.max(0, t));
+  if (s.kind === "log") return s.lo * Math.pow(s.hi / s.lo, t);
+  if (s.kind === "choice") return Math.round(s.lo + t * (s.hi - s.lo));
+  return s.lo + t * (s.hi - s.lo);
+}
+function choices(s){ return s.choices ? s.choices.split("|") : []; }
+function fmt(s, v){
+  if (s.kind === "choice") return choices(s)[Math.round(v)] || "?";
+  if (s.kind === "toggle") return v > 0.5 ? "ON" : "OFF";
+  switch (s.unit){
+    case "dB": return (v >= 0 ? "+" : "") + v.toFixed(1) + " dB";
+    case "cm": return v.toFixed(1) + " cm";
+    case "cm/s": return v.toFixed(2) + " cm/s";
+    case "m": return v.toFixed(2) + " m";
+  }
+  if (s.id.endsWith("pan")) return Math.abs(v) < 0.02 ? "C" : (v < 0 ? "L" : "R") + Math.round(Math.abs(v) * 100);
+  return Math.round(v * 100) + " %";
+}
+
+function setParam(id, v, fromUser){
+  const s = P[id]; if (!s) return;
+  if (s.kind !== "choice" && s.kind !== "toggle") v = Math.min(s.hi, Math.max(s.lo, v));
+  s.v = v;
+  if (fromUser) NB.send({ k:"p", id, v });
+  if (ctls[id]) ctls[id].render();
+}
+
+// ---------------------------------------------------------------- hints
+function hint(id){
+  const s = P[id];
+  document.getElementById("hintText").textContent = s ? s.hint : "";
+  document.querySelector("#hint b").textContent = s ? s.name : "HINT";
+}
+
+// ---------------------------------------------------------------- knob
+function knobSvg(){
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.innerHTML =
+    '<circle cx="50" cy="50" r="45" fill="#0f1110" stroke="#33382f" stroke-width="2"/>' +
+    '<path class="trk" fill="none" stroke="#2b302a" stroke-width="5" stroke-linecap="round"/>' +
+    '<path class="arc" fill="none" stroke="#c9b27a" stroke-width="5" stroke-linecap="round"/>' +
+    '<circle cx="50" cy="50" r="30" fill="#262a26" stroke="#3d4339" stroke-width="2"/>' +
+    '<line class="ptr" x1="50" y1="50" x2="50" y2="24" stroke="#ffb340" stroke-width="4" stroke-linecap="round"/>';
+  return svg;
+}
+function arcPath(a0, a1){
+  const r = 39, cx = 50, cy = 50;
+  const p = a => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+  const [x0,y0] = p(a0), [x1,y1] = p(a1);
+  const large = (a1 - a0) > Math.PI ? 1 : 0;
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+const A0 = -0.75 * Math.PI, A1 = 0.75 * Math.PI;
+
+function makeKnob(holder, id, big){
+  const s = P[id];
+  holder.innerHTML = "";
+  const lab = document.createElement("label"); lab.textContent = s.name;
+  const k = document.createElement("div"); k.className = "knob" + (big ? " big" : "");
+  const svg = knobSvg(); k.appendChild(svg);
+  const val = document.createElement("div"); val.className = "val";
+  holder.append(lab, k, val);
+  svg.querySelector(".trk").setAttribute("d", arcPath(A0, A1));
+  const render = () => {
+    const t = Math.min(1, Math.max(0, toNorm(s, s.v)));
+    const a = A0 + t * (A1 - A0);
+    svg.querySelector(".arc").setAttribute("d", t > 0.002 ? arcPath(A0, a) : "M0 0");
+    svg.querySelector(".ptr").setAttribute("transform", `rotate(${a * 180 / Math.PI} 50 50)`);
+    val.textContent = fmt(s, s.v);
+  };
+  let drag = null;
+  k.addEventListener("pointerdown", e => {
+    try{ k.setPointerCapture(e.pointerId); }catch(_){}
+    drag = { y: e.clientY, t: toNorm(s, s.v) };
+    NB.send({ k:"touch", id, down:true });
+    e.preventDefault();
+  });
+  k.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const sc = deckScale();
+    const range = (e.shiftKey ? 900 : 220) * sc;
+    let t = drag.t + (drag.y - e.clientY) / range;
+    setParam(id, fromNorm(s, t), true);
+  });
+  const stop = () => { if (drag){ drag = null; NB.send({ k:"touch", id, down:false }); } };
+  k.addEventListener("pointerup", stop);
+  k.addEventListener("pointercancel", stop);
+  k.addEventListener("wheel", e => {
+    e.preventDefault();
+    const step = s.kind === "choice" ? 1 / (s.hi - s.lo) : (e.shiftKey ? 0.002 : 0.02);
+    NB.send({ k:"touch", id, down:true });
+    setParam(id, fromNorm(s, toNorm(s, s.v) + (e.deltaY < 0 ? step : -step)), true);
+    NB.send({ k:"touch", id, down:false });
+  }, { passive:false });
+  k.addEventListener("dblclick", () => {
+    NB.send({ k:"touch", id, down:true }); setParam(id, s.def, true); NB.send({ k:"touch", id, down:false });
+  });
+  holder.addEventListener("pointerenter", () => hint(id));
+  ctls[id] = { el: holder, render };
+  render();
+}
+
+function makeSeg(holder, id){
+  const s = P[id];
+  holder.innerHTML = "";
+  const lab = document.createElement("label"); lab.textContent = s.name;
+  const seg = document.createElement("div"); seg.className = "seg";
+  choices(s).forEach((c, i) => {
+    const b = document.createElement("b"); b.textContent = c;
+    b.addEventListener("click", () => { NB.send({ k:"touch", id, down:true }); setParam(id, i, true); NB.send({ k:"touch", id, down:false }); });
+    seg.appendChild(b);
+  });
+  holder.append(lab, seg);
+  holder.addEventListener("pointerenter", () => hint(id));
+  const render = () => [...seg.children].forEach((b, i) => b.classList.toggle("on", Math.round(s.v) === i));
+  ctls[id] = { el: holder, render };
+  render();
+}
+
+function makeBtn(holder, id, text){
+  const s = P[id];
+  holder.innerHTML = "";
+  const b = document.createElement("div"); b.className = "btn";
+  b.innerHTML = '<span class="lamp"></span><span></span>';
+  b.lastChild.textContent = text || s.name;
+  b.addEventListener("click", () => { NB.send({ k:"touch", id, down:true }); setParam(id, s.v > 0.5 ? 0 : 1, true); NB.send({ k:"touch", id, down:false }); });
+  holder.appendChild(b);
+  holder.addEventListener("pointerenter", () => hint(id));
+  const render = () => { const on = s.v > 0.5; b.classList.toggle("on", on); b.firstChild.classList.toggle("on", on); };
+  ctls[id] = { el: holder, render };
+  render();
+}
+
+function buildPanel(){
+  document.querySelectorAll("#panel .ctl[data-id]").forEach(h => {
+    const id = h.dataset.id; if (!P[id]) return;
+    if (h.dataset.type === "seg") makeSeg(h, id);
+    else if (h.dataset.type === "btn") makeBtn(h, id);
+    else makeKnob(h, id, !!h.dataset.big);
+  });
+  document.querySelectorAll("#panel .col[data-head]").forEach(col => {
+    const n = col.dataset.head;
+    col.innerHTML = "";
+    const row = document.createElement("div"); row.style.cssText = "display:flex;gap:4px;align-items:flex-start";
+    const on = document.createElement("div"); on.className = "ctl headon";
+    const pos = document.createElement("div"); pos.className = "ctl";
+    const lvl = document.createElement("div"); lvl.className = "ctl";
+    const pan = document.createElement("div"); pan.className = "ctl";
+    row.append(pos, lvl, pan);
+    const dl = document.createElement("div"); dl.className = "delay"; dl.id = "delay" + n; dl.textContent = "--- ms";
+    col.append(on, row, dl);
+    if (P["h" + n + "on"]) makeBtn(on, "h" + n + "on", "HEAD " + n);
+    if (P["h" + n + "pos"]) makeKnob(pos, "h" + n + "pos");
+    if (P["h" + n + "lvl"]) makeKnob(lvl, "h" + n + "lvl");
+    if (P["h" + n + "pan"]) makeKnob(pan, "h" + n + "pan");
+    // shorter labels inside the head columns
+    [pos, lvl, pan].forEach((c, i) => { const l = c.querySelector("label"); if (l) l.textContent = ["POS","LEVEL","PAN"][i]; });
+  });
+}
+
+// ---------------------------------------------------------------- machine
+const cv = document.getElementById("machine");
+const cx = cv.getContext("2d");
+const MM = 1.5;                 // px per mm: everything below is at the machine's real scale
+const CM = 15;
+const Y_T = 400;                // the tape's line across the heads
+const X_REC = 600;
+const X_ERASE = X_REC - 25 * MM;
+const X_CAP = 1010;
+const SUP = { x: 230, y: 210 }, TAK = { x: 1370, y: 210 };
+const FLANGE = 132 * MM, HUB = 57 * MM;
+const ARM_L = { px: 425, py: 300, rx: 455, ry: 352 }, ARM_R = { px: 1145, py: 300, rx: 1120, ry: 352 };
+let anim = { sup: 0, tak: 0, cap: 0, loop: 0, last: performance.now() };
+let headDrag = -1;
+
+function deckScale(){ return parseFloat(document.getElementById("deck").dataset.scale || "1"); }
+
+function fitCanvas(){
+  const sc = deckScale(), dpr = window.devicePixelRatio || 1;
+  const w = Math.round(1600 * sc * dpr), h = Math.round(528 * sc * dpr);
+  if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+  cx.setTransform(sc * dpr, 0, 0, sc * dpr, 0, 0);
+}
+
+function reel(c, rPack, ang, label){
+  // flange
+  cx.save();
+  cx.translate(c.x, c.y);
+  cx.fillStyle = "rgba(170,175,165,0.08)";
+  cx.strokeStyle = "#4a5046"; cx.lineWidth = 2;
+  cx.beginPath(); cx.arc(0, 0, FLANGE, 0, Math.PI * 2); cx.fill(); cx.stroke();
+  // tape pack
+  if (rPack > HUB + 1){
+    const g = cx.createRadialGradient(0, 0, HUB, 0, 0, rPack);
+    g.addColorStop(0, "#3a2617"); g.addColorStop(1, "#5a3b22");
+    cx.fillStyle = g;
+    cx.beginPath(); cx.arc(0, 0, rPack, 0, Math.PI * 2); cx.arc(0, 0, HUB, 0, Math.PI * 2, true); cx.fill();
+  }
+  // spokes and windows (they rotate, so the motion is visible)
+  cx.rotate(ang);
+  cx.strokeStyle = "#5c6357"; cx.lineWidth = 3;
+  for (let i = 0; i < 3; i++){
+    const a = i * Math.PI * 2 / 3;
+    cx.beginPath(); cx.moveTo(Math.cos(a) * 20, Math.sin(a) * 20); cx.lineTo(Math.cos(a) * (HUB - 4), Math.sin(a) * (HUB - 4)); cx.stroke();
+  }
+  cx.fillStyle = "#2b2f2a"; cx.strokeStyle = "#6a7064"; cx.lineWidth = 2;
+  cx.beginPath(); cx.arc(0, 0, HUB, 0, Math.PI * 2); cx.stroke();
+  cx.beginPath(); cx.arc(0, 0, 18, 0, Math.PI * 2); cx.fill(); cx.stroke();
+  cx.fillStyle = "#c9b27a";
+  cx.beginPath(); cx.arc(HUB - 12, 0, 4, 0, Math.PI * 2); cx.fill();
+  cx.restore();
+  cx.fillStyle = "#8a7a52"; cx.font = "11px Bahnschrift"; cx.textAlign = "center";
+  cx.fillText(label, c.x, c.y + FLANGE + 16);
+}
+
+function roller(x, y, r, ang, col){
+  cx.save(); cx.translate(x, y);
+  cx.fillStyle = col || "#2e332d"; cx.strokeStyle = "#6a7064"; cx.lineWidth = 1.5;
+  cx.beginPath(); cx.arc(0, 0, r, 0, Math.PI * 2); cx.fill(); cx.stroke();
+  cx.rotate(ang);
+  cx.strokeStyle = "#9aa090"; cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(r - 2, 0); cx.stroke();
+  cx.restore();
+}
+
+function head(x, label, col, lit, w){
+  w = w || 22;
+  cx.fillStyle = "#2a2e29"; cx.strokeStyle = "#7a8072"; cx.lineWidth = 1.5;
+  cx.beginPath(); cx.rect(x - w / 2, Y_T + 3, w, 34); cx.fill(); cx.stroke();
+  cx.fillStyle = col; cx.fillRect(x - w / 2 + 2, Y_T + 3, w - 4, 4);
+  cx.strokeStyle = "#e8e2cc"; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(x, Y_T + 2); cx.lineTo(x, Y_T + 12); cx.stroke();   // the gap
+  cx.fillStyle = "#c9b27a"; cx.font = "bold 12px Bahnschrift"; cx.textAlign = "center";
+  cx.fillText(label, x, Y_T + 28);
+  if (lit !== undefined){
+    cx.fillStyle = lit > 0.01 ? `rgba(255,179,64,${Math.min(1, 0.25 + lit * 2)})` : "#3a2a1a";
+    cx.beginPath(); cx.arc(x, Y_T + 46, 4, 0, Math.PI * 2); cx.fill();
+  }
+}
+
+function tapeLine(pts){
+  cx.strokeStyle = "#5a3b22"; cx.lineWidth = 4; cx.lineJoin = "round";
+  cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) cx.lineTo(pts[i][0], pts[i][1]);
+  cx.stroke();
+}
+
+function tangentFrom(c, r, to, side){
+  // point on a circle (centre c, radius r) where a line to `to` leaves tangentially
+  const dx = to[0] - c.x, dy = to[1] - c.y, d = Math.hypot(dx, dy);
+  const a = Math.atan2(dy, dx) + side * Math.acos(Math.min(1, r / d));
+  return [c.x + r * Math.cos(a), c.y + r * Math.sin(a)];
+}
+
+function drawMachine(){
+  fitCanvas();
+  const now = performance.now(), dt = Math.min(0.1, (now - anim.last) / 1000); anim.last = now;
+  const t = tele || { speed: 19, supR: 0.122, takR: 0.057, mode: 0, loopLen: 2, heads: [4, 8, 12], headPk: [0,0,0], tape: [] };
+  const vms = t.speed / 100;
+  // integrate the rotations locally between 30 Hz updates, from the simulation's speed and radii
+  anim.cap += vms / 0.005 * dt;
+  if (t.mode === 0){
+    anim.sup -= vms / Math.max(0.057, t.supR) * dt;
+    anim.tak -= vms / Math.max(0.057, t.takR) * dt;
+  } else anim.loop += vms / 0.03 * dt;
+
+  cx.clearRect(0, 0, 1600, 528);
+
+  // the deck plate
+  cx.fillStyle = "rgba(0,0,0,0.18)";
+  cx.fillRect(14, 10, 1572, 508);
+  cx.strokeStyle = "#2f342c"; cx.strokeRect(14.5, 10.5, 1571, 507);
+
+  const armL = [ARM_L.rx, ARM_L.ry], armR = [ARM_R.rx, ARM_R.ry];
+  const guideL = [505, Y_T - 9], guideR = [1060, Y_T - 9];
+
+  if (t.mode === 0){
+    reel(SUP, t.supR * 1000 * MM, anim.sup, "SUPPLY");
+    reel(TAK, t.takR * 1000 * MM, anim.tak, "TAKE-UP");
+    const p0 = tangentFrom(SUP, t.supR * 1000 * MM, armL, 1);
+    const p9 = tangentFrom(TAK, t.takR * 1000 * MM, armR, -1);
+    tapeLine([p0, [armL[0] - 9, armL[1]], [armL[0], armL[1] + 9], [guideL[0] - 9, Y_T], [X_CAP + 30, Y_T], [guideR[0], Y_T], [armR[0], armR[1] + 9], [armR[0] + 9, armR[1]], p9]);
+  } else {
+    // LOOP: the tank, and the loop coming back over the top
+    cx.fillStyle = "rgba(0,0,0,0.35)"; cx.strokeStyle = "#4a5046"; cx.lineWidth = 2;
+    cx.fillRect(40, 60, 330, 300); cx.strokeRect(40, 60, 330, 300);
+    const folds = Math.max(3, Math.round(t.loopLen * 6));
+    cx.strokeStyle = "#5a3b22"; cx.lineWidth = 3; cx.beginPath();
+    for (let i = 0; i <= 240; i++){
+      const x = 60 + i * 290 / 240;
+      const y = 210 + Math.sin(i / 240 * folds * Math.PI + anim.loop * 0.15) * 120;
+      i ? cx.lineTo(x, y) : cx.moveTo(x, y);
+    }
+    cx.stroke();
+    cx.fillStyle = "#8a7a52"; cx.font = "11px Bahnschrift"; cx.textAlign = "center";
+    cx.fillText("LOOP TANK  " + t.loopLen.toFixed(2) + " m", 205, 378);
+    roller(1330, 150, 30, anim.loop * 0.03 / 0.03 * (0.03 / 0.045), "#262b25");
+    roller(470, 60, 22, anim.loop * (0.03 / 0.033), "#262b25");
+    tapeLine([[370, 300], [armL[0] - 9, armL[1]], [armL[0], armL[1] + 9], [guideL[0] - 9, Y_T], [X_CAP + 30, Y_T], [guideR[0], Y_T], [armR[0], armR[1] + 9], [armR[0] + 30, armR[1] - 20], [1360, 150], [1330, 120], [470, 38], [448, 60], [370, 90]]);
+  }
+
+  // tension arms
+  for (const a of [ARM_L, ARM_R]){
+    cx.strokeStyle = "#6a7064"; cx.lineWidth = 6; cx.lineCap = "round";
+    cx.beginPath(); cx.moveTo(a.px, a.py); cx.lineTo(a.rx, a.ry); cx.stroke();
+    cx.fillStyle = "#3a3f37"; cx.beginPath(); cx.arc(a.px, a.py, 7, 0, Math.PI * 2); cx.fill();
+    roller(a.rx, a.ry, 9, anim.cap * 0.005 / 0.009, "#2e332d");
+  }
+  roller(guideL[0], guideL[1], 9, anim.cap * 0.005 / 0.009);
+  roller(guideR[0], guideR[1], 9, anim.cap * 0.005 / 0.009);
+
+  // the tape across the heads, coloured by the magnetisation the engine holds
+  if (t.tape && t.tape.length){
+    const n = t.tape.length, x0 = X_REC + t.tapeFrom * CM, x1 = X_REC + t.tapeTo * CM;
+    for (let i = 0; i < n; i++){
+      const a = Math.min(1, t.tape[i] / 1000 / 1.5);
+      cx.fillStyle = `rgba(255,${Math.round(150 + 60 * a)},${Math.round(60 * (1 - a))},${0.12 + 0.88 * a})`;
+      const xa = x0 + (x1 - x0) * i / n, xb = x0 + (x1 - x0) * (i + 1) / n;
+      cx.fillRect(xa, Y_T - 4, xb - xa + 0.5, 3 + 7 * a);
+    }
+  }
+
+  // capstan and pinch roller
+  roller(X_CAP, Y_T - 8, 5 * MM, anim.cap, "#8d9284");
+  roller(X_CAP, Y_T + 20, 12 * MM, -anim.cap * 0.005 / 0.012, "#1b1d1b");
+
+  // the rail
+  const r0 = X_REC + 1.5 * CM, r1 = X_REC + 24 * CM, yr = Y_T + 62;
+  cx.strokeStyle = "#565c50"; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(r0 - 6, yr); cx.lineTo(r1 + 6, yr); cx.stroke();
+  cx.fillStyle = "#8a7a52"; cx.font = "10px Consolas"; cx.textAlign = "center";
+  for (let c = 2; c <= 24; c++){
+    const x = X_REC + c * CM;
+    cx.strokeStyle = "#565c50"; cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(x, yr - (c % 5 ? 3 : 6)); cx.lineTo(x, yr + (c % 5 ? 3 : 6)); cx.stroke();
+    if (c % 5 === 0) cx.fillText(c + " cm", x, yr + 18);
+  }
+
+  head(X_ERASE, "E", "#a8442f");
+  head(X_REC, "R", "#c9b27a");
+  const on = [P.h1on, P.h2on, P.h3on];
+  t.heads.forEach((h, i) => {
+    const x = X_REC + h * CM;
+    cx.strokeStyle = "#3d4339"; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(x, Y_T + 37); cx.lineTo(x, yr); cx.stroke();
+    head(x, String(i + 1), on[i] && on[i].v > 0.5 ? "#7fbf6a" : "#4a4f45", t.headPk ? t.headPk[i] : 0);
+  });
+
+  // labels
+  cx.fillStyle = "#8a7a52"; cx.font = "11px Bahnschrift"; cx.textAlign = "center";
+  // the two fixed heads are 37 px apart at true scale: label them on two heights
+  cx.textAlign = "right"; cx.fillText("ERASE", X_ERASE + 4, Y_T - 30);
+  cx.textAlign = "left";  cx.fillText("RECORD", X_REC - 4, Y_T - 16);
+  cx.textAlign = "center";
+  cx.fillText("CAPSTAN", X_CAP, Y_T - 26);
+  cx.textAlign = "left";
+  cx.fillText("drag a playback head along the rail", r0, yr + 36);
+
+  requestAnimationFrame(drawMachine);
+}
+
+// head dragging on the rail
+function machinePoint(e){
+  const r = cv.getBoundingClientRect();
+  return [(e.clientX - r.left) / r.width * 1600, (e.clientY - r.top) / r.height * 528];
+}
+cv.addEventListener("pointerdown", e => {
+  if (!tele) return;
+  const [x, y] = machinePoint(e);
+  if (y < Y_T - 10 || y > Y_T + 75) return;
+  let best = -1, bd = 14;
+  tele.heads.forEach((h, i) => { const d = Math.abs(X_REC + h * CM - x); if (d < bd){ bd = d; best = i; } });
+  if (best < 0) return;
+  headDrag = best;
+  try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+  NB.send({ k:"touch", id: "h" + (best + 1) + "pos", down:true });
+  hint("h" + (best + 1) + "pos");
+});
+cv.addEventListener("pointermove", e => {
+  if (headDrag < 0) return;
+  const [x] = machinePoint(e);
+  setParam("h" + (headDrag + 1) + "pos", (x - X_REC) / CM, true);
+});
+const endHead = () => { if (headDrag >= 0){ NB.send({ k:"touch", id: "h" + (headDrag + 1) + "pos", down:false }); headDrag = -1; } };
+cv.addEventListener("pointerup", endHead);
+cv.addEventListener("pointercancel", endHead);
+
+// ---------------------------------------------------------------- header readouts
+function updateHeader(){
+  if (!tele) return;
+  const ips = tele.speed / 2.54;
+  document.getElementById("readout").textContent =
+    tele.speed.toFixed(2) + " cm/s  " + ips.toFixed(2) + " ips";
+  document.getElementById("lSync").classList.toggle("on", !!tele.syncOn);
+  document.getElementById("lClamp").classList.toggle("on", !!tele.syncClamp);
+  document.getElementById("lSplice").classList.toggle("on", !!tele.splice);
+  const m = (id, pk) => { const db = 20 * Math.log10(Math.max(1e-6, pk)); document.getElementById(id).style.width = Math.max(0, Math.min(100, (db + 60) / 60 * 100)) + "%"; };
+  m("mIn", tele.in); m("mOut", tele.out);
+  tele.heads.forEach((h, i) => {
+    const el = document.getElementById("delay" + (i + 1));
+    if (el) el.textContent = (h / tele.speed * 1000).toFixed(0) + " ms";
+  });
+}
+
+// ---------------------------------------------------------------- layout
+function layout(){
+  const deck = document.getElementById("deck");
+  const sc = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+  deck.dataset.scale = sc;
+  deck.style.transform = `translate(${(window.innerWidth - 1600 * sc) / 2}px, ${(window.innerHeight - 900 * sc) / 2}px) scale(${sc})`;
+}
+window.addEventListener("resize", layout);
+layout();
+
+// ---------------------------------------------------------------- messages
+function onInit(o){
+  build = o.build || "";
+  document.getElementById("build").textContent = "build " + build;
+  (o.params || []).forEach(p => { P[p.id] = Object.assign({}, p); });
+  buildPanel();
+  NB.send({ k:"stateack" });
+}
+function onHost(o){ (o.params || []).forEach(p => setParam(p.id, p.v, false)); }
+function onTele(o){ tele = o; updateHeader(); }
+
+NB.on("initialState", onInit);
+NB.on("hostParam", onHost);
+NB.on("tele", onTele);
+
+// Debug hook for probes: the state lives in this script, unreachable otherwise.
+window.__MT = { P, get tele(){ return tele; }, init: onInit, host: onHost, setTele: onTele, ctls };
+
+requestAnimationFrame(drawMachine);
+NB.send({ k:"hello" });
+</script>
+</body>
+</html>
