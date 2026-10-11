@@ -9,6 +9,8 @@
 // Values are stored in PHYSICAL units (cm, cm/s, m, dB, index), which is also
 // what JUCE's getRawParameterValue hands back for a float parameter.
 
+#include "HeadPattern.h"
+
 namespace mt
 {
 
@@ -19,6 +21,8 @@ struct Params
     float speed     = 19.0f;  // cm/s
     float sync      = 0.0f;   // 0 off, else index into SYNC_BEATS
     float syncHead  = 0.0f;   // which playback head is the tempo head
+    float pattern   = 0.0f;   // HEAD PATTERN: the ratios SET snaps the heads to (one shot, not a lock)
+    float bypass    = 0.0f;   // the host's bypass: a crossfade to the dry path, delayed as the host is told
 
     float condition = 15.0f;  // TRANSPORT CONDITION, %: 0 ideal, 15 freshly serviced, 100 worn out
     float capstan   = 100.0f; // the causes' balance, %: capstan assembly (flutter)
@@ -90,6 +94,10 @@ inline const Spec SPECS[] =
       "Sets the motor speed so the tempo head lands on this note value at the host tempo." },
     { "synchead", "TEMPO HEAD", Kind::Choice, 0, 2, 0,   "", "HEAD 1|HEAD 2|HEAD 3", &Params::syncHead,
       "The playback head SYNC puts on the beat. The others land where their spacing puts them." },
+    { "pattern", "HEAD PATTERN", Kind::Choice, 0, NUM_PATTERNS - 1, 0, "", MT_PATTERN_NAMES, &Params::pattern,
+      "The ratios SET puts the playback heads at, around the TEMPO HEAD: 1:2:3 is the Space Echo's. A one-shot snap, not a lock: the carriages travel there and every echo in flight glides; nudge any head afterwards." },
+    { "bypass", "BYPASS", Kind::Toggle, 0, 1, 0, "", nullptr, &Params::bypass,
+      "The host's bypass: a 20 ms crossfade to the dry signal, delayed by exactly what the host is told, so a bypass in REPRO stays in time. The tape keeps running underneath." },
     { "condition", "TRANSPORT CONDITION", Kind::Lin, 0.0f, 100.0f, 15.0f, "%", nullptr, &Params::condition,
       "How worn the transport is. 0 is an ideal machine, 15 a freshly serviced one, 100 worn out. It sets physical causes - runout, rough bearings, tension variation, friction - and the wow and flutter are what they do." },
     { "capstan", "CAPSTAN", Kind::Lin, 0.0f, 200.0f, 100.0f, "%", nullptr, &Params::capstan,
@@ -155,5 +163,17 @@ inline const Spec SPECS[] =
       "A loop wears a little on every pass over the heads, and keeps its wear with the project. Off, the tape stays as WEAR sets it." },
 };
 inline constexpr int NUM_SPECS = (int) (sizeof (SPECS) / sizeof (SPECS[0]));
+
+/*  A row by its id (-1 if none). Linear: called at block rate at most. */
+inline int indexOf (const char* id)
+{
+    for (int i = 0; i < NUM_SPECS; ++i)
+    {
+        const char* a = SPECS[i].id; const char* b = id;
+        while (*a && *a == *b) { ++a; ++b; }
+        if (*a == 0 && *b == 0) return i;
+    }
+    return -1;
+}
 
 } // namespace mt

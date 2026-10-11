@@ -1,0 +1,401 @@
+{
+  "version": 1,
+  "cards": {
+    "mode": {
+      "title": "TRANSPORT",
+      "does": "<p>REEL threads an open reel: fresh tape arrives from the supply reel, and every recording leaves on the take-up reel, never to be heard again. LOOP runs a closed loop of tape past the heads, round and round, so what was recorded comes back — and the LOOP panel decides what the heads do to it.</p>",
+      "hood": "<p>In both modes the tape is a medium, not a buffer: magnetisation along the tape in cells of $\\Delta x = 0.5\\,\\mu\\mathrm{m}$ per track, written by the record head and read by the playback heads wherever they stand. On a REEL only the stretch between the supply guide and the last playback head can ever be read again, so the engine keeps exactly that window as a ring and returns each cell to virgin, demagnetised tape as it comes off the supply reel.</p><p>A LOOP is a ring of $N = L/\\Delta x$ cells: a 2 m loop is four million cells a track, each with four depth slabs. Switching modes is a splice, as on a real deck: the wet path fades out over 15 ms, a new tape is threaded and it fades back in. Every random property of a tape — its particles, its density, its dropouts — is a hash of position on it, so a reel never repeats and a loop brings them round every pass.</p>",
+      "notModelled": ""
+    },
+    "looplen": {
+      "title": "LOOP LENGTH",
+      "does": "<p>The physical length of the tape loop. A longer loop brings a recording back later; with the erase head turned down in DUB, the time between returns is the loop's own period.</p>",
+      "hood": "<p>The loop period is simply $$T = \\frac{L}{v}$$ so a 2 m loop at 19.05 cm/s comes round every 10.5 s. The length is cut in 5 cm steps, and a change is a new loop: the engine splices in fresh, blank tape rather than stretching the old one, which no machine can do. The playback heads are kept clear of the joint's return path: in LOOP the rail is clamped to 85 % of the loop length minus the erase head's offset, so no head can sit where the tape is already on its way back to the erase head.</p><p>The loop carries a real splice — a 20 µm butt joint with no oxide, and splicing tape on the back lifting the tape 2 µm over about ±0.4 mm — which ticks past each head once a period. With SYNC on and LOOP BARS set, the bars cut the loop instead.</p>",
+      "notModelled": ""
+    },
+    "speed": {
+      "title": "TAPE SPEED",
+      "does": "<p>How fast the capstan pulls the tape. Slower tape gives longer echoes and a darker, more saturated sound; a change glides with the motor's inertia, so every echo already on the tape bends in pitch.</p>",
+      "hood": "<p>Nothing in the engine computes a delay or a pitch shift. An echo is recorded at one place on the tape and heard when the tape has carried it to a head, $$\\tau = \\frac{h}{v}$$ and if the speed changes in between, the head scans the recording at a different rate: a pitch ratio of $v_{\\mathrm{play}}/v_{\\mathrm{rec}}$. Speed changes the recording too. A slower tape takes more bias cycles through the recording zone and records more completely, and a given frequency becomes a shorter wavelength, $\\lambda = v/f$, which loses more to the heads' gaps and spacing and to the coating's thickness.</p><figure data-fig=\"speedhd\"></figure><p>The record tables carry a speed axis measured by the reference from 4.76 to 76.2 cm/s, and the equaliser's time constants are interpolated in log speed, so the machine is aligned for whatever speed you set. Delay timing on this build is exact to <span data-num=\"eng.delay_err_us\"></span>.</p>",
+      "notModelled": ""
+    },
+    "sync": {
+      "title": "SYNC",
+      "does": "<p>Locks the echo to the host tempo by setting the motor speed, so the tempo head lands on the chosen note value. Tempo changes glide, as a real motor would.</p>",
+      "hood": "<p>SYNC does not shorten a delay line; it changes the capstan's target speed, $$v = \\frac{h_{\\mathrm{tempo}}}{t_{\\mathrm{note}}},\\qquad t_{\\mathrm{note}} = \\frac{60\\,b}{\\mathrm{BPM}}$$ with $b$ the note value in beats. The motor then gets there with its own dynamics — the synchronous motor's hunting or the servo's quicker loop — so a tempo change is heard as every echo on the tape bending in pitch while the speed glides.</p><p>If the speed asked for falls outside 4.75–76 cm/s it is clamped and the panel's lamp says so: moving the tempo head closer or further out brings it back in range. The other heads land where their spacing puts them; HEAD PATTERN places them on note values too. Measured timing: <span data-num=\"eng.delay_err_us\"></span>.</p><figure data-fig=\"delaygeometry\"></figure>",
+      "notModelled": ""
+    },
+    "synchead": {
+      "title": "TEMPO HEAD",
+      "does": "<p>Chooses which playback head SYNC puts on the beat. The other heads keep their distances, so they land where their spacing puts them.</p>",
+      "hood": "<p>Because delay is distance over speed, only one head's delay can be set by the motor: every head has $\\tau_i = h_i/v$ with the same $v$. SYNC solves for $v$ from the tempo head, and the ratio between any two heads' delays is then just the ratio of their positions, $$\\frac{\\tau_2}{\\tau_1} = \\frac{h_2}{h_1}$$ at any tempo.</p><p>That is why HEAD PATTERN works in ratios of the tempo head's distance, and why dragging the tempo head on its rail changes the motor speed — and with it the pitch of everything in flight — while dragging another head changes only its own echo. With LOOP BARS, the tempo head also sets the length the loop is cut to.</p>",
+      "notModelled": ""
+    },
+    "condition": {
+      "title": "TRANSPORT CONDITION",
+      "does": "<p>How worn the transport is, from an ideal machine (0) through freshly serviced (15, the default) to worn out (100). It sets physical causes; the wow and flutter you hear are what they do.</p>",
+      "hood": "<p>Wow and flutter are not a modulator here. CONDITION scales a set of causes together: at 100 %, with the balance knobs at 100 %, the capstan shaft runs out by 5 µm, the pinch roller by 20 µm, the bearings are rough, the reel tension varies by 0.8 N and the heads scrape the tape by 50 nm rms. Each moves the tape's speed under the heads, and because the tape is a medium, record-time and play-time speed errors combine by themselves: a flutter component of frequency $f$ reaches a head $\\tau$ seconds downstream through $$|H(f)| = 2\\left|\\sin(\\pi f\\tau)\\right|$$ the comb every real tape echo has.</p><figure data-fig=\"wowflutter\"></figure><p>The heads' azimuth drifts with condition too, softening the treble. Weighted W&amp;F, measured: <span data-num=\"eng.wf_fresh_pct\"></span> freshly serviced, <span data-num=\"eng.wf_worn_pct\"></span> worn out.</p>",
+      "notModelled": ""
+    },
+    "capstan": {
+      "title": "CAPSTAN",
+      "does": "<p>The capstan assembly's share of the wear: runout, rough bearings, motor ripple. More of it is flutter — a quick warble that roughens sustained notes.</p>",
+      "hood": "<p>The capstan sets the tape's speed directly, so its faults are speed errors at its own rotation rate. A shaft of radius $r_c$ = 5 mm running out by $e_c$ changes the speed by $$\\frac{\\Delta v}{v} = \\frac{e_c}{r_c}$$ once a revolution — about 6 Hz at 19 cm/s, close to where the W&amp;F weighting is most sensitive. The pinch roller's runout couples in at about a third, the bearings add band-limited random error between 3 and 30 Hz, and the motor adds its ripple: twice the mains frequency for the synchronous motor, the tachometer's slot rate for the servo.</p><p>0 to 200 % shifts the balance of the wear towards or away from the capstan; TRANSPORT CONDITION sets how much wear there is to share.</p><figure data-fig=\"wowflutter\"></figure>",
+      "notModelled": ""
+    },
+    "reels": {
+      "title": "REELS",
+      "does": "<p>The reels' and tension's share of the wear. More of it is wow: a slow drift in pitch, below a few hertz.</p>",
+      "hood": "<p>The reels never touch the speed directly; they vary the tape's tension, and tension stretches the tape. The strain between the reels and the capstan, $$\\frac{\\Delta v}{v} \\approx \\frac{\\Delta T}{EA},\\qquad EA \\approx 1000\\ \\mathrm{N}$$ for a quarter-inch tape, appears as a speed variation at the heads. Reel eccentricity and the holdback's friction make $\\Delta T$ vary at the reels' rotation rates, 0.2–1 Hz, and below: this is wow.</p><p>A LOOP has no reels; only its guides' friction varies its tension, a little. REELS also scales the slow weave of the tape along its guides, which wanders the angle between the tape and each head's gap.</p>",
+      "notModelled": ""
+    },
+    "scrape": {
+      "title": "SCRAPE",
+      "does": "<p>Friction at the heads: the tape sticks and slips and rings at a few kilohertz. It is heard as a fuzz or grain around a tone, not as a pitch wobble.</p>",
+      "hood": "<p>Where tape rubs a head, friction excites the tape span's longitudinal resonance. With sound travelling along the tape at $$c = \\sqrt{E/\\rho} \\approx 1.8\\ \\mathrm{km/s}$$ and spans of 10–30 cm, that resonance sits at a few kilohertz. Each head — the record head and the three playbacks, independently — moves the tape locally by a narrow-band random displacement around 3.2 kHz: a few nanometres on a well-kept machine, 50 nm rms worn out.</p><p>Timing wobbling at kilohertz rates puts noise sidebands close around every tone: modulation noise rather than wow. It barely moves the W&amp;F meter, whose weighting has fallen away long before 3 kHz — which is why it is its own control. A sticky tape scrapes harder: the stock multiplies it (three times for the shedding binder) and tape wear raises it.</p>",
+      "notModelled": "<p>The tape span is treated through its resonance, not as a full longitudinal wave equation.</p>"
+    },
+    "motor": {
+      "title": "MOTOR",
+      "does": "<p>AC SYNC: a synchronous capstan motor that hunts gently around a new speed. DC SERVO: a tachometer-controlled motor, quicker and firmer, with its own slot ripple.</p>",
+      "hood": "<p>The synchronous rotor is pulled towards the rotating field by a torque on the angle error $\\delta$ and damped by its damper winding: $$J\\dot\\omega = -K\\delta - D(\\omega - \\Omega_f),\\qquad \\dot\\delta = \\omega - \\Omega_f$$ a second-order system that hunts near 1.2 Hz with damping 0.8. Varispeed comes from a frequency converter that slews at most 120 cm/s per second; a synchronous motor pushed harder would fall out of step.</p><p>The servo is the same equation with a PI loop on a tachometer — about 4 Hz, damping 0.9 — so it settles sooner with less overshoot. Each has its signature: torque ripple at twice the mains for AC, the tachometer's 24 slots per revolution for DC. These dynamics are what you hear whenever SYNC, TAPE SPEED or MOTOR RUN moves the speed.</p>",
+      "notModelled": ""
+    },
+    "broken": {
+      "title": "OK / BROKEN",
+      "does": "<p>A neglected machine in one slider. It moves the real causes — wear, friction, a sagging bias oscillator, a weakening erase head — towards a wreck, and past the middle three real faults appear: a clogged head, a hunting motor and crinkled tape.</p>",
+      "hood": "<p>Every deterioration in this model is already a physical cause, so BROKEN adds no effect on top. It moves CONDITION, CAPSTAN, REELS, SCRAPE and WEAR in a straight line from where the knobs are towards a wreck, sags the bias oscillator by up to 6 dB and, on a loop, lets the erase head fall to 0.55 of its field. Red dots on those knobs show where it has taken them. Below the middle it is exactly those knobs turned by hand, bit for bit.</p><p>Past the middle: oxide clogging a playback head (up to 6 µm of spacing, so the treble goes first; 10 kHz swings by <span data-num=\"eng.clog_swing_db\"></span>), the speed control hunting, a limit cycle through the motor's own dynamics (<span data-num=\"eng.hunt_pp_pct\"></span> peak to peak), and a crinkled 5 cm stretch — a burst of dropouts and flutter, once a loop. A broken machine is quieter, never louder.</p>",
+      "notModelled": "<p>The crinkle lifts the tape at the playback heads only; its effect on recording is not modelled.</p>"
+    },
+    "h1pos": {
+      "title": "HEAD 1 POSITION",
+      "does": "<p>Where playback head 1 sits on the rail, in centimetres downstream of the record head. Further away is a longer echo; moving it while the tape runs bends the echoes it is reading in pitch.</p>",
+      "hood": "<p>A head reads whatever material is under it, $u = T(t) - h$, where $T$ is the tape's odometer. Its delay is therefore $\\tau = h/v$ and nothing else: 4 cm at 19.05 cm/s is 210 ms. The carriage follows the knob through a critically damped response (natural period about 0.25 s) at up to 12 cm/s, and while it moves the head scans the tape at $v - \\dot h$ — genuine Doppler, $$\\frac{f_{\\mathrm{heard}}}{f_{\\mathrm{recorded}}} = \\frac{v - \\dot h}{v_{\\mathrm{rec}}}$$ including reading backwards if the head outruns the tape.</p><figure data-fig=\"delaygeometry\"></figure><p>Heads cannot pass through each other: centres stay at least 1.2 cm apart and a carriage stops against its neighbour while the knob keeps asking. Doppler error on this build: <span data-num=\"eng.doppler_err_cents\"></span>. With REPRO on, head 1 is the replay head and its settled position is the delay reported to the host.</p>",
+      "notModelled": ""
+    },
+    "h1on": {
+      "title": "HEAD 1",
+      "does": "<p>Switches playback head 1 on or off. An off head is silent and takes no part in the feedback.</p>",
+      "hood": "<p>Each playback head is a full ring-head read of the tape: four depth slabs through their own spacing-and-thickness kernels, the gap loss, the head bump from its pole faces, crosstalk from the other track and its own azimuth error. Switching a head off removes it from the wet mix and from the feedback wire, and the wire is divided by the number of heads that are on, $$g_{\\mathrm{wire}} \\propto \\frac{F}{N_{\\mathrm{on}}}$$ so FEEDBACK keeps its meaning — the runaway point stays put — with one, two or three heads.</p><p>The tape does not care: what is recorded is there whether a head reads it or not, so switching a head on mid-loop plays what has been on the tape all along.</p>",
+      "notModelled": ""
+    },
+    "h1lvl": {
+      "title": "HEAD 1 LEVEL",
+      "does": "<p>The playback level of head 1. It also sets how much of this head goes back round the feedback loop.</p>",
+      "hood": "<p>The level is the gain of head 1's replay channel, after the replay equaliser. The machine is aligned so that tape carrying 250 nWb/m — the reference operating level — replays at 0 VU, −18 dBFS, with this at 0 dB, and that alignment is redone for every speed: unity at 1 kHz within <span data-num=\"eng.unity_db\"></span>.</p><p>Every head's output joins the feedback wire at this gain, so turning a head down feeds back less of it. The wire is normalised by the number of heads that are on, not by their levels, so a quieter head never feeds back more of itself. Above 0 dB the echo can reach the playback amplifier's rail: a smooth tanh knee into +2 dBFS, 20 dB over 0 VU.</p>",
+      "notModelled": ""
+    },
+    "h1pan": {
+      "title": "HEAD 1 PAN",
+      "does": "<p>Where head 1's echo sits in the stereo field. Spreading the heads left and right turns a multi-head echo into a pattern that moves across the speakers.</p>",
+      "hood": "<p>The tape has two tracks, left and right, and every head reads both. PAN balances the head's two channels: at the centre both pass at unity, and turning towards one side fades the other linearly to silence at the end of the travel.</p><p>Before the pan pot each head already carries what a real two-track head picks up: fringing from the other track across the 0.75 mm guard band at long wavelengths, a flat leak inside the head around −65 dB, and a time skew between the tracks when its azimuth is off, $\\Delta t = S\\tan\\alpha/v$ for tracks $S$ apart. With INPUT on MONO those small differences, and each track's own particle noise, are what makes the two sides of one recording differ before PAN places them.</p>",
+      "notModelled": ""
+    },
+    "h2pos": {
+      "title": "HEAD 2 POSITION",
+      "does": "<p>Where playback head 2 sits on the rail, in centimetres downstream of the record head. Further away is a longer echo; moving it while the tape runs bends the echoes it is reading in pitch.</p>",
+      "hood": "<p>A head reads whatever material is under it, $u = T(t) - h$, where $T$ is the tape's odometer. Its delay is therefore $\\tau = h/v$ and nothing else: 4 cm at 19.05 cm/s is 210 ms. The carriage follows the knob through a critically damped response (natural period about 0.25 s) at up to 12 cm/s, and while it moves the head scans the tape at $v - \\dot h$ — genuine Doppler, $$\\frac{f_{\\mathrm{heard}}}{f_{\\mathrm{recorded}}} = \\frac{v - \\dot h}{v_{\\mathrm{rec}}}$$ including reading backwards if the head outruns the tape.</p><figure data-fig=\"delaygeometry\"></figure><p>Heads cannot pass through each other: centres stay at least 1.2 cm apart and a carriage stops against its neighbour while the knob keeps asking. Doppler error on this build: <span data-num=\"eng.doppler_err_cents\"></span>.</p>",
+      "notModelled": ""
+    },
+    "h2on": {
+      "title": "HEAD 2",
+      "does": "<p>Switches playback head 2 on or off. An off head is silent and takes no part in the feedback.</p>",
+      "hood": "<p>Each playback head is a full ring-head read of the tape: four depth slabs through their own spacing-and-thickness kernels, the gap loss, the head bump from its pole faces, crosstalk from the other track and its own azimuth error. Switching a head off removes it from the wet mix and from the feedback wire, and the wire is divided by the number of heads that are on, $$g_{\\mathrm{wire}} \\propto \\frac{F}{N_{\\mathrm{on}}}$$ so FEEDBACK keeps its meaning — the runaway point stays put — with one, two or three heads.</p><p>The tape does not care: what is recorded is there whether a head reads it or not, so switching a head on mid-loop plays what has been on the tape all along. In REPRO heads 2 and 3 are off whatever these switches say.</p>",
+      "notModelled": ""
+    },
+    "h2lvl": {
+      "title": "HEAD 2 LEVEL",
+      "does": "<p>The playback level of head 2. It also sets how much of this head goes back round the feedback loop.</p>",
+      "hood": "<p>The level is the gain of head 2's replay channel, after the replay equaliser. The machine is aligned so that tape carrying 250 nWb/m — the reference operating level — replays at 0 VU, −18 dBFS, with this at 0 dB, and that alignment is redone for every speed: unity at 1 kHz within <span data-num=\"eng.unity_db\"></span>.</p><p>Every head's output joins the feedback wire at this gain, so turning a head down feeds back less of it. The wire is normalised by the number of heads that are on, not by their levels, so a quieter head never feeds back more of itself. Above 0 dB the echo can reach the playback amplifier's rail: a smooth tanh knee into +2 dBFS, 20 dB over 0 VU.</p>",
+      "notModelled": ""
+    },
+    "h2pan": {
+      "title": "HEAD 2 PAN",
+      "does": "<p>Where head 2's echo sits in the stereo field. Spreading the heads left and right turns a multi-head echo into a pattern that moves across the speakers.</p>",
+      "hood": "<p>The tape has two tracks, left and right, and every head reads both. PAN balances the head's two channels: at the centre both pass at unity, and turning towards one side fades the other linearly to silence at the end of the travel.</p><p>Before the pan pot each head already carries what a real two-track head picks up: fringing from the other track across the 0.75 mm guard band at long wavelengths, a flat leak inside the head around −65 dB, and a time skew between the tracks when its azimuth is off, $\\Delta t = S\\tan\\alpha/v$ for tracks $S$ apart. With INPUT on MONO those small differences, and each track's own particle noise, are what makes the two sides of one recording differ before PAN places them.</p>",
+      "notModelled": ""
+    },
+    "h3pos": {
+      "title": "HEAD 3 POSITION",
+      "does": "<p>Where playback head 3 sits on the rail, in centimetres downstream of the record head. Further away is a longer echo; moving it while the tape runs bends the echoes it is reading in pitch.</p>",
+      "hood": "<p>A head reads whatever material is under it, $u = T(t) - h$, where $T$ is the tape's odometer. Its delay is therefore $\\tau = h/v$ and nothing else: 4 cm at 19.05 cm/s is 210 ms. The carriage follows the knob through a critically damped response (natural period about 0.25 s) at up to 12 cm/s, and while it moves the head scans the tape at $v - \\dot h$ — genuine Doppler, $$\\frac{f_{\\mathrm{heard}}}{f_{\\mathrm{recorded}}} = \\frac{v - \\dot h}{v_{\\mathrm{rec}}}$$ including reading backwards if the head outruns the tape.</p><figure data-fig=\"delaygeometry\"></figure><p>Heads cannot pass through each other: centres stay at least 1.2 cm apart and a carriage stops against its neighbour while the knob keeps asking. Doppler error on this build: <span data-num=\"eng.doppler_err_cents\"></span>.</p>",
+      "notModelled": ""
+    },
+    "h3on": {
+      "title": "HEAD 3",
+      "does": "<p>Switches playback head 3 on or off. An off head is silent and takes no part in the feedback.</p>",
+      "hood": "<p>Each playback head is a full ring-head read of the tape: four depth slabs through their own spacing-and-thickness kernels, the gap loss, the head bump from its pole faces, crosstalk from the other track and its own azimuth error. Switching a head off removes it from the wet mix and from the feedback wire, and the wire is divided by the number of heads that are on, $$g_{\\mathrm{wire}} \\propto \\frac{F}{N_{\\mathrm{on}}}$$ so FEEDBACK keeps its meaning — the runaway point stays put — with one, two or three heads.</p><p>The tape does not care: what is recorded is there whether a head reads it or not, so switching a head on mid-loop plays what has been on the tape all along. In REPRO heads 2 and 3 are off whatever these switches say.</p>",
+      "notModelled": ""
+    },
+    "h3lvl": {
+      "title": "HEAD 3 LEVEL",
+      "does": "<p>The playback level of head 3. It also sets how much of this head goes back round the feedback loop.</p>",
+      "hood": "<p>The level is the gain of head 3's replay channel, after the replay equaliser. The machine is aligned so that tape carrying 250 nWb/m — the reference operating level — replays at 0 VU, −18 dBFS, with this at 0 dB, and that alignment is redone for every speed: unity at 1 kHz within <span data-num=\"eng.unity_db\"></span>.</p><p>Every head's output joins the feedback wire at this gain, so turning a head down feeds back less of it. The wire is normalised by the number of heads that are on, not by their levels, so a quieter head never feeds back more of itself. Above 0 dB the echo can reach the playback amplifier's rail: a smooth tanh knee into +2 dBFS, 20 dB over 0 VU.</p>",
+      "notModelled": ""
+    },
+    "h3pan": {
+      "title": "HEAD 3 PAN",
+      "does": "<p>Where head 3's echo sits in the stereo field. Spreading the heads left and right turns a multi-head echo into a pattern that moves across the speakers.</p>",
+      "hood": "<p>The tape has two tracks, left and right, and every head reads both. PAN balances the head's two channels: at the centre both pass at unity, and turning towards one side fades the other linearly to silence at the end of the travel.</p><p>Before the pan pot each head already carries what a real two-track head picks up: fringing from the other track across the 0.75 mm guard band at long wavelengths, a flat leak inside the head around −65 dB, and a time skew between the tracks when its azimuth is off, $\\Delta t = S\\tan\\alpha/v$ for tracks $S$ apart. With INPUT on MONO those small differences, and each track's own particle noise, are what makes the two sides of one recording differ before PAN places them.</p>",
+      "notModelled": ""
+    },
+    "feedback": {
+      "title": "FEEDBACK",
+      "does": "<p>How much of the playback is wired back into the record amplifier, so the echoes repeat. Past about two thirds of the knob the loop self-oscillates, and the tape's own saturation holds it.</p>",
+      "hood": "<p>The heads' outputs, after the replay equaliser and the playback amplifier's rail, pass the BASS and TREBLE shelves and join the input at the record amplifier, then go through the whole record process onto the tape again. For echoes arriving in phase, the small-signal loop gain at knob value $F$ is $$g = 1.1\\,F\\,\\frac{10^{R/20}}{N_{\\mathrm{on}}}\\sum_{i\\ \\mathrm{on}} 10^{L_i/20}$$ with $L_i$ the head levels and $R$ the RECORD LEVEL in dB, so with heads at 0 dB unity arrives near two thirds of the way: runaway measured at <span data-num=\"eng.feedback_onset_pct\"></span> at 19 cm/s, and 100 % runs away at every speed.</p><figure data-fig=\"feedbackloop\"></figure><p>There is no clipper and no limiter in the loop. What contains a runaway is the tape running out of remanence, so a self-oscillating loop sits just under full remanence and its pitch and tone are set by the heads, the EQ, the head bump and the stock.</p>",
+      "notModelled": ""
+    },
+    "bass": {
+      "title": "BASS",
+      "does": "<p>A low shelf in the feedback path. Cut, each repeat grows thinner; boosted, the repeats grow heavier. The first echo from each head is not affected — only what goes round again.</p>",
+      "hood": "<p>The shelf sits on the feedback wire only; each head's echo is read off the tape before the tone stage, so a repeat carries the shaping of the passes it has already made. That shaping compounds: after $n$ repeats a boost of $G$ dB has acted $n$ times, on top of what the tape does to every pass. The tape has its own bass character: a playback head of finite length reads long wavelengths through its outer pole faces as well, $$H(k) = 1 - \\cos(kL)\\,s(k)$$ a bump near the wavelength $2L$ and a cut towards DC, both moving with speed.</p><p>Because a runaway starts wherever the loop gain first reaches unity, the shelf moves that point in frequency: a little cut keeps a long feedback clean, a boost runs away sooner and lower, into the thud real tape echoes are known for.</p>",
+      "notModelled": ""
+    },
+    "treble": {
+      "title": "TREBLE",
+      "does": "<p>A high shelf in the feedback path. Cut, the repeats darken like a worn analogue echo; boosted, they stay bright for longer. The first echo from each head is not affected.</p>",
+      "hood": "<p>Every pass through the tape already loses some top: the recording zone smears short wavelengths, and the playback head reads them through its gap and spacing, $$e^{-k d}\\,\\frac{\\sin(kg/2)}{kg/2},\\qquad k = \\frac{2\\pi}{\\lambda} = \\frac{2\\pi f}{v}$$ which is why repeats darken faster at slow speeds. The equalisers put most of it back for a single pass; what is left, and what the shelf adds or takes, compounds with every repeat.</p><p>A treble boost is not free: the record pre-emphasis already lifts the top before the head, so boosted treble meets the tape's saturation first and compresses. The shelf acts on the feedback wire only; each head's echo is read before the tone stage.</p>",
+      "notModelled": ""
+    },
+    "drive": {
+      "title": "INPUT DRIVE",
+      "does": "<p>The gain of the input amplifier. It pushes the incoming signal harder into the tape — more saturation and compression on the new material — while the echoes already circulating in the feedback loop keep their level.</p>",
+      "hood": "<p>DRIVE scales only the input at the record amplifier; the feedback wire joins after it, and RECORD LEVEL acts on both. Driven harder, the signal's field grows against a fixed bias, and the tape answers along its anhysteretic curve — nearly linear at small fields, bending smoothly as more of the coating's particles are already aligned. For the Preisach coating that curve is the integrated distribution of the particles' interaction fields, $$\\frac{M_{\\mathrm{anh}}(s)}{M_s} = 2\\,\\Phi_u(s) - 1$$</p><figure data-fig=\"anhysteretic\"></figure><p>Third-harmonic distortion rises with level, measured <span data-num=\"eng.hd3_6db_pct\"></span> at +6 dB over 0 VU, and the maximum output level (3 % third harmonic) sits at <span data-num=\"eng.mol_db_re185\"></span> re 185 nWb/m against the 456 data sheet's +12.3. Treble saturates first, because the record pre-emphasis lifts it before the head. The dry signal is untouched.</p>",
+      "notModelled": ""
+    },
+    "reclevel": {
+      "title": "RECORD LEVEL",
+      "does": "<p>How hard the record head drives the tape, input and feedback together. At 0 dB a −18 dBFS tone is recorded at 250 nWb/m, the 1970s studio operating level; above it the tape saturates, below it the hiss comes up.</p>",
+      "hood": "<p>The record signal becomes a deep-gap field at the record head, riding on the 150 kHz bias. At the alignment 0 VU is a field of <span data-num=\"ref.hs0vu_hc\"></span> — a small fraction of the bias, which is why tape is so linear at normal levels: the bias does the switching, the signal only tips the balance. The real-time model's level transfer agrees with the offline Preisach reference within <span data-num=\"eng.level_err_db\"></span> from −20 to +16 dB.</p><p>RECORD LEVEL sits after the input and the feedback wire meet, so it moves the feedback loop's gain with it. It also decides how much of an old recording survives being recorded over: a 3 kHz tone at 0 VU over a take leaves <span data-num=\"ref.overdub3k_db\"></span> of it. How much survives depends on how deep the old recording went, not only on its level: takes of the same flux recorded at different biases end <span data-num=\"ref.overwrite_depth_spread_db\"></span> apart after the same overwrite. Each stock has its own operating level (185 nWb/m for vintage and budget) and headroom, so the same setting saturates a vintage tape sooner.</p>",
+      "notModelled": ""
+    },
+    "bias": {
+      "title": "BIAS",
+      "does": "<p>The bias current, relative to the alignment point. Less bias: brighter, louder, dirtier — and in a loop old recordings survive more of the overwrite. More bias: cleaner, darker and quieter.</p>",
+      "hood": "<p>A ferric coating barely records an audio field on its own: from demagnetised tape, a small field switches almost no particles. So the record head adds a 150 kHz bias field, many times the signal; as the tape leaves the gap each point sees that field decay through hundreds of cycles, and the particles settle along the anhysteretic curve, with the signal as a small offset. How deep the bias reaches into the 14 µm coating decides the sound: too little records the surface only (bright, distorted), too much sweeps the surface's recording zone out where the field gradient is weak (dark).</p><figure data-fig=\"biascurve\"></figure><p>The machine is aligned at its nominal 19 cm/s as the 456 data sheet does it — 10 kHz 3 dB past its peak — at a deep-gap bias of <span data-num=\"ref.op_bias_hc\"></span>. Bias also erases: one pass at the operating bias takes <span data-num=\"ref.bias_erasure_db\"></span> off an old recording, at half bias only <span data-num=\"ref.halfbias_erasure_db\"></span>. That makes BIAS a loop's overdub depth control.</p>",
+      "notModelled": ""
+    },
+    "mix": {
+      "title": "MIX",
+      "does": "<p>The balance of dry signal and tape, equal power, so the loudness stays steady across the knob.</p>",
+      "hood": "<p>The dry and wet gains follow $$g_{\\mathrm{dry}} = \\cos\\frac{\\pi m}{2},\\qquad g_{\\mathrm{wet}} = \\sin\\frac{\\pi m}{2}$$ so $g_{\\mathrm{dry}}^2 + g_{\\mathrm{wet}}^2 = 1$: a dry note and its uncorrelated echo sum to the same power at every setting.</p><p>The dry path stays at the host's sample rate, untouched by the tape, while the wet path runs through the oversampled tape model. The half-band filters' delay is paid back by reading each playback head that much tape further ahead — exact at constant speed — so the echo is where the head distance says and the plug-in reports no latency. In REPRO the dry path is delayed to line up with the replay head instead, so MIX blends the tape with the same moment of the source.</p>",
+      "notModelled": ""
+    },
+    "killdry": {
+      "title": "KILL DRY",
+      "does": "<p>Removes the dry signal entirely, whatever MIX says. Use it when the plug-in sits on a send or aux, where the dry signal is already in the mix.</p>",
+      "hood": "<p>With KILL DRY on the dry gain is exactly zero and the wet gain still follows MIX's sine law, $g_{\\mathrm{wet}} = \\sin(\\pi m/2)$, so on a send turn MIX fully wet for the echo at unity. Nothing about the tape changes: the record head still records the input and the feedback, the heads still read the tape, and its hiss, wow and saturation are all still there.</p><p>On an insert, KILL DRY with one head near the record head and FEEDBACK at zero makes a tape machine, but a late one. REPRO does that job properly: it reports head 1's delay to the host, so the track stays in time.</p>",
+      "notModelled": ""
+    },
+    "repro": {
+      "title": "REPRO",
+      "does": "<p>A tape machine on an insert: head 1 is the replay head, heads 2 and 3 and FEEDBACK are off, and head 1's delay is reported to the host so the track stays in time.</p>",
+      "hood": "<p>A tape recorder cannot replay what it is writing at the same instant: the record head writes at its gap, and the replay head sits further along the tape. REPRO keeps that layout and tells the host about it. The latency reported is head 1's settled carriage position over the speed, $\\tau = h_1/v$ — measured from where the carriage actually is, since heads 2 and 3 can push it back from its knob. Reported against measured on this build: <span data-num=\"eng.repro_err_samples\"></span>.</p><p>Everything the tape does stays on the signal — the stock, bias, saturation, equalisation, hiss, modulation noise, dropouts — and wow and flutter move the replay around the fixed latency, as on a real machine. The dry path is delayed by the same amount, crossfaded over 20 ms if it changes. Moving head 1 or changing the speed changes the latency; some hosts click when it does.</p>",
+      "notModelled": ""
+    },
+    "output": {
+      "title": "OUTPUT",
+      "does": "<p>The final output level. It changes loudness only; RECORD LEVEL, DRIVE and BIAS are the controls that change the sound.</p>",
+      "hood": "<p>OUTPUT is a clean gain after the dry/wet mix: no part of the record or playback physics depends on it, which makes it the control for matching level. The tape's output does carry its playback amplifier's headroom: unity up to 0 dBFS, then a smooth tanh knee into a rail at +2 dBFS, 20 dB over 0 VU.</p><p>That rail is applied after the oversampled tape path has been brought back to the host rate, because a half-band filter overshoots a clipped waveform by about a decibel. A self-oscillating feedback loop therefore peaks just under the rail, however hard it runs.</p>",
+      "notModelled": ""
+    },
+    "eq": {
+      "title": "EQUALISATION",
+      "does": "<p>The record and replay equalisation standard. IEC lifts the treble on replay; NAB also boosts the bass on record, so the lows saturate a little sooner.</p>",
+      "hood": "<p>Tape loses treble to the heads' gaps and spacing and the coating's thickness, so every machine equalises. On flux, a standard's replay curve is $$H_{\\mathrm{rep}}(\\omega) = (1 + j\\omega\\tau_2)\\,\\frac{j\\omega\\tau_1}{1 + j\\omega\\tau_1}$$ flat in the middle, lifting the treble above $1/2\\pi\\tau_2$ and cutting the bass below $1/2\\pi\\tau_1$. At 19.05 cm/s IEC uses $\\tau_2$ = 70 µs with no bass time constant; NAB uses 50 µs and 3180 µs. The time constants are interpolated in log speed, so the machine is aligned for the speed you set.</p><figure data-fig=\"eqcurves\"></figure><p>The record pre-emphasis is computed from the machine's own record model so the flux follows the standard, set flat at −20 dB as a technician sets it. Both are built from twelve first-order shelves fitted by Levenberg–Marquardt, minimum-phase like the circuits. Measured flatness from 40 Hz to 15 kHz: <span data-num=\"eng.pb_flat_db\"></span>.</p>",
+      "notModelled": ""
+    },
+    "inmode": {
+      "title": "INPUT",
+      "does": "<p>STEREO records left and right on their own tracks. MONO records the sum on both, for mono-to-stereo use.</p>",
+      "hood": "<p>The machine is a two-track quarter-inch deck: two tracks 2.0 mm wide and 2.75 mm apart, each with its own magnetisation in every cell. In MONO both tracks are recorded with the same signal — and still come back slightly different, because the tape makes them so. Each track has its own particles, so its own hiss draw, and each head and track has its own spacing, roughness and dropouts.</p><p>A playback head whose azimuth is off reads the two tracks at slightly different times, $$\\Delta t = \\frac{S\\tan\\alpha}{v}$$ for tracks $S$ apart — measured <span data-num=\"eng.azimuth_us\"></span> on a worn transport, against the exact figure. The heads' PAN then places the echoes across the field.</p>",
+      "notModelled": ""
+    },
+    "stock": {
+      "title": "TAPE STOCK",
+      "does": "<p>The tape on the machine: STUDIO (a 1970s high-output 456-class tape), VINTAGE (1960s low output: less headroom, more hiss), SHEDDING (the studio tape decayed) and BUDGET (cheap echo-machine tape). Changing it threads a new reel, realigned.</p>",
+      "hood": "<p>A stock is two things. Its coating is the record process — how the particles answer a field — measured by the offline Preisach reference from data-sheet values (coercivity, retentivity, switching-field spread) and turned into tables. Its medium is what the particles and surface do along the tape: hiss, modulation noise, spacing, dropouts, friction. The studio coating is fitted to the Quantegy 456 sheet: maximum output level <span data-num=\"ref.mol_db_re185\"></span> re 185 nWb/m, against the sheet's +12.3, and full remanence through the coating $$\\Phi_r = \\mu_0 M_r\\,\\delta$$ of <span data-num=\"ref.flux_mr_nwbm\"></span>.</p><figure data-fig=\"noise\"></figure><p>Like a technician loading a reel, the machine sets bias at the coating's operating point, record level to the stock's operating level and the record treble for its surface. SHEDDING runs on the studio alignment: some oxide gone, a sticky binder, deep dropouts. Studio hiss: <span data-num=\"eng.hiss_dba\"></span> under 0 VU; its modulation noise skirt <span data-num=\"eng.modnoise_db\"></span>.</p>",
+      "notModelled": "<p>Real stocks differ in coating thickness; here all four are 14 µm.</p>"
+    },
+    "particles": {
+      "title": "PARTICLES",
+      "does": "<p>How many magnetic particles the coating holds, against the stock's own count. Ten times as many gives 10 dB less hiss; at the top the coating is a continuum and the tape is silent.</p>",
+      "hood": "<p>Hiss is not added noise; it is the statistics of the particles, written onto the tape. A cell of volume $V$ holds $N = pV/v$ single-domain particles (packing $p$, particle volume $v$), each pointing one way or the other along the tape, so its remanence carries a binomial variance $$\\sigma^2 = \\frac{1 - m^2}{N}$$ relative to full remanence — zero where the tape is saturated, largest where it is demagnetised. One draw is made per cell each time it is recorded, so a loop's next pass is a new draw: the bias re-randomises the orientations.</p><figure data-fig=\"noise\"></figure><p>The particles at every depth are independent and the head hears the shallow ones best, so each slab's noise is coloured to match a continuous coating, within <span data-num=\"eng.hiss_continuous_db\"></span> of that spectrum computed from first principles. At 1000 × there is no noise at all, and silence in gives exactly silence out.</p>",
+      "notModelled": "<p>Electronic noise, such as a playback preamp's hiss, is not modelled; that is what lets the top of the range be truly silent.</p>"
+    },
+    "wear": {
+      "title": "WEAR",
+      "does": "<p>How worn the tape is: oxide lost, a rougher surface, more dropouts, debris lifting it off the heads. Worn tape is duller, quieter and less steady.</p>",
+      "hood": "<p>Wear acts through causes the playback physics already knows. At 100 % a quarter of the oxide is gone (measured <span data-num=\"eng.wear_db\"></span> at 1 kHz, and relatively more hiss), debris lifts the tape up to 0.45 µm off the heads, roughness quadruples, dropouts become thirteen times as frequent, modulation noise grows and the heads' friction rises. A lift $\\delta d$ costs exactly the spacing loss $$e^{-k\\,\\delta d},\\qquad k = \\frac{2\\pi}{\\lambda}$$ which the engine applies as a time-domain Cauchy kernel — the transform of that very loss — so it is exact, not a filter chosen to sound similar.</p><p>Since $\\lambda = v/f$, the same lift costs four times the decibels at a quarter of the speed. Dropouts are drawn from the position on the tape, so a worn loop's holes come round every pass. With ACCUMULATE, a loop wears by itself.</p>",
+      "notModelled": "<p>Dropouts at the record head are not modelled; only the playback heads see the lift.</p>"
+    },
+    "erase": {
+      "title": "ERASE",
+      "does": "<p>FLUX MEMORY, in DUB: how much of the take committed in REC the erase head takes away. 0 leaves it; the knob walks from under a decibel a pass to about 60 dB, and 100 % wipes. It acts once: a second pass at the same setting takes nothing more.</p>",
+      "hood": "<p>The erase head is the record process with no signal: a wide 60 µm gap whose AC field decays as the tape leaves it. Its field reaches through the coating almost uniformly, $$\\frac{H(y)}{H_g} = \\frac{2}{\\pi}\\arctan\\frac{g}{2y}$$ about 0.96 of the deep-gap field at the top slab and 0.75 at the bottom. A Preisach coating has the wiping-out property: a decaying field takes exactly the particles it can reach and leaves the rest — and the same field reaches the same particles next time. So partial erasure is one shot, not a fade.</p><figure data-fig=\"erase\"></figure><p>The reference measures the transition: fields of 1, 1.25 and 1.5 $H_c$ leave <span data-num=\"ref.erase_100_db\"></span>, <span data-num=\"ref.erase_125_db\"></span> and <span data-num=\"ref.erase_150_db\"></span>; the engine <span data-num=\"eng.erase_150_db\"></span> at 1.5 $H_c$. Turning ERASE up takes more; turning it down brings nothing back. The taper follows the transition, geometric in the loss per pass over 90 % of the travel, then on to a clean wipe.</p>",
+      "notModelled": ""
+    },
+    "looper": {
+      "title": "LOOP STATE",
+      "does": "<p>What the heads do to the loop. REC records a fresh take every pass — the plain echo. DUB is sound-on-sound: the take stays under what you play. PLAY turns record and bias off, and the loop plays unchanged.</p>",
+      "hood": "<p>Three facts measured by the reference decide what a loop can do. A field takes what it can reach, once. A take recorded at the operating bias survives later passes at a lower bias, permanently, because the lower bias reaches only the surface layers. And what is recorded at a bias is replaced by the next pass at that bias. So DUB drops the bias 6 dB: the take committed in REC loses <span data-num=\"ref.dub_take_db\"></span> once, bass best (10 kHz loses <span data-num=\"ref.dub_10k_db\"></span> through the playback head), while each overdub records <span data-num=\"ref.dub_record_db\"></span> low and is replaced on the next pass, leaving a ghost of <span data-num=\"ref.dub_ghost_db\"></span>, or <span data-num=\"ref.dub_ghost12_db\"></span> driven 12 dB hotter.</p><figure data-fig=\"dub\"></figure><p>The engine tracks, per cell, what is committed and what reach it has paid for: take <span data-num=\"eng.dub_take_db\"></span>, ghost <span data-num=\"eng.dub_ghost_db\"></span>. PLAY switches record and bias over 5 ms and ramps the erase field to exactly zero. Tape has no undo; the tape way to stack layers is FEEDBACK.</p>",
+      "notModelled": "<p>Old material recorded at a bias other than the operating bias is overwritten as if it had been recorded at the operating bias.</p>"
+    },
+    "run": {
+      "title": "MOTOR RUN",
+      "does": "<p>Starts and stops the capstan motor. Stopped, the capstan coasts down and everything on the tape dives in pitch; started, it pulls back up to speed.</p>",
+      "hood": "<p>With the power cut, the capstan and its flywheel coast on two losses: viscous bearing drag, a 2 s time constant, and the pinch roller's friction, 6 cm/s². The speed follows $$w(t) = (w_0 + 12)\\,e^{-t/2} - 12\\quad(\\mathrm{cm/s})$$ until it reaches zero: about 1.9 s from 19 cm/s, about 4 s from 76. Every echo on the tape is read slower and slower, so it dives in pitch as a recording on a stopping machine does — nothing is pitch-shifted, the tape just slows. Coast-down against that law: <span data-num=\"eng.coast_err_pct\"></span>.</p><p>A playback head responds to the change of flux, and the replay amplifier's integrator stops near DC (a first-order low cut at 5 Hz), so a stopped tape gives no output rather than a frozen sample. Restarting goes through the motor's own dynamics, overshoot and all.</p>",
+      "notModelled": "<p>Slip between the tape and the capstan is not modelled.</p>"
+    },
+    "clear": {
+      "title": "CLEAR",
+      "does": "<p>In LOOP: one full pass of the erase head over the loop, with record off. Afterwards the loop is blank.</p>",
+      "hood": "<p>CLEAR runs the erase head at full field — past 2.2 $H_c$, where the reference's erasure transition is over and the head simply wipes — for exactly one period of the loop, $T = L/v$, with record and bias off so nothing new is written behind it. Full erasure leaves each cell demagnetised, the same state as virgin tape, so the next REC starts on a genuinely clean loop.</p><p>The erase field ramps on and off over about 20 ms, so the start and end of the pass are not hard edges on the tape. The LOOP readout shows CLEARING while it runs. On a REEL the button does nothing: fresh tape arrives from the supply reel anyway.</p>",
+      "notModelled": ""
+    },
+    "bars": {
+      "title": "LOOP BARS",
+      "does": "<p>With SYNC on, cuts the loop to this many 4/4 bars at the tempo head's note value; it then stays that many bars at any tempo. FREE (0) uses LOOP LENGTH.</p>",
+      "hood": "<p>Because SYNC sets the motor speed from the tempo, a loop cut to a whole number of bars stays that many bars when the tempo moves. The length depends only on the tempo head's distance and the note value $b$ in beats: $$L = N\\cdot\\frac{4}{b}\\cdot h_{\\mathrm{tempo}}$$ The tempo cancels: a faster tempo runs the same length of tape faster.</p><p>Cutting is a splice — a new, blank loop. The cut is made when the bars, the note or the tempo head change, never while a head is being dragged. Dragging the tempo head afterwards changes the speed, so the loop stops being whole bars and the readout says how many it lasts now. If the bars asked for fall outside 0.5–6 m, the panel says which counts fit.</p>",
+      "notModelled": ""
+    },
+    "accumulate": {
+      "title": "ACCUMULATE",
+      "does": "<p>A loop wears a little on every pass over the heads, and keeps its wear with the project. Off, the tape stays as WEAR sets it.</p>",
+      "hood": "<p>Each pass over the heads wears a loop by its stock's rate: $2\\cdot10^{-4}$ for the studio tape, $5\\cdot10^{-4}$ vintage, $6\\cdot10^{-4}$ budget and $2\\cdot10^{-3}$ for the shedding tape. The wear acts exactly as the WEAR knob does — lost oxide, lift, roughness, dropouts, friction — so a long-running loop grows duller, noisier and less steady by itself: a studio loop takes some thousands of passes to wear out, a shedding one a few hundred.</p><p>The wear belongs to that loop — that stock and that length — and is saved with the project, so a reopened project finds its loop as worn as it left it. Cutting a different loop is fresh tape. A reel never accumulates: its tape passes the heads once.</p>",
+      "notModelled": ""
+    },
+    "pattern": {
+      "title": "HEAD PATTERN",
+      "does": "<p>A set of position ratios for the three heads around the tempo head: 1:2:3 (the Space Echo's), dotted, triplet, doubling, golden and others. SET moves the heads there once.</p>",
+      "hood": "<p>Every head's delay is $\\tau_i = h_i/v$ at one shared speed, so a rhythm between echoes is a ratio of distances. A pattern is three ratios $r_i$; the tempo head keeps its position, the unit becomes its distance over its own ratio, and the others go to $$h_i = \\frac{h_{\\mathrm{tempo}}}{r_{\\mathrm{tempo}}}\\,r_i$$ With SYNC on, every head then lands on a note value.</p><p>The positions are handed to the heads in rail order, since heads cannot pass each other and are identical. If a head would fall off the 1.5–24 cm rail, the panel names it before you SET. GOLDEN uses $1 : \\varphi : \\varphi^2$ with $\\varphi = (1 + \\sqrt5)/2$: echoes in a rhythm with no simple ratio at all.</p>",
+      "notModelled": ""
+    },
+    "mech": {
+      "title": "MECH SOUNDS",
+      "does": "<p>The machine's own mechanical sounds — motor hum, the capstan, the splice tick — on the main output at their own level. Off by default.</p>",
+      "hood": "",
+      "notModelled": ""
+    },
+    "part:supply": {
+      "title": "SUPPLY REEL",
+      "does": "<p>On a REEL the fresh tape comes from here. Its turning adds to the wow: an eccentric reel or a dragging holdback varies the tape's tension.</p>",
+      "hood": "<p>A 10.5-inch NAB reel: hub radius 57 mm, flange 132 mm, holding 730 m of 50 µm tape that fills it to 122 mm. The pack's radius follows from the length $\\ell$ of tape wound on it, $$r = \\sqrt{r_{\\mathrm{hub}}^2 + \\frac{\\ell\\,t}{\\pi}}$$ and the reel turns at $v/r$, faster as it empties; the drawing turns at the rate the simulation computes. At 19 cm/s a pack lasts about 64 minutes, after which a fresh one is threaded silently — only the reel radii jump, never the tape under the heads.</p><p>The tape coming off is virgin, demagnetised tape: cells are reset as they leave the reel, so nothing recorded a revolution ago can reach a head. The reel's eccentricity and the holdback friction vary the tension, and tension is strain: that is the REELS control.</p>",
+      "notModelled": ""
+    },
+    "part:takeup": {
+      "title": "TAKE-UP REEL",
+      "does": "<p>Recordings leave on the take-up reel and are never played again. Like the supply reel, its eccentricity adds to the wow.</p>",
+      "hood": "<p>Once tape has passed the last playback head and the capstan it can never be read again, so the engine keeps only the readable window between the supply guide and the last head, as a ring. The take-up reel holds nothing in memory but its radius, which grows as the supply shrinks by the same law, $r = \\sqrt{r_{\\mathrm{hub}}^2 + \\ell t/\\pi}$, turning at $v/r$.</p><p>Its eccentricity, like the supply reel's, varies the tape's tension; tension stretches the tape by $\\Delta T/EA$, and the stretch reaches the heads as a slow speed variation at the reels' rotation rates, below a hertz. Both reels are part of what REELS scales. A LOOP has neither.</p>",
+      "notModelled": ""
+    },
+    "part:looptank": {
+      "title": "LOOP TANK",
+      "does": "<p>In LOOP the tape runs as a closed loop from this tank, past the heads and back. Whatever is recorded comes round again every loop period.</p>",
+      "hood": "<p>The loop is a ring of $N = L/\\Delta x$ cells with $\\Delta x$ = 0.5 µm, 0.5 to 6 m long — one to twelve million cells a track, each with four depth slabs and the bookkeeping DUB needs to know what is committed. Every random property of the tape is a hash of position on it, so the loop's modulation noise, roughness and dropouts come round with it every pass, as a real loop's would.</p><p>So does its joint: the ends butt with a 20 µm sliver of no oxide, and splicing tape on the back lifts the tape 2 µm over about ±0.4 mm, a short dropout ticking past each head once a period. With ACCUMULATE the loop wears on every pass; with the erase head turned down in DUB, its magnetisation is the loop's memory.</p>",
+      "notModelled": "<p>Self-demagnetisation and print-through in a loop left in PLAY are not modelled (inaudible at loop timescales), nor is the splice's mechanical bump at the capstan; only its magnetic effect is.</p>"
+    },
+    "part:erase": {
+      "title": "ERASE HEAD",
+      "does": "<p>The first head the tape meets. At full field it wipes the tape clean before the record head writes; in DUB its field is set by ERASE, and only part of the old recording goes.</p>",
+      "hood": "<p>An erase head is a record head with a wide gap and no signal: 60 µm here, carrying a strong AC field that decays as each point of tape leaves it. Each particle switches back and forth until the decaying field can no longer reach it, and the ensemble ends demagnetised — so what survives is exactly the particles of high coercivity or strong interaction the field never reached. Its field barely weakens with depth, $(2/\\pi)\\arctan(g/2y)$ of the deep-gap field, so it takes the whole coating at once, unlike the bias.</p><figure data-fig=\"erase\"></figure><p>That is why erasure has a sharp threshold: fields of 1, 1.25 and 1.5 $H_c$ leave <span data-num=\"ref.erase_100_db\"></span>, <span data-num=\"ref.erase_125_db\"></span> and <span data-num=\"ref.erase_150_db\"></span> in the reference, and past about 2.2 $H_c$ the engine simply wipes. On a REEL the head always runs full; BROKEN weakens it on a loop, and the wipe stops being clean.</p>",
+      "notModelled": ""
+    },
+    "part:record": {
+      "title": "RECORD HEAD",
+      "does": "<p>Writes the signal onto the tape, riding on a 150 kHz bias field. This is where saturation, compression and the treble lost in recording are born.</p>",
+      "hood": "<p>A ring head with a 10 µm gap. Its field in the coating follows Karlqvist's approximation, $$H_x(x,y) = \\frac{H_g}{\\pi}\\left[\\arctan\\frac{g/2 + x}{y} + \\arctan\\frac{g/2 - x}{y}\\right]$$ with $H_g$ the deep-gap field, signal plus bias. Deep layers see a weaker but broader field, so the bias lets go of them later and further downstream: each depth has its own recording zone.</p><figure data-fig=\"karlqvist\"></figure><p>The offline reference follows every 0.5 µm cell through the zone at eight depths, feeding a Preisach model exactly the two field turning points per bias half-cycle it needs. The real-time engine uses the reference's measurements as tables for four depth slabs — each slab's zone, gain and response to what the cell held before — and reproduces its recording loss: <span data-num=\"eng.rec_loss_15k_db\"></span> at 15 kHz.</p><figure data-fig=\"recordzone\"></figure>",
+      "notModelled": "<p>Vector magnetisation, the head field's perpendicular component and the recorded pattern's own demagnetising field are not modelled; the scalar model suits oriented, needle-shaped particles.</p>"
+    },
+    "part:play": {
+      "title": "PLAYBACK HEAD",
+      "does": "<p>Reads the magnetisation under it and turns it into the echo. Its gap, its distance from the tape and the coating's depth decide how much treble survives; its pole faces add a bump in the bass.</p>",
+      "hood": "<p>By reciprocity, magnetisation of wavelength $\\lambda$ (wavenumber $k = 2\\pi/\\lambda$) at depth $y$ reaches the head in proportion to $$e^{-k(d_p + y)}\\;\\frac{\\sin(kg_p/2)}{kg_p/2}$$ with spacing $d_p$ = 0.3 µm and gap $g_p$ = 2.5 µm. The engine reads each of the four depth slabs through its own exact kernel: reading one depth-averaged magnetisation with a single loss would read the treble far too low, because recording loss leaves short wavelengths in the surface slab alone. The kernel is zero-phase, as the physics is, and keeps its long $1/x^2$ tail — the thickness loss reaching down into the bass.</p><figure data-fig=\"playbackloss\"></figure><p>A finite 4 mm face also reads long wavelengths through its outer edges: the head bump, $H(k) = 1 - \\cos(kL)\\,s(k)$. Each head has its own crosstalk and azimuth error (track skew <span data-num=\"eng.azimuth_us\"></span> worn), and is aligned to unity within <span data-num=\"eng.unity_db\"></span>.</p>",
+      "notModelled": "<p>Head wear is not modelled; azimuth follows the transport's condition, not the heads' age.</p>"
+    },
+    "part:capstan": {
+      "title": "CAPSTAN",
+      "does": "<p>The spinning shaft that pulls the tape at a constant speed. It sets the tape speed, and its imperfections are the flutter.</p>",
+      "hood": "<p>A 5 mm radius shaft, about six revolutions a second at 19 cm/s. Its speed comes from the motor model — a synchronous motor locked to the field, or a tachometer servo — through the flywheel's inertia, so speed changes glide and overshoot like a real deck's. Its faults are speed errors at its own rotation rate: shaft runout $e_c$ gives $\\Delta v/v = e_c/r_c$ once a revolution; the pinch roller's runout couples in; the bearings add random error between 3 and 30 Hz.</p><p>Because the tape is a medium, a speed error at record time and another at play time combine on their own: a head $\\tau$ seconds downstream hears a flutter component at $f$ through $$2\\left|\\sin(\\pi f\\tau)\\right|$$ Freshly serviced, weighted: <span data-num=\"eng.wf_fresh_pct\"></span>.</p>",
+      "notModelled": "<p>Slip between the tape and the capstan is not modelled.</p>"
+    },
+    "part:pinch": {
+      "title": "PINCH ROLLER",
+      "does": "<p>The rubber roller that presses the tape against the capstan so it is pulled without slipping. A roller that is not quite round adds flutter at its own, slower rate.</p>",
+      "hood": "<p>The roller has a 12.5 mm radius, two and a half times the capstan's, so it turns at 0.4 of the capstan's rate and its runout lands at a lower flutter frequency, $$f = \\frac{v}{2\\pi r_p}$$ about 2.4 Hz at 19 cm/s. At CONDITION 100 it runs out by 20 µm, coupling into the speed at about a third of its geometric share, because the tape is driven by the capstan, not the roller.</p><p>When MOTOR RUN cuts the power, the roller's friction, 6 cm/s², is one of the two losses the capstan coasts down on; the other is bearing drag. The CAPSTAN control scales its runout with the capstan's own.</p>",
+      "notModelled": "<p>Slip at the capstan is not modelled: the roller is assumed to grip.</p>"
+    },
+    "part:guides": {
+      "title": "GUIDES AND TENSION ARMS",
+      "does": "<p>The rollers and arms that lead the tape past the heads and keep it under tension. They set the tape's path and add a little friction and weave.</p>",
+      "hood": "<p>Two things in the model come from the guides. On a REEL the holdback's friction varies the tape's tension, and tension is strain, $$\\frac{\\Delta v}{v} \\approx \\frac{\\Delta T}{EA},\\qquad EA \\approx 1000\\ \\mathrm{N}$$ which reaches the heads as wow, scaled by REELS. On a LOOP there are no reels, and the guides' friction varies the loop's tension a little.</p><p>And the tape weaves slightly as it runs along the guides, so the angle $\\alpha$ between the tape and each head's gap wanders slowly — up to 1.5 arcminutes on a reel and 0.5 on a loop at CONDITION 100, scaled by CONDITION and REELS. A tilted gap reads the two tracks at slightly different times, $\\Delta t = S\\tan\\alpha/v$, and softens the treble by $\\mathrm{sinc}(\\pi W\\tan\\alpha/\\lambda)$ across a track of width $W$.</p>",
+      "notModelled": ""
+    },
+    "part:tape": {
+      "title": "THE TAPE",
+      "does": "<p>Not a delay buffer: a magnetic medium, simulated in half-micrometre cells. The colour along it on the drawing is the magnetisation the engine holds right now.</p>",
+      "hood": "<p>Each track is magnetisation along the tape, one value per 0.5 µm cell — fine enough that 20 kHz at 4.75 cm/s, a 2.4 µm wavelength, is held with the grid's own losses far below the physical ones — and in depth, four slabs of 3.5 µm through the 14 µm coating, because the treble lives near the surface. The coating's hysteresis is a Preisach model, an ensemble of bistable particles with switching fields spread around the coercivity: $$M = M_s\\iint_{\\alpha \\ge \\beta}\\mu(\\alpha,\\beta)\\,s(\\alpha,\\beta)\\,d\\alpha\\,d\\beta$$ with $s = \\pm1$ each particle's state.</p><figure data-fig=\"hysteresis\"></figure><p>Unlike Jiles–Atherton, its minor loops close exactly, so a loop rewritten thousands of times does not drift. Fitted to the 456 sheet: switching-field log-width <span data-num=\"ref.sigma_c\"></span>, interaction tail <span data-num=\"ref.nu\"></span>, full remanence <span data-num=\"ref.flux_mr_nwbm\"></span>.</p>",
+      "notModelled": "<p>Temperature, time decay and print-through are not modelled.</p>"
+    },
+    "part:rail": {
+      "title": "HEAD RAIL",
+      "does": "<p>The three playback heads ride carriages along this rail, 1.5 to 24 cm from the record head. Drag a head on the drawing to move it; moving it while the tape runs bends its echoes in pitch.</p>",
+      "hood": "<p>Each carriage follows its position control through a critically damped second-order response, natural period about 0.25 s, limited to 12 cm/s, and stops against a neighbour rather than passing it (centres no closer than 1.2 cm). The delay is wherever the head is, $\\tau = h/v$. While it moves, the head scans the tape at $v - \\dot h$, so its echo shifts by $$\\frac{v - \\dot h}{v}$$ Doppler with no pitch shifter behind it; a head that outruns the tape reads backwards.</p><figure data-fig=\"delaygeometry\"></figure><p>In LOOP the far end of the rail is clamped so no head reaches the stretch of tape already on its way back to the erase head. Doppler against that ratio, measured: <span data-num=\"eng.doppler_err_cents\"></span>.</p>",
+      "notModelled": ""
+    },
+    "read:wf": {
+      "title": "W&F METER",
+      "does": "<p>A wow and flutter meter, reading the machine the way a DIN/IEC meter reads a real deck: how much the replayed speed wavers, weighted to how audible it is.</p>",
+      "hood": "<p>The meter compares the speed of the tape under the first active head now with its speed when that same stretch was recorded, $$w(t) = \\frac{v(t)}{v(t - \\tau)} - 1$$ a record-to-play measurement, so recording and replay errors both count, as they do on a real deck. $w$ is weighted by an approximation of the DIN 45507 / IEC 60386 curve, a band-pass centred at 4 Hz, and reported as $2\\sigma$ over about two seconds.</p><figure data-fig=\"wowflutter\"></figure><p>A speed change is not wow: while the motor is off its target, and until the change has passed the head, the meter shows SETTLING, then starts again from scratch. It is checked against a 3150 Hz tone recorded, replayed and demodulated: <span data-num=\"eng.wf_fresh_pct\"></span> freshly serviced, <span data-num=\"eng.wf_worn_pct\"></span> worn out. Scrape flutter barely shows; the weighting has fallen away long before its kilohertz band.</p>",
+      "notModelled": ""
+    },
+    "read:vu": {
+      "title": "VU METERS",
+      "does": "<p>Input and output level on VU needles with VU ballistics. 0 VU is −18 dBFS, which the machine records at 250 nWb/m.</p>",
+      "hood": "<p>A VU meter shows rms level with a deliberate 300 ms rise and fall, so it reads loudness rather than peaks — which is how tape has always been driven. The calibration ties the panel to the tape: −18 dBFS rms at 1 kHz is 0 VU, the record head writes it at 250 nWb/m (the 1970s studio operating level for a 456-class tape), and the replay side is aligned so 250 nWb/m plays back at 0 VU.</p><p>The studio tape's maximum output level, at 3 % third harmonic, is <span data-num=\"ref.mol_db_re185\"></span> re 185 nWb/m, so there is real headroom above 0 VU before the tape bends audibly — less on the vintage and budget stocks, whose operating level is 185 nWb/m. The engine sends each interval's rms; the needles' ballistics are applied in the panel.</p>",
+      "notModelled": ""
+    },
+    "read:tapemeter": {
+      "title": "TAPE METER",
+      "does": "<p>How much of the tape's magnetic capacity the record head is using. Full scale is the coating's full remanence, so this shows how close the tape is to saturation.</p>",
+      "hood": "<p>The meter is linear in remanence. Full width is a coating with every particle aligned, $$\\Phi_r = \\mu_0 M_r\\,\\delta$$ about <span data-num=\"ref.flux_mr_nwbm\"></span> for the studio coating, with $M_r$ its remanence and $\\delta$ the 14 µm coating thickness. A tone at 0 VU, 250 nWb/m rms, uses only a modest part of it.</p><p>Saturation is not a wall. Distortion rises gradually as more of the particles are already aligned, reaching the 3 % third-harmonic maximum output level well before the bar is full; the remanence the tape can hold is the true ceiling. A self-oscillating feedback loop shows here as the tape running out of remanence, which is what holds it: there is no limiter.</p>",
+      "notModelled": ""
+    },
+    "read:loop": {
+      "title": "LOOP READOUT",
+      "does": "<p>What the loop's heads are doing right now, as measured: the state, whether it is recording, the erase head's field, the loop length and its length in bars.</p>",
+      "hood": "<p>The readout reports the engine's state rather than echoing the controls. The erase head's field is given in units of the coating's coercivity, $H_c$: around 1 $H_c$ it barely touches a recording, by 1.5 $H_c$ it takes nearly everything it can reach, and past 2.2 $H_c$ it reads \"full\", a clean wipe. \"record off\" appears in PLAY and while CLEAR runs.</p><p>When LOOP BARS cut the loop, the bars it lasts now come from the actual length and speed, $$N = \\frac{L\\,b}{4\\,h_{\\mathrm{tempo}}}$$ so if the tempo head has been dragged since, it is no longer a whole number and the readout says so. On a REEL it reads \"fresh tape, erase head full\": a reel never brings a recording back.</p>",
+      "notModelled": ""
+    },
+    "set:tooltips": {
+      "title": "TOOLTIPS",
+      "does": "<p>Switches these cards on or off and sets how long you hover before one opens. The one-line hint at the bottom of the panel stays either way.</p>",
+      "hood": "<p>These cards are generated rather than written once and left. The equations are typeset as MathML, the figures are drawn from data the offline reference and the bench produce, and every number quoted is written by the bench when the plug-in is built — so a retuned model cannot leave a stale claim on screen. Bench checks on this build: <span data-num=\"eng.checks\"></span>.</p><p>Click a card to pin it; its live figure markers keep following the controls. Esc or a click elsewhere closes it. These settings belong to you, not to the project: they are kept in the plug-in's own settings file.</p>",
+      "notModelled": ""
+    },
+    "set:quality": {
+      "title": "QUALITY",
+      "does": "<p>ECO, NORMAL or HIGH: trades processor time against the internal rate the tape model runs at. Changing it threads a fresh tape.</p>",
+      "hood": "<p>The tape's resolution lives in micrometres, not samples: 0.5 µm cells, four depth slabs, the record tables and head kernels measured against the reference. What the tier changes is the internal rate at which that medium is written and read, which is why a change threads a fresh tape. Cost at the worst case on this build: <span data-num=\"eng.cost_eco_pct\"></span> of one core at ECO, <span data-num=\"eng.cost_pct\"></span> at NORMAL, <span data-num=\"eng.cost_high_pct\"></span> at HIGH.</p><p>Whatever the tier, short wavelengths that a depth slab cannot hold are filtered out before they can fold back into the audio band; a 9 kHz tone 12 dB over 0 VU leaves, off its own harmonics, a total on this build of <span data-num=\"eng.alias_db\"></span>. The choice is saved with the project.</p>",
+      "notModelled": ""
+    },
+    "set:presets": {
+      "title": "PRESETS",
+      "does": "<p>Factory and user presets, grouped from clean through classic echo, multi-head, character and loops to strange. Save your own; deleting one moves it to a Deleted folder rather than destroying it.</p>",
+      "hood": "<p>A preset is the state of every control: the transport, the heads, the tape stock, the electronics. Because every sound here comes from causes — a speed, a head distance, a bias, a worn capstan, a stock — a preset reads more like the description of a machine than an effect setting: the CHARACTER presets are machines in a certain state, the STRANGE ones use the physics in ways no studio would.</p><p>User presets are kept as files in Documents\\Brokild patches\\Magneto Transport, one JSON file each; a name containing path characters is refused.</p>",
+      "notModelled": ""
+    },
+    "part:pattern": {
+      "title": "HEAD PATTERN · SET",
+      "does": "<p>SET moves the heads to the pattern you chose around the tempo head, once — then lets go, so a nudge or a drag afterwards just works.</p>",
+      "hood": "<p>SET is a one-shot snap, not a lock: it writes the three position controls once, with automation gestures, and from then on the knobs and the rail are yours again — a lock would make two owners for one value. The tempo head stays put and the others go to $h_i = (h_{\\mathrm{tempo}}/r_{\\mathrm{tempo}})\\,r_i$.</p><p>The carriages do not jump. They travel to their new positions with their real inertia and 12 cm/s top speed, so a pattern change is heard as a Doppler glide of every echo in flight, $$\\frac{f'}{f} = \\frac{v - \\dot h}{v}$$ before the new rhythm settles. A head that would fall off the rail is clamped to its end and named on the panel.</p><figure data-fig=\"delaygeometry\"></figure>",
+      "notModelled": ""
+    },
+    "bypass": {
+      "title": "BYPASS",
+      "does": "<p>The host's bypass: a 20 ms crossfade to the dry signal. The tape keeps running underneath, so switching back in finds the echoes where they would have been.</p>",
+      "hood": "<p>Bypassing a tape machine does not stop the tape. The capstan keeps turning, the record head keeps writing, the heads keep reading and the feedback keeps circulating; only what you hear crossfades, over 20 ms so there is no click, to the dry signal. Switching back in therefore lands on a tape that has carried on in the meantime — the echoes of what you played while bypassed are already on it.</p><p>The dry signal is delayed by exactly the latency the plug-in reports to the host. Normally that is nothing; in REPRO it is head 1's delay, $\\tau = h_1/v$, so a bypassed tape machine stays in time with the rest of the session instead of jumping early.</p>",
+      "notModelled": ""
+    }
+  }
+}

@@ -4,7 +4,7 @@ project(MagnetoTransport VERSION 0.1.0)
 
 # Build id: date (YYMMDD) plus that day's build number, shown on the panel.
 # Bump it AND re-run `cmake -S . -B <dir>` or it will not take.
-set(MT_BUILD_ID "261011.9")
+set(MT_BUILD_ID "261011.10")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -51,7 +51,10 @@ juce_add_binary_data(MagnetoTransportAssets
     HEADER_NAME BinaryData.h
     NAMESPACE BinaryData
     SOURCES
-        Source/ui/ui.html)
+        Source/ui/ui.html
+        Source/ui/tips.json
+        Source/ui/tips-numbers.json
+        Source/ui/figdata.json)
 
 target_sources(MagnetoTransport
     PRIVATE

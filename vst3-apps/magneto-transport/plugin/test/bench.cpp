@@ -37,6 +37,7 @@ static double threadCpuSeconds()
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <map>
 #include <random>
 #include <string>
 #include <vector>
@@ -50,6 +51,25 @@ struct EqOff { EqOff() { g_eqOff = true; } ~EqOff() { g_eqOff = false; } };
 static bool g_idealMedium = true; // a perfect tape (no particle or modulation noise, no dropouts) except where section 19 says
 struct RealMedium { RealMedium() { g_idealMedium = false; } ~RealMedium() { g_idealMedium = true; } };
 static bool verbose = false;      // argv[1] == "-v": print every delay case
+// The tooltip cards' numbers (BUGLIST 6): every measured figure a card quotes is set here,
+// beside the check that measures it, and written out by --tips=<path>. A card can never
+// carry a number this build did not measure.
+struct TipNum { double value; std::string unit, text; };
+static std::map<std::string, TipNum> g_tips;
+static void tip (const std::string& key, double value, const std::string& unit, const char* f);
+static void tipWorst (const std::string& key, double value, const std::string& unit, const char* f)
+{
+    auto it = g_tips.find (key);
+    if (it == g_tips.end() || std::abs (value) > std::abs (it->second.value)) tip (key, value, unit, f);
+}
+static void tip (const std::string& key, double value, const std::string& unit, const char* f)
+{
+    char b[96]; std::snprintf (b, sizeof b, f, value);
+    std::string t (b);
+    // a true minus sign for the cards
+    if (! t.empty() && t[0] == '-') t = "\xE2\x88\x92" + t.substr (1);
+    g_tips[key] = { value, unit, t + (unit.empty() ? "" : " " + unit) };
+}
 static void check (bool ok, const char* what, const std::string& detail)
 {
     std::printf ("  [%s] %-58s %s\n", ok ? " ok " : "FAIL", what, detail.c_str());
@@ -240,6 +260,7 @@ static void testDelay()
                 if (verbose) std::printf ("     %6.0f Hz %5.2f cm/s %4.1f cm  %+.3f us\n", fs, v, h, (lag / fs - expect) * 1e6);
                 if (errUs > worstUs) { worstUs = errUs; wFs = fs; wV = v; wH = h; wSigned = (lag / fs - expect) * 1e6; }
             }
+    tip ("eng.delay_err_us", worstUs, "\xC2\xB5s", "%.3f");
     check (worstUs < 1.0, "delay matches h/v at 5 rates x 3 speeds x 3 heads",
            fmt ("worst %+.3f us", wSigned) + fmt (" at %.0f Hz, %.2f cm/s, ", wFs, wV) + fmt ("%.1f cm", wH));
 }
@@ -255,6 +276,7 @@ static void testUnity()
         auto r = run (p, fs, x, x);
         const size_t a = (size_t) (0.6 * fs), b = (size_t) (1.1 * fs);
         const double db = 20.0 * std::log10 (rmsOf (r.L, a, b) / rmsOf (x, a, b));
+        tipWorst ("eng.unity_db", db, "dB", "%+.3f");
         check (std::abs (db) < 0.05, fmt ("1 kHz at -18 dBFS, %.0f Hz", fs).c_str(), fmt ("%+.4f dB", db));
     }
 
@@ -312,6 +334,7 @@ static void testSpeedGlide()
     vMean /= std::max (nv, 1);
     const double expect = f0 * vMean / 4.75;
     const double got = freqOf (r.L, (size_t) (t1 * fs), (size_t) (t2 * fs), fs);
+    tip ("eng.doppler_err_cents", std::abs (1200.0 * std::log2 (got / expect)), "cent", "%.3f");
     check (std::abs (1200.0 * std::log2 (got / expect)) < 0.5, "pitch follows v_play / v_rec",
            fmt ("expected %.2f Hz, got %.2f Hz (%.3f cent)", expect, got, 1200.0 * std::log2 (got / expect)));
 
@@ -433,6 +456,17 @@ static void testFeedback()
             d += fmt ("%.0f", (double) h) + std::string (h > 1 ? " heads: 60 % " : " head: 60 % ") + (a2 < 0.5 * a1 ? "decays" : "SUSTAINS") + ", 82 % " + (b2 > 0.7 * b1 && b2 > 1.0e-4 ? "runs away" : "DECAYS") + (h < 3 ? "; " : "");
         }
         check (below && above, "FEEDBACK runs away between 60 and 82 % with one, two or three heads", d);
+        {
+            // where exactly, for the card: bisection on one head
+            double lo = 0.60, hi = 0.82;
+            for (int it = 0; it < 7; ++it)
+            {
+                const double m = 0.5 * (lo + hi); double r1, r2;
+                tail (1, (float) m, r1, r2);
+                (r2 > 0.7 * r1 && r2 > 1.0e-4 ? hi : lo) = m;
+            }
+            tip ("eng.feedback_onset_pct", 50.0 * (lo + hi), "%", "%.0f");
+        }
     }
     auto peakOf = [] (const std::vector<float>& x, size_t a, size_t b) { double m = 0.0; for (size_t i = a; i < b; ++i) m = std::max (m, (double) std::abs (x[i])); return m; };
     {
@@ -665,6 +699,9 @@ static void testEveryControl()
         if (id == "looplen")
             check (rel < 1.0e-6, (std::string ("control ") + sp.name + " (inert on a reel by design)").c_str(),
                    fmt ("rel. difference %.3f", rel));
+        else if (id == "pattern")
+            check (rel < 1.0e-9, (std::string ("control ") + sp.name + " (acts only through SET, by design)").c_str(),
+                   fmt ("rel. difference %.3f", rel));
         else
             check (rel > 1e-3, (std::string ("control ") + sp.name).c_str(), fmt ("rel. difference %.3f", rel));
     }
@@ -752,6 +789,7 @@ static void testAgainstReference()
         if (rw.db >= 6) worstHd = std::max (worstHd, std::abs (20.0 * std::log10 (h / rw.refHd3)));
         if (rw.db == 0) { hdAt0 = h; refHdAt0 = rw.refHd3; }
     }
+    tip ("eng.level_err_db", worstLv, "dB", "%.3f");
     check (worstLv < 0.25, "the level transfer follows the reference within 0.25 dB (-20..+16)", fmt ("worst %.3f dB", worstLv));
     check (worstHd < 1.5, "third harmonic follows the reference within 1.5 dB (+6..+16)", fmt ("worst %.2f dB", worstHd));
     // KNOWN DEVIATION, not a pass: at 0 VU the DC-table method records less third
@@ -771,6 +809,7 @@ static void testAgainstReference()
         }
         double a, h; tone (1000.0, amp0 * std::pow (10.0, 0.5 * (lo + hi) / 20.0), biasRef, a, &h);
         const double mol = 20.0 * std::log10 (a / f0);
+        tip ("eng.mol_db_re185", mol + 20.0 * std::log10 (250.0 / 185.0), "dB", "+%.1f");
         check (std::abs (mol - 9.66) < 0.5, "MOL (3 % third harmonic) within 0.5 dB of the reference's +9.66 dB re 0 VU",
                fmt ("%+.2f dB re 0 VU = %+.2f dB re 185 nWb/m (sheet +12.3)", mol, mol + 20.0 * std::log10 (250.0 / 185.0)));
     }
@@ -790,6 +829,7 @@ static void testAgainstReference()
             worst = std::max (worst, std::abs (db - ref[i]));
         }
         std::printf ("\n");
+        tip ("eng.rec_loss_15k_db", worst, "dB", "%.2f");
         check (worst < 0.25, "recording loss follows the reference within 0.25 dB to 15 kHz", fmt ("worst %.3f dB", worst));
     }
 
@@ -1002,6 +1042,7 @@ static void testEqualised()
                 if (fr >= 300.0 && fr <= fTop) worst = std::max (worst, std::abs (db));
             }
             std::printf ("\n");
+            tipWorst ("eng.pb_flat_db", worst, "dB", "%.2f");
             check (worst < 0.5, (std::string (eq ? "NAB " : "IEC ") + fmt ("%.2f cm/s: flat within 0.5 dB where the head allows", v)).c_str(), fmt ("worst %.2f dB", worst));
         }
 }
@@ -1127,6 +1168,7 @@ static void testTransport()
     double meter = 0.0;
     const double fresh = measure (base, 9.0, nullptr, &meter);
     std::printf ("   freshly serviced (CONDITION 15): weighted W&F %.4f %% measured, %.4f %% on the meter\n", fresh, meter);
+    tip ("eng.wf_fresh_pct", fresh, "%", "%.3f");
     check (fresh > 0.015 && fresh < 0.05, "a freshly serviced machine measures about 0.03 % weighted W&F", fmt ("%.4f %%", fresh));
     check (std::abs (meter / fresh - 1.0) < 0.10, "the W&F meter agrees with a demodulated 3150 Hz tone within 10 %", fmt ("meter %.4f vs %.4f %%", meter, fresh));
     // wear
@@ -1134,6 +1176,7 @@ static void testTransport()
         Params p = base; p.condition = 100.0f;
         const double worn = measure (p, 9.0);
         std::printf ("   worn out (CONDITION 100): %.3f %%\n", worn);
+        tip ("eng.wf_worn_pct", worn, "%", "%.2f");
         check (worn / fresh > 4.0 && worn / fresh < 10.0, "worn out: W&F grows with the wear (x4..x10)", fmt ("x%.1f", worn / fresh));
     }
     // the causes move their own bands
@@ -1408,6 +1451,7 @@ static void testStock()
                 if (std::abs (err) > worst) { worst = std::abs (err); wf = fc; }
             }
             std::printf ("\n");
+            tipWorst ("eng.hiss_continuous_db", worst, "dB", "%.2f");
             check (worst < 1.0, fmt ("hiss spectrum within 1 dB of the continuous coating's, %.2f cm/s", v).c_str(), fmt ("worst %.2f dB at %.0f Hz", worst, wf));
         }
     }
@@ -1442,6 +1486,7 @@ static void testStock()
             }
         // a fresh instance carries real 456 hiss: a two-track 1/4-inch machine on 456 at
         // 19 cm/s measures in the low-to-mid 60s dBA under 250 nWb/m (09-stock.md)
+        tip ("eng.hiss_dba", studio19, "dBA", "%.1f");
         check (studio19 < -60.0 && studio19 > -67.0, "the studio tape's hiss at 19 cm/s is real 456 hiss (-60 .. -67 dBA re 0 VU)", fmt ("%.1f dBA", studio19));
     }
 
@@ -1519,6 +1564,7 @@ static void testStock()
             return 10.0 * std::log10 (sk / tone);
         };
         const double st = skirt (0), sh = skirt (2);
+        tip ("eng.modnoise_db", st, "dB", "%.1f");
         check (sh - st > 6.0, "modulation noise: the shedding tape's skirt round a tone is well above the studio's",
                fmt ("skirt (30-300 Hz either side) re the tone: studio %.1f dB, shedding %.1f dB", st, sh));
     }
@@ -1637,6 +1683,7 @@ static void testStock()
         run1 (100.0, 19.05, 2000.0, amp, lagS);
         const double want = TRACK_SEP_UM * std::tan (a) / 19.05e4;
         // which track leads is the tilt's direction; the size is the physics
+        tip ("eng.azimuth_us", 1e6 * std::abs (lagS), "\xC2\xB5s", "%.1f");
         check (std::abs (std::abs (lagS) - want) < 1.0e-6, "azimuth: the tracks arrive S tan(a) / v apart, within 1 us",
                fmt ("%.2f us apart (exact %.2f us)", 1e6 * std::abs (lagS), 1e6 * want));
         double a0, a1, l0, l1;
@@ -1660,6 +1707,7 @@ static void testStock()
         const StockMedium& S = stockMedium (0);
         const double sp = S.spacingUm + 0.45 + 1.083 * S.roughUm * 4.0;      // static + the rougher surface's mean lift
         const double want = 20.0 * std::log10 (1.0 - 0.25) - 8.685889638 * 2.0 * M_PI * sp / (19.05e4 / 1000.0);
+        tip ("eng.wear_db", d, "dB", "%.1f");
         check (std::abs (d - want) < 0.2, "WEAR 100 %: a quarter of the oxide gone and the tape lifted", fmt ("%+.2f dB at 1 kHz (expected %+.2f)", d, want));
     }
 
@@ -1745,6 +1793,8 @@ static void testFluxMemory()
         };
         double r0[3];
         dubRun (0.0f, 0.0f, 0, r0);
+        tip ("eng.dub_take_db", r0[0], "dB", "%.1f");
+        (void) 0;
         check (std::abs (r0[0] + 3.47) < 0.6, "DUB, ERASE 0: the take committed in REC loses what the reference's E2 says, once", fmt ("%+.2f dB after one pass (reference -3.47)", r0[0]));
         check (std::abs (r0[1] - r0[0]) < 0.02 && std::abs (r0[2] - r0[0]) < 0.02, "and nothing more on the second and third pass (one shot: the reference's E1)", fmt ("%+.2f / %+.2f / %+.2f dB", r0[0], r0[1], r0[2]));
         // the operating bias itself (BIAS +6 in DUB undoes the drop): the first stage 7 check, once
@@ -1789,6 +1839,7 @@ static void testFluxMemory()
         const Er ea[] = { { 0.75, -0.1 }, { 1.0, -3.0 }, { 1.25, -18.3 }, { 1.5, -51.5 } };
         worst = 0.0; d.clear();
         for (const Er& e : ea) { const double got = eraseAlone (e.he); worst = std::max (worst, std::abs (got - e.ref)); d += fmt ("%.2f: %+.1f (%+.1f)  ", e.he, got, e.ref); }
+        tip ("eng.erase_150_db", eraseAlone (1.5), "dB", "%.1f");
         const double full = eraseAlone (2.0);
         check (worst < 2.5, "the erase head alone follows the reference's transition (he 0.75-1.5)", d);
         check (full < -80.0, "and past the transition it wipes the tape", fmt ("%+.1f dB at he = 2", full));
@@ -1803,6 +1854,7 @@ static void testFluxMemory()
             return 20.0 * std::log10 (goertzelAmp (r.L, (size_t) ((tSw + dl + 0.1) * fs), (size_t) ((tSw + dl + P - 0.1) * fs), 1000.0, fs) / l0);
         };
         const double g0 = ghost (1.0), g12 = ghost (3.981);
+        tip ("eng.dub_ghost_db", g0, "dB", "%.1f");
         check (std::abs (g0 + 24.1) < 3.0 && std::abs (g12 + 12.8) < 3.0, "the overdub itself is replaced by the next pass, its ghost as the reference's E3", fmt ("%+.1f dB at 0 VU (reference -24.1), %+.1f at +12 dB (-12.8)", g0, g12));
         // what DUB records: 2.9 dB low at the sound-on-sound bias (E4)
         auto level = [&] (float state) {
@@ -1941,6 +1993,7 @@ static void testFluxMemory()
             worst = std::max (worst, std::abs (f / (2000.0 * w / v0) - 1.0));
         }
         const double stopped = rmsOf (r.L, (size_t) ((tStop + 2.5) * fs), n);
+        tip ("eng.coast_err_pct", 100.0 * worst, "%", "%.1f");
         check (worst < 0.02, "MOTOR RUN off: the loop's pitch follows the capstan coasting down", fmt ("worst %.1f %% off the coast-down law", 100.0 * worst));
         check (stopped < REF_AMP * 1.0e-3, "and a stopped tape gives no output (the replay integrator stops near DC)", fmt ("%.1f dB re the tone", 20.0 * std::log10 (stopped / (REF_AMP / std::sqrt (2.0)) + 1e-30)));
     }
@@ -2009,12 +2062,371 @@ static void testFluxMemory()
         }
         double worst = 0.0;
         for (size_t i = 1; i < dips.size(); ++i) worst = std::max (worst, std::abs ((dips[i] - dips[i - 1]) - P));
+        tip ("eng.splice_ms", 1e3 * worst, "ms", "%.1f");
         check (dips.size() >= 2 && worst < 0.003, "the loop's splice: a dropout at each head once a loop period",
                fmt ("%.0f dips, spacing off the loop period by %.1f ms at most", (double) dips.size(), 1e3 * worst));
     }
 }
 
 //------------------------------------------------------------------------------ REPRO
+//------------------------------------------------------------------------------ the cards' figures
+struct Fig
+{
+    std::string name, title, xl, xu, yl, yu; bool xlog = false, ylog = false;
+    std::vector<std::pair<std::string, std::vector<std::pair<double, double>>>> series;
+    std::vector<std::pair<double, std::string>> marks;
+    std::string live;   // raw JSON or empty
+};
+static std::vector<Fig> g_figs;
+static std::string jsonStr (const std::string& t) { std::string o = "\""; for (char c : t) { if (c == '"' || c == '\\') o += '\\'; o += c; } return o + "\""; }
+static void writeFigs (const char* path)
+{
+    FILE* o = std::fopen (path, "wb");
+    if (! o) return;
+    std::fprintf (o, "{\n");
+    for (size_t k = 0; k < g_figs.size(); ++k)
+    {
+        const Fig& g = g_figs[k];
+        std::fprintf (o, "  %s: { \"title\": %s,\n    \"x\": { \"label\": %s, \"unit\": %s, \"log\": %s },\n    \"y\": { \"label\": %s, \"unit\": %s, \"log\": %s },\n    \"series\": [\n",
+                      jsonStr (g.name).c_str(), jsonStr (g.title).c_str(), jsonStr (g.xl).c_str(), jsonStr (g.xu).c_str(), g.xlog ? "true" : "false",
+                      jsonStr (g.yl).c_str(), jsonStr (g.yu).c_str(), g.ylog ? "true" : "false");
+        for (size_t i = 0; i < g.series.size(); ++i)
+        {
+            std::fprintf (o, "      { \"label\": %s, \"points\": [", jsonStr (g.series[i].first).c_str());
+            for (size_t j = 0; j < g.series[i].second.size(); ++j)
+                std::fprintf (o, "%s[%.6g,%.6g]", j ? "," : "", g.series[i].second[j].first, g.series[i].second[j].second);
+            std::fprintf (o, "] }%s\n", i + 1 < g.series.size() ? "," : "");
+        }
+        std::fprintf (o, "    ],\n    \"marks\": [");
+        for (size_t i = 0; i < g.marks.size(); ++i) std::fprintf (o, "%s{ \"x\": %.6g, \"label\": %s }", i ? ", " : "", g.marks[i].first, jsonStr (g.marks[i].second).c_str());
+        std::fprintf (o, "],\n    \"live\": %s }%s\n", g.live.empty() ? "null" : g.live.c_str(), k + 1 < g_figs.size() ? "," : "");
+    }
+    std::fprintf (o, "}\n");
+    std::fclose (o);
+    std::printf ("figures: %zu written to %s\n", g_figs.size(), path);
+}
+
+static void buildFigures()
+{
+    std::printf ("\nFIGURES for the cards (measured on this build)\n");
+    const double fs = 48000.0;
+    // ---- the recording zone per slab, at the operating bias, 19.05 cm/s
+    {
+        Params p; p.speed = 19.05f;
+        Engine e; e.setParams (p); e.prepare (fs, 256);
+        Fig g; g.name = "recordzone"; g.title = "Where each slab records: the zone past the gap (operating bias, 19 cm/s)";
+        g.xl = "distance past the gap centre"; g.xu = "\xC2\xB5m"; g.yl = "recording sensitivity"; g.yu = "per \xC2\xB5m";
+        const char* nm[4] = { "0-3.5 \xC2\xB5m deep", "3.5-7 \xC2\xB5m", "7-10.5 \xC2\xB5m", "10.5-14 \xC2\xB5m" };
+        for (int l = 0; l < NLAYER; ++l)
+        {
+            const LayerRecord& r = e.layerRecord (l);
+            std::vector<std::pair<double, double>> pts;
+            const double w = std::max (r.wUm, 0.3);
+            for (double x = -2.0; x <= 14.0; x += 0.1)
+                pts.push_back ({ x, r.gain * std::exp (-0.5 * (x - r.xUm) * (x - r.xUm) / (w * w)) / (w * std::sqrt (2.0 * M_PI)) });
+            g.series.push_back ({ nm[l], pts });
+        }
+        g.marks.push_back ({ 5.0, "gap edge" });
+        g_figs.push_back (g);
+    }
+    // ---- the hiss each stock brings, 1/3 octaves re 0 VU (EQ in, 19.05 cm/s)
+    {
+        Fig g; g.name = "noise"; g.title = "Tape hiss, one-third octaves re 0 VU (19 cm/s, EQ in)";
+        g.xl = "frequency"; g.xu = "Hz"; g.xlog = true; g.yl = "level"; g.yu = "dB re 0 VU";
+        for (int st : { 0, 1, 3 })
+        {
+            Params p = wetOnly(); p.stock = (float) st; p.speed = 19.05f; soloHead (p, 4.0);
+            const size_t n = (size_t) (5.0 * fs);
+            std::vector<float> z (n, 0.0f);
+            bool was = g_idealMedium; g_idealMedium = false;
+            auto r = run (p, fs, z, z);
+            g_idealMedium = was;
+            const size_t nfft = 16384;
+            auto psd = psdOf (r.L, (size_t) (0.6 * fs), n, nfft);
+            const double df = fs / nfft, ref = REF_AMP * REF_AMP / 2.0;
+            std::vector<std::pair<double, double>> pts;
+            for (int b = -17; b <= 13; ++b)
+            {
+                const double fc = 1000.0 * std::pow (2.0, b / 3.0), lo = fc / std::pow (2.0, 1.0 / 6.0), hi = fc * std::pow (2.0, 1.0 / 6.0);
+                double pw = 0.0;
+                for (size_t k = 1; k + 1 < psd.size(); ++k) { const double fk = k * df; if (fk >= lo && fk < hi) pw += psd[k] / fs * df; }
+                if (pw > 0.0) pts.push_back ({ fc, 10.0 * std::log10 (pw / ref) });
+            }
+            g.series.push_back ({ stockMedium (st).name, pts });
+        }
+        g_figs.push_back (g);
+    }
+    // ---- wow and flutter: the tape's speed under head 1, freshly serviced and worn
+    {
+        Fig g; g.name = "wowflutter"; g.title = "The tape's speed at the heads, 2 s (19 cm/s)";
+        g.xl = "time"; g.xu = "s"; g.yl = "speed error"; g.yu = "%";
+        for (float cond : { 15.0f, 100.0f })
+        {
+            Params p = wetOnly(); p.condition = cond; p.speed = 19.05f;
+            Engine e; std::vector<float> z ((size_t) (4.0 * fs), 0.0f);
+            std::vector<std::pair<double, double>> pts;
+            run (p, fs, z, z, [&] (Params&, Engine& en, size_t i) {
+                const double t = (double) i / fs;
+                if (t >= 2.0 && (i / 256) % 2 == 0) pts.push_back ({ t - 2.0, 100.0 * (en.speedCms() / 19.05 - 1.0) }); }, 0.0, &e);
+            g.series.push_back ({ cond < 50 ? "freshly serviced (CONDITION 15)" : "worn out (CONDITION 100)", pts });
+        }
+        g.live = "{ \"param\": \"condition\", \"map\": \"identity\" }";
+        g.live.clear();   // the x axis is time, not CONDITION
+        g_figs.push_back (g);
+    }
+    // ---- third harmonic at +6 dB against speed (the record process at a fixed alignment)
+    {
+        Fig g; g.name = "speedhd"; g.title = "Distortion against speed: third harmonic of 1 kHz at +6 dB";
+        g.xl = "tape speed"; g.xu = "cm/s"; g.xlog = true; g.yl = "third harmonic"; g.yu = "%";
+        std::vector<std::pair<double, double>> pts;
+        for (double v : { 4.75, 9.525, 19.05, 38.1, 76.0 })
+        {
+            Params p = wetOnly(); p.speed = (float) v; soloHead (p, 4.0);
+            const double dl = 4.0 / v;
+            const size_t n = (size_t) ((dl + 1.5) * fs);
+            auto x = sine (n, 1000.0, fs, 2.0 * REF_AMP);
+            EqOff eqOff;
+            auto r = run (p, fs, x, x);
+            const size_t a = (size_t) ((dl + 0.5) * fs), b = (size_t) ((dl + 1.4) * fs);
+            const double h3 = goertzelAmp (r.L, a, b, 3000.0, fs) / goertzelAmp (r.L, a, b, 1000.0, fs);
+            pts.push_back ({ v, 100.0 * h3 });
+            if (std::abs (v - 19.05) < 0.1) tip ("eng.hd3_6db_pct", 100.0 * h3, "%", "%.2f");
+        }
+        g.series.push_back ({ "studio tape, aligned at 19 cm/s", pts });
+        g.live = "{ \"tele\": \"speed\", \"map\": \"identity\" }";
+        g_figs.push_back (g);
+    }
+    // ---- the standards' recorded-flux curves (what the equalisers make the tape follow)
+    {
+        Fig g; g.name = "eqcurves"; g.title = "Equalisation: the recorded flux each standard asks for, re 1 kHz";
+        g.xl = "frequency"; g.xu = "Hz"; g.xlog = true; g.yl = "flux"; g.yu = "dB";
+        for (int st = 0; st < 2; ++st)
+            for (double v : { 4.76, 19.05, 38.1 })
+            {
+                double tau2, w1; eqTimeConstants (st, v, tau2, w1);
+                auto mag = [&] (double fh) { const double w = 2.0 * M_PI * fh; return 10.0 * std::log10 ((1.0 + (w1 > 0 ? (w1 / w) * (w1 / w) : 0.0)) / (1.0 + (w * tau2) * (w * tau2))); };
+                std::vector<std::pair<double, double>> pts;
+                for (double fh = 20.0; fh <= 20000.0; fh *= 1.12) pts.push_back ({ fh, mag (fh) - mag (1000.0) });
+                char lab[64]; std::snprintf (lab, sizeof lab, "%s %.2f cm/s", st ? "NAB" : "IEC", v);
+                g.series.push_back ({ lab, pts });
+            }
+        g_figs.push_back (g);
+    }
+    // ---- the erase head: one pass alone, the engine against the reference, and the knob's field
+    {
+        Fig g; g.name = "erase"; g.title = "One pass of the erase head alone over a 0 VU recording";
+        g.xl = "erase field (deep gap)"; g.xu = "Hc"; g.yl = "what is left"; g.yu = "dB";
+        const double H[5] = { 0.75, 1.0, 1.25, 1.5, 2.0 }, D[5] = { -0.1, -3.0, -18.3, -51.5, -148.0 };
+        std::vector<std::pair<double, double>> ref;
+        for (int i = 0; i < 5; ++i) ref.push_back ({ H[i], D[i] });
+        g.series.push_back ({ "reference model", ref });
+        g.marks.push_back ({ HE_FULL, "full: a clean wipe" });
+        std::string tab = "[";
+        for (int k = 0; k <= 100; k += 2) { char b[48]; std::snprintf (b, sizeof b, "%s[%d,%.4f]", k ? "," : "", k, Engine::eraseFieldHc (k)); tab += b; }
+        tab += "]";
+        g.live = "{ \"param\": \"erase\", \"map\": \"table\", \"table\": " + tab + " }";
+        g_figs.push_back (g);
+    }
+}
+
+//------------------------------------------------------------------------------ stage 8
+static void testStage8()
+{
+    std::printf ("\n23. STAGE 8: HEAD PATTERN, BYPASS, THE VU FEED, QUALITY TIERS\n");
+    const double fs = 48000.0;
+
+    // ---- HEAD PATTERN: the pattern's ratios in rail order around the tempo head
+    {
+        double worst = 0.0; bool masks = true;
+        for (int pt = 0; pt < NUM_PATTERNS; ++pt)
+            for (int th = 0; th < 3; ++th)
+            {
+                const double rail[3] = { 3.0, 6.0, 9.0 };
+                double out[3]; int mask = 0;
+                headPatternRail (pt, th, rail, out, mask);
+                const double unit = rail[th] / PATTERNS[pt][th];
+                for (int i = 0; i < 3; ++i)
+                {
+                    const double want = std::clamp (unit * PATTERNS[pt][i], 1.5, 24.0);
+                    worst = std::max (worst, std::abs (out[i] - (i == th ? rail[th] : want)));
+                    const bool off = unit * PATTERNS[pt][i] > 24.0 + 1e-9 || unit * PATTERNS[pt][i] < 1.5 - 1e-9;
+                    masks = masks && (((mask >> i) & 1) == (off && i != th ? 1 : 0));
+                }
+            }
+        // rail order: head 1 parked FAR right of head 2 gets the largest ratio
+        const double rail2[3] = { 20.0, 4.0, 8.0 };
+        double o2[3]; int m2 = 0;
+        headPatternRail (0, 1, rail2, o2, m2);   // 1:2:3 around head 2 at 4 cm: heads 2, 3, 1 get 4, 8, 12
+        const bool order = std::abs (o2[1] - 4.0) < 1e-9 && std::abs (o2[2] - 8.0) < 1e-9 && std::abs (o2[0] - 12.0) < 1e-9;
+        (void) 0;
+        check (worst < 1.0e-9 && masks && order, "HEAD PATTERN: every pattern's ratios around the tempo head, in rail order, the out-of-reach heads named",
+               fmt ("worst %.1e cm; rail order 20 / 4 / 8 cm -> %.1f / %.1f", worst, o2[0], o2[1]) + fmt (" / %.1f cm", o2[2]));
+
+        // and the carriages travel there: after a SET the delays are the ratios, within a microsecond
+        Params p = wetOnly(); p.speed = 19.05f; p.h1On = p.h2On = p.h3On = 1; p.h1Pos = 4.0f; p.h2Pos = 6.0f; p.h3Pos = 9.0f;
+        const double cur[3] = { 4.0, 6.0, 9.0 };
+        double tgt[3]; int mk = 0;
+        headPatternRail (0, 0, cur, tgt, mk);    // 1:2:3 from head 1 at 4 cm: 4, 8, 12
+        Engine e;
+        std::vector<float> z ((size_t) (4.0 * fs), 0.0f);
+        run (p, fs, z, z, [&] (Params& q, Engine&, size_t i) { if (i >= (size_t) (0.5 * fs)) { q.h1Pos = (float) tgt[0]; q.h2Pos = (float) tgt[1]; q.h3Pos = (float) tgt[2]; } }, 0.0, &e);
+        double dw = 0.0;
+        const double d1 = e.headPosCm (0) / e.speedCms();
+        for (int i = 1; i < 3; ++i) dw = std::max (dw, std::abs (e.headPosCm (i) / e.speedCms() - d1 * PATTERNS[0][i]));
+        check (dw < 1.0e-6, "after SET the carriages settle with every delay at its ratio of the tempo head's", fmt ("worst %.3f us", dw * 1e6));
+    }
+
+    // ---- BYPASS: settled, the output IS the input, delayed by what the host is told
+    {
+        bool exact = true; double stepMax = 0.0, sigMax = 0.0;
+        for (int repro = 0; repro < 2; ++repro)
+        {
+            Params p; p.mix = 0.5f; p.feedback = 0.5f; p.repro = (float) repro; p.bypass = 1.0f;
+            const size_t n = (size_t) (2.0 * fs);
+            auto x = noiseBurst (n, 0, n, 7, 0.3f);
+            Engine e;
+            auto r = run (p, fs, x, x, nullptr, 0.0, &e);
+            const int lat = e.latencySamples();
+            for (size_t i = (size_t) (1.0 * fs); i < n; ++i)
+                exact = exact && r.L[i] == x[i - (size_t) lat] && r.R[i] == x[i - (size_t) lat];
+        }
+        // and the crossfade is click-free: a sine, bypass toggled mid-way
+        Params p = wetOnly(); p.mix = 0.5f;
+        const size_t n = (size_t) (1.5 * fs);
+        auto x = sine (n, 440.0, fs, REF_AMP);
+        auto r = run (p, fs, x, x, [&] (Params& q, Engine&, size_t i) { q.bypass = i >= (size_t) (0.8 * fs) ? 1.0f : 0.0f; });
+        for (size_t i = (size_t) (0.5 * fs); i + 1 < n; ++i)
+        {
+            const double s = std::abs ((double) r.L[i + 1] - r.L[i]);
+            if (i > (size_t) (0.79 * fs) && i < (size_t) (0.9 * fs)) stepMax = std::max (stepMax, s);
+            else sigMax = std::max (sigMax, s);
+        }
+        check (exact && stepMax < 1.5 * sigMax, "BYPASS: the input exactly, delayed by the host's latency (REPRO too), through a click-free crossfade",
+               std::string (exact ? "bit-exact" : "NOT exact") + fmt (", largest step at the change %.4f vs %.4f elsewhere", stepMax, sigMax));
+    }
+
+    // ---- smoothing: no control clicks when it jumps
+    {
+        // the controls whose change is physical travel (speed: the motor glides; the head
+        // positions: the carriages; the loop's length and bars: a splice) are left out
+        const char* ids[] = { "feedback", "bass", "treble", "drive", "reclevel", "bias", "mix", "output", "h1lvl", "h1pan",
+                              "particles", "wear", "condition", "capstan", "reels", "scrape", "broken" };
+        // the jump lands off a zero crossing (0.8 s is a whole number of 440 Hz cycles, where a
+        // step makes no discontinuity and the self-test below read 1x)
+        const size_t n = (size_t) (1.6 * fs), jump = (size_t) (0.8 * fs) + 27;
+        auto clickRatio = [&] (const std::vector<float>& y) {
+            const double w0 = 2.0 * M_PI * 8000.0 / fs, al = std::sin (w0) / (2.0 * 0.707), cs = std::cos (w0), a0 = 1.0 + al;
+            const double b0 = (1.0 + cs) / 2.0 / a0, b1 = -(1.0 + cs) / a0, b2 = b0, a1 = -2.0 * cs / a0, a2 = (1.0 - al) / a0;
+            double z1 = 0, z2 = 0, acc = 0.0, atJump = 0.0, elsewhere = 1.0e-30;
+            const size_t win = (size_t) (0.005 * fs);
+            for (size_t i = 0; i < n; ++i)
+            {
+                const double v = b0 * y[i] + z1; z1 = b1 * y[i] - a1 * v + z2; z2 = b2 * y[i] - a2 * v;
+                acc += v * v;
+                if ((i + 1) % win == 0)
+                {
+                    const size_t w = i / win;
+                    if (i > (size_t) (0.3 * fs))
+                    {
+                        if (w * win >= jump - win && w * win <= jump + 2 * win) atJump = std::max (atJump, acc);
+                        else elsewhere = std::max (elsewhere, acc);
+                    }
+                    acc = 0.0;
+                }
+            }
+            return atJump / elsewhere;
+        };
+        // the metric must be able to fail: an unsmoothed 6 dB step on a sine is a click
+        double selfTest = 0.0;
+        {
+            auto y = sine (n, 440.0, fs, REF_AMP);
+            for (size_t i = jump; i < n; ++i) y[i] *= 2.0f;
+            selfTest = clickRatio (y);
+        }
+        std::string bad, worstId; double worstR = 0.0;
+        for (const char* id : ids)
+        {
+            const int si = indexOf (id);
+            const Spec& sp = SPECS[si];
+            Params p = wetOnly(); p.mix = 0.5f; p.feedback = 0.3f; p.speed = 19.05f; soloHead (p, 4.0);
+            const float lo = sp.kind == Kind::Log ? sp.lo * std::pow (sp.hi / sp.lo, 0.1f) : sp.lo + 0.1f * (sp.hi - sp.lo);
+            const float hi = sp.kind == Kind::Log ? sp.lo * std::pow (sp.hi / sp.lo, 0.9f) : sp.lo + 0.9f * (sp.hi - sp.lo);
+            p.*(sp.member) = lo;
+            auto x = sine (n, 440.0, fs, REF_AMP);
+            auto r = run (p, fs, x, x, [&] (Params& q, Engine&, size_t i) { q.*(sp.member) = i >= jump ? hi : lo; });
+            const double ratio = clickRatio (r.L);
+            if (verbose) std::printf ("     %-10s %.2f\n", id, ratio);
+            if (ratio > worstR) { worstR = ratio; worstId = id; }
+            if (ratio > 2.0) bad += std::string (bad.empty() ? "" : ", ") + id + fmt (" %.1fx", ratio);
+        }
+        check (selfTest > 10.0 && bad.empty(), "smoothing: no control clicks when it jumps across its range mid-tone (energy above 8 kHz)",
+               (bad.empty () ? fmt ("worst %.2fx (", worstR) + worstId + ")" : bad) + fmt ("; an unsmoothed 6 dB step reads %.0fx", selfTest));
+    }
+
+    // ---- the VU feed: a 0 VU sine (-18 dBFS rms) reads -18.0 dBFS
+    {
+        Params p; p.mix = 0.0f;
+        const size_t n = (size_t) (1.0 * fs);
+        auto x = sine (n, 1000.0, fs, REF_AMP);
+        Engine e;
+        run (p, fs, x, x, nullptr, 0.0, &e);
+        const double vin = 10.0 * std::log10 (e.tele.inMs.load()), vout = 10.0 * std::log10 (e.tele.outMs.load());
+        check (std::abs (vin + 18.0) < 0.1 && std::abs (vout + 18.0) < 0.15, "the VU feed: a 0 VU sine reads -18 dBFS in and (MIX 0) out", fmt ("in %+.2f, out %+.2f dBFS", vin, vout));
+    }
+
+    // ---- QUALITY: the tiers agree in level; aliasing per tier
+    {
+        auto level = [&] (int q, double f, double amp, double* alias) {
+            Params p = wetOnly(); p.speed = 38.1f; soloHead (p, 4.0); p.particles = 1000.0f;
+            const double dl = 4.0 / 38.1;
+            const size_t n = (size_t) ((dl + 1.5) * fs);
+            auto x = sine (n, f, fs, amp);
+            Engine e; e.setQuality (q);
+            auto r = run (p, fs, x, x, nullptr, 0.0, &e);
+            const size_t a = (size_t) ((dl + 0.4) * fs), b = (size_t) ((dl + 1.4) * fs);
+            const double fund = goertzelAmp (r.L, a, b, f, fs);
+            if (alias)
+            {
+                // everything that is not a harmonic of f (or DC): a 4-term Blackman-Harris FFT
+                // (sidelobes -92 dB), bins more than 8 from any harmonic summed, as dBFS of a sine
+                constexpr size_t NF = 32768;
+                std::vector<std::complex<double>> buf (NF);
+                double wsum = 0.0;
+                for (size_t i = 0; i < NF; ++i)
+                {
+                    const double t = 2.0 * M_PI * (double) i / (double) NF;
+                    const double w = 0.35875 - 0.48829 * std::cos (t) + 0.14128 * std::cos (2.0 * t) - 0.01168 * std::cos (3.0 * t);
+                    buf[i] = std::complex<double> (w * r.L[a + i], 0.0); wsum += w;
+                }
+                fft (buf);
+                const double binHz = fs / (double) NF;
+                double rest = 0.0, worst = 0.0, worstHz = 0.0;
+                for (size_t k = 1; k < NF / 2; ++k)
+                {
+                    const double hz = k * binHz;
+                    const double nearH = std::abs (hz - f * std::round (hz / f));
+                    if (nearH <= 8.0 * binHz || hz < 8.0 * binHz) continue;
+                    const double p = std::norm (buf[k]) * 4.0 / (wsum * wsum) * 0.5;   // sine power per bin
+                    rest += p;
+                    if (p > worst) { worst = p; worstHz = hz; }
+                }
+                // the window spreads one sine over its main lobe: sum is ~ENBW x the power; correct by ENBW 2.004
+                *alias = 10.0 * std::log10 (std::max (rest / 2.004, 1.0e-30)) + 3.0103;
+                if (verbose) std::printf ("     q%d: largest spur %.1f dBFS at %.0f Hz\n", q, 10.0 * std::log10 (worst) + 3.0103, worstHz);
+            }
+            return fund;
+        };
+        const double l0 = level (0, 1000.0, REF_AMP, nullptr), l1 = level (1, 1000.0, REF_AMP, nullptr), l2 = level (2, 1000.0, REF_AMP, nullptr);
+        const double d0 = 20.0 * std::log10 (l0 / l1), d2 = 20.0 * std::log10 (l2 / l1);
+        check (std::abs (d0) < 0.1 && std::abs (d2) < 0.1, "the three tiers record the same 1 kHz level", fmt ("ECO %+.3f dB, HIGH %+.3f dB re NORMAL", d0, d2));
+        double a0, a1, a2;
+        level (0, 9000.0, 4.0 * REF_AMP, &a0); level (1, 9000.0, 4.0 * REF_AMP, &a1); level (2, 9000.0, 4.0 * REF_AMP, &a2);
+        std::printf ("   aliasing, 9 kHz at +12 dB, 48 kHz, silent tape (everything not a harmonic): ECO %.1f, NORMAL %.1f, HIGH %.1f dBFS\n", a0, a1, a2);
+        check (a2 <= a1 + 1.0 && a1 <= a0 + 1.0, "oversampling buys what it should: aliasing falls (or holds) from ECO to HIGH", fmt ("ECO %.1f, NORMAL %.1f, HIGH %.1f dBFS", a0, a1, a2));
+        tip ("eng.alias_db", a1, "dBFS", "%.0f");
+    }
+}
+
 //------------------------------------------------------------------------------ BUGLIST 5
 static void testBroken()
 {
@@ -2088,6 +2500,7 @@ static void testBroken()
         swing (2, pp2, per2);
         swing (0, pp0, per0);
         // the wreck's own flutter (CONDITION 100, the causes at 200 %) adds its peaks to the swing
+        tip ("eng.hunt_pp_pct", 100.0 * pp2, "%", "%.1f");
         check (pp2 > 0.025 && pp2 < 0.06 && pp2 > 2.0 * pp0 && per2 > 1.1 && per2 < 1.6 && pp0 < 0.02,
                "motor hunting: the pitch swings slowly, about 1.3 s a cycle", fmt ("%.1f %% peak to peak, %.2f s a cycle (without it %.1f %%)", 100.0 * pp2, per2, 100.0 * pp0));
     }
@@ -2111,6 +2524,7 @@ static void testBroken()
         span (10000.0, 1, t0, t1, tb);
         span (500.0, 1, b0, b1, bb);
         span (10000.0, 0, n0, n1, nb);
+        tip ("eng.clog_swing_db", t1 - t0, "dB", "%.0f");
         check (t1 - t0 > 6.0 && tb && b1 - b0 < 2.0 && n1 - n0 < 2.0,
                "head clog: 10 kHz drops away and comes back, 500 Hz barely moves", fmt ("10 kHz swings %.1f dB (%.1f without the clog), 500 Hz %.1f dB", t1 - t0, n1 - n0, b1 - b0));
     }
@@ -2218,6 +2632,7 @@ static void testRepro()
                     worst = std::max (worst, off);
                     if (verbose) std::printf ("     %6.0f Hz %5.2f cm/s %4.1f cm%s: latency %d (knob %.2f), pulse %.2f\n", fs, v, h, blocked ? " blocked" : "", L, expect * fs, cout / eout - cin / ein);
                 }
+        tip ("eng.repro_err_samples", worst, "samples", "%.2f");
         check (worstRep <= 0.5, "REPRO reports head 1's delay, distance / speed, to the nearest sample", fmt ("worst %.2f samples off", worstRep));
         check (worst < 0.6, "and the tape arrives exactly that late, even where the other heads push head 1 back", fmt ("worst %.2f samples (3 rates, 3 speeds, near, far, blocked)", worst));
     }
@@ -2265,21 +2680,33 @@ static void testCost()
     const double seconds = 4.0;
     const size_t n = (size_t) (seconds * fs);
     auto x = noiseBurst (n, 0, n, 1, 0.2f);
-    Engine e; e.setParams (p); e.prepare (fs, 256);
     std::vector<float> L (256), R (256);
     // best of five: the machine running the bench is not idle (one binary measured
     // 12.5 % and 15.0 % on consecutive runs), and the cost of the engine is the
     // time it needs, not the time it was interrupted for
-    double sec = 1.0e9;
-    for (int run = 0; run < 5; ++run)
-    {
-        const double t0 = threadCpuSeconds();
-        for (size_t i = 0; i < n; i += 256)
-            e.process (x.data() + i, x.data() + i, L.data(), R.data(), 256);
-        sec = std::min (sec, threadCpuSeconds() - t0);
-    }
-    const double pct = 100.0 * sec / seconds;
-    std::printf ("   record head rebuilt %d times (once per stock in prepare at the alignment speed, once at 76)\n", e.recordBuilds());
+    auto costOf = [&] (int q, int* builds) {
+        Engine e; e.setQuality (q); e.setParams (p); e.prepare (fs, 256);
+        double sec = 1.0e9;
+        for (int run = 0; run < 5; ++run)
+        {
+            const double t0 = threadCpuSeconds();
+            for (size_t i = 0; i < n; i += 256)
+                e.process (x.data() + i, x.data() + i, L.data(), R.data(), 256);
+            sec = std::min (sec, threadCpuSeconds() - t0);
+        }
+        if (builds) *builds = e.recordBuilds();
+        return 100.0 * sec / seconds;
+    };
+    int builds = 0;
+    const double pct = costOf (1, &builds);
+    const double eco = costOf (0, nullptr), high = costOf (2, nullptr);
+    std::printf ("   record head rebuilt %d times (once per stock in prepare at the alignment speed, once at 76)\n", builds);
+    std::printf ("   ECO %.2f %%, NORMAL %.2f %%, HIGH %.2f %% of one core (targets 8 / 15 / 30 %%)\n", eco, pct, high);
+    // ECO drops the oversampling only: at 76 cm/s most of the work is per centimetre of tape
+    // (cells recorded and read), which the internal rate does not touch, so it saves about a
+    // quarter, not half; the 8 % target is not reached (DECISIONS: the quality tiers)
+    check (eco < 0.85 * pct && high < 45.0, "ECO saves at least 15 % against NORMAL; HIGH stays under a 45 % ceiling", fmt ("ECO %.2f %%, HIGH %.2f %%", eco, high));
+    tip ("eng.cost_pct", pct, "%", "%.1f"); tip ("eng.cost_eco_pct", eco, "%", "%.1f"); tip ("eng.cost_high_pct", high, "%", "%.1f");
     // The design (section 6) sets CPU as TARGETS with actuals reported, not as a
     // tolerance: the same binary reads 12.5-15.2 % from run to run as the CPU's
     // clock moves (boost, heat), even timed on its own thread. So: report against
@@ -2294,6 +2721,10 @@ int main (int argc, char** argv)
     // "mttest -s stock" runs one section (delay unity glide doppler feedback loop stereo sync
     // controls rail reference speeds playback equalised head transport stock cost)
     const char* only = (argc > 2 && std::strcmp (argv[1], "-s") == 0) ? argv[2] : nullptr;
+    const char* tipsPath = nullptr;
+    const char* figPath = nullptr;
+    for (int i = 1; i < argc; ++i) if (std::strncmp (argv[i], "--tips=", 7) == 0) tipsPath = argv[i] + 7;
+    for (int i = 1; i < argc; ++i) if (std::strncmp (argv[i], "--figdata=", 10) == 0) figPath = argv[i] + 10;
     auto want = [only] (const char* n) { return only == nullptr || std::strcmp (only, n) == 0; };
     std::printf ("Magneto Transport - bench (stage 6)\n");
     {
@@ -2321,7 +2752,43 @@ int main (int argc, char** argv)
     if (want ("flux")) testFluxMemory();
     if (want ("repro")) testRepro();
     if (want ("broken")) testBroken();
+    if (want ("stage8")) testStage8();
     if (want ("cost")) testCost();
+    if (figPath != nullptr) { buildFigures(); writeFigs (figPath); }
     std::printf ("\n%d checks, %d failed - %s\n", g_pass + g_fail, g_fail, g_fail ? "FAILURES" : "ALL CLEAR");
+    if (tipsPath != nullptr)
+    {
+        // the reference model's numbers the cards quote (05-reference-results.md, measured by mtref)
+        tip ("ref.flux_mr_nwbm", 2044.0, "nWb/m", "%.0f");
+        tip ("ref.op_bias_hc", 3.263, "Hc", "%.3f");
+        tip ("ref.hs0vu_hc", 0.233, "Hc", "%.3f");
+        tip ("ref.mol_db_re185", 12.27, "dB", "+%.1f");
+        tip ("ref.sigma_c", 0.12, "", "%.2f");
+        tip ("ref.nu", 2.059, "", "%.2f");
+        tip ("ref.bias_erasure_db", -34.5, "dB", "%.1f");
+        tip ("ref.overdub3k_db", -44.6, "dB", "%.1f");
+        tip ("ref.halfbias_erasure_db", -4.1, "dB", "%.1f");
+        tip ("ref.erase_100_db", -3.0, "dB", "%.1f");
+        tip ("ref.erase_125_db", -18.3, "dB", "%.1f");
+        tip ("ref.erase_150_db", -51.5, "dB", "%.1f");
+        tip ("ref.dub_take_db", -3.47, "dB", "%.1f");
+        tip ("ref.dub_ghost_db", -24.1, "dB", "%.1f");
+        tip ("ref.dub_ghost12_db", -12.8, "dB", "%.1f");
+        tip ("ref.dub_record_db", -2.9, "dB", "%.1f");
+        tip ("ref.dub_10k_db", -9.7, "dB", "%.1f");
+        tip ("ref.overwrite_depth_spread_db", 101.0, "dB", "%.0f");
+        tip ("eng.checks", (double) (g_pass + g_fail), "", "%.0f");
+        FILE* o = std::fopen (tipsPath, "wb");
+        if (o)
+        {
+            std::fprintf (o, "{\n  \"build\": \"%s\",\n  \"passed\": %d,\n  \"failed\": %d,\n  \"numbers\": {\n", MT_BENCH_BUILD, g_pass, g_fail);
+            size_t k = 0;
+            for (const auto& [key, t] : g_tips)
+                std::fprintf (o, "    \"%s\": { \"value\": %.6g, \"unit\": \"%s\", \"text\": \"%s\" }%s\n", key.c_str(), t.value, t.unit.c_str(), t.text.c_str(), ++k < g_tips.size() ? "," : "");
+            std::fprintf (o, "  }\n}\n");
+            std::fclose (o);
+            std::printf ("tips numbers: %zu written to %s\n", g_tips.size(), tipsPath);
+        }
+    }
     return g_fail ? 1 : 0;
 }

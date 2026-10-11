@@ -573,3 +573,79 @@ through the motor's own dynamics), and a crinkled stretch (spacing, lost coating
 twist across the gap, plus a speed jolt and harder stick-slip as it passes the heads).
 The erase head only weakens on a loop: on a reel it meets blank tape, and weakening it
 there would let the ring buffer's previous lap through, which no reel has.
+
+## Stage 8: the panel is generated around three data files
+
+The page is a pure view (docs/PROTOCOL.md). The tooltip cards (BUGLIST 6) read three
+files the plug-in embeds, and none is typed by hand: `tips.json` from
+`docs/tips/tips.src.json` by `tools/build-tips.js` (TeX to MathML Core, which
+WebView2 renders natively; it fails on a missing card, a bad equation, an unknown figure
+or number); `tips-numbers.json` written by the bench (`mttest --tips=`), every
+measured number a card quotes set beside the check that measures it; and
+`figdata.json` merged by `tools/build-figdata.js` from the reference
+(`mtref --figdata`: hysteresis, anhysteretic, bias curve, DUB survival), the bench
+(`mttest --figdata`: record zones, hiss, W&F, distortion against speed, EQ curves,
+the erase transition and the knob's field) and closed forms (Karlqvist, playback losses,
+delay geometry, the feedback loop). Figures carry a live marker bound to a parameter or
+the telemetry. A retuned model cannot leave a stale claim on a card.
+
+## The quality tiers change the internal rate only
+
+ECO runs the tape at the host rate, NORMAL at 2x below 80 kHz, HIGH at 4x below 80 kHz
+(two half-band stages each way). A change threads a fresh tape (the internal rate is
+the tape's clock); it is saved with the project and remembered as the user's default.
+**Measured at the worst case (76 cm/s, three heads, feedback, hiss): ECO about 15 %,
+NORMAL about 20 %, HIGH about 30 % of one core.** ECO saves a quarter, not half: at
+76 cm/s most of the work is per centimetre of tape (cells recorded and read, 2.8 M a
+second), which the internal rate does not touch. The design's ECO target of 8 % is
+not met; at 19 cm/s NORMAL is about 12 %. Aliasing of a 9 kHz tone 12 dB over 0 VU at
+48 kHz: ECO -37, NORMAL -63, HIGH -63 dBFS (what is left is not oversampler aliasing:
+the same spur shows at a 96 kHz host with no decimation).
+
+## A nested call is not a sequence
+
+The first 4x cascade drooped 1.3 dB at 9 kHz and 3 dB at 20 kHz and aliased worse than
+2x, because `d.down (d2.down (a, b), d2.down (c, d))` leaves the order of the two
+stateful calls to the compiler, and MSVC evaluated the later sample first. Sequenced
+into named temporaries it is flat within 0.01 dB. The fleet learned this in Hats Off;
+`test/hbcheck.cpp` now measures the cascade alone.
+
+## Bypass is ours, and stays in time
+
+The host's bypass is the plug-in's BYPASS parameter (`getBypassParameter`): a 20 ms
+crossfade to the dry signal delayed by exactly the latency the host is told, so a
+bypass in REPRO stays in time; the tape runs on underneath. Measured bit-exact in the
+bench and within 1e-6 through the real VST3 wrapper (`test/host`).
+
+## Presets are levelled to what goes in
+
+24 factory presets in six groups, also the host's programs. Each preset's OUTPUT is
+written by `test/presetlevel.cpp` into `Source/PresetTrims.h`: K-weighted loudness of
+a synthetic band played through it equal to the programme's own, so a bypass A/B is a
+level match. Levelling to the default machine instead would have put the tape-only
+presets 4 dB above unity. User presets are JSON files in the house folder
+(`Documents\Brokild patches\Magneto Transport`); a deleted one moves to
+`Deleted`. BYPASS is never part of a preset.
+
+## HEAD PATTERN snaps in rail order
+
+SET writes the three position parameters once, from the pattern's ratios around the
+tempo head, in RAIL order (from where the carriages actually are: heads cannot pass, so
+a head parked to the right of another must take the larger ratio). The carriages then
+travel with their own inertia. The panel shows live which heads a pattern would push
+off the rail.
+
+## The smoothing audit can fail
+
+Every continuous control jumped across 80 % of its range mid-tone, energy above 8 kHz in
+5 ms windows at the jump against the rest of the render: all at or below 1x. The metric's
+own self-test (an unsmoothed 6 dB step on the same sine) first read 1x, because the jump
+fell exactly on a zero crossing of the 440 Hz tone; moved off it, a real click reads 98x.
+
+## The cost gate reads a warm CPU
+
+At the end of the full bench (about twenty minutes of load) NORMAL read 20.7 % and
+failed the 20 % ceiling; run alone straight after, the same binary read 17.2 % and
+19.5 %. The part-by-part probe (mtcost) found no regression: the medium's hiss is
+about 5 % of a core at 76 cm/s, as in stage 6. The ceiling stays; a cost failure at
+the end of a full run is re-measured with `mttest -s cost` before it is believed.

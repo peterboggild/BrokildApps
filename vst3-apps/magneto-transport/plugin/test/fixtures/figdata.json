@@ -1,0 +1,56 @@
+{
+  "biascurve": {
+    "title": "Output against bias, 1 kHz and 10 kHz (fixture)",
+    "x": { "label": "bias", "unit": "Hc", "log": false },
+    "y": { "label": "output", "unit": "dB", "log": false },
+    "series": [
+      { "label": "1 kHz",  "points": [[1.0,-14.0],[1.5,-8.0],[2.0,-4.0],[2.5,-1.5],[3.0,-0.4],[3.263,0.0],[3.6,-0.3],[4.2,-1.2],[5.0,-2.6],[6.0,-4.3],[7.0,-6.0]] },
+      { "label": "10 kHz", "points": [[1.0,-10.0],[1.5,-4.0],[2.0,-1.0],[2.4,0.0],[2.8,-0.9],[3.263,-3.0],[3.6,-4.4],[4.2,-6.8],[5.0,-9.6],[6.0,-12.8],[7.0,-15.6]] }
+    ],
+    "marks": [ { "x": 3.263, "label": "operating" }, { "x": 2.4, "label": "10 kHz peak" } ],
+    "live": { "param": "bias", "map": "db_to_ratio", "base": 3.263 }
+  },
+  "erase": {
+    "title": "One erase pass against the erase field (fixture)",
+    "x": { "label": "erase field", "unit": "Hc", "log": false },
+    "y": { "label": "left", "unit": "dB", "log": false },
+    "series": [ { "label": "", "points": [[0,0],[0.6,-0.1],[0.9,-0.6],[1.1,-6],[1.3,-22],[1.57,-60],[1.8,-90],[2.25,-131]] } ],
+    "marks": [ { "x": 2.2, "label": "wipe" } ],
+    "live": { "param": "erase", "map": "table", "table": [[0,0],[10,0.92],[45,1.10],[90,1.57],[100,2.25]] }
+  },
+  "speedhd": {
+    "title": "Third harmonic at +6 dB against tape speed (fixture)",
+    "x": { "label": "speed", "unit": "cm/s", "log": true },
+    "y": { "label": "HD3", "unit": "%", "log": false },
+    "series": [ { "label": "", "points": [[4.75,4.8],[9.5,3.1],[19,1.9],[38,1.3],[76,1.0]] } ],
+    "marks": [ { "x": 19, "label": "7.5 ips" } ],
+    "live": { "tele": "speed", "map": "identity" }
+  },
+  "delaygeometry": {
+    "title": "Delay against head position (fixture)",
+    "x": { "label": "head position", "unit": "cm", "log": false },
+    "y": { "label": "delay", "unit": "ms", "log": false },
+    "series": [ { "label": "19 cm/s", "points": [[1.5,79],[24,1263]] }, { "label": "38 cm/s", "points": [[1.5,39.5],[24,631.6]] } ],
+    "marks": [],
+    "live": { "param": "h2pos", "map": "identity" }
+  },
+  "wowflutter": {
+    "title": "DIN 45507 weighting (fixture)",
+    "x": { "label": "modulation frequency", "unit": "Hz", "log": true },
+    "y": { "label": "weight", "unit": "dB", "log": false },
+    "series": [ { "label": "", "points": [[0.3,-30],[0.6,-19],[1,-12],[2,-5],[4,0],[8,-3],[20,-10],[60,-20],[200,-30]] } ],
+    "marks": [ { "x": 4, "label": "peak 4 Hz" } ],
+    "live": null
+  },
+  "hysteresis": {
+    "title": "A major loop of the medium (fixture)",
+    "x": { "label": "H", "unit": "Hc", "log": false },
+    "y": { "label": "M", "unit": "Ms", "log": false },
+    "series": [
+      { "label": "rising",  "points": [[-4,-1],[-2,-0.9],[-1,-0.6],[0,-0.25],[1,0.4],[2,0.85],[4,1]] },
+      { "label": "falling", "points": [[4,1],[2,0.9],[1,0.6],[0,0.25],[-1,-0.4],[-2,-0.85],[-4,-1]] }
+    ],
+    "marks": [],
+    "live": null
+  }
+}

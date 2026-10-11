@@ -1153,6 +1153,96 @@ static void writeDubTables (const Lab& Lin, const std::string& path)
     }
 }
 
+//------------------------------------------------------------------------------ the cards' reference figures (stage 8)
+/*  --figdata=<path>: the reference model's curves the tooltip cards draw
+    (docs/PROTOCOL.md figdata schema), at the machine's alignment (--speed, --hbop,
+    --hs0vu, --nu as for --dub). Measured, never drawn. */
+static void writeRefFigs (const Lab& L, double hbOp, double hsRef, const std::string& path)
+{
+    FILE* o = std::fopen (path.c_str(), "wb");
+    if (! o) { std::printf ("   cannot write %s\n", path.c_str()); return; }
+    auto series = [&] (const char* label, const std::vector<std::pair<double, double>>& pts, bool last) {
+        std::fprintf (o, "      { \"label\": \"%s\", \"points\": [", label);
+        for (size_t i = 0; i < pts.size(); ++i) std::fprintf (o, "%s[%.6g,%.6g]", i ? "," : "", pts[i].first, pts[i].second);
+        std::fprintf (o, "] }%s\n", last ? "" : ",");
+    };
+    auto head = [&] (const char* name, const char* title, const char* xl, const char* xu, bool xlog, const char* yl, const char* yu) {
+        std::fprintf (o, "  \"%s\": { \"title\": \"%s\",\n    \"x\": { \"label\": \"%s\", \"unit\": \"%s\", \"log\": %s },\n    \"y\": { \"label\": \"%s\", \"unit\": \"%s\", \"log\": false },\n    \"series\": [\n",
+                      name, title, xl, xu, xlog ? "true" : "false", yl, yu);
+    };
+    std::fprintf (o, "{\n");
+    // ---- the coating's hysteresis: the major loop from saturation, and a minor loop inside it
+    {
+        head ("hysteresis", "The coating's hysteresis (the Preisach model of the studio tape)", "field", "Hc", false, "magnetisation", "M/Ms");
+        std::vector<std::pair<double, double>> major, minor;
+        Stair S;   // negative saturation
+        for (double h = -3.0; h <= 3.0001; h += 0.05) { S.apply (h); major.push_back ({ h, S.M (L.md) }); }
+        for (double h = 3.0; h >= -3.0001; h -= 0.05) { S.apply (h); major.push_back ({ h, S.M (L.md) }); }
+        Stair T; T.apply (3.0); T.apply (-0.6);
+        for (double h = -0.6; h <= 0.8001; h += 0.05) { T.apply (h); minor.push_back ({ h, T.M (L.md) }); }
+        for (double h = 0.8; h >= -0.6001; h -= 0.05) { T.apply (h); minor.push_back ({ h, T.M (L.md) }); }
+        series ("major loop", major, false);
+        series ("a minor loop (it closes exactly)", minor, true);
+        std::fprintf (o, "    ],\n    \"marks\": [{ \"x\": 1, \"label\": \"Hc\" }],\n    \"live\": null },\n");
+    }
+    // ---- the anhysteretic curve: what AC bias records, against the signal field
+    {
+        head ("anhysteretic", "What AC bias records: the anhysteretic curve", "signal field at the particle", "Hc", false, "remanence", "M/Ms");
+        std::vector<std::pair<double, double>> ideal, real;
+        for (double sv = -1.5; sv <= 1.5001; sv += 0.025) ideal.push_back ({ sv, 2.0 * L.md.PhiU (sv) - 1.0 });
+        for (double sv = 0.0; sv <= 1.5001; sv += 0.1)
+        {
+            Stair sx; const int Nn = 4000;
+            for (int i = 0; i < Nn; ++i) { const double A = 5.0 * (1.0 - (double) i / Nn); sx.apply (sv + (i % 2 ? -A : A)); }
+            sx.apply (sv);
+            real.push_back ({ sv, sx.M (L.md) });
+        }
+        series ("2 Phi(s) - 1 (closed form)", ideal, false);
+        series ("a decaying AC field, simulated", real, true);
+        const double s0 = hsRef * karlqvist (L.rec.g, 0.0, L.rec.d + 0.125 * 14.0) * std::sqrt (2.0);
+        std::fprintf (o, "    ],\n    \"marks\": [{ \"x\": %.4f, \"label\": \"0 VU peak, top slab\" }],\n    \"live\": null },\n", s0);
+    }
+    // ---- the bias curve, through the playback head
+    {
+        head ("biascurve", "The bias curve: 1 kHz and 10 kHz through the playback head", "bias (deep gap)", "Hc", false, "output", "dB re 250 nWb/m");
+        std::vector<std::pair<double, double>> s1, s10;
+        for (double hb : { 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0, 8.0 })
+        {
+            double a1, p1, a10, p10;
+            L.measure (hb, 0.08, 1000.0, a1, p1);
+            L.measure (hb, 0.08, 10000.0, a10, p10);
+            s1.push_back ({ hb, dB (p1 / 250.0) }); s10.push_back ({ hb, dB (p10 / 250.0) });
+        }
+        series ("1 kHz", s1, false);
+        series ("10 kHz", s10, true);
+        std::fprintf (o, "    ],\n    \"marks\": [{ \"x\": %.4f, \"label\": \"operating bias\" }],\n    \"live\": { \"param\": \"bias\", \"map\": \"db_to_ratio\", \"base\": %.5f } },\n", hbOp, hbOp);
+    }
+    // ---- DUB: a take committed at the operating bias under one pass at r x the bias; an overdub made at r under the next
+    {
+        head ("dub", "Sound-on-sound: what one pass at a lower bias leaves", "bias", "x operating", false, "left after one pass", "dB");
+        int c0, n; L.window (1000.0, c0, n);
+        auto amp1k = [&] (Tape& tp) { Readout R (L.md, tp, L.stock); return std::abs (R.amp (1000.0, L.v, c0, n, -1)); };
+        Tape base = L.fresh(); L.record (base, hbOp, hsRef, 1000.0);
+        const double orig = amp1k (base);
+        std::vector<std::pair<double, double>> take, ghost;
+        for (double r : { 0.3, 0.35, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0 })
+        {
+            Tape tp = base; Pass P; P.head = L.rec; P.hb = r * hbOp; P.fb = L.fb; P.v = L.v; runPass (tp, P);
+            take.push_back ({ r, dB (amp1k (tp) / orig) });
+            Tape g = L.fresh(); L.record (g, r * hbOp, hsRef, 1000.0);
+            const double g0 = amp1k (g);
+            runPass (g, P);
+            ghost.push_back ({ r, dB (amp1k (g) / g0) });
+        }
+        series ("the take committed in REC", take, false);
+        series ("an overdub made at that bias, under the next pass", ghost, true);
+        std::fprintf (o, "    ],\n    \"marks\": [{ \"x\": 0.501, \"label\": \"DUB\" }, { \"x\": 1, \"label\": \"REC\" }],\n    \"live\": { \"param\": \"bias\", \"map\": \"db_to_ratio\", \"base\": 0.501187 } }\n");
+    }
+    std::fprintf (o, "}\n");
+    std::fclose (o);
+    std::printf ("   reference figures written to %s\n", path.c_str());
+}
+
 //------------------------------------------------------------------------------ the overdub question (BUGLIST 8)
 /*  What a loop keeps when it is recorded over with the erase head off, measured
     rather than argued: whether a second identical pass takes anything more (the
@@ -1275,7 +1365,7 @@ int main (int argc, char** argv)
 {
     std::string out = argc > 1 && argv[1][0] != '-' ? argv[1] : ".";
     bool fast = false;
-    int layersOpt = 0; bool playbackOpt = false, tablesOnly = false, erasureOnly = false, dubOnly = false; std::string stockOpt = "456"; std::string tablesPath, pbPath, dubPath; double nuOpt = 0.0, speedOpt = 0.0, hbOpt = 0.0, hsOpt = 0.0;
+    int layersOpt = 0; bool playbackOpt = false, tablesOnly = false, erasureOnly = false, dubOnly = false; std::string stockOpt = "456"; std::string tablesPath, pbPath, dubPath, figPath; double nuOpt = 0.0, speedOpt = 0.0, hbOpt = 0.0, hsOpt = 0.0;
     for (int i = 1; i < argc; ++i)
     {
         if (! std::strcmp (argv[i], "--fast")) fast = true;
@@ -1286,6 +1376,7 @@ int main (int argc, char** argv)
         if (! std::strcmp (argv[i], "--erasure")) erasureOnly = true;
         if (! std::strcmp (argv[i], "--dub")) dubOnly = true;
         if (! std::strncmp (argv[i], "--dubtables=", 12)) dubPath = argv[i] + 12;
+        if (! std::strncmp (argv[i], "--figdata=", 10)) figPath = argv[i] + 10;
         if (! std::strncmp (argv[i], "--stock=", 8)) stockOpt = argv[i] + 8;
         if (! std::strncmp (argv[i], "--pbtables=", 11)) { pbPath = argv[i] + 11; playbackOpt = true; }
         if (! std::strncmp (argv[i], "--nu=", 5)) nuOpt = std::atof (argv[i] + 5);
@@ -1410,6 +1501,7 @@ int main (int argc, char** argv)
     }
 
     // --erasure: section 5 alone, at --speed with --hbop and --hs0vu (the machine's alignment)
+    if (! figPath.empty() && hbOpt > 0.0 && hsOpt > 0.0) { writeRefFigs (L, hbOpt, hsOpt, figPath); return 0; }
     if ((erasureOnly || dubOnly) && hbOpt > 0.0 && hsOpt > 0.0)
     {
         std::printf ("\n   erasure at %.2f cm/s, operating bias %.4f Hc, 0 VU field %.5f Hc\n", L.v, hbOpt, hsOpt);

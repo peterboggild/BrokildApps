@@ -1,0 +1,14 @@
+{
+  "build": "fixture",
+  "numbers": {
+    "ref.op_bias_hc":     { "value": 3.263, "unit": "Hc", "text": "3.26 Hc" },
+    "ref.bias_erasure_db": { "value": -34.5, "unit": "dB", "text": "−34.5 dB" },
+    "ref.erase_150_db":   { "value": -96.0, "unit": "dB", "text": "−96 dB" },
+    "eng.hd3_6db_pct":    { "value": 1.9,   "unit": "%",  "text": "1.9 %" },
+    "eng.delay_err_us":   { "value": 0.3,   "unit": "us", "text": "0.3 µs" },
+    "eng.wf_fresh_pct":   { "value": 0.036, "unit": "%",  "text": "0.036 %" },
+    "eng.wf_worn_pct":    { "value": 0.24,  "unit": "%",  "text": "0.24 %" },
+    "eng.rec_loss_15k_db": { "value": -2.1, "unit": "dB", "text": "−2.1 dB" },
+    "eng.unity_db":       { "value": 0.02,  "unit": "dB", "text": "+0.02 dB" }
+  }
+}

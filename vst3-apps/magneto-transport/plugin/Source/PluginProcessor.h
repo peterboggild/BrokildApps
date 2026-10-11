@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "Engine.h"
+#include "Presets.h"
 
 //==============================================================================
 /*  Magneto Transport. The APVTS layout, processBlock's read, the panel's initial
@@ -28,11 +29,13 @@ public:
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 30.0; }
 
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram (int) override {}
-    const juce::String getProgramName (int) override { return {}; }
+    // the factory presets are the host's programs too
+    int getNumPrograms() override { return mt::NUM_FACTORY; }
+    int getCurrentProgram() override { return juce::jmax (0, presetFactory); }
+    void setCurrentProgram (int i) override { loadFactory (i); }
+    const juce::String getProgramName (int i) override { return (i >= 0 && i < mt::NUM_FACTORY) ? juce::String (mt::FACTORY[i].name) : juce::String(); }
     void changeProgramName (int, const juce::String&) override {}
+    juce::AudioProcessorParameter* getBypassParameter() const override { return apvts.getParameter ("bypass"); }
 
     void getStateInformation (juce::MemoryBlock&) override;
     void setStateInformation (const void*, int) override;
@@ -50,8 +53,29 @@ public:
     std::atomic<bool> uiHasState { false };
     std::atomic<bool> uiReady { false };
 
+    /*  Presets (docs/PROTOCOL.md). Message thread. */
+    void loadFactory (int i);
+    bool loadUser (const juce::String& name);
+    bool saveUser (const juce::String& name);
+    void deleteUser (const juce::String& name);
+    void emitPresets();
+    juce::File userFolder() const;
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    void applyParams (const mt::Params& p);     // every parameter but BYPASS, with gestures
+    void snapshotPreset (const juce::String& name, int factory);
+    bool presetDirty() const;
+    void setQuality (int q);
+    void patternSet();
+    juce::PropertiesFile& settings();
+    std::unique_ptr<juce::PropertiesFile> settingsFile;
+    juce::String presetName { "Default" };
+    int presetFactory = -1;
+    std::array<float, mt::NUM_SPECS> presetSnap {};
+    bool presetSnapValid = false;
+    int quality = 1;
+    double lastRate = 0.0; int lastBlock = 0;
     void timerCallback() override;
     float physical (int i) const;
 
@@ -63,6 +87,8 @@ private:
     std::vector<float> scratchL, scratchR;
 
     int statePushTick = 0;
+    int presetTick = 0;
+    bool lastDirty = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MagnetoTransportAudioProcessor)
 };

@@ -27,6 +27,8 @@ namespace
             if (original.endsWithIgnoreCase (".html"))      r.mimeType = "text/html";
             else if (original.endsWithIgnoreCase (".png"))  r.mimeType = "image/png";
             else if (original.endsWithIgnoreCase (".jpg"))  r.mimeType = "image/jpeg";
+            else if (original.endsWithIgnoreCase (".json")) r.mimeType = "application/json";
+            else if (original.endsWithIgnoreCase (".svg"))  r.mimeType = "image/svg+xml";
             else                                            r.mimeType = "application/octet-stream";
             return r;
         }

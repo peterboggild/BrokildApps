@@ -159,6 +159,8 @@ struct Telemetry
     std::atomic<double> clogUm { 0.0 };        // the worst head clog now (um of spacing)
     std::atomic<double> huntPct { 0.0 };       // the speed control's hunting depth (%)
     std::atomic<double> crease { 0.0 };        // a crinkled stretch at a head now, 0..1
+    std::atomic<double> inMs { 0.0 }, outMs { 0.0 };   // mean square in and out, smoothed 50 ms (the VU meters)
+    std::atomic<int>    quality { 1 };
 };
 
 //==============================================================================
@@ -169,6 +171,10 @@ public:
     ~Engine();
 
     void prepare (double hostSampleRate, int maxBlock);   // message thread
+    /*  0 ECO (no oversampling), 1 NORMAL (2x below 80 kHz), 2 HIGH (4x below 80 kHz,
+        2x below 160 kHz). Takes effect at the next prepare(): a fresh tape. */
+    void setQuality (int q) { quality = q < 0 ? 0 : q > 2 ? 2 : q; }
+    int getQuality() const { return quality; }
     void setParams (const Params& p) { params = p; }
     void setBpm (double b) { bpm = b; }
 
@@ -419,7 +425,9 @@ private:
     double aGain = 0.0;
     double gDry = 1.0, gWet = 0.0, gOut = 1.0, aHost = 0.0;
 
-    HalfBand up[2], dn[2];
+    HalfBand up[2], dn[2], up2[2], dn2[2];   // the second pair cascades to 4x (HIGH)
+    int quality = 1;
+    double gByp = 0.0, msIn = 0.0, msOut = 0.0, aVu = 0.0;
 
     float pkIn = 0, pkOut = 0, pkHead[NUM_HEADS] {};
 

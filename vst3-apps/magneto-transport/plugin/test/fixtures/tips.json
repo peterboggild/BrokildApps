@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "_note": "Probe fixture (test/uiprobe.js). Only a handful of rich cards live here; the probe server adds a plain card for every other id, so the real tips.json (Source/ui/tips.json, built by tools/build-tips.js) is never needed for the panel test.",
+  "cards": {
+    "bias": {
+      "title": "BIAS",
+      "does": "<p>Less bias: brighter, louder, dirtier. More: cleaner and darker.</p>",
+      "hood": "<p>The record head adds an ultrasonic field to the signal. Each particle sees</p><math display=\"block\"><mi>H</mi><mo>(</mo><mi>t</mi><mo>)</mo><mo>=</mo><msub><mi>H</mi><mi>s</mi></msub><mo>(</mo><mi>t</mi><mo>)</mo><mo>+</mo><msub><mi>H</mi><mi>b</mi></msub><mi>sin</mi><mo>(</mo><mn>2</mn><mi>π</mi><msub><mi>f</mi><mi>b</mi></msub><mi>t</mi><mo>)</mo></math><p>and is left on its anhysteretic curve as the field decays. The operating point sits at <span data-num=\"ref.op_bias_hc\"></span>; one pass of bias takes <span data-num=\"ref.bias_erasure_db\"></span> off an old recording.</p><figure data-fig=\"biascurve\"></figure>",
+      "notModelled": "<p>The bias oscillator's own distortion and its leakage into the playback amplifier.</p>"
+    },
+    "speed": {
+      "title": "TAPE SPEED",
+      "does": "<p>Delay is head distance over speed. Changes glide with the motor's inertia.</p>",
+      "hood": "<p>Faster tape spreads each wavelength over more particles: less distortion at the top, less hiss. Measured on this build: <span data-num=\"eng.hd3_6db_pct\"></span> third harmonic at +6 dB.</p><figure data-fig=\"speedhd\"></figure>",
+      "notModelled": ""
+    },
+    "erase": {
+      "title": "ERASE",
+      "does": "<p>In DUB: how much of the old take the erase head takes, once.</p>",
+      "hood": "<p>The erase field decays as the tape leaves the gap; what a cell keeps depends on how deep the old recording went. At 150 %: <span data-num=\"ref.erase_150_db\"></span>.</p><figure data-fig=\"erase\"></figure>",
+      "notModelled": ""
+    },
+    "h2pos": {
+      "title": "HEAD 2 POSITION",
+      "does": "<p>Distance from the record head: the further, the longer the echo.</p>",
+      "hood": "<p><math><mi>τ</mi><mo>=</mo><mi>d</mi><mo>/</mo><mi>v</mi></math>, held to <span data-num=\"eng.delay_err_us\"></span>.</p><figure data-fig=\"delaygeometry\"></figure>",
+      "notModelled": ""
+    },
+    "part:capstan": {
+      "title": "CAPSTAN",
+      "does": "<p>Sets the tape speed. Its runout and bearings are the flutter.</p>",
+      "hood": "<p>A freshly serviced machine measures <span data-num=\"eng.wf_fresh_pct\"></span> weighted, a worn one <span data-num=\"eng.wf_worn_pct\"></span>.</p><figure data-fig=\"wowflutter\"></figure>",
+      "notModelled": "<p>Capstan shaft bending under the pinch force.</p>"
+    },
+    "part:play": {
+      "title": "PLAYBACK HEAD",
+      "does": "<p>Reads the magnetisation as it passes. Drag it along the rail.</p>",
+      "hood": "<p>Gap and spacing losses shape the top end; at 15 kHz the record process costs <span data-num=\"eng.rec_loss_15k_db\"></span>.</p>",
+      "notModelled": ""
+    },
+    "part:tape": {
+      "title": "THE TAPE",
+      "does": "<p>The strip is the magnetisation the engine holds right now.</p>",
+      "hood": "<p>Each cell is a Preisach medium in six layers.</p><figure data-fig=\"hysteresis\"></figure>",
+      "notModelled": ""
+    },
+    "read:vu": {
+      "title": "VU METERS",
+      "does": "<p>IN and OUT with VU ballistics: 0 VU = −18 dBFS.</p>",
+      "hood": "<p>Unity through the machine measures <span data-num=\"eng.unity_db\"></span>.</p>",
+      "notModelled": ""
+    }
+  }
+}

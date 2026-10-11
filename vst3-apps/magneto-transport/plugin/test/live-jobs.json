@@ -294,5 +294,93 @@
   {
     "name": "OK again: the dots gone",
     "eval": "['condition','capstan','reels','scrape','wear','bias'].map(k => k + (__MT.ctls[k].el.querySelector('.knob').classList.contains('broken') ? ':dot ' : ':- ')).join('')"
+  },
+  {
+    "name": "the card files loaded from the plug-in",
+    "eval": "JSON.stringify(__MT.loaded)"
+  },
+  {
+    "name": "BIAS card, pinned: the bias curve with the live marker",
+    "eval": "__MT.openCard('bias', 0, true); 'opened'"
+  },
+  {
+    "name": "settle",
+    "wait": 600
+  },
+  {
+    "name": "BIAS card: numbers filled, figure drawn",
+    "eval": "const c=document.getElementById('card'); c.querySelectorAll('[data-num]').length + ' numbers, ' + [...c.querySelectorAll('[data-num]')].map(e=>e.textContent).join(' / ') + '; svgs ' + c.querySelectorAll('svg').length"
+  },
+  {
+    "name": "screenshot card bias",
+    "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-card-bias.png"
+  },
+  {
+    "name": "ERASE card",
+    "eval": "__MT.closeCard(); __MT.openCard('erase', 0, true); 'opened'"
+  },
+  {
+    "name": "settle",
+    "wait": 600
+  },
+  {
+    "name": "screenshot card erase",
+    "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-card-erase.png"
+  },
+  {
+    "name": "RECORD HEAD card",
+    "eval": "__MT.closeCard(); __MT.openCard('part:record', 0, true); 'opened'"
+  },
+  {
+    "name": "settle",
+    "wait": 600
+  },
+  {
+    "name": "screenshot card record",
+    "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-card-record.png"
+  },
+  {
+    "name": "close",
+    "eval": "__MT.closeCard(); 'closed'"
+  },
+  {
+    "name": "presets arrive from the plug-in",
+    "eval": "JSON.stringify((__MT.presets()||{}).factory ? {n: __MT.presets().factory.length, first: __MT.presets().factory[0].name} : __MT.presets())"
+  },
+  {
+    "name": "load factory 4 (Space Echo 1:2:3)",
+    "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'presetLoad',factory:4}); 'sent'"
+  },
+  {
+    "name": "settle",
+    "wait": 800
+  },
+  {
+    "name": "the preset window and the heads follow",
+    "eval": "document.getElementById('pName').textContent + ' / head2 ' + __MT.P.h2on.v + ' / fb ' + __MT.P.feedback.v.toFixed(2)"
+  },
+  {
+    "name": "HEAD PATTERN 1:2:4 around head 1, SET",
+    "eval": "__MT.set('pattern',3); window.__JUCE__.backend.emitEvent('mt',{k:'patternSet'}); 'sent'"
+  },
+  {
+    "name": "carriages travel",
+    "wait": 2500
+  },
+  {
+    "name": "heads at 4 / 8 / 16 cm",
+    "eval": "__MT.tele.heads.map(h=>h.toFixed(2)).join(' / ') + ' ; knobs ' + [1,2,3].map(i=>__MT.P['h'+i+'pos'].v.toFixed(2)).join(' / ')"
+  },
+  {
+    "name": "screenshot preset loaded",
+    "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-live-s8.png"
+  },
+  {
+    "name": "back to the default preset",
+    "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'presetLoad',factory:0}); 'sent'"
+  },
+  {
+    "name": "JS errors at the end",
+    "eval": "window.__errors.length ? window.__errors.join(' | ') : 'none'"
   }
 ]

@@ -10,155 +10,369 @@ window.addEventListener("error", e => { window.__errors.push(String(e.message) +
 window.addEventListener("unhandledrejection", e => { window.__errors.push("promise: " + String(e.reason)); });
 </script>
 <style>
+/* ======================================================================
+   Magneto Transport — stage 8 panel. Procedurally drawn: every part type
+   (plate, knob, key, push button, slider, lamp, meter, window, screw) has
+   its look defined ONCE below, so a stage 9 decal can replace it in place.
+   Sizes and centres come from __MT.geom().
+   ====================================================================== */
 :root{
-  --ink:#0d0f0e; --steel:#1a1d1b; --steel2:#232724; --edge:#33382f;
-  --brass:#c9b27a; --brassDim:#8a7a52; --paper:#d8cfb4; --amber:#ffb340; --red:#d2412c;
-  --green:#7fbf6a; --tape:#4a3220;
+  --ink:#0b0d0c; --steel:#1a1d1b; --steel2:#232724; --edge:#33382f; --edgeHi:#4a5145;
+  --brass:#c9b27a; --brassDim:#8a7a52; --brassLo:#5a5138; --paper:#d8cfb4; --amber:#ffb340;
+  --red:#d2412c; --green:#7fbf6a; --tape:#4a3220; --glass:#0a0b0a;
 }
 *{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none !important}
 html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
   font-family:Bahnschrift,"DIN Alternate","Segoe UI",sans-serif;color:var(--paper);user-select:none}
-#deck{position:absolute;left:0;top:0;width:1600px;height:900px;transform-origin:0 0;
+#deck{position:absolute;left:0;top:0;width:1600px;height:900px;transform-origin:0 0;overflow:hidden;
   background:
-    radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.035), transparent 60%),
-    repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 3px),
-    var(--steel)}
+    radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.045), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.013) 0 1px, transparent 1px 3px),
+    linear-gradient(#1d201e,#171a18)}
+
+/* ---- PART: screw (one look, used on plates and the header) */
+.screw{position:absolute;width:9px;height:9px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#7d8476,#3a4036 60%,#1b1e1b);
+  box-shadow:0 1px 0 rgba(255,255,255,0.06), inset 0 0 0 1px rgba(0,0,0,0.5)}
+.screw::after{content:"";position:absolute;left:1px;right:1px;top:4px;height:1px;background:#15171500;
+  background:#1a1c19;transform:rotate(35deg)}
+
 /* ---- header */
-#head{position:absolute;left:0;top:0;width:1600px;height:52px;display:flex;align-items:center;gap:18px;box-sizing:border-box;
-  padding:0 22px;border-bottom:2px solid var(--edge);background:linear-gradient(#202421,#171a18)}
-#wordmark{font-size:22px;letter-spacing:5px;font-weight:700;color:var(--brass);white-space:nowrap}
-#model{font-size:10px;letter-spacing:2px;color:var(--brassDim);line-height:1.3;white-space:nowrap}
-.lampbox{white-space:nowrap;display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;color:var(--brassDim)}
-.lamp{width:11px;height:11px;border-radius:50%;background:#3a2a1a;box-shadow:inset 0 0 3px #000}
-.lamp.on{background:var(--amber);box-shadow:0 0 8px var(--amber)}
-.lamp.red.on{background:var(--red);box-shadow:0 0 8px var(--red)}
-.meter{width:72px;height:8px;background:#0b0c0b;border:1px solid var(--edge);position:relative}
+#head{position:absolute;left:0;top:0;width:1600px;height:64px;display:flex;align-items:center;gap:14px;
+  padding:0 20px;border-bottom:1px solid #000;
+  background:linear-gradient(#262a27,#1b1e1c 60%,#151816);box-shadow:inset 0 -1px 0 rgba(255,255,255,0.05)}
+#head > *{flex:none}
+#brand{display:flex;flex-direction:column;justify-content:center;gap:2px;width:250px}
+#wordmark{font-size:21px;letter-spacing:3px;font-weight:700;color:var(--brass);white-space:nowrap;
+  text-shadow:0 1px 0 #000, 0 -1px 0 rgba(255,255,255,0.06)}
+#model{font-size:10px;letter-spacing:3px;color:var(--brassDim);white-space:nowrap}
+/* PART: window (a dark glass readout) */
+.window{background:linear-gradient(#070807,#121412);border:1px solid #000;border-radius:3px;
+  box-shadow:inset 0 2px 5px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.06);
+  font-family:Consolas,monospace;color:var(--amber);text-shadow:0 0 6px rgba(255,179,64,0.35)}
+#speedbox{width:150px;height:44px;padding:4px 10px;display:flex;flex-direction:column;justify-content:center}
+#readout{font-size:16px;white-space:nowrap}
+#readout2{font-size:10px;color:#b58a3c;white-space:nowrap}
+#lamps{display:flex;flex-direction:column;gap:3px;width:118px}
+.lampbox{white-space:nowrap;display:flex;align-items:center;gap:7px;font-size:9.5px;letter-spacing:2px;color:var(--brassDim)}
+/* PART: lamp */
+.lamp{flex:none;width:10px;height:10px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#5a3f22,#2a1d10 70%);box-shadow:inset 0 0 2px #000, 0 0 0 1px #0b0c0b}
+.lamp.on{background:radial-gradient(circle at 35% 30%,#ffe2a6,#ffb340 45%,#b06a10);box-shadow:0 0 8px var(--amber), 0 0 0 1px #0b0c0b}
+.lamp.red{background:radial-gradient(circle at 35% 30%,#5a2a22,#2a1310 70%)}
+.lamp.red.on{background:radial-gradient(circle at 35% 30%,#ffb3a0,#d2412c 45%,#7a1a0c);box-shadow:0 0 8px var(--red), 0 0 0 1px #0b0c0b}
+.lamp.green.on{background:radial-gradient(circle at 35% 30%,#d8ffc8,#7fbf6a 45%,#2c5a20);box-shadow:0 0 8px var(--green), 0 0 0 1px #0b0c0b}
+#spacer{flex:1 1 auto !important}
+/* PART: VU meter */
+.vubox{width:112px;height:56px;position:relative}
+.vu{display:block;width:112px;height:56px}
+#tapebox{flex-direction:column;align-items:flex-start;gap:4px;width:96px}
+/* PART: bar meter */
+.meter{width:92px;height:8px;background:#0b0c0b;border:1px solid #000;position:relative;box-shadow:inset 0 1px 2px #000}
 .meter i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#6a8f55,#c9b27a 70%,#d2412c);width:0}
-#readout{font-family:Consolas,monospace;font-size:15px;color:var(--amber);min-width:190px}
-#spacer{flex:1}
-#build{white-space:nowrap;font-family:Consolas,monospace;font-size:11px;color:var(--brassDim)}
-/* ---- machine */
-/* the machine is drawn in 1600 x 528 units, shown at 87 % to leave the panel two rows */
-#machine{position:absolute;left:103px;top:52px;width:1394px;height:460px}
+#presetBox{display:flex;align-items:center;gap:4px}
+.pkey{width:20px;height:28px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--brassDim);cursor:pointer;
+  background:linear-gradient(#2a2e2a,#171a18);border:1px solid #0b0c0b;border-radius:2px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.07)}
+.pkey:hover{color:var(--brass)}
+#pName{width:196px;height:32px;padding:0 8px 0 10px;display:flex;align-items:center;gap:6px;cursor:pointer}
+#pNameCol{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+#pGroup{font-style:normal;font-family:Bahnschrift,sans-serif;font-size:7.5px;line-height:9px;height:9px;letter-spacing:2px;color:#9a6f2a;text-shadow:none}
+#pNameText{font-size:13px;line-height:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pName > b{font-weight:400;font-size:10px;color:var(--brassDim)}
+#pSave{height:28px;padding:0 9px}
+#gear{width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,#353a33,#191c19);border:1px solid #0b0c0b;box-shadow:inset 0 1px 0 rgba(255,255,255,0.08)}
+#gear svg{width:20px;height:20px}
+#gear.open{box-shadow:0 0 0 1px var(--brassLo), inset 0 1px 0 rgba(255,255,255,0.08)}
+#build{white-space:nowrap;font-family:Consolas,monospace;font-size:10.5px;color:var(--brassDim);width:96px;text-align:right}
+
+/* ---- the machine bay */
+#bay{position:absolute;left:0;top:64px;width:1600px;height:436px;
+  background:linear-gradient(#111312,#181b19 8%,#181b19 92%,#101211);
+  box-shadow:inset 0 3px 8px rgba(0,0,0,0.7), inset 0 -2px 6px rgba(0,0,0,0.6)}
+/* the machine is drawn in 1600 x 528 units, at 1322 / 1600 of that on the deck */
+#machine{position:absolute;left:139px;top:64px;width:1322px;height:436px}
+/* PART: engraved plate (side plates of the bay) */
+.eplate{position:absolute;width:112px;padding:9px 8px;text-align:center;font-size:8.5px;letter-spacing:1.6px;line-height:1.55;
+  color:var(--brassDim);background:linear-gradient(#26291f,#1c1e18);border:1px solid #0b0c0b;border-radius:2px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 0 rgba(255,255,255,0.03)}
+.eplate b{display:block;color:var(--brass);font-size:9.5px;letter-spacing:2.2px;margin-bottom:3px;font-weight:600}
+
 /* ---- control panel */
-#panel{position:absolute;left:0;top:512px;width:1600px;height:358px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:10px;padding:10px 14px;
-  border-top:2px solid var(--edge);background:linear-gradient(#1c1f1d,#151816)}
-.grp{position:relative;height:164px;border:1px solid var(--edge);background:rgba(0,0,0,0.18);padding:24px 10px 8px;
-  display:flex;flex-wrap:wrap;align-content:flex-start;gap:6px 4px}
-.grp > h3{position:absolute;left:10px;top:5px;font-size:11px;letter-spacing:3px;color:var(--brass);font-weight:600}
-.col{display:flex;flex-direction:column;align-items:center;gap:4px}
-.ctl{width:82px;display:flex;flex-direction:column;align-items:center;gap:2px}
-.ctl label{font-size:10px;letter-spacing:1.5px;color:var(--brassDim);text-align:center;white-space:nowrap}
-.ctl .val{font-family:Consolas,monospace;font-size:11px;color:var(--paper);min-height:14px;white-space:nowrap}
-.knob{width:52px;height:52px;cursor:ns-resize;touch-action:none}
-.knob.big{width:70px;height:70px}
-.seg{display:flex;border:1px solid var(--edge)}
-.seg b{white-space:nowrap;font-weight:600;font-size:10px;letter-spacing:1.5px;padding:5px 7px;color:var(--brassDim);cursor:pointer;background:#141715}
-.seg b.on{color:var(--ink);background:var(--brass)}
+#panel{position:absolute;left:0;top:500px;width:1600px;height:370px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:10px;padding:10px 14px;
+  border-top:1px solid #000;background:linear-gradient(#1e211f,#161917);box-shadow:inset 0 1px 0 rgba(255,255,255,0.05)}
+/* PART: group plate */
+.grp{position:relative;flex:none;height:170px;display:flex;flex-direction:column;gap:6px;padding:26px 12px 6px;
+  border:1px solid #0a0b0a;border-radius:3px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 4px),
+    linear-gradient(#262a26,#1d201d);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.07), inset 0 -1px 0 rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.03)}
+.grp > h3{position:absolute;left:22px;right:22px;top:6px;display:flex;align-items:center;gap:8px;
+  font-size:10.5px;letter-spacing:3px;color:var(--brass);font-weight:600;white-space:nowrap;text-shadow:0 1px 0 #000}
+.grp > h3::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--brassLo),transparent)}
+.grp > .screw.l{left:7px;top:8px} .grp > .screw.r{right:7px;top:8px}
+.row{display:flex;gap:6px;align-items:flex-start}
+.row > *{flex:none}
+.colv{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.colv > *{flex:none}
+.ctl{width:66px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.ctl > *{flex:none}
+.ctl label{font-size:9.5px;line-height:12px;letter-spacing:1.4px;color:var(--brassDim);text-align:center;white-space:nowrap}
+.ctl .val{font-family:Consolas,monospace;font-size:11px;line-height:14px;height:14px;color:var(--paper);white-space:nowrap}
+.ctl.wide{width:auto;align-items:flex-start}
+/* PART: knob */
+.knob{width:46px;height:46px;cursor:ns-resize;touch-action:none}
+.knob svg{display:block;width:100%;height:100%;overflow:visible}
+.knob.big{width:58px;height:58px}
+.knob .eff{display:none}
+.knob.broken .eff{display:inline}
+/* PART: blanking plug (a reserved knob position) */
+.plug{width:34px;height:34px;margin:6px 0;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,#30342e,#121412 70%);border:1px solid #070807;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.05)}
+.ctl.reserved label{opacity:0}
+/* PART: selector keys (a row of interlocked keys) */
+.seg{display:flex;border:1px solid #070807;border-radius:2px;box-shadow:0 1px 0 rgba(255,255,255,0.04)}
+.seg b{white-space:nowrap;font-weight:600;font-size:9.5px;line-height:14px;letter-spacing:1.3px;padding:5px 7px;color:var(--brassDim);cursor:pointer;
+  background:linear-gradient(#2b2f2b,#161917);box-shadow:inset 0 1px 0 rgba(255,255,255,0.07), inset -1px 0 0 #0b0c0b}
+.seg b:last-child{box-shadow:inset 0 1px 0 rgba(255,255,255,0.07)}
+.seg b:hover{color:var(--brass)}
+.seg b.on{color:#1a1408;background:linear-gradient(#e2cd95,#b39a5c);box-shadow:inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.3)}
+/* PART: push button (with a lamp) */
+.btn{font-size:9.5px;line-height:14px;letter-spacing:1.8px;padding:5px 10px;border:1px solid #070807;border-radius:2px;white-space:nowrap;
+  background:linear-gradient(#2d312d,#171a18);color:var(--brassDim);cursor:pointer;display:flex;align-items:center;gap:6px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.08), 0 1px 0 rgba(255,255,255,0.03)}
+.btn:hover{color:var(--brass)}
+.btn:active,.btn.down{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,0.7)}
+.btn.on{color:var(--amber)}
+.btn .lamp{width:8px;height:8px}
 .inert{opacity:0.32;pointer-events:none}
 /* does nothing as things stand, but can still be set up: dimmed, not locked */
 .idle{opacity:0.38}
-[data-id=repro] .btn{white-space:nowrap;letter-spacing:1px}
-.btn{font-size:10px;letter-spacing:2px;padding:6px 10px;border:1px solid var(--edge);background:#141715;color:var(--brassDim);cursor:pointer;display:flex;align-items:center;gap:6px}
-.btn.on{color:var(--amber);border-color:#6a5530}
-.btn .lamp{width:9px;height:9px}
-.delay{font-family:Consolas,monospace;font-size:11px;color:var(--amber)}
-/* a horizontal slider (OK / BROKEN) */
-.hsl{position:relative;width:136px;height:10px;margin:8px 0 6px;background:#0b0c0b;border:1px solid var(--edge);cursor:ew-resize;touch-action:none}
-.hsl i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#6a8f55,#c9b27a 50%,#d2412c);width:0}
-.hsl b{position:absolute;top:-5px;width:10px;height:18px;margin-left:-5px;background:var(--brass);border:1px solid #6a5530;border-radius:2px}
-.knob .eff{display:none}
-.knob.broken .eff{display:inline}
-/* three heads side by side in one group: compact columns */
-.col{width:172px}
-.col .ctl{width:56px}
-.col .knob{width:44px;height:44px}
-.col .ctl label{font-size:9px;letter-spacing:1px}
-.col .ctl.headon{width:150px}
-/* compact knobs for the smaller groups */
-.tight .ctl{width:56px}
-.tight .knob{width:44px;height:44px}
-.tight .ctl label{font-size:9px;letter-spacing:1px}
+.delay{font-family:Consolas,monospace;font-size:11px;line-height:14px;color:var(--amber);padding:4px 6px;min-width:58px;text-align:right}
+/* PART: horizontal slider (OK / BROKEN, and the hover delay) */
+.hsl{position:relative;width:176px;height:10px;margin:6px 0;background:#0b0c0b;border:1px solid #000;border-radius:2px;cursor:ew-resize;touch-action:none;
+  box-shadow:inset 0 1px 3px #000, 0 1px 0 rgba(255,255,255,0.05)}
+.hsl i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#6a8f55,#c9b27a 50%,#d2412c);width:0;opacity:0.85}
+.hsl b{position:absolute;top:-6px;width:12px;height:20px;margin-left:-6px;border-radius:2px;
+  background:linear-gradient(90deg,#8d9284,#d9dccd 45%,#7a7f72);border:1px solid #1a1c19;box-shadow:0 2px 3px rgba(0,0,0,0.6)}
+.hsl b::after{content:"";position:absolute;left:5px;top:3px;bottom:3px;width:1px;background:#2b2e28}
+/* PART: stepper (HEAD PATTERN) */
+.stepper{display:flex;align-items:center;gap:3px}
+.stepper .sk{width:22px;height:26px;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--brassDim);cursor:pointer;
+  background:linear-gradient(#2d312d,#171a18);border:1px solid #070807;border-radius:2px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.08)}
+.stepper .sk:hover{color:var(--brass)}
+.stepper .sw{width:104px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:ns-resize}
+/* group specifics */
+.heads .col{width:160px;display:flex;flex-direction:column;gap:6px}
+.heads .col + .col{border-left:1px solid #121412;box-shadow:-1px 0 0 rgba(255,255,255,0.03);padding-left:6px;width:166px}
+.heads .ctl{width:50px}
+.heads .knob{width:38px;height:38px}
+.heads .ctl label{font-size:9px;letter-spacing:1px}
+.tight .ctl:not(.wide){width:64px}
+.split{display:flex;gap:12px}
+.split > *{flex:none}
+.area{display:flex;flex-direction:column;gap:6px}
+.area.pat{width:172px;padding-left:12px;border-left:1px solid #121412;box-shadow:-1px 0 0 rgba(255,255,255,0.03)}
+#patFit{font-family:Consolas,monospace;font-size:10.5px;line-height:13px;color:var(--brassDim);padding-top:6px;white-space:nowrap}
+#patFit.bad{color:var(--red)}
+#patMsg{font-family:Consolas,monospace;font-size:10.5px;line-height:12px;height:24px;color:var(--brassDim);white-space:normal;width:160px;overflow:hidden}
+#patMsg.ok{color:var(--green)} #patMsg.bad{color:var(--red)}
+#wfRead{width:78px;height:52px;margin-top:12px;padding-top:7px;text-align:center;font-size:13px;line-height:18px}
+#loopText{display:flex;flex-direction:column;gap:2px;width:456px}
+#loopRead{font-family:Consolas,monospace;font-size:11px;line-height:13px;height:26px;color:var(--amber);overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#loopWhy{font-size:10px;line-height:11.5px;height:23px;letter-spacing:.3px;color:var(--brassDim);overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* ---- hint bar */
 #hint{position:absolute;left:0;top:870px;width:1600px;height:30px;padding:7px 22px;font-size:12px;letter-spacing:.5px;
-  color:var(--brassDim);border-top:1px solid var(--edge);background:#121413;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  color:var(--brassDim);border-top:1px solid #000;background:#111312;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #hint b{color:var(--brass);font-weight:600;letter-spacing:2px;margin-right:10px}
+
+/* ---- menus (presets, gear) and the save dialog */
+.menu{position:absolute;z-index:40;display:none;background:linear-gradient(#222622,#171a18);border:1px solid var(--brassLo);border-radius:3px;
+  box-shadow:0 12px 30px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.05)}
+.menu.open{display:block}
+#presetMenu{width:560px;max-height:600px;overflow:auto;padding:10px 12px 12px}
+#pmCols{columns:2;column-gap:18px}
+.pmg{break-inside:avoid;margin-bottom:10px}
+.pmh{font-size:9.5px;letter-spacing:3px;color:var(--brass);padding:3px 0 4px;border-bottom:1px solid var(--edge);margin-bottom:3px}
+.pmi{display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 6px;color:var(--paper);cursor:pointer;border-radius:2px}
+.pmi:hover{background:rgba(201,178,122,0.12)}
+.pmi.cur{color:var(--amber)}
+.pmi.cur::before{content:"\25B8";font-size:9px}
+.pmi span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pmi .del{flex:none;font-size:10px;color:var(--brassDim);padding:0 4px;letter-spacing:1px}
+.pmi .del:hover{color:var(--red)}
+.pmi.confirm .del{color:var(--red)}
+.pmnone{font-size:11px;color:var(--brassDim);padding:3px 6px}
+#pmFoot{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--edge);padding-top:8px;margin-top:2px}
+#gearMenu{width:330px;padding:12px 14px}
+.mrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.mrow > *{flex:none}
+.ml{width:96px;font-size:9.5px;letter-spacing:2px;color:var(--brass)}
+.mv{font-family:Consolas,monospace;font-size:11px;color:var(--paper);width:40px}
+#gDelay{width:130px}
+.mnote{font-size:10.5px;color:var(--brassDim);margin:2px 0 0 106px;line-height:1.35}
+#gRun{font-family:Consolas,monospace;color:#9a8a62}
+.dlg{position:absolute;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.45)}
+.dlg.open{display:flex}
+.dlgbox{width:380px;padding:14px 16px;background:linear-gradient(#262a26,#1a1d1b);border:1px solid var(--brassLo);border-radius:3px;
+  box-shadow:0 14px 40px rgba(0,0,0,0.7)}
+.dt{font-size:11px;letter-spacing:3px;color:var(--brass);margin-bottom:10px}
+#dlgName{width:100%;height:30px;padding:0 8px;font-size:14px;font-family:Consolas,monospace;color:var(--amber);background:#080908;border:1px solid #000;
+  border-radius:2px;outline:none;user-select:text;box-shadow:inset 0 2px 4px rgba(0,0,0,0.9)}
+#dlgName:focus{border-color:var(--brassLo)}
+#dlgNote{font-size:10.5px;color:var(--brassDim);margin:7px 0 12px;min-height:14px}
+#dlgNote.bad{color:var(--red)}
+.dlgbox .row{justify-content:flex-end;gap:8px}
+
+/* ---- the card (BUGLIST 6) */
+#card{position:absolute;z-index:50;width:410px;max-height:470px;display:none;flex-direction:column;
+  background:linear-gradient(#20241f,#151816);border:1px solid var(--brassLo);border-radius:3px;
+  box-shadow:0 12px 32px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.05);color:var(--paper)}
+#card.open{display:flex}
+#card .ch{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px 6px 14px;border-bottom:1px solid var(--edge)}
+#card .ct{flex:1;font-size:12.5px;letter-spacing:3px;color:var(--brass);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#card .cpin{font-size:8.5px;letter-spacing:2px;color:#6f6447}
+#card.pinned .cpin{color:var(--amber)}
+#card .cx{font-size:12px;color:var(--brassDim);cursor:pointer;padding:0 4px}
+#card .cx:hover{color:var(--red)}
+#card .cb{overflow:auto;padding:10px 14px 12px;font-size:12px;line-height:1.5;user-select:text}
+#card .cb::-webkit-scrollbar{width:7px} #card .cb::-webkit-scrollbar-thumb{background:#3a3f37;border-radius:3px}
+#card .does{color:#f0e7cd;font-size:12.5px}
+#card .does p,#card .hood p,#card .nm p{margin:4px 0}
+#card .hood-h{margin-top:10px;padding-top:8px;border-top:1px solid var(--edge);font-size:9px;letter-spacing:3px;color:var(--brassDim)}
+#card .hood{color:#d3c9ad}
+#card math{color:#f3e9cb;font-size:1.08em}
+#card math[display=block]{margin:6px 0}
+#card .num{color:var(--amber);font-family:Consolas,monospace;white-space:nowrap}
+#card .num.missing{color:var(--red)}
+#card figure{margin:8px 0 4px}
+#card figcaption{font-size:10px;letter-spacing:1px;color:var(--brassDim);text-align:center;margin-top:2px}
+#card .figmiss{font-size:11px;color:var(--red)}
+#card .nm{margin-top:10px;padding:5px 9px;border-left:2px solid var(--brassLo);color:#9a8c66;font-size:11px;background:rgba(0,0,0,0.15)}
+#card .nm b{display:block;font-size:8.5px;letter-spacing:2.5px;color:var(--brassDim);font-weight:600}
+svg.fig{display:block}
+svg.fig text{font-family:Consolas,monospace;font-size:9px;fill:#9a8c66}
+svg.fig .axl{font-family:Bahnschrift,sans-serif;font-size:9.5px;fill:#b5a477;letter-spacing:.5px}
+svg.fig .lv{font-size:9.5px;fill:#ffb340}
+svg.fig .mk{font-size:8.5px;fill:#a8996e}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="gCap" cx="38%" cy="32%" r="75%">
+      <stop offset="0" stop-color="#9aa092"/><stop offset="0.45" stop-color="#555b51"/><stop offset="1" stop-color="#22251f"/>
+    </radialGradient>
+    <linearGradient id="gSkirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#363b33"/><stop offset="1" stop-color="#0f110f"/>
+    </linearGradient>
+    <linearGradient id="gFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4eacd"/><stop offset="1" stop-color="#d4c597"/>
+    </linearGradient>
+    <linearGradient id="gBezel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b403a"/><stop offset="1" stop-color="#121412"/>
+    </linearGradient>
+  </defs>
+</svg>
 <div id="deck">
   <div id="head">
-    <div id="wordmark">Magneto Transport</div>
-    <div id="model">MODEL MT-1<br>STAGE 7 &middot; PLACEHOLDER PANEL</div>
-    <div id="readout">--.- cm/s</div>
-    <div class="lampbox"><span class="lamp" id="lSync"></span>SYNC</div>
-    <div class="lampbox"><span class="lamp red" id="lClamp"></span>OUT OF REACH</div>
-    <div class="lampbox"><span class="lamp" id="lSplice"></span>SPLICING</div>
+    <div id="brand"><div id="wordmark">Magneto Transport</div><div id="model">MODEL MT-1</div></div>
+    <div id="speedbox" class="window"><div id="readout">--.- cm/s</div><div id="readout2">-- ips</div></div>
+    <div id="lamps">
+      <div class="lampbox" id="lbSync"><span class="lamp" id="lSync"></span>SYNC</div>
+      <div class="lampbox" id="lbClamp"><span class="lamp red" id="lClamp"></span>OUT OF REACH</div>
+      <div class="lampbox" id="lbSplice"><span class="lamp" id="lSplice"></span>SPLICING</div>
+    </div>
     <div id="spacer"></div>
-    <div class="lampbox">IN <div class="meter"><i id="mIn"></i></div></div>
-    <div class="lampbox">OUT <div class="meter"><i id="mOut"></i></div></div>
-    <div class="lampbox" title="Peak remanence written to the tape: full = the coating is saturated">TAPE <div class="meter"><i id="mTape"></i></div></div>
+    <div class="ctl wide" data-id="bypass" data-type="btn" id="bypassBox"></div>
+    <div class="vubox" id="vuInBox"><svg class="vu" id="vuIn" viewBox="0 0 112 56"></svg></div>
+    <div class="vubox" id="vuOutBox"><svg class="vu" id="vuOut" viewBox="0 0 112 56"></svg></div>
+    <div class="lampbox" id="tapebox">TAPE<div class="meter"><i id="mTape"></i></div></div>
+    <div id="presetBox">
+      <div class="pkey" id="pPrev">&#9664;</div>
+      <div id="pName" class="window"><div id="pNameCol"><i id="pGroup"></i><span id="pNameText">&mdash;</span></div><b>&#9662;</b></div>
+      <div class="pkey" id="pNext">&#9654;</div>
+      <div class="btn" id="pSave">SAVE</div>
+    </div>
+    <div id="gear"><svg viewBox="0 0 24 24"><path fill="#a8996e" d="M10.3 1.8h3.4l.5 2.6c.7.2 1.3.5 1.9.9l2.3-1.3 2.4 2.4-1.3 2.3c.4.6.7 1.2.9 1.9l2.6.5v3.4l-2.6.5c-.2.7-.5 1.3-.9 1.9l1.3 2.3-2.4 2.4-2.3-1.3c-.6.4-1.2.7-1.9.9l-.5 2.6h-3.4l-.5-2.6c-.7-.2-1.3-.5-1.9-.9l-2.3 1.3-2.4-2.4 1.3-2.3c-.4-.6-.7-1.2-.9-1.9l-2.6-.5v-3.4l2.6-.5c.2-.7.5-1.3.9-1.9L3.2 6.4l2.4-2.4 2.3 1.3c.6-.4 1.2-.7 1.9-.9zM12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z"/></svg></div>
     <div id="build">build ----</div>
   </div>
 
+  <div id="bay"></div>
+  <div class="eplate" id="plateL" style="left:14px;top:300px"><b>BROKILD</b>MAGNETO<br>TRANSPORT<br>MODEL MT-1<br>FLUX MEMORY<br>TAPE ECHO</div>
+  <div class="eplate" id="plateR" style="left:1474px;top:300px"><b>CAUTION</b>KEEP HEADS<br>CLEAN<br>DEMAGNETISE<br>WEEKLY<br>6.3 mm TAPE</div>
   <canvas id="machine"></canvas>
 
   <div id="panel">
-    <div class="grp" style="width:286px"><h3>RECORD</h3>
-      <div class="ctl" data-id="drive"></div>
-      <div class="ctl" data-id="reclevel"></div>
-      <div class="ctl" data-id="bias"></div>
-      <div class="ctl" data-id="eq" data-type="seg" style="width:84px"></div>
-      <div class="ctl" data-id="inmode" data-type="seg" style="width:170px"></div>
+    <div class="grp" style="width:270px"><h3>RECORD</h3>
+      <div class="row"><div class="ctl" data-id="drive"></div><div class="ctl" data-id="reclevel"></div><div class="ctl" data-id="bias"></div></div>
+      <div class="row"><div class="ctl wide" data-id="eq" data-type="seg"></div><div class="ctl wide" data-id="inmode" data-type="seg"></div></div>
     </div>
-    <div class="grp" style="width:320px"><h3>TRANSPORT</h3>
-      <div class="ctl" data-id="speed"></div>
-      <div class="ctl" data-id="sync"></div>
-      <div class="ctl" data-id="run" data-type="btn" style="width:120px;margin-top:22px"></div>
-      <div class="ctl" data-id="mode" data-type="seg" style="width:120px"></div>
-      <div class="ctl" data-id="synchead" data-type="seg" style="width:150px"></div>
+    <div class="grp" style="width:510px"><h3>TRANSPORT</h3>
+      <div class="split">
+        <div class="area">
+          <div class="row"><div class="ctl" data-id="speed" data-big="1"></div><div class="ctl" data-id="sync"></div>
+            <div class="ctl wide" data-id="run" data-type="btn" style="margin-top:20px"></div></div>
+          <div class="row"><div class="ctl wide" data-id="mode" data-type="seg"></div><div class="ctl wide" data-id="synchead" data-type="seg"></div></div>
+        </div>
+        <div class="area pat" id="patBlock">
+          <div class="ctl wide" data-id="pattern" data-type="stepper"></div>
+          <div class="row"><div class="btn" id="patSet"><span class="lamp"></span><span>SET</span></div><div id="patFit">&mdash;</div></div>
+          <div id="patMsg"></div>
+        </div>
+      </div>
     </div>
-    <div class="grp tight" style="width:330px"><h3>MECHANICS</h3>
-      <div class="ctl" data-id="condition"></div>
-      <div class="ctl" data-id="capstan"></div>
-      <div class="ctl" data-id="reels"></div>
-      <div class="ctl" data-id="scrape"></div>
-      <div id="wfRead" title="Weighted wow and flutter (DIN 45507 / IEC 60386, 2 sigma), measured from the tape's speed under the first active head" style="font-family:Consolas,monospace;font-size:13px;color:var(--amber);width:66px;text-align:center;margin-top:4px">W&amp;F<br>--</div>
-      <div class="ctl" data-id="motor" data-type="seg" style="width:150px"></div>
-      <div class="ctl" data-id="broken" data-type="hslider" style="width:150px"></div>
+    <div class="grp tight" style="width:420px"><h3>MECHANICS</h3>
+      <div class="row"><div class="ctl" data-id="condition"></div><div class="ctl" data-id="capstan"></div><div class="ctl" data-id="reels"></div><div class="ctl" data-id="scrape"></div>
+        <div id="wfRead" class="window">W&amp;F<br>--</div></div>
+      <div class="row"><div class="ctl wide" data-id="motor" data-type="seg"></div><div class="ctl wide" data-id="broken" data-type="hslider" style="margin-left:6px"></div></div>
     </div>
-    <div class="grp" style="width:250px"><h3>OUTPUT</h3>
-      <div class="ctl" data-id="mix"></div>
-      <div class="ctl" data-id="output"></div>
-      <div class="ctl" data-id="killdry" data-type="btn" style="width:108px"></div>
-      <div class="ctl" data-id="repro" data-type="btn" style="width:112px"></div>
+    <div class="grp" style="width:342px"><h3>OUTPUT</h3>
+      <div class="row"><div class="ctl" data-id="mix"></div><div class="ctl" data-id="output"></div><div class="ctl reserved" data-id="mech" data-reserved="1"></div></div>
+      <div class="row"><div class="ctl wide" data-id="killdry" data-type="btn"></div><div class="ctl wide" data-id="repro" data-type="btn"></div></div>
     </div>
-    <div class="grp" style="width:334px"><h3>TAPE</h3>
-      <div class="ctl" data-id="particles"></div>
-      <div class="ctl" data-id="wear"></div>
-      <div class="ctl" data-id="accumulate" data-type="btn" style="width:130px"></div>
-      <div class="ctl" data-id="stock" data-type="seg" style="width:290px"></div>
+
+    <div class="grp heads" style="width:528px"><h3>PLAYBACK HEADS</h3>
+      <div class="row" style="gap:0"><div class="col" data-head="1"></div><div class="col" data-head="2"></div><div class="col" data-head="3"></div></div>
     </div>
-    <div class="grp" style="width:548px"><h3>PLAYBACK HEADS</h3>
-      <div class="col" data-head="1"></div>
-      <div class="col" data-head="2"></div>
-      <div class="col" data-head="3"></div>
+    <div class="grp" style="width:228px"><h3>FEEDBACK</h3>
+      <div class="row"><div class="ctl" data-id="feedback" data-big="1"></div><div class="ctl" data-id="bass"></div><div class="ctl" data-id="treble"></div></div>
     </div>
-    <div class="grp" style="width:280px"><h3>FEEDBACK</h3>
-      <div class="ctl" data-id="feedback"></div>
-      <div class="ctl" data-id="bass"></div>
-      <div class="ctl" data-id="treble"></div>
+    <div class="grp" style="width:304px"><h3>TAPE</h3>
+      <div class="row"><div class="ctl" data-id="particles"></div><div class="ctl" data-id="wear"></div>
+        <div class="ctl wide" data-id="accumulate" data-type="btn" style="margin-top:20px"></div></div>
+      <div class="row"><div class="ctl wide" data-id="stock" data-type="seg"></div></div>
     </div>
-    <div class="grp" id="loopGrp" style="width:620px"><h3>LOOP &middot; FLUX MEMORY</h3>
-      <div class="ctl" data-id="looplen"></div>
-      <div class="ctl" data-id="bars"></div>
-      <div class="ctl" data-id="erase"></div>
-      <div class="ctl" data-id="looper" data-type="seg" style="width:170px"></div>
-      <div class="ctl" data-id="clear" data-type="btn" data-momentary="1" style="width:100px;margin-top:22px"></div>
-      <div id="loopRead" style="font-family:Consolas,monospace;font-size:12px;color:var(--amber);width:590px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-      <div id="loopWhy" style="font-size:11px;letter-spacing:.5px;color:var(--brassDim);width:590px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+    <div class="grp" id="loopGrp" style="width:482px"><h3>LOOP &middot; FLUX MEMORY</h3>
+      <div class="row"><div class="ctl" data-id="looplen"></div><div class="ctl" data-id="bars"></div><div class="ctl" data-id="erase"></div>
+        <div class="colv" style="margin-left:8px"><div class="ctl wide" data-id="looper" data-type="seg"></div>
+          <div class="ctl wide" data-id="clear" data-type="btn" data-momentary="1"></div></div></div>
+      <div id="loopText"><div id="loopRead"></div><div id="loopWhy"></div></div>
     </div>
   </div>
   <div id="hint"><b>HINT</b><span id="hintText">Point at a control.</span></div>
+
+  <div id="presetMenu" class="menu"><div id="pmCols"></div><div id="pmFoot"><div class="btn" id="pmSave">SAVE CURRENT AS&hellip;</div></div></div>
+  <div id="gearMenu" class="menu">
+    <div class="mrow" id="gTipsRow"><span class="ml">TOOLTIPS</span><div class="btn" id="gTips"><span class="lamp"></span><span>ON</span></div></div>
+    <div class="mrow" id="gDelayRow"><span class="ml">HOVER DELAY</span><div class="hsl" id="gDelay"><i></i><b></b></div><span class="mv" id="gDelayVal">0.8 s</span></div>
+    <div class="mrow" id="gQualRow" style="margin-bottom:4px"><span class="ml">QUALITY</span><div class="seg" id="gQual"><b>ECO</b><b>NORMAL</b><b>HIGH</b></div></div>
+    <div class="mnote">changing quality threads a fresh tape</div>
+    <div class="mnote" id="gRun">&nbsp;</div>
+  </div>
+  <div id="dlg" class="dlg"><div class="dlgbox">
+    <div class="dt">SAVE PRESET</div>
+    <input id="dlgName" maxlength="60" spellcheck="false" autocomplete="off">
+    <div id="dlgNote">A user preset, kept in Documents\Brokild patches\Magneto Transport.</div>
+    <div class="row"><div class="btn" id="dlgCancel">CANCEL</div><div class="btn" id="dlgOk">SAVE</div></div>
+  </div></div>
+  <div id="card"><div class="ch"><span class="ct"></span><span class="cpin">CLICK TO PIN</span><span class="cx" title="close (Esc)">&#10005;</span></div><div class="cb"></div></div>
 </div>
 
 <script>
@@ -169,10 +383,25 @@ const NB = {
   on(n,f){ try{ window.__JUCE__.backend.addEventListener(n,f); }catch(e){} }
 };
 
+const $ = id => document.getElementById(id);
+const deck = $("deck");
 const P = {};          // id -> spec + current physical value
 let tele = null;       // latest machine state
 let build = "";
 const ctls = {};       // id -> {el, render}
+const settings = { tooltips: true, delay: 0.8 };
+let quality = 1;
+let dragging = false;  // a gesture is under way: no cards open meanwhile
+const presetCur = { name: "", factory: -1, dirty: false };
+let presetList = { factory: [], user: [] };
+
+function esc(s){ return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function deckScale(){ return parseFloat(deck.dataset.scale || "1"); }
+// any element's rectangle in deck coordinates (1600 x 900)
+function deckRect(el){
+  const r = el.getBoundingClientRect(), d = deck.getBoundingClientRect(), sc = deckScale();
+  return { x: (r.left - d.left) / sc, y: (r.top - d.top) / sc, w: r.width / sc, h: r.height / sc };
+}
 
 // ---------------------------------------------------------------- value mapping
 function toNorm(s, v){
@@ -206,45 +435,361 @@ function setParam(id, v, fromUser){
   const s = P[id]; if (!s) return;
   if (s.kind !== "choice" && s.kind !== "toggle") v = Math.min(s.hi, Math.max(s.lo, v));
   s.v = v;
-  if (fromUser) NB.send({ k:"p", id, v });
+  if (fromUser){
+    NB.send({ k:"p", id, v });
+    if (!presetCur.dirty && id !== "clear") { presetCur.dirty = true; renderPresetName(); }
+  }
   if (ctls[id]) ctls[id].render();
   if (typeof updateIdle === "function") updateIdle();
 }
+const gesture = (id, f) => { NB.send({ k:"touch", id, down:true }); f(); NB.send({ k:"touch", id, down:false }); };
 
-// ---------------------------------------------------------------- hints
-function hint(id){
-  const s = P[id];
-  document.getElementById("hintText").textContent = s ? s.hint : "";
-  document.querySelector("#hint b").textContent = s ? s.name : "HINT";
+// ================================================================ THE CARDS (BUGLIST 6)
+const TIPS = { cards: {} }, NUMS = { numbers: {} }, FIGS = {};
+const loaded = { tips: false, nums: false, figs: false };
+function loadJson(name){ return fetch(name, { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null); }
+Promise.all([loadJson("tips.json"), loadJson("tips-numbers.json"), loadJson("figdata.json")]).then(([t, n, f]) => {
+  if (t && t.cards && typeof t.cards === "object") { TIPS.cards = t.cards; loaded.tips = true; }
+  if (n && n.numbers && typeof n.numbers === "object") { NUMS.numbers = n.numbers; loaded.nums = true; }
+  if (f && typeof f === "object") { Object.assign(FIGS, f); loaded.figs = true; }
+  if (card.open) { renderCard(); placeCard(); }
+}).catch(e => window.__errors.push("cards: " + e));
+
+// built-in titles and one-liners: used when tips.json is missing or lacks a card
+const PART_INFO = {
+  "part:supply":  ["SUPPLY REEL", "Fresh tape comes off this reel. Its pack shrinks as the tape runs, and its holdback tension changes with it."],
+  "part:takeup":  ["TAKE-UP REEL", "The recorded tape winds on here and leaves the machine: on a reel, nothing comes round again."],
+  "part:looptank":["LOOP TANK", "A closed loop of tape folded in the tank. What is recorded comes round again every loop period."],
+  "part:erase":   ["ERASE HEAD", "A strong, decaying AC field that wipes the tape before the record head. In DUB, ERASE sets how much it takes."],
+  "part:record":  ["RECORD HEAD", "Writes the signal into the coating, with bias, through the real hysteresis of the particles."],
+  "part:play":    ["PLAYBACK HEAD", "Reads the magnetisation as it passes. Its delay is its distance from the record head over the tape speed. Drag it along the rail."],
+  "part:capstan": ["CAPSTAN", "The motor-driven shaft that sets the tape speed. Its runout and bearings are the flutter."],
+  "part:pinch":   ["PINCH ROLLER", "Presses the tape against the capstan. Out of round, it adds flutter of its own."],
+  "part:guides":  ["GUIDES AND TENSION ARMS", "Rollers and sprung arms that keep the tape on its path and smooth the reels' tension."],
+  "part:tape":    ["THE TAPE", "The coloured strip is the magnetisation the engine holds right now, cell by cell along the tape."],
+  "part:rail":    ["HEAD RAIL", "The playback heads ride this rail from 1.5 to 24 cm after the record head."],
+  "part:pattern": ["HEAD PATTERN", "SET snaps the heads to the pattern around the tempo head, once: nudge them freely afterwards."],
+  "read:wf":      ["WOW AND FLUTTER", "Weighted wow and flutter (DIN 45507 / IEC 60386, 2 sigma), measured from the tape's speed under the first active head."],
+  "read:vu":      ["VU METERS", "Input and output level with VU ballistics: 300 ms to 99 %, 0 VU = −18 dBFS. The lamp lights on a peak above −1 dBFS."],
+  "read:tapemeter":["TAPE", "Peak remanence written to the tape: full means the coating is saturated."],
+  "read:loop":    ["LOOP READOUT", "What the loop's heads are doing, as measured: record, the erase field, the loop length and the bars."],
+  "set:tooltips": ["TOOLTIPS", "Cards like this one. Switch them off, or set how long to hover before one opens."],
+  "set:quality":  ["QUALITY", "The engine's internal rate. ECO saves CPU, HIGH is the cleanest. Changing it threads a fresh tape."],
+  "set:presets":  ["PRESETS", "Factory and user presets. A * after the name: the preset has been changed since it was loaded."],
+};
+const CARD_ALIAS = { pattern: "part:pattern" };   // the parameter shares the HEAD PATTERN card if it has none of its own
+function cardDef(id){
+  const c = TIPS.cards[id] || (CARD_ALIAS[id] && TIPS.cards[CARD_ALIAS[id]]);
+  if (c) return c;
+  const s = P[id], pi = PART_INFO[id] || PART_INFO[CARD_ALIAS[id]];
+  if (s) return { title: s.name, does: "<p>" + esc(s.hint || "") + "</p>", hood: "", notModelled: "", fallback: true };
+  if (pi) return { title: pi[0], does: "<p>" + esc(pi[1]) + "</p>", hood: "", notModelled: "", fallback: true };
+  return { title: id, does: "", hood: "", notModelled: "", fallback: true };
+}
+function cardTitle(id, n){
+  if (id === "part:play" && n) return "PLAYBACK HEAD " + n;
+  return cardDef(id).title || id;
+}
+function doesText(id){
+  const t = document.createElement("div"); t.innerHTML = cardDef(id).does || "";
+  return t.textContent.replace(/\s+/g, " ").trim();
+}
+// the hint bar: the card's `does`, at once, as text
+function hint(id, n){
+  $("hintText").textContent = id ? doesText(id) : "";
+  document.querySelector("#hint b").textContent = id ? cardTitle(id, n) : "HINT";
 }
 
-// ---------------------------------------------------------------- knob
+const cardEl = $("card"), cardTitleEl = cardEl.querySelector(".ct"), cardBody = cardEl.querySelector(".cb");
+const card = { open: false, pinned: false, id: null, n: 0, rectFn: null, live: [], placed: null };
+const hov = { id: null, n: 0, el: null, timer: 0, closeTimer: 0, lastClose: -1e9 };
+let overCard = false;
+const cardEls = {};   // id -> [elements]
+
+function registerCard(el, id, n){
+  el.dataset.card = id;
+  if (n) el.dataset.cardN = n;
+  const list = cardEls[id] = (cardEls[id] || []).filter(e => e.isConnected && e !== el);
+  list.push(el);
+  if (el.__cardReg) return;
+  el.__cardReg = true;
+  el.addEventListener("pointerenter", () => hoverStart(el.dataset.card, +(el.dataset.cardN || 0), el, () => deckRect(el)));
+  el.addEventListener("pointerleave", () => hoverEnd(el));
+  el.addEventListener("pointerdown", () => clearTimeout(hov.timer));
+  el.addEventListener("click", () => { if (card.open && !card.pinned && card.id === el.dataset.card) pinCard(); });
+}
+
+function hoverStart(id, n, el, rectFn){
+  if (hov.el === el && hov.id === id && hov.n === n) return;
+  hint(id, n);
+  clearTimeout(hov.closeTimer); clearTimeout(hov.timer);
+  hov.id = id; hov.n = n; hov.el = el;
+  if (card.pinned || !settings.tooltips || dragging) return;
+  if (card.open && card.id === id && card.n === n) return;
+  const warm = card.open || performance.now() - hov.lastClose < 600;
+  hov.timer = setTimeout(() => { if (hov.id === id && hov.n === n && !dragging) openCard(id, { n, rectFn }); }, warm ? 120 : settings.delay * 1000);
+}
+function hoverEnd(el){
+  if (hov.el !== el) return;
+  clearTimeout(hov.timer);
+  hov.id = null; hov.el = null; hov.n = 0;
+  if (card.open && !card.pinned) hov.closeTimer = setTimeout(() => { if (!card.pinned && !overCard && !hov.id) closeCard(); }, 280);
+}
+cardEl.addEventListener("pointerenter", () => { overCard = true; clearTimeout(hov.closeTimer); });
+cardEl.addEventListener("pointerleave", () => { overCard = false; if (card.open && !card.pinned) hov.closeTimer = setTimeout(() => { if (!card.pinned && !overCard && !hov.id) closeCard(); }, 280); });
+cardEl.addEventListener("click", () => pinCard());
+cardEl.querySelector(".cx").addEventListener("click", e => { e.stopPropagation(); closeCard(); });
+
+function findTarget(id, n){
+  const els = (cardEls[id] || []).filter(e => e.isConnected && e.getClientRects().length);
+  const el = els.find(e => !n || +(e.dataset.cardN || 0) === n) || els[0];
+  if (el) return { n: +(el.dataset.cardN || 0), rectFn: () => deckRect(el) };
+  const p = MPARTS.find(q => q.id === id && (!n || q.n === n));
+  if (p) return { n: p.n || 0, rectFn: () => partRect(id, p.n) };
+  return null;
+}
+function openCard(id, opts){
+  opts = opts || {};
+  let rectFn = opts.rectFn, n = opts.n || 0;
+  if (!rectFn){ const t = findTarget(id, n); if (!t) return null; rectFn = t.rectFn; n = t.n; }
+  Object.assign(card, { open: true, pinned: !!opts.pin, id, n, rectFn });
+  renderCard();
+  cardEl.classList.add("open");
+  cardEl.classList.toggle("pinned", card.pinned);
+  placeCard();
+  return cardEl;
+}
+function pinCard(){ if (!card.open) return; card.pinned = true; cardEl.classList.add("pinned"); cardEl.querySelector(".cpin").textContent = "PINNED"; }
+function closeCard(){
+  if (!card.open) return;
+  cardEl.classList.remove("open", "pinned");
+  Object.assign(card, { open: false, pinned: false, id: null, n: 0, rectFn: null, live: [], placed: null });
+  overCard = false;
+  hov.lastClose = performance.now();
+}
+function renderCard(){
+  const def = cardDef(card.id);
+  cardTitleEl.textContent = cardTitle(card.id, card.n);
+  cardEl.querySelector(".cpin").textContent = card.pinned ? "PINNED" : "CLICK TO PIN";
+  let html = '<div class="does">' + (def.does || "") + "</div>";
+  if (def.hood) html += '<div class="hood-h">UNDER THE HOOD</div><div class="hood">' + def.hood + "</div>";
+  if (def.notModelled) html += '<div class="nm"><b>NOT MODELLED</b>' + def.notModelled + "</div>";
+  cardBody.innerHTML = html;
+  cardBody.scrollTop = 0;
+  card.live = [];
+  resolveNums(cardBody);
+  resolveFigs(cardBody);
+}
+// beside the element, never over it or the pointer, kept inside the deck
+function placeCard(){
+  const r = card.rectFn && card.rectFn(); if (!r) return;
+  const w = cardEl.offsetWidth, h = cardEl.offsetHeight, g = 10, M = 6, W = 1600, H = 900;
+  const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const midY = cl(r.y + r.h / 2 - h / 2, M, H - M - h), midX = cl(r.x + r.w / 2 - w / 2, M, W - M - w);
+  const cands = [
+    { x: r.x + r.w + g, y: midY }, { x: r.x - g - w, y: midY },
+    { x: midX, y: r.y - g - h },   { x: midX, y: r.y + r.h + g } ];
+  const inside = c => Math.max(0, Math.min(c.x + w, W - M) - Math.max(c.x, M)) * Math.max(0, Math.min(c.y + h, H - M) - Math.max(c.y, M));
+  let best = cands.find(c => inside(c) >= w * h - 0.5);
+  if (!best){ best = cands.slice().sort((a, b) => inside(b) - inside(a))[0]; best = { x: cl(best.x, M, W - M - w), y: cl(best.y, M, H - M - h) }; }
+  cardEl.style.left = Math.round(best.x) + "px";
+  cardEl.style.top = Math.round(best.y) + "px";
+  card.placed = { x: Math.round(best.x), y: Math.round(best.y), w, h };
+}
+
+const numErr = new Set();
+function resolveNums(root){
+  root.querySelectorAll("span[data-num]").forEach(s => {
+    const k = s.dataset.num, n = NUMS.numbers[k];
+    s.classList.add("num");
+    if (n && n.text !== undefined){ s.textContent = n.text; if (n.value !== undefined) s.title = n.value + (n.unit ? " " + n.unit : ""); }
+    else { s.textContent = "—"; s.classList.add("missing"); if (!numErr.has(k)) { numErr.add(k); window.__errors.push("tips-numbers: no number '" + k + "'"); } }
+  });
+}
+const figErr = new Set();
+function resolveFigs(root){
+  root.querySelectorAll("figure[data-fig]").forEach(f => {
+    const name = f.dataset.fig, fd = FIGS[name];
+    if (!fd){
+      f.innerHTML = '<div class="figmiss">figure “' + esc(name) + '” is not in figdata.json</div>';
+      if (loaded.figs && !figErr.has(name)) { figErr.add(name); window.__errors.push("figdata: no figure '" + name + "'"); }
+      return;
+    }
+    let pl;
+    try { pl = plotFigure(fd); } catch (e) { f.innerHTML = '<div class="figmiss">figure “' + esc(name) + '” could not be drawn</div>'; window.__errors.push("figure " + name + ": " + e.message); return; }
+    f.innerHTML = "";
+    f.appendChild(pl.svg);
+    if (fd.title){ const c = document.createElement("figcaption"); c.textContent = fd.title; f.appendChild(c); }
+    if (pl.live) { pl.live.name = name; card.live.push(pl.live); }
+  });
+  updateLive();
+}
+
+// ---------------------------------------------------------------- figures: small SVG line plots
+const SVGNS = "http://www.w3.org/2000/svg";
+function sv(tag, attrs, text){
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function niceTicks(lo, hi, n){
+  const span = hi - lo; if (!(span > 0)) return [lo];
+  const step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0))), r = step0 / mag;
+  const step = (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag, out = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-6; v += step) out.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+  return out;
+}
+function logTicks(lo, hi){
+  const out = [], a = Math.floor(Math.log10(lo)), b = Math.ceil(Math.log10(hi)), many = b - a > 2;
+  for (let e = a; e <= b; e++) for (const m of (many ? [1] : [1, 2, 5])){ const v = m * Math.pow(10, e); if (v >= lo * 0.999 && v <= hi * 1.001) out.push(v); }
+  return out.length ? out : [lo, hi];
+}
+function numFmt(v){
+  const a = Math.abs(v); let s;
+  if (a === 0) s = "0";
+  else if (a >= 1e5 || a < 1e-3) s = v.toExponential(0).replace("e+", "e");
+  else if (a >= 100) s = String(Math.round(v));
+  else if (a >= 10) s = String(+v.toFixed(1));
+  else if (a >= 1) s = String(+v.toFixed(2));
+  else s = String(+v.toPrecision(2));
+  return s.replace("-", "−");
+}
+const axisText = ax => (ax && ax.label ? ax.label : "") + (ax && ax.unit ? " (" + ax.unit + ")" : "");
+const SERIES_COL = ["#ffb340", "#c9b27a", "#7fbf6a", "#9fb4c8", "#d2412c", "#d8cfb4"];
+let figSeq = 0;
+function plotFigure(fd){
+  const W = 380, H = 196, L = 46, R = 12, T = 12, B = 34, pw = W - L - R, ph = H - T - B;
+  const xa = fd.x || {}, ya = fd.y || {};
+  const series = (fd.series || []).filter(s => s && Array.isArray(s.points));
+  const ok = (v, log) => isFinite(v) && (!log || v > 0);
+  let xs = [], ys = [];
+  series.forEach(s => s.points.forEach(p => { if (p && ok(p[0], xa.log) && ok(p[1], ya.log)) { xs.push(p[0]); ys.push(p[1]); } }));
+  (fd.marks || []).forEach(m => { if (m && ok(m.x, xa.log)) xs.push(m.x); });
+  if (!xs.length) { xs = [xa.log ? 1 : 0, xa.log ? 10 : 1]; ys = [ya.log ? 1 : 0, ya.log ? 10 : 1]; }
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (x1 <= x0) { x0 -= xa.log ? x0 / 2 : 1; x1 += xa.log ? x1 : 1; }
+  if (y1 <= y0) { y0 -= ya.log ? y0 / 2 : 1; y1 += ya.log ? y1 : 1; }
+  if (ya.log) { y0 /= 1.15; y1 *= 1.15; } else { const pad = (y1 - y0) * 0.07; y0 -= pad; y1 += pad; }
+  const tx = v => xa.log ? Math.log10(v) : v, ty = v => ya.log ? Math.log10(v) : v;
+  const sx = v => L + (tx(v) - tx(x0)) / (tx(x1) - tx(x0)) * pw;
+  const sy = v => T + ph - (ty(v) - ty(y0)) / (ty(y1) - ty(y0)) * ph;
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: "fig" });
+  const cid = "figclip" + (++figSeq);
+  const defs = sv("defs", {}); const cp = sv("clipPath", { id: cid }); cp.appendChild(sv("rect", { x: L, y: T, width: pw, height: ph })); defs.appendChild(cp); svg.appendChild(defs);
+  svg.appendChild(sv("rect", { x: L, y: T, width: pw, height: ph, fill: "#0b0d0c", stroke: "#3a3f37", "stroke-width": 1 }));
+  // grid and ticks
+  const xt = xa.log ? logTicks(x0, x1) : niceTicks(x0, x1, 5), yt = ya.log ? logTicks(y0, y1) : niceTicks(y0, y1, 4);
+  xt.forEach(v => { const x = sx(v); if (x < L - 0.5 || x > L + pw + 0.5) return;
+    svg.appendChild(sv("line", { x1: x, x2: x, y1: T, y2: T + ph, stroke: "#1f231f", "stroke-width": 1 }));
+    svg.appendChild(sv("line", { x1: x, x2: x, y1: T + ph, y2: T + ph + 3, stroke: "#5a5f55" }));
+    svg.appendChild(sv("text", { x, y: T + ph + 12, "text-anchor": "middle" }, numFmt(v))); });
+  yt.forEach(v => { const y = sy(v); if (y < T - 0.5 || y > T + ph + 0.5) return;
+    svg.appendChild(sv("line", { x1: L, x2: L + pw, y1: y, y2: y, stroke: "#1f231f", "stroke-width": 1 }));
+    svg.appendChild(sv("line", { x1: L - 3, x2: L, y1: y, y2: y, stroke: "#5a5f55" }));
+    svg.appendChild(sv("text", { x: L - 5, y: y + 3, "text-anchor": "end" }, numFmt(v))); });
+  svg.appendChild(sv("text", { x: L + pw / 2, y: H - 4, "text-anchor": "middle", class: "axl" }, axisText(xa)));
+  svg.appendChild(sv("text", { x: 11, y: T + ph / 2, "text-anchor": "middle", class: "axl", transform: `rotate(-90 11 ${T + ph / 2})` }, axisText(ya)));
+  // marks
+  (fd.marks || []).forEach((m, i) => { if (!m || !ok(m.x, xa.log)) return; const x = sx(m.x);
+    svg.appendChild(sv("line", { x1: x, x2: x, y1: T, y2: T + ph, stroke: "#8a7a52", "stroke-dasharray": "3 3", "stroke-width": 1 }));
+    if (m.label) svg.appendChild(sv("text", { x: x + (x > L + pw * 0.75 ? -3 : 3), y: T + 10 + (i % 3) * 10, class: "mk", "text-anchor": x > L + pw * 0.75 ? "end" : "start" }, m.label)); });
+  // series
+  const g = sv("g", { "clip-path": `url(#${cid})` });
+  series.forEach((s, i) => {
+    const d = s.points.filter(p => p && ok(p[0], xa.log) && ok(p[1], ya.log)).map((p, j) => (j ? "L" : "M") + sx(p[0]).toFixed(1) + " " + sy(p[1]).toFixed(1)).join("");
+    if (d) g.appendChild(sv("path", { d, fill: "none", stroke: SERIES_COL[i % SERIES_COL.length], "stroke-width": 1.6, "stroke-linejoin": "round" }));
+  });
+  svg.appendChild(g);
+  // legend
+  if (series.length > 1 || (series.length === 1 && series[0].label)){
+    const lg = sv("g", {}); let yy = T + 6;
+    const maxw = Math.max(...series.map(s => (s.label || "").length)) * 5.5 + 26;
+    lg.appendChild(sv("rect", { x: L + pw - maxw - 4, y: T + 2, width: maxw, height: series.length * 11 + 6, fill: "rgba(11,13,12,0.85)", stroke: "#2a2e28" }));
+    series.forEach((s, i) => { yy += 11;
+      lg.appendChild(sv("line", { x1: L + pw - maxw + 2, x2: L + pw - maxw + 16, y1: yy - 3, y2: yy - 3, stroke: SERIES_COL[i % SERIES_COL.length], "stroke-width": 2 }));
+      lg.appendChild(sv("text", { x: L + pw - maxw + 20, y: yy }, s.label || "")); });
+    svg.appendChild(lg);
+  }
+  let live = null;
+  if (fd.live && (fd.live.param || fd.live.tele)){
+    const line = sv("line", { x1: L, x2: L, y1: T, y2: T + ph, stroke: "#ffb340", "stroke-width": 1.6, class: "livemark" });
+    const lab = sv("text", { x: L, y: T + ph - 4, class: "lv" }, "");
+    const gl = sv("g", { class: "live" }); gl.appendChild(line); gl.appendChild(lab); svg.appendChild(gl);
+    live = { lv: fd.live, line, lab, gl, sx, x0, x1, L, pw, unit: xa.unit || "" };
+  }
+  return { svg, live };
+}
+function tableMap(t, v){
+  if (!Array.isArray(t) || !t.length) return v;
+  const s = t.filter(p => p && isFinite(p[0]) && isFinite(p[1])).sort((a, b) => a[0] - b[0]);
+  if (!s.length) return v;
+  if (v <= s[0][0]) return s[0][1];
+  for (let i = 1; i < s.length; i++) if (v <= s[i][0]) { const a = s[i - 1], b = s[i], f = (v - a[0]) / ((b[0] - a[0]) || 1); return a[1] + f * (b[1] - a[1]); }
+  return s[s.length - 1][1];
+}
+function liveX(lv){
+  let v;
+  if (lv.param){ const s = P[lv.param]; if (!s) return null; v = s.v; }
+  else if (lv.tele){ if (!tele) return null; v = String(lv.tele).split(".").reduce((o, k) => o == null ? undefined : o[k], tele); }
+  if (typeof v !== "number" || !isFinite(v)) return null;
+  if (lv.map === "db_to_ratio") return (lv.base || 1) * Math.pow(10, v / 20);
+  if (lv.map === "table") return tableMap(lv.table, v);
+  return v;
+}
+function updateLive(){
+  card.live.forEach(m => {
+    const x = liveX(m.lv);
+    if (x === null){ m.gl.style.display = "none"; return; }
+    m.gl.style.display = "";
+    const lo = Math.min(m.x0, m.x1), hi = Math.max(m.x0, m.x1);
+    const xc = Math.min(hi, Math.max(lo, x)), px = m.sx(xc);
+    m.line.setAttribute("x1", px.toFixed(1)); m.line.setAttribute("x2", px.toFixed(1));
+    const right = px > m.L + m.pw * 0.62;
+    m.lab.setAttribute("x", (px + (right ? -4 : 4)).toFixed(1));
+    m.lab.setAttribute("text-anchor", right ? "end" : "start");
+    m.lab.textContent = "now " + numFmt(x) + (m.unit ? " " + m.unit : "");
+    m.gl.dataset.px = px.toFixed(2);
+    m.gl.dataset.x = x;
+  });
+}
+
+// ================================================================ controls
+// ---- PART: knob (drawn once, here)
 function knobSvg(){
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
+  const svg = document.createElementNS(SVGNS, "svg");
   svg.setAttribute("viewBox", "0 0 100 100");
-  svg.innerHTML =
-    '<circle cx="50" cy="50" r="45" fill="#0f1110" stroke="#33382f" stroke-width="2"/>' +
-    '<path class="trk" fill="none" stroke="#2b302a" stroke-width="5" stroke-linecap="round"/>' +
-    '<path class="arc" fill="none" stroke="#c9b27a" stroke-width="5" stroke-linecap="round"/>' +
-    '<circle cx="50" cy="50" r="30" fill="#262a26" stroke="#3d4339" stroke-width="2"/>' +
-    '<line class="ptr" x1="50" y1="50" x2="50" y2="24" stroke="#ffb340" stroke-width="4" stroke-linecap="round"/>' +
-    '<circle class="eff" r="6" cx="50" cy="11" fill="#d2412c" stroke="#0f1110" stroke-width="2"/>';
+  let ticks = "";
+  for (let i = 0; i <= 10; i++){
+    const a = -0.75 * Math.PI + i * 0.15 * Math.PI, r0 = i % 5 ? 45 : 43.5, r1 = 49;
+    ticks += `<line x1="${(50 + r0 * Math.sin(a)).toFixed(2)}" y1="${(50 - r0 * Math.cos(a)).toFixed(2)}" x2="${(50 + r1 * Math.sin(a)).toFixed(2)}" y2="${(50 - r1 * Math.cos(a)).toFixed(2)}" stroke="#6c6650" stroke-width="${i % 5 ? 1.4 : 2}"/>`;
+  }
+  svg.innerHTML = ticks +
+    '<path class="trk" fill="none" stroke="#141614" stroke-width="5" stroke-linecap="round"/>' +
+    '<path class="arc" fill="none" stroke="#ffb340" stroke-opacity="0.85" stroke-width="4" stroke-linecap="round"/>' +
+    '<circle cx="50" cy="52" r="33" fill="rgba(0,0,0,0.55)"/>' +
+    '<circle cx="50" cy="50" r="33" fill="url(#gSkirt)" stroke="#090a09" stroke-width="1.5"/>' +
+    '<circle cx="50" cy="50" r="30.5" fill="none" stroke="#454b42" stroke-width="3.5" stroke-dasharray="1.3 2.1"/>' +
+    '<circle cx="50" cy="50" r="24" fill="url(#gCap)" stroke="#1a1c19" stroke-width="1"/>' +
+    '<circle cx="50" cy="50" r="17" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+    '<line class="ptr" x1="50" y1="44" x2="50" y2="19" stroke="#ffcf7a" stroke-width="3.6" stroke-linecap="round"/>' +
+    '<circle class="eff" r="5.5" cx="50" cy="11" fill="#d2412c" stroke="#0f1110" stroke-width="2"/>';
   return svg;
 }
 function arcPath(a0, a1){
   const r = 39, cx = 50, cy = 50;
   const p = a => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
-  const [x0,y0] = p(a0), [x1,y1] = p(a1);
+  const [x0, y0] = p(a0), [x1, y1] = p(a1);
   const large = (a1 - a0) > Math.PI ? 1 : 0;
   return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 const A0 = -0.75 * Math.PI, A1 = 0.75 * Math.PI;
-const SHORT_LABEL = { condition: "CONDITION" };   // the hint line still gives the full name
+const SHORT_LABEL = { condition: "CONDITION", reclevel: "REC LEVEL", drive: "DRIVE", speed: "SPEED", looplen: "LENGTH", particles: "PARTICLES" };
 
 function makeKnob(holder, id, big){
   const s = P[id];
   holder.innerHTML = "";
+  holder.classList.remove("reserved");
   const lab = document.createElement("label"); lab.textContent = SHORT_LABEL[id] || s.name;
   const k = document.createElement("div"); k.className = "knob" + (big ? " big" : "");
   const svg = knobSvg(); k.appendChild(svg);
@@ -261,31 +806,25 @@ function makeKnob(holder, id, big){
   let drag = null;
   k.addEventListener("pointerdown", e => {
     try{ k.setPointerCapture(e.pointerId); }catch(_){}
-    drag = { y: e.clientY, t: toNorm(s, s.v) };
+    drag = { y: e.clientY, t: toNorm(s, s.v) }; dragging = true;
     NB.send({ k:"touch", id, down:true });
     e.preventDefault();
   });
   k.addEventListener("pointermove", e => {
     if (!drag) return;
-    const sc = deckScale();
-    const range = (e.shiftKey ? 900 : 220) * sc;
-    let t = drag.t + (drag.y - e.clientY) / range;
-    setParam(id, fromNorm(s, t), true);
+    const range = (e.shiftKey ? 900 : 220) * deckScale();
+    setParam(id, fromNorm(s, drag.t + (drag.y - e.clientY) / range), true);
   });
-  const stop = () => { if (drag){ drag = null; NB.send({ k:"touch", id, down:false }); } };
+  const stop = () => { if (drag){ drag = null; dragging = false; NB.send({ k:"touch", id, down:false }); } };
   k.addEventListener("pointerup", stop);
   k.addEventListener("pointercancel", stop);
   k.addEventListener("wheel", e => {
     e.preventDefault();
     const step = s.kind === "choice" ? 1 / (s.hi - s.lo) : (e.shiftKey ? 0.002 : 0.02);
-    NB.send({ k:"touch", id, down:true });
-    setParam(id, fromNorm(s, toNorm(s, s.v) + (e.deltaY < 0 ? step : -step)), true);
-    NB.send({ k:"touch", id, down:false });
+    gesture(id, () => setParam(id, fromNorm(s, toNorm(s, s.v) + (e.deltaY < 0 ? step : -step)), true));
   }, { passive:false });
-  k.addEventListener("dblclick", () => {
-    NB.send({ k:"touch", id, down:true }); setParam(id, s.def, true); NB.send({ k:"touch", id, down:false });
-  });
-  holder.addEventListener("pointerenter", () => hint(id));
+  k.addEventListener("dblclick", () => gesture(id, () => setParam(id, s.def, true)));
+  registerCard(holder, id);
   // BROKEN: where this knob acts, as a red dot on its scale (null: where it points)
   const setEff = (ve, why) => {
     k.classList.toggle("broken", ve !== null);
@@ -298,6 +837,20 @@ function makeKnob(holder, id, big){
   render();
 }
 
+// ---- PART: horizontal slider (generic: used by OK/BROKEN and the hover delay)
+function hslider(tr, getT, setT, onDown, onUp){
+  const at = e => { const r = tr.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
+  let drag = false;
+  tr.addEventListener("pointerdown", e => {
+    try{ tr.setPointerCapture(e.pointerId); }catch(_){}
+    drag = true; dragging = true; if (onDown) onDown(); setT(at(e)); e.preventDefault();
+  });
+  tr.addEventListener("pointermove", e => { if (drag) setT(at(e)); });
+  const stop = () => { if (drag){ drag = false; dragging = false; if (onUp) onUp(); } };
+  tr.addEventListener("pointerup", stop);
+  tr.addEventListener("pointercancel", stop);
+  return () => { const t = Math.min(1, Math.max(0, getT())); tr.firstElementChild.style.width = (t * 100) + "%"; tr.lastElementChild.style.left = (t * 100) + "%"; };
+}
 function makeSlider(holder, id){
   const s = P[id];
   holder.innerHTML = "";
@@ -307,29 +860,20 @@ function makeSlider(holder, id){
   const val = document.createElement("div"); val.className = "val";
   holder.append(lab, tr, val);
   let faults = "";
+  const draw = hslider(tr, () => toNorm(s, s.v), t => setParam(id, fromNorm(s, t), true),
+    () => NB.send({ k:"touch", id, down:true }), () => NB.send({ k:"touch", id, down:false }));
   const render = () => {
+    draw();
     const t = Math.min(1, Math.max(0, toNorm(s, s.v)));
-    tr.firstChild.style.width = (t * 100) + "%";
-    tr.lastChild.style.left = (t * 100) + "%";
     val.textContent = (t <= 0 ? "OK" : t >= 1 ? "BROKEN" : fmt(s, s.v)) + faults;
   };
-  const at = e => { const r = tr.getBoundingClientRect(); return (e.clientX - r.left) / r.width; };
-  let drag = false;
-  tr.addEventListener("pointerdown", e => {
-    try{ tr.setPointerCapture(e.pointerId); }catch(_){}
-    drag = true; NB.send({ k:"touch", id, down:true });
-    setParam(id, fromNorm(s, at(e)), true); e.preventDefault();
-  });
-  tr.addEventListener("pointermove", e => { if (drag) setParam(id, fromNorm(s, at(e)), true); });
-  const stop = () => { if (drag){ drag = false; NB.send({ k:"touch", id, down:false }); } };
-  tr.addEventListener("pointerup", stop);
-  tr.addEventListener("pointercancel", stop);
-  tr.addEventListener("dblclick", () => { NB.send({ k:"touch", id, down:true }); setParam(id, s.def, true); NB.send({ k:"touch", id, down:false }); });
-  holder.addEventListener("pointerenter", () => hint(id));
+  tr.addEventListener("dblclick", () => gesture(id, () => setParam(id, s.def, true)));
+  registerCard(holder, id);
   ctls[id] = { el: holder, render, setFaults: txt => { if (txt !== faults) { faults = txt; render(); } } };
   render();
 }
 
+// ---- PART: selector keys
 function makeSeg(holder, id){
   const s = P[id];
   holder.innerHTML = "";
@@ -337,16 +881,17 @@ function makeSeg(holder, id){
   const seg = document.createElement("div"); seg.className = "seg";
   choices(s).forEach((c, i) => {
     const b = document.createElement("b"); b.textContent = c;
-    b.addEventListener("click", () => { NB.send({ k:"touch", id, down:true }); setParam(id, i, true); NB.send({ k:"touch", id, down:false }); });
+    b.addEventListener("click", () => gesture(id, () => setParam(id, i, true)));
     seg.appendChild(b);
   });
   holder.append(lab, seg);
-  holder.addEventListener("pointerenter", () => hint(id));
+  registerCard(holder, id);
   const render = () => [...seg.children].forEach((b, i) => b.classList.toggle("on", Math.round(s.v) === i));
   ctls[id] = { el: holder, render };
   render();
 }
 
+// ---- PART: push button with a lamp
 function makeBtn(holder, id, text){
   const s = P[id];
   holder.innerHTML = "";
@@ -362,44 +907,103 @@ function makeBtn(holder, id, text){
     b.addEventListener("pointerleave", up);
   }
   else
-    b.addEventListener("click", () => { NB.send({ k:"touch", id, down:true }); setParam(id, s.v > 0.5 ? 0 : 1, true); NB.send({ k:"touch", id, down:false }); });
+    b.addEventListener("click", () => gesture(id, () => setParam(id, s.v > 0.5 ? 0 : 1, true)));
   holder.appendChild(b);
-  holder.addEventListener("pointerenter", () => hint(id));
+  registerCard(holder, id);
   const render = () => { const on = s.v > 0.5; b.classList.toggle("on", on); b.firstChild.classList.toggle("on", on); };
   ctls[id] = { el: holder, render };
   render();
 }
 
+// ---- PART: stepper (a choice in a window, with arrows)
+function makeStepper(holder, id){
+  const s = P[id];
+  holder.innerHTML = "";
+  const lab = document.createElement("label"); lab.textContent = s.name;
+  const st = document.createElement("div"); st.className = "stepper";
+  st.innerHTML = '<div class="sk">&#9664;</div><div class="sw window"></div><div class="sk">&#9654;</div>';
+  const [prev, win, next] = st.children;
+  holder.append(lab, st);
+  const n = choices(s).length || (s.hi - s.lo + 1);
+  const step = d => gesture(id, () => setParam(id, (Math.round(s.v) + d + n) % n, true));
+  prev.addEventListener("click", () => step(-1));
+  next.addEventListener("click", () => step(1));
+  win.addEventListener("click", () => step(1));
+  win.addEventListener("wheel", e => { e.preventDefault(); step(e.deltaY < 0 ? 1 : -1); }, { passive:false });
+  registerCard(holder, id);
+  const render = () => { win.textContent = fmt(s, s.v); };
+  ctls[id] = { el: holder, render };
+  render();
+}
+
 function buildPanel(){
-  document.querySelectorAll("#panel .ctl[data-id]").forEach(h => {
-    const id = h.dataset.id; if (!P[id]) return;
+  document.querySelectorAll("#deck .ctl[data-id]").forEach(h => {
+    const id = h.dataset.id;
+    if (!P[id]){
+      if (!h.dataset.reserved) { h.innerHTML = ""; delete ctls[id]; }
+      if (h.dataset.reserved){
+        // a reserved position: a blanking plug until the parameter exists (MECH SOUNDS, stage 10)
+        h.innerHTML = '<label>MECH</label><div class="plug"></div><div class="val"></div>';
+        h.classList.add("reserved");
+        h.title = "reserved: MECH SOUNDS, stage 10";
+      }
+      return;
+    }
     if (h.dataset.type === "seg") makeSeg(h, id);
     else if (h.dataset.type === "hslider") makeSlider(h, id);
     else if (h.dataset.type === "btn") makeBtn(h, id);
+    else if (h.dataset.type === "stepper") makeStepper(h, id);
     else makeKnob(h, id, !!h.dataset.big);
   });
   document.querySelectorAll("#panel .col[data-head]").forEach(col => {
     const n = col.dataset.head;
     col.innerHTML = "";
-    const row = document.createElement("div"); row.style.cssText = "display:flex;gap:4px;align-items:flex-start";
-    const on = document.createElement("div"); on.className = "ctl headon";
+    const top = document.createElement("div"); top.className = "row"; top.style.justifyContent = "space-between";
+    const on = document.createElement("div"); on.className = "ctl wide";
+    const dl = document.createElement("div"); dl.className = "delay window"; dl.id = "delay" + n; dl.textContent = "--- ms";
+    top.append(on, dl);
+    const row = document.createElement("div"); row.className = "row"; row.style.gap = "3px";
     const pos = document.createElement("div"); pos.className = "ctl";
     const lvl = document.createElement("div"); lvl.className = "ctl";
     const pan = document.createElement("div"); pan.className = "ctl";
     row.append(pos, lvl, pan);
-    const dl = document.createElement("div"); dl.className = "delay"; dl.id = "delay" + n; dl.textContent = "--- ms";
-    col.append(on, row, dl);
+    col.append(top, row);
     if (P["h" + n + "on"]) makeBtn(on, "h" + n + "on", "HEAD " + n);
     if (P["h" + n + "pos"]) makeKnob(pos, "h" + n + "pos");
     if (P["h" + n + "lvl"]) makeKnob(lvl, "h" + n + "lvl");
     if (P["h" + n + "pan"]) makeKnob(pan, "h" + n + "pan");
     // shorter labels inside the head columns
-    [pos, lvl, pan].forEach((c, i) => { const l = c.querySelector("label"); if (l) l.textContent = ["POS","LEVEL","PAN"][i]; });
+    [pos, lvl, pan].forEach((c, i) => { const l = c.querySelector("label"); if (l) l.textContent = ["POSITION","LEVEL","PAN"][i]; });
   });
+  $("patBlock").classList.toggle("inert", !P.pattern);
 }
 
-// ---------------------------------------------------------------- machine
-const cv = document.getElementById("machine");
+// ---- HEAD PATTERN: SET and what it would do
+const patSet = $("patSet");
+registerCard(patSet, "part:pattern");
+patSet.addEventListener("click", () => {
+  NB.send({ k:"patternSet" });
+  patSet.firstChild.classList.add("on");
+  setTimeout(() => patSet.firstChild.classList.remove("on"), 600);
+});
+function maskHeads(mask){ const h = []; for (let i = 0; i < 3; i++) if (mask & (1 << i)) h.push(i + 1); return h; }
+function maskText(mask){
+  const h = maskHeads(mask);
+  return !h.length ? "" : (h.length === 1 ? "HEAD " + h[0] : "HEADS " + h.join(" + ")) + " OUT OF REACH";
+}
+let patFlash = 0;
+function onPatternResult(o){
+  const m = $("patMsg");
+  const pos = (o.pos || []).map(v => (+v).toFixed(1)).join(" · ");
+  const h = maskHeads(o.outMask || 0);
+  m.className = (o.ok && !h.length) ? "ok" : "bad";
+  m.textContent = (o.ok && !h.length) ? "SET: " + pos + " cm" : "SET: " + (h.length ? (h.length === 1 ? "HEAD " + h[0] : "HEADS " + h.join(" + ")) + " CLAMPED. " : "") + pos + " cm";
+  clearTimeout(patFlash);
+  patFlash = setTimeout(() => { m.className = ""; m.textContent = ""; }, 4000);
+}
+
+// ================================================================ the machine
+const cv = $("machine");
 const cx = cv.getContext("2d");
 const MM = 1.5;                 // px per mm: everything below is at the machine's real scale
 const CM = 15;
@@ -412,34 +1016,44 @@ const FLANGE = 132 * MM, HUB = 57 * MM;
 const ARM_L = { px: 425, py: 300, rx: 455, ry: 352 }, ARM_R = { px: 1145, py: 300, rx: 1120, ry: 352 };
 let anim = { sup: 0, tak: 0, cap: 0, loop: 0, last: performance.now() };
 let headDrag = -1;
-
-const MACHINE_K = 1394 / 1600;   // the machine's units to its box on the deck
-function deckScale(){ return parseFloat(document.getElementById("deck").dataset.scale || "1"); }
+let MPARTS = [];                // this frame's hit regions, in machine units
+let mHover = null;              // {id, n}
 
 function fitCanvas(){
-  const sc = deckScale(), dpr = window.devicePixelRatio || 1;
-  const k = MACHINE_K * sc * dpr;
+  const r = deckRect(cv), sc = deckScale(), dpr = window.devicePixelRatio || 1;
+  const k = (r.w / 1600) * sc * dpr;
   const w = Math.round(1600 * k), h = Math.round(528 * k);
   if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
   cx.setTransform(k, 0, 0, k, 0, 0);
 }
 
 function reel(c, rPack, ang, label){
-  // flange
   cx.save();
   cx.translate(c.x, c.y);
-  cx.fillStyle = "rgba(170,175,165,0.08)";
-  cx.strokeStyle = "#4a5046"; cx.lineWidth = 2;
+  // flange: a brushed metal disc with windows
+  const fg = cx.createRadialGradient(-60, -70, 20, 0, 0, FLANGE);
+  fg.addColorStop(0, "rgba(200,205,192,0.16)"); fg.addColorStop(1, "rgba(120,126,114,0.06)");
+  cx.fillStyle = fg;
+  cx.strokeStyle = "#4f564b"; cx.lineWidth = 2.5;
   cx.beginPath(); cx.arc(0, 0, FLANGE, 0, Math.PI * 2); cx.fill(); cx.stroke();
+  cx.strokeStyle = "rgba(255,255,255,0.05)"; cx.lineWidth = 1;
+  cx.beginPath(); cx.arc(0, 0, FLANGE - 6, 0, Math.PI * 2); cx.stroke();
   // tape pack
   if (rPack > HUB + 1){
     const g = cx.createRadialGradient(0, 0, HUB, 0, 0, rPack);
-    g.addColorStop(0, "#3a2617"); g.addColorStop(1, "#5a3b22");
+    g.addColorStop(0, "#3a2617"); g.addColorStop(1, "#5e3e24");
     cx.fillStyle = g;
     cx.beginPath(); cx.arc(0, 0, rPack, 0, Math.PI * 2); cx.arc(0, 0, HUB, 0, Math.PI * 2, true); cx.fill();
+    cx.strokeStyle = "rgba(255,220,170,0.06)"; cx.lineWidth = 1;
+    for (let rr = HUB + 8; rr < rPack; rr += 9){ cx.beginPath(); cx.arc(0, 0, rr, 0, Math.PI * 2); cx.stroke(); }
   }
   // spokes and windows (they rotate, so the motion is visible)
   cx.rotate(ang);
+  cx.fillStyle = "rgba(0,0,0,0.22)";
+  for (let i = 0; i < 3; i++){
+    const a = i * Math.PI * 2 / 3 + Math.PI / 3;
+    cx.beginPath(); cx.arc(0, 0, FLANGE - 14, a - 0.42, a + 0.42); cx.arc(0, 0, Math.max(rPack, HUB) + 10, a + 0.42, a - 0.42, true); cx.closePath(); cx.fill();
+  }
   cx.strokeStyle = "#5c6357"; cx.lineWidth = 3;
   for (let i = 0; i < 3; i++){
     const a = i * Math.PI * 2 / 3;
@@ -457,7 +1071,9 @@ function reel(c, rPack, ang, label){
 
 function roller(x, y, r, ang, col){
   cx.save(); cx.translate(x, y);
-  cx.fillStyle = col || "#2e332d"; cx.strokeStyle = "#6a7064"; cx.lineWidth = 1.5;
+  const g = cx.createRadialGradient(-r * 0.4, -r * 0.4, 1, 0, 0, r);
+  g.addColorStop(0, "#5a6056"); g.addColorStop(1, col || "#2e332d");
+  cx.fillStyle = g; cx.strokeStyle = "#6a7064"; cx.lineWidth = 1.5;
   cx.beginPath(); cx.arc(0, 0, r, 0, Math.PI * 2); cx.fill(); cx.stroke();
   cx.rotate(ang);
   cx.strokeStyle = "#9aa090"; cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(r - 2, 0); cx.stroke();
@@ -466,7 +1082,10 @@ function roller(x, y, r, ang, col){
 
 function head(x, label, col, lit, w){
   w = w || 22;
-  cx.fillStyle = "#2a2e29"; cx.strokeStyle = "#7a8072"; cx.lineWidth = 1.5;
+  // the head's shield can, then its face against the tape
+  const g = cx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+  g.addColorStop(0, "#23271f"); g.addColorStop(0.5, "#454a40"); g.addColorStop(1, "#1f221d");
+  cx.fillStyle = g; cx.strokeStyle = "#7a8072"; cx.lineWidth = 1.5;
   cx.beginPath(); cx.rect(x - w / 2, Y_T + 3, w, 34); cx.fill(); cx.stroke();
   cx.fillStyle = col; cx.fillRect(x - w / 2 + 2, Y_T + 3, w - 4, 4);
   cx.strokeStyle = "#e8e2cc"; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(x, Y_T + 2); cx.lineTo(x, Y_T + 12); cx.stroke();   // the gap
@@ -533,11 +1152,33 @@ function tapePath(el){
   cx.stroke();
 }
 
-function tangentFrom(c, r, to, side){
-  // point on a circle (centre c, radius r) where a line to `to` leaves tangentially
-  const dx = to[0] - c.x, dy = to[1] - c.y, d = Math.hypot(dx, dy);
-  const a = Math.atan2(dy, dx) + side * Math.acos(Math.min(1, r / d));
-  return [c.x + r * Math.cos(a), c.y + r * Math.sin(a)];
+// hit regions: c = circle, r = rectangle (machine units)
+const PART_PRIO = { "part:play": 0, "part:erase": 1, "part:record": 1, "part:capstan": 2, "part:pinch": 2, "part:guides": 3,
+                    "part:tape": 4, "part:rail": 5, "part:supply": 6, "part:takeup": 6, "part:looptank": 6 };
+function partBox(p){ return p.t === "c" ? { x: p.x - p.r, y: p.y - p.r, w: 2 * p.r, h: 2 * p.r } : { x: p.x, y: p.y, w: p.w, h: p.h }; }
+function partHit(p, x, y){ return p.t === "c" ? Math.hypot(x - p.x, y - p.y) <= p.r : x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h; }
+function partAt(x, y){
+  let best = null;
+  for (const p of MPARTS) if (partHit(p, x, y) && (!best || PART_PRIO[p.id] < PART_PRIO[best.id])) best = p;
+  return best;
+}
+function partRect(id, n){
+  const ps = MPARTS.filter(p => p.id === id && (!n || p.n === n)); if (!ps.length) return null;
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  ps.forEach(p => { const b = partBox(p); x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h); });
+  x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(1600, x1); y1 = Math.min(528, y1);
+  const c = deckRect(cv), k = c.w / 1600;
+  return { x: c.x + x0 * k, y: c.y + y0 * k, w: (x1 - x0) * k, h: (y1 - y0) * k };
+}
+function hilite(id, n){
+  cx.save();
+  cx.strokeStyle = "rgba(255,179,64,0.55)"; cx.lineWidth = 2; cx.setLineDash([5, 4]);
+  MPARTS.filter(p => p.id === id && (!n || p.n === n)).forEach(p => {
+    cx.beginPath();
+    if (p.t === "c") cx.arc(p.x, p.y, p.r + 2, 0, Math.PI * 2); else cx.rect(p.x - 2, p.y - 2, p.w + 4, p.h + 4);
+    cx.stroke();
+  });
+  cx.restore();
 }
 
 function drawMachine(){
@@ -545,6 +1186,7 @@ function drawMachine(){
   const now = performance.now(), dt = Math.min(0.1, (now - anim.last) / 1000); anim.last = now;
   const t = tele || { speed: 19, supR: 0.122, takR: 0.057, mode: 0, loopLen: 2, heads: [4, 8, 12], headPk: [0,0,0], tape: [] };
   const vms = t.speed / 100;
+  const parts = [];
   // integrate the rotations locally between 30 Hz updates, from the simulation's speed and radii
   anim.cap += vms / 0.005 * dt;
   if (t.mode === 0){
@@ -555,9 +1197,20 @@ function drawMachine(){
   cx.clearRect(0, 0, 1600, 528);
 
   // the deck plate
-  cx.fillStyle = "rgba(0,0,0,0.18)";
-  cx.fillRect(14, 10, 1572, 508);
-  cx.strokeStyle = "#2f342c"; cx.strokeRect(14.5, 10.5, 1571, 507);
+  const dg = cx.createLinearGradient(0, 10, 0, 518);
+  dg.addColorStop(0, "rgba(255,255,255,0.035)"); dg.addColorStop(1, "rgba(0,0,0,0.22)");
+  cx.fillStyle = dg; cx.fillRect(14, 10, 1572, 508);
+  cx.strokeStyle = "#2f342c"; cx.lineWidth = 1; cx.strokeRect(14.5, 10.5, 1571, 507);
+  cx.strokeStyle = "rgba(255,255,255,0.04)"; cx.strokeRect(16.5, 12.5, 1567, 503);
+  for (const [sx_, sy_] of [[28, 24], [1572, 24], [28, 504], [1572, 504]]){
+    const sg = cx.createRadialGradient(sx_ - 1.5, sy_ - 1.5, 0.5, sx_, sy_, 6);
+    sg.addColorStop(0, "#7d8476"); sg.addColorStop(1, "#1d201c");
+    cx.fillStyle = sg; cx.beginPath(); cx.arc(sx_, sy_, 6, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = "#1a1c19"; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(sx_ - 4, sy_ - 2); cx.lineTo(sx_ + 4, sy_ + 2); cx.stroke();
+  }
+  // the head block's mounting plate
+  cx.fillStyle = "rgba(0,0,0,0.22)"; cx.strokeStyle = "#2b3028"; cx.lineWidth = 1;
+  cx.beginPath(); cx.rect(X_ERASE - 34, Y_T - 2, X_REC + 24.8 * CM - X_ERASE + 50, 100); cx.fill(); cx.stroke();
 
   const armL = [ARM_L.rx, ARM_L.ry], armR = [ARM_R.rx, ARM_R.ry];
   const guideL = [505, Y_T - 9], guideR = [1060, Y_T - 9];
@@ -565,6 +1218,7 @@ function drawMachine(){
   if (t.mode === 0){
     reel(SUP, t.supR * 1000 * MM, anim.sup, "SUPPLY");
     reel(TAK, t.takR * 1000 * MM, anim.tak, "TAKE-UP");
+    parts.push({ id: "part:supply", t: "c", x: SUP.x, y: SUP.y, r: FLANGE }, { id: "part:takeup", t: "c", x: TAK.x, y: TAK.y, r: FLANGE });
     tapePath([
       { x: SUP.x, y: SUP.y, r: t.supR * 1000 * MM, prefer: "right" },
       { x: armL[0], y: armL[1], r: 9 },
@@ -575,8 +1229,11 @@ function drawMachine(){
       { x: TAK.x, y: TAK.y, r: t.takR * 1000 * MM, prefer: "left" } ]);
   } else {
     // LOOP: the tank, and the loop coming back over the top
-    cx.fillStyle = "rgba(0,0,0,0.35)"; cx.strokeStyle = "#4a5046"; cx.lineWidth = 2;
+    const tg = cx.createLinearGradient(0, 60, 0, 360);
+    tg.addColorStop(0, "rgba(0,0,0,0.45)"); tg.addColorStop(1, "rgba(0,0,0,0.25)");
+    cx.fillStyle = tg; cx.strokeStyle = "#4a5046"; cx.lineWidth = 2;
     cx.fillRect(40, 60, 330, 300); cx.strokeRect(40, 60, 330, 300);
+    cx.strokeStyle = "rgba(255,255,255,0.05)"; cx.strokeRect(44, 64, 322, 292);
     const folds = Math.max(3, Math.round(t.loopLen * 6));
     cx.strokeStyle = "#5a3b22"; cx.lineWidth = 3; cx.beginPath();
     for (let i = 0; i <= 240; i++){
@@ -589,6 +1246,8 @@ function drawMachine(){
     cx.fillText("LOOP TANK  " + t.loopLen.toFixed(2) + " m", 205, 378);
     roller(1330, 150, 30, anim.loop * 0.03 / 0.03 * (0.03 / 0.045), "#262b25");
     roller(470, 60, 22, anim.loop * (0.03 / 0.033), "#262b25");
+    parts.push({ id: "part:looptank", t: "r", x: 40, y: 60, w: 330, h: 330 },
+               { id: "part:guides", t: "c", x: 1330, y: 150, r: 34 }, { id: "part:guides", t: "c", x: 470, y: 60, r: 26 });
     tapePath([
       { x: 370, y: 300, r: 0 },                          // out of the tank
       { x: armL[0], y: armL[1], r: 9 },
@@ -607,9 +1266,11 @@ function drawMachine(){
     cx.beginPath(); cx.moveTo(a.px, a.py); cx.lineTo(a.rx, a.ry); cx.stroke();
     cx.fillStyle = "#3a3f37"; cx.beginPath(); cx.arc(a.px, a.py, 7, 0, Math.PI * 2); cx.fill();
     roller(a.rx, a.ry, 9, anim.cap * 0.005 / 0.009, "#2e332d");
+    parts.push({ id: "part:guides", t: "c", x: a.rx, y: a.ry, r: 15 }, { id: "part:guides", t: "c", x: a.px, y: a.py, r: 11 });
   }
   roller(guideL[0], guideL[1], 9, anim.cap * 0.005 / 0.009);
   roller(guideR[0], guideR[1], 9, anim.cap * 0.005 / 0.009);
+  parts.push({ id: "part:guides", t: "c", x: guideL[0], y: guideL[1], r: 14 }, { id: "part:guides", t: "c", x: guideR[0], y: guideR[1], r: 14 });
 
   // the tape across the heads, coloured by the magnetisation the engine holds
   if (t.tape && t.tape.length){
@@ -621,14 +1282,17 @@ function drawMachine(){
       cx.fillRect(xa, Y_T - 4, xb - xa + 0.5, 3 + 7 * a);
     }
   }
+  parts.push({ id: "part:tape", t: "r", x: guideL[0] + 12, y: Y_T - 12, w: guideR[0] - guideL[0] - 24, h: 14 });
 
   // capstan and pinch roller
   roller(X_CAP, Y_T - 8, 5 * MM, anim.cap, "#8d9284");
   roller(X_CAP, Y_T + 20, 12 * MM, -anim.cap * 0.005 / 0.012, "#1b1d1b");
+  parts.push({ id: "part:capstan", t: "c", x: X_CAP, y: Y_T - 8, r: 11 }, { id: "part:pinch", t: "c", x: X_CAP, y: Y_T + 20, r: 12 * MM + 2 });
 
   // the rail
   const r0 = X_REC + 1.5 * CM, r1 = X_REC + 24 * CM, yr = Y_T + 62;
-  cx.strokeStyle = "#565c50"; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(r0 - 6, yr); cx.lineTo(r1 + 6, yr); cx.stroke();
+  cx.strokeStyle = "#1a1c19"; cx.lineWidth = 7; cx.beginPath(); cx.moveTo(r0 - 6, yr + 1); cx.lineTo(r1 + 6, yr + 1); cx.stroke();
+  cx.strokeStyle = "#6a7064"; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(r0 - 6, yr); cx.lineTo(r1 + 6, yr); cx.stroke();
   cx.fillStyle = "#8a7a52"; cx.font = "10px Consolas"; cx.textAlign = "center";
   for (let c = 2; c <= 24; c++){
     const x = X_REC + c * CM;
@@ -636,14 +1300,17 @@ function drawMachine(){
     cx.beginPath(); cx.moveTo(x, yr - (c % 5 ? 3 : 6)); cx.lineTo(x, yr + (c % 5 ? 3 : 6)); cx.stroke();
     if (c % 5 === 0) cx.fillText(c + " cm", x, yr + 18);
   }
+  parts.push({ id: "part:rail", t: "r", x: r0 - 8, y: yr - 8, w: r1 - r0 + 16, h: 30 });
 
   head(X_ERASE, "E", "#a8442f");
   head(X_REC, "R", "#c9b27a");
+  parts.push({ id: "part:erase", t: "r", x: X_ERASE - 13, y: Y_T, w: 26, h: 40 }, { id: "part:record", t: "r", x: X_REC - 13, y: Y_T, w: 26, h: 40 });
   const on = [P.h1on, P.h2on, P.h3on];
-  t.heads.forEach((h, i) => {
+  (t.heads || []).forEach((h, i) => {
     const x = X_REC + h * CM;
     cx.strokeStyle = "#3d4339"; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(x, Y_T + 37); cx.lineTo(x, yr); cx.stroke();
     head(x, String(i + 1), on[i] && on[i].v > 0.5 ? "#7fbf6a" : "#4a4f45", t.headPk ? t.headPk[i] : 0);
+    parts.push({ id: "part:play", n: i + 1, t: "r", x: x - 13, y: Y_T, w: 26, h: 54 });
   });
 
   // labels
@@ -656,48 +1323,284 @@ function drawMachine(){
   cx.textAlign = "left";
   cx.fillText("drag a playback head along the rail", r0, yr + 36);
 
+  MPARTS = parts;
+  if (mHover && card.open && card.id === mHover.id || mHover && hov.el === cv) hilite(mHover.id, mHover.n);
+
+  frameTick(now, dt);
   requestAnimationFrame(drawMachine);
 }
 
-// head dragging on the rail
+// head dragging on the rail, hover cards for the parts
 function machinePoint(e){
   const r = cv.getBoundingClientRect();
   return [(e.clientX - r.left) / r.width * 1600, (e.clientY - r.top) / r.height * 528];
 }
 cv.addEventListener("pointerdown", e => {
-  if (!tele) return;
   const [x, y] = machinePoint(e);
+  const p = partAt(x, y);
+  if (p && card.open && !card.pinned && card.id === p.id && (card.n || 0) === (p.n || 0)) pinCard();
+  clearTimeout(hov.timer);
+  if (!tele) return;
   if (y < Y_T - 10 || y > Y_T + 75) return;
   let best = -1, bd = 14;
   tele.heads.forEach((h, i) => { const d = Math.abs(X_REC + h * CM - x); if (d < bd){ bd = d; best = i; } });
   if (best < 0) return;
-  headDrag = best;
+  headDrag = best; dragging = true;
   try{ cv.setPointerCapture(e.pointerId); }catch(_){}
   NB.send({ k:"touch", id: "h" + (best + 1) + "pos", down:true });
   hint("h" + (best + 1) + "pos");
 });
 cv.addEventListener("pointermove", e => {
-  if (headDrag < 0) return;
-  const [x] = machinePoint(e);
-  setParam("h" + (headDrag + 1) + "pos", (x - X_REC) / CM, true);
+  const [x, y] = machinePoint(e);
+  if (headDrag >= 0){ setParam("h" + (headDrag + 1) + "pos", (x - X_REC) / CM, true); return; }
+  const p = partAt(x, y);
+  cv.style.cursor = p && p.id === "part:play" ? "ew-resize" : "default";
+  if (!p){ if (hov.el === cv) hoverEnd(cv); mHover = null; return; }
+  mHover = { id: p.id, n: p.n || 0 };
+  hoverStart(p.id, p.n || 0, cv, () => partRect(p.id, p.n));
 });
-const endHead = () => { if (headDrag >= 0){ NB.send({ k:"touch", id: "h" + (headDrag + 1) + "pos", down:false }); headDrag = -1; } };
+cv.addEventListener("pointerleave", () => { if (headDrag < 0){ hoverEnd(cv); mHover = null; } });
+const endHead = () => { if (headDrag >= 0){ NB.send({ k:"touch", id: "h" + (headDrag + 1) + "pos", down:false }); headDrag = -1; dragging = false; } };
 cv.addEventListener("pointerup", endHead);
 cv.addEventListener("pointercancel", endHead);
 
-// ---------------------------------------------------------------- header readouts
+// ================================================================ header: VU meters
+// IEC 60268-17 VU: 300 ms to 99 % of a step, the same falling. A critically damped
+// second-order needle with w = 22.1 rad/s does that ((1 + wt) e^-wt = 0.01 at 0.3 s).
+// The scale is linear in voltage, as on a real meter: 0 VU = -18 dBFS, -20 .. +3 VU.
+const VU_TICKS = [-20, -10, -7, -5, -3, -2, -1, 0, 1, 2, 3];
+// the pivot sits below the face, as on a real meter: the scale is a long, flat arc
+const VU_A0 = -42, VU_A1 = 42, VU_PX = 56, VU_PY = 86, VU_R = 62;
+const vuP = v => Math.pow(10, v / 20) / Math.pow(10, 3 / 20);
+const vuAng = p => VU_A0 + (VU_A1 - VU_A0) * p;
+function buildVu(svg, label){
+  const pt = (a, r) => [VU_PX + r * Math.sin(a * Math.PI / 180), VU_PY - r * Math.cos(a * Math.PI / 180)];
+  const arc = (a0, a1, r) => { const [x0, y0] = pt(a0, r), [x1, y1] = pt(a1, r); return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`; };
+  const cid = "vuclip" + label;
+  let s = `<defs><clipPath id="${cid}"><rect x="4" y="4" width="104" height="48" rx="2"/></clipPath></defs>` +
+          '<rect x="0.5" y="0.5" width="111" height="55" rx="4" fill="url(#gBezel)" stroke="#070807"/>' +
+          '<rect x="4" y="4" width="104" height="48" rx="2" fill="url(#gFace)"/>';
+  s += `<path d="${arc(vuAng(vuP(0)), VU_A1, VU_R - 2.2)}" fill="none" stroke="#c0392b" stroke-width="3.2"/>`;
+  s += `<path d="${arc(VU_A0, VU_A1, VU_R)}" fill="none" stroke="#3b3424" stroke-width="0.8"/>`;
+  VU_TICKS.forEach(v => {
+    const a = vuAng(vuP(v)), big = [-20, -10, -5, 0, 3].includes(v), col = v > 0 ? "#b0301f" : "#2b2518";
+    const [x0, y0] = pt(a, VU_R), [x1, y1] = pt(a, VU_R + (big ? 4.5 : 3));
+    s += `<line x1="${x0.toFixed(2)}" y1="${y0.toFixed(2)}" x2="${x1.toFixed(2)}" y2="${y1.toFixed(2)}" stroke="${col}" stroke-width="${big ? 1.1 : 0.8}"/>`;
+    if (big){ const [tx_, ty_] = pt(a, VU_R + 9); s += `<text x="${tx_.toFixed(1)}" y="${(ty_ + 2).toFixed(1)}" text-anchor="middle" font-family="Bahnschrift" font-size="6.6" fill="${col}">${v > 0 ? "+" + v : v === 0 ? "0" : String(v).replace("-", "−")}</text>`; }
+  });
+  s += `<text x="56" y="44" text-anchor="middle" font-family="Bahnschrift" font-size="9" font-weight="700" fill="#2b2518" letter-spacing="1.5">VU</text>` +
+       `<text x="9" y="44" font-family="Bahnschrift" font-size="6.5" fill="#5a4e30" letter-spacing="1.2">${label}</text>` +
+       '<circle class="pk" cx="101" cy="41" r="2.5" fill="#4a1d14" stroke="#2b2518" stroke-width="0.5"/>' +
+       `<g clip-path="url(#${cid})"><line class="ndl" x1="${VU_PX}" y1="${VU_PY}" x2="${VU_PX}" y2="${VU_PY - VU_R - 3}" stroke="#1a1612" stroke-width="1.1" stroke-linecap="round"/>` +
+       `<path d="M4 53 L108 53 L108 50 Q56 44 4 50 Z" fill="#1b1d1a"/></g>` +
+       '<rect x="4" y="4" width="104" height="48" rx="2" fill="none" stroke="rgba(0,0,0,0.35)" stroke-width="1.5"/>';
+  svg.innerHTML = s;
+  return { ndl: svg.querySelector(".ndl"), pk: svg.querySelector(".pk"), x: 0, v: 0, pkHold: 0 };
+}
+const VU = { in: buildVu($("vuIn"), "IN"), out: buildVu($("vuOut"), "OUT") };
+function vuTarget(db){ return (typeof db === "number" && isFinite(db)) ? Math.min(1.1, vuP(db + 18)) : 0; }
+function vuTick(dt){
+  const w = 22.1;
+  [["in", tele && tele.vuIn, tele && tele.in], ["out", tele && tele.vuOut, tele && tele.out]].forEach(([k, db, pk]) => {
+    const m = VU[k], tgt = vuTarget(db);
+    let left = dt;
+    while (left > 1e-6){ const h = Math.min(0.004, left); left -= h; const acc = w * w * (tgt - m.x) - 2 * w * m.v; m.v += acc * h; m.x += m.v * h; }
+    m.x = Math.max(-0.02, Math.min(1.12, m.x));
+    m.ndl.setAttribute("transform", `rotate(${vuAng(m.x).toFixed(2)} ${VU_PX} ${VU_PY})`);
+    if (typeof pk === "number" && pk >= 0.891) m.pkHold = 0.4;
+    m.pkHold = Math.max(0, m.pkHold - dt);
+    m.pk.setAttribute("fill", m.pkHold > 0 ? "#ff4a2c" : "#4a1d14");
+  });
+}
+
+// ================================================================ header: presets
+const GROUPS = ["CLEAN", "CLASSIC ECHO", "MULTI-HEAD", "CHARACTER", "LOOPS", "STRANGE"];
+const presetMenu = $("presetMenu"), pmCols = $("pmCols");
+registerCard($("pName"), "set:presets");
+registerCard($("pSave"), "set:presets");
+function renderPresetName(){
+  const nm = presetCur.name || "—";
+  $("pNameText").textContent = nm + (presetCur.dirty ? " *" : "");
+  const f = (presetList.factory || []).find(q => q.index === presetCur.factory);
+  const user = presetCur.factory < 0 && (presetList.user || []).some(u => u.name === presetCur.name);
+  $("pGroup").textContent = f ? (f.group || "FACTORY") : user ? "USER" : "";
+}
+function factoryOrder(){
+  const groups = {};
+  (presetList.factory || []).forEach(f => (groups[f.group || "OTHER"] = groups[f.group || "OTHER"] || []).push(f));
+  const order = GROUPS.filter(g => groups[g]).concat(Object.keys(groups).filter(g => !GROUPS.includes(g)));
+  return { groups, order };
+}
+function renderPresetMenu(){
+  pmCols.innerHTML = "";
+  const { groups, order } = factoryOrder();
+  order.forEach(gname => {
+    const g = document.createElement("div"); g.className = "pmg";
+    const h = document.createElement("div"); h.className = "pmh"; h.textContent = gname; g.appendChild(h);
+    groups[gname].forEach(f => {
+      const it = document.createElement("div"); it.className = "pmi" + (presetCur.factory === f.index ? " cur" : "");
+      const sp = document.createElement("span"); sp.textContent = f.name; it.appendChild(sp);
+      it.dataset.factory = f.index;
+      it.addEventListener("click", () => loadPreset({ factory: f.index }, f.name));
+      g.appendChild(it);
+    });
+    pmCols.appendChild(g);
+  });
+  const g = document.createElement("div"); g.className = "pmg";
+  const h = document.createElement("div"); h.className = "pmh"; h.textContent = "USER"; g.appendChild(h);
+  const users = presetList.user || [];
+  if (!users.length){ const n = document.createElement("div"); n.className = "pmnone"; n.textContent = "No user presets yet: SAVE keeps the current state."; g.appendChild(n); }
+  users.forEach(u => {
+    const it = document.createElement("div"); it.className = "pmi" + (presetCur.factory < 0 && presetCur.name === u.name ? " cur" : "");
+    const sp = document.createElement("span"); sp.textContent = u.name; it.appendChild(sp);
+    const del = document.createElement("b"); del.className = "del"; del.textContent = "✕"; del.title = "delete (moved to the Deleted folder)";
+    it.appendChild(del);
+    it.dataset.user = u.name;
+    it.addEventListener("click", e => {
+      if (e.target === del){
+        e.stopPropagation();
+        if (it.classList.contains("confirm")){ NB.send({ k:"presetDelete", user: u.name }); del.textContent = "…"; }
+        else { pmCols.querySelectorAll(".pmi.confirm").forEach(q => { q.classList.remove("confirm"); q.querySelector(".del").textContent = "✕"; });
+               it.classList.add("confirm"); del.textContent = "DELETE?"; }
+        return;
+      }
+      loadPreset({ user: u.name }, u.name);
+    });
+    g.appendChild(it);
+  });
+  pmCols.appendChild(g);
+}
+function loadPreset(which, name){
+  NB.send(Object.assign({ k:"presetLoad" }, which));
+  presetCur.name = name; presetCur.factory = which.factory !== undefined ? which.factory : -1; presetCur.dirty = false;
+  renderPresetName();
+  closeMenus();
+  NB.send({ k:"presetList" });
+}
+function onPresets(o){
+  presetList = { factory: o.factory || [], user: o.user || [] };
+  if (o.current){ presetCur.name = o.current.name || ""; presetCur.factory = o.current.factory !== undefined ? o.current.factory : -1; presetCur.dirty = !!o.current.dirty; }
+  renderPresetName();
+  if (presetMenu.classList.contains("open")) renderPresetMenu();
+}
+function stepPreset(d){
+  const { groups, order } = factoryOrder();
+  const flat = []; order.forEach(g => groups[g].forEach(f => flat.push(f)));
+  if (!flat.length) return;
+  let i = flat.findIndex(f => f.index === presetCur.factory);
+  i = i < 0 ? (d > 0 ? 0 : flat.length - 1) : (i + d + flat.length) % flat.length;
+  loadPreset({ factory: flat[i].index }, flat[i].name);
+}
+$("pPrev").addEventListener("click", () => stepPreset(-1));
+$("pNext").addEventListener("click", () => stepPreset(1));
+function placeMenu(menu, anchor, alignRight){
+  const r = deckRect(anchor), w = menu.offsetWidth;
+  menu.style.top = Math.round(r.y + r.h + 8) + "px";
+  menu.style.left = Math.round(Math.max(6, Math.min(1600 - 6 - w, alignRight ? r.x + r.w - w : r.x))) + "px";
+}
+function openPresetMenu(){
+  closeMenus(); closeCard();
+  renderPresetMenu();
+  presetMenu.classList.add("open");
+  placeMenu(presetMenu, $("presetBox"), true);
+  NB.send({ k:"presetList" });
+}
+$("pName").addEventListener("click", () => { if (presetMenu.classList.contains("open")) closeMenus(); else openPresetMenu(); });
+$("pSave").addEventListener("click", () => openSaveDlg());
+$("pmSave").addEventListener("click", () => openSaveDlg());
+// the save dialog
+const dlg = $("dlg"), dlgName = $("dlgName"), dlgNote = $("dlgNote");
+const DLG_NOTE = dlgNote.textContent;
+function openSaveDlg(){
+  closeMenus(); closeCard();
+  dlgName.value = presetCur.factory < 0 && presetCur.name ? presetCur.name : "";
+  dlgNote.textContent = DLG_NOTE; dlgNote.className = "";
+  dlg.classList.add("open");
+  setTimeout(() => { dlgName.focus(); dlgName.select(); }, 0);
+}
+function closeDlg(){ dlg.classList.remove("open"); }
+function saveDlg(){
+  const name = dlgName.value.trim();
+  const bad = '\\/:*?"<>|'.split("").filter(c => name.includes(c));
+  if (!name){ dlgNote.textContent = "Give the preset a name."; dlgNote.className = "bad"; return; }
+  if (bad.length){ dlgNote.textContent = "A name cannot hold " + bad.join(" ") + " (it becomes a file name)."; dlgNote.className = "bad"; return; }
+  NB.send({ k:"presetSave", name });
+  presetCur.name = name; presetCur.factory = -1; presetCur.dirty = false;
+  renderPresetName();
+  closeDlg();
+  NB.send({ k:"presetList" });
+}
+$("dlgOk").addEventListener("click", saveDlg);
+$("dlgCancel").addEventListener("click", closeDlg);
+dlgName.addEventListener("input", () => { if (dlgNote.className){ dlgNote.textContent = DLG_NOTE; dlgNote.className = ""; } });
+dlgName.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); saveDlg(); } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeDlg(); } });
+
+// ================================================================ header: the gear
+const gearMenu = $("gearMenu");
+registerCard($("gear"), "set:tooltips");
+registerCard($("gTipsRow"), "set:tooltips");
+registerCard($("gDelayRow"), "set:tooltips");
+registerCard($("gQualRow"), "set:quality");
+const sendSettings = () => NB.send({ k:"settings", tooltips: settings.tooltips, delay: +settings.delay.toFixed(2) });
+const drawDelay = hslider($("gDelay"), () => (settings.delay - 0.2) / 2.8,
+  t => { settings.delay = Math.round((0.2 + t * 2.8) * 10) / 10; renderGear(); }, null, sendSettings);
+function renderGear(){
+  const tb = $("gTips"); tb.classList.toggle("on", settings.tooltips); tb.firstChild.classList.toggle("on", settings.tooltips);
+  tb.lastChild.textContent = settings.tooltips ? "ON" : "OFF";
+  drawDelay();
+  $("gDelayVal").textContent = settings.delay.toFixed(1) + " s";
+  $("gDelayRow").classList.toggle("idle", !settings.tooltips);
+  [...$("gQual").children].forEach((b, i) => b.classList.toggle("on", i === quality));
+  const run = tele && tele.quality !== undefined ? ["ECO", "NORMAL", "HIGH"][tele.quality] : null;
+  $("gRun").textContent = run ? "running " + run + (tele.latencyMs ? " · host latency " + tele.latencyMs.toFixed(1) + " ms" : "") : " ";
+}
+$("gTips").addEventListener("click", () => { settings.tooltips = !settings.tooltips; if (!settings.tooltips) closeCard(); renderGear(); sendSettings(); });
+[...$("gQual").children].forEach((b, i) => b.addEventListener("click", () => { if (i !== quality){ quality = i; NB.send({ k:"quality", v:i }); } renderGear(); }));
+$("gear").addEventListener("click", () => {
+  if (gearMenu.classList.contains("open")) { closeMenus(); return; }
+  closeMenus(); closeCard();
+  renderGear(); gearMenu.classList.add("open"); $("gear").classList.add("open");
+  placeMenu(gearMenu, $("gear"), true);
+});
+function closeMenus(){
+  presetMenu.classList.remove("open"); gearMenu.classList.remove("open"); $("gear").classList.remove("open");
+  pmCols.querySelectorAll(".pmi.confirm").forEach(q => { q.classList.remove("confirm"); q.querySelector(".del").textContent = "✕"; });
+}
+
+// cards for the header readouts
+registerCard($("vuInBox"), "read:vu", 1);
+registerCard($("vuOutBox"), "read:vu", 2);
+registerCard($("tapebox"), "read:tapemeter");
+registerCard($("speedbox"), "speed");
+registerCard($("wfRead"), "read:wf");
+registerCard($("loopText"), "read:loop");
+
+// global: Esc and clicks away
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (dlg.classList.contains("open")) closeDlg();
+  else if (presetMenu.classList.contains("open") || gearMenu.classList.contains("open")) closeMenus();
+  else closeCard();
+});
+document.addEventListener("pointerdown", e => {
+  const t = e.target;
+  if (card.open && card.pinned && !cardEl.contains(t)) closeCard();
+  if (presetMenu.classList.contains("open") && !presetMenu.contains(t) && !$("presetBox").contains(t)) closeMenus();
+  if (gearMenu.classList.contains("open") && !gearMenu.contains(t) && !$("gear").contains(t)) closeMenus();
+  if (!presetMenu.contains(t)) pmCols.querySelectorAll(".pmi.confirm").forEach(q => { q.classList.remove("confirm"); q.querySelector(".del").textContent = "✕"; });
+}, true);
+
+// ================================================================ telemetry into the panel
 function updateHeader(){
   if (!tele) return;
   const ips = tele.speed / 2.54;
-  document.getElementById("readout").textContent =
-    tele.speed.toFixed(2) + " cm/s  " + ips.toFixed(2) + " ips";
-  document.getElementById("lSync").classList.toggle("on", !!tele.syncOn);
-  document.getElementById("lClamp").classList.toggle("on", !!tele.syncClamp);
-  document.getElementById("lSplice").classList.toggle("on", !!tele.splice);
-  const m = (id, pk) => { const db = 20 * Math.log10(Math.max(1e-6, pk)); document.getElementById(id).style.width = Math.max(0, Math.min(100, (db + 60) / 60 * 100)) + "%"; };
-  m("mIn", tele.in); m("mOut", tele.out);
+  $("readout").textContent = tele.speed.toFixed(2) + " cm/s";
+  $("readout2").textContent = ips.toFixed(2) + " ips" + (Math.abs(tele.target - tele.speed) > 0.05 ? "  → " + tele.target.toFixed(2) : "");
+  $("lSync").classList.toggle("on", !!tele.syncOn);
+  $("lClamp").classList.toggle("on", !!tele.syncClamp);
+  $("lSplice").classList.toggle("on", !!tele.splice);
   // the tape meter is linear in remanence: full width = full remanence
-  if (tele.rec !== undefined) document.getElementById("mTape").style.width = Math.max(0, Math.min(100, tele.rec * 100)) + "%";
+  if (tele.rec !== undefined) $("mTape").style.width = Math.max(0, Math.min(100, tele.rec * 100)) + "%";
   if (tele.repro !== undefined) {
     // REPRO: the button carries the delay the host is told; what it switches off dims
     const on = !!tele.repro;
@@ -707,7 +1610,7 @@ function updateHeader(){
     const fbg = ctls.feedback && ctls.feedback.el.closest(".grp");
     if (fbg) fbg.classList.toggle("inert", on);
   }
-  if (tele.wf !== undefined) document.getElementById("wfRead").innerHTML = "W&amp;F<br>" + (tele.wf < 0 ? "settling" : tele.wf.toFixed(3) + " %");
+  if (tele.wf !== undefined) $("wfRead").innerHTML = "W&amp;F<br>" + (tele.wf < 0 ? "settling" : tele.wf.toFixed(3) + " %");
   if (tele.looper !== undefined) {
     // what the loop's heads are doing, as measured
     const st = ["REC", "DUB", "PLAY", "CLEARING"][tele.looper];
@@ -716,20 +1619,22 @@ function updateHeader(){
     const loop = tele.loopLen !== undefined ? tele.loopLen.toFixed(2) + " m loop" : "";
     const bn = tele.barsNow || 0, bk = Math.round(P.bars ? P.bars.v : 0);
     let bars = "";
-    if (bn > 0 && tele.barsFit === false) {
+    if (bn > 0 && tele.barsFit === false && P.sync && P.synchead) {
       // the bars asked for make a loop outside 0.5-6 m: say which would fit, from the
       // same arithmetic the engine cuts with (bars x 4 / note x the tempo head's knob)
       const beats = [0, 0.25, 0.375, 1 / 3, 0.5, 0.75, 2 / 3, 1, 1.5, 2, 3, 4, 8][Math.round(P.sync.v)] || 1;
-      const th = Math.round(P.synchead.v), head = P["h" + (th + 1) + "pos"].v;
-      const mPerBar = 4 / beats * head / 100, lo = Math.ceil(0.5 / mPerBar - 1e-9), hi = Math.floor(6 / mPerBar + 1e-9);
-      bars = " | " + bk + (bk === 1 ? " bar" : " bars") + " at " + choices(P.sync)[Math.round(P.sync.v)] + " from " + head.toFixed(1) + " cm is " + (bk * mPerBar).toFixed(2)
+      const th = Math.round(P.synchead.v), hp = P["h" + (th + 1) + "pos"].v;
+      const mPerBar = 4 / beats * hp / 100, lo = Math.ceil(0.5 / mPerBar - 1e-9), hi = Math.floor(6 / mPerBar + 1e-9);
+      bars = " | " + bk + (bk === 1 ? " bar" : " bars") + " at " + choices(P.sync)[Math.round(P.sync.v)] + " from " + hp.toFixed(1) + " cm is " + (bk * mPerBar).toFixed(2)
            + " m, outside the 0.5-6 m loop: " + (hi < 1 ? "no bar count fits; move the tempo head closer" : lo > 16 ? "no bar count fits; move the tempo head further out"
            : lo <= 1 ? "up to " + Math.min(16, hi) + " bars fit" : lo + " to " + Math.min(16, hi) + " bars fit");
     }
     else if (bn > 0) bars = Math.abs(bn - Math.round(bn)) < 0.005 ? " | " + Math.round(bn) + " bars"
                                                                    : " | " + bn.toFixed(2) + " bars (the tempo head moved: set BARS again to re-cut)";
-    document.getElementById("loopRead").textContent = tele.looper < 0 ? "REEL: fresh tape, erase head full"
+    const txt = tele.looper < 0 ? "REEL: fresh tape, erase head full"
       : "LOOP " + st + " | " + (tele.recording ? "recording" : "record off") + " | " + er + " | " + loop + bars;
+    const lr = $("loopRead");
+    if (lr.textContent !== txt){ lr.textContent = txt; lr.title = txt; }
   }
   updateIdle();
   if (tele.brokenEff !== undefined && P.broken) {
@@ -739,7 +1644,7 @@ function updateHeader(){
       if (ctls[k] && ctls[k].setEff) ctls[k].setEff(on ? tele.brokenEff[i] : null, "BROKEN makes it act at");
     });
     // the bias: DUB drops it 6 dB, BROKEN sags it; the dot says where it acts and why
-    if (ctls.bias && ctls.bias.setEff) {
+    if (ctls.bias && ctls.bias.setEff && P.mode && P.looper) {
       const why = [];
       if (Math.round(P.mode.v) === 1 && Math.round(P.looper.v) === 1) why.push("DUB drops it 6 dB");
       if (on) why.push("BROKEN sags it");
@@ -752,22 +1657,28 @@ function updateHeader(){
     if (ctls.broken && ctls.broken.setFaults) ctls.broken.setFaults(fl.length ? " " + fl.join(" ") : "");
   }
   if (tele.wear !== undefined && ctls.wear) {
-    const wv = ctls.wear.el ? ctls.wear.el.querySelector(".val") : document.querySelector('[data-id=wear] .val');
+    const wv = ctls.wear.el.querySelector(".val");
     if (wv) wv.title = "tape wear now: " + Math.round(tele.wear * 100) + " % (WEAR plus what the loop has accumulated)";
   }
-  tele.heads.forEach((h, i) => {
-    const el = document.getElementById("delay" + (i + 1));
+  (tele.heads || []).forEach((h, i) => {
+    const el = $("delay" + (i + 1));
     if (el) el.textContent = (h / tele.speed * 1000).toFixed(0) + " ms";
   });
+  // HEAD PATTERN: what SET would do with the pattern and tempo head as they stand
+  if (tele.patternFit && P.pattern){
+    const m = tele.patternFit.mask | 0, f = $("patFit"), txt = m ? maskText(m) : "FITS THE RAIL";
+    if (f.textContent !== txt){ f.textContent = txt; f.classList.toggle("bad", !!m); }
+  }
+  if (gearMenu.classList.contains("open")) renderGear();
 }
 
 // ---------------------------------------------------------------- what does nothing now
 function updateIdle(){
-  if (!P.mode || !ctls.erase) return;
+  if (!P.mode || !P.looper || !P.sync || !P.bars || !ctls.erase) return;
   const loop = Math.round(P.mode.v) === 1, state = Math.round(P.looper.v);
   const syncOn = Math.round(P.sync.v) > 0, barsOn = syncOn && Math.round(P.bars.v) >= 1;
   const why = [];
-  document.getElementById("loopGrp").classList.toggle("idle", !loop);
+  $("loopGrp").classList.toggle("idle", !loop);
   if (!loop) why.push("On a REEL the loop panel does nothing: fresh tape arrives and the erase head is always full.");
   const id = (k, on) => ctls[k] && ctls[k].el.classList.toggle("idle", loop && on);
   id("erase", state !== 1);
@@ -780,26 +1691,54 @@ function updateIdle(){
   if (loop && !syncOn && Math.round(P.bars.v) >= 1) why.push("LOOP BARS need SYNC on: until then the loop runs at LOOP LENGTH.");
   const fbg = ctls.feedback && ctls.feedback.el.closest(".grp");
   if (fbg) fbg.classList.toggle("idle", loop && state === 2);
-  document.getElementById("loopWhy").textContent = why.join("  ");
+  const txt = why.join("  "), lw = $("loopWhy");
+  if (lw.textContent !== txt){ lw.textContent = txt; lw.title = txt; }
+}
+
+// ---------------------------------------------------------------- per frame
+let liveAcc = 0;
+function frameTick(now, dt){
+  vuTick(dt);
+  liveAcc += dt;
+  if (card.open && liveAcc > 0.05){ liveAcc = 0; updateLive(); }
 }
 
 // ---------------------------------------------------------------- layout
 function layout(){
-  const deck = document.getElementById("deck");
   const sc = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
   deck.dataset.scale = sc;
   deck.style.transform = `translate(${(window.innerWidth - 1600 * sc) / 2}px, ${(window.innerHeight - 900 * sc) / 2}px) scale(${sc})`;
+  if (card.open) placeCard();
 }
 window.addEventListener("resize", layout);
 layout();
+document.querySelectorAll("#panel .grp").forEach(g => { ["l", "r"].forEach(s => { const e = document.createElement("span"); e.className = "screw " + s; g.appendChild(e); }); });
 
 // ---------------------------------------------------------------- messages
 function onInit(o){
   build = o.build || "";
-  document.getElementById("build").textContent = "build " + build;
-  (o.params || []).forEach(p => { P[p.id] = Object.assign({}, p); });
+  $("build").textContent = "build " + build;
+  if (Array.isArray(o.params) && o.params.length){
+    for (const k in P) delete P[k];
+    for (const k in ctls) delete ctls[k];
+    o.params.forEach(p => { P[p.id] = Object.assign({}, p); });
+  }
+  if (o.settings){
+    if (typeof o.settings.tooltips === "boolean") settings.tooltips = o.settings.tooltips;
+    if (isFinite(o.settings.delay)) settings.delay = Math.min(3, Math.max(0.2, +o.settings.delay));
+  }
+  if (o.quality !== undefined) quality = Math.max(0, Math.min(2, o.quality | 0));
+  if (o.preset){
+    presetCur.name = o.preset.name || ""; presetCur.dirty = !!o.preset.dirty;
+    const f = (presetList.factory || []).find(q => q.name === presetCur.name);
+    presetCur.factory = o.preset.factory !== undefined ? o.preset.factory : f ? f.index : -1;
+  }
   buildPanel();
+  renderPresetName();
+  renderGear();
+  if (card.open) renderCard();
   NB.send({ k:"stateack" });
+  NB.send({ k:"presetList" });
 }
 function onHost(o){ (o.params || []).forEach(p => setParam(p.id, p.v, false)); }
 function onTele(o){ tele = o; updateHeader(); }
@@ -807,9 +1746,52 @@ function onTele(o){ tele = o; updateHeader(); }
 NB.on("initialState", onInit);
 NB.on("hostParam", onHost);
 NB.on("tele", onTele);
+NB.on("presets", onPresets);
+NB.on("patternResult", onPatternResult);
 
-// Debug hook for probes: the state lives in this script, unreachable otherwise.
-window.__MT = { P, get tele(){ return tele; }, init: onInit, host: onHost, setTele: onTele, ctls, set: (id, v) => setParam(id, v, true) };
+// ---------------------------------------------------------------- debug hook for probes
+// every visual part, in deck coordinates: stage 9's decal order is sized from this
+function geom(){
+  const out = [], seen = new Set();
+  const add = (el, kind, id) => {
+    if (!el || seen.has(el) || !el.getClientRects().length) return;
+    seen.add(el);
+    const r = deckRect(el);
+    out.push({ id: id || el.id || (el.closest("[data-id]") && el.closest("[data-id]").dataset.id) || "", kind,
+               x: +r.x.toFixed(1), y: +r.y.toFixed(1), w: +r.w.toFixed(1), h: +r.h.toFixed(1) });
+  };
+  add(cv, "canvas", "machine");
+  add($("head"), "header", "head"); add($("bay"), "bay", "bay"); add($("panel"), "panel", "panel"); add($("hint"), "hintbar", "hint");
+  document.querySelectorAll(".grp").forEach(g => add(g, "plate", "plate:" + g.querySelector("h3").textContent));
+  document.querySelectorAll(".eplate").forEach(e => add(e, "plate", e.id));
+  document.querySelectorAll(".screw").forEach((e, i) => add(e, "screw", "screw" + i));
+  document.querySelectorAll(".knob").forEach(e => add(e, "knob"));
+  document.querySelectorAll(".plug").forEach(e => add(e, "knob-slot", "mech"));
+  document.querySelectorAll(".seg").forEach(e => { add(e, "seg"); [...e.children].forEach((b, i) => add(b, "key", (e.closest("[data-id]") ? e.closest("[data-id]").dataset.id : e.id) + ":" + i)); });
+  document.querySelectorAll(".btn").forEach(e => add(e, "button"));
+  document.querySelectorAll(".hsl").forEach(e => add(e, "slider"));
+  document.querySelectorAll(".stepper").forEach(e => add(e, "stepper"));
+  document.querySelectorAll(".stepper .sk, .pkey").forEach((e, i) => add(e, "arrow", e.id || "arrow" + i));
+  document.querySelectorAll(".vubox").forEach(e => add(e, "meter-vu"));
+  document.querySelectorAll(".meter").forEach(e => add(e, "meter-bar", "mTape"));
+  document.querySelectorAll(".window").forEach(e => add(e, "window"));
+  document.querySelectorAll(".lamp").forEach((e, i) => add(e, "lamp", e.id || "lamp" + i));
+  add($("gear"), "gear", "gear");
+  return out;
+}
+function cardsMap(){
+  const m = {};
+  for (const id in cardEls){ const els = cardEls[id].filter(e => e.isConnected); if (els.length) m[id] = els.length === 1 ? els[0] : els; }
+  const ids = [...new Set(MPARTS.map(p => p.id))];
+  ids.forEach(id => { const r = partRect(id); m[id] = { region: [r.x, r.y, r.w, r.h].map(v => +v.toFixed(1)),
+    all: MPARTS.filter(p => p.id === id && p.n).map(p => { const q = partRect(id, p.n); return { n: p.n, region: [q.x, q.y, q.w, q.h].map(v => +v.toFixed(1)) }; }) }; });
+  return m;
+}
+window.__MT = { P, get tele(){ return tele; }, init: onInit, host: onHost, setTele: onTele, ctls, set: (id, v) => setParam(id, v, true),
+  cards: cardsMap, openCard: (id, n, pin) => openCard(id, { n: n || 0, pin: !!pin }), closeCard, pinCard, geom,
+  get card(){ return { open: card.open, pinned: card.pinned, id: card.id, n: card.n, placed: card.placed, live: card.live.length }; },
+  vu: () => ({ in: VU.in.x, out: VU.out.x, inDeg: vuAng(VU.in.x), outDeg: vuAng(VU.out.x) }),
+  settings, presets: () => ({ list: presetList, current: Object.assign({}, presetCur) }), loaded };
 
 requestAnimationFrame(drawMachine);
 NB.send({ k:"hello" });

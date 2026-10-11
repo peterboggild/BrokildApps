@@ -535,7 +535,10 @@ float Engine::recordCell (const LayerRecord& r, float mOld, double s) const
 void Engine::prepare (double hostSampleRate, int)
 {
     fsHost = hostSampleRate;
-    os = fsHost < 80000.0 ? 2 : 1;
+    if (quality == 0)      os = 1;
+    else if (quality == 2) os = fsHost < 80000.0 ? 4 : fsHost < 160000.0 ? 2 : 1;
+    else                   os = fsHost < 80000.0 ? 2 : 1;
+    tele.quality = quality;
     fsInt = fsHost * os;
     dt = 1.0 / fsInt;
     // built once per internal rate and coating, shared by every instance
@@ -563,20 +566,31 @@ void Engine::prepare (double hostSampleRate, int)
 
     for (auto& h : up) { h.design(); h.clear(); }
     for (auto& h : dn) { h.design(); h.clear(); }
+    for (auto& h : up2) { h.design(); h.clear(); }
+    for (auto& h : dn2) { h.design(); h.clear(); }
 
     // The half-band pair's delay, MEASURED with an impulse: a symmetric FIR's
     // centroid is its exact group delay. Up half paid at the record head, the
     // down half (plus the read box and its correction FIR) by reading ahead.
     double hbDelay = 0.0;
-    if (os == 2)
+    if (os >= 2)
     {
-        HalfBand u, d; u.design(); d.design(); u.clear(); d.clear();
+        HalfBand u, d, u2, d2; u.design(); d.design(); u2.design(); d2.design(); u.clear(); d.clear(); u2.clear(); d2.clear();
         double num = 0.0, den = 0.0;
-        for (int n = 0; n < 256; ++n)
+        for (int n = 0; n < 512; ++n)
         {
             float a, b;
             u.up (n == 0 ? 1.0f : 0.0f, a, b);
-            const double y = d.down (a, b);
+            double y;
+            if (os == 4)
+            {
+                float a0, a1, b0, b1;
+                u2.up (a, a0, a1); u2.up (b, b0, b1);
+                const float m0 = d2.down (a0, a1);   // sequenced: argument order is unspecified
+                const float m1 = d2.down (b0, b1);
+                y = d.down (m0, m1);
+            }
+            else y = d.down (a, b);
             num += n * y; den += y;
         }
         hbDelay = num / den;
@@ -595,6 +609,8 @@ void Engine::prepare (double hostSampleRate, int)
     lcA    = std::exp (-2.0 * M_PI * 5.0 / fsInt);  // the replay amplifier's integrator stops near DC
     for (int i = 0; i < 4; ++i) lcX[i] = lcY[i] = 0.0;
     aHost  = 1.0 - std::exp (-1.0 / (fsHost * 0.020));
+    aVu    = 1.0 - std::exp (-1.0 / (fsHost * 0.050));
+    gByp = params.bypass > 0.5f ? 1.0 : 0.0; msIn = msOut = 0.0;
 
     // ---- the record head and its alignment, at OPERATING bias and the machine's
     //      NOMINAL speed (19.05 cm/s), as a technician would align it: record level
@@ -1233,9 +1249,14 @@ void Engine::clearSpan (double& prevPos, double newPos)
         for (int64_t i = a; i < b; ++i)
         {
             store->m[0][l][(size_t) k] = 0.0f; store->m[1][l][(size_t) k] = 0.0f;
-            store->md[0][l][(size_t) k] = 0.0f; store->md[1][l][(size_t) k] = 0.0f;
-            store->rp[0][l][(size_t) k] = 0; store->rp[1][l][(size_t) k] = 0;
-            store->ta[0][l][(size_t) k] = 0; store->ta[1][l][(size_t) k] = 0;
+            if (mode == 1)
+            {
+                // the one-shot bookkeeping is a loop's: a reel never reads it (and clears every
+                // cell twice, at the erase head and as virgin tape at the supply)
+                store->md[0][l][(size_t) k] = 0.0f; store->md[1][l][(size_t) k] = 0.0f;
+                store->rp[0][l][(size_t) k] = 0; store->rp[1][l][(size_t) k] = 0;
+                store->ta[0][l][(size_t) k] = 0; store->ta[1][l][(size_t) k] = 0;
+            }
             if (++k == ring) k = 0;
         }
     }
@@ -1771,6 +1792,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     const double tDry = (p.killDry > 0.5f) ? 0.0 : std::cos (p.mix * M_PI * 0.5);
     const double tWet = std::sin (p.mix * M_PI * 0.5);
     const double tOut = dbToLin (p.output);
+    const double tByp = p.bypass > 0.5f ? 1.0 : 0.0;
     const bool mono = p.inMode > 0.5f;
 
     if (n == 0)
@@ -1816,7 +1838,24 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         pkIn = std::max (pkIn, std::max (std::abs (xl), std::abs (xr)));
 
         float wl, wr;
-        if (os == 2)
+        if (os == 4)
+        {
+            // HIGH: two half-band stages each way
+            float a0, a1, b0, b1, q[4], r[4], yl[4], yr[4];
+            up[0].up (xl, a0, a1);
+            up[1].up (xr, b0, b1);
+            up2[0].up (a0, q[0], q[1]); up2[0].up (a1, q[2], q[3]);
+            up2[1].up (b0, r[0], r[1]); up2[1].up (b1, r[2], r[3]);
+            for (int j = 0; j < 4; ++j) tick (q[j], r[j], yl[j], yr[j]);
+            // sequenced, never nested: a function's arguments are evaluated in no defined order
+            const float l0 = dn2[0].down (yl[0], yl[1]);
+            const float l1 = dn2[0].down (yl[2], yl[3]);
+            const float r0 = dn2[1].down (yr[0], yr[1]);
+            const float r1 = dn2[1].down (yr[2], yr[3]);
+            wl = dn[0].down (l0, l1);
+            wr = dn[1].down (r0, r1);
+        }
+        else if (os == 2)
         {
             float a0, a1, b0, b1, y0l, y0r, y1l, y1r;
             up[0].up (xl, a0, a1);
@@ -1843,8 +1882,19 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
             --dryXf;
         }
         dryW = (dryW + 1) & dryMask;
-        const float ol = (float) ((ddl * gDry + wl * gWet) * gOut);
-        const float orr = (float) ((ddr * gDry + wr * gWet) * gOut);
+        float ol = (float) ((ddl * gDry + wl * gWet) * gOut);
+        float orr = (float) ((ddr * gDry + wr * gWet) * gOut);
+        // the host's bypass: a 20 ms crossfade to the dry path at unity, delayed by what
+        // the host is told; the tape runs on underneath. Exactly the machine when off.
+        if (tByp != gByp || gByp > 0.0)
+        {
+            gByp += (tByp - gByp) * aHost;
+            if (std::abs (tByp - gByp) < 1.0e-5) gByp = tByp;
+            ol  = (float) ((1.0 - gByp) * ol  + gByp * ddl);
+            orr = (float) ((1.0 - gByp) * orr + gByp * ddr);
+        }
+        msIn  += ((double) xl * xl * 0.5 + (double) xr * xr * 0.5 - msIn) * aVu;
+        msOut += ((double) ol * ol * 0.5 + (double) orr * orr * 0.5 - msOut) * aVu;
         pkOut = std::max (pkOut, std::max (std::abs (ol), std::abs (orr)));
         if (outL) outL[k] = ol;
         if (outR) outR[k] = orr;
@@ -1881,6 +1931,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     tele.syncActive = syncOn;
     tele.splicing = spliceState != 0;
 
+    tele.inMs = msIn; tele.outMs = msOut;
     tele.inPeak = std::max (tele.inPeak.load(), pkIn);
     tele.outPeak = std::max (tele.outPeak.load(), pkOut);
     tele.recPeak = std::max (tele.recPeak.load(), recPk);

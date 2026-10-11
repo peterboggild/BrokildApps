@@ -4,7 +4,7 @@ Collected, not built, until Peter says go (house rule).
 
 ---
 
-## 1. HEAD PATTERN — heads 2 and 3 snap to synced positions (Peter, 2026-10-10) — APPROVED, built in stage 8
+## 1. HEAD PATTERN — heads 2 and 3 snap to synced positions (Peter, 2026-10-10) — BUILT 2026-10-11 (261011.10, stage 8)
 
 *"is there a way to get head 2 and 3 to swap to relevant positions for different
 standard synced positions, from which they can be moved or nudged?"*
@@ -182,7 +182,7 @@ past the middle; hunting 4.5 % peak to peak at 1.34 s a cycle; clog swings 10 kH
 (spacing within 5 ms); the erase head 1.24 Hc on a loop, 2.25 on a reel; BROKEN 100 %
 plays 4.9 dB quieter than OK, never louder.
 
-## 6. THE MANUAL UNDER THE KNOB: educational tooltips (Peter, 2026-10-11) — APPROVED 2026-10-11: built with the stage 8 panel
+## 6. THE MANUAL UNDER THE KNOB: educational tooltips (Peter, 2026-10-11) — BUILT 2026-10-11 (261011.10, stage 8): 66 cards, 145 equations, 14 generated figures, 47 measured numbers
 
 *"a style-compatible popup window - like a both use and technical tooltip - which not
 just informs but also educates... explaining the technicalities of what lies under the
