@@ -228,7 +228,7 @@ void MagnetoTransportAudioProcessor::handleUiMessage (const juce::var& payload)
     if (k == "settings")
     {
         if (payload.hasProperty ("tooltips")) settings().setValue ("tooltips", (bool) payload.getProperty ("tooltips", true));
-        if (payload.hasProperty ("delay"))    settings().setValue ("delay", juce::jlimit (0.2, 3.0, (double) payload.getProperty ("delay", 0.8)));
+        if (payload.hasProperty ("delay"))    settings().setValue ("delay", juce::jlimit (0.2, 3.0, (double) payload.getProperty ("delay", 2.0)));
         settings().saveIfNeeded();
         return;
     }
@@ -280,7 +280,7 @@ void MagnetoTransportAudioProcessor::emitInitialState()
     {
         auto* so = new juce::DynamicObject();
         so->setProperty ("tooltips", settings().getBoolValue ("tooltips", true));
-        so->setProperty ("delay", settings().getDoubleValue ("delay", 0.8));
+        so->setProperty ("delay", settings().getDoubleValue ("delay", 2.0));
         obj->setProperty ("settings", juce::var (so));
     }
     {
