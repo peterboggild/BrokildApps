@@ -129,6 +129,12 @@ void MagnetoTransportAudioProcessor::processBlock (juce::AudioBuffer<float>& buf
 
     const float* inL = buffer.getReadPointer (0);
     const float* inR = numIn > 1 ? buffer.getReadPointer (1) : inL;
+    if (programme.load() && wrapperType == wrapperType_Standalone)
+    {
+        if ((int) prog.size() < n) prog.resize ((size_t) n);
+        renderProgramme (prog.data(), n);
+        inL = inR = prog.data();
+    }
 
     if (numOut > 1)
     {
@@ -182,6 +188,32 @@ void MagnetoTransportAudioProcessor::setStateInformation (const void* data, int 
 }
 
 //==============================================================================
+/*  The standalone's programme: a four-bar phrase of plucked notes at 120 BPM, each a
+    damped tone with a second harmonic, so the echoes have something to be echoes of.
+    Only the standalone ever renders it (processBlock checks the wrapper). */
+void MagnetoTransportAudioProcessor::renderProgramme (float* out, int n)
+{
+    static const float notes[16] = { 220.0f, 0, 261.63f, 329.63f, 0, 392.0f, 329.63f, 0,
+                                     220.0f, 261.63f, 0, 329.63f, 0, 196.0f, 0, 0 };
+    const double fs = lastRate > 0 ? lastRate : 48000.0, step = 0.25, bar = 16 * step;
+    for (int i = 0; i < n; ++i)
+    {
+        const double t = std::fmod (progT, bar);
+        const int k = (int) (t / step);
+        const double tn = t - k * step;
+        const float f = notes[k];
+        float v = 0.0f;
+        if (f > 0)
+        {
+            const double env = (1.0 - std::exp (-tn * 400.0)) * std::exp (-tn * 9.0);
+            const double ph = 2.0 * juce::MathConstants<double>::pi * f * tn;
+            v = (float) (0.45 * env * (std::sin (ph) + 0.35 * std::sin (2.0 * ph) + 0.12 * std::sin (3.0 * ph)));
+        }
+        out[i] = v;
+        progT += 1.0 / fs;
+    }
+}
+
 float MagnetoTransportAudioProcessor::physical (int i) const
 {
     return raw[(size_t) i]->load();
@@ -225,6 +257,7 @@ void MagnetoTransportAudioProcessor::handleUiMessage (const juce::var& payload)
     if (k == "presetSave") { saveUser (payload.getProperty ("name", {}).toString()); emitPresets(); return; }
     if (k == "presetDelete") { deleteUser (payload.getProperty ("user", {}).toString()); emitPresets(); return; }
     if (k == "quality") { setQuality ((int) payload.getProperty ("v", 1)); return; }
+    if (k == "programme") { programme = (bool) payload.getProperty ("v", false); return; }
     if (k == "settings")
     {
         if (payload.hasProperty ("tooltips")) settings().setValue ("tooltips", (bool) payload.getProperty ("tooltips", true));

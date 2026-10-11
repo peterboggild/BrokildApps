@@ -208,8 +208,8 @@ Every stage ends with its bench clear. **LISTEN** = stop, install, Peter listens
 | 6 | tape stock: particle statistics → hiss, modulation noise, dropouts; stocks, age, wear | built 2026-10-11 (261011.5): bench 141/141, hiss within 0.6 dB of the continuous coating |
 | 7 | FLUX MEMORY: partial erase, bias-erase overwrite, the LOOP panel (REC / DUB / PLAY, CLEAR, LOOP BARS; BUGLIST 2 and 7); also REPRO (4), the feedback law (3), OK / BROKEN (5), and the overdub physics (8: DUB is sound-on-sound, every pass one shot) | built 2026-10-11 (261011.9): **LISTEN D** |
 | 8 | panel driven by the simulation, quality tiers, presets, smoothing, bypass, latency, host test, pluginval if available | built 2026-10-11 (261011.10): the panel and its 66 generated cards (BUGLIST 6), HEAD PATTERN (1), ECO/NORMAL/HIGH (worst case 15/20/30 %), 24 levelled presets + user presets, our own bypass, the smoothing audit, the VST3 host test; pluginval not installed |
-| 9 | decal brief → **stop**; integrate on return | |
-| 10 | mechanical sounds, manual, landing page, zip; README draft for approval | |
+| 9 | decal brief → **stop**; integrate on return | brief + master prompt 2026-10-11 (ec91b19, 5d13df4); all 37 decals delivered the same evening and integrated in 261011.12: `tools/prepare-decals.ps1` crops, re-seats and downscales the delivery (9.0 MB), `uiprobe.js` phase D proves a full set moves nothing; the tape is a ribbon that runs between the flanges and wraps the arm rollers |
+| 10 | mechanical sounds, manual, landing page, zip; README draft for approval | MECH SOUNDS 261011.11 (4f1b577); 261011.12: 20-page landscape manual (16 plates shot from the live standalone with its built-in programme, overflow gate clean), landing page, preview, 34.8 MB zip proven from the archive, app.json + manifest entry — **local only; README awaiting Peter** |
 
 Prior-art check: when a slot appears, before any page says "never".
 

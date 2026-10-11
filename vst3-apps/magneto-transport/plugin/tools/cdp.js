@@ -8,6 +8,9 @@
  *
  *  jobs.json is an array of { name, eval }, { name, wait } (ms),
  *  { name, shoot } (png path) or { name, cmd, params } (a raw CDP call).
+ *  A shoot may add sel (a CSS selector; sel2 widens the clip to a second element),
+ *  pad (px, or {l,t,r,b}) and scale (default 1): the clip is the element's box in
+ *  PAGE coordinates, captured beyond the viewport.
  */
 const http = require("http");
 const net = require("net");
@@ -129,7 +132,20 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       continue;
     }
     if (j.shoot) {
-      const r = await ws.send("Page.captureScreenshot", { format: "png" });
+      const params = { format: "png" };
+      if (j.sel) {
+        const q = await ws.send("Runtime.evaluate", { returnByValue: true, expression:
+          `(function(){ var a=document.querySelector(${JSON.stringify(j.sel)}); if(!a) return null;
+             var r=a.getBoundingClientRect(), x0=r.left, y0=r.top, x1=r.right, y1=r.bottom;
+             ${j.sel2 ? `var b=document.querySelector(${JSON.stringify(j.sel2)}); if(b){ var s=b.getBoundingClientRect(); x0=Math.min(x0,s.left); y0=Math.min(y0,s.top); x1=Math.max(x1,s.right); y1=Math.max(y1,s.bottom); }` : ""}
+             return { x: x0 + window.scrollX, y: y0 + window.scrollY, w: x1 - x0, h: y1 - y0 }; })()` });
+        const b = q.result && q.result.result && q.result.result.value;
+        if (!b) { failures++; console.log(`  ${j.name || "shot"}\n     FAILED: no element ${j.sel}`); continue; }
+        const p = j.pad == null ? 0 : j.pad, pl = p.l != null ? p.l : p, pt = p.t != null ? p.t : p, pr = p.r != null ? p.r : p, pb = p.b != null ? p.b : p;
+        params.clip = { x: Math.max(0, b.x - pl), y: Math.max(0, b.y - pt), width: b.w + pl + pr, height: b.h + pt + pb, scale: j.scale || 1 };
+        params.captureBeyondViewport = true;
+      }
+      const r = await ws.send("Page.captureScreenshot", params);
       const b64 = r.result && r.result.data;
       if (b64) {
         require("fs").writeFileSync(j.shoot, Buffer.from(b64, "base64"));

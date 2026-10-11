@@ -52,6 +52,11 @@ public:
     // ack and the new page waits for a state that never comes.
     std::atomic<bool> uiHasState { false };
     std::atomic<bool> uiReady { false };
+    // the standalone's built-in programme (a plucked phrase), for photographs and a first listen
+    std::atomic<bool> programme { false };
+    double progT = 0.0;
+    std::vector<float> prog;
+    void renderProgramme (float* out, int n);
 
     /*  Presets (docs/PROTOCOL.md). Message thread. */
     void loadFactory (int i);

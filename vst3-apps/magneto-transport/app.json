@@ -1,0 +1,23 @@
+{
+  "slug": "magneto-transport",
+  "name": "Magneto Transport (VST3)",
+  "description": "A tape echo in which nothing is faked: no wow LFO, no saturation curve, no noise generator. The magnetic tape, the record, erase and three playback heads, the capstan motor and the reels are simulated, so echoes bend in pitch when the motor changes speed, a head moved along its rail gives real Doppler, and the hiss is the statistics of the particles in the coating. The one thing worth knowing is FLUX MEMORY: on a closed loop of tape the erase head can be turned down, and old recordings survive under what you play now. An erase field takes what it can reach, once. Tape has no undo.",
+  "status": "live",
+  "url": "vst3-apps/magneto-transport/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/magneto-transport.jpg",
+  "note": "Windows VST3 + standalone · build 261011.12 · free download · REEL and LOOP transports · 4 tape stocks · 24 presets · operating manual included.",
+  "tags": [
+    "vst3",
+    "effect"
+  ],
+  "downloads": [
+    {
+      "name": "Magneto-Transport-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Magneto-Transport-VST3-win64.zip",
+      "bytes": 34808429,
+      "sha256": "1ce56badea5d2bef246ffabf42134681e545506f49dbfe4f69daa6876e94f232"
+    }
+  ]
+}

@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Magneto Transport — Operating Manual</title>
+<style>
+/* ===========================================================================
+   Magneto Transport, operating manual.
+
+   Landscape, the house format since Battlestar Overdrive: the panel is wide
+   and a portrait page shrinks every plate to a stamp.  Each .page is exactly
+   one sheet with overflow:hidden, so content that is too tall is CUT OFF, not
+   pushed on - measure every page (tools/shoot-manual.ps1 from Gravity Well).
+
+   Plates are fixed boxes (.pl, width and height set per plate) with
+   object-fit:contain on the panel's own ink, so the layout does not move when
+   a plate arrives with a slightly different aspect.  docs/manual/PLATES.md
+   says how each one is shot.
+   =========================================================================== */
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:   #0b0d0c;
+  --ink-2: #151816;
+  --brass: #c9b27a;
+  --pale:  #e8dcb8;
+  --amber: #ffb340;
+  --red:   #d2412c;
+  --green: #7fbf6a;
+  --body:  #cfc7ae;
+  --dim:   #8a7a52;
+  --rule:  rgba(201,178,122,.30);
+}
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; background: var(--ink); }
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body); font-size: 9.7pt; line-height: 1.48;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.page{ position: relative; width: 297mm; height: 210mm; overflow: hidden;
+       page-break-after: always; background: var(--ink); }
+.page:last-child{ page-break-after: auto; }
+.pad{ position:absolute; inset: 13mm 16mm 18mm 16mm; }
+
+/* the panel's own voice: engraved, spaced, upper case */
+.kick{ font: 700 7.8pt/1 Consolas, "Cascadia Mono", monospace; letter-spacing: .34em;
+       text-transform: uppercase; color: var(--brass); margin: 0 0 3mm 0; }
+.kick.amber{ color: var(--amber); }
+h1,h2,h3{ font-family: Bahnschrift, "DIN Alternate", "Segoe UI", sans-serif; font-weight: 400;
+          letter-spacing: .14em; text-transform: uppercase; color: #f1e8cf; margin: 0; }
+h1{ font-size: 40pt; letter-spacing: .16em; line-height: 1; text-transform: none; }
+h2{ font-size: 21pt; line-height: 1.05; }
+h3{ font-size: 10.2pt; font-weight: 600; letter-spacing: .14em; color: var(--pale); margin: 0 0 1.4mm 0; }
+.sub{ font-size: 11pt; color: #e6dcc0; margin: 3mm 0 0 0; line-height: 1.45; max-width: 190mm; }
+p{ margin: 0 0 2.6mm 0; }
+b, strong{ color: #f4ecd4; font-weight: 600; }
+em{ color: var(--amber); font-style: normal; font-weight: 600; }
+code{ font-family: Consolas, monospace; font-size: 8.9pt; color: var(--pale); }
+
+.rule{ height: 1px; border:0; margin: 4mm 0 4.6mm 0;
+       background: linear-gradient(90deg, var(--brass) 0%, rgba(201,178,122,.35) 45%, rgba(201,178,122,0) 100%); }
+img{ display:block; max-width:100%; }
+figure{ margin:0; }
+figcaption{ font-size: 8pt; color: var(--dim); margin-top: 1.5mm; line-height: 1.36; }
+figcaption b{ color: var(--brass); }
+.pl{ display:block; width:100%; object-fit: contain; background: #121513;
+     border: 1px solid rgba(201,178,122,.25); border-radius: 2px; }
+
+.cols{ display:flex; gap: 8mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-38{ flex: 0 0 38% !important; }
+.c-45{ flex: 0 0 45% !important; }
+.c-55{ flex: 0 0 55% !important; }
+.c-62{ flex: 0 0 62% !important; }
+.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 4mm 8mm; }
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 3mm 7mm; }
+
+.ctl{ border-left: 2px solid var(--brass); padding-left: 3.2mm; margin-bottom: 3.1mm; }
+.ctl h3{ margin-bottom: .7mm; }
+.ctl p{ margin: 0; font-size: 9.1pt; line-height: 1.4; }
+.ctl.amber{ border-left-color: var(--amber); }
+.ctl.amber h3{ color: #ffe1b0; }
+.ctl.red{ border-left-color: var(--red); }
+
+.box{ border: 1px solid var(--rule); background: linear-gradient(160deg, rgba(201,178,122,.07), rgba(255,179,64,.03));
+      padding: 3.6mm 4.6mm; border-radius: 2px; }
+.box h3{ color: var(--brass); }
+.box p:last-child{ margin-bottom: 0; }
+.phys{ font-family: Consolas, monospace; color: var(--amber); font-size: 10pt; letter-spacing: .02em; margin: 1mm 0 2.6mm 0; }
+
+.chain{ display:flex; align-items:center; gap: 1.6mm; flex-wrap: wrap; margin: 2.5mm 0 3.5mm 0; }
+.chain .n{ border: 1px solid var(--brass); color: #f1e8cf; font: 600 8pt/1.2 Consolas, monospace;
+           letter-spacing: .05em; padding: 1.5mm 2mm; text-align:center; border-radius: 2px; white-space: nowrap; }
+.chain .n.new{ border-color: var(--amber); color: #ffe1b0; }
+.chain .a{ color: var(--brass); font-size: 11pt; }
+
+.tbl{ width:100%; border-collapse: collapse; font-size: 8.9pt; }
+.tbl td{ padding: 1.2mm 2mm 1.2mm 0; border-bottom: 1px solid rgba(201,178,122,.14); vertical-align: top; }
+.tbl td:first-child{ font: 600 8.4pt/1.4 Consolas, monospace; color: var(--pale); letter-spacing:.05em; white-space: nowrap; width: 32mm; }
+.tbl.num td:nth-child(2){ font: 600 8.6pt/1.4 Consolas, monospace; color: var(--amber); white-space: nowrap; width: 30mm; }
+.tbl.num td:first-child{ font: 400 8.9pt/1.4 "Segoe UI", sans-serif; color: var(--body); letter-spacing: 0; white-space: normal; width: auto; }
+
+.plist h3{ color: var(--brass); margin-top: 0; }
+.plist ol{ list-style: none; margin: 0 0 1.5mm 0; padding: 0; }
+.plist li{ font-size: 8.5pt; line-height: 1.36; color: var(--body); margin-bottom: 1.3mm; }
+.plist li b{ font: 600 8.3pt/1.3 Consolas, monospace; letter-spacing: .04em; color: #f1e8cf; display:block; }
+
+.folio{ position:absolute; left: 16mm; right: 16mm; bottom: 8mm; display:flex; justify-content: space-between;
+        font: 600 7pt/1 Consolas, monospace; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; }
+.folio b{ color: var(--brass); font-weight: 600; }
+
+/* cover: the machine on its own, the words on ink below it */
+.cover-art{ position:absolute; left:0; right:0; top:0; height: 124mm; overflow:hidden; background:#121513; }
+.cover-art img{ width:100%; height:100%; object-fit: cover; object-position: 50% 50%; }
+.cover-art:after{ content:""; position:absolute; left:0; right:0; bottom:0; height: 26mm;
+                  background: linear-gradient(180deg, rgba(11,13,12,0), var(--ink)); }
+.cover-text{ position:absolute; left: 16mm; right: 16mm; top: 132mm; }
+.wordmark{ font-family: Bahnschrift, "DIN Alternate", sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- 1  COVER -->
+<section class="page">
+  <div class="cover-art"><img src="img/machine-reel.jpg" alt="" /></div>
+  <div class="cover-text">
+    <p class="kick">Brokild &middot; VST3 + standalone &middot; operating manual</p>
+    <h1 class="wordmark">Magneto Transport</h1>
+    <p class="sub">A tape echo in which nothing is faked. The machine is simulated &mdash; the magnetic tape, the heads,
+       the motor and the reels &mdash; and the character is what the simulation does. On a closed loop of tape,
+       FLUX MEMORY lets old recordings survive under new ones.</p>
+  </div>
+  <div class="folio"><span>Magneto Transport</span><span>build 261011.12</span></div>
+</section>
+
+<!-- 2  THE IDEA -->
+<section class="page"><div class="pad">
+  <p class="kick">01 &middot; The idea</p>
+  <h2>Nothing faked: the tape is a medium</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div>
+      <p>The usual shortcut for a digital tape echo is a delay line with a wobble, a saturation curve and a noise generator laid on top.
+         Magneto Transport has none of those. There is <b>no wow LFO, no saturation curve and no noise generator</b>.
+         The machine is simulated, and the wow, the saturation and the hiss are what it does.</p>
+      <p>The tape is not a buffer of samples. It is an array of <b>magnetisation along the tape</b>, in cells of half a
+         micrometre, two tracks wide and four layers deep through the 14&nbsp;&micro;m oxide coating. A record head writes
+         into it, playback heads read it wherever they stand, and an erase head wipes it. From that one decision the rest follows:</p>
+      <p>&bull; <b>Delay is distance over speed.</b> It is not a formula in the code; it is the time the tape takes to carry
+         a recording from the record head to a playback head.<br/>
+         &bull; <b>Change the speed</b> and the echoes already on the tape bend in pitch, because they were recorded at one
+         speed and are read at another.<br/>
+         &bull; <b>Move a head</b> and it reads a different place: real Doppler, and reading backwards if it outruns the tape.<br/>
+         &bull; <b>Losses scale with speed</b> by themselves: the heads' gaps and spacing are filters in micrometres, not in hertz.<br/>
+         &bull; <b>FLUX MEMORY</b> is simply not erasing a stretch of tape before the record head reaches it again.</p>
+    </div>
+    <div>
+      <h3>The tape path</h3>
+      <div class="chain">
+        <span class="n">SUPPLY REEL<br/>or LOOP TANK</span><span class="a">&rarr;</span>
+        <span class="n new">ERASE</span><span class="a">&rarr;</span>
+        <span class="n new">RECORD<br/>150 kHz bias</span><span class="a">&rarr;</span>
+        <span class="n">PLAYBACK<br/>1 &middot; 2 &middot; 3</span><span class="a">&rarr;</span>
+        <span class="n">CAPSTAN</span>
+      </div>
+      <p>The erase head sits 2.5&nbsp;cm before the record head. The three playback heads ride carriages on a rail,
+         <b>1.5 to 24&nbsp;cm</b> downstream of it. The capstan pulls the tape at <b>4.75 to 76&nbsp;cm/s</b>, so a head 24&nbsp;cm
+         out at the slowest speed is about five seconds of delay, and a head at 1.5&nbsp;cm at the fastest is 20&nbsp;ms.</p>
+      <p class="phys">&nbsp;&nbsp;delay &tau; = head distance h / tape speed v</p>
+      <p>The <b>feedback</b> is a wire: the playback heads, through a bass and treble stage, back into the record amplifier
+         and onto the tape again. It can self-oscillate, and what holds it is the tape running out of magnetisation &mdash;
+         there is no limiter anywhere in the loop.</p>
+      <div class="box"><h3>The reference level</h3>
+        <p>&minus;18&nbsp;dBFS rms at 1&nbsp;kHz = <b>0&nbsp;VU</b> = <b>250&nbsp;nWb/m</b> on the tape, the 1970s studio operating
+           level. With every control at its default, the machine is unity at that level within +0.025&nbsp;dB.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>02</b></span></div></section>
+
+<!-- 3  QUICK START -->
+<section class="page"><div class="pad">
+  <p class="kick">02 &middot; Quick start</p>
+  <h2>First sound, then three things to try</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div class="c-38">
+      <h3>First sound</h3>
+      <p>Put Magneto Transport on a track and play. A fresh instance is <b>a well-kept studio machine</b>: a 1970s studio
+         tape at its operating bias, a freshly serviced transport, the reel running at 19&nbsp;cm/s, playback head 1 at
+         4&nbsp;cm &mdash; an echo about 210&nbsp;ms behind &mdash; with FEEDBACK and MIX at 35&nbsp;%.</p>
+      <p>On a <b>send</b>, switch <b>KILL DRY</b> on and turn <b>MIX</b> fully wet. To use it as a <b>tape machine</b> on an
+         insert, press <b>REPRO</b>.</p>
+      <div class="box" style="margin-top:3mm"><h3>Lost?</h3>
+        <p>Point at any control or any part of the machine and wait: a card opens saying what it does, and underneath,
+           how. The presets run from clean to strange and are all levelled to the loudness of what goes in.</p></div>
+    </div>
+    <div>
+      <div class="ctl amber"><h3>1 &middot; Move a head while it plays</h3>
+        <p>Play something sustained and drag playback head 1 along the rail in the machine view, or turn its POSITION
+           knob. The echo it is reading bends in pitch while the carriage moves: Doppler, with no pitch shifter behind it.
+           The head's window shows its delay in milliseconds as it goes. At slow tape speeds a head moved quickly can
+           outrun the tape and read backwards.</p></div>
+      <div class="ctl amber"><h3>2 &middot; Let it sing</h3>
+        <p>Turn FEEDBACK slowly up. Past about two thirds of the knob (68&nbsp;% at 19&nbsp;cm/s) the loop runs away and
+           sustains itself, and the tape's own saturation holds it. While it sings, turn TREBLE and BASS, move a head,
+           change TAPE SPEED: the pitch and tone follow the machine. Turn FEEDBACK back down to let it die away.</p></div>
+      <div class="ctl amber"><h3>3 &middot; Keep the past: FLUX MEMORY</h3>
+        <p>Set TRANSPORT to <b>LOOP</b>. With LOOP STATE on <b>REC</b> play a phrase. Switch to <b>DUB</b> with ERASE at 0:
+           the phrase stays on the loop, 3.5&nbsp;dB down once, and comes round every pass while you play over it. What you
+           play now is replaced on the next pass, leaving a faint ghost. Turn ERASE up and the old take loses more &mdash; once.
+           <b>PLAY</b> holds the loop as it is; <b>CLEAR</b> wipes it.</p></div>
+      <p style="font-size:9pt; margin-top:1mm">And one more: switch <b>MOTOR RUN</b> off. The capstan coasts to a stop and
+         everything on the tape dives in pitch; switch it on and the motor pulls it back up.</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>03</b></span></div></section>
+
+<!-- 4  THE PANEL -->
+<section class="page"><div class="pad">
+  <p class="kick">03 &middot; The deck</p>
+  <h2>The panel at a glance</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div class="c-62"><figure><img class="pl" src="img/panel.jpg" alt="" style="height:94mm" />
+      <figcaption><b>The whole deck</b>, as a fresh instance opens: the header across the top, the machine in the middle,
+        eight engraved plates below, and the hint line at the foot.</figcaption></figure></div>
+    <div>
+      <div class="ctl"><h3>The header</h3><p>Speed readout, the SYNC, OUT OF REACH and SPLICING lamps, BYPASS, the input and output
+        VU meters, the TAPE meter, presets, the settings gear and the build number.</p></div>
+      <div class="ctl"><h3>The machine</h3><p>The transport drawn from the simulation: reels or the loop tank, the heads, the rail,
+        the capstan, and the tape coloured by the magnetisation it carries right now.</p></div>
+      <div class="ctl"><h3>Upper plates</h3><p><b>RECORD</b>, <b>TRANSPORT</b>, <b>MECHANICS</b>, <b>OUTPUT</b>.</p></div>
+      <div class="ctl"><h3>Lower plates</h3><p><b>PLAYBACK HEADS</b>, <b>FEEDBACK</b>, <b>TAPE</b>, <b>LOOP &middot; FLUX MEMORY</b>.</p></div>
+      <div class="ctl"><h3>The hint line</h3><p>One line at the foot of the deck that names whatever is under the pointer,
+        whether or not the cards are on. The TOOLTIPS lamp at its right end switches the cards on and off.</p></div>
+      <p style="font-size:8.8pt">Every knob and switch on the plates is a host parameter &mdash; automatable and MIDI-learnable &mdash; including the
+        LOOP controls.</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>04</b></span></div></section>
+
+<!-- 5  HEADER AND HANDLING -->
+<section class="page"><div class="pad">
+  <p class="kick">04 &middot; The header</p>
+  <h2>Readouts, lamps, presets &mdash; and handling</h2>
+  <hr class="rule" />
+  <figure><img class="pl" src="img/header.jpg" alt="" style="height:10.6mm" /></figure>
+  <div class="cols" style="margin-top:5mm">
+    <div class="c-55">
+      <table class="tbl">
+        <tr><td>SPEED WINDOW</td><td>The capstan's actual speed in cm/s and inches per second. While the motor is still getting
+          there, an arrow shows the target it is heading for.</td></tr>
+        <tr><td>SYNC</td><td>Lit while SYNC is setting the motor speed from the host tempo.</td></tr>
+        <tr><td>OUT OF REACH</td><td>Red when the speed SYNC asks for falls outside 4.75&ndash;76&nbsp;cm/s and has been clamped.
+          Move the tempo head closer or further out to bring it back.</td></tr>
+        <tr><td>SPLICING</td><td>Lit while a new tape is being spliced in.</td></tr>
+        <tr><td>BYPASS</td><td>The host's bypass. A 20&nbsp;ms crossfade to the dry signal; the tape runs on underneath.</td></tr>
+        <tr><td>VU IN &middot; OUT</td><td>Rms level with VU ballistics. 0&nbsp;VU is &minus;18&nbsp;dBFS.</td></tr>
+        <tr><td>TAPE</td><td>How much of the tape's magnetic capacity the record head is using; full scale is the coating's full remanence.</td></tr>
+        <tr><td>PRESETS</td><td>&#9664; &#9654; step through the presets; click the name for the full list; SAVE stores your own.</td></tr>
+        <tr><td>GEAR</td><td>Cards on or off, the hover delay, QUALITY (ECO, NORMAL, HIGH) and the About box, which the wordmark opens too.</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Handling the controls</h3>
+      <p><b>Knobs</b>: drag up and down. Hold <b>Shift</b> for fine control. The mouse wheel steps a knob too, finer with
+         Shift. <b>Double-click</b> returns a knob to its default.</p>
+      <p><b>Switches</b> (REEL&nbsp;|&nbsp;LOOP, REC&nbsp;|&nbsp;DUB&nbsp;|&nbsp;PLAY and the rest) and <b>push buttons</b>
+         (MOTOR RUN, REPRO, KILL DRY, CLEAR, HEAD 1&ndash;3): click.</p>
+      <p><b>The machine view</b>: drag a playback head along the rail. Point at any part of the machine for its card.</p>
+      <h3 style="margin-top:3.5mm">Dimmed means waiting</h3>
+      <p>A control that does nothing in the present state is dimmed, and the LOOP plate's lower line says why &mdash; for
+         instance that ERASE acts only in DUB, or that the whole LOOP plate does nothing on a REEL. Nothing is hidden;
+         it waits for the state where it acts.</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>05</b></span></div></section>
+
+<!-- 6  THE MACHINE VIEW -->
+<section class="page"><div class="pad">
+  <p class="kick">05 &middot; The machine</p>
+  <h2>Drawn by the simulation, not animated</h2>
+  <hr class="rule" />
+  <div class="grid2">
+    <figure><img class="pl" src="img/machine-reel.jpg" alt="" style="height:42.4mm" />
+      <figcaption><b>REEL.</b> Fresh tape from the supply reel on the left, recordings leaving on the take-up reel.</figcaption></figure>
+    <figure><img class="pl" src="img/machine-loop.jpg" alt="" style="height:42.4mm" />
+      <figcaption><b>LOOP.</b> A closed loop from the tank, past the heads and back, carrying what was recorded round again.</figcaption></figure>
+  </div>
+  <div class="cols" style="margin-top:4.5mm">
+    <div>
+      <p>Everything in the picture is a value the engine is computing. The reels turn at the rate the tape leaves and
+         arrives, faster as a pack empties. The colour along the tape is <b>the magnetisation the engine holds right now</b>,
+         so you can watch a recording travel from the record head to the playback heads, and on a loop come round again.</p>
+      <p>A playback head that is switched on is lit. The rail is scaled in centimetres from the record head, and each head
+         sits where its carriage actually is &mdash; which, while it travels, is not yet where its knob points.</p>
+      <p>A full 10.5-inch reel of 730&nbsp;m lasts about 64 minutes at 19&nbsp;cm/s. When it runs out, a fresh one is threaded
+         silently: only the reel radii jump, never the tape under the heads.</p>
+    </div>
+    <div>
+      <table class="tbl">
+        <tr><td>SUPPLY &middot; TAKE-UP</td><td>The reels: their eccentricity and the holdback's drag vary the tension, which is wow.</td></tr>
+        <tr><td>LOOP TANK</td><td>Holds the loop. Its splice ticks past each head once a period.</td></tr>
+        <tr><td>E &middot; R</td><td>The erase head and the record head, fixed.</td></tr>
+        <tr><td>1 &middot; 2 &middot; 3</td><td>The playback heads on their carriages. Drag one to move it.</td></tr>
+        <tr><td>CAPSTAN &middot; PINCH</td><td>Pull the tape. Their runout and bearings are the flutter.</td></tr>
+        <tr><td>GUIDES</td><td>Lead the tape and weave it slightly: the source of azimuth error.</td></tr>
+        <tr><td>THE TAPE</td><td>Point at it for how the medium is modelled.</td></tr>
+      </table>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>06</b></span></div></section>
+
+<!-- 7  RECORD -->
+<section class="page"><div class="pad">
+  <p class="kick">06 &middot; Record</p>
+  <h2>How the signal goes onto the tape</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div class="c-38">
+      <figure><img class="pl" src="img/rec.jpg" alt="" style="height:63mm" />
+        <figcaption><b>RECORD</b>: drive, record level and bias above, the equalisation standard and the input mode below.</figcaption></figure>
+      <div class="box" style="margin-top:4mm"><h3>What bias does</h3>
+        <p>A ferric coating barely records an audio field on its own. The record head adds a 150&nbsp;kHz bias field many
+           times larger than the signal; as the tape leaves the gap the bias dies away through hundreds of cycles and the
+           particles settle with the signal as a small offset. How deep the bias reaches into the coating decides the sound:
+           too little records the surface only, bright and distorted; too much loses treble.</p></div>
+    </div>
+    <div>
+      <div class="ctl"><h3>Input drive &middot; &minus;24 to +24 dB</h3><p>The input amplifier. It pushes new material harder
+        into the tape &mdash; more saturation and compression &mdash; while the echoes already circulating keep their level,
+        because the feedback joins after it. The dry signal is untouched.</p></div>
+      <div class="ctl"><h3>Record level &middot; &minus;24 to +12 dB</h3><p>How hard the record head drives the tape, input and
+        feedback together. At 0&nbsp;dB a &minus;18&nbsp;dBFS tone is recorded at 250&nbsp;nWb/m. Above it the tape saturates,
+        below it the hiss comes up. Because it acts on the feedback too, it moves the loop's gain with it.</p></div>
+      <div class="ctl amber"><h3>Bias &middot; &minus;10 to +10 dB</h3><p>Relative to the alignment point &mdash; 10&nbsp;kHz
+        3&nbsp;dB past its peak at 19&nbsp;cm/s, as the 456 data sheet does it. <b>Less</b>: brighter, louder, dirtier, and on a
+        loop old recordings survive more of an overdub. <b>More</b>: cleaner, darker, quieter. Bias also erases: one pass at the
+        operating bias takes about 34.5&nbsp;dB off an old recording, at half bias only 4&nbsp;dB. That makes BIAS a loop's overdub depth control.</p></div>
+      <div class="ctl"><h3>Equalisation &middot; IEC | NAB</h3><p>The record and replay standard. IEC (the default) lifts the
+        treble on replay; NAB also boosts the bass on record, so the lows saturate a little sooner. The time constants follow
+        the tape speed, so the machine is aligned for whatever speed you set.</p></div>
+      <div class="ctl"><h3>Input &middot; STEREO | MONO</h3><p>STEREO records left and right on their own tracks. MONO records the
+        sum on both, for mono-to-stereo use &mdash; and the two tracks still come back slightly different, because each has its
+        own particles, its own hiss and its own dropouts.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>07</b></span></div></section>
+
+<!-- 8  TRANSPORT -->
+<section class="page"><div class="pad">
+  <p class="kick">07 &middot; Transport</p>
+  <h2>Speed, tempo and the motor</h2>
+  <hr class="rule" />
+  <figure><img class="pl" src="img/transport.jpg" alt="" style="width:165mm; height:55mm" />
+    <figcaption><b>TRANSPORT</b>: TAPE SPEED, SYNC and MOTOR RUN above REEL&nbsp;|&nbsp;LOOP and the tempo head; HEAD PATTERN and SET on the right.</figcaption></figure>
+  <div class="grid3" style="margin-top:4.5mm">
+    <div class="ctl amber"><h3>Tape speed &middot; 4.75&ndash;76 cm/s</h3><p>Continuously variable. Slower tape gives longer
+      echoes and a darker, more saturated sound, because the same frequency becomes a shorter wavelength on the tape. A change
+      glides with the motor's inertia, so every echo already on the tape bends in pitch.</p></div>
+    <div class="ctl"><h3>Sync</h3><p>OFF, or a note value from 1/16 to 2/1, with dotted and triplet values. SYNC does not shorten
+      a delay line: it sets the motor speed so the <b>tempo head</b> lands on that note at the host tempo. Tempo changes glide.</p></div>
+    <div class="ctl"><h3>Tempo head &middot; HEAD 1 | 2 | 3</h3><p>The head SYNC puts on the beat. The others keep their distances,
+      so they land where their spacing puts them &mdash; or on note values too, with HEAD PATTERN.</p></div>
+    <div class="ctl"><h3>Motor run</h3><p>Starts and stops the capstan motor. Stopped, the capstan coasts down &mdash; about
+      1.9&nbsp;s from 19&nbsp;cm/s, about 4&nbsp;s from 76 &mdash; and everything on the tape dives in pitch. Started, it pulls
+      back up through the motor's own dynamics, overshoot and all.</p></div>
+    <div class="ctl"><h3>Transport &middot; REEL | LOOP</h3><p>REEL threads an open reel: fresh tape arrives, recordings leave and
+      are never heard again. LOOP runs a closed loop past the heads, round and round. A change is a splice: the echo fades out,
+      a new tape is threaded and it fades back in.</p></div>
+    <div class="ctl"><h3>Head pattern &middot; SET</h3><p>A set of position ratios for the three heads around the tempo head,
+      such as the Space Echo's 1:2:3. SET moves the heads there once, then lets go. See page 10.</p></div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>08</b></span></div></section>
+
+<!-- 9  SYNC, TEMPO HEAD, LOOP BARS -->
+<section class="page"><div class="pad">
+  <p class="kick">08 &middot; Sync in depth</p>
+  <h2>The tempo head and LOOP BARS</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div>
+      <h3>One speed, three heads</h3>
+      <p>Every head's delay is its distance over the one tape speed, so only one head's delay can be set by the motor. SYNC
+         solves for the speed from the tempo head:</p>
+      <p class="phys">&nbsp;&nbsp;v = h<sub>tempo</sub> / t<sub>note</sub>,&nbsp;&nbsp; t<sub>note</sub> = 60 &middot; b / BPM</p>
+      <p>with <code>b</code> the note value in beats. At 120&nbsp;BPM a quarter note is 0.5&nbsp;s, so a tempo head at 4&nbsp;cm
+         asks for 8&nbsp;cm/s. The ratio between any two heads' delays is then simply the ratio of their positions, at any tempo.</p>
+      <p>That is why dragging the <b>tempo head</b> changes the motor speed &mdash; and the pitch of everything in flight &mdash;
+         while dragging another head changes only its own echo. If the speed asked for falls outside 4.75&ndash;76&nbsp;cm/s, it
+         is clamped and the <b>OUT OF REACH</b> lamp lights; moving the tempo head brings it back.</p>
+      <h3 style="margin-top:3.5mm">Loop bars</h3>
+      <p>In LOOP with SYNC on, <b>LOOP BARS</b> cuts the loop to a number of 4/4 bars (1 to 16) at the tempo head's note value.
+         The length depends only on the tempo head's distance and the note value &mdash; the tempo cancels:</p>
+      <p class="phys">&nbsp;&nbsp;L = N &middot; (4 / b) &middot; h<sub>tempo</sub></p>
+      <p>So the loop stays that many bars at any tempo: a faster tempo runs the same length of tape faster. <b>FREE</b> (0) uses
+         LOOP LENGTH instead.</p>
+    </div>
+    <div>
+      <figure><img class="pl" src="img/loopbars.jpg" alt="" style="height:45.2mm" />
+        <figcaption><b>The fit, named.</b> Two bars at 1/4 from a 4&nbsp;cm head would be a 0.32&nbsp;m loop, below the
+          0.5&nbsp;m minimum, so the LOOP readout says which bar counts do fit.</figcaption></figure>
+      <div class="box" style="margin-top:4mm"><h3>The 0.5&ndash;6 m fit</h3>
+        <p>A loop must be 0.5 to 6&nbsp;m long. At 1/4 from a 4&nbsp;cm head one bar is 16&nbsp;cm of tape, so one to three bars
+           are too short and four bars (0.64&nbsp;m) is the first that fits; all the way to 16 bars (2.56&nbsp;m) fits. When the
+           count you ask for does not fit, the LOOP readout names the counts that do, or tells you to move the tempo head
+           closer or further out.</p>
+        <p>Cutting is a splice &mdash; a new, blank loop. It happens when the bars, the note or the tempo head change, never while
+           a head is being dragged. Drag the tempo head afterwards and the speed changes, so the loop stops being whole bars:
+           the readout says how many it lasts now. Set BARS again to re-cut.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>09</b></span></div></section>
+
+<!-- 10  PLAYBACK HEADS + HEAD PATTERN -->
+<section class="page"><div class="pad">
+  <p class="kick">09 &middot; Playback heads</p>
+  <h2>Three heads on one rail</h2>
+  <hr class="rule" />
+  <figure><img class="pl" src="img/heads.jpg" alt="" style="width:150mm; height:48.4mm" />
+    <figcaption><b>PLAYBACK HEADS</b>: per head, an on/off button, a window with its present delay, and POSITION, LEVEL and PAN.</figcaption></figure>
+  <div class="cols" style="margin-top:4.5mm">
+    <div>
+      <div class="ctl"><h3>Head 1 &middot; 2 &middot; 3</h3><p>On or off. An off head is silent and takes no part in the feedback.
+        What is on the tape is there whether a head reads it or not, so switching a head on mid-loop plays what has been there all along.</p></div>
+      <div class="ctl amber"><h3>Position &middot; 1.5&ndash;24 cm</h3><p>Distance from the record head. The carriage follows the
+        knob with real inertia, at up to 12&nbsp;cm/s, and while it moves the head reads the tape faster or slower: Doppler.
+        Heads cannot pass each other &mdash; their centres stay at least 1.2&nbsp;cm apart and a carriage stops against its neighbour.</p></div>
+      <div class="ctl"><h3>Level &middot; &minus;36 to +6 dB</h3><p>The head's replay level, and so also how much of it goes round the
+        feedback. Above 0&nbsp;dB the echo can reach the playback amplifier's rail, a smooth knee into +2&nbsp;dBFS.</p></div>
+      <div class="ctl"><h3>Pan</h3><p>Where the head's echo sits in the stereo field. Spread the heads and a multi-head echo becomes a
+        pattern moving across the speakers.</p></div>
+    </div>
+    <div>
+      <h3>Head pattern</h3>
+      <table class="tbl">
+        <tr><td>1:2:3</td><td>The Space Echo's evenly spaced heads.</td></tr>
+        <tr><td>1:1.5:2</td><td>Dotted.</td></tr>
+        <tr><td>1:1.33:2</td><td>A triplet feel.</td></tr>
+        <tr><td>1:2:4</td><td>Doubling.</td></tr>
+        <tr><td>1:1.5:3 &middot; 1:3:4</td><td>Two more rhythms between the heads.</td></tr>
+        <tr><td>GOLDEN</td><td>1&nbsp;:&nbsp;&phi;&nbsp;:&nbsp;&phi;&sup2;, a rhythm with no simple ratio at all.</td></tr>
+      </table>
+      <p style="margin-top:2.5mm">The tempo head keeps its place; the unit is its distance over its own ratio, and the others go to
+         the pattern's positions in rail order. Tempo head 1 at 4&nbsp;cm with 1:2:3 puts the heads at 4, 8 and 12&nbsp;cm. With SYNC
+         on, every head lands on a note value. Beside SET the panel says <b>FITS THE RAIL</b>, or names the head that would fall off.</p>
+      <p>SET is a one-shot snap, not a lock: the carriages travel there with their inertia &mdash; every echo in flight glides &mdash;
+         and afterwards the knobs and the rail are yours again.</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>10</b></span></div></section>
+
+<!-- 11  FEEDBACK -->
+<section class="page"><div class="pad">
+  <p class="kick">10 &middot; Feedback</p>
+  <h2>A wire, not a limiter</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div class="c-38">
+      <figure><img class="pl" src="img/feedback.jpg" alt="" style="height:75mm" />
+        <figcaption><b>FEEDBACK</b> with BASS and TREBLE, the shelves on the wire.</figcaption></figure>
+      <div class="box" style="margin-top:4mm"><h3>The runaway point stays put</h3>
+        <p>The wire is divided by the number of heads that are on, so FEEDBACK keeps its meaning with one, two or three
+           heads. With heads at 0&nbsp;dB, runaway was measured at 68&nbsp;% of the knob at 19&nbsp;cm/s, and 100&nbsp;% runs
+           away at every speed.</p></div>
+    </div>
+    <div>
+      <div class="ctl amber"><h3>Feedback</h3><p>How much of the playback is wired back into the record amplifier, so the echoes
+        repeat. Each repeat goes through the whole record process onto the tape again, so it picks up another pass of the tape's
+        saturation, losses and noise. Past about two thirds of the knob the loop self-oscillates.</p></div>
+      <div class="ctl"><h3>Bass &middot; &plusmn;12 dB</h3><p>A low shelf on the wire. Cut, each repeat grows thinner; boosted,
+        heavier. The first echo from each head is not affected &mdash; only what goes round again &mdash; and the shaping compounds
+        with every pass. A boost runs away sooner and lower, into the thud real tape echoes are known for.</p></div>
+      <div class="ctl"><h3>Treble &middot; &plusmn;12 dB</h3><p>A high shelf on the wire. Cut, the repeats darken like a worn
+        echo; boosted, they stay bright longer. A treble boost meets the tape's saturation first, because the record
+        pre-emphasis already lifts the top, so it compresses.</p></div>
+      <h3 style="margin-top:3mm">What holds a runaway</h3>
+      <p>There is no clipper and no limiter in the loop. What contains a self-oscillating loop is the tape running out of
+         remanence: it sits just under full magnetisation, and its pitch and tone are set by the heads, the tone shelves, the
+         head bump and the tape stock. Watch the TAPE meter in the header climb as it does. The output stage then has a
+         smooth knee into a rail at +2&nbsp;dBFS, so a singing loop peaks just under it however hard it runs.</p>
+      <p>Every repeat is a new recording, so the hiss, the flutter and the losses build up the way they do on a real echo. For
+         a loop that stacks layers rather than echoes, FEEDBACK is also the tape way to overdub (page 15).</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>11</b></span></div></section>
+
+<!-- 12  MECHANICS -->
+<section class="page"><div class="pad">
+  <p class="kick">11 &middot; Mechanics</p>
+  <h2>Wow and flutter from causes</h2>
+  <hr class="rule" />
+  <figure><img class="pl" src="img/mechanics.jpg" alt="" style="width:132mm; height:53.4mm" />
+    <figcaption><b>MECHANICS</b> with OK&nbsp;/&nbsp;BROKEN past the middle: red dots on the knobs show where BROKEN has taken
+      each cause, and the faults it is causing are named on the slider.</figcaption></figure>
+  <div class="cols" style="margin-top:4.5mm">
+    <div>
+      <div class="ctl amber"><h3>Transport condition &middot; 0&ndash;100 %</h3><p>How worn the transport is: 0 ideal, 15 freshly
+        serviced (the default), 100 worn out. It sets physical causes &mdash; runout, rough bearings, tension variation,
+        friction &mdash; and the wow and flutter are what they do.</p></div>
+      <div class="ctl"><h3>Capstan &middot; Reels &middot; Scrape &middot; 0&ndash;200 %</h3><p>How CONDITION's wear is shared.
+        <b>CAPSTAN</b>: runout, bearings, motor ripple &mdash; flutter, a quick warble. <b>REELS</b>: eccentricity and holdback
+        friction vary the tension, and tension stretches the tape &mdash; wow, a slow drift. <b>SCRAPE</b>: the tape sticks and
+        slips over the heads and rings at a few kilohertz &mdash; a fuzz around a tone, not a pitch wobble.</p></div>
+      <div class="ctl"><h3>Motor &middot; AC SYNC | DC SERVO</h3><p>AC SYNC, a synchronous motor that hunts gently around a new speed,
+        with ripple at twice the mains. DC SERVO, a tachometer-controlled motor, quicker and firmer, with its own slot ripple.
+        Heard whenever SYNC, TAPE SPEED or MOTOR RUN moves the speed.</p></div>
+    </div>
+    <div>
+      <div class="ctl red"><h3>OK / BROKEN</h3><p>A neglected machine in one slider. It moves CONDITION, CAPSTAN, REELS, SCRAPE and
+        WEAR from where the knobs are towards a wreck, sags the bias oscillator, and on a loop weakens the erase head. Below the
+        middle it is exactly those knobs turned by hand. Past the middle three faults appear: <b>CLOG</b>, oxide on a playback
+        head, the treble dropping away for seconds; <b>HUNT</b>, the speed control swinging the pitch slowly; and <b>CRINKLE</b>,
+        a crinkled stretch of tape, a burst of dropouts and flutter once a loop. A broken machine is quieter, never louder.</p></div>
+      <div class="ctl"><h3>The W&amp;F meter</h3><p>Reads the machine the way a DIN/IEC meter reads a real deck: how much the replayed
+        speed wavers against the speed it was recorded at, weighted to how audible it is, as 2&sigma; over about two seconds.
+        Freshly serviced it reads about 0.036&nbsp;%, worn out 0.24&nbsp;%. After a speed change it shows <b>settling</b> until the
+        change has passed the head. Scrape barely shows: the weighting has fallen away long before its kilohertz band.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>12</b></span></div></section>
+
+<!-- 13  TAPE -->
+<section class="page"><div class="pad">
+  <p class="kick">12 &middot; Tape</p>
+  <h2>Stocks, particles and wear</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div class="c-38">
+      <figure><img class="pl" src="img/tape.jpg" alt="" style="height:56mm" />
+        <figcaption><b>TAPE</b>: PARTICLES, WEAR and ACCUMULATE above the four stocks.</figcaption></figure>
+      <div class="box" style="margin-top:4mm"><h3>Hiss is statistics</h3>
+        <p>A cell of coating holds a finite number of magnetic particles, each pointing one way or the other, so its magnetisation
+           carries a statistical spread. That spread, written onto the tape every time a cell is recorded, is the hiss. It is
+           largest where the tape is demagnetised and vanishes where it is saturated. The studio tape at 19&nbsp;cm/s measures
+           &minus;61.9&nbsp;dBA under 0&nbsp;VU.</p></div>
+    </div>
+    <div>
+      <div class="ctl amber"><h3>Tape stock</h3><p><b>STUDIO</b>: a 1970s high-output studio tape, 456 class, the default.
+        <b>VINTAGE</b>: a 1960s low-output tape, less headroom and more hiss. <b>SHEDDING</b>: the studio tape decayed &mdash; oxide
+        lost, a sticky binder, deep dropouts. <b>BUDGET</b>: cheap echo-machine tape. Like a technician loading a reel, the machine
+        sets bias, record level and record treble for each fresh stock; changing it threads a new reel. Vintage and budget have
+        an operating level of 185&nbsp;nWb/m, so the same RECORD LEVEL saturates them sooner.</p></div>
+      <div class="ctl"><h3>Particles &middot; 0.1&times; to 1000&times;</h3><p>The particle count against the stock's own. Ten
+        times as many gives 10&nbsp;dB less hiss. At the top the coating is a continuum and the tape is silent: silence in gives
+        exactly silence out. At 0.1&times; it hisses 10&nbsp;dB more than the stock does.</p></div>
+      <div class="ctl"><h3>Wear &middot; 0&ndash;100 %</h3><p>How worn the tape is: oxide lost, a rougher surface, more dropouts,
+        debris lifting it off the heads. Worn tape is duller, quieter and less steady; at 100&nbsp;% a quarter of the oxide is gone
+        (2.6&nbsp;dB at 1&nbsp;kHz). The same lift off the head costs four times the decibels at a quarter of the speed.</p></div>
+      <div class="ctl"><h3>Accumulate</h3><p>A loop wears a little on every pass over the heads, at its stock's own rate &mdash; a studio
+        loop over some thousands of passes, a shedding one in a few hundred &mdash; and keeps its wear with the project. Off, the tape
+        stays as WEAR sets it. A reel never accumulates: its tape passes the heads once.</p></div>
+      <p style="font-size:8.9pt">Modulation noise, roughness and dropouts are properties of the tape, drawn from the position on it:
+         a reel never repeats them, and a loop brings them round every pass. The hiss is new on every pass, because the bias
+         re-randomises the particles.</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>13</b></span></div></section>
+
+<!-- 14  REEL vs LOOP, THE LOOP PLATE -->
+<section class="page"><div class="pad">
+  <p class="kick amber">13 &middot; Loop &middot; Flux memory</p>
+  <h2>REEL or LOOP, and what the heads do to a loop</h2>
+  <hr class="rule" />
+  <figure><img class="pl" src="img/loop.jpg" alt="" style="width:140mm; height:49.3mm" />
+    <figcaption><b>LOOP &middot; FLUX MEMORY</b> in DUB: loop length, bars and ERASE, the LOOP STATE switch and CLEAR, and the readout
+      reporting what the heads are doing as measured &mdash; here the erase head's field in units of the coating's coercivity.</figcaption></figure>
+  <div class="cols" style="margin-top:4.5mm">
+    <div>
+      <p>On a <b>REEL</b> the erase head always runs full and fresh tape keeps arriving, so nothing recorded ever comes back:
+         the LOOP plate does nothing, and its readout says <code>REEL: fresh tape, erase head full</code>.</p>
+      <p>On a <b>LOOP</b> the same tape comes round every period, <b>T = L / v</b> &mdash; a 2&nbsp;m loop at 19&nbsp;cm/s returns
+         every 10.5&nbsp;s. The LOOP plate decides what the heads do to it:</p>
+      <div class="ctl"><h3>REC</h3><p>The erase head wipes the loop at full field and a fresh take is recorded every pass: the plain
+        echo, exactly as on a reel. The default.</p></div>
+      <div class="ctl amber"><h3>DUB</h3><p>Sound-on-sound. The bias drops 6&nbsp;dB, so the take committed in REC stays under what you
+        play now. ERASE sets how much of it the erase head takes.</p></div>
+      <div class="ctl"><h3>PLAY</h3><p>Record and bias off, the erase field ramped to exactly zero: the loop plays unchanged, for as long
+        as you like. FEEDBACK has nothing to write.</p></div>
+    </div>
+    <div>
+      <div class="ctl amber"><h3>Erase &middot; 0&ndash;100 %</h3><p>In DUB, how much of the take committed in REC the erase head takes.
+        At 0 the head is off and the take stays (less the 3.5&nbsp;dB the lowered bias takes once). The knob walks from a pass
+        losing under a decibel to one losing 60&nbsp;dB at 90&nbsp;%, and 100&nbsp;% wipes. It acts <b>once</b>.</p></div>
+      <div class="ctl"><h3>Clear</h3><p>One full pass of the erase head over the loop at full field, with record off. The readout shows
+        CLEARING while it runs; afterwards the loop is blank, the same as virgin tape.</p></div>
+      <div class="ctl"><h3>Loop length &middot; 0.5&ndash;6 m</h3><p>Cut in 5&nbsp;cm steps. A change is a new loop: fresh, blank tape
+        is spliced in, since no machine can stretch a loop. The playback heads are kept clear of the stretch of tape already on its
+        way back to the erase head.</p></div>
+      <div class="ctl"><h3>Loop bars</h3><p>With SYNC on, the loop is cut to whole bars instead (page 9). LOOP LENGTH waits.</p></div>
+      <p style="font-size:8.9pt">The loop carries a real splice, a 20&nbsp;&micro;m butt joint with splicing tape on the back, which
+         ticks past each head once a period.</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>14</b></span></div></section>
+
+<!-- 15  FLUX MEMORY IN DEPTH -->
+<section class="page"><div class="pad">
+  <p class="kick amber">14 &middot; Flux memory in depth</p>
+  <h2>Tape has no undo</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div>
+      <p>FLUX MEMORY is a variable erase head on a finite loop of tape. What it can do is decided by three facts, measured by the
+         offline reference model of the oxide:</p>
+      <div class="ctl amber"><h3>1 &middot; A field takes what it can reach, once</h3><p>The coating is an ensemble of particles with
+        switching fields spread around its coercivity. A dying erase field switches exactly the particles it can reach and leaves the
+        rest &mdash; and the same field reaches the same particles next time. So <b>partial erasure is one shot, not a fade</b>: a second
+        pass at the same ERASE setting takes nothing further, turning it up takes more, turning it down brings nothing back.</p></div>
+      <div class="ctl"><h3>2 &middot; A take survives a lower bias</h3><p>A take recorded at the operating bias reaches deep into the coating.
+        A later pass at a lower bias reaches only the surface, so the take survives it, permanently &mdash; bass best. In DUB the take
+        loses 3.5&nbsp;dB once, and 10&nbsp;kHz about 9.7&nbsp;dB.</p></div>
+      <div class="ctl"><h3>3 &middot; What is recorded at a bias is replaced at that bias</h3><p>Each overdub in DUB is recorded at the
+        lowered bias, so the next pass replaces it, leaving a ghost about 24&nbsp;dB down &mdash; louder the harder you drive, about
+        13&nbsp;dB down when driven 12&nbsp;dB hotter &mdash; and lower BIAS keeps more.</p></div>
+    </div>
+    <div>
+      <figure><img class="pl" src="img/card-dub.jpg" alt="" style="height:66mm" />
+        <figcaption><b>The LOOP STATE card</b>, pinned: what DUB does in plain words, then the three facts with the measured numbers.</figcaption></figure>
+      <div class="box" style="margin-top:4mm"><h3>Ways to play it</h3>
+        <p><b>A bed that stays.</b> REC a phrase, then DUB with ERASE at 0: play over it as long as you like.<br/>
+           <b>Ghosts.</b> DUB with ERASE around 30&nbsp;%: the take loses part of itself once and then stays, coming round at the loop's
+           period under the heads' own echoes &mdash; two rhythms at once.<br/>
+           <b>Layers.</b> Overdubs do not stack on one track of tape. What stacks layers is FEEDBACK, as tape musicians did it: what the
+           heads play is recorded again with what you add.<br/>
+           <b>Freeze.</b> Switch to PLAY and the loop holds.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>15</b></span></div></section>
+
+<!-- 16  OUTPUT, REPRO, MECH SOUNDS, QUALITY -->
+<section class="page"><div class="pad">
+  <p class="kick">15 &middot; Output</p>
+  <h2>Mix, REPRO, the machine's own sounds</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div class="c-38">
+      <figure><img class="pl" src="img/output.jpg" alt="" style="height:50mm" />
+        <figcaption><b>OUTPUT</b> with REPRO on: the button carries the delay reported to the host; elsewhere on the deck heads 2 and 3 and FEEDBACK dim.</figcaption></figure>
+      <div class="box" style="margin-top:4mm"><h3>Quality</h3>
+        <p>In the gear menu: <b>ECO</b> runs the tape model at the host rate, <b>NORMAL</b> (the default) at twice it, <b>HIGH</b> at four
+           times. The tape's resolution is in micrometres whatever you choose; the tier trades processor time against the internal rate.
+           Worst case measured (76&nbsp;cm/s, three heads, feedback): 14.5&nbsp;%, 20.7&nbsp;% and 30.1&nbsp;% of one core. A change
+           threads a fresh tape, and is saved with the project.</p></div>
+    </div>
+    <div>
+      <div class="ctl"><h3>Mix</h3><p>Dry to wet, equal power, so the loudness stays steady across the knob. The plug-in reports no latency:
+        the echo is where the head distance says.</p></div>
+      <div class="ctl"><h3>Output &middot; &minus;24 to +12 dB</h3><p>A clean final level. It changes loudness only; RECORD LEVEL, DRIVE and BIAS
+        change the sound.</p></div>
+      <div class="ctl"><h3>Kill dry</h3><p>Removes the dry signal whatever MIX says, for a send or aux. Turn MIX fully wet for the echo at unity.</p></div>
+      <div class="ctl amber"><h3>Repro</h3><p>A tape machine on an insert. Head 1 is the replay head, heads 2 and 3 and FEEDBACK are off, and
+        head 1's delay is reported to the host so the track stays in time; MIX blends the tape with the dry signal, delayed to match. Everything
+        the tape does stays on the signal &mdash; stock, bias, saturation, hiss, wow and flutter. Moving head 1 or changing the speed changes the
+        delay the host must make up, and some hosts click when it does.</p></div>
+      <div class="ctl"><h3>Mech sounds &middot; 0&ndash;100 %</h3><p>The machine's own sounds on the output, at their own level: the AC motor's hum
+        or the servo's whine, the capstan's rumble, the reels' bearings, the tape over the heads, the splice ticking once a loop, the carriages
+        travelling, the solenoids clunking. All driven by the transport, so they slow down and speed up with it. 0 is off and the output is the
+        machine exactly. Not part of a preset.</p></div>
+      <div class="ctl"><h3>Bypass</h3><p>A 20&nbsp;ms crossfade to the dry signal, delayed by exactly the latency reported, so a bypassed REPRO stays
+        in time. The tape keeps running: switching back in finds the echoes where they would have been.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>16</b></span></div></section>
+
+<!-- 17  PRESETS -->
+<section class="page"><div class="pad">
+  <p class="kick">16 &middot; Presets</p>
+  <h2>Twenty-four machines, clean to strange</h2>
+  <hr class="rule" />
+  <div class="grid3 plist" style="grid-template-columns: repeat(6, 1fr); gap: 3mm 5mm">
+    <div><h3>Clean</h3><ol>
+      <li><b>Studio Slap</b>38 cm/s, one short slap, nearly ideal transport, quiet tape.</li>
+      <li><b>Clean Quarter</b>A synced quarter note on a well-kept machine.</li>
+      <li><b>Mastering Tape</b>REPRO at 76 cm/s, very quiet tape: tape on an insert.</li>
+      <li><b>Silky Doubler</b>Two heads 20 and 36 ms out, panned apart, no feedback.</li></ol></div>
+    <div><h3>Classic echo</h3><ol>
+      <li><b>Space Echo 1:2:3</b>Three heads at 4, 8 and 12 cm, repeats darkening.</li>
+      <li><b>Dub Delay</b>One far head at 9.5 cm/s, long feedback, bass up, treble down.</li>
+      <li><b>Rockabilly Slap</b>A short slap with a little drive.</li>
+      <li><b>Dotted Eighth</b>Synced to a dotted eighth.</li></ol></div>
+    <div><h3>Multi-head</h3><ol>
+      <li><b>Three-Head Canyon</b>The slowest speed, heads spread to 20 cm and across the field.</li>
+      <li><b>Golden Taps</b>The GOLDEN pattern: echoes with no simple ratio.</li>
+      <li><b>Triplet Ladder</b>Synced quarter, heads on the triplet pattern.</li>
+      <li><b>Ping Pong Heads</b>Two heads panned hard left and right.</li></ol></div>
+    <div><h3>Character</h3><ol>
+      <li><b>Hot Saturated Tape</b>REPRO driven hot, bias low: tape saturation as an insert.</li>
+      <li><b>Worn Echo Tape</b>Budget tape, worn, on a worn transport at 4.75 cm/s.</li>
+      <li><b>Vintage Low Output</b>The 1960s stock.</li>
+      <li><b>Shedding Ghosts</b>The decaying stock, dropouts and a sticky binder.</li></ol></div>
+    <div><h3>Loops</h3><ol>
+      <li><b>Tape Loop Echo</b>A 1 m loop in REC: a plain echo off a loop.</li>
+      <li><b>Flux Memory Ghosts</b>A 0.75 m loop in DUB, ERASE at 30 %.</li>
+      <li><b>Sound on Sound</b>A 2 m loop in DUB, ERASE off, no feedback.</li>
+      <li><b>Four Bar Loop</b>LOOP BARS 4 at 1/16, in DUB, ERASE at 50 %.</li></ol></div>
+    <div><h3>Strange</h3><ol>
+      <li><b>Broken Machine</b>OK / BROKEN at 85 %: clogs, hunting, crinkles.</li>
+      <li><b>Varispeed Drunk</b>6 cm/s on a worn-out transport, capstan and reel wear doubled.</li>
+      <li><b>Erase Head Smear</b>A 0.5 m loop in DUB, ERASE 55 %, bias low.</li>
+      <li><b>Hall of Heads</b>Three close heads at the slowest speed, long dark feedback.</li></ol></div>
+  </div>
+  <div class="cols" style="margin-top:4mm">
+    <div class="c-45"><figure><img class="pl" src="img/presets.jpg" alt="" style="height:52mm" />
+      <figcaption><b>The preset list</b>, opened by clicking the name in the header: factory presets by group, your own beside them.</figcaption></figure></div>
+    <div>
+      <div class="ctl"><h3>Levelled</h3><p>Every factory preset's output is set so that it is as loud as the programme going in, so a bypass
+        A/B is a level match. The presets are also the host's programs.</p></div>
+      <div class="ctl"><h3>Your own</h3><p><b>SAVE</b> in the header stores the state of every control as a user preset, one file each in
+        <code>Documents\Brokild patches\Magneto Transport</code>. Deleting one moves it to a <code>Deleted</code> folder rather than destroying it.</p></div>
+      <div class="ctl"><h3>What a preset leaves alone</h3><p>BYPASS and MECH SOUNDS are never changed by a preset: a preset will not unbypass a
+        bypassed plug-in, nor switch the machine's noises on or off.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>17</b></span></div></section>
+
+<!-- 18  THE CARDS -->
+<section class="page"><div class="pad">
+  <p class="kick">17 &middot; The cards</p>
+  <h2>A card under every control</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div class="c-38"><figure><img class="pl" src="img/card-bias.jpg" alt="" style="height:126mm" />
+      <figcaption><b>BIAS</b>, pinned: plain words, then UNDER THE HOOD with the physics, a figure whose marker follows the knob, and
+        numbers measured on this build.</figcaption></figure></div>
+    <div>
+      <p>Point at any control, readout or part of the machine and hold still: after the hover delay a card opens beside it, never over
+         it. There are 66 of them.</p>
+      <div class="ctl"><h3>What it does</h3><p>At the top, in plain words: what the control does to the sound.</p></div>
+      <div class="ctl amber"><h3>Under the hood</h3><p>Below, the physics: the mechanism, a few equations, and where it helps a figure drawn
+        from the reference model or the bench, with a live marker that follows the control. Read as far as you like.</p></div>
+      <div class="ctl"><h3>Not modelled</h3><p>Where the model stops short of a real machine, the card says so.</p></div>
+      <div class="ctl"><h3>Pinning</h3><p>Click a card to pin it; it stays while you turn the control and its figure keeps following. Esc, the
+        &#10005; or a click elsewhere closes it.</p></div>
+      <div class="box" style="margin-top:2mm"><h3>The numbers are measured</h3>
+        <p>Every number quoted on a card is written by the plug-in's test bench when it is built, beside the check that measures it. A retuned
+           model cannot leave a stale claim on screen.</p></div>
+      <h3 style="margin-top:4mm">Settings</h3>
+      <p>The gear in the header switches the cards off and sets the <b>hover delay</b> (0.2 to 3&nbsp;s, 2&nbsp;s by default). The hint line at the
+         foot of the deck stays either way. These settings are yours, not the project's: they live in the plug-in's own settings file.</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>18</b></span></div></section>
+
+<!-- 19  MEASURED -->
+<section class="page"><div class="pad">
+  <p class="kick">18 &middot; Measured</p>
+  <h2>What the bench says</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div>
+      <table class="tbl num">
+        <tr><td>Unity at the operating level, defaults</td><td>+0.025 dB</td></tr>
+        <tr><td>Record level transfer against the offline reference, &minus;20 to +16 dB</td><td>within 0.008 dB</td></tr>
+        <tr><td>Delay against head distance / speed</td><td>within 0.720 &micro;s</td></tr>
+        <tr><td>Doppler of a moving head against (v &minus; &#7715;)/v</td><td>0.000 cent</td></tr>
+        <tr><td>Maximum output level (3 % third harmonic), re 185 nWb/m; the 456 sheet gives +12.3</td><td>+12.3 dB</td></tr>
+        <tr><td>Third harmonic at +6 dB over 0 VU</td><td>1.24 %</td></tr>
+        <tr><td>Recording loss at 15 kHz against the reference</td><td>within 0.10 dB</td></tr>
+        <tr><td>Aligned machine, flatness 40 Hz to 15 kHz</td><td>0.47 dB</td></tr>
+        <tr><td>Hiss, studio stock, 19 cm/s, under 0 VU</td><td>&minus;61.9 dBA</td></tr>
+        <tr><td>Hiss spectrum against a continuous coating</td><td>within 0.58 dB</td></tr>
+        <tr><td>Modulation noise skirt, studio stock</td><td>&minus;58.7 dB</td></tr>
+        <tr><td>Wow and flutter, DIN/IEC weighted 2&sigma;: freshly serviced &middot; worn out</td><td>0.036 % &middot; 0.24 %</td></tr>
+      </table>
+    </div>
+    <div>
+      <table class="tbl num">
+        <tr><td>Feedback runaway, one head at 0 dB, 19 cm/s</td><td>68 % of the knob</td></tr>
+        <tr><td>Bias erasure, one pass at the operating bias (reference)</td><td>&minus;34.5 dB</td></tr>
+        <tr><td>Erase at 1.5 H<sub>c</sub>: engine &middot; reference</td><td>&minus;51.9 &middot; &minus;51.5 dB</td></tr>
+        <tr><td>DUB: the committed take, once (reference &minus;3.5)</td><td>&minus;3.4 dB</td></tr>
+        <tr><td>DUB: the ghost of an overdub (reference &minus;24.1)</td><td>&minus;25.0 dB</td></tr>
+        <tr><td>REPRO latency, reported against measured</td><td>0.53 samples</td></tr>
+        <tr><td>Coast-down against the bearing and roller law</td><td>within 0.9 %</td></tr>
+        <tr><td>Track skew from azimuth, worn transport</td><td>18.4 &micro;s</td></tr>
+        <tr><td>Tape at 100 % wear, at 1 kHz</td><td>&minus;2.6 dB</td></tr>
+        <tr><td>Aliasing, 9 kHz at 12 dB over 0 VU, 48 kHz, NORMAL</td><td>&minus;63 dBFS</td></tr>
+        <tr><td>Cost, worst case (76 cm/s, three heads, feedback): ECO &middot; NORMAL &middot; HIGH</td><td>14.5 &middot; 20.7 &middot; 30.1 %</td></tr>
+      </table>
+      <div class="box" style="margin-top:4mm"><h3>Two models</h3>
+        <p>An offline reference simulates the record process in full &mdash; every half-micrometre cell carried through the record head's
+           gap field with the 150&nbsp;kHz bias, at eight depths, through a Preisach model of the oxide. It runs far slower than real time. The
+           plug-in uses tables measured from it, and the bench proves the two agree; the figures above are its. Cost is per cent of one core at
+           48&nbsp;kHz stereo.</p></div>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>19</b></span></div></section>
+
+<!-- 20  NOT MODELLED + SPECIFICATIONS -->
+<section class="page"><div class="pad">
+  <p class="kick">19 &middot; Specifications</p>
+  <h2>Magneto Transport</h2>
+  <hr class="rule" />
+  <div class="cols">
+    <div>
+      <table class="tbl">
+        <tr><td>Format</td><td>Windows VST3 effect (delay) and a standalone application</td></tr>
+        <tr><td>Channels</td><td>mono to mono, mono to stereo, stereo to stereo; a two-track head stack</td></tr>
+        <tr><td>Parameters</td><td>47 host parameters, all automatable, the loop controls included</td></tr>
+        <tr><td>Transport</td><td>REEL, or a LOOP of 0.5&ndash;6 m in 5 cm steps; AC synchronous or DC servo motor</td></tr>
+        <tr><td>Speed</td><td>4.75&ndash;76 cm/s continuously, or synced: 1/16, 1/16D, 1/8T, 1/8, 1/8D, 1/4T, 1/4, 1/4D, 1/2, 1/2D, 1/1, 2/1</td></tr>
+        <tr><td>Heads</td><td>erase, record, three playback heads on a 1.5&ndash;24 cm rail: delays from 20 ms to about 5 s</td></tr>
+        <tr><td>Tape</td><td>four stocks, particle count, wear and accumulating wear; IEC or NAB equalisation</td></tr>
+        <tr><td>Quality</td><td>ECO, NORMAL, HIGH: the tape model at the host rate, 2&times; or 4&times;</td></tr>
+        <tr><td>Latency</td><td>none reported; in REPRO, head 1's delay</td></tr>
+        <tr><td>Presets</td><td>24 factory in six groups, levelled; user presets as files</td></tr>
+        <tr><td>Panel</td><td>needs the Microsoft WebView2 runtime; if it is missing the plug-in says so and gives the download link</td></tr>
+      </table>
+      <h3 style="margin-top:4mm">Installing</h3>
+      <p>Copy the <b>Magneto Transport.vst3</b> folder into <code>Program Files\Common Files\VST3</code> and rescan in your host.
+         <b>Magneto Transport.exe</b> is the standalone and needs no installation.</p>
+    </div>
+    <div>
+      <h3>Not modelled</h3>
+      <p style="font-size:8.9pt">Print-through and self-demagnetisation (inaudible at the time scales of an echo loop), temperature and time decay.
+         Vector magnetisation and the recorded pattern's own demagnetising field: the scalar model suits oriented, needle-shaped particles. The
+         bias is simulated explicitly only in the offline reference; the real-time engine uses a validated equivalent. Electronic noise such as a
+         preamp's hiss, which is what lets PARTICLES reach true silence. Slip between tape and capstan. Head wear (azimuth follows the
+         transport's condition). Dropouts at the record head, and the crinkle's effect on recording. The tape span is treated through its
+         resonance, not a full wave equation. All four stocks share a 14&nbsp;&micro;m coating. Old material recorded at a bias other than the
+         operating bias is overwritten as if it had been. The mechanical sounds are synthesised from the mechanism's rates, not recorded, and
+         the room is not modelled.</p>
+      <h3 style="margin-top:3mm">The physics, honestly</h3>
+      <p style="font-size:8.9pt">The studio coating is fitted to the Quantegy 456 data sheet; the hysteresis is a Preisach model; the record head's field is
+         Karlqvist's; the wow and flutter come from runout, bearings, tension and friction. It is a musical instrument built on that physics, and the
+         numbers on page 19 say how close it comes.</p>
+      <h3 style="margin-top:3mm">Credits</h3>
+      <p style="font-size:8.9pt">Peter B&oslash;ggild, October 2026. Free software under the GNU AGPLv3; unsigned builds, offered as is.
+         Source: github.com/peterboggild/BrokildApps</p>
+    </div>
+  </div>
+</div><div class="folio"><span>Magneto Transport</span><span><b>20</b></span></div></section>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-MAGNETO TRANSPORT  -  build 261011.11
+MAGNETO TRANSPORT  -  build 261011.12
 Brokild  -  a physically modelled tape echo for Windows (VST3 + standalone)
 
 

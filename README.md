@@ -47,6 +47,7 @@ files:
 | 1984 (VST3) | [`vst3-apps/1984`](vst3-apps/1984) | A vintage analog polysynth built the way the big ones were: eight voices, each of two complete ranks with their own oscillator, resonant high-pass… |
 | Thirty Thousand Years (VST3) | [`vst3-apps/thirty-thousand-years`](vst3-apps/thirty-thousand-years) | Four ways of making sound, all running at once and exciting one another: analogue weight, a wavetable and phase-modulation voice, granular and… |
 | Thin Walls (VST3) | [`vst3-apps/thin-walls`](vst3-apps/thin-walls) | An apartment of three rooms and three doors that you put the sound inside and then walk around in. |
+| Magneto Transport (VST3) | [`vst3-apps/magneto-transport`](vst3-apps/magneto-transport) | A tape echo in which nothing is faked: no wow LFO, no saturation curve, no noise generator. |
 | Rite of Passage (VST3) | [`vst3-apps/rite-of-passage`](vst3-apps/rite-of-passage) | A transition processor: one slider is the journey, and the landing is a separate thing you fire. |
 | Battlestar Overdrive (VST3) | [`vst3-apps/battlestar-overdrive`](vst3-apps/battlestar-overdrive) | An overdrive, and a tribute: named after Max Christensen's Copenhagen solo project and built with his blessing. |
 | Clone Wars (VST3) | [`vst3-apps/clone-wars`](vst3-apps/clone-wars) | Sixteen detuned oscillators in two armies of eight, crossfaded by a single fader — THE WAR — which can be set to take up to five minutes to cross. |
@@ -63,7 +64,7 @@ files:
 | Legion (VST3) | [`vst3-apps/legion`](vst3-apps/legion) | One voice in, a choir of it out. Up to four copies, each with its own pitch AND its own body size, because a voice shifted without separating those… |
 | Hairfryer (VST3) | [`vst3-apps/hairfryer`](vst3-apps/hairfryer) | A free Windows VST3 vocal strip that attempts to convert a clean, loud singing voice into a metal-ish one — growls, gutturals, pig squeals, fry based… |
 | Photo Synth (HTML) | [`music-apps/photo-synth`](music-apps/photo-synth) | The same idea in a browser tab, with the things only a browser can do. |
-| Sound Wizard (HTML) | [`music-apps/sound-wizard`](music-apps/sound-wizard) | An audio analyser and tone generator for the phone, fast enough to keep up with real sound. |
+| Sound Wizard (HTML) | [`music-apps/sound-wizard`](music-apps/sound-wizard) | An audio analyser and tone generator for the phone, fast enough to keep up with real sound, in two rooms. |
 | Note Words (HTML) | [`music-apps/note-words`](music-apps/note-words) | Spell words in musical notes, the way Bach signed B-A-C-H. In German note names B is B flat, H is B natural and S is Es, E flat, so BAGGAGE, CABBAGE… |
 | Sleeper Agent (HTML) | [`health-apps/sleep-noise`](health-apps/sleep-noise) | A five-fader mixer for sleeping sound: brown noise, green noise, rain, soft rain and ocean, in any combination rather than one at a time. |
 | DSW | [`dsw`](dsw) | **Digital Science Workstation** (build from source): a native host that runs C++/HTML digital-experiment plugins the way a DAW runs VST3s — drop a bundle in `plugins/`, the browser is the GUI, the math runs native. Ships with Gray–Scott and double-slit wave-tank experiments. |

@@ -108,6 +108,7 @@
     }
   },
   "excludes": {
-    "_comment": "Ships a download, deliberately in no collection."
+    "_comment": "Ships a download, deliberately in no collection.",
+    "magneto-transport": "installed in Experimental until Peter picks its collection after testing (2026-10-11)"
   }
 }
