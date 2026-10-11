@@ -23,7 +23,7 @@ tape sticking and slipping over the heads. A speed change glides with the
 motor's inertia, so every echo on the tape bends in pitch. Three playback
 heads slide along a rail, with the Doppler shift that moving them causes.
 
-FLUX MEMORY is the feature no tape echo has had. On a closed loop of tape,
+FLUX MEMORY is the feature at its centre. On a closed loop of tape,
 DUB lowers the bias so what is already on the loop stays under what you play
 now, and the ERASE head takes as much of the old take as you set. An erase
 field takes what it can reach and no more, so it acts once: a second pass at

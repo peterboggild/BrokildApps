@@ -1,4 +1,4 @@
-# Check a decal delivery against docs/decal_brief.md BEFORE anything is wired in.
+# Check a decal delivery against docs/decal_parts.json (the order) BEFORE anything is wired in.
 #
 #   powershell -ExecutionPolicy Bypass -File tools\ingest-decals.ps1 -From <folder> [-Copy]
 #
@@ -13,30 +13,16 @@ param([Parameter(Mandatory = $true)][string] $From, [switch] $Copy)
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 
-# name, canvas w, canvas h, kind (T transparent, O opaque, S semi-transparent), tile (none|xy|x), fill (min share of canvas the drawing must span on its long axis)
-$parts = @(
-  @("mt-deck", 1024, 1024, "O", "xy", 1.0), @("mt-steel", 1024, 1024, "O", "xy", 1.0), @("mt-plate", 1024, 1024, "O", "xy", 1.0),
-  @("mt-header", 2048, 128, "O", "x", 1.0),
-  @("mt-reel-flange", 1600, 1600, "T", "none", 0.97), @("mt-reel-hub", 1024, 1024, "T", "none", 0.96),
-  @("mt-capstan", 256, 256, "T", "none", 0.93), @("mt-pinch", 512, 512, "T", "none", 0.95), @("mt-roller", 256, 256, "T", "none", 0.93),
-  @("mt-arm", 512, 512, "T", "none", 0.45),
-  @("mt-head-erase", 352, 544, "T", "none", 0.95), @("mt-head-record", 352, 544, "T", "none", 0.95), @("mt-head-play", 352, 544, "T", "none", 0.95),
-  @("mt-carriage", 416, 480, "T", "none", 0.95), @("mt-rail", 2048, 64, "T", "x", 1.0),
-  @("mt-headplate", 1520, 332, "O", "none", 1.0), @("mt-looptank", 1320, 1200, "S", "none", 1.0),
-  @("mt-knob", 512, 512, "T", "none", 0.62),
-  @("mt-key-up", 192, 96, "O", "none", 1.0), @("mt-key-down", 192, 96, "O", "none", 1.0),
-  @("mt-button-up", 192, 96, "O", "none", 1.0), @("mt-button-down", 192, 96, "O", "none", 1.0),
-  @("mt-lamp-amber-off", 128, 128, "T", "none", 0.6), @("mt-lamp-amber-on", 128, 128, "T", "none", 0.6),
-  @("mt-lamp-red-off", 128, 128, "T", "none", 0.6), @("mt-lamp-red-on", 128, 128, "T", "none", 0.6),
-  @("mt-lamp-green-off", 128, 128, "T", "none", 0.6), @("mt-lamp-green-on", 128, 128, "T", "none", 0.6),
-  @("mt-slider-track", 1408, 80, "O", "none", 1.0), @("mt-slider-thumb", 192, 320, "T", "none", 0.9),
-  @("mt-screw", 128, 128, "T", "none", 0.9),
-  @("mt-vu-face", 896, 448, "O", "none", 1.0), @("mt-vu-needle", 64, 512, "T", "none", 0.9),
-  @("mt-plaque-left", 896, 832, "O", "none", 1.0), @("mt-plaque-right", 896, 832, "O", "none", 1.0),
-  @("mt-wordmark", 2000, 240, "T", "none", 0.95), @("mt-glass", 384, 192, "S", "none", 1.0)
-)
-$pairs = @(@("mt-key-up", "mt-key-down"), @("mt-button-up", "mt-button-down"),
-           @("mt-lamp-amber-off", "mt-lamp-amber-on"), @("mt-lamp-red-off", "mt-lamp-red-on"), @("mt-lamp-green-off", "mt-lamp-green-on"))
+# The parts come from docs/decal_parts.json, the same file the order was generated from:
+# name, canvas w, canvas h, kind (T transparent, O opaque, S semi-transparent), tile (none|xy|x), fill
+$spec = Get-Content -Raw -Encoding UTF8 (Join-Path (Split-Path -Parent $PSScriptRoot) "docs\decal_parts.json") | ConvertFrom-Json
+$parts = @()
+$pairs = @()
+foreach ($q in $spec.parts) {
+  $sz = $spec.sizes.($q.size)
+  $parts += , @($q.file, [int]$sz[0], [int]$sz[1], $q.kind, $q.tile, [double]$q.fill)
+  if ($q.pair -and ([string]$q.file -lt [string]$q.pair)) { $pairs += , @($q.file, $q.pair) }
+}
 
 function Read-Px([string] $path) {
   $bm = New-Object System.Drawing.Bitmap $path
