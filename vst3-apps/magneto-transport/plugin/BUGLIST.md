@@ -333,7 +333,7 @@ default LOOP STATE and bit-identical to the plain echo it was. On "record more o
 what was committed": the committed take stays; what is played on top is the latest layer,
 not a stack. The stacking tape can do is FEEDBACK. Numbers in 10-flux-memory.md.
 
-## 9. "The overdub is pretty quiet" (Peter, 2026-10-11) — AWAITING GO
+## 9. "The overdub is pretty quiet" (Peter, 2026-10-11) — BUILT 2026-10-12 (261012.1): option 1, the in-place re-record (Peter: "yes, please build the in-place re-record")
 
 Measured with `test/dubprobe.cpp` (`mtdub [feedback,mix,erase]`): LOOP at the panel's
 defaults, take A (440 Hz, 0 VU) for one loop period in REC, then DUB and overdub B
