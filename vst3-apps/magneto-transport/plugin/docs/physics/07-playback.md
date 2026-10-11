@@ -177,3 +177,43 @@ above the full-remanence level (+2.8 dBFS there) because the replay
 equaliser lifts the harmonics a saturated tape makes — on the tape, nothing
 passes full. Transport-timing and reference sections run with the
 equalisers out (their phase is real, and not the transport's).
+
+## The head bump, crosstalk and the playback amplifier (stage 4c)
+
+**Head bump (the contour effect).** A head of finite length reads long
+wavelengths through its outer pole edges as well, with the opposite sign: the
+magnetic potential steps by 2V across the gap and back by V at each outer
+edge, so by reciprocity H(k) = 1 − cos(kL)·s(k), with s(k) = exp(−(kσ)²/2)
+the smoothing of the field's return at the edges. A bump near the wavelength
+2L and a cut toward DC (a finite head cannot read an infinitely long
+wavelength), both moving with speed. The reference's head has infinite poles,
+so L = 2 mm (a 4 mm face) and σ = 1.05 mm are stated assumptions; nobody
+aligns a head bump away, so the equalisers do not touch it. Built from a
+depth-sum prefix track (at millimetre wavelengths every slab weighs the same)
+as Gaussians of nine boxes of σ/2: five boxes of σ aliased the Gaussian's
+transform and drew a spurious +0.9 dB ripple at three times the bump's
+frequency.
+
+Measured (−20 dB, re 1 kHz): +2.5 dB at 40 Hz (19 cm/s), +2.6 at 81 Hz
+(38 cm/s), +2.6 at 162 Hz (76 cm/s); −9 dB a quarter of the way down.
+
+**Crosstalk**, at each head before its pan pot: the other track's depth sum
+smoothed over the 0.75 mm guard band (fringing, −50 dB at long wavelengths)
+and a flat leak inside the head (−65 dB). Symmetric like the head's field:
+a one-pole lowpass first used for the fringing has group delay, and at
+−50 dB it still moved a test echo by 6 µs. Measured −64 dB at 100 Hz,
+−66 dB at 1 kHz (19 cm/s).
+
+The bump and the fringing carry nothing above a few hundred hertz, so they
+are evaluated every 8th internal sample at the position the head will then
+have reached and interpolated between: no delay, and the measured bump is
+identical to the per-sample version.
+
+**Playback amplifier**: unity to 0 dBFS, a smooth tanh knee into a +2 dBFS
+rail (20 dB over 0 VU). On the echo send at the internal rate; on the output
+AFTER decimation, because the half-band filter overshoots a clipped
+waveform by about a dB. A self-oscillation now peaks at +1.99 dBFS.
+
+**Cost**: 12.5 % of one core at the worst case, timed on the thread's own CPU
+time, best of five; the CPU's clock state still moves it by about ±1.5 %, so
+the bench reports it against the 15 % target and fails only past 20 %.

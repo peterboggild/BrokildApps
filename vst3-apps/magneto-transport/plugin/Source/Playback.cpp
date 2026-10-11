@@ -43,7 +43,7 @@ void build (HeadKernel& K, double fsInt)
     {
         const double p = 0.5 * (double) (1 << l);
         const double top0 = PB_SPACING_UM + SLAB_UM * l, bot0 = top0 + SLAB_UM;
-        // near taps out to 4x the slab's bottom depth, plus the boxes' half-widths
+        // near taps out to 4x the slab's bottom depth, plus the boxes' half-widths (3x measured: 0.27 dB off at 19 cm/s)
         K.N[l] = (int) std::ceil ((4.0 * bot0 + 0.5 * (tMax + g) + 0.2) / p);
         K.ntap[l] = 2 * K.N[l] + 2;
         K.cSlab[l] = (bot0 * bot0 - top0 * top0) / (2.0 * PI * SLAB_UM);

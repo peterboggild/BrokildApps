@@ -23,6 +23,25 @@ constexpr double COARSE_UM     = 4.0;     // prefix-sum grid of the kernel tails
 constexpr int    PRE_RING      = 131072;  // coarse cells kept: 52 cm, more than any head ever reads
 constexpr int    PRE_MASK      = PRE_RING - 1;
 
+// The head's finite length (the contour effect): its outer pole edges read long
+// wavelengths with the opposite sign, H(k) = 1 - cos(k L) exp(-(k s)^2 / 2) - a
+// bump near the wavelength 2L (about 47 Hz at 19 cm/s) and a cut toward DC. The
+// reference's head has infinite poles, so these two are stated assumptions: a
+// face of 4 mm, and the field returning over about a millimetre at its edges.
+constexpr double HEAD_EDGE_UM     = 2000.0;
+constexpr double HEAD_EDGE_SIG_UM = 1050.0;
+
+// Crosstalk between the two tracks, per head: fringing across the guard band
+// (long wavelengths, falling as the wavelength shortens past the band) and a
+// flat leak inside the head. A well-kept 1/4-inch two-track: stated assumptions.
+constexpr double XT_GUARD_UM  = 750.0;
+constexpr double XT_FRINGE_DB = -50.0;
+constexpr double XT_FLAT_DB   = -65.0;
+
+// The playback amplifier's headroom: 20 dB over 0 VU (0 VU = -18 dBFS), a
+// smooth knee from 0 dBFS into a +2 dBFS rail. Unity below.
+constexpr double AMP_RAIL = 1.2589254117941673;
+
 struct HeadKernel
 {
     static constexpr int NPH = 64;          // phases per cell

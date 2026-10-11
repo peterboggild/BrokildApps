@@ -197,6 +197,7 @@ private:
     void buildRecord (double biasDb, double speedCms);
     void readLayers (double a, double b, double& outL, double& outR) const;
     void readHead (double a, double b, double& outL, double& outR) const;
+    void edgeTerms (double xum, double* e) const;   // bump L/R, fringing L/R (depth sums)
     void finishCoarse();
     double headResponse (int slab, double kPerUm, int bucket) const;
     void readAvg2 (const float* t0, const float* t1, int64_t ring, double a, double b, double& r0, double& r1) const;
@@ -287,6 +288,15 @@ private:
     double* preC (int c) const { return preCBuf.get() + (size_t) c * PRE_RING; }
     double pRunC[2] {};
     int64_t cNextC = 0;
+    std::unique_ptr<double[]> preSBuf { new double[(size_t) 2 * PRE_RING]() };   // the depth sum, for the head's edges
+    double* preS (int c) const { return preSBuf.get() + (size_t) c * PRE_RING; }
+    double pRunS[2] {};
+    // the head bump and the fringing carry nothing above a few hundred hertz, so
+    // they are evaluated every EDGE_EVERY internal samples at the position the
+    // head will then have reached, and interpolated in between (no delay)
+    static constexpr int EDGE_EVERY = 8;
+    double edgePrev[NUM_HEADS][4] {}, edgeNext[NUM_HEADS][4] {};
+
 
     // transport
     double T = 0.0;

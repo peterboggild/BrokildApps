@@ -317,3 +317,25 @@ oscillation has stopped growing. It settles near 414 Hz.
 
 The bench machine is not idle; one timing wandered by +-1.5 % of a core and
 straddled the 15 % line. The engine's cost is the time it needs.
+
+## Stage 4c: head bump, crosstalk, playback amplifier
+
+The contour effect of a finite head is modelled from the potential steps at
+its outer edges, H(k) = 1 - cos(kL) s(k): bump and cut toward DC, moving with
+speed. Geometry assumed (the reference has infinite poles): L = 2 mm,
+sigma = 1.05 mm. Not aligned away. Crosstalk: fringing over the guard band
+plus a flat leak, symmetric (a minimum-phase lowpass moved an echo by 6 us
+even at -50 dB). Playback amplifier rail +2 dBFS, on the output after
+decimation (a clipped waveform overshoots the half-band filter otherwise).
+Azimuth stays at zero for this well-kept machine: it belongs with wear.
+
+## Near taps stay at 4x the slab's depth
+
+3x saved CPU and measurably cost accuracy (0.27 dB off the reference at 19 cm/s,
+a splice step, slow-speed flatness). Not worth it.
+
+## CPU is reported, with a hard ceiling
+
+Design section 6 sets CPU as targets with actuals reported. The same binary
+reads 12.5-15.2 % across runs as the clock moves, even timed on the thread's own
+CPU time, so the bench reports against 15 % and fails only past 20 %.

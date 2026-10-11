@@ -24,6 +24,16 @@ namespace
 
     inline double dbToLin (double db) { return std::pow (10.0, db / 20.0); }
 
+    /*  The playback amplifier: unity to 0 dBFS, a smooth knee into a +2 dBFS rail
+        (20 dB over 0 VU). */
+    inline double ampRail (double x)
+    {
+        const double a = std::abs (x);
+        if (a <= 1.0) return x;
+        constexpr double h = AMP_RAIL - 1.0;
+        return std::copysign (1.0 + h * std::tanh ((a - 1.0) / h), x);
+    }
+
     /*  Two tracks against one set of taps, n contiguous floats each - the record
         kernel and the playback head's near taps. Float lanes, four at a time: a
         sum of under a hundred products keeps its error near -130 dB. */
@@ -661,6 +671,10 @@ void Engine::adoptStore (TapeStore* s, int newMode, int64_t cells)
     for (auto& c : cNext) c = 0;
     std::fill (preCBuf.get(), preCBuf.get() + (size_t) 2 * PRE_RING, 0.0);
     pRunC[0] = pRunC[1] = 0.0;
+    std::fill (preSBuf.get(), preSBuf.get() + (size_t) 2 * PRE_RING, 0.0);
+    pRunS[0] = pRunS[1] = 0.0;
+    for (int i = 0; i < NUM_HEADS; ++i) for (int k = 0; k < 4; ++k) edgePrev[i][k] = edgeNext[i][k] = 0.0;
+
     cNextC = 0;
     recFade = 0.0;
 
@@ -869,6 +883,10 @@ void Engine::finishCoarse()
             for (int l = 0; l < NLAYER; ++l) s += hk->cSlab[l] * (pre (c, l)[iq] - (cNextC > 0 ? pre (c, l)[ip] : 0.0));
             pRunC[c] += s;
             preC (c)[iq] = pRunC[c];
+            double sd = 0.0;
+            for (int l = 0; l < NLAYER; ++l) sd += pre (c, l)[iq] - (cNextC > 0 ? pre (c, l)[ip] : 0.0);
+            pRunS[c] += sd;
+            preS (c)[iq] = pRunS[c];
         }
         ++cNextC;
     }
@@ -971,6 +989,57 @@ void Engine::readHead (double a, double b, double& outL, double& outR) const
         }
     }
     outL = sL * (1.0 / NLAYER); outR = sR * (1.0 / NLAYER);
+}
+
+/*  The head's edges and the fringing, from the depth-sum prefix, at a position
+    xum (um). e: bump L, bump R, fringing into L, fringing into R (depth sums). */
+void Engine::edgeTerms (double xum, double* e) const
+{
+    // Gaussian-smoothed depth sums, from the depth-sum prefix: nine boxes of s/2
+    // over +-2.25 s (five boxes of s aliased the Gaussian's transform back and
+    // drew a spurious +0.9 dB ripple at three times the bump's frequency)
+    {
+        static const double W[9] = { 0.028533, 0.067235, 0.124009, 0.179044, 0.202358, 0.179044, 0.124009, 0.067235, 0.028533 };
+        const double* S0 = preS (0);
+        const double* S1 = preS (1);
+        auto at = [&] (double um, double& v0, double& v1)
+        {
+            const double yy = um * (1.0 / COARSE_UM);
+            const double fq = std::floor (yy);
+            const int64_t q = (int64_t) fq;
+            const double fr = yy - fq;
+            const size_t iq = (size_t) (q & PRE_MASK), ip = (size_t) ((q - 1) & PRE_MASK);
+            v0 = S0[ip] + fr * (S0[iq] - S0[ip]);
+            v1 = S1[ip] + fr * (S1[iq] - S1[ip]);
+        };
+        // the mean of the depth sum under a Gaussian of width sg centred at um
+        auto gauss = [&] (double um, double sg, double& g0, double& g1)
+        {
+            const double h = 0.5 * sg;
+            double p0, p1;
+            at (um - 4.5 * h, p0, p1);
+            g0 = g1 = 0.0;
+            for (int i = 0; i < 9; ++i)
+            {
+                double r0, r1;
+                at (um + (i - 3.5) * h, r0, r1);
+                g0 += W[i] * (r0 - p0); g1 += W[i] * (r1 - p1);
+                p0 = r0; p1 = r1;
+            }
+            g0 /= h; g1 /= h;
+        };
+        // the head bump: its outer pole edges at +-L read the depth sum with the
+        // opposite sign and half the weight each (at millimetre wavelengths every
+        // slab weighs the same). Crosstalk fringing: each track also hears the
+        // other's depth sum smoothed over the guard band (long wavelengths).
+        // Both symmetric like the head's field, so they move no echo in time.
+        double eR0, eR1, eL0, eL1, c0, c1;
+        gauss (xum + HEAD_EDGE_UM, HEAD_EDGE_SIG_UM, eR0, eR1);
+        gauss (xum - HEAD_EDGE_UM, HEAD_EDGE_SIG_UM, eL0, eL1);
+        gauss (xum, XT_GUARD_UM, c0, c1);
+        e[0] = 0.5 * (eR0 + eL0); e[1] = 0.5 * (eR1 + eL1);
+        e[2] = c1; e[3] = c0;        // fringing INTO left comes from the right track
+    }
 }
 
 /*  Return every cell that has passed `newPos` to the demagnetised state, in
@@ -1091,7 +1160,25 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
         // a head switched off and faded out reads nothing (it would add nothing)
         if (g < 1.0e-9) { uPrev[i] = u1; continue; }
         double hL, hR;
-        if (pbOn) readHead (uPrev[i], u1, hL, hR); else readLayers (uPrev[i], u1, hL, hR);
+        if (pbOn)
+        {
+            readHead (uPrev[i], u1, hL, hR);
+            const int ph = (int) (kTick % EDGE_EVERY);
+            if (ph == 0)
+            {
+                for (int k = 0; k < 4; ++k) edgePrev[i][k] = edgeNext[i][k];
+                const double xNext = 0.5 * (uPrev[i] + u1) + EDGE_EVERY * (u1 - uPrev[i]);
+                edgeTerms (xNext * CELL_UM, edgeNext[i]);
+            }
+            const double t = (double) ph / EDGE_EVERY;
+            double e[4];
+            for (int k = 0; k < 4; ++k) e[k] = (edgePrev[i][k] + t * (edgeNext[i][k] - edgePrev[i][k])) * (1.0 / NLAYER);
+            constexpr double fr = 0.0031622776601683794, fl = 0.00056234132519034907;   // -50 dB, -65 dB
+            const double l0 = hL - e[0], r0 = hR - e[1];
+            hL = l0 + fr * e[2] + fl * r0;
+            hR = r0 + fr * e[3] + fl * l0;
+        }
+        else readLayers (uPrev[i], u1, hL, hR);
         const double kOut = pbOn ? outK * pbTrim : outK;
         hL *= kOut; hR *= kOut;
         uPrev[i] = u1;
@@ -1112,6 +1199,9 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
         outL = repEqS[0].tick (R, outL); outR = repEqS[1].tick (R, outR);
         fbL  = repEqS[2].tick (R, fbL);  fbR  = repEqS[3].tick (R, fbR);
     }
+    // ---- the playback amplifier's headroom on the echo send (the output's rail is
+    //      applied after decimation, where a clipped waveform cannot overshoot it)
+    if (pbOn) { fbL = ampRail (fbL); fbR = ampRail (fbR); }
 
     // ---- the feedback wire, through the tone stage. No cap: what contains a
     //      loop driven past unity is the tape running out of remanence.
@@ -1204,6 +1294,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         hkB = HeadKernel::bucket (vNow);
         eqS = p.eqStd > 0.5f ? 1 : 0;
         updateEq (vNow);
+
     }
 
     const float* on[NUM_HEADS]  = { &p.h1On, &p.h2On, &p.h3On };
@@ -1280,6 +1371,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         }
         else
             tick (xl, xr, wl, wr);
+        if (pbOn) { wl = (float) ampRail (wl); wr = (float) ampRail (wr); }
 
         const float ol = (float) ((dl * gDry + wl * gWet) * gOut);
         const float orr = (float) ((dr * gDry + wr * gWet) * gOut);
