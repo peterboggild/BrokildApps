@@ -156,7 +156,7 @@
     "wait": 1500
   },
   {
-    "name": "LOOP panel lit; DUB at ERASE 100 is the plain echo",
+    "name": "LOOP panel lit; the default state is REC, the plain echo",
     "eval": "document.getElementById('loopGrp').classList.contains('idle') + ' / ' + document.getElementById('loopRead').textContent + ' / ' + document.getElementById('loopWhy').textContent"
   },
   {
@@ -184,6 +184,10 @@
     "eval": "document.getElementById('loopRead').textContent + ' / ERASE idle ' + __MT.ctls.erase.el.classList.contains('idle')"
   },
   {
+    "name": "in DUB the BIAS knob shows where it acts (6 dB under the knob), and says why",
+    "eval": "__MT.ctls.bias.el.querySelector('.knob').classList.contains('broken') + ' / ' + __MT.ctls.bias.el.querySelector('.val').title + ' / acting ' + __MT.tele.brokenEff[5].toFixed(2) + ' dB, knob ' + __MT.P.bias.v.toFixed(2)"
+  },
+  {
     "name": "PLAY",
     "eval": "__MT.set('looper',2); 'sent'"
   },
@@ -194,6 +198,10 @@
   {
     "name": "PLAY readout (record off, erase off); FEEDBACK dimmed",
     "eval": "document.getElementById('loopRead').textContent + ' / FEEDBACK idle ' + __MT.ctls.feedback.el.closest('.grp').classList.contains('idle') + ' / ' + document.getElementById('loopWhy').textContent"
+  },
+  {
+    "name": "in PLAY the BIAS dot is gone",
+    "eval": "__MT.ctls.bias.el.querySelector('.knob').classList.contains('broken')"
   },
   {
     "name": "SYNC 1/4 and four bars: LOOP LENGTH waits",

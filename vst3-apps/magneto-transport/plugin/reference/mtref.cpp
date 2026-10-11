@@ -962,11 +962,320 @@ static void erasureReport (const Lab& L, double hbOp, double hsRef)
 
 }
 
+//------------------------------------------------------------------------------ the DUB tables (BUGLIST 8)
+/*  What one pass of the loop's heads leaves of what the tape holds, as a RATIO of
+    the remanence, for the engine's one-shot bookkeeping (10-flux-memory.md): the
+    erase head (60 um gap) at deep-gap field he, then the record head's bias at slab
+    amplitude A with no signal. Two old states, because an overwrite depends on how
+    deep the old recording went: the COMMITTED take, recorded at the operating bias
+    (the record tables' own prep, on each slab's grid M_REM), and the OVERDUB, a DC
+    level recorded at bias A itself (TOP_LEVEL x the 0 VU field). Per speed and slab,
+    averaged over the slab's sub-depths and eight bias phases, like G. */
+static void writeDubTables (const Lab& Lin, const std::string& path)
+{
+    constexpr int NLR = 4, NA = 64, NM = 11, NV = 5, NSUB = 4, NHE = 12, NT = 4, NPH = 8;
+    const double speeds[NV] = { 4.7625, 9.525, 19.05, 38.1, 76.2 };
+    constexpr int IALIGN = 2;
+    const double yR[NLR] = { 0.125 * 14.0, 0.375 * 14.0, 0.625 * 14.0, 0.875 * 14.0 };
+    const double slab = 14.0 / NLR;
+    auto ySub = [&] (int l, int k) { return Lin.rec.d + l * slab + (k + 0.5) * slab / NSUB; };
+    const double heGrid[NHE] = { 0.0, 0.5, 0.75, 0.875, 1.0, 1.125, 1.25, 1.375, 1.5, 1.75, 2.0, 2.25 };
+    const double topLevel[NT] = { 0.5, 1.0, 2.0, 4.0 };
+    double Ag[NA];
+    for (int i = 0; i < NA; ++i) Ag[i] = 0.1 * std::pow (80.0, i / (NA - 1.0));
+    Stair demagS; demagS.demag();
+
+    Lab La = Lin; La.lengthUm = Lin.lengthUm * speeds[IALIGN] / Lin.v; La.v = speeds[IALIGN];
+    double b10; const double bb = peak10Bias (La, b10);
+    const double hbOp = operatingBias (La, bb, b10);
+    const double hsRef = calibrateHs (La, hbOp);
+    std::printf ("   alignment at %.2f cm/s: operating bias %.4f Hc, 0 VU = %.5f Hc deep-gap\n", speeds[IALIGN], hbOp, hsRef);
+
+    // the committed take's grid per slab, exactly as writeTables prepares it
+    double Mgl[NLR][NM];
+    {
+        const double vUm = speeds[IALIGN] * 1.0e4, lamB = vUm / Lin.fb;
+        Pass R; R.head = Lin.rec; R.fb = Lin.fb; R.v = speeds[IALIGN]; R.hb = hbOp; R.hs = 4.0 * hsRef;
+        R.sig = [] (double) { return 1.0; };
+        for (int l = 0; l < NLR; ++l)
+        {
+            double acc = 0.0;
+            for (int k = 0; k < NSUB; ++k)
+                for (int ph = 0; ph < NPH; ++ph)
+                {
+                    Stair S = demagS;
+                    const double yk = ySub (l, k);
+                    advect (S, yk, lamB * ph / NPH, R, zoneHalfWidth (R, yk), vUm);
+                    acc += S.M (Lin.md);
+                }
+            const double span = std::min (0.95, std::max (1.0e-3, acc / (NSUB * NPH)));
+            for (int im = 0; im < NM; ++im) Mgl[l][im] = span * (-1.0 + 2.0 * im / (NM - 1.0));
+            Mgl[l][NM / 2] = 0.0;
+        }
+    }
+
+    std::vector<float> RD ((size_t) NV * NLR * NHE * NA * NM), RT ((size_t) NV * NLR * NHE * NA * NT), TM ((size_t) NV * NLR * NA * NT);
+    auto di = [&] (int v, int l, int h, int a, int m) { return ((((size_t) v * NLR + l) * NHE + h) * NA + a) * NM + m; };
+    auto ti = [&] (int v, int l, int h, int a, int t) { return ((((size_t) v * NLR + l) * NHE + h) * NA + a) * NT + t; };
+    auto mi = [&] (int v, int l, int a, int t) { return (((size_t) v * NLR + l) * NA + a) * NT + t; };
+
+    for (int iv = 0; iv < NV; ++iv)
+    {
+        const double t0 = now_s();
+        const double vUm = speeds[iv] * 1.0e4, lamB = vUm / Lin.fb;
+        for (int l = 0; l < NLR; ++l)
+        {
+            const double fmax = karlqvist (Lin.rec.g, 0.0, Lin.rec.d + yR[l]);
+            // the committed take: a DC level at the operating bias, bisected to each grid point (writeTables' prep)
+            std::vector<Stair> prep ((size_t) NM * NSUB * NPH);
+            auto at = [&] (int im, int k, int ph) -> Stair& { return prep[((size_t) im * NSUB + k) * NPH + ph]; };
+            {
+                Pass R; R.head = Lin.rec; R.fb = Lin.fb; R.v = speeds[iv]; R.hb = hbOp; R.sig = [] (double) { return 1.0; };
+               #pragma omp parallel for schedule(dynamic, 1)
+                for (int im = 0; im < NM; ++im)
+                {
+                    auto recordAll = [&] (double hs) {
+                        double acc = 0.0;
+                        for (int k = 0; k < NSUB; ++k)
+                            for (int ph = 0; ph < NPH; ++ph)
+                            {
+                                Pass Q = R; Q.hs = hs;
+                                Stair S = demagS;
+                                const double yk = ySub (l, k);
+                                if (hs != 0.0) advect (S, yk, lamB * ph / NPH, Q, zoneHalfWidth (Q, yk), vUm);
+                                at (im, k, ph) = S;
+                                acc += S.M (Lin.md);
+                            }
+                        return acc / (NSUB * NPH);
+                    };
+                    if (im == NM / 2) { recordAll (0.0); continue; }
+                    const double want = Mgl[l][im];
+                    double lo = want > 0.0 ? 0.0 : -30.0, hi = want > 0.0 ? 30.0 : 0.0;
+                    for (int it = 0; it < 40; ++it) { const double hs = 0.5 * (lo + hi); (recordAll (hs) < want ? lo : hi) = hs; }
+                    recordAll (0.5 * (lo + hi));
+                }
+            }
+            // the overdub: a DC level of TOP_LEVEL x the 0 VU field at bias A itself
+            std::vector<Stair> prepT ((size_t) NA * NT * NSUB * NPH);
+            auto atT = [&] (int ia, int it, int k, int ph) -> Stair& { return prepT[(((size_t) ia * NT + it) * NSUB + k) * NPH + ph]; };
+           #pragma omp parallel for schedule(dynamic, 1)
+            for (int ia = 0; ia < NA; ++ia)
+                for (int it = 0; it < NT; ++it)
+                {
+                    Pass Q; Q.head = Lin.rec; Q.fb = Lin.fb; Q.v = speeds[iv]; Q.hb = Ag[ia] / fmax; Q.hs = topLevel[it] * hsRef;
+                    Q.sig = [] (double) { return 1.0; };
+                    double acc = 0.0;
+                    for (int k = 0; k < NSUB; ++k)
+                        for (int ph = 0; ph < NPH; ++ph)
+                        {
+                            Stair S = demagS;
+                            const double yk = ySub (l, k);
+                            advect (S, yk, lamB * ph / NPH, Q, zoneHalfWidth (Q, yk), vUm);
+                            atT (ia, it, k, ph) = S;
+                            acc += S.M (Lin.md);
+                        }
+                    TM[mi (iv, l, ia, it)] = (float) (acc / (NSUB * NPH));
+                }
+            // the pass: the erase head at he, then the bias at A, no signal, over both preps
+           #pragma omp parallel for schedule(dynamic, 1) collapse(2)
+            for (int ih = 0; ih < NHE; ++ih)
+                for (int ia = 0; ia < NA; ++ia)
+                {
+                    Pass E; E.head = Lin.erase; E.fb = Lin.fb; E.v = speeds[iv]; E.hb = heGrid[ih]; E.hs = 0.0;
+                    Pass B; B.head = Lin.rec; B.fb = Lin.fb; B.v = speeds[iv]; B.hb = Ag[ia] / fmax; B.hs = 0.0;
+                    double Xe[NSUB], Xb[NSUB];
+                    for (int k = 0; k < NSUB; ++k) { Xe[k] = heGrid[ih] > 0.0 ? zoneHalfWidth (E, ySub (l, k)) : 0.0; Xb[k] = zoneHalfWidth (B, ySub (l, k)); }
+                    auto sweep = [&] (Stair& S, int k, int ph) {
+                        const double yk = ySub (l, k);
+                        if (heGrid[ih] > 0.0) advect (S, yk, lamB * ph / NPH, E, Xe[k], vUm);
+                        advect (S, yk, lamB * ph / NPH, B, Xb[k], vUm);
+                        return S.M (Lin.md);
+                    };
+                    double rem[NM];
+                    for (int im = 0; im < NM; ++im)
+                    {
+                        double acc = 0.0;
+                        for (int k = 0; k < NSUB; ++k)
+                            for (int ph = 0; ph < NPH; ++ph) { Stair S = at (im, k, ph); acc += sweep (S, k, ph); }
+                        rem[im] = acc / (NSUB * NPH);
+                    }
+                    // odd in M, as the tape is: the ratio from the symmetric pair, the centre from its neighbours
+                    for (int im = 0; im < NM; ++im)
+                    {
+                        const int jm = (im == NM / 2) ? NM / 2 + 1 : im;
+                        const double r = 0.5 * (rem[jm] - rem[NM - 1 - jm]) / Mgl[l][jm];
+                        RD[di (iv, l, ih, ia, im)] = (float) std::clamp (r, 0.0, 1.0);
+                    }
+                    for (int it = 0; it < NT; ++it)
+                    {
+                        double acc = 0.0;
+                        for (int k = 0; k < NSUB; ++k)
+                            for (int ph = 0; ph < NPH; ++ph) { Stair S = atT (ia, it, k, ph); acc += sweep (S, k, ph); }
+                        const double m0 = TM[mi (iv, l, ia, it)];
+                        RT[ti (iv, l, ih, ia, it)] = (float) (std::abs (m0) > 1.0e-6 ? std::clamp (acc / (NSUB * NPH) / m0, 0.0, 1.0) : 0.0);
+                    }
+                }
+        }
+        std::printf ("   dub tables at %.2f cm/s (%.0f s)\n", speeds[iv], now_s() - t0);
+    }
+
+    FILE* o = std::fopen (path.c_str(), "w");
+    if (! o) { std::printf ("   cannot write %s\n", path.c_str()); return; }
+    std::fprintf (o, "// GENERATED by mtref --dubtables (the stage 2 reference model). Do not edit.\n");
+    std::fprintf (o, "// Stock: %s. What one pass of the loop's heads leaves, as a ratio (docs/physics/10-flux-memory.md).\n#pragma once\nnamespace mt { namespace dub%s {\n", Lin.stock.name, Lin.tag.c_str());
+    std::fprintf (o, "constexpr int NV = %d, NL = %d, NHE = %d, NA = %d, NM = %d, NT = %d;\n", NV, NLR, NHE, NA, NM, NT);
+    std::fprintf (o, "constexpr double HB_OPERATING = %.5f, HS_0VU = %.6f;\n", hbOp, hsRef);
+    std::fprintf (o, "constexpr double HE_GRID[NHE] = {"); for (int i = 0; i < NHE; ++i) std::fprintf (o, " %.4f,", heGrid[i]); std::fprintf (o, " };   // the erase head's deep-gap field, Hc\n");
+    std::fprintf (o, "constexpr double TOP_LEVEL[NT] = {"); for (int i = 0; i < NT; ++i) std::fprintf (o, " %.2f,", topLevel[i]); std::fprintf (o, " };   // x the 0 VU field\n");
+    std::fprintf (o, "// the committed take (recorded at the operating bias, on each slab's M_REM grid): what the erase head at he then the bias at A leave of it, as a ratio, per [speed][slab][he][A][M_old]\n");
+    std::fprintf (o, "constexpr float R_DUB[NV][NL][NHE][NA][NM] = {\n");
+    for (int iv = 0; iv < NV; ++iv) { std::fprintf (o, "{\n"); for (int l = 0; l < NLR; ++l) { std::fprintf (o, " {\n"); for (int ih = 0; ih < NHE; ++ih) { std::fprintf (o, "  {\n");
+        for (int ia = 0; ia < NA; ++ia) { std::fprintf (o, "   {"); for (int im = 0; im < NM; ++im) std::fprintf (o, "%.6ff,", RD[di (iv, l, ih, ia, im)]); std::fprintf (o, "},\n"); }
+        std::fprintf (o, "  },\n"); } std::fprintf (o, " },\n"); } std::fprintf (o, "},\n"); }
+    std::fprintf (o, "};\n// the overdub: the remanence (M/Ms) a DC level TOP_LEVEL x 0 VU records at bias A, per [speed][slab][A][level]\n");
+    std::fprintf (o, "constexpr float TOP_M[NV][NL][NA][NT] = {\n");
+    for (int iv = 0; iv < NV; ++iv) { std::fprintf (o, "{\n"); for (int l = 0; l < NLR; ++l) { std::fprintf (o, " {\n");
+        for (int ia = 0; ia < NA; ++ia) { std::fprintf (o, "  {"); for (int it = 0; it < NT; ++it) std::fprintf (o, "%.6ff,", TM[mi (iv, l, ia, it)]); std::fprintf (o, "},\n"); }
+        std::fprintf (o, " },\n"); } std::fprintf (o, "},\n"); }
+    std::fprintf (o, "};\n// and what the erase head at he then the bias at that same A leave of it, as a ratio, per [speed][slab][he][A][level]\n");
+    std::fprintf (o, "constexpr float R_TOP[NV][NL][NHE][NA][NT] = {\n");
+    for (int iv = 0; iv < NV; ++iv) { std::fprintf (o, "{\n"); for (int l = 0; l < NLR; ++l) { std::fprintf (o, " {\n"); for (int ih = 0; ih < NHE; ++ih) { std::fprintf (o, "  {\n");
+        for (int ia = 0; ia < NA; ++ia) { std::fprintf (o, "   {"); for (int it = 0; it < NT; ++it) std::fprintf (o, "%.6ff,", RT[ti (iv, l, ih, ia, it)]); std::fprintf (o, "},\n"); }
+        std::fprintf (o, "  },\n"); } std::fprintf (o, " },\n"); } std::fprintf (o, "},\n"); }
+    std::fprintf (o, "};\n} }\n");
+    std::fclose (o);
+    // what the tables say at the alignment, slab 0, the operating bias: the committed take's retention by he
+    {
+        int ia = 0; while (ia < NA - 1 && Ag[ia + 1] < hbOp * karlqvist (Lin.rec.g, 0.0, Lin.rec.d + yR[0])) ++ia;
+        std::printf ("   slab 0 at %.2f cm/s, bias at A index %d: the take's ratio by he:", speeds[IALIGN], ia);
+        for (int ih = 0; ih < NHE; ++ih) std::printf ("  %.3f: %.4f", heGrid[ih], RD[di (IALIGN, 0, ih, ia, NM / 2 + 1)]);
+        std::printf ("\n   written %s\n", path.c_str());
+    }
+}
+
+//------------------------------------------------------------------------------ the overdub question (BUGLIST 8)
+/*  What a loop keeps when it is recorded over with the erase head off, measured
+    rather than argued: whether a second identical pass takes anything more (the
+    Preisach wiping-out property says it cannot), how a take made at the operating
+    bias survives passes at a LOWER bias, whether a recording made at that lower
+    bias survives its own next pass, and what the lower bias records like. */
+static void dubReport (const Lab& L, double hbOp, double hsRef)
+{
+    std::printf ("\n5b. THE OVERDUB QUESTION at %.2f cm/s (0 VU 1 kHz unless said; residual dB re the original)\n", L.v);
+    int c0, n; L.window (1000.0, c0, n);
+    auto amp1k = [&] (Tape& tp, double f = 1000.0, int cc0 = -1, int nn = -1) {
+        if (cc0 < 0) { cc0 = c0; nn = n; }
+        Readout R (L.md, tp, L.stock); return std::abs (R.amp (f, L.v, cc0, nn, -1)) / std::sqrt (2.0); };
+    auto biasPass = [&] (Tape& tp, double hb) { Pass P; P.head = L.rec; P.hb = hb; P.fb = L.fb; P.v = L.v; runPass (tp, P); };
+    Tape base = L.fresh(); L.record (base, hbOp, hsRef, 1000.0);
+    const double orig = amp1k (base);
+    std::printf ("   the take: %.1f nWb/m rms at the operating bias %.3f Hc\n", orig, hbOp);
+
+    // E1: a second identical pass
+    {
+        Tape tp = base; L.erasePass (tp, 1.25); const double e1 = amp1k (tp); L.erasePass (tp, 1.25); const double e2 = amp1k (tp);
+        L.erasePass (tp, 1.25); const double e3 = amp1k (tp);
+        std::printf ("   E1 erase head at 1.25 Hc: one pass %+.2f dB, two %+.2f, three %+.2f\n", dB (e1 / orig), dB (e2 / orig), dB (e3 / orig));
+        Tape tb = base; biasPass (tb, hbOp); const double b1 = amp1k (tb); biasPass (tb, hbOp); const double b2 = amp1k (tb);
+        std::printf ("   E1 bias-only at the operating bias: one pass %+.2f dB, two %+.2f\n", dB (b1 / orig), dB (b2 / orig));
+    }
+
+    // E2: the take under passes at a lower bias (sound-on-sound): first and second pass
+    std::printf ("   E2 the take under bias-only passes at r x operating bias (pass 1 / pass 2 / pass 3):\n");
+    for (double r : { 1.0, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3 })
+    {
+        Tape tp = base;
+        biasPass (tp, r * hbOp); const double a1 = amp1k (tp);
+        biasPass (tp, r * hbOp); const double a2 = amp1k (tp);
+        biasPass (tp, r * hbOp); const double a3 = amp1k (tp);
+        std::printf ("      r %.2f (%.3f Hc): %+6.2f / %+6.2f / %+6.2f dB\n", r, r * hbOp, dB (a1 / orig), dB (a2 / orig), dB (a3 / orig));
+    }
+    // and where it lives afterwards, at r = 0.5
+    {
+        Tape tp = base; biasPass (tp, 0.5 * hbOp);
+        Readout R0 (L.md, base, L.stock), R1 (L.md, tp, L.stock);
+        const double mr = L.stock.fluxSat() * L.stock.S;
+        std::printf ("      per depth at r 0.5 (layer centre um: before -> after, M/Mr peak):");
+        for (int l = 0; l < L.NL; ++l)
+            std::printf ("  %.1f: %.4f -> %.4f", (l + 0.5) * L.stock.deltaUm / L.NL,
+                         std::abs (R0.amp (1000.0, L.v, c0, n, l)) / mr, std::abs (R1.amp (1000.0, L.v, c0, n, l)) / mr);
+        std::printf ("\n");
+    }
+    // E2b: the take by wavelength under r = 0.5 (a longer tape for the low note), depth-averaged and through the playback head
+    {
+        Lab L3 = L; L3.lengthUm = L.lengthUm * 4.0;
+        std::printf ("   E2b the take by frequency under one pass at r 0.5 (depth-averaged / through the playback head):");
+        for (double f : { 200.0, 1000.0, 5000.0, 10000.0 })
+        {
+            int cc0, nn; L3.window (f, cc0, nn);
+            Tape tp = L3.fresh(); L3.record (tp, hbOp, hsRef, f);
+            Readout Ra (L3.md, tp, L3.stock);
+            const double a0 = std::abs (Ra.amp (f, L3.v, cc0, nn, -1)), p0 = Ra.playback (f, L3.v, cc0, nn, L3.play.d, L3.play.g);
+            Pass P; P.head = L3.rec; P.hb = 0.5 * hbOp; P.fb = L3.fb; P.v = L3.v; runPass (tp, P);
+            Readout Rb (L3.md, tp, L3.stock);
+            const double a1 = std::abs (Rb.amp (f, L3.v, cc0, nn, -1)), p1 = Rb.playback (f, L3.v, cc0, nn, L3.play.d, L3.play.g);
+            std::printf ("  %.0f Hz: %+.1f / %+.1f dB", f, dB (a1 / a0), dB (p1 / p0));
+        }
+        std::printf ("\n");
+    }
+
+    // E3: a recording MADE at the lower bias, then a bias-only pass at that same bias: does an overdub survive the next overdub?
+    std::printf ("   E3 a recording made at r x bias, under one bias-only pass at the same bias (its level, then residual at 0 VU / +6 / +12 dB field):\n");
+    for (double r : { 1.0, 0.7, 0.5, 0.4, 0.35, 0.3 })
+    {
+        std::printf ("      r %.2f:", r);
+        for (double lv : { 1.0, 2.0, 4.0 })
+        {
+            Tape tp = L.fresh(); L.record (tp, r * hbOp, hsRef * lv, 1000.0);
+            const double a0 = amp1k (tp);
+            biasPass (tp, r * hbOp);
+            std::printf ("  %.0f nWb/m -> %+.1f dB", a0, dB (amp1k (tp) / a0));
+        }
+        std::printf ("\n");
+    }
+
+    // E4: what the lower bias records like: level and HD3 at the 0 VU field and at +6 dB
+    std::printf ("   E4 recording at r x bias, fresh tape: rms nWb/m and HD3 at the 0 VU field, then at +6 dB:\n");
+    for (double r : { 1.0, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3 })
+    {
+        double a, p, h3a, a6, p6, h3b;
+        L.measure (r * hbOp, hsRef, 1000.0, a, p, &h3a);
+        L.measure (r * hbOp, 2.0 * hsRef, 1000.0, a6, p6, &h3b);
+        double a10, p10; L.measure (r * hbOp, 0.1 * hsRef, 10000.0, a10, p10);
+        double a1s, p1s; L.measure (r * hbOp, 0.1 * hsRef, 1000.0, a1s, p1s);
+        std::printf ("      r %.2f: %.1f nWb/m (%+.1f dB re 250), HD3 %.2f %%;  +6 dB: %.1f (%+.1f), HD3 %.2f %%;  10 kHz re 1 kHz through the playback head %+.1f dB\n",
+                     r, a, dB (a / 250.0), 100 * h3a, a6, dB (a6 / 250.0), 100 * h3b, dB (p10 / p1s));
+    }
+
+    // E5: the real DUB pass: the take, then 3 kHz at 0 VU recorded over it at r x bias: what is left of the take and what the new tone is
+    std::printf ("   E5 the take recorded over with 3 kHz at 0 VU at r x bias: 1 kHz residual, new 3 kHz tone (nWb/m rms; fresh-tape 3 kHz at that bias):\n");
+    for (double r : { 1.0, 0.7, 0.5, 0.4, 0.35 })
+    {
+        Tape tp = base; L.record (tp, r * hbOp, hsRef, 3000.0);
+        int c3, n3; L.window (3000.0, c3, n3);
+        Tape fr = L.fresh(); L.record (fr, r * hbOp, hsRef, 3000.0);
+        std::printf ("      r %.2f: %+.1f dB, %.1f nWb/m (fresh %.1f)\n", r, dB (amp1k (tp) / orig), amp1k (tp, 3000.0, c3, n3), amp1k (fr, 3000.0, c3, n3));
+    }
+
+    // E6: the erase head at he, then a bias-only pass at r 0.5: the two together, once and twice
+    std::printf ("   E6 erase head at he then the bias at r 0.5, one pass / two passes:");
+    for (double he : { 0.0, 1.0, 1.25, 1.5 })
+    {
+        Tape tp = base;
+        if (he > 0.0) L.erasePass (tp, he);
+        biasPass (tp, 0.5 * hbOp); const double a1 = amp1k (tp);
+        if (he > 0.0) L.erasePass (tp, he);
+        biasPass (tp, 0.5 * hbOp); const double a2 = amp1k (tp);
+        std::printf ("  he %.2f: %+.1f / %+.1f dB", he, dB (a1 / orig), dB (a2 / orig));
+    }
+    std::printf ("\n");
+}
+
 int main (int argc, char** argv)
 {
     std::string out = argc > 1 && argv[1][0] != '-' ? argv[1] : ".";
     bool fast = false;
-    int layersOpt = 0; bool playbackOpt = false, tablesOnly = false, erasureOnly = false; std::string stockOpt = "456"; std::string tablesPath, pbPath; double nuOpt = 0.0, speedOpt = 0.0, hbOpt = 0.0, hsOpt = 0.0;
+    int layersOpt = 0; bool playbackOpt = false, tablesOnly = false, erasureOnly = false, dubOnly = false; std::string stockOpt = "456"; std::string tablesPath, pbPath, dubPath; double nuOpt = 0.0, speedOpt = 0.0, hbOpt = 0.0, hsOpt = 0.0;
     for (int i = 1; i < argc; ++i)
     {
         if (! std::strcmp (argv[i], "--fast")) fast = true;
@@ -975,6 +1284,8 @@ int main (int argc, char** argv)
         if (! std::strcmp (argv[i], "--playback")) playbackOpt = true;
         if (! std::strcmp (argv[i], "--tablesonly")) tablesOnly = true;
         if (! std::strcmp (argv[i], "--erasure")) erasureOnly = true;
+        if (! std::strcmp (argv[i], "--dub")) dubOnly = true;
+        if (! std::strncmp (argv[i], "--dubtables=", 12)) dubPath = argv[i] + 12;
         if (! std::strncmp (argv[i], "--stock=", 8)) stockOpt = argv[i] + 8;
         if (! std::strncmp (argv[i], "--pbtables=", 11)) { pbPath = argv[i] + 11; playbackOpt = true; }
         if (! std::strncmp (argv[i], "--nu=", 5)) nuOpt = std::atof (argv[i] + 5);
@@ -1099,11 +1410,22 @@ int main (int argc, char** argv)
     }
 
     // --erasure: section 5 alone, at --speed with --hbop and --hs0vu (the machine's alignment)
-    if (erasureOnly && hbOpt > 0.0 && hsOpt > 0.0)
+    if ((erasureOnly || dubOnly) && hbOpt > 0.0 && hsOpt > 0.0)
     {
         std::printf ("\n   erasure at %.2f cm/s, operating bias %.4f Hc, 0 VU field %.5f Hc\n", L.v, hbOpt, hsOpt);
-        erasureReport (L, hbOpt, hsOpt);
+        if (erasureOnly) erasureReport (L, hbOpt, hsOpt);
+        if (dubOnly) dubReport (L, hbOpt, hsOpt);
         std::printf ("\ndone\n");
+        return 0;
+    }
+
+    // --dubtables=: the DUB tables alone (the medium as fitted or as --nu= says)
+    if (! dubPath.empty())
+    {
+        std::printf ("\n8b. DUB TABLES (BUGLIST 8)\n");
+        t = now_s();
+        writeDubTables (L, dubPath);
+        std::printf ("   (%.1f s)\n\ndone\n", now_s() - t);
         return 0;
     }
 

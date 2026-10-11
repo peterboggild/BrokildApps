@@ -273,7 +273,7 @@ PLAY. A tempo head dragged after LOOP BARS cut the loop is reported as the bars 
 loop lasts now. Bench: the taper, REC/PLAY overriding ERASE, the knob spreading the
 loss, and a REEL ignoring the whole panel bit for bit.
 
-## 8. OVERDUB layers vanish in one pass: is bias erasure too strong? (Peter, 2026-10-11) — investigated, awaiting go
+## 8. OVERDUB layers vanish in one pass: is bias erasure too strong? (Peter, 2026-10-11) — BUILT 2026-10-11 (261011.9): DUB is sound-on-sound, every pass one shot
 
 *"not sure overdub is working"*
 
@@ -317,3 +317,18 @@ Proposed (Fable-level, stage 2 territory):
   ten passes; MOL and the bias curve unmoved within their tolerances.
 - If published measurements of bias erasure turn up, they decide alpha; until then the
   only anchor is the qualitative report, and I will say so.
+
+**Built (261011.9).** The reference answered the question itself (`mtref --dub`,
+05-reference-results §5b): bias erasure at the operating bias is −34.5 dB and robust (a
+fringe effect: the signal field is 7 % of the bias), so an overdub at the set bias was
+always going to vanish — real machines did sound-on-sound by dropping the bias, and the
+mean-field idea does not change it. What WAS wrong was the engine fading a layer on every
+pass where the physics takes its cut once (E1: a second identical pass takes nothing
+more). Shipped: the one-shot tape store (the committed part of each cell, the retention
+paid on it, the reach of what is on top), the pair tables generated with the erase head's
+own profile (the old erase LUT read the record head's G, 16.6 dB off at 1.5 Hc), DUB =
+bias −6 dB with the erase head at ERASE (the take keeps −3.5 dB once, bass best; the
+overdub is replaced by the next pass, a −24 dB ghost left, −13 when driven), REC the
+default LOOP STATE and bit-identical to the plain echo it was. On "record more on top of
+what was committed": the committed take stays; what is played on top is the latest layer,
+not a stack. The stacking tape can do is FEEDBACK. Numbers in 10-flux-memory.md.

@@ -532,6 +532,33 @@ geometric in the reference's one-pass loss from 0.6 to 60 dB over 90 % of the kn
 then on to a wipe). On a REEL every loop control is inert, bit for bit. Not
 released, so there are no projects to migrate.
 
+## Every pass of the loop's heads is one shot
+
+The reference, asked directly (mtref --dub), takes exactly the same from a take on a
+second identical pass as on the first: an erase field or a bias reaches what it
+reaches, and the survivors are what it cannot. One remanence number per cell had no
+memory of that and faded a layer on every pass, 35 dB where the physics takes 3.5
+once. The tape store now carries the committed part of each cell, the retention paid
+on it (a quarter-dB index) and the reach the material on top was recorded at;
+the pass's loss comes from two reference tables (the committed take's and the
+overdub's, because an overwrite depends on how deep the old recording went) and is
+applied only above what was paid. 2.25 x the memory. The first-stage erase LUT, read
+off the record head's G with the record head's depth profile, is gone with it: a
+60 um gap's field is nearly uniform through the coating, and the pair table is
+generated with the erase head's own profile (16.6 dB off at 1.5 Hc before).
+
+## DUB is sound-on-sound, because that is what tape can do
+
+Overdubs do not stack on one track: what is recorded at a bias is replaced by the
+next pass at that bias (the reference's E3, -24 dB at 0 VU at half bias). What
+survives is a take recorded at a HIGHER bias than the pass: at half bias it keeps
+-3.5 dB, permanently, bass best. So DUB drops the bias 6 dB and keeps the erase head
+at the ERASE knob: the take committed in REC stays under what is played, and what is
+played is the latest overdub with a ghost of the one before. REC (erase full, the set
+bias) is the default LOOP STATE, bit-identical to the plain echo it was. The
+mean-field term the design had listed was examined and dropped (10-flux-memory.md).
+A looper's indefinite stacking is FEEDBACK's job, which is how tape musicians did it.
+
 ## OK -> BROKEN moves causes, not effects
 
 Every deterioration here is already a cause, so BROKEN moves the causes in a straight

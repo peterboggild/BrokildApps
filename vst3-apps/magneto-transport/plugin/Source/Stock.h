@@ -14,6 +14,7 @@ namespace mt
 {
 
 constexpr int STK_NV = 5, STK_NL = 4, STK_NA = 64, STK_NS = 41, STK_NM = 11;
+constexpr int STK_NHE = 12, STK_NT = 4;   // the DUB tables: erase-head fields, overdub levels
 constexpr int NUM_COATINGS = 3;   // 0 studio (456 class), 1 vintage low-output, 2 budget
 constexpr int NUM_STOCKS   = 4;   // STUDIO, VINTAGE, SHEDDING, BUDGET (the parameter's order)
 
@@ -37,6 +38,16 @@ struct CoatingTables
     const double (*zoneW)[STK_NL][STK_NA];
     const double (*zoneGain)[STK_NL][STK_NA];
     const float (*G)[STK_NL][STK_NA][STK_NM][STK_NS];   // [NV][NL][NA][NM][NS]
+    // what one pass of the loop's heads leaves (mtref --dubtables, 10-flux-memory.md): the
+    // erase head at HE_GRID[h] (deep gap, Hc) then the bias at A_GRID[a], no signal, as a
+    // RATIO of the remanence: of the committed take (recorded at the operating bias, on
+    // the slab's M_REM grid) and of an overdub (a DC level TOP_LEVEL x 0 VU recorded at
+    // that same bias; TOP_M is the remanence it holds)
+    const double* heGrid;                    // [NHE]
+    const double* topLevel;                  // [NT]
+    const float (*rDub)[STK_NL][STK_NHE][STK_NA][STK_NM];
+    const float (*topM)[STK_NL][STK_NA][STK_NT];
+    const float (*rTop)[STK_NL][STK_NHE][STK_NA][STK_NT];
     const double* pbSpeedCms;                // [NV]
     const double* pbSpacingUm;               // [NV]: the slabs' effective extra spacing (stage 4)
     double alignSpacingUm;                   // the fresh stock's surface spacing the machine is aligned to

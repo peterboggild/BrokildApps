@@ -206,7 +206,7 @@ Every stage ends with its bench clear. **LISTEN** = stop, install, Peter listens
 | 4 | playback physics, EQ standards, electronics, gain staging, stereo crosstalk/azimuth | built 2026-10-11 (261011.3): playback within 0.16 dB of the reference, aligned machine flat within 0.25 dB |
 | 5 | transport mechanics: motor, capstan, bearings, elastic tape, scrape flutter, reels | FABLE, **LISTEN C** - built 2026-10-11 (261011.4): bench 110/110, awaiting the listen |
 | 6 | tape stock: particle statistics → hiss, modulation noise, dropouts; stocks, age, wear | built 2026-10-11 (261011.5): bench 141/141, hiss within 0.6 dB of the continuous coating |
-| 7 | FLUX MEMORY: partial erase, bias-erase overwrite, the LOOP panel (REC / DUB / PLAY, CLEAR, LOOP BARS; BUGLIST 2 and 7); also REPRO (4), the feedback law (3), OK / BROKEN (5) | in progress 2026-10-11 (261011.8): built and benched apart from the erasure depths, which wait for the overdub physics (BUGLIST 8, Fable); **LISTEN D** after that |
+| 7 | FLUX MEMORY: partial erase, bias-erase overwrite, the LOOP panel (REC / DUB / PLAY, CLEAR, LOOP BARS; BUGLIST 2 and 7); also REPRO (4), the feedback law (3), OK / BROKEN (5), and the overdub physics (8: DUB is sound-on-sound, every pass one shot) | built 2026-10-11 (261011.9): **LISTEN D** |
 | 8 | panel driven by the simulation, quality tiers, presets, smoothing, bypass, latency, host test, pluginval if available | |
 | 9 | decal brief → **stop**; integrate on return | |
 | 10 | mechanical sounds, manual, landing page, zip; README draft for approval | |

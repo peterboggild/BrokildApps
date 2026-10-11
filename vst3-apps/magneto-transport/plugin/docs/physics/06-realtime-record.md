@@ -104,8 +104,9 @@ lives, they agree.
 
 - Programme material (drums, voice) against reference renders — the §6
   tolerance; needs a `--render` mode in the reference.
-- The erase head is full-field only; FLUX MEMORY's partial erase (stage 7) needs
-  erase-head tables (the 60 µm gap's field profile differs from the record head's).
+- (Stage 7) The erase head's partial field and the overdub pass have their own
+  tables, generated with the erase head's own profile and a second old-state prep:
+  10-flux-memory.md.
 
 ## Cost
 

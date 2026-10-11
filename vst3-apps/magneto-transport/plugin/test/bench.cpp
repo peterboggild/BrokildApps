@@ -629,7 +629,7 @@ static void testEveryControl()
         const bool medium = id == "stock" || id == "particles" || id == "wear" || id == "accumulate";
         if (id == "accumulate") { base.mode = 1; base.loopLen = 0.5f; base.speed = 76.0f; base.feedback = 0.62f; }
         // FLUX MEMORY on a short fast loop at half bias, where earlier passes survive (DUB)
-        if (id == "erase") { base.mode = 1; base.loopLen = 0.5f; base.speed = 76.0f; base.bias = -6.0f; }
+        if (id == "erase") { base.mode = 1; base.looper = 1; base.loopLen = 0.5f; base.speed = 76.0f; base.bias = -6.0f; }
         // the loop's state the same way with the erase head off: DUB keeps the passes, REC wipes them
         if (id == "looper") { base.mode = 1; base.loopLen = 0.5f; base.speed = 76.0f; base.bias = -6.0f; base.erase = 0.0f; }
         if (id == "clear") { base.mode = 1; base.looper = 0; }
@@ -1713,70 +1713,129 @@ static void testFluxMemory()
     std::printf ("\n20. FLUX MEMORY AND THE LOOP PANEL (a variable erase head, REC / DUB / PLAY, the loop's transport)\n");
     const double fs = 48000.0;
 
-    // ---- erasure against the reference: a 0 VU 1 kHz recording on a loop at the machine's own
-    //      alignment (19.05 cm/s, operating bias), then one pass of something, the residual
-    //      read as depth-averaged flux (no playback head) as the reference reads it. Reference:
-    //      mtref --erasure --speed=19.05 --hbop=3.2630 --hs0vu=0.23301 --nu=2.0589 (2026-10-11)
+    // ---- against the reference's overdub report (mtref --dub --speed=19.05 --hbop=3.26301
+    //      --hs0vu=0.233009 --nu=2.0589, 2026-10-11, docs/physics/10-flux-memory.md): a 0 VU
+    //      1 kHz take committed in REC at the machine's own alignment, then passes in DUB.
+    //      Depth-averaged flux (no playback head), as the reference reads it, unless said.
     {
         EqOff eqOff;
         struct RecordOnly { RecordOnly() { g_recordOnly = true; } ~RecordOnly() { g_recordOnly = false; } } recordOnly;
-        const double v = 19.05, L = 0.5, P = L * 100.0 / v, h = 4.0, dl = h / v;
-        const double biasRef = 0.0;
-        const double amp0 = REF_AMP;
-        const double tSw = 3.0;                    // the switch, after a pass and a bit of the tone
-        // what: 0 bias-only pass (erase off, record on, silence); 1 recorded over with 3 kHz at 0 VU;
-        // 2 the same at half bias; 3 the erase head alone at he (record off)
-        auto residual = [&] (int what, double he) {
-            Params p = wetOnly(); p.mode = 1; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h); p.bias = (float) biasRef;
-            const size_t n = (size_t) ((tSw + dl + P + 0.2) * fs);
+        const double v = 19.05, L = 0.5, P = L * 100.0 / v, h = 4.0, dl = h / v, tSw = 3.0;
+        // the take, then DUB from tSw with `erase` on the knob, `biasDb` on BIAS (DUB drops it
+        // 6 dB more) and `what` going in: 0 silence, 1 a 3 kHz tone at 0 VU. The 1 kHz
+        // residual after passes 1, 2 and 3 (dB re the take), and the new tone's level.
+        auto dubRun = [&] (float erase, float biasDb, int what, double* res, double* tone = nullptr) {
+            Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h); p.erase = erase; p.bias = 0.0f;
+            const size_t n = (size_t) ((tSw + dl + 3.0 * P + 0.2) * fs);
             std::vector<float> x (n, 0.0f);
             for (size_t i = 0; i < n; ++i)
             {
                 const double t = i / fs;
-                if (t < tSw) x[i] = (float) (amp0 * std::sin (2.0 * M_PI * 1000.0 * t));
-                else if (what == 1 || what == 2) x[i] = (float) (amp0 * std::sin (2.0 * M_PI * 3000.0 * t));
+                if (t < tSw) x[i] = (float) (REF_AMP * std::sin (2.0 * M_PI * 1000.0 * t));
+                else if (what == 1) x[i] = (float) (REF_AMP * std::sin (2.0 * M_PI * 3000.0 * t));
             }
-            Engine e;
-            auto r = run (p, fs, x, x, [&] (Params& q, Engine& en, size_t i) {
-                if ((double) i / fs < tSw) return;
-                if (what == 3) en.forceHeads (he, 0.0);
-                else { q.erase = 0.0f; if (what == 2) q.bias = (float) (biasRef - 6.0206); } }, 0.0, &e);
-            const size_t a0 = (size_t) ((dl + 0.4) * fs), b0 = (size_t) ((tSw - 0.05) * fs);
-            const size_t a1 = (size_t) ((tSw + dl + 0.1) * fs), b1 = (size_t) ((tSw + dl + P - 0.1) * fs);
-            return 20.0 * std::log10 (goertzelAmp (r.L, a1, b1, 1000.0, fs) / goertzelAmp (r.L, a0, b0, 1000.0, fs));
+            auto r = run (p, fs, x, x, [&] (Params& q, Engine&, size_t i) { if ((double) i / fs >= tSw) { q.looper = 1; q.bias = biasDb; } });
+            const double l0 = goertzelAmp (r.L, (size_t) ((dl + 0.4) * fs), (size_t) ((tSw - 0.05) * fs), 1000.0, fs);
+            for (int k = 0; k < 3; ++k)
+            {
+                const double a = tSw + dl + k * P + 0.1, b = tSw + dl + (k + 1) * P - 0.1;
+                res[k] = 20.0 * std::log10 (goertzelAmp (r.L, (size_t) (a * fs), (size_t) (b * fs), 1000.0, fs) / l0);
+            }
+            if (tone) *tone = goertzelAmp (r.L, (size_t) ((tSw + dl + 0.1) * fs), (size_t) ((tSw + dl + P - 0.1) * fs), 3000.0, fs);
         };
-        const double bo = residual (0, 0.0), ov = residual (1, 0.0), hb = residual (2, 0.0);
-        std::printf ("   one pass over a 0 VU 1 kHz recording, residual dB (reference):  bias only %+.1f (-34.5)  over 3 kHz 0 VU %+.1f (-44.6)  half bias %+.1f (-4.1)\n", bo, ov, hb);
-        check (std::abs (bo + 34.5) < 1.5, "bias erasure: one pass of the record head's bias takes what the reference takes", fmt ("%+.1f dB (reference -34.5)", bo));
-        check (std::abs (ov + 44.6) < 2.0 && std::abs (hb + 4.1) < 1.5, "recording over it, at full and at half bias, as the reference", fmt ("%+.1f / %+.1f dB (reference -44.6 / -4.1)", ov, hb));
-        struct Er { double he, ref; };
-        const Er er[] = { { 0.75, -0.1 }, { 1.0, -3.0 }, { 1.25, -18.3 }, { 1.5, -51.5 } };
-        double worst = 0.0;
-        std::printf ("   the erase head alone at he (Hc), residual dB (reference):");
-        for (const Er& x : er)
+        double r0[3];
+        dubRun (0.0f, 0.0f, 0, r0);
+        check (std::abs (r0[0] + 3.47) < 0.6, "DUB, ERASE 0: the take committed in REC loses what the reference's E2 says, once", fmt ("%+.2f dB after one pass (reference -3.47)", r0[0]));
+        check (std::abs (r0[1] - r0[0]) < 0.02 && std::abs (r0[2] - r0[0]) < 0.02, "and nothing more on the second and third pass (one shot: the reference's E1)", fmt ("%+.2f / %+.2f / %+.2f dB", r0[0], r0[1], r0[2]));
+        // the operating bias itself (BIAS +6 in DUB undoes the drop): the first stage 7 check, once
+        double rb[3], rt[3], tone3;
+        // (the overdub table's levels are DC: a tone's cells sit below its peak, where the
+        // ghost ratio is lower, so the tone's ghost reads a few dB under the reference's)
+        dubRun (0.0f, 6.0f, 0, rb);
+        check (std::abs (rb[0] + 34.5) < 3.5 && std::abs (rb[1] - rb[0]) < 0.05, "at the operating bias the bias alone takes what the reference takes, once", fmt ("%+.1f / %+.1f dB (reference -34.5)", rb[0], rb[1]));
+        dubRun (0.0f, 6.0f, 1, rt, &tone3);
+        double tone3rec;
         {
-            const double d = residual (3, x.he);
-            std::printf ("  %.2f: %+.1f (%+.1f)", x.he, d, x.ref);
-            worst = std::max (worst, std::abs (d - x.ref));
+            // the same 3 kHz tone recorded in REC, for the new tone's level
+            Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h);
+            const size_t n = (size_t) ((dl + 1.5) * fs);
+            auto x = sine (n, 3000.0, fs, REF_AMP);
+            auto r = run (p, fs, x, x);
+            tone3rec = goertzelAmp (r.L, (size_t) ((dl + 0.5) * fs), (size_t) ((dl + 1.4) * fs), 3000.0, fs);
         }
-        const double full = residual (3, 2.0);
-        std::printf ("  2.00: %+.1f (-148)\n", full);
-        check (worst < 2.0, "FLUX MEMORY: the erase head's partial erasure follows the reference (he 0.75-1.5)", fmt ("worst %.1f dB off", worst));
+        check (rt[0] < -30.0 && rt[0] > -46.0 && std::abs (20.0 * std::log10 (tone3 / tone3rec)) < 0.5,
+               "recording over it at the operating bias: the ghost under the new tone (the tables are bias-only; the reference's -44.6 has the tone widening the reach)", fmt ("%+.1f dB, new 3 kHz tone %+.2f dB re the same tone in REC", rt[0], 20.0 * std::log10 (tone3 / tone3rec)));
+        // the erase head with the bias (E6): the knob at the fields the reference measured
+        auto knobFor = [] (double he) { double lo = 0.0, hi = 100.0; for (int i = 0; i < 40; ++i) { const double k = 0.5 * (lo + hi); (Engine::eraseFieldHc (k) < he ? lo : hi) = k; } return 0.5 * (lo + hi); };
+        struct Er { double he, ref; };
+        const Er er[] = { { 1.0, -4.6 }, { 1.25, -18.5 }, { 1.5, -51.5 } };
+        double worst = 0.0; std::string d;
+        for (const Er& e : er)
+        {
+            double rr[3]; dubRun ((float) knobFor (e.he), 0.0f, 0, rr);
+            worst = std::max (worst, std::abs (rr[0] - e.ref));
+            d += fmt ("%.2f Hc: %+.1f (%+.1f)  ", e.he, rr[0], e.ref);
+        }
+        check (worst < 2.5, "ERASE in DUB: the erase head and the bias together take what the reference's E6 says, once", d);
+        // the erase head alone (the record relay open): the reference's own transition
+        auto eraseAlone = [&] (double he) {
+            Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h);
+            const size_t n = (size_t) ((tSw + dl + P + 0.2) * fs);
+            auto x = sine (n, 1000.0, fs, REF_AMP, 0, (size_t) (tSw * fs));
+            auto r = run (p, fs, x, x, [&] (Params& q, Engine& en, size_t i) { if ((double) i / fs >= tSw) { q.looper = 2; en.forceHeads (he, 0.0); } });
+            const double l0 = goertzelAmp (r.L, (size_t) ((dl + 0.4) * fs), (size_t) ((tSw - 0.05) * fs), 1000.0, fs);
+            return 20.0 * std::log10 (goertzelAmp (r.L, (size_t) ((tSw + dl + 0.1) * fs), (size_t) ((tSw + dl + P - 0.1) * fs), 1000.0, fs) / l0);
+        };
+        const Er ea[] = { { 0.75, -0.1 }, { 1.0, -3.0 }, { 1.25, -18.3 }, { 1.5, -51.5 } };
+        worst = 0.0; d.clear();
+        for (const Er& e : ea) { const double got = eraseAlone (e.he); worst = std::max (worst, std::abs (got - e.ref)); d += fmt ("%.2f: %+.1f (%+.1f)  ", e.he, got, e.ref); }
+        const double full = eraseAlone (2.0);
+        check (worst < 2.5, "the erase head alone follows the reference's transition (he 0.75-1.5)", d);
         check (full < -80.0, "and past the transition it wipes the tape", fmt ("%+.1f dB at he = 2", full));
+        // what is recorded in DUB is replaced by the next pass: a 1 kHz tone recorded in DUB
+        // over a blank loop, then silence (E3)
+        auto ghost = [&] (double level) {
+            Params p = wetOnly(); p.mode = 1; p.looper = 1; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h); p.erase = 0.0f;
+            const size_t n = (size_t) ((tSw + dl + 2.0 * P + 0.2) * fs);
+            auto x = sine (n, 1000.0, fs, REF_AMP * level, 0, (size_t) (tSw * fs));
+            auto r = run (p, fs, x, x);
+            const double l0 = goertzelAmp (r.L, (size_t) ((dl + 0.4) * fs), (size_t) ((tSw - 0.05) * fs), 1000.0, fs);
+            return 20.0 * std::log10 (goertzelAmp (r.L, (size_t) ((tSw + dl + 0.1) * fs), (size_t) ((tSw + dl + P - 0.1) * fs), 1000.0, fs) / l0);
+        };
+        const double g0 = ghost (1.0), g12 = ghost (3.981);
+        check (std::abs (g0 + 24.1) < 3.0 && std::abs (g12 + 12.8) < 3.0, "the overdub itself is replaced by the next pass, its ghost as the reference's E3", fmt ("%+.1f dB at 0 VU (reference -24.1), %+.1f at +12 dB (-12.8)", g0, g12));
+        // what DUB records: 2.9 dB low at the sound-on-sound bias (E4)
+        auto level = [&] (float state) {
+            Params p = wetOnly(); p.mode = 1; p.looper = state; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h); p.erase = 100.0f;
+            const size_t n = (size_t) ((dl + 1.5) * fs);
+            auto x = sine (n, 1000.0, fs, REF_AMP);
+            auto r = run (p, fs, x, x);
+            return goertzelAmp (r.L, (size_t) ((dl + 0.5) * fs), (size_t) ((dl + 1.4) * fs), 1000.0, fs);
+        };
+        const double lRec = level (0.0f), lDub = level (1.0f);
+        check (std::abs (20.0 * std::log10 (lDub / lRec) + 2.9) < 0.6, "DUB records 2.9 dB low at its bias (the reference's E4); REC at the alignment", fmt ("%+.2f dB (reference -2.9)", 20.0 * std::log10 (lDub / lRec)));
     }
-
-    // ---- REC, then DUB with the erase head off: the old layer fades by the bias erasure per pass
+    // ---- the take by frequency through the playback head (E2b): the surface, which carries the
+    //      treble, is what the lowered bias still reaches
     {
+        EqOff eqOff;
         const double v = 19.05, L = 0.5, P = L * 100.0 / v, h = 4.0, dl = h / v, tSw = 3.0;
-        Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h);
-        const size_t n = (size_t) ((tSw + dl + 2.0 * P + 0.2) * fs);
-        auto x = sine (n, 1000.0, fs, REF_AMP, 0, (size_t) (tSw * fs));
-        auto r = run (p, fs, x, x, [&] (Params& q, Engine&, size_t i) { if ((double) i / fs >= tSw) { q.looper = 1; q.erase = 0.0f; } });
-        auto lv = [&] (double a, double b) { return goertzelAmp (r.L, (size_t) (a * fs), (size_t) (b * fs), 1000.0, fs); };
-        const double l0 = lv (dl + 0.4, tSw - 0.05), l1 = lv (tSw + dl + 0.1, tSw + dl + P - 0.1);
-        const double d1 = 20.0 * std::log10 (l1 / l0);
-        check (d1 < -35.0 && d1 > -50.0, "DUB, ERASE 0: the old layer fades by the bias erasure on every pass (playback head, EQ in)",
-               fmt ("%+.1f dB after one pass", d1));
+        struct Fr { double f, ref; };
+        const Fr fr[] = { { 200.0, -3.6 }, { 1000.0, -3.9 }, { 5000.0, -6.2 }, { 10000.0, -9.7 } };
+        double worst = 0.0; std::string d;
+        for (const Fr& e : fr)
+        {
+            Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h); p.erase = 0.0f;
+            const size_t n = (size_t) ((tSw + dl + P + 0.2) * fs);
+            auto x = sine (n, e.f, fs, REF_AMP, 0, (size_t) (tSw * fs));
+            auto r = run (p, fs, x, x, [&] (Params& q, Engine&, size_t i) { if ((double) i / fs >= tSw) q.looper = 1; });
+            const double l0 = goertzelAmp (r.L, (size_t) ((dl + 0.4) * fs), (size_t) ((tSw - 0.05) * fs), e.f, fs);
+            const double l1 = goertzelAmp (r.L, (size_t) ((tSw + dl + 0.1) * fs), (size_t) ((tSw + dl + P - 0.1) * fs), e.f, fs);
+            const double got = 20.0 * std::log10 (l1 / l0);
+            worst = std::max (worst, std::abs (got - e.ref));
+            d += fmt ("%.0f Hz %+.1f (%+.1f)  ", e.f, got, e.ref);
+        }
+        check (worst < 1.2, "the committed take keeps its bass and loses treble under DUB (through the playback head, E2b)", d);
     }
 
     // ---- ERASE's taper: the field the knob asks for, in DUB; REC full, PLAY off

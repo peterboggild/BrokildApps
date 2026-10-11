@@ -174,8 +174,16 @@ TapeStore::TapeStore (int64_t baseCells) : n0 (baseCells)
 {
     for (int c = 0; c < 2; ++c)
         for (int l = 0; l < NLAYER; ++l)
+        {
             m[c][l].assign ((size_t) (n0 >> l), 0.0f);
+            md[c][l].assign ((size_t) (n0 >> l), 0.0f);
+            rp[c][l].assign ((size_t) (n0 >> l), (uint8_t) 0);
+            ta[c][l].assign ((size_t) (n0 >> l), (uint8_t) 0);
+        }
 }
+
+// a retention index (quarter-dB of loss) back to a ratio; 255 is gone
+static const struct RqTable { float v[256]; RqTable() { for (int k = 0; k < 255; ++k) v[k] = (float) std::pow (10.0, -0.25 * k / 20.0); v[255] = 0.0f; } } RQ;
 
 Engine::Engine() = default;
 
@@ -719,7 +727,7 @@ void Engine::prepare (double hostSampleRate, int)
     }
     process (nullptr, nullptr, nullptr, nullptr, 0);
     recEnv = recTgt; heSm = heTgt;                   // the heads start where the controls put them
-    buildErase (heSm, std::max (v / CELLS_PER_CM, 4.6));
+    buildDub (heSm, biasDbSm, std::max (v / CELLS_PER_CM, 4.6), recTgt > 0.5);
     gDry = (params.killDry > 0.5f) ? 0.0 : std::cos (params.mix * M_PI * 0.5);
     gWet = std::sin (params.mix * M_PI * 0.5);
     gOut = dbToLin (params.output);
@@ -928,18 +936,67 @@ void Engine::finishCells()
                 nz0 = sig * (gc[0] * q0[2] + gc[1] * (q0[1] + q0[3]) + gc[2] * (q0[0] + q0[4]));
                 nz1 = sig * (gc[0] * q1[2] + gc[1] * (q1[1] + q1[3]) + gc[2] * (q1[0] + q1[4]));
             }
-            // record and bias off: the cell keeps what it had (the LOOP STATE PLAY);
-            // the relay's ramp blends, the bias fading in or out over a few ms of tape
-            if (recEnv <= 0.0) continue;
+            // record and bias off, and no erase field: the cell keeps what it had (the LOOP
+            // STATE PLAY); the relay's ramp blends, the bias fading in or out over a few ms of tape
+            if (recEnv <= 0.0 && ! dubPass) continue;
+            const DubSlice& D = dub[l];
             for (int c = 0; c < 2; ++c)
             {
                 float& m = store->m[c][l][(size_t) idx];
-                const double mr = recordCell (r, m, s[c]);
-                // binomial statistics: a saturated cell has every particle aligned, so no noise
-                const double nz = c == 0 ? nz0 : nz1;
-                const double mw = mr * (1.0 + eps) + nz * std::sqrt (std::max (0.0, 1.0 - mr * mr));
-                m = (float) (recEnv >= 1.0 ? mw : m + recEnv * (mw - m));
-                recPk = std::max (recPk, (float) std::abs (mr));
+                if (! loop)
+                {
+                    // a REEL: virgin tape at the record head
+                    const double mr = recordCell (r, m, s[c]);
+                    // binomial statistics: a saturated cell has every particle aligned, so no noise
+                    const double nz = c == 0 ? nz0 : nz1;
+                    const double mw = mr * (1.0 + eps) + nz * std::sqrt (std::max (0.0, 1.0 - mr * mr));
+                    m = (float) (recEnv >= 1.0 ? mw : m + recEnv * (mw - m));
+                    recPk = std::max (recPk, (float) std::abs (mr));
+                    continue;
+                }
+                // A LOOP's cell holds the COMMITTED take - what survives beyond the reach the
+                // heads have already paid for - and what the last pass recorded on TOP of it.
+                // A sweep takes from the committed take only what it has not taken before
+                // (one shot: the reference's E1) and replaces the top (E3), keeping its
+                // fringe as a ghost. Material recorded at a higher reach than this pass is
+                // committed material now. 10-flux-memory.md.
+                float& md = store->md[c][l][(size_t) idx];
+                uint8_t& rp = store->rp[c][l][(size_t) idx];
+                uint8_t& ta = store->ta[c][l][(size_t) idx];
+                double mdn = md, topn = 0.0;
+                const double top = (double) m - md;
+                bool touched = false;
+                if (md != 0.0f)
+                {
+                    const uint8_t k = D.paidIndex (std::abs ((double) md));
+                    if (k > rp) { mdn = (k == 255) ? 0.0 : md * (RQ.v[k] / RQ.v[rp]); touched = true; }
+                }
+                if (top != 0.0)
+                {
+                    // either way the top's survivors lie beyond this pass's reach, so they join
+                    // the committed material (a later pass at the same reach takes nothing
+                    // more: the reference's E1)
+                    if ((int) ta >= D.ia + 2) mdn += top * RQ.v[D.paidIndex (std::abs (top))];   // recorded at a higher reach: committed material now
+                    else                      mdn += top * RQ.v[D.topIndex (std::abs (top))];    // recorded at this reach: replaced, its fringe left as a ghost
+                    touched = true;
+                }
+                // what has been paid is recorded at the level the next pass will read it at (the
+                // ratio moves with level), and never lowered: a pass with a reach below what was
+                // paid takes nothing, and a return to the higher reach must not take it twice
+                if (touched) rp = std::max (rp, D.paidIndex (std::abs (mdn)));
+                double mw = 0.0;
+                if (recEnv > 0.0)
+                {
+                    // the fresh recording, into the hysterons this bias reaches
+                    const double mr = recordCell (r, 0.0f, s[c]);
+                    const double nz = c == 0 ? nz0 : nz1;
+                    mw = mr * (1.0 + eps) + nz * std::sqrt (std::max (0.0, 1.0 - mr * mr));
+                    recPk = std::max (recPk, (float) std::abs (mr));
+                    ta = (uint8_t) D.ia;
+                }
+                const double mNew = mdn + topn + mw;
+                if (recEnv >= 1.0 || recEnv <= 0.0) { m = (float) mNew; md = (float) mdn; }
+                else { m = (float) (m + recEnv * (mNew - m)); md = (float) (md + recEnv * (mdn - md)); }
             }
         }
         nextCell[l] = k;
@@ -1176,6 +1233,9 @@ void Engine::clearSpan (double& prevPos, double newPos)
         for (int64_t i = a; i < b; ++i)
         {
             store->m[0][l][(size_t) k] = 0.0f; store->m[1][l][(size_t) k] = 0.0f;
+            store->md[0][l][(size_t) k] = 0.0f; store->md[1][l][(size_t) k] = 0.0f;
+            store->rp[0][l][(size_t) k] = 0; store->rp[1][l][(size_t) k] = 0;
+            store->ta[0][l][(size_t) k] = 0; store->ta[1][l][(size_t) k] = 0;
             if (++k == ring) k = 0;
         }
     }
@@ -1186,6 +1246,12 @@ double Engine::layerM (int track, int layer, double pathCm) const
 {
     const double u = (T - pathCm * CELLS_PER_CM) / (double) (1 << layer);
     return store->m[track][layer][(size_t) wrapTo ((int64_t) std::floor (u), N >> layer)];
+}
+
+double Engine::layerMd (int track, int layer, double pathCm) const
+{
+    const double u = (T - pathCm * CELLS_PER_CM) / (double) (1 << layer);
+    return store->md[track][layer][(size_t) wrapTo ((int64_t) std::floor (u), N >> layer)];
 }
 
 //==============================================================================
@@ -1506,6 +1572,11 @@ void Engine::computeEff()
         eff.wear      += (100.0f - eff.wear) * b;
         eff.bias       = std::max (-10.0f, eff.bias - 6.0f * b);   // the bias oscillator sags: under-bias
     }
+    // DUB (BUGLIST 8): sound-on-sound. The bias drops to the level at which a take committed
+    // at the operating bias survives the pass (-3.5 dB once at -6 dB, the reference's E2);
+    // what is recorded at this bias is replaced by the next pass. Shown on the BIAS knob.
+    dubOn = params.mode > 0.5f && std::lround (params.looper) == 1;
+    if (dubOn) eff.bias = std::max (-10.0f, eff.bias + (float) DUB_BIAS_DB);
     tele.brokenEff[0] = eff.condition; tele.brokenEff[1] = eff.capstan; tele.brokenEff[2] = eff.reels;
     tele.brokenEff[3] = eff.scrape;    tele.brokenEff[4] = eff.wear;    tele.brokenEff[5] = eff.bias;
 }
@@ -1652,11 +1723,14 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         // nudge every cell of a frozen loop on every pass), and full is full
         if (heTgt <= 0.0 && heSm < 0.02) heSm = 0.0;
         if (heTgt >= 2.2 && heSm > 2.2) heSm = heTgt;
-        if (std::abs (heSm - eraseLutHe) > 0.004 || std::abs (std::log (vNow / std::max (eraseLutV, 1.0))) > 0.05)
-            buildErase (heSm, vNow);
         tele.eraseHc = heSm;
         if (std::abs (biasDbSm - recBiasDb) > 0.005 || std::abs (std::log (vNow / recSpeed)) > 0.002)
             buildRecord (biasDbSm, vNow);
+        // the pass's one-shot tables, rebuilt as the erase field, the bias, the speed or the record relay move
+        const bool recOn = recTgt > 0.5;
+        if (std::abs (heSm - dubHe) > 0.004 || std::abs (biasDbSm - dubBiasDb) > 0.005
+            || std::abs (std::log (vNow / std::max (dubSpeed, 1.0))) > 0.002 || recOn != dubRecOn)
+            buildDub (heSm, biasDbSm, vNow, recOn);
         hkB = HeadKernel::bucket (vNow);
         eqS = p.eqStd > 0.5f ? 1 : 0;
         updateEq (vNow);
@@ -2001,59 +2075,61 @@ double Engine::epsGrid (int64_t j) const
     field - the reference's G at s = 0, at the amplitude each layer sees under a 60 um
     gap (Karlqvist: (2/pi) atan(g / 2y)). What a cell keeps is a function of what it
     had, tabulated per layer for the current field and speed. */
-void Engine::buildErase (double he, double speedCms)
+/*  The pass's one-shot tables (BUGLIST 8): for the erase head's field he and the bias
+    (off when the record relay is open), per slab, the loss the pair takes from the
+    committed take by |M| and from the top material by its level, as retention indices.
+    Interpolated in dB across speed, he and A: the transition is steep (15 dB per grid
+    step of he), and linear in the ratio would be far too gentle between the points. */
+void Engine::buildDub (double he, double biasDb, double speedCms, bool recOn)
 {
-    eraseLutHe = he; eraseLutV = speedCms;
-    if (he <= 0.0 || he >= 2.2) return;           // nothing, or a clean wipe: no table needed
+    dubHe = he; dubBiasDb = biasDb; dubSpeed = speedCms; dubRecOn = recOn;
+    dubPass = he > 0.0;      // an erase field acts even with the record relay open (the bench's erase-alone case)
+    const double hb = ST->hbOperating * dbToLin (biasDb);
     const double lnA0 = std::log (ST->aGrid[0]), lnSpan = std::log (ST->aGrid[STK_NA - 1]) - lnA0;
     const double fv = std::clamp (std::log2 (speedCms / ST->speedCms[0]), 0.0, (double) (STK_NV - 1));
     const int iv = std::min ((int) fv, STK_NV - 2);
     const double tv = fv - iv;
+    const double heC = std::clamp (he, 0.0, ST->heGrid[STK_NHE - 1]);
+    int ih = 0; while (ih < STK_NHE - 2 && heC >= ST->heGrid[ih + 1]) ++ih;
+    const double th = std::clamp ((heC - ST->heGrid[ih]) / (ST->heGrid[ih + 1] - ST->heGrid[ih]), 0.0, 1.0);
+    auto q = [] (double r) { return r <= 1.0e-9 ? 255.0 : std::min (255.0, -80.0 * std::log10 (r)); };
     for (int l = 0; l < NLAYER; ++l)
     {
-        const double y = 0.3 + COATING_UM * (l + 0.5) / NLAYER;
-        const double A = std::clamp (he * (2.0 / M_PI) * std::atan (60.0 / (2.0 * y)), ST->aGrid[0], ST->aGrid[STK_NA - 1]);
+        DubSlice& D = dub[l];
+        const double A = recOn ? std::clamp (hb * ST->layerFmax[l], ST->aGrid[0], ST->aGrid[STK_NA - 1]) : ST->aGrid[0];
         const double fa = (std::log (A) - lnA0) / lnSpan * (STK_NA - 1);
         const int ia = std::clamp ((int) std::floor (fa), 0, STK_NA - 2);
         const double ta = std::clamp (fa - ia, 0.0, 1.0);
-        double raw[STK_NM];
-        const int is = STK_NS / 2;                 // s = 0 exactly
-        for (int im = 0; im < STK_NM; ++im)
+        D.ia = recOn ? (int) std::lround (fa) : 0;
+        auto tri = [&] (auto&& at) {
+            double acc = 0.0;
+            for (int dv = 0; dv < 2; ++dv)
+                for (int dh = 0; dh < 2; ++dh)
+                    for (int da = 0; da < 2; ++da)
+                        acc += (dv ? tv : 1.0 - tv) * (dh ? th : 1.0 - th) * (da ? ta : 1.0 - ta) * q (at (iv + dv, ih + dh, ia + da));
+            return acc;
+        };
+        const int c = STK_NM / 2;
+        for (int k = 0; k <= STK_NM / 2; ++k)
+            D.rdQ[k] = (float) tri ([&] (int v, int h, int a) { return (double) ST->rDub[v][l][h][a][c + k]; });
+        for (int it = 0; it < STK_NT; ++it)
         {
-            const double lo = (1.0 - ta) * ST->G[iv][l][ia][im][is] + ta * ST->G[iv][l][ia + 1][im][is];
-            const double hi = (1.0 - ta) * ST->G[iv + 1][l][ia][im][is] + ta * ST->G[iv + 1][l][ia + 1][im][is];
-            raw[im] = (1.0 - tv) * lo + tv * hi;
+            D.rtQ[it] = (float) tri ([&] (int v, int h, int a) { return (double) ST->rTop[v][l][h][a][it]; });
+            double acc = 0.0;
+            for (int dv = 0; dv < 2; ++dv)
+                for (int da = 0; da < 2; ++da)
+                    acc += (dv ? tv : 1.0 - tv) * (da ? ta : 1.0 - ta) * std::abs ((double) ST->topM[iv + dv][l][ia + da][it]);
+            D.tm[it] = (float) acc;
         }
-        // odd in M, as the record slice is: a demagnetised cell stays exactly demagnetised
-        for (int im = 0; im < STK_NM; ++im) eraseLut[l][im] = (float) (0.5 * (raw[im] - raw[STK_NM - 1 - im]));
+        D.mStep = (ST->mRem[l][STK_NM - 1] - ST->mRem[l][0]) / (STK_NM - 1);
     }
 }
 
 void Engine::eraseSpan (double& prevPos, double newPos)
 {
-    if (heSm >= 2.2) { clearSpan (prevPos, newPos); return; }   // a clean wipe
-    if (heSm <= 0.0) { prevPos = newPos; return; }               // the head off: the tape passes untouched
-    for (int l = 0; l < NLAYER; ++l)
-    {
-        const double sc = 1.0 / (double) (1 << l);
-        const int64_t a = (int64_t) std::floor (prevPos * sc), b = (int64_t) std::floor (newPos * sc);
-        const int64_t ring = N >> l;
-        if (b <= a) continue;
-        const LayerRecord& r = rec[l];
-        const float* lut = eraseLut[l];
-        int64_t k = wrapTo (a, ring);
-        for (int64_t i = a; i < b; ++i)
-        {
-            for (int c = 0; c < 2; ++c)
-            {
-                float& m = store->m[c][l][(size_t) k];
-                const double fm = std::clamp ((m - r.mLo) / r.dM, 0.0, (double) (STK_NM - 1));
-                const int im = std::min ((int) fm, STK_NM - 2);
-                m = (float) (lut[im] + (fm - im) * (lut[im + 1] - lut[im]));
-            }
-            if (++k == ring) k = 0;
-        }
-    }
+    // full: a clean wipe here at the head. A partial field acts at the record head together
+    // with the bias, through the pair table (buildDub): the two are not separable.
+    if (heSm >= 2.2) { clearSpan (prevPos, newPos); return; }
     prevPos = newPos;
 }
 

@@ -50,6 +50,7 @@ constexpr double CARRIAGE_MAX_CMS = 12.0; // head carriage top speed
 constexpr double HEAD_SPACING_CM = 1.2;   // head bodies: centres can come no closer
 constexpr double SPLICE_FADE_S  = 0.015;
 constexpr double HE_FULL        = 2.25;   // the erase head at full: deep-gap Hc past the transition, a clean wipe
+constexpr double DUB_BIAS_DB    = -6.0;   // DUB: the bias dropped to the sound-on-sound level (BUGLIST 8)
 constexpr double FEEDBACK_MAX   = 1.1;    // small-signal loop gain at FEEDBACK 100 % on a flat chain (BUGLIST 3)
 
 constexpr double CAPSTAN_R_M    = 0.005;
@@ -96,7 +97,14 @@ struct TapeStore
 {
     explicit TapeStore (int64_t baseCells);
     int64_t n0;                               // surface-layer cells (a multiple of 8)
-    std::vector<float> m[2][NLAYER];
+    std::vector<float> m[2][NLAYER];          // the remanence: what the heads read
+    // the one-shot bookkeeping (BUGLIST 8, 10-flux-memory.md): the COMMITTED take, what
+    // survives beyond the reach the heads have already paid for; the retention paid on it
+    // (quarter-dB steps, 255 = gone); and the bias reach (an A-grid index) the material on
+    // top of it was recorded at. m - md is that top material. 2.25 x the memory of m alone.
+    std::vector<float> md[2][NLAYER];
+    std::vector<uint8_t> rp[2][NLAYER];
+    std::vector<uint8_t> ta[2][NLAYER];
     int64_t nl (int l) const { return n0 >> l; }
 };
 
@@ -220,6 +228,8 @@ public:
     double zoneRefUm() const { return xRefUm; }
     /*  Mean remanence over the four layers at path position cm (bench). */
     double layerM (int track, int layer, double pathCm) const;
+    /*  Bench: the committed part of that cell (what survives beyond the reach already paid). */
+    double layerMd (int track, int layer, double pathCm) const;
 
     /*  ACCUMULATE's wear and the loop it belongs to (stock, length in m), saved with
         the project: the processor reads it for its state and hands it back on load. */
@@ -259,7 +269,7 @@ private:
     void clearSpan (double& prevPos, double newPos);
     float recordCell (const LayerRecord& r, float mOld, double s) const;
     void selectStock (int s);
-    void buildErase (double he, double speedCms);
+    void buildDub (double he, double biasDb, double speedCms, bool recOn);
     void eraseSpan (double& prevPos, double newPos);
     void applyStock (int s);
     void updateMedium (const Params& p, int n);
@@ -457,8 +467,36 @@ private:
     // FLUX MEMORY and the loop's record controls (stage 7)
     int loopState = 1;
     double heTgt = 1.0e9, heSm = 1.0e9;          // the erase head's field, Hc (>= HE_FULL: a clean wipe)
-    float eraseLut[NLAYER][STK_NM] {};           // what a cell keeps, per old remanence
-    double eraseLutHe = -1.0, eraseLutV = 0.0;
+    // The pass's one-shot tables for the current erase field and bias, per slab: the loss
+    // as a retention index (quarter-dB; 255 = gone), the committed take's by |M| on the
+    // slab's grid (k = 0 the small-signal value) and the top's by its level tm[]
+    struct DubSlice
+    {
+        float rdQ[STK_NM / 2 + 1] {};
+        float rtQ[STK_NT] {}, tm[STK_NT] {};
+        double mStep = 0.19;
+        int ia = 0;                              // this pass's bias reach, as an A-grid index
+        uint8_t paidIndex (double absM) const
+        {
+            const double f = absM / mStep;
+            const int k = (int) f;
+            double q;
+            if (k >= STK_NM / 2) q = rdQ[STK_NM / 2];
+            else q = rdQ[k] + (f - k) * (rdQ[k + 1] - rdQ[k]);
+            return (uint8_t) std::min (255.0, q + 0.5);
+        }
+        uint8_t topIndex (double absM) const
+        {
+            double q;
+            if (absM <= tm[0]) q = rtQ[0];
+            else if (absM >= tm[STK_NT - 1]) q = rtQ[STK_NT - 1];
+            else { int i = 0; while (absM > tm[i + 1]) ++i; const double t = (absM - tm[i]) / std::max (1.0e-9, (double) (tm[i + 1] - tm[i])); q = rtQ[i] + t * (rtQ[i + 1] - rtQ[i]); }
+            return (uint8_t) std::min (255.0, q + 0.5);
+        }
+    };
+    DubSlice dub[NLAYER];
+    double dubHe = -1.0, dubBiasDb = 1.0e9, dubSpeed = 0.0;
+    bool dubOn = false, dubRecOn = false, dubPass = false;
     double recTgt = 1.0, recEnv = 1.0, aRec = 0.0;
     double clearLeft = 0.0;                      // CLEAR: tape still to pass the erase head (cells)
     bool clearPrev = false;

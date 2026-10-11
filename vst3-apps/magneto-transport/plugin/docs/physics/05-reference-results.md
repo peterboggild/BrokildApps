@@ -102,6 +102,27 @@ LOOPER's overdub decay with the erase head off — a layer lasts about one pass
 audibly, much less than the first figure suggested, and FLUX MEMORY's partial
 erase is what lets more survive. The erase head's transition is **h_e 0.75–2**.
 
+## 5b. The overdub question (`mtref --dub`, at the machine's own 19.05 cm/s alignment: bias 3.263 H_c, 0 VU = 0.233 H_c)
+
+Measured 2026-10-11 for BUGLIST 8; a 0 VU 1 kHz take unless said; residual re the original.
+
+| | |
+|---|---|
+| E1 a second identical pass | erase head at 1.25 H_c: −18.28 / −18.28 / −18.28 dB after one, two, three passes; the bias alone −34.50 / −34.50. **One shot**: a field takes what it can reach and no more (the wiping-out property) |
+| E2 the take under bias-only passes at r × the operating bias | r 1.0 −34.5; 0.8 −11.8; 0.7 −8.2; 0.6 −5.6; **0.5 −3.5**; 0.4 −1.7; 0.35 −1.0; 0.3 −0.35 dB, each the same on passes 2 and 3 |
+| where it lives after r 0.5 (layer centre µm, M/M_r peak before → after) | 0.9: 0.212 → 0.0002; 2.6: 0.256 → 0.047; 4.4: 0.264 → 0.229; 6.1 µm and deeper: untouched |
+| E2b by frequency under r 0.5, depth-averaged / through the playback head | 200 Hz −3.5 / −3.6; 1 kHz −3.5 / −3.9; 5 kHz −3.5 / −6.2; 10 kHz −3.7 / −9.7 dB |
+| E3 a recording MADE at r × bias, under one bias-only pass at that same bias (at the 0 VU / +6 / +12 dB field) | r 1.0: −34.5 / −28.7 / −22.7; 0.7: −29.9 / −24.1 / −17.9; **0.5: −24.1 / −18.5 / −12.8**; 0.35: −12.6 / −9.0 / −6.0; 0.3: −6.1 / −4.2 / −3.1 dB |
+| E4 recording at r × bias (level re 250 nWb/m and HD3 at the 0 VU field; 10 kHz re 1 kHz through the playback head) | r 1.0: 0.0 dB, 0.35 %, −10.7 dB; 0.7: −1.0, 0.49 %, −8.0; **0.5: −2.9, 0.82 %, −5.5**; 0.35: −9.6, 4.9 %, −3.8; 0.3: −17.7, 16.7 %, −3.7 |
+| E5 the take recorded over with 3 kHz at 0 VU at r × bias | r 1.0: −44.6 dB; 0.7: −9.2; 0.5: −4.1; 0.4: −2.2; 0.35: −1.4 (the new tone within 0.3 dB of a fresh recording at that bias) |
+| E6 the erase head at h_e then the bias at r 0.5, one / two passes | h_e 0: −3.5 / −3.5; 1.0: −4.6 / −4.6; 1.25: −18.5 / −18.5; 1.5: −51.5 / −51.5 dB |
+
+What this settles (10-flux-memory.md): on one track, overdubs do not stack. What is
+recorded at a bias is replaced by the next pass at that bias (E3). A take recorded at the
+operating bias survives passes at a LOWER bias, permanently (E2, E1), bass best (E2b).
+That is sound-on-sound, and it is what DUB does: the bias dropped 6 dB (r 0.5), the
+erase head at the ERASE knob, the pair's one-shot loss tabulated (`--dubtables`).
+
 ## 6. An overwrite still depends on more than the flux
 
 | pre-state (same 250 nWb/m at 1 kHz) | 1 kHz residual | new 3 kHz tone |

@@ -52,7 +52,7 @@ struct Params
     float accumulate = 0.0f;  // a loop wears on every pass
 
     float erase     = 100.0f; // FLUX MEMORY: the erase head's field in DUB, % (100 full, 0 off)
-    float looper    = 1.0f;   // LOOP STATE: 0 REC, 1 DUB, 2 PLAY
+    float looper    = 0.0f;   // LOOP STATE: 0 REC, 1 DUB, 2 PLAY
     float run       = 1.0f;   // the capstan motor: 1 running, 0 off (it coasts down)
     float clear     = 0.0f;   // LOOP: a rising edge is one full pass of the erase head
     float bars      = 0.0f;   // LOOP with SYNC: the loop cut to N bars (0: LOOP LENGTH)
@@ -141,10 +141,10 @@ inline const Spec SPECS[] =
       "Particle count against the stock's own. Hiss is the statistics of the particles: ten times as many, 10 dB less hiss. At the top the coating is a continuum and the tape is silent." },
     { "wear", "WEAR", Kind::Lin, 0.0f, 100.0f, 0.0f, "%", nullptr, &Params::wear,
       "How worn the tape is: oxide lost, a rougher surface, more dropouts, debris lifting it off the heads." },
-    { "erase", "ERASE", Kind::Lin, 0.0f, 100.0f, 100.0f, "%", nullptr, &Params::erase,
-      "FLUX MEMORY, in DUB: the erase head's field. 100 % wipes the loop before the record head writes it again - a clean echo. Turned down, earlier passes survive as magnetisation and come round every loop period: the knob walks from a pass losing 60 dB (90 %) to one losing under a decibel, and 0 switches the head off. The record head's bias still takes some off on every pass: the less BIAS, the longer they live." },
-    { "looper", "LOOP STATE", Kind::Choice, 0, 2, 1, "", "REC|DUB|PLAY", &Params::looper,
-      "LOOP: what the heads do to the loop. REC wipes it with the erase head at full and records a fresh take every pass. DUB records on top, with the erase head at the ERASE knob (at 100 % that is the plain echo). PLAY turns record and bias off: the loop plays what is on it, unchanged, and FEEDBACK has nothing to write. Tape has no undo." },
+    { "erase", "ERASE", Kind::Lin, 0.0f, 100.0f, 0.0f, "%", nullptr, &Params::erase,
+      "FLUX MEMORY, in DUB: how much of the take committed in REC the erase head takes. 0 switches the head off and the take stays (less the 3.5 dB the lowered bias takes once); the knob walks from a pass losing under a decibel to one losing 60 dB (90 %), and 100 % wipes. An erase field takes what it can reach and no more, so this acts ONCE: a second pass at the same setting takes nothing further, turning it up takes more, turning it down brings nothing back." },
+    { "looper", "LOOP STATE", Kind::Choice, 0, 2, 0, "", "REC|DUB|PLAY", &Params::looper,
+      "LOOP: what the heads do to the loop. REC wipes it with the erase head at full and records a fresh take every pass: the plain echo. DUB is sound-on-sound: the bias drops 6 dB, so the take committed in REC stays under what you play now (3.5 dB down, once; ERASE takes more), while what you play is replaced by the next pass, a faint ghost of it left behind - louder the harder you drive, and lower BIAS keeps more. PLAY turns record and bias off: the loop plays unchanged. Tape has no undo." },
     { "run", "MOTOR RUN", Kind::Toggle, 0, 1, 1, "", nullptr, &Params::run,
       "Starts and stops the capstan motor. Stopped, it coasts down and everything on the tape dives in pitch; started, it pulls back up to speed." },
     { "clear", "CLEAR", Kind::Toggle, 0, 1, 0, "", nullptr, &Params::clear,
