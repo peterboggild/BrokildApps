@@ -51,7 +51,43 @@ constexpr double CARRIAGE_MAX_CMS = 12.0; // head carriage top speed
 constexpr double HEAD_SPACING_CM = 1.2;   // head bodies: centres can come no closer
 constexpr double SPLICE_FADE_S  = 0.015;
 constexpr double HE_FULL        = 2.25;   // the erase head at full: deep-gap Hc past the transition, a clean wipe
-constexpr double DUB_BIAS_DB    = -6.0;   // DUB: the bias dropped to the sound-on-sound level (BUGLIST 8)
+constexpr double SYNC_CM        = 3.2;    // DUB's sync head, upstream of record: past the erase head and its read kernel's ~6 mm tail (BUGLIST 9)
+constexpr double SYNC_AHEAD_CM  = 0.8;    // the ahead prefix chain runs this far past the sync head
+constexpr double SYNC_TRIM      = 1.0;    // bench: a factor on the re-record level below (1: as measured)
+/*  The re-record level is SYNC_K over the loop's own small-signal gain at 1 kHz, computed
+    from the record tables, the head and the equalisers as they stand (syncLoopGain), so
+    a pass comes round at the same level at every speed, bias and stock. SYNC_K holds what
+    that calculation leaves out, measured, and the margin that keeps the head bump's
+    excess below unity (test/syncprobe.cpp). */
+constexpr double SYNC_K         = 1.0;
+/*  What is left, measured with that calculation in place: the worst per-pass gain over the
+    band (the head bump, 0.4-3 x 220 Hz scaled with speed), dB, at 4.75 x 2^k cm/s. The
+    re-record level is pulled down by it plus SYNC_MARGIN_DB, so no frequency comes round
+    louder than it went: at ERASE 0 the loop keeps its layers and cannot build up. */
+constexpr double SYNC_PEAK_DB[5] = { -0.140, 0.006, 0.062, 0.113, 0.131 };
+constexpr double SYNC_MARGIN_DB  = 0.08;
+/*  The treble: under-bias (or a bright stock) records brighter, so above 2 kHz the loop's
+    gain can pass unity (+1.9 dB a pass at 8 kHz at BIAS -4, measured). The same calculation
+    gives the worst gain from 2 to 16 kHz against 1 kHz; at the operating bias on the studio
+    stock it reads SYNC_HF_REF_DB (4.75 x 2^k cm/s), which the measured margins above already
+    cover. Any excess over that, less SYNC_HF_TOL_DB, pulls the re-record level down by
+    SYNC_HF_K of it. */
+constexpr double SYNC_HF_REF_DB[5] = { 0.27, 0.17, -0.01, 0.0, 0.0 };
+/*  And the bass, the mirror case: over-bias records deeper, so 60-400 Hz rises against 1 kHz
+    (+0.27 dB a pass at BIAS +4, measured). The same rule, against the same kind of reference. */
+constexpr double SYNC_LF_REF_DB[5] = { -0.133, -0.013, 0.010, 0.002, -0.001 };
+constexpr double SYNC_LF_TOL_DB   = 0.05;   // computed +0.47 dB at BIAS +4 against +0.35 measured: tighter, and the full excess
+constexpr double SYNC_LF_K        = 1.0;
+constexpr double SYNC_HF_TOL_DB   = 0.05;
+constexpr double SYNC_HF_K        = 1.3;    // 0.75 held 8 kHz but let 12-15 kHz through at BIAS -4 (+0.5 to +1 dB a pass), 1.0 still 18 kHz at 38 cm/s on the budget stock
+constexpr double SYNC_LAG       = 0.0;    // bench: extra samples of placement on top of the measured law below
+/*  Where the re-record lands, measured (test/syncprobe.cpp, a 3 kHz click, ideal tape): the
+    record path places what goes in 2.22 internal samples late (its interpolation: the same at
+    every quality), and the equalisers and the recording zone add a delay that depends on the
+    tape speed alone. The engine places the re-record that much earlier, so a pass lands on
+    the tape it was read from. Speeds 4.75 x 2^k cm/s, k = 0..4; us. */
+constexpr double SYNC_LAG_SAMPLES = 2.22;
+constexpr double SYNC_LAG_US[5]   = { -58.0, -38.8, -27.3, -18.1, -11.75 };
 constexpr double FEEDBACK_MAX   = 1.1;    // small-signal loop gain at FEEDBACK 100 % on a flat chain (BUGLIST 3)
 
 constexpr double CAPSTAN_R_M    = 0.005;
@@ -152,6 +188,10 @@ struct Telemetry
     std::atomic<int>    looper { -1 };         // -1 a reel, else the LOOP STATE: 0 REC, 1 DUB, 2 PLAY, 3 CLEARING
     std::atomic<bool>   recording { true };    // record and bias on
     std::atomic<double> eraseHc { 0.0 };       // the erase head's field (deep gap, Hc)
+    std::atomic<double> reRecDb { -200.0 };    // DUB: the re-record level, dB a pass (-200: off)
+    std::atomic<double> syncLoopDb { 0.0 };    // the loop's own gain at 1 kHz, dB (bench)
+    std::atomic<double> syncHfDb { 0.0 };      // the worst computed gain 2-16 kHz re 1 kHz, dB (bench)
+    std::atomic<double> syncLfDb { 0.0 };      // the worst computed gain 60-400 Hz re 1 kHz, dB (bench)
     std::atomic<bool>   barsFit { true };      // LOOP BARS fit the 0.5-6 m loop
     std::atomic<double> barsNow { 0.0 };       // how many bars the loop is now (0: BARS not in use)
     std::atomic<int>    repro { 0 };           // REPRO on
@@ -254,6 +294,8 @@ public:
     /*  Bench: the erase field (deep gap, Hc) and record (0..1) forced, < 0 to let go - so
         the erase head can be measured alone, as the reference measures it. */
     void forceHeads (double heHc, double rec) { forceHe = heHc; forceRec = rec; }
+    /*  Bench: the re-record path's trim and placement (BUGLIST 9), measured by test/syncprobe.cpp. */
+    void setSyncCal (double trim, double lagSamples) { syncTrim = trim; syncLag = lagSamples; }
     double noiseSigma (int layer) const { return noiseSig[layer]; }
     const double* noiseColourOf (int layer) const { return gCol[layer]; }
 
@@ -265,7 +307,11 @@ private:
     double targetSpeedCms (bool& clamped, bool& syncOn) const;
     void buildRecord (double biasDb, double speedCms);
     void readLayers (double a, double b, double& outL, double& outR) const;
-    void readHead (double a, double b, double& outL, double& outR) const;
+    void readHead (double a, double b, double& outL, double& outR, bool ahead = false) const;
+    void resetAhead (double fromCells);
+    void extendAhead (double toCells);
+    double syncAt (int c, double u) const;
+    double syncLoopGain (double fHz) const;
     void edgeTerms (double xum, double* e) const;   // bump L/R, fringing L/R (depth sums)
     void finishCoarse();
     double headResponse (int slab, double kPerUm, int bucket) const;
@@ -387,6 +433,33 @@ private:
     std::unique_ptr<double[]> preSBuf { new double[(size_t) 2 * PRE_RING]() };   // the depth sum, for the head's edges
     double* preS (int c) const { return preSBuf.get() + (size_t) c * PRE_RING; }
     double pRunS[2] {};
+    // DUB's sync head (BUGLIST 9) reads AHEAD of the record head, where the tape still holds
+    // the last pass: its own prefix chain, built from the store before the erase head gets there
+    std::unique_ptr<double[]> preABuf { new double[(size_t) 2 * NLAYER * PRE_RING]() };
+    double* preA (int c, int l) const { return preABuf.get() + (size_t) (c * NLAYER + l) * PRE_RING; }
+    double pRunA[2][NLAYER] {};
+    int64_t cNextA[NLAYER] {};
+    std::unique_ptr<double[]> preACBuf { new double[(size_t) 2 * PRE_RING]() };
+    double* preAC (int c) const { return preACBuf.get() + (size_t) c * PRE_RING; }
+    double pRunAC[2] {};
+    int64_t cNextAC = 0;
+    // what the sync head read, per surface cell of TAPE POSITION (unwrapped), so it goes back
+    // onto the record head exactly where it came from at any speed: 6.5 cm, twice SYNC_CM
+    static constexpr int SYNC_RING = 1 << 17, SYNC_MASK = SYNC_RING - 1;
+    std::unique_ptr<float[]> syncBuf { new float[(size_t) 2 * SYNC_RING]() };
+    int64_t syncFrom = 0, syncHi = 0;          // the cells filled: [syncFrom, syncHi)
+    double sPrevC = 0.0, sPrevV[2] {};
+    double uPrevS = 0.0;
+    bool syncRun = false;                      // the sync head reading (a loop, record on)
+    bool syncLive = false;                     // it has been reading continuously (else the ring restarts)
+    double gSync = 0.0, gSyncTgt = 0.0;        // the re-record level into the record amplifier
+    double syncTrim = SYNC_TRIM, syncLag = SYNC_LAG;
+    double syncLagNow = 0.0;                   // samples: the measured placement for the motor speed, set per block
+    double syncPeakK = 1.0;                    // the measured head-bump margin for the motor speed
+    double syncHfRef = 0.0;                    // dB: the treble ratio at the operating bias for the motor speed
+    double syncLfRef = 0.0;                    // dB: the bass ratio, likewise
+    ShelfState syncEqS[2];
+    double lcSX[2] {}, lcSY[2] {};
     // the head bump and the fringing carry nothing above a few hundred hertz, so
     // they are evaluated every EDGE_EVERY internal samples at the position the
     // head will then have reached, and interpolated in between (no delay)
@@ -422,7 +495,7 @@ private:
     struct Comp3 { double a = 0, z1 = 0, z2 = 0;
                    double tick (double x) { const double y = -a * x + (1.0 + 2.0 * a) * z1 - a * z2; z2 = z1; z1 = x; return y; }
                    void reset() { z1 = z2 = 0; } };
-    Comp3 comp[4];
+    Comp3 comp[4], compS[2];
     double aGain = 0.0;
     double gDry = 1.0, gWet = 0.0, gOut = 1.0, aHost = 0.0;
 

@@ -134,7 +134,7 @@ figcaption b{ color: var(--brass); }
     <p class="cover-intent">Made to find out how far a tape delay can be pushed beyond sound processing, towards a detailed physics
        simulation &mdash; down to the particles in the oxide and the layers of the coating they are recorded into.</p>
   </div>
-  <div class="folio"><span>Magneto Transport</span><span>build 261011.13</span></div>
+  <div class="folio"><span>Magneto Transport</span><span>build 261012.1</span></div>
 </section>
 
 <!-- 2  THE IDEA -->
@@ -210,8 +210,8 @@ figcaption b{ color: var(--brass); }
            change TAPE SPEED: the pitch and tone follow the machine. Turn FEEDBACK back down to let it die away.</p></div>
       <div class="ctl amber"><h3>3 &middot; Keep the past: FLUX MEMORY</h3>
         <p>Set TRANSPORT to <b>LOOP</b>. With LOOP STATE on <b>REC</b> play a phrase. Switch to <b>DUB</b> with ERASE at 0:
-           the phrase stays on the loop, 3.5&nbsp;dB down once, and comes round every pass while you play over it. What you
-           play now is replaced on the next pass, leaving a faint ghost. Turn ERASE up and the old take loses more &mdash; once.
+           the loop is re-recorded in place every pass, so the phrase keeps coming round and whatever you play over it
+           stays too, layer on layer. Turn ERASE up and each pass loses more: the oldest layers drift away.
            <b>PLAY</b> holds the loop as it is; <b>CLEAR</b> wipes it.</p></div>
       <p style="font-size:9pt; margin-top:1mm">And one more: switch <b>MOTOR RUN</b> off. The capstan coasts to a stop and
          everything on the tape dives in pitch; switch it on and the motor pulls it back up.</p>
@@ -577,15 +577,15 @@ figcaption b{ color: var(--brass); }
          every 10.5&nbsp;s. The LOOP plate decides what the heads do to it:</p>
       <div class="ctl"><h3>REC</h3><p>The erase head wipes the loop at full field and a fresh take is recorded every pass: the plain
         echo, exactly as on a reel. The default.</p></div>
-      <div class="ctl amber"><h3>DUB</h3><p>Sound-on-sound. The bias drops 6&nbsp;dB, so the take committed in REC stays under what you
-        play now. ERASE sets how much of it the erase head takes.</p></div>
+      <div class="ctl amber"><h3>DUB</h3><p>Sound-on-sound. The loop is re-recorded in place every pass with what you play on top, so
+        overdubs stack. ERASE sets how much of it each pass loses.</p></div>
       <div class="ctl"><h3>PLAY</h3><p>Record and bias off, the erase field ramped to exactly zero: the loop plays unchanged, for as long
         as you like. FEEDBACK has nothing to write.</p></div>
     </div>
     <div>
-      <div class="ctl amber"><h3>Erase &middot; 0&ndash;100 %</h3><p>In DUB, how much of the take committed in REC the erase head takes.
-        At 0 the head is off and the take stays (less the 3.5&nbsp;dB the lowered bias takes once). The knob walks from a pass
-        losing under a decibel to one losing 60&nbsp;dB at 90&nbsp;%, and 100&nbsp;% wipes. It acts <b>once</b>.</p></div>
+      <div class="ctl amber"><h3>Erase &middot; 0&ndash;100 %</h3><p>In DUB, how much of the loop each pass loses. At 0 every layer
+        stays, each generation losing only what tape loses, a little treble; 50&nbsp;% halves the loop every pass; 100&nbsp;% keeps
+        nothing, and DUB is REC.</p></div>
       <div class="ctl"><h3>Clear</h3><p>One full pass of the erase head over the loop at full field, with record off. The readout shows
         CLEARING while it runs; afterwards the loop is blank, the same as virgin tape.</p></div>
       <div class="ctl"><h3>Loop length &middot; 0.5&ndash;6 m</h3><p>Cut in 5&nbsp;cm steps. A change is a new loop: fresh, blank tape
@@ -605,28 +605,28 @@ figcaption b{ color: var(--brass); }
   <hr class="rule" />
   <div class="cols">
     <div>
-      <p>FLUX MEMORY is a variable erase head on a finite loop of tape. What it can do is decided by three facts, measured by the
-         offline reference model of the oxide:</p>
-      <div class="ctl amber"><h3>1 &middot; A field takes what it can reach, once</h3><p>The coating is an ensemble of particles with
-        switching fields spread around its coercivity. A dying erase field switches exactly the particles it can reach and leaves the
-        rest &mdash; and the same field reaches the same particles next time. So <b>partial erasure is one shot, not a fade</b>: a second
-        pass at the same ERASE setting takes nothing further, turning it up takes more, turning it down brings nothing back.</p></div>
-      <div class="ctl"><h3>2 &middot; A take survives a lower bias</h3><p>A take recorded at the operating bias reaches deep into the coating.
-        A later pass at a lower bias reaches only the surface, so the take survives it, permanently &mdash; bass best. In DUB the take
-        loses 3.5&nbsp;dB once, and 10&nbsp;kHz about 9.7&nbsp;dB.</p></div>
-      <div class="ctl"><h3>3 &middot; What is recorded at a bias is replaced at that bias</h3><p>Each overdub in DUB is recorded at the
-        lowered bias, so the next pass replaces it, leaving a ghost about 24&nbsp;dB down &mdash; louder the harder you drive, about
-        13&nbsp;dB down when driven 12&nbsp;dB hotter &mdash; and lower BIAS keeps more.</p></div>
+      <p>One track of tape cannot hold two recordings: the reference model of the oxide measures that what a pass records at a bias
+         replaces what the last pass recorded there, and that an erase field takes what it can reach, once. So DUB does what a
+         sound-on-sound machine does:</p>
+      <div class="ctl amber"><h3>1 &middot; A sync head reads the loop first</h3><p>3.2&nbsp;cm upstream of the record head &mdash; past the
+        erase head and the few millimetres its read reaches &mdash; a sync head reads the last pass, through the same head, equalisation
+        and amplifier as a playback head.</p></div>
+      <div class="ctl"><h3>2 &middot; It goes back where it was read</h3><p>What it reads is kept by position on the tape and fed into the
+        record amplifier exactly when the record head reaches that tape, together with the input, while the erase head wipes in full.
+        So the loop is re-recorded in place, and overdubs stack.</p></div>
+      <div class="ctl"><h3>3 &middot; Every pass is a generation</h3><p>Each pass loses what tape loses &mdash; a little treble through the
+        head's gap and spacing losses. The re-record level is set from the loop's own gain as the machine stands, so at ERASE 0
+        nothing comes round louder than it went, at any speed, bias or stock. The sync head reads whenever a loop records, so
+        switching from REC to DUB loses nothing.</p></div>
     </div>
     <div>
       <figure><img class="pl" src="img/card-dub.jpg" alt="" style="height:66mm" />
-        <figcaption><b>The LOOP STATE card</b>, pinned: what DUB does in plain words, then the three facts with the measured numbers.</figcaption></figure>
+        <figcaption><b>The LOOP STATE card</b>, pinned: what DUB does in plain words, then how the re-record works, with the measured numbers.</figcaption></figure>
       <div class="box" style="margin-top:4mm"><h3>Ways to play it</h3>
-        <p><b>A bed that stays.</b> REC a phrase, then DUB with ERASE at 0: play over it as long as you like.<br/>
-           <b>Ghosts.</b> DUB with ERASE around 30&nbsp;%: the take loses part of itself once and then stays, coming round at the loop's
-           period under the heads' own echoes &mdash; two rhythms at once.<br/>
-           <b>Layers.</b> Overdubs do not stack on one track of tape. What stacks layers is FEEDBACK, as tape musicians did it: what the
-           heads play is recorded again with what you add.<br/>
+        <p><b>Layers.</b> REC a phrase, then DUB with ERASE at 0 and keep adding: every layer stays, the oldest slowly darkening.<br/>
+           <b>Ghosts.</b> DUB with ERASE around 10&ndash;15&nbsp;%: each pass fades, so what you played a few rounds ago drifts away
+           under what you play now.<br/>
+           <b>Echoes in the loop.</b> Add FEEDBACK: the heads' echoes are recorded into the loop too, a second rhythm inside the loop's own.<br/>
            <b>Freeze.</b> Switch to PLAY and the loop holds.</p></div>
     </div>
   </div>
@@ -695,9 +695,9 @@ figcaption b{ color: var(--brass); }
       <li><b>Shedding Ghosts</b>The decaying stock, dropouts and a sticky binder.</li></ol></div>
     <div><h3>Loops</h3><ol>
       <li><b>Tape Loop Echo</b>A 1 m loop in REC: a plain echo off a loop.</li>
-      <li><b>Flux Memory Ghosts</b>A 0.75 m loop in DUB, ERASE at 30 %.</li>
+      <li><b>Flux Memory Ghosts</b>A 0.75 m loop in DUB, ERASE at 12 %.</li>
       <li><b>Sound on Sound</b>A 2 m loop in DUB, ERASE off, no feedback.</li>
-      <li><b>Four Bar Loop</b>LOOP BARS 4 at 1/16, in DUB, ERASE at 50 %.</li></ol></div>
+      <li><b>Four Bar Loop</b>LOOP BARS 4 at 1/16, in DUB, ERASE at 5 %.</li></ol></div>
     <div><h3>Strange</h3><ol>
       <li><b>Broken Machine</b>OK / BROKEN at 85 %: clogs, hunting, crinkles.</li>
       <li><b>Varispeed Drunk</b>6 cm/s on a worn-out transport, capstan and reel wear doubled.</li>
@@ -773,8 +773,8 @@ figcaption b{ color: var(--brass); }
         <tr><td>Feedback runaway, one head at 0 dB, 19 cm/s</td><td>68 % of the knob</td></tr>
         <tr><td>Bias erasure, one pass at the operating bias (reference)</td><td>&minus;34.5 dB</td></tr>
         <tr><td>Erase at 1.5 H<sub>c</sub>: engine &middot; reference</td><td>&minus;51.9 &middot; &minus;51.5 dB</td></tr>
-        <tr><td>DUB: the committed take, once (reference &minus;3.5)</td><td>&minus;3.4 dB</td></tr>
-        <tr><td>DUB: the ghost of an overdub (reference &minus;24.1)</td><td>&minus;25.0 dB</td></tr>
+        <tr><td>DUB, ERASE 0: a take per pass, 1 kHz &middot; 8 kHz</td><td>&minus;0.14 &middot; &minus;0.56 dB</td></tr>
+        <tr><td>DUB: where a pass lands against where it was read</td><td>0.5 &micro;s a pass</td></tr>
         <tr><td>REPRO latency, reported against measured</td><td>0.53 samples</td></tr>
         <tr><td>Coast-down against the bearing and roller law</td><td>within 0.9 %</td></tr>
         <tr><td>Track skew from azimuth, worn transport</td><td>18.4 &micro;s</td></tr>

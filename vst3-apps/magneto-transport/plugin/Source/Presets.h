@@ -42,9 +42,9 @@ inline constexpr FactoryPreset FACTORY[] = {
     { "Shedding Ghosts",      "CHARACTER",    "stock=2 wear=40 condition=45 speed=9.525 h1pos=6 feedback=0.45 mix=0.45" },
     // ---- LOOPS: a closed loop of tape, FLUX MEMORY
     { "Tape Loop Echo",       "LOOPS",        "mode=1 looplen=1 looper=0 speed=19 h1pos=4 feedback=0.4 condition=25 mix=0.4" },
-    { "Flux Memory Ghosts",   "LOOPS",        "mode=1 looplen=0.75 looper=1 erase=30 speed=19 h1pos=4 feedback=0.3 mix=0.45" },
+    { "Flux Memory Ghosts",   "LOOPS",        "mode=1 looplen=0.75 looper=1 erase=12 speed=19 h1pos=4 feedback=0.3 mix=0.45" },
     { "Sound on Sound",       "LOOPS",        "mode=1 looplen=2 looper=1 erase=0 speed=19 h1pos=4 feedback=0 mix=0.5" },
-    { "Four Bar Loop",        "LOOPS",        "mode=1 sync=1 synchead=0 bars=4 h1pos=4 looper=1 erase=50 feedback=0.2 mix=0.45" },
+    { "Four Bar Loop",        "LOOPS",        "mode=1 sync=1 synchead=0 bars=4 h1pos=4 looper=1 erase=5 feedback=0.2 mix=0.45" },
     // ---- STRANGE: the machine pushed past what it was built for
     { "Broken Machine",       "STRANGE",      "broken=85 speed=19 h1pos=6 feedback=0.4 mix=0.5" },
     { "Varispeed Drunk",      "STRANGE",      "speed=6 condition=100 reels=200 capstan=200 h1pos=4 feedback=0.5 mix=0.5" },

@@ -46,7 +46,7 @@ static void render (juce::AudioPluginInstance& inst, int blocks, std::vector<flo
 int main (int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI gui;
-    const juce::File house ("C:/Program Files/Common Files/VST3/Brokild/Experimental");
+    const juce::File house ("C:/Program Files/Common Files/VST3/Brokild/Brokild collection");
     const juce::String path = argc > 1 && argv[1][0] != '-' ? juce::String (argv[1]) : house.getChildFile ("Magneto Transport.vst3").getFullPathName();
     const bool verbose = argc > 1 && juce::String (argv[argc - 1]) == "-v";
     std::printf ("scanning %s\n", path.toRawUTF8());

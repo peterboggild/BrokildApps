@@ -1,4 +1,4 @@
-MAGNETO TRANSPORT  -  build 261011.13
+MAGNETO TRANSPORT  -  build 261012.1
 Brokild  -  a physically modelled tape echo for Windows (VST3 + standalone)
 
 
@@ -26,12 +26,14 @@ tape sticking and slipping over the heads. A speed change glides with the
 motor's inertia, so every echo on the tape bends in pitch. Three playback
 heads slide along a rail, with the Doppler shift that moving them causes.
 
-FLUX MEMORY is the feature at its centre. On a closed loop of tape,
-DUB lowers the bias so what is already on the loop stays under what you play
-now, and the ERASE head takes as much of the old take as you set. An erase
-field takes what it can reach and no more, so it acts once: a second pass at
-the same setting takes nothing further, turning it up takes more, turning it
-down brings nothing back. Tape has no undo.
+FLUX MEMORY is the feature at its centre. On a closed loop of tape, DUB
+is sound-on-sound: a sync head reads the loop just before the erase head
+wipes it, and the record head writes it back in place with what you play on
+top, so overdubs stack. ERASE sets how much of the loop each pass loses; at
+0 every layer stays, each generation losing only what tape loses, a little
+treble. Nothing comes round louder than it went, at any speed or bias: the
+re-record level is set from the loop's own gain as the machine stands. Tape
+has no undo.
 
 
 INSTALLING

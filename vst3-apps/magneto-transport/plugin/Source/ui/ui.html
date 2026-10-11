@@ -520,7 +520,7 @@ const PART_INFO = {
   "part:supply":  ["SUPPLY REEL", "Fresh tape comes off this reel. Its pack shrinks as the tape runs, and its holdback tension changes with it."],
   "part:takeup":  ["TAKE-UP REEL", "The recorded tape winds on here and leaves the machine: on a reel, nothing comes round again."],
   "part:looptank":["LOOP TANK", "A closed loop of tape folded in the tank. What is recorded comes round again every loop period."],
-  "part:erase":   ["ERASE HEAD", "A strong, decaying AC field that wipes the tape before the record head. In DUB, ERASE sets how much it takes."],
+  "part:erase":   ["ERASE HEAD", "A strong, decaying AC field that wipes the tape before the record head. In DUB a sync head has read the loop just before it, so the loop is re-recorded rather than lost."],
   "part:record":  ["RECORD HEAD", "Writes the signal into the coating, with bias, through the real hysteresis of the particles."],
   "part:play":    ["PLAYBACK HEAD", "Reads the magnetisation as it passes. Its delay is its distance from the record head over the tape speed. Drag it along the rail."],
   "part:capstan": ["CAPSTAN", "The motor-driven shaft that sets the tape speed. Its runout and bearings are the flutter."],
@@ -1875,7 +1875,10 @@ function updateHeader(){
     // what the loop's heads are doing, as measured
     const st = ["REC", "DUB", "PLAY", "CLEARING"][tele.looper];
     const he = tele.eraseHc !== undefined ? tele.eraseHc : 0;
-    const er = he >= 2.2 ? "erase head full" : he <= 0 ? "erase head off" : "erase head " + he.toFixed(2) + " Hc";
+    // DUB: the sync head re-records the loop in place, at the level ERASE leaves
+    const rr = tele.reRecDb !== undefined ? tele.reRecDb : -200;
+    const er = tele.looper === 1 ? (rr > -0.005 ? "re-recorded in place, every layer kept" : rr > -150 ? "re-recorded in place, " + rr.toFixed(1) + " dB a pass" : "re-record off")
+             : he >= 2.2 ? "erase head full" : he <= 0 ? "erase head off" : "erase head " + he.toFixed(2) + " Hc";
     const loop = tele.loopLen !== undefined ? tele.loopLen.toFixed(2) + " m loop" : "";
     const bn = tele.barsNow || 0, bk = Math.round(P.bars ? P.bars.v : 0);
     let bars = "";
@@ -1903,10 +1906,9 @@ function updateHeader(){
     ["condition", "capstan", "reels", "scrape", "wear"].forEach((k, i) => {
       if (ctls[k] && ctls[k].setEff) ctls[k].setEff(on ? tele.brokenEff[i] : null, "BROKEN makes it act at");
     });
-    // the bias: DUB drops it 6 dB, BROKEN sags it; the dot says where it acts and why
+    // the bias: BROKEN sags it; the dot says where it acts and why
     if (ctls.bias && ctls.bias.setEff && P.mode && P.looper) {
       const why = [];
-      if (Math.round(P.mode.v) === 1 && Math.round(P.looper.v) === 1) why.push("DUB drops it 6 dB");
       if (on) why.push("BROKEN sags it");
       ctls.bias.setEff(why.length && Math.abs(tele.brokenEff[5] - P.bias.v) > 0.05 ? tele.brokenEff[5] : null, why.join(", ") + ": it acts at");
     }
@@ -1944,8 +1946,8 @@ function updateIdle(){
   id("erase", state !== 1);
   id("looplen", barsOn);
   id("bars", !syncOn);
-  if (loop && state === 0) why.push("REC: the plain echo, wiped and re-recorded every pass. ERASE acts in DUB.");
-  if (loop && state === 1) why.push("DUB: the bias drops 6 dB, so the take committed in REC stays under what you play (3.5 dB down, once; ERASE takes more, once). What you play is replaced by the next pass.");
+  if (loop && state === 0) why.push("REC: the plain echo, wiped and recorded fresh every pass. ERASE acts in DUB.");
+  if (loop && state === 1) why.push("DUB: sound-on-sound. A sync head reads the loop just before the erase head and re-records it in place, with what you play on top, so the layers stack. ERASE sets what each pass loses: 0 keeps every layer.");
   if (loop && state === 2) why.push("ERASE acts in DUB; PLAY has record and erase off, so FEEDBACK has nothing to write.");
   if (loop && barsOn) why.push("LOOP BARS cut the loop, so LOOP LENGTH waits.");
   if (loop && !syncOn && Math.round(P.bars.v) >= 1) why.push("LOOP BARS need SYNC on: until then the loop runs at LOOP LENGTH.");

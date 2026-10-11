@@ -602,12 +602,14 @@ void Engine::prepare (double hostSampleRate, int)
         const double inv = (M_PI * x) / std::sin (M_PI * x);
         const double a = (inv - 1.0) / (2.0 * (1.0 - std::cos (2.0 * M_PI * x)));
         for (auto& f : comp) { f.a = a; f.reset(); }
+        for (auto& f : compS) { f.a = a; f.reset(); }
     }
 
     aGain  = 1.0 - std::exp (-dt / 0.020);
     aRec   = 1.0 - std::exp (-dt / 0.005);           // the record relay: bias and signal in a few ms
     lcA    = std::exp (-2.0 * M_PI * 5.0 / fsInt);  // the replay amplifier's integrator stops near DC
     for (int i = 0; i < 4; ++i) lcX[i] = lcY[i] = 0.0;
+    for (int i = 0; i < 2; ++i) lcSX[i] = lcSY[i] = 0.0;
     aHost  = 1.0 - std::exp (-1.0 / (fsHost * 0.020));
     aVu    = 1.0 - std::exp (-1.0 / (fsHost * 0.050));
     gByp = params.bypass > 0.5f ? 1.0 : 0.0; msIn = msOut = 0.0;
@@ -790,6 +792,12 @@ void Engine::adoptStore (TapeStore* s, int newMode, int64_t cells)
 
     cNextC = 0;
     recFade = 0.0;
+    resetAhead (T + ERASE_CM * CELLS_PER_CM);
+    syncFrom = syncHi = (int64_t) std::floor (T + SYNC_CM * CELLS_PER_CM);
+    sPrevC = (double) syncHi; sPrevV[0] = sPrevV[1] = 0.0;
+    uPrevS = T + SYNC_CM * CELLS_PER_CM - xRefUm / CELL_UM;
+    syncRun = false; syncLive = false; gSync = 0.0;
+    for (int c = 0; c < 2; ++c) { syncEqS[c] = ShelfState {}; compS[c].reset(); lcSX[c] = lcSY[c] = 0.0; }
 
     tele.mode = mode;
     tele.loopLenM = loopM;
@@ -1086,12 +1094,102 @@ void Engine::finishCoarse()
     }
 }
 
+/*  DUB's sync head reads tape the record head has not reached yet: the last pass. Its
+    kernel tails need prefix sums there, built straight from the store as the tape comes
+    up - before the erase head (2.5 cm) reaches it, since the chain runs SYNC_AHEAD_CM
+    past the sync head (3.2 cm). Same layout as the playback chain (finishCoarse): a 4 um
+    coarse cell holds the integral (M x um) of its slab cells; the ring is indexed by the
+    unwrapped coarse coordinate. BUGLIST 9. */
+void Engine::resetAhead (double fromCells)
+{
+    const int64_t q0 = (int64_t) std::floor (fromCells / 8.0);
+    for (int l = 0; l < NLAYER; ++l) { cNextA[l] = q0; pRunA[0][l] = pRunA[1][l] = 0.0; }
+    cNextAC = q0; pRunAC[0] = pRunAC[1] = 0.0;
+    std::fill (preABuf.get(), preABuf.get() + (size_t) 2 * NLAYER * PRE_RING, 0.0);
+    std::fill (preACBuf.get(), preACBuf.get() + (size_t) 2 * PRE_RING, 0.0);
+}
+
+void Engine::extendAhead (double toCells)
+{
+    const int64_t qT = (int64_t) std::floor (toCells / 8.0);
+    // a jump (a splice, a stopped tape restarting far on) restarts the chain rather than
+    // grinding through centimetres of coarse cells in one sample
+    if (qT - cNextAC > PRE_RING / 4) resetAhead (toCells - (SYNC_AHEAD_CM + SYNC_CM - ERASE_CM) * CELLS_PER_CM);
+    for (int l = 0; l < NLAYER; ++l)
+    {
+        const int r = 8 >> l;
+        const double p = CELL_UM * (double) (1 << l);
+        const int64_t ring = N >> l;
+        while (cNextA[l] < qT)
+        {
+            const int64_t q = cNextA[l];
+            int64_t k = wrapTo (q * r, ring);
+            double s0 = 0.0, s1 = 0.0;
+            for (int i = 0; i < r; ++i)
+            {
+                s0 += store->m[0][l][(size_t) k]; s1 += store->m[1][l][(size_t) k];
+                if (++k == ring) k = 0;
+            }
+            pRunA[0][l] += s0 * p; pRunA[1][l] += s1 * p;
+            preA (0, l)[(size_t) (q & PRE_MASK)] = pRunA[0][l];
+            preA (1, l)[(size_t) (q & PRE_MASK)] = pRunA[1][l];
+            ++cNextA[l];
+        }
+    }
+    int64_t ready = cNextA[0];
+    for (int l = 1; l < NLAYER; ++l) ready = std::min (ready, cNextA[l]);
+    while (cNextAC < ready)
+    {
+        const size_t iq = (size_t) (cNextAC & PRE_MASK), ip = (size_t) ((cNextAC - 1) & PRE_MASK);
+        for (int c = 0; c < 2; ++c)
+        {
+            double s = 0.0;
+            for (int l = 0; l < NLAYER; ++l) s += hk->cSlab[l] * (preA (c, l)[iq] - preA (c, l)[ip]);
+            pRunAC[c] += s;
+            preAC (c)[iq] = pRunAC[c];
+        }
+        ++cNextAC;
+    }
+}
+
+/*  What the sync head read at tape position u (surface cells, unwrapped), track c: linear
+    between the cells either side; 0 where it has not read (the first SYNC_CM after a splice). */
+double Engine::syncAt (int c, double u) const
+{
+    const double x = u - 0.5;
+    const int64_t i = (int64_t) std::floor (x);
+    if (i < syncFrom || i + 1 >= syncHi) return 0.0;
+    const double t = x - (double) i;
+    const float* b = syncBuf.get() + (size_t) c * SYNC_RING;
+    return b[(size_t) (i & SYNC_MASK)] + t * (b[(size_t) ((i + 1) & SYNC_MASK)] - b[(size_t) (i & SYNC_MASK)]);
+}
+
+/*  The loop's small-signal gain at fHz, record amplifier to replay amplifier, as the
+    tables, the head and the equalisers stand now: each slab's record slope, its zone's
+    spread and offset, the head's response to it, the repro trim and both equalisers. */
+double Engine::syncLoopGain (double fHz) const
+{
+    const double vC = std::max (recSpeed, 1.0);
+    const double k1 = 2.0 * M_PI * fHz / (vC * 1.0e4);
+    double re = 0.0, im = 0.0;
+    for (int l = 0; l < NLAYER; ++l)
+    {
+        const LayerRecord& r = rec[l];
+        const double w = r.gain * std::exp (-0.5 * std::pow (k1 * r.wUm, 2.0)) * headResponse (l, k1, hkB);
+        const double ph = -k1 * (r.xUm - xRefUm);
+        re += w * std::cos (ph); im += w * std::sin (ph);
+    }
+    double g = std::hypot (re, im) / NLAYER * sigScale * outK * pbTrim * packSm;
+    if (eqOn) g *= dbToLin (eqRecA.analogueDb (fHz) + eqRepA.analogueDb (fHz));
+    return g;
+}
+
 /*  The playback head (stage 4, docs/physics/07-playback.md): every slab through
     its own kernel - near taps on the slab's grid at the head's phase, then the
     1/x^2 tail as box means from the coarse prefix sums. a, b: the tape
     coordinates (surface cells) at the start and end of this sample's transit;
     the transit box is folded into the taps, centred where it always was. */
-void Engine::readHead (double a, double b, double& outL, double& outR) const
+void Engine::readHead (double a, double b, double& outL, double& outR, bool ahead) const
 {
     const HeadKernel& K = *hk;
     const double x = 0.5 * (a + b);
@@ -1124,8 +1222,8 @@ void Engine::readHead (double a, double b, double& outL, double& outR) const
         }
         // the tail, both sides: a box mean is the prefix difference at its edges over
         // its width; edges are shared (one box's hi is the next one's lo)
-        const double* P0 = pre (0, l);
-        const double* P1 = pre (1, l);
+        const double* P0 = ahead ? preA (0, l) : pre (0, l);
+        const double* P1 = ahead ? preA (1, l) : pre (1, l);
         const float* bm = K.masses (l, hkB);
         auto at = [&] (double um, double& v0, double& v1)
         {
@@ -1155,8 +1253,8 @@ void Engine::readHead (double a, double b, double& outL, double& outR) const
     }
     // the combined tail of all four slabs
     {
-        const double* P0 = preC (0);
-        const double* P1 = preC (1);
+        const double* P0 = ahead ? preAC (0) : preC (0);
+        const double* P1 = ahead ? preAC (1) : preC (1);
         auto at = [&] (double um, double& v0, double& v1)
         {
             const double yy = um * (1.0 / COARSE_UM);
@@ -1476,12 +1574,71 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
     fbL = highS[0].tick (lowS[0].tick (fbL)) * fbEff;
     fbR = highS[1].tick (lowS[1].tick (fbR)) * fbEff;
 
+    // ---- DUB's sync head (BUGLIST 9): it reads the loop SYNC_CM upstream of the record
+    //      head, where the tape still holds the last pass, through the same head, trim,
+    //      replay equalisation and amplifier as a playback head. It reads whenever a loop is
+    //      recording, so a switch to DUB finds the whole pass already read. What it reads is
+    //      kept by TAPE POSITION and goes back into the record amplifier where it was read:
+    //      the loop re-recorded in place, and every pass is a generation of the medium.
+    if (mode == 1)
+    {
+        extendAhead (T + (SYNC_CM + SYNC_AHEAD_CM) * CELLS_PER_CM);
+        const double u1s = T + SYNC_CM * CELLS_PER_CM - xRefUm / CELL_UM;
+        if (syncRun && u1s > uPrevS)
+        {
+            double sL, sR;
+            readHead (uPrevS, u1s, sL, sR, true);
+            const double kOut = outK * pbTrim * packSm;
+            sL = compS[0].tick (sL * kOut); sR = compS[1].tick (sR * kOut);
+            if (eqOn)
+            {
+                sL = syncEqS[0].tick (eqRepA, sL); sR = syncEqS[1].tick (eqRepA, sR);
+                lcSY[0] = lcA * (lcSY[0] + sL - lcSX[0]); lcSX[0] = sL; sL = lcSY[0];
+                lcSY[1] = lcA * (lcSY[1] + sR - lcSX[1]); lcSX[1] = sR; sR = lcSY[1];
+            }
+            sL = ampRail (sL); sR = ampRail (sR);
+            // onto the position ring: every cell centre this sample's read passed, linear
+            // between this sample and the last
+            const double cNow = 0.5 * (uPrevS + u1s);
+            if (! syncLive)
+            {
+                // reading again after a stretch with record off: nothing in between is known
+                syncFrom = syncHi = (int64_t) std::ceil (cNow - 0.5);
+                sPrevC = cNow; sPrevV[0] = sL; sPrevV[1] = sR;
+                syncLive = true;
+            }
+            const double span = cNow - sPrevC;
+            int64_t i = std::max (syncHi, (int64_t) std::ceil (sPrevC - 0.5));
+            for (; (double) i + 0.5 <= cNow; ++i)
+            {
+                const double t = span > 1.0e-12 ? ((double) i + 0.5 - sPrevC) / span : 1.0;
+                syncBuf[(size_t) (i & SYNC_MASK)] = (float) (sPrevV[0] + t * (sL - sPrevV[0]));
+                syncBuf[(size_t) SYNC_RING + (size_t) (i & SYNC_MASK)] = (float) (sPrevV[1] + t * (sR - sPrevV[1]));
+            }
+            if (i > syncHi) { syncHi = i; syncFrom = std::max (syncFrom, syncHi - (int64_t) SYNC_RING + 8); }
+            sPrevC = cNow; sPrevV[0] = sL; sPrevV[1] = sR;
+        }
+        if (! syncRun) syncLive = false;
+        uPrevS = u1s;
+    }
+    gSync += (gSyncTgt - gSync) * aRec;
+    if (gSyncTgt <= 0.0 && gSync < 1.0e-6) gSync = 0.0;
+    double reL = 0.0, reR = 0.0;
+    if (gSync > 0.0)
+    {
+        // what goes onto the record head now lands where the tape was 1 + inLag samples ago
+        // (the record path's own odometer), and the remanence it leaves sits xRef behind the gap
+        const double uw = posAgo (1 + inLag) - xRefUm / CELL_UM + (syncLagNow + syncLag) * v * dt;
+        reL = gSync * syncAt (0, uw);
+        reR = gSync * syncAt (1, uw);
+    }
+
     // ---- record: the signal as a deep-gap field onto the field ring...
     if (recFade < 1.0) recFade = std::min (1.0, recFade + dt / SPLICE_FADE_S);
     recEnv += (recTgt - recEnv) * aRec;
     if (recTgt <= 0.0 && recEnv < 1.0e-4) recEnv = 0.0;
     if (recTgt >= 1.0 && recEnv > 1.0 - 1.0e-6) recEnv = 1.0;
-    double rl = xL * gIn + fbL, rr = xR * gIn + fbR;
+    double rl = xL * gIn + fbL + reL, rr = xR * gIn + fbR + reR;
     if (eqOn)
     {
         // the record amplifier's pre-emphasis: boosted treble meets the tape's
@@ -1594,11 +1751,9 @@ void Engine::computeEff()
         eff.wear      += (100.0f - eff.wear) * b;
         eff.bias       = std::max (-10.0f, eff.bias - 6.0f * b);   // the bias oscillator sags: under-bias
     }
-    // DUB (BUGLIST 8): sound-on-sound. The bias drops to the level at which a take committed
-    // at the operating bias survives the pass (-3.5 dB once at -6 dB, the reference's E2);
-    // what is recorded at this bias is replaced by the next pass. Shown on the BIAS knob.
+    // DUB (BUGLIST 9): sound-on-sound by re-recording the loop in place (the sync head, in
+    // tick). The tape side is REC's: operating bias, erase head full.
     dubOn = params.mode > 0.5f && std::lround (params.looper) == 1;
-    if (dubOn) eff.bias = std::max (-10.0f, eff.bias + (float) DUB_BIAS_DB);
     tele.brokenEff[0] = eff.condition; tele.brokenEff[1] = eff.capstan; tele.brokenEff[2] = eff.reels;
     tele.brokenEff[3] = eff.scrape;    tele.brokenEff[4] = eff.wear;    tele.brokenEff[5] = eff.bias;
 }
@@ -1718,14 +1873,39 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         loopState = std::clamp ((int) std::lround (p.looper), 0, 2);
         if (mode == 0) { he = HE_FULL; rt = 1.0; clearLeft = 0.0; }         // a reel: always a clean wipe
         else if (loopState == 0) { he = HE_FULL; rt = 1.0; }                // REC: fresh tape every pass
+        else if (loopState == 1) { he = HE_FULL; rt = 1.0; }                // DUB: wiped, and re-recorded in place
         else if (loopState == 2) { he = 0.0;     rt = 0.0; }                // PLAY: record and bias off
         if (clearLeft > 0.0) { he = HE_FULL; rt = 0.0; clearLeft -= v * n * os * dt; }
         // BROKEN: the erase head weakens (worn, mis-aligned, its oscillator low): on a loop
         // its wipe stops being clean, down to about 1.2 Hc. A reel brings blank tape.
-        if (mode == 1 && brokenB > 0.0) he *= 1.0 - 0.45 * brokenB;
+        // (not in DUB: a re-record over a part-erased loop adds to what survived and builds up)
+        if (mode == 1 && loopState != 1 && brokenB > 0.0) he *= 1.0 - 0.45 * brokenB;
         if (forceHe >= 0.0) he = forceHe;
         if (forceRec >= 0.0) rt = forceRec;
         heTgt = he; recTgt = rt;
+        // DUB: the sync head's signal into the record amplifier. ERASE sets how much of the loop
+        // each pass loses: 0 keeps it at unity (the medium's own generation loss only), 100 %
+        // keeps nothing. The sync head reads whenever a loop records, so DUB starts seamless.
+        syncRun = mode == 1 && rt > 0.0;
+        const double keep = 1.0 - std::clamp ((double) p.erase, 0.0, 100.0) * 0.01;
+        double lg = 1.0, kHf = 1.0;
+        if (mode == 1 && loopState == 1)
+        {
+            lg = syncLoopGain (1000.0);
+            // and the treble: the worst computed gain from 2 to 16 kHz, relative to 1 kHz
+            double hfMax = 0.0;
+            for (double f : { 2000.0, 3000.0, 4000.0, 6000.0, 8000.0, 10000.0, 12000.0, 14000.0, 16000.0, 18000.0 }) hfMax = std::max (hfMax, syncLoopGain (f));
+            const double hfDb = 20.0 * std::log10 (std::max (hfMax, 1.0e-12) / std::max (lg, 1.0e-12));
+            double lfMax = 0.0;
+            for (double f : { 60.0, 100.0, 160.0, 250.0, 400.0 }) lfMax = std::max (lfMax, syncLoopGain (f));
+            const double lfDb = 20.0 * std::log10 (std::max (lfMax, 1.0e-12) / std::max (lg, 1.0e-12));
+            kHf = dbToLin (-SYNC_HF_K * (std::max (0.0, hfDb - syncHfRef - SYNC_HF_TOL_DB) + std::max (0.0, lfDb - syncLfRef - SYNC_LF_TOL_DB) * (SYNC_LF_K / SYNC_HF_K)));
+            tele.syncHfDb = hfDb; tele.syncLfDb = lfDb;
+        }
+        const double kLoop = (lg > 1.0e-6) ? syncPeakK / lg * kHf : 0.0;
+        gSyncTgt = (mode == 1 && loopState == 1 && clearLeft <= 0.0 && forceRec < 0.0) ? SYNC_K * syncTrim * keep * kLoop : 0.0;
+        tele.syncLoopDb = 20.0 * std::log10 (std::max (lg, 1.0e-9));
+        tele.reRecDb = gSyncTgt > 0.0 ? 20.0 * std::log10 (keep) : -200.0;
         tele.looper = mode == 1 ? (clearLeft > 0.0 ? 3 : loopState) : -1;
         tele.recording = recEnv > 0.5;
     }
@@ -1754,6 +1934,17 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
             || std::abs (std::log (vNow / std::max (dubSpeed, 1.0))) > 0.002 || recOn != dubRecOn)
             buildDub (heSm, biasDbSm, vNow, recOn);
         hkB = HeadKernel::bucket (vNow);
+        {
+            // the re-record placement for this speed (SYNC_LAG_US, interpolated in log speed)
+            const double fk = std::clamp (std::log2 (vNow / 4.75), 0.0, 4.0);
+            const int ik = std::min ((int) fk, 3);
+            const double us = SYNC_LAG_US[ik] + (fk - ik) * (SYNC_LAG_US[ik + 1] - SYNC_LAG_US[ik]);
+            syncLagNow = SYNC_LAG_SAMPLES + us * 1.0e-6 / dt;
+            const double pk = SYNC_PEAK_DB[ik] + (fk - ik) * (SYNC_PEAK_DB[ik + 1] - SYNC_PEAK_DB[ik]);
+            syncPeakK = dbToLin (-(pk + SYNC_MARGIN_DB));
+            syncHfRef = SYNC_HF_REF_DB[ik] + (fk - ik) * (SYNC_HF_REF_DB[ik + 1] - SYNC_HF_REF_DB[ik]);
+            syncLfRef = SYNC_LF_REF_DB[ik] + (fk - ik) * (SYNC_LF_REF_DB[ik + 1] - SYNC_LF_REF_DB[ik]);
+        }
         eqS = p.eqStd > 0.5f ? 1 : 0;
         updateEq (vNow);
 

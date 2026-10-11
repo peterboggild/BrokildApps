@@ -91,7 +91,7 @@ card is open. `map`: `identity` (x = v), `db_to_ratio` (x = base·10^(v/20)),
 `table` (piecewise linear v → x).
 
 Figure names (all exist in figdata.json): `hysteresis`, `anhysteretic`, `biascurve`,
-`karlqvist`, `recordzone`, `playbackloss`, `eqcurves`, `erase`, `dub`, `noise`,
+`karlqvist`, `recordzone`, `playbackloss`, `eqcurves`, `erase`, `dub`, `dubgen`, `dubkeep`, `noise`,
 `wowflutter`, `delaygeometry`, `feedbackloop`, `speedhd`.
 
 ### Number keys (all exist in tips-numbers.json)
@@ -108,7 +108,7 @@ Real time, measured by the bench on this build:
 `eng.rec_loss_15k_db`, `eng.pb_flat_db`, `eng.delay_err_us`, `eng.doppler_err_cents`,
 `eng.hiss_dba`, `eng.hiss_continuous_db`, `eng.modnoise_db`, `eng.wf_fresh_pct`,
 `eng.wf_worn_pct`, `eng.azimuth_us`, `eng.feedback_onset_pct`, `eng.coast_err_pct`,
-`eng.dub_take_db`, `eng.dub_ghost_db`, `eng.erase_150_db`, `eng.repro_err_samples`,
+`eng.dub_pass_db`, `eng.dub_pass8k_db`, `eng.dub_drift_us`, `eng.dub_erase50_db`, `eng.erase_150_db`, `eng.repro_err_samples`,
 `eng.hunt_pp_pct`, `eng.clog_swing_db`, `eng.splice_ms`, `eng.wear_db`,
 `eng.cost_pct`, `eng.cost_eco_pct`, `eng.cost_high_pct`, `eng.alias_db`, `eng.mech_dbfs`,
 `eng.checks`.

@@ -254,8 +254,8 @@
        what the simulation does: echoes bend in pitch when the motor changes speed, a head moved along its rail gives real
        Doppler, the tape saturates because its oxide runs out of magnetisation, and the hiss is the statistics of the
        particles in the coating.</p>
-    <p class="lede">And on a closed loop of tape, <em>FLUX MEMORY</em> turns the erase head down, so old recordings survive
-       under what you play now.</p>
+    <p class="lede">And on a closed loop of tape, <em>FLUX MEMORY</em> re-records the loop in place every pass, so overdubs stack
+       and old recordings survive under what you play now.</p>
     <p class="lede">It was made to find out how far a tape delay can be pushed beyond sound processing, towards a detailed
        physics simulation &mdash; down to the particles in the oxide and the layers of the coating they are recorded into.</p>
     <div class="btnrow">
@@ -264,7 +264,7 @@
       <a class="btn btn-ghost" href="../../index.html">All Brokild apps</a>
     </div>
     <div class="hero-shot"><img src="img/hero.jpg" alt="The Magneto Transport deck: the speed readout, lamps, VU meters and presets across the top, the tape machine drawn in the middle with its reels, heads, rail and capstan, and eight engraved plates of controls below." /></div>
-    <p class="smallnote">Windows VST3 and standalone &middot; build 261011.13 &middot; free</p>
+    <p class="smallnote">Windows VST3 and standalone &middot; build 261012.1 &middot; free</p>
   </div>
 </header>
 
@@ -293,15 +293,15 @@
 <section class="block">
   <div class="wrap">
     <h2>FLUX MEMORY</h2>
-    <p>A variable erase head on a finite loop of tape, 0.5 to 6&nbsp;m long. In <strong>REC</strong> the loop is wiped and
-       recorded every pass: the plain echo. In <strong>DUB</strong> the bias drops, so the take already on the loop stays
-       under what you play now, and the <strong>ERASE</strong> knob sets how much of it the erase head takes. <strong>PLAY</strong>
-       holds the loop as it is.</p>
-    <p>An erase field takes what it can reach and no more, so it acts <strong>once</strong>: a second pass at the same setting
-       takes nothing further, turning it up takes more, turning it down brings nothing back. That is how real oxide behaves,
-       as an offline model of it measures, and the engine follows it. Tape has no undo.</p>
+    <p>A finite loop of tape, 0.5 to 6&nbsp;m long. In <strong>REC</strong> the loop is wiped and recorded every pass: the
+       plain echo. In <strong>DUB</strong> it is sound-on-sound: a sync head reads the loop just before the erase head wipes
+       it, and the record head writes it back in place with what you play on top, so overdubs stack. The
+       <strong>ERASE</strong> knob sets how much of the loop each pass loses. <strong>PLAY</strong> holds the loop as it is.</p>
+    <p>Every pass is a generation of the tape, losing what tape loses &mdash; a little treble each time, through the head's
+       gap and spacing losses &mdash; and nothing comes round louder than it went, at any speed or bias, because the
+       re-record level is set from the loop's own gain as the machine stands. Tape has no undo.</p>
     <div class="gallery">
-      <figure><img src="img/loop.jpg" alt="The LOOP / FLUX MEMORY plate in DUB, with its readout reporting the erase head's field." />
+      <figure><img src="img/loop.jpg" alt="The LOOP / FLUX MEMORY plate in DUB, with its readout reporting what the heads are doing." />
         <figcaption>The loop plate reports what the heads are doing, as measured.</figcaption></figure>
       <figure><img src="img/card-bias.jpg" alt="The BIAS card pinned open: what the control does, then the physics underneath with a live figure and measured numbers." />
         <figcaption>A card under every control: what it does, then the physics, with numbers measured on the build.</figcaption></figure>
@@ -352,7 +352,7 @@
     <h2>Measured</h2>
     <p>Every number on the cards is written by the plug-in's test bench, which runs with every build. A few of them:</p>
     <table>
-      <tr><th>Measurement</th><th>Build 261011.13</th></tr>
+      <tr><th>Measurement</th><th>Build 261012.1</th></tr>
       <tr><td>Unity at the operating level, defaults</td><td>+0.025 dB</td></tr>
       <tr><td>Delay against head distance / speed</td><td>within 0.720 &micro;s</td></tr>
       <tr><td>Maximum output level, re 185 nWb/m (the 456 data sheet gives +12.3)</td><td>+12.3 dB</td></tr>
@@ -389,7 +389,7 @@
       <div class="fact"><div class="v">0.5&ndash;6 m</div><div class="l">tape loop for FLUX MEMORY</div></div>
       <div class="fact"><div class="v">4</div><div class="l">tape stocks, IEC or NAB equalisation</div></div>
       <div class="fact"><div class="v">24</div><div class="l">factory presets, clean to strange, levelled</div></div>
-      <div class="fact"><div class="v">261011.13</div><div class="l">build</div></div>
+      <div class="fact"><div class="v">261012.1</div><div class="l">build</div></div>
     </div>
     <p class="smallnote">An effect, so it carries no Brokild World FX rack. Quality ECO, NORMAL or HIGH; 47 host parameters,
        the loop controls included.</p>

@@ -468,9 +468,9 @@ const warns = [];
     await mouse("mouseMoved", 800, 885); await sleep(400);
 
     // ---- the existing behaviour: LOOP readout and dimming, REPRO, BROKEN
-    await ev("__MT.set('mode', 1); __MT.set('looper', 1); window.__teleOv.mode = 1; window.__teleOv.looper = 1; window.__teleOv.eraseHc = 1.1; true"); await sleep(300);
+    await ev("__MT.set('mode', 1); __MT.set('looper', 1); window.__teleOv.mode = 1; window.__teleOv.looper = 1; window.__teleOv.eraseHc = 2.25; window.__teleOv.reRecDb = -3.1; true"); await sleep(300);
     const lp = await ev("({idle: document.getElementById('loopGrp').classList.contains('idle'), read: document.getElementById('loopRead').textContent, why: document.getElementById('loopWhy').textContent, eraseIdle: __MT.ctls.erase.el.classList.contains('idle')})");
-    check("LOOP: the panel lights, the readout and the reason read as before", !lp.idle && /LOOP DUB \| recording \| erase head 1\.10 Hc/.test(lp.read) && /^DUB:/.test(lp.why) && !lp.eraseIdle, lp.read + " / " + lp.why);
+    check("LOOP: the panel lights, the readout and the reason read as before", !lp.idle && /LOOP DUB \| recording \| re-recorded in place, -3\.1 dB a pass/.test(lp.read) && /^DUB:/.test(lp.why) && !lp.eraseIdle, lp.read + " / " + lp.why);
     await shot("loop.png");
     await ev("__MT.set('mode', 0); window.__teleOv.mode = 0; window.__teleOv.looper = -1; window.__teleOv.repro = true; window.__teleOv.reproMs = 210.4; true"); await sleep(300);
     const rp = await ev("({btn: document.querySelector('[data-id=repro] .btn').textContent, h: document.querySelector('[data-id=repro] .btn').getBoundingClientRect().height, inert: [...document.querySelectorAll('[data-head=\"2\"],[data-head=\"3\"]')].every(e=>e.classList.contains('inert')), fb: document.querySelector('[data-id=feedback]').closest('.grp').classList.contains('inert'), loopIdle: document.getElementById('loopGrp').classList.contains('idle')})");

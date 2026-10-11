@@ -585,6 +585,7 @@ void MagnetoTransportAudioProcessor::timerCallback()
         o->setProperty ("looper", t.looper.load());
         o->setProperty ("recording", t.recording.load());
         o->setProperty ("eraseHc", t.eraseHc.load());
+        o->setProperty ("reRecDb", t.reRecDb.load());
         o->setProperty ("barsFit", t.barsFit.load());
         o->setProperty ("barsNow", t.barsNow.load());
         {
