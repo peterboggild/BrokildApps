@@ -205,7 +205,7 @@ Every stage ends with its bench clear. **LISTEN** = stop, install, Peter listens
 | 3 | real-time record process validated against 2; saturation contains feedback; bias live | **LISTEN B** - built 2026-10-11 (261011.2): bench 67/67, awaiting the listen |
 | 4 | playback physics, EQ standards, electronics, gain staging, stereo crosstalk/azimuth | built 2026-10-11 (261011.3): playback within 0.16 dB of the reference, aligned machine flat within 0.25 dB |
 | 5 | transport mechanics: motor, capstan, bearings, elastic tape, scrape flutter, reels | FABLE, **LISTEN C** - built 2026-10-11 (261011.4): bench 110/110, awaiting the listen |
-| 6 | tape stock: particle statistics → hiss, modulation noise, dropouts; stocks, age, wear | |
+| 6 | tape stock: particle statistics → hiss, modulation noise, dropouts; stocks, age, wear | built 2026-10-11 (261011.5): bench 141/141, hiss within 0.6 dB of the continuous coating |
 | 7 | FLUX MEMORY: partial erase, bias-erase overwrite, freeze; **LOOPER** transport (BUGLIST 2, approved) | **LISTEN D** |
 | 8 | panel driven by the simulation, quality tiers, presets, smoothing, bypass, latency, host test, pluginval if available | |
 | 9 | decal brief → **stop**; integrate on return | |
@@ -409,3 +409,15 @@ tone within 10 %. Record: `plugin/docs/physics/08-transport.md`.
 
 Both stages were built without the listening gates, as agreed (section 2): each
 is its own commit and install, so either can be heard and stepped back.
+
+## 14. Stage 6 is built (2026-10-11, build 261011.5)
+
+Four stocks on three coatings (studio, vintage and budget are their own reference
+runs; shedding is the studio tape decayed), the machine aligned to each fresh one.
+Particle hiss written onto the tape, coloured per slab to the continuous coating's
+spectrum (within 0.6 dB, 250 Hz - 16 kHz); PARTICLES down to exact silence;
+modulation noise, roughness and dropouts as properties of the tape (a loop repeats
+them, the hiss is new every pass); azimuth from the transport's condition; WEAR and
+ACCUMULATE, the loop's wear saved with the project. The studio stock's hiss is
+-61.9 dBA re 250 nWb/m at 19 cm/s, in line with two-track 456. Age is carried by
+SHEDDING and WEAR rather than a separate control. Record: `plugin/docs/physics/09-stock.md`.

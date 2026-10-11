@@ -67,16 +67,17 @@ struct HeadKernel
     const float* masses (int l, int b) const { return boxMass[l].data() + (size_t) b * MAXBOX; }
     static int bucket (double vCms);
     static double bucketSpeed (int b);
-    /*  Built once per internal sample rate and shared by every instance. */
-    static const HeadKernel& get (double fsInt);
+    /*  Built once per internal sample rate and coating (the slabs' spacing correction
+        is the coating's own) and shared by every instance. */
+    static const HeadKernel& get (double fsInt, int coating = 0);
 };
 
 /*  Effective extra head spacing that makes four uniform slabs read like the
-    reference's sixteen depths (generated: stock/pb_456.h), at a speed. */
-double slabSpacingCorrectionUm (double vCms);
+    reference's sixteen depths (generated per coating: stock/pb_*.h), at a speed. */
+double slabSpacingCorrectionUm (double vCms, int coating = 0);
 
 /*  The slab's playback response at wavenumber k (1/um), spacing and gap
     included, transit not: for the alignment and the record equaliser. */
-double slabResponse (int slab, double kPerUm, double vCms);
+double slabResponse (int slab, double kPerUm, double vCms, int coating = 0);
 
 } // namespace mt

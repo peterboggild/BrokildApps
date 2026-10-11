@@ -1,5 +1,5 @@
 #include "Engine.h"
-#include "stock/stock_456.h"
+#include "Stock.h"
 
 #include <algorithm>
 #include <cstring>
@@ -18,9 +18,8 @@ namespace mt
 
 namespace
 {
-    namespace S4 = stock456;
-    static_assert (S4::NL == NLAYER, "the record tables and the tape disagree on the layer count");
-    static_assert (S4::NM == 11 && S4::NS <= LayerRecord::NSMAX, "LayerRecord's slice size");
+    static_assert (STK_NL == NLAYER, "the record tables and the tape disagree on the layer count");
+    static_assert (STK_NM == 11 && STK_NS <= LayerRecord::NSMAX, "LayerRecord's slice size");
 
     inline double dbToLin (double db) { return std::pow (10.0, db / 20.0); }
 
@@ -81,7 +80,7 @@ namespace
     inline double sIndex (double s)
     {
         const double t = std::asinh (s * SINH3 / 2.5) / 3.0;
-        return std::clamp ((t + 1.0) * 0.5 * (S4::NS - 1), 0.0, (double) (S4::NS - 1));
+        return std::clamp ((t + 1.0) * 0.5 * (STK_NS - 1), 0.0, (double) (STK_NS - 1));
     }
 }
 
@@ -218,50 +217,53 @@ namespace
         return m - k * std::log (std::exp (-(a - m) / k) + std::exp (-(b - m) / k));
     }
 
-    void opLayers (double v, double (&g)[NLAYER], double (&x)[NLAYER], double (&w)[NLAYER])
+    void opLayers (const CoatingTables& C, double v, double (&g)[NLAYER], double (&x)[NLAYER], double (&w)[NLAYER])
     {
-        const double lnA0 = std::log (S4::A_GRID[0]), lnSpan = std::log (S4::A_GRID[S4::NA - 1]) - lnA0;
-        const double fv = std::clamp (std::log2 (v / S4::SPEED_CMS[0]), 0.0, (double) (S4::NV - 1));
-        const int iv = std::min ((int) fv, S4::NV - 2);
+        const double lnA0 = std::log (C.aGrid[0]), lnSpan = std::log (C.aGrid[STK_NA - 1]) - lnA0;
+        const double fv = std::clamp (std::log2 (v / C.speedCms[0]), 0.0, (double) (STK_NV - 1));
+        const int iv = std::min ((int) fv, STK_NV - 2);
         const double tv = fv - iv;
         for (int l = 0; l < NLAYER; ++l)
         {
-            const double A = std::clamp (S4::HB_OPERATING * S4::LAYER_FMAX[l], S4::A_GRID[0], S4::A_GRID[S4::NA - 1]);
-            const double fa = (std::log (A) - lnA0) / lnSpan * (S4::NA - 1);
-            const int ia = std::clamp ((int) std::floor (fa), 0, S4::NA - 2);
+            const double A = std::clamp (C.hbOperating * C.layerFmax[l], C.aGrid[0], C.aGrid[STK_NA - 1]);
+            const double fa = (std::log (A) - lnA0) / lnSpan * (STK_NA - 1);
+            const int ia = std::clamp ((int) std::floor (fa), 0, STK_NA - 2);
             const double ta = std::clamp (fa - ia, 0.0, 1.0);
-            auto z = [&] (const double (&Z)[S4::NV][S4::NL][S4::NA]) {
+            auto z = [&] (const double (*Z)[STK_NL][STK_NA]) {
                 const double lo = (1.0 - ta) * Z[iv][l][ia] + ta * Z[iv][l][ia + 1];
                 const double hi = (1.0 - ta) * Z[iv + 1][l][ia] + ta * Z[iv + 1][l][ia + 1];
                 return (1.0 - tv) * lo + tv * hi;
             };
-            g[l] = z (S4::ZONE_GAIN); x[l] = z (S4::ZONE_X_UM); w[l] = std::max (0.0, z (S4::ZONE_W_UM));
+            g[l] = z (C.zoneGain); x[l] = z (C.zoneX); w[l] = std::max (0.0, z (C.zoneW));
         }
     }
 
-    void eqTargets (int std_, double v, const double* f, int n, double* recDb, double* repDb)
+    void eqTargets (int coating, int std_, double v, const double* f, int n, double* recDb, double* repDb)
     {
+        const CoatingTables& C = coatingTables (coating);
         double g[NLAYER], x[NLAYER], w[NLAYER];
-        opLayers (v, g, x, w);
+        opLayers (C, v, g, x, w);
         double gx = 0.0, gs = 0.0;
         for (int l = 0; l < NLAYER; ++l) { gx += g[l] * x[l]; gs += g[l]; }
         const double xRef = gs > 0.0 ? gx / gs : 0.0;
         double tau2, w1;
         eqTimeConstants (std_, v, tau2, w1);
-        const double dsp = PB_SPACING_UM + slabSpacingCorrectionUm (v);
+        const double dsp = PB_SPACING_UM + slabSpacingCorrectionUm (v, coating);
         auto at = [&] (double fHz, double& rec, double& rep) {
             const double k = 2.0 * M_PI * fHz / (v * 1.0e4);
             double re = 0.0, im = 0.0;
             for (int l = 0; l < NLAYER; ++l)
             {
-                const double a = g[l] * std::exp (-0.5 * std::pow (k * w[l], 2.0)) * slabResponse (l, k, v);
+                const double a = g[l] * std::exp (-0.5 * std::pow (k * w[l], 2.0)) * slabResponse (l, k, v, coating);
                 const double ph = -k * (x[l] - xRef);
                 re += a * std::cos (ph); im += a * std::sin (ph);
             }
             const double R = std::hypot (re, im) / gs;
             const double xg = 0.5 * k * PB_GAP_UM;
             const double HL = std::max (1.0e-6, std::exp (-k * dsp) * std::abs (xg < 1.0e-9 ? 1.0 : std::sin (xg) / xg));
-            const double Fsc = R / HL;
+            // a fresh stock's surface spacing is trimmed out by the record EQ, as a
+            // technician aligns record treble for the tape on the machine
+            const double Fsc = R * std::exp (-k * C.alignSpacingUm) / HL;
             const double om = 2.0 * M_PI * fHz;
             const double Hrep = std::hypot (1.0, om * tau2) * (w1 > 0.0 ? om / std::hypot (om, w1) : 1.0);
             const double C = std::pow (10.0, softMinDb (-20.0 * std::log10 (HL), 10.0) / 20.0);
@@ -279,11 +281,12 @@ namespace
         }
     }
 
-    const EqTables& eqTables()
+    const EqTables& eqTables (int coating)
     {
         static std::mutex mx;
-        static std::unique_ptr<EqTables> t;
+        static std::unique_ptr<EqTables> tabs[NUM_COATINGS];
         std::lock_guard<std::mutex> lock (mx);
+        std::unique_ptr<EqTables>& t = tabs[coating];
         if (t) return *t;
         t = std::make_unique<EqTables>();
         constexpr int NF = 48;
@@ -292,7 +295,7 @@ namespace
         for (int s = 0; s < 2; ++s)
             for (int b = 0; b < HeadKernel::NB; ++b)
             {
-                eqTargets (s, HeadKernel::bucketSpeed (b), f, NF, rc, rp);
+                eqTargets (coating, s, HeadKernel::bucketSpeed (b), f, NF, rc, rp);
                 if (b > 0) { t->rec[s][b] = t->rec[s][b - 1]; t->rep[s][b] = t->rep[s][b - 1]; }
                 // report the error where the head can still be trimmed flat (as section 16 asserts)
                 const double v = HeadKernel::bucketSpeed (b);
@@ -304,8 +307,36 @@ namespace
     }
 }
 
-double Engine::eqFitWorstDb() { return eqTables().worst; }
-double Engine::eqFitWorstSpeed() { return eqTables().worstV; }
+void Engine::eqTargetDb (int coating, int standard, double vCms, double fHz, double& recDb, double& repDb)
+{
+    eqTargets (coating, standard, vCms, &fHz, 1, &recDb, &repDb);
+}
+
+double Engine::eqFitErrorDb (int coating, int standard, int b, double fHz, bool record)
+{
+    const EqTables& T = eqTables (coating);
+    const double f1 = 1000.0;
+    double r1, p1, r, p;
+    eqTargets (coating, standard, HeadKernel::bucketSpeed (b), &f1, 1, &r1, &p1);
+    eqTargets (coating, standard, HeadKernel::bucketSpeed (b), &fHz, 1, &r, &p);
+    const ShelfCascade& S = record ? T.rec[standard][b] : T.rep[standard][b];
+    return S.analogueDb (fHz) - (record ? r : p);
+}
+
+double Engine::eqFitWorstDb (int coating)
+{
+    if (coating >= 0) return eqTables (coating).worst;
+    double w = 0.0;
+    for (int k = 0; k < NUM_COATINGS; ++k) w = std::max (w, eqTables (k).worst);
+    return w;
+}
+double Engine::eqFitWorstSpeed (int coating)
+{
+    if (coating >= 0) return eqTables (coating).worstV;
+    int best = 0;
+    for (int k = 1; k < NUM_COATINGS; ++k) if (eqTables (k).worst > eqTables (best).worst) best = k;
+    return eqTables (best).worstV;
+}
 
 /*  The equalisers for the motor's speed: the analogue gains of the two speed
     buckets either side, interpolated, then discretised - so a varispeed glide
@@ -314,8 +345,8 @@ double Engine::eqFitWorstSpeed() { return eqTables().worstV; }
 void Engine::updateEq (double vCms)
 {
     const double fb = std::clamp (std::log (vCms / HeadKernel::B0) / std::log (HeadKernel::BR), 0.0, (double) (HeadKernel::NB - 1));
-    if (std::abs (fb - eqLastFb) < 0.01 && eqS == eqLastS) return;
-    eqLastFb = fb; eqLastS = eqS;
+    if (std::abs (fb - eqLastFb) < 0.01 && eqS == eqLastS && coat == eqLastC) return;
+    eqLastFb = fb; eqLastS = eqS; eqLastC = coat;
     const int b = std::min ((int) fb, HeadKernel::NB - 2);
     const double t = fb - b;
     auto blend = [&] (const ShelfCascade& a, const ShelfCascade& c, ShelfCascade& out) {
@@ -336,20 +367,20 @@ void Engine::updateEq (double vCms)
     convolved with the layer's own cell width. */
 void Engine::buildRecord (double biasDb, double speedCms)
 {
-    const double hb = S4::HB_OPERATING * dbToLin (biasDb);
-    const double lnA0 = std::log (S4::A_GRID[0]), lnSpan = std::log (S4::A_GRID[S4::NA - 1]) - lnA0;
-    const int c = S4::NM / 2;
+    const double hb = ST->hbOperating * dbToLin (biasDb);
+    const double lnA0 = std::log (ST->aGrid[0]), lnSpan = std::log (ST->aGrid[STK_NA - 1]) - lnA0;
+    const int c = STK_NM / 2;
     // speed planes are a factor of 2 apart
-    const double fv = std::clamp (std::log2 (speedCms / S4::SPEED_CMS[0]), 0.0, (double) (S4::NV - 1));
-    const int iv = std::min ((int) fv, S4::NV - 2);
+    const double fv = std::clamp (std::log2 (speedCms / ST->speedCms[0]), 0.0, (double) (STK_NV - 1));
+    const int iv = std::min ((int) fv, STK_NV - 2);
     const double tv = fv - iv;
     auto aIndex = [&] (double A, int& ia, double& ta) {
-        A = std::clamp (A, S4::A_GRID[0], S4::A_GRID[S4::NA - 1]);
-        const double fa = (std::log (A) - lnA0) / lnSpan * (S4::NA - 1);
-        ia = std::clamp ((int) std::floor (fa), 0, S4::NA - 2);
+        A = std::clamp (A, ST->aGrid[0], ST->aGrid[STK_NA - 1]);
+        const double fa = (std::log (A) - lnA0) / lnSpan * (STK_NA - 1);
+        ia = std::clamp ((int) std::floor (fa), 0, STK_NA - 2);
         ta = std::clamp (fa - ia, 0.0, 1.0);
     };
-    auto zone = [&] (const double (&Z)[S4::NV][S4::NL][S4::NA], int l, int ia, double ta) {
+    auto zone = [&] (const double (*Z)[STK_NL][STK_NA], int l, int ia, double ta) {
         const double lo = (1.0 - ta) * Z[iv][l][ia] + ta * Z[iv][l][ia + 1];
         const double hi = (1.0 - ta) * Z[iv + 1][l][ia] + ta * Z[iv + 1][l][ia + 1];
         return (1.0 - tv) * lo + tv * hi;
@@ -368,10 +399,10 @@ void Engine::buildRecord (double biasDb, double speedCms)
         double gl[NLAYER], xl[NLAYER], wl[NLAYER];
         for (int l = 0; l < NLAYER; ++l)
         {
-            int ia; double ta; aIndex (S4::HB_OPERATING * S4::LAYER_FMAX[l], ia, ta);
-            gl[l] = zone (S4::ZONE_GAIN, l, ia, ta);
-            xl[l] = zone (S4::ZONE_X_UM, l, ia, ta);
-            wl[l] = std::max (0.0, zone (S4::ZONE_W_UM, l, ia, ta));
+            int ia; double ta; aIndex (ST->hbOperating * ST->layerFmax[l], ia, ta);
+            gl[l] = zone (ST->zoneGain, l, ia, ta);
+            xl[l] = zone (ST->zoneX, l, ia, ta);
+            wl[l] = std::max (0.0, zone (ST->zoneW, l, ia, ta));
             gx += gl[l] * xl[l]; gs += gl[l];
         }
         xRefUm = gs > 0.0 ? gx / gs : 0.0;
@@ -381,7 +412,7 @@ void Engine::buildRecord (double biasDb, double speedCms)
         {
             const double w = gl[l] * std::exp (-0.5 * std::pow (k1 * wl[l], 2.0));
             const double ph = -k1 * (xl[l] - xRefUm);
-            const double L = (hk != nullptr) ? headResponse (l, k1, HeadKernel::bucket (speedCms)) : slabResponse (l, k1, speedCms);
+            const double L = (hk != nullptr) ? headResponse (l, k1, HeadKernel::bucket (speedCms)) : slabResponse (l, k1, speedCms, coat);
             wr += w * std::cos (ph); wi += w * std::sin (ph);
             lr += w * L * std::cos (ph); li += w * L * std::sin (ph);
         }
@@ -390,52 +421,52 @@ void Engine::buildRecord (double biasDb, double speedCms)
         pbTrim = pbKappa * pbTrimSS;
     }
 
-    double msym[S4::NM];
-    for (int i = 0; i < S4::NM; ++i) msym[i] = 0.5 * (S4::M_REM[i] - S4::M_REM[S4::NM - 1 - i]);
-    const double dM = (msym[S4::NM - 1] - msym[0]) / (S4::NM - 1);
+    double msym[STK_NM];
+    for (int i = 0; i < STK_NM; ++i) msym[i] = 0.5 * (ST->mRem[i] - ST->mRem[STK_NM - 1 - i]);
+    const double dM = (msym[STK_NM - 1] - msym[0]) / (STK_NM - 1);
 
     for (int l = 0; l < NLAYER; ++l)
     {
         LayerRecord& r = rec[l];
-        const double A = std::clamp (hb * S4::LAYER_FMAX[l], S4::A_GRID[0], S4::A_GRID[S4::NA - 1]);
+        const double A = std::clamp (hb * ST->layerFmax[l], ST->aGrid[0], ST->aGrid[STK_NA - 1]);
         int ia; double ta; aIndex (A, ia, ta);
 
-        float raw[S4::NM][S4::NS];
-        for (int im = 0; im < S4::NM; ++im)
-            for (int is = 0; is < S4::NS; ++is)
+        float raw[STK_NM][STK_NS];
+        for (int im = 0; im < STK_NM; ++im)
+            for (int is = 0; is < STK_NS; ++is)
             {
-                const double lo = (1.0 - ta) * S4::G[iv][l][ia][im][is] + ta * S4::G[iv][l][ia + 1][im][is];
-                const double hi = (1.0 - ta) * S4::G[iv + 1][l][ia][im][is] + ta * S4::G[iv + 1][l][ia + 1][im][is];
+                const double lo = (1.0 - ta) * ST->G[iv][l][ia][im][is] + ta * ST->G[iv][l][ia + 1][im][is];
+                const double hi = (1.0 - ta) * ST->G[iv + 1][l][ia][im][is] + ta * ST->G[iv + 1][l][ia + 1][im][is];
                 raw[im][is] = (float) ((1.0 - tv) * lo + tv * hi);
             }
         // G is odd: G(-M, -s) = -G(M, s). Antisymmetrise the slice so silence on
         // erased tape records EXACTLY zero, and so table noise cannot add DC.
-        for (int im = 0; im < S4::NM; ++im)
-            for (int is = 0; is < S4::NS; ++is)
-                r.g[im][is] = 0.5f * (raw[im][is] - raw[S4::NM - 1 - im][S4::NS - 1 - is]);
+        for (int im = 0; im < STK_NM; ++im)
+            for (int is = 0; is < STK_NS; ++is)
+                r.g[im][is] = 0.5f * (raw[im][is] - raw[STK_NM - 1 - im][STK_NS - 1 - is]);
         // Resample on a uniform s grid, 4.9 mHc apart (0 VU spans 38 steps), so a
         // cell's lookup is one multiply instead of an asinh, and linear between
         // these points is -120 dB from the cubic. Antisymmetry survives: the grid
         // is symmetric about s = 0 and so is the cubic through symmetric data.
-        for (int im = 0; im < S4::NM; ++im)
+        for (int im = 0; im < STK_NM; ++im)
             for (int i = 0; i < LayerRecord::NSF; ++i)
             {
                 const double sv = -LayerRecord::SMAX + i * (2.0 * LayerRecord::SMAX / (LayerRecord::NSF - 1));
                 const double fs = sIndex (sv);
-                const int is = std::min ((int) fs, S4::NS - 2);
+                const int is = std::min ((int) fs, STK_NS - 2);
                 const double ts = fs - is;
                 const float* g = r.g[im];
-                const int a = std::max (is - 1, 0), d = std::min (is + 2, S4::NS - 1);
+                const int a = std::max (is - 1, 0), d = std::min (is + 2, STK_NS - 1);
                 r.gf[im][i] = (float) CR (g[a], g[is], g[is + 1], g[d]).at (ts);
             }
-        for (int im = 0; im < S4::NM; ++im) r.gf[im][LayerRecord::NSF / 2] = r.g[im][S4::NS / 2];   // s = 0 exactly
+        for (int im = 0; im < STK_NM; ++im) r.gf[im][LayerRecord::NSF / 2] = r.g[im][STK_NS / 2];   // s = 0 exactly
         r.dM = dM;
-        r.mLo = -0.5 * (S4::NM - 1) * dM;
+        r.mLo = -0.5 * (STK_NM - 1) * dM;
 
         r.amp = A;
-        r.xUm = zone (S4::ZONE_X_UM, l, ia, ta);
-        r.wUm = std::max (0.0, zone (S4::ZONE_W_UM, l, ia, ta));
-        r.gain = (r.g[c][S4::NS / 2 + 1] - r.g[c][S4::NS / 2 - 1]) / (S4::S_GRID[S4::NS / 2 + 1] - S4::S_GRID[S4::NS / 2 - 1]);
+        r.xUm = zone (ST->zoneX, l, ia, ta);
+        r.wUm = std::max (0.0, zone (ST->zoneW, l, ia, ta));
+        r.gain = (r.g[c][STK_NS / 2 + 1] - r.g[c][STK_NS / 2 - 1]) / (ST->sGrid[STK_NS / 2 + 1] - ST->sGrid[STK_NS / 2 - 1]);
 
         const double B = (double) (1 << l);
         const double mu = 0.5 * B + r.xUm / CELL_UM;                   // kernel centre, from the cell's first surface cell
@@ -469,14 +500,16 @@ void Engine::buildRecord (double biasDb, double speedCms)
     recBiasDb = biasDb;
     recSpeed = speedCms;
     ++recBuilds;
+    // the particle noise's colour per slab follows the slabs' spacing correction at this speed
+    noiseColour (slabSpacingCorrectionUm (speedCms, coat), gCol);
 }
 
 /*  New remanence for one layer cell: Catmull-Rom along s (the table is fine
     there but the curve's slope must not kink), linear along M_old. */
 float Engine::recordCell (const LayerRecord& r, float mOld, double s) const
 {
-    const double fm = std::clamp ((mOld - r.mLo) / r.dM, 0.0, (double) (S4::NM - 1));
-    const int im = std::min ((int) fm, S4::NM - 2);
+    const double fm = std::clamp ((mOld - r.mLo) / r.dM, 0.0, (double) (STK_NM - 1));
+    const int im = std::min ((int) fm, STK_NM - 2);
     const double tm = fm - im;
     constexpr double K = (LayerRecord::NSF - 1) / (2.0 * LayerRecord::SMAX);
     const double fs = std::clamp ((s + LayerRecord::SMAX) * K, 0.0, (double) (LayerRecord::NSF - 1));
@@ -497,15 +530,22 @@ void Engine::prepare (double hostSampleRate, int)
     os = fsHost < 80000.0 ? 2 : 1;
     fsInt = fsHost * os;
     dt = 1.0 / fsInt;
-    hk = &HeadKernel::get (fsInt);      // built once per internal rate, shared by every instance
+    // built once per internal rate and coating, shared by every instance
+    for (int k = 0; k < NUM_COATINGS; ++k) hkC[k] = &HeadKernel::get (fsInt, k);
+    HeadShaper::prepareTables();
+    om20 = 2.0 * M_PI * std::min (20000.0, 0.45 * fsInt) / fsInt;
+    selectStock ((int) std::lround (params.stock));
     {
-        const EqTables& T = eqTables();
-        for (int s = 0; s < 2; ++s)
-            for (int b = 0; b < HeadKernel::NB; ++b)
-            {
-                eqBuf[(size_t) (s * HeadKernel::NB + b)] = T.rec[s][b];
-                eqBuf[(size_t) ((2 + s) * HeadKernel::NB + b)] = T.rep[s][b];
-            }
+        for (int k = 0; k < NUM_COATINGS; ++k)
+        {
+            const EqTables& T = eqTables (k);
+            for (int s = 0; s < 2; ++s)
+                for (int b = 0; b < HeadKernel::NB; ++b)
+                {
+                    eqBuf[(size_t) ((k * 4 + s) * HeadKernel::NB + b)] = T.rec[s][b];
+                    eqBuf[(size_t) ((k * 4 + 2 + s) * HeadKernel::NB + b)] = T.rep[s][b];
+                }
+        }
         for (auto& st : recEqS) st.reset();
         for (auto& st : repEqS) st.reset();
         eqLastFb = -1.0; eqLastS = -1;
@@ -549,13 +589,20 @@ void Engine::prepare (double hostSampleRate, int)
     //      NOMINAL speed (19.05 cm/s), as a technician would align it: record level
     //      so 0 VU = 250 nWb/m, repro level so 250 nWb/m = 0 VU. Other biases and
     //      speeds then change the level and the distortion, as they do on tape.
-    sigScale = S4::HS_0VU / REF_PEAK;
-    buildRecord (0.0, S4::ALIGN_SPEED_CMS);
+    //      Every stock is aligned the same way, to its own operating level (a fresh
+    //      stock's tables and level; the shedding stock is the studio tape on a machine
+    //      aligned for it fresh), and the result kept per stock.
+    for (int st = 0; st < NUM_STOCKS; ++st)
+    {
+    selectStock (st);
+    pbKappa = 1.0;
+    const double hs0 = ST->hs0vu * (SM->opLevelNwbm / REF_FLUX);
+    buildRecord (0.0, ST->alignSpeedCms);
     {
         double ss = 0.0; const int K = 720;
         for (int k = 0; k < K; ++k)
         {
-            const double s = S4::HS_0VU * std::sin (2.0 * M_PI * (k + 0.5) / K);
+            const double s = hs0 * std::sin (2.0 * M_PI * (k + 0.5) / K);
             double m = 0.0;
             for (int l = 0; l < NLAYER; ++l) m += recordCell (rec[l], 0.0f, s);
             m /= NLAYER;
@@ -572,14 +619,14 @@ void Engine::prepare (double hostSampleRate, int)
             double s2 = 0.0;
             for (int k = 0; k < K; ++k)
             {
-                const double sv = S4::HS_0VU * std::sin (2.0 * M_PI * (k + 0.5) / K);
+                const double sv = hs0 * std::sin (2.0 * M_PI * (k + 0.5) / K);
                 const double m = recordCell (rec[l], 0.0f, sv);
                 s2 += m * m;
             }
             ml[l] = std::sqrt (s2 / K);
         }
-        const double k1 = 2.0 * M_PI * 1000.0 / (S4::ALIGN_SPEED_CMS * 1.0e4);
-        const int b = HeadKernel::bucket (S4::ALIGN_SPEED_CMS);
+        const double k1 = 2.0 * M_PI * 1000.0 / (ST->alignSpeedCms * 1.0e4);
+        const int b = HeadKernel::bucket (ST->alignSpeedCms);
         double wr = 0.0, wi = 0.0, lr = 0.0, li = 0.0;
         for (int l = 0; l < NLAYER; ++l)
         {
@@ -592,6 +639,9 @@ void Engine::prepare (double hostSampleRate, int)
         const double exact = std::hypot (wr, wi) / std::hypot (lr, li);
         pbKappa = exact / pbTrimSS;
     }
+    outKs[st] = outK; pbKappaS[st] = pbKappa;
+    }
+    selectStock ((int) std::lround (params.stock));
     biasDbSm = params.bias;
     // (the record head for the current speed is built once the motor speed is set, below)
 
@@ -621,6 +671,8 @@ void Engine::prepare (double hostSampleRate, int)
         for (int i = 0; i < WF_HIST; ++i) wfHist[i] = v / CELLS_PER_CM;
     }
     buildRecord (biasDbSm, v / CELLS_PER_CM);
+    updateMedium (params, 0);
+    packSm = packTgt;
     for (int i = 0; i < NUM_HEADS; ++i)
     {
         const float* pos[NUM_HEADS] = { &params.h1Pos, &params.h2Pos, &params.h3Pos };
@@ -671,7 +723,13 @@ void Engine::adoptStore (TapeStore* s, int newMode, int64_t cells)
     for (double& x : Thist) x = 0.0;
     const double lead = v * leadS - xRefUm / CELL_UM;
     for (int i = 0; i < NUM_HEADS; ++i)
-        uPrev[i] = T - hPos[i] * CELLS_PER_CM + lead;
+    {
+        uPrev[i] = T - hPos[i] * CELLS_PER_CM + lead + HeadShaper::R * (v - hVel[i] * CELLS_PER_CM) * dt;
+        shaper[i].reset(); shOff[i] = false;
+        for (auto& d : drop[i]) d.seg = INT64_MIN;
+    }
+    for (int l = 0; l < NLAYER; ++l) { nqK[l] = INT64_MIN; epsJ[l] = INT64_MIN; }
+    lastPass = 0;
     wPrevU1 = T;
     ePos = T + ERASE_CM * CELLS_PER_CM;
     vPos = T + SUPPLY_CM * CELLS_PER_CM;
@@ -805,6 +863,9 @@ void Engine::finishCells()
         const LayerRecord& r = rec[l];
         const int64_t B = (int64_t) 1 << l;
         const int64_t ring = N >> l;
+        const double sig = noiseSig[l];
+        const double* gc = gCol[l];
+        const bool loop = mode == 1;
         int64_t k = nextCell[l];
         int64_t idx = wrapTo (k, ring);
         for (;; ++k, idx = (idx + 1 == ring) ? 0 : idx + 1)
@@ -827,11 +888,36 @@ void Engine::finishCells()
                     const int64_t q = (base + j) & FMASK;
                     s[0] += r.w[j] * field[0][q]; s[1] += r.w[j] * field[1][q];
                 }
+            // the coating's density here (modulation noise: a property of the tape, so a
+            // loop brings it round every pass) and the particles' orientations (a fresh
+            // draw every time a cell is recorded: k is unwrapped, a loop's next pass is
+            // a new k), coloured along the slab to the continuous coating's spectrum
+            const double eps = (modEff > 0.0) ? modEff * epsAt (l, (double) ((loop ? idx : k) * B)) : 0.0;
+            double nz0 = 0.0, nz1 = 0.0;
+            if (sig > 0.0)
+            {
+                double* qa = nq[0][l]; double* qb = nq[1][l];
+                if (nqK[l] == k - 1)
+                {
+                    qa[0] = qa[1]; qa[1] = qa[2]; qa[2] = qa[3]; qa[3] = qa[4];
+                    qb[0] = qb[1]; qb[1] = qb[2]; qb[2] = qb[3]; qb[3] = qb[4];
+                    unitNoise2 (k + 2, l, qa[4], qb[4]);
+                }
+                else if (nqK[l] != k)
+                    for (int i = 0; i < 5; ++i) unitNoise2 (k - 2 + i, l, qa[i], qb[i]);
+                nqK[l] = k;
+                const double* q0 = nq[0][l]; const double* q1 = nq[1][l];
+                nz0 = sig * (gc[0] * q0[2] + gc[1] * (q0[1] + q0[3]) + gc[2] * (q0[0] + q0[4]));
+                nz1 = sig * (gc[0] * q1[2] + gc[1] * (q1[1] + q1[3]) + gc[2] * (q1[0] + q1[4]));
+            }
             for (int c = 0; c < 2; ++c)
             {
                 float& m = store->m[c][l][(size_t) idx];
-                m = recordCell (r, m, s[c]);
-                recPk = std::max (recPk, std::abs (m));
+                const double mr = recordCell (r, m, s[c]);
+                // binomial statistics: a saturated cell has every particle aligned, so no noise
+                const double nz = c == 0 ? nz0 : nz1;
+                m = (float) (mr * (1.0 + eps) + nz * std::sqrt (std::max (0.0, 1.0 - mr * mr)));
+                recPk = std::max (recPk, (float) std::abs (mr));
             }
         }
         nextCell[l] = k;
@@ -1124,6 +1210,7 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
                 retired.store (old, std::memory_order_release);
                 loopM = spliceLoopM;
                 adoptStore (s, spliceMode, need);
+                if (spliceStock != stockIdx) applyStock (spliceStock);   // a new reel of another stock
                 spliceState = 3;
             }
             else
@@ -1200,17 +1287,27 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
 
     // ---- playback
     double outL = 0.0, outR = 0.0, fbL = 0.0, fbR = 0.0;
+    const int ph = (int) (kTick % EDGE_EVERY);
     for (int i = 0; i < NUM_HEADS; ++i)
     {
-        const double u1 = T - hPos[i] * CELLS_PER_CM + lead + tr.scrapeUm (i) * (1.0 / CELL_UM);   // stick-slip moves the tape under the head
+        // the head reads HeadShaper::R samples ahead (where it will be), and the shaper
+        // hands the sample back R samples later - its delay paid, as the half-band's is
+        const double rel = v - hVel[i] * CELLS_PER_CM;          // tape past the head, cells/s
+        const double ahead = HeadShaper::R * rel * dt;
+        const double u1 = T - hPos[i] * CELLS_PER_CM + lead + ahead + tr.scrapeUm (i) * (1.0 / CELL_UM);   // stick-slip moves the tape under the head
         const double g = gHead[i];
         // a head switched off and faded out reads nothing (it would add nothing)
-        if (g < 1.0e-9) { uPrev[i] = u1; continue; }
+        if (g < 1.0e-9)
+        {
+            uPrev[i] = u1;
+            if (! shOff[i]) { shaper[i].reset(); shOff[i] = true; }
+            continue;
+        }
+        shOff[i] = false;
         double hL, hR;
         if (pbOn)
         {
             readHead (uPrev[i], u1, hL, hR);
-            const int ph = (int) (kTick % EDGE_EVERY);
             if (ph == 0)
             {
                 for (int k = 0; k < 4; ++k) edgePrev[i][k] = edgeNext[i][k];
@@ -1226,9 +1323,13 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
             hR = r0 + fr * e[3] + fl * l0;
         }
         else readLayers (uPrev[i], u1, hL, hR);
-        const double kOut = pbOn ? outK * pbTrim : outK;
+        const double kOut = (pbOn ? outK * pbTrim : outK) * packSm;
         hL *= kOut; hR *= kOut;
+        // the medium under the head: spacing (roughness, dropouts, wear), holes in the
+        // coating, the azimuth's box and the tracks' offset - exact kernels, per track
+        if (ph == 0) updateShaper (i, 0.5 * (uPrev[i] + u1) - ahead, std::max (rel * dt * CELL_UM, 1.0e-3));
         uPrev[i] = u1;
+        shaper[i].push (hL, hR, hL, hR);
         outL += g * panL[i] * hL;
         outR += g * panR[i] * hR;
         fbL += g * hL;
@@ -1316,15 +1417,18 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     const double q = std::clamp (std::round (p.loopLen / 0.05f) * 0.05, 0.5, 6.0);
     if (std::abs (q - pendingLoopM) > 1.0e-9) { pendingLoopM = q; loopSettle = 0.0; }
     else loopSettle += n / fsHost;
+    // a different stock is a different reel: threaded through the same splice
+    const int wantStock = std::clamp ((int) std::lround (p.stock), 0, NUM_STOCKS - 1);
     if (spliceState == 0)
     {
         const bool lenChange = wantMode == 1 && mode == 1 && loopSettle > 0.15
                                && std::abs (pendingLoopM - loopM) > 1.0e-9;
-        if (wantMode != mode || lenChange)
+        if (wantMode != mode || lenChange || wantStock != stockIdx)
         {
             spliceState = 1;
             spliceMode = wantMode;
-            spliceLoopM = pendingLoopM;
+            spliceLoopM = (wantMode == 1) ? pendingLoopM : loopM;
+            spliceStock = wantStock;
         }
     }
 
@@ -1338,6 +1442,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     trIn.scrape = std::clamp ((double) p.scrape, 0.0, 200.0) * 0.01;
     trIn.reelMode = mode == 0;
     trIn.supplyR = tele.supplyR.load(); trIn.takeupR = tele.takeupR.load();
+    updateMedium (p, n);
 
     // ---- bias: smoothed at block rate, the record tables rebuilt as it moves
     if (n > 0)
@@ -1453,6 +1558,8 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     viewT.store (T, std::memory_order_relaxed);
     tele.speedCms = v / CELLS_PER_CM;
     tele.wowFlutter = wfPct;
+    tele.wear = wearEff;
+    tele.stock = stockIdx;
     tele.targetCms = vTarget / CELLS_PER_CM;
     tele.capstanAngle = std::fmod (capAng, 2.0 * M_PI);
     tele.supplyAngle = std::fmod (supAng, 2.0 * M_PI);
@@ -1471,6 +1578,136 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         tele.headPeak[i] = std::max (tele.headPeak[i].load(), pkHead[i]);
     pkIn = pkOut = 0.0f; recPk = 0.0f;
     for (float& x : pkHead) x = 0.0f;
+}
+
+//==============================================================================
+/*  The stock (stage 6). selectStock only points at a stock's tables and alignment;
+    applyStock also rebuilds what depends on them. */
+void Engine::selectStock (int s)
+{
+    stockIdx = std::clamp (s, 0, NUM_STOCKS - 1);
+    SM = &stockMedium (stockIdx);
+    coat = SM->coating;
+    ST = &coatingTables (coat);
+    hk = hkC[coat];
+    // 0 VU is this stock's operating level: the record level a technician sets for it
+    sigScale = ST->hs0vu * (SM->opLevelNwbm / REF_FLUX) / REF_PEAK;
+    outK = outKs[stockIdx];
+    pbKappa = pbKappaS[stockIdx];
+    seed = 0x4D54000000ull + (uint64_t) stockIdx * 0x1000193ull;
+    for (int l = 0; l < NLAYER; ++l) salt[l] = mix64 (seed * 0x9E3779B97F4A7C15ull + (uint64_t) l);
+}
+
+void Engine::applyStock (int s)
+{
+    selectStock (s);
+    const double vNow = std::max (tr.motorSpeedCms(), 1.0);
+    buildRecord (biasDbSm, vNow);
+    eqLastFb = -1.0;
+    updateEq (vNow);
+    for (auto& st : recEqS) st.reset();
+    for (auto& st : repEqS) st.reset();
+}
+
+/*  Per block: wear, ACCUMULATE, and what the stock's medium does at this wear. */
+void Engine::updateMedium (const Params& p, int n)
+{
+    // ACCUMULATE: a loop wears on every pass, the wear belonging to that loop (stock
+    // and length), so a project reopened finds its loop as it left it
+    const bool sameLoop = wearIdStock.load() == stockIdx && std::abs (wearIdLen.load() - loopM) < 1.0e-6;
+    const int64_t passes = (int64_t) std::floor (T / (double) std::max<int64_t> (N, 1));
+    if (mode == 1 && p.accumulate > 0.5f && passes > lastPass)
+    {
+        double w = sameLoop ? wearAcc.load() : 0.0;
+        w = std::min (1.0, w + (double) (passes - lastPass) * SM->wearPerPass * wearScale);
+        wearIdStock.store (stockIdx); wearIdLen.store (loopM); wearAcc.store (w);
+    }
+    lastPass = passes;
+    const bool own = wearIdStock.load() == stockIdx && std::abs (wearIdLen.load() - loopM) < 1.0e-6;
+    const double acc = (mode == 1 && own) ? wearAcc.load() : 0.0;
+    wearEff = std::clamp (p.wear * 0.01 + acc, 0.0, 1.0);
+
+    // the particles: sigma per cell = 1 / sqrt(particles in the cell), relative to Mr
+    const double P = (double) p.particles;
+    packTgt = SM->packing * (1.0 - 0.25 * wearEff);
+    const double vp = SM->particleVolUm3 * SM->packing / packTgt;
+    for (int l = 0; l < NLAYER; ++l)
+    {
+        const double cellVol = CELL_UM * (double) (1 << l) * SLAB_UM * TRACK_W_UM;
+        noiseSig[l] = (idealMedium || P >= 999.0) ? 0.0 : std::sqrt (vp / (cellVol * std::max (P, 0.01)));
+    }
+    modEff = idealMedium ? 0.0 : SM->modNoise * (1.0 + 2.0 * wearEff);
+    spacingStatic = SM->spacingUm + 0.45 * wearEff;
+    roughEff = SM->roughUm * (1.0 + 3.0 * wearEff);
+    dropRate = SM->dropPerM * (1.0 + 12.0 * wearEff);
+    dropDepth = SM->dropDepthUm * (1.0 + wearEff);
+    holeEff = std::min (0.9, SM->holeFrac + 0.3 * wearEff);
+    if (idealMedium) packTgt = SM->packing;
+    if (n > 0) packSm += (packTgt - packSm) * (1.0 - std::exp (-n / (fsHost * 0.05)));
+
+    // azimuth: each playback head's gap off the record head's, by the transport's
+    // condition (a freshly serviced machine within a minute of arc), and the tape's
+    // weave along the guides
+    constexpr double ARCMIN = M_PI / (180.0 * 60.0);
+    static constexpr double AZ_R[NUM_HEADS] = { 0.30, -0.60, 0.55 };
+    for (int i = 0; i < NUM_HEADS; ++i) azim[i] = trIn.cond * 8.0 * ARCMIN * AZ_R[i];
+    weave = trIn.cond * trIn.reels * (mode == 0 ? 1.5 : 0.5) * ARCMIN;
+    // a sticky or worn tape drags at the heads: more stick-slip
+    trIn.scrape *= SM->friction * (1.0 + wearEff);
+}
+
+/*  The shaper's settings for head i, from the tape under it now (x: surface cells,
+    unwrapped) and the tape's speed past it (um per internal sample). */
+void Engine::updateShaper (int i, double x, double vus)
+{
+    double X = x;
+    if (mode == 1) { const double fl = std::floor (x); X = (double) wrapTo ((int64_t) fl, N) + (x - fl); }
+    const double a = azim[i] + (weave > 0.0 ? weave * valueNoise (X, 100000.0, seed ^ 0x77) : 0.0);
+    const double ta = std::tan (a);
+    const double box = std::abs (TRACK_W_UM * ta) / vus;
+    const double sh = 0.5 * TRACK_SEP_UM * ta / vus;
+    for (int c = 0; c < 2; ++c)
+    {
+        double dd = 0.0, keep = 1.0;
+        if (! idealMedium)
+        {
+            const double r = roughEff * (1.0 + 0.8 * valueNoise (X, 120.0, seed ^ (0x100u + c)) + 0.6 * valueNoise (X, 480.0, seed ^ (0x200u + c)));
+            double ddrop = 0.0;
+            drop[i][c].at (X, seed ^ (0x300u + c), dropRate, dropDepth, holeEff, ddrop, keep);
+            dd = spacingStatic + std::max (0.0, r) + ddrop;
+        }
+        // what changes nothing below 20 kHz by 0.05 dB (or 0.01 sample) is left out:
+        // the studio tape at 76 cm/s barely lifts at all, and its kernel then costs nothing
+        double tau = dd / vus;
+        if (tau * om20 < 0.006) tau = 0.0;
+        const double bx = (box * om20 < 0.37) ? 0.0 : box;
+        const double s = (std::abs (sh) < 0.01) ? 0.0 : (c == 0 ? sh : -sh);
+        shaper[i].set (c, tau, bx, s, keep);
+    }
+}
+
+/*  The coating's density variation at surface cell X, per layer (each layer writes
+    at its own frontier): three octaves of a smooth random function, 4, 1 and
+    0.25 mm, sampled every 32 um and interpolated. */
+double Engine::epsAt (int l, double X)
+{
+    constexpr double STEP = 64.0;
+    const double y = X / STEP;
+    const int64_t j = (int64_t) std::floor (y);
+    if (j != epsJ[l])
+    {
+        if (epsJ[l] != INT64_MIN && j == epsJ[l] + 1) { epsA[l] = epsB[l]; epsB[l] = epsGrid (j + 1); }
+        else { epsA[l] = epsGrid (j); epsB[l] = epsGrid (j + 1); }
+        epsJ[l] = j;
+    }
+    return epsA[l] + (y - (double) j) * (epsB[l] - epsA[l]);
+}
+
+double Engine::epsGrid (int64_t j) const
+{
+    const double x = (double) j * 64.0;
+    return (valueNoise (x, 8000.0, seed ^ 0x11) + 0.6 * valueNoise (x, 2000.0, seed ^ 0x22)
+            + 0.35 * valueNoise (x, 500.0, seed ^ 0x33)) * (1.0 / 1.2176);
 }
 
 //==============================================================================

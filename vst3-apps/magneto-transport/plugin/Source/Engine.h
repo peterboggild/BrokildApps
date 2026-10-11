@@ -20,6 +20,8 @@
 #include "Playback.h"
 #include "Equaliser.h"
 #include "Transport.h"
+#include "Stock.h"
+#include "Medium.h"
 
 #include <atomic>
 #include <cmath>
@@ -135,6 +137,8 @@ struct Telemetry
     std::atomic<float>  recPeak { 0.0f };      // peak |M| written, 1 = full remanence (tape saturation meter)
     std::atomic<double> tapeOdometerM { 0.0 };
     std::atomic<double> wowFlutter { 0.0 };    // weighted W&F, 2 sigma, % (DIN 45507 / IEC 60386); -1 while the motor settles
+    std::atomic<double> wear { 0.0 };          // the tape's wear now, 0..1 (WEAR plus what a loop has accumulated)
+    std::atomic<int>    stock { 0 };
 };
 
 //==============================================================================
@@ -179,8 +183,12 @@ public:
         echo's phase as a real machine's do. */
     void setEq (bool on) { eqOn = on; }
     /*  The worst error of the equaliser fits, dB, over every speed and both standards. */
-    static double eqFitWorstDb();
-    static double eqFitWorstSpeed();   // where it is (cm/s)
+    static double eqFitWorstDb (int coating = -1);      // -1: every coating
+    static double eqFitWorstSpeed (int coating = -1);   // where it is (cm/s)
+    /*  Bench: the record and replay equaliser targets (dB re 1 kHz) at a frequency. */
+    static void eqTargetDb (int coating, int standard, double vCms, double fHz, double& recDb, double& repDb);
+    /*  Bench: the fitted cascade minus its target (dB), bucket b, record (true) or replay. */
+    static double eqFitErrorDb (int coating, int standard, int bucket, double fHz, bool record);
     double playbackTrim() const { return pbTrim; }
     bool isSplicing() const { return spliceState != 0; }
     const LayerRecord& layerRecord (int l) const { return rec[l]; }
@@ -188,6 +196,19 @@ public:
     double zoneRefUm() const { return xRefUm; }
     /*  Mean remanence over the four layers at path position cm (bench). */
     double layerM (int track, int layer, double pathCm) const;
+
+    /*  ACCUMULATE's wear and the loop it belongs to (stock, length in m), saved with
+        the project: the processor reads it for its state and hands it back on load. */
+    void wearState (double& w, int& stockId, double& loopLen) const { w = wearAcc.load(); stockId = wearIdStock.load(); loopLen = wearIdLen.load(); }
+    void setWearState (double w, int stockId, double loopLen) { wearAcc.store (w < 0.0 ? 0.0 : (w > 1.0 ? 1.0 : w)); wearIdStock.store (stockId); wearIdLen.store (loopLen); }
+    /*  Bench: a perfect medium (no particle or modulation noise, a smooth surface, no
+        dropouts) so every other claim is measured cleanly; section 19 turns it off. */
+    void setIdealMedium (bool on) { idealMedium = on; }
+    /*  Bench: ACCUMULATE's wear per pass scaled, so it shows within seconds. */
+    void setWearRateScale (double s) { wearScale = s; }
+    int stockIndex() const { return stockIdx; }
+    double noiseSigma (int layer) const { return noiseSig[layer]; }
+    const double* noiseColourOf (int layer) const { return gCol[layer]; }
 
 private:
     void tick (float xL, float xR, float& yL, float& yR);
@@ -207,6 +228,20 @@ private:
     void finishCells();
     void clearSpan (double& prevPos, double newPos);
     float recordCell (const LayerRecord& r, float mOld, double s) const;
+    void selectStock (int s);
+    void applyStock (int s);
+    void updateMedium (const Params& p, int n);
+    void updateShaper (int i, double x, double vus);
+    double epsAt (int l, double X);
+    double epsGrid (int64_t j) const;
+    // both tracks' draws for cell k of layer l from one hash: two 32-bit uniforms, unit variance
+    inline void unitNoise2 (int64_t k, int l, double& a, double& b) const
+    {
+        const uint64_t h = mix64 ((uint64_t) k ^ salt[l]);
+        constexpr double S = 3.4641016151377544 / 4294967296.0;
+        a = ((double) (uint32_t) h + 0.5) * S - 1.7320508075688772;
+        b = ((double) (uint32_t) (h >> 32) + 0.5) * S - 1.7320508075688772;
+    }
 
     static inline int64_t wrapTo (int64_t i, int64_t ring) { i %= ring; if (i < 0) i += ring; return i; }
 
@@ -271,9 +306,9 @@ private:
     // for this rate (on the heap - the engine may live on a small stack)
     bool eqOn = true;
     int eqS = 0;
-    std::unique_ptr<ShelfCascade[]> eqBuf { new ShelfCascade[(size_t) 2 * 2 * HeadKernel::NB] };
-    const ShelfCascade& eqRec (int s, int b) const { return eqBuf[(size_t) (s * HeadKernel::NB + b)]; }
-    const ShelfCascade& eqRep (int s, int b) const { return eqBuf[(size_t) ((2 + s) * HeadKernel::NB + b)]; }
+    std::unique_ptr<ShelfCascade[]> eqBuf { new ShelfCascade[(size_t) NUM_COATINGS * 4 * HeadKernel::NB] };
+    const ShelfCascade& eqRec (int s, int b) const { return eqBuf[(size_t) ((coat * 4 + s) * HeadKernel::NB + b)]; }
+    const ShelfCascade& eqRep (int s, int b) const { return eqBuf[(size_t) ((coat * 4 + 2 + s) * HeadKernel::NB + b)]; }
     ShelfState recEqS[2], repEqS[4];
 
     // the transport (stage 5): motor, wow and flutter from physical causes
@@ -290,7 +325,7 @@ private:
     // buckets either side of the motor speed, rediscretised as it moves
     ShelfCascade eqRecA, eqRepA;
     double eqLastFb = -1.0;
-    int eqLastS = -1;
+    int eqLastS = -1, eqLastC = -1;
     void updateEq (double vCms);
     std::unique_ptr<double[]> preBuf { new double[(size_t) 2 * NLAYER * PRE_RING]() };
     double* pre (int c, int l) const { return preBuf.get() + (size_t) (c * NLAYER + l) * PRE_RING; }
@@ -345,6 +380,38 @@ private:
     HalfBand up[2], dn[2];
 
     float pkIn = 0, pkOut = 0, pkHead[NUM_HEADS] {};
+
+    // the stock (stage 6): the coating's tables and alignment, the medium
+    int stockIdx = 0, coat = 0, spliceStock = 0;
+    const CoatingTables* ST = &coatingTables (0);
+    const StockMedium* SM = &stockMedium (0);
+    const HeadKernel* hkC[NUM_COATINGS] {};
+    double outKs[NUM_STOCKS] {}, pbKappaS[NUM_STOCKS] {};
+    uint64_t seed = 0, salt[NLAYER] {};
+    bool idealMedium = false;
+    double om20 = 1.0;           // 20 kHz (or 0.45 fs) in radians per internal sample: what the shaper must get right
+    double wearScale = 1.0;
+    std::atomic<double> wearAcc { 0.0 };
+    std::atomic<int> wearIdStock { -1 };
+    std::atomic<double> wearIdLen { 0.0 };
+    int64_t lastPass = 0;
+    double wearEff = 0.0, packSm = 1.0, packTgt = 1.0;
+    // particle noise per layer: sigma, colour, and the last five draws per track
+    double noiseSig[NLAYER] {};
+    double gCol[NLAYER][3] { { 1, 0, 0 }, { 1, 0, 0 }, { 1, 0, 0 }, { 1, 0, 0 } };
+    double nq[2][NLAYER][5] {};
+    int64_t nqK[NLAYER] { INT64_MIN, INT64_MIN, INT64_MIN, INT64_MIN };
+    // modulation noise per layer: a cached stretch of the density variation
+    double modEff = 0.0;
+    int64_t epsJ[NLAYER] { INT64_MIN, INT64_MIN, INT64_MIN, INT64_MIN };
+    double epsA[NLAYER] {}, epsB[NLAYER] {};
+    // at the heads
+    HeadShaper shaper[NUM_HEADS];
+    bool shOff[NUM_HEADS] {};
+    DropoutCache drop[NUM_HEADS][2];
+    double spacingStatic = 0.0, roughEff = 0.0, dropRate = 0.0, dropDepth = 0.0, holeEff = 0.0;
+    double azim[NUM_HEADS] {};   // net azimuth error per playback head (rad)
+    double weave = 0.0;          // the tape's weave amplitude (rad)
 };
 
 const char* syncName (int i);

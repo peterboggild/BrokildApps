@@ -43,6 +43,11 @@ struct Params
     float output    = 0.0f;   // dB
     float inMode    = 0.0f;   // 0 STEREO, 1 MONO (sum the input)
     float eqStd     = 0.0f;   // 0 IEC, 1 NAB: the record and replay equalisation standard
+
+    float stock     = 0.0f;   // 0 STUDIO, 1 VINTAGE, 2 SHEDDING, 3 BUDGET
+    float particles = 1.0f;   // particle count relative to the stock's own; 1000 = a continuum, silent
+    float wear      = 0.0f;   // %
+    float accumulate = 0.0f;  // a loop wears on every pass
 };
 
 enum class Kind { Lin, Log, Choice, Toggle };
@@ -117,6 +122,15 @@ inline const Spec SPECS[] =
       "The record and replay equalisation standard. IEC (the default) lifts the treble on replay; NAB also boosts the bass on record, so lows saturate a little sooner." },
     { "inmode",   "INPUT",    Kind::Choice, 0, 1, 0, "", "STEREO|MONO", &Params::inMode,
       "STEREO records left and right on their own tracks. MONO records the sum on both, for mono-to-stereo use." },
+
+    { "stock", "TAPE STOCK", Kind::Choice, 0, 3, 0, "", "STUDIO|VINTAGE|SHEDDING|BUDGET", &Params::stock,
+      "The tape on the machine. STUDIO: a 1970s high-output studio tape (456 class). VINTAGE: a 1960s low-output tape, less headroom and more hiss. SHEDDING: the studio tape decayed - oxide lost, dropouts, a sticky binder. BUDGET: cheap echo-machine tape. The machine is aligned to each fresh stock; changing it threads a new reel." },
+    { "particles", "PARTICLES", Kind::Log, 0.1f, 1000.0f, 1.0f, "x", nullptr, &Params::particles,
+      "Particle count against the stock's own. Hiss is the statistics of the particles: ten times as many, 10 dB less hiss. At the top the coating is a continuum and the tape is silent." },
+    { "wear", "WEAR", Kind::Lin, 0.0f, 100.0f, 0.0f, "%", nullptr, &Params::wear,
+      "How worn the tape is: oxide lost, a rougher surface, more dropouts, debris lifting it off the heads." },
+    { "accumulate", "ACCUMULATE", Kind::Toggle, 0, 1, 0, "", nullptr, &Params::accumulate,
+      "A loop wears a little on every pass over the heads, and keeps its wear with the project. Off, the tape stays as WEAR sets it." },
 };
 inline constexpr int NUM_SPECS = (int) (sizeof (SPECS) / sizeof (SPECS[0]));
 

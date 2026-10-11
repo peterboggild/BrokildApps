@@ -138,13 +138,25 @@ void MagnetoTransportAudioProcessor::getStateInformation (juce::MemoryBlock& des
 {
     auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
-    if (xml != nullptr) copyXmlToBinary (*xml, dest);
+    if (xml != nullptr)
+    {
+        // ACCUMULATE: the loop's wear and the loop it belongs to travel with the project
+        double w; int st; double len;
+        engine.wearState (w, st, len);
+        xml->setAttribute ("mtWear", w);
+        xml->setAttribute ("mtWearStock", st);
+        xml->setAttribute ("mtWearLoop", len);
+        copyXmlToBinary (*xml, dest);
+    }
 }
 
 void MagnetoTransportAudioProcessor::setStateInformation (const void* data, int size)
 {
     std::unique_ptr<juce::XmlElement> xml (getXmlFromBinary (data, size));
     if (xml == nullptr || ! xml->hasTagName (apvts.state.getType())) return;
+    if (xml->hasAttribute ("mtWear"))
+        engine.setWearState (xml->getDoubleAttribute ("mtWear"), xml->getIntAttribute ("mtWearStock", -1), xml->getDoubleAttribute ("mtWearLoop"));
+    for (auto* a : { "mtWear", "mtWearStock", "mtWearLoop" }) xml->removeAttribute (a);
     apvts.replaceState (juce::ValueTree::fromXml (*xml));
     uiHasState = false;
 }
@@ -284,6 +296,8 @@ void MagnetoTransportAudioProcessor::timerCallback()
         o->setProperty ("out", t.outPeak.exchange (0.0f));
         o->setProperty ("rec", t.recPeak.exchange (0.0f));
         o->setProperty ("wf", t.wowFlutter.load());
+        o->setProperty ("wear", t.wear.load());
+        o->setProperty ("stock", t.stock.load());
         juce::Array<juce::var> hp, hv, hk;
         for (int i = 0; i < mt::NUM_HEADS; ++i)
         {

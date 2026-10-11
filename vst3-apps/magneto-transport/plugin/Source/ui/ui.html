@@ -38,11 +38,12 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
 #spacer{flex:1}
 #build{white-space:nowrap;font-family:Consolas,monospace;font-size:11px;color:var(--brassDim)}
 /* ---- machine */
-#machine{position:absolute;left:0;top:52px;width:1600px;height:528px}
+/* the machine is drawn in 1600 x 528 units, shown at 87 % to leave the panel two rows */
+#machine{position:absolute;left:103px;top:52px;width:1394px;height:460px}
 /* ---- control panel */
-#panel{position:absolute;left:0;top:580px;width:1600px;height:290px;display:flex;gap:10px;padding:10px 14px;
+#panel{position:absolute;left:0;top:512px;width:1600px;height:358px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:10px;padding:10px 14px;
   border-top:2px solid var(--edge);background:linear-gradient(#1c1f1d,#151816)}
-.grp{position:relative;border:1px solid var(--edge);background:rgba(0,0,0,0.18);padding:24px 10px 8px;
+.grp{position:relative;height:164px;border:1px solid var(--edge);background:rgba(0,0,0,0.18);padding:24px 10px 8px;
   display:flex;flex-wrap:wrap;align-content:flex-start;gap:6px 4px}
 .grp > h3{position:absolute;left:10px;top:5px;font-size:11px;letter-spacing:3px;color:var(--brass);font-weight:600}
 .col{display:flex;flex-direction:column;align-items:center;gap:4px}
@@ -77,7 +78,7 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
 <div id="deck">
   <div id="head">
     <div id="wordmark">Magneto Transport</div>
-    <div id="model">MODEL MT-1<br>STAGE 5 &middot; PLACEHOLDER PANEL</div>
+    <div id="model">MODEL MT-1<br>STAGE 6 &middot; PLACEHOLDER PANEL</div>
     <div id="readout">--.- cm/s</div>
     <div class="lampbox"><span class="lamp" id="lSync"></span>SYNC</div>
     <div class="lampbox"><span class="lamp red" id="lClamp"></span>OUT OF REACH</div>
@@ -92,42 +93,48 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
   <canvas id="machine"></canvas>
 
   <div id="panel">
-    <div class="grp" style="width:200px"><h3>RECORD</h3>
+    <div class="grp" style="width:286px"><h3>RECORD</h3>
       <div class="ctl" data-id="drive"></div>
       <div class="ctl" data-id="reclevel"></div>
       <div class="ctl" data-id="bias"></div>
       <div class="ctl" data-id="eq" data-type="seg" style="width:84px"></div>
       <div class="ctl" data-id="inmode" data-type="seg" style="width:170px"></div>
     </div>
-    <div class="grp" style="width:300px"><h3>TRANSPORT</h3>
-      <div class="ctl" data-id="speed" data-big="1" style="width:96px"></div>
+    <div class="grp" style="width:452px"><h3>TRANSPORT</h3>
+      <div class="ctl" data-id="speed"></div>
       <div class="ctl" data-id="sync"></div>
       <div class="ctl" data-id="looplen"></div>
       <div class="ctl" data-id="mode" data-type="seg" style="width:120px"></div>
       <div class="ctl" data-id="motor" data-type="seg" style="width:150px"></div>
       <div class="ctl" data-id="synchead" data-type="seg" style="width:150px"></div>
     </div>
-    <div class="grp tight" style="width:140px"><h3>MECHANICS</h3>
+    <div class="grp tight" style="width:260px"><h3>MECHANICS</h3>
       <div class="ctl" data-id="condition"></div>
       <div class="ctl" data-id="capstan"></div>
       <div class="ctl" data-id="reels"></div>
       <div class="ctl" data-id="scrape"></div>
       <div id="wfRead" title="Weighted wow and flutter (DIN 45507 / IEC 60386, 2 sigma), measured from the tape's speed under the first active head" style="font-family:Consolas,monospace;font-size:13px;color:var(--amber);width:116px;text-align:center;margin-top:4px">W&amp;F<br>--</div>
     </div>
+    <div class="grp" style="width:190px"><h3>OUTPUT</h3>
+      <div class="ctl" data-id="mix"></div>
+      <div class="ctl" data-id="output"></div>
+      <div class="ctl" data-id="killdry" data-type="btn" style="width:160px"></div>
+    </div>
+    <div class="grp" style="width:334px"><h3>TAPE</h3>
+      <div class="ctl" data-id="particles"></div>
+      <div class="ctl" data-id="wear"></div>
+      <div class="ctl" data-id="accumulate" data-type="btn" style="width:130px"></div>
+      <div class="ctl" data-id="stock" data-type="seg" style="width:290px"></div>
+    </div>
     <div class="grp" style="width:548px"><h3>PLAYBACK HEADS</h3>
       <div class="col" data-head="1"></div>
       <div class="col" data-head="2"></div>
       <div class="col" data-head="3"></div>
     </div>
-    <div class="grp tight" style="width:140px"><h3>FEEDBACK</h3>
+    <div class="grp" style="width:280px"><h3>FEEDBACK</h3>
       <div class="ctl" data-id="feedback"></div>
       <div class="ctl" data-id="bass"></div>
       <div class="ctl" data-id="treble"></div>
-    </div>
-    <div class="grp" style="width:190px"><h3>OUTPUT</h3>
-      <div class="ctl" data-id="mix"></div>
-      <div class="ctl" data-id="output"></div>
-      <div class="ctl" data-id="killdry" data-type="btn" style="width:160px"></div>
     </div>
   </div>
   <div id="hint"><b>HINT</b><span id="hintText">Point at a control.</span></div>
@@ -167,6 +174,7 @@ function fmt(s, v){
     case "cm/s": return v.toFixed(2) + " cm/s";
     case "m": return v.toFixed(2) + " m";
     case "%": return Math.round(v) + " %";
+    case "x": return v >= 999 ? "SILENT" : (v < 9.95 ? v.toFixed(1) : Math.round(v)) + " x";
   }
   if (s.id.endsWith("pan")) return Math.abs(v) < 0.02 ? "C" : (v < 0 ? "L" : "R") + Math.round(Math.abs(v) * 100);
   return Math.round(v * 100) + " %";
@@ -331,13 +339,15 @@ const ARM_L = { px: 425, py: 300, rx: 455, ry: 352 }, ARM_R = { px: 1145, py: 30
 let anim = { sup: 0, tak: 0, cap: 0, loop: 0, last: performance.now() };
 let headDrag = -1;
 
+const MACHINE_K = 1394 / 1600;   // the machine's units to its box on the deck
 function deckScale(){ return parseFloat(document.getElementById("deck").dataset.scale || "1"); }
 
 function fitCanvas(){
   const sc = deckScale(), dpr = window.devicePixelRatio || 1;
-  const w = Math.round(1600 * sc * dpr), h = Math.round(528 * sc * dpr);
+  const k = MACHINE_K * sc * dpr;
+  const w = Math.round(1600 * k), h = Math.round(528 * k);
   if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
-  cx.setTransform(sc * dpr, 0, 0, sc * dpr, 0, 0);
+  cx.setTransform(k, 0, 0, k, 0, 0);
 }
 
 function reel(c, rPack, ang, label){
@@ -615,6 +625,10 @@ function updateHeader(){
   // the tape meter is linear in remanence: full width = full remanence
   if (tele.rec !== undefined) document.getElementById("mTape").style.width = Math.max(0, Math.min(100, tele.rec * 100)) + "%";
   if (tele.wf !== undefined) document.getElementById("wfRead").innerHTML = "W&amp;F<br>" + (tele.wf < 0 ? "settling" : tele.wf.toFixed(3) + " %");
+  if (tele.wear !== undefined && ctls.wear) {
+    const wv = ctls.wear.el ? ctls.wear.el.querySelector(".val") : document.querySelector('[data-id=wear] .val');
+    if (wv) wv.title = "tape wear now: " + Math.round(tele.wear * 100) + " % (WEAR plus what the loop has accumulated)";
+  }
   tele.heads.forEach((h, i) => {
     const el = document.getElementById("delay" + (i + 1));
     if (el) el.textContent = (h / tele.speed * 1000).toFixed(0) + " ms";

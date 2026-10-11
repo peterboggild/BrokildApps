@@ -378,3 +378,100 @@ then averages from scratch. The bench checks it through a 19 -> 38 cm/s step.
 
 CONDITION and the three causes sit in a compact MECHANICS group with the W&F
 reading; the real panel is stage 8.
+
+## Stage 6: four stocks on three coatings
+
+The vintage and budget coatings are their own reference runs (mtref --stock=),
+not scalings of the studio tables: their particles answer a field differently
+(wider coercivity spread, more interaction, poorer orientation), and that is
+the record process. SHEDDING is the studio coating decayed: 12 % of the
+particles gone, on the studio alignment, so it plays 1.1 dB quieter. All four
+are 14 um thick, so the real-time slabs and head kernels are shared; a thinner
+coating's extra bass loss is not modelled.
+
+## The machine is aligned to each fresh stock
+
+Bias at the coating's operating point, record level to its operating level
+(250 nWb/m studio and shedding, 185 vintage and budget), record treble for its
+surface. That is what a technician does on loading a new type of tape. A stock
+change threads a new reel through the loop splice: old magnetisation written to
+another coating's scale is not read back on this one.
+
+## Both new coatings' MOL rest on the fit's floor
+
+The interaction tail nu hit its floor (1.2) before reaching the MOL asked for
+(vintage 420, budget 520 nWb/m); the models give 470 and 560. Those are the
+numbers quoted and tested. Widening nu's range would need a re-examination of
+the Student-t family's regime, for no audible gain.
+
+## The hiss is particle statistics, written onto the tape
+
+One draw per cell per recording, variance (1 - m^2) / N. It is on the tape, so
+three heads hear the same particles and the feedback re-records them. It is
+seeded by the unwrapped coordinate, so a loop's next pass is a new draw: the
+bias re-randomises the orientations every time the tape is recorded over. The
+first particle sizes (0.4 x 0.06 um) put the studio tape 4 dB noisier than 456;
+a 1970s high-output oxide is nearer 0.28 x 0.045 um, which lands at -61.9 dBA re
+250 nWb/m at 19 cm/s.
+
+## The slabs' noise needs a colour
+
+One value per slab column is noise coherent through 3.5 um of depth; real
+particles are independent at every depth, and the head hears the shallow ones
+better. Uncorrected, the hiss was 1.5 dB low at 20 kHz at 19 cm/s and 3.5 dB low
+where a 5 um wavelength is read. A 5-tap FIR per slab along its cells restores
+the continuous coating's spectrum (and undoes the slabs' signal spacing
+correction, which does not apply to noise). Checked against a first-principles
+spectrum written independently in the bench: within 0.6 dB, 250 Hz - 16 kHz.
+
+## The spacing filter is exact, and its taps come from the response
+
+A lift dd is a Poisson kernel in space, a Cauchy kernel in time: exp(-k dd)
+exactly. Binning the continuous kernel into taps added a sample's box (-0.6 dB
+at 20 kHz at 96 kHz); the taps are now the exact response's inverse transform,
+the truncated tails' mass restored as a low-frequency fill. What a kernel this
+short cannot carry is the cusp at DC: up to 0.39 dB less loss at 2 kHz for the
+deepest lifts. Stated and bounded in the bench.
+
+## The shaper reads ahead
+
+A symmetric FIR delays; each head reads HeadShaper::R samples ahead of where it
+is, at the tape's speed past it, and the shaper hands the sample back R samples
+later. Every delay check in the bench is unchanged.
+
+## Cost: the shaper in two stages, what is inaudible skipped
+
+The first version convolved a 33-tap kernel with an 8-tap fractional delay at
+every update and cost 5 % of a core on a worn transport. Two stages (the
+spacing / box kernel, then the tracks' shift) make an update a table blend;
+components that change nothing below 20 kHz by 0.05 dB are left out; one hash
+gives both tracks' particle draws. Against the stage 5 engine timed side by side
+on the same (busy) machine: the default 16.3 against 16.4 %, the worst case
+(shedding, CONDITION 100) 16.6 - 17.9 against 16.4 %.
+
+## Azimuth follows the transport's condition
+
+A freshly serviced machine is aligned within about a minute of arc; a worn one
+up to 8 arcmin per head, net of the record head's own tilt. The tape's weave
+adds a slow part under REELS. It is a property of the machine, so it lives with
+CONDITION rather than with the tape's WEAR.
+
+## ACCUMULATE's wear belongs to a loop
+
+Wear accumulated on a loop is kept with that stock and loop length, and saved
+in the project; a different loop is a fresh tape. Resetting it at every splice
+would lose it whenever a host restores state after preparing the plugin (the
+restored loop arrives as a "change" and splices).
+
+## Two new coatings' equalisers fit within 0.6 dB, the studio's within 0.5
+
+The hard spot for every coating is the slowest speed's band edge (6 kHz at
+4.6 cm/s), where the replay trim climbs toward the gap null. The studio coating
+fits within 0.44 dB (the flatness claim); vintage 0.55 and budget 0.58, asserted
+under 0.75.
+
+## The placeholder panel has two rows
+
+Seven groups do not fit one row. The machine view is shown at 87 % (its own
+coordinates unchanged, so the head dragging still maps), and the groups wrap.
+The real panel is stage 8.
