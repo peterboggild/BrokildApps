@@ -332,3 +332,38 @@ overdub is replaced by the next pass, a −24 dB ghost left, −13 when driven),
 default LOOP STATE and bit-identical to the plain echo it was. On "record more on top of
 what was committed": the committed take stays; what is played on top is the latest layer,
 not a stack. The stacking tape can do is FEEDBACK. Numbers in 10-flux-memory.md.
+
+## 9. "The overdub is pretty quiet" (Peter, 2026-10-11) — AWAITING GO
+
+Measured with `test/dubprobe.cpp` (`mtdub [feedback,mix,erase]`): LOOP at the panel's
+defaults, take A (440 Hz, 0 VU) for one loop period in REC, then DUB and overdub B
+(660 Hz, 0 VU) for one period, then silence; each pass through head 1 by Goertzel.
+
+| wet only, ERASE 0 | take A | overdub B |
+|---|---|---|
+| while B is played | -3.6 dB | -2.3 dB |
+| every pass after | -3.6 dB, for ever | -27.7 dB (FEEDBACK 0) / -34.4 dB (FEEDBACK 35 %) |
+
+So B is only ~2 dB low while it is played; what reads as "quiet" is that it is GONE
+after one trip round the loop while A stays. This is item 8's physics working as built:
+what is recorded at a bias is replaced by the next pass at that bias, and FEEDBACK
+cannot hold a layer because it re-records it a head-distance further along the tape
+(an echo, not a layer). Item 8's "the stacking tape can do is FEEDBACK" does not hold
+on a loop: DUB gives ONE permanent layer plus a transient one.
+
+Options (Peter's call):
+
+1. RECOMMENDED - re-record the loop IN PLACE: a read point just before the erase head,
+   exactly one loop period behind the record head, fed into the record amplifier in DUB
+   at a MEASURED unity round trip, so every pass rewrites the whole loop where it lies
+   with the new playing on top. Layers stack as on a looper or a Frippertronics pair;
+   each generation loses a little treble and gains hiss from the medium itself; ERASE
+   sets how fast old layers fade. REC and PLAY untouched (bit-identical).
+   Checks to add: three overdubs all audible after five passes; per-generation loss
+   measured and stated; a layer's position on the loop unchanged pass to pass.
+2. Raise DUB's record level by 2.9 dB. Removes the 2 dB; B still vanishes. Not a fix.
+
+Also found: `Params::erase` defaults to 100 in the struct while the parameter table's
+default is 0, so every bench check and probe that starts from `Params p;` runs with
+the erase head full in DUB, unlike the panel. dubprobe hit it (all layers wiped).
+Make the struct match the table, then re-run the bench.
