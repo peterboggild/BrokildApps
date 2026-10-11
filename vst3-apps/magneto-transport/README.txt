@@ -1,4 +1,4 @@
-MAGNETO TRANSPORT  -  build 261011.12
+MAGNETO TRANSPORT  -  build 261011.13
 Brokild  -  a physically modelled tape echo for Windows (VST3 + standalone)
 
 
@@ -6,7 +6,10 @@ WHAT IT IS
 
 A tape echo in which nothing is faked. There is no wow LFO, no saturation
 curve and no noise generator. The machine is simulated, and the character
-is what the simulation does.
+is what the simulation does. It was made to find out how far a tape delay
+can be pushed beyond sound processing, towards a detailed physics
+simulation - down to the particles in the oxide and the layers of the
+coating they are recorded into.
 
 The tape is a magnetic medium in four layers of half-micron cells. A record
 head with a real gap field and AC bias magnetises it through a Preisach model

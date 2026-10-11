@@ -35,11 +35,12 @@
         "battlestar-overdrive",
         "martian-gain",
         "rite-of-passage",
-        "thin-walls"
+        "thin-walls",
+        "magneto-transport"
       ],
       "claims": {
-        "count": 12,
-        "phrase": "eight instruments and four effects"
+        "count": 13,
+        "phrase": "eight instruments and five effects"
       }
     },
     "beetmachine": {
@@ -108,7 +109,6 @@
     }
   },
   "excludes": {
-    "_comment": "Ships a download, deliberately in no collection.",
-    "magneto-transport": "installed in Experimental until Peter picks its collection after testing (2026-10-11)"
+    "_comment": "Ships a download, deliberately in no collection."
   }
 }

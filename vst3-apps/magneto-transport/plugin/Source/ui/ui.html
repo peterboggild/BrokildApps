@@ -426,7 +426,7 @@ html.d-mt-wordmark #wordmark{color:transparent;text-shadow:none;background:var(-
   <div id="about" class="dlg"><div class="dlgbox">
     <div class="at">MAGNETO TRANSPORT</div>
     <div class="as">BROKILD &nbsp;&middot;&nbsp; MODEL MT-1 &nbsp;&middot;&nbsp; TAPE ECHO WITH FLUX MEMORY</div>
-    <p class="lead">An attempt at a hyper-realistic, physics-based tape delay &mdash; made because I love both physics and tape delays.</p>
+    <p class="lead">An attempt at a hyper-realistic, physics-based tape delay &mdash; made because I love both physics and tape delays, and because I wanted to see how far a tape delay could be pushed beyond sound processing, towards a detailed physics simulation: down to the particles in the oxide and the layers of the coating.</p>
     <p>The tape here is not a delay buffer. It is a magnetic medium in half-micrometre cells, written through the record head's real field with bias, read back through the playback heads' gaps, erased, worn and dragged past them by a capstan and two reels with mass. Echoes, saturation, wow and flutter, and the way an old loop forgets, all come out of that physics rather than being painted on afterwards.</p>
     <p>This VST comes from the curved mind of Professor Brokild, and was programmed with VS Code and Claude. Use of it is at your own peril: it may give you beautiful, haunted or useless echoes, and it may crash your DAW project. Have fun, play unsafely, unwisely and unboringly.</p>
     <p class="sig">Cheers, Peter B&oslash;ggild, October 2026.</p>
@@ -1384,26 +1384,32 @@ function tankFolds(len, ph){
   const run = ph * 0.0006;                           // tape through the pile, slowed to read
   const per = len / N, shift = (run / per) % 1, base = Math.floor(run / per);
   const h = k => { const v = Math.sin((k + 1) * 12.9898) * 43758.5453; return v - Math.floor(v); };
-  const colX = i => XR - (i + shift) * dx;
+  // the columns the tank has room for, newest (right) to oldest (left)
+  const cols = [];
+  for (let j = 0; ; j++){ const x = XR - (j + shift) * dx; if (x < XL) break; cols.push(x); }
+  // the pile always ends on a fold going DOWN, so the tape leaves the bottom of it in one curve
+  const M = cols.length % 2 === 0 ? cols.length - 1 : cols.length;
   const P = new Path2D();
   P.moveTo(372, 92);                                 // in through the top slot
-  let x = colX(0), y = 104;
+  let x = cols[0], y = 104;
   P.bezierCurveTo(358, 92, x, 90, x, y);
-  for (let j = 0; ; j++){
-    const xb = colX(j + 1);
-    if (xb < XL) break;
+  for (let j = 0; j < M; j++){
     const k = base + j, bottom = j % 2 === 0, s = bottom ? 1 : -1;
-    const yT = bottom ? 288 + h(k + 0.71) * 30 : 84 + h(k + 0.37) * 28;
+    const yT = bottom ? 266 + h(k + 0.71) * 30 : 84 + h(k + 0.37) * 28;
     const lean = (h(k) - 0.5) * dx * 0.8;
-    // down (or up) the fold, bowed a little, then over in a loose round turn
+    // down (or up) the column, bowed a little
     P.bezierCurveTo(x + lean, y + (yT - y) / 3, x + lean, y + 2 * (yT - y) / 3, x, yT);
-    P.bezierCurveTo(x, yT + s * b, xb, yT + s * b, xb, yT);
-    x = xb; y = yT;
+    y = yT;
+    if (j < M - 1){
+      // over in a loose round turn to the next column
+      const xb = cols[j + 1];
+      P.bezierCurveTo(x, yT + s * b, xb, yT + s * b, xb, yT);
+      x = xb;
+    }
   }
-  // out from the oldest fold, along the floor of the tank to the bottom slot
-  if (y < 200){ P.bezierCurveTo(x, 180, x, 280, x, 322); y = 322; }
-  P.bezierCurveTo(x, y + 18, x + 24, 345, x + 60, 345);
-  P.bezierCurveTo(240, 345, 345, 338, 372, 300);
+  // out of the bottom of the oldest column, along the floor of the tank to the bottom slot
+  P.bezierCurveTo(x, y + 26, x + 10, 345, x + 44, 345);
+  P.bezierCurveTo(230, 345, 345, 338, 372, 300);
   tapeRibbon(P);
 }
 
