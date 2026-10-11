@@ -359,7 +359,7 @@ void MagnetoTransportAudioProcessor::applyParams (const mt::Params& p)
     for (int i = 0; i < mt::NUM_SPECS; ++i)
     {
         const auto& s = mt::SPECS[i];
-        if (juce::String (s.id) == "bypass") continue;
+        if (juce::String (s.id) == "bypass" || juce::String (s.id) == "mech") continue;
         if (auto* prm = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (s.id)))
         {
             prm->beginChangeGesture();
@@ -382,7 +382,7 @@ bool MagnetoTransportAudioProcessor::presetDirty() const
     for (int i = 0; i < mt::NUM_SPECS; ++i)
     {
         const juce::String id (mt::SPECS[i].id);
-        if (id == "bypass" || id == "clear" || id == "run") continue;   // performance, not the patch
+        if (id == "bypass" || id == "clear" || id == "run" || id == "mech") continue;   // performance, not the patch
         const float v = raw[(size_t) i]->load();
         if (std::abs (v - presetSnap[(size_t) i]) > 1.0e-4f * (1.0f + std::abs (v))) return true;
     }
@@ -416,7 +416,7 @@ bool MagnetoTransportAudioProcessor::saveUser (const juce::String& nameIn)
     o->setProperty ("name", name);
     auto* pv = new juce::DynamicObject();
     for (int i = 0; i < mt::NUM_SPECS; ++i)
-        if (juce::String (mt::SPECS[i].id) != "bypass") pv->setProperty (mt::SPECS[i].id, physical (i));
+        if (juce::String (mt::SPECS[i].id) != "bypass" && juce::String (mt::SPECS[i].id) != "mech") pv->setProperty (mt::SPECS[i].id, physical (i));
     o->setProperty ("params", juce::var (pv));
     if (! dir.getChildFile (name + ".json").replaceWithText (juce::JSON::toString (juce::var (o)))) return false;
     snapshotPreset (name, -1);
@@ -436,7 +436,7 @@ bool MagnetoTransportAudioProcessor::loadUser (const juce::String& name)
     {
         const auto& sp = mt::SPECS[s];
         float val = sp.def;
-        if (juce::String (sp.id) == "bypass") val = physical (s);
+        if (juce::String (sp.id) == "bypass" || juce::String (sp.id) == "mech") val = physical (s);
         else if (pv.hasProperty (sp.id)) val = juce::jlimit (sp.lo, sp.hi, (float) (double) pv.getProperty (sp.id, sp.def));
         p.*(sp.member) = val;
     }

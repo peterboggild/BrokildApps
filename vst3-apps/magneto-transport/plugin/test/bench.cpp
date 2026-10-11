@@ -10,6 +10,7 @@
 #include "stock/stock_vintage.h" // the other coatings' alignments (generated, stage 6)
 #include "stock/stock_budget.h"
 #include "Medium.h"
+#include "Presets.h"
 #include <complex>
 
 #include <chrono>
@@ -2672,6 +2673,169 @@ static void testRepro()
     }
 }
 
+/*  The envelope of x (squared, smoothed 10 ms) and its amplitude at f, against the
+    mean of its amplitude at fifteen frequencies spread across [lo, hi] away from f. */
+static double envLine (const std::vector<float>& x, size_t a, size_t b, double f, double fs, double lo, double hi)
+{
+    std::vector<float> env (x.size(), 0.0f);
+    const double k = 1.0 - std::exp (-1.0 / (fs * 0.010));
+    double e = 0.0;
+    for (size_t i = 0; i < x.size(); ++i) { e += ((double) x[i] * x[i] - e) * k; env[i] = (float) e; }
+    double mean = 0.0; for (size_t i = a; i < b; ++i) mean += env[i]; mean /= (double) (b - a);
+    for (size_t i = a; i < b; ++i) env[i] -= (float) mean;
+    const double at = goertzelAmp (env, a, b, f, fs);
+    double off = 0.0; int nOff = 0;
+    for (int j = 0; j < 15; ++j)
+    {
+        const double g = lo + (hi - lo) * j / 14.0;
+        if (std::abs (g - f) < 0.25 * f) continue;
+        off += goertzelAmp (env, a, b, g, fs); ++nOff;
+    }
+    return at / std::max (off / std::max (nOff, 1), 1.0e-30);
+}
+
+static std::vector<float> lowpassed (const std::vector<float>& x, double fc, double fs, int poles)
+{
+    std::vector<float> y (x);
+    const double k = 1.0 - std::exp (-2.0 * M_PI * fc / fs);
+    for (int p = 0; p < poles; ++p) { double z = 0.0; for (auto& v : y) { z += (v - z) * k; v = (float) z; } }
+    return y;
+}
+
+static void testMech()
+{
+    std::printf ("\n24. MECH SOUNDS (the machine's own noises, driven by the transport)\n");
+    const double fs = 48000.0;
+    // the machine itself silent: no input, MIX at dry, so the output is MECH SOUNDS alone
+    auto quiet = [] { Params p; p.mix = 0.0f; p.feedback = 0.0f; p.h1On = 1; p.condition = 15.0f; return p; };
+    const size_t n = (size_t) (5.0 * fs);
+    std::vector<float> z (n, 0.0f);
+    auto mono = [] (const Render& r) { std::vector<float> m (r.L.size()); for (size_t i = 0; i < m.size(); ++i) m[i] = 0.5f * (r.L[i] + r.R[i]); return m; };
+
+    // ---- off is off: a render that had it on and turned it off is the machine exactly, once faded
+    {
+        Params p = quiet(); p.mix = 0.5f; p.feedback = 0.4f;
+        auto x = noiseBurst (n, (size_t) (0.05 * fs), (size_t) (0.5 * fs), 31, 0.3f);
+        auto a = run (p, fs, x, x);
+        auto b = run (p, fs, x, x, [&] (Params& q, Engine&, size_t i) { q.mech = i < (size_t) (2.0 * fs) ? 80.0f : 0.0f; });
+        const size_t from = (size_t) (2.3 * fs);
+        bool same = true; double during = 0.0;
+        for (size_t i = from; i < n; ++i) if (a.L[i] != b.L[i] || a.R[i] != b.R[i]) { same = false; break; }
+        for (size_t i = (size_t) (0.5 * fs); i < (size_t) (2.0 * fs); ++i) during = std::max (during, (double) std::abs (a.L[i] - b.L[i]));
+        check (same && during > 1.0e-4, "MECH SOUNDS at 0 is the machine bit for bit (on, then off and faded: the output is exact again)",
+               same ? fmt ("exact after the fade; up to %.4f while on", during) : "CHANGED after it was turned off");
+    }
+
+    // ---- the level: at the top of the knob, a 19 cm/s reel on an AC motor
+    double rms19 = 0.0;
+    {
+        Params p = quiet(); p.mech = 100.0f;
+        auto r = run (p, fs, z, z);
+        auto m = mono (r);
+        rms19 = rmsOf (m, (size_t) (1.0 * fs), n);
+        double pk = 0.0; for (size_t i = (size_t) (1.0 * fs); i < n; ++i) pk = std::max (pk, (double) std::abs (r.L[i]));
+        std::printf ("   full knob, 19 cm/s REEL, AC motor: %.1f dBFS rms, peak %.1f dBFS\n", 20.0 * std::log10 (rms19), 20.0 * std::log10 (pk));
+        check (rms19 > std::pow (10.0, -48.0 / 20.0) && rms19 < std::pow (10.0, -24.0 / 20.0) && pk < 0.25,
+               "at the top of the knob the machine is heard but stays well under the music (-48 .. -24 dBFS rms)", fmt ("%.1f dBFS", 20.0 * std::log10 (rms19)));
+        p.mech = 50.0f;
+        auto r2 = run (p, fs, z, z);
+        const double rmsHalf = rmsOf (mono (r2), (size_t) (1.0 * fs), n);
+        const double dropDb = 20.0 * std::log10 (rms19 / rmsHalf);
+        check (std::abs (dropDb - 18.0) < 0.5, "the knob is in decibels: half way is 18 dB down", fmt ("%.2f dB", dropDb));
+        tip ("eng.mech_dbfs", 20.0 * std::log10 (rms19), "dBFS", "%.0f");
+    }
+
+    // ---- the AC motor hums at twice the mains; the DC servo does not
+    {
+        Params p = quiet(); p.mech = 100.0f;
+        auto ac = mono (run (p, fs, z, z));
+        p.motor = 1.0f;
+        auto dc = mono (run (p, fs, z, z));
+        const size_t a = (size_t) (1.0 * fs);
+        const double hAc = goertzelAmp (ac, a, n, 100.0, fs), hDc = goertzelAmp (dc, a, n, 100.0, fs);
+        const double fSlot = 24.0 * 0.1905 / (2.0 * M_PI * 0.005);
+        const double wDc = goertzelAmp (dc, a, n, fSlot, fs), wAc = goertzelAmp (ac, a, n, fSlot, fs);
+        check (hAc > 10.0 * hDc && wDc > 3.16 * wAc, "AC SYNC hums at 100 Hz (twice the mains); DC SERVO whines at its 24-slot rate instead",
+               fmt ("100 Hz %.1f dB AC over DC; ", 20.0 * std::log10 (hAc / hDc)) + fmt ("%.1f Hz %.1f dB DC over AC", fSlot, 20.0 * std::log10 (wDc / wAc)));
+    }
+
+    // ---- the capstan's rumble turns at the capstan's rate, which follows the tape speed
+    {
+        std::string got; bool ok = true;
+        for (double sp : { 19.05, 38.1 })
+        {
+            Params p = quiet(); p.mech = 100.0f; p.motor = 1.0f; p.speed = (float) sp; p.condition = 60.0f;
+            auto m = lowpassed (mono (run (p, fs, z, z)), 200.0, fs, 2);
+            const double fc = sp * 0.01 / (2.0 * M_PI * 0.005);
+            const double r = envLine (m, (size_t) (1.0 * fs), n, fc, fs, 2.0, 30.0);
+            got += fmt ("%.0f cm/s: ", sp) + fmt ("%.2f Hz line %.1f x; ", fc, r);
+            ok = ok && r > 4.0;
+        }
+        check (ok, "the rumble's envelope turns once per turn of the capstan (v / 2 pi r), at 19 and at 38 cm/s", got);
+    }
+
+    // ---- the splice ticks once per pass of the loop
+    {
+        Params p = quiet(); p.mech = 100.0f; p.mode = 1.0f; p.loopLen = 0.5f; p.speed = 76.0f; p.condition = 0.0f; p.looper = 2.0f;
+        const size_t n2 = (size_t) (4.0 * fs);
+        std::vector<float> z2 (n2, 0.0f);
+        auto m = mono (run (p, fs, z2, z2));
+        // above 2 kHz, envelope over 1 ms
+        std::vector<float> hp (m);
+        { const double k = 1.0 - std::exp (-2.0 * M_PI * 2000.0 / fs); double zz = 0.0, zz2 = 0.0;
+          for (auto& v : hp) { zz += (v - zz) * k; zz2 += (zz - zz2) * k; v = v - (float) zz2; } }
+        const double ke = 1.0 - std::exp (-1.0 / (fs * 0.001));
+        double e = 0.0, eMax = 0.0; std::vector<float> env (n2);
+        for (size_t i = 0; i < n2; ++i) { e += ((double) hp[i] * hp[i] - e) * ke; env[i] = (float) e; if (i > fs / 2) eMax = std::max (eMax, e); }
+        std::vector<double> ticks; size_t last = 0;
+        for (size_t i = (size_t) (0.5 * fs); i < n2; ++i)
+            if (env[i] > 0.3 * eMax && (ticks.empty() || i - last > (size_t) (0.2 * fs))) { ticks.push_back (i / fs); last = i; }
+        double meanGap = 0.0; for (size_t i = 1; i < ticks.size(); ++i) meanGap += ticks[i] - ticks[i - 1];
+        meanGap = ticks.size() > 1 ? meanGap / (double) (ticks.size() - 1) : 0.0;
+        const double want = 0.5 / 0.76;
+        check (ticks.size() >= 4 && std::abs (meanGap - want) < 0.01, "LOOP: the splice ticks once per pass, L / v apart (0.5 m at 76 cm/s: 0.658 s)",
+               fmt ("%.0f ticks, ", (double) ticks.size()) + fmt ("%.3f s apart", meanGap));
+    }
+
+    // ---- stopping the motor: a clunk, then the machine winds down to silence
+    {
+        Params p = quiet(); p.mech = 100.0f;
+        const size_t stopAt = (size_t) (1.5 * fs);
+        auto r = run (p, fs, z, z, [&] (Params& q, Engine&, size_t i) { q.run = i < stopAt ? 1.0f : 0.0f; });
+        auto m = mono (r);
+        const double before = rmsOf (m, (size_t) (0.8 * fs), stopAt);
+        double clunk = 0.0; for (size_t i = stopAt; i < stopAt + (size_t) (0.1 * fs); ++i) clunk = std::max (clunk, (double) std::abs (m[i]));
+        double beforePk = 0.0; for (size_t i = (size_t) (0.8 * fs); i < stopAt; ++i) beforePk = std::max (beforePk, (double) std::abs (m[i]));
+        const double after = rmsOf (m, n - (size_t) (0.5 * fs), n);
+        const double dropDb = 20.0 * std::log10 (before / std::max (after, 1e-12));
+        check (clunk > 1.5 * beforePk && dropDb > 30.0, "MOTOR RUN off: the solenoid clunks, then the machine coasts down to silence",
+               fmt ("clunk %.1f x the running peak; ", clunk / beforePk) + fmt ("%.0f dB quieter once stopped", dropDb));
+    }
+
+    // ---- moving a head: the carriage is heard while it travels, and only then
+    {
+        Params p = quiet(); p.mech = 100.0f; p.motor = 1.0f; p.condition = 0.0f;
+        auto r = run (p, fs, z, z, [&] (Params& q, Engine&, size_t i) { q.h3Pos = i < (size_t) (1.0 * fs) ? 12.0f : 22.0f; });
+        auto m = mono (r);
+        const double still = rmsOf (m, (size_t) (0.5 * fs), (size_t) (1.0 * fs));
+        const double moving = rmsOf (m, (size_t) (1.15 * fs), (size_t) (1.6 * fs));   // head 3, the free one: 10 cm at 12 cm/s, 0.83 s of travel
+        const double arrived = rmsOf (m, (size_t) (3.5 * fs), (size_t) (4.5 * fs));
+        check (moving > 2.0 * still && arrived < 1.3 * still, "a carriage is heard while it travels and stops when it arrives",
+               fmt ("travelling %.1f x, ", moving / still) + fmt ("arrived %.2f x the still machine", arrived / still));
+    }
+
+    // ---- presets leave it alone; the host's bypass takes it with the machine
+    {
+        Params p; p.mech = 70.0f; p.bypass = 0.0f;
+        const bool kept = applyFactoryPreset (4, p) && std::abs (p.mech - 70.0f) < 1e-6f;
+        Params q = quiet(); q.mech = 100.0f; q.bypass = 1.0f;
+        auto r = run (q, fs, z, z);
+        const double byp = rmsOf (mono (r), (size_t) (0.2 * fs), n);
+        check (kept && byp == 0.0, "a preset keeps MECH SOUNDS where it was; BYPASS removes it with the machine",
+               kept ? fmt ("bypassed: %.1e rms", byp) : "the preset moved it");
+    }
+}
+
 static void testCost()
 {
     std::printf ("\n12. COST (48 kHz stereo, 76 cm/s, three heads, feedback, the default tape and its medium)\n");
@@ -2753,6 +2917,7 @@ int main (int argc, char** argv)
     if (want ("repro")) testRepro();
     if (want ("broken")) testBroken();
     if (want ("stage8")) testStage8();
+    if (want ("mech")) testMech();
     if (want ("cost")) testCost();
     if (figPath != nullptr) { buildFigures(); writeFigs (figPath); }
     std::printf ("\n%d checks, %d failed - %s\n", g_pass + g_fail, g_fail, g_fail ? "FAILURES" : "ALL CLEAR");

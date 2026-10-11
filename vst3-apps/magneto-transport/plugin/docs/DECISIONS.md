@@ -649,3 +649,26 @@ failed the 20 % ceiling; run alone straight after, the same binary read 17.2 % a
 19.5 %. The part-by-part probe (mtcost) found no regression: the medium's hiss is
 about 5 % of a core at 76 cm/s, as in stage 6. The ceiling stays; a cost failure at
 the end of a full run is re-measured with `mttest -s cost` before it is believed.
+
+## Stage 10: MECH SOUNDS follow the transport, and are the player's
+
+`Source/Mech.h`, host rate, added after OUTPUT and before the bypass crossfade, so
+BYPASS takes them with the machine. Every rate is the simulated machine's: the
+capstan's rumble is modulated at v / 2 pi r_c (6.06 Hz at 19 cm/s, 12.13 at 38,
+both measured as lines in the rumble's envelope), each reel's bearing at its own
+pack radius, the splice ticks every L / v (0.658 s for 0.5 m at 76 cm/s, measured),
+a carriage only while it travels, the solenoids when MOTOR RUN switches and when
+the transport changes. AC SYNC hums at 100 Hz while powered; DC SERVO whines at 24
+slots times its rotation instead. Each part is panned to where it sits on the deck.
+
+The knob is in decibels (-36 dB to full; half way measures 18.00 dB down), and the
+top measures -35 dBFS rms for a 19 cm/s reel. At 0 the engine does not call it at
+all: a render that had it on and then off is the machine bit for bit once faded.
+
+MECH SOUNDS is the player's setting, like BYPASS: a factory or user preset neither
+carries it nor resets it, and it does not mark a preset changed. A preset that
+switched the machine's noises on or off would be surprising in both directions.
+
+The first carriage check moved head 1 from 4 to 20 cm and heard nothing: heads
+cannot pass each other, so head 1 stopped against head 2 after a centimetre. The
+free head (3) is the one to move in a test.

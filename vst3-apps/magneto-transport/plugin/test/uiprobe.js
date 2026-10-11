@@ -476,15 +476,16 @@ const warns = [];
       gm.length + " parts; missing kinds: " + need2.filter(k => !kinds.has(k)).join(" ") + (outOf.length ? "; outside: " + outOf.map(g => g.id).join(" ") : ""));
 
     await shot("panel.png");
-    // ---- the reserved MECH slot fills when the parameter exists
-    const slot0 = await ev("!!document.querySelector('[data-id=mech] .plug') && !__MT.ctls.mech");
-    const INIT2 = Object.assign({}, INIT, { params: PARAMS.concat([{ id: "mech", name: "MECH SOUNDS", kind: "lin", lo: 0, hi: 100, def: 0, unit: "%", choices: "", hint: "The machine's own noises.", v: 0 }]) });
-    await ev(`window.__fire('initialState', ${JSON.stringify(INIT2)}), true`); await sleep(200);
+    // ---- the MECH slot: a knob when the table carries 'mech' (it does since stage 10), a blank plug when not
     const slot1 = await ev("!!(__MT.ctls.mech && __MT.ctls.mech.el.querySelector('.knob')) && !document.querySelector('[data-id=mech] .plug')");
     const grp3 = await ev(`[...document.querySelectorAll('.grp')].filter(g => g.scrollHeight > g.clientHeight + 1 || g.scrollWidth > g.clientWidth + 1).map(g => g.querySelector('h3').textContent)`);
-    check("the reserved MECH SOUNDS slot is a blank plug until 'mech' exists, then a knob (and OUTPUT still fits)", slot0 && slot1 && grp3.length === 0);
+    const INIT0 = Object.assign({}, INIT, { params: PARAMS.filter(p => p.id !== "mech") });
+    await ev(`window.__fire('initialState', ${JSON.stringify(INIT0)}), true`); await sleep(200);
+    const slot0 = await ev("!!document.querySelector('[data-id=mech] .plug') && !__MT.ctls.mech");
+    check("MECH SOUNDS is a knob beside OUTPUT (and the plate still fits); without 'mech' the slot is a blank plug", slot0 && slot1 && grp3.length === 0,
+      "knob " + slot1 + ", plug without it " + slot0 + (grp3.length ? ", overflowing: " + grp3.join(" ") : ""));
     await ev(`window.__fire('initialState', ${JSON.stringify(INIT)}), true`); await sleep(150);
-    check("a fresh initialState without 'mech' puts the blank plug back", await ev("!!document.querySelector('[data-id=mech] .plug') && !__MT.ctls.mech"));
+    check("the real table again: the knob comes back", await ev("!!(__MT.ctls.mech && __MT.ctls.mech.el.querySelector('.knob'))"));
     const errs = await ev("window.__errors.slice()");
     check("no entries in window.__errors", errs.length === 0, errs.join(" | "));
 

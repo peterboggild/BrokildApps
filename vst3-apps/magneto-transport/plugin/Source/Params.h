@@ -47,6 +47,7 @@ struct Params
     float killDry   = 0.0f;
     float repro     = 0.0f;   // a tape machine: head 1 replays, its delay is reported to the host
     float output    = 0.0f;   // dB
+    float mech      = 0.0f;   // MECH SOUNDS, %: the machine's own noises on the output (0 off)
     float inMode    = 0.0f;   // 0 STEREO, 1 MONO (sum the input)
     float eqStd     = 0.0f;   // 0 IEC, 1 NAB: the record and replay equalisation standard
 
@@ -138,6 +139,8 @@ inline const Spec SPECS[] =
     { "repro",    "REPRO",    Kind::Toggle, 0, 1, 0, "", nullptr, &Params::repro,
       "A tape machine on an insert: head 1 is the replay head, heads 2 and 3 and FEEDBACK are off, and head 1's delay is reported to the host so the track stays in time. MIX blends the tape with the dry signal, delayed to match. Moving head 1 or changing the speed changes the delay the host has to make up; some hosts click when it does." },
     { "output",   "OUTPUT",   Kind::Lin, -24.0f, 12.0f, 0.0f, "dB", nullptr, &Params::output, "Output level." },
+    { "mech",     "MECH SOUNDS", Kind::Lin, 0.0f, 100.0f, 0.0f, "%", nullptr, &Params::mech,
+      "The machine's own sounds on the output, at their own level: the AC motor's hum (or the DC servo's whine), the capstan's rumble turning at the capstan's rate, the reels' bearings, the tape over the heads, the splice ticking once a loop, the carriages travelling, the solenoids clunking. All driven by the transport, so they slow down and speed up with it. 0 is off and the output is the machine exactly; the travel runs from -36 dB to full. Not part of a preset." },
     { "eq",       "EQUALISATION", Kind::Choice, 0, 1, 0, "", "IEC|NAB", &Params::eqStd,
       "The record and replay equalisation standard. IEC (the default) lifts the treble on replay; NAB also boosts the bass on record, so lows saturate a little sooner." },
     { "inmode",   "INPUT",    Kind::Choice, 0, 1, 0, "", "STEREO|MONO", &Params::inMode,

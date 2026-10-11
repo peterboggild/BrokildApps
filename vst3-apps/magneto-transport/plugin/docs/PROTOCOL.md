@@ -110,7 +110,7 @@ Real time, measured by the bench on this build:
 `eng.wf_worn_pct`, `eng.azimuth_us`, `eng.feedback_onset_pct`, `eng.coast_err_pct`,
 `eng.dub_take_db`, `eng.dub_ghost_db`, `eng.erase_150_db`, `eng.repro_err_samples`,
 `eng.hunt_pp_pct`, `eng.clog_swing_db`, `eng.splice_ms`, `eng.wear_db`,
-`eng.cost_pct`, `eng.cost_eco_pct`, `eng.cost_high_pct`, `eng.alias_db`,
+`eng.cost_pct`, `eng.cost_eco_pct`, `eng.cost_high_pct`, `eng.alias_db`, `eng.mech_dbfs`,
 `eng.checks`.
 
 ## Settings behaviour (BUGLIST 6)

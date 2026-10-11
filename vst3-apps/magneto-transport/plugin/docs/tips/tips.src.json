@@ -273,9 +273,9 @@
     },
     "mech": {
       "title": "MECH SOUNDS",
-      "does": "<p>The machine's own mechanical sounds — motor hum, the capstan, the splice tick — on the main output at their own level. Off by default.</p>",
-      "hood": "",
-      "notModelled": ""
+      "does": "<p>The machine's own mechanical sounds on the main output, at their own level: the motor, the capstan, the reels, the tape over the heads, the splice, the carriages, the solenoids. They slow down and speed up with the transport. Off by default, and not part of a preset.</p>",
+      "hood": "<p>Every sound is driven by the transport the simulation runs, so its rates are the machine's own. The capstan, radius $r_c$ = 5 mm, turns at $$f_c = \\frac{v}{2\\pi r_c}$$ which is 6.1 Hz at 19 cm/s. Its bearing rumble is modulated once and twice per turn (runout and ovality), and a worn transport (CONDITION, CAPSTAN) rumbles louder. Each reel's bearing turns at $v/2\\pi r$ for its own pack radius, so the supply speeds up as it empties. On a loop, the splice passes the heads once every $$T = \\frac{L}{v}$$ and ticks; the tape slides and folds in the tank.</p><p>An AC synchronous motor hums at twice the 50 Hz mains, 100 Hz with its harmonics, while it has power. A DC servo has no hum but whines at its slot rate, 24 slots times its rotation, so the whine follows the speed. A carriage is heard only while it travels, at a pitch that rises with its speed. The solenoids clunk when MOTOR RUN switches and when the transport changes. Each part is panned to where it sits on the deck: the supply reel left, the take-up and the capstan right.</p><p>The knob runs from −36 dB to full in decibels, and at the top a 19 cm/s reel measures <span data-num=\"eng.mech_dbfs\"></span> rms. At 0 the sounds are not computed at all and the output is the machine bit for bit. BYPASS takes them away with the machine.</p>",
+      "notModelled": "<p>The sounds are synthesised from the mechanism's rates and a few filtered noises, not recorded from a machine, and the room the machine stands in is not modelled.</p>"
     },
     "part:supply": {
       "title": "SUPPLY REEL",

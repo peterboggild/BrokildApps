@@ -611,6 +611,7 @@ void Engine::prepare (double hostSampleRate, int)
     aHost  = 1.0 - std::exp (-1.0 / (fsHost * 0.020));
     aVu    = 1.0 - std::exp (-1.0 / (fsHost * 0.050));
     gByp = params.bypass > 0.5f ? 1.0 : 0.0; msIn = msOut = 0.0;
+    mech.prepare (fsHost, 0x4D454348ull); mechOn = false;
 
     // ---- the record head and its alignment, at OPERATING bias and the machine's
     //      NOMINAL speed (19.05 cm/s), as a technician would align it: record level
@@ -1793,6 +1794,24 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     const double tWet = std::sin (p.mix * M_PI * 0.5);
     const double tOut = dbToLin (p.output);
     const double tByp = p.bypass > 0.5f ? 1.0 : 0.0;
+    // MECH SOUNDS: fed from the transport as it is now; at 0 (and faded out) not run at all
+    if (p.mech > 0.0f || mechOn)
+    {
+        Mech::In mi;
+        mi.level = std::clamp ((double) p.mech, 0.0, 100.0) * 0.01;
+        mi.vCms = v / CELLS_PER_CM;
+        mi.powered = p.run > 0.5f;
+        mi.dcServo = p.motor > 0.5f;
+        mi.mode = mode;
+        mi.looper = loopState;
+        mi.supplyR = tele.supplyR.load(); mi.takeupR = tele.takeupR.load();
+        mi.loopM = loopM;
+        for (int i = 0; i < NUM_HEADS; ++i) { mi.headCm[i] = hPos[i]; mi.headVelCms[i] = hVel[i]; }
+        mi.cond = trIn.cond; mi.capstan = trIn.capstan; mi.reels = trIn.reels; mi.scrape = trIn.scrape;
+        mi.splice = spliceState != 0;
+        mech.block (mi);
+        mechOn = mech.active();
+    }
     const bool mono = p.inMode > 0.5f;
 
     if (n == 0)
@@ -1884,6 +1903,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         dryW = (dryW + 1) & dryMask;
         float ol = (float) ((ddl * gDry + wl * gWet) * gOut);
         float orr = (float) ((ddr * gDry + wr * gWet) * gOut);
+        if (mechOn) { float ml, mr; mech.tick (ml, mr); ol += ml; orr += mr; }
         // the host's bypass: a 20 ms crossfade to the dry path at unity, delayed by what
         // the host is told; the tape runs on underneath. Exactly the machine when off.
         if (tByp != gByp || gByp > 0.0)

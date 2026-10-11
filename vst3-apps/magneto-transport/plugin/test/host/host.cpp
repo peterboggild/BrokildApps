@@ -80,7 +80,7 @@ int main (int argc, char** argv)
     }
     std::printf ("the host is offered %d parameters\n", np);
     check (! found[0]->isInstrument, "the host sees an effect");
-    check (np == 46 && automatable == np, "46 parameters, every one automatable (44 of the machine, HEAD PATTERN, BYPASS)");
+    check (np == 47 && automatable == np, "47 parameters, every one automatable (44 of the machine, HEAD PATTERN, BYPASS, MECH SOUNDS)");
     auto* byp = inst->getBypassParameter();
     check (byp != nullptr && byp->getName (64).equalsIgnoreCase ("BYPASS"), "the host's bypass is the plug-in's own BYPASS");
 

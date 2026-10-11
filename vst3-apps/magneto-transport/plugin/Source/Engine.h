@@ -22,6 +22,7 @@
 #include "Transport.h"
 #include "Stock.h"
 #include "Medium.h"
+#include "Mech.h"
 
 #include <atomic>
 #include <cmath>
@@ -428,6 +429,8 @@ private:
     HalfBand up[2], dn[2], up2[2], dn2[2];   // the second pair cascades to 4x (HIGH)
     int quality = 1;
     double gByp = 0.0, msIn = 0.0, msOut = 0.0, aVu = 0.0;
+    Mech mech;                     // MECH SOUNDS: the machine's own noises (Mech.h)
+    bool mechOn = false;
 
     float pkIn = 0, pkOut = 0, pkHead[NUM_HEADS] {};
 

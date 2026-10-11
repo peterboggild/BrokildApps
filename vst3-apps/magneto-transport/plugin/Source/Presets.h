@@ -63,13 +63,14 @@ inline constexpr int NUM_FACTORY = (int) (sizeof (FACTORY) / sizeof (FACTORY[0])
 
 namespace mt
 {
-/*  The defaults, then preset i's values, then its loudness trim on OUTPUT. BYPASS keeps
-    what `keep` had (a preset must not unbypass a bypassed plug-in). Returns false and
+/*  The defaults, then preset i's values, then its loudness trim on OUTPUT. BYPASS and MECH
+    SOUNDS keep what `p` had (a preset must not unbypass a bypassed plug-in, nor switch
+    the machine's noises on or off). Returns false and
     names the first unknown id or bad value in `err`, without touching anything after it. */
 inline bool applyFactoryPreset (int i, Params& p, std::string* err = nullptr)
 {
     if (i < 0 || i >= NUM_FACTORY) { if (err) *err = "no such preset"; return false; }
-    const float keepBypass = p.bypass;
+    const float keepBypass = p.bypass, keepMech = p.mech;
     Params q;
     for (int s = 0; s < NUM_SPECS; ++s) q.*(SPECS[s].member) = SPECS[s].def;
     const char* c = FACTORY[i].values;
@@ -92,6 +93,7 @@ inline bool applyFactoryPreset (int i, Params& p, std::string* err = nullptr)
     }
     q.output = PRESET_TRIM_DB[i];
     q.bypass = keepBypass;
+    q.mech = keepMech;
     p = q;
     return true;
 }
