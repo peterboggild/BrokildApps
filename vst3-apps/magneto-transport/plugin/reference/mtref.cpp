@@ -547,7 +547,7 @@ static double molDb (const Lab& L, double hbOp, double hsRef)
     is what gives the HF recording loss and the bias-dependent delay shift. */
 static void writeTables (const Lab& Lin, double hbOp38, double hsRef38, const std::string& path)
 {
-    constexpr int NLR = 4, NA = 28, NS = 41, NM = 11, NV = 5, NSUB = 4;
+    constexpr int NLR = 4, NA = 64, NS = 41, NM = 11, NV = 5, NSUB = 4;   // NA: 7 % apart, five points across an erasure transition (28 read 2.5x the retention between two)
     // Speeds a factor of 2 apart, so the real-time model interpolates in log speed
     // with a fixed step. The machine is ALIGNED at 19.05 cm/s, its nominal speed.
     const double speeds[NV] = { 4.7625, 9.525, 19.05, 38.1, 76.2 };
@@ -565,20 +565,10 @@ static void writeTables (const Lab& Lin, double hbOp38, double hsRef38, const st
     for (int i = 0; i < NM; ++i) Mg[i] = -0.95 + 1.9 * i / (NM - 1.0);
     Sg[NS / 2] = 0.0; Mg[NM / 2] = 0.0;
 
-    // The tape stores REMANENCE: index G by what the prepared state holds.
-    double Mrem[NM], sOld[NM];
-    std::vector<Stair> pre (NM);
-    for (int im = 0; im < NM; ++im)
-    {
-        double lo = -20.0, hi = 20.0;
-        for (int it = 0; it < 60; ++it) { const double sv = 0.5 * (lo + hi); (2.0 * Lin.md.PhiU (sv) - 1.0 < Mg[im] ? lo : hi) = sv; }
-        sOld[im] = 0.5 * (lo + hi);
-        Stair S;
-        for (int i = 0; i < 2000; ++i) { const double A = 5.0 * (1.0 - i / 2000.0); S.apply (sOld[im] + (i % 2 ? -A : A)); }
-        S.apply (sOld[im]); S.apply (0.0);
-        pre[(size_t) im] = S;
-        Mrem[im] = S.M (Lin.md);
-    }
+    // The tape stores REMANENCE: index G by what the slab holds. The old state an
+    // overwrite meets is prepared per speed and layer below, as the machine leaves it,
+    // on a grid PER SLAB (Mgl, filled once the alignment is known).
+    double Mgl[NLR][NM];
     Stair demagS; demagS.demag();
 
     // ---- the alignment, at 19.05 cm/s, by the sheet's definition
@@ -588,6 +578,36 @@ static void writeTables (const Lab& Lin, double hbOp38, double hsRef38, const st
     const double hsRef = calibrateHs (La, hbOp);
     std::printf ("   alignment at %.2f cm/s: 10 kHz peak at hb %.2f, operating bias %.4f Hc, 0 VU = %.5f Hc deep-gap\n",
                  speeds[IALIGN], bb, hbOp, hsRef);
+
+    // Each slab's old-state grid spans what that slab records at the operating bias
+    // and the alignment speed, up to +12 dB over 0 VU (MOL is under +10). A grid shared
+    // by every slab put the deep slab's first point (0.19) far above anything it ever
+    // records (about 0.02 at 0 VU), so its prepared state needed a strong DC field that
+    // magnetised the hard particles too - and an overwrite then read a soft recording's
+    // retention off that hard state's secant: 0.56 where the reference measures 0.23.
+    // Beyond the span the engine clamps (only an overdriven recording goes there).
+    {
+        const double vUm = speeds[IALIGN] * 1.0e4, lamB = vUm / Lin.fb;
+        constexpr int NPH = 8;
+        Pass R; R.head = Lin.rec; R.fb = Lin.fb; R.v = speeds[IALIGN]; R.hb = hbOp; R.hs = 4.0 * hsRef;
+        R.sig = [] (double) { return 1.0; };
+        for (int l = 0; l < NLR; ++l)
+        {
+            double acc = 0.0;
+            for (int k = 0; k < NSUB; ++k)
+                for (int ph = 0; ph < NPH; ++ph)
+                {
+                    Stair S = demagS;
+                    const double yk = ySub (l, k);
+                    advect (S, yk, lamB * ph / NPH, R, zoneHalfWidth (R, yk), vUm);
+                    acc += S.M (Lin.md);
+                }
+            const double span = std::min (0.95, std::max (1.0e-3, acc / (NSUB * NPH)));
+            for (int im = 0; im < NM; ++im) Mgl[l][im] = span * (-1.0 + 2.0 * im / (NM - 1.0));
+            Mgl[l][NM / 2] = 0.0;
+            std::printf ("   old-state grid, slab %d: +-%.4f Mr (what +12 dB over 0 VU records there)\n", l, span);
+        }
+    }
 
     const size_t GN = (size_t) NV * NLR * NA * NM * NS;
     std::vector<float> G (GN);
@@ -603,12 +623,46 @@ static void writeTables (const Lab& Lin, double hbOp38, double hsRef38, const st
         for (int l = 0; l < NLR; ++l)
         {
             const double fmax = karlqvist (Lin.rec.g, 0.0, Lin.rec.d + yR[l]);
+            constexpr int NPH = 8;
+            // The old state an overwrite meets, as the machine leaves it: a level recorded by
+            // this head at the operating bias and this speed, per sub-depth and bias phase -
+            // so it lives in the particles that bias could move, deep sub-depths holding less.
+            // (An ideal anhysteretic state, set by a 5 Hc field, magnetised the hard particles
+            // too, which no later bias pass reaches: bias erasure read -25 dB in real time
+            // against the reference's -42.) The DC level is bisected for the slab's mean.
+            std::vector<Stair> prep ((size_t) NM * NSUB * NPH);
+            {
+                Pass R; R.head = Lin.rec; R.fb = Lin.fb; R.v = speeds[iv]; R.hb = hbOp; R.sig = [] (double) { return 1.0; };
+                auto at = [&] (int im, int k, int ph) -> Stair& { return prep[((size_t) im * NSUB + k) * NPH + ph]; };
+               #pragma omp parallel for schedule(dynamic, 1)
+                for (int im = 0; im < NM; ++im)
+                {
+                    auto recordAll = [&] (double hs) {
+                        double acc = 0.0;
+                        for (int k = 0; k < NSUB; ++k)
+                            for (int ph = 0; ph < NPH; ++ph)
+                            {
+                                Pass Q = R; Q.hs = hs;
+                                Stair S = demagS;
+                                const double yk = ySub (l, k);
+                                if (hs != 0.0) advect (S, yk, lamB * ph / NPH, Q, zoneHalfWidth (Q, yk), vUm);
+                                at (im, k, ph) = S;
+                                acc += S.M (Lin.md);
+                            }
+                        return acc / (NSUB * NPH);
+                    };
+                    if (im == NM / 2) { recordAll (0.0); continue; }
+                    const double want = Mgl[l][im];
+                    double lo = want > 0.0 ? 0.0 : -30.0, hi = want > 0.0 ? 30.0 : 0.0;
+                    for (int it = 0; it < 40; ++it) { const double hs = 0.5 * (lo + hi); (recordAll (hs) < want ? lo : hi) = hs; }
+                    recordAll (0.5 * (lo + hi));
+                }
+            }
            #pragma omp parallel for schedule(dynamic, 1)
             for (int ia = 0; ia < NA; ++ia)
             {
                 Pass P; P.head = Lin.rec; P.fb = Lin.fb; P.v = speeds[iv]; P.hb = Ag[ia] / fmax;
-                // G: averaged over 8 bias phases and NSUB sub-depths
-                constexpr int NPH = 8;
+                // G: averaged over 8 bias phases and NSUB sub-depths, each from its own old state
                 for (int im = 0; im < NM; ++im)
                     for (int is = 0; is < NS; ++is)
                     {
@@ -620,7 +674,7 @@ static void writeTables (const Lab& Lin, double hbOp38, double hsRef38, const st
                             const double X = zoneHalfWidth (Q, yk);
                             for (int ph = 0; ph < NPH; ++ph)
                             {
-                                Stair S = pre[(size_t) im];
+                                Stair S = prep[((size_t) im * NSUB + k) * NPH + ph];
                                 advect (S, yk, lamB * ph / NPH, Q, X, vUm);
                                 acc += S.M (Lin.md);
                             }
@@ -734,8 +788,9 @@ static void writeTables (const Lab& Lin, double hbOp38, double hsRef38, const st
     std::fprintf (o, "constexpr double LAYER_FMAX[NL] = {"); for (int l = 0; l < NLR; ++l) std::fprintf (o, " %.6f,", karlqvist (Lin.rec.g, 0.0, Lin.rec.d + yR[l])); std::fprintf (o, " };  // peak bias amplitude = hb * this\n");
     std::fprintf (o, "constexpr double A_GRID[NA] = {"); for (int i = 0; i < NA; ++i) std::fprintf (o, " %.6f,", Ag[i]); std::fprintf (o, " };\n");
     std::fprintf (o, "constexpr double S_GRID[NS] = {"); for (int i = 0; i < NS; ++i) std::fprintf (o, " %.6f,", Sg[i]); std::fprintf (o, " };\n");
-    std::fprintf (o, "constexpr double M_GRID[NM] = {"); for (int i = 0; i < NM; ++i) std::fprintf (o, " %.6f,", Mg[i]); std::fprintf (o, " };  // in-field level of the prepared state\n");
-    std::fprintf (o, "constexpr double M_REM[NM] = {"); for (int i = 0; i < NM; ++i) std::fprintf (o, " %.6f,", Mrem[i]); std::fprintf (o, " };   // the REMANENCE it holds: index G by this\n");
+    std::fprintf (o, "constexpr double M_REM[NL][NM] = {   // per slab: the REMANENCE the prepared old state holds; index G by this\n");
+    for (int l = 0; l < NLR; ++l) { std::fprintf (o, "    {"); for (int i = 0; i < NM; ++i) std::fprintf (o, " %.6f,", Mgl[l][i]); std::fprintf (o, " },\n"); }
+    std::fprintf (o, "};\n");
     std::fprintf (o, "// zone centroid downstream of the gap (um), Gaussian width fitted to the kernel transfer over 6..40 um wavelengths (um), small-signal gain dM/ds, per [speed][layer][A]\n");
     for (int which = 0; which < 3; ++which)
     {
@@ -816,11 +871,102 @@ static void writeTables (const Lab& Lin, double hbOp38, double hsRef38, const st
 } // namespace
 
 //==============================================================================
+//------------------------------------------------------------------------------ erasure (section 5)
+static void erasureReport (const Lab& L, double hbOp, double hsRef)
+{
+    std::printf ("\n5. ERASURE of a 0 VU 1 kHz recording (residual in dB re the original)\n");
+    {
+        int c0, n; L.window (1000.0, c0, n);
+        auto residual = [&] (Tape& tp) { Readout R (L.md, tp, L.stock); return std::abs (R.amp (1000.0, L.v, c0, n, -1)) / std::sqrt (2.0); };
+        Tape base = L.fresh(); L.record (base, hbOp, hsRef, 1000.0);
+        const double orig = residual (base);
+        std::printf ("   original: %.1f nWb/m rms\n", orig);
+        { Tape tp = base; Pass P; P.head = L.rec; P.hb = hbOp; P.fb = L.fb; P.v = L.v; runPass (tp, P);
+          std::printf ("   bias-only pass over it (record head, no signal): %+.1f dB\n", dB (residual (tp) / orig));
+          // where it lives: each depth layer's 1 kHz amplitude before and after (relative to Mr)
+          Readout R0 (L.md, base, L.stock), R1 (L.md, tp, L.stock);
+          const double mr = L.stock.fluxSat() * L.stock.S;
+          std::printf ("     per depth (layer centre um: before -> after, as M/Mr peak):");
+          for (int l = 0; l < L.NL; ++l)
+          {
+              const double a0 = std::abs (R0.amp (1000.0, L.v, c0, n, l)) / mr, a1 = std::abs (R1.amp (1000.0, L.v, c0, n, l)) / mr;
+              std::printf ("  %.2f: %.4f -> %.5f", (l + 0.5) * L.stock.deltaUm / L.NL, a0, a1);
+          }
+          std::printf ("\n");
+          // the same with a DC level recorded instead of the tone (as the tables prepare old
+          // states): the mean remanence per depth before and after one bias-only pass
+          for (double hdc : { 0.1, 0.233, 0.4 })
+          {
+              Tape d0 = L.fresh();
+              Pass Q; Q.head = L.rec; Q.hb = hbOp; Q.hs = hdc; Q.fb = L.fb; Q.v = L.v; Q.sig = [] (double) { return 1.0; };
+              runPass (d0, Q);
+              Tape d1 = d0; runPass (d1, P);
+              Readout D0 (L.md, d0, L.stock), D1 (L.md, d1, L.stock);
+              std::printf ("     DC %.3f Hc (mean M/Mr per depth, before -> after):", hdc);
+              double s0 = 0, s1 = 0;
+              for (int l = 0; l < L.NL; ++l)
+              {
+                  double a0 = 0, a1 = 0;
+                  for (int c = c0; c < c0 + n; ++c) { a0 += D0.M[(size_t) c * L.NL + l]; a1 += D1.M[(size_t) c * L.NL + l]; }
+                  a0 /= n; a1 /= n; s0 += a0; s1 += a1;
+                  std::printf ("  %.4f -> %.5f", a0, a1);
+              }
+              std::printf ("   depth mean %.1f dB\n", dB (std::abs (s1) / std::abs (s0)));
+          }
+          // the table's way at slab 2's four sub-depths (writeTables): a DC level from demag,
+          // each sub-depth with its own zone extent and 8 paired bias phases, then the bias
+          // pass the same way - against runPass's way (the deepest layer's extent, a cell's
+          // own phase). Same hs = 0.233.
+          {
+              const double lamB = L.v * 1.0e4 / L.fb, vUm = L.v * 1.0e4;
+              Stair dm; dm.demag();
+              Pass Q; Q.head = L.rec; Q.hb = hbOp; Q.hs = 0.233; Q.fb = L.fb; Q.v = L.v; Q.sig = [] (double) { return 1.0; };
+              Pass B = Q; B.hs = 0.0;
+              const double yDeep = L.rec.d + 14.0 * (2.0 * 16 - 1) / (2.0 * 16);
+              for (int way = 0; way < 2; ++way)
+              {
+                  double s0 = 0, s1 = 0;
+                  for (int k = 0; k < 4; ++k)
+                  {
+                      const double yk = L.rec.d + 7.0 + (k + 0.5) * 0.875;
+                      for (int ph = 0; ph < 8; ++ph)
+                      {
+                          Stair S = dm;
+                          const double Xq = way == 0 ? zoneHalfWidth (Q, yk) : zoneHalfWidth (Q, yDeep);
+                          const double Xb = way == 0 ? zoneHalfWidth (B, yk) : zoneHalfWidth (B, yDeep);
+                          advect (S, yk, lamB * ph / 8, Q, Xq, vUm);
+                          s0 += S.M (L.md);
+                          advect (S, yk, lamB * ph / 8, B, Xb, vUm);
+                          s1 += S.M (L.md);
+                      }
+                  }
+                  std::printf ("     slab 2, the %s: mean %.4f -> %.5f (retention %.4f)\n", way == 0 ? "table's way (per-depth extent)" : "runPass's extent (the deepest's)",
+                               s0 / 32, s1 / 32, s1 / s0);
+              }
+          }
+        }
+        { Tape tp = base; L.record (tp, hbOp, hsRef, 3000.0);
+          std::printf ("   recorded over with 3 kHz at 0 VU: 1 kHz residual %+.1f dB\n", dB (residual (tp) / orig)); }
+        { Tape tp = base; L.record (tp, hbOp, hsRef * 0.1, 3000.0);
+          std::printf ("   recorded over with 3 kHz at -20 dB: 1 kHz residual %+.1f dB\n", dB (residual (tp) / orig)); }
+        { Tape tp = base; L.record (tp, hbOp * 0.5, hsRef, 3000.0);
+          std::printf ("   recorded over with 3 kHz at 0 VU, HALF bias: 1 kHz residual %+.1f dB\n", dB (residual (tp) / orig)); }
+        std::printf ("   erase head (60 um gap) at he = ");
+        for (double he : { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 4.0, 40.0 })
+        {
+            Tape tp = base; L.erasePass (tp, he);
+            std::printf ("%.0f: %+.1f dB  ", he, dB (residual (tp) / orig));
+        }
+        std::printf ("\n");
+    }
+
+}
+
 int main (int argc, char** argv)
 {
     std::string out = argc > 1 && argv[1][0] != '-' ? argv[1] : ".";
     bool fast = false;
-    int layersOpt = 0; bool playbackOpt = false, tablesOnly = false; std::string stockOpt = "456"; std::string tablesPath, pbPath; double nuOpt = 0.0, speedOpt = 0.0, hbOpt = 0.0, hsOpt = 0.0;
+    int layersOpt = 0; bool playbackOpt = false, tablesOnly = false, erasureOnly = false; std::string stockOpt = "456"; std::string tablesPath, pbPath; double nuOpt = 0.0, speedOpt = 0.0, hbOpt = 0.0, hsOpt = 0.0;
     for (int i = 1; i < argc; ++i)
     {
         if (! std::strcmp (argv[i], "--fast")) fast = true;
@@ -828,6 +974,7 @@ int main (int argc, char** argv)
         if (! std::strncmp (argv[i], "--tables=", 9)) tablesPath = argv[i] + 9;
         if (! std::strcmp (argv[i], "--playback")) playbackOpt = true;
         if (! std::strcmp (argv[i], "--tablesonly")) tablesOnly = true;
+        if (! std::strcmp (argv[i], "--erasure")) erasureOnly = true;
         if (! std::strncmp (argv[i], "--stock=", 8)) stockOpt = argv[i] + 8;
         if (! std::strncmp (argv[i], "--pbtables=", 11)) { pbPath = argv[i] + 11; playbackOpt = true; }
         if (! std::strncmp (argv[i], "--nu=", 5)) nuOpt = std::atof (argv[i] + 5);
@@ -949,6 +1096,15 @@ int main (int argc, char** argv)
             std::printf ("s=%.2f: %.4f/%.4f  ", sv, sx.M (L.md), 2.0 * L.md.PhiU (sv) - 1.0);
         }
         std::printf ("\n");
+    }
+
+    // --erasure: section 5 alone, at --speed with --hbop and --hs0vu (the machine's alignment)
+    if (erasureOnly && hbOpt > 0.0 && hsOpt > 0.0)
+    {
+        std::printf ("\n   erasure at %.2f cm/s, operating bias %.4f Hc, 0 VU field %.5f Hc\n", L.v, hbOpt, hsOpt);
+        erasureReport (L, hbOpt, hsOpt);
+        std::printf ("\ndone\n");
+        return 0;
     }
 
     // --tablesonly: the alignment (38.1 cm/s, as the full run finds it) and the
@@ -1149,30 +1305,7 @@ int main (int argc, char** argv)
     }
     if (f) std::fclose (f);
 
-    //-------------------------------------------------------------- 5. erasure
-    std::printf ("\n5. ERASURE of a 0 VU 1 kHz recording (residual in dB re the original)\n");
-    {
-        int c0, n; L.window (1000.0, c0, n);
-        auto residual = [&] (Tape& tp) { Readout R (L.md, tp, L.stock); return std::abs (R.amp (1000.0, L.v, c0, n, -1)) / std::sqrt (2.0); };
-        Tape base = L.fresh(); L.record (base, hbOp, hsRef, 1000.0);
-        const double orig = residual (base);
-        std::printf ("   original: %.1f nWb/m rms\n", orig);
-        { Tape tp = base; Pass P; P.head = L.rec; P.hb = hbOp; P.fb = L.fb; P.v = L.v; runPass (tp, P);
-          std::printf ("   bias-only pass over it (record head, no signal): %+.1f dB\n", dB (residual (tp) / orig)); }
-        { Tape tp = base; L.record (tp, hbOp, hsRef, 3000.0);
-          std::printf ("   recorded over with 3 kHz at 0 VU: 1 kHz residual %+.1f dB\n", dB (residual (tp) / orig)); }
-        { Tape tp = base; L.record (tp, hbOp, hsRef * 0.1, 3000.0);
-          std::printf ("   recorded over with 3 kHz at -20 dB: 1 kHz residual %+.1f dB\n", dB (residual (tp) / orig)); }
-        { Tape tp = base; L.record (tp, hbOp * 0.5, hsRef, 3000.0);
-          std::printf ("   recorded over with 3 kHz at 0 VU, HALF bias: 1 kHz residual %+.1f dB\n", dB (residual (tp) / orig)); }
-        std::printf ("   erase head (60 um gap) at he = ");
-        for (double he : { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 4.0, 40.0 })
-        {
-            Tape tp = base; L.erasePass (tp, he);
-            std::printf ("%.0f: %+.1f dB  ", he, dB (residual (tp) / orig));
-        }
-        std::printf ("\n");
-    }
+    erasureReport (L, hbOp, hsRef);
 
     //-------------------------------------------------------------- 6. one number per cell?
     std::printf ("\n6. DOES THE OVERWRITE DEPEND ON HISTORY BEYOND THE FLUX?\n");

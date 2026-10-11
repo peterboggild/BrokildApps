@@ -142,5 +142,149 @@
   {
     "name": "back to serviced",
     "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'condition',v:15}); 'sent'"
+  },
+  {
+    "name": "a REEL: the LOOP panel dimmed, with the reason",
+    "eval": "document.getElementById('loopGrp').classList.contains('idle') + ' / ' + document.getElementById('loopWhy').textContent"
+  },
+  {
+    "name": "LOOP",
+    "eval": "__MT.set('mode',1); 'sent'"
+  },
+  {
+    "name": "the loop is spliced in",
+    "wait": 1500
+  },
+  {
+    "name": "LOOP panel lit; DUB at ERASE 100 is the plain echo",
+    "eval": "document.getElementById('loopGrp').classList.contains('idle') + ' / ' + document.getElementById('loopRead').textContent + ' / ' + document.getElementById('loopWhy').textContent"
+  },
+  {
+    "name": "REC",
+    "eval": "__MT.set('looper',0); 'sent'"
+  },
+  {
+    "name": "relay",
+    "wait": 600
+  },
+  {
+    "name": "REC readout (recording, erase full); ERASE dimmed",
+    "eval": "document.getElementById('loopRead').textContent + ' / ERASE idle ' + __MT.ctls.erase.el.classList.contains('idle') + ' / ' + document.getElementById('loopWhy').textContent"
+  },
+  {
+    "name": "DUB, ERASE 45 %",
+    "eval": "__MT.set('looper',1); __MT.set('erase',45); 'sent'"
+  },
+  {
+    "name": "relay",
+    "wait": 900
+  },
+  {
+    "name": "DUB readout (recording, erase head about 1.10 Hc)",
+    "eval": "document.getElementById('loopRead').textContent + ' / ERASE idle ' + __MT.ctls.erase.el.classList.contains('idle')"
+  },
+  {
+    "name": "PLAY",
+    "eval": "__MT.set('looper',2); 'sent'"
+  },
+  {
+    "name": "relay",
+    "wait": 600
+  },
+  {
+    "name": "PLAY readout (record off, erase off); FEEDBACK dimmed",
+    "eval": "document.getElementById('loopRead').textContent + ' / FEEDBACK idle ' + __MT.ctls.feedback.el.closest('.grp').classList.contains('idle') + ' / ' + document.getElementById('loopWhy').textContent"
+  },
+  {
+    "name": "SYNC 1/4 and four bars: LOOP LENGTH waits",
+    "eval": "__MT.set('looper',1); __MT.set('sync',7); __MT.set('bars',4); 'sent'"
+  },
+  {
+    "name": "the bars splice in",
+    "wait": 2000
+  },
+  {
+    "name": "bars readout",
+    "eval": "document.getElementById('loopRead').textContent + ' / LOOP LENGTH idle ' + __MT.ctls.looplen.el.classList.contains('idle') + ' / ' + document.getElementById('loopWhy').textContent"
+  },
+  {
+    "name": "every group fits its box (LOOP panel)",
+    "eval": "[...document.querySelectorAll('.grp')].map(g => g.querySelector('h3').textContent + (g.scrollHeight > g.clientHeight + 1 || g.scrollWidth > g.clientWidth + 1 ? ' OVERFLOWS ' + g.scrollWidth + 'x' + g.scrollHeight + ' in ' + g.clientWidth + 'x' + g.clientHeight : ' ok')).join(' | ')"
+  },
+  {
+    "name": "screenshot LOOP",
+    "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-live-loop.png"
+  },
+  {
+    "name": "back to REEL, free",
+    "eval": "__MT.set('bars',0); __MT.set('sync',0); __MT.set('erase',100); __MT.set('mode',0); 'sent'"
+  },
+  {
+    "name": "REPRO on (as a click would: page state and native)",
+    "eval": "__MT.P.repro.v=1; window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'repro',v:1}); 'sent'"
+  },
+  {
+    "name": "carriage settles, host told",
+    "wait": 1200
+  },
+  {
+    "name": "REPRO button shows the delay (head 1 at 4 cm, 19 cm/s: 210 ms)",
+    "eval": "document.querySelector('[data-id=repro] .btn').textContent"
+  },
+  {
+    "name": "REPRO label on one line",
+    "eval": "const b=document.querySelector('[data-id=repro] .btn'); b.getBoundingClientRect().height < 30 ? 'one line ' + Math.round(b.getBoundingClientRect().height) + ' px' : 'WRAPS ' + Math.round(b.getBoundingClientRect().height) + ' px'"
+  },
+  {
+    "name": "heads 2 and 3 and FEEDBACK dimmed",
+    "eval": "[...document.querySelectorAll('[data-head=\"2\"], [data-head=\"3\"]')].map(e=>e.classList.contains('inert')).join(',') + ' / ' + (document.querySelector('[data-id=feedback]').closest('.grp').classList.contains('inert'))"
+  },
+  {
+    "name": "every group fits its box (REPRO)",
+    "eval": "[...document.querySelectorAll('.grp')].map(g => g.querySelector('h3').textContent + (g.scrollHeight > g.clientHeight + 1 || g.scrollWidth > g.clientWidth + 1 ? ' OVERFLOWS ' + g.scrollWidth + 'x' + g.scrollHeight + ' in ' + g.clientWidth + 'x' + g.clientHeight : ' ok')).join(' | ')"
+  },
+  {
+    "name": "screenshot REPRO",
+    "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-live-repro.png"
+  },
+  {
+    "name": "REPRO off",
+    "eval": "__MT.P.repro.v=0; window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'repro',v:0}); 'sent'"
+  },
+  {
+    "name": "OK: no red dots, the slider reads OK",
+    "eval": "['condition','capstan','reels','scrape','wear','bias'].map(k => k + (__MT.ctls[k].el.querySelector('.knob').classList.contains('broken') ? ':dot ' : ':- ')).join('') + ' / ' + document.querySelector('[data-id=broken] .val').textContent"
+  },
+  {
+    "name": "BROKEN 75 %",
+    "eval": "__MT.set('broken',75); 'sent'"
+  },
+  {
+    "name": "the faults start",
+    "wait": 2500
+  },
+  {
+    "name": "red dots on the six knobs it moves; the slider names the faults",
+    "eval": "['condition','capstan','reels','scrape','wear','bias'].map(k => k + (__MT.ctls[k].el.querySelector('.knob').classList.contains('broken') ? ':dot ' : ':- ')).join('') + ' / ' + document.querySelector('[data-id=broken] .val').textContent + ' / CONDITION ' + __MT.ctls.condition.el.querySelector('.val').title + ' / BIAS ' + __MT.ctls.bias.el.querySelector('.val').title"
+  },
+  {
+    "name": "every group fits its box (BROKEN)",
+    "eval": "[...document.querySelectorAll('.grp')].map(g => g.querySelector('h3').textContent + (g.scrollHeight > g.clientHeight + 1 || g.scrollWidth > g.clientWidth + 1 ? ' OVERFLOWS ' + g.scrollWidth + 'x' + g.scrollHeight + ' in ' + g.clientWidth + 'x' + g.clientHeight : ' ok')).join(' | ')"
+  },
+  {
+    "name": "screenshot BROKEN",
+    "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-live-broken.png"
+  },
+  {
+    "name": "back to OK",
+    "eval": "__MT.set('broken',0); 'sent'"
+  },
+  {
+    "name": "settle",
+    "wait": 400
+  },
+  {
+    "name": "OK again: the dots gone",
+    "eval": "['condition','capstan','reels','scrape','wear','bias'].map(k => k + (__MT.ctls[k].el.querySelector('.knob').classList.contains('broken') ? ':dot ' : ':- ')).join('')"
   }
 ]

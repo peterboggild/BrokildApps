@@ -244,6 +244,10 @@ void MagnetoTransportAudioProcessor::timerCallback()
 {
     engine.service();          // tape allocation for splices; must run with the editor closed
 
+    // REPRO: the host is told head 1's delay (from the message thread, as JUCE wants)
+    if (const int lat = engine.latencySamples(); lat != getLatencySamples())
+        setLatencySamples (lat);
+
     if (! emitToUi) return;
     if (! uiHasState)
     {
@@ -298,6 +302,21 @@ void MagnetoTransportAudioProcessor::timerCallback()
         o->setProperty ("wf", t.wowFlutter.load());
         o->setProperty ("wear", t.wear.load());
         o->setProperty ("stock", t.stock.load());
+        o->setProperty ("looper", t.looper.load());
+        o->setProperty ("recording", t.recording.load());
+        o->setProperty ("eraseHc", t.eraseHc.load());
+        o->setProperty ("barsFit", t.barsFit.load());
+        o->setProperty ("barsNow", t.barsNow.load());
+        {
+            juce::Array<juce::var> be;
+            for (int i = 0; i < 6; ++i) be.add (t.brokenEff[i].load());
+            o->setProperty ("brokenEff", be);
+        }
+        o->setProperty ("clogUm", t.clogUm.load());
+        o->setProperty ("huntPct", t.huntPct.load());
+        o->setProperty ("crease", t.crease.load());
+        o->setProperty ("repro", t.repro.load());
+        o->setProperty ("reproMs", t.reproMs.load());
         juce::Array<juce::var> hp, hv, hk;
         for (int i = 0; i < mt::NUM_HEADS; ++i)
         {

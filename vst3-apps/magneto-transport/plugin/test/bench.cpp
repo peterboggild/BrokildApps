@@ -409,6 +409,31 @@ static void testFeedback()
 {
     std::printf ("\n5. FEEDBACK: STOP THE INPUT AND WATCH; SELF-OSCILLATION HELD BY THE TAPE\n");
     const double fs = 48000.0;
+    {
+        // the knob's runaway point sits near 70 % at 19 cm/s whether one, two or three
+        // heads are on (BUGLIST 3: two heads used to run away at 25 %, three at 17 %)
+        auto tail = [&] (int heads, float fb, double& r1, double& r2) {
+            Params p = wetOnly(); p.speed = 19.05f; p.feedback = fb;
+            p.h1Pos = 4.0f; p.h2Pos = 8.0f; p.h3Pos = 12.0f; p.h1On = 1; p.h2On = heads >= 2; p.h3On = heads >= 3;
+            const size_t n = (size_t) (14.0 * fs);
+            auto x = noiseBurst (n, (size_t) (0.1 * fs), (size_t) (0.4 * fs), 11, 0.03f);
+            auto r = run (p, fs, x, x);
+            r1 = rmsOf (r.L, (size_t) (6 * fs), (size_t) (8 * fs));
+            r2 = rmsOf (r.L, (size_t) (12 * fs), (size_t) (14 * fs));
+        };
+        bool below = true, above = true;
+        std::string d;
+        for (int h = 1; h <= 3; ++h)
+        {
+            double a1, a2, b1, b2;
+            tail (h, 0.60f, a1, a2);
+            tail (h, 0.82f, b1, b2);
+            below = below && a2 < 0.5 * a1;
+            above = above && b2 > 0.7 * b1 && b2 > 1.0e-4;
+            d += fmt ("%.0f", (double) h) + std::string (h > 1 ? " heads: 60 % " : " head: 60 % ") + (a2 < 0.5 * a1 ? "decays" : "SUSTAINS") + ", 82 % " + (b2 > 0.7 * b1 && b2 > 1.0e-4 ? "runs away" : "DECAYS") + (h < 3 ? "; " : "");
+        }
+        check (below && above, "FEEDBACK runs away between 60 and 82 % with one, two or three heads", d);
+    }
     auto peakOf = [] (const std::vector<float>& x, size_t a, size_t b) { double m = 0.0; for (size_t i = a; i < b; ++i) m = std::max (m, (double) std::abs (x[i])); return m; };
     {
         // below unity loop gain the echoes must DECAY once the input stops
@@ -602,7 +627,15 @@ static void testEveryControl()
         if (id == "motor") base.condition = 100.0f;
         // the tape's own controls act on a real medium; ACCUMULATE on a short fast loop, sped up
         const bool medium = id == "stock" || id == "particles" || id == "wear" || id == "accumulate";
-        if (id == "accumulate") { base.mode = 1; base.loopLen = 0.5f; base.speed = 76.0f; }
+        if (id == "accumulate") { base.mode = 1; base.loopLen = 0.5f; base.speed = 76.0f; base.feedback = 0.62f; }
+        // FLUX MEMORY on a short fast loop at half bias, where earlier passes survive (DUB)
+        if (id == "erase") { base.mode = 1; base.loopLen = 0.5f; base.speed = 76.0f; base.bias = -6.0f; }
+        // the loop's state the same way with the erase head off: DUB keeps the passes, REC wipes them
+        if (id == "looper") { base.mode = 1; base.loopLen = 0.5f; base.speed = 76.0f; base.bias = -6.0f; base.erase = 0.0f; }
+        if (id == "clear") { base.mode = 1; base.looper = 0; }
+        // the bars: a dubbing loop whose one-bar loop (0.64 m at 1/16 from 4 cm) brings
+        // the burst back inside the render, against a free 2 m loop that does not
+        if (id == "bars") { base.mode = 1; base.looper = 1; base.erase = 0.0f; base.bias = -6.0f; base.sync = 1; bpm = 120.0; }
         // ON switches are tested by turning them off
         Params alt = base;
         float& m = alt.*(sp.member);
@@ -610,6 +643,7 @@ static void testEveryControl()
         else if (sp.kind == Kind::Choice) m = (m > 0.5f) ? 0.0f : 1.0f;
         else m = (std::abs (m - sp.hi) > std::abs (m - sp.lo)) ? sp.hi : sp.lo;
         if (id == "looplen") m = 0.5f;
+        if (id == "bars") m = 1.0f;
         if (id == "sync") m = 4;
         if (id == "speed") m = 40.0f;
         if (medium) g_idealMedium = false;
@@ -1673,6 +1707,497 @@ static void testStock()
     }
 }
 
+//------------------------------------------------------------------------------ stage 7
+static void testFluxMemory()
+{
+    std::printf ("\n20. FLUX MEMORY AND THE LOOP PANEL (a variable erase head, REC / DUB / PLAY, the loop's transport)\n");
+    const double fs = 48000.0;
+
+    // ---- erasure against the reference: a 0 VU 1 kHz recording on a loop at the machine's own
+    //      alignment (19.05 cm/s, operating bias), then one pass of something, the residual
+    //      read as depth-averaged flux (no playback head) as the reference reads it. Reference:
+    //      mtref --erasure --speed=19.05 --hbop=3.2630 --hs0vu=0.23301 --nu=2.0589 (2026-10-11)
+    {
+        EqOff eqOff;
+        struct RecordOnly { RecordOnly() { g_recordOnly = true; } ~RecordOnly() { g_recordOnly = false; } } recordOnly;
+        const double v = 19.05, L = 0.5, P = L * 100.0 / v, h = 4.0, dl = h / v;
+        const double biasRef = 0.0;
+        const double amp0 = REF_AMP;
+        const double tSw = 3.0;                    // the switch, after a pass and a bit of the tone
+        // what: 0 bias-only pass (erase off, record on, silence); 1 recorded over with 3 kHz at 0 VU;
+        // 2 the same at half bias; 3 the erase head alone at he (record off)
+        auto residual = [&] (int what, double he) {
+            Params p = wetOnly(); p.mode = 1; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h); p.bias = (float) biasRef;
+            const size_t n = (size_t) ((tSw + dl + P + 0.2) * fs);
+            std::vector<float> x (n, 0.0f);
+            for (size_t i = 0; i < n; ++i)
+            {
+                const double t = i / fs;
+                if (t < tSw) x[i] = (float) (amp0 * std::sin (2.0 * M_PI * 1000.0 * t));
+                else if (what == 1 || what == 2) x[i] = (float) (amp0 * std::sin (2.0 * M_PI * 3000.0 * t));
+            }
+            Engine e;
+            auto r = run (p, fs, x, x, [&] (Params& q, Engine& en, size_t i) {
+                if ((double) i / fs < tSw) return;
+                if (what == 3) en.forceHeads (he, 0.0);
+                else { q.erase = 0.0f; if (what == 2) q.bias = (float) (biasRef - 6.0206); } }, 0.0, &e);
+            const size_t a0 = (size_t) ((dl + 0.4) * fs), b0 = (size_t) ((tSw - 0.05) * fs);
+            const size_t a1 = (size_t) ((tSw + dl + 0.1) * fs), b1 = (size_t) ((tSw + dl + P - 0.1) * fs);
+            return 20.0 * std::log10 (goertzelAmp (r.L, a1, b1, 1000.0, fs) / goertzelAmp (r.L, a0, b0, 1000.0, fs));
+        };
+        const double bo = residual (0, 0.0), ov = residual (1, 0.0), hb = residual (2, 0.0);
+        std::printf ("   one pass over a 0 VU 1 kHz recording, residual dB (reference):  bias only %+.1f (-34.5)  over 3 kHz 0 VU %+.1f (-44.6)  half bias %+.1f (-4.1)\n", bo, ov, hb);
+        check (std::abs (bo + 34.5) < 1.5, "bias erasure: one pass of the record head's bias takes what the reference takes", fmt ("%+.1f dB (reference -34.5)", bo));
+        check (std::abs (ov + 44.6) < 2.0 && std::abs (hb + 4.1) < 1.5, "recording over it, at full and at half bias, as the reference", fmt ("%+.1f / %+.1f dB (reference -44.6 / -4.1)", ov, hb));
+        struct Er { double he, ref; };
+        const Er er[] = { { 0.75, -0.1 }, { 1.0, -3.0 }, { 1.25, -18.3 }, { 1.5, -51.5 } };
+        double worst = 0.0;
+        std::printf ("   the erase head alone at he (Hc), residual dB (reference):");
+        for (const Er& x : er)
+        {
+            const double d = residual (3, x.he);
+            std::printf ("  %.2f: %+.1f (%+.1f)", x.he, d, x.ref);
+            worst = std::max (worst, std::abs (d - x.ref));
+        }
+        const double full = residual (3, 2.0);
+        std::printf ("  2.00: %+.1f (-148)\n", full);
+        check (worst < 2.0, "FLUX MEMORY: the erase head's partial erasure follows the reference (he 0.75-1.5)", fmt ("worst %.1f dB off", worst));
+        check (full < -80.0, "and past the transition it wipes the tape", fmt ("%+.1f dB at he = 2", full));
+    }
+
+    // ---- REC, then DUB with the erase head off: the old layer fades by the bias erasure per pass
+    {
+        const double v = 19.05, L = 0.5, P = L * 100.0 / v, h = 4.0, dl = h / v, tSw = 3.0;
+        Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h);
+        const size_t n = (size_t) ((tSw + dl + 2.0 * P + 0.2) * fs);
+        auto x = sine (n, 1000.0, fs, REF_AMP, 0, (size_t) (tSw * fs));
+        auto r = run (p, fs, x, x, [&] (Params& q, Engine&, size_t i) { if ((double) i / fs >= tSw) { q.looper = 1; q.erase = 0.0f; } });
+        auto lv = [&] (double a, double b) { return goertzelAmp (r.L, (size_t) (a * fs), (size_t) (b * fs), 1000.0, fs); };
+        const double l0 = lv (dl + 0.4, tSw - 0.05), l1 = lv (tSw + dl + 0.1, tSw + dl + P - 0.1);
+        const double d1 = 20.0 * std::log10 (l1 / l0);
+        check (d1 < -35.0 && d1 > -50.0, "DUB, ERASE 0: the old layer fades by the bias erasure on every pass (playback head, EQ in)",
+               fmt ("%+.1f dB after one pass", d1));
+    }
+
+    // ---- ERASE's taper: the field the knob asks for, in DUB; REC full, PLAY off
+    {
+        auto fieldAt = [&] (float knob, float state) {
+            Params p = wetOnly(); p.mode = 1; p.loopLen = 0.5f; p.looper = state; p.erase = knob; soloHead (p, 4.0);
+            Engine e; std::vector<float> z ((size_t) (0.6 * fs), 0.0f);
+            run (p, fs, z, z, nullptr, 0.0, &e);
+            return e.tele.eraseHc.load();
+        };
+        double worst = 0.0;
+        std::string d;
+        for (float k : { 0.0f, 10.0f, 45.0f, 90.0f, 100.0f })
+        {
+            const double got = fieldAt (k, 1.0f), want = Engine::eraseFieldHc (k);
+            worst = std::max (worst, std::abs (got - want));
+            d += fmt ("%.0f %%: %.3f Hc  ", (double) k, got);
+        }
+        const bool table = Engine::eraseFieldHc (0.0) == 0.0 && std::abs (Engine::eraseFieldHc (45.0) - 1.0958) < 2.0e-3
+                        && std::abs (Engine::eraseFieldHc (90.0) - 1.5724) < 2.0e-3 && Engine::eraseFieldHc (100.0) == HE_FULL;
+        bool mono = true;
+        for (int k = 1; k <= 100; ++k) mono = mono && Engine::eraseFieldHc (k) > Engine::eraseFieldHc (k - 1);
+        check (table && mono && worst < 2.0e-3, "ERASE's taper: 0 off, 45 % the field that loses 6 dB a pass, 90 % 60 dB, 100 % a clean wipe", d);
+        const double rec = fieldAt (20.0f, 0.0f), play = fieldAt (20.0f, 2.0f);
+        check (rec == HE_FULL && play == 0.0, "REC wipes with the erase head full and PLAY switches it off, whatever ERASE says",
+               fmt ("REC %.3f Hc, PLAY %.3f Hc", rec, play));
+    }
+
+    // ---- the erase head alone through the taper: each step of the knob loses more, and 0 nothing
+    {
+        const double v = 19.05, L = 0.5, P = L * 100.0 / v, h = 4.0, dl = h / v, tSw = 3.0;
+        auto loss = [&] (float knob) {
+            Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, h);
+            const size_t n = (size_t) ((tSw + dl + P + 0.2) * fs);
+            auto x = sine (n, 1000.0, fs, REF_AMP, 0, (size_t) (tSw * fs));
+            auto r = run (p, fs, x, x, [&] (Params& q, Engine& en, size_t i) {
+                if ((double) i / fs >= tSw) { q.looper = 1; q.erase = knob; en.forceHeads (-1.0, 0.0); } });
+            const double l0 = goertzelAmp (r.L, (size_t) ((dl + 0.4) * fs), (size_t) ((tSw - 0.05) * fs), 1000.0, fs);
+            const double l1 = goertzelAmp (r.L, (size_t) ((tSw + dl + 0.1) * fs), (size_t) ((tSw + dl + P - 0.1) * fs), 1000.0, fs);
+            return -20.0 * std::log10 (l1 / l0);
+        };
+        const double l0 = loss (0.0f), l25 = loss (25.0f), l50 = loss (50.0f), l75 = loss (75.0f), l90 = loss (90.0f);
+        check (std::abs (l0) < 0.05 && l25 < l50 && l50 < l75 && l75 < l90 && l25 < 6.0 && l90 > 25.0,
+               "and the erase head alone, one pass: the knob spreads the loss over its travel (0 keeps it all)",
+               fmt ("0 %%: %.2f dB, 25 %%: %.1f, 50 %%: %.1f, ", l0, l25, l50) + fmt ("75 %%: %.1f, 90 %%: %.1f dB", l75, l90));
+    }
+
+    // ---- a REEL ignores the whole LOOP panel: bit for bit
+    {
+        const size_t n = (size_t) (1.5 * fs);
+        auto x = noiseBurst (n, (size_t) (0.05 * fs), (size_t) (0.4 * fs), 31, 0.3f);
+        Params a; a.mix = 0.6f; a.feedback = 0.5f; a.mode = 0; a.sync = 7;
+        Params b = a; b.erase = 0.0f; b.looper = 2.0f; b.clear = 1.0f; b.bars = 4.0f; b.loopLen = 0.5f;
+        Engine ea, eb;
+        auto ra = run (a, fs, x, x, nullptr, 120.0, &ea);
+        auto rb = run (b, fs, x, x, nullptr, 120.0, &eb);
+        bool same = true;
+        for (size_t i = 0; i < n; ++i) same = same && ra.L[i] == rb.L[i] && ra.R[i] == rb.R[i];
+        check (same && eb.tele.looper.load() == -1 && eb.tele.barsNow.load() == 0.0,
+               "on a REEL the LOOP panel does nothing (ERASE, LOOP STATE, CLEAR, LOOP BARS, LOOP LENGTH)",
+               same ? "bit-identical" : "the output CHANGED");
+    }
+
+    // ---- PLAY holds the loop: not one cell changes in ten minutes (wear off; the real medium on)
+    {
+        RealMedium realMedium;
+        const double v = 19.05, L = 0.5, tSw = 3.0, minutes = 10.0;
+        Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, 4.0);
+        const size_t n = (size_t) ((tSw + minutes * 60.0) * fs);
+        std::vector<float> x (n, 0.0f);
+        for (size_t i = 0; i < (size_t) (tSw * fs); ++i) x[i] = (float) (REF_AMP * std::sin (2.0 * M_PI * 440.0 * i / fs));
+        uint64_t sumA = 0, sumB = 0;
+        double lvlA = 0.0, lvlB = 0.0;
+        Engine e;
+        auto r = run (p, fs, x, x, [&] (Params& q, Engine& en, size_t i) {
+            const double t = (double) i / fs;
+            if (t >= tSw) q.looper = 2;
+            if (sumA == 0 && t >= tSw + 0.5) sumA = en.tapeChecksum(); }, 0.0, &e);
+        sumB = e.tapeChecksum();
+        lvlA = rmsOf (r.L, (size_t) ((tSw + 1.0) * fs), (size_t) ((tSw + 3.0) * fs));
+        lvlB = rmsOf (r.L, n - (size_t) (2.0 * fs), n);
+        check (sumA == sumB && lvlA > 0.01, "PLAY holds the loop: every cell bit-exact after ten minutes",
+               std::string (sumA == sumB ? "unchanged" : "CHANGED") + fmt (", playing at %.1f dB then %.1f dB", 20.0 * std::log10 (lvlA + 1e-30), 20.0 * std::log10 (lvlB + 1e-30)));
+    }
+
+    // ---- STOP: the motor coasts down and the loop dives in pitch with it; stopped, silence
+    {
+        const double v0 = 19.05, L = 0.5, tRec = 3.0, tStop = 3.5;
+        Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v0; soloHead (p, 4.0);
+        const size_t n = (size_t) ((tStop + 3.0) * fs);
+        auto x = sine (n, 2000.0, fs, REF_AMP, 0, (size_t) (tRec * fs));
+        auto r = run (p, fs, x, x, [&] (Params& q, Engine&, size_t i) {
+            const double t = (double) i / fs;
+            if (t >= tRec) q.looper = 2;
+            if (t >= tStop) q.run = 0.0f; });
+        // the coast-down: w' = -(w / 2 s + 6 cm/s^2), so w(t) = (w0 + 12) e^(-t/2) - 12
+        double worst = 0.0;
+        for (double tt : { 0.2, 0.5, 0.9, 1.3 })
+        {
+            const double t0 = tStop + tt;
+            const double f = freqOf (r.L, (size_t) ((t0 - 0.015) * fs), (size_t) ((t0 + 0.015) * fs), fs);
+            const double w = (v0 + 12.0) * std::exp (-tt / 2.0) - 12.0;
+            worst = std::max (worst, std::abs (f / (2000.0 * w / v0) - 1.0));
+        }
+        const double stopped = rmsOf (r.L, (size_t) ((tStop + 2.5) * fs), n);
+        check (worst < 0.02, "MOTOR RUN off: the loop's pitch follows the capstan coasting down", fmt ("worst %.1f %% off the coast-down law", 100.0 * worst));
+        check (stopped < REF_AMP * 1.0e-3, "and a stopped tape gives no output (the replay integrator stops near DC)", fmt ("%.1f dB re the tone", 20.0 * std::log10 (stopped / (REF_AMP / std::sqrt (2.0)) + 1e-30)));
+    }
+
+    // ---- CLEAR: one pass of the erase head, and the loop is blank
+    {
+        RealMedium realMedium;
+        const double v = 38.1, L = 0.5, P = L * 100.0 / v, tRec = 2.0, tClr = 2.5, dl = 4.0 / v;
+        Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v; soloHead (p, 4.0);
+        const size_t n = (size_t) ((tClr + P + dl + 1.0) * fs);
+        auto x = sine (n, 1000.0, fs, REF_AMP);
+        auto r = run (p, fs, x, x, [&] (Params& q, Engine&, size_t i) {
+            const double t = (double) i / fs;
+            if (t >= tRec) q.looper = 2;
+            q.clear = (t >= tClr && t < tClr + 0.05) ? 1.0f : 0.0f; });
+        const double before = rmsOf (r.L, (size_t) ((tRec + 0.1) * fs), (size_t) ((tClr - 0.05) * fs));
+        const double after = rmsOf (r.L, (size_t) ((tClr + P + dl + 0.3) * fs), n);
+        check (before > 0.01 && after < 1.0e-6, "CLEAR: one pass of the erase head leaves a blank loop",
+               fmt ("%.1f dB before, %.1f dB after", 20.0 * std::log10 (before), 20.0 * std::log10 (after + 1e-30)));
+    }
+
+    // ---- the bars: with SYNC, the loop is cut to N bars at the tempo head's note
+    {
+        Params p = wetOnly(); p.mode = 1; p.sync = 7; p.syncHead = 0; p.h1Pos = 12.0f; p.bars = 4;   // 1/4 from 12 cm
+        p.h2On = p.h3On = 0; p.h2Pos = 22.8f; p.h3Pos = 24.0f;
+        Engine e;
+        const size_t n = (size_t) (1.5 * fs);
+        std::vector<float> z (n, 0.0f);
+        run (p, fs, z, z, nullptr, 120.0, &e);
+        const double Lm = e.loopLengthM(), vv = e.speedCms();
+        const double period = Lm * 100.0 / vv;
+        check (std::abs (period - 8.0) < 1.0e-3 && e.tele.barsFit.load() && std::abs (e.tele.barsNow.load() - 4.0) < 1.0e-9,
+               "LOOP BARS: four bars of 4/4 at 120 BPM is an 8 s loop", fmt ("%.3f m at %.2f cm/s: %.4f s", Lm, vv, period));
+        // drag the tempo head on to 16 cm: the loop is not re-cut (that would be a new tape),
+        // the motor speeds up to keep the head on the beat, and the loop is now three bars
+        Engine e2;
+        std::vector<float> z2 ((size_t) (4.0 * fs), 0.0f);
+        run (p, fs, z2, z2, [&] (Params& q, Engine&, size_t i) { if (i >= (size_t) (0.5 * fs)) q.h1Pos = 16.0f; }, 120.0, &e2);
+        const double period2 = e2.loopLengthM() * 100.0 / e2.speedCms();
+        check (std::abs (e2.loopLengthM() - Lm) < 1.0e-9 && std::abs (e2.tele.barsNow.load() - 3.0) < 1.0e-9 && std::abs (period2 - 6.0) < 0.05,
+               "a dragged tempo head keeps the loop and says how many bars it lasts now",
+               fmt ("%.3f m, %.2f bars, %.3f s", e2.loopLengthM(), e2.tele.barsNow.load(), period2));
+    }
+
+    // ---- the loop's splice passes each head once a loop: a lift and a sliver without oxide
+    {
+        RealMedium realMedium;
+        const double v = 19.05, L = 0.5, P = L * 100.0 / v;
+        Params p = wetOnly(); p.mode = 1; p.loopLen = (float) L; p.speed = (float) v; p.particles = 1000.0f; soloHead (p, 4.0);
+        const size_t n = (size_t) ((3.0 * P + 1.0) * fs);
+        auto x = sine (n, 10000.0, fs, REF_AMP * 0.3);
+        auto r = run (p, fs, x, x);
+        const size_t hop = (size_t) (0.0005 * fs);
+        std::vector<double> env, tim;
+        for (size_t a = (size_t) (0.6 * fs); a + 2 * hop <= n; a += hop) { env.push_back (rmsOf (r.L, a, a + 2 * hop)); tim.push_back ((a + hop) / fs); }
+        std::vector<double> so = env; std::sort (so.begin(), so.end());
+        const double med = so[so.size() / 2];
+        std::vector<double> dips; bool in = false; double tmin = 0, vmin = 1e9;
+        for (size_t i = 0; i < env.size(); ++i)
+        {
+            const bool d = env[i] < med * 0.708;    // -3 dB
+            if (d) { if (! in || env[i] < vmin) { vmin = env[i]; tmin = tim[i]; } }
+            if (! d && in) dips.push_back (tmin);
+            if (d && ! in) vmin = env[i], tmin = tim[i];
+            in = d;
+        }
+        double worst = 0.0;
+        for (size_t i = 1; i < dips.size(); ++i) worst = std::max (worst, std::abs ((dips[i] - dips[i - 1]) - P));
+        check (dips.size() >= 2 && worst < 0.003, "the loop's splice: a dropout at each head once a loop period",
+               fmt ("%.0f dips, spacing off the loop period by %.1f ms at most", (double) dips.size(), 1e3 * worst));
+    }
+}
+
+//------------------------------------------------------------------------------ REPRO
+//------------------------------------------------------------------------------ BUGLIST 5
+static void testBroken()
+{
+    std::printf ("\n22. OK -> BROKEN (the machine's causes moved towards a wreck, and three faults past the middle)\n");
+    const double fs = 48000.0;
+    auto dbOf = [] (double a) { return 20.0 * std::log10 (std::max (a, 1.0e-30)); };
+
+    // ---- below the middle it is nothing but the knobs, moved: bit for bit what the same
+    //      knobs turned by hand give (a reel, the real medium so WEAR acts)
+    {
+        RealMedium realMedium;
+        const size_t n = (size_t) (3.0 * fs);
+        auto x = noiseBurst (n, (size_t) (0.05 * fs), (size_t) (0.6 * fs), 41, 0.3f);
+        Params a; a.mix = 0.6f; a.feedback = 0.4f; a.broken = 40.0f;
+        Params h = a; h.broken = 0.0f;
+        const float b = 0.4f;
+        h.condition += (100.0f - h.condition) * b; h.capstan += (200.0f - h.capstan) * b;
+        h.reels += (200.0f - h.reels) * b; h.scrape += (200.0f - h.scrape) * b;
+        h.wear += (100.0f - h.wear) * b; h.bias = std::max (-10.0f, h.bias - 6.0f * b);
+        Engine ea, eh;
+        auto ra = run (a, fs, x, x, nullptr, 0.0, &ea);
+        auto rh = run (h, fs, x, x, nullptr, 0.0, &eh);
+        bool same = true;
+        for (size_t i = 0; i < n; ++i) same = same && ra.L[i] == rh.L[i] && ra.R[i] == rh.R[i];
+        check (same && std::abs (ea.tele.brokenEff[0].load() - h.condition) < 1e-6 && std::abs (ea.tele.brokenEff[5].load() - h.bias) < 1e-6,
+               "BROKEN 40 %: exactly the knobs moved by hand (and the panel told where)",
+               std::string (same ? "bit-identical" : "DIFFERENT") + fmt (", CONDITION acts at %.1f %%, BIAS at %+.1f dB", ea.tele.brokenEff[0].load(), ea.tele.brokenEff[5].load()));
+    }
+
+    // ---- the faults wait for the middle
+    {
+        RealMedium realMedium;
+        auto faults = [&] (float br, double secs, double& clogMax, double& hunt, double& crease) {
+            Params p = wetOnly(); p.mode = 1; p.loopLen = 0.5f; p.broken = br; soloHead (p, 4.0);
+            Engine e; std::vector<float> z ((size_t) (secs * fs), 0.0f);
+            clogMax = 0.0; crease = 0.0;
+            run (p, fs, z, z, [&] (Params&, Engine& en, size_t) {
+                clogMax = std::max (clogMax, en.tele.clogUm.load()); crease = std::max (crease, en.tele.crease.load()); }, 0.0, &e);
+            hunt = e.tele.huntPct.load();
+        };
+        double c50, h50, k50, c75, h75, k75;
+        faults (50.0f, 6.0, c50, h50, k50);
+        faults (75.0f, 12.0, c75, h75, k75);
+        check (c50 == 0.0 && h50 == 0.0 && k50 == 0.0 && c75 > 0.0 && h75 > 0.0 && k75 > 0.0,
+               "the three faults appear only past the middle", fmt ("at 50 %%: clog %.2f um, hunting %.2f %%; ", c50, h50) + fmt ("at 75 %%: clog %.2f um, hunting %.2f %%, crinkle %.2f", c75, h75, k75));
+    }
+
+    // ---- motor hunting: slow swings of pitch, near 0.75 Hz, +-1.5 % at the wreck
+    {
+        const double v = 19.05;
+        auto swing = [&] (int mask, double& pp, double& period) {
+            Params p = wetOnly(); p.speed = (float) v; p.broken = 100.0f; soloHead (p, 4.0);
+            const size_t n = (size_t) (12.0 * fs);
+            auto x = sine (n, 1000.0, fs, REF_AMP);
+            Engine e; e.setFaultMask (mask);
+            auto r = run (p, fs, x, x, nullptr, 0.0, &e);
+            std::vector<double> f;
+            for (double t = 3.0; t + 0.04 < 12.0; t += 0.02) f.push_back (freqOf (r.L, (size_t) (t * fs), (size_t) ((t + 0.04) * fs), fs));
+            double mn = 1e9, mx = 0.0, mean = 0.0;
+            for (double y : f) { mn = std::min (mn, y); mx = std::max (mx, y); mean += y; }
+            mean /= (double) f.size();
+            pp = (mx - mn) / mean;
+            // the period, from upward crossings of a smoothed deviation
+            std::vector<double> s (f.size(), 0.0);
+            for (size_t i = 0; i < f.size(); ++i) { double a = 0; int c = 0; for (int k = -5; k <= 5; ++k) { const long j = (long) i + k; if (j >= 0 && j < (long) f.size()) { a += f[(size_t) j]; ++c; } } s[i] = a / c - mean; }
+            std::vector<double> up;
+            for (size_t i = 1; i < s.size(); ++i) if (s[i - 1] < 0.0 && s[i] >= 0.0) up.push_back (3.0 + 0.02 * (double) i);
+            period = up.size() >= 2 ? (up.back() - up.front()) / (double) (up.size() - 1) : 0.0;
+        };
+        double pp2, per2, pp0, per0;
+        swing (2, pp2, per2);
+        swing (0, pp0, per0);
+        // the wreck's own flutter (CONDITION 100, the causes at 200 %) adds its peaks to the swing
+        check (pp2 > 0.025 && pp2 < 0.06 && pp2 > 2.0 * pp0 && per2 > 1.1 && per2 < 1.6 && pp0 < 0.02,
+               "motor hunting: the pitch swings slowly, about 1.3 s a cycle", fmt ("%.1f %% peak to peak, %.2f s a cycle (without it %.1f %%)", 100.0 * pp2, per2, 100.0 * pp0));
+    }
+
+    // ---- head clog: the treble drops away for seconds and comes back; the bass barely moves
+    {
+        auto span = [&] (double f, int mask, double& lo, double& hi, bool& back) {
+            Params p = wetOnly(); p.speed = 19.05f; p.broken = 100.0f; soloHead (p, 4.0);
+            const size_t n = (size_t) (30.0 * fs);
+            auto x = sine (n, f, fs, REF_AMP);
+            Engine e; e.setFaultMask (mask);
+            auto r = run (p, fs, x, x, nullptr, 0.0, &e);
+            std::vector<double> lv;
+            for (double t = 2.0; t + 0.25 <= 30.0; t += 0.25) lv.push_back (dbOf (rmsOf (r.L, (size_t) (t * fs), (size_t) ((t + 0.25) * fs))));
+            lo = 1e9; hi = -1e9; size_t imin = 0;
+            for (size_t i = 0; i < lv.size(); ++i) { if (lv[i] < lo) { lo = lv[i]; imin = i; } hi = std::max (hi, lv[i]); }
+            back = false;
+            for (size_t i = imin; i < lv.size(); ++i) back = back || lv[i] > hi - 1.0;
+        };
+        double t0, t1, b0, b1, n0, n1; bool tb, bb, nb;
+        span (10000.0, 1, t0, t1, tb);
+        span (500.0, 1, b0, b1, bb);
+        span (10000.0, 0, n0, n1, nb);
+        check (t1 - t0 > 6.0 && tb && b1 - b0 < 2.0 && n1 - n0 < 2.0,
+               "head clog: 10 kHz drops away and comes back, 500 Hz barely moves", fmt ("10 kHz swings %.1f dB (%.1f without the clog), 500 Hz %.1f dB", t1 - t0, n1 - n0, b1 - b0));
+    }
+
+    // ---- a crinkled stretch: dips once a loop, at the same place
+    {
+        RealMedium realMedium;
+        const double v = 19.05, L = 0.5, P = L * 100.0 / v;
+        auto render = [&] (int mask) {
+            Params p = wetOnly(); p.mode = 1; p.looper = 0; p.loopLen = (float) L; p.speed = (float) v; p.broken = 100.0f; soloHead (p, 4.0);
+            const size_t n = (size_t) (12.0 * fs);
+            auto x = sine (n, 5000.0, fs, REF_AMP);
+            Engine e; e.setFaultMask (mask);
+            return run (p, fs, x, x, nullptr, 0.0, &e);
+        };
+        auto rc = render (4), r0 = render (0);
+        const double w = 0.01;
+        std::vector<double> dips;
+        bool in = false; double tStart = 0.0; int dipping = 0, total = 0;
+        for (double t = 1.5; t + w <= 12.0; t += w)
+        {
+            const size_t a = (size_t) (t * fs), b = (size_t) ((t + w) * fs);
+            const double d = dbOf (rmsOf (rc.L, a, b)) - dbOf (rmsOf (r0.L, a, b));
+            const bool dip = d < -3.0;
+            ++total; if (dip) ++dipping;
+            if (dip && ! in) tStart = t;
+            if (! dip && in && t - tStart > 0.02) dips.push_back (tStart);
+            in = dip;
+        }
+        // merge dips closer than a quarter of a loop (one stretch, several folds)
+        std::vector<double> stretch;
+        for (double t : dips) if (stretch.empty() || t - stretch.back() > 0.25 * P) stretch.push_back (t);
+        double worst = 0.0;
+        for (size_t i = 1; i < stretch.size(); ++i) worst = std::max (worst, std::abs (stretch[i] - stretch[i - 1] - P));
+        check (stretch.size() >= 3 && worst < 0.15 && dipping < total / 8,
+               "a crinkled stretch on the loop: dips once a loop period, at the same place", fmt ("%.0f stretches, spacing off the %.3f s loop by %.3f s at most", (double) stretch.size(), P, worst) + fmt (", dipping %.0f %% of the time", 100.0 * dipping / total));
+    }
+
+    // ---- the erase head weakens on a loop, not on a reel; and no hidden gain
+    {
+        auto he = [&] (int mode) {
+            Params p = wetOnly(); p.mode = (float) mode; p.looper = 0; p.loopLen = 0.5f; p.broken = 100.0f; soloHead (p, 4.0);
+            Engine e; std::vector<float> z ((size_t) (0.6 * fs), 0.0f);
+            run (p, fs, z, z, nullptr, 0.0, &e);
+            return e.tele.eraseHc.load();
+        };
+        const double hl = he (1), hr = he (0);
+        check (std::abs (hl - HE_FULL * 0.55) < 1.0e-3 && hr == HE_FULL, "the erase head weakens on a loop (a reel brings blank tape)",
+               fmt ("loop REC %.3f Hc, reel %.3f Hc", hl, hr));
+        RealMedium realMedium;
+        auto level = [&] (float br) {
+            Params p = wetOnly(); p.speed = 19.05f; p.broken = br; p.condition = 15.0f; soloHead (p, 4.0);
+            const size_t n = (size_t) (8.0 * fs);
+            auto x = sine (n, 1000.0, fs, REF_AMP);
+            auto r = run (p, fs, x, x);
+            return dbOf (rmsOf (r.L, (size_t) (1.0 * fs), n));
+        };
+        const double l0 = level (0.0f), l1 = level (100.0f);
+        check (l1 < l0 + 0.5, "no hidden gain: a broken machine is not louder", fmt ("OK %.1f dB, BROKEN %.1f dB (1 kHz, rms)", l0, l1));
+    }
+}
+
+static void testRepro()
+{
+    std::printf ("\n21. REPRO (a tape machine on an insert: head 1 replays, its delay reported to the host)\n");
+    // heads 2 and 3 parked out of the way, or (blocked) right behind head 1, so the
+    // carriages' 1.2 cm spacing pushes head 1 back from where its knob is
+    auto place = [] (Params& p, double h, bool blocked = false) {
+        p.h1On = 1; p.h2On = p.h3On = 0; p.h1Pos = (float) h;
+        if (blocked) { p.h2Pos = (float) std::min (24.0, h + 0.6); p.h3Pos = (float) std::min (24.0, h + 1.2); }
+        else { p.h2Pos = 22.8f; p.h3Pos = 24.0f; } };
+    // the reported latency is head 1's delay, and the tape's pulse arrives exactly then
+    {
+        EqOff eqOff;
+        double worst = 0.0, worstRep = 0.0;
+        for (double fs : { 44100.0, 48000.0, 96000.0 })
+            for (double v : { 4.75, 19.05, 76.0 })
+                for (int lay = 0; lay < 3; ++lay)
+                {
+                    const double h = lay == 0 ? 1.5 : 20.0;
+                    const bool blocked = lay == 2;
+                    Params p = wetOnly(); p.speed = (float) v; place (p, h, blocked); p.repro = 1.0f;
+                    const double t0 = 0.10, sig = 0.002, expect = h / v;
+                    const size_t total = (size_t) ((t0 + expect + 0.12) * fs);
+                    std::vector<float> x (total, 0.0f);
+                    double cin = 0.0, ein = 0.0;
+                    for (size_t i = 0; i < total; ++i)
+                    {
+                        const double t = (double) i / fs - t0;
+                        x[i] = (float) (0.03 * std::exp (-0.5 * t * t / (sig * sig)));
+                        cin += (double) x[i] * x[i] * i; ein += (double) x[i] * x[i];
+                    }
+                    Engine e;
+                    auto r = run (p, fs, x, x, nullptr, 0.0, &e);
+                    const int L = e.latencySamples();
+                    if (! blocked) worstRep = std::max (worstRep, std::abs (L - expect * fs));
+                    const double tl = (double) L / fs;
+                    const size_t a = (size_t) ((t0 + tl - 0.08) * fs), b = std::min (r.L.size(), (size_t) ((t0 + tl + 0.08) * fs));
+                    double cout = 0.0, eout = 0.0;
+                    for (size_t i = a; i < b; ++i) { const double q = (double) r.L[i] * r.L[i]; cout += q * i; eout += q; }
+                    // the window must hold the pulse: a window holding nothing reads back its own centre
+                    double eall = 0.0;
+                    for (float q : r.L) eall += (double) q * q;
+                    const double off = (eout > 0.9 * eall) ? std::abs ((cout / eout - cin / ein) - L) : 1.0e9;
+                    worst = std::max (worst, off);
+                    if (verbose) std::printf ("     %6.0f Hz %5.2f cm/s %4.1f cm%s: latency %d (knob %.2f), pulse %.2f\n", fs, v, h, blocked ? " blocked" : "", L, expect * fs, cout / eout - cin / ein);
+                }
+        check (worstRep <= 0.5, "REPRO reports head 1's delay, distance / speed, to the nearest sample", fmt ("worst %.2f samples off", worstRep));
+        check (worst < 0.6, "and the tape arrives exactly that late, even where the other heads push head 1 back", fmt ("worst %.2f samples (3 rates, 3 speeds, near, far, blocked)", worst));
+    }
+    // the dry path is delayed by exactly the same, so MIX blends two signals that line up
+    {
+        const double fs = 48000.0;
+        Params p = wetOnly(); p.speed = 19.05f; place (p, 4.0); p.repro = 1.0f; p.mix = 0.0f;
+        std::vector<float> x ((size_t) (1.0 * fs), 0.0f);
+        x[(size_t) (0.1 * fs)] = 0.5f;
+        Engine e;
+        auto r = run (p, fs, x, x, nullptr, 0.0, &e);
+        size_t at = 0; float pk = 0.0f;
+        for (size_t i = 0; i < r.L.size(); ++i) if (std::abs (r.L[i]) > pk) { pk = std::abs (r.L[i]); at = i; }
+        const long lag = (long) at - (long) (0.1 * fs);
+        check (lag == e.latencySamples() && std::abs (pk - 0.5f) < 1.0e-6f, "REPRO delays the dry path by exactly the reported latency",
+               fmt ("dry click %.0f samples late, latency %.0f", (double) lag, (double) e.latencySamples()));
+    }
+    // heads 2 and 3 and the feedback do nothing in REPRO
+    {
+        const double fs = 48000.0;
+        Params a = wetOnly(); a.speed = 19.05f; a.h1Pos = 4.0f; a.h2Pos = 8.0f; a.h3Pos = 12.0f; a.repro = 1.0f;
+        Params b = a; b.h2On = 1; b.h3On = 1; b.feedback = 0.8f;
+        auto x = sine ((size_t) (2.0 * fs), 1000.0, fs, REF_AMP);
+        auto ra = run (a, fs, x, x), rb = run (b, fs, x, x);
+        check (ra.L == rb.L && ra.R == rb.R, "in REPRO heads 2 and 3 and FEEDBACK are off: bit-identical with them turned up", ra.L == rb.L ? "identical" : "DIFFERENT");
+    }
+    // off, nothing moved: no latency, and the dry path is the input itself
+    {
+        const double fs = 48000.0;
+        Params p = wetOnly(); p.mix = 0.0f;
+        auto x = sine ((size_t) (0.5 * fs), 440.0, fs, REF_AMP);
+        Engine e;
+        auto r = run (p, fs, x, x, nullptr, 0.0, &e);
+        bool same = true;
+        for (size_t i = 0; i < x.size(); ++i) if (r.L[i] != x[i]) { same = false; break; }
+        check (e.latencySamples() == 0 && same, "REPRO off: no latency, and MIX 0 passes the input bit for bit", same ? "exact" : "CHANGED");
+    }
+}
+
 static void testCost()
 {
     std::printf ("\n12. COST (48 kHz stereo, 76 cm/s, three heads, feedback, the default tape and its medium)\n");
@@ -1734,6 +2259,9 @@ int main (int argc, char** argv)
     if (want ("head")) testHeadAndElectronics();
     if (want ("transport")) testTransport();
     if (want ("stock")) testStock();
+    if (want ("flux")) testFluxMemory();
+    if (want ("repro")) testRepro();
+    if (want ("broken")) testBroken();
     if (want ("cost")) testCost();
     std::printf ("\n%d checks, %d failed - %s\n", g_pass + g_fail, g_fail, g_fail ? "FAILURES" : "ALL CLEAR");
     return g_fail ? 1 : 0;

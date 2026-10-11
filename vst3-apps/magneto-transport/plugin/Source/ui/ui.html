@@ -55,10 +55,20 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
 .seg{display:flex;border:1px solid var(--edge)}
 .seg b{white-space:nowrap;font-weight:600;font-size:10px;letter-spacing:1.5px;padding:5px 7px;color:var(--brassDim);cursor:pointer;background:#141715}
 .seg b.on{color:var(--ink);background:var(--brass)}
+.inert{opacity:0.32;pointer-events:none}
+/* does nothing as things stand, but can still be set up: dimmed, not locked */
+.idle{opacity:0.38}
+[data-id=repro] .btn{white-space:nowrap;letter-spacing:1px}
 .btn{font-size:10px;letter-spacing:2px;padding:6px 10px;border:1px solid var(--edge);background:#141715;color:var(--brassDim);cursor:pointer;display:flex;align-items:center;gap:6px}
 .btn.on{color:var(--amber);border-color:#6a5530}
 .btn .lamp{width:9px;height:9px}
 .delay{font-family:Consolas,monospace;font-size:11px;color:var(--amber)}
+/* a horizontal slider (OK / BROKEN) */
+.hsl{position:relative;width:136px;height:10px;margin:8px 0 6px;background:#0b0c0b;border:1px solid var(--edge);cursor:ew-resize;touch-action:none}
+.hsl i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#6a8f55,#c9b27a 50%,#d2412c);width:0}
+.hsl b{position:absolute;top:-5px;width:10px;height:18px;margin-left:-5px;background:var(--brass);border:1px solid #6a5530;border-radius:2px}
+.knob .eff{display:none}
+.knob.broken .eff{display:inline}
 /* three heads side by side in one group: compact columns */
 .col{width:172px}
 .col .ctl{width:56px}
@@ -78,7 +88,7 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
 <div id="deck">
   <div id="head">
     <div id="wordmark">Magneto Transport</div>
-    <div id="model">MODEL MT-1<br>STAGE 6 &middot; PLACEHOLDER PANEL</div>
+    <div id="model">MODEL MT-1<br>STAGE 7 &middot; PLACEHOLDER PANEL</div>
     <div id="readout">--.- cm/s</div>
     <div class="lampbox"><span class="lamp" id="lSync"></span>SYNC</div>
     <div class="lampbox"><span class="lamp red" id="lClamp"></span>OUT OF REACH</div>
@@ -100,25 +110,27 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
       <div class="ctl" data-id="eq" data-type="seg" style="width:84px"></div>
       <div class="ctl" data-id="inmode" data-type="seg" style="width:170px"></div>
     </div>
-    <div class="grp" style="width:452px"><h3>TRANSPORT</h3>
+    <div class="grp" style="width:320px"><h3>TRANSPORT</h3>
       <div class="ctl" data-id="speed"></div>
       <div class="ctl" data-id="sync"></div>
-      <div class="ctl" data-id="looplen"></div>
+      <div class="ctl" data-id="run" data-type="btn" style="width:120px;margin-top:22px"></div>
       <div class="ctl" data-id="mode" data-type="seg" style="width:120px"></div>
-      <div class="ctl" data-id="motor" data-type="seg" style="width:150px"></div>
       <div class="ctl" data-id="synchead" data-type="seg" style="width:150px"></div>
     </div>
-    <div class="grp tight" style="width:260px"><h3>MECHANICS</h3>
+    <div class="grp tight" style="width:330px"><h3>MECHANICS</h3>
       <div class="ctl" data-id="condition"></div>
       <div class="ctl" data-id="capstan"></div>
       <div class="ctl" data-id="reels"></div>
       <div class="ctl" data-id="scrape"></div>
-      <div id="wfRead" title="Weighted wow and flutter (DIN 45507 / IEC 60386, 2 sigma), measured from the tape's speed under the first active head" style="font-family:Consolas,monospace;font-size:13px;color:var(--amber);width:116px;text-align:center;margin-top:4px">W&amp;F<br>--</div>
+      <div id="wfRead" title="Weighted wow and flutter (DIN 45507 / IEC 60386, 2 sigma), measured from the tape's speed under the first active head" style="font-family:Consolas,monospace;font-size:13px;color:var(--amber);width:66px;text-align:center;margin-top:4px">W&amp;F<br>--</div>
+      <div class="ctl" data-id="motor" data-type="seg" style="width:150px"></div>
+      <div class="ctl" data-id="broken" data-type="hslider" style="width:150px"></div>
     </div>
-    <div class="grp" style="width:190px"><h3>OUTPUT</h3>
+    <div class="grp" style="width:250px"><h3>OUTPUT</h3>
       <div class="ctl" data-id="mix"></div>
       <div class="ctl" data-id="output"></div>
-      <div class="ctl" data-id="killdry" data-type="btn" style="width:160px"></div>
+      <div class="ctl" data-id="killdry" data-type="btn" style="width:108px"></div>
+      <div class="ctl" data-id="repro" data-type="btn" style="width:112px"></div>
     </div>
     <div class="grp" style="width:334px"><h3>TAPE</h3>
       <div class="ctl" data-id="particles"></div>
@@ -135,6 +147,15 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
       <div class="ctl" data-id="feedback"></div>
       <div class="ctl" data-id="bass"></div>
       <div class="ctl" data-id="treble"></div>
+    </div>
+    <div class="grp" id="loopGrp" style="width:620px"><h3>LOOP &middot; FLUX MEMORY</h3>
+      <div class="ctl" data-id="looplen"></div>
+      <div class="ctl" data-id="bars"></div>
+      <div class="ctl" data-id="erase"></div>
+      <div class="ctl" data-id="looper" data-type="seg" style="width:170px"></div>
+      <div class="ctl" data-id="clear" data-type="btn" data-momentary="1" style="width:100px;margin-top:22px"></div>
+      <div id="loopRead" style="font-family:Consolas,monospace;font-size:12px;color:var(--amber);width:590px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      <div id="loopWhy" style="font-size:11px;letter-spacing:.5px;color:var(--brassDim);width:590px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
     </div>
   </div>
   <div id="hint"><b>HINT</b><span id="hintText">Point at a control.</span></div>
@@ -176,6 +197,7 @@ function fmt(s, v){
     case "%": return Math.round(v) + " %";
     case "x": return v >= 999 ? "SILENT" : (v < 9.95 ? v.toFixed(1) : Math.round(v)) + " x";
   }
+  if (s.id === "bars") { const b = Math.round(v); return b < 1 ? "FREE" : b + (b === 1 ? " BAR" : " BARS"); }
   if (s.id.endsWith("pan")) return Math.abs(v) < 0.02 ? "C" : (v < 0 ? "L" : "R") + Math.round(Math.abs(v) * 100);
   return Math.round(v * 100) + " %";
 }
@@ -186,6 +208,7 @@ function setParam(id, v, fromUser){
   s.v = v;
   if (fromUser) NB.send({ k:"p", id, v });
   if (ctls[id]) ctls[id].render();
+  if (typeof updateIdle === "function") updateIdle();
 }
 
 // ---------------------------------------------------------------- hints
@@ -205,7 +228,8 @@ function knobSvg(){
     '<path class="trk" fill="none" stroke="#2b302a" stroke-width="5" stroke-linecap="round"/>' +
     '<path class="arc" fill="none" stroke="#c9b27a" stroke-width="5" stroke-linecap="round"/>' +
     '<circle cx="50" cy="50" r="30" fill="#262a26" stroke="#3d4339" stroke-width="2"/>' +
-    '<line class="ptr" x1="50" y1="50" x2="50" y2="24" stroke="#ffb340" stroke-width="4" stroke-linecap="round"/>';
+    '<line class="ptr" x1="50" y1="50" x2="50" y2="24" stroke="#ffb340" stroke-width="4" stroke-linecap="round"/>' +
+    '<circle class="eff" r="6" cx="50" cy="11" fill="#d2412c" stroke="#0f1110" stroke-width="2"/>';
   return svg;
 }
 function arcPath(a0, a1){
@@ -262,7 +286,47 @@ function makeKnob(holder, id, big){
     NB.send({ k:"touch", id, down:true }); setParam(id, s.def, true); NB.send({ k:"touch", id, down:false });
   });
   holder.addEventListener("pointerenter", () => hint(id));
-  ctls[id] = { el: holder, render };
+  // BROKEN: where this knob acts, as a red dot on its scale (null: where it points)
+  const setEff = ve => {
+    k.classList.toggle("broken", ve !== null);
+    if (ve === null) { val.title = ""; return; }
+    const te = Math.min(1, Math.max(0, toNorm(s, ve)));
+    svg.querySelector(".eff").setAttribute("transform", `rotate(${(A0 + te * (A1 - A0)) * 180 / Math.PI} 50 50)`);
+    val.title = "BROKEN makes it act at " + fmt(s, ve);
+  };
+  ctls[id] = { el: holder, render, setEff };
+  render();
+}
+
+function makeSlider(holder, id){
+  const s = P[id];
+  holder.innerHTML = "";
+  const lab = document.createElement("label"); lab.textContent = s.name;
+  const tr = document.createElement("div"); tr.className = "hsl";
+  tr.innerHTML = "<i></i><b></b>";
+  const val = document.createElement("div"); val.className = "val";
+  holder.append(lab, tr, val);
+  let faults = "";
+  const render = () => {
+    const t = Math.min(1, Math.max(0, toNorm(s, s.v)));
+    tr.firstChild.style.width = (t * 100) + "%";
+    tr.lastChild.style.left = (t * 100) + "%";
+    val.textContent = (t <= 0 ? "OK" : t >= 1 ? "BROKEN" : fmt(s, s.v)) + faults;
+  };
+  const at = e => { const r = tr.getBoundingClientRect(); return (e.clientX - r.left) / r.width; };
+  let drag = false;
+  tr.addEventListener("pointerdown", e => {
+    try{ tr.setPointerCapture(e.pointerId); }catch(_){}
+    drag = true; NB.send({ k:"touch", id, down:true });
+    setParam(id, fromNorm(s, at(e)), true); e.preventDefault();
+  });
+  tr.addEventListener("pointermove", e => { if (drag) setParam(id, fromNorm(s, at(e)), true); });
+  const stop = () => { if (drag){ drag = false; NB.send({ k:"touch", id, down:false }); } };
+  tr.addEventListener("pointerup", stop);
+  tr.addEventListener("pointercancel", stop);
+  tr.addEventListener("dblclick", () => { NB.send({ k:"touch", id, down:true }); setParam(id, s.def, true); NB.send({ k:"touch", id, down:false }); });
+  holder.addEventListener("pointerenter", () => hint(id));
+  ctls[id] = { el: holder, render, setFaults: txt => { if (txt !== faults) { faults = txt; render(); } } };
   render();
 }
 
@@ -289,7 +353,16 @@ function makeBtn(holder, id, text){
   const b = document.createElement("div"); b.className = "btn";
   b.innerHTML = '<span class="lamp"></span><span></span>';
   b.lastChild.textContent = text || s.name;
-  b.addEventListener("click", () => { NB.send({ k:"touch", id, down:true }); setParam(id, s.v > 0.5 ? 0 : 1, true); NB.send({ k:"touch", id, down:false }); });
+  if (holder.dataset.momentary)
+  {
+    // a momentary button (CLEAR): pressed is 1, released 0, so the engine sees one edge
+    const up = () => { if (s.v > 0.5) { setParam(id, 0, true); NB.send({ k:"touch", id, down:false }); } };
+    b.addEventListener("pointerdown", e => { e.preventDefault(); NB.send({ k:"touch", id, down:true }); setParam(id, 1, true); });
+    b.addEventListener("pointerup", up);
+    b.addEventListener("pointerleave", up);
+  }
+  else
+    b.addEventListener("click", () => { NB.send({ k:"touch", id, down:true }); setParam(id, s.v > 0.5 ? 0 : 1, true); NB.send({ k:"touch", id, down:false }); });
   holder.appendChild(b);
   holder.addEventListener("pointerenter", () => hint(id));
   const render = () => { const on = s.v > 0.5; b.classList.toggle("on", on); b.firstChild.classList.toggle("on", on); };
@@ -301,6 +374,7 @@ function buildPanel(){
   document.querySelectorAll("#panel .ctl[data-id]").forEach(h => {
     const id = h.dataset.id; if (!P[id]) return;
     if (h.dataset.type === "seg") makeSeg(h, id);
+    else if (h.dataset.type === "hslider") makeSlider(h, id);
     else if (h.dataset.type === "btn") makeBtn(h, id);
     else makeKnob(h, id, !!h.dataset.big);
   });
@@ -624,7 +698,42 @@ function updateHeader(){
   m("mIn", tele.in); m("mOut", tele.out);
   // the tape meter is linear in remanence: full width = full remanence
   if (tele.rec !== undefined) document.getElementById("mTape").style.width = Math.max(0, Math.min(100, tele.rec * 100)) + "%";
+  if (tele.repro !== undefined) {
+    // REPRO: the button carries the delay the host is told; what it switches off dims
+    const on = !!tele.repro;
+    const rb = ctls.repro && ctls.repro.el.querySelector(".btn");
+    if (rb) rb.lastChild.textContent = on ? "REPRO " + tele.reproMs.toFixed(tele.reproMs < 100 ? 1 : 0) + " ms" : "REPRO";
+    document.querySelectorAll('[data-head="2"], [data-head="3"]').forEach(el => el.classList.toggle("inert", on));
+    const fbg = ctls.feedback && ctls.feedback.el.closest(".grp");
+    if (fbg) fbg.classList.toggle("inert", on);
+  }
   if (tele.wf !== undefined) document.getElementById("wfRead").innerHTML = "W&amp;F<br>" + (tele.wf < 0 ? "settling" : tele.wf.toFixed(3) + " %");
+  if (tele.looper !== undefined) {
+    // what the loop's heads are doing, as measured
+    const st = ["REC", "DUB", "PLAY", "CLEARING"][tele.looper];
+    const he = tele.eraseHc !== undefined ? tele.eraseHc : 0;
+    const er = he >= 2.2 ? "erase head full" : he <= 0 ? "erase head off" : "erase head " + he.toFixed(2) + " Hc";
+    const loop = tele.loopLen !== undefined ? tele.loopLen.toFixed(2) + " m loop" : "";
+    const bn = tele.barsNow || 0, bk = Math.round(P.bars ? P.bars.v : 0);
+    const bars = bn > 0 ? (Math.abs(bn - Math.round(bn)) < 0.005 ? " | " + Math.round(bn) + " bars"
+                                                                 : " | " + bn.toFixed(2) + " bars (the tempo head moved: set BARS again to re-cut)") : "";
+    document.getElementById("loopRead").textContent = tele.looper < 0 ? "REEL: fresh tape, erase head full"
+      : "LOOP " + st + " | " + (tele.recording ? "recording" : "record off") + " | " + er + " | " + loop + bars
+        + (tele.barsFit === false ? " | " + bk + " bars do not fit a 0.5-6 m loop" : "");
+  }
+  updateIdle();
+  if (tele.brokenEff !== undefined && P.broken) {
+    // BROKEN: each knob it moves shows where it acts; the faults are named while they act
+    const on = P.broken.v > 0;
+    ["condition", "capstan", "reels", "scrape", "wear", "bias"].forEach((k, i) => {
+      if (ctls[k] && ctls[k].setEff) ctls[k].setEff(on ? tele.brokenEff[i] : null);
+    });
+    const fl = [];
+    if (tele.clogUm > 0.05) fl.push("CLOG");
+    if (tele.huntPct > 0) fl.push("HUNT");
+    if (tele.crease > 0.05) fl.push("CRINKLE");
+    if (ctls.broken && ctls.broken.setFaults) ctls.broken.setFaults(fl.length ? " " + fl.join(" ") : "");
+  }
   if (tele.wear !== undefined && ctls.wear) {
     const wv = ctls.wear.el ? ctls.wear.el.querySelector(".val") : document.querySelector('[data-id=wear] .val');
     if (wv) wv.title = "tape wear now: " + Math.round(tele.wear * 100) + " % (WEAR plus what the loop has accumulated)";
@@ -633,6 +742,27 @@ function updateHeader(){
     const el = document.getElementById("delay" + (i + 1));
     if (el) el.textContent = (h / tele.speed * 1000).toFixed(0) + " ms";
   });
+}
+
+// ---------------------------------------------------------------- what does nothing now
+function updateIdle(){
+  if (!P.mode || !ctls.erase) return;
+  const loop = Math.round(P.mode.v) === 1, state = Math.round(P.looper.v);
+  const syncOn = Math.round(P.sync.v) > 0, barsOn = syncOn && Math.round(P.bars.v) >= 1;
+  const why = [];
+  document.getElementById("loopGrp").classList.toggle("idle", !loop);
+  if (!loop) why.push("On a REEL the loop panel does nothing: fresh tape arrives and the erase head is always full.");
+  const id = (k, on) => ctls[k] && ctls[k].el.classList.toggle("idle", loop && on);
+  id("erase", state !== 1);
+  id("looplen", barsOn);
+  id("bars", !syncOn);
+  if (loop && state === 0) why.push("ERASE acts in DUB; REC wipes with the head full.");
+  if (loop && state === 2) why.push("ERASE acts in DUB; PLAY has record and erase off, so FEEDBACK has nothing to write.");
+  if (loop && barsOn) why.push("LOOP BARS cut the loop, so LOOP LENGTH waits.");
+  if (loop && !syncOn && Math.round(P.bars.v) >= 1) why.push("LOOP BARS need SYNC on: until then the loop runs at LOOP LENGTH.");
+  const fbg = ctls.feedback && ctls.feedback.el.closest(".grp");
+  if (fbg) fbg.classList.toggle("idle", loop && state === 2);
+  document.getElementById("loopWhy").textContent = why.join("  ");
 }
 
 // ---------------------------------------------------------------- layout
@@ -661,7 +791,7 @@ NB.on("hostParam", onHost);
 NB.on("tele", onTele);
 
 // Debug hook for probes: the state lives in this script, unreachable otherwise.
-window.__MT = { P, get tele(){ return tele; }, init: onInit, host: onHost, setTele: onTele, ctls };
+window.__MT = { P, get tele(){ return tele; }, init: onInit, host: onHost, setTele: onTele, ctls, set: (id, v) => setParam(id, v, true) };
 
 requestAnimationFrame(drawMachine);
 NB.send({ k:"hello" });

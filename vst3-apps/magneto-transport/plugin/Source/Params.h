@@ -25,6 +25,7 @@ struct Params
     float reels     = 100.0f; //                         reels and tension (wow)
     float scrape    = 100.0f; //                         head friction (scrape flutter)
     float motor     = 0.0f;   // 0 AC synchronous, 1 DC servo
+    float broken    = 0.0f;   // OK -> BROKEN, %: the machine's causes moved towards a wreck
 
     float h1Pos = 4.0f,  h2Pos = 8.0f,  h3Pos = 12.0f;   // cm downstream of the record head
     float h1On  = 1.0f,  h2On  = 0.0f,  h3On  = 0.0f;
@@ -40,6 +41,7 @@ struct Params
     float bias      = 0.0f;   // dB re the operating bias (the 456 alignment)
     float mix       = 0.35f;  // 0 dry .. 1 wet, equal power
     float killDry   = 0.0f;
+    float repro     = 0.0f;   // a tape machine: head 1 replays, its delay is reported to the host
     float output    = 0.0f;   // dB
     float inMode    = 0.0f;   // 0 STEREO, 1 MONO (sum the input)
     float eqStd     = 0.0f;   // 0 IEC, 1 NAB: the record and replay equalisation standard
@@ -48,6 +50,12 @@ struct Params
     float particles = 1.0f;   // particle count relative to the stock's own; 1000 = a continuum, silent
     float wear      = 0.0f;   // %
     float accumulate = 0.0f;  // a loop wears on every pass
+
+    float erase     = 100.0f; // FLUX MEMORY: the erase head's field in DUB, % (100 full, 0 off)
+    float looper    = 1.0f;   // LOOP STATE: 0 REC, 1 DUB, 2 PLAY
+    float run       = 1.0f;   // the capstan motor: 1 running, 0 off (it coasts down)
+    float clear     = 0.0f;   // LOOP: a rising edge is one full pass of the erase head
+    float bars      = 0.0f;   // LOOP with SYNC: the loop cut to N bars (0: LOOP LENGTH)
 };
 
 enum class Kind { Lin, Log, Choice, Toggle };
@@ -73,9 +81,9 @@ constexpr double SYNC_BEATS[NUM_SYNC] =
 inline const Spec SPECS[] =
 {
     { "mode",     "TRANSPORT",  Kind::Choice, 0, 1, 0,   "", "REEL|LOOP", &Params::mode,
-      "REEL plays an open reel: fresh tape arrives, recordings leave on the take-up reel. LOOP runs a closed loop of tape round and round." },
+      "REEL plays an open reel: fresh tape arrives, recordings leave on the take-up reel, and the LOOP panel does nothing. LOOP runs a closed loop of tape round and round, and the LOOP panel decides what the heads do to it." },
     { "looplen",  "LOOP LENGTH", Kind::Lin,   0.5f, 6.0f, 2.0f, "m", nullptr, &Params::loopLen,
-      "Physical length of the tape loop. Cut to 5 cm steps; a change splices in a new loop." },
+      "LOOP: the physical length of the tape loop, cut to 5 cm steps; a change splices in a new loop. With SYNC on and LOOP BARS set, the bars cut the loop instead." },
     { "speed",    "TAPE SPEED", Kind::Log,    4.75f, 76.0f, 19.0f, "cm/s", nullptr, &Params::speed,
       "Capstan speed. Delay = head distance / speed. Changes glide with the motor's inertia, so echoes on the tape bend in pitch." },
     { "sync",     "SYNC",       Kind::Choice, 0, NUM_SYNC - 1, 0, "", MT_SYNC_NAMES, &Params::sync,
@@ -92,6 +100,8 @@ inline const Spec SPECS[] =
       "Friction at the heads: the tape sticks and slips and rings at a few kHz. Heard as fuzz around a tone, not as wow." },
     { "motor", "MOTOR", Kind::Choice, 0, 1, 0, "", "AC SYNC|DC SERVO", &Params::motor,
       "AC SYNC: a synchronous capstan motor, hunting gently when the speed changes. DC SERVO: a tachometer-controlled motor, quicker and firmer, with its own slot ripple." },
+    { "broken", "OK / BROKEN", Kind::Lin, 0.0f, 100.0f, 0.0f, "%", nullptr, &Params::broken,
+      "A neglected machine, in one control. It moves the real causes from where the knobs are towards a wreck - CONDITION, CAPSTAN, REELS, SCRAPE and WEAR up, the bias oscillator sagging, the erase head weakening on a loop - and the knobs show where it has taken them. Past the middle three faults appear: oxide clogging a head (the treble drops away for seconds, then the clog breaks loose), the motor's speed control hunting (slow pitch swings), and a crinkled stretch of tape (a burst of dropouts and flutter, once a loop). OK is the knobs exactly." },
 
     { "h1pos", "HEAD 1 POSITION", Kind::Lin, 1.5f, 24.0f, 4.0f,  "cm", nullptr, &Params::h1Pos, "Distance from the record head along the rail." },
     { "h2pos", "HEAD 2 POSITION", Kind::Lin, 1.5f, 24.0f, 8.0f,  "cm", nullptr, &Params::h2Pos, "Distance from the record head along the rail." },
@@ -117,6 +127,8 @@ inline const Spec SPECS[] =
       "Bias current, relative to the alignment point (10 kHz 3 dB past its peak). Less bias: brighter, louder, dirtier. More: cleaner and darker." },
     { "mix",      "MIX",      Kind::Lin, 0.0f, 1.0f, 0.35f, "", nullptr, &Params::mix,     "Dry to wet, equal power." },
     { "killdry",  "KILL DRY", Kind::Toggle, 0, 1, 0, "", nullptr, &Params::killDry,         "Removes the dry signal entirely, for use on a send." },
+    { "repro",    "REPRO",    Kind::Toggle, 0, 1, 0, "", nullptr, &Params::repro,
+      "A tape machine on an insert: head 1 is the replay head, heads 2 and 3 and FEEDBACK are off, and head 1's delay is reported to the host so the track stays in time. MIX blends the tape with the dry signal, delayed to match. Moving head 1 or changing the speed changes the delay the host has to make up; some hosts click when it does." },
     { "output",   "OUTPUT",   Kind::Lin, -24.0f, 12.0f, 0.0f, "dB", nullptr, &Params::output, "Output level." },
     { "eq",       "EQUALISATION", Kind::Choice, 0, 1, 0, "", "IEC|NAB", &Params::eqStd,
       "The record and replay equalisation standard. IEC (the default) lifts the treble on replay; NAB also boosts the bass on record, so lows saturate a little sooner." },
@@ -129,6 +141,16 @@ inline const Spec SPECS[] =
       "Particle count against the stock's own. Hiss is the statistics of the particles: ten times as many, 10 dB less hiss. At the top the coating is a continuum and the tape is silent." },
     { "wear", "WEAR", Kind::Lin, 0.0f, 100.0f, 0.0f, "%", nullptr, &Params::wear,
       "How worn the tape is: oxide lost, a rougher surface, more dropouts, debris lifting it off the heads." },
+    { "erase", "ERASE", Kind::Lin, 0.0f, 100.0f, 100.0f, "%", nullptr, &Params::erase,
+      "FLUX MEMORY, in DUB: the erase head's field. 100 % wipes the loop before the record head writes it again - a clean echo. Turned down, earlier passes survive as magnetisation and come round every loop period: the knob walks from a pass losing 60 dB (90 %) to one losing under a decibel, and 0 switches the head off. The record head's bias still takes some off on every pass: the less BIAS, the longer they live." },
+    { "looper", "LOOP STATE", Kind::Choice, 0, 2, 1, "", "REC|DUB|PLAY", &Params::looper,
+      "LOOP: what the heads do to the loop. REC wipes it with the erase head at full and records a fresh take every pass. DUB records on top, with the erase head at the ERASE knob (at 100 % that is the plain echo). PLAY turns record and bias off: the loop plays what is on it, unchanged, and FEEDBACK has nothing to write. Tape has no undo." },
+    { "run", "MOTOR RUN", Kind::Toggle, 0, 1, 1, "", nullptr, &Params::run,
+      "Starts and stops the capstan motor. Stopped, it coasts down and everything on the tape dives in pitch; started, it pulls back up to speed." },
+    { "clear", "CLEAR", Kind::Toggle, 0, 1, 0, "", nullptr, &Params::clear,
+      "LOOP: one full pass of the erase head over the loop, record off. Then the loop is blank." },
+    { "bars", "LOOP BARS", Kind::Lin, 0.0f, 16.0f, 0.0f, "", nullptr, &Params::bars,
+      "LOOP with SYNC on: the loop is cut to this many 4/4 bars at the tempo head's note value (a new loop, so a new tape), and then it is N bars at any tempo. Dragging the tempo head afterwards changes the speed, so the loop stops being N bars until BARS is set again. FREE uses LOOP LENGTH." },
     { "accumulate", "ACCUMULATE", Kind::Toggle, 0, 1, 0, "", nullptr, &Params::accumulate,
       "A loop wears a little on every pass over the heads, and keeps its wear with the project. Off, the tape stays as WEAR sets it." },
 };

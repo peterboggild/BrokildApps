@@ -13,7 +13,7 @@
 namespace mt
 {
 
-constexpr int STK_NV = 5, STK_NL = 4, STK_NA = 28, STK_NS = 41, STK_NM = 11;
+constexpr int STK_NV = 5, STK_NL = 4, STK_NA = 64, STK_NS = 41, STK_NM = 11;
 constexpr int NUM_COATINGS = 3;   // 0 studio (456 class), 1 vintage low-output, 2 budget
 constexpr int NUM_STOCKS   = 4;   // STUDIO, VINTAGE, SHEDDING, BUDGET (the parameter's order)
 
@@ -32,7 +32,7 @@ struct CoatingTables
     const double* layerFmax;                 // [NL]
     const double* aGrid;                     // [NA]
     const double* sGrid;                     // [NS]
-    const double* mRem;                      // [NM]
+    const double (*mRem)[STK_NM];            // [NL][NM]: each slab's old-state grid
     const double (*zoneX)[STK_NL][STK_NA];   // [NV][NL][NA]
     const double (*zoneW)[STK_NL][STK_NA];
     const double (*zoneGain)[STK_NL][STK_NA];

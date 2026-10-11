@@ -19,6 +19,9 @@ struct TransportInput
     double capstan = 1.0, reels = 1.0, scrape = 1.0;   // the causes' balance, 0..2
     bool   reelMode = true;        // reels present (REEL) or a closed loop
     double supplyR = 0.1, takeupR = 0.1;               // reel radii, m
+    bool   running = true;         // the motor powered (off: it coasts down on its own friction)
+    double hunt = 0.0;             // BROKEN: the speed control hunting, 0..1
+    double crease = 0.0;           // BROKEN: a crinkled stretch at the heads now, 0..1
 };
 
 class Transport
@@ -50,6 +53,7 @@ private:
     double fs = 96000.0, dt = 1.0 / 96000.0;
     double w = 19.0, delta = 0.0, fieldV = 19.0;
     double angCap = 0.0, angRoll = 0.0, angSup = 0.0, angTak = 0.0, angMains = 0.0;
+    double angHunt = 0.0, angHuntW = 0.0;
     uint64_t rng = 0x9E3779B97F4A7C15ull;
     bool spare = false; double spareV = 0.0;
     Biquad2 bearing, tension, scr[4];

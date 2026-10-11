@@ -89,6 +89,7 @@ void Transport::reset (double vCms)
 {
     w = fieldV = vCms; delta = 0.0;
     angCap = angRoll = angSup = angTak = angMains = 0.0;
+    angHunt = angHuntW = 0.0;
     bearing.z1 = bearing.z2 = tension.z1 = tension.z2 = 0.0;
     for (auto& s : scr) s.z1 = s.z2 = 0.0;
     for (double& x : xs) x = 0.0;
@@ -99,8 +100,17 @@ double Transport::tick (const TransportInput& in)
     // ---- the motor. Both are J w' = -K delta - D (w - target), delta' = w - target:
     //      an AC synchronous motor's synchronising torque on angle and damper torque
     //      on slip, or a DC servo's PI loop on its tachometer.
-    double fh, zeta;
-    if (in.motor == 0)
+    double fh = 1.0, zeta = 1.0;
+    if (! in.running)
+    {
+        // power off: the capstan and its flywheel coast down on bearing drag (viscous,
+        // 2 s) and the pinch roller's friction (6 cm/s^2) - a stop from 19 cm/s takes
+        // about 1.9 s, from 76 about 4
+        w -= dt * (w / 2.0 + 6.0);
+        if (w < 0.0) w = 0.0;
+        fieldV = w; delta = 0.0;
+    }
+    else if (in.motor == 0)
     {
         // a frequency converter feeds the field; it slews (a synchronous motor driven
         // harder would fall out of step)
@@ -114,9 +124,12 @@ double Transport::tick (const TransportInput& in)
         fieldV += std::clamp (in.vTargetCms - fieldV, -step, step);
         fh = 4.0; zeta = 1.1;
     }
-    const double wh = 2.0 * PI * fh;
-    w += dt * (-wh * wh * delta - 2.0 * zeta * wh * (w - fieldV));
-    delta += dt * (w - fieldV);
+    if (in.running)
+    {
+        const double wh = 2.0 * PI * fh;
+        w += dt * (-wh * wh * delta - 2.0 * zeta * wh * (w - fieldV));
+        delta += dt * (w - fieldV);
+    }
 
     // ---- angles of everything that turns
     const double vm = w * 0.01;                       // m/s
@@ -131,10 +144,23 @@ double Transport::tick (const TransportInput& in)
     if (angTak > 2.0 * PI) angTak -= 2.0 * PI;
     if (angMains > 2.0 * PI) angMains -= 2.0 * PI;
 
+    // ---- BROKEN: the speed control hunting - a limit cycle in the servo, a slow swing of
+    //      the capstan's speed near 0.75 Hz that wanders a little (up to +-1.5 %)
+    double hm = 0.0;
+    if (in.hunt > 0.0 && in.running)
+    {
+        angHuntW += 2.0 * PI * 0.07 * dt;
+        angHunt += 2.0 * PI * 0.75 * (1.0 + 0.12 * std::sin (angHuntW)) * dt;
+        if (angHuntW > 2.0 * PI) angHuntW -= 2.0 * PI;
+        if (angHunt > 2.0 * PI) angHunt -= 2.0 * PI;
+        hm = 0.015 * in.hunt * (std::sin (angHunt) + 0.25 * std::sin (2.0 * angHunt + 0.6));
+    }
+
     // ---- the causes, as speed errors at the heads (an ideal transport has none)
     const double c = std::clamp (in.cond, 0.0, 1.0);
-    if (c <= 0.0) { for (double& x : xs) x = 0.0; return w; }
-    const double kc = c * in.capstan, kr = c * in.reels, ks = c * in.scrape;
+    if (c <= 0.0) { for (double& x : xs) x = 0.0; return w * (1.0 + hm); }
+    // a crinkled stretch dragging over the heads: it sticks and slips harder
+    const double kc = c * in.capstan, kr = c * in.reels, ks = c * in.scrape * (1.0 + 6.0 * in.crease);
     const double nb = bearing.tick (uni()) * gBearing;
     const double nt = tension.tick (uni()) * gTension;
     double m = 0.0;
@@ -146,11 +172,13 @@ double Transport::tick (const TransportInput& in)
         m += kr * ((T_ECC / EA) * (std::sin (angSup) + std::sin (angTak + 0.7)) + (T_NOISE / EA) * nt);
     else
         m += kr * (T_LOOP / EA) * nt;
+    // and its folds jolt the tape's speed as they pass (about 0.6 % rms, 3-30 Hz)
+    if (in.crease > 0.0) m += in.crease * 0.006 * nb;
 
     // ---- stick-slip at each head: a local displacement around the span's resonance
     for (int i = 0; i < 4; ++i) xs[i] = ks * A_SCR * scr[i].tick (uni()) * gScrape;
 
-    return w * (1.0 + m);
+    return w * (1.0 + m + hm);
 }
 
 } // namespace mt

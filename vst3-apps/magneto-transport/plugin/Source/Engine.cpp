@@ -421,13 +421,13 @@ void Engine::buildRecord (double biasDb, double speedCms)
         pbTrim = pbKappa * pbTrimSS;
     }
 
-    double msym[STK_NM];
-    for (int i = 0; i < STK_NM; ++i) msym[i] = 0.5 * (ST->mRem[i] - ST->mRem[STK_NM - 1 - i]);
-    const double dM = (msym[STK_NM - 1] - msym[0]) / (STK_NM - 1);
-
     for (int l = 0; l < NLAYER; ++l)
     {
         LayerRecord& r = rec[l];
+        // each slab has its own old-state grid (uniform, symmetric about zero)
+        double msym[STK_NM];
+        for (int i = 0; i < STK_NM; ++i) msym[i] = 0.5 * (ST->mRem[l][i] - ST->mRem[l][STK_NM - 1 - i]);
+        const double dM = (msym[STK_NM - 1] - msym[0]) / (STK_NM - 1);
         const double A = std::clamp (hb * ST->layerFmax[l], ST->aGrid[0], ST->aGrid[STK_NA - 1]);
         int ia; double ta; aIndex (A, ia, ta);
 
@@ -583,6 +583,9 @@ void Engine::prepare (double hostSampleRate, int)
     }
 
     aGain  = 1.0 - std::exp (-dt / 0.020);
+    aRec   = 1.0 - std::exp (-dt / 0.005);           // the record relay: bias and signal in a few ms
+    lcA    = std::exp (-2.0 * M_PI * 5.0 / fsInt);  // the replay amplifier's integrator stops near DC
+    for (int i = 0; i < 4; ++i) lcX[i] = lcY[i] = 0.0;
     aHost  = 1.0 - std::exp (-1.0 / (fsHost * 0.020));
 
     // ---- the record head and its alignment, at OPERATING bias and the machine's
@@ -642,7 +645,8 @@ void Engine::prepare (double hostSampleRate, int)
     outKs[st] = outK; pbKappaS[st] = pbKappa;
     }
     selectStock ((int) std::lround (params.stock));
-    biasDbSm = params.bias;
+    computeEff();
+    biasDbSm = eff.bias;
     // (the record head for the current speed is built once the motor speed is set, below)
 
     // ---- a fresh tape for the transport as it stands
@@ -652,6 +656,7 @@ void Engine::prepare (double hostSampleRate, int)
     wantCells = 0;
 
     mode  = params.mode > 0.5f ? 1 : 0;
+    for (int i = 0; i < NUM_HEADS; ++i) { clog[i] = Clog {}; clog[i].rng = 0xC10600ull + 0x9E3779B97F4A7C15ull * (uint64_t) (i + 1); creaseNow[i] = 0.0; }
     loopM = std::clamp (std::round (params.loopLen / 0.05f) * 0.05, 0.5, 6.0);
     pendingLoopM = loopM; loopSettle = 1.0;
 
@@ -671,7 +676,7 @@ void Engine::prepare (double hostSampleRate, int)
         for (int i = 0; i < WF_HIST; ++i) wfHist[i] = v / CELLS_PER_CM;
     }
     buildRecord (biasDbSm, v / CELLS_PER_CM);
-    updateMedium (params, 0);
+    updateMedium (eff, 0);
     packSm = packTgt;
     for (int i = 0; i < NUM_HEADS; ++i)
     {
@@ -701,7 +706,20 @@ void Engine::prepare (double hostSampleRate, int)
         highS[c].shelf (true, fsInt, 3000.0, trebDb);
     }
 
+    {
+        const double maxS = HEAD_MAX_CM / 4.6 + 0.05;
+        int cap = 1;
+        while (cap < (int) std::ceil (maxS * fsHost) + 8) cap <<= 1;
+        for (auto& r : dryRing) r.assign ((size_t) cap, 0.0f);
+        dryMask = cap - 1; dryW = 0;
+        reproLat = 0;
+        dryD = dryDOld = reproTarget (params); dryXf = 0;
+        dryXfLen = std::max (1, (int) std::lround (0.020 * fsHost));
+        reproLatency.store (dryD);
+    }
     process (nullptr, nullptr, nullptr, nullptr, 0);
+    recEnv = recTgt; heSm = heTgt;                   // the heads start where the controls put them
+    buildErase (heSm, std::max (v / CELLS_PER_CM, 4.6));
     gDry = (params.killDry > 0.5f) ? 0.0 : std::cos (params.mix * M_PI * 0.5);
     gWet = std::sin (params.mix * M_PI * 0.5);
     gOut = dbToLin (params.output);
@@ -910,13 +928,17 @@ void Engine::finishCells()
                 nz0 = sig * (gc[0] * q0[2] + gc[1] * (q0[1] + q0[3]) + gc[2] * (q0[0] + q0[4]));
                 nz1 = sig * (gc[0] * q1[2] + gc[1] * (q1[1] + q1[3]) + gc[2] * (q1[0] + q1[4]));
             }
+            // record and bias off: the cell keeps what it had (the LOOP STATE PLAY);
+            // the relay's ramp blends, the bias fading in or out over a few ms of tape
+            if (recEnv <= 0.0) continue;
             for (int c = 0; c < 2; ++c)
             {
                 float& m = store->m[c][l][(size_t) idx];
                 const double mr = recordCell (r, m, s[c]);
                 // binomial statistics: a saturated cell has every particle aligned, so no noise
                 const double nz = c == 0 ? nz0 : nz1;
-                m = (float) (mr * (1.0 + eps) + nz * std::sqrt (std::max (0.0, 1.0 - mr * mr)));
+                const double mw = mr * (1.0 + eps) + nz * std::sqrt (std::max (0.0, 1.0 - mr * mr));
+                m = (float) (recEnv >= 1.0 ? mw : m + recEnv * (mw - m));
                 recPk = std::max (recPk, (float) std::abs (mr));
             }
         }
@@ -1211,6 +1233,7 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
                 loopM = spliceLoopM;
                 adoptStore (s, spliceMode, need);
                 if (spliceStock != stockIdx) applyStock (spliceStock);   // a new reel of another stock
+                clearLeft = 0.0;
                 spliceState = 3;
             }
             else
@@ -1346,6 +1369,15 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
         const ShelfCascade& R = eqRepA;
         outL = repEqS[0].tick (R, outL); outR = repEqS[1].tick (R, outR);
         fbL  = repEqS[2].tick (R, fbL);  fbR  = repEqS[3].tick (R, fbR);
+        // a head is a differentiator and the replay amplifier integrates; its integrator
+        // stops near DC, so a stopped tape (no flux change) gives no output
+        double* io[4] = { &outL, &outR, &fbL, &fbR };
+        for (int i = 0; i < 4; ++i)
+        {
+            const double x = *io[i];
+            lcY[i] = lcA * (lcY[i] + x - lcX[i]); lcX[i] = x;
+            *io[i] = lcY[i];
+        }
     }
     // ---- the playback amplifier's headroom on the echo send (the output's rail is
     //      applied after decimation, where a clipped waveform cannot overshoot it)
@@ -1358,6 +1390,9 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
 
     // ---- record: the signal as a deep-gap field onto the field ring...
     if (recFade < 1.0) recFade = std::min (1.0, recFade + dt / SPLICE_FADE_S);
+    recEnv += (recTgt - recEnv) * aRec;
+    if (recTgt <= 0.0 && recEnv < 1.0e-4) recEnv = 0.0;
+    if (recTgt >= 1.0 && recEnv > 1.0 - 1.0e-6) recEnv = 1.0;
     double rl = xL * gIn + fbL, rr = xR * gIn + fbR;
     if (eqOn)
     {
@@ -1380,8 +1415,8 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
     // ...and every layer cell whose zone has passed becomes remanence
     finishCells();
 
-    // ---- erase head (full field), and virgin tape onto a REEL
-    clearSpan (ePos, T + ERASE_CM * CELLS_PER_CM);
+    // ---- the erase head (FLUX MEMORY: its field from full to nothing), and virgin tape onto a REEL
+    eraseSpan (ePos, T + ERASE_CM * CELLS_PER_CM);
     if (mode == 0) clearSpan (vPos, T + SUPPLY_CM * CELLS_PER_CM);
 
     yL = (float) (outL * wetFade);
@@ -1389,6 +1424,27 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
 }
 
 //==============================================================================
+/*  REPRO's latency: head 1's delay at the set speed, in host samples. Bench section 1
+    holds the echo to distance / speed within 1 us. It is the carriage's ACTUAL position,
+    not the knob's: the heads keep 1.2 cm apart and push each other, so where head 1
+    ends up depends on the others. Taken up once the carriage has settled; while it
+    travels the host keeps the last value. */
+int Engine::reproTarget (const Params& p)
+{
+    if (p.repro <= 0.5f) { reproLat = 0; return 0; }
+    // separating the heads zeroes a pushed carriage's velocity, so settled also means
+    // its position has stopped changing (2e-5 cm a block: under a tenth of a sample)
+    const bool still = std::abs (hVel[0]) < 1.0e-3 && std::abs (hPos[0] - reproPos) < 2.0e-5;
+    reproPos = hPos[0];
+    if (reproLat <= 0 || still)
+    {
+        bool cl = false, sy = false;
+        const double v = targetSpeedCms (cl, sy);
+        reproLat = std::clamp ((int) std::lround (hPos[0] / v * fsHost), 1, dryMask - 8);
+    }
+    return reproLat;
+}
+
 double Engine::targetSpeedCms (bool& clamped, bool& syncOn) const
 {
     const Params& p = params;
@@ -1409,19 +1465,94 @@ double Engine::targetSpeedCms (bool& clamped, bool& syncOn) const
     return vt;
 }
 
+// ERASE's knob -> the erase head's field (deep gap, Hc). The field is the cause and the
+// knob keeps moving it; the taper follows what it does. 0 switches the head off. 0..90 %
+// walks the reference's one-pass erasure (mtref --erasure at 19.05 cm/s: the erase head
+// alone over a 0 VU 1 kHz recording) geometrically from 0.6 dB to 60 dB lost a pass, i.e.
+// from a hundred passes to one; the last 10 % take the field on to a clean wipe. The old
+// linear knob put the whole audible transition between 40 and 62 % (BUGLIST 7).
+// If the reference's erase transition moves (BUGLIST 8), re-derive the table.
+double Engine::eraseFieldHc (double knobPct)
+{
+    const double k = std::clamp (knobPct, 0.0, 100.0) * 0.01;
+    if (k <= 0.0) return 0.0;
+    static constexpr double H[5] = { 0.75, 1.0, 1.25, 1.5, 2.0 };        // field, Hc
+    static constexpr double D[5] = { 0.1, 3.0, 18.3, 51.5, 148.0 };      // lost in one pass, dB
+    auto heFor = [] (double dB) {
+        const double l = std::log (dB);
+        int i = 0;
+        while (i < 3 && l > std::log (D[i + 1])) ++i;
+        return H[i] + (H[i + 1] - H[i]) * (l - std::log (D[i])) / (std::log (D[i + 1]) - std::log (D[i]));
+    };
+    if (k <= 0.9) return heFor (0.6 * std::pow (100.0, k / 0.9));
+    const double h9 = heFor (60.0);
+    return h9 + (HE_FULL - h9) * (k - 0.9) / 0.1;
+}
+
+// OK -> BROKEN (BUGLIST 5): the machine's causes moved from the knobs towards a wreck,
+// in a straight line, so the knobs can show where they act. At OK, the knobs exactly.
+void Engine::computeEff()
+{
+    brokenB = std::clamp ((double) params.broken, 0.0, 100.0) * 0.01;
+    faultG = std::clamp (2.0 * brokenB - 1.0, 0.0, 1.0);
+    eff = params;
+    if (brokenB > 0.0)
+    {
+        const float b = (float) brokenB;
+        eff.condition += (100.0f - eff.condition) * b;
+        eff.capstan   += (200.0f - eff.capstan) * b;
+        eff.reels     += (200.0f - eff.reels) * b;
+        eff.scrape    += (200.0f - eff.scrape) * b;
+        eff.wear      += (100.0f - eff.wear) * b;
+        eff.bias       = std::max (-10.0f, eff.bias - 6.0f * b);   // the bias oscillator sags: under-bias
+    }
+    tele.brokenEff[0] = eff.condition; tele.brokenEff[1] = eff.capstan; tele.brokenEff[2] = eff.reels;
+    tele.brokenEff[3] = eff.scrape;    tele.brokenEff[4] = eff.wear;    tele.brokenEff[5] = eff.bias;
+}
+
 void Engine::process (const float* inL, const float* inR, float* outL, float* outR, int n)
 {
-    const Params& p = params;
+    computeEff();
+    const Params& p = eff;
 
     const int wantMode = p.mode > 0.5f ? 1 : 0;
-    const double q = std::clamp (std::round (p.loopLen / 0.05f) * 0.05, 0.5, 6.0);
+    // LOOP with SYNC: the loop cut to N bars at the tempo head's note value. The
+    // length is latched when the bars, the note or the tempo head change - not when
+    // a head is dragged (re-cutting is a new tape). The loop then lasts N bars at any
+    // tempo (the speed follows the tempo); a dragged tempo head moves the speed and
+    // the loop with it, which the telemetry reports as the bars it lasts now
+    bool barsOk = true;
+    {
+        const int si = std::clamp ((int) std::lround (p.sync), 0, NUM_SYNC - 1);
+        const int th = std::clamp ((int) std::lround (p.syncHead), 0, NUM_HEADS - 1);
+        const int nb = std::clamp ((int) std::lround (p.bars), 0, 16);
+        const int key = (wantMode == 1 && si > 0 && nb > 0) ? (nb * 64 + si) * 4 + th : -1;
+        const float* pos[NUM_HEADS] = { &p.h1Pos, &p.h2Pos, &p.h3Pos };
+        const double headCm = std::clamp ((double) *pos[th], HEAD_MIN_CM, HEAD_MAX_CM);
+        if (key != barsKey)
+        {
+            barsKey = key;
+            if (key >= 0)
+            {
+                const double want = nb * 4.0 / SYNC_BEATS[si] * headCm * 0.01;
+                looperLoopM = std::clamp (want, 0.5, 6.0);         // exact: N bars last N bars
+                barsHeadCm = headCm;
+                barsOk = std::abs (looperLoopM - want) < 1.0e-9;
+                tele.barsFit = barsOk;
+            }
+            else tele.barsFit = true;
+        }
+        // the loop's period over one bar at the tempo head's note: L / (4 / note * head)
+        tele.barsNow = barsKey >= 0 ? looperLoopM * 100.0 * SYNC_BEATS[si] / (4.0 * headCm) : 0.0;
+    }
+    const double q = (barsKey >= 0) ? looperLoopM : std::clamp (std::round (p.loopLen / 0.05f) * 0.05, 0.5, 6.0);
     if (std::abs (q - pendingLoopM) > 1.0e-9) { pendingLoopM = q; loopSettle = 0.0; }
     else loopSettle += n / fsHost;
     // a different stock is a different reel: threaded through the same splice
     const int wantStock = std::clamp ((int) std::lround (p.stock), 0, NUM_STOCKS - 1);
     if (spliceState == 0)
     {
-        const bool lenChange = wantMode == 1 && mode == 1 && loopSettle > 0.15
+        const bool lenChange = wantMode == 1 && mode == 1 && (loopSettle > 0.15 || barsKey >= 0)
                                && std::abs (pendingLoopM - loopM) > 1.0e-9;
         if (wantMode != mode || lenChange || wantStock != stockIdx)
         {
@@ -1441,6 +1572,70 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     trIn.reels = std::clamp ((double) p.reels, 0.0, 200.0) * 0.01;
     trIn.scrape = std::clamp ((double) p.scrape, 0.0, 200.0) * 0.01;
     trIn.reelMode = mode == 0;
+    trIn.running = p.run > 0.5f;
+    trIn.hunt = (faultMask & 2) ? faultG : 0.0;
+    {
+        double cr = 0.0;
+        for (int i = 0; i < NUM_HEADS; ++i) cr = std::max (cr, creaseNow[i]);
+        trIn.crease = cr;
+        tele.crease = cr;
+    }
+    tele.huntPct = 1.5 * trIn.hunt;
+
+    // BROKEN, head clog: oxide shed by the tape builds up on a playback head over
+    // seconds, lifting the tape off the gap (the treble goes first), until it breaks
+    // loose. Each head its own clog, at its own time.
+    {
+        const double dtB = n / fsHost;
+        double worst = 0.0;
+        for (int i = 0; i < NUM_HEADS; ++i)
+        {
+            Clog& k = clog[i];
+            if (faultG <= 0.0 || ! (faultMask & 1)) { k.phase = 0; k.t = 0.0; k.um = 0.0; continue; }
+            auto rnd = [&k] { k.rng = mix64 (k.rng); return hashUni (k.rng); };
+            k.t -= dtB;
+            if (k.phase == 0 && k.t <= 0.0)
+            {
+                k.phase = 1;
+                k.target = faultG * (1.5 + 4.5 * rnd());          // up to 6 um of spacing
+                k.rate = k.target / (2.0 + 6.0 * rnd());          // built over 2-8 s
+            }
+            else if (k.phase == 1)
+            {
+                k.um += k.rate * dtB;
+                if (k.um >= k.target) { k.um = k.target; k.phase = 2; k.t = 0.5 + 3.0 * rnd(); }
+            }
+            else if (k.phase == 2 && k.t <= 0.0) k.phase = 3;
+            else if (k.phase == 3)
+            {
+                k.um *= std::exp (-dtB / 0.08);                   // it breaks loose
+                if (k.um < 0.01) { k.um = 0.0; k.phase = 0; k.t = (1.0 + 6.0 * rnd()) * (1.5 - faultG); }
+            }
+            worst = std::max (worst, k.um);
+        }
+        tele.clogUm = worst;
+    }
+
+    // ---- FLUX MEMORY and the LOOP panel: what the record and erase heads do
+    {
+        double he = eraseFieldHc (p.erase), rt = 1.0;                       // DUB: the ERASE knob
+        const bool clr = p.clear > 0.5f;
+        if (wantMode == 1 && clr && ! clearPrev) clearLeft = (double) N;    // one pass of the loop
+        clearPrev = clr;
+        loopState = std::clamp ((int) std::lround (p.looper), 0, 2);
+        if (mode == 0) { he = HE_FULL; rt = 1.0; clearLeft = 0.0; }         // a reel: always a clean wipe
+        else if (loopState == 0) { he = HE_FULL; rt = 1.0; }                // REC: fresh tape every pass
+        else if (loopState == 2) { he = 0.0;     rt = 0.0; }                // PLAY: record and bias off
+        if (clearLeft > 0.0) { he = HE_FULL; rt = 0.0; clearLeft -= v * n * os * dt; }
+        // BROKEN: the erase head weakens (worn, mis-aligned, its oscillator low): on a loop
+        // its wipe stops being clean, down to about 1.2 Hc. A reel brings blank tape.
+        if (mode == 1 && brokenB > 0.0) he *= 1.0 - 0.45 * brokenB;
+        if (forceHe >= 0.0) he = forceHe;
+        if (forceRec >= 0.0) rt = forceRec;
+        heTgt = he; recTgt = rt;
+        tele.looper = mode == 1 ? (clearLeft > 0.0 ? 3 : loopState) : -1;
+        tele.recording = recEnv > 0.5;
+    }
     trIn.supplyR = tele.supplyR.load(); trIn.takeupR = tele.takeupR.load();
     updateMedium (p, n);
 
@@ -1448,7 +1643,18 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     if (n > 0)
     {
         biasDbSm += (p.bias - biasDbSm) * (1.0 - std::exp (-n / (fsHost * 0.05)));
-        const double vNow = tr.motorSpeedCms();   // the motor's speed: tables and equalisers do not chase every flutter cycle
+        // the motor's speed: tables and equalisers do not chase every flutter cycle (and
+        // a stopping tape keeps the slowest speed's, where nothing moves past a head)
+        const double vNow = std::max (tr.motorSpeedCms(), 4.6);
+        // the erase head's field, ramped, its table rebuilt as it moves
+        heSm = (heSm > 1.0e8) ? heTgt : heSm + (heTgt - heSm) * (1.0 - std::exp (-n / (fsHost * 0.02)));
+        // an exponential never arrives: the head off is OFF (a hair of field left on would
+        // nudge every cell of a frozen loop on every pass), and full is full
+        if (heTgt <= 0.0 && heSm < 0.02) heSm = 0.0;
+        if (heTgt >= 2.2 && heSm > 2.2) heSm = heTgt;
+        if (std::abs (heSm - eraseLutHe) > 0.004 || std::abs (std::log (vNow / std::max (eraseLutV, 1.0))) > 0.05)
+            buildErase (heSm, vNow);
+        tele.eraseHc = heSm;
         if (std::abs (biasDbSm - recBiasDb) > 0.005 || std::abs (std::log (vNow / recSpeed)) > 0.002)
             buildRecord (biasDbSm, vNow);
         hkB = HeadKernel::bucket (vNow);
@@ -1470,7 +1676,24 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
     }
     const double gRec = dbToLin (p.recLevel);
     const double tIn = dbToLin (p.drive) * gRec;
-    const double tFb = p.feedback * FEEDBACK_MAX * gRec;
+    const bool reproOn = p.repro > 0.5f;
+    if (reproOn) tHead[1] = tHead[2] = 0.0;       // a tape machine replays from one head
+    // The heads' outputs are summed onto the feedback wire, so echoes arriving in phase
+    // add: two heads at 0 dB would halve the knob's runaway point and three take it to a
+    // third. The wire is divided by the number of heads that are on, so FEEDBACK means
+    // the same with one, two or three (BUGLIST 3). A head turned down feeds back less.
+    int nOn = 0;
+    for (int i = 0; i < NUM_HEADS; ++i) if (tHead[i] > 0.0) ++nOn;
+    const double tFb = reproOn ? 0.0 : p.feedback * FEEDBACK_MAX * gRec / std::max (1, nOn);
+    {
+        // the delay the host is told about, and the dry path's (crossfaded over 20 ms)
+        const int want = reproTarget (p);
+        // one crossfade at a time: a change arriving mid-fade is taken up when it ends
+        if (want != dryD && dryXf == 0) { dryDOld = dryD; dryD = want; dryXf = dryXfLen; }
+        reproLatency.store (want, std::memory_order_relaxed);
+        tele.repro = reproOn ? 1 : 0;
+        tele.reproMs = 1000.0 * want / fsHost;
+    }
     const double tDry = (p.killDry > 0.5f) ? 0.0 : std::cos (p.mix * M_PI * 0.5);
     const double tWet = std::sin (p.mix * M_PI * 0.5);
     const double tOut = dbToLin (p.output);
@@ -1533,8 +1756,21 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
             tick (xl, xr, wl, wr);
         if (pbOn) { wl = (float) ampRail (wl); wr = (float) ampRail (wr); }
 
-        const float ol = (float) ((dl * gDry + wl * gWet) * gOut);
-        const float orr = (float) ((dr * gDry + wr * gWet) * gOut);
+        // the dry path, delayed by what the host is told (0 unless REPRO): written then
+        // read, so at zero delay it is the input sample itself
+        dryRing[0][(size_t) dryW] = dl; dryRing[1][(size_t) dryW] = dr;
+        float ddl = dryRing[0][(size_t) ((dryW - dryD) & dryMask)];
+        float ddr = dryRing[1][(size_t) ((dryW - dryD) & dryMask)];
+        if (dryXf > 0)
+        {
+            const float a = (float) dryXf / (float) dryXfLen;   // 1 -> 0: the old tap fades out
+            ddl = a * dryRing[0][(size_t) ((dryW - dryDOld) & dryMask)] + (1.0f - a) * ddl;
+            ddr = a * dryRing[1][(size_t) ((dryW - dryDOld) & dryMask)] + (1.0f - a) * ddr;
+            --dryXf;
+        }
+        dryW = (dryW + 1) & dryMask;
+        const float ol = (float) ((ddl * gDry + wl * gWet) * gOut);
+        const float orr = (float) ((ddr * gDry + wr * gWet) * gOut);
         pkOut = std::max (pkOut, std::max (std::abs (ol), std::abs (orr)));
         if (outL) outL[k] = ol;
         if (outR) outR[k] = orr;
@@ -1656,13 +1892,21 @@ void Engine::updateMedium (const Params& p, int n)
     trIn.scrape *= SM->friction * (1.0 + wearEff);
 }
 
+// the loop's splice joint (stage 7): a 20 um butt gap with no oxide, the splicing
+// tape on the back lifting the tape 2 um over +-0.4 mm
+constexpr double SPLICE_GAP_UM = 20.0, SPLICE_LIFT_UM = 400.0, SPLICE_DD_UM = 2.0;
+
 /*  The shaper's settings for head i, from the tape under it now (x: surface cells,
     unwrapped) and the tape's speed past it (um per internal sample). */
 void Engine::updateShaper (int i, double x, double vus)
 {
     double X = x;
     if (mode == 1) { const double fl = std::floor (x); X = (double) wrapTo ((int64_t) fl, N) + (x - fl); }
-    const double a = azim[i] + (weave > 0.0 ? weave * valueNoise (X, 100000.0, seed ^ 0x77) : 0.0);
+    double a = azim[i] + (weave > 0.0 ? weave * valueNoise (X, 100000.0, seed ^ 0x77) : 0.0);
+    // BROKEN: a crinkled stretch lifts and twists the tape at the head
+    double cdd = 0.0, ckeep = 1.0;
+    creaseNow[i] = 0.0;
+    if (! idealMedium && faultG > 0.0 && (faultMask & 4)) creaseNow[i] = faultG * crinkleAt (X, cdd, ckeep, a);
     const double ta = std::tan (a);
     const double box = std::abs (TRACK_W_UM * ta) / vus;
     const double sh = 0.5 * TRACK_SEP_UM * ta / vus;
@@ -1675,7 +1919,17 @@ void Engine::updateShaper (int i, double x, double vus)
             double ddrop = 0.0;
             drop[i][c].at (X, seed ^ (0x300u + c), dropRate, dropDepth, holeEff, ddrop, keep);
             dd = spacingStatic + std::max (0.0, r) + ddrop;
+            if (mode == 1)
+            {
+                // the loop's splice: the two ends butt (a sliver with no oxide) under a strip
+                // of splicing tape on the back, which lifts the tape from the head
+                const double ds = std::min (X, (double) N - X) * CELL_UM;     // um from the joint
+                if (ds < SPLICE_LIFT_UM) dd += SPLICE_DD_UM * 0.5 * (1.0 + std::cos (M_PI * ds / SPLICE_LIFT_UM));
+                if (ds < SPLICE_GAP_UM) keep *= 1.0 - 0.7 * (0.5 + 0.5 * std::cos (M_PI * ds / SPLICE_GAP_UM));
+            }
+            dd += cdd; keep *= ckeep;
         }
+        dd += clog[i].um;                       // BROKEN: oxide clogging the head
         // what changes nothing below 20 kHz by 0.05 dB (or 0.01 sample) is left out:
         // the studio tape at 76 cm/s barely lifts at all, and its kernel then costs nothing
         double tau = dd / vus;
@@ -1684,6 +1938,38 @@ void Engine::updateShaper (int i, double x, double vus)
         const double s = (std::abs (sh) < 0.01) ? 0.0 : (c == 0 ? sh : -sh);
         shaper[i].set (c, tau, bx, s, keep);
     }
+}
+
+/*  BROKEN past the middle: a crinkled stretch of tape. One on a loop, where it was
+    creased; on a reel, one in most 2.5 m of tape as faults grow. Over 5 cm, sharp folds
+    about 2 mm apart lift the tape off the head and twist it across the gap. */
+double Engine::crinkleAt (double X, double& dd, double& keep, double& az) const
+{
+    const double Lc = 50000.0 / CELL_UM;                       // 5 cm, in surface cells
+    double d;
+    if (mode == 1)
+    {
+        const double c = hashUni (mix64 (seed ^ 0xC71ull)) * (double) N;
+        d = X - c;
+        d -= (double) N * std::round (d / (double) N);
+    }
+    else
+    {
+        const double S = 2.5e6 / CELL_UM;                      // 2.5 m
+        const double js = std::floor (X / S);
+        const uint64_t j = (uint64_t) (int64_t) js;
+        if (hashUni (mix64 (seed ^ 0xC72ull ^ (j * 0x9E3779B97F4A7C15ull))) > 0.25 + 0.75 * faultG) return 0.0;
+        d = X - (js + 0.2 + 0.6 * hashUni (mix64 (seed ^ 0xC73ull ^ (j * 0xBF58476D1CE4E5B9ull)))) * S;
+    }
+    const double u = d / Lc;
+    if (std::abs (u) >= 0.5) return 0.0;
+    const double e = std::cos (M_PI * u) * std::cos (M_PI * u);
+    const double mm = d * CELL_UM * 0.001;
+    const double fold = std::pow (std::abs (std::sin (M_PI * mm / 2.2 + 0.7 * std::sin (0.9 * mm))), 6.0);
+    dd += faultG * e * (1.5 + 6.0 * fold);
+    keep *= 1.0 - 0.5 * faultG * e * fold;
+    az += faultG * e * 6.0 * (M_PI / (180.0 * 60.0)) * std::sin (2.1 * mm);
+    return e;
 }
 
 /*  The coating's density variation at surface cell X, per layer (each layer writes
@@ -1708,6 +1994,76 @@ double Engine::epsGrid (int64_t j) const
     const double x = (double) j * 64.0;
     return (valueNoise (x, 8000.0, seed ^ 0x11) + 0.6 * valueNoise (x, 2000.0, seed ^ 0x22)
             + 0.35 * valueNoise (x, 500.0, seed ^ 0x33)) * (1.0 / 1.2176);
+}
+
+//==============================================================================
+/*  The erase head (stage 7): the record process with no signal, at the erase head's
+    field - the reference's G at s = 0, at the amplitude each layer sees under a 60 um
+    gap (Karlqvist: (2/pi) atan(g / 2y)). What a cell keeps is a function of what it
+    had, tabulated per layer for the current field and speed. */
+void Engine::buildErase (double he, double speedCms)
+{
+    eraseLutHe = he; eraseLutV = speedCms;
+    if (he <= 0.0 || he >= 2.2) return;           // nothing, or a clean wipe: no table needed
+    const double lnA0 = std::log (ST->aGrid[0]), lnSpan = std::log (ST->aGrid[STK_NA - 1]) - lnA0;
+    const double fv = std::clamp (std::log2 (speedCms / ST->speedCms[0]), 0.0, (double) (STK_NV - 1));
+    const int iv = std::min ((int) fv, STK_NV - 2);
+    const double tv = fv - iv;
+    for (int l = 0; l < NLAYER; ++l)
+    {
+        const double y = 0.3 + COATING_UM * (l + 0.5) / NLAYER;
+        const double A = std::clamp (he * (2.0 / M_PI) * std::atan (60.0 / (2.0 * y)), ST->aGrid[0], ST->aGrid[STK_NA - 1]);
+        const double fa = (std::log (A) - lnA0) / lnSpan * (STK_NA - 1);
+        const int ia = std::clamp ((int) std::floor (fa), 0, STK_NA - 2);
+        const double ta = std::clamp (fa - ia, 0.0, 1.0);
+        double raw[STK_NM];
+        const int is = STK_NS / 2;                 // s = 0 exactly
+        for (int im = 0; im < STK_NM; ++im)
+        {
+            const double lo = (1.0 - ta) * ST->G[iv][l][ia][im][is] + ta * ST->G[iv][l][ia + 1][im][is];
+            const double hi = (1.0 - ta) * ST->G[iv + 1][l][ia][im][is] + ta * ST->G[iv + 1][l][ia + 1][im][is];
+            raw[im] = (1.0 - tv) * lo + tv * hi;
+        }
+        // odd in M, as the record slice is: a demagnetised cell stays exactly demagnetised
+        for (int im = 0; im < STK_NM; ++im) eraseLut[l][im] = (float) (0.5 * (raw[im] - raw[STK_NM - 1 - im]));
+    }
+}
+
+void Engine::eraseSpan (double& prevPos, double newPos)
+{
+    if (heSm >= 2.2) { clearSpan (prevPos, newPos); return; }   // a clean wipe
+    if (heSm <= 0.0) { prevPos = newPos; return; }               // the head off: the tape passes untouched
+    for (int l = 0; l < NLAYER; ++l)
+    {
+        const double sc = 1.0 / (double) (1 << l);
+        const int64_t a = (int64_t) std::floor (prevPos * sc), b = (int64_t) std::floor (newPos * sc);
+        const int64_t ring = N >> l;
+        if (b <= a) continue;
+        const LayerRecord& r = rec[l];
+        const float* lut = eraseLut[l];
+        int64_t k = wrapTo (a, ring);
+        for (int64_t i = a; i < b; ++i)
+        {
+            for (int c = 0; c < 2; ++c)
+            {
+                float& m = store->m[c][l][(size_t) k];
+                const double fm = std::clamp ((m - r.mLo) / r.dM, 0.0, (double) (STK_NM - 1));
+                const int im = std::min ((int) fm, STK_NM - 2);
+                m = (float) (lut[im] + (fm - im) * (lut[im + 1] - lut[im]));
+            }
+            if (++k == ring) k = 0;
+        }
+    }
+    prevPos = newPos;
+}
+
+uint64_t Engine::tapeChecksum() const
+{
+    uint64_t h = 0x9E3779B97F4A7C15ull;
+    for (int c = 0; c < 2; ++c)
+        for (int l = 0; l < NLAYER; ++l)
+            for (float x : store->m[c][l]) { uint32_t u; std::memcpy (&u, &x, 4); h = mix64 (h ^ u); }
+    return h;
 }
 
 //==============================================================================

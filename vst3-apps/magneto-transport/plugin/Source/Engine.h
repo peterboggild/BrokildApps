@@ -49,7 +49,8 @@ constexpr double HEAD_MAX_CM    = 24.0;
 constexpr double CARRIAGE_MAX_CMS = 12.0; // head carriage top speed
 constexpr double HEAD_SPACING_CM = 1.2;   // head bodies: centres can come no closer
 constexpr double SPLICE_FADE_S  = 0.015;
-constexpr double FEEDBACK_MAX   = 1.5;    // small-signal loop gain at FEEDBACK 100 %, one head at 0 dB
+constexpr double HE_FULL        = 2.25;   // the erase head at full: deep-gap Hc past the transition, a clean wipe
+constexpr double FEEDBACK_MAX   = 1.1;    // small-signal loop gain at FEEDBACK 100 % on a flat chain (BUGLIST 3)
 
 constexpr double CAPSTAN_R_M    = 0.005;
 constexpr double REEL_HUB_M     = 0.057;
@@ -139,6 +140,17 @@ struct Telemetry
     std::atomic<double> wowFlutter { 0.0 };    // weighted W&F, 2 sigma, % (DIN 45507 / IEC 60386); -1 while the motor settles
     std::atomic<double> wear { 0.0 };          // the tape's wear now, 0..1 (WEAR plus what a loop has accumulated)
     std::atomic<int>    stock { 0 };
+    std::atomic<int>    looper { -1 };         // -1 a reel, else the LOOP STATE: 0 REC, 1 DUB, 2 PLAY, 3 CLEARING
+    std::atomic<bool>   recording { true };    // record and bias on
+    std::atomic<double> eraseHc { 0.0 };       // the erase head's field (deep gap, Hc)
+    std::atomic<bool>   barsFit { true };      // LOOP BARS fit the 0.5-6 m loop
+    std::atomic<double> barsNow { 0.0 };       // how many bars the loop is now (0: BARS not in use)
+    std::atomic<int>    repro { 0 };           // REPRO on
+    std::atomic<double> reproMs { 0.0 };       // the delay reported to the host
+    std::atomic<double> brokenEff[6] {};       // BROKEN: CONDITION, CAPSTAN, REELS, SCRAPE, WEAR, BIAS as they act
+    std::atomic<double> clogUm { 0.0 };        // the worst head clog now (um of spacing)
+    std::atomic<double> huntPct { 0.0 };       // the speed control's hunting depth (%)
+    std::atomic<double> crease { 0.0 };        // a crinkled stretch at a head now, 0..1
 };
 
 //==============================================================================
@@ -158,7 +170,12 @@ public:
     /*  Message thread: allocates a tape for a waiting splice, frees retired ones. */
     void service();
 
-    int latencySamples() const { return 0; }
+    /*  REPRO: head 1's delay at the set speed and position, in host samples (0 when off).
+        Read on the message thread, which reports it to the host. */
+    int latencySamples() const { return reproLatency.load (std::memory_order_relaxed); }
+
+    /*  ERASE's knob (%) to the erase head's field (deep gap, Hc): 0 off, HE_FULL a clean wipe. */
+    static double eraseFieldHc (double knobPct);
     double internalRate() const { return fsInt; }
     int oversampling() const { return os; }
 
@@ -182,6 +199,13 @@ public:
         the equalisers are minimum-phase like the circuits, so they move the
         echo's phase as a real machine's do. */
     void setEq (bool on) { eqOn = on; }
+
+    /*  Bench: which of BROKEN's faults act (1 head clog, 2 hunting, 4 crinkle; all by default). */
+    void setFaultMask (int m) { faultMask = m; }
+
+    /*  A crinkled stretch at surface cell X (BROKEN past the middle): extra spacing (um),
+        the coating left (0..1), extra azimuth (rad); returns how deep in the stretch (0..1). */
+    double crinkleAt (double X, double& dd, double& keep, double& az) const;
     /*  The worst error of the equaliser fits, dB, over every speed and both standards. */
     static double eqFitWorstDb (int coating = -1);      // -1: every coating
     static double eqFitWorstSpeed (int coating = -1);   // where it is (cm/s)
@@ -207,6 +231,12 @@ public:
     /*  Bench: ACCUMULATE's wear per pass scaled, so it shows within seconds. */
     void setWearRateScale (double s) { wearScale = s; }
     int stockIndex() const { return stockIdx; }
+    /*  Bench: a checksum of every cell on the tape (PLAY holds it bit-exact). */
+    uint64_t tapeChecksum() const;
+    double loopLengthM() const { return loopM; }
+    /*  Bench: the erase field (deep gap, Hc) and record (0..1) forced, < 0 to let go - so
+        the erase head can be measured alone, as the reference measures it. */
+    void forceHeads (double heHc, double rec) { forceHe = heHc; forceRec = rec; }
     double noiseSigma (int layer) const { return noiseSig[layer]; }
     const double* noiseColourOf (int layer) const { return gCol[layer]; }
 
@@ -229,6 +259,8 @@ private:
     void clearSpan (double& prevPos, double newPos);
     float recordCell (const LayerRecord& r, float mOld, double s) const;
     void selectStock (int s);
+    void buildErase (double he, double speedCms);
+    void eraseSpan (double& prevPos, double newPos);
     void applyStock (int s);
     void updateMedium (const Params& p, int n);
     void updateShaper (int i, double x, double vus);
@@ -412,6 +444,37 @@ private:
     double spacingStatic = 0.0, roughEff = 0.0, dropRate = 0.0, dropDepth = 0.0, holeEff = 0.0;
     double azim[NUM_HEADS] {};   // net azimuth error per playback head (rad)
     double weave = 0.0;          // the tape's weave amplitude (rad)
+
+    // OK -> BROKEN (BUGLIST 5)
+    Params eff;                                  // the knobs as they act
+    void computeEff();
+    double brokenB = 0.0, faultG = 0.0;          // the control 0..1; the faults past the middle 0..1
+    int faultMask = 7;
+    struct Clog { int phase = 0; double t = 0.0, um = 0.0, target = 0.0, rate = 0.0; uint64_t rng = 0; };
+    Clog clog[NUM_HEADS];
+    double creaseNow[NUM_HEADS] {};
+
+    // FLUX MEMORY and the loop's record controls (stage 7)
+    int loopState = 1;
+    double heTgt = 1.0e9, heSm = 1.0e9;          // the erase head's field, Hc (>= HE_FULL: a clean wipe)
+    float eraseLut[NLAYER][STK_NM] {};           // what a cell keeps, per old remanence
+    double eraseLutHe = -1.0, eraseLutV = 0.0;
+    double recTgt = 1.0, recEnv = 1.0, aRec = 0.0;
+    double clearLeft = 0.0;                      // CLEAR: tape still to pass the erase head (cells)
+    bool clearPrev = false;
+    double looperLoopM = 0.0;                    // the length LOOP BARS asked for (m)
+    double barsHeadCm = 0.0;                     // where the tempo head was when the bars cut the loop
+    int barsKey = -1;
+    double forceHe = -1.0, forceRec = -1.0;
+
+    // REPRO: the dry path's delay line (host rate), so a blend of tape and dry lines up
+    std::vector<float> dryRing[2];
+    int dryMask = 0, dryW = 0, dryD = 0, dryDOld = 0, dryXf = 0, dryXfLen = 1;
+    std::atomic<int> reproLatency { 0 };
+    int reproLat = 0;
+    double reproPos = -1.0;
+    int reproTarget (const Params& p);
+    double lcX[4] {}, lcY[4] {}, lcA = 0.0;      // the replay amplifier's low cut (5 Hz)
 };
 
 const char* syncName (int i);

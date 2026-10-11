@@ -475,3 +475,74 @@ under 0.75.
 Seven groups do not fit one row. The machine view is shown at 87 % (its own
 coordinates unchanged, so the head dragging still maps), and the groups wrap.
 The real panel is stage 8.
+
+## Stage 7: the erase head is the record process with no signal
+
+What a cell keeps under the erase head is the reference's G at s = 0 and the
+Karlqvist field at its depth, tabulated per layer for the current field and speed.
+No separate erasure law: the erase head and bias erasure are the same physics as
+recording, which is the point of a medium model. Past 2.2 Hc it simply wipes, and
+at zero it is exactly off (the ramp snaps, since a hair of field would nudge every
+cell of a frozen loop on every pass).
+
+## The tables' old states are what the machine leaves
+
+Bias erasure is G's dependence on the old remanence, so the tables have to know
+what an old recording is. Prepared as ideal anhysteretic states (a 5 Hc decaying
+field), they magnetised hard particles no later bias pass reaches: the real-time
+bias erasure read −25 dB against the reference's −34.5. Now each old state is a DC
+level recorded at the operating bias, per sub-depth and bias phase, bisected to the
+slab's mean remanence, on a per-slab grid spanning what +12 dB over 0 VU records
+there (the deep slab's span is a quarter of the top's). With 64 amplitude points:
+−31.3 dB. Fresh-tape recording is untouched, so every earlier figure stands.
+
+**Not yet within the bench's tolerance**: bias erasure −31.3 against −34.5, recording
+over with 3 kHz −36.2 against −44.6, and the erase head 16.6 dB gentle at 1.5 Hc.
+These wait for BUGLIST 8, because that work changes the reference itself (the
+particles' interaction field), and fitting the real time to the current reference
+first would be work thrown away.
+
+## REPRO reports where head 1 actually is
+
+A tape machine's delay is head 1's distance over the speed. The carriages keep
+1.2 cm apart, so heads 2 and 3 can push head 1 back from its knob; REPRO measures the
+settled carriage (velocity and position both still) and reports that to the host,
+from the message thread. The dry path goes through a ring of the same length so a
+blend of tape and dry lines up, crossfaded over 20 ms when the length changes.
+Heads 2 and 3 and the feedback are off in REPRO. Bench: reported within half a sample
+and the tape arrives within 0.6 samples, at three rates and three speeds, near, far
+and pushed back.
+
+## FEEDBACK is divided by the number of heads on
+
+Echoes arriving in phase add on the feedback wire, so two heads at 0 dB halved the
+runaway point and three took it to a third (25 % and 17 %). The wire is divided by
+the NUMBER of heads that are on, not by the sum of their levels: dividing by the
+levels would make a head turned down feed back more of itself. FEEDBACK_MAX 1.5 ->
+1.1 puts the runaway near 68 % at 19 cm/s with one, two or three heads (71 % at
+4.75, 86 % at 76 cm/s); 100 % still runs away everywhere.
+
+## TRANSPORT is REEL | LOOP, and the loop's controls live together
+
+LOOPER was the same loop with its record path made a control, so it is the loop's
+LOOP STATE (REC | DUB | PLAY) rather than a third machine, and FREEZE went (it was
+PLAY). DUB records with the erase head at the ERASE knob, so DUB at 100 % is the old
+LOOP and DUB at 0 the old OVERDUB. ERASE's taper follows the effect (0 off, then
+geometric in the reference's one-pass loss from 0.6 to 60 dB over 90 % of the knob,
+then on to a wipe). On a REEL every loop control is inert, bit for bit. Not
+released, so there are no projects to migrate.
+
+## OK -> BROKEN moves causes, not effects
+
+Every deterioration here is already a cause, so BROKEN moves the causes in a straight
+line from where the knobs are towards a wreck (CONDITION, CAPSTAN, REELS, SCRAPE, WEAR
+up, the bias oscillator sagging, the erase head weakening on a loop), and the panel
+puts a dot on each knob where it acts. Below the middle it is exactly those knobs
+turned by hand, bit for bit, including at start-up (prepare seeds the bias smoother and
+the medium from the effective knobs). A bad tape is mostly subtractive, so the far end
+adds three real failures past the middle, each a cause too: oxide clogging a playback
+head (spacing, so the treble goes first), the speed control hunting (a limit cycle
+through the motor's own dynamics), and a crinkled stretch (spacing, lost coating and a
+twist across the gap, plus a speed jolt and harder stick-slip as it passes the heads).
+The erase head only weakens on a loop: on a reel it meets blank tape, and weakening it
+there would let the ring buffer's previous lap through, which no reel has.
