@@ -90,6 +90,9 @@ static Params wetOnly()
     Params p;
     p.mix = 1.0f; p.feedback = 0.0f;
     p.h1On = 1; p.h2On = 0; p.h3On = 0;
+    // An ideal transport: every other claim is measured cleanly, and the
+    // transport's own wow and flutter are measured in section 18.
+    p.condition = 0.0f;
     return p;
 }
 
@@ -284,18 +287,22 @@ static void testSpeedGlide()
     std::printf ("\n3. A MOTOR GLIDE BENDS THE ECHOES ALREADY ON THE TAPE\n");
     // Record 1 kHz at 4.75 cm/s with head 3 at 24 cm, then ask for 9.5 cm/s.
     // Material read 1.9-2.2 s after the change was recorded BEFORE it, so it
-    // plays at f0 * v(t) / 4.75, with v(t) the motor's first-order glide.
+    // plays at f0 * v(t) / 4.75 - v(t) the motor's ACTUAL glide, read from the
+    // engine (since stage 5 a hunting synchronous motor, not a closed form).
     const double fs = 48000.0, f0 = 1000.0, ts = 6.0;
     Params p = wetOnly(); p.speed = 4.75f; soloHead (p, 24.0);
     const size_t n = (size_t) ((ts + 2.4) * fs);
     auto x = sine (n, f0, fs, REF_AMP);
-    auto r = run (p, fs, x, x, [&] (Params& q, Engine&, size_t i) {
+    std::vector<double> tB, vB;
+    auto r = run (p, fs, x, x, [&] (Params& q, Engine& e, size_t i) {
+        tB.push_back ((double) i / fs); vB.push_back (e.speedCms());
         if ((double) i >= ts * fs) q.speed = 9.5f; });
     const size_t ts0 = ((size_t) (ts * fs) / 256 + 1) * 256;   // the block the change lands in
     const double tsReal = (double) ts0 / fs;
-    auto vAt = [&] (double t) { return 9.5 + (4.75 - 9.5) * std::exp (-(t - tsReal) / MOTOR_TAU); };
     const double t1 = tsReal + 1.9, t2 = tsReal + 2.2;
-    double vMean = 0.0; for (int k = 0; k < 100; ++k) vMean += vAt (t1 + (t2 - t1) * (k + 0.5) / 100); vMean /= 100;
+    double vMean = 0.0; int nv = 0;
+    for (size_t k = 0; k < tB.size(); ++k) if (tB[k] >= t1 && tB[k] < t2) { vMean += vB[k]; ++nv; }
+    vMean /= std::max (nv, 1);
     const double expect = f0 * vMean / 4.75;
     const double got = freqOf (r.L, (size_t) (t1 * fs), (size_t) (t2 * fs), fs);
     check (std::abs (1200.0 * std::log2 (got / expect)) < 0.5, "pitch follows v_play / v_rec",
@@ -317,15 +324,20 @@ static void testSpeedGlide()
             const double t = (double) i / fs - tPulse;
             xb[i] = (float) (0.5 * std::exp (-0.5 * t * t / (sig * sig)));
         }
-        auto rb = run (q, fs, xb, xb, [&] (Params& pp, Engine&, size_t i) {
+        // the tape's own odometer at every block start: the echo arrives when the
+        // tape has moved h past where it was when the pulse was recorded
+        std::vector<double> tO, xO;
+        auto rb = run (q, fs, xb, xb, [&] (Params& pp, Engine& e, size_t i) {
+            tO.push_back ((double) i / fs); xO.push_back (e.odometerCells());
             if ((double) i >= tsw * fs) pp.speed = 9.5f; });
-        const double tsr = (double) ((((size_t) (tsw * fs)) / 256 + 1) * 256) / fs;
-        auto dist = [&] (double ta, double tb) {   // cm travelled in [ta, tb] (both after tsr)
-            auto F = [&] (double t) { return 9.5 * t + (4.75 - 9.5) * (-MOTOR_TAU) * std::exp (-(t - tsr) / MOTOR_TAU); };
-            return F (tb) - F (ta); };
+        auto odoAt = [&] (double t) {
+            size_t k = 1; while (k + 1 < tO.size() && tO[k] < t) ++k;
+            const double a0 = tO[k - 1], a1v = tO[k];
+            return xO[k - 1] + (xO[k] - xO[k - 1]) * (t - a0) / (a1v - a0); };
         const double tc = tPulse;
+        const double target = odoAt (tc) + 12.0 * CELLS_PER_CM;
         double lo = tc, hi = tc + 4.0;
-        for (int it = 0; it < 80; ++it) { const double m = 0.5 * (lo + hi); (dist (tc, m) < 12.0 ? lo : hi) = m; }
+        for (int it = 0; it < 80; ++it) { const double m = 0.5 * (lo + hi); (odoAt (m) < target ? lo : hi) = m; }
         const double arrive = 0.5 * (lo + hi);
         // Centroid of the echo's energy in a window around the expected arrival.
         const size_t a = (size_t) ((arrive - 0.01) * fs), b = (size_t) ((arrive + 0.01) * fs);
@@ -577,6 +589,10 @@ static void testEveryControl()
         if (id == "looplen") base.mode = 1;
         if (id == "synchead" || id == "sync") { bpm = 120.0; base.sync = 7; }
         if (id == "sync") base.sync = 0;
+        // the transport's causes on a used machine, where they show; the motor on a
+        // worn one, where its ripple differs audibly (fresh, both are tiny - correctly)
+        if (id == "capstan" || id == "reels" || id == "scrape") base.condition = 50.0f;
+        if (id == "motor") base.condition = 100.0f;
         // ON switches are tested by turning them off
         Params alt = base;
         float& m = alt.*(sp.member);
@@ -595,12 +611,12 @@ static void testEveryControl()
             e += (double) a.L[i] * a.L[i] + (double) a.R[i] * a.R[i];
         }
         const double rel = std::sqrt (d / std::max (e, 1e-30));
-        // With the erase head at full field a loop sounds exactly like a reel:
-        // the difference arrives with FLUX MEMORY (stage 7) and the reel
-        // mechanics (stage 5). Inert BY DESIGN in stage 1 - asserted as such,
-        // so this line fails the day they start doing something.
-        if (id == "mode" || id == "looplen")
-            check (rel < 1.0e-6, (std::string ("control ") + sp.name + " (inert in stage 1 by design)").c_str(),
+        // Since stage 5 a REEL and a LOOP differ (the reels' wow); the loop's
+        // LENGTH still changes nothing on a REEL (and with the erase head at full
+        // field, nothing on a loop either until FLUX MEMORY, stage 7). Inert BY
+        // DESIGN - asserted as such, so this line fails the day it starts to act.
+        if (id == "looplen")
+            check (rel < 1.0e-6, (std::string ("control ") + sp.name + " (inert on a reel by design)").c_str(),
                    fmt ("rel. difference %.3f", rel));
         else
             check (rel > 1e-3, (std::string ("control ") + sp.name).c_str(), fmt ("rel. difference %.3f", rel));
@@ -997,6 +1013,163 @@ static void testHeadAndElectronics()
     }
 }
 
+/*  Stage 5: transport mechanics. Wow and flutter from physical causes, and a
+    W&F meter checked against an independent measurement: a 3150 Hz tone recorded
+    and played, its frequency demodulated from the zero crossings, weighted and
+    detected the same way (DIN 45507 / IEC 60386, 2 sigma). */
+static void testTransport()
+{
+    std::printf ("\n18. TRANSPORT MECHANICS (wow and flutter from causes, the W&F meter)\n");
+    const double fs = 48000.0;
+    // weighted W&F of a played 3150 Hz tone, the same weighting and detector as the meter
+    auto measure = [&] (Params p, double secs, double* wowRms = nullptr, double* meter = nullptr, double head = 4.0) {
+        soloHead (p, head);
+        const size_t n = (size_t) (secs * fs);
+        auto x = sine (n, 3150.0, fs, REF_AMP * 0.3);
+        Engine e;
+        auto r = run (p, fs, x, x, nullptr, 0.0, &e);
+        if (meter) *meter = e.tele.wowFlutter.load();
+        // zero crossings, linearly interpolated, from 1.5 s (the echo is there)
+        std::vector<double> tz;
+        for (size_t i = (size_t) (1.5 * fs); i + 1 < n; ++i)
+            if (r.L[i] <= 0.0f && r.L[i + 1] > 0.0f)
+                tz.push_back ((i + r.L[i] / (double) (r.L[i] - r.L[i + 1])) / fs);
+        // the deviation at 1 kHz
+        std::vector<double> dev;
+        size_t k = 1;
+        for (double t = tz.front() + 0.01; t < tz.back() - 0.01; t += 0.001)
+        {
+            while (k + 1 < tz.size() && tz[k] < t) ++k;
+            const double f = 1.0 / (tz[k] - tz[k - 1]);
+            dev.push_back (f / 3150.0 - 1.0);
+        }
+        // remove the mean (the tone's own frequency through the record/play chain)
+        double mu = 0.0; for (double d : dev) mu += d; mu /= (double) dev.size();
+        // IEC weighting (band-pass 4 Hz, Q 0.6, unity peak) and a 2-second mean square
+        const double w0 = 2.0 * M_PI * 4.0 / 1000.0, al = std::sin (w0) / 1.2, cs = std::cos (w0), nn = 1.0 + al;
+        const double b0 = al / nn, b2 = -al / nn, a1 = -2.0 * cs / nn, a2 = (1.0 - al) / nn;
+        double z1 = 0.0, z2 = 0.0, ms = 0.0, ws = 0.0; const double ea = 1.0 - std::exp (-1.0 / 2000.0);
+        for (double d : dev)
+        {
+            const double xx = d - mu;
+            const double y = b0 * xx + z1; z1 = -a1 * y + z2; z2 = b2 * xx - a2 * y;
+            ms += ea * (y * y - ms);
+            ws += xx * xx;
+        }
+        if (wowRms) *wowRms = 100.0 * std::sqrt (ws / (double) dev.size());
+        return 2.0 * std::sqrt (ms) * 100.0;
+    };
+    Params base; base.mix = 1.0f; base.feedback = 0.0f; base.speed = 19.05f;
+    // an ideal transport: the tape's speed is the target, exactly
+    {
+        Params p = base; p.condition = 0.0f; soloHead (p, 4.0);
+        Engine e; double worst = 0.0;
+        const size_t n = (size_t) (2.0 * fs);
+        std::vector<float> z (n, 0.0f);
+        run (p, fs, z, z, [&] (Params&, Engine& en, size_t) { worst = std::max (worst, std::abs (en.speedCms() / (double) 19.05f - 1.0)); }, 0.0, &e);
+        check (worst < 1.0e-12, "CONDITION 0: an ideal transport (the speed is the target, exactly)", fmt ("worst %.2e", worst));
+    }
+    // a freshly serviced machine, and the meter against the measurement
+    double meter = 0.0;
+    const double fresh = measure (base, 9.0, nullptr, &meter);
+    std::printf ("   freshly serviced (CONDITION 15): weighted W&F %.4f %% measured, %.4f %% on the meter\n", fresh, meter);
+    check (fresh > 0.015 && fresh < 0.05, "a freshly serviced machine measures about 0.03 % weighted W&F", fmt ("%.4f %%", fresh));
+    check (std::abs (meter / fresh - 1.0) < 0.10, "the W&F meter agrees with a demodulated 3150 Hz tone within 10 %", fmt ("meter %.4f vs %.4f %%", meter, fresh));
+    // wear
+    {
+        Params p = base; p.condition = 100.0f;
+        const double worn = measure (p, 9.0);
+        std::printf ("   worn out (CONDITION 100): %.3f %%\n", worn);
+        check (worn / fresh > 4.0 && worn / fresh < 10.0, "worn out: W&F grows with the wear (x4..x10)", fmt ("x%.1f", worn / fresh));
+    }
+    // the causes move their own bands
+    {
+        Params a = base; a.condition = 50.0f; a.capstan = 0.0f;
+        Params b = a; b.capstan = 200.0f;
+        const double c0 = measure (a, 6.0), c2 = measure (b, 6.0);
+        check (c2 > 2.0 * c0, "CAPSTAN raises the flutter", fmt ("%.4f -> %.4f %%", c0, c2));
+        Params ra = base; ra.condition = 50.0f; ra.reels = 0.0f; ra.capstan = 0.0f; ra.scrape = 0.0f;
+        Params rb = ra; rb.reels = 200.0f;
+        double w0 = 0.0, w2 = 0.0;
+        // a far head: slow wow mostly cancels between record and play at a short
+        // delay (2 sin(pi f tau)), and the demodulator has a floor of its own
+        measure (ra, 12.0, &w0, nullptr, 20.0); measure (rb, 12.0, &w2, nullptr, 20.0);
+        check (w2 > 2.0 * std::max (w0, 1.0e-6), "REELS raises the (unweighted) wow", fmt ("rms %.4f -> %.4f %%", w0, w2));
+    }
+    // scrape: fuzz around the tone, barely a weighted W&F
+    {
+        auto fuzz = [&] (float scr) {
+            Params p = base; p.condition = 50.0f; p.scrape = scr; p.capstan = 0.0f; p.reels = 0.0f; soloHead (p, 4.0);
+            const size_t n = (size_t) (3.0 * fs);
+            // a 9 kHz tone: the stick-slip at ~3.2 kHz puts its sidebands at 9 +- 3.2 kHz,
+            // clear of every harmonic (at 3150 Hz they fall on 50 Hz and on the 2nd harmonic)
+            auto x = sine (n, 9000.0, fs, REF_AMP * 0.3);
+            auto r = run (p, fs, x, x);
+            const size_t a = (size_t) (1.5 * fs), b = n - 100;
+            const double car = goertzelAmp (r.L, a, b, 9000.0, fs);
+            double side = 0.0;
+            for (double fq = 5200.0; fq <= 6400.0; fq += 100.0) side += std::pow (goertzelAmp (r.L, a, b, fq, fs), 2.0);
+            for (double fq = 11600.0; fq <= 12800.0; fq += 100.0) side += std::pow (goertzelAmp (r.L, a, b, fq, fs), 2.0);
+            return 10.0 * std::log10 (side / (car * car) + 1.0e-30);
+        };
+        const double s0 = fuzz (0.0f), s2 = fuzz (200.0f);
+        check (s2 > s0 + 10.0, "SCRAPE raises the modulation noise around a tone", fmt ("%+.1f -> %+.1f dB re the tone", s0, s2));
+        Params a = base; a.condition = 50.0f; a.scrape = 0.0f;
+        Params b = a; b.scrape = 200.0f;
+        const double wa = measure (a, 6.0), wb = measure (b, 6.0);
+        check (std::abs (wb / wa - 1.0) < 0.15, "and barely moves a weighted W&F meter", fmt ("%.4f -> %.4f %%", wa, wb));
+    }
+    // the motors: a speed step
+    auto stepResp = [&] (int motor, double& overshoot, double& settle, double& fHunt) {
+        Params p = base; p.condition = 0.0f; p.motor = (float) motor; p.speed = 9.5f; soloHead (p, 4.0);
+        const size_t n = (size_t) (5.0 * fs);
+        std::vector<float> z (n, 0.0f);
+        std::vector<double> tv, vv;
+        Engine e;
+        run (p, fs, z, z, [&] (Params& q, Engine& en, size_t i) {
+            tv.push_back ((double) i / fs); vv.push_back (en.speedCms());
+            if ((double) i >= 0.5 * fs) q.speed = 19.05f; }, 0.0, &e);
+        double peak = 0.0; settle = 0.0;
+        int crossings = 0; double tFirst = 0.0, tLast = 0.0;
+        for (size_t k = 1; k < tv.size(); ++k)
+        {
+            if (tv[k] < 0.5) continue;
+            peak = std::max (peak, vv[k]);
+            if (std::abs (vv[k] / 19.05 - 1.0) > 0.001) settle = tv[k] - 0.5;
+            if ((vv[k - 1] - 19.05) * (vv[k] - 19.05) < 0.0) { if (crossings == 0) tFirst = tv[k]; tLast = tv[k]; ++crossings; }
+        }
+        overshoot = (peak - 19.05) / (19.05 - 9.5);
+        fHunt = crossings >= 3 ? 0.5 * (crossings - 1) / (tLast - tFirst) : 0.0;
+    };
+    {
+        double os, st, fh;
+        stepResp (0, os, st, fh);
+        std::printf ("   AC SYNC, 9.5 -> 19.05 cm/s: overshoot %.1f %%, within 0.1 %% after %.2f s, hunting %.2f Hz\n", 100 * os, st, fh);
+        check (os > 0.02 && os < 0.30 && st < 3.0, "AC SYNC: the speed glides there and hunts a little", fmt ("overshoot %.1f %%", 100 * os) + fmt (", settled %.2f s", st));
+        double os2, st2, fh2;
+        stepResp (1, os2, st2, fh2);
+        std::printf ("   DC SERVO: overshoot %.1f %%, within 0.1 %% after %.2f s\n", 100 * os2, st2);
+        check (os2 < os && st2 < st, "DC SERVO: firmer and quicker than AC SYNC", fmt ("overshoot %.1f %%", 100 * os2) + fmt (", settled %.2f s", st2));
+    }
+    // the meter through a speed change: a glide is not wow, so it waits, then reads
+    {
+        Params p = base; p.speed = 19.05f; soloHead (p, 4.0);
+        const size_t n = (size_t) (9.0 * fs);
+        std::vector<float> z (n, 0.0f);
+        double during = 0.0, worst = 0.0, last = 0.0, tBack = -1.0;
+        Engine e;
+        run (p, fs, z, z, [&] (Params& q, Engine& en, size_t i) {
+            const double t = (double) i / fs, m = en.tele.wowFlutter.load();
+            if (t >= 1.0) q.speed = 38.1f;
+            if (t > 1.15 && t < 1.25) during = m;
+            if (t > 1.0) { worst = std::max (worst, m); if (m >= 0.0 && tBack < 0.0) tBack = t - 1.0; if (m < 0.0) tBack = -1.0; }
+            last = m; }, 0.0, &e);
+        std::printf ("   meter through 19 -> 38 cm/s: %.0f during the glide, reading again after %.2f s, %.4f %% at the end (worst %.4f %%)\n", during, tBack, last, worst);
+        check (during < 0.0 && last > 0.015 && last < 0.06 && worst < 0.1,
+               "the W&F meter waits out a speed change, then reads the machine again", fmt ("%.4f %% at the end", last) + fmt (", worst %.4f %%", worst));
+    }
+}
+
 static void testCost()
 {
     std::printf ("\n12. COST (48 kHz stereo, 76 cm/s, three heads, feedback)\n");
@@ -1052,6 +1225,7 @@ int main (int argc, char** argv)
     testPlayback();
     testEqualised();
     testHeadAndElectronics();
+    testTransport();
     testCost();
     std::printf ("\n%d checks, %d failed - %s\n", g_pass + g_fail, g_fail, g_fail ? "FAILURES" : "ALL CLEAR");
     return g_fail ? 1 : 0;

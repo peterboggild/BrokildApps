@@ -339,3 +339,42 @@ a splice step, slow-speed flatness). Not worth it.
 Design section 6 sets CPU as targets with actuals reported. The same binary
 reads 12.5-15.2 % across runs as the clock moves, even timed on the thread's own
 CPU time, so the bench reports against 15 % and fails only past 20 %.
+
+## Stage 5: transport mechanics from causes
+
+The capstan motor is J w' = -K delta - D (w - target) for both kinds: an AC
+synchronous motor (synchronising torque on angle, damper on slip; hunts at
+about 1 Hz) or a DC servo (a PI loop on its tachometer). Wow and flutter are
+the physical causes the controls set: capstan and roller runout at their
+rotation rates, bearing roughness (3-30 Hz), motor ripple (twice the mains,
+or the tachometer's slot rate), reel eccentricity and holdback friction as
+tension, i.e. strain (EA about 1000 N), and stick-slip at each head as a local
+displacement around the span's 3.2 kHz resonance. All deterministic from a
+fixed seed, so a bounce reproduces. CONDITION 0 is exactly an ideal transport.
+
+## Scrape is 50 nm worn out, not 3 nm
+
+At 3 nm the sidebands around a tone sat below the hiss and SCRAPE did nothing
+audible. 50 nm rms worn out puts them at about -55 dB around a 9 kHz tone,
+which is the fuzz a dirty head gives; a weighted W&F meter still barely sees
+it, as it should.
+
+## The equalisers and record tables follow the motor, not the flutter
+
+They take the motor's own speed. Re-deriving a table every flutter cycle
+would be wrong as well as expensive: the flutter moves the tape under the
+heads; the electronics do not change with it.
+
+## The W&F meter waits out a speed change
+
+A record-to-play meter reads a speed change as an enormous deviation for as
+long as the lag lasts (3.4 % on the panel after a 38 -> 19 cm/s change,
+decaying over seconds). A real meter would peg too, but a reading that says
+the machine is worn when it is gliding is wrong information. It shows
+SETTLING until the motor is within 0.3 % and the lag plus a second has passed,
+then averages from scratch. The bench checks it through a 19 -> 38 cm/s step.
+
+## The panel stays a placeholder
+
+CONDITION and the three causes sit in a compact MECHANICS group with the W&F
+reading; the real panel is stage 8.

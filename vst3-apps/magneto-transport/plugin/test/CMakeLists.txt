@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # The bench measures numbers that get quoted, so no fast-math.
-add_executable(mttest bench.cpp ../Source/Engine.cpp ../Source/Playback.cpp ../Source/Equaliser.cpp)
+add_executable(mttest bench.cpp ../Source/Engine.cpp ../Source/Playback.cpp ../Source/Equaliser.cpp ../Source/Transport.cpp)
 target_include_directories(mttest PRIVATE ../Source)
 if(MSVC)
     target_compile_definitions(mttest PRIVATE _USE_MATH_DEFINES)
@@ -16,7 +16,7 @@ endif()
 
 # Prints engine internals; asserts nothing. The tool that settles a question
 # the bench raises.
-add_executable(mtprobe probe.cpp ../Source/Engine.cpp ../Source/Playback.cpp ../Source/Equaliser.cpp)
+add_executable(mtprobe probe.cpp ../Source/Engine.cpp ../Source/Playback.cpp ../Source/Equaliser.cpp ../Source/Transport.cpp)
 target_include_directories(mtprobe PRIVATE ../Source)
 if(MSVC)
     target_compile_definitions(mtprobe PRIVATE _USE_MATH_DEFINES)

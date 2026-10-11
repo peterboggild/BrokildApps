@@ -118,5 +118,29 @@
   {
     "name": "screenshot REEL",
     "shoot": "C:/Users/peter/AppData/Local/Temp/claude/c--Users-peter-Dropbox-ACTIVITIES-00-VSCODE/792a6323-dd43-46c8-bb81-c70bcca7e856/scratchpad/mt-live-reel.png"
+  },
+  {
+    "name": "W&F settles",
+    "wait": 4000
+  },
+  {
+    "name": "W&F, freshly serviced machine at 19 cm/s (bench: 0.036 %)",
+    "eval": "__MT.tele.wf !== undefined ? __MT.tele.wf.toFixed(4) + ' %, panel reads ' + document.getElementById('wfRead').textContent : 'NO W&F TELEMETRY'"
+  },
+  {
+    "name": "worn transport",
+    "eval": "(()=>{const c=__MT.ctls.condition; window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'condition',v:100}); __MT.P.condition.v=100; if(c&&c.render)c.render(); return 'sent';})()"
+  },
+  {
+    "name": "W&F settles",
+    "wait": 4500
+  },
+  {
+    "name": "W&F, worn out (bench: 0.24 %)",
+    "eval": "__MT.tele.wf.toFixed(4) + ' %, CONDITION shows ' + document.querySelector('[data-id=condition] .val').textContent"
+  },
+  {
+    "name": "back to serviced",
+    "eval": "window.__JUCE__.backend.emitEvent('mt',{k:'p',id:'condition',v:15}); 'sent'"
   }
 ]

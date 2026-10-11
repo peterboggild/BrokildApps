@@ -283,6 +283,7 @@ void MagnetoTransportAudioProcessor::timerCallback()
         o->setProperty ("in", t.inPeak.exchange (0.0f));
         o->setProperty ("out", t.outPeak.exchange (0.0f));
         o->setProperty ("rec", t.recPeak.exchange (0.0f));
+        o->setProperty ("wf", t.wowFlutter.load());
         juce::Array<juce::var> hp, hv, hk;
         for (int i = 0; i < mt::NUM_HEADS; ++i)
         {

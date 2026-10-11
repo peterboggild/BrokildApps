@@ -543,7 +543,6 @@ void Engine::prepare (double hostSampleRate, int)
     }
 
     aGain  = 1.0 - std::exp (-dt / 0.020);
-    aMotor = 1.0 - std::exp (-dt / MOTOR_TAU);
     aHost  = 1.0 - std::exp (-1.0 / (fsHost * 0.020));
 
     // ---- the record head and its alignment, at OPERATING bias and the machine's
@@ -608,6 +607,19 @@ void Engine::prepare (double hostSampleRate, int)
 
     bool clampedNow = false, syncNow = false;
     v = vTarget = targetSpeedCms (clampedNow, syncNow) * CELLS_PER_CM;
+    tr.prepare (fsInt);
+    tr.reset (v / CELLS_PER_CM);
+    {
+        // the W&F meter at 1 kHz: an approximation of the IEC 60386 weighting (a
+        // band-pass at 4 Hz, unity at its peak) and a 2-second mean square
+        wfDiv = std::max (1, (int) std::lround (fsInt / 1000.0));
+        const double f0 = 4.0, q = 0.6, fsm = fsInt / wfDiv;
+        const double w0 = 2.0 * M_PI * f0 / fsm, al = std::sin (w0) / (2.0 * q), cs = std::cos (w0), nn = 1.0 + al;
+        wfB0 = al / nn; wfB2 = -al / nn; wfA1 = -2.0 * cs / nn; wfA2 = (1.0 - al) / nn;
+        wfZ1 = wfZ2 = 0.0; wfMs = 0.0; wfPct = -1.0; wfCnt = 0; wfW = 0; wfSettle = 0; wfN = 0.0;
+        wfA = 1.0 - std::exp (-1.0 / (fsm * 2.0));
+        for (int i = 0; i < WF_HIST; ++i) wfHist[i] = v / CELLS_PER_CM;
+    }
     buildRecord (biasDbSm, v / CELLS_PER_CM);
     for (int i = 0; i < NUM_HEADS; ++i)
     {
@@ -1127,8 +1139,43 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
         if (wetFade >= 1.0) { wetFade = 1.0; spliceState = 0; }
     }
 
-    // ---- motor and carriages
-    v += (vTarget - v) * aMotor;
+    // ---- the capstan and everything that turns with it (stage 5)
+    v = tr.tick (trIn) * CELLS_PER_CM;
+
+    // ---- the W&F meter: record-to-play speed ratio under the first active head
+    if (++wfCnt >= wfDiv)
+    {
+        wfCnt = 0;
+        const double vc = v / CELLS_PER_CM;
+        wfHist[wfW] = vc;
+        int hh = 0;
+        for (int i = 0; i < NUM_HEADS; ++i) if (gHead[i] > 1.0e-6) { hh = i; break; }
+        const double vm = std::max (tr.motorSpeedCms(), 1.0);
+        const int lag = std::min ((int) std::lround (hPos[hh] / vm * (fsInt / wfDiv)), WF_HIST - 1);
+        // A speed change is not wow: while the motor is off its target, and until the
+        // record-to-play lag and the weighting filter have caught up, the meter waits
+        // (and then averages from scratch, so its first reading is not a slow climb).
+        const double tgt = std::max (trIn.vTargetCms, 1.0);
+        if (std::abs (tr.motorSpeedCms() - tgt) > 0.003 * tgt)
+        {
+            wfSettle = 0; wfN = 0.0; wfZ1 = wfZ2 = 0.0; wfMs = 0.0; wfPct = -1.0;
+        }
+        else
+        {
+            const double wdev = vc / wfHist[(wfW - lag) & WF_MASK] - 1.0;
+            const double y = wfB0 * wdev + wfZ1;
+            wfZ1 = -wfA1 * y + wfZ2;
+            wfZ2 = wfB2 * wdev - wfA2 * y;
+            if (wfSettle < lag + 1000) ++wfSettle;        // 1 kHz: the lag, then a second
+            else
+            {
+                wfN += 1.0;
+                wfMs += std::max (wfA, 1.0 / wfN) * (y * y - wfMs);
+                wfPct = 2.0 * std::sqrt (wfMs) * 100.0;
+            }
+        }
+        wfW = (wfW + 1) & WF_MASK;
+    }
 
     const float* tgtP[NUM_HEADS] = { &params.h1Pos, &params.h2Pos, &params.h3Pos };
     const double headMax = (mode == 1)
@@ -1155,7 +1202,7 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
     double outL = 0.0, outR = 0.0, fbL = 0.0, fbR = 0.0;
     for (int i = 0; i < NUM_HEADS; ++i)
     {
-        const double u1 = T - hPos[i] * CELLS_PER_CM + lead;
+        const double u1 = T - hPos[i] * CELLS_PER_CM + lead + tr.scrapeUm (i) * (1.0 / CELL_UM);   // stick-slip moves the tape under the head
         const double g = gHead[i];
         // a head switched off and faded out reads nothing (it would add nothing)
         if (g < 1.0e-9) { uPrev[i] = u1; continue; }
@@ -1222,7 +1269,7 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
     const double sR = rr * sigScale * recFade;
     {
         const double u0 = wPrevU1;
-        const double u1 = posAgo (1 + inLag);
+        const double u1 = posAgo (1 + inLag) + tr.scrapeUm (3) * (1.0 / CELL_UM);
         writeField (0, u0, u1, sHist[0][0], sHist[0][1], sHist[0][2], sL);
         writeField (1, u0, u1, sHist[1][0], sHist[1][1], sHist[1][2], sR);
         wPrevU1 = u1;
@@ -1283,12 +1330,20 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
 
     bool clamped = false, syncOn = false;
     vTarget = targetSpeedCms (clamped, syncOn) * CELLS_PER_CM;
+    trIn.vTargetCms = vTarget / CELLS_PER_CM;
+    trIn.motor = p.motor > 0.5f ? 1 : 0;
+    trIn.cond = std::clamp ((double) p.condition, 0.0, 100.0) * 0.01;
+    trIn.capstan = std::clamp ((double) p.capstan, 0.0, 200.0) * 0.01;
+    trIn.reels = std::clamp ((double) p.reels, 0.0, 200.0) * 0.01;
+    trIn.scrape = std::clamp ((double) p.scrape, 0.0, 200.0) * 0.01;
+    trIn.reelMode = mode == 0;
+    trIn.supplyR = tele.supplyR.load(); trIn.takeupR = tele.takeupR.load();
 
     // ---- bias: smoothed at block rate, the record tables rebuilt as it moves
     if (n > 0)
     {
         biasDbSm += (p.bias - biasDbSm) * (1.0 - std::exp (-n / (fsHost * 0.05)));
-        const double vNow = v / CELLS_PER_CM;
+        const double vNow = tr.motorSpeedCms();   // the motor's speed: tables and equalisers do not chase every flutter cycle
         if (std::abs (biasDbSm - recBiasDb) > 0.005 || std::abs (std::log (vNow / recSpeed)) > 0.002)
             buildRecord (biasDbSm, vNow);
         hkB = HeadKernel::bucket (vNow);
@@ -1397,6 +1452,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         loopAng += distM / 0.03;
     viewT.store (T, std::memory_order_relaxed);
     tele.speedCms = v / CELLS_PER_CM;
+    tele.wowFlutter = wfPct;
     tele.targetCms = vTarget / CELLS_PER_CM;
     tele.capstanAngle = std::fmod (capAng, 2.0 * M_PI);
     tele.supplyAngle = std::fmod (supAng, 2.0 * M_PI);

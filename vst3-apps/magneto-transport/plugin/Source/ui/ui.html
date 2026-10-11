@@ -64,6 +64,10 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
 .col .knob{width:44px;height:44px}
 .col .ctl label{font-size:9px;letter-spacing:1px}
 .col .ctl.headon{width:150px}
+/* compact knobs for the smaller groups */
+.tight .ctl{width:56px}
+.tight .knob{width:44px;height:44px}
+.tight .ctl label{font-size:9px;letter-spacing:1px}
 #hint{position:absolute;left:0;top:870px;width:1600px;height:30px;padding:7px 22px;font-size:12px;letter-spacing:.5px;
   color:var(--brassDim);border-top:1px solid var(--edge);background:#121413;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #hint b{color:var(--brass);font-weight:600;letter-spacing:2px;margin-right:10px}
@@ -73,7 +77,7 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
 <div id="deck">
   <div id="head">
     <div id="wordmark">Magneto Transport</div>
-    <div id="model">MODEL MT-1<br>STAGE 4 &middot; PLACEHOLDER PANEL</div>
+    <div id="model">MODEL MT-1<br>STAGE 5 &middot; PLACEHOLDER PANEL</div>
     <div id="readout">--.- cm/s</div>
     <div class="lampbox"><span class="lamp" id="lSync"></span>SYNC</div>
     <div class="lampbox"><span class="lamp red" id="lClamp"></span>OUT OF REACH</div>
@@ -99,15 +103,23 @@ html,body{width:100%;height:100%;background:var(--ink);overflow:hidden;
       <div class="ctl" data-id="speed" data-big="1" style="width:96px"></div>
       <div class="ctl" data-id="sync"></div>
       <div class="ctl" data-id="looplen"></div>
-      <div class="ctl" data-id="mode" data-type="seg" style="width:130px"></div>
+      <div class="ctl" data-id="mode" data-type="seg" style="width:120px"></div>
+      <div class="ctl" data-id="motor" data-type="seg" style="width:150px"></div>
       <div class="ctl" data-id="synchead" data-type="seg" style="width:150px"></div>
     </div>
-    <div class="grp" style="width:560px"><h3>PLAYBACK HEADS</h3>
+    <div class="grp tight" style="width:140px"><h3>MECHANICS</h3>
+      <div class="ctl" data-id="condition"></div>
+      <div class="ctl" data-id="capstan"></div>
+      <div class="ctl" data-id="reels"></div>
+      <div class="ctl" data-id="scrape"></div>
+      <div id="wfRead" title="Weighted wow and flutter (DIN 45507 / IEC 60386, 2 sigma), measured from the tape's speed under the first active head" style="font-family:Consolas,monospace;font-size:13px;color:var(--amber);width:116px;text-align:center;margin-top:4px">W&amp;F<br>--</div>
+    </div>
+    <div class="grp" style="width:548px"><h3>PLAYBACK HEADS</h3>
       <div class="col" data-head="1"></div>
       <div class="col" data-head="2"></div>
       <div class="col" data-head="3"></div>
     </div>
-    <div class="grp" style="width:270px"><h3>FEEDBACK</h3>
+    <div class="grp tight" style="width:140px"><h3>FEEDBACK</h3>
       <div class="ctl" data-id="feedback"></div>
       <div class="ctl" data-id="bass"></div>
       <div class="ctl" data-id="treble"></div>
@@ -154,6 +166,7 @@ function fmt(s, v){
     case "cm": return v.toFixed(1) + " cm";
     case "cm/s": return v.toFixed(2) + " cm/s";
     case "m": return v.toFixed(2) + " m";
+    case "%": return Math.round(v) + " %";
   }
   if (s.id.endsWith("pan")) return Math.abs(v) < 0.02 ? "C" : (v < 0 ? "L" : "R") + Math.round(Math.abs(v) * 100);
   return Math.round(v * 100) + " %";
@@ -195,11 +208,12 @@ function arcPath(a0, a1){
   return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 const A0 = -0.75 * Math.PI, A1 = 0.75 * Math.PI;
+const SHORT_LABEL = { condition: "CONDITION" };   // the hint line still gives the full name
 
 function makeKnob(holder, id, big){
   const s = P[id];
   holder.innerHTML = "";
-  const lab = document.createElement("label"); lab.textContent = s.name;
+  const lab = document.createElement("label"); lab.textContent = SHORT_LABEL[id] || s.name;
   const k = document.createElement("div"); k.className = "knob" + (big ? " big" : "");
   const svg = knobSvg(); k.appendChild(svg);
   const val = document.createElement("div"); val.className = "val";
@@ -600,6 +614,7 @@ function updateHeader(){
   m("mIn", tele.in); m("mOut", tele.out);
   // the tape meter is linear in remanence: full width = full remanence
   if (tele.rec !== undefined) document.getElementById("mTape").style.width = Math.max(0, Math.min(100, tele.rec * 100)) + "%";
+  if (tele.wf !== undefined) document.getElementById("wfRead").innerHTML = "W&amp;F<br>" + (tele.wf < 0 ? "settling" : tele.wf.toFixed(3) + " %");
   tele.heads.forEach((h, i) => {
     const el = document.getElementById("delay" + (i + 1));
     if (el) el.textContent = (h / tele.speed * 1000).toFixed(0) + " ms";

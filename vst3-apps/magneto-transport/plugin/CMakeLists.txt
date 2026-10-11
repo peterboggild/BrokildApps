@@ -4,7 +4,7 @@ project(MagnetoTransport VERSION 0.1.0)
 
 # Build id: date (YYMMDD) plus that day's build number, shown on the panel.
 # Bump it AND re-run `cmake -S . -B <dir>` or it will not take.
-set(MT_BUILD_ID "261011.3")
+set(MT_BUILD_ID "261011.4")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -58,6 +58,7 @@ target_sources(MagnetoTransport
         Source/Engine.cpp
         Source/Playback.cpp
         Source/Equaliser.cpp
+        Source/Transport.cpp
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp)
 

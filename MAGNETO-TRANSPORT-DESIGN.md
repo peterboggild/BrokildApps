@@ -203,8 +203,8 @@ Every stage ends with its bench clear. **LISTEN** = stop, install, Peter listens
 | 1 | tape as a medium, ideal heads, simple motor glide, both transport modes, the feedback wire, placeholder panel | **LISTEN A** — a working delay with real Doppler |
 | 2 | physics notes + offline reference: Preisach ferric + explicit-bias record process | FABLE - **DONE 2026-10-11**, `docs/physics/05-reference-results.md` |
 | 3 | real-time record process validated against 2; saturation contains feedback; bias live | **LISTEN B** - built 2026-10-11 (261011.2): bench 67/67, awaiting the listen |
-| 4 | playback physics, EQ standards, electronics, gain staging, stereo crosstalk/azimuth | |
-| 5 | transport mechanics: motor, capstan, bearings, elastic tape, scrape flutter, reels | FABLE, **LISTEN C** |
+| 4 | playback physics, EQ standards, electronics, gain staging, stereo crosstalk/azimuth | built 2026-10-11 (261011.3): playback within 0.16 dB of the reference, aligned machine flat within 0.25 dB |
+| 5 | transport mechanics: motor, capstan, bearings, elastic tape, scrape flutter, reels | FABLE, **LISTEN C** - built 2026-10-11 (261011.4): bench 110/110, awaiting the listen |
 | 6 | tape stock: particle statistics → hiss, modulation noise, dropouts; stocks, age, wear | |
 | 7 | FLUX MEMORY: partial erase, bias-erase overwrite, freeze; **LOOPER** transport (BUGLIST 2, approved) | **LISTEN D** |
 | 8 | panel driven by the simulation, quality tiers, presets, smoothing, bypass, latency, host test, pluginval if available | |
@@ -391,3 +391,21 @@ curve within 0.19 dB. Known deviation kept visible: HD3 at 0 VU is 3.4 dB low.
 14.8 % of a core at the worst case. Full record: `plugin/docs/physics/06-realtime-record.md`
 and `plugin/docs/DECISIONS.md`. Not yet covered: programme-material renders
 against the reference; erase-head tables (stage 7).
+
+## 13. Stages 4 and 5 are built (2026-10-11, builds 261011.3 and 261011.4) - awaiting listening gate C
+
+Stage 4: playback from the depth slabs with the exact head kernel (gap, spacing,
+thickness), the IEC/NAB equalisers fitted as minimum-phase shelf cascades, the
+head bump, crosstalk and the playback amplifier. Against the reference the
+playback is within 0.06-0.16 dB to -20 dB at every speed; the aligned machine is
+flat within 0.25 dB from 40 Hz to 15 kHz at 19-76 cm/s for both standards.
+Record: `plugin/docs/physics/07-playback.md`.
+
+Stage 5: the capstan motor (AC synchronous or DC servo) and every cause of wow
+and flutter as a physical cause - runout, bearings, motor ripple, reel tension
+as strain, stick-slip at each head. A freshly serviced machine measures 0.036 %
+weighted W&F, worn out 0.24 %, and the panel's meter agrees with a demodulated
+tone within 10 %. Record: `plugin/docs/physics/08-transport.md`.
+
+Both stages were built without the listening gates, as agreed (section 2): each
+is its own commit and install, so either can be heard and stepped back.

@@ -20,6 +20,12 @@ struct Params
     float sync      = 0.0f;   // 0 off, else index into SYNC_BEATS
     float syncHead  = 0.0f;   // which playback head is the tempo head
 
+    float condition = 15.0f;  // TRANSPORT CONDITION, %: 0 ideal, 15 freshly serviced, 100 worn out
+    float capstan   = 100.0f; // the causes' balance, %: capstan assembly (flutter)
+    float reels     = 100.0f; //                         reels and tension (wow)
+    float scrape    = 100.0f; //                         head friction (scrape flutter)
+    float motor     = 0.0f;   // 0 AC synchronous, 1 DC servo
+
     float h1Pos = 4.0f,  h2Pos = 8.0f,  h3Pos = 12.0f;   // cm downstream of the record head
     float h1On  = 1.0f,  h2On  = 0.0f,  h3On  = 0.0f;
     float h1Lvl = 0.0f,  h2Lvl = 0.0f,  h3Lvl = 0.0f;    // dB
@@ -71,6 +77,16 @@ inline const Spec SPECS[] =
       "Sets the motor speed so the tempo head lands on this note value at the host tempo." },
     { "synchead", "TEMPO HEAD", Kind::Choice, 0, 2, 0,   "", "HEAD 1|HEAD 2|HEAD 3", &Params::syncHead,
       "The playback head SYNC puts on the beat. The others land where their spacing puts them." },
+    { "condition", "TRANSPORT CONDITION", Kind::Lin, 0.0f, 100.0f, 15.0f, "%", nullptr, &Params::condition,
+      "How worn the transport is. 0 is an ideal machine, 15 a freshly serviced one, 100 worn out. It sets physical causes - runout, rough bearings, tension variation, friction - and the wow and flutter are what they do." },
+    { "capstan", "CAPSTAN", Kind::Lin, 0.0f, 200.0f, 100.0f, "%", nullptr, &Params::capstan,
+      "The capstan assembly's share of the wear: shaft and pinch-roller runout, bearing roughness, motor ripple. Flutter." },
+    { "reels", "REELS", Kind::Lin, 0.0f, 200.0f, 100.0f, "%", nullptr, &Params::reels,
+      "The reels' share: eccentricity and holdback friction vary the tension, and tension stretches the tape. Wow." },
+    { "scrape", "SCRAPE", Kind::Lin, 0.0f, 200.0f, 100.0f, "%", nullptr, &Params::scrape,
+      "Friction at the heads: the tape sticks and slips and rings at a few kHz. Heard as fuzz around a tone, not as wow." },
+    { "motor", "MOTOR", Kind::Choice, 0, 1, 0, "", "AC SYNC|DC SERVO", &Params::motor,
+      "AC SYNC: a synchronous capstan motor, hunting gently when the speed changes. DC SERVO: a tachometer-controlled motor, quicker and firmer, with its own slot ripple." },
 
     { "h1pos", "HEAD 1 POSITION", Kind::Lin, 1.5f, 24.0f, 4.0f,  "cm", nullptr, &Params::h1Pos, "Distance from the record head along the rail." },
     { "h2pos", "HEAD 2 POSITION", Kind::Lin, 1.5f, 24.0f, 8.0f,  "cm", nullptr, &Params::h2Pos, "Distance from the record head along the rail." },

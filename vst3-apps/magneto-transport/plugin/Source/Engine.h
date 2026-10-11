@@ -19,6 +19,7 @@
 #include "Params.h"
 #include "Playback.h"
 #include "Equaliser.h"
+#include "Transport.h"
 
 #include <atomic>
 #include <cmath>
@@ -45,7 +46,6 @@ constexpr double HEAD_MIN_CM    = 1.5;
 constexpr double HEAD_MAX_CM    = 24.0;
 constexpr double CARRIAGE_MAX_CMS = 12.0; // head carriage top speed
 constexpr double HEAD_SPACING_CM = 1.2;   // head bodies: centres can come no closer
-constexpr double MOTOR_TAU      = 0.35;   // s, stand-in for the stage 5 motor
 constexpr double SPLICE_FADE_S  = 0.015;
 constexpr double FEEDBACK_MAX   = 1.5;    // small-signal loop gain at FEEDBACK 100 %, one head at 0 dB
 
@@ -134,6 +134,7 @@ struct Telemetry
     std::atomic<float>  headPeak[NUM_HEADS] { {0.0f}, {0.0f}, {0.0f} };
     std::atomic<float>  recPeak { 0.0f };      // peak |M| written, 1 = full remanence (tape saturation meter)
     std::atomic<double> tapeOdometerM { 0.0 };
+    std::atomic<double> wowFlutter { 0.0 };    // weighted W&F, 2 sigma, % (DIN 45507 / IEC 60386); -1 while the motor settles
 };
 
 //==============================================================================
@@ -274,6 +275,17 @@ private:
     const ShelfCascade& eqRec (int s, int b) const { return eqBuf[(size_t) (s * HeadKernel::NB + b)]; }
     const ShelfCascade& eqRep (int s, int b) const { return eqBuf[(size_t) ((2 + s) * HeadKernel::NB + b)]; }
     ShelfState recEqS[2], repEqS[4];
+
+    // the transport (stage 5): motor, wow and flutter from physical causes
+    Transport tr;
+    TransportInput trIn;
+    // the W&F meter: tape speed at 1 kHz, the weighting filter, the 2-sigma detector
+    static constexpr int WF_HIST = 8192, WF_MASK = WF_HIST - 1;
+    std::unique_ptr<double[]> wfHist { new double[WF_HIST]() };
+    int wfW = 0, wfDiv = 96, wfCnt = 0;
+    double wfB0 = 0, wfB2 = 0, wfA1 = 0, wfA2 = 0, wfZ1 = 0, wfZ2 = 0;
+    double wfMs = 0.0, wfA = 0.0, wfPct = 0.0;
+    int wfSettle = 0; double wfN = 0.0;   // a meter reads only once the motor is at speed
     // the cascades in use: analogue gains interpolated between the two speed
     // buckets either side of the motor speed, rediscretised as it moves
     ShelfCascade eqRecA, eqRepA;
@@ -327,7 +339,7 @@ private:
                    double tick (double x) { const double y = -a * x + (1.0 + 2.0 * a) * z1 - a * z2; z2 = z1; z1 = x; return y; }
                    void reset() { z1 = z2 = 0; } };
     Comp3 comp[4];
-    double aGain = 0.0, aMotor = 0.0;
+    double aGain = 0.0;
     double gDry = 1.0, gWet = 0.0, gOut = 1.0, aHost = 0.0;
 
     HalfBand up[2], dn[2];
