@@ -819,12 +819,14 @@ int main (int argc, char** argv)
 {
     std::string out = argc > 1 && argv[1][0] != '-' ? argv[1] : ".";
     bool fast = false;
-    int layersOpt = 0; std::string tablesPath; double nuOpt = 0.0, speedOpt = 0.0, hbOpt = 0.0, hsOpt = 0.0;
+    int layersOpt = 0; bool playbackOpt = false; std::string tablesPath, pbPath; double nuOpt = 0.0, speedOpt = 0.0, hbOpt = 0.0, hsOpt = 0.0;
     for (int i = 1; i < argc; ++i)
     {
         if (! std::strcmp (argv[i], "--fast")) fast = true;
         if (! std::strncmp (argv[i], "--layers=", 9)) layersOpt = std::atoi (argv[i] + 9);
         if (! std::strncmp (argv[i], "--tables=", 9)) tablesPath = argv[i] + 9;
+        if (! std::strcmp (argv[i], "--playback")) playbackOpt = true;
+        if (! std::strncmp (argv[i], "--pbtables=", 11)) { pbPath = argv[i] + 11; playbackOpt = true; }
         if (! std::strncmp (argv[i], "--nu=", 5)) nuOpt = std::atof (argv[i] + 5);
         if (! std::strncmp (argv[i], "--speed=", 8)) speedOpt = std::atof (argv[i] + 8);
         if (! std::strncmp (argv[i], "--hbop=", 7)) hbOpt = std::atof (argv[i] + 7);
@@ -992,6 +994,110 @@ int main (int argc, char** argv)
     std::printf ("   MOL (3 %% HD3): %.0f nWb/m rms = %+.2f dB re 250 = %+.2f dB re 185   (sheet: +12.3 dB re 185 = 760 nWb/m)\n",
                  mol, dB (mol / 250), dB (mol / 185));
     std::printf ("   HD3 at 250 nWb/m: %.3f %%; at 185 nWb/m: %.3f %%   (sheet: 0.1 %% at 185)\n", 100 * hd3ref, 100 * hd3at185);
+
+    //-------------------------------------------------------------- 9. playback (stage 4 targets)
+    // The engine stores FOUR slabs, each one magnetisation value per cell; the
+    // playback head weights depth by e^{-k y}. Here: the exact playback over 16
+    // depths, the same recording composed through 4 uniform slabs (the slab
+    // integral (e^{-k top} - e^{-k bot}) / (k D) per slab - what the engine can
+    // do), and the depth-averaged (recording) response, each re its own 1 kHz,
+    // at a small signal (-20 dB re 0 VU) and a FIXED bias and field.
+    if (playbackOpt)
+    {
+        std::printf ("\n9. PLAYBACK RESPONSE (16 depths exact vs 4 slabs, -20 dB, hb %.4f, hs %.5f)\n", hbOp, hsRef);
+        Lab P = L; P.NL = 16;
+        const double fl[] = { 500, 1000, 2000, 5000, 10000, 15000, 20000 };
+        const double speeds[] = { 4.7625, 9.525, 19.05, 38.1, 76.2 };
+        constexpr int PNV = 5, PNF = 7;
+        double ref16[PNV][PNF] {}, ref4[PNV][PNF] {}, refRec[PNV][PNF] {}, loss1k[PNV] {}, dsp[PNV] {}, abs1k[PNV] {};
+        int iv = -1;
+        for (double sp : speeds)
+        {
+            ++iv;
+            P.v = sp; P.lengthUm = L.lengthUm * std::max (1.0, sp / L.v);
+            double refAvg = 0, abs16 = 0, abs4 = 0;
+            std::printf ("   %6.2f cm/s  f: 16-depth / 4-slab / depth-avg (dB re 1 nWb/m peak)\n", sp);
+            for (double f : fl)
+            {
+                Tape tp = P.fresh();
+                P.record (tp, hbOp, hsRef * 0.1, f);
+                Readout R (P.md, tp, P.stock);
+                int c0, n; P.window (f, c0, n);
+                const double k = 2.0 * PI * f / (sp * 1.0e4);
+                const double gap = std::sin (0.5 * k * P.play.g) / (0.5 * k * P.play.g);
+                const double D = P.stock.deltaUm / 4.0;
+                std::complex<double> s4 (0, 0);
+                for (int s = 0; s < 4; ++s)
+                {
+                    std::complex<double> A (0, 0);
+                    for (int q = 0; q < 4; ++q) A += R.amp (f, sp, c0, n, 4 * s + q);
+                    A /= 4.0;
+                    const double top = P.play.d + s * D, bot = top + D;
+                    s4 += A * (std::exp (-k * top) - std::exp (-k * bot)) / (k * D);
+                }
+                const double p16 = std::abs (R.playback (f, sp, c0, n, P.play.d, P.play.g));
+                const double p4 = std::abs (s4 * gap) / 4.0;
+                const double avg = std::abs (R.amp (f, sp, c0, n, -1));
+                int fi = 0; while (fl[fi] != f) ++fi;
+                ref16[iv][fi] = dB (p16); ref4[iv][fi] = dB (p4); refRec[iv][fi] = dB (avg);
+                if (f == 1000.0) { abs16 = p16; abs4 = p4; refAvg = avg; }
+                std::printf ("      %6.0f: %+7.2f %+7.2f %+7.2f\n", f, dB (p16), dB (p4), dB (avg));
+            }
+            std::printf ("      1 kHz absolute (nWb/m peak): 16-depth %.3f, 4-slab %.3f (%.3f dB apart)\n",
+                         abs16, abs4, dB (abs4 / abs16));
+            loss1k[iv] = dB (abs16 / refAvg);
+            abs1k[iv] = abs16;
+            // Four uniform slabs read slightly bright at the top: fit the effective
+            // extra head spacing that removes it. A spacing is a common factor
+            // e^{-k dd} on every slab, so re the 1 kHz it predicts -8.686 dd (k - k1),
+            // fitted over 2..15 kHz where the response is within 30 dB of 1 kHz.
+            const double k1 = 2.0 * PI * 1000.0 / (sp * 1.0e4);
+            double su = 0.0, suu = 0.0;
+            for (int fi = 2; fi <= 5; ++fi)
+            {
+                const double r16 = ref16[iv][fi] - ref16[iv][1], r4 = ref4[iv][fi] - ref4[iv][1];
+                if (r16 < -30.0) continue;
+                const double u = 2.0 * PI * fl[fi] / (sp * 1.0e4) - k1;
+                su += (r16 - r4) * u; suu += u * u;
+            }
+            dsp[iv] = suu > 0.0 ? -su / (8.686 * suu) : 0.0;
+            double worst = 0.0;
+            for (int fi = 2; fi <= 5; ++fi)
+            {
+                const double r16 = ref16[iv][fi] - ref16[iv][1], r4 = ref4[iv][fi] - ref4[iv][1];
+                if (r16 < -30.0) continue;
+                const double u = 2.0 * PI * fl[fi] / (sp * 1.0e4) - k1;
+                worst = std::max (worst, std::abs (r16 - (r4 - 8.686 * dsp[iv] * u)));
+            }
+            std::printf ("      effective extra spacing for 4 slabs: %+.4f um (residual %.3f dB, 2..15 kHz); 1 kHz playback loss %.3f dB\n",
+                         dsp[iv], worst, loss1k[iv]);
+        }
+        if (! pbPath.empty())
+        {
+            FILE* o = std::fopen (pbPath.c_str(), "w");
+            std::fprintf (o, "#pragma once\n// GENERATED by reference/mtref --playback --pbtables= : do not edit.\n");
+            std::fprintf (o, "// Playback targets at hb %.4f Hc, hs %.5f Hc (-20 dB re 0 VU at the 19.05 cm/s alignment).\n", hbOp, hsRef);
+            std::fprintf (o, "namespace mt { namespace pb456 {\n");
+            std::fprintf (o, "constexpr int NV = %d, NF = %d;\n", PNV, PNF);
+            std::fprintf (o, "constexpr double SPEED_CMS[NV] = {"); for (double s : speeds) std::fprintf (o, " %.4f,", s); std::fprintf (o, " };\n");
+            std::fprintf (o, "constexpr double F_HZ[NF] = {"); for (double f : fl) std::fprintf (o, " %.1f,", f); std::fprintf (o, " };\n");
+            std::fprintf (o, "// effective extra head spacing (um) that makes 4 uniform slabs read like 16 depths\n");
+            std::fprintf (o, "constexpr double D_SPACING_UM[NV] = {"); for (int v = 0; v < PNV; ++v) std::fprintf (o, " %.5f,", dsp[v]); std::fprintf (o, " };\n");
+            std::fprintf (o, "// 16-depth playback response, dB re its own 1 kHz\n");
+            std::fprintf (o, "constexpr double REF_DB[NV][NF] = {\n");
+            for (int v = 0; v < PNV; ++v) { std::fprintf (o, " {"); for (int fi = 0; fi < PNF; ++fi) std::fprintf (o, " %.4f,", ref16[v][fi] - ref16[v][1]); std::fprintf (o, " },\n"); }
+            std::fprintf (o, "};\n// the same recordings, depth-averaged flux (no playback head), dB re its own 1 kHz\n");
+            std::fprintf (o, "constexpr double REC_DB[NV][NF] = {\n");
+            for (int v = 0; v < PNV; ++v) { std::fprintf (o, " {"); for (int fi = 0; fi < PNF; ++fi) std::fprintf (o, " %.4f,", refRec[v][fi] - refRec[v][1]); std::fprintf (o, " },\n"); }
+            std::fprintf (o, "};\n// playback loss at 1 kHz: 16-depth playback vs depth-averaged flux, dB\n");
+            std::fprintf (o, "constexpr double LOSS_1K_DB[NV] = {"); for (int v = 0; v < PNV; ++v) std::fprintf (o, " %.4f,", loss1k[v]); std::fprintf (o, " };\n");
+            std::fprintf (o, "constexpr double ABS_1K_NWB_PEAK[NV] = {"); for (int v = 0; v < PNV; ++v) std::fprintf (o, " %.4f,", abs1k[v]); std::fprintf (o, " };\n");
+            std::fprintf (o, "}} // namespace mt::pb456\n");
+            std::fclose (o);
+            std::printf ("   written %s\n", pbPath.c_str());
+        }
+        return 0;
+    }
 
     //-------------------------------------------------------------- 4. wavelength response vs bias
     std::printf ("\n4. RESPONSE vs FREQUENCY at %.1f cm/s, -20 dB re ref, three bias settings; dB re the 1 kHz output of each\n", L.v);

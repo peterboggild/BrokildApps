@@ -3,6 +3,10 @@
 
 #include <algorithm>
 #include <cstring>
+#if defined (_M_X64) || defined (__SSE2__)
+ #include <emmintrin.h>
+ #define MT_SSE 1
+#endif
 
 #ifndef M_PI
  #define M_PI 3.14159265358979323846
@@ -18,6 +22,31 @@ namespace
     static_assert (S4::NM == 11 && S4::NS <= LayerRecord::NSMAX, "LayerRecord's slice size");
 
     inline double dbToLin (double db) { return std::pow (10.0, db / 20.0); }
+
+    /*  Two tracks against one set of taps, n contiguous floats each - the record
+        kernel and the playback head's near taps. Float lanes, four at a time: a
+        sum of under a hundred products keeps its error near -130 dB. */
+    inline void dot2 (const float* t, const float* p0, const float* p1, int n, double& a0, double& a1)
+    {
+       #ifdef MT_SSE
+        __m128 s0 = _mm_setzero_ps(), s1 = _mm_setzero_ps();
+        int j = 0;
+        for (; j + 4 <= n; j += 4)
+        {
+            const __m128 w = _mm_loadu_ps (t + j);
+            s0 = _mm_add_ps (s0, _mm_mul_ps (w, _mm_loadu_ps (p0 + j)));
+            s1 = _mm_add_ps (s1, _mm_mul_ps (w, _mm_loadu_ps (p1 + j)));
+        }
+        alignas (16) float r0[4], r1[4];
+        _mm_store_ps (r0, s0); _mm_store_ps (r1, s1);
+        double x0 = (double) r0[0] + r0[1] + r0[2] + r0[3];
+        double x1 = (double) r1[0] + r1[1] + r1[2] + r1[3];
+        for (; j < n; ++j) { x0 += (double) t[j] * p0[j]; x1 += (double) t[j] * p1[j]; }
+        a0 += x0; a1 += x1;
+       #else
+        for (int j = 0; j < n; ++j) { const double w = t[j]; a0 += w * p0[j]; a1 += w * p1[j]; }
+       #endif
+    }
     inline double Phi (double x) { return 0.5 * std::erfc (-x / std::sqrt (2.0)); }
 
     const char* SYNC_LABELS[NUM_SYNC] =
@@ -184,15 +213,37 @@ void Engine::buildRecord (double biasDb, double speedCms)
     // The rail's zero: the gain-weighted zone centroid at OPERATING bias and the
     // CURRENT speed, so delay = head distance / speed at every speed; moving the
     // bias then shifts the delay slightly, as it does on a real head.
+    //
+    // The repro level per speed, also at OPERATING bias: what a 1 kHz tone loses
+    // through the slab kernels, each slab weighted by its small-signal record gain
+    // and its zone (with the zone's own phase); the replay side of a studio machine
+    // is aligned per speed. Off the operating bias the playback-weighted level then
+    // moves physically (over-bias records deeper, where the head hears less).
     {
         double gx = 0.0, gs = 0.0;
+        double gl[NLAYER], xl[NLAYER], wl[NLAYER];
         for (int l = 0; l < NLAYER; ++l)
         {
             int ia; double ta; aIndex (S4::HB_OPERATING * S4::LAYER_FMAX[l], ia, ta);
-            const double g = zone (S4::ZONE_GAIN, l, ia, ta);
-            gx += g * zone (S4::ZONE_X_UM, l, ia, ta); gs += g;
+            gl[l] = zone (S4::ZONE_GAIN, l, ia, ta);
+            xl[l] = zone (S4::ZONE_X_UM, l, ia, ta);
+            wl[l] = std::max (0.0, zone (S4::ZONE_W_UM, l, ia, ta));
+            gx += gl[l] * xl[l]; gs += gl[l];
         }
         xRefUm = gs > 0.0 ? gx / gs : 0.0;
+        const double k1 = 2.0 * M_PI * 1000.0 / (speedCms * 1.0e4);
+        double wr = 0.0, wi = 0.0, lr = 0.0, li = 0.0;
+        for (int l = 0; l < NLAYER; ++l)
+        {
+            const double w = gl[l] * std::exp (-0.5 * std::pow (k1 * wl[l], 2.0));
+            const double ph = -k1 * (xl[l] - xRefUm);
+            const double L = (hk != nullptr) ? headResponse (l, k1, HeadKernel::bucket (speedCms)) : slabResponse (l, k1, speedCms);
+            wr += w * std::cos (ph); wi += w * std::sin (ph);
+            lr += w * L * std::cos (ph); li += w * L * std::sin (ph);
+        }
+        const double without = std::hypot (wr, wi), with = std::hypot (lr, li);
+        pbTrimSS = with > 0.0 ? without / with : 1.0;
+        pbTrim = pbKappa * pbTrimSS;
     }
 
     double msym[S4::NM];
@@ -302,6 +353,7 @@ void Engine::prepare (double hostSampleRate, int)
     os = fsHost < 80000.0 ? 2 : 1;
     fsInt = fsHost * os;
     dt = 1.0 / fsInt;
+    hk = &HeadKernel::get (fsInt);      // built once per internal rate, shared by every instance
 
     for (auto& h : up) { h.design(); h.clear(); }
     for (auto& h : dn) { h.design(); h.clear(); }
@@ -353,6 +405,35 @@ void Engine::prepare (double hostSampleRate, int)
             ss += m * m;
         }
         outK = 0.12589254117941673 / std::sqrt (ss / K);
+        // The repro trim weights the slabs by their small-signal gains; at 0 VU the
+        // slabs' shares differ a little. Measure the ratio once, here, at the
+        // alignment (operating bias, nominal speed), and keep it at every speed.
+        pbKappa = 1.0;
+        double ml[NLAYER] {};
+        for (int l = 0; l < NLAYER; ++l)
+        {
+            double s2 = 0.0;
+            for (int k = 0; k < K; ++k)
+            {
+                const double sv = S4::HS_0VU * std::sin (2.0 * M_PI * (k + 0.5) / K);
+                const double m = recordCell (rec[l], 0.0f, sv);
+                s2 += m * m;
+            }
+            ml[l] = std::sqrt (s2 / K);
+        }
+        const double k1 = 2.0 * M_PI * 1000.0 / (S4::ALIGN_SPEED_CMS * 1.0e4);
+        const int b = HeadKernel::bucket (S4::ALIGN_SPEED_CMS);
+        double wr = 0.0, wi = 0.0, lr = 0.0, li = 0.0;
+        for (int l = 0; l < NLAYER; ++l)
+        {
+            const double w = ml[l] * std::exp (-0.5 * std::pow (k1 * rec[l].wUm, 2.0));
+            const double ph = -k1 * (rec[l].xUm - xRefUm);
+            const double L = headResponse (l, k1, b);
+            wr += w * std::cos (ph); wi += w * std::sin (ph);
+            lr += w * L * std::cos (ph); li += w * L * std::sin (ph);
+        }
+        const double exact = std::hypot (wr, wi) / std::hypot (lr, li);
+        pbKappa = exact / pbTrimSS;
     }
     biasDbSm = params.bias;
     // (the record head for the current speed is built once the motor speed is set, below)
@@ -427,6 +508,12 @@ void Engine::adoptStore (TapeStore* s, int newMode, int64_t cells)
     for (int c = 0; c < 2; ++c) { sHist[c][0] = sHist[c][1] = sHist[c][2] = 0.0; wAcc[c] = 0.0; wLen[c] = 0.0; }
     std::fill (fieldBuf.get(), fieldBuf.get() + 2 * FIELD, 0.0f);
     for (auto& k : nextCell) k = 0;
+    std::fill (preBuf.get(), preBuf.get() + (size_t) 2 * NLAYER * PRE_RING, 0.0);
+    for (auto& r : pRun) for (double& x : r) x = 0.0;
+    for (auto& c : cNext) c = 0;
+    std::fill (preCBuf.get(), preCBuf.get() + (size_t) 2 * PRE_RING, 0.0);
+    pRunC[0] = pRunC[1] = 0.0;
+    cNextC = 0;
     recFade = 0.0;
 
     tele.mode = mode;
@@ -558,16 +645,7 @@ void Engine::finishCells()
             {
                 const float* p0 = field[0] + b0;
                 const float* p1 = field[1] + b0;
-                double a0 = 0.0, a1 = 0.0, c0 = 0.0, c1 = 0.0;     // two chains per track
-                int j = 0;
-                for (; j + 1 < r.nTaps; j += 2)
-                {
-                    const double w0 = r.w[j], w1 = r.w[j + 1];
-                    a0 += w0 * p0[j]; a1 += w1 * p0[j + 1];
-                    c0 += w0 * p1[j]; c1 += w1 * p1[j + 1];
-                }
-                if (j < r.nTaps) { a0 += r.w[j] * p0[j]; c0 += r.w[j] * p1[j]; }
-                s[0] = a0 + a1; s[1] = c0 + c1;
+                dot2 (r.w, p0, p1, r.nTaps, s[0], s[1]);
             }
             else
                 for (int j = 0; j < r.nTaps; ++j)
@@ -584,6 +662,167 @@ void Engine::finishCells()
         }
         nextCell[l] = k;
     }
+    finishCoarse();
+}
+
+/*  What the read does to a sinusoid of wavenumber k on one slab: its near taps
+    (at phase 0), its own boxes and its share of the combined tail - the same
+    numbers readHead applies, so the repro trim matches the read exactly. */
+double Engine::headResponse (int l, double k, int b) const
+{
+    const HeadKernel& K = *hk;
+    const double p = CELL_UM * (double) (1 << l);
+    const float* t = K.tapRow (l, b, 0);
+    double r = 0.0;
+    for (int j = -K.N[l]; j <= K.N[l] + 1; ++j) r += t[j + K.N[l]] * std::cos (k * j * p);
+    auto box = [k] (double lo, double hi) { return (k < 1.0e-12) ? 1.0 : (std::sin (k * hi) - std::sin (k * lo)) / (k * (hi - lo)); };
+    const float* bm = K.masses (l, b);
+    for (int i = 0; i < K.nbox[l]; ++i) r += 2.0 * bm[i] * box (K.boxLo[l][i], K.boxHi[l][i]);
+    for (int i = 0; i < K.nboxC; ++i) r += 2.0 * K.cSlab[l] * K.betaC[i] * box (K.boxLoC[i], K.boxHiC[i]);
+    return r;
+}
+
+/*  The coarse prefix sums of every slab, extended as its cells are finished: a
+    4 um coarse cell holds the integral (M x um) of its slab cells. The ring is
+    indexed by the unwrapped coarse coordinate, so the chain is continuous over
+    everything a head can read. */
+void Engine::finishCoarse()
+{
+    for (int l = 0; l < NLAYER; ++l)
+    {
+        const int r = 8 >> l;
+        const double p = CELL_UM * (double) (1 << l);
+        const int64_t ring = N >> l;
+        while ((cNext[l] + 1) * r <= nextCell[l])
+        {
+            const int64_t q = cNext[l];
+            int64_t k = wrapTo (q * r, ring);
+            double s0 = 0.0, s1 = 0.0;
+            for (int i = 0; i < r; ++i)
+            {
+                s0 += store->m[0][l][(size_t) k]; s1 += store->m[1][l][(size_t) k];
+                if (++k == ring) k = 0;
+            }
+            pRun[0][l] += s0 * p; pRun[1][l] += s1 * p;
+            pre (0, l)[(size_t) (q & PRE_MASK)] = pRun[0][l];
+            pre (1, l)[(size_t) (q & PRE_MASK)] = pRun[1][l];
+            ++cNext[l];
+        }
+    }
+    // the combined tail track, once every slab has finished a coarse cell
+    int64_t ready = cNext[0];
+    for (int l = 1; l < NLAYER; ++l) ready = std::min (ready, cNext[l]);
+    while (cNextC < ready)
+    {
+        const size_t iq = (size_t) (cNextC & PRE_MASK), ip = (size_t) ((cNextC - 1) & PRE_MASK);
+        for (int c = 0; c < 2; ++c)
+        {
+            double s = 0.0;
+            for (int l = 0; l < NLAYER; ++l) s += hk->cSlab[l] * (pre (c, l)[iq] - (cNextC > 0 ? pre (c, l)[ip] : 0.0));
+            pRunC[c] += s;
+            preC (c)[iq] = pRunC[c];
+        }
+        ++cNextC;
+    }
+}
+
+/*  The playback head (stage 4, docs/physics/07-playback.md): every slab through
+    its own kernel - near taps on the slab's grid at the head's phase, then the
+    1/x^2 tail as box means from the coarse prefix sums. a, b: the tape
+    coordinates (surface cells) at the start and end of this sample's transit;
+    the transit box is folded into the taps, centred where it always was. */
+void Engine::readHead (double a, double b, double& outL, double& outR) const
+{
+    const HeadKernel& K = *hk;
+    const double x = 0.5 * (a + b);
+    const double xum = x * CELL_UM;
+    double sL = 0.0, sR = 0.0;
+    for (int l = 0; l < NLAYER; ++l)
+    {
+        const int64_t ring = N >> l;
+        const double y = x / (double) (1 << l) - 0.5;      // slab cell i sits at i + 0.5
+        const double fl = std::floor (y);
+        int64_t n = (int64_t) fl;
+        int ph = (int) std::lround ((y - fl) * HeadKernel::NPH);
+        if (ph == HeadKernel::NPH) { ph = 0; ++n; }
+        const float* t = K.tapRow (l, hkB, ph);
+        const int nt = K.ntap[l];
+        const float* m0 = store->m[0][l].data();
+        const float* m1 = store->m[1][l].data();
+        const int64_t i0 = wrapTo (n - K.N[l], ring);
+        double a0 = 0.0, a1 = 0.0;
+        if (i0 + nt <= ring)
+        {
+            const float* p0 = m0 + i0;
+            const float* p1 = m1 + i0;
+            dot2 (t, p0, p1, nt, a0, a1);
+        }
+        else
+        {
+            int64_t k = i0;
+            for (int j = 0; j < nt; ++j) { const double w = t[j]; a0 += w * m0[k]; a1 += w * m1[k]; if (++k == ring) k = 0; }
+        }
+        // the tail, both sides: a box mean is the prefix difference at its edges over
+        // its width; edges are shared (one box's hi is the next one's lo)
+        const double* P0 = pre (0, l);
+        const double* P1 = pre (1, l);
+        const float* bm = K.masses (l, hkB);
+        auto at = [&] (double um, double& v0, double& v1)
+        {
+            const double yy = um * (1.0 / COARSE_UM);
+            const double fq = std::floor (yy);
+            const int64_t q = (int64_t) fq;
+            const double fr = yy - fq;
+            const size_t iq = (size_t) (q & PRE_MASK), ip = (size_t) ((q - 1) & PRE_MASK);
+            v0 = P0[ip] + fr * (P0[iq] - P0[ip]);
+            v1 = P1[ip] + fr * (P1[iq] - P1[ip]);
+        };
+        double rp0, rp1, lp0, lp1;
+        at (xum + K.boxLo[l][0], rp0, rp1);
+        at (xum - K.boxLo[l][0], lp0, lp1);
+        for (int i = 0; i < K.nbox[l]; ++i)
+        {
+            const double hi = K.boxHi[l][i];
+            double r0, r1, q0, q1;
+            at (xum + hi, r0, r1);
+            at (xum - hi, q0, q1);
+            const double w = (double) bm[i] / (hi - K.boxLo[l][i]);
+            a0 += w * ((r0 - rp0) + (lp0 - q0));
+            a1 += w * ((r1 - rp1) + (lp1 - q1));
+            rp0 = r0; rp1 = r1; lp0 = q0; lp1 = q1;
+        }
+        sL += a0; sR += a1;
+    }
+    // the combined tail of all four slabs
+    {
+        const double* P0 = preC (0);
+        const double* P1 = preC (1);
+        auto at = [&] (double um, double& v0, double& v1)
+        {
+            const double yy = um * (1.0 / COARSE_UM);
+            const double fq = std::floor (yy);
+            const int64_t q = (int64_t) fq;
+            const double fr = yy - fq;
+            const size_t iq = (size_t) (q & PRE_MASK), ip = (size_t) ((q - 1) & PRE_MASK);
+            v0 = P0[ip] + fr * (P0[iq] - P0[ip]);
+            v1 = P1[ip] + fr * (P1[iq] - P1[ip]);
+        };
+        double rp0, rp1, lp0, lp1;
+        at (xum + K.boxLoC[0], rp0, rp1);
+        at (xum - K.boxLoC[0], lp0, lp1);
+        for (int i = 0; i < K.nboxC; ++i)
+        {
+            const double hi = K.boxHiC[i];
+            double r0, r1, q0, q1;
+            at (xum + hi, r0, r1);
+            at (xum - hi, q0, q1);
+            const double w = K.betaC[i] / (hi - K.boxLoC[i]);
+            sL += w * ((r0 - rp0) + (lp0 - q0));
+            sR += w * ((r1 - rp1) + (lp1 - q1));
+            rp0 = r0; rp1 = r1; lp0 = q0; lp1 = q1;
+        }
+    }
+    outL = sL * (1.0 / NLAYER); outR = sR * (1.0 / NLAYER);
 }
 
 /*  Return every cell that has passed `newPos` to the demagnetised state, in
@@ -704,8 +943,9 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
         // a head switched off and faded out reads nothing (it would add nothing)
         if (g < 1.0e-9) { uPrev[i] = u1; continue; }
         double hL, hR;
-        readLayers (uPrev[i], u1, hL, hR);
-        hL *= outK; hR *= outK;
+        if (pbOn) readHead (uPrev[i], u1, hL, hR); else readLayers (uPrev[i], u1, hL, hR);
+        const double kOut = pbOn ? outK * pbTrim : outK;
+        hL *= kOut; hR *= kOut;
         uPrev[i] = u1;
         outL += g * panL[i] * hL;
         outR += g * panR[i] * hR;
@@ -797,6 +1037,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         const double vNow = v / CELLS_PER_CM;
         if (std::abs (biasDbSm - recBiasDb) > 0.005 || std::abs (std::log (vNow / recSpeed)) > 0.002)
             buildRecord (biasDbSm, vNow);
+        hkB = HeadKernel::bucket (vNow);
     }
 
     const float* on[NUM_HEADS]  = { &p.h1On, &p.h2On, &p.h3On };

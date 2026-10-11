@@ -17,6 +17,7 @@
 // See docs/physics/01..05 and docs/DECISIONS.md. No JUCE in here.
 
 #include "Params.h"
+#include "Playback.h"
 
 #include <atomic>
 #include <cmath>
@@ -166,6 +167,11 @@ public:
     double speedCms() const { return v / CELLS_PER_CM; }
     double compensationS() const { return leadS; }
     int recordBuilds() const { return recBuilds; }
+    /*  Bench: read the slabs with (true, the default) or without the playback
+        head's spacing, thickness and gap losses - without, sections 13-14 test
+        the record process alone against the reference's depth-averaged flux. */
+    void setPlaybackLoss (bool on) { pbOn = on; }
+    double playbackTrim() const { return pbTrim; }
     bool isSplicing() const { return spliceState != 0; }
     const LayerRecord& layerRecord (int l) const { return rec[l]; }
     double outputTrim() const { return outK; }
@@ -181,6 +187,9 @@ private:
     double targetSpeedCms (bool& clamped, bool& syncOn) const;
     void buildRecord (double biasDb, double speedCms);
     void readLayers (double a, double b, double& outL, double& outR) const;
+    void readHead (double a, double b, double& outL, double& outR) const;
+    void finishCoarse();
+    double headResponse (int slab, double kPerUm, int bucket) const;
     void readAvg2 (const float* t0, const float* t1, int64_t ring, double a, double b, double& r0, double& r1) const;
     double readPoint (const float* tr, int64_t ring, double u) const;
     void writeField (int c, double u0, double u1, double p0, double p1, double p2, double p3);
@@ -235,6 +244,25 @@ private:
     double outK = 0.0;             // sample units per unit of mean remanence (the repro alignment)
     double xRefUm = 0.0;           // gain-weighted zone centroid at operating bias
     float recPk = 0.0f;
+
+    // the playback head (stage 4): kernel tables shared per internal rate, the
+    // speed bucket in use, and coarse prefix sums of every slab for the tails -
+    // a 52 cm ring indexed by the UNWRAPPED coarse coordinate, so it covers what
+    // any head can read whatever the loop length
+    const HeadKernel* hk = nullptr;
+    int hkB = 0;
+    bool pbOn = true;
+    double pbTrim = 1.0;           // repro level per speed: 1 kHz unity through the head losses
+    double pbTrimSS = 1.0;         // the same from small-signal layer weights
+    double pbKappa = 1.0;          // 0 VU weights / small-signal weights, measured at the alignment
+    std::unique_ptr<double[]> preBuf { new double[(size_t) 2 * NLAYER * PRE_RING]() };
+    double* pre (int c, int l) const { return preBuf.get() + (size_t) (c * NLAYER + l) * PRE_RING; }
+    double pRun[2][NLAYER] {};
+    int64_t cNext[NLAYER] {};
+    std::unique_ptr<double[]> preCBuf { new double[(size_t) 2 * PRE_RING]() };   // the combined tail track
+    double* preC (int c) const { return preCBuf.get() + (size_t) c * PRE_RING; }
+    double pRunC[2] {};
+    int64_t cNextC = 0;
 
     // transport
     double T = 0.0;

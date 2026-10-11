@@ -56,6 +56,7 @@ juce_add_binary_data(MagnetoTransportAssets
 target_sources(MagnetoTransport
     PRIVATE
         Source/Engine.cpp
+        Source/Playback.cpp
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp)
 

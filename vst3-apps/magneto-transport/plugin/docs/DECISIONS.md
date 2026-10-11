@@ -259,3 +259,37 @@ check now uses the same small pulse: 0.5000000 s.
 Kernel cut at 4 sigma (6e-5 of its mass) and both tracks in one pass over the
 taps: 14.8 % of a core at the worst case (76 cm/s, three heads, feedback);
 recording the cells ~8 %, reading them ~5 %.
+
+## Stage 4: each slab is read through its own kernel (not one loss for the coating)
+
+The playback head weights depth by e^{-k y}. One loss applied to the
+depth-averaged tape reads 10.4 dB low at 15 kHz / 19 cm/s, because recording
+loss has already emptied the deep slabs of treble. So each slab gets its exact
+kernel, h(x) = [ln(x^2+bot^2) - ln(x^2+top^2)] / (2 pi D): zero-phase like the
+physics. Pole cascades were measured and rejected (phase the head does not have;
+5-7 dB off on the deep slabs). The kernel's 1/x^2 tail cannot be truncated: it
+IS the thickness loss reaching into the bass (a cusp at k = 0). Near taps on
+each slab's own grid, the tail as geometric boxes from prefix sums, one combined
+track beyond the deepest slab's reach. Details: docs/physics/07-playback.md.
+
+## Four uniform slabs get a fitted effective spacing
+
+The reference composed the same recording through 4 uniform slabs and through
+16 depths: 0.01-0.06 dB apart at 1 kHz, but the slabs read bright at the top
+(+0.44 dB at 15 kHz, 19 cm/s), linearly in k. A spacing, so the correction is a
+spacing: +0.10 um at 19-38 cm/s, fitted per speed by the reference into
+stock/pb_456.h. Not an equaliser, and not typed here.
+
+## The replay side is aligned per speed
+
+Thickness loss costs level at 1 kHz too (-1.5 dB at 19 cm/s, -5.2 at 4.76). The
+repro trim is set per speed at operating bias from the read's own discrete
+response, so 1 kHz stays at unity whatever the speed (-0.006 dB). The record
+side keeps its one alignment, so the tape's speed dependence stays audible.
+
+## Bench tests that assumed a flat medium
+
+The splice test used 500 Hz and read +0.72 dB: the thickness tilt, not a fault.
+Unity is defined at the 1 kHz alignment, so it now uses 1 kHz. Sections 13-14
+compare the record process with the reference's depth-averaged flux, so they
+run with the head losses bypassed (Engine::setPlaybackLoss, bench only).

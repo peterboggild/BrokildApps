@@ -6,6 +6,7 @@
 
 #include "Engine.h"
 #include "stock/stock_456.h"     // the reference's alignment constants - never typed here
+#include "stock/pb_456.h"        // the reference's playback targets (generated)
 
 #include <chrono>
 #include <cstdio>
@@ -19,6 +20,7 @@
 using namespace mt;
 
 static int g_fail = 0, g_pass = 0;
+static bool g_recordOnly = false; // sections 13-14: the record process alone (no playback head losses)
 static bool verbose = false;      // argv[1] == "-v": print every delay case
 static void check (bool ok, const char* what, const std::string& detail)
 {
@@ -47,6 +49,7 @@ static Render run (Params p, double fs, const std::vector<float>& inL, const std
     Engine& e = keep ? *keep : localE;
     e.setParams (p);
     e.setBpm (bpm);
+    e.setPlaybackLoss (! g_recordOnly);
     e.prepare (fs, 256);
     Render r; r.L.resize (inL.size()); r.R.resize (inL.size());
     for (size_t i = 0; i < inL.size(); i += 256)
@@ -429,7 +432,7 @@ static void testLoopAndSplice()
         Params p = wetOnly(); p.speed = 19.0f; p.h1Pos = 4.0f;
         Engine e;
         const size_t n = (size_t) (2.5 * fs);
-        auto x = sine (n, 500.0, fs, REF_AMP);
+        auto x = sine (n, 1000.0, fs, REF_AMP);   // unity is defined at the 1 kHz alignment
         bool sawSplice = false;
         auto r = run (p, fs, x, x, [&] (Params& q, Engine& en, size_t i) {
             if ((double) i >= 0.5 * fs) { q.mode = 1; q.loopLen = 1.0f; }
@@ -444,7 +447,7 @@ static void testLoopAndSplice()
         // sine, whose onset step is the test signal, not the splice
         double maxStep = 0.0;
         for (size_t i = (size_t) (0.4 * fs); i < r.L.size(); ++i) maxStep = std::max (maxStep, (double) std::abs (r.L[i] - r.L[i - 1]));
-        const double sineStep = REF_AMP * 2.0 * M_PI * 500.0 / fs;
+        const double sineStep = REF_AMP * 2.0 * M_PI * 1000.0 / fs;
         check (maxStep < sineStep * 1.05, "the splice is click-free", fmt ("max step %.4f vs sine %.4f", maxStep, sineStep));
     }
 }
@@ -604,6 +607,7 @@ static void testRailAndView()
     is the repro alignment, which is trimmed to 0 VU by construction. */
 static void testAgainstReference()
 {
+    struct RecordOnly { RecordOnly() { g_recordOnly = true; } ~RecordOnly() { g_recordOnly = false; } } recordOnly;
     std::printf ("\n13. AGAINST THE REFERENCE (38.1 cm/s, 1 kHz, the reference's operating bias)\n");
     const double fs = 48000.0, v = 38.1;
     // The machine is aligned at 19.05 cm/s; the reference was measured at 38.1 with
@@ -713,6 +717,7 @@ static void testAgainstReference()
     field (the 38.1 alignment), 05-reference-results.md / 06-realtime-record.md. */
 static void testSpeeds()
 {
+    struct RecordOnly { RecordOnly() { g_recordOnly = true; } ~RecordOnly() { g_recordOnly = false; } } recordOnly;
     std::printf ("\n14. SPEED: THE SAME RECORDING AT 19 AND 76 cm/s (fixed bias and field)\n");
     namespace S4 = mt::stock456;
     const double fs = 48000.0;
@@ -780,6 +785,68 @@ static void testSpeeds()
     }
 }
 
+/*  The playback head against the reference's playback: the same small signal
+    recorded at the 19.05 cm/s alignment's bias and field, read through the
+    head (spacing, thickness, gap) - each re its own 1 kHz. The reference reads
+    16 depths; the engine 4 slabs with the generated spacing correction. */
+static void testPlayback()
+{
+    std::printf ("\n15. PLAYBACK HEAD AGAINST THE REFERENCE (-20 dB, dB re each one's 1 kHz)\n");
+    namespace P = mt::pb456;
+    const double fs = 48000.0;
+    auto tone = [&] (double v, double f) {
+        Params p = wetOnly(); p.speed = (float) v; soloHead (p, 4.0);
+        const double d = 4.0 / v;
+        const size_t n = (size_t) ((d + 0.5) * fs);
+        auto x = sine (n, f, fs, REF_AMP * 0.1);
+        auto r = run (p, fs, x, x);
+        const size_t a = (size_t) ((d + 0.15) * fs);
+        const size_t len = (size_t) (std::floor (0.3 * f) / f * fs);
+        return goertzelAmp (r.L, a, a + len, f, fs);
+    };
+    double worstAll = 0.0;
+    for (int iv = 0; iv < P::NV; ++iv)
+    {
+        const double v = P::SPEED_CMS[iv];
+        const double a1 = tone (v, 1000.0);
+        std::printf ("   %6.2f cm/s:", v);
+        double worst = 0.0, deep = 0.0, deepF = 0.0;
+        for (int fi = 0; fi < P::NF; ++fi)
+        {
+            if (P::F_HZ[fi] == 1000.0) continue;
+            const double db = 20.0 * std::log10 (tone (v, P::F_HZ[fi]) / a1);
+            const double ref = P::REF_DB[iv][fi];
+            std::printf ("  %5.0f %+6.2f (ref %+6.2f)", P::F_HZ[fi], db, ref);
+            if (P::F_HZ[fi] > 15000.0) continue;
+            // the tolerance holds where the head still passes the signal (within 20 dB
+            // of 1 kHz); deeper in the roll-off the error is printed, not hidden
+            if (ref > -20.0) worst = std::max (worst, std::abs (db - ref));
+            else if (ref > -30.0 && std::abs (db - ref) > deep) { deep = std::abs (db - ref); deepF = P::F_HZ[fi]; }
+        }
+        std::printf ("\n");
+        // diagnostic: the same with the head losses off, against the reference's
+        // depth-averaged flux. Not a check: at slow speeds the deep slabs' depth
+        // average carries treble the head never hears (and the anti-alias rule
+        // trims it), so record error does not carry over into playback one to one.
+        {
+            struct RecordOnly { RecordOnly() { g_recordOnly = true; } ~RecordOnly() { g_recordOnly = false; } } ro;
+            const double r1 = tone (v, 1000.0);
+            std::printf ("          record only:");
+            for (int fi = 0; fi < P::NF; ++fi)
+            {
+                if (P::F_HZ[fi] == 1000.0) continue;
+                const double db = 20.0 * std::log10 (tone (v, P::F_HZ[fi]) / r1);
+                std::printf ("  %5.0f %+6.2f (ref %+6.2f)", P::F_HZ[fi], db, P::REC_DB[iv][fi]);
+            }
+            std::printf ("\n");
+        }
+        check (worst < 0.25, fmt ("%.2f cm/s: playback follows the reference within 0.25 dB (to -20 dB)", v).c_str(), fmt ("worst %.3f dB", worst));
+        if (deep > 0.25)
+            std::printf ("  [note] KNOWN DEVIATION: %.2f cm/s, %.0f Hz (response below -20 dB): %.2f dB off the reference\n", v, deepF, deep);
+        worstAll = std::max (worstAll, worst);
+    }
+}
+
 static void testCost()
 {
     std::printf ("\n12. COST (48 kHz stereo, 76 cm/s, three heads, feedback)\n");
@@ -819,6 +886,7 @@ int main (int argc, char** argv)
     testRailAndView();
     testAgainstReference();
     testSpeeds();
+    testPlayback();
     testCost();
     std::printf ("\n%d checks, %d failed - %s\n", g_pass + g_fail, g_fail, g_fail ? "FAILURES" : "ALL CLEAR");
     return g_fail ? 1 : 0;
