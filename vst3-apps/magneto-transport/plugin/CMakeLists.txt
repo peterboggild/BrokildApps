@@ -47,6 +47,13 @@ juce_add_plugin(MagnetoTransport
 
 juce_generate_juce_header(MagnetoTransport)
 
+# The decals that passed tools/ingest-decals.ps1. CONFIGURE_DEPENDS re-runs the glob at
+# every build, so art copied in after configuring is not silently left out; the count
+# is printed so a build without its art says so.
+file(GLOB MT_DECALS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/decals/*.png")
+list(LENGTH MT_DECALS MT_DECAL_COUNT)
+message(STATUS "Magneto Transport: ${MT_DECAL_COUNT} decals in assets/decals")
+
 juce_add_binary_data(MagnetoTransportAssets
     HEADER_NAME BinaryData.h
     NAMESPACE BinaryData
@@ -54,7 +61,8 @@ juce_add_binary_data(MagnetoTransportAssets
         Source/ui/ui.html
         Source/ui/tips.json
         Source/ui/tips-numbers.json
-        Source/ui/figdata.json)
+        Source/ui/figdata.json
+        ${MT_DECALS})
 
 target_sources(MagnetoTransport
     PRIVATE

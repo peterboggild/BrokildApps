@@ -15,6 +15,7 @@
 const fs = require("fs");
 const path = require("path");
 const http = require("http");
+const zlib = require("zlib");
 const net = require("net");
 const crypto = require("crypto");
 const os = require("os");
@@ -62,7 +63,30 @@ const PART_IDS = ["part:supply", "part:takeup", "part:looptank", "part:erase", "
 const UNIVERSE = new Set(PARAMS.map(p => p.id).concat(PART_IDS));
 
 // ------------------------------------------------------------- the server
-let serveFixtures = true, serveReal = false;
+let serveFixtures = true, serveReal = false, serveDecals = null;
+// synthetic decals for phase D: small PNGs, a disc on transparent or a flat fill, per docs/decal_parts.json
+const DECAL_SPEC = JSON.parse(fs.readFileSync(path.join(ROOT, "docs", "decal_parts.json"), "utf8"));
+function crc32(buf){ let c, crc = 0xffffffff; for (let n = 0; n < buf.length; n++){ c = (crc ^ buf[n]) & 0xff; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; crc = (crc >>> 8) ^ c; } return (crc ^ 0xffffffff) >>> 0; }
+function pngChunk(type, data){ const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td)); return Buffer.concat([len, td, crc]); }
+function makePng(w, h, px){
+  const raw = Buffer.alloc((w * 4 + 1) * h);
+  for (let y = 0; y < h; y++){ raw[y * (w * 4 + 1)] = 0; for (let x = 0; x < w; x++){ const c = px(x, y), o = y * (w * 4 + 1) + 1 + x * 4; raw[o] = c[0]; raw[o + 1] = c[1]; raw[o + 2] = c[2]; raw[o + 3] = c[3]; } }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), pngChunk("IHDR", ihdr), pngChunk("IDAT", zlib.deflateSync(raw)), pngChunk("IEND", Buffer.alloc(0))]);
+}
+function syntheticDecals(){
+  const m = {};
+  DECAL_SPEC.parts.forEach((p, i) => {
+    const sz = DECAL_SPEC.sizes[p.size], w = Math.round(sz[0] / 16), h = Math.round(sz[1] / 16);
+    const col = [60 + (i * 37) % 160, 70 + (i * 53) % 150, 60 + (i * 29) % 140];
+    m[p.file] = makePng(w, h, (x, y) => {
+      if (p.kind === "O") return [col[0], col[1], col[2], 255];
+      const dx = (x - w / 2) / (w / 2), dy = (y - h / 2) / (h / 2), inside = dx * dx + dy * dy < 0.8;
+      return inside ? [col[0], col[1], col[2], p.kind === "S" ? 90 : 255] : [0, 0, 0, 0];
+    });
+  });
+  return m;
+}
 function servedTips(){
   const fx = JSON.parse(fs.readFileSync(path.join(FIX, "tips.json"), "utf8"));
   const cards = Object.assign({}, fx.cards);
@@ -74,6 +98,7 @@ const server = http.createServer((req, res) => {
   const u = decodeURIComponent(req.url.split("?")[0]);
   const send = (code, type, body) => { res.writeHead(code, { "Content-Type": type, "Cache-Control": "no-store" }); res.end(body); };
   if (u === "/" || u === "/ui.html") return send(200, "text/html; charset=utf-8", fs.readFileSync(UI));
+  if (u.startsWith("/decals/")){ const n = u.slice(8).replace(/\.png$/, ""); return serveDecals && serveDecals[n] ? send(200, "image/png", serveDecals[n]) : send(404, "text/plain", "no decal"); }
   if (serveReal && ["/tips.json", "/tips-numbers.json", "/figdata.json"].includes(u)){
     const p = path.join(ROOT, "Source", "ui", u.slice(1));
     return fs.existsSync(p) ? send(200, "application/json", fs.readFileSync(p)) : send(404, "text/plain", "none");
@@ -488,6 +513,31 @@ const warns = [];
     check("the real table again: the knob comes back", await ev("!!(__MT.ctls.mech && __MT.ctls.mech.el.querySelector('.knob'))"));
     const errs = await ev("window.__errors.slice()");
     check("no entries in window.__errors", errs.length === 0, errs.join(" | "));
+
+    // ---- phase D: the decals. The loader asks for every part the order lists; a full
+    // synthetic set must be taken up whole, move nothing, and log nothing.
+    const names = await ev("__MT.decalNames.slice()");
+    const want = DECAL_SPEC.parts.map(p => p.file);
+    check("the panel's decal list is the order's list (docs/decal_parts.json)", JSON.stringify(names) === JSON.stringify(want),
+      "panel " + names.length + ", order " + want.length);
+    check("with no decals served the panel uses none", (await ev("__MT.decals().length")) === 0);
+    const geomOf = () => ev("__MT.geom().map(g => g.kind + ':' + g.id + ':' + g.x + ',' + g.y + ',' + g.w + ',' + g.h)");
+    const gA = await geomOf();
+    serveDecals = syntheticDecals();
+    await load();
+    await ev(`window.__fire('initialState', ${JSON.stringify(INIT)}), true`);
+    await ev(`window.__teleBase = ${JSON.stringify(TELE)}; setInterval(() => window.__fire('tele', window.__teleBase), 33); true`);
+    await sleep(900);
+    const dRep = await ev("({ n: __MT.decals().length, vud: document.querySelectorAll('svg.vu .vud').length, wm: getComputedStyle(document.documentElement).getPropertyValue('--wm').length, kd: [...document.querySelectorAll('.knob .kd')].filter(e => getComputedStyle(e).display !== 'none').length, knobs: document.querySelectorAll('.knob').length, errs: window.__errors.slice() })");
+    check("a full set of decals is taken up whole: every part, the VU faces, the wordmark, every knob", dRep.n === want.length && dRep.vud === 2 && dRep.wm > 20 && dRep.kd === dRep.knobs && dRep.knobs > 20,
+      dRep.n + "/" + want.length + " parts, " + dRep.vud + " VU faces, wordmark " + (dRep.wm > 20) + ", knobs " + dRep.kd + "/" + dRep.knobs);
+    await shot("panel-decals.png");
+    const gB = await geomOf();
+    const moved = gA.filter((g, i) => g !== gB[i]);
+    check("the decals move nothing: every measured part keeps its place and size", gA.length === gB.length && moved.length === 0,
+      gA.length + " parts" + (moved.length ? "; moved: " + moved.slice(0, 4).join(" | ") : ""));
+    check("no errors with the decals in", dRep.errs.length === 0 && (await ev("window.__errors.length")) === 0, dRep.errs.join(" | "));
+    serveDecals = null;
 
     // ---- phase C (report only): the REAL generated card files, every card opened once
     serveReal = true;

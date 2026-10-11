@@ -261,6 +261,40 @@ svg.fig text{font-family:Consolas,monospace;font-size:9px;fill:#9a8c66}
 svg.fig .axl{font-family:Bahnschrift,sans-serif;font-size:9.5px;fill:#b5a477;letter-spacing:.5px}
 svg.fig .lv{font-size:9.5px;fill:#ffb340}
 svg.fig .mk{font-size:8.5px;fill:#a8996e}
+/* ---- DECALS (tools/ingest-decals.ps1 puts them in assets/decals). Each rule waits for
+   its own part: the loader adds html.d-<name> only once that image has loaded, so a
+   missing part leaves the procedural drawing exactly as it was. */
+html.d-mt-deck #bay{background:linear-gradient(rgba(0,0,0,0.25),rgba(0,0,0,0.12)),url(decals/mt-deck.png) 0 0/320px 320px}
+html.d-mt-steel #panel{background:linear-gradient(rgba(255,255,255,0.03),rgba(0,0,0,0.18)),url(decals/mt-steel.png) 0 0/320px 320px}
+html.d-mt-header #head{background:linear-gradient(rgba(255,255,255,0.05),rgba(0,0,0,0.35)),url(decals/mt-header.png) 0 0/256px 256px}
+html.d-mt-plate .grp{background:linear-gradient(rgba(255,255,255,0.03),rgba(0,0,0,0.12)),url(decals/mt-plate.png) 0 0/300px 300px}
+html.d-mt-plaque-left #plateL{background:url(decals/mt-plaque-left.png) center/100% 100% no-repeat}
+html.d-mt-plaque-right #plateR{background:url(decals/mt-plaque-right.png) center/100% 100% no-repeat}
+html.plaques-lettered .eplate, html.plaques-lettered .eplate b{color:transparent}
+html.d-mt-screw .screw{background:none;box-shadow:none}
+html.d-mt-screw .screw::after{display:none}
+/* each screw turned to its own angle on a layer inside it, so the screw's own box never moves */
+html.d-mt-screw .screw::before{content:"";position:absolute;inset:0;background:url(decals/mt-screw.png) center/100% 100% no-repeat;transform:rotate(var(--rot,0deg))}
+.knob .kd{display:none}
+html.d-mt-knob .knob .kd{display:inline}
+html.d-mt-knob .knob .kb, html.d-mt-knob .knob .ptr{display:none}
+html.d-mt-key-up .seg b{background:none;box-shadow:none;border-image:url(decals/mt-key-up.png) 160 fill / 5px stretch}
+html.d-mt-key-down .seg b.on{border-image:url(decals/mt-key-down.png) 160 fill / 5px stretch}
+html.d-mt-button-up .btn, html.d-mt-button-up .pkey, html.d-mt-button-up .stepper .sk{background:none;box-shadow:none;border-color:transparent;
+  border-image:url(decals/mt-button-up.png) 160 fill / 5px stretch}
+html.d-mt-button-down .btn:active, html.d-mt-button-down .btn.down, html.d-mt-button-down .pkey:active, html.d-mt-button-down .stepper .sk:active{
+  border-image:url(decals/mt-button-down.png) 160 fill / 5px stretch}
+html.d-mt-lamp-amber-off .lamp:not(.red):not(.green){background:url(decals/mt-lamp-amber-off.png) center/160% 160% no-repeat;box-shadow:none}
+html.d-mt-lamp-amber-on .lamp.on:not(.red):not(.green){background:url(decals/mt-lamp-amber-on.png) center/160% 160% no-repeat;box-shadow:0 0 8px var(--amber)}
+html.d-mt-lamp-red-off .lamp.red{background:url(decals/mt-lamp-red-off.png) center/160% 160% no-repeat;box-shadow:none}
+html.d-mt-lamp-red-on .lamp.red.on{background:url(decals/mt-lamp-red-on.png) center/160% 160% no-repeat;box-shadow:0 0 8px var(--red)}
+html.d-mt-lamp-green-off .lamp.green{background:url(decals/mt-lamp-green-off.png) center/160% 160% no-repeat;box-shadow:none}
+html.d-mt-lamp-green-on .lamp.green.on{background:url(decals/mt-lamp-green-on.png) center/160% 160% no-repeat;box-shadow:0 0 8px var(--green)}
+html.d-mt-slider-track .hsl{background:none;border-color:transparent;box-shadow:none;border-image:url(decals/mt-slider-track.png) 160 fill / 4px stretch}
+html.d-mt-slider-thumb .hsl b{background:url(decals/mt-slider-thumb.png) center/100% 100% no-repeat;border:none}
+html.d-mt-slider-thumb .hsl b::after{display:none}
+html.d-mt-glass .window::after{content:"";position:absolute;inset:0;pointer-events:none;border-image:url(decals/mt-glass.png) 160 fill / 4px stretch}
+html.d-mt-wordmark #wordmark{color:transparent;text-shadow:none;background:var(--wm) left center/contain no-repeat}
 </style>
 </head>
 <body>
@@ -768,10 +802,11 @@ function knobSvg(){
     '<path class="trk" fill="none" stroke="#141614" stroke-width="5" stroke-linecap="round"/>' +
     '<path class="arc" fill="none" stroke="#ffb340" stroke-opacity="0.85" stroke-width="4" stroke-linecap="round"/>' +
     '<circle cx="50" cy="52" r="33" fill="rgba(0,0,0,0.55)"/>' +
-    '<circle cx="50" cy="50" r="33" fill="url(#gSkirt)" stroke="#090a09" stroke-width="1.5"/>' +
-    '<circle cx="50" cy="50" r="30.5" fill="none" stroke="#454b42" stroke-width="3.5" stroke-dasharray="1.3 2.1"/>' +
-    '<circle cx="50" cy="50" r="24" fill="url(#gCap)" stroke="#1a1c19" stroke-width="1"/>' +
-    '<circle cx="50" cy="50" r="17" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+    '<circle class="kb" cx="50" cy="50" r="33" fill="url(#gSkirt)" stroke="#090a09" stroke-width="1.5"/>' +
+    '<circle class="kb" cx="50" cy="50" r="30.5" fill="none" stroke="#454b42" stroke-width="3.5" stroke-dasharray="1.3 2.1"/>' +
+    '<circle class="kb" cx="50" cy="50" r="24" fill="url(#gCap)" stroke="#1a1c19" stroke-width="1"/>' +
+    '<circle class="kb" cx="50" cy="50" r="17" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>' +
+    '<image class="kd" href="decals/mt-knob.png" x="0" y="0" width="100" height="100"/>' +
     '<line class="ptr" x1="50" y1="44" x2="50" y2="19" stroke="#ffcf7a" stroke-width="3.6" stroke-linecap="round"/>' +
     '<circle class="eff" r="5.5" cx="50" cy="11" fill="#d2412c" stroke="#0f1110" stroke-width="2"/>';
   return svg;
@@ -801,6 +836,7 @@ function makeKnob(holder, id, big){
     const a = A0 + t * (A1 - A0);
     svg.querySelector(".arc").setAttribute("d", t > 0.002 ? arcPath(A0, a) : "M0 0");
     svg.querySelector(".ptr").setAttribute("transform", `rotate(${a * 180 / Math.PI} 50 50)`);
+    svg.querySelector(".kd").setAttribute("transform", `rotate(${a * 180 / Math.PI} 50 50)`);
     val.textContent = fmt(s, s.v);
   };
   let drag = null;
@@ -1019,6 +1055,82 @@ let headDrag = -1;
 let MPARTS = [];                // this frame's hit regions, in machine units
 let mHover = null;              // {id, n}
 
+// ---------------------------------------------------------------- decals
+// Generated from docs/decal_parts.json (test/uiprobe.js checks the two agree). Each part is
+// asked for by name; one that loads sets html.d-<name> and the drawing uses it, one that
+// does not leaves the procedural drawing as it was.
+const DECAL = {};
+const DECAL_NAMES = ["mt-deck","mt-steel","mt-plate","mt-header","mt-headplate","mt-reel-flange","mt-reel-hub","mt-capstan","mt-pinch","mt-roller","mt-arm","mt-head-erase","mt-head-record","mt-head-play","mt-carriage","mt-rail","mt-looptank","mt-knob","mt-key-up","mt-key-down","mt-button-up","mt-button-down","mt-lamp-amber-off","mt-lamp-amber-on","mt-lamp-red-off","mt-lamp-red-on","mt-lamp-green-off","mt-lamp-green-on","mt-slider-track","mt-slider-thumb","mt-screw","mt-vu-face","mt-vu-needle","mt-plaque-left","mt-plaque-right","mt-wordmark","mt-glass"];
+const decalPatterns = {};
+function decalPattern(name, scale){
+  if (!decalPatterns[name]){
+    const p = cx.createPattern(DECAL[name], "repeat");
+    if (p && p.setTransform) p.setTransform(new DOMMatrix().scale(scale));
+    decalPatterns[name] = p;
+  }
+  return decalPatterns[name];
+}
+function nineSlice(ctx, img, e, x, y, w, h, d){
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const sx = [0, e, W - e, W], sy = [0, e, H - e, H];
+  const dx = [x, x + d, x + w - d, x + w], dy = [y, y + d, y + h - d, y + h];
+  for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++)
+    ctx.drawImage(img, sx[i], sy[j], sx[i + 1] - sx[i], sy[j + 1] - sy[j], dx[i], dy[j], dx[i + 1] - dx[i], dy[j + 1] - dy[j]);
+}
+// the arm decal: pivot at the canvas centre, roller 448/1024 of the width to its right
+function drawArm(a){
+  const im = DECAL["mt-arm"], W = im.naturalWidth;
+  const s = Math.hypot(a.rx - a.px, a.ry - a.py) / (W * 448 / 1024);
+  cx.save(); cx.translate(a.px, a.py); cx.rotate(Math.atan2(a.ry - a.py, a.rx - a.px));
+  cx.drawImage(im, -W / 2 * s, -im.naturalHeight / 2 * s, W * s, im.naturalHeight * s);
+  cx.restore();
+}
+// a transparent part cropped to its own drawing (the wordmark sits in a strip of its canvas)
+function trimmed(im){
+  const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight;
+  const g = c.getContext("2d"); g.drawImage(im, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < c.height; y += 2) for (let x = 0; x < c.width; x += 2)
+    if (d[(y * c.width + x) * 4 + 3] > 12){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < 0) return null;
+  const o = document.createElement("canvas"); o.width = x1 - x0 + 2; o.height = y1 - y0 + 2;
+  o.getContext("2d").drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height);
+  return o.toDataURL("image/png");
+}
+// the VU face is a nine-slice: rendered once at 4x and laid where the drawn bezel and face were
+function vuFace(svg, im){
+  const c = document.createElement("canvas"); c.width = 448; c.height = 224;
+  nineSlice(c.getContext("2d"), im, 160, 0, 0, 448, 224, 18);
+  const old = svg.querySelector(".vud"); if (old) old.remove();
+  const bez = svg.querySelector('rect[fill="url(#gBezel)"]'), face = svg.querySelector('rect[fill="url(#gFace)"]');
+  if (!bez || !face) return;
+  bez.style.display = "none"; face.style.display = "none";
+  const img = document.createElementNS(SVGNS, "image");
+  img.setAttribute("class", "vud"); img.setAttribute("x", "0"); img.setAttribute("y", "0");
+  img.setAttribute("width", "112"); img.setAttribute("height", "56"); img.setAttribute("preserveAspectRatio", "none");
+  img.setAttribute("href", c.toDataURL("image/png"));
+  face.after(img);
+}
+function applyDecal(n, im){
+  if (n === "mt-wordmark"){ const u = trimmed(im); if (!u) return false; document.documentElement.style.setProperty("--wm", "url(" + u + ")"); }
+  if (n === "mt-screw") document.querySelectorAll(".screw").forEach((e, i) => { e.style.setProperty("--rot", ((i * 73) % 180) + "deg"); });
+  if (n === "mt-glass") document.querySelectorAll(".window").forEach(w => { if (getComputedStyle(w).position === "static") w.style.position = "relative"; });
+  if (n === "mt-vu-face") document.querySelectorAll("svg.vu").forEach(svg => vuFace(svg, im));
+  return true;
+}
+function loadDecals(){
+  DECAL_NAMES.forEach(n => {
+    const im = new Image();
+    im.onload = () => {
+      DECAL[n] = im;
+      try { if (!applyDecal(n, im)) { delete DECAL[n]; return; } } catch (e) { delete DECAL[n]; window.__errors.push("decal " + n + ": " + e.message); return; }
+      document.documentElement.classList.add("d-" + n);
+    };
+    im.src = "decals/" + n + ".png";
+  });
+}
+
 function fitCanvas(){
   const r = deckRect(cv), sc = deckScale(), dpr = window.devicePixelRatio || 1;
   const k = (r.w / 1600) * sc * dpr;
@@ -1030,6 +1142,22 @@ function fitCanvas(){
 function reel(c, rPack, ang, label){
   cx.save();
   cx.translate(c.x, c.y);
+  if (DECAL["mt-reel-flange"]){
+    // the pack, then the flange over it (its windows show the pack), then the hub
+    if (rPack > HUB + 1){
+      const pg = cx.createRadialGradient(0, 0, HUB, 0, 0, rPack);
+      pg.addColorStop(0, "#3a2617"); pg.addColorStop(1, "#5e3e24");
+      cx.fillStyle = pg;
+      cx.beginPath(); cx.arc(0, 0, rPack, 0, Math.PI * 2); cx.arc(0, 0, HUB, 0, Math.PI * 2, true); cx.fill();
+    }
+    cx.rotate(ang);
+    cx.drawImage(DECAL["mt-reel-flange"], -FLANGE, -FLANGE, 2 * FLANGE, 2 * FLANGE);
+    if (DECAL["mt-reel-hub"]) cx.drawImage(DECAL["mt-reel-hub"], -HUB, -HUB, 2 * HUB, 2 * HUB);
+    cx.restore();
+    cx.fillStyle = "#8a7a52"; cx.font = "11px Bahnschrift"; cx.textAlign = "center";
+    cx.fillText(label, c.x, c.y + FLANGE + 16);
+    return;
+  }
   // flange: a brushed metal disc with windows
   const fg = cx.createRadialGradient(-60, -70, 20, 0, 0, FLANGE);
   fg.addColorStop(0, "rgba(200,205,192,0.16)"); fg.addColorStop(1, "rgba(120,126,114,0.06)");
@@ -1069,7 +1197,9 @@ function reel(c, rPack, ang, label){
   cx.fillText(label, c.x, c.y + FLANGE + 16);
 }
 
-function roller(x, y, r, ang, col){
+function roller(x, y, r, ang, col, dec){
+  const di = dec && DECAL[dec];
+  if (di){ cx.save(); cx.translate(x, y); cx.rotate(ang); cx.drawImage(di, -r, -r, 2 * r, 2 * r); cx.restore(); return; }
   cx.save(); cx.translate(x, y);
   const g = cx.createRadialGradient(-r * 0.4, -r * 0.4, 1, 0, 0, r);
   g.addColorStop(0, "#5a6056"); g.addColorStop(1, col || "#2e332d");
@@ -1083,12 +1213,16 @@ function roller(x, y, r, ang, col){
 function head(x, label, col, lit, w){
   w = w || 22;
   // the head's shield can, then its face against the tape
+  const hi = DECAL[label === "E" ? "mt-head-erase" : label === "R" ? "mt-head-record" : "mt-head-play"];
+  if (hi) cx.drawImage(hi, x - w / 2 - 1, Y_T + 1, w + 2, 36);
+  else {
   const g = cx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
   g.addColorStop(0, "#23271f"); g.addColorStop(0.5, "#454a40"); g.addColorStop(1, "#1f221d");
   cx.fillStyle = g; cx.strokeStyle = "#7a8072"; cx.lineWidth = 1.5;
   cx.beginPath(); cx.rect(x - w / 2, Y_T + 3, w, 34); cx.fill(); cx.stroke();
   cx.fillStyle = col; cx.fillRect(x - w / 2 + 2, Y_T + 3, w - 4, 4);
   cx.strokeStyle = "#e8e2cc"; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(x, Y_T + 2); cx.lineTo(x, Y_T + 12); cx.stroke();   // the gap
+  }
   cx.fillStyle = "#c9b27a"; cx.font = "bold 12px Bahnschrift"; cx.textAlign = "center";
   cx.fillText(label, x, Y_T + 28);
   if (lit !== undefined){
@@ -1199,6 +1333,7 @@ function drawMachine(){
   // the deck plate
   const dg = cx.createLinearGradient(0, 10, 0, 518);
   dg.addColorStop(0, "rgba(255,255,255,0.035)"); dg.addColorStop(1, "rgba(0,0,0,0.22)");
+  if (DECAL["mt-deck"]){ cx.fillStyle = decalPattern("mt-deck", 0.35); cx.fillRect(14, 10, 1572, 508); }
   cx.fillStyle = dg; cx.fillRect(14, 10, 1572, 508);
   cx.strokeStyle = "#2f342c"; cx.lineWidth = 1; cx.strokeRect(14.5, 10.5, 1571, 507);
   cx.strokeStyle = "rgba(255,255,255,0.04)"; cx.strokeRect(16.5, 12.5, 1567, 503);
@@ -1210,6 +1345,7 @@ function drawMachine(){
   }
   // the head block's mounting plate
   cx.fillStyle = "rgba(0,0,0,0.22)"; cx.strokeStyle = "#2b3028"; cx.lineWidth = 1;
+  if (DECAL["mt-headplate"]){ cx.save(); cx.fillStyle = decalPattern("mt-headplate", 0.3); cx.fillRect(X_ERASE - 34, Y_T - 2, X_REC + 24.8 * CM - X_ERASE + 50, 100); cx.restore(); }
   cx.beginPath(); cx.rect(X_ERASE - 34, Y_T - 2, X_REC + 24.8 * CM - X_ERASE + 50, 100); cx.fill(); cx.stroke();
 
   const armL = [ARM_L.rx, ARM_L.ry], armR = [ARM_R.rx, ARM_R.ry];
@@ -1244,8 +1380,9 @@ function drawMachine(){
     cx.stroke();
     cx.fillStyle = "#8a7a52"; cx.font = "11px Bahnschrift"; cx.textAlign = "center";
     cx.fillText("LOOP TANK  " + t.loopLen.toFixed(2) + " m", 205, 378);
-    roller(1330, 150, 30, anim.loop * 0.03 / 0.03 * (0.03 / 0.045), "#262b25");
-    roller(470, 60, 22, anim.loop * (0.03 / 0.033), "#262b25");
+    if (DECAL["mt-looptank"]) nineSlice(cx, DECAL["mt-looptank"], 120, 40, 60, 330, 300, 14);
+    roller(1330, 150, 30, anim.loop * 0.03 / 0.03 * (0.03 / 0.045), "#262b25", "mt-roller");
+    roller(470, 60, 22, anim.loop * (0.03 / 0.033), "#262b25", "mt-roller");
     parts.push({ id: "part:looptank", t: "r", x: 40, y: 60, w: 330, h: 330 },
                { id: "part:guides", t: "c", x: 1330, y: 150, r: 34 }, { id: "part:guides", t: "c", x: 470, y: 60, r: 26 });
     tapePath([
@@ -1262,14 +1399,17 @@ function drawMachine(){
 
   // tension arms
   for (const a of [ARM_L, ARM_R]){
+    if (DECAL["mt-arm"]) drawArm(a);
+    else {
     cx.strokeStyle = "#6a7064"; cx.lineWidth = 6; cx.lineCap = "round";
     cx.beginPath(); cx.moveTo(a.px, a.py); cx.lineTo(a.rx, a.ry); cx.stroke();
     cx.fillStyle = "#3a3f37"; cx.beginPath(); cx.arc(a.px, a.py, 7, 0, Math.PI * 2); cx.fill();
-    roller(a.rx, a.ry, 9, anim.cap * 0.005 / 0.009, "#2e332d");
+    }
+    roller(a.rx, a.ry, 9, anim.cap * 0.005 / 0.009, "#2e332d", "mt-roller");
     parts.push({ id: "part:guides", t: "c", x: a.rx, y: a.ry, r: 15 }, { id: "part:guides", t: "c", x: a.px, y: a.py, r: 11 });
   }
-  roller(guideL[0], guideL[1], 9, anim.cap * 0.005 / 0.009);
-  roller(guideR[0], guideR[1], 9, anim.cap * 0.005 / 0.009);
+  roller(guideL[0], guideL[1], 9, anim.cap * 0.005 / 0.009, undefined, "mt-roller");
+  roller(guideR[0], guideR[1], 9, anim.cap * 0.005 / 0.009, undefined, "mt-roller");
   parts.push({ id: "part:guides", t: "c", x: guideL[0], y: guideL[1], r: 14 }, { id: "part:guides", t: "c", x: guideR[0], y: guideR[1], r: 14 });
 
   // the tape across the heads, coloured by the magnetisation the engine holds
@@ -1285,14 +1425,19 @@ function drawMachine(){
   parts.push({ id: "part:tape", t: "r", x: guideL[0] + 12, y: Y_T - 12, w: guideR[0] - guideL[0] - 24, h: 14 });
 
   // capstan and pinch roller
-  roller(X_CAP, Y_T - 8, 5 * MM, anim.cap, "#8d9284");
-  roller(X_CAP, Y_T + 20, 12 * MM, -anim.cap * 0.005 / 0.012, "#1b1d1b");
+  roller(X_CAP, Y_T - 8, 5 * MM, anim.cap, "#8d9284", "mt-capstan");
+  roller(X_CAP, Y_T + 20, 12 * MM, -anim.cap * 0.005 / 0.012, "#1b1d1b", "mt-pinch");
   parts.push({ id: "part:capstan", t: "c", x: X_CAP, y: Y_T - 8, r: 11 }, { id: "part:pinch", t: "c", x: X_CAP, y: Y_T + 20, r: 12 * MM + 2 });
 
   // the rail
   const r0 = X_REC + 1.5 * CM, r1 = X_REC + 24 * CM, yr = Y_T + 62;
+  if (DECAL["mt-rail"]){
+    const ri = DECAL["mt-rail"], H = ri.naturalHeight;
+    cx.drawImage(ri, 0, H / 2 - H * 56 / 1024, ri.naturalWidth, H * 112 / 1024, r0 - 6, yr - 7, r1 - r0 + 12, 14);
+  } else {
   cx.strokeStyle = "#1a1c19"; cx.lineWidth = 7; cx.beginPath(); cx.moveTo(r0 - 6, yr + 1); cx.lineTo(r1 + 6, yr + 1); cx.stroke();
   cx.strokeStyle = "#6a7064"; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(r0 - 6, yr); cx.lineTo(r1 + 6, yr); cx.stroke();
+  }
   cx.fillStyle = "#8a7a52"; cx.font = "10px Consolas"; cx.textAlign = "center";
   for (let c = 2; c <= 24; c++){
     const x = X_REC + c * CM;
@@ -1309,6 +1454,7 @@ function drawMachine(){
   (t.heads || []).forEach((h, i) => {
     const x = X_REC + h * CM;
     cx.strokeStyle = "#3d4339"; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(x, Y_T + 37); cx.lineTo(x, yr); cx.stroke();
+    if (DECAL["mt-carriage"]) cx.drawImage(DECAL["mt-carriage"], x - 16, yr - 18, 32, 36);
     head(x, String(i + 1), on[i] && on[i].v > 0.5 ? "#7fbf6a" : "#4a4f45", t.headPk ? t.headPk[i] : 0);
     parts.push({ id: "part:play", n: i + 1, t: "r", x: x - 13, y: Y_T, w: 26, h: 54 });
   });
@@ -1791,8 +1937,10 @@ window.__MT = { P, get tele(){ return tele; }, init: onInit, host: onHost, setTe
   cards: cardsMap, openCard: (id, n, pin) => openCard(id, { n: n || 0, pin: !!pin }), closeCard, pinCard, geom,
   get card(){ return { open: card.open, pinned: card.pinned, id: card.id, n: card.n, placed: card.placed, live: card.live.length }; },
   vu: () => ({ in: VU.in.x, out: VU.out.x, inDeg: vuAng(VU.in.x), outDeg: vuAng(VU.out.x) }),
-  settings, presets: () => ({ list: presetList, current: Object.assign({}, presetCur) }), loaded };
+  settings, presets: () => ({ list: presetList, current: Object.assign({}, presetCur) }), loaded,
+  decals: () => Object.keys(DECAL).sort(), decalNames: DECAL_NAMES };
 
+loadDecals();
 requestAnimationFrame(drawMachine);
 NB.send({ k:"hello" });
 </script>
