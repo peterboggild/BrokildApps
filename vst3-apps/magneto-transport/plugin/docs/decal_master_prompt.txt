@@ -1,0 +1,137 @@
+You are going to make a set of 37 image parts for a software audio plug-in called Magneto Transport, a tape echo drawn as a 1970s studio tape machine. A program assembles the parts at exact coordinates, so each part is a SEPARATE image. Never draw a whole panel and never combine parts.
+
+HOW WE WORK
+- Make exactly ONE image per reply, in the order of the list below, starting with part 1.
+- Before each image, write one line: the part number, the file name, the size and the background (transparent, opaque or semi-transparent).
+- After the image, stop and wait. I will answer "next", or "redo" with a reason.
+- If I write "start at <file name>", continue the list from that part.
+- Keep the same style, light and palette for every part, so the set looks like one machine.
+
+RULES FOR EVERY IMAGE
+- Use exactly the size given. Only three sizes are used: 1024 x 1024, 1536 x 1024 and 1024 x 1536.
+- Transparent means a real transparent PNG background: fully transparent outside the object, fully opaque inside it. No white, grey or checkerboard background.
+- Opaque parts fill the whole canvas edge to edge, with no border and no vignette.
+- Fill the canvas as each part describes. A drawing sitting in a strip or a corner of a larger canvas is wrong.
+- Tiling textures tile: the left edge continues into the right edge and the top into the bottom, with no single feature that would show as a repeat.
+- Pairs (off/on, up/pressed): make the second from the first, at the same size and in the same position, so that switching between them changes only the light or the press.
+- No text, logos or numbers, except where a part lists exact lettering.
+
+STYLE (applies to every part)
+A 1970s professional studio tape machine, photographed straight on, for a realistic software panel. Dark anodised steel and black crackle paint, with brushed aluminium reels, black rubber, and aged brass lettering and trim. It is a working machine that is well kept: fine scratches and a little dust, no rust, no dents, no grime. One soft light from the upper left at about 45 degrees, so highlights sit upper left and shadows fall lower right. Flat, orthographic, top-down view with no perspective, no tilt and no camera blur. No text, logos, numbers or labels unless this request lists exact lettering. No background scenery and no drop shadow outside the object unless asked.
+
+Palette, use these and nothing brighter: near-black ink #0b0d0c, panel steel #1a1d1b, panel steel, raised #232724, edge / bevel #33382f, bevel highlight #4a5145, brass lettering #c9b27a, brass, dim #8a7a52, brass, low #5a5138, meter paper #d8cfb4, amber lamp #ffb340, red lamp #d2412c, green lamp #7fbf6a, tape oxide brown #4a3220, smoked glass #0a0b0a.
+
+THE PARTS, IN ORDER
+
+1. mt-deck.png - 1024 x 1024 (square), opaque, tiling.
+A seamless tiling texture of black crackle-finish paint over steel, very fine and even, slightly lighter than near-black (average about #1d201e). Fill the whole square edge to edge. No screws, no seams, no features, no vignette. It must tile in both directions. It must tile seamlessly in both directions.
+
+2. mt-steel.png - 1024 x 1024 (square), opaque, tiling.
+A seamless tiling texture of dark anodised steel (average #1a1d1b) with a very faint horizontal brush grain. Fill the whole square edge to edge. No features, no vignette. It must tile in both directions. It must tile seamlessly in both directions.
+
+3. mt-plate.png - 1024 x 1024 (square), opaque, tiling.
+A seamless tiling texture of a steel plate face (average #232724) with a fine VERTICAL brush grain, lines running top to bottom. Plain face only: no edges, no bevel, no screws (the program draws those). Fill the whole square edge to edge. It must tile in both directions. It must tile seamlessly in both directions.
+
+4. mt-header.png - 1024 x 1024 (square), opaque, tiling.
+A seamless tiling texture of satin black anodised aluminium (average #1e211f) with a fine HORIZONTAL brush grain, lines running left to right. Even lighting, no gradient (the program adds one). Fill the whole square edge to edge. It must tile in both directions. It must tile seamlessly in both directions.
+
+5. mt-headplate.png - 1024 x 1024 (square), opaque, tiling.
+A seamless tiling texture of thick machined aluminium, darker than polished reels, with faint circular fly-cut machining marks. Plain surface only: no bevel, no screws, no edges. Fill the whole square edge to edge. It must tile in both directions. It must tile seamlessly in both directions.
+
+6. mt-reel-flange.png - 1024 x 1024 (square), transparent.
+The front flange of a 10.5 inch professional aluminium tape reel (NAB style) with three large windows, seen straight on. Brushed aluminium with a circular brush pattern. The flange is a circle centred on the canvas and fills it to within about 15 px of each edge. The three windows are cut right through and fully transparent, because the tape on the reel shows through them. The centre hole is also cut through, fully transparent, 43 percent of the flange's diameter, because the hub sits there. One window points straight up. No tape, no label, no hub.
+
+7. mt-reel-hub.png - 1024 x 1024 (square), transparent.
+An NAB reel hub seen straight on: machined aluminium, with three short drive keys at 120 degrees (one pointing straight up) and a dark centre spindle. The hub is centred on the canvas and fills it to within about 20 px of each edge. The keys must be clearly visible, because they show the reel turning.
+
+8. mt-capstan.png - 1024 x 1024 (square), transparent.
+A tape machine capstan, a polished steel shaft seen end on: a small bright steel disc with one faint machining mark on its face so that turning is visible. Centred, filling the canvas to within about 30 px of each edge.
+
+9. mt-pinch.png - 1024 x 1024 (square), transparent.
+A pinch roller seen end on: a matte black rubber tyre on a small steel hub, with one bolt head off centre so that rotation is visible. Centred, filling the canvas to within about 25 px of each edge.
+
+10. mt-roller.png - 1024 x 1024 (square), transparent.
+A tape guide roller seen end on: chrome steel with a darker centre and one small mark on its face. Centred, filling the canvas to within about 30 px of each edge.
+
+11. mt-arm.png - 1024 x 1024 (square), transparent.
+A tape tension arm seen from above: a flat steel bar with a round pivot boss at one end and a round roller boss at the other. The pivot boss is centred exactly at the centre of the canvas (512, 512); the bar runs straight to the RIGHT; the roller boss is centred at (960, 512). The bar is about 80 px wide, the pivot boss about 140 px across, the roller boss about 120 px across. Nothing else on the canvas.
+
+12. mt-head-erase.png - 1024 x 1536 (portrait), transparent.
+A tape erase head seen from above, the tape running across its top edge: a satin dark-steel shield can with a polished head face along the top edge and a thin vertical gap line in the middle of that face. A dull red band (#a8442f) just below the face. The head fills the portrait canvas to within about 30 px of each edge. No letters.
+
+13. mt-head-record.png - 1024 x 1536 (portrait), transparent.
+A tape record head seen from above, the tape running across its top edge: a satin dark-steel shield can with a polished head face along the top edge and a thin vertical gap line in the middle of that face. A brass band (#c9b27a) just below the face. Same shape and size as the erase head. The head fills the portrait canvas to within about 30 px of each edge. No letters.
+
+14. mt-head-play.png - 1024 x 1536 (portrait), transparent.
+A tape playback head seen from above, the tape running across its top edge: a satin dark-steel shield can with a polished head face along the top edge and a thin vertical gap line in the middle of that face. A steel-grey band (#4a4f45) just below the face. Same shape and size as the other heads. The head fills the portrait canvas to within about 30 px of each edge. No letters.
+
+15. mt-carriage.png - 1024 x 1024 (square), transparent.
+A small sliding carriage that carries a tape head along a rail, seen from above: a black anodised sled with two visible slider shoes at the bottom. It fills the canvas to within about 25 px of each edge.
+
+16. mt-rail.png - 1536 x 1024 (landscape), transparent, tiling.
+A ground steel guide rail seen from above: one straight horizontal bar about 64 px tall, centred vertically, running the full width of the canvas from the left edge to the right edge, with a polished top edge. It must tile left to right (the left end continues into the right end). Everything above and below the bar is fully transparent. No scale marks. It must tile seamlessly left to right.
+
+17. mt-looptank.png - 1024 x 1024 (square), semi-transparent.
+The front of a tape loop tank, seen straight on: a dark steel frame about 120 px wide all round, filling the canvas edge to edge, with smoked glass inside the frame. The glass is see-through at about 35 percent opacity (alpha about 90), so the folded tape drawn behind it shows through, with one faint diagonal reflection in its upper left. The frame is fully opaque. No text.
+
+18. mt-knob.png - 1024 x 1024 (square), transparent.
+A control knob seen from straight above: a black knurled skirt with a dark aluminium cap. The knob is a circle 676 px across, centred on the canvas, so the program can draw its scale and position arc around it. The skirt has fine radial ridges; the cap is about 70 percent of the knob's width, slightly domed and satin. A cream pointer line (#ffcf7a) runs from the cap's centre straight UP to the skirt's edge. Nothing outside the knob's circle.
+
+19. mt-key-up.png - 1536 x 1024 (landscape), opaque, pair of mt-key-down.
+A raised black selector key with a soft highlight along its top edge, filling the canvas edge to edge. The bevel and edges stay inside the outer 160 px on every side; everything inside that band is a plain flat key face, because the program stretches the middle. No lettering.
+
+20. mt-key-down.png - 1536 x 1024 (landscape), opaque, pair of mt-key-up.
+The same selector key as mt-key-up, at the same size and position, now pressed in and lit: a pale brass face (#e2cd95 at the top to #b39a5c at the bottom). Same edges inside the outer 160 px band, plain face inside it. No lettering.
+
+21. mt-button-up.png - 1536 x 1024 (landscape), opaque, pair of mt-button-down.
+A raised dark steel push button with a slight dome, filling the canvas edge to edge. The bevel and edges stay inside the outer 160 px on every side; everything inside that band is a plain face, because the program stretches the middle. No lettering.
+
+22. mt-button-down.png - 1536 x 1024 (landscape), opaque, pair of mt-button-up.
+The same push button as mt-button-up, at the same size and position, pushed in: darker along its top edge, as if pressed down a few millimetres. Same edges inside the outer 160 px band, plain face inside it. No lettering.
+
+23. mt-lamp-amber-off.png - 1024 x 1024 (square), transparent, pair of mt-lamp-amber-on.
+A round panel indicator lamp, OFF: a dark amber glass dome lens 640 px across in a thin black bezel, centred on the canvas. Nothing outside the bezel.
+
+24. mt-lamp-amber-on.png - 1024 x 1024 (square), transparent, pair of mt-lamp-amber-off.
+The same panel lamp as mt-lamp-amber-off, same size and position, now ON: lit from inside in amber (#ffb340), with a soft glow around the bezel that fades to fully transparent before it reaches the edge of the canvas.
+
+25. mt-lamp-red-off.png - 1024 x 1024 (square), transparent, pair of mt-lamp-red-on.
+A round panel indicator lamp, OFF: a dark red glass dome lens 640 px across in a thin black bezel, centred on the canvas. Nothing outside the bezel.
+
+26. mt-lamp-red-on.png - 1024 x 1024 (square), transparent, pair of mt-lamp-red-off.
+The same panel lamp as mt-lamp-red-off, same size and position, now ON: lit from inside in red (#d2412c), with a soft glow that fades to fully transparent before it reaches the edge of the canvas.
+
+27. mt-lamp-green-off.png - 1024 x 1024 (square), transparent, pair of mt-lamp-green-on.
+A round panel indicator lamp, OFF: a dark green glass dome lens 640 px across in a thin black bezel, centred on the canvas. Nothing outside the bezel.
+
+28. mt-lamp-green-on.png - 1024 x 1024 (square), transparent, pair of mt-lamp-green-off.
+The same panel lamp as mt-lamp-green-off, same size and position, now ON: lit from inside in green (#7fbf6a), with a soft glow that fades to fully transparent before it reaches the edge of the canvas.
+
+29. mt-slider-track.png - 1536 x 1024 (landscape), opaque.
+A sunken black fader slot, filling the canvas edge to edge: a recessed channel with a dark inner shadow along its top edge. The edges stay inside the outer 160 px on every side; the middle is plain, because the program stretches it.
+
+30. mt-slider-thumb.png - 1024 x 1536 (portrait), transparent.
+A brushed steel fader cap seen from above, with one dark centre line running top to bottom. It fills the portrait canvas to within about 50 px of each edge.
+
+31. mt-screw.png - 1024 x 1024 (square), transparent.
+A slotted panel screw head seen straight on, dark steel with a soft highlight upper left. The slot runs left to right through the centre. Centred, filling the canvas to within about 40 px of each edge.
+
+32. mt-vu-face.png - 1536 x 1024 (landscape), opaque.
+A VU meter face, filling the canvas edge to edge: a black bezel about 160 px wide all round, and inside it a warm cream paper face (#d8cfb4), slightly aged and evenly lit, with a faint inner shadow under the bezel's top edge. Leave the paper completely blank: no scale, no numbers, no letters, no needle (the program draws them exactly).
+
+33. mt-vu-needle.png - 1024 x 1536 (portrait), transparent.
+A thin black meter needle pointing straight UP, with its pivot at the bottom centre of the canvas (512, 1500) and tapering to a fine point near the top (about 512, 40). About 16 px wide at the pivot. Nothing else on the canvas.
+
+34. mt-plaque-left.png - 1024 x 1024 (square), opaque.
+A small engraved plate of dark aged brass, filling the canvas edge to edge, with a fine bevel and two small screws (top centre and bottom centre). Engraved and filled with dark paint, centred, uppercase, in a plain engineering typeface, on separate lines: BROKILD (larger), then MAGNETO, TRANSPORT, MODEL MT-1, FLUX MEMORY, TAPE ECHO. If the spelling cannot be made exact, deliver the plate blank.
+
+35. mt-plaque-right.png - 1024 x 1024 (square), opaque.
+A small engraved plate of dark aged brass, matching mt-plaque-left, filling the canvas edge to edge, with a fine bevel and two small screws (top centre and bottom centre). Engraved and filled with dark paint, centred, uppercase, in a plain engineering typeface, on separate lines: CAUTION (larger), then KEEP HEADS, CLEAN, DEMAGNETISE, WEEKLY, 6.3 mm TAPE. If the spelling cannot be made exact, deliver the plate blank.
+
+36. mt-wordmark.png - 1536 x 1024 (landscape), transparent.
+The name Magneto Transport, lettered in polished brass (#c9b27a), slightly raised, with a thin dark edge, in a condensed, slightly wide-spaced engineering typeface. Mixed case exactly as written: Magneto Transport. One line, centred vertically, spanning the canvas width to within about 40 px of each side. Everything else fully transparent. If the spelling cannot be made exact, do not deliver this part.
+
+37. mt-glass.png - 1536 x 1024 (landscape), semi-transparent.
+Smoked glass for a readout window, filling the canvas edge to edge: dark glass at about 25 percent opacity (alpha about 64) with a faint highlight along the top edge. It is laid over glowing amber digits, so it must stay see-through. The highlight stays inside the outer 160 px band; the middle is even, because the program stretches it.
+
+Begin now with part 1 only, then wait for "next".

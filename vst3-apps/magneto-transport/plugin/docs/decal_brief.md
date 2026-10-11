@@ -4,7 +4,9 @@ Image parts for a software tape-echo instrument called **Magneto Transport**. Ea
 
 There are 37 parts. Make them one at a time: one image per request.
 
-## How to work
+**The easy way:** paste `decal_master_prompt.txt` into one new ChatGPT chat. It holds every rule and all parts in order; ChatGPT makes one image, waits for "next" (or "redo" with a reason), and moves on. If the style drifts in a long chat, open a new one, paste it again and write "start at" with the next file name.
+
+## How to work, part by part
 
 1. Every request starts with the style paragraph below, then the part's own text. The page version of this brief has a copy button that puts both together.
 2. Use exactly the size given. Only three sizes are used: 1024 x 1024 (square), 1536 x 1024 (landscape) and 1024 x 1536 (portrait).

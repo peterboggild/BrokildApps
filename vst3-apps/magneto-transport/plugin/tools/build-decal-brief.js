@@ -30,6 +30,46 @@ function fullPrompt(p) {
 }
 
 const pairsOf = D.parts.filter(p => p.pair && p.file < p.pair).map(p => [p.file, p.pair]);
+
+// One prompt for the whole job in one chat: everything up front, then one image per reply.
+function masterPrompt() {
+  const L = [];
+  L.push("You are going to make a set of " + D.parts.length + " image parts for a software audio plug-in called Magneto Transport, a tape echo drawn as a 1970s studio tape machine. A program assembles the parts at exact coordinates, so each part is a SEPARATE image. Never draw a whole panel and never combine parts.");
+  L.push("");
+  L.push("HOW WE WORK");
+  L.push("- Make exactly ONE image per reply, in the order of the list below, starting with part 1.");
+  L.push("- Before each image, write one line: the part number, the file name, the size and the background (transparent, opaque or semi-transparent).");
+  L.push("- After the image, stop and wait. I will answer \"next\", or \"redo\" with a reason.");
+  L.push("- If I write \"start at <file name>\", continue the list from that part.");
+  L.push("- Keep the same style, light and palette for every part, so the set looks like one machine.");
+  L.push("");
+  L.push("RULES FOR EVERY IMAGE");
+  L.push("- Use exactly the size given. Only three sizes are used: 1024 x 1024, 1536 x 1024 and 1024 x 1536.");
+  L.push("- Transparent means a real transparent PNG background: fully transparent outside the object, fully opaque inside it. No white, grey or checkerboard background.");
+  L.push("- Opaque parts fill the whole canvas edge to edge, with no border and no vignette.");
+  L.push("- Fill the canvas as each part describes. A drawing sitting in a strip or a corner of a larger canvas is wrong.");
+  L.push("- Tiling textures tile: the left edge continues into the right edge and the top into the bottom, with no single feature that would show as a repeat.");
+  L.push("- Pairs (off/on, up/pressed): make the second from the first, at the same size and in the same position, so that switching between them changes only the light or the press.");
+  L.push("- No text, logos or numbers, except where a part lists exact lettering.");
+  L.push("");
+  L.push("STYLE (applies to every part)");
+  L.push(D.style);
+  L.push("");
+  L.push(paletteLine);
+  L.push("");
+  L.push("THE PARTS, IN ORDER");
+  D.parts.forEach((p, i) => {
+    const [w, h, shape] = D.sizes[p.size];
+    const bg = p.kind === "T" ? "transparent" : p.kind === "O" ? "opaque" : "semi-transparent";
+    L.push("");
+    L.push((i + 1) + ". " + p.file + ".png - " + w + " x " + h + " (" + shape + "), " + bg + (p.tile !== "none" ? ", tiling" : "") + (p.pair ? ", pair of " + p.pair : "") + ".");
+    L.push(p.prompt + (tileText[p.tile] ? " " + tileText[p.tile] : ""));
+  });
+  L.push("");
+  L.push("Begin now with part 1 only, then wait for \"next\".");
+  return L.join("\n");
+}
+const MASTER = masterPrompt();
 const groups = D.groups.map(g => ({ g, parts: D.parts.filter(p => p.group === g.id) }));
 const count = D.parts.length;
 
@@ -38,7 +78,8 @@ let md = "";
 md += "# " + D.title + "\n\n";
 md += "Image parts for a software tape-echo instrument called **Magneto Transport**. Each part is made on its own and the program assembles them, so **never paint a whole panel**: a program places every part at exact coordinates, and an image generator cannot hit exact coordinates. What matters is that each part looks right on its own canvas, at the stated size, with real transparency where asked.\n\n";
 md += "There are " + count + " parts. Make them one at a time: one image per request.\n\n";
-md += "## How to work\n\n";
+md += "**The easy way:** paste `decal_master_prompt.txt` into one new ChatGPT chat. It holds every rule and all parts in order; ChatGPT makes one image, waits for \"next\" (or \"redo\" with a reason), and moves on. If the style drifts in a long chat, open a new one, paste it again and write \"start at\" with the next file name.\n\n";
+md += "## How to work, part by part\n\n";
 md += "1. Every request starts with the style paragraph below, then the part's own text. The page version of this brief has a copy button that puts both together.\n";
 md += "2. Use exactly the size given. Only three sizes are used: 1024 x 1024 (square), 1536 x 1024 (landscape) and 1024 x 1536 (portrait).\n";
 md += "3. **Transparent means real alpha.** If an image comes back with a white, grey or checkerboard background where it should be transparent, ask for it again with a transparent background.\n";
@@ -137,8 +178,20 @@ textarea.fallback{width:100%;min-height:180px;font:13px var(--mono);background:v
     <p class="lede">Image parts for a software tape-echo instrument. Each part is made on its own and the program assembles them, so please never paint a whole panel. A program places every part at exact coordinates, which an image generator cannot hit. What matters is that each part looks right on its own canvas, at its stated size, with real transparency where asked.</p>
   </header>
 
+  <section class="how easy" aria-labelledby="easy-h">
+    <h2 id="easy-h">The easy way: the whole list in one chat</h2>
+    <ol>
+      <li>Open a new ChatGPT chat, press <b>Copy the whole job</b> below and paste it. It holds every rule and all ${count} parts in order.</li>
+      <li>ChatGPT makes part 1 and waits. Look at the image against the checks below, then answer <b>next</b>, or <b>redo</b> with a reason, for example "redo: the background is white, it must be transparent".</li>
+      <li>Download each image as it comes, and rename it to the file name ChatGPT announced, if it needs renaming.</li>
+      <li>Long chats drift. If the style starts to wander after twenty or so images, open a new chat, paste the same prompt again and write <b>start at</b> followed by the next file name, for example "start at mt-knob". Keep each pair in the same chat.</li>
+    </ol>
+    <p class="gnote">Check every image before saying next: it is the size asked for, transparent parts have no white or checkerboard background, the drawing fills the canvas as described rather than sitting in a strip, and there is no text unless the part asks for lettering.</p>
+    <div class="row"><button type="button" data-copy="__master">Copy the whole job</button><span class="screen">${MASTER.split(/\s+/).length} words, one paste</span></div>
+  </section>
+
   <section class="how" aria-labelledby="how-h">
-    <h2 id="how-h">How to work</h2>
+    <h2 id="how-h">Part by part, if you prefer</h2>
     <ol>
       <li>Make the parts one at a time, one image per request. Press <b>Copy full prompt</b> on a card and paste it into ChatGPT: it already contains the style paragraph, the size, the background and the palette.</li>
       <li>Use exactly the size on the card. Only three are used: 1024 &times; 1024, 1536 &times; 1024 and 1024 &times; 1536.</li>
@@ -163,6 +216,7 @@ textarea.fallback{width:100%;min-height:180px;font:13px var(--mono);background:v
 <script>
 const PROMPTS = ${JSON.stringify(Object.fromEntries(data.map(d => [d.file, d.prompt])))};
 PROMPTS.__style = ${JSON.stringify(D.style)};
+PROMPTS.__master = ${JSON.stringify(MASTER)};
 const toast = document.getElementById("toast");
 let tt = 0;
 function flash(msg){ toast.textContent = msg; toast.hidden = false; clearTimeout(tt); tt = setTimeout(() => { toast.hidden = true; }, 1600); }
@@ -176,7 +230,8 @@ document.addEventListener("click", e => {
   const b = e.target.closest("[data-copy]"); if (!b) return;
   const text = PROMPTS[b.dataset.copy];
   try {
-    navigator.clipboard.writeText(text).then(() => flash("Copied: " + (b.dataset.copy === "__style" ? "style paragraph" : b.dataset.copy + ".png")), () => fallback(b, text));
+    const what = b.dataset.copy === "__style" ? "style paragraph" : b.dataset.copy === "__master" ? "the whole job" : b.dataset.copy + ".png";
+    navigator.clipboard.writeText(text).then(() => flash("Copied: " + what), () => fallback(b, text));
   } catch (_) { fallback(b, text); }
 });
 const KEY = "mt-decals-done";
@@ -200,4 +255,5 @@ paint();
 </script>
 `;
 fs.writeFileSync(path.join(root, "docs", "decal_brief.html"), html);
+fs.writeFileSync(path.join(root, "docs", "decal_master_prompt.txt"), MASTER + "\n");
 console.log("decal_brief.md and decal_brief.html: " + count + " parts, " + pairsOf.length + " pairs");
