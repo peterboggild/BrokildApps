@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <mutex>
 #if defined (_M_X64) || defined (__SSE2__)
  #include <emmintrin.h>
  #define MT_SSE 1
@@ -184,6 +185,139 @@ int64_t Engine::cellsNeeded (int m, double loopMeters) const
 }
 
 //==============================================================================
+/*  Record and replay equalisation targets (docs/physics/07-playback.md), from
+    the machine's own small-signal model at operating bias: each slab weighted by
+    its record gain and zone (with the zone's phase), read through its exact slab
+    response. Replay = the standard's curve x an HF trim for the head's spacing
+    and gap (at most +10 dB); record = whatever makes the short-circuit flux
+    follow the standard (at most +20 dB). Both normalised at 1 kHz, held above
+    20 kHz. Fitted once per process (warm-started bucket to bucket). */
+namespace
+{
+    struct EqTables
+    {
+        ShelfCascade rec[2][HeadKernel::NB], rep[2][HeadKernel::NB];
+        double worst = 0.0, worstV = 0.0;
+    };
+
+    // a minimum with a soft knee (k dB wide), so a limit does not put a kink in a
+    // target the shelves then cannot follow
+    inline double softMinDb (double a, double b, double k = 1.5)
+    {
+        const double m = std::min (a, b);
+        return m - k * std::log (std::exp (-(a - m) / k) + std::exp (-(b - m) / k));
+    }
+
+    void opLayers (double v, double (&g)[NLAYER], double (&x)[NLAYER], double (&w)[NLAYER])
+    {
+        const double lnA0 = std::log (S4::A_GRID[0]), lnSpan = std::log (S4::A_GRID[S4::NA - 1]) - lnA0;
+        const double fv = std::clamp (std::log2 (v / S4::SPEED_CMS[0]), 0.0, (double) (S4::NV - 1));
+        const int iv = std::min ((int) fv, S4::NV - 2);
+        const double tv = fv - iv;
+        for (int l = 0; l < NLAYER; ++l)
+        {
+            const double A = std::clamp (S4::HB_OPERATING * S4::LAYER_FMAX[l], S4::A_GRID[0], S4::A_GRID[S4::NA - 1]);
+            const double fa = (std::log (A) - lnA0) / lnSpan * (S4::NA - 1);
+            const int ia = std::clamp ((int) std::floor (fa), 0, S4::NA - 2);
+            const double ta = std::clamp (fa - ia, 0.0, 1.0);
+            auto z = [&] (const double (&Z)[S4::NV][S4::NL][S4::NA]) {
+                const double lo = (1.0 - ta) * Z[iv][l][ia] + ta * Z[iv][l][ia + 1];
+                const double hi = (1.0 - ta) * Z[iv + 1][l][ia] + ta * Z[iv + 1][l][ia + 1];
+                return (1.0 - tv) * lo + tv * hi;
+            };
+            g[l] = z (S4::ZONE_GAIN); x[l] = z (S4::ZONE_X_UM); w[l] = std::max (0.0, z (S4::ZONE_W_UM));
+        }
+    }
+
+    void eqTargets (int std_, double v, const double* f, int n, double* recDb, double* repDb)
+    {
+        double g[NLAYER], x[NLAYER], w[NLAYER];
+        opLayers (v, g, x, w);
+        double gx = 0.0, gs = 0.0;
+        for (int l = 0; l < NLAYER; ++l) { gx += g[l] * x[l]; gs += g[l]; }
+        const double xRef = gs > 0.0 ? gx / gs : 0.0;
+        double tau2, w1;
+        eqTimeConstants (std_, v, tau2, w1);
+        const double dsp = PB_SPACING_UM + slabSpacingCorrectionUm (v);
+        auto at = [&] (double fHz, double& rec, double& rep) {
+            const double k = 2.0 * M_PI * fHz / (v * 1.0e4);
+            double re = 0.0, im = 0.0;
+            for (int l = 0; l < NLAYER; ++l)
+            {
+                const double a = g[l] * std::exp (-0.5 * std::pow (k * w[l], 2.0)) * slabResponse (l, k, v);
+                const double ph = -k * (x[l] - xRef);
+                re += a * std::cos (ph); im += a * std::sin (ph);
+            }
+            const double R = std::hypot (re, im) / gs;
+            const double xg = 0.5 * k * PB_GAP_UM;
+            const double HL = std::max (1.0e-6, std::exp (-k * dsp) * std::abs (xg < 1.0e-9 ? 1.0 : std::sin (xg) / xg));
+            const double Fsc = R / HL;
+            const double om = 2.0 * M_PI * fHz;
+            const double Hrep = std::hypot (1.0, om * tau2) * (w1 > 0.0 ? om / std::hypot (om, w1) : 1.0);
+            const double C = std::pow (10.0, softMinDb (-20.0 * std::log10 (HL), 10.0) / 20.0);
+            rep = Hrep * C;
+            rec = (1.0 / Hrep) / std::max (Fsc, 1.0e-9);
+        };
+        double rec1, rep1;
+        at (1000.0, rec1, rep1);
+        for (int i = 0; i < n; ++i)
+        {
+            double rc, rp;
+            at (std::min (f[i], 20000.0), rc, rp);
+            recDb[i] = softMinDb (20.0 * std::log10 (rc / rec1), 20.0);
+            repDb[i] = 20.0 * std::log10 (rp / rep1);
+        }
+    }
+
+    const EqTables& eqTables()
+    {
+        static std::mutex mx;
+        static std::unique_ptr<EqTables> t;
+        std::lock_guard<std::mutex> lock (mx);
+        if (t) return *t;
+        t = std::make_unique<EqTables>();
+        constexpr int NF = 48;
+        double f[NF], rc[NF], rp[NF];
+        for (int i = 0; i < NF; ++i) f[i] = 15.0 * std::pow (22000.0 / 15.0, (double) i / (NF - 1));
+        for (int s = 0; s < 2; ++s)
+            for (int b = 0; b < HeadKernel::NB; ++b)
+            {
+                eqTargets (s, HeadKernel::bucketSpeed (b), f, NF, rc, rp);
+                if (b > 0) { t->rec[s][b] = t->rec[s][b - 1]; t->rep[s][b] = t->rep[s][b - 1]; }
+                // report the error where the head can still be trimmed flat (as section 16 asserts)
+                const double v = HeadKernel::bucketSpeed (b);
+                const double fTop = v >= 19.0 ? 15000.0 : v >= 9.0 ? 10000.0 : 6000.0;
+                const double e = std::max (t->rec[s][b].fit (f, rc, NF, b > 0, fTop), t->rep[s][b].fit (f, rp, NF, b > 0, fTop));
+                if (e > t->worst) { t->worst = e; t->worstV = HeadKernel::bucketSpeed (b); }
+            }
+        return *t;
+    }
+}
+
+double Engine::eqFitWorstDb() { return eqTables().worst; }
+double Engine::eqFitWorstSpeed() { return eqTables().worstV; }
+
+/*  The equalisers for the motor's speed: the analogue gains of the two speed
+    buckets either side, interpolated, then discretised - so a varispeed glide
+    moves the equalisation smoothly (on the slow-speed roll-off a 3 % speed
+    error is worth a dB). */
+void Engine::updateEq (double vCms)
+{
+    const double fb = std::clamp (std::log (vCms / HeadKernel::B0) / std::log (HeadKernel::BR), 0.0, (double) (HeadKernel::NB - 1));
+    if (std::abs (fb - eqLastFb) < 0.01 && eqS == eqLastS) return;
+    eqLastFb = fb; eqLastS = eqS;
+    const int b = std::min ((int) fb, HeadKernel::NB - 2);
+    const double t = fb - b;
+    auto blend = [&] (const ShelfCascade& a, const ShelfCascade& c, ShelfCascade& out) {
+        out = a;
+        out.g0Db = (1.0 - t) * a.g0Db + t * c.g0Db;
+        for (int i = 0; i < ShelfCascade::NS; ++i) out.gDb[i] = (1.0 - t) * a.gDb[i] + t * c.gDb[i];
+        out.discretise (fsInt);
+    };
+    blend (eqRec (eqS, b), eqRec (eqS, b + 1), eqRecA);
+    blend (eqRep (eqS, b), eqRep (eqS, b + 1), eqRepA);
+}
+
 /*  The record head at a bias and a tape speed, one layer at a time: the G slice
     at the bias amplitude this layer sees and the current speed (both
     log-interpolated between table planes - a slower tape sees more bias cycles
@@ -354,6 +488,20 @@ void Engine::prepare (double hostSampleRate, int)
     fsInt = fsHost * os;
     dt = 1.0 / fsInt;
     hk = &HeadKernel::get (fsInt);      // built once per internal rate, shared by every instance
+    {
+        const EqTables& T = eqTables();
+        for (int s = 0; s < 2; ++s)
+            for (int b = 0; b < HeadKernel::NB; ++b)
+            {
+                eqBuf[(size_t) (s * HeadKernel::NB + b)] = T.rec[s][b];
+                eqBuf[(size_t) ((2 + s) * HeadKernel::NB + b)] = T.rep[s][b];
+            }
+        for (auto& st : recEqS) st.reset();
+        for (auto& st : repEqS) st.reset();
+        eqLastFb = -1.0; eqLastS = -1;
+        eqS = params.eqStd > 0.5f ? 1 : 0;
+        updateEq (params.speed);
+    }
 
     for (auto& h : up) { h.design(); h.clear(); }
     for (auto& h : dn) { h.design(); h.clear(); }
@@ -957,6 +1105,14 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
     outL = comp[0].tick (outL); outR = comp[1].tick (outR);
     fbL  = comp[2].tick (fbL);  fbR  = comp[3].tick (fbR);
 
+    // ---- the replay amplifiers' equalisation (the echo send is taken after it)
+    if (eqOn)
+    {
+        const ShelfCascade& R = eqRepA;
+        outL = repEqS[0].tick (R, outL); outR = repEqS[1].tick (R, outR);
+        fbL  = repEqS[2].tick (R, fbL);  fbR  = repEqS[3].tick (R, fbR);
+    }
+
     // ---- the feedback wire, through the tone stage. No cap: what contains a
     //      loop driven past unity is the tape running out of remanence.
     fbL = highS[0].tick (lowS[0].tick (fbL)) * fbEff;
@@ -964,8 +1120,16 @@ void Engine::tick (float xL, float xR, float& yL, float& yR)
 
     // ---- record: the signal as a deep-gap field onto the field ring...
     if (recFade < 1.0) recFade = std::min (1.0, recFade + dt / SPLICE_FADE_S);
-    const double sL = (xL * gIn + fbL) * sigScale * recFade;
-    const double sR = (xR * gIn + fbR) * sigScale * recFade;
+    double rl = xL * gIn + fbL, rr = xR * gIn + fbR;
+    if (eqOn)
+    {
+        // the record amplifier's pre-emphasis: boosted treble meets the tape's
+        // saturation like everything else
+        const ShelfCascade& P = eqRecA;
+        rl = recEqS[0].tick (P, rl); rr = recEqS[1].tick (P, rr);
+    }
+    const double sL = rl * sigScale * recFade;
+    const double sR = rr * sigScale * recFade;
     {
         const double u0 = wPrevU1;
         const double u1 = posAgo (1 + inLag);
@@ -1038,6 +1202,8 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         if (std::abs (biasDbSm - recBiasDb) > 0.005 || std::abs (std::log (vNow / recSpeed)) > 0.002)
             buildRecord (biasDbSm, vNow);
         hkB = HeadKernel::bucket (vNow);
+        eqS = p.eqStd > 0.5f ? 1 : 0;
+        updateEq (vNow);
     }
 
     const float* on[NUM_HEADS]  = { &p.h1On, &p.h2On, &p.h3On };

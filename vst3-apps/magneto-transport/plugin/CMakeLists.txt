@@ -57,6 +57,7 @@ target_sources(MagnetoTransport
     PRIVATE
         Source/Engine.cpp
         Source/Playback.cpp
+        Source/Equaliser.cpp
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp)
 

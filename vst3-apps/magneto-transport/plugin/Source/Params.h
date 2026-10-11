@@ -36,6 +36,7 @@ struct Params
     float killDry   = 0.0f;
     float output    = 0.0f;   // dB
     float inMode    = 0.0f;   // 0 STEREO, 1 MONO (sum the input)
+    float eqStd     = 0.0f;   // 0 IEC, 1 NAB: the record and replay equalisation standard
 };
 
 enum class Kind { Lin, Log, Choice, Toggle };
@@ -96,6 +97,8 @@ inline const Spec SPECS[] =
     { "mix",      "MIX",      Kind::Lin, 0.0f, 1.0f, 0.35f, "", nullptr, &Params::mix,     "Dry to wet, equal power." },
     { "killdry",  "KILL DRY", Kind::Toggle, 0, 1, 0, "", nullptr, &Params::killDry,         "Removes the dry signal entirely, for use on a send." },
     { "output",   "OUTPUT",   Kind::Lin, -24.0f, 12.0f, 0.0f, "dB", nullptr, &Params::output, "Output level." },
+    { "eq",       "EQUALISATION", Kind::Choice, 0, 1, 0, "", "IEC|NAB", &Params::eqStd,
+      "The record and replay equalisation standard. IEC (the default) lifts the treble on replay; NAB also boosts the bass on record, so lows saturate a little sooner." },
     { "inmode",   "INPUT",    Kind::Choice, 0, 1, 0, "", "STEREO|MONO", &Params::inMode,
       "STEREO records left and right on their own tracks. MONO records the sum on both, for mono-to-stereo use." },
 };

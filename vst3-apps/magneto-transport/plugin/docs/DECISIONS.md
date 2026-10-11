@@ -293,3 +293,27 @@ The splice test used 500 Hz and read +0.72 dB: the thickness tilt, not a fault.
 Unity is defined at the 1 kHz alignment, so it now uses 1 kHz. Sections 13-14
 compare the record process with the reference's depth-averaged flux, so they
 run with the head losses bypassed (Engine::setPlaybackLoss, bench only).
+
+## Stage 4b: the equalisers follow a real alignment
+
+Replay = the standard (IEC default, NAB alternative; time constants per speed,
+log-interpolated) plus an HF trim for the playback head's own spacing and gap
+(at most +10 dB), as a technician sets it with a calibration tape. Record
+pre-emphasis = what makes the short-circuit flux follow the standard (at most
++20 dB), in the record amplifier so treble eats headroom. Both computed from
+the machine's own small-signal model, realised as minimum-phase shelf cascades,
+interpolated between speed buckets. Measured flat within 0.25 dB 40 Hz-15 kHz
+from 19 cm/s up. Their phase is authentic, so timing tests run with them out.
+
+## The self-oscillation claim moved to where it lives
+
+"The output can never exceed full remanence" was true of the flat medium. With
+replay equalisation the output may peak above that level (the harmonics of a
+saturated tape are lifted, +2.8 dBFS at the test setting), so the check now
+asserts what holds the loop: the tape's remanence never passes full, and the
+oscillation has stopped growing. It settles near 414 Hz.
+
+## Cost is measured best of three
+
+The bench machine is not idle; one timing wandered by +-1.5 % of a core and
+straddled the 15 % line. The engine's cost is the time it needs.

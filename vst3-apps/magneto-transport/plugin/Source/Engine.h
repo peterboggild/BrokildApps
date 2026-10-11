@@ -18,6 +18,7 @@
 
 #include "Params.h"
 #include "Playback.h"
+#include "Equaliser.h"
 
 #include <atomic>
 #include <cmath>
@@ -171,6 +172,14 @@ public:
         head's spacing, thickness and gap losses - without, sections 13-14 test
         the record process alone against the reference's depth-averaged flux. */
     void setPlaybackLoss (bool on) { pbOn = on; }
+    /*  Bench: the record and replay equalisers in (default) or out. Out, the
+        transport's own timing and the head against the reference are tested;
+        the equalisers are minimum-phase like the circuits, so they move the
+        echo's phase as a real machine's do. */
+    void setEq (bool on) { eqOn = on; }
+    /*  The worst error of the equaliser fits, dB, over every speed and both standards. */
+    static double eqFitWorstDb();
+    static double eqFitWorstSpeed();   // where it is (cm/s)
     double playbackTrim() const { return pbTrim; }
     bool isSplicing() const { return spliceState != 0; }
     const LayerRecord& layerRecord (int l) const { return rec[l]; }
@@ -255,6 +264,21 @@ private:
     double pbTrim = 1.0;           // repro level per speed: 1 kHz unity through the head losses
     double pbTrimSS = 1.0;         // the same from small-signal layer weights
     double pbKappa = 1.0;          // 0 VU weights / small-signal weights, measured at the alignment
+
+    // record and replay equalisation: per standard and speed bucket, discretised
+    // for this rate (on the heap - the engine may live on a small stack)
+    bool eqOn = true;
+    int eqS = 0;
+    std::unique_ptr<ShelfCascade[]> eqBuf { new ShelfCascade[(size_t) 2 * 2 * HeadKernel::NB] };
+    const ShelfCascade& eqRec (int s, int b) const { return eqBuf[(size_t) (s * HeadKernel::NB + b)]; }
+    const ShelfCascade& eqRep (int s, int b) const { return eqBuf[(size_t) ((2 + s) * HeadKernel::NB + b)]; }
+    ShelfState recEqS[2], repEqS[4];
+    // the cascades in use: analogue gains interpolated between the two speed
+    // buckets either side of the motor speed, rediscretised as it moves
+    ShelfCascade eqRecA, eqRepA;
+    double eqLastFb = -1.0;
+    int eqLastS = -1;
+    void updateEq (double vCms);
     std::unique_ptr<double[]> preBuf { new double[(size_t) 2 * NLAYER * PRE_RING]() };
     double* pre (int c, int l) const { return preBuf.get() + (size_t) (c * NLAYER + l) * PRE_RING; }
     double pRun[2][NLAYER] {};

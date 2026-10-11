@@ -142,3 +142,38 @@ the machine is aligned for the speed you set. The record equaliser
 (pre-emphasis, before the record head, so treble eats headroom as on tape) is
 set the way a technician sets it — flat at −20 dB — and is computed from the
 machine's own small-signal model: record zones (tables), slab kernels, gap.
+
+## The equalisers as built (stage 4b)
+
+- **Targets** from the machine's own small-signal model at operating bias (each
+  slab's record gain and zone with its phase, its exact slab response):
+  replay = the standard's curve x an HF trim for the head's spacing and gap,
+  record = what makes the short-circuit flux follow the standard. Both
+  normalised at 1 kHz, so the 0 VU alignment and MOL do not move. The limits
+  (+10 dB replay trim, +20 dB pre-emphasis) have 1.5 dB soft knees: a hard
+  limit puts a kink in a target the shelves cannot follow.
+- **Realised** as 12 first-order shelves (12 Hz–24 kHz, log-spaced) plus a gain,
+  fitted by Levenberg–Marquardt in dB, bilinear with prewarping at each corner:
+  minimum-phase, like the circuits. Fitted once per process for 2 standards ×
+  49 speed buckets (warm-started bucket to bucket). The motor's speed picks a
+  blend: the analogue gains of the two buckets either side are interpolated
+  and rediscretised as the speed moves — on the slow-speed roll-off a 3 %
+  speed mismatch was worth a dB.
+- Tried and rejected, both measured: 16 shelves (ill-conditioned: neighbouring
+  shelves trade huge opposite gains, and an interpolated set put a 50 %
+  feedback loop past unity); band weighting and a smoothness penalty (each
+  produced a steady treble droop at every speed).
+- The record pre-emphasis sits in the record amplifier, after the input and
+  feedback mix: boosted treble meets the tape's saturation like everything
+  else. The echo send is taken after the replay equaliser.
+
+**Measured (bench section 16, −20 dB, dB re 1 kHz):** flat within 0.25 dB from
+40 Hz to 15 kHz at 19–76 cm/s, both standards; within 0.4 dB to 10 kHz at
+9.5 cm/s and 0.5 dB to 6 kHz at 4.76 cm/s, falling above (the gap null near
+19 kHz and the +10 dB trim limit, as on a real slow-speed machine). Fit error
+within 0.44 dB in those bands. Self-oscillation at 100 % feedback settles near
+414 Hz with the tape's remanence at 0.95 of full; the OUTPUT may now peak
+above the full-remanence level (+2.8 dBFS there) because the replay
+equaliser lifts the harmonics a saturated tape makes — on the tape, nothing
+passes full. Transport-timing and reference sections run with the
+equalisers out (their phase is real, and not the transport's).
