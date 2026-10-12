@@ -2151,10 +2151,12 @@ function buildMonitor(sx, sy, zc, yaw, room, mat){
   /* ---- the baffle, inset, with four chamfer strips round it ----------- */
   const BV = HV - CH, BW = HW - CH;
   quad(P(HU,-BV,-BW), P(HU,BV,-BW), P(HU,BV,BW), P(HU,-BV,BW), mat, 20, room, 2);
-  quad(P(HU-CH,HV,-HW), P(HU,BV,-BW), P(HU,BV,BW), P(HU-CH,HV,HW), mat, 20, room, 1);
-  quad(P(HU,-BV,-BW), P(HU-CH,-HV,-HW), P(HU-CH,-HV,HW), P(HU,-BV,BW), mat, 20, room, 1);
+  /*  The strips are wound outwards: three of the four were the other way round
+      and culled, which left see-through slits at the front edges (261012.5). */
+  quad(P(HU-CH,HV,-HW), P(HU-CH,HV,HW), P(HU,BV,BW), P(HU,BV,-BW), mat, 20, room, 1);
+  quad(P(HU,-BV,-BW), P(HU,-BV,BW), P(HU-CH,-HV,HW), P(HU-CH,-HV,-HW), mat, 20, room, 1);
   quad(P(HU,-BV,BW), P(HU,BV,BW), P(HU-CH,HV,HW), P(HU-CH,-HV,HW), mat, 20, room, 1);
-  quad(P(HU-CH,-HV,-HW), P(HU,-BV,-BW), P(HU,BV,-BW), P(HU-CH,HV,-HW), mat, 20, room, 1);
+  quad(P(HU-CH,-HV,-HW), P(HU-CH,HV,-HW), P(HU,BV,-BW), P(HU,-BV,-BW), mat, 20, room, 1);
 
   /* ---- the 6.5 inch woofer, sunk into the baffle ---------------------- */
   const WC = P(HU, 0, -0.050), RW = 0.083;
