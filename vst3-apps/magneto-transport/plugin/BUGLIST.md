@@ -367,3 +367,19 @@ Also found: `Params::erase` defaults to 100 in the struct while the parameter ta
 default is 0, so every bench check and probe that starts from `Params p;` runs with
 the erase head full in DUB, unlike the panel. dubprobe hit it (all layers wiped).
 Make the struct match the table, then re-run the bench.
+
+## 10. The re-record's fine calibration is studio tape only (Peter, 2026-10-12: "am I right that the overdub is calibrated for studio tape only?") — AWAITING GO
+
+Partly. The re-record level divides out the loop gain COMPUTED from the selected stock's own
+record tables, so the large stock differences are handled. What was MEASURED on the studio
+stock at the operating bias alone: the head-bump margin (`SYNC_PEAK_DB`), the placement
+(`SYNC_LAG_US`) and the treble/bass reference ratios the guard compares against
+(`SYNC_HF_REF_DB`, `SYNC_LF_REF_DB`). Consequences, measured at 19.05 cm/s: safe on every
+stock (all per-pass gains negative, incl. budget at 38/76 cm/s and bias -4/-6), but the
+brighter stocks read as excess and are held back: a layer loses ~0.44 dB a pass on VINTAGE
+and ~0.6 on BUDGET against 0.14 on STUDIO. Placement on the other stocks is unverified.
+
+Proposed: measure the four tables per stock (test/syncprobe.cpp already takes stock and
+bias), index them by stock in the engine, and add a bench check that every stock keeps a
+1 kHz layer within ~0.25 dB a pass with nothing coming round louder, and a click within a few
+us a pass. No change to REC, PLAY or the studio stock.
