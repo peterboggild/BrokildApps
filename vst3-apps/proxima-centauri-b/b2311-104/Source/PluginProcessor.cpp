@@ -309,10 +309,12 @@ void Artefact104AudioProcessor::handleUiMessage (const juce::var& payload)
     else if (k == "spin")   engine.spin ((float) (double) o->getProperty ("a"),
                                          (float) (double) o->getProperty ("b"));
     else if (k == "specimen") { engine.requestSpecimen ((int) o->getProperty ("n"));
-                                notice ("SPECIMEN " + juce::String ((int) o->getProperty ("n")).paddedLeft ('0', 3) + " PRESENT"); }
+                                notice ("SPECIMEN " + juce::String ((int) o->getProperty ("n")).paddedLeft ('0', 3) + " PRESENT  -  "
+                                        + juce::String (materialName (materialFamilyOf ((int) o->getProperty ("n"))))); }
     else if (k == "random")   { const int s = juce::Random::getSystemRandom().nextInt (specimenCount());
                                 engine.requestSpecimen (s);
-                                notice ("SPECIMEN " + juce::String (s).paddedLeft ('0', 3) + " PRESENT"); }
+                                notice ("SPECIMEN " + juce::String (s).paddedLeft ('0', 3) + " PRESENT  -  "
+                                        + juce::String (materialName (materialFamilyOf (s)))); }
     else if (k == "panic")    wantPanic.store (true);
     else if (k == "note")
     {
@@ -369,6 +371,7 @@ void Artefact104AudioProcessor::emitInitialState()
     o->setProperty ("params", ps);
     o->setProperty ("build", AB104_BUILD_ID);
     o->setProperty ("specimen", engine.currentSpecimen());
+    o->setProperty ("mat", juce::String (materialName (materialFamilyOf (engine.currentSpecimen()))));
     emitToUi ("initialState", juce::var (o));
     uiHasState.store (true);
     lastGeomStamp = -1;
@@ -388,6 +391,7 @@ void Artefact104AudioProcessor::emitWeb()
 
     auto* o = new juce::DynamicObject();
     o->setProperty ("spec", w.specimen);
+    o->setProperty ("mat", juce::String (materialName (materialFamilyOf (w.specimen))));
     o->setProperty ("rotA", (double) w.rotA);
     o->setProperty ("rotB", (double) w.rotB);
     o->setProperty ("secH", (double) w.sectionH);

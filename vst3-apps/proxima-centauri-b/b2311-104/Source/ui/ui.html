@@ -105,7 +105,7 @@
 <div id="head">
   <div class="a">PROXIMS CENTAURI B &nbsp;&middot;&nbsp; ACCESSION 104</div>
   <div class="b">ARTEFACT B2311.104</div>
-  <div class="c">SPECIMEN <span id="rSpec">000</span> &nbsp;&middot;&nbsp; BUILD <span id="rBuild">dev</span> &nbsp;&middot;&nbsp; <span id="rSing">0</span> CARRYING<span id="rSite"></span></div>
+  <div class="c">SPECIMEN <span id="rSpec">000</span> &middot; <span id="rMat"></span> &nbsp;&middot;&nbsp; BUILD <span id="rBuild">dev</span> &nbsp;&middot;&nbsp; <span id="rSing">0</span> CARRYING<span id="rSite"></span></div>
   <div class="prov">RECOVERED &nbsp;KELL RILLE &middot; LOWER GALLERY &nbsp;&middot;&nbsp; DAY 327 &nbsp;&middot;&nbsp; THE NEWEST FINDING</div>
 </div>
 
@@ -602,6 +602,7 @@ NB.on("initialState", p=>{
   specimen = p.specimen||0;
   $("#rBuild").textContent = p.build||"dev";
   $("#rSpec").textContent = String(specimen).padStart(3,"0");
+  $("#rMat").textContent = p.mat||"";
   buildRail(); buildLegendRows(); thermoDraw();
 });
 
@@ -618,6 +619,7 @@ NB.on("web", p=>{
   rotA=p.rotA; rotB=p.rotB; secH=p.secH; veilW=p.veil;
   power=p.power||0; sing=p.sing||0; lvl=p.lvl||0;
   if(p.spec!==undefined && p.spec!==specimen){ specimen=p.spec; $("#rSpec").textContent=String(specimen).padStart(3,"0"); }
+  if(p.mat!==undefined && $("#rMat").textContent!==p.mat) $("#rMat").textContent=p.mat;
   if(p.nodes!==undefined){
     nNode=p.nNode; nDuct=p.nDuct;
     NODES=b64floats(p.nodes);

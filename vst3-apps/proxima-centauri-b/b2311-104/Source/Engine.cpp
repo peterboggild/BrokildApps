@@ -33,6 +33,7 @@ static const PSpec SPECS[] =
     { "steepen",    "STEEPENING",   "how a loud wave leans forward and breaks",               0.35f, KP_PCT,    0, 0,    P(steepen) },
     { "stiffness",  "STIFFNESS",    "how far the partials leave the harmonic series",         0.30f, KP_PCT,    0, 0,    P(stiffness) },
     { "turbulence", "TURBULENCE",   "how readily the heat drives the tone into chaos",        0.28f, KP_PCT,    0, 0,    P(turbulence) },
+    { "character",  "CHARACTER",    "how strongly the specimen's own material is voiced",     0.80f, KP_PCT,    0, 0,    P(character) },
 
     { "breadth",    "BREADTH",      "how wide the web stands in the image",                   0.60f, KP_PCT,    0, 0,    P(breadth) },
     { "tune",       "TUNE",         "twelve semitones either way, on every order",            0.50f, KP_SEMI,   -12, 12, P(tune) },
@@ -209,7 +210,9 @@ static void buildOnce (uint64_t seed, Geometry& g)
         const double t = (std::log (angHi) - std::log (angs[(size_t) i])) / span;
         const double jit = std::pow (2.0, r.range (-0.045, 0.045));
         g.fPassive[i] = (float) clampd (24.0 * std::pow (260.0 / 24.0, t) * jit, 22.0, 290.0);
-        g.closedEnd[i] = r.next() < 0.4 ? 1 : 0;
+        const double uEnd = r.next();          //  the same draw, kept: the material
+        g.closedU[i] = uEnd;                   //  moves the threshold, never the draw
+        g.closedEnd[i] = uEnd < 0.4 ? 1 : 0;
 
         //  geodesic midpoint
         double m[4], len = 0;
@@ -233,6 +236,95 @@ static void buildOnce (uint64_t seed, Geometry& g)
     }
 }
 
+/*  THE MEDIA. Each row is a region of the same physics, given as ranges; a
+    specimen draws inside its family and leans a little towards a second one,
+    so no two are alike and every family is reachable. The families are
+    INTERLEAVED along the dial (family = (n*5+3) % 8), so neighbouring numbers
+    are different materials — a dial that moved one step and changed nothing
+    is exactly the complaint this answers.
+
+    Ranges are what the bench measured as musical, not taste: drive is the
+    instantaneous nonlinearity (0.4 is nearly linear, 3.5 a square-ish wave),
+    fold is the share of it that FOLDS rather than saturates, shock is the
+    amplitude-dependent fraction of the period (Burgers), closed the share of
+    quarter-wave conduits, rad the radiation corner, skin the even harmonics
+    on the tap, f/g/q the vessel's two formants at 234 K, m the wall's two
+    inharmonic mode ratios and mb how loudly they ring, pulse the valve
+    transient in ms (dbl: a sharp doublet instead of a soft puff), inertia
+    scales how slowly heat moves, sym how readily the web answers. */
+struct MRange { float lo, hi; };
+struct MFamily
+{
+    const char* name;
+    MRange drive, fold, shock, closed, rad, skin, f1, f2, g1, g2, q, m1, m2, mb, pulse;
+    float dbl;
+    MRange inertia, sym;
+    float trimDb;      // level trim per unit CHARACTER: the old engine's mean rms at E2 and E3, less 1.5 dB for brightness (ab104timbre)
+};
+
+static const MFamily FAMILIES[8] =
+{
+    //  name      drive        fold         shock          closed       rad          skin         f1           f2            g1          g2          q          m1           m2           mb           pulse      dbl  inertia      sym          trim
+    { "SINEW",  {0.30f,0.60f},{0.00f,0.05f},{0.000f,0.005f},{0.30f,0.50f},{0.8f,1.2f},{0.00f,0.05f},{200,350},{ 700,1100},{ 0, 3},{-3, 0},{1.5f,3},{2.10f,2.30f},{3.50f,3.80f},{0.00f,0.10f},{2.5f,4.0f},0,{0.9f,1.3f},{0.8f,1.2f}, 6.7f },
+    { "REED",   {1.40f,2.20f},{0.00f,0.10f},{0.005f,0.015f},{0.85f,1.00f},{2.0f,3.0f},{0.00f,0.10f},{380,620},{1300,1900},{ 4, 8},{ 3, 7},{3.0f,6},{1.65f,1.80f},{4.10f,4.40f},{0.00f,0.15f},{1.5f,3.0f},0,{0.6f,1.0f},{0.7f,1.2f}, 9.0f },
+    { "HORN",   {2.00f,3.00f},{0.00f,0.05f},{0.030f,0.060f},{0.00f,0.12f},{2.6f,3.8f},{0.20f,0.50f},{450,750},{1100,1600},{ 5, 9},{ 2, 6},{2.5f,5},{2.30f,2.50f},{3.90f,4.20f},{0.05f,0.20f},{4.0f,8.0f},0,{1.2f,1.8f},{0.8f,1.3f}, 12.2f },
+    { "BELL",   {0.50f,1.00f},{0.20f,0.40f},{0.000f,0.010f},{0.20f,0.50f},{1.2f,2.0f},{0.00f,0.10f},{600,1200},{2000,3200},{ 0, 4},{ 2, 6},{4.0f,8},{2.60f,2.90f},{5.20f,5.60f},{0.70f,1.00f},{0.4f,0.9f},1,{0.35f,0.6f},{1.8f,2.8f}, 8.0f },
+    { "GLASS",  {1.00f,1.60f},{0.55f,0.90f},{0.000f,0.010f},{0.50f,0.80f},{2.8f,4.0f},{0.00f,0.05f},{900,1500},{2400,3600},{ 3, 7},{ 5,10},{5.0f,9},{1.55f,1.65f},{2.10f,2.35f},{0.30f,0.60f},{0.6f,1.5f},1,{0.5f,0.9f},{1.2f,2.0f}, 5.7f },
+    { "GROWL",  {2.60f,3.60f},{0.10f,0.25f},{0.015f,0.040f},{0.35f,0.65f},{1.2f,1.8f},{0.30f,0.70f},{180,320},{ 600, 900},{ 6,11},{ 0, 4},{2.0f,4},{1.40f,1.60f},{2.90f,3.30f},{0.10f,0.30f},{3.0f,6.0f},0,{1.4f,2.4f},{1.2f,1.8f}, 12.8f },
+    { "VOICE",  {1.50f,2.40f},{0.25f,0.50f},{0.005f,0.020f},{0.10f,0.40f},{2.2f,3.2f},{0.10f,0.30f},{300,800},{ 900,2400},{ 8,12},{ 7,11},{5.0f,9},{2.00f,2.40f},{3.40f,3.90f},{0.00f,0.15f},{2.0f,4.0f},0,{0.8f,1.3f},{0.8f,1.3f}, 9.7f },
+    { "ANOMALY",{0.30f,3.60f},{0.00f,1.00f},{0.000f,0.060f},{0.00f,1.00f},{0.8f,4.0f},{0.00f,0.70f},{150,1500},{ 700,3600},{-6,12},{-6,12},{2.0f,9},{1.30f,3.50f},{3.50f,6.50f},{0.00f,1.00f},{0.4f,8.0f},0.5f,{0.35f,2.4f},{0.6f,3.0f}, 8.4f },
+};
+
+const char* materialName (int family) { return FAMILIES[((family % 8) + 8) % 8].name; }
+int materialFamilyOf (int index)
+{
+    index = ((index % specimenCount()) + specimenCount()) % specimenCount();
+    return (index * 5 + 3) % 8;
+}
+
+static void buildMaterial (int index, Material& m)
+{
+    Rng r ((uint64_t) index * 0x5DEECE66Dull + 0x104CA7ull);   // its own stream
+    m = Material();
+    m.family  = materialFamilyOf (index);
+    m.family2 = (m.family + 1 + r.below (7)) % 8;
+    m.blend   = (float) r.range (0.0, 0.30);
+    const MFamily& A = FAMILIES[m.family];
+    const MFamily& B = FAMILIES[m.family2];
+    //  one draw per trait, used for both families, so the lean is a lean
+    auto pick = [&] (const MRange& a, const MRange& b, bool logScale)
+    {
+        const double u = r.next();
+        auto at = [&] (const MRange& x)
+        {
+            return logScale ? x.lo * std::pow ((double) x.hi / x.lo, u)
+                            : x.lo + ((double) x.hi - x.lo) * u;
+        };
+        return (float) (at (a) + ((double) m.blend) * (at (b) - at (a)));
+    };
+    m.drive      = pick (A.drive,  B.drive,  true);
+    m.fold       = pick (A.fold,   B.fold,   false);
+    m.shock      = pick (A.shock,  B.shock,  false);
+    m.closedFrac = pick (A.closed, B.closed, false);
+    m.radMul     = pick (A.rad,    B.rad,    true);
+    m.skin       = pick (A.skin,   B.skin,   false);
+    m.f1         = pick (A.f1,     B.f1,     true);
+    m.f2         = std::max (m.f1 * 1.6f, pick (A.f2, B.f2, true));
+    m.g1db       = pick (A.g1,     B.g1,     false);
+    m.g2db       = pick (A.g2,     B.g2,     false);
+    m.q1         = pick (A.q,      B.q,      true);
+    m.q2         = pick (A.q,      B.q,      true);
+    m.modeR[0]   = pick (A.m1,     B.m1,     true);
+    m.modeR[1]   = pick (A.m2,     B.m2,     true);
+    m.modeBase   = pick (A.mb,     B.mb,     false);
+    m.modeQ      = 0.8f + 0.8f * (float) r.next();
+    m.pulseMs    = pick (A.pulse,  B.pulse,  true);
+    m.doublet    = (float) (r.next() < (A.dbl + m.blend * (B.dbl - A.dbl)) ? 1 : 0);
+    m.inertia    = pick (A.inertia,B.inertia,true);
+    m.sympathy   = pick (A.sym,    B.sym,    true);
+    m.trimDb     = A.trimDb + m.blend * (B.trimDb - A.trimDb);
+}
+
 void buildSpecimen (int index, Geometry& g)
 {
     index = ((index % specimenCount()) + specimenCount()) % specimenCount();
@@ -242,8 +334,9 @@ void buildSpecimen (int index, Geometry& g)
         g.salt = salt;
         if (harmonicDistanceRms (g.fPassive, g.nDuct) >= 18.0
          && tetDistanceRms (g.fPassive, g.nDuct) >= 15.0)
-            return;
+            break;
     }
+    buildMaterial (index, g.mat);
 }
 
 //==============================================================================
@@ -304,6 +397,7 @@ void Engine::reset()
         T[i] = tAmb;
         fNow[i] = geo.fPassive[i];
         sigma[i] = 0;
+        closedNow[i] = geo.closedEnd[i];
         huntPh[i] = (float) (0.61803398875 * i - std::floor (0.61803398875 * i));
     }
     if (! lines.empty())  std::fill (lines.begin(),  lines.end(),  0.0f);
@@ -318,6 +412,7 @@ void Engine::reset()
     outDcX2[0] = outDcX2[1] = outDcY2[0] = outDcY2[1] = 0;
     hpZ1[0] = hpZ1[1] = hpZ2[0] = hpZ2[1] = 0;
     hp2Z1[0] = hp2Z1[1] = hp2Z2[0] = hp2Z2[1] = 0;
+    std::memset (bodyZ1, 0, sizeof bodyZ1); std::memset (bodyZ2, 0, sizeof bodyZ2);
     outLevel.store (0.0f); gridPower.store (0.0f); singing.store (0); chuffFired.store (0);
     updateSection();
 }
@@ -334,8 +429,10 @@ void Engine::applyGeometry (const Geometry& g)
         T[i] = tAmb;
         fNow[i] = geo.fPassive[i];
         sigma[i] = 0;
+        closedNow[i] = geo.closedEnd[i];
     }
     if (! lines.empty())  std::fill (lines.begin(),  lines.end(),  0.0f);
+    std::memset (bodyZ1, 0, sizeof bodyZ1); std::memset (bodyZ2, 0, sizeof bodyZ2);
     for (auto& c : cmds) c = Cmd();
     for (auto& k : pkts) k.live = 0;
     updateSection();
@@ -435,10 +532,19 @@ void Engine::allocCmd (int note, float vel)
         cycle must grow FROM something, and the house rule forbids noise in a
         loop. A pump switching on makes a click; that click is the seed. */
     Duct& d = duct[c.duct];
-    d.pulseAmp = 0.06f + 0.20f * vel;
-    d.pulseLeft = std::max (32, (int) (0.003 * sr));
-    d.pulsePh = 0; d.pulseInc = 1.0 / d.pulseLeft;
+    startPulse (d, 0.06f + 0.20f * vel, 0.003);
     d.active = 1;
+}
+
+/*  Every transient that seeds a cycle goes through here. At CHARACTER 0 the
+    scale is exactly 1.0 and the arithmetic is the old (int)(sec * sr); the
+    material shortens it to a sharp click (BELL, GLASS) or lengthens it to a
+    soft breath (HORN). */
+void Engine::startPulse (Duct& d, float amp, double baseSec)
+{
+    d.pulseAmp = amp;
+    d.pulseLeft = std::max (32, (int) (baseSec * (double) mPulse * sr));
+    d.pulsePh = 0; d.pulseInc = 1.0 / d.pulseLeft;
 }
 
 //==============================================================================
@@ -602,9 +708,7 @@ void Engine::controlTick (int samples)
             if (pk.amp != 0.0f)
             {
                 Duct& d = duct[pk.duct];
-                d.pulseAmp = clampf (pk.amp, 0.0f, 0.6f);
-                d.pulseLeft = std::max (32, (int) (0.003 * sr));
-                d.pulsePh = 0; d.pulseInc = 1.0 / d.pulseLeft;
+                startPulse (d, clampf (pk.amp, 0.0f, 0.6f), 0.003);
                 d.active = 1;
             }
             if (pk.kelvin != 0.0f)
@@ -640,13 +744,75 @@ void Engine::controlTick (int samples)
     const double wHunt  = 0.25 + 0.75 * warmth;
     const float  turbG = (float) (clampf (p.turbulence, 0.0f, 1.0f) * wTurb);
 
+    /*  THE MATERIAL, voiced by CHARACTER. Every trait is a lerp from the old
+        engine's value (at ch = 0) to the specimen's own, and the old value is
+        always an exact 1.0 or 0.0, so ch = 0 multiplies by one and adds zero.
+        STEEPENING finally does what its name says: it scales how hard the
+        wave leans (the instantaneous nonlinearity) and how far the crest
+        overtakes the trough (the shock), as well as the radiation it set
+        before. */
+    const Material& mt = geo.mat;
+    const float ch = clampf (p.character, 0.0f, 1.0f);
+    chOn = ch > 0.0f;
+    if (chOn)
+    {
+        const float st = clampf (p.steepen, 0.0f, 1.0f);
+        mDrive   = ch * mt.drive * (0.45f + 1.55f * st);
+        /*  ...and it gives way to TURBULENCE: a cycle held hard by its medium
+            is a stable cycle, and chaos needs the delayed King's law in
+            charge — measured, the material had pinned TURBULENCE 1 to a
+            flatness of 0.010 where the route to chaos reaches 0.23. */
+        mBoost   = ch * std::max (0.0f, mt.drive - 0.3f) * 1.60f * (0.40f + 1.70f * st)
+                   * (1.0f - turbG) * (1.0f - turbG);
+        mFold    = ch * mt.fold;
+        mShock   = ch * mt.shock * (0.30f + 2.00f * st);
+        mSkin    = ch * mt.skin;
+        //  the slow envelope loss steps aside as the instantaneous one takes
+        //  over the limiting — that hand-over IS the timbre
+        mEnvLoss = 1.0f - 0.80f * ch * clampf (mt.drive / 1.6f, 0.0f, 1.0f) * (1.0f - turbG);
+        mPulse   = 1.0f + ch * (mt.pulseMs / 3.0f - 1.0f);
+        mDoublet = ch * mt.doublet;
+        mSym     = 1.0f + ch * (mt.sympathy - 1.0f);
+        //  a blow, not a click: a doublet has almost nothing at a bass
+        //  conduit's wall modes (a bell's first mode on E2 is 226 Hz), so the
+        //  walls take the ONE-SIDED puff, and a narrow wall resonance needs a
+        //  strong one (its input gain is sin(w)/2Q, ~0.001 there)
+        mStrike  = 40.0f * ch * mt.modeBase;
+        mInertia = 1.0f + ch * (mt.inertia - 1.0f);
+        //  family trim (measured at E2/E3) plus 3 dB for the bass register,
+        //  where the old engine was hottest (it fell ~6 dB an octave)
+        mTrim    = std::pow (10.0f, ch * (mt.trimDb + 3.0f) / 20.0f);
+
+        /*  The vessel's two formants. A vessel resonance is a length over the
+            speed of sound, so it follows sqrt(ambient) — the site's heat moves
+            the vowel, while the ordered notes stay put. */
+        const double cs = std::sqrt (tAmb / T_REF);
+        const float fq[2] = { mt.f1, mt.f2 }, gq[2] = { mt.g1db, mt.g2db }, qq[2] = { mt.q1, mt.q2 };
+        for (int k = 0; k < 2; ++k)
+        {
+            const double fk = clampd ((double) fq[k] * cs, 60.0, sr * 0.42);
+            const double w0 = 2.0 * PI * fk / sr, al = std::sin (w0) / (2.0 * (double) qq[k]);
+            const double a0 = 1.0 + al;
+            bodyB0[k] = (float) (al / a0);
+            bodyA1[k] = (float) (-2.0 * std::cos (w0) / a0);
+            bodyA2[k] = (float) ((1.0 - al) / a0);
+            bodyG[k]  = (float) (std::pow (10.0, (double) ch * gq[k] / 20.0) - 1.0);
+        }
+    }
+    else
+    {
+        mDrive = mBoost = mFold = mShock = mSkin = mDoublet = mStrike = 0.0f;
+        mEnvLoss = mPulse = mSym = mInertia = mTrim = 1.0f;
+    }
+
     //  the climate's timescales
     const double coldMul = clampd (std::sqrt (tAmb / T_REF), 0.30, 1.7);
     const double massMul = xmapd (p.mass, 0.35, 4.0);
+    //  MASS owns the glide; the material's inertia shapes the ATTACK only
     const double tauT    = xmapd (1.0 - (double) p.flux, 0.02, 1.2) * massMul / coldMul;
     const double tauLeak = xmapd (1.0 - (double) p.leak, 0.15, 8.0) * massMul
                            * (0.22 + 0.78 * warmth);   // a cold site reclaims heat fast
-    const double tauAtk  = xmapd (1.0 - (double) p.flux, 0.004, 0.9) * massMul / coldMul;
+    const double tauAtk  = xmapd (1.0 - (double) p.flux, 0.004, 0.9) * massMul / coldMul * (double) mInertia;
     const double tauRel  = xmapd (1.0 - (double) p.leak, 0.03, 2.5) * massMul;
     const double condRate = xmapd (p.conduction, 0.002, 0.8);
     const double thetaOn = 0.22 + 1.85 * (double) p.onset * (double) p.onset;
@@ -759,15 +925,20 @@ void Engine::controlTick (int samples)
         const double lnR = std::max (0.0, std::log (T[c.duct] / tAmb));
         const double eAutoC = std::max (0.0, lnR / thetaOn - 1.0) * 0.9 * wAuto;
         const double eCmd = (double) c.env + std::min (1.2, eAutoC);
-        if (p.chuff > 0.01f && (c.held || sustain) && eCmd > 0.02 && eCmd < 0.92)
+        /*  ...and GONE ONCE THE SONG HOLDS, which the eCmd window alone never
+            achieved: a held order at ordinary velocity sits at eCmd ~0.7, so
+            the stammer went on for the whole note (measured, 46 pulses in a
+            4 s A1 — a click train between the harmonics, -51 dB, the bench's
+            "aliasing"). With the material voiced, the stammer ends when the
+            conduit is actually singing; CHARACTER 0 keeps the old behaviour. */
+        const bool songHolds = chOn && duct[c.duct].ringEnv > 0.10f && duct[c.duct].heatDrive > 0.010f;
+        if (p.chuff > 0.01f && (c.held || sustain) && eCmd > 0.02 && eCmd < 0.92 && ! songHolds)
         {
             if (c.chuffAt <= 0.0) c.chuffAt = tSec + 0.03;
             if (tSec >= c.chuffAt)
             {
                 Duct& d = duct[c.duct];
-                d.pulseAmp = clampf (p.chuff, 0.0f, 1.0f) * (0.14f + 0.5f * c.vel);
-                d.pulseLeft = std::max (32, (int) (0.003 * sr));
-                d.pulsePh = 0; d.pulseInc = 1.0 / d.pulseLeft;
+                startPulse (d, clampf (p.chuff, 0.0f, 1.0f) * (0.14f + 0.5f * c.vel), 0.003);
                 chuffFired.fetch_add (1);
                 const double prog = clampd (eCmd / 0.92, 0.0, 1.0);
                 c.chuffAt = tSec + (0.24 - 0.19 * prog) * (0.55 + massMul * 0.30);
@@ -856,9 +1027,7 @@ void Engine::controlTick (int samples)
         if (singing && d.pulseLeft <= 0 && d.ringEnv < 1e-3f)
         {
             //  the cycle must grow FROM a transient (no noise in a loop): pop
-            d.pulseAmp = 0.05f;
-            d.pulseLeft = std::max (32, (int) (0.002 * sr));
-            d.pulsePh = 0; d.pulseInc = 1.0 / d.pulseLeft;
+            startPulse (d, 0.05f, 0.002);
         }
         if (singing) ++nSing;
 
@@ -893,13 +1062,29 @@ void Engine::controlTick (int samples)
         const double fc = clampd (fNow[i] * 14.0, fNow[i] * 3.0, sr * 0.45);
         const double aLPd = 1.0 - std::exp (-2.0 * PI * fc / sr);
         d.lpA = (float) aLPd;
+        if (chOn)
+        {
+            //  the pump's resonance, on this conduit's pitch (see the medium)
+            const double wp = 2.0 * PI * clampd (fNow[i], 10.0, sr * 0.4) / sr;
+            const double al = std::sin (wp) / (2.0 * 1.2), a0 = 1.0 + al;
+            d.pB0 = (float) (al / a0);
+            d.pA1 = (float) (-2.0 * std::cos (wp) / a0);
+            d.pA2 = (float) ((1.0 - al) / a0);
+            const double as = std::sin (wp) / (2.0 * 4.0), s0 = 1.0 + as;
+            d.sB0 = (float) (as / s0);
+            d.sA1 = (float) (-2.0 * std::cos (wp) / s0);
+            d.sA2 = (float) ((1.0 - as) / s0);
+            d.perExp = sr / fNow[i];
+        }
         /*  the radiation lowpass, i.e. the brightness. STEEPENING sets the
             base, and the 4D BRIGHTNESS (d.bright, from the projected radius)
             multiplies it — so a conduit far out in the projection is bright and
             one near the void is dark, and turning the body sweeps the timbre.
             This is the see-hear link on the radiation side. */
+        double radMulM = 1.0;
+        if (chOn) radMulM = 1.0 + (double) ch * ((double) mt.radMul - 1.0);
         const double fcr = clampd (fNow[i] * xmapd (p.steepen, 1.20, 20.0) * (double) d.bright
-                                   * (0.55 + 0.55 * warmth) * wmFiltMul,
+                                   * (0.55 + 0.55 * warmth) * wmFiltMul * radMulM,
                                    fNow[i] * 1.05, sr * 0.45);
         d.radA = (float) (1.0 - std::exp (-2.0 * PI * fcr / sr));
 
@@ -910,21 +1095,53 @@ void Engine::controlTick (int samples)
             STIFFNESS; they colour the radiated tap, never the loop. */
         const double w = 2.0 * PI * fNow[i] / sr;
         {
-            const float sl = d.stiffLoc;
-            const double base[2] = { 2.18, 3.63 };
+            float sl = d.stiffLoc;
+            double base[2] = { 2.18, 3.63 };
+            double jitW = 0.6, qMul = 1.0;
+            if (chOn)
+            {
+                //  the specimen's own metal: its wall ratios, how loudly they
+                //  ring even with STIFFNESS low, and how long. The per-conduit
+                //  jitter narrows so the family's ratios stay recognisable.
+                for (int mmi = 0; mmi < 2; ++mmi)
+                    base[mmi] += (double) ch * ((double) mt.modeR[mmi] - base[mmi]);
+                //  the material sets how loudly its metal rings and keeps
+                //  STIFFNESS's whole travel (a bell already ringing at full
+                //  left the knob nothing to do): a little longer Q, and a
+                //  multiplier on the ring below
+                sl = std::min (1.0f, sl + 0.35f * ch * mt.modeBase * (1.0f - sl));
+                jitW = 0.6 - 0.45 * (double) ch;
+                /*  and how LONG it rings: at the old Q of 10-20 a wall mode at
+                    226 Hz died in ~17 ms — a cushion, not metal. The metal-rich
+                    media ring up to twenty times longer (a bell on E2: ~0.2 s),
+                    and the strike is scaled to match (ringStrike), since a
+                    narrower resonance takes in proportionally less of a blow. */
+                const double ringMul = 1.0 + 20.0 * (double) (ch * mt.modeBase);
+                qMul = (1.0 + (double) ch * ((double) mt.modeQ - 1.0)) * ringMul;
+                d.ringStrike = (float) ringMul;
+            }
             for (int mmi = 0; mmi < 2; ++mmi)
             {
                 //  an inharmonic ratio, jittered per conduit
-                const double jit = 0.6 * (std::fmod (huntPh[i] * (mmi + 3) * 0.6180339887, 1.0) - 0.5);
+                const double jit = jitW * (std::fmod (huntPh[i] * (mmi + 3) * 0.6180339887, 1.0) - 0.5);
                 const double fr = clampd (fNow[i] * (base[mmi] + jit), 30.0, sr * 0.45);
                 const double wm = 2.0 * PI * fr / sr;
-                const double Q  = 8.0 + 24.0 * (double) sl;
+                const double Q  = (8.0 + 24.0 * (double) sl) * qMul;
                 const double r  = std::exp (-wm / (2.0 * Q));
                 d.mA1[mmi] = (float) (2.0 * r * std::cos (wm));
                 d.mA2[mmi] = (float) (r * r);
                 //  input scale ~ (1 - r) keeps the resonator peak near unity;
                 //  STIFFNESS opens how loud the inharmonic ring is on the tap
                 d.mB[mmi]  = (float) ((1.0 - r) * (0.5 + 6.0 * (double) sl));
+                if (chOn)
+                {
+                    const double al = std::sin (wm) / (2.0 * Q), a0 = 1.0 + al;
+                    d.nB0[mmi] = (float) (al / a0);
+                    d.nA1[mmi] = (float) (2.0 * std::cos (wm) / a0);
+                    d.nA2[mmi] = (float) ((1.0 - al) / a0);
+                    //  unity peak, times how loudly this metal rings
+                    d.nG[mmi]  = (float) ((0.35 + 3.2 * (double) d.stiffLoc) * (1.0 + 2.2 * (double) (ch * mt.modeBase)));
+                }
             }
         }
 
@@ -936,8 +1153,36 @@ void Engine::controlTick (int samples)
         const double dLP = std::atan2 (bLP * std::sin (w), 1.0 - bLP * std::cos (w)) / w;
         const double phDC = (PI - w) * 0.5 - std::atan2 (RDC * std::sin (w), 1.0 - RDC * std::cos (w));
         const double dDC = -phDC / w;
-        const double period = geo.closedEnd[i] ? sr / (2.0 * fNow[i]) : sr / fNow[i];
+        /*  The end condition in force. The material moves the threshold on
+            each conduit's own draw — but only while the conduit is silent: a
+            sounding loop that changed its end would halve its delay mid-note. */
+        if (d.pulseLeft <= 0 && d.ringEnv < 1.0e-5f && demand < 1e-4)
+        {
+            const double thr = chOn ? 0.4 + (double) ch * ((double) mt.closedFrac - 0.4) : 0.4;
+            closedNow[i] = geo.closedU[i] < thr ? 1 : 0;
+        }
+        const double period = closedNow[i] ? sr / (2.0 * fNow[i]) : sr / fNow[i];
         double dtTarget = period - dLP - dDC;
+        if (chOn && mDrive > 1.0e-4f) dtTarget -= 0.5;   // the ADAA's half sample
+        /*  THE PITCH SERVO for a saturated loop. A cycle driven deep into its
+            medium settles where its OVERTONES' phase closures compromise, not
+            where the fundamental alone would — measured, up to 13 cents off,
+            different for every material, so no analytic correction holds. The
+            conduit hears its own fundamental (the pump resonance IS the
+            fundamental, from its zero crossings) and trims its delay towards
+            the order, slowly, only while the tone is clean and singing. A
+            chaotic or dying loop keeps the correction it had. */
+        if (chOn)
+        {
+            const bool idle = d.ringEnv < 1.0e-4f && d.pulseLeft <= 0 && demand < 1e-4;
+            if (idle) { d.corr = 1.0; d.perSm = 0; d.zcLast = -1.0; }
+            else if (d.perSm > 0.0f && d.ringEnv > 0.02f && d.chaos < 0.30f && mBoost > 0.0f)
+            {
+                const double ratio = clampd (d.perExp / (double) d.perSm, 0.985, 1.015);
+                d.corr = clampd (d.corr * std::pow (ratio, 1.0 - std::exp (-dt / 0.10)), 0.90, 1.10);
+            }
+            dtTarget *= d.corr;
+        }
 
         //  the heat-release delay tau, a fraction of the period (geometry-set),
         //  slewed. This is a SECOND tap, off the tuning path, so it phases the
@@ -1022,6 +1267,33 @@ static inline float cubicSat (float x)
     return x - 0.148148148f * x * x * x;
 }
 
+/*  THE MEDIUM'S OWN NONLINEARITY, unity slope at zero so a quiet loop is
+    untouched and only amplitude meets it: a saturating part (rational tanh,
+    bounded, monotonic) and a FOLDING part (sin), whose spectrum turns over as
+    the wave grows — metallic, vocal, alive with velocity. Normalised by the
+    drive, so the drive sets WHERE the wave starts to lean, not how loud. */
+static inline float tanhR (float x)
+{
+    if (x >  3.0f) return  1.0f;
+    if (x < -3.0f) return -1.0f;
+    const float x2 = x * x;
+    return x * (27.0f + x2) / (27.0f + 9.0f * x2);
+}
+
+/*  ...and its exact antiderivative, for first-order ADAA: the shaper is
+    integrated between successive samples instead of sampled, which is what
+    keeps a loop driven deep into it from aliasing (measured, a glass at
+    55 Hz had energy -51 dB between its harmonics at 48 kHz and -69 at 96:
+    folded-back, not real). d/dx [x^2/18 + (4/3) ln(27 + 9x^2)] is the
+    rational tanh above; past +-3 it is |x| plus the value it reached. */
+static inline double tanhRInt (double x)
+{
+    static const double F3 = 0.5 + (4.0 / 3.0) * std::log (108.0);
+    const double a = std::abs (x);
+    if (a > 3.0) return a - 3.0 + F3;
+    return x * x / 18.0 + (4.0 / 3.0) * std::log (27.0 + 9.0 * x * x);
+}
+
 void Engine::process (float* L, float* R, int n)
 {
     if (lines.empty()) prepare (sr, n);
@@ -1069,6 +1341,12 @@ void Engine::process (float* L, float* R, int n)
 
             //  what the loop carries, one period ago
             double pos = (double) wr - (double) d.dtSm;
+            /*  SHOCK — Burgers steepening. Wave speed rises with amplitude, so
+                the loud crest arrives EARLY and the trough late: the wave leans
+                forward towards a sawtooth front, the blare of a real horn.
+                The loop reads its own last sample to know how loud it is. */
+            if (mShock > 0.0f)
+                pos += (double) d.dtSm * (double) clampf (mShock * d.lastOut, -0.08f, 0.08f);
             float y = cubicRead (line, lineLen, pos);
 
             //  the loop: DC block, conduit-relative loss (< 1 — the heat below
@@ -1088,8 +1366,8 @@ void Engine::process (float* L, float* R, int n)
                 cycle instead of a latch. Exactly zero at zero amplitude, so a
                 quiet loop is untouched. */
             const float rr = d.ringEnv;
-            v *= d.g - 0.09f * rr * rr;
-            if (geo.closedEnd[i]) v = -v;
+            v *= d.g - 0.09f * mEnvLoss * rr * rr;
+            if (closedNow[i]) v = -v;
 
             /*  THE THERMOACOUSTIC HEAT RELEASE — King's law, delayed by tau.
                 A hot wire in oscillating flow releases heat as
@@ -1128,6 +1406,65 @@ void Engine::process (float* L, float* R, int n)
             v += d.heatDrive * (king - d.kingMean);
             //  the safety ceiling (King's law is already sublinear, so this
             //  only catches the loudest chaotic transients)
+            if (mDrive > 1.0e-4f)
+            {
+                /*  The PUMP's excess gain, and it is the whole of the timbre: a
+                    self-oscillator's harmonics are set by how much excess the
+                    nonlinearity must eat, not by how hard it is driven (more
+                    drive alone only settled the cycle lower — measured, the
+                    medium was met at 0.5-0.7 of its knee whatever the drive).
+                    So the singing conduit's heat release pushes the cycle INTO
+                    the medium by the material's measure. Gated on the heat
+                    drive: an undriven conduit's loop gain stays below one, so
+                    silence and the dying struck ring are untouched. */
+                const float hd = clampf (d.heatDrive * 7.0f, 0.0f, 1.0f);
+                /*  ...and the pump is a RESONANCE at this conduit's own pitch,
+                    as a reed or a lip is. Three faults, one cure, all measured:
+                    pumping everything gave a hot loop a stable state at the
+                    rail (loop mean +-0.9, no AC: the DC latch again); pumping
+                    everything but the slow mean led the fundamental and ran 15
+                    cents sharp; and pumping every MODE alike let an open loop
+                    leap to its second mode (h2 +20 dB over the fundamental — a
+                    note an octave high). A bandpass centred on the pitch has no
+                    gain at DC, exactly zero phase at its centre, and ~0.4 at the
+                    octave, so the fundamental wins and the overtones are made
+                    by its saturation, the way a blown pipe makes them. */
+                const float bp = d.pB0 * (v - d.pX2) - d.pA1 * d.pY1 - d.pA2 * d.pY2;
+                d.pX2 = d.pX1; d.pX1 = v; d.pY2 = d.pY1; d.pY1 = bp;
+                /*  the servo's EAR: a narrow resonance (Q 4) on the ordered
+                    pitch, so a strong 2nd or 3rd harmonic cannot add crossings
+                    (the pump's own wide one let them — measured, the servo
+                    heard octaves and drove the delay to its stop). Only a
+                    period near the expected one is believed. */
+                const float se = d.sB0 * (v - d.sX2) - d.sA1 * d.sY1 - d.sA2 * d.sY2;
+                if (d.sY1 < 0.0f && se >= 0.0f)
+                {
+                    const double t = (double) clockSamples - 1.0 + (double) (-d.sY1) / (double) (se - d.sY1);
+                    if (d.zcLast > 0.0)
+                    {
+                        const float per = (float) (t - d.zcLast), exp = (float) d.perExp;
+                        if (per > 0.80f * exp && per < 1.25f * exp)
+                            d.perSm = d.perSm <= 0.0f ? per : d.perSm + 0.15f * (per - d.perSm);
+                    }
+                    d.zcLast = t;
+                }
+                d.sX2 = d.sX1; d.sX1 = v; d.sY2 = d.sY1; d.sY1 = se;
+                const float x = mDrive * (v + mBoost * hd * bp);
+                float sh;
+                {
+                    const double dx = (double) x - d.adX;
+                    const double Fx = tanhRInt ((double) x);
+                    sh = std::abs (dx) > 1.0e-4 ? (float) ((Fx - d.adF) / dx)
+                                                : tanhR (0.5f * (x + (float) d.adX));
+                    d.adX = (double) x; d.adF = Fx;
+                }
+                //  the fold folds ONCE: its argument is compressed smoothly to
+                //  +-2.2 rad, or a pumped wave wrapped round sin several times a
+                //  cycle and spread energy far past Nyquist (measured, an
+                //  inter-harmonic floor of -47 dB on a glass at 55 Hz)
+                if (mFold > 0.0f) sh += mFold * (std::sin (2.2f * tanhR (x / 2.2f)) - sh);
+                v = sh / mDrive;
+            }
             v = cubicSat (v);
 
             /*  HOW FAR INTO CHAOS — the period-to-period difference. A clean
@@ -1135,25 +1472,39 @@ void Engine::process (float* L, float* R, int n)
                 chaos never repeats. Normalised by amplitude, followed slowly,
                 radiated to the panel so a turbulent conduit LOOKS turbulent. */
             {
-                const float rep = std::abs (v - y) / (d.ringEnv + 0.02f);
+                //  a CLOSED conduit inverts every pass, so its clean cycle
+                //  repeats as -y: compared with +y it read as 100 % chaos
+                //  forever (measured 0.98 on every quarter-wave conduit) and
+                //  shimmered on the panel as if turbulent
+                const float rep = std::abs (v - (closedNow[i] ? -y : y)) / (d.ringEnv + 0.02f);
                 d.chaos += (std::min (1.0f, rep) - d.chaos) * chaosSlew;
             }
 
             //  injections: the valve pop, the stammer, a strike — and the
             //  neighbours' sound bleeding across the shared junction
-            float inj = 0.0f;
+            float inj = 0.0f, hammer = 0.0f;
             if (d.pulseLeft > 0)
             {
-                inj += d.pulseAmp * 0.5f * (1.0f - (float) std::cos (2.0 * PI * d.pulsePh));
+                const float puff = 0.5f * (1.0f - (float) std::cos (2.0 * PI * d.pulsePh));
+                hammer = d.pulseAmp * puff;   //  one-sided: what the walls are struck with
+                if (mDoublet > 0.0f)
+                {
+                    //  a sharp DOUBLET: a click with no net push (zero DC) —
+                    //  the struck metal's onset rather than a valve's puff
+                    const float dbl = 1.4f * (float) std::sin (2.0 * PI * d.pulsePh);
+                    inj += d.pulseAmp * (puff + mDoublet * (dbl - puff));
+                }
+                else inj += d.pulseAmp * puff;
                 d.pulsePh += d.pulseInc;
                 --d.pulseLeft;
             }
+            const float pulsePart = hammer;    //  the valve's own snap, one-sided, for the walls below
             if (ct > 0.0f)
             {
                 float xn = 0.0f;
                 const int nn = geo.nNbd[i];
                 for (int k2 = 0; k2 < nn; ++k2) xn += lastOutArr[geo.nbd[i][k2]];
-                inj += ct * xn / (float) std::max (1, nn);
+                inj += std::min (0.16f, ct * mSym) * xn / (float) std::max (1, nn);
             }
             v += inj;
             line[wr] = v;
@@ -1168,6 +1519,9 @@ void Engine::process (float* L, float* R, int n)
             //  recirculates.
             d.radLp += d.radA * (v - d.radLp);
             float vlp = d.radLp;
+            //  the SKIN: an even term on the radiated tap (never in the loop,
+            //  where an even term builds DC); the tap's DC block follows
+            if (mSkin > 0.0f) vlp += 1.5f * mSkin * vlp * vlp;
             /*  STIFFNESS — the inharmonic modes on the radiated tap. Fed the
                 loop's OUTPUT, they ring at their own bell/bar frequencies
                 whenever that output carries broadband energy: a strike, the
@@ -1181,7 +1535,23 @@ void Engine::process (float* L, float* R, int n)
                 {
                     const float my = d.mB[mmi] * v + d.mA1[mmi] * d.mY1[mmi] - d.mA2[mmi] * d.mY2[mmi];
                     d.mY2[mmi] = d.mY1[mmi]; d.mY1[mmi] = my;
-                    vlp += my;
+                    if (chOn)
+                    {
+                        /*  THE VALVE STRIKES THE WALL. Fed only the loop, the
+                            modes heard the transient diluted by the tone around
+                            it, and a bell's onset came out duller than before
+                            (measured x0.57 on specimen 0); the old engine's
+                            endless stammer clicks had been standing in for the
+                            ring. A metal-rich material takes the valve's own
+                            snap straight into its walls. */
+                        const float mIn = v + mStrike * d.ringStrike * pulsePart;
+                        const float ny = d.nB0[mmi] * (mIn - d.nX2[mmi]) + d.nA1[mmi] * d.nY1[mmi] - d.nA2[mmi] * d.nY2[mmi];
+                        d.nX2[mmi] = d.nX1[mmi]; d.nX1[mmi] = mIn;
+                        d.nY2[mmi] = d.nY1[mmi]; d.nY1[mmi] = ny;
+                        const float chf = clampf (p.character, 0.0f, 1.0f);
+                        vlp += my + chf * (d.nG[mmi] * ny - my);
+                    }
+                    else vlp += my;
                 }
             }
             float vr = vlp - d.radDcX + (1.0f - radDcA) * d.radDcY;
@@ -1199,6 +1569,26 @@ void Engine::process (float* L, float* R, int n)
         ++clockSamples;
 
         //  breadth, then the guards: DC, subsonic, ceiling, bound
+        /*  THE VESSEL — the two formants the whole web shares, in parallel
+            with the dry radiation (a peak where the gain is positive, a dip
+            where it is negative), then the material's level trim. */
+        if (chOn)
+        {
+            float* io[2] = { &outL, &outR };
+            for (int chn = 0; chn < 2; ++chn)
+            {
+                const float x = *io[chn];
+                float add = 0.0f;
+                for (int k = 0; k < 2; ++k)
+                {
+                    const float y = bodyB0[k] * x + bodyZ1[chn][k];
+                    bodyZ1[chn][k] = -bodyA1[k] * y + bodyZ2[chn][k];
+                    bodyZ2[chn][k] = -bodyB0[k] * x - bodyA2[k] * y;
+                    add += bodyG[k] * y;
+                }
+                *io[chn] = (x + add) * mTrim;
+            }
+        }
         float mid = (outL + outR) * 0.5f;
         float sid = (outL - outR) * 0.5f * widthMul;
         float xl = (mid + sid) * g;
@@ -1267,7 +1657,7 @@ void Engine::visualState (Web& out)
     {
         out.ductA[i] = (uint8_t) geo.ductA[i];
         out.ductB[i] = (uint8_t) geo.ductB[i];
-        out.closedEnd[i] = geo.closedEnd[i];
+        out.closedEnd[i] = closedNow[i];
         out.fPassive[i] = geo.fPassive[i];
         const double lnr = std::log (std::max (1e-9, T[i] / tAmb));
         out.heat[i] = (uint8_t) clampd (128.0 + lnr * 96.0, 0.0, 255.0);

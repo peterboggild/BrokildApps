@@ -32,7 +32,8 @@ $plugins = @(
   @{ dir = "ArtefactB2311_1";   name = "Artefact B2311.1";    group = "Proxima Centauri B findings" },
   @{ dir = "ArtefactB2311";     name = "Artefact B2311.22";   group = "Proxima Centauri B findings" },
   @{ dir = "ArtefactB2311_67";  name = "Artefact B2311.67";   group = "Proxima Centauri B findings" },
-  @{ dir = "ArtefactB2311_104"; name = "Artefact B2311.104";  group = "Proxima Centauri B findings" },
+  @{ dir = "ArtefactB2311_104"; name = "Artefact B2311.104";  group = "Proxima Centauri B findings";
+     build = "C:\Users\peter\b\_build\AB104\plugin" },   # source is vst3-apps\proxima-centauri-b\b2311-104; b\ArtefactB2311_104 is the stale copy
   @{ dir = "Hairfryer";        name = "Hairfryer";          group = "Experimental" },
   @{ dir = "BlackRider";       name = "Black Rider";        group = "Brokild collection";
      build = "C:\Users\peter\b\_build\stucknote-fleet\black-rider" },   # configured from vst3-apps\black-rider\plugin; b\BlackRider is the stale copy

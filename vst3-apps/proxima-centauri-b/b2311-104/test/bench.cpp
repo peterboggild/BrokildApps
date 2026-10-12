@@ -618,7 +618,14 @@ int main()
             const size_t a = (size_t)(1.6*SR), b = (size_t)(2.9*SR);
             const double f = pitchNear (t.L, a, b, noteHz (33), SR);
             double band = 0;
-            for (double rr : { 2.18, 3.63 })
+            //  the bands where THIS specimen's metal actually sits: since the
+            //  material (2026-10-12) the wall ratios are the specimen's own,
+            //  voiced by CHARACTER — measuring at the old 2.18/3.63 measured
+            //  frequencies nothing rings at any more
+            const float chr = e.p.character;
+            const Material& mtl = e.material();
+            const double r0 = 2.18 + chr * (mtl.modeR[0] - 2.18), r1 = 3.63 + chr * (mtl.modeR[1] - 3.63);
+            for (double rr : { r0, r1 })
             {
                 double pk = 0;
                 for (double fq = rr * 0.85 * f; fq < rr * 1.15 * f; fq *= 1.004)
@@ -809,19 +816,39 @@ int main()
     //==========================================================================
     head ("aliasing at the worst settings");
     {
-        Params p = clean(); p.discipline = 1.0f; p.bleed = 0; p.traffic = 0;
-        Engine e; e.p = p; e.prepare (SR, BLK);
-        Take t = run (e, 4.0, { {0.05, 0, 33, 1.0f} });      // A1, 55 Hz
-        const double f = pitchNear (t.L, (size_t)(2.0*SR), (size_t)(3.9*SR), noteHz (33), SR);
-        const size_t a = (size_t)(2.0*SR), b = (size_t)(3.9*SR);
-        const double h1 = goertzel (t.L, a, b, f, SR);
-        double worstIn = 0;
-        for (int k = 3; k <= 40; ++k)
-            worstIn = std::max (worstIn, goertzel (t.L, a, b, f * (k + 0.5), SR));
-        const double floorDb = 20.0 * std::log10 ((worstIn + 1e-15) / (h1 + 1e-15));
-        char d[64]; std::snprintf (d, sizeof d, "inharmonic floor %.1f dB below the fundamental", floorDb);
+        /*  Since the material (2026-10-12) the worst settings are the hardest
+            MEDIA at full STEEPENING — a growl, a horn and a glass, the three
+            that drive their loops deepest — not the default specimen. And a
+            specimen's metal rings OFF the harmonic grid on purpose, so the bins
+            on its own two wall modes (and their neighbourhood) are not aliasing
+            and are skipped; everything else between the harmonics is. */
+        double worstDb = -400; int worstSpec = -1;
+        for (int fam : { 5, 2, 4 })
+        {
+            int spec = 0; while (materialFamilyOf (spec) != fam) ++spec;
+            Params p = clean(); p.discipline = 1.0f; p.bleed = 0; p.traffic = 0; p.steepen = 1.0f;
+            Engine e; e.p = p; e.prepare (SR, BLK); e.requestSpecimen (spec);
+            Take t = run (e, 4.0, { {0.05, 0, 33, 1.0f} });      // A1, 55 Hz
+            const double f = pitchNear (t.L, (size_t)(2.0*SR), (size_t)(3.9*SR), noteHz (33), SR);
+            const size_t a = (size_t)(2.0*SR), b = (size_t)(3.9*SR);
+            const double h1 = goertzel (t.L, a, b, f, SR);
+            const Material& mtl = e.material();
+            const double chr = p.character;
+            const double mr[2] = { 2.18 + chr * (mtl.modeR[0] - 2.18), 3.63 + chr * (mtl.modeR[1] - 3.63) };
+            double worstIn = 0;
+            for (int k = 3; k <= 40; ++k)
+            {
+                const double fq = f * (k + 0.5);
+                bool onMode = false;
+                for (double r : mr) if (std::abs (fq / (f * r) - 1.0) < 0.12) onMode = true;
+                if (! onMode) worstIn = std::max (worstIn, goertzel (t.L, a, b, fq, SR));
+            }
+            const double fl = 20.0 * std::log10 ((worstIn + 1e-15) / (h1 + 1e-15));
+            if (fl > worstDb) { worstDb = fl; worstSpec = spec; }
+        }
+        char d[96]; std::snprintf (d, sizeof d, "inharmonic floor %.1f dB below the fundamental (worst: specimen %d)", worstDb, worstSpec);
         std::printf ("  %s\n", d);
-        ok (floorDb < -52.0, "the cubic budget holds: no audible aliasing", d);
+        ok (worstDb < -52.0, "the cubic budget holds: no audible aliasing", d);
     }
 
     //==========================================================================

@@ -105,6 +105,16 @@ struct Params
     float stiffness = 0.30f;
     float turbulence= 0.28f;
 
+    /*  CHARACTER (2026-10-12). How strongly the specimen's own MATERIAL is
+        voiced. Peter: "the presets sound very much the same". Measured: the
+        held tone of 22 of 24 specimens had its spectral centroid at 1.00
+        harmonics — a sine — because the loop was held by a slow envelope (an
+        AGC), and an AGC oscillator settles on its single strongest mode. A
+        specimen was a pitch set and nothing else, and the order erased the
+        pitch set. Now every specimen carries a material (see Material) that
+        the loop is made of. 0 = the engine exactly as it was. */
+    float character = 0.80f;
+
     //  the ear
     float breadth   = 0.60f;     // stereo
     float tune      = 0.50f;     // +-12 semitones on every order
@@ -130,6 +140,42 @@ const char* const* listNames (const char* id, int& n);
 double ambientKelvin (float v);        // the exponential map, one place only
 
 //==============================================================================
+/*  WHAT THE WEB IS MADE OF. The geometry fixes the pitches; the material fixes
+    the voice. Eight families of medium, each a region of the same physics:
+
+      how the loop LIMITS ITSELF — drive into an instantaneous nonlinearity
+        (saturating, or FOLDING, which makes metallic, amplitude-dependent
+        spectra) instead of the slow envelope that made every tone a sine;
+      SHOCK — wave speed rising with amplitude (Burgers steepening: the loud
+        crest overtakes the trough), the brass blare of a real tube;
+      the END CONDITIONS of its conduits — mostly open (every harmonic) or
+        mostly closed (odd only, hollow);
+      its RADIATION — how bright the wall lets the tone out, and how
+        asymmetrically (the even "skin" harmonics);
+      the VESSEL — two fixed resonances the whole web shares, which follow
+        the speed of sound, i.e. sqrt(ambient): a hot site has higher formants;
+      the METAL — the inharmonic mode ratios of its walls (bar, plate, ...);
+      the VALVE — how short and how sharp the transient that seeds a cycle is;
+      its INERTIA and its SYMPATHY (how readily the rest of the web answers).
+
+    Drawn from the specimen number on an independent stream, so every pitch
+    set, every salt and every earlier draw is exactly as it was. */
+struct Material
+{
+    int   family = 0, family2 = 0;
+    float blend = 0;
+    float drive = 0.4f, fold = 0, shock = 0, closedFrac = 0.4f;
+    float radMul = 1, skin = 0;
+    float f1 = 250, f2 = 900, g1db = 0, g2db = 0, q1 = 2, q2 = 2;
+    float modeR[2] { 2.18f, 3.63f };
+    float modeBase = 0, modeQ = 1;
+    float pulseMs = 3, doublet = 0, inertia = 1, sympathy = 1;
+    float trimDb = 0;
+};
+
+const char* materialName (int family);
+int         materialFamilyOf (int specimenIndex);
+
 /*  A specimen is a WEB: junction nodes seeded on S3, geodesic conduits between
     them, length = pitch. Deterministic, salted until the pitch set clears the
     alienness floor (no harmonic series, no 12-TET — bench numbers). */
@@ -140,7 +186,9 @@ struct Geometry
     int   ductA[MAXDUCT] {}, ductB[MAXDUCT] {};
     float fPassive[MAXDUCT] {};           // Hz at T_REF
     uint8_t closedEnd[MAXDUCT] {};        // 1 = quarter-wave, odd harmonics
+    double closedU[MAXDUCT] {};           // the draw behind it (closed = u < 0.4)
     float mid[MAXDUCT][4] {};             // geodesic midpoint, unit
+    Material mat;
     int   nbd[MAXDUCT][MAXNBD] {};        // conduits sharing a junction
     int   nNbd[MAXDUCT] {};
     int   salt = 0;                        // how many draws the floor cost
@@ -262,12 +310,20 @@ public:
         }
         acRms = (float) std::sqrt (q / n);
     }
+    float  ductLoopAt (int i, int k) const      //  k samples ago, bench only
+    {
+        if (i < 0 || i >= geo.nDuct || lineLen <= 0) return 0.0f;
+        return lines[(size_t) i * (size_t) lineLen + (size_t) ((wr - 1 - k + 4 * lineLen) % lineLen)];
+    }
+    float  ductRadA (int i) const     { return i >= 0 && i < geo.nDuct ? duct[i].radA : 0.0f; }
     float  ductBright (int i) const   { return i >= 0 && i < geo.nDuct ? duct[i].bright : 0.0f; }
     double ductPassive (int i) const  { return i >= 0 && i < geo.nDuct ? geo.fPassive[i] : 0.0; }
     int    ductNeighbour (int i, int q) const
     { return i >= 0 && i < geo.nDuct && q >= 0 && q < geo.nNbd[i] ? geo.nbd[i][q] : -1; }
     int    ductCount() const          { return geo.nDuct; }
     int    commandDuct (int c) const  { return c >= 0 && c < MAXCMD ? cmds[c].duct : -1; }
+    int    ductClosed (int i) const   { return i >= 0 && i < geo.nDuct ? closedNow[i] : 0; }
+    const Material& material() const  { return geo.mat; }
 
 private:
     //==========================================================================
@@ -311,6 +367,22 @@ private:
             destabilise it. */
         float mY1[2] {}, mY2[2] {};
         float mA1[2] {}, mA2[2] {}, mB[2] {};   // 2 bandpass biquads
+        /*  ...which they were NOT: input scaled by (1-r) with no zeros is a
+            resonant LOWPASS, passing ~1.2x the fundamental in phase and
+            cancelling the overtones above the mode — a dark near-sine on every
+            specimen (measured 2026-10-12). The material fades in a true
+            bandpass (zeros at DC and Nyquist) that rings only at its mode. */
+        float pB0 = 0, pA1 = 0, pA2 = 0;     // the pump's resonance (see the medium)
+        float pX1 = 0, pX2 = 0, pY1 = 0, pY2 = 0;
+        //  the pitch servo on a saturated loop: the fundamental's measured
+        //  period (rising zero crossings of the pump resonance) and the delay
+        //  correction it has earned
+        double zcLast = -1.0; float perSm = 0; double corr = 1.0;
+        double adX = 0, adF = 0;                 // the medium's ADAA memory
+        float ringStrike = 1.0f;                 // how much more of a blow its long-ringing walls take
+        double perExp = 0; float sB0 = 0, sA1 = 0, sA2 = 0, sX1 = 0, sX2 = 0, sY1 = 0, sY2 = 0;   // its narrow ear
+        float nX1[2] {}, nX2[2] {}, nY1[2] {}, nY2[2] {};
+        float nB0[2] {}, nA1[2] {}, nA2[2] {}, nG[2] {};
 
         //  THE THERMOACOUSTIC DDE — King's law heat release, delayed by tau
         float heatDrive = 0;               // slewed disequilibrium into the heat law
@@ -397,6 +469,17 @@ private:
                                            // ceiling both re-inject sub-bass
     double hpB0 = 1, hpB1 = 0, hpB2 = 0, hpA1 = 0, hpA2 = 0;
 
+    /*  THE MATERIAL, as the current CHARACTER voices it. Recomputed every
+        control tick; `chOn` false means not one line of the material code
+        runs, so CHARACTER 0 is the old engine to the bit (bench-guarded). */
+    bool  chOn = false;
+    uint8_t closedNow[MAXDUCT] {};         // the end condition in force (held while sounding)
+    float mDrive = 0, mBoost = 0, mStrike = 0, mFold = 0, mShock = 0, mSkin = 0, mEnvLoss = 1;
+    float mPulse = 1, mDoublet = 0, mSym = 1, mTrim = 1, mInertia = 1;
+    float bodyB0[2] {}, bodyA1[2] {}, bodyA2[2] {}, bodyG[2] {};
+    float bodyZ1[2][2] {}, bodyZ2[2][2] {};   // [channel][formant]
+
+    void startPulse (Duct& d, float amp, double baseSec);
     void controlTick (int samples);
     void allocCmd (int note, float vel);
     int  pickDuct (double fCmd) const;
