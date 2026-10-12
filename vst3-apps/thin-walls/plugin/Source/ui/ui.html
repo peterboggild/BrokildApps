@@ -812,7 +812,10 @@ function frame(t){
   const now = (typeof t === "number") ? t : nowMs();
   stepWalk(now);
   if (SYNC.s > 0) syncStep(now);
-  const glowMoving = stepGlow(now);
+  /*  A cinematic PHOTO is lit with the glow frozen when it began, so a glow
+      change has nothing to show there - and redrawing only re-rolled its film
+      grain and dust, so the finished photo shimmered while sound played. */
+  const glowMoving = stepGlow(now) && !(cineWanted() && CX.photo);
   if (glowMoving) dirtyPov = true;
   if (dirtyPov){ drawPov(); dirtyPov = false; }
   if (dirtyPlan){ drawPlan(); dirtyPlan = false; }
@@ -5378,7 +5381,7 @@ function cineLights(t, life){
     if (!srcActive(n)) continue;
     const r = roomOfPoint(SXn(n), SYn(n));
     L.push({ p:[SXn(n), SYn(n), Math.min(Math.max(SZn(n),0.3), ROOMS[r].h-0.3)],
-             c:mul3([1.00,0.52,0.22], 0.30 + 2.2*glow), room:r, ty:0, cube:0, sh:0 });
+             c:mul3([1.00,0.52,0.22], 0.30 + 2.2*(CX.photo ? CX.glowFreeze : glow)), room:r, ty:0, cube:0, sh:0 });
   }
   return L.slice(0, 12);
 }
