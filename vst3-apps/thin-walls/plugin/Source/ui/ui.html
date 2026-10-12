@@ -860,8 +860,16 @@ function doFlush(){
 /*  One p per parameter per frame. The timer is a belt-and-braces flush for
     contexts where requestAnimationFrame does not tick (a headless probe);
     whichever arrives first cancels the other. */
+/*  When the page moves a parameter it is the owner for a moment. A host hands
+    the change back to the processor a block or more later, so the processor's
+    echo can carry an OLDER value than the page has already moved past - and
+    applying it threw a walk back and forth (Peter, 261012: "shakes like zoom
+    alternating", in Ableton only; a standalone has no host round trip). */
+const ownedAt = {};
+const OWN_MS = 500;
 function queueP(id, v){
   pend[id] = v;
+  ownedAt[id] = nowMs();
   if (!flushRaf){ try { flushRaf = requestAnimationFrame(doFlush); } catch(e){ flushRaf = 0; } }
   if (!flushTmr) flushTmr = setTimeout(doFlush, 24);
 }
@@ -6892,7 +6900,11 @@ NB.on("initialState", d => {
 
 NB.on("hostParam", d => {
   if (!d || !d.params) return;
-  for (const p of d.params) setNative(p.id, p.v);
+  const now = nowMs();
+  for (const p of d.params){
+    if (ownedAt[p.id] && now - ownedAt[p.id] < OWN_MS) continue;   /* our own move coming back late */
+    setNative(p.id, p.v);
+  }
 });
 
 NB.on("notice", d => {

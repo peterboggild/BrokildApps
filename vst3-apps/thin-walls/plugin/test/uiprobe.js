@@ -416,6 +416,19 @@ const DRIVER = `
       "slider " + slider.value + ", p sent " + (sentOf("p").length - bp));
   window.__fire("hostParam", { params:[{ id:"direct", v:0.8 }] });
 
+  /* --- 9c a late host echo of the page's OWN move is ignored ----------- */
+  /*  In a host the processor sees the page's move a block late and echoes the
+      older value back; applying it threw a walk back and forth (Ableton). Any
+      parameter the page moves goes through the same queue, so a slider shows it. */
+  var d0 = window.__TW.state().direct;
+  slider.value = "0.55"; slider.dispatchEvent(new Event("input", { bubbles:true }));
+  var dMoved = window.__TW.state().direct;
+  window.__fire("hostParam", { params:[{ id:"direct", v:d0 }] });
+  var dAfter2 = window.__TW.state().direct;
+  chk(Math.abs(dMoved - d0) > 1e-3 && Math.abs(dAfter2 - dMoved) < 1e-9 && Math.abs(parseFloat(slider.value) - dMoved) < 1e-3,
+      "a host echo of the page's own move, arriving late, does not throw it back",
+      "direct " + d0.toFixed(3) + " -> " + dMoved.toFixed(3) + ", after the late echo " + dAfter2.toFixed(3));
+
   /* --- 10 dragging the source in the plan ------------------------------- */
   var plan = document.getElementById("plan");
   var pr = plan.getBoundingClientRect();
