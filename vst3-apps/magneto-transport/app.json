@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/magneto-transport.jpg",
-  "note": "Windows VST3 + standalone · build 261012.1 · free download · REEL and LOOP transports · 4 tape stocks · 24 presets · operating manual included.",
+  "note": "Windows VST3 + standalone · build 261012.2 · free download · REEL and LOOP transports · 4 tape stocks · 24 presets · operating manual included.",
   "tags": [
     "vst3",
     "effect"
@@ -16,8 +16,8 @@
     {
       "name": "Magneto-Transport-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Magneto-Transport-VST3-win64.zip",
-      "bytes": 34807424,
-      "sha256": "632028eb880e036ecb6c42bdf27f432ae79259c9067150d6ee6fb55169f22359"
+      "bytes": 34807483,
+      "sha256": "60767616fe2df2e57c78942a4d4259b16a204df8de9c5257fad512b89a4f56bc"
     }
   ]
 }

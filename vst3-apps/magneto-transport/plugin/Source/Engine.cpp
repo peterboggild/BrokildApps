@@ -1887,7 +1887,7 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
         // each pass loses: 0 keeps it at unity (the medium's own generation loss only), 100 %
         // keeps nothing. The sync head reads whenever a loop records, so DUB starts seamless.
         syncRun = mode == 1 && rt > 0.0;
-        const double keep = 1.0 - std::clamp ((double) p.erase, 0.0, 100.0) * 0.01;
+        double keep = 1.0 - std::clamp ((double) p.erase, 0.0, 100.0) * 0.01;
         double lg = 1.0, kHf = 1.0;
         if (mode == 1 && loopState == 1)
         {
@@ -1902,6 +1902,10 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
             kHf = dbToLin (-SYNC_HF_K * (std::max (0.0, hfDb - syncHfRef - SYNC_HF_TOL_DB) + std::max (0.0, lfDb - syncLfRef - SYNC_LF_TOL_DB) * (SYNC_LF_K / SYNC_HF_K)));
             tele.syncHfDb = hfDb; tele.syncLfDb = lfDb;
         }
+        // FEEDBACK in DUB records the heads' echoes on top of a loop the re-record already
+        // brings round at unity, so with both up the loop climbs - as on a real machine -
+        // until the tape saturates and holds it there (BUGLIST 11, measured: about -3.5 dBFS
+        // rms at the top). ERASE is what keeps it below unity, exactly as an operator would.
         const double kLoop = (lg > 1.0e-6) ? syncPeakK / lg * kHf : 0.0;
         gSyncTgt = (mode == 1 && loopState == 1 && clearLeft <= 0.0 && forceRec < 0.0) ? SYNC_K * syncTrim * keep * kLoop : 0.0;
         tele.syncLoopDb = 20.0 * std::log10 (std::max (lg, 1.0e-9));
@@ -1938,12 +1942,14 @@ void Engine::process (const float* inL, const float* inR, float* outL, float* ou
             // the re-record placement for this speed (SYNC_LAG_US, interpolated in log speed)
             const double fk = std::clamp (std::log2 (vNow / 4.75), 0.0, 4.0);
             const int ik = std::min ((int) fk, 3);
-            const double us = SYNC_LAG_US[ik] + (fk - ik) * (SYNC_LAG_US[ik + 1] - SYNC_LAG_US[ik]);
+            const int st = std::clamp (stockIdx, 0, NUM_STOCKS - 1);   // each stock's own measurements (BUGLIST 10)
+            const double* LG = SYNC_LAG_US[st]; const double* PK = SYNC_PEAK_DB[st]; const double* HR = SYNC_HF_REF_DB[st]; const double* LR = SYNC_LF_REF_DB[st];
+            const double us = LG[ik] + (fk - ik) * (LG[ik + 1] - LG[ik]);
             syncLagNow = SYNC_LAG_SAMPLES + us * 1.0e-6 / dt;
-            const double pk = SYNC_PEAK_DB[ik] + (fk - ik) * (SYNC_PEAK_DB[ik + 1] - SYNC_PEAK_DB[ik]);
+            const double pk = PK[ik] + (fk - ik) * (PK[ik + 1] - PK[ik]);
             syncPeakK = dbToLin (-(pk + SYNC_MARGIN_DB));
-            syncHfRef = SYNC_HF_REF_DB[ik] + (fk - ik) * (SYNC_HF_REF_DB[ik + 1] - SYNC_HF_REF_DB[ik]);
-            syncLfRef = SYNC_LF_REF_DB[ik] + (fk - ik) * (SYNC_LF_REF_DB[ik + 1] - SYNC_LF_REF_DB[ik]);
+            syncHfRef = HR[ik] + (fk - ik) * (HR[ik + 1] - HR[ik]);
+            syncLfRef = LR[ik] + (fk - ik) * (LR[ik + 1] - LR[ik]);
         }
         eqS = p.eqStd > 0.5f ? 1 : 0;
         updateEq (vNow);

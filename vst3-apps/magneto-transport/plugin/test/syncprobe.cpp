@@ -39,6 +39,7 @@ int main (int argc, char** argv)
     p.mix = 1.0f; p.feedback = 0.0f; p.condition = 0.0f; p.h2On = p.h3On = 0; p.h1Pos = 4.0f;
     if (argc > 8) p.stock = (float) std::atof (argv[8]);
     if (argc > 9) p.bias = (float) std::atof (argv[9]);
+    if (argc > 10) p.feedback = (float) std::atof (argv[10]);
     Engine e; e.setIdealMedium (ideal); e.setSyncCal (trim, lag); e.setQuality (qual);
     e.setParams (p); e.prepare (fs, 256);
     const double REF = 0.12589254117941673 * std::sqrt (2.0);
@@ -46,6 +47,10 @@ int main (int argc, char** argv)
     const double t0 = 1.0;
     struct Burst { double f, a, b; } tones[3] = { { 100.0, 0.20, 0.80 }, { 1000.0, 1.00, 1.60 }, { 8000.0, 1.80, 2.40 } };
     if (argc > 5) tones[0].f = std::atof (argv[5]);   // the low tone: probe the head bump
+    // argv[11] = 1: the low tone fills the whole loop and the others are silent, so FEEDBACK's
+    // echoes (a head-distance along the loop) stay inside the window measured
+    const bool cont = argc > 11 && std::atoi (argv[11]) != 0;
+    if (cont) { tones[0].a = 0.02; tones[0].b = 2.60; tones[1].a = tones[1].b = 0.0; tones[2].a = tones[2].b = 0.0; }
     const double kP = P / 2.625;              // the stretches scale with the loop period
     for (auto& b : tones) { b.a *= kP; b.b *= kP; }
     const double clickAt = 0.08 * kP, clickLen = 0.004;
@@ -88,6 +93,7 @@ int main (int argc, char** argv)
         double lv[3];
         for (int j = 0; j < 3; ++j)
         {
+            if (tones[j].b - tones[j].a < 0.2) { lv[j] = -200.0; continue; }
             const size_t a = (size_t) ((base + tones[j].a + 0.05) * fs), m = (size_t) ((tones[j].b - tones[j].a - 0.1) * fs);
             lv[j] = 20.0 * std::log10 (goertzel (Lo.data() + a, m, tones[j].f, fs) / REF + 1e-12);
         }

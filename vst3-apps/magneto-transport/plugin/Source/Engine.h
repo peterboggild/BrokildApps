@@ -64,7 +64,12 @@ constexpr double SYNC_K         = 1.0;
     band (the head bump, 0.4-3 x 220 Hz scaled with speed), dB, at 4.75 x 2^k cm/s. The
     re-record level is pulled down by it plus SYNC_MARGIN_DB, so no frequency comes round
     louder than it went: at ERASE 0 the loop keeps its layers and cannot build up. */
-constexpr double SYNC_PEAK_DB[5] = { -0.140, 0.006, 0.062, 0.113, 0.131 };
+// per stock (BUGLIST 10), each measured on its own coating
+constexpr double SYNC_PEAK_DB[NUM_STOCKS][5] = {
+    { -0.140, 0.006, 0.062, 0.113, 0.131 },   // STUDIO
+    { -0.140, 0.006, 0.062, 0.113, 0.131 },   // VINTAGE
+    { -0.140, 0.006, 0.062, 0.113, 0.131 },   // SHEDDING
+    { -0.140, 0.006, 0.062, 0.113, 0.131 } }; // BUDGET
 constexpr double SYNC_MARGIN_DB  = 0.08;
 /*  The treble: under-bias (or a bright stock) records brighter, so above 2 kHz the loop's
     gain can pass unity (+1.9 dB a pass at 8 kHz at BIAS -4, measured). The same calculation
@@ -72,10 +77,18 @@ constexpr double SYNC_MARGIN_DB  = 0.08;
     stock it reads SYNC_HF_REF_DB (4.75 x 2^k cm/s), which the measured margins above already
     cover. Any excess over that, less SYNC_HF_TOL_DB, pulls the re-record level down by
     SYNC_HF_K of it. */
-constexpr double SYNC_HF_REF_DB[5] = { 0.27, 0.17, -0.01, 0.0, 0.0 };
+constexpr double SYNC_HF_REF_DB[NUM_STOCKS][5] = {
+    { 0.27, 0.17, -0.01, 0.0, 0.0 },   // STUDIO
+    { 1.249, 0.677, 0.356, 0.056, 0.025 },   // VINTAGE (measured 2026-10-12)
+    { 0.27, 0.17, -0.01, 0.0, 0.0 },   // SHEDDING
+    { 1.566, 1.047, 0.520, 0.096, 0.012 } }; // BUDGET (measured 2026-10-12)
 /*  And the bass, the mirror case: over-bias records deeper, so 60-400 Hz rises against 1 kHz
     (+0.27 dB a pass at BIAS +4, measured). The same rule, against the same kind of reference. */
-constexpr double SYNC_LF_REF_DB[5] = { -0.133, -0.013, 0.010, 0.002, -0.001 };
+constexpr double SYNC_LF_REF_DB[NUM_STOCKS][5] = {
+    { -0.133, -0.013, 0.010, 0.002, -0.001 },   // STUDIO
+    { -0.143, 0.006, -0.031, -0.009, 0.003 },   // VINTAGE (measured 2026-10-12)
+    { -0.133, -0.013, 0.010, 0.002, -0.001 },   // SHEDDING
+    { -0.226, -0.002, 0.043, -0.019, 0.009 } }; // BUDGET (measured 2026-10-12)
 constexpr double SYNC_LF_TOL_DB   = 0.05;   // computed +0.47 dB at BIAS +4 against +0.35 measured: tighter, and the full excess
 constexpr double SYNC_LF_K        = 1.0;
 constexpr double SYNC_HF_TOL_DB   = 0.05;
@@ -87,7 +100,11 @@ constexpr double SYNC_LAG       = 0.0;    // bench: extra samples of placement o
     tape speed alone. The engine places the re-record that much earlier, so a pass lands on
     the tape it was read from. Speeds 4.75 x 2^k cm/s, k = 0..4; us. */
 constexpr double SYNC_LAG_SAMPLES = 2.22;
-constexpr double SYNC_LAG_US[5]   = { -58.0, -38.8, -27.3, -18.1, -11.75 };
+constexpr double SYNC_LAG_US[NUM_STOCKS][5] = {
+    { -58.0, -38.8, -27.3, -18.1, -11.75 },   // STUDIO
+    { -65.7, -38.94, -27.58, -20.61, -14.35 },   // VINTAGE (measured 2026-10-12)
+    { -58.0, -38.8, -27.3, -18.1, -11.75 },   // SHEDDING
+    { -66.42, -40.06, -27.98, -20.88, -14.20 } }; // BUDGET (measured 2026-10-12)
 constexpr double FEEDBACK_MAX   = 1.1;    // small-signal loop gain at FEEDBACK 100 % on a flat chain (BUGLIST 3)
 
 constexpr double CAPSTAN_R_M    = 0.005;

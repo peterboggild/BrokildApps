@@ -368,7 +368,7 @@ default is 0, so every bench check and probe that starts from `Params p;` runs w
 the erase head full in DUB, unlike the panel. dubprobe hit it (all layers wiped).
 Make the struct match the table, then re-run the bench.
 
-## 10. The re-record's fine calibration is studio tape only (Peter, 2026-10-12: "am I right that the overdub is calibrated for studio tape only?") — AWAITING GO
+## 10. The re-record's fine calibration is studio tape only (Peter, 2026-10-12: "am I right that the overdub is calibrated for studio tape only?") — BUILT 2026-10-12 (261012.2)
 
 Partly. The re-record level divides out the loop gain COMPUTED from the selected stock's own
 record tables, so the large stock differences are handled. What was MEASURED on the studio
@@ -383,3 +383,21 @@ Proposed: measure the four tables per stock (test/syncprobe.cpp already takes st
 bias), index them by stock in the engine, and add a bench check that every stock keeps a
 1 kHz layer within ~0.25 dB a pass with nothing coming round louder, and a click within a few
 us a pass. No change to REC, PLAY or the studio stock.
+
+Built (261012.2): the treble/bass references and the placement table are now per stock,
+measured with test/syncprobe.cpp at bias 0 (SHEDDING reads identical to STUDIO and keeps its
+rows). VINTAGE and BUDGET at 19 cm/s now lose 0.12-0.14 dB a pass at 1 kHz (were 0.54/0.73);
+every frequency from the head bump to 16 kHz loses level each pass at every speed and at
+bias -6..+4, so nothing builds up. The head-bump margin rows are still the studio values:
+the measured per-pass gains leave margin (worst -0.03 dB), so they were left alone.
+
+## 11. FEEDBACK in DUB builds the loop up (Peter, 2026-10-12) — ANSWERED, no change kept
+
+With FEEDBACK up in DUB the echoes are recorded on top of a re-record already at unity, so
+the loop gain is above unity where they land in phase and the loop climbs. Measured with
+test/noiseprobe.cpp (white noise, many passes): it climbs for ~8 passes and then the tape
+saturates and holds it, about -3.5 dBFS rms - Peter's point, and what a real machine does.
+An automatic share (re-record scaled by 1 - the feedback loop gain) was tried and removed:
+it still climbed at FEEDBACK 0.5-0.6 (the feedback path is stronger in the bass than the
+estimate) and it faded out-of-phase material hard. ERASE is the control that holds a
+feedback-fed loop below unity, as an operator would.
