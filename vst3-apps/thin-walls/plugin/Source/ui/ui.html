@@ -812,6 +812,8 @@ function frame(t){
   const now = (typeof t === "number") ? t : nowMs();
   stepWalk(now);
   if (SYNC.s > 0) syncStep(now);
+  const glowMoving = stepGlow(now);
+  if (glowMoving) dirtyPov = true;
   if (dirtyPov){ drawPov(); dirtyPov = false; }
   if (dirtyPlan){ drawPlan(); dirtyPlan = false; }
   /*  The ONLY thing that keeps the loop alive is a key actually being held.
@@ -820,6 +822,8 @@ function frame(t){
   /*  Cinematic keeps the 3D view alive - dust, flicker, the photo converging -
       until the photo is done. Off, cineLoop() is false and nothing changes. */
   else if (cineLoop() || syncActive()){ dirtyPov = true; schedule(); }
+  /*  The speaker's glow gliding to its new level: frames only while it moves. */
+  else if (glowMoving){ schedule(); }
 }
 function nowMs(){ try { return performance.now(); } catch(e){ return Date.now(); } }
 
@@ -2024,19 +2028,24 @@ function buildLights(){
   for (let n = 1; n <= 4; n++){
     if (!srcActive(n)) continue;
     const r = roomOfPoint(SXn(n), SYn(n));
-    /*  i0 too: the doorway spill below reads it, and without it a source's
-        spill came out NaN - the next room shaded black and the NaN scrambled
-        the sort, so lamps dropped in and out of the 12 as the glow moved. */
-    const si = 0.30 + 2.2*glow;
+    /*  The radiation cue lights its own room only (src: no doorway spill), and
+        it is ranked at a FIXED level: ranked by its glow, it moved in and out
+        past the lamps' spills as the music did, and which lights made the 12
+        changed every tenth of a second - the next room and the doorways popped.
+        (Before, it had no i0 at all and its spill came out NaN: the next room
+        drew black.) */
     lamps.push({ p:[SXn(n), SYn(n), Math.min(Math.max(SZn(n),0.3), ROOMS[r].h-0.3)],
-                 c:[1.00,0.52,0.22], i:si, i0:si, room:r, sh:0 });
+                 c:[1.00,0.52,0.22], i:0.30 + 2.2*glow, i0:1.4, room:r, sh:0, src:1 });
   }
-  const out = lamps.map(l => ({ p:l.p, c:mul3(l.c,l.i), room:l.room, pri:l.i, sh:l.sh }));
+  /*  Ranked by the steady level (i0), never the live one, so light sync and the
+      glow change how bright a light is but never WHICH lights are drawn. */
+  const out = lamps.map(l => ({ p:l.p, c:mul3(l.c,l.i), room:l.room, pri:l.i0, sh:l.sh }));
   for (const d of DOORS){
     const a = apert(d);
     if (a <= 0.02) continue;
     const dc = doorCentre(d), cp = [dc[0], dc[1], 1.05];
     for (const l of lamps){
+      if (l.src) continue;
       let other = -1;
       if (d.rooms[0] === l.room) other = d.rooms[1];
       else if (d.rooms[1] === l.room) other = d.rooms[0];
@@ -6918,6 +6927,18 @@ function applyWav(d){
     part is hashed and only a real change costs a draw. The speaker's glow is
     the one exception and it is rate-limited and gated on there being signal. */
 let lastGlowPaint = -1e9, glowWasOn = false;
+/*  glowTgt is the level the scene asked for; glow (what is drawn) follows it
+    with a 0.12 s time constant in frame(), redrawing only while it moves. */
+let glowTgt = 0, glowLastT = 0;
+function stepGlow(now){
+  if (EXP.active) return false;
+  const dt = glowLastT ? Math.min(0.1, (now - glowLastT) / 1000) : 0.016;
+  glowLastT = now;
+  const d = glowTgt - glow;
+  if (Math.abs(d) < 0.004){ if (d !== 0){ glow = glowTgt; return true; } glowLastT = 0; return false; }
+  glow += d * (1 - Math.exp(-dt / 0.12));
+  return true;
+}
 function sceneSignature(d){
   let s = "";
   if (d.sources) for (const q of d.sources)
@@ -6956,10 +6977,13 @@ NB.on("scene", d => {
   if (on){
     const t = nowMs();
     if (t - lastGlowPaint >= 100){
-      lastGlowPaint = t; glow = lvl; glowWasOn = true; invalidate("pov");
+      /*  The target only: frame() glides the drawn glow towards it. Set
+          directly, the cue light jumped up to 8x in brightness ten times a
+          second and the whole view stepped with it. */
+      lastGlowPaint = t; glowTgt = lvl; glowWasOn = true; schedule();
     }
   } else if (glowWasOn){
-    glowWasOn = false; glow = 0; invalidate("pov");      /* one last frame to clear it */
+    glowWasOn = false; glowTgt = 0; schedule();          /* glides out, then stops */
   }
 });
 
@@ -7036,6 +7060,7 @@ window.__TW = {
       arrived yet, and headless Chrome does not always produce frames. */
   get pending(){ return !!rafId; },
   get glow(){ return glow; },
+  get glowTarget(){ return glowTgt; },          /* what the glow is gliding to */
   get renderer(){ return glMode; },
   get pitch(){ return pitchDeg; },
   get rays(){ return showRays; },

@@ -868,11 +868,11 @@ const DRIVER = `
       not arrived. (No back-ticks in this block - it is a template literal.) */
   var TW = window.__TW;
   TW.render();
-  var lit = TW.glow;                   /* read BEFORE, or the message lies */
+  var lit = TW.glowTarget;             /* read BEFORE, or the message lies; the drawn glow glides after it */
   fireScenes(12, -80);                 /* silence: the live glow must go out */
-  chk(lit > 0 && TW.glow === 0 && TW.pending === true,
+  chk(lit > 0 && TW.glowTarget === 0 && TW.pending === true,
       "silence puts the speaker glow out, and books the one frame that clears it",
-      "glow " + lit.toFixed(3) + " -> " + TW.glow.toFixed(3) + ", frame booked " + TW.pending);
+      "glow " + lit.toFixed(3) + " -> " + TW.glowTarget.toFixed(3) + ", frame booked " + TW.pending);
 
   TW.render();
   var s0 = TW.draws;
@@ -882,7 +882,7 @@ const DRIVER = `
       "draws " + s0 + " -> " + TW.draws + ", frame booked " + TW.pending);
 
   fireScenes(12, -10);                 /* signal: one redraw, not twelve */
-  var lit2 = TW.glow, booked = TW.pending, dAfter = TW.draws;
+  var lit2 = TW.glowTarget, booked = TW.pending, dAfter = TW.draws;
   TW.render();
   fireScenes(12, -10);                 /* still inside the same 100 ms window */
   chk(lit2 > 0 && booked === true && dAfter === s0 && TW.pending === false,
