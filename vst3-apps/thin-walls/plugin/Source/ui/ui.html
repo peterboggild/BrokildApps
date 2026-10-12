@@ -2024,8 +2024,12 @@ function buildLights(){
   for (let n = 1; n <= 4; n++){
     if (!srcActive(n)) continue;
     const r = roomOfPoint(SXn(n), SYn(n));
+    /*  i0 too: the doorway spill below reads it, and without it a source's
+        spill came out NaN - the next room shaded black and the NaN scrambled
+        the sort, so lamps dropped in and out of the 12 as the glow moved. */
+    const si = 0.30 + 2.2*glow;
     lamps.push({ p:[SXn(n), SYn(n), Math.min(Math.max(SZn(n),0.3), ROOMS[r].h-0.3)],
-                 c:[1.00,0.52,0.22], i:0.30 + 2.2*glow, room:r, sh:0 });
+                 c:[1.00,0.52,0.22], i:si, i0:si, room:r, sh:0 });
   }
   const out = lamps.map(l => ({ p:l.p, c:mul3(l.c,l.i), room:l.room, pri:l.i, sh:l.sh }));
   for (const d of DOORS){
@@ -2046,8 +2050,11 @@ function buildLights(){
       out.push({ p:cp, c:mul3(l.c, l.i0*k), room:other, pri:l.i0*k, sh:0 });
     }
   }
-  out.sort((p,q)=>q.pri-p.pri);
-  return out.slice(0,12);
+  /*  A light that is not a finite number is dropped rather than sorted: one
+      NaN makes the comparator meaningless and the 12 that survive arbitrary. */
+  const ok = out.filter(l => Number.isFinite(l.pri) && l.c.every(Number.isFinite));
+  ok.sort((p,q)=>q.pri-p.pri);
+  return ok.slice(0,12);
 }
 
 /* ==================================================================== */

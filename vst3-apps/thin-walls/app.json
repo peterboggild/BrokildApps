@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/thin-walls.jpg",
-  "note": "Windows VST3 · build 260925.7 · free download · 3 rooms, 3 doors, 4 sources · furniture and wall pictures · cinematic view, MP4 export · ray-traced and wave-simulated offline renders · MIT KEMAR or your own SOFA head · handbook included.",
+  "note": "Windows VST3 · build 261012.1 · free download · 3 rooms, 3 doors, 4 sources · furniture and wall pictures · cinematic view, MP4 export · ray-traced and wave-simulated offline renders · MIT KEMAR or your own SOFA head · handbook included.",
   "tags": [
     "vst3",
     "effect"
@@ -16,8 +16,8 @@
     {
       "name": "Thin-Walls-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Thin-Walls-VST3-win64.zip",
-      "bytes": 10548402,
-      "sha256": "12842d9a22600b3a22e7f67e811cde65054fac634babfc390838066ff595e314"
+      "bytes": 10548902,
+      "sha256": "351df05bf928f14eab5bc140528b136c13f19238d7bc2d31f582c010bf58901a"
     }
   ]
 }
