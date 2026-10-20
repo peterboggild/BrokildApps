@@ -91,30 +91,48 @@ Where the sheet leaves a choice, the netlist says which was taken:
 - **FAC order.** The redraw says it may be drawn from the switching side. The
   drawn order is used: position 1 full, 6 thin.
 
-### What a schematic does not say (`[est]`)
+### What the schematic does not say
 
-- **HT winding: 375 V rms.** It lands the rails near the '74 drawing's
-  figures *without being tuned to them*: C+ 383 V and D+ 338 V, against
-  ~370 V and ~330 V there.
-- **Bias winding: 34.2 V rms each half.** There's no pot on the amp, so the
+**Measured and published** (`[meas]`, `[rep]`, `[doc]`):
+
+- **Output transformer windings**, measured on an OR120:
+  - primary halves 14.7 Ω (orange-black, outer) and 11.9 Ω (red-black,
+    inner);
+  - secondary sections 1.5 Ω and 1.3 Ω, taken as about 0.7 Ω at the 8 Ω
+    tap. How the sections combine isn't given, and which half feeds which
+    plate is an interpretation.
+- **Output transformer impedance**: 1800 Ω plate to plate (the replica
+  transformers' spec: Tube-Town, Mercury Magnetics), so 15 : 1 to the 8 Ω
+  tap.
+- **B+ 490 – 500 V** in the original amps. `mmbias` sets the HT winding for
+  495 V, which comes out at 369.5 V rms.
+
+**A cross-check nothing was tuned to.** With B+ on its documented value and
+the sheet's 33k droppers, the other two rails land by themselves at C+
+376.5 V and D+ 332.2 V, against the ~370 V and ~330 V of the '74 drawing.
+
+**Set as a technician would** (`[est]`):
+
+- **Bias winding: 33.6 V rms each half.** There's no pot on the amp, so the
   winding is the bias. It was set by `mmbias` for 35 mA a valve at idle
-  (−44.5 V). This is the one value set to a target, as a tech would.
-- **Everything else unknown:**
-  - the output transformer (1k7 : 8 Ω, its leakage, core and winding
-    resistance);
-  - the choke (10 H, 120 Ω);
+  (−43.7 V).
+
+**Still unknown** (`[est]`):
+
+- the output transformer's leakage, magnetising inductance and core loss;
+- the choke (10 H, 120 Ω);
   - the windings' resistance, leakage and capacitance to the core;
   - the 4×12's electrical model;
   - the BOOST choke's resistance.
 
 | Node (idle, averaged over the ripple) | Simulated |
 |---|---|
-| A+ (OT centre tap) | 504.0 V |
-| B+ / C+ / D+ | 501.7 / 383.3 / 338.3 V |
-| V1a plate (220k) | 188.0 V |
-| driver plate (100k) | 252.2 V |
-| cathodyne plate–cathode | 198.4 V |
-| EL34 idle, per valve | 35.0 mA at −44.5 V, 17.5 W |
+| A+ (OT centre tap) | 495.7 V |
+| B+ / C+ / D+ | 492.8 / 376.5 / 332.2 V |
+| V1a plate (220k) | 184.5 V |
+| driver plate (100k) | 247.8 V |
+| cathodyne plate–cathode | 195.0 V |
+| EL34 idle, per valve | 35.0 mA at −43.7 V, 17.3 W |
 
 ---
 
@@ -242,11 +260,12 @@ converges with rate.
 
 ## 5. Measured (mmtest)
 
-- **Rated power: 126 W at 10% THD**, against the documented 120 W. The
+- **Rated power: 109 W at 10% THD**, against the documented 120 W (−9%). The
   figure has moved as the data has:
   - 194 W on the reconstructed values;
   - 154 W with the schematic's values and Koren's EL34;
-  - 126 W with the EL34 fitted to Mullard's sheet.
+  - 126 W with the EL34 fitted to Mullard's sheet;
+  - 109 W with the measured output transformer and the documented B+.
 - **Sag**: 55 V flat out, 0.2 V at bedroom level.
 - **Hum** at idle, every knob up: −100 dBFS at 100 Hz.
 - **GAIN** takes THD from −54 dB to −9 dB.
@@ -274,9 +293,11 @@ converges with rate.
 
 ## 7. What would make it more accurate, in order
 
-1. **The transformers measured**: HT secondary voltage and resistance; OT
-   primary impedance, leakage, winding resistance and core; the bias winding;
-   the choke. They are most of the `[est]` that is left.
+1. **What is left of the transformers, measured**:
+   - the output transformer's leakage (LCR meter on the primary, secondary
+     shorted) and magnetising inductance (secondary open);
+   - the HT secondary's resistance and the bias winding's voltage;
+   - the choke's inductance and resistance.
 2. **EL34 grid current at a positive grid**, from a curve tracer (uTracer).
    It is the one part of the valve not on the sheet.
 3. **A measured IR** of the cabinet and mic you want, loaded in CAB.

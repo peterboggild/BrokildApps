@@ -34,6 +34,9 @@ namespace mm
       [sch]  read off those three sheets
       [int]  the sheets, interpreted where they leave a choice (said why)
       [ds]   from a datasheet or a published device model
+      [meas] measured on an OR120 (output transformer windings)
+      [rep]  a replica part's published spec (output transformer impedance)
+      [doc]  stated by a source (B+ 490 - 500 V in the originals)
       [est]  not on the sheets (transformers, choke, speaker): estimated
     Nothing is adjusted to make it sound or measure a particular way.
 
@@ -126,16 +129,18 @@ Rsca   bp    sa    500              ; [sch] 1k per screen, from B+
 Rscb   bp    sb    500
 
 * output transformer, centre tap on A+; speaker on the 8 ohm tap, feedback
-* from the 16 [sch]; everything about the iron itself is [est]
-Rwa    pa    ota   45               ; [est] winding resistance, each half
-Rwb    pb    otb   45
+* from the 16 [sch]. [meas]: measured on an OR120's transformer; [rep]: the
+* replica transformers' published spec (Tube-Town, Mercury Magnetics)
+Rwa    pa    ota   14.7             ; [meas] orange-black, the outer primary half
+Rwb    pb    otb   11.9             ; [meas] red-black, the inner half [int: which plate each feeds]
 Cpp    pa    pb    1n               ; [est] interwinding capacitance
-Ta     ap    ota   sec0  0   7.29   ; [est] 1k7 plate to plate : 8 ohms
-Tb     otb   ap    sec0  0   7.29
+Ta     ap    ota   sec0  0   7.5    ; [rep] 1k8 plate to plate : 8 ohms, 15 : 1
+Tb     otb   ap    sec0  0   7.5
 Lmag   sec0  0     140m             ; [est] magnetising, referred
 Rcore  sec0  0     470              ; [est] core loss, referred
 Lleak  sec0  sec   60u              ; [est] leakage, referred
-Rsec   sec   spk   0.25             ; [est]
+Rsec   sec   spk   0.7              ; [meas] sections of 1.5 and 1.3 ohms; at the 8 ohm tap
+*                                    ; about 0.7 [int: how the sections combine is not given]
 Tfb    fb16  0     spk   0   1.41421 ; [sch] the 16 ohm tap: sqrt(16/8) the 8 ohm tap's voltage
 
 * the 4x12 on the 8 ohm tap, as the amplifier sees it [est]
@@ -150,7 +155,7 @@ Cmot   s2    0     152u
 Vmains mn    0     IN 1             ; the 240 V tap of the primary
 
 * HT: one winding into a bridge of 8 x 1N4005, two in series per arm
-Tht    hta   htb   mn    0   1.5625 ; [est] 375 V rms secondary
+Tht    hta   htb   mn    0   1.53943 ; [doc] 369.5 V rms: sets B+ at 495 V, the 490 - 500 V of the originals (test/biasset.cpp)
 Rht    hta   hx    20               ; [est] winding + reflected primary resistance
 Lht    hx    hy    8m               ; [est] leakage
 * the winding is not floating: each end has capacitance to the grounded
@@ -174,8 +179,8 @@ C4     dp    0     16u              ; [sch] D+ (preamp)
 
 * bias: a centre-tapped winding, two 1N4005, 22u - 1k - 22u, 22k load. No
 * adjustment on the sheet: the winding sets it.
-Tba    bwa   0     mn    0   0.14255 ; [est] 34.2 V rms each half: 35 mA a valve idle, by test/biasset.cpp
-Tbb    0     bwb   mn    0   0.14255
+Tba    bwa   0     mn    0   0.14014 ; [est] 33.6 V rms each half: 35 mA a valve idle, by test/biasset.cpp
+Tbb    0     bwb   mn    0   0.14014
 Rbwa   bwa   bwa2  50               ; [est]
 Rbwb   bwb   bwb2  50
 Dba    nr    bwa2  1n4005           ; [sch] cathodes to the winding: a negative supply

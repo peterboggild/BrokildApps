@@ -148,7 +148,7 @@ int main()
         Params p;
         e.setParams (p);
         e.prepare (SR, BLOCK);
-        const char* names[] = { "ap", "bp", "cp", "dp", "p1", "p3", "pc", "kc", "pa", "ota", "nb" };
+        const char* names[] = { "ap", "bp", "cp", "dp", "p1", "p3", "pc", "kc", "pa", "ota", "pb", "otb", "nb" };
         constexpr int NN = (int) (sizeof (names) / sizeof (names[0]));
         double avg[NN] = {};
         std::vector<float> L (BLOCK, 0.0f), R (BLOCK, 0.0f);
@@ -161,13 +161,16 @@ int main()
         }
         auto V = [&] (const char* n) { for (int k = 0; k < NN; ++k) if (std::string (n) == names[k]) return avg[k]; return 0.0; };
 
-        const double ia = (V ("ota") - V ("pa")) / 45.0 / 2.0;   // per valve
+        // per valve: each half's current across its own winding resistance, two valves a side, averaged
+        auto& cc = e.circuit();
+        const double ia = 0.25 * ((V ("ota") - V ("pa")) / cc.getValue (cc.elementIndex ("rwa"))
+                                + (V ("otb") - V ("pb")) / cc.getValue (cc.elementIndex ("rwb")));
         /*  The 1972 sheets print no voltages. The ~330 V and ~370 V figures the
             first version aimed for were from a '74 drawing, a different
             revision, so here they are context, not targets: the rails are
             what the sheet's 33k droppers and the real loads make of an
             estimated HT winding. */
-        check (V ("ap") > 450 && V ("ap") < 560, "A+, the OT centre tap (HT winding [est])", fmt ("%.1f V", V ("ap")));
+        check (V ("ap") > 490 && V ("ap") < 500, "A+, the documented 490 - 500 V of the originals", fmt ("%.1f V", V ("ap")));
         check (V ("bp") < V ("ap") && V ("cp") < V ("bp") && V ("dp") < V ("cp"), "B+ > C+ > D+ down the 33k ladder",
                fmt ("B+ %.1f, C+ %.1f, D+ %.1f V", V ("bp"), V ("cp"), V ("dp")));
         known ("the '74 drawing's rails, for comparison", fmt ("~370 V and ~330 V there; C+ %.1f and D+ %.1f V here", V ("cp"), V ("dp")));
