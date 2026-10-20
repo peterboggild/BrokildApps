@@ -13,6 +13,9 @@ name: Engines (Linux, headless)
 #            published zip yet, so no release job exists to carry it
 #   DSW      no bench, so a compile gate: the host and both shipped
 #            experiments must still build
+#   Marmalade 120  its bench (28 checks) and spicecheck, which runs the
+#            circuit solver against ngspice on the same netlists - no
+#            release yet, so nothing else runs either
 #
 # Both are plain C++17 with no JUCE and no audio device, so they cost well
 # under a minute between them. When Legion ships and gains a release
@@ -22,11 +25,13 @@ on:
   push:
     paths:
       - "vst3-apps/legion/plugin/**"
+      - "vst3-apps/marmalade-120/plugin/**"
       - "dsw/**"
       - ".github/workflows/engines.yml"
   pull_request:
     paths:
       - "vst3-apps/legion/plugin/**"
+      - "vst3-apps/marmalade-120/plugin/**"
       - "dsw/**"
       - ".github/workflows/engines.yml"
   workflow_dispatch:
@@ -72,3 +77,22 @@ jobs:
           test -x dsw
           test -f plugins/gray-scott/gray-scott.so
           test -f plugins/wave-tank/wave-tank.so
+
+  marmalade:
+    name: Marmalade 120 bench + solver vs ngspice
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install ngspice
+        run: sudo apt-get update && sudo apt-get install -y ngspice
+      - name: Build the bench
+        working-directory: vst3-apps/marmalade-120/plugin
+        run: |
+          cmake -S test -B test/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build test/build --parallel
+      - name: Run the bench
+        working-directory: vst3-apps/marmalade-120/plugin
+        run: ./test/build/mmtest
+      - name: The solver against ngspice
+        working-directory: vst3-apps/marmalade-120/plugin
+        run: TMPDIR="$RUNNER_TEMP" ./test/build/spicecheck

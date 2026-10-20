@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Marmalade 120</title>
+<script>
+/*  First thing in the document, so it catches a script that dies on line one. */
+window.__err = [];
+window.addEventListener("error", e => {
+  window.__err.push((e.message || "error") + " @ " + (e.filename || "?") + ":" + (e.lineno || 0));
+});
+</script>
+<style>
+  /* ---- the head --------------------------------------------------------
+     Drawn, not photographed: everything is CSS in PANEL UNITS (1200 x 600,
+     2:1) inside a box that scales with the window, so one geometry serves
+     every size. --u is 1% of the panel's width. */
+  :root{
+    --chassis:#1d1410; --tolex:#2a1b14; --tolex2:#22160f;
+    --plate:#d9c7a3; --plate2:#c6b088; --ink:#2b1a10;
+    --amber:#e8892a; --amber2:#ffb35c; --glow:#ff7a1c;
+    --cream:#efe4cc; --shadow:rgba(0,0,0,.55);
+  }
+  *{ box-sizing:border-box; -webkit-user-select:none; user-select:none; }
+  html,body{ margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background:var(--chassis); font-family: "Futura","Century Gothic","Avenir Next","Segoe UI",sans-serif; }
+  #stage{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  #deck{ position:relative; width:min(100vw, 200vh); height:min(50vw, 100vh); --u:12px;
+    border-radius:calc(var(--u)*1.2); overflow:hidden;
+    background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,.018) 0 2px, transparent 2px 5px),
+      repeating-linear-gradient(-45deg, rgba(0,0,0,.10) 0 2px, transparent 2px 5px),
+      radial-gradient(120% 90% at 50% 0%, var(--tolex), var(--tolex2));
+    box-shadow: inset 0 0 calc(var(--u)*3) rgba(0,0,0,.7); }
+
+  /* piping round the head */
+  #deck::before{ content:""; position:absolute; inset:calc(var(--u)*0.9);
+    border:calc(var(--u)*0.22) solid #c9a46a; border-radius:calc(var(--u)*0.8);
+    box-shadow: 0 0 0 calc(var(--u)*0.08) #000, inset 0 0 0 calc(var(--u)*0.08) #000; pointer-events:none; }
+
+  /* ---- top: badge and the valve window ---- */
+  #badge{ position:absolute; left:6%; top:9%; color:var(--amber); }
+  #badge .name{ font-weight:800; letter-spacing:.06em; font-size:calc(var(--u)*4.2); line-height:1;
+    text-shadow:0 calc(var(--u)*.15) 0 #000, 0 0 calc(var(--u)*1.2) rgba(232,137,42,.35); }
+  #badge .name em{ font-style:normal; color:var(--cream); }
+  #badge .sub{ margin-top:calc(var(--u)*.6); font-size:calc(var(--u)*1.05); letter-spacing:.35em; color:#b98a5a; }
+
+  #window{ position:absolute; right:6%; top:8%; width:38%; height:30%;
+    border-radius:calc(var(--u)*.8); background:#080504;
+    box-shadow: inset 0 0 calc(var(--u)*1.5) #000, 0 0 0 calc(var(--u)*.25) #6b4a2c, 0 0 0 calc(var(--u)*.35) #000;
+    overflow:hidden; display:flex; align-items:flex-end; justify-content:space-around; padding:0 4% 0 4%; }
+  /* the grille cloth in front of the valves */
+  #window::after{ content:""; position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(90deg, rgba(40,25,15,.55) 0 2px, transparent 2px 6px),
+                repeating-linear-gradient(0deg, rgba(40,25,15,.35) 0 2px, transparent 2px 6px); }
+  .valve{ position:relative; width:14%; height:86%; }
+  .valve .glass{ position:absolute; inset:0 8% 10% 8%; border-radius:45% 45% 12% 12% / 22% 22% 6% 6%;
+    background: linear-gradient(90deg, rgba(255,255,255,.08), rgba(255,255,255,.02) 40%, rgba(255,255,255,.10) 60%, rgba(255,255,255,.03));
+    box-shadow: inset 0 0 calc(var(--u)*.4) rgba(255,255,255,.08); }
+  .valve .plate{ position:absolute; left:28%; right:28%; top:22%; bottom:28%; border-radius:6%;
+    background:linear-gradient(90deg,#2b2623,#4b4440 50%,#2b2623); }
+  .valve .heater{ position:absolute; left:40%; right:40%; top:30%; bottom:34%; border-radius:40%;
+    background:var(--glow); filter:blur(calc(var(--u)*.25)); opacity:.35; }
+  .valve .base{ position:absolute; left:14%; right:14%; bottom:0; height:12%; border-radius:12%;
+    background:linear-gradient(#3a2a1e,#1a120c); }
+  .valve.small{ width:9%; height:58%; }
+
+  #meterbox{ position:absolute; right:6%; top:40%; width:38%; height:4%;
+    display:flex; align-items:center; justify-content:space-between; color:#b98a5a;
+    font-size:calc(var(--u)*.95); letter-spacing:.2em; }
+  #watts{ color:var(--amber2); font-variant-numeric:tabular-nums; letter-spacing:.08em; }
+
+  /* ---- the control plate ---- */
+  #plate{ position:absolute; left:4%; right:4%; top:50%; bottom:8%;
+    border-radius:calc(var(--u)*.6);
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, transparent 1px 3px),
+      linear-gradient(180deg, var(--plate), var(--plate2));
+    box-shadow: 0 calc(var(--u)*.3) calc(var(--u)*.8) var(--shadow), inset 0 0 0 calc(var(--u)*.12) rgba(0,0,0,.35); }
+  .ctl{ position:absolute; top:20%; width:9.2%; height:76%; display:flex; flex-direction:column; align-items:center; }
+  .ctl .lab{ order:2; margin-top:calc(var(--u)*.6); color:var(--ink); font-weight:800; letter-spacing:.14em;
+    font-size:calc(var(--u)*1.05); }
+  .ctl .val{ order:3; margin-top:calc(var(--u)*.15); color:#6a4a30; font-size:calc(var(--u)*.85);
+    letter-spacing:.06em; height:1.2em; font-variant-numeric:tabular-nums; opacity:0; transition:opacity .25s; }
+  .ctl.show .val{ opacity:1; transition:none; }
+
+  /* scale ticks printed on the plate, then the knob over them */
+  .dial{ position:relative; width:calc(var(--u)*7.6); height:calc(var(--u)*7.6); }
+  .ticks{ position:absolute; inset:0; }
+  .ticks i{ position:absolute; left:50%; top:0; width:calc(var(--u)*.16); height:calc(var(--u)*.8);
+    margin-left:calc(var(--u)*-.08); background:var(--ink); transform-origin:50% calc(var(--u)*3.8); }
+  .ticks b{ position:absolute; left:50%; top:50%; width:calc(var(--u)*1.6); margin-left:calc(var(--u)*-.8);
+    text-align:center; font-size:calc(var(--u)*.85); color:var(--ink); font-weight:700; }
+  .knob{ position:absolute; left:16%; top:16%; width:68%; height:68%; border-radius:50%; cursor:ns-resize;
+    background: radial-gradient(60% 60% at 38% 32%, #fff8ea, var(--cream) 45%, #b9a888 100%);
+    box-shadow: 0 calc(var(--u)*.35) calc(var(--u)*.6) rgba(0,0,0,.55), inset 0 calc(var(--u)*-.2) calc(var(--u)*.3) rgba(0,0,0,.25); }
+  /* the chicken-head pointer */
+  .knob::before{ content:""; position:absolute; left:50%; top:-14%; width:24%; height:62%;
+    margin-left:-12%; border-radius:50% 50% 30% 30% / 70% 70% 30% 30%;
+    background:linear-gradient(90deg,#1c120c,#3a2618 50%,#1c120c);
+    box-shadow:0 calc(var(--u)*.15) calc(var(--u)*.3) rgba(0,0,0,.5); }
+  .knob::after{ content:""; position:absolute; left:50%; top:-10%; width:6%; height:22%; margin-left:-3%;
+    background:var(--cream); border-radius:2px; }
+
+  /* toggles */
+  .tog{ position:absolute; top:24%; width:7%; height:70%; display:flex; flex-direction:column; align-items:center; cursor:pointer; }
+  .tog .sw{ position:relative; width:calc(var(--u)*2.4); height:calc(var(--u)*4.4); border-radius:calc(var(--u)*.5);
+    background:linear-gradient(#2a2420,#0f0c0a); box-shadow:inset 0 0 calc(var(--u)*.3) #000, 0 calc(var(--u)*.2) calc(var(--u)*.3) rgba(0,0,0,.5); }
+  .tog .sw::after{ content:""; position:absolute; left:28%; right:28%; top:12%; height:38%; border-radius:calc(var(--u)*.3);
+    background:linear-gradient(#efe6d6,#9f927c); transition:top .08s; }
+  .tog.on .sw::after{ top:50%; }
+  .tog .lamp{ margin-top:calc(var(--u)*.6); width:calc(var(--u)*1); height:calc(var(--u)*1); border-radius:50%;
+    background:#3a1a08; box-shadow: inset 0 0 calc(var(--u)*.2) #000; }
+  .tog.on .lamp{ background:var(--amber2); box-shadow:0 0 calc(var(--u)*.8) var(--glow); }
+  .tog .lab{ margin-top:calc(var(--u)*.5); color:var(--ink); font-weight:800; letter-spacing:.14em; font-size:calc(var(--u)*1.0); }
+  .tog .opt{ color:#6a4a30; font-size:calc(var(--u)*.8); letter-spacing:.08em; margin-top:calc(var(--u)*.15); }
+
+  #readout{ position:absolute; left:6%; top:40%; color:var(--amber2); font-size:calc(var(--u)*1.0);
+    letter-spacing:.2em; opacity:0; transition:opacity .4s; }
+  #readout.show{ opacity:1; transition:none; }
+  #build{ position:absolute; right:5%; bottom:3%; color:#6b4e35; font-size:calc(var(--u)*.75); letter-spacing:.15em; }
+  #fault{ position:absolute; left:6%; bottom:3%; color:#ff6040; font-size:calc(var(--u)*.85); letter-spacing:.1em; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="deck">
+    <div id="badge">
+      <div class="name">MARMALADE <em>120</em></div>
+      <div class="sub">TWO ECC83 · FOUR EL34 · EVERY PART SOLVED</div>
+    </div>
+
+    <div id="window">
+      <div class="valve small" data-k="pre"><div class="glass"></div><div class="plate"></div><div class="heater"></div><div class="base"></div></div>
+      <div class="valve small" data-k="pre"><div class="glass"></div><div class="plate"></div><div class="heater"></div><div class="base"></div></div>
+      <div class="valve" data-k="pwr"><div class="glass"></div><div class="plate"></div><div class="heater"></div><div class="base"></div></div>
+      <div class="valve" data-k="pwr"><div class="glass"></div><div class="plate"></div><div class="heater"></div><div class="base"></div></div>
+      <div class="valve" data-k="pwr"><div class="glass"></div><div class="plate"></div><div class="heater"></div><div class="base"></div></div>
+      <div class="valve" data-k="pwr"><div class="glass"></div><div class="plate"></div><div class="heater"></div><div class="base"></div></div>
+    </div>
+    <div id="meterbox"><span>INTO THE 4x12</span><span id="watts">0 W</span><span id="sag">B+ 0 V</span></div>
+    <div id="readout"></div>
+
+    <div id="plate"></div>
+    <div id="build"></div>
+    <div id="fault"></div>
+  </div>
+</div>
+
+<script>
+/* ---- layout, in plate percentages ---------------------------------- */
+const POTS = [
+  { id:"gain",   label:"GAIN",   x: 3.0 },
+  { id:"bite",   label:"BITE",   x:13.0 },
+  { id:"bass",   label:"BASS",   x:23.0 },
+  { id:"treble", label:"TREBLE", x:33.0 },
+  { id:"voice",  label:"VOICE",  x:43.0, steps:6 },
+  { id:"master", label:"MASTER", x:53.0 },
+  { id:"output", label:"OUTPUT", x:66.0 }
+];
+const TOGS = [
+  { id:"cab",     label:"CAB",     x:79.0, opts:["LINE","4x12"] },
+  { id:"quality", label:"QUALITY", x:88.5, opts:["NORMAL","HIGH"] }
+];
+const SWEEP = 300;          /* degrees, 7 to 5 o'clock */
+
+/* ---- native bridge -------------------------------------------------- */
+const NB = {
+  send(o){ try{ window.__JUCE__.backend.emitEvent("mm", o); }catch(e){} },
+  on(n,f){ try{ window.__JUCE__.backend.addEventListener(n,f); }catch(e){} }
+};
+
+const V = {}, DEF = {};
+let meter = { watts:0, sag:0, glow:0, os:2 };
+const el = {};
+const plate = document.getElementById("plate");
+
+window.__MM = { state(){ return { V:Object.assign({},V), meter:Object.assign({},meter) }; },
+                init(d){ onInitialState(d); }, meter(d){ onMeter(d); } };
+
+/* ---- building ------------------------------------------------------- */
+function buildPot(p){
+  const c = document.createElement("div");
+  c.className = "ctl"; c.style.left = p.x + "%";
+  const dial = document.createElement("div"); dial.className = "dial";
+  const ticks = document.createElement("div"); ticks.className = "ticks";
+  const n = p.steps || 11;
+  for (let i = 0; i < n; ++i){
+    const t = document.createElement("i");
+    const a = -SWEEP/2 + SWEEP * i / (n - 1);
+    t.style.transform = "rotate(" + a + "deg)";
+    if (!p.steps && i % 5 !== 0) t.style.height = "calc(var(--u)*.45)";
+    ticks.appendChild(t);
+    if (p.steps || i % 5 === 0){
+      const b = document.createElement("b");
+      const r = 4.55, rad = a * Math.PI / 180;
+      b.textContent = p.steps ? String(i + 1) : String(i);
+      b.style.transform = "translate(calc(var(--u)*" + (Math.sin(rad) * r).toFixed(2) + "), calc(var(--u)*" + (-Math.cos(rad) * r - .5).toFixed(2) + "))";
+      ticks.appendChild(b);
+    }
+  }
+  const k = document.createElement("div"); k.className = "knob";
+  dial.appendChild(ticks); dial.appendChild(k);
+  const lab = document.createElement("div"); lab.className = "lab"; lab.textContent = p.label;
+  const val = document.createElement("div"); val.className = "val";
+  c.appendChild(dial); c.appendChild(lab); c.appendChild(val);
+  plate.appendChild(c);
+  el[p.id] = { ctl:c, knob:k, val:val, spec:p };
+  wireKnob(k, p);
+}
+
+function buildTog(t){
+  const c = document.createElement("div");
+  c.className = "tog"; c.style.left = t.x + "%";
+  c.innerHTML = '<div class="sw"></div><div class="lamp"></div><div class="lab"></div><div class="opt"></div>';
+  c.querySelector(".lab").textContent = t.label;
+  plate.appendChild(c);
+  el[t.id] = { ctl:c, spec:t };
+  c.addEventListener("click", () => {
+    NB.send({ k:"touch", id:t.id, down:true });
+    setParam(t.id, (V[t.id] || 0) > 0.5 ? 0 : 1);
+    NB.send({ k:"touch", id:t.id, down:false });
+  });
+}
+
+/* ---- drawing -------------------------------------------------------- */
+function snapped(id, v){
+  const s = el[id] && el[id].spec.steps;
+  return s ? Math.round(v * (s - 1)) / (s - 1) : v;
+}
+function valueText(id){
+  const v = V[id] || 0;
+  if (id === "voice") return "POSITION " + (Math.round(v * 5) + 1) + (v < .1 ? " · FULL" : v > .9 ? " · THIN" : "");
+  if (id === "output"){ const d = -24 + 36 * v; return (d >= 0 ? "+" : "") + d.toFixed(1) + " dB"; }
+  return (v * 10).toFixed(1);
+}
+function draw(id){
+  const e = el[id]; if (!e) return;
+  const v = V[id] || 0;
+  if (e.knob){
+    e.knob.style.transform = "rotate(" + ((snapped(id, v) - 0.5) * SWEEP).toFixed(2) + "deg)";
+    e.val.textContent = valueText(id);
+  } else {
+    e.ctl.classList.toggle("on", v > 0.5);
+    e.ctl.querySelector(".opt").textContent = e.spec.opts[v > 0.5 ? 1 : 0];
+  }
+}
+function setParam(id, v){
+  v = Math.max(0, Math.min(1, v));
+  if (el[id] && el[id].spec.steps) v = snapped(id, v);
+  V[id] = v; draw(id);
+  NB.send({ k:"p", id:id, v:v });
+}
+
+let readoutTimer = 0;
+function flash(id){
+  const e = el[id]; if (!e) return;
+  e.ctl.classList.add("show");
+  clearTimeout(e.t); e.t = setTimeout(() => e.ctl.classList.remove("show"), 900);
+}
+
+function wireKnob(k, p){
+  let drag = false, y0 = 0, v0 = 0;
+  k.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    drag = true; y0 = e.clientY; v0 = V[p.id] || 0;
+    try { k.setPointerCapture(e.pointerId); } catch(_){}
+    NB.send({ k:"touch", id:p.id, down:true });
+    flash(p.id); e.preventDefault();
+  });
+  k.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const span = e.shiftKey ? 2000 : 200;     /* 200 px is the whole travel; shift is fine */
+    setParam(p.id, v0 + (y0 - e.clientY) / span);
+    flash(p.id);
+  });
+  const stop = e => {
+    if (!drag) return; drag = false;
+    try { k.releasePointerCapture(e.pointerId); } catch(_){}
+    NB.send({ k:"touch", id:p.id, down:false });
+  };
+  k.addEventListener("pointerup", stop);
+  k.addEventListener("pointercancel", stop);
+  k.addEventListener("wheel", e => {
+    e.preventDefault();
+    const s = p.steps ? 1 / (p.steps - 1) : (e.shiftKey ? 0.004 : 0.025);
+    NB.send({ k:"touch", id:p.id, down:true });
+    setParam(p.id, (V[p.id] || 0) + (e.deltaY < 0 ? s : -s));
+    NB.send({ k:"touch", id:p.id, down:false });
+    flash(p.id);
+  }, { passive:false });
+  k.addEventListener("dblclick", () => {
+    if (DEF[p.id] !== undefined){ setParam(p.id, DEF[p.id]); flash(p.id); }
+  });
+}
+
+/* ---- the valve window: heaters always on, the EL34s' plates glow with work */
+const valves = Array.from(document.querySelectorAll(".valve"));
+function paintValves(){
+  const g = Math.max(0, Math.min(1, meter.glow));
+  for (const v of valves){
+    const h = v.querySelector(".heater"), pl = v.querySelector(".plate");
+    if (v.dataset.k === "pwr"){
+      h.style.opacity = (0.35 + 0.65 * g).toFixed(3);
+      h.style.transform = "scale(" + (1 + 0.6 * g).toFixed(3) + ")";
+      pl.style.boxShadow = g > 0.02 ? "0 0 calc(var(--u)*" + (2.5 * g).toFixed(2) + ") rgba(255,110,40," + (0.6 * g).toFixed(3) + ")" : "none";
+    } else h.style.opacity = "0.4";
+  }
+  document.getElementById("watts").textContent = (meter.watts < 10 ? meter.watts.toFixed(1) : Math.round(meter.watts)) + " W";
+  document.getElementById("sag").textContent = "SAG " + meter.sag.toFixed(0) + " V";
+}
+
+/* ---- from the processor --------------------------------------------- */
+function onInitialState(d){
+  if (!d) return;
+  for (const p of (d.params || [])){ V[p.id] = p.v; if (p.def !== undefined) DEF[p.id] = p.def; }
+  for (const id in el) draw(id);
+  document.getElementById("build").textContent = "BUILD " + (d.build || "");
+  document.getElementById("fault").textContent = (d.ok === false) ? ("CIRCUIT FAULT · " + (d.error || "")) : "";
+  NB.send({ k:"stateack" });
+}
+function onMeter(d){
+  if (!d) return;
+  meter.watts = d.watts || 0; meter.sag = d.sag || 0; meter.glow = d.glow || 0; meter.os = d.os || 2;
+  paintValves();
+}
+NB.on("initialState", onInitialState);
+NB.on("hostParam", d => {
+  if (!d || !d.params) return;
+  for (const p of d.params){ V[p.id] = p.v; draw(p.id); }
+});
+NB.on("meter", onMeter);
+
+/* ---- go -------------------------------------------------------------- */
+for (const p of POTS) buildPot(p);
+for (const t of TOGS) buildTog(t);
+function layout(){
+  const deck = document.getElementById("deck");
+  deck.style.setProperty("--u", (deck.clientWidth * 0.01) + "px");
+}
+window.addEventListener("resize", layout);
+layout();
+paintValves();
+NB.send({ k:"hello" });
+</script>
+</body>
+</html>
