@@ -9,8 +9,8 @@
 
     Knobs are 0..1 as in the host (gain=0.8 is 8 on the dial), voice is the
     switch position 1..6, output is a trim in dB, ir is a cabinet impulse
-    response (WAV, same rate as the input) - without one the output is the
-    8 ohm tap. Reads 16/24/32-bit PCM and
+    response (WAV, resampled to the input's rate if it differs, as the plugin
+    does) - without one the output is the 8 ohm tap. Reads 16/24/32-bit PCM and
     32-bit float WAV, mono or stereo (summed); writes 24-bit mono.
 
     With no input file but `--riff` in its place, it writes a plucked-string
@@ -213,13 +213,40 @@ int main (int argc, char** argv)
     /*  A cabinet, if one is given: a measured impulse response, convolved
         directly (exact, and offline there is time). Scaled to unit energy,
         as the plugin's loader normalises it, so a change of cabinet is a
-        change of tone more than of level. Its rate must match the input's. */
+        change of tone more than of level. */
     if (! irPath.empty())
     {
         std::vector<float> ir;
         double irRate = 0.0;
         if (! readWav (irPath, ir, irRate)) { std::printf ("could not read IR %s\n", irPath.c_str()); return 1; }
-        if (std::abs (irRate - sr) > 0.5) { std::printf ("IR is %.0f Hz, input %.0f Hz: resample one first\n", irRate, sr); return 1; }
+        if (std::abs (irRate - sr) > 0.5)
+        {
+            /*  An IR at another rate is resampled to the input's, as the
+                plugin's loader does: band-limited (windowed-sinc, Blackman,
+                32 zero crossings) with its cutoff under the lower Nyquist. */
+            const double ratio = sr / irRate, fc = 0.475 * std::min (1.0, ratio);
+            const int half = 32;
+            std::vector<float> rs ((size_t) std::ceil ((double) ir.size() * ratio));
+            for (size_t n = 0; n < rs.size(); ++n)
+            {
+                const double t = (double) n / ratio;                    // position in the IR's samples
+                double acc = 0.0;
+                const long k0 = (long) std::floor (t) - (long) (half / std::min (1.0, ratio)) ;
+                const long k1 = (long) std::floor (t) + (long) (half / std::min (1.0, ratio)) + 1;
+                for (long k = std::max (0L, k0); k <= std::min ((long) ir.size() - 1, k1); ++k)
+                {
+                    const double x = t - (double) k;
+                    const double sinc = (x == 0.0) ? 2.0 * fc : std::sin (2.0 * M_PI * fc * x) / (M_PI * x);
+                    const double w = std::abs (x) * std::min (1.0, ratio) / half;
+                    if (w >= 1.0) continue;
+                    const double bw = 0.42 + 0.5 * std::cos (M_PI * w) + 0.08 * std::cos (2.0 * M_PI * w);
+                    acc += (double) ir[(size_t) k] * sinc * bw;
+                }
+                rs[n] = (float) acc;
+            }
+            std::printf ("IR resampled %.0f -> %.0f Hz\n", irRate, sr);
+            ir.swap (rs);
+        }
         double e2 = 0.0;
         for (float v : ir) e2 += (double) v * v;
         const double g = e2 > 0.0 ? 1.0 / std::sqrt (e2) : 1.0;
