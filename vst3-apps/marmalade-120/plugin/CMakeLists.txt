@@ -4,7 +4,7 @@ project(Marmalade120 VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number. Bump it AND re-run
 # `cmake -S . -B build` or it will not take.
-set(MM_BUILD_ID "261020.1")
+set(MM_BUILD_ID "261020.2")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

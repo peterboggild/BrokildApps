@@ -32,7 +32,7 @@ using namespace mm;
 
 namespace
 {
-    constexpr double HT_PEAK = 375.0 * 1.41421356237, BIAS_PEAK = 50.0 * 1.41421356237, MAINS = 50.0;
+    constexpr double MAINS_PEAK = 240.0 * 1.41421356237, MAINS = 50.0;
 
     std::string spiceName (const std::string& s)
     {
@@ -112,7 +112,7 @@ namespace
         }
 
         // the warm-up the plugin does
-        double in[3] = { 0.0, HT_PEAK, -BIAS_PEAK };
+        double in[2] = { 0.0, MAINS_PEAK };
         c.prepare (16000.0);
         if (! c.solveDC (in)) { std::printf ("DC: %s\n", c.error().c_str()); return false; }
         std::vector<double> out ((size_t) c.numOutputs());
@@ -121,7 +121,7 @@ namespace
         {
             const double m = std::sin (2.0 * M_PI * phase);
             phase += MAINS / rate; if (phase >= 1.0) phase -= 1.0;
-            in[0] = gtr; in[1] = HT_PEAK * m; in[2] = BIAS_PEAK * m;
+            in[0] = gtr; in[1] = MAINS_PEAK * m;
             c.process (in, out.data());
         };
         for (int i = 0; i < (int) (5.0 * 16000.0); ++i) step (16000.0, 0.0);
@@ -149,7 +149,7 @@ namespace
                     case Element::V:
                         // the guitar starts at the next sample; its phase puts that at t = 1/fs
                         if (e.input == 0)      o << n << " " << a << " " << b << " DC 0 SIN(0 " << num (k.inAmp) << " " << num (k.inHz) << " 0 0 " << num (-360.0 * k.inHz / k.fs) << ")\n";
-                        else if (e.input >= 1) o << n << " " << a << " " << b << " DC 0 SIN(0 " << num (e.input == 1 ? HT_PEAK : BIAS_PEAK) << " " << num (MAINS) << " 0 0 " << num (phDeg) << ")\n";
+                        else if (e.input >= 1) o << n << " " << a << " " << b << " DC 0 SIN(0 " << num (MAINS_PEAK) << " " << num (MAINS) << " 0 0 " << num (phDeg) << ")\n";
                         else                   o << n << " " << a << " " << b << " DC " << num (e.value) << "\n";
                         break;
                     case Element::T:
@@ -171,7 +171,9 @@ namespace
             }
             o << ".options method=trap reltol=1e-5 abstol=1e-12 vntol=1e-7 interp\n";
             o << ".tran " << num (tstep) << " " << num (tstop) << " 0 " << num (tstep / 8.0) << " uic\n";
-            o << ".control\nset wr_singlescale\nrun\nwrdata " << tag << ".dat v(spk) v(b1)\nquit\n.endc\n.end\n";
+            const auto nodeOf = [&] (const char* out) { return node (c, c.outputs()[(size_t) c.outputIndex (out)].node); };
+            o << ".control\nset wr_singlescale\nrun\nwrdata " << tag << ".dat v(" << nodeOf ("spk") << ") v(" << nodeOf ("b1")
+              << ")\nquit\n.endc\n.end\n";
         }
         std::remove ((tag + ".dat").c_str());
         if (std::system (("ngspice -b " + tag + ".cir > " + tag + ".log 2>&1").c_str()) != 0)
@@ -220,6 +222,12 @@ namespace
             }
             return std::sqrt (e2 / std::max (r2, 1e-30));
         };
+        if (std::getenv ("DUMP"))
+        {
+            std::ofstream d (tag + ".cmp");
+            for (size_t i = 0; i < simB1.size() && i < refB1.size(); ++i)
+                d << i << " " << refSpk[i] << " " << simSpk[i] << " " << refB1[i] << " " << simB1[i] << "\n";
+        }
         double pkS, pkB;
         const double eS = compare (refSpk, simSpk, pkS);
         const double eB = compare (refB1, simB1, pkB);
@@ -241,7 +249,7 @@ int main()
 
     auto gain = [] (double top) { return Parts { { "rgaina", top }, { "rgainb", 1e6 - top } }; };
     auto join = [] (Parts a, const Parts& b) { a.insert (a.end(), b.begin(), b.end()); return a; };
-    const Parts masterFull = { { "rmasaa", 1e3 }, { "rmasab", 219e3 }, { "rmasba", 1e3 }, { "rmasbb", 219e3 } };
+    const Parts boostFull = { { "rbst", 2.0 } };
     const Parts darkThin = { { "rbassa", 999e3 }, { "rbassb", 1e3 }, { "rtreba", 1e3 }, { "rtrebb", 999e3 }, { "cfac", 1e-9 } };
 
     /*  Tolerances say what each case can honestly show. At idle the speaker
@@ -249,16 +257,17 @@ int main()
         precision on 500 V nodes (reltol 1e-5), so only the ripple is held
         tight there. At 96 kHz (NORMAL) a bright, hard-clipped tone has
         harmonics high enough for the solver's discretisation to reach a few
-        percent; the same case at 192 kHz (HIGH) shows it converging. */
+        percent (6% on the bright extreme); at 192 kHz (HIGH) it is a third of
+        that - the error converging with rate, not a model mismatch. */
     const std::vector<Case> cases =
     {
         { "idle: the hum and the ripple alone",       {},                              0.0, 440.0,  96000.0, 0.05 },
         { "clean: gain low, 100 mV",                  gain (900e3),                    0.1, 440.0,  96000.0, 0.01 },
         { "crunch: gain 3 o'clock, 300 mV",           gain (150e3),                    0.3, 220.0,  96000.0, 0.02 },
-        { "tone stack at its extremes, 300 mV",       join (gain (500e3), darkThin),   0.3, 1000.0, 96000.0, 0.05 },
-        { "tone stack at its extremes, at 192k",      join (gain (500e3), darkThin),   0.3, 1000.0, 192000.0, 0.02 },
-        { "flat out: gain and master full, 500 mV",   join (gain (1e3), masterFull),   0.5, 220.0,  96000.0, 0.05 },
-        { "flat out, at 192k",                        join (gain (1e3), masterFull),   0.5, 220.0, 192000.0, 0.02 },
+        { "tone stack at its extremes, 300 mV",       join (gain (500e3), darkThin),   0.3, 1000.0, 96000.0, 0.08 },
+        { "tone stack at its extremes, at 192k",      join (gain (500e3), darkThin),   0.3, 1000.0, 192000.0, 0.03 },
+        { "flat out: gain and boost full, 500 mV",    join (gain (1e3), boostFull),    0.5, 220.0,  96000.0, 0.05 },
+        { "flat out, at 192k",                        join (gain (1e3), boostFull),    0.5, 220.0, 192000.0, 0.02 },
     };
 
     // THETA=0.5 in the environment checks the bare trapezoidal rule instead

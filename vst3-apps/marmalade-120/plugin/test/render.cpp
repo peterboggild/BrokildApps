@@ -4,8 +4,8 @@
     writes the result: the way to hear the amp on a real DI recording without
     a DAW, and to A/B a netlist change by ear.
 
-        mmrender in.wav out.wav [gain=0.55] [bite=0.25] [bass=0.5] [treble=0.55]
-                 [voice=3] [master=0.35] [output=0] [quality=0] [dry=1] [ir=cab.wav]
+        mmrender in.wav out.wav [gain=0.4] [bass=0.6] [treble=0.6] [voice=1] [boost=0]
+                 [output=-6] [quality=0] [dry=1] [ir=cab.wav]
 
     Knobs are 0..1 as in the host (gain=0.8 is 8 on the dial), voice is the
     switch position 1..6, output is a trim in dB, ir is a cabinet impulse
@@ -157,8 +157,8 @@ int main (int argc, char** argv)
 {
     if (argc < 3)
     {
-        std::printf ("usage: mmrender in.wav|--riff out.wav [gain=..] [bite=..] [bass=..] [treble=..]\n"
-                     "                [voice=1..6] [master=..] [output=dB] [quality=0|1] [ir=cab.wav]\n");
+        std::printf ("usage: mmrender in.wav|--riff out.wav [gain=..] [bass=..] [treble=..] [voice=1..6]\n"
+                     "                [boost=..] [output=dB] [quality=0|1] [ir=cab.wav]\n");
         return 2;
     }
 
@@ -178,11 +178,10 @@ int main (int argc, char** argv)
         const std::string k = a.substr (0, eq);
         const double v = std::atof (a.c_str() + eq + 1);
         if      (k == "gain")    p.gain = (float) v;
-        else if (k == "bite")    p.hfDrive = (float) v;
+        else if (k == "boost")   p.boost = (float) v;
         else if (k == "bass")    p.bass = (float) v;
         else if (k == "treble")  p.treble = (float) v;
         else if (k == "voice")   p.fac = (int) v - 1;
-        else if (k == "master")  p.master = (float) v;
         else if (k == "output")  p.output = (float) ((v + 24.0) / 36.0);
         else if (k == "ir")      irPath = a.substr (eq + 1);
         else if (k == "quality") p.quality = (int) v;

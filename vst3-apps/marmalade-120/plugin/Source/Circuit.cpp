@@ -34,10 +34,14 @@ namespace
         return m;
     }
 
-    DeviceModel diode1N4007()
+    /*  1N4005 and 1N4007 are one die in different voltage grades: the widely
+        published 1N400x SPICE parameters serve both. Two in series (the
+        OR120's bridge arms) are one diode with twice the emission
+        coefficient - exact for identical diodes. */
+    DeviceModel diode1N400x (const char* name, double series)
     {
-        DeviceModel m { DeviceModel::DIODE, "1n4007", "the widely published 1N4007 SPICE model (IS 7.03n, N 1.81)" };
-        m.Is = 7.02767e-9; m.n = 1.80803;
+        DeviceModel m { DeviceModel::DIODE, name, "the widely published 1N400x SPICE model (IS 7.03n, N 1.81)" };
+        m.Is = 7.02767e-9; m.n = 1.80803 * series;
         return m;
     }
 
@@ -47,7 +51,9 @@ namespace
         triodeDZ ("ecc83", 1.0),
         pentodeEL34 ("el34", 1.0),
         pentodeEL34 ("el34x2", 2.0),
-        diode1N4007(),
+        diode1N400x ("1n4007", 1.0),
+        diode1N400x ("1n4005", 1.0),
+        diode1N400x ("1n4005x2", 2.0),
     };
 
     inline double softplus (double a)
@@ -150,11 +156,14 @@ void deviceCurrents (const DeviceModel& m, const double* v, double* i, double* J
 {
     if (m.kind == DeviceModel::DIODE)
     {
-        /*  Shockley, continued as a straight line past 1.2 V so a Newton
-            guess far out cannot overflow the exponential; a real rectifier
-            in this circuit never gets near it (it is ~0.8 V at amps). */
+        /*  Shockley, continued as a straight line past the voltage where it
+            would carry 1 kA, so a Newton guess far out cannot overflow the
+            exponential; no rectifier here gets near it. The knee is set by
+            current, not voltage: two diodes in series (n doubled) need twice
+            the voltage for the same current, and a fixed 1.2 V knee was
+            measured capping each of the bridge's double arms at ~36 ohms. */
         const double nvt = m.n * 0.025852;
-        constexpr double VLIN = 1.2;
+        const double VLIN = nvt * std::log (1.0e3 / m.Is);
         const double vd = std::min (v[0], VLIN);
         const double e = std::exp (vd / nvt);
         double id = m.Is * (e - 1.0), gd = m.Is * e / nvt;
@@ -337,10 +346,10 @@ bool Circuit::factorPorts()
 {
     switch (M)
     {
-        case 2:  return luFactorN<2>  (Jac.data(), piv.data());
-        case 4:  return luFactorN<4>  (Jac.data(), piv.data());
-        case 6:  return luFactorN<6>  (Jac.data(), piv.data());
-        case 8:  return luFactorN<8>  (Jac.data(), piv.data());
+        case 2: return luFactorN<2> (Jac.data(), piv.data());
+        case 4: return luFactorN<4> (Jac.data(), piv.data());
+        case 6: return luFactorN<6> (Jac.data(), piv.data());
+        case 8: return luFactorN<8> (Jac.data(), piv.data());
         case 10: return luFactorN<10> (Jac.data(), piv.data());
         case 12: return luFactorN<12> (Jac.data(), piv.data());
         case 14: return luFactorN<14> (Jac.data(), piv.data());
@@ -348,6 +357,10 @@ bool Circuit::factorPorts()
         case 16: return luFactorN<16> (Jac.data(), piv.data());
         case 17: return luFactorN<17> (Jac.data(), piv.data());
         case 18: return luFactorN<18> (Jac.data(), piv.data());
+        case 19: return luFactorN<19> (Jac.data(), piv.data());
+        case 20: return luFactorN<20> (Jac.data(), piv.data());
+        case 21: return luFactorN<21> (Jac.data(), piv.data());
+        case 22: return luFactorN<22> (Jac.data(), piv.data());
         default: return luFactor (Jac.data(), M, piv.data());
     }
 }
@@ -356,10 +369,10 @@ void Circuit::solvePorts (double* b) const
 {
     switch (M)
     {
-        case 2:  luSolveN<2>  (Jac.data(), piv.data(), b); return;
-        case 4:  luSolveN<4>  (Jac.data(), piv.data(), b); return;
-        case 6:  luSolveN<6>  (Jac.data(), piv.data(), b); return;
-        case 8:  luSolveN<8>  (Jac.data(), piv.data(), b); return;
+        case 2: luSolveN<2> (Jac.data(), piv.data(), b); return;
+        case 4: luSolveN<4> (Jac.data(), piv.data(), b); return;
+        case 6: luSolveN<6> (Jac.data(), piv.data(), b); return;
+        case 8: luSolveN<8> (Jac.data(), piv.data(), b); return;
         case 10: luSolveN<10> (Jac.data(), piv.data(), b); return;
         case 12: luSolveN<12> (Jac.data(), piv.data(), b); return;
         case 14: luSolveN<14> (Jac.data(), piv.data(), b); return;
@@ -367,6 +380,10 @@ void Circuit::solvePorts (double* b) const
         case 16: luSolveN<16> (Jac.data(), piv.data(), b); return;
         case 17: luSolveN<17> (Jac.data(), piv.data(), b); return;
         case 18: luSolveN<18> (Jac.data(), piv.data(), b); return;
+        case 19: luSolveN<19> (Jac.data(), piv.data(), b); return;
+        case 20: luSolveN<20> (Jac.data(), piv.data(), b); return;
+        case 21: luSolveN<21> (Jac.data(), piv.data(), b); return;
+        case 22: luSolveN<22> (Jac.data(), piv.data(), b); return;
         default: luSolve (Jac.data(), M, piv.data(), b); return;
     }
 }

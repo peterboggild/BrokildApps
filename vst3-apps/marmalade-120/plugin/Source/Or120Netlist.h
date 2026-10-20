@@ -1,24 +1,21 @@
 /*  MARMALADE 120 - the amplifier, as a netlist
 
     A 120 W British head of the early-seventies "pictures, not words" school:
-    two ECC83s and four EL34s, solid-state rectified, fixed bias. The topology
-    is the documented one: two gain stages with GAIN between them, a six-way
-    capacitor switch (FAC) into a passive Baxandall bass/treble, HF DRIVE
-    between the tone stack and the third stage, that stage DC-coupled into a
-    cathodyne (split-load) phase inverter, a post-inverter master volume, four
-    EL34s and an output transformer into a 4x12.
+    two ECC83s and four EL34s, solid-state rectified, fixed bias. The 1972
+    Graphic MkII: a gain stage, the bass/treble stack, GAIN with a bright
+    cap, a second gain stage, the six-way FAC capacitor switch, a driver with
+    the BOOST resonant cathode network and the global feedback, an AC-coupled
+    cathodyne, four EL34s and an output transformer. No master volume.
 
     It is ONE circuit, mains to speaker: the 50 Hz mains drive the power
     transformer's windings, silicon diodes charge the reservoir, and every
     stage draws from the rail it really draws from, through the filter it
     really sits behind. Sag, ripple and hum are not added; they happen.
 
-    The VALUES are mostly estimates (tagged [est] on every line): the
-    schematic archives were not reachable when this was written. They were
-    chosen to be typical of the period and to land the voltages the sources
-    do give. Nothing was chosen for how it sounds. A value read off the real
-    service sheet replaces the [est] next to it, and test/spicecheck and the
-    bench's operating-point checks show what moved.
+    The values are read off the 1972 schematics (B. Hickmott's redraw), tagged
+    [sch] on every line. What a schematic never says - the transformers'
+    voltages and impedances, the choke, the speaker - is tagged [est], and
+    is the next thing to measure.
 
     Runtime parts (the pots, the FAC capacitor) are set by name from
     Engine.cpp; their values here are only mid-travel defaults.
@@ -30,105 +27,118 @@ namespace mm
 
 /*  OR120_AMP: the whole amplifier as ONE circuit.
 
+    SOURCE: Orange OR120 Graphic MkII, early 1970s - preamp, output amp and
+    power supply - as redrawn by B. Hickmott (2004) from the 1972 schematics.
+
     Provenance, on every part line:
-      [doc]  stated by a source (see MARMALADE-120-DESIGN.md, section 1)
+      [sch]  read off those three sheets
+      [int]  the sheets, interpreted where they leave a choice (said why)
       [ds]   from a datasheet or a published device model
-      [est]  estimated: chosen to be typical of the period and to land the
-             documented voltages. NOT from a schematic - replace from one.
+      [est]  not on the sheets (transformers, choke, speaker): estimated
     Nothing is adjusted to make it sound or measure a particular way.
 
     Inputs:  IN 0  the guitar, volts at the jack
-             IN 1  the HT winding's EMF, each half (the engine's 50 Hz mains)
-             IN 2  the bias winding's EMF
+             IN 1  the mains, volts, at the power transformer's 240 V tap
 */
 static const char* const OR120_AMP = R"NET(
-* MARMALADE 120 - the whole amplifier
+* MARMALADE 120 - Orange OR120 Graphic MkII (1972), mains to speaker
 Vin    in    0     IN 0             ; the guitar
 
-*---- V1a, first gain stage -------------------------------------------- [doc] topology
-Rin    in    g1    68k              ; [est] grid stopper
-Rgl1   g1    0     1meg             ; [est]
-X1a    p1    g1    k1    ecc83      ; [doc] ECC83
-Ra1    b4    p1    100k             ; [est]
-Rk1    k1    0     1.5k             ; [est]
-Ck1    k1    0     25u              ; [est]
+*==== PREAMP (sheet 1) ===================================================
+* one input used: the redraw says its jack wiring is uncertain, so the
+* other jack's 68k is left open [int]
+Rin    in    g1    68k              ; [sch]
+Rgl1   g1    0     1meg             ; [sch]
+X1a    p1    g1    k1    ecc83      ; [sch] 1/2 ECC83
+Ra1    dp    p1    220k             ; [sch] from D+
+Rk1    k1    0     2.2k             ; [sch]
+Ck1    k1    0     50u              ; [sch]
 
-*---- GAIN, between the first two stages -------------------------------- [doc] position
-Cc1    p1    ga    22n              ; [est]
-Rgaina ga    gw    500k             ; [est] 1M log pot, top half
-Rgainb gw    0     500k             ; [est] pot, bottom half
-Rst2   gw    g2    33k              ; [est]
+* tone stack, between the two stages: bass and treble, both 1M log
+Cc1    p1    t     68n              ; [sch]
+Rb1    t     ba    100k             ; [sch]
+Rbassa ba    bw    500k             ; [sch] 1M log pot, upper part (set by Engine)
+Rbassb bw    bb    500k             ;       lower part
+Cb1    ba    bw    2.2n             ; [sch]
+Cb2    bw    bb    22n              ; [sch]
+Rb2    bb    0     22k              ; [sch]
+Rb3    bw    o     100k             ; [sch] bass wiper to the output
+Ct1    t     ta    1.5n             ; [sch]
+Rtreba ta    o     500k             ; [sch] 1M log pot; its wiper is the output
+Rtrebb o     tb    500k
+Ct2    tb    0     10n              ; [sch]
 
-*---- V1b, second gain stage -------------------------------------------- [doc] topology
-X1b    p2    g2    k2    ecc83      ; [doc] ECC83
-Ra2    b4    p2    100k             ; [est]
-Rk2    k2    0     1.5k             ; [est]
-Ck2    k2    0     1u               ; [est]
+* GAIN, 1M log, with a 330p bright cap across its upper part
+Rgaina o     g2    500k             ; [sch]
+Rgainb g2    0     500k
+Cbr    o     g2    330p             ; [sch]
 
-*---- FAC: one of six coupling capacitors into the tone stack ------------ [doc] 6 positions
-Cfac   p2    tin   10n              ; [est] values 47n..1n, see Engine.cpp
+X1b    p2    g2    k2    ecc83      ; [sch] 1/2 ECC83
+Ra2    dp    p2    220k             ; [sch]
+Rk2    k2    0     2.2k             ; [sch]
+Ck2    k2    0     50u              ; [sch]
 
-*---- passive Baxandall bass and treble --------------------------------- [doc] Baxandall
-Rb1    tin   ba    100k             ; [est]
-Rbassa ba    bw    500k             ; [est] 1M lin pot
-Rbassb bw    bb    500k
-Rb2    bb    0     10k              ; [est]
-Cb1    ba    bw    1n               ; [est]
-Cb2    bw    bb    10n              ; [est]
-Rb3    bw    tout  100k             ; [est]
-Ct1    tin   ta    330p             ; [est]
-Rtreba ta    tout  500k             ; [est] 1M lin pot
-Rtrebb tout  tb    500k
-Ct2    tb    0     3.3n             ; [est]
+* FAC: 68n, then a series chain 4n7-4n7-2n2-1n-330p tapped by the switch;
+* one capacitor here, the series value of the chain up to the tap [sch]
+Cfac   p2    fo    68n              ;       (set by Engine)
 
-*---- HF DRIVE, between the tone stack and the third stage -------------- [doc] position
-Rhf    tout  g3    470k             ; [est]
-Chf    tout  hfa   470p             ; [est]
-Rhfpot hfa   g3    500k             ; [est] 1M lin as a rheostat
-Rgl3   g3    0     470k             ; [est]
+*==== OUTPUT AMP (sheet 2) ===============================================
+* the preamp into the driver's grid: 100k direct, and 100k + 100k through
+* the reverb send and return, normalled by the return jack when nothing
+* is plugged in [int: the jack switching is drawn, not labelled]
+Rmix   fo    g3    100k             ; [sch]
+Rsend  fo    snd   100k             ; [sch]
+Rret   snd   g3    100k             ; [sch]
+Rgl3   g3    0     220k             ; [sch]
 
-*---- V2a, third stage, DC coupled to the cathodyne --------------------- [doc] DC coupled
-X2a    p3    g3    k3    ecc83      ; [doc] ECC83
-Ra3    b3    p3    470k             ; [est] a forum note has 390k as a raise from stock;
-*                                    ;       470k gives the cathodyne room to swing
-Rk3    k3    kf    1.5k             ; [est]
-Ck3    k3    kf    25u              ; [est]
-Rkf    kf    0     470              ; [est]
-Rnfb   spk   kf    47k              ; [est] global feedback from the 8 ohm tap
+* driver
+X2a    p3    g3    k3    ecc83      ; [sch] 1/2 ECC83
+Ra3    cp    p3    100k             ; [sch] from C+
+Chc    cp    p3    1n               ; [sch]
+Rk3    k3    0     1.5k             ; [sch]
+Rfb    fb16  k3    15k              ; [sch] global feedback from the 16 ohm tap
+* BOOST: a 1k lin rheostat, a 2 mH choke and 0.47u from the cathode to ground
+Rbst   k3    bs1   500              ; [sch] 1k lin (set by Engine)
+Lbst   bs1   bs2   2m               ; [sch]
+Rbstl  bs2   bs3   8                ; [est] the choke's resistance
+Cbst   bs3   0     0.47u            ; [sch]
 
-*---- V2b, cathodyne phase inverter ------------------------------------- [doc] cathodyne
-X2b    pc    p3    kc    ecc83      ; [doc] ECC83
-Rpc    b3    pc    100k             ; [est]
-Rkc    kc    0     100k             ; [est]
+* cathodyne, AC coupled, self-biased with a bootstrapped grid leak
+Cpi    p3    g4    68n              ; [sch]
+X2b    pc    g4    kc    ecc83      ; [sch] 1/2 ECC83
+Rpc    cp    pc    100k             ; [sch]
+Rkc    kc    kx    1.5k             ; [sch]
+Rkx    kx    0     100k             ; [sch]
+Rgl4   g4    kx    1meg             ; [sch]
 
-*---- MASTER, dual gang after the inverter ------------------------------ [doc] post-PI (1998/2001 sheets)
-Cpa    pc    ma    100n             ; [est]
-Cpb    kc    mb    100n             ; [est]
-Rmasaa ma    mwa   110k             ; [est] 220k log dual pot
-Rmasab mwa   bias  110k
-Rmasba mb    mwb   110k
-Rmasbb mwb   bias  110k
-Rgsa   mwa   g4a   1.1k             ; [doc] 2k2 grid resistor per valve (74 sheet), two in parallel
-Rgsb   mwb   g4b   1.1k
+* to the output valves: 68n, 220k bias feeds from N.B, 2k4 per valve
+Cpa    pc    ga    68n              ; [sch]
+Rbfa   ga    nb    220k             ; [sch]
+Rgsa   ga    g5a   1.2k             ; [sch] 2k4 per valve, two in parallel
+Cpb    kx    gb    68n              ; [sch]
+Rbfb   gb    nb    220k             ; [sch]
+Rgsb   gb    g5b   1.2k             ; [sch]
 
-*---- four EL34, fixed bias, each valve its own --------------------------- [doc] 4 x EL34, fixed bias
-X4a    pa    sa    g4a   0     el34x2   ; two in parallel per side: exact for matched valves
-X4b    pb    sb    g4b   0     el34x2
-Rsca   b2    sa    500              ; [est] 1k per valve
-Rscb   b2    sb    500
+* four EL34, two a side, cathodes (and g3) grounded
+X4a    pa    sa    g5a   0     el34x2   ; [sch] exact for matched valves
+X4b    pb    sb    g5b   0     el34x2
+Rsca   bp    sa    500              ; [sch] 1k per screen, from B+
+Rscb   bp    sb    500
 
-*---- output transformer, 1k7 plate to plate into 8 ohms ----------------- [est] all of it
+* output transformer, centre tap on A+; speaker on the 8 ohm tap, feedback
+* from the 16 [sch]; everything about the iron itself is [est]
 Rwa    pa    ota   45               ; [est] winding resistance, each half
 Rwb    pb    otb   45
 Cpp    pa    pb    1n               ; [est] interwinding capacitance
-Ta     b1    ota   sec0  0   7.29
-Tb     otb   b1    sec0  0   7.29
-Lmag   sec0  0     140m             ; [est] magnetising, referred to the secondary
+Ta     ap    ota   sec0  0   7.29   ; [est] 1k7 plate to plate : 8 ohms
+Tb     otb   ap    sec0  0   7.29
+Lmag   sec0  0     140m             ; [est] magnetising, referred
 Rcore  sec0  0     470              ; [est] core loss, referred
-Lleak  sec0  sec   60u              ; [est] leakage, referred (about 13 mH primary)
+Lleak  sec0  sec   60u              ; [est] leakage, referred
 Rsec   sec   spk   0.25             ; [est]
+Tfb    fb16  0     spk   0   1.41421 ; [sch] the 16 ohm tap: sqrt(16/8) the 8 ohm tap's voltage
 
-*---- the 4x12 as the amplifier sees it --------------------------------- [est] generic 12" x4
+* the 4x12 on the 8 ohm tap, as the amplifier sees it [est]
 Rvc    spk   s1    6.4
 Lvc    s1    s2    0.7m
 Rvce   s1    s2    20
@@ -136,37 +146,48 @@ Rmot   s2    0     35
 Lmot   s2    0     20.6m
 Cmot   s2    0     152u
 
-*---- HT supply: centre-tapped winding, two silicon diodes --------------- [doc] solid state
-Vhta   hta   0     IN 1             ; [est] each half 375 V rms
-Vhtb   0     htb   IN 1             ; the other half, in antiphase
-Rhta   hta   hda   15               ; [est] winding + reflected primary, each half
-Rhtb   htb   hdb   15
-Lhta   hda   hdx   5m               ; [est] leakage, each half
-Lhtb   hdb   hdy   5m
-D1     hdx   b1    1n4007           ; [ds]
-D2     hdy   b1    1n4007           ; [ds]
-C1     b1    0     100u             ; [est] reservoir; the OT centre tap
-Rd2    b1    b2    470              ; [est]
-C2     b2    0     50u              ; [est] screens
-Rd3    b2    b3    36k              ; [est] sets the ~370 V [doc] rail
-C3     b3    0     32u              ; [est] driver and inverter, ~370 V [doc]
-Rd4    b3    b4    18k              ; [est] sets the ~330 V [doc] rail
-C4     b4    0     32u              ; [est] preamp, ~330 V [doc]
+*==== POWER SUPPLY (sheet 3) =============================================
+Vmains mn    0     IN 1             ; the 240 V tap of the primary
 
-*---- bias: a winding, a diode, a filter, the set-bias divider ---------- [doc] adjustable fixed bias
-Vbw    bwn   0     IN 2             ; [est] 50 V rms
-Rbw    bwn   bwr   100              ; [est]
-Db     bng   bwr   1n4007           ; [ds] conducts on the negative half
-Cbr    bng   0     47u              ; [est]
-Rbf    bng   bf    10k              ; [est]
-Cbf    bf    0     47u              ; [est]
-Rbp1   bf    bias  6.1k             ; [est] set-bias pot, upper part: SET, like a tech would,
-Rbp2   bias  0     41.1k            ;   for 35 mA a valve at idle (70% of 25 W), by test/biasset
-Cbias  bias  0     10u              ; [est]
+* HT: one winding into a bridge of 8 x 1N4005, two in series per arm
+Tht    hta   htb   mn    0   1.5625 ; [est] 375 V rms secondary
+Rht    hta   hx    20               ; [est] winding + reflected primary resistance
+Lht    hx    hy    8m               ; [est] leakage
+* the winding is not floating: each end has capacitance to the grounded
+* core and screen. Left out, its common mode hangs on the diodes' leakage
+* alone, and Newton was measured stalling at the edge of conduction.
+Cwa    hta   0     1n               ; [est]
+Cwb    htb   0     1n               ; [est]
+D1     hy    ap    1n4005x2         ; [sch]
+D2     htb   ap    1n4005x2
+D3     0     hy    1n4005x2
+D4     0     htb   1n4005x2
+C1     ap    0     50u              ; [sch] 2 x 100u 450 V in series: A+
+Lch    ap    chx   10               ; [est] the choke: 10 H
+Rch    chx   bp    120              ; [est] and its resistance
+C2     bp    0     16u              ; [sch] 2 x 32u in series: B+ (screens)
+Rbl    bp    0     200k             ; [sch] 2 x 100k across them
+Rd3    bp    cp    33k              ; [sch]
+C3     cp    0     16u              ; [sch] C+ (driver, inverter)
+Rd4    cp    dp    33k              ; [sch]
+C4     dp    0     16u              ; [sch] D+ (preamp)
+
+* bias: a centre-tapped winding, two 1N4005, 22u - 1k - 22u, 22k load. No
+* adjustment on the sheet: the winding sets it.
+Tba    bwa   0     mn    0   0.15478 ; [est] 37.1 V rms each half: 35 mA a valve idle, by test/biasset.cpp
+Tbb    0     bwb   mn    0   0.15478
+Rbwa   bwa   bwa2  50               ; [est]
+Rbwb   bwb   bwb2  50
+Dba    nr    bwa2  1n4005           ; [sch] cathodes to the winding: a negative supply
+Dbb    nr    bwb2  1n4005
+Cn1    nr    0     22u              ; [sch]
+Rn     nr    nb    1k               ; [sch]
+Cn2    nb    0     22u              ; [sch]
+Rnl    nb    0     22k              ; [sch]
 
 .out   spk   spk
-.out   b1    b1
-.out   b4    b4
+.out   b1    ap
+.out   b4    dp
 )NET";
 
 } // namespace mm

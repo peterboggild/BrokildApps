@@ -110,18 +110,6 @@ namespace
 
     double db (double x) { return 20.0 * std::log10 (std::max (x, 1e-12)); }
 
-    // spectral centroid of the second half, in Hz, by a plain DFT on a decimated grid
-    double centroid (const std::vector<float>& v, double sr = SR)
-    {
-        double num = 0, den = 0;
-        for (double f = 50.0; f < 12000.0; f *= 1.06)
-        {
-            const double a = toneAmp (v, f, sr);
-            num += f * a * a; den += a * a;
-        }
-        return num / std::max (den, 1e-30);
-    }
-
     /*  The aliasing in a hard-clipped tone, as dB under the fundamental.
 
         Aliases of f0 at rate sr can only land on multiples of gcd(f0, sr) -
@@ -160,7 +148,7 @@ int main()
         Params p;
         e.setParams (p);
         e.prepare (SR, BLOCK);
-        const char* names[] = { "b1", "b2", "b3", "b4", "p1", "p3", "pc", "kc", "pa", "ota", "bias" };
+        const char* names[] = { "ap", "bp", "cp", "dp", "p1", "p3", "pc", "kc", "pa", "ota", "nb" };
         constexpr int NN = (int) (sizeof (names) / sizeof (names[0]));
         double avg[NN] = {};
         std::vector<float> L (BLOCK, 0.0f), R (BLOCK, 0.0f);
@@ -174,14 +162,20 @@ int main()
         auto V = [&] (const char* n) { for (int k = 0; k < NN; ++k) if (std::string (n) == names[k]) return avg[k]; return 0.0; };
 
         const double ia = (V ("ota") - V ("pa")) / 45.0 / 2.0;   // per valve
-        check (V ("b1") > 480 && V ("b1") < 530, "B+ at the output transformer", fmt ("%.1f V", V ("b1")));
-        check (V ("b4") > 315 && V ("b4") < 345, "preamp rail (documented about 330 V)", fmt ("%.1f V", V ("b4")));
-        check (V ("b3") > 355 && V ("b3") < 385, "inverter rail (documented about 370 V)", fmt ("%.1f V", V ("b3")));
-        check (V ("p1") > 180 && V ("p1") < 260, "V1a plate", fmt ("%.1f V", V ("p1")));
-        check (V ("p3") > 110 && V ("p3") < 180, "driver plate = cathodyne grid (DC coupled)", fmt ("%.1f V", V ("p3")));
+        /*  The 1972 sheets print no voltages. The ~330 V and ~370 V figures the
+            first version aimed for were from a '74 drawing, a different
+            revision, so here they are context, not targets: the rails are
+            what the sheet's 33k droppers and the real loads make of an
+            estimated HT winding. */
+        check (V ("ap") > 450 && V ("ap") < 560, "A+, the OT centre tap (HT winding [est])", fmt ("%.1f V", V ("ap")));
+        check (V ("bp") < V ("ap") && V ("cp") < V ("bp") && V ("dp") < V ("cp"), "B+ > C+ > D+ down the 33k ladder",
+               fmt ("B+ %.1f, C+ %.1f, D+ %.1f V", V ("bp"), V ("cp"), V ("dp")));
+        known ("the '74 drawing's rails, for comparison", fmt ("~370 V and ~330 V there; C+ %.1f and D+ %.1f V here", V ("cp"), V ("dp")));
+        check (V ("p1") > 120 && V ("p1") < 260, "V1a plate (220k load)", fmt ("%.1f V", V ("p1")));
+        check (V ("p3") > 100 && V ("p3") < V ("cp"), "driver plate (100k load)", fmt ("%.1f V", V ("p3")));
         const double vpk = V ("pc") - V ("kc");
-        check (vpk > 40 && vpk < 140, "cathodyne plate-cathode, room to swing", fmt ("%.1f V", vpk));
-        check (ia > 0.030 && ia < 0.040, "EL34 idle current, per valve (set to 35 mA)", fmt ("%.1f mA at %.1f V bias", ia * 1e3, V ("bias")));
+        check (vpk > 60 && vpk < 300, "cathodyne plate-cathode, room to swing", fmt ("%.1f V", vpk));
+        check (ia > 0.030 && ia < 0.040, "EL34 idle current, per valve (bias winding set for 35 mA)", fmt ("%.1f mA at %.1f V bias", ia * 1e3, V ("nb")));
         const double diss = ia * (V ("pa"));
         check (diss < 25.0, "EL34 idle dissipation under its 25 W", fmt ("%.1f W", diss));
     }
@@ -193,8 +187,9 @@ int main()
             vintage heads of the time were rated at - with a high-gain driver,
             a cathodyne and little global feedback, this amp is not a hi-fi and
             is a few percent into distortion well before that. GAIN low so the
-            preamp is clean, MASTER full, the drive raised to 10%. */
-        Params p; p.gain = 0.12f; p.master = 1.0f; p.output = 2.0f / 3.0f;
+            preamp is clean (there is no master: the power amp always gets
+            what the preamp gives it), the drive raised to 10%. */
+        Params p; p.gain = 0.12f; p.output = 2.0f / 3.0f;
         double watts5 = 0.0, at = 0.0;
         for (double a = 0.02; a < 2.0; a *= 1.15)
         {
@@ -217,7 +212,7 @@ int main()
         render (e, f, sine (1000.0, 0.5, 0.6));
         check (e.sag() > 10.0, "flat out, B+ sags", fmt ("%.1f V below idle (%.0f W into the load)", e.sag(), e.watts()));
 
-        Params q = p; q.master = 0.15f; q.gain = 0.1f;
+        Params q = p; q.gain = 0.02f;
         render (e, q, sine (1000.0, 0.1, 0.4));
         check (e.sag() < 2.0, "and not at bedroom level", fmt ("%.2f V", e.sag()));
     }
@@ -254,34 +249,35 @@ int main()
         const double h2 = db (toneAmp (dirty, 440.0) / toneAmp (dirty, 220.0));
         check (h2 > -40.0, "asymmetric clipping leaves a real second harmonic", fmt ("%.1f dBc", h2));
 
-        const auto noise = [] ()
+        /*  Each control by its frequency response: a small sine (nothing in the
+            amp clips at 10 mV, even without a master) at a few frequencies,
+            output over input in dB. */
+        auto gainAt = [&] (Params q, double f)
         {
-            std::mt19937 rng (7); std::normal_distribution<float> nd (0.0f, 0.05f);
-            std::vector<float> v ((size_t) (0.6 * SR));
-            for (auto& s : v) s = nd (rng);
-            return v;
-        } ();
-        Params t; t.gain = 0.2f;
-        auto c = [&] (Params q) { return centroid (render (e, q, noise)); };
-        t.treble = 0.0f; const double tr0 = c (t); t.treble = 1.0f; const double tr1 = c (t); t.treble = 0.55f;
-        check (tr1 > tr0 * 1.3, "TREBLE brightens", fmt ("centroid %.0f -> %.0f Hz", tr0, tr1));
-        t.bass = 0.0f; const double b0 = c (t); t.bass = 1.0f; const double b1 = c (t); t.bass = 0.5f;
-        check (b1 < b0 * 0.9, "BASS darkens", fmt ("centroid %.0f -> %.0f Hz", b0, b1));
-        t.fac = 0; const double f0 = c (t); t.fac = 5; const double f5 = c (t); t.fac = 2;
-        check (f5 > f0 * 1.15, "VOICE 1 -> 6 thins the low end", fmt ("centroid %.0f -> %.0f Hz", f0, f5));
-        t.hfDrive = 0.0f; const double h0 = c (t); t.hfDrive = 1.0f; const double h1 = c (t); t.hfDrive = 0.25f;
-        check (h1 > h0 * 1.1, "BITE pushes the top into the third stage", fmt ("centroid %.0f -> %.0f Hz", h0, h1));
+            const auto out = render (e, q, sine (f, 0.01, 0.3), SR, 0.1);
+            return db (toneAmp (out, f) / 0.01);
+        };
+        Params t; t.gain = 0.3f;
+        auto shape = [&] (Params q, double lo, double hi) { return gainAt (q, hi) - gainAt (q, lo); };
 
-        Params m; m.gain = 0.3f;
-        m.master = 0.2f; const double m0 = db (rms (render (e, m, in)));
-        m.master = 0.8f; const double m1 = db (rms (render (e, m, in)));
-        check (m1 > m0 + 10.0, "MASTER sets the level", fmt ("%.1f -> %.1f dBFS", m0, m1));
+        t.bass = 0.0f; const double b0 = gainAt (t, 80.0) - gainAt (t, 1000.0);
+        t.bass = 1.0f; const double b1 = gainAt (t, 80.0) - gainAt (t, 1000.0); t.bass = 0.6f;
+        check (b1 > b0 + 10.0, "BASS: 80 Hz against 1 kHz", fmt ("%.1f -> %.1f dB", b0, b1));
+        t.treble = 0.0f; const double tr0 = shape (t, 1000.0, 5000.0);
+        t.treble = 1.0f; const double tr1 = shape (t, 1000.0, 5000.0); t.treble = 0.6f;
+        check (tr1 > tr0 + 10.0, "TREBLE: 5 kHz against 1 kHz", fmt ("%.1f -> %.1f dB", tr0, tr1));
+        t.fac = 0; const double f0 = gainAt (t, 150.0) - gainAt (t, 3000.0);
+        t.fac = 5; const double f5 = gainAt (t, 150.0) - gainAt (t, 3000.0); t.fac = 0;
+        check (f5 < f0 - 15.0, "VOICE 1 -> 6: 150 Hz against 3 kHz", fmt ("%.1f -> %.1f dB", f0, f5));
+        t.boost = 0.0f; const double h0 = shape (t, 1000.0, 5200.0);
+        t.boost = 1.0f; const double h1 = shape (t, 1000.0, 5200.0); t.boost = 0.0f;
+        check (h1 > h0 + 3.0, "BOOST: the driver's resonant cathode network at 5.2 kHz", fmt ("%.1f -> %.1f dB re 1 kHz", h0, h1));
     }
 
     //--------------------------------------------------------------------------
     std::printf ("\nquiet and stable\n");
     {
-        Params p; p.gain = 1.0f; p.master = 1.0f; p.hfDrive = 1.0f; p.treble = 1.0f;
+        Params p; p.gain = 1.0f; p.boost = 1.0f; p.treble = 1.0f;
         const auto out = render (e, p, std::vector<float> ((size_t) SR, 0.0f), SR, 0.5);
         /*  Hum is modelled now: the rectifier's 100 Hz ripple is on every rail,
             and the push-pull stage cancels it only as well as the circuit is
@@ -304,8 +300,8 @@ int main()
         for (int k = 0; k < 40; ++k)
         {
             Params q;
-            q.gain = u (rng); q.bass = u (rng); q.treble = u (rng); q.hfDrive = u (rng);
-            q.master = u (rng); q.fac = (int) (u (rng) * 5.99f);
+            q.gain = u (rng); q.bass = u (rng); q.treble = u (rng); q.boost = u (rng);
+            q.fac = (int) (u (rng) * 5.99f);
             const auto out = render (e, q, burst, SR, 0.05);
             for (float s : out) if (! std::isfinite (s) || std::abs (s) > 4.0f) { ++bad; break; }
             bad += e.resets();
@@ -323,7 +319,7 @@ int main()
             at the 8 ohm tap - before any cabinet IR, whose fall past 5 kHz
             would hide most of it. Aliases fold back on to a 160 Hz grid for
             this note at 48 kHz, so they are easy to tell from harmonics. */
-        Params p; p.gain = 1.0f; p.master = 0.3f;
+        Params p; p.gain = 1.0f;
         p.mains = false;           // a DC supply: hum would read as aliasing
         const double f0 = 1760.0;
         p.quality = 0; const double a2 = aliasDb (render (e, p, sine (f0, 0.5, 0.5)), f0);
@@ -333,7 +329,7 @@ int main()
 
         for (int q = 0; q < 2; ++q)
         {
-            Params c; c.gain = 0.7f; c.master = 0.6f; c.quality = q;
+            Params c; c.gain = 0.7f; c.quality = q;
             e.setParams (c); e.prepare (SR, BLOCK);
             std::vector<float> L (BLOCK), R (BLOCK);
             const int blocks = (int) (4.0 * SR / BLOCK);

@@ -13,7 +13,7 @@ name: Engines (Linux, headless)
 #            published zip yet, so no release job exists to carry it
 #   DSW      no bench, so a compile gate: the host and both shipped
 #            experiments must still build
-#   Marmalade 120  its bench (25 checks) and spicecheck, which runs the
+#   Marmalade 120  its bench (24 checks) and spicecheck, which runs the
 #            whole amp against ngspice from the same warmed-up state - no
 #            release yet, so nothing else runs either
 #

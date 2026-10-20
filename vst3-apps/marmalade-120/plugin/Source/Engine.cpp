@@ -2,6 +2,7 @@
 #include "Or120Netlist.h"
 
 #include <algorithm>
+#include <initializer_list>
 
 namespace mm
 {
@@ -23,13 +24,10 @@ namespace
 
     constexpr int CHUNK = 32;            // host samples between knob updates
 
-    /*  The mains, into the power transformer's windings. 50 Hz: the amp is
-        British. The HT secondary is 375-0-375 V rms and the bias winding
-        50 V rms - estimates, chosen to land the rails the sources give; see
-        Or120Netlist.h. */
-    constexpr double MAINS_HZ  = 50.0;
-    constexpr double HT_PEAK   = 375.0 * 1.41421356237;
-    constexpr double BIAS_PEAK = 50.0 * 1.41421356237;
+    /*  The mains, into the power transformer's 240 V tap: the amp is British.
+        The windings themselves are ratios in the netlist. */
+    constexpr double MAINS_HZ   = 50.0;
+    constexpr double MAINS_PEAK = 240.0 * 1.41421356237;
 
     // A real pot's ends are not quite 0 ohms, and a 0 would make the matrix singular.
     constexpr double POT_END = 100.0;
@@ -48,7 +46,27 @@ namespace
     }
 }
 
-const double FAC_CAPS[NUM_FAC] = { 47e-9, 22e-9, 10e-9, 4.7e-9, 2.2e-9, 1e-9 };
+/*  FAC, from the 1972 sheet: the 68n coupling capacitor, then a series chain
+    4n7 - 4n7 - 2n2 - 1n - 330p that the switch taps. Each position is the
+    series value of everything up to its tap. */
+namespace
+{
+    constexpr double series (std::initializer_list<double> c)
+    {
+        double inv = 0.0;
+        for (double v : c) inv += 1.0 / v;
+        return 1.0 / inv;
+    }
+}
+const double FAC_CAPS[NUM_FAC] =
+{
+    68e-9,
+    series ({ 68e-9, 4.7e-9 }),
+    series ({ 68e-9, 4.7e-9, 4.7e-9 }),
+    series ({ 68e-9, 4.7e-9, 4.7e-9, 2.2e-9 }),
+    series ({ 68e-9, 4.7e-9, 4.7e-9, 2.2e-9, 1e-9 }),
+    series ({ 68e-9, 4.7e-9, 4.7e-9, 2.2e-9, 1e-9, 330e-12 }),
+};
 
 //==============================================================================
 void HalfBand::design()
@@ -82,14 +100,11 @@ Engine::Engine()
     iGainA = amp.elementIndex ("rgaina");  iGainB = amp.elementIndex ("rgainb");
     iBassA = amp.elementIndex ("rbassa");  iBassB = amp.elementIndex ("rbassb");
     iTrebA = amp.elementIndex ("rtreba");  iTrebB = amp.elementIndex ("rtrebb");
-    iHf    = amp.elementIndex ("rhfpot");  iFac   = amp.elementIndex ("cfac");
-    iMasAA = amp.elementIndex ("rmasaa");   iMasAB = amp.elementIndex ("rmasab");
-    iMasBA = amp.elementIndex ("rmasba");   iMasBB = amp.elementIndex ("rmasbb");
+    iBoost = amp.elementIndex ("rbst");    iFac   = amp.elementIndex ("cfac");
     oSpk   = amp.outputIndex ("spk");
     oB4    = amp.outputIndex ("b4");       oB1   = amp.outputIndex ("b1");
 
-    const int need[] = { iGainA, iGainB, iBassA, iBassB, iTrebA, iTrebB, iHf, iFac,
-                         iMasAA, iMasAB, iMasBA, iMasBB, oSpk, oB4, oB1 };
+    const int need[] = { iGainA, iGainB, iBassA, iBassB, iTrebA, iTrebB, iBoost, iFac, oSpk, oB4, oB1 };
     for (int v : need)
         if (v < 0) { err = "a part the engine drives is missing from the netlist"; return; }
 
@@ -124,7 +139,7 @@ void Engine::prepare (double sampleRate, int block)
     if (! good) return;
 
 
-    sGain = p.gain; sBass = p.bass; sTreb = p.treble; sHf = p.hfDrive; sMaster = p.master;
+    sGain = p.gain; sBass = p.bass; sTreb = p.treble; sBoost = p.boost;
     outGain = std::pow (10.0f, outputDb (p.output) / 20.0f);
     applyPots (true);
     if (! warmUp()) good = false;
@@ -141,7 +156,7 @@ bool Engine::warmUp()
 {
     constexpr double WARM_RATE = 16000.0, WARM_SECONDS = 5.0;
     amp.prepare (WARM_RATE);
-    double in[3] = { 0.0, HT_PEAK, -BIAS_PEAK };      // the peak of the cycle, as the DC guess
+    double in[2] = { 0.0, MAINS_PEAK };      // the peak of the cycle, as the DC guess
     if (! amp.solveDC (in)) { err = "DC: " + amp.error(); return false; }
 
     mainsPhase = 0.0;
@@ -154,8 +169,7 @@ bool Engine::warmUp()
             const double m = std::sin (2.0 * PI * mainsPhase);
             mainsPhase += dph; if (mainsPhase >= 1.0) mainsPhase -= 1.0;
             in[0] = 0.0;
-            in[1] = p.mains ? HT_PEAK * m : HT_PEAK;
-            in[2] = p.mains ? BIAS_PEAK * m : -BIAS_PEAK;
+            in[1] = p.mains ? MAINS_PEAK * m : MAINS_PEAK;
             amp.process (in, ampOut.data());
         }
     };
@@ -184,40 +198,36 @@ void Engine::applyPots (bool force)
         amp.setValue (iGainB, potHalf (1e6, b));
         aGain = sGain;
     }
+    /*  BASS and TREBLE are log pots on the sheet. Turning up moves the wiper
+        toward the boost end (bass: the 100k; treble: the 1n5), so the log
+        track's slow end, the counter-clockwise terminal, is the cut end: at
+        noon the wiper is a tenth of the way from it. That is how a
+        Baxandall built with log pots behaves - it is not flat at noon. */
     if (force || std::abs (sBass - aBass) > EPS)
     {
-        // wiper toward the input end is boost
-        amp.setValue (iBassA, potHalf (1e6, 1.0 - sBass));
-        amp.setValue (iBassB, potHalf (1e6, sBass));
+        const double b = audioTaper (sBass);
+        amp.setValue (iBassA, potHalf (1e6, 1.0 - b));
+        amp.setValue (iBassB, potHalf (1e6, b));
         aBass = sBass;
     }
     if (force || std::abs (sTreb - aTreb) > EPS)
     {
-        amp.setValue (iTrebA, potHalf (1e6, 1.0 - sTreb));
-        amp.setValue (iTrebB, potHalf (1e6, sTreb));
+        const double b = audioTaper (sTreb);
+        amp.setValue (iTrebA, potHalf (1e6, 1.0 - b));
+        amp.setValue (iTrebB, potHalf (1e6, b));
         aTreb = sTreb;
     }
-    if (force || std::abs (sHf - aHf) > EPS)
+    if (force || std::abs (sBoost - aBoost) > EPS)
     {
-        // a linear 1M as a rheostat, wired so its travel is spread usefully
-        const double r = 1.0 - (double) sHf;
-        amp.setValue (iHf, 1e3 + 1e6 * r * r);
-        aHf = sHf;
+        // a 1k lin rheostat: up is less resistance in series with the choke
+        amp.setValue (iBoost, std::max (2.0, 1e3 * (1.0 - (double) sBoost)));
+        aBoost = sBoost;
     }
     const int fac = std::clamp (p.fac, 0, NUM_FAC - 1);
     if (force || fac != aFac)
     {
         amp.setValue (iFac, FAC_CAPS[fac]);
         aFac = fac;
-    }
-    if (force || std::abs (sMaster - aMaster) > EPS)
-    {
-        const double b = audioTaper (sMaster);
-        amp.setValue (iMasAA, potHalf (220e3, 1.0 - b));
-        amp.setValue (iMasAB, potHalf (220e3, b));
-        amp.setValue (iMasBA, potHalf (220e3, 1.0 - b));
-        amp.setValue (iMasBB, potHalf (220e3, b));
-        aMaster = sMaster;
     }
     amp.update();
 }
@@ -246,8 +256,7 @@ void Engine::process (float* left, float* right, int numSamples)
         sGain   += (p.gain    - sGain)   * k;
         sBass   += (p.bass    - sBass)   * k;
         sTreb   += (p.treble  - sTreb)   * k;
-        sHf     += (p.hfDrive - sHf)     * k;
-        sMaster += (p.master  - sMaster) * k;
+        sBoost  += (p.boost   - sBoost)  * k;
         applyPots (false);
 
         const float ko = 1.0f - std::exp (-1.0f / (0.020f * (float) sr));
@@ -277,8 +286,7 @@ void Engine::process (float* left, float* right, int numSamples)
             {
                 const double m = std::sin (2.0 * PI * mainsPhase);
                 mainsPhase += MAINS_HZ / srOS; if (mainsPhase >= 1.0) mainsPhase -= 1.0;
-                const double in[3] = { (double) osIn[(size_t) j] * IN_VOLTS,
-                                       p.mains ? HT_PEAK * m : HT_PEAK, p.mains ? BIAS_PEAK * m : -BIAS_PEAK };
+                const double in[2] = { (double) osIn[(size_t) j] * IN_VOLTS, p.mains ? MAINS_PEAK * m : MAINS_PEAK };
                 amp.process (in, ampOut.data());
 
                 const double spk  = ampOut[(size_t) oSpk];

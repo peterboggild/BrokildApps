@@ -71,20 +71,19 @@ struct HalfBand
 };
 
 //==============================================================================
-/*  The six FAC positions, as capacitors: the switch picks which one couples the
-    second stage into the tone stack, so it moves the low cut from full to thin. */
+/*  The six FAC positions, as capacitors: what couples the second stage to the
+    driver, from full (68n alone) to thin (the whole chain, 203p). */
 constexpr int NUM_FAC = 6;
 extern const double FAC_CAPS[NUM_FAC];
 
 struct Params
 {
-    float gain    = 0.55f;   // 1M log, between the first two stages
-    float bass    = 0.50f;   // 1M lin
-    float treble  = 0.55f;   // 1M lin
-    float hfDrive = 0.25f;   // 1M lin, as a rheostat
-    float master  = 0.35f;   // 220k log dual gang, after the phase inverter
+    float gain    = 0.40f;   // 1M log, between the tone stack and the second stage
+    float bass    = 0.60f;   // 1M log
+    float treble  = 0.60f;   // 1M log
+    float boost   = 0.0f;    // 1k lin rheostat into the driver's resonant cathode network
     float output  = 0.50f;   // trim, -24 .. +12 dB, centre 0 dB is not the middle
-    int   fac     = 2;       // 0 .. 5
+    int   fac     = 0;       // 0 .. 5, full to thin
     int   quality = 0;       // 0: run the circuit at >= 88.2 kHz, 1: >= 176.4 kHz
 
     /*  The bench's alone, never a host parameter: false holds the transformer
@@ -137,8 +136,7 @@ private:
 
     // part indices into the netlists
     int iGainA = -1, iGainB = -1, iBassA = -1, iBassB = -1, iTrebA = -1, iTrebB = -1;
-    int iHf = -1, iFac = -1;
-    int iMasAA = -1, iMasAB = -1, iMasBA = -1, iMasBB = -1;
+    int iBoost = -1, iFac = -1;
     int oSpk = -1, oB4 = -1, oB1 = -1;
 
     double sr = 48000.0, srOS = 96000.0;
@@ -147,8 +145,8 @@ private:
     Params pending, p;
 
     // the knobs as the circuit has them now, smoothed toward the panel
-    float sGain = 0, sBass = 0, sTreb = 0, sHf = 0, sMaster = 0;
-    float aGain = -1, aBass = -1, aTreb = -1, aHf = -1, aMaster = -1;
+    float sGain = 0, sBass = 0, sTreb = 0, sBoost = 0;
+    float aGain = -1, aBass = -1, aTreb = -1, aBoost = -1;
     int aFac = -1;
     int sinceApply = 0;
 

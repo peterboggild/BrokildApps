@@ -6,19 +6,19 @@
 #endif
 
 //==============================================================================
-/*  The whole parameter surface, in one table: the amp's six controls, then
-    the three things a plugin needs that the amp never had. New rows go at the
+/*  The whole parameter surface, in one table: the 1972 front panel's five
+    controls (no master volume: this amp has none), then the three things a
+    plugin needs that the amp never had. New rows go at the
     END - processBlock reads in table order, so an inserted row would silently
     rewire everything after it. */
 const PSpec MM_SPECS[] =
 {
-    { "gain",    "GAIN",    0.55f,       0, nullptr },
-    { "bite",    "BITE",    0.25f,       0, nullptr },     // the HF drive network
-    { "bass",    "BASS",    0.50f,       0, nullptr },
-    { "treble",  "TREBLE",  0.55f,       0, nullptr },
-    { "voice",   "VOICE",   2.0f,        mm::NUM_FAC, "1|2|3|4|5|6" },   // the six-way capacitor switch
-    { "master",  "MASTER",  0.35f,       0, nullptr },
-    { "output",  "OUTPUT",  2.0f / 3.0f, 0, nullptr },     // -24 .. +12 dB, 0 dB here
+    { "gain",    "GAIN",    0.40f,       0, nullptr },
+    { "bass",    "BASS",    0.60f,       0, nullptr },
+    { "treble",  "TREBLE",  0.60f,       0, nullptr },
+    { "voice",   "VOICE",   0.0f,        mm::NUM_FAC, "1|2|3|4|5|6" },   // FAC, the six-way capacitor switch
+    { "boost",   "BOOST",   0.0f,        0, nullptr },     // the driver's resonant cathode network
+    { "output",  "OUTPUT",  0.5f,        0, nullptr },     // -24 .. +12 dB, -6 dB here: no master on the amp
     { "cab",     "CAB",     1.0f,        2, nullptr },     // the loaded impulse response, in or out
     { "quality", "QUALITY", 0.0f,        2, "NORMAL|HIGH" }
 };
@@ -83,7 +83,7 @@ bool Marmalade120AudioProcessor::isBusesLayoutSupported (const BusesLayout& l) c
 
 void Marmalade120AudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    current.quality = (int) paramPtr[8]->load();
+    current.quality = (int) paramPtr[(size_t) (MM_NUM_PARAMS - 1)]->load();   // QUALITY is the last row
     engine.setParams (current);
     engine.prepare (sampleRate, samplesPerBlock);
     preparedRate = sampleRate;
@@ -108,11 +108,10 @@ void Marmalade120AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // in the table's own order
     int k = 0;
     current.gain    = paramPtr[(size_t) k++]->load();
-    current.hfDrive = paramPtr[(size_t) k++]->load();
     current.bass    = paramPtr[(size_t) k++]->load();
     current.treble  = paramPtr[(size_t) k++]->load();
     current.fac     = (int) paramPtr[(size_t) k++]->load();
-    current.master  = paramPtr[(size_t) k++]->load();
+    current.boost   = paramPtr[(size_t) k++]->load();
     current.output  = paramPtr[(size_t) k++]->load();
     cabOn           = paramPtr[(size_t) k++]->load() > 0.5f;
     current.quality = (int) paramPtr[(size_t) k++]->load();
