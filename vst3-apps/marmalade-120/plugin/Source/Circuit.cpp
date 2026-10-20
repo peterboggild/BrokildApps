@@ -22,6 +22,22 @@ namespace
         return m;
     }
 
+    /*  ECC81 / 12AT7, INTERIM: the Dempwolf form fitted to Koren's published
+        12AT7 model (itself fitted to the RCA sheet), test/ecc81fit - 9% rms
+        at 1 mA and up over Va 50 - 350 V, Vg -6 .. 0 V. No ECC81 sheet could
+        be reached from the build machine; a fit to one replaces this. Grid
+        current is the ECC83's (the same cathode and grid construction, an
+        estimate); capacitances are the usual published ECC81 figures. */
+    DeviceModel triodeECC81 (const char* name)
+    {
+        DeviceModel m { DeviceModel::TRIODE, name,
+            "INTERIM: Dempwolf form fitted to Koren's 12AT7 (test/ecc81fit); grid current as the ECC83, estimated" };
+        m.G = 2.36875347e-3; m.C = 1.94729313; m.mu = 50.11700776; m.gamma = 1.54602303;
+        m.Gg = 6.177e-4; m.Cg = 9.901; m.xi = 1.314; m.Ig0 = 8.025e-8;
+        m.cgk = 2.5e-12; m.cgp = 1.5e-12; m.cpk = 0.45e-12;
+        return m;
+    }
+
     /*  Fitted to the Mullard EL34 data sheet (January 1960 / 1964): the
         anode and screen currents against Vg1 at Va = Vg2 = 250/325/400 V
         (page C1), the anode family at Vg2 = 250 V (C2), the triode-connected
@@ -58,15 +74,28 @@ namespace
         return m;
     }
 
+    /*  1N5408, the 3 A part of the same family: the widely published SPICE
+        parameters (IS 63n, N 1.7). Two in series as above. */
+    DeviceModel diode1N5408 (const char* name, double series)
+    {
+        DeviceModel m { DeviceModel::DIODE, name, "the widely published 1N5408 SPICE model (IS 63n, N 1.7)" };
+        m.Is = 63.0e-9; m.n = 1.70 * series;
+        return m;
+    }
+
     const DeviceModel MODELS[] =
     {
         triodeDZ ("12ax7", 1.0),
         triodeDZ ("ecc83", 1.0),
+        triodeECC81 ("12at7"),
+        triodeECC81 ("ecc81"),
         pentodeEL34 ("el34", 1.0),
         pentodeEL34 ("el34x2", 2.0),
         diode1N400x ("1n4007", 1.0),
         diode1N400x ("1n4005", 1.0),
         diode1N400x ("1n4005x2", 2.0),
+        diode1N5408 ("1n5408", 1.0),
+        diode1N5408 ("1n5408x2", 2.0),
     };
 
     inline double softplus (double a)

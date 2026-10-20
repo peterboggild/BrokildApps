@@ -69,30 +69,6 @@ const double FAC_CAPS[NUM_FAC] =
 };
 
 //==============================================================================
-void HalfBand::design()
-{
-    constexpr int C = TAPS / 2;
-    std::array<double, TAPS> g {};
-    double sum = 0.0;
-    for (int n = 0; n < TAPS; ++n)
-    {
-        const double t = n - C;
-        const double s = (t == 0.0) ? 0.5 : std::sin (PI * 0.5 * t) / (PI * t);
-        const double w = 0.42 - 0.5 * std::cos (2.0 * PI * n / (TAPS - 1))
-                              + 0.08 * std::cos (4.0 * PI * n / (TAPS - 1));
-        g[(size_t) n] = s * w;
-        sum += g[(size_t) n];
-    }
-    for (auto& v : g) v /= sum;                 // unity at DC
-
-    for (int k = 0; k < PH; ++k)
-    {
-        ge[(size_t) k] = (2 * k     < TAPS) ? (float) g[(size_t) (2 * k)]     : 0.0f;
-        go[(size_t) k] = (2 * k + 1 < TAPS) ? (float) g[(size_t) (2 * k + 1)] : 0.0f;
-    }
-}
-
-//==============================================================================
 Engine::Engine()
 {
     if (! amp.parse (OR120_AMP)) { err = "netlist: " + amp.error(); return; }
