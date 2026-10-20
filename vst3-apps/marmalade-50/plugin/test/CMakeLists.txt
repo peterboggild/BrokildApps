@@ -24,7 +24,11 @@ target_include_directories(mm50render PRIVATE ${MM_INCLUDES})
 add_executable(mm50test bench.cpp ../Source/Engine50.cpp ${MM_SOLVER_DIR}/Circuit.cpp ${MM_SOLVER_DIR}/Partition.cpp)
 target_include_directories(mm50test PRIVATE ${MM_INCLUDES})
 
-foreach(t mm50bias mm50split mm50render mm50test)
+# The whole netlist against ngspice (on the PATH); exits 1 if they disagree.
+add_executable(mm50spice spicecheck.cpp ${MM_SOLVER_DIR}/Circuit.cpp)
+target_include_directories(mm50spice PRIVATE ${MM_INCLUDES})
+
+foreach(t mm50bias mm50split mm50render mm50test mm50spice)
     if(MSVC)
         target_compile_options(${t} PRIVATE /O2 /fp:precise /W4)
     else()

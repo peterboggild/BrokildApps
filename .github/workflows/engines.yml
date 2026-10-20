@@ -26,12 +26,14 @@ on:
     paths:
       - "vst3-apps/legion/plugin/**"
       - "vst3-apps/marmalade-120/plugin/**"
+      - "vst3-apps/marmalade-50/plugin/**"
       - "dsw/**"
       - ".github/workflows/engines.yml"
   pull_request:
     paths:
       - "vst3-apps/legion/plugin/**"
       - "vst3-apps/marmalade-120/plugin/**"
+      - "vst3-apps/marmalade-50/plugin/**"
       - "dsw/**"
       - ".github/workflows/engines.yml"
   workflow_dispatch:
@@ -96,3 +98,25 @@ jobs:
       - name: The solver against ngspice
         working-directory: vst3-apps/marmalade-120/plugin
         run: TMPDIR="$RUNNER_TEMP" ./test/build/spicecheck
+
+  marmalade50:
+    name: Marmalade 50 bench + split + solver vs ngspice
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install ngspice
+        run: sudo apt-get update && sudo apt-get install -y ngspice
+      - name: Build the bench
+        working-directory: vst3-apps/marmalade-50/plugin
+        run: |
+          cmake -S test -B test/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build test/build --parallel
+      - name: Run the bench
+        working-directory: vst3-apps/marmalade-50/plugin
+        run: ./test/build/mm50test
+      - name: The split solve against the whole circuit
+        working-directory: vst3-apps/marmalade-50/plugin
+        run: ./test/build/mm50split
+      - name: The whole circuit against ngspice
+        working-directory: vst3-apps/marmalade-50/plugin
+        run: TMPDIR="$RUNNER_TEMP" ./test/build/mm50spice
