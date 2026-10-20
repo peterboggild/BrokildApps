@@ -19,7 +19,11 @@ target_include_directories(spicecheck PRIVATE ../Source)
 add_executable(mmrender render.cpp ${MM_SOURCES})
 target_include_directories(mmrender PRIVATE ../Source)
 
-foreach(t mmtest spicecheck mmrender)
+# Sets the bias pot for a target idle current, as a technician would.
+add_executable(mmbias biasset.cpp ../Source/Circuit.cpp)
+target_include_directories(mmbias PRIVATE ../Source)
+
+foreach(t mmtest spicecheck mmrender mmbias)
     if(MSVC)
         target_compile_options(${t} PRIVATE /O2 /fp:precise /W4)
     else()

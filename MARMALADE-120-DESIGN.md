@@ -29,7 +29,8 @@ plugin/Source/Or120Netlist.h     the amplifier, mains to speaker, as one netlist
 plugin/Source/Engine.{h,cpp}     oversampling, knobs -> parts, the mains, the warm-up
 plugin/test/bench.cpp            mmtest: 25 checks on rendered audio, plus [KNOWN] discrepancies
 plugin/test/spicecheck.cpp       the whole amp against ngspice, from the same warmed-up state
-plugin/test/render.cpp           mmrender: a WAV through the engine, to listen
+plugin/test/render.cpp           mmrender: a WAV through the engine (and an IR), to listen
+plugin/test/biasset.cpp          mmbias: sets the bias pot for a target idle current
 plugin/test/host/                mmhost: loads the built VST3 the way a DAW does
 ```
 
@@ -88,7 +89,7 @@ Two estimates were set *by measurement*, as a technician would set them, not
 by ear:
 
 - **The set-bias divider**: set for 35 mA a valve at idle (70% of 25 W), by
-  bisection on the warmed-up amp (`test/biasset` in the history; −48.7 V).
+  bisection on the warmed-up amp (`test/biasset.cpp`, built as `mmbias`; −48.7 V).
 - **The two rail droppers (36k, 18k)**: set to land the documented ~370 V and
   ~330 V rails (364.9 V, 326.7 V).
 
