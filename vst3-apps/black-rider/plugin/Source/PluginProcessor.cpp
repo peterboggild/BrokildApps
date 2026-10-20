@@ -91,6 +91,7 @@ BlackRiderAudioProcessor::BlackRiderAudioProcessor()
     for (const auto& id : ids) raw.push_back (apvts.getRawParameterValue (id));
     lastSent.assign ((size_t) ids.size(), -999.0f);
     for (auto& h : midiHeld) h = false;
+    defaultCcMap();
 
     /*  A fresh instance opens on seed 0 so the LED and the sound agree from the
         first frame; a project load calls setStateInformation and replaces it. */
@@ -196,6 +197,18 @@ void BlackRiderAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
             if (cc == 1)       { engine.setWheel (v / 127.0f); hostWheel = v / 127.0f; }
             else if (cc == 64) engine.setSustain (v >= 64);
             else if (cc == 120 || cc == 123) { engine.allNotesOff(); for (auto& h : midiHeld) h = false; }
+            else if (! ccReserved (cc))
+            {
+                // MIDI learn: the next free CC binds to the armed knob...
+                const int armed = learnIdx.exchange (-1);
+                if (armed >= 0 && armed < ids.size()) bindCc (cc, armed);
+
+                // ...and a bound CC moves its parameter (0..127 -> full range)
+                const int pi = ccMap[(size_t) cc].load();
+                if (pi >= 0 && pi < ids.size())
+                    if (auto* prm = apvts.getParameter (ids[pi]))
+                        prm->setValueNotifyingHost (v / 127.0f);
+            }
         }
         else if (m.isChannelPressure()) { engine.setAftertouch (m.getChannelPressureValue() / 127.0f); hostAt = m.getChannelPressureValue() / 127.0f; }
         else if (m.isAftertouch())      { engine.setAftertouch (m.getAfterTouchValue() / 127.0f); hostAt = m.getAfterTouchValue() / 127.0f; }
@@ -219,6 +232,7 @@ void BlackRiderAudioProcessor::getStateInformation (juce::MemoryBlock& dest)
     {
         // the world rack rides as one attribute; old builds simply ignore it
         xml->setAttribute ("bwfx", juce::String (bwfxRack.toJson()));
+        xml->setAttribute ("ccmap", ccMapToString());
         copyXmlToBinary (*xml, dest);
     }
 }
@@ -232,6 +246,10 @@ void BlackRiderAudioProcessor::setStateInformation (const void* data, int size)
             bwfxRack.fromJson (xml->getStringAttribute ("bwfx").toStdString());
             emitBwfx();
             xml->removeAttribute ("bwfx");
+            // older projects have no map -> the shipped defaults
+            if (xml->hasAttribute ("ccmap")) ccMapFromString (xml->getStringAttribute ("ccmap"));
+            else defaultCcMap();
+            xml->removeAttribute ("ccmap");
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
             uiHasState = false;
             lastSent.assign ((size_t) ids.size(), -999.0f);
@@ -252,6 +270,68 @@ void BlackRiderAudioProcessor::setParamById (const juce::String& id, float value
         const int idx = ids.indexOf (id);
         if (idx >= 0) lastSent[(size_t) idx] = fromUi ? value : -999.0f;
     }
+}
+
+//==============================================================================
+void BlackRiderAudioProcessor::bindCc (int cc, int paramIdx)
+{
+    if (cc < 0 || cc > 127) return;
+    unbindParam (paramIdx);                  // one CC per knob
+    ccMap[(size_t) cc] = paramIdx;
+    ccMapDirty = true;
+}
+
+void BlackRiderAudioProcessor::unbindParam (int paramIdx)
+{
+    for (auto& m : ccMap) if (m.load() == paramIdx) m = -1;
+    ccMapDirty = true;
+}
+
+void BlackRiderAudioProcessor::defaultCcMap()
+{
+    for (auto& m : ccMap) m = -1;
+    const int cut = ids.indexOf ("lpf"), res = ids.indexOf ("lpeak");
+    if (cut >= 0) ccMap[74] = cut;           // the General MIDI "brightness" knob
+    if (res >= 0) ccMap[71] = res;           // ...and "resonance"
+    ccMapDirty = true;
+}
+
+juce::String BlackRiderAudioProcessor::ccMapToString() const
+{
+    juce::StringArray parts;
+    for (int cc = 0; cc < 128; ++cc)
+    {
+        const int pi = ccMap[(size_t) cc].load();
+        if (pi >= 0 && pi < ids.size()) parts.add (juce::String (cc) + "=" + ids[pi]);
+    }
+    return parts.joinIntoString (",");
+}
+
+void BlackRiderAudioProcessor::ccMapFromString (const juce::String& s)
+{
+    for (auto& m : ccMap) m = -1;
+    for (const auto& part : juce::StringArray::fromTokens (s, ",", ""))
+    {
+        const int cc = part.upToFirstOccurrenceOf ("=", false, false).getIntValue();
+        const int pi = ids.indexOf (part.fromFirstOccurrenceOf ("=", false, false));
+        if (cc >= 0 && cc < 128 && pi >= 0 && ! ccReserved (cc)) ccMap[(size_t) cc] = pi;
+    }
+    ccMapDirty = true;
+}
+
+void BlackRiderAudioProcessor::emitCcMap()
+{
+    if (! emitToUi) return;
+    auto* m = new juce::DynamicObject();
+    for (int cc = 0; cc < 128; ++cc)
+    {
+        const int pi = ccMap[(size_t) cc].load();
+        if (pi >= 0 && pi < ids.size()) m->setProperty (ids[pi], cc);
+    }
+    auto* o = new juce::DynamicObject();
+    o->setProperty ("map", juce::var (m));
+    o->setProperty ("learn", learnIdx.load() >= 0 ? ids[learnIdx.load()] : juce::String());
+    emitToUi ("ccmap", juce::var (o));
 }
 
 void BlackRiderAudioProcessor::notice (const juce::String& msg)
@@ -380,6 +460,25 @@ void BlackRiderAudioProcessor::handleOne (const juce::var& m)
     {
         setParamById (o->getProperty ("id").toString(), (float) (double) o->getProperty ("v"), true);
     }
+    else if (k == "g")      // knob grab/release -> host touch, so automation writes and Configure work
+    {
+        if (auto* prm = apvts.getParameter (o->getProperty ("id").toString()))
+        {
+            if ((bool) o->getProperty ("on")) prm->beginChangeGesture(); else prm->endChangeGesture();
+        }
+    }
+    else if (k == "learn")
+    {
+        const int idx = ids.indexOf (o->getProperty ("id").toString());
+        learnIdx = (idx >= 0 && (bool) o->getProperty ("on")) ? idx : -1;
+        ccMapDirty = true;
+    }
+    else if (k == "unlearn")
+    {
+        const int idx = ids.indexOf (o->getProperty ("id").toString());
+        if (idx >= 0) unbindParam (idx);
+        learnIdx = -1;
+    }
     else if (k == "ack")    { uiHasState = true; }
     else if (k == "ready")  { uiReady = true; }
     else if (k == "hello")  { uiHasState = false; }
@@ -473,6 +572,7 @@ void BlackRiderAudioProcessor::emitInitialState()
    #endif
     emitToUi ("initialState", juce::var (obj));
     emitBwfx();
+    ccMapDirty = true;
 }
 
 void BlackRiderAudioProcessor::emitBwfx()
@@ -513,6 +613,9 @@ void BlackRiderAudioProcessor::timerService()
             emitToUi ("hostParam", juce::var (obj));
         }
     }
+
+    // ---- MIDI learn state (bindings changed, or learn armed/finished) -----
+    if (ccMapDirty.exchange (false)) emitCcMap();
 
     // ---- meters -----------------------------------------------------------
     {

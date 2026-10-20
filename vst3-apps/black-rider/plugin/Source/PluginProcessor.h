@@ -80,6 +80,20 @@ private:
     void setParamById (const juce::String& id, float value, bool fromUi = false);
     int lastSeedSent = -1;
 
+    // ---- MIDI CC -> parameter map (host-independent MIDI learn) ----------
+    //  ccMap[cc] = parameter index or -1. Written on the message thread and in
+    //  processBlock (learn); both are plain atomics. learnIdx >= 0 arms learn.
+    std::array<std::atomic<int>, 128> ccMap;
+    std::atomic<int>  learnIdx { -1 };
+    std::atomic<bool> ccMapDirty { true };
+    static bool ccReserved (int cc) { return cc == 0 || cc == 1 || cc == 6 || cc == 32 || cc == 38 || cc == 64 || (cc >= 98 && cc <= 101) || cc >= 120; }
+    void bindCc (int cc, int paramIdx);
+    void unbindParam (int paramIdx);
+    void defaultCcMap();
+    juce::String ccMapToString() const;
+    void ccMapFromString (const juce::String&);
+    void emitCcMap();
+
     // ---- the page's performance events, audio-thread bound ---------------
     struct UiEvent { int kind = 0; int note = 0; float v = 0.0f; };   // kind: 1 note on, 2 note off, 3 bend, 4 wheel, 5 all off
     static constexpr int EVQ = 256;

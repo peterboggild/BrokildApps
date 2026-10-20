@@ -100,6 +100,9 @@ html,body{height:100%;overflow:hidden;background:#050505;
 .knob svg{display:block;overflow:visible}
 .knob text{font-size:7.8px;letter-spacing:1.6px;fill:#b9b7ae;text-anchor:middle;font-family:"Arial Narrow",Arial,sans-serif;font-weight:700}
 .knob:hover text{fill:#fff}
+.knob.learning{outline:2px solid #ff9f1c;outline-radius:50%;animation:mlp 1s infinite}
+.knob[data-cc]:not([data-cc=""])::after{content:attr(data-cc);position:absolute;right:-2px;top:-4px;font:700 7px sans-serif;color:#ff9f1c}
+@keyframes mlp{50%{outline-color:transparent}}
 .sw{position:absolute;z-index:14;cursor:pointer;display:flex;gap:3px}
 .sw .opt{height:22px;padding:0 7px;border:1px solid #000;border-radius:2px;background:linear-gradient(180deg,#232326,#0f0f11);
   font:700 8.5px/20px "Arial Narrow",Arial,sans-serif;letter-spacing:1.6px;color:#8f8d85;text-align:center;white-space:nowrap;
@@ -392,6 +395,25 @@ const KNOBS = [];
 const watchers = {};
 function onParam(id,fn){ (watchers[id]=watchers[id]||[]).push(fn); fn(V[id]); }
 function refresh(id){ const w=watchers[id]; if(w) w.forEach(f=>f(V[id])); }
+/* MIDI learn: right-click a knob -> LEARN arms it, the next CC binds. */
+const CCMAP = {}; let LEARNING = "";
+NB.on("ccmap", d=>{ for(const k in CCMAP) delete CCMAP[k]; Object.assign(CCMAP, d.map||{}); LEARNING = d.learn||"";
+  KNOBS.forEach(k=>{ k.classList.toggle("learning", k._id===LEARNING);
+    k.dataset.cc = CCMAP[k._id]!==undefined ? "CC "+CCMAP[k._id] : ""; });
+  if(LEARNING) say("MIDI LEARN   move a knob on your controller"); });
+function midiLearnMenu(id,label,e){
+  const old=document.getElementById("mlmenu"); if(old) old.remove();
+  const m=el("div","",document.body); m.id="mlmenu";
+  m.style.cssText="position:fixed;z-index:99999;background:#1b1b1e;border:1px solid #555;border-radius:4px;padding:3px;font:700 10px sans-serif;letter-spacing:1px;color:#e9e7df;left:"+e.clientX+"px;top:"+e.clientY+"px";
+  const item=(t,f)=>{ const b=el("div","",m); b.textContent=t; b.style.cssText="padding:5px 10px;cursor:pointer";
+    b.onpointerenter=()=>b.style.background="#333"; b.onpointerleave=()=>b.style.background="";
+    b.onclick=()=>{ m.remove(); f(); }; };
+  const cc=CCMAP[id];
+  item(LEARNING===id ? "CANCEL LEARN" : "MIDI LEARN"+(cc!==undefined?"  (now CC "+cc+")":""), ()=>NB.send({k:"learn",id,on:LEARNING!==id}));
+  if(cc!==undefined) item("CLEAR MIDI CC "+cc, ()=>{ NB.send({k:"unlearn",id}); say(label+"   MIDI cleared"); });
+  const close=()=>{ m.remove(); document.removeEventListener("pointerdown",close,true); };
+  setTimeout(()=>document.addEventListener("pointerdown",ev=>{ if(!m.contains(ev.target)) close(); },true),0);
+}
 function setParam(id,v,push){
   const hi = HI[id]!==undefined ? HI[id] : 1;
   v = clamp(v,0,hi);
@@ -484,11 +506,12 @@ function makeKnob(parent,id,x,y,size,label,opts){
   onParam(id,paint);
 
   let dragging=false, py=0, start=0;
-  box.addEventListener("pointerdown",e=>{ dragging=true; py=e.clientY; start=V[id];
+  box.addEventListener("contextmenu",e=>{ e.preventDefault(); e.stopPropagation(); midiLearnMenu(id,label,e); });
+  box.addEventListener("pointerdown",e=>{ if(e.button!==0) return; dragging=true; py=e.clientY; start=V[id]; NB.send({k:"g",id,on:true});
     try{ box.setPointerCapture(e.pointerId); }catch(x){} e.preventDefault(); say(label+"   "+fmtVal(id,V[id])); });
   box.addEventListener("pointermove",e=>{ if(!dragging) return; const hi = HI[id]!==undefined?HI[id]:1;
     setParam(id, start + (py-e.clientY)*(e.shiftKey?0.0012:0.006)*hi); say(label+"   "+fmtVal(id,V[id])); });
-  const stop=e=>{ if(!dragging) return; dragging=false; try{ box.releasePointerCapture(e.pointerId); }catch(x){} };
+  const stop=e=>{ if(!dragging) return; dragging=false; NB.send({k:"g",id,on:false}); try{ box.releasePointerCapture(e.pointerId); }catch(x){} };
   box.addEventListener("pointerup",stop); box.addEventListener("pointercancel",stop);
   box.addEventListener("dblclick",()=>{ setParam(id,DEF[id]); say(label+"   reset"); });
   box.addEventListener("wheel",e=>{ e.preventDefault(); const hi = HI[id]!==undefined?HI[id]:1;
