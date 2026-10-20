@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include "Engine.h"
 #include "bwfx.h"
+#include "../../../shared/MidiLearn.h"
 
 /*  The processor owns the instrument; the page is a view onto it.
 
@@ -122,6 +123,15 @@ private:
     std::unique_ptr<juce::PropertiesFile> settings;
     juce::File presetFolder;
     std::unique_ptr<juce::FileChooser> activeChooser;
+
+    // ---- MIDI CC -> parameter map; right-click a knob to learn (shared/MidiLearn.h)
+    MidiLearn midiLearn;
+    void defaultCc()
+    {
+        midiLearn.clear();
+        midiLearn.setDefault (74, "cutoff", ids);
+        midiLearn.setDefault (71, "reso", ids);
+    }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BrainScanAudioProcessor)
 };

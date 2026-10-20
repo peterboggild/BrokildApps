@@ -69,6 +69,7 @@ BrainScanAudioProcessor::BrainScanAudioProcessor()
     bwfxRack.setWorldModConsumed (true);
     //  a fresh instance opens on the first factory patch
     applyFactory (0);
+    defaultCc();
     startTimerHz (30);
 }
 
@@ -114,6 +115,13 @@ void BrainScanAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
     for (const auto meta : midi)
     {
         const auto m = meta.getMessage();
+        if (m.isController())
+        {
+            const int pi = midiLearn.onCc (m.getControllerNumber(), ids.size());
+            if (pi >= 0)
+                if (auto* prm = apvts.getParameter (ids[pi]))
+                    prm->setValueNotifyingHost (m.getControllerValue() / 127.0f);
+        }
         if (m.isNoteOn())            engine.noteOn (m.getNoteNumber(), m.getFloatVelocity());
         else if (m.isNoteOff())      engine.noteOff (m.getNoteNumber());
         else if (m.isAllNotesOff() || m.isAllSoundOff()) engine.allNotesOff();
@@ -168,6 +176,11 @@ void BrainScanAudioProcessor::setParamById (const juce::String& id, float value,
 
 void BrainScanAudioProcessor::emitParamEcho()
 {
+    if (emitToUi)    // MIDI learn bindings -> the page (re-sent until it has state)
+    {
+        if (! uiHasState.load()) midiLearn.dirty = true;
+        else { auto u = midiLearn.takeUpdate (ids); if (u.isObject()) emitToUi ("ccmap", u); }
+    }
     if (! emitToUi || ! uiHasState.load()) return;
     if (lastSent.size() != (size_t) ids.size())
     {
@@ -300,6 +313,12 @@ void BrainScanAudioProcessor::handleUiMessage (const juce::var& payload)
             broken. So: dialling a specimen while an import is in use clears
             the import and takes the specimen. */
         if (id == "specimen" && engine.importedActive()) clearImport ("import cleared - the dial has the room again");
+    }
+    else if (midiLearn.handleMessage (k, *o, ids)) {}
+    else if (k == "g")      // knob grab/release -> host touch, so automation and Configure work
+    {
+        if (auto* prm = apvts.getParameter (o->getProperty ("id").toString()))
+        { if ((bool) o->getProperty ("on")) prm->beginChangeGesture(); else prm->endChangeGesture(); }
     }
     else if (k == "note")
     {
@@ -662,6 +681,7 @@ void BrainScanAudioProcessor::getStateInformation (juce::MemoryBlock& dest)
 {
     auto state = apvts.copyState();
     state.setProperty ("bwfx", juce::String (bwfxRack.toJson().c_str()), nullptr);
+    state.setProperty ("ccmap", midiLearn.toString (ids), nullptr);
     state.setProperty ("lines", juce::JSON::toString (linesToVar(), true), nullptr);
     /*  the imported cube travels with the project, so a patch is still the
         whole machine when the folder it came from has been tidied away */
@@ -687,6 +707,7 @@ void BrainScanAudioProcessor::setStateInformation (const void* data, int size)
         if (! tree.isValid()) return;
         const juce::String built = tree.getProperty ("build", juce::String()).toString();
         const juce::String rack = tree.getProperty ("bwfx", juce::String()).toString();
+        if (tree.hasProperty ("ccmap")) midiLearn.fromString (tree.getProperty ("ccmap").toString(), ids); else defaultCc();
         const juce::String ln   = tree.getProperty ("lines", juce::String()).toString();
         const juce::String cube = tree.getProperty ("importCube", juce::String()).toString();
         patchName = tree.getProperty ("patchName", patchName).toString();
@@ -695,7 +716,7 @@ void BrainScanAudioProcessor::setStateInformation (const void* data, int size)
         importNote = tree.getProperty ("importNote", juce::String()).toString();
         importAxis = juce::jlimit (0, 2, (int) tree.getProperty ("importAxis", 0));
         importStretch = (bool) tree.getProperty ("importStretch", false);
-        for (const char* k : { "build", "bwfx", "lines", "patchName", "patchUser",
+        for (const char* k : { "build", "bwfx", "ccmap", "lines", "patchName", "patchUser",
                                "importCube", "importPath", "importNote", "importAxis", "importStretch" })
             tree.removeProperty (k, nullptr);
         apvts.replaceState (tree);

@@ -4,6 +4,7 @@
 #include "Engine.h"
 #include "Presets.h"
 #include "bwfx.h"
+#include "../../../shared/MidiLearn.h"
 
 /*  The processor owns every value; the panel is a view (PROTOCOL.md). The
     APVTS layout, the engine copy in processBlock, the presets, the scenes,
@@ -145,6 +146,15 @@ private:
     std::array<std::atomic<bool>, 128> midiHeld;
     juce::AudioBuffer<float> auxCopy;
     bool fractureSeen = false;
+
+    // ---- MIDI CC -> parameter map; right-click a knob to learn (shared/MidiLearn.h)
+    MidiLearn midiLearn;
+    void defaultCc()
+    {
+        midiLearn.clear();
+        midiLearn.setDefault (74, "m_cut", ids);
+        midiLearn.setDefault (71, "m_res", ids);
+    }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TTYAudioProcessor)
 };

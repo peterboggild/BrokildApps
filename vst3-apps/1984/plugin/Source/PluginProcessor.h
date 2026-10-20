@@ -4,6 +4,7 @@
 #include "Engine.h"
 #include "Patches.h"
 #include "bwfx.h"
+#include "../../../shared/MidiLearn.h"
 
 /*  The processor owns every value; the panel is a view (PROTOCOL.md). The
     APVTS layout, the engine copy in processBlock, the patches, the
@@ -104,6 +105,15 @@ private:
     std::atomic<bool> wantPanic { false };
     std::atomic<float> hostBend { 0.0f }, hostWheel { 0.0f }, hostAt { 0.0f };
     std::array<std::atomic<bool>, 128> midiHeld;
+
+    // ---- MIDI CC -> parameter map; right-click a knob to learn (shared/MidiLearn.h)
+    MidiLearn midiLearn;
+    void defaultCc()
+    {
+        midiLearn.clear();
+        midiLearn.setDefault (74, "brill", ids);
+        midiLearn.setDefault (71, "reso", ids);
+    }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Nineteen84AudioProcessor)
 };
