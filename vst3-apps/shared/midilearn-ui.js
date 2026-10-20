@@ -48,6 +48,12 @@ var MLUI = (function () {
       });
       addEventListener("pointerup", release, true); addEventListener("pointercancel", release, true);
     },
+    /* for pages whose controls are delegated: register the element, then show the menu */
+    open: function (el, id, label, e) {
+      if (!B) return;
+      ITEMS = ITEMS.filter(function (i) { return i.el.isConnected && i.el !== el; }); ITEMS.push({ el: el, id: id });
+      paint(); menu(id, label, e);
+    },
     attach: function (el, id, label) {
       if (!el || !B) return;
       ITEMS.push({ el: el, id: id });
