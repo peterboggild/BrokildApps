@@ -12,7 +12,8 @@
         y    = Do x + Eo u + Fo i         (whatever the caller asked to read)
 
     so the per-sample cost is a few small matrix products and a Newton solve
-    only as wide as the tube ports - 2 per triode, 3 per pentode - rather than
+    only as wide as the device ports - 2 per triode, 3 per pentode, 1 per
+    diode - rather than
     the whole circuit. Changing a resistor or capacitor (a pot, a switch)
     rebuilds the matrices; the states carry over.
 
@@ -28,6 +29,7 @@
         T<name> a b c d ratio         ideal transformer, V(a,b) = ratio*V(c,d)
         X<name> p g k MODEL           triode  (12AX7)
         X<name> p g2 g1 k MODEL       pentode (EL34, EL34X2 = two in parallel)
+        D<name> a k MODEL             diode (1N4007)
         .out name node                read a node voltage
         .out name I(Vname)            read a source's current (+ to - inside)
     Node "0" or "gnd" is ground. A tube brings its own interelectrode
@@ -43,36 +45,62 @@ namespace mm
 {
 
 //==============================================================================
-/*  Koren's tube equations (triode and pentode), plus a soft diode for grid
-    current - the part that makes an overdriven stage block and bias-shift
-    rather than merely clip. Parameters are Koren's published fits; grid
-    current follows Dempwolf's form. */
-struct TubeModel
+/*  The nonlinear devices, each with its published model and its source.
+
+    TRIODE   Dempwolf & Zoelzer, "A physically-motivated triode model for
+             circuit simulations" (DAFx 2011): cathode current
+                 Ik = G (softplus(C (Vpk/mu + Vgk)) / C)^gamma
+             grid current
+                 Ig = Gg (softplus(Cg Vgk) / Cg)^xi + Ig0
+             and the plate gets what the grid does not: Ip = Ik - Ig. Fitted
+             by its authors to MEASURED curves of a real ECC83, grid current
+             included - which is what an overdriven guitar stage lives on.
+    PENTODE  Koren, "Improved vacuum-tube models for SPICE simulations"
+             (Glass Audio 8(5), 1996), his published EL34 fit, plus a
+             Dempwolf-form grid current.
+    DIODE    Shockley, I = Is (exp(V / n Vt) - 1), with the published
+             1N4007 SPICE parameters; its series resistance is an R in the
+             netlist, where it can be seen.
+
+    Capacitances are per tube, from the datasheets. */
+struct DeviceModel
 {
+    enum Kind { TRIODE, PENTODE, DIODE } kind;
     const char* name;
-    bool   pentode;
-    double mu, ex, kg1, kg2, kp, kvb;   // Koren
-    double gg, cg, xi;                  // grid current: gg*(softplus(cg*v)/cg)^xi
-    double mult;                        // tubes in parallel
-    double cgk, cgp, cpk;               // interelectrode capacitance, per tube
+    const char* source;                 // where the numbers come from
+
+    // TRIODE: G, C, mu, gamma (cathode) and Gg, Cg, xi, Ig0 (grid)
+    double G = 0, C = 0, mu = 0, gamma = 0;
+    // PENTODE: Koren
+    double ex = 0, kg1 = 0, kg2 = 0, kp = 0, kvb = 0;
+    // grid current, both tube kinds
+    double Gg = 0, Cg = 0, xi = 0, Ig0 = 0;
+    // DIODE
+    double Is = 0, n = 0;
+
+    double mult = 1.0;                  // devices in parallel
+    double cgk = 0, cgp = 0, cpk = 0;   // per device; pentode: g1-k, g1-p, p-k
+
+    int ports() const { return kind == PENTODE ? 3 : kind == TRIODE ? 2 : 1; }
 };
 
-const TubeModel* findTubeModel (const std::string& name);
+const DeviceModel* findDeviceModel (const std::string& name);
 
-/*  Port currents and their Jacobian for one tube.
-    Triode ports:  0 = grid-cathode, 1 = plate-cathode.
-    Pentode ports: 0 = g1-cathode,   1 = g2-cathode, 2 = plate-cathode. */
-void tubeCurrents (const TubeModel& m, const double* v, double* i, double* J);
+/*  Port currents and their Jacobian (row = current, column = voltage).
+    Triode:  0 = grid-cathode, 1 = plate-cathode.
+    Pentode: 0 = g1-cathode, 1 = g2-cathode, 2 = plate-cathode.
+    Diode:   0 = anode-cathode. */
+void deviceCurrents (const DeviceModel& m, const double* v, double* i, double* J);
 
 //==============================================================================
 struct Element
 {
-    enum Kind { R, C, L, V, T, X } kind = R;
+    enum Kind { R, C, L, V, T, X } kind = R;      // X: any nonlinear device, D lines included
     std::string name;
     int n[4] { -1, -1, -1, -1 };
     double value = 0.0;          // R, C, L: the part; V: the DC value; T: ratio
     int input = -1;              // V only: which caller input drives it, or -1
-    const TubeModel* model = nullptr;
+    const DeviceModel* model = nullptr;
 };
 
 struct OutputSpec
@@ -105,6 +133,12 @@ public:
         stays within a fraction of a dB of the trapezoidal rule through the
         audio band. Set before prepare(). */
     void setTheta (double t) { theta = t; dirty = true; }
+
+    /*  Rebuild for another sample rate, carrying every capacitor's voltage and
+        current and every inductor's current across: the circuit does not
+        notice. For a cheap warm-up at a low rate. */
+    void changeRate (double newRate);
+    double sampleRate() const { return fs; }
     double getTheta() const { return theta; }
 
     /*  Solve the DC operating point (capacitors open, inductors shorted, the
@@ -148,6 +182,8 @@ public:
     // the most recent full node solution, for the bench's operating point
     double nodeVoltage (int node);
     double portVoltage (int p) const { return vPort[(size_t) p]; }
+    // a capacitor's or inductor's current (a to b) at the last solved sample
+    double reactiveCurrent (int element);
 
 private:
     int addNode (const std::string& name);
@@ -166,7 +202,8 @@ private:
     // index maps
     std::vector<int> branchOf;           // element -> extra MNA row, or -1
     std::vector<int> reactive;           // element indices of C and L
-    std::vector<int> tubes;              // element indices of X
+    std::vector<int> tubes;              // element indices of X (every nonlinear device)
+    std::vector<int> portA, portB;       // each port's two nodes
     std::vector<int> portOfTube;         // first port of each tube
     std::vector<int> portCount;          // and how many it has
     std::vector<int> sources;            // element indices of V, in u order
@@ -181,7 +218,7 @@ private:
     std::vector<double> Gx, cx, dx;      // per state: conductance, and the two signs
     std::vector<double> Wx, Wu, Wi, cst, acc;   // the fused, column-major form process() runs
     int R = 0;
-    std::vector<double> x, xNew, u, vPort, iPort, pBuf, Jd, Jac, rhs;
+    std::vector<double> x, xPrev, xNew, u, vPort, iPort, pBuf, Jd, Jac, rhs;
     std::vector<double> step, vTrial, iTrial, JdTrial, rTrial, vBest;
     std::vector<int> piv;
 

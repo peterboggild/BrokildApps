@@ -1,15 +1,21 @@
 /*  MARMALADE 120 - the solver against ngspice
 
-    The same netlist the plugin runs is exported to ngspice, with the same
-    tube equations written as behavioural sources, and both are driven with
-    the same sine. ngspice is run far finer than the plugin (a 0.65 us step
-    cap against the plugin's 5.2 us sample), so what this measures is the
-    plugin's own error: its discretisation and its Newton, nothing else.
+    The whole amplifier, the same netlist the plugin runs, exported to ngspice
+    with every device written as the same equations (behavioural sources for
+    the valves, ngspice's own diode with the same parameters).
 
-    Needs `ngspice` on the PATH. Prints, and exits 1 if any case is off by more
-    than its tolerance.
+    A cold amp takes seconds of circuit time to come up - the rails' slowest
+    filter is about a second - which ngspice cannot afford at the step it
+    needs. So the solver warms the amp up exactly as the plugin does, and
+    then hands ngspice its state as initial conditions (every node voltage,
+    every inductor's current, the mains at the same phase). From that instant
+    both run the same 60 ms side by side, ngspice with its step capped at an
+    eighth of the solver's sample, and the waveforms are compared: so what
+    this measures is the solver's own error, discretisation and Newton,
+    nothing else.
 
-        cmake -S test -B test/build && cmake --build test/build && ./test/build/spicecheck
+    Needs `ngspice` on the PATH. Exits 1 if any case is off by more than its
+    tolerance.
 */
 #include "Circuit.h"
 #include "Or120Netlist.h"
@@ -17,9 +23,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <cstdio>
 #include <fstream>
-#include <functional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -28,174 +32,204 @@ using namespace mm;
 
 namespace
 {
+    constexpr double HT_PEAK = 375.0 * 1.41421356237, BIAS_PEAK = 50.0 * 1.41421356237, MAINS = 50.0;
+
     std::string spiceName (const std::string& s)
     {
         std::string o = s;
         for (auto& c : o) if (c == '.') c = '_';
         return o;
     }
+    std::string node (const Circuit& c, int n) { return n < 0 ? std::string ("0") : c.nodeNames()[(size_t) n]; }
+    std::string num (double v) { char b[64]; std::snprintf (b, sizeof b, "%.12g", v); return b; }
 
-    std::string node (const Circuit& c, int n)
+    // ln(1 + e^x), written so that it cannot overflow, as Circuit.cpp has it
+    std::string softplus (const std::string& x)
     {
-        return n < 0 ? std::string ("0") : c.nodeNames()[(size_t) n];
+        return "(max(" + x + ",0)+ln(1+exp(-abs(" + x + "))))";
     }
 
-    std::string num (double v)
-    {
-        char b[64];
-        std::snprintf (b, sizeof b, "%.10g", v);
-        return b;
-    }
-
-    /*  One tube as ngspice behavioural current sources: the equations in
-        Circuit.cpp's tubeCurrents(), term for term. */
-    void tubeToSpice (std::ostream& o, const Circuit& c, const Element& e)
+    /*  One device as ngspice sees it: the equations of deviceCurrents(),
+        term for term. */
+    void deviceToSpice (std::ostream& o, const Circuit& c, const Element& e)
     {
         const auto& m = *e.model;
-        const std::string n = spiceName (e.name);
-        const std::string k = num (m.mult);
-        if (! m.pentode)
+        const std::string n = spiceName (e.name), k = num (m.mult);
+        if (m.kind == DeviceModel::DIODE)
+        {
+            o << "D" << n << " " << node (c, e.n[0]) << " " << node (c, e.n[1]) << " d_" << m.name << "\n";
+            o << ".model d_" << m.name << " D(IS=" << num (m.Is) << " N=" << num (m.n) << ")\n";
+            return;
+        }
+        const auto grid = [&] (const std::string& G, const std::string& K)
+        {
+            const std::string vg = "V(" + G + "," + K + ")";
+            return k + "*(" + num (m.Gg) + "*pwr(" + softplus (num (m.Cg) + "*" + vg) + "/" + num (m.Cg) + ","
+                 + num (m.xi) + ")+" + num (m.Ig0) + ")";
+        };
+        if (m.kind == DeviceModel::TRIODE)
         {
             const std::string P = node (c, e.n[0]), G = node (c, e.n[1]), K = node (c, e.n[2]);
-            const std::string vp = "V(" + P + "," + K + ")", vg = "V(" + G + "," + K + ")";
-            const std::string E1 = "(max(" + vp + ",0)/" + num (m.kp) + "*ln(1+exp(" + num (m.kp) + "*(1/" + num (m.mu)
-                                 + "+" + vg + "/sqrt(" + num (m.kvb) + "+" + vp + "*" + vp + ")))))";
-            o << "B" << n << "p " << P << " " << K << " I=" << k << "*2/" << num (m.kg1)
-              << "*pwr(max(" << E1 << ",0)," << num (m.ex) << ")\n";
-            o << "B" << n << "g " << G << " " << K << " I=" << k << "*" << num (m.gg) << "*pwr(ln(1+exp("
-              << num (m.cg) << "*" << vg << "))/" << num (m.cg) << "," << num (m.xi) << ")\n";
+            const std::string ik = k + "*" + num (m.G) + "*pwr(" + softplus (num (m.C) + "*(V(" + P + "," + K + ")/"
+                                 + num (m.mu) + "+V(" + G + "," + K + "))") + "/" + num (m.C) + "," + num (m.gamma) + ")";
+            o << "B" << n << "g " << G << " " << K << " I=" << grid (G, K) << "\n";
+            o << "B" << n << "p " << P << " " << K << " I=" << ik << "-(" << grid (G, K) << ")\n";
             return;
         }
         const std::string P = node (c, e.n[0]), S = node (c, e.n[1]), G = node (c, e.n[2]), K = node (c, e.n[3]);
-        const std::string vp = "V(" + P + "," + K + ")", vs = "max(V(" + S + "," + K + "),1)", vg = "V(" + G + "," + K + ")";
-        const std::string E1 = "(" + vs + "/" + num (m.kp) + "*ln(1+exp(" + num (m.kp) + "*(1/" + num (m.mu) + "+" + vg + "/" + vs + "))))";
-        o << "B" << n << "p " << P << " " << K << " I=" << k << "*2/" << num (m.kg1) << "*pwr(" << E1 << ","
-          << num (m.ex) << ")*atan(2*ln(1+exp(" << vp << "/2))/" << num (m.kvb) << ")\n";
+        const std::string vs = "max(V(" + S + "," + K + "),1)", vg = "V(" + G + "," + K + ")";
+        const std::string E1 = "(" + vs + "/" + num (m.kp) + "*" + softplus (num (m.kp) + "*(1/" + num (m.mu) + "+" + vg + "/" + vs + ")") + ")";
+        const std::string vpe = "(2*" + softplus ("V(" + P + "," + K + ")/2") + ")";
+        o << "B" << n << "p " << P << " " << K << " I=" << k << "*2/" << num (m.kg1) << "*pwr(" << E1 << "," << num (m.ex)
+          << ")*atan(" << vpe << "/" << num (m.kvb) << ")\n";
         o << "B" << n << "s " << S << " " << K << " I=" << k << "*pwr(" << E1 << "," << num (m.ex) << ")/" << num (m.kg2) << "\n";
-        o << "B" << n << "g " << G << " " << K << " I=" << k << "*" << num (m.gg) << "*pwr(ln(1+exp("
-          << num (m.cg) << "*" << vg << "))/" << num (m.cg) << "," << num (m.xi) << ")\n";
+        o << "B" << n << "g " << G << " " << K << " I=" << grid (G, K) << "\n";
     }
+
+    using Parts = std::vector<std::pair<std::string, double>>;
 
     struct Case
     {
         const char* title;
-        const char* net;
-        std::vector<std::pair<std::string, double>> parts;   // element values to set first
-        double inAmp, inHz, rail;                              // input sine; preamp rail (IN 1)
-        const char* out;
-        double tol;                                            // relative RMS error allowed
-        double fs = 192000.0;
-        double theta = 0.5;          // the solver's integrator; 0.5 = ngspice's trapezoidal
+        Parts parts;                 // pot halves etc., set before the warm-up
+        double inAmp, inHz;          // the guitar's sine
+        double fs;
+        double tol;                  // relative RMS error allowed
     };
 
-    std::string exportSpice (const Circuit& c, const Case& k, double tstep, double tstop, const std::string& dataFile,
-                            const char* method)
-    {
-        std::ostringstream o;
-        o << "* exported by spicecheck: " << k.title << "\n";
-        for (const auto& e : c.elements())
-        {
-            const std::string n = spiceName (e.name);
-            const std::string a = node (c, e.n[0]), b = node (c, e.n[1]);
-            switch (e.kind)
-            {
-                case Element::R: o << (n[0] == 'r' ? "" : "R") << n << " " << a << " " << b << " " << num (e.value) << "\n"; break;
-                case Element::C: o << (n[0] == 'c' ? "" : "C") << n << " " << a << " " << b << " " << num (e.value) << "\n"; break;
-                case Element::L: o << n << " " << a << " " << b << " " << num (e.value) << "\n"; break;
-                case Element::V:
-                    if (e.input == 0)      o << n << " " << a << " " << b << " DC 0 SIN(0 " << num (k.inAmp) << " " << num (k.inHz) << ")\n";
-                    else if (e.input == 1) o << n << " " << a << " " << b << " DC " << num (k.rail) << "\n";
-                    else                   o << n << " " << a << " " << b << " DC " << num (e.value) << "\n";
-                    break;
-                case Element::T:
-                {
-                    const std::string cc = node (c, e.n[2]), d = node (c, e.n[3]), mid = n + "_m";
-                    o << "E" << n << " " << a << " " << mid << " " << cc << " " << d << " " << num (e.value) << "\n";
-                    o << "V" << n << "s " << mid << " " << b << " DC 0\n";
-                    o << "F" << n << " " << d << " " << cc << " V" << n << "s " << num (e.value) << "\n";
-                    break;
-                }
-                case Element::X: tubeToSpice (o, c, e); break;
-            }
-        }
-        // the same tiny leak to ground the solver puts on every node
-        for (size_t i = 0; i < c.nodeNames().size(); ++i)
-            o << "Rgmin_" << i << " " << c.nodeNames()[i] << " 0 1e12\n";
+    double theta = 0.55;
 
-        o << ".options method=" << method << " reltol=1e-4 abstol=1e-13 vntol=1e-8 interp\n";
-        o << ".tran " << num (tstep) << " " << num (tstop) << " 0 " << num (tstep / 8.0) << "\n";
-        const auto& spec = c.outputs()[(size_t) c.outputIndex (k.out)];
-        o << ".control\nset wr_singlescale\nrun\nwrdata " << dataFile << " v(" << node (c, spec.node) << ")\nquit\n.endc\n.end\n";
-        return o.str();
-    }
-
-    bool runCase (const Case& k, const std::string& dir)
+    bool runCase (const Case& k, const std::string& dir, int caseNo)
     {
         Circuit c;
-        if (! c.parse (k.net)) { std::printf ("parse: %s\n", c.error().c_str()); return false; }
+        if (! c.parse (OR120_AMP)) { std::printf ("parse: %s\n", c.error().c_str()); return false; }
+        c.setTheta (theta);
         for (const auto& pv : k.parts)
         {
             const int ei = c.elementIndex (pv.first);
             if (ei < 0) { std::printf ("no part %s\n", pv.first.c_str()); return false; }
             c.setValue (ei, pv.second);
         }
-        const double fs = k.fs, tstop = 0.06;
-        c.setTheta (k.theta);
-        c.prepare (fs);
 
-        static int caseNo = 0; ++caseNo;
-        const std::string tag = "/case" + std::to_string (caseNo);
-        const std::string cir = dir + tag + ".cir", dat = dir + tag + ".dat";
-        /*  Trapezoidal first, the solver's own method. ngspice's trapezoidal
-            can refuse a fully saturated output stage ("timestep too small"),
-            and then Gear is the fallback - a slightly different integrator,
-            so a looser match is expected there, and it says which it used. */
-        std::vector<double> ref;
-        const char* used = nullptr;
-        for (const char* method : { "trap", "gear" })
-        {
-            { std::ofstream f (cir); f << exportSpice (c, k, 1.0 / fs, tstop, dat, method); }
-            std::remove (dat.c_str());
-            const std::string cmd = "ngspice -b " + cir + " > " + dir + tag + ".log 2>&1";
-            if (std::system (cmd.c_str()) != 0) continue;
-            ref.clear();
-            std::ifstream f (dat);
-            double t, v;
-            while (f >> t >> v) ref.push_back (v);
-            if (ref.size() > (size_t) (0.9 * tstop * fs)) { used = method; break; }
-        }
-        if (used == nullptr) { std::printf ("ngspice failed both ways, see %s%s.log\n", dir.c_str(), tag.c_str()); return false; }
-
-        double in[2] = { 0.0, k.rail };
+        // the warm-up the plugin does
+        double in[3] = { 0.0, HT_PEAK, -BIAS_PEAK };
+        c.prepare (16000.0);
         if (! c.solveDC (in)) { std::printf ("DC: %s\n", c.error().c_str()); return false; }
-        c.resetStats();
-        const int oi = c.outputIndex (k.out);
         std::vector<double> out ((size_t) c.numOutputs());
-        std::vector<double> sim;
-        const int n = (int) std::lround (tstop * fs);
-        for (int i = 0; i <= n; ++i)
+        double phase = 0.0;
+        auto step = [&] (double rate, double gtr)
         {
-            in[0] = k.inAmp * std::sin (2.0 * M_PI * k.inHz * i / fs);
+            const double m = std::sin (2.0 * M_PI * phase);
+            phase += MAINS / rate; if (phase >= 1.0) phase -= 1.0;
+            in[0] = gtr; in[1] = HT_PEAK * m; in[2] = BIAS_PEAK * m;
             c.process (in, out.data());
-            sim.push_back (out[(size_t) oi]);
+        };
+        for (int i = 0; i < (int) (5.0 * 16000.0); ++i) step (16000.0, 0.0);
+        c.changeRate (k.fs);
+        for (int i = 0; i < (int) (0.1 * k.fs); ++i) step (k.fs, 0.0);
+
+        /*  The hand-off. ngspice's t = 0 is the solver's last sample; its
+            t = 1/fs is the solver's next, which will use mains phase `phase`. */
+        const double tstep = 1.0 / k.fs, tstop = 0.06;
+        const double phDeg = 360.0 * (phase - MAINS / k.fs);
+        const std::string tag = dir + "/spice" + std::to_string (caseNo);
+        {
+            std::ofstream o (tag + ".cir");
+            o << "* spicecheck: " << k.title << "\n";
+            for (size_t ei = 0; ei < c.elements().size(); ++ei)
+            {
+                const auto& e = c.elements()[ei];
+                const std::string n = spiceName (e.name), a = node (c, e.n[0]), b = node (c, e.n[1]);
+                switch (e.kind)
+                {
+                    case Element::R: o << (n[0] == 'r' ? "" : "R") << n << " " << a << " " << b << " " << num (e.value) << "\n"; break;
+                    case Element::C: o << (n[0] == 'c' ? "" : "C") << n << " " << a << " " << b << " " << num (e.value) << "\n"; break;
+                    case Element::L: o << n << " " << a << " " << b << " " << num (e.value)
+                                       << " ic=" << num (c.reactiveCurrent ((int) ei)) << "\n"; break;
+                    case Element::V:
+                        // the guitar starts at the next sample; its phase puts that at t = 1/fs
+                        if (e.input == 0)      o << n << " " << a << " " << b << " DC 0 SIN(0 " << num (k.inAmp) << " " << num (k.inHz) << " 0 0 " << num (-360.0 * k.inHz / k.fs) << ")\n";
+                        else if (e.input >= 1) o << n << " " << a << " " << b << " DC 0 SIN(0 " << num (e.input == 1 ? HT_PEAK : BIAS_PEAK) << " " << num (MAINS) << " 0 0 " << num (phDeg) << ")\n";
+                        else                   o << n << " " << a << " " << b << " DC " << num (e.value) << "\n";
+                        break;
+                    case Element::T:
+                    {
+                        const std::string cc = node (c, e.n[2]), d = node (c, e.n[3]), mid = n + "_m";
+                        o << "E" << n << " " << a << " " << mid << " " << cc << " " << d << " " << num (e.value) << "\n";
+                        o << "V" << n << "s " << mid << " " << b << " DC 0\n";
+                        o << "F" << n << " " << d << " " << cc << " V" << n << "s " << num (e.value) << "\n";
+                        o << ".ic V(" << mid << ")=" << num (e.n[1] >= 0 ? c.nodeVoltage (e.n[1]) : 0.0) << "\n";
+                        break;
+                    }
+                    case Element::X: deviceToSpice (o, c, e); break;
+                }
+            }
+            for (size_t i = 0; i < c.nodeNames().size(); ++i)
+            {
+                o << "Rgmin_" << i << " " << c.nodeNames()[i] << " 0 1e12\n";
+                o << ".ic V(" << c.nodeNames()[i] << ")=" << num (c.nodeVoltage ((int) i)) << "\n";
+            }
+            o << ".options method=trap reltol=1e-5 abstol=1e-12 vntol=1e-7 interp\n";
+            o << ".tran " << num (tstep) << " " << num (tstop) << " 0 " << num (tstep / 8.0) << " uic\n";
+            o << ".control\nset wr_singlescale\nrun\nwrdata " << tag << ".dat v(spk) v(b1)\nquit\n.endc\n.end\n";
+        }
+        std::remove ((tag + ".dat").c_str());
+        if (std::system (("ngspice -b " + tag + ".cir > " + tag + ".log 2>&1").c_str()) != 0)
+        { std::printf ("ngspice failed, see %s.log\n", tag.c_str()); return false; }
+
+        /*  Each row placed by its own time stamp: with uic ngspice's first row
+            is t = 1/fs, not 0, and indexing rows would compare everything one
+            sample apart (which reads as a percent-level error that halves
+            when the rate doubles - the tell). */
+        const int n = (int) std::lround (tstop * k.fs);
+        std::vector<double> refSpk ((size_t) n + 1, NAN), refB1 ((size_t) n + 1, NAN);
+        {
+            std::ifstream f (tag + ".dat");
+            double t, a, b;
+            while (f >> t >> a >> b)
+            {
+                const long idx = std::lround (t * k.fs);
+                if (idx >= 0 && idx <= n) { refSpk[(size_t) idx] = a; refB1[(size_t) idx] = b; }
+            }
         }
 
-        // compare over the last 40 ms, AC-coupled both, so it is the waveform
-        const size_t len = std::min (ref.size(), sim.size());
-        const size_t from = (size_t) (0.02 * fs);
-        double mr = 0, ms = 0;
-        for (size_t i = from; i < len; ++i) { mr += ref[i]; ms += sim[i]; }
-        mr /= (double) (len - from); ms /= (double) (len - from);
-        double e2 = 0, r2 = 0, peak = 0;
-        for (size_t i = from; i < len; ++i)
+        // the solver, from the same instant
+        const int iS = c.outputIndex ("spk"), iB = c.outputIndex ("b1");
+        std::vector<double> simSpk { out[(size_t) iS] }, simB1 { out[(size_t) iB] };
+        c.resetStats();
+        for (int i = 1; i <= n; ++i)
         {
-            const double a = ref[i] - mr, b = sim[i] - ms;
-            e2 += (a - b) * (a - b); r2 += a * a; peak = std::max (peak, std::abs (a));
+            step (k.fs, k.inAmp * std::sin (2.0 * M_PI * k.inHz * (i - 1) / k.fs));
+            simSpk.push_back (out[(size_t) iS]);
+            simB1.push_back (out[(size_t) iB]);
         }
-        const double rel = std::sqrt (e2 / std::max (r2, 1e-30));
-        const bool ok = rel < k.tol && len > from + 1000;
-        std::printf ("%-52s %-4s pk %8.3f V  dc %8.3f/%8.3f  err %7.4f%%  newton avg %.2f max %d fails %d  %s\n",
-                     k.title, used, peak, mr, ms, 100.0 * rel, c.meanIterations(), c.maxIterations(), c.failures(), ok ? "ok" : "FAIL");
+
+        // relative RMS error, both AC (the speaker has no DC; the ripple is what matters on B+)
+        auto compare = [&] (const std::vector<double>& ref, const std::vector<double>& sim, double& peak)
+        {
+            const size_t len = std::min (ref.size(), sim.size());
+            double mr = 0, ms = 0; size_t cnt = 0;
+            for (size_t i = 0; i < len; ++i) if (std::isfinite (ref[i])) { mr += ref[i]; ms += sim[i]; ++cnt; }
+            mr /= (double) std::max<size_t> (cnt, 1); ms /= (double) std::max<size_t> (cnt, 1);
+            double e2 = 0, r2 = 0; peak = 0;
+            for (size_t i = 0; i < len; ++i)
+            {
+                if (! std::isfinite (ref[i])) continue;
+                const double a = ref[i] - mr, b = sim[i] - ms;
+                e2 += (a - b) * (a - b); r2 += a * a; peak = std::max (peak, std::abs (a));
+            }
+            return std::sqrt (e2 / std::max (r2, 1e-30));
+        };
+        double pkS, pkB;
+        const double eS = compare (refSpk, simSpk, pkS);
+        const double eB = compare (refB1, simB1, pkB);
+        size_t got = 0;
+        for (double v : refSpk) if (std::isfinite (v)) ++got;
+        const bool enough = got > (size_t) (0.9 * tstop * k.fs);
+        const bool ok = enough && eS < k.tol && eB < k.tol;
+        std::printf ("%-44s %3.0fk  spk pk %8.4f V err %7.3f%%  B+ ripple pk %6.2f V err %6.3f%%  newton avg %.2f max %d fail %d  %s\n",
+                     k.title, k.fs / 1000.0, pkS, 100.0 * eS, pkB, 100.0 * eB,
+                     c.meanIterations(), c.maxIterations(), c.failures(), ok ? "ok" : "FAIL");
         return ok;
     }
 }
@@ -205,27 +239,33 @@ int main()
     const char* d = std::getenv ("TMPDIR");
     const std::string dir = d ? d : "/tmp";
 
+    auto gain = [] (double top) { return Parts { { "rgaina", top }, { "rgainb", 1e6 - top } }; };
+    auto join = [] (Parts a, const Parts& b) { a.insert (a.end(), b.begin(), b.end()); return a; };
+    const Parts masterFull = { { "rmasaa", 1e3 }, { "rmasab", 219e3 }, { "rmasba", 1e3 }, { "rmasbb", 219e3 } };
+    const Parts darkThin = { { "rbassa", 999e3 }, { "rbassb", 1e3 }, { "rtreba", 1e3 }, { "rtrebb", 999e3 }, { "cfac", 1e-9 } };
+
+    /*  Tolerances say what each case can honestly show. At idle the speaker
+        carries a fraction of a millivolt of hum, below ngspice's own
+        precision on 500 V nodes (reltol 1e-5), so only the ripple is held
+        tight there. At 96 kHz (NORMAL) a bright, hard-clipped tone has
+        harmonics high enough for the solver's discretisation to reach a few
+        percent; the same case at 192 kHz (HIGH) shows it converging. */
     const std::vector<Case> cases =
     {
-        { "preamp, gain 3 o'clock, 100 mV",       OR120_PREAMP, { { "rgaina", 150e3 }, { "rgainb", 850e3 } },  0.1, 440.0, 330.0, "drive", 0.005 },
-        { "preamp, gain full, 1 V (hard clip)",   OR120_PREAMP, { { "rgaina", 1e3 },   { "rgainb", 999e3 } },  1.0, 440.0, 330.0, "drive", 0.01 },
-        { "preamp, bass 0 treble 10, FAC 1n",     OR120_PREAMP, { { "rbassa", 999e3 }, { "rbassb", 1e3 }, { "rtreba", 1e3 }, { "rtrebb", 999e3 }, { "cfac", 1e-9 } }, 0.3, 1000.0, 330.0, "drive", 0.01 },
-        { "power, master half, 2 V drive",        OR120_POWER,  {}, 2.0, 440.0, 0.0, "spk", 0.005 },
-        { "power, master full, 20 V (saturated)", OR120_POWER,  { { "rmasaa", 1e3 }, { "rmasab", 219e3 }, { "rmasba", 1e3 }, { "rmasbb", 219e3 } }, 20.0, 220.0, 0.0, "spk", 0.02 },
-
-        // and at 96 kHz, the rate the plugin runs at behind a 44.1/48 kHz host
-        { "96k: preamp, gain full, 1 V",          OR120_PREAMP, { { "rgaina", 1e3 },   { "rgainb", 999e3 } },  1.0, 440.0, 330.0, "drive", 0.02, 96000.0 },
-        { "96k: power, master full, 20 V",        OR120_POWER,  { { "rmasaa", 1e3 }, { "rmasab", 219e3 }, { "rmasba", 1e3 }, { "rmasbb", 219e3 } }, 20.0, 220.0, 0.0, "spk", 0.03, 96000.0 },
-
-        /*  The plugin's own integrator (theta 0.55, see Circuit::setTheta)
-            against ngspice's trapezoidal: what the damping costs. */
-        { "96k, theta .55: preamp, gain full, 1 V", OR120_PREAMP, { { "rgaina", 1e3 }, { "rgainb", 999e3 } },  1.0, 440.0, 330.0, "drive", 0.03, 96000.0, 0.55 },
-        { "96k, theta .55: power, master half, 2 V", OR120_POWER, {}, 2.0, 440.0, 0.0, "spk", 0.03, 96000.0, 0.55 },
-        { "96k, theta .55: power, full, 20 V @1k",  OR120_POWER,  { { "rmasaa", 1e3 }, { "rmasab", 219e3 }, { "rmasba", 1e3 }, { "rmasbb", 219e3 } }, 20.0, 1000.0, 0.0, "spk", 0.10, 96000.0, 0.55 },
+        { "idle: the hum and the ripple alone",       {},                              0.0, 440.0,  96000.0, 0.05 },
+        { "clean: gain low, 100 mV",                  gain (900e3),                    0.1, 440.0,  96000.0, 0.01 },
+        { "crunch: gain 3 o'clock, 300 mV",           gain (150e3),                    0.3, 220.0,  96000.0, 0.02 },
+        { "tone stack at its extremes, 300 mV",       join (gain (500e3), darkThin),   0.3, 1000.0, 96000.0, 0.05 },
+        { "tone stack at its extremes, at 192k",      join (gain (500e3), darkThin),   0.3, 1000.0, 192000.0, 0.02 },
+        { "flat out: gain and master full, 500 mV",   join (gain (1e3), masterFull),   0.5, 220.0,  96000.0, 0.05 },
+        { "flat out, at 192k",                        join (gain (1e3), masterFull),   0.5, 220.0, 192000.0, 0.02 },
     };
 
-    int bad = 0;
-    for (const auto& k : cases) if (! runCase (k, dir)) ++bad;
+    // THETA=0.5 in the environment checks the bare trapezoidal rule instead
+    if (const char* t = std::getenv ("THETA")) theta = std::atof (t);
+    std::printf ("solver theta %.2f (the plugin runs 0.55)\n", theta);
+    int bad = 0, no = 0;
+    for (const auto& k : cases) if (! runCase (k, dir, ++no)) ++bad;
     std::printf ("%s\n", bad == 0 ? "spicecheck: all cases agree with ngspice" : "spicecheck: FAILED");
     return bad == 0 ? 0 : 1;
 }

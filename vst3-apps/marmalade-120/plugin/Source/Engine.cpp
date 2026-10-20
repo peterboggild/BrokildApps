@@ -21,12 +21,15 @@ namespace
         under full scale before the OUTPUT trim. */
     constexpr double SPK_TO_FS = 1.0 / 80.0;
 
-    /*  The cone's acceleration (CAB on) brought to the same level as the
-        8 ohm tap at 1 kHz, so switching CAB changes the tone, not the volume.
-        Measured by the bench (cab-level check), not derived. */
-    constexpr double CONE_TO_FS = 1.0 / 80.0 * 7.03;
-
     constexpr int CHUNK = 32;            // host samples between knob updates
+
+    /*  The mains, into the power transformer's windings. 50 Hz: the amp is
+        British. The HT secondary is 375-0-375 V rms and the bias winding
+        50 V rms - estimates, chosen to land the rails the sources give; see
+        Or120Netlist.h. */
+    constexpr double MAINS_HZ  = 50.0;
+    constexpr double HT_PEAK   = 375.0 * 1.41421356237;
+    constexpr double BIAS_PEAK = 50.0 * 1.41421356237;
 
     // A real pot's ends are not quite 0 ohms, and a 0 would make the matrix singular.
     constexpr double POT_END = 100.0;
@@ -71,66 +74,26 @@ void HalfBand::design()
     }
 }
 
-void Biquad::setLP (double f, double sr, double q)
-{
-    const double w = 2.0 * PI * std::clamp (f, 10.0, sr * 0.49) / sr;
-    const double c = std::cos (w), s = std::sin (w), al = s / (2.0 * q);
-    const double a0 = 1.0 + al;
-    b0 = ((1.0 - c) * 0.5) / a0;
-    b1 = (1.0 - c) / a0;
-    b2 = b0;
-    a1 = (-2.0 * c) / a0;
-    a2 = (1.0 - al) / a0;
-}
-
-void Biquad::setHP (double f, double sr, double q)
-{
-    const double w = 2.0 * PI * std::clamp (f, 10.0, sr * 0.49) / sr;
-    const double c = std::cos (w), s = std::sin (w), al = s / (2.0 * q);
-    const double a0 = 1.0 + al;
-    b0 = ((1.0 + c) * 0.5) / a0;
-    b1 = (-(1.0 + c)) / a0;
-    b2 = b0;
-    a1 = (-2.0 * c) / a0;
-    a2 = (1.0 - al) / a0;
-}
-
-void Biquad::setPeak (double f, double sr, double q, double dB)
-{
-    const double A = std::pow (10.0, dB / 40.0);
-    const double w = 2.0 * PI * std::clamp (f, 10.0, sr * 0.49) / sr;
-    const double c = std::cos (w), s = std::sin (w), al = s / (2.0 * q);
-    const double a0 = 1.0 + al / A;
-    b0 = (1.0 + al * A) / a0;
-    b1 = (-2.0 * c) / a0;
-    b2 = (1.0 - al * A) / a0;
-    a1 = b1;
-    a2 = (1.0 - al / A) / a0;
-}
-
 //==============================================================================
 Engine::Engine()
 {
-    if (! pre.parse (OR120_PREAMP)) { err = "preamp: " + pre.error(); return; }
-    if (! pw.parse (OR120_POWER))   { err = "power: " + pw.error();   return; }
+    if (! amp.parse (OR120_AMP)) { err = "netlist: " + amp.error(); return; }
 
-    iGainA = pre.elementIndex ("rgaina");  iGainB = pre.elementIndex ("rgainb");
-    iBassA = pre.elementIndex ("rbassa");  iBassB = pre.elementIndex ("rbassb");
-    iTrebA = pre.elementIndex ("rtreba");  iTrebB = pre.elementIndex ("rtrebb");
-    iHf    = pre.elementIndex ("rhfpot");  iFac   = pre.elementIndex ("cfac");
-    iMasAA = pw.elementIndex ("rmasaa");   iMasAB = pw.elementIndex ("rmasab");
-    iMasBA = pw.elementIndex ("rmasba");   iMasBB = pw.elementIndex ("rmasbb");
-    oDrive = pre.outputIndex ("drive");
-    oSpk   = pw.outputIndex ("spk");       oCone = pw.outputIndex ("cone");
-    oB4    = pw.outputIndex ("b4");        oB1   = pw.outputIndex ("b1");
+    iGainA = amp.elementIndex ("rgaina");  iGainB = amp.elementIndex ("rgainb");
+    iBassA = amp.elementIndex ("rbassa");  iBassB = amp.elementIndex ("rbassb");
+    iTrebA = amp.elementIndex ("rtreba");  iTrebB = amp.elementIndex ("rtrebb");
+    iHf    = amp.elementIndex ("rhfpot");  iFac   = amp.elementIndex ("cfac");
+    iMasAA = amp.elementIndex ("rmasaa");   iMasAB = amp.elementIndex ("rmasab");
+    iMasBA = amp.elementIndex ("rmasba");   iMasBB = amp.elementIndex ("rmasbb");
+    oSpk   = amp.outputIndex ("spk");
+    oB4    = amp.outputIndex ("b4");       oB1   = amp.outputIndex ("b1");
 
     const int need[] = { iGainA, iGainB, iBassA, iBassB, iTrebA, iTrebB, iHf, iFac,
-                         iMasAA, iMasAB, iMasBA, iMasBB, oDrive, oSpk, oCone, oB4, oB1 };
+                         iMasAA, iMasAB, iMasBA, iMasBB, oSpk, oB4, oB1 };
     for (int v : need)
         if (v < 0) { err = "a part the engine drives is missing from the netlist"; return; }
 
-    preOut.assign ((size_t) pre.numOutputs(), 0.0);
-    pwOut.assign ((size_t) pw.numOutputs(), 0.0);
+    ampOut.assign ((size_t) amp.numOutputs(), 0.0);
     good = true;
 }
 
@@ -145,7 +108,7 @@ void Engine::prepare (double sampleRate, int block)
         solver was checked against ngspice at both, and below them the
         trapezoidal rule's warping and the aliasing of a clipped EL34 both
         start to be measurable in the audio band. */
-    const double target = (p.quality > 0) ? 176400.0 : 88200.0;
+    const double target = (p.quality >= 2) ? 352800.0 : (p.quality == 1) ? 176400.0 : 88200.0;
     os = 1;
     while (sr * os < target - 1.0 && os < 4) os *= 2;
     srOS = sr * os;
@@ -153,26 +116,13 @@ void Engine::prepare (double sampleRate, int block)
     // each half-band stage is a 63-tap FIR, 31 samples late at its own rate, twice
     latency = (os == 1) ? 0 : (os == 2) ? 31 : 47;
 
-    for (auto* h : { &up1, &up2, &dnA1, &dnA2, &dnB1, &dnB2 }) { h->design(); h->clear(); }
+    for (auto* h : { &up1, &up2, &dn1, &dn2 }) { h->design(); h->clear(); }
     osIn.assign ((size_t) os, 0.0f);
     osSpk.assign ((size_t) os, 0.0f);
-    osCone.assign ((size_t) os, 0.0f);
-
-    // the cabinet: see cabinet()
-    cab[0].setHP   (45.0,   sr, 0.70);
-    cab[1].setPeak (110.0,  sr, 1.00, 2.0);
-    cab[2].setPeak (2400.0, sr, 1.30, 5.0);
-    cab[3].setPeak (3700.0, sr, 3.50, -6.0);
-    cab[4].setLP   (5000.0, sr, 0.85);
-    cab[5].setLP   (6800.0, sr, 0.60);
-    for (auto& b : cab) b.clear();
-    cabMix = p.cab ? 1.0f : 0.0f;
     dcIn = dcOut = 0.0;
 
     if (! good) return;
 
-    pre.prepare (srOS);
-    pw.prepare (srOS);
 
     sGain = p.gain; sBass = p.bass; sTreb = p.treble; sHf = p.hfDrive; sMaster = p.master;
     outGain = std::pow (10.0f, outputDb (p.output) / 20.0f);
@@ -180,34 +130,42 @@ void Engine::prepare (double sampleRate, int block)
     if (! warmUp()) good = false;
 }
 
-/*  The amp switched on, off stage: both circuits put at their operating
-    points, the preamp's rail taken from the power section's, then a moment of
-    silence so the coupling capacitors have settled exactly where the
-    trapezoidal solver (rather than the DC solver) has them. */
+/*  The amp switched on, off stage, and left to warm up: the mains run into
+    the transformer and the rectifier until every rail has settled at its own
+    average under its own ripple - which takes seconds of circuit time, the
+    slowest filter being about a second. That much is run at 16 kHz, where it
+    costs a fraction of a second; the solver then changes rate with every
+    capacitor's charge and every inductor's current carried across, and a
+    last stretch at the real rate settles what only shows up there. */
 bool Engine::warmUp()
 {
-    const double zero[1] = { 0.0 };
-    if (! pw.solveDC (zero)) { err = "power DC: " + pw.error(); return false; }
-    double in[2] = { 0.0, 0.0 };
-    pw.process (zero, pwOut.data());
-    b4 = pwOut[(size_t) oB4];
-    b1Idle = pwOut[(size_t) oB1];
-    in[1] = b4;
-    if (! pre.solveDC (in)) { err = "preamp DC: " + pre.error(); return false; }
+    constexpr double WARM_RATE = 16000.0, WARM_SECONDS = 5.0;
+    amp.prepare (WARM_RATE);
+    double in[3] = { 0.0, HT_PEAK, -BIAS_PEAK };      // the peak of the cycle, as the DC guess
+    if (! amp.solveDC (in)) { err = "DC: " + amp.error(); return false; }
 
-    const int settle = (int) (0.05 * srOS);
-    for (int i = 0; i < settle; ++i)
+    mainsPhase = 0.0;
+    const auto run = [&] (double rate, double seconds)
     {
-        in[0] = 0.0; in[1] = b4;
-        pre.process (in, preOut.data());
-        const double d[1] = { preOut[(size_t) oDrive] };
-        pw.process (d, pwOut.data());
-        b4 = pwOut[(size_t) oB4];
-    }
-    b1Idle = pwOut[(size_t) oB1];
-    coneLast = pwOut[(size_t) oCone];
-    pre.resetStats();
-    pw.resetStats();
+        const double dph = MAINS_HZ / rate;
+        const int n = (int) (seconds * rate);
+        for (int i = 0; i < n; ++i)
+        {
+            const double m = std::sin (2.0 * PI * mainsPhase);
+            mainsPhase += dph; if (mainsPhase >= 1.0) mainsPhase -= 1.0;
+            in[0] = 0.0;
+            in[1] = p.mains ? HT_PEAK * m : HT_PEAK;
+            in[2] = p.mains ? BIAS_PEAK * m : -BIAS_PEAK;
+            amp.process (in, ampOut.data());
+        }
+    };
+    run (WARM_RATE, WARM_SECONDS);
+    amp.changeRate (srOS);
+    run (srOS, 0.1);
+
+    b1Idle = ampOut[(size_t) oB1];
+    b1Smooth = b1Idle;
+    amp.resetStats();
     return true;
 }
 
@@ -222,70 +180,46 @@ void Engine::applyPots (bool force)
     if (force || std::abs (sGain - aGain) > EPS)
     {
         const double b = audioTaper (sGain);
-        pre.setValue (iGainA, potHalf (1e6, 1.0 - b));
-        pre.setValue (iGainB, potHalf (1e6, b));
+        amp.setValue (iGainA, potHalf (1e6, 1.0 - b));
+        amp.setValue (iGainB, potHalf (1e6, b));
         aGain = sGain;
     }
     if (force || std::abs (sBass - aBass) > EPS)
     {
         // wiper toward the input end is boost
-        pre.setValue (iBassA, potHalf (1e6, 1.0 - sBass));
-        pre.setValue (iBassB, potHalf (1e6, sBass));
+        amp.setValue (iBassA, potHalf (1e6, 1.0 - sBass));
+        amp.setValue (iBassB, potHalf (1e6, sBass));
         aBass = sBass;
     }
     if (force || std::abs (sTreb - aTreb) > EPS)
     {
-        pre.setValue (iTrebA, potHalf (1e6, 1.0 - sTreb));
-        pre.setValue (iTrebB, potHalf (1e6, sTreb));
+        amp.setValue (iTrebA, potHalf (1e6, 1.0 - sTreb));
+        amp.setValue (iTrebB, potHalf (1e6, sTreb));
         aTreb = sTreb;
     }
     if (force || std::abs (sHf - aHf) > EPS)
     {
         // a linear 1M as a rheostat, wired so its travel is spread usefully
         const double r = 1.0 - (double) sHf;
-        pre.setValue (iHf, 1e3 + 1e6 * r * r);
+        amp.setValue (iHf, 1e3 + 1e6 * r * r);
         aHf = sHf;
     }
     const int fac = std::clamp (p.fac, 0, NUM_FAC - 1);
     if (force || fac != aFac)
     {
-        pre.setValue (iFac, FAC_CAPS[fac]);
+        amp.setValue (iFac, FAC_CAPS[fac]);
         aFac = fac;
     }
     if (force || std::abs (sMaster - aMaster) > EPS)
     {
         const double b = audioTaper (sMaster);
-        pw.setValue (iMasAA, potHalf (220e3, 1.0 - b));
-        pw.setValue (iMasAB, potHalf (220e3, b));
-        pw.setValue (iMasBA, potHalf (220e3, 1.0 - b));
-        pw.setValue (iMasBB, potHalf (220e3, b));
+        amp.setValue (iMasAA, potHalf (220e3, 1.0 - b));
+        amp.setValue (iMasAB, potHalf (220e3, b));
+        amp.setValue (iMasBA, potHalf (220e3, 1.0 - b));
+        amp.setValue (iMasBB, potHalf (220e3, b));
         aMaster = sMaster;
     }
-    pre.update();
-    pw.update();
-}
-
-//==============================================================================
-/*  The one stage that is not a circuit: from the cone to a close microphone.
-
-    The physics is still real up to the cone: the speaker's electrical
-    impedance (voice coil, its inductance, the mechanical resonance reflected
-    as a parallel RLC) is part of the power-section netlist, so the output
-    stage feels its load and the motional voltage across that RLC is the
-    cone's velocity. Its time derivative - the acceleration, which is what a
-    cone radiates - is taken at the oversampled rate and handed here. Below
-    resonance that already falls at 12 dB/octave, as a sealed 4x12 does.
-
-    What the cone's breakup, the box and a close dynamic mic add on top is
-    modelled as a fixed response: the usual 2 - 3 kHz presence of a 12" guitar
-    cone, a narrow cancellation notch above it, the box's thump, and the steep
-    fall past 5 kHz every guitar speaker has. This is the part tuned by ear,
-    and the part to switch off (CAB) when using impulse responses instead. */
-double Engine::cabinet (double coneSlope)
-{
-    double y = coneSlope;
-    for (auto& b : cab) y = b.process (y);
-    return y;
+    amp.update();
 }
 
 //==============================================================================
@@ -316,8 +250,6 @@ void Engine::process (float* left, float* right, int numSamples)
         sMaster += (p.master  - sMaster) * k;
         applyPots (false);
 
-        const float cabTarget = p.cab ? 1.0f : 0.0f;
-        const float kc = 1.0f - std::exp (-1.0f / (0.010f * (float) sr));
         const float ko = 1.0f - std::exp (-1.0f / (0.020f * (float) sr));
 
         bool blewUp = false;
@@ -343,42 +275,38 @@ void Engine::process (float* left, float* right, int numSamples)
 
             for (int j = 0; j < os; ++j)
             {
-                const double in[2] = { (double) osIn[(size_t) j] * IN_VOLTS, b4 };
-                pre.process (in, preOut.data());
-                const double d[1] = { preOut[(size_t) oDrive] };
-                pw.process (d, pwOut.data());
+                const double m = std::sin (2.0 * PI * mainsPhase);
+                mainsPhase += MAINS_HZ / srOS; if (mainsPhase >= 1.0) mainsPhase -= 1.0;
+                const double in[3] = { (double) osIn[(size_t) j] * IN_VOLTS,
+                                       p.mains ? HT_PEAK * m : HT_PEAK, p.mains ? BIAS_PEAK * m : -BIAS_PEAK };
+                amp.process (in, ampOut.data());
 
-                const double spk  = pwOut[(size_t) oSpk];
-                const double cone = pwOut[(size_t) oCone];
-                b4 = pwOut[(size_t) oB4];
+                const double spk  = ampOut[(size_t) oSpk];
+                b1Smooth += (ampOut[(size_t) oB1] - b1Smooth) * (1.0 / (0.05 * srOS));
 
                 if (! std::isfinite (spk) || std::abs (spk) > 2000.0) { blewUp = true; break; }
 
-                // acceleration, scaled so 1 kHz reads 1:1 with velocity
-                const double slope = (cone - coneLast) * srOS / (2.0 * PI * 1000.0);
-                coneLast = cone;
-
                 osSpk[(size_t) j]  = (float) spk;
-                osCone[(size_t) j] = (float) slope;
                 wattsAcc += (spk * spk / 8.0 - wattsAcc) * (1.0 / (0.15 * srOS));
             }
             if (blewUp) break;
 
-            double spk, slope;
-            if (os == 1)      { spk = osSpk[0]; slope = osCone[0]; }
-            else if (os == 2) { spk = dnA1.down (osSpk[0], osSpk[1]); slope = dnB1.down (osCone[0], osCone[1]); }
+            double spk;
+            if (os == 1)      spk = osSpk[0];
+            else if (os == 2) spk = dn1.down (osSpk[0], osSpk[1]);
             else
             {
-                const float s0 = dnA2.down (osSpk[0], osSpk[1]),   s1 = dnA2.down (osSpk[2], osSpk[3]);
-                const float c0 = dnB2.down (osCone[0], osCone[1]), c1 = dnB2.down (osCone[2], osCone[3]);
-                spk = dnA1.down (s0, s1);
-                slope = dnB1.down (c0, c1);
+                // two statements, not two arguments: the order of a call's
+                // arguments is unspecified, and these two calls share state -
+                // nested, GCC ran the second first and folded every 4x block
+                // back on itself (the bench caught it as HIGH aliasing worse
+                // than NORMAL)
+                const float s0 = dn2.down (osSpk[0], osSpk[1]);
+                const float s1 = dn2.down (osSpk[2], osSpk[3]);
+                spk = dn1.down (s0, s1);
             }
 
-            const double line = spk * SPK_TO_FS;
-            const double miked = cabinet (slope) * CONE_TO_FS;
-            cabMix += (cabTarget - cabMix) * kc;
-            double y = miked * cabMix + line * (1.0f - cabMix);
+            double y = spk * SPK_TO_FS;
 
             // the output transformer passes no DC, but a lopsided clip has some for a moment
             dcOut += (y - dcOut) * (2.0 * PI * 8.0 / sr);
@@ -397,8 +325,7 @@ void Engine::process (float* left, float* right, int numSamples)
             // switched off and on again rather than allowed to scream.
             ++resetCount;
             warmUp();
-            for (auto* h : { &up1, &up2, &dnA1, &dnA2, &dnB1, &dnB2 }) h->clear();
-            for (auto& b : cab) b.clear();
+            for (auto* h : { &up1, &up2, &dn1, &dn2 }) h->clear();
             for (int i = start; i < numSamples; ++i) { left[i] = 0.0f; if (right) right[i] = 0.0f; }
             break;
         }
@@ -413,7 +340,7 @@ void Engine::process (float* left, float* right, int numSamples)
     mix (mIn, peakIn, 0.6f, 0.08f);
     mix (mOut, peakOut, 0.6f, 0.08f);
     mWatts.store ((float) wattsAcc);
-    mix (mSag, (float) std::max (0.0, b1Idle - pwOut[(size_t) oB1]), 0.3f, 0.05f);
+    mix (mSag, (float) std::max (0.0, b1Idle - b1Smooth), 0.3f, 0.05f);
     mix (mGlow, (float) std::clamp (wattsAcc / 120.0, 0.0, 1.0), 0.3f, 0.03f);
 }
 

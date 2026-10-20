@@ -73,6 +73,7 @@ target_link_libraries(Marmalade120
     PRIVATE
         Marmalade120Assets
         juce::juce_audio_utils
+        juce::juce_dsp
         juce::juce_gui_extra
     PUBLIC
         juce::juce_recommended_config_flags

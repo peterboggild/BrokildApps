@@ -19,7 +19,7 @@ const PSpec MM_SPECS[] =
     { "voice",   "VOICE",   2.0f,        mm::NUM_FAC, "1|2|3|4|5|6" },   // the six-way capacitor switch
     { "master",  "MASTER",  0.35f,       0, nullptr },
     { "output",  "OUTPUT",  2.0f / 3.0f, 0, nullptr },     // -24 .. +12 dB, 0 dB here
-    { "cab",     "CAB",     1.0f,        2, nullptr },
+    { "cab",     "CAB",     1.0f,        2, nullptr },     // the loaded impulse response, in or out
     { "quality", "QUALITY", 0.0f,        2, "NORMAL|HIGH" }
 };
 const int MM_NUM_PARAMS = (int) (sizeof (MM_SPECS) / sizeof (MM_SPECS[0]));
@@ -90,6 +90,9 @@ void Marmalade120AudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     preparedBlock = samplesPerBlock;
     preparedQuality = current.quality;
     setLatencySamples (engine.latencySamples());
+
+    cabinet.prepare ({ sampleRate, (juce::uint32) samplesPerBlock, 1 });
+    cabinet.reset();
 }
 
 //==============================================================================
@@ -111,7 +114,7 @@ void Marmalade120AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     current.fac     = (int) paramPtr[(size_t) k++]->load();
     current.master  = paramPtr[(size_t) k++]->load();
     current.output  = paramPtr[(size_t) k++]->load();
-    current.cab     = paramPtr[(size_t) k++]->load() > 0.5f;
+    cabOn           = paramPtr[(size_t) k++]->load() > 0.5f;
     current.quality = (int) paramPtr[(size_t) k++]->load();
 
     engine.setParams (current);
@@ -128,7 +131,73 @@ void Marmalade120AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     float* L = buffer.getWritePointer (0);
     float* R = (numOut > 1) ? buffer.getWritePointer (1) : nullptr;
-    engine.process (L, R, numSamples);
+    // the amp is mono: a stereo input is summed into it, and both sides get the amp
+    if (R != nullptr)
+        for (int i = 0; i < numSamples; ++i) L[i] = 0.5f * (L[i] + R[i]);
+    engine.process (L, nullptr, numSamples);
+
+    if (cabOn && irLoaded.load())
+    {
+        juce::dsp::AudioBlock<float> block (&L, 1, (size_t) numSamples);
+        cabinet.process (juce::dsp::ProcessContextReplacing<float> (block));
+    }
+    if (R != nullptr) std::memcpy (R, L, sizeof (float) * (size_t) numSamples);
+}
+
+//==============================================================================
+/*  Read the file, scale it to unit energy (exactly as test/render.cpp does,
+    so a render and the plugin agree), and hand it to the convolution. JUCE
+    resamples it to the session rate. */
+bool Marmalade120AudioProcessor::loadImpulseResponse (const juce::File& f)
+{
+    juce::AudioFormatManager fm;
+    fm.registerBasicFormats();
+    std::unique_ptr<juce::AudioFormatReader> r (fm.createReaderFor (f));
+    if (r == nullptr || r->lengthInSamples <= 0) return false;
+
+    const int len = (int) std::min<juce::int64> (r->lengthInSamples, (juce::int64) (r->sampleRate * 10.0));
+    juce::AudioBuffer<float> ir ((int) r->numChannels, len);
+    r->read (&ir, 0, len, 0, true, true);
+
+    // a stereo IR is summed: the amp is mono, and so is one speaker and one mic
+    juce::AudioBuffer<float> mono (1, len);
+    mono.clear();
+    for (int c = 0; c < ir.getNumChannels(); ++c) mono.addFrom (0, 0, ir, c, 0, len, 1.0f / (float) ir.getNumChannels());
+
+    double e2 = 0.0;
+    for (int i = 0; i < len; ++i) e2 += (double) mono.getSample (0, i) * mono.getSample (0, i);
+    if (e2 <= 0.0) return false;
+    mono.applyGain ((float) (1.0 / std::sqrt (e2)));
+
+    cabinet.loadImpulseResponse (std::move (mono), r->sampleRate, juce::dsp::Convolution::Stereo::no,
+                                 juce::dsp::Convolution::Trim::no, juce::dsp::Convolution::Normalise::no);
+    irPath = f.getFullPathName();
+    irName = f.getFileNameWithoutExtension();
+    irLoaded = true;
+    uiHasState = false;              // the panel shows the name
+    return true;
+}
+
+void Marmalade120AudioProcessor::clearImpulseResponse()
+{
+    irLoaded = false;
+    irPath.clear();
+    irName.clear();
+    uiHasState = false;
+}
+
+void Marmalade120AudioProcessor::chooseImpulseResponse()
+{
+    chooser = std::make_unique<juce::FileChooser> ("Load a cabinet impulse response",
+                                                   juce::File (irPath).existsAsFile() ? juce::File (irPath).getParentDirectory()
+                                                                                      : juce::File(),
+                                                   "*.wav;*.aif;*.aiff;*.flac");
+    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                          [this] (const juce::FileChooser& fc)
+                          {
+                              const auto f = fc.getResult();
+                              if (f.existsAsFile()) loadImpulseResponse (f);
+                          });
 }
 
 //==============================================================================
@@ -136,14 +205,26 @@ void Marmalade120AudioProcessor::getStateInformation (juce::MemoryBlock& dest)
 {
     auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
-    if (xml != nullptr) copyXmlToBinary (*xml, dest);
+    if (xml == nullptr) return;
+    // the IR by path: the project remembers which cabinet, not a copy of it
+    xml->setAttribute ("irPath", irPath);
+    copyXmlToBinary (*xml, dest);
 }
 
 void Marmalade120AudioProcessor::setStateInformation (const void* data, int size)
 {
     std::unique_ptr<juce::XmlElement> xml (getXmlFromBinary (data, size));
     if (xml == nullptr || ! xml->hasTagName (apvts.state.getType())) return;
+    const juce::String path = xml->getStringAttribute ("irPath");
+    xml->removeAttribute ("irPath");
     apvts.replaceState (juce::ValueTree::fromXml (*xml));
+
+    const juce::File f (path);
+    if (path.isEmpty() || ! f.existsAsFile() || ! loadImpulseResponse (f))
+    {
+        clearImpulseResponse();
+        if (path.isNotEmpty()) irName = "MISSING: " + f.getFileName();
+    }
     uiHasState = false;          // make the panel take the new values
 }
 
@@ -162,6 +243,8 @@ void Marmalade120AudioProcessor::handleUiMessage (const juce::var& payload)
     }
 
     if (k == "stateack") { uiHasState = true; return; }
+    if (k == "loadir")   { chooseImpulseResponse(); return; }
+    if (k == "clearir")  { clearImpulseResponse(); return; }
 
     if (k == "touch")
     {
@@ -197,6 +280,8 @@ void Marmalade120AudioProcessor::emitInitialState()
     obj->setProperty ("build", MM_BUILD_ID);
     obj->setProperty ("ok", engine.ok());
     obj->setProperty ("error", juce::String (engine.error()));
+    obj->setProperty ("ir", irName);
+    obj->setProperty ("irLoaded", irLoaded.load());
 
     juce::Array<juce::var> params;
     for (int i = 0; i < MM_NUM_PARAMS; ++i)

@@ -118,6 +118,11 @@ window.addEventListener("error", e => {
   #readout{ position:absolute; left:6%; top:40%; color:var(--amber2); font-size:calc(var(--u)*1.0);
     letter-spacing:.2em; opacity:0; transition:opacity .4s; }
   #readout.show{ opacity:1; transition:none; }
+  #irbox{ position:absolute; left:76.5%; width:12%; top:84.5%; text-align:center; }
+  #irbtn{ display:inline-block; padding:calc(var(--u)*.25) calc(var(--u)*.7); border-radius:calc(var(--u)*.3);
+    background:#2b1a10; color:var(--cream); font-size:calc(var(--u)*.75); letter-spacing:.12em; cursor:pointer; }
+  #irname{ margin-top:calc(var(--u)*.25); color:#6a4a30; font-size:calc(var(--u)*.7); letter-spacing:.04em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #build{ position:absolute; right:5%; bottom:3%; color:#6b4e35; font-size:calc(var(--u)*.75); letter-spacing:.15em; }
   #fault{ position:absolute; left:6%; bottom:3%; color:#ff6040; font-size:calc(var(--u)*.85); letter-spacing:.1em; }
 </style>
@@ -142,6 +147,7 @@ window.addEventListener("error", e => {
     <div id="readout"></div>
 
     <div id="plate"></div>
+    <div id="irbox"><span id="irbtn">LOAD IR</span><div id="irname">no cabinet loaded</div></div>
     <div id="build"></div>
     <div id="fault"></div>
   </div>
@@ -159,7 +165,7 @@ const POTS = [
   { id:"output", label:"OUTPUT", x:66.0 }
 ];
 const TOGS = [
-  { id:"cab",     label:"CAB",     x:79.0, opts:["LINE","4x12"] },
+  { id:"cab",     label:"CAB",     x:79.0, opts:["8 OHM TAP","IR"] },
   { id:"quality", label:"QUALITY", x:88.5, opts:["NORMAL","HIGH"] }
 ];
 const SWEEP = 300;          /* degrees, 7 to 5 o'clock */
@@ -316,6 +322,7 @@ function onInitialState(d){
   for (const p of (d.params || [])){ V[p.id] = p.v; if (p.def !== undefined) DEF[p.id] = p.def; }
   for (const id in el) draw(id);
   document.getElementById("build").textContent = "BUILD " + (d.build || "");
+  document.getElementById("irname").textContent = d.ir ? d.ir : "no cabinet loaded";
   document.getElementById("fault").textContent = (d.ok === false) ? ("CIRCUIT FAULT · " + (d.error || "")) : "";
   NB.send({ k:"stateack" });
 }
@@ -330,6 +337,9 @@ NB.on("hostParam", d => {
   for (const p of d.params){ V[p.id] = p.v; draw(p.id); }
 });
 NB.on("meter", onMeter);
+
+document.getElementById("irbtn").addEventListener("click", () => NB.send({ k:"loadir" }));
+document.getElementById("irbtn").addEventListener("contextmenu", e => { e.preventDefault(); NB.send({ k:"clearir" }); });
 
 /* ---- go -------------------------------------------------------------- */
 for (const p of POTS) buildPot(p);

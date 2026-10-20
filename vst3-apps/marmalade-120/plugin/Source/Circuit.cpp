@@ -11,24 +11,43 @@ namespace mm
 //==============================================================================
 namespace
 {
-    /*  Koren's published fits. The pentode's (1 + sgn) factor of 2 is folded
-        into the current equations below, as Koren writes them; grid current is
-        Dempwolf's form with a conduction knee near 0 V. The EL34X2 entry is a
-        matched pair in parallel - the four-valve output stage solved as two
-        halves of a push-pull, which is exact for matched tubes.
-
-        Of the interelectrode capacitances only grid-to-plate is kept, on the
-        triodes: multiplied by the stage's gain (Miller) it is a real top-end
-        roll-off against a grid stopper or a tone stack. The rest sit across
-        low impedances and act far above anything audible, and every capacitor
-        is a state the solver pays for each sample - they were measured at a
-        third of its cost. The EL34s are driven through 1k1 and need none. */
-    const TubeModel MODELS[] =
+    DeviceModel triodeDZ (const char* name, double mult)
     {
-        //  name     pent   mu     ex    kg1     kg2    kp     kvb    gg       cg    xi     mult  cgk  cgp      cpk
-        { "12ax7",  false, 100.0, 1.40, 1060.0, 0.0,   600.0, 300.0, 6.0e-4, 13.9, 1.354, 1.0, 0.0, 1.7e-12, 0.0 },
-        { "el34",   true,  11.0,  1.35, 650.0,  4200.0, 60.0, 24.0,  2.0e-3, 9.0,  1.35,  1.0, 0.0, 0.0,     0.0 },
-        { "el34x2", true,  11.0,  1.35, 650.0,  4200.0, 60.0, 24.0,  2.0e-3, 9.0,  1.35,  2.0, 0.0, 0.0,     0.0 },
+        DeviceModel m { DeviceModel::TRIODE, name,
+            "Dempwolf & Zoelzer, DAFx 2011, fitted to a measured ECC83; capacitances from the ECC83 sheet" };
+        m.G = 2.242e-3; m.C = 3.40; m.mu = 103.2; m.gamma = 1.26;
+        m.Gg = 6.177e-4; m.Cg = 9.901; m.xi = 1.314; m.Ig0 = 8.025e-8;
+        m.mult = mult;
+        m.cgk = 1.6e-12; m.cgp = 1.7e-12; m.cpk = 0.46e-12;
+        return m;
+    }
+
+    DeviceModel pentodeEL34 (const char* name, double mult)
+    {
+        DeviceModel m { DeviceModel::PENTODE, name,
+            "Koren 1996 EL34 fit; grid current Dempwolf form, ESTIMATED (no published EL34 fit); "
+            "capacitances from the Mullard EL34 sheet (Cg1 15.2p, Cg1a 1.1p, Ca 8.4p)" };
+        m.mu = 11.0; m.ex = 1.35; m.kg1 = 650.0; m.kg2 = 4200.0; m.kp = 60.0; m.kvb = 24.0;
+        m.Gg = 2.0e-3; m.Cg = 9.0; m.xi = 1.35; m.Ig0 = 0.0;
+        m.mult = mult;
+        m.cgk = 15.2e-12; m.cgp = 1.1e-12; m.cpk = 8.4e-12;
+        return m;
+    }
+
+    DeviceModel diode1N4007()
+    {
+        DeviceModel m { DeviceModel::DIODE, "1n4007", "the widely published 1N4007 SPICE model (IS 7.03n, N 1.81)" };
+        m.Is = 7.02767e-9; m.n = 1.80803;
+        return m;
+    }
+
+    const DeviceModel MODELS[] =
+    {
+        triodeDZ ("12ax7", 1.0),
+        triodeDZ ("ecc83", 1.0),
+        pentodeEL34 ("el34", 1.0),
+        pentodeEL34 ("el34x2", 2.0),
+        diode1N4007(),
     };
 
     inline double softplus (double a)
@@ -87,7 +106,7 @@ namespace
     constexpr int    MAX_ITER = 40;      // per sample; the bench reports the worst it ever needed
 }
 
-const TubeModel* findTubeModel (const std::string& name)
+const DeviceModel* findDeviceModel (const std::string& name)
 {
     const std::string n = lower (name);
     for (const auto& m : MODELS)
@@ -111,52 +130,58 @@ namespace
         draws less than a femtoamp, and most of the time that is where every
         grid is - so it returns zero there without spending three
         transcendentals on proving it. */
-    inline void gridCurrent (const TubeModel& m, double vg, double& ig, double& dig)
+    inline void gridCurrent (const DeviceModel& m, double vg, double& ig, double& dig)
     {
-        const double a = m.cg * vg;
-        if (a < -28.0) { ig = 0.0; dig = 0.0; return; }
+        const double a = m.Cg * vg;
+        if (a < -28.0) { ig = m.Ig0; dig = 0.0; return; }
         double sp, sg;
         softplusSig (a, sp, sg);
-        const double base = sp / m.cg;
+        const double base = sp / m.Cg;
         const double pw = std::exp (m.xi * std::log (base));     // base^xi
-        ig  = m.gg * pw;
-        dig = m.gg * m.xi * pw / base * sg;
+        ig  = m.Gg * pw + m.Ig0;
+        dig = m.Gg * m.xi * pw / base * sg;
     }
 }
 
 /*  Every pow() here is written as exp(ex * ln E) with its derivative as
     ex * E^ex / E, because the per-sample cost of the whole amp is mostly
     these few lines and std::pow costs as much as both. */
-void tubeCurrents (const TubeModel& m, const double* v, double* i, double* J)
+void deviceCurrents (const DeviceModel& m, const double* v, double* i, double* J)
 {
-    if (! m.pentode)
+    if (m.kind == DeviceModel::DIODE)
+    {
+        /*  Shockley, continued as a straight line past 1.2 V so a Newton
+            guess far out cannot overflow the exponential; a real rectifier
+            in this circuit never gets near it (it is ~0.8 V at amps). */
+        const double nvt = m.n * 0.025852;
+        constexpr double VLIN = 1.2;
+        const double vd = std::min (v[0], VLIN);
+        const double e = std::exp (vd / nvt);
+        double id = m.Is * (e - 1.0), gd = m.Is * e / nvt;
+        if (v[0] > VLIN) id += gd * (v[0] - VLIN);
+        i[0] = m.mult * id;
+        J[0] = m.mult * gd;
+        return;
+    }
+
+    if (m.kind == DeviceModel::TRIODE)
     {
         const double vg = v[0], vp = v[1];
-        double ip = 0.0, dvg = 0.0, dvp = 0.0;
-        if (vp > 0.0)
-        {
-            const double s = std::sqrt (m.kvb + vp * vp);
-            double sp, sg;
-            softplusSig (m.kp * (1.0 / m.mu + vg / s), sp, sg);
-            const double E1 = vp / m.kp * sp;
-            if (E1 > 1.0e-300)
-            {
-                const double dE_g = vp * sg / s;
-                const double dE_p = sp / m.kp - vp * vp * vg * sg / (s * s * s);
-                const double P = std::exp (m.ex * std::log (E1));
-                ip = 2.0 / m.kg1 * P;
-                const double dI = 2.0 * m.ex / m.kg1 * P / E1;
-                dvg = dI * dE_g;
-                dvp = dI * dE_p;
-            }
-        }
+        double sp, sg;
+        softplusSig (m.C * (vp / m.mu + vg), sp, sg);
+        const double base = std::max (sp / m.C, 1.0e-300);
+        const double P = std::exp (m.gamma * std::log (base));
+        const double ik = m.G * P;
+        const double dik = m.G * m.gamma * P / base * sg;        // d/d(vp/mu + vg)
+
         double ig, dig;
         gridCurrent (m, vg, ig, dig);
 
+        // the plate gets the cathode current the grid did not take
         i[0] = m.mult * ig;
-        i[1] = m.mult * ip;
-        J[0] = m.mult * dig;  J[1] = 0.0;
-        J[2] = m.mult * dvg;  J[3] = m.mult * dvp;
+        i[1] = m.mult * (ik - ig);
+        J[0] = m.mult * dig;          J[1] = 0.0;
+        J[2] = m.mult * (dik - dig);  J[3] = m.mult * dik / m.mu;
         return;
     }
 
@@ -318,6 +343,11 @@ bool Circuit::factorPorts()
         case 8:  return luFactorN<8>  (Jac.data(), piv.data());
         case 10: return luFactorN<10> (Jac.data(), piv.data());
         case 12: return luFactorN<12> (Jac.data(), piv.data());
+        case 14: return luFactorN<14> (Jac.data(), piv.data());
+        case 15: return luFactorN<15> (Jac.data(), piv.data());
+        case 16: return luFactorN<16> (Jac.data(), piv.data());
+        case 17: return luFactorN<17> (Jac.data(), piv.data());
+        case 18: return luFactorN<18> (Jac.data(), piv.data());
         default: return luFactor (Jac.data(), M, piv.data());
     }
 }
@@ -332,6 +362,11 @@ void Circuit::solvePorts (double* b) const
         case 8:  luSolveN<8>  (Jac.data(), piv.data(), b); return;
         case 10: luSolveN<10> (Jac.data(), piv.data(), b); return;
         case 12: luSolveN<12> (Jac.data(), piv.data(), b); return;
+        case 14: luSolveN<14> (Jac.data(), piv.data(), b); return;
+        case 15: luSolveN<15> (Jac.data(), piv.data(), b); return;
+        case 16: luSolveN<16> (Jac.data(), piv.data(), b); return;
+        case 17: luSolveN<17> (Jac.data(), piv.data(), b); return;
+        case 18: luSolveN<18> (Jac.data(), piv.data(), b); return;
         default: luSolve (Jac.data(), M, piv.data(), b); return;
     }
 }
@@ -447,13 +482,16 @@ bool Circuit::parse (const std::string& text)
                 break;
             }
             case 'x':
+            case 'd':
             {
                 e.kind = Element::X;
-                e.model = findTubeModel (tok.back());
-                if (e.model == nullptr) return fail ("unknown tube model " + tok.back());
-                const size_t want = e.model->pentode ? 6u : 5u;
-                if (tok.size() != want) return fail (e.model->pentode ? "expected X p g2 g1 k MODEL"
-                                                                      : "expected X p g k MODEL");
+                e.model = findDeviceModel (tok.back());
+                if (e.model == nullptr) return fail ("unknown device model " + tok.back());
+                const int np = e.model->ports();
+                const size_t want = (np == 3) ? 6u : (np == 2) ? 5u : 4u;
+                if ((head[0] == 'd') != (np == 1)) return fail ("D lines are diodes, X lines are tubes");
+                if (tok.size() != want) return fail (np == 3 ? "expected X p g2 g1 k MODEL"
+                                                   : np == 2 ? "expected X p g k MODEL" : "expected D a k MODEL");
                 for (size_t k = 1; k + 1 < tok.size(); ++k) e.n[k - 1] = addNode (tok[k]);
                 break;
             }
@@ -465,12 +503,13 @@ bool Circuit::parse (const std::string& text)
         elems.push_back (e);
 
         // a tube's own capacitances, as plain capacitors the solver treats like any other
-        if (e.kind == Element::X)
+        if (e.kind == Element::X && e.model->kind != DeviceModel::DIODE)
         {
             const auto& m = *e.model;
+            const bool pent = m.kind == DeviceModel::PENTODE;
             const int p = e.n[0];
-            const int g = m.pentode ? e.n[2] : e.n[1];
-            const int k = m.pentode ? e.n[3] : e.n[2];
+            const int g = pent ? e.n[2] : e.n[1];
+            const int k = pent ? e.n[3] : e.n[2];
             const struct { const char* s; int a, b; double c; } caps[] =
                 { { ".cgk", g, k, m.cgk }, { ".cgp", g, p, m.cgp }, { ".cpk", p, k, m.cpk } };
             for (const auto& c : caps)
@@ -527,7 +566,7 @@ void Circuit::setValue (int ei, double value)
     // the charge it had rather than inventing a new one.
     if (e.kind == Element::C && built)
         for (int r = 0; r < nx; ++r)
-            if (reactive[(size_t) r] == ei) x[(size_t) r] *= value / e.value;
+            if (reactive[(size_t) r] == ei) { x[(size_t) r] *= value / e.value; xPrev[(size_t) r] *= value / e.value; }
 
     e.value = value;
     dirty = true;
@@ -576,6 +615,7 @@ void Circuit::build()
     N = (int) nodes.size();
     branchOf.assign (elems.size(), -1);
     reactive.clear(); tubes.clear(); portOfTube.clear(); portCount.clear(); sources.clear();
+    portA.clear(); portB.clear();
 
     int nb = 0;
     M = 0;
@@ -589,8 +629,17 @@ void Circuit::build()
         {
             tubes.push_back ((int) ei);
             portOfTube.push_back (M);
-            portCount.push_back (e.model->pentode ? 3 : 2);
-            M += e.model->pentode ? 3 : 2;
+            const int np = e.model->ports();
+            portCount.push_back (np);
+            for (int k = 0; k < np; ++k)
+            {
+                int a, b;
+                if (np == 3)      { a = (k == 0) ? e.n[2] : (k == 1) ? e.n[1] : e.n[0]; b = e.n[3]; }
+                else if (np == 2) { a = (k == 0) ? e.n[1] : e.n[0]; b = e.n[2]; }
+                else              { a = e.n[0]; b = e.n[1]; }
+                portA.push_back (a); portB.push_back (b);
+            }
+            M += np;
         }
     }
     Ns = N + nb;
@@ -602,6 +651,7 @@ void Circuit::build()
     if (! built || oldNx != nx)
     {
         x.assign ((size_t) nx, 0.0);
+        xPrev.assign ((size_t) nx, 0.0);
         vPort.assign ((size_t) M, 0.0);
     }
     xNew.assign ((size_t) nx, 0.0);
@@ -661,29 +711,7 @@ void Circuit::build()
         if (a >= 0) col[(size_t) a] += 1.0;
         if (b >= 0) col[(size_t) b] -= 1.0;
     };
-    auto portNodes = [&] (int port, int& a, int& b)
-    {
-        for (size_t t = 0; t < tubes.size(); ++t)
-        {
-            const int first = portOfTube[t];
-            const auto& e = elems[(size_t) tubes[t]];
-            const int np = e.model->pentode ? 3 : 2;
-            if (port < first || port >= first + np) continue;
-            const int k = port - first;
-            if (e.model->pentode)
-            {
-                const int pl = e.n[0], g2 = e.n[1], g1 = e.n[2], ca = e.n[3];
-                a = (k == 0) ? g1 : (k == 1) ? g2 : pl;
-                b = ca;
-            }
-            else
-            {
-                a = (k == 0) ? e.n[1] : e.n[0];
-                b = e.n[2];
-            }
-            return;
-        }
-    };
+    auto portNodes = [&] (int port, int& a, int& b) { a = portA[(size_t) port]; b = portB[(size_t) port]; };
 
     std::vector<double>& QX = Qfull_x;
     std::vector<double>& QU = Qfull_u;
@@ -789,8 +817,8 @@ void Circuit::deviceEval (const double* v, double* i, double* J) const
     {
         const auto& m = *elems[(size_t) tubes[t]].model;
         const int f = portOfTube[t];
-        const int np = m.pentode ? 3 : 2;
-        tubeCurrents (m, v + f, i + f, Jl);
+        const int np = portCount[t];
+        deviceCurrents (m, v + f, i + f, Jl);
         for (int r = 0; r < np; ++r)
             for (int c = 0; c < np; ++c)
                 J[(f + r) * M + (f + c)] = Jl[r * np + c];
@@ -913,22 +941,7 @@ bool Circuit::solveDC (const double* in)
     }
     // the same port incidence build() uses
     std::vector<std::pair<int, int>> pn ((size_t) M);
-    for (size_t t = 0; t < tubes.size(); ++t)
-    {
-        const auto& e = elems[(size_t) tubes[t]];
-        const int f = portOfTube[t];
-        if (e.model->pentode)
-        {
-            pn[(size_t) f]     = { e.n[2], e.n[3] };
-            pn[(size_t) f + 1] = { e.n[1], e.n[3] };
-            pn[(size_t) f + 2] = { e.n[0], e.n[3] };
-        }
-        else
-        {
-            pn[(size_t) f]     = { e.n[1], e.n[2] };
-            pn[(size_t) f + 1] = { e.n[0], e.n[2] };
-        }
-    }
+    for (int c = 0; c < M; ++c) pn[(size_t) c] = { portA[(size_t) c], portB[(size_t) c] };
     for (int c = 0; c < M; ++c)
     {
         std::fill (col.begin(), col.end(), 0.0);
@@ -970,7 +983,7 @@ bool Circuit::solveDC (const double* in)
             for (int c = 0; c < nu; ++c) sum += Ed[(size_t) (r * nu + c)] * ud[(size_t) c];
             pBuf[(size_t) r] = sum;
         }
-        ok = newton (pBuf.data(), Kd.data(), 200, 1.0e-9);
+        ok = newton (pBuf.data(), Kd.data(), 400, 1.0e-7);
     }
     if (! ok) { err = "DC operating point did not converge"; return false; }
     u = ud;
@@ -994,6 +1007,7 @@ bool Circuit::solveDC (const double* in)
         if (e.kind == Element::C) x[(size_t) r] = Gx[(size_t) r] * vr;
         else                      x[(size_t) r] = GSHORT * vr - Gx[(size_t) r] * vr;
     }
+    xPrev = x;              // at rest the state does not move
     return true;
 }
 
@@ -1055,19 +1069,26 @@ void Circuit::process (const double* in, double* out)
             output stage switching over at full drive asks of it: ngspice gets
             through the same edge by cutting its timestep to nanoseconds.
             Rare, so its cost does not matter. */
+        /*  Only the last sub-step's answer is the sample's: an intermediate
+            one that stops a hair short of the tolerance still hands the next
+            a start close enough, so it is not a failure - measured, these
+            were the only "failures" left, with final residuals under 1 uV. */
+        const int failuresBefore = newtonFailures - 1;      // the leap's own is forgiven if this works
+        bool solved = false;
         for (int S : { 4, 32, 256 })
         {
             std::copy (vStart.begin(), vStart.end(), vPort.begin());
-            bool ok = true;
-            for (int k = 1; k <= S && ok; ++k)
+            bool last = false;
+            for (int k = 1; k <= S; ++k)
             {
                 const double f = (double) k / S;
                 for (int r = 0; r < M; ++r) pMid[(size_t) r] = pPrev[(size_t) r] + f * (p[r] - pPrev[(size_t) r]);
-                ok = newton (pMid.data(), K.data(), MAX_ITER, 1.0e-5);
+                last = newton (pMid.data(), K.data(), MAX_ITER, 1.0e-5);
             }
             ++continuations;
-            if (ok) { --newtonFailures; break; }    // the leap's failure is forgiven
+            if (last) { solved = true; break; }
         }
+        newtonFailures = failuresBefore + (solved ? 0 : 1);
     }
     std::copy (p, p + M, pPrev.begin());
 
@@ -1080,19 +1101,73 @@ void Circuit::process (const double* in, double* out)
         for (int r = 0; r < nr; ++r) rest[r] += col[r] * ic;
     }
     std::copy (rest, rest + no, out);
+    std::swap (x, xPrev);              // xPrev is the state this sample was solved from
     std::copy (rest + no, rest + nr, x.begin());
 }
 
 double Circuit::nodeVoltage (int node)
 {
-    // From the states as they now stand: exact at rest, which is what the
-    // bench asks it for (the operating point).
+    // The node as it was at the last solved sample: from the state that
+    // sample started from, its inputs and its device currents.
     if (node < 0 || dirty) return 0.0;
     double s = 0.0;
-    for (int c = 0; c < nx; ++c) s -= Qfull_x[(size_t) (node * nx + c)] * cx[(size_t) c] * x[(size_t) c];
+    for (int c = 0; c < nx; ++c) s -= Qfull_x[(size_t) (node * nx + c)] * cx[(size_t) c] * xPrev[(size_t) c];
     for (int c = 0; c < nu; ++c) s += Qfull_u[(size_t) (node * nu + c)] * u[(size_t) c];
     for (int c = 0; c < M; ++c)  s -= Qfull_n[(size_t) (node * M + c)] * iPort[(size_t) c];
     return s;
+}
+
+double Circuit::reactiveCurrent (int element)
+{
+    for (int r = 0; r < nx; ++r)
+        if (reactive[(size_t) r] == element)
+        {
+            const auto& e = elems[(size_t) element];
+            const double v = (e.n[0] >= 0 ? nodeVoltage (e.n[0]) : 0.0) - (e.n[1] >= 0 ? nodeVoltage (e.n[1]) : 0.0);
+            return Gx[(size_t) r] * v + cx[(size_t) r] * xPrev[(size_t) r];
+        }
+    return 0.0;
+}
+
+/*  Move to another sample rate without disturbing the circuit: every
+    capacitor keeps its voltage and its current, every inductor its current
+    and its voltage, at the last solved sample - so a warm-up run cheaply at a
+    low rate hands over an amp already at its operating point.
+
+    With beta = (1 - theta) / theta, the state after a sample is
+        capacitor:  x = G v + beta i
+        inductor:   x = i + beta G v
+    and only G depends on the rate. */
+void Circuit::changeRate (double newRate)
+{
+    if (dirty) build();
+    if (! built) { fs = newRate; dirty = true; return; }
+
+    // each reactive element's voltage and current, at the last sample
+    std::vector<double> ve ((size_t) nx), ie ((size_t) nx);
+    for (int r = 0; r < nx; ++r)
+    {
+        const auto& e = elems[(size_t) reactive[(size_t) r]];
+        const double va = e.n[0] >= 0 ? nodeVoltage (e.n[0]) : 0.0;
+        const double vb = e.n[1] >= 0 ? nodeVoltage (e.n[1]) : 0.0;
+        ve[(size_t) r] = va - vb;
+        ie[(size_t) r] = Gx[(size_t) r] * ve[(size_t) r] + cx[(size_t) r] * xPrev[(size_t) r];
+    }
+
+    const std::vector<double> vp = vPort;
+    fs = newRate;
+    dirty = true;
+    build();
+    vPort = vp;
+
+    const double beta = (1.0 - theta) / theta;
+    for (int r = 0; r < nx; ++r)
+    {
+        const auto& e = elems[(size_t) reactive[(size_t) r]];
+        const double G = Gx[(size_t) r], v = ve[(size_t) r], i = ie[(size_t) r];
+        x[(size_t) r] = (e.kind == Element::C) ? G * v + beta * i : i + beta * G * v;
+    }
+    xPrev = x;
 }
 
 } // namespace mm

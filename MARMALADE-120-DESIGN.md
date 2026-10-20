@@ -3,9 +3,17 @@
 A 120 W British valve head of the early-seventies "pictures, not words"
 school, simulated as a circuit: every resistor, capacitor, inductor, both
 ECC83s, all four EL34s, the output transformer, the speaker's electrical
-impedance and the power supply are solved together, sample by sample. No
-waveshaper, no curve, no impulse response. The circuit is an OR120-style
-topology. The name, panel and control names are its own, so it carries no
+impedance and the power supply - from the 50 Hz mains at the transformer to
+the speaker terminals - are one circuit, solved sample by sample. No
+waveshaper, no curve, no made-up response anywhere. The circuit is an
+OR120-style topology.
+
+**The rule: accuracy over voicing.** No value is chosen for how it sounds.
+Each part is either documented, from a datasheet or published model, or an
+estimate (typical of the period, landing the documented voltages), and the
+netlist says which on every line. Where the model and a documented figure
+disagree, the bench says so (`[KNOWN]`) rather than a value being bent to
+agree. The name, panel and control names are its own, so it carries no
 one's trademark (VOICE is the six-way capacitor switch, BITE is the
 high-frequency drive network).
 
@@ -17,10 +25,10 @@ effects after it would be the one part that is not a circuit.
 
 ```
 plugin/Source/Circuit.{h,cpp}    netlist -> MNA -> DK-method solver (knows nothing about amps)
-plugin/Source/Or120Netlist.h     the amplifier, as two netlists in plain text
-plugin/Source/Engine.{h,cpp}     oversampling, knobs -> parts, sag hand-off, cone -> mic
-plugin/test/bench.cpp            mmtest: 28 checks on rendered audio
-plugin/test/spicecheck.cpp       the solver against ngspice on the same netlists
+plugin/Source/Or120Netlist.h     the amplifier, mains to speaker, as one netlist, provenance per line
+plugin/Source/Engine.{h,cpp}     oversampling, knobs -> parts, the mains, the warm-up
+plugin/test/bench.cpp            mmtest: 25 checks on rendered audio, plus [KNOWN] discrepancies
+plugin/test/spicecheck.cpp       the whole amp against ngspice, from the same warmed-up state
 plugin/test/render.cpp           mmrender: a WAV through the engine, to listen
 plugin/test/host/                mmhost: loads the built VST3 the way a DAW does
 ```
@@ -48,48 +56,57 @@ The topology is the documented one, not a guess:
 - **Four EL34s**, fixed bias, solved as two matched pairs (exact for matched
   valves).
 - **Output transformer**, 1k7 plate to plate into 8 Ω, centre tapped.
-- A **closed 4×12**, modelled as the amp sees it: voice coil resistance and
-  inductance (with eddy loss), and the cone's mechanical resonance (~90 Hz)
-  reflected as a parallel RLC.
-- **Solid-state supply**: a source behind 80 Ω into 100 µF, then the screen,
-  inverter and preamp nodes down an RC ladder.
+- A **4×12**, as the amplifier sees it: voice coil resistance and inductance
+  (with eddy loss), and the cone's mechanical resonance (~90 Hz) reflected as
+  a parallel RLC. Generic values [est]: no driver's published parameters
+  were reachable.
+- **The supply, from the mains**: a 375-0-375 V HT winding (each half behind
+  its resistance and leakage inductance) into two 1N4007s and a 100 µF
+  reservoir, then the screen, inverter and preamp rails down an RC ladder. The
+  bias comes from its own 50 V winding, a diode, two filter stages and the
+  set-bias divider. Ripple, sag and hum are what this circuit does, not
+  effects.
 - Light **global negative feedback** from the 8 Ω tap into the driver's cathode.
 
-**The values are a reconstruction, not a copy of a service sheet.** The
-schematic archives were not reachable from where this was built. Where a part
-was not documented, it was chosen to land the operating points the circuit is
-known for, and the bench checks them:
+### Provenance
 
-| Node | Target | Simulated |
+Every part line in `Or120Netlist.h` is tagged:
+
+- `[doc]`: stated by a source. Topology; ECC83 ×2 and EL34 ×4; fixed bias;
+  solid-state rectification; the DC-coupled cathodyne; six FAC positions;
+  Baxandall bass/treble; HF Drive between stages 2 and 3; ~330 V and ~370 V
+  rails; post-inverter master on the 1998/2001 sheets; 2k2 grid resistors on
+  the '74 sheet.
+- `[ds]`: from a datasheet or published model. Valves, diodes, capacitances.
+- `[est]`: everything else, and that is most of the values.
+
+The schematic archives (el34world, schematicheaven), the datasheet hosts and
+the speaker maker's site were all blocked by the network policy of the
+environment this was built in.
+
+Two estimates were set *by measurement*, as a technician would set them, not
+by ear:
+
+- **The set-bias divider**: set for 35 mA a valve at idle (70% of 25 W), by
+  bisection on the warmed-up amp (`test/biasset` in the history; −48.7 V).
+- **The two rail droppers (36k, 18k)**: set to land the documented ~370 V and
+  ~330 V rails (364.9 V, 326.7 V).
+
+One estimate has a story: the driver's plate resistor (470k). A forum
+recollection has 390k as a *raise* from stock, made to give the DC-coupled
+cathodyne room. At 330k it had 66 V to swing and its plate side clipped at
+14 W; at 470k it has 112 V. The real value is the first thing to read off a
+schematic.
+
+| Node | Target | Simulated (averaged over the ripple) |
 |---|---|---|
-| preamp rail | ~330 V (documented) | 335.5 V |
-| inverter rail | ~370 V (documented) | 366.0 V |
-| B+ at the OT | 480 – 530 V | 511.6 V |
-| V1a plate | 180 – 250 V | 229.7 V |
-| driver plate = cathodyne grid | low enough to swing | 134.3 V |
-| cathodyne plate–cathode | room to swing | 102.8 V |
-| EL34 idle, per valve | 25 – 50 mA, under 25 W | 38.7 mA, 19.7 W |
-
-Every value is plain text in `Or120Netlist.h`, so reading a real schematic
-later is a matter of editing numbers. spicecheck re-validates the solver
-whatever they are.
-
-### The cut between the two circuits
-
-The amp is solved as two circuits. The cut is placed where the real one is
-least disturbed by it:
-
-- **PREAMP** runs from the guitar to the third stage's grid (19 nodes,
-  12 states, 4 tube ports). The third stage's Miller capacitance is kept here
-  as a fixed 150 pF, because against the tone stack's high source impedance it
-  is the preamp's top-end roll-off.
-- **POWER** covers the third stage, the cathodyne, MASTER, the EL34s, the OT,
-  the speaker, the feedback and the whole supply (30 nodes, 15 states,
-  10 ports). Everything that sags together is solved together.
-
-The preamp's rail is the power section's last filter node, handed across each
-sample, so the preamp sags when the output stage draws. In the power section,
-the preamp's own draw is a 110k resistor.
+| preamp rail | ~330 V [doc] | 326.7 V |
+| inverter rail | ~370 V [doc] | 364.9 V |
+| B+ at the OT | 480 – 530 V | 510.1 V |
+| V1a plate | 180 – 260 V | 219.9 V |
+| driver plate = cathodyne grid | low enough to swing | 125.7 V |
+| cathodyne plate–cathode | room to swing | 112.5 V |
+| EL34 idle, per valve | set to 35 mA | 35.1 mA at −48.7 V, 17.8 W |
 
 ---
 
@@ -107,15 +124,34 @@ x' = A x + B u + C i    the states
 y  = Do x + Eo u + Fo i
 ```
 
-The per-sample cost is a handful of small matrix products plus a 4×4 and a
-10×10 Newton. Moving a pot rebuilds the matrices (one LU of the MNA system);
-the states carry over.
+The amplifier is ONE system: 55 nodes, 45 states, 17 nonlinear ports
+(4 triodes × 2, 2 EL34 pairs × 3, 3 diodes). Moving a pot rebuilds the
+matrices (one LU of the 61×61 MNA system); the states carry over.
 
-**Tubes** use Koren's published triode and pentode equations, with
-Dempwolf-style grid current. Grid current is what makes an overdriven stage
-block and bias-shift rather than simply clip. The only interelectrode
-capacitance kept is grid-to-plate on the triodes (Miller). The rest act far
-above audio, and were measured at a third of the solver's cost.
+**Devices**, each with its source:
+
+- **Triodes**: Dempwolf & Zölzer's model (DAFx 2011), fitted by its authors
+  to *measured* ECC83 curves, grid current included:
+  - cathode current `Ik = G (softplus(C(Vpk/μ + Vgk))/C)^γ`;
+  - grid current `Ig = Gg (softplus(Cg·Vgk)/Cg)^ξ + Ig0`;
+  - the plate gets what the grid does not: `Ip = Ik − Ig`.
+
+  This replaced Koren's triode, which is a fit to datasheet curves and treats
+  plate and grid current as unrelated.
+- **EL34**: Koren's published fit. Its grid current is Dempwolf-form with
+  estimated parameters, because no published EL34 grid-current fit was
+  reachable.
+- **Diodes**: Shockley, with the published 1N4007 SPICE parameters.
+- **All interelectrode capacitances**, from the sheets: ECC83 1.6 / 1.7 /
+  0.46 pF; EL34 15.2 / 1.1 / 8.4 pF.
+
+**Warm-up.** The rails' slowest filter is about a second, so a cold amp takes
+seconds to come up. That warm-up runs at 16 kHz: 5 s of mains, a fraction of
+a second of CPU. The solver then **changes rate exactly**: every capacitor
+keeps its voltage and current, every inductor its current and voltage. The
+θ-method state at a given rate is `x = Gv + βi` (capacitor) or `x = i + βGv`
+(inductor), and only G depends on the rate. A last 0.1 s settles at the real
+rate.
 
 ### Things the bench found, and what was done
 
@@ -145,46 +181,56 @@ above audio, and were measured at a third of the solver's cost.
      function of `p`, so this is the same answer reached along the same
      branch.
 
-  The bench runs 40 random settings with hard-picked notes and records
-  0 Newton failures.
+  Continuation is judged by its final sub-step only. Intermediate sub-steps
+  that stopped a hair short of tolerance were the last "failures" left, with
+  final residuals under 1 µV. The bench runs 40 random settings with
+  hard-picked notes and records 0 Newton failures.
 - **The predictor is most of the speed.** Before each solve, the last
   factored Jacobian predicts the step, `v += (I − KJ)⁻¹ Δp`, at the cost of
   one back-substitution. That cut Newton from about 2.9 to about 1.1
   iterations per sample.
 - **A NaN residual read as "converged"**, because `std::max(0, NaN)` returns 0.
   The residual norm is now written so that NaN fails.
-- **The cathodyne needs a high driver plate resistor.** With 330k the
-  DC-coupled cathodyne had only 66 V to swing, and its plate side clipped at
-  14 W. With 470k (a forum recollection says 390k was an improvement) it has
-  103 V, the two outputs are balanced, and the amp makes its rated power.
+- **Nested stateful calls aliased HIGH.** `dn1.down (dn2.down (a, b),
+  dn2.down (c, d))` lets the compiler run the second `dn2.down` first, since
+  argument order is unspecified, and GCC did. Every 4× block was folded back
+  on itself, and HIGH measured *worse* than NORMAL. The fix is two statements.
+- **Real hum looks like aliasing.** The rectifier's 100 Hz harmonics mix with
+  a note onto the same frequency grid its aliases fall on. So aliasing is
+  measured with the mains held at DC (`Params::mains`, bench only).
 
 ---
 
 ## 3. Verified against ngspice
 
-`spicecheck` exports the same parsed netlist to ngspice, with the tube
-equations written term for term as B-sources, and runs ngspice at a 0.65 µs
-step cap. Both are driven with the same sine, and the AC-coupled waveforms
-are compared over 40 ms:
+`spicecheck` runs the whole amp, mains to speaker, in both solvers:
 
-| Case | Solver | Error |
-|---|---|---|
-| preamp, gain 3 o'clock, 100 mV | trapezoidal, 192k | 0.008 % |
-| preamp, gain full, 1 V (hard clip) | trapezoidal, 192k | 0.09 % |
-| preamp, bass 0 / treble 10, VOICE 1n | trapezoidal, 192k | 0.18 % |
-| power, master half, 2 V | trapezoidal, 192k | 0.02 % |
-| power, master full, 20 V (saturated) | trapezoidal, 192k | 0.20 % |
-| preamp, gain full, 1 V | trapezoidal, 96k | 0.34 % |
-| power, master full, 20 V | trapezoidal, 96k | 0.51 % |
-| preamp, gain full, 1 V | **θ 0.55**, 96k | 0.46 % |
-| power, master half, 2 V | **θ 0.55**, 96k | 0.07 % |
-| power, full, 20 V at 1 kHz (flyback spikes) | **θ 0.55**, 96k | 6.3 % |
+1. The solver warms the amp up exactly as the plugin does.
+2. It hands ngspice its state as initial conditions: every node voltage,
+   every inductor current, and the mains at the same phase.
+3. Both then run the same 60 ms. ngspice's step is capped at an eighth of the
+   solver's sample, with the device equations term for term as B-sources and
+   ngspice's own diode. Rows are aligned by timestamp; with `uic`, ngspice's
+   first row is t = 1/fs, and indexing rows instead read as a one-sample
+   offset.
 
-The last case is the brutal one: a square wave at full power, with plate
-spikes that ngspice resolves at nanosecond steps. The fundamental and the
-shape agree; the spike timing is where the 6 % comes from.
+The solver runs at the plugin's θ = 0.55:
 
----
+| Case | Rate | Speaker | B+ ripple |
+|---|---|---|---|
+| idle: hum and ripple alone | 96k | 1.5 % ¹ | 0.09 % |
+| clean, 100 mV | 96k | 0.16 % | 0.06 % |
+| crunch, gain 3 o'clock, 300 mV | 96k | 0.95 % | 0.06 % |
+| tone stack at its extremes | 96k | 3.6 % | 0.20 % |
+| … the same | 192k | 1.3 % | 0.08 % |
+| flat out, 500 mV | 96k | 2.7 % | 0.09 % |
+| … the same | 192k | 0.82 % | 0.03 % |
+
+¹ About 0.4 mV of hum on the speaker, which is below ngspice's own precision
+on 500 V nodes.
+
+NORMAL (96k) is within 1% for normal playing and reaches 3–4% on bright, hard
+clipping. HIGH (192k) is within about 1.3% everywhere.
 
 ## 4. Around the circuit (Engine)
 
@@ -197,52 +243,54 @@ shape agree; the spike timing is where the 6 % comes from.
 - **Knobs** become parts: log pots follow 10% at half travel, a pot's ends are
   100 Ω, and the circuit is rebuilt only when a value really moves (smoothed
   over about 25 ms, checked every 32 samples).
-- **CAB.**
-  - **Off** gives the 8 Ω tap as a line out, for your own impulse responses.
-  - **On** takes the motional voltage across the speaker's mechanical RLC
-    (the cone's velocity) and differentiates it (acceleration, which is what a
-    cone radiates). Below resonance that already falls 12 dB/octave, as a
-    sealed cabinet does. After that, a fixed response models the breakup and a
-    close mic: +5 dB at 2.4 kHz, a −6 dB notch at 3.7 kHz, +2 dB box thump at
-    110 Hz, and a steep fall from 5 kHz.
-
-  **This is the one part of the plugin tuned by number rather than by ear,
-  and the first thing to tune by ear.** On and off are matched at 1 kHz.
+- **The mains**: 50 Hz sines into the HT and bias windings at the oversampled
+  rate, phase-continuous across blocks.
+- **CAB is a measured impulse response, or nothing.** The plugin's LOAD IR
+  loads a WAV/AIFF/FLAC (stereo is summed), scales it to unit energy and
+  convolves it after the amp; `mmrender ir=…` does the same, exactly. Without
+  an IR the output is the 8 Ω tap. An earlier version modelled the cone and a
+  close mic with a fixed EQ chosen by numbers; it was removed, because it was
+  the one made-up response in the plugin.
 - **Safety.** If the output is ever non-finite or above 2 kV, the amp is
   "switched off and on" (re-solved to its operating point) and the block is
   muted. The bench's sweeps never trigger it.
 
 ## 5. Measured (mmtest)
 
-- Rated power is **135 W at 10% THD**. The figure the vintage heads were
-  rated at: with a high-gain driver, a cathodyne and little feedback, this is
-  not a hi-fi amp.
-- **Sag**: 52 V flat out, 0.1 V at bedroom level.
-- GAIN takes THD from −42 dB to −4.5 dB. Asymmetric clipping leaves a strong
+- **[KNOWN] Rated power: 194 W at 10% THD, against the documented 120 W.**
+  The output stage's estimated values (screen supply, OT ratio, B+) are the
+  suspects. It is reported, not fixed by bending them.
+- **Sag**: 43 V flat out, 0.2 V at bedroom level.
+- **Hum** at idle with every knob up: −114 dBFS at 100 Hz.
+- GAIN takes THD from −52 dB to −4 dB. Asymmetric clipping leaves a strong
   second harmonic (−7 dBc).
 - TREBLE, BASS, VOICE, BITE and MASTER each move what they should:
-  - centroids: TREBLE 302 → 6033 Hz, BASS 5042 → 2182 Hz,
-    VOICE 3861 → 5219 Hz, BITE 3728 → 5703 Hz;
-  - MASTER: 27 dB of level.
-- **Aliasing** on a clipped A6, GAIN full, through the cab: −52 dB on NORMAL,
-  −80 dB on HIGH. Use HIGH for bouncing.
-- **Cost** on the build container's core: about 35% of one core on NORMAL and
-  about 65% on HIGH, per instance, at 48 kHz.
+  - centroids: TREBLE 323 → 6284 Hz, BASS 5244 → 2487 Hz,
+    VOICE 4168 → 5410 Hz, BITE 4035 → 5811 Hz;
+  - MASTER: 28 dB of level.
+- **Aliasing** of a clipped A6 at the raw 8 Ω tap (no cabinet to hide it):
+  −34 dB on NORMAL and −49 dB on HIGH, measured on the alias grid. At a
+  96 kHz host it falls −34 → −49 → −57 dB as the circuit runs at 96, 192 and
+  384 kHz. A cabinet IR's fall past 5 kHz removes most of what is left.
+- **Cost** on the build container's core (slow, and shared): 60 – 90% of one
+  core on NORMAL and 115 – 160% on HIGH, per instance, at 48 kHz. On this
+  machine HIGH is for bouncing.
 
 ## 6. Not modelled (yet)
 
-- Hum and rectifier ripple: the supply is DC behind a resistance.
-- Valve noise and microphony.
 - Output-transformer core saturation and hysteresis: the core is linear, with
-  loss.
-- Mismatched output valves and valve ageing.
-- Cone breakup as physics: it is the fixed response in §4.
+  loss. Needs the transformer's core data.
+- The speaker as a measured driver: its electrical model is generic, and
+  there is no acoustic model at all (an IR does that).
+- Valve noise and microphony; mismatched output valves; valve ageing.
+- Heaters: no heater-cathode leakage hum.
 
-## 7. To do
+## 7. What would make it more accurate, in order
 
-1. Read the real OR120 service sheet and put its values into
-   `Or120Netlist.h`. spicecheck and the operating-point checks then show
-   what moved.
-2. Tune CAB by ear against a real 4×12, or ship it alongside an IR loader.
-3. Windows build, landing page, `app.json` and manifest entry when it ships.
-   Until then it is in no workflow but `engines.yml`.
+1. **The OR120 service sheet** (any year, says which), so every `[est]`
+   becomes a `[doc]`. It will also settle the 194 W.
+2. **The real transformers' data**: HT secondary voltage and resistance, OT
+   primary impedance, leakage and core. Measured on an amp if not published.
+3. **EL34 curves**, to fit the pentode and its grid current rather than use
+   Koren's fit and estimates.
+4. **A measured IR** of the cabinet and mic you want, loaded in CAB.

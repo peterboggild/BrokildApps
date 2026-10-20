@@ -13,12 +13,12 @@ name: Engines (Linux, headless)
 #            published zip yet, so no release job exists to carry it
 #   DSW      no bench, so a compile gate: the host and both shipped
 #            experiments must still build
-#   Marmalade 120  its bench (28 checks) and spicecheck, which runs the
-#            circuit solver against ngspice on the same netlists - no
+#   Marmalade 120  its bench (25 checks) and spicecheck, which runs the
+#            whole amp against ngspice from the same warmed-up state - no
 #            release yet, so nothing else runs either
 #
-# Both are plain C++17 with no JUCE and no audio device, so they cost well
-# under a minute between them. When Legion ships and gains a release
+# All are plain C++17 with no JUCE and no audio device, so they cost a few
+# minutes between them (spicecheck is most of it). When Legion ships and gains a release
 # workflow, move its bench there and this file becomes DSW alone.
 
 on:

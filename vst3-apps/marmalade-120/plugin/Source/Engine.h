@@ -6,10 +6,13 @@
     oversampling, the knobs turned into resistances and capacitors the way
     real pots and a real rotary switch would set them, the supply handed from
     the power section back to the preamp, and the last step from the speaker's
-    cone to a microphone.
+    8 ohm tap to the host.
 
-    Nothing here shapes the sound on purpose except that last step (CAB),
-    which is the one part that is not a circuit: see cabinet() in Engine.cpp.
+    Nothing here shapes the sound. The output is the voltage across the
+    speaker's terminals, with the speaker's electrical impedance loading the
+    output stage as part of the circuit; what the cabinet and a microphone do
+    to it is a measured impulse response's job (the plugin's CAB), because a
+    response made up here would be the one part of the amp that is not true.
 */
 #pragma once
 
@@ -67,27 +70,6 @@ struct HalfBand
     }
 };
 
-/*  Transposed direct form II, in double: the cabinet's low shelf and peaks
-    sit at a few hundred hertz of a 48 kHz rate, where float coefficients
-    audibly misplace them. */
-struct Biquad
-{
-    double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, z1 = 0, z2 = 0;
-
-    inline double process (double x)
-    {
-        const double y = b0 * x + z1;
-        z1 = b1 * x - a1 * y + z2;
-        z2 = b2 * x - a2 * y;
-        return y;
-    }
-    void clear() { z1 = z2 = 0; }
-
-    void setLP   (double f, double sr, double q);
-    void setHP   (double f, double sr, double q);
-    void setPeak (double f, double sr, double q, double dB);
-};
-
 //==============================================================================
 /*  The six FAC positions, as capacitors: the switch picks which one couples the
     second stage into the tone stack, so it moves the low cut from full to thin. */
@@ -103,8 +85,13 @@ struct Params
     float master  = 0.35f;   // 220k log dual gang, after the phase inverter
     float output  = 0.50f;   // trim, -24 .. +12 dB, centre 0 dB is not the middle
     int   fac     = 2;       // 0 .. 5
-    bool  cab     = true;    // speaker-and-mic stage on, or the 8 ohm tap as a line out
     int   quality = 0;       // 0: run the circuit at >= 88.2 kHz, 1: >= 176.4 kHz
+
+    /*  The bench's alone, never a host parameter: false holds the transformer
+        windings at their peak instead of running the mains, so the supply is
+        DC and hum-free. Aliasing cannot be told apart from the rectifier's
+        own 100 Hz harmonics mixing with a note otherwise. */
+    bool  mains   = true;
 };
 
 //==============================================================================
@@ -134,8 +121,8 @@ public:
     float plateGlow() const { return mGlow.load(); }       // 0..1, the output valves' work
 
     // for the bench
-    const Circuit& preamp() const { return pre; }
-    const Circuit& power() const { return pw; }
+    const Circuit& circuit() const { return amp; }
+    Circuit& circuit() { return amp; }
     int resets() const { return resetCount; }
 
     static float outputDb (float v) { return -24.0f + 36.0f * v; }
@@ -143,9 +130,8 @@ public:
 private:
     void applyPots (bool force);
     bool warmUp();
-    double cabinet (double coneSlope);
 
-    Circuit pre, pw;
+    Circuit amp;
     bool good = false;
     std::string err;
 
@@ -153,7 +139,7 @@ private:
     int iGainA = -1, iGainB = -1, iBassA = -1, iBassB = -1, iTrebA = -1, iTrebB = -1;
     int iHf = -1, iFac = -1;
     int iMasAA = -1, iMasAB = -1, iMasBA = -1, iMasBB = -1;
-    int oDrive = -1, oSpk = -1, oCone = -1, oB4 = -1, oB1 = -1;
+    int oSpk = -1, oB4 = -1, oB1 = -1;
 
     double sr = 48000.0, srOS = 96000.0;
     int os = 2, latency = 0, maxBlock = 512;
@@ -166,17 +152,13 @@ private:
     int aFac = -1;
     int sinceApply = 0;
 
-    // power-section values carried across each sample
-    double b4 = 330.0, b1Idle = 500.0, coneLast = 0.0;
-    std::vector<double> preOut, pwOut;
+    double b1Idle = 500.0, b1Smooth = 500.0;
+    double mainsPhase = 0.0;
+    std::vector<double> ampOut;
 
-    HalfBand up1, up2, dnA1, dnA2, dnB1, dnB2;
-    std::vector<float> osIn, osSpk, osCone;
+    HalfBand up1, up2, dn1, dn2;
+    std::vector<float> osIn, osSpk;
 
-    // the cabinet, at the host rate
-    std::array<Biquad, 6> cab;
-    double cabGain = 1.0;
-    float cabMix = 1.0f;         // crossfades CAB in and out instead of clicking
     double dcIn = 0, dcOut = 0;
 
     float outGain = 1.0f;

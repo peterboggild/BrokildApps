@@ -62,11 +62,23 @@ public:
     std::atomic<bool> uiHasState { false };
     std::atomic<bool> uiReady { false };
 
+    /*  CAB: a measured cabinet impulse response, convolved after the amp.
+        Nothing about a cabinet is made up here - without an IR, CAB passes
+        the 8 ohm tap through. Message thread only. */
+    void chooseImpulseResponse();
+    bool loadImpulseResponse (const juce::File& f);
+    void clearImpulseResponse();
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     void timerCallback() override;
 
     mm::Engine engine;
+    juce::dsp::Convolution cabinet;
+    bool cabOn = true;
+    juce::String irPath, irName;
+    std::atomic<bool> irLoaded { false };
+    std::unique_ptr<juce::FileChooser> chooser;
     mm::Params current;
     double preparedRate = 0.0;
     int preparedBlock = 512;
