@@ -30,6 +30,7 @@ plugin/test/bench.cpp            mmtest: 24 checks on rendered audio, plus [KNOW
 plugin/test/spicecheck.cpp       the whole amp against ngspice, from the same warmed-up state
 plugin/test/render.cpp           mmrender: a WAV through the engine (and an IR), to listen
 plugin/test/biasset.cpp          mmbias: finds the bias winding for a target idle current
+plugin/test/el34fit/             the Mullard EL34 sheet digitised, and the fit
 plugin/test/host/                mmhost: loads the built VST3 the way a DAW does
 ```
 
@@ -95,9 +96,9 @@ Where the sheet leaves a choice, the netlist says which was taken:
 - **HT winding: 375 V rms.** It lands the rails near the '74 drawing's
   figures *without being tuned to them*: C+ 383 V and D+ 338 V, against
   ~370 V and ~330 V there.
-- **Bias winding: 37.1 V rms each half.** There's no pot on the amp, so the
+- **Bias winding: 34.2 V rms each half.** There's no pot on the amp, so the
   winding is the bias. It was set by `mmbias` for 35 mA a valve at idle
-  (−48.4 V). This is the one value set to a target, as a tech would.
+  (−44.5 V). This is the one value set to a target, as a tech would.
 - **Everything else unknown:**
   - the output transformer (1k7 : 8 Ω, its leakage, core and winding
     resistance);
@@ -113,7 +114,7 @@ Where the sheet leaves a choice, the netlist says which was taken:
 | V1a plate (220k) | 188.0 V |
 | driver plate (100k) | 252.2 V |
 | cathodyne plate–cathode | 198.4 V |
-| EL34 idle, per valve | 35.0 mA at −48.4 V, 17.5 W |
+| EL34 idle, per valve | 35.0 mA at −44.5 V, 17.5 W |
 
 ---
 
@@ -139,8 +140,19 @@ y  = Do x + Eo u + Fo i
 - **Triodes**: Dempwolf & Zölzer's model (DAFx 2011), fitted to *measured*
   ECC83 curves. Cathode current is shared between plate and grid,
   `Ip = Ik − Ig`.
-- **EL34**: Koren's published fit. Its grid current is Dempwolf-form with
-  estimated parameters, because no published EL34 grid-current fit was found.
+- **EL34**: fitted here to the **Mullard EL34 data sheet** (1960/64).
+  - **Data**: pages C1–C3 were digitised at 300 dpi and checked against the
+    sheet's own tabulated points.
+  - **Model**: built like the triode. The grid and screen set a cathode
+    current, and the plate's knee divides it between plate and screen, so the
+    two always add up to the cathode current. The plate's share never passes
+    1, so the screen can't source current at the 1 kV plate swings this amp
+    makes.
+  - **Accuracy**: 10.4% RMS over every point at 10 mA and up, against 35% for
+    Koren's published fit (whose screen current was ~60% low).
+  - **Grid current**: the sheet's onset (+0.3 µA at −1.3 V) sets its
+    softness; its size at a positive grid is still estimated.
+  - **Reproducing it**: `test/el34fit/`.
 - **Diodes**: the published 1N400x Shockley parameters; two in series is the
   same diode with n doubled.
 - **Every interelectrode capacitance**, from the datasheets.
@@ -230,9 +242,11 @@ converges with rate.
 
 ## 5. Measured (mmtest)
 
-- **Rated power: 154 W at 10% THD**, against the documented 120 W. The
-  estimated output transformer and HT winding are what remain between them.
-  With the reconstructed values before the schematic it was 194 W.
+- **Rated power: 126 W at 10% THD**, against the documented 120 W. The
+  figure has moved as the data has:
+  - 194 W on the reconstructed values;
+  - 154 W with the schematic's values and Koren's EL34;
+  - 126 W with the EL34 fitted to Mullard's sheet.
 - **Sag**: 55 V flat out, 0.2 V at bedroom level.
 - **Hum** at idle, every knob up: −100 dBFS at 100 Hz.
 - **GAIN** takes THD from −54 dB to −9 dB.
@@ -262,6 +276,7 @@ converges with rate.
 
 1. **The transformers measured**: HT secondary voltage and resistance; OT
    primary impedance, leakage, winding resistance and core; the bias winding;
-   the choke. They are the `[est]` that is left, and the 154 W.
-2. **EL34 curves**, to fit the pentode and its grid current.
+   the choke. They are most of the `[est]` that is left.
+2. **EL34 grid current at a positive grid**, from a curve tracer (uTracer).
+   It is the one part of the valve not on the sheet.
 3. **A measured IR** of the cabinet and mic you want, loaded in CAB.

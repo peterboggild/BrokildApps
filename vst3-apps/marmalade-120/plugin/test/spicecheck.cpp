@@ -76,13 +76,16 @@ namespace
             o << "B" << n << "p " << P << " " << K << " I=" << ik << "-(" << grid (G, K) << ")\n";
             return;
         }
+        // the pentode of deviceCurrents(), term for term
         const std::string P = node (c, e.n[0]), S = node (c, e.n[1]), G = node (c, e.n[2]), K = node (c, e.n[3]);
         const std::string vs = "max(V(" + S + "," + K + "),1)", vg = "V(" + G + "," + K + ")";
-        const std::string E1 = "(" + vs + "/" + num (m.kp) + "*" + softplus (num (m.kp) + "*(1/" + num (m.mu) + "+" + vg + "/" + vs + ")") + ")";
         const std::string vpe = "(2*" + softplus ("V(" + P + "," + K + ")/2") + ")";
-        o << "B" << n << "p " << P << " " << K << " I=" << k << "*2/" << num (m.kg1) << "*pwr(" << E1 << "," << num (m.ex)
-          << ")*atan(" << vpe << "/" << num (m.kvb) << ")\n";
-        o << "B" << n << "s " << S << " " << K << " I=" << k << "*pwr(" << E1 << "," << num (m.ex) << ")/" << num (m.kg2) << "\n";
+        const std::string Ce = "(" + num (m.C) + "*pwr(250/" + vs + "," + num (m.s) + "))";
+        const std::string ik = "(" + num (m.G) + "*pwr(" + softplus (Ce + "*(" + vg + "+" + vs + "/" + num (m.mu) + ")") + "/" + Ce + "," + num (m.gamma) + "))";
+        const std::string vkn = "(" + num (m.vk) + "*(" + vs + "/250)*pwr(max(" + ik + ",1e-12)/0.1," + num (m.q) + "))";
+        const std::string f = "((1-exp(-" + vpe + "/" + vkn + "))*(1-" + num (m.beta) + "/(1+" + vpe + "/" + num (m.lam) + ")))";
+        o << "B" << n << "p " << P << " " << K << " I=" << k << "*" << ik << "*" << f << "\n";
+        o << "B" << n << "s " << S << " " << K << " I=" << k << "*" << ik << "*(1-" << f << ")\n";
         o << "B" << n << "g " << G << " " << K << " I=" << grid (G, K) << "\n";
     }
 

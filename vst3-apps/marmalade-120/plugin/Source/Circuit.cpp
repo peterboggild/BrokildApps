@@ -22,13 +22,26 @@ namespace
         return m;
     }
 
+    /*  Fitted to the Mullard EL34 data sheet (January 1960 / 1964): the
+        anode and screen currents against Vg1 at Va = Vg2 = 250/325/400 V
+        (page C1), the anode family at Vg2 = 250 V (C2), the triode-connected
+        curves to 500 V (C3) and the tabulated points - digitised at 300 dpi,
+        least-squares, in test/el34fit/. 10.4% rms over every point at 10 mA
+        and up; the tabulated points within 3 - 6%. Koren's published fit,
+        scored the same way, is 35%, its screen current 60% low.
+
+        Grid current: the sheet gives its onset, +0.3 uA at Vg1 = -1.3 V,
+        which sets Cg; its size at a positive grid (Gg, xi) is not on the
+        sheet and stays an estimate. */
     DeviceModel pentodeEL34 (const char* name, double mult)
     {
         DeviceModel m { DeviceModel::PENTODE, name,
-            "Koren 1996 EL34 fit; grid current Dempwolf form, ESTIMATED (no published EL34 fit); "
-            "capacitances from the Mullard EL34 sheet (Cg1 15.2p, Cg1a 1.1p, Ca 8.4p)" };
-        m.mu = 11.0; m.ex = 1.35; m.kg1 = 650.0; m.kg2 = 4200.0; m.kp = 60.0; m.kvb = 24.0;
-        m.Gg = 2.0e-3; m.Cg = 9.0; m.xi = 1.35; m.Ig0 = 0.0;
+            "fitted to the Mullard EL34 sheet (1960/64), test/el34fit; grid-current size estimated; "
+            "capacitances from the same sheet (Cg1 15.2p, Cg1a 1.1p, Ca 8.4p)" };
+        m.G = 2.35569156e-03; m.C = 1.27955578e-01; m.mu = 1.27130057e+01; m.gamma = 1.6651781;
+        m.beta = 7.35938412e-01; m.vk = 1.95633966e+01; m.lam = 5.83607592e+01;
+        m.q = -9.45443973e-01; m.s = 5.10657308e-01;
+        m.Gg = 2.0e-3; m.Cg = 3.957; m.xi = 1.35; m.Ig0 = 0.0;
         m.mult = mult;
         m.cgk = 15.2e-12; m.cgp = 1.1e-12; m.cpk = 8.4e-12;
         return m;
@@ -194,41 +207,52 @@ void deviceCurrents (const DeviceModel& m, const double* v, double* i, double* J
         return;
     }
 
+    // the pentode: see pentodeEL34() and Circuit.h
     const double vg1 = v[0], vp = v[2];
     const double g2  = std::max (v[1], 1.0);
     const double dg2 = (v[1] > 1.0) ? 1.0 : 0.0;
 
-    double sp, sg;
-    softplusSig (m.kp * (1.0 / m.mu + vg1 / g2), sp, sg);
-    const double E1 = std::max (g2 / m.kp * sp, 1.0e-300);
-    const double dE_g1 = sg;
-    const double dE_g2 = (sp / m.kp - sg * vg1 / g2) * dg2;
-
-    const double P  = std::exp (m.ex * std::log (E1));
-    const double dP = m.ex * P / E1;
-
-    /*  Koren's atan of the plate voltage, which on its own would conduct
-        backwards below 0 V - as hard as forwards. A plate does get driven
-        negative (the transformer swings one half to twice the supply and the
-        other below ground at full drive), and a valve then simply conducts
-        nothing. So the plate voltage goes through a smooth floor at 0 first:
-        identical above a few volts, zero below, and with no corner for
-        Newton to trip on. */
+    // the plate's smooth floor at 0 V: a plate the transformer drives below
+    // ground conducts nothing, and Newton gets no corner to trip on
     constexpr double VS = 2.0;
     double vpe, dvpe;
     {
-        const double a = vp / VS;
-        double sp, sg;
-        softplusSig (a, sp, sg);
-        vpe = VS * sp;
-        dvpe = sg;
+        double a, b;
+        softplusSig (vp / VS, a, b);
+        vpe = VS * a;
+        dvpe = b;
     }
-    const double rr   = vpe / m.kvb;
-    const double atn  = std::atan (rr);
-    const double datn = dvpe / (m.kvb * (1.0 + rr * rr));
 
-    const double ip  = 2.0 / m.kg1 * P * atn;
-    const double ig2 = P / m.kg2;
+    // cathode current, per valve
+    const double Ce  = m.C * std::exp (m.s * std::log (250.0 / g2));
+    const double xg  = vg1 + g2 / m.mu;
+    double spz, sgz;
+    softplusSig (Ce * xg, spz, sgz);
+    const double B   = std::max (spz / Ce, 1.0e-300);
+    const double dB1 = sgz;                                               // d/dvg1
+    const double dB2 = (sgz * (1.0 / m.mu - m.s * xg / g2) + B * m.s / g2) * dg2;   // d/dvg2
+    const double Pk  = std::exp (m.gamma * std::log (B));
+    const double ik  = m.G * Pk;
+    const double dPk = m.G * m.gamma * Pk / B;
+    const double dk1 = dPk * dB1, dk2 = dPk * dB2;
+
+    // the plate's share of it
+    const double ikc = std::max (ik, 1.0e-12);
+    const double vkn = m.vk * (g2 / 250.0) * std::exp (m.q * std::log (ikc / 0.1));
+    const double E   = std::exp (-vpe / vkn);
+    const double h   = 1.0 - E;
+    const double den = 1.0 + vpe / m.lam;
+    const double Ms  = 1.0 - m.beta / den;                                 // never above 1
+    const double f   = h * Ms;
+    const double df_dvpe = E / vkn * Ms + h * m.beta / (m.lam * den * den);
+    const double df_dvkn = -E * vpe / (vkn * vkn) * Ms;
+    const double dvkn_dik = (ik > 1.0e-12) ? m.q * vkn / ik : 0.0;
+    const double df1 = df_dvkn * dvkn_dik * dk1;
+    const double df2 = df_dvkn * (vkn / g2 * dg2 + dvkn_dik * dk2);
+    const double dfp = df_dvpe * dvpe;
+
+    const double ip  = ik * f;
+    const double ig2 = ik - ip;
 
     double ig1, dig1;
     gridCurrent (m, vg1, ig1, dig1);
@@ -238,12 +262,14 @@ void deviceCurrents (const DeviceModel& m, const double* v, double* i, double* J
     i[1] = k * ig2;
     i[2] = k * ip;
 
-    // row = port current, column = port voltage
-    J[0] = k * dig1;                         J[1] = 0.0;                              J[2] = 0.0;
-    J[3] = k * dP * dE_g1 / m.kg2;           J[4] = k * dP * dE_g2 / m.kg2;           J[5] = 0.0;
-    J[6] = k * 2.0 / m.kg1 * dP * dE_g1 * atn;
-    J[7] = k * 2.0 / m.kg1 * dP * dE_g2 * atn;
-    J[8] = k * 2.0 / m.kg1 * P * datn;
+    // row = port current, column = port voltage (g1, g2, plate)
+    J[0] = k * dig1;                      J[1] = 0.0;                           J[2] = 0.0;
+    J[3] = k * (dk1 * (1.0 - f) - ik * df1);
+    J[4] = k * (dk2 * (1.0 - f) - ik * df2);
+    J[5] = k * (-ik * dfp);
+    J[6] = k * (dk1 * f + ik * df1);
+    J[7] = k * (dk2 * f + ik * df2);
+    J[8] = k * (ik * dfp);
 }
 
 //==============================================================================

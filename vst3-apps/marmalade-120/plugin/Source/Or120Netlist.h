@@ -174,8 +174,8 @@ C4     dp    0     16u              ; [sch] D+ (preamp)
 
 * bias: a centre-tapped winding, two 1N4005, 22u - 1k - 22u, 22k load. No
 * adjustment on the sheet: the winding sets it.
-Tba    bwa   0     mn    0   0.15478 ; [est] 37.1 V rms each half: 35 mA a valve idle, by test/biasset.cpp
-Tbb    0     bwb   mn    0   0.15478
+Tba    bwa   0     mn    0   0.14255 ; [est] 34.2 V rms each half: 35 mA a valve idle, by test/biasset.cpp
+Tbb    0     bwb   mn    0   0.14255
 Rbwa   bwa   bwa2  50               ; [est]
 Rbwb   bwb   bwb2  50
 Dba    nr    bwa2  1n4005           ; [sch] cathodes to the winding: a negative supply

@@ -55,8 +55,19 @@ namespace mm
              and the plate gets what the grid does not: Ip = Ik - Ig. Fitted
              by its authors to MEASURED curves of a real ECC83, grid current
              included - which is what an overdriven guitar stage lives on.
-    PENTODE  Koren, "Improved vacuum-tube models for SPICE simulations"
-             (Glass Audio 8(5), 1996), his published EL34 fit, plus a
+    PENTODE  the same idea as the triode, fitted here to the Mullard EL34
+             sheet (Jan 1960/64; test/el34fit/): a cathode current set by
+             the grid and the screen,
+                 Ik = G (softplus(Ce (Vg1 + Vg2/mu)) / Ce)^gamma,
+                 Ce = C (250 / Vg2)^s       (the cutoff tail softens as the
+                                             screen rises: the island effect)
+             divided between plate and screen by the plate's knee,
+                 Ip = Ik f,  Ig2 = Ik (1 - f),
+                 f  = (1 - exp(-Va / Vk)) (1 - beta / (1 + Va / lam)),
+                 Vk = vk (Vg2 / 250) (Ik / 0.1 A)^q,
+             so plate plus screen is the cathode current, and f never
+             passes 1: however far the transformer swings the plate, the
+             screen never sources current. Plus a
              Dempwolf-form grid current.
     DIODE    Shockley, I = Is (exp(V / n Vt) - 1), with the published
              1N4007 SPICE parameters; its series resistance is an R in the
@@ -71,8 +82,8 @@ struct DeviceModel
 
     // TRIODE: G, C, mu, gamma (cathode) and Gg, Cg, xi, Ig0 (grid)
     double G = 0, C = 0, mu = 0, gamma = 0;
-    // PENTODE: Koren
-    double ex = 0, kg1 = 0, kg2 = 0, kp = 0, kvb = 0;
+    // PENTODE: the plate/screen division (G, C, mu, gamma serve the cathode current)
+    double beta = 0, vk = 0, lam = 0, q = 0, s = 0;
     // grid current, both tube kinds
     double Gg = 0, Cg = 0, xi = 0, Ig0 = 0;
     // DIODE
