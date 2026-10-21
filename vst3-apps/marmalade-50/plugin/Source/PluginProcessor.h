@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "Engine50.h"
+#include "SpringTank.h"
 
 //==============================================================================
 /*  One row per host parameter. The APVTS layout, processBlock's read, the
@@ -39,7 +40,7 @@ public:
     bool acceptsMidi() const override  { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 3.0; }      // the springs ring
+    double getTailLengthSeconds() const override { return 6.0; }      // the springs ring
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
@@ -86,6 +87,7 @@ private:
     mm::Engine50 engine;
     juce::dsp::Convolution cabinet;
     juce::dsp::Convolution springs;                 // zero latency: the engine needs the return a chunk ahead
+    mm::SpringTank springModel;                     // the springs when no tank IR is loaded (SpringTank.h)
     juce::AudioBuffer<float> tankIr;                // as read, at its own rate, for a re-trim when the rate changes
     double tankIrRate = 0.0;
     juce::String tankPath, tankName;

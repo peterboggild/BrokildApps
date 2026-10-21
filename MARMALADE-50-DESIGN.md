@@ -218,8 +218,37 @@ also feeds the reverb recovery's plate. That's in the real circuit too.
 
 ## 8. Not modelled
 
-- **The springs.** The reverb circuit is all there. The tank itself is a measured impulse response, loaded with LOAD TANK IR: the volts across its input coil in, the volts at its output out, as measured and not normalised. The engine takes the tank's return one 32-sample chunk ahead, so the IR goes in with its first chunk dropped, which is silence for any spring tank. Without a tank IR the springs are silent.
+- **The springs, physically.** They are a model (section 8b), or a measured impulse response loaded with LOAD TANK IR, which replaces the model.
 - **Heater-to-cathode hum, microphony, valve ageing.**
+
+## 8b. The springs (`Source/SpringTank.h`)
+
+Everything around the tank is circuit: the ECC81 driver, the reverb transformer, the tank's input coil, the recovery valve and RV9. The springs between the two coils are the one part of the amp that is a MODEL, not a circuit simulation. It runs whenever no tank IR is loaded; a measured IR replaces it.
+
+It follows Valimaki, Parker and Abel, "Parametric spring reverberation effect", J. Audio Eng. Soc. 58 (2010):
+- **Three springs**, each a feedback loop: a cascade of 64 **stretched allpasses** (coefficient -0.62, stretch K = fs/2fc), a damping one-pole at 3.2 kHz, a slowly wandering bulk delay (a 0.3-0.5 Hz sine plus smooth noise, 0.3-0.4 ms deep) and a feedback gain set from the decay.
+- The stretched allpasses make it a spring rather than a room. Low frequencies travel slower along a helical spring, so each echo arrives as a **descending chirp** (the "drip") and successive echoes smear into each other.
+- The coils' band: a 2nd-order high-pass at 80 Hz in, a 4th-order low-pass at 4.4 kHz out. A short "sizzle" path (12 plain allpasses above 2.5 kHz) supplies the top end above the chirps.
+- The engine takes the return one 32-sample chunk ahead. The model reads its OUTPUT tap 32 samples nearer the line's head; the feedback tap keeps the full delay, so the echo period is the spring's and is not shortened.
+
+**Estimated [est]:** an Accutronics type-4 long tank, three springs, echo periods 41/47/53 ms, decay set to 3.0 s mid-band. The tank on the user's amp has not been identified.
+
+**The one calibrated number in the amp:** the tank's sensitivity (output-coil volts per input-coil volt) is on no sheet. It is set so that with REVERB at noon, preamp 2 at gain 3, the reverb reaching the splitter's mixing node carries 8 dB less energy than the dry signal. `mm50springcal` measures this and prints the constant that hits the target: **0.021**. The pot then measures -18.9 dB at 2, -8.0 at 5, -2.8 at 8 and +2.2 dB at full.
+
+Measured (`mm50spring`, 11 of 11):
+
+| | |
+|---|---|
+| RT60, 300 Hz / 1 kHz / 3 kHz | 6.2 / 3.3 / 1.2 s |
+| first echo at 1 kHz | 53 ms |
+| first-echo centroid, 3 kHz vs 300 Hz | 52 ms vs 67 ms: a descending chirp |
+| band, re 1 kHz | 40 Hz -21 dB, 10 kHz -25 dB |
+| RT60 at 44.1 / 96 kHz | 3.35 / 3.45 s (rate independent) |
+| 40 s of loud noise | bounded, gone 19 s later |
+| silence in | exact silence out |
+| cost | 2.2 % of one core at 48 kHz |
+
+Known and left: the lowest octave rings longest (6 s at 300 Hz), because the damping is a single pole. A measured tank answers whether a real one does.
 
 ## 9. What would make it more accurate, in order
 

@@ -1,0 +1,67 @@
+name: Marmalade (Windows VST3 + standalone)
+
+# Builds both Marmalade amps for Windows on GitHub's own Windows runner, so a
+# studio PC needs no compiler: open the run on the Actions tab and download
+# the artifact. Nothing is committed back and nothing is published - these
+# are test builds until the amps are released.
+#
+# Each amp builds its VST3 and its standalone. The Marmalade 50 compiles the
+# Marmalade 120's circuit solver from that tree (one solver for both), so a
+# change to either tree rebuilds both.
+
+on:
+  push:
+    paths:
+      - "vst3-apps/marmalade-120/plugin/**"
+      - "vst3-apps/marmalade-50/plugin/**"
+      - ".github/workflows/marmalade-windows.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: marmalade-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.product }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dir: marmalade-120
+            target: Marmalade120
+            product: Marmalade 120
+            slug: Marmalade-120
+          - dir: marmalade-50
+            target: Marmalade50
+            product: Marmalade 50
+            slug: Marmalade-50
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure (fetches JUCE 8)
+        working-directory: vst3-apps/${{ matrix.dir }}/plugin
+        # No -G: the runner's default generator is whichever Visual Studio it has.
+        run: cmake -S . -B build -A x64
+      - name: Build Release
+        working-directory: vst3-apps/${{ matrix.dir }}/plugin
+        run: cmake --build build --config Release --target ${{ matrix.target }}_VST3 ${{ matrix.target }}_Standalone
+      - name: Package
+        shell: pwsh
+        run: |
+          $src = "vst3-apps/${{ matrix.dir }}/plugin/build/${{ matrix.target }}_artefacts/Release"
+          $out = "package/${{ matrix.slug }}-win64"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item -Recurse "$src/VST3/${{ matrix.product }}.vst3" "$out/"
+          Copy-Item "$src/Standalone/${{ matrix.product }}.exe" "$out/"
+          # a zero-byte moduleinfo.json is worse than none
+          Get-ChildItem -Recurse -Filter moduleinfo.json "$out" | Where-Object { $_.Length -eq 0 } | Remove-Item
+          Get-ChildItem -Recurse $out | Select-Object FullName, Length | Format-Table -AutoSize
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.slug }}-win64
+          path: package/${{ matrix.slug }}-win64
+          retention-days: 30

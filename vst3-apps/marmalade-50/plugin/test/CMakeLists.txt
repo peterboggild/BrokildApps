@@ -28,7 +28,15 @@ target_include_directories(mm50test PRIVATE ${MM_INCLUDES})
 add_executable(mm50spice spicecheck.cpp ${MM_SOLVER_DIR}/Circuit.cpp)
 target_include_directories(mm50spice PRIVATE ${MM_INCLUDES})
 
-foreach(t mm50bias mm50split mm50render mm50test mm50spice)
+# The spring model (SpringTank.h): decay, chirp, band, stability, cost.
+add_executable(mm50spring springcheck.cpp)
+target_include_directories(mm50spring PRIVATE ${MM_INCLUDES})
+
+# The one calibrated number in the amp: the tank's sensitivity, against its target.
+add_executable(mm50springcal springcal.cpp ../Source/Engine50.cpp ${MM_SOLVER_DIR}/Circuit.cpp ${MM_SOLVER_DIR}/Partition.cpp)
+target_include_directories(mm50springcal PRIVATE ${MM_INCLUDES})
+
+foreach(t mm50bias mm50split mm50render mm50test mm50spice mm50spring mm50springcal)
     if(MSVC)
         target_compile_options(${t} PRIVATE /O2 /fp:precise /W4)
     else()

@@ -6,7 +6,7 @@
 
         mm50render in.wav out.wav [channel=1|2] [gain=0.4] [shape=0.5] [volume=0.5]
                  [treble=0.5] [middle=0.5] [bass=0.5] [reverb=0.3] [reverbon=1]
-                 [atten=0.3] [attenon=0] [output=-6] [quality=0] [dry=1] [ir=cab.wav]
+                 [atten=0.3] [attenon=0] [tank=model|none] [output=-6] [quality=0] [dry=1] [ir=cab.wav]
 
     Knobs are 0..1 as in the host (gain=0.8 is 8 on the dial); gain and
     volume set the chosen channel's; output is a trim in dB, ir is a cabinet impulse
@@ -18,6 +18,7 @@
     riff of its own first (a Karplus-Strong guitar, DI level) and renders that.
 */
 #include "Engine50.h"
+#include "SpringTank.h"
 
 #include <cmath>
 #include <cstdint>
@@ -171,6 +172,7 @@ int main (int argc, char** argv)
 
     Params50 p;
     double gain = -1.0, volume = -1.0;
+    bool springModel = true;
     bool dry = false;
     std::string irPath;
     for (int i = 3; i < argc; ++i)
@@ -191,6 +193,7 @@ int main (int argc, char** argv)
         else if (k == "reverbon") p.reverbOn = v > 0.5;
         else if (k == "atten")    p.atten = (float) v;
         else if (k == "attenon")  p.attenOn = v > 0.5;
+        else if (k == "tank")     springModel = a.substr (eq + 1) != "none";
         else if (k == "output")  p.output = (float) ((v + 24.0) / 36.0);
         else if (k == "ir")      irPath = a.substr (eq + 1);
         else if (k == "quality") p.quality = (int) v;
@@ -205,6 +208,10 @@ int main (int argc, char** argv)
     Engine50 e;
     if (! e.ok()) { std::printf ("engine: %s\n", e.error().c_str()); return 1; }
     e.setParams (p);
+    // the springs: the built-in model unless tank=none (then the reverb circuit runs and is silent)
+    SpringTank tank;
+    tank.prepare (sr, Engine50::CHUNK);
+    if (springModel) e.setTank ([&tank] (float* io, int n) { tank.process (io, n); });
     e.prepare (sr, 512);
 
     // the plugin's latency is trimmed off, so the output lines up with the input

@@ -76,10 +76,11 @@ Marmalade50AudioProcessor::Marmalade50AudioProcessor()
         lastSent[(size_t) i] = -999.0f;
     }
     /*  The springs, set once: the engine calls this on the audio thread
-        every chunk. No tank, no springs - the return is silence. */
+        every chunk. A measured tank IR when one is loaded; otherwise the
+        built-in spring model (SpringTank.h), which is an estimate. */
     engine.setTank ([this] (float* io, int n)
     {
-        if (! tankLoaded.load()) { std::fill (io, io + n, 0.0f); return; }
+        if (! tankLoaded.load()) { springModel.process (io, n); return; }
         float* ch[1] = { io };
         juce::dsp::AudioBlock<float> block (ch, 1, (size_t) n);
         springs.process (juce::dsp::ProcessContextReplacing<float> (block));
@@ -111,6 +112,7 @@ void Marmalade50AudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     cabinet.reset();
     springs.prepare ({ sampleRate, (juce::uint32) juce::jmax (samplesPerBlock, mm::Engine50::CHUNK), 1 });
     springs.reset();
+    springModel.prepare (sampleRate, mm::Engine50::CHUNK);
     handTankToEngine();
 }
 

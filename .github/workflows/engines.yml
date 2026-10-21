@@ -114,6 +114,9 @@ jobs:
       - name: Run the bench
         working-directory: vst3-apps/marmalade-50/plugin
         run: ./test/build/mm50test
+      - name: The spring model
+        working-directory: vst3-apps/marmalade-50/plugin
+        run: ./test/build/mm50spring
       - name: The split solve against the whole circuit
         working-directory: vst3-apps/marmalade-50/plugin
         run: ./test/build/mm50split

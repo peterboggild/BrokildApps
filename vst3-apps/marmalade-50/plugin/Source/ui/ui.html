@@ -157,7 +157,7 @@ window.addEventListener("error", e => {
 
     <div id="plate"></div>
     <div class="irbox" id="irbox"><span class="irbtn" id="irbtn">LOAD CAB IR</span><div class="irname" id="irname">no cabinet loaded</div></div>
-    <div class="irbox" id="tankbox"><span class="irbtn" id="tankbtn">LOAD TANK IR</span><div class="irname" id="tankname">no tank: the springs are silent</div></div>
+    <div class="irbox" id="tankbox"><span class="irbtn" id="tankbtn">LOAD TANK IR</span><div class="irname" id="tankname">built-in spring model</div></div>
     <div id="build"></div>
     <div id="fault"></div>
   </div>
@@ -346,7 +346,7 @@ function onInitialState(d){
   for (const id in el) draw(id);
   document.getElementById("build").textContent = "BUILD " + (d.build || "");
   document.getElementById("irname").textContent = d.ir ? d.ir : "no cabinet loaded";
-  document.getElementById("tankname").textContent = d.tank ? d.tank : "no tank: the springs are silent";
+  document.getElementById("tankname").textContent = d.tank ? d.tank : "built-in spring model";
   document.getElementById("fault").textContent = (d.ok === false) ? ("CIRCUIT FAULT · " + (d.error || "")) : "";
   NB.send({ k:"stateack" });
 }
