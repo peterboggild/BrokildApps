@@ -42,10 +42,14 @@ jobs:
             slug: Marmalade-50
     steps:
       - uses: actions/checkout@v5
+      - name: Fetch WebView2 SDK (NuGet)
+        # JUCE's WebView panel needs the SDK headers and the static loader; the
+        # runner does not carry them. The version is the one JUCE 8.0.13 names.
+        run: nuget install Microsoft.Web.WebView2 -Version 1.0.3485.44 -OutputDirectory webview2
       - name: Configure (fetches JUCE 8)
         working-directory: vst3-apps/${{ matrix.dir }}/plugin
         # No -G: the runner's default generator is whichever Visual Studio it has.
-        run: cmake -S . -B build -A x64
+        run: cmake -S . -B build -A x64 -DJUCE_WEBVIEW2_PACKAGE_LOCATION="${{ github.workspace }}/webview2"
       - name: Build Release
         working-directory: vst3-apps/${{ matrix.dir }}/plugin
         run: cmake --build build --config Release --target ${{ matrix.target }}_VST3 ${{ matrix.target }}_Standalone
