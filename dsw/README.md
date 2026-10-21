@@ -42,12 +42,13 @@ The host binds **localhost only** and serves the launcher, each plugin's
 `ui/` folder, and one WebSocket per running experiment. `./dsw --help` lists
 `--port`, `--plugins DIR`, `--web DIR`.
 
-Ships with two example experiments:
+Ships with these experiments:
 
 | Plugin | What it shows |
 |--------|---------------|
 | `gray-scott` | Gray–Scott reaction–diffusion on a 512×512 torus: presets, F/k sliders, paint-to-seed brush, steps/s telemetry. |
 | `wave-tank` | Damped 2D wave equation with absorbing shores and single/double-slit barriers: poke the water, drive an oscillator, watch interference fringes form. |
+| `moire-explorer` | Atom-level moiré superlattices; the LJ interface scan and CSL matching run in an OpenMP core. See [its README](plugins/moire-explorer/README.md). |
 
 <p>
   <img src="docs/wave-tank.png" alt="Wave Tank: double-slit interference" width="49%">
