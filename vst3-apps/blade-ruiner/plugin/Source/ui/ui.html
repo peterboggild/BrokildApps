@@ -304,6 +304,18 @@ html,body{height:100%;overflow:hidden;background:#05070c;
   box-shadow:inset 0 1px 2px rgba(0,0,0,.9)}
 #clamp.on{background:var(--hot);box-shadow:0 0 11px rgba(255,90,60,.9)}
 #build{font:600 8px/1 Consolas,monospace;letter-spacing:1.4px;color:#3f5665}
+#kbd .wk.rpz{background:linear-gradient(180deg,#d4ecea,#93b9b6 78%,#6f9592)}
+#kbd .wk.rpz.dn,#kbd .bk.rpz.dn{background:linear-gradient(180deg,#4ff0d8,#1f8f80)}
+#kbd .bk.rpz{background:linear-gradient(180deg,#1f4f4c,#08201f)}
+.ctl.dim{opacity:.38}
+#foot .keysgrp .seg{max-width:none;flex-wrap:nowrap}
+#foot .keysgrp .seg button{padding-left:6px;padding-right:6px;font-size:8px}
+#foot .keysgrp .seg button[aria-pressed="true"]{background:linear-gradient(180deg,#8dffe8,#0f9c88)}
+#foot .learn{margin-left:4px;font:700 7.5px/1 Consolas,monospace;letter-spacing:1px;
+  padding:3px 5px;border:1px solid #000;border-radius:2px;color:#9fb6c3;
+  background:linear-gradient(180deg,#22313b,#121c23);cursor:pointer}
+#foot .learn.on{color:#04100f;background:linear-gradient(180deg,#4ff0d8,#25a99a);
+  box-shadow:0 0 8px rgba(79,240,216,.7)}
 
 /* ── the load menu ───────────────────────────────────────────────────── */
 .pmenu{position:fixed;z-index:130;min-width:196px;max-width:360px;max-height:72vh;
@@ -560,6 +572,8 @@ function fmt(id, v){
     case "nexus":return "N-"+String(Math.round(v)).padStart(2,"0");
     case "oct":  { const o=Math.round(v); return (o>0?"+":"")+o+" OCT"; }
     case "semi": { const s=Math.round(v); return (s>0?"+":"")+s+" st"; }
+    case "keys": return KEYSN[Math.round(v)] || "";
+    case "note": return noteName(Math.round(v));
     default:     return Math.round(v*100)+" %";
   }
 }
@@ -574,7 +588,15 @@ function denorm(id, t){
 }
 function isInt(id){
   const u = (P[id]||{}).u;
-  return u==="chord"||u==="wave"||u==="rate"||u==="steps"||u==="nexus"||u==="oct"||u==="semi";
+  return u==="chord"||u==="wave"||u==="rate"||u==="steps"||u==="nexus"||u==="oct"||u==="semi"
+      || u==="keys"||u==="note";
+}
+const KEYSN = ["DECKARD","REPLICANT","BOTH","SPLIT"];
+let SPLITLEARN = false;
+function noteName(n){            // MIDI 60 = C4, as the plugin says it
+  const N = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  n = Math.max(0, Math.min(127, n|0));
+  return N[n%12] + (Math.floor(n/12) - 1);
 }
 
 function setParam(id, v){
@@ -668,6 +690,7 @@ function mkKnob(parent, id, label){
 }
 
 function listFor(kind){
+  if(kind==="keys") return KEYSN;
   return kind==="chord" ? CHORDS : (kind==="wave" ? WAVES : RATES);
 }
 
@@ -828,8 +851,14 @@ function buildRP(){
 
   r = group(rack, "LAYER");
   mkStepper(r, "rpoct", "OCTAVE");
-  mkSwitch(r, "rpgate", "CLOCK");
+  const clk = mkSwitch(r, "rpgate", "CLOCK");
+  const hold = mkSwitch(r, "rphold", "PLAYED");
   mkSlider(r, "rplvl", "LEVEL");
+  /*  CLOCK runs the pattern; PLAYED shapes a note played from the keys.
+      Only one of them means anything at a time, so the other is dimmed. */
+  const playedNow = ()=> Math.round(V.keys||0) !== 0;
+  const dimRp = ()=>{ clk.classList.toggle("dim", playedNow()); hold.classList.toggle("dim", !playedNow()); };
+  bind("keys", dimRp);
 
   const s = $("#steps");
   for(let i=0;i<NSTEPS;i++) el("i","",s);
@@ -874,9 +903,32 @@ function buildFoot(){
   mkSlider(g1, "tune", "TUNE");
   mkSwitch(g1, "limiter", "LIMITER");
 
+  /*  Where the keys go. SPLIT sends the split key and above to REPLICANT and
+      everything below to DECKARD; LEARN takes the next key played, from MIDI
+      or from the keyboard here. */
+  const gk = el("div","fgrp keysgrp",f);
+  mkSeg(gk, "keys", "KEYS TO", "keys");
+  const sp = mkStepper(gk, "split", "SPLIT");
+  const learn = el("button","learn",sp.querySelector(".st"));
+  learn.textContent = "LEARN";
+  learn.title = "Play a key: it becomes the split point (the lowest REPLICANT key)";
+  learn.addEventListener("click", ()=>{
+    SPLITLEARN = !SPLITLEARN;
+    learn.classList.toggle("on", SPLITLEARN);
+    NB.send({k:"splitLearn", on:SPLITLEARN});
+    if(SPLITLEARN) say("PLAY THE LOWEST KEY FOR REPLICANT");
+  });
+  NB.on("splitLearned", ()=>{ SPLITLEARN = false; learn.classList.remove("on"); });
+  bind("keys", ()=> sp.classList.toggle("dim", Math.round(V.keys||0) !== 3));
+
   const k = el("div","",f);
   k.id = "kbd";
   buildKeyboard(k);
+  const zone = ()=>{
+    const split = Math.round(V.split===undefined ? 60 : V.split), on = Math.round(V.keys||0) === 3;
+    k.querySelectorAll(".wk,.bk").forEach(e=> e.classList.toggle("rpz", on && +e.dataset.n >= split));
+  };
+  bind("keys", zone); bind("split", zone);
 
   const g2 = el("div","fgrp",f);
   g2.style.flexDirection = "column";
@@ -1393,7 +1445,8 @@ const LOCAL_UNITS = {
   dkon:"bool", dklvl:"db", dkwave:"wave", dkbright:"hz", dkoct:"oct",
   dkatk:"sec", dkdec:"sec", dkrel:"sec", dkglide:"sec",
   rpon:"bool", rplvl:"db", rprate:"rate", rpnexus:"nexus", rpsteps:"steps",
-  rpdecay:"sec", rpgate:"bool", rpoct:"oct", mood:"mood"
+  rpdecay:"sec", rpgate:"bool", rpoct:"oct", mood:"mood",
+  keys:"keys", split:"note", rphold:"bool"
 };
 
 function onInitialState(d){
@@ -1587,7 +1640,10 @@ if(!NB.live){
     mk("rpglitch",.2), mk("rpmenace",.3), mk("rpspread",.6), mk("rpspace",.4),
     Object.assign(mk("rpgate",0,"bool"),{on:"KEYED",off:"FREE"}),
     Object.assign(mk("rpoct",0,"oct"),{lo:-2,hi:2}),
-    Object.assign(mk("mood",-1,"mood"),{lo:-1,hi:999})
+    Object.assign(mk("mood",-1,"mood"),{lo:-1,hi:999}),
+    Object.assign(mk("keys",0,"keys"),{lo:0,hi:3}),
+    Object.assign(mk("split",60,"note"),{lo:0,hi:127}),
+    Object.assign(mk("rphold",0,"bool"),{on:"HOLD",off:"PLUCK"})
   ];
   onInitialState({params:stub, build:"no backend", steps:16});
   MET.pat = "2010110100101101";

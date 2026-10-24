@@ -466,6 +466,13 @@ struct Params
     float rpMetal = 0.45f, rpDecay = 0.35f, rpGlitch = 0.2f, rpMenace = 0.3f;
     float rpSpread = 0.6f, rpSpace = 0.4f, rpGate = 0.0f, rpOct = 0.0f;
 
+    /*  Where the keys go. KEYS 0 DECKARD (and REPLICANT's KEYED transpose,
+        exactly as before), 1 REPLICANT, 2 BOTH, 3 SPLIT at SPLIT KEY: below
+        to DECKARD, the key and above to REPLICANT. Whenever REPLICANT takes
+        keys it is PLAYED: its pattern stops and each key fires its voice.
+        HOLD keeps a played note sounding while the key is down. */
+    float keys = 0.0f, split = 60.0f, rpHold = 0.0f;
+
     /*  Carried so the panel and the host see it like any other value.
         The DSP does not read it: the mood is a way of arriving at a patch,
         not a thing the patch contains. */
@@ -595,7 +602,22 @@ private:
         int8_t  pitchOf[RP_STEPS] {};
         uint8_t accentOf[RP_STEPS] {};
         int     builtFor = -1;
+
+        // played by the keys: one voice, last-note priority
+        std::array<int, 16>   stack {};
+        std::array<float, 16> stackVel {};
+        int   stackN = 0;
+        bool  trig = false, rel = false;   // events for the next renderRP call
+        int   trigNote = 60;
+        float trigVel = 0.8f;
     } rp;
+
+    /*  Which way each held key went at note-on, so its note-off goes the same
+        way even if KEYS or SPLIT KEY moved in between: 1 DECKARD, 2 REPLICANT,
+        4 the shared held list (L.A. and REPLICANT's KEYED transpose). */
+    std::array<uint8_t, 128> zoneOf {};
+    void rpPress (int note, float vel);
+    void rpLift (int note);
 
     void buildPattern (int seed);
     void renderLA (float* l, float* r, int n);

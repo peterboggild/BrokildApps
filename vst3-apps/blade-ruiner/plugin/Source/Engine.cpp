@@ -118,6 +118,8 @@ void Engine::reset()
     lim.clear(); dcL.clear(); dcR.clear();
     heldCount = 0; lowestHeld = -1;
     for (auto& h : held) h = -1;
+    rp.stackN = 0; rp.trig = rp.rel = false;
+    zoneOf.fill (0);
     for (auto& v : layerRms) v = 0.0f;
     outRms = 0.0f;
 }
@@ -125,12 +127,24 @@ void Engine::reset()
 //==============================================================================
 void Engine::noteOn (int note, float velocity)
 {
-    if (heldCount < (int) held.size())
+    const int keys   = clampi ((int) std::lround (p.keys), 0, 3);
+    const int splitK = clampi ((int) std::lround (p.split), 0, 127);
+    const bool toDk  = keys == 0 || keys == 2 || (keys == 3 && note <  splitK);
+    const bool toRp  = keys == 1 || keys == 2 || (keys == 3 && note >= splitK);
+    // in SPLIT the drone follows the DECKARD hand only; otherwise every key
+    const bool toHeld = keys != 3 || toDk;
+    zoneOf[(size_t) clampi (note, 0, 127)] = (uint8_t) ((toDk ? 1 : 0) | (toRp ? 2 : 0) | (toHeld ? 4 : 0));
+
+    if (toRp) rpPress (note, velocity);
+
+    if (toHeld && heldCount < (int) held.size())
     {
         held[(size_t) heldCount++] = note;
         lowestHeld = note;
         for (int i = 0; i < heldCount; ++i) lowestHeld = std::min (lowestHeld, held[(size_t) i]);
     }
+
+    if (! toDk) return;
 
     // Deckard: steal the oldest voice if every one is busy
     int slot = -1;
@@ -157,16 +171,27 @@ void Engine::noteOn (int note, float velocity)
 
 void Engine::noteOff (int note)
 {
-    int w = 0;
-    for (int i = 0; i < heldCount; ++i)
-        if (held[(size_t) i] != note) held[(size_t) w++] = held[(size_t) i];
-    heldCount = w;
-    lowestHeld = -1;
-    for (int i = 0; i < heldCount; ++i)
-        lowestHeld = (lowestHeld < 0) ? held[(size_t) i] : std::min (lowestHeld, held[(size_t) i]);
+    auto& zr = zoneOf[(size_t) clampi (note, 0, 127)];
+    // a key with no record (pressed before a reset) lets go everywhere; that is harmless
+    const uint8_t z = zr != 0 ? zr : (uint8_t) 7;
+    zr = 0;
 
-    for (auto& v : dk.v)
-        if (v.used && v.note == note) { v.used = false; v.amp.gate (false); v.fenv.gate (false); }
+    if (z & 4)
+    {
+        int w = 0;
+        for (int i = 0; i < heldCount; ++i)
+            if (held[(size_t) i] != note) held[(size_t) w++] = held[(size_t) i];
+        heldCount = w;
+        lowestHeld = -1;
+        for (int i = 0; i < heldCount; ++i)
+            lowestHeld = (lowestHeld < 0) ? held[(size_t) i] : std::min (lowestHeld, held[(size_t) i]);
+    }
+
+    if (z & 2) rpLift (note);
+
+    if (z & 1)
+        for (auto& v : dk.v)
+            if (v.used && v.note == note) { v.used = false; v.amp.gate (false); v.fenv.gate (false); }
 }
 
 void Engine::allNotesOff()
@@ -174,6 +199,44 @@ void Engine::allNotesOff()
     heldCount = 0;
     lowestHeld = -1;
     for (auto& v : dk.v) { v.used = false; v.amp.gate (false); v.fenv.gate (false); }
+    zoneOf.fill (0);
+    rp.stackN = 0; rp.trig = false; rp.rel = true;
+}
+
+/*  REPLICANT played: one voice, so the most recent key sounds, and letting go
+    of it returns to the newest key still down. The voice itself fires in
+    renderRP, at the start of the next stretch it renders: noteOn is called
+    exactly where the key landed, so that is sample-accurate. */
+void Engine::rpPress (int note, float vel)
+{
+    int w = 0;
+    for (int i = 0; i < rp.stackN; ++i)
+        if (rp.stack[(size_t) i] != note) { rp.stack[(size_t) w] = rp.stack[(size_t) i]; rp.stackVel[(size_t) w] = rp.stackVel[(size_t) i]; ++w; }
+    rp.stackN = w;
+    if (rp.stackN == (int) rp.stack.size())          // full: forget the oldest
+    {
+        for (int i = 1; i < rp.stackN; ++i) { rp.stack[(size_t) i - 1] = rp.stack[(size_t) i]; rp.stackVel[(size_t) i - 1] = rp.stackVel[(size_t) i]; }
+        --rp.stackN;
+    }
+    rp.stack[(size_t) rp.stackN] = note; rp.stackVel[(size_t) rp.stackN] = vel; ++rp.stackN;
+    rp.trig = true; rp.rel = false; rp.trigNote = note; rp.trigVel = vel;
+}
+
+void Engine::rpLift (int note)
+{
+    int at = -1;
+    for (int i = 0; i < rp.stackN; ++i) if (rp.stack[(size_t) i] == note) at = i;
+    if (at < 0) return;
+    const bool wasTop = at == rp.stackN - 1;
+    for (int i = at + 1; i < rp.stackN; ++i) { rp.stack[(size_t) i - 1] = rp.stack[(size_t) i]; rp.stackVel[(size_t) i - 1] = rp.stackVel[(size_t) i]; }
+    --rp.stackN;
+    if (rp.stackN == 0) { rp.trig = false; rp.rel = true; return; }
+    if (wasTop)
+    {
+        rp.trig = true;
+        rp.trigNote = rp.stack[(size_t) rp.stackN - 1];
+        rp.trigVel  = rp.stackVel[(size_t) rp.stackN - 1];
+    }
 }
 
 //==============================================================================
@@ -492,11 +555,46 @@ void Engine::renderRP (float* L, float* R, int n)
     const float menace  = p.rpMenace;
     const float spread  = p.rpSpread;
 
-    rp.env.set (0.0008f, decay, 0.0f, decay * 0.7f, sr);
+    /*  PLAYED: whenever KEYS sends anything to REPLICANT its pattern does not
+        run at all, keys down or not, and the heartbeat is silent with it.
+        HOLD gives the one-shot a sustain level so a held key keeps sounding. */
+    const bool played = clampi ((int) std::lround (p.keys), 0, 3) != 0;
+    const bool holdOn = played && p.rpHold > 0.5f;
+
+    rp.env.set (0.0008f, decay, holdOn ? 0.8f : 0.0f, decay * 0.7f, sr);
     rp.heartEnv.set (0.004f, 0.34f, 0.0f, 0.3f, sr);
     rp.verb.setSize (0.42f, p.rpSpace, 4200.0f, sr);
 
-    const bool running = keyed ? (heldCount > 0) : true;
+    if (played)
+    {
+        if (rp.trig)
+        {
+            rp.trig = false;
+            const float note = (float) rp.trigNote + (float) (oct * 12);
+            rp.curHz  = midiHz (note) * tuneMul;
+            rp.curAmp = 0.3f + 0.7f * clamp01 (rp.trigVel);
+            rp.pan    = ((rp.trigNote & 1) ? 1.0f : -1.0f) * spread * 0.85f;
+            rp.env.st = ADSR::Att;
+            rp.env.v  = 0.0f;
+            rp.bp.set (std::min (rp.curHz * (2.0f + metal * 5.0f)
+                                 * (wmActive ? std::min (4.0f, std::max (0.05f, wmFmul)) : 1.0f), (float) sr * 0.44f),
+                       2.0f + menace * 7.0f, sr);
+            rpHit = 1.0f;
+            rp.stutterOn = glitch > 0.45f && (rp.rng.uni() < (glitch - 0.45f) * 1.6f);
+        }
+        if (rp.rel)
+        {
+            rp.rel = false;
+            // without HOLD a played note is a pluck: lifting the key changes nothing
+            if (holdOn && rp.env.st != ADSR::Idle && rp.env.st != ADSR::Rel)
+                rp.env.gate (false);
+        }
+    }
+    // HOLD switched off mid-note: a sustaining note would jump to the new
+    // (zero) sustain level, so let it release instead
+    if (! holdOn && rp.env.st == ADSR::Sus && rp.env.v > 0.0f) rp.env.gate (false);
+
+    const bool running = played || (keyed ? (heldCount > 0) : true);
     const int  transpose = (keyed && lowestHeld >= 0) ? lowestHeld - 48 : 0;
 
     // crush: hold the sample for a while, and quantise what is held
@@ -513,6 +611,7 @@ void Engine::renderRP (float* L, float* R, int n)
             while (rp.phase >= 1.0f)
             {
                 rp.phase -= 1.0f;
+                if (played) continue;      // the clock keeps the stutter's timing; no steps fire
                 rp.step = (rp.step + 1) % steps;
                 rpStepNow = rp.step;
 

@@ -6,62 +6,49 @@ with the build number.
 
 ## Open
 
-### 1. MIDI ROUTING: keys to DECKARD, REPLICANT, both, or split (Peter, 2026-10-24) — awaiting go
+(nothing open)
+
+## Done
+
+### 1. MIDI ROUTING: keys to DECKARD, REPLICANT, both, or split — DONE in 261024.2 (Peter, 2026-10-24)
 
 Peter: "a mode allowing me to channel midi key signals to either Deckard,
 Replicant or both. That would override the robotic autoplay of Replicant, in
 case midi is channeled to replicant. Additionally, a split function allowing
 midi i.e. from C4 and up to go to replicant (with an octave switch) and H3 and
-below to go to deckard, where the split key is selectable."
+below to go to deckard, where the split key is selectable." Then: HOLD off by
+default, autoplay off whenever keys go to REPLICANT, B3-style names fine.
 
-**How it works today (read from Engine.cpp):** every note goes to DECKARD
-(`Engine::noteOn`, 8-voice poly). REPLICANT never plays a note: it runs its
-16-step pattern, and with GATE = KEYED the held notes only start/stop it and
-transpose it by `lowestHeld - 48`. LOS ANGELES (KEYED) follows the lowest held
-note. One `held[]` list serves all three.
+**What shipped:**
+- Footer, beside the keyboard: **KEYS TO** `DECKARD | REPLICANT | BOTH | SPLIT`
+  (host param `keys`, default DECKARD), **SPLIT** stepper with the note name
+  (param `split`, default C4 = 60: B3 and below to DECKARD, C4 and up to
+  REPLICANT; dimmed unless SPLIT) and **LEARN** (the next key pressed, MIDI or
+  the panel keyboard, becomes the split key and is not played; the panel says
+  where the split landed). The panel keyboard tints the REPLICANT keys in SPLIT.
+- REPLICANT page, LAYER group: **PLAYED** switch `PLUCK | HOLD` (param
+  `rphold`, default PLUCK). CLOCK dims while REPLICANT is played, PLAYED dims
+  while it is not. The existing OCTAVE stepper shifts played notes too.
+- Whenever KEYS sends keys to REPLICANT (REPLICANT, BOTH, SPLIT) its pattern
+  and heartbeat do not run, keys down or not. Each key fires the FM voice at
+  its pitch through the same path (ratio, index, band-pass, crush, stutter,
+  pan); velocity sets the level. One voice: the newest key sounds, letting go
+  returns to the newest key still down.
+- Each key remembers where its note-on went, so its note-off goes the same way
+  even if KEYS or SPLIT KEY moved meanwhile. LOS ANGELES follows the DECKARD
+  hand in SPLIT, every key otherwise.
+- The panel's own keyboard now reaches the engine through a lock-free queue
+  drained on the audio thread (it used to call the engine from the UI thread,
+  a race that predates this item).
 
-**Spec:**
-- New param **KEYS** (stepped): `DECKARD` | `REPLICANT` | `BOTH` | `SPLIT`.
-  Default `DECKARD` = today's behaviour exactly, including REPLICANT's KEYED
-  transpose (bench: memcmp against the current engine).
-- **REPLICANT played**: when it receives keys, the sequencer stops and each
-  note-on fires the FM voice at that pitch (same timbre path: ratio, index,
-  crush, stutter, band-pass, pan). REPLICANT is one voice, so it is MONO,
-  last-note priority; releasing back to a still-held note retriggers it.
-  Its envelope is a one-shot (sustain 0), so a held key plucks and decays.
-  **HOLD** switch (sustain while the key is down), **OFF by default**
-  (Peter, 2026-10-24). Velocity -> level (and a little FM index).
-  **Autoplay is OFF whenever KEYS routes to REPLICANT** (REPLICANT, BOTH,
-  SPLIT) — with no key down it is silent, it does not fall back to the
-  pattern (Peter, 2026-10-24). The heartbeat is off too. Only KEYS = DECKARD
-  runs the pattern, exactly as today.
-- **BOTH**: every note to DECKARD and REPLICANT (REPLICANT takes the most
-  recent one, being mono).
-- **SPLIT**: notes >= SPLIT KEY go to REPLICANT, below to DECKARD.
-  - **SPLIT KEY** (note number, default C4 = 60, so B3/H3 and below is
-    DECKARD). Settable by a LEARN button: press it, play a key.
-  - **REPLICANT OCTAVE** -2..+2 for the upper zone (the existing OCTAVE knob
-    already shifts REPLICANT; reuse it rather than add a second one, if it
-    reads clearly on the panel).
-  - A note-off must go to the layer its note-on went to, even if the split
-    key moved in between (remember the zone per held note), or a note hangs.
-- **LOS ANGELES** follows the DECKARD zone's lowest note in SPLIT (the drone
-  is the bass of the chord), all notes otherwise.
-- The "at least one layer always playing" rule is untouched.
-- Panel: a four-position switch + split-key readout (note name, e.g. `C4`)
-  + LEARN, near the keyboard; the on-screen keyboard shows the split point.
-  Note names in English (`B3`) — fine by Peter; the split key is selectable
-  anyway (value + LEARN).
+**Verified:** `brtest` ALL CLEAR with 12 new KEYS checks (autoplay silent
+when played; A4 lands on 440 Hz; OCTAVE +1 on 880; PLUCK dies while held,
+HOLD sustains and lets go; mono newest-key and fall-back; SPLIT B3 -> DECKARD
+only, C4 -> REPLICANT only; BOTH plays both; note-off after the split key
+moved still ends the note). `paramcheck.js` ALL CLEAR (50/50). KEYS = DECKARD
+is **bit-identical** to the 261024.1 engine: memcmp in 3 scenarios (plain,
+L.A. + REPLICANT KEYED, KEYED + OCTAVE + glide) x 44.1/48/96 kHz, all three
+layers on, chords, overlaps and an all-notes-off. Panel: no JS errors, no
+overflow, footer and LAYER group measured in headless Chrome.
 
-**Bench:** default bit-identical; REPLICANT played lands on the asked pitch
-(Goertzel); no step advances while played; SPLIT sends 59 to DECKARD only and
-60 to REPLICANT only; a note-off after the split key moves still releases;
-mono last-note priority; no pattern step fires in REPLICANT/BOTH/SPLIT with
-no key down; HOLD off plucks, HOLD on sustains while held.
-
-**Effort:** engine + params + panel + bench, about half a day. No DSP risk;
-the risk is hanging notes, which the bench covers.
-
-## Done
-
-(nothing yet)
+**Not done:** the manual and the landing page do not describe KEYS yet.

@@ -109,6 +109,25 @@ private:
     std::array<float, FFT_SIZE> window {};
 
     std::atomic<bool> wantPanic { false };
+
+    // panel keyboard -> audio thread (single producer, single consumer)
+    static constexpr int UI_NOTES = 128;
+    std::array<int, UI_NOTES> uiNotes {};
+    std::atomic<int> uiNoteWrite { 0 }, uiNoteRead { 0 };
+
+    /*  SPLIT LEARN: armed by the panel, the next key pressed (MIDI or the
+        panel's keyboard) becomes SPLIT KEY and is not played. The audio
+        thread takes it; the timer tells the panel. */
+    std::atomic<bool> splitLearn { false };
+    std::atomic<int>  splitLearned { -1 };
+    bool takeSplitKey (int note)
+    {
+        if (! splitLearn.exchange (false)) return false;
+        if (auto* prm = apvts.getParameter ("split"))
+            prm->setValueNotifyingHost (prm->convertTo0to1 ((float) note));
+        splitLearned = note;
+        return true;
+    }
     /*  A host can automate all three layers off at once, which no click on
         the panel is allowed to do. If it happens the audio thread keeps the
         last live layer sounding and raises this; the message thread puts the

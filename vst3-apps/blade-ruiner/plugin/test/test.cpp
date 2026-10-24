@@ -9,6 +9,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <random>
 #include <string>
 #include <vector>
@@ -569,6 +570,151 @@ int main (int argc, char** argv)
         const bool ok = s.finite && s.peak < 1.4f && mn < mx * 0.7;
         std::printf ("%-46s rms %.4f..%.4f peak %.2f %s\n", "extreme bus: trem breathes, bounded", mn, mx, s.peak, ok ? "ok" : "WRONG");
         if (! ok) ++failures;
+    }
+
+    // ---------------------------------------------------------------- KEYS
+    std::printf ("\n-- KEYS routing: DECKARD / REPLICANT / BOTH / SPLIT -------------\n");
+    {
+        struct Ev { int ms; int note; bool on; float split; };
+        /*  Render with key events at given times; an event may also move
+            SPLIT KEY (split >= 0) at that moment, before its note. */
+        auto play = [&] (Engine& e, float seconds, const std::vector<Ev>& evs, std::vector<float>& L)
+        {
+            const int total = (int) (SR * seconds);
+            L.assign ((size_t) total, 0.0f);
+            std::vector<float> R ((size_t) total, 0.0f);
+            int done = 0, blk = 0;
+            static const int SIZES[5] = { 64, 128, 256, 480, 512 };
+            while (done < total)
+            {
+                const int n = std::min (SIZES[blk++ % 5], total - done);
+                for (const auto& v : evs)
+                {
+                    const int at = (int) (SR * v.ms / 1000.0);
+                    if (done <= at && done + n > at)
+                    {
+                        if (v.split >= 0.0f) e.p.split = v.split;
+                        if (v.note >= 0) { if (v.on) e.noteOn (v.note, 0.9f); else e.noteOff (v.note); }
+                    }
+                }
+                e.process (L.data() + done, R.data() + done, n);
+                done += n;
+            }
+        };
+        auto rmsOf = [&] (const std::vector<float>& L, double fromS, double lenS)
+        {
+            double acc = 0.0; size_t n = 0;
+            for (size_t i = (size_t) (SR * fromS); i < (size_t) (SR * (fromS + lenS)) && i < L.size(); ++i, ++n)
+                acc += (double) L[i] * L[i];
+            return n ? std::sqrt (acc / (double) n) : 0.0;
+        };
+        auto rpEngine = [&] (int keys, bool hold)
+        {
+            auto e = std::make_unique<Engine>();
+            e->prepare (SR, 512);
+            soloLayer (*e, 2);
+            e->p.keys = (float) keys; e->p.rpHold = hold ? 1.0f : 0.0f;
+            e->p.rpGlitch = 0.0f; e->p.rpMenace = 0.0f; e->p.rpSpace = 0.0f;
+            return e;
+        };
+        auto line = [&] (const char* what, bool ok, const char* fmt, double a, double b)
+        {
+            char buf[96]; std::snprintf (buf, sizeof buf, fmt, a, b);
+            std::printf ("%-46s %s  %s\n", what, buf, ok ? "ok" : "WRONG");
+            if (! ok) ++failures;
+        };
+
+        {   // the pattern does not run when REPLICANT takes keys, keys down or not
+            auto a = rpEngine (0, false), b = rpEngine (1, false), c = rpEngine (3, false);
+            std::vector<float> La, Lb, Lc;
+            play (*a, 2.0f, {}, La); play (*b, 2.0f, {}, Lb); play (*c, 2.0f, {}, Lc);
+            const double ra = rmsOf (La, 0.2, 1.8), rb = rmsOf (Lb, 0.2, 1.8), rc = rmsOf (Lc, 0.2, 1.8);
+            line ("autoplay off when REPLICANT is played", ra > 1e-3 && rb < 1e-7 && rc < 1e-7,
+                  "pattern %.4f, played %.1e", ra, std::max (rb, rc));
+        }
+        {   // a played note lands on its pitch (HOLD on, so it is still there to measure)
+            auto e = rpEngine (1, true);
+            std::vector<float> L;
+            play (*e, 1.5f, { { 50, 69, true, -1 } }, L);
+            const double at = goertzel (L, SR, 440.0, (size_t) (SR * 0.6), (size_t) (SR * 0.6));
+            const double nb = goertzel (L, SR, 466.2, (size_t) (SR * 0.6), (size_t) (SR * 0.6));
+            line ("played REPLICANT lands on A4 (440 Hz)", at > 20.0 * nb, "440 %.2e  466 %.2e", at, nb);
+        }
+        {   // OCTAVE moves a played note too
+            auto e = rpEngine (1, true);
+            e->p.rpOct = 1.0f;
+            std::vector<float> L;
+            play (*e, 1.5f, { { 50, 69, true, -1 } }, L);
+            const double up = goertzel (L, SR, 880.0, (size_t) (SR * 0.6), (size_t) (SR * 0.6));
+            const double ho = goertzel (L, SR, 440.0, (size_t) (SR * 0.6), (size_t) (SR * 0.6));
+            line ("OCTAVE +1 plays A5 (880 Hz)", up > 10.0 * ho, "880 %.2e  440 %.2e", up, ho);
+        }
+        {   // HOLD off plucks, HOLD on sustains
+            auto p = rpEngine (1, false), h = rpEngine (1, true);
+            p->p.rpDecay = 0.3f; h->p.rpDecay = 0.3f;
+            std::vector<float> Lp, Lh;
+            play (*p, 3.0f, { { 50, 57, true, -1 }, { 2500, 57, false, -1 } }, Lp);
+            play (*h, 3.0f, { { 50, 57, true, -1 }, { 2500, 57, false, -1 } }, Lh);
+            const double early = rmsOf (Lp, 0.06, 0.1), lateP = rmsOf (Lp, 1.8, 0.4), lateH = rmsOf (Lh, 1.8, 0.4);
+            line ("HOLD off plucks (dies while the key is down)", lateP < early * 0.01, "early %.4f late %.1e", early, lateP);
+            line ("HOLD on sustains while the key is down", lateH > early * 0.3, "early %.4f late %.4f", early, lateH);
+            const double after = rmsOf (Lh, 2.95, 0.05);
+            line ("HOLD on lets go when the key does", after < lateH * 0.05, "held %.4f after %.1e", lateH, after);
+        }
+        {   // one voice: the newest key sounds, letting go returns to the one still down
+            auto e = rpEngine (1, true);
+            std::vector<float> L;
+            // A#4 (466 Hz) over A3 (220 Hz): not a harmonic of it, so it can be told apart
+            play (*e, 2.0f, { { 50, 57, true, -1 }, { 500, 70, true, -1 }, { 1000, 70, false, -1 } }, L);
+            const double aHi  = goertzel (L, SR, 466.16, (size_t) (SR * 0.65), (size_t) (SR * 0.3));
+            const double aLo  = goertzel (L, SR, 220.0,  (size_t) (SR * 0.65), (size_t) (SR * 0.3));
+            const double bLo  = goertzel (L, SR, 220.0,  (size_t) (SR * 1.3),  (size_t) (SR * 0.5));
+            const double bHi  = goertzel (L, SR, 466.16, (size_t) (SR * 1.3),  (size_t) (SR * 0.5));
+            line ("mono: newest key sounds (and only it)", aHi > 10.0 * aLo, "466 %.2e  220 %.2e", aHi, aLo);
+            line ("mono: letting go returns to the held key", bLo > 10.0 * bHi, "220 %.2e  466 %.2e", bLo, bHi);
+        }
+        {   // SPLIT: below the key to DECKARD only, the key and up to REPLICANT only
+            auto run = [&] (int layer, int note)
+            {
+                Engine e; e.prepare (SR, 512);
+                soloLayer (e, layer);
+                e.p.keys = 3.0f; e.p.split = 60.0f; e.p.rpHold = 1.0f; e.p.rpGlitch = 0.0f;
+                std::vector<float> L;
+                play (e, 1.2f, { { 50, note, true, -1 } }, L);
+                return rmsOf (L, 0.4, 0.6);
+            };
+            const double dk59 = run (1, 59), dk60 = run (1, 60), rp60 = run (2, 60), rp59 = run (2, 59);
+            line ("SPLIT: B3 plays DECKARD, not REPLICANT", dk59 > 1e-3 && rp59 < 1e-7, "dk %.4f rp %.1e", dk59, rp59);
+            line ("SPLIT: C4 plays REPLICANT, not DECKARD", rp60 > 1e-3 && dk60 < 1e-7, "rp %.4f dk %.1e", rp60, dk60);
+        }
+        {   // BOTH sends a key to the two of them
+            auto run = [&] (int layer)
+            {
+                Engine e; e.prepare (SR, 512);
+                soloLayer (e, layer);
+                e.p.keys = 2.0f; e.p.rpHold = 1.0f; e.p.rpGlitch = 0.0f;
+                std::vector<float> L;
+                play (e, 1.2f, { { 50, 64, true, -1 } }, L);
+                return rmsOf (L, 0.4, 0.6);
+            };
+            const double dk = run (1), rp = run (2);
+            line ("BOTH: one key plays DECKARD and REPLICANT", dk > 1e-3 && rp > 1e-3, "dk %.4f rp %.4f", dk, rp);
+        }
+        {   // a note-off goes where its note-on went, even after SPLIT KEY moved
+            auto run = [&] (bool moveSplit)
+            {
+                Engine e; e.prepare (SR, 512);
+                soloLayer (e, 1);
+                e.p.keys = 3.0f; e.p.split = 60.0f; e.p.dkSpace = 0.0f; e.p.dkRel = 0.1f;
+                std::vector<float> L;
+                play (e, 4.0f, { { 50, 59, true, -1 }, { 1000, 59, false, moveSplit ? 40.0f : -1.0f } }, L);
+                return std::make_pair (rmsOf (L, 0.5, 0.4), rmsOf (L, 3.5, 0.5));
+            };
+            const auto moved = run (true), still = run (false);
+            line ("SPLIT KEY moved while held: the note still ends",
+                  moved.second < moved.first * 0.001 && moved.second <= still.second * 1.5 + 1e-7,
+                  "held %.4f  after %.1e", moved.first, moved.second);
+        }
     }
 
     std::printf ("\n================================================================\n");

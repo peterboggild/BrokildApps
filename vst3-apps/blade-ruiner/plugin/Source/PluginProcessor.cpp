@@ -102,8 +102,22 @@ namespace
         { "rpnexus", "REPLICANT NEXUS",     0, 63,  6, "nexus" },
         { "rpsteps", "REPLICANT STEPS",     4, 16, 16, "steps" },
         { "rpoct",   "REPLICANT OCTAVE",   -2,  2,  0, "oct"   },
-        { "mood",    "MOOD",               -1, 999,  -1, "mood"  }
+        { "mood",    "MOOD",               -1, 999,  -1, "mood"  },
+        { "keys",    "KEYS TO",             0,  3,  0, "keys"  },
+        { "split",   "SPLIT KEY",           0, 127, 60, "note" }
     };
+
+    const char* keysName (int v)
+    {
+        static const char* n[] = { "DECKARD", "REPLICANT", "BOTH", "SPLIT" };
+        return n[juce::jlimit (0, 3, v)];
+    }
+    juce::String noteName (int v)       // MIDI 60 = C4
+    {
+        static const char* n[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+        v = juce::jlimit (0, 127, v);
+        return juce::String (n[v % 12]) + juce::String (v / 12 - 1);
+    }
 
     struct BDef { const char* id; const char* name; bool def; const char* on; const char* off; };
     const BDef BOOLS[] = {
@@ -112,7 +126,8 @@ namespace
         { "lagate",  "L.A. TRIGGER",   false, "KEYED", "DRONE" },
         { "dkon",    "DECKARD ON",     true,  "LIVE",  "DARK"  },
         { "rpon",    "REPLICANT ON",   false, "LIVE",  "DARK"  },
-        { "rpgate",  "REPLICANT HOLD", false, "KEYED", "FREE"  }
+        { "rpgate",  "REPLICANT HOLD", false, "KEYED", "FREE"  },
+        { "rphold",  "REPLICANT SUSTAIN", false, "HOLD", "PLUCK" }
     };
 
     const IDef* findInt (const juce::String& id)
@@ -145,7 +160,9 @@ juce::StringArray BladeRuinerAudioProcessor::paramIds()
         "rpon", "rplvl", "rprate", "rpnexus", "rpsteps", "rpmetal", "rpdecay",
         "rpglitch", "rpmenace", "rpspread", "rpspace", "rpgate", "rpoct",
 
-        "mood"
+        "mood",
+
+        "keys", "split", "rphold"
     };
 }
 
@@ -189,6 +206,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout BladeRuinerAudioProcessor::c
                     if (kind == "nexus") return "N-" + juce::String (v).paddedLeft ('0', 2);
                     if (kind == "mood")  return v < 0 ? juce::String ("NONE") : juce::String (v);
                     if (kind == "oct")   return (v > 0 ? "+" : "") + juce::String (v) + " OCT";
+                    if (kind == "keys")  return juce::String (keysName (v));
+                    if (kind == "note")  return noteName (v);
                     return (v > 0 ? "+" : "") + juce::String (v) + " st";
                 })));
     }
@@ -283,6 +302,16 @@ void BladeRuinerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     p.rpMenace = g (k++); p.rpSpread = g (k++); p.rpSpace = g (k++); p.rpGate = g (k++);
     p.rpOct = g (k++);
     p.mood = g (k++);
+    p.keys = g (k++); p.split = g (k++); p.rpHold = g (k++);
+
+    // notes from the panel's own keyboard, handed over by the message thread
+    for (int r = uiNoteRead.load(); r != uiNoteWrite.load(); r = (r + 1) % UI_NOTES)
+    {
+        const int e = uiNotes[(size_t) r];
+        if (e & 0x100) { if (! takeSplitKey (e & 0x7f)) engine.noteOn (e & 0x7f, 0.8f); }
+        else engine.noteOff (e & 0x7f);
+        uiNoteRead.store ((r + 1) % UI_NOTES);
+    }
 
     /*  At least one layer is always live. Nothing on the panel can switch the
         last one off, but a host writing three automation lanes at once can —
@@ -328,7 +357,8 @@ void BladeRuinerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
                 if (auto* prm = apvts.getParameter (ids[pi]))
                     prm->setValueNotifyingHost (m.getControllerValue() / 127.0f);
         }
-        if      (m.isNoteOn())                             engine.noteOn (m.getNoteNumber(), m.getFloatVelocity());
+        if      (m.isNoteOn())                             { if (! takeSplitKey (m.getNoteNumber()))
+                                                                 engine.noteOn (m.getNoteNumber(), m.getFloatVelocity()); }
         else if (m.isNoteOff())                            engine.noteOff (m.getNoteNumber());
         else if (m.isAllNotesOff() || m.isAllSoundOff())   engine.allNotesOff();
     }
@@ -502,11 +532,19 @@ void BladeRuinerAudioProcessor::handleOne (const juce::var& m)
     else if (k == "presetScan")   presetScan();
     else if (k == "presetFolder") presetPickFolder();
     else if (k == "presetLoad")   presetLoad (o->getProperty ("path").toString());
+    else if (k == "splitLearn") splitLearn = (bool) o->getProperty ("on");
     else if (k == "note")
     {
         const int  n  = (int) o->getProperty ("n");
         const bool on = (bool) o->getProperty ("on");
-        if (on) engine.noteOn (n, 0.8f); else engine.noteOff (n);
+        /*  queued for the audio thread: the engine's note state (and since
+            KEYS, the routing record) is the audio thread's alone */
+        const int w = uiNoteWrite.load(), nx = (w + 1) % UI_NOTES;
+        if (nx != uiNoteRead.load())                       // full: drop, never block
+        {
+            uiNotes[(size_t) w] = (juce::jlimit (0, 127, n)) | (on ? 0x100 : 0);
+            uiNoteWrite.store (nx);
+        }
     }
 }
 
@@ -595,6 +633,13 @@ void BladeRuinerAudioProcessor::timerService()
         const char* id = lastLiveLayer == 1 ? "dkon" : (lastLiveLayer == 2 ? "rpon" : "laon");
         setParamById (id, 1.0f);
         notice ("SOMETHING HAS TO BE PLAYING");
+    }
+
+    if (const int sk = splitLearned.exchange (-1); sk >= 0)
+    {
+        notice ("SPLIT AT " + noteName (sk) + " " + DOT + " " + noteName (sk) + " AND UP TO REPLICANT, "
+                + noteName (sk - 1) + " AND DOWN TO DECKARD");
+        emitToUi ("splitLearned", juce::var (new juce::DynamicObject()));
     }
 
     if (! uiHasState.load())
