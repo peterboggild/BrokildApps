@@ -7,7 +7,7 @@
   "icon": "keys",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/high-tide.jpg",
-  "note": "Windows VST3 · build 261024.1 · free download · 17 starters + 12 terrains · hints on every control · 15-page manual.",
+  "note": "Windows VST3 · build 261024.3 · free download · 17 starters + 12 terrains · hints on every control · 15-page manual.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "High-Tide-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/High-Tide-VST3-win64.zip",
-      "bytes": 9737564,
-      "sha256": "6e736778e86b3d90a7cb68fce4758c326b14f4c0b0d5505622f1e88cf1d67aa4"
+      "bytes": 9737445,
+      "sha256": "ea85074a15633d534d481e883e9e4a1478b18a43fec3449d4078036a72bb2f06"
     }
   ]
 }

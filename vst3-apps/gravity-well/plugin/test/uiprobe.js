@@ -245,6 +245,21 @@ function report () {
   G.set("m1_src", longest("m1_src"), false); G.set("m1_dst", longest("m1_dst"), false); G.set("m1_amt", 0.5, false);
   out.cmpCut = Array.from(document.querySelectorAll("#desk .cell.cmp .step .nm")).filter(n => n.scrollWidth > n.clientWidth + 1).map(n => n.textContent);
   out.cmpCount = document.querySelectorAll("#desk .cell.cmp").length;
+
+  //  14. MIDI learn: right-click opens the learn menu on EVERY control, on
+  //  every page and both pillars (2026-10-24: the panel is generated, and the
+  //  learn code had been patched into the output, where a rebuild erased it)
+  out.mlCells = 0; out.mlDead = [];
+  const tryCell = c => {
+    if (!c.dataset.id) return;
+    ++out.mlCells;
+    const r = c.getBoundingClientRect();
+    c.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left + 2, clientY: r.top + 2 }));
+    const m = document.getElementById("ml-menu");
+    if (m) m.remove(); else out.mlDead.push(c.dataset.id);
+  };
+  document.querySelectorAll(".pillar .cell").forEach(tryCell);
+  for (const pg of G.pages) { G.showPage(pg.key); document.querySelectorAll("#desk .cell").forEach(tryCell); }
   const pre = document.createElement("pre"); pre.id = "gwprobe"; pre.textContent = JSON.stringify(out);
   document.body.appendChild(pre);
 }
@@ -395,6 +410,8 @@ for (const [w, h] of [[1340, 880], [1100, 760]]) {
     CHECK(o.keysInside, 'the keyboard spills out of the foot');
     CHECK(o.keysHiddenAgain, 'KEYS does not hide the keyboard again');
     CHECK(o.hello === true, 'the page never said hello - the processor would wait for ever');
+    console.log('     MIDI learn: ' + (o.mlCells - o.mlDead.length) + ' of ' + o.mlCells + ' controls open the learn menu on right-click');
+    CHECK(o.mlCells > 100 && o.mlDead.length === 0, 'MIDI learn missing on: ' + o.mlDead.slice(0, 8).join(', '));
 }
 
 console.log('\n' + checks + ' checks, ' + fails + ' failures');

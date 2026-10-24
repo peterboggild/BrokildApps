@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/escape-room.jpg",
-  "note": "Windows VST3 · build 261024.1 · free download · 26-page manual included.",
+  "note": "Windows VST3 · build 261024.3 · free download · 26-page manual included.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Escape-Room-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Escape-Room-VST3-win64.zip",
-      "bytes": 7994227,
-      "sha256": "3ff004c69cb3fb6204ee8fe237a04b41819533128accd5013eb2eb9bbd7a04a2"
+      "bytes": 7994504,
+      "sha256": "1e4725ff8671a005a98f9cd0757801781331f1188215f54befe10969138f1d3e"
     }
   ]
 }

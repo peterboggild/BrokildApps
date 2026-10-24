@@ -7,7 +7,7 @@
   "icon": "keys",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/thirty-thousand-years.jpg",
-  "note": "Windows VST3 and Standalone · build 261024.1 · free download · four strata, 397 parameters, 48 presets · LIFE network and a 32-slot matrix · HISTORY across four scenes · 5.6 % of a core for a drone · handbook included.",
+  "note": "Windows VST3 and Standalone · build 261024.3 · free download · four strata, 397 parameters, 48 presets · LIFE network and a 32-slot matrix · HISTORY across four scenes · 5.6 % of a core for a drone · handbook included.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Thirty-Thousand-Years-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Thirty-Thousand-Years-VST3-win64.zip",
-      "bytes": 15341338,
-      "sha256": "3c787ff0ef16932d0d43b452740e7d849eaf2da966a82e5f94800eee8378837b"
+      "bytes": 15341489,
+      "sha256": "efe029f8378cf0694a19e1c1eb1c8ad078288289caa2e0418913471784c720cd"
     }
   ]
 }

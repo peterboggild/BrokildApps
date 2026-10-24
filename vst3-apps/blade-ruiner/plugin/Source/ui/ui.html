@@ -437,7 +437,7 @@ const NB = (function(){
 /* MIDI learn (shared/midilearn-ui.js) */
 /* MIDI learn for the panel (pairs with shared/MidiLearn.h). Inlined into each
    plugin's ui.html. MLUI.init({ send, on, say }) once the bridge exists, then
-   MLUI.attach(element, paramId, label) for every knob: right-click opens the
+   MLUI.attach(element, paramId, label) for every control: right-click opens the
    LEARN / CLEAR menu, and a grab/release on the knob is sent to the host as a
    touch gesture (so Configure and automation recording see it). */
 var MLUI = (function () {
@@ -445,7 +445,7 @@ var MLUI = (function () {
   function paint() {
     ITEMS.forEach(function (it) {
       it.el.classList.toggle("ml-learning", it.id === LEARNING);
-      if (MAP[it.id] !== undefined) it.el.setAttribute("data-cc", "CC " + MAP[it.id]); else it.el.removeAttribute("data-cc");
+      if (MAP[it.id] !== undefined) { it.el.setAttribute("data-cc", "CC " + MAP[it.id]); if (getComputedStyle(it.el).position === "static") it.el.style.position = "relative"; } else it.el.removeAttribute("data-cc");
     });
   }
   function release() { if (grabbed) { B.send({ k: "g", id: grabbed, on: false }); grabbed = null; } }
@@ -476,7 +476,7 @@ var MLUI = (function () {
       B = bridge;
       var st = document.createElement("style");
       st.textContent = ".ml-learning{outline:2px solid #ff9f1c !important;outline-offset:1px;animation:mlp 1s infinite}" +
-        "[data-cc]{position:relative}[data-cc]::after{content:attr(data-cc);position:absolute;right:-2px;top:-5px;font:700 8px Arial,sans-serif;color:#ff9f1c;pointer-events:none;text-shadow:0 0 3px #000}" +
+        "[data-cc]::after{content:attr(data-cc);position:absolute;right:-2px;top:-5px;font:700 8px Arial,sans-serif;color:#ff9f1c;pointer-events:none;text-shadow:0 0 3px #000}" +
         "@keyframes mlp{50%{outline-color:transparent}}";
       document.head.appendChild(st);
       B.on("ccmap", function (d) {
@@ -662,6 +662,7 @@ function drag(node, id, opts){
 
 function mkSlider(parent, id, label){
   const c = el("div","ctl sl",parent);
+  MLUI.attach(c, id, label);
   el("div","lab",c).textContent = label;
   const t = el("div","track",c);
   const f = el("div","fill",t);
@@ -680,7 +681,7 @@ function mkKnob(parent, id, label){
   const c = el("div","ctl kn",parent);
   el("div","lab",c).textContent = label;
   const d = el("div","dial",c);
-  MLUI.attach(d, id, label);
+  MLUI.attach(c, id, label);
   const v = el("div","val",c);
   drag(d, id, {vertical:true});
   bind(id, ()=>{ const n = norm(id, V[id]||0);
@@ -696,6 +697,7 @@ function listFor(kind){
 
 function mkSeg(parent, id, label, kind){
   const c = el("div","ctl",parent);
+  MLUI.attach(c, id, label);
   el("div","lab",c).textContent = label;
   const s = el("div","seg",c);
   let built = 0;
@@ -721,6 +723,7 @@ function mkSeg(parent, id, label, kind){
 
 function mkStepper(parent, id, label){
   const c = el("div","ctl",parent);
+  MLUI.attach(c, id, label);
   el("div","lab",c).textContent = label;
   const s = el("div","st",c);
   const dn = el("button","",s); dn.textContent = "−";
@@ -734,6 +737,7 @@ function mkStepper(parent, id, label){
 
 function mkSwitch(parent, id, label){
   const c = el("div","ctl sw",parent);
+  MLUI.attach(c, id, label);
   el("div","lab",c).textContent = label;
   const b = el("div","body",c);
   el("i","",b);
@@ -749,6 +753,7 @@ function mkSwitch(parent, id, label){
 
 function mkNexus(parent, id, label){
   const c = el("div","ctl nexus",parent);
+  MLUI.attach(c, id, label);
   el("div","lab",c).textContent = label;
   const t = el("div","track",c);
   const f = el("div","fill",t);
@@ -877,6 +882,7 @@ function buildTabs(){
     const t = el("div","tab",box);
     t.dataset.l = L.key;
     const lamp = el("div","lamp",t);
+    MLUI.attach(lamp, L.on, L.name + " ON");
     el("div","tname",t).textContent = L.name;
     el("div","tsub",t).textContent  = L.sub;
     const m = el("div","meter",t); el("i","",m);

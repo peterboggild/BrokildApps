@@ -6,9 +6,12 @@ on:
       - "vst3-apps/clone-wars/plugin/**"
       - "BrokildWorldFX/**"        # the shared BWFX rack is compiled in
       - ".github/workflows/clone-wars.yml"
-  # A manual dispatch additionally commits the house-style release zip
-  # (VST3 + standalone + manual + readme) to vst3-apps/clone-wars/ on the
-  # branch it ran on, which is what the site's download button serves.
+  # A manual dispatch additionally publishes the house-style release zip
+  # (VST3 + standalone + manual + readme) as the Clone-Wars-VST3-win64.zip
+  # asset on the `downloads` release - what the site's download button serves -
+  # and records its size and sha256 in vst3-apps/clone-wars/app.json.
+  # (Zips are not committed any more: since 2026-09-23 every plug-in download
+  # is a release asset and vst3-apps/*/*.zip is gitignored.)
   workflow_dispatch:
 
 permissions:
@@ -88,15 +91,35 @@ jobs:
           name: Clone-Wars-VST3-win64
           path: vst3-apps/clone-wars/plugin/package/**
           retention-days: 30
-      - name: Commit release zip to the repo (manual dispatch only)
+      - name: Publish the release zip to the downloads release (manual dispatch only)
         if: github.event_name == 'workflow_dispatch'
         shell: pwsh
         working-directory: vst3-apps/clone-wars
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          # PowerShell 7 (.NET Core) writes forward slashes in entry names
           Compress-Archive -Path "plugin/package/Clone-Wars-VST3-win64" -DestinationPath "Clone-Wars-VST3-win64.zip" -Force
+          gh release upload downloads "Clone-Wars-VST3-win64.zip" --clobber --repo "${{ github.repository }}"
+          # what a stranger downloads must be what was built: fetch it back and compare
+          $url = "https://github.com/${{ github.repository }}/releases/download/downloads/Clone-Wars-VST3-win64.zip"
+          Start-Sleep -Seconds 5
+          Invoke-WebRequest $url -OutFile fetched.zip
+          $want = (Get-FileHash "Clone-Wars-VST3-win64.zip" -Algorithm SHA256).Hash.ToLower()
+          $got  = (Get-FileHash "fetched.zip" -Algorithm SHA256).Hash.ToLower()
+          if ($want -ne $got) { throw "the public asset ($got) is not the built zip ($want)" }
+          $bytes = (Get-Item "Clone-Wars-VST3-win64.zip").Length
+          # record size + hash in app.json, editing the text so formatting survives
+          $j = Get-Content app.json -Raw
+          $j = [regex]::Replace($j, '("name"\s*:\s*"Clone-Wars-VST3-win64\.zip"[\s\S]*?"bytes"\s*:\s*)\d+', ('${1}' + $bytes))
+          $j = [regex]::Replace($j, '("name"\s*:\s*"Clone-Wars-VST3-win64\.zip"[\s\S]*?"sha256"\s*:\s*")[0-9a-f]+', ('${1}' + $want))
+          [IO.File]::WriteAllText("$PWD/app.json", $j, (New-Object Text.UTF8Encoding($false)))
+          Remove-Item fetched.zip, "Clone-Wars-VST3-win64.zip"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Clone-Wars-VST3-win64.zip
-          git commit -m "Clone Wars: release zip (site download) [skip ci]"
+          git add app.json
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { "app.json already current"; exit 0 }
+          git commit -m "Clone Wars: download re-published from CI ($bytes bytes) [skip ci]"
           git pull --rebase origin "${{ github.ref_name }}"
           git push origin "HEAD:${{ github.ref_name }}"

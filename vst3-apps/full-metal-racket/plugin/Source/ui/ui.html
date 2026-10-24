@@ -561,7 +561,7 @@ var MLUI = (function () {
   function paint() {
     ITEMS.forEach(function (it) {
       it.el.classList.toggle("ml-learning", it.id === LEARNING);
-      if (MAP[it.id] !== undefined) it.el.setAttribute("data-cc", "CC " + MAP[it.id]); else it.el.removeAttribute("data-cc");
+      if (MAP[it.id] !== undefined) { it.el.setAttribute("data-cc", "CC " + MAP[it.id]); if (getComputedStyle(it.el).position === "static") it.el.style.position = "relative"; } else it.el.removeAttribute("data-cc");
     });
   }
   function release() { if (grabbed) { B.send({ k: "g", id: grabbed, on: false }); grabbed = null; } }
@@ -592,7 +592,7 @@ var MLUI = (function () {
       B = bridge;
       var st = document.createElement("style");
       st.textContent = ".ml-learning{outline:2px solid #ff9f1c !important;outline-offset:1px;animation:mlp 1s infinite}" +
-        "[data-cc]{position:relative}[data-cc]::after{content:attr(data-cc);position:absolute;right:-2px;top:-5px;font:700 8px Arial,sans-serif;color:#ff9f1c;pointer-events:none;text-shadow:0 0 3px #000}" +
+        "[data-cc]::after{content:attr(data-cc);position:absolute;right:-2px;top:-5px;font:700 8px Arial,sans-serif;color:#ff9f1c;pointer-events:none;text-shadow:0 0 3px #000}" +
         "@keyframes mlp{50%{outline-color:transparent}}";
       document.head.appendChild(st);
       B.on("ccmap", function (d) {
@@ -752,6 +752,7 @@ function makeKnob(node, id) {
 
 function makeFader(node, id) {           // vertical, per-channel level
   const s = SPEC[id]; if (!s) return;
+  MLUI.attach(node, id, s.n);
   el("div", "trk", node);
   const cap = el("div", "cap", node);
   dragify(node, id, 110, false);
@@ -764,6 +765,7 @@ function makeFader(node, id) {           // vertical, per-channel level
 
 function makeSegs(box, id) {              // stacked model keys, one lit
   const s = SPEC[id]; if (!s) return;
+  MLUI.attach(box, id, s.n);
   const keys = (s.names || []).map((n, i) => {
     const b = el("button", "k", box);
     b.textContent = n;
@@ -877,11 +879,13 @@ function build() {
   rbtn("Load", () => NB.send({ k: "open" }));
   {
     const b = rbtn("2x", () => setVal("os", (Math.round(VAL.os || 0) + 1) % ((SPEC.os.hi || 2) + 1)));
+    MLUI.attach(b, "os", "Oversampling");
     reg("os", { draw() { b.textContent = (SPEC.os.names || [])[Math.round(VAL.os || 0)] || "1x"; } });
     el("div", "rl", rail).textContent = "Oversampling";
   }
   {
     const b = rbtn("Hat link", () => setVal("hatlink", VAL.hatlink >= 0.5 ? 0 : 1));
+    MLUI.attach(b, "hatlink", "Hat link");
     reg("hatlink", { draw() { b.classList.toggle("on", VAL.hatlink >= 0.5); } });
     el("div", "rl", rail).textContent = "CH chokes OH";
   }
@@ -962,6 +966,7 @@ function build() {
       const b = el("button", "k", w);
       b.textContent = "KEY";
       b.style.cssText = "width:100%;height:32px;font-size:10px";
+      MLUI.attach(b, kid, (SPEC[kid] || {}).n || "KEY");
       b.addEventListener("click", () => setVal(kid, VAL[kid] >= 0.5 ? 0 : 1));
       reg(kid, { draw() { b.classList.toggle("on", VAL[kid] >= 0.5); } });
       el("div", "kl", w).textContent = "Chromatic"; }
@@ -977,6 +982,7 @@ function build() {
     const ft = el("div", "foot", st);
     const muid = c.id + "_mute";
     const mu = el("div", "mute", ft); mu.textContent = "M";
+    MLUI.attach(mu, muid, (SPEC[muid] || {}).n || "Mute");
     mu.addEventListener("click", () => setVal(muid, VAL[muid] >= 0.5 ? 0 : 1));
     reg(muid, { draw() {
       const on = VAL[muid] >= 0.5;

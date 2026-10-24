@@ -100,8 +100,8 @@ html,body{height:100%;overflow:hidden;background:#050505;
 .knob svg{display:block;overflow:visible}
 .knob text{font-size:7.8px;letter-spacing:1.6px;fill:#b9b7ae;text-anchor:middle;font-family:"Arial Narrow",Arial,sans-serif;font-weight:700}
 .knob:hover text{fill:#fff}
-.knob.learning{outline:2px solid #ff9f1c;outline-radius:50%;animation:mlp 1s infinite}
-.knob[data-cc]:not([data-cc=""])::after{content:attr(data-cc);position:absolute;right:-2px;top:-4px;font:700 7px sans-serif;color:#ff9f1c}
+.knob.learning,.sw.learning,.tog.learning,.opt.learning{outline:2px solid #ff9f1c;outline-radius:50%;animation:mlp 1s infinite}
+.sw[data-cc]:not([data-cc=""])::after,.tog[data-cc]:not([data-cc=""])::after,.knob[data-cc]:not([data-cc=""])::after{content:attr(data-cc);position:absolute;right:-2px;top:-4px;font:700 7px sans-serif;color:#ff9f1c}
 @keyframes mlp{50%{outline-color:transparent}}
 .sw{position:absolute;z-index:14;cursor:pointer;display:flex;gap:3px}
 .sw .opt{height:22px;padding:0 7px;border:1px solid #000;border-radius:2px;background:linear-gradient(180deg,#232326,#0f0f11);
@@ -397,9 +397,15 @@ function onParam(id,fn){ (watchers[id]=watchers[id]||[]).push(fn); fn(V[id]); }
 function refresh(id){ const w=watchers[id]; if(w) w.forEach(f=>f(V[id])); }
 /* MIDI learn: right-click a knob -> LEARN arms it, the next CC binds. */
 const CCMAP = {}; let LEARNING = "";
+/* every non-knob control that can learn: el._mlid is its parameter */
+const MLEL = [];
+function mlHook(el,id,label){ el._mlid=id; MLEL.push(el);
+  el.addEventListener("contextmenu",e=>{ e.preventDefault(); e.stopPropagation(); midiLearnMenu(id,label||PNAME[id]||id,e); }); }
 NB.on("ccmap", d=>{ for(const k in CCMAP) delete CCMAP[k]; Object.assign(CCMAP, d.map||{}); LEARNING = d.learn||"";
   KNOBS.forEach(k=>{ k.classList.toggle("learning", k._id===LEARNING);
     k.dataset.cc = CCMAP[k._id]!==undefined ? "CC "+CCMAP[k._id] : ""; });
+  MLEL.forEach(k=>{ if(!k.isConnected) return; k.classList.toggle("learning", k._mlid===LEARNING);
+    k.dataset.cc = CCMAP[k._mlid]!==undefined ? "CC "+CCMAP[k._mlid] : ""; });
   if(LEARNING) say("MIDI LEARN   move a knob on your controller"); });
 function midiLearnMenu(id,label,e){
   const old=document.getElementById("mlmenu"); if(old) old.remove();
@@ -530,6 +536,7 @@ function makeSwitch(parent,id,x,y,label,opts){
   opts=opts||{};
   const names = NAMES[id]||[];
   const sw=el("div","sw",parent); sw.style.left=x+"px"; sw.style.top=y+"px";
+  mlHook(sw,id,label);
   if(opts.vertical) sw.style.flexDirection="column";
   const opt=[];
   names.forEach((nm,i)=>{
@@ -556,8 +563,10 @@ function makeSyncRow(parent,syncId,feelId,x,y){
     o.addEventListener("click",()=>{ setParam(syncId,i); say((syncId==="lsync"?"LFO SYNC   ":"DELAY SYNC   ")+nm); });
     divOpts.push(o);
   });
+  mlHook(sw,syncId,syncId==="lsync"?"LFO SYNC":"DELAY SYNC");
   const tO=el("div","opt",sw); tO.textContent="T"; tO.style.width="20px"; tO.style.padding="0 2px"; tO.title="Triplet feel";
   const dO=el("div","opt",sw); dO.textContent="D"; dO.style.width="20px"; dO.style.padding="0 2px"; dO.title="Dotted feel";
+  mlHook(tO,feelId,"SYNC FEEL"); mlHook(dO,feelId,"SYNC FEEL");
   tO.addEventListener("click",()=>{ const v=Math.round(V[feelId])===1?0:1; setParam(feelId,v); say("SYNC FEEL   "+(v===1?"TRIPLET":"STRAIGHT")); });
   dO.addEventListener("click",()=>{ const v=Math.round(V[feelId])===2?0:2; setParam(feelId,v); say("SYNC FEEL   "+(v===2?"DOTTED":"STRAIGHT")); });
   const paintFeel=()=>{ const synced=Math.round(V[syncId])>0, f=Math.round(V[feelId]);
@@ -570,6 +579,7 @@ function makeSyncRow(parent,syncId,feelId,x,y){
 
 function makeToggle(parent,id,x,y,label,below){
   const t=el("div","tog",parent); t.style.left=x+"px"; t.style.top=y+"px"; el("i","",t);
+  mlHook(t,id,label);
   t.addEventListener("click",()=>{ setParam(id, V[id]>.5?0:1); say(label+"   "+(V[id]>.5?"ON":"OFF")); });
   onParam(id, v=> t.classList.toggle("on", v>.5));
   const l=el("div","toglbl",parent); l.textContent=label;

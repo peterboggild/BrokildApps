@@ -38,6 +38,15 @@ const SRC  = path.join(ROOT, 'tools', 'well-demo.html');
 const ENGH = path.join(ROOT, 'Source', 'Engine.h');
 const OUT  = path.join(ROOT, 'Source', 'ui', 'ui.html');
 
+/*  MIDI learn: the panel half lives in vst3-apps/shared/midilearn-ui.js and is
+    inlined here at build time, so this page and the shared copy cannot drift.
+    (2026-10-24: it had been patched into the GENERATED ui.html instead, and the
+    next run of this script would have removed it without a word.)          */
+const MLUI_JS = fs.readFileSync(path.join(ROOT, '..', '..', 'shared', 'midilearn-ui.js'), 'utf8')
+  .replace('ITEMS.push({ el: el, id: id });',
+           'ITEMS = ITEMS.filter(function (i) { return i.el.isConnected; }); ITEMS.push({ el: el, id: id });');
+if (!MLUI_JS.includes('isConnected')) throw new Error('midilearn-ui.js changed shape: the ITEMS anchor is gone');
+
 // ------------------------------------------------------------- the engine
 const engh = fs.readFileSync(ENGH, 'utf8');
 const KIND = {};
@@ -499,6 +508,10 @@ const NB = (() => {
   };
 })();
 
+/* MIDI learn (shared/midilearn-ui.js): right-click any control */
+${MLUI_JS}
+MLUI.init({ send: m => NB.send(m), on: (n, f) => NB.on(n, f), say: t => { if (typeof say === "function") say(t); } });
+
 const S = { byId: {}, v: {}, cells: {}, page: "helm", factory: [], prog: 0, user: [], frozen: [], mass: 0 };
 
 //  ---- the modulators on the well are the REAL ones.  The demo placed them
@@ -572,6 +585,7 @@ function makeKnob (p, size, label, withMod) {
   cell.appendChild(svg); cell.appendChild(lab); cell.appendChild(val);
   if (HUE_OF[p.id]) arc.style.stroke = HUE_OF[p.id];
   cell.title = p.name;
+  MLUI.attach(cell, p.id, label);
 
   const bip = p.kind === KIND.BIPOL || (p.lo < 0 && p.hi > 0);
   const paint = () => {
@@ -625,6 +639,7 @@ function makeChoice (p, label) {
   const lab = document.createElement("div"); lab.className = "lab"; lab.textContent = label;
   cell.appendChild(lab);
   cell.title = p.name;
+  MLUI.attach(cell, p.id, label);
 
   if (opts.length > 8) {
     //  a long list: a stepper, and the whole list one click away

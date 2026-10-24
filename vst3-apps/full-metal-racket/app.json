@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/full-metal-racket.jpg",
-  "note": "Windows VST3 · build 261024.1 · free download · 13-page manual included.",
+  "note": "Windows VST3 · build 261024.3 · free download · 13-page manual included.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Full-Metal-Racket-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Full-Metal-Racket-VST3-win64.zip",
-      "bytes": 15274324,
-      "sha256": "a09c839d0145a25565d27aee7f05ea95fcca762b0ee04a308d8a4c83e1b221e9"
+      "bytes": 15274578,
+      "sha256": "a4c8e145098bf3af4be4c52a754a74b4d26de469d6782a3a51930d3acb60dcbd"
     }
   ]
 }
