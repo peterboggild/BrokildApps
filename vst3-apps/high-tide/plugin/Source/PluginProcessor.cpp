@@ -62,6 +62,7 @@ HighTideAudioProcessor::HighTideAudioProcessor()
     bwfxRack.setWorldModConsumed (true);
     //  a fresh instance opens on the first factory patch
     applyFactory (0);
+    defaultCc();
     startTimerHz (30);
 }
 
@@ -106,6 +107,13 @@ void HighTideAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     for (const auto meta : midi)
     {
         const auto m = meta.getMessage();
+        if (m.isController())
+        {
+            const int pi = midiLearn.onCc (m.getControllerNumber(), ids.size());
+            if (pi >= 0)
+                if (auto* prm = apvts.getParameter (ids[pi]))
+                    prm->setValueNotifyingHost (m.getControllerValue() / 127.0f);
+        }
         if (m.isNoteOn())            engine.noteOn (m.getNoteNumber(), m.getFloatVelocity());
         else if (m.isNoteOff())      engine.noteOff (m.getNoteNumber());
         else if (m.isAllNotesOff() || m.isAllSoundOff()) engine.allNotesOff();
@@ -154,6 +162,11 @@ void HighTideAudioProcessor::setParamById (const juce::String& id, float value, 
 
 void HighTideAudioProcessor::emitParamEcho()
 {
+    if (emitToUi)    // MIDI learn bindings -> the page (re-sent until it has state)
+    {
+        if (! uiHasState.load()) midiLearn.dirty = true;
+        else { auto u = midiLearn.takeUpdate (ids); if (u.isObject()) emitToUi ("ccmap", u); }
+    }
     if (! emitToUi || ! uiHasState.load()) return;
     if (lastSent.size() != (size_t) ids.size())
     {
@@ -205,6 +218,12 @@ void HighTideAudioProcessor::handleUiMessage (const juce::var& payload)
     const juce::String k = o->getProperty ("k").toString();
 
     if (k == "p")            setParamById (o->getProperty ("id").toString(), (float) (double) o->getProperty ("v"), true);
+    else if (midiLearn.handleMessage (k, *o, ids)) {}
+    else if (k == "g")      // knob grab/release -> host touch, so automation and Configure work
+    {
+        if (auto* prm = apvts.getParameter (o->getProperty ("id").toString()))
+        { if ((bool) o->getProperty ("on")) prm->beginChangeGesture(); else prm->endChangeGesture(); }
+    }
     else if (k == "note")
     {
         const int nt = (int) o->getProperty ("n");
@@ -477,6 +496,7 @@ void HighTideAudioProcessor::getStateInformation (juce::MemoryBlock& dest)
 {
     auto state = apvts.copyState();
     state.setProperty ("bwfx", juce::String (bwfxRack.toJson().c_str()), nullptr);
+    state.setProperty ("ccmap", midiLearn.toString (ids), nullptr);
     state.setProperty ("terrain", terrainPngBase64(), nullptr);
     state.setProperty ("lanes", juce::JSON::toString (lanesToVar (lanes), true), nullptr);
     state.setProperty ("patchName", patchName, nullptr);
@@ -491,11 +511,12 @@ void HighTideAudioProcessor::setStateInformation (const void* data, int size)
         auto tree = juce::ValueTree::fromXml (*xml);
         if (! tree.isValid()) return;
         const juce::String rack = tree.getProperty ("bwfx", juce::String()).toString();
+        if (tree.hasProperty ("ccmap")) midiLearn.fromString (tree.getProperty ("ccmap").toString(), ids); else defaultCc();
         const juce::String terr = tree.getProperty ("terrain", juce::String()).toString();
         const juce::String ln   = tree.getProperty ("lanes", juce::String()).toString();
         patchName = tree.getProperty ("patchName", patchName).toString();
         patchIsUser = (bool) tree.getProperty ("patchUser", false);
-        for (const char* k : { "bwfx", "terrain", "lanes", "patchName", "patchUser" }) tree.removeProperty (k, nullptr);
+        for (const char* k : { "bwfx", "ccmap", "terrain", "lanes", "patchName", "patchUser" }) tree.removeProperty (k, nullptr);
         apvts.replaceState (tree);
         bwfxRack.fromJson (rack.toRawUTF8());
         if (terr.isNotEmpty()) applyTerrainPngBase64 (terr);

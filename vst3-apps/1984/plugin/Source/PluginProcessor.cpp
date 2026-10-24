@@ -89,6 +89,7 @@ Nineteen84AudioProcessor::Nineteen84AudioProcessor()
     for (auto& h : midiHeld) h = false;
 
     applyPatchIndex (0);              // a fresh instance opens on BLADE BRASS
+    defaultCc();
     startTimerHz (15);                // bwfxRack.service(), editor open or not
     bwfxRack.setWorldModConsumed (true);
 }
@@ -169,6 +170,13 @@ void Nineteen84AudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
         const int pos = juce::jlimit (0, n, meta.samplePosition);
         if (pos > last) { engine.process (L + last, R + last, pos - last); last = pos; }
         const auto m = meta.getMessage();
+        if (m.isController())
+        {
+            const int pi = midiLearn.onCc (m.getControllerNumber(), ids.size());
+            if (pi >= 0)
+                if (auto* prm = apvts.getParameter (ids[pi]))
+                    prm->setValueNotifyingHost (m.getControllerValue() / 127.0f);
+        }
         if      (m.isNoteOn())        { engine.noteOn (m.getNoteNumber(), m.getFloatVelocity()); midiHeld[(size_t) m.getNoteNumber()] = true; }
         else if (m.isNoteOff())       { engine.noteOff (m.getNoteNumber()); midiHeld[(size_t) m.getNoteNumber()] = false; }
         else if (m.isPitchWheel())    { const float b = (m.getPitchWheelValue() - 8192) / 8192.0f; engine.setBend (b); hostBend = b; }
@@ -197,6 +205,7 @@ void Nineteen84AudioProcessor::getStateInformation (juce::MemoryBlock& dest)
     if (auto xml = apvts.copyState().createXml())
     {
         xml->setAttribute ("bwfx", juce::String (bwfxRack.toJson()));
+        xml->setAttribute ("ccmap", midiLearn.toString (ids));
         xml->setAttribute ("loadedName", loadedName);
         copyXmlToBinary (*xml, dest);
     }
@@ -208,6 +217,8 @@ void Nineteen84AudioProcessor::setStateInformation (const void* data, int size)
         if (xml->hasTagName (apvts.state.getType()))
         {
             bwfxRack.fromJson (xml->getStringAttribute ("bwfx").toStdString());
+            if (xml->hasAttribute ("ccmap")) midiLearn.fromString (xml->getStringAttribute ("ccmap"), ids); else defaultCc();
+            xml->removeAttribute ("ccmap");
             loadedName = xml->getStringAttribute ("loadedName");
             xml->removeAttribute ("bwfx");
             xml->removeAttribute ("loadedName");
@@ -302,6 +313,12 @@ void Nineteen84AudioProcessor::handleOne (const juce::var& m)
     {
         setParamById (o->getProperty ("id").toString(), (float) (double) o->getProperty ("v"), true);
         if (loadedName.isEmpty()) { loadedName = "*"; lastPatchSent = -2; }   // edited
+    }
+    else if (midiLearn.handleMessage (k, *o, ids)) {}
+    else if (k == "g")      // knob grab/release -> host touch, so automation and Configure work
+    {
+        if (auto* prm = apvts.getParameter (o->getProperty ("id").toString()))
+        { if ((bool) o->getProperty ("on")) prm->beginChangeGesture(); else prm->endChangeGesture(); }
     }
     else if (k == "ack")    { uiHasState = true; }
     else if (k == "ready")  { uiReady = true; }
@@ -414,6 +431,11 @@ void Nineteen84AudioProcessor::emitBwfx()
 //==============================================================================
 void Nineteen84AudioProcessor::timerService()
 {
+    if (emitToUi)    // MIDI learn bindings -> the page (re-sent until it has state)
+    {
+        if (! uiHasState.load()) midiLearn.dirty = true;
+        else { auto u = midiLearn.takeUpdate (ids); if (u.isObject()) emitToUi ("ccmap", u); }
+    }
     if (! emitToUi) return;
     if (! uiHasState.load())
     {

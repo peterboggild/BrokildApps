@@ -114,6 +114,9 @@ CloneWarsProcessor::CloneWarsProcessor()
             apvts.addParameterListener (voiceParamId (v, f), this);
         }
 
+    for (const auto& kv : slots) ids.add (kv.first);
+    defaultCc();
+
     // every fresh instance is a distinct unit off the production line
     unitSeed = (uint32_t) juce::Random::getSystemRandom().nextInt64();
     engine.setUnitSeed (unitSeed.load());
@@ -130,6 +133,12 @@ CloneWarsProcessor::CloneWarsProcessor()
 
     startTimerHz (15);        // bwfxRack.service() — editor open or not
     bwfxRack.setWorldModConsumed (true);   // this engine maps the SPECTRA bus
+}
+
+void CloneWarsProcessor::defaultCc()
+{
+    midiLearn.clear();
+    midiLearn.setDefault (74, globalParamId (cw::gCutoff), ids);    // MASTER CUT
 }
 
 CloneWarsProcessor::~CloneWarsProcessor()
@@ -174,6 +183,13 @@ void CloneWarsProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (const auto meta : midi)
     {
         const auto msg = meta.getMessage();
+        if (msg.isController())
+        {
+            const int pi = midiLearn.onCc (msg.getControllerNumber(), ids.size());
+            if (pi >= 0)
+                if (auto* prm = apvts.getParameter (ids[pi]))
+                    prm->setValueNotifyingHost (msg.getControllerValue() / 127.0f);
+        }
         if (msg.isNoteOn())        engine.noteOn  (msg.getNoteNumber());
         else if (msg.isNoteOff())  engine.noteOff (msg.getNoteNumber());
         else if (msg.isPitchWheel())
@@ -398,6 +414,9 @@ void CloneWarsProcessor::handleUiMessage (const juce::var& m)
 {
     const juce::String k = m.getProperty ("k", juce::var()).toString();
 
+    if (auto* mo = m.getDynamicObject())
+        if (midiLearn.handleMessage (k, *mo, ids)) return;
+
     if (k == "param")
     {
         if (auto* par = apvts.getParameter (m.getProperty ("id", juce::var()).toString()))
@@ -532,6 +551,7 @@ void CloneWarsProcessor::sendBwfxToUi()
 
 void CloneWarsProcessor::sendInitToUi()
 {
+    midiLearn.dirty = true;       // a (re)loaded page needs the bindings again
     if (! emitToUi) return;
     auto* obj = new juce::DynamicObject();
     auto* params = new juce::DynamicObject();
@@ -551,6 +571,9 @@ void CloneWarsProcessor::sendInitToUi()
 void CloneWarsProcessor::timerService()
 {
     if (! emitToUi) return;
+
+    // MIDI learn bindings -> the page
+    { auto u = midiLearn.takeUpdate (ids); if (u.isObject()) emitToUi ("ccmap", u); }
 
     // parameter echo (host automation → page)
     juce::StringArray dirty;
@@ -588,6 +611,7 @@ void CloneWarsProcessor::getStateInformation (juce::MemoryBlock& destData)
     root->setProperty ("seedB", currentSeedB.load());
     root->setProperty ("morphT", (double) morphT.load());
     root->setProperty ("bwfx", juce::String (bwfxRack.toJson()));   // the world rack
+    root->setProperty ("ccmap", midiLearn.toString (ids));
 
     const auto json = juce::JSON::toString (juce::var (root), true);
     destData.replaceAll (json.toRawUTF8(), json.getNumBytesAsUTF8());
@@ -619,6 +643,8 @@ void CloneWarsProcessor::setStateInformation (const void* data, int sizeInBytes)
     morphT = (float) (double) v.getProperty ("morphT", 0.0);
 
     engine.setUnitSeed (unitSeed.load());
+    if (v.hasProperty ("ccmap")) midiLearn.fromString (v.getProperty ("ccmap", juce::var ("")).toString(), ids);
+    else defaultCc();
     pushAllParamsToEngine();
     // The rack blob rides in project state; a pre-BWFX project has none and
     // fromJson("") = the default empty rack — the old sound, bit for bit.

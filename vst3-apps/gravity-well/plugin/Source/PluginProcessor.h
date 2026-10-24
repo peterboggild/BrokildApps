@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include "Engine.h"
 #include "bwfx.h"
+#include "../../../shared/MidiLearn.h"
 
 /*  The processor owns the instrument; the page is a view onto it.
 
@@ -99,6 +100,13 @@ private:
     int   tickCount = 0;
 
     std::unique_ptr<juce::PropertiesFile> settings;
+
+    // ---- MIDI CC -> parameter map; right-click a knob to learn (shared/MidiLearn.h)
+    MidiLearn midiLearn;
+    void defaultCc()
+    {
+        midiLearn.clear();
+    }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GravityWellAudioProcessor)
 };

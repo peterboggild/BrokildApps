@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include "Engine.h"
 #include "bwfx.h"
+#include "../../../shared/MidiLearn.h"
 
 /*  The processor owns every value; the panel is a view. Same architecture as
     Mars Wars, Blade Ruiner, Hairfryer and Black Rider: the APVTS layout, the
@@ -113,6 +114,13 @@ private:
     int meterTick = 0;
 
     std::atomic<bool> wantPanic { false };
+
+    // ---- MIDI CC -> parameter map; right-click a knob to learn (shared/MidiLearn.h)
+    MidiLearn midiLearn;
+    void defaultCc()
+    {
+        midiLearn.clear();
+    }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FmrAudioProcessor)
 };

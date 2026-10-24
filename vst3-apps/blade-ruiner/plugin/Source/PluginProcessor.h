@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include "Engine.h"
 #include "bwfx.h"
+#include "../../../shared/MidiLearn.h"
 
 /*  The processor owns every value; the panel is a view. Nothing about the
     patch lives in the browser, so a reopened editor cannot lose it and the
@@ -114,6 +115,15 @@ private:
         parameter back and says so. */
     std::atomic<bool> forcedLayerBack { false };
     int lastLiveLayer = 0;
+
+    // ---- MIDI CC -> parameter map; right-click a knob to learn (shared/MidiLearn.h)
+    MidiLearn midiLearn;
+    void defaultCc()
+    {
+        midiLearn.clear();
+        midiLearn.setDefault (74, "dkbright", ids);
+        midiLearn.setDefault (71, "dkres", ids);
+    }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BladeRuinerAudioProcessor)
 };

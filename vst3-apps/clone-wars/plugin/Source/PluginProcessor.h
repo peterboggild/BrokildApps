@@ -4,6 +4,7 @@
 #include <map>
 #include "Core/cw_core.h"
 #include "bwfx.h"
+#include "../../../shared/MidiLearn.h"
 
 //==============================================================================
 class CloneWarsProcessor : public juce::AudioProcessor,
@@ -98,6 +99,11 @@ private:
     std::atomic<bool> suppressEcho { false };
     juce::CriticalSection dirtyLock;
     juce::StringArray dirtyParams;
+
+    // ---- MIDI CC -> parameter map; right-click a control to learn (shared/MidiLearn.h)
+    MidiLearn midiLearn;
+    juce::StringArray ids;          // every parameter id, from `slots`
+    void defaultCc();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CloneWarsProcessor)
 };

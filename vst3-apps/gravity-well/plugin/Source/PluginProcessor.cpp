@@ -89,6 +89,7 @@ GravityWellAudioProcessor::GravityWellAudioProcessor()
     applyFactoryPattern (0, pattern, MAX_STEPS);
     for (int i = 0; i < MAX_STEPS; ++i) engine.setStep (i, pattern[i]);
 
+    defaultCc();
     startTimerHz (15);
 }
 
@@ -131,6 +132,13 @@ void GravityWellAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (const auto meta : midi)
     {
         const auto m = meta.getMessage();
+        if (m.isController())
+        {
+            const int pi = midiLearn.onCc (m.getControllerNumber(), ids.size());
+            if (pi >= 0)
+                if (auto* prm = apvts.getParameter (ids[pi]))
+                    prm->setValueNotifyingHost (m.getControllerValue() / 127.0f);
+        }
         if (m.isNoteOn())            engine.noteOn (m.getNoteNumber(), m.getFloatVelocity());
         else if (m.isNoteOff())      engine.noteOff (m.getNoteNumber());
         else if (m.isAllNotesOff() || m.isAllSoundOff()) engine.allNotesOff();
@@ -254,6 +262,7 @@ void GravityWellAudioProcessor::getStateInformation (juce::MemoryBlock& dest)
         //  the pattern and the rack ride as attributes, not as parameters
         xml->setAttribute ("pattern", juce::JSON::toString (patternToVar(), true));
         xml->setAttribute ("bwfx", juce::String (bwfxRack.toJson()));
+        xml->setAttribute ("ccmap", midiLearn.toString (ids));
         xml->setAttribute ("patch", patchName);
         xml->setAttribute ("patchSlot", patchSlot);
         xml->setAttribute ("build", GW_BUILD_ID);
@@ -273,6 +282,8 @@ void GravityWellAudioProcessor::setStateInformation (const void* data, int size)
 
     xml->removeAttribute ("pattern");
     xml->removeAttribute ("bwfx");
+    if (xml->hasAttribute ("ccmap")) midiLearn.fromString (xml->getStringAttribute ("ccmap"), ids); else defaultCc();
+    xml->removeAttribute ("ccmap");
     xml->removeAttribute ("patch");
     xml->removeAttribute ("build");
     apvts.replaceState (juce::ValueTree::fromXml (*xml));
@@ -504,6 +515,11 @@ void GravityWellAudioProcessor::emitInitialState()
     that is working and looks dead is the fleet's most-repeated bug.        */
 void GravityWellAudioProcessor::emitParamEcho()
 {
+    if (emitToUi)    // MIDI learn bindings -> the page (re-sent until it has state)
+    {
+        if (! uiHasState.load()) midiLearn.dirty = true;
+        else { auto u = midiLearn.takeUpdate (ids); if (u.isObject()) emitToUi ("ccmap", u); }
+    }
     if (! emitToUi) return;
     auto* o = new juce::DynamicObject();
     int changed = 0;
@@ -572,6 +588,16 @@ void GravityWellAudioProcessor::handleUiMessage (const juce::var& payload)
     if (k == "hello")   { uiHasState = false; tickCount = 0; return; }
     if (k == "ready")   { uiHasState = true;  return; }
 
+    if (auto* mo = payload.getDynamicObject())
+    {
+        if (midiLearn.handleMessage (k, *mo, ids)) return;
+        if (k == "g")
+        {
+            if (auto* prm = apvts.getParameter (mo->getProperty ("id").toString()))
+            { if ((bool) mo->getProperty ("on")) prm->beginChangeGesture(); else prm->endChangeGesture(); }
+            return;
+        }
+    }
     if (k == "p")
     {
         setParamById (payload.getProperty ("id", juce::var()).toString(),

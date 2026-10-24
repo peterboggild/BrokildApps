@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include "Engine.h"
 #include "bwfx.h"
+#include "../../../shared/MidiLearn.h"
 
 /*  The processor owns every value. The page is a view: it sends "move this
     parameter" and is told when anything moved for another reason. Nothing
@@ -100,6 +101,15 @@ private:
     std::array<UiNote, 256> noteStore {};
 
     std::atomic<bool> panicFlag { false };
+
+    // ---- MIDI CC -> parameter map; right-click a knob to learn (shared/MidiLearn.h)
+    MidiLearn midiLearn;
+    void defaultCc()
+    {
+        midiLearn.clear();
+        midiLearn.setDefault (74, "dcut", ids);
+        midiLearn.setDefault (71, "dres", ids);
+    }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EscapeRoomAudioProcessor)
 };

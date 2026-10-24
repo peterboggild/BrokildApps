@@ -217,6 +217,7 @@ BladeRuinerAudioProcessor::BladeRuinerAudioProcessor()
     for (int i = 0; i < FFT_SIZE; ++i)
         window[(size_t) i] = 0.5f - 0.5f * std::cos (br::TWO_PI_F * (float) i / (float) (FFT_SIZE - 1));
 
+    defaultCc();
     startTimerHz (15);        // bwfxRack.service() - editor open or not
     bwfxRack.setWorldModConsumed (true);   // this engine maps the SPECTRA bus
 }
@@ -320,6 +321,13 @@ void BladeRuinerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         if (pos > last) { engine.process (L + last, R + last, pos - last); last = pos; }
 
         const auto m = meta.getMessage();
+        if (m.isController())
+        {
+            const int pi = midiLearn.onCc (m.getControllerNumber(), ids.size());
+            if (pi >= 0)
+                if (auto* prm = apvts.getParameter (ids[pi]))
+                    prm->setValueNotifyingHost (m.getControllerValue() / 127.0f);
+        }
         if      (m.isNoteOn())                             engine.noteOn (m.getNoteNumber(), m.getFloatVelocity());
         else if (m.isNoteOff())                            engine.noteOff (m.getNoteNumber());
         else if (m.isAllNotesOff() || m.isAllSoundOff())   engine.allNotesOff();
@@ -353,6 +361,7 @@ void BladeRuinerAudioProcessor::getStateInformation (juce::MemoryBlock& dest)
     if (auto xml = apvts.copyState().createXml())
     {
         xml->setAttribute ("bwfx", juce::String (bwfxRack.toJson()));
+        xml->setAttribute ("ccmap", midiLearn.toString (ids));
         copyXmlToBinary (*xml, dest);
     }
 }
@@ -363,6 +372,8 @@ void BladeRuinerAudioProcessor::setStateInformation (const void* data, int size)
         if (xml->hasTagName (apvts.state.getType()))
         {
             bwfxRack.fromJson (xml->getStringAttribute ("bwfx").toStdString());
+            if (xml->hasAttribute ("ccmap")) midiLearn.fromString (xml->getStringAttribute ("ccmap"), ids); else defaultCc();
+            xml->removeAttribute ("ccmap");
             emitBwfx();
             xml->removeAttribute ("bwfx");
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
@@ -473,6 +484,12 @@ void BladeRuinerAudioProcessor::handleOne (const juce::var& m)
 
     if      (k == "p")     setParamById (o->getProperty ("id").toString(),
                                          (float) (double) o->getProperty ("v"), true);
+    else if (midiLearn.handleMessage (k, *o, ids)) {}
+    else if (k == "g")      // knob grab/release -> host touch, so automation and Configure work
+    {
+        if (auto* prm = apvts.getParameter (o->getProperty ("id").toString()))
+        { if ((bool) o->getProperty ("on")) prm->beginChangeGesture(); else prm->endChangeGesture(); }
+    }
     else if (k == "ack")   { uiHasState = true; emitMood(); }
     else if (k == "ready") uiReady = true;
     else if (k == "random") applyMood (juce::Random (juce::Time::getHighResolutionTicks())
@@ -566,6 +583,11 @@ void BladeRuinerAudioProcessor::emitBwfx()
 //==============================================================================
 void BladeRuinerAudioProcessor::timerService()
 {
+    if (emitToUi)    // MIDI learn bindings -> the page (re-sent until it has state)
+    {
+        if (! uiHasState.load()) midiLearn.dirty = true;
+        else { auto u = midiLearn.takeUpdate (ids); if (u.isObject()) emitToUi ("ccmap", u); }
+    }
     if (! emitToUi) return;
 
     if (forcedLayerBack.exchange (false))

@@ -102,6 +102,7 @@ TTYAudioProcessor::TTYAudioProcessor()
     formats.registerBasicFormats();
 
     applyPatchIndex (0);              // a fresh instance opens on THE MACHINES KEPT WORKING, drone OFF
+    defaultCc();
     startTimerHz (15);                // bwfxRack.service() and the capture snapshot, editor open or not
     bwfxRack.setWorldModConsumed (true);
 }
@@ -204,6 +205,13 @@ void TTYAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         const int pos = juce::jlimit (0, n, meta.samplePosition);
         if (pos > last) { engine.process (L + last, R + last, pos - last, aL ? aL + last : nullptr, aR ? aR + last : nullptr); last = pos; }
         const auto m = meta.getMessage();
+        if (m.isController())
+        {
+            const int pi = midiLearn.onCc (m.getControllerNumber(), ids.size());
+            if (pi >= 0)
+                if (auto* prm = apvts.getParameter (ids[pi]))
+                    prm->setValueNotifyingHost (m.getControllerValue() / 127.0f);
+        }
         const int ch = m.getChannel();
         if      (m.isNoteOn())        { engine.noteOn (m.getNoteNumber(), m.getFloatVelocity(), ch); midiHeld[(size_t) m.getNoteNumber()] = true; }
         else if (m.isNoteOff())       { engine.noteOff (m.getNoteNumber(), ch); midiHeld[(size_t) m.getNoteNumber()] = false; }
@@ -389,6 +397,7 @@ void TTYAudioProcessor::getStateInformation (juce::MemoryBlock& dest)
     if (auto xml = apvts.copyState().createXml())
     {
         xml->setAttribute ("bwfx", juce::String (bwfxRack.toJson()));
+        xml->setAttribute ("ccmap", midiLearn.toString (ids));
         xml->setAttribute ("loadedName", loadedName);
         xml->setAttribute ("macros", juce::JSON::toString (macrosVar(), true));
         xml->setAttribute ("slots", juce::JSON::toString (slotsVar(), true));
@@ -410,6 +419,8 @@ void TTYAudioProcessor::setStateInformation (const void* data, int size)
         if (xml->hasTagName (apvts.state.getType()))
         {
             bwfxRack.fromJson (xml->getStringAttribute ("bwfx").toStdString());
+            if (xml->hasAttribute ("ccmap")) midiLearn.fromString (xml->getStringAttribute ("ccmap"), ids); else defaultCc();
+            xml->removeAttribute ("ccmap");
             loadedName = xml->getStringAttribute ("loadedName");
             juce::var v;
             if (juce::JSON::parse (xml->getStringAttribute ("macros"), v).wasOk()) macrosFromVar (v);
@@ -663,6 +674,12 @@ void TTYAudioProcessor::handleOne (const juce::var& m)
         setParamById (m.getProperty ("id", juce::var()).toString(), (float) (double) m.getProperty ("v", juce::var()), true);
         if (loadedName.isEmpty()) { loadedName = "*"; lastPatchSent = -2; }   // edited
     }
+    else if (midiLearn.handleMessage (k, *o, ids)) {}
+    else if (k == "g")      // knob grab/release -> host touch, so automation and Configure work
+    {
+        if (auto* prm = apvts.getParameter (o->getProperty ("id").toString()))
+        { if ((bool) o->getProperty ("on")) prm->beginChangeGesture(); else prm->endChangeGesture(); }
+    }
     else if (k == "ack")    { uiHasState = true; }
     else if (k == "ready")  { uiReady = true; }
     else if (k == "hello")  { uiHasState = false; }
@@ -821,6 +838,11 @@ void TTYAudioProcessor::emitScenes()
 
 void TTYAudioProcessor::emitParamEcho()
 {
+    if (emitToUi)    // MIDI learn bindings -> the page (re-sent until it has state)
+    {
+        if (! uiHasState.load()) midiLearn.dirty = true;
+        else { auto u = midiLearn.takeUpdate (ids); if (u.isObject()) emitToUi ("ccmap", u); }
+    }
     juce::Array<juce::var> changed;
     for (int i = 0; i < ids.size(); ++i)
     {
