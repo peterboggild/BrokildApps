@@ -7,7 +7,7 @@
   "icon": "keys",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/blade-ruiner.jpg",
-  "note": "Windows VST3 · build 260926.1 · free download · 18-page manual included.",
+  "note": "Windows VST3 · build 261024.1 · free download · 18-page manual included.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Blade-Ruiner-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Blade-Ruiner-VST3-win64.zip",
-      "bytes": 7398121,
-      "sha256": "9fd5b2b5a8a22b17e8e43b15cdf2e74936577e46edced4fcb96b62b07e2864b3"
+      "bytes": 7406954,
+      "sha256": "03bcce92332ab8d128d9ca0354e3251ca50a7f285ce82f8a6d486521430bd306"
     }
   ]
 }

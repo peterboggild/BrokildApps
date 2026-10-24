@@ -7,7 +7,7 @@
   "icon": "atom",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/gravity-well.jpg",
-  "note": "Windows VST3 + standalone · build 260927.8 · free download · 7 filter circuits, two banks · 32 presets · 168 user slots · flight manual included.",
+  "note": "Windows VST3 + standalone · build 261024.1 · free download · 7 filter circuits, two banks · 32 presets · 168 user slots · flight manual included.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Gravity-Well-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Gravity-Well-VST3-win64.zip",
-      "bytes": 7521195,
-      "sha256": "c6564df6cf7b1be928bae61214912a67531d16f87c46df438848e2aeecc4f3be"
+      "bytes": 7528590,
+      "sha256": "1ac7cc800f5efa10416180460c6ba67c04107a86dd594218776185829ba34fdb"
     }
   ]
 }

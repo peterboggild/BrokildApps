@@ -7,7 +7,7 @@
   "icon": "device",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/brain-scan.jpg",
-  "note": "Windows VST3 - build 260905.2 - free download - 15 specimens (nine phantoms, six bodies in HU) plus your own volume (NIfTI, DICOM or an image stack) - hints on every control - 18-page manual.",
+  "note": "Windows VST3 - build 261024.1 - free download - 15 specimens (nine phantoms, six bodies in HU) plus your own volume (NIfTI, DICOM or an image stack) - hints on every control - 18-page manual.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Brain-Scan-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Brain-Scan-VST3-win64.zip",
-      "bytes": 8022989,
-      "sha256": "15dbb52eba71aea5b4567b214d75ff1d8b30c8eb71e4470eb08bbbce5b765dfd"
+      "bytes": 8033378,
+      "sha256": "ce80e74faa40f61a0a1791f6225b9f7bb3cc7fb7c0c79c28c1eaa2c58716b4c3"
     }
   ]
 }

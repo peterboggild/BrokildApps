@@ -7,7 +7,7 @@
   "icon": "keys",
   "cta": "Get the plugin →",
   "preview": "assets/app-previews/clone-wars.jpg",
-  "note": "Windows VST3 · build 260923.1 · free download · 16 clones · seed morphing · the hull remembers.",
+  "note": "Windows VST3 · build 261024.1 · free download · 16 clones · seed morphing · the hull remembers.",
   "tags": [
     "vst3",
     "synth"
@@ -16,8 +16,8 @@
     {
       "name": "Clone-Wars-VST3-win64.zip",
       "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Clone-Wars-VST3-win64.zip",
-      "bytes": 9120364,
-      "sha256": "438911256ecb47763bfd037a259d5ae6bcf321af6c9dfac7cde11bebf8a15435"
+      "bytes": 9131232,
+      "sha256": "757a1e238f40b9b9be7758fc050687d1ddc8d508ea86abb800bddb9209822aef"
     }
   ]
 }

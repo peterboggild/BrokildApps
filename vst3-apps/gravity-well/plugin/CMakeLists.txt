@@ -4,7 +4,7 @@ project(GravityWell VERSION 1.0.0)
 
 # Build id: date (YYMMDD) plus that day's build number.
 # Re-run cmake -S . -B <dir> after bumping or it does not take.
-set(GW_BUILD_ID "260927.8")
+set(GW_BUILD_ID "261024.1")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

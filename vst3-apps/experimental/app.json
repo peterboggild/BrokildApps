@@ -11,5 +11,13 @@
   "note": "Windows VST3 · 35 MB · three instruments and two effects · source included.",
   "tags": [
     "vst3"
+  ],
+  "downloads": [
+    {
+      "name": "Brokild-Experimental-Collection-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/Brokild-Experimental-Collection-win64.zip",
+      "bytes": 36849996,
+      "sha256": "4837652ac29c027ba84fec5a84468bbad4912a2406de8209801e07edddccf85c"
+    }
   ]
 }
