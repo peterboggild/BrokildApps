@@ -1,0 +1,11 @@
+{
+  "name": "fractal-video",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Fractal music-video authoring tool (see PLAN.md).",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node scripts/check.js",
+    "render:help": "node render-driver.js --help"
+  }
+}
