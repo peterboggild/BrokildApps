@@ -6,6 +6,7 @@
 // in the browser or on disk. Render endpoints only accept requests from this app's own page.
 const http = require('http');
 const fs = require('fs');
+const vrMeta = require('./vr-meta');
 const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
@@ -156,7 +157,9 @@ function startFfmpeg(job) {
   args.push('-vf', 'vflip', '-map', '0:v');
   if (job.aacFile) args.push('-map', '1:a', '-c:a', 'copy');
   else if (job.audio) args.push('-map', '1:a', '-c:a', 'pcm_s24le');
-  args.push('-c:v', 'libx264', '-preset', 'medium', '-crf', String(s.crf), '-pix_fmt', 'yuv420p');
+  // VR movies are 4K-8K wide: H.265 (headsets decode it in hardware at these sizes; H.264 tops out near 4096x2304)
+  if (s.vr) args.push('-c:v', 'libx265', '-preset', 'medium', '-crf', String(Math.min(51, s.crf + 2)), '-tag:v', 'hvc1', '-x265-params', 'log-level=error', '-pix_fmt', 'yuv420p');
+  else args.push('-c:v', 'libx264', '-preset', 'medium', '-crf', String(s.crf), '-pix_fmt', 'yuv420p');
   if (s.audio !== 'pcm') args.push('-movflags', '+faststart');
   args.push(
     '-t', (s.frames / s.fps).toFixed(4), job.file);
@@ -212,17 +215,25 @@ async function handleRender(req, res, pathname, query) {
     const height = Math.round(Number(spec.height));
     const fps = Number(spec.fps);
     const frames = Math.round(Number(spec.frames));
-    if (!(width >= 16 && height >= 16 && width % 2 === 0 && height % 2 === 0 && width <= 7680 && height <= 4320)) { sendJSON(res, 400, { error: 'Width and height must be even, 16–7680 × 16–4320.' }); return; }
+    if (!(width >= 16 && height >= 16 && width % 2 === 0 && height % 2 === 0 && width <= 8192 && height <= 8192 && width * height <= 7680 * 4320)) { sendJSON(res, 400, { error: 'Width and height must be even, 16–8192, at most 7680 × 4320 pixels in all.' }); return; }
     if (!(fps > 0 && fps <= 120 && frames > 0)) { sendJSON(res, 400, { error: 'bad frame rate or frame count' }); return; }
     const dir = resolveOutDir(spec.outDir);
     try { fs.mkdirSync(dir, { recursive: true }); } catch (err) { sendJSON(res, 500, { error: `Cannot create the output folder ${dir}: ${err.message}` }); return; }
     const base = String(spec.name || 'fractal-video').replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'fractal-video';
     const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
     const audioMode = spec.audio === 'pcm' ? 'pcm' : 'aac';
+    // VR: stereo layout + crop for the spherical metadata, and the file-name tag VR players look for
+    let vr = null;
+    if (spec.vr && typeof spec.vr === 'object') {
+      const st = Math.round(Number(spec.vr.stereo));
+      const b = Array.isArray(spec.vr.bounds) ? spec.vr.bounds.slice(0, 4).map((x) => Math.min(0.49, Math.max(0, Number(x) || 0))) : [0, 0, 0, 0];
+      const tag = String(spec.vr.tag || '').replace(/[^A-Za-z0-9_]+/g, '').slice(0, 16);
+      if (st >= 0 && st <= 2) vr = { stereo: st, bounds: b.length === 4 ? b : [0, 0, 0, 0], tag };
+    }
     const j = {
-      id, file: path.join(dir, `${base}-${stamp()}.${audioMode === 'pcm' ? 'mov' : 'mp4'}`), audio: null, audioPeak: null, audioGain: 0,
+      id, file: path.join(dir, `${base}-${stamp()}${vr && vr.tag ? vr.tag : ''}.${audioMode === 'pcm' ? 'mov' : 'mp4'}`), audio: null, audioPeak: null, audioGain: 0,
       proc: null, next: 0, last: Date.now(),
-      spec: { width, height, fps, frames, audio: audioMode, startTime: Math.max(0, Number(spec.startTime) || 0), crf: Math.min(35, Math.max(8, Math.round(Number(spec.crf) || 16))) }
+      spec: { width, height, fps, frames, audio: audioMode, startTime: Math.max(0, Number(spec.startTime) || 0), crf: Math.min(35, Math.max(8, Math.round(Number(spec.crf) || 16))), vr }
     };
     j.idleTimer = setInterval(() => { if (Date.now() - j.last > IDLE_LIMIT_MS) killJob(j, true); }, 60000);
     jobs.set(id, j);
@@ -282,9 +293,16 @@ async function handleRender(req, res, pathname, query) {
     if (job.aacFile) fs.rm(job.aacFile, { force: true }, () => {});
     jobs.delete(job.id);
     if (code !== 0) { sendJSON(res, 500, { error: `ffmpeg failed: ${job.stderr.trim() || `exit ${code}`}` }); return; }
+    let vrInfo = null;
+    if (job.spec.vr) {
+      try {
+        vrMeta.injectSpherical(job.file, job.spec.vr);
+        vrInfo = vrMeta.readSpherical(job.file);
+      } catch (err) { sendJSON(res, 500, { error: `The movie was written (${job.file}) but the VR metadata could not be added: ${err.message}` }); return; }
+    }
     let size = 0;
     try { size = fs.statSync(job.file).size; } catch (err) { /* ignore */ }
-    sendJSON(res, 200, { file: job.file, size, frames: job.next, audio: job.audio ? job.spec.audio : null, truePeak: job.audioPeak, gain: job.audioGain, aacPeak: job.aacPeak });
+    sendJSON(res, 200, { file: job.file, size, frames: job.next, vr: vrInfo, audio: job.audio ? job.spec.audio : null, truePeak: job.audioPeak, gain: job.audioGain, aacPeak: job.aacPeak });
     return;
   }
 

@@ -40,6 +40,8 @@ uniform vec2 uRes, uCenter, uJitter;
 uniform float uFrameH;
 uniform vec3 uCamPos, uCamRight, uCamUp, uCamFwd;
 uniform float uFovT;
+uniform int uVR, uVRLayout;
+uniform float uVRSpan, uIpd;
 uniform float uP[8];
 uniform int uIter;
 uniform mat3 uRotA, uRotB;
@@ -170,10 +172,34 @@ void main() {
   vec2 frag = gl_FragCoord.xy + uJitter;
   vec2 uv = (frag - uCenter) / (0.5 * uFrameH);
   vec3 rd = normalize(uCamFwd + uFovT * (uv.x * uCamRight + uv.y * uCamUp));
+  vec3 ro = uCamPos;
+  float pix = uFovT / (0.5 * uFrameH);
+  float bgMask = 1.0;
+  if (uVR == 1) {
+    // Equirectangular VR frame. uVRLayout: 0 mono, 1 top/bottom (left eye on top), 2 side by side (left eye left).
+    vec2 eye = uRes;
+    float side = 0.0;
+    vec2 q = frag;
+    if (uVRLayout == 1) { eye.y *= 0.5; side = q.y >= eye.y ? -1.0 : 1.0; if (q.y >= eye.y) q.y -= eye.y; }
+    else if (uVRLayout == 2) { eye.x *= 0.5; side = q.x < eye.x ? -1.0 : 1.0; if (q.x >= eye.x) q.x -= eye.x; }
+    float lon = (q.x / eye.x - 0.5) * uVRSpan;
+    float lat = (q.y / eye.y - 0.5) * 3.14159265;
+    vec3 hz = sin(lon) * uCamRight + cos(lon) * uCamFwd;
+    rd = normalize(cos(lat) * hz + sin(lat) * uCamUp);
+    // omni-directional stereo: each eye sits on a circle, offset at right angles to the horizontal view
+    // direction; the offset fades out towards the poles, where the two eyes would otherwise swap
+    ro = uCamPos + side * 0.5 * uIpd * cos(lat) * (cos(lon) * uCamRight - sin(lon) * uCamFwd);
+    pix = 3.14159265 / eye.y;
+    // backdrops are flat pictures: place them in front, where the normal camera shows them
+    float fz = dot(rd, uCamFwd);
+    bgMask = smoothstep(0.05, 0.2, fz);
+    uv = vec2(dot(rd, uCamRight), dot(rd, uCamUp)) / max(fz, 0.05) / uFovT;
+  }
   // sampled up front (uniform control flow) so mip selection works
   vec4 bl0 = uBgAmt.x > 0.0 ? backdropLayer(uBg0, uv * 0.5, uBgS0, uBgO0, uBgGain.x, uBgSat.x, uBgLod.x) : vec4(0.0);
   vec4 bl1 = uBgAmt.y > 0.0 ? backdropLayer(uBg1, uv * 0.5, uBgS1, uBgO1, uBgGain.y, uBgSat.y, uBgLod.y) : vec4(0.0);
-  float pix = uFovT / (0.5 * uFrameH);
+  bl0.a *= bgMask;
+  bl1.a *= bgMask;
   float minEps = 1e-5 * uSize;
   float t = 0.0;
   float d = 1e9;
@@ -181,7 +207,7 @@ void main() {
   bool hit = false;
   for (int i = 0; i < MAX_STEPS; i++) {
     if (i >= uMaxSteps) break;
-    d = mapD(uCamPos + rd * t);
+    d = mapD(ro + rd * t);
     float eps = max(pix * t * uDetail, minEps);
     glow += exp(-max(d, 0.0) / (0.03 * uSize));
     if (d < eps) { hit = true; break; }
@@ -199,7 +225,7 @@ void main() {
   vec3 fogC = mix(uFogMatch == 1 ? sky : uFogCol, bg, uBgFogFade);
   vec3 col;
   if (hit) {
-    vec3 p = uCamPos + rd * t;
+    vec3 p = ro + rd * t;
     vec4 trap;
     float it;
     mapT(p, trap, it);
@@ -328,7 +354,7 @@ void main() {
   outColor = vec4(v, 0.0, 0.0, 1.0);
 }`;
 
-  const FRACTAL_UNIFORMS = ['uRes', 'uCenter', 'uFrameH', 'uJitter', 'uCamPos', 'uCamRight', 'uCamUp', 'uCamFwd', 'uFovT', 'uP', 'uIter',
+  const FRACTAL_UNIFORMS = ['uRes', 'uCenter', 'uFrameH', 'uJitter', 'uCamPos', 'uCamRight', 'uCamUp', 'uCamFwd', 'uFovT', 'uVR', 'uVRLayout', 'uVRSpan', 'uIpd', 'uP', 'uIter',
     'uRotA', 'uRotB', 'uRepeat', 'uTwist', 'uBound', 'uStep', 'uDetail', 'uSize', 'uMaxSteps', 'uShadowSteps', 'uMaxDist', 'uAO',
     'uPalC', 'uPalP', 'uPalN', 'uPalInterp', 'uColorSrc', 'uPalWrap', 'uPalScale', 'uPalOffset', 'uBgTop', 'uBgBot', 'uFogCol',
     'uFogMatch', 'uFog', 'uGlowCol', 'uSunDir', 'uSunCol', 'uFillCol', 'uAmbient', 'uSpec', 'uEncode',
@@ -634,11 +660,25 @@ void main() {
       gl.uniform2f(u.uCenter, geom.cx, geom.cy);
       gl.uniform1f(u.uFrameH, geom.fh);
       gl.uniform2f(u.uJitter, jit[0], jit[1]);
+      const vr = overrides && overrides.vr;
+      let cr = g.camRight;
+      let cu = g.camUp;
+      if (vr && vr.level) {
+        // keep the horizon level: drop the camera roll (pitch and heading stay)
+        const f = g.camFwd;
+        const rl = Math.hypot(f[2], f[0]) || 1;
+        cr = [-f[2] / rl, 0, f[0] / rl];
+        cu = [cr[1] * f[2] - cr[2] * f[1], cr[2] * f[0] - cr[0] * f[2], cr[0] * f[1] - cr[1] * f[0]];
+      }
       gl.uniform3fv(u.uCamPos, g.camPos);
-      gl.uniform3fv(u.uCamRight, g.camRight);
-      gl.uniform3fv(u.uCamUp, g.camUp);
+      gl.uniform3fv(u.uCamRight, cr);
+      gl.uniform3fv(u.uCamUp, cu);
       gl.uniform3fv(u.uCamFwd, g.camFwd);
       gl.uniform1f(u.uFovT, g.fovT);
+      gl.uniform1i(u.uVR, vr ? 1 : 0);
+      gl.uniform1i(u.uVRLayout, vr ? vr.layout : 0);
+      gl.uniform1f(u.uVRSpan, vr ? vr.span : Math.PI * 2);
+      gl.uniform1f(u.uIpd, vr ? vr.ipd : 0);
       gl.uniform1fv(u.uP, g.p);
       gl.uniform1i(u.uIter, g.iter);
       gl.uniformMatrix3fv(u.uRotA, false, g.rotA);
@@ -962,7 +1002,7 @@ void main() {
       const total = this.hdr ? Math.max(1, Math.round(samples)) : 1;
       return new Promise((resolve, reject) => {
         this.job = {
-          frame, w, h, total, onProgress, resolve, reject, raw: !!raw, march: QUALITY[(opts || {}).march] ? opts.march : 'high',
+          frame, w, h, total, onProgress, resolve, reject, raw: !!raw, march: QUALITY[(opts || {}).march] ? opts.march : 'high', vr: (opts && opts.vr) || null,
           tiles: this._tileList(w, h), cursor: 0, sample: 0, perTick: 4, started: false, cancelled: false
         };
       });
@@ -1012,7 +1052,7 @@ void main() {
       // Stills use High ray-march settings; movie presets may ask for less.
       const geom = { cx: job.w / 2, cy: job.h / 2, fh: job.h };
       gl.useProgram(entry.prog);
-      this._setFractalUniforms(entry, job.frame, job.w, job.h, jitter(job.sample), { quality: job.march, geom });
+      this._setFractalUniforms(entry, job.frame, job.w, job.h, jitter(job.sample), { quality: job.march, geom, vr: job.vr });
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE);
       gl.enable(gl.SCISSOR_TEST);
@@ -1036,7 +1076,7 @@ void main() {
       if (job.sample < job.total) return;
 
       const out = this._target('stillOut', job.w, job.h, false);
-      this._drawDisplay(out.fbo, job.w, job.h, null, acc.tex, true, job.frame.post, geom);
+      this._drawDisplay(out.fbo, job.w, job.h, null, acc.tex, true, job.vr ? Object.assign({}, job.frame.post, { vignette: 0 }) : job.frame.post, geom);
       const pixels = new Uint8Array(job.w * job.h * 4);
       gl.readPixels(0, 0, job.w, job.h, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
       this._endJob();

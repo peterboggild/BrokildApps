@@ -634,7 +634,7 @@
     // ----- movie -----
     const m = ctx.movieSettings();
     const R = ctx.movieRange();
-    const gMovie = group('Movie', 'render-movie', true, m.audio === 'pcm' ? 'MOV · H.264 + PCM' : 'MP4 · H.264 + AAC');
+    const gMovie = group('Movie', 'render-movie', true, `${m.audio === 'pcm' ? 'MOV' : 'MP4'} · ${R.vr ? 'H.265' : 'H.264'} + ${m.audio === 'pcm' ? 'PCM' : 'AAC'}${R.vr ? ' · VR' : ''}`);
     const setM = (patch) => { ctx.setMovieSettings(patch); ctx.rebuild('render'); };
     const startIn = h('input', { type: 'number', min: '0', step: '0.01', value: String(+R.start.toFixed(2)), title: 'Start (seconds)' });
     const endIn = h('input', { type: 'number', min: '0', step: '0.01', value: m.end == null ? '' : String(+R.end.toFixed(2)), placeholder: `${dur.toFixed(2)} (end)`, title: 'End (seconds); empty = end of the song' });
@@ -655,6 +655,36 @@
       options: [{ value: 'aac', label: 'AAC 320k, MP4 (clip-safe)' }, { value: 'pcm', label: 'Lossless PCM, MOV (untouched)' }],
       onChange: (v) => setM({ audio: v })
     }).el);
+    // ----- VR -----
+    const vf = Schema.VR_FORMATS.find((x) => x.id === m.vr);
+    gMovie.body.appendChild(select({
+      label: 'VR format', value: m.vr,
+      hint: 'Renders the movie as an equirectangular VR video (with spherical metadata and the matching name tag) instead of a flat frame. The preview stays flat: use "VR still" to check a frame.',
+      options: Schema.VR_FORMATS.map((x) => ({ value: x.id, label: x.label })),
+      onChange: (v) => setM({ vr: v })
+    }).el);
+    if (vf.size) {
+      gMovie.body.appendChild(h('p', { class: 'note', text: vf.hint }));
+      gMovie.body.appendChild(select({
+        label: 'VR size', value: String(m.vrWidth),
+        hint: 'Width of the whole frame. Headsets show about 20 pixels per degree, so 360 needs about 4096 wide for each eye to look sharp and 180 about 5760.',
+        options: vf.widths.map((w) => { const [a, b] = vf.size(w); return { value: String(w), label: `${a}×${b}` }; }),
+        onChange: (v) => setM({ vrWidth: Number(v) })
+      }).el);
+      if (vf.stereo) {
+        gMovie.body.appendChild(slider({
+          label: 'Stereo depth', unit: '%', min: 0, max: 10, step: 0.1, value: +(m.vrDepth * 100).toFixed(1),
+          hint: 'Eye spacing as a share of the camera distance. 3 % feels like a big object a couple of metres away; more makes the fractal feel smaller and closer, less makes it huge and far. Too much hurts the eyes.',
+          onCommit: (v) => setM({ vrDepth: v / 100 })
+        }).el);
+      }
+      gMovie.body.appendChild(toggle({
+        label: 'Keep the horizon level', value: m.vrLevel,
+        hint: 'Drops the camera roll (banking) for the VR movie. A tilting horizon you do not control is the main cause of VR sickness. Leave it off if auto-flight hangs upside down on purpose.',
+        onChange: (v) => setM({ vrLevel: v })
+      }).el);
+      gMovie.body.appendChild(h('p', { class: 'note', text: 'Watch it: upload to YouTube (it reads the VR metadata; 360 also plays in a normal browser), or copy the file to a Quest and open it in its Files/Gallery player, Skybox or DeoVR (they use the _360_TB / _180_LR / _360 tag in the name). Keep the camera calm: slow orbits and gentle flights.' }));
+    }
     const cur = Schema.MOVIE_PRESETS.find((x) => x.id === m.preset);
     const speed = (q) => { const c = Schema.movieCost(q, r.samples); return c >= 0.995 ? 'reference' : `about ${(1 / c) < 10 ? (1 / c).toFixed(1) : Math.round(1 / c)}× faster`; };
     gMovie.body.appendChild(select({
@@ -686,6 +716,7 @@
     const gAct = group('Still and project', 'render-act', true);
     gAct.body.appendChild(h('div', { class: 'btn-row' },
       button('Render still (PNG)', { icon: 'image', class: 'btn btn-sm', title: 'Current frame at the output size and sample count', onClick: () => ctx.renderStill() }),
+      ...(R.vr ? [button('VR still (PNG)', { icon: 'image', class: 'btn btn-sm', title: 'Current frame in the movie\'s VR format and size, to check the stereo before rendering', onClick: () => ctx.renderStill(true) })] : []),
       button('Export project JSON', { onClick: () => ctx.exportProject() })));
     host.appendChild(gAct.el);
   }

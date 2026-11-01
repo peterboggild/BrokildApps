@@ -484,6 +484,19 @@
     { id: 'high', label: 'High', scale: 1, samples: 16, march: 'high', crf: null, suffix: '', hint: 'Full size, 16 samples, High ray marching (finer detail and shadows).' },
     { id: 'final', label: 'Final', scale: 1, samples: null, march: 'high', crf: null, suffix: '', hint: 'Full size, Samples / frame from the Output format, High ray marching.' }
   ];
+  // VR movie formats (equirectangular). layout: 0 mono, 1 top/bottom, 2 side by side; span = horizontal
+  // field in radians; stereo/bounds go into the file's spherical metadata; tag ends the file name so VR
+  // players that go by name pick the right mode. size(width) = [width, height] of the whole frame.
+  const VR_FORMATS = [
+    { id: 'off', label: 'Off (normal movie)' },
+    { id: '360tb', label: '360° stereo (top/bottom)', layout: 1, span: Math.PI * 2, stereo: 1, bounds: [0, 0, 0, 0], tag: '_360_TB', widths: [4096, 3072, 2048], size: (w) => [w, w],
+      hint: 'All the way round, in 3D. Each eye is a full 360 x 180 degree picture, left eye on top.' },
+    { id: '180lr', label: '180° stereo (side by side, VR180)', layout: 2, span: Math.PI, stereo: 2, bounds: [0, 0, 0.25, 0.25], tag: '_180_LR', widths: [5760, 4096, 3072], size: (w) => [w, w / 2],
+      hint: 'The half in front of you, in 3D. Sharper than 360 at the same file size, and easier on the stomach.' },
+    { id: '360', label: '360° mono', layout: 0, span: Math.PI * 2, stereo: 0, bounds: [0, 0, 0, 0], tag: '_360', widths: [5760, 4096, 3072], size: (w) => [w, w / 2],
+      hint: 'All the way round, flat (no depth). Plays in any 360 player, including YouTube in a normal browser.' }
+  ];
+
   // Relative GPU cost of a preset against Final at the given project sample count.
   function movieCost(preset, projectSamples) {
     const s = preset.samples || projectSamples;
@@ -580,6 +593,6 @@
     BACKDROP, BACKDROP_FITS, BACKDROP_SYNC, BACKDROP_PLACES, BACKDROP_BLENDS,
     uid, defaultLook, applyLookPreset, defaultCamera, defaultSpace, defaultBackdrop, makeScene, defaultProject,
     normalizeLook, normalizeBackdrop, normalizeScene, normalizeProject,
-    sources, isGridSource, routeOn, KEY_INTERPS, CAM_KEYS, keySpec, FLIGHT, defaultFlight, MOVIE_PRESETS, movieCost, destinations, destSpec, guessRole
+    sources, isGridSource, routeOn, KEY_INTERPS, CAM_KEYS, keySpec, FLIGHT, defaultFlight, MOVIE_PRESETS, movieCost, VR_FORMATS, destinations, destSpec, guessRole
   };
 });

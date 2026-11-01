@@ -112,3 +112,18 @@ cancel cleans up. Not verified: long full-HD renders on the T1000 (the tab must 
 2. Sensitivity sweep per parameter (replace the static "calm" bands with measured ones), visual speed limit.
 3. Shape variants (morph targets A/B/C) as a modulation destination; camera spline + auto-flight with DE safety.
 4. Events (flash limiter), MIDI lanes, section mask per route, parameter plot beside the stem lanes.
+
+## VR movies (built 2026-11-01)
+
+Render tab -> Movie -> VR format: 360 stereo top/bottom (left eye on top, square frame), 180 stereo side by side
+(VR180, 2:1), or 360 mono (2:1). The fractal shader gets an equirectangular camera (uVR, uVRLayout, uVRSpan,
+uIpd): omni-directional stereo, each eye offset at right angles to the horizontal view direction, faded by
+cos(latitude) so the poles do not swap the eyes. Eye spacing = Stereo depth (default 3 %) x the evaluated camera
+distance, so the felt scale stays put through zooms and auto-flight. "Keep the horizon level" drops the roll in
+the render only. Backdrops are placed in front, as in the flat view; vignette is off in VR. VR movies are H.265
+(libx265, crf+2, hvc1 tag); the server injects Spherical Video V2 metadata (st3d + sv3d/equi, vr-meta.js, also
+shifts stco/co64 when moov is first) and ends the file name with _360_TB / _180_LR / _360. "VR still (PNG)"
+renders the current frame in the VR format. Verified headless: all three formats render, stereo direction
+correct (exaggerated spacing: left-eye image shifted right), a 360 TB movie through the server reads back in
+ffprobe as hevc, top and bottom, equirectangular. Not verified: in a headset or on YouTube.
+Watching: YouTube (reads the metadata), or a Quest's Files/Gallery player, Skybox, DeoVR (name tag).

@@ -784,15 +784,26 @@
     toast(`${added} route${added > 1 ? 's' : ''} added from stem roles.`, 'ok');
   }
 
+  function vrOpts(vr, frame) {
+    if (!vr) return null;
+    const dist = frame && frame.camera && frame.camera.dist > 0 ? frame.camera.dist : 1;
+    return { layout: vr.layout, span: vr.span, ipd: vr.depth * dist, level: vr.level };
+  }
+
   // ---------- still render ----------
-  async function renderStill() {
+  // asVr: one frame in the movie's VR format (to check the stereo before a long render)
+  async function renderStill(asVr) {
     if (!renderer) return;
     if (transport.playing) { transport.pause(); updatePlayButton(); }
     const r = project.render;
     const frame = evaluateNow(transport.time());
     const modal = $('renderModal');
     const bar = $('renderProgress');
-    $('renderModalTitle').textContent = `Rendering still ${r.width}×${r.height}`;
+    const R = asVr === true ? movieRange() : null;
+    const vr = R && R.vr;
+    const sw = vr ? R.w : r.width;
+    const sh = vr ? R.h : r.height;
+    $('renderModalTitle').textContent = `Rendering ${vr ? 'VR still' : 'still'} ${sw}×${sh}`;
     $('renderModalText').textContent = `${r.samples} samples per pixel, High quality. The preview pauses meanwhile.`;
     $('renderPreview').hidden = true;
     $('renderStats').textContent = '';
@@ -800,9 +811,9 @@
     modal.hidden = false;
     try {
       await backdrops.prepare(frame);
-      const blob = await renderer.renderStill(frame, r.width, r.height, r.samples, (p) => { bar.style.width = `${Math.round(p * 100)}%`; });
+      const blob = await renderer.renderStill(frame, sw, sh, r.samples, (p) => { bar.style.width = `${Math.round(p * 100)}%`; }, false, vr ? { vr: vrOpts(vr, frame) } : null);
       const frameNo = Math.round(transport.time() * r.fps);
-      download(`${slug(project.name)}-f${String(frameNo).padStart(5, '0')}.png`, blob);
+      download(`${slug(project.name)}-f${String(frameNo).padStart(5, '0')}${vr ? vr.tag : ''}.png`, blob);
       toast('Still saved to your downloads.', 'ok');
     } catch (err) {
       if (err.message !== 'cancelled') toast(`Still render failed: ${err.message}`, 'err');
@@ -854,7 +865,10 @@
   }
 
   const movieSettings = () => {
-    const m = Object.assign({ start: 0, end: null, crf: 16, draft: false, audio: 'aac', preset: null }, settings.movie || {});
+    const m = Object.assign({ start: 0, end: null, crf: 16, draft: false, audio: 'aac', preset: null, vr: 'off', vrWidth: null, vrDepth: 0.03, vrLevel: false }, settings.movie || {});
+    const vf = Schema.VR_FORMATS.find((x) => x.id === m.vr) || Schema.VR_FORMATS[0];
+    m.vr = vf.id;
+    if (vf.widths && !vf.widths.includes(m.vrWidth)) m.vrWidth = vf.widths[0];
     if (!Schema.MOVIE_PRESETS.some((x) => x.id === m.preset)) m.preset = m.draft ? 'test' : 'final'; // older settings
     return m;
   };
@@ -881,12 +895,15 @@
     const n1 = Math.max(n0 + 1, Math.ceil(end * r.fps - 1e-6));
     let w = r.width;
     let hh = r.height;
+    const vf = Schema.VR_FORMATS.find((x) => x.id === m.vr);
+    if (vf.size) [w, hh] = vf.size(m.vrWidth);
     const q = Schema.MOVIE_PRESETS.find((x) => x.id === m.preset);
     w = Math.round(w * q.scale);
     hh = Math.round(hh * q.scale);
     w -= w % 2;
     hh -= hh % 2;
-    return { n0, n1, frames: n1 - n0, fps: r.fps, start: n0 / r.fps, end: n1 / r.fps, w, h: hh, samples: q.samples || r.samples, crf: q.crf != null ? q.crf : m.crf, draft: q.id !== 'final', preset: q, march: q.march, audio: m.audio === 'pcm' ? 'pcm' : 'aac' };
+    return { n0, n1, frames: n1 - n0, fps: r.fps, start: n0 / r.fps, end: n1 / r.fps, w, h: hh, samples: q.samples || r.samples, crf: q.crf != null ? q.crf : m.crf, draft: q.id !== 'final', preset: q, march: q.march, audio: m.audio === 'pcm' ? 'pcm' : 'aac',
+      vr: vf.size ? { id: vf.id, label: vf.label, layout: vf.layout, span: vf.span, stereo: vf.stereo, bounds: vf.bounds, tag: vf.tag, depth: vf.stereo ? m.vrDepth : 0, level: !!m.vrLevel } : null };
   }
 
   async function renderMovie() {
@@ -909,7 +926,7 @@
     prev.width = 320;
     prev.height = Math.max(2, Math.round(320 * R.h / R.w));
     prev.getContext('2d').clearRect(0, 0, prev.width, prev.height);
-    $('renderModalTitle').textContent = `Rendering movie ${R.w}×${R.h} · ${R.preset.label}`;
+    $('renderModalTitle').textContent = `Rendering ${R.vr ? `VR movie (${R.vr.label})` : 'movie'} ${R.w}×${R.h} · ${R.preset.label}`;
     $('renderModalText').textContent = `${R.frames.toLocaleString()} frames at ${R.fps} fps (${fmtTime(R.start)}–${fmtTime(R.end)}), ${R.samples} sample${R.samples === 1 ? "" : "s"} per pixel, ${R.march} ray marching. Keep this tab visible: browsers pause hidden tabs.`;
     stats.textContent = 'Starting…';
     bar.style.width = '0%';
@@ -940,7 +957,7 @@
 
     let pending = Promise.resolve();
     try {
-      const start = await renderApi('start', { json: { name: `${slug(project.name)}${R.preset.suffix}`, width: R.w, height: R.h, fps: R.fps, frames: R.frames, startTime: R.start, outDir: project.render.outDir, crf: R.crf, audio: R.audio } });
+      const start = await renderApi('start', { json: { name: `${slug(project.name)}${R.preset.suffix}`, width: R.w, height: R.h, fps: R.fps, frames: R.frames, startTime: R.start, outDir: project.render.outDir, crf: R.crf, audio: R.audio, vr: R.vr ? { stereo: R.vr.stereo, bounds: R.vr.bounds, tag: R.vr.tag } : null } });
       job.id = start.id;
       if (project.master && project.master.key) {
         const blob = await AudioLib.idb.get('files', project.master.key).catch(() => null);
@@ -955,7 +972,7 @@
         const t = (R.n0 + i) / R.fps;
         const frame = Ev.evaluate(project, analysis, t);
         await backdrops.prepare(frame);
-        const px = await renderer.renderFrame(frame, R.w, R.h, R.samples, (p) => showStats(i + p), { march: R.march });
+        const px = await renderer.renderFrame(frame, R.w, R.h, R.samples, (p) => showStats(i + p), { march: R.march, vr: vrOpts(R.vr, frame) });
         await pending; // previous upload done (ffmpeg keeps up or applies back-pressure)
         if (job.cancelled) throw new Error('cancelled');
         pending = renderApi('frame', { query: { id: job.id, n: i }, body: px });
@@ -970,7 +987,8 @@
       const sound = res.audio === 'pcm' ? ' Soundtrack copied untouched (PCM).'
         : res.audio && res.gain < -0.005 ? ` Soundtrack lowered by ${(-res.gain).toFixed(1)} dB (static gain, no compression) so the AAC encode stays below 0 dB${res.aacPeak != null ? ` (peak ${res.aacPeak.toFixed(1)} dBFS)` : ''}.`
         : res.audio ? ' Soundtrack level unchanged.' : '';
-      toast(`Movie saved (${mb} MB, ${fmtDur((performance.now() - t0) / 1000)}): ${res.file}.${sound}`, 'ok', 15000);
+      const vrNote = res.vr ? ' VR metadata written (YouTube and headset players will show it as VR).' : '';
+      toast(`Movie saved (${mb} MB, ${fmtDur((performance.now() - t0) / 1000)}): ${res.file}.${sound}${vrNote}`, 'ok', 15000);
       console.log('Movie saved:', res.file);
       lastMovie = res;
     } catch (err) {
