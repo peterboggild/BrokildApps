@@ -381,7 +381,8 @@
     turn: N('Max turn', 10, 180, 1, 60, { unit: '°/s', hint: 'Fastest the heading may change. Lower = smoother, wider curves.' }),
     bank: N('Bank into turns', 0, 1, 0.01, 0.4, { hint: 'Roll the camera into turns, like an aircraft.' }),
     lookDown: N('Look toward surface', 0, 0.8, 0.01, 0.3, { hint: 'Tilt the view toward the surface below instead of straight along the flight.' }),
-    seed: N('Seed', 0, 99, 1, 1, { hint: 'A different seed gives a different route from the same start.' })
+    seed: N('Seed', 0, 99, 1, 1, { hint: 'A different seed gives a different route from the same start.' }),
+    inertia: N('Inertia', 0, 1, 0.01, 0.6, { hint: '0 = a nimble drone that follows every bump. Higher = a heavy plane: it reads the terrain far ahead, starts climbing early for distant ridges, eases into valleys and turns and looks around slowly. Cinematic around 0.6-0.9.' })
   };
   function defaultFlight() {
     const settings = {};

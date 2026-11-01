@@ -288,11 +288,14 @@ const sdfProbe = (sdf, grad) => (frame, pos, dirs, maxRay, eps) => {
   });
   return { d: sdf(pos), grad: grad(pos), rays };
 };
-function flightProject() {
+function flightProject(inertia) {
   const p = Schema.defaultProject();
   p.flight.on = [p.sections[0].sceneId];
+  p.flight.settings.inertia = inertia || 0; // 0 = the drone the first tests were written for
   return p;
 }
+// Largest second difference of the height between stored samples: how hard the flight changes its climb.
+const jerkY = (pts) => { let m = 0; for (let i = 2; i < pts.length; i += 1) m = Math.max(m, Math.abs(pts[i][1] - 2 * pts[i - 1][1] + pts[i - 2][1])); return m; };
 // Samples the playback actually shows: up to the cut into the next (unflown, other-formula) scene.
 const samples = (track, p) => {
   const cut = Ev.sectionStarts(p)[1] - p.sections[1].transition / 2;
@@ -348,6 +351,48 @@ const samples = (track, p) => {
     const late = ds.slice(Math.floor(ds.length / 2));
     assert.ok(Math.max(...late) < 3 * alt, `stays near the surface (furthest late ${Math.max(...late).toFixed(3)})`);
     assert.strictEqual(res.stats.restarts, 1, 'restarts once at the cut to another formula');
+  });
+
+  await atest('cinematic flight (inertia): settles to the chosen height, never touches, and moves more smoothly than the drone', async () => {
+    const plane = sdfProbe((q) => q[1], () => [0, 1, 0]);
+    const pc = flightProject(0.7);
+    const alt = pc.flight.settings.height * Formulas.get(pc.scenes[0].formula).size;
+    const cin = samples((await Flight.compute(pc, null, plane, { yieldEvery: 0 })).track, pc);
+    const pd = flightProject(0);
+    const dro = samples((await Flight.compute(pd, null, plane, { yieldEvery: 0 })).track, pd);
+    const hs = cin.map((x) => x[1]);
+    assert.ok(Math.min(...hs) >= 0.25 * alt, `lowest ${Math.min(...hs).toFixed(4)}`);
+    const late = hs.slice(Math.floor(hs.length * 0.6));
+    const mean = late.reduce((a, b) => a + b, 0) / late.length;
+    assert.ok(mean > 0.6 * alt && mean < 1.6 * alt, `cruise ${mean.toFixed(4)} vs ${alt.toFixed(4)}`);
+    assert.ok(jerkY(cin) < 0.6 * jerkY(dro), `climb changes ${jerkY(cin).toFixed(5)} vs drone ${jerkY(dro).toFixed(5)}`);
+  });
+
+  await atest('cinematic flight reads the ground ahead: it is already climbing when it reaches a ridge, and clears it', async () => {
+    // a ring-shaped ridge round the origin, right across the path of a camera that starts outside it looking in
+    const Rr = 1.4, Hr = 0.55, Wr = 0.22;
+    const ground = (q) => Hr * Math.exp(-Math.pow((Math.hypot(q[0], q[2]) - Rr) / Wr, 2));
+    const sdf = (q) => (q[1] - ground(q)) * 0.4;
+    const grad = (q) => { const e = 1e-4; return [(sdf([q[0] + e, q[1], q[2]]) - sdf([q[0] - e, q[1], q[2]])) / (2 * e), (sdf([q[0], q[1] + e, q[2]]) - sdf([q[0], q[1] - e, q[2]])) / (2 * e), (sdf([q[0], q[1], q[2] + e]) - sdf([q[0], q[1], q[2] - e])) / (2 * e)]; };
+    const probe = sdfProbe(sdf, grad);
+    const run = async (ia) => {
+      const p = flightProject(ia);
+      p.flight.settings.wander = 0;
+      p.scenes[0].camera.dist = 4.2; // start well outside the ring
+      return { p, pts: samples((await Flight.compute(p, null, probe, { yieldEvery: 0 })).track, p) };
+    };
+    const c = await run(0.7), d = await run(0);
+    const alt = c.p.flight.settings.height * Formulas.get(c.p.scenes[0].formula).size;
+    for (const [name, r] of [['cinematic', c], ['drone', d]]) {
+      const clear = Math.min(...r.pts.map((x) => x[1] - ground(x)));
+      assert.ok(clear >= 0.25 * alt * 0.4, `${name} clearance ${clear.toFixed(4)}`);
+    }
+    // height above the local ground when first entering the ridge's flank
+    const atFlank = (pts) => { const k = pts.findIndex((x) => Math.hypot(x[0], x[2]) < Rr + 2.2 * Wr); return k < 0 ? null : pts[k][1] - ground(pts[k]); };
+    const hc = atFlank(c.pts), hd = atFlank(d.pts);
+    assert.ok(hc != null && hd != null, 'both reach the ridge');
+    assert.ok(hc > hd * 1.3, `climbing early: ${hc.toFixed(3)} vs drone ${hd.toFixed(3)} above the ground at the flank`);
+    assert.ok(jerkY(c.pts) < jerkY(d.pts), `smoother over the ridge: ${jerkY(c.pts).toFixed(5)} vs ${jerkY(d.pts).toFixed(5)}`);
   });
 
   console.log(`\n${passed} passed${process.exitCode ? ', some FAILED' : ''}`);

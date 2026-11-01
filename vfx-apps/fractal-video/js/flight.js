@@ -115,11 +115,14 @@
       let L = H.slice();
       let U = norm(b0.up);
       let lastN = [0, 1, 0];
+      // inertia state (cinematic mode): smoothed up, vertical speed, forward speed, smoothed wish heading
+      let nbar = null, vz = 0, vNow = null, desSm = null, yawRate = 0;
       let lastFormula = f0.formula;
       // (re)start from the camera the timeline shows at this moment
       const startFrom = (fr) => {
         const b = Ev.cameraBasis(fr.camera);
         P = b.pos.slice(); H = norm(b.fwd); L = H.slice(); U = norm(b.up);
+        nbar = null; vz = 0; vNow = null; desSm = null; yawRate = 0;
       };
       const nRec = Math.floor((run.b1 - run.b0) / STEP_BEATS) + 1;
       const pts = [];
@@ -137,12 +140,15 @@
         const S = frame.gpu.size || 1;
         const alt = set.height * S;
         const minC = 0.3 * alt;
-        const look = Math.max(alt * 6, 0.5 * S);
+        const ia = clamp(set.inertia || 0, 0, 1);
+        // a heavy plane reads the ground much further ahead
+        const look = Math.max(alt * (6 + 18 * ia), 0.5 * S);
         const eps = Math.max(1e-5 * S, alt * 0.02);
         const right = norm(cross(H, U), perp(H));
         const up = norm(cross(right, H));
         const dirs = DIRS.map((d) => norm(add(add(mul(right, d[0]), mul(up, d[1])), mul(H, d[2]))));
-        dirs.push(mul(norm(U), -1)); // straight down (along the view's up)
+        // straight down: along the view's up (drone), or along the smoothed surface up (inertia)
+        dirs.push(ia > 0 && nbar ? mul(nbar, -1) : mul(norm(U), -1));
         const r = await probe(frame, P, dirs, look, eps);
         const d0 = Number.isFinite(r.d) ? r.d : look;
         const n = norm(r.grad, lastN);
@@ -154,6 +160,9 @@
         const gl = clamp(len(r.grad || [0, 0, 0]), 0.2, 1);
         if (d0 < minC) { P = add(P, mul(n, (minC - d0) / gl)); stats.pushes += 1; }
 
+        if (ia > 0) {
+          cinematic(t, r, d0, n, alt, minC, look, dirs, S, ia);
+        } else {
         // skim: follow the surface sideways, correct the height along the normal
         let tan = sub(H, mul(n, dot(H, n)));
         tan = norm(tan, perp(n));
@@ -195,12 +204,88 @@
         L = norm(mix(L, norm(sub(H, mul(n, set.lookDown * 1.5))), kl), H);
         U = norm(mix(U, upT, ku), upT);
         U = norm(sub(U, mul(L, dot(U, L))), perp(L)); // keep up perpendicular to the view
+        }
         steps += 1;
         if (o.yieldEvery !== 0 && steps % (o.yieldEvery || 40) === 0) {
           await new Promise((res) => setTimeout(res, 0));
           if (o.onProgress) o.onProgress(doneRecs / totalRecs);
         }
       };
+
+      // Inertia (0 < ia <= 1): fly like a heavy plane. The height is no longer corrected each step: a climb
+      // rate builds up and dies away slowly (time constants grow with ia) and is capped at a climb angle.
+      // The ground far ahead is read from the look-ahead rays, so it starts climbing early for distant
+      // ridges; descents only follow the measured height, slowly. The up reference, speed, heading and
+      // view all smooth over longer times. The hard safety rules stay: push out when too close, never
+      // move more than half the free distance.
+      function cinematic(t, r, d0, n, alt, minC, look, dirs, S, ia) {
+        const ease = (tau) => 1 - Math.exp(-dt / tau);
+        nbar = nbar ? norm(mix(nbar, n, ease(0.15 + 0.9 * ia)), n) : norm(mix([0, 1, 0], n, 0.85), n);
+        const down = r.rays[DIRS.length];
+        const hgt = down < look * 0.999 ? Math.max(down, d0) : Math.max(d0, look);
+        const vT = set.speed * S * clamp(hgt / alt, 0.3, 4 - 2 * ia);
+        vNow = vNow == null ? vT : vNow + (vT - vNow) * ease(0.2 + 2 * ia);
+        let Hh = norm(sub(H, mul(nbar, dot(H, nbar))), perp(nbar));
+        // where it would like to go: straight on, wandering slowly, around obstacles
+        let des = Hh;
+        const wa = Math.sin(t * 0.21 + seed * 1.7) + 0.6 * Math.sin(t * 0.53 + seed * 3.1) + 0.3 * Math.sin(t * 1.13 + seed * 0.7);
+        des = norm(rot(des, nbar, set.wander * 0.6 * (1 - 0.5 * ia) * wa * dt));
+        let best = null, bestScore = -Infinity, alignBest = -2, freeDes = 1;
+        r.rays.forEach((dist, k) => {
+          if (k >= DIRS.length) return;
+          const free = clamp(dist / look, 0, 1);
+          const al = dot(dirs[k], des);
+          const score = free + 0.8 * al;
+          if (score > bestScore) { bestScore = score; best = dirs[k]; }
+          if (al > alignBest) { alignBest = al; freeDes = free; }
+        });
+        let avoidUp = 0;
+        if (best && freeDes < 0.999) {
+          const bh = norm(sub(best, mul(nbar, dot(best, nbar))), des);
+          des = norm(mix(des, bh, Math.pow(1 - freeDes, 0.7)));
+          avoidUp = Math.max(0, dot(best, nbar)) * (1 - freeDes);
+        }
+        desSm = desSm ? norm(mix(desSm, des, ease(0.1 + 1.5 * ia)), des) : des;
+        // heading: turn rate with its own inertia, and a lower ceiling the heavier it is
+        const ang = Math.atan2(dot(cross(Hh, desSm), nbar), dot(Hh, desSm));
+        const maxRate = set.turn * DEG * (1 - 0.5 * ia);
+        const wantRate = clamp(ang / (0.3 + 1.5 * ia), -maxRate, maxRate);
+        yawRate += (wantRate - yawRate) * ease(0.1 + 1.2 * ia);
+        Hh = norm(rot(Hh, nbar, yawRate * dt), Hh);
+        // climb: hold the height slowly, climb early for what is ahead
+        // far above the surface it comes back faster; near it, the height is held gently
+        // req = the climb wanted now (negative = come down). Ground ahead that stands higher than the ground
+        // below stops a descent early (it would only have to climb again), and a climb it needs later starts now.
+        const v = Math.max(vNow, 1e-6);
+        let req = alt - hgt, early = -Infinity;
+        r.rays.forEach((dist, k) => {
+          if (k >= DIRS.length || dist >= look * 0.999) return;
+          const rel = mul(dirs[k], dist);
+          const f = dot(rel, Hh);
+          if (f <= 0.2 * alt) return;
+          const need = dot(rel, nbar) + alt; // climb needed to pass that point at the chosen height
+          if (need > 0) early = Math.max(early, 0.8 * need / Math.max(f / v, 0.25));
+          else req = Math.max(req, need * (0.5 + 0.5 * f / look));
+        });
+        let rate = Math.max(req / ((0.3 + 2 * ia) / clamp(hgt / (3 * alt), 1, 3)), early);
+        if (avoidUp > 0) rate = Math.max(rate, avoidUp * v * 2);
+        const tanMax = Math.tan((45 - 27 * ia) * DEG);
+        const vzT = clamp(rate, -v * tanMax, v * tanMax);
+        vz += (vzT - vz) * ease(0.08 + 1.6 * ia);
+        // too close: the push-out above already moved us; do not keep sinking
+        if (hgt < minC * 1.5 && vz < 0) vz = 0;
+        const vel = add(mul(Hh, v), mul(nbar, vz));
+        const dir = norm(vel, Hh);
+        const stepLen = Math.min(len(vel) * dt, 0.5 * Math.max(d0, minC * 0.5));
+        P = add(P, mul(dir, stepLen));
+        H = dir;
+        // view: slow, banked by the turn rate, up from the smoothed surface up
+        let upT = norm(mix([0, 1, 0], nbar, 0.85), nbar);
+        upT = norm(rot(upT, dir, -clamp(yawRate * set.bank * 0.5, -0.8, 0.8)));
+        L = norm(mix(L, norm(sub(dir, mul(nbar, set.lookDown * 1.5))), ease(0.35 + 1.2 * ia)), dir);
+        U = norm(mix(U, upT, ease(0.6 + 1.5 * ia)), upT);
+        U = norm(sub(U, mul(L, dot(U, L))), perp(L));
+      }
 
       record();
       doneRecs += 1;

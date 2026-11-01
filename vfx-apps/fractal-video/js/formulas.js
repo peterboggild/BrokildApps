@@ -936,6 +936,187 @@ float fde(vec3 p, out vec4 trap, out float it) {
   return min(d, bnd);
 }`
     },
+    {
+      id: 'clockwork', name: 'Clockwork', cat: 'machine',
+      blurb: 'Gears carrying rings of smaller gears that mesh with them. Each ring turns the other way at its gear ratio, so animating Spin runs the whole train.',
+      size: 1.8, step: 0.6, iter: { min: 1, max: 6, def: 4 }, camera: { dist: 3.4, pitch: 50, yaw: 20 },
+      params: [
+        P('teeth', 'Teeth', 6, 48, 1, 24, { hint: 'Teeth on the big gear; smaller gears get proportionally fewer.' }),
+        P('ratio', 'Ratio', 1.8, 4, 0.005, 2.6, { calm: [2.3, 3], hint: 'How much smaller each ring of gears is. Iterations = rings.' }),
+        P('around', 'Gears per ring', 2, 8, 1, 4),
+        P('tooth', 'Tooth depth', 0.02, 0.25, 0.002, 0.09, { calm: [0.07, 0.12] }),
+        P('thick', 'Thickness', 0.03, 0.5, 0.002, 0.12, { calm: [0.08, 0.16] }),
+        P('lift', 'Stack', -0.5, 0.5, 0.002, 0.14, { calm: [0.08, 0.2], hint: 'Raises each ring above its parent.' }),
+        P('windows', 'Windows', 0, 1, 0.005, 0.6, { calm: [0.4, 0.8], hint: 'Size of the cut-outs between the spokes.' }),
+        P('spin', 'Spin', -180, 180, 0.5, 0, { unit: '°', hint: 'Turns the big gear; the others follow at their ratios. Animate it.' }),
+        ...rot('rot', 'Tilt', [0, 0, 0])
+      ],
+      pack: (v) => ({ p: [Math.round(v.teeth), v.ratio, Math.round(v.around), v.tooth, v.thick, v.lift, v.windows, rad(v.spin)], rotA: [v.rotX, v.rotY, v.rotZ] }),
+      glsl: `
+float fde(vec3 p, out vec4 trap, out float it) {
+  vec3 z = p;
+  float teeth = uP[0], s = uP[1], m = max(uP[2], 2.0), td = uP[3], th = uP[4], lift = uP[5], win = uP[6];
+  float spin = uP[7];
+  float dr = 1.0;
+  float d = 1e9;
+  float R = 1.0;
+  float dir = 1.0, speed = 1.0;
+  trap = vec4(1e9);
+  it = 0.0;
+  for (int i = 0; i < MAX_ITER; i++) {
+    if (i >= uIter) break;
+    float a = atan(z.z, z.x) + spin * dir * speed;
+    float r = length(z.xz);
+    // tooth profile: a softened square wave round the rim
+    float n = max(floor(teeth / pow(s, float(i)) + 0.5), 6.0);
+    float tw = clamp(cos(a * n) * 2.5, -1.0, 1.0);
+    float rim = r - (R - td + td * (0.5 + 0.5 * tw));
+    // spokes and windows: cut sectors out of the web between hub and rim
+    float sec = 6.2831853 / 5.0;
+    float aw = abs(mod(a + 0.5 * sec, sec) - 0.5 * sec);
+    float hole = max(max(0.3 * R - r, r - (0.3 + 0.42 * win) * R), 0.09 * R - aw * r);
+    float web = (win > 0.01) ? max(rim, -hole) : rim;
+    float g = max(max(web, 0.05 * R - r) * 0.6, abs(z.y) - th);
+    g = min(g, max(r - 0.09 * R, abs(z.y) - th * 1.8)); // the axle
+    if (g / dr < d) { d = g / dr; it = float(i) / float(uIter); }
+    trap = min(trap, vec4(abs(z.x), abs(z.y), abs(z.z), r * r));
+    // children: m gears round the rim, meshing with it, one ratio smaller, turning the other way
+    float cs = 6.2831853 / m;
+    float ca = atan(z.z, z.x);
+    ca = mod(ca + 0.5 * cs, cs) - 0.5 * cs;
+    z.xz = r * vec2(cos(ca), sin(ca));
+    z -= vec3(R + R / s - td, lift, 0.0);
+    z = uRotA * z;
+    z *= s;
+    dr *= s;
+    dir = -dir;
+    speed *= s;
+  }
+  return d;
+}`
+    },
+    {
+      id: 'truss', name: 'Truss', cat: 'machine',
+      blurb: 'Girder frames with diagonal braces, each holding smaller frames at its corners: cranes, scaffolding, space-station trusses.',
+      size: 1.6, step: 0.8, iter: { min: 1, max: 7, def: 4 }, camera: { dist: 6.5, pitch: 24, yaw: 38 },
+      params: [
+        P('scale', 'Scale', 1.8, 4, 0.005, 2.6, { calm: [2.3, 3] }),
+        P('offX', 'Offset X', 0, 2, 0.005, 1, { group: 'Offset' }),
+        P('offY', 'Offset Y', 0, 2, 0.005, 1, { group: 'Offset' }),
+        P('offZ', 'Offset Z', 0, 2, 0.005, 0.4, { group: 'Offset' }),
+        P('beam', 'Beam', 0.01, 0.2, 0.001, 0.05, { calm: [0.035, 0.07], hint: 'Thickness of the girders.' }),
+        P('brace', 'Braces', 0, 1, 0.005, 1, { hint: 'Diagonal bracing across the faces (0 = open frames).' }),
+        P('stretch', 'Stretch', 0.4, 3, 0.005, 1.4, { calm: [1, 1.8], hint: 'Length of the frames along X: long girders or cubes.' }),
+        ...rot('rot', 'Rotation', [0, 0, 0])
+      ],
+      pack: (v) => ({ p: [v.scale, v.offX, v.offY, v.offZ, v.beam, v.brace, v.stretch, 0], rotA: [v.rotX, v.rotY, v.rotZ] }),
+      glsl: `
+float trsFrame(vec3 p, vec3 b, float e) {
+  p = abs(p) - b;
+  vec3 q = abs(p + e) - e;
+  return min(min(
+    length(max(vec3(p.x, q.y, q.z), 0.0)) + min(max(p.x, max(q.y, q.z)), 0.0),
+    length(max(vec3(q.x, p.y, q.z), 0.0)) + min(max(q.x, max(p.y, q.z)), 0.0)),
+    length(max(vec3(q.x, q.y, p.z), 0.0)) + min(max(q.x, max(q.y, p.z)), 0.0));
+}
+float trsRod(vec3 p, vec3 a, vec3 b, float r) {
+  vec3 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h) - r;
+}
+float fde(vec3 p, out vec4 trap, out float it) {
+  vec3 z = p;
+  float s = uP[0];
+  vec3 off = vec3(uP[1], uP[2], uP[3]);
+  float e = uP[4], L = uP[6];
+  float dr = 1.0;
+  float d = 1e9;
+  trap = vec4(1e9);
+  it = 0.0;
+  for (int i = 0; i < MAX_ITER; i++) {
+    if (i >= uIter) break;
+    vec3 b = vec3(L, 0.5, 0.5);
+    float fr = trsFrame(z, b, e);
+    if (uP[5] > 0.0) {
+      // one diagonal per face, mirrored onto all faces by the symmetry of abs()
+      vec3 q = abs(z);
+      float br = min(min(
+        trsRod(q, vec3(-b.x, -b.y, b.z), vec3(b.x, b.y, b.z), e * 0.7 * uP[5]),
+        trsRod(q, vec3(-b.x, b.y, -b.z), vec3(b.x, b.y, b.z), e * 0.7 * uP[5])),
+        trsRod(q, vec3(b.x, -b.y, -b.z), vec3(b.x, b.y, b.z), e * 0.7 * uP[5]));
+      fr = min(fr, br);
+    }
+    if (fr / dr < d) { d = fr / dr; it = float(i) / float(uIter); }
+    trap = min(trap, vec4(abs(z), dot(z, z)));
+    z = abs(z);
+    if (z.y < z.z) z.yz = z.zy;
+    z = uRotA * z;
+    z = z * s - off * (s - 1.0) * vec3(L, 0.5, 0.5) * 2.0;
+    dr *= s;
+  }
+  return d;
+}`
+    },
+    {
+      id: 'reactor', name: 'Reactor', cat: 'machine',
+      blurb: 'Finned rings on spokes, each carrying smaller rings tilted on their own axes: gyroscopes, reactor cores, ring stations.',
+      size: 1.6, step: 0.7, iter: { min: 1, max: 6, def: 4 }, camera: { dist: 2.9, pitch: 32, yaw: 30 },
+      params: [
+        P('ratio', 'Ratio', 1.8, 4, 0.005, 2.7, { calm: [2.4, 3], hint: 'How much smaller each generation of rings is. Iterations = generations.' }),
+        P('around', 'Rings per ring', 2, 8, 1, 4),
+        P('spokes', 'Spokes', 0, 12, 1, 6),
+        P('fins', 'Fins', 0, 96, 1, 48, { hint: 'Cooling fins round each ring (0 = smooth).' }),
+        P('width', 'Ring width', 0.03, 0.4, 0.002, 0.12, { calm: [0.09, 0.16] }),
+        P('depth', 'Ring depth', 0.02, 0.5, 0.002, 0.18, { calm: [0.12, 0.24] }),
+        P('tilt', 'Tilt', 0, 90, 0.5, 70, { unit: '°', calm: [50, 85], hint: 'How far each child ring stands up out of its parent ring\'s plane.' }),
+        P('spin', 'Spin', -180, 180, 0.5, 0, { unit: '°', hint: 'Turns every ring about its own axis. Animate it.' })
+      ],
+      pack: (v) => ({ p: [v.ratio, Math.round(v.around), Math.round(v.spokes), Math.round(v.fins), v.width, v.depth, rad(v.tilt), rad(v.spin)] }),
+      glsl: `
+float fde(vec3 p, out vec4 trap, out float it) {
+  vec3 z = p;
+  float s = uP[0], m = max(uP[1], 2.0), sp = uP[2], fins = uP[3], w = uP[4], dp = uP[5], tilt = uP[6], spin = uP[7];
+  float dr = 1.0;
+  float d = 1e9;
+  trap = vec4(1e9);
+  it = 0.0;
+  for (int i = 0; i < MAX_ITER; i++) {
+    if (i >= uIter) break;
+    float a = atan(z.z, z.x) + spin;
+    float r = length(z.xz);
+    // ring with a rectangular section, fins cut across it
+    vec2 q = abs(vec2(r - 1.0, z.y)) - vec2(w, dp);
+    float ring = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+    if (fins > 0.5) {
+      float fa = abs(mod(a * fins / 6.2831853 + 0.5, 1.0) - 0.5) * 6.2831853 / fins * r;
+      vec2 fq = abs(vec2(r - 1.0, z.y)) - vec2(w * 1.8, dp * 0.85);
+      float fin = max(length(max(fq, 0.0)) + min(max(fq.x, fq.y), 0.0), fa - 0.012);
+      ring = min(ring, fin * 0.8);
+    }
+    float g = ring;
+    if (sp > 0.5) {
+      float ss = 6.2831853 / sp;
+      float aa = abs(mod(a + 0.5 * ss, ss) - 0.5 * ss) * r;
+      vec3 k = vec3(abs(r - 0.5) - 0.5, z.y, aa);
+      g = min(g, length(max(abs(k.yz) - vec2(0.25 * w, 0.0), 0.0)) - 0.25 * w + max(k.x, 0.0) * 1.0);
+      g = min(g, length(vec2(r, z.y)) - 1.4 * w);
+    }
+    if (g / dr < d) { d = g / dr; it = float(i) / float(uIter); }
+    trap = min(trap, vec4(abs(z), r * r));
+    // children: m rings set round this one, tilted up about the radius
+    float cs = 6.2831853 / m;
+    float ca = atan(z.z, z.x) + spin;
+    ca = mod(ca + 0.5 * cs, cs) - 0.5 * cs;
+    z.xz = r * vec2(cos(ca), sin(ca));
+    z.x -= 1.0;
+    float ct = cos(tilt), st = sin(tilt);
+    z.yz = mat2(ct, -st, st, ct) * z.yz;
+    z *= s;
+    dr *= s;
+  }
+  return d;
+}`
+    },
     // ---------- landscapes ----------
     {
       id: 'terrain', name: 'Folded terrain', cat: 'land', unbounded: true,

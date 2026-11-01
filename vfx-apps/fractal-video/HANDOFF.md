@@ -7,7 +7,7 @@ Main copy since 2026-11-01: BrokildApps/vfx-apps/fractal-video (the old Dropbox 
 Rewrite of the first prototype (kept in `_old-prototype/`). Covers most of PLAN.md stages 1–2 and the
 authoring half of stages 3–4:
 
-- 25 formulas (2026-11-01: grouped in the Formula menu as Architecture / Machines / Landscapes / Mixed by a `cat` on
+- 28 formulas (2026-11-01: Clockwork [meshing gear train, Spin runs it at the gear ratios], Truss, Reactor added to Machines; grouped in the Formula menu as Architecture / Machines / Landscapes / Mixed by a `cat` on
   each formula, `Formulas.grouped()`; ten new ones: Vaulted box, Ziggurat, Skyline [procedural towers, 3x3 block
   neighbourhood so the march is not step-starved], Turbine [procedural rotor stages, Spin animates], Greeble hull,
   Pipeworks [scale 3 + offset 1.5 = children on the pipe ends], Piston field [Phase pumps them], Folded terrain,
@@ -51,7 +51,12 @@ authoring half of stages 3–4:
   safety net (push out divided by the gradient length; never move more than half the free distance). A formula cut restarts
   the flight from the new scene's camera (the old position may be inside the new shape); playback cuts/blends like the camera
   does in transitions. Up = surface normal (85 %), so the surface stays below. `flightSig` marks a path out of date.
-  Tests: 2 async checks in scripts/check.js against exact distance functions (plane, sphere).
+  INERTIA (2026-11-01, default 0.6; 0 = the drone above, unchanged): flies like a heavy plane. A climb rate builds
+  and dies away slowly and is capped at a climb angle (45 -> 18 deg); look-ahead reach grows to 24x the height; ground
+  ahead standing higher than the ground below stops a descent early, and a climb needed later starts now; up reference,
+  speed, heading (turn rate with its own lag) and view all smooth over longer times. Hard safety unchanged.
+  Tests: 4 async checks in scripts/check.js against exact distance functions (plane, sphere at inertia 0; plane and a
+  ring ridge with inertia: settles, never touches, smoother than the drone, already climbing at the ridge flank).
 - `Start Fractal Video.cmd` = `npm start` + opens the browser.
 - Movie quality presets (2026-10-29, `Schema.MOVIE_PRESETS`): Quick test / Preview / Standard / High / Final =
   size scale x samples x ray-march quality (draft = no shadows) x crf; the renderer takes `opts.march` for movie
