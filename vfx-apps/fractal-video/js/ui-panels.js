@@ -172,7 +172,7 @@
     const gF = group('Formula', 'shape-formula', true);
     gF.body.appendChild(select({
       label: 'Formula', value: f.id,
-      options: Formulas.FORMULAS.map((x) => ({ value: x.id, label: x.name })),
+      options: Formulas.grouped().map((x) => ({ value: x.formula.id, label: x.formula.name, group: x.group })),
       onChange: (id) => {
         const nf = Formulas.get(id);
         scene.formula = nf.id;

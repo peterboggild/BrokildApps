@@ -7,7 +7,11 @@ Main copy since 2026-11-01: BrokildApps/vfx-apps/fractal-video (the old Dropbox 
 Rewrite of the first prototype (kept in `_old-prototype/`). Covers most of PLAN.md stages 1–2 and the
 authoring half of stages 3–4:
 
-- 15 formulas with real distance estimators: Mandelbulb (+ Julia mix), Mandelbox, Amazing Box,
+- 25 formulas (2026-11-01: grouped in the Formula menu as Architecture / Machines / Landscapes / Mixed by a `cat` on
+  each formula, `Formulas.grouped()`; ten new ones: Vaulted box, Ziggurat, Skyline [procedural towers, 3x3 block
+  neighbourhood so the march is not step-starved], Turbine [procedural rotor stages, Spin animates], Greeble hull,
+  Pipeworks [scale 3 + offset 1.5 = children on the pipe ends], Piston field [Phase pumps them], Folded terrain,
+  Kali coral plain, Eroded ridges [the three landscapes are heightfields, DE scaled 0.4-0.55]). The original 15: Mandelbulb (+ Julia mix), Mandelbox, Amazing Box,
   Menger KIFS, Sierpinski, Octahedral KIFS, Kaleidoscopic IFS, Folded bulb hybrid, Quaternion Julia,
   Apollonian, and (2026-10-29) Pseudo-Kleinian, KaliBox, Amazing Surf, Icosahedral KIFS (Knighty type-5 fold,
   offset = weighted cell corners), Hyperbolic honeycomb ({4,3,n} cubes in the Poincare ball, camera inside the
