@@ -296,6 +296,38 @@ void main() {
   outColor = vec4(c, 1.0);
 }`;
 
+  // Auto-flight probe: the fractal's own distance function (mapT/mapD, same space ops as the render),
+  // evaluated for ONE camera position. Pixel 0 = distance, 1..6 = distance at +-eps on x/y/z (gradient),
+  // 7.. = how far each look-ahead ray travels before it hits the surface (capped at uMaxRay).
+  const PROBE_N = 32;
+  const MAP_SRC = FRAG_MAIN.slice(0, FRAG_MAIN.indexOf('vec3 calcNormal'));
+  const PROBE_MAIN = `
+uniform vec3 uPPos;
+uniform vec3 uDirs[25];
+uniform float uMaxRay, uEps;
+void main() {
+  int x = int(gl_FragCoord.x);
+  float v;
+  if (x == 0) v = mapD(uPPos);
+  else if (x < 7) {
+    int a = (x - 1) / 2;
+    vec3 e = vec3(0.0);
+    e[a] = ((x - 1) % 2 == 0) ? uEps : -uEps;
+    v = mapD(uPPos + e);
+  } else if (x < 32) {
+    vec3 d = uDirs[x - 7];
+    float t = 0.0;
+    for (int i = 0; i < 160; i++) {
+      float h = mapD(uPPos + d * t);
+      if (h < uEps * 0.5) break;
+      t += h;
+      if (t >= uMaxRay) { t = uMaxRay; break; }
+    }
+    v = min(t, uMaxRay);
+  } else v = 0.0;
+  outColor = vec4(v, 0.0, 0.0, 1.0);
+}`;
+
   const FRACTAL_UNIFORMS = ['uRes', 'uCenter', 'uFrameH', 'uJitter', 'uCamPos', 'uCamRight', 'uCamUp', 'uCamFwd', 'uFovT', 'uP', 'uIter',
     'uRotA', 'uRotB', 'uRepeat', 'uTwist', 'uBound', 'uStep', 'uDetail', 'uSize', 'uMaxSteps', 'uShadowSteps', 'uMaxDist', 'uAO',
     'uPalC', 'uPalP', 'uPalN', 'uPalInterp', 'uColorSrc', 'uPalWrap', 'uPalScale', 'uPalOffset', 'uBgTop', 'uBgBot', 'uFogCol',
@@ -462,6 +494,61 @@ void main() {
         this.programs.set(id, entry);
       }
       return entry;
+    }
+
+    // ---------- auto-flight probe ----------
+    canProbe() { return !!(this.gl && !this.lost && this.extFloat); }
+
+    _probeProgram(id) {
+      const key = `probe:${id}`;
+      let entry = this.programs.get(key);
+      if (!entry) {
+        const f = Formulas.get(id);
+        entry = this._buildProgram(FRAG_HEAD + f.glsl + MAP_SRC + PROBE_MAIN, FRACTAL_UNIFORMS.concat(['uPPos', 'uDirs', 'uMaxRay', 'uEps']));
+        this.programs.set(key, entry);
+      }
+      return entry;
+    }
+
+    // Synchronous: draws a 32x1 float target and reads it back.
+    probe(frame, pos, dirs, maxRay, eps) {
+      const gl = this.gl;
+      if (!this.canProbe()) throw new Error('This browser cannot read float results from the GPU');
+      const entry = this._probeProgram(frame.formula);
+      if (!this._checkProgram(entry, true)) throw new Error(entry.log || 'probe shader failed');
+      if (!this.probeT) {
+        const tex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, PROBE_N, 1, 0, gl.RGBA, gl.FLOAT, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        const fbo = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+        this.probeT = { tex, fbo, buf: new Float32Array(PROBE_N * 4), dirs: new Float32Array(75) };
+      }
+      const P = this.probeT;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, P.fbo);
+      gl.viewport(0, 0, PROBE_N, 1);
+      gl.disable(gl.BLEND);
+      gl.useProgram(entry.prog);
+      this._setFractalUniforms(entry, frame, PROBE_N, 1, [0, 0]);
+      P.dirs.fill(0);
+      dirs.slice(0, 25).forEach((d, i) => { P.dirs[i * 3] = d[0]; P.dirs[i * 3 + 1] = d[1]; P.dirs[i * 3 + 2] = d[2]; });
+      gl.uniform3fv(entry.u.uPPos, pos);
+      gl.uniform3fv(entry.u.uDirs, P.dirs);
+      gl.uniform1f(entry.u.uMaxRay, maxRay);
+      gl.uniform1f(entry.u.uEps, eps);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.readPixels(0, 0, PROBE_N, 1, gl.RGBA, gl.FLOAT, P.buf);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      const b = P.buf;
+      const at = (i) => b[i * 4];
+      return {
+        d: at(0),
+        grad: [(at(1) - at(2)) / (2 * eps), (at(3) - at(4)) / (2 * eps), (at(5) - at(6)) / (2 * eps)],
+        rays: dirs.slice(0, 25).map((_, k) => at(7 + k))
+      };
     }
 
     // Queue formulas to compile in the background while idle.
@@ -979,6 +1066,7 @@ void main() {
       this.lossCount += 1;
       this.programs = new Map();
       this.targets = {};
+      this.probeT = null;
       this.bgTex = new Map();
       if (this.job) {
         const job = this.job;

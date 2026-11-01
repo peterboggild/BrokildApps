@@ -1,4 +1,6 @@
-# Fractal Video — handoff (2026-10-28)
+# Fractal Video — handoff (2026-10-28, updated 2026-11-01)
+
+Main copy since 2026-11-01: BrokildApps/vfx-apps/fractal-video (the old Dropbox folder 00 VSCODE/Fractal Video is retired).
 
 ## State
 
@@ -36,6 +38,16 @@ authoring half of stages 3–4:
   distance in log; auto-orbit is not keyable and adds on top of a keyed yaw (`camera.orbitYaw`); across a formula change
   camera keys CUT at the midpoint with the shape. Timeline and Modulation tab show the camera as ONE row (a diamond = all
   camera values at that beat). Frames now carry the evaluated `camera` pose. 17 checks.
+- Auto-flight (2026-11-01, `js/flight.js`, Shape tab -> Auto-flight): a camera that skims the surface by itself. Computed
+  ONCE (Compute flight) and stored in `project.flight.track` (x,y,z,yaw,pitch,roll every 1/4 beat per run of consecutive
+  flown scenes), so preview and movie match; the evaluator plays it back (Catmull-Rom) after keys, before routes, in Timeline
+  view only. The simulator (30 Hz) asks a GPU probe (`renderer.probe`: the formula's own mapD, 32x1 float target) for the
+  distance, its gradient and 25 marched rays (24 look-ahead + 1 straight down). Height is held on the DOWN RAY, not on the
+  distance estimate (the DE is a lower bound, 2-5x too small on the Mandelbulb, so holding it flew far too high); the DE is the
+  safety net (push out divided by the gradient length; never move more than half the free distance). A formula cut restarts
+  the flight from the new scene's camera (the old position may be inside the new shape); playback cuts/blends like the camera
+  does in transitions. Up = surface normal (85 %), so the surface stays below. `flightSig` marks a path out of date.
+  Tests: 2 async checks in scripts/check.js against exact distance functions (plane, sphere).
 - `Start Fractal Video.cmd` = `npm start` + opens the browser.
 - Movie quality presets (2026-10-29, `Schema.MOVIE_PRESETS`): Quick test / Preview / Standard / High / Final =
   size scale x samples x ray-march quality (draft = no shadows) x crf; the renderer takes `opts.march` for movie
@@ -57,7 +69,7 @@ unclean exit or when embedded (`fv-session` marker in localStorage; `?autostart=
 
 ## Verified (headless Chrome, SwiftShader)
 
-All 15 formulas compile and render; Node checks (`npm run check`, 17 tests); render-driver dry run over
+All 15 formulas compile and render; Node checks (`npm run check`, 19 tests); render-driver dry run over
 2400 frames; synthetic 120 BPM master + kick/bass stems: tempo suggested 120 / 0.0 s, onsets on the beat,
 alignment 0 ms, kick→power route moves power on the beat; still PNG; context loss + restore; real renderer
 crash → safe start; audio restored from IndexedDB after reload; layout at 1600×1000 and 1280×760.

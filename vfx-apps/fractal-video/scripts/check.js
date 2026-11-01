@@ -269,4 +269,86 @@ test('render plan covers the song', () => {
   assert.strictEqual(plan.frames, Math.ceil(Ev.songDuration(p, null) * 25));
 });
 
-console.log(`\n${passed} passed${process.exitCode ? ', some FAILED' : ''}`);
+// ---------- auto-flight (async) ----------
+const Flight = require('../js/flight.js');
+const atest = async (name, fn) => {
+  try { await fn(); passed += 1; console.log(`ok   ${name}`); } catch (err) { console.error(`FAIL ${name}\n     ${err.message}`); process.exitCode = 1; }
+};
+// An exact probe for a signed distance function, marching rays the way the GPU probe does.
+const sdfProbe = (sdf, grad) => (frame, pos, dirs, maxRay, eps) => {
+  const rays = dirs.map((d) => {
+    let t = 0;
+    for (let i = 0; i < 160; i += 1) {
+      const h = sdf([pos[0] + d[0] * t, pos[1] + d[1] * t, pos[2] + d[2] * t]);
+      if (h < eps * 0.5) break;
+      t += h;
+      if (t >= maxRay) { t = maxRay; break; }
+    }
+    return Math.min(t, maxRay);
+  });
+  return { d: sdf(pos), grad: grad(pos), rays };
+};
+function flightProject() {
+  const p = Schema.defaultProject();
+  p.flight.on = [p.sections[0].sceneId];
+  return p;
+}
+// Samples the playback actually shows: up to the cut into the next (unflown, other-formula) scene.
+const samples = (track, p) => {
+  const cut = Ev.sectionStarts(p)[1] - p.sections[1].transition / 2;
+  const out = [];
+  track.runs.forEach((r) => { for (let i = 0; i < r.pts.length; i += 6) if (r.b0 + (i / 6) * track.step < cut) out.push(r.pts.slice(i, i + 6)); });
+  return out;
+};
+
+(async () => {
+  await atest('auto-flight skims a ground plane at the chosen height and never touches it', async () => {
+    const p = flightProject();
+    const alt = p.flight.settings.height * Formulas.get(p.scenes.find((s) => s.id === p.flight.on[0]).formula).size;
+    const res = await Flight.compute(p, null, sdfProbe((q) => q[1], () => [0, 1, 0]), { yieldEvery: 0 });
+    assert.ok(res.track && res.track.runs.length === 1, 'one run for the one flown section');
+    const pts = samples(res.track, p);
+    const hs = pts.map((s) => s[1]);
+    assert.ok(Math.min(...hs) >= 0.25 * alt, `lowest point ${Math.min(...hs).toFixed(4)} vs margin ${(0.25 * alt).toFixed(4)}`);
+    const late = hs.slice(Math.floor(hs.length / 2));
+    const mean = late.reduce((a, b) => a + b, 0) / late.length;
+    assert.ok(mean > 0.6 * alt && mean < 1.6 * alt, `cruise height ${mean.toFixed(4)} vs ${alt.toFixed(4)}`);
+    // it actually travels
+    const a = pts[0], b = pts[pts.length - 1];
+    assert.ok(Math.hypot(b[0] - a[0], b[2] - a[2]) > 1, 'flew some distance');
+    // playback: the evaluator puts the camera on the stored track, only in the flown section, not in scene view
+    p.flight.track = res.track;
+    const r0 = res.track.runs[0];
+    const beat = r0.b0 + 8;
+    const fr = Ev.evaluate(p, null, Ev.timeAtBeat(p, beat));
+    const cam = Ev.cameraBasis(fr.camera);
+    const k = (beat - r0.b0) / res.track.step;
+    assert.ok(Math.hypot(cam.pos[0] - r0.pts[k * 6], cam.pos[1] - r0.pts[k * 6 + 1], cam.pos[2] - r0.pts[k * 6 + 2]) < 1e-6, 'camera on the track');
+    const sv = Ev.evaluate(p, null, Ev.timeAtBeat(p, beat), { sceneId: p.flight.on[0] });
+    assert.ok(Math.abs(sv.camera.dist - p.scenes[0].camera.dist) < 1e-9 || sv.camera.dist > 0.5, 'scene view keeps the scene camera');
+    const other = Ev.evaluate(p, null, Ev.timeAtBeat(p, Ev.sectionStarts(p)[1] + 20));
+    assert.ok(other.camera.dist > 0.5, 'unflown section keeps its own camera');
+    // up to date until something it depends on changes
+    assert.strictEqual(res.track.sig, Ev.flightSig(p));
+    p.scenes[0].params[Object.keys(p.scenes[0].params)[0]] += 0.1;
+    assert.notStrictEqual(res.track.sig, Ev.flightSig(p));
+    // and the stored track survives save/load
+    p.flight.track = res.track;
+    const n = Schema.normalizeProject(JSON.parse(JSON.stringify(p)));
+    assert.strictEqual(n.flight.track.runs[0].pts.length, r0.pts.length);
+  });
+
+  await atest('auto-flight approaches a sphere from outside and circles it without entering', async () => {
+    const p = flightProject();
+    const alt = p.flight.settings.height * Formulas.get(p.scenes[0].formula).size;
+    const R = 1;
+    const res = await Flight.compute(p, null, sdfProbe((q) => Math.hypot(q[0], q[1], q[2]) - R, (q) => q), { yieldEvery: 0 });
+    const ds = samples(res.track, p).map((s) => Math.hypot(s[0], s[1], s[2]) - R);
+    assert.ok(Math.min(...ds) >= 0.25 * alt, `closest ${Math.min(...ds).toFixed(4)}`);
+    const late = ds.slice(Math.floor(ds.length / 2));
+    assert.ok(Math.max(...late) < 3 * alt, `stays near the surface (furthest late ${Math.max(...late).toFixed(3)})`);
+    assert.strictEqual(res.stats.restarts, 1, 'restarts once at the cut to another formula');
+  });
+
+  console.log(`\n${passed} passed${process.exitCode ? ', some FAILED' : ''}`);
+})();

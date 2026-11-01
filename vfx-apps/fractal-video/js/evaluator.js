@@ -188,6 +188,53 @@
     }
   }
 
+  // ---------- auto-flight playback ----------
+  // A run is a stretch of consecutive flown sections; pts = [x, y, z, yaw, pitch, roll] every `step` beats.
+  function flightPose(project, beat) {
+    const tr = project.flight && project.flight.track;
+    if (!tr || !tr.runs) return null;
+    for (const r of tr.runs) {
+      if (beat < r.b0 || beat > r.b1 + 1e-9) continue;
+      const n = Math.floor(r.pts.length / 6);
+      if (n < 1) return null;
+      const x = clamp((beat - r.b0) / tr.step, 0, n - 1);
+      const i = n > 1 ? Math.min(Math.floor(x), n - 2) : 0;
+      const u = n > 1 ? x - i : 0;
+      const g = (k, c) => r.pts[clamp(k, 0, n - 1) * 6 + c];
+      const cr = (c) => {
+        const p0 = g(i - 1, c), p1 = g(i, c), p2 = g(i + 1, c), p3 = g(i + 2, c);
+        return 0.5 * (2 * p1 + (p2 - p0) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (3 * p1 - p0 - 3 * p2 + p3) * u * u * u);
+      };
+      return { pos: [cr(0), cr(1), cr(2)], yaw: lerpAngle(g(i, 3), g(i + 1, 3), u), pitch: lerp(g(i, 4), g(i + 1, 4), u), roll: lerpAngle(g(i, 5), g(i + 1, 5), u) };
+    }
+    return null;
+  }
+
+  // Put a flown pose into the orbit-style camera the renderer understands (target a little ahead).
+  function applyFlightPose(cam, fp, size) {
+    const D = Math.max(1e-3, 0.1 * size);
+    const y = fp.yaw * DEG, p = fp.pitch * DEG;
+    const dir = [Math.cos(p) * Math.sin(y), Math.sin(p), Math.cos(p) * Math.cos(y)];
+    cam.yaw = fp.yaw; cam.pitch = fp.pitch; cam.roll = fp.roll; cam.dist = D; cam.orbitYaw = 0;
+    cam.tx = fp.pos[0] - dir[0] * D; cam.ty = fp.pos[1] - dir[1] * D; cam.tz = fp.pos[2] - dir[2] * D;
+  }
+
+  // Everything the flight depends on. A stored path whose signature differs is out of date.
+  function flightSig(project) {
+    const f = project.flight || {};
+    const src = JSON.stringify({
+      bpm: project.bpm, off: project.offset, bpb: project.beatsPerBar,
+      sec: project.sections.map((s) => [s.length, s.sceneId, s.transition]),
+      sc: project.scenes.map((s) => [s.id, s.formula, s.iter, s.params, s.space, s.camera]),
+      mod: project.mod, keys: project.keys,
+      au: [project.master && project.master.key, (project.stems || []).map((s) => s.key)],
+      fl: [f.on, f.settings]
+    });
+    let h = 2166136261;
+    for (let i = 0; i < src.length; i += 1) { h ^= src.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(16);
+  }
+
   // ---------- modulation signals ----------
   const smoothCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 
@@ -411,6 +458,27 @@
       });
     }
 
+    // Auto-flight replaces the camera pose in flown scenes (timeline only; scene view edits the camera).
+    // Across a transition it behaves like the camera already does: blended between two scenes of the same
+    // formula, cut at the midpoint when the formula changes.
+    if (o.flight !== false && !o.sceneId && project.flight && project.flight.on && project.flight.on.length) {
+      const on = (sc) => (sc && project.flight.on.includes(sc.id) ? 1 : 0);
+      const g = !sceneB ? on(sceneA) : camCut ? (w < 0.5 ? on(sceneA) : on(sceneB)) : on(sceneA) * (1 - w) + on(sceneB) * w;
+      const fp = g > 0 ? flightPose(project, beat) : null;
+      if (fp) {
+        const c = state.camera;
+        const f = Object.assign({}, c);
+        applyFlightPose(f, fp, state.size);
+        if (g >= 1) Object.assign(c, f);
+        else {
+          c.yaw = lerpAngle(c.yaw, f.yaw, g); c.roll = lerpAngle(c.roll, f.roll, g); c.pitch = lerp(c.pitch, f.pitch, g);
+          c.dist = Math.exp(lerp(Math.log(c.dist), Math.log(f.dist), g));
+          c.tx = lerp(c.tx, f.tx, g); c.ty = lerp(c.ty, f.ty, g); c.tz = lerp(c.tz, f.tz, g);
+          c.orbitYaw = lerp(c.orbitYaw || 0, 0, g);
+        }
+      }
+    }
+
     if (o.modulate !== false) {
       const progAt = (b) => {
         const i = sectionIndexAt(project, b);
@@ -530,6 +598,7 @@
 
   return {
     beatAt, timeAtBeat, secPerBeat, sectionStarts, totalBeats, songDuration, sectionIndexAt, sceneStateAt,
-    rowSignal, smoothedTrack, sampleTrack, cameraBasis, evaluate, renderPlan, keyPoints, keyValueAt
+    rowSignal, smoothedTrack, sampleTrack, cameraBasis, evaluate, renderPlan, keyPoints, keyValueAt,
+    flightPose, flightSig, sceneById
   };
 });

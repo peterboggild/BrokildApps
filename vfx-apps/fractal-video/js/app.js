@@ -648,11 +648,51 @@
     // the copy starts with the same routes on and off as its original
     project.mod.forEach((m) => { if (!Schema.routeOn(m, src.id)) m.off.push(copy.id); });
     FV.Keys.sceneDuplicated(project, src.id, copy.id);
+    if (project.flight.on.includes(src.id)) project.flight.on.push(copy.id);
     if (thumbs[src.id]) thumbs[copy.id] = thumbs[src.id];
     settings.sceneId = copy.id;
     commit();
     rebuild('all');
   }
+
+  // ---------- auto-flight ----------
+  let flightJob = null;
+  function flightStatus() {
+    const fl = project.flight;
+    if (flightJob) return { state: 'busy', progress: flightJob.progress };
+    if (!fl.on.length) return { state: 'off' };
+    if (!fl.track) return { state: 'none' };
+    return { state: fl.track.sig === Ev.flightSig(project) ? 'ready' : 'stale', runs: fl.track.runs.length };
+  }
+  async function computeFlight(onProgress) {
+    if (flightJob) return;
+    if (!renderer || !renderer.canProbe()) { toast('Auto-flight needs the GPU preview running (and float render targets).', 'err'); return; }
+    if (renderer.job) { toast('Wait for the current render to finish.', 'warn'); return; }
+    if (!project.flight.on.length) { toast('Switch auto-flight on for at least one scene first.', 'warn'); return; }
+    const job = { cancel: false, progress: 0 };
+    flightJob = job;
+    const started = performance.now();
+    try {
+      const res = await FV.Flight.compute(project, analysis, (fr, pos, dirs, maxRay, eps) => renderer.probe(fr, pos, dirs, maxRay, eps), {
+        onProgress: (x) => { job.progress = x; if (onProgress) onProgress(x); },
+        cancelled: () => job.cancel || !renderer || renderer.lost
+      });
+      if (!res || job.cancel) { toast('Flight computation stopped.', 'warn'); return; }
+      project.flight.track = res.track;
+      const secs = ((performance.now() - started) / 1000).toFixed(1);
+      toast(`Flight computed in ${secs} s (${res.stats.steps} steps). Play the timeline to watch it.`, 'ok', 6000);
+      commit();
+      if (settings.view !== 'timeline') setView('timeline');
+    } catch (err) {
+      console.error(err);
+      toast(`Flight failed: ${err.message}`, 'err', 7000);
+    } finally {
+      flightJob = null;
+      rebuild('shape');
+      invalidate();
+    }
+  }
+  const cancelFlight = () => { if (flightJob) flightJob.cancel = true; };
 
   function deleteScene(id) {
     if (project.scenes.length <= 1) { toast('A project needs at least one scene.', 'warn'); return; }
@@ -664,6 +704,7 @@
     used.forEach((s) => { s.sceneId = project.scenes[0].id; });
     project.mod.forEach((m) => { m.off = (m.off || []).filter((x) => x !== id); });
     FV.Keys.sceneDeleted(project, id);
+    project.flight.on = project.flight.on.filter((x) => x !== id);
     delete thumbs[id];
     saveThumbs();
     if (settings.sceneId === id) settings.sceneId = project.scenes[0].id;
@@ -1004,6 +1045,9 @@
     tapTempo,
     suggestRoutes,
     resetCamera,
+    flightStatus,
+    computeFlight,
+    cancelFlight,
     renderStill,
     renderMovie,
     renderCheck,

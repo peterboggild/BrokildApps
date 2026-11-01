@@ -326,6 +326,8 @@
     }
     host.appendChild(gC.el);
 
+    buildFlightGroup(host, ctx, scene);
+
     const gR = group('Ray march', 'shape-march', false);
     ['detail', 'step'].forEach((k) => {
       const spec = Schema.SPACE[k];
@@ -337,6 +339,61 @@
       }), () => scene.space[k]).el);
     });
     host.appendChild(gR.el);
+  }
+
+  // ---------- auto-flight ----------
+  function buildFlightGroup(host, ctx, scene) {
+    const p = ctx.project();
+    const fl = p.flight;
+    const st = ctx.flightStatus();
+    const flownHere = fl.on.includes(scene.id);
+    const extra = st.state === 'ready' ? 'ready' : st.state === 'stale' ? 'out of date' : st.state === 'busy' ? 'computing' : flownHere ? 'on' : '';
+    const g = group('Auto-flight', 'shape-flight', flownHere, extra);
+    g.body.appendChild(h('p', { class: 'note', text: 'A camera that flies over the fractal by itself, skimming the surface without touching it. '
+      + 'Switch it on for the scenes to fly in, press Compute flight, then play the timeline. The path is stored with the project, '
+      + 'so the movie renders exactly what you preview. In flown sections it replaces the camera (field of view and music routes still act).' }));
+    g.body.appendChild(toggle({
+      label: 'Fly in this scene', value: flownHere,
+      hint: 'Sections showing this scene are flown. Consecutive flown sections make one continuous flight.',
+      onChange: (v) => {
+        fl.on = fl.on.filter((x) => x !== scene.id);
+        if (v) fl.on.push(scene.id);
+        ctx.commit('Auto-flight scenes');
+        ctx.rebuild('shape');
+      }
+    }).el);
+    Object.keys(Schema.FLIGHT).forEach((k) => {
+      const spec = Schema.FLIGHT[k];
+      g.body.appendChild(slider({
+        label: spec.label, min: spec.min, max: spec.max, step: spec.step, value: fl.settings[k], def: spec.def,
+        unit: spec.unit, hint: spec.hint, log: k === 'speed' || k === 'height',
+        onInput: (v) => { fl.settings[k] = k === 'seed' ? Math.round(v) : v; },
+        onCommit: () => { ctx.commit(`Flight ${spec.label}`); ctx.rebuild('shape'); }
+      }).el);
+    });
+    const status = h('p', { class: 'note flight-status' });
+    const say = (t, warn) => { status.textContent = t; status.classList.toggle('warn', !!warn); };
+    if (st.state === 'off') say('No scene is flown yet.');
+    else if (st.state === 'none') say('No flight computed yet.');
+    else if (st.state === 'ready') say(`Flight ready (${st.runs} stretch${st.runs === 1 ? '' : 'es'} of the timeline). Watch it in Timeline view.`);
+    else if (st.state === 'stale') say('The shape, timeline or settings changed since the flight was computed: compute it again, or the camera may pass too close to the surface.', true);
+    else if (st.state === 'busy') say(`Computing... ${Math.round((st.progress || 0) * 100)} %`);
+    const go = button(st.state === 'busy' ? 'Stop' : (st.state === 'ready' || st.state === 'stale') ? 'Compute again' : 'Compute flight', {
+      class: 'btn btn-sm primary',
+      title: 'Flies the camera through the whole timeline, asking the GPU how far the surface is at every step. Takes a few seconds per minute of song.',
+      onClick: () => {
+        if (ctx.flightStatus().state === 'busy') { ctx.cancelFlight(); return; }
+        go.textContent = 'Stop';
+        ctx.computeFlight((x) => say(`Computing... ${Math.round(x * 100)} %`));
+      }
+    });
+    const clear = fl.track ? button('Clear flight', {
+      title: 'Remove the computed path; the scenes go back to their own cameras.',
+      onClick: () => { fl.track = null; ctx.commit('Clear flight'); ctx.rebuild('shape'); }
+    }) : null;
+    g.body.appendChild(status);
+    g.body.appendChild(h('div', { class: 'btn-row' }, go, clear));
+    host.appendChild(g.el);
   }
 
   function syncCamera(scene) {

@@ -207,6 +207,7 @@
         { id: uid('mod'), off: [], source: 'master.high', dest: 'look.palOffset', depth: 0.08, attack: 0.05, release: 0.4, lead: 0 }
       ],
       keys: [],
+      flight: defaultFlight(),
       master: null,
       stems: [],
       render: { width: 1920, height: 1080, fps: 30, samples: 32, outDir: './renders' }
@@ -356,6 +357,8 @@
       };
     }).filter(Boolean);
 
+    p.flight = normalizeFlight(raw.flight, sceneIds);
+
     const r = raw.render && typeof raw.render === 'object' ? raw.render : {};
     p.render = {
       width: Math.round(num(r.width, N('', 16, 7680, 1, 1920))),
@@ -368,6 +371,40 @@
   }
 
   // First prototype (fractal-video-project-v1): keep names, tempo, scene/section structure.
+  // ---------- auto-flight ----------
+  // A camera path computed once (by probing the fractal on the GPU) and stored in the project, so the
+  // preview and the movie play back the same flight. Settings are in units of the formula's size.
+  const FLIGHT = {
+    speed: N('Speed', 0.02, 2, 0.01, 0.25, { hint: 'Cruising speed, in formula sizes per second. Slows down in tight spaces, speeds up far from the surface.' }),
+    height: N('Height above surface', 0.02, 1, 0.005, 0.12, { hint: 'How close the camera skims the surface (formula sizes). It never comes closer than a third of this.' }),
+    wander: N('Wander', 0, 1, 0.01, 0.4, { hint: 'How much the flight meanders left and right on its own.' }),
+    turn: N('Max turn', 10, 180, 1, 60, { unit: '°/s', hint: 'Fastest the heading may change. Lower = smoother, wider curves.' }),
+    bank: N('Bank into turns', 0, 1, 0.01, 0.4, { hint: 'Roll the camera into turns, like an aircraft.' }),
+    lookDown: N('Look toward surface', 0, 0.8, 0.01, 0.3, { hint: 'Tilt the view toward the surface below instead of straight along the flight.' }),
+    seed: N('Seed', 0, 99, 1, 1, { hint: 'A different seed gives a different route from the same start.' })
+  };
+  function defaultFlight() {
+    const settings = {};
+    Object.keys(FLIGHT).forEach((k) => { settings[k] = FLIGHT[k].def; });
+    return { on: [], settings, track: null };
+  }
+  function normalizeFlight(raw, sceneIds) {
+    const f = defaultFlight();
+    if (!raw || typeof raw !== 'object') return f;
+    if (Array.isArray(raw.on)) f.on = [...new Set(raw.on.filter((id) => sceneIds.has(id)))];
+    const st = raw.settings && typeof raw.settings === 'object' ? raw.settings : {};
+    Object.keys(FLIGHT).forEach((k) => { f.settings[k] = num(st[k], FLIGHT[k]); });
+    f.settings.seed = Math.round(f.settings.seed);
+    const t = raw.track;
+    if (t && typeof t === 'object' && Array.isArray(t.runs) && Number(t.step) > 0) {
+      const runs = t.runs.slice(0, 64).filter((r) => r && Array.isArray(r.pts) && r.pts.length >= 6 && r.pts.length % 6 === 0
+        && r.pts.length <= 6 * 40000 && r.pts.every(Number.isFinite) && Number.isFinite(Number(r.b0)) && Number.isFinite(Number(r.b1)))
+        .map((r) => ({ b0: Number(r.b0), b1: Number(r.b1), pts: r.pts.slice() }));
+      if (runs.length) f.track = { sig: str(t.sig, '', 40), step: Number(t.step), runs };
+    }
+    return f;
+  }
+
   function migrateV1(raw) {
     const base = defaultProject();
     const scenes = (Array.isArray(raw.scenes) ? raw.scenes : []).map((s, i) => {
@@ -385,6 +422,7 @@
       sections: [],
       mod: base.mod,
       keys: [],
+      flight: defaultFlight(),
       master: null,
       stems: [],
       render: Object.assign({}, base.render, raw.renderConfig || {})
@@ -542,6 +580,6 @@
     BACKDROP, BACKDROP_FITS, BACKDROP_SYNC, BACKDROP_PLACES, BACKDROP_BLENDS,
     uid, defaultLook, applyLookPreset, defaultCamera, defaultSpace, defaultBackdrop, makeScene, defaultProject,
     normalizeLook, normalizeBackdrop, normalizeScene, normalizeProject,
-    sources, isGridSource, routeOn, KEY_INTERPS, CAM_KEYS, keySpec, MOVIE_PRESETS, movieCost, destinations, destSpec, guessRole
+    sources, isGridSource, routeOn, KEY_INTERPS, CAM_KEYS, keySpec, FLIGHT, defaultFlight, MOVIE_PRESETS, movieCost, destinations, destSpec, guessRole
   };
 });
