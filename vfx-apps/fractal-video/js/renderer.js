@@ -280,7 +280,7 @@ precision highp float;
 out vec4 outColor;
 uniform sampler2D uLive, uAccum;
 uniform int uUseAccum, uTonemap, uEncode;
-uniform vec2 uOut, uCenter;
+uniform vec2 uOut, uCenter, uOrigin;
 uniform float uFrameH, uExposure, uContrast, uSat, uHue, uVignette, uSeed, uGrain, uGrainSeed;
 vec3 decode(vec3 c) { return uEncode == 1 ? c / max(1.0 - c, vec3(1e-3)) : c; }
 vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
@@ -292,7 +292,7 @@ vec3 hueRotate(vec3 c, float a) {
 vec3 toSrgb(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233)) + uSeed) * 43758.5453); }
 void main() {
-  vec2 uv = gl_FragCoord.xy / uOut;
+  vec2 uv = (gl_FragCoord.xy - uOrigin) / uOut;
   vec3 c = decode(texture(uLive, uv).rgb);
   if (uUseAccum == 1) {
     vec4 a = texture(uAccum, uv);
@@ -360,7 +360,7 @@ void main() {
     'uFogMatch', 'uFog', 'uGlowCol', 'uSunDir', 'uSunCol', 'uFillCol', 'uAmbient', 'uSpec', 'uEncode',
     'uBg0', 'uBg1', 'uBgS0', 'uBgO0', 'uBgS1', 'uBgO1', 'uBgAmt', 'uBgGain', 'uBgSat', 'uBgLod', 'uBgFront', 'uBgMode', 'uBgFogFade'];
   const DISPLAY_UNIFORMS = ['uLive', 'uAccum', 'uUseAccum', 'uTonemap', 'uEncode', 'uOut', 'uCenter', 'uFrameH', 'uExposure',
-    'uContrast', 'uSat', 'uHue', 'uVignette', 'uSeed', 'uGrain', 'uGrainSeed'];
+    'uContrast', 'uSat', 'uHue', 'uOrigin', 'uVignette', 'uSeed', 'uGrain', 'uGrainSeed'];
 
   // R2 low-discrepancy sequence for sub-pixel jitter.
   function jitter(n) {
@@ -661,8 +661,9 @@ void main() {
       gl.uniform1f(u.uFrameH, geom.fh);
       gl.uniform2f(u.uJitter, jit[0], jit[1]);
       const vr = overrides && overrides.vr;
-      let cr = g.camRight;
-      let cu = g.camUp;
+      const oc = overrides && overrides.cam;
+      let cr = oc ? oc.right : g.camRight;
+      let cu = oc ? oc.up : g.camUp;
       if (vr && vr.level) {
         // keep the horizon level: drop the camera roll (pitch and heading stay)
         const f = g.camFwd;
@@ -670,11 +671,11 @@ void main() {
         cr = [-f[2] / rl, 0, f[0] / rl];
         cu = [cr[1] * f[2] - cr[2] * f[1], cr[2] * f[0] - cr[0] * f[2], cr[0] * f[1] - cr[1] * f[0]];
       }
-      gl.uniform3fv(u.uCamPos, g.camPos);
+      gl.uniform3fv(u.uCamPos, oc ? oc.pos : g.camPos);
       gl.uniform3fv(u.uCamRight, cr);
       gl.uniform3fv(u.uCamUp, cu);
-      gl.uniform3fv(u.uCamFwd, g.camFwd);
-      gl.uniform1f(u.uFovT, g.fovT);
+      gl.uniform3fv(u.uCamFwd, oc ? oc.fwd : g.camFwd);
+      gl.uniform1f(u.uFovT, oc ? oc.fovT : g.fovT);
       gl.uniform1i(u.uVR, vr ? 1 : 0);
       gl.uniform1i(u.uVRLayout, vr ? vr.layout : 0);
       gl.uniform1f(u.uVRSpan, vr ? vr.span : Math.PI * 2);
@@ -792,15 +793,18 @@ void main() {
       return changed;
     }
 
-    _drawDisplay(fbo, w, h, liveTex, accumTex, useAccum, post, geom) {
+    _drawDisplay(fbo, w, h, liveTex, accumTex, useAccum, post, geom, origin) {
       const gl = this.gl;
       const e = this.displayProg;
       const u = e.u;
+      const ox = origin ? origin[0] : 0;
+      const oy = origin ? origin[1] : 0;
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      gl.viewport(0, 0, w, h);
+      gl.viewport(ox, oy, w, h);
       gl.disable(gl.BLEND);
       gl.disable(gl.SCISSOR_TEST);
       gl.useProgram(e.prog);
+      gl.uniform2f(u.uOrigin, ox, oy);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, liveTex || this.black);
       gl.activeTexture(gl.TEXTURE1);
@@ -810,7 +814,7 @@ void main() {
       gl.uniform1i(u.uUseAccum, useAccum ? 1 : 0);
       gl.uniform1i(u.uEncode, this.hdr ? 0 : 1);
       gl.uniform2f(u.uOut, w, h);
-      gl.uniform2f(u.uCenter, geom.cx, geom.cy);
+      gl.uniform2f(u.uCenter, geom.cx + ox, geom.cy + oy);
       gl.uniform1f(u.uFrameH, geom.fh);
       gl.uniform1f(u.uExposure, post.exposure);
       gl.uniform1f(u.uContrast, post.contrast);
@@ -1012,6 +1016,57 @@ void main() {
     // opts.march: ray-march quality ('high' unless a movie preset asks for less).
     renderFrame(frame, width, height, samples, onProgress, opts) {
       return this.renderStill(frame, width, height, samples, onProgress, true, opts);
+    }
+
+    // ---------- live VR (WebXR) ----------
+    // One eye of a WebXR frame: the scene camera becomes the origin of the room, the headset's pose moves and
+    // turns the eye inside it. view = XRView (or any {projectionMatrix, transform: {matrix}}), vp = its viewport
+    // in fbo (the XR layer's framebuffer). opts: { scale (metres -> world units), level, quality }.
+    // The eye ray for NDC (x, y) is C + x DX + y DY; the fractal shader's camera has exactly that form.
+    renderXR(frame, view, vp, fbo, opts) {
+      const gl = this.gl;
+      if (!gl || this.lost) return false;
+      const entry = this._formulaProgram(frame.formula);
+      if (!this._checkProgram(entry)) return false;
+      this._syncBackdrops(frame);
+      const g = frame.gpu;
+      const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+      const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+      const len = (a) => Math.hypot(a[0], a[1], a[2]) || 1;
+      let F = g.camFwd;
+      let R = g.camRight;
+      let U = g.camUp;
+      if (opts.level) {
+        // the room stands upright: heading only; the head does the looking up and down
+        let fh = [F[0], 0, F[2]];
+        if (Math.hypot(fh[0], fh[2]) < 1e-3) fh = [U[0], 0, U[2]];
+        F = mul(fh, 1 / len(fh));
+        R = [-F[2], 0, F[0]];
+        U = [0, 1, 0];
+      }
+      const W = (v) => add(add(mul(R, v[0]), mul(U, v[1])), mul(F, -v[2]));
+      const M = view.transform.matrix;
+      const rot = (v) => [M[0] * v[0] + M[4] * v[1] + M[8] * v[2], M[1] * v[0] + M[5] * v[1] + M[9] * v[2], M[2] * v[0] + M[6] * v[1] + M[10] * v[2]];
+      const P = view.projectionMatrix;
+      const C = W(rot([P[8] / P[0], P[9] / P[5], -1]));
+      const DX = W(rot([1 / P[0], 0, 0]));
+      const DY = W(rot([0, 1 / P[5], 0]));
+      const pos = add(g.camPos, mul(W([M[12], M[13], M[14]]), opts.scale));
+      const w = vp.width;
+      const h = vp.height;
+      const ft = len(DY);
+      const cam = { pos, fwd: C, right: mul(DX, h / w / ft), up: mul(DY, 1 / ft), fovT: ft };
+      const live = this._target('xr', w, h, true);
+      const geom = { cx: w / 2, cy: h / 2, fh: h };
+      gl.bindFramebuffer(gl.FRAMEBUFFER, live.fbo);
+      gl.viewport(0, 0, w, h);
+      gl.disable(gl.BLEND);
+      gl.disable(gl.SCISSOR_TEST);
+      gl.useProgram(entry.prog);
+      this._setFractalUniforms(entry, frame, w, h, [0, 0], { quality: opts.quality || 'draft', geom, cam });
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      this._drawDisplay(fbo, w, h, live.tex, null, false, Object.assign({}, frame.post, { vignette: 0 }), geom, [vp.x, vp.y]);
+      return true;
     }
 
     // While a movie renders, the preview does no work of its own (jobs still run).

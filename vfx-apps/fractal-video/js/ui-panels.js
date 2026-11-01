@@ -713,6 +713,41 @@
     gMovie.body.appendChild(h('p', { class: 'note', text: 'Each frame is rendered in tiles at the chosen quality and streamed to ffmpeg; nothing is stored in the browser. Rendering pauses if this tab is hidden, so leave it in front.' }));
     host.appendChild(gMovie.el);
 
+    // ----- live VR -----
+    const lv = ctx.liveVrSettings();
+    const gVr = group('Live VR (headset)', 'render-livevr', true, 'WebXR');
+    const setL = (patch) => { ctx.setLiveVrSettings(patch); ctx.rebuild('render'); };
+    gVr.body.appendChild(h('p', { class: 'note', text: 'Puts you inside the fractal in a headset connected to this PC (Quest over Horizon Link or Air Link, or any PC VR headset). It renders live, at lower quality than a movie: use it to look around and find camera positions. The song timeline plays as usual; the trigger plays and pauses.' }));
+    gVr.body.appendChild(select({
+      label: 'Resolution', value: String(lv.scale),
+      hint: 'Share of the headset\'s full resolution per eye. Lower = smoother. If the picture judders, step down.',
+      options: [{ value: '0.35', label: '35 % (fastest)' }, { value: '0.5', label: '50 %' }, { value: '0.7', label: '70 %' }, { value: '1', label: '100 % (sharpest)' }],
+      onChange: (v) => setL({ scale: Number(v) })
+    }).el);
+    gVr.body.appendChild(select({
+      label: 'Ray marching', value: lv.march,
+      hint: 'Draft has no shadows and fewer steps; Balanced looks closer to the movie but costs about twice as much.',
+      options: [{ value: 'draft', label: 'Draft (fast)' }, { value: 'balanced', label: 'Balanced' }],
+      onChange: (v) => setL({ march: v })
+    }).el);
+    gVr.body.appendChild(toggle({
+      label: 'Keep the room level', value: lv.level,
+      hint: 'The scene camera sets only your heading; you look up and down with your head, and the horizon never tilts. Turn off to take over the camera\'s pitch and roll too (can cause motion sickness).',
+      onChange: (v) => setL({ level: v })
+    }).el);
+    gVr.body.appendChild(h('p', { class: 'note', text: 'Depth uses Stereo depth from the Movie group above (the same rule as VR movies). Changes to resolution apply the next time you enter VR.' }));
+    gVr.body.appendChild(h('div', { class: 'btn-row' },
+      button(ctx.liveVrActive() ? 'Leave VR' : 'Enter VR', { icon: 'play', class: 'btn btn-sm primary', title: 'Start (or end) the live VR session', onClick: () => ctx.startLiveVr() })));
+    const vrSt = h('p', { class: 'render-status', id: 'liveVrStatus', text: ctx.liveVrActive() ? 'In VR…' : 'Checking for a headset…' });
+    gVr.body.appendChild(vrSt);
+    if (!ctx.liveVrActive()) {
+      ctx.liveVrSupport().then((s) => {
+        vrSt.className = `render-status ${s.ok ? 'ok' : 'err'}`;
+        vrSt.textContent = s.ok ? 'Headset found. Put it on, then press Enter VR (or press it first and put it on).' : s.why;
+      });
+    }
+    host.appendChild(gVr.el);
+
     const gAct = group('Still and project', 'render-act', true);
     gAct.body.appendChild(h('div', { class: 'btn-row' },
       button('Render still (PNG)', { icon: 'image', class: 'btn btn-sm', title: 'Current frame at the output size and sample count', onClick: () => ctx.renderStill() }),

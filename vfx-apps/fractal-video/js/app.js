@@ -1007,6 +1007,93 @@
     }
   }
   let lastMovie = null;
+
+  // ---------- live VR (WebXR, e.g. Quest over Horizon Link) ----------
+  // The preview's own GL context renders both eyes straight into the headset's framebuffer, at a reduced
+  // resolution and ray-march quality. The scene camera is the centre of the room; the head moves and turns
+  // inside it (metres scaled by Stereo depth x camera distance / 6.4 cm, the movie's eye spacing rule).
+  // The trigger plays / pauses the music; the preview on the PC pauses while the headset is in use.
+  let xr = null;
+  const liveVrSettings = () => Object.assign({ scale: 0.5, march: 'draft', level: true }, settings.liveVr || {});
+  function setLiveVrSettings(patch) {
+    settings.liveVr = Object.assign(liveVrSettings(), patch);
+    saveSettings();
+  }
+  async function liveVrSupport() {
+    if (!window.isSecureContext) return { ok: false, why: 'WebXR needs http://localhost (not a file or a network address).' };
+    if (!navigator.xr) return { ok: false, why: 'This browser has no WebXR. Use Chrome or Edge on this PC.' };
+    try {
+      if (await navigator.xr.isSessionSupported('immersive-vr')) return { ok: true };
+    } catch (err) { return { ok: false, why: err.message }; }
+    return { ok: false, why: 'No VR headset found. Connect the Quest with Horizon Link or Air Link, make Meta Horizon Link the active OpenXR runtime (Link app on the PC > Settings > General), then reload this page.' };
+  }
+  async function startLiveVr() {
+    if (xr) { xr.session.end().catch(() => {}); return; }
+    if (movieJob) { toast('A movie is rendering.', 'warn'); return; }
+    if (!renderer || renderer.lost || !renderer.enabled) { toast('Start the preview first: live VR uses the same GPU renderer.', 'warn'); return; }
+    const sup = await liveVrSupport();
+    if (!sup.ok) { toast(sup.why, 'warn', 12000); return; }
+    const gl = renderer.gl;
+    let session;
+    try {
+      await gl.makeXRCompatible();
+      session = await navigator.xr.requestSession('immersive-vr');
+    } catch (err) { toast(`VR did not start: ${err.message}`, 'err', 10000); return; }
+    const vs = liveVrSettings();
+    let layer;
+    let ref;
+    try {
+      layer = new XRWebGLLayer(session, gl, { framebufferScaleFactor: vs.scale, antialias: false, depth: false, stencil: false, alpha: false });
+      session.updateRenderState({ baseLayer: layer });
+      ref = await session.requestReferenceSpace('local');
+    } catch (err) {
+      session.end().catch(() => {});
+      toast(`VR did not start: ${err.message}`, 'err', 10000);
+      return;
+    }
+    const job = { session, layer, frames: 0, t0: performance.now(), fps: 0, ms: 0, size: '' };
+    xr = job;
+    renderer.setHold(true);
+    session.addEventListener('select', () => { togglePlay(); });
+    session.addEventListener('end', () => {
+      if (xr === job) xr = null;
+      renderer.setHold(false);
+      invalidate();
+      rebuild('render');
+    });
+    let msSum = 0;
+    const onFrame = (time, xf) => {
+      if (xr !== job) return;
+      session.requestAnimationFrame(onFrame);
+      const pose = xf.getViewerPose(ref);
+      if (!pose) return;
+      const t1 = performance.now();
+      const set = liveVrSettings();
+      const frame = evaluateNow(transport.time());
+      const dist = frame.camera && frame.camera.dist > 0 ? frame.camera.dist : 1;
+      const scale = (movieSettings().vrDepth * dist) / 0.064;
+      pose.views.forEach((v) => {
+        const vp = layer.getViewport(v);
+        renderer.renderXR(frame, v, vp, layer.framebuffer, { scale, level: set.level, quality: set.march });
+        job.size = `${vp.width}×${vp.height}`;
+      });
+      msSum += performance.now() - t1;
+      job.frames += 1;
+      const el = performance.now() - job.t0;
+      if (el > 1000) {
+        job.fps = (job.frames * 1000) / el;
+        job.ms = msSum / job.frames;
+        job.frames = 0;
+        msSum = 0;
+        job.t0 = performance.now();
+        const st = document.getElementById('liveVrStatus');
+        if (st) st.textContent = `In VR: ${job.fps.toFixed(0)} frames/s, ${job.size} per eye. Trigger = play / pause. Take the headset off or press the Quest menu button to leave.`;
+      }
+    };
+    session.requestAnimationFrame(onFrame);
+    rebuild('render');
+  }
+
   window.addEventListener('beforeunload', (e) => { if (movieJob) { e.preventDefault(); e.returnValue = ''; } });
 
   function exportProject() {
@@ -1073,6 +1160,11 @@
     setMovieSettings,
     movieRange,
     lastMovie: () => lastMovie,
+    liveVrSettings,
+    setLiveVrSettings,
+    liveVrSupport,
+    startLiveVr,
+    liveVrActive: () => !!xr,
     playhead: () => transport.time(),
     exportProject,
     aspectChanged,

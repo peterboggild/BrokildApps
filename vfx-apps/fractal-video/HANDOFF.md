@@ -127,3 +127,16 @@ renders the current frame in the VR format. Verified headless: all three formats
 correct (exaggerated spacing: left-eye image shifted right), a 360 TB movie through the server reads back in
 ffprobe as hevc, top and bottom, equirectangular. Not verified: in a headset or on YouTube.
 Watching: YouTube (reads the metadata), or a Quest's Files/Gallery player, Skybox, DeoVR (name tag).
+
+## Live VR (built 2026-11-01)
+
+Render tab -> Live VR (headset): WebXR immersive-vr on the preview's own GL context (makeXRCompatible), for a
+headset on this PC (Quest over Horizon Link / Air Link; Link must be the active OpenXR runtime). Each XR frame
+evaluates the song at the transport time and calls renderer.renderXR once per eye: the eye ray for NDC (x,y) is
+C + x DX + y DY from the view's (asymmetric) projection, turned by the head pose and mapped onto the scene camera
+basis (Keep the room level: heading only); the head position is scaled by Stereo depth x camera distance / 6.4 cm.
+Fractal pass into an RGBA16F 'xr' target at the eye's viewport size, then the display pass straight into the XR
+framebuffer at the viewport offset (uOrigin). Resolution = framebufferScaleFactor (35-100 %, default 50 %), ray
+march Draft or Balanced; the PC preview holds meanwhile; the trigger = play/pause; fps shown in the panel.
+Verified headless with two simulated asymmetric views (stereo direction right, viewport offsets right).
+Not verified: in a real headset (frame rate on the RTX 5070, comfort).
