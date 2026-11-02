@@ -112,10 +112,6 @@
     font-family:var(--display);font-weight:600;font-size:clamp(16px,4.5vw,26px);letter-spacing:.04em;
     color:var(--paper);text-shadow:0 0 24px rgba(0,0,0,.9);text-align:center;opacity:0;transition:opacity .4s;
     padding-inline:16px}
-  .back{display:inline-block;margin-top:16px;font-size:11px;letter-spacing:.16em;
-    text-transform:uppercase;color:var(--paper-dim);text-decoration:none;
-    border-bottom:1px solid #2b3542;padding-bottom:3px}
-  .back:hover{color:var(--amber);border-color:var(--amber)}
   [hidden]{display:none!important}
 </style>
 </head>
@@ -147,7 +143,6 @@
       <b>Begge greb</b><span>centrér sædet igen</span>
     </div>
     <p class="note" id="xrNote"></p>
-    <a class="back" href="../index.html">← Brokild VR</a>
   </div>
 </div>
 
@@ -598,8 +593,11 @@ function drawStatus(){
   g.strokeStyle="#12352c";g.lineWidth=1;
   for(let y=16;y<H;y+=16){g.beginPath();g.moveTo(0,y+.5);g.lineTo(W,y+.5);g.stroke();}
   g.font='600 17px "Chivo Mono", monospace';g.textBaseline="middle";
+  const alt=St.phase==="arrival"&&St.dest
+    ? (St.approach/DEST[St.dest].radius).toFixed(2)+" R"
+    : (St.alt>=1000?(St.alt/1000).toFixed(1)+" km":Math.round(St.alt)+" m");
   const rows=[
-    ["HØJDE", St.alt>=1000?(St.alt/1000).toFixed(1)+" km":Math.round(St.alt)+" m"],
+    [St.phase==="arrival"?"AFSTAND":"HØJDE", alt],
     ["FART", Math.round(St.speed)+" m/s"],
     ["GAS", Math.round(St.thrust*100)+" %"],
     ["FASE", PHASE_DA[St.phase]||St.phase],
@@ -778,54 +776,137 @@ const sky=new THREE.Mesh(
 );
 sky.renderOrder=-10;world.add(sky);
 
-/* ---------- ambient starfield ---------- */
-const starField=(function(){
-  const N=2200,pos=new Float32Array(N*3);
-  for(let i=0;i<N;i++){
-    const u=Math.random()*2-1,th=Math.random()*Math.PI*2,r=1200+Math.random()*300;
-    const s=Math.sqrt(1-u*u);
-    pos[i*3]=r*s*Math.cos(th);pos[i*3+1]=r*u;pos[i*3+2]=r*s*Math.sin(th);
-  }
-  const g=new THREE.BufferGeometry();
-  g.setAttribute("position",new THREE.BufferAttribute(pos,3));
-  const m=new THREE.PointsMaterial({color:0xffffff,size:3.2,sizeAttenuation:false,transparent:true,opacity:0});
-  const p=new THREE.Points(g,m);p.renderOrder=-9;world.add(p);return p;
-})();
+/* ---------- starfield ---------- *
+ *  ONE system. The streaks you see in hyperspace are these same stars
+ *  stretched along the travel axis — there is no second overlay field.
+ *  Every star is a two-vertex segment whose tail sits a few units ahead of
+ *  it; at rest that is sub-pixel, so it reads as a point.
+ * ------------------------------------------------------------------ */
+const STAR_N=3000;
+const starBase=new Float32Array(STAR_N*3);   // live positions
+const starLen=new Float32Array(STAR_N);      // rest length (size proxy)
+const starPos=new Float32Array(STAR_N*6);
+const starCol=new Float32Array(STAR_N*6);
 
-/* ---------- warp tunnel (line segments along travel axis) ---------- */
-const WARP_N=900;
-const warpPos=new Float32Array(WARP_N*6);
-const warpBase=new Float32Array(WARP_N*3);
-const warp=(function(){
-  for(let i=0;i<WARP_N;i++){
-    const a=Math.random()*Math.PI*2,r=4+Math.pow(Math.random(),.5)*120;
-    warpBase[i*3]=Math.cos(a)*r;
-    warpBase[i*3+1]=Math.sin(a)*r;
-    warpBase[i*3+2]=-Math.random()*900;
+/* Real spectral classes, roughly in their real proportions — a sky of
+ * identical white dots is the giveaway that nobody looked at one. */
+const STAR_CLASSES=[
+  [0.030,0.62,0.74,1.00],   // O/B  blue-white
+  [0.090,0.82,0.86,1.00],   // A    white
+  [0.130,1.00,0.98,0.92],   // F    yellow-white
+  [0.200,1.00,0.94,0.72],   // G    yellow (the Sun)
+  [0.260,1.00,0.80,0.56],   // K    orange
+  [0.270,1.00,0.62,0.46]    // M    red dwarf
+];
+function seedStar(i,inBand){
+  let x,y,z;
+  if(inBand){
+    // galactic band: tight in one direction, wide in the other two
+    const th=Math.random()*Math.PI*2;
+    const b=(Math.random()+Math.random()+Math.random()-1.5)*0.17;   // ~gaussian
+    const cb=Math.cos(b);
+    x=Math.cos(th)*cb;y=Math.sin(b);z=Math.sin(th)*cb;
+    // tilt the plane so it crosses the sky at an angle
+    const ty=y*0.84-z*0.54, tz=y*0.54+z*0.84;y=ty;z=tz;
+  }else{
+    const u=Math.random()*2-1,th=Math.random()*Math.PI*2,sq=Math.sqrt(1-u*u);
+    x=sq*Math.cos(th);y=u;z=sq*Math.sin(th);
+  }
+  const r=900+Math.random()*700;
+  starBase[i*3]=x*r;starBase[i*3+1]=y*r;starBase[i*3+2]=z*r;
+}
+function reseedStars(){
+  for(let i=0;i<STAR_N;i++)seedStar(i,i%5<2);   // ~40% along the band
+}
+const stars=(function(){
+  const r=Math.random;
+  for(let i=0;i<STAR_N;i++){
+    seedStar(i,i%5<2);
+    // brightness: a few bright ones, a great many faint
+    const mag=Math.pow(r(),2.6);
+    starLen[i]=1.6+mag*5.4;
+    let pick=r(),acc=0,c=STAR_CLASSES[5];
+    for(const k of STAR_CLASSES){acc+=k[0];if(pick<=acc){c=k;break;}}
+    const b=0.34+mag*0.66;
+    for(let v=0;v<2;v++){
+      const f=v===0?b*0.42:b;             // tail end dimmer — gives the streak a falloff
+      starCol[i*6+v*3]=c[1]*f;starCol[i*6+v*3+1]=c[2]*f;starCol[i*6+v*3+2]=c[3]*f;
+    }
   }
   const g=new THREE.BufferGeometry();
-  g.setAttribute("position",new THREE.BufferAttribute(warpPos,3));
-  const m=new THREE.LineBasicMaterial({color:0xcfe9ff,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false});
-  const l=new THREE.LineSegments(g,m);l.frustumCulled=false;l.visible=false;scene.add(l);
+  g.setAttribute("position",new THREE.BufferAttribute(starPos,3));
+  g.setAttribute("color",new THREE.BufferAttribute(starCol,3));
+  const m=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0,
+    blending:THREE.AdditiveBlending,depthWrite:false});
+  const l=new THREE.LineSegments(g,m);
+  l.frustumCulled=false;l.renderOrder=-9;scene.add(l);
   return l;
 })();
-function updateWarp(dt,intensity){
-  const speed=600+intensity*5200, len=2+intensity*190;
-  for(let i=0;i<WARP_N;i++){
-    let z=warpBase[i*3+2]+speed*dt;
-    if(z>14){
-      z=-900+Math.random()*60;
-      const a=Math.random()*Math.PI*2,r=4+Math.pow(Math.random(),.5)*120;
-      warpBase[i*3]=Math.cos(a)*r;warpBase[i*3+1]=Math.sin(a)*r;
+/* warpAmt 0 = at rest, 1 = full hyperspace */
+function updateStars(dt,warpAmt){
+  const move=warpAmt>0?(260+warpAmt*warpAmt*11000)*dt:0;
+  const stretch=warpAmt*warpAmt*420;
+  for(let i=0;i<STAR_N;i++){
+    let x=starBase[i*3],y=starBase[i*3+1],z=starBase[i*3+2];
+    if(move){
+      z+=move;
+      if(z>1500){
+        // past the camera — bring it round to the front, somewhere in the tunnel
+        const a=Math.random()*Math.PI*2,rr=60+Math.sqrt(Math.random())*1100;
+        x=Math.cos(a)*rr;y=Math.sin(a)*rr;z-=3000;
+        starBase[i*3]=x;starBase[i*3+1]=y;
+      }
+      starBase[i*3+2]=z;
     }
-    warpBase[i*3+2]=z;
-    const x=warpBase[i*3],y=warpBase[i*3+1];
-    warpPos[i*6]=x;warpPos[i*6+1]=y;warpPos[i*6+2]=z-len;
-    warpPos[i*6+3]=x;warpPos[i*6+4]=y;warpPos[i*6+5]=z;
+    const len=starLen[i]+stretch*(0.55+starLen[i]*0.09);
+    starPos[i*6]=x;starPos[i*6+1]=y;starPos[i*6+2]=z-len;
+    starPos[i*6+3]=x;starPos[i*6+4]=y;starPos[i*6+5]=z;
   }
-  warp.geometry.attributes.position.needsUpdate=true;
-  warp.material.opacity=Math.min(1,.25+intensity);
+  stars.geometry.attributes.position.needsUpdate=true;
 }
+updateStars(0,0);
+
+/* ---------- deep-space detail: nebulae and far galaxies ---------- */
+function cloudTexture(r0,g0,b0,seed){
+  const S=192,c=cvs(S,S),g=c.getContext("2d");
+  const img=g.createImageData(S,S),d=img.data,n=makeNoise(seed);
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    const dx=(x/S-.5)*2,dy=(y/S-.5)*2;
+    const fall=Math.max(0,1-Math.sqrt(dx*dx+dy*dy));
+    const f=n(x/14,y/14,5);
+    const a=Math.pow(fall,2.1)*Math.pow(f,1.7)*255;
+    const i=(y*S+x)*4;
+    d[i]=r0;d[i+1]=g0;d[i+2]=b0;d[i+3]=Math.min(255,a*1.5);
+  }
+  g.putImageData(img,0,0);return c;
+}
+const deepSky=new THREE.Group();deepSky.visible=false;scene.add(deepSky);
+(function buildDeepSky(){
+  const specs=[
+    [ 96, 60,190,  1100,-900, -700, 1500, 11],   // violet emission cloud
+    [ 40,130,170, -1250, 420, -600, 1250, 23],   // teal
+    [190, 70, 60,  -400,-800, 1300, 1050, 37],   // red hydrogen
+    [120,110,200,   900, 700,  900,  800, 51]
+  ];
+  specs.forEach(sp=>{
+    const m=new THREE.SpriteMaterial({map:tex(cloudTexture(sp[0],sp[1],sp[2],sp[7])),
+      blending:THREE.AdditiveBlending,depthWrite:false,opacity:.5,transparent:true});
+    const s=new THREE.Sprite(m);
+    s.renderOrder=-10;
+    s.position.set(sp[3],sp[4],sp[5]);s.scale.setScalar(sp[6]);
+    deepSky.add(s);
+  });
+  // two far galaxies: the same cloud squashed into a disc and tilted
+  [[1,-1300,900,400,.75],[2,700,-1100,-1200,-.5]].forEach(q=>{
+    const m=new THREE.SpriteMaterial({map:tex(cloudTexture(210,200,170,q[0]*77)),
+      blending:THREE.AdditiveBlending,depthWrite:false,opacity:.65,transparent:true});
+    const s=new THREE.Sprite(m);
+    s.renderOrder=-10;
+    s.position.set(q[1],q[2],q[3]);s.scale.set(260,72,1);
+    s.material.rotation=q[4];
+    deepSky.add(s);
+  });
+})();
 
 /* ---------- launch site ---------- */
 const site=new THREE.Group();world.add(site);
@@ -892,11 +973,100 @@ function buildBody(key){
     emissive:key==="gold"?0x201505:0x000000
   });
   bodyMesh=new THREE.Mesh(new THREE.SphereGeometry(d.radius,48,32),mat);
-  bodyMesh.position.set(0,2,-140);
+  bodyMesh.position.set(0,2,-d.radius*2.9);
   world.add(bodyMesh);
 }
 
 /* ---------- landing terrain ---------- */
+/* One height function, used by the mesh, the rocks and the buildings, so
+ * nothing floats and nothing is buried. lx/ly are plane-local; the plane is
+ * laid flat with rotation.x = -PI/2, which maps local y onto world -z. */
+function surfaceH(key,lx,ly){
+  const amp=key==="moon"?26:key==="mars"?46:72;
+  let h=(noiseA(lx/180+10,ly/180,5)-.5)*amp;
+  if(key==="gold")h+=Math.abs(Math.sin(lx/90)*Math.cos(ly/90))*34;   // crystalline ridges
+  return h*Math.min(1,Math.sqrt(lx*lx+ly*ly)/160);                   // flat landing zone
+}
+const worldH=(key,wx,wz)=>surfaceH(key,wx,-wz);
+
+/* The settlement on Guldplaneten. Nobody is home, but somebody built it:
+ * tapered six-sided trunks under flared caps, lit from within, with spires
+ * and a few catenary arches strung between the taller ones. */
+function buildAlienVillage(parent,key){
+  const r=mulberry32(4711);
+  const body=new THREE.MeshStandardMaterial({color:0xcfa242,roughness:.32,metalness:.95,flatShading:true});
+  const shell=new THREE.MeshStandardMaterial({color:0xcfa242,roughness:.32,metalness:.95,
+    flatShading:true,side:THREE.DoubleSide});
+  const dark=new THREE.MeshStandardMaterial({color:0x4a3a16,roughness:.55,metalness:.8,flatShading:true});
+  const lit=new THREE.MeshStandardMaterial({color:0x0c2b26,roughness:.3,metalness:.2,
+    emissive:0x3ff0c0,emissiveIntensity:1.0});
+  const litShell=new THREE.MeshStandardMaterial({color:0x0c2b26,roughness:.3,metalness:.2,
+    emissive:0x3ff0c0,emissiveIntensity:1.0,side:THREE.DoubleSide});
+  const tops=[];
+  const N=19;
+  for(let i=0;i<N;i++){
+    const hub=i===0;
+    const a=hub?0:(i/N)*Math.PI*2+r()*.7;
+    const rad=hub?0:95+Math.pow(r(),.7)*215;
+    const x=Math.cos(a)*rad, z=Math.sin(a)*rad;
+    if(!hub&&Math.hypot(x,z)<72)continue;                            // keep the pad clear
+    const g=new THREE.Group();
+    g.position.set(x,worldH(key,x,z)-1.2,z);
+    g.rotation.y=r()*Math.PI*2;
+    parent.add(g);
+
+    const h=hub?34:9+r()*16;
+    const rb=hub?11:2.6+r()*3.4;
+    const rt=rb*(.46+r()*.22);
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,6),body);
+    trunk.position.y=h/2;g.add(trunk);
+    const foot=new THREE.Mesh(new THREE.CylinderGeometry(rb*1.25,rb*1.5,1.6,6),dark);
+    foot.position.y=.8;g.add(foot);
+
+    // flared cap — a cone worn upside down, wider than the trunk
+    const caps=hub?3:1;
+    for(let c=0;c<caps;c++){
+      const cy=h-c*(h/4.4), cr=rt*(2.5-c*.45);
+      const cap=new THREE.Mesh(new THREE.ConeGeometry(cr,cr*.62,6,1,true),shell);
+      cap.position.y=cy+cr*.3;cap.rotation.y=.26;g.add(cap);
+      const rim=new THREE.Mesh(new THREE.TorusGeometry(cr*.92,cr*.055,5,6),dark);
+      rim.rotation.x=Math.PI/2;rim.rotation.z=.26;rim.position.y=cy;g.add(rim);
+    }
+
+    // windows: a lit band around the trunk, plus a doorway at the foot
+    const band=new THREE.Mesh(new THREE.CylinderGeometry(rt*1.03,rb*.99,h*.16,6,1,true),litShell);
+    band.position.y=h*.56;g.add(band);
+    const door=new THREE.Mesh(new THREE.BoxGeometry(rb*.5,2.6,.35),lit);
+    door.position.set(0,1.5,rb*1.02);g.add(door);
+
+    // spire with a lamp on top
+    const sp=new THREE.Mesh(new THREE.CylinderGeometry(.12,.34,h*(hub?.75:.5),5),dark);
+    sp.position.y=h+h*(hub?.38:.25);g.add(sp);
+    const orb=new THREE.Mesh(new THREE.SphereGeometry(hub?1.5:.7,10,8),lit);
+    orb.position.y=h+h*(hub?.78:.52);g.add(orb);
+
+    tops.push({x:x,z:z,y:g.position.y+h,r:rb});
+  }
+
+  // arches: tie each of a few towers to its nearest taller neighbour
+  const arcMat=new THREE.MeshStandardMaterial({color:0xb08a2e,roughness:.4,metalness:.95});
+  for(let i=1;i<tops.length;i+=3){
+    let best=null,bd=1e9;
+    for(let j=0;j<tops.length;j++){
+      if(j===i)continue;
+      const d=Math.hypot(tops[i].x-tops[j].x,tops[i].z-tops[j].z);
+      if(d<bd&&d>22&&d<140){bd=d;best=tops[j];}
+    }
+    if(!best)continue;
+    const A=tops[i],B=best;
+    const mid=new THREE.Vector3((A.x+B.x)/2,Math.max(A.y,B.y)+bd*.22,(A.z+B.z)/2);
+    const curve=new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(A.x,A.y*.92,A.z),mid,new THREE.Vector3(B.x,B.y*.92,B.z));
+    const arc=new THREE.Mesh(new THREE.TubeGeometry(curve,14,.45,5,false),arcMat);
+    parent.add(arc);
+  }
+}
+
 let terrain=null;
 function buildTerrain(key){
   if(terrain){world.remove(terrain);terrain.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
@@ -905,15 +1075,7 @@ function buildTerrain(key){
   const SZ=2400,SEG=72;
   const geo=new THREE.PlaneGeometry(SZ,SZ,SEG,SEG);
   const pos=geo.attributes.position;
-  const amp=key==="moon"?26:key==="mars"?46:72;
-  for(let i=0;i<pos.count;i++){
-    const x=pos.getX(i),y=pos.getY(i);
-    let h=(noiseA(x/180+10,y/180,5)-.5)*amp;
-    if(key==="gold")h+=Math.abs(Math.sin(x/90)*Math.cos(y/90))*34; // crystalline ridges
-    const d2=Math.sqrt(x*x+y*y);
-    h*=Math.min(1,d2/160);                                         // flat landing zone
-    pos.setZ(i,h);
-  }
+  for(let i=0;i<pos.count;i++)pos.setZ(i,surfaceH(key,pos.getX(i),pos.getY(i)));
   geo.computeVertexNormals();
   const surf=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
     color:d.ground,roughness:key==="gold"?.35:1,metalness:key==="gold"?.9:.02,flatShading:true}));
@@ -923,16 +1085,18 @@ function buildTerrain(key){
   const rockMat=new THREE.MeshStandardMaterial({color:d.ground,roughness:key==="gold"?.3:1,
     metalness:key==="gold"?.95:.02,flatShading:true});
   const inst=new THREE.InstancedMesh(rockGeo,rockMat,240);
-  const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(),p=new THREE.Vector3();
+  const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),sc3=new THREE.Vector3(),p=new THREE.Vector3();
   const rr=mulberry32(55);
   for(let i=0;i<240;i++){
     const a=rr()*Math.PI*2,r=70+rr()*900;
-    p.set(Math.cos(a)*r,(noiseA(Math.cos(a)*r/180+10,Math.sin(a)*r/180,5)-.5)*amp*.7,Math.sin(a)*r);
-    const sc=1.5+rr()*7;s.set(sc,sc*(.6+rr()*.7),sc);
+    const x=Math.cos(a)*r,z=Math.sin(a)*r;
+    p.set(x,worldH(key,x,z)-.6,z);
+    const sc=1.5+rr()*7;sc3.set(sc,sc*(.6+rr()*.7),sc);
     q.setFromEuler(new THREE.Euler(rr()*3,rr()*3,rr()*3));
-    mtx.compose(p,q,s);inst.setMatrixAt(i,mtx);
+    mtx.compose(p,q,sc3);inst.setMatrixAt(i,mtx);
   }
   terrain.add(inst);
+  if(key==="gold")buildAlienVillage(terrain,key);
   // landing pad marker
   const ring=new THREE.Mesh(new THREE.RingGeometry(9,11,32),
     new THREE.MeshBasicMaterial({color:0x7fd4e8,side:THREE.DoubleSide,transparent:true,opacity:.9}));
@@ -953,7 +1117,8 @@ const PHASE_DA={preflight:"RAMPE",ignition:"TÆNDING",ascent:"OPSTIGNING",space:
   course:"KURS",hyperspace:"HYPERRUM",arrival:"ANKOMST",descent:"NEDSTIGNING",landed:"LANDET"};
 const St={
   phase:"preflight",order:[],step:0,alt:0,speed:0,thrust:0,dest:null,distance:0,
-  warpT:0,heading:{x:0,y:0},drift:{x:0,y:0},vspeed:0,t:0,flash:0
+  warpT:0,heading:{x:0,y:0},drift:{x:0,y:0},vspeed:0,t:0,flash:0,
+  approach:0,lat:{x:0,y:0}
 };
 function newSequence(){
   St.order=[0,1,2,3,4];
@@ -995,14 +1160,20 @@ function pressBig(){
 function pressHyper(){
   if(St.phase!=="course")return;
   St.phase="hyperspace";St.warpT=0;
-  warp.visible=true;
   Audio_.whoosh();
   log("HYPERRUM");showMsg("Hyperrum i gang");
   hyperBtn.group.visible=false;
 }
 function pressLand(){
   if(St.phase!=="arrival")return;
-  St.phase="descent";St.alt=1600;St.vspeed=-70;
+  const dd=DEST[St.dest];
+  if(St.approach>dd.radius*1.95){
+    Audio_.bad();
+    showMsg("For langt væk — giv gas og flyv tættere på først");
+    log("FOR LANGT");
+    return;
+  }
+  St.phase="descent";St.alt=1600;St.vspeed=-70;St.heading.x=0;
   buildTerrain(St.dest);
   terrain.visible=true;
   landBtn.group.visible=false;
@@ -1016,7 +1187,7 @@ function chooseDest(key){
   if(St.phase!=="space")return;
   St.dest=key;St.distance=DEST[key].dist;
   St.phase="course";
-  menu.visible=false;
+  menu.visible=false;St.landArmed=false;
   hyperBtn.group.visible=true;
   buildBody(key);
   bodyMesh.visible=false;
@@ -1258,7 +1429,10 @@ function updateFlight(dt){
     const k=Math.min(1,a/70000);
     skyUniforms.top.value.setRGB(.12*(1-k),.37*(1-k),.66*(1-k));
     skyUniforms.bottom.value.setRGB(.66*(1-k)+.02*k,.80*(1-k),.91*(1-k)+.05*k);
-    starField.material.opacity=Math.max(0,(a-26000)/40000);
+    const starOp=Math.min(1,Math.max(0,(a-24000)/36000));
+    stars.material.opacity=starOp;
+    deepSky.visible=starOp>.02;
+    deepSky.children.forEach(c=>{c.material.opacity=starOp*(c.scale.y<200?.65:.5);});
     site.position.y=-Math.min(a,30000)*.012;
     site.visible=a<34000;
     if(a>22000){
@@ -1293,27 +1467,42 @@ function updateFlight(dt){
     const ramp=Math.min(1,St.warpT/1.4);
     const fall=St.warpT>3.0?Math.max(0,1-(St.warpT-3.0)/1.1):1;
     const intensity=ramp*fall;
-    updateWarp(dt,intensity);
+    updateStars(dt,intensity);
     St.distance=Math.max(0,St.distance*(1-dt*.9));
     St.speed=3e8*intensity;
     if(St.warpT>4.3){
-      warp.visible=false;St.phase="arrival";St.speed=1200;St.distance=0;
+      reseedStars();updateStars(0,0);St.phase="arrival";St.speed=0;St.distance=0;
+      const dd=DEST[St.dest];
+      St.approach=dd.radius*2.9;St.lat.x=0;St.lat.y=0;
       bodyMesh.visible=true;
       landBtn.group.visible=true;
-      log("ANKOMST");showMsg("Ankommet ved "+DEST[St.dest].name+" — tryk på LAND");
+      log("ANKOMST");showMsg("Ude ved "+dd.name+" — giv gas for at flyve nærmere");
       Audio_.ok();
       earth.visible=false;
     }
   }
 
   if(ph==="arrival"){
-    bodyMesh.rotation.y+=dt*.04;
-    bodyMesh.position.z=-140+Math.min(70,St.t*0);
-    landBtn.mat.emissive.setHex(Math.sin(St.t*5)>0?0x1d5a2a:0x000000);
     const d=DEST[St.dest];
     skyUniforms.alpha.value=0;
-    // slow approach
-    bodyMesh.position.z=THREE.MathUtils.lerp(bodyMesh.position.z,-62,dt*.25);
+    bodyMesh.rotation.y+=dt*.035;
+    /* Throttle is closing speed, and it is signed: below a quarter open you
+     * drift back out again, so holding station takes a hand on the lever. */
+    const closing=(St.thrust-.25)*d.radius*1.5;
+    St.approach=THREE.MathUtils.clamp(St.approach-closing*dt,d.radius*1.42,d.radius*9);
+    St.speed=Math.abs(closing);
+    // the yoke slews the ship, so the body drifts across the windows
+    St.lat.x=THREE.MathUtils.clamp(St.lat.x+roll*dt*d.radius*.6,-d.radius*2.2,d.radius*2.2);
+    St.lat.y=THREE.MathUtils.clamp(St.lat.y+pitchIn*dt*d.radius*.45,-d.radius*1.6,d.radius*1.6);
+    St.lat.x*=Math.pow(.6,dt);St.lat.y*=Math.pow(.6,dt);   // the autopilot pulls it back
+    bodyMesh.position.set(St.lat.x,2+St.lat.y,-St.approach);
+    const close=St.approach<=d.radius*1.95;
+    landBtn.mat.emissive.setHex(close&&Math.sin(St.t*5)>0?0x1d5a2a:0x000000);
+    if(close&&!St.landArmed){
+      St.landArmed=true;Audio_.ok();
+      log("I KREDSLØB");showMsg("Tæt nok på — tryk på LAND");
+    }else if(!close&&St.landArmed){St.landArmed=false;}
+    ship.rotation.z=-roll*.05;
   }
 
   if(ph==="descent"){
@@ -1325,7 +1514,7 @@ function updateFlight(dt){
     St.speed=Math.abs(St.vspeed);
     if(bodyMesh)bodyMesh.visible=false;
     skyUniforms.alpha.value=1;
-    starField.material.opacity=.8;
+    stars.material.opacity=.8;
     // lateral steering toward the ring
     St.heading.x=THREE.MathUtils.clamp(St.heading.x-roll*dt*26,-240,240);
     terrain.position.set(-St.heading.x,-St.alt-2.0,0);
@@ -1418,7 +1607,7 @@ function mkHold(label,code){
   return b;
 }
 function buildTouchbar(){
-  const sig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0);
+  const sig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0)+"|"+(St.landArmed?1:0);
   if(sig===tbSig)return;
   tbSig=sig;
   tbMain.innerHTML="";
@@ -1434,7 +1623,7 @@ function buildTouchbar(){
   }else if(St.phase==="course"){
     tbMain.appendChild(mkBtn("HYPERRUM","lit",()=>pressHyper()));
   }else if(St.phase==="arrival"){
-    tbMain.appendChild(mkBtn("LAND","lit",()=>pressLand()));
+    tbMain.appendChild(mkBtn("LAND",St.landArmed?"lit":"",()=>pressLand()));
   }else if(St.phase==="landed"){
     tbMain.appendChild(mkBtn("NY FLYVNING","",()=>location.reload()));
   }
@@ -1453,7 +1642,9 @@ function refreshHud(){
   if(hud.hidden)return;
   hud.innerHTML=
     "<span>FASE</span> "+(PHASE_DA[St.phase]||St.phase)+"<br>"+
-    "<span>HØJDE</span> "+(St.alt>=1000?(St.alt/1000).toFixed(1)+" km":Math.round(St.alt)+" m")+"<br>"+
+    (St.phase==="arrival"&&St.dest
+      ? "<span>AFSTAND</span> "+(St.approach/DEST[St.dest].radius).toFixed(2)+" R<br>"
+      : "<span>HØJDE</span> "+(St.alt>=1000?(St.alt/1000).toFixed(1)+" km":Math.round(St.alt)+" m")+"<br>")+
     "<span>FART</span> "+(St.speed>1e5?(St.speed/1000).toExponential(1)+" km/s":Math.round(St.speed)+" m/s")+"<br>"+
     "<span>GAS</span> "+Math.round(St.thrust*100)+" %";
 }
@@ -1493,7 +1684,10 @@ renderer.setAnimationLoop(()=>{
   refreshHud();
   if(!touchbar.hidden)buildTouchbar();
   if(msgTimer>0){msgTimer-=dt;if(msgTimer<=0)msgEl.style.opacity="0";}
-  starField.rotation.y+=dt*.004;
+  if(St.phase!=="hyperspace"){
+    stars.rotation.y+=dt*.004;
+    deepSky.rotation.y=stars.rotation.y;
+  }
   renderer.render(scene,camera);
 });
 </script>
