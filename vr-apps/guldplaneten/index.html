@@ -1348,20 +1348,62 @@ const inIframe=window.self!==window.top;
   }
 })();
 
+/* Starting a session is the one place this can fail silently inside the
+ * headset: if the attach throws, the Quest sits on its own loading screen
+ * (three shifting dots over passthrough) for ever and the error lands in a
+ * DOM note nobody can read from in there. So: try the floor-relative space
+ * first, fall back to plain "local" — which every immersive-vr session must
+ * support — and if neither attaches, END the session so the user is dropped
+ * back into the browser where the message is visible. The seat is recentred
+ * from the headset pose on the first frame either way, so "local" costs
+ * nothing but the floor height we were going to override anyway. */
+function errText(e){return e&&e.message?e.message:String(e);}
+
+async function openSession(spaceType){
+  const session=await navigator.xr.requestSession("immersive-vr",{
+    optionalFeatures:["local-floor","bounded-floor","hand-tracking"]});
+  try{
+    renderer.xr.setReferenceSpaceType(spaceType);
+    await renderer.xr.setSession(session);
+  }catch(err){
+    try{await session.end();}catch(e2){}
+    throw err;
+  }
+  return session;
+}
+
 btnVR.addEventListener("click",async()=>{
   Audio_.init();Audio_.resume();
-  try{
-    const session=await navigator.xr.requestSession("immersive-vr",{
-      optionalFeatures:["local-floor","bounded-floor","hand-tracking","layers"]});
-    await renderer.xr.setSession(session);
-    ui.hidden=true;hud.hidden=true;touchbar.hidden=true;
-    session.addEventListener("end",()=>{ui.hidden=false;});
-    pendingRecenter=2;
-    if(renderer.xr.setFoveation)try{renderer.xr.setFoveation(1);}catch(e){}
-  }catch(err){
-    xrNote.textContent="Kunne ikke starte VR: "+(err&&err.message?err.message:err);
+  btnVR.disabled=true;
+  const was=btnVR.textContent;
+  btnVR.textContent="Starter…";
+  let session=null,firstErr=null;
+  for(const spaceType of ["local-floor","local"]){
+    try{session=await openSession(spaceType);break;}
+    catch(err){if(!firstErr)firstErr=err;}
   }
+  btnVR.disabled=false;btnVR.textContent=was;
+  if(!session){
+    xrNote.textContent="Kunne ikke starte VR: "+errText(firstErr)+
+      " — prøv igen, eller genindlæs siden i Quest-browseren.";
+    return;
+  }
+  ui.hidden=true;hud.hidden=true;touchbar.hidden=true;
+  session.addEventListener("end",()=>{ui.hidden=false;});
+  pendingRecenter=2;
+  if(renderer.xr.setFoveation)try{renderer.xr.setFoveation(1);}catch(e){}
+  /* Watchdog: attached but never presenting means no frame is reaching the
+   * headset. Better to bail out visibly than to leave someone staring at a
+   * loading screen wondering whether it is still coming. */
+  setTimeout(()=>{
+    if(renderer.xr.isPresenting)return;
+    xrNote.textContent="VR-sessionen åbnede, men der blev aldrig tegnet et billede. "+
+      "Luk andre faner i Quest-browseren og prøv igen.";
+    ui.hidden=false;
+    try{session.end();}catch(e){}
+  },4000);
 });
+
 btnFlat.addEventListener("click",()=>{
   Audio_.init();Audio_.resume();
   ui.hidden=true;hud.hidden=false;touchbar.hidden=false;
@@ -1663,17 +1705,20 @@ try{
 const clock=new THREE.Clock();
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(.05,clock.getDelta());
-  if(pendingRecenter>0){pendingRecenter--;if(pendingRecenter===0)recenter();}
+  /* Nothing in here may throw: an exception in the XR frame callback stops
+   * every later frame, and from inside a headset that looks identical to the
+   * session never having started. */
+  if(pendingRecenter>0){pendingRecenter--;if(pendingRecenter===0)try{recenter();}catch(e){}}
   // left thumbstick: seat height
   const session=renderer.xr.getSession&&renderer.xr.getSession();
-  if(session){
+  if(session)try{
     for(const src of session.inputSources){
       if(src.handedness==="left"&&src.gamepad&&src.gamepad.axes.length>3){
         const a=src.gamepad.axes[3];
         if(Math.abs(a)>.25)rig.position.y=THREE.MathUtils.clamp(rig.position.y-a*dt*.6,-1.2,1.2);
       }
     }
-  }
+  }catch(e){}
   if(!renderer.xr.isPresenting){
     camera.rotation.set(pitch,yaw,0,"YXZ");
     camera.position.set(0,1.15,0);
