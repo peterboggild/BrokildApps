@@ -51,6 +51,18 @@ const EXTRA = {
     alt: "Panels from the Brokild plugins behind the word BROKILD",
     type: "website",
   },
+  /* The VR wing is its own main page with its own list, so its pages carry no
+   * app.json and never enter manifest.json — the front-page grid is the
+   * instruments and stays that way. They still need preview tags and a place
+   * in the sitemap, which is what these entries are for. */
+  "vr-apps/index.html": {
+    alt: "Brokild VR — WebXR rooms that run in the headset's browser",
+    type: "website",
+  },
+  "vr-apps/guldplaneten/index.html": {
+    alt: "Guldplaneten — a WebXR spaceship cockpit",
+    type: "website",
+  },
 };
 
 /* Redirect stubs and internal tools: a preview for a page whose only job is to
