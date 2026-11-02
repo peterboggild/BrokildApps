@@ -300,7 +300,18 @@ function labelCanvas(text,opts){
   g.font=(opts.weight||600)+" "+(opts.size||28)+'px "Chivo Mono", monospace';
   g.textAlign="center";g.textBaseline="middle";
   g.shadowColor=opts.color||"#f2a33c";g.shadowBlur=opts.glow===false?0:14;
-  g.fillText(text,W/2,H/2+1);
+  g.fillText(text,W/2+(opts.orb?H*.42:0),H/2+1);
+  if(opts.orb){
+    /* A name is not a picture. One lit disc per world, so you can tell the
+     * grey one from the rust one from the gold one before you commit. */
+    g.shadowBlur=0;
+    const r=H*.3, cx=H*.62, cy=H/2;
+    const grad=g.createRadialGradient(cx-r*.32,cy-r*.34,r*.12,cx,cy,r);
+    grad.addColorStop(0,opts.orbHi||"#ffffff");
+    grad.addColorStop(.55,opts.orb);
+    grad.addColorStop(1,opts.orbLo||"#120c04");
+    g.fillStyle=grad;g.beginPath();g.arc(cx,cy,r,0,7);g.fill();
+  }
   return c;
 }
 
@@ -535,9 +546,14 @@ const CTRL_LABELS=["ILT","PUMPE","KØL","TRYK","FASE"];
     const lbl=new THREE.Mesh(new THREE.PlaneGeometry(.15,.032),
       new THREE.MeshBasicMaterial({map:tex(labelCanvas(CTRL_LABELS[i],{w:256,h:56,size:30,bg:"#0d1218",border:false,color:"#9fb0c2",glow:false}))}));
     lbl.position.set(0,-.066,.019);g.add(lbl);
+    /* A blinking 16 mm lamp is not findable in a headset. The one you are
+     * meant to press carries its number, big, right above it. */
+    const num=new THREE.Mesh(new THREE.PlaneGeometry(.075,.075),
+      new THREE.MeshBasicMaterial({transparent:true}));
+    num.position.set(0,.108,.02);num.visible=false;g.add(num);
     const hit=new THREE.Mesh(new THREE.BoxGeometry(.19,.2,.12),new THREE.MeshBasicMaterial({visible:false}));
     hit.position.z=.05;g.add(hit);
-    const entry={group:g,body:body,lamp:lamp,kind:i<3?"button":"lever",index:i,armed:false,done:false,press:0};
+    const entry={group:g,body:body,lamp:lamp,num:num,kind:i<3?"button":"lever",index:i,armed:false,done:false,press:0};
     makeInteractive(hit,{onPress:()=>pressControl(entry),poke:.075});
     controls.push(entry);
   }
@@ -569,6 +585,7 @@ function consoleButton(x,y,label,bg,border,color,baseCol,onPress){
 }
 const hyperBtn=consoleButton(-.60,-.13,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper());
 const landBtn =consoleButton(-.33,-.13,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
+const againBtn=consoleButton(-.60,-.13,"NY FLYVNING","#1d1326","#4a2a66","#c9a0ff",0x3a2452,()=>restartFlight());
 
 function screenPanel(w,h,px,py,cw,chh){
   const c=cvs(cw,chh);
@@ -578,6 +595,22 @@ function screenPanel(w,h,px,py,cw,chh){
   bez.position.set(px,py,.028);consoleGroup.add(bez);
   return {mesh:m,canvas:c,ctx:c.getContext("2d")};
 }
+/* The one thing always on screen: what to do next. A four-second toast is
+ * no use to anyone who looked out of the window at the wrong moment. */
+const objective=(function(){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.115),
+    new THREE.MeshBasicMaterial({transparent:true}));
+  m.position.set(0,1.74,-1.0);ship.add(m);
+  return m;
+})();
+let objSig="";
+function setObjective(text,color){
+  if(objective.material.map)objective.material.map.dispose();
+  objective.material.map=tex(labelCanvas(text,
+    {w:768,h:64,size:34,bg:"#0b1018",border:"#2a3340",color:color||"#f2a33c"}));
+  objective.material.needsUpdate=true;
+}
+
 const statusScreen=screenPanel(.42,.2,-.46,-.145,336,160);
 const mapScreen=screenPanel(.46,.2,.10,-.145,368,160);
 const msgScreen=screenPanel(.3,.2,.58,-.145,240,160);
@@ -647,11 +680,14 @@ let MODE=MODES.auto;
 
 /* ---------- destinations ---------- */
 const DEST={
-  moon:{name:"Månen",dist:384400e3,radius:620,grav:1.62,hud:"#cfd6de",
+  moon:{name:"Månen",orb:"#b9b9c0",orbHi:"#f2f2f5",orbLo:"#2e2e34",
+        dist:384400e3,radius:620,grav:1.62,hud:"#cfd6de",
         sky:0x000000,ground:0x9d9d9d,amp:1.0,atmo:0,tex:null},
-  mars:{name:"Mars",dist:225e9,radius:720,grav:3.72,hud:"#ff9a6b",
+  mars:{name:"Mars",orb:"#c1542c",orbHi:"#ffc49a",orbLo:"#2a0e05",
+        dist:225e9,radius:720,grav:3.72,hud:"#ff9a6b",
         sky:0x3a1c10,ground:0xa8502b,amp:1.3,atmo:.55,tex:null},
-  gold:{name:"Guldplaneten",dist:9.4e12,radius:800,grav:6.1,hud:"#ffd978",
+  gold:{name:"Guldplaneten",orb:"#e8c35a",orbHi:"#fff6d0",orbLo:"#3a2606",
+        dist:9.4e12,radius:800,grav:6.1,hud:"#ffd978",
         sky:0x2a1d06,ground:0xc9a03e,amp:1.6,atmo:.75,tex:null}
 };
 const menu=new THREE.Group();
@@ -667,7 +703,8 @@ menu.position.set(0,1.42,-.88);menu.visible=false;ship.add(menu);
     const g=new THREE.Group();g.position.set(0,.03-i*.135,.004);menu.add(g);
     g.add(new THREE.Mesh(new THREE.PlaneGeometry(.82,.11),
       new THREE.MeshBasicMaterial({map:tex(labelCanvas(d.name.toUpperCase(),
-        {w:512,h:72,size:36,bg:"#0b2434",border:"#2a6a8c",color:d.hud})),transparent:true})));
+        {w:512,h:72,size:34,bg:"#0b2434",border:"#2a6a8c",color:d.hud,
+         orb:d.orb,orbHi:d.orbHi,orbLo:d.orbLo})),transparent:true})));
     const hit=new THREE.Mesh(new THREE.PlaneGeometry(.86,.125),new THREE.MeshBasicMaterial({visible:false}));
     hit.position.z=.004;g.add(hit);
     makeInteractive(hit,{onPress:()=>chooseDest(k),poke:.08});
@@ -1111,6 +1148,9 @@ function haptic(controller,strength,ms){
 const grabs=new Map();
 const _v=new THREE.Vector3(),_v2=new THREE.Vector3(),_q=new THREE.Quaternion();
 function startGrab(controller,type){
+  if(type==="yoke"&&MODE.dof===0&&St.phase!=="preflight"){
+    showMsg("Autopiloten flyver. Skift til LET eller SVÆR for at styre selv.");
+  }
   if(type==="yoke"){
     yokeGroup.worldToLocal(_v.setFromMatrixPosition(controller.matrixWorld));
     grabs.set(controller,{type:type,ang:Math.atan2(_v.x,_v.y),rot:yokeWheel.rotation.z,
@@ -1219,13 +1259,38 @@ const St={phase:"preflight",order:[],step:0,alt:0,speed:0,thrust:0,dest:null,dis
   warpT:0,t:0,flash:0,landQuality:"",bodyDist:0};
 const BODY_POS=new THREE.Vector3();
 
+const NUMTEX=[];
+for(let n=1;n<=5;n++)NUMTEX.push(tex(labelCanvas(String(n),
+  {w:128,h:128,size:86,bg:"#1a1206",border:"#f2a33c",color:"#ffd27a"})));
 function newSequence(){
   St.order=[0,1,2,3,4];
   for(let i=4;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=St.order[i];St.order[i]=St.order[j];St.order[j]=t;}
   St.step=0;
-  controls.forEach(c=>{c.done=false;c.armed=false;});
+  controls.forEach(c=>{c.done=false;c.armed=false;c.num.visible=false;});
+  // each control now wears the number of its place in this run's order
+  St.order.forEach((ctrlIndex,place)=>{
+    controls[ctrlIndex].num.material.map=NUMTEX[place];
+    controls[ctrlIndex].num.material.needsUpdate=true;
+  });
   controls[St.order[0]].armed=true;
   log("SEKVENS 1/5");
+}
+function objectiveText(){
+  const auto=MODE.dof===0;
+  switch(St.phase){
+    case "preflight": return bigBtn.armed
+      ? "TRYK PÅ DEN STORE RØDE KNAP"
+      : "TRYK PÅ KNAPPEN MED TALLET "+(St.step+1);
+    case "ignition":  return "TÆNDING…";
+    case "ascent":    return auto?"AUTOPILOTEN STIGER OP":"GAS OP — RAT FOR HÆLDNING";
+    case "space":     return "VÆLG EN DESTINATION";
+    case "course":    return "TRYK PÅ HYPERRUM";
+    case "hyperspace":return "HYPERRUM";
+    case "approach":  return auto?"AUTOPILOTEN FLYVER IND":"FLYV IND — TRYK LAND NÅR DU VIL NED";
+    case "descent":   return auto?"AUTOPILOTEN LANDER":"FLYV NED PÅ OVERFLADEN";
+    case "landed":    return "TRYK NY FLYVNING FOR AT FLYVE IGEN";
+  }
+  return "";
 }
 
 /* ---------- screens ---------- */
@@ -1323,8 +1388,10 @@ function pressControl(c){
     if(St.step<5){controls[St.order[St.step]].armed=true;log("SEKVENS "+(St.step+1)+"/5");}
     else{bigBtn.armed=true;log("TRYK PÅ RØD");showMsg("Sekvens godkendt — tryk på den store røde knap");}
   }else{
-    Audio_.bad();St.flash=1;log("FEJL — OMSTART");showMsg("Forkert rækkefølge. Sekvensen starter forfra.");
-    setTimeout(newSequence,900);
+    /* Losing four correct presses to one wrong one is a punishment, not a
+     * puzzle. Buzz, point at the right one, and let them carry on. */
+    Audio_.bad();St.flash=1;log("TRYK DEN DER BLINKER");
+    showMsg("Ikke den — tryk på den med tallet "+(St.step+1)+" over.");
   }
 }
 function pressBig(){
@@ -1375,6 +1442,28 @@ function chooseDest(key){
   drawMap();
 }
 
+function restartFlight(){
+  St.phase="preflight";St.t=0;St.dest=null;St.distance=0;St.landQuality="";
+  St.alt=0;St.speed=0;St.bodyDist=0;St.warpT=0;
+  SHIP.pos.set(0,2.4,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();SHIP.onGround=true;
+  throttle.value=0;
+  terrainKey=null;clearChunks();
+  terrainRoot.visible=false;skirt.visible=false;
+  if(bodyMesh)bodyMesh.visible=false;
+  if(bodyHalo)bodyHalo.visible=false;
+  earth.visible=false;earth.material.opacity=0;
+  site.visible=true;menu.visible=false;
+  hyperBtn.group.visible=false;landBtn.group.visible=false;againBtn.group.visible=false;
+  stars.material.opacity=0;deepSky.visible=false;
+  skyUniforms.top.value.setHex(0x1f5fa8);
+  skyUniforms.bottom.value.setHex(0xa9cde8);
+  skyUniforms.alpha.value=1;
+  bigBtn.armed=false;
+  reseedStars();updateStars(0,0);syncWorld();
+  newSequence();drawMap();
+  log("KLAR IGEN");showMsg("Tilbage på rampen. Kør sekvensen igen.");
+}
+
 /* ---------- UI ---------- */
 const ui=document.getElementById("ui"), hud=document.getElementById("hud");
 const msgEl=document.getElementById("msg"), touchbar=document.getElementById("touchbar");
@@ -1395,8 +1484,9 @@ function setMode(key){
   MODE=MODES[key]||MODES.auto;
   for(const k in modeBtns)modeBtns[k].setAttribute("aria-pressed",String(k===MODE.key));
   modeHint.textContent=MODE.hint;
-  modePlate.material.map=tex(labelCanvas(MODE.name.toUpperCase(),
-    {w:256,h:96,size:30,bg:"#0d1218",border:"#3c4756",
+  if(modePlate.material.map)modePlate.material.map.dispose();
+  modePlate.material.map=tex(labelCanvas("FLYV: "+MODE.name.toUpperCase(),
+    {w:320,h:96,size:28,bg:"#0d1218",border:"#3c4756",
      color:MODE.key==="auto"?"#8ce8a0":MODE.key==="easy"?"#7fd4e8":"#f2a33c"}));
   modePlate.material.needsUpdate=true;
   showMsg("Flyvning: "+MODE.name);
@@ -1546,6 +1636,8 @@ function buildTouchbar(){
     tbMain.appendChild(mkBtn("HYPERRUM","lit",()=>pressHyper()));
   }else if(St.phase==="approach"){
     tbMain.appendChild(mkBtn("LAND","lit",()=>pressLand()));
+  }else if(St.phase==="landed"){
+    tbMain.appendChild(mkBtn("NY FLYVNING","lit",()=>restartFlight()));
   }
   if(!tbFlight.childElementCount){
     tbFlight.appendChild(mkHold("◀ RAT","KeyA"));
@@ -1568,7 +1660,14 @@ function refreshHud(){
 }
 
 /* ---------- flight ---------- */
+function throttleHeld(){
+  for(const g of grabs.values())if(g.type==="throttle")return true;
+  return keys.ShiftLeft||keys.ShiftRight||keys.ControlLeft||keys.ControlRight;
+}
 function autoThrottle(target,dt){
+  /* Never fight a hand that is on the lever. An autopilot that shoves the
+   * throttle back while you are holding it feels broken, not automatic. */
+  if(throttleHeld())return;
   throttle.value+=(target-throttle.value)*Math.min(1,dt*1.6);
 }
 function updateFlight(dt){
@@ -1770,11 +1869,12 @@ function updateFlight(dt){
       SHIP.vel.x*=Math.pow(.16,dt);SHIP.vel.z*=Math.pow(.16,dt);
       _q.identity();SHIP.quat.slerp(_q,1-Math.pow(.2,dt));
       St.phase=SHIP.vel.length()<2?"landed":"descent";
-      if(St.thrust>.55&&!auto)SHIP.onGround=false;   // and you can take off again
+      if(St.thrust>.55)SHIP.onGround=false;          // and you can take off again
     }else{
       SHIP.onGround=false;
       if(St.phase==="landed")St.phase="descent";
     }
+    againBtn.group.visible=(St.phase==="landed");
     ensureChunks(St.dest,SHIP.pos.x,SHIP.pos.z);
   }
 
@@ -1788,8 +1888,9 @@ function updateFlight(dt){
   const atmo=inAir?DEST[St.dest].atmo:(ph==="ascent"?Math.max(0,1-SHIP.pos.y/60000):0);
   Audio_.wind(atmo*Math.min(1,St.speed/90),St.speed);
 
-  /* Comfort: narrow the view when the world moves fast. Autopilot keeps it
-   * wide open, because nothing you do is making the horizon swing. */
+  /* Comfort: narrow the view when the world moves fast, by the amount the
+   * chosen mode asks for. Autopilot gets the STRONGEST narrowing, because
+   * whoever picked it is the one most likely to need it. */
   const rot=Math.abs(roll)+Math.abs(pitchIn);
   const motion=Math.min(1,St.speed/260)*.55+Math.min(1,rot)*.45;
   const want=(ph==="hyperspace")?.72:motion*MODE.vign;
@@ -1804,6 +1905,7 @@ function updateFlight(dt){
     c.press=Math.max(0,c.press-dt*4);
     const lit=c.armed?(.5+.5*Math.sin(St.t*7)):0;
     c.lamp.material.color.setHex(c.done?0x2ad46a:(lit>.4?0xf2a33c:0x3a2a14));
+    c.num.visible=c.armed&&St.phase==="preflight";
     if(c.kind==="button"){
       c.body.position.z=.035-c.press*.018;
       c.body.material.emissive.setHex(c.done?0x0f3a1c:(lit>.4?0x3a2609:0x000000));
@@ -1878,6 +1980,11 @@ renderer.setAnimationLoop(()=>{
   screenClock+=dt;
   if(screenClock>.14){screenClock=0;drawStatus();if(St.dest)drawMap();}
   refreshHud();
+  const osig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0)+"|"+MODE.key;
+  if(osig!==objSig){
+    objSig=osig;
+    setObjective(objectiveText(),St.phase==="landed"?"#c9a0ff":"#f2a33c");
+  }
   if(!touchbar.hidden)buildTouchbar();
   if(msgTimer>0){msgTimer-=dt;if(msgTimer<=0)msgEl.style.opacity="0";}
   if(St.phase!=="hyperspace"){
