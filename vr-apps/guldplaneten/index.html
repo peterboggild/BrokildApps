@@ -2583,7 +2583,10 @@ function startQuests(cx,cz){
   qPit.position.set(Q.pit.x,groundH("gold",Q.pit.x,Q.pit.z)+.1,Q.pit.z);
 }
 function questLabel(){
-  if(!Q.active)return Object.keys(Q.done).length>=3?"ALLE OPGAVER KLARET":"";
+  /* Before the first favour there was no label at all, so from the cockpit
+   * there was nothing to say the planet had anything to do on it. */
+  if(!Q.active)return Object.keys(Q.done).length>=3?"ALLE OPGAVER KLARET"
+    :"GÅ UD OG TAL MED ALIEN VED LYSSØJLEN";
   if(Q.active==="sand")return "RED "+Q.sand.filter(s=>!s.freed).length+" FRA KVIKSAND";
   if(Q.active==="food")return "FIND GULDFRUGT "+Q.held+"/3";
   if(Q.active==="lost")return Q.lost.found?"FØLG LILLEBROR HJEM":"FIND LILLEBROR";
@@ -3937,6 +3940,14 @@ function updateFlight(dt){
             log("KORT I NÆRHEDEN");
             showMsg("Kortet ligger 50 m herfra. Gå ud og følg pilene.",8);
           }
+        }
+        /* Mars tells you where to go the moment you land; Guldplaneten said
+         * nothing at all, so the three favours sat there unaskable. The
+         * beam over the spokesman was already lit — it just needed saying
+         * that you have to be out of the ship and standing next to him. */
+        if(St.dest==="gold"&&questRoot.visible&&Object.keys(Q.done).length<3){
+          log("ALIENS I NÆRHEDEN");
+          showMsg("Guldplaneten. Gå ud og stil dig hen til aliens ved lyssøjlen — han vil spørge dig om noget.",9);
         }
         log(St.landQuality+" LANDING");
         showMsg(St.landQuality==="BLØD"?"Blød landing. Pænt fløjet.":
