@@ -2055,6 +2055,10 @@ function clickFlat(e){
   }
 }
 window.addEventListener("keydown",e=>{
+  if(WALK.active&&!e.repeat){
+    if(e.code==="KeyA"){turnWalker(-1);return;}
+    if(e.code==="KeyD"){turnWalker( 1);return;}
+  }
   keys[e.code]=true;
   if(e.code==="KeyB")setSkin(currentSkin==="steel"?"black":"steel");
   if(e.code==="KeyM"){const o=["auto","easy","hard"];setMode(o[(o.indexOf(MODE.key)+1)%3]);}
@@ -2101,13 +2105,20 @@ function buildTouchbar(){
   }else if(St.phase==="eva"){
     tbMain.appendChild(mkBtn("GÅ IND","lit",()=>enterShip()));
   }
-  if(!tbFlight.childElementCount){
-    tbFlight.appendChild(mkHold("◀ RAT","KeyA"));
-    tbFlight.appendChild(mkHold("RAT ▶","KeyD"));
-    tbFlight.appendChild(mkHold("NÆSE ▲","KeyW"));
-    tbFlight.appendChild(mkHold("NÆSE ▼","KeyS"));
-    tbFlight.appendChild(mkHold("GAS +","ShiftLeft"));
-    tbFlight.appendChild(mkHold("GAS −","ControlLeft"));
+  const row=(St.phase==="eva")?"foot":"fly";
+  if(tbFlight.dataset.row!==row){
+    tbFlight.dataset.row=row;tbFlight.innerHTML="";
+    if(row==="foot"){
+      tbFlight.appendChild(mkBtn("◀ DREJ","",()=>turnWalker(-1)));
+      tbFlight.appendChild(mkBtn("DREJ ▶","",()=>turnWalker( 1)));
+    }else{
+      tbFlight.appendChild(mkHold("◀ RAT","KeyA"));
+      tbFlight.appendChild(mkHold("RAT ▶","KeyD"));
+      tbFlight.appendChild(mkHold("NÆSE ▲","KeyW"));
+      tbFlight.appendChild(mkHold("NÆSE ▼","KeyS"));
+      tbFlight.appendChild(mkHold("GAS +","ShiftLeft"));
+      tbFlight.appendChild(mkHold("GAS −","ControlLeft"));
+    }
   }
 }
 function refreshHud(){
@@ -2272,6 +2283,11 @@ function enterShip(){
     showMsg(St.dest?"Ombord igen.":"Ombord. Kør startsekvensen.");
   });
 }
+function turnWalker(dir){
+  if(!WALK.active)return;
+  WALK.yaw-=dir*Math.PI/6;
+  Audio_.click();
+}
 function updateEVA(dt){
   St.thrust=0;St.speed=0;
   /* Feet follow the height field every frame, so slopes are walked up and
@@ -2287,10 +2303,9 @@ function updateEVA(dt){
     _v2.copy(WALK.pos).applyMatrix4(_m4.copy(shipMat).invert());
     enterMark.rotation.y=Math.atan2(_v2.x-enterMark.position.x,_v2.z-enterMark.position.z);
   }
-  if(!renderer.xr.isPresenting){
-    if(keys.KeyA)WALK.yaw+=dt*1.5;
-    if(keys.KeyD)WALK.yaw-=dt*1.5;
-  }
+  /* Turning snaps here for the same reason it snaps in the headset:
+   * sweeping the whole world past a body that is standing still is what
+   * makes people ill. On a flat screen you can also drag to look. */
   if(terrainKey)ensureChunks(terrainKey,WALK.pos.x,WALK.pos.z);
   Audio_.engine(.02,0);
   Audio_.wind((St.dest?DEST[St.dest].atmo:.6)*.25,12);
@@ -2329,6 +2344,9 @@ function autoThrottle(target,dt){
 }
 function updateFlight(dt){
   St.t+=dt;
+  /* Leave before touching any cockpit control: on foot the yoke and the
+   * throttle are across the pad, not in your hands. */
+  if(St.phase==="eva"){axes();updateEVA(dt);return;}
   const roll=yokeWheel.rotation.z/1.25, pitchIn=yokeGroup.rotation.x/0.36;
 
   if(!renderer.xr.isPresenting){
@@ -2346,8 +2364,6 @@ function updateFlight(dt){
 
   const ph=St.phase, auto=MODE.dof===0;
   axes();
-
-  if(ph==="eva"){updateEVA(dt);return;}
 
   /* One steering function for every flying phase. The mode decides how many
    * axes answer to the wheel; the autopilot answers to none of them. */
@@ -2553,7 +2569,7 @@ function updateFlight(dt){
    * whoever picked it is the one most likely to need it. */
   const rot=Math.abs(roll)+Math.abs(pitchIn);
   const motion=Math.min(1,St.speed/260)*.55+Math.min(1,rot)*.45;
-  const want=(ph==="hyperspace")?.72:motion*MODE.vign;
+  const want=renderer.xr.isPresenting ? ((ph==="hyperspace")?.72:motion*MODE.vign) : 0;
   vignette.material.opacity+=(want-vignette.material.opacity)*Math.min(1,dt*2.5);
 
   const shake=(ph==="ignition")?.014:(ph==="ascent")?.008*Math.max(0,1-SHIP.pos.y/90000)+.002:
