@@ -87,10 +87,15 @@
     box-shadow:0 0 14px rgba(242,163,60,.35);background:#2a2113}
   #touchbar button.red{background:linear-gradient(180deg,#b9282c,#7d1618);border-color:#e8676a;color:#fff}
   #touchbar button.hold{flex:0 0 auto;min-width:54px;font-size:14px;padding:12px 10px}
-  #hud{position:fixed;left:max(16px,env(safe-area-inset-left,0px));
-    bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:4;pointer-events:none;
+  /* Top-left, on its own dark card. Down at the bottom it landed straight
+     on top of the console's own readout, so the same five numbers were
+     printed twice, over each other, in two different colours. */
+  #hud{position:fixed;left:max(12px,env(safe-area-inset-left,0px));
+    top:calc(12px + env(safe-area-inset-top,0px));z-index:4;pointer-events:none;
     font-size:11px;letter-spacing:.12em;color:var(--amber);text-shadow:0 0 12px rgba(242,163,60,.5);
-    font-variant-numeric:tabular-nums;line-height:1.7}
+    font-variant-numeric:tabular-nums;line-height:1.7;
+    background:rgba(6,9,14,.56);border:1px solid rgba(90,110,135,.34);border-radius:8px;
+    padding:7px 11px;backdrop-filter:blur(3px)}
   #hud span{color:var(--paper-dim)}
   #msg{position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:4;pointer-events:none;
     font-family:var(--display);font-weight:600;font-size:clamp(16px,4.5vw,26px);letter-spacing:.04em;
@@ -291,6 +296,61 @@ function earthTexture(){
     const k2=Math.min(1,cloud+swirl*.7);
     R+=(250-R)*k2;G+=(252-G)*k2;B+=(255-B)*k2;
     const i=(y*W+x)*4;d[i]=R;d[i+1]=G;d[i+2]=B;d[i+3]=255;
+  }
+  g.putImageData(img,0,0);return c;
+}
+/* ---------- tiling detail sheets ----------
+ * The planet map is 1024 pixels for a whole world. From 45 km up you are
+ * looking at about thirty-six of those texels stretched across the
+ * windscreen, which is why the ground below read as one flat green wash
+ * however much coastline the map had. These two sheets are tiled across
+ * the limb many times over, so there is real structure at every altitude:
+ * one of relief, one of weather.
+ *
+ * The shared noise wraps on a 256 lattice, which cannot tile a small
+ * canvas, so this carries its own lattice with an explicit period — every
+ * octave wraps on it, and the sheet is seamless. */
+function tileNoise(seed,P){
+  const rnd=mulberry32(seed),grid=new Float32Array(P*P*3);
+  for(let i=0;i<grid.length;i++)grid[i]=rnd();
+  const at=(i,j,o)=>grid[((((j%P)+P)%P)*P+(((i%P)+P)%P))*3+o];
+  return function(x,y,o){
+    const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+    const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+    return (at(xi,yi,o)*(1-u)+at(xi+1,yi,o)*u)*(1-v)
+         + (at(xi,yi+1,o)*(1-u)+at(xi+1,yi+1,o)*u)*v;
+  };
+}
+/* Relief: ridged, so it folds into crests rather than humps — mountains
+ * read as ranges with valleys between, not as lumps. */
+function reliefTexture(){
+  const S=256,P=8,c=cvs(S,S),g=c.getContext("2d");
+  const n=tileNoise(7331,P),img=g.createImageData(S,S),d=img.data;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    const fx=x/S*P,fy=y/S*P;
+    const r1=1-Math.abs(n(fx,fy,0)*2-1);
+    const r2=1-Math.abs(n(fx*2,fy*2,1)*2-1);
+    const r3=1-Math.abs(n(fx*4,fy*4,2)*2-1);
+    const v=Math.min(255,Math.max(0,(r1*r1*.52+r2*r2*.32+r3*r3*.16)*300));
+    const i=(y*S+x)*4;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
+  }
+  g.putImageData(img,0,0);return c;
+}
+/* Weather: white where it is cloudy, clear everywhere else, carried in the
+ * alpha channel so the deck can sit over the surface as its own shell. */
+function cloudSheet(){
+  const S=256,P=6,c=cvs(S,S),g=c.getContext("2d");
+  const n=tileNoise(20617,P),img=g.createImageData(S,S),d=img.data;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    const fx=x/S*P,fy=y/S*P;
+    const v=n(fx,fy,0)*.63+n(fx*2,fy*2,1)*.25+n(fx*4,fy*4,2)*.12;
+    /* Broken cloud, not overcast. At a lower threshold the deck closed over
+     * the whole planet and the sea and the land it is there to sit on top
+     * of never showed at all. */
+    const t=Math.min(1,Math.max(0,(v-.605)/.165));
+    const a=t*t*(3-2*t);
+    const i=(y*S+x)*4;
+    d[i]=252;d[i+1]=253;d[i+2]=255;d[i+3]=Math.round(a*236);
   }
   g.putImageData(img,0,0);return c;
 }
@@ -503,7 +563,7 @@ const M={
   hullDark:new THREE.MeshStandardMaterial({color:0x10151c,roughness:.85,metalness:.35,roughnessMap:wear}),
   trim:new THREE.MeshStandardMaterial({color:0x3c4756,roughness:.4,metalness:.85,roughnessMap:wear}),
   rubber:new THREE.MeshStandardMaterial({color:0x14181d,roughness:.95,metalness:.05}),
-  glassFrame:new THREE.MeshStandardMaterial({color:0x2a3340,roughness:.35,metalness:.9,roughnessMap:wear}),
+  glassFrame:new THREE.MeshStandardMaterial({color:0x2a3340,roughness:.56,metalness:.45,roughnessMap:wear}),
   glass:new THREE.MeshStandardMaterial({color:0x8ec4e0,roughness:.08,metalness:.1,
     transparent:true,opacity:.17,side:THREE.DoubleSide,depthWrite:false}),
   skin:new THREE.MeshStandardMaterial({color:0xd8c9a8,roughness:.72,metalness:.02}),
@@ -572,7 +632,12 @@ function box(w,h,d,mat,x,y,z,parent){
   box(2.0,.14,.14,M.glassFrame,0,0.80,-1.06);   // low sill: the prow is the view
   box(.10,1.24,.14,M.glassFrame,-.92,1.39,-1.06);
   box(.10,1.24,.14,M.glassFrame,.92,1.39,-1.06);
-  box(.07,1.24,.12,M.glassFrame,0,1.39,-1.06);
+  /* The centre mullion used to run the full height of the windscreen. At
+   * metalness .9 it caught the sun as a bright bar straight down the middle
+   * of the one view this whole game is about. Two short stubs keep the
+   * structure and leave the glass clear. */
+  box(.07,.24,.12,M.glassFrame,0,1.88,-1.06);
+  box(.07,.24,.12,M.glassFrame,0,0.90,-1.06);
   box(.56,.10,.52,M.rubber,0,.44,.16);
   box(.56,.72,.10,M.rubber,0,.80,.40);
   box(.10,.34,.48,M.rubber,-.30,.62,.16);
@@ -592,11 +657,16 @@ consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.9,.5,.07),M.hull));
 (function(){
   const lip=new THREE.Mesh(new THREE.BoxGeometry(1.96,.04,.1),M.trim);
   lip.position.set(0,-.26,.01);consoleGroup.add(lip);
-  /* The ship's name, across the top of the dashboard. */
-  const plate=new THREE.Mesh(new THREE.PlaneGeometry(1.15,.072),
-    new THREE.MeshBasicMaterial({map:tex(labelCanvas("THEODOR & MORFARS RUMSKIB",
-      {w:1024,h:64,size:34,bg:"#0b0f15",border:"#3c4756",color:"#e8c35a"})),transparent:true}));
-  plate.position.set(0,.205,.04);consoleGroup.add(plate);
+  /* The ship's name, across the top of the dashboard — in two plates, one
+   * either side of the yoke. As a single centred plate the wheel's hub sat
+   * squarely over "MORFARS", which is the half of the name that matters. */
+  [["THEODOR &",256,-1],["MORFARS RUMSKIB",384,1]].forEach(n=>{
+    const w=n[1]*0.001125;
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(w,.072),
+      new THREE.MeshBasicMaterial({map:tex(labelCanvas(n[0],
+        {w:n[1],h:64,size:34,bg:"#0b0f15",border:"#3c4756",color:"#e8c35a"})),transparent:true}));
+    m.position.set(n[2]*(0.325+w/2),.205,.04);consoleGroup.add(m);
+  });
 })();
 box(1.9,.52,.1,M.hullDark,0,.40,-.80);
 
@@ -667,6 +737,28 @@ const HULL={glow:null,beacon:null,beaconMat:null};
     {z: 8.30,w:3.10,top: 3.85,bot:1.55},{z:10.60,w:2.70,top: 3.25,bot:1.30},
     {z:11.70,w:2.40,top: 2.80,bot:1.10}
   ];
+  /* ---- where the hull actually is ----
+   * Every strip, panel and blister below used to be placed by eye, which is
+   * how a cyan light bar ended up hanging half a metre off the nose and a
+   * row of little cubes ended up floating over the forward deck. These two
+   * helpers ask the stations for the surface a marking is meant to lie on,
+   * so the detail moves with the hull instead of beside it. */
+  function stAt(z){
+    let i=0; while(i<ST.length-2&&z>ST[i+1].z)i++;
+    const a=ST[i],c=ST[i+1],t=THREE.MathUtils.clamp((z-a.z)/(c.z-a.z),0,1);
+    return {w:a.w+(c.w-a.w)*t, top:a.top+(c.top-a.top)*t, bot:a.bot+(c.bot-a.bot)*t};
+  }
+  /* Half-width across the section as a function of its vertical parameter:
+   * flat-sided between the two shoulders, drawing in above and below. */
+  function sectionX(s){
+    if(s>= 0.20) return 1.00-0.34*THREE.MathUtils.clamp((s-0.20)/0.68,0,1);
+    if(s>=-0.50) return 1.00;
+    return        1.00-0.34*THREE.MathUtils.clamp((-0.50-s)/0.50,0,1);
+  }
+  function flank(z,s){
+    const q=stAt(z);
+    return [q.w*sectionX(s), s<0?s*q.bot:s*q.top];
+  }
   /* Paint scheme in the colour attribute: sunlit upper surfaces, a dark
    * keel, and an amber stripe along the chine. Vehicles read by their
    * two-tone, not by their outline, and this costs no extra draw call. */
@@ -774,11 +866,23 @@ const HULL={glow:null,beacon:null,beaconMat:null};
       [sg*2.70,-2.00],[sg*4.60,1.20],[sg*4.60,2.40],[sg*2.85,0.30]
     ],.52,.24),M.extTop);
     strake.position.y=-.35;hullExt.add(strake);
-    fins.push([sg*11.92,1.05,8.10,.24,3.10,3.40,0,0,sg*0.22]);
+    /* The wingtip fin was a 3 x 3.4 m slab 24 cm thick — from most angles a
+     * grey rectangle propped on the wing. It is now a swept winglet: it
+     * grows out of the tip, peaks aft of the spar and tapers away again. */
+    form([
+      {z:7.05,w:0.07,top:0.06,bot:0.06,x:sg*11.95,y:-0.35},
+      {z:7.70,w:0.11,top:1.50,bot:0.14,x:sg*12.04,y:-0.35},
+      {z:8.60,w:0.11,top:2.30,bot:0.14,x:sg*12.14,y:-0.35},
+      {z:9.22,w:0.06,top:1.25,bot:0.06,x:sg*12.20,y:-0.35}
+    ],M.extTrim,{stripe:false,lo:.52});
     // the nav light sits in a housing on the fin, not floating free in space
     fins.push([sg*11.92,-.22,7.00,.30,.34,.44]);
     (sg<0?navsR:navsG).push([sg*11.95,-.22,6.78,.15,.15,.15]);
-    for(let i=0;i<5;i++)fins.push([sg*(4.2+i*.52),.10,3.9+i*.26,.10,.66,2.2]);
+    /* Heat-exchanger blades. Five identical upright plates looked like a
+     * comb dropped on the wing; four raked ones of falling height read as
+     * louvres cut into it. */
+    for(let i=0;i<4;i++)
+      fins.push([sg*(4.6+i*.62),-.04,4.1+i*.34,.08,.38-i*.05,1.9-i*.22,0,sg*-0.30,0]);
     // pylon and nacelle for the outboard engine
     /* The nacelle grows out of the wing instead of hanging off a box
      * pylon: one swept form that starts as a thin blade at the wing surface
@@ -804,16 +908,21 @@ const HULL={glow:null,beacon:null,beaconMat:null};
 
   // ---- dorsal spine, tanks, mast, beacon ----
   form([
-    {z: 2.40,w:0.50,top:0.42,bot:0.50,y:3.90},
+    {z: 2.65,w:0.13,top:0.10,bot:0.10,y:3.05},
+    {z: 3.10,w:0.50,top:0.42,bot:0.62,y:3.70},
     {z: 4.20,w:1.00,top:0.88,bot:1.00,y:3.90},
     {z: 7.40,w:1.02,top:0.90,bot:1.02,y:3.90},
     {z: 9.40,w:0.62,top:0.54,bot:0.62,y:3.90}
   ],M.extTrim,{stripe:false,lo:.58});
+  /* Shoulder tanks. With an even section they lay on the back like two
+   * cigars; a deep lower half sinks them into the deck so only the crown
+   * shows, and the long points at each end fair them into the hull. */
   [-1,1].forEach(sg=>form([
-    {z:3.40,w:0.40,top:0.38,bot:0.40,x:sg*2.62,y:3.10},
-    {z:5.20,w:0.76,top:0.72,bot:0.76,x:sg*2.62,y:3.10},
-    {z:7.80,w:0.78,top:0.74,bot:0.78,x:sg*2.62,y:3.10},
-    {z:9.60,w:0.48,top:0.45,bot:0.48,x:sg*2.62,y:3.10}
+    {z:2.90,w:0.14,top:0.10,bot:0.90,x:sg*2.55,y:2.86},
+    {z:4.10,w:0.62,top:0.56,bot:1.30,x:sg*2.58,y:2.86},
+    {z:6.20,w:0.80,top:0.74,bot:1.45,x:sg*2.62,y:2.86},
+    {z:8.40,w:0.70,top:0.64,bot:1.30,x:sg*2.60,y:2.86},
+    {z:9.90,w:0.12,top:0.10,bot:0.80,x:sg*2.56,y:2.86}
   ],M.extDark,{stripe:false,lo:.55}));
   add(UCYL6,M.extTrim,0,6.00,8.50).scale.set(.10,3.8,.10);
   add(new THREE.TorusGeometry(.80,.055,5,12),M.extTrim,0,7.60,8.50,Math.PI/2.6,0,0);
@@ -823,10 +932,17 @@ const HULL={glow:null,beacon:null,beaconMat:null};
   // ---- chin turret, RCS quads, floodlights ----
   add(USPH,M.extTrim,0,-1.60,-4.30).scale.setScalar(.66);
   add(UCYL,M.extDark,0,-2.07,-4.30).scale.set(.29,.62,.29);
+  /* RCS quads. As cubes sitting proud of the deck they read as three pairs
+   * of crates someone forgot to unload; as half-sunk faceted blisters on the
+   * hull's own upper line they read as part of the ship. */
   const rcs=[];
-  [-1,1].forEach(sg=>{rcs.push([sg*1.05,.1,-6.70,.42,.42,.62],[sg*1.70,.1,-3.10,.42,.42,.62],
-                               [sg*3.30,.1, 9.40,.42,.42,.62]);});
-  cluster(UBOX,M.extTrim,rcs);
+  [-1,1].forEach(sg=>{
+    [[-6.70,0.46],[-3.10,0.50],[1.10,0.50]].forEach(c=>{
+      const f=flank(c[0],0.18);
+      rcs.push([sg*f[0]*0.80,f[1]+0.02,c[0],c[1],.24,c[1]]);
+    });
+  });
+  cluster(UCYL6,M.extTrim,rcs);
   cluster(UCYL,M.extDark,[[-1.20,-1.70,-2.70,.22,.32,.22,Math.PI/2.4,0,0],
                           [ 1.20,-1.70,-2.70,.22,.32,.22,Math.PI/2.4,0,0]]);
   cluster(new THREE.CircleGeometry(.19,10),
@@ -840,21 +956,34 @@ const HULL={glow:null,beacon:null,beaconMat:null};
   (function markings(){
     const strips=[],haz=[];
     [-1,1].forEach(sg=>{
-      // chine strips running the length of the hull
-      strips.push([sg*3.44,-.30,-4.20,.05,.14,4.2]);
-      strips.push([sg*3.56,-.30, 1.40,.05,.14,4.6]);
-      strips.push([sg*3.36,-.30, 7.60,.05,.14,3.4]);
-      // wing leading and trailing edge strips
-      strips.push([sg*7.4,-.12,3.30,.10,.05,6.4,0,sg*-0.655,0]);
-      strips.push([sg*7.6,-.12,9.60,.10,.05,4.6,0,sg* 0.36,0]);
+      /* A chine run, laid as short segments that each sit at the hull's own
+       * half-width there. One straight four-metre bar over a nose that
+       * tapers by a metre ends up buried at one end and floating off the
+       * other, which is exactly what it was doing. */
+      const run=(list,z0,z1,s,th,ht)=>{
+        const n=Math.max(1,Math.round((z1-z0)/1.1)), L=(z1-z0)/n;
+        for(let i=0;i<n;i++){
+          const zc=z0+L*(i+.5), f=flank(zc,s);
+          list.push([sg*f[0],f[1],zc,th,ht,L*0.92]);
+        }
+      };
+      run(strips,-6.30,-2.10,-0.26,.05,.14);
+      run(strips,-0.90, 3.70,-0.26,.05,.14);
+      run(strips, 5.90, 9.30,-0.26,.05,.14);
+      /* One bar along the leading-edge spar's front face. It used to be
+       * built long in Z and then yawed with the spar — which laid it ACROSS
+       * the wing, as a white rod out through both surfaces. */
+      strips.push([sg*7.646,-.45,3.36,10.6,.20,.06,0,sg*-0.655,0]);
       // a bar either side of the bridge
       strips.push([sg*1.30,.34,-.35,.05,.12,1.9]);
-      // nacelle rings
-      strips.push([sg*7.80,-2.30,4.30,.22,.22,.16]);
-      // orange hazard blocks
-      haz.push([sg*3.42,-.72,-3.00,.05,.72,2.3]);
-      haz.push([sg*3.52,-.72, 4.20,.05,.72,1.7]);
-      haz.push([sg*6.2,-.12,5.20,1.9,.05,1.2,0,sg*-0.655,0]);
+      // a light bar across the top of each outboard nacelle
+      strips.push([sg*7.80,-1.04,8.90,1.30,.07,.50]);
+      // orange hazard panels, on the lower flank
+      run(haz,-4.15,-1.85,-0.55,.05,.40);
+      run(haz, 3.35, 5.05,-0.55,.05,.40);
+      // a wedge lying on each wing's upper surface
+      haz.push([sg*6.2,-.12,5.20,1.9,.03,1.2,0,sg*-0.655,0]);
+      // and a panel on the superstructure flank
       haz.push([sg*2.96, 1.60, 3.40,.05,.9,1.3]);
     });
     strips.push([0,4.12,5.60,2.4,.10,.22]);
@@ -864,13 +993,25 @@ const HULL={glow:null,beacon:null,beaconMat:null};
 
   // ---- flank greebles: panels, conduits and caps, one call ----
   (function greeble(){
-    const N=72, rr=mulberry32(90125), items=[];
-    for(let i=0;i<N;i++){
-      const sg=i%2?1:-1, t=rr(), z=-7.8+t*18.5;
-      const wHere=0.38+Math.min(1,Math.max(0,(z+9.9)/9.2))*3.02;
-      items.push([sg*wHere*0.985,(rr()-.45)*1.9,z,
-        .045+rr()*.05,.14+rr()*.66,.7+rr()*2.6, 0,0,(rr()-.5)*.25]);
-    }
+    /* These were 72 boxes at random heights with a random tilt, scattered
+     * along a straight-line guess at the hull width. Near the nose that put
+     * a row of little cubes in the air above the forward deck, which is the
+     * first thing you look at from the seat. They are now plating: two
+     * courses following the real flank, square to the hull, with only their
+     * lengths varied. */
+    const rr=mulberry32(90125), items=[];
+    [-1,1].forEach(sg=>{
+      [[-0.18,.26],[-0.62,.34]].forEach((row,k)=>{
+        let z=-7.60+k*0.55;
+        while(z<9.60){
+          const L=1.0+rr()*1.5, zc=z+L/2;
+          if(zc>9.40)break;
+          const f=flank(zc,row[0]);
+          items.push([sg*f[0],f[1],zc,.05,row[1],L*0.9]);
+          z+=L+0.18;
+        }
+      });
+    });
     cluster(UBOX,M.extTrim,items);
   })();
   // belly conduits, running fore and aft
@@ -1002,9 +1143,11 @@ const CTRL_LABELS=["ILT","PUMPE","KØL","TRYK","FASE"];
     lbl.position.set(0,-.066,.019);g.add(lbl);
     /* A blinking 16 mm lamp is not findable in a headset. The one you are
      * meant to press carries its number, big, right above it. */
-    const num=new THREE.Mesh(new THREE.PlaneGeometry(.075,.075),
+    /* On the control's own face, not floating above it: at .108 the number
+     * cleared the control but landed squarely on the ship's nameplate. */
+    const num=new THREE.Mesh(new THREE.PlaneGeometry(.046,.046),
       new THREE.MeshBasicMaterial({transparent:true}));
-    num.position.set(0,.108,.02);num.visible=false;g.add(num);
+    num.position.set(.058,.060,.0195);num.visible=false;g.add(num);
     const hit=new THREE.Mesh(new THREE.BoxGeometry(.19,.2,.12),new THREE.MeshBasicMaterial({visible:false}));
     hit.position.z=.05;g.add(hit);
     const entry={group:g,body:body,lamp:lamp,num:num,kind:i<3?"button":"lever",index:i,armed:false,done:false,press:0};
@@ -1523,14 +1666,19 @@ sky.renderOrder=-13;shell.add(sky);
  * the ground you walk on and the ground you look down at are the same. */
 const EARTH_SITE=(function(){
   const W=1024,H=512,y=Math.floor(H*0.52);
-  let best={len:0,mid:W*0.75}, run=0;
+  let best={len:0,start:Math.floor(W*0.70)}, run=0;
   for(let x=0;x<W;x++){
-    if(noiseA(x/42,y/42,7)>0.56){run++;if(run>best.len)best={len:run,mid:x-run/2};}
+    if(noiseA(x/42,y/42,7)>0.56){run++;if(run>best.len)best={len:run,start:x-run+1};}
     else run=0;
   }
-  const x=best.mid;
+  /* Not the middle of the continent, which is where this used to put the
+   * pad: a few score kilometres in from its western shore. From the pad
+   * you still see nothing but grass and hills, but by a couple of
+   * kilometres up the coast and the open sea come over the horizon — which
+   * is what makes the climb read as leaving a planet rather than a field. */
+  const x=best.start+Math.max(2,Math.min(6,Math.floor(best.len/3)));
   const n=noiseA(x/42,y/42,7), h=(n-.52)/.48, arid=noiseC(x/55+3,y/55,3);
-  return {u:best.mid/W,
+  return {u:x/W,
     r:52+h*70+arid*92, g:92+h*66+arid*40, b:44+h*34+arid*12};
 })();
 const site=new THREE.Group();world.add(site);
@@ -1603,10 +1751,11 @@ const LIMB_D=3000;
  * and a touch of nose-down brings it fully into frame. The other worlds are
  * scaled to match, so their horizons sit in the window on the way down too. */
 const LIMBS={
-  earth:{R:1800000,tex:null,make:earthTexture,glow:new THREE.Color(0x5aa8ff),atmo:1.0},
-  moon :{R: 900000,tex:null,make:moonTexture, glow:new THREE.Color(0x9aa0aa),atmo:0.0},
-  mars :{R:1100000,tex:null,make:marsTexture, glow:new THREE.Color(0xe08a52),atmo:0.5},
-  gold :{R:1250000,tex:null,make:goldTexture, glow:new THREE.Color(0xbb70ff),atmo:0.8}
+  earth:{R:1800000,tex:null,make:earthTexture,glow:new THREE.Color(0x5aa8ff),atmo:1.0,relief:1.0,cloud:0.86},
+  moon :{R: 900000,tex:null,make:moonTexture, glow:new THREE.Color(0x9aa0aa),atmo:0.0,relief:0.95},
+  mars :{R:1100000,tex:null,make:marsTexture, glow:new THREE.Color(0xe08a52),atmo:0.5,relief:0.85},
+  gold :{R:1250000,tex:null,make:goldTexture, glow:new THREE.Color(0xbb70ff),atmo:0.8,relief:0.55,
+         cloud:0.5,cloudTint:new THREE.Color(0xc79bff)}
 };
 /* THE DEPTH PROBLEM, and why these are hand-written shaders.
  *
@@ -1624,10 +1773,16 @@ const LIMBS={
  * stars because those draw earlier and write no depth. One pass, no
  * depth-buffer juggling, and correct on the way down as well as up. */
 const LIMB_PIN="vec4 p=projectionMatrix*mv; p.z=p.w*0.999999; gl_Position=p;";
+const RELIEF_TEX=tex(reliefTexture());
+const CLOUD_TEX=tex(cloudSheet());
+RELIEF_TEX.wrapS=RELIEF_TEX.wrapT=THREE.RepeatWrapping;
+CLOUD_TEX.wrapS=CLOUD_TEX.wrapT=THREE.RepeatWrapping;
 const limbBodyU={
   map:{value:null}, opacity:{value:0},
   sunWorld:{value:new THREE.Vector3(-3,4,-6).normalize()},
-  ambient:{value:new THREE.Color(0x2b3a4d)}
+  ambient:{value:new THREE.Color(0x2b3a4d)},
+  relief:{value:RELIEF_TEX}, reliefAmt:{value:0}, hasSea:{value:0},
+  reliefRep:{value:new THREE.Vector2(150,75)}
 };
 const limbBody=new THREE.Mesh(new THREE.SphereGeometry(1,72,44),
   new THREE.ShaderMaterial({
@@ -1637,10 +1792,16 @@ const limbBody=new THREE.Mesh(new THREE.SphereGeometry(1,72,44),
       "void main(){ vUv=uv; vN=normalize(normalMatrix*normal);"+
       "vec4 mv=modelViewMatrix*vec4(position,1.0);"+LIMB_PIN+"}",
     fragmentShader:
-      "uniform sampler2D map; uniform float opacity;"+
+      "uniform sampler2D map; uniform sampler2D relief; uniform float opacity;"+
+      "uniform float reliefAmt; uniform vec2 reliefRep; uniform float hasSea;"+
       "uniform vec3 sunWorld; uniform vec3 ambient;"+
       "varying vec2 vUv; varying vec3 vN;"+
       "void main(){ vec3 base=texture2D(map,vUv).rgb;"+
+      /* Relief only where there is land to have relief: the sea stays flat,
+       * which is most of what tells you it IS sea from up here. */
+      "float land=mix(1.0,clamp(((base.r+base.g)*0.5-base.b*0.95)*4.0,0.0,1.0),hasSea);"+
+      "float det=texture2D(relief,vUv*reliefRep).r;"+
+      "base*=mix(1.0,0.70+det*0.68,land*reliefAmt);"+
       /* viewMatrix is built in, so the terminator tracks the real sun with
        * no per-frame work on the CPU and no second light to compile. */
       "vec3 sv=normalize((viewMatrix*vec4(sunWorld,0.0)).xyz);"+
@@ -1648,13 +1809,17 @@ const limbBody=new THREE.Mesh(new THREE.SphereGeometry(1,72,44),
       "vec3 col=base*(ambient+vec3(1.15)*max(0.0,d)+vec3(0.20)*max(0.0,d*0.5+0.5));"+
       "gl_FragColor=vec4(col,opacity); }"
   }));
-limbBody.renderOrder=-10;limbBody.visible=false;shell.add(limbBody);
+limbBody.renderOrder=-11;limbBody.visible=false;shell.add(limbBody);
 
 const limbAtmoU={glow:{value:new THREE.Color(0x5aa8ff)},strength:{value:0}};
 const limbAtmo=new THREE.Mesh(new THREE.SphereGeometry(1.035,48,30),
   new THREE.ShaderMaterial({
+    /* DoubleSide, and not by taste. The shell is 3.5% wider than the body,
+     * so below about 63 km its surface passes OUTSIDE the eye — the eye is
+     * then within the shell, every front face points away, and the whole
+     * glow is culled. That is why the rim only ever appeared near orbit. */
     uniforms:limbAtmoU,transparent:true,depthWrite:false,
-    blending:THREE.AdditiveBlending,side:THREE.FrontSide,
+    blending:THREE.AdditiveBlending,side:THREE.DoubleSide,
     vertexShader:
       "varying vec3 vN; varying vec3 vP;"+
       "void main(){ vN=normalize(normalMatrix*normal);"+
@@ -1670,6 +1835,38 @@ const limbAtmo=new THREE.Mesh(new THREE.SphereGeometry(1.035,48,30),
   }));
 limbAtmo.renderOrder=-9;limbAtmo.visible=false;shell.add(limbAtmo);
 
+/* ---------- the cloud deck over the limb ----------
+ * Its own shell at exactly the body's radius — a wider one would pass
+ * outside the eye on the way up and wrap the cockpit in cloud, which is
+ * the same trap the atmosphere rim fell into. Depth is pinned for both, so
+ * the draw order alone decides that cloud sits over ground and the rim
+ * sits over cloud. One draw call. */
+const limbCloudU={
+  map:{value:CLOUD_TEX}, opacity:{value:0},
+  rep:{value:new THREE.Vector2(46,23)}, drift:{value:0},
+  tint:{value:new THREE.Color(0xffffff)},
+  sunWorld:limbBodyU.sunWorld, ambient:{value:new THREE.Color(0x3a4a60)}
+};
+const limbCloud=new THREE.Mesh(new THREE.SphereGeometry(1,72,44),
+  new THREE.ShaderMaterial({
+    uniforms:limbCloudU,transparent:true,depthWrite:false,side:THREE.FrontSide,
+    vertexShader:
+      "varying vec2 vUv; varying vec3 vN;"+
+      "void main(){ vUv=uv; vN=normalize(normalMatrix*normal);"+
+      "vec4 mv=modelViewMatrix*vec4(position,1.0);"+LIMB_PIN+"}",
+    fragmentShader:
+      "uniform sampler2D map; uniform float opacity; uniform vec2 rep; uniform vec3 tint;"+
+      "uniform float drift; uniform vec3 sunWorld; uniform vec3 ambient;"+
+      "varying vec2 vUv; varying vec3 vN;"+
+      "void main(){ vec4 c=texture2D(map,vUv*rep+vec2(drift,0.0));"+
+      "vec3 sv=normalize((viewMatrix*vec4(sunWorld,0.0)).xyz);"+
+      "float d=max(0.0,dot(normalize(vN),sv));"+
+      "vec3 col=c.rgb*tint*(ambient+vec3(1.05)*d+vec3(0.18));"+
+      "gl_FragColor=vec4(col,c.a*opacity); }"
+  }));
+limbCloud.renderOrder=-10;limbCloud.visible=false;shell.add(limbCloud);
+
+const WHITE1=new THREE.Color(0xffffff);
 let limbKey=null;
 function setLimb(key){
   limbKey=key;
@@ -1681,6 +1878,8 @@ function setLimb(key){
     if(d&&!d.tex)d.tex=L.tex;
   }
   limbBodyU.map.value=L.tex;
+  limbBodyU.hasSea.value=(key==="earth")?1:0;
+  limbCloudU.tint.value.copy(L.cloudTint||WHITE1);
   limbAtmoU.glow.value.copy(L.glow);
   /* Turn the globe so the place you launched from is the place underneath
    * you. Solved empirically against the geometry: the texture coordinate
@@ -1688,6 +1887,7 @@ function setLimb(key){
   const u=(key==="earth")?EARTH_SITE.u:0.75;
   limbBody.rotation.set(Math.PI/2,(0.75-u)*Math.PI*2,0);
   limbAtmo.rotation.copy(limbBody.rotation);
+  limbCloud.rotation.copy(limbBody.rotation);
 }
 /* No fade-in any more, because there is nothing to fade in FROM. At zero
  * altitude the proxy's radius equals its distance, so its edge is a dead
@@ -1702,12 +1902,23 @@ function setLimb(key){
  * dip at ground level, which nothing on the pad is precise enough to show. */
 function updateLimb(dt,alt,fade){
   const L=limbKey&&LIMBS[limbKey];
-  if(!L||fade<=0.002){limbBody.visible=false;limbAtmo.visible=false;return;}
+  if(!L||fade<=0.002){limbBody.visible=false;limbAtmo.visible=false;limbCloud.visible=false;return;}
   const r=LIMB_D*L.R/(L.R+Math.max(150,alt));
   limbBody.visible=true;
   limbBody.position.set(0,-LIMB_D,0);
   limbBody.scale.setScalar(r);
   limbBodyU.opacity.value=fade;
+  /* Relief fades out high up, where a sheet tiled 150 times across the
+   * globe would be finer than a pixel and would shimmer. */
+  limbBodyU.reliefAmt.value=(L.relief||0)*fade*
+    (1-THREE.MathUtils.clamp((alt-160000)/200000,0,1));
+  if(L.cloud>0){
+    limbCloud.visible=true;
+    limbCloud.position.copy(limbBody.position);
+    limbCloud.scale.setScalar(r);
+    limbCloudU.opacity.value=L.cloud*fade;
+    limbCloudU.drift.value=(limbCloudU.drift.value+dt*0.0016)%1;
+  }else limbCloud.visible=false;
   if(L.atmo>0){
     limbAtmo.visible=true;
     limbAtmo.position.copy(limbBody.position);
@@ -1718,7 +1929,8 @@ function updateLimb(dt,alt,fade){
      * from the ground, opening into the bright thin arc against black by
      * the time you are in orbit. */
     const t=THREE.MathUtils.clamp(alt/30000,0,1);
-    limbAtmoU.strength.value=L.atmo*fade*1.35*(0.10+0.90*t*t*(3-2*t));
+    /* Halved, because a double-sided shell draws the rim twice. */
+    limbAtmoU.strength.value=L.atmo*fade*0.80*(0.10+0.90*t*t*(3-2*t));
   }else limbAtmo.visible=false;
 }
 
