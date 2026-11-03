@@ -108,6 +108,12 @@
       Hop hen til lugen, gå ombord, kør startsekvensen — og flyv til Månen, Mars
       eller Guldplaneten. Skibet kan ikke smadres.</p>
     <div class="seg">
+      <span>Spil</span>
+      <button id="gameExplorer" aria-pressed="true">Opdager</button>
+      <button id="gameTest" aria-pressed="false">Test</button>
+    </div>
+    <p class="modehint" id="gameHint"></p>
+    <div class="seg">
       <span>Flyvning</span>
       <button id="modeAuto" aria-pressed="true">Autopilot</button>
       <button id="modeEasy" aria-pressed="false">Let</button>
@@ -394,6 +400,41 @@ const Audio_={
     og.gain.setValueAtTime(.0001,t);og.gain.exponentialRampToValueAtTime(.14,t+1.2);
     og.gain.exponentialRampToValueAtTime(.0001,t+4.3);
     o.connect(og);og.connect(this.master);o.start(t);o.stop(t+4.5);
+  },
+  /* Alien speech. Each syllable is a swept tone through a narrow bandpass,
+   * which lands somewhere between a bird and a modem and reads as language
+   * without being any. `pan` is -1 at your left ear and +1 at your right. */
+  alienVoice(pan,gain,syllables){
+    if(!this.ctx||gain<=0.004)return 0;
+    const t=this.ctx.currentTime;
+    const out=this.ctx.createGain();out.gain.value=gain;
+    if(this.ctx.createStereoPanner){
+      const sp=this.ctx.createStereoPanner();
+      sp.pan.value=Math.max(-1,Math.min(1,pan));
+      out.connect(sp);sp.connect(this.master);
+    }else out.connect(this.master);
+    const voice=380+Math.random()*420;          // each alien a different pitch
+    let tt=t;
+    for(let i=0;i<syllables;i++){
+      const dur=.08+Math.random()*.13;
+      const o=this.ctx.createOscillator();
+      o.type=Math.random()<.5?"triangle":"square";
+      const f0=voice*(.7+Math.random()*.9);
+      o.frequency.setValueAtTime(f0,tt);
+      o.frequency.exponentialRampToValueAtTime(f0*(.55+Math.random()*1.0),tt+dur);
+      const bp=this.ctx.createBiquadFilter();
+      bp.type="bandpass";bp.Q.value=4.5;
+      bp.frequency.setValueAtTime(700+Math.random()*900,tt);
+      bp.frequency.linearRampToValueAtTime(500+Math.random()*1700,tt+dur);
+      const g=this.ctx.createGain();
+      g.gain.setValueAtTime(0,tt);
+      g.gain.linearRampToValueAtTime(.55,tt+.012);
+      g.gain.exponentialRampToValueAtTime(.0001,tt+dur);
+      o.connect(bp);bp.connect(g);g.connect(out);
+      o.start(tt);o.stop(tt+dur+.04);
+      tt+=dur+.03+Math.random()*.07;
+    }
+    return tt-t;
   },
   thud(force){
     if(!this.ctx)return;const t=this.ctx.currentTime;
@@ -1108,8 +1149,36 @@ const DEST={
         sky:0x3a1c10,ground:0xa8502b,amp:1.3,atmo:.55,tex:null},
   gold:{name:"Guldplaneten",orb:"#e8c35a",orbHi:"#fff6d0",orbLo:"#3a2606",
         dist:9.4e12,radius:800,grav:6.1,hud:"#ffd978",
-        sky:0x2a1d06,ground:0xc9a03e,amp:1.6,atmo:.75,tex:null}
+        sky:0x4a2068,ground:0xc9a03e,amp:1.6,atmo:.75,tex:null}
 };
+/* ------------------------------------------------------------------ *
+ *  Two ways to play.
+ *
+ *  Test opens everything at once, for when you just want to go somewhere.
+ *  Opdager earns it: the Moon first, for fuel, where you learn the map to
+ *  Guldplaneten is on Mars; then Mars, where the map is lying fifty metres
+ *  from the ship with a trail of arrows pointing at it; then home to the
+ *  cockpit with it, and the gold world is on the menu.
+ * ------------------------------------------------------------------ */
+const GAME={mode:"explorer",fuel:false,mapHeld:false,mapDone:false,
+            open:{moon:true,mars:false,gold:false}};
+function destOpen(k){return GAME.mode==="test"||GAME.open[k];}
+function lockedWhy(k){
+  if(k==="mars")return "Du mangler brændstof — flyv til Månen først.";
+  if(k==="gold")return "Du mangler kortet. Det ligger et sted på Mars.";
+  return "";
+}
+function setGameMode(m){
+  GAME.mode=m;
+  GAME.fuel=false;GAME.mapHeld=false;GAME.mapDone=false;
+  GAME.open={moon:true,mars:false,gold:false};
+  for(const k in gameBtns)gameBtns[k].setAttribute("aria-pressed",String(k===m));
+  gameHint.textContent = m==="test"
+    ? "Alle tre destinationer er åbne fra start."
+    : "Månen først, for brændstof. Kortet til Guldplaneten ligger på Mars.";
+  refreshMenu();
+}
+
 const menu=new THREE.Group();
 menu.position.set(0,1.42,-.88);menu.visible=false;ship.add(menu);
 (function buildMenu(){
@@ -1121,15 +1190,29 @@ menu.position.set(0,1.42,-.88);menu.visible=false;ship.add(menu);
   ["moon","mars","gold"].forEach((k,i)=>{
     const d=DEST[k];
     const g=new THREE.Group();g.position.set(0,.03-i*.135,.004);menu.add(g);
-    g.add(new THREE.Mesh(new THREE.PlaneGeometry(.82,.11),
-      new THREE.MeshBasicMaterial({map:tex(labelCanvas(d.name.toUpperCase(),
-        {w:512,h:72,size:34,bg:"#0b2434",border:"#2a6a8c",color:d.hud,
-         orb:d.orb,orbHi:d.orbHi,orbLo:d.orbLo})),transparent:true})));
+    const plate=new THREE.Mesh(new THREE.PlaneGeometry(.82,.11),
+      new THREE.MeshBasicMaterial({transparent:true}));
+    g.add(plate);d.plate=plate;
     const hit=new THREE.Mesh(new THREE.PlaneGeometry(.86,.125),new THREE.MeshBasicMaterial({visible:false}));
     hit.position.z=.004;g.add(hit);
     makeInteractive(hit,{onPress:()=>chooseDest(k),poke:.08});
   });
 })();
+/* A locked world still shows, greyed, with its own name: hiding it would
+ * leave no clue that there is anywhere else to go. */
+function refreshMenu(){
+  ["moon","mars","gold"].forEach(k=>{
+    const d=DEST[k];if(!d.plate)return;
+    const ok=destOpen(k);
+    if(d.plate.material.map)d.plate.material.map.dispose();
+    d.plate.material.map=tex(labelCanvas(ok?d.name.toUpperCase():"\u2715 "+d.name.toUpperCase(),
+      {w:512,h:72,size:ok?34:30,bg:ok?"#0b2434":"#121820",
+       border:ok?"#2a6a8c":"#2b3542",color:ok?d.hud:"#6c7a88",
+       orb:ok?d.orb:"#55606c",orbHi:ok?d.orbHi:"#8d98a4",orbLo:ok?d.orbLo:"#1b2028",
+       glow:ok}));
+    d.plate.material.needsUpdate=true;
+  });
+}
 
 /* ---------- cockpit mode switch ---------- */
 const modePlate=(function(){
@@ -1263,6 +1346,87 @@ const deepSky=new THREE.Group();deepSky.visible=false;shell.add(deepSky);
   s.renderOrder=-10;s.position.set(-3000,2100,900);s.scale.set(620,170,1);
   s.material.rotation=.75;deepSky.add(s);
 })();
+
+/* ---------- clouds ---------- *
+ *  Nothing conveys speed like something close whipping past, and a rocket
+ *  with an empty sky between the ground and the stars feels static however
+ *  fast the numbers climb.
+ *
+ *  One THREE.Points for the whole sky. Point sprites are camera-facing and
+ *  size-attenuated for free, so a few hundred puffs cost ONE draw call —
+ *  billboarded quads would have cost one apiece, which is not affordable on
+ *  a Quest 2. Each puff recycles around the viewer, so the deck is endless
+ *  without ever holding more than CLOUD_N of them.
+ * ------------------------------------------------------------------ */
+const CLOUD_N=300;
+const cloudPos=new Float32Array(CLOUD_N*3);
+const CLOUDS={
+  earth:{color:0xf2f6ff,lo:700, hi:9000, size:620,op:.62},
+  mars :{color:0xd9a07a,lo:500, hi:5200, size:560,op:.30},
+  gold :{color:0xa862e0,lo:420, hi:4600, size:700,op:.58},
+  moon :null                                    // no air, no clouds
+};
+const cloudLayer=(function(){
+  const S=96,c=cvs(S,S),g=c.getContext("2d");
+  const img=g.createImageData(S,S),d=img.data,n=makeNoise(4242);
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    const dx=(x/S-.5)*2,dy=(y/S-.5)*2;
+    const fall=Math.max(0,1-Math.hypot(dx,dy));
+    const f=n(x/9,y/9,4);
+    const i=(y*S+x)*4;
+    d[i]=d[i+1]=d[i+2]=255;
+    d[i+3]=Math.min(255,Math.pow(fall,1.9)*Math.pow(f,1.25)*520);
+  }
+  g.putImageData(img,0,0);
+  const m=new THREE.PointsMaterial({map:tex(c),transparent:true,opacity:0,
+    depthWrite:false,sizeAttenuation:true,size:600});
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute("position",new THREE.BufferAttribute(cloudPos,3));
+  const pts=new THREE.Points(geo,m);
+  pts.frustumCulled=false;pts.visible=false;pts.renderOrder=-5;
+  world.add(pts);
+  return pts;
+})();
+let cloudKey=null;
+const CLOUD_R=3000;
+function seedCloud(i,cx,cz,cfg,anywhere){
+  const a=Math.random()*Math.PI*2;
+  const r=anywhere?Math.sqrt(Math.random())*CLOUD_R:CLOUD_R*(.85+Math.random()*.15);
+  cloudPos[i*3]  =cx+Math.cos(a)*r;
+  cloudPos[i*3+1]=cfg.lo+Math.random()*(cfg.hi-cfg.lo);
+  cloudPos[i*3+2]=cz+Math.sin(a)*r;
+}
+function setCloudDeck(key){
+  cloudKey=key;
+  const cfg=key&&CLOUDS[key];
+  cloudLayer.visible=!!cfg;
+  if(!cfg)return;
+  cloudLayer.material.color.setHex(cfg.color);
+  cloudLayer.material.size=cfg.size;
+  const vx=WALK.active?WALK.pos.x:SHIP.pos.x, vz=WALK.active?WALK.pos.z:SHIP.pos.z;
+  for(let i=0;i<CLOUD_N;i++)seedCloud(i,vx,vz,cfg,true);
+  cloudLayer.geometry.attributes.position.needsUpdate=true;
+}
+function updateClouds(dt){
+  const cfg=cloudKey&&CLOUDS[cloudKey];
+  if(!cfg){ if(cloudLayer.visible)cloudLayer.visible=false; return; }
+  cloudLayer.visible=true;
+  const vx=WALK.active?WALK.pos.x:SHIP.pos.x;
+  const vy=WALK.active?WALK.pos.y:SHIP.pos.y;
+  const vz=WALK.active?WALK.pos.z:SHIP.pos.z;
+  /* Fade the deck in as you reach it and out as you leave it above, so the
+   * layer has a top and a bottom rather than simply vanishing. */
+  const mid=(cfg.lo+cfg.hi)/2, half=(cfg.hi-cfg.lo)/2;
+  const edge=Math.max(0,1-Math.max(0,Math.abs(vy-mid)-half)/2600);
+  cloudLayer.material.opacity=cfg.op*edge;
+  if(edge<=0.001)return;
+  let moved=false;
+  for(let i=0;i<CLOUD_N;i++){
+    const dx=cloudPos[i*3]-vx, dz=cloudPos[i*3+2]-vz;
+    if(dx*dx+dz*dz>CLOUD_R*CLOUD_R){seedCloud(i,vx,vz,cfg,false);moved=true;}
+  }
+  if(moved)cloudLayer.geometry.attributes.position.needsUpdate=true;
+}
 
 /* ---------- sky ---------- */
 const skyUniforms={
@@ -1492,6 +1656,210 @@ function ensureChunks(key,x,z){
 function clearChunks(){
   for(const [,g] of chunks){terrainRoot.remove(g);disposeChunk(g);}
   chunks.clear();chunkQueue.length=0;
+}
+
+/* ---------- the map on Mars ---------- *
+ *  Fifty metres from where you set down, with a trail of lit chevrons
+ *  across the ground pointing at it. The bearing is fixed so the arrows and
+ *  the map can never disagree about where it is.
+ * ------------------------------------------------------------------ */
+const mapProp=new THREE.Group();mapProp.visible=false;world.add(mapProp);
+const MAPAT={x:0,z:0,live:false};
+let mapSheet=null, mapBeacon=null;
+(function buildMapProp(){
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(.07,.09,1.2,6),
+    new THREE.MeshStandardMaterial({color:0x5a5248,roughness:.85}));
+  post.position.y=.6;mapProp.add(post);
+  /* The map itself: a chart of the gold world, drawn the way the cockpit
+   * screens are, so it reads as the same piece of equipment. */
+  const c=cvs(256,192),g=c.getContext("2d");
+  g.fillStyle="#e9dcb4";g.fillRect(0,0,256,192);
+  g.strokeStyle="#8a6632";g.lineWidth=2;g.strokeRect(5,5,246,182);
+  g.strokeStyle="#c4a86a";g.lineWidth=1;
+  for(let i=1;i<6;i++){g.beginPath();g.moveTo(i*42,8);g.lineTo(i*42,184);g.stroke();}
+  for(let i=1;i<5;i++){g.beginPath();g.moveTo(8,i*38);g.lineTo(248,i*38);g.stroke();}
+  const grad=g.createRadialGradient(150,96,6,150,96,46);
+  grad.addColorStop(0,"#fff0c0");grad.addColorStop(.6,"#e8c35a");grad.addColorStop(1,"#8a5d20");
+  g.fillStyle=grad;g.beginPath();g.arc(150,96,44,0,7);g.fill();
+  g.fillStyle="#5a3a12";g.font='600 19px "Chivo Mono", monospace';
+  g.textAlign="center";g.fillText("GULDPLANETEN",128,174);
+  g.strokeStyle="#8a2f2f";g.lineWidth=2;g.setLineDash([5,4]);
+  g.beginPath();g.moveTo(26,160);g.quadraticCurveTo(70,60,112,98);g.stroke();
+  mapSheet=new THREE.Mesh(new THREE.PlaneGeometry(.80,.60),
+    new THREE.MeshStandardMaterial({map:tex(c),roughness:.92,side:THREE.DoubleSide,
+      emissive:0xffffff,emissiveIntensity:0}));
+  mapSheet.position.y=1.26;mapSheet.rotation.x=-.3;mapProp.add(mapSheet);
+  // a beacon so it is findable from across a dusty plain
+  mapBeacon=new THREE.Mesh(new THREE.SphereGeometry(.13,8,6),
+    new THREE.MeshStandardMaterial({color:0x0a2630,emissive:0x46e0ff,emissiveIntensity:2}));
+  mapBeacon.position.y=1.75;mapProp.add(mapBeacon);
+})();
+
+/* The trail: flat lit chevrons laid along the ground from the ship to the
+ * map, each sitting at its own terrain height so none of them float. */
+const trail=(function(){
+  const tri=new THREE.BufferGeometry();
+  tri.setAttribute("position",new THREE.Float32BufferAttribute(
+    [0,0,-1, -0.62,0,0.5, 0.62,0,0.5],3));
+  tri.computeVertexNormals();
+  const m=new THREE.InstancedMesh(tri,
+    new THREE.MeshBasicMaterial({color:0x46e0ff,transparent:true,opacity:.75,
+      side:THREE.DoubleSide,depthWrite:false}),12);
+  m.frustumCulled=false;m.visible=false;world.add(m);return m;
+})();
+function placeMarsMap(sx,sz){
+  /* A fixed bearing, so the arrows and the map can never disagree. */
+  const bear=-0.9;
+  MAPAT.x=sx+Math.sin(bear)*50; MAPAT.z=sz+Math.cos(bear)*50;
+  MAPAT.live=true;
+  mapProp.position.set(MAPAT.x,groundH("mars",MAPAT.x,MAPAT.z),MAPAT.z);
+  mapProp.visible=true;
+  const dx=MAPAT.x-sx, dz=MAPAT.z-sz, yaw=Math.atan2(-dx,-dz);
+  const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),
+        pp=new THREE.Vector3(),sc=new THREE.Vector3(1.1,1,1.6);
+  q.setFromAxisAngle(UPW,yaw);
+  for(let i=0;i<12;i++){
+    const t=(i+1)/13;
+    const x=sx+dx*t, z=sz+dz*t;
+    pp.set(x,groundH("mars",x,z)+.12,z);
+    mtx.compose(pp,q,sc);trail.setMatrixAt(i,mtx);
+  }
+  trail.instanceMatrix.needsUpdate=true;
+  trail.visible=true;
+}
+function clearMarsMap(){
+  mapProp.visible=false;trail.visible=false;MAPAT.live=false;
+}
+
+/* ---------- the locals ---------- *
+ *  Golden snowmen: a body ball with a head ball riding above and slightly
+ *  AHEAD of it, which is the whole of their body language — lean forward and
+ *  you are walking. Two blue discs on the head say which way the face is
+ *  pointing, so you can tell when one has turned to look at you.
+ *
+ *  Four InstancedMeshes for the lot of them, so a crowd costs four draw
+ *  calls and the per-frame work is sixteen matrix composes.
+ * ------------------------------------------------------------------ */
+const ALIEN_N=9;
+const aliens=[];
+const alienRoot=new THREE.Group();alienRoot.visible=false;world.add(alienRoot);
+const alienParts=(function(){
+  const gold=new THREE.MeshStandardMaterial({color:0xe3b43f,roughness:.34,metalness:.85,
+    emissive:0x2a1c04,flatShading:true});
+  const eye=new THREE.MeshStandardMaterial({color:0x0a1830,emissive:0x3fa8ff,emissiveIntensity:1.8});
+  const mk=(geo,mat)=>{
+    const m=new THREE.InstancedMesh(geo,mat,ALIEN_N);
+    m.frustumCulled=false;alienRoot.add(m);return m;
+  };
+  return {
+    body:mk(new THREE.SphereGeometry(1,10,8),gold),
+    head:mk(new THREE.SphereGeometry(1,8,6),gold),
+    eyeL:mk(new THREE.CircleGeometry(1,8),eye),
+    eyeR:mk(new THREE.CircleGeometry(1,8),eye)
+  };
+})();
+function spawnAliens(cx,cz){
+  aliens.length=0;
+  const r=mulberry32(8181);
+  for(let i=0;i<ALIEN_N;i++){
+    const a=r()*Math.PI*2, rad=8+r()*40;
+    aliens.push({
+      x:cx+Math.cos(a)*rad, z:cz+Math.sin(a)*rad,
+      yaw:r()*Math.PI*2, turn:r()*Math.PI*2,
+      sc:.8+r()*.5, speed:0, think:r()*4,
+      talk:0, chirp:2+r()*8, lean:0
+    });
+  }
+  alienRoot.visible=true;
+}
+const _ap=new THREE.Vector3(),_aq=new THREE.Quaternion(),_as=new THREE.Vector3();
+const _am2=new THREE.Matrix4(),_arel=new THREE.Vector3(),_ainv=new THREE.Quaternion();
+let chirpCooldown=0;
+function updateAliens(dt){
+  if(!alienRoot.visible)return;
+  const vx=WALK.active?WALK.pos.x:SHIP.pos.x;
+  const vy=WALK.active?WALK.pos.y:SHIP.pos.y;
+  const vz=WALK.active?WALK.pos.z:SHIP.pos.z;
+  _ainv.copy(WALK.active?WALK.quat:SHIP.quat).invert();
+  chirpCooldown-=dt;
+  for(let i=0;i<aliens.length;i++){
+    const a=aliens[i];
+    const dx=vx-a.x, dz=vz-a.z;
+    const dist=Math.hypot(dx,dz);
+    const bearing=Math.atan2(-dx,-dz);          // yaw that faces the viewer
+
+    if(a.talk>0){
+      a.talk-=dt;
+      // hold still and keep looking at you while speaking
+      let d=bearing-a.yaw;
+      while(d>Math.PI)d-=Math.PI*2; while(d<-Math.PI)d+=Math.PI*2;
+      a.yaw+=d*Math.min(1,dt*4);
+      a.speed+=(0-a.speed)*Math.min(1,dt*6);
+    }else{
+      if(dist<7&&chirpCooldown<=0){
+        /* You have walked up to one. It turns, and says something. */
+        a.talk=3+Math.random()*2.5;
+        chirpCooldown=.5;
+        a.nextSyl=0;
+      }else{
+        a.think-=dt;
+        if(a.think<=0){
+          a.think=1.2+Math.random()*3.5;
+          a.turn=Math.random()*Math.PI*2;
+          a.speed=Math.random()<.35?0:(.7+Math.random()*1.5);
+        }
+        let d=a.turn-a.yaw;
+        while(d>Math.PI)d-=Math.PI*2; while(d<-Math.PI)d+=Math.PI*2;
+        a.yaw+=d*Math.min(1,dt*1.8);
+        a.x-=Math.sin(a.yaw)*a.speed*dt;
+        a.z-=Math.cos(a.yaw)*a.speed*dt;
+        if(dist>90){a.turn=bearing;a.speed=1.2;}   // too far out: amble back
+      }
+    }
+
+    // voice, panned to where this one actually is relative to your head
+    const speaking=a.talk>0;
+    a.chirp-=dt;
+    if((speaking&&(a.nextSyl=(a.nextSyl||0)-dt)<=0)||(!speaking&&a.chirp<=0)){
+      _arel.set(a.x-vx,0,a.z-vz).applyQuaternion(_ainv);
+      const d3=Math.max(1,_arel.length());
+      const pan=Math.max(-1,Math.min(1,_arel.x/d3*1.6));
+      const vol=Math.max(0,Math.min(.5,(speaking?.5:.3)*(12/(d3+6))));
+      Audio_.alienVoice(pan,vol,speaking?(2+Math.floor(Math.random()*3)):1);
+      if(speaking)a.nextSyl=.5+Math.random()*.5;
+      else a.chirp=5+Math.random()*12;
+    }
+
+    /* The head rides ahead of the body by how fast it is going: that lean is
+     * the only thing telling you it is walking rather than sliding. */
+    a.lean+=((speaking?0:a.speed)*.12-a.lean)*Math.min(1,dt*3);
+    const gy=groundH("gold",a.x,a.z);
+    const bodyR=.42*a.sc, headR=.22*a.sc;
+    const fx=-Math.sin(a.yaw), fz=-Math.cos(a.yaw);
+
+    _aq.setFromAxisAngle(UPW,a.yaw);
+    _am2.compose(_ap.set(a.x,gy+bodyR,a.z),_aq,_as.setScalar(bodyR));
+    alienParts.body.setMatrixAt(i,_am2);
+
+    const hx=a.x+fx*a.lean, hz=a.z+fz*a.lean, hy=gy+bodyR*1.55+headR;
+    _am2.compose(_ap.set(hx,hy,hz),_aq,_as.setScalar(headR));
+    alienParts.head.setMatrixAt(i,_am2);
+
+    // eyes sit just proud of the head, facing the way it is looking
+    const ex=fx*headR*.94, ez=fz*headR*.94;
+    const sx=-fz, sz=fx;                        // sideways from the heading
+    const off=headR*.42, er=headR*.3;
+    _as.setScalar(er);
+    _aq.setFromAxisAngle(UPW,a.yaw+Math.PI);    // discs face the way it looks
+    _am2.compose(_ap.set(hx+ex+sx*off,hy+headR*.18,hz+ez+sz*off),_aq,_as);
+    alienParts.eyeL.setMatrixAt(i,_am2);
+    _am2.compose(_ap.set(hx+ex-sx*off,hy+headR*.18,hz+ez-sz*off),_aq,_as);
+    alienParts.eyeR.setMatrixAt(i,_am2);
+  }
+  alienParts.body.instanceMatrix.needsUpdate=true;
+  alienParts.head.instanceMatrix.needsUpdate=true;
+  alienParts.eyeL.instanceMatrix.needsUpdate=true;
+  alienParts.eyeR.instanceMatrix.needsUpdate=true;
 }
 
 /* ---------- hands ---------- */
@@ -1891,16 +2259,19 @@ function pressLand(){
   skirt.position.y=-180;
   if(bodyMesh)bodyMesh.visible=false;
   if(bodyHalo)bodyHalo.visible=false;
+  alienRoot.visible=false;clearMarsMap();
   landBtn.group.visible=false;
   skyUniforms.top.value.setHex(d.sky);
   skyUniforms.bottom.value.setHex(d.ground).multiplyScalar(.45);
   skyUniforms.alpha.value=d.atmo>0?1:0;
+  setCloudDeck(St.dest);
   for(let i=0;i<9;i++)ensureChunks(St.dest,0,0);   // prime the inner ring only
   log("NEDSTIGNING");
   showMsg(MODE.dof===0?"Autopiloten sætter den ned.":"Flyv den ned — den kan ikke smadres.");
 }
 function chooseDest(key){
   if(St.phase!=="space")return;
+  if(!destOpen(key)){Audio_.bad();showMsg(lockedWhy(key),5);log("LÅST");return;}
   St.dest=key;St.distance=DEST[key].dist;
   St.phase="course";menu.visible=false;
   hyperBtn.group.visible=true;
@@ -1918,7 +2289,8 @@ function restartFlight(){
   SHIP.pos.set(0,PAD_Y,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();SHIP.onGround=true;
   throttle.value=0;
   terrainKey=null;clearChunks();
-  terrainRoot.visible=false;skirt.visible=false;
+  terrainRoot.visible=false;skirt.visible=false;alienRoot.visible=false;
+  clearMarsMap();
   if(bodyMesh)bodyMesh.visible=false;
   if(bodyHalo)bodyHalo.visible=false;
   earth.visible=false;earth.material.opacity=0;
@@ -1928,6 +2300,7 @@ function restartFlight(){
   skyUniforms.top.value.setHex(0x1f5fa8);
   skyUniforms.bottom.value.setHex(0xa9cde8);
   skyUniforms.alpha.value=1;
+  setCloudDeck("earth");
   bigBtn.armed=false;
   reseedStars();updateStars(0,0);syncWorld();
   newSequence();drawMap();
@@ -1945,8 +2318,12 @@ const skinBtns={steel:document.getElementById("skinSteel"),black:document.getEle
 const modeBtns={auto:document.getElementById("modeAuto"),easy:document.getElementById("modeEasy"),
                 hard:document.getElementById("modeHard")};
 const modeHint=document.getElementById("modeHint");
+const gameBtns={explorer:document.getElementById("gameExplorer"),
+                test:document.getElementById("gameTest")};
+const gameHint=document.getElementById("gameHint");
+for(const k in gameBtns)gameBtns[k].addEventListener("click",()=>setGameMode(k));
 let msgTimer=0;
-function showMsg(t){msgEl.textContent=t;msgEl.style.opacity="1";msgTimer=4.5;}
+function showMsg(t,secs){msgEl.textContent=t;msgEl.style.opacity="1";msgTimer=secs||4.5;}
 function setSkin(name){
   applySkin(name);
   for(const k in skinBtns)skinBtns[k].setAttribute("aria-pressed",String(k===name));
@@ -2298,7 +2675,14 @@ function enterShip(){
     St.phase=St.dest?"landed":"preflight";
     enterMark.visible=false;tpMark.group.visible=false;
     log("OMBORD");
-    showMsg(St.dest?"Ombord igen.":"Ombord. Kør startsekvensen.");
+    if(GAME.mapHeld&&!GAME.mapDone){
+      GAME.mapDone=true;GAME.open.gold=true;refreshMenu();
+      Audio_.ok();setTimeout(()=>Audio_.ok(),260);
+      log("KORT INSTALLERET");
+      showMsg("Guldplanetens kort er installeret.",9);
+    }else{
+      showMsg(St.dest?"Ombord igen.":"Ombord. Kør startsekvensen.");
+    }
   });
 }
 function turnWalker(dir){
@@ -2313,6 +2697,17 @@ function updateEVA(dt){
   const h=walkH(WALK.pos.x,WALK.pos.z);
   WALK.pos.y+=((h+WALK.eye)-WALK.pos.y)*Math.min(1,dt*9);
   St.alt=0;
+  if(MAPAT.live){
+    /* Walk up to it and it is yours; the beacon and the trail go out. */
+    if(Math.hypot(MAPAT.x-WALK.pos.x,MAPAT.z-WALK.pos.z)<3.2){
+      GAME.mapHeld=true;clearMarsMap();Audio_.ok();
+      log("KORTET FUNDET");
+      showMsg("Du har kortet! Gå tilbage til skibet med det.",8);
+    }else{
+      mapBeacon.material.emissiveIntensity=1.2+Math.sin(St.t*4)*0.9;
+      mapProp.rotation.y+=dt*.4;
+    }
+  }
   const hatchW=_v.set(-4.25,-1.25,-1.30).applyQuaternion(SHIP.quat).add(SHIP.pos);
   enterMark.visible=hatchW.distanceTo(WALK.pos)<60;
   if(enterMark.visible){
@@ -2439,6 +2834,7 @@ function updateFlight(dt){
     }
     if(a>110000){
       St.phase="space";menu.visible=true;site.visible=false;
+      setCloudDeck(null);
       skyUniforms.alpha.value=0;
       if(auto)autoThrottle(0,1);
       log("KREDSLØB NÅET");showMsg("Kredsløb nået — vælg destination");
@@ -2552,6 +2948,18 @@ function updateFlight(dt){
         Audio_.thud(Math.min(1,vy/55));
         haptic(controllers[0],.9,120);haptic(controllers[1],.9,120);
         St.landQuality=vy<9?"BLØD":vy<26?"FAST":"HÅRD";
+        if(St.dest==="gold"&&!alienRoot.visible)spawnAliens(SHIP.pos.x,SHIP.pos.z);
+        if(GAME.mode==="explorer"){
+          if(St.dest==="moon"&&!GAME.fuel){
+            GAME.fuel=true;GAME.open.mars=true;refreshMenu();
+            log("BRÆNDSTOF OMBORD");
+            showMsg("Brændstof tanket på Månen. Kortet til Guldplaneten skal være på Mars.",8);
+          }else if(St.dest==="mars"&&!GAME.mapDone&&!GAME.mapHeld){
+            placeMarsMap(SHIP.pos.x,SHIP.pos.z);
+            log("KORT I NÆRHEDEN");
+            showMsg("Kortet ligger 50 m herfra. Gå ud og følg pilene.",8);
+          }
+        }
         log(St.landQuality+" LANDING");
         showMsg(St.landQuality==="BLØD"?"Blød landing. Pænt fløjet.":
                 St.landQuality==="FAST"?"Nede. Lidt fast, men intet gik i stykker.":
@@ -2665,9 +3073,10 @@ function startOutside(){
   St.phase="eva";
   enterMark.visible=true;
   hatchBtn.group.visible=false;againBtn.group.visible=false;
+  setCloudDeck("earth");
   syncWorld();
 }
-setMode("auto");newSequence();drawStatus();drawMap();drawMsg();syncWorld();
+setMode("auto");setGameMode("explorer");newSequence();drawStatus();drawMap();drawMsg();syncWorld();
 startOutside();
 try{
   if(window.claude&&window.claude.hot)
@@ -2711,6 +3120,8 @@ renderer.setAnimationLoop(()=>{
   updateGrabs();
   try{updatePoke();}catch(e){}
   updateFlight(dt);
+  updateClouds(dt);
+  try{updateAliens(dt);}catch(e){}
   screenClock+=dt;
   if(screenClock>.14){screenClock=0;drawStatus();if(St.dest)drawMap();}
   refreshHud();
