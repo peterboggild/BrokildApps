@@ -956,7 +956,7 @@ const HULL={glow:null,beacon:null,beaconMat:null};
       -3.60,-.35,-1.30).scale.set(.06,1.1,.62);
   (function ladder(){
     const n=Math.ceil((GEAR-1.6)/.44), items=[];
-    for(let i=0;i<n;i++)items.push([-3.76,-1.70-i*.44,-1.30,.86,.08,.14]);
+    for(let i=0;i<n;i++)items.push([-3.76,-1.70-i*.44,-1.30,.16,.07,.86]);
     cluster(UBOX,M.extTrim,items);
     cluster(UCYL6,M.extTrim,[
       [-3.76,-1.6-(GEAR-1.7)/2,-1.62,.06,GEAR-1.5,.06],
@@ -1999,6 +1999,37 @@ let mapSheet=null, mapBeacon=null;
   mapBeacon.position.y=1.75;mapProp.add(mapBeacon);
 })();
 
+/* Findability. Something lying on the ground fifty metres off is invisible
+ * from anywhere but on top of it, and the one line that said where to look
+ * had timed out long before you got outside. So anything you are currently
+ * meant to walk to now stands under a beam of light, tall enough to clear
+ * the terrain and readable from a few hundred metres. One instanced mesh,
+ * six slots, one draw call, shared by Mars and the gold world's errands. */
+const BEAM_MAX=6;
+const beams=new THREE.InstancedMesh(
+  new THREE.CylinderGeometry(1,1,1,6,1,true),
+  new THREE.MeshBasicMaterial({color:0x5ceaff,transparent:true,opacity:.26,
+    blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),
+  BEAM_MAX);
+beams.frustumCulled=false;beams.visible=false;world.add(beams);
+const _bm=new THREE.Matrix4(),_bp=new THREE.Vector3(),
+      _bq=new THREE.Quaternion(),_bs=new THREE.Vector3();
+function setBeams(list,key){
+  const n=Math.min(BEAM_MAX,list.length);
+  beams.visible=n>0;
+  if(!n)return;
+  _bq.identity();
+  for(let i=0;i<BEAM_MAX;i++){
+    if(i<n){
+      const t=list[i], gy=groundH(key,t.x,t.z);
+      const pulse=1+Math.sin(St.t*2.2+i)*0.07;
+      _bm.compose(_bp.set(t.x,gy+34,t.z),_bq,_bs.set(.95*pulse,68,.95*pulse));
+    }else _bm.compose(_bp.set(0,-99999,0),_bq,_bs.setScalar(.001));
+    beams.setMatrixAt(i,_bm);
+  }
+  beams.instanceMatrix.needsUpdate=true;
+}
+
 /* The trail: flat lit chevrons laid along the ground from the ship to the
  * map, each sitting at its own terrain height so none of them float. */
 const trail=(function(){
@@ -2020,7 +2051,7 @@ function placeMarsMap(sx,sz){
   mapProp.visible=true;
   const dx=MAPAT.x-sx, dz=MAPAT.z-sz, yaw=Math.atan2(-dx,-dz);
   const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),
-        pp=new THREE.Vector3(),sc=new THREE.Vector3(1.1,1,1.6);
+        pp=new THREE.Vector3(),sc=new THREE.Vector3(2.3,1,3.4);
   q.setFromAxisAngle(UPW,yaw);
   for(let i=0;i<12;i++){
     const t=(i+1)/13;
@@ -2032,7 +2063,7 @@ function placeMarsMap(sx,sz){
   trail.visible=true;
 }
 function clearMarsMap(){
-  mapProp.visible=false;trail.visible=false;MAPAT.live=false;
+  mapProp.visible=false;trail.visible=false;MAPAT.live=false;beams.visible=false;
 }
 
 /* ---------- the locals ---------- *
@@ -2370,6 +2401,14 @@ function updateQuests(dt,vx,vz){
     qLostBody.visible=show;qLostHead.visible=show;
   }
 
+  // --- light over whatever you are currently looking for ---
+  if(Q.active==="sand")setBeams(Q.sand.filter(s=>!s.freed),"gold");
+  else if(Q.active==="food")setBeams(Q.fruit.filter(f=>!f.taken),"gold");
+  else if(Q.active==="lost"&&Q.lost&&!Q.lost.found)setBeams([Q.lost],"gold");
+  else if(Q.active||Object.keys(Q.done).length<3)
+    setBeams(aliens[0]?[{x:aliens[0].x,z:aliens[0].z}]:[],"gold");
+  else setBeams([],"gold");
+
   // --- the bubble follows whoever is speaking ---
   if(bubble.t>0){
     bubble.t-=dt;
@@ -2658,8 +2697,12 @@ function objectiveText(){
     case "hyperspace":return "HYPERRUM";
     case "approach":  return auto?"AUTOPILOTEN FLYVER IND":"FLYV IND — TRYK LAND NÅR DU VIL NED";
     case "descent":   return auto?"AUTOPILOTEN LANDER":"FLYV NED PÅ OVERFLADEN";
-    case "landed":    return "GÅ UD, ELLER NY FLYVNING";
+    case "landed":    return MAPAT.live
+      ? "GÅ UD OG FØLG PILENE TIL KORTET"
+      : "GÅ UD, ELLER NY FLYVNING";
     case "eva":
+      if(MAPAT.live)return "FØLG LYSSØJLEN TIL KORTET";
+      if(GAME.mapHeld&&!GAME.mapDone)return "BÆR KORTET TILBAGE TIL SKIBET";
       if(St.dest==="gold"&&questRoot.visible){
         const q=questLabel();
         if(q)return q;
@@ -3081,7 +3124,10 @@ function refreshHud(){
     "<span>FART</span> "+(St.speed>9999?(St.speed/1000).toFixed(0)+" km/s":Math.round(St.speed)+" m/s")+"<br>"+
     "<span>GAS</span> "+Math.round(St.thrust*100)+" %<br><span>FLYV</span> "+MODE.name+
     (St.landQuality?"<br><span>LANDING</span> "+St.landQuality:"")+
-    (questRoot.visible&&questLabel()?"<br><span>OPGAVE</span> "+questLabel():"");
+    (questRoot.visible&&questLabel()?"<br><span>OPGAVE</span> "+questLabel():"")+
+    (MAPAT.live&&WALK.active
+      ? "<br><span>KORT</span> "+Math.round(Math.hypot(MAPAT.x-WALK.pos.x,MAPAT.z-WALK.pos.z))+" m"
+      : "");
 }
 
 /* ------------------------------------------------------------------ *
@@ -3255,6 +3301,7 @@ function updateEVA(dt){
   WALK.pos.y+=((h+WALK.eye)-WALK.pos.y)*Math.min(1,dt*9);
   St.alt=0;
   if(MAPAT.live){
+    setBeams([{x:MAPAT.x,z:MAPAT.z}],"mars");
     /* Walk up to it and it is yours; the beacon and the trail go out. */
     if(Math.hypot(MAPAT.x-WALK.pos.x,MAPAT.z-WALK.pos.z)<3.2){
       GAME.mapHeld=true;clearMarsMap();Audio_.ok();
@@ -3724,7 +3771,7 @@ renderer.setAnimationLoop(()=>{
   if(screenClock>.14){screenClock=0;drawStatus();if(St.dest)drawMap();}
   refreshHud();
   const osig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0)+"|"+MODE.key+"|"+
-    (questRoot.visible?questLabel():"");
+    (questRoot.visible?questLabel():"")+"|"+(MAPAT.live?1:0)+(GAME.mapHeld?1:0);
   if(osig!==objSig){
     objSig=osig;
     setObjective(objectiveText(),St.phase==="landed"?"#c9a0ff":"#f2a33c");
