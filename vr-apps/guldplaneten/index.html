@@ -644,6 +644,22 @@ function box(w,h,d,mat,x,y,z,parent){
   box(.10,.34,.48,M.rubber,.30,.62,.16);
   box(.09,.44,.09,M.trim,-.30,.22,.16);
   box(.09,.44,.09,M.trim,.30,.22,.16);
+  /* ---- the passenger seat ----
+   * Starboard of the pilot and a little aft, which is the one place a
+   * second person fits without moving anything the pilot flies by: the
+   * yoke, the console and the windscreen all stay centred on him, so the
+   * view out is exactly the view that was measured against the horizon.
+   * It sits against the starboard wall, so it carries an inboard armrest
+   * only — the hull is the other one. */
+  box(.50,.10,.50,M.rubber, .68,.44,.34);
+  box(.50,.68,.10,M.rubber, .68,.79,.57);
+  box(.09,.32,.46,M.rubber, .40,.60,.34);
+  box(.09,.44,.09,M.trim,   .46,.22,.34);
+  box(.09,.44,.09,M.trim,   .90,.22,.34);
+  // a grab handle on the wall by the passenger's shoulder
+  box(.05,.05,.34,M.trim,   .93,1.12,.30);
+  box(.05,.13,.05,M.trim,   .93,1.06,.15);
+  box(.05,.13,.05,M.trim,   .93,1.06,.45);
   const oh=box(1.1,.06,.42,M.trim,0,1.98,.36);
   for(let i=0;i<9;i++){
     const d=new THREE.Mesh(new THREE.SphereGeometry(.018,8,6),
@@ -657,16 +673,16 @@ consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.9,.5,.07),M.hull));
 (function(){
   const lip=new THREE.Mesh(new THREE.BoxGeometry(1.96,.04,.1),M.trim);
   lip.position.set(0,-.26,.01);consoleGroup.add(lip);
-  /* The ship's name, across the top of the dashboard — in two plates, one
-   * either side of the yoke. As a single centred plate the wheel's hub sat
-   * squarely over "MORFARS", which is the half of the name that matters. */
-  [["THEODOR &",256,-1],["MORFARS RUMSKIB",384,1]].forEach(n=>{
-    const w=n[1]*0.001125;
-    const m=new THREE.Mesh(new THREE.PlaneGeometry(w,.072),
-      new THREE.MeshBasicMaterial({map:tex(labelCanvas(n[0],
-        {w:n[1],h:64,size:34,bg:"#0b0f15",border:"#3c4756",color:"#e8c35a"})),transparent:true}));
-    m.position.set(n[2]*(0.325+w/2),.205,.04);consoleGroup.add(m);
-  });
+  /* The ship's name, one plate across the top of the dashboard. Splitting
+   * it around the yoke kept every letter visible but read as two signs;
+   * whole is what it is meant to be, and the hub over the middle of it is
+   * the price. The plate is as wide as the console allows and the letters
+   * are set large, because the hub hides a fixed angle: bigger type means
+   * fewer characters behind it, and the ones at its edges still read. */
+  const plate=new THREE.Mesh(new THREE.PlaneGeometry(1.44,.09),
+    new THREE.MeshBasicMaterial({map:tex(labelCanvas("THEODOR & MORFARS RUMSKIB",
+      {w:1280,h:80,size:46,bg:"#0b0f15",border:"#3c4756",color:"#e8c35a"})),transparent:true}));
+  plate.position.set(0,.202,.04);consoleGroup.add(plate);
 })();
 box(1.9,.52,.1,M.hullDark,0,.40,-.80);
 
@@ -1814,12 +1830,8 @@ limbBody.renderOrder=-11;limbBody.visible=false;shell.add(limbBody);
 const limbAtmoU={glow:{value:new THREE.Color(0x5aa8ff)},strength:{value:0}};
 const limbAtmo=new THREE.Mesh(new THREE.SphereGeometry(1.035,48,30),
   new THREE.ShaderMaterial({
-    /* DoubleSide, and not by taste. The shell is 3.5% wider than the body,
-     * so below about 63 km its surface passes OUTSIDE the eye — the eye is
-     * then within the shell, every front face points away, and the whole
-     * glow is culled. That is why the rim only ever appeared near orbit. */
     uniforms:limbAtmoU,transparent:true,depthWrite:false,
-    blending:THREE.AdditiveBlending,side:THREE.DoubleSide,
+    blending:THREE.AdditiveBlending,side:THREE.FrontSide,
     vertexShader:
       "varying vec3 vN; varying vec3 vP;"+
       "void main(){ vN=normalize(normalMatrix*normal);"+
@@ -1871,7 +1883,10 @@ let limbKey=null;
 function setLimb(key){
   limbKey=key;
   const L=key&&LIMBS[key];
-  if(!L){limbBody.visible=false;limbAtmo.visible=false;return;}
+  /* All three, every time. setLimb(null) is what runs on reaching orbit,
+   * and leaving the cloud deck out of it left Earth's weather hanging
+   * around the ship all the way through hyperspace. */
+  if(!L){limbBody.visible=false;limbAtmo.visible=false;limbCloud.visible=false;return;}
   if(!L.tex){
     const d=DEST[key];
     L.tex=(d&&d.tex)?d.tex:tex(L.make());
@@ -1922,15 +1937,23 @@ function updateLimb(dt,alt,fade){
   if(L.atmo>0){
     limbAtmo.visible=true;
     limbAtmo.position.copy(limbBody.position);
-    limbAtmo.scale.setScalar(r);
+    /* The shell must never reach the eye. At a flat 3.5% above the body it
+     * did below about 63 km: inside it, half its vertices fall behind the
+     * camera, get clipped, and leave a hard straight edge across the sky —
+     * and the moment you climbed out through it the glow changed character
+     * in one frame. So it reaches at most most of the way from the surface
+     * up to the eye, which is also the honest shape of the thing: the
+     * lit arc you can see above the horizon IS the air you have climbed
+     * above, and at ten kilometres there is almost none of it below you. */
+    const ar=Math.min(1.035*r, r+0.86*(LIMB_D-r));
+    limbAtmo.scale.setScalar(ar/1.035);
     /* The rim was snapping on because it was tied to the body's fade, which
      * went 0 to 1 over a couple of kilometres. It now follows ALTITUDE on a
      * smoothstep over the first 30 km: faint haze sitting on the horizon
      * from the ground, opening into the bright thin arc against black by
      * the time you are in orbit. */
     const t=THREE.MathUtils.clamp(alt/30000,0,1);
-    /* Halved, because a double-sided shell draws the rim twice. */
-    limbAtmoU.strength.value=L.atmo*fade*0.80*(0.10+0.90*t*t*(3-2*t));
+    limbAtmoU.strength.value=L.atmo*fade*1.35*(0.10+0.90*t*t*(3-2*t));
   }else limbAtmo.visible=false;
 }
 
@@ -2830,6 +2853,11 @@ const SHIP={pos:new THREE.Vector3(0,PAD_Y,0),quat:new THREE.Quaternion(),
 const ONE=new THREE.Vector3(1,1,1), UPW=new THREE.Vector3(0,1,0);
 const shipMat=new THREE.Matrix4(), viewMat=new THREE.Matrix4();
 const FWD=new THREE.Vector3(),UP=new THREE.Vector3();
+/* Where a second person's head goes, for when the ship carries two. The
+ * pilot's eye is the ship's own origin at seat height; this is the same
+ * offset from the passenger cushion, so a second viewpoint drops straight
+ * in here without moving anything. Nothing reads it yet. */
+const SEAT2_EYE=new THREE.Vector3(0.68,1.10,0.18);
 /* On foot the view is the walker's, not the ship's. */
 const WALK={pos:new THREE.Vector3(),quat:new THREE.Quaternion(),yaw:0,eye:1.15,active:false};
 function syncWorld(){
