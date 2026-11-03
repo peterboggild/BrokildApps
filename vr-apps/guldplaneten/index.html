@@ -520,57 +520,222 @@ consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.5,.5,.07),M.hull));
 box(1.5,.52,.1,M.hullDark,0,.40,-.80);
 
 /* ---------- the ship from outside ---------- *
- *  Always built, never hidden: from the pilot's seat the wingtips and the
- *  nose show through the side glass, and once you step out it is the thing
- *  you walked away from. Low-poly on purpose — this is Quest 2 budget.   */
+ *  A heavy lander, not an aeroplane: 16.6 m long, 19 m across the wings and
+ *  7.4 m to the top of the dorsal hull, which is about four and a half times
+ *  the height of the person standing next to it. The belly sits 2.75 m up, so
+ *  on foot you walk underneath it.
+ *
+ *  The fuselage is ONE swept mesh. Each station carries its own half-width
+ *  and, separately, its top and bottom heights — which is what lets the prow
+ *  stay below the windscreen sill the whole way forward while the hull rears
+ *  up into a superstructure behind the canopy. Verified: every station ahead
+ *  of the pilot clears the sightline, and the shell is wound outwards, so
+ *  from the seat you see straight through it rather than into its lining.
+ * ------------------------------------------------------------------ */
+const GEAR=4.2;                 // gear height: ground sits at ship-local -GEAR
+const PAD_Y=GEAR+0.4;           // resting height on the launch pad
 const hullExt=new THREE.Group();ship.add(hullExt);
+const HULL={glow:null,beacon:null,beaconMat:null};
 (function buildExterior(){
+  /* DRAW CALLS ARE THE BUDGET HERE, not triangles. A ship this size built as
+   * one mesh per greeble came to about a hundred calls, which on a Quest 2 is
+   * spent money on top of the cockpit and the terrain ring. Everything that
+   * repeats — legs, rungs, fins, conduits, all six engine bells — goes
+   * through cluster() as a single InstancedMesh instead. Result: the whole
+   * exterior is about fifty calls rather than a hundred.                   */
+  const UBOX=new THREE.BoxGeometry(1,1,1);
+  const UCYL=new THREE.CylinderGeometry(1,1,1,8);
+  const UCYL6=new THREE.CylinderGeometry(1,1,1,6);
+  const UCYL12=new THREE.CylinderGeometry(1,1,1,12);
+  const USPH=new THREE.SphereGeometry(1,10,7);
+  const _cm=new THREE.Matrix4(),_cq=new THREE.Quaternion(),
+        _cp=new THREE.Vector3(),_cs=new THREE.Vector3();
+  function cluster(geo,mat,items){
+    const m=new THREE.InstancedMesh(geo,mat,items.length);
+    items.forEach((it,i)=>{
+      _cp.set(it[0],it[1],it[2]);
+      _cs.set(it[3]===undefined?1:it[3],it[4]===undefined?1:it[4],it[5]===undefined?1:it[5]);
+      _cq.setFromEuler(new THREE.Euler(it[6]||0,it[7]||0,it[8]||0));
+      _cm.compose(_cp,_cq,_cs);m.setMatrixAt(i,_cm);
+    });
+    m.instanceMatrix.needsUpdate=true;
+    hullExt.add(m);return m;
+  }
   const add=(geo,mat,x,y,z,rx,ry,rz)=>{
     const m=new THREE.Mesh(geo,mat);
     m.position.set(x,y,z);
     if(rx||ry||rz)m.rotation.set(rx||0,ry||0,rz||0);
     hullExt.add(m);return m;
   };
-  // belly: a tapered tub under the floor
-  add(new THREE.CylinderGeometry(1.02,.72,3.5,8),M.hull,0,-.42,-.2,Math.PI/2,0,0);
-  // nose cone, ahead of the windscreen and below it
-  add(new THREE.ConeGeometry(.78,1.5,8),M.hull,0,-.12,-2.0,-Math.PI/2,0,0);
-  // spine fairing behind the canopy
-  add(new THREE.CylinderGeometry(.5,.78,1.5,8),M.hull,0,1.5,1.3,Math.PI/2,0,0);
-  // wings: thin tapered boxes, swept back and given a little dihedral
+
+  /* ---- fuselage: one swept mesh ----
+   * Each station carries its own half-width and, separately, its top and
+   * bottom heights. That is what lets the prow stay below the windscreen
+   * sill the whole way forward while the hull rears up into a
+   * superstructure behind the canopy. */
+  const SECTION=[
+    [0.00,-1.00],[0.58,-0.98],[0.95,-0.62],[1.00,-0.10],[0.88,0.42],[0.52,0.82],
+    [0.00,0.95],[-0.52,0.82],[-0.88,0.42],[-1.00,-0.10],[-0.95,-0.62],[-0.58,-0.98]
+  ];
+  const ST=[
+    {z:-7.60,w:0.30,top:0.18,bot:0.16},{z:-6.20,w:0.85,top:0.38,bot:0.45},
+    {z:-4.60,w:1.35,top:0.60,bot:0.80},{z:-3.00,w:1.80,top:0.78,bot:1.05},
+    {z:-1.60,w:2.25,top:0.90,bot:1.25},{z:-0.20,w:2.60,top:0.97,bot:1.40},
+    {z: 1.00,w:2.75,top:1.02,bot:1.45},{z: 2.20,w:2.80,top:2.20,bot:1.45},
+    {z: 4.00,w:2.70,top:3.20,bot:1.40},{z: 6.40,w:2.50,top:3.05,bot:1.25},
+    {z: 8.20,w:2.20,top:2.55,bot:1.05},{z: 9.00,w:1.95,top:2.25,bot:0.90}
+  ];
+  function sweptHull(section,stations){
+    const n=section.length,m=stations.length,pos=[],uv=[],idx=[];
+    const z0=stations[0].z, zL=stations[m-1].z-z0;
+    for(const st of stations)for(let i=0;i<n;i++){
+      const q=section[i];
+      pos.push(q[0]*st.w, q[1]*(q[1]>0?st.top:st.bot), st.z);
+      uv.push(i/n*2,(st.z-z0)/zL*5);
+    }
+    for(let k=0;k<m-1;k++)for(let i=0;i<n;i++){
+      const a=k*n+i,b=k*n+(i+1)%n,c=(k+1)*n+i,d=(k+1)*n+(i+1)%n;
+      idx.push(a,b,c, b,d,c);
+    }
+    const base=pos.length/3,last=stations[m-1];
+    pos.push(0,0,last.z);uv.push(.5,5);
+    for(let i=0;i<n;i++){const a=(m-1)*n+i,b=(m-1)*n+(i+1)%n;idx.push(base,a,b);}
+    const g=new THREE.BufferGeometry();
+    g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
+    g.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));
+    g.setIndex(idx);g.computeVertexNormals();return g;
+  }
+  hullExt.add(new THREE.Mesh(sweptHull(SECTION,ST),M.hull));
+
+  /* ---- wings from four planform corners, extruded ----
+   * Flat slabs read as cardboard, so the tip is drawn thinner than the root. */
+  function wingGeo(c,thickRoot,thickTip){
+    const pos=[],uv=[],idx=[];
+    const t=[thickRoot,thickTip,thickTip,thickRoot];
+    const Q=[[0,0],[2,0],[2,2],[0,2]];
+    for(let i=0;i<4;i++){pos.push(c[i][0], t[i]/2,c[i][1]);uv.push(Q[i][0],Q[i][1]);}
+    for(let i=0;i<4;i++){pos.push(c[i][0],-t[i]/2,c[i][1]);uv.push(Q[i][0],Q[i][1]);}
+    idx.push(0,1,2, 0,2,3, 4,6,5, 4,7,6);
+    for(let i=0;i<4;i++){const j=(i+1)%4;idx.push(i,4+i,j, j,4+i,4+j);}
+    const g=new THREE.BufferGeometry();
+    g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
+    g.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));
+    g.setIndex(idx);g.computeVertexNormals();return g;
+  }
+
+  /* ---- engines ----
+   * All six share one glow material, so the bells can be a single instanced
+   * mesh and still light up together with the throttle. */
+  const nozzleGeo=new THREE.CylinderGeometry(.62,1.05,2.1,12,1,true);
+  const nozzleMat=new THREE.MeshStandardMaterial({color:0x36414f,roughness:.45,
+    metalness:.85,roughnessMap:wear,side:THREE.DoubleSide});
+  const glowMat=new THREE.MeshStandardMaterial({color:0x2a1206,roughness:.55,
+    emissive:0xff7a1e,emissiveIntensity:0,side:THREE.DoubleSide});
+  HULL.glow=glowMat;
+  const ENGINES=[
+    [-1.25,-0.15,10.00,1.00],[1.25,-0.15,10.00,1.00],
+    [-1.25, 1.45,10.00,1.00],[1.25, 1.45,10.00,1.00],
+    [-6.10,-1.85, 7.95,0.78],[6.10,-1.85, 7.95,0.78]
+  ];
+  const H=Math.PI/2;
+  cluster(nozzleGeo,nozzleMat,ENGINES.map(e=>[e[0],e[1],e[2],e[3],e[3],e[3],H,0,0]));
+  cluster(new THREE.TorusGeometry(1.03,.1,6,14),M.hullDark,
+    ENGINES.map(e=>[e[0],e[1],e[2]+1.05*e[3],e[3],e[3],e[3]]));
+  cluster(new THREE.CircleGeometry(.95,12),glowMat,
+    ENGINES.map(e=>[e[0],e[1],e[2]+0.55*e[3],e[3],e[3],e[3],0,Math.PI,0]));
+
+  // ---- wings, strakes, fins, nacelles ----
+  const fins=[],navsR=[],navsG=[];
   [-1,1].forEach(sg=>{
-    const w=new THREE.Mesh(new THREE.BoxGeometry(3.0,.16,1.5),M.hull);
-    w.position.set(sg*2.2,-.30,.35);
-    w.rotation.set(0,sg*0.30,sg*-0.10);
-    hullExt.add(w);
-    // wingtip fin
-    const f=new THREE.Mesh(new THREE.BoxGeometry(.12,.72,.9),M.trim);
-    f.position.set(sg*3.55,.12,.62);f.rotation.y=sg*0.30;hullExt.add(f);
-    // navigation light, red to port and green to starboard, as they are
-    const nav=new THREE.Mesh(new THREE.SphereGeometry(.09,8,6),
-      new THREE.MeshStandardMaterial({color:sg<0?0x3a0808:0x08320f,
-        emissive:sg<0?0xff2a2a:0x2aff55,emissiveIntensity:1.4}));
-    nav.position.set(sg*3.62,.5,.62);hullExt.add(nav);
-    // engine nozzle
-    add(new THREE.CylinderGeometry(.34,.46,.8,8,1,true),M.trim,sg*.62,-.42,1.95,Math.PI/2,0,0);
-    add(new THREE.CylinderGeometry(.3,.3,.1,8),
-      new THREE.MeshStandardMaterial({color:0x201008,roughness:.9}),sg*.62,-.42,2.33,Math.PI/2,0,0);
+    const w=new THREE.Mesh(wingGeo([
+      [sg*2.30,0.20],[sg*9.50,5.60],[sg*9.50,7.25],[sg*2.45,8.60]
+    ],.62,.26),M.hull);
+    w.position.y=-.45;w.rotation.z=sg*-0.055;hullExt.add(w);
+    const strake=new THREE.Mesh(wingGeo([
+      [sg*2.10,-1.40],[sg*3.60,1.10],[sg*3.60,2.00],[sg*2.20,0.40]
+    ],.40,.18),M.trim);
+    strake.position.y=-.35;hullExt.add(strake);
+    fins.push([sg*9.45,.75,6.40,.18,2.30,2.60,0,0,sg*0.22]);
+    (sg<0?navsR:navsG).push([sg*9.55,.05,5.55,.17,.17,.17]);
+    for(let i=0;i<4;i++)fins.push([sg*(3.3+i*.42),.05,3.1+i*.2,.08,.52,1.7]);
+    // pylon and nacelle for the outboard engine
+    add(UBOX,M.hullDark,sg*6.10,-1.05,5.70).scale.set(.5,1.3,3.2);
+    add(UCYL12,M.hull,sg*6.10,-1.85,5.40,H,0,0).scale.set(1.08,4.4,1.08);
+    add(new THREE.TorusGeometry(1.08,.13,6,14),M.trim,sg*6.10,-1.85,3.22);
   });
-  // tail fin
-  add(new THREE.BoxGeometry(.14,1.5,1.3),M.trim,0,2.1,1.65);
-  // three landing legs with pads, so it stands on something
-  [[0,-2.0],[-1.5,1.4],[1.5,1.4]].forEach(l=>{
-    add(new THREE.CylinderGeometry(.09,.11,1.6,6),M.trim,l[0],-1.35,l[1]);
-    add(new THREE.CylinderGeometry(.42,.46,.14,10),M.hullDark,l[0],-2.12,l[1]);
-  });
-  // the hatch itself, on the port side, with a ladder down to the ground
-  const hatch=new THREE.Mesh(new THREE.BoxGeometry(.1,1.25,.78),M.trim);
-  hatch.position.set(-1.06,.52,.2);hullExt.add(hatch);
-  const lit=new THREE.Mesh(new THREE.BoxGeometry(.04,1.05,.6),
-    new THREE.MeshStandardMaterial({color:0x0c2b26,emissive:0x3ff0c0,emissiveIntensity:.9}));
-  lit.position.set(-1.13,.52,.2);hullExt.add(lit);
-  for(let i=0;i<4;i++)
-    add(new THREE.BoxGeometry(.5,.05,.09),M.trim,-1.3,-.2-i*.46,.2);
+  cluster(UBOX,M.trim,fins);          // wingtip fins and radiator plates together
+  cluster(USPH,new THREE.MeshStandardMaterial({color:0x3a0808,emissive:0xff2a2a,emissiveIntensity:1.6}),navsR);
+  cluster(USPH,new THREE.MeshStandardMaterial({color:0x08320f,emissive:0x2aff55,emissiveIntensity:1.6}),navsG);
+
+  // thrust structure closing the tail
+  add(UBOX,M.hullDark,0,.65,9.45).scale.set(4.0,3.3,1.5);
+
+  // ---- dorsal spine, tanks, mast, beacon ----
+  add(UCYL,M.trim,0,3.25,4.40,H,0,0).scale.set(.85,5.4,.85);
+  add(USPH,M.trim,0,3.25,1.75).scale.setScalar(.86);
+  cluster(UCYL,M.hullDark,[[-2.05,2.55,5.10,.55,4.2,.55,H,0,0],[2.05,2.55,5.10,.55,4.2,.55,H,0,0]]);
+  cluster(USPH,M.hullDark,[[-2.05,2.55,3.00,.56,.56,.56],[2.05,2.55,3.00,.56,.56,.56]]);
+  add(UCYL6,M.trim,0,4.80,6.60).scale.set(.08,3.0,.08);
+  add(new THREE.TorusGeometry(.62,.045,5,12),M.trim,0,6.05,6.60,Math.PI/2.6,0,0);
+  HULL.beaconMat=new THREE.MeshStandardMaterial({color:0x3a0a0a,emissive:0xff3020,emissiveIntensity:0});
+  HULL.beacon=add(USPH,HULL.beaconMat,0,6.35,6.60);HULL.beacon.scale.setScalar(.17);
+
+  // ---- chin turret, RCS quads, floodlights ----
+  add(USPH,M.trim,0,-1.25,-3.30).scale.setScalar(.52);
+  add(UCYL,M.hullDark,0,-1.62,-3.30).scale.set(.23,.5,.23);
+  const rcs=[];
+  [-1,1].forEach(sg=>{rcs.push([sg*0.85,.1,-5.20,.34,.34,.5],[sg*1.30,.1,-2.40,.34,.34,.5]);});
+  cluster(UBOX,M.trim,rcs);
+  cluster(UCYL,M.hullDark,[[-0.95,-1.35,-2.10,.18,.26,.18,Math.PI/2.4,0,0],
+                           [ 0.95,-1.35,-2.10,.18,.26,.18,Math.PI/2.4,0,0]]);
+  cluster(new THREE.CircleGeometry(.15,10),
+    new THREE.MeshStandardMaterial({color:0x2a2616,emissive:0xffe9b0,emissiveIntensity:.8}),
+    [[-0.95,-1.47,-2.02,1,1,1,-1.1,0,0],[0.95,-1.47,-2.02,1,1,1,-1.1,0,0]]);
+
+  // ---- flank greebles: panels, conduits and caps, one call ----
+  (function greeble(){
+    const N=72, rr=mulberry32(90125), items=[];
+    for(let i=0;i<N;i++){
+      const sg=i%2?1:-1, t=rr(), z=-6.0+t*14.5;
+      const wHere=0.30+Math.min(1,Math.max(0,(z+7.6)/7.0))*2.45;
+      items.push([sg*wHere*0.97,(rr()-.45)*1.5,z,
+        .07+rr()*.1,.1+rr()*.5,.5+rr()*1.9, 0,0,(rr()-.5)*.25]);
+    }
+    cluster(UBOX,M.trim,items);
+  })();
+  // belly conduits, running fore and aft
+  (function(){
+    const items=[];
+    [-1,1].forEach(sg=>{for(let i=0;i<3;i++)
+      items.push([sg*(.55+i*.42),-1.42,2.0,.11,9.5,.11,H,0,0]);});
+    cluster(UCYL6,M.trim,items);
+  })();
+
+  // ---- landing gear: four braced legs on big pads ----
+  (function gear(){
+    const feet=[[-2.1,-2.60],[2.1,-2.60],[-2.5,6.20],[2.5,6.20]];
+    // the pad's underside lands exactly on the ground plane at -GEAR
+    const topY=-1.25, padY=-GEAR+0.10, len=topY-padY, midY=(topY+padY)/2;
+    cluster(UCYL,M.trim,feet.map(l=>[l[0],midY,l[1],.21,len,.21]));
+    cluster(UCYL,M.hullDark,feet.map(l=>[l[0],topY-.3,l[1],.3,.55,.3]));
+    cluster(UCYL6,M.trim,feet.map(l=>[l[0]*.78,midY+.2,l[1],.09,len*.95,.09,
+      0,0,Math.atan2(l[0]*.44,len*.9)]));
+    cluster(UCYL12,M.hullDark,feet.map(l=>[l[0],padY,l[1],.86,.2,.86]));
+    cluster(UCYL,M.trim,feet.map(l=>[l[0],padY+.22,l[1],.28,.3,.28]));
+  })();
+
+  // ---- the hatch on the port flank, with a ladder to the ground ----
+  add(UBOX,M.trim,-2.42,-.25,-1.00).scale.set(.22,1.85,1.15);
+  add(UBOX,new THREE.MeshStandardMaterial({color:0x0c2b26,emissive:0x3ff0c0,emissiveIntensity:.9}),
+      -2.56,-.25,-1.00).scale.set(.06,1.55,.9);
+  (function ladder(){
+    const n=Math.ceil((GEAR-1.4)/.42), items=[];
+    for(let i=0;i<n;i++)items.push([-2.72,-1.35-i*.42,-1.00,.75,.07,.12]);
+    cluster(UBOX,M.trim,items);
+    cluster(UCYL6,M.trim,[
+      [-2.72,-1.3-(GEAR-1.4)/2,-1.28,.05,GEAR-1.2,.05],
+      [-2.72,-1.3-(GEAR-1.4)/2,-0.72,.05,GEAR-1.2,.05]]);
+  })();
 })();
 
 /* ---------- interactive registry ---------- */
@@ -1305,7 +1470,7 @@ function updatePoke(){
 }
 
 /* ---------- ship state ---------- */
-const SHIP={pos:new THREE.Vector3(0,2.4,0),quat:new THREE.Quaternion(),
+const SHIP={pos:new THREE.Vector3(0,PAD_Y,0),quat:new THREE.Quaternion(),
             vel:new THREE.Vector3(),onGround:true};
 const ONE=new THREE.Vector3(1,1,1), UPW=new THREE.Vector3(0,1,0);
 const shipMat=new THREE.Matrix4(), viewMat=new THREE.Matrix4();
@@ -1568,7 +1733,7 @@ function restartFlight(){
   hatchBtn.group.visible=false;
   St.phase="preflight";St.t=0;St.dest=null;St.distance=0;St.landQuality="";
   St.alt=0;St.speed=0;St.bodyDist=0;St.warpT=0;
-  SHIP.pos.set(0,2.4,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();SHIP.onGround=true;
+  SHIP.pos.set(0,PAD_Y,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();SHIP.onGround=true;
   throttle.value=0;
   terrainKey=null;clearChunks();
   terrainRoot.visible=false;skirt.visible=false;
@@ -1888,15 +2053,15 @@ function teleport(){
 /* The way back in: a marker floating at the hatch, parented to the ship so it
  * travels with it, pokeable once you are close enough to reach the ladder. */
 const enterMark=(function(){
-  const g=new THREE.Group();g.position.set(-1.5,.5,.2);g.visible=false;ship.add(g);
-  const face=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.42),
+  const g=new THREE.Group();g.position.set(-2.9,-1.1,-1.0);g.visible=false;ship.add(g);
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(2.0,.76),
     new THREE.MeshBasicMaterial({map:tex(labelCanvas("GÅ IND",
       {w:256,h:96,size:40,bg:"#07131d",border:"#2a6a8c",color:"#8ce8a0"})),
       transparent:true,side:THREE.DoubleSide,depthWrite:false}));
   g.add(face);
-  const hit=new THREE.Mesh(new THREE.BoxGeometry(1.3,.7,.7),new THREE.MeshBasicMaterial({visible:false}));
+  const hit=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.1,1.1),new THREE.MeshBasicMaterial({visible:false}));
   g.add(hit);
-  makeInteractive(hit,{poke:.4,onPress:()=>enterShip()});
+  makeInteractive(hit,{poke:.6,onPress:()=>enterShip()});
   return g;
 })();
 
@@ -1904,7 +2069,7 @@ function exitShip(){
   if(St.phase!=="landed"||WALK.active)return;
   const d=DEST[St.dest];
   /* Step out onto the port side, beside the ladder. */
-  const spot=new THREE.Vector3(-3.2,0,.2).applyQuaternion(SHIP.quat).add(SHIP.pos);
+  const spot=new THREE.Vector3(-6.2,0,-1.0).applyQuaternion(SHIP.quat).add(SHIP.pos);
   const yaw0=Math.atan2(-1,0);            // step out facing away from the hull
   blink(()=>{
     WALK.active=true;WALK.yaw=yaw0;
@@ -1922,7 +2087,7 @@ function enterShip(){
   if(!WALK.active)return;
   /* Only from arm's reach of the ladder, so the marker is a door and not a
    * teleport-home button you can hit from the next valley. */
-  _v.set(-1.5,.5,.2).applyQuaternion(SHIP.quat).add(SHIP.pos);
+  _v.set(-2.9,-1.1,-1.0).applyQuaternion(SHIP.quat).add(SHIP.pos);
   if(_v.distanceTo(WALK.pos)>12){
     Audio_.bad();showMsg("For langt fra lugen — hop tættere på skibet først.");
     return;
@@ -1940,7 +2105,7 @@ function updateEVA(dt){
   const h=groundH(terrainKey,WALK.pos.x,WALK.pos.z);
   WALK.pos.y+=((h+WALK.eye)-WALK.pos.y)*Math.min(1,dt*9);
   St.alt=0;
-  const hatchW=_v.set(-1.5,.5,.2).applyQuaternion(SHIP.quat).add(SHIP.pos);
+  const hatchW=_v.set(-2.9,-1.1,-1.0).applyQuaternion(SHIP.quat).add(SHIP.pos);
   enterMark.visible=hatchW.distanceTo(WALK.pos)<34;
   if(enterMark.visible){
     /* Turn the sign to face the walker. The marker is a child of the ship,
@@ -2026,13 +2191,13 @@ function updateFlight(dt){
   }
 
   if(ph==="preflight"){
-    SHIP.pos.set(0,2.4,0);SHIP.quat.identity();SHIP.vel.set(0,0,0);St.alt=0;St.speed=0;
+    SHIP.pos.set(0,PAD_Y,0);SHIP.quat.identity();SHIP.vel.set(0,0,0);St.alt=0;St.speed=0;
   }
 
   if(ph==="ignition"){
     SHIP.vel.y+=dt*5*(.4+St.thrust);
     SHIP.pos.y+=SHIP.vel.y*dt;
-    St.alt=SHIP.pos.y-2.4;St.speed=SHIP.vel.y;
+    St.alt=SHIP.pos.y-PAD_Y;St.speed=SHIP.vel.y;
     if(St.t>3.2){
       St.phase="ascent";St.t=0;log("OPSTIGNING");
       showMsg(auto?"Autopiloten styrer opstigningen.":"Rat for hældning, gas for skub");
@@ -2135,7 +2300,7 @@ function updateFlight(dt){
     /* Height first: both the autopilot and the readouts need to know where
      * the ground is before anything moves. */
     let h=groundH(St.dest,SHIP.pos.x,SHIP.pos.z);
-    St.alt=SHIP.pos.y-h-2.2;
+    St.alt=SHIP.pos.y-h-GEAR;
 
     if(auto){
       /* The autopilot does NOT fly the aircraft model. Lift comes from
@@ -2167,7 +2332,7 @@ function updateFlight(dt){
     }
 
     h=groundH(St.dest,SHIP.pos.x,SHIP.pos.z);
-    St.alt=SHIP.pos.y-h-2.2;
+    St.alt=SHIP.pos.y-h-GEAR;
     St.speed=SHIP.vel.length();
     skirt.position.y=h-160;
     if(St.alt<=0){
@@ -2184,7 +2349,7 @@ function updateFlight(dt){
                 "Hård landing — skroget tog den. Giv gas for at lette igen.");
         if(auto)autoThrottle(0,1);
       }
-      SHIP.onGround=true;SHIP.pos.y=h+2.2;
+      SHIP.onGround=true;SHIP.pos.y=h+GEAR;
       if(SHIP.vel.y<0)SHIP.vel.y=0;
       SHIP.vel.x*=Math.pow(.16,dt);SHIP.vel.z*=Math.pow(.16,dt);
       _q.identity();SHIP.quat.slerp(_q,1-Math.pow(.2,dt));
@@ -2241,6 +2406,16 @@ function updateFlight(dt){
   bigBtn.mat.emissive.setRGB(bl*.75,bl*.07,bl*.05);
   if(St.flash>0){St.flash-=dt*2;cabin.color.setHex(0xff4040);cabin.intensity=1.6;}
   else{cabin.color.setHex(0xffb14d);cabin.intensity=.85+bl*.5+(ph==="ignition"?1.2:0);}
+
+  /* The bells answer the throttle, and glow hot on ignition whatever the
+   * lever says, because that is the one moment the engines are at full. */
+  const burn=(ph==="ignition")?1:(ph==="preflight")?0:St.thrust;
+  if(HULL.glow)
+    HULL.glow.emissiveIntensity+=(burn*2.4-HULL.glow.emissiveIntensity)*Math.min(1,dt*5);
+  if(HULL.beaconMat){
+    const on=(ph!=="preflight")&&(Math.sin(St.t*3.4)>.72);
+    HULL.beaconMat.emissiveIntensity=on?2.6:0;
+  }
 
   const open=(ph==="space"||ph==="course"||ph==="approach"||ph==="hyperspace");
   hemi.intensity+=((open?.12:.55)-hemi.intensity)*Math.min(1,dt*2);
