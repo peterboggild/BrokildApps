@@ -1303,7 +1303,7 @@ const stars=(function(){
   const m=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:0,
     blending:THREE.AdditiveBlending,depthWrite:false});
   const l=new THREE.LineSegments(g,m);
-  l.frustumCulled=false;l.renderOrder=-9;shell.add(l);
+  l.frustumCulled=false;l.renderOrder=-12;shell.add(l);
   return l;
 })();
 function updateStars(dt,warpAmt){
@@ -1346,11 +1346,11 @@ const deepSky=new THREE.Group();deepSky.visible=false;shell.add(deepSky);
    [190,70,60,-900,-1900,3000,2500,37]].forEach(sp=>{
     const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex(cloudTexture(sp[0],sp[1],sp[2],sp[7])),
       blending:THREE.AdditiveBlending,depthWrite:false,opacity:.5,transparent:true}));
-    s.renderOrder=-10;s.position.set(sp[3],sp[4],sp[5]);s.scale.setScalar(sp[6]);deepSky.add(s);
+    s.renderOrder=-12;s.position.set(sp[3],sp[4],sp[5]);s.scale.setScalar(sp[6]);deepSky.add(s);
   });
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex(cloudTexture(210,200,170,77)),
     blending:THREE.AdditiveBlending,depthWrite:false,opacity:.65,transparent:true}));
-  s.renderOrder=-10;s.position.set(-3000,2100,900);s.scale.set(620,170,1);
+  s.renderOrder=-12;s.position.set(-3000,2100,900);s.scale.set(620,170,1);
   s.material.rotation=.75;deepSky.add(s);
 })();
 
@@ -1495,17 +1495,38 @@ const sky=new THREE.Mesh(new THREE.SphereGeometry(4300,28,18),
     vertexShader:"varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
     fragmentShader:"uniform vec3 top; uniform vec3 bottom; uniform float alpha; varying vec3 vP; void main(){ float t = clamp(normalize(vP).y*0.5+0.5,0.0,1.0); vec3 c = mix(bottom,top,pow(t,0.8)); gl_FragColor = vec4(c, alpha); }"
   }));
-sky.renderOrder=-11;shell.add(sky);
+sky.renderOrder=-13;shell.add(sky);
 
 /* ---------- launch site ---------- */
+/* Where on Earth the pad is. The globe's land/sea split comes from
+ * noiseA, so rather than guessing a spot we scan the same function along
+ * the equator for the widest stretch of land and plant the pad in the
+ * middle of it. That one coordinate then does two jobs: it turns the globe
+ * so this place is directly beneath you on the way up, and it gives the
+ * apron and the hills the colour that patch of land has from orbit — so
+ * the ground you walk on and the ground you look down at are the same. */
+const EARTH_SITE=(function(){
+  const W=1024,H=512,y=Math.floor(H*0.52);
+  let best={len:0,mid:W*0.75}, run=0;
+  for(let x=0;x<W;x++){
+    if(noiseA(x/42,y/42,7)>0.56){run++;if(run>best.len)best={len:run,mid:x-run/2};}
+    else run=0;
+  }
+  const x=best.mid;
+  const n=noiseA(x/42,y/42,7), h=(n-.52)/.48, arid=noiseC(x/55+3,y/55,3);
+  return {u:best.mid/W,
+    r:52+h*70+arid*92, g:92+h*66+arid*40, b:44+h*34+arid*12};
+})();
 const site=new THREE.Group();world.add(site);
 let siteGround=null;
 (function buildSite(){
   const gtex=(function(){
     const c=cvs(192,192),g=c.getContext("2d");
     for(let y=0;y<192;y++)for(let x=0;x<192;x++){
-      const n=noiseB(x/14,y/14,4);
-      g.fillStyle="rgb("+Math.round(44+n*40)+","+Math.round(56+n*44)+","+Math.round(38+n*26)+")";
+      const n=noiseB(x/14,y/14,4)-.5;
+      g.fillStyle="rgb("+Math.round(EARTH_SITE.r+n*54)+","+
+                         Math.round(EARTH_SITE.g+n*58)+","+
+                         Math.round(EARTH_SITE.b+n*38)+")";
       g.fillRect(x,y,1,1);
     }
     return c;
@@ -1531,7 +1552,8 @@ let siteGround=null;
       new THREE.MeshStandardMaterial({color:0x4a5663,roughness:.85,roughnessMap:wear}));
     m.position.set(h[0],4.5,h[2]);site.add(m);
   });
-  const hillMat=new THREE.MeshStandardMaterial({color:0x37433a,roughness:1,flatShading:true});
+  const hillMat=new THREE.MeshStandardMaterial({flatShading:true,roughness:1,
+    color:new THREE.Color(EARTH_SITE.r/255*0.72,EARTH_SITE.g/255*0.72,EARTH_SITE.b/255*0.72)});
   for(let i=0;i<20;i++){
     const a=Math.random()*Math.PI*2,r=380+Math.random()*900,hh=34+Math.random()*120;
     const m=new THREE.Mesh(new THREE.ConeGeometry(70+Math.random()*150,hh,6),hillMat);
@@ -1558,30 +1580,73 @@ let siteGround=null;
  *  translation, so the horizon tilts and rolls with the yoke for free.
  * ------------------------------------------------------------------ */
 const LIMB_D=3000;
+/* Radii are modelled, not real. 700 km put Earth's horizon 30 degrees below
+ * eye level at orbit, which is under the windscreen sill and so invisible
+ * from the seat; 1800 km puts it at 19.5, just inside the 21.5 degrees the
+ * sill allows, so the horizon stays in the forward view for the whole climb
+ * and a touch of nose-down brings it fully into frame. The other worlds are
+ * scaled to match, so their horizons sit in the window on the way down too. */
 const LIMBS={
-  earth:{R:700000,tex:null,make:earthTexture,glow:new THREE.Color(0x5aa8ff),atmo:1.0,rough:.92},
-  moon :{R:300000,tex:null,make:moonTexture, glow:new THREE.Color(0x9aa0aa),atmo:0.0,rough:.98},
-  mars :{R:380000,tex:null,make:marsTexture, glow:new THREE.Color(0xe08a52),atmo:0.5,rough:.96},
-  gold :{R:420000,tex:null,make:goldTexture, glow:new THREE.Color(0xbb70ff),atmo:0.8,rough:.45}
+  earth:{R:1800000,tex:null,make:earthTexture,glow:new THREE.Color(0x5aa8ff),atmo:1.0},
+  moon :{R: 900000,tex:null,make:moonTexture, glow:new THREE.Color(0x9aa0aa),atmo:0.0},
+  mars :{R:1100000,tex:null,make:marsTexture, glow:new THREE.Color(0xe08a52),atmo:0.5},
+  gold :{R:1250000,tex:null,make:goldTexture, glow:new THREE.Color(0xbb70ff),atmo:0.8}
+};
+/* THE DEPTH PROBLEM, and why these are hand-written shaders.
+ *
+ * The proxy is geometrically CLOSE — its nearest point sits a few hundred
+ * units from the eye — but it stands for something hundreds of kilometres
+ * away. With depth testing off it painted straight over the cockpit, which
+ * is why Earth appeared inside the cabin. With depth testing on it would
+ * instead paint over the terrain you are trying to land on, because the
+ * proxy genuinely is nearer than the ground.
+ *
+ * So the vertex shader pins the fragment to the far plane (z = w) while
+ * keeping its real projected x and y. The silhouette is untouched, but the
+ * body now sits at maximum depth: the cockpit occludes it, the hull
+ * occludes it, the terrain occludes it, and it still covers the sky and the
+ * stars because those draw earlier and write no depth. One pass, no
+ * depth-buffer juggling, and correct on the way down as well as up. */
+const LIMB_PIN="vec4 p=projectionMatrix*mv; p.z=p.w*0.999999; gl_Position=p;";
+const limbBodyU={
+  map:{value:null}, opacity:{value:0},
+  sunWorld:{value:new THREE.Vector3(-3,4,-6).normalize()},
+  ambient:{value:new THREE.Color(0x2b3a4d)}
 };
 const limbBody=new THREE.Mesh(new THREE.SphereGeometry(1,72,44),
-  new THREE.MeshStandardMaterial({roughness:.92,metalness:.02,
-    depthTest:false,depthWrite:false,transparent:true,opacity:0}));
+  new THREE.ShaderMaterial({
+    uniforms:limbBodyU,transparent:true,depthWrite:false,side:THREE.FrontSide,
+    vertexShader:
+      "varying vec2 vUv; varying vec3 vN;"+
+      "void main(){ vUv=uv; vN=normalize(normalMatrix*normal);"+
+      "vec4 mv=modelViewMatrix*vec4(position,1.0);"+LIMB_PIN+"}",
+    fragmentShader:
+      "uniform sampler2D map; uniform float opacity;"+
+      "uniform vec3 sunWorld; uniform vec3 ambient;"+
+      "varying vec2 vUv; varying vec3 vN;"+
+      "void main(){ vec3 base=texture2D(map,vUv).rgb;"+
+      /* viewMatrix is built in, so the terminator tracks the real sun with
+       * no per-frame work on the CPU and no second light to compile. */
+      "vec3 sv=normalize((viewMatrix*vec4(sunWorld,0.0)).xyz);"+
+      "float d=dot(normalize(vN),sv);"+
+      "vec3 col=base*(ambient+vec3(1.15)*max(0.0,d)+vec3(0.20)*max(0.0,d*0.5+0.5));"+
+      "gl_FragColor=vec4(col,opacity); }"
+  }));
 limbBody.renderOrder=-10;limbBody.visible=false;shell.add(limbBody);
 
 const limbAtmoU={glow:{value:new THREE.Color(0x5aa8ff)},strength:{value:0}};
 const limbAtmo=new THREE.Mesh(new THREE.SphereGeometry(1.035,48,30),
   new THREE.ShaderMaterial({
-    uniforms:limbAtmoU,transparent:true,depthTest:false,depthWrite:false,
+    uniforms:limbAtmoU,transparent:true,depthWrite:false,
     blending:THREE.AdditiveBlending,side:THREE.FrontSide,
-    vertexShader:"varying vec3 vN; varying vec3 vP;"+
+    vertexShader:
+      "varying vec3 vN; varying vec3 vP;"+
       "void main(){ vN=normalize(normalMatrix*normal);"+
-      "vec4 mv=modelViewMatrix*vec4(position,1.0); vP=mv.xyz;"+
-      "gl_Position=projectionMatrix*mv; }",
+      "vec4 mv=modelViewMatrix*vec4(position,1.0); vP=mv.xyz;"+LIMB_PIN+"}",
     /* Brightest where the surface turns away from you, which is the limb:
-     * that thin lit arc is the single most recognisable thing about the
-     * view from orbit. */
-    fragmentShader:"uniform vec3 glow; uniform float strength;"+
+     * that thin lit arc is the most recognisable thing about the view. */
+    fragmentShader:
+      "uniform vec3 glow; uniform float strength;"+
       "varying vec3 vN; varying vec3 vP;"+
       "void main(){ float rim=1.0-abs(dot(normalize(vN),normalize(-vP)));"+
       "float a=pow(clamp(rim,0.0,1.0),2.6)*strength;"+
@@ -1589,7 +1654,7 @@ const limbAtmo=new THREE.Mesh(new THREE.SphereGeometry(1.035,48,30),
   }));
 limbAtmo.renderOrder=-9;limbAtmo.visible=false;shell.add(limbAtmo);
 
-let limbKey=null, limbSpin=0;
+let limbKey=null;
 function setLimb(key){
   limbKey=key;
   const L=key&&LIMBS[key];
@@ -1599,24 +1664,23 @@ function setLimb(key){
     L.tex=(d&&d.tex)?d.tex:tex(L.make());
     if(d&&!d.tex)d.tex=L.tex;
   }
-  limbBody.material.map=L.tex;
-  limbBody.material.roughness=L.rough;
-  limbBody.material.needsUpdate=true;
+  limbBodyU.map.value=L.tex;
   limbAtmoU.glow.value.copy(L.glow);
+  /* Turn the globe so the place you launched from is the place underneath
+   * you. Solved empirically against the geometry: the texture coordinate
+   * facing the camera is u = 0.75 - spin/2PI. */
+  const u=(key==="earth")?EARTH_SITE.u:0.75;
+  limbBody.rotation.set(Math.PI/2,(0.75-u)*Math.PI*2,0);
+  limbAtmo.rotation.copy(limbBody.rotation);
 }
 function updateLimb(dt,alt,fade){
   const L=limbKey&&LIMBS[limbKey];
   if(!L||fade<=0.002){limbBody.visible=false;limbAtmo.visible=false;return;}
-  const h=Math.max(0,alt);
-  const r=LIMB_D*L.R/(L.R+h);
+  const r=LIMB_D*L.R/(L.R+Math.max(200,alt));
   limbBody.visible=true;
   limbBody.position.set(0,-LIMB_D,0);
   limbBody.scale.setScalar(r);
-  limbSpin+=dt*0.004;
-  /* Tilt the pole sideways: looking straight down at a sphere's pole puts
-   * the texture's pinch point in the middle of the picture. */
-  limbBody.rotation.set(Math.PI/2,limbSpin,0);
-  limbBody.material.opacity=fade;
+  limbBodyU.opacity.value=fade;
   if(L.atmo>0){
     limbAtmo.visible=true;
     limbAtmo.position.copy(limbBody.position);
@@ -2970,9 +3034,9 @@ function updateFlight(dt){
      * the pad and the towers on it and is right for the first few
      * kilometres; past that its square edge gives the game away, while the
      * limb has no detail worth seeing from close up. */
-    siteGround.material.opacity=1-THREE.MathUtils.clamp((a-5000)/8000,0,1);
-    site.visible=a<15000;
-    updateLimb(dt,a,THREE.MathUtils.clamp((a-4000)/7000,0,1));
+    siteGround.material.opacity=1-THREE.MathUtils.clamp((a-2600)/3400,0,1);
+    site.visible=a<6400;
+    updateLimb(dt,a,THREE.MathUtils.clamp((a-1800)/2600,0,1));
     if(a>110000){
       St.phase="space";menu.visible=true;site.visible=false;
       setCloudDeck(null);
@@ -3084,7 +3148,7 @@ function updateFlight(dt){
     skirt.position.y=h-160;
     /* Climb away from a world and its own limb comes up to meet you, the
      * local ground fading out from under the ship as it goes. */
-    const lf=THREE.MathUtils.clamp((St.alt-1500)/3000,0,1);
+    const lf=THREE.MathUtils.clamp((St.alt-120)/420,0,1);
     skirt.material.opacity=1-lf;
     updateLimb(dt,Math.max(0,St.alt),lf);
     if(St.alt<=0){
