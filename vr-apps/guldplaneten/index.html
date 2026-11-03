@@ -105,8 +105,8 @@
     <div class="rivet">Morfars Værft · Startrampe 04 · Danmark</div>
     <h1>Guldplaneten</h1>
     <p class="sub">Du starter <strong>udenfor</strong> på rampen, ved siden af skibet.
-      Hop hen til lugen, gå ombord, kør startsekvensen — og flyv til Månen, Mars
-      eller Guldplaneten. Skibet kan ikke smadres.</p>
+      Hop hen til lugen, gå ombord, kør startsekvensen — og flyv til Månen eller Mars.
+      Guldplaneten åbner, når du finder kortet. Skibet kan ikke smadres.</p>
     <div class="seg">
       <span>Spil</span>
       <button id="gameExplorer" aria-pressed="true">Opdager</button>
@@ -270,18 +270,26 @@ function goldTexture(){
   g.putImageData(img,0,0);return c;
 }
 function earthTexture(){
-  const W=640,H=320,c=cvs(W,H),g=c.getContext("2d");
+  const W=1024,H=512,c=cvs(W,H),g=c.getContext("2d");
   const img=g.createImageData(W,H),d=img.data;
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    const n=noiseA(x/26,y/26,6), land=n>.52;
-    const cloud=Math.max(0,noiseB(x/15+40,y/15,5)-.52)*2.6;
+    const n=noiseA(x/42,y/42,7), land=n>.52;
+    const cloud=Math.max(0,noiseB(x/26+40,y/26,6)-.50)*2.4;
+    const swirl=Math.max(0,noiseC(x/13+9,y/13,4)-.56)*2.2;
     let R,G,B;
-    if(land){const h=(n-.52)/.48;R=58+h*90;G=96+h*70;B=48+h*40;}
-    else{const h=n/.52;R=10+h*22;G=38+h*54;B=86+h*96;}
+    if(land){
+      const h=(n-.52)/.48;
+      // a bit of desert and a bit of forest, rather than one flat green
+      const arid=noiseC(x/55+3,y/55,3);
+      R=52+h*70+arid*92;G=92+h*66+arid*40;B=44+h*34+arid*12;
+    }else{
+      const h=n/.52;                       // shelf seas lighter than deep ocean
+      R=6+h*26;G=30+h*64;B=72+h*118;
+    }
     const lat=Math.abs(y/H-.5)*2;
-    if(lat>.86){const k=(lat-.86)/.14;R+=(240-R)*k;G+=(244-G)*k;B+=(250-B)*k;}
-    const k2=Math.min(1,cloud);
-    R+=(248-R)*k2;G+=(250-G)*k2;B+=(255-B)*k2;
+    if(lat>.84){const k=Math.min(1,(lat-.84)/.12);R+=(242-R)*k;G+=(246-G)*k;B+=(252-B)*k;}
+    const k2=Math.min(1,cloud+swirl*.7);
+    R+=(250-R)*k2;G+=(252-G)*k2;B+=(255-B)*k2;
     const i=(y*W+x)*4;d[i]=R;d[i+1]=G;d[i+2]=B;d[i+3]=255;
   }
   g.putImageData(img,0,0);return c;
@@ -1160,22 +1168,21 @@ const DEST={
  *  from the ship with a trail of arrows pointing at it; then home to the
  *  cockpit with it, and the gold world is on the menu.
  * ------------------------------------------------------------------ */
-const GAME={mode:"explorer",fuel:false,mapHeld:false,mapDone:false,
-            open:{moon:true,mars:false,gold:false}};
+const GAME={mode:"explorer",mapHeld:false,mapDone:false,
+            open:{moon:true,mars:true,gold:false}};
 function destOpen(k){return GAME.mode==="test"||GAME.open[k];}
 function lockedWhy(k){
-  if(k==="mars")return "Du mangler brændstof — flyv til Månen først.";
-  if(k==="gold")return "Du mangler kortet. Det ligger et sted på Mars.";
+  if(k==="gold")return "Du mangler kortet til Guldplaneten. Det ligger på Mars.";
   return "";
 }
 function setGameMode(m){
   GAME.mode=m;
-  GAME.fuel=false;GAME.mapHeld=false;GAME.mapDone=false;
-  GAME.open={moon:true,mars:false,gold:false};
+  GAME.mapHeld=false;GAME.mapDone=false;
+  GAME.open={moon:true,mars:true,gold:false};
   for(const k in gameBtns)gameBtns[k].setAttribute("aria-pressed",String(k===m));
   gameHint.textContent = m==="test"
     ? "Alle tre destinationer er åbne fra start."
-    : "Månen først, for brændstof. Kortet til Guldplaneten ligger på Mars.";
+    : "Månen og Mars er åbne. Kortet til Guldplaneten ligger et sted på Mars.";
   refreshMenu();
 }
 
@@ -1349,83 +1356,128 @@ const deepSky=new THREE.Group();deepSky.visible=false;shell.add(deepSky);
 
 /* ---------- clouds ---------- *
  *  Nothing conveys speed like something close whipping past, and a rocket
- *  with an empty sky between the ground and the stars feels static however
+ *  with empty sky between the ground and the stars feels static however
  *  fast the numbers climb.
  *
- *  One THREE.Points for the whole sky. Point sprites are camera-facing and
- *  size-attenuated for free, so a few hundred puffs cost ONE draw call —
- *  billboarded quads would have cost one apiece, which is not affordable on
- *  a Quest 2. Each puff recycles around the viewer, so the deck is endless
- *  without ever holding more than CLOUD_N of them.
+ *  THREE decks, because one kind of cloud at one height reads as a sticker
+ *  layer: fat cumulus low down that you punch through, a flat stratus sheet
+ *  in the middle, and thin cirrus streaks high up that are still there long
+ *  after the rest is below you. Each deck is one THREE.Points — point
+ *  sprites are camera-facing and size-attenuated for free, so hundreds of
+ *  puffs cost ONE draw call apiece where billboarded quads would have cost
+ *  one each. Three draw calls for a whole sky.
  * ------------------------------------------------------------------ */
-const CLOUD_N=300;
-const cloudPos=new Float32Array(CLOUD_N*3);
-const CLOUDS={
-  earth:{color:0xf2f6ff,lo:700, hi:9000, size:620,op:.62},
-  mars :{color:0xd9a07a,lo:500, hi:5200, size:560,op:.30},
-  gold :{color:0xa862e0,lo:420, hi:4600, size:700,op:.58},
-  moon :null                                    // no air, no clouds
-};
-const cloudLayer=(function(){
+function cloudTex(kind){
   const S=96,c=cvs(S,S),g=c.getContext("2d");
-  const img=g.createImageData(S,S),d=img.data,n=makeNoise(4242);
+  const img=g.createImageData(S,S),d=img.data;
+  const n=makeNoise(kind==="cumulus"?4242:kind==="stratus"?909:1717);
   for(let y=0;y<S;y++)for(let x=0;x<S;x++){
-    const dx=(x/S-.5)*2,dy=(y/S-.5)*2;
-    const fall=Math.max(0,1-Math.hypot(dx,dy));
-    const f=n(x/9,y/9,4);
+    const u=x/S-.5, v=y/S-.5;
+    let fall,f,a;
+    if(kind==="cumulus"){
+      // round and dense, with a flat-ish base like a real heap cloud
+      const vv=v*(v>0?1.5:1.0);
+      fall=Math.max(0,1-Math.hypot(u*2,vv*2.2));
+      f=n(x/8,y/8,4);
+      a=Math.pow(fall,1.6)*Math.pow(f,1.15)*560;
+    }else if(kind==="stratus"){
+      // a wide soft slab: much broader than it is tall
+      fall=Math.max(0,1-Math.hypot(u*1.9,v*5.2));
+      f=n(x/14,y/5,3);
+      a=Math.pow(fall,1.5)*Math.pow(f,1.0)*300;
+    }else{
+      // cirrus: thin fibrous streaks, almost all horizontal
+      fall=Math.max(0,1-Math.hypot(u*2.0,v*9.0));
+      f=n(x/26,y/3,3);
+      a=Math.pow(fall,1.3)*Math.pow(f,2.0)*460;
+    }
     const i=(y*S+x)*4;
     d[i]=d[i+1]=d[i+2]=255;
-    d[i+3]=Math.min(255,Math.pow(fall,1.9)*Math.pow(f,1.25)*520);
+    d[i+3]=Math.min(255,a);
   }
-  g.putImageData(img,0,0);
-  const m=new THREE.PointsMaterial({map:tex(c),transparent:true,opacity:0,
-    depthWrite:false,sizeAttenuation:true,size:600});
+  g.putImageData(img,0,0);return c;
+}
+/* lo/hi are the altitude band in metres, size the sprite width in world
+ * units, op the peak opacity, n how many puffs that deck carries. */
+const CLOUD_KINDS=["cumulus","stratus","cirrus"];
+const CLOUDS={
+  earth:{
+    cumulus:{color:0xffffff,lo: 700,hi:2600,size:560,op:.72,n:150},
+    stratus:{color:0xe8eef8,lo:3000,hi:5200,size:980,op:.40,n: 80},
+    cirrus :{color:0xdfe9ff,lo:7000,hi:11500,size:1500,op:.34,n: 70}
+  },
+  mars:{
+    cumulus:{color:0xcf9a74,lo: 400,hi:1800,size:520,op:.26,n: 90},
+    stratus:{color:0xd9a884,lo:2200,hi:4200,size:980,op:.22,n: 70},
+    cirrus :{color:0xe8c8ac,lo:5200,hi:8500,size:1500,op:.20,n: 60}
+  },
+  gold:{
+    cumulus:{color:0x9a4fd8,lo: 380,hi:1900,size:620,op:.66,n:140},
+    stratus:{color:0xb268e8,lo:2300,hi:4200,size:1050,op:.46,n: 80},
+    cirrus :{color:0xd8a0ff,lo:5000,hi:8200,size:1600,op:.32,n: 70}
+  },
+  moon:null                                   // no air, no clouds
+};
+const CLOUD_MAX=160, CLOUD_R=3200;
+const cloudDecks=CLOUD_KINDS.map(kind=>{
+  const pos=new Float32Array(CLOUD_MAX*3);
   const geo=new THREE.BufferGeometry();
-  geo.setAttribute("position",new THREE.BufferAttribute(cloudPos,3));
+  geo.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  const m=new THREE.PointsMaterial({map:tex(cloudTex(kind)),transparent:true,
+    opacity:0,depthWrite:false,sizeAttenuation:true,size:600});
   const pts=new THREE.Points(geo,m);
   pts.frustumCulled=false;pts.visible=false;pts.renderOrder=-5;
   world.add(pts);
-  return pts;
-})();
+  return {kind:kind,pts:pts,pos:pos,cfg:null};
+});
 let cloudKey=null;
-const CLOUD_R=3000;
-function seedCloud(i,cx,cz,cfg,anywhere){
-  const a=Math.random()*Math.PI*2;
-  const r=anywhere?Math.sqrt(Math.random())*CLOUD_R:CLOUD_R*(.85+Math.random()*.15);
-  cloudPos[i*3]  =cx+Math.cos(a)*r;
-  cloudPos[i*3+1]=cfg.lo+Math.random()*(cfg.hi-cfg.lo);
-  cloudPos[i*3+2]=cz+Math.sin(a)*r;
+function seedPuff(deck,i,cx,cz,anywhere){
+  const cfg=deck.cfg,a=Math.random()*Math.PI*2;
+  const r=anywhere?Math.sqrt(Math.random())*CLOUD_R:CLOUD_R*(.86+Math.random()*.14);
+  deck.pos[i*3]  =cx+Math.cos(a)*r;
+  deck.pos[i*3+1]=cfg.lo+Math.random()*(cfg.hi-cfg.lo);
+  deck.pos[i*3+2]=cz+Math.sin(a)*r;
 }
 function setCloudDeck(key){
   cloudKey=key;
-  const cfg=key&&CLOUDS[key];
-  cloudLayer.visible=!!cfg;
-  if(!cfg)return;
-  cloudLayer.material.color.setHex(cfg.color);
-  cloudLayer.material.size=cfg.size;
+  const set=key&&CLOUDS[key];
   const vx=WALK.active?WALK.pos.x:SHIP.pos.x, vz=WALK.active?WALK.pos.z:SHIP.pos.z;
-  for(let i=0;i<CLOUD_N;i++)seedCloud(i,vx,vz,cfg,true);
-  cloudLayer.geometry.attributes.position.needsUpdate=true;
+  cloudDecks.forEach(deck=>{
+    const cfg=set&&set[deck.kind];
+    deck.cfg=cfg||null;
+    deck.pts.visible=!!cfg;
+    if(!cfg)return;
+    deck.pts.material.color.setHex(cfg.color);
+    deck.pts.material.size=cfg.size;
+    const n=Math.min(CLOUD_MAX,cfg.n);
+    deck.pts.geometry.setDrawRange(0,n);
+    for(let i=0;i<n;i++)seedPuff(deck,i,vx,vz,true);
+    deck.pts.geometry.attributes.position.needsUpdate=true;
+  });
 }
 function updateClouds(dt){
-  const cfg=cloudKey&&CLOUDS[cloudKey];
-  if(!cfg){ if(cloudLayer.visible)cloudLayer.visible=false; return; }
-  cloudLayer.visible=true;
+  if(!cloudKey){cloudDecks.forEach(d=>{d.pts.visible=false;});return;}
   const vx=WALK.active?WALK.pos.x:SHIP.pos.x;
   const vy=WALK.active?WALK.pos.y:SHIP.pos.y;
   const vz=WALK.active?WALK.pos.z:SHIP.pos.z;
-  /* Fade the deck in as you reach it and out as you leave it above, so the
-   * layer has a top and a bottom rather than simply vanishing. */
-  const mid=(cfg.lo+cfg.hi)/2, half=(cfg.hi-cfg.lo)/2;
-  const edge=Math.max(0,1-Math.max(0,Math.abs(vy-mid)-half)/2600);
-  cloudLayer.material.opacity=cfg.op*edge;
-  if(edge<=0.001)return;
-  let moved=false;
-  for(let i=0;i<CLOUD_N;i++){
-    const dx=cloudPos[i*3]-vx, dz=cloudPos[i*3+2]-vz;
-    if(dx*dx+dz*dz>CLOUD_R*CLOUD_R){seedCloud(i,vx,vz,cfg,false);moved=true;}
-  }
-  if(moved)cloudLayer.geometry.attributes.position.needsUpdate=true;
+  cloudDecks.forEach(deck=>{
+    const cfg=deck.cfg;
+    if(!cfg){deck.pts.visible=false;return;}
+    deck.pts.visible=true;
+    /* Fade each deck in as you reach it and out as you leave it above, so
+     * every layer has a ceiling you break through rather than vanishing. */
+    const mid=(cfg.lo+cfg.hi)/2, half=(cfg.hi-cfg.lo)/2;
+    const edge=Math.max(0,1-Math.max(0,Math.abs(vy-mid)-half)/2800);
+    deck.pts.material.opacity=cfg.op*edge;
+    if(edge<=0.001)return;
+    const n=Math.min(CLOUD_MAX,cfg.n);
+    let moved=false;
+    for(let i=0;i<n;i++){
+      const dx=deck.pos[i*3]-vx, dz=deck.pos[i*3+2]-vz;
+      if(dx*dx+dz*dz>CLOUD_R*CLOUD_R){seedPuff(deck,i,vx,vz,false);moved=true;}
+    }
+    if(moved)deck.pts.geometry.attributes.position.needsUpdate=true;
+  });
 }
 
 /* ---------- sky ---------- */
@@ -1447,6 +1499,7 @@ sky.renderOrder=-11;shell.add(sky);
 
 /* ---------- launch site ---------- */
 const site=new THREE.Group();world.add(site);
+let siteGround=null;
 (function buildSite(){
   const gtex=(function(){
     const c=cvs(192,192),g=c.getContext("2d");
@@ -1458,8 +1511,9 @@ const site=new THREE.Group();world.add(site);
     return c;
   })();
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),
-    new THREE.MeshStandardMaterial({map:tex(gtex,220),roughness:1}));
-  ground.rotation.x=-Math.PI/2;site.add(ground);
+    new THREE.MeshStandardMaterial({map:tex(gtex,220),roughness:1,
+      transparent:true,opacity:1}));
+  ground.rotation.x=-Math.PI/2;site.add(ground);siteGround=ground;
   const pad=new THREE.Mesh(new THREE.CylinderGeometry(26,28,.6,24),
     new THREE.MeshStandardMaterial({color:0x6e7279,roughness:.95,roughnessMap:wear}));
   pad.position.y=.1;site.add(pad);
@@ -1484,9 +1538,92 @@ const site=new THREE.Group();world.add(site);
     m.position.set(Math.cos(a)*r,hh/2-4,Math.sin(a)*r);site.add(m);
   }
 })();
-const earth=new THREE.Mesh(new THREE.SphereGeometry(900,40,26),
-  new THREE.MeshStandardMaterial({map:tex(earthTexture()),roughness:.95,transparent:true,opacity:0}));
-earth.visible=false;shell.add(earth);
+/* ---------- the limb ---------- *
+ *  The view back down is the whole reason to leave the ground, so it is
+ *  built properly rather than faked with a ball below you.
+ *
+ *  A real 700 km planet will not fit inside a 5.2 km far plane, so the
+ *  horizon is a PROXY: a sphere of radius r at a fixed distance D, where
+ *  r = D * R / (R + altitude). That reproduces the true angular size of a
+ *  planet of radius R seen from that altitude exactly — checked against the
+ *  analytic asin(R/(R+h)) across the whole climb and it agrees to 1e-14 of
+ *  a degree. The curve of the horizon, and the rate it flattens out as you
+ *  rise, are therefore real rather than eyeballed.
+ *
+ *  It is rendered FrontSide: the proxy's far face lies beyond the far plane
+ *  and would be clipped, but the back hemisphere of a convex body is never
+ *  visible anyway, and the silhouette always lands within 1.5 km of the eye.
+ *
+ *  It lives in `shell`, which carries the inverse ship rotation and no
+ *  translation, so the horizon tilts and rolls with the yoke for free.
+ * ------------------------------------------------------------------ */
+const LIMB_D=3000;
+const LIMBS={
+  earth:{R:700000,tex:null,make:earthTexture,glow:new THREE.Color(0x5aa8ff),atmo:1.0,rough:.92},
+  moon :{R:300000,tex:null,make:moonTexture, glow:new THREE.Color(0x9aa0aa),atmo:0.0,rough:.98},
+  mars :{R:380000,tex:null,make:marsTexture, glow:new THREE.Color(0xe08a52),atmo:0.5,rough:.96},
+  gold :{R:420000,tex:null,make:goldTexture, glow:new THREE.Color(0xbb70ff),atmo:0.8,rough:.45}
+};
+const limbBody=new THREE.Mesh(new THREE.SphereGeometry(1,72,44),
+  new THREE.MeshStandardMaterial({roughness:.92,metalness:.02,
+    depthTest:false,depthWrite:false,transparent:true,opacity:0}));
+limbBody.renderOrder=-10;limbBody.visible=false;shell.add(limbBody);
+
+const limbAtmoU={glow:{value:new THREE.Color(0x5aa8ff)},strength:{value:0}};
+const limbAtmo=new THREE.Mesh(new THREE.SphereGeometry(1.035,48,30),
+  new THREE.ShaderMaterial({
+    uniforms:limbAtmoU,transparent:true,depthTest:false,depthWrite:false,
+    blending:THREE.AdditiveBlending,side:THREE.FrontSide,
+    vertexShader:"varying vec3 vN; varying vec3 vP;"+
+      "void main(){ vN=normalize(normalMatrix*normal);"+
+      "vec4 mv=modelViewMatrix*vec4(position,1.0); vP=mv.xyz;"+
+      "gl_Position=projectionMatrix*mv; }",
+    /* Brightest where the surface turns away from you, which is the limb:
+     * that thin lit arc is the single most recognisable thing about the
+     * view from orbit. */
+    fragmentShader:"uniform vec3 glow; uniform float strength;"+
+      "varying vec3 vN; varying vec3 vP;"+
+      "void main(){ float rim=1.0-abs(dot(normalize(vN),normalize(-vP)));"+
+      "float a=pow(clamp(rim,0.0,1.0),2.6)*strength;"+
+      "gl_FragColor=vec4(glow,a); }"
+  }));
+limbAtmo.renderOrder=-9;limbAtmo.visible=false;shell.add(limbAtmo);
+
+let limbKey=null, limbSpin=0;
+function setLimb(key){
+  limbKey=key;
+  const L=key&&LIMBS[key];
+  if(!L){limbBody.visible=false;limbAtmo.visible=false;return;}
+  if(!L.tex){
+    const d=DEST[key];
+    L.tex=(d&&d.tex)?d.tex:tex(L.make());
+    if(d&&!d.tex)d.tex=L.tex;
+  }
+  limbBody.material.map=L.tex;
+  limbBody.material.roughness=L.rough;
+  limbBody.material.needsUpdate=true;
+  limbAtmoU.glow.value.copy(L.glow);
+}
+function updateLimb(dt,alt,fade){
+  const L=limbKey&&LIMBS[limbKey];
+  if(!L||fade<=0.002){limbBody.visible=false;limbAtmo.visible=false;return;}
+  const h=Math.max(0,alt);
+  const r=LIMB_D*L.R/(L.R+h);
+  limbBody.visible=true;
+  limbBody.position.set(0,-LIMB_D,0);
+  limbBody.scale.setScalar(r);
+  limbSpin+=dt*0.004;
+  /* Tilt the pole sideways: looking straight down at a sphere's pole puts
+   * the texture's pinch point in the middle of the picture. */
+  limbBody.rotation.set(Math.PI/2,limbSpin,0);
+  limbBody.material.opacity=fade;
+  if(L.atmo>0){
+    limbAtmo.visible=true;
+    limbAtmo.position.copy(limbBody.position);
+    limbAtmo.scale.setScalar(r);
+    limbAtmoU.strength.value=L.atmo*fade*1.35;
+  }else limbAtmo.visible=false;
+}
 
 /* ---------- destination body ---------- */
 let bodyMesh=null,bodyHalo=null;
@@ -1548,7 +1685,7 @@ const terrainRoot=new THREE.Group();terrainRoot.visible=false;world.add(terrainR
 /* A skirt under everything, so the chunk ring does not end in mid-air at
  * altitude. One draw call, no geometry, and it reads as haze-blurred ground. */
 const skirt=new THREE.Mesh(new THREE.CircleGeometry(4000,40),
-  new THREE.MeshBasicMaterial({color:0x9d9d9d}));
+  new THREE.MeshBasicMaterial({color:0x9d9d9d,transparent:true,opacity:1}));
 skirt.rotation.x=-Math.PI/2;skirt.visible=false;terrainRoot.add(skirt);
 
 function villageAt(key,ci,cj){
@@ -2265,6 +2402,7 @@ function pressLand(){
   skyUniforms.bottom.value.setHex(d.ground).multiplyScalar(.45);
   skyUniforms.alpha.value=d.atmo>0?1:0;
   setCloudDeck(St.dest);
+  setLimb(St.dest);
   for(let i=0;i<9;i++)ensureChunks(St.dest,0,0);   // prime the inner ring only
   log("NEDSTIGNING");
   showMsg(MODE.dof===0?"Autopiloten sætter den ned.":"Flyv den ned — den kan ikke smadres.");
@@ -2293,8 +2431,10 @@ function restartFlight(){
   clearMarsMap();
   if(bodyMesh)bodyMesh.visible=false;
   if(bodyHalo)bodyHalo.visible=false;
-  earth.visible=false;earth.material.opacity=0;
+  setLimb("earth");
   site.visible=true;menu.visible=false;
+  if(siteGround)siteGround.material.opacity=1;
+  skirt.material.opacity=1;setLimb("earth");
   hyperBtn.group.visible=false;landBtn.group.visible=false;againBtn.group.visible=false;
   stars.material.opacity=0;deepSky.visible=false;
   skyUniforms.top.value.setHex(0x1f5fa8);
@@ -2826,12 +2966,13 @@ function updateFlight(dt){
     stars.material.opacity=starOp;
     deepSky.visible=starOp>.02;
     deepSky.children.forEach(c=>{c.material.opacity=starOp*.55;});
-    site.visible=a<40000;
-    if(a>18000){
-      earth.visible=true;
-      earth.material.opacity=Math.min(1,(a-18000)/16000);
-      earth.position.set(0,-920-(a-18000)*.019,0);
-    }
+    /* Crossfade the flat launch apron into the curved limb. The apron has
+     * the pad and the towers on it and is right for the first few
+     * kilometres; past that its square edge gives the game away, while the
+     * limb has no detail worth seeing from close up. */
+    siteGround.material.opacity=1-THREE.MathUtils.clamp((a-5000)/8000,0,1);
+    site.visible=a<15000;
+    updateLimb(dt,a,THREE.MathUtils.clamp((a-4000)/7000,0,1));
     if(a>110000){
       St.phase="space";menu.visible=true;site.visible=false;
       setCloudDeck(null);
@@ -2849,7 +2990,7 @@ function updateFlight(dt){
     SHIP.pos.addScaledVector(SHIP.vel,dt);
     St.speed=SHIP.vel.length()+(ph==="course"?7800:0);
     St.alt=SHIP.pos.y;
-    earth.rotation.y+=dt*.02;
+    updateLimb(dt,Math.max(0,SHIP.pos.y),1);
     if(ph==="course"){
       St.distance=Math.max(0,St.distance-St.speed*dt*40);
       hyperBtn.mat.emissive.setHex(Math.sin(St.t*5)>0?0x1a4e66:0x000000);
@@ -2862,6 +3003,7 @@ function updateFlight(dt){
     const fall=St.warpT>3.0?Math.max(0,1-(St.warpT-3.0)/1.1):1;
     const intensity=ramp*fall;
     updateStars(dt,intensity);
+    setLimb(null);
     St.distance=Math.max(0,St.distance*(1-dt*.9));
     St.speed=3e8*intensity;
     if(St.warpT>4.3){
@@ -2872,7 +3014,7 @@ function updateFlight(dt){
       SHIP.pos.set(0,0,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();
       bodyMesh.position.copy(BODY_POS);bodyMesh.visible=true;
       if(bodyHalo){bodyHalo.position.copy(BODY_POS);bodyHalo.visible=true;}
-      landBtn.group.visible=true;earth.visible=false;
+      landBtn.group.visible=true;setLimb(null);
       log("ANKOMST");
       showMsg(auto?"Autopiloten flyver ind.":"Flyv ind mod "+d.name+" — tryk LAND når du vil ned.");
       Audio_.ok();
@@ -2940,6 +3082,11 @@ function updateFlight(dt){
     St.alt=SHIP.pos.y-h-GEAR;
     St.speed=SHIP.vel.length();
     skirt.position.y=h-160;
+    /* Climb away from a world and its own limb comes up to meet you, the
+     * local ground fading out from under the ship as it goes. */
+    const lf=THREE.MathUtils.clamp((St.alt-1500)/3000,0,1);
+    skirt.material.opacity=1-lf;
+    updateLimb(dt,Math.max(0,St.alt),lf);
     if(St.alt<=0){
       /* No crash, ever. Touching down stops the descent and bleeds off speed;
        * how hard you arrived is recorded, not punished. */
@@ -2950,10 +3097,10 @@ function updateFlight(dt){
         St.landQuality=vy<9?"BLØD":vy<26?"FAST":"HÅRD";
         if(St.dest==="gold"&&!alienRoot.visible)spawnAliens(SHIP.pos.x,SHIP.pos.z);
         if(GAME.mode==="explorer"){
-          if(St.dest==="moon"&&!GAME.fuel){
-            GAME.fuel=true;GAME.open.mars=true;refreshMenu();
-            log("BRÆNDSTOF OMBORD");
-            showMsg("Brændstof tanket på Månen. Kortet til Guldplaneten skal være på Mars.",8);
+          if(St.dest==="moon"&&!GAME.moonSeen){
+            GAME.moonSeen=true;
+            log("INTET KORT HER");
+            showMsg("Ingen kort her på Månen. Prøv Mars.",7);
           }else if(St.dest==="mars"&&!GAME.mapDone&&!GAME.mapHeld){
             placeMarsMap(SHIP.pos.x,SHIP.pos.z);
             log("KORT I NÆRHEDEN");
@@ -3076,7 +3223,7 @@ function startOutside(){
   setCloudDeck("earth");
   syncWorld();
 }
-setMode("auto");setGameMode("explorer");newSequence();drawStatus();drawMap();drawMsg();syncWorld();
+setLimb("earth");setMode("auto");setGameMode("explorer");newSequence();drawStatus();drawMap();drawMsg();syncWorld();
 startOutside();
 try{
   if(window.claude&&window.claude.hot)
