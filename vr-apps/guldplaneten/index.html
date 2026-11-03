@@ -527,7 +527,20 @@ document.body.appendChild(renderer.domElement);
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,.05,5200);
 camera.position.set(0,1.15,0);
-const rig=new THREE.Group();rig.add(camera);
+/* ---- a two-seater ----
+ * The pilot used to sit on the ship's centreline with the whole console
+ * in front of him. He now sits to port with an identical seat beside him,
+ * the yoke moved across to meet him, the throttle on the centreline where
+ * either of them can reach it, and the start-sequence controls over on the
+ * starboard side where the passenger sits — so running the sequence and
+ * flying the ship are two jobs, for two people.
+ *
+ * Everything in the cabin is still modelled about x=0; it is the SEAT that
+ * moved, and the camera rig with it. That keeps the bridge centred in the
+ * hull and leaves the windscreen, its sill and the horizon framing exactly
+ * as they were measured. */
+const PILOT_X=-0.46, PASSENGER_X=0.46;
+const rig=new THREE.Group();rig.position.x=PILOT_X;rig.add(camera);
 /* Shake belongs on the head, not on the cockpit: your body is what the
  * rocket is rattling, and the cockpit should stay put around you. */
 const shaker=new THREE.Group();shaker.add(rig);scene.add(shaker);
@@ -638,28 +651,21 @@ function box(w,h,d,mat,x,y,z,parent){
    * structure and leave the glass clear. */
   box(.07,.24,.12,M.glassFrame,0,1.88,-1.06);
   box(.07,.24,.12,M.glassFrame,0,0.90,-1.06);
-  box(.56,.10,.52,M.rubber,0,.44,.16);
-  box(.56,.72,.10,M.rubber,0,.80,.40);
-  box(.10,.34,.48,M.rubber,-.30,.62,.16);
-  box(.10,.34,.48,M.rubber,.30,.62,.16);
-  box(.09,.44,.09,M.trim,-.30,.22,.16);
-  box(.09,.44,.09,M.trim,.30,.22,.16);
-  /* ---- the passenger seat ----
-   * Starboard of the pilot and a little aft, which is the one place a
-   * second person fits without moving anything the pilot flies by: the
-   * yoke, the console and the windscreen all stay centred on him, so the
-   * view out is exactly the view that was measured against the horizon.
-   * It sits against the starboard wall, so it carries an inboard armrest
-   * only — the hull is the other one. */
-  box(.50,.10,.50,M.rubber, .68,.44,.34);
-  box(.50,.68,.10,M.rubber, .68,.79,.57);
-  box(.09,.32,.46,M.rubber, .40,.60,.34);
-  box(.09,.44,.09,M.trim,   .46,.22,.34);
-  box(.09,.44,.09,M.trim,   .90,.22,.34);
-  // a grab handle on the wall by the passenger's shoulder
-  box(.05,.05,.34,M.trim,   .93,1.12,.30);
-  box(.05,.13,.05,M.trim,   .93,1.06,.15);
-  box(.05,.13,.05,M.trim,   .93,1.06,.45);
+  /* Two seats, the same seat twice, side by side and level with each
+   * other. Neither of them is the jump seat. */
+  [PILOT_X,PASSENGER_X].forEach(sx=>{
+    box(.54,.10,.52,M.rubber,sx,.44,.16);
+    box(.54,.72,.10,M.rubber,sx,.80,.40);
+    box(.09,.34,.48,M.rubber,sx-.29,.62,.16);
+    box(.09,.34,.48,M.rubber,sx+.29,.62,.16);
+    box(.09,.44,.09,M.trim,  sx-.29,.22,.16);
+    box(.09,.44,.09,M.trim,  sx+.29,.22,.16);
+    // a grab handle on the wall by each outboard shoulder
+    const w=Math.sign(sx)*.93;
+    box(.05,.05,.34,M.trim,w,1.12,.30);
+    box(.05,.13,.05,M.trim,w,1.06,.15);
+    box(.05,.13,.05,M.trim,w,1.06,.45);
+  });
   const oh=box(1.1,.06,.42,M.trim,0,1.98,.36);
   for(let i=0;i<9;i++){
     const d=new THREE.Mesh(new THREE.SphereGeometry(.018,8,6),
@@ -669,9 +675,9 @@ function box(w,h,d,mat,x,y,z,parent){
 })();
 const consoleGroup=new THREE.Group();
 consoleGroup.position.set(0,.70,-.62);consoleGroup.rotation.x=-0.46;ship.add(consoleGroup);
-consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.9,.5,.07),M.hull));
+consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(2.04,.5,.07),M.hull));
 (function(){
-  const lip=new THREE.Mesh(new THREE.BoxGeometry(1.96,.04,.1),M.trim);
+  const lip=new THREE.Mesh(new THREE.BoxGeometry(2.10,.04,.1),M.trim);
   lip.position.set(0,-.26,.01);consoleGroup.add(lip);
   /* The ship's name, one plate across the top of the dashboard. Splitting
    * it around the yoke kept every letter visible but read as two signs;
@@ -679,10 +685,15 @@ consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.9,.5,.07),M.hull));
    * the price. The plate is as wide as the console allows and the letters
    * are set large, because the hub hides a fixed angle: bigger type means
    * fewer characters behind it, and the ones at its edges still read. */
-  const plate=new THREE.Mesh(new THREE.PlaneGeometry(1.44,.09),
+  /* Dead centre of the dashboard, and sized so that BOTH crew read all of
+   * it. Each seat can only take in about 1.6 m of console at this range,
+   * and the two windows overlap in the middle 0.68 m — so the lettering is
+   * set to 0.64 m and centred there. The yoke is away at the pilot's seat
+   * now, so for the first time nothing covers any of it. */
+  const plate=new THREE.Mesh(new THREE.PlaneGeometry(1.56,.0975),
     new THREE.MeshBasicMaterial({map:tex(labelCanvas("THEODOR & MORFARS RUMSKIB",
-      {w:1280,h:80,size:46,bg:"#0b0f15",border:"#3c4756",color:"#e8c35a"})),transparent:true}));
-  plate.position.set(0,.202,.04);consoleGroup.add(plate);
+      {w:1280,h:80,size:35,bg:"#0b0f15",border:"#3c4756",color:"#e8c35a"})),transparent:true}));
+  plate.position.set(0,.198,.04);consoleGroup.add(plate);
 })();
 box(1.9,.52,.1,M.hullDark,0,.40,-.80);
 
@@ -1132,9 +1143,12 @@ function chainVisible(o){for(let n=o;n;n=n.parent)if(!n.visible)return false;ret
 const controls=[];
 const CTRL_LABELS=["ILT","PUMPE","KØL","TRYK","FASE"];
 (function buildControls(){
-  const xs=[-.82,-.59,-.36,-.13,.10];
+  /* Moved bodily to starboard, and stacked three over two: the five of
+   * them in one row across the whole dashboard was what put most of the
+   * sequence in front of the pilot. It is the passenger's job now. */
+  const xs=[.20,.42,.64,.20,.42], ys=[.060,.060,.060,-.150,-.150];
   for(let i=0;i<5;i++){
-    const g=new THREE.Group();g.position.set(xs[i],.07,.04);consoleGroup.add(g);
+    const g=new THREE.Group();g.position.set(xs[i],ys[i],.04);consoleGroup.add(g);
     g.add(new THREE.Mesh(new THREE.BoxGeometry(.17,.17,.035),M.hullDark));
     let body;
     if(i<3){
@@ -1172,7 +1186,7 @@ const CTRL_LABELS=["ILT","PUMPE","KØL","TRYK","FASE"];
   }
 })();
 const bigBtn=(function(){
-  const g=new THREE.Group();g.position.set(.40,.06,.05);consoleGroup.add(g);
+  const g=new THREE.Group();g.position.set(.84,.060,.05);consoleGroup.add(g);
   const guard=new THREE.Mesh(new THREE.TorusGeometry(.085,.013,6,18),M.trim);
   guard.position.z=.03;g.add(guard);
   const mat=new THREE.MeshStandardMaterial({color:0x8f1d1d,roughness:.35,metalness:.3,emissive:0x2a0505});
@@ -1196,12 +1210,12 @@ function consoleButton(x,y,label,bg,border,color,baseCol,onPress){
   g.visible=false;
   return {group:g,mat:mat};
 }
-const hyperBtn=consoleButton(.74,.06,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper());
-const landBtn =consoleButton(.74,.06,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
+const hyperBtn=consoleButton(.84,-.150,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper());
+const landBtn =consoleButton(.84,-.150,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
 /* LET takes the console's action slot, which the phase-critical buttons
  * share. NY FLYVNING is a rare, deliberate thing, so it moves to the port
  * wall with the other switches rather than competing for that slot. */
-const liftBtn=consoleButton(.74,.06,"LET","#141f08","#3e5c18","#c2e86a",0x2c4212,()=>pressLift());
+const liftBtn=consoleButton(.84,-.150,"LET","#141f08","#3e5c18","#c2e86a",0x2c4212,()=>pressLift());
 const againBtn=(function(){
   const g=new THREE.Group();g.position.set(-.9,1.42,.2);g.rotation.y=Math.PI/2;ship.add(g);
   g.add(new THREE.Mesh(new THREE.BoxGeometry(.34,.12,.03),M.hullDark));
@@ -1244,7 +1258,7 @@ function screenPanel(w,h,px,py,cw,chh){
 const objective=(function(){
   const m=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.115),
     new THREE.MeshBasicMaterial({transparent:true}));
-  m.position.set(0,1.74,-1.0);ship.add(m);
+  m.position.set(-.22,1.74,-1.0);ship.add(m);
   return m;
 })();
 let objSig="";
@@ -1255,13 +1269,15 @@ function setObjective(text,color){
   objective.material.needsUpdate=true;
 }
 
-const statusScreen=screenPanel(.46,.2,-.62,-.145,368,160);
-const mapScreen=screenPanel(.50,.2,-.04,-.145,400,160);
-const msgScreen=screenPanel(.34,.2,.58,-.145,272,160);
+/* All three on the port half, where the pilot can read them and the
+ * starboard block is free for the sequence. */
+const statusScreen=screenPanel(.46,.2,-.70,-.150,368,160);
+const mapScreen=screenPanel(.50,.2,-.18,-.150,400,160);
+const msgScreen=screenPanel(.34,.2,-.70,.040,272,160);
 
 /* ---------- yoke ---------- */
 const yokeGroup=new THREE.Group();
-yokeGroup.position.set(0,.96,-.40);ship.add(yokeGroup);
+yokeGroup.position.set(PILOT_X,.96,-.40);ship.add(yokeGroup);
 const yokeWheel=new THREE.Group();yokeGroup.add(yokeWheel);
 (function buildYoke(){
   const column=new THREE.Mesh(new THREE.CylinderGeometry(.03,.038,.42,10),M.trim);
@@ -1289,7 +1305,9 @@ const yokeWheel=new THREE.Group();yokeGroup.add(yokeWheel);
 })();
 const throttle={value:0,group:new THREE.Group(),arm:null};
 (function buildThrottle(){
-  const g=throttle.group;g.position.set(.52,.82,-.40);ship.add(g);
+  /* On the centreline now, not at the pilot's right hand: it is the one
+   * control either seat can reach, which is the point of two seats. */
+  const g=throttle.group;g.position.set(0,.82,-.40);ship.add(g);
   g.add(new THREE.Mesh(new THREE.BoxGeometry(.07,.04,.3),M.hullDark));
   const plate=new THREE.Mesh(new THREE.PlaneGeometry(.055,.26),
     new THREE.MeshBasicMaterial({map:tex(labelCanvas("GAS",{w:64,h:256,size:26,bg:"#0d1218",border:false,color:"#9fb0c2",glow:false}))}));
@@ -1398,7 +1416,10 @@ function refreshMenu(){
 
 /* ---------- cockpit mode switch ---------- */
 const modePlate=(function(){
-  const g=new THREE.Group();g.position.set(-.88,1.0,-.45);g.rotation.y=Math.PI/2;ship.add(g);
+  /* Aft to the pilot's shoulder. With the seat moved to port these sat
+   * barely more than an arm's length ahead of his left eye, filling that
+   * corner of the windscreen. They are set once, so beside him is right. */
+  const g=new THREE.Group();g.position.set(-.88,1.0,.12);g.rotation.y=Math.PI/2;ship.add(g);
   g.add(new THREE.Mesh(new THREE.BoxGeometry(.22,.1,.03),M.hullDark));
   const face=new THREE.Mesh(new THREE.PlaneGeometry(.2,.085),new THREE.MeshBasicMaterial({transparent:true}));
   face.position.z=.018;g.add(face);
@@ -1411,7 +1432,7 @@ const modePlate=(function(){
   return face;
 })();
 (function buildSkinSwitch(){
-  const g=new THREE.Group();g.position.set(-.88,.82,-.45);g.rotation.y=Math.PI/2;ship.add(g);
+  const g=new THREE.Group();g.position.set(-.88,.82,.12);g.rotation.y=Math.PI/2;ship.add(g);
   g.add(new THREE.Mesh(new THREE.BoxGeometry(.2,.09,.03),M.hullDark));
   const face=new THREE.Mesh(new THREE.PlaneGeometry(.18,.075),
     new THREE.MeshBasicMaterial({map:tex(labelCanvas("SKROG",{w:256,h:96,size:34,bg:"#0d1218",border:"#3c4756",color:"#cfd6de"})),transparent:true}));
@@ -2310,6 +2331,24 @@ const trail=(function(){
       side:THREE.DoubleSide,depthWrite:false}),12);
   m.frustumCulled=false;m.visible=false;world.add(m);return m;
 })();
+/* Lay the chevrons between two points on a given world. It was written
+ * into placeMarsMap and so existed only on Mars, pointing only at the map
+ * — which is why Guldplaneten had no arrows to see. */
+const _tm=new THREE.Matrix4(),_tq=new THREE.Quaternion(),
+      _tp=new THREE.Vector3(),_ts=new THREE.Vector3(2.3,1,3.4);
+function layTrail(sx,sz,tx,tz,key){
+  const dx=tx-sx, dz=tz-sz, dist=Math.hypot(dx,dz);
+  const n=THREE.MathUtils.clamp(Math.round(dist/4.2),3,12);
+  _tq.setFromAxisAngle(UPW,Math.atan2(-dx,-dz));
+  for(let i=0;i<n;i++){
+    const t=(i+1)/(n+1), x=sx+dx*t, z=sz+dz*t;
+    _tp.set(x,groundH(key,x,z)+.12,z);
+    _tm.compose(_tp,_tq,_ts);trail.setMatrixAt(i,_tm);
+  }
+  trail.count=n;
+  trail.instanceMatrix.needsUpdate=true;
+  trail.visible=true;
+}
 function placeMarsMap(sx,sz){
   /* A fixed bearing, so the arrows and the map can never disagree. */
   const bear=-0.9;
@@ -2317,18 +2356,7 @@ function placeMarsMap(sx,sz){
   MAPAT.live=true;
   mapProp.position.set(MAPAT.x,groundH("mars",MAPAT.x,MAPAT.z),MAPAT.z);
   mapProp.visible=true;
-  const dx=MAPAT.x-sx, dz=MAPAT.z-sz, yaw=Math.atan2(-dx,-dz);
-  const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),
-        pp=new THREE.Vector3(),sc=new THREE.Vector3(2.3,1,3.4);
-  q.setFromAxisAngle(UPW,yaw);
-  for(let i=0;i<12;i++){
-    const t=(i+1)/13;
-    const x=sx+dx*t, z=sz+dz*t;
-    pp.set(x,groundH("mars",x,z)+.12,z);
-    mtx.compose(pp,q,sc);trail.setMatrixAt(i,mtx);
-  }
-  trail.instanceMatrix.needsUpdate=true;
-  trail.visible=true;
+  layTrail(sx,sz,MAPAT.x,MAPAT.z,"mars");
 }
 function clearMarsMap(){
   mapProp.visible=false;trail.visible=false;MAPAT.live=false;beams.visible=false;
@@ -2581,6 +2609,13 @@ function startQuests(cx,cz){
   Q.lost={x:cx+Math.cos(la)*125, z:cz+Math.sin(la)*125, found:false, home:false};
   questRoot.visible=true;
   qPit.position.set(Q.pit.x,groundH("gold",Q.pit.x,Q.pit.z)+.1,Q.pit.z);
+  /* Arrows on the ground to the one alien who hands out the favours, the
+   * same as Mars gets to its map. The beam over him is visible from the
+   * air; the chevrons are what you follow once you are walking. */
+  if(aliens[0])layTrail(cx,cz,aliens[0].x,aliens[0].z,"gold");
+}
+function questTrailCheck(){
+  if(questRoot.visible&&Object.keys(Q.done).length>=3)trail.visible=false;
 }
 function questLabel(){
   /* Before the first favour there was no label at all, so from the cockpit
@@ -2594,6 +2629,7 @@ function questLabel(){
 }
 function updateQuests(dt,vx,vz){
   if(!questRoot.visible)return;
+  questTrailCheck();
   const near=(x,z,d)=>Math.hypot(x-vx,z-vz)<d;
 
   // --- the spokesman: alien 0, who stays by the village ---
@@ -2860,7 +2896,7 @@ const FWD=new THREE.Vector3(),UP=new THREE.Vector3();
  * pilot's eye is the ship's own origin at seat height; this is the same
  * offset from the passenger cushion, so a second viewpoint drops straight
  * in here without moving anything. Nothing reads it yet. */
-const SEAT2_EYE=new THREE.Vector3(0.68,1.10,0.18);
+const SEAT2_EYE=new THREE.Vector3(PASSENGER_X,1.10,0.00);
 /* On foot the view is the walker's, not the ship's. */
 const WALK={pos:new THREE.Vector3(),quat:new THREE.Quaternion(),yaw:0,eye:1.15,active:false};
 function syncWorld(){
@@ -3132,7 +3168,7 @@ function pressLand(){
   if(bodyMesh)bodyMesh.visible=false;
   if(bodyHalo)bodyHalo.visible=false;
   alienRoot.visible=false;clearMarsMap();
-  questRoot.visible=false;bubble.mesh.visible=false;bubble.t=0;
+  questRoot.visible=false;bubble.mesh.visible=false;bubble.t=0;trail.visible=false;
   bulb.on=false;bulb.sprite.visible=false;
   landBtn.group.visible=false;
   skyUniforms.top.value.setHex(d.sky);
@@ -3181,7 +3217,7 @@ function restartFlight(){
   throttle.value=0;
   terrainKey=null;clearChunks();
   terrainRoot.visible=false;skirt.visible=false;alienRoot.visible=false;
-  questRoot.visible=false;bubble.mesh.visible=false;bubble.t=0;
+  questRoot.visible=false;bubble.mesh.visible=false;bubble.t=0;trail.visible=false;
   bulb.on=false;bulb.sprite.visible=false;
   clearMarsMap();
   if(bodyMesh)bodyMesh.visible=false;
@@ -3292,7 +3328,9 @@ btnFlat.addEventListener("click",()=>{
 function recenter(){
   const xrCam=renderer.xr.getCamera?renderer.xr.getCamera(camera):camera;
   const p=new THREE.Vector3().setFromMatrixPosition(xrCam.matrixWorld);
-  rig.position.x-=p.x;rig.position.z-=p.z;rig.position.y+=1.15-p.y;
+  /* Recentre on the PILOT's seat, not on the ship's centreline: p is the
+   * headset in world space and so already carries the rig's own offset. */
+  rig.position.x+=PILOT_X-p.x;rig.position.z-=p.z;rig.position.y+=1.15-p.y;
   showMsg("Sædet er centreret");
 }
 window.addEventListener("resize",()=>{
@@ -3896,7 +3934,7 @@ function updateFlight(dt){
       St.phase="space";menu.visible=true;St.climbing=false;
       terrainKey=null;clearChunks();
       terrainRoot.visible=false;skirt.visible=false;
-      alienRoot.visible=false;questRoot.visible=false;
+      alienRoot.visible=false;questRoot.visible=false;trail.visible=false;
       bubble.mesh.visible=false;bubble.t=0;
       beams.visible=false;clearMarsMap();
       bulb.on=false;bulb.sprite.visible=false;
