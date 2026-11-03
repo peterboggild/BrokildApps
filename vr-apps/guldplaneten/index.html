@@ -87,6 +87,11 @@
     box-shadow:0 0 14px rgba(242,163,60,.35);background:#2a2113}
   #touchbar button.red{background:linear-gradient(180deg,#b9282c,#7d1618);border-color:#e8676a;color:#fff}
   #touchbar button.hold{flex:0 0 auto;min-width:54px;font-size:14px;padding:12px 10px}
+  #touchbar button.icon{display:flex;align-items:center;justify-content:center;
+    padding:9px 16px;min-width:60px}
+  #touchbar button.hand{background:linear-gradient(180deg,#f0b955,#b97d1c);
+    border-color:#ffd889;color:#1a1205;
+    box-shadow:0 0 0 1px rgba(255,216,137,.35),0 0 14px rgba(240,185,85,.45)}
   /* Top-left, on its own dark card. Down at the bottom it landed straight
      on top of the console's own readout, so the same five numbers were
      printed twice, over each other, in two different colours. */
@@ -1528,10 +1533,13 @@ function closeOverlay(){
   const f=overlay.after;overlay.after=null;if(f)f();
 }
 
-/* ---------- the question mark and the exclamation mark ----------
+/* ---------- the exclamation mark and the question mark ----------
  * Everything you can interact with out on a surface carries one, and a
  * click on it is what does the thing. Proximity used to be enough, which
- * meant walking through a quest without noticing it had happened. */
+ * meant walking through a quest without noticing it had happened.
+ *
+ * As in the game this is borrowed from: "!" is someone who has something
+ * to ask you, "?" is the thing itself. */
 const MARKS=(function(){
   const glyph=(ch,col)=>{
     const c=cvs(128,128),g=c.getContext("2d");
@@ -2823,7 +2831,7 @@ function updateQuests(dt,vx,vz){
   const giver=aliens[0];
   if(giver&&WALK.active){
     const gy=groundH("gold",giver.x,giver.z);
-    markAt(giver.x,gy+2.4,giver.z,"?",9,()=>talkToGiver());
+    markAt(giver.x,gy+2.4,giver.z,"!",9,()=>talkToGiver());
   }
 
   // --- quicksand: walk to the edge and each one is pulled out ---
@@ -2833,7 +2841,7 @@ function updateQuests(dt,vx,vz){
      * paperwork either: if you reach someone sinking in quicksand you get
      * them out whether or not anyone has asked you to yet. */
     if(!sk.freed&&!Q.done.sand&&WALK.active)
-      markAt(sk.x,gy+1.9,sk.z,"!",4.2,()=>{
+      markAt(sk.x,gy+1.9,sk.z,"?",4.2,()=>{
         if(sk.freed)return;
         sk.freed=true;Audio_.ok();
         const left=Q.sand.filter(t=>!t.freed).length;
@@ -2852,7 +2860,7 @@ function updateQuests(dt,vx,vz){
   // --- fruit: walk over it ---
   Q.fruit.forEach((f,i)=>{
     if(!f.taken&&!Q.done.food&&WALK.active)
-      markAt(f.x,groundH("gold",f.x,f.z)+1.9,f.z,"!",4.0,()=>{
+      markAt(f.x,groundH("gold",f.x,f.z)+1.9,f.z,"?",4.0,()=>{
         if(f.taken)return;
         f.taken=true;Q.held++;Audio_.ok();
         say(0,Q.held>=3?"Du har alle tre! Kom tilbage til mig.":("Guldfrugt "+Q.held+" af 3."),4);
@@ -2871,7 +2879,7 @@ function updateQuests(dt,vx,vz){
   const L=Q.lost;
   if(L){
     if(!L.found&&!Q.done.lost&&WALK.active)
-      markAt(L.x,groundH("gold",L.x,L.z)+1.5,L.z,"!",5.0,()=>{
+      markAt(L.x,groundH("gold",L.x,L.z)+1.5,L.z,"?",5.0,()=>{
         if(L.found)return;
         L.found=true;Audio_.ok();say(0,QTEXT.lostF,5);
       },Q.active==="lost"?150:14);
@@ -3587,6 +3595,21 @@ renderer.domElement.addEventListener("pointerup",e=>{
   if(moved<14&&!renderer.xr.isPresenting)clickFlat(e);
 });
 const _pv=new THREE.Vector3();
+/* What the hand button would press. On a phone the marks are small and a
+ * tap has to double as "walk there", so there is one button that always
+ * does the obvious thing: whatever you are close enough to use and
+ * nearest to looking at. Returns null when there is nothing. */
+function actionTarget(){
+  if(overlay.mesh.visible)return closeOverlay;
+  let best=null,bestOff=1e9;
+  for(const p of MARKS.pool){
+    if(!p.fn||!p.mesh.visible)continue;
+    p.mesh.getWorldPosition(_pv);_pv.project(camera);
+    const off=(_pv.z>1)?9:Math.hypot(_pv.x,_pv.y);
+    if(off<bestOff){bestOff=off;best=p.fn;}
+  }
+  return best;
+}
 function clickFlat(e){
   Audio_.init();Audio_.resume();
   const r=renderer.domElement.getBoundingClientRect();
@@ -3628,6 +3651,22 @@ function mkBtn(label,cls,onTap){
   b.addEventListener("click",()=>{Audio_.init();Audio_.resume();Audio_.click();onTap();});
   return b;
 }
+/* An icon button, for the one control that is a gesture rather than a word. */
+function mkIconBtn(svg,cls,onTap){
+  const b=document.createElement("button");
+  b.innerHTML=svg;b.className="icon"+(cls?" "+cls:"");
+  b.setAttribute("aria-label","Brug");
+  b.addEventListener("click",()=>{Audio_.init();Audio_.resume();Audio_.click();onTap();});
+  return b;
+}
+const HAND_SVG='<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" '+
+  'aria-hidden="true" focusable="false">'+
+  '<rect x="7.2" y="3" width="2.8" height="9.5" rx="1.4"/>'+
+  '<rect x="10.6" y="1.8" width="2.8" height="10.7" rx="1.4"/>'+
+  '<rect x="14" y="3" width="2.8" height="9.5" rx="1.4"/>'+
+  '<rect x="17.4" y="5" width="2.8" height="7.5" rx="1.4"/>'+
+  '<rect x="3.2" y="7.4" width="2.8" height="7" rx="1.4" transform="rotate(-24 4.6 10.9)"/>'+
+  '<path d="M5 11h14.2v4.6c0 3.3-2.7 6-6 6h-2.2c-3.3 0-6-2.7-6-6z"/></svg>';
 function mkHold(label,code){
   const b=document.createElement("button");
   b.textContent=label;b.className="hold";
@@ -3638,7 +3677,9 @@ function mkHold(label,code){
   return b;
 }
 function buildTouchbar(){
-  const sig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0)+"|"+MODE.key;
+  /* Never in VR: there you reach out and poke the thing itself. */
+  const act=renderer.xr.isPresenting?null:actionTarget();
+  const sig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0)+"|"+MODE.key+"|"+(act?1:0);
   if(sig===tbSig)return;
   tbSig=sig;tbMain.innerHTML="";
   if(St.phase==="preflight"){
@@ -3662,8 +3703,14 @@ function buildTouchbar(){
     tbMain.appendChild(mkBtn("GÅ UD","",()=>exitShip()));
     tbMain.appendChild(mkBtn("NY FLYVNING","",()=>restartFlight()));
   }else if(St.phase==="eva"){
-    tbMain.appendChild(mkBtn("GÅ IND","lit",()=>enterShip()));
+    tbMain.appendChild(mkBtn("GÅ IND","",()=>enterShip()));
   }
+  /* The hand goes last so it sits nearest the thumb, and it is only there
+   * when there is something it would do — an always-present button that
+   * usually does nothing teaches you to stop pressing it. */
+  if(act)tbMain.appendChild(mkIconBtn(HAND_SVG,"hand",()=>{
+    const f=actionTarget();if(f)f();
+  }));
   const row=(St.phase==="eva")?"foot":"fly";
   if(tbFlight.dataset.row!==row){
     tbFlight.dataset.row=row;tbFlight.innerHTML="";
@@ -3958,7 +4005,7 @@ function updateEVA(dt){
     /* An exclamation mark over it, and you pick it up by clicking. It
      * used to be yours the moment you came within three metres, which
      * could happen while you were walking somewhere else entirely. */
-    markAt(MAPAT.x,groundH("mars",MAPAT.x,MAPAT.z)+2.0,MAPAT.z,"!",4.0,()=>takeMap());
+    markAt(MAPAT.x,groundH("mars",MAPAT.x,MAPAT.z)+2.0,MAPAT.z,"?",4.0,()=>takeMap());
   }
   const hatchW=_v.set(-4.25,-1.25,-1.30).applyQuaternion(SHIP.quat).add(SHIP.pos);
   enterMark.visible=hatchW.distanceTo(WALK.pos)<60;
