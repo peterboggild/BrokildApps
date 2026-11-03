@@ -1185,6 +1185,27 @@ const CTRL_LABELS=["ILT","PUMPE","KØL","TRYK","FASE"];
     controls.push(entry);
   }
 })();
+/* The cap itself, on the dashboard between the two seats, switched on the
+ * day you come home. A trophy you keep seeing rather than a line in a log. */
+const goldCap=(function(){
+  /* On the windscreen sill in front of the starboard seat: on the
+   * dashboard it sat squarely over the ship's name, and dead centre it
+   * would be in the one view this game is about. */
+  const g=new THREE.Group();g.position.set(.66,.885,-1.03);
+  g.rotation.set(0,-.55,.04);g.visible=false;ship.add(g);
+  const gold=new THREE.MeshStandardMaterial({color:0xe8c35a,roughness:.34,
+    metalness:.45,emissive:0x2a1d04,flatShading:true});
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(.052,14,9,0,Math.PI*2,0,Math.PI/2),gold);
+  g.add(dome);
+  const peak=new THREE.Mesh(new THREE.CylinderGeometry(.052,.052,.010,16,1,false,0,Math.PI),gold);
+  peak.position.set(0,.004,-.040);peak.scale.set(1,1,1.5);g.add(peak);
+  const btn=new THREE.Mesh(new THREE.SphereGeometry(.009,8,6),gold);
+  btn.position.y=.050;g.add(btn);
+  const band=new THREE.Mesh(new THREE.TorusGeometry(.052,.006,6,18),
+    new THREE.MeshStandardMaterial({color:0x8a6a18,roughness:.5,metalness:.5}));
+  band.rotation.x=Math.PI/2;band.position.y=.003;g.add(band);
+  return g;
+})();
 const bigBtn=(function(){
   const g=new THREE.Group();g.position.set(.84,.060,.05);consoleGroup.add(g);
   const guard=new THREE.Mesh(new THREE.TorusGeometry(.085,.013,6,18),M.trim);
@@ -1350,7 +1371,14 @@ const DEST={
         sky:0x3a1c10,ground:0xa8502b,amp:1.3,atmo:.55,tex:null},
   gold:{name:"Guldplaneten",orb:"#e8c35a",orbHi:"#fff6d0",orbLo:"#3a2606",
         dist:9.4e12,radius:800,grav:6.1,hud:"#ffd978",
-        sky:0x4a2068,ground:0xc9a03e,amp:1.6,atmo:.75,tex:null}
+        sky:0x4a2068,ground:0xc9a03e,amp:1.6,atmo:.75,tex:null},
+  /* Home. Only on the menu once you have stood on Guldplaneten, because
+   * until then you have not been anywhere to come back from. Its ground
+   * is the launch apron rather than procedural terrain, so it is flat and
+   * the site stays switched on all the way down. */
+  earth:{name:"Jorden",orb:"#4f9ae0",orbHi:"#dff0ff",orbLo:"#06203a",
+        dist:0,radius:900,grav:9.8,hud:"#9fd0ff",
+        sky:0x1f5fa8,ground:0x6f8f4a,amp:0,atmo:1.0,tex:null}
 };
 /* ------------------------------------------------------------------ *
  *  Two ways to play.
@@ -1362,15 +1390,22 @@ const DEST={
  *  cockpit with it, and the gold world is on the menu.
  * ------------------------------------------------------------------ */
 const GAME={mode:"explorer",mapHeld:false,mapDone:false,
+            goldSeen:false,crowned:false,
             open:{moon:true,mars:true,gold:false}};
-function destOpen(k){return GAME.mode==="test"||GAME.open[k];}
+function destOpen(k){
+  if(k==="earth")return !!GAME.goldSeen;
+  return GAME.mode==="test"||GAME.open[k];
+}
 function lockedWhy(k){
   if(k==="gold")return "Du mangler kortet til Guldplaneten. Det ligger på Mars.";
+  if(k==="earth")return "Du skal have været på Guldplaneten, før du kan flyve hjem som konge.";
   return "";
 }
 function setGameMode(m){
   GAME.mode=m;
   GAME.mapHeld=false;GAME.mapDone=false;
+  GAME.goldSeen=false;GAME.crowned=false;
+  if(typeof goldCap!=="undefined"&&goldCap)goldCap.visible=false;
   /* Test mode's own hint says all three are open. It was setting gold
    * false either way, so the one mode whose whole point is to skip the
    * hunt for the map still locked the planet the map unlocks. */
@@ -1384,17 +1419,20 @@ function setGameMode(m){
 }
 
 const menu=new THREE.Group();
-menu.position.set(0,1.42,-.88);menu.visible=false;ship.add(menu);
+/* In front of the pilot, not on the ship's centreline: once he moved to
+ * port the whole board sat off to his right, and with a fourth world on
+ * it the top of the list went off the top of the windscreen. */
+menu.position.set(PILOT_X,1.20,-.88);menu.visible=false;ship.add(menu);
 (function buildMenu(){
-  menu.add(new THREE.Mesh(new THREE.PlaneGeometry(1.0,.48),
+  menu.add(new THREE.Mesh(new THREE.PlaneGeometry(1.0,.66),
     new THREE.MeshBasicMaterial({color:0x0a2030,transparent:true,opacity:.55,side:THREE.DoubleSide})));
   const title=new THREE.Mesh(new THREE.PlaneGeometry(.8,.09),
     new THREE.MeshBasicMaterial({map:tex(labelCanvas("VÆLG DESTINATION",{w:512,h:64,size:34,bg:"#07131d",border:"#1d4a63",color:"#7fd4e8"})),transparent:true}));
-  title.position.set(0,.17,.002);menu.add(title);
-  ["moon","mars","gold"].forEach((k,i)=>{
+  title.position.set(0,.245,.002);menu.add(title);
+  ["moon","mars","gold","earth"].forEach((k,i)=>{
     const d=DEST[k];
-    const g=new THREE.Group();g.position.set(0,.03-i*.135,.004);menu.add(g);
-    const plate=new THREE.Mesh(new THREE.PlaneGeometry(.82,.11),
+    const g=new THREE.Group();g.position.set(0,.095-i*.118,.004);menu.add(g);
+    const plate=new THREE.Mesh(new THREE.PlaneGeometry(.82,.10),
       new THREE.MeshBasicMaterial({transparent:true}));
     g.add(plate);d.plate=plate;
     const hit=new THREE.Mesh(new THREE.PlaneGeometry(.86,.125),new THREE.MeshBasicMaterial({visible:false}));
@@ -1405,7 +1443,7 @@ menu.position.set(0,1.42,-.88);menu.visible=false;ship.add(menu);
 /* A locked world still shows, greyed, with its own name: hiding it would
  * leave no clue that there is anywhere else to go. */
 function refreshMenu(){
-  ["moon","mars","gold"].forEach(k=>{
+  ["moon","mars","gold","earth"].forEach(k=>{
     const d=DEST[k];if(!d.plate)return;
     const ok=destOpen(k);
     if(d.plate.material.map)d.plate.material.map.dispose();
@@ -1461,6 +1499,97 @@ const vignette=(function(){
   m.position.z=-.42;m.renderOrder=999;m.frustumCulled=false;
   camera.add(m);return m;
 })();
+
+/* ---------- a full-view card, for the things worth stopping for ----------
+ * Head-locked and dismissed by a click, so it cannot be missed and cannot
+ * be walked away from. Used for the map and for the crown. */
+const overlay=(function(){
+  const c=cvs(1024,640);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(.86,.5375),
+    new THREE.MeshBasicMaterial({map:tex(c),transparent:true,
+      depthTest:false,depthWrite:false}));
+  m.position.z=-.70;m.renderOrder=900;m.frustumCulled=false;m.visible=false;
+  camera.add(m);
+  const hit=new THREE.Mesh(new THREE.PlaneGeometry(2.0,1.4),
+    new THREE.MeshBasicMaterial({visible:false,depthTest:false}));
+  hit.position.z=-.69;hit.frustumCulled=false;hit.visible=false;camera.add(hit);
+  makeInteractive(hit,{poke:.14,onPress:()=>closeOverlay()});
+  return {mesh:m,hit:hit,canvas:c,after:null};
+})();
+function showOverlay(draw,after){
+  draw(overlay.canvas.getContext("2d"),overlay.canvas.width,overlay.canvas.height);
+  overlay.mesh.material.map.needsUpdate=true;
+  overlay.mesh.visible=true;overlay.hit.visible=true;overlay.after=after||null;
+}
+function closeOverlay(){
+  if(!overlay.mesh.visible)return;
+  overlay.mesh.visible=false;overlay.hit.visible=false;
+  Audio_.click();
+  const f=overlay.after;overlay.after=null;if(f)f();
+}
+
+/* ---------- the question mark and the exclamation mark ----------
+ * Everything you can interact with out on a surface carries one, and a
+ * click on it is what does the thing. Proximity used to be enough, which
+ * meant walking through a quest without noticing it had happened. */
+const MARKS=(function(){
+  const glyph=(ch,col)=>{
+    const c=cvs(128,128),g=c.getContext("2d");
+    g.font="800 104px 'Chivo Mono', monospace";
+    g.textAlign="center";g.textBaseline="middle";
+    g.lineJoin="round";g.lineWidth=18;g.strokeStyle="rgba(8,10,14,.92)";
+    g.strokeText(ch,64,70);g.fillStyle=col;g.fillText(ch,64,70);
+    return tex(c);
+  };
+  const ask=glyph("?","#ffd34d"), bang=glyph("!","#8ef0ff");
+  const pool=[];
+  for(let i=0;i<9;i++){
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
+      new THREE.MeshBasicMaterial({transparent:true,depthWrite:false}));
+    m.visible=false;m.renderOrder=9;m.frustumCulled=false;world.add(m);
+    const hit=new THREE.Mesh(new THREE.PlaneGeometry(1.7,1.7),
+      new THREE.MeshBasicMaterial({visible:false}));
+    hit.visible=false;hit.frustumCulled=false;world.add(hit);
+    const slot={mesh:m,hit:hit,fn:null};
+    makeInteractive(hit,{poke:.34,onPress:()=>{if(slot.fn)slot.fn();}});
+    pool.push(slot);
+  }
+  return {pool,ask,bang,n:0,eye:new THREE.Vector3()};
+})();
+function markReset(){
+  MARKS.n=0;
+  camera.getWorldPosition(MARKS.eye);
+}
+/* kind: "?" or "!".  reach: how close you must be for the click to take.
+ * seen: how far away it is worth showing at all — the objectives of the
+ * favour you are NOT on only appear when you are nearly standing on them,
+ * so the landscape is not permanently full of exclamation marks. */
+function markAt(x,y,z,kind,reach,fn,seen){
+  if(MARKS.n>=MARKS.pool.length)return;
+  const p=MARKS.pool[MARKS.n++];
+  const vx=WALK.active?WALK.pos.x:SHIP.pos.x, vz=WALK.active?WALK.pos.z:SHIP.pos.z;
+  const d=Math.hypot(x-vx,z-vz);
+  if(d>(seen||150)){p.mesh.visible=false;p.hit.visible=false;p.fn=null;return;}
+  const near=d<=reach;
+  p.mesh.material.map=(kind==="?")?MARKS.ask:MARKS.bang;
+  p.mesh.material.opacity=near?1:.52;
+  p.mesh.material.needsUpdate=true;
+  /* Grown with distance so it stays legible across a valley, and bobbing,
+   * because a still glyph on a still landscape reads as scenery. */
+  const sc=THREE.MathUtils.clamp(.55+d*.035,.75,3.6);
+  const bob=Math.sin(St.t*2.1+MARKS.n)*.10*sc;
+  p.mesh.position.set(x,y+bob,z);p.mesh.scale.setScalar(sc);
+  p.mesh.lookAt(MARKS.eye);p.mesh.visible=true;
+  p.hit.position.copy(p.mesh.position);p.hit.scale.setScalar(sc);
+  p.hit.quaternion.copy(p.mesh.quaternion);
+  p.hit.visible=near;
+  p.fn=near?fn:null;
+}
+function markFlush(){
+  for(let i=MARKS.n;i<MARKS.pool.length;i++){
+    const p=MARKS.pool[i];p.mesh.visible=false;p.hit.visible=false;p.fn=null;
+  }
+}
 
 /* ---------- starfield: one system, the streaks ARE these stars ---------- */
 const STAR_N=2200;
@@ -1988,7 +2117,8 @@ function buildBody(key){
   if(bodyMesh){shell.remove(bodyMesh);bodyMesh.geometry.dispose();}
   if(bodyHalo)shell.remove(bodyHalo);
   const d=DEST[key];
-  if(!d.tex)d.tex=tex(key==="moon"?moonTexture():key==="mars"?marsTexture():goldTexture());
+  if(!d.tex)d.tex=tex(key==="moon"?moonTexture():key==="mars"?marsTexture():
+                      key==="earth"?earthTexture():goldTexture());
   bodyMesh=new THREE.Mesh(new THREE.SphereGeometry(d.radius,48,30),
     new THREE.MeshStandardMaterial({map:d.tex,roughness:key==="gold"?.3:.94,
       metalness:key==="gold"?.8:.04,emissive:key==="gold"?0x1a1104:0x000000}));
@@ -2120,6 +2250,7 @@ function craters(x,z,cell,depth){
   return h;
 }
 function groundH(key,x,z){
+  if(key==="earth")return 0;            // the apron is flat, and it is a plane
   const A=DEST[key].amp;
   if(key==="moon"){
     return ((noiseA(x/900+11,z/900,5)-.5)*210+ridged(noiseB,x/520,z/520,4)*95
@@ -2659,47 +2790,55 @@ function questLabel(){
   if(Q.active==="lost")return Q.lost.found?"FØLG LILLEBROR HJEM":"FIND LILLEBROR";
   return "";
 }
+function talkToGiver(){
+  if(!questRoot.visible||!aliens[0])return;
+  if(bubble.t>0)return;
+  if(!Q.active){
+    const next=Q.order.find(k=>!Q.done[k]);
+    if(!next)say(0,QTEXT.all,6);
+    else{Q.active=next;say(0,QTEXT[next],8);Audio_.ok();log("OPGAVE: "+next.toUpperCase());}
+  }else if(Q.active==="sand"){
+    const n=Q.sand.filter(s=>!s.freed).length;
+    if(n===0){Q.done.sand=true;Q.active=null;say(0,QTEXT.sandD,7);Audio_.ok();}
+    else say(0,QTEXT.sandN(n),6);
+  }else if(Q.active==="food"){
+    if(Q.held>=3){Q.done.food=true;Q.active=null;Q.held=0;say(0,QTEXT.foodD,7);Audio_.ok();}
+    else say(0,QTEXT.foodN(3-Q.held),6);
+  }else if(Q.active==="lost"){
+    const d=Math.hypot(Q.lost.x-WALK.pos.x,Q.lost.z-WALK.pos.z);
+    if(Q.lost.found&&d<12){
+      Q.lost.home=true;Q.done.lost=true;Q.active=null;say(0,QTEXT.lostD,7);Audio_.ok();
+    }else say(0,Q.lost.found?QTEXT.lostD:QTEXT.lostN,6);
+  }
+}
 function updateQuests(dt,vx,vz){
   if(!questRoot.visible)return;
   questTrailCheck();
   const near=(x,z,d)=>Math.hypot(x-vx,z-vz)<d;
 
-  // --- the spokesman: alien 0, who stays by the village ---
+  /* --- the spokesman: alien 0, who stays by the village ---
+   * You talk to him by clicking the question mark over his head. Standing
+   * near him used to be enough, which meant the whole exchange could
+   * happen while you were walking past looking somewhere else. */
   const giver=aliens[0];
-  if(giver){
-    const gd=Math.hypot(giver.x-vx,giver.z-vz);
-    if(gd<7&&WALK.active&&bubble.t<=0){
-      if(!Q.active){
-        const next=Q.order.find(k=>!Q.done[k]);
-        if(!next)say(0,QTEXT.all,6);
-        else{Q.active=next;say(0,QTEXT[next],8);Audio_.ok();log("OPGAVE: "+next.toUpperCase());}
-      }else if(Q.active==="sand"){
-        const n=Q.sand.filter(s=>!s.freed).length;
-        if(n===0){Q.done.sand=true;Q.active=null;say(0,QTEXT.sandD,7);Audio_.ok();}
-        else say(0,QTEXT.sandN(n),6);
-      }else if(Q.active==="food"){
-        if(Q.held>=3){Q.done.food=true;Q.active=null;Q.held=0;say(0,QTEXT.foodD,7);Audio_.ok();}
-        else say(0,QTEXT.foodN(3-Q.held),6);
-      }else if(Q.active==="lost"){
-        if(Q.lost.found&&near(Q.lost.x,Q.lost.z,12)){
-          Q.lost.home=true;Q.done.lost=true;Q.active=null;say(0,QTEXT.lostD,7);Audio_.ok();
-        }else say(0,Q.lost.found?QTEXT.lostD:QTEXT.lostN,6);
-      }
-    }
+  if(giver&&WALK.active){
+    const gy=groundH("gold",giver.x,giver.z);
+    markAt(giver.x,gy+2.4,giver.z,"?",9,()=>talkToGiver());
   }
 
   // --- quicksand: walk to the edge and each one is pulled out ---
   Q.sand.forEach((sk,i)=>{
-    /* No paperwork. If you walk up to someone sinking in quicksand you
-     * pull them out, whether or not anyone has asked you to yet — walking
-     * past because the quest was not active is the kind of thing that
-     * makes a game feel like a form. */
-    if(!sk.freed&&!Q.done.sand&&near(sk.x,sk.z,3.6)){
-      sk.freed=true;Audio_.ok();
-      const left=Q.sand.filter(t=>!t.freed).length;
-      say(0,left?("Én er fri! Der er "+left+" tilbage."):"Den sidste er fri!",4);
-    }
     const gy=groundH("gold",sk.x,sk.z);
+    /* An exclamation mark over each one, and a click is the pull. No
+     * paperwork either: if you reach someone sinking in quicksand you get
+     * them out whether or not anyone has asked you to yet. */
+    if(!sk.freed&&!Q.done.sand&&WALK.active)
+      markAt(sk.x,gy+1.9,sk.z,"!",4.2,()=>{
+        if(sk.freed)return;
+        sk.freed=true;Audio_.ok();
+        const left=Q.sand.filter(t=>!t.freed).length;
+        say(0,left?("Én er fri! Der er "+left+" tilbage."):"Den sidste er fri!",4);
+      },Q.active==="sand"?150:14);
     if(sk.freed){qSunk.setMatrixAt(i,hide());qSunkHead.setMatrixAt(i,hide());}
     else{
       _qq.identity();
@@ -2712,10 +2851,12 @@ function updateQuests(dt,vx,vz){
 
   // --- fruit: walk over it ---
   Q.fruit.forEach((f,i)=>{
-    if(!f.taken&&!Q.done.food&&near(f.x,f.z,3.2)){
-      f.taken=true;Q.held++;Audio_.ok();
-      say(0,Q.held>=3?"Du har alle tre! Kom tilbage til mig.":("Guldfrugt "+Q.held+" af 3."),4);
-    }
+    if(!f.taken&&!Q.done.food&&WALK.active)
+      markAt(f.x,groundH("gold",f.x,f.z)+1.9,f.z,"!",4.0,()=>{
+        if(f.taken)return;
+        f.taken=true;Q.held++;Audio_.ok();
+        say(0,Q.held>=3?"Du har alle tre! Kom tilbage til mig.":("Guldfrugt "+Q.held+" af 3."),4);
+      },Q.active==="food"?150:14);
     if(f.taken)qFruit.setMatrixAt(i,hide());
     else{
       _qq.setFromAxisAngle(UPW,St.t*.8+i);
@@ -2729,9 +2870,11 @@ function updateQuests(dt,vx,vz){
   // --- the little brother: find him and he tags along home ---
   const L=Q.lost;
   if(L){
-    if(!L.found&&!Q.done.lost&&near(L.x,L.z,4.5)){
-      L.found=true;Audio_.ok();say(0,QTEXT.lostF,5);
-    }
+    if(!L.found&&!Q.done.lost&&WALK.active)
+      markAt(L.x,groundH("gold",L.x,L.z)+1.5,L.z,"!",5.0,()=>{
+        if(L.found)return;
+        L.found=true;Audio_.ok();say(0,QTEXT.lostF,5);
+      },Q.active==="lost"?150:14);
     if(L.found&&!L.home){
       /* Trots along behind you, keeping a couple of metres back. */
       const dx=vx-L.x, dz=vz-L.z, d=Math.hypot(dx,dz);
@@ -3231,19 +3374,24 @@ function pressLand(){
    * takes you somewhere. */
   if(St.phase!=="approach")return;
   const d=DEST[St.dest];
-  St.phase="descent";terrainKey=St.dest;St.climbing=false;
+  const home=(St.dest==="earth");
+  St.phase="descent";terrainKey=home?null:St.dest;St.climbing=false;
   clearChunks();
-  const spot=flatSpot(St.dest,0,0,170);
+  const spot=home?{x:0,z:0}:flatSpot(St.dest,0,0,170);
   SHIP.pos.set(spot.x,1500,spot.z);SHIP.vel.set(0,-26,0);
   SHIP.quat.identity();rotateShip(-.14,0,0);
   SHIP.onGround=false;St.landQuality="";
-  terrainRoot.visible=true;
+  terrainRoot.visible=!home;
   /* The skirt is unlit and the chunks are not, so at the same hex the far
    * plain read brighter than the ground under your feet and the join
    * between them was a hard line across the landscape. Bank it down to
    * roughly what the lit terrain comes out at. */
-  skirt.visible=true;skirt.material.color.setHex(d.ground).multiplyScalar(0.78);
+  skirt.visible=!home;skirt.material.color.setHex(d.ground).multiplyScalar(0.78);
   skirt.position.y=-180;
+  /* Coming home you land on the apron you left from, with the pad, the
+   * towers and the hangars all still there. */
+  site.visible=home;
+  if(home&&siteGround)siteGround.material.opacity=1;
   if(bodyMesh)bodyMesh.visible=false;
   if(bodyHalo)bodyHalo.visible=false;
   alienRoot.visible=false;clearMarsMap();
@@ -3501,7 +3649,10 @@ function buildTouchbar(){
     });
     if(bigBtn.armed)tbMain.appendChild(mkBtn("START","red",()=>pressBig()));
   }else if(St.phase==="space"){
-    ["moon","mars","gold"].forEach(k=>tbMain.appendChild(mkBtn(DEST[k].name,"lit",()=>chooseDest(k))));
+    ["moon","mars","gold","earth"].forEach(k=>{
+      if(k==="earth"&&!destOpen("earth"))return;
+      tbMain.appendChild(mkBtn(DEST[k].name,"lit",()=>chooseDest(k)));
+    });
   }else if(St.phase==="course"){
     tbMain.appendChild(mkBtn("HYPERRUM","lit",()=>pressHyper()));
   }else if(St.phase==="approach"){
@@ -3660,6 +3811,92 @@ const enterMark=(function(){
   return g;
 })();
 
+/* The map itself, drawn once and held up in front of you until you put it
+ * away. Finding it used to be a line of text that had gone by the time you
+ * looked up from the ground. */
+function drawMapCard(g,W,H){
+  g.clearRect(0,0,W,H);
+  g.fillStyle="#1a1206";g.fillRect(0,0,W,H);
+  const grd=g.createLinearGradient(0,0,0,H);
+  grd.addColorStop(0,"#e8d9a8");grd.addColorStop(.5,"#dcc98f");grd.addColorStop(1,"#c9b377");
+  g.fillStyle=grd;g.fillRect(16,16,W-32,H-32);
+  g.strokeStyle="#6b4a12";g.lineWidth=7;g.strokeRect(30,30,W-60,H-60);
+  g.strokeStyle="rgba(107,74,18,.30)";g.lineWidth=2;
+  for(let i=0;i<70;i++){
+    const x=40+Math.random()*(W-80),y=44+Math.random()*(H-88),r=6+Math.random()*26;
+    g.beginPath();g.arc(x,y,r,0,7);g.stroke();
+  }
+  g.fillStyle="#3a2606";
+  g.font="800 62px 'Bricolage Grotesque', sans-serif";
+  g.textAlign="center";g.fillText("KORT TIL GULDPLANETEN",W/2,110);
+  // the route: Jorden -> Månen -> Mars -> Guldplaneten
+  const stops=[["JORDEN",180,380,"#3f7a3a"],["MÅNEN",400,300,"#8d8d95"],
+               ["MARS",630,410,"#a8502b"],["GULDPLANETEN",820,286,"#e8c35a"]];
+  g.strokeStyle="#6b4a12";g.lineWidth=5;g.setLineDash([14,12]);
+  g.beginPath();g.moveTo(stops[0][1],stops[0][2]);
+  for(let i=1;i<stops.length;i++)g.lineTo(stops[i][1],stops[i][2]);
+  g.stroke();g.setLineDash([]);
+  g.font="700 26px 'Chivo Mono', monospace";
+  stops.forEach((p,i)=>{
+    const r=i===3?40:26;
+    g.beginPath();g.arc(p[1],p[2],r,0,7);g.fillStyle=p[3];g.fill();
+    g.lineWidth=4;g.strokeStyle="#3a2606";g.stroke();
+    g.fillStyle="#3a2606";g.fillText(p[0],p[1],p[2]+r+32);
+  });
+  // the X
+  g.strokeStyle="#9a2020";g.lineWidth=11;
+  g.beginPath();g.moveTo(798,264);g.lineTo(842,308);
+  g.moveTo(842,264);g.lineTo(798,308);g.stroke();
+  g.fillStyle="#3a2606";g.font="600 30px 'Chivo Mono', monospace";
+  g.fillText("KURSEN ER LAGT IND I SKIBET",W/2,H-96);
+  g.font="600 24px 'Chivo Mono', monospace";g.fillStyle="#6b4a12";
+  g.fillText("TRYK FOR AT LÆGGE KORTET VÆK",W/2,H-52);
+}
+/* The gold cap, drawn big, once, when you get home with the job done. */
+function drawCrownCard(g,W,H){
+  g.clearRect(0,0,W,H);
+  const sky=g.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,"#1a1205");sky.addColorStop(1,"#3a2606");
+  g.fillStyle=sky;g.fillRect(0,0,W,H);
+  g.strokeStyle="#e8c35a";g.lineWidth=8;g.strokeRect(24,24,W-48,H-48);
+  // rays
+  g.save();g.translate(W/2,318);
+  for(let i=0;i<24;i++){
+    g.rotate(Math.PI*2/24);
+    g.fillStyle=i%2?"rgba(232,195,90,.10)":"rgba(232,195,90,.05)";
+    g.beginPath();g.moveTo(0,0);g.lineTo(640,-70);g.lineTo(640,70);g.fill();
+  }
+  g.restore();
+  // the cap: a crown of a dome and a peak
+  const cx=W/2, cy=330;
+  const gold=g.createLinearGradient(cx-150,cy-110,cx+150,cy+60);
+  gold.addColorStop(0,"#fff0b8");gold.addColorStop(.45,"#e8c35a");gold.addColorStop(1,"#9a7420");
+  g.fillStyle=gold;g.strokeStyle="#5a4310";g.lineWidth=6;
+  g.beginPath();g.ellipse(cx,cy,150,104,0,Math.PI,0);g.closePath();g.fill();g.stroke();
+  g.beginPath();g.ellipse(cx+96,cy+6,150,34,0,0,Math.PI);g.closePath();g.fill();g.stroke();
+  g.beginPath();g.moveTo(cx-150,cy);g.lineTo(cx+150,cy);g.stroke();
+  // a little gold button on top
+  g.beginPath();g.arc(cx,cy-104,15,0,7);g.fill();g.stroke();
+  // the crown badge on the front
+  g.fillStyle="#5a4310";
+  g.beginPath();
+  g.moveTo(cx-44,cy-24);g.lineTo(cx-30,cy-58);g.lineTo(cx-14,cy-34);
+  g.lineTo(cx,cy-64);g.lineTo(cx+14,cy-34);g.lineTo(cx+30,cy-58);
+  g.lineTo(cx+44,cy-24);g.closePath();g.fill();
+  g.textAlign="center";
+  g.fillStyle="#ffe9a8";g.font="800 60px 'Bricolage Grotesque', sans-serif";
+  g.fillText("KONGE AF GULDPLANETEN",W/2,H-150);
+  g.fillStyle="#e8c35a";g.font="600 30px 'Chivo Mono', monospace";
+  g.fillText("DU HAR EN GULDKASKET",W/2,H-100);
+  g.fillStyle="#9a7420";g.font="600 24px 'Chivo Mono', monospace";
+  g.fillText("TRYK FOR AT TAGE DEN PÅ",W/2,H-52);
+}
+function takeMap(){
+  if(GAME.mapHeld)return;
+  GAME.mapHeld=true;clearMarsMap();Audio_.ok();
+  log("KORTET FUNDET");
+  showOverlay(drawMapCard,()=>showMsg("Gå tilbage til skibet med kortet.",8));
+}
 function exitShip(){
   if((St.phase!=="landed"&&St.phase!=="preflight")||WALK.active)return;
   const where=St.dest?DEST[St.dest].name:"startrampen";
@@ -3716,15 +3953,12 @@ function updateEVA(dt){
   St.alt=0;
   if(MAPAT.live){
     setBeams([{x:MAPAT.x,z:MAPAT.z}],"mars");
-    /* Walk up to it and it is yours; the beacon and the trail go out. */
-    if(Math.hypot(MAPAT.x-WALK.pos.x,MAPAT.z-WALK.pos.z)<3.2){
-      GAME.mapHeld=true;clearMarsMap();Audio_.ok();
-      log("KORTET FUNDET");
-      showMsg("Du har kortet! Gå tilbage til skibet med det.",8);
-    }else{
-      mapBeacon.material.emissiveIntensity=1.2+Math.sin(St.t*4)*0.9;
-      mapProp.rotation.y+=dt*.4;
-    }
+    mapBeacon.material.emissiveIntensity=1.2+Math.sin(St.t*4)*0.9;
+    mapProp.rotation.y+=dt*.4;
+    /* An exclamation mark over it, and you pick it up by clicking. It
+     * used to be yours the moment you came within three metres, which
+     * could happen while you were walking somewhere else entirely. */
+    markAt(MAPAT.x,groundH("mars",MAPAT.x,MAPAT.z)+2.0,MAPAT.z,"!",4.0,()=>takeMap());
   }
   const hatchW=_v.set(-4.25,-1.25,-1.30).applyQuaternion(SHIP.quat).add(SHIP.pos);
   enterMark.visible=hatchW.distanceTo(WALK.pos)<60;
@@ -4044,6 +4278,7 @@ function updateFlight(dt){
         haptic(controllers[0],.9,120);haptic(controllers[1],.9,120);
         St.landQuality=vy<9?"BLØD":vy<26?"FAST":"HÅRD";
         if(St.dest==="gold"&&!alienRoot.visible){
+          GAME.goldSeen=true;refreshMenu();
           spawnAliens(SHIP.pos.x,SHIP.pos.z);
           startQuests(SHIP.pos.x,SHIP.pos.z);
         }
@@ -4067,9 +4302,20 @@ function updateFlight(dt){
           showMsg("Guldplaneten. Gå ud og stil dig hen til aliens ved lyssøjlen — han vil spørge dig om noget.",9);
         }
         log(St.landQuality+" LANDING");
-        showMsg(St.landQuality==="BLØD"?"Blød landing. Pænt fløjet.":
-                St.landQuality==="FAST"?"Nede. Lidt fast, men intet gik i stykker.":
-                "Hård landing — skroget tog den. Giv gas for at lette igen.");
+        if(St.dest==="earth"){
+          /* Home. Everyone is out on the apron, and there is a gold cap. */
+          log("HJEMME IGEN");
+          if(!GAME.crowned){
+            GAME.crowned=true;goldCap.visible=true;
+            Audio_.ok();setTimeout(()=>Audio_.ok(),240);setTimeout(()=>Audio_.ok(),480);
+            showOverlay(drawCrownCard,()=>
+              showMsg("Kasketten hænger på instrumentbrættet. Den er din.",8));
+          }else showMsg("Hjemme på rampen igen.",6);
+        }else{
+          showMsg(St.landQuality==="BLØD"?"Blød landing. Pænt fløjet.":
+                  St.landQuality==="FAST"?"Nede. Lidt fast, men intet gik i stykker.":
+                  "Hård landing — skroget tog den. Giv gas for at lette igen.");
+        }
         if(auto)autoThrottle(0,1);
       }
       SHIP.onGround=true;SHIP.pos.y=h+GEAR;
@@ -4197,6 +4443,9 @@ let screenClock=0;
 const clock=new THREE.Clock();
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(.05,clock.getDelta());
+  /* The markers are rebuilt from nothing every frame: whatever wants one
+   * claims a slot, and whatever is left over is switched off. */
+  markReset();
   if(pendingRecenter>0){pendingRecenter--;if(pendingRecenter===0)try{recenter();}catch(e){}}
   const session=renderer.xr.getSession&&renderer.xr.getSession();
   if(session)try{
@@ -4249,6 +4498,7 @@ renderer.setAnimationLoop(()=>{
     stars.rotation.y+=dt*.002;
     deepSky.rotation.y=stars.rotation.y;
   }
+  markFlush();
   renderer.render(scene,camera);
 });
 </script>
