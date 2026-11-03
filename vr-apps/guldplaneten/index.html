@@ -514,16 +514,16 @@ function box(w,h,d,mat,x,y,z,parent){
     const qf2=qf.clone();qf2.position.y=2.0;ship.add(qf2);
   });
   box(2.0,2.2,.08,M.hullDark,0,1.05,.68);
-  const front=new THREE.Mesh(new THREE.PlaneGeometry(1.84,.9),M.glass);
-  front.position.set(0,1.46,-1.04);ship.add(front);
+  const front=new THREE.Mesh(new THREE.PlaneGeometry(1.84,1.14),M.glass);
+  front.position.set(0,1.39,-1.04);ship.add(front);
   // solid chamfered roof over the bridge, as the reference has
   box(2.16,.16,2.5,M.hull,0,2.16,-.30);
   box(1.70,.14,.42,M.hull,0,2.04,-1.28);
   box(2.0,.16,.14,M.glassFrame,0,1.92,-1.06);
-  box(2.0,.14,.14,M.glassFrame,0,1.00,-1.06);
-  box(.10,1.0,.14,M.glassFrame,-.92,1.46,-1.06);
-  box(.10,1.0,.14,M.glassFrame,.92,1.46,-1.06);
-  box(.07,1.0,.12,M.glassFrame,0,1.46,-1.06);
+  box(2.0,.14,.14,M.glassFrame,0,0.80,-1.06);   // low sill: the prow is the view
+  box(.10,1.24,.14,M.glassFrame,-.92,1.39,-1.06);
+  box(.10,1.24,.14,M.glassFrame,.92,1.39,-1.06);
+  box(.07,1.24,.12,M.glassFrame,0,1.39,-1.06);
   box(.56,.10,.52,M.rubber,0,.44,.16);
   box(.56,.72,.10,M.rubber,0,.80,.40);
   box(.10,.34,.48,M.rubber,-.30,.62,.16);
@@ -605,10 +605,10 @@ const HULL={glow:null,beacon:null,beaconMat:null};
     [ 0.00, 1.00],[-0.66, 0.88],[-1.00, 0.20],[-1.00,-0.50],[-0.66,-1.00]
   ];
   const ST=[
-    {z:-9.90,w:0.55,top:-0.30,bot:0.35},{z:-8.10,w:1.45,top:-0.18,bot:0.78},
-    {z:-6.00,w:2.25,top:-0.06,bot:1.18},{z:-3.90,w:2.90,top: 0.02,bot:1.50},
-    {z:-2.10,w:3.25,top: 0.05,bot:1.68},{z:-0.30,w:3.45,top: 0.06,bot:1.80},
-    {z: 1.30,w:3.50,top: 0.10,bot:1.82},{z: 2.10,w:3.50,top: 2.40,bot:1.82},
+    {z:-9.90,w:0.55,top:-0.30,bot:0.35},{z:-8.10,w:1.45,top:-0.22,bot:0.78},
+    {z:-6.00,w:2.25,top:-0.16,bot:1.18},{z:-3.90,w:2.90,top:-0.12,bot:1.50},
+    {z:-2.10,w:3.25,top:-0.11,bot:1.68},{z:-0.30,w:3.45,top:-0.10,bot:1.80},
+    {z: 1.30,w:3.50,top:-0.08,bot:1.82},{z: 2.10,w:3.50,top: 2.40,bot:1.82},
     {z: 3.40,w:3.45,top: 3.30,bot:1.80},{z: 5.60,w:3.35,top: 4.00,bot:1.74},
     {z: 8.30,w:3.10,top: 3.85,bot:1.55},{z:10.60,w:2.70,top: 3.25,bot:1.30},
     {z:11.70,w:2.40,top: 2.80,bot:1.10}
@@ -617,31 +617,49 @@ const HULL={glow:null,beacon:null,beaconMat:null};
    * keel, and an amber stripe along the chine. Vehicles read by their
    * two-tone, not by their outline, and this costs no extra draw call. */
   const CHINE=[1.00,0.74,0.34];
-  function sweptHull(section,stations){
+  /* ONE form-builder for every major mass on the ship. A station carries a
+   * half-width, separate top and bottom heights, and optional lateral and
+   * vertical offsets, so nacelles, sponsons, the bridge plinth and the tail
+   * are all swept faceted volumes that taper into their neighbours — rather
+   * than boxes and cylinders parked against the hull, which is what made it
+   * read as an assembly of parts instead of one vehicle. */
+  function sweptHull(section,stations,opt){
+    opt=opt||{};
     const n=section.length,m=stations.length,pos=[],uv=[],col=[],idx=[];
-    const z0=stations[0].z, zL=stations[m-1].z-z0;
+    const z0=stations[0].z, zL=(stations[m-1].z-z0)||1;
+    const stripe=opt.stripe!==false, lo=opt.lo===undefined?0.44:opt.lo;
     for(const st of stations)for(let i=0;i<n;i++){
       const q=section[i];
-      pos.push(q[0]*st.w, q[1]*(q[1]>0?st.top:st.bot), st.z);
+      pos.push((st.x||0)+q[0]*st.w, (st.y||0)+q[1]*(q[1]>0?st.top:st.bot), st.z);
       uv.push(i/n*2,(st.z-z0)/zL*5);
-      const tone=0.44+((q[1]+1)/2)*0.56;
-      if(i===2||i===3||i===7||i===8)col.push(CHINE[0]*tone,CHINE[1]*tone,CHINE[2]*tone);
+      const tone=lo+((q[1]+1)/2)*(1-lo);
+      if(stripe&&(i===2||i===3||i===7||i===8))
+        col.push(CHINE[0]*tone,CHINE[1]*tone,CHINE[2]*tone);
       else col.push(tone,tone,tone*0.99);
     }
     for(let k=0;k<m-1;k++)for(let i=0;i<n;i++){
       const a=k*n+i,b=k*n+(i+1)%n,c=(k+1)*n+i,d=(k+1)*n+(i+1)%n;
       idx.push(a,b,c, b,d,c);
     }
-    const base=pos.length/3,last=stations[m-1];
-    pos.push(0,0,last.z);uv.push(.5,5);col.push(.5,.5,.5);
-    for(let i=0;i<n;i++){const a=(m-1)*n+i,b=(m-1)*n+(i+1)%n;idx.push(base,a,b);}
+    // cap both ends, so a form can end anywhere without showing its lining
+    const f=stations[0], l=stations[m-1];
+    const nose=pos.length/3;
+    pos.push(f.x||0,f.y||0,f.z);uv.push(.5,0);col.push(.6,.6,.6);
+    for(let i=0;i<n;i++)idx.push(nose,(i+1)%n,i);
+    const tail=pos.length/3;
+    pos.push(l.x||0,l.y||0,l.z);uv.push(.5,5);col.push(.5,.5,.5);
+    for(let i=0;i<n;i++){const a=(m-1)*n+i,b=(m-1)*n+(i+1)%n;idx.push(tail,a,b);}
     const g=new THREE.BufferGeometry();
     g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
     g.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));
     g.setAttribute("color",new THREE.Float32BufferAttribute(col,3));
     g.setIndex(idx);g.computeVertexNormals();return g;
   }
-  hullExt.add(new THREE.Mesh(sweptHull(SECTION,ST),M.extTop));
+  const form=(stations,mat,opt)=>{
+    const m=new THREE.Mesh(sweptHull(SECTION,stations,opt),mat||M.extTop);
+    hullExt.add(m);return m;
+  };
+  form(ST);
 
   /* ---- wings from four planform corners, extruded ----
    * Flat slabs read as cardboard, so the tip is drawn thinner than the root. */
@@ -674,7 +692,7 @@ const HULL={glow:null,beacon:null,beaconMat:null};
   const ENGINES=[
     [-1.65,-0.20,12.90,1.35],[1.65,-0.20,12.90,1.35],
     [-1.65, 2.00,12.90,1.35],[1.65, 2.00,12.90,1.35],
-    [-7.80,-2.30,10.40,1.00],[7.80,-2.30,10.40,1.00]
+    [-7.80,-2.30,11.40,1.00],[7.80,-2.30,11.40,1.00]
   ];
   const H=Math.PI/2;
   cluster(nozzleGeo,nozzleMat,ENGINES.map(e=>[e[0],e[1],e[2],e[3],e[3],e[3],H,0,0]));
@@ -708,22 +726,41 @@ const HULL={glow:null,beacon:null,beaconMat:null};
     (sg<0?navsR:navsG).push([sg*11.95,-.22,6.78,.15,.15,.15]);
     for(let i=0;i<5;i++)fins.push([sg*(4.2+i*.52),.10,3.9+i*.26,.10,.66,2.2]);
     // pylon and nacelle for the outboard engine
-    add(UBOX,M.extDark,sg*7.80,-1.35,7.40).scale.set(.62,1.7,4.0);
-    add(UCYL12,M.extTop,sg*7.80,-2.30,7.00,H,0,0).scale.set(1.38,5.8,1.38);
-    add(new THREE.TorusGeometry(1.40,.17,6,14),M.extTrim,sg*7.80,-2.30,4.10);
+    /* The nacelle grows out of the wing instead of hanging off a box
+     * pylon: one swept form that starts as a thin blade at the wing surface
+     * and swells into the engine housing. */
+    form([
+      {z: 2.60,w:0.26,top:0.22,bot:0.22,x:sg*7.80,y:-0.62},
+      {z: 4.40,w:0.78,top:0.68,bot:0.80,x:sg*7.80,y:-1.38},
+      {z: 6.60,w:1.24,top:1.08,bot:1.26,x:sg*7.80,y:-2.06},
+      {z: 9.00,w:1.38,top:1.22,bot:1.40,x:sg*7.80,y:-2.30},
+      {z:10.40,w:1.28,top:1.12,bot:1.30,x:sg*7.80,y:-2.30}
+    ],M.extTop,{stripe:false,lo:.5});
   });
   cluster(UBOX,M.extTrim,fins);          // wingtip fins and radiator plates together
   cluster(USPH,new THREE.MeshStandardMaterial({color:0x3a0808,emissive:0xff2a2a,emissiveIntensity:1.6}),navsR);
   cluster(USPH,new THREE.MeshStandardMaterial({color:0x08320f,emissive:0x2aff55,emissiveIntensity:1.6}),navsG);
 
   // thrust structure closing the tail
-  add(UBOX,M.extDark,0,.90,12.20).scale.set(5.2,4.4,1.9);
+  form([
+    {z:11.20,w:2.45,top:2.70,bot:1.15},
+    {z:12.50,w:2.32,top:2.55,bot:1.05},
+    {z:13.50,w:2.00,top:2.25,bot:0.88}
+  ],M.extDark,{stripe:false,lo:.55});
 
   // ---- dorsal spine, tanks, mast, beacon ----
-  add(UCYL,M.extTrim,0,4.10,5.80,H,0,0).scale.set(1.05,7.0,1.05);
-  add(USPH,M.extTrim,0,4.10,2.35).scale.setScalar(1.06);
-  cluster(UCYL,M.extDark,[[-2.55,3.20,6.60,.70,5.4,.70,H,0,0],[2.55,3.20,6.60,.70,5.4,.70,H,0,0]]);
-  cluster(USPH,M.extDark,[[-2.55,3.20,3.90,.71,.71,.71],[2.55,3.20,3.90,.71,.71,.71]]);
+  form([
+    {z: 2.40,w:0.50,top:0.42,bot:0.50,y:3.90},
+    {z: 4.20,w:1.00,top:0.88,bot:1.00,y:3.90},
+    {z: 7.40,w:1.02,top:0.90,bot:1.02,y:3.90},
+    {z: 9.40,w:0.62,top:0.54,bot:0.62,y:3.90}
+  ],M.extTrim,{stripe:false,lo:.58});
+  [-1,1].forEach(sg=>form([
+    {z:3.40,w:0.40,top:0.38,bot:0.40,x:sg*2.62,y:3.10},
+    {z:5.20,w:0.76,top:0.72,bot:0.76,x:sg*2.62,y:3.10},
+    {z:7.80,w:0.78,top:0.74,bot:0.78,x:sg*2.62,y:3.10},
+    {z:9.60,w:0.48,top:0.45,bot:0.48,x:sg*2.62,y:3.10}
+  ],M.extDark,{stripe:false,lo:.55}));
   add(UCYL6,M.extTrim,0,6.00,8.50).scale.set(.10,3.8,.10);
   add(new THREE.TorusGeometry(.80,.055,5,12),M.extTrim,0,7.60,8.50,Math.PI/2.6,0,0);
   HULL.beaconMat=new THREE.MeshStandardMaterial({color:0x3a0a0a,emissive:0xff3020,emissiveIntensity:0});
@@ -750,21 +787,21 @@ const HULL={glow:null,beacon:null,beaconMat:null};
     const strips=[],haz=[];
     [-1,1].forEach(sg=>{
       // chine strips running the length of the hull
-      strips.push([sg*3.38,-.30,-4.20,.10,.16,4.2]);
-      strips.push([sg*3.52,-.30, 1.40,.10,.16,4.6]);
-      strips.push([sg*3.30,-.30, 7.60,.10,.16,3.4]);
+      strips.push([sg*3.44,-.30,-4.20,.05,.14,4.2]);
+      strips.push([sg*3.56,-.30, 1.40,.05,.14,4.6]);
+      strips.push([sg*3.36,-.30, 7.60,.05,.14,3.4]);
       // wing leading and trailing edge strips
-      strips.push([sg*7.4,-.12,3.30,.16,.10,6.4,0,sg*-0.655,0]);
-      strips.push([sg*7.6,-.12,9.60,.16,.10,4.6,0,sg* 0.36,0]);
+      strips.push([sg*7.4,-.12,3.30,.10,.05,6.4,0,sg*-0.655,0]);
+      strips.push([sg*7.6,-.12,9.60,.10,.05,4.6,0,sg* 0.36,0]);
       // a bar either side of the bridge
-      strips.push([sg*1.22,.34,-.35,.08,.14,1.9]);
+      strips.push([sg*1.30,.34,-.35,.05,.12,1.9]);
       // nacelle rings
       strips.push([sg*7.80,-2.30,4.30,.22,.22,.16]);
       // orange hazard blocks
-      haz.push([sg*3.40,-.72,-3.00,.09,.72,2.3]);
-      haz.push([sg*3.47,-.72, 4.20,.09,.72,1.7]);
-      haz.push([sg*6.2,-.12,5.20,1.9,.10,1.2,0,sg*-0.655,0]);
-      haz.push([sg*2.9, 1.60, 3.40,.09,.9,1.3]);
+      haz.push([sg*3.42,-.72,-3.00,.05,.72,2.3]);
+      haz.push([sg*3.52,-.72, 4.20,.05,.72,1.7]);
+      haz.push([sg*6.2,-.12,5.20,1.9,.05,1.2,0,sg*-0.655,0]);
+      haz.push([sg*2.96, 1.60, 3.40,.05,.9,1.3]);
     });
     strips.push([0,4.12,5.60,2.4,.10,.22]);
     cluster(UBOX,M.lamp,strips);
@@ -777,8 +814,8 @@ const HULL={glow:null,beacon:null,beaconMat:null};
     for(let i=0;i<N;i++){
       const sg=i%2?1:-1, t=rr(), z=-7.8+t*18.5;
       const wHere=0.38+Math.min(1,Math.max(0,(z+9.9)/9.2))*3.02;
-      items.push([sg*wHere*0.97,(rr()-.45)*1.9,z,
-        .09+rr()*.12,.12+rr()*.62,.6+rr()*2.4, 0,0,(rr()-.5)*.25]);
+      items.push([sg*wHere*0.985,(rr()-.45)*1.9,z,
+        .045+rr()*.05,.14+rr()*.66,.7+rr()*2.6, 0,0,(rr()-.5)*.25]);
     }
     cluster(UBOX,M.extTrim,items);
   })();
@@ -794,11 +831,32 @@ const HULL={glow:null,beacon:null,beaconMat:null};
    * With the forward deck dropped to sit under the cockpit, the cabin's own
    * lower walls are now outside surfaces. Clad them so the bridge reads as
    * part of the ship rather than as a room someone left on the deck. */
-  cluster(UBOX,M.extTop,[
-    [-1.14,.28,-.35,.30,.70,2.42],[1.14,.28,-.35,.30,.70,2.42],
-    [0,.28,-1.14,2.58,.70,.30],   [0,.28,.80,2.58,.70,.30],
-    [-1.20,.64,-.35,.42,.12,2.6], [1.20,.64,-.35,.42,.12,2.6],
-    [0,.64,-1.20,2.7,.12,.42],    [0,.64,.86,2.7,.12,.42]]);
+  /* A vertical extrusion of a closed outline, SIDE FACES ONLY. A swept tube
+   * here would have put a skin straight across the cabin at waist height and
+   * hidden the floor, the seat base and the bottom of the console from the
+   * pilot. Open top and bottom leaves the interior untouched. */
+  (function bridgeCollar(){
+    const OUT=[[-1.10,-1.40],[-0.55,-1.54],[0.55,-1.54],[1.10,-1.40],
+               [1.28,-0.62],[1.28,0.36],[1.10,0.94],[0.55,1.06],
+               [-0.55,1.06],[-1.10,0.94],[-1.28,0.36],[-1.28,-0.62]];
+    const y0=-0.12,y1=0.60,n=OUT.length,pos=[],uv=[],col=[],idx=[];
+    for(let i=0;i<n;i++){
+      const q=OUT[i];
+      pos.push(q[0],y0,q[1], q[0],y1,q[1]);
+      uv.push(i/n*2,0, i/n*2,1);
+      col.push(.64,.64,.64, 1,1,1);
+    }
+    for(let i=0;i<n;i++){
+      const a=i*2,b=i*2+1,c=((i+1)%n)*2,d=((i+1)%n)*2+1;
+      idx.push(a,b,c, b,d,c);
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));
+    g.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));
+    g.setAttribute("color",new THREE.Float32BufferAttribute(col,3));
+    g.setIndex(idx);g.computeVertexNormals();
+    hullExt.add(new THREE.Mesh(g,M.extTop));
+  })();
 
   // ---- landing gear: four splayed legs on big pads ----
   (function gear(){
