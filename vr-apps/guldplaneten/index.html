@@ -102,7 +102,7 @@
 <body>
 <div id="ui">
   <div class="panel" id="startPanel">
-    <div class="rivet">DTU Orbital · Startrampe 04 · Danmark</div>
+    <div class="rivet">Morfars Værft · Startrampe 04 · Danmark</div>
     <h1>Guldplaneten</h1>
     <p class="sub">Du starter <strong>udenfor</strong> på rampen, ved siden af skibet.
       Hop hen til lugen, gå ombord, kør startsekvensen — og flyv til Månen, Mars
@@ -295,7 +295,7 @@ function wearTexture(){
 function labelCanvas(text,opts){
   opts=opts||{};
   const W=opts.w||256,H=opts.h||64,c=cvs(W,H),g=c.getContext("2d");
-  g.fillStyle=opts.bg||"#11161d";g.fillRect(0,0,W,H);
+  if(opts.bg!=="none"){g.fillStyle=opts.bg||"#11161d";g.fillRect(0,0,W,H);}
   if(opts.border!==false){g.strokeStyle=opts.border||"#2c3744";g.lineWidth=3;g.strokeRect(1.5,1.5,W-3,H-3);}
   g.fillStyle=opts.color||"#f2a33c";
   g.font=(opts.weight||600)+" "+(opts.size||28)+'px "Chivo Mono", monospace';
@@ -539,12 +539,17 @@ function box(w,h,d,mat,x,y,z,parent){
 })();
 const consoleGroup=new THREE.Group();
 consoleGroup.position.set(0,.70,-.62);consoleGroup.rotation.x=-0.46;ship.add(consoleGroup);
-consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.5,.5,.07),M.hull));
+consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.9,.5,.07),M.hull));
 (function(){
-  const lip=new THREE.Mesh(new THREE.BoxGeometry(1.56,.04,.1),M.trim);
+  const lip=new THREE.Mesh(new THREE.BoxGeometry(1.96,.04,.1),M.trim);
   lip.position.set(0,-.26,.01);consoleGroup.add(lip);
+  /* The ship's name, across the top of the dashboard. */
+  const plate=new THREE.Mesh(new THREE.PlaneGeometry(1.15,.072),
+    new THREE.MeshBasicMaterial({map:tex(labelCanvas("THEODOR & MORFARS RUMSKIB",
+      {w:1024,h:64,size:34,bg:"#0b0f15",border:"#3c4756",color:"#e8c35a"})),transparent:true}));
+  plate.position.set(0,.205,.04);consoleGroup.add(plate);
 })();
-box(1.5,.52,.1,M.hullDark,0,.40,-.80);
+box(1.9,.52,.1,M.hullDark,0,.40,-.80);
 
 /* ---------- the ship from outside ---------- *
  *  A heavy lander, not an aeroplane: 16.6 m long, 19 m across the wings and
@@ -882,6 +887,19 @@ const HULL={glow:null,beacon:null,beaconMat:null};
     cluster(UBOX,M.extTrim,feet.map(l=>[l[0]+Math.sign(l[0])*splay,padY+.3,l[1],.7,.4,.7]));
   })();
 
+  // ---- the name, painted on both flanks ----
+  (function nameplate(){
+    const t=tex(labelCanvas("THEODOR & MORFARS RUMSKIB",
+      {w:1024,h:160,size:84,bg:"none",border:false,color:"#e8c35a",glow:false}));
+    [-1,1].forEach(sg=>{
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(3.4,.53),
+        new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false}));
+      m.position.set(sg*3.16,-.40,-2.60);
+      m.rotation.y=sg*Math.PI/2;
+      hullExt.add(m);
+    });
+  })();
+
   // ---- the hatch on the port flank, with a ladder to the ground ----
   add(UBOX,M.extTrim,-3.44,-.35,-1.30).scale.set(.26,2.05,1.3);
   // a smaller, calmer door light: the old slab glowed like a bedsheet
@@ -908,7 +926,7 @@ function chainVisible(o){for(let n=o;n;n=n.parent)if(!n.visible)return false;ret
 const controls=[];
 const CTRL_LABELS=["ILT","PUMPE","KØL","TRYK","FASE"];
 (function buildControls(){
-  const xs=[-.56,-.33,-.10,.13,.36];
+  const xs=[-.82,-.59,-.36,-.13,.10];
   for(let i=0;i<5;i++){
     const g=new THREE.Group();g.position.set(xs[i],.07,.04);consoleGroup.add(g);
     g.add(new THREE.Mesh(new THREE.BoxGeometry(.17,.17,.035),M.hullDark));
@@ -946,7 +964,7 @@ const CTRL_LABELS=["ILT","PUMPE","KØL","TRYK","FASE"];
   }
 })();
 const bigBtn=(function(){
-  const g=new THREE.Group();g.position.set(.60,.06,.05);consoleGroup.add(g);
+  const g=new THREE.Group();g.position.set(.40,.06,.05);consoleGroup.add(g);
   const guard=new THREE.Mesh(new THREE.TorusGeometry(.085,.013,6,18),M.trim);
   guard.position.z=.03;g.add(guard);
   const mat=new THREE.MeshStandardMaterial({color:0x8f1d1d,roughness:.35,metalness:.3,emissive:0x2a0505});
@@ -970,9 +988,9 @@ function consoleButton(x,y,label,bg,border,color,baseCol,onPress){
   g.visible=false;
   return {group:g,mat:mat};
 }
-const hyperBtn=consoleButton(-.60,-.13,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper());
-const landBtn =consoleButton(-.33,-.13,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
-const againBtn=consoleButton(-.60,-.13,"NY FLYVNING","#1d1326","#4a2a66","#c9a0ff",0x3a2452,()=>restartFlight());
+const hyperBtn=consoleButton(.74,.06,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper());
+const landBtn =consoleButton(.74,.06,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
+const againBtn=consoleButton(.74,.06,"NY FLYVNING","#1d1326","#4a2a66","#c9a0ff",0x3a2452,()=>restartFlight());
 /* The way out, on the port wall beside the real hatch rather than on the
  * console: you reach for a door where the door is. */
 const hatchBtn=(function(){
@@ -1013,9 +1031,9 @@ function setObjective(text,color){
   objective.material.needsUpdate=true;
 }
 
-const statusScreen=screenPanel(.42,.2,-.46,-.145,336,160);
-const mapScreen=screenPanel(.46,.2,.10,-.145,368,160);
-const msgScreen=screenPanel(.3,.2,.58,-.145,240,160);
+const statusScreen=screenPanel(.46,.2,-.62,-.145,368,160);
+const mapScreen=screenPanel(.50,.2,-.04,-.145,400,160);
+const msgScreen=screenPanel(.34,.2,.58,-.145,272,160);
 
 /* ---------- yoke ---------- */
 const yokeGroup=new THREE.Group();
@@ -1027,7 +1045,7 @@ const yokeWheel=new THREE.Group();yokeGroup.add(yokeWheel);
   const hub=new THREE.Mesh(new THREE.CylinderGeometry(.052,.052,.05,14),M.hull);
   hub.rotation.x=Math.PI/2;yokeWheel.add(hub);
   const badge=new THREE.Mesh(new THREE.CircleGeometry(.038,18),
-    new THREE.MeshBasicMaterial({map:tex(labelCanvas("DTU",{w:128,h:128,size:44,bg:"#0e1319",border:false,color:"#e8c35a"}))}));
+    new THREE.MeshBasicMaterial({map:tex(labelCanvas("T&M",{w:128,h:128,size:40,bg:"#0e1319",border:false,color:"#e8c35a"}))}));
   badge.position.z=.027;yokeWheel.add(badge);
   const arc=new THREE.Mesh(new THREE.TorusGeometry(.175,.019,8,28,Math.PI),M.rubber);
   arc.rotation.z=Math.PI;yokeWheel.add(arc);
@@ -1739,7 +1757,7 @@ function objectiveText(){
 
 /* ---------- screens ---------- */
 function drawStatus(){
-  const g=statusScreen.ctx,W=336,H=160;
+  const g=statusScreen.ctx,W=statusScreen.canvas.width,H=statusScreen.canvas.height;
   g.fillStyle="#07100e";g.fillRect(0,0,W,H);
   g.strokeStyle="#12352c";g.lineWidth=1;
   for(let y=16;y<H;y+=16){g.beginPath();g.moveTo(0,y+.5);g.lineTo(W,y+.5);g.stroke();}
@@ -1761,7 +1779,7 @@ function drawStatus(){
   statusScreen.mesh.material.map.needsUpdate=true;
 }
 function drawMap(){
-  const g=mapScreen.ctx,W=368,H=160;
+  const g=mapScreen.ctx,W=mapScreen.canvas.width,H=mapScreen.canvas.height;
   g.fillStyle="#06101c";g.fillRect(0,0,W,H);
   g.strokeStyle="#12283f";g.lineWidth=1;
   for(let x=0;x<W;x+=18){g.beginPath();g.moveTo(x+.5,0);g.lineTo(x+.5,H);g.stroke();}
@@ -1817,13 +1835,13 @@ function drawMap(){
 }
 let msgLines=["SYSTEM KLAR","AFVENTER","STARTSEKVENS"];
 function drawMsg(){
-  const g=msgScreen.ctx,W=240,H=160;
+  const g=msgScreen.ctx,W=msgScreen.canvas.width,H=msgScreen.canvas.height;
   g.fillStyle="#120c06";g.fillRect(0,0,W,H);
   g.font='400 15px "Chivo Mono", monospace';g.textAlign="left";g.textBaseline="middle";
   const tail=msgLines.slice(-6);
   tail.forEach((l,i)=>{
     g.fillStyle=i===tail.length-1?"#f6c47a":"#8a6632";
-    g.fillText(l.slice(0,17),12,20+i*24);
+    g.fillText(l.slice(0,19),12,20+i*24);
   });
   msgScreen.mesh.material.map.needsUpdate=true;
 }
