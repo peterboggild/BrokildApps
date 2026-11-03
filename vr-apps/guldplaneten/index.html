@@ -1371,7 +1371,11 @@ function lockedWhy(k){
 function setGameMode(m){
   GAME.mode=m;
   GAME.mapHeld=false;GAME.mapDone=false;
-  GAME.open={moon:true,mars:true,gold:false};
+  /* Test mode's own hint says all three are open. It was setting gold
+   * false either way, so the one mode whose whole point is to skip the
+   * hunt for the map still locked the planet the map unlocks. */
+  GAME.mapDone=(m==="test");
+  GAME.open={moon:true,mars:true,gold:m==="test"};
   for(const k in gameBtns)gameBtns[k].setAttribute("aria-pressed",String(k===m));
   gameHint.textContent = m==="test"
     ? "Alle tre destinationer er åbne fra start."
@@ -2129,7 +2133,12 @@ function groundH(key,x,z){
   }
   const base=(noiseA(x/980+7,z/980,5)-.5)*230;
   const spires=Math.pow(ridged(noiseB,x/360,z/360,5,2.11,.52),1.7)*430;
-  const facet=Math.abs(Math.sin(x/140)*Math.cos(z/140))*60;
+  /* A regular corrugation, for character from the air. At 60 m every 140 m
+   * its own gradient alone was 34 degrees, so wherever you set down you
+   * were in a gully with walls filling the view and the beam, the arrows
+   * and the aliens all over the ridge. Longer and shallower: still ribbed
+   * from above, walkable underfoot. */
+  const facet=Math.abs(Math.sin(x/260)*Math.cos(z/260))*22;
   return (base+spires+facet)*A;
 }
 
@@ -2166,8 +2175,8 @@ const HOUSE={
   orb:new THREE.SphereGeometry(1,6,5)
 };
 const HMAT={
-  body:new THREE.MeshStandardMaterial({color:0xcfa242,roughness:.32,metalness:.95,flatShading:true}),
-  shell:new THREE.MeshStandardMaterial({color:0xc39a3e,roughness:.3,metalness:.95,flatShading:true,side:THREE.DoubleSide}),
+  body:new THREE.MeshStandardMaterial({color:0xcfa242,roughness:.46,metalness:.30,flatShading:true}),
+  shell:new THREE.MeshStandardMaterial({color:0xc39a3e,roughness:.42,metalness:.30,flatShading:true,side:THREE.DoubleSide}),
   lit:new THREE.MeshStandardMaterial({color:0x0c2b26,roughness:.3,metalness:.2,
     emissive:0x3ff0c0,emissiveIntensity:1.1,side:THREE.DoubleSide})
 };
@@ -2181,7 +2190,12 @@ function buildChunk(key,ci,cj){
   geo.computeVertexNormals();
   const d=DEST[key];
   const surf=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
-    color:d.ground,roughness:key==="gold"?.38:1,metalness:key==="gold"?.85:.02,flatShading:true}));
+    /* Gold, not a mirror. At metalness .85 with no environment map there
+      * is no diffuse term left and nothing to reflect, so the whole of
+      * Guldplaneten rendered near-black except for one band where the sun
+      * glinted off it — you could not see the ground, the arrows, the
+      * aliens or the quicksand. It is golden SAND now, with a sheen. */
+     color:d.ground,roughness:key==="gold"?.58:1,metalness:key==="gold"?.22:.02,flatShading:true}));
   surf.rotation.x=-Math.PI/2;surf.position.set(ox,0,oz);g.add(surf);
 
   /* Props only on the inner ring. At two chunks out they are a few pixels
@@ -2190,8 +2204,8 @@ function buildChunk(key,ci,cj){
   if(near){
     const rr=mulberry32((ci*2654435761^cj*40503)>>>0), n=20;
     const inst=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),
-      new THREE.MeshStandardMaterial({color:d.ground,roughness:key==="gold"?.32:1,
-        metalness:key==="gold"?.9:.02,flatShading:true}),n);
+      new THREE.MeshStandardMaterial({color:d.ground,roughness:key==="gold"?.55:1,
+        metalness:key==="gold"?.25:.02,flatShading:true}),n);
     const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),s3=new THREE.Vector3(),p=new THREE.Vector3();
     for(let i=0;i<n;i++){
       const x=ox+(rr()-.5)*CH, z=oz+(rr()-.5)*CH;
@@ -2297,8 +2311,12 @@ let mapSheet=null, mapBeacon=null;
 const BEAM_MAX=6;
 const beams=new THREE.InstancedMesh(
   new THREE.CylinderGeometry(1,1,1,6,1,true),
-  new THREE.MeshBasicMaterial({color:0x5ceaff,transparent:true,opacity:.26,
-    blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),
+  /* Not additive. Added light over bright golden sand is almost nothing,
+   * so on the one world that most needed a beacon the beacon could not be
+   * seen at all. Ordinary alpha tints whatever is behind it, which reads
+   * against both the sand and the purple sky. */
+  new THREE.MeshBasicMaterial({color:0x5ceaff,transparent:true,opacity:.42,
+    depthWrite:false,side:THREE.DoubleSide}),
   BEAM_MAX);
 beams.frustumCulled=false;beams.visible=false;world.add(beams);
 const _bm=new THREE.Matrix4(),_bp=new THREE.Vector3(),
@@ -2312,7 +2330,7 @@ function setBeams(list,key){
     if(i<n){
       const t=list[i], gy=groundH(key,t.x,t.z);
       const pulse=1+Math.sin(St.t*2.2+i)*0.07;
-      _bm.compose(_bp.set(t.x,gy+34,t.z),_bq,_bs.set(.95*pulse,68,.95*pulse));
+      _bm.compose(_bp.set(t.x,gy+34,t.z),_bq,_bs.set(1.6*pulse,68,1.6*pulse));
     }else _bm.compose(_bp.set(0,-99999,0),_bq,_bs.setScalar(.001));
     beams.setMatrixAt(i,_bm);
   }
@@ -2327,22 +2345,29 @@ const trail=(function(){
     [0,0,-1, -0.62,0,0.5, 0.62,0,0.5],3));
   tri.computeVertexNormals();
   const m=new THREE.InstancedMesh(tri,
-    new THREE.MeshBasicMaterial({color:0x46e0ff,transparent:true,opacity:.75,
+    new THREE.MeshBasicMaterial({color:0x46e0ff,transparent:true,opacity:.92,
       side:THREE.DoubleSide,depthWrite:false}),12);
   m.frustumCulled=false;m.visible=false;world.add(m);return m;
 })();
 /* Lay the chevrons between two points on a given world. It was written
  * into placeMarsMap and so existed only on Mars, pointing only at the map
  * — which is why Guldplaneten had no arrows to see. */
-const _tm=new THREE.Matrix4(),_tq=new THREE.Quaternion(),
-      _tp=new THREE.Vector3(),_ts=new THREE.Vector3(2.3,1,3.4);
+const _tm=new THREE.Matrix4(),_tq=new THREE.Quaternion(),_te=new THREE.Euler(0,0,0,"YXZ"),
+      _tp=new THREE.Vector3(),_ts=new THREE.Vector3(.95,1,1.15);
 function layTrail(sx,sz,tx,tz,key){
   const dx=tx-sx, dz=tz-sz, dist=Math.hypot(dx,dz);
-  const n=THREE.MathUtils.clamp(Math.round(dist/4.2),3,12);
-  _tq.setFromAxisAngle(UPW,Math.atan2(-dx,-dz));
+  /* Every eight metres, not every four: stood upright they are markers
+   * along a path, and at the old spacing and size you walked face-first
+   * into one that filled the whole screen. */
+  const n=THREE.MathUtils.clamp(Math.round(dist/8.0),3,12);
+  /* Stood up and leaning back towards you, not laid flat. Flat on the
+   * ground they are the right size on a map and three pixels of nothing
+   * from standing height, which is where you actually look for them. */
+  _te.set(-1.05,Math.atan2(-dx,-dz),0);
+  _tq.setFromEuler(_te);
   for(let i=0;i<n;i++){
     const t=(i+1)/(n+1), x=sx+dx*t, z=sz+dz*t;
-    _tp.set(x,groundH(key,x,z)+.12,z);
+    _tp.set(x,groundH(key,x,z)+.80,z);
     _tm.compose(_tp,_tq,_ts);trail.setMatrixAt(i,_tm);
   }
   trail.count=n;
@@ -2375,7 +2400,7 @@ const ALIEN_N=9;
 const aliens=[];
 const alienRoot=new THREE.Group();alienRoot.visible=false;world.add(alienRoot);
 const alienParts=(function(){
-  const gold=new THREE.MeshStandardMaterial({color:0xe3b43f,roughness:.34,metalness:.85,
+  const gold=new THREE.MeshStandardMaterial({color:0xe3b43f,roughness:.44,metalness:.35,
     emissive:0x2a1c04,flatShading:true});
   const eye=new THREE.MeshStandardMaterial({color:0x0a1830,emissive:0x3fa8ff,emissiveIntensity:1.8});
   const mk=(geo,mat)=>{
@@ -2573,9 +2598,9 @@ const questRoot=new THREE.Group();questRoot.visible=false;world.add(questRoot);
 let qPit=null,qSunk=null,qSunkHead=null,qFruit=null,qLostBody=null,qLostHead=null;
 (function buildQuestProps(){
   const gold=new THREE.MeshStandardMaterial({color:0xe3b43f,roughness:.34,
-    metalness:.85,emissive:0x2a1c04,flatShading:true});
-  const lostMat=new THREE.MeshStandardMaterial({color:0xf2d98a,roughness:.3,
-    metalness:.7,emissive:0x3a2c08,flatShading:true});
+    metalness:.35,emissive:0x2a1c04,flatShading:true});
+  const lostMat=new THREE.MeshStandardMaterial({color:0xf2d98a,roughness:.42,
+    metalness:.3,emissive:0x3a2c08,flatShading:true});
   qPit=new THREE.Mesh(new THREE.CircleGeometry(7,24),
     new THREE.MeshStandardMaterial({color:0x6b4a12,roughness:1}));
   qPit.rotation.x=-Math.PI/2;questRoot.add(qPit);
@@ -2612,7 +2637,7 @@ function startQuests(cx,cz){
   /* Arrows on the ground to the one alien who hands out the favours, the
    * same as Mars gets to its map. The beam over him is visible from the
    * air; the chevrons are what you follow once you are walking. */
-  if(aliens[0])layTrail(cx,cz,aliens[0].x,aliens[0].z,"gold");
+  Q.trailAt=null;Q.trailFrom=null;
 }
 function questTrailCheck(){
   if(questRoot.visible&&Object.keys(Q.done).length>=3)trail.visible=false;
@@ -2620,8 +2645,15 @@ function questTrailCheck(){
 function questLabel(){
   /* Before the first favour there was no label at all, so from the cockpit
    * there was nothing to say the planet had anything to do on it. */
-  if(!Q.active)return Object.keys(Q.done).length>=3?"ALLE OPGAVER KLARET"
-    :"GÅ UD OG TAL MED ALIEN VED LYSSØJLEN";
+  if(!Q.active){
+    if(Object.keys(Q.done).length>=3)return "ALLE OPGAVER KLARET";
+    /* Once you are out of the ship, "go out" is no longer the instruction,
+     * and after the first favour it is a return trip, not a first meeting. */
+    const back=Object.keys(Q.done).length>0;
+    if(WALK.active)return back?"GÅ TILBAGE TIL ALIEN VED LYSSØJLEN"
+                              :"GÅ HEN TIL ALIEN VED LYSSØJLEN";
+    return "GÅ UD OG TAL MED ALIEN VED LYSSØJLEN";
+  }
   if(Q.active==="sand")return "RED "+Q.sand.filter(s=>!s.freed).length+" FRA KVIKSAND";
   if(Q.active==="food")return "FIND GULDFRUGT "+Q.held+"/3";
   if(Q.active==="lost")return Q.lost.found?"FØLG LILLEBROR HJEM":"FIND LILLEBROR";
@@ -2658,7 +2690,11 @@ function updateQuests(dt,vx,vz){
 
   // --- quicksand: walk to the edge and each one is pulled out ---
   Q.sand.forEach((sk,i)=>{
-    if(!sk.freed&&Q.active==="sand"&&near(sk.x,sk.z,3.6)){
+    /* No paperwork. If you walk up to someone sinking in quicksand you
+     * pull them out, whether or not anyone has asked you to yet — walking
+     * past because the quest was not active is the kind of thing that
+     * makes a game feel like a form. */
+    if(!sk.freed&&!Q.done.sand&&near(sk.x,sk.z,3.6)){
       sk.freed=true;Audio_.ok();
       const left=Q.sand.filter(t=>!t.freed).length;
       say(0,left?("Én er fri! Der er "+left+" tilbage."):"Den sidste er fri!",4);
@@ -2676,7 +2712,7 @@ function updateQuests(dt,vx,vz){
 
   // --- fruit: walk over it ---
   Q.fruit.forEach((f,i)=>{
-    if(!f.taken&&Q.active==="food"&&near(f.x,f.z,3.2)){
+    if(!f.taken&&!Q.done.food&&near(f.x,f.z,3.2)){
       f.taken=true;Q.held++;Audio_.ok();
       say(0,Q.held>=3?"Du har alle tre! Kom tilbage til mig.":("Guldfrugt "+Q.held+" af 3."),4);
     }
@@ -2693,7 +2729,7 @@ function updateQuests(dt,vx,vz){
   // --- the little brother: find him and he tags along home ---
   const L=Q.lost;
   if(L){
-    if(!L.found&&Q.active==="lost"&&near(L.x,L.z,4.5)){
+    if(!L.found&&!Q.done.lost&&near(L.x,L.z,4.5)){
       L.found=true;Audio_.ok();say(0,QTEXT.lostF,5);
     }
     if(L.found&&!L.home){
@@ -2708,13 +2744,33 @@ function updateQuests(dt,vx,vz){
     qLostBody.visible=show;qLostHead.visible=show;
   }
 
-  // --- light over whatever you are currently looking for ---
-  if(Q.active==="sand")setBeams(Q.sand.filter(s=>!s.freed),"gold");
-  else if(Q.active==="food")setBeams(Q.fruit.filter(f=>!f.taken),"gold");
-  else if(Q.active==="lost"&&Q.lost&&!Q.lost.found)setBeams([Q.lost],"gold");
-  else if(Q.active||Object.keys(Q.done).length<3)
-    setBeams(aliens[0]?[{x:aliens[0].x,z:aliens[0].z}]:[],"gold");
-  else setBeams([],"gold");
+  /* --- light and arrows over whatever you are looking for RIGHT NOW ---
+   * The beams already moved with the objective; the arrows did not. They
+   * were laid once, from the ship to the alien, and never moved again —
+   * so the alien would say "follow the blue arrows" to the quicksand and
+   * the arrows would still be pointing back at him. Both follow the same
+   * target now, and the arrows start from wherever you are standing. */
+  let tgt=null;
+  if(Q.active==="sand"){
+    const r=Q.sand.filter(s=>!s.freed);setBeams(r,"gold");tgt=r[0]||null;
+  }else if(Q.active==="food"){
+    const r=Q.fruit.filter(f=>!f.taken);setBeams(r,"gold");tgt=r[0]||null;
+  }else if(Q.active==="lost"&&Q.lost&&!Q.lost.found){
+    setBeams([Q.lost],"gold");tgt=Q.lost;
+  }else if(Q.active||Object.keys(Q.done).length<3){
+    tgt=aliens[0]?{x:aliens[0].x,z:aliens[0].z}:null;
+    setBeams(tgt?[tgt]:[],"gold");
+  }else setBeams([],"gold");
+
+  if(tgt){
+    const moved=!Q.trailAt||Math.hypot(tgt.x-Q.trailAt.x,tgt.z-Q.trailAt.z)>6;
+    const walked=!Q.trailFrom||Math.hypot(vx-Q.trailFrom.x,vz-Q.trailFrom.z)>14;
+    if(moved||walked){
+      Q.trailAt={x:tgt.x,z:tgt.z};Q.trailFrom={x:vx,z:vz};
+      if(Math.hypot(tgt.x-vx,tgt.z-vz)>9)layTrail(vx,vz,tgt.x,tgt.z,"gold");
+      else trail.visible=false;
+    }
+  }else trail.visible=false;
 
   // --- the bubble follows whoever is speaking ---
   if(bubble.t>0){
@@ -3151,6 +3207,24 @@ function pressHyper(){
   log("HYPERRUM");showMsg("Hyperrum i gang");
   hyperBtn.group.visible=false;
 }
+/* Set down somewhere you can see FROM. The touchdown point used to be the
+ * origin whatever was there, which on a ribbed world meant the floor of a
+ * ravine as often as not. This samples a few dozen candidates nearby and
+ * takes the one whose surroundings are flattest. */
+function flatSpot(key,cx,cz,R){
+  let bx=cx,bz=cz,best=Infinity;
+  for(let i=-3;i<=3;i++)for(let j=-3;j<=3;j++){
+    const x=cx+i*R/3, z=cz+j*R/3, h=groundH(key,x,z);
+    let s=0;
+    for(let k=0;k<8;k++){
+      const a=k*Math.PI/4;
+      s+=Math.abs(groundH(key,x+Math.cos(a)*14,z+Math.sin(a)*14)-h)
+        +Math.abs(groundH(key,x+Math.cos(a)*30,z+Math.sin(a)*30)-h)*0.6;
+    }
+    if(s<best){best=s;bx=x;bz=z;}
+  }
+  return {x:bx,z:bz};
+}
 function pressLand(){
   /* No distance gate: LAND commits to atmospheric entry from wherever you
    * are, because a button that silently does nothing is worse than one that
@@ -3159,11 +3233,16 @@ function pressLand(){
   const d=DEST[St.dest];
   St.phase="descent";terrainKey=St.dest;St.climbing=false;
   clearChunks();
-  SHIP.pos.set(0,1500,0);SHIP.vel.set(0,-26,0);
+  const spot=flatSpot(St.dest,0,0,170);
+  SHIP.pos.set(spot.x,1500,spot.z);SHIP.vel.set(0,-26,0);
   SHIP.quat.identity();rotateShip(-.14,0,0);
   SHIP.onGround=false;St.landQuality="";
   terrainRoot.visible=true;
-  skirt.visible=true;skirt.material.color.setHex(d.ground);
+  /* The skirt is unlit and the chunks are not, so at the same hex the far
+   * plain read brighter than the ground under your feet and the join
+   * between them was a hard line across the landscape. Bank it down to
+   * roughly what the lit terrain comes out at. */
+  skirt.visible=true;skirt.material.color.setHex(d.ground).multiplyScalar(0.78);
   skirt.position.y=-180;
   if(bodyMesh)bodyMesh.visible=false;
   if(bodyHalo)bodyHalo.visible=false;
