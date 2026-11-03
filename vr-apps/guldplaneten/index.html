@@ -643,8 +643,10 @@ function box(w,h,d,mat,x,y,z,parent){
   box(2.0,2.2,.08,M.hullDark,0,1.05,.68);
   const front=new THREE.Mesh(new THREE.PlaneGeometry(1.84,1.14),M.glass);
   front.position.set(0,1.39,-1.04);ship.add(front);
-  // solid chamfered roof over the bridge, as the reference has
-  box(2.16,.16,2.5,M.hull,0,2.16,-.30);
+  /* The roof used to be a flat 2.16 x 2.5 slab, which is most of why the
+   * bridge read as a shed. It is a swept form now, built with the rest of
+   * the exterior so it can taper: narrow and low over the windscreen,
+   * full width over the seats, closing into the fairing behind. */
   box(1.70,.14,.42,M.hull,0,2.04,-1.28);
   box(2.0,.16,.14,M.glassFrame,0,1.92,-1.06);
   box(2.0,.14,.14,M.glassFrame,0,0.80,-1.06);   // low sill: the prow is the view
@@ -1083,6 +1085,57 @@ const HULL={glow:null,beacon:null,beaconMat:null};
     g.setAttribute("color",new THREE.Float32BufferAttribute(col,3));
     g.setIndex(idx);g.computeVertexNormals();
     hullExt.add(new THREE.Mesh(g,M.extTop));
+  })();
+
+  /* ---- fairing the bridge into the hull ----
+   * The cabin is a 2 m box with glass on three sides, and it was standing
+   * on a flat deck with two and a half metres of bare hull either side of
+   * it: a shed on a roof. These four forms give it something to come out
+   * of. None of them crosses a window — the brow stops under the
+   * windscreen sill and under the pilot's sightline over it, and the
+   * cheeks sit half a metre outboard of the side glass. */
+  (function bridgeFairing(){
+    /* The canopy roof, tapered. Its underside stops at 2.02-2.04, which is
+     * the top of the side glass, so it crowns the windows without
+     * cutting into them. */
+    form([
+      {z:-1.66,w:0.74,top:0.09,bot:0.12,y:2.12},
+      {z:-1.10,w:0.95,top:0.12,bot:0.13,y:2.16},
+      {z:-0.20,w:1.10,top:0.15,bot:0.14,y:2.18},
+      {z: 0.70,w:1.10,top:0.14,bot:0.14,y:2.17},
+      {z: 1.05,w:0.98,top:0.10,bot:0.12,y:2.14}
+    ],M.extTop,{stripe:false,lo:.54});
+    /* Behind: the cabin's own cross-section, swept aft and opened out
+     * until it is the superstructure. This is the one that matters —
+     * it stops the cabin having a back at all. It starts just behind the
+     * rear bulkhead so its end cap is hidden by it. */
+    form([
+      {z:0.72,w:1.08,top:1.09,bot:1.19,y:1.15},
+      {z:1.50,w:1.32,top:1.18,bot:1.30,y:1.16},
+      {z:2.40,w:1.95,top:1.36,bot:1.40,y:1.22},
+      {z:3.20,w:2.50,top:1.72,bot:1.62,y:1.45},
+      {z:3.80,w:2.75,top:1.85,bot:1.72,y:1.50}
+    ],M.extTop,{lo:.50});
+    /* In front: a brow the windscreen is set into, rather than a sill
+     * standing on bare deck. Its crown stays below the line from the
+     * pilot's eye over the sill the whole way forward. */
+    form([
+      {z:-3.10,w:0.60,top:0.00,bot:0.50,y:-0.14},
+      {z:-2.40,w:1.30,top:0.18,bot:0.70,y:-0.08},
+      {z:-1.70,w:1.70,top:0.44,bot:0.80,y: 0.02},
+      {z:-1.14,w:1.90,top:0.58,bot:0.90,y: 0.08}
+    ],M.extTop,{lo:.50});
+    /* Either side: not cheeks but a raised deck, three metres across, up
+     * to just under the side glass. This is what stops it being a shed on
+     * a roof — the cabin is sunk into the forward hull up to its windows
+     * instead of standing on top of a flat plain of it. */
+    [-1,1].forEach(sg=>form([
+      {z:-2.40,w:0.70,top:0.10,bot:0.80,x:sg*1.55,y:0.00},
+      {z:-1.20,w:1.20,top:0.44,bot:1.00,x:sg*1.68,y:0.08},
+      {z: 0.00,w:1.30,top:0.52,bot:1.10,x:sg*1.70,y:0.08},
+      {z: 1.20,w:1.30,top:0.54,bot:1.10,x:sg*1.70,y:0.10},
+      {z: 2.30,w:1.10,top:0.46,bot:1.10,x:sg*1.66,y:0.14}
+    ],M.extTop,{stripe:false,lo:.52}));
   })();
 
   // ---- landing gear: four splayed legs on big pads ----
