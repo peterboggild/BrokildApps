@@ -417,14 +417,23 @@ document.body.appendChild(renderer.domElement);
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,.05,5200);
 camera.position.set(0,1.15,0);
-const rig=new THREE.Group();rig.add(camera);scene.add(rig);
+const rig=new THREE.Group();rig.add(camera);
+/* Shake belongs on the head, not on the cockpit: your body is what the
+ * rocket is rattling, and the cockpit should stay put around you. */
+const shaker=new THREE.Group();shaker.add(rig);scene.add(shaker);
 
 /* world = outside, drawn through the inverse ship transform
    shell = sky, stars, backdrops: follows rotation, never translation
    ship  = the cockpit, which by definition never moves                 */
+/* world = everything outside, drawn through the inverse of the VIEW transform
+   shell = sky and stars: follows view rotation, never translation
+   ship  = the vehicle, a child of world carrying its own world transform, so
+           sitting in it and standing beside it are the same code path:
+           world(=inverse view) * ship(=ship transform) is identity while
+           flying, and the real relative placement once you step out.      */
 const world=new THREE.Group();world.matrixAutoUpdate=false;scene.add(world);
 const shell=new THREE.Group();scene.add(shell);
-const ship=new THREE.Group();scene.add(ship);
+const ship=new THREE.Group();ship.matrixAutoUpdate=false;world.add(ship);
 
 /* One directional light, one hemisphere, one point light in the cabin.
  * Every extra light recompiles into every material's shader; on a Quest 2
@@ -510,6 +519,60 @@ consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.5,.5,.07),M.hull));
 })();
 box(1.5,.52,.1,M.hullDark,0,.40,-.80);
 
+/* ---------- the ship from outside ---------- *
+ *  Always built, never hidden: from the pilot's seat the wingtips and the
+ *  nose show through the side glass, and once you step out it is the thing
+ *  you walked away from. Low-poly on purpose — this is Quest 2 budget.   */
+const hullExt=new THREE.Group();ship.add(hullExt);
+(function buildExterior(){
+  const add=(geo,mat,x,y,z,rx,ry,rz)=>{
+    const m=new THREE.Mesh(geo,mat);
+    m.position.set(x,y,z);
+    if(rx||ry||rz)m.rotation.set(rx||0,ry||0,rz||0);
+    hullExt.add(m);return m;
+  };
+  // belly: a tapered tub under the floor
+  add(new THREE.CylinderGeometry(1.02,.72,3.5,8),M.hull,0,-.42,-.2,Math.PI/2,0,0);
+  // nose cone, ahead of the windscreen and below it
+  add(new THREE.ConeGeometry(.78,1.5,8),M.hull,0,-.12,-2.0,-Math.PI/2,0,0);
+  // spine fairing behind the canopy
+  add(new THREE.CylinderGeometry(.5,.78,1.5,8),M.hull,0,1.5,1.3,Math.PI/2,0,0);
+  // wings: thin tapered boxes, swept back and given a little dihedral
+  [-1,1].forEach(sg=>{
+    const w=new THREE.Mesh(new THREE.BoxGeometry(3.0,.16,1.5),M.hull);
+    w.position.set(sg*2.2,-.30,.35);
+    w.rotation.set(0,sg*0.30,sg*-0.10);
+    hullExt.add(w);
+    // wingtip fin
+    const f=new THREE.Mesh(new THREE.BoxGeometry(.12,.72,.9),M.trim);
+    f.position.set(sg*3.55,.12,.62);f.rotation.y=sg*0.30;hullExt.add(f);
+    // navigation light, red to port and green to starboard, as they are
+    const nav=new THREE.Mesh(new THREE.SphereGeometry(.09,8,6),
+      new THREE.MeshStandardMaterial({color:sg<0?0x3a0808:0x08320f,
+        emissive:sg<0?0xff2a2a:0x2aff55,emissiveIntensity:1.4}));
+    nav.position.set(sg*3.62,.5,.62);hullExt.add(nav);
+    // engine nozzle
+    add(new THREE.CylinderGeometry(.34,.46,.8,8,1,true),M.trim,sg*.62,-.42,1.95,Math.PI/2,0,0);
+    add(new THREE.CylinderGeometry(.3,.3,.1,8),
+      new THREE.MeshStandardMaterial({color:0x201008,roughness:.9}),sg*.62,-.42,2.33,Math.PI/2,0,0);
+  });
+  // tail fin
+  add(new THREE.BoxGeometry(.14,1.5,1.3),M.trim,0,2.1,1.65);
+  // three landing legs with pads, so it stands on something
+  [[0,-2.0],[-1.5,1.4],[1.5,1.4]].forEach(l=>{
+    add(new THREE.CylinderGeometry(.09,.11,1.6,6),M.trim,l[0],-1.35,l[1]);
+    add(new THREE.CylinderGeometry(.42,.46,.14,10),M.hullDark,l[0],-2.12,l[1]);
+  });
+  // the hatch itself, on the port side, with a ladder down to the ground
+  const hatch=new THREE.Mesh(new THREE.BoxGeometry(.1,1.25,.78),M.trim);
+  hatch.position.set(-1.06,.52,.2);hullExt.add(hatch);
+  const lit=new THREE.Mesh(new THREE.BoxGeometry(.04,1.05,.6),
+    new THREE.MeshStandardMaterial({color:0x0c2b26,emissive:0x3ff0c0,emissiveIntensity:.9}));
+  lit.position.set(-1.13,.52,.2);hullExt.add(lit);
+  for(let i=0;i<4;i++)
+    add(new THREE.BoxGeometry(.5,.05,.09),M.trim,-1.3,-.2-i*.46,.2);
+})();
+
 /* ---------- interactive registry ---------- */
 const pickables=[];
 function makeInteractive(mesh,opts){
@@ -586,6 +649,21 @@ function consoleButton(x,y,label,bg,border,color,baseCol,onPress){
 const hyperBtn=consoleButton(-.60,-.13,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper());
 const landBtn =consoleButton(-.33,-.13,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
 const againBtn=consoleButton(-.60,-.13,"NY FLYVNING","#1d1326","#4a2a66","#c9a0ff",0x3a2452,()=>restartFlight());
+/* The way out, on the port wall beside the real hatch rather than on the
+ * console: you reach for a door where the door is. */
+const hatchBtn=(function(){
+  const g=new THREE.Group();g.position.set(-.9,1.22,.2);g.rotation.y=Math.PI/2;ship.add(g);
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(.3,.12,.03),M.hullDark));
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(.28,.1),
+    new THREE.MeshBasicMaterial({map:tex(labelCanvas("GÅ UD",
+      {w:256,h:96,size:36,bg:"#07131d",border:"#2a6a8c",color:"#8ce8a0"})),transparent:true}));
+  face.position.z=.018;g.add(face);
+  const hit=new THREE.Mesh(new THREE.BoxGeometry(.36,.2,.14),new THREE.MeshBasicMaterial({visible:false}));
+  g.add(hit);
+  makeInteractive(hit,{poke:.085,onPress:()=>exitShip()});
+  g.visible=false;
+  return {group:g};
+})();
 
 function screenPanel(w,h,px,py,cw,chh){
   const c=cvs(cw,chh);
@@ -1185,6 +1263,18 @@ function onSqueeze(c){
 }
 function onSelect(c){
   Audio_.init();Audio_.resume();
+  if(WALK.active){
+    /* On foot the trigger is the only verb: go where you are pointing. The
+     * one exception is the hatch sign, which is a ray target of its own. */
+    const m0=new THREE.Matrix4().identity().extractRotation(c.matrixWorld);
+    raycaster.ray.origin.setFromMatrixPosition(c.matrixWorld);
+    raycaster.ray.direction.set(0,0,-1).applyMatrix4(m0);
+    const hit=raycaster.intersectObjects(pickables,false)
+      .find(h=>h.object.userData.onPress&&chainVisible(h.object));
+    if(hit){Audio_.click();haptic(c,.7,45);hit.object.userData.onPress();return;}
+    teleport();haptic(c,.5,30);
+    return;
+  }
   const p=_v.setFromMatrixPosition(c.matrixWorld);
   if(p.distanceTo(yokeGroup.getWorldPosition(_v2))<.30){startGrab(c,"yoke");return;}
   if(p.distanceTo(throttle.group.getWorldPosition(_v2))<.26){startGrab(c,"throttle");return;}
@@ -1218,13 +1308,24 @@ function updatePoke(){
 const SHIP={pos:new THREE.Vector3(0,2.4,0),quat:new THREE.Quaternion(),
             vel:new THREE.Vector3(),onGround:true};
 const ONE=new THREE.Vector3(1,1,1), UPW=new THREE.Vector3(0,1,0);
-const shipMat=new THREE.Matrix4();
+const shipMat=new THREE.Matrix4(), viewMat=new THREE.Matrix4();
 const FWD=new THREE.Vector3(),UP=new THREE.Vector3();
+/* On foot the view is the walker's, not the ship's. */
+const WALK={pos:new THREE.Vector3(),quat:new THREE.Quaternion(),yaw:0,eye:1.15,active:false};
 function syncWorld(){
   shipMat.compose(SHIP.pos,SHIP.quat,ONE);
-  world.matrix.copy(shipMat).invert();
+  ship.matrix.copy(shipMat);
+  ship.matrixWorldNeedsUpdate=true;
+  if(WALK.active){
+    WALK.quat.setFromAxisAngle(UPW,WALK.yaw);
+    viewMat.compose(WALK.pos,WALK.quat,ONE);
+    shell.quaternion.copy(WALK.quat).invert();
+  }else{
+    viewMat.copy(shipMat);
+    shell.quaternion.copy(SHIP.quat).invert();
+  }
+  world.matrix.copy(viewMat).invert();
   world.matrixWorldNeedsUpdate=true;
-  shell.quaternion.copy(SHIP.quat).invert();
 }
 function axes(){
   FWD.set(0,0,-1).applyQuaternion(SHIP.quat);
@@ -1234,27 +1335,40 @@ function rotateShip(pitch,yaw,roll){
   _q.setFromEuler(new THREE.Euler(pitch,yaw,roll,"XYZ"));
   SHIP.quat.multiply(_q).normalize();
 }
-/* Level the wings without touching where the nose points: rebuild the
- * orientation from the current forward vector with world up, then slerp. */
+/* Build an orientation whose -Z (the ship's nose) lies along `fwd`, with its
+ * roll resolved against `up`. Written as an explicit orthonormal basis rather
+ * than Matrix4.lookAt: that call's argument order differs between Matrix4 and
+ * Object3D, and getting it backwards here pointed the nose 180 degrees away
+ * from where it should be — the autopilot flew away from the planet, and the
+ * wing leveller chased a target it could never reach, which is what shook the
+ * view. A basis cannot be ambiguous about which way is forward.            */
 const _m4=new THREE.Matrix4(),_zero=new THREE.Vector3(),_lq=new THREE.Quaternion();
+const _bx=new THREE.Vector3(),_by=new THREE.Vector3(),_bz=new THREE.Vector3();
+function orientationFor(fwd,up){
+  _bz.copy(fwd).negate();
+  if(_bz.lengthSq()<1e-10)return null;
+  _bz.normalize();
+  _bx.crossVectors(up,_bz);
+  if(_bx.lengthSq()<1e-8)return null;      // nose straight up or down
+  _bx.normalize();
+  _by.crossVectors(_bz,_bx);
+  _m4.makeBasis(_bx,_by,_bz);
+  return _lq.setFromRotationMatrix(_m4);
+}
 function levelWings(k){
   axes();
-  if(Math.abs(FWD.y)>0.985)return;        // straight up or down: no roll to define
-  _m4.lookAt(_zero,_v.copy(FWD).negate(),UPW);
-  _lq.setFromRotationMatrix(_m4);
-  SHIP.quat.slerp(_lq,Math.min(1,k));
+  const t=orientationFor(FWD,UPW);
+  if(t)SHIP.quat.slerp(t,Math.min(1,k));
 }
-/* Point the nose at a target, used by the autopilot. */
 function aimAt(target,k){
   _v.copy(target).sub(SHIP.pos);
-  if(_v.lengthSq()<1e-6)return;
-  _m4.lookAt(_zero,_v.negate(),UPW);
-  _lq.setFromRotationMatrix(_m4);
-  SHIP.quat.slerp(_lq,Math.min(1,k));
+  const t=orientationFor(_v,UPW);
+  if(t)SHIP.quat.slerp(t,Math.min(1,k));
 }
 
 const PHASE_DA={preflight:"RAMPE",ignition:"TÆNDING",ascent:"OPSTIGNING",space:"KREDSLØB",
-  course:"KURS",hyperspace:"HYPERRUM",approach:"INDFLYVNING",descent:"NEDSTIGNING",landed:"LANDET"};
+  course:"KURS",hyperspace:"HYPERRUM",approach:"INDFLYVNING",descent:"NEDSTIGNING",landed:"LANDET",
+  eva:"UDENFOR"};
 const St={phase:"preflight",order:[],step:0,alt:0,speed:0,thrust:0,dest:null,distance:0,
   warpT:0,t:0,flash:0,landQuality:"",bodyDist:0};
 const BODY_POS=new THREE.Vector3();
@@ -1288,7 +1402,8 @@ function objectiveText(){
     case "hyperspace":return "HYPERRUM";
     case "approach":  return auto?"AUTOPILOTEN FLYVER IND":"FLYV IND — TRYK LAND NÅR DU VIL NED";
     case "descent":   return auto?"AUTOPILOTEN LANDER":"FLYV NED PÅ OVERFLADEN";
-    case "landed":    return "TRYK NY FLYVNING FOR AT FLYVE IGEN";
+    case "landed":    return "GÅ UD, ELLER NY FLYVNING";
+    case "eva":       return "PEG PÅ JORDEN OG TRYK FOR AT HOPPE DERHEN";
   }
   return "";
 }
@@ -1325,7 +1440,7 @@ function drawMap(){
   g.font='400 13px "Chivo Mono", monospace';g.textBaseline="middle";
   if(!St.dest){
     g.fillStyle="#3b6f9c";g.textAlign="center";g.fillText("INGEN KURS SAT",W/2,H/2);
-  }else if(St.phase==="approach"||St.phase==="descent"||St.phase==="landed"){
+  }else if(St.phase==="approach"||St.phase==="descent"||St.phase==="landed"||St.phase==="eva"){
     const d=DEST[St.dest], cx=W*.52, cy=H*.56, R=28;
     g.fillStyle=d.hud;g.globalAlpha=.85;g.beginPath();g.arc(cx,cy,R,0,7);g.fill();g.globalAlpha=1;
     let px=cx,py=cy-R-12,label="PÅ OVERFLADEN";
@@ -1345,7 +1460,13 @@ function drawMap(){
     g.fillStyle="#f2a33c";g.textAlign="right";g.fillText(label,W-10,16);
     if(St.phase!=="approach"){
       g.fillStyle="#6cf0c0";g.textAlign="right";
-      g.fillText("X "+Math.round(SHIP.pos.x)+"  Z "+Math.round(SHIP.pos.z),W-10,H-14);
+      const px2=St.phase==="eva"?WALK.pos:SHIP.pos;
+      g.fillText("X "+Math.round(px2.x)+"  Z "+Math.round(px2.z),W-10,H-14);
+      if(St.phase==="eva"){
+        /* On foot, show how far you have wandered from the ship. */
+        const away=Math.round(Math.hypot(WALK.pos.x-SHIP.pos.x,WALK.pos.z-SHIP.pos.z));
+        g.fillStyle="#f2a33c";g.textAlign="left";g.fillText("SKIB "+away+" m",10,H-14);
+      }
     }
   }else{
     const d=DEST[St.dest], x0=40,y0=H-34,x1=W-44,y1=38;
@@ -1443,6 +1564,8 @@ function chooseDest(key){
 }
 
 function restartFlight(){
+  WALK.active=false;enterMark.visible=false;tpMark.group.visible=false;
+  hatchBtn.group.visible=false;
   St.phase="preflight";St.t=0;St.dest=null;St.distance=0;St.landQuality="";
   St.alt=0;St.speed=0;St.bodyDist=0;St.warpT=0;
   SHIP.pos.set(0,2.4,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();SHIP.onGround=true;
@@ -1521,7 +1644,7 @@ async function openSession(spaceType){
   }catch(err){try{await session.end();}catch(e2){}throw err;}
   return session;
 }
-let pendingRecenter=0;
+let pendingRecenter=0, snapArmed=false;
 btnVR.addEventListener("click",async()=>{
   Audio_.init();Audio_.resume();
   btnVR.disabled=true;const was=btnVR.textContent;btnVR.textContent="Starter…";
@@ -1566,6 +1689,9 @@ renderer.domElement.addEventListener("pointerdown",e=>{
   renderer.domElement.setPointerCapture(e.pointerId);
 });
 renderer.domElement.addEventListener("pointermove",e=>{
+  const rr=renderer.domElement.getBoundingClientRect();
+  flatNDC.x=((e.clientX-rr.left)/rr.width)*2-1;
+  flatNDC.y=-((e.clientY-rr.top)/rr.height)*2+1;
   if(!dragging)return;
   const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
   moved+=Math.abs(dx)+Math.abs(dy);
@@ -1594,6 +1720,9 @@ function clickFlat(e){
     if(d<bestD){bestD=d;best=o;}
   }
   if(best){Audio_.click();best.userData.onPress();}
+  else if(WALK.active){
+    if(aimGround(raycaster.ray.origin,raycaster.ray.direction)){showAim(true);teleport();}
+  }
 }
 window.addEventListener("keydown",e=>{
   keys[e.code]=true;
@@ -1637,7 +1766,10 @@ function buildTouchbar(){
   }else if(St.phase==="approach"){
     tbMain.appendChild(mkBtn("LAND","lit",()=>pressLand()));
   }else if(St.phase==="landed"){
-    tbMain.appendChild(mkBtn("NY FLYVNING","lit",()=>restartFlight()));
+    tbMain.appendChild(mkBtn("GÅ UD","lit",()=>exitShip()));
+    tbMain.appendChild(mkBtn("NY FLYVNING","",()=>restartFlight()));
+  }else if(St.phase==="eva"){
+    tbMain.appendChild(mkBtn("GÅ IND","lit",()=>enterShip()));
   }
   if(!tbFlight.childElementCount){
     tbFlight.appendChild(mkHold("◀ RAT","KeyA"));
@@ -1657,6 +1789,192 @@ function refreshHud(){
     "<span>FART</span> "+(St.speed>9999?(St.speed/1000).toFixed(0)+" km/s":Math.round(St.speed)+" m/s")+"<br>"+
     "<span>GAS</span> "+Math.round(St.thrust*100)+" %<br><span>FLYV</span> "+MODE.name+
     (St.landQuality?"<br><span>LANDING</span> "+St.landQuality:"");
+}
+
+/* ------------------------------------------------------------------ *
+ *  ON FOOT
+ *
+ *  Teleport only, never smooth walking. Sliding a standing body across
+ *  ground it is not walking on is the single most reliable way to make
+ *  someone ill in VR, and there is no version of this that is worth that.
+ *  You point, you blink, you are there.
+ * ------------------------------------------------------------------ */
+const fade=(function(){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2.4),
+    new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0,
+      depthTest:false,depthWrite:false}));
+  m.position.z=-.3;m.renderOrder=1200;m.frustumCulled=false;m.visible=false;
+  camera.add(m);return m;
+})();
+let fadeAmt=0, fadeDir=0, fadePending=null;
+function blink(action){                 // fade out, do it, fade back in
+  if(fadePending)return;
+  fadePending=action;fadeDir=1;
+}
+function updateFade(dt){
+  if(fadeDir===0&&fadeAmt<=0)return;
+  fadeAmt=THREE.MathUtils.clamp(fadeAmt+fadeDir*dt*4.2,0,1);
+  fade.visible=fadeAmt>.001;
+  fade.material.opacity=fadeAmt;
+  if(fadeDir>0&&fadeAmt>=1){
+    if(fadePending){const a=fadePending;fadePending=null;try{a();}catch(e){}}
+    fadeDir=-1;
+  }else if(fadeDir<0&&fadeAmt<=0)fadeDir=0;
+}
+
+/* The teleport marker is a ring laid on the ground, built in world space and
+ * parented to `world`, so it sits where it is aimed regardless of the view. */
+const tpMark=(function(){
+  const g=new THREE.Group();g.visible=false;world.add(g);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(.52,.74,24),
+    new THREE.MeshBasicMaterial({color:0x7fd4e8,side:THREE.DoubleSide,
+      transparent:true,opacity:.9,depthWrite:false}));
+  ring.rotation.x=-Math.PI/2;g.add(ring);
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,1.3,6),
+    new THREE.MeshBasicMaterial({color:0x7fd4e8,transparent:true,opacity:.45}));
+  post.position.y=.65;g.add(post);
+  return {group:g,ring:ring,valid:false,point:new THREE.Vector3()};
+})();
+
+/* March the aim ray against the height field. No mesh raycast: the ground is
+ * a function, so sampling it directly is both cheaper and immune to whichever
+ * chunks happen to be built yet. */
+const _ro=new THREE.Vector3(),_rd=new THREE.Vector3();
+function aimGround(originLocal,dirLocal,maxDist){
+  if(!terrainKey)return false;
+  _ro.copy(originLocal).applyMatrix4(viewMat);
+  _rd.copy(dirLocal).transformDirection(viewMat).normalize();
+  let prev=0, prevGap=_ro.y-groundH(terrainKey,_ro.x,_ro.z);
+  const far=maxDist||90, steps=36;
+  for(let i=1;i<=steps;i++){
+    const t=far*i/steps;
+    const x=_ro.x+_rd.x*t, y=_ro.y+_rd.y*t, z=_ro.z+_rd.z*t;
+    const gap=y-groundH(terrainKey,x,z);
+    if(gap<=0&&prevGap>0){
+      // bisect the straddled span for a clean landing point
+      let lo=prev,hi=t;
+      for(let k=0;k<12;k++){
+        const mid=(lo+hi)/2;
+        const mx=_ro.x+_rd.x*mid, my=_ro.y+_rd.y*mid, mz=_ro.z+_rd.z*mid;
+        if(my-groundH(terrainKey,mx,mz)>0)lo=mid;else hi=mid;
+      }
+      const ft=(lo+hi)/2;
+      tpMark.point.set(_ro.x+_rd.x*ft,0,_ro.z+_rd.z*ft);
+      tpMark.point.y=groundH(terrainKey,tpMark.point.x,tpMark.point.z);
+      return true;
+    }
+    prev=t;prevGap=gap;
+  }
+  return false;
+}
+function showAim(ok){
+  tpMark.valid=ok;
+  tpMark.group.visible=ok&&WALK.active;
+  if(ok){
+    tpMark.group.position.copy(tpMark.point);
+    tpMark.group.position.y+=.08;
+  }
+}
+function teleport(){
+  if(!WALK.active||!tpMark.valid)return;
+  const dest=tpMark.point.clone();
+  blink(()=>{
+    WALK.pos.x=dest.x;WALK.pos.z=dest.z;
+    ensureChunks(terrainKey,WALK.pos.x,WALK.pos.z);
+  });
+  Audio_.click();
+}
+
+/* The way back in: a marker floating at the hatch, parented to the ship so it
+ * travels with it, pokeable once you are close enough to reach the ladder. */
+const enterMark=(function(){
+  const g=new THREE.Group();g.position.set(-1.5,.5,.2);g.visible=false;ship.add(g);
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.42),
+    new THREE.MeshBasicMaterial({map:tex(labelCanvas("GÅ IND",
+      {w:256,h:96,size:40,bg:"#07131d",border:"#2a6a8c",color:"#8ce8a0"})),
+      transparent:true,side:THREE.DoubleSide,depthWrite:false}));
+  g.add(face);
+  const hit=new THREE.Mesh(new THREE.BoxGeometry(1.3,.7,.7),new THREE.MeshBasicMaterial({visible:false}));
+  g.add(hit);
+  makeInteractive(hit,{poke:.4,onPress:()=>enterShip()});
+  return g;
+})();
+
+function exitShip(){
+  if(St.phase!=="landed"||WALK.active)return;
+  const d=DEST[St.dest];
+  /* Step out onto the port side, beside the ladder. */
+  const spot=new THREE.Vector3(-3.2,0,.2).applyQuaternion(SHIP.quat).add(SHIP.pos);
+  const yaw0=Math.atan2(-1,0);            // step out facing away from the hull
+  blink(()=>{
+    WALK.active=true;WALK.yaw=yaw0;
+    WALK.pos.set(spot.x,0,spot.z);
+    WALK.pos.y=groundH(St.dest,WALK.pos.x,WALK.pos.z)+WALK.eye;
+    St.phase="eva";
+    enterMark.visible=true;hatchBtn.group.visible=false;
+    againBtn.group.visible=false;
+    ensureChunks(St.dest,WALK.pos.x,WALK.pos.z);
+    log("UDENFOR");
+    showMsg("Du står på "+d.name+". Peg og tryk for at hoppe derhen.");
+  });
+}
+function enterShip(){
+  if(!WALK.active)return;
+  /* Only from arm's reach of the ladder, so the marker is a door and not a
+   * teleport-home button you can hit from the next valley. */
+  _v.set(-1.5,.5,.2).applyQuaternion(SHIP.quat).add(SHIP.pos);
+  if(_v.distanceTo(WALK.pos)>12){
+    Audio_.bad();showMsg("For langt fra lugen — hop tættere på skibet først.");
+    return;
+  }
+  blink(()=>{
+    WALK.active=false;St.phase="landed";
+    enterMark.visible=false;tpMark.group.visible=false;
+    log("OMBORD");showMsg("Ombord igen.");
+  });
+}
+function updateEVA(dt){
+  St.thrust=0;St.speed=0;
+  /* Feet follow the height field every frame, so slopes are walked up and
+   * the village is something you stand among rather than fly past. */
+  const h=groundH(terrainKey,WALK.pos.x,WALK.pos.z);
+  WALK.pos.y+=((h+WALK.eye)-WALK.pos.y)*Math.min(1,dt*9);
+  St.alt=0;
+  const hatchW=_v.set(-1.5,.5,.2).applyQuaternion(SHIP.quat).add(SHIP.pos);
+  enterMark.visible=hatchW.distanceTo(WALK.pos)<34;
+  if(enterMark.visible){
+    /* Turn the sign to face the walker. The marker is a child of the ship,
+     * so the walker has to come into ship-local space first. */
+    _v2.copy(WALK.pos).applyMatrix4(_m4.copy(shipMat).invert());
+    enterMark.rotation.y=Math.atan2(_v2.x-enterMark.position.x,_v2.z-enterMark.position.z);
+  }
+  if(!renderer.xr.isPresenting){
+    if(keys.KeyA)WALK.yaw+=dt*1.5;
+    if(keys.KeyD)WALK.yaw-=dt*1.5;
+  }
+  ensureChunks(terrainKey,WALK.pos.x,WALK.pos.z);
+  Audio_.engine(.02,0);
+  Audio_.wind(DEST[St.dest].atmo*.25,12);
+  vignette.material.opacity+=(0-vignette.material.opacity)*Math.min(1,dt*3);
+  shaker.position.set(0,0,0);
+  syncWorld();
+}
+
+let flatNDC={x:0,y:0};
+const _am=new THREE.Matrix4();
+function updateAim(){
+  if(!WALK.active){tpMark.group.visible=false;return;}
+  if(renderer.xr.isPresenting){
+    const c=controllers[1]||controllers[0];
+    if(!c){showAim(false);return;}
+    _am.identity().extractRotation(c.matrixWorld);
+    _v.setFromMatrixPosition(c.matrixWorld);
+    _v2.set(0,0,-1).applyMatrix4(_am);
+    showAim(aimGround(_v,_v2));
+  }else{
+    raycaster.setFromCamera(flatNDC,camera);
+    showAim(aimGround(raycaster.ray.origin,raycaster.ray.direction));
+  }
 }
 
 /* ---------- flight ---------- */
@@ -1689,6 +2007,8 @@ function updateFlight(dt){
 
   const ph=St.phase, auto=MODE.dof===0;
   axes();
+
+  if(ph==="eva"){updateEVA(dt);return;}
 
   /* One steering function for every flying phase. The mode decides how many
    * axes answer to the wheel; the autopilot answers to none of them. */
@@ -1875,6 +2195,7 @@ function updateFlight(dt){
       if(St.phase==="landed")St.phase="descent";
     }
     againBtn.group.visible=(St.phase==="landed");
+    hatchBtn.group.visible=(St.phase==="landed");
     ensureChunks(St.dest,SHIP.pos.x,SHIP.pos.z);
   }
 
@@ -1898,8 +2219,8 @@ function updateFlight(dt){
 
   const shake=(ph==="ignition")?.014:(ph==="ascent")?.008*Math.max(0,1-SHIP.pos.y/90000)+.002:
               (ph==="hyperspace")?.006:inAir?.0035*St.thrust:0;
-  if(shake>0)ship.position.set((Math.random()-.5)*shake,(Math.random()-.5)*shake,0);
-  else ship.position.set(0,0,0);
+  if(shake>0)shaker.position.set((Math.random()-.5)*shake,(Math.random()-.5)*shake,0);
+  else shaker.position.set(0,0,0);
 
   controls.forEach(c=>{
     c.press=Math.max(0,c.press-dt*4);
@@ -1960,9 +2281,19 @@ renderer.setAnimationLoop(()=>{
   const session=renderer.xr.getSession&&renderer.xr.getSession();
   if(session)try{
     for(const src of session.inputSources){
-      if(src.handedness==="left"&&src.gamepad&&src.gamepad.axes.length>3){
-        const a=src.gamepad.axes[3];
-        if(Math.abs(a)>.25)rig.position.y=THREE.MathUtils.clamp(rig.position.y-a*dt*.6,-1.2,1.2);
+      const gp=src.gamepad;
+      if(src.handedness==="left"&&gp&&gp.axes.length>3){
+        if(WALK.active){
+          /* Snap turning, not smooth: a continuous yaw with your feet still
+           * is the other classic way to make someone ill. */
+          const ax=gp.axes[2]||0;
+          if(Math.abs(ax)>.7&&!snapArmed){
+            WALK.yaw-=Math.sign(ax)*Math.PI/6;snapArmed=true;Audio_.click();
+          }else if(Math.abs(ax)<.3)snapArmed=false;
+        }else{
+          const a=gp.axes[3];
+          if(Math.abs(a)>.25)rig.position.y=THREE.MathUtils.clamp(rig.position.y-a*dt*.6,-1.2,1.2);
+        }
       }
     }
   }catch(e){}
@@ -1974,6 +2305,8 @@ renderer.setAnimationLoop(()=>{
     camera.position.set(0,1.15,0);
   }
   try{updateHands();}catch(e){}
+  try{updateAim();}catch(e){}
+  updateFade(dt);
   updateGrabs();
   try{updatePoke();}catch(e){}
   updateFlight(dt);
