@@ -1673,10 +1673,21 @@ function setLimb(key){
   limbBody.rotation.set(Math.PI/2,(0.75-u)*Math.PI*2,0);
   limbAtmo.rotation.copy(limbBody.rotation);
 }
+/* No fade-in any more, because there is nothing to fade in FROM. At zero
+ * altitude the proxy's radius equals its distance, so its edge is a dead
+ * straight line at eye level — which is exactly what a horizon looks like
+ * from the ground. Leave it switched on from the pad and the curve simply
+ * grows as you climb, with no moment where anything appears.
+ *
+ * The one constraint is that the eye must stay outside the proxy: its
+ * nearest point sits at D*h/R, which at a metre or two of altitude is
+ * closer than the near plane. Clamping the altitude to 150 m keeps that
+ * point a quarter of a unit clear, and costs 0.7 of a degree of horizon
+ * dip at ground level, which nothing on the pad is precise enough to show. */
 function updateLimb(dt,alt,fade){
   const L=limbKey&&LIMBS[limbKey];
   if(!L||fade<=0.002){limbBody.visible=false;limbAtmo.visible=false;return;}
-  const r=LIMB_D*L.R/(L.R+Math.max(200,alt));
+  const r=LIMB_D*L.R/(L.R+Math.max(150,alt));
   limbBody.visible=true;
   limbBody.position.set(0,-LIMB_D,0);
   limbBody.scale.setScalar(r);
@@ -1685,7 +1696,13 @@ function updateLimb(dt,alt,fade){
     limbAtmo.visible=true;
     limbAtmo.position.copy(limbBody.position);
     limbAtmo.scale.setScalar(r);
-    limbAtmoU.strength.value=L.atmo*fade*1.35;
+    /* The rim was snapping on because it was tied to the body's fade, which
+     * went 0 to 1 over a couple of kilometres. It now follows ALTITUDE on a
+     * smoothstep over the first 30 km: faint haze sitting on the horizon
+     * from the ground, opening into the bright thin arc against black by
+     * the time you are in orbit. */
+    const t=THREE.MathUtils.clamp(alt/30000,0,1);
+    limbAtmoU.strength.value=L.atmo*fade*1.35*(0.10+0.90*t*t*(3-2*t));
   }else limbAtmo.visible=false;
 }
 
@@ -3324,6 +3341,7 @@ function updateEVA(dt){
    * sweeping the whole world past a body that is standing still is what
    * makes people ill. On a flat screen you can also drag to look. */
   if(terrainKey)ensureChunks(terrainKey,WALK.pos.x,WALK.pos.z);
+  updateLimb(dt,0,1);
   Audio_.engine(.02,0);
   Audio_.wind((St.dest?DEST[St.dest].atmo:.6)*.25,12);
   vignette.material.opacity+=(0-vignette.material.opacity)*Math.min(1,dt*3);
@@ -3399,6 +3417,7 @@ function updateFlight(dt){
 
   if(ph==="preflight"){
     SHIP.pos.set(0,PAD_Y,0);SHIP.quat.identity();SHIP.vel.set(0,0,0);St.alt=0;St.speed=0;
+    updateLimb(dt,0,1);
   }
   hatchBtn.group.visible=(ph==="preflight"||ph==="landed");
 
@@ -3406,6 +3425,7 @@ function updateFlight(dt){
     SHIP.vel.y+=dt*5*(.4+St.thrust);
     SHIP.pos.y+=SHIP.vel.y*dt;
     St.alt=SHIP.pos.y-PAD_Y;St.speed=SHIP.vel.y;
+    updateLimb(dt,St.alt,1);
     if(St.t>3.2){
       St.phase="ascent";St.t=0;log("OPSTIGNING");
       showMsg(auto?"Autopiloten styrer opstigningen.":"Rat for hældning, gas for skub");
@@ -3447,9 +3467,9 @@ function updateFlight(dt){
      * the pad and the towers on it and is right for the first few
      * kilometres; past that its square edge gives the game away, while the
      * limb has no detail worth seeing from close up. */
-    siteGround.material.opacity=1-THREE.MathUtils.clamp((a-2600)/3400,0,1);
-    site.visible=a<6400;
-    updateLimb(dt,a,THREE.MathUtils.clamp((a-1800)/2600,0,1));
+    siteGround.material.opacity=1-THREE.MathUtils.clamp((a-3200)/5200,0,1);
+    site.visible=a<8800;
+    updateLimb(dt,a,1);
     if(a>110000){
       St.phase="space";menu.visible=true;site.visible=false;
       setCloudDeck(null);
@@ -3578,9 +3598,11 @@ function updateFlight(dt){
     skirt.position.y=h-160;
     /* Climb away from a world and its own limb comes up to meet you, the
      * local ground fading out from under the ship as it goes. */
-    const lf=THREE.MathUtils.clamp((St.alt-120)/420,0,1);
-    skirt.material.opacity=1-lf;
-    updateLimb(dt,Math.max(0,St.alt),lf);
+    /* The skirt only exists to hide the edge of the chunk ring, so it
+     * fades on its own schedule now that the limb is behind it rather than
+     * sharing one. */
+    skirt.material.opacity=1-THREE.MathUtils.clamp((St.alt-1200)/2300,0,1);
+    updateLimb(dt,Math.max(0,St.alt),1);
     if(St.alt<=0){
       /* No crash, ever. Touching down stops the descent and bleeds off speed;
        * how hard you arrived is recorded, not punished. */
