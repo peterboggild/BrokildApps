@@ -1039,7 +1039,23 @@ function consoleButton(x,y,label,bg,border,color,baseCol,onPress){
 }
 const hyperBtn=consoleButton(.74,.06,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper());
 const landBtn =consoleButton(.74,.06,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
-const againBtn=consoleButton(.74,.06,"NY FLYVNING","#1d1326","#4a2a66","#c9a0ff",0x3a2452,()=>restartFlight());
+/* LET takes the console's action slot, which the phase-critical buttons
+ * share. NY FLYVNING is a rare, deliberate thing, so it moves to the port
+ * wall with the other switches rather than competing for that slot. */
+const liftBtn=consoleButton(.74,.06,"LET","#141f08","#3e5c18","#c2e86a",0x2c4212,()=>pressLift());
+const againBtn=(function(){
+  const g=new THREE.Group();g.position.set(-.9,1.42,.2);g.rotation.y=Math.PI/2;ship.add(g);
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(.34,.12,.03),M.hullDark));
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(.32,.1),
+    new THREE.MeshBasicMaterial({map:tex(labelCanvas("NY FLYVNING",
+      {w:320,h:96,size:28,bg:"#1d1326",border:"#4a2a66",color:"#c9a0ff"})),transparent:true}));
+  face.position.z=.018;g.add(face);
+  const hit=new THREE.Mesh(new THREE.BoxGeometry(.42,.2,.14),new THREE.MeshBasicMaterial({visible:false}));
+  g.add(hit);
+  makeInteractive(hit,{poke:.09,onPress:()=>restartFlight()});
+  g.visible=false;
+  return {group:g};
+})();
 /* The way out, on the port wall beside the real hatch rather than on the
  * console: you reach for a door where the door is. */
 const hatchBtn=(function(){
@@ -2682,7 +2698,7 @@ const PHASE_DA={preflight:"RAMPE",ignition:"TÆNDING",ascent:"OPSTIGNING",space:
   course:"KURS",hyperspace:"HYPERRUM",approach:"INDFLYVNING",descent:"NEDSTIGNING",landed:"LANDET",
   eva:"UDENFOR"};
 const St={phase:"preflight",order:[],step:0,alt:0,speed:0,thrust:0,dest:null,distance:0,
-  warpT:0,t:0,flash:0,landQuality:"",bodyDist:0};
+  warpT:0,t:0,flash:0,landQuality:"",bodyDist:0,climbing:false};
 const BODY_POS=new THREE.Vector3();
 
 const NUMTEX=[];
@@ -2713,10 +2729,14 @@ function objectiveText(){
     case "course":    return "TRYK PÅ HYPERRUM";
     case "hyperspace":return "HYPERRUM";
     case "approach":  return auto?"AUTOPILOTEN FLYVER IND":"FLYV IND — TRYK LAND NÅR DU VIL NED";
-    case "descent":   return auto?"AUTOPILOTEN LANDER":"FLYV NED PÅ OVERFLADEN";
-    case "landed":    return MAPAT.live
-      ? "GÅ UD OG FØLG PILENE TIL KORTET"
-      : "GÅ UD, ELLER NY FLYVNING";
+    case "descent":   return St.alt>2500
+      ? "STIG TIL 15 KM FOR AT NÅ KREDSLØB  ("+(St.alt/1000).toFixed(1)+" KM)"
+      : (auto?"AUTOPILOTEN LANDER":"FLYV NED PÅ OVERFLADEN");
+    case "landed":
+      if(MAPAT.live)return "GÅ UD OG FØLG PILENE TIL KORTET";
+      if(GAME.mapHeld&&!GAME.mapDone)return "TRYK LET OG FLYV VIDERE MED KORTET";
+      return St.dest?"GÅ UD, ELLER TRYK LET FOR AT FLYVE VIDERE"
+                    :"GÅ UD, ELLER NY FLYVNING";
     case "eva":
       if(MAPAT.live)return "FØLG LYSSØJLEN TIL KORTET";
       if(GAME.mapHeld&&!GAME.mapDone)return "BÆR KORTET TILBAGE TIL SKIBET";
@@ -2858,7 +2878,7 @@ function pressLand(){
    * takes you somewhere. */
   if(St.phase!=="approach")return;
   const d=DEST[St.dest];
-  St.phase="descent";terrainKey=St.dest;
+  St.phase="descent";terrainKey=St.dest;St.climbing=false;
   clearChunks();
   SHIP.pos.set(0,1500,0);SHIP.vel.set(0,-26,0);
   SHIP.quat.identity();rotateShip(-.14,0,0);
@@ -2880,6 +2900,22 @@ function pressLand(){
   for(let i=0;i<9;i++)ensureChunks(St.dest,0,0);   // prime the inner ring only
   log("NEDSTIGNING");
   showMsg(MODE.dof===0?"Autopiloten sætter den ned.":"Flyv den ned — den kan ikke smadres.");
+}
+function pressLift(){
+  /* Lifting off was possible but going anywhere was not: in autopilot the
+   * descent logic commands a sink rate every frame, so the ship settled
+   * straight back down. This hands the autopilot a climb instead; in the
+   * manual modes it just opens the throttle and lets you fly it up. */
+  if(St.phase!=="landed"&&St.phase!=="descent")return;
+  if(WALK.active)return;
+  St.climbing=true;SHIP.onGround=false;
+  throttle.value=Math.max(throttle.value,.85);
+  liftBtn.group.visible=false;
+  Audio_.ignite();
+  log("LETTER");
+  showMsg(MODE.dof===0
+    ? "Letter. Autopiloten stiger til kredsløb."
+    : "Letter — hold næsen oppe og stig til 15 km.",6);
 }
 function chooseDest(key){
   if(St.phase!=="space")return;
@@ -3111,7 +3147,8 @@ function buildTouchbar(){
   }else if(St.phase==="approach"){
     tbMain.appendChild(mkBtn("LAND","lit",()=>pressLand()));
   }else if(St.phase==="landed"){
-    tbMain.appendChild(mkBtn("GÅ UD","lit",()=>exitShip()));
+    if(St.dest)tbMain.appendChild(mkBtn("LET","lit",()=>pressLift()));
+    tbMain.appendChild(mkBtn("GÅ UD","",()=>exitShip()));
     tbMain.appendChild(mkBtn("NY FLYVNING","",()=>restartFlight()));
   }else if(St.phase==="eva"){
     tbMain.appendChild(mkBtn("GÅ IND","lit",()=>enterShip()));
@@ -3481,7 +3518,7 @@ function updateFlight(dt){
   }
 
   if(ph==="space"||ph==="course"){
-    if(auto)aimPitch(-horizonPitch("earth",Math.max(0,SHIP.pos.y)),dt*1.1);
+    if(auto)aimPitch(-horizonPitch(limbKey||"earth",Math.max(0,SHIP.pos.y)),dt*1.1);
     else steer(1);
     SHIP.vel.addScaledVector(FWD,St.thrust*26*dt);
     SHIP.vel.multiplyScalar(Math.pow(.72,dt));
@@ -3489,6 +3526,7 @@ function updateFlight(dt){
     St.speed=SHIP.vel.length()+(ph==="course"?7800:0);
     St.alt=SHIP.pos.y;
     updateLimb(dt,Math.max(0,SHIP.pos.y),1);
+    if(St.phase==="space")menu.visible=true;
     if(ph==="course"){
       St.distance=Math.max(0,St.distance-St.speed*dt*40);
       hyperBtn.mat.emissive.setHex(Math.sin(St.t*5)>0?0x1a4e66:0x000000);
@@ -3560,7 +3598,17 @@ function updateFlight(dt){
     let h=groundH(St.dest,SHIP.pos.x,SHIP.pos.z);
     St.alt=SHIP.pos.y-h-GEAR;
 
-    if(auto){
+    if(auto&&St.climbing){
+      /* Straight up and out. Reaches 15 km in about 34 seconds, which is
+       * the same order as the manual model at full throttle. */
+      levelWings(dt*1.6);
+      aimPitch(-horizonPitch(St.dest,St.alt)*0.5,dt*1.0);
+      const wantRise=Math.min(650,90+St.alt*0.14);
+      SHIP.vel.y+=(wantRise-SHIP.vel.y)*Math.min(1,dt*1.0);
+      SHIP.vel.x*=Math.pow(.5,dt);SHIP.vel.z*=Math.pow(.5,dt);
+      autoThrottle(.95,dt);
+      SHIP.pos.addScaledVector(SHIP.vel,dt);
+    }else if(auto){
       /* The autopilot does NOT fly the aircraft model. Lift comes from
        * airspeed, so commanding altitude through the throttle is a lagged,
        * oscillating plant — in simulation it hovered a hundred metres up and
@@ -3598,6 +3646,30 @@ function updateFlight(dt){
     skirt.position.y=h-160;
     /* Climb away from a world and its own limb comes up to meet you, the
      * local ground fading out from under the ship as it goes. */
+    if(St.alt>15000){
+      /* Out of the well and back to the chart. Everything that belongs to
+       * the surface is packed away, the planet you just left stays under
+       * you as its own limb, and the destination menu comes back up. */
+      St.phase="space";menu.visible=true;St.climbing=false;
+      terrainKey=null;clearChunks();
+      terrainRoot.visible=false;skirt.visible=false;
+      alienRoot.visible=false;questRoot.visible=false;
+      bubble.mesh.visible=false;bubble.t=0;
+      beams.visible=false;clearMarsMap();
+      bulb.on=false;bulb.sprite.visible=false;
+      againBtn.group.visible=false;hatchBtn.group.visible=false;
+      landBtn.group.visible=false;hyperBtn.group.visible=false;
+      setCloudDeck(null);
+      skyUniforms.alpha.value=0;
+      stars.material.opacity=1;deepSky.visible=true;
+      deepSky.children.forEach(c=>{c.material.opacity=.55;});
+      Audio_.ok();
+      log("KREDSLØB IGEN");
+      showMsg(GAME.mapDone
+        ? "Tilbage i kredsløb. Guldplaneten er nu åben."
+        : "Tilbage i kredsløb — vælg en ny destination.",7);
+      return;
+    }
     /* The skirt only exists to hide the edge of the chunk ring, so it
      * fades on its own schedule now that the limb is behind it rather than
      * sharing one. */
@@ -3638,11 +3710,13 @@ function updateFlight(dt){
       _q.identity();SHIP.quat.slerp(_q,1-Math.pow(.2,dt));
       St.phase=SHIP.vel.length()<2?"landed":"descent";
       if(St.thrust>.55)SHIP.onGround=false;          // and you can take off again
+      St.climbing=false;
     }else{
       SHIP.onGround=false;
       if(St.phase==="landed")St.phase="descent";
     }
     againBtn.group.visible=(St.phase==="landed");
+    liftBtn.group.visible=(St.phase==="landed"&&!!St.dest);
     ensureChunks(St.dest,SHIP.pos.x,SHIP.pos.z);
   }
 
@@ -3686,6 +3760,8 @@ function updateFlight(dt){
   bigBtn.cap.position.z=.045-bigBtn.press*.02;
   const bl=bigBtn.armed?(.5+.5*Math.sin(St.t*6)):0;
   bigBtn.mat.emissive.setRGB(bl*.75,bl*.07,bl*.05);
+  liftBtn.mat.emissive.setHex(
+    (St.phase==="landed"&&Math.sin(St.t*4)>0)?0x2d4a10:0x000000);
   if(St.flash>0){St.flash-=dt*2;cabin.color.setHex(0xff4040);cabin.intensity=1.6;}
   else{cabin.color.setHex(0xffb14d);cabin.intensity=.85+bl*.5+(ph==="ignition"?1.2:0);}
 
@@ -3793,7 +3869,8 @@ renderer.setAnimationLoop(()=>{
   if(screenClock>.14){screenClock=0;drawStatus();if(St.dest)drawMap();}
   refreshHud();
   const osig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0)+"|"+MODE.key+"|"+
-    (questRoot.visible?questLabel():"")+"|"+(MAPAT.live?1:0)+(GAME.mapHeld?1:0);
+    (questRoot.visible?questLabel():"")+"|"+(MAPAT.live?1:0)+(GAME.mapHeld?1:0)+"|"+
+    (St.phase==="descent"&&St.alt>2500?Math.round(St.alt/500):0);
   if(osig!==objSig){
     objSig=osig;
     setObjective(objectiveText(),St.phase==="landed"?"#c9a0ff":"#f2a33c");
