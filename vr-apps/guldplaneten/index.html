@@ -4138,11 +4138,18 @@ function updateFlight(dt){
       if(target)aimAt(target,dt*1.1);else levelWings(dt*1.4);
       return;
     }
+    /* The wheel's own sign. Turning it left raises rotation.z, and a
+     * POSITIVE yaw about +Y swings the nose from -Z towards -X, which is
+     * the pilot's left. Both terms were negated, so the ship went right
+     * when the wheel went left — and banked right with it, consistently,
+     * which is probably why it survived: it flew like an aircraft, just
+     * the wrong aircraft. Autopilot answers to no axes, so only Let and
+     * Svær ever showed it. */
     if(MODE.dof===2){
-      rotateShip(-pitchIn*dt*MODE.p*scale,-roll*dt*MODE.y*scale,0);
+      rotateShip(-pitchIn*dt*MODE.p*scale,roll*dt*MODE.y*scale,0);
       if(MODE.level>0)levelWings(dt*MODE.level);
     }else{
-      rotateShip(-pitchIn*dt*MODE.p*scale,-roll*dt*MODE.y*scale,-roll*dt*MODE.r*scale);
+      rotateShip(-pitchIn*dt*MODE.p*scale,roll*dt*MODE.y*scale,roll*dt*MODE.r*scale);
     }
   }
 
