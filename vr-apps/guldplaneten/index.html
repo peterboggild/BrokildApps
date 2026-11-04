@@ -623,7 +623,12 @@ camera.position.set(0,1.15,0);
  * hull and leaves the windscreen, its sill and the horizon framing exactly
  * as they were measured. */
 const PILOT_X=-0.46, PASSENGER_X=0.46;
-const rig=new THREE.Group();rig.position.x=PILOT_X;rig.add(camera);
+const rig=new THREE.Group();rig.position.x=PILOT_X;
+/* The recentre yaw lives BELOW the seat offset, not above it. Put the
+ * turn on the rig itself and sliding between seats would slide along a
+ * rotated axis; put it here and the head and both hands turn together
+ * while the seat offset stays in the ship's own coordinates. */
+const headYaw=new THREE.Group();rig.add(headYaw);headYaw.add(camera);
 /* Shake belongs on the head, not on the cockpit: your body is what the
  * rocket is rattling, and the cockpit should stay put around you. */
 const shaker=new THREE.Group();shaker.add(rig);scene.add(shaker);
@@ -697,6 +702,10 @@ function applySkin(name){
 }
 
 /* ---------- cockpit ---------- */
+/* Declared up here rather than down with the controllers: the seats
+ * register themselves as press targets while the hull is being built,
+ * and a const further down the file is in its dead zone at that point. */
+const pickables=[];
 function box(w,h,d,mat,x,y,z,parent){
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
   m.position.set(x,y,z);(parent||ship).add(m);return m;
@@ -739,7 +748,12 @@ function box(w,h,d,mat,x,y,z,parent){
   /* Two seats, the same seat twice, side by side and level with each
    * other. Neither of them is the jump seat. */
   [PILOT_X,PASSENGER_X].forEach(sx=>{
-    box(.54,.10,.52,M.rubber,sx,.44,.16);
+    /* The cushion is a target you can point at and press: the five start
+     * switches are on the starboard half of the console, out of the
+     * pilot's reach, so flying alone you move across, run the sequence
+     * and move back. With two people aboard nobody is going anywhere. */
+    const cushion=box(.54,.10,.52,M.rubber,sx,.44,.16);
+    makeInteractive(cushion,{poke:.34,onPress:()=>takeSeat(sx)});
     box(.54,.72,.10,M.rubber,sx,.80,.40);
     box(.09,.34,.48,M.rubber,sx-.29,.62,.16);
     box(.09,.34,.48,M.rubber,sx+.29,.62,.16);
@@ -758,6 +772,72 @@ function box(w,h,d,mat,x,y,z,parent){
     d.position.set(-.45+i*.1125,-.04,.16);oh.add(d);
   }
 })();
+/* ---------- the landing HUD ----------
+ *  Flying it down by hand means watching the ground, and the altitude
+ *  and sink rate were text on a console panel you had to look away to
+ *  read. This is on the glass, low and central so it sits under the
+ *  horizon rather than over it: a height ladder, a sink-rate needle with
+ *  the soft-landing band marked, and the word for how it is going to go
+ *  if nothing changes. One plane, one canvas, drawn only while there is
+ *  ground to hit.
+ */
+const landHud=(function(){
+  const c=cvs(512,220), ctx=c.getContext("2d");
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(.84,.36),
+    new THREE.MeshBasicMaterial({map:tex(c),transparent:true,
+      depthWrite:false,opacity:.95}));
+  m.position.set(0,.92,-1.00);m.rotation.x=.20;m.visible=false;ship.add(m);
+  return {mesh:m,ctx:ctx,canvas:c};
+})();
+function drawLandHud(){
+  const g=landHud.ctx,W=512,H=220;
+  g.clearRect(0,0,W,H);
+  g.fillStyle="rgba(4,12,16,.62)";
+  g.fillRect(0,0,W,H);
+  g.strokeStyle="rgba(130,220,210,.45)";g.lineWidth=3;g.strokeRect(2,2,W-4,H-4);
+  const alt=Math.max(0,St.alt), vy=SHIP.vel.y;
+  const hard=Math.abs(vy);
+  const band=hard<9?"#6cf0c0":hard<26?"#ffd34d":"#ff6a5a";
+  const word=hard<9?"BLØD":hard<26?"FAST":"HÅRD";
+  /* Height: a ladder, logarithmic, because the metres that matter are
+   * the last twenty and the first two thousand are all the same news. */
+  const bx=52,by=28,bw=26,bh=H-66;
+  g.fillStyle="rgba(255,255,255,.07)";g.fillRect(bx,by,bw,bh);
+  const f=Math.min(1,Math.log10(1+alt)/Math.log10(1+3000));
+  g.fillStyle="#6cf0c0";g.fillRect(bx+3,by+bh-(bh-6)*f-3,bw-6,(bh-6)*f);
+  g.strokeStyle="rgba(130,220,210,.55)";g.lineWidth=2;
+  [[0,"0"],[10,"10"],[50,"50"],[200,"200"],[1000,"1k"],[3000,"3k"]].forEach(v=>{
+    const y=by+bh-(bh-6)*Math.min(1,Math.log10(1+v[0])/Math.log10(1+3000))-3;
+    g.beginPath();g.moveTo(bx-8,y);g.lineTo(bx,y);g.stroke();
+    g.fillStyle="rgba(170,230,220,.75)";g.font='600 13px "Chivo Mono", monospace';
+    g.textAlign="right";g.textBaseline="middle";g.fillText(v[1],bx-11,y);
+  });
+  g.fillStyle="#d9fff4";g.font='800 46px "Chivo Mono", monospace';
+  g.textAlign="left";g.textBaseline="alphabetic";
+  g.fillText(alt>=1000?(alt/1000).toFixed(1)+" km":Math.round(alt)+" m",106,70);
+  g.fillStyle="rgba(150,220,210,.8)";g.font='600 15px "Chivo Mono", monospace';
+  g.fillText("HØJDE",106,92);
+  g.textAlign="right";
+  g.fillText("FART "+Math.round(St.speed)+" m/s",W-18,70);
+  /* Sink rate: a needle on a bar with the soft band painted on it. */
+  const sx=106,sy=126,sw=W-128,sh=26;
+  g.fillStyle="rgba(255,255,255,.07)";g.fillRect(sx,sy,sw,sh);
+  const at=v=>sx+sw*THREE.MathUtils.clamp((v+40)/80,0,1);
+  g.fillStyle="rgba(108,240,192,.30)";g.fillRect(at(-9),sy,at(9)-at(-9),sh);
+  g.fillStyle="rgba(255,211,77,.18)";
+  g.fillRect(at(-26),sy,at(-9)-at(-26),sh);g.fillRect(at(9),sy,at(26)-at(9),sh);
+  g.strokeStyle="rgba(130,220,210,.5)";g.lineWidth=2;g.strokeRect(sx,sy,sw,sh);
+  g.fillStyle=band;
+  const nx=at(vy);
+  g.beginPath();g.moveTo(nx,sy-7);g.lineTo(nx+8,sy-18);g.lineTo(nx-8,sy-18);g.closePath();g.fill();
+  g.fillRect(nx-2,sy,4,sh);
+  g.fillStyle="rgba(150,220,210,.8)";g.font='600 15px "Chivo Mono", monospace';
+  g.textAlign="left";g.fillText("SYNK",sx,sy+sh+20);
+  g.textAlign="right";
+  g.fillStyle=band;g.font='800 24px "Chivo Mono", monospace';
+  g.fillText(Math.abs(Math.round(vy))+" m/s   "+word,sx+sw,sy+sh+23);
+  landHud.mesh.material.map.needsUpdate=true;
+}
 const consoleGroup=new THREE.Group();
 consoleGroup.position.set(0,.70,-.62);consoleGroup.rotation.x=-0.46;ship.add(consoleGroup);
 consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(2.04,.5,.07),M.hull));
@@ -1271,7 +1351,7 @@ const HULL={glow:null,beacon:null,beaconMat:null};
 })();
 
 /* ---------- interactive registry ---------- */
-const pickables=[];
+
 function makeInteractive(mesh,opts){
   mesh.userData=Object.assign(mesh.userData||{},opts||{});
   pickables.push(mesh);return mesh;
@@ -1784,7 +1864,8 @@ const MARKS=(function(){
     makeInteractive(hit,{poke:.34,onPress:()=>{if(slot.fn)slot.fn();}});
     pool.push(slot);
   }
-  return {pool,ask,bang,n:0,eye:new THREE.Vector3()};
+  return {pool,ask,bang,n:0,eye:new THREE.Vector3(),
+          meshes:pool.map(s=>s.mesh)};
 })();
 function markReset(){
   MARKS.n=0;
@@ -3328,7 +3409,7 @@ function updateCores(dt){
     _ce.set(0,St.t*-.6+i,Math.PI/2);_cq.setFromEuler(_ce);
     _cm.compose(_cp.set(c.x,gy+.92+bob,c.z),_cq,_cs.setScalar(1));
     coreCage.setMatrixAt(i*2+1,_cm);
-    if(WALK.active)markAt(c.x,gy+2.3,c.z,"?",4.4,()=>takeCore(c),400);
+    if(WALK.active)markAt(c.x,gy+2.3,c.z,"?",7.2,()=>takeCore(c),400);
   });
   corePlinth.instanceMatrix.needsUpdate=true;
   coreCage.instanceMatrix.needsUpdate=true;
@@ -3808,7 +3889,7 @@ function updateQuests(dt,vx,vz){
      * paperwork either: if you reach someone sinking in quicksand you get
      * them out whether or not anyone has asked you to yet. */
     if(!sk.freed&&!Q.done.sand&&WALK.active)
-      markAt(sk.x,gy+1.9,sk.z,"?",4.2,()=>{
+      markAt(sk.x,gy+1.9,sk.z,"?",6.6,()=>{
         if(sk.freed)return;
         sk.freed=true;Audio_.ok();
         const left=Q.sand.filter(t=>!t.freed).length;
@@ -3827,7 +3908,7 @@ function updateQuests(dt,vx,vz){
   // --- fruit: walk over it ---
   Q.fruit.forEach((f,i)=>{
     if(!f.taken&&!Q.done.food&&WALK.active)
-      markAt(f.x,groundH("gold",f.x,f.z)+1.9,f.z,"?",4.0,()=>{
+      markAt(f.x,groundH("gold",f.x,f.z)+1.9,f.z,"?",6.6,()=>{
         if(f.taken)return;
         f.taken=true;Q.held++;Audio_.ok();
         say(GIVER.food,Q.held>=3?"Du har alle tre! Kom tilbage til mig.":("Guldfrugt "+Q.held+" af 3."),4);
@@ -3846,7 +3927,7 @@ function updateQuests(dt,vx,vz){
   const L=Q.lost;
   if(L){
     if(!L.found&&!Q.done.lost&&WALK.active)
-      markAt(L.x,groundH("gold",L.x,L.z)+1.5,L.z,"?",5.0,()=>{
+      markAt(L.x,groundH("gold",L.x,L.z)+1.5,L.z,"?",7.0,()=>{
         if(L.found)return;
         L.found=true;Audio_.ok();say(GIVER.lost,QTEXT.lostF,5);
       },Q.active==="lost"?150:14);
@@ -3918,7 +3999,10 @@ function buildHand(sideSign){
   const wrist=new THREE.Mesh(new THREE.CylinderGeometry(.027,.023,.05,8),sk);
   wrist.rotation.x=Math.PI/2;wrist.position.set(0,0,.052);g.add(wrist);
   const fingers=[];
-  [[-.032,.040,.95],[-.011,.044,1.0],[.011,.042,.97],[.031,.035,.88]].forEach(f=>{
+  /* Longer. The three bones came to 1.04 of f[1], so at f[1]=.044 the
+   * whole index finger was 4.6 cm against a palm 9.2 cm deep — a hand
+   * with stubs on it. A real index is about 7.5. */
+  [[-.034,.068,.95],[-.012,.075,1.0],[.012,.072,.97],[.033,.060,.88]].forEach(f=>{
     const root=new THREE.Group();
     root.position.set(sideSign*f[0],.002,-.046);g.add(root);
     const chain=[];let parent=root;
@@ -3939,16 +4023,19 @@ function buildHand(sideSign){
   const tchain=[];let tp=troot;
   for(let s=0;s<2;s++){
     const seg=new THREE.Group();tp.add(seg);
-    const L=s===0?.030:.026;
+    const L=s===0?.042:.034;
     const m=new THREE.Mesh(new THREE.CylinderGeometry(.0105,.0115,L,6),sk);
     m.rotation.x=-Math.PI/2;m.position.z=-L/2;seg.add(m);
-    if(s>0)seg.position.z=-.030;
+    if(s>0)seg.position.z=-.042;
     tchain.push(seg);tp=seg;
   }
   return {group:g,fingers:fingers,thumb:tchain,indexTip:fingers[0].tip};
 }
 function setCurl(chain,amount,scale){
-  const a=amount*(scale||1);
+  /* Negative. A finger built down -Z and rotated by a POSITIVE angle
+   * about +X swings up and back, so every curl bent the fingers over the
+   * back of the hand instead of into the palm. */
+  const a=-amount*(scale||1);
   chain.forEach((seg,i)=>{seg.rotation.x=a*(i===0?1.05:i===1?1.25:1.1);});
 }
 
@@ -3956,7 +4043,7 @@ function setCurl(chain,amount,scale){
 const raycaster=new THREE.Raycaster();
 const controllers=[];
 for(let i=0;i<2;i++){
-  const c=renderer.xr.getController(i);rig.add(c);
+  const c=renderer.xr.getController(i);headYaw.add(c);
   const line=new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-1.4)]),
     new THREE.LineBasicMaterial({color:0x7fd4e8,transparent:true,opacity:.35}));
@@ -4025,14 +4112,17 @@ function onSqueeze(c){
 function onSelect(c){
   Audio_.init();Audio_.resume();
   if(WALK.active){
-    /* On foot the trigger is the only verb: go where you are pointing. The
-     * one exception is the hatch sign, which is a ray target of its own. */
+    /* On foot the trigger does whatever the cursor says it will: use the
+     * thing the hand is sitting on, or else go where you are pointing.
+     * It reads the same target updateAim drew, so the button and the
+     * picture can never disagree. */
     const m0=new THREE.Matrix4().identity().extractRotation(c.matrixWorld);
-    raycaster.ray.origin.setFromMatrixPosition(c.matrixWorld);
-    raycaster.ray.direction.set(0,0,-1).applyMatrix4(m0);
-    const hit=raycaster.intersectObjects(pickables,false)
-      .find(h=>h.object.userData.onPress&&chainVisible(h.object));
-    if(hit){Audio_.click();haptic(c,.7,45);hit.object.userData.onPress();return;}
+    const o=new THREE.Vector3().setFromMatrixPosition(c.matrixWorld);
+    const d=new THREE.Vector3(0,0,-1).applyMatrix4(m0);
+    const use=reachTarget(o,d);
+    if(use){Audio_.click();haptic(c,.7,45);use.obj.userData.onPress();return;}
+    const far=markWalkPoint(o,d);
+    if(far){walkToMark(far);haptic(c,.5,30);return;}
     teleport();haptic(c,.5,30);
     return;
   }
@@ -4076,9 +4166,23 @@ const FWD=new THREE.Vector3(),UP=new THREE.Vector3();
  * offset from the passenger cushion, so a second viewpoint drops straight
  * in here without moving anything. Nothing reads it yet. */
 const SEAT2_EYE=new THREE.Vector3(PASSENGER_X,1.10,0.00);
+/* Which seat you are in. Changing seats is a slide across, not a
+ * teleport: the view moves and the ship does not, which is the one way
+ * of being moved in a headset that nobody minds. */
+let seatX=PILOT_X, seatSlide=0;
+function takeSeat(x){
+  if(WALK.active||Math.abs(x-seatX)<.01)return;
+  seatX=x;seatSlide=1;Audio_.click();
+  showMsg(x===PILOT_X?"Du sidder i pilotsædet — rat og gashåndtag."
+                     :"Du sidder i højre sæde — startknapperne er her.",6);
+}
+function updateSeat(dt){
+  if(seatSlide>0)seatSlide=Math.max(0,seatSlide-dt*2.4);
+  rig.position.x+=(seatX-rig.position.x)*Math.min(1,dt*6);
+}
 /* On foot the view is the walker's, not the ship's. */
 const WALK={pos:new THREE.Vector3(),quat:new THREE.Quaternion(),yaw:0,eye:1.15,active:false,
-            vy:0,air:false};
+            vy:0,air:false,jet:false};
 function syncWorld(){
   shipMat.compose(SHIP.pos,SHIP.quat,ONE);
   ship.matrix.copy(shipMat);
@@ -4695,13 +4799,24 @@ btnFlat.addEventListener("click",()=>{
   Audio_.init();Audio_.resume();
   ui.hidden=true;hud.hidden=false;touchbar.hidden=false;
 });
+const _rcq=new THREE.Quaternion(), _rcf=new THREE.Vector3(), _rcp=new THREE.Vector3();
 function recenter(){
   const xrCam=renderer.xr.getCamera?renderer.xr.getCamera(camera):camera;
-  const p=new THREE.Vector3().setFromMatrixPosition(xrCam.matrixWorld);
-  /* Recentre on the PILOT's seat, not on the ship's centreline: p is the
-   * headset in world space and so already carries the rig's own offset. */
-  rig.position.x+=PILOT_X-p.x;rig.position.z-=p.z;rig.position.y+=1.15-p.y;
-  showMsg("Sædet er centreret");
+  /* Yaw first, and this is the part that was missing. Position alone put
+   * you in the seat facing whichever way your room happens to point, so
+   * "straight ahead" was not the ship's nose — the whole cockpit sat at
+   * an angle, and hyperspace, which runs along the nose, came out of a
+   * side window. Turning the rig so that where you are looking NOW
+   * becomes the ship's forward squares all of it up at once. */
+  xrCam.getWorldQuaternion(_rcq);
+  _rcf.set(0,0,-1).applyQuaternion(_rcq);
+  headYaw.rotation.y-=Math.atan2(-_rcf.x,-_rcf.z);
+  rig.updateMatrixWorld(true);
+  /* Then the position, measured after the turn, because turning the rig
+   * about its own origin moves the head as well. */
+  _rcp.setFromMatrixPosition(xrCam.matrixWorld);
+  rig.position.x+=seatX-_rcp.x;rig.position.z-=_rcp.z;rig.position.y+=1.15-_rcp.y;
+  showMsg("Sædet er centreret — du kigger nu lige frem.");
 }
 window.addEventListener("resize",()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
@@ -4764,6 +4879,8 @@ function clickFlat(e){
   }
   if(best){Audio_.click();best.userData.onPress();}
   else if(WALK.active){
+    const far=markWalkPoint(raycaster.ray.origin,raycaster.ray.direction);
+    if(far){walkToMark(far);return;}
     if(aimGround(raycaster.ray.origin,raycaster.ray.direction)){showAim(true);teleport();}
   }
 }
@@ -4775,12 +4892,16 @@ window.addEventListener("keydown",e=>{
     if(e.code==="KeyA"||e.code==="ArrowLeft"){turnWalker(-1);return;}
     if(e.code==="KeyD"||e.code==="ArrowRight"){turnWalker( 1);return;}
   }
-  if(WALK.active&&!e.repeat&&e.code==="Space"){e.preventDefault();jumpWalker();}
+  if(WALK.active&&e.code==="Space"){
+    e.preventDefault();
+    if(!e.repeat)jumpWalker();
+    if(WALK.air)WALK.jet=true;        // held: the backpack
+  }
   keys[e.code]=true;
   if(e.code==="KeyB")setSkin(currentSkin==="steel"?"black":"steel");
   if(e.code==="KeyM"){const o=["auto","easy","hard"];setMode(o[(o.indexOf(MODE.key)+1)%3]);}
 });
-window.addEventListener("keyup",e=>{keys[e.code]=false;});
+window.addEventListener("keyup",e=>{keys[e.code]=false;if(e.code==="Space")WALK.jet=false;});
 
 /* ---------- touch strip ---------- */
 let tbSig="";
@@ -4806,6 +4927,18 @@ const HAND_SVG='<svg viewBox="0 0 24 24" width="22" height="22" fill="currentCol
   '<rect x="17.4" y="5" width="2.8" height="7.5" rx="1.4"/>'+
   '<rect x="3.2" y="7.4" width="2.8" height="7" rx="1.4" transform="rotate(-24 4.6 10.9)"/>'+
   '<path d="M5 11h14.2v4.6c0 3.3-2.7 6-6 6h-2.2c-3.3 0-6-2.7-6-6z"/></svg>';
+/* The hop button is a hold: a tap jumps, holding it flies. mkHold only
+ * sets a key flag, and the jump is on the key EVENT, so this one does
+ * both itself. */
+function mkJet(){
+  const b=document.createElement("button");
+  b.textContent="HOP";b.className="hold lit";
+  const on=e=>{e.preventDefault();jumpWalker();WALK.jet=WALK.air;};
+  const off=()=>{WALK.jet=false;};
+  b.addEventListener("pointerdown",on);b.addEventListener("pointerup",off);
+  b.addEventListener("pointerleave",off);b.addEventListener("pointercancel",off);
+  return b;
+}
 function mkHold(label,code){
   const b=document.createElement("button");
   b.textContent=label;b.className="hold";
@@ -4866,7 +4999,7 @@ function buildTouchbar(){
     tbFlight.dataset.row=row;tbFlight.innerHTML="";
     if(row==="foot"){
       tbFlight.appendChild(mkBtn("◀ DREJ","",()=>turnWalker(-1)));
-      tbFlight.appendChild(mkBtn("HOP","lit",()=>jumpWalker()));
+      tbFlight.appendChild(mkJet());
       tbFlight.appendChild(mkBtn("DREJ ▶","",()=>turnWalker( 1)));
     }else{
       tbFlight.appendChild(mkHold("◀ RAT","KeyA"));
@@ -4988,6 +5121,76 @@ function animTpMark(t){
   tpMark.chev.instanceMatrix.needsUpdate=true;
 }
 
+/* ---------- the reach cursor ----------
+ *  Out on a surface the only verb used to be "go where you are
+ *  pointing", and the only way to actually DO anything was to touch it
+ *  with your fingertip. The marks over the fuel cores float two metres
+ *  up, so in a headset there was no way to pick one up at all and no
+ *  sign that there was anything to try.
+ *
+ *  So the aim ray now looks for something to use before it looks for
+ *  somewhere to stand. Point at a core, an alien or the ladder from
+ *  close enough to reach it and a hand appears on it; the trigger then
+ *  uses it instead of teleporting. Out of reach, or pointed at open
+ *  ground, nothing changes and the trigger still moves you.
+ * ------------------------------------------------------------------ */
+const REACH=9;
+const useMark=(function(){
+  const g=new THREE.Group();g.visible=false;g.renderOrder=40;world.add(g);
+  const mk=(geo,col,op,order)=>{
+    const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:col,
+      transparent:true,opacity:op,depthWrite:false,depthTest:false,
+      side:THREE.DoubleSide}));
+    m.renderOrder=order;g.add(m);return m;
+  };
+  mk(new THREE.CircleGeometry(.40,24),0x061118,.46,40);
+  const ring=mk(new THREE.RingGeometry(.34,.44,24),0xffd34d,.95,41);
+  /* A hand: palm and four stubs, flat, facing the viewer. */
+  const hand=new THREE.Group();hand.renderOrder=42;g.add(hand);
+  const hm=new THREE.MeshBasicMaterial({color:0xffe9a8,transparent:true,
+    opacity:.98,depthWrite:false,depthTest:false,side:THREE.DoubleSide});
+  const palm=new THREE.Mesh(new THREE.PlaneGeometry(.17,.17),hm);
+  palm.position.y=-.03;hand.add(palm);
+  for(let i=0;i<4;i++){
+    const f=new THREE.Mesh(new THREE.PlaneGeometry(.032,.11),hm);
+    f.position.set(-.06+i*.04,.085,0);hand.add(f);
+  }
+  const th=new THREE.Mesh(new THREE.PlaneGeometry(.10,.034),hm);
+  th.position.set(-.11,-.02,0);th.rotation.z=.5;hand.add(th);
+  return {group:g,ring:ring,hand:hand,target:null};
+})();
+function animUseMark(t){
+  if(!useMark.group.visible)return;
+  const b=.5+.5*Math.sin(t*5);
+  useMark.ring.scale.setScalar(1+b*.14);
+  useMark.ring.material.opacity=.70+.30*b;
+  useMark.hand.position.y=b*.03;
+}
+/* What the ray is pointing at that is near enough to use. */
+function reachTarget(origin,dir){
+  if(!WALK.active)return null;
+  raycaster.ray.origin.copy(origin);
+  raycaster.ray.direction.copy(dir).normalize();
+  raycaster.far=REACH*1.6;
+  const hits=raycaster.intersectObjects(pickables,false);
+  raycaster.far=Infinity;
+  for(const h of hits){
+    const o=h.object;
+    if(!o.userData.onPress||!chainVisible(o))continue;
+    /* Reach, not sight: you can see an alien across a valley, and the
+     * cursor appearing then would say you could poke him from here. */
+    /* Measured from the ray, not from WALK.pos. getWorldPosition gives
+     * SCENE space, where the walker stands at the origin; WALK.pos is in
+     * the terrain's own coordinates, which out on Guldplaneten are
+     * hundreds of metres from it. Comparing the two made everything
+     * look impossibly far away and the cursor never appeared. */
+    o.getWorldPosition(_rw);
+    if(_rw.distanceTo(origin)>REACH)continue;
+    return {obj:o,point:h.point};
+  }
+  return null;
+}
+const _rw=new THREE.Vector3();
 /* March the aim ray against the height field. No mesh raycast: the ground is
  * a function, so sampling it directly is both cheaper and immune to whichever
  * chunks happen to be built yet. */
@@ -5029,6 +5232,33 @@ function showAim(ok){
     tpMark.group.position.copy(tpMark.point);
     tpMark.group.position.y+=.08;
   }
+}
+/* Pointing at a "?" you cannot reach yet and pulling the trigger should
+ * take you TO it, not leave the button doing nothing.  The glyphs are
+ * visible hundreds of metres out, so this is how you cross the ground:
+ * aim at the thing you want, pull, pull again, pick it up. */
+const _mwp={x:0,z:0};
+function markWalkPoint(origin,dir){
+  if(!WALK.active)return null;
+  raycaster.ray.origin.copy(origin);
+  raycaster.ray.direction.copy(dir).normalize();
+  const hits=raycaster.intersectObjects(MARKS.meshes,false);
+  for(const h of hits){
+    if(!h.object.visible)continue;
+    /* The glyphs live in terrain space, like WALK.pos. */
+    _mwp.x=h.object.position.x;_mwp.z=h.object.position.z;return _mwp;
+  }
+  return null;
+}
+/* Stops a short way short, so you arrive looking at it rather than inside it. */
+function walkToMark(t){
+  const dx=t.x-WALK.pos.x, dz=t.z-WALK.pos.z, L=Math.hypot(dx,dz)||1;
+  const back=Math.min(L*.5,2.8), tx=t.x-dx/L*back, tz=t.z-dz/L*back;
+  blink(()=>{
+    WALK.pos.x=tx;WALK.pos.z=tz;
+    if(terrainKey)ensureChunks(terrainKey,tx,tz);
+  });
+  Audio_.click();
 }
 function teleport(){
   if(!WALK.active||!tpMark.valid)return;
@@ -5469,11 +5699,24 @@ function walkStick(sx,sy,dt){
   const dz=(Math.abs(sy)>.15)?-sy:0, dx=(Math.abs(sx)>.15)?sx:0;
   walkMove(dx,dz,dt);
 }
+/* Which way is forward on foot. The body's yaw is WALK.yaw, but in a
+ * headset you turn your HEAD to look where you are going and the stick
+ * then has to agree with your eyes, not with your hips — otherwise
+ * pushing forward walks you sideways, which is exactly what it did.
+ * On a flat screen the head and the body are the same thing. */
+const _hq=new THREE.Quaternion(), _hv=new THREE.Vector3();
+function faceYaw(){
+  if(!renderer.xr.isPresenting)return WALK.yaw;
+  camera.getWorldQuaternion(_hq);
+  _hv.set(0,0,-1).applyQuaternion(_hq);
+  return WALK.yaw+Math.atan2(-_hv.x,-_hv.z);
+}
 function walkMove(dx,dz,dt){
   const m=Math.hypot(dx,dz);
   if(m<1e-3){walkSpeed+=(0-walkSpeed)*Math.min(1,dt*6);return;}
   const SP=3.4;                                   // a walk, not a sprint
-  const c=Math.cos(WALK.yaw), si=Math.sin(WALK.yaw);
+  const yw=faceYaw();
+  const c=Math.cos(yw), si=Math.sin(yw);
   const fx=-si, fz=-c;                            // forward
   const rx= c,  rz=-si;                           // right
   WALK.pos.x+=(fx*dz+rx*dx)/Math.max(1,m)*SP*dt;
@@ -5509,10 +5752,29 @@ function updateEVA(dt){
   const h=walkH(WALK.pos.x,WALK.pos.z);
   if(WALK.air){
     const g=(St.dest?DEST[St.dest].grav:9.8);
+    /* Tap the button and you hop; hold it and the backpack lights and
+     * you keep going up. Three hundred metres is enough to see the whole
+     * valley, the lakes and where the next core is, which is the whole
+     * point of carrying one. */
+    /* A hundred and fifty metres: high enough to see the whole valley,
+     * the lakes and where the next core is, low enough that going up
+     * and coming down is ten seconds each and not a minute. Climb and
+     * fall rates scale with the world's gravity, so the Moon is still
+     * the Moon without the round trip taking a minute. */
+    const ceil=h+150, up=Math.min(22,8+g*1.6), term=-(14+g*0.8);
+    if(WALK.jet&&WALK.pos.y<ceil){
+      WALK.vy+=g*2.4*dt;
+      if(WALK.vy>up)WALK.vy=up;
+    }else if(WALK.jet){
+      WALK.vy+=(0-WALK.vy)*Math.min(1,dt*4);      // hold at the ceiling
+    }
     WALK.vy-=g*dt;
+    /* And it is a descent, not a drop: there is a terminal rate whatever
+     * the height, so coming down is never a fall. */
+    if(WALK.vy<term)WALK.vy=term;
     WALK.pos.y+=WALK.vy*dt;
     if(WALK.vy<=0&&WALK.pos.y<=h+WALK.eye){
-      WALK.pos.y=h+WALK.eye;WALK.vy=0;WALK.air=false;
+      WALK.pos.y=h+WALK.eye;WALK.vy=0;WALK.air=false;WALK.jet=false;
     }
   }else{
     /* Feet follow the height field every frame, so slopes are walked up
@@ -5527,7 +5789,7 @@ function updateEVA(dt){
     /* An exclamation mark over it, and you pick it up by clicking. It
      * used to be yours the moment you came within three metres, which
      * could happen while you were walking somewhere else entirely. */
-    markAt(MAPAT.x,groundH(MAPAT.key,MAPAT.x,MAPAT.z)+2.0,MAPAT.z,"?",4.0,()=>takeMap());
+    markAt(MAPAT.x,groundH(MAPAT.key,MAPAT.x,MAPAT.z)+2.0,MAPAT.z,"?",6.6,()=>takeMap());
   }
   const hatchW=_v.set(-4.25,-1.25,-1.30).applyQuaternion(SHIP.quat).add(SHIP.pos);
   enterMark.visible=hatchW.distanceTo(WALK.pos)<60;
@@ -5557,18 +5819,33 @@ function updateEVA(dt){
 let flatNDC={x:0,y:0};
 const _am=new THREE.Matrix4();
 function updateAim(){
-  if(!WALK.active){tpMark.group.visible=false;return;}
+  if(!WALK.active){
+    tpMark.group.visible=false;useMark.group.visible=false;useMark.target=null;return;
+  }
+  let o,d;
   if(renderer.xr.isPresenting){
     const c=controllers[1]||controllers[0];
-    if(!c){showAim(false);return;}
+    if(!c){showAim(false);useMark.group.visible=false;useMark.target=null;return;}
     _am.identity().extractRotation(c.matrixWorld);
-    _v.setFromMatrixPosition(c.matrixWorld);
-    _v2.set(0,0,-1).applyMatrix4(_am);
-    showAim(aimGround(_v,_v2));
+    o=_v.setFromMatrixPosition(c.matrixWorld);
+    d=_v2.set(0,0,-1).applyMatrix4(_am);
   }else{
     raycaster.setFromCamera(flatNDC,camera);
-    showAim(aimGround(raycaster.ray.origin,raycaster.ray.direction));
+    o=raycaster.ray.origin;d=raycaster.ray.direction;
   }
+  const use=reachTarget(o,d);
+  useMark.target=use?use.obj:null;
+  if(use){
+    /* Something to use wins over somewhere to stand, so the trigger is
+     * never ambiguous and the ground marker does not flicker under it. */
+    useMark.group.visible=true;
+    useMark.group.position.copy(use.point);
+    useMark.group.lookAt(MARKS.eye);
+    showAim(false);
+    return;
+  }
+  useMark.group.visible=false;
+  showAim(aimGround(o,d));
 }
 
 /* ---------- flight ---------- */
@@ -5612,6 +5889,9 @@ function updateFlight(dt){
   /* One steering function for every flying phase. The mode decides how many
    * axes answer to the wheel; the autopilot answers to none of them. */
   function steer(scale,target){
+    /* Parked. Turning the wheel with the gear on the ground used to roll
+     * the ship where it stood, which is both wrong and alarming. */
+    if(SHIP.onGround&&!St.climbing)return;
     if(auto){
       if(target)aimAt(target,dt*1.1);else levelWings(dt*1.4);
       return;
@@ -5825,7 +6105,7 @@ function updateFlight(dt){
     if(range<d.radius*1.1)pressLand();            // fly into it and you land
   }
 
-  if(ph==="descent"||ph==="landed"){
+  if((ph==="descent"||ph==="landed")&&St.dest){
     const d=DEST[St.dest];
     /* Height first: both the autopilot and the readouts need to know where
      * the ground is before anything moves. */
@@ -6179,10 +6459,12 @@ renderer.setAnimationLoop(()=>{
       const gp=src.gamepad;
       if(!gp||gp.axes.length<4)continue;
       const sx=gp.axes[2]||0, sy=gp.axes[3]||0;
+      /* Only on foot. In the seat the left stick used to raise and lower
+       * the whole rig, which meant nudging it by accident lifted you out
+       * of the cockpit — and there is nothing in here that wants a stick
+       * anyway: the wheel and the lever are things you reach for. */
       if(src.handedness==="left"){
         if(WALK.active)walkStick(sx,sy,dt);
-        else if(Math.abs(sy)>.25)
-          rig.position.y=THREE.MathUtils.clamp(rig.position.y-sy*dt*.6,-1.2,1.2);
       }else if(src.handedness==="right"&&WALK.active){
         if(Math.abs(sx)>.7&&!snapArmed){
           WALK.yaw-=Math.sign(sx)*Math.PI/6;snapArmed=true;Audio_.click();
@@ -6192,8 +6474,13 @@ renderer.setAnimationLoop(()=>{
        * same button under the thumb either way — jumps. Taken from both
        * controllers so it does not matter which hand is free. */
       if(WALK.active&&gp.buttons&&gp.buttons[4]){
-        if(gp.buttons[4].pressed){if(!jumpArmed){jumpArmed=true;jumpWalker();}}
+        const down=gp.buttons[4].pressed;
+        if(down){if(!jumpArmed){jumpArmed=true;jumpWalker();}}
         else jumpArmed=false;
+        /* Held, it is a jet pack — but only once you are off the
+         * ground, so the press that starts the hop is not also the
+         * press that lights the engine. */
+        WALK.jet=down&&WALK.air;
       }
     }
   }catch(e){}
@@ -6204,9 +6491,11 @@ renderer.setAnimationLoop(()=>{
     camera.rotation.set(pitch,yaw,0,"YXZ");
     camera.position.set(0,1.15,0);
   }
+  if(!WALK.active)updateSeat(dt);
   try{updateHands();}catch(e){}
   try{updateAim();}catch(e){}
   animTpMark(St.t);
+  animUseMark(St.t);
   updateFade(dt);
   updateGrabs();
   try{updatePoke();}catch(e){}
@@ -6216,7 +6505,14 @@ renderer.setAnimationLoop(()=>{
   try{updateCores(dt);}catch(e){}
   renderBulb(dt);
   screenClock+=dt;
-  if(screenClock>.14){screenClock=0;drawStatus();if(St.dest)drawMap();}
+  /* The HUD is on the glass while there is ground to hit and nowhere
+   * else, so it is never in the way of the view it is there to serve. */
+  const wantHud=(!WALK.active&&(ph==="descent"||ph==="landed"||ph==="ignition"||ph==="ascent"));
+  landHud.mesh.visible=wantHud;
+  if(screenClock>.14){
+    screenClock=0;drawStatus();if(St.dest)drawMap();
+    if(wantHud)drawLandHud();
+  }
   refreshHud();
   const osig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0)+"|"+MODE.key+"|"+
     (questRoot.visible?questLabel():"")+"|"+(MAPAT.live?1:0)+(GAME.mapHeld?1:0)+"|"+
