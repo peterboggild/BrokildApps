@@ -3893,6 +3893,19 @@ const St={phase:"preflight",order:[],step:0,alt:0,speed:0,thrust:0,dest:null,dis
   warpT:0,t:0,flash:0,landQuality:"",bodyDist:0,climbing:false,arrive:0,seqing:false};
 const BODY_POS=new THREE.Vector3();
 const QID=new THREE.Quaternion();   // level, nose down the main window
+/* Guldplaneten is nine and a half trillion kilometres out and the Moon is
+ * next door, and hyperspace took the same four seconds either way. The
+ * long haul is four times the ride now — the same rule as the fuel, so
+ * the trip that costs a tank is also the trip you feel. */
+function warpLen(){ return (St.dest==="gold"||GAME.at==="gold")?17.2:4.3; }
+/* How far this leg is. Jorden's own distance is zero, because it is
+ * measured from home — so the trip HOME had no length at all and the
+ * readout sat on 0 km for the whole jump. A leg is as long as the
+ * further of its two ends. */
+function tripDist(to){
+  const a=DEST[GAME.at]?DEST[GAME.at].dist:0, b=DEST[to]?DEST[to].dist:0;
+  return Math.max(a,b)||1;
+}
 
 const NUMTEX=[];
 for(let n=1;n<=5;n++)NUMTEX.push(tex(labelCanvas(String(n),
@@ -4038,19 +4051,32 @@ function drawMap(){
     }
   }else{
     const d=DEST[St.dest], x0=40,y0=H-34,x1=W-44,y1=38;
+    /* Where you set off from, not always Jorden: flying home from
+     * Guldplaneten the chart used to read Jorden to Jorden. */
+    const o=DEST[GAME.at]||DEST.earth;
     g.strokeStyle="#1f4f78";g.lineWidth=2;g.setLineDash([6,5]);
     g.beginPath();g.moveTo(x0,y0);g.quadraticCurveTo((x0+x1)/2,y0-80,x1,y1);g.stroke();g.setLineDash([]);
-    g.fillStyle="#2f72b8";g.beginPath();g.arc(x0,y0,11,0,7);g.fill();
-    g.fillStyle="#7fb4e4";g.textAlign="left";g.fillText("JORDEN",x0-18,y0+24);
+    g.fillStyle=o.hud;g.beginPath();g.arc(x0,y0,11,0,7);g.fill();
+    g.fillStyle=o.hud;g.textAlign="left";g.fillText(o.name.toUpperCase(),x0-18,y0+24);
     g.fillStyle=d.hud;g.beginPath();g.arc(x1,y1,13,0,7);g.fill();
     g.fillStyle=d.hud;g.textAlign="right";g.fillText(d.name.toUpperCase(),x1+16,y1+28);
-    const t=Math.min(1,Math.max(0,1-St.distance/d.dist));
+    const t=(St.phase==="hyperspace")
+      ? (function(){const u=Math.min(1,St.warpT/warpLen());return u*u*(3-2*u);})()
+      : Math.min(1,Math.max(0,1-St.distance/tripDist(St.dest)));
     const mx=(1-t)*(1-t)*x0+2*(1-t)*t*((x0+x1)/2)+t*t*x1;
     const my=(1-t)*(1-t)*y0+2*(1-t)*t*(y0-80)+t*t*y1;
     g.fillStyle="#f2a33c";g.beginPath();
     g.moveTo(mx+7,my);g.lineTo(mx-5,my-5);g.lineTo(mx-5,my+5);g.closePath();g.fill();
     g.textAlign="center";
-    g.fillText(St.distance>1e6?(St.distance/1e6).toFixed(2)+" Mkm":Math.round(St.distance/1000)+" tkm",W/2,H-12);
+    /* "9331850.00 Mkm" is not a number anybody reads, least of all the
+     * person this is for. Danish tiers, and no decimals once it is in
+     * the billions. */
+    const D=St.distance;
+    const far=D>=1e9?Math.round(D/1e9)+" mia. km"
+            :D>=1e6?(D/1e6).toFixed(1)+" mio. km"
+            :D>=1000?Math.round(D/1000)+" tkm"
+            :Math.round(D)+" km";
+    g.fillText(far+(St.phase==="hyperspace"?"   "+Math.round(t*100)+" %":""),W/2,H-12);
   }
   mapScreen.mesh.material.map.needsUpdate=true;
 }
@@ -4255,7 +4281,7 @@ function liftNow(){
 function chooseDest(key){
   if(St.phase!=="space")return;
   if(!destOpen(key)){Audio_.bad();showMsg(lockedWhy(key),5);log("LÅST");return;}
-  St.dest=key;St.distance=DEST[key].dist;
+  St.dest=key;St.distance=tripDist(key);
   St.phase="course";menu.visible=false;
   hyperBtn.group.visible=true;
   buildBody(key);Audio_.ok();
@@ -5416,14 +5442,21 @@ function updateFlight(dt){
        * the window frame instead of down the middle of it. */
       if(Math.abs(yaw)>.01)yaw-=Math.sign(yaw)*Math.min(Math.abs(yaw),dt*.8);
     }
+    const WL=warpLen();
     const ramp=Math.min(1,St.warpT/1.4);
-    const fall=St.warpT>3.0?Math.max(0,1-(St.warpT-3.0)/1.1):1;
+    const fall=St.warpT>WL-1.3?Math.max(0,1-(St.warpT-(WL-1.3))/1.3):1;
     const intensity=ramp*fall;
     updateStars(dt,intensity);
     setLimb(null);
-    St.distance=Math.max(0,St.distance*(1-dt*.9));
+    /* The distance used to decay exponentially, which emptied it in about
+     * five seconds whatever the trip was — so on the long one the marker
+     * would sit on the destination for the other twelve. It now crosses
+     * the whole way over the whole jump, easing in and out like the
+     * streaks do, and lands on exactly zero. */
+    const u=Math.min(1,St.warpT/WL);
+    St.distance=tripDist(St.dest)*(1-u*u*(3-2*u));
     St.speed=3e8*intensity;
-    if(St.warpT>4.3){
+    if(St.warpT>WL){
       reseedStars();updateStars(0,0);
       const d=DEST[St.dest];
       St.phase="approach";St.distance=0;
