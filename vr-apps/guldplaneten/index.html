@@ -1798,19 +1798,13 @@ function updateStars(dt,warpAmt){
   stars.geometry.attributes.position.needsUpdate=true;
 }
 updateStars(0,0);
-/* The streaks are parallel to the shell's z, so their vanishing point is
- * the nose of the ship wherever the eye happens to be — but the tube they
- * form has a clear core, and the pilot's seat is 46 cm off the ship's
- * centreline now that there are two of them. Sliding the whole field
- * sideways onto the eye puts the hole in the middle of the cockpit
- * instead of the middle of the hull. */
-const _warpEye=new THREE.Vector3();
-function centreWarp(on){
-  if(!on){stars.position.set(0,0,0);return;}
-  camera.getWorldPosition(_warpEye);
-  shell.worldToLocal(_warpEye);
-  stars.position.set(_warpEye.x,_warpEye.y,0);
-}
+/* The streaks run along the shell's z, which is the ship's nose, so the
+ * tube is already aimed where the ship is pointing and through the middle
+ * of the glass. An earlier version slid the field sideways onto the
+ * pilot's eye; that moved the core off the window's axis, which is not
+ * what you want when the window is the thing you are looking through. It
+ * stays on the centreline. */
+function centreWarp(on){ stars.position.set(0,0,0); }
 
 function cloudTexture(r0,g0,b0,seed){
   const S=160,c=cvs(S,S),g=c.getContext("2d");
@@ -2109,7 +2103,7 @@ const limbBodyU={
   relief:{value:RELIEF_TEX}, reliefAmt:{value:0}, hasSea:{value:0},
   reliefRep:{value:new THREE.Vector2(150,75)}
 };
-const limbBody=new THREE.Mesh(new THREE.SphereGeometry(1,72,44),
+const limbBody=new THREE.Mesh(new THREE.SphereGeometry(1,192,72),
   new THREE.ShaderMaterial({
     uniforms:limbBodyU,transparent:true,depthWrite:false,side:THREE.FrontSide,
     vertexShader:
@@ -2136,23 +2130,63 @@ const limbBody=new THREE.Mesh(new THREE.SphereGeometry(1,72,44),
   }));
 limbBody.renderOrder=-11;limbBody.visible=false;shell.add(limbBody);
 
-const limbAtmoU={glow:{value:new THREE.Color(0x5aa8ff)},strength:{value:0}};
-const limbAtmo=new THREE.Mesh(new THREE.SphereGeometry(1.035,48,30),
+/* ---------- the air, as a glow rather than a shell ----------
+ * The first version shaded a sphere by its rim term alone, which puts the
+ * brightest pixels exactly where the sphere stops. That is a razor edge
+ * with nothing beyond it — the opposite of air, which has no surface and
+ * fades into space over tens of kilometres.
+ *
+ * So the shell is shaded by how far the view ray passes from the planet's
+ * centre instead. For a distant eye that impact parameter is sin(theta)
+ * of the fragment's own normal, which costs one sqrt: inside the body's
+ * disc it is thin haze, it peaks just above the horizon, and from there
+ * it falls smoothly to exactly zero at the shell's own silhouette. The
+ * silhouette is therefore invisible, which also means the sphere's facets
+ * are invisible and the glow reads as round however few segments it has. */
+/* ---------- the air, as a glow rather than a shell ----------
+ * The first version shaded the sphere by its rim term alone, which puts
+ * the brightest pixels exactly where the sphere stops: a razor edge with
+ * nothing past it, the opposite of air, which has no surface and fades
+ * into space over tens of kilometres.
+ *
+ * What the glow should depend on is how far the view ray passes from the
+ * planet's centre. The eye here sits barely outside the proxy sphere
+ * (3000 units out from one of radius 2980), so the usual distant-viewer
+ * shortcut of reading that off the normal is badly wrong; the angle
+ * between the ray and the direction to the centre is exact and costs one
+ * cross product. Below the body's own angular radius it is thin haze over
+ * the disc, it peaks at the horizon, and from there it falls to exactly
+ * zero at the shell's edge — so the edge is invisible, and with it the
+ * sphere's facets, and the glow reads as round. */
+const limbAtmoU={glow:{value:new THREE.Color(0x5aa8ff)},strength:{value:0},
+                 inner:{value:0.9},shellR:{value:1}};
+const limbAtmo=new THREE.Mesh(new THREE.SphereGeometry(1.0,64,40),
   new THREE.ShaderMaterial({
     uniforms:limbAtmoU,transparent:true,depthWrite:false,
     blending:THREE.AdditiveBlending,side:THREE.FrontSide,
     vertexShader:
-      "varying vec3 vN; varying vec3 vP;"+
-      "void main(){ vN=normalize(normalMatrix*normal);"+
-      "vec4 mv=modelViewMatrix*vec4(position,1.0); vP=mv.xyz;"+LIMB_PIN+"}",
-    /* Brightest where the surface turns away from you, which is the limb:
-     * that thin lit arc is the most recognisable thing about the view. */
+      "varying vec3 vP; varying vec3 vC;"+
+      "void main(){ vec4 mv=modelViewMatrix*vec4(position,1.0); vP=mv.xyz;"+
+      "vC=(modelViewMatrix*vec4(0.0,0.0,0.0,1.0)).xyz;"+LIMB_PIN+"}",
     fragmentShader:
       "uniform vec3 glow; uniform float strength;"+
-      "varying vec3 vN; varying vec3 vP;"+
-      "void main(){ float rim=1.0-abs(dot(normalize(vN),normalize(-vP)));"+
-      "float a=pow(clamp(rim,0.0,1.0),2.6)*strength;"+
-      "gl_FragColor=vec4(glow,a); }"
+      "uniform float inner; uniform float shellR;"+
+      "varying vec3 vP; varying vec3 vC;"+
+      "void main(){"+
+      "  float dC=length(vC);"+
+      "  vec3 dir=normalize(vP);"+
+      "  float sinA=length(cross(dir,vC/dC));"+
+      "  float sinShell=clamp(shellR/dC,1e-4,1.0);"+
+      "  float b=clamp(sinA/sinShell,0.0,1.0);"+
+      "  float a;"+
+      /* Continuous at the horizon: the haze over the disc rises to
+       * exactly the value the arc starts at, so there is no step to see
+       * where one becomes the other. */
+      "  if(b<inner){ float k=b/max(inner,1e-3); float k3=k*k*k; a=k3*k3; }"+
+      "  else { float u=(b-inner)/max(1.0-inner,1e-4);"+
+      "         a=pow(1.0-u,2.2)*exp(-u*1.6); }"+
+      "  gl_FragColor=vec4(glow,a*strength);"+
+      "}"
   }));
 limbAtmo.renderOrder=-9;limbAtmo.visible=false;shell.add(limbAtmo);
 
@@ -2168,7 +2202,7 @@ const limbCloudU={
   tint:{value:new THREE.Color(0xffffff)},
   sunWorld:limbBodyU.sunWorld, ambient:{value:new THREE.Color(0x3a4a60)}
 };
-const limbCloud=new THREE.Mesh(new THREE.SphereGeometry(1,72,44),
+const limbCloud=new THREE.Mesh(new THREE.SphereGeometry(1,192,72),
   new THREE.ShaderMaterial({
     uniforms:limbCloudU,transparent:true,depthWrite:false,side:THREE.FrontSide,
     vertexShader:
@@ -2254,8 +2288,23 @@ function updateLimb(dt,alt,fade){
      * up to the eye, which is also the honest shape of the thing: the
      * lit arc you can see above the horizon IS the air you have climbed
      * above, and at ten kilometres there is almost none of it below you. */
-    const ar=Math.min(1.035*r, r+0.86*(LIMB_D-r));
-    limbAtmo.scale.setScalar(ar/1.035);
+    /* Room to fade. At a flat 3.5% there was nowhere for the glow to go,
+     * so it had to stop while it was still bright. Twelve per cent above
+     * the surface is about 85 km at Earth's modelled radius, which is the
+     * right order for the visible airglow, and the same guard still keeps
+     * the shell from ever reaching the eye. */
+    /* Room to fade. At a flat 3.5% there was nowhere for the glow to go,
+     * so it had to stop while it was still bright. The same guard as
+     * before keeps the shell from ever reaching the eye. */
+    const ar=Math.min(1.16*r, r+0.86*(LIMB_D-r));
+    limbAtmo.scale.setScalar(ar);
+    limbAtmoU.shellR.value=ar;
+    /* Half a per cent inside the body's own edge. The proxy sphere is
+     * seen from 0.7% outside itself, so a horizon that spans a third of
+     * a radian crosses only a handful of its segments and the silhouette
+     * is visibly straight-sided; starting the bright arc just inside the
+     * geometric edge paints over the facets. */
+    limbAtmoU.inner.value=r/ar*0.995;
     /* The rim was snapping on because it was tied to the body's fade, which
      * went 0 to 1 over a couple of kilometres. It now follows ALTITUDE on a
      * smoothstep over the first 30 km: faint haze sitting on the horizon
@@ -3414,7 +3463,8 @@ const FWD=new THREE.Vector3(),UP=new THREE.Vector3();
  * in here without moving anything. Nothing reads it yet. */
 const SEAT2_EYE=new THREE.Vector3(PASSENGER_X,1.10,0.00);
 /* On foot the view is the walker's, not the ship's. */
-const WALK={pos:new THREE.Vector3(),quat:new THREE.Quaternion(),yaw:0,eye:1.15,active:false};
+const WALK={pos:new THREE.Vector3(),quat:new THREE.Quaternion(),yaw:0,eye:1.15,active:false,
+            vy:0,air:false};
 function syncWorld(){
   shipMat.compose(SHIP.pos,SHIP.quat,ONE);
   ship.matrix.copy(shipMat);
@@ -3868,7 +3918,7 @@ async function openSession(spaceType){
   }catch(err){try{await session.end();}catch(e2){}throw err;}
   return session;
 }
-let pendingRecenter=0, snapArmed=false;
+let pendingRecenter=0, snapArmed=false, jumpArmed=false;
 btnVR.addEventListener("click",async()=>{
   Audio_.init();Audio_.resume();
   btnVR.disabled=true;const was=btnVR.textContent;btnVR.textContent="Starter…";
@@ -3973,6 +4023,7 @@ window.addEventListener("keydown",e=>{
     if(e.code==="KeyA"||e.code==="ArrowLeft"){turnWalker(-1);return;}
     if(e.code==="KeyD"||e.code==="ArrowRight"){turnWalker( 1);return;}
   }
+  if(WALK.active&&!e.repeat&&e.code==="Space"){e.preventDefault();jumpWalker();}
   keys[e.code]=true;
   if(e.code==="KeyB")setSkin(currentSkin==="steel"?"black":"steel");
   if(e.code==="KeyM"){const o=["auto","easy","hard"];setMode(o[(o.indexOf(MODE.key)+1)%3]);}
@@ -4052,6 +4103,7 @@ function buildTouchbar(){
     tbFlight.dataset.row=row;tbFlight.innerHTML="";
     if(row==="foot"){
       tbFlight.appendChild(mkBtn("◀ DREJ","",()=>turnWalker(-1)));
+      tbFlight.appendChild(mkBtn("HOP","lit",()=>jumpWalker()));
       tbFlight.appendChild(mkBtn("DREJ ▶","",()=>turnWalker( 1)));
     }else{
       tbFlight.appendChild(mkHold("◀ RAT","KeyA"));
@@ -4363,7 +4415,9 @@ function exitShip(){
     againBtn.group.visible=false;hyperBtn.group.visible=false;landBtn.group.visible=false;
     if(terrainKey)ensureChunks(terrainKey,WALK.pos.x,WALK.pos.z);
     log("UDENFOR");
-    showMsg("Du står ved "+where+". Peg på jorden og tryk for at hoppe derhen.");
+    showMsg("Du står ved "+where+". Peg på jorden og tryk for at hoppe derhen"+
+      (renderer.xr.isPresenting?" — eller tryk A for at springe."
+                               :" — eller tryk HOP (mellemrum) for at springe."));
   });
 }
 function enterShip(){
@@ -4422,6 +4476,24 @@ function walkMove(dx,dz,dt){
   WALK.pos.z+=(fz*dz+rz*dx)/Math.max(1,m)*SP*dt;
   walkSpeed+=(1-walkSpeed)*Math.min(1,dt*6);
 }
+/* ---------- the hop ----------
+ * Landing in a crater on Mars left nowhere to aim the teleport ray: it
+ * marches 90 m and the rim swallows it, so there was no way out but to
+ * fly again. A jump fixes that and is the best thing about low gravity
+ * anyway — the same push carries you three times as far on the Moon as
+ * it does at home, which is worth feeling rather than being told. */
+function jumpWalker(){
+  if(!WALK.active||WALK.air)return;
+  const g=(St.dest?DEST[St.dest].grav:9.8);
+  /* A fixed push would put you 15 m up on the Moon and barely off the
+   * ground on Earth. Aim instead for a set height per world — high
+   * enough to clear a crater rim, low enough that coming down is not a
+   * drop — and solve for the speed that gets there. */
+  const want=THREE.MathUtils.clamp(20/g,1.5,5.5);
+  WALK.vy=Math.sqrt(2*g*want);
+  WALK.air=true;
+  Audio_.click();
+}
 function updateEVA(dt){
   St.thrust=0;St.speed=0;
   /* Arrow keys on a keyboard: up and down walk, left and right turn.
@@ -4431,7 +4503,18 @@ function updateEVA(dt){
   /* Feet follow the height field every frame, so slopes are walked up and
    * the village is something you stand among rather than fly past. */
   const h=walkH(WALK.pos.x,WALK.pos.z);
-  WALK.pos.y+=((h+WALK.eye)-WALK.pos.y)*Math.min(1,dt*9);
+  if(WALK.air){
+    const g=(St.dest?DEST[St.dest].grav:9.8);
+    WALK.vy-=g*dt;
+    WALK.pos.y+=WALK.vy*dt;
+    if(WALK.vy<=0&&WALK.pos.y<=h+WALK.eye){
+      WALK.pos.y=h+WALK.eye;WALK.vy=0;WALK.air=false;
+    }
+  }else{
+    /* Feet follow the height field every frame, so slopes are walked up
+     * and the village is something you stand among rather than fly past. */
+    WALK.pos.y+=((h+WALK.eye)-WALK.pos.y)*Math.min(1,dt*9);
+  }
   St.alt=0;
   if(MAPAT.live){
     setBeams([{x:MAPAT.x,z:MAPAT.z}],MAPAT.key);
@@ -4459,7 +4542,9 @@ function updateEVA(dt){
   Audio_.wind((St.dest?DEST[St.dest].atmo:.6)*.25,12);
   /* The same comfort vignette the ship gets, now that the feet can move
    * under their own power. */
-  const wantV=renderer.xr.isPresenting?walkSpeed*0.42:0;
+  /* Vertical motion is the least comfortable kind in a headset, so the
+   * hop gets more of the vignette than walking does. */
+  const wantV=renderer.xr.isPresenting?Math.max(walkSpeed*0.42,WALK.air?0.5:0):0;
   vignette.material.opacity+=(wantV-vignette.material.opacity)*Math.min(1,dt*3);
   shaker.position.set(0,0,0);
   syncWorld();
@@ -4631,8 +4716,12 @@ function updateFlight(dt){
      * the screen. Ease the look up to the glass for the duration — not in
      * the headset, where moving someone's head for them is how you make
      * them ill, and not while they are dragging the view themselves. */
-    if(!renderer.xr.isPresenting&&!dragging&&pitch<-.06)
-      pitch=Math.min(-.06,pitch+dt*.55);
+    if(!renderer.xr.isPresenting&&!dragging){
+      if(pitch<-.06)pitch=Math.min(-.06,pitch+dt*.55);
+      /* and square up: looking off to one side puts the tunnel against
+       * the window frame instead of down the middle of it. */
+      if(Math.abs(yaw)>.01)yaw-=Math.sign(yaw)*Math.min(Math.abs(yaw),dt*.8);
+    }
     const ramp=Math.min(1,St.warpT/1.4);
     const fall=St.warpT>3.0?Math.max(0,1-(St.warpT-3.0)/1.1):1;
     const intensity=ramp*fall;
@@ -4650,14 +4739,19 @@ function updateFlight(dt){
        * on a cube curve, so it comes at the glass hard and settles. */
       St.arrive=1;
       SHIP.pos.set(0,0,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();
-      bodyMesh.position.copy(BODY_POS);bodyMesh.visible=true;
+      /* Placed out there straight away. Setting it at its final distance
+       * here and only pushing it out on the next frame showed the planet
+       * at full size for one frame before it jumped away and flew back
+       * in, which read as a flash. */
+      bodyMesh.position.copy(BODY_POS);bodyMesh.position.z-=d.radius*30;
+      bodyMesh.visible=true;
       /* Guldplaneten used to arrive as a live Mandelbulb: a turning
        * fractal blob rather than somewhere you could imagine landing.
        * It is a globe now like the other two, and the fractals do their
        * work in its map instead — two Julia sets, one drawing the
        * coastlines and one the filigree inland. */
       if(St.dest==="gold")log("GULDPLANETEN I SIGTE");
-      if(bodyHalo){bodyHalo.position.copy(BODY_POS);bodyHalo.visible=true;}
+      if(bodyHalo){bodyHalo.position.copy(bodyMesh.position);bodyHalo.visible=true;}
       landBtn.group.visible=true;setLimb(null);
       log("ANKOMST");
       showMsg(auto?"Autopiloten flyver ind.":"Flyv ind mod "+d.name+" — tryk LAND når du vil ned.");
@@ -5035,6 +5129,13 @@ renderer.setAnimationLoop(()=>{
         if(Math.abs(sx)>.7&&!snapArmed){
           WALK.yaw-=Math.sign(sx)*Math.PI/6;snapArmed=true;Audio_.click();
         }else if(Math.abs(sx)<.3)snapArmed=false;
+      }
+      /* The lower face button — A on the right hand, X on the left, the
+       * same button under the thumb either way — jumps. Taken from both
+       * controllers so it does not matter which hand is free. */
+      if(WALK.active&&gp.buttons&&gp.buttons[4]){
+        if(gp.buttons[4].pressed){if(!jumpArmed){jumpArmed=true;jumpWalker();}}
+        else jumpArmed=false;
       }
     }
   }catch(e){}
