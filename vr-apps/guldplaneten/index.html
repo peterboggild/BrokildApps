@@ -5055,8 +5055,11 @@ const fade=(function(){
 })();
 let fadeAmt=0, fadeDir=0, fadePending=null;
 function blink(action){                 // fade out, do it, fade back in
-  if(fadePending)return;
-  fadePending=action;fadeDir=1;
+  /* A press that lands mid-fade used to be dropped on the floor, so
+   * "GÅ UD" then "GÅ IND" in quick succession could leave you outside
+   * with the cockpit switched on. The latest intent simply wins. */
+  fadePending=action;
+  if(fadeDir<=0)fadeDir=1;
 }
 function updateFade(dt){
   if(fadeDir===0&&fadeAmt<=0)return;
@@ -5654,16 +5657,30 @@ function exitShip(){
   });
 }
 function enterShip(){
-  cockpitVisible(true);
-  if(!WALK.active)return;
-  /* Only from arm's reach of the ladder, so the marker is a door and not a
-   * teleport-home button you can hit from the next valley. */
+  if(!WALK.active){cockpitVisible(true);return;}
+  /* The console and the yoke are enormous, and out on the apron they are
+   * not inside a hull - they are a white wall you can walk into, and then
+   * the world is black. So they are switched on only once you are really
+   * aboard, inside the fade, never on the way there. */
   _v.set(-4.25,-1.25,-1.30).applyQuaternion(SHIP.quat).add(SHIP.pos);
-  if(_v.distanceTo(WALK.pos)>14){
-    Audio_.bad();showMsg("For langt fra lugen — hop tættere på skibet først.");
+  const away=_v.distanceTo(WALK.pos);
+  /* The game opens 18 m from the ladder, so a strict door refuses the very
+   * first thing a child presses. Beyond reach the button walks you to the
+   * hatch instead: it always does something, and you are never stranded. */
+  if(away>30){
+    const dx=_v.x-WALK.pos.x, dz=_v.z-WALK.pos.z, L=Math.hypot(dx,dz)||1;
+    blink(()=>{
+      WALK.pos.x=_v.x-dx/L*3.2;WALK.pos.z=_v.z-dz/L*3.2;
+      WALK.pos.y=walkH(WALK.pos.x,WALK.pos.z)+WALK.eye;
+      WALK.yaw=Math.atan2(-dx,-dz);
+      if(terrainKey)ensureChunks(terrainKey,WALK.pos.x,WALK.pos.z);
+      showMsg("Du står ved lugen — tryk på GÅ IND igen for at komme ombord.",6);
+    });
+    Audio_.click();
     return;
   }
   blink(()=>{
+    cockpitVisible(true);
     WALK.active=false;
     St.phase=St.dest?"landed":"preflight";
     enterMark.visible=false;tpMark.group.visible=false;
@@ -6069,7 +6086,8 @@ function updateFlight(dt){
     }
   }
 
-  if(ph==="approach"){
+  if(ph==="approach"&&!DEST[St.dest]){St.phase="space";}
+  else if(ph==="approach"){
     const d=DEST[St.dest];
     if(auto){aimAt(BODY_POS,dt*1.2);autoThrottle(.6,dt);}
     else steer(1);
@@ -6441,7 +6459,19 @@ try{
 
 let screenClock=0;
 const clock=new THREE.Clock();
+let frameFault=0;
 renderer.setAnimationLoop(()=>{
+  try{ frame(); }
+  catch(e){
+    /* A thrown frame used to kill the loop for good: the fade stayed at
+     * full black, nothing moved, and the only way out was taking the
+     * headset off. Now the frame is abandoned and the next one tries
+     * again, so a bug costs a stutter instead of the whole trip. */
+    if(frameFault++<3){console.error("frame fault:",e);log("GLITCH");}
+    try{renderer.render(scene,camera);}catch(e2){}
+  }
+});
+function frame(){
   const dt=Math.min(.05,clock.getDelta());
   /* The markers are rebuilt from nothing every frame: whatever wants one
    * claims a slot, and whatever is left over is switched off. */
@@ -6507,7 +6537,8 @@ renderer.setAnimationLoop(()=>{
   screenClock+=dt;
   /* The HUD is on the glass while there is ground to hit and nowhere
    * else, so it is never in the way of the view it is there to serve. */
-  const wantHud=(!WALK.active&&(ph==="descent"||ph==="landed"||ph==="ignition"||ph==="ascent"));
+  const _hp=St.phase;
+  const wantHud=(!WALK.active&&(_hp==="descent"||_hp==="landed"||_hp==="ignition"||_hp==="ascent"));
   landHud.mesh.visible=wantHud;
   if(screenClock>.14){
     screenClock=0;drawStatus();if(St.dest)drawMap();
@@ -6528,9 +6559,13 @@ renderer.setAnimationLoop(()=>{
     stars.rotation.y+=dt*.002;
     deepSky.rotation.y=stars.rotation.y;
   }
+  /* Single source of truth: the console and yoke exist exactly when you
+   * are sitting at them. Commanded visibility could drift out of step
+   * with where you actually were; derived visibility cannot. */
+  cockpitVisible(!WALK.active);
   markFlush();
   renderer.render(scene,camera);
-});
+}
 </script>
 </body>
 </html>
