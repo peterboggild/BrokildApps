@@ -797,6 +797,8 @@ box(1.9,.52,.1,M.hullDark,0,.40,-.80);
  * ------------------------------------------------------------------ */
 const GEAR=5.0;                 // gear height: ground sits at ship-local -GEAR
 const PAD_Y=GEAR+0.4;           // resting height on the launch pad
+const APRON_R=165;              // Jorden: dead flat out to here — pad, towers, hangars
+const SEA_Y=-16;                // Jorden: anything below this is water
 const hullExt=new THREE.Group();ship.add(hullExt);
 const HULL={glow:null,beacon:null,beaconMat:null};
 (function buildExterior(){
@@ -1544,7 +1546,7 @@ const DEST={
    * the site stays switched on all the way down. */
   earth:{name:"Jorden",orb:"#4f9ae0",orbHi:"#dff0ff",orbLo:"#06203a",
         dist:0,radius:900,grav:9.8,hud:"#9fd0ff",
-        sky:0x1f5fa8,ground:0x6f8f4a,amp:0,atmo:1.0,tex:null}
+        sky:0x1f5fa8,ground:0x6f8f4a,amp:1,atmo:1.0,tex:null}
 };
 /* ------------------------------------------------------------------ *
  *  Two ways to play.
@@ -2100,13 +2102,24 @@ let siteGround=null;
     }
     return c;
   })();
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),
-    new THREE.MeshStandardMaterial({map:tex(gtex,220),roughness:1,
-      transparent:true,opacity:1}));
-  ground.rotation.x=-Math.PI/2;site.add(ground);siteGround=ground;
+  /* Was a flat 9 km plane, which is what the whole of Jorden used to be.
+   * Now it is just the apron: concrete out to the edge of the flat zone
+   * in groundH, with the field taking over beyond it. */
+  /* Was a flat 9 km plane, which is what the whole of Jorden used to be.
+   * Now it is just the apron: concrete out to the edge of the flat zone
+   * in groundH, with the field taking over beyond it. It lies exactly ON
+   * the terrain rather than above it — polygonOffset is what decides
+   * which of two coplanar surfaces wins, and nudging one up in Y instead
+   * puts the ship's feet through it. */
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(APRON_R+6,56),
+    new THREE.MeshStandardMaterial({map:tex(gtex,9),roughness:1,
+      color:0x7f868e,transparent:true,opacity:1,
+      polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
+  ground.rotation.x=-Math.PI/2;ground.position.y=0;site.add(ground);siteGround=ground;
   const pad=new THREE.Mesh(new THREE.CylinderGeometry(26,28,.6,24),
-    new THREE.MeshStandardMaterial({color:0x6e7279,roughness:.95,roughnessMap:wear}));
-  pad.position.y=.1;site.add(pad);
+    new THREE.MeshStandardMaterial({color:0x6e7279,roughness:.95,roughnessMap:wear,
+      polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6}));
+  pad.position.y=.1;site.add(pad);   // the apron under it is at 0.40
   const steel=new THREE.MeshStandardMaterial({color:0x8a4a2c,roughness:.7,metalness:.4,roughnessMap:wear});
   [[-18,-12],[17,-15],[-14,16]].forEach(p=>{
     const t=new THREE.Mesh(new THREE.BoxGeometry(2.4,34,2.4),steel);
@@ -2121,13 +2134,8 @@ let siteGround=null;
       new THREE.MeshStandardMaterial({color:0x4a5663,roughness:.85,roughnessMap:wear}));
     m.position.set(h[0],4.5,h[2]);site.add(m);
   });
-  const hillMat=new THREE.MeshStandardMaterial({flatShading:true,roughness:1,
-    color:new THREE.Color(EARTH_SITE.r/255*0.72,EARTH_SITE.g/255*0.72,EARTH_SITE.b/255*0.72)});
-  for(let i=0;i<20;i++){
-    const a=Math.random()*Math.PI*2,r=380+Math.random()*900,hh=34+Math.random()*120;
-    const m=new THREE.Mesh(new THREE.ConeGeometry(70+Math.random()*150,hh,6),hillMat);
-    m.position.set(Math.cos(a)*r,hh/2-4,Math.sin(a)*r);site.add(m);
-  }
+  /* The twenty random cones that used to stand in for scenery are gone:
+   * there is a real height field out there now, and they stood in it. */
 })();
 /* ---------- the limb ---------- *
  *  The view back down is the whole reason to leave the ground, so it is
@@ -2552,8 +2560,87 @@ function craters(x,z,cell,depth){
  * shimmer as chunks stream past; its own gradient peaks near 8 degrees,
  * so it roughens the ground without making anywhere unlandable. */
 function detail(x,z){return (noiseC(x/44+5,z/44,2)-.5)*4.0;}
+/* ---------- home ----------
+ *  Jorden used to be a flat 9 km plane with twenty cones scattered on it,
+ *  which was fine when it was somewhere you left in the first thirty
+ *  seconds and never looked at again — but the other three worlds grew
+ *  real ground, and the launch site ended up the least interesting place
+ *  in the game.
+ *
+ *  So it is a heightfield like the rest, with three rules of its own: the
+ *  apron is dead flat so the pad and the towers sit true; the land stays
+ *  level for the first few hundred metres so the site is on open ground
+ *  rather than in a hole; and the ranges hold off until a kilometre out,
+ *  which puts them where you see them — on the skyline, out of the
+ *  windscreen, from the seat.
+ */
 function groundH(key,x,z){
-  if(key==="earth")return 0;            // the apron is flat, and it is a plane
+  if(key==="earth"){
+    const d=Math.hypot(x,z);
+    /* The pad is a slab standing 40 cm proud of the apron, and the apron
+     * is level with the field. Both used to be drawn as separate meshes
+     * over a ground plane at zero; now the height field has to agree
+     * with them or the ship sinks into the concrete. */
+    if(d<27)return 0.40;
+    if(d<APRON_R)return 0;
+    /* Lowlands held down near the site, so the first lake is a walk away
+     * and not at the end of the runway. */
+    const near=THREE.MathUtils.clamp((d-APRON_R)/620,0,1);
+    const base=(noiseA(x/1400+31,z/1400,5)-.5)*205*near;
+    /* Two scales of ground as well: hummocks you walk over and the
+     * ripple on top of them. One alone was a billiard table with a
+     * ridge painted on the far edge. */
+    const hump=(noiseC(x/700+17,z/700,4)-.5)*62*near;
+    const roll=(noiseB(x/330+7,z/330,4)-.5)*26;
+    /* Two scales, because one was not a mountain range: the coarse
+     * ridged field lays down where the chains RUN, and the fine one puts
+     * crags along them. One alone gave scattered mesas. Held beyond
+     * seven hundred metres either way — mountains you fly towards, not
+     * mountains in the car park. */
+    /* Full height by two kilometres, not three: at the old ramp the
+     * range only reached its peak beyond the point where it was five
+     * degrees tall, so from the pad it was a smudge on the skyline. */
+    /* Noise alone would not promise a mountain in any given direction,
+     * and from a launch pad you look in one direction at a time. So the
+     * valley has a wall around it: a broad band of high ground whose
+     * distance wanders between about 2.7 and 4.5 km with the bearing,
+     * shaped by the same ridged field that crags everything else. Noise
+     * decides what it looks like; the band decides that it is there. */
+    const ang=Math.atan2(z,x);
+    const rd=3500+(noiseA(Math.cos(ang)*2.6+11,Math.sin(ang)*2.6,3)-.5)*1900;
+    /* And it is not the same height all the way round, or it is a rim
+     * rather than a range: low saddles in some bearings, big peaks in
+     * others. */
+    /* Clamped at zero at the bottom of its range, so some bearings have
+     * no wall at all. Without that it was a crater rim: a continuous
+     * donut three kilometres thick with the launch site in the hole. */
+    const amp=Math.max(0,-0.22+1.45*noiseC(Math.cos(ang)*1.7+31,Math.sin(ang)*1.7,3));
+    const band=Math.exp(-Math.pow((d-rd)/1250,2))*amp;
+    const crag=Math.pow(ridged(noiseB,x/520+21,z/520,5,2.11,.5),1.4);
+    const belt=Math.pow(ridged(noiseC,x/2500+5,z/2500,3,2.0,.55),1.0);
+    const far=THREE.MathUtils.clamp((d-700)/1100,0,1);
+    const range=(band*(0.40+0.60*crag)*1150+belt*crag*620)*far*far;
+    /* And the whole field lifted clear of the waterline. Without this
+     * the land outside the apron swung a hundred metres either side of
+     * zero against a sea at -16, so most of the valley was under water
+     * and the ranges read as islands floating on a bright ocean — which
+     * is exactly what the first render of this showed. Lakes now form
+     * only where a basin is genuinely deep. */
+    const lift=30*near;
+    /* Two lakes placed rather than hoped for, for the same reason the
+     * mountains are: noise will not promise you water where you can see
+     * it. One a walk from the pad, one out towards the ranges. Basins
+     * carved into the field — the sea plane does the rest. */
+    const bowl=(cx,cz,rr,dd)=>{
+      const q=Math.hypot(x-cx,z-cz)/rr;
+      return q>2.2?0:-Math.exp(-q*q)*dd;
+    };
+    const lakes=bowl(-640,520,330,86)+bowl(980,900,420,112);
+    const h=lift+base+hump+roll+range+lakes+detail(x,z)*.5;
+    const k=THREE.MathUtils.clamp((d-APRON_R)/300,0,1);
+    const ks=k*k*(3-2*k);
+    return h*ks;
+  }
   const A=DEST[key].amp;
   if(key==="moon"){
     return ((noiseA(x/900+11,z/900,5)-.5)*210+ridged(noiseB,x/520,z/520,4)*95
@@ -2597,6 +2684,98 @@ const skirt=new THREE.Mesh(new THREE.CircleGeometry(4000,40),
   new THREE.MeshBasicMaterial({color:0x9d9d9d,transparent:true,opacity:1}));
 skirt.rotation.x=-Math.PI/2;skirt.visible=false;terrainRoot.add(skirt);
 
+/* ---------- water, and the far ranges ----------
+ * The chunk ring reaches 1.4 km and then the skirt takes over as a flat
+ * disc, which on a world with mountains is the one thing you must not
+ * do. So Jorden gets a far shell: the same height field, sampled coarse,
+ * from the edge of the chunks out to nine kilometres. Rings spaced by a
+ * power law, so it is dense where it meets the chunks and sparse where
+ * it is three pixels tall. One mesh, one draw call, built once — the pad
+ * never moves, so it never needs rebuilding.
+ *
+ * And a sheet of water at sea level, which turns every basin in that
+ * field into a lake without anything having to decide where lakes go. */
+const seaPlane=new THREE.Mesh(new THREE.CircleGeometry(9200,48),
+  /* Unlit. A lit sheet this size is all Fresnel at the angles you
+   * actually see it from — grazing, from the air — so however rough or
+   * dark the material, every lake came out a disc of white paper. Water
+   * at this scale is the sky reflected in it anyway, so it is simply
+   * painted that colour and never asked what the sun is doing. */
+  new THREE.MeshBasicMaterial({color:0x27618c,transparent:true,opacity:.92}));
+seaPlane.rotation.x=-Math.PI/2;seaPlane.position.y=SEA_Y;
+seaPlane.visible=false;world.add(seaPlane);
+let farRing=null;
+function buildFarRing(key){
+  if(farRing){world.remove(farRing);farRing.geometry.dispose();farRing=null;}
+  /* Starts INSIDE the chunk ring, not at its edge: the chunks stream in
+   * a slice at a time, and for the second or two before they are all
+   * there a shell that began exactly where they end left a hole in the
+   * world. The chunks are nearer, so they simply draw over it. */
+  const R0=620, R1=9000, NR=52, NA=156;
+  const verts=(NR+1)*NA;
+  const pos=new Float32Array(verts*3), col=new Float32Array(verts*3);
+  const idx=[];
+  const c3=new Float32Array(3);
+  for(let i=0;i<=NR;i++){
+    const t=i/NR, rr=R0+(R1-R0)*Math.pow(t,2.1);
+    for(let j=0;j<NA;j++){
+      const a=j/NA*Math.PI*2, x=Math.cos(a)*rr, z=Math.sin(a)*rr;
+      const h=groundH(key,x,z);
+      const k=(i*NA+j)*3;
+      pos[k]=x;pos[k+1]=h;pos[k+2]=z;
+      /* Steepness from a pair of samples, and the colour hazed towards
+       * the sky with distance so the ranges sit back where they belong. */
+      const e=rr*0.012+6;
+      const gx=(groundH(key,x+e,z)-groundH(key,x-e,z))/(2*e);
+      const gz=(groundH(key,x,z+e)-groundH(key,x,z-e))/(2*e);
+      const sl=Math.hypot(gx,gz);
+      earthColor(h,sl,c3,0,x,z);
+      /* The shell is drawn unlit, because at four kilometres what you
+       * see is haze and not lambert — but unlit with no shading at all
+       * turned the ranges into flat black cutouts, so the sun is baked
+       * into the colour from the slope instead. */
+      const L=Math.hypot(gx,1,gz);
+      const lam=Math.max(0,(-gx*-0.38+1*0.51+-gz*-0.77)/L);
+      const lit=0.52+0.78*lam;
+      c3[0]*=lit;c3[1]*=lit;c3[2]*=lit;
+      /* Aerial perspective, and a lot of it: without this the ranges
+       * read as a brown wall a hundred metres away instead of rock five
+       * kilometres off. */
+      /* A floor on the haze as well as a ramp: the near edge of the far
+       * shell was coming out as a black rim where ridges turned away
+       * from the sun, which reads as a wall rather than as distance. */
+      /* Much less of it than I first put in. At 0.78 the rock washed
+       * into the sky and only the snow survived, which left a pale
+       * ribbon hanging over the green with no mountain under it. */
+      const haze=0.04+Math.pow(THREE.MathUtils.clamp((rr-900)/5600,0,1),.9)*0.30;
+      col[k]  =s2l(c3[0]+(0.40-c3[0])*haze);
+      col[k+1]=s2l(c3[1]+(0.54-c3[1])*haze);
+      col[k+2]=s2l(c3[2]+(0.72-c3[2])*haze);
+    }
+  }
+  for(let i=0;i<NR;i++)for(let j=0;j<NA;j++){
+    const a=i*NA+j, b=i*NA+(j+1)%NA, c=(i+1)*NA+j, d=(i+1)*NA+(j+1)%NA;
+    idx.push(a,c,b, b,c,d);
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute("position",new THREE.BufferAttribute(pos,3));
+  geo.setAttribute("color",new THREE.BufferAttribute(col,3));
+  geo.setIndex(idx);geo.computeVertexNormals();geo.computeBoundingSphere();
+  /* DoubleSide. The ring is built as triangle pairs round a circle and
+   * the winding came out inverted, so every slope facing away was culled
+   * and the ranges hung in the air with sky showing under them. The
+   * material is unlit, so drawing both faces costs nothing and no
+   * winding mistake can ever punch a hole in the horizon again. */
+  farRing=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({
+    vertexColors:true,side:THREE.DoubleSide}));
+  farRing.renderOrder=-1;world.add(farRing);
+  return farRing;
+}
+function setHomeScenery(on){
+  seaPlane.visible=on;
+  if(on&&!farRing)buildFarRing("earth");
+  if(farRing)farRing.visible=on;
+}
 function villageAt(key,ci,cj){
   /* Settlements belong to the map, not the moment: the same chunk always
    * produces the same village, so flying away and back finds it unchanged. */
@@ -2636,7 +2815,67 @@ function grainMap(){
   if(!_grain)_grain=tex(grainTexture(),CH/90);    // a 90 m tile: finer and it repeats visibly
   return _grain;
 }
+/* Jorden is the one world that is not one colour. Shore, grass, bare
+ * rock on anything steep, and snow on the tops — carried in the chunk's
+ * own colour attribute, so a valley of fields running up into grey
+ * crags with white caps still draws in one call per chunk. */
+/* Vertex colours are multiplied in LINEAR space — three does no sRGB
+ * conversion on them the way it does on a material colour or a texture.
+ * Authored as sRGB and handed over raw, 0.21 arrives as 0.49: every
+ * green came out a pale sage and the rock came out off-white. These are
+ * written as sRGB and converted on the way into the buffer. */
+function s2l(v){return v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4);}
+const _ec=new THREE.Color();
+function earthColor(h,slope,out3,at,x,z){
+  let r,g,b;
+  /* A snowline at one fixed height turned the whole ring white in a
+   * continuous ribbon, which reads as weather rather than as mountains.
+   * It wanders with the ground instead, so the caps are caps. */
+  const line=700+((x===undefined)?0:(noiseB(x/420+9,z/420,3)-.5)*300);
+  const snow=THREE.MathUtils.clamp((h-line)/220,0,1);
+  const rock=THREE.MathUtils.clamp((slope-0.34)/0.30,0,1);
+  const shore=1-THREE.MathUtils.clamp((h-SEA_Y)/16,0,1);   // only used above water
+  const dry=THREE.MathUtils.clamp((h-60)/260,0,1);
+  /* Grass, drying to scrub with altitude, and patchy: one flat green
+   * over a whole county reads as felt. */
+  /* Gentle and broad. At a 190 m wavelength and this strength it read
+   * as camouflage rather than as fields. */
+  const p=(x===undefined)?0:(noiseB(x/430+3,z/430,3)-.5);
+  r=0.21+0.20*dry+p*.045; g=0.33-0.05*dry+p*.05; b=0.13+0.09*dry+p*.02;
+  // bare rock where it is steep
+  r+=(0.42-r)*rock; g+=(0.40-g)*rock; b+=(0.38-b)*rock;
+  // sand at the waterline — but only ABOVE it. Below the line the same
+  // term painted the whole lake bed bright sand, and a bright bed under
+  // ninety per cent water still comes out as a disc of pale paper.
+  if(h<SEA_Y){ r=0.09; g=0.13; b=0.12; }
+  else { r+=(0.70-r)*shore; g+=(0.63-g)*shore; b+=(0.44-b)*shore; }
+  // snow on the tops, and it sticks to the flats first
+  const sn=snow*(1-rock*0.55);
+  r+=(0.95-r)*sn; g+=(0.96-g)*sn; b+=(0.98-b)*sn;
+  out3[at]=r;out3[at+1]=g;out3[at+2]=b;
+}
 const GMAT=new Map(), BMAT=new Map();
+/* The rock grain is cracks, and cracks on a meadow read as crop circles
+ * however small you tile them. Jorden gets its own: soft mottling, a
+ * little fine grain, and nothing with an edge. */
+function fieldTexture(){
+  const S=256,P=6,c=cvs(S,S),g=c.getContext("2d");
+  const n=tileNoise(1709,P),m=tileNoise(5531,P),img=g.createImageData(S,S),d=img.data;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    const fx=x/S*P,fy=y/S*P;
+    const mot=n(fx,fy,0)*.46+n(fx*2.1,fy*2.1,1)*.30+m(fx*4.3,fy*4.3,2)*.24;
+    const grit=m(fx*17,fy*17,0);
+    let v=.74+mot*.30+grit*.10;
+    v=v<0?0:v>1?1:v;
+    const i=(y*S+x)*4;d[i]=d[i+1]=d[i+2]=v*255|0;d[i+3]=255;
+  }
+  g.putImageData(img,0,0);return c;
+}
+let _field=null;
+function fieldMap(){
+  if(!_field)_field=tex(fieldTexture(),CH/26);
+  return _field;
+}
 function groundMat(key){
   let m=GMAT.get(key);
   if(!m){
@@ -2645,7 +2884,8 @@ function groundMat(key){
      * is no diffuse term left and nothing to reflect, so the whole of
      * Guldplaneten rendered near-black except for one band where the sun
      * glinted off it. It is golden SAND now, with a sheen. */
-    m=new THREE.MeshStandardMaterial({color:d.ground,map:grainMap(),
+    m=new THREE.MeshStandardMaterial({color:key==="earth"?0xffffff:d.ground,
+      map:key==="earth"?fieldMap():grainMap(),vertexColors:key==="earth",
       roughness:key==="gold"?.58:1,metalness:key==="gold"?.22:.02,flatShading:true});
     GMAT.set(key,m);
   }
@@ -2680,8 +2920,33 @@ const CHUNK_MS=2.0;
 const geoPool=[];
 function startChunk(key,ci,cj){
   const geo=geoPool.pop()||new THREE.PlaneGeometry(CH,CH,CSEG,CSEG);
-  return {key:key,ci:ci,cj:cj,geo:geo,pos:geo.attributes.position,
-          row:0,ox:ci*CH,oz:cj*CH};
+  const J={key:key,ci:ci,cj:cj,geo:geo,pos:geo.attributes.position,
+           row:0,crow:0,ox:ci*CH,oz:cj*CH,col:null};
+  if(key==="earth"){
+    let col=geo.attributes.color;
+    if(!col||col.count!==J.pos.count){
+      col=new THREE.BufferAttribute(new Float32Array(J.pos.count*3),3);
+      geo.setAttribute("color",col);
+    }
+    J.col=col;
+  }
+  return J;
+}
+/* One row of Jorden's colours: slope from the four neighbours, then the
+ * palette, then sRGB to linear. Its own phase of the job rather than
+ * part of the finish, because as part of the finish it took a chunk's
+ * worst frame from two milliseconds to eleven. */
+function colourRow(J,r){
+  const W=CSEG+1, pos=J.pos, st=CH/CSEG, arr=J.col.array;
+  for(let c=0;c<=CSEG;c++){
+    const i=r*W+c;
+    const hC=pos.getZ(i);
+    const hL=pos.getZ(r*W+(c>0?c-1:c+1)), hR=pos.getZ(r*W+(c<CSEG?c+1:c-1));
+    const hU=pos.getZ((r>0?r-1:r+1)*W+c), hD=pos.getZ((r<CSEG?r+1:r-1)*W+c);
+    const sl=Math.hypot((hR-hL)/(2*st),(hD-hU)/(2*st));
+    earthColor(hC,sl,arr,i*3,J.ox+pos.getX(i),J.oz-pos.getY(i));
+    arr[i*3]=s2l(arr[i*3]);arr[i*3+1]=s2l(arr[i*3+1]);arr[i*3+2]=s2l(arr[i*3+2]);
+  }
 }
 function finishChunk(J){
   const key=J.key, ci=J.ci, cj=J.cj, ox=J.ox, oz=J.oz;
@@ -2691,6 +2956,7 @@ function finishChunk(J){
    * recomputing 5329 of them per chunk was the single most expensive
    * thing in the build and nothing on screen depended on it. */
   J.pos.needsUpdate=true;
+  if(key==="earth"&&J.col)J.col.needsUpdate=true;
   /* The heights were written after the grid was made, so the plane's own
    * bounding sphere still describes a flat sheet and a chunk whose
    * mountains reach 400 m could be culled while its peaks were on
@@ -2752,6 +3018,7 @@ function buildChunk(key,ci,cj){
     const b=r*W;
     for(let i=0;i<W;i++){const q=b+i;pos.setZ(q,groundH(key,J.ox+pos.getX(q),J.oz-pos.getY(q)));}
   }
+  if(J.col)for(let r=0;r<=CSEG;r++)colourRow(J,r);
   return finishChunk(J);
 }
 function pumpChunks(){
@@ -2770,6 +3037,13 @@ function pumpChunks(){
       for(let i=0;i<W;i++){const q=b+i;pos.setZ(q,groundH(J.key,J.ox+pos.getX(q),J.oz-pos.getY(q)));}
       J.row++;
       if(performance.now()-t0>CHUNK_MS)return;
+    }
+    /* Then the colours, a row at a time, under the same budget. */
+    if(J.col){
+      while(J.crow<=CSEG){
+        colourRow(J,J.crow);J.crow++;
+        if(performance.now()-t0>CHUNK_MS)return;
+      }
     }
     /* Normals and props are the other half of the cost. Measured, a slice
      * that filled its last row and then finished the chunk ran to 5.1 ms
@@ -4178,26 +4452,34 @@ function pressLand(){
   if(!St.dest)return;            // nothing plotted: nothing to land on
   const d=DEST[St.dest];
   const home=(St.dest==="earth");
-  St.phase="descent";terrainKey=home?null:St.dest;St.climbing=false;
+  St.phase="descent";terrainKey=St.dest;St.climbing=false;
   St.seqing=false;
   GAME.beenOut=false;
   const spot=home?{x:0,z:0}:flatSpot(St.dest,0,0,420);
-  St.touchAt=home?null:{x:spot.x,z:spot.z};
+  /* Home has a target too, now that home has terrain. While Jorden was
+   * a flat plane it did not matter where you came down; with hills and
+   * lakes out there, a null target meant the autopilot blind-pushed
+   * forward and set the ship down on a hillside twenty metres up,
+   * nowhere near the pad it launched from. */
+  St.touchAt={x:spot.x,z:spot.z};
   /* Keep the boulders off the chosen ground. The props are scattered when
    * a chunk is built, and a 7 m rock half-sunk in the sand goes straight
    * through the hull of anything that sets down on it. */
-  PAD.x=spot.x;PAD.z=spot.z;PAD.live=!home;
+  PAD.x=spot.x;PAD.z=spot.z;PAD.live=true;
   clearChunks();
   /* Start the run-in a few hundred metres short, along the approach, so
    * there is still a descent to watch. */
   SHIP.pos.set(spot.x,1500,spot.z+430);SHIP.vel.set(0,-26,0);
   SHIP.quat.identity();rotateShip(-.14,0,0);
   SHIP.onGround=false;St.landQuality="";
-  terrainRoot.visible=!home;
+  terrainRoot.visible=true;
+  setHomeScenery(home);
   /* The skirt is unlit and the chunks are not, so at the same hex the far
    * plain read brighter than the ground under your feet and the join
    * between them was a hard line across the landscape. Bank it down to
    * roughly what the lit terrain comes out at. */
+  /* No skirt at home: the far ring reaches nine kilometres and a flat
+   * grey disc under a landscape with lakes in it would be a wall. */
   skirt.visible=!home;skirt.material.color.setHex(d.ground).multiplyScalar(0.78);
   skirt.position.y=-180;
   /* Coming home you land on the apron you left from, with the pad, the
@@ -4297,10 +4579,14 @@ function restartFlight(){
   St.alt=0;St.speed=0;St.bodyDist=0;St.warpT=0;St.arrive=0;centreWarp(false);
   SHIP.pos.set(0,PAD_Y,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();SHIP.onGround=true;
   throttle.value=0;
-  terrainKey=null;clearChunks();PAD.live=false;St.touchAt=null;
+  terrainKey="earth";clearChunks();PAD.live=false;St.touchAt=null;
   clearCores();
   St.seqing=false;
-  terrainRoot.visible=false;skirt.visible=false;alienRoot.visible=false;
+  terrainRoot.visible=true;setHomeScenery(true);
+  for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){
+    const k=i+","+j, g=buildChunk("earth",i,j);chunks.set(k,g);terrainRoot.add(g);
+  }
+  skirt.visible=false;alienRoot.visible=false;
   questRoot.visible=false;bubble.mesh.visible=false;bubble.t=0;trail.visible=false;
   bulb.on=false;bulb.sprite.visible=false;
   clearMarsMap();
@@ -4618,7 +4904,12 @@ function refreshHud(){
 /* The walker needs a floor on Earth too, where there is no height field —
  * just the apron and the raised concrete of the pad. */
 function walkH(x,z){
-  if(terrainKey)return groundH(terrainKey,x,z);
+  if(terrainKey){
+    const h=groundH(terrainKey,x,z);
+    /* Nobody swims in this game. If a foot ever lands below the
+     * waterline it stands on the surface instead of sinking. */
+    return (terrainKey==="earth"&&h<SEA_Y)?SEA_Y:h;
+  }
   return Math.hypot(x,z)<27 ? 0.40 : 0.0;
 }
 
@@ -4722,6 +5013,9 @@ function aimGround(originLocal,dirLocal,maxDist){
       const ft=(lo+hi)/2;
       tpMark.point.set(_ro.x+_rd.x*ft,0,_ro.z+_rd.z*ft);
       tpMark.point.y=walkH(tpMark.point.x,tpMark.point.z);
+      /* And you cannot aim into one either. */
+      if(terrainKey==="earth"&&
+         groundH("earth",tpMark.point.x,tpMark.point.z)<SEA_Y+1.2)return false;
       return true;
     }
     prev=t;prevGap=gap;
@@ -5391,6 +5685,15 @@ function updateFlight(dt){
      * limb has no detail worth seeing from close up. */
     siteGround.material.opacity=1-THREE.MathUtils.clamp((a-3200)/5200,0,1);
     site.visible=a<8800;
+    /* The field goes with the apron. Jorden has real ground now, so the
+     * climb has to put it away the same way it puts the pad away —
+     * otherwise you are at fifty kilometres with a meadow under you and
+     * the limb behind it. The chunks stop streaming at the same point. */
+    const low=a<8800;
+    if(terrainRoot.visible!==low){
+      terrainRoot.visible=low;setHomeScenery(low);
+      if(!low){terrainKey=null;clearChunks();}
+    }
     updateLimb(dt,a,1);
     if(a>110000){
       St.phase="space";menu.visible=true;site.visible=false;
@@ -5624,7 +5927,7 @@ function updateFlight(dt){
        * you as its own limb, and the destination menu comes back up. */
       St.phase="space";menu.visible=true;St.climbing=false;
       terrainKey=null;clearChunks();
-      terrainRoot.visible=false;skirt.visible=false;
+      terrainRoot.visible=false;skirt.visible=false;setHomeScenery(false);
       alienRoot.visible=false;questRoot.visible=false;trail.visible=false;
       bubble.mesh.visible=false;bubble.t=0;
       beams.visible=false;clearMarsMap();
@@ -5834,7 +6137,12 @@ function startOutside(){
   /* Opening on the apron rather than in the seat: you meet the ship at its
    * own scale, walk to the ladder and climb in. Nothing explains how big it
    * is as well as standing under a wing. */
-  WALK.active=true;terrainKey=null;
+  WALK.active=true;terrainKey="earth";
+  terrainRoot.visible=true;setHomeScenery(true);
+  for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){
+    const k=i+","+j;
+    if(!chunks.has(k)){const g=buildChunk("earth",i,j);chunks.set(k,g);terrainRoot.add(g);}
+  }
   WALK.pos.set(-22,0,-4);        // clear of the service towers, three-quarter view
   WALK.pos.y=walkH(WALK.pos.x,WALK.pos.z)+WALK.eye;
   WALK.yaw=Math.atan2(-(SHIP.pos.x-WALK.pos.x),-(SHIP.pos.z-WALK.pos.z));
