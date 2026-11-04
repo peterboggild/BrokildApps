@@ -4331,10 +4331,28 @@ function updateFlight(dt){
       autoThrottle(THREE.MathUtils.clamp(.15-wantSink/70,0,1),dt);
       SHIP.pos.addScaledVector(SHIP.vel,dt);
     }else{
+      /* ---- flying it yourself ----
+       * This was unflyable, and the numbers say why. Thrust was a flat
+       * 72 m/s^2 — seven g, on every world — and lift was 0.58 times the
+       * airspeed with no ceiling at all, so at 450 m/s the wing pulled
+       * twenty-seven g straight up. Half throttle took you from 1500 m to
+       * 10 km in thirty seconds. With the throttle shut you did sink, but
+       * drag capped it at 17 m/s, so from entry height nothing appeared
+       * to happen for a minute and a half. Climb like a rocket or hang
+       * there: no landing in between.
+       *
+       * Now: thrust scales with the world's gravity, so it is the same
+       * handful of g everywhere. Lift SATURATES — it is a wing, not an
+       * engine — and it needs air, so the Moon is flown on thrust alone
+       * and Earth almost holds itself up. At full lift Let sits a little
+       * over its own weight and Svaer a little under, which is the whole
+       * difference between the two. */
       steer(1);
       const spd=SHIP.vel.dot(FWD);
-      _v.copy(FWD).multiplyScalar(St.thrust*72);
-      _v.addScaledVector(UP,Math.max(0,spd)*(0.40+MODE.assist*0.22));
+      _v.copy(FWD).multiplyScalar(St.thrust*d.grav*2.4);
+      const air=0.35+0.65*d.atmo;
+      const lift=THREE.MathUtils.clamp(Math.max(0,spd)/38,0,1);
+      _v.addScaledVector(UP,lift*air*d.grav*(0.85+MODE.assist*0.35));
       _v.y-=d.grav;
       _v.addScaledVector(SHIP.vel,-0.26*(d.atmo*.6+.5));
       SHIP.vel.addScaledVector(_v,dt);
