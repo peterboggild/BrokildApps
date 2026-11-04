@@ -268,14 +268,60 @@ function marsTexture(){
   g.putImageData(img,0,0);return c;
 }
 function goldTexture(){
-  const W=640,H=320,c=cvs(W,H),g=c.getContext("2d");
-  const f=escapeField(W,H,-0.74543,0.11301,1.15,64);
+  /* Guldplaneten used to be one Julia set smeared over the whole globe at
+   * 640 px: pretty, but a wash rather than a world. It is a planet now,
+   * and the fractal is what draws it — the coarse set cuts the coastlines
+   * between violet seas and gold land, and a second, finer set runs the
+   * filigree inside the land the way river systems would. Caps at the
+   * poles, and the same resolution Earth gets. */
+  const W=1024,H=512,c=cvs(W,H),g=c.getContext("2d");
+  const A=escapeField(W,H,-0.74543,0.11301,1.30,90);
+  const B=escapeField(W,H,-0.70176,-0.3842,2.70,48);
   const img=g.createImageData(W,H),d=img.data;
-  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-    const t=Math.pow(f[y*W+x],.42), grain=noiseA(x/6,y/6,3)*.18, i=(y*W+x)*4;
-    d[i]=Math.min(255,(60+195*t)*(1+grain*.4));
-    d[i+1]=Math.min(255,(34+168*t*t)*(1+grain*.3));
-    d[i+2]=Math.min(255,(12+70*t*t*t));d[i+3]=255;
+  const ok=v=>(v>=0&&v<=1)?v:(v>1?1:0);     // the smooth escape can go NaN
+  /* Both sets are measured before they are used. A Julia field is not
+   * centred on a half, so adding it raw to the height biased the whole
+   * globe one way: weighted towards noise it made smooth brown blobs,
+   * weighted towards the set it made one continent the shape of the set
+   * with an empty ocean round it. Subtracting the mean makes it detail
+   * rather than landmass. */
+  let mA=0,mB=0;
+  for(let i=0;i<W*H;i++){mA+=Math.pow(ok(A[i]),.46);mB+=ok(B[i]);}
+  mA/=W*H;mB/=W*H;
+  for(let y=0;y<H;y++){
+    const lat=Math.abs(y/H-.5)*2;
+    for(let x=0;x<W;x++){
+      const i=y*W+x;
+      /* Noise decides WHERE there is land. The two sets then act only
+       * near the waterline — strongest exactly at the coast and fading
+       * to nothing in deep ocean and far inland — so every shore on the
+       * globe is cut by the fractal instead of one of them being the
+       * fractal and the rest being empty. */
+      const frac=Math.pow(ok(A[i]),.46), b=ok(B[i]);
+      const spread=noiseA(x/78+11,y/78,6);
+      const base=spread-0.47;
+      const coast=1-Math.min(1,Math.abs(base)/0.13);
+      const hgt=base+((frac-mA)*0.62+(b-mB)*0.30)*coast;
+      const grain=noiseA(x/7,y/7,3)-.5;
+      let R,G,Bl;
+      if(hgt>0){
+        const h=Math.min(1,hgt/0.30);
+        /* The fine set as relief: bright where it escapes slowly, so the
+         * land is veined rather than flat. */
+        const fil=0.58+0.42*Math.pow(b,.7);
+        R=(150+105*h)*fil; G=(104+118*h*h)*fil; Bl=(28+60*h*h*h)*fil;
+      }else{
+        const dp=Math.max(0,hgt+0.34)/0.34;
+        R=22+40*dp; G=10+24*dp; Bl=48+96*dp;
+      }
+      R*=1+grain*.16; G*=1+grain*.14; Bl*=1+grain*.12;
+      /* Caps, with a ragged edge rather than a drawn line. */
+      const edge=.80+ (noiseB(x/40,y/40,3)-.5)*.10;
+      if(lat>edge){const k=Math.min(1,(lat-edge)/.15);
+        R+=(238-R)*k; G+=(226-G)*k; Bl+=(198-Bl)*k;}
+      const o=i*4;
+      d[o]=Math.min(255,R);d[o+1]=Math.min(255,G);d[o+2]=Math.min(255,Bl);d[o+3]=255;
+    }
   }
   g.putImageData(img,0,0);return c;
 }
@@ -338,6 +384,28 @@ function reliefTexture(){
     const r3=1-Math.abs(n(fx*4,fy*4,2)*2-1);
     const v=Math.min(255,Math.max(0,(r1*r1*.52+r2*r2*.32+r3*r3*.16)*300));
     const i=(y*S+x)*4;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
+  }
+  g.putImageData(img,0,0);return c;
+}
+/* ---------- ground grain ----------
+ * One tile shared by every world. The material colour tints it, so Moon
+ * grey, Mars rust and Guldplanetens sand all come off the same bitmap and
+ * the terrain still draws in one call per chunk — no extra draw calls, no
+ * per-frame cost, one canvas built at load. Mottling, then thin dark
+ * fissures taken from the crests of a ridged field, then a fine speckle.
+ * The mean sits at white so the tint is modulated rather than replaced. */
+function grainTexture(){
+  const S=512,P=8,c=cvs(S,S),g=c.getContext("2d");
+  const n=tileNoise(4711,P),m=tileNoise(8821,P),img=g.createImageData(S,S),d=img.data;
+  for(let y=0;y<S;y++)for(let x=0;x<S;x++){
+    const fx=x/S*P,fy=y/S*P;
+    const mot=n(fx,fy,0)*.5+n(fx*2,fy*2,1)*.32+n(fx*4,fy*4,2)*.18;
+    const rg=1-Math.abs(m(fx*1.6,fy*1.6,0)*2-1);
+    const crack=Math.pow(rg,16);
+    const spk=m(fx*18,fy*18,2)*.6+m(fx*44,fy*44,1)*.4;   // grit as well as mottle
+    let v=.62+mot*.42+spk*.18-crack*.40;
+    v=v<0?0:v>1?1:v;
+    const i=(y*S+x)*4;d[i]=d[i+1]=d[i+2]=v*255|0;d[i+3]=255;
   }
   g.putImageData(img,0,0);return c;
 }
@@ -1423,10 +1491,10 @@ let MODE=MODES.auto;
 const DEST={
   moon:{name:"Månen",orb:"#b9b9c0",orbHi:"#f2f2f5",orbLo:"#2e2e34",
         dist:384400e3,radius:620,grav:1.62,hud:"#cfd6de",
-        sky:0x000000,ground:0x9d9d9d,amp:1.0,atmo:0,tex:null},
+        sky:0x000000,ground:0x8f8f94,amp:1.0,atmo:0,tex:null},
   mars:{name:"Mars",orb:"#c1542c",orbHi:"#ffc49a",orbLo:"#2a0e05",
         dist:225e9,radius:720,grav:3.72,hud:"#ff9a6b",
-        sky:0x3a1c10,ground:0xa8502b,amp:1.3,atmo:.55,tex:null},
+        sky:0x3a1c10,ground:0xa8502b,amp:1.3,atmo:.10,tex:null},
   gold:{name:"Guldplaneten",orb:"#e8c35a",orbHi:"#fff6d0",orbLo:"#3a2606",
         dist:9.4e12,radius:800,grav:6.1,hud:"#ffd978",
         sky:0x4a2068,ground:0xc9a03e,amp:1.6,atmo:.75,tex:null},
@@ -1730,6 +1798,19 @@ function updateStars(dt,warpAmt){
   stars.geometry.attributes.position.needsUpdate=true;
 }
 updateStars(0,0);
+/* The streaks are parallel to the shell's z, so their vanishing point is
+ * the nose of the ship wherever the eye happens to be — but the tube they
+ * form has a clear core, and the pilot's seat is 46 cm off the ship's
+ * centreline now that there are two of them. Sliding the whole field
+ * sideways onto the eye puts the hole in the middle of the cockpit
+ * instead of the middle of the hull. */
+const _warpEye=new THREE.Vector3();
+function centreWarp(on){
+  if(!on){stars.position.set(0,0,0);return;}
+  camera.getWorldPosition(_warpEye);
+  shell.worldToLocal(_warpEye);
+  stars.position.set(_warpEye.x,_warpEye.y,0);
+}
 
 function cloudTexture(r0,g0,b0,seed){
   const S=160,c=cvs(S,S),g=c.getContext("2d");
@@ -1997,7 +2078,7 @@ const LIMB_D=3000;
 const LIMBS={
   earth:{R:1800000,tex:null,make:earthTexture,glow:new THREE.Color(0x5aa8ff),atmo:1.0,relief:1.0,cloud:0.86},
   moon :{R: 900000,tex:null,make:moonTexture, glow:new THREE.Color(0x9aa0aa),atmo:0.0,relief:0.95},
-  mars :{R:1100000,tex:null,make:marsTexture, glow:new THREE.Color(0xe08a52),atmo:0.5,relief:0.85},
+  mars :{R:1100000,tex:null,make:marsTexture, glow:new THREE.Color(0xe08a52),atmo:0.22,relief:0.85},
   gold :{R:1250000,tex:null,make:goldTexture, glow:new THREE.Color(0xbb70ff),atmo:0.8,relief:0.55,
          cloud:0.5,cloudTint:new THREE.Color(0xc79bff)}
 };
@@ -2121,7 +2202,7 @@ function setLimb(key){
     if(d&&!d.tex)d.tex=L.tex;
   }
   limbBodyU.map.value=L.tex;
-  limbBodyU.hasSea.value=(key==="earth")?1:0;
+  limbBodyU.hasSea.value=(key==="earth"||key==="gold")?1:0;
   limbCloudU.tint.value.copy(L.cloudTint||WHITE1);
   limbAtmoU.glow.value.copy(L.glow);
   /* Turn the globe so the place you launched from is the place underneath
@@ -2193,14 +2274,19 @@ function buildBody(key){
   const d=DEST[key];
   if(!d.tex)d.tex=tex(key==="moon"?moonTexture():key==="mars"?marsTexture():
                       key==="earth"?earthTexture():goldTexture());
+  /* Guldplaneten used to be metalness .8 here, which is the same mistake
+   * that once turned its ground black: a metal with no environment map
+   * has no diffuse term and nothing to reflect, so the globe came out
+   * dark but for one glint. It is a world with gold sand and violet seas,
+   * not a bar of bullion. */
   bodyMesh=new THREE.Mesh(new THREE.SphereGeometry(d.radius,48,30),
-    new THREE.MeshStandardMaterial({map:d.tex,roughness:key==="gold"?.3:.94,
-      metalness:key==="gold"?.8:.04,emissive:key==="gold"?0x1a1104:0x000000}));
+    new THREE.MeshStandardMaterial({map:d.tex,roughness:key==="gold"?.62:.94,
+      metalness:key==="gold"?.18:.04,emissive:key==="gold"?0x191004:0x000000}));
   bodyMesh.visible=false;shell.add(bodyMesh);
   if(d.atmo>0){
     bodyHalo=new THREE.Mesh(new THREE.SphereGeometry(d.radius*1.035,24,16),
       new THREE.MeshBasicMaterial({color:key==="mars"?0xd9a07a:0xf0d48a,
-        transparent:true,opacity:.16*d.atmo,side:THREE.BackSide,depthWrite:false}));
+        transparent:true,opacity:.16*Math.min(1,d.atmo*3),side:THREE.BackSide,depthWrite:false}));
     bodyHalo.visible=false;shell.add(bodyHalo);
   }else bodyHalo=null;
 }
@@ -2323,18 +2409,26 @@ function craters(x,z,cell,depth){
   }
   return h;
 }
+/* Rock at walking scale. The chunk mesh used to carry one vertex every
+ * 21 m, so the ground was a sheet of 21 m facets and read as ragged from
+ * the cockpit and as glass underfoot. With a vertex every 7.8 m there is
+ * room for a term this small. Wavelength 44 m against 7.8 m spacing is
+ * five samples to the wave, far enough from Nyquist that it does not
+ * shimmer as chunks stream past; its own gradient peaks near 8 degrees,
+ * so it roughens the ground without making anywhere unlandable. */
+function detail(x,z){return (noiseC(x/44+5,z/44,2)-.5)*4.0;}
 function groundH(key,x,z){
   if(key==="earth")return 0;            // the apron is flat, and it is a plane
   const A=DEST[key].amp;
   if(key==="moon"){
     return ((noiseA(x/900+11,z/900,5)-.5)*210+ridged(noiseB,x/520,z/520,4)*95
-          +(noiseC(x/80,z/80,3)-.5)*9)*A+craters(x,z,340,46);
+          +(noiseC(x/80,z/80,3)-.5)*9+detail(x,z))*A+craters(x,z,340,46);
   }
   if(key==="mars"){
     const base=(noiseA(x/1100+3,z/1100,5)-.5)*260;
     const mesa=Math.floor(noiseB(x/430,z/430,4)*5)/5*150;      // terraced plateaux
     const ridge=ridged(noiseC,x/300,z/300,4)*180;
-    return (base+mesa+ridge)*A+craters(x,z,620,60);
+    return (base+mesa+ridge+detail(x,z))*A+craters(x,z,620,60);
   }
   const base=(noiseA(x/980+7,z/980,5)-.5)*230;
   const spires=Math.pow(ridged(noiseB,x/360,z/360,5,2.11,.52),1.7)*430;
@@ -2344,7 +2438,7 @@ function groundH(key,x,z){
    * and the aliens all over the ridge. Longer and shallower: still ribbed
    * from above, walkable underfoot. */
   const facet=Math.abs(Math.sin(x/260)*Math.cos(z/260))*22;
-  return (base+spires+facet)*A;
+  return (base+spires+facet+detail(x,z))*A;
 }
 
 /* ---------- terrain chunks ---------- */
@@ -2353,7 +2447,12 @@ const PAD={x:0,z:0,r:30,live:false};
 function padClear(x,z,extra){
   return !PAD.live||Math.hypot(x-PAD.x,z-PAD.z)>PAD.r+(extra||0);
 }
-const CH=560, CR=2, CSEG=26;
+/* CSEG was 26: one vertex every 21.5 m, which is why the ground looked
+ * ragged. At 72 it is every 7.8 m and the ring carries 259 k triangles
+ * instead of 34 k — still nothing for the GPU, since the draw calls are
+ * unchanged at one per chunk. The cost is CPU, in groundH, and that is
+ * paid by the time-sliced builder below. */
+const CH=560, CR=2, CSEG=72;
 const chunks=new Map(), chunkQueue=[];
 let terrainKey=null;
 const terrainRoot=new THREE.Group();terrainRoot.visible=false;world.add(terrainRoot);
@@ -2391,21 +2490,81 @@ const HMAT={
     emissive:0x3ff0c0,emissiveIntensity:1.1,side:THREE.DoubleSide})
 };
 const SHARED=new Set([HOUSE.trunk,HOUSE.cap,HOUSE.band,HOUSE.orb]);
-function buildChunk(key,ci,cj){
-  const g=new THREE.Group(), ox=ci*CH, oz=cj*CH;
-  const geo=new THREE.PlaneGeometry(CH,CH,CSEG,CSEG);
-  const pos=geo.attributes.position;
-  // the plane lies flat via rotation.x = -PI/2, so local y maps to world -z
-  for(let i=0;i<pos.count;i++)pos.setZ(i,groundH(key,ox+pos.getX(i),oz-pos.getY(i)));
-  geo.computeVertexNormals();
-  const d=DEST[key];
-  const surf=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
+/* One grain texture and one material per world, shared by every chunk.
+ * Twenty-five copies of the same material was waste; sharing also means
+ * the texture is uploaded to the GPU once. */
+let _grain=null;
+function grainMap(){
+  /* tex() and not a bare CanvasTexture: a colour map left at the default
+   * LinearEncoding under an sRGB output is gamma-corrected twice, which
+   * washes the grain out to near white and takes the ground with it. */
+  if(!_grain)_grain=tex(grainTexture(),CH/90);    // a 90 m tile: finer and it repeats visibly
+  return _grain;
+}
+const GMAT=new Map(), BMAT=new Map();
+function groundMat(key){
+  let m=GMAT.get(key);
+  if(!m){
+    const d=DEST[key];
     /* Gold, not a mirror. At metalness .85 with no environment map there
-      * is no diffuse term left and nothing to reflect, so the whole of
-      * Guldplaneten rendered near-black except for one band where the sun
-      * glinted off it — you could not see the ground, the arrows, the
-      * aliens or the quicksand. It is golden SAND now, with a sheen. */
-     color:d.ground,roughness:key==="gold"?.58:1,metalness:key==="gold"?.22:.02,flatShading:true}));
+     * is no diffuse term left and nothing to reflect, so the whole of
+     * Guldplaneten rendered near-black except for one band where the sun
+     * glinted off it. It is golden SAND now, with a sheen. */
+    m=new THREE.MeshStandardMaterial({color:d.ground,map:grainMap(),
+      roughness:key==="gold"?.58:1,metalness:key==="gold"?.22:.02,flatShading:true});
+    GMAT.set(key,m);
+  }
+  return m;
+}
+function boulderMat(key){
+  let m=BMAT.get(key);
+  if(!m){
+    const d=DEST[key];
+    m=new THREE.MeshStandardMaterial({color:d.ground,map:grainMap(),
+      roughness:key==="gold"?.55:1,metalness:key==="gold"?.25:.02,flatShading:true});
+    BMAT.set(key,m);
+  }
+  return m;
+}
+const BOULDER=new THREE.IcosahedronGeometry(1,0);SHARED.add(BOULDER);
+/* A chunk is no longer built in one go. At CSEG 72 the height loop alone
+ * is several milliseconds, and a 72 fps frame has 13.9 to spend on
+ * everything; one chunk per frame would drop a visible hitch into the
+ * headset each time you crossed a chunk boundary. So a build is a job
+ * that fills as many rows as fit in a small slice of the frame and
+ * resumes on the next one. Nothing joins the scene until it is whole. */
+let chunkJob=null;
+const CHUNK_MS=2.0;
+
+/* Every chunk is the same grid: the same x, the same uv, the same index
+ * buffer, and only the heights differ. At 5329 vertices that is about
+ * 160 kB of identical arrays thrown away and allocated again each time a
+ * chunk scrolls off, and the major collection it eventually triggers was
+ * measured at 9.3 ms — a dropped frame, exactly what the slicing is for.
+ * So evicted geometry goes back on a pile and is refilled instead. */
+const geoPool=[];
+function startChunk(key,ci,cj){
+  const geo=geoPool.pop()||new THREE.PlaneGeometry(CH,CH,CSEG,CSEG);
+  return {key:key,ci:ci,cj:cj,geo:geo,pos:geo.attributes.position,
+          row:0,ox:ci*CH,oz:cj*CH};
+}
+function finishChunk(J){
+  const key=J.key, ci=J.ci, cj=J.cj, ox=J.ox, oz=J.oz;
+  /* No computeVertexNormals. The ground material is flatShading, and a
+   * flat-shaded material derives its normal per fragment from the screen
+   * derivatives of the position and never reads the normal attribute, so
+   * recomputing 5329 of them per chunk was the single most expensive
+   * thing in the build and nothing on screen depended on it. */
+  J.pos.needsUpdate=true;
+  /* The heights were written after the grid was made, so the plane's own
+   * bounding sphere still describes a flat sheet and a chunk whose
+   * mountains reach 400 m could be culled while its peaks were on
+   * screen. Recompute it from the real vertices. */
+  J.geo.computeBoundingSphere();
+  const g=new THREE.Group();
+  // the plane lies flat via rotation.x = -PI/2, so local y maps to world -z
+  J.geo.userData.pooled=true;
+  const surf=new THREE.Mesh(J.geo,groundMat(key));
   surf.rotation.x=-Math.PI/2;surf.position.set(ox,0,oz);g.add(surf);
 
   /* Props only on the inner ring. At two chunks out they are a few pixels
@@ -2413,9 +2572,7 @@ function buildChunk(key,ci,cj){
   const near=Math.abs(ci-Math.round(SHIP.pos.x/CH))<=1&&Math.abs(cj-Math.round(SHIP.pos.z/CH))<=1;
   if(near){
     const rr=mulberry32((ci*2654435761^cj*40503)>>>0), n=20;
-    const inst=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),
-      new THREE.MeshStandardMaterial({color:d.ground,roughness:key==="gold"?.55:1,
-        metalness:key==="gold"?.25:.02,flatShading:true}),n);
+    const inst=new THREE.InstancedMesh(BOULDER,boulderMat(key),n);
     const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),s3=new THREE.Vector3(),p=new THREE.Vector3();
     for(let i=0;i<n;i++){
       const x=ox+(rr()-.5)*CH, z=oz+(rr()-.5)*CH;
@@ -2452,8 +2609,50 @@ function buildChunk(key,ci,cj){
   }
   return g;
 }
+/* Build a whole chunk at once. Kept for the first ground under the ship,
+ * where a frame of hitch is cheaper than landing on nothing. */
+function buildChunk(key,ci,cj){
+  const J=startChunk(key,ci,cj), W=CSEG+1, pos=J.pos;
+  for(let r=0;r<=CSEG;r++){
+    const b=r*W;
+    for(let i=0;i<W;i++){const q=b+i;pos.setZ(q,groundH(key,J.ox+pos.getX(q),J.oz-pos.getY(q)));}
+  }
+  return finishChunk(J);
+}
+function pumpChunks(){
+  const t0=performance.now();
+  for(;;){
+    if(!chunkJob){
+      if(!chunkQueue.length)return;
+      const k=chunkQueue.shift();
+      if(chunks.has(k))continue;
+      const p=k.split(",");
+      chunkJob=startChunk(terrainKey,+p[0],+p[1]);
+    }
+    const J=chunkJob, W=CSEG+1, pos=J.pos;
+    while(J.row<=CSEG){
+      const b=J.row*W;
+      for(let i=0;i<W;i++){const q=b+i;pos.setZ(q,groundH(J.key,J.ox+pos.getX(q),J.oz-pos.getY(q)));}
+      J.row++;
+      if(performance.now()-t0>CHUNK_MS)return;
+    }
+    /* Normals and props are the other half of the cost. Measured, a slice
+     * that filled its last row and then finished the chunk ran to 5.1 ms
+     * against a 2.5 ms budget, so the finish gets a frame of its own
+     * unless there is comfortably room for it in this one. */
+    if(performance.now()-t0>CHUNK_MS*.45)return;
+    const g=finishChunk(J);
+    chunks.set(J.ci+","+J.cj,g);terrainRoot.add(g);
+    chunkJob=null;
+    if(performance.now()-t0>CHUNK_MS)return;
+  }
+}
 function disposeChunk(g){
-  g.traverse(o=>{if(o.geometry&&!SHARED.has(o.geometry))o.geometry.dispose();});
+  g.traverse(o=>{
+    if(!o.geometry||SHARED.has(o.geometry))return;
+    if(o.geometry.userData.pooled&&geoPool.length<36)geoPool.push(o.geometry);
+    else o.geometry.dispose();
+  });
 }
 function ensureChunks(key,x,z){
   if(key!==terrainKey)return;
@@ -2462,26 +2661,35 @@ function ensureChunks(key,x,z){
     const k=i+","+j;
     if(!chunks.has(k)&&chunkQueue.indexOf(k)<0)chunkQueue.push(k);
   }
+  /* Nearest first. A slice at a time means the ring takes a second or two
+   * to fill, and the second that matters is the ground you are standing
+   * on, not the hill two chunks out. */
+  if(chunkQueue.length>1)chunkQueue.sort((a,b)=>{
+    const A=a.split(","),B=b.split(",");
+    return (Math.abs(+A[0]-ci)+Math.abs(+A[1]-cj))-(Math.abs(+B[0]-ci)+Math.abs(+B[1]-cj));
+  });
+  /* The chunk under the ship is built whole and at once: everything else
+   * can arrive late, but the ground you are about to touch cannot. */
+  const home=ci+","+cj;
+  if(!chunks.has(home)){
+    const qi=chunkQueue.indexOf(home);
+    if(qi>=0)chunkQueue.splice(qi,1);
+    if(chunkJob&&chunkJob.ci===ci&&chunkJob.cj===cj){chunkJob.geo.dispose();chunkJob=null;}
+    const g=buildChunk(key,ci,cj);
+    chunks.set(home,g);terrainRoot.add(g);
+  }
   for(const [k,g] of chunks){
     const p=k.split(","),i=+p[0],j=+p[1];
     if(Math.abs(i-ci)>CR+1||Math.abs(j-cj)>CR+1){
       terrainRoot.remove(g);disposeChunk(g);chunks.delete(k);
     }
   }
-  /* One chunk per frame. Building the whole ring at once drops a visible
-   * hitch into the headset, which at 72 fps is worse than a late mountain. */
-  if(chunkQueue.length){
-    const k=chunkQueue.shift();
-    if(!chunks.has(k)){
-      const p=k.split(",");
-      const g=buildChunk(key,+p[0],+p[1]);
-      chunks.set(k,g);terrainRoot.add(g);
-    }
-  }
+  pumpChunks();
 }
 function clearChunks(){
   for(const [,g] of chunks){terrainRoot.remove(g);disposeChunk(g);}
   chunks.clear();chunkQueue.length=0;
+  if(chunkJob){chunkJob.geo.dispose();chunkJob=null;}
 }
 
 /* ---------- the map on Mars ---------- *
@@ -3285,7 +3493,7 @@ const PHASE_DA={preflight:"RAMPE",ignition:"TÆNDING",ascent:"OPSTIGNING",space:
   course:"KURS",hyperspace:"HYPERRUM",approach:"INDFLYVNING",descent:"NEDSTIGNING",landed:"LANDET",
   eva:"UDENFOR"};
 const St={phase:"preflight",order:[],step:0,alt:0,speed:0,thrust:0,dest:null,distance:0,
-  warpT:0,t:0,flash:0,landQuality:"",bodyDist:0,climbing:false};
+  warpT:0,t:0,flash:0,landQuality:"",bodyDist:0,climbing:false,arrive:0};
 const BODY_POS=new THREE.Vector3();
 
 const NUMTEX=[];
@@ -3523,10 +3731,20 @@ function pressLand(){
   landBtn.group.visible=false;
   skyUniforms.top.value.setHex(d.sky);
   skyUniforms.bottom.value.setHex(d.ground).multiplyScalar(.45);
-  skyUniforms.alpha.value=d.atmo>0?1:0;
+  /* The sky is as thick as the air is. The Moon's stays black, and Mars
+   * keeps its stars faintly through a thin dusty one. */
+  skyUniforms.alpha.value=Math.min(1,d.atmo*4);
   setCloudDeck(St.dest);
   setLimb(St.dest);
-  for(let i=0;i<9;i++)ensureChunks(St.dest,0,0);   // prime the inner ring only
+  /* Prime the inner three-by-three whole, here and now. This is a phase
+   * change with a banner on the glass, so a tenth of a second spent here
+   * is invisible; arriving over ground that has not been built is not.
+   * The outer ring streams in behind it, a slice at a time. */
+  for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){
+    const k=i+","+j;
+    if(!chunks.has(k)){const g=buildChunk(St.dest,i,j);chunks.set(k,g);terrainRoot.add(g);}
+  }
+  ensureChunks(St.dest,0,0);
   log("NEDSTIGNING");
   showMsg(MODE.dof===0?"Autopiloten sætter den ned.":"Flyv den ned — den kan ikke smadres.");
 }
@@ -3562,7 +3780,7 @@ function restartFlight(){
   WALK.active=false;enterMark.visible=false;tpMark.group.visible=false;
   hatchBtn.group.visible=false;
   St.phase="preflight";St.t=0;St.dest=null;St.distance=0;St.landQuality="";
-  St.alt=0;St.speed=0;St.bodyDist=0;St.warpT=0;
+  St.alt=0;St.speed=0;St.bodyDist=0;St.warpT=0;St.arrive=0;centreWarp(false);
   SHIP.pos.set(0,PAD_Y,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();SHIP.onGround=true;
   throttle.value=0;
   terrainKey=null;clearChunks();PAD.live=false;St.touchAt=null;
@@ -3902,15 +4120,51 @@ function updateFade(dt){
  * parented to `world`, so it sits where it is aimed regardless of the view. */
 const tpMark=(function(){
   const g=new THREE.Group();g.visible=false;world.add(g);
-  const ring=new THREE.Mesh(new THREE.RingGeometry(.52,.74,24),
-    new THREE.MeshBasicMaterial({color:0x7fd4e8,side:THREE.DoubleSide,
-      transparent:true,opacity:.9,depthWrite:false}));
-  ring.rotation.x=-Math.PI/2;g.add(ring);
-  const post=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,1.3,6),
-    new THREE.MeshBasicMaterial({color:0x7fd4e8,transparent:true,opacity:.45}));
-  post.position.y=.65;g.add(post);
-  return {group:g,ring:ring,valid:false,point:new THREE.Vector3()};
+  /* On the Moon this was a pale cyan ring on pale grey ground under a
+   * hard sun, and it disappeared. Three changes: a dark disc under it so
+   * it has something to be bright against whatever the ground is doing, a
+   * second outer ring that pulses, and depthTest off with a late render
+   * order so a boulder or a ridge can never swallow it. */
+  const flat=(geo,col,op,order)=>{
+    const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:col,
+      side:THREE.DoubleSide,transparent:true,opacity:op,
+      depthWrite:false,depthTest:false}));
+    m.rotation.x=-Math.PI/2;m.renderOrder=order;g.add(m);return m;
+  };
+  flat(new THREE.CircleGeometry(1.30,28),0x041018,.42,30);
+  flat(new THREE.RingGeometry(1.20,1.42,28),0x031016,.55,31);
+  const ring=flat(new THREE.RingGeometry(.58,.92,28),0x7fd4e8,.95,32);
+  const halo=flat(new THREE.RingGeometry(1.00,1.18,28),0xa8f0ff,.65,33);
+  /* A post you can see from across a crater, with three chevrons sliding
+   * down it so the eye is caught by movement rather than by colour. */
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,2.2,6),
+    new THREE.MeshBasicMaterial({color:0x7fd4e8,transparent:true,opacity:.55,
+      depthWrite:false,depthTest:false}));
+  post.position.y=1.1;post.renderOrder=32;g.add(post);
+  const chev=[];
+  const cg=new THREE.ConeGeometry(.26,.34,4);
+  for(let i=0;i<3;i++){
+    const m=new THREE.Mesh(cg,new THREE.MeshBasicMaterial({color:0xd8fbff,
+      transparent:true,opacity:.9,depthWrite:false,depthTest:false}));
+    m.rotation.x=Math.PI;m.renderOrder=34;g.add(m);chev.push(m);
+  }
+  return {group:g,ring:ring,halo:halo,chev:chev,
+          valid:false,point:new THREE.Vector3()};
 })();
+/* Driven from the frame loop so the pulse runs whether you are aiming
+ * with a controller, a finger or a mouse. */
+function animTpMark(t){
+  if(!tpMark.group.visible)return;
+  const b=.5+.5*Math.sin(t*4.2);
+  tpMark.halo.scale.setScalar(1+b*.22);
+  tpMark.halo.material.opacity=.20+.45*(1-b);
+  tpMark.ring.material.opacity=.80+.20*b;
+  for(let i=0;i<3;i++){
+    const k=((t*.85+i/3)%1);
+    tpMark.chev[i].position.y=2.05-k*1.65;
+    tpMark.chev[i].material.opacity=.95*Math.min(1,(1-k)*3);
+  }
+}
 
 /* March the aim ray against the height field. No mesh raycast: the ground is
  * a function, so sampling it directly is both cheaper and immune to whichever
@@ -4371,6 +4625,14 @@ function updateFlight(dt){
 
   if(ph==="hyperspace"){
     St.warpT+=dt;
+    centreWarp(true);
+    /* On a phone the default view is tipped 17 degrees down onto the
+     * dashboard, which puts the whole of hyperspace in the top third of
+     * the screen. Ease the look up to the glass for the duration — not in
+     * the headset, where moving someone's head for them is how you make
+     * them ill, and not while they are dragging the view themselves. */
+    if(!renderer.xr.isPresenting&&!dragging&&pitch<-.06)
+      pitch=Math.min(-.06,pitch+dt*.55);
     const ramp=Math.min(1,St.warpT/1.4);
     const fall=St.warpT>3.0?Math.max(0,1-(St.warpT-3.0)/1.1):1;
     const intensity=ramp*fall;
@@ -4383,12 +4645,18 @@ function updateFlight(dt){
       const d=DEST[St.dest];
       St.phase="approach";St.distance=0;
       BODY_POS.set(0,0,-(d.radius*2.3));          // drop out close: it fills the glass
+      /* and it arrives rather than simply being there: for the first two
+       * seconds the body is carried a long way further out and brought in
+       * on a cube curve, so it comes at the glass hard and settles. */
+      St.arrive=1;
       SHIP.pos.set(0,0,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();
       bodyMesh.position.copy(BODY_POS);bodyMesh.visible=true;
-      if(St.dest==="gold"){
-        bulb.on=true;bulb.sprite.visible=true;bodyMesh.visible=false;
-        log("FRAKTAL OPDAGET");
-      }
+      /* Guldplaneten used to arrive as a live Mandelbulb: a turning
+       * fractal blob rather than somewhere you could imagine landing.
+       * It is a globe now like the other two, and the fractals do their
+       * work in its map instead — two Julia sets, one drawing the
+       * coastlines and one the filigree inland. */
+      if(St.dest==="gold")log("GULDPLANETEN I SIGTE");
       if(bodyHalo){bodyHalo.position.copy(BODY_POS);bodyHalo.visible=true;}
       landBtn.group.visible=true;setLimb(null);
       log("ANKOMST");
@@ -4407,6 +4675,12 @@ function updateFlight(dt){
     /* The body lives in the rotation-only shell, so its apparent position is
      * recomputed from the ship's translation by hand. */
     _v.copy(BODY_POS).sub(SHIP.pos);
+    if(St.arrive>0){
+      St.arrive=Math.max(0,St.arrive-dt/2.0);
+      const e=St.arrive*St.arrive*St.arrive;
+      _v.z-=e*d.radius*30;
+      centreWarp(true);
+    }else centreWarp(false);
     bodyMesh.position.copy(_v);
     if(bodyHalo)bodyHalo.position.copy(_v);
     if(bulb.on){
@@ -4503,11 +4777,16 @@ function updateFlight(dt){
       steer(1);
       const spd=SHIP.vel.dot(FWD);
       _v.copy(FWD).multiplyScalar(St.thrust*d.grav*2.4);
-      const air=0.35+0.65*d.atmo;
+      /* No air, no wing and no drag. The Moon had a floor under both —
+       * 0.35 of full lift and half the drag coefficient — so it flew like
+       * somewhere with weather. It is vacuum now: the Moon is flown on
+       * thrust alone and nothing slows you down but the engines. Mars has
+       * a tenth of an atmosphere, which is about right, and so has about
+       * a tenth of the help. */
       const lift=THREE.MathUtils.clamp(Math.max(0,spd)/38,0,1);
-      _v.addScaledVector(UP,lift*air*d.grav*(0.85+MODE.assist*0.35));
+      _v.addScaledVector(UP,lift*d.atmo*d.grav*(0.85+MODE.assist*0.35));
       _v.y-=d.grav;
-      _v.addScaledVector(SHIP.vel,-0.26*(d.atmo*.6+.5));
+      _v.addScaledVector(SHIP.vel,-0.26*(0.02+0.98*d.atmo));
       SHIP.vel.addScaledVector(_v,dt);
       SHIP.pos.addScaledVector(SHIP.vel,dt);
     }
@@ -4673,7 +4952,17 @@ function updateFlight(dt){
   }
 
   const open=(ph==="space"||ph==="course"||ph==="approach"||ph==="hyperspace");
-  hemi.intensity+=((open?.12:.55)-hemi.intensity)*Math.min(1,dt*2);
+  /* Skylight is scattered sunlight, so a world with no air has none: on
+   * the Moon the only fill is what bounces off the ground. Holding the
+   * hemisphere at .55 everywhere washed the Moon out to a white sheet
+   * with no shadow in it, which is why the new relief did not show.
+   * Tied to the air now, like the sky and the drag. */
+  const _atm=St.dest?DEST[St.dest].atmo:1;
+  hemi.intensity+=((open?.12:(.20+.40*_atm))-hemi.intensity)*Math.min(1,dt*2);
+  /* Same argument for the opposite-side fill: it stands in for light that
+   * came back off the air. Keep enough of it that nothing is ever a pure
+   * black silhouette — this is a five-year-old's moon, not a documentary. */
+  fill.intensity+=((open?.38:(.16+.22*_atm))-fill.intensity)*Math.min(1,dt*2);
 }
 
 /* ---------- hand poses from the controller's own buttons ---------- */
@@ -4758,6 +5047,7 @@ renderer.setAnimationLoop(()=>{
   }
   try{updateHands();}catch(e){}
   try{updateAim();}catch(e){}
+  animTpMark(St.t);
   updateFade(dt);
   updateGrabs();
   try{updatePoke();}catch(e){}
