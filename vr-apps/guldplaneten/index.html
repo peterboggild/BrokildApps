@@ -1448,20 +1448,32 @@ const DEST={
  *  cockpit with it, and the gold world is on the menu.
  * ------------------------------------------------------------------ */
 const GAME={mode:"explorer",mapHeld:false,mapDone:false,
+            fuelHeld:false,fuelDone:false,
             goldSeen:false,crowned:false,
             open:{moon:true,mars:true,gold:false}};
 function destOpen(k){
   if(k==="earth")return !!GAME.goldSeen;
+  /* Guldplaneten needs both halves of the story: the map from Mars says
+   * where it is, and the fuel from the Moon is whether you can get that
+   * far at all. Either one alone leaves the course plotted and the tanks
+   * too light, or the tanks full and nowhere to point them. */
+  if(k==="gold")return GAME.mode==="test"||(GAME.mapDone&&GAME.fuelDone);
   return GAME.mode==="test"||GAME.open[k];
 }
 function lockedWhy(k){
-  if(k==="gold")return "Du mangler kortet til Guldplaneten. Det ligger på Mars.";
+  if(k==="gold"){
+    if(!GAME.mapDone&&!GAME.fuelDone)
+      return "Du mangler både kortet og brændstoffet. Kortet ligger på Mars, brændstoffet på Månen.";
+    if(!GAME.mapDone)return "Du har brændstof nok, men ikke kortet. Det ligger på Mars.";
+    return "Du har kortet, men der er ikke brændstof nok. Der er en depot-dunk på Månen.";
+  }
   if(k==="earth")return "Du skal have været på Guldplaneten, før du kan flyve hjem som konge.";
   return "";
 }
 function setGameMode(m){
   GAME.mode=m;
   GAME.mapHeld=false;GAME.mapDone=false;
+  GAME.fuelHeld=false;GAME.fuelDone=(m==="test");
   GAME.goldSeen=false;GAME.crowned=false;
   if(typeof goldCap!=="undefined"&&goldCap)goldCap.visible=false;
   /* Test mode's own hint says all three are open. It was setting gold
@@ -1471,8 +1483,9 @@ function setGameMode(m){
   GAME.open={moon:true,mars:true,gold:m==="test"};
   for(const k in gameBtns)gameBtns[k].setAttribute("aria-pressed",String(k===m));
   gameHint.textContent = m==="test"
-    ? "Alle tre destinationer er åbne fra start."
-    : "Månen og Mars er åbne. Kortet til Guldplaneten ligger et sted på Mars.";
+    ? "Alle fire destinationer er åbne fra start."
+    : "Månen og Mars er åbne. Hent brændstof på Månen og kortet på Mars — "+
+      "så kan du nå Guldplaneten.";
   refreshMenu();
 }
 
@@ -2335,6 +2348,11 @@ function groundH(key,x,z){
 }
 
 /* ---------- terrain chunks ---------- */
+/* Where the ship intends to set down. Boulders and houses keep off it. */
+const PAD={x:0,z:0,r:30,live:false};
+function padClear(x,z,extra){
+  return !PAD.live||Math.hypot(x-PAD.x,z-PAD.z)>PAD.r+(extra||0);
+}
 const CH=560, CR=2, CSEG=26;
 const chunks=new Map(), chunkQueue=[];
 let terrainKey=null;
@@ -2404,6 +2422,10 @@ function buildChunk(key,ci,cj){
       p.set(x,groundH(key,x,z)-.7,z);
       const sc=1.4+rr()*7;s3.set(sc,sc*(.6+rr()*.7),sc);
       q.setFromEuler(new THREE.Euler(rr()*3,rr()*3,rr()*3));
+      /* Every draw above still happens, so the scatter is unchanged
+       * everywhere else; the ones on the landing ground are simply sent
+       * away rather than skipped. */
+      if(!padClear(x,z,sc))p.set(0,-9999,0);
       mtx.compose(p,q,s3);inst.setMatrixAt(i,mtx);
     }
     g.add(inst);
@@ -2414,6 +2436,11 @@ function buildChunk(key,ci,cj){
       const tr=mk(HOUSE.trunk,HMAT.body), cp=mk(HOUSE.cap,HMAT.shell),
             bd=mk(HOUSE.band,HMAT.lit),   ob=mk(HOUSE.orb,HMAT.lit);
       vill.forEach((h,i)=>{
+        if(!padClear(h.x,h.z,h.rb+4)){
+          mtx.compose(p.set(0,-9999,0),q.identity(),s3.setScalar(.001));
+          tr.setMatrixAt(i,mtx);cp.setMatrixAt(i,mtx);
+          bd.setMatrixAt(i,mtx);ob.setMatrixAt(i,mtx);return;
+        }
         q.setFromEuler(new THREE.Euler(0,h.rot,0));
         mtx.compose(p.set(h.x,h.y+h.h/2-1,h.z),q,s3.set(h.rb,h.h,h.rb));tr.setMatrixAt(i,mtx);
         const cr=h.rb*1.35;
@@ -2463,8 +2490,9 @@ function clearChunks(){
  *  the map can never disagree about where it is.
  * ------------------------------------------------------------------ */
 const mapProp=new THREE.Group();mapProp.visible=false;world.add(mapProp);
-const MAPAT={x:0,z:0,live:false};
-let mapSheet=null, mapBeacon=null;
+const MAPAT={x:0,z:0,live:false,kind:"map",key:"mars"};
+const PICK={map:{what:"kortet",WHAT:"KORTET"},fuel:{what:"brændstoffet",WHAT:"BRÆNDSTOFFET"}};
+let mapSheet=null, mapBeacon=null, fuelCan=null;
 (function buildMapProp(){
   const post=new THREE.Mesh(new THREE.CylinderGeometry(.07,.09,1.2,6),
     new THREE.MeshStandardMaterial({color:0x5a5248,roughness:.85}));
@@ -2492,6 +2520,23 @@ let mapSheet=null, mapBeacon=null;
   mapBeacon=new THREE.Mesh(new THREE.SphereGeometry(.13,8,6),
     new THREE.MeshStandardMaterial({color:0x0a2630,emissive:0x46e0ff,emissiveIntensity:2}));
   mapBeacon.position.y=1.75;mapProp.add(mapBeacon);
+  /* The other thing worth walking fifty metres for: a drum of fuel, on
+   * the same post, shown instead of the chart. */
+  fuelCan=new THREE.Group();mapProp.add(fuelCan);
+  const drum=new THREE.MeshStandardMaterial({color:0x2f6f8a,roughness:.55,metalness:.5});
+  const bodyM=new THREE.Mesh(new THREE.CylinderGeometry(.30,.30,.78,12),drum);
+  bodyM.position.y=1.28;fuelCan.add(bodyM);
+  [-.26,.26].forEach(dy=>{
+    const rib=new THREE.Mesh(new THREE.TorusGeometry(.305,.035,6,14),drum);
+    rib.rotation.x=Math.PI/2;rib.position.y=1.28+dy;fuelCan.add(rib);
+  });
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(.10,.10,.10,8),
+    new THREE.MeshStandardMaterial({color:0xe8c35a,roughness:.4,metalness:.6}));
+  cap.position.y=1.72;fuelCan.add(cap);
+  const band=new THREE.Mesh(new THREE.CylinderGeometry(.312,.312,.18,12),
+    new THREE.MeshStandardMaterial({color:0x0d1a20,emissive:0x46e0ff,emissiveIntensity:.9}));
+  band.position.y=1.28;fuelCan.add(band);
+  fuelCan.visible=false;
 })();
 
 /* Findability. Something lying on the ground fifty metres off is invisible
@@ -2566,14 +2611,17 @@ function layTrail(sx,sz,tx,tz,key){
   trail.instanceMatrix.needsUpdate=true;
   trail.visible=true;
 }
-function placeMarsMap(sx,sz){
-  /* A fixed bearing, so the arrows and the map can never disagree. */
+function placePickup(kind,key,sx,sz){
+  /* A fixed bearing, so the arrows and the thing can never disagree. */
   const bear=-0.9;
+  MAPAT.kind=kind;MAPAT.key=key;
   MAPAT.x=sx+Math.sin(bear)*50; MAPAT.z=sz+Math.cos(bear)*50;
   MAPAT.live=true;
-  mapProp.position.set(MAPAT.x,groundH("mars",MAPAT.x,MAPAT.z),MAPAT.z);
+  mapProp.position.set(MAPAT.x,groundH(key,MAPAT.x,MAPAT.z),MAPAT.z);
   mapProp.visible=true;
-  layTrail(sx,sz,MAPAT.x,MAPAT.z,"mars");
+  mapSheet.visible=(kind==="map");
+  fuelCan.visible=(kind==="fuel");
+  layTrail(sx,sz,MAPAT.x,MAPAT.z,key);
 }
 function clearMarsMap(){
   mapProp.visible=false;trail.visible=false;MAPAT.live=false;beams.visible=false;
@@ -3272,12 +3320,14 @@ function objectiveText(){
       ? "STIG TIL 15 KM FOR AT NÅ KREDSLØB  ("+(St.alt/1000).toFixed(1)+" KM)"
       : (auto?"AUTOPILOTEN LANDER":"FLYV NED PÅ OVERFLADEN");
     case "landed":
-      if(MAPAT.live)return "GÅ UD OG FØLG PILENE TIL KORTET";
+      if(MAPAT.live)return "GÅ UD OG FØLG PILENE TIL "+PICK[MAPAT.kind].WHAT;
+      if(GAME.fuelHeld&&!GAME.fuelDone)return "TRYK LET OG FLYV VIDERE MED BRÆNDSTOFFET";
       if(GAME.mapHeld&&!GAME.mapDone)return "TRYK LET OG FLYV VIDERE MED KORTET";
       return St.dest?"GÅ UD, ELLER TRYK LET FOR AT FLYVE VIDERE"
                     :"GÅ UD, ELLER NY FLYVNING";
     case "eva":
-      if(MAPAT.live)return "FØLG LYSSØJLEN TIL KORTET";
+      if(MAPAT.live)return "FØLG LYSSØJLEN TIL "+PICK[MAPAT.kind].WHAT;
+      if(GAME.fuelHeld&&!GAME.fuelDone)return "BÆR DUNKEN TILBAGE TIL SKIBET";
       if(GAME.mapHeld&&!GAME.mapDone)return "BÆR KORTET TILBAGE TIL SKIBET";
       if(St.dest==="gold"&&questRoot.visible){
         const q=questLabel();
@@ -3417,13 +3467,18 @@ function pressHyper(){
  * takes the one whose surroundings are flattest. */
 function flatSpot(key,cx,cz,R){
   let bx=cx,bz=cz,best=Infinity;
-  for(let i=-3;i<=3;i++)for(let j=-3;j<=3;j++){
-    const x=cx+i*R/3, z=cz+j*R/3, h=groundH(key,x,z);
+  for(let i=-4;i<=4;i++)for(let j=-4;j<=4;j++){
+    const x=cx+i*R/4, z=cz+j*R/4, h=groundH(key,x,z);
     let s=0;
     for(let k=0;k<8;k++){
-      const a=k*Math.PI/4;
-      s+=Math.abs(groundH(key,x+Math.cos(a)*14,z+Math.sin(a)*14)-h)
-        +Math.abs(groundH(key,x+Math.cos(a)*30,z+Math.sin(a)*30)-h)*0.6;
+      const a=k*Math.PI/4, ca=Math.cos(a), sa=Math.sin(a);
+      /* Three rings, the nearest weighted hardest: what matters is the
+       * ground the legs actually stand on, not the general lie of the
+       * land. Two rings starting at 14 m left Guldplaneten setting down
+       * on sixteen degrees. */
+      s+=Math.abs(groundH(key,x+ca*8, z+sa*8 )-h)*1.0
+        +Math.abs(groundH(key,x+ca*16,z+sa*16)-h)*0.7
+        +Math.abs(groundH(key,x+ca*30,z+sa*30)-h)*0.4;
     }
     if(s<best){best=s;bx=x;bz=z;}
   }
@@ -3437,9 +3492,16 @@ function pressLand(){
   const d=DEST[St.dest];
   const home=(St.dest==="earth");
   St.phase="descent";terrainKey=home?null:St.dest;St.climbing=false;
+  const spot=home?{x:0,z:0}:flatSpot(St.dest,0,0,220);
+  St.touchAt=home?null:{x:spot.x,z:spot.z};
+  /* Keep the boulders off the chosen ground. The props are scattered when
+   * a chunk is built, and a 7 m rock half-sunk in the sand goes straight
+   * through the hull of anything that sets down on it. */
+  PAD.x=spot.x;PAD.z=spot.z;PAD.live=!home;
   clearChunks();
-  const spot=home?{x:0,z:0}:flatSpot(St.dest,0,0,170);
-  SHIP.pos.set(spot.x,1500,spot.z);SHIP.vel.set(0,-26,0);
+  /* Start the run-in a few hundred metres short, along the approach, so
+   * there is still a descent to watch. */
+  SHIP.pos.set(spot.x,1500,spot.z+430);SHIP.vel.set(0,-26,0);
   SHIP.quat.identity();rotateShip(-.14,0,0);
   SHIP.onGround=false;St.landQuality="";
   terrainRoot.visible=!home;
@@ -3503,7 +3565,7 @@ function restartFlight(){
   St.alt=0;St.speed=0;St.bodyDist=0;St.warpT=0;
   SHIP.pos.set(0,PAD_Y,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();SHIP.onGround=true;
   throttle.value=0;
-  terrainKey=null;clearChunks();
+  terrainKey=null;clearChunks();PAD.live=false;St.touchAt=null;
   terrainRoot.visible=false;skirt.visible=false;alienRoot.visible=false;
   questRoot.visible=false;bubble.mesh.visible=false;bubble.t=0;trail.visible=false;
   bulb.on=false;bulb.sprite.visible=false;
@@ -3685,10 +3747,13 @@ function clickFlat(e){
     if(aimGround(raycaster.ray.origin,raycaster.ray.direction)){showAim(true);teleport();}
   }
 }
+const ARROWS={ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1};
 window.addEventListener("keydown",e=>{
+  /* Or the page scrolls out from under the canvas on a laptop. */
+  if(ARROWS[e.code])e.preventDefault();
   if(WALK.active&&!e.repeat){
-    if(e.code==="KeyA"){turnWalker(-1);return;}
-    if(e.code==="KeyD"){turnWalker( 1);return;}
+    if(e.code==="KeyA"||e.code==="ArrowLeft"){turnWalker(-1);return;}
+    if(e.code==="KeyD"||e.code==="ArrowRight"){turnWalker( 1);return;}
   }
   keys[e.code]=true;
   if(e.code==="KeyB")setSkin(currentSkin==="steel"?"black":"steel");
@@ -3791,7 +3856,7 @@ function refreshHud(){
     (St.landQuality?"<br><span>LANDING</span> "+St.landQuality:"")+
     (questRoot.visible&&questLabel()?"<br><span>OPGAVE</span> "+questLabel():"")+
     (MAPAT.live&&WALK.active
-      ? "<br><span>KORT</span> "+Math.round(Math.hypot(MAPAT.x-WALK.pos.x,MAPAT.z-WALK.pos.z))+" m"
+      ? "<br><span>"+PICK[MAPAT.kind].WHAT+"</span> "+Math.round(Math.hypot(MAPAT.x-WALK.pos.x,MAPAT.z-WALK.pos.z))+" m"
       : "");
 }
 
@@ -3992,10 +4057,42 @@ function drawCrownCard(g,W,H){
   g.fillText("TRYK FOR AT TAGE DEN PÅ",W/2,H-52);
 }
 function takeMap(){
+  if(!MAPAT.live)return;
+  const kind=MAPAT.kind;
+  if(kind==="fuel"){
+    if(GAME.fuelHeld)return;
+    GAME.fuelHeld=true;clearMarsMap();Audio_.ok();
+    log("BRÆNDSTOF FUNDET");
+    showOverlay(drawFuelCard,()=>showMsg("Bær dunken tilbage til skibet.",8));
+    return;
+  }
   if(GAME.mapHeld)return;
   GAME.mapHeld=true;clearMarsMap();Audio_.ok();
   log("KORTET FUNDET");
   showOverlay(drawMapCard,()=>showMsg("Gå tilbage til skibet med kortet.",8));
+}
+/* The drum, held up the way the map is. */
+function drawFuelCard(g,W,H){
+  g.clearRect(0,0,W,H);
+  const bg=g.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,"#071820");bg.addColorStop(1,"#0d2b36");
+  g.fillStyle=bg;g.fillRect(0,0,W,H);
+  g.strokeStyle="#46e0ff";g.lineWidth=7;g.strokeRect(26,26,W-52,H-52);
+  const cx=W/2, cy=300;
+  const mtl=g.createLinearGradient(cx-130,cy-150,cx+130,cy+150);
+  mtl.addColorStop(0,"#9fd8ec");mtl.addColorStop(.45,"#2f6f8a");mtl.addColorStop(1,"#13323f");
+  g.fillStyle=mtl;g.strokeStyle="#0a1d26";g.lineWidth=6;
+  g.beginPath();g.rect(cx-112,cy-130,224,262);g.fill();g.stroke();
+  g.beginPath();g.ellipse(cx,cy-130,112,30,0,0,7);g.fill();g.stroke();
+  [-70,0,70].forEach(dy=>{g.beginPath();g.moveTo(cx-112,cy+dy);g.lineTo(cx+112,cy+dy);g.stroke();});
+  g.fillStyle="#e8c35a";g.strokeStyle="#5a4310";
+  g.beginPath();g.rect(cx-30,cy-168,60,40);g.fill();g.stroke();
+  g.fillStyle="#46e0ff";g.font="800 58px 'Bricolage Grotesque', sans-serif";
+  g.textAlign="center";g.fillText("BRÆNDSTOF",W/2,H-150);
+  g.fillStyle="#9fd8ec";g.font="600 28px 'Chivo Mono', monospace";
+  g.fillText("NOK TIL AT NÅ GULDPLANETEN",W/2,H-102);
+  g.fillStyle="#2f6f8a";g.font="600 24px 'Chivo Mono', monospace";
+  g.fillText("TRYK FOR AT TAGE DEN MED",W/2,H-54);
 }
 function exitShip(){
   if((St.phase!=="landed"&&St.phase!=="preflight")||WALK.active)return;
@@ -4029,11 +4126,20 @@ function enterShip(){
     St.phase=St.dest?"landed":"preflight";
     enterMark.visible=false;tpMark.group.visible=false;
     log("OMBORD");
-    if(GAME.mapHeld&&!GAME.mapDone){
-      GAME.mapDone=true;GAME.open.gold=true;refreshMenu();
+    if(GAME.fuelHeld&&!GAME.fuelDone){
+      GAME.fuelDone=true;refreshMenu();
+      Audio_.ok();setTimeout(()=>Audio_.ok(),260);
+      log("BRÆNDSTOF TANKET");
+      showMsg(GAME.mapDone
+        ? "Brændstoffet er tanket. Nu rækker det til Guldplaneten."
+        : "Brændstoffet er tanket. Nu mangler du kun kortet — det ligger på Mars.",9);
+    }else if(GAME.mapHeld&&!GAME.mapDone){
+      GAME.mapDone=true;refreshMenu();
       Audio_.ok();setTimeout(()=>Audio_.ok(),260);
       log("KORT INSTALLERET");
-      showMsg("Guldplanetens kort er installeret.",9);
+      showMsg(GAME.fuelDone
+        ? "Guldplanetens kort er installeret. Du har brændstof nok — afsted."
+        : "Guldplanetens kort er installeret. Nu mangler du brændstof — der er en dunk på Månen.",9);
     }else{
       showMsg(St.dest?"Ombord igen.":"Ombord. Kør startsekvensen.");
     }
@@ -4044,21 +4150,43 @@ function turnWalker(dir){
   WALK.yaw-=dir*Math.PI/6;
   Audio_.click();
 }
+/* Walking, from a stick or from the arrow keys. Forward is -Z rotated by
+ * the walker's yaw; strafing is the same turned a quarter. */
+let walkSpeed=0;
+function walkStick(sx,sy,dt){
+  const dz=(Math.abs(sy)>.15)?-sy:0, dx=(Math.abs(sx)>.15)?sx:0;
+  walkMove(dx,dz,dt);
+}
+function walkMove(dx,dz,dt){
+  const m=Math.hypot(dx,dz);
+  if(m<1e-3){walkSpeed+=(0-walkSpeed)*Math.min(1,dt*6);return;}
+  const SP=3.4;                                   // a walk, not a sprint
+  const c=Math.cos(WALK.yaw), si=Math.sin(WALK.yaw);
+  const fx=-si, fz=-c;                            // forward
+  const rx= c,  rz=-si;                           // right
+  WALK.pos.x+=(fx*dz+rx*dx)/Math.max(1,m)*SP*dt;
+  WALK.pos.z+=(fz*dz+rz*dx)/Math.max(1,m)*SP*dt;
+  walkSpeed+=(1-walkSpeed)*Math.min(1,dt*6);
+}
 function updateEVA(dt){
   St.thrust=0;St.speed=0;
+  /* Arrow keys on a keyboard: up and down walk, left and right turn.
+   * A and D still snap-turn, so nothing that worked stops working. */
+  if(!renderer.xr.isPresenting)
+    walkMove(0,(keys.ArrowUp?1:0)-(keys.ArrowDown?1:0),dt);
   /* Feet follow the height field every frame, so slopes are walked up and
    * the village is something you stand among rather than fly past. */
   const h=walkH(WALK.pos.x,WALK.pos.z);
   WALK.pos.y+=((h+WALK.eye)-WALK.pos.y)*Math.min(1,dt*9);
   St.alt=0;
   if(MAPAT.live){
-    setBeams([{x:MAPAT.x,z:MAPAT.z}],"mars");
+    setBeams([{x:MAPAT.x,z:MAPAT.z}],MAPAT.key);
     mapBeacon.material.emissiveIntensity=1.2+Math.sin(St.t*4)*0.9;
     mapProp.rotation.y+=dt*.4;
     /* An exclamation mark over it, and you pick it up by clicking. It
      * used to be yours the moment you came within three metres, which
      * could happen while you were walking somewhere else entirely. */
-    markAt(MAPAT.x,groundH("mars",MAPAT.x,MAPAT.z)+2.0,MAPAT.z,"?",4.0,()=>takeMap());
+    markAt(MAPAT.x,groundH(MAPAT.key,MAPAT.x,MAPAT.z)+2.0,MAPAT.z,"?",4.0,()=>takeMap());
   }
   const hatchW=_v.set(-4.25,-1.25,-1.30).applyQuaternion(SHIP.quat).add(SHIP.pos);
   enterMark.visible=hatchW.distanceTo(WALK.pos)<60;
@@ -4075,7 +4203,10 @@ function updateEVA(dt){
   updateLimb(dt,0,1);
   Audio_.engine(.02,0);
   Audio_.wind((St.dest?DEST[St.dest].atmo:.6)*.25,12);
-  vignette.material.opacity+=(0-vignette.material.opacity)*Math.min(1,dt*3);
+  /* The same comfort vignette the ship gets, now that the feet can move
+   * under their own power. */
+  const wantV=renderer.xr.isPresenting?walkSpeed*0.42:0;
+  vignette.material.opacity+=(wantV-vignette.material.opacity)*Math.min(1,dt*3);
   shaker.position.set(0,0,0);
   syncWorld();
 }
@@ -4116,15 +4247,19 @@ function updateFlight(dt){
   const roll=yokeWheel.rotation.z/1.25, pitchIn=yokeGroup.rotation.x/0.36;
 
   if(!renderer.xr.isPresenting){
-    if(keys.KeyA)yokeWheel.rotation.z=Math.min(1.25,yokeWheel.rotation.z+dt*1.8);
-    if(keys.KeyD)yokeWheel.rotation.z=Math.max(-1.25,yokeWheel.rotation.z-dt*1.8);
-    if(keys.KeyW)yokeGroup.rotation.x=Math.max(-.36,yokeGroup.rotation.x-dt*.8);
-    if(keys.KeyS)yokeGroup.rotation.x=Math.min(.36,yokeGroup.rotation.x+dt*.8);
+    const kL=keys.KeyA||keys.ArrowLeft, kR=keys.KeyD||keys.ArrowRight;
+    const kU=keys.KeyW||keys.ArrowUp,   kD=keys.KeyS||keys.ArrowDown;
+    if(kL)yokeWheel.rotation.z=Math.min(1.25,yokeWheel.rotation.z+dt*1.8);
+    if(kR)yokeWheel.rotation.z=Math.max(-1.25,yokeWheel.rotation.z-dt*1.8);
+    if(kU)yokeGroup.rotation.x=Math.max(-.36,yokeGroup.rotation.x-dt*.8);
+    if(kD)yokeGroup.rotation.x=Math.min(.36,yokeGroup.rotation.x+dt*.8);
     if(keys.ShiftLeft||keys.ShiftRight)throttle.value=Math.min(1,throttle.value+dt*.6);
     if(keys.ControlLeft||keys.ControlRight)throttle.value=Math.max(0,throttle.value-dt*.6);
   }
-  if(grabs.size===0&&!keys.KeyA&&!keys.KeyD)yokeWheel.rotation.z*=Math.pow(.2,dt);
-  if(grabs.size===0&&!keys.KeyW&&!keys.KeyS)yokeGroup.rotation.x*=Math.pow(.25,dt);
+  if(grabs.size===0&&!keys.KeyA&&!keys.KeyD&&!keys.ArrowLeft&&!keys.ArrowRight)
+    yokeWheel.rotation.z*=Math.pow(.2,dt);
+  if(grabs.size===0&&!keys.KeyW&&!keys.KeyS&&!keys.ArrowUp&&!keys.ArrowDown)
+    yokeGroup.rotation.x*=Math.pow(.25,dt);
   throttle.arm.rotation.x=.6-throttle.value*1.15;
   St.thrust=throttle.value;
 
@@ -4322,12 +4457,30 @@ function updateFlight(dt){
       aimPitch(-horizonPitch(St.dest,St.alt)*look,dt*1.6);
       const wantSink=-THREE.MathUtils.clamp(St.alt*.19,2.2,70);
       SHIP.vel.y+=(wantSink-SHIP.vel.y)*Math.min(1,dt*1.3);
-      const wantFwd=THREE.MathUtils.clamp(St.alt*.05,0,34);
-      _v.copy(FWD);_v.y=0;
-      if(_v.lengthSq()>1e-6)_v.normalize();else _v.set(0,0,-1);
+      /* Fly to the spot that was CHOSEN, not wherever the drift ends up.
+       * This used to be a blind forward push, and it carried the ship
+       * 537 to 614 m past the flat ground flatSpot had picked — on the
+       * Moon it put it down on a 44 degree slope, half inside a boulder.
+       * The approach still runs in from a few hundred metres for the look
+       * of it; it just arrives where it was aiming. */
       const k=Math.min(1,dt*1.1);
-      SHIP.vel.x+=(_v.x*wantFwd-SHIP.vel.x)*k;
-      SHIP.vel.z+=(_v.z*wantFwd-SHIP.vel.z)*k;
+      const T=St.touchAt;
+      if(T){
+        const dx=T.x-SHIP.pos.x, dz=T.z-SHIP.pos.z, dd=Math.hypot(dx,dz);
+        const closing=Math.min(THREE.MathUtils.clamp(St.alt*.05,0,34),dd*0.42);
+        const ux=dd>0.1?dx/dd:0, uz=dd>0.1?dz/dd:0;
+        SHIP.vel.x+=(ux*closing-SHIP.vel.x)*k;
+        SHIP.vel.z+=(uz*closing-SHIP.vel.z)*k;
+        /* Point the nose where it is going, so the approach is flown and
+         * not crabbed sideways. */
+        if(dd>14&&St.alt>60)aimAt({x:T.x,y:SHIP.pos.y,z:T.z},dt*0.8);
+      }else{
+        const wantFwd=THREE.MathUtils.clamp(St.alt*.05,0,34);
+        _v.copy(FWD);_v.y=0;
+        if(_v.lengthSq()>1e-6)_v.normalize();else _v.set(0,0,-1);
+        SHIP.vel.x+=(_v.x*wantFwd-SHIP.vel.x)*k;
+        SHIP.vel.z+=(_v.z*wantFwd-SHIP.vel.z)*k;
+      }
       autoThrottle(THREE.MathUtils.clamp(.15-wantSink/70,0,1),dt);
       SHIP.pos.addScaledVector(SHIP.vel,dt);
     }else{
@@ -4408,12 +4561,13 @@ function updateFlight(dt){
           startQuests(SHIP.pos.x,SHIP.pos.z);
         }
         if(GAME.mode==="explorer"){
-          if(St.dest==="moon"&&!GAME.moonSeen){
+          if(St.dest==="moon"&&!GAME.fuelDone&&!GAME.fuelHeld){
             GAME.moonSeen=true;
-            log("INTET KORT HER");
-            showMsg("Ingen kort her på Månen. Prøv Mars.",7);
+            placePickup("fuel","moon",SHIP.pos.x,SHIP.pos.z);
+            log("BRÆNDSTOF I NÆRHEDEN");
+            showMsg("Der står en brændstofdunk 50 m herfra. Uden den rækker tankene ikke til Guldplaneten. Gå ud og følg pilene.",9);
           }else if(St.dest==="mars"&&!GAME.mapDone&&!GAME.mapHeld){
-            placeMarsMap(SHIP.pos.x,SHIP.pos.z);
+            placePickup("map","mars",SHIP.pos.x,SHIP.pos.z);
             log("KORT I NÆRHEDEN");
             showMsg("Kortet ligger 50 m herfra. Gå ud og følg pilene.",8);
           }
@@ -4574,20 +4728,24 @@ renderer.setAnimationLoop(()=>{
   if(pendingRecenter>0){pendingRecenter--;if(pendingRecenter===0)try{recenter();}catch(e){}}
   const session=renderer.xr.getSession&&renderer.xr.getSession();
   if(session)try{
+    /* The sticks do what sticks do in every other headset title: left
+     * moves, right turns. Teleport is still there and still the gentler
+     * way round a planet, but walking is no longer the one thing the
+     * hardware offers that this did not. Turning stays SNAPPED — a
+     * continuous yaw with your feet still is the classic way to make
+     * someone ill, and it costs nothing to keep that one guard. */
     for(const src of session.inputSources){
       const gp=src.gamepad;
-      if(src.handedness==="left"&&gp&&gp.axes.length>3){
-        if(WALK.active){
-          /* Snap turning, not smooth: a continuous yaw with your feet still
-           * is the other classic way to make someone ill. */
-          const ax=gp.axes[2]||0;
-          if(Math.abs(ax)>.7&&!snapArmed){
-            WALK.yaw-=Math.sign(ax)*Math.PI/6;snapArmed=true;Audio_.click();
-          }else if(Math.abs(ax)<.3)snapArmed=false;
-        }else{
-          const a=gp.axes[3];
-          if(Math.abs(a)>.25)rig.position.y=THREE.MathUtils.clamp(rig.position.y-a*dt*.6,-1.2,1.2);
-        }
+      if(!gp||gp.axes.length<4)continue;
+      const sx=gp.axes[2]||0, sy=gp.axes[3]||0;
+      if(src.handedness==="left"){
+        if(WALK.active)walkStick(sx,sy,dt);
+        else if(Math.abs(sy)>.25)
+          rig.position.y=THREE.MathUtils.clamp(rig.position.y-sy*dt*.6,-1.2,1.2);
+      }else if(src.handedness==="right"&&WALK.active){
+        if(Math.abs(sx)>.7&&!snapArmed){
+          WALK.yaw-=Math.sign(sx)*Math.PI/6;snapArmed=true;Audio_.click();
+        }else if(Math.abs(sx)<.3)snapArmed=false;
       }
     }
   }catch(e){}
