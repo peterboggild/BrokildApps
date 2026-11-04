@@ -1359,10 +1359,13 @@ function consoleButton(x,y,label,bg,border,color,baseCol,onPress){
 }
 const hyperBtn=consoleButton(.84,-.150,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper());
 const landBtn =consoleButton(.84,-.150,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
-/* LET takes the console's action slot, which the phase-critical buttons
+/* START takes the console's action slot, which the phase-critical buttons
  * share. NY FLYVNING is a rare, deliberate thing, so it moves to the port
  * wall with the other switches rather than competing for that slot. */
-const liftBtn=consoleButton(.84,-.150,"LET","#141f08","#3e5c18","#c2e86a",0x2c4212,()=>pressLift());
+/* Not "LET". That is the Danish for "easy", and it is already the name of
+ * one of the three flight modes, so the button to leave a planet read as
+ * a difficulty setting. */
+const liftBtn=consoleButton(.84,-.150,"START","#141f08","#3e5c18","#c2e86a",0x2c4212,()=>pressLift());
 const againBtn=(function(){
   const g=new THREE.Group();g.position.set(-.9,1.42,.2);g.rotation.y=Math.PI/2;ship.add(g);
   g.add(new THREE.Mesh(new THREE.BoxGeometry(.34,.12,.03),M.hullDark));
@@ -1388,8 +1391,13 @@ const hatchBtn=(function(){
   const hit=new THREE.Mesh(new THREE.BoxGeometry(.36,.2,.14),new THREE.MeshBasicMaterial({visible:false}));
   g.add(hit);
   makeInteractive(hit,{poke:.085,onPress:()=>exitShip()});
+  /* A halo behind the plate, lit while going out is the thing to do. */
+  const glow=new THREE.Mesh(new THREE.PlaneGeometry(.42,.2),
+    new THREE.MeshBasicMaterial({color:0x8ce8a0,transparent:true,opacity:0,
+      depthWrite:false,blending:THREE.AdditiveBlending}));
+  glow.position.z=.01;glow.visible=false;g.add(glow);
   g.visible=false;
-  return {group:g};
+  return {group:g,glow:glow};
 })();
 
 function screenPanel(w,h,px,py,cw,chh){
@@ -1517,6 +1525,7 @@ const DEST={
  * ------------------------------------------------------------------ */
 const GAME={mode:"explorer",mapHeld:false,mapDone:false,
             fuelHeld:false,fuelDone:false,
+            beenOut:false,
             goldSeen:false,crowned:false,
             open:{moon:true,mars:true,gold:false}};
 function destOpen(k){
@@ -2880,6 +2889,110 @@ function placePickup(kind,key,sx,sz){
   fuelCan.visible=(kind==="fuel");
   layTrail(sx,sz,MAPAT.x,MAPAT.z,key);
 }
+/* ---------- the fusion cores ----------
+ *  One drum of fuel fifty metres away was a walk to a prop and back. The
+ *  Moon is the one place in the game whose only job is to be explored, so
+ *  the fuel is three cores scattered across half a kilometre: you have to
+ *  go and look, the hop and the teleport are what get you there, and the
+ *  ship does not have the range for Guldplaneten until all three are in.
+ *
+ *  Three instanced meshes for the lot of them — a plinth, a containment
+ *  cage of two crossed rings each, and the core itself glowing inside.
+ * ------------------------------------------------------------------ */
+const CORES={live:false,key:"moon",list:[],held:0};
+const coreRoot=new THREE.Group();coreRoot.visible=false;world.add(coreRoot);
+const CORE_N=3;
+const corePlinth=new THREE.InstancedMesh(
+  new THREE.CylinderGeometry(.46,.62,.34,8),
+  new THREE.MeshStandardMaterial({color:0x2b3540,roughness:.5,metalness:.7,flatShading:true}),CORE_N);
+const coreCage=new THREE.InstancedMesh(
+  new THREE.TorusGeometry(.52,.055,6,20),
+  new THREE.MeshStandardMaterial({color:0x8fe9ff,roughness:.25,metalness:.8,
+    emissive:0x1d6a86,emissiveIntensity:1.0}),CORE_N*2);
+const coreGlow=new THREE.InstancedMesh(
+  new THREE.IcosahedronGeometry(.34,1),
+  /* At 2.4 the core clipped to white and stopped reading as a colour at
+   * all. Cyan, hot but not blown. */
+  new THREE.MeshStandardMaterial({color:0x0b2630,emissive:0x2ad8ff,emissiveIntensity:1.5,
+    flatShading:true}),CORE_N);
+[corePlinth,coreCage,coreGlow].forEach(m=>{m.frustumCulled=false;coreRoot.add(m);});
+const _cm=new THREE.Matrix4(),_cp=new THREE.Vector3(),
+      _cq=new THREE.Quaternion(),_cs=new THREE.Vector3(),_ce=new THREE.Euler();
+function placeCores(key,sx,sz){
+  CORES.key=key;CORES.held=0;CORES.list=[];
+  const r=mulberry32(99173);
+  for(let i=0;i<CORE_N;i++){
+    /* Spread round the ship rather than clustered, and far enough out
+     * that finding one is a trip. Pushed outwards if it would land in a
+     * crater, because the whole point of the Moon is walking there. */
+    let a=i*(Math.PI*2/CORE_N)+r()*0.9, d=130+r()*190;
+    let x=sx+Math.cos(a)*d, z=sz+Math.sin(a)*d;
+    for(let tries=0;tries<8&&bowlDepth(key,x,z)>11;tries++){
+      d+=46;x=sx+Math.cos(a)*d;z=sz+Math.sin(a)*d;
+    }
+    CORES.list.push({x:x,z:z,taken:false});
+  }
+  CORES.live=true;coreRoot.visible=true;
+}
+function clearCores(){CORES.live=false;coreRoot.visible=false;}
+function takeCore(c){
+  if(c.taken)return;
+  c.taken=true;CORES.held++;Audio_.ok();
+  log("FUSIONSKERNE "+CORES.held+"/"+CORE_N);
+  if(CORES.held>=CORE_N){
+    GAME.fuelHeld=true;clearCores();beams.visible=false;trail.visible=false;
+    showOverlay(drawFuelCard,()=>showMsg("Alle tre fusionskerner er dine. Bær dem tilbage til skibet.",8));
+  }else{
+    showMsg("Fusionskerne "+CORES.held+" af "+CORE_N+". Følg lyset til den næste.",5);
+  }
+}
+function updateCores(dt){
+  if(!CORES.live)return;
+  const key=CORES.key;
+  const vx=WALK.active?WALK.pos.x:SHIP.pos.x, vz=WALK.active?WALK.pos.z:SHIP.pos.z;
+  const left=[];
+  CORES.list.forEach((c,i)=>{
+    if(c.taken){
+      _cm.compose(_cp.set(0,-9999,0),_cq.identity(),_cs.setScalar(.001));
+      corePlinth.setMatrixAt(i,_cm);coreGlow.setMatrixAt(i,_cm);
+      coreCage.setMatrixAt(i*2,_cm);coreCage.setMatrixAt(i*2+1,_cm);
+      return;
+    }
+    left.push(c);
+    const gy=groundH(key,c.x,c.z);
+    _cq.identity();
+    _cm.compose(_cp.set(c.x,gy+.17,c.z),_cq,_cs.setScalar(1));
+    corePlinth.setMatrixAt(i,_cm);
+    /* The core floats above its plinth and breathes; the cage turns
+     * around it on two axes, which is the whole of the animation. */
+    const bob=Math.sin(St.t*1.6+i)*.07, pul=1+Math.sin(St.t*3.1+i)*.09;
+    _cm.compose(_cp.set(c.x,gy+.92+bob,c.z),_cq,_cs.setScalar(pul));
+    coreGlow.setMatrixAt(i,_cm);
+    _ce.set(Math.PI/2,St.t*.9+i,0);_cq.setFromEuler(_ce);
+    _cm.compose(_cp.set(c.x,gy+.92+bob,c.z),_cq,_cs.setScalar(1));
+    coreCage.setMatrixAt(i*2,_cm);
+    _ce.set(0,St.t*-.6+i,Math.PI/2);_cq.setFromEuler(_ce);
+    _cm.compose(_cp.set(c.x,gy+.92+bob,c.z),_cq,_cs.setScalar(1));
+    coreCage.setMatrixAt(i*2+1,_cm);
+    if(WALK.active)markAt(c.x,gy+2.3,c.z,"?",4.4,()=>takeCore(c),400);
+  });
+  corePlinth.instanceMatrix.needsUpdate=true;
+  coreCage.instanceMatrix.needsUpdate=true;
+  coreGlow.instanceMatrix.needsUpdate=true;
+  /* A pillar of light over every one that is still out there, so from
+   * the hatch you can see all three and choose which to walk to. */
+  setBeams(left,key);
+  if(left.length&&WALK.active){
+    let near=left[0],nd=Infinity;
+    for(const c of left){const d=Math.hypot(c.x-vx,c.z-vz);if(d<nd){nd=d;near=c;}}
+    const moved=!CORES.trailAt||CORES.trailAt!==near;
+    const walked=!CORES.trailFrom||Math.hypot(vx-CORES.trailFrom.x,vz-CORES.trailFrom.z)>18;
+    if(moved||walked){
+      CORES.trailAt=near;CORES.trailFrom={x:vx,z:vz};
+      if(nd>9)layTrail(vx,vz,near.x,near.z,key);else trail.visible=false;
+    }
+  }
+}
 function clearMarsMap(){
   mapProp.visible=false;trail.visible=false;MAPAT.live=false;beams.visible=false;
 }
@@ -2897,20 +3010,58 @@ const ALIEN_N=9;
 const aliens=[];
 const alienRoot=new THREE.Group();alienRoot.visible=false;world.add(alienRoot);
 const alienParts=(function(){
-  const gold=new THREE.MeshStandardMaterial({color:0xe3b43f,roughness:.44,metalness:.35,
-    emissive:0x2a1c04,flatShading:true});
-  const eye=new THREE.MeshStandardMaterial({color:0x0a1830,emissive:0x3fa8ff,emissiveIntensity:1.8});
+  /* vertexColors, even though no vertex carries a colour of its own.
+   * In r128 the fragment shader only multiplies vColor in when USE_COLOR
+   * is defined, and USE_COLOR comes from this flag — so without it the
+   * per-instance colour is computed and then thrown away, and nine
+   * aliens come out white. The geometries below get a white colour
+   * attribute so the vertex term is a no-op and the instance term is
+   * all that tints them. */
+  const gold=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.44,metalness:.35,
+    emissive:0x2a1c04,flatShading:true,vertexColors:true});
+  const whiteAttr=geo=>{
+    const n=geo.attributes.position.count, a=new Float32Array(n*3);
+    a.fill(1);geo.setAttribute("color",new THREE.BufferAttribute(a,3));
+    return geo;
+  };
+  /* Two flat discs of blue glow for a face reads as a machine looking at
+   * you. An eye with a pupil in it reads as somebody. The white is warm
+   * and barely lit; the pupil is purple, which is the one bright colour
+   * that is not a warning light. */
+  const sclera=new THREE.MeshStandardMaterial({color:0xf6eedd,roughness:.5,
+    emissive:0x4a4234,emissiveIntensity:1.0});
+  /* Purple, and readable as purple: at emissiveIntensity 1.5 the glow
+   * swamped the colour and the pupils came out near white. */
+  const pupil=new THREE.MeshStandardMaterial({color:0x6327b4,roughness:.4,
+    emissive:0x3c0f80,emissiveIntensity:.35});
   const mk=(geo,mat)=>{
     const m=new THREE.InstancedMesh(geo,mat,ALIEN_N);
     m.frustumCulled=false;alienRoot.add(m);return m;
   };
-  return {
-    body:mk(new THREE.SphereGeometry(1,10,8),gold),
-    head:mk(new THREE.SphereGeometry(1,8,6),gold),
-    eyeL:mk(new THREE.CircleGeometry(1,8),eye),
-    eyeR:mk(new THREE.CircleGeometry(1,8),eye)
+  const parts={
+    body:mk(whiteAttr(new THREE.SphereGeometry(1,10,8)),gold),
+    head:mk(whiteAttr(new THREE.SphereGeometry(1,8,6)),gold),
+    eyeL:mk(new THREE.CircleGeometry(1,10),sclera),
+    eyeR:mk(new THREE.CircleGeometry(1,10),sclera),
+    pupL:mk(new THREE.CircleGeometry(1,8),pupil),
+    pupR:mk(new THREE.CircleGeometry(1,8),pupil)
   };
+  /* Per-instance colour, so nine locals can be nine different shades of
+   * gold — and the three who ask you for things can be told apart at a
+   * distance — without costing a single extra draw call. */
+  const white=new THREE.Color(0xffffff);
+  [parts.body,parts.head].forEach(m=>{
+    for(let i=0;i<ALIEN_N;i++)m.setColorAt(i,white);
+    m.instanceColor.needsUpdate=true;
+  });
+  return parts;
 })();
+/* The three who hand out the favours, in quest order: each one a visibly
+ * different person, so "the alien who asked about the quicksand" is a
+ * thing you can point at rather than a thing you have to remember. */
+const GIVER_TINT=[0xffc85a,0xff9a7a,0x9fe8c8];
+const ALIEN_TINT=[0xe9c76a,0xf0a98c,0xb6ead2,0xe3b43f,0xd9a94e,0xe8c57e,
+                  0xcfa24a,0xdcb05c,0xe5bd6e];
 function spawnAliens(cx,cz){
   aliens.length=0;
   const r=mulberry32(8181);
@@ -2919,10 +3070,18 @@ function spawnAliens(cx,cz){
     aliens.push({
       x:cx+Math.cos(a)*rad, z:cz+Math.sin(a)*rad,
       yaw:r()*Math.PI*2, turn:r()*Math.PI*2,
-      sc:.8+r()*.5, speed:0, think:r()*4,
-      talk:0, chirp:2+r()*8, lean:0
+      sc:(i<3?1.02+r()*.18:.8+r()*.5), speed:0, think:r()*4,
+      talk:0, chirp:2+r()*8, lean:0,
+      blink:1.5+r()*6, blinkT:0
     });
   }
+  const c=new THREE.Color();
+  for(let i=0;i<ALIEN_N;i++){
+    c.setHex(i<3?GIVER_TINT[i]:ALIEN_TINT[i%ALIEN_TINT.length]);
+    alienParts.body.setColorAt(i,c);alienParts.head.setColorAt(i,c);
+  }
+  alienParts.body.instanceColor.needsUpdate=true;
+  alienParts.head.instanceColor.needsUpdate=true;
   alienRoot.visible=true;
 }
 const _ap=new THREE.Vector3(),_aq=new THREE.Quaternion(),_as=new THREE.Vector3();
@@ -2954,10 +3113,11 @@ function updateAliens(dt){
         a.talk=3+Math.random()*2.5;
         chirpCooldown=.5;
         a.nextSyl=0;
-      }else if(i===0&&Q.home){
-        /* The one handing out the favours keeps to the village, so you can
-         * always find your way back to him. */
-        const hx=Q.home.x-a.x, hz=Q.home.z-a.z, hd=Math.hypot(hx,hz);
+      }else if(i<3&&Q.homes&&Q.homes[i]){
+        /* The three who hand out favours keep to their own spots, so you
+         * can always find your way back to the right one. */
+        const H=Q.homes[i];
+        const hx=H.x-a.x, hz=H.z-a.z, hd=Math.hypot(hx,hz);
         if(hd>7){
           a.turn=Math.atan2(-hx,-hz);a.speed=1.0;
           let d2=a.turn-a.yaw;
@@ -3009,21 +3169,48 @@ function updateAliens(dt){
     _am2.compose(_ap.set(hx,hy,hz),_aq,_as.setScalar(headR));
     alienParts.head.setMatrixAt(i,_am2);
 
+    /* A blink every few seconds. Nothing says alive like it, and it is
+     * one number: the eye discs are squashed vertically for a tenth of a
+     * second and let go. */
+    a.blink-=dt;
+    if(a.blink<=0){a.blink=2.5+Math.random()*7;a.blinkT=0.16;}
+    let open=1;
+    if(a.blinkT>0){
+      a.blinkT-=dt;
+      const u=Math.max(0,a.blinkT)/0.16;        // 1 -> 0 across the blink
+      open=Math.abs(u*2-1);                     // shut at the halfway point
+      open=0.06+0.94*open;
+    }
+
     // eyes sit just proud of the head, facing the way it is looking
     const ex=fx*headR*.94, ez=fz*headR*.94;
     const sx=-fz, sz=fx;                        // sideways from the heading
-    const off=headR*.42, er=headR*.3;
-    _as.setScalar(er);
+    const off=headR*.42, er=headR*.34;
     _aq.setFromAxisAngle(UPW,a.yaw+Math.PI);    // discs face the way it looks
-    _am2.compose(_ap.set(hx+ex+sx*off,hy+headR*.18,hz+ez+sz*off),_aq,_as);
+    const eyY=hy+headR*.18;
+    _as.set(er,er*open,er);
+    _am2.compose(_ap.set(hx+ex+sx*off,eyY,hz+ez+sz*off),_aq,_as);
     alienParts.eyeL.setMatrixAt(i,_am2);
-    _am2.compose(_ap.set(hx+ex-sx*off,hy+headR*.18,hz+ez-sz*off),_aq,_as);
+    _am2.compose(_ap.set(hx+ex-sx*off,eyY,hz+ez-sz*off),_aq,_as);
     alienParts.eyeR.setMatrixAt(i,_am2);
+    /* The pupil tracks you, within the white: a touch towards whichever
+     * side you are standing on, so they are looking AT you and not just
+     * facing you. */
+    const look=THREE.MathUtils.clamp(Math.atan2(
+        (vx-a.x)*sx+(vz-a.z)*sz, Math.max(.5,dist))*0.6,-.5,.5);
+    const pr=er*.52, pe=headR*1.02;
+    _as.set(pr,pr*open,pr);
+    _am2.compose(_ap.set(hx+fx*pe+sx*(off+look*er*.5),eyY,hz+fz*pe+sz*(off+look*er*.5)),_aq,_as);
+    alienParts.pupL.setMatrixAt(i,_am2);
+    _am2.compose(_ap.set(hx+fx*pe+sx*(look*er*.5-off),eyY,hz+fz*pe+sz*(look*er*.5-off)),_aq,_as);
+    alienParts.pupR.setMatrixAt(i,_am2);
   }
   alienParts.body.instanceMatrix.needsUpdate=true;
   alienParts.head.instanceMatrix.needsUpdate=true;
   alienParts.eyeL.instanceMatrix.needsUpdate=true;
   alienParts.eyeR.instanceMatrix.needsUpdate=true;
+  alienParts.pupL.instanceMatrix.needsUpdate=true;
+  alienParts.pupR.instanceMatrix.needsUpdate=true;
   try{updateQuests(dt,vx,vz);}catch(e){}
 }
 
@@ -3089,8 +3276,15 @@ const QTEXT={
   lostD:"Han er hjemme igen! Du har reddet dagen.",
   all  :"Tak for alt, pilot. Guldplaneten står i gæld til dig."
 };
+/* One alien used to hand out all three favours, which made him a desk
+ * rather than a neighbour. There are three of them now, each standing in
+ * their own corner of the village with their own exclamation mark, and
+ * you can take them in any order you like. GIVER maps a favour to the
+ * alien who asks for it; they are aliens 0, 1 and 2, which is also why
+ * those three get their own colours and stay put. */
+const GIVER={sand:0,food:1,lost:2};
 const Q={order:["sand","food","lost"],active:null,done:{},
-         sand:[],fruit:[],lost:null,held:0,cx:0,cz:0,home:null};
+         sand:[],fruit:[],lost:null,held:0,cx:0,cz:0,home:null,homes:null};
 const questRoot=new THREE.Group();questRoot.visible=false;world.add(questRoot);
 let qPit=null,qSunk=null,qSunkHead=null,qFruit=null,qLostBody=null,qLostHead=null;
 (function buildQuestProps(){
@@ -3118,6 +3312,14 @@ function startQuests(cx,cz){
   Q.active=null;Q.done={};Q.held=0;Q.cx=cx;Q.cz=cz;Q.home={x:cx,z:cz};
   const r=mulberry32(31337);
   const pa=r()*Math.PI*2;
+  /* Spread round the landing ground, far enough apart to be three
+   * separate people to walk up to and near enough to see all three from
+   * the hatch. */
+  Q.homes=[0,1,2].map(i=>{
+    const a=pa+1.1+i*2.0, d=15+i*5;
+    return {x:cx+Math.cos(a)*d, z:cz+Math.sin(a)*d};
+  });
+  Q.home=Q.homes[0];
   Q.pit={x:cx+Math.cos(pa)*62, z:cz+Math.sin(pa)*62};
   Q.sand=[0,1,2].map(i=>{
     const a=pa+ (i-1)*0.6;
@@ -3147,34 +3349,42 @@ function questLabel(){
     /* Once you are out of the ship, "go out" is no longer the instruction,
      * and after the first favour it is a return trip, not a first meeting. */
     const back=Object.keys(Q.done).length>0;
-    if(WALK.active)return back?"GÅ TILBAGE TIL ALIEN VED LYSSØJLEN"
-                              :"GÅ HEN TIL ALIEN VED LYSSØJLEN";
-    return "GÅ UD OG TAL MED ALIEN VED LYSSØJLEN";
+    if(WALK.active)return back?"GÅ TILBAGE TIL EN ALIEN VED EN LYSSØJLE"
+                              :"GÅ HEN TIL EN ALIEN VED EN LYSSØJLE";
+    return "GÅ UD OG TAL MED DE TRE ALIENS VED LYSSØJLERNE";
   }
   if(Q.active==="sand")return "RED "+Q.sand.filter(s=>!s.freed).length+" FRA KVIKSAND";
   if(Q.active==="food")return "FIND GULDFRUGT "+Q.held+"/3";
   if(Q.active==="lost")return Q.lost.found?"FØLG LILLEBROR HJEM":"FIND LILLEBROR";
   return "";
 }
-function talkToGiver(){
-  if(!questRoot.visible||!aliens[0])return;
+function talkToGiver(key){
+  if(!questRoot.visible)return;
   if(bubble.t>0)return;
-  if(!Q.active){
-    const next=Q.order.find(k=>!Q.done[k]);
-    if(!next)say(0,QTEXT.all,6);
-    else{Q.active=next;say(0,QTEXT[next],8);Audio_.ok();log("OPGAVE: "+next.toUpperCase());}
-  }else if(Q.active==="sand"){
+  /* Called with no key from anywhere that still means "whoever is next". */
+  const k=key||Q.order.find(q=>!Q.done[q]);
+  if(!k){const g0=GIVER[Q.order[0]];if(aliens[g0])say(g0,QTEXT.all,6);return;}
+  const who=GIVER[k];
+  if(!aliens[who])return;
+  if(Q.done[k]){say(who,QTEXT.all,6);return;}
+  if(Q.active!==k){
+    /* Take them in any order, and change your mind: each favour keeps
+     * its own progress, so switching costs nothing. */
+    Q.active=k;say(who,QTEXT[k],8);Audio_.ok();log("OPGAVE: "+k.toUpperCase());
+    return;
+  }
+  if(k==="sand"){
     const n=Q.sand.filter(s=>!s.freed).length;
-    if(n===0){Q.done.sand=true;Q.active=null;say(0,QTEXT.sandD,7);Audio_.ok();}
-    else say(0,QTEXT.sandN(n),6);
-  }else if(Q.active==="food"){
-    if(Q.held>=3){Q.done.food=true;Q.active=null;Q.held=0;say(0,QTEXT.foodD,7);Audio_.ok();}
-    else say(0,QTEXT.foodN(3-Q.held),6);
-  }else if(Q.active==="lost"){
+    if(n===0){Q.done.sand=true;Q.active=null;say(who,QTEXT.sandD,7);Audio_.ok();}
+    else say(who,QTEXT.sandN(n),6);
+  }else if(k==="food"){
+    if(Q.held>=3){Q.done.food=true;Q.active=null;Q.held=0;say(who,QTEXT.foodD,7);Audio_.ok();}
+    else say(who,QTEXT.foodN(3-Q.held),6);
+  }else if(k==="lost"){
     const d=Math.hypot(Q.lost.x-WALK.pos.x,Q.lost.z-WALK.pos.z);
     if(Q.lost.found&&d<12){
-      Q.lost.home=true;Q.done.lost=true;Q.active=null;say(0,QTEXT.lostD,7);Audio_.ok();
-    }else say(0,Q.lost.found?QTEXT.lostD:QTEXT.lostN,6);
+      Q.lost.home=true;Q.done.lost=true;Q.active=null;say(who,QTEXT.lostD,7);Audio_.ok();
+    }else say(who,Q.lost.found?QTEXT.lostD:QTEXT.lostN,6);
   }
 }
 function updateQuests(dt,vx,vz){
@@ -3186,10 +3396,16 @@ function updateQuests(dt,vx,vz){
    * You talk to him by clicking the question mark over his head. Standing
    * near him used to be enough, which meant the whole exchange could
    * happen while you were walking past looking somewhere else. */
-  const giver=aliens[0];
-  if(giver&&WALK.active){
-    const gy=groundH("gold",giver.x,giver.z);
-    markAt(giver.x,gy+2.4,giver.z,"!",9,()=>talkToGiver());
+  if(WALK.active){
+    Q.order.forEach(k=>{
+      const g=aliens[GIVER[k]];
+      if(!g)return;
+      /* The mark stays up while that favour is unfinished, so all three
+       * of them are visible at once and you pick who to help. */
+      if(Q.done[k]&&Q.active!==k)return;
+      const gy=groundH("gold",g.x,g.z);
+      markAt(g.x,gy+2.4,g.z,"!",9,()=>talkToGiver(k));
+    });
   }
 
   // --- quicksand: walk to the edge and each one is pulled out ---
@@ -3203,7 +3419,7 @@ function updateQuests(dt,vx,vz){
         if(sk.freed)return;
         sk.freed=true;Audio_.ok();
         const left=Q.sand.filter(t=>!t.freed).length;
-        say(0,left?("Én er fri! Der er "+left+" tilbage."):"Den sidste er fri!",4);
+        say(GIVER.sand,left?("Én er fri! Der er "+left+" tilbage."):"Den sidste er fri!",4);
       },Q.active==="sand"?150:14);
     if(sk.freed){qSunk.setMatrixAt(i,hide());qSunkHead.setMatrixAt(i,hide());}
     else{
@@ -3221,7 +3437,7 @@ function updateQuests(dt,vx,vz){
       markAt(f.x,groundH("gold",f.x,f.z)+1.9,f.z,"?",4.0,()=>{
         if(f.taken)return;
         f.taken=true;Q.held++;Audio_.ok();
-        say(0,Q.held>=3?"Du har alle tre! Kom tilbage til mig.":("Guldfrugt "+Q.held+" af 3."),4);
+        say(GIVER.food,Q.held>=3?"Du har alle tre! Kom tilbage til mig.":("Guldfrugt "+Q.held+" af 3."),4);
       },Q.active==="food"?150:14);
     if(f.taken)qFruit.setMatrixAt(i,hide());
     else{
@@ -3239,7 +3455,7 @@ function updateQuests(dt,vx,vz){
     if(!L.found&&!Q.done.lost&&WALK.active)
       markAt(L.x,groundH("gold",L.x,L.z)+1.5,L.z,"?",5.0,()=>{
         if(L.found)return;
-        L.found=true;Audio_.ok();say(0,QTEXT.lostF,5);
+        L.found=true;Audio_.ok();say(GIVER.lost,QTEXT.lostF,5);
       },Q.active==="lost"?150:14);
     if(L.found&&!L.home){
       /* Trots along behind you, keeping a couple of metres back. */
@@ -3267,8 +3483,13 @@ function updateQuests(dt,vx,vz){
   }else if(Q.active==="lost"&&Q.lost&&!Q.lost.found){
     setBeams([Q.lost],"gold");tgt=Q.lost;
   }else if(Q.active||Object.keys(Q.done).length<3){
-    tgt=aliens[0]?{x:aliens[0].x,z:aliens[0].z}:null;
-    setBeams(tgt?[tgt]:[],"gold");
+    /* A pillar over every one who still wants something, so from the
+     * hatch you can see that there are three of them. */
+    const waiting=Q.order.filter(k=>!Q.done[k]).map(k=>aliens[GIVER[k]])
+                         .filter(Boolean).map(g=>({x:g.x,z:g.z}));
+    setBeams(waiting,"gold");
+    let nd=Infinity;
+    waiting.forEach(w=>{const d=Math.hypot(w.x-vx,w.z-vz);if(d<nd){nd=d;tgt=w;}});
   }else setBeams([],"gold");
 
   if(tgt){
@@ -3542,9 +3763,17 @@ function aimAt(target,k){
 const PHASE_DA={preflight:"RAMPE",ignition:"TÆNDING",ascent:"OPSTIGNING",space:"KREDSLØB",
   course:"KURS",hyperspace:"HYPERRUM",approach:"INDFLYVNING",descent:"NEDSTIGNING",landed:"LANDET",
   eva:"UDENFOR"};
+/* Leaving a world runs through the same phase as arriving at it — the
+ * flight model is the same both ways — so the readout said NEDSTIGNING
+ * all the way up. The flag that already distinguishes them names it. */
+function phaseName(){
+  if(St.phase==="descent"&&St.climbing)return "OPSTIGNING";
+  return PHASE_DA[St.phase]||St.phase;
+}
 const St={phase:"preflight",order:[],step:0,alt:0,speed:0,thrust:0,dest:null,distance:0,
   warpT:0,t:0,flash:0,landQuality:"",bodyDist:0,climbing:false,arrive:0};
 const BODY_POS=new THREE.Vector3();
+const QID=new THREE.Quaternion();   // level, nose down the main window
 
 const NUMTEX=[];
 for(let n=1;n<=5;n++)NUMTEX.push(tex(labelCanvas(String(n),
@@ -3579,13 +3808,14 @@ function objectiveText(){
       : (auto?"AUTOPILOTEN LANDER":"FLYV NED PÅ OVERFLADEN");
     case "landed":
       if(MAPAT.live)return "GÅ UD OG FØLG PILENE TIL "+PICK[MAPAT.kind].WHAT;
-      if(GAME.fuelHeld&&!GAME.fuelDone)return "TRYK LET OG FLYV VIDERE MED BRÆNDSTOFFET";
-      if(GAME.mapHeld&&!GAME.mapDone)return "TRYK LET OG FLYV VIDERE MED KORTET";
-      return St.dest?"GÅ UD, ELLER TRYK LET FOR AT FLYVE VIDERE"
+      if(GAME.fuelHeld&&!GAME.fuelDone)return "TRYK START FLYVNING MED KERNERNE OMBORD";
+      if(GAME.mapHeld&&!GAME.mapDone)return "TRYK START FLYVNING MED KORTET OMBORD";
+      return St.dest?"GÅ UD — ELLER TRYK START FLYVNING FOR AT REJSE VIDERE"
                     :"GÅ UD, ELLER NY FLYVNING";
     case "eva":
       if(MAPAT.live)return "FØLG LYSSØJLEN TIL "+PICK[MAPAT.kind].WHAT;
-      if(GAME.fuelHeld&&!GAME.fuelDone)return "BÆR DUNKEN TILBAGE TIL SKIBET";
+      if(GAME.fuelHeld&&!GAME.fuelDone)return "BÆR KERNERNE TILBAGE TIL SKIBET";
+      if(CORES.live)return "FIND FUSIONSKERNER "+CORES.held+"/"+CORE_N;
       if(GAME.mapHeld&&!GAME.mapDone)return "BÆR KORTET TILBAGE TIL SKIBET";
       if(St.dest==="gold"&&questRoot.visible){
         const q=questLabel();
@@ -3612,7 +3842,7 @@ function drawStatus(){
     [St.phase==="approach"?"AFSTAND":"HØJDE",alt],
     ["FART",St.speed>9999?(St.speed/1000).toFixed(0)+" km/s":Math.round(St.speed)+" m/s"],
     ["GAS",Math.round(St.thrust*100)+" %"],
-    ["FASE",PHASE_DA[St.phase]||St.phase],
+    ["FASE",phaseName()],
     ["FLYV",MODE.name.toUpperCase()]
   ];
   rows.forEach((r,i)=>{
@@ -3725,9 +3955,10 @@ function pressHyper(){
  * takes the one whose surroundings are flattest. */
 function flatSpot(key,cx,cz,R){
   let bx=cx,bz=cz,best=Infinity;
-  for(let i=-4;i<=4;i++)for(let j=-4;j<=4;j++){
-    const x=cx+i*R/4, z=cz+j*R/4, h=groundH(key,x,z);
-    let s=0;
+  const N=6;                                   // 13 x 13 candidates
+  for(let i=-N;i<=N;i++)for(let j=-N;j<=N;j++){
+    const x=cx+i*R/N, z=cz+j*R/N, h=groundH(key,x,z);
+    let s=0, far=0;
     for(let k=0;k<8;k++){
       const a=k*Math.PI/4, ca=Math.cos(a), sa=Math.sin(a);
       /* Three rings, the nearest weighted hardest: what matters is the
@@ -3737,10 +3968,26 @@ function flatSpot(key,cx,cz,R){
       s+=Math.abs(groundH(key,x+ca*8, z+sa*8 )-h)*1.0
         +Math.abs(groundH(key,x+ca*16,z+sa*16)-h)*0.7
         +Math.abs(groundH(key,x+ca*30,z+sa*30)-h)*0.4;
+      /* And a fourth ring, far out, which is not about roughness at all.
+       * A crater floor is the flattest ground for hundreds of metres, so
+       * the autopilot kept choosing one — and once you are down there the
+       * walls are too high to hop and the only way out is to fly. If the
+       * land all round stands well above you, you are in a bowl. */
+      far+=(groundH(key,x+ca*110,z+sa*110)-h)+(groundH(key,x+ca*190,z+sa*190)-h);
     }
-    if(s<best){best=s;bx=x;bz=z;}
+    const bowl=Math.max(0,far/16);             // mean rise of the surroundings
+    if(s+bowl*14<best){best=s+bowl*14;bx=x;bz=z;}
   }
   return {x:bx,z:bz};
+}
+/* How deep a hole the chosen spot sits in, for checking the chooser. */
+function bowlDepth(key,x,z){
+  const h=groundH(key,x,z);let far=0;
+  for(let k=0;k<8;k++){
+    const a=k*Math.PI/4, ca=Math.cos(a), sa=Math.sin(a);
+    far+=(groundH(key,x+ca*110,z+sa*110)-h)+(groundH(key,x+ca*190,z+sa*190)-h);
+  }
+  return far/16;
 }
 function pressLand(){
   /* No distance gate: LAND commits to atmospheric entry from wherever you
@@ -3750,7 +3997,8 @@ function pressLand(){
   const d=DEST[St.dest];
   const home=(St.dest==="earth");
   St.phase="descent";terrainKey=home?null:St.dest;St.climbing=false;
-  const spot=home?{x:0,z:0}:flatSpot(St.dest,0,0,220);
+  GAME.beenOut=false;
+  const spot=home?{x:0,z:0}:flatSpot(St.dest,0,0,420);
   St.touchAt=home?null:{x:spot.x,z:spot.z};
   /* Keep the boulders off the chosen ground. The props are scattered when
    * a chunk is built, and a 7 m rock half-sunk in the sand goes straight
@@ -3834,6 +4082,7 @@ function restartFlight(){
   SHIP.pos.set(0,PAD_Y,0);SHIP.vel.set(0,0,0);SHIP.quat.identity();SHIP.onGround=true;
   throttle.value=0;
   terrainKey=null;clearChunks();PAD.live=false;St.touchAt=null;
+  clearCores();
   terrainRoot.visible=false;skirt.visible=false;alienRoot.visible=false;
   questRoot.visible=false;bubble.mesh.visible=false;bubble.t=0;trail.visible=false;
   bulb.on=false;bulb.sprite.visible=false;
@@ -4086,8 +4335,11 @@ function buildTouchbar(){
   }else if(St.phase==="approach"){
     tbMain.appendChild(mkBtn("LAND","lit",()=>pressLand()));
   }else if(St.phase==="landed"){
-    if(St.dest)tbMain.appendChild(mkBtn("LET","lit",()=>pressLift()));
-    tbMain.appendChild(mkBtn("GÅ UD","",()=>exitShip()));
+    /* Out of the ship first, and lit: the quests, the fuel and the map
+     * are all out there, and lighting the one that flies you away again
+     * pointed at the one thing you did not come here to do. */
+    tbMain.appendChild(mkBtn("GÅ UD","lit",()=>exitShip()));
+    if(St.dest)tbMain.appendChild(mkBtn("START FLYVNING","",()=>pressLift()));
     tbMain.appendChild(mkBtn("NY FLYVNING","",()=>restartFlight()));
   }else if(St.phase==="eva"){
     tbMain.appendChild(mkBtn("GÅ IND","",()=>enterShip()));
@@ -4120,7 +4372,7 @@ function refreshHud(){
   const alt=St.phase==="approach"
     ? "<span>AFSTAND</span> "+Math.round(St.bodyDist)+" km"
     : "<span>HØJDE</span> "+(St.alt>=1000?(St.alt/1000).toFixed(1)+" km":Math.round(St.alt)+" m");
-  hud.innerHTML="<span>FASE</span> "+(PHASE_DA[St.phase]||St.phase)+"<br>"+alt+"<br>"+
+  hud.innerHTML="<span>FASE</span> "+phaseName()+"<br>"+alt+"<br>"+
     "<span>FART</span> "+(St.speed>9999?(St.speed/1000).toFixed(0)+" km/s":Math.round(St.speed)+" m/s")+"<br>"+
     "<span>GAS</span> "+Math.round(St.thrust*100)+" %<br><span>FLYV</span> "+MODE.name+
     (St.landQuality?"<br><span>LANDING</span> "+St.landQuality:"")+
@@ -4183,8 +4435,7 @@ const tpMark=(function(){
       depthWrite:false,depthTest:false}));
     m.rotation.x=-Math.PI/2;m.renderOrder=order;g.add(m);return m;
   };
-  flat(new THREE.CircleGeometry(1.30,28),0x041018,.42,30);
-  flat(new THREE.RingGeometry(1.20,1.42,28),0x031016,.55,31);
+  flat(new THREE.CircleGeometry(1.42,28),0x041018,.46,30);
   const ring=flat(new THREE.RingGeometry(.58,.92,28),0x7fd4e8,.95,32);
   const halo=flat(new THREE.RingGeometry(1.00,1.18,28),0xa8f0ff,.65,33);
   /* A post you can see from across a crater, with three chevrons sliding
@@ -4193,13 +4444,13 @@ const tpMark=(function(){
     new THREE.MeshBasicMaterial({color:0x7fd4e8,transparent:true,opacity:.55,
       depthWrite:false,depthTest:false}));
   post.position.y=1.1;post.renderOrder=32;g.add(post);
-  const chev=[];
-  const cg=new THREE.ConeGeometry(.26,.34,4);
-  for(let i=0;i<3;i++){
-    const m=new THREE.Mesh(cg,new THREE.MeshBasicMaterial({color:0xd8fbff,
-      transparent:true,opacity:.9,depthWrite:false,depthTest:false}));
-    m.rotation.x=Math.PI;m.renderOrder=34;g.add(m);chev.push(m);
-  }
+  /* The three chevrons are one instanced mesh, not three: the marker is
+   * on screen at the same time as the aliens, the village and the quest
+   * props, and draw calls are the budget on a Quest 2. */
+  const chev=new THREE.InstancedMesh(new THREE.ConeGeometry(.26,.34,4),
+    new THREE.MeshBasicMaterial({color:0xd8fbff,transparent:true,opacity:.9,
+      depthWrite:false,depthTest:false}),3);
+  chev.frustumCulled=false;chev.renderOrder=34;g.add(chev);
   return {group:g,ring:ring,halo:halo,chev:chev,
           valid:false,point:new THREE.Vector3()};
 })();
@@ -4211,11 +4462,14 @@ function animTpMark(t){
   tpMark.halo.scale.setScalar(1+b*.22);
   tpMark.halo.material.opacity=.20+.45*(1-b);
   tpMark.ring.material.opacity=.80+.20*b;
+  const m=new THREE.Matrix4(), q=new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(1,0,0),Math.PI), v=new THREE.Vector3(), sc=new THREE.Vector3();
   for(let i=0;i<3;i++){
-    const k=((t*.85+i/3)%1);
-    tpMark.chev[i].position.y=2.05-k*1.65;
-    tpMark.chev[i].material.opacity=.95*Math.min(1,(1-k)*3);
+    const k=((t*.85+i/3)%1), f=Math.min(1,(1-k)*3);
+    m.compose(v.set(0,2.05-k*1.65,0),q,sc.setScalar(f*f));
+    tpMark.chev.setMatrixAt(i,m);
   }
+  tpMark.chev.instanceMatrix.needsUpdate=true;
 }
 
 /* March the aim ray against the height field. No mesh raycast: the ground is
@@ -4400,8 +4654,21 @@ function drawFuelCard(g,W,H){
   g.fillStyle="#2f6f8a";g.font="600 24px 'Chivo Mono', monospace";
   g.fillText("TRYK FOR AT TAGE DEN MED",W/2,H-54);
 }
+/* The dashboard is forty-four meshes and the yoke is ten more, and from
+ * outside on the ground they are behind the hull and the glass. Standing
+ * on a rise rather than in a crater — which is what the landing chooser
+ * does now — puts far more of the ship in view at once, and that pushed
+ * the walk-about frame from 127 draw calls to 173; each one is paid
+ * twice in a headset. Switching the cockpit off while you are out of it
+ * hands all of that back. */
+function cockpitVisible(on){
+  consoleGroup.visible=on;
+  yokeGroup.visible=on;
+}
 function exitShip(){
   if((St.phase!=="landed"&&St.phase!=="preflight")||WALK.active)return;
+  GAME.beenOut=true;
+  cockpitVisible(false);
   const where=St.dest?DEST[St.dest].name:"startrampen";
   /* Step out onto the port side, beside the ladder. */
   const spot=new THREE.Vector3(-7.6,0,-1.30).applyQuaternion(SHIP.quat).add(SHIP.pos);
@@ -4421,6 +4688,7 @@ function exitShip(){
   });
 }
 function enterShip(){
+  cockpitVisible(true);
   if(!WALK.active)return;
   /* Only from arm's reach of the ladder, so the marker is a door and not a
    * teleport-home button you can hit from the next valley. */
@@ -4439,15 +4707,15 @@ function enterShip(){
       Audio_.ok();setTimeout(()=>Audio_.ok(),260);
       log("BRÆNDSTOF TANKET");
       showMsg(GAME.mapDone
-        ? "Brændstoffet er tanket. Nu rækker det til Guldplaneten."
-        : "Brændstoffet er tanket. Nu mangler du kun kortet — det ligger på Mars.",9);
+        ? "Alle tre kerner er ombord. Nu rækker brændstoffet til Guldplaneten."
+        : "Kernerne er ombord. Nu mangler du kun kortet — det ligger på Mars.",9);
     }else if(GAME.mapHeld&&!GAME.mapDone){
       GAME.mapDone=true;refreshMenu();
       Audio_.ok();setTimeout(()=>Audio_.ok(),260);
       log("KORT INSTALLERET");
       showMsg(GAME.fuelDone
         ? "Guldplanetens kort er installeret. Du har brændstof nok — afsted."
-        : "Guldplanetens kort er installeret. Nu mangler du brændstof — der er en dunk på Månen.",9);
+        : "Guldplanetens kort er installeret. Nu mangler du brændstof — der ligger tre fusionskerner på Månen.",9);
     }else{
       showMsg(St.dest?"Ombord igen.":"Ombord. Kør startsekvensen.");
     }
@@ -4711,6 +4979,16 @@ function updateFlight(dt){
   if(ph==="hyperspace"){
     St.warpT+=dt;
     centreWarp(true);
+    /* Line up for the jump. The streaks run along the ship's nose, so
+     * whatever attitude you were flying in is the attitude you watch
+     * hyperspace in: come out of a climb rolled and yawed, as you do
+     * flying it by hand, and the tunnel is out of a side window with the
+     * horizon on its ear. The ship squares up over the first second —
+     * while the stars are still stars and before the streaks build — and
+     * arrives level, which is also what the code did abruptly at the far
+     * end anyway. */
+    if(St.warpT<1.2)SHIP.quat.slerp(QID,Math.min(1,dt*2.6));
+    else SHIP.quat.copy(QID);
     /* On a phone the default view is tipped 17 degrees down onto the
      * dashboard, which puts the whole of hyperspace in the top third of
      * the screen. Ease the look up to the glass for the duration — not in
@@ -4936,9 +5214,9 @@ function updateFlight(dt){
         if(GAME.mode==="explorer"){
           if(St.dest==="moon"&&!GAME.fuelDone&&!GAME.fuelHeld){
             GAME.moonSeen=true;
-            placePickup("fuel","moon",SHIP.pos.x,SHIP.pos.z);
-            log("BRÆNDSTOF I NÆRHEDEN");
-            showMsg("Der står en brændstofdunk 50 m herfra. Uden den rækker tankene ikke til Guldplaneten. Gå ud og følg pilene.",9);
+            placeCores("moon",SHIP.pos.x,SHIP.pos.z);
+            log("TRE FUSIONSKERNER");
+            showMsg("Tre fusionskerner ligger spredt ud over Månen — se efter lyssøjlerne. Uden alle tre rækker tankene ikke til Guldplaneten. Gå ud, hop og følg pilene.",10);
           }else if(St.dest==="mars"&&!GAME.mapDone&&!GAME.mapHeld){
             placePickup("map","mars",SHIP.pos.x,SHIP.pos.z);
             log("KORT I NÆRHEDEN");
@@ -4951,7 +5229,7 @@ function updateFlight(dt){
          * that you have to be out of the ship and standing next to him. */
         if(St.dest==="gold"&&questRoot.visible&&Object.keys(Q.done).length<3){
           log("ALIENS I NÆRHEDEN");
-          showMsg("Guldplaneten. Gå ud og stil dig hen til aliens ved lyssøjlen — han vil spørge dig om noget.",9);
+          showMsg("Guldplaneten. Tre aliens står ved hver sin lyssøjle — gå ud og klik på udråbstegnet over den, du vil hjælpe først.",10);
         }
         log(St.landQuality+" LANDING");
         if(St.dest==="earth"){
@@ -5026,8 +5304,16 @@ function updateFlight(dt){
   bigBtn.cap.position.z=.045-bigBtn.press*.02;
   const bl=bigBtn.armed?(.5+.5*Math.sin(St.t*6)):0;
   bigBtn.mat.emissive.setRGB(bl*.75,bl*.07,bl*.05);
+  /* The lift button used to blink the moment you touched down, which is
+   * the console shouting "leave" at someone who has just arrived. It
+   * blinks once you have been out and come back; until then the hatch
+   * glows instead. */
+  const wantOut=(St.phase==="landed"&&!GAME.beenOut);
   liftBtn.mat.emissive.setHex(
-    (St.phase==="landed"&&Math.sin(St.t*4)>0)?0x2d4a10:0x000000);
+    (St.phase==="landed"&&!wantOut&&Math.sin(St.t*4)>0)?0x2d4a10:0x000000);
+  hatchBtn.glow.material.opacity=
+    (wantOut?(.35+.35*Math.sin(St.t*4)):0);
+  hatchBtn.glow.visible=wantOut;
   if(St.flash>0){St.flash-=dt*2;cabin.color.setHex(0xff4040);cabin.intensity=1.6;}
   else{cabin.color.setHex(0xffb14d);cabin.intensity=.85+bl*.5+(ph==="ignition"?1.2:0);}
 
@@ -5081,6 +5367,7 @@ function updateHands(){
 
 /* ---------- boot ---------- */
 function startOutside(){
+  cockpitVisible(false);
   /* Opening on the apron rather than in the seat: you meet the ship at its
    * own scale, walk to the ladder and climb in. Nothing explains how big it
    * is as well as standing under a wing. */
@@ -5155,6 +5442,7 @@ renderer.setAnimationLoop(()=>{
   updateFlight(dt);
   updateClouds(dt);
   try{updateAliens(dt);}catch(e){}
+  try{updateCores(dt);}catch(e){}
   renderBulb(dt);
   screenClock+=dt;
   if(screenClock>.14){screenClock=0;drawStatus();if(St.dest)drawMap();}
