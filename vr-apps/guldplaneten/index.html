@@ -105,7 +105,7 @@
   #msg{position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:4;pointer-events:none;
     font-family:var(--display);font-weight:600;font-size:clamp(16px,4.5vw,26px);letter-spacing:.04em;
     color:var(--paper);text-shadow:0 0 24px rgba(0,0,0,.9);text-align:center;opacity:0;transition:opacity .4s;
-    padding-inline:16px}
+    padding-inline:16px;max-width:min(720px,86vw);line-height:1.25;overflow-wrap:break-word}
   [hidden]{display:none!important}
 </style>
 </head>
@@ -448,7 +448,33 @@ function labelCanvas(text,opts){
   g.font=(opts.weight||600)+" "+(opts.size||28)+'px "Chivo Mono", monospace';
   g.textAlign="center";g.textBaseline="middle";
   g.shadowColor=opts.color||"#f2a33c";g.shadowBlur=opts.glow===false?0:14;
-  g.fillText(text,W/2+((opts.orb||opts.core)?H*.42:0),H/2+1);
+  const inset=(opts.orb||opts.core)?H*.42:0;
+  /* Fit, don't clip. Shrink to 62% and then wrap to two lines; a long
+   * objective used to run off both ends of the banner and lose its
+   * first and last words. */
+  const avail=W-18-Math.abs(inset)*2;
+  const setSize=px=>{g.font=(opts.weight||600)+" "+px+'px "Chivo Mono", monospace';};
+  let px=opts.size||28;
+  setSize(px);
+  if(g.measureText(text).width>avail){
+    const min=Math.max(9,px*.62);
+    while(px>min&&g.measureText(text).width>avail){px-=1;setSize(px);}
+  }
+  if(g.measureText(text).width>avail){
+    /* Still too long: break on the space nearest the middle. */
+    const parts=text.split(" ");
+    let best=1,bd=1e9;
+    for(let i=1;i<parts.length;i++){
+      const d=Math.abs(parts.slice(0,i).join(" ").length-parts.slice(i).join(" ").length);
+      if(d<bd){bd=d;best=i;}
+    }
+    const l1=parts.slice(0,best).join(" "), l2=parts.slice(best).join(" ");
+    const lead=px*1.08;
+    g.fillText(l1,W/2+inset,H/2+1-lead/2);
+    g.fillText(l2,W/2+inset,H/2+1+lead/2);
+  }else{
+    g.fillText(text,W/2+inset,H/2+1);
+  }
   if(opts.core){
     /* The same thing you carry: a bright core inside a ring. */
     g.shadowBlur=0;
@@ -1322,8 +1348,10 @@ const HULL={glow:null,beacon:null,beaconMat:null};
     cluster(UBOX,M.extTrim,feet.map(l=>[l[0]+Math.sign(l[0])*splay,padY+.3,l[1],.7,.4,.7]));
   })();
 
-  // ---- the name, painted on both flanks ----
-  (function nameplate(){
+  // ---- the name used to be painted on both flanks, but the gear legs
+  //      and the hatch fittings cut straight across it. It reads properly
+  //      on the console inside, so outside it is simply gone.
+  if(false)(function nameplate(){
     const t=tex(labelCanvas("THEODOR & MORFARS RUMSKIB",
       {w:1024,h:160,size:84,bg:"none",border:false,color:"#e8c35a",glow:false}));
     [-1,1].forEach(sg=>{
@@ -1852,8 +1880,32 @@ const MARKS=(function(){
     return tex(c);
   };
   const ask=glyph("?","#ffd34d"), bang=glyph("!","#8ef0ff");
+  /* Within reach the glyph becomes a hand: the question mark says "there
+   * is something here", the hand says "you can take it NOW". Drawn rather
+   * than typeset, so it is a shape at any distance and in any font. */
+  const handGlyph=(function(){
+    const c=cvs(128,128),g=c.getContext("2d");
+    const path=()=>{
+      g.beginPath();
+      g.moveTo(44,116);g.quadraticCurveTo(28,96,28,74);
+      g.lineTo(28,56);g.quadraticCurveTo(28,46,37,46);g.quadraticCurveTo(46,46,46,56);
+      g.lineTo(46,66);g.lineTo(50,66);g.lineTo(50,28);
+      g.quadraticCurveTo(50,18,59,18);g.quadraticCurveTo(68,18,68,28);
+      g.lineTo(68,62);g.lineTo(72,62);g.lineTo(72,32);
+      g.quadraticCurveTo(72,22,81,22);g.quadraticCurveTo(90,22,90,32);
+      g.lineTo(90,64);g.lineTo(94,64);g.lineTo(94,44);
+      g.quadraticCurveTo(94,34,103,34);g.quadraticCurveTo(112,34,112,44);
+      g.lineTo(112,80);g.quadraticCurveTo(112,116,84,116);
+      g.closePath();
+    };
+    g.lineJoin="round";g.lineWidth=17;g.strokeStyle="rgba(8,10,14,.94)";path();g.stroke();
+    const gr=g.createLinearGradient(0,18,0,116);
+    gr.addColorStop(0,"#ffffff");gr.addColorStop(1,"#7fe8ff");
+    g.fillStyle=gr;path();g.fill();
+    return tex(c);
+  })();
   const pool=[];
-  for(let i=0;i<9;i++){
+  for(let i=0;i<16;i++){
     const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),
       new THREE.MeshBasicMaterial({transparent:true,depthWrite:false}));
     m.visible=false;m.renderOrder=9;m.frustumCulled=false;world.add(m);
@@ -1864,7 +1916,7 @@ const MARKS=(function(){
     makeInteractive(hit,{poke:.34,onPress:()=>{if(slot.fn)slot.fn();}});
     pool.push(slot);
   }
-  return {pool,ask,bang,n:0,eye:new THREE.Vector3(),
+  return {pool,ask,bang,hand:handGlyph,n:0,eye:new THREE.Vector3(),
           meshes:pool.map(s=>s.mesh)};
 })();
 function markReset(){
@@ -1876,18 +1928,23 @@ function markReset(){
  * favour you are NOT on only appear when you are nearly standing on them,
  * so the landscape is not permanently full of exclamation marks. */
 function markAt(x,y,z,kind,reach,fn,seen){
-  if(MARKS.n>=MARKS.pool.length)return;
-  const p=MARKS.pool[MARKS.n++];
+  /* Distance FIRST. This used to claim a slot and then hand it back
+   * empty, so on Guldplaneten the three spokesmen, the quicksand and the
+   * fruit used up all nine slots at three hundred metres and the little
+   * brother - last in the list - never got a mark at all. */
   const vx=WALK.active?WALK.pos.x:SHIP.pos.x, vz=WALK.active?WALK.pos.z:SHIP.pos.z;
   const d=Math.hypot(x-vx,z-vz);
-  if(d>(seen||150)){p.mesh.visible=false;p.hit.visible=false;p.fn=null;return;}
+  if(d>(seen||150))return;
+  if(MARKS.n>=MARKS.pool.length)return;
+  const p=MARKS.pool[MARKS.n++];
   const near=d<=reach;
-  p.mesh.material.map=(kind==="?")?MARKS.ask:MARKS.bang;
+  p.mesh.material.map=near?MARKS.hand:((kind==="?")?MARKS.ask:MARKS.bang);
   p.mesh.material.opacity=near?1:.52;
   p.mesh.material.needsUpdate=true;
   /* Grown with distance so it stays legible across a valley, and bobbing,
    * because a still glyph on a still landscape reads as scenery. */
-  const sc=THREE.MathUtils.clamp(.55+d*.035,.75,3.6);
+  let sc=THREE.MathUtils.clamp(.55+d*.035,.75,3.6);
+  if(near)sc*=1.5;
   const bob=Math.sin(St.t*2.1+MARKS.n)*.10*sc;
   p.mesh.position.set(x,y+bob,z);p.mesh.scale.setScalar(sc);
   p.mesh.lookAt(MARKS.eye);p.mesh.visible=true;
@@ -4018,8 +4075,10 @@ function buildHand(sideSign){
     fingers.push({chain:chain,tip:tip,scale:f[2]});
   });
   const troot=new THREE.Group();
-  troot.position.set(sideSign*.042,-.004,-.004);
-  troot.rotation.set(0,sideSign*-.85,sideSign*-.5);g.add(troot);
+  /* Inboard. A thumb sits on the side of the hand that faces the other
+   * hand; mirrored outwards it reads as a broken claw. */
+  troot.position.set(-sideSign*.042,-.004,-.004);
+  troot.rotation.set(-.20,sideSign*.58,sideSign*.42);g.add(troot);
   const tchain=[];let tp=troot;
   for(let s=0;s<2;s++){
     const seg=new THREE.Group();tp.add(seg);
@@ -4048,7 +4107,9 @@ for(let i=0;i<2;i++){
     new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-1.4)]),
     new THREE.LineBasicMaterial({color:0x7fd4e8,transparent:true,opacity:.35}));
   c.add(line);
-  const grip=renderer.xr.getControllerGrip(i);rig.add(grip);
+  /* Same parent as the ray, or a recentre turns the pointer and leaves
+   * the hands behind - which is exactly what it did. */
+  const grip=renderer.xr.getControllerGrip(i);headYaw.add(grip);
   const hand=buildHand(i===0?-1:1);
   /* The grip pose sits in the palm; the model is authored around the wrist,
    * so it is nudged back and tipped to match how a Touch is actually held. */
@@ -4787,7 +4848,7 @@ btnVR.addEventListener("click",async()=>{
   if(!session){xrNote.textContent="Kunne ikke starte VR: "+errText(firstErr)+" — prøv igen.";return;}
   ui.hidden=true;hud.hidden=true;touchbar.hidden=true;
   session.addEventListener("end",()=>{ui.hidden=false;});
-  pendingRecenter=2;
+  pendingRecenter=3;
   if(renderer.xr.setFoveation)try{renderer.xr.setFoveation(1);}catch(e){}
   setTimeout(()=>{
     if(renderer.xr.isPresenting)return;
@@ -4800,7 +4861,7 @@ btnFlat.addEventListener("click",()=>{
   ui.hidden=true;hud.hidden=false;touchbar.hidden=false;
 });
 const _rcq=new THREE.Quaternion(), _rcf=new THREE.Vector3(), _rcp=new THREE.Vector3();
-function recenter(){
+function recenter(final){
   const xrCam=renderer.xr.getCamera?renderer.xr.getCamera(camera):camera;
   /* Yaw first, and this is the part that was missing. Position alone put
    * you in the seat facing whichever way your room happens to point, so
@@ -4816,7 +4877,12 @@ function recenter(){
    * about its own origin moves the head as well. */
   _rcp.setFromMatrixPosition(xrCam.matrixWorld);
   rig.position.x+=seatX-_rcp.x;rig.position.z-=_rcp.z;rig.position.y+=1.15-_rcp.y;
-  showMsg("Sædet er centreret — du kigger nu lige frem.");
+  /* Never more than a room away, whatever the headset reported. A wild
+   * value here used to leave the cockpit somewhere above your head. */
+  rig.position.x=THREE.MathUtils.clamp(rig.position.x,seatX-1.2,seatX+1.2);
+  rig.position.y=THREE.MathUtils.clamp(rig.position.y,-1.4,1.4);
+  rig.position.z=THREE.MathUtils.clamp(rig.position.z,-1.2,1.2);
+  if(final)showMsg("Sædet er centreret — du kigger nu lige frem.",5);
 }
 window.addEventListener("resize",()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
@@ -6409,8 +6475,22 @@ function updateFlight(dt){
   fill.intensity+=((open?.38:(.16+.22*_atm))-fill.intensity)*Math.min(1,dt*2);
 }
 
+/* Squeeze BOTH grips to square the view up again. The headset's own
+ * reset moves the floor out from under our offsets, so there has to be a
+ * way back that does not mean taking it off. */
+let recArmed=false;
+function checkRecenterGesture(){
+  let n=0;
+  controllers.forEach(c=>{
+    const src=c.userData.inputSource, gp=src&&src.gamepad;
+    if(gp&&gp.buttons&&gp.buttons[1]&&gp.buttons[1].value>.7)n++;
+  });
+  if(n>=2){if(!recArmed){recArmed=true;pendingRecenter=3;Audio_.click();}}
+  else if(n===0)recArmed=false;
+}
 /* ---------- hand poses from the controller's own buttons ---------- */
 function updateHands(){
+  checkRecenterGesture();
   controllers.forEach(c=>{
     const hand=c.userData.hand;if(!hand)return;
     const src=c.userData.inputSource, gp=src&&src.gamepad;
@@ -6476,7 +6556,13 @@ function frame(){
   /* The markers are rebuilt from nothing every frame: whatever wants one
    * claims a slot, and whatever is left over is switched off. */
   markReset();
-  if(pendingRecenter>0){pendingRecenter--;if(pendingRecenter===0)try{recenter();}catch(e){}}
+  /* Twice, on two consecutive frames: the first pass works from the
+   * previous frame's head pose, the second from the corrected one, so
+   * any staleness washes out instead of being baked in. */
+  if(pendingRecenter>0){
+    pendingRecenter--;
+    if(pendingRecenter<=1)try{recenter(pendingRecenter===0);}catch(e){}
+  }
   const session=renderer.xr.getSession&&renderer.xr.getSession();
   if(session)try{
     /* The sticks do what sticks do in every other headset title: left
