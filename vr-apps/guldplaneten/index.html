@@ -1526,7 +1526,7 @@ const DEST={
 const GAME={mode:"explorer",mapHeld:false,mapDone:false,
             fuelHeld:false,fuelDone:false,
             beenOut:false,
-            goldSeen:false,crowned:false,
+            goldSeen:false,crowned:false,medal:false,homeFuel:false,
             open:{moon:true,mars:true,gold:false}};
 function destOpen(k){
   if(k==="earth")return !!GAME.goldSeen;
@@ -1551,7 +1551,7 @@ function setGameMode(m){
   GAME.mode=m;
   GAME.mapHeld=false;GAME.mapDone=false;
   GAME.fuelHeld=false;GAME.fuelDone=(m==="test");
-  GAME.goldSeen=false;GAME.crowned=false;
+  GAME.goldSeen=false;GAME.crowned=false;GAME.medal=false;GAME.homeFuel=false;
   if(typeof goldCap!=="undefined"&&goldCap)goldCap.visible=false;
   /* Test mode's own hint says all three are open. It was setting gold
    * false either way, so the one mode whose whole point is to skip the
@@ -1668,6 +1668,9 @@ function showOverlay(draw,after){
   draw(overlay.canvas.getContext("2d"),overlay.canvas.width,overlay.canvas.height);
   overlay.mesh.material.map.needsUpdate=true;
   overlay.mesh.visible=true;overlay.hit.visible=true;overlay.after=after||null;
+  /* The running hint sits across the top of the glass, which is exactly
+   * where the card is. Put it away while the card is up. */
+  try{msgEl.style.opacity="0";msgTimer=0;}catch(e){}
 }
 function closeOverlay(){
   if(!overlay.mesh.visible)return;
@@ -3345,7 +3348,10 @@ function questLabel(){
   /* Before the first favour there was no label at all, so from the cockpit
    * there was nothing to say the planet had anything to do on it. */
   if(!Q.active){
-    if(Object.keys(Q.done).length>=3)return "ALLE OPGAVER KLARET";
+    if(Object.keys(Q.done).length>=3)
+      return GAME.medal?"ALLE OPGAVER KLARET"
+           :WALK.active?"GÅ IND I SKIBET OG FLYV HJEM TIL JORDEN"
+                       :"SÆT KURS MOD JORDEN";
     /* Once you are out of the ship, "go out" is no longer the instruction,
      * and after the first favour it is a return trip, not a first meeting. */
     const back=Object.keys(Q.done).length>0;
@@ -3375,17 +3381,53 @@ function talkToGiver(key){
   }
   if(k==="sand"){
     const n=Q.sand.filter(s=>!s.freed).length;
-    if(n===0){Q.done.sand=true;Q.active=null;say(who,QTEXT.sandD,7);Audio_.ok();}
+    if(n===0){Q.done.sand=true;Q.active=null;say(who,QTEXT.sandD,7);finishQuest(k);}
     else say(who,QTEXT.sandN(n),6);
   }else if(k==="food"){
-    if(Q.held>=3){Q.done.food=true;Q.active=null;Q.held=0;say(who,QTEXT.foodD,7);Audio_.ok();}
+    if(Q.held>=3){Q.done.food=true;Q.active=null;Q.held=0;say(who,QTEXT.foodD,7);finishQuest(k);}
     else say(who,QTEXT.foodN(3-Q.held),6);
   }else if(k==="lost"){
     const d=Math.hypot(Q.lost.x-WALK.pos.x,Q.lost.z-WALK.pos.z);
     if(Q.lost.found&&d<12){
-      Q.lost.home=true;Q.done.lost=true;Q.active=null;say(who,QTEXT.lostD,7);Audio_.ok();
+      Q.lost.home=true;Q.done.lost=true;Q.active=null;say(who,QTEXT.lostD,7);finishQuest(k);
     }else say(who,Q.lost.found?QTEXT.lostD:QTEXT.lostN,6);
   }
+}
+/* A favour is finished. The speech bubble has already said so, but a
+ * bubble over a snowman is not a moment you can miss and still know
+ * something happened — so a card goes up, with him on it. And when the
+ * third one lands, the three of them come over and crown you, which is
+ * where the gold cap belongs: it is their thank-you, given where they
+ * live, not something waiting on the apron at home. */
+function finishQuest(k){
+  Audio_.ok();
+  log("OPGAVE KLARET: "+k.toUpperCase());
+  const all=Object.keys(Q.done).length>=Q.order.length;
+  showOverlay(questCard(k),()=>{ if(all)crownOnGold(); });
+}
+function crownOnGold(){
+  if(GAME.crowned)return;
+  GAME.crowned=true;goldCap.visible=true;refreshMenu();
+  /* They gather round you for it. */
+  if(Q.homes&&WALK.active){
+    for(let i=0;i<3;i++){
+      const a=Math.PI*2*i/3+WALK.yaw;
+      Q.homes[i]={x:WALK.pos.x+Math.cos(a)*3.2, z:WALK.pos.z+Math.sin(a)*3.2};
+    }
+  }
+  Audio_.ok();setTimeout(()=>Audio_.ok(),240);setTimeout(()=>Audio_.ok(),480);
+  log("KRONET PÅ GULDPLANETEN");
+  showOverlay(drawCrownCard,()=>{
+    /* And they fill the tanks. You spent the Moon's three cores getting
+     * here, so the way home has to come from somewhere, and it coming
+     * from them closes the favour rather than leaving it open. */
+    GAME.homeFuel=true;
+    log("BRÆNDSTOF TIL HJEMTUREN");
+    say(GIVER.sand,"Tak fordi du hjalp os! Her er brændstof til hjemturen.",8);
+    Audio_.ok();
+    showMsg("Du er Konge af Guldplaneten, og kasketten sidder på instrumentbrættet. "+
+            "Beboerne har fyldt tankene — gå ind i skibet og flyv hjem til Jorden.",11);
+  });
 }
 function updateQuests(dt,vx,vz){
   if(!questRoot.visible)return;
@@ -4577,6 +4619,101 @@ function drawMapCard(g,W,H){
   g.font="600 24px 'Chivo Mono', monospace";g.fillStyle="#6b4a12";
   g.fillText("TRYK FOR AT LÆGGE KORTET VÆK",W/2,H-52);
 }
+/* ---------- a portrait of whoever you just helped ----------
+ * The same two balls and two eyes they are built from in the world, in
+ * that one's own colour, so the card is recognisably HIM and not a
+ * generic alien. Drawn with gradients rather than a render-to-texture:
+ * it costs nothing and it only happens when a card goes up. */
+function shade(g,cx,cy,r,hex,lift){
+  const c=new THREE.Color(hex);
+  const hi=c.clone().lerp(new THREE.Color(0xffffff),lift===undefined?.55:lift);
+  const lo=c.clone().multiplyScalar(.42);
+  const grd=g.createRadialGradient(cx-r*.34,cy-r*.40,r*.12,cx,cy,r*1.08);
+  grd.addColorStop(0,"#"+hi.getHexString());
+  grd.addColorStop(.55,"#"+c.getHexString());
+  grd.addColorStop(1,"#"+lo.getHexString());
+  return grd;
+}
+function drawAlienPortrait(g,cx,cy,r,hex,blink){
+  const bodyR=r, headR=r*.54;
+  const hy=cy-bodyR*.92-headR*.52;
+  g.lineWidth=Math.max(3,r*.05);g.strokeStyle="rgba(40,26,8,.55)";
+  g.fillStyle=shade(g,cx,cy,bodyR,hex);
+  g.beginPath();g.arc(cx,cy,bodyR,0,7);g.fill();g.stroke();
+  g.fillStyle=shade(g,cx,hy,headR,hex);
+  g.beginPath();g.arc(cx,hy,headR,0,7);g.fill();g.stroke();
+  // two pale eyes, each with a purple pupil
+  const off=headR*.44, er=headR*.33, open=blink?.12:1;
+  [-1,1].forEach(sx=>{
+    const ex=cx+sx*off, ey=hy-headR*.06;
+    g.fillStyle="#f6eedd";g.strokeStyle="rgba(40,26,8,.35)";g.lineWidth=2;
+    g.beginPath();g.ellipse(ex,ey,er,er*open,0,0,7);g.fill();g.stroke();
+    g.fillStyle="#6327b4";
+    g.beginPath();g.ellipse(ex,ey,er*.52,er*.52*open,0,0,7);g.fill();
+  });
+}
+/* ---------- "opgave klaret" ----------
+ * The speech bubble said it, but a bubble over a snowman two metres away
+ * is not a moment. This is: who you helped, in his colour, what you did,
+ * and how many of the three are done. */
+const QCARD={
+  sand:{title:"KVIKSANDET",did:"Du trak alle tre fri af kviksandet."},
+  food:{title:"GULDFRUGTERNE",did:"Du fandt alle tre guldfrugter."},
+  lost:{title:"LILLEBROR",did:"Du fandt lillebror og fulgte ham hjem."}
+};
+function questCard(key){
+  const info=QCARD[key]||{title:"OPGAVE",did:""};
+  const tint=GIVER_TINT[GIVER[key]];
+  const done=Object.keys(Q.done).length, all=Q.order.length;
+  return function(g,W,H){
+    g.clearRect(0,0,W,H);
+    const bg=g.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,"#241038");bg.addColorStop(1,"#3a2606");
+    g.fillStyle=bg;g.fillRect(0,0,W,H);
+    g.strokeStyle="#"+new THREE.Color(tint).getHexString();
+    g.lineWidth=8;g.strokeRect(24,24,W-48,H-48);
+    // a quiet burst behind him, in his own colour
+    g.save();g.translate(330,300);
+    for(let i=0;i<22;i++){
+      g.rotate(Math.PI*2/22);
+      g.fillStyle=i%2?"rgba(255,255,255,.055)":"rgba(255,255,255,.025)";
+      g.beginPath();g.moveTo(0,0);g.lineTo(560,-64);g.lineTo(560,64);g.fill();
+    }
+    g.restore();
+    drawAlienPortrait(g,330,330,122,tint,false);
+    g.textAlign="left";
+    g.fillStyle="#ffe9a8";g.font="800 66px 'Bricolage Grotesque', sans-serif";
+    g.fillText("MANGE TAK!",545,230);
+    g.fillStyle="#"+new THREE.Color(tint).getHexString();
+    g.font="700 30px 'Chivo Mono', monospace";
+    g.fillText(info.title,545,284);
+    g.fillStyle="#e4d8bf";g.font="500 28px 'Chivo Mono', monospace";
+    wrapText(g,info.did,545,336,420,38);
+    // three pips, one per favour
+    for(let i=0;i<all;i++){
+      const x=562+i*62, y=452, on=i<done;
+      g.beginPath();g.arc(x,y,21,0,7);
+      g.fillStyle=on?"#ffd34d":"rgba(255,255,255,.10)";g.fill();
+      g.lineWidth=4;g.strokeStyle=on?"#8a5d20":"rgba(255,255,255,.22)";g.stroke();
+      if(on){g.strokeStyle="#4a3208";g.lineWidth=6;g.beginPath();
+        g.moveTo(x-9,y);g.lineTo(x-2,y+8);g.lineTo(x+10,y-8);g.stroke();}
+    }
+    g.fillStyle="#ffd34d";g.font="700 30px 'Chivo Mono', monospace";
+    g.fillText(done+" AF "+all+" OPGAVER KLARET",545,530);
+    g.textAlign="center";
+    g.fillStyle="#9a7420";g.font="600 24px 'Chivo Mono', monospace";
+    g.fillText("TRYK FOR AT LUKKE",W/2,H-40);
+  };
+}
+function wrapText(g,text,x,y,maxW,lh){
+  const words=String(text).split(" ");let line="",yy=y;
+  for(const w of words){
+    const t=line?line+" "+w:w;
+    if(g.measureText(t).width>maxW&&line){g.fillText(line,x,yy);line=w;yy+=lh;}
+    else line=t;
+  }
+  if(line)g.fillText(line,x,yy);
+}
 /* The gold cap, drawn big, once, when you get home with the job done. */
 function drawCrownCard(g,W,H){
   g.clearRect(0,0,W,H);
@@ -4609,12 +4746,76 @@ function drawCrownCard(g,W,H){
   g.lineTo(cx,cy-64);g.lineTo(cx+14,cy-34);g.lineTo(cx+30,cy-58);
   g.lineTo(cx+44,cy-24);g.closePath();g.fill();
   g.textAlign="center";
-  g.fillStyle="#ffe9a8";g.font="800 60px 'Bricolage Grotesque', sans-serif";
-  g.fillText("KONGE AF GULDPLANETEN",W/2,H-150);
-  g.fillStyle="#e8c35a";g.font="600 30px 'Chivo Mono', monospace";
-  g.fillText("DU HAR EN GULDKASKET",W/2,H-100);
+  /* The three who asked, standing under it: the cap is a thank-you from
+   * them, handed over where they live. It used to arrive on the apron at
+   * home, which made the title something you awarded yourself. */
+  GIVER_TINT.forEach((t,i)=>drawAlienPortrait(g,W/2+(i-1)*148,cy+82,36,t,false));
+  g.fillStyle="#ffe9a8";g.font="800 58px 'Bricolage Grotesque', sans-serif";
+  g.fillText("KONGE AF GULDPLANETEN",W/2,H-118);
+  g.fillStyle="#e8c35a";g.font="600 28px 'Chivo Mono', monospace";
+  g.fillText("BEBOERNE GIVER DIG GULDKASKETTEN",W/2,H-76);
   g.fillStyle="#9a7420";g.font="600 24px 'Chivo Mono', monospace";
-  g.fillText("TRYK FOR AT TAGE DEN PÅ",W/2,H-52);
+  g.fillText("TRYK FOR AT TAGE DEN PÅ",W/2,H-36);
+}
+/* ---------- home again, with everything done ----------
+ * A medal rather than a crown: the title belongs to Guldplaneten, and
+ * this is the welcome back. It lays out the whole trip, because by now
+ * it has been a long one. */
+function drawMedalCard(g,W,H){
+  g.clearRect(0,0,W,H);
+  const sky=g.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,"#071a2e");sky.addColorStop(.55,"#123a5e");sky.addColorStop(1,"#2d5a33");
+  g.fillStyle=sky;g.fillRect(0,0,W,H);
+  g.strokeStyle="#9fd0ff";g.lineWidth=8;g.strokeRect(24,24,W-48,H-48);
+  g.save();g.translate(300,268);
+  for(let i=0;i<24;i++){
+    g.rotate(Math.PI*2/24);
+    g.fillStyle=i%2?"rgba(255,235,170,.10)":"rgba(255,235,170,.04)";
+    g.beginPath();g.moveTo(0,0);g.lineTo(520,-58);g.lineTo(520,58);g.fill();
+  }
+  g.restore();
+  // ribbon, then the medal on top of it
+  const cx=300, cy=300;
+  g.fillStyle="#9a2436";
+  g.beginPath();g.moveTo(cx-64,cy-186);g.lineTo(cx-18,cy-186);
+  g.lineTo(cx-4,cy-62);g.lineTo(cx-78,cy-62);g.closePath();g.fill();
+  g.fillStyle="#c13146";
+  g.beginPath();g.moveTo(cx+18,cy-186);g.lineTo(cx+64,cy-186);
+  g.lineTo(cx+78,cy-62);g.lineTo(cx+4,cy-62);g.closePath();g.fill();
+  const gold=g.createRadialGradient(cx-34,cy-36,12,cx,cy,118);
+  gold.addColorStop(0,"#fff4c8");gold.addColorStop(.5,"#e8c35a");gold.addColorStop(1,"#8a5d20");
+  g.fillStyle=gold;g.strokeStyle="#5a4310";g.lineWidth=7;
+  g.beginPath();g.arc(cx,cy,104,0,7);g.fill();g.stroke();
+  g.lineWidth=4;g.beginPath();g.arc(cx,cy,82,0,7);g.stroke();
+  // a star in the middle
+  g.fillStyle="#5a4310";g.beginPath();
+  for(let i=0;i<10;i++){
+    const a=-Math.PI/2+i*Math.PI/5, r=i%2?26:58;
+    const x=cx+Math.cos(a)*r, y=cy+Math.sin(a)*r;
+    i?g.lineTo(x,y):g.moveTo(x,y);
+  }
+  g.closePath();g.fill();
+  g.textAlign="left";
+  g.fillStyle="#eaf4ff";g.font="800 50px 'Bricolage Grotesque', sans-serif";
+  g.fillText("VELKOMMEN HJEM",492,182);
+  g.fillStyle="#9fd0ff";g.font="600 26px 'Chivo Mono', monospace";
+  g.fillText("HELE REJSEN, KLARET",492,224);
+  const rows=[["MÅNEN","Tre fusionskerner","#b9b9c0"],
+              ["MARS","Kortet til Guldplaneten","#e08a52"],
+              ["GULDPLANETEN","Tre opgaver — og kasketten","#e8c35a"]];
+  rows.forEach((r,i)=>{
+    const y=304+i*76;
+    g.fillStyle=r[2];g.beginPath();g.arc(512,y-9,17,0,7);g.fill();
+    g.strokeStyle="#07131d";g.lineWidth=5;g.beginPath();
+    g.moveTo(504,y-10);g.lineTo(510,y-2);g.lineTo(521,y-18);g.stroke();
+    g.fillStyle="#eaf4ff";g.font="700 28px 'Chivo Mono', monospace";
+    g.fillText(r[0],546,y);
+    g.fillStyle="#9fb8cf";g.font="500 24px 'Chivo Mono', monospace";
+    g.fillText(r[1],546,y+30);
+  });
+  g.textAlign="center";
+  g.fillStyle="#6f93b3";g.font="600 24px 'Chivo Mono', monospace";
+  g.fillText("TRYK FOR AT LUKKE",W/2,H-40);
 }
 function takeMap(){
   if(!MAPAT.live)return;
@@ -5235,11 +5436,14 @@ function updateFlight(dt){
         if(St.dest==="earth"){
           /* Home. Everyone is out on the apron, and there is a gold cap. */
           log("HJEMME IGEN");
-          if(!GAME.crowned){
-            GAME.crowned=true;goldCap.visible=true;
+          /* The crown is Guldplanetens to give and it is given there.
+           * Home is where you are welcomed back, once with a medal. */
+          if(GAME.crowned&&!GAME.medal){
+            GAME.medal=true;
             Audio_.ok();setTimeout(()=>Audio_.ok(),240);setTimeout(()=>Audio_.ok(),480);
-            showOverlay(drawCrownCard,()=>
-              showMsg("Kasketten hænger på instrumentbrættet. Den er din.",8));
+            log("MEDALJE");
+            showOverlay(drawMedalCard,()=>
+              showMsg("Velkommen hjem, Konge af Guldplaneten.",8));
           }else showMsg("Hjemme på rampen igen.",6);
         }else{
           showMsg(St.landQuality==="BLØD"?"Blød landing. Pænt fløjet.":
