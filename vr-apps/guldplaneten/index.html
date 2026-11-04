@@ -448,7 +448,17 @@ function labelCanvas(text,opts){
   g.font=(opts.weight||600)+" "+(opts.size||28)+'px "Chivo Mono", monospace';
   g.textAlign="center";g.textBaseline="middle";
   g.shadowColor=opts.color||"#f2a33c";g.shadowBlur=opts.glow===false?0:14;
-  g.fillText(text,W/2+(opts.orb?H*.42:0),H/2+1);
+  g.fillText(text,W/2+((opts.orb||opts.core)?H*.42:0),H/2+1);
+  if(opts.core){
+    /* The same thing you carry: a bright core inside a ring. */
+    g.shadowBlur=0;
+    const r=H*.26, cx=H*.60, cy=H/2;
+    const gr=g.createRadialGradient(cx-r*.3,cy-r*.3,r*.1,cx,cy,r);
+    gr.addColorStop(0,"#ffffff");gr.addColorStop(.5,"#6ff0ff");gr.addColorStop(1,"#0d4a5e");
+    g.fillStyle=gr;g.beginPath();g.arc(cx,cy,r,0,7);g.fill();
+    g.strokeStyle="#9ff0ff";g.lineWidth=Math.max(2,r*.16);
+    g.beginPath();g.ellipse(cx,cy,r*1.5,r*.52,0,0,7);g.stroke();
+  }
   if(opts.orb){
     /* A name is not a picture. One lit disc per world, so you can tell the
      * grey one from the rust one from the gold one before you commit. */
@@ -1344,12 +1354,13 @@ const bigBtn=(function(){
   makeInteractive(hit,{onPress:()=>pressBig(),poke:.085});
   return {group:g,cap:cap,mat:mat,press:0,armed:false};
 })();
-function consoleButton(x,y,label,bg,border,color,baseCol,onPress){
+function consoleButton(x,y,label,bg,border,color,baseCol,onPress,opts){
   const g=new THREE.Group();g.position.set(x,y,.05);consoleGroup.add(g);
   const mat=new THREE.MeshStandardMaterial({color:baseCol,roughness:.35,metalness:.4});
   const cap=new THREE.Mesh(new THREE.BoxGeometry(.21,.075,.045),mat);cap.position.z=.035;g.add(cap);
   const face=new THREE.Mesh(new THREE.PlaneGeometry(.2,.07),
-    new THREE.MeshBasicMaterial({map:tex(labelCanvas(label,{w:256,h:72,size:30,bg:bg,border:border,color:color})),transparent:true}));
+    new THREE.MeshBasicMaterial({map:tex(labelCanvas(label,{w:256,h:72,size:opts&&opts.size||30,
+      bg:bg,border:border,color:color,core:opts&&opts.core})),transparent:true}));
   face.position.z=.059;g.add(face);
   const hit=new THREE.Mesh(new THREE.BoxGeometry(.26,.14,.14),new THREE.MeshBasicMaterial({visible:false}));
   hit.position.z=.05;g.add(hit);
@@ -1366,6 +1377,11 @@ const landBtn =consoleButton(.84,-.150,"LAND","#0b1f12","#235a2a","#8ce8a0",0x23
  * one of the three flight modes, so the button to leave a planet read as
  * a difficulty setting. */
 const liftBtn=consoleButton(.84,-.150,"START","#141f08","#3e5c18","#c2e86a",0x2c4212,()=>pressLift());
+/* The one free slot on the console, next to the action button. It is only
+ * there when you are carrying cores and the tank has room, because a
+ * button that usually does nothing teaches you to stop pressing it. */
+const fuelBtn=consoleButton(.64,-.150,"BRÆNDSTOF","#07202a","#1d5a6e","#8ff0ff",0x12404f,
+  ()=>askRefuel(),{size:22,core:true});
 const againBtn=(function(){
   const g=new THREE.Group();g.position.set(-.9,1.42,.2);g.rotation.y=Math.PI/2;ship.add(g);
   g.add(new THREE.Mesh(new THREE.BoxGeometry(.34,.12,.03),M.hullDark));
@@ -1496,6 +1512,22 @@ const MODES={
 let MODE=MODES.auto;
 
 /* ---------- destinations ---------- */
+/* ---------- fuel ----------
+ *  The tank holds three cores, and the only trip that burns them is the
+ *  long one: Guldplaneten is nine and a half trillion kilometres away,
+ *  the Moon and Mars are next door. So a jump to or from the gold world
+ *  costs the whole tank and everything else is free, which is what makes
+ *  the three cores on the Moon the thing that gets you there and the
+ *  three the aliens hand over the thing that gets you home.
+ *
+ *  It cannot strand you: with an empty tank the Moon and Mars are still
+ *  open, and you only ever reach Guldplaneten with a full one.
+ */
+const TANK=3;
+function jumpCost(to){
+  if(to===GAME.at)return 0;                 // a hop back to where you are
+  return (GAME.at==="gold"||to==="gold")?TANK:0;
+}
 const DEST={
   moon:{name:"Månen",orb:"#b9b9c0",orbHi:"#f2f2f5",orbLo:"#2e2e34",
         dist:384400e3,radius:620,grav:1.62,hud:"#cfd6de",
@@ -1527,23 +1559,38 @@ const GAME={mode:"explorer",mapHeld:false,mapDone:false,
             fuelHeld:false,fuelDone:false,
             beenOut:false,
             goldSeen:false,crowned:false,medal:false,homeFuel:false,
+            cores:0,fuel:0,at:"earth",moonTaken:false,
             open:{moon:true,mars:true,gold:false}};
 function destOpen(k){
+  /* The tank first, for every destination: home is the one trip that
+   * can be out of reach while it is also the only one you want. */
+  if(jumpCost(k)>GAME.fuel)return false;
   if(k==="earth")return !!GAME.goldSeen;
   /* Guldplaneten needs both halves of the story: the map from Mars says
    * where it is, and the fuel from the Moon is whether you can get that
    * far at all. Either one alone leaves the course plotted and the tanks
    * too light, or the tanks full and nowhere to point them. */
-  if(k==="gold")return GAME.mode==="test"||(GAME.mapDone&&GAME.fuelDone);
+  /* Guldplaneten needs both halves of the story: the map from Mars says
+   * where it is, and a full tank is whether you can get that far at all.
+   * The tank is the live number now, not a flag — cores in the hold do
+   * not count until they are in it. */
+  if(k==="gold")return GAME.mode==="test"||GAME.mapDone;
   return GAME.mode==="test"||GAME.open[k];
 }
 function lockedWhy(k){
-  if(k==="gold"){
-    if(!GAME.mapDone&&!GAME.fuelDone)
-      return "Du mangler både kortet og brændstoffet. Kortet ligger på Mars, brændstoffet på Månen.";
-    if(!GAME.mapDone)return "Du har brændstof nok, men ikke kortet. Det ligger på Mars.";
-    return "Du har kortet, men der er ikke brændstof nok. Der er en depot-dunk på Månen.";
+  const short=jumpCost(k)>GAME.fuel;
+  if(short){
+    const why=GAME.cores>0
+      ? "Du bærer "+GAME.cores+" kerne"+(GAME.cores===1?"":"r")+" — tryk på BRÆNDSTOF for at sætte dem i tanken."
+      : (GAME.at==="gold"
+         ? "Ikke nok brændstof til turen hjem."
+         : "Ikke nok brændstof til den tur. Der ligger tre fusionskerner på Månen.");
+    const alsoMap=(k==="gold"&&!GAME.mapDone&&GAME.mode!=="test")
+      ? " Og du mangler kortet — det ligger på Mars." : "";
+    return "Tanken er "+GAME.fuel+"/"+TANK+". "+why+alsoMap;
   }
+  if(k==="gold"&&!GAME.mapDone)
+    return "Du har brændstof nok, men ikke kortet. Det ligger på Mars.";
   if(k==="earth")return "Du skal have været på Guldplaneten, før du kan flyve hjem som konge.";
   return "";
 }
@@ -1551,6 +1598,8 @@ function setGameMode(m){
   GAME.mode=m;
   GAME.mapHeld=false;GAME.mapDone=false;
   GAME.fuelHeld=false;GAME.fuelDone=(m==="test");
+  GAME.cores=0;GAME.fuel=(m==="test")?TANK:0;GAME.at="earth";
+  GAME.moonTaken=false;
   GAME.goldSeen=false;GAME.crowned=false;GAME.medal=false;GAME.homeFuel=false;
   if(typeof goldCap!=="undefined"&&goldCap)goldCap.visible=false;
   /* Test mode's own hint says all three are open. It was setting gold
@@ -1662,19 +1711,44 @@ const overlay=(function(){
     new THREE.MeshBasicMaterial({visible:false,depthTest:false}));
   hit.position.z=-.69;hit.frustumCulled=false;hit.visible=false;camera.add(hit);
   makeInteractive(hit,{poke:.14,onPress:()=>closeOverlay()});
-  return {mesh:m,hit:hit,canvas:c,after:null};
+  /* Some cards ask a question rather than just saying something. Two more
+   * targets over where JA and NEJ are drawn, and the catch-all dismiss
+   * switched off while they are up so a stray click cannot answer for
+   * you. The card is 1024x640 drawn across 0.86 x 0.5375, so a canvas
+   * point maps to (cx/1024-0.5)*0.86 across and (0.5-cy/640)*0.5375 up. */
+  const pick=(cx,cy,fn)=>{
+    const h=new THREE.Mesh(new THREE.PlaneGeometry(.23,.11),
+      new THREE.MeshBasicMaterial({visible:false,depthTest:false}));
+    h.position.set((cx/1024-.5)*.86,(.5-cy/640)*.5375,-.685);
+    h.frustumCulled=false;h.visible=false;camera.add(h);
+    makeInteractive(h,{poke:.12,onPress:fn});
+    return h;
+  };
+  const o={mesh:m,hit:hit,canvas:c,after:null,yes:null,no:null,onYes:null,onNo:null};
+  o.yes=pick(352,522,()=>{const f=o.onYes;closeOverlay();if(f)f();});
+  o.no =pick(672,522,()=>{const f=o.onNo; closeOverlay();if(f)f();});
+  return o;
 })();
 function showOverlay(draw,after){
   draw(overlay.canvas.getContext("2d"),overlay.canvas.width,overlay.canvas.height);
   overlay.mesh.material.map.needsUpdate=true;
   overlay.mesh.visible=true;overlay.hit.visible=true;overlay.after=after||null;
+  overlay.yes.visible=false;overlay.no.visible=false;
+  overlay.onYes=null;overlay.onNo=null;
   /* The running hint sits across the top of the glass, which is exactly
    * where the card is. Put it away while the card is up. */
   try{msgEl.style.opacity="0";msgTimer=0;}catch(e){}
 }
+function showChoice(draw,onYes,onNo){
+  showOverlay(draw,null);
+  overlay.hit.visible=false;                 // no answering it by accident
+  overlay.yes.visible=true;overlay.no.visible=true;
+  overlay.onYes=onYes||null;overlay.onNo=onNo||null;
+}
 function closeOverlay(){
   if(!overlay.mesh.visible)return;
   overlay.mesh.visible=false;overlay.hit.visible=false;
+  overlay.yes.visible=false;overlay.no.visible=false;
   Audio_.click();
   const f=overlay.after;overlay.after=null;if(f)f();
 }
@@ -2943,8 +3017,11 @@ function takeCore(c){
   c.taken=true;CORES.held++;Audio_.ok();
   log("FUSIONSKERNE "+CORES.held+"/"+CORE_N);
   if(CORES.held>=CORE_N){
-    GAME.fuelHeld=true;clearCores();beams.visible=false;trail.visible=false;
-    showOverlay(drawFuelCard,()=>showMsg("Alle tre fusionskerner er dine. Bær dem tilbage til skibet.",8));
+    GAME.fuelHeld=true;GAME.moonTaken=true;GAME.cores=CORE_N;clearCores();
+    beams.visible=false;trail.visible=false;drawStatus();
+    showOverlay(drawFuelCard,()=>showMsg(GAME.fuel>=TANK
+      ? "Alle tre fusionskerner er dine. Tanken er allerede fuld, så de ligger i lasten til senere."
+      : "Alle tre fusionskerner er dine. Bær dem tilbage til skibet og tryk på BRÆNDSTOF.",9));
   }else{
     showMsg("Fusionskerne "+CORES.held+" af "+CORE_N+". Følg lyset til den næste.",5);
   }
@@ -3421,12 +3498,12 @@ function crownOnGold(){
     /* And they fill the tanks. You spent the Moon's three cores getting
      * here, so the way home has to come from somewhere, and it coming
      * from them closes the favour rather than leaving it open. */
-    GAME.homeFuel=true;
-    log("BRÆNDSTOF TIL HJEMTUREN");
+    GAME.homeFuel=true;GAME.cores=TANK;drawStatus();
+    log("TRE KERNER TIL HJEMTUREN");
     say(GIVER.sand,"Tak fordi du hjalp os! Her er brændstof til hjemturen.",8);
     Audio_.ok();
     showMsg("Du er Konge af Guldplaneten, og kasketten sidder på instrumentbrættet. "+
-            "Beboerne har fyldt tankene — gå ind i skibet og flyv hjem til Jorden.",11);
+            "Beboerne gav dig tre fusionskerner — bær dem ind i skibet og tryk på BRÆNDSTOF.",11);
   });
 }
 function updateQuests(dt,vx,vz){
@@ -3813,7 +3890,7 @@ function phaseName(){
   return PHASE_DA[St.phase]||St.phase;
 }
 const St={phase:"preflight",order:[],step:0,alt:0,speed:0,thrust:0,dest:null,distance:0,
-  warpT:0,t:0,flash:0,landQuality:"",bodyDist:0,climbing:false,arrive:0};
+  warpT:0,t:0,flash:0,landQuality:"",bodyDist:0,climbing:false,arrive:0,seqing:false};
 const BODY_POS=new THREE.Vector3();
 const QID=new THREE.Quaternion();   // level, nose down the main window
 
@@ -3849,6 +3926,10 @@ function objectiveText(){
       ? "STIG TIL 15 KM FOR AT NÅ KREDSLØB  ("+(St.alt/1000).toFixed(1)+" KM)"
       : (auto?"AUTOPILOTEN LANDER":"FLYV NED PÅ OVERFLADEN");
     case "landed":
+      if(St.seqing)return bigBtn.armed
+        ? "TRYK PÅ DEN STORE RØDE KNAP"
+        : "STARTSEKVENS — TRYK PÅ KNAPPEN MED TALLET "+(St.step+1);
+      if(GAME.cores>0&&GAME.fuel<TANK)return "TRYK PÅ BRÆNDSTOF OG SÆT KERNERNE I TANKEN";
       if(MAPAT.live)return "GÅ UD OG FØLG PILENE TIL "+PICK[MAPAT.kind].WHAT;
       if(GAME.fuelHeld&&!GAME.fuelDone)return "TRYK START FLYVNING MED KERNERNE OMBORD";
       if(GAME.mapHeld&&!GAME.mapDone)return "TRYK START FLYVNING MED KORTET OMBORD";
@@ -3885,13 +3966,37 @@ function drawStatus(){
     ["FART",St.speed>9999?(St.speed/1000).toFixed(0)+" km/s":Math.round(St.speed)+" m/s"],
     ["GAS",Math.round(St.thrust*100)+" %"],
     ["FASE",phaseName()],
-    ["FLYV",MODE.name.toUpperCase()]
+    ["FLYV",MODE.name.toUpperCase()],
+    ["BRÆNDSTOF",null]                      // drawn as cells, not as text
   ];
   rows.forEach((r,i)=>{
-    const y=20+i*29;
+    const y=15+i*24;
     g.fillStyle="#3f8f78";g.textAlign="left";g.fillText(r[0],12,y);
-    g.fillStyle="#6cf0c0";g.textAlign="right";g.fillText(r[1],W-12,y);
+    if(r[1]!==null){g.fillStyle="#6cf0c0";g.textAlign="right";g.fillText(r[1],W-12,y);}
   });
+  /* Three cells, one per core, so how far you can go is a thing you look
+   * at rather than a number you have to read. */
+  (function(){
+    const y=15+5*24, cw=30, gap=7, x0=W-12-(cw*3+gap*2);
+    for(let i=0;i<3;i++){
+      const x=x0+i*(cw+gap), on=i<GAME.fuel;
+      g.fillStyle=on?"#1d7c90":"#0b2420";
+      g.fillRect(x,y-9,cw,18);
+      if(on){
+        const gr=g.createLinearGradient(x,y-9,x,y+9);
+        gr.addColorStop(0,"#bff6ff");gr.addColorStop(.5,"#46e0ff");gr.addColorStop(1,"#1d7c90");
+        g.fillStyle=gr;g.fillRect(x+2,y-7,cw-4,14);
+      }
+      g.strokeStyle=on?"#8ff0ff":"#1d4a42";g.lineWidth=1.5;
+      g.strokeRect(x+.5,y-8.5,cw-1,17);
+    }
+    if(GAME.cores>0){
+      g.fillStyle="#ffd34d";g.textAlign="right";
+      g.font='600 13px "Chivo Mono", monospace';
+      g.fillText("+"+GAME.cores+" I LAST",x0-10,y);
+      g.font='600 17px "Chivo Mono", monospace';
+    }
+  })();
   statusScreen.mesh.material.map.needsUpdate=true;
 }
 function drawMap(){
@@ -3965,7 +4070,7 @@ function log(s){msgLines.push(s);if(msgLines.length>24)msgLines.shift();drawMsg(
 
 /* ---------- actions ---------- */
 function pressControl(c){
-  if(St.phase!=="preflight"||c.done)return;
+  if((St.phase!=="preflight"&&!St.seqing)||c.done)return;
   c.press=1;
   if(c.armed){
     c.armed=false;c.done=true;St.step++;Audio_.ok();
@@ -3979,14 +4084,22 @@ function pressControl(c){
   }
 }
 function pressBig(){
-  if(St.phase!=="preflight"||!bigBtn.armed)return;
+  if((St.phase!=="preflight"&&!St.seqing)||!bigBtn.armed)return;
   bigBtn.press=1;bigBtn.armed=false;
+  if(St.seqing){liftNow();return;}          // leaving a world, not the pad
   St.phase="ignition";St.t=0;Audio_.ignite();
   log("TÆNDING");showMsg("Tænding!");
   throttle.value=Math.max(throttle.value,.6);
 }
 function pressHyper(){
   if(St.phase!=="course")return;
+  const cost=jumpCost(St.dest);
+  if(cost>GAME.fuel){
+    Audio_.bad();St.flash=1;
+    showMsg(GAME.at==="gold"?"Ikke nok brændstof til turen hjem.":"Ikke nok brændstof til den tur.",6);
+    return;
+  }
+  GAME.fuel-=cost;drawStatus();
   St.phase="hyperspace";St.warpT=0;Audio_.whoosh();
   log("HYPERRUM");showMsg("Hyperrum i gang");
   hyperBtn.group.visible=false;
@@ -4036,9 +4149,11 @@ function pressLand(){
    * are, because a button that silently does nothing is worse than one that
    * takes you somewhere. */
   if(St.phase!=="approach")return;
+  if(!St.dest)return;            // nothing plotted: nothing to land on
   const d=DEST[St.dest];
   const home=(St.dest==="earth");
   St.phase="descent";terrainKey=home?null:St.dest;St.climbing=false;
+  St.seqing=false;
   GAME.beenOut=false;
   const spot=home?{x:0,z:0}:flatSpot(St.dest,0,0,420);
   St.touchAt=home?null:{x:spot.x,z:spot.z};
@@ -4095,6 +4210,39 @@ function pressLift(){
    * manual modes it just opens the throttle and lets you fly it up. */
   if(St.phase!=="landed"&&St.phase!=="descent")return;
   if(WALK.active)return;
+  /* On Guldplaneten the only reason to leave is to go home, and that is
+   * the one trip that costs. Say so on the ground rather than letting
+   * someone climb all the way to orbit to find out. */
+  if(GAME.at==="gold"&&GAME.fuel<TANK){
+    Audio_.bad();St.flash=1;
+    showMsg(GAME.cores>0
+      ? "Ikke nok brændstof til turen hjem — tryk på BRÆNDSTOF og sæt kernerne i tanken."
+      : "Ikke nok brændstof til turen hjem. Beboerne har brændstof — hjælp dem med deres tre opgaver først.",8);
+    log("FOR LIDT BRÆNDSTOF");
+    return;
+  }
+  /* The five switches and the red button are the start of a flight, and
+   * leaving a planet is a flight. They used to be the Earth pad's alone,
+   * so every take-off after the first was one button. Now START arms the
+   * same sequence wherever you are; the phase stays "landed" so the
+   * ground physics underneath are untouched. */
+  if(!St.seqing){
+    St.seqing=true;newSequence();
+    liftBtn.group.visible=false;
+    Audio_.click();
+    log("STARTSEKVENS");
+    showMsg("Kør startsekvensen: tryk på de fem knapper i rækkefølge, så den store røde.",8);
+    return;
+  }
+}
+function cancelSeq(){
+  if(!St.seqing)return;
+  St.seqing=false;bigBtn.armed=false;
+  controls.forEach(c=>{c.armed=false;c.num.visible=false;});
+  Audio_.click();showMsg("Startsekvensen er afbrudt.",4);
+}
+function liftNow(){
+  St.seqing=false;
   St.climbing=true;SHIP.onGround=false;
   throttle.value=Math.max(throttle.value,.85);
   liftBtn.group.visible=false;
@@ -4125,6 +4273,7 @@ function restartFlight(){
   throttle.value=0;
   terrainKey=null;clearChunks();PAD.live=false;St.touchAt=null;
   clearCores();
+  St.seqing=false;
   terrainRoot.visible=false;skirt.visible=false;alienRoot.visible=false;
   questRoot.visible=false;bubble.mesh.visible=false;bubble.t=0;trail.visible=false;
   bulb.on=false;bulb.sprite.visible=false;
@@ -4357,16 +4506,22 @@ function mkHold(label,code){
 function buildTouchbar(){
   /* Never in VR: there you reach out and poke the thing itself. */
   const act=renderer.xr.isPresenting?null:actionTarget();
-  const sig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0)+"|"+MODE.key+"|"+(act?1:0);
+  const sig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0)+"|"+MODE.key+"|"+(act?1:0)+
+    "|"+(St.seqing?1:0)+"|"+GAME.cores+"/"+GAME.fuel;
   if(sig===tbSig)return;
   tbSig=sig;tbMain.innerHTML="";
-  if(St.phase==="preflight"){
+  /* The five switches and the red button are on the strip wherever the
+   * sequence is running, not only on the pad. */
+  if(St.phase==="preflight"||St.seqing){
     controls.forEach(c=>{
       const b=mkBtn(CTRL_LABELS[c.index],c.armed?"lit":"",()=>pressControl(c));
       if(c.done)b.style.opacity=".45";
       tbMain.appendChild(b);
     });
     if(bigBtn.armed)tbMain.appendChild(mkBtn("START","red",()=>pressBig()));
+    /* A way out of a sequence you started by mistake. Not on the pad:
+     * there the sequence IS the game's first move. */
+    if(St.seqing)tbMain.appendChild(mkBtn("AFBRYD","",()=>cancelSeq()));
   }else if(St.phase==="space"){
     ["moon","mars","gold","earth"].forEach(k=>{
       if(k==="earth"&&!destOpen("earth"))return;
@@ -4377,11 +4532,13 @@ function buildTouchbar(){
   }else if(St.phase==="approach"){
     tbMain.appendChild(mkBtn("LAND","lit",()=>pressLand()));
   }else if(St.phase==="landed"){
+    if(GAME.cores>0&&GAME.fuel<TANK)
+      tbMain.appendChild(mkBtn("◆ BRÆNDSTOF","lit",()=>askRefuel()));
     /* Out of the ship first, and lit: the quests, the fuel and the map
      * are all out there, and lighting the one that flies you away again
      * pointed at the one thing you did not come here to do. */
-    tbMain.appendChild(mkBtn("GÅ UD","lit",()=>exitShip()));
-    if(St.dest)tbMain.appendChild(mkBtn("START FLYVNING","",()=>pressLift()));
+    tbMain.appendChild(mkBtn("GÅ UD",(GAME.cores>0&&GAME.fuel<TANK)?"":"lit",()=>exitShip()));
+    if(St.dest&&!St.seqing)tbMain.appendChild(mkBtn("START FLYVNING","",()=>pressLift()));
     tbMain.appendChild(mkBtn("NY FLYVNING","",()=>restartFlight()));
   }else if(St.phase==="eva"){
     tbMain.appendChild(mkBtn("GÅ IND","",()=>enterShip()));
@@ -4618,6 +4775,64 @@ function drawMapCard(g,W,H){
   g.fillText("KURSEN ER LAGT IND I SKIBET",W/2,H-96);
   g.font="600 24px 'Chivo Mono', monospace";g.fillStyle="#6b4a12";
   g.fillText("TRYK FOR AT LÆGGE KORTET VÆK",W/2,H-52);
+}
+/* ---------- the refuelling question ---------- */
+function drawRefuelCard(g,W,H){
+  g.clearRect(0,0,W,H);
+  const bg=g.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,"#04141c");bg.addColorStop(1,"#0a2c38");
+  g.fillStyle=bg;g.fillRect(0,0,W,H);
+  g.strokeStyle="#46e0ff";g.lineWidth=8;g.strokeRect(24,24,W-48,H-48);
+  g.textAlign="center";
+  g.fillStyle="#d6f6ff";g.font="800 54px 'Bricolage Grotesque', sans-serif";
+  g.fillText("VIL DU INDSÆTTE BRÆNDSTOF?",W/2,118);
+  /* The cores you are carrying, drawn as they look on the ground. */
+  const n=GAME.cores, y=272;
+  for(let i=0;i<3;i++){
+    const x=W/2+(i-1)*150, have=i<n;
+    g.strokeStyle=have?"#9ff0ff":"rgba(120,170,190,.28)";
+    g.lineWidth=7;
+    g.beginPath();g.ellipse(x,y,66,24,0,0,7);g.stroke();
+    const gr=g.createRadialGradient(x-18,y-20,8,x,y,52);
+    if(have){gr.addColorStop(0,"#ffffff");gr.addColorStop(.45,"#6ff0ff");gr.addColorStop(1,"#0d4a5e");}
+    else{gr.addColorStop(0,"rgba(120,170,190,.18)");gr.addColorStop(1,"rgba(120,170,190,.05)");}
+    g.fillStyle=gr;g.beginPath();g.arc(x,y,46,0,7);g.fill();
+    g.strokeStyle=have?"#9ff0ff":"rgba(120,170,190,.28)";g.lineWidth=5;
+    g.beginPath();g.ellipse(x,y,66,24,1.05,0,7);g.stroke();
+  }
+  g.fillStyle="#7fd4e8";g.font="600 30px 'Chivo Mono', monospace";
+  g.fillText(n+" "+(n===1?"KERNE":"KERNER")+" I HÆNDERNE  —  TANK "+GAME.fuel+"/"+TANK,W/2,388);
+  // the two answers
+  const btn=(cx,label,fill,edge,ink)=>{
+    g.fillStyle=fill;g.strokeStyle=edge;g.lineWidth=5;
+    g.beginPath();
+    const w=200,h=84,x=cx-w/2,y2=522-h/2,r=14;
+    g.moveTo(x+r,y2);g.arcTo(x+w,y2,x+w,y2+h,r);g.arcTo(x+w,y2+h,x,y2+h,r);
+    g.arcTo(x,y2+h,x,y2,r);g.arcTo(x,y2,x+w,y2,r);g.closePath();
+    g.fill();g.stroke();
+    g.fillStyle=ink;g.font="800 42px 'Bricolage Grotesque', sans-serif";
+    g.fillText(label,cx,522+2);
+  };
+  btn(352,"JA","#14603f","#3fe08a","#d9ffe9");
+  btn(672,"NEJ","#3a1a1a","#c06a6a","#ffd9d9");
+}
+function askRefuel(){
+  if(GAME.cores<=0||GAME.fuel>=TANK)return;
+  if(overlay.mesh.visible)return;
+  Audio_.click();
+  showChoice(drawRefuelCard,()=>doRefuel(),()=>showMsg("Kernerne bliver i lasten.",4));
+}
+function doRefuel(){
+  const put=Math.min(TANK-GAME.fuel,GAME.cores);
+  if(put<=0)return;
+  GAME.fuel+=put;GAME.cores-=put;GAME.fuelDone=true;
+  Audio_.ok();setTimeout(()=>Audio_.ok(),200);
+  log("TANKET: "+GAME.fuel+"/"+TANK);
+  drawStatus();refreshMenu();
+  showMsg(GAME.fuel>=TANK
+    ? (GAME.at==="gold"?"Tankene er fulde. Nu rækker det til turen hjem."
+                       :"Tankene er fulde. Nu rækker det til Guldplaneten.")
+    : "Tanket. Der er "+GAME.fuel+" af "+TANK+" i tanken.",8);
 }
 /* ---------- a portrait of whoever you just helped ----------
  * The same two balls and two eyes they are built from in the world, in
@@ -4903,13 +5118,13 @@ function enterShip(){
     St.phase=St.dest?"landed":"preflight";
     enterMark.visible=false;tpMark.group.visible=false;
     log("OMBORD");
-    if(GAME.fuelHeld&&!GAME.fuelDone){
-      GAME.fuelDone=true;refreshMenu();
-      Audio_.ok();setTimeout(()=>Audio_.ok(),260);
-      log("BRÆNDSTOF TANKET");
-      showMsg(GAME.mapDone
-        ? "Alle tre kerner er ombord. Nu rækker brændstoffet til Guldplaneten."
-        : "Kernerne er ombord. Nu mangler du kun kortet — det ligger på Mars.",9);
+    if(GAME.cores>0&&GAME.fuel<TANK){
+      /* Carried aboard, not yet in the tank. Putting them in is a thing
+       * you do, with a button and an answer, so that the gauge filling
+       * up is something that happened rather than something that was. */
+      Audio_.ok();
+      log("KERNER OMBORD");
+      askRefuel();
     }else if(GAME.mapHeld&&!GAME.mapDone){
       GAME.mapDone=true;refreshMenu();
       Audio_.ok();setTimeout(()=>Audio_.ok(),260);
@@ -5412,8 +5627,14 @@ function updateFlight(dt){
           spawnAliens(SHIP.pos.x,SHIP.pos.z);
           startQuests(SHIP.pos.x,SHIP.pos.z);
         }
-        if(GAME.mode==="explorer"){
-          if(St.dest==="moon"&&!GAME.fuelDone&&!GAME.fuelHeld){
+        {
+          /* Both modes. Test used to skip the Moon's cores and the Mars
+           * map entirely, which made it a way to see the planets and not
+           * a way to play them — and now that fuel is real, the cores
+           * are worth having there too: test starts with a full tank,
+           * spends it reaching Guldplaneten, and anything you picked up
+           * on the way is sitting in the hold when you need it. */
+          if(St.dest==="moon"&&!GAME.moonTaken&&GAME.cores===0){
             GAME.moonSeen=true;
             placeCores("moon",SHIP.pos.x,SHIP.pos.z);
             log("TRE FUSIONSKERNER");
@@ -5432,6 +5653,7 @@ function updateFlight(dt){
           log("ALIENS I NÆRHEDEN");
           showMsg("Guldplaneten. Tre aliens står ved hver sin lyssøjle — gå ud og klik på udråbstegnet over den, du vil hjælpe først.",10);
         }
+        GAME.at=St.dest||"earth";
         log(St.landQuality+" LANDING");
         if(St.dest==="earth"){
           /* Home. Everyone is out on the apron, and there is a gold cap. */
@@ -5464,7 +5686,11 @@ function updateFlight(dt){
       if(St.phase==="landed")St.phase="descent";
     }
     againBtn.group.visible=(St.phase==="landed");
-    liftBtn.group.visible=(St.phase==="landed"&&!!St.dest);
+    liftBtn.group.visible=(St.phase==="landed"&&!!St.dest&&!St.seqing);
+    /* The fuel button appears when there is fuel in the hold and room in
+     * the tank, and nowhere else. */
+    fuelBtn.group.visible=(!WALK.active&&GAME.cores>0&&GAME.fuel<TANK&&
+                           (St.phase==="landed"||St.phase==="preflight"));
     ensureChunks(St.dest,SHIP.pos.x,SHIP.pos.z);
   }
 
@@ -5495,7 +5721,7 @@ function updateFlight(dt){
     c.press=Math.max(0,c.press-dt*4);
     const lit=c.armed?(.5+.5*Math.sin(St.t*7)):0;
     c.lamp.material.color.setHex(c.done?0x2ad46a:(lit>.4?0xf2a33c:0x3a2a14));
-    c.num.visible=c.armed&&St.phase==="preflight";
+    c.num.visible=c.armed&&(St.phase==="preflight"||St.seqing);
     if(c.kind==="button"){
       c.body.position.z=.035-c.press*.018;
       c.body.material.emissive.setHex(c.done?0x0f3a1c:(lit>.4?0x3a2609:0x000000));
@@ -5653,6 +5879,7 @@ renderer.setAnimationLoop(()=>{
   refreshHud();
   const osig=St.phase+"|"+St.step+"|"+(bigBtn.armed?1:0)+"|"+MODE.key+"|"+
     (questRoot.visible?questLabel():"")+"|"+(MAPAT.live?1:0)+(GAME.mapHeld?1:0)+"|"+
+    (St.seqing?1:0)+"|"+GAME.cores+"/"+GAME.fuel+"|"+
     (St.phase==="descent"&&St.alt>2500?Math.round(St.alt/500):0);
   if(osig!==objSig){
     objSig=osig;
