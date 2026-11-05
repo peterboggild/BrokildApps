@@ -560,6 +560,27 @@ const Audio_={
     g.gain.exponentialRampToValueAtTime(.0001,t+5.5);
     s.connect(f);f.connect(g);g.connect(this.master);s.start(t);s.stop(t+6);
   },
+  /* A steady burner while the pack is lit, so flying sounds like flying.
+   * One source held open and gated, rather than a blip per frame. */
+  jetStart(){
+    if(!this.ctx||this.jetSrc)return;
+    const t=this.ctx.currentTime;
+    const s=this.ctx.createBufferSource();s.buffer=this.noiseBuf;s.loop=true;
+    const f=this.ctx.createBiquadFilter();f.type="bandpass";
+    f.frequency.value=620;f.Q.value=.7;
+    const g=this.ctx.createGain();
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.22,t+.35);
+    s.connect(f);f.connect(g);g.connect(this.master);s.start(t);
+    this.jetSrc=s;this.jetGain=g;
+  },
+  jetStop(){
+    if(!this.ctx||!this.jetSrc)return;
+    const t=this.ctx.currentTime,s=this.jetSrc,g=this.jetGain;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(Math.max(.0002,g.gain.value),t);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.3);
+    s.stop(t+.35);this.jetSrc=null;this.jetGain=null;
+  },
   whoosh(){
     if(!this.ctx)return;const t=this.ctx.currentTime;
     const s=this.ctx.createBufferSource();s.buffer=this.noiseBuf;s.loop=true;
@@ -837,8 +858,17 @@ function drawLandHud(){
   g.strokeStyle="rgba(130,220,210,.45)";g.lineWidth=3;g.strokeRect(2,2,W-4,H-4);
   const alt=Math.max(0,St.alt), vy=SHIP.vel.y;
   const hard=Math.abs(vy);
-  const band=hard<9?"#6cf0c0":hard<26?"#ffd34d":"#ff6a5a";
-  const word=hard<9?"BLØD":hard<26?"FAST":"HÅRD";
+  /* Up is green, down is red, and the shade carries the rate: pale green
+   * drifting up, deep green climbing hard, amber easing down, deeper red
+   * the faster you fall. The word still says what the touchdown is worth. */
+  const t=THREE.MathUtils.clamp(hard/34,0,1);
+  const mix=(a,b,u)=>"rgb("+Math.round(a[0]+(b[0]-a[0])*u)+","+
+                            Math.round(a[1]+(b[1]-a[1])*u)+","+
+                            Math.round(a[2]+(b[2]-a[2])*u)+")";
+  const band=(vy>=0)?mix([190,255,215],[26,170,80],t)
+                    :mix([255,196,92],[214,40,34],t);
+  const word=vy>=0?(hard<1?"SVÆVER":"STIGER")
+                  :(hard<9?"BLØD":hard<26?"FAST":"HÅRD");
   /* Height: a ladder, logarithmic, because the metres that matter are
    * the last twenty and the first two thousand are all the same news. */
   const bx=52,by=28,bw=26,bh=H-66;
@@ -875,7 +905,7 @@ function drawLandHud(){
   g.textAlign="left";g.fillText("SYNK",sx,sy+sh+20);
   g.textAlign="right";
   g.fillStyle=band;g.font='800 24px "Chivo Mono", monospace';
-  g.fillText(Math.abs(Math.round(vy))+" m/s   "+word,sx+sw,sy+sh+23);
+  g.fillText((vy>=0?"▲ ":"▼ ")+Math.abs(Math.round(vy))+" m/s   "+word,sx+sw,sy+sh+23);
   landHud.mesh.material.map.needsUpdate=true;
 }
 const consoleGroup=new THREE.Group();
@@ -5106,8 +5136,15 @@ function updateQuestHud(){
   questHud.visible=true;
   faceHud(questHud,.19,1.05);
 }
+/* "It can stay while I'm standing still reading it, but once I've moved
+ * five metres to go and do the thing, there's no reason for it to still
+ * be there." The anchor is where you were told; walking away from it
+ * dismisses it. The progress counter is not a message and stays. */
+const msgAnchor=new THREE.Vector3();
+let msgAnchored=false;
 function showMsg(t,secs){
   msgEl.textContent=t;msgEl.style.opacity="1";msgTimer=secs||4.5;
+  msgAnchored=WALK.active;if(msgAnchored)msgAnchor.copy(WALK.pos);
   if(msgPlate.material.map)msgPlate.material.map.dispose();
   msgPlate.material.map=tex(labelCanvas(t,{w:900,h:68,size:30,
     bg:"#0b1018",border:"#35506b",color:"#d6ecff"}));
@@ -5159,7 +5196,12 @@ async function openSession(spaceType){
   }catch(err){try{await session.end();}catch(e2){}throw err;}
   return session;
 }
-let pendingRecenter=0, snapArmed=false, jumpArmed=false;
+let pendingRecenter=0, snapArmed=false;
+/* One shared flag for two controllers: the hand that was NOT holding the
+ * button cleared it every frame, so the hand that WAS holding it fired
+ * again on the next - sixty toggles a second, landing on whichever state
+ * the loop happened to stop on. Armed per hand now. */
+const jumpArmed={left:false,right:false};
 btnVR.addEventListener("click",async()=>{
   Audio_.init();Audio_.resume();
   btnVR.disabled=true;const was=btnVR.textContent;btnVR.textContent="Starter…";
@@ -6230,7 +6272,19 @@ function updateEVA(dt){
     WALK.vy=THREE.MathUtils.clamp(WALK.vy,-16,16);
     WALK.pos.y+=WALK.vy*dt;
     if(WALK.hx||WALK.hz){
-      WALK.pos.x+=WALK.hx*dt;WALK.pos.z+=WALK.hz*dt;
+      /* Nineteen metres a second is a third of a metre per frame, and a
+       * single end-of-frame height test walks straight through a cliff
+       * face that rises faster than that. Stepped in half-metre pieces,
+       * and a step that would put the ground above the knees is refused
+       * - you stop against the rock instead of inside it. */
+      const want=Math.hypot(WALK.hx,WALK.hz)*dt;
+      const steps=Math.max(1,Math.min(12,Math.ceil(want/0.5)));
+      const sx=WALK.hx*dt/steps, sz=WALK.hz*dt/steps;
+      for(let i=0;i<steps;i++){
+        const nx=WALK.pos.x+sx, nz=WALK.pos.z+sz;
+        if(walkH(nx,nz)>WALK.pos.y-WALK.eye*.45){WALK.hx=0;WALK.hz=0;break;}
+        WALK.pos.x=nx;WALK.pos.z=nz;
+      }
       const drag=Math.exp(-dt*1.6);WALK.hx*=drag;WALK.hz*=drag;
     }
   }else if(WALK.air){
@@ -6955,39 +7009,14 @@ function updateFlight(dt){
   fill.intensity+=((open?.38:(.16+.22*_atm))-fill.intensity)*Math.min(1,dt*2);
 }
 
-/* Squeeze BOTH grips to square the view up again. The headset's own
- * reset moves the floor out from under our offsets, so there has to be a
- * way back that does not mean taking it off. */
-let recArmed=false;
-/* This took the jump away entirely for a release. The controller loop
- * iterates `src`, not `c`, so calling it with `c` threw - and that loop
- * sits inside a try/catch, which swallowed the error and simply never
- * jumped. A silent catch around input handling hides exactly this.
- *
- * Peter's design, which is better than the arc I guessed at: the left
- * hand TOGGLES the jetpack. Press once and you rise a few metres and
- * hold there, fly across the surface on the stick, press again to come
- * down. The right hand still hops. */
-function toggleFly(){
-  if(!WALK.active)return;
-  WALK.fly=!WALK.fly;
-  if(WALK.fly){WALK.air=true;WALK.jet=false;WALK.hx=0;WALK.hz=0;
-    showMsg("Jetpack til — flyv med pinden, tryk igen for at lande.",5);}
-  else showMsg("Jetpack fra.",3);
-  Audio_.click();
-}
-function checkRecenterGesture(){
-  let n=0;
-  controllers.forEach(c=>{
-    const src=c.userData.inputSource, gp=src&&src.gamepad;
-    if(gp&&gp.buttons&&gp.buttons[1]&&gp.buttons[1].value>.7)n++;
-  });
-  if(n>=2){if(!recArmed){recArmed=true;pendingRecenter=3;Audio_.click();}}
-  else if(n===0)recArmed=false;
-}
+/* There WAS a both-grips gesture here to square the view up. Peter:
+ * "it's easy to press by accident and it's confusing - only the usual
+ * Meta button should reset the view." Gone. The headset's own recentre
+ * is caught by the reference space's 'reset' event, which is the right
+ * place for it anyway: one way to do it, the way the player already
+ * knows. */
 /* ---------- hand poses from the controller's own buttons ---------- */
 function updateHands(){
-  checkRecenterGesture();
   controllers.forEach(c=>{
     const hand=c.userData.hand;if(!hand)return;
     const src=c.userData.inputSource, gp=src&&src.gamepad;
@@ -7088,9 +7117,10 @@ function frame(){
        * controllers so it does not matter which hand is free. */
       if(WALK.active&&gp.buttons&&gp.buttons[4]){
         const down=gp.buttons[4].pressed;
-        if(down){if(!jumpArmed){jumpArmed=true;
-          if(src.handedness==="left")toggleFly();else jumpWalker();}}
-        else jumpArmed=false;
+        const hand=(src.handedness==="left")?"left":"right";
+        if(down){if(!jumpArmed[hand]){jumpArmed[hand]=true;
+          if(hand==="left")toggleFly();else jumpWalker();}}
+        else jumpArmed[hand]=false;
         /* Held, it is a jet pack — but only once you are off the
          * ground, so the press that starts the hop is not also the
          * press that lights the engine. */
@@ -7141,6 +7171,9 @@ function frame(){
     setObjective(objectiveText(),St.phase==="landed"?"#c9a0ff":"#f2a33c");
   }
   if(!touchbar.hidden)buildTouchbar();
+  if(msgTimer>0&&msgAnchored&&WALK.active&&
+     Math.hypot(WALK.pos.x-msgAnchor.x,WALK.pos.z-msgAnchor.z)>5)
+    msgTimer=Math.min(msgTimer,.45);        // read it, walk off, it goes
   if(msgTimer>0){msgTimer-=dt;
     if(msgTimer<=0){msgEl.style.opacity="0";msgPlate.visible=false;}
     else {msgPlate.material.opacity=Math.min(1,msgTimer*2.2);
