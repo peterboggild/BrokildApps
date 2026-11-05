@@ -581,6 +581,26 @@ const Audio_={
     g.gain.exponentialRampToValueAtTime(.0001,t+.3);
     s.stop(t+.35);this.jetSrc=null;this.jetGain=null;
   },
+  /* A short fanfare for the moment the planet says thank you. Two voices
+   * so it is a tune and not a beep: a square lead over a soft triangle. */
+  fanfare(){
+    if(!this.ctx)return;
+    const t0=this.ctx.currentTime;
+    const lead=[[523,0],[659,.16],[784,.32],[1047,.48],[784,.78],[1047,.94],[1319,1.12]];
+    const bass=[[131,0],[165,.48],[196,.94],[262,1.42]];
+    const play=(f,at,dur,type,vol)=>{
+      const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+      o.type=type;o.frequency.setValueAtTime(f,t0+at);
+      g.gain.setValueAtTime(.0001,t0+at);
+      g.gain.linearRampToValueAtTime(vol,t0+at+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,t0+at+dur);
+      o.connect(g);g.connect(this.master);o.start(t0+at);o.stop(t0+at+dur+.05);
+    };
+    lead.forEach(n=>play(n[0],n[1],.30,"square",.13));
+    bass.forEach(n=>play(n[0],n[1],.52,"triangle",.10));
+    for(let i=0;i<7;i++)      // a sparkle over the last chord
+      play(1568+i*120,1.42+i*.05,.5,"sine",.05);
+  },
   whoosh(){
     if(!this.ctx)return;const t=this.ctx.currentTime;
     const s=this.ctx.createBufferSource();s.buffer=this.noiseBuf;s.loop=true;
@@ -3775,6 +3795,7 @@ const _am2=new THREE.Matrix4(),_arel=new THREE.Vector3(),_ainv=new THREE.Quatern
 let chirpCooldown=0;
 function updateAliens(dt){
   if(!alienRoot.visible)return;
+  updateParty(dt);
   const vx=WALK.active?WALK.pos.x:SHIP.pos.x;
   const vy=WALK.active?WALK.pos.y:SHIP.pos.y;
   const vz=WALK.active?WALK.pos.z:SHIP.pos.z;
@@ -3786,7 +3807,8 @@ function updateAliens(dt){
     const dist=Math.hypot(dx,dz);
     const bearing=Math.atan2(-dx,-dz);          // yaw that faces the viewer
 
-    if(a.talk>0){
+    if(a.party){ /* at the party their steering is done for them */ }
+    else if(a.talk>0){
       a.talk-=dt;
       // hold still and keep looking at you while speaking
       let d=bearing-a.yaw;
@@ -3848,10 +3870,11 @@ function updateAliens(dt){
     const fx=-Math.sin(a.yaw), fz=-Math.cos(a.yaw);
 
     _aq.setFromAxisAngle(UPW,a.yaw);
-    _am2.compose(_ap.set(a.x,gy+bodyR,a.z),_aq,_as.setScalar(bodyR));
+    const lift=a.hop||0;
+    _am2.compose(_ap.set(a.x,gy+bodyR+lift,a.z),_aq,_as.setScalar(bodyR));
     alienParts.body.setMatrixAt(i,_am2);
 
-    const hx=a.x+fx*a.lean, hz=a.z+fz*a.lean, hy=gy+bodyR*1.55+headR;
+    const hx=a.x+fx*a.lean, hz=a.z+fz*a.lean, hy=gy+bodyR*1.55+headR+lift;
     _am2.compose(_ap.set(hx,hy,hz),_aq,_as.setScalar(headR));
     alienParts.head.setMatrixAt(i,_am2);
 
@@ -3960,7 +3983,13 @@ const QTEXT={
   lostF:"Hej! Er du kommet for at hente mig? Jeg går med dig.",
   lostN:"Har du fundet ham? Han er et sted mod øst.",
   lostD:"Han er hjemme igen! Du har reddet dagen.",
-  all  :"Tak for alt, pilot. Guldplaneten står i gæld til dig."
+  all  :"Tak for alt, pilot. Guldplaneten står i gæld til dig.",
+  math :"Min lillesøster har regnestykker for. Kan du klare fem i træk? Tavlen står lige her.",
+  mathN:n=>"Der mangler "+n+" rigtige. Tavlen venter.",
+  mathD:"Fem rigtige! Hun er så glad. Tak!",
+  dig  :"Der ligger en skat under stenkorset derude. Tag blasteren og skyd hullet — tre skud, så er den fri.",
+  digN :"Blasteren ligger ved lyssøjlen. Skyd midt i stenkorset tre gange.",
+  digD :"Du fandt kisten! Den har ligget der i hundrede år. Tak!"
 };
 /* One alien used to hand out all three favours, which made him a desk
  * rather than a neighbour. There are three of them now, each standing in
@@ -3968,7 +3997,12 @@ const QTEXT={
  * you can take them in any order you like. GIVER maps a favour to the
  * alien who asks for it; they are aliens 0, 1 and 2, which is also why
  * those three get their own colours and stay put. */
+/* Five favours exist; three of them are asked for on any given visit,
+ * drawn fresh each time you land, so the planet is not the same errand
+ * twice. GIVER is rebuilt per visit: whoever asks is alien 0, 1 or 2. */
+const QUEST_POOL=["sand","food","lost","math","dig"];
 const GIVER={sand:0,food:1,lost:2};
+let goldVisits=0;
 const Q={order:["sand","food","lost"],active:null,done:{},
          sand:[],fruit:[],lost:null,held:0,cx:0,cz:0,home:null,homes:null};
 const questRoot=new THREE.Group();questRoot.visible=false;world.add(questRoot);
@@ -3992,13 +4026,98 @@ let qPit=null,qSunk=null,qSunkHead=null,qFruit=null,qLostBody=null,qLostHead=nul
   qLostHead=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),lostMat);
   questRoot.add(qLostBody);questRoot.add(qLostHead);
 })();
+/* The props for the two new favours. Everything is built once and parked
+ * out of sight; a visit just moves it and switches it on. */
+const DIGQ={x:0,z:0,hits:0,chest:null,ring:null,tool:null,craters:null,nc:0,
+            held:false,taken:false};
+/* Declared, not run on the spot: it needs MATHQ, which is defined with
+ * the rest of the quest logic further down. Called there instead. */
+function buildNewQuestProps(){
+  /* --- the slate, and four buttons you cannot miss --- */
+  const cv=cvs(640,360);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.46),
+    new THREE.MeshBasicMaterial({map:tex(cv),transparent:true}));
+  m.userData.cv=cv;m.visible=false;questRoot.add(m);
+  MATHQ.slate=m;
+  for(let i=0;i<4;i++){
+    const bc=cvs(256,192);
+    const g=new THREE.Group();g.visible=false;questRoot.add(g);
+    const face=new THREE.Mesh(new THREE.PlaneGeometry(.92,.69),
+      new THREE.MeshBasicMaterial({map:tex(bc)}));
+    g.add(face);
+    const hit=new THREE.Mesh(new THREE.BoxGeometry(.96,.73,.22),
+      new THREE.MeshBasicMaterial({transparent:true,opacity:0,
+        depthWrite:false,colorWrite:false}));
+    hit.position.z=-.09;g.add(hit);
+    makeInteractive(hit,{poke:.1,onPress:()=>answerMath(i)});
+    MATHQ.btns.push({group:g,face:face,cv:bc});
+  }
+  /* --- the dig site: a ring of stones with an X of them inside --- */
+  const stone=new THREE.MeshStandardMaterial({color:0x6b5a2e,roughness:1,flatShading:true});
+  const ring=new THREE.Group();ring.visible=false;questRoot.add(ring);
+  const sg=new THREE.DodecahedronGeometry(.5,0);
+  for(let i=0;i<16;i++){
+    const a=Math.PI*2*i/16, r=4.2;
+    const b=new THREE.Mesh(sg,stone);
+    b.position.set(Math.cos(a)*r,0,Math.sin(a)*r);
+    b.scale.setScalar(.8+((i*7)%5)*.14);ring.add(b);
+  }
+  for(let i=-3;i<=3;i++){          // the X in the middle: dig HERE
+    if(!i)continue;
+    [[i*.8,i*.8],[i*.8,-i*.8]].forEach(q=>{
+      const b=new THREE.Mesh(sg,stone);
+      b.position.set(q[0],0,q[1]);b.scale.setScalar(.42);ring.add(b);
+    });
+  }
+  DIGQ.ring=ring;
+  /* --- the blaster, lying in the open --- */
+  const tool=new THREE.Group();tool.visible=false;questRoot.add(tool);
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.30,.12,.12),
+    new THREE.MeshStandardMaterial({color:0x8d3b2f,roughness:.5,metalness:.4,flatShading:true}));
+  tool.add(body);
+  const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.26,8),
+    new THREE.MeshStandardMaterial({color:0x5ceaff,emissive:0x0d4b5c,
+      emissiveIntensity:1.4,flatShading:true}));
+  barrel.rotation.z=Math.PI/2;barrel.position.x=.24;tool.add(barrel);
+  const grip=new THREE.Mesh(new THREE.BoxGeometry(.09,.17,.1),
+    new THREE.MeshStandardMaterial({color:0x2a1c12,roughness:.9,flatShading:true}));
+  grip.position.set(-.07,-.13,0);tool.add(grip);
+  DIGQ.tool=tool;
+  /* --- the holes it blows, and the chest underneath --- */
+  DIGQ.craters=new THREE.InstancedMesh(new THREE.CircleGeometry(1,12),
+    new THREE.MeshBasicMaterial({color:0x3a2a0e,transparent:true,opacity:.9,
+      polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),12);
+  DIGQ.craters.frustumCulled=false;DIGQ.craters.count=0;questRoot.add(DIGQ.craters);
+  const chest=new THREE.Group();chest.visible=false;questRoot.add(chest);
+  const cm=new THREE.MeshStandardMaterial({color:0x8a5a1c,roughness:.6,
+    metalness:.3,flatShading:true});
+  const gm=new THREE.MeshStandardMaterial({color:0xffd34d,roughness:.3,
+    metalness:.8,emissive:0x3a2a05,flatShading:true});
+  const box=new THREE.Mesh(new THREE.BoxGeometry(1.1,.72,.78),cm);box.position.y=.36;
+  const lid=new THREE.Mesh(new THREE.BoxGeometry(1.14,.22,.82),gm);lid.position.y=.80;
+  const lock=new THREE.Mesh(new THREE.BoxGeometry(.16,.2,.1),gm);lock.position.set(0,.5,.42);
+  chest.add(box);chest.add(lid);chest.add(lock);
+  const chit=new THREE.Mesh(new THREE.BoxGeometry(1.3,1.2,1.0),
+    new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,colorWrite:false}));
+  chit.position.y=.5;chest.add(chit);
+  makeInteractive(chit,{poke:.2,onPress:()=>takeChest()});
+  DIGQ.chest=chest;
+}
 const _qm=new THREE.Matrix4(),_qp=new THREE.Vector3(),
       _qq=new THREE.Quaternion(),_qs=new THREE.Vector3();
 function hide(m){_qm.compose(_qp.set(0,-9999,0),_qq.identity(),_qs.setScalar(.001));return _qm;}
 
 function startQuests(cx,cz){
   Q.active=null;Q.done={};Q.held=0;Q.cx=cx;Q.cz=cz;Q.home={x:cx,z:cz};
-  const r=mulberry32(31337);
+  goldVisits++;
+  const r=mulberry32(31337+goldVisits*7919);
+  /* Draw three of the five, and hand them to aliens 0, 1 and 2. */
+  const pool=QUEST_POOL.slice();
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(r()*(i+1));
+    const t=pool[i];pool[i]=pool[j];pool[j]=t;}
+  Q.order=pool.slice(0,3);
+  QUEST_POOL.forEach(k=>{delete GIVER[k];});
+  Q.order.forEach((k,i)=>{GIVER[k]=i;});
   const pa=r()*Math.PI*2;
   /* Spread round the landing ground, far enough apart to be three
    * separate people to walk up to and near enough to see all three from
@@ -4019,12 +4138,62 @@ function startQuests(cx,cz){
   });
   const la=r()*Math.PI*2;
   Q.lost={x:cx+Math.cos(la)*125, z:cz+Math.sin(la)*125, found:false, home:false};
+  /* The slate stands beside whoever asked for the sums, facing the way
+   * you walk up, so you meet it head on. */
+  MATHQ.n=0;MATHQ.q=null;MATHQ.flash=0;
+  if(Q.order.indexOf("math")>=0){
+    const H=Q.homes[GIVER.math];
+    const face=Math.atan2(cx-H.x,cz-H.z);
+    const sx=H.x+Math.sin(face+1.35)*2.6, sz=H.z+Math.cos(face+1.35)*2.6;
+    const gy=groundH("gold",sx,sz);
+    MATHQ.slate.position.set(sx,gy+2.15,sz);
+    MATHQ.slate.rotation.set(0,face,0);
+    MATHQ.btns.forEach((b,i)=>{
+      const off=(i-1.5)*1.02;
+      b.group.position.set(sx+Math.cos(face)*off, gy+1.05, sz-Math.sin(face)*off);
+      b.group.rotation.set(0,face,0);
+    });
+  }
+  /* The dig site, and the blaster lying where you cannot miss it. */
+  /* Picking it up reparents the blaster to the controller. Without
+   * putting it back, the next visit sets a world position inside
+   * controller space and the favour cannot be started at all. */
+  if(DIGQ.tool.parent!==questRoot)questRoot.add(DIGQ.tool);
+  DIGQ.tool.rotation.set(0,0,0);DIGQ.tool.scale.setScalar(1);
+  if(DIGQ.chest.parent!==questRoot)questRoot.add(DIGQ.chest);
+  DIGQ.chest.rotation.set(0,0,0);DIGQ.chest.scale.setScalar(1);
+  DIGQ.hits=0;DIGQ.taken=false;DIGQ.held=false;DIGQ.nc=0;DIGQ.craters.count=0;
+  if(Q.order.indexOf("dig")>=0){
+    const da=r()*Math.PI*2, dd=70+r()*45;
+    DIGQ.x=cx+Math.cos(da)*dd;DIGQ.z=cz+Math.sin(da)*dd;
+    const gy=groundH("gold",DIGQ.x,DIGQ.z);
+    DIGQ.ring.position.set(DIGQ.x,gy+.12,DIGQ.z);
+    const H=Q.homes[GIVER.dig];
+    const tx=H.x+Math.cos(da)*3.2, tz=H.z+Math.sin(da)*3.2;
+    DIGQ.tool.position.set(tx,groundH("gold",tx,tz)+.45,tz);
+    DIGQ.tool.rotation.set(0,da,0);
+    DIGQ.chest.position.set(DIGQ.x,gy-1.9,DIGQ.z);
+  }
+  MATHQ.slate.visible=false;MATHQ.btns.forEach(b=>b.group.visible=false);
+  DIGQ.ring.visible=false;DIGQ.tool.visible=false;DIGQ.chest.visible=false;
   questRoot.visible=true;
   qPit.position.set(Q.pit.x,groundH("gold",Q.pit.x,Q.pit.z)+.1,Q.pit.z);
   /* Arrows on the ground to the one alien who hands out the favours, the
    * same as Mars gets to its map. The beam over him is visible from the
    * air; the chevrons are what you follow once you are walking. */
   Q.trailAt=null;Q.trailFrom=null;
+}
+/* Everything a child has to find gets a column of light over it. */
+function questBeacons(){
+  const list=[];
+  if(!questRoot.visible)return list;
+  Q.order.forEach(k=>{ if(!Q.done[k]){const g=aliens[GIVER[k]];
+    if(g)list.push({x:g.x,z:g.z});} });
+  if(Q.active==="dig"&&!Q.done.dig){
+    if(!DIGQ.held)list.push({x:DIGQ.tool.position.x,z:DIGQ.tool.position.z});
+    else if(!DIGQ.taken)list.push({x:DIGQ.x,z:DIGQ.z});
+  }
+  return list;
 }
 function questTrailCheck(){
   if(questRoot.visible&&Object.keys(Q.done).length>=3)trail.visible=false;
@@ -4044,14 +4213,132 @@ function questLabel(){
                               :"GÅ HEN TIL EN ALIEN VED EN LYSSØJLE";
     return "GÅ UD OG TAL MED DE TRE ALIENS VED LYSSØJLERNE";
   }
-  if(Q.active==="sand")return "RED "+Q.sand.filter(s=>!s.freed).length+" FRA KVIKSAND";
-  if(Q.active==="food")return "FIND GULDFRUGT "+Q.held+"/3";
+  /* "RED 0 FRA KVIKSAND" and "FIND GULDFRUGT 3/3" report a finished job
+   * rather than saying what to do next. */
+  if(Q.active==="sand"){
+    const left=Q.sand.filter(s=>!s.freed).length;
+    return left?("RED "+left+" FRA KVIKSAND"):"GÅ TILBAGE TIL ALIENEN";
+  }
+  if(Q.active==="food")
+    return Q.held>=3?"GÅ TILBAGE TIL ALIENEN":("FIND GULDFRUGT "+Q.held+"/3");
   if(Q.active==="lost")return Q.lost.found?"FØLG LILLEBROR HJEM":"FIND LILLEBROR";
+  if(Q.active==="math")
+    return MATHQ.n>=MATHQ.need?"GÅ TILBAGE TIL ALIENEN"
+                              :("REGNESTYKKER "+MATHQ.n+"/"+MATHQ.need);
+  if(Q.active==="dig")return DIGQ.taken?"BÆR KISTEN TILBAGE"
+    :(DIGQ.held?("SKYD STENKORSET "+DIGQ.hits+"/3"):"HENT BLASTEREN VED LYSSØJLEN");
   return "";
+}
+let blasterHand=null;
+function takeBlaster(){
+  if(DIGQ.held)return;
+  DIGQ.held=true;Audio_.ok();
+  /* Out of the dirt and into your hand, so you can see you are holding
+   * it. Parented to the right controller; in flat play it just hides. */
+  if(controllers[1]){
+    DIGQ.tool.parent.remove(DIGQ.tool);
+    controllers[1].add(DIGQ.tool);
+    DIGQ.tool.position.set(.02,-.03,-.10);
+    /* The barrel is built along +X; the controller points along -Z.
+     * -90 deg about Y sends +X to +Z, i.e. the glowing muzzle aimed back
+     * at his nose. +90 is the one that points it where he is looking. */
+    DIGQ.tool.rotation.set(0,Math.PI/2,0);
+    DIGQ.tool.visible=true;blasterHand=controllers[1];
+  }else DIGQ.tool.visible=false;
+  showMsg("Du har blasteren! Sigt på stenkorset og tryk på aftrækkeren.",7);
+}
+/* A hole in the ground, and a puff. Three inside the stones and the lid
+ * comes up - which is the whole instruction, in pictures. */
+function blasterShot(px,pz){
+  const gy=groundH("gold",px,pz);
+  /* A ray gun with no ray reads as a broken ray gun. */
+  fireBolt(px,gy+.1,pz);
+  {
+    /* Twelve holes, reused oldest-first. Capped and never recycled, the
+     * thirteenth shot and everything after it did nothing visible. */
+    const i=DIGQ.nc%12;DIGQ.nc++;
+    _qm.compose(_qp.set(px,gy+.06,pz),
+      _qq.setFromEuler(new THREE.Euler(-Math.PI/2,0,0)),
+      _qs.set(1.1+Math.random()*.5,1.1+Math.random()*.5,1));
+    DIGQ.craters.setMatrixAt(i,_qm);
+    DIGQ.craters.count=Math.min(12,DIGQ.nc);
+    DIGQ.craters.instanceMatrix.needsUpdate=true;
+  }
+  const onTarget=(Q.active==="dig"&&!DIGQ.taken&&
+                  Math.hypot(px-DIGQ.x,pz-DIGQ.z)<4.0);
+  /* Hit and miss must not sound or look the same, or "my shots are not
+   * counting" and "the gun is broken" are the same experience. */
+  if(onTarget){
+    DIGQ.hits++;Audio_.ok();
+    DIGQ.ringFlash=.6;
+    if(DIGQ.hits>=3){
+      DIGQ.chest.visible=true;
+      showMsg("Kisten kommer op! Tryk på den for at tage den.",8);
+    }else showMsg("Hul "+DIGQ.hits+" af 3 — skyd igen midt i stenkorset.",5);
+  }else{
+    Audio_.blip(150,.14,"sawtooth",.16);
+    if(Q.active==="dig"&&!DIGQ.taken)DIGQ.ringFlash=.6;   // look over THERE
+  }
+}
+/* One bolt mesh, reused: a short glowing rod thrown from the muzzle to
+ * where it lands, and a flash on the ground. */
+const BOLT=(function(){
+  const g=new THREE.Group();g.visible=false;
+  const rod=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,1,6),
+    new THREE.MeshBasicMaterial({color:0x9ff6ff,transparent:true,opacity:.95,
+      blending:THREE.AdditiveBlending,depthWrite:false}));
+  rod.rotation.x=Math.PI/2;g.add(rod);
+  const pop=new THREE.Mesh(new THREE.CircleGeometry(1.4,14),
+    new THREE.MeshBasicMaterial({color:0xffe08a,transparent:true,opacity:.9,
+      blending:THREE.AdditiveBlending,depthWrite:false}));
+  pop.rotation.x=-Math.PI/2;g.add(pop);
+  g.userData={rod:rod,pop:pop,t:0};
+  world.add(g);
+  return g;
+})();
+const _b0=new THREE.Vector3(),_b1=new THREE.Vector3();
+function fireBolt(x,y,z){
+  _b1.set(x,y,z);
+  if(DIGQ.held&&DIGQ.tool.parent&&DIGQ.tool.parent!==questRoot){
+    DIGQ.tool.getWorldPosition(_b0);world.worldToLocal(_b0);
+  }else _b0.set(WALK.pos.x,WALK.pos.y-.2,WALK.pos.z);
+  const mid=_b0.clone().add(_b1).multiplyScalar(.5);
+  const len=_b0.distanceTo(_b1)||1;
+  BOLT.position.copy(mid);
+  BOLT.lookAt(_b1.x,_b1.y,_b1.z);
+  BOLT.userData.rod.scale.set(1,1,len);
+  BOLT.userData.pop.position.set(0,0,len/2);
+  BOLT.userData.t=.22;BOLT.visible=true;
+}
+function updateBolt(dt){
+  if(!BOLT.visible)return;
+  BOLT.userData.t-=dt;
+  const u=Math.max(0,BOLT.userData.t/.22);
+  BOLT.userData.rod.material.opacity=.95*u;
+  BOLT.userData.pop.material.opacity=.9*u;
+  BOLT.userData.pop.scale.setScalar(1+(1-u)*1.8);
+  if(BOLT.userData.t<=0)BOLT.visible=false;
+}
+function takeChest(){
+  if(DIGQ.taken)return;
+  DIGQ.taken=true;Audio_.ok();
+  /* It used to simply disappear, which at six means you lost it. Into
+   * the free hand instead, small enough to see past. */
+  if(controllers[0]){
+    DIGQ.chest.parent.remove(DIGQ.chest);
+    controllers[0].add(DIGQ.chest);
+    DIGQ.chest.position.set(0,-.12,-.22);
+    DIGQ.chest.scale.setScalar(.26);
+    DIGQ.chest.visible=true;
+  }else DIGQ.chest.visible=false;
+  showMsg("Du har skattekisten! Bær den tilbage til alienen.",7);
 }
 function talkToGiver(key){
   if(!questRoot.visible)return;
-  if(bubble.t>0)return;
+  /* This used to refuse outright while any bubble was still up - up to
+   * eight seconds after anything at all was said. onSelect has already
+   * played the click and the buzz by then, so the press felt registered
+   * and nothing happened. Pressing again now just re-says the line. */
   /* Called with no key from anywhere that still means "whoever is next". */
   const k=key||Q.order.find(q=>!Q.done[q]);
   if(!k){const g0=GIVER[Q.order[0]];if(aliens[g0])say(g0,QTEXT.all,6);return;}
@@ -4071,6 +4358,14 @@ function talkToGiver(key){
   }else if(k==="food"){
     if(Q.held>=3){Q.done.food=true;Q.active=null;Q.held=0;say(who,QTEXT.foodD,7);finishQuest(k);}
     else say(who,QTEXT.foodN(3-Q.held),6);
+  }else if(k==="math"){
+    if(MATHQ.n>=MATHQ.need){Q.done.math=true;Q.active=null;
+      say(who,QTEXT.mathD,7);finishQuest(k);}
+    else say(who,QTEXT.mathN(MATHQ.need-MATHQ.n),6);
+  }else if(k==="dig"){
+    if(DIGQ.taken){Q.done.dig=true;Q.active=null;
+      say(who,QTEXT.digD,7);finishQuest(k);}
+    else say(who,QTEXT.digN,6);
   }else if(k==="lost"){
     const d=Math.hypot(Q.lost.x-WALK.pos.x,Q.lost.z-WALK.pos.z);
     if(Q.lost.found&&d<12){
@@ -4090,19 +4385,178 @@ function finishQuest(k){
   const all=Object.keys(Q.done).length>=Q.order.length;
   showOverlay(questCard(k),()=>{ if(all)crownOnGold(); });
 }
+/* The whole village comes. Not the three who asked - everyone on the
+ * planet drops what they were doing, walks in and jumps on the spot
+ * round you, with a tune, and only when they are gathered does the
+ * banner go up. A card appearing is information; being surrounded by
+ * people who are pleased with you is an occasion. */
+/* TWO NEW FAVOURS, and the rule they are built to: a child who cannot
+ * read the Danish should still know what to do from looking. So each one
+ * is a shape - a slate with four big buttons, a ring of stones with an X
+ * in it - lit by its own beam, with the counter at the top of the view
+ * filling up as it goes. The grown-up reads the sentence once; the
+ * picture carries the rest.
+ *
+ * MATH: five sums, four answers each, big digits. A wrong one is not a
+ * telling-off - it clears and deals five fresh ones, which is the rule
+ * his homework works by anyway.
+ *
+ * DIG: a blaster lying in the open with a beam on it. Pick it up, shoot
+ * the X three times, a chest comes up out of the ground. Shooting a hole
+ * in the ground is its own reward at six. */
+const MATHQ={slate:null,btns:[],q:null,n:0,need:5,flash:0,lock:0,mark:-1};
+function newSum(){
+  const r=Math.random;
+  /* Scaled for six. It was dealing 17 + 18 and 9 x 8, which he cannot
+   * do - and with five-in-a-row needed, one hard sum ended the favour.
+   * Addition stays under twenty, subtraction never goes below zero, and
+   * the times tables stay inside the small square he actually knows. */
+  const kind=r()<.45?"+":(r()<.78?"-":"x");
+  let a,b,ans;
+  if(kind==="+"){a=2+Math.floor(r()*12);b=1+Math.floor(r()*8);ans=a+b;}
+  else if(kind==="-"){a=4+Math.floor(r()*14);b=1+Math.floor(r()*Math.min(9,a-1));ans=a-b;}
+  else{a=2+Math.floor(r()*4);b=2+Math.floor(r()*4);ans=a*b;}
+  /* Math.max(1,...) on a signed offset clamped every wrong answer to
+   * ABOVE the right one, so the right one was the smallest of the four
+   * every single time - measured, 100% - and the whole thing could be
+   * beaten without doing a sum. Sign and size are drawn separately now. */
+  const opts=[ans];
+  let guard=0;
+  while(opts.length<4&&guard++<60){
+    const mag=Math.max(1,Math.round(r()*Math.max(2,ans*.4)));
+    const v=ans+(r()<.5?-mag:mag);
+    if(v>=0&&opts.indexOf(v)<0)opts.push(v);
+  }
+  while(opts.length<4){const v=ans+opts.length;if(opts.indexOf(v)<0)opts.push(v);else opts.push(v+3);}
+  for(let i=opts.length-1;i>0;i--){const j=Math.floor(r()*(i+1));
+    const t=opts[i];opts[i]=opts[j];opts[j]=t;}
+  return {text:a+" "+kind+" "+b+" = ?",ans:ans,opts:opts};
+}
+function drawSlate(){
+  const c=MATHQ.slate.userData.cv,g=c.getContext("2d"),W=c.width,H=c.height;
+  g.fillStyle=MATHQ.flash>0?(MATHQ.flash>0?"#3a1414":"#0b1018"):"#0b1018";
+  if(MATHQ.flash>0)g.fillStyle="#3a1414";
+  else if(MATHQ.flash<0)g.fillStyle="#123a1c";
+  else g.fillStyle="#0b1018";
+  g.fillRect(0,0,W,H);
+  g.strokeStyle="#5ceaff";g.lineWidth=6;g.strokeRect(3,3,W-6,H-6);
+  g.textAlign="center";g.textBaseline="middle";
+  g.fillStyle="#ffd34d";g.font='800 86px "Chivo Mono", monospace';
+  g.fillText(MATHQ.q?MATHQ.q.text:"",W/2,H*0.33);
+  /* Five pips along the bottom: how many you have right so far. */
+  const r=13,gap=46,x0=W/2-gap*2;
+  for(let i=0;i<MATHQ.need;i++){
+    g.beginPath();g.arc(x0+gap*i,H-34,r,0,Math.PI*2);
+    g.fillStyle=i<MATHQ.n?"#6cf0c0":"rgba(255,255,255,.12)";g.fill();
+    g.strokeStyle="#6cf0c0";g.lineWidth=3;g.stroke();
+  }
+  MATHQ.slate.material.map.needsUpdate=true;
+}
+function answerMath(i){
+  if(!MATHQ.q||MATHQ.lock>0)return;
+  const right=MATHQ.q.opts[i]===MATHQ.q.ans;
+  if(right){
+    MATHQ.n++;Audio_.ok();MATHQ.flash=-.4;MATHQ.mark=i;
+    if(MATHQ.n>=MATHQ.need){
+      Q.done.math=true;Q.active=null;
+      say(GIVER.math,QTEXT.mathD,7);finishQuest("math");
+      MATHQ.q=null;MATHQ.mark=-1;drawSlate();layoutMathButtons();return;
+    }
+    MATHQ.lock=.45;        // a beat to see the green before the next one
+  }else{
+    /* The old reset dealt the next sum in the same frame as the red
+     * flash, so the pips went 4 -> 0 with a new sum already showing and
+     * nothing to say why. Now the wrong one stays up, his button goes
+     * red, the right answer outlines green, and only then does it clear.
+     * Starting over is Peter's rule; being told why is mine. */
+    MATHQ.n=0;Audio_.bad();MATHQ.flash=1.5;MATHQ.lock=1.5;MATHQ.mark=i;
+    showMsg("Øv! Det rigtige svar lyser grønt. Vi starter forfra.",6);
+  }
+  drawSlate();layoutMathButtons();
+}
+function mathTick(dt){
+  if(MATHQ.lock<=0)return;
+  MATHQ.lock-=dt;
+  if(MATHQ.lock<=0){
+    MATHQ.mark=-1;MATHQ.flash=0;
+    MATHQ.q=newSum();drawSlate();layoutMathButtons();
+  }
+}
+function layoutMathButtons(){
+  MATHQ.btns.forEach((b,i)=>{
+    const on=!!MATHQ.q;
+    b.group.visible=on;
+    if(!on)return;
+    const cv=b.cv,g=cv.getContext("2d");
+    const isAns=MATHQ.q.opts[i]===MATHQ.q.ans;
+    const showing=MATHQ.lock>0;
+    g.fillStyle=showing&&isAns?"#17602c"
+               :showing&&i===MATHQ.mark?"#6a1a14"
+               :["#1d3a52","#17402c","#4a2a16","#3a2150"][i];
+    g.fillRect(0,0,cv.width,cv.height);
+    g.strokeStyle=showing&&isAns?"#7dffa8":(showing&&i===MATHQ.mark?"#ff8d7a":"#cfe6ff");
+    g.lineWidth=showing?14:8;g.strokeRect(7,7,cv.width-14,cv.height-14);
+    g.fillStyle="#ffffff";g.font='800 96px "Chivo Mono", monospace';
+    g.textAlign="center";g.textBaseline="middle";
+    g.fillText(String(MATHQ.q.opts[i]),cv.width/2,cv.height/2+4);
+    b.face.material.map.needsUpdate=true;
+  });
+}
+buildNewQuestProps();
+const PARTY={on:false,t:0};
+function startParty(){
+  if(!WALK.active||!aliens.length)return false;
+  PARTY.on=true;PARTY.t=0;
+  const n=aliens.length;
+  for(let i=0;i<n;i++){
+    const ang=Math.PI*2*i/n+WALK.yaw;
+    const r=3.0+(i%3)*1.5;
+    const al=aliens[i];
+    al.party={x:WALK.pos.x+Math.cos(ang)*r, z:WALK.pos.z+Math.sin(ang)*r,
+              hop:Math.random()*Math.PI*2};
+    /* Some of them live four hundred metres away and cannot walk that in
+     * four seconds. Anyone too far off is brought to the edge of the
+     * gathering first - behind you, out of shot - so what you see is
+     * everybody arriving rather than three neighbours and a rumour. */
+    const d=Math.hypot(al.x-WALK.pos.x,al.z-WALK.pos.z);
+    if(d>26){
+      const out=r+9+(i%4)*2.2;
+      al.x=WALK.pos.x+Math.cos(ang)*out;
+      al.z=WALK.pos.z+Math.sin(ang)*out;
+    }
+  }
+  Audio_.fanfare();
+  return true;
+}
+function updateParty(dt){
+  if(!PARTY.on)return;
+  PARTY.t+=dt;
+  for(const a of aliens){
+    if(!a.party)continue;
+    const dx=a.party.x-a.x, dz=a.party.z-a.z, d=Math.hypot(dx,dz);
+    if(d>0.6){a.x+=dx/d*Math.min(d,8*dt);a.z+=dz/d*Math.min(d,8*dt);a.speed=1.3;}
+    else{
+      a.speed=0;
+      a.party.hop+=dt*9;
+      a.hop=Math.abs(Math.sin(a.party.hop))*0.55;   // jumping for joy
+    }
+    const tx=WALK.pos.x-a.x, tz=WALK.pos.z-a.z;
+    const want=Math.atan2(-tx,-tz);
+    let dd=want-a.yaw;
+    while(dd>Math.PI)dd-=Math.PI*2; while(dd<-Math.PI)dd+=Math.PI*2;
+    a.yaw+=dd*Math.min(1,dt*5);
+  }
+  if(PARTY.t>5.2){
+    PARTY.on=false;
+    for(const a of aliens){a.party=null;a.hop=0;}
+    if(PARTY.then){const f=PARTY.then;PARTY.then=null;f();}
+  }
+}
 function crownOnGold(){
   if(GAME.crowned)return;
   GAME.crowned=true;goldCap.visible=true;refreshMenu();
-  /* They gather round you for it. */
-  if(Q.homes&&WALK.active){
-    for(let i=0;i<3;i++){
-      const a=Math.PI*2*i/3+WALK.yaw;
-      Q.homes[i]={x:WALK.pos.x+Math.cos(a)*3.2, z:WALK.pos.z+Math.sin(a)*3.2};
-    }
-  }
-  Audio_.ok();setTimeout(()=>Audio_.ok(),240);setTimeout(()=>Audio_.ok(),480);
   log("KRONET PÅ GULDPLANETEN");
-  showOverlay(drawCrownCard,()=>{
+  const banner=()=>showOverlay(drawCrownCard,()=>{
     /* And they fill the tanks. You spent the Moon's three cores getting
      * here, so the way home has to come from somewhere, and it coming
      * from them closes the favour rather than leaving it open. */
@@ -4113,6 +4567,9 @@ function crownOnGold(){
     showMsg("Du er Konge af Guldplaneten, og kasketten sidder på instrumentbrættet. "+
             "Beboerne gav dig tre fusionskerner — bær dem ind i skibet og tryk på BRÆNDSTOF.",11);
   });
+  /* The cheering first, the banner after it. */
+  PARTY.then=banner;
+  if(!startParty()){PARTY.then=null;Audio_.fanfare();banner();}
 }
 function updateQuests(dt,vx,vz){
   if(!questRoot.visible)return;
@@ -4136,6 +4593,51 @@ function updateQuests(dt,vx,vz){
       if(!(bubble.mesh.visible&&bubble.owner===GIVER[k]))
         markAt(g.x,gy+2.4,g.z,"!",14,()=>talkToGiver(k));
     });
+  }
+
+  /* --- the sums: the slate only stands up while that favour is live --- */
+  const mathLive=(Q.order.indexOf("math")>=0&&!Q.done.math);
+  const mathShow=mathLive&&Q.active==="math";
+  if(MATHQ.slate.visible!==mathShow){
+    MATHQ.slate.visible=mathShow;
+    MATHQ.btns.forEach(b=>b.group.visible=mathShow);
+    if(mathShow){
+      if(!MATHQ.q)MATHQ.q=newSum();
+      drawSlate();layoutMathButtons();
+    }
+  }
+  mathTick(dt);
+  updateBolt(dt);
+  if(DIGQ.ringFlash>0){
+    /* The stones pulse when a shot lands - or misses - so "aim there"
+     * is said by the thing itself and not by a sentence. */
+    DIGQ.ringFlash-=dt;
+    const u=Math.max(0,DIGQ.ringFlash/.6);
+    DIGQ.ring.scale.setScalar(1+u*.12);
+  }else DIGQ.ring.scale.setScalar(1);
+
+  /* --- the dig: blaster on the ground, stones in a ring, chest below --- */
+  const digLive=(Q.order.indexOf("dig")>=0&&!Q.done.dig);
+  DIGQ.ring.visible=digLive;
+  DIGQ.tool.visible=digLive&&!DIGQ.held;
+  if(digLive&&WALK.active){
+    if(!DIGQ.held){
+      const t=DIGQ.tool.position;
+      markAt(t.x,t.y+1.5,t.z,"?",12,()=>takeBlaster(),420);
+    }else if(!DIGQ.taken&&!DIGQ.chest.visible){
+      /* A mark over the X so "shoot HERE" is unmissable - but with no
+       * reach, so it never turns into a hand and never eats the trigger.
+       * It had an empty callback before: standing in the ring and
+       * pressing gave a click, a buzz, and no shot. */
+      markAt(DIGQ.x,groundH("gold",DIGQ.x,DIGQ.z)+3.0,DIGQ.z,"!",0,null,480);
+    }
+    if(DIGQ.chest.visible&&!DIGQ.taken)
+      markAt(DIGQ.x,DIGQ.chest.position.y+2.0,DIGQ.z,"?",12,()=>takeChest(),480);
+  }
+  if(DIGQ.chest.visible&&!DIGQ.taken){
+    /* It rises out of the hole once the third shot lands. */
+    const gy=groundH("gold",DIGQ.x,DIGQ.z);
+    DIGQ.chest.position.y+=((gy+.05)-DIGQ.chest.position.y)*Math.min(1,dt*1.6);
   }
 
   // --- quicksand: walk to the edge and each one is pulled out ---
@@ -4206,12 +4708,31 @@ function updateQuests(dt,vx,vz){
    * the arrows would still be pointing back at him. Both follow the same
    * target now, and the arrows start from wherever you are standing. */
   let tgt=null;
+  /* When the last one is freed or the third fruit taken, the list goes
+   * empty - and with it every beam and arrow, while he is standing
+   * eighty metres out with nothing at all to say "now walk back". The
+   * light moves to whoever asked instead. */
+  const giverPoint=k=>{const g=aliens[GIVER[k]];return g?{x:g.x,z:g.z}:null;};
   if(Q.active==="sand"){
-    const r=Q.sand.filter(s=>!s.freed);setBeams(r,"gold");tgt=r[0]||null;
+    const r=Q.sand.filter(s=>!s.freed);
+    const t=r.length?r:[giverPoint("sand")].filter(Boolean);
+    setBeams(t,"gold");tgt=t[0]||null;
   }else if(Q.active==="food"){
-    const r=Q.fruit.filter(f=>!f.taken);setBeams(r,"gold");tgt=r[0]||null;
+    const r=Q.fruit.filter(f=>!f.taken);
+    const t=r.length?r:[giverPoint("food")].filter(Boolean);
+    setBeams(t,"gold");tgt=t[0]||null;
   }else if(Q.active==="lost"&&Q.lost&&!Q.lost.found){
     setBeams([Q.lost],"gold");tgt=Q.lost;
+  }else if(Q.active==="math"){
+    /* The slate is beside the alien who asked, so the pillar over him
+     * is also the pillar over the sums. */
+    const g=aliens[GIVER.math];
+    if(g){setBeams([{x:g.x,z:g.z}],"gold");tgt={x:g.x,z:g.z};}
+  }else if(Q.active==="dig"){
+    const t=DIGQ.taken?aliens[GIVER.dig]
+          :(!DIGQ.held?{x:DIGQ.tool.position.x,z:DIGQ.tool.position.z}
+                      :{x:DIGQ.x,z:DIGQ.z});
+    if(t){setBeams([{x:t.x,z:t.z}],"gold");tgt={x:t.x,z:t.z};}
   }else if(Q.active||Object.keys(Q.done).length<3){
     /* A pillar over every one who still wants something, so from the
      * hatch you can see that there are three of them. */
@@ -4396,6 +4917,13 @@ function onSelect(c){
     const d=new THREE.Vector3(0,0,-1).applyMatrix4(m0);
     const use=reachTarget(o,d);
     if(use){Audio_.click();haptic(c,.7,45);use.obj.userData.onPress();return;}
+    /* Holding the blaster, the trigger is a trigger. Reaching for
+     * something still wins - you can always pick the chest up - but
+     * pointing at open ground now fires instead of teleporting, which
+     * is what a child with a ray gun expects. */
+    if(DIGQ.held&&!DIGQ.taken&&aimGround(o,d)){
+      blasterShot(tpMark.point.x,tpMark.point.z);haptic(c,.9,60);return;
+    }
     const far=markWalkPoint(o,d);
     if(far){walkToMark(far);haptic(c,.5,30);return;}
     teleport();haptic(c,.5,30);
@@ -5100,6 +5628,12 @@ function progressNow(){
     const freed=Q.sand.filter(s=>s.freed).length;
     return {k:"sand"+freed,label:"REDDET",have:freed,total:Q.sand.length||3};
   }
+  if(typeof Q!=="undefined"&&Q.active==="math")
+    return {k:"math"+MATHQ.n,label:"REGNESTYKKER",have:MATHQ.n,total:MATHQ.need};
+  if(typeof Q!=="undefined"&&Q.active==="dig")
+    return {k:"dig"+(DIGQ.taken?4:DIGQ.hits)+(DIGQ.held?"h":"t"),
+            label:DIGQ.taken?"BÆR KISTEN HJEM":(DIGQ.held?"SKYD KORSET":"HENT BLASTER"),
+            have:DIGQ.taken?3:DIGQ.hits,total:3};
   if(typeof Q!=="undefined"&&Q.active==="lost")
     return {k:"lost"+(Q.lost&&Q.lost.found?1:0),
             label:Q.lost&&Q.lost.found?"FØLG HAM HJEM":"FIND LILLEBROR",
@@ -5124,6 +5658,31 @@ function faceHud(plate,up,dist){
   plate.quaternion.copy(_fp2.invert()).multiply(_fq);
 }
 const _fp2=new THREE.Quaternion();
+/* questLabel() is painted on a plate bolted inside the ship, so out on
+ * the surface every instruction it produces - "walk back to an alien",
+ * "carry the chest home", "get in the ship and fly to Earth" - was
+ * written somewhere he could not be standing. A second head-locked line
+ * under the pips carries it with him. */
+const taskPlate=(function(){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.02,.072),
+    new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,depthTest:false}));
+  m.visible=false;m.renderOrder=40;headYaw.add(m);
+  return m;
+})();
+let taskSig="";
+function updateTaskPlate(){
+  const want=WALK.active&&questRoot.visible?questLabel():"";
+  if(!want){taskPlate.visible=false;taskSig="";return;}
+  if(want!==taskSig){
+    taskSig=want;
+    if(taskPlate.material.map)taskPlate.material.map.dispose();
+    taskPlate.material.map=tex(labelCanvas(want,
+      {w:880,h:62,size:27,bg:"#0b1018",border:"#2a3340",color:"#f2a33c"}));
+    taskPlate.material.needsUpdate=true;
+  }
+  taskPlate.visible=true;
+  faceHud(taskPlate,.115,1.05);
+}
 function updateQuestHud(){
   const p=progressNow();
   if(!p){questHud.visible=false;pipSig="";return;}
@@ -5325,6 +5884,10 @@ function clickFlat(e){
   }
   if(best){Audio_.click();best.userData.onPress();}
   else if(WALK.active){
+    if(DIGQ.held&&!DIGQ.taken&&
+       aimGround(raycaster.ray.origin,raycaster.ray.direction)){
+      blasterShot(tpMark.point.x,tpMark.point.z);return;
+    }
     const far=markWalkPoint(raycaster.ray.origin,raycaster.ray.direction);
     if(far){walkToMark(far);return;}
     if(aimGround(raycaster.ray.origin,raycaster.ray.direction)){showAim(true);teleport();}
@@ -5876,7 +6439,11 @@ function drawAlienPortrait(g,cx,cy,r,hex,blink){
 const QCARD={
   sand:{title:"KVIKSANDET",did:"Du trak alle tre fri af kviksandet."},
   food:{title:"GULDFRUGTERNE",did:"Du fandt alle tre guldfrugter."},
-  lost:{title:"LILLEBROR",did:"Du fandt lillebror og fulgte ham hjem."}
+  lost:{title:"LILLEBROR",did:"Du fandt lillebror og fulgte ham hjem."},
+  /* The two hardest favours used to finish on a card with no line on
+   * it at all: "MANGE TAK! / OPGAVE / ". */
+  math:{title:"REGNESTYKKERNE",did:"Du klarede fem regnestykker i træk."},
+  dig :{title:"SKATTEN",did:"Du sprængte hullet og bar kisten hjem."}
 };
 function questCard(key){
   const info=QCARD[key]||{title:"OPGAVE",did:""};
@@ -6118,6 +6685,18 @@ function exitShip(){
 /* "I don't know where the ship is now, so I'm kind of lost." A column of
  * light over it, visible from anywhere on the surface and from the air,
  * so being lost is a choice. */
+/* Flying home by hand, the pad is a few metres of concrete in a valley
+ * you have never seen from the air. Every other world marks what you are
+ * looking for with a column of light; home had nothing. */
+const padBeacon=(function(){
+  const g=new THREE.CylinderGeometry(3.2,3.2,900,10,1,true);
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x7fe8a0,
+    transparent:true,opacity:.20,depthWrite:false,
+    blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+  m.position.set(0,440,0);m.renderOrder=-2;m.visible=false;
+  m.frustumCulled=false;world.add(m);
+  return m;
+})();
 const shipBeacon=(function(){
   const g=new THREE.CylinderGeometry(1.6,1.6,620,8,1,true);
   const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x7fd4e8,
@@ -7015,6 +7594,19 @@ function updateFlight(dt){
  * is caught by the reference space's 'reset' event, which is the right
  * place for it anyway: one way to do it, the way the player already
  * knows. */
+/* The left hand's lower button toggles the pack: press once and you rise
+ * a few metres and hold there, fly on the stick, press again to come
+ * down. (This went missing for one build when I cut the grip gesture out
+ * around it - the call stayed, the function went, and the jump threw.) */
+function toggleFly(){
+  if(!WALK.active)return;
+  WALK.fly=!WALK.fly;
+  if(WALK.fly){WALK.air=true;WALK.jet=false;WALK.hx=0;WALK.hz=0;
+    Audio_.jetStart();
+    showMsg("Jetpack til — flyv med pinden, tryk igen for at lande.",5);}
+  else {Audio_.jetStop();showMsg("Jetpack fra.",3);}
+  Audio_.click();
+}
 /* ---------- hand poses from the controller's own buttons ---------- */
 function updateHands(){
   controllers.forEach(c=>{
@@ -7187,7 +7779,12 @@ function frame(){
    * with where you actually were; derived visibility cannot. */
   cockpitVisible(!WALK.active);
   shipBeacon.visible=WALK.active;
+  /* Up while you are away from home and could be coming back to it:
+   * not on the ground at home, where you can see the thing itself. */
+  padBeacon.visible=(terrainKey==="earth"||St.dest==="earth")&&
+                    !(GAME.at==="earth"&&SHIP.onGround);
   updateQuestHud();
+  updateTaskPlate();
   markFlush();
   renderer.render(scene,camera);
 }
