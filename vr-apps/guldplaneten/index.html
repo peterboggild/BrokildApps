@@ -2869,50 +2869,76 @@ seaPlane.visible=false;world.add(seaPlane);
 let farRing=null;
 function buildFarRing(key){
   if(farRing){world.remove(farRing);farRing.geometry.dispose();farRing=null;}
-  /* Starts INSIDE the chunk ring, not at its edge: the chunks stream in
-   * a slice at a time, and for the second or two before they are all
-   * there a shell that began exactly where they end left a hole in the
-   * world. The chunks are nearer, so they simply draw over it. */
-  const R0=620, R1=9000, NR=52, NA=156;
+  /* THE TWO HORIZONS.
+   *
+   * This shell used to stop at nine kilometres. Earth's modelled radius is
+   * 1.8e6, so the true horizon is sqrt(2Rh): 33 km at three hundred metres
+   * of altitude, 66 km at twelve hundred, 180 km at nine thousand. From the
+   * moment the ship left the pad the shell was ending far short of the
+   * horizon, and the limb proxy behind it showed through as a second,
+   * higher, washed-out edge. Two pictures laid over each other - which is
+   * exactly what it looked like, and why you had to climb a long way before
+   * the upper one read as the Earth.
+   *
+   * So the shell now runs to three hundred kilometres, which covers the
+   * horizon up to about 25 km of altitude, and it CURVES: every ring drops
+   * by r^2/2R, so its outer edge is the true horizon rather than a wall
+   * standing on a flat plane. Radii are geometric rather than polynomial,
+   * which is what perspective wants - every ring subtends about the same
+   * angle - and the land flattens and hazes out with distance so the rim
+   * arrives as atmosphere and not as a line.
+   *
+   * Then the limb proxy is simply hidden behind it: solid geometry, nearer
+   * to the eye, so the only part of the globe still visible above the
+   * horizon is its glow. One horizon. */
+  /* Starts almost under the ship now: the streamed chunks stop at about
+   * nine kilometres of altitude, and an inner edge at 620 m left a hole
+   * straight down when they went. */
+  const R0=120, R1=300000, NR=64, NA=156;
+  const CURV=2*1800000;          // Earth's modelled radius, doubled: r^2/2R
+  const FLAT0=6000, FLAT1=26000; // where the land gives way to the planet's curve
+  const HAZE0=1500, HAZE1=32000; // and where it gives way to air
+  const SKY=[0.55,0.67,0.83];    // the colour of the sky at the horizon
   const verts=(NR+1)*NA;
   const pos=new Float32Array(verts*3), col=new Float32Array(verts*3);
   const idx=[];
   const c3=new Float32Array(3);
+  const ss=(a,b,x)=>{const t=THREE.MathUtils.clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
   for(let i=0;i<=NR;i++){
-    const t=i/NR, rr=R0+(R1-R0)*Math.pow(t,2.1);
+    const t=i/NR, rr=R0*Math.pow(R1/R0,t);
+    const land=1-ss(FLAT0,FLAT1,rr);     // real relief only where it can be seen
+    const haze=ss(HAZE0,HAZE1,rr);
+    const drop=rr*rr/CURV;               // the planet falling away beneath you
     for(let j=0;j<NA;j++){
       const a=j/NA*Math.PI*2, x=Math.cos(a)*rr, z=Math.sin(a)*rr;
-      const h=groundH(key,x,z);
       const k=(i*NA+j)*3;
-      pos[k]=x;pos[k+1]=h;pos[k+2]=z;
-      /* Steepness from a pair of samples, and the colour hazed towards
-       * the sky with distance so the ranges sit back where they belong. */
-      const e=rr*0.012+6;
-      const gx=(groundH(key,x+e,z)-groundH(key,x-e,z))/(2*e);
-      const gz=(groundH(key,x,z+e)-groundH(key,x,z-e))/(2*e);
-      const sl=Math.hypot(gx,gz);
+      let h=0, sl=0, lit=1;
+      if(land>0.002){
+        h=groundH(key,x,z);
+        const e=rr*0.012+6;
+        const gx=(groundH(key,x+e,z)-groundH(key,x-e,z))/(2*e);
+        const gz=(groundH(key,x,z+e)-groundH(key,x,z-e))/(2*e);
+        sl=Math.hypot(gx,gz);
+        /* Unlit material, so the sun is baked into the colour from the
+         * slope - without it the ranges were flat black cutouts. */
+        const L=Math.hypot(gx,1,gz);
+        lit=0.52+0.78*Math.max(0,(-gx*-0.38+1*0.51+-gz*-0.77)/L);
+        h*=land;sl*=land;
+      }
+      pos[k]=x;pos[k+1]=h-drop;pos[k+2]=z;
       earthColor(h,sl,c3,0,x,z);
-      /* The shell is drawn unlit, because at four kilometres what you
-       * see is haze and not lambert — but unlit with no shading at all
-       * turned the ranges into flat black cutouts, so the sun is baked
-       * into the colour from the slope instead. */
-      const L=Math.hypot(gx,1,gz);
-      const lam=Math.max(0,(-gx*-0.38+1*0.51+-gz*-0.77)/L);
-      const lit=0.52+0.78*lam;
       c3[0]*=lit;c3[1]*=lit;c3[2]*=lit;
-      /* Aerial perspective, and a lot of it: without this the ranges
-       * read as a brown wall a hundred metres away instead of rock five
-       * kilometres off. */
-      /* A floor on the haze as well as a ramp: the near edge of the far
-       * shell was coming out as a black rim where ridges turned away
-       * from the sun, which reads as a wall rather than as distance. */
-      /* Much less of it than I first put in. At 0.78 the rock washed
-       * into the sky and only the snow survived, which left a pale
-       * ribbon hanging over the green with no mountain under it. */
-      const haze=0.04+Math.pow(THREE.MathUtils.clamp((rr-900)/5600,0,1),.9)*0.30;
-      col[k]  =s2l(c3[0]+(0.40-c3[0])*haze);
-      col[k+1]=s2l(c3[1]+(0.54-c3[1])*haze);
-      col[k+2]=s2l(c3[2]+(0.72-c3[2])*haze);
+      /* Aerial perspective in two stages: the near ramp that makes the
+       * ranges sit back where they belong, then a long fade all the way
+       * into sky, so the rim of the world does not arrive as an edge. */
+      const near=0.04+Math.pow(THREE.MathUtils.clamp((rr-900)/5600,0,1),.9)*0.30;
+      let r0=c3[0]+(0.40-c3[0])*near,
+          g0=c3[1]+(0.54-c3[1])*near,
+          b0=c3[2]+(0.72-c3[2])*near;
+      const f=haze*0.97;
+      col[k]  =s2l(r0+(SKY[0]-r0)*f);
+      col[k+1]=s2l(g0+(SKY[1]-g0)*f);
+      col[k+2]=s2l(b0+(SKY[2]-b0)*f);
     }
   }
   for(let i=0;i<NR;i++)for(let j=0;j<NA;j++){
@@ -2922,21 +2948,56 @@ function buildFarRing(key){
   const geo=new THREE.BufferGeometry();
   geo.setAttribute("position",new THREE.BufferAttribute(pos,3));
   geo.setAttribute("color",new THREE.BufferAttribute(col,3));
-  geo.setIndex(idx);geo.computeVertexNormals();geo.computeBoundingSphere();
-  /* DoubleSide. The ring is built as triangle pairs round a circle and
-   * the winding came out inverted, so every slope facing away was culled
-   * and the ranges hung in the air with sky showing under them. The
-   * material is unlit, so drawing both faces costs nothing and no
-   * winding mistake can ever punch a hole in the horizon again. */
-  farRing=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({
-    vertexColors:true,side:THREE.DoubleSide}));
+  geo.setIndex(idx);geo.computeBoundingSphere();
+  /* DoubleSide: the ring is built as triangle pairs round a circle and the
+   * winding came out inverted once already, which culled every slope facing
+   * away and hung the ranges in the air with sky under them. Unlit, so two
+   * faces cost nothing and no winding mistake can punch a hole in the
+   * horizon again. */
+  /* THE FAR PLANE, which is why extending the shell was not enough on its
+   * own. The camera sees to 5200 units; the horizon at nine kilometres of
+   * altitude is 180 km away. Pushing the far plane out that far would cost
+   * the depth precision that everything near the ship depends on.
+   *
+   * So the shell is compressed in DEPTH rather than clipped: each vertex
+   * keeps its exact direction from the eye and only its distance is folded
+   * into the range the camera can see. Inside d0 nothing changes at all, so
+   * the seam with the real streamed chunks is exact; beyond it, three
+   * hundred kilometres of world are squeezed into the last three thousand
+   * units of depth, which is invisible because distance there is carried by
+   * haze and not by parallax. The limb proxy writes no depth, so the shell
+   * simply draws over it and there is one horizon instead of two. */
+  farRing=new THREE.Mesh(geo,new THREE.ShaderMaterial({
+    vertexColors:true,side:THREE.DoubleSide,
+    transparent:true,
+    uniforms:{d0:{value:1250},dmax:{value:4700},soft:{value:26000},op:{value:1}},
+    vertexShader:
+      "uniform float d0,dmax,soft;varying vec3 vCol;void main(){vCol=color;"+
+      "vec4 mv=modelViewMatrix*vec4(position,1.0);"+
+      "float d=length(mv.xyz);"+
+      "float dd=d>d0?d0+(dmax-d0)*(1.0-exp(-(d-d0)/soft)):d;"+
+      "gl_Position=projectionMatrix*vec4(mv.xyz*(dd/max(d,1e-4)),1.0);}",
+    fragmentShader:
+      /* The includes must each start their own line or three's preprocessor
+       * leaves them as literal text and the shader will not compile. */
+      "uniform float op;\nvarying vec3 vCol;\nvoid main(){\ngl_FragColor=vec4(vCol,op);\n"+
+      "#include <tonemapping_fragment>\n"+
+      "#include <encodings_fragment>\n}"
+  }));
+  /* The bounding sphere is in real units and the shader draws it somewhere
+   * else entirely, so leave the frustum test out of it. */
+  farRing.frustumCulled=false;
   farRing.renderOrder=-1;world.add(farRing);
   return farRing;
 }
-function setHomeScenery(on){
+function setHomeScenery(on,ringOn){
+  /* The sea is a flat disc nine kilometres across and the shell is curved,
+   * so they part company as you climb: the water goes with the chunks, the
+   * horizon stays on much longer. */
   seaPlane.visible=on;
-  if(on&&!farRing)buildFarRing("earth");
-  if(farRing)farRing.visible=on;
+  if(ringOn===undefined)ringOn=on;
+  if((on||ringOn)&&!farRing)buildFarRing("earth");
+  if(farRing)farRing.visible=ringOn;
 }
 function villageAt(key,ci,cj){
   /* Settlements belong to the map, not the moment: the same chunk always
@@ -6123,8 +6184,19 @@ function updateFlight(dt){
      * the limb behind it. The chunks stop streaming at the same point. */
     const low=a<8800;
     if(terrainRoot.visible!==low){
-      terrainRoot.visible=low;setHomeScenery(low);
+      terrainRoot.visible=low;setHomeScenery(low,true);
       if(!low){terrainKey=null;clearChunks();}
+    }
+    /* The shell outlives the chunks by a long way. It reaches the true
+     * horizon up to about 25 km of altitude - 300 km of radius against
+     * r^2/2R - and by then it is almost entirely haze, so fading it out
+     * over the next ten kilometres hands the horizon to the limb with
+     * nothing visible changing. The old hard cut at 8.8 km was the jump
+     * from one picture to another. */
+    if(farRing){
+      const fade=1-THREE.MathUtils.smoothstep(a,24000,34000);
+      farRing.visible=fade>.004;
+      farRing.material.uniforms.op.value=fade;
     }
     updateLimb(dt,a,1);
     if(a>110000){
