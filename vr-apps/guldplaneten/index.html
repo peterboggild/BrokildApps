@@ -1697,7 +1697,10 @@ const throttle={value:0,group:new THREE.Group(),arm:null};
 const MODES={
   auto:{key:"auto",name:"Autopilot",dof:0,p:0,r:0,y:0,level:1,assist:1,vign:.78,
     hint:"Skibet flyver og lander selv. Du kører sekvensen, vælger destination og trykker på knapperne — og kigger ud ad vinduet. Mindst risiko for køresyge."},
-  easy:{key:"easy",name:"Let",dof:2,p:.48,r:0,y:.55,level:.7,assist:.8,vign:.52,
+  /* r was 0: the nose came round but the ship stayed dead level, which
+   * reads as a bus rather than an aircraft. Enough bank to lean into the
+   * turn, with the auto-levelling still holding the horizon. */
+  easy:{key:"easy",name:"Let",dof:2,p:.48,r:.42,y:.55,level:.7,assist:.8,vign:.52,
     hint:"To akser: rattet drejer næsen, træk/skub løfter og sænker den. Horisonten holder sig selv vandret, og skibet kan ikke stalle."},
   hard:{key:"hard",name:"Svær",dof:3,p:.85,r:1.15,y:.22,level:0,assist:0,vign:.26,
     hint:"Alle tre akser: krængning, pitch og giring, ingen automatisk oprettelse, ingen hjælp til opdrift. Du skal krænge for at dreje."}
@@ -1802,7 +1805,7 @@ function setGameMode(m){
   GAME.open={moon:true,mars:true,gold:m==="test"};
   for(const k in gameBtns)gameBtns[k].setAttribute("aria-pressed",String(k===m));
   gameHint.textContent = m==="test"
-    ? "Alle fire destinationer er åbne fra start."
+    ? "Alle fire destinationer er åbne fra start. På Guldplaneten ligger alle fem opgaver fremme."
     : "Månen og Mars er åbne. Hent brændstof på Månen og kortet på Mars — "+
       "så kan du nå Guldplaneten.";
   refreshMenu();
@@ -2967,7 +2970,8 @@ seaPlane.rotation.x=-Math.PI/2;seaPlane.position.y=SEA_Y;
 seaPlane.visible=false;world.add(seaPlane);
 let farRing=null;
 function buildFarRing(key){
-  if(farRing){world.remove(farRing);farRing.geometry.dispose();farRing=null;}
+  if(farRing){world.remove(farRing);farRing.geometry.dispose();
+    farRing.material.dispose();farRing=null;}
   /* THE TWO HORIZONS.
    *
    * This shell used to stop at nine kilometres. Earth's modelled radius is
@@ -2993,8 +2997,23 @@ function buildFarRing(key){
   /* Starts almost under the ship now: the streamed chunks stop at about
    * nine kilometres of altitude, and an inner edge at 620 m left a hole
    * straight down when they went. */
+  /* Every world gets this shell now, not just home. Peter: "the Moon
+   * looks like a square with mountains on it, inside a white circle,
+   * with the planet around that." It did: the streamed chunks cover a
+   * patch a couple of kilometres across and then stop, and the limb proxy
+   * behind them was the white ring. The shell carries the ground out to
+   * the real horizon instead.
+   *
+   * On an airless world there is no haze to hide the join, so the join
+   * has to be geometry: the land runs to a hard, slightly curved horizon,
+   * which is what the Moon actually looks like. Mars and Guldplaneten
+   * have some air and get some of the fade Earth gets. */
+  const L=LIMBS[key]||LIMBS.earth, D=DEST[key]||DEST.earth;
+  const air=THREE.MathUtils.clamp(D.atmo||0,0,1);
+  const earthy=(key==="earth");
+  const base=new THREE.Color(D.ground||0x8a8a8a);
   const R0=120, R1=300000, NR=64, NA=156;
-  const CURV=2*1800000;          // Earth's modelled radius, doubled: r^2/2R
+  const CURV=2*L.R;              // r^2/2R, for THIS world's radius
   const FLAT0=6000, FLAT1=26000; // where the land gives way to the planet's curve
   const HAZE0=3000, HAZE1=46000; // and where it gives way to air
   /* Peter: "at first Earth seems uniformly white; it takes a while
@@ -3005,7 +3024,13 @@ function buildFarRing(key){
   /* Second pass: "it still looks very white and bright - make it darker
    * and let the green and blue show." The haze was both too pale and too
    * much of it, so the land vanished under it long before the horizon. */
-  const SKY=[0.27,0.42,0.66];    // the colour of the sky at the horizon
+  /* What each world fades toward at the rim: Earth's sky, Mars's dust,
+   * Guldplaneten's violet air - and for the Moon its own ground, so the
+   * far shell simply stays rock the whole way out. */
+  const SKY=earthy?[0.27,0.42,0.66]
+    :(key==="mars"?[0.55,0.36,0.26]
+    :(key==="gold"?[0.52,0.42,0.62]
+    :[Math.min(1,base.r*1.06),Math.min(1,base.g*1.06),Math.min(1,base.b*1.06)]));
   const verts=(NR+1)*NA;
   const pos=new Float32Array(verts*3), col=new Float32Array(verts*3);
   const idx=[];
@@ -3033,16 +3058,26 @@ function buildFarRing(key){
         h*=land;sl*=land;
       }
       pos[k]=x;pos[k+1]=h-drop;pos[k+2]=z;
-      earthColor(h,sl,c3,0,x,z);
+      if(earthy)earthColor(h,sl,c3,0,x,z);
+      else{
+        /* The other three are one ground colour with the sun baked in
+         * from the slope - the same stuff as the chunks underfoot. */
+        const rough=0.80+0.34*Math.min(1,sl*1.7);
+        c3[0]=base.r*rough;c3[1]=base.g*rough;c3[2]=base.b*rough;
+      }
       c3[0]*=lit;c3[1]*=lit;c3[2]*=lit;
       /* Aerial perspective in two stages: the near ramp that makes the
        * ranges sit back where they belong, then a long fade all the way
        * into sky, so the rim of the world does not arrive as an edge. */
-      const near=0.04+Math.pow(THREE.MathUtils.clamp((rr-900)/5600,0,1),.9)*0.30;
-      let r0=c3[0]+(0.30-c3[0])*near,
-          g0=c3[1]+(0.44-c3[1])*near,
-          b0=c3[2]+(0.62-c3[2])*near;
-      const f=haze*0.82;
+      const near=(0.04+Math.pow(THREE.MathUtils.clamp((rr-900)/5600,0,1),.9)*0.30)*
+                 (earthy?1:air*0.8);
+      let r0=c3[0]+(SKY[0]-c3[0])*near,
+          g0=c3[1]+(SKY[1]-c3[1])*near,
+          b0=c3[2]+(SKY[2]-c3[2])*near;
+      /* No air, no aerial perspective: on the Moon distance is carried by
+       * the curve of the ground and nothing else, which is why its
+       * horizon is a hard line in every photograph taken there. */
+      const f=haze*(earthy?0.82:air*0.85);
       col[k]  =s2l(r0+(SKY[0]-r0)*f);
       col[k+1]=s2l(g0+(SKY[1]-g0)*f);
       col[k+2]=s2l(b0+(SKY[2]-b0)*f);
@@ -3097,14 +3132,23 @@ function buildFarRing(key){
   farRing.renderOrder=-1;world.add(farRing);
   return farRing;
 }
+/* The shell belongs to whichever world you are standing on. */
+let ringKey=null;
+function setFarRing(key,on,op){
+  if(!on){if(farRing)farRing.visible=false;return;}
+  if(key!==ringKey){buildFarRing(key);ringKey=key;}
+  if(!farRing)return;
+  farRing.visible=true;
+  farRing.material.uniforms.op.value=(op===undefined?1:op);
+}
 function setHomeScenery(on,ringOn){
   /* The sea is a flat disc nine kilometres across and the shell is curved,
    * so they part company as you climb: the water goes with the chunks, the
    * horizon stays on much longer. */
   seaPlane.visible=on;
   if(ringOn===undefined)ringOn=on;
-  if((on||ringOn)&&!farRing)buildFarRing("earth");
-  if(farRing)farRing.visible=ringOn;
+  if(ringOn)setFarRing("earth",true,1);
+  else if(farRing)farRing.visible=false;
 }
 function villageAt(key,ci,cj){
   /* Settlements belong to the map, not the moment: the same chunk always
@@ -4115,7 +4159,9 @@ function startQuests(cx,cz){
   const pool=QUEST_POOL.slice();
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(r()*(i+1));
     const t=pool[i];pool[i]=pool[j];pool[j]=t;}
-  Q.order=pool.slice(0,3);
+  /* Test mode is for trying things, so it puts all five out at once and
+   * you pick; ordinary play draws three. */
+  Q.order=(GAME.mode==="test")?QUEST_POOL.slice():pool.slice(0,3);
   QUEST_POOL.forEach(k=>{delete GIVER[k];});
   Q.order.forEach((k,i)=>{GIVER[k]=i;});
   const pa=r()*Math.PI*2;
@@ -4556,16 +4602,18 @@ function crownOnGold(){
   if(GAME.crowned)return;
   GAME.crowned=true;goldCap.visible=true;refreshMenu();
   log("KRONET PÅ GULDPLANETEN");
+  /* Two things happen here - you are crowned, and they hand you the fuel
+   * home - and both used to flash past at once. One card, press OK, then
+   * the other, press OK. It is the end of the whole trip; it is allowed
+   * to take ten seconds. */
   const banner=()=>showOverlay(drawCrownCard,()=>{
-    /* And they fill the tanks. You spent the Moon's three cores getting
-     * here, so the way home has to come from somewhere, and it coming
-     * from them closes the favour rather than leaving it open. */
     GAME.homeFuel=true;GAME.cores=TANK;drawStatus();
     log("TRE KERNER TIL HJEMTUREN");
-    say(GIVER.sand,"Tak fordi du hjalp os! Her er brændstof til hjemturen.",8);
     Audio_.ok();
-    showMsg("Du er Konge af Guldplaneten, og kasketten sidder på instrumentbrættet. "+
-            "Beboerne gav dig tre fusionskerner — bær dem ind i skibet og tryk på BRÆNDSTOF.",11);
+    showOverlay(drawFuelGiftCard,()=>{
+      say(GIVER.sand,"Tak fordi du hjalp os! Her er brændstof til hjemturen.",8);
+      showMsg("Bær de tre kerner ind i skibet og tryk på BRÆNDSTOF.",10);
+    });
   });
   /* The cheering first, the banner after it. */
   PARTY.then=banner;
@@ -4798,14 +4846,17 @@ function buildHand(sideSign){
   /* Inboard. A thumb sits on the side of the hand that faces the other
    * hand; mirrored outwards it reads as a broken claw. */
   troot.position.set(-sideSign*.042,-.004,-.004);
-  troot.rotation.set(-.20,sideSign*.58,sideSign*.42);g.add(troot);
+  /* Tilted up toward the thumbstick rather than lying across the palm.
+   * Holding a Touch controller the thumb rests high and a little inboard;
+   * feeling it raised while seeing it flat is noticed at once. */
+  troot.rotation.set(-.78,sideSign*.34,sideSign*.30);g.add(troot);
   /* Index 0 is not reliably the left hand, and if it is not, both thumbs
    * end up on the outside - which is exactly what they did. The real
    * handedness arrives with the 'connected' event, so the thumb can be
    * moved to the correct side of the palm then. */
   g.userData.setSide=function(sign){
     troot.position.x=-sign*.042;
-    troot.rotation.set(-.20,sign*.58,sign*.42);
+    troot.rotation.set(-.78,sign*.34,sign*.30);
   };
   const tchain=[];let tp=troot;
   for(let s=0;s<2;s++){
@@ -4835,6 +4886,7 @@ for(let i=0;i<2;i++){
     new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-1.4)]),
     new THREE.LineBasicMaterial({color:0x7fd4e8,transparent:true,opacity:.35}));
   c.add(line);
+  c.userData.ray=line;
   /* Same parent as the ray, or a recentre turns the pointer and leaves
    * the hands behind - which is exactly what it did. */
   const grip=renderer.xr.getControllerGrip(i);headYaw.add(grip);
@@ -5394,13 +5446,19 @@ function pressLand(){
   SHIP.onGround=false;St.landQuality="";
   terrainRoot.visible=true;
   setHomeScenery(home);
+  /* THE WHITE CIRCLE. Away from home the horizon was a flat grey disc
+   * 180 m below the ground, ringing the square of streamed chunks - so
+   * the Moon read as "a square with mountains, inside a circle, inside a
+   * planet". The curved shell replaces it on every world: real ground,
+   * dropping away at r^2/2R, out to where the horizon actually is. */
+  setFarRing(St.dest,true,1);
   /* The skirt is unlit and the chunks are not, so at the same hex the far
    * plain read brighter than the ground under your feet and the join
    * between them was a hard line across the landscape. Bank it down to
    * roughly what the lit terrain comes out at. */
   /* No skirt at home: the far ring reaches nine kilometres and a flat
    * grey disc under a landscape with lakes in it would be a wall. */
-  skirt.visible=!home;skirt.material.color.setHex(d.ground).multiplyScalar(0.78);
+  skirt.visible=false;          // replaced by the curved shell, above
   skirt.position.y=-180;
   /* Coming home you land on the apron you left from, with the pad, the
    * towers and the hangars all still there. */
@@ -5588,12 +5646,39 @@ let msgTimer=0;
  * been invisible in VR this whole time - which is why picking up a core
  * felt like nothing happening. The plate hangs off headYaw so it is
  * readable in the seat AND out on the surface. */
+/* Peter: "it may pop up in my view, but it is irritating that it follows
+ * wherever I look - better a question mark I can press when I want to
+ * read it." So the sign is planted: it appears in front of you, facing
+ * you, and then it STAYS THERE, like the speech bubbles. A head-locked
+ * panel also pins text to your eye while your eye moves, which is the
+ * part that makes people dizzy.
+ *
+ * It lives in `shaker` rather than `world`, so a message raised in the
+ * cockpit hangs in the cabin and one raised on foot hangs over the
+ * ground where you were told it. */
 const msgPlate=(function(){
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.05,.079),
-    new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,depthTest:false}));
-  m.position.set(0,-.30,-1.25);m.visible=false;m.renderOrder=40;headYaw.add(m);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.18,.089),
+    new THREE.MeshBasicMaterial({transparent:true,depthWrite:false}));
+  m.visible=false;m.renderOrder=40;shaker.add(m);
   return m;
 })();
+/* Planted once, where you are standing, facing you. */
+const _sp=new THREE.Vector3(),_sq=new THREE.Quaternion(),_sv=new THREE.Vector3();
+function plantSign(plate,up,dist){
+  const cam=(renderer.xr.isPresenting&&renderer.xr.getCamera)
+    ? renderer.xr.getCamera(camera) : camera;
+  cam.getWorldPosition(_sp);cam.getWorldQuaternion(_sq);
+  /* Levelled: a sign tipped to match a glance up or down looks wrong the
+   * moment you look back. */
+  _sv.set(0,0,-1).applyQuaternion(_sq);_sv.y=0;
+  if(_sv.lengthSq()<1e-6)_sv.set(0,0,-1);
+  _sv.normalize();
+  const yaw=Math.atan2(-_sv.x,-_sv.z);
+  _sp.addScaledVector(_sv,dist);_sp.y+=up;
+  plate.parent.worldToLocal(_sp);
+  plate.position.copy(_sp);
+  plate.rotation.set(0,yaw,0);
+}
 /* "You cannot tell whether you have one of three; they just disappear,
  * and it feels like a bug." Nothing told you, because the objective line
  * lives on the console and you are out on the surface. This rides with
@@ -5664,12 +5749,36 @@ const _fp2=new THREE.Quaternion();
  * written somewhere he could not be standing. A second head-locked line
  * under the pips carries it with him. */
 const taskPlate=(function(){
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.02,.072),
-    new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,depthTest:false}));
-  m.visible=false;m.renderOrder=40;headYaw.add(m);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.10,.078),
+    new THREE.MeshBasicMaterial({transparent:true,depthWrite:false}));
+  m.visible=false;m.renderOrder=40;shaker.add(m);
   return m;
 })();
-let taskSig="";
+let taskSig="", lastMsg="";
+/* The question mark. It rides with the quest counter, which is the one
+ * thing Peter wants head-locked, and pressing it plants the current
+ * instruction and the last thing anyone said in front of you. */
+const infoBtn=(function(){
+  const c=cvs(96,96),g=c.getContext("2d");
+  g.fillStyle="#0b1018";g.beginPath();g.arc(48,48,44,0,Math.PI*2);g.fill();
+  g.strokeStyle="#7fd4e8";g.lineWidth=6;g.stroke();
+  g.fillStyle="#9ff6ff";g.font='800 62px "Chivo Mono", monospace';
+  g.textAlign="center";g.textBaseline="middle";g.fillText("?",48,52);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(.075,.075),
+    new THREE.MeshBasicMaterial({map:tex(c),transparent:true,
+      depthWrite:false,depthTest:false}));
+  m.visible=false;m.renderOrder=41;headYaw.add(m);
+  const hit=new THREE.Mesh(new THREE.BoxGeometry(.1,.1,.06),
+    new THREE.MeshBasicMaterial({transparent:true,opacity:0,
+      depthWrite:false,colorWrite:false}));
+  m.add(hit);
+  makeInteractive(hit,{poke:.05,onPress:()=>{
+    taskSig="";taskPlate.visible=false;      // re-plant it where I stand now
+    if(lastMsg)showMsg(lastMsg,7);
+    Audio_.click();
+  }});
+  return m;
+})();
 function updateTaskPlate(){
   const want=WALK.active&&questRoot.visible?questLabel():"";
   if(!want){taskPlate.visible=false;taskSig="";return;}
@@ -5680,8 +5789,8 @@ function updateTaskPlate(){
       {w:880,h:62,size:27,bg:"#0b1018",border:"#2a3340",color:"#f2a33c"}));
     taskPlate.material.needsUpdate=true;
   }
+  if(!taskPlate.visible)plantSign(taskPlate,.04,1.5);
   taskPlate.visible=true;
-  faceHud(taskPlate,.115,1.05);
 }
 function updateQuestHud(){
   const p=progressNow();
@@ -5708,6 +5817,8 @@ function showMsg(t,secs){
   msgPlate.material.map=tex(labelCanvas(t,{w:900,h:68,size:30,
     bg:"#0b1018",border:"#35506b",color:"#d6ecff"}));
   msgPlate.material.needsUpdate=true;msgPlate.visible=true;
+  lastMsg=t;
+  plantSign(msgPlate,-.16,1.5);
 }
 function setSkin(name){
   applySkin(name);
@@ -6498,6 +6609,35 @@ function wrapText(g,text,x,y,maxW,lh){
   }
   if(line)g.fillText(line,x,yy);
 }
+/* The second half of the ceremony: three cores, handed over, drawn so
+ * you can see what you have been given rather than reading about it. */
+function drawFuelGiftCard(g,W,H){
+  g.clearRect(0,0,W,H);
+  const sky=g.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,"#05171c");sky.addColorStop(1,"#06303a");
+  g.fillStyle=sky;g.fillRect(0,0,W,H);
+  g.strokeStyle="#7fd4e8";g.lineWidth=8;g.strokeRect(24,24,W-48,H-48);
+  g.textAlign="center";g.textBaseline="middle";
+  g.fillStyle="#9ff6ff";g.font='800 64px "Chivo Mono", monospace';
+  g.fillText("BRÆNDSTOF TIL HJEMTUREN",W/2,120);
+  /* Three glowing cores in a row. */
+  for(let i=0;i<3;i++){
+    const cx=W/2+(i-1)*230, cy=330;
+    const gl=g.createRadialGradient(cx,cy,10,cx,cy,120);
+    gl.addColorStop(0,"rgba(159,246,255,.95)");
+    gl.addColorStop(.5,"rgba(90,200,230,.35)");
+    gl.addColorStop(1,"rgba(90,200,230,0)");
+    g.fillStyle=gl;g.beginPath();g.arc(cx,cy,120,0,Math.PI*2);g.fill();
+    g.fillStyle="#0b2b33";g.strokeStyle="#9ff6ff";g.lineWidth=7;
+    g.beginPath();g.arc(cx,cy,62,0,Math.PI*2);g.fill();g.stroke();
+    g.fillStyle="#d9fbff";
+    g.beginPath();g.arc(cx,cy,26,0,Math.PI*2);g.fill();
+  }
+  g.fillStyle="#cfe6ff";g.font='600 40px "Chivo Mono", monospace';
+  g.fillText("Beboerne giver dig tre fusionskerner.",W/2,490);
+  g.fillStyle="#9ff6ff";g.font='600 34px "Chivo Mono", monospace';
+  g.fillText("Bær dem ind i skibet og tryk på BRÆNDSTOF",W/2,552);
+}
 /* The gold cap, drawn big, once, when you get home with the job done. */
 function drawCrownCard(g,W,H){
   g.clearRect(0,0,W,H);
@@ -6935,8 +7075,13 @@ function updateEVA(dt){
    * under their own power. */
   /* Vertical motion is the least comfortable kind in a headset, so the
    * hop gets more of the vignette than walking does. */
-  const wantV=renderer.xr.isPresenting?Math.max(walkSpeed*0.42,WALK.air?0.5:0):0;
-  vignette.material.opacity+=(wantV-vignette.material.opacity)*Math.min(1,dt*3);
+  /* The comfort vignette is gone. It was a 1.1 x 1.1 PLANE carrying a
+   * radial gradient, hung 42 cm from the eye - so its corners were solid
+   * black and its edge cut a visible square across a field of view wider
+   * than itself. It ramped up with walking speed and again whenever the
+   * feet left the ground, which is why it appeared with the jetpack and
+   * looked like a bug. It was a bug. */
+  vignette.material.opacity=0;vignette.visible=false;
   shaker.position.set(0,0,0);
   syncWorld();
 }
@@ -7398,6 +7543,7 @@ function updateFlight(dt){
       St.phase="space";menu.visible=true;St.climbing=false;
       terrainKey=null;clearChunks();
       terrainRoot.visible=false;skirt.visible=false;setHomeScenery(false);
+      setFarRing(null,false);
       alienRoot.visible=false;questRoot.visible=false;trail.visible=false;
       bubble.mesh.visible=false;bubble.t=0;
       beams.visible=false;clearMarsMap();
@@ -7748,6 +7894,10 @@ function frame(){
   /* In front of whichever seat you are in. On the hull centreline it was
    * half a metre off to one side, the same mistake as the warp. */
   landHud.mesh.position.x=seatX;
+  /* The objective banner was pinned at x=-0.22 on the hull centreline
+   * while the pilot sits at -0.46, so it hung off to one side and the
+   * first words went behind the window frame. On the seat, like the HUD. */
+  objective.position.x=seatX;
   landHud.mesh.visible=wantHud;
   if(screenClock>.14){
     screenClock=0;drawStatus();if(St.dest)drawMap();
@@ -7768,8 +7918,7 @@ function frame(){
     msgTimer=Math.min(msgTimer,.45);        // read it, walk off, it goes
   if(msgTimer>0){msgTimer-=dt;
     if(msgTimer<=0){msgEl.style.opacity="0";msgPlate.visible=false;}
-    else {msgPlate.material.opacity=Math.min(1,msgTimer*2.2);
-          faceHud(msgPlate,-.23,1.15);}}
+    else msgPlate.material.opacity=Math.min(1,msgTimer*2.2);}
   if(St.phase!=="hyperspace"){
     stars.rotation.y+=dt*.002;
     deepSky.rotation.y=stars.rotation.y;
@@ -7777,6 +7926,10 @@ function frame(){
   /* Single source of truth: the console and yoke exist exactly when you
    * are sitting at them. Commanded visibility could drift out of step
    * with where you actually were; derived visibility cannot. */
+  /* The ray is for reaching across open ground. Inside the ship
+   * everything is within arm's length and the hands do the work, so two
+   * cyan lines sweeping the instruments are only clutter. */
+  controllers.forEach(c=>{if(c.userData.ray)c.userData.ray.visible=WALK.active;});
   cockpitVisible(!WALK.active);
   shipBeacon.visible=WALK.active;
   /* Up while you are away from home and could be coming back to it:
@@ -7785,6 +7938,8 @@ function frame(){
                     !(GAME.at==="earth"&&SHIP.onGround);
   updateQuestHud();
   updateTaskPlate();
+  infoBtn.visible=WALK.active;
+  if(infoBtn.visible)faceHud(infoBtn,.115,.80);
   markFlush();
   renderer.render(scene,camera);
 }
