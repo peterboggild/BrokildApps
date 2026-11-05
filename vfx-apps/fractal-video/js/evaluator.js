@@ -303,6 +303,8 @@
       }
       return gridSignal(project, row.source, beat, prog);
     }
+    // live input (microphone): already smoothed per route as it arrives; no look-ahead is possible
+    if (analysis && analysis.live && analysis.live.has(row.source)) return clamp(analysis.live.value(row.source, row.attack || 0, row.release || 0), 0, 1);
     if (!analysis || !analysis.tracks) return 0;
     const raw = analysis.tracks[row.source];
     if (!raw) return 0;

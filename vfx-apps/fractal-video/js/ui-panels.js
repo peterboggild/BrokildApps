@@ -78,11 +78,33 @@
   }
 
   // ---------- audio pane ----------
+  // Microphone: the master sources follow what it hears (a headset's mic with music in the room is enough).
+  function micBlock(ctx) {
+    const on = ctx.micActive();
+    const wrap = h('div', { class: 'mic-block' });
+    wrap.appendChild(h('div', { class: 'sub-label', text: 'Microphone (live)' }));
+    const meter = h('div', { class: 'mic-meter', title: 'Level the microphone hears' }, h('div', { id: 'micMeter', class: 'mic-meter-fill' }));
+    wrap.appendChild(h('div', { class: 'btn-row' },
+      button(on ? 'Stop listening' : (ctx.micStarting() ? 'Starting…' : 'Listen with microphone'), {
+        icon: 'music', class: `btn btn-sm${on ? ' primary' : ''}`,
+        title: 'Drive the master sources (level, lows, mids, highs, onsets) from the microphone instead of the master file',
+        onClick: () => ctx.toggleMic()
+      }),
+      ...(on ? [meter] : [])));
+    const err = ctx.micError();
+    if (err && !on) wrap.appendChild(h('p', { class: 'note err', text: err }));
+    else wrap.appendChild(h('p', { class: 'note', text: on
+      ? 'Listening: routes from the master sources follow the room. Stems and the beat grid still come from the project. Movies always use the files.'
+      : 'No audio file needed: play music in the room and the master routes follow it. The browser asks for permission the first time.' }));
+    return wrap;
+  }
+
   function buildAudioPane(host, ctx) {
     host.innerHTML = '';
     const project = ctx.project();
     const st = ctx.audioState();
 
+    host.appendChild(micBlock(ctx));
     host.appendChild(h('div', { class: 'sub-label', text: 'Master (soundtrack)' }));
     if (project.master) {
       const m = st.master || {};
@@ -717,11 +739,16 @@
     const lv = ctx.liveVrSettings();
     const gVr = group('Live VR (headset)', 'render-livevr', true, 'WebXR');
     const setL = (patch) => { ctx.setLiveVrSettings(patch); ctx.rebuild('render'); };
-    gVr.body.appendChild(h('p', { class: 'note', text: 'Puts you inside the fractal in a headset connected to this PC (Quest over Horizon Link or Air Link, or any PC VR headset). It renders live, at lower quality than a movie: use it to look around and find camera positions. The song timeline plays as usual; the trigger plays and pauses.' }));
+    gVr.body.appendChild(h('p', { class: 'note', text: 'Puts you inside the fractal: open this page in the headset\'s own browser (the headset\'s chip renders it), or use a headset connected to this PC (Quest over Horizon Link or Air Link, or any PC VR headset). It renders live, at lower quality than a movie. The song timeline plays as usual and starts over at the end; the trigger plays and pauses.' }));
+    gVr.body.appendChild(toggle({
+      label: 'Listen with microphone', value: ctx.micActive(),
+      hint: 'The master routes follow the music the microphone hears, so no audio file is needed. Switch it on before entering VR: the permission question cannot be answered inside the headset view.',
+      onChange: () => ctx.toggleMic()
+    }).el);
     gVr.body.appendChild(select({
       label: 'Resolution', value: String(lv.scale),
       hint: 'Share of the headset\'s full resolution per eye. Lower = smoother. If the picture judders, step down.',
-      options: [{ value: '0.35', label: '35 % (fastest)' }, { value: '0.5', label: '50 %' }, { value: '0.7', label: '70 %' }, { value: '1', label: '100 % (sharpest)' }],
+      options: [{ value: '0.2', label: '20 % (headset chip, safest)' }, { value: '0.35', label: '35 % (fastest on a PC)' }, { value: '0.5', label: '50 %' }, { value: '0.7', label: '70 %' }, { value: '1', label: '100 % (sharpest)' }],
       onChange: (v) => setL({ scale: Number(v) })
     }).el);
     gVr.body.appendChild(select({
@@ -743,7 +770,7 @@
     if (!ctx.liveVrActive()) {
       ctx.liveVrSupport().then((s) => {
         vrSt.className = `render-status ${s.ok ? 'ok' : 'err'}`;
-        vrSt.textContent = s.ok ? 'Headset found. Put it on, then press Enter VR (or press it first and put it on).' : s.why;
+        vrSt.textContent = s.ok ? (s.standalone ? 'Headset browser: press Enter VR. If the picture judders, leave (menu button), lower Resolution and enter again.' : 'Headset found. Put it on, then press Enter VR (or press it first and put it on).') : s.why;
       });
     }
     host.appendChild(gVr.el);

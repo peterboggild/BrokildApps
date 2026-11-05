@@ -149,3 +149,28 @@ framebuffer at the viewport offset (uOrigin). Resolution = framebufferScaleFacto
 march Draft or Balanced; the PC preview holds meanwhile; the trigger = play/pause; fps shown in the panel.
 Verified headless with two simulated asymmetric views (stereo direction right, viewport offsets right).
 Not verified: in a real headset (frame rate on the RTX 5070, comfort).
+
+## Microphone + headset's own browser (2026-11-05)
+
+Published on the Brokild VR page (`vr-apps/index.html`, card "Fractal Video", tagged Test) so it can be tried
+in the Quest Browser itself: https://peterboggild.github.io/BrokildApps/vfx-apps/fractal-video/
+Still not on the BrokildApps front page (no manifest entry).
+
+- **Microphone** (`FV.Audio.LiveInput`, audio.js): getUserMedia without echo cancelling / noise suppression /
+  auto gain; an AudioWorklet (inline Blob, ScriptProcessor fallback) sums 10 ms blocks through the same filters
+  as analyse() and posts [rms, low, mid, high]. Main thread: per-band peak follower (10 s memory, floor 0.004,
+  x0.85) stands in for the 98th-percentile normalisation; onsets as onsetsFrom() but causal (trailing threshold,
+  peak picked two frames late, strength against a 30 s peak follower). While on, the **master.*** sources follow
+  the mic: `analysis.live = mic`, and evaluator rowSignal asks `live.value(source, attack, release)`, which keeps
+  one one-pole state per route key, updated as frames arrive (route lead ignored live). Modulation runs even when
+  the timeline is paused; the timeline loops at the end while the mic is on or in VR.
+  Movies and auto-flight use `fileAnalysis()` (live: null), so the room never leaks into a render.
+- UI: Audio pane "Microphone (live)" with a level meter; Live VR has the same switch (switch it on BEFORE Enter
+  VR: the permission prompt cannot be answered inside the headset view).
+- **Standalone headset**: `standalone()` (Quest/Pico/Wolvic user agent) starts Live VR at 35 % resolution; a
+  20 % option was added; messages no longer assume a PC. Views with an empty viewport are skipped.
+- Tests: `npm run check` = 24 (3 new: live onsets/bands/normalisation, quiet room, evaluator live vs file).
+  Browser: `%LOCALAPPDATA%\fv-test\vr-mic.cjs` serves the folder statically, fakes a mic and a Quest 3 (IWER
+  with stereo on, Quest Browser user agent): mic starts, meter moves, 35 % default, Enter VR gives 750x950 per
+  eye, trigger plays, Leave VR works. Only 404s: favicon and /render/check (no render server on a static host).
+  Not verified: frame rate on a real Quest's chip.

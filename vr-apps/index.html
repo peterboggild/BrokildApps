@@ -296,6 +296,59 @@
             </div>
           </div>
         </article>
+
+        <article class="card">
+          <div class="card-art">
+            <!-- A power-8 bulb: a lit core ringed by smaller and smaller buds, with sound rings behind it. -->
+            <svg viewBox="0 0 320 180" role="img" aria-label="A glowing fractal bulb ringed by smaller buds, with sound rings spreading behind it">
+              <defs>
+                <radialGradient id="fvCore" cx="40%" cy="36%" r="70%">
+                  <stop offset="0%" stop-color="#fff4e2" />
+                  <stop offset="50%" stop-color="#f1c79a" />
+                  <stop offset="100%" stop-color="#b8587a" />
+                </radialGradient>
+                <radialGradient id="fvBg" cx="50%" cy="50%" r="70%">
+                  <stop offset="0%" stop-color="#121a33" />
+                  <stop offset="100%" stop-color="#04060c" />
+                </radialGradient>
+              </defs>
+              <rect width="320" height="180" fill="url(#fvBg)" />
+              <g fill="none" stroke="#6cc4ff" opacity=".35">
+                <circle cx="160" cy="90" r="70" stroke-width="1.2" />
+                <circle cx="160" cy="90" r="84" stroke-width="1" opacity=".7" />
+                <circle cx="160" cy="90" r="99" stroke-width=".8" opacity=".45" />
+              </g>
+              <g fill="url(#fvCore)">
+                <circle cx="160" cy="90" r="40" />
+                <circle cx="160" cy="46" r="13" /><circle cx="191" cy="59" r="13" /><circle cx="204" cy="90" r="13" /><circle cx="191" cy="121" r="13" />
+                <circle cx="160" cy="134" r="13" /><circle cx="129" cy="121" r="13" /><circle cx="116" cy="90" r="13" /><circle cx="129" cy="59" r="13" />
+                <circle cx="176" cy="36" r="6" /><circle cx="144" cy="36" r="6" /><circle cx="207" cy="47" r="6" /><circle cx="214" cy="74" r="6" />
+                <circle cx="214" cy="106" r="6" /><circle cx="207" cy="133" r="6" /><circle cx="176" cy="144" r="6" /><circle cx="144" cy="144" r="6" />
+                <circle cx="113" cy="133" r="6" /><circle cx="106" cy="106" r="6" /><circle cx="106" cy="74" r="6" /><circle cx="113" cy="47" r="6" />
+              </g>
+              <g fill="#6cc4ff" opacity=".8">
+                <rect x="20" y="150" width="4" height="12" rx="1" /><rect x="28" y="144" width="4" height="18" rx="1" />
+                <rect x="36" y="152" width="4" height="10" rx="1" /><rect x="44" y="140" width="4" height="22" rx="1" />
+                <rect x="52" y="148" width="4" height="14" rx="1" />
+              </g>
+            </svg>
+          </div>
+          <div class="card-body">
+            <h3>Fractal Video</h3>
+            <div class="tags">
+              <span class="tag live">Test</span>
+              <span class="tag">WebXR</span>
+              <span class="tag">Quest 3</span>
+              <span class="tag">Microphone</span>
+              <span class="tag">Flat editor</span>
+            </div>
+            <p>The music-video fractal machine, opened in the headset: you stand <strong>inside</strong> a ray-marched 3D fractal while it plays its arrangement of scenes. It listens to the room through the headset's own <strong>microphone</strong>, so any music playing nearby moves it; no audio file is needed. In the Audio panel press <strong>Listen with microphone</strong> and allow it, then go to the Render tab, <strong>Live VR</strong>, and press <strong>Enter VR</strong>. The trigger plays and pauses. This is a test of whether the headset's own chip can keep up. If the picture judders, leave VR and lower <em>Resolution</em>. If it is still too slow, open the same page in Chrome on a PC with the Quest on a cable (Link) and let the PC's graphics card do the work. The sound is analysed on the headset and never leaves it.</p>
+            <div class="card-actions">
+              <a class="btn btn-primary" href="../vfx-apps/fractal-video/index.html">Launch</a>
+              <a class="btn" href="https://github.com/peterboggild/BrokildApps/tree/main/vfx-apps/fractal-video" target="_blank" rel="noopener">Source</a>
+            </div>
+          </div>
+        </article>
       </div>
 
       <section class="howto" id="howto">

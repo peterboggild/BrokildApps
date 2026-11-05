@@ -166,6 +166,23 @@
   // ---------- audio ----------
   const transport = new AudioLib.Transport();
   const analysis = { rate: AudioLib.RATE, duration: 0, tracks: {}, master: null, stems: {} };
+  // Microphone: while it is on, the master.* sources follow what it hears (evaluator rowSignal -> live).
+  // Movies and the auto-flight always use the files (fileAnalysis), never the room.
+  const mic = new AudioLib.LiveInput();
+  analysis.live = mic;
+  const fileAnalysis = () => Object.assign({}, analysis, { live: null });
+  mic.onChange = () => { refreshAudioUi(); rebuild('render'); invalidate(); };
+  async function toggleMic() {
+    if (mic.active) { mic.stop(); toast('Microphone off.'); return; }
+    try {
+      await mic.start();
+      toast('Microphone on: the master sources (level, lows, mids, highs, onsets) now follow what it hears.', 'ok', 6000);
+    } catch (err) {
+      toast(`Microphone: ${err.message}`, 'err', 10000);
+      refreshAudioUi();
+      rebuild('render');
+    }
+  }
   const audioState = { master: null, stems: {} };
   const attached = { master: null, stems: new Map() };
   let queue = Promise.resolve();
@@ -405,7 +422,7 @@
 
   function evaluateNow(t) {
     const scene = currentScene();
-    const opts = settings.view === 'scene' ? { sceneId: scene.id, modulate: transport.playing, animate: transport.playing } : {};
+    const opts = settings.view === 'scene' ? { sceneId: scene.id, modulate: transport.playing || mic.active, animate: transport.playing } : {};
     let saved = null;
     if (previewStops) { saved = scene.look.palette.stops; scene.look.palette.stops = previewStops; }
     try {
@@ -492,7 +509,7 @@
     requestAnimationFrame(loop);
     transport.update();
     const t = transport.time();
-    if (transport.playing || frameDirty) {
+    if (transport.playing || frameDirty || mic.active) {
       frameDirty = false;
       curT = t;
       try {
@@ -508,6 +525,10 @@
       updateClock(t);
       timeline.setTime(t);
       FV.Keys.sync(ctx, t);
+    }
+    if (mic.active) {
+      const mm = document.getElementById('micMeter');
+      if (mm) mm.style.width = `${Math.round(mic.level() * 100)}%`;
     }
     if (settings.tab === 'mod' && now - lastMeters > 70) {
       lastMeters = now;
@@ -539,7 +560,12 @@
   }
 
   let heldHintShown = false;
-  transport.onEnded = () => { updatePlayButton(); invalidate(); };
+  transport.onEnded = () => {
+    // listening live, or in VR: the arrangement starts over instead of stopping
+    if (mic.active || xr) { transport.seek(0); transport.play().then(() => { updatePlayButton(); invalidate(); }); return; }
+    updatePlayButton();
+    invalidate();
+  };
 
   // ---------- camera interaction ----------
   function editableScene() {
@@ -673,7 +699,7 @@
     flightJob = job;
     const started = performance.now();
     try {
-      const res = await FV.Flight.compute(project, analysis, (fr, pos, dirs, maxRay, eps) => renderer.probe(fr, pos, dirs, maxRay, eps), {
+      const res = await FV.Flight.compute(project, fileAnalysis(), (fr, pos, dirs, maxRay, eps) => renderer.probe(fr, pos, dirs, maxRay, eps), {
         onProgress: (x) => { job.progress = x; if (onProgress) onProgress(x); },
         cancelled: () => job.cancel || !renderer || renderer.lost
       });
@@ -970,7 +996,7 @@
       for (let i = 0; i < R.frames; i += 1) {
         if (job.cancelled) throw new Error('cancelled');
         const t = (R.n0 + i) / R.fps;
-        const frame = Ev.evaluate(project, analysis, t);
+        const frame = Ev.evaluate(project, fileAnalysis(), t);
         await backdrops.prepare(frame);
         const px = await renderer.renderFrame(frame, R.w, R.h, R.samples, (p) => showStats(i + p), { march: R.march, vr: vrOpts(R.vr, frame) });
         await pending; // previous upload done (ffmpeg keeps up or applies back-pressure)
@@ -1008,24 +1034,26 @@
   }
   let lastMovie = null;
 
-  // ---------- live VR (WebXR, e.g. Quest over Horizon Link) ----------
+  // ---------- live VR (WebXR: a Quest's own browser, or a headset on this PC over Horizon Link) ----------
   // The preview's own GL context renders both eyes straight into the headset's framebuffer, at a reduced
-  // resolution and ray-march quality. The scene camera is the centre of the room; the head moves and turns
+  // resolution and ray-march quality. In the headset's own browser the headset's chip does all the work, so
+  // the defaults there start lower (standalone()). The scene camera is the centre of the room; the head moves and turns
   // inside it (metres scaled by Stereo depth x camera distance / 6.4 cm, the movie's eye spacing rule).
   // The trigger plays / pauses the music; the preview on the PC pauses while the headset is in use.
   let xr = null;
-  const liveVrSettings = () => Object.assign({ scale: 0.5, march: 'draft', level: true }, settings.liveVr || {});
+  const standalone = () => /OculusBrowser|Quest|Pico|Wolvic|VR\b.*Mobile|Mobile VR/i.test(navigator.userAgent || '');
+  const liveVrSettings = () => Object.assign({ scale: standalone() ? 0.35 : 0.5, march: 'draft', level: true }, settings.liveVr || {});
   function setLiveVrSettings(patch) {
     settings.liveVr = Object.assign(liveVrSettings(), patch);
     saveSettings();
   }
   async function liveVrSupport() {
-    if (!window.isSecureContext) return { ok: false, why: 'WebXR needs http://localhost (not a file or a network address).' };
-    if (!navigator.xr) return { ok: false, why: 'This browser has no WebXR. Use Chrome or Edge on this PC.' };
+    if (!window.isSecureContext) return { ok: false, why: 'WebXR needs https or http://localhost (not a file or a network address).' };
+    if (!navigator.xr) return { ok: false, why: 'This browser has no WebXR. Open this page in the headset\'s own browser, or in Chrome or Edge on a PC with the headset connected.' };
     try {
-      if (await navigator.xr.isSessionSupported('immersive-vr')) return { ok: true };
+      if (await navigator.xr.isSessionSupported('immersive-vr')) return { ok: true, standalone: standalone() };
     } catch (err) { return { ok: false, why: err.message }; }
-    return { ok: false, why: 'No VR headset found. Connect the Quest with Horizon Link or Air Link, make Meta Horizon Link the active OpenXR runtime (Link app on the PC > Settings > General), then reload this page.' };
+    return { ok: false, why: 'No VR headset found. Open this page in the headset\'s own browser, or on a PC: connect the Quest with Horizon Link or Air Link, make Meta Horizon Link the active OpenXR runtime (Link app on the PC > Settings > General), then reload this page.' };
   }
   async function startLiveVr() {
     if (xr) { xr.session.end().catch(() => {}); return; }
@@ -1074,6 +1102,7 @@
       const scale = (movieSettings().vrDepth * dist) / 0.064;
       pose.views.forEach((v) => {
         const vp = layer.getViewport(v);
+        if (!vp || vp.width < 1 || vp.height < 1) return;
         renderer.renderXR(frame, v, vp, layer.framebuffer, { scale, level: set.level, quality: set.march });
         job.size = `${vp.width}×${vp.height}`;
       });
@@ -1087,7 +1116,7 @@
         msSum = 0;
         job.t0 = performance.now();
         const st = document.getElementById('liveVrStatus');
-        if (st) st.textContent = `In VR: ${job.fps.toFixed(0)} frames/s, ${job.size} per eye. Trigger = play / pause. Take the headset off or press the Quest menu button to leave.`;
+        if (st) st.textContent = `In VR: ${job.fps.toFixed(0)} frames/s, ${job.size} per eye${mic.active ? ', listening' : ''}. Trigger = play / pause. Press the Quest menu button to leave.`;
       }
     };
     session.requestAnimationFrame(onFrame);
@@ -1165,6 +1194,10 @@
     liveVrSupport,
     startLiveVr,
     liveVrActive: () => !!xr,
+    micActive: () => mic.active,
+    micStarting: () => mic.starting,
+    micError: () => mic.error,
+    toggleMic,
     playhead: () => transport.time(),
     exportProject,
     aspectChanged,

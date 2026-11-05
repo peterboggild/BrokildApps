@@ -414,5 +414,206 @@
     }
   }
 
-  FV.Audio = { RATE, idb, fileKey, decode, analyse, featuresFor, suggestTempo, alignment, Transport };
+  // ---------- live input (microphone) ----------
+  // The same features as the offline master analysis (level, lows, mids, highs, onsets), computed as the
+  // sound arrives, so routes keyed to master.* follow whatever the microphone hears: a headset's own mic in
+  // a room with music playing works without any audio file. Look-ahead (route lead) is impossible live and
+  // is ignored; attack/release are applied per route as frames arrive (value()).
+  // The worklet sums 10 ms blocks through the same filters as analyse() and posts [rms, low, mid, high].
+  const WORKLET_SRC = `
+  class FvLive extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      const f = (type, f0, q) => {
+        const w0 = 2 * Math.PI * f0 / sampleRate, cos = Math.cos(w0), alpha = Math.sin(w0) / (2 * (q || Math.SQRT1_2)), a0 = 1 + alpha;
+        const b = type === 'lp' ? [(1 - cos) / 2, 1 - cos, (1 - cos) / 2] : [(1 + cos) / 2, -(1 + cos), (1 + cos) / 2];
+        return { b0: b[0] / a0, b1: b[1] / a0, b2: b[2] / a0, a1: (-2 * cos) / a0, a2: (1 - alpha) / a0, x1: 0, x2: 0, y1: 0, y2: 0 };
+      };
+      this.lp = f('lp', 150); this.hp1 = f('hp', 150); this.lp2 = f('lp', 2000); this.hp2 = f('hp', 2500);
+      this.block = Math.max(1, Math.round(sampleRate / ${RATE}));
+      this.n = 0; this.s = [0, 0, 0, 0];
+    }
+    run(f, x) { const y = f.b0 * x + f.b1 * f.x1 + f.b2 * f.x2 - f.a1 * f.y1 - f.a2 * f.y2; f.x2 = f.x1; f.x1 = x; f.y2 = f.y1; f.y1 = y; return y; }
+    process(inputs) {
+      const ch = inputs[0];
+      if (!ch || !ch.length) return true;
+      const a = ch[0], b = ch.length > 1 ? ch[1] : null, s = this.s;
+      for (let i = 0; i < a.length; i += 1) {
+        const x = b ? (a[i] + b[i]) * 0.5 : a[i];
+        const l = this.run(this.lp, x), m = this.run(this.lp2, this.run(this.hp1, x)), h = this.run(this.hp2, x);
+        s[0] += x * x; s[1] += l * l; s[2] += m * m; s[3] += h * h;
+        if (++this.n >= this.block) {
+          const k = 1 / this.n;
+          this.port.postMessage([Math.sqrt(s[0] * k), Math.sqrt(s[1] * k), Math.sqrt(s[2] * k), Math.sqrt(s[3] * k)]);
+          this.n = 0; s[0] = s[1] = s[2] = s[3] = 0;
+        }
+      }
+      return true;
+    }
+  }
+  registerProcessor('fv-live', FvLive);`;
+
+  const LIVE_SOURCES = ['master.rms', 'master.low', 'master.mid', 'master.high', 'master.onset'];
+
+  class LiveInput {
+    constructor() {
+      this.active = false;
+      this.starting = false;
+      this.error = null;
+      this.raw = {};
+      LIVE_SOURCES.forEach((id) => { this.raw[id] = 0; });
+      this.smooth = new Map(); // `${source}|${attack}|${release}` -> { source, aa, ar, y, used }
+      this.frames = 0;
+      this._reset();
+    }
+
+    _reset() {
+      this.ref = [0.02, 0.02, 0.02, 0.02];
+      this.e = [Math.log(1e-4), Math.log(1e-4), Math.log(1e-4)];
+      this.flux = new Float32Array(64); // ring, newest at fi
+      this.fi = 0;
+      this.fluxSum = 0;
+      this.lastOnset = -1e9;
+      this.strengthRef = 0.3;
+      this.pulse = 0;
+    }
+
+    has(source) { return this.active && Object.prototype.hasOwnProperty.call(this.raw, source); }
+
+    // Current value of a source after the route's attack/release (one-pole, the same law as the evaluator).
+    value(source, attack, release) {
+      const key = `${source}|${(attack || 0).toFixed(4)}|${(release || 0).toFixed(4)}`;
+      let s = this.smooth.get(key);
+      if (!s) {
+        s = { source, aa: attack > 0 ? Math.exp(-1 / (attack * RATE)) : 0, ar: release > 0 ? Math.exp(-1 / (release * RATE)) : 0, y: this.raw[source] || 0, used: 0 };
+        this.smooth.set(key, s);
+      }
+      s.used = this.frames;
+      return s.y;
+    }
+
+    async start() {
+      if (this.active || this.starting) return;
+      this.starting = true;
+      this.error = null;
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('This browser gives no microphone access here (it needs https or localhost).');
+        // raw room sound: no echo cancelling, noise gate or automatic gain, which would flatten the music
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false });
+        const AC = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AC({ latencyHint: 'interactive' });
+        if (this.ctx.state === 'suspended') await this.ctx.resume().catch(() => {});
+        this.src = this.ctx.createMediaStreamSource(this.stream);
+        if (this.ctx.audioWorklet && typeof AudioWorkletNode !== 'undefined') {
+          const url = URL.createObjectURL(new Blob([WORKLET_SRC], { type: 'application/javascript' }));
+          try { await this.ctx.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
+          this.node = new AudioWorkletNode(this.ctx, 'fv-live', { numberOfInputs: 1, numberOfOutputs: 0 });
+          this.node.port.onmessage = (ev) => this._frame(ev.data);
+          this.src.connect(this.node);
+        } else {
+          // older browsers: same filters on the main thread
+          const sr = this.ctx.sampleRate;
+          const f = [biquad('lp', 150, sr), biquad('hp', 150, sr), biquad('lp', 2000, sr), biquad('hp', 2500, sr)];
+          const block = Math.max(1, Math.round(sr / RATE));
+          const s = [0, 0, 0, 0];
+          let n = 0;
+          this.node = this.ctx.createScriptProcessor(1024, 1, 1);
+          this.node.onaudioprocess = (ev) => {
+            const a = ev.inputBuffer.getChannelData(0);
+            for (let i = 0; i < a.length; i += 1) {
+              const x = a[i];
+              const l = run(f[0], x);
+              const m = run(f[2], run(f[1], x));
+              const hh = run(f[3], x);
+              s[0] += x * x; s[1] += l * l; s[2] += m * m; s[3] += hh * hh;
+              if (++n >= block) {
+                const k = 1 / n;
+                this._frame([Math.sqrt(s[0] * k), Math.sqrt(s[1] * k), Math.sqrt(s[2] * k), Math.sqrt(s[3] * k)]);
+                n = 0; s[0] = s[1] = s[2] = s[3] = 0;
+              }
+            }
+          };
+          this.src.connect(this.node);
+          this.mute = this.ctx.createGain();
+          this.mute.gain.value = 0;
+          this.node.connect(this.mute);
+          this.mute.connect(this.ctx.destination);
+        }
+        this._reset();
+        this.active = true;
+        const track = this.stream.getAudioTracks()[0];
+        if (track) track.addEventListener('ended', () => { this.error = 'The microphone stopped.'; this.stop(); });
+      } catch (err) {
+        this.error = err && err.name === 'NotAllowedError' ? 'Microphone permission was refused. Allow it for this site in the browser, then try again.' : (err && err.message) || String(err);
+        this.stop();
+        throw new Error(this.error);
+      } finally {
+        this.starting = false;
+      }
+      if (this.onChange) this.onChange();
+    }
+
+    stop() {
+      const was = this.active;
+      this.active = false;
+      try { if (this.src) this.src.disconnect(); } catch (err) { /* already gone */ }
+      try { if (this.node) { this.node.disconnect(); if (this.node.port) this.node.port.onmessage = null; } } catch (err) { /* already gone */ }
+      if (this.stream) this.stream.getTracks().forEach((t) => t.stop());
+      if (this.ctx) this.ctx.close().catch(() => {});
+      this.stream = this.ctx = this.src = this.node = this.mute = null;
+      LIVE_SOURCES.forEach((id) => { this.raw[id] = 0; });
+      this.smooth.clear();
+      if (was && this.onChange) this.onChange();
+    }
+
+    // One 10 ms frame: [rms, low, mid, high] -> normalised tracks + onset pulse, then every route's smoothing.
+    _frame(v) {
+      if (!this.active) return;
+      this.frames += 1;
+      // normalise like analyse() (98th percentile there): a peak follower with ~10 s memory, never below a
+      // floor so a quiet room is not blown up to full scale
+      const dec = Math.exp(-1 / (10 * RATE));
+      const out = [0, 0, 0, 0];
+      for (let b = 0; b < 4; b += 1) {
+        this.ref[b] = Math.max(v[b], this.ref[b] * dec, 0.004);
+        out[b] = Math.min(1, v[b] / (this.ref[b] * 0.85));
+      }
+      this.raw['master.rms'] = out[0];
+      this.raw['master.low'] = out[1];
+      this.raw['master.mid'] = out[2];
+      this.raw['master.high'] = out[3];
+      // onsets as in onsetsFrom(): log-energy rise over the mean of the last three frames, against a local
+      // mean (trailing here) x 1.6 + 0.08, peaks picked two frames late so both neighbours are known
+      const e = Math.log(1e-4 + v[0]);
+      const fl = Math.max(0, e - (this.e[0] + this.e[1] + this.e[2]) / 3);
+      this.e.pop();
+      this.e.unshift(e);
+      const N = this.flux.length;
+      this.fi = (this.fi + 1) % N;
+      this.fluxSum += fl - this.flux[this.fi];
+      this.flux[this.fi] = fl;
+      const at = (k) => this.flux[(this.fi - k + N) % N];
+      const c = at(2);
+      const thr = (this.fluxSum / N) * 1.6 + 0.08;
+      this.pulse *= Math.exp(-1 / (0.12 * RATE));
+      // onset strength normalised by a slow peak follower (the 90th percentile of strengths offline)
+      this.strengthRef = Math.max(0.15, this.strengthRef * Math.exp(-1 / (30 * RATE)));
+      if (c > thr && c >= at(0) && c >= at(1) && c >= at(3) && c >= at(4) && this.frames - this.lastOnset >= 5) {
+        this.lastOnset = this.frames;
+        this.strengthRef = Math.max(c, this.strengthRef);
+        this.pulse = Math.max(this.pulse, Math.min(1, c / (this.strengthRef * 0.8)));
+      }
+      this.raw['master.onset'] = this.pulse;
+      this.smooth.forEach((s, key) => {
+        if (this.frames - s.used > 5 * RATE) { this.smooth.delete(key); return; }
+        const x = this.raw[s.source] || 0;
+        const a = x > s.y ? s.aa : s.ar;
+        s.y = a * s.y + (1 - a) * x;
+      });
+    }
+
+    level() { return this.active ? this.raw['master.rms'] : 0; }
+  }
+
+  FV.Audio = { RATE, idb, fileKey, decode, analyse, featuresFor, suggestTempo, alignment, Transport, LiveInput, LIVE_SOURCES };
 })();

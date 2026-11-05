@@ -615,3 +615,8 @@ kbd {
 .ctx-item.on::before { content: "✓ "; }
 .ctx-sep { height: 1px; background: var(--line); margin: 4px 2px; }
 .ctx-note { font-size: 11px; color: var(--faint); padding: 4px 8px; }
+
+/* microphone (Audio pane) */
+.mic-meter { flex: 1; min-width: 60px; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; align-self: center; }
+.mic-meter-fill { height: 100%; width: 0; background: var(--accent); transition: width 60ms linear; }
+.note.err { color: var(--danger); }

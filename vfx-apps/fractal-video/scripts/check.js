@@ -124,6 +124,64 @@ test('stem route moves the formula parameter', () => {
   assert.ok(hit.gpu.p[0] > quiet.gpu.p[0] + 1, `power ${quiet.gpu.p[0]} -> ${hit.gpu.p[0]}`);
 });
 
+// ---------- live input (microphone) ----------
+global.window = global.window || global;
+require('../js/audio.js');
+const LiveAudio = global.window.FV.Audio;
+
+// 10 ms frames [rms, low, mid, high]: a kick (loud lows) every 50 frames over a quiet bed
+function feedKicks(live, seconds) {
+  const kicks = [];
+  for (let i = 0; i < seconds * 100; i += 1) {
+    const k = i % 50 < 3;
+    live._frame(k ? [0.5, 0.45, 0.1, 0.02] : [0.02, 0.01, 0.015, 0.01]);
+    kicks.push({ i, k, onset: live.raw['master.onset'], low: live.raw['master.low'] });
+  }
+  return kicks;
+}
+
+test('live input: kicks give onset pulses and lows, everything stays in 0..1', () => {
+  const live = new LiveAudio.LiveInput();
+  live.active = true; // as after start(), without a microphone
+  const fr = feedKicks(live, 6);
+  const later = fr.filter((f) => f.i >= 100);
+  const peaks = later.filter((f, j) => j > 0 && f.onset > 0.5 && later[j - 1].onset <= 0.5);
+  assert.ok(peaks.length >= 8 && peaks.length <= 10, `${peaks.length} onsets for 10 kicks`);
+  peaks.forEach((p) => assert.ok(p.i % 50 >= 2 && p.i % 50 <= 6, `onset ${p.i % 50} frames after the kick`));
+  assert.ok(later.filter((f) => f.k).every((f) => f.low > 0.8), 'lows near full scale on a kick');
+  assert.ok(later.filter((f) => f.i % 50 === 30).every((f) => f.low < 0.1 && f.onset < 0.2), 'quiet between kicks');
+  Object.values(live.raw).forEach((v) => assert.ok(v >= 0 && v <= 1, `value ${v}`));
+});
+
+test('live input: a quiet room is not blown up to full scale', () => {
+  const live = new LiveAudio.LiveInput();
+  live.active = true;
+  for (let i = 0; i < 1000; i += 1) live._frame([0.0008, 0.0005, 0.0004, 0.0003]);
+  assert.ok(live.raw['master.rms'] < 0.3, `noise floor reads ${live.raw['master.rms']}`);
+});
+
+test('live input drives master routes in the evaluator; movies (live: null) ignore it', () => {
+  const p = Schema.defaultProject();
+  p.mod = [{ id: 'm', on: true, source: 'master.low', dest: 'shape.power', depth: 0.2, attack: 0, release: 0.1, lead: 0 }];
+  const sid = p.scenes[0].id;
+  const live = new LiveAudio.LiveInput();
+  const an = { rate: 100, duration: 0, tracks: {}, master: null, stems: {}, live };
+  const off = Ev.evaluate(p, an, 1, { sceneId: sid });
+  live.active = true;
+  Ev.evaluate(p, an, 1, { sceneId: sid }); // registers the route's smoothing
+  for (let i = 0; i < 30; i += 1) live._frame([0.5, 0.5, 0.1, 0.05]);
+  const loud = Ev.evaluate(p, an, 1, { sceneId: sid });
+  assert.ok(loud.gpu.p[0] > off.gpu.p[0] + 1, `power ${off.gpu.p[0]} -> ${loud.gpu.p[0]}`);
+  const file = Ev.evaluate(p, Object.assign({}, an, { live: null }), 1, { sceneId: sid });
+  assert.strictEqual(file.gpu.p[0], off.gpu.p[0]);
+  // release: after the sound stops the route falls back smoothly, not at once
+  for (let i = 0; i < 3; i += 1) live._frame([0, 0, 0, 0]);
+  const fading = Ev.evaluate(p, an, 1, { sceneId: sid });
+  assert.ok(fading.gpu.p[0] > off.gpu.p[0] + 0.5 && fading.gpu.p[0] < loud.gpu.p[0], 'release is applied');
+  live.stop();
+  assert.strictEqual(Ev.evaluate(p, an, 1, { sceneId: sid }).gpu.p[0], off.gpu.p[0], 'stopped = no effect');
+});
+
 test('transitions blend into the next scene and land on the downbeat', () => {
   const p = Schema.defaultProject();
   const starts = Ev.sectionStarts(p);
