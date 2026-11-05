@@ -131,9 +131,10 @@
     </div>
     <p class="modehint" id="modeHint"></p>
     <div class="seg">
-      <span>Skrog</span>
+      <span>Rumskibsfarve</span>
       <button id="skinSteel" aria-pressed="true">Stål</button>
       <button id="skinBlack" aria-pressed="false">Sort</button>
+      <button id="skinRed" aria-pressed="false">Rød</button>
     </div>
     <div class="btnrow">
       <button class="primary" id="btnVR">Start i VR</button>
@@ -712,8 +713,14 @@ const SKINS={
   steel:{hull:0x1b222c,hullDark:0x10151c,trim:0x3c4756,frame:0x2a3340,trimMetal:.85,hullRough:.72,
          extTop:0xa8b4c2,extTrim:0x818b99,extDark:0x4a5665,hazard:0xd4761e},
   black:{hull:0x0c0d11,hullDark:0x050507,trim:0x4a3f2a,frame:0x14161b,trimMetal:1.0,hullRough:.46,
-         extTop:0x34383f,extTrim:0x5a5140,extDark:0x1a1c21,hazard:0xb35c12}
+         extTop:0x34383f,extTrim:0x5a5140,extDark:0x1a1c21,hazard:0xb35c12},
+  /* Asked for by the pilot. Deep red outside, warm grey inside so the
+   * cabin does not glow pink around you. */
+  red:{hull:0x2a1216,hullDark:0x170a0d,trim:0x6b4038,frame:0x2e1a1c,trimMetal:.8,hullRough:.55,
+       extTop:0xc0362f,extTrim:0x8e2520,extDark:0x4b1512,hazard:0xf0b429}
 };
+const SKIN_ORDER=["steel","black","red"];
+const SKIN_NAMES={steel:"Stål",black:"Sort",red:"Rød"};
 let currentSkin="steel";
 function applySkin(name){
   const s=SKINS[name]||SKINS.steel;currentSkin=name;
@@ -817,7 +824,9 @@ const landHud=(function(){
   const m=new THREE.Mesh(new THREE.PlaneGeometry(.56,.155),
     new THREE.MeshBasicMaterial({map:tex(c),transparent:true,
       depthWrite:false,opacity:.93}));
-  m.position.set(0,1.60,-1.02);m.rotation.x=-.30;m.visible=false;ship.add(m);
+  /* It sits above eye level, so to face the eye it has to tip its face
+   * DOWNWARD. It was tipped the other way, leaning away from you. */
+  m.position.set(0,1.60,-1.02);m.rotation.x=.42;m.visible=false;ship.add(m);
   return {mesh:m,ctx:ctx,canvas:c};
 })();
 function drawLandHud(){
@@ -886,10 +895,12 @@ consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(2.04,.5,.07),M.hull));
    * and the two windows overlap in the middle 0.68 m — so the lettering is
    * set to 0.64 m and centred there. The yoke is away at the pilot's seat
    * now, so for the first time nothing covers any of it. */
-  const plate=new THREE.Mesh(new THREE.PlaneGeometry(1.56,.0975),
+  /* It was 1.56 m of dashboard for a name. Narrowed to a strip so the
+   * instruments have somewhere to live; labelCanvas fits the text to it. */
+  const plate=new THREE.Mesh(new THREE.PlaneGeometry(.86,.062),
     new THREE.MeshBasicMaterial({map:tex(labelCanvas("THEODOR & MORFARS RUMSKIB",
-      {w:1280,h:80,size:35,bg:"#0b0f15",border:"#3c4756",color:"#e8c35a"})),transparent:true}));
-  plate.position.set(0,.198,.04);consoleGroup.add(plate);
+      {w:900,h:64,size:27,bg:"#0b0f15",border:"#3c4756",color:"#e8c35a"})),transparent:true}));
+  plate.position.set(.33,.208,.04);consoleGroup.add(plate);
 })();
 box(1.9,.52,.1,M.hullDark,0,.40,-.80);
 
@@ -1546,24 +1557,31 @@ function screenPanel(w,h,px,py,cw,chh){
 /* The one thing always on screen: what to do next. A four-second toast is
  * no use to anyone who looked out of the window at the wrong moment. */
 const objective=(function(){
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.115),
+  /* One line of 34 px in a 768x64 strip could not hold the longer
+   * objectives, so they shrank to the point of wrapping and then to the
+   * point of being unreadable. Taller plate, taller canvas: two full
+   * lines fit at a size you can actually read across the cabin. */
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.52,.20),
     new THREE.MeshBasicMaterial({transparent:true}));
-  m.position.set(-.22,1.74,-1.0);ship.add(m);
+  m.position.set(-.22,1.76,-1.0);ship.add(m);
   return m;
 })();
 let objSig="";
 function setObjective(text,color){
   if(objective.material.map)objective.material.map.dispose();
   objective.material.map=tex(labelCanvas(text,
-    {w:768,h:64,size:34,bg:"#0b1018",border:"#2a3340",color:color||"#f2a33c"}));
+    {w:880,h:116,size:38,bg:"#0b1018",border:"#2a3340",color:color||"#f2a33c"}));
   objective.material.needsUpdate=true;
 }
 
 /* All three on the port half, where the pilot can read them and the
  * starboard block is free for the sequence. */
-const statusScreen=screenPanel(.46,.2,-.70,-.150,368,160);
-const mapScreen=screenPanel(.50,.2,-.18,-.150,400,160);
-const msgScreen=screenPanel(.34,.2,-.70,.040,272,160);
+/* These three were stacked so tightly that the message panel's lower
+ * edge sat on the status panel's upper edge, which is the "cramped and
+ * overlapping" Peter saw. The name strip above gave up the room. */
+const statusScreen=screenPanel(.46,.2,-.70,-.165,368,160);
+const mapScreen=screenPanel(.50,.2,-.18,-.165,400,160);
+const msgScreen=screenPanel(.40,.19,-.70,.078,320,152);
 
 /* ---------- yoke ---------- */
 const yokeGroup=new THREE.Group();
@@ -1799,13 +1817,14 @@ const modePlate=(function(){
   const g=new THREE.Group();g.position.set(-.88,.82,.12);g.rotation.y=Math.PI/2;ship.add(g);
   g.add(new THREE.Mesh(new THREE.BoxGeometry(.2,.09,.03),M.hullDark));
   const face=new THREE.Mesh(new THREE.PlaneGeometry(.18,.075),
-    new THREE.MeshBasicMaterial({map:tex(labelCanvas("SKROG",{w:256,h:96,size:34,bg:"#0d1218",border:"#3c4756",color:"#cfd6de"})),transparent:true}));
+    new THREE.MeshBasicMaterial({map:tex(labelCanvas("RUMSKIBSFARVE",{w:256,h:96,size:28,bg:"#0d1218",border:"#3c4756",color:"#cfd6de"})),transparent:true}));
   face.position.z=.018;g.add(face);
   const hit=new THREE.Mesh(new THREE.BoxGeometry(.26,.16,.12),new THREE.MeshBasicMaterial({visible:false}));
   g.add(hit);
   makeInteractive(hit,{poke:.07,onPress:()=>{
-    setSkin(currentSkin==="steel"?"black":"steel");
-    showMsg(currentSkin==="black"?"Sort skrog":"Stålskrog");
+    const i=(SKIN_ORDER.indexOf(currentSkin)+1)%SKIN_ORDER.length;
+    setSkin(SKIN_ORDER[i]);
+    showMsg("Rumskibsfarve: "+SKIN_NAMES[SKIN_ORDER[i]]);
   }});
 })();
 
@@ -2927,13 +2946,16 @@ function buildFarRing(key){
   const R0=120, R1=300000, NR=64, NA=156;
   const CURV=2*1800000;          // Earth's modelled radius, doubled: r^2/2R
   const FLAT0=6000, FLAT1=26000; // where the land gives way to the planet's curve
-  const HAZE0=1500, HAZE1=32000; // and where it gives way to air
+  const HAZE0=3000, HAZE1=46000; // and where it gives way to air
   /* Peter: "at first Earth seems uniformly white; it takes a while
    * before it starts to look blue." The haze target was a pale near-grey,
    * so everything past twenty kilometres washed out rather than going
    * blue. A real sky colour, and a little less of it, keeps the sea and
    * the land showing through on the way up. */
-  const SKY=[0.40,0.57,0.80];    // the colour of the sky at the horizon
+  /* Second pass: "it still looks very white and bright - make it darker
+   * and let the green and blue show." The haze was both too pale and too
+   * much of it, so the land vanished under it long before the horizon. */
+  const SKY=[0.27,0.42,0.66];    // the colour of the sky at the horizon
   const verts=(NR+1)*NA;
   const pos=new Float32Array(verts*3), col=new Float32Array(verts*3);
   const idx=[];
@@ -2967,10 +2989,10 @@ function buildFarRing(key){
        * ranges sit back where they belong, then a long fade all the way
        * into sky, so the rim of the world does not arrive as an edge. */
       const near=0.04+Math.pow(THREE.MathUtils.clamp((rr-900)/5600,0,1),.9)*0.30;
-      let r0=c3[0]+(0.40-c3[0])*near,
-          g0=c3[1]+(0.54-c3[1])*near,
-          b0=c3[2]+(0.72-c3[2])*near;
-      const f=haze*0.90;
+      let r0=c3[0]+(0.30-c3[0])*near,
+          g0=c3[1]+(0.44-c3[1])*near,
+          b0=c3[2]+(0.62-c3[2])*near;
+      const f=haze*0.82;
       col[k]  =s2l(r0+(SKY[0]-r0)*f);
       col[k+1]=s2l(g0+(SKY[1]-g0)*f);
       col[k+2]=s2l(b0+(SKY[2]-b0)*f);
@@ -3681,10 +3703,28 @@ const ALIEN_TINT=[0xe9c76a,0xf0a98c,0xb6ead2,0xe3b43f,0xd9a94e,0xe8c57e,
 function spawnAliens(cx,cz){
   aliens.length=0;
   const r=mulberry32(8181);
+  /* They were dropped on whatever ground the angle landed on, which on
+   * Guldplaneten is often the side of a boulder - so half a villager
+   * would be inside the rock. Each one now looks for level footing near
+   * where it wanted to stand, the same downhill walk the ship uses. */
+  const footing=(x,z)=>{
+    let bx=x,bz=z,best=1e9;
+    for(let k=0;k<14;k++){
+      const px=x+(k?(Math.cos(k*2.4)*k*1.8):0), pz=z+(k?(Math.sin(k*2.4)*k*1.8):0);
+      const e=2.2;
+      const gx=(groundH("gold",px+e,pz)-groundH("gold",px-e,pz))/(2*e);
+      const gz=(groundH("gold",px,pz+e)-groundH("gold",px,pz-e))/(2*e);
+      const sl=Math.hypot(gx,gz);
+      if(sl<best){best=sl;bx=px;bz=pz;}
+      if(sl<0.12)break;
+    }
+    return {x:bx,z:bz};
+  };
   for(let i=0;i<ALIEN_N;i++){
     const a=r()*Math.PI*2, rad=8+r()*40;
+    const f=footing(cx+Math.cos(a)*rad,cz+Math.sin(a)*rad);
     aliens.push({
-      x:cx+Math.cos(a)*rad, z:cz+Math.sin(a)*rad,
+      x:f.x, z:f.z,
       yaw:r()*Math.PI*2, turn:r()*Math.PI*2,
       sc:(i<3?1.02+r()*.18:.8+r()*.5), speed:0, think:r()*4,
       talk:0, chirp:2+r()*8, lean:0,
@@ -4061,7 +4101,10 @@ function updateQuests(dt,vx,vz){
        * of them are visible at once and you pick who to help. */
       if(Q.done[k]&&Q.active!==k)return;
       const gy=groundH("gold",g.x,g.z);
-      markAt(g.x,gy+2.4,g.z,"!",14,()=>talkToGiver(k));
+      /* The bubble hangs over his head too, and the hand was sitting on
+       * top of the words. While he is talking, the hand steps aside. */
+      if(!(bubble.mesh.visible&&bubble.owner===GIVER[k]))
+        markAt(g.x,gy+2.4,g.z,"!",14,()=>talkToGiver(k));
     });
   }
 
@@ -4384,7 +4427,7 @@ function updateSeat(dt){
 }
 /* On foot the view is the walker's, not the ship's. */
 const WALK={pos:new THREE.Vector3(),quat:new THREE.Quaternion(),yaw:0,eye:1.15,active:false,
-            vy:0,air:false,jet:false,hx:0,hz:0};
+            vy:0,air:false,jet:false,hx:0,hz:0,fly:false};
 function syncWorld(){
   shipMat.compose(SHIP.pos,SHIP.quat,ONE);
   ship.matrix.copy(shipMat);
@@ -4971,7 +5014,9 @@ const msgEl=document.getElementById("msg"), touchbar=document.getElementById("to
 const tbMain=document.getElementById("tbMain"), tbFlight=document.getElementById("tbFlight");
 const xrNote=document.getElementById("xrNote");
 const btnVR=document.getElementById("btnVR"), btnFlat=document.getElementById("btnFlat");
-const skinBtns={steel:document.getElementById("skinSteel"),black:document.getElementById("skinBlack")};
+const skinBtns={steel:document.getElementById("skinSteel"),
+                black:document.getElementById("skinBlack"),
+                red:document.getElementById("skinRed")};
 const modeBtns={auto:document.getElementById("modeAuto"),easy:document.getElementById("modeEasy"),
                 hard:document.getElementById("modeHard")};
 const modeHint=document.getElementById("modeHint");
@@ -5033,6 +5078,22 @@ function progressNow(){
     return {k:"core"+CORES.held,label:"BRÆNDSTOF",have:CORES.held,total:CORE_N};
   return null;
 }
+/* Hung off headYaw, these sat still while the head turned: headYaw is
+ * ABOVE the camera, so the head pose is applied below them. Peter found
+ * the fuel counter only because he went looking for it. Placed against
+ * the live camera pose each frame, they are simply always there. */
+const _fp=new THREE.Vector3(), _fq=new THREE.Quaternion(), _fw=new THREE.Vector3();
+function faceHud(plate,up,dist){
+  const cam=(renderer.xr.isPresenting&&renderer.xr.getCamera)
+    ? renderer.xr.getCamera(camera) : camera;
+  cam.getWorldPosition(_fp);cam.getWorldQuaternion(_fq);
+  _fw.set(0,up,-dist).applyQuaternion(_fq).add(_fp);
+  plate.parent.worldToLocal(_fw);
+  plate.position.copy(_fw);
+  plate.parent.getWorldQuaternion(_fp2);
+  plate.quaternion.copy(_fp2.invert()).multiply(_fq);
+}
+const _fp2=new THREE.Quaternion();
 function updateQuestHud(){
   const p=progressNow();
   if(!p){questHud.visible=false;pipSig="";return;}
@@ -5043,6 +5104,7 @@ function updateQuestHud(){
     questHud.material.needsUpdate=true;
   }
   questHud.visible=true;
+  faceHud(questHud,.19,1.05);
 }
 function showMsg(t,secs){
   msgEl.textContent=t;msgEl.style.opacity="1";msgTimer=secs||4.5;
@@ -5070,6 +5132,7 @@ function setMode(key){
 for(const k in modeBtns)modeBtns[k].addEventListener("click",()=>setMode(k));
 skinBtns.steel.addEventListener("click",()=>setSkin("steel"));
 skinBtns.black.addEventListener("click",()=>setSkin("black"));
+skinBtns.red.addEventListener("click",()=>setSkin("red"));
 
 const inIframe=window.self!==window.top;
 (async function checkXR(){
@@ -5239,7 +5302,7 @@ window.addEventListener("keydown",e=>{
     if(WALK.air)WALK.jet=true;        // held: the backpack
   }
   keys[e.code]=true;
-  if(e.code==="KeyB")setSkin(currentSkin==="steel"?"black":"steel");
+  if(e.code==="KeyB")setSkin(SKIN_ORDER[(SKIN_ORDER.indexOf(currentSkin)+1)%SKIN_ORDER.length]);
   if(e.code==="KeyM"){const o=["auto","easy","hard"];setMode(o[(o.indexOf(MODE.key)+1)%3]);}
 });
 window.addEventListener("keyup",e=>{keys[e.code]=false;if(e.code==="Space")WALK.jet=false;});
@@ -6010,6 +6073,17 @@ function exitShip(){
   m.position.set(0,-1.6,0);ship.add(m);
   makeInteractive(m,{poke:0,onPress:()=>enterShip()});
 })();
+/* "I don't know where the ship is now, so I'm kind of lost." A column of
+ * light over it, visible from anywhere on the surface and from the air,
+ * so being lost is a choice. */
+const shipBeacon=(function(){
+  const g=new THREE.CylinderGeometry(1.6,1.6,620,8,1,true);
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x7fd4e8,
+    transparent:true,opacity:.17,blending:THREE.AdditiveBlending,
+    depthWrite:false,side:THREE.DoubleSide}));
+  m.position.y=300;m.renderOrder=-2;m.visible=false;ship.add(m);
+  return m;
+})();
 function enterShip(){
   if(!WALK.active){cockpitVisible(true);return;}
   /* The console and the yoke are enormous, and out on the apron they are
@@ -6035,7 +6109,7 @@ function enterShip(){
   }
   blink(()=>{
     cockpitVisible(true);
-    WALK.active=false;
+    WALK.active=false;WALK.fly=false;WALK.hx=0;WALK.hz=0;
     St.phase=St.dest?"landed":"preflight";
     enterMark.visible=false;tpMark.group.visible=false;
     log("OMBORD");
@@ -6085,13 +6159,20 @@ function faceYaw(){
 function walkMove(dx,dz,dt){
   const m=Math.hypot(dx,dz);
   if(m<1e-3){walkSpeed+=(0-walkSpeed)*Math.min(1,dt*6);return;}
-  const SP=3.4;                                   // a walk, not a sprint
+  /* On the pack you cover ground properly - that is the whole reason to
+   * light it - and the stick drives the drift rather than the feet. */
+  const SP=WALK.fly?19:3.4;
   const yw=faceYaw();
   const c=Math.cos(yw), si=Math.sin(yw);
   const fx=-si, fz=-c;                            // forward
   const rx= c,  rz=-si;                           // right
-  WALK.pos.x+=(fx*dz+rx*dx)/Math.max(1,m)*SP*dt;
-  WALK.pos.z+=(fz*dz+rz*dx)/Math.max(1,m)*SP*dt;
+  if(WALK.fly){
+    WALK.hx=(fx*dz+rx*dx)/Math.max(1,m)*SP;
+    WALK.hz=(fz*dz+rz*dx)/Math.max(1,m)*SP;
+  }else{
+    WALK.pos.x+=(fx*dz+rx*dx)/Math.max(1,m)*SP*dt;
+    WALK.pos.z+=(fz*dz+rz*dx)/Math.max(1,m)*SP*dt;
+  }
   walkSpeed+=(1-walkSpeed)*Math.min(1,dt*6);
 }
 /* ---------- the hop ----------
@@ -6140,7 +6221,19 @@ function updateEVA(dt){
   /* Feet follow the height field every frame, so slopes are walked up and
    * the village is something you stand among rather than fly past. */
   const h=walkH(WALK.pos.x,WALK.pos.z);
-  if(WALK.air){
+  if(WALK.fly){
+    /* Holding station a few metres up. No gravity while the pack is lit;
+     * the stick does the flying, and the ground is followed so you clear
+     * a ridge instead of ploughing into it. */
+    const want=h+WALK.eye+9;
+    WALK.vy+=((want-WALK.pos.y)*2.2-WALK.vy)*Math.min(1,dt*3.4);
+    WALK.vy=THREE.MathUtils.clamp(WALK.vy,-16,16);
+    WALK.pos.y+=WALK.vy*dt;
+    if(WALK.hx||WALK.hz){
+      WALK.pos.x+=WALK.hx*dt;WALK.pos.z+=WALK.hz*dt;
+      const drag=Math.exp(-dt*1.6);WALK.hx*=drag;WALK.hz*=drag;
+    }
+  }else if(WALK.air){
     const g=(St.dest?DEST[St.dest].grav:9.8);
     /* Tap the button and you hop; hold it and the backpack lights and
      * you keep going up. Three hundred metres is enough to see the whole
@@ -6270,8 +6363,12 @@ function updateFlight(dt){
     const kU=keys.KeyW||keys.ArrowUp,   kD=keys.KeyS||keys.ArrowDown;
     if(kL)yokeWheel.rotation.z=Math.min(1.25,yokeWheel.rotation.z+dt*1.8);
     if(kR)yokeWheel.rotation.z=Math.max(-1.25,yokeWheel.rotation.z-dt*1.8);
-    if(kU)yokeGroup.rotation.x=Math.max(-.36,yokeGroup.rotation.x-dt*.8);
-    if(kD)yokeGroup.rotation.x=Math.min(.36,yokeGroup.rotation.x+dt*.8);
+    /* Swapped along with the yoke's sign, so NÆSE opad still raises the
+     * nose. Grabbing the wheel and pushing it away gives a NEGATIVE
+     * rotation.x (the hand moves toward -z), which is now nose-down, so
+     * the key that means "nose up" has to pull the column back. */
+    if(kU)yokeGroup.rotation.x=Math.min(.36,yokeGroup.rotation.x+dt*.8);
+    if(kD)yokeGroup.rotation.x=Math.max(-.36,yokeGroup.rotation.x-dt*.8);
     if(keys.ShiftLeft||keys.ShiftRight)throttle.value=Math.min(1,throttle.value+dt*.6);
     if(keys.ControlLeft||keys.ControlRight)throttle.value=Math.max(0,throttle.value-dt*.6);
   }
@@ -6304,10 +6401,11 @@ function updateFlight(dt){
      * the wrong aircraft. Autopilot answers to no axes, so only Let and
      * Svær ever showed it. */
     if(MODE.dof===2){
-      rotateShip(-pitchIn*dt*MODE.p*scale,roll*dt*MODE.y*scale,0);
+      /* Push the wheel away: nose down. Pull it back: nose up. */
+      rotateShip(pitchIn*dt*MODE.p*scale,roll*dt*MODE.y*scale,0);
       if(MODE.level>0)levelWings(dt*MODE.level);
     }else{
-      rotateShip(-pitchIn*dt*MODE.p*scale,roll*dt*MODE.y*scale,roll*dt*MODE.r*scale);
+      rotateShip(pitchIn*dt*MODE.p*scale,roll*dt*MODE.y*scale,roll*dt*MODE.r*scale);
     }
   }
 
@@ -6477,6 +6575,10 @@ function updateFlight(dt){
       landBtn.group.visible=true;setLimb(null);
       log("ANKOMST");
       showMsg(auto?"Autopiloten flyver ind.":"Flyv ind mod "+d.name+" — tryk LAND når du vil ned.");
+      /* Hand flying: arrive with the engines idle, so the first thing you
+       * do is fall and the gas is plainly the brake. Arriving under power
+       * made it look as though the throttle pushed you DOWN. */
+      if(!auto)throttle.value=0;
       Audio_.ok();
     }
   }
@@ -6857,19 +6959,22 @@ function updateFlight(dt){
  * reset moves the floor out from under our offsets, so there has to be a
  * way back that does not mean taking it off. */
 let recArmed=false;
-/* Left hand: arc to the ring you are aiming at. Right hand: straight up. */
-function jumpFromController(c){
+/* This took the jump away entirely for a release. The controller loop
+ * iterates `src`, not `c`, so calling it with `c` threw - and that loop
+ * sits inside a try/catch, which swallowed the error and simply never
+ * jumped. A silent catch around input handling hides exactly this.
+ *
+ * Peter's design, which is better than the arc I guessed at: the left
+ * hand TOGGLES the jetpack. Press once and you rise a few metres and
+ * hold there, fly across the surface on the stick, press again to come
+ * down. The right hand still hops. */
+function toggleFly(){
   if(!WALK.active)return;
-  const left=(c.userData.handedness==="left");
-  if(left&&!WALK.air){
-    const o=new THREE.Vector3(),d=new THREE.Vector3(0,0,-1);
-    c.getWorldPosition(o);d.applyQuaternion(c.getWorldQuaternion(new THREE.Quaternion()));
-    /* aimGround leaves the landing point in tpMark.point, the same spot
-     * the teleport ring is standing on - so the arc lands exactly where
-     * the circle is, which is the whole point of offering the choice. */
-    if(aimGround(o,d)&&arcJumpTo(tpMark.point.x,tpMark.point.z))return;
-  }
-  jumpWalker();
+  WALK.fly=!WALK.fly;
+  if(WALK.fly){WALK.air=true;WALK.jet=false;WALK.hx=0;WALK.hz=0;
+    showMsg("Jetpack til — flyv med pinden, tryk igen for at lande.",5);}
+  else showMsg("Jetpack fra.",3);
+  Audio_.click();
 }
 function checkRecenterGesture(){
   let n=0;
@@ -6983,12 +7088,13 @@ function frame(){
        * controllers so it does not matter which hand is free. */
       if(WALK.active&&gp.buttons&&gp.buttons[4]){
         const down=gp.buttons[4].pressed;
-        if(down){if(!jumpArmed){jumpArmed=true;jumpFromController(c);}}
+        if(down){if(!jumpArmed){jumpArmed=true;
+          if(src.handedness==="left")toggleFly();else jumpWalker();}}
         else jumpArmed=false;
         /* Held, it is a jet pack — but only once you are off the
          * ground, so the press that starts the hop is not also the
          * press that lights the engine. */
-        WALK.jet=down&&WALK.air;
+        WALK.jet=down&&WALK.air&&!WALK.fly&&src.handedness!=="left";
       }
     }
   }catch(e){}
@@ -7037,7 +7143,8 @@ function frame(){
   if(!touchbar.hidden)buildTouchbar();
   if(msgTimer>0){msgTimer-=dt;
     if(msgTimer<=0){msgEl.style.opacity="0";msgPlate.visible=false;}
-    else msgPlate.material.opacity=Math.min(1,msgTimer*2.2);}
+    else {msgPlate.material.opacity=Math.min(1,msgTimer*2.2);
+          faceHud(msgPlate,-.23,1.15);}}
   if(St.phase!=="hyperspace"){
     stars.rotation.y+=dt*.002;
     deepSky.rotation.y=stars.rotation.y;
@@ -7046,6 +7153,7 @@ function frame(){
    * are sitting at them. Commanded visibility could drift out of step
    * with where you actually were; derived visibility cannot. */
   cockpitVisible(!WALK.active);
+  shipBeacon.visible=WALK.active;
   updateQuestHud();
   markFlush();
   renderer.render(scene,camera);
