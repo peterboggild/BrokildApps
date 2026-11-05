@@ -809,10 +809,13 @@ function box(w,h,d,mat,x,y,z,parent){
  */
 const landHud=(function(){
   const c=cvs(512,220), ctx=c.getContext("2d");
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(.84,.36),
+  /* Smaller and higher: at .84 x .36 sitting at .92 the bottom of it
+   * disappeared behind the sill, and what was left covered the view you
+   * are landing by. */
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(.58,.25),
     new THREE.MeshBasicMaterial({map:tex(c),transparent:true,
-      depthWrite:false,opacity:.95}));
-  m.position.set(0,.92,-1.00);m.rotation.x=.20;m.visible=false;ship.add(m);
+      depthWrite:false,opacity:.93}));
+  m.position.set(0,1.21,-1.00);m.rotation.x=.10;m.visible=false;ship.add(m);
   return {mesh:m,ctx:ctx,canvas:c};
 })();
 function drawLandHud(){
@@ -1478,7 +1481,11 @@ function consoleButton(x,y,label,bg,border,color,baseCol,onPress,opts){
   g.visible=false;
   return {group:g,mat:mat};
 }
-const hyperBtn=consoleButton(.84,-.150,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper());
+/* Not in the right-hand action slot: the startup switches are over there,
+ * so leaving for another world meant sliding across, pressing, and sliding
+ * back - mid-flight, with a planet waiting. It belongs by the throttle,
+ * under the pilot's own hand, and it can be smaller for it. */
+const hyperBtn=consoleButton(.84,-.150,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper(),{size:24});
 const landBtn =consoleButton(.84,-.150,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
 /* START takes the console's action slot, which the phase-critical buttons
  * share. NY FLYVNING is a rare, deliberate thing, so it moves to the port
@@ -1593,6 +1600,12 @@ const throttle={value:0,group:new THREE.Group(),arm:null};
   const plate=new THREE.Mesh(new THREE.PlaneGeometry(.055,.26),
     new THREE.MeshBasicMaterial({map:tex(labelCanvas("GAS",{w:64,h:256,size:26,bg:"#0d1218",border:false,color:"#9fb0c2",glow:false}))}));
   plate.rotation.x=-Math.PI/2;plate.position.set(.05,.021,0);g.add(plate);
+  /* It was floating: a lever and a knob with nothing underneath. This is
+   * the pedestal that carries it down into the console. */
+  const ped=new THREE.Mesh(new THREE.BoxGeometry(.15,.17,.15),M.hullDark);
+  ped.position.set(0,-.095,.02);g.add(ped);
+  const yoke2=new THREE.Mesh(new THREE.BoxGeometry(.10,.07,.26),M.hullDark);
+  yoke2.position.set(0,-.05,-.07);g.add(yoke2);
   const arm=new THREE.Group();g.add(arm);
   const stick=new THREE.Mesh(new THREE.CylinderGeometry(.015,.018,.2,10),M.trim);
   stick.position.y=.1;arm.add(stick);
@@ -2030,7 +2043,18 @@ updateStars(0,0);
  * pilot's eye; that moved the core off the window's axis, which is not
  * what you want when the window is the thing you are looking through. It
  * stays on the centreline. */
-function centreWarp(on){ stars.position.set(0,0,0); }
+const _wc=new THREE.Vector3();
+function centreWarp(on){
+  if(!on){stars.position.set(0,0,0);return;}
+  /* Three rounds of "still not centred" were all the same thing: the
+   * streaks converge on the star field's origin, which sits on the hull's
+   * centreline, while the pilot sits 46 cm to one side of it and the
+   * passenger 46 cm to the other. Put the vanishing point where the head
+   * actually is and it is centred from either seat, every time. */
+  camera.getWorldPosition(_wc);
+  shell.worldToLocal(_wc);
+  stars.position.copy(_wc);
+}
 
 function cloudTexture(r0,g0,b0,seed){
   const S=160,c=cvs(S,S),g=c.getContext("2d");
@@ -3466,7 +3490,7 @@ function updateCores(dt){
     _ce.set(0,St.t*-.6+i,Math.PI/2);_cq.setFromEuler(_ce);
     _cm.compose(_cp.set(c.x,gy+.92+bob,c.z),_cq,_cs.setScalar(1));
     coreCage.setMatrixAt(i*2+1,_cm);
-    if(WALK.active)markAt(c.x,gy+2.3,c.z,"?",7.2,()=>takeCore(c),400);
+    if(WALK.active)markAt(c.x,gy+2.3,c.z,"?",14,()=>takeCore(c),400);
   });
   corePlinth.instanceMatrix.needsUpdate=true;
   coreCage.instanceMatrix.needsUpdate=true;
@@ -3935,7 +3959,7 @@ function updateQuests(dt,vx,vz){
        * of them are visible at once and you pick who to help. */
       if(Q.done[k]&&Q.active!==k)return;
       const gy=groundH("gold",g.x,g.z);
-      markAt(g.x,gy+2.4,g.z,"!",9,()=>talkToGiver(k));
+      markAt(g.x,gy+2.4,g.z,"!",14,()=>talkToGiver(k));
     });
   }
 
@@ -3946,7 +3970,7 @@ function updateQuests(dt,vx,vz){
      * paperwork either: if you reach someone sinking in quicksand you get
      * them out whether or not anyone has asked you to yet. */
     if(!sk.freed&&!Q.done.sand&&WALK.active)
-      markAt(sk.x,gy+1.9,sk.z,"?",6.6,()=>{
+      markAt(sk.x,gy+1.9,sk.z,"?",12,()=>{
         if(sk.freed)return;
         sk.freed=true;Audio_.ok();
         const left=Q.sand.filter(t=>!t.freed).length;
@@ -3965,7 +3989,7 @@ function updateQuests(dt,vx,vz){
   // --- fruit: walk over it ---
   Q.fruit.forEach((f,i)=>{
     if(!f.taken&&!Q.done.food&&WALK.active)
-      markAt(f.x,groundH("gold",f.x,f.z)+1.9,f.z,"?",6.6,()=>{
+      markAt(f.x,groundH("gold",f.x,f.z)+1.9,f.z,"?",12,()=>{
         if(f.taken)return;
         f.taken=true;Q.held++;Audio_.ok();
         say(GIVER.food,Q.held>=3?"Du har alle tre! Kom tilbage til mig.":("Guldfrugt "+Q.held+" af 3."),4);
@@ -3984,7 +4008,7 @@ function updateQuests(dt,vx,vz){
   const L=Q.lost;
   if(L){
     if(!L.found&&!Q.done.lost&&WALK.active)
-      markAt(L.x,groundH("gold",L.x,L.z)+1.5,L.z,"?",7.0,()=>{
+      markAt(L.x,groundH("gold",L.x,L.z)+1.5,L.z,"?",13,()=>{
         if(L.found)return;
         L.found=true;Audio_.ok();say(GIVER.lost,QTEXT.lostF,5);
       },Q.active==="lost"?150:14);
@@ -4079,6 +4103,14 @@ function buildHand(sideSign){
    * hand; mirrored outwards it reads as a broken claw. */
   troot.position.set(-sideSign*.042,-.004,-.004);
   troot.rotation.set(-.20,sideSign*.58,sideSign*.42);g.add(troot);
+  /* Index 0 is not reliably the left hand, and if it is not, both thumbs
+   * end up on the outside - which is exactly what they did. The real
+   * handedness arrives with the 'connected' event, so the thumb can be
+   * moved to the correct side of the palm then. */
+  g.userData.setSide=function(sign){
+    troot.position.x=-sign*.042;
+    troot.rotation.set(-.20,sign*.58,sign*.42);
+  };
   const tchain=[];let tp=troot;
   for(let s=0;s<2;s++){
     const seg=new THREE.Group();tp.add(seg);
@@ -4110,6 +4142,12 @@ for(let i=0;i<2;i++){
   /* Same parent as the ray, or a recentre turns the pointer and leaves
    * the hands behind - which is exactly what it did. */
   const grip=renderer.xr.getControllerGrip(i);headYaw.add(grip);
+  c.addEventListener("connected",ev=>{
+    const h=ev&&ev.data&&ev.data.handedness;
+    const hand=c.userData.hand;
+    if(hand&&hand.group.userData.setSide&&(h==="left"||h==="right"))
+      hand.group.userData.setSide(h==="left"?-1:1);
+  });
   const hand=buildHand(i===0?-1:1);
   /* The grip pose sits in the palm; the model is authored around the wrist,
    * so it is nudged back and tipped to match how a Touch is actually held. */
@@ -4556,6 +4594,19 @@ function pressBig(){
   log("TÆNDING");showMsg("Tænding!");
   throttle.value=Math.max(throttle.value,.6);
 }
+/* Moved out of the right-hand action slot and onto the throttle pedestal
+ * itself: on the console it landed across the instrument readout, and in
+ * the right slot it meant sliding into the other seat mid-flight to press
+ * it, with a planet waiting. Here it is under the pilot's own hand, which
+ * is where the jump belongs. */
+(function mountHyper(){
+  const g=hyperBtn.group;
+  g.parent.remove(g);
+  throttle.group.add(g);
+  g.position.set(-.155,.035,.085);
+  g.rotation.set(-.30,0,0);
+  g.scale.setScalar(.72);
+})();
 function pressHyper(){
   if(St.phase!=="course")return;
   const cost=jumpCost(St.dest);
@@ -4849,6 +4900,18 @@ btnVR.addEventListener("click",async()=>{
   ui.hidden=true;hud.hidden=true;touchbar.hidden=true;
   session.addEventListener("end",()=>{ui.hidden=false;});
   pendingRecenter=3;
+  /* When the player holds the Oculus button and recentres, the reference
+   * space is re-originated under them and every offset we had computed
+   * is suddenly measured from somewhere else - which is why the seat
+   * ended up under the console and facing the wrong way. The session
+   * tells us when that happens, so we can simply start over. */
+  try{
+    const rs=renderer.xr.getReferenceSpace&&renderer.xr.getReferenceSpace();
+    if(rs&&rs.addEventListener)rs.addEventListener("reset",()=>{
+      rig.position.set(seatX,0,0);headYaw.rotation.y=0;
+      pendingRecenter=3;
+    });
+  }catch(e){}
   if(renderer.xr.setFoveation)try{renderer.xr.setFoveation(1);}catch(e){}
   setTimeout(()=>{
     if(renderer.xr.isPresenting)return;
@@ -4876,7 +4939,9 @@ function recenter(final){
   /* Then the position, measured after the turn, because turning the rig
    * about its own origin moves the head as well. */
   _rcp.setFromMatrixPosition(xrCam.matrixWorld);
-  rig.position.x+=seatX-_rcp.x;rig.position.z-=_rcp.z;rig.position.y+=1.15-_rcp.y;
+  /* Sitting ON the seat, not on its front edge: the eye belongs a little
+   * way back from the console, which is where the window is framed from. */
+  rig.position.x+=seatX-_rcp.x;rig.position.z+=.24-_rcp.z;rig.position.y+=1.15-_rcp.y;
   /* Never more than a room away, whatever the headset reported. A wild
    * value here used to leave the cockpit somewhere above your head. */
   rig.position.x=THREE.MathUtils.clamp(rig.position.x,seatX-1.2,seatX+1.2);
@@ -5203,7 +5268,10 @@ function animTpMark(t){
  *  uses it instead of teleporting. Out of reach, or pointed at open
  *  ground, nothing changes and the trigger still moves you.
  * ------------------------------------------------------------------ */
-const REACH=9;
+/* Peter: "it is not obvious you have to get close enough to actually
+ * touch them - if you can point at them with the hand rays, that is
+ * fine." So the arm is as long as the aim. */
+const REACH=17;
 const useMark=(function(){
   const g=new THREE.Group();g.visible=false;g.renderOrder=40;world.add(g);
   const mk=(geo,col,op,order)=>{
@@ -5872,7 +5940,7 @@ function updateEVA(dt){
     /* An exclamation mark over it, and you pick it up by clicking. It
      * used to be yours the moment you came within three metres, which
      * could happen while you were walking somewhere else entirely. */
-    markAt(MAPAT.x,groundH(MAPAT.key,MAPAT.x,MAPAT.z)+2.0,MAPAT.z,"?",6.6,()=>takeMap());
+    markAt(MAPAT.x,groundH(MAPAT.key,MAPAT.x,MAPAT.z)+2.0,MAPAT.z,"?",12,()=>takeMap());
   }
   const hatchW=_v.set(-4.25,-1.25,-1.30).applyQuaternion(SHIP.quat).add(SHIP.pos);
   enterMark.visible=hatchW.distanceTo(WALK.pos)<60;
@@ -5974,7 +6042,8 @@ function updateFlight(dt){
   function steer(scale,target){
     /* Parked. Turning the wheel with the gear on the ground used to roll
      * the ship where it stood, which is both wrong and alarming. */
-    if(SHIP.onGround&&!St.climbing)return;
+    if(SHIP.onGround&&!St.climbing&&
+       St.phase!=="ignition"&&St.phase!=="ascent")return;
     if(auto){
       if(target)aimAt(target,dt*1.1);else levelWings(dt*1.4);
       return;
@@ -6264,7 +6333,20 @@ function updateFlight(dt){
        * difference between the two. */
       steer(1);
       const spd=SHIP.vel.dot(FWD);
-      _v.copy(FWD).multiplyScalar(St.thrust*d.grav*2.4);
+      /* Leaving a world, the engines point DOWN, not forward. Thrust
+       * along the nose is right for cruising and absurd on a pad: level
+       * ship, level thrust, and the only thing that happened was the
+       * ship sliding across the Moon. While climbing out, most of the
+       * thrust goes straight up, easing into the nose model as you get
+       * clear - and never below a floor, so there is always a way off
+       * every world in every mode. */
+      const climbMix=St.climbing
+        ? THREE.MathUtils.clamp(1-Math.max(0,St.alt)/9000,.70,1) : 0;
+      _v.copy(FWD).multiplyScalar(St.thrust*d.grav*2.4*(1-climbMix));
+      /* Not scaled by local gravity: tying the climb to d.grav made the
+       * Moon crawl, because a sixth of the weight also bought a sixth of
+       * the push. A launch should feel the same wherever you are. */
+      _v.addScaledVector(UP,St.thrust*(d.grav+8.5)*1.5*climbMix);
       /* No air, no wing and no drag. The Moon had a floor under both —
        * 0.35 of full lift and half the drag coefficient — so it flew like
        * somewhere with weather. It is vacuum now: the Moon is flown on
@@ -6274,7 +6356,11 @@ function updateFlight(dt){
       const lift=THREE.MathUtils.clamp(Math.max(0,spd)/38,0,1);
       _v.addScaledVector(UP,lift*d.atmo*d.grav*(0.85+MODE.assist*0.35));
       _v.y-=d.grav;
-      _v.addScaledVector(SHIP.vel,-0.26*(0.02+0.98*d.atmo));
+      /* A rocket climbing out is not a glider: the full drag term held
+       * Earth's ascent to about 30 m/s, which is five hundred seconds
+       * to orbit. Most of it is lifted while the engines are pointed
+       * down, and comes back as soon as you are flying. */
+      _v.addScaledVector(SHIP.vel,-0.26*(0.02+0.98*d.atmo)*(1-.75*climbMix));
       SHIP.vel.addScaledVector(_v,dt);
       SHIP.pos.addScaledVector(SHIP.vel,dt);
     }
@@ -6314,7 +6400,9 @@ function updateFlight(dt){
      * sharing one. */
     skirt.material.opacity=1-THREE.MathUtils.clamp((St.alt-1200)/2300,0,1);
     updateLimb(dt,Math.max(0,St.alt),1);
-    if(St.alt<=0){
+    /* ...but not while the engines are lifting her off it. */
+    const lifting=St.climbing&&St.thrust>.35;
+    if(St.alt<=0&&!lifting){
       /* No crash, ever. Touching down stops the descent and bleeds off speed;
        * how hard you arrived is recorded, not punished. */
       if(!SHIP.onGround){
@@ -6382,6 +6470,8 @@ function updateFlight(dt){
       if(St.thrust>.55)SHIP.onGround=false;          // and you can take off again
       St.climbing=false;
     }else{
+      /* Clear of the ground, or on the way up: never sink through it. */
+      if(St.alt<=0){SHIP.pos.y=h+GEAR;if(SHIP.vel.y<0)SHIP.vel.y=0;}
       SHIP.onGround=false;
       if(St.phase==="landed")St.phase="descent";
     }
@@ -6625,6 +6715,9 @@ function frame(){
    * else, so it is never in the way of the view it is there to serve. */
   const _hp=St.phase;
   const wantHud=(!WALK.active&&(_hp==="descent"||_hp==="landed"||_hp==="ignition"||_hp==="ascent"));
+  /* In front of whichever seat you are in. On the hull centreline it was
+   * half a metre off to one side, the same mistake as the warp. */
+  landHud.mesh.position.x=seatX;
   landHud.mesh.visible=wantHud;
   if(screenClock>.14){
     screenClock=0;drawStatus();if(St.dest)drawMap();
