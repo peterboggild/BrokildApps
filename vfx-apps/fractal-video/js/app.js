@@ -1042,7 +1042,7 @@
   // The trigger plays / pauses the music; the preview on the PC pauses while the headset is in use.
   let xr = null;
   const standalone = () => /OculusBrowser|Quest|Pico|Wolvic|VR\b.*Mobile|Mobile VR/i.test(navigator.userAgent || '');
-  const liveVrSettings = () => Object.assign({ scale: standalone() ? 0.35 : 0.5, march: 'draft', level: true }, settings.liveVr || {});
+  const liveVrSettings = () => Object.assign({ scale: 0.5, march: 'draft', level: true }, settings.liveVr || {});
   function setLiveVrSettings(patch) {
     settings.liveVr = Object.assign(liveVrSettings(), patch);
     saveSettings();
@@ -1079,44 +1079,47 @@
       toast(`VR did not start: ${err.message}`, 'err', 10000);
       return;
     }
-    const job = { session, layer, frames: 0, t0: performance.now(), fps: 0, ms: 0, size: '' };
+    const job = { session, layer, vr: null, last: null };
+    FV.liveVrJob = job; // read by the headless VR test
     xr = job;
     renderer.setHold(true);
-    session.addEventListener('select', () => { togglePlay(); });
+    // VR mode (js/vr-mode.js): flying, scaling, twisting, the in-headset panels and the frame-rate guard.
+    // Quick changes edit the scene being shown, like the panels on the page (undo works afterwards).
+    job.vr = FV.VrMode.create({
+      gl, renderer, session, layer, ref, Formulas, Schema, Pal: window.FVPalettes, mic,
+      project: () => project,
+      evaluate: () => evaluateNow(transport.time()),
+      evaluateBase: () => { try { return Ev.evaluate(project, fileAnalysis(), transport.time(), settings.view === 'scene' ? { sceneId: currentScene().id, modulate: false, animate: transport.playing } : { modulate: false }); } catch (err) { return null; } },
+      playing: () => transport.playing,
+      togglePlay: () => { togglePlay(); },
+      commit: () => { commit(); rebuild(settings.tab, 'scenes'); },
+      holdScene: (id) => { selectScene(id, { keepView: true }); if (settings.view !== 'scene') setView('scene'); },
+      arrangement: () => setView('timeline'),
+      isHeld: () => settings.view === 'scene',
+      precompile: (id) => renderer._formulaProgram(id),
+      hasMaster: () => !!analysis.master,
+      depthK: () => movieSettings().vrDepth,
+      level: () => liveVrSettings().level,
+      march: () => liveVrSettings().march,
+      settings: () => liveVrSettings(),
+      saveSettings: (patch) => setLiveVrSettings(patch),
+      status: (text) => { const el = document.getElementById('liveVrStatus'); if (el) el.textContent = text; }
+    });
     session.addEventListener('end', () => {
+      if (job.vr) job.vr.end();
       if (xr === job) xr = null;
       renderer.setHold(false);
       invalidate();
       rebuild('render');
     });
-    let msSum = 0;
     const onFrame = (time, xf) => {
       if (xr !== job) return;
       session.requestAnimationFrame(onFrame);
-      const pose = xf.getViewerPose(ref);
-      if (!pose) return;
-      const t1 = performance.now();
-      const set = liveVrSettings();
-      const frame = evaluateNow(transport.time());
-      const dist = frame.camera && frame.camera.dist > 0 ? frame.camera.dist : 1;
-      const scale = (movieSettings().vrDepth * dist) / 0.064;
-      pose.views.forEach((v) => {
-        const vp = layer.getViewport(v);
-        if (!vp || vp.width < 1 || vp.height < 1) return;
-        renderer.renderXR(frame, v, vp, layer.framebuffer, { scale, level: set.level, quality: set.march });
-        job.size = `${vp.width}×${vp.height}`;
-      });
-      msSum += performance.now() - t1;
-      job.frames += 1;
-      const el = performance.now() - job.t0;
-      if (el > 1000) {
-        job.fps = (job.frames * 1000) / el;
-        job.ms = msSum / job.frames;
-        job.frames = 0;
-        msSum = 0;
-        job.t0 = performance.now();
-        const st = document.getElementById('liveVrStatus');
-        if (st) st.textContent = `In VR: ${job.fps.toFixed(0)} frames/s, ${job.size} per eye${mic.active ? ', listening' : ''}. Trigger = play / pause. Press the Quest menu button to leave.`;
+      try {
+        job.last = job.vr.onFrame(time, xf);
+      } catch (err) {
+        if (!job.err) console.error(err);
+        job.err = err.message;
       }
     };
     session.requestAnimationFrame(onFrame);
@@ -1194,6 +1197,8 @@
     liveVrSupport,
     startLiveVr,
     liveVrActive: () => !!xr,
+    liveVrState: () => (xr && xr.last) || null,
+    liveVrMode: () => (xr && xr.vr) || null,
     micActive: () => mic.active,
     micStarting: () => mic.starting,
     micError: () => mic.error,

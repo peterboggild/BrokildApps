@@ -182,6 +182,105 @@ test('live input drives master routes in the evaluator; movies (live: null) igno
   assert.strictEqual(Ev.evaluate(p, an, 1, { sceneId: sid }).gpu.p[0], off.gpu.p[0], 'stopped = no effect');
 });
 
+// ---------- VR mode ----------
+const VrMode = require('../js/vr-mode.js');
+const { Rig, Perf } = VrMode;
+const VM = VrMode.math;
+const near = (a, b, eps, what) => a.forEach((v, i) => assert.ok(Math.abs(v - b[i]) < (eps || 1e-6), `${what || ''} [${a.map((x) => x.toFixed(4))}] vs [${b.map((x) => x.toFixed(4))}]`));
+const roomOf = (rig, w) => VM.mul(VM.mv(VM.mT(rig.R), VM.sub(w, rig.O)), 1 / rig.S);
+const g0 = { camPos: [0, 0.5, 3], camFwd: VM.norm([0, -0.5, -3]), camUp: [0, 1, 0], camRight: [1, 0, 0] };
+
+test('VR rig: the ride rig sits at the scene camera, level, facing the target', () => {
+  const rig = Rig.fromCamera(g0, 2);
+  near(Rig.toWorld(rig, [0, 0, 0]), g0.camPos, 1e-9, 'origin');
+  const fwd = VM.mv(rig.R, [0, 0, -1]);
+  assert.ok(Math.abs(fwd[1]) < 1e-9 && fwd[2] < -0.99, 'looks along -z, level');
+});
+
+test('VR rig: pulling the hands apart makes the fractal bigger about the point between the hands', () => {
+  const rig = Rig.fromCamera(g0, 2);
+  const a = [-0.1, 1.2, -0.4], b = [0.1, 1.2, -0.4];
+  const st = Rig.pinchStart(rig, a, b);
+  const r2 = Rig.pinch(st, [-0.2, 1.2, -0.4], [0.2, 1.2, -0.4], 1e-4, 100);
+  assert.ok(Math.abs(r2.S - rig.S / 2) < 1e-9, `scale ${r2.S}`);
+  near(Rig.toWorld(r2, [0, 1.2, -0.4]), Rig.toWorld(rig, [0, 1.2, -0.4]), 1e-9, 'midpoint stays');
+  // a world point 1 room-metre right of the midpoint now appears 2 m away: twice as big
+  const w = Rig.toWorld(rig, [1, 1.2, -0.4]);
+  near(roomOf(r2, w), [2, 1.2, -0.4], 1e-9, 'doubled');
+});
+
+test('VR rig: a grip twist turns the fractal with the hand, about its target', () => {
+  const rig = Rig.fromCamera(g0, 2);
+  const pivot = [0, 0, 0];
+  const h0 = VM.axisAngle([0, 0, 1], 0.3);
+  const st = Rig.twistStart(rig, h0, pivot);
+  const D = VM.axisAngle([0, 1, 0], Math.PI / 2);
+  const r2 = Rig.twist(st, VM.mm(D, h0));
+  near(roomOf(r2, pivot), roomOf(rig, pivot), 1e-9, 'pivot stays put');
+  const w = [0.5, 0, 0];
+  const before = VM.sub(roomOf(rig, w), roomOf(rig, pivot));
+  const after = VM.sub(roomOf(r2, w), roomOf(r2, pivot));
+  near(after, VM.mv(D, before), 1e-9, 'offset rotated by the hand');
+});
+
+test('VR rig: turning keeps the head in place, flying moves by S x the room step', () => {
+  const rig = Rig.fromCamera(g0, 2);
+  const head = [0.1, 1.6, 0.2];
+  const r2 = Rig.turn(rig, head, 0.7);
+  near(Rig.toWorld(r2, head), Rig.toWorld(rig, head), 1e-9, 'head');
+  const r3 = Rig.fly(rig, [0, 0, -1]);
+  near(VM.sub(r3.O, rig.O), VM.mul(VM.mv(rig.R, [0, 0, -1]), 2), 1e-9, 'fly');
+  const r4 = Rig.pulse(rig, [0, 0, 0], 1.5);
+  near(Rig.toWorld(r4, [0, 0, 0]), VM.mul(rig.O, 1.5), 1e-9, 'pulse scales about the target');
+});
+
+test('VR frame-rate guard: drops at once on late frames, climbs back slowly, offers a way out', () => {
+  const p = new Perf(72, { start: 0.8, min: 0.3 });
+  for (let i = 0; i < 100; i += 1) p.frame(13.9);
+  const ok = p.res;
+  assert.ok(ok >= 0.8, `steady at ${ok}`);
+  p.frame(60); p.frame(60);
+  assert.ok(p.res <= ok * 0.61, `two very late frames: ${ok} -> ${p.res}`);
+  for (let i = 0; i < 400; i += 1) p.frame(13.9);
+  assert.ok(p.res > ok * 0.61 && p.res <= 1, `recovers to ${p.res}`);
+  const q = new Perf(72, { start: 0.8, min: 0.3 });
+  let at = -1;
+  for (let i = 0; i < 200 && at < 0; i += 1) { q.frame(70); if (q.heavy) at = i; }
+  assert.ok(Math.abs(q.res - 0.3) < 1e-9, `at the floor: ${q.res}`);
+  assert.ok(at > 0 && at < 30, `heavy after ${at} frames of 14 fps`);
+  const r = new Perf(72, { start: 0.8, min: 0.3 });
+  for (let i = 0; i < 400; i += 1) r.frame(20);
+  assert.ok(!r.heavy, '50 fps is not heavy');
+});
+
+test('VR sound recipes: a tile adds a route for this scene only and toggles it off and on', () => {
+  const p = Schema.defaultProject();
+  const sid = p.scenes[0].id;
+  const r = VrMode.RECIPES.find((x) => x.id === 'mids');
+  const n = p.mod.length;
+  VrMode.toggleRecipe(p, sid, r, 2, Schema.uid);
+  assert.strictEqual(p.mod.length, n + 1);
+  const m = p.mod[p.mod.length - 1];
+  assert.ok(VrMode.recipeOn(p, sid, r) && !VrMode.recipeOn(p, p.scenes[1].id, r), 'only in this scene');
+  assert.ok(Math.abs(m.depth - r.depth * 2) < 1e-12, 'wild doubles the depth');
+  VrMode.setSensitivity(p, sid, 0.5);
+  assert.ok(Math.abs(m.depth - r.depth * 0.5) < 1e-12, 'calm halves it');
+  VrMode.toggleRecipe(p, sid, r, 1, Schema.uid);
+  assert.ok(!VrMode.recipeOn(p, sid, r) && p.mod.length === n + 1, 'off again, route kept');
+  const q = Schema.normalizeProject(JSON.parse(JSON.stringify(p)));
+  assert.strictEqual(q.mod.length, p.mod.length, 'survives a save');
+  // the default project's bass route counts as the Bass recipe
+  assert.ok(VrMode.recipeOn(p, sid, VrMode.RECIPES[0]), 'default bass route is on');
+});
+
+test('VR way out: fastest() prefers measured speed, then the prior, and never offers the current one', () => {
+  const ids = Formulas.FORMULAS.map((f) => ({ id: f.id }));
+  const a = VrMode.fastest(ids, {}, 'sierpinski', 3);
+  assert.ok(!a.includes('sierpinski') && a.length === 3, a.join());
+  const b = VrMode.fastest(ids, { ridges: 5 }, 'mandelbulb', 3);
+  assert.strictEqual(b[0], 'ridges');
+});
+
 test('transitions blend into the next scene and land on the downbeat', () => {
   const p = Schema.defaultProject();
   const starts = Ev.sectionStarts(p);

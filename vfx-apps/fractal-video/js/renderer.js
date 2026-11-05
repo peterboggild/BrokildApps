@@ -1036,7 +1036,16 @@ void main() {
       let F = g.camFwd;
       let R = g.camRight;
       let U = g.camUp;
-      if (opts.level) {
+      let base = g.camPos;
+      let scale = opts.scale;
+      if (opts.rig) {
+        // VR mode: an explicit room -> world rig (world = O + S * R * room), R = [right, up, back]
+        R = opts.rig.R[0];
+        U = opts.rig.R[1];
+        F = mul(opts.rig.R[2], -1);
+        base = opts.rig.O;
+        scale = opts.rig.S;
+      } else if (opts.level) {
         // the room stands upright: heading only; the head does the looking up and down
         let fh = [F[0], 0, F[2]];
         if (Math.hypot(fh[0], fh[2]) < 1e-3) fh = [U[0], 0, U[2]];
@@ -1051,21 +1060,32 @@ void main() {
       const C = W(rot([P[8] / P[0], P[9] / P[5], -1]));
       const DX = W(rot([1 / P[0], 0, 0]));
       const DY = W(rot([0, 1 / P[5], 0]));
-      const pos = add(g.camPos, mul(W([M[12], M[13], M[14]]), opts.scale));
+      const pos = add(base, mul(W([M[12], M[13], M[14]]), scale));
       const w = vp.width;
       const h = vp.height;
       const ft = len(DY);
       const cam = { pos, fwd: C, right: mul(DX, h / w / ft), up: mul(DY, 1 / ft), fovT: ft };
-      const live = this._target('xr', w, h, true);
-      const geom = { cx: w / 2, cy: h / 2, fh: h };
+      // opts.res: the fractal is marched at this share of the eye's size and scaled up by the display pass
+      const res = opts.res > 0 ? Math.min(1, opts.res) : 1;
+      const rw = Math.max(8, Math.round(w * res));
+      const rh = Math.max(8, Math.round(h * res));
+      const live = this._target('xr', rw, rh, true);
+      const geom = { cx: rw / 2, cy: rh / 2, fh: rh };
+      let fr = frame;
+      if (opts.rig && frame.camera) {
+        // flying away from the target must not run into the far limit
+        const c = frame.camera;
+        const away = len([pos[0] - (c.tx || 0), pos[1] - (c.ty || 0), pos[2] - (c.tz || 0)]);
+        if (away * 3 > g.maxDist) fr = Object.assign({}, frame, { gpu: Object.assign({}, g, { maxDist: away * 3 }) });
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER, live.fbo);
-      gl.viewport(0, 0, w, h);
+      gl.viewport(0, 0, rw, rh);
       gl.disable(gl.BLEND);
       gl.disable(gl.SCISSOR_TEST);
       gl.useProgram(entry.prog);
-      this._setFractalUniforms(entry, frame, w, h, [0, 0], { quality: opts.quality || 'draft', geom, cam });
+      this._setFractalUniforms(entry, fr, rw, rh, [0, 0], { quality: opts.quality || 'draft', geom, cam });
       gl.drawArrays(gl.TRIANGLES, 0, 3);
-      this._drawDisplay(fbo, w, h, live.tex, null, false, Object.assign({}, frame.post, { vignette: 0 }), geom, [vp.x, vp.y]);
+      this._drawDisplay(fbo, w, h, live.tex, null, false, Object.assign({}, frame.post, { vignette: 0 }), { cx: w / 2, cy: h / 2, fh: h }, [vp.x, vp.y]);
       return true;
     }
 

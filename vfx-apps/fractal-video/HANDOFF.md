@@ -174,3 +174,38 @@ Still not on the BrokildApps front page (no manifest entry).
   with stereo on, Quest Browser user agent): mic starts, meter moves, 35 % default, Enter VR gives 750x950 per
   eye, trigger plays, Leave VR works. Only 404s: favicon and /render/check (no render server on a static host).
   Not verified: frame rate on a real Quest's chip.
+
+## VR mode (2026-11-05, later) — `js/vr-mode.js`
+
+Peter's ask after the first headset test: a slick in-VR panel for quick changes, flying with the controllers,
+scale/twist, a sound palette, and a way out when the frame rate collapses. His choices (asked): both triggers
+held + pull apart = scale; grip = the fractal follows the hand's rotation; sound palette = quick recipes;
+the panel is toggled by Y.
+
+- **Rig** (pure maths, tested): world = O + S * R * room. Ride = rig from the scene camera every frame (old
+  behaviour, level heading); any stick / grip / pinch switches to Fly (rig is ours); B = back to the ride.
+  Left stick = fly along the gaze + sideways (1.4 room-m/s, so speed scales with S), right stick x = smooth
+  turn about the head (no vignette, as asked), y = rise/sink. Pinch keeps the world point between the hands
+  under them (drag too). Twist pivots on the scene target (camera tx/ty/tz). While flying, cam.dist routes
+  still breathe: the world is scaled about the target by dist(modulated) / dist(unmodulated) (evaluateBase).
+- **renderXR** takes `opts.rig` and `opts.res` (fractal marched at res x the eye size into the 'xr' target,
+  upscaled by the display pass; the far limit follows you when you fly away).
+- **Frame-rate guard** (`Perf`): two frames > 2.4x the frame time -> res x0.6 at once; EMA > 1.3x -> x0.85
+  every 0.4 s; < 1.1x -> x1.07 every 1.5 s; floor 0.3. At the floor, 1 s of frames slower than ~42 fps =
+  heavy -> the panel opens with the three fastest fractals (learned per formula as res^2 x target/frametime,
+  stored in settings.liveVr.perf; a hand-made prior until measured) and "Keep this one". 72 Hz is requested.
+- **Panels**: Canvas 2D -> texture -> quads in the room (overlay program, gl_VertexID quads/lines/dots);
+  rays from targetRaySpace, hover, trigger click on release (< 0.6 s, not a pinch). Main panel: fractals
+  (all 27), looks (18 presets), Play/Pause, Hold scene / Play arrangement, Scene camera, Sound…, Auto quality.
+  Sound palette (trigger at the fractal, or X): Bass->cam.dist, Beats->look.exposure, Highs->look.palOffset,
+  Mids->space.twist, Level->look.glow as per-scene routes (other scenes in `off`), Calm/Normal/Wild scales
+  their depth (x0.5/1/2), Mic in the centre. A hint card shows the controls for 9 s after entering.
+- A new fractal is applied only once its shader has compiled (the old one keeps showing), then the viewer is
+  seated at its default camera and the scene is held. Changes go through commit(): saved, undo works.
+- Layer default 50 % everywhere now (auto quality goes below). The trigger no longer plays (A does).
+- Tests: `npm run check` = 31 (7 new: rig, pinch, twist, turn/fly/pulse, guard, recipes, way out).
+  `%LOCALAPPDATA%\fv-test\vr-mode.cjs` (IWER Quest 3, stereo, fake mic): 28 checks through the real input
+  paths — guard drops and offers faster fractals, ray hover + click switches fractal and look (saved), Y,
+  fly, turn, pinch x3, twist 90 deg, sound palette + recipe + Wild, X, A, B, no errors. Trap found: an int
+  uniform needs the same precision in both shaders (mediump FS + default highp VS = link failure).
+  Not verified: comfort and frame rate on the real Quest.

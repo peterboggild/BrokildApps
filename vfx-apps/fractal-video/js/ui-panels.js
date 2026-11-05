@@ -739,7 +739,8 @@
     const lv = ctx.liveVrSettings();
     const gVr = group('Live VR (headset)', 'render-livevr', true, 'WebXR');
     const setL = (patch) => { ctx.setLiveVrSettings(patch); ctx.rebuild('render'); };
-    gVr.body.appendChild(h('p', { class: 'note', text: 'Puts you inside the fractal: open this page in the headset\'s own browser (the headset\'s chip renders it), or use a headset connected to this PC (Quest over Horizon Link or Air Link, or any PC VR headset). It renders live, at lower quality than a movie. The song timeline plays as usual and starts over at the end; the trigger plays and pauses.' }));
+    gVr.body.appendChild(h('p', { class: 'note', text: 'Puts you inside the fractal: open this page in the headset\'s own browser (the headset\'s chip renders it), or use a headset connected to this PC (Quest over Horizon Link or Air Link, or any PC VR headset). It renders live, at lower quality than a movie, and the timeline starts over at the end.' }));
+    gVr.body.appendChild(h('p', { class: 'note', text: 'In the headset: left stick flies (forward/back, sideways), right stick turns and rises. Hold both triggers and pull your hands apart to make the fractal bigger (together = smaller). Hold a grip and the fractal turns with your hand. Y opens the quick panel (fractal type, look, play, hold this scene), A plays and pauses, B goes back to the scene camera. Point at the fractal and pull the trigger for the sound palette (bass, beats, highs, mids, level, sensitivity, microphone). When the frame rate drops the resolution drops at once; if even the lowest is too slow, the panel offers faster fractals. Changes made in VR edit the scene being shown, and undo works afterwards.' }));
     gVr.body.appendChild(toggle({
       label: 'Listen with microphone', value: ctx.micActive(),
       hint: 'The master routes follow the music the microphone hears, so no audio file is needed. Switch it on before entering VR: the permission question cannot be answered inside the headset view.',
@@ -747,7 +748,7 @@
     }).el);
     gVr.body.appendChild(select({
       label: 'Resolution', value: String(lv.scale),
-      hint: 'Share of the headset\'s full resolution per eye. Lower = smoother. If the picture judders, step down.',
+      hint: 'Share of the headset\'s full resolution per eye: the most it will use. With Auto quality (headset panel) the fractal drops below this whenever the frame rate does.',
       options: [{ value: '0.2', label: '20 % (headset chip, safest)' }, { value: '0.35', label: '35 % (fastest on a PC)' }, { value: '0.5', label: '50 %' }, { value: '0.7', label: '70 %' }, { value: '1', label: '100 % (sharpest)' }],
       onChange: (v) => setL({ scale: Number(v) })
     }).el);
