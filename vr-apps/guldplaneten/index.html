@@ -812,10 +812,12 @@ const landHud=(function(){
   /* Smaller and higher: at .84 x .36 sitting at .92 the bottom of it
    * disappeared behind the sill, and what was left covered the view you
    * are landing by. */
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(.58,.25),
+  /* It sat dead in the middle of the window, over the one thing you are
+   * trying to look at while landing. Up under the top rail and shorter. */
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(.56,.155),
     new THREE.MeshBasicMaterial({map:tex(c),transparent:true,
       depthWrite:false,opacity:.93}));
-  m.position.set(0,1.21,-1.00);m.rotation.x=.10;m.visible=false;ship.add(m);
+  m.position.set(0,1.60,-1.02);m.rotation.x=-.30;m.visible=false;ship.add(m);
   return {mesh:m,ctx:ctx,canvas:c};
 })();
 function drawLandHud(){
@@ -1860,7 +1862,7 @@ function showOverlay(draw,after){
   overlay.onYes=null;overlay.onNo=null;
   /* The running hint sits across the top of the glass, which is exactly
    * where the card is. Put it away while the card is up. */
-  try{msgEl.style.opacity="0";msgTimer=0;}catch(e){}
+  try{msgEl.style.opacity="0";msgTimer=0;msgPlate.visible=false;}catch(e){}
 }
 function showChoice(draw,onYes,onNo){
   showOverlay(draw,null);
@@ -2043,17 +2045,45 @@ updateStars(0,0);
  * pilot's eye; that moved the core off the window's axis, which is not
  * what you want when the window is the thing you are looking through. It
  * stays on the centreline. */
-const _wc=new THREE.Vector3();
+const _wc=new THREE.Vector3(), _wq=new THREE.Quaternion(), _wd=new THREE.Vector3();
+/* Peter: "the centre of the streaks must be the same place the planets
+ * appear when you approach, always."
+ *
+ * Measured, those two were already the same point to three decimals - the
+ * planet arrives at scene -z and parallel streaks converge at scene -z,
+ * and an eye offset of half a metre is four hundredths of a degree at
+ * that range. What is NOT the same is where the player's "straight ahead"
+ * is: if the seat calibration leaves the head yawed, the whole world is
+ * rotated and the jump lands beside a window pillar.
+ *
+ * So both are now pinned to the same measured axis: the direction the
+ * player is actually looking when the jump starts, levelled and clamped
+ * to the window, and the arriving planet is placed on that same axis.
+ * Whatever the calibration does, the streaks and the planet agree. */
+/* And here is why they were two different sums. The planet is placed at
+ * BODY_POS, which is scene -z. The streaks run along the star field's own
+ * z - and the star field hangs in `shell`, which is counter-rotated by the
+ * ship's attitude so the sky stays still while the ship turns. So the
+ * streak axis is the SHIP's -z, not the scene's. Those agree only when the
+ * ship is perfectly level, which it is by the end of the jump but is NOT
+ * when you press the button: it still holds whatever attitude you were
+ * flying in. The planet therefore always arrived dead centre and the
+ * streaks started wherever your nose happened to be pointing.
+ *
+ * Undoing the shell's rotation on the star field puts the streaks on the
+ * scene axis - the planet's axis - from the first frame. One sum, used
+ * twice. */
+function aimWarpAtArrival(){
+  stars.quaternion.copy(shell.quaternion).invert();
+}
 function centreWarp(on){
-  if(!on){stars.position.set(0,0,0);return;}
+  if(!on){stars.position.set(0,0,0);stars.quaternion.identity();return;}
   /* Three rounds of "still not centred" were all the same thing: the
    * streaks converge on the star field's origin, which sits on the hull's
    * centreline, while the pilot sits 46 cm to one side of it and the
    * passenger 46 cm to the other. Put the vanishing point where the head
    * actually is and it is centred from either seat, every time. */
-  camera.getWorldPosition(_wc);
-  shell.worldToLocal(_wc);
-  stars.position.copy(_wc);
+  stars.position.set(0,0,0);
 }
 
 function cloudTexture(r0,g0,b0,seed){
@@ -2898,7 +2928,12 @@ function buildFarRing(key){
   const CURV=2*1800000;          // Earth's modelled radius, doubled: r^2/2R
   const FLAT0=6000, FLAT1=26000; // where the land gives way to the planet's curve
   const HAZE0=1500, HAZE1=32000; // and where it gives way to air
-  const SKY=[0.55,0.67,0.83];    // the colour of the sky at the horizon
+  /* Peter: "at first Earth seems uniformly white; it takes a while
+   * before it starts to look blue." The haze target was a pale near-grey,
+   * so everything past twenty kilometres washed out rather than going
+   * blue. A real sky colour, and a little less of it, keeps the sea and
+   * the land showing through on the way up. */
+  const SKY=[0.40,0.57,0.80];    // the colour of the sky at the horizon
   const verts=(NR+1)*NA;
   const pos=new Float32Array(verts*3), col=new Float32Array(verts*3);
   const idx=[];
@@ -2935,7 +2970,7 @@ function buildFarRing(key){
       let r0=c3[0]+(0.40-c3[0])*near,
           g0=c3[1]+(0.54-c3[1])*near,
           b0=c3[2]+(0.72-c3[2])*near;
-      const f=haze*0.97;
+      const f=haze*0.90;
       col[k]  =s2l(r0+(SKY[0]-r0)*f);
       col[k+1]=s2l(g0+(SKY[1]-g0)*f);
       col[k+2]=s2l(b0+(SKY[2]-b0)*f);
@@ -3520,7 +3555,11 @@ function takeCore(c){
       ? "Alle tre fusionskerner er dine. Tanken er allerede fuld, så de ligger i lasten til senere."
       : "Alle tre fusionskerner er dine. Bær dem tilbage til skibet og tryk på BRÆNDSTOF.",9));
   }else{
-    showMsg("Fusionskerne "+CORES.held+" af "+CORE_N+". Følg lyset til den næste.",5);
+    showMsg(CORES.held<CORE_N
+      ? ("Brændstofcelle "+CORES.held+" af "+CORE_N+" samlet op — find de sidste "+
+         (CORE_N-CORES.held)+".")
+      : ("Alle "+CORE_N+" brændstofceller samlet op!"),6);
+    if(0)showMsg("Fusionskerne "+CORES.held+" af "+CORE_N+". Følg lyset til den næste.",5);
   }
 }
 function updateCores(dt){
@@ -3867,8 +3906,10 @@ let qPit=null,qSunk=null,qSunkHead=null,qFruit=null,qLostBody=null,qLostHead=nul
 (function buildQuestProps(){
   const gold=new THREE.MeshStandardMaterial({color:0xe3b43f,roughness:.34,
     metalness:.35,emissive:0x2a1c04,flatShading:true});
-  const lostMat=new THREE.MeshStandardMaterial({color:0xf2d98a,roughness:.42,
-    metalness:.3,emissive:0x3a2c08,flatShading:true});
+  /* The grown-ups are gold. He is not, so you can tell at a glance which
+   * one of them is the one you are looking for. */
+  const lostMat=new THREE.MeshStandardMaterial({color:0xb482f5,roughness:.42,
+    metalness:.3,emissive:0x2a1550,flatShading:true});
   qPit=new THREE.Mesh(new THREE.CircleGeometry(7,24),
     new THREE.MeshStandardMaterial({color:0x6b4a12,roughness:1}));
   qPit.rotation.x=-Math.PI/2;questRoot.add(qPit);
@@ -4205,6 +4246,7 @@ for(let i=0;i<2;i++){
   const grip=renderer.xr.getControllerGrip(i);headYaw.add(grip);
   c.addEventListener("connected",ev=>{
     const h=ev&&ev.data&&ev.data.handedness;
+    c.userData.handedness=h;
     const hand=c.userData.hand;
     if(hand&&hand.group.userData.setSide&&(h==="left"||h==="right"))
       hand.group.userData.setSide(h==="left"?-1:1);
@@ -4342,7 +4384,7 @@ function updateSeat(dt){
 }
 /* On foot the view is the walker's, not the ship's. */
 const WALK={pos:new THREE.Vector3(),quat:new THREE.Quaternion(),yaw:0,eye:1.15,active:false,
-            vy:0,air:false,jet:false};
+            vy:0,air:false,jet:false,hx:0,hz:0};
 function syncWorld(){
   shipMat.compose(SHIP.pos,SHIP.quat,ONE);
   ship.matrix.copy(shipMat);
@@ -4677,7 +4719,7 @@ function pressHyper(){
     return;
   }
   GAME.fuel-=cost;drawStatus();
-  St.phase="hyperspace";St.warpT=0;Audio_.whoosh();
+  St.phase="hyperspace";St.warpT=0;Audio_.whoosh();aimWarpAtArrival();
   log("HYPERRUM");showMsg("Hyperrum i gang");
   hyperBtn.group.visible=false;
 }
@@ -4826,6 +4868,43 @@ function cancelSeq(){
   controls.forEach(c=>{c.armed=false;c.num.visible=false;});
   Audio_.click();showMsg("Startsekvensen er afbrudt.",4);
 }
+/* Landing on a mountainside buried the ship in the rock and put the hatch
+ * inside the hillside - Peter spent minutes hopping around guessing where
+ * the GÅ IND button was. A real lander would slide to the bottom, so this
+ * one does: from the touchdown point it walks downhill until the ground
+ * under it is flat enough to stand on, and slides there over a second. */
+const SETTLE={on:false,x:0,z:0,t:0};
+function settleTarget(key,x,z){
+  let cx=x,cz=z;
+  const slopeAt=(px,pz)=>{
+    const e=3.5;
+    const gx=(groundH(key,px+e,pz)-groundH(key,px-e,pz))/(2*e);
+    const gz=(groundH(key,px,pz+e)-groundH(key,px,pz-e))/(2*e);
+    return {s:Math.hypot(gx,gz),gx:gx,gz:gz};
+  };
+  for(let i=0;i<70;i++){
+    const g=slopeAt(cx,cz);
+    if(g.s<0.17)break;                       // about 10 degrees: good enough to park
+    const L=Math.hypot(g.gx,g.gz)||1;
+    cx-=g.gx/L*4.5;cz-=g.gz/L*4.5;           // straight downhill
+  }
+  return {x:cx,z:cz};
+}
+function beginSettle(key,x,z){
+  const t=settleTarget(key,x,z);
+  if(Math.hypot(t.x-x,t.z-z)<1.5){SETTLE.on=false;return;}
+  SETTLE.on=true;SETTLE.x=t.x;SETTLE.z=t.z;SETTLE.t=0;
+  showMsg("Skibet glider ned på fladere grund.",4);
+}
+function updateSettle(dt,key){
+  if(!SETTLE.on)return;
+  SETTLE.t+=dt;
+  const k=Math.min(1,dt*1.8);
+  SHIP.pos.x+=(SETTLE.x-SHIP.pos.x)*k;
+  SHIP.pos.z+=(SETTLE.z-SHIP.pos.z)*k;
+  SHIP.pos.y=groundH(key,SHIP.pos.x,SHIP.pos.z)+GEAR;
+  if(SETTLE.t>3||Math.hypot(SETTLE.x-SHIP.pos.x,SETTLE.z-SHIP.pos.z)<0.4)SETTLE.on=false;
+}
 function liftNow(){
   St.seqing=false;
   St.climbing=true;SHIP.onGround=false;
@@ -4901,7 +4980,77 @@ const gameBtns={explorer:document.getElementById("gameExplorer"),
 const gameHint=document.getElementById("gameHint");
 for(const k in gameBtns)gameBtns[k].addEventListener("click",()=>setGameMode(k));
 let msgTimer=0;
-function showMsg(t,secs){msgEl.textContent=t;msgEl.style.opacity="1";msgTimer=secs||4.5;}
+/* showMsg wrote to a DOM element, which does not exist inside a headset.
+ * Every "Fusionskerne 1 af 3", every warning, every bit of guidance has
+ * been invisible in VR this whole time - which is why picking up a core
+ * felt like nothing happening. The plate hangs off headYaw so it is
+ * readable in the seat AND out on the surface. */
+const msgPlate=(function(){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1.05,.079),
+    new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,depthTest:false}));
+  m.position.set(0,-.30,-1.25);m.visible=false;m.renderOrder=40;headYaw.add(m);
+  return m;
+})();
+/* "You cannot tell whether you have one of three; they just disappear,
+ * and it feels like a bug." Nothing told you, because the objective line
+ * lives on the console and you are out on the surface. This rides with
+ * the head, so it is there on foot. */
+const questHud=(function(){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(.78,.088),
+    new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,depthTest:false}));
+  m.position.set(0,.335,-1.25);m.visible=false;m.renderOrder=40;headYaw.add(m);
+  return m;
+})();
+let pipSig="";
+function pipCanvas(label,have,total){
+  const W=620,H=72,c=cvs(W,H),g=c.getContext("2d");
+  g.fillStyle="#0b1018";g.fillRect(0,0,W,H);
+  g.strokeStyle="#35506b";g.lineWidth=3;g.strokeRect(1.5,1.5,W-3,H-3);
+  g.font='600 30px "Chivo Mono", monospace';
+  g.textAlign="left";g.textBaseline="middle";g.fillStyle="#d6ecff";
+  g.fillText(label,22,H/2+1);
+  const r=15, gap=40, x0=W-26-gap*(total-1)-r;
+  for(let i=0;i<total;i++){
+    const x=x0+gap*i;
+    g.beginPath();g.arc(x,H/2,r,0,Math.PI*2);
+    if(i<have){g.fillStyle="#7fe8ff";g.fill();}
+    g.strokeStyle="#7fe8ff";g.lineWidth=3;g.stroke();
+  }
+  return c;
+}
+function progressNow(){
+  if(typeof Q!=="undefined"&&Q.active==="food")
+    return {k:"food"+Q.held,label:"GULDFRUGT",have:Q.held,total:3};
+  if(typeof Q!=="undefined"&&Q.active==="sand"){
+    const freed=Q.sand.filter(s=>s.freed).length;
+    return {k:"sand"+freed,label:"REDDET",have:freed,total:Q.sand.length||3};
+  }
+  if(typeof Q!=="undefined"&&Q.active==="lost")
+    return {k:"lost"+(Q.lost&&Q.lost.found?1:0),
+            label:Q.lost&&Q.lost.found?"FØLG HAM HJEM":"FIND LILLEBROR",
+            have:Q.lost&&Q.lost.found?1:0,total:1};
+  if(CORES.list.length&&!GAME.moonTaken&&CORES.held<CORE_N)
+    return {k:"core"+CORES.held,label:"BRÆNDSTOF",have:CORES.held,total:CORE_N};
+  return null;
+}
+function updateQuestHud(){
+  const p=progressNow();
+  if(!p){questHud.visible=false;pipSig="";return;}
+  if(p.k!==pipSig){
+    pipSig=p.k;
+    if(questHud.material.map)questHud.material.map.dispose();
+    questHud.material.map=tex(pipCanvas(p.label,p.have,p.total));
+    questHud.material.needsUpdate=true;
+  }
+  questHud.visible=true;
+}
+function showMsg(t,secs){
+  msgEl.textContent=t;msgEl.style.opacity="1";msgTimer=secs||4.5;
+  if(msgPlate.material.map)msgPlate.material.map.dispose();
+  msgPlate.material.map=tex(labelCanvas(t,{w:900,h:68,size:30,
+    bg:"#0b1018",border:"#35506b",color:"#d6ecff"}));
+  msgPlate.material.needsUpdate=true;msgPlate.visible=true;
+}
 function setSkin(name){
   applySkin(name);
   for(const k in skinBtns)skinBtns[k].setAttribute("aria-pressed",String(k===name));
@@ -5851,6 +6000,16 @@ function exitShip(){
                                :" — eller tryk HOP (mellemrum) for at springe."));
   });
 }
+/* And if the hatch marker is still somehow out of reach - wedged against
+ * a rock, behind a leg - pointing at the hull itself gets you in. You
+ * should never be locked out of your own ship. */
+(function hullDoor(){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(11,7.5,9),
+    new THREE.MeshBasicMaterial({transparent:true,opacity:0,
+      depthWrite:false,colorWrite:false}));
+  m.position.set(0,-1.6,0);ship.add(m);
+  makeInteractive(m,{poke:0,onPress:()=>enterShip()});
+})();
 function enterShip(){
   if(!WALK.active){cockpitVisible(true);return;}
   /* The console and the yoke are enormous, and out on the apron they are
@@ -5950,8 +6109,27 @@ function jumpWalker(){
    * drop — and solve for the speed that gets there. */
   const want=THREE.MathUtils.clamp(20/g,1.5,5.5);
   WALK.vy=Math.sqrt(2*g*want);
-  WALK.air=true;
+  WALK.air=true;WALK.hx=0;WALK.hz=0;
   Audio_.click();
+}
+/* Peter asked for the choice: blink to the ring, or FLY there. The left
+ * hand throws an arc - a real jetpack hop that leaves the ground, crosses
+ * the gap and lands you on the spot - while the right hand still hops
+ * straight up and the trigger still blinks. Seeing the ground go past is
+ * most of what makes a place feel like a place. */
+function arcJumpTo(x,z){
+  if(!WALK.active||WALK.air)return false;
+  const g=(St.dest?DEST[St.dest].grav:9.8);
+  const dx=x-WALK.pos.x, dz=z-WALK.pos.z, D=Math.hypot(dx,dz);
+  if(D<1.5)return false;
+  /* Long enough to watch, short enough not to be a bus ride; and the
+   * arc rises about a quarter of the distance it covers. */
+  const T=THREE.MathUtils.clamp(Math.sqrt(D)*0.42,0.9,3.4);
+  WALK.vy=g*T/2;
+  WALK.hx=dx/T;WALK.hz=dz/T;
+  WALK.air=true;WALK.jet=false;
+  Audio_.click();
+  return true;
 }
 function updateEVA(dt){
   St.thrust=0;St.speed=0;
@@ -5985,8 +6163,17 @@ function updateEVA(dt){
      * the height, so coming down is never a fall. */
     if(WALK.vy<term)WALK.vy=term;
     WALK.pos.y+=WALK.vy*dt;
+    /* Carried over from an arc jump: the backpack throws you forward as
+     * well as up, so a hop can clear a crater rim instead of landing you
+     * back on the same rock. Steering still works in the air, gently. */
+    if(WALK.hx||WALK.hz){
+      WALK.pos.x+=WALK.hx*dt;WALK.pos.z+=WALK.hz*dt;
+      const drag=Math.exp(-dt*0.22);WALK.hx*=drag;WALK.hz*=drag;
+    }
     if(WALK.vy<=0&&WALK.pos.y<=h+WALK.eye){
       WALK.pos.y=h+WALK.eye;WALK.vy=0;WALK.air=false;WALK.jet=false;
+      WALK.hx=0;WALK.hz=0;
+      if(terrainKey)ensureChunks(terrainKey,WALK.pos.x,WALK.pos.z);
     }
   }else{
     /* Feet follow the height field every frame, so slopes are walked up
@@ -6227,6 +6414,7 @@ function updateFlight(dt){
 
   if(ph==="hyperspace"){
     St.warpT+=dt;
+    aimWarpAtArrival();   // every frame: the streaks hold the planet's axis
     centreWarp(true);
     /* Line up for the jump. The streaks run along the ship's nose, so
      * whatever attitude you were flying in is the attitude you watch
@@ -6414,11 +6602,19 @@ function updateFlight(dt){
        * every world in every mode. */
       const climbMix=St.climbing
         ? THREE.MathUtils.clamp(1-Math.max(0,St.alt)/9000,.70,1) : 0;
-      _v.copy(FWD).multiplyScalar(St.thrust*d.grav*2.4*(1-climbMix));
+      /* Coming DOWN had the same fault as going up: thrust ran along the
+       * nose, so with the ship level the throttle did nothing vertical at
+       * all. Peter cut the gas expecting to slow and "fell like a rock",
+       * then opened it and still fell - because neither did anything. Near
+       * a world the engines now point down, so the throttle is what it
+       * looks like: more gas, slower fall. */
+      const nearMix=THREE.MathUtils.clamp(1-Math.max(0,St.alt)/2500,0,1)*.92;
+      const vmix=Math.max(climbMix,nearMix);
+      _v.copy(FWD).multiplyScalar(St.thrust*d.grav*2.4*(1-vmix));
       /* Not scaled by local gravity: tying the climb to d.grav made the
        * Moon crawl, because a sixth of the weight also bought a sixth of
        * the push. A launch should feel the same wherever you are. */
-      _v.addScaledVector(UP,St.thrust*(d.grav+8.5)*1.5*climbMix);
+      _v.addScaledVector(UP,St.thrust*(d.grav+8.5)*1.5*vmix);
       /* No air, no wing and no drag. The Moon had a floor under both —
        * 0.35 of full lift and half the drag coefficient — so it flew like
        * somewhere with weather. It is vacuum now: the Moon is flown on
@@ -6433,6 +6629,23 @@ function updateFlight(dt){
        * to orbit. Most of it is lifted while the engines are pointed
        * down, and comes back as soon as you are flying. */
       _v.addScaledVector(SHIP.vel,-0.26*(0.02+0.98*d.atmo)*(1-.75*climbMix));
+      /* And on the gentler settings the ground simply will not let you
+       * arrive too fast. The ship has never been crashable; it should not
+       * feel like falling either. */
+      /* "When you land, the ship flies forward and you bomb a long way
+       * across the ground." It did: near the surface the engines point
+       * down, so nothing was taking the horizontal speed out. Close in,
+       * the ship now behaves like what it is - a lander that hovers -
+       * and the wheel moves you sideways instead of hurling you onward. */
+      if(nearMix>0){
+        const k=Math.exp(-dt*1.35*nearMix);
+        SHIP.vel.x*=k;SHIP.vel.z*=k;
+      }
+      if(MODE.assist>0&&St.alt<600&&SHIP.vel.y<0){
+        const lim=-(3.5+St.alt*.055);
+        if(SHIP.vel.y<lim)
+          SHIP.vel.y+=(lim-SHIP.vel.y)*Math.min(1,dt*2.4*MODE.assist);
+      }
       SHIP.vel.addScaledVector(_v,dt);
       SHIP.pos.addScaledVector(SHIP.vel,dt);
     }
@@ -6480,6 +6693,8 @@ function updateFlight(dt){
       if(!SHIP.onGround){
         const vy=Math.abs(SHIP.vel.y);
         Audio_.thud(Math.min(1,vy/55));
+        /* If this is a hillside, slide down it before anyone gets out. */
+        beginSettle(terrainKey||St.dest,SHIP.pos.x,SHIP.pos.z);
         haptic(controllers[0],.9,120);haptic(controllers[1],.9,120);
         St.landQuality=vy<9?"BLØD":vy<26?"FAST":"HÅRD";
         if(St.dest==="gold"&&!alienRoot.visible){
@@ -6541,6 +6756,7 @@ function updateFlight(dt){
       St.phase=SHIP.vel.length()<2?"landed":"descent";
       if(St.thrust>.55)SHIP.onGround=false;          // and you can take off again
       St.climbing=false;
+      updateSettle(dt,terrainKey||St.dest);
     }else{
       /* Clear of the ground, or on the way up: never sink through it. */
       if(St.alt<=0){SHIP.pos.y=h+GEAR;if(SHIP.vel.y<0)SHIP.vel.y=0;}
@@ -6641,6 +6857,20 @@ function updateFlight(dt){
  * reset moves the floor out from under our offsets, so there has to be a
  * way back that does not mean taking it off. */
 let recArmed=false;
+/* Left hand: arc to the ring you are aiming at. Right hand: straight up. */
+function jumpFromController(c){
+  if(!WALK.active)return;
+  const left=(c.userData.handedness==="left");
+  if(left&&!WALK.air){
+    const o=new THREE.Vector3(),d=new THREE.Vector3(0,0,-1);
+    c.getWorldPosition(o);d.applyQuaternion(c.getWorldQuaternion(new THREE.Quaternion()));
+    /* aimGround leaves the landing point in tpMark.point, the same spot
+     * the teleport ring is standing on - so the arc lands exactly where
+     * the circle is, which is the whole point of offering the choice. */
+    if(aimGround(o,d)&&arcJumpTo(tpMark.point.x,tpMark.point.z))return;
+  }
+  jumpWalker();
+}
 function checkRecenterGesture(){
   let n=0;
   controllers.forEach(c=>{
@@ -6753,7 +6983,7 @@ function frame(){
        * controllers so it does not matter which hand is free. */
       if(WALK.active&&gp.buttons&&gp.buttons[4]){
         const down=gp.buttons[4].pressed;
-        if(down){if(!jumpArmed){jumpArmed=true;jumpWalker();}}
+        if(down){if(!jumpArmed){jumpArmed=true;jumpFromController(c);}}
         else jumpArmed=false;
         /* Held, it is a jet pack — but only once you are off the
          * ground, so the press that starts the hop is not also the
@@ -6805,7 +7035,9 @@ function frame(){
     setObjective(objectiveText(),St.phase==="landed"?"#c9a0ff":"#f2a33c");
   }
   if(!touchbar.hidden)buildTouchbar();
-  if(msgTimer>0){msgTimer-=dt;if(msgTimer<=0)msgEl.style.opacity="0";}
+  if(msgTimer>0){msgTimer-=dt;
+    if(msgTimer<=0){msgEl.style.opacity="0";msgPlate.visible=false;}
+    else msgPlate.material.opacity=Math.min(1,msgTimer*2.2);}
   if(St.phase!=="hyperspace"){
     stars.rotation.y+=dt*.002;
     deepSky.rotation.y=stars.rotation.y;
@@ -6814,6 +7046,7 @@ function frame(){
    * are sitting at them. Commanded visibility could drift out of step
    * with where you actually were; derived visibility cannot. */
   cockpitVisible(!WALK.active);
+  updateQuestHud();
   markFlush();
   renderer.render(scene,camera);
 }
