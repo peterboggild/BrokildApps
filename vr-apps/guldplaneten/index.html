@@ -3027,12 +3027,27 @@ function buildFarRing(key){
   /* What each world fades toward at the rim: Earth's sky, Mars's dust,
    * Guldplaneten's violet air - and for the Moon its own ground, so the
    * far shell simply stays rock the whole way out. */
+  /* COLOUR SPACE, and why the shell came out three times too dark.
+   * earthColor authors sRGB values, so Earth's go through s2l on the way
+   * into the buffer. DEST.ground is a plain hex that the chunk material
+   * hands straight to a MeshStandardMaterial, where this build treats it
+   * as LINEAR - so running it through s2l as well turned 0.56 into 0.20
+   * and left a visible step at the seam. Measured, then fixed: the other
+   * three worlds are written in linear and skip the conversion. */
   const SKY=earthy?[0.27,0.42,0.66]
-    :(key==="mars"?[0.55,0.36,0.26]
-    :(key==="gold"?[0.52,0.42,0.62]
+    :(key==="mars"?[s2l(0.55),s2l(0.36),s2l(0.26)]
+    :(key==="gold"?[s2l(0.52),s2l(0.42),s2l(0.62)]
     :[Math.min(1,base.r*1.06),Math.min(1,base.g*1.06),Math.min(1,base.b*1.06)]));
   const verts=(NR+1)*NA;
   const pos=new Float32Array(verts*3), col=new Float32Array(verts*3);
+  /* The long haze is carried per-vertex as an AMOUNT rather than baked
+   * into the colour, so how much of it you actually see can depend on
+   * altitude. Peter at 20 km: "Earth is uniformly blue." It was - the
+   * fade was a function of horizontal distance alone, so ground seventy
+   * kilometres out was painted full sky whether you were standing in it
+   * or looking down from above the air. Climbing OUT of an atmosphere
+   * should make the ground clearer, not foggier. */
+  const hzA=new Float32Array(verts);
   const idx=[];
   const c3=new Float32Array(3);
   const ss=(a,b,x)=>{const t=THREE.MathUtils.clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
@@ -3044,9 +3059,16 @@ function buildFarRing(key){
     for(let j=0;j<NA;j++){
       const a=j/NA*Math.PI*2, x=Math.cos(a)*rr, z=Math.sin(a)*rr;
       const k=(i*NA+j)*3;
-      let h=0, sl=0, lit=1;
+      /* The HEIGHT is flattened with distance so the horizon stays a
+       * clean curve - but the COLOUR keeps reading the real terrain all
+       * the way out, which is where the coasts and the seas come from.
+       * Flattening both is why Earth from twenty kilometres was a single
+       * unbroken green: there was nothing left out there to be a colour
+       * of anything. One extra height sample per far vertex buys the
+       * whole continent. */
+      let h=groundH(key,x,z), hCol=h, sl=0, lit=1;
+      h*=land;
       if(land>0.002){
-        h=groundH(key,x,z);
         const e=rr*0.012+6;
         const gx=(groundH(key,x+e,z)-groundH(key,x-e,z))/(2*e);
         const gz=(groundH(key,x,z+e)-groundH(key,x,z-e))/(2*e);
@@ -3055,14 +3077,21 @@ function buildFarRing(key){
          * slope - without it the ranges were flat black cutouts. */
         const L=Math.hypot(gx,1,gz);
         lit=0.52+0.78*Math.max(0,(-gx*-0.38+1*0.51+-gz*-0.77)/L);
-        h*=land;sl*=land;
+        sl*=land;
       }
-      pos[k]=x;pos[k+1]=h-drop;pos[k+2]=z;
-      if(earthy)earthColor(h,sl,c3,0,x,z);
+      /* Under the streamed chunks, not level with them. Both sample the
+       * same groundH, and the depth compression pulls the shell's inner
+       * rings NEARER than they really are, so the two surfaces fought
+       * for every pixel and the overlap came out stippled. Dropping the
+       * shell a couple of metres where the chunks cover it settles the
+       * argument; the chunks hide the step. */
+      const under=2.4*(1-ss(900,3800,rr));
+      pos[k]=x;pos[k+1]=h-drop-under;pos[k+2]=z;
+      if(earthy)earthColor(hCol,sl,c3,0,x,z);
       else{
         /* The other three are one ground colour with the sun baked in
          * from the slope - the same stuff as the chunks underfoot. */
-        const rough=0.80+0.34*Math.min(1,sl*1.7);
+        const rough=0.92+0.26*Math.min(1,sl*1.7);
         c3[0]=base.r*rough;c3[1]=base.g*rough;c3[2]=base.b*rough;
       }
       c3[0]*=lit;c3[1]*=lit;c3[2]*=lit;
@@ -3077,10 +3106,9 @@ function buildFarRing(key){
       /* No air, no aerial perspective: on the Moon distance is carried by
        * the curve of the ground and nothing else, which is why its
        * horizon is a hard line in every photograph taken there. */
-      const f=haze*(earthy?0.82:air*0.85);
-      col[k]  =s2l(r0+(SKY[0]-r0)*f);
-      col[k+1]=s2l(g0+(SKY[1]-g0)*f);
-      col[k+2]=s2l(b0+(SKY[2]-b0)*f);
+      hzA[i*NA+j]=haze*(earthy?0.82:air*0.85);
+      if(earthy){col[k]=s2l(r0);col[k+1]=s2l(g0);col[k+2]=s2l(b0);}
+      else{col[k]=r0;col[k+1]=g0;col[k+2]=b0;}
     }
   }
   for(let i=0;i<NR;i++)for(let j=0;j<NA;j++){
@@ -3090,6 +3118,7 @@ function buildFarRing(key){
   const geo=new THREE.BufferGeometry();
   geo.setAttribute("position",new THREE.BufferAttribute(pos,3));
   geo.setAttribute("color",new THREE.BufferAttribute(col,3));
+  geo.setAttribute("hz",new THREE.BufferAttribute(hzA,1));
   geo.setIndex(idx);geo.computeBoundingSphere();
   /* DoubleSide: the ring is built as triangle pairs round a circle and the
    * winding came out inverted once already, which culled every slope facing
@@ -3112,9 +3141,17 @@ function buildFarRing(key){
   farRing=new THREE.Mesh(geo,new THREE.ShaderMaterial({
     vertexColors:true,side:THREE.DoubleSide,
     transparent:true,
-    uniforms:{d0:{value:1250},dmax:{value:4700},soft:{value:26000},op:{value:1}},
+    /* And belt and braces: pushed away in depth so a chunk always wins. */
+    polygonOffset:true,polygonOffsetFactor:4,polygonOffsetUnits:8,
+    uniforms:{d0:{value:1250},dmax:{value:4700},soft:{value:26000},op:{value:1},
+              hazeK:{value:1},
+              sky:{value:new THREE.Vector3(
+                earthy?s2l(SKY[0]):SKY[0],
+                earthy?s2l(SKY[1]):SKY[1],
+                earthy?s2l(SKY[2]):SKY[2])}},
     vertexShader:
-      "uniform float d0,dmax,soft;varying vec3 vCol;void main(){vCol=color;"+
+      "uniform float d0,dmax,soft,hazeK;uniform vec3 sky;attribute float hz;"+
+      "varying vec3 vCol;void main(){vCol=mix(color,sky,clamp(hz*hazeK,0.0,1.0));"+
       "vec4 mv=modelViewMatrix*vec4(position,1.0);"+
       "float d=length(mv.xyz);"+
       "float dd=d>d0?d0+(dmax-d0)*(1.0-exp(-(d-d0)/soft)):d;"+
@@ -7866,9 +7903,12 @@ function frame(){
       }
     }
   }catch(e){}
-  if(controllers[0].userData.squeeze&&controllers[1].userData.squeeze&&grabs.size===0){
-    try{recenter();}catch(e){}
-  }
+  /* The both-grips recentre lived in TWO places. I removed one of them
+   * when Peter asked for it to go - "it is easy to press by accident and
+   * confusing; only the usual Meta button should reset the view" - and
+   * this second copy carried on doing it. The headset's own recentre
+   * arrives as the reference space's 'reset' event, which is the one way
+   * in. */
   if(!renderer.xr.isPresenting){
     camera.rotation.set(pitch,yaw,0,"YXZ");
     camera.position.set(0,1.15,0);
@@ -7930,6 +7970,12 @@ function frame(){
    * everything is within arm's length and the hands do the work, so two
    * cyan lines sweeping the instruments are only clutter. */
   controllers.forEach(c=>{if(c.userData.ray)c.userData.ray.visible=WALK.active;});
+  /* Above the air, the air stops hiding things. */
+  if(farRing&&farRing.material.uniforms.hazeK){
+    const a=WALK.active?0:Math.max(0,St.alt);
+    farRing.material.uniforms.hazeK.value=
+      THREE.MathUtils.clamp(1-a/16000,0.10,1);
+  }
   cockpitVisible(!WALK.active);
   shipBeacon.visible=WALK.active;
   /* Up while you are away from home and could be coming back to it:
