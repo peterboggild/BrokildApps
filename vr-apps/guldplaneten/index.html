@@ -23,7 +23,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Chivo+Mono:wght@300;400;600&display=swap">
-  <style>
+<style>
   :root{
     --void:#06080c; --steel:#141a22; --steel-hi:#232c38;
     --amber:#f2a33c; --amber-dim:#8a5d20; --ice:#7fd4e8; --gold:#e8c35a;
@@ -108,8 +108,7 @@
     padding-inline:16px;max-width:min(720px,86vw);line-height:1.25;overflow-wrap:break-word}
   [hidden]{display:none!important}
 </style>
-</head>
-<body>
+
 <div id="ui">
   <div class="panel" id="startPanel">
     <div class="rivet">Morfars Værft · Startrampe 04 · Danmark</div>
@@ -1147,7 +1146,7 @@ consoleGroup.add(new THREE.Mesh(new THREE.BoxGeometry(2.04,.5,.07),M.hull));
   const plate=new THREE.Mesh(new THREE.PlaneGeometry(.86,.062),
     new THREE.MeshBasicMaterial({map:tex(labelCanvas("THEODOR & MORFARS RUMSKIB",
       {w:900,h:64,size:27,bg:"#0b0f15",border:"#3c4756",color:"#e8c35a"})),transparent:true}));
-  plate.position.set(.33,.208,.04);consoleGroup.add(plate);
+  plate.position.set(.60,.245,.04);consoleGroup.add(plate);
 })();
 box(1.9,.52,.1,M.hullDark,0,.40,-.80);
 
@@ -1746,7 +1745,10 @@ function consoleButton(x,y,label,bg,border,color,baseCol,onPress,opts){
  * back - mid-flight, with a planet waiting. It belongs by the throttle,
  * under the pilot's own hand, and it can be smaller for it. */
 const hyperBtn=consoleButton(.84,-.150,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper(),{size:24});
-const landBtn =consoleButton(.84,-.150,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
+/* LAND was in the right-hand slot, so a solo pilot had to slide into
+ * the passenger seat to begin a descent and slide back to fly it. The
+ * startup switches stay on the right; everything you fly with is left. */
+const landBtn =consoleButton(-.84,-.150,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
 /* START takes the console's action slot, which the phase-critical buttons
  * share. NY FLYVNING is a rare, deliberate thing, so it moves to the port
  * wall with the other switches rather than competing for that slot. */
@@ -1810,7 +1812,7 @@ const objective=(function(){
    * lines fit at a size you can actually read across the cabin. */
   const m=new THREE.Mesh(new THREE.PlaneGeometry(1.52,.20),
     new THREE.MeshBasicMaterial({transparent:true}));
-  m.position.set(-.22,1.76,-1.0);ship.add(m);
+  m.position.set(0,1.76,-1.0);ship.add(m);
   return m;
 })();
 let objSig="";
@@ -1826,9 +1828,20 @@ function setObjective(text,color){
 /* These three were stacked so tightly that the message panel's lower
  * edge sat on the status panel's upper edge, which is the "cramped and
  * overlapping" Peter saw. The name strip above gave up the room. */
-const statusScreen=screenPanel(.46,.2,-.70,-.165,368,160);
-const mapScreen=screenPanel(.50,.2,-.18,-.165,400,160);
-const msgScreen=screenPanel(.40,.19,-.70,.078,320,152);
+/* Peter, from the seat: the map "ligger lavt og halvt dækket af det
+ * underste panel". It did - its lower half sat behind the dash lip.
+ * Up into the clear, and the sequence log narrowed to make the room. */
+/* The dash is genuinely full, so this is measured rather than guessed.
+ * The wheel stands at the pilot's seat, x=-0.46, and its column sweeps
+ * roughly -0.71..-0.21 - which is exactly where the sequence log was,
+ * so from the seat it read through a steering column. The throttle owns
+ * the middle and the five startup switches own the right. That leaves
+ * two real gaps: the strip outboard of the wheel, and the shelf above
+ * it. Log and messages go outboard; the map goes up on the shelf where
+ * it is clear of the lip below and the nameplate above. */
+const statusScreen=screenPanel(.30,.19,-.90,-.155,240,152);
+const mapScreen=screenPanel(.50,.17,-.15,.175,400,136);
+const msgScreen=screenPanel(.30,.16,-.90,.075,240,128);
 
 /* ---------- yoke ---------- */
 const yokeGroup=new THREE.Group();
@@ -1897,7 +1910,7 @@ const MODES={
   /* r was 0: the nose came round but the ship stayed dead level, which
    * reads as a bus rather than an aircraft. Enough bank to lean into the
    * turn, with the auto-levelling still holding the horizon. */
-  easy:{key:"easy",name:"Let",dof:2,p:.48,r:.42,y:.55,level:.7,assist:.8,vign:.52,
+  easy:{key:"easy",name:"Let",dof:2,p:.48,r:.22,y:.55,level:.7,assist:.8,vign:.52,
     hint:"To akser: rattet drejer næsen, træk/skub løfter og sænker den. Horisonten holder sig selv vandret, og skibet kan ikke stalle."},
   hard:{key:"hard",name:"Svær",dof:3,p:.85,r:1.15,y:.22,level:0,assist:0,vign:.26,
     hint:"Alle tre akser: krængning, pitch og giring, ingen automatisk oprettelse, ingen hjælp til opdrift. Du skal krænge for at dreje."}
@@ -3082,6 +3095,30 @@ function planetGroundH(x,z){
    * height, so the ship sits at zero wherever it lands. */
   return PLANET.height(d.x,d.y,d.z,true)-SITE.h0;
 }
+/* ---------- the village ----------
+ * Peter: "de her aliens skal bo et eller andet sted - de virker lidt som
+ * om de bare render rundt i et klippelandskab." They did. There were
+ * domes in the chunk builder already, scattered a third of a chunk at a
+ * time across the whole planet, but padClear deleted any that stood near
+ * the landing site - so the one place you ever looked was the one place
+ * they could not be.
+ *
+ * So every landing now gets a village of its own: a levelled clearing a
+ * hundred metres from the ship, with domes round an open square, and the
+ * villagers living in it rather than scattered over the rocks. The
+ * clearing is cut into the HEIGHT FIELD rather than laid on top of it,
+ * so the chunks, the walk, the jetpack, the villagers' footing and the
+ * props all agree about where the ground is without any of them being
+ * told about the village. */
+const VILL={live:false,x:0,z:0,y:0,r:52,fade:46,houses:[]};
+function villFlat(x,z,h){
+  if(!VILL.live)return h;
+  const d=Math.hypot(x-VILL.x,z-VILL.z);
+  if(d>VILL.r+VILL.fade)return h;
+  if(d<=VILL.r)return VILL.y;
+  const t=(d-VILL.r)/VILL.fade, e=t*t*(3-2*t);
+  return VILL.y+(h-VILL.y)*e;
+}
 function groundH(key,x,z){
   if(key==="world")return planetGroundH(x,z);
   if(key==="earth"){
@@ -3169,13 +3206,14 @@ function groundH(key,x,z){
    * and the aliens all over the ridge. Longer and shallower: still ribbed
    * from above, walkable underfoot. */
   const facet=Math.abs(Math.sin(x/260)*Math.cos(z/260))*22;
-  return (base+spires+facet+detail(x,z))*A;
+  return villFlat(x,z,(base+spires+facet+detail(x,z))*A);
 }
 
 /* ---------- terrain chunks ---------- */
 /* Where the ship intends to set down. Boulders and houses keep off it. */
 const PAD={x:0,z:0,r:30,live:false};
 function padClear(x,z,extra){
+  if(VILL.live&&Math.hypot(x-VILL.x,z-VILL.z)<VILL.r+8+(extra||0))return false;
   return !PAD.live||Math.hypot(x-PAD.x,z-PAD.z)>PAD.r+(extra||0);
 }
 /* CSEG was 26: one vertex every 21.5 m, which is why the ground looked
@@ -3296,8 +3334,31 @@ function buildFarRing(key){
   const idx=[];
   const c3=new Float32Array(3);
   const ss=(a,b,x)=>{const t=THREE.MathUtils.clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+  /* THE SHEET THAT BURIED THE VILLAGE.
+   * Each shell vertex used to be a single point sample of the height
+   * field, and the triangles between them are flat. On Jorden, whose
+   * relief is gentle, that is invisible. On Guldplaneten, where the
+   * ground moves three hundred metres in three hundred, the mesh spans
+   * its spires like a tarpaulin - and because it is unlit and one flat
+   * colour, what you see is a smooth gold sheet with the tops of the
+   * rocks poking through it. Measured before the fix: between 300 m and
+   * 1.4 km the shell stood ABOVE the real ground a third of the time,
+   * by as much as 33 m. Enough to swallow a villager, a gold fruit and
+   * most of a boulder - which is exactly what Peter found.
+   *
+   * So where the streamed chunks cover the ground, every shell vertex
+   * takes the LOWEST ground in its own cell rather than the height at
+   * its centre, and drops a little further still by how rough that cell
+   * is. The sheet now passes underneath the landscape instead of over
+   * it, and the chunks - which are the real surface out to 1.4 km -
+   * draw on top of it as they always should have. Past the chunks it
+   * fades back to the true height, because out there the shell IS the
+   * landscape and must keep its ridges. */
+  const LR=Math.log(R1/R0)/NR;         // one ring step, in log radius
   for(let i=0;i<=NR;i++){
     const t=i/NR, rr=R0*Math.pow(R1/R0,t);
+    const sink=1-ss(1400,3000,rr);     // only under the chunks
+    const dr=rr*LR*0.5, da=Math.PI*rr/NA;
     const land=1-ss(FLAT0,FLAT1,rr);     // real relief only where it can be seen
     const haze=ss(HAZE0,HAZE1,rr);
     const drop=rr*rr/CURV;               // the planet falling away beneath you
@@ -3312,6 +3373,18 @@ function buildFarRing(key){
        * of anything. One extra height sample per far vertex buys the
        * whole continent. */
       let h=groundH(key,x,z), hCol=h, sl=0, lit=1;
+      if(sink>0.002){
+        /* nine samples across this cell, radially and along the arc */
+        const ux=Math.cos(a), uz=Math.sin(a);
+        let mn=h, mx=h;
+        for(let p1=-1;p1<=1;p1++)for(let q=-1;q<=1;q++){
+          if(!p1&&!q)continue;
+          const sx=x+ux*dr*p1-uz*da*q, sz=z+uz*dr*p1+ux*da*q;
+          const g=groundH(key,sx,sz);
+          if(g<mn)mn=g; if(g>mx)mx=g;
+        }
+        h=h+(mn-(mx-mn)*0.25-h)*sink;
+      }
       h*=land;
       if(land>0.002){
         const e=rr*0.012+6;
@@ -3460,6 +3533,75 @@ const HMAT={
     emissive:0x3ff0c0,emissiveIntensity:1.1,side:THREE.DoubleSide})
 };
 const SHARED=new Set([HOUSE.trunk,HOUSE.cap,HOUSE.band,HOUSE.orb]);
+/* The landing village. Four instanced meshes for the whole settlement,
+ * so a place to live costs four draw calls and not one per dome. */
+const villageRoot=new THREE.Group();villageRoot.visible=false;
+terrainRoot.add(villageRoot);
+let villMesh=null;
+/* Where to put it: a dozen bearings at two distances, scored by how much
+ * the ground moves across a fifty-metre patch. The flattest wins, so the
+ * village is never cut into the side of a spire - and it is never under
+ * the ship, which is the whole reason there was nothing to see before. */
+function siteVillage(key,px,pz){
+  VILL.live=false;                       // score the real ground, not a levelled one
+  VILL.houses.length=0;
+  if(key!=="gold"){villageRoot.visible=false;return;}
+  let bx=px+100,bz=pz,best=Infinity;
+  for(let b=0;b<12;b++){
+    const a=b/12*Math.PI*2;
+    for(const rad of [92,126]){
+      const cx=px+Math.cos(a)*rad, cz=pz+Math.sin(a)*rad;
+      let mn=1e9,mx=-1e9;
+      for(let k=0;k<9;k++){
+        const t=k/9*Math.PI*2, rr=k?34:0;
+        const g=groundH(key,cx+Math.cos(t)*rr,cz+Math.sin(t)*rr);
+        if(g<mn)mn=g; if(g>mx)mx=g;
+      }
+      if(mx-mn<best){best=mx-mn;bx=cx;bz=cz;}
+    }
+  }
+  VILL.x=bx;VILL.z=bz;VILL.y=groundH(key,bx,bz);
+  /* One hall a little off centre and five houses round it, with the
+   * middle of the square left open - which is where the villagers
+   * gather, and where you hand your findings in. */
+  const r=mulberry32(((((bx*7.3)|0)^((bz*11.9)|0))>>>0));
+  const n=5+Math.floor(r()*3);
+  const a0=r()*Math.PI*2;
+  VILL.houses.push({x:bx+Math.cos(a0)*14,z:bz+Math.sin(a0)*14,
+                    h:26+r()*7,rb:8.2+r()*1.6,rot:r()*Math.PI*2});
+  for(let i=0;i<n;i++){
+    const a=a0+Math.PI*0.35+i/n*Math.PI*2+ (r()-.5)*0.4;
+    const rad=30+r()*14;
+    VILL.houses.push({x:bx+Math.cos(a)*rad,z:bz+Math.sin(a)*rad,
+                      h:10+r()*8,rb:3.0+r()*2.4,rot:r()*Math.PI*2});
+  }
+  VILL.live=true;                        // from here the ground is flat there
+  buildVillage();
+}
+function buildVillage(){
+  if(villMesh){
+    villMesh.forEach(m=>{villageRoot.remove(m);m.dispose&&m.dispose();});
+    villMesh=null;
+  }
+  if(!VILL.live||!VILL.houses.length){villageRoot.visible=false;return;}
+  const N=VILL.houses.length;
+  const mk=(geom,mat)=>{const m=new THREE.InstancedMesh(geom,mat,N);
+    m.frustumCulled=false;villageRoot.add(m);return m;};
+  const tr=mk(HOUSE.trunk,HMAT.body), cp=mk(HOUSE.cap,HMAT.shell),
+        bd=mk(HOUSE.band,HMAT.lit),   ob=mk(HOUSE.orb,HMAT.lit);
+  const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),
+        s3=new THREE.Vector3(),pv=new THREE.Vector3();
+  VILL.houses.forEach((h,i)=>{
+    const y=VILL.y;                      // the clearing is level, so they all sit true
+    q.setFromEuler(new THREE.Euler(0,h.rot,0));
+    mtx.compose(pv.set(h.x,y+h.h/2-1,h.z),q,s3.set(h.rb,h.h,h.rb));tr.setMatrixAt(i,mtx);
+    const cr=h.rb*1.35;
+    mtx.compose(pv.set(h.x,y+h.h+cr*.18,h.z),q,s3.set(cr,cr,cr));cp.setMatrixAt(i,mtx);
+    mtx.compose(pv.set(h.x,y+h.h*.58,h.z),q,s3.set(h.rb*.92,h.h*.15,h.rb*.92));bd.setMatrixAt(i,mtx);
+    mtx.compose(pv.set(h.x,y+h.h*1.5,h.z),q,s3.setScalar(h.rb*.22));ob.setMatrixAt(i,mtx);
+  });
+  villMesh=[tr,cp,bd,ob];villageRoot.visible=true;
+}
 /* One grain texture and one material per world, shared by every chunk.
  * Twenty-five copies of the same material was waste; sharing also means
  * the texture is uploaded to the GPU once. */
@@ -3839,7 +3981,13 @@ function setBeams(list,key){
   for(let i=0;i<BEAM_MAX;i++){
     if(i<n){
       const t=list[i], gy=groundH(key,t.x,t.z);
-      const pulse=1+Math.sin(St.t*2.2+i)*0.07;
+      /* A column that BLINKS, for the one you have to walk back to.
+       * Several are lit at once on Guldplaneten, so "go to a beam" is
+       * not an instruction - this one beats, twice a second, and is
+       * twice as wide, so there is only one of it. */
+      const pulse=t.blink
+        ? 1.9+Math.sin(St.t*7.0)*0.75
+        : 1+Math.sin(St.t*2.2+i)*0.07;
       _bm.compose(_bp.set(t.x,gy+34,t.z),_bq,_bs.set(1.6*pulse,68,1.6*pulse));
     }else _bm.compose(_bp.set(0,-99999,0),_bq,_bs.setScalar(.001));
     beams.setMatrixAt(i,_bm);
@@ -3888,7 +4036,9 @@ function placePickup(kind,key,sx,sz){
   /* A fixed bearing, so the arrows and the thing can never disagree. */
   const bear=-0.9;
   MAPAT.kind=kind;MAPAT.key=key;
-  MAPAT.x=sx+Math.sin(bear)*50; MAPAT.z=sz+Math.cos(bear)*50;
+  /* Fifty metres is a walk to the end of the garden. Far enough to be
+   * an expedition now, close enough that the beam is always in sight. */
+  MAPAT.x=sx+Math.sin(bear)*190; MAPAT.z=sz+Math.cos(bear)*190;
   MAPAT.live=true;
   mapProp.position.set(MAPAT.x,groundH(key,MAPAT.x,MAPAT.z),MAPAT.z);
   mapProp.visible=true;
@@ -4032,7 +4182,7 @@ const alienParts=(function(){
    * attribute so the vertex term is a no-op and the instance term is
    * all that tints them. */
   const gold=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.44,metalness:.35,
-    emissive:0x2a1c04,flatShading:true,vertexColors:true});
+    emissive:0x2a1c04,flatShading:false,vertexColors:true});
   const whiteAttr=geo=>{
     const n=geo.attributes.position.count, a=new Float32Array(n*3);
     a.fill(1);geo.setAttribute("color",new THREE.BufferAttribute(a,3));
@@ -4053,8 +4203,12 @@ const alienParts=(function(){
     m.frustumCulled=false;alienRoot.add(m);return m;
   };
   const parts={
-    body:mk(whiteAttr(new THREE.SphereGeometry(1,10,8)),gold),
-    head:mk(whiteAttr(new THREE.SphereGeometry(1,8,6)),gold),
+    /* They were ten segments by eight with flat shading - faceted
+     * enough to count the panels at arm's length. Smooth-shaded and
+     * three times the segments: still two instanced draws for the whole
+     * village, and now they look like people rather than dice. */
+    body:mk(whiteAttr(new THREE.SphereGeometry(1,24,16)),gold),
+    head:mk(whiteAttr(new THREE.SphereGeometry(1,20,14)),gold),
     eyeL:mk(new THREE.CircleGeometry(1,10),sclera),
     eyeR:mk(new THREE.CircleGeometry(1,10),sclera),
     pupL:mk(new THREE.CircleGeometry(1,8),pupil),
@@ -4083,6 +4237,28 @@ function spawnAliens(cx,cz){
    * Guldplaneten is often the side of a boulder - so half a villager
    * would be inside the rock. Each one now looks for level footing near
    * where it wanted to stand, the same downhill walk the ship uses. */
+  /* The boulders are scattered deterministically per chunk, so their
+   * positions can be worked out again from the same seed rather than
+   * stored - which is how a villager can be kept out of one. Peter
+   * found one that had gone missing entirely: it was inside a rock. */
+  const rockHit=(x,z)=>{
+    const ci=Math.round(x/CH), cj=Math.round(z/CH);
+    let worst=0;
+    for(let a=-1;a<=1;a++)for(let b2=-1;b2<=1;b2++){
+      const i=ci+a, j=cj+b2;
+      const rr=mulberry32(((i*2654435761)^(j*40503))>>>0);
+      const ox=i*CH, oz=j*CH;
+      for(let k=0;k<20;k++){
+        const bx=ox+(rr()-.5)*CH, bz=oz+(rr()-.5)*CH;
+        rr();                                  // keep the stream in step
+        const sc=1.4+rr()*7; rr();rr();rr();rr();
+        const need=sc*0.95+1.4;
+        const d=Math.hypot(bx-x,bz-z);
+        if(need-d>worst)worst=need-d;
+      }
+    }
+    return worst;
+  };
   const footing=(x,z)=>{
     let bx=x,bz=z,best=1e9;
     for(let k=0;k<14;k++){
@@ -4090,9 +4266,18 @@ function spawnAliens(cx,cz){
       const e=2.2;
       const gx=(groundH("gold",px+e,pz)-groundH("gold",px-e,pz))/(2*e);
       const gz=(groundH("gold",px,pz+e)-groundH("gold",px,pz-e))/(2*e);
-      const sl=Math.hypot(gx,gz);
-      if(sl<best){best=sl;bx=px;bz=pz;}
-      if(sl<0.12)break;
+      /* Flat ground is no good if there is a rock standing on it - nor
+       * if somebody's house is. The village square is dead level, so
+       * without this the flattest ground in sight was the inside of a
+       * dome and that is where a villager would stand. */
+      let house=0;
+      if(VILL.live)for(const hh of VILL.houses){
+        const d=hh.rb+1.6-Math.hypot(px-hh.x,pz-hh.z);
+        if(d>house)house=d;
+      }
+      const score=Math.hypot(gx,gz)+Math.max(0,rockHit(px,pz))*0.25+house*0.6;
+      if(score<best){best=score;bx=px;bz=pz;}
+      if(score<0.12)break;
     }
     return {x:bx,z:bz};
   };
@@ -4119,9 +4304,38 @@ function spawnAliens(cx,cz){
 const _ap=new THREE.Vector3(),_aq=new THREE.Quaternion(),_as=new THREE.Vector3();
 const _am2=new THREE.Matrix4(),_arel=new THREE.Vector3(),_ainv=new THREE.Quaternion();
 let chirpCooldown=0;
+/* Which giver, if any, is waiting for you to come back. */
+function waitingGiver(){
+  if(typeof Q==="undefined"||!Q.active)return -1;
+  const k=Q.active;
+  const ready=(k==="sand")?Q.sand.every(s=>s.freed)
+    :(k==="food")?(Q.held>=3)
+    :(k==="math")?(MATHQ.n>=MATHQ.need)
+    :(k==="dig")?DIGQ.taken
+    :(k==="lost")?(Q.lost&&Q.lost.found)
+    :false;
+  return ready?GIVER[k]:-1;
+}
+let litGiver=-2;
 function updateAliens(dt){
   if(!alienRoot.visible)return;
   updateParty(dt);
+  /* Orange, and only him. Three columns of light stand on this planet
+   * at once, so "walk to a beam" does not say which - the one you owe
+   * an answer to is now a different colour as well as a blinking
+   * column, and the two agree. */
+  const w=waitingGiver();
+  if(w!==litGiver){
+    litGiver=w;
+    const c=new THREE.Color();
+    for(let i=0;i<ALIEN_N;i++){
+      c.setHex(i===w?0xff8a2a
+        :(i<3?GIVER_TINT[i]:ALIEN_TINT[i%ALIEN_TINT.length]));
+      alienParts.body.setColorAt(i,c);alienParts.head.setColorAt(i,c);
+    }
+    alienParts.body.instanceColor.needsUpdate=true;
+    alienParts.head.instanceColor.needsUpdate=true;
+  }
   const vx=WALK.active?WALK.pos.x:SHIP.pos.x;
   const vy=WALK.active?WALK.pos.y:SHIP.pos.y;
   const vz=WALK.active?WALK.pos.z:SHIP.pos.z;
@@ -5074,7 +5288,8 @@ function updateQuests(dt,vx,vz){
    * empty - and with it every beam and arrow, while he is standing
    * eighty metres out with nothing at all to say "now walk back". The
    * light moves to whoever asked instead. */
-  const giverPoint=k=>{const g=aliens[GIVER[k]];return g?{x:g.x,z:g.z}:null;};
+  const giverPoint=k=>{const g=aliens[GIVER[k]];
+    return g?{x:g.x,z:g.z,blink:true}:null;};
   if(Q.active==="sand"){
     const r=Q.sand.filter(s=>!s.freed);
     const t=r.length?r:[giverPoint("sand")].filter(Boolean);
@@ -5091,7 +5306,7 @@ function updateQuests(dt,vx,vz){
     const g=aliens[GIVER.math];
     if(g){setBeams([{x:g.x,z:g.z}],"gold");tgt={x:g.x,z:g.z};}
   }else if(Q.active==="dig"){
-    const t=DIGQ.taken?aliens[GIVER.dig]
+    const t=DIGQ.taken?{x:aliens[GIVER.dig].x,z:aliens[GIVER.dig].z,blink:true}
           :(!DIGQ.held?{x:DIGQ.tool.position.x,z:DIGQ.tool.position.z}
                       :{x:DIGQ.x,z:DIGQ.z});
     if(t){setBeams([{x:t.x,z:t.z}],"gold");tgt={x:t.x,z:t.z};}
@@ -5678,9 +5893,9 @@ function pressBig(){
   const g=hyperBtn.group;
   g.parent.remove(g);
   throttle.group.add(g);
-  g.position.set(-.155,.035,.085);
+  g.position.set(.175,.035,.085);
   g.rotation.set(-.30,0,0);
-  g.scale.setScalar(.72);
+  g.scale.setScalar(.70);
 })();
 /* ---------------- THE GLOBE, and the hop ----------------
  *
@@ -6021,6 +6236,22 @@ function updateHop(dt){
     log("LANDET VED NÅLEN");
   }
 }
+/* The red button moves to the throttle too, and for a better reason
+ * than reach: with it over on the right you ran the switch sequence in
+ * the passenger seat and launched from there, before you were back at
+ * the wheel. Now the sequence is still done on the right, and then you
+ * slide back to the pilot's seat to light it - which is the order the
+ * thing should happen in anyway. HYPERRUM moves to the other side of
+ * the throttle so the two are never confused for each other. */
+(function moveStart(){
+  const g=bigBtn.group||bigBtn;
+  if(!g||!g.parent)return;
+  g.parent.remove(g);
+  throttle.group.add(g);
+  g.position.set(-.175,.055,.085);
+  g.rotation.set(-.30,0,0);
+  g.scale.setScalar(.62);
+})();
 function pressHyper(){
   if(St.phase!=="course")return;
   const cost=jumpCost(St.dest);
@@ -6084,6 +6315,14 @@ function pressLand(){
   const home=(St.dest==="earth");
   St.phase="descent";terrainKey=St.dest;St.climbing=false;
   St.seqing=false;
+  /* Flying it down yourself: arrive already falling. With the throttle
+   * where you left it the descent began by climbing, which is a strange
+   * way to start a landing - the first thing that should happen is the
+   * ground coming up at you, and then the gas is obviously the brake. */
+  if(MODE.dof>0){
+    throttle.value=0;
+    if(SHIP.vel.y>-26)SHIP.vel.y=-26;
+  }
   GAME.beenOut=false;
   const spot=home?{x:0,z:0}:flatSpot(St.dest,0,0,420);
   /* Home has a target too, now that home has terrain. While Jorden was
@@ -6096,6 +6335,9 @@ function pressLand(){
    * a chunk is built, and a 7 m rock half-sunk in the sand goes straight
    * through the hull of anything that sets down on it. */
   PAD.x=spot.x;PAD.z=spot.z;PAD.live=true;
+  /* Before a single chunk is built, because the clearing is part of the
+   * height field and every chunk has to be made with it already in. */
+  siteVillage(St.dest,spot.x,spot.z);
   clearChunks();
   /* Start the run-in a few hundred metres short, along the approach, so
    * there is still a descent to watch. */
@@ -7537,6 +7779,12 @@ function enterShip(){
   blink(()=>{
     cockpitVisible(true);
     WALK.active=false;WALK.fly=false;WALK.hx=0;WALK.hz=0;
+    /* Square the view on the way in. Outside you turn wherever the
+     * errand takes you, and whatever direction you were facing when you
+     * pressed the hatch was the direction you woke up in - sometimes
+     * staring at the back wall, sometimes at the seat behind you.
+     * Coming aboard now ends with you looking out of the windscreen. */
+    pendingRecenter=3;
     St.phase=St.dest?"landed":"preflight";
     enterMark.visible=false;tpMark.group.visible=false;
     log("OMBORD");
@@ -7845,9 +8093,18 @@ function updateFlight(dt){
      * the wrong aircraft. Autopilot answers to no axes, so only Let and
      * Svær ever showed it. */
     if(MODE.dof===2){
-      /* Push the wheel away: nose down. Pull it back: nose up. */
-      rotateShip(pitchIn*dt*MODE.p*scale,roll*dt*MODE.y*scale,0);
-      if(MODE.level>0)levelWings(dt*MODE.level);
+      /* Push the wheel away: nose down. Pull it back: nose up.
+       *
+       * The bank. I set MODE.easy.r to .42 one release ago and it did
+       * nothing, because THIS branch passed a hardcoded 0 and then ran
+       * the wing-leveller over the top of it - so even a bank from
+       * somewhere else was flattened within the second. Let now leans
+       * into its turns, and the leveller stands down in proportion to
+       * how hard the wheel is over, so it still rights itself the
+       * moment you let go. */
+      rotateShip(pitchIn*dt*MODE.p*scale,roll*dt*MODE.y*scale,roll*dt*MODE.r*scale);
+      if(MODE.level>0)
+        levelWings(dt*MODE.level*(1-Math.min(1,Math.abs(roll)*1.5)));
     }else{
       rotateShip(pitchIn*dt*MODE.p*scale,roll*dt*MODE.y*scale,roll*dt*MODE.r*scale);
     }
@@ -8187,10 +8444,21 @@ function updateFlight(dt){
         const k=Math.exp(-dt*1.35*nearMix);
         SHIP.vel.x*=k;SHIP.vel.z*=k;
       }
-      if(MODE.assist>0&&St.alt<600&&SHIP.vel.y<0){
-        const lim=-(3.5+St.alt*.055);
+      /* The ship was landing itself on Let: this held the descent to a
+       * safe rate from six hundred metres up, so there was nothing to do
+       * and nothing at stake. It is a safety net now, not a pilot - it
+       * does nothing until the last hundred and thirty metres, and even
+       * then it only catches a fall that would hurt. You still have to
+       * fly the approach; you simply cannot break the ship. */
+      /* Measured: at -(5 + alt*0.3) a hands-off arrival still touched
+       * down at five metres a second and was recorded BLØD, so doing
+       * nothing was rewarded exactly as well as flying it. The net now
+       * only catches the absurd - you arrive HÅRD if you ignore it, and
+       * the ship still cannot break, which was always the rule. */
+      if(MODE.assist>0&&St.alt<130&&SHIP.vel.y<0){
+        const lim=-(28+St.alt*.45);
         if(SHIP.vel.y<lim)
-          SHIP.vel.y+=(lim-SHIP.vel.y)*Math.min(1,dt*2.4*MODE.assist);
+          SHIP.vel.y+=(lim-SHIP.vel.y)*Math.min(1,dt*1.9*MODE.assist);
       }
       SHIP.vel.addScaledVector(_v,dt);
       SHIP.pos.addScaledVector(SHIP.vel,dt);
@@ -8246,7 +8514,8 @@ function updateFlight(dt){
         St.landQuality=vy<9?"BLØD":vy<26?"FAST":"HÅRD";
         if(St.dest==="gold"&&!alienRoot.visible){
           GAME.goldSeen=true;refreshMenu();
-          spawnAliens(SHIP.pos.x,SHIP.pos.z);
+          spawnAliens(VILL.live?VILL.x:SHIP.pos.x,
+                      VILL.live?VILL.z:SHIP.pos.z);
           startQuests(SHIP.pos.x,SHIP.pos.z);
         }
         {
@@ -8582,10 +8851,11 @@ function frame(){
   /* In front of whichever seat you are in. On the hull centreline it was
    * half a metre off to one side, the same mistake as the warp. */
   landHud.mesh.position.x=seatX;
-  /* The objective banner was pinned at x=-0.22 on the hull centreline
-   * while the pilot sits at -0.46, so it hung off to one side and the
-   * first words went behind the window frame. On the seat, like the HUD. */
-  objective.position.x=seatX;
+  /* Not on the seat after all. Pinned at -0.22 its left edge hung out
+   * past the hull; moved to the pilot's seat at -0.46 it hung further
+   * out still. It is a sign over the windscreen, and a windscreen has
+   * one middle: the centreline of the cabin. */
+  objective.position.x=0;
   landHud.mesh.visible=wantHud;
   if(screenClock>.14){
     screenClock=0;drawStatus();if(St.dest)drawMap();
@@ -8649,5 +8919,6 @@ function frame(){
   renderer.render(scene,camera);
 }
 </script>
+
 </body>
 </html>
