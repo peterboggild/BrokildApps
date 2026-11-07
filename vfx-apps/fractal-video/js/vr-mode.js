@@ -8,7 +8,8 @@
    switches to "fly", where the rig is ours. B goes back to the ride.
 
    Controls (Quest, xr-standard gamepad): left stick = fly forward/back + sideways, right stick =
-   turn left/right (x) and rise/sink (y); both triggers held = scale (pull apart = bigger) and drag;
+   turn left/right (x) and rise/sink (y); one trigger held for a moment = that hand shapes two of
+   the fractal's parameters (up/down and right/left); both triggers held = scale (pull apart = bigger) and drag;
    a grip held = the fractal turns with that hand; trigger click = press a panel tile, or (pointing
    at the fractal) open the sound palette; A = play/pause, B = back to the scene camera, Y = panel,
    X = sound palette. */
@@ -379,7 +380,7 @@ void main() {
     const perf = new Perf(72, { start: 0.75, min: 0.3 });
     const learned = Object.assign({}, S0.perf || {});
     const st = {
-      mode: 'ride', rig: null, pinch: null, twist: null, twistHand: null, held: {}, press: { left: null, right: null },
+      mode: 'ride', rig: null, pinch: null, twist: null, twistHand: null, held: {}, press: { left: null, right: null }, param: { left: null, right: null },
       lastTime: 0, pending: null, msg: '', msgUntil: 0, heavyShownFor: null, hintUntil: performance.now() + 9000,
       sens: S0.sens || 'normal', auto: S0.auto !== false, res: perf.res, lastFormula: null, frame: null
     };
@@ -596,11 +597,12 @@ void main() {
       g.textAlign = 'center';
       g.textBaseline = 'middle';
       g.font = '600 28px system-ui, sans-serif';
-      g.fillText('Left stick fly · right stick turn · both triggers: pull apart to scale', P.cw / 2, 60, P.cw - 40);
-      g.fillText('Grip: twist the fractal · Y panel · A play / pause · B scene camera', P.cw / 2, 112, P.cw - 40);
+      g.fillText('Left stick fly · right stick turn · both triggers: pull apart to scale', P.cw / 2, 46, P.cw - 40);
+      g.fillText('Hold one trigger and move that hand to shape the fractal', P.cw / 2, 92, P.cw - 40);
+      g.fillText('Grip: twist the fractal · Y panel · A play / pause · B scene camera', P.cw / 2, 138, P.cw - 40);
       g.fillStyle = COL.faint;
       g.font = '400 24px system-ui, sans-serif';
-      g.fillText('Point at the fractal and pull the trigger for the sound palette', P.cw / 2, 168, P.cw - 40);
+      g.fillText('Point at the fractal and pull the trigger for the sound palette', P.cw / 2, 186, P.cw - 40);
     }
 
     function openMain(head, fwd) {
@@ -618,6 +620,122 @@ void main() {
 
     // --- input ---
     const BTN = { trigger: 0, grip: 1, stick: 3, a: 4, b: 5 };
+
+    // --- live parameter control: hold one trigger and move that hand ---
+    // Each trigger is two parameters: the hand's up/down and right/left, measured against where
+    // you are facing rather than against the room. Up and right raise the value.
+    //
+    // Nothing moves until the trigger has been held for PARAM_ARM. That wait is what lets the
+    // two-handed scale gesture through untouched: its second trigger always lands a few frames
+    // after the first, and until the wait is up neither hand has grabbed anything. It also leaves
+    // the panel alone — a click is a short press, and a press that started on a panel never grabs.
+    //
+    // Control is relative: the anchor remembers where the hand was and what the values were, and
+    // PARAM_SPAN of movement covers the range. Let go, move back, grab again, like a mouse.
+    const PARAM_ARM = 350;    // ms a trigger must be held before the hand starts changing values
+    const PARAM_SPAN = 0.35;  // metres of hand movement covering a parameter's whole range
+
+    // Four per formula, in order: [left up/down, left right/left, right up/down, right right/left].
+    // Values stay inside each parameter's `calm` band from formulas.js — the range its author
+    // marked as the one worth playing in.
+    const PARAM_MAP = {
+      mandelbulb:     ['shape.power', 'shape.theta', 'shape.julia', 'shape.cx'],
+      mandelbox:      ['shape.scale', 'shape.fold', 'shape.minR', 'shape.fixedR'],
+      amazingBox:     ['shape.scale', 'shape.fold', 'shape.minR', 'shape.rotY'],
+      kifsMenger:     ['shape.scale', 'shape.offX', 'shape.offY', 'shape.rotY'],
+      sierpinski:     ['shape.scale', 'shape.offset', 'shape.rotY', 'shape.rotX'],
+      octahedra:      ['shape.scale', 'shape.offX', 'shape.offY', 'shape.rotY'],
+      kaleidoscopic:  ['shape.scale', 'shape.offX', 'shape.preY', 'shape.postZ'],
+      hybrid:         ['shape.power', 'shape.fold', 'shape.rotY', 'shape.rotZ'],
+      julia:          ['shape.cx', 'shape.cy', 'shape.cz', 'shape.cw'],
+      apollonian:     ['shape.k', 'space.bound', 'space.repeat', 'space.twist'],
+      pseudoKleinian: ['shape.boxXY', 'shape.boxZ', 'shape.size', 'shape.thick'],
+      kaliBox:        ['shape.scale', 'shape.minR2', 'shape.jy', 'shape.ty'],
+      amazingSurf:    ['shape.scale', 'shape.fold', 'shape.lift', 'shape.minR'],
+      icosahedral:    ['shape.scale', 'shape.wB', 'shape.reach', 'shape.postZ'],
+      hyperbolic:     ['shape.order', 'shape.travel', 'shape.drift', 'shape.edge'],
+      vaulted:        ['shape.scale', 'shape.vault', 'shape.foldY', 'shape.fold'],
+      ziggurat:       ['shape.scale', 'shape.spread', 'shape.rise', 'shape.steep'],
+      skyline:        ['shape.height', 'shape.density', 'shape.cell', 'shape.setback'],
+      turbine:        ['shape.spin', 'shape.pitch', 'shape.taper', 'shape.radius'],
+      greeble:        ['shape.scale', 'shape.plate', 'shape.offY', 'shape.inset'],
+      pipeworks:      ['shape.scale', 'shape.pipe', 'shape.joint', 'shape.offX'],
+      pistons:        ['shape.phase', 'shape.stroke', 'shape.wave', 'shape.base'],
+      clockwork:      ['shape.spin', 'shape.ratio', 'shape.windows', 'shape.tooth'],
+      truss:          ['shape.scale', 'shape.stretch', 'shape.beam', 'shape.offZ'],
+      reactor:        ['shape.spin', 'shape.tilt', 'shape.ratio', 'shape.width'],
+      terrain:        ['shape.height', 'shape.ridge', 'shape.freq', 'shape.warp'],
+      kaliPlain:      ['shape.cx', 'shape.cy', 'shape.height', 'shape.focus'],
+      ridges:         ['shape.height', 'shape.erosion', 'shape.canyon', 'shape.freq']
+    };
+    // A formula with no entry (a new one) gets its first four parameters, padded with space warps.
+    const PARAM_PAD = ['space.twist', 'space.bound', 'space.repeat', 'space.detail'];
+    function paramDests(formulaId) {
+      if (PARAM_MAP[formulaId]) return PARAM_MAP[formulaId];
+      const keys = deps.Formulas.get(formulaId).params.slice(0, 4).map((q) => `shape.${q.key}`);
+      while (keys.length < 4) keys.push(PARAM_PAD[keys.length]);
+      return keys;
+    }
+    const paramBox = (sc, group) => (group === 'shape' ? sc.params : group === 'space' ? sc.space : group === 'look' ? sc.look : null);
+    function paramRange(dest, formulaId) {
+      const spec = deps.Schema.keySpec(dest, formulaId);
+      if (!spec) return null;
+      let lo = spec.min, hi = spec.max;
+      if (dest.indexOf('shape.') === 0) {
+        const q = deps.Formulas.get(formulaId).params.find((x) => x.key === dest.slice(6));
+        if (q && q.calm) { lo = q.calm[0]; hi = q.calm[1]; }
+      }
+      return { lo, hi, min: spec.min, max: spec.max, step: spec.step, label: spec.label };
+    }
+    function paramRead(sc, dest) {
+      const [g, k] = dest.split('.');
+      const box = paramBox(sc, g);
+      if (!box || !(k in box)) return null;
+      const v = Number(box[k]);
+      return Number.isFinite(v) ? v : null;
+    }
+    function paramWrite(sc, dest, v, r) {
+      const [g, k] = dest.split('.');
+      const box = paramBox(sc, g);
+      if (!box) return false;
+      v = clamp(v, r.min, r.max);
+      if (r.step >= 1) v = Math.round(v / r.step) * r.step; // tiers, blades, teeth: whole numbers
+      if (v === box[k]) return false;
+      box[k] = v;
+      return true;
+    }
+    // Let go: one undo entry for the whole gesture, not one per frame.
+    function endParam(side) {
+      const g = st.param[side];
+      st.param[side] = null;
+      if (g && g.moved) deps.commit();
+    }
+    function paramGesture(side, hands, frame, headFwd) {
+      const h = hands[side];
+      const p = st.press[side];
+      if (!h || !h.trig || !p || p.pinch || p.onPanel || st.pinch || st.twist) { endParam(side); return; }
+      if (performance.now() - p.t < PARAM_ARM) return;
+      const sc = sceneOf(frame);
+      const dests = paramDests(sc.formula);
+      const base = side === 'left' ? 0 : 2;
+      let g = st.param[side];
+      if (!g || g.sceneId !== sc.id || g.formula !== sc.formula) {
+        const right = norm(cross(headFwd, [0, 1, 0]));
+        g = st.param[side] = {
+          sceneId: sc.id, formula: sc.formula, pos: h.pos, right, moved: false,
+          a: paramRead(sc, dests[base]), b: paramRead(sc, dests[base + 1])
+        };
+        const ra = paramRange(dests[base], sc.formula), rb = paramRange(dests[base + 1], sc.formula);
+        say(`${ra ? ra.label : '—'} (up) · ${rb ? rb.label : '—'} (right)`, 1800);
+        return; // anchor this frame, move from the next
+      }
+      const d = sub(h.pos, g.pos);
+      [[dests[base], g.a, d[1]], [dests[base + 1], g.b, dot(d, g.right)]].forEach(([dest, from, moved]) => {
+        if (from == null) return;
+        const r = paramRange(dest, sc.formula);
+        if (r && paramWrite(sc, dest, from + (moved / PARAM_SPAN) * (r.hi - r.lo), r)) g.moved = true;
+      });
+    }
     function readInputs(xf) {
       const hands = {};
       deps.session.inputSources.forEach((src) => {
@@ -678,7 +796,7 @@ void main() {
       ['left', 'right'].forEach((side) => {
         const h = hands[side];
         if (!h) return;
-        if (edge(`trig:${side}`, h.trig)) st.press[side] = { t: performance.now(), pinch: false };
+        if (edge(`trig:${side}`, h.trig)) st.press[side] = { t: performance.now(), pinch: false, onPanel: !!h.hit };
         else if (!h.trig && st.press[side]) {
           const s = st.press[side];
           st.press[side] = null;
@@ -697,6 +815,8 @@ void main() {
         if (!st.pinch) st.pinch = Rig.pinchStart(st.rig, L.pos, R.pos);
         st.rig = Rig.pinch(st.pinch, L.pos, R.pos, scale * 1e-4, scale * 50);
       } else st.pinch = null;
+      // one trigger held, not pinching: that hand drives two of the fractal's parameters
+      ['left', 'right'].forEach((side) => paramGesture(side, hands, frame, headFwd));
       // grip: twist about the scene's target
       const gh = (st.twistHand && hands[st.twistHand] && hands[st.twistHand].grip) ? st.twistHand : (R && R.grip ? 'right' : (L && L.grip ? 'left' : null));
       if (gh && !st.pinch) {
