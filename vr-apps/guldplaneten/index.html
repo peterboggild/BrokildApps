@@ -1715,7 +1715,11 @@ const goldCap=(function(){
   return g;
 })();
 const bigBtn=(function(){
-  const g=new THREE.Group();g.position.set(.84,.060,.05);consoleGroup.add(g);
+  /* Seated in the panel, not hovering 3.5 cm off it. The cap's back edge
+   * now sits just behind the console face and the guard ring lies flat on
+   * it, so the button is part of the dashboard instead of a thing parked
+   * in front of it. */
+  const g=new THREE.Group();g.position.set(.84,.060,.010);consoleGroup.add(g);
   const guard=new THREE.Mesh(new THREE.TorusGeometry(.085,.013,6,18),M.trim);
   guard.position.z=.03;g.add(guard);
   const mat=new THREE.MeshStandardMaterial({color:0x8f1d1d,roughness:.35,metalness:.3,emissive:0x2a0505});
@@ -1727,7 +1731,10 @@ const bigBtn=(function(){
   return {group:g,cap:cap,mat:mat,press:0,armed:false};
 })();
 function consoleButton(x,y,label,bg,border,color,baseCol,onPress,opts){
-  const g=new THREE.Group();g.position.set(x,y,.05);consoleGroup.add(g);
+  /* .018, not .05: the console face is at z=.035 and the cap is 4.5 cm
+   * deep, so at .05 every one of these stood clear of the panel with
+   * daylight behind it. */
+  const g=new THREE.Group();g.position.set(x,y,.018);consoleGroup.add(g);
   const mat=new THREE.MeshStandardMaterial({color:baseCol,roughness:.35,metalness:.4});
   const cap=new THREE.Mesh(new THREE.BoxGeometry(.21,.075,.045),mat);cap.position.z=.035;g.add(cap);
   const face=new THREE.Mesh(new THREE.PlaneGeometry(.2,.07),
@@ -1744,18 +1751,32 @@ function consoleButton(x,y,label,bg,border,color,baseCol,onPress,opts){
  * so leaving for another world meant sliding across, pressing, and sliding
  * back - mid-flight, with a planet waiting. It belongs by the throttle,
  * under the pilot's own hand, and it can be smaller for it. */
-const hyperBtn=consoleButton(.84,-.150,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper(),{size:24});
+const hyperBtn=consoleButton(.84,-.110,"HYPERRUM","#0b1a26","#1d3a52","#7fd4e8",0x1d3a52,()=>pressHyper(),{size:24});
+/* Peter: "den må gerne sidde under den røde startknap ... jeg kunne godt
+ * tænke mig at den var der hele tiden, for det er lidt mere konsistent og
+ * realistisk. Og at den så lyser op og kommer med en tekst, når der er
+ * noget man skal."  A button that appears out of nowhere reads as a bug;
+ * a dark one that lights up reads as a ship. HYPERRUM and START FLYVNING
+ * share this slot, and when neither has anything to say, this blank cap
+ * holds the place. */
+const idleCap=(function(){
+  const g=new THREE.Group();g.position.set(.84,-.110,.018);consoleGroup.add(g);
+  const m=new THREE.Mesh(new THREE.BoxGeometry(.21,.075,.045),
+    new THREE.MeshStandardMaterial({color:0x161c24,roughness:.6,metalness:.25}));
+  m.position.z=.035;g.add(m);
+  return g;
+})();
 /* LAND was in the right-hand slot, so a solo pilot had to slide into
  * the passenger seat to begin a descent and slide back to fly it. The
  * startup switches stay on the right; everything you fly with is left. */
-const landBtn =consoleButton(-.84,-.150,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
+const landBtn =consoleButton(-.77,-.1875,"LAND","#0b1f12","#235a2a","#8ce8a0",0x234a2a,()=>pressLand());
 /* START takes the console's action slot, which the phase-critical buttons
  * share. NY FLYVNING is a rare, deliberate thing, so it moves to the port
  * wall with the other switches rather than competing for that slot. */
 /* Not "LET". That is the Danish for "easy", and it is already the name of
  * one of the three flight modes, so the button to leave a planet read as
  * a difficulty setting. */
-const liftBtn=consoleButton(.84,-.150,"START","#141f08","#3e5c18","#c2e86a",0x2c4212,()=>pressLift());
+const liftBtn=consoleButton(.84,-.110,"START","#141f08","#3e5c18","#c2e86a",0x2c4212,()=>pressLift());
 /* The one free slot on the console, next to the action button. It is only
  * there when you are carrying cores and the tank has room, because a
  * button that usually does nothing teaches you to stop pressing it. */
@@ -1812,7 +1833,11 @@ const objective=(function(){
    * lines fit at a size you can actually read across the cabin. */
   const m=new THREE.Mesh(new THREE.PlaneGeometry(1.52,.20),
     new THREE.MeshBasicMaterial({transparent:true}));
-  m.position.set(0,1.76,-1.0);ship.add(m);
+  /* It sat at z=-1.000, and the centre window post's front face is at
+   * z=-1.000 too: eight centimetres of post and ten of banner in exactly
+   * the same plane, which is the flickering square Peter saw at the top
+   * middle. A sign hangs in FRONT of the post, and below the top rail. */
+  m.position.set(0,1.74,-.96);ship.add(m);
   return m;
 })();
 let objSig="";
@@ -1839,9 +1864,14 @@ function setObjective(text,color){
  * two real gaps: the strip outboard of the wheel, and the shelf above
  * it. Log and messages go outboard; the map goes up on the shelf where
  * it is clear of the lip below and the nameplate above. */
-const statusScreen=screenPanel(.30,.19,-.90,-.155,240,152);
+/* They hung half a panel's width out through the windscreen: the glass
+ * stops at x=-.92 and these ran to -1.05. Pulled inboard until their
+ * outer edge is flush with the window, and restacked, because LAND was
+ * being drawn straight on top of the lower one. Now it is two screens
+ * with the button underneath them, all of it on the dashboard. */
+const statusScreen=screenPanel(.30,.175,-.77,-.0375,240,152);
 const mapScreen=screenPanel(.50,.17,-.15,.175,400,136);
-const msgScreen=screenPanel(.30,.16,-.90,.075,240,128);
+const msgScreen=screenPanel(.30,.145,-.77,.1625,240,128);
 
 /* ---------- yoke ---------- */
 const yokeGroup=new THREE.Group();
@@ -2033,14 +2063,16 @@ const menu=new THREE.Group();
  * it the top of the list went off the top of the windscreen. */
 menu.position.set(PILOT_X,1.20,-.88);menu.visible=false;ship.add(menu);
 (function buildMenu(){
-  menu.add(new THREE.Mesh(new THREE.PlaneGeometry(1.0,.66),
+  /* Five worlds now, not four: the planet the medal opens had no row at
+   * all, so the mission existed and there was no way to fly it. */
+  menu.add(new THREE.Mesh(new THREE.PlaneGeometry(1.0,.80),
     new THREE.MeshBasicMaterial({color:0x0a2030,transparent:true,opacity:.55,side:THREE.DoubleSide})));
   const title=new THREE.Mesh(new THREE.PlaneGeometry(.8,.09),
     new THREE.MeshBasicMaterial({map:tex(labelCanvas("VÆLG DESTINATION",{w:512,h:64,size:34,bg:"#07131d",border:"#1d4a63",color:"#7fd4e8"})),transparent:true}));
-  title.position.set(0,.245,.002);menu.add(title);
-  ["moon","mars","gold","earth"].forEach((k,i)=>{
+  title.position.set(0,.315,.002);menu.add(title);
+  ["moon","mars","gold","earth","world"].forEach((k,i)=>{
     const d=DEST[k];
-    const g=new THREE.Group();g.position.set(0,.095-i*.118,.004);menu.add(g);
+    const g=new THREE.Group();g.position.set(0,.165-i*.118,.004);menu.add(g);
     const plate=new THREE.Mesh(new THREE.PlaneGeometry(.82,.10),
       new THREE.MeshBasicMaterial({transparent:true}));
     g.add(plate);d.plate=plate;
@@ -2052,7 +2084,7 @@ menu.position.set(PILOT_X,1.20,-.88);menu.visible=false;ship.add(menu);
 /* A locked world still shows, greyed, with its own name: hiding it would
  * leave no clue that there is anywhere else to go. */
 function refreshMenu(){
-  ["moon","mars","gold","earth"].forEach(k=>{
+  ["moon","mars","gold","earth","world"].forEach(k=>{
     const d=DEST[k];if(!d.plate)return;
     const ok=destOpen(k);
     if(d.plate.material.map)d.plate.material.map.dispose();
@@ -2472,7 +2504,14 @@ const cloudDecks=CLOUD_KINDS.map(kind=>{
   const m=new THREE.PointsMaterial({map:tex(cloudTex(kind)),transparent:true,
     opacity:0,depthWrite:false,sizeAttenuation:true,size:600});
   const pts=new THREE.Points(geo,m);
-  pts.frustumCulled=false;pts.visible=false;pts.renderOrder=-5;
+  /* Peter: "skyerne er bag horisonten, og de er jo meget tæt på
+   * rumskibet - de må gerne være foran."  They were drawn at order -5
+   * and the far horizon shell at -1, so of two transparent surfaces the
+   * horizon always painted last and always won, however near the cloud
+   * was. Ordered after it, the depth buffer decides instead, which is
+   * what it is for: cloud in front of the horizon draws, cloud beyond it
+   * does not. */
+  pts.frustumCulled=false;pts.visible=false;pts.renderOrder=0;
   world.add(pts);
   return {kind:kind,pts:pts,pos:pos,cfg:null};
 });
@@ -4230,6 +4269,28 @@ const alienParts=(function(){
 const GIVER_TINT=[0xffc85a,0xff9a7a,0x9fe8c8];
 const ALIEN_TINT=[0xe9c76a,0xf0a98c,0xb6ead2,0xe3b43f,0xd9a94e,0xe8c57e,
                   0xcfa24a,0xdcb05c,0xe5bd6e];
+/* The boulders are scattered deterministically per chunk and live in an
+ * instanced mesh, so nothing else in the game knows where they are. This
+ * regenerates that scatter on demand and answers one question: how far
+ * INSIDE a rock is this point? Positive means buried. */
+function rockHitAt(x,z){
+  const ci=Math.round(x/CH), cj=Math.round(z/CH);
+  let worst=0;
+  for(let a=-1;a<=1;a++)for(let b2=-1;b2<=1;b2++){
+    const i=ci+a, j=cj+b2;
+    const rr=mulberry32(((i*2654435761)^(j*40503))>>>0);
+    const ox=i*CH, oz=j*CH;
+    for(let k=0;k<20;k++){
+      const bx=ox+(rr()-.5)*CH, bz=oz+(rr()-.5)*CH;
+      rr();
+      const sc=1.4+rr()*7; rr();rr();rr();rr();
+      const need=sc*0.95+1.4;
+      const d=Math.hypot(bx-x,bz-z);
+      if(need-d>worst)worst=need-d;
+    }
+  }
+  return worst;
+}
 function spawnAliens(cx,cz){
   aliens.length=0;
   const r=mulberry32(8181);
@@ -4241,24 +4302,7 @@ function spawnAliens(cx,cz){
    * positions can be worked out again from the same seed rather than
    * stored - which is how a villager can be kept out of one. Peter
    * found one that had gone missing entirely: it was inside a rock. */
-  const rockHit=(x,z)=>{
-    const ci=Math.round(x/CH), cj=Math.round(z/CH);
-    let worst=0;
-    for(let a=-1;a<=1;a++)for(let b2=-1;b2<=1;b2++){
-      const i=ci+a, j=cj+b2;
-      const rr=mulberry32(((i*2654435761)^(j*40503))>>>0);
-      const ox=i*CH, oz=j*CH;
-      for(let k=0;k<20;k++){
-        const bx=ox+(rr()-.5)*CH, bz=oz+(rr()-.5)*CH;
-        rr();                                  // keep the stream in step
-        const sc=1.4+rr()*7; rr();rr();rr();rr();
-        const need=sc*0.95+1.4;
-        const d=Math.hypot(bx-x,bz-z);
-        if(need-d>worst)worst=need-d;
-      }
-    }
-    return worst;
-  };
+  const rockHit=rockHitAt;
   const footing=(x,z)=>{
     let bx=x,bz=z,best=1e9;
     for(let k=0;k<14;k++){
@@ -4405,7 +4449,26 @@ function updateAliens(dt){
     /* The head rides ahead of the body by how fast it is going: that lean is
      * the only thing telling you it is walking rather than sliding. */
     a.lean+=((speaking?0:a.speed)*.12-a.lean)*Math.min(1,dt*3);
-    const gy=groundH("gold",a.x,a.z);
+    /* Peter: "de kan dykke ned under klipperne ... det er bedst hvis de er
+     * lidt over klipperne, så de kan komme fri."  Spawning kept them off
+     * the boulders, but then they WALK, and nothing stopped them walking
+     * into one. Every frame each villager asks how far inside a rock he
+     * is; if he is inside one at all he steps toward whichever of four
+     * directions is shallower, and rides a little higher until he is out,
+     * so he is never swallowed on the way. One sample a head per frame
+     * when nobody is stuck, which is the normal case. */
+    let pen=rockHitAt(a.x,a.z);
+    if(pen>0){
+      let bx=0,bz=0,best=pen;
+      for(let s2=0;s2<4;s2++){
+        const ang=s2*Math.PI/2, px=a.x+Math.cos(ang)*1.8, pz=a.z+Math.sin(ang)*1.8;
+        const q=rockHitAt(px,pz);
+        if(q<best){best=q;bx=Math.cos(ang);bz=Math.sin(ang);}
+      }
+      a.x+=bx*dt*3.2;a.z+=bz*dt*3.2;
+      pen=Math.min(pen,1.1);
+    }else pen=0;
+    const gy=groundH("gold",a.x,a.z)+pen*.85;
     const bodyR=.42*a.sc, headR=.22*a.sc;
     const fx=-Math.sin(a.yaw), fz=-Math.cos(a.yaw);
 
@@ -4562,8 +4625,10 @@ let qPit=null,qSunk=null,qSunkHead=null,qFruit=null,qLostBody=null,qLostHead=nul
   qFruit=new THREE.InstancedMesh(new THREE.SphereGeometry(1,8,6),
     new THREE.MeshStandardMaterial({color:0x2a1c04,emissive:0xffc63f,emissiveIntensity:1.7}),3);
   [qSunk,qSunkHead,qFruit].forEach(m=>{m.frustumCulled=false;questRoot.add(m);});
-  qLostBody=new THREE.Mesh(new THREE.SphereGeometry(.26,10,8),lostMat);
-  qLostHead=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),lostMat);
+  /* As round as his parents. He was the one faceted lump left on the
+   * planet, and he is the one you are meant to spot. */
+  qLostBody=new THREE.Mesh(new THREE.SphereGeometry(.26,24,16),lostMat);
+  qLostHead=new THREE.Mesh(new THREE.SphereGeometry(.14,20,14),lostMat);
   questRoot.add(qLostBody);questRoot.add(qLostHead);
 })();
 /* The props for the two new favours. Everything is built once and parked
@@ -4684,7 +4749,7 @@ function startQuests(cx,cz){
    * you walk up, so you meet it head on. */
   MATHQ.n=0;MATHQ.q=null;MATHQ.flash=0;
   if(Q.order.indexOf("math")>=0){
-    const H=Q.homes[GIVER.math];
+    const H=(aliens&&aliens[GIVER.math])?aliens[GIVER.math]:Q.homes[GIVER.math];
     const face=Math.atan2(cx-H.x,cz-H.z);
     const sx=H.x+Math.sin(face+1.35)*2.6, sz=H.z+Math.cos(face+1.35)*2.6;
     const gy=groundH("gold",sx,sz);
@@ -5270,9 +5335,14 @@ function updateQuests(dt,vx,vz){
       const dx=vx-L.x, dz=vz-L.z, d=Math.hypot(dx,dz);
       if(d>2.6){L.x+=dx/d*dt*2.6;L.z+=dz/d*dt*2.6;}
     }
-    const ly=groundH("gold",L.x,L.z);
-    qLostBody.position.set(L.x,ly+.26,L.z);
-    qLostHead.position.set(L.x,ly+.68+Math.sin(St.t*4)*.03,L.z);
+    const ly=groundH("gold",L.x,L.z)+Math.max(0,rockHitAt(L.x,L.z))*.85;
+    /* He hops. A small creature standing still a hundred metres out in a
+     * gold rockfield is invisible; the same creature bouncing is the
+     * first thing you see. Quicker and higher while he is still lost. */
+    const hz2=L.found?2.6:3.4, ha=L.found?.16:.40;
+    const hop=Math.abs(Math.sin(St.t*hz2))*ha;
+    qLostBody.position.set(L.x,ly+.26+hop,L.z);
+    qLostHead.position.set(L.x,ly+.68+hop+Math.sin(St.t*4)*.03,L.z);
     const show=Q.active==="lost"||L.found;
     qLostBody.visible=show;qLostHead.visible=show;
   }
@@ -5347,18 +5417,31 @@ function updateQuests(dt,vx,vz){
 
 /* ---------- hands ---------- */
 function buildHand(sideSign){
-  const g=new THREE.Group(), sk=M.skin;
+  /* THE QUARTER TURN.
+   * The hand is authored flat: the palm box is thin in Y, so its face
+   * looks up, and the fingers run down -Z. Worn on the grip that put the
+   * palms UP, which is not how anyone holds a Touch. You hold them with
+   * the palms out to the sides - left palm pointing left, right palm
+   * pointing right - and the thumbs on top. Rolling the hand about the
+   * axis the fingers point along is the whole fix, and it does both jobs
+   * at once: the palm turns outward, and the thumb, which sits inboard
+   * on the flat hand, comes up to where a thumb on a thumbstick is.
+   * The roll lives on an inner group so the wrist tilt outside it still
+   * means what it meant, and it is set from the real handedness, which
+   * arrives later than the model does. */
+  const g=new THREE.Group(), inner=new THREE.Group(), sk=M.skin;
+  g.add(inner);
   const palm=new THREE.Mesh(new THREE.BoxGeometry(.085,.028,.092),sk);
-  palm.position.set(0,0,-.012);g.add(palm);
+  palm.position.set(0,0,-.012);inner.add(palm);
   const wrist=new THREE.Mesh(new THREE.CylinderGeometry(.027,.023,.05,8),sk);
-  wrist.rotation.x=Math.PI/2;wrist.position.set(0,0,.052);g.add(wrist);
+  wrist.rotation.x=Math.PI/2;wrist.position.set(0,0,.052);inner.add(wrist);
   const fingers=[];
   /* Longer. The three bones came to 1.04 of f[1], so at f[1]=.044 the
    * whole index finger was 4.6 cm against a palm 9.2 cm deep — a hand
    * with stubs on it. A real index is about 7.5. */
   [[-.034,.068,.95],[-.012,.075,1.0],[.012,.072,.97],[.033,.060,.88]].forEach(f=>{
     const root=new THREE.Group();
-    root.position.set(sideSign*f[0],.002,-.046);g.add(root);
+    root.position.set(sideSign*f[0],.002,-.046);inner.add(root);
     const chain=[];let parent=root;
     for(let s=0;s<3;s++){
       const seg=new THREE.Group();parent.add(seg);
@@ -5378,7 +5461,7 @@ function buildHand(sideSign){
   /* Tilted up toward the thumbstick rather than lying across the palm.
    * Holding a Touch controller the thumb rests high and a little inboard;
    * feeling it raised while seeing it flat is noticed at once. */
-  troot.rotation.set(-.78,sideSign*.34,sideSign*.30);g.add(troot);
+  troot.rotation.set(-.78,sideSign*.34,sideSign*.30);inner.add(troot);
   /* Index 0 is not reliably the left hand, and if it is not, both thumbs
    * end up on the outside - which is exactly what they did. The real
    * handedness arrives with the 'connected' event, so the thumb can be
@@ -5386,7 +5469,11 @@ function buildHand(sideSign){
   g.userData.setSide=function(sign){
     troot.position.x=-sign*.042;
     troot.rotation.set(-.78,sign*.34,sign*.30);
+    /* Left rolls one way, right the other, so both palms face outward
+     * and both thumbs end up on top. */
+    inner.rotation.z=-sign*Math.PI/2;
   };
+  inner.rotation.z=-sideSign*Math.PI/2;
   const tchain=[];let tp=troot;
   for(let s=0;s<2;s++){
     const seg=new THREE.Group();tp.add(seg);
@@ -5702,9 +5789,16 @@ function objectiveText(){
     case "course":    return "TRYK PÅ HYPERRUM";
     case "hyperspace":return "HYPERRUM";
     case "approach":  return auto?"AUTOPILOTEN FLYVER IND":"FLYV IND — TRYK LAND NÅR DU VIL NED";
-    case "descent":   return St.alt>2500
-      ? "STIG TIL 15 KM FOR AT NÅ KREDSLØB  ("+(St.alt/1000).toFixed(1)+" KM)"
-      : (auto?"AUTOPILOTEN LANDER":"FLYV NED PÅ OVERFLADEN");
+    /* One phase does both directions, and the sign only looked at
+     * height: under 2.5 km on the way UP it still read "fly down to the
+     * surface". St.climbing already knows which way we are going. */
+    case "descent":
+      if(St.climbing)
+        return (auto?"AUTOPILOTEN STIGER MOD KREDSLØB  (":"STIG TIL 15 KM  (")
+               +(St.alt/1000).toFixed(1)+" KM)";
+      return St.alt>2500
+        ? "FLYV NED MOD OVERFLADEN  ("+(St.alt/1000).toFixed(1)+" KM)"
+        : (auto?"AUTOPILOTEN LANDER":"FLYV NED PÅ OVERFLADEN");
     case "landed":
       if(St.seqing)return bigBtn.armed
         ? "TRYK PÅ DEN STORE RØDE KNAP"
@@ -5879,7 +5973,23 @@ function pressControl(c){
 function pressBig(){
   if((St.phase!=="preflight"&&!St.seqing)||!bigBtn.armed)return;
   bigBtn.press=1;bigBtn.armed=false;
-  if(St.seqing){liftNow();return;}          // leaving a world, not the pad
+  if(St.seqing){
+    /* Peter: "anden gang man letter fra jorden virker det som om det er
+     * Mars - 15 km og meget langsom opstigning." It was: the start
+     * sequence was made to work on every world, and every world after
+     * the first went out through liftNow(), which is the short 15 km
+     * hop the small worlds use. Jorden has its own climb - ignition,
+     * then 110 km of ascent - and it keeps it whether this is the first
+     * launch of the day or the fourth. */
+    if(GAME.at==="earth"){
+      St.seqing=false;liftBtn.group.visible=false;SHIP.onGround=false;
+      St.phase="ignition";St.t=0;Audio_.ignite();
+      log("TÆNDING");showMsg("Tænding!");
+      throttle.value=Math.max(throttle.value,.6);
+      return;
+    }
+    liftNow();return;                       // leaving a small world
+  }
   St.phase="ignition";St.t=0;Audio_.ignite();
   log("TÆNDING");showMsg("Tænding!");
   throttle.value=Math.max(throttle.value,.6);
@@ -5889,13 +5999,39 @@ function pressBig(){
  * the right slot it meant sliding into the other seat mid-flight to press
  * it, with a planet waiting. Here it is under the pilot's own hand, which
  * is where the jump belongs. */
-(function mountHyper(){
-  const g=hyperBtn.group;
-  g.parent.remove(g);
-  throttle.group.add(g);
-  g.position.set(.175,.035,.085);
-  g.rotation.set(-.30,0,0);
-  g.scale.setScalar(.70);
+/* Peter: "den må gerne sidde på panelet, ligesom de andre ting, i stedet
+ * for at hænge og svæve ud i luften."  They were right: both buttons were
+ * parked eight centimetres off the side of the throttle pedestal with
+ * nothing behind them. The console face itself has no room left beside
+ * the throttle - the yoke is in front of it on one side and the switch
+ * blocks fill the other - so the panel comes to the buttons: a small
+ * plate bolted to the left of the pedestal, tilted to the same angle,
+ * with the red launch button on it and the jump/leave button underneath,
+ * both seated so their backs touch the plate.
+ *
+ * And the slot under the red one is never empty. A control that appears
+ * from nowhere when it becomes relevant reads as a glitch; a dark cap
+ * that lights up and takes a label reads as a ship. */
+const btnMount=(function(){
+  const m=new THREE.Group();
+  m.position.set(-.17,.015,.072);m.rotation.x=-.30;
+  throttle.group.add(m);
+  const plate=new THREE.Mesh(new THREE.BoxGeometry(.22,.30,.022),M.hullDark);
+  m.add(plate);
+  const rim=new THREE.Mesh(new THREE.BoxGeometry(.235,.315,.012),M.trim);
+  rim.position.z=-.006;m.add(rim);
+  return m;
+})();
+(function mountOnPlate(){
+  const seat=(o,y,sc,back)=>{
+    o.parent.remove(o);btnMount.add(o);
+    o.position.set(0,y,.011-back*sc);
+    o.rotation.set(0,0,0);o.scale.setScalar(sc);
+  };
+  seat(bigBtn.group,.073,.58,.020);      // cap back sits at z .045-.025
+  seat(hyperBtn.group,-.075,.62,.0125);  // cap back sits at z .035-.0225
+  seat(liftBtn.group,-.075,.62,.0125);
+  seat(idleCap,-.075,.62,.0125);
 })();
 /* ---------------- THE GLOBE, and the hop ----------------
  *
@@ -6243,15 +6379,7 @@ function updateHop(dt){
  * slide back to the pilot's seat to light it - which is the order the
  * thing should happen in anyway. HYPERRUM moves to the other side of
  * the throttle so the two are never confused for each other. */
-(function moveStart(){
-  const g=bigBtn.group||bigBtn;
-  if(!g||!g.parent)return;
-  g.parent.remove(g);
-  throttle.group.add(g);
-  g.position.set(-.175,.055,.085);
-  g.rotation.set(-.30,0,0);
-  g.scale.setScalar(.62);
-})();
+
 function pressHyper(){
   if(St.phase!=="course")return;
   const cost=jumpCost(St.dest);
@@ -6478,6 +6606,11 @@ function liftNow(){
 function chooseDest(key){
   if(St.phase!=="space")return;
   if(!destOpen(key)){Audio_.bad();showMsg(lockedWhy(key),5);log("LÅST");return;}
+  /* Test mode opens every world, including one that has not been
+   * generated yet, so it is made on demand rather than flown to as a
+   * null. In ordinary play the medal has already made it. */
+  if(key==="world"&&!PLANET)
+    generateWorld((Math.floor(Date.now()/3600000)*2654435761)>>>0);
   St.dest=key;St.distance=tripDist(key);
   St.phase="course";menu.visible=false;
   hyperBtn.group.visible=true;
@@ -6634,11 +6767,11 @@ function progressNow(){
  * the fuel counter only because he went looking for it. Placed against
  * the live camera pose each frame, they are simply always there. */
 const _fp=new THREE.Vector3(), _fq=new THREE.Quaternion(), _fw=new THREE.Vector3();
-function faceHud(plate,up,dist){
+function faceHud(plate,up,dist,side){
   const cam=(renderer.xr.isPresenting&&renderer.xr.getCamera)
     ? renderer.xr.getCamera(camera) : camera;
   cam.getWorldPosition(_fp);cam.getWorldQuaternion(_fq);
-  _fw.set(0,up,-dist).applyQuaternion(_fq).add(_fp);
+  _fw.set(side||0,up,-dist).applyQuaternion(_fq).add(_fp);
   plate.parent.worldToLocal(_fw);
   plate.position.copy(_fw);
   plate.parent.getWorldQuaternion(_fp2);
@@ -6704,7 +6837,10 @@ function updateQuestHud(){
     questHud.material.needsUpdate=true;
   }
   questHud.visible=true;
-  faceHud(questHud,.19,1.05);
+  /* It rode above eye level, in the way of the thing you are walking
+   * toward. Below the middle it is still the first thing you see when
+   * you glance down, and never between you and the ground. */
+  faceHud(questHud,-.17,1.05);
 }
 /* "It can stay while I'm standing still reading it, but once I've moved
  * five metres to go and do the thing, there's no reason for it to still
@@ -6768,7 +6904,7 @@ async function openSession(spaceType){
   }catch(err){try{await session.end();}catch(e2){}throw err;}
   return session;
 }
-let pendingRecenter=0, snapArmed=false;
+let pendingRecenter=0, snapArmed=false, recenterDelay=0;
 /* One shared flag for two controllers: the hand that was NOT holding the
  * button cleared it every frame, so the hand that WAS holding it fired
  * again on the next - sixty toggles a second, landing on whichever state
@@ -6812,6 +6948,10 @@ btnFlat.addEventListener("click",()=>{
 });
 const _rcq=new THREE.Quaternion(), _rcf=new THREE.Vector3(), _rcp=new THREE.Vector3();
 function recenter(final){
+  /* Only in the headset. Out of VR the XR camera is a stale object sitting
+   * at the origin, and measuring the seat against it walks the whole rig a
+   * metre into the air. */
+  if(!renderer.xr.isPresenting)return;
   const xrCam=renderer.xr.getCamera?renderer.xr.getCamera(camera):camera;
   /* Yaw first, and this is the part that was missing. Position alone put
    * you in the seat facing whichever way your room happens to point, so
@@ -7784,7 +7924,7 @@ function enterShip(){
      * pressed the hatch was the direction you woke up in - sometimes
      * staring at the back wall, sometimes at the seat behind you.
      * Coming aboard now ends with you looking out of the windscreen. */
-    pendingRecenter=3;
+    recenterDelay=.55;
     St.phase=St.dest?"landed":"preflight";
     enterMark.visible=false;tpMark.group.visible=false;
     log("OMBORD");
@@ -8468,6 +8608,22 @@ function updateFlight(dt){
     St.alt=SHIP.pos.y-h-GEAR;
     St.speed=SHIP.vel.length();
     skirt.position.y=h-160;
+    /* Peter: "nattehimlen må gerne fade langsomt til sort, og ikke
+     * switche når man er lige præcis nået 15 km."  Jorden already did
+     * this - its climb runs a 70 km ramp - but every other world kept
+     * its daylight sky at full strength all the way up and then had it
+     * removed in one frame at the orbit line. Same ramp, scaled to the
+     * 15 km these worlds leave at, and it runs downward too, so coming
+     * in the air thickens as you descend. */
+    {
+      const u=THREE.MathUtils.clamp((St.alt-900)/12500,0,1);
+      const e=u*u*(3-2*u);
+      skyUniforms.alpha.value=Math.min(1,DEST[St.dest].atmo*4)*(1-e);
+      const so=Math.max(DEST[St.dest].atmo<0.05?1:0,e);
+      stars.material.opacity=so;
+      deepSky.visible=so>.02;
+      deepSky.children.forEach(c=>{c.material.opacity=so*.55;});
+    }
     /* Climb away from a world and its own limb comes up to meet you, the
      * local ground fading out from under the ship as it goes. */
     if(St.alt>15000){
@@ -8516,7 +8672,11 @@ function updateFlight(dt){
           GAME.goldSeen=true;refreshMenu();
           spawnAliens(VILL.live?VILL.x:SHIP.pos.x,
                       VILL.live?VILL.z:SHIP.pos.z);
-          startQuests(SHIP.pos.x,SHIP.pos.z);
+          /* The villagers moved to the village and the things they ask
+           * for did not, so every errand still started and ended at the
+           * ship. They belong where the people are. */
+          startQuests(VILL.live?VILL.x:SHIP.pos.x,
+                      VILL.live?VILL.z:SHIP.pos.z);
         }
         {
           /* Both modes. Test used to skip the Moon's cores and the Mars
@@ -8600,6 +8760,7 @@ function updateFlight(dt){
     }
     againBtn.group.visible=(St.phase==="landed");
     liftBtn.group.visible=(St.phase==="landed"&&!!St.dest&&!St.seqing);
+    idleCap.visible=!(hyperBtn.group.visible||liftBtn.group.visible);
     /* The fuel button appears when there is fuel in the hold and room in
      * the tank, and nowhere else. */
     fuelBtn.group.visible=(!WALK.active&&GAME.cores>0&&GAME.fuel<TANK&&
@@ -8777,6 +8938,17 @@ function frame(){
   /* Twice, on two consecutive frames: the first pass works from the
    * previous frame's head pose, the second from the corrected one, so
    * any staleness washes out instead of being baked in. */
+  /* Peter: "når man lige kommer ind i cockpittet er højden ikke helt
+   * rigtig - kan du ikke sætte sådan en reset i gang?" There WAS one, and
+   * it ran two frames after the hatch closed, which is in the middle of
+   * the fade with his head still moving from having reached up to press
+   * the button. Whatever pose it caught became the seat. Now it waits for
+   * the picture to come back and for him to have settled, and only then
+   * measures - which is exactly what pressing the Meta button does, and
+   * why that one always worked. */
+  if(recenterDelay>0&&(recenterDelay-=dt)<=0){
+    rig.position.set(seatX,0,0);headYaw.rotation.y=0;pendingRecenter=3;
+  }
   if(pendingRecenter>0){
     pendingRecenter--;
     if(pendingRecenter<=1)try{recenter(pendingRecenter===0);}catch(e){}
@@ -8895,7 +9067,20 @@ function frame(){
       THREE.MathUtils.clamp(1-a/16000,0.10,1);
   }
   cockpitVisible(!WALK.active);
-  shipBeacon.visible=WALK.active;
+  /* Peter: "en mærkelig lodret lysstribe ... den ender bare ude i
+   * horisonten og ligner bare en fejl."  It is the ship's own marker, so
+   * you can find your way back - but it was lit the whole time you were
+   * outside, including while standing at the foot of the ladder, where
+   * it marks something you are looking straight at and reads as a stray
+   * beam going nowhere. It now fades up only once the ship is far enough
+   * away to lose. */
+  {
+    const bd=WALK.active
+      ? Math.hypot(WALK.pos.x-SHIP.pos.x,WALK.pos.z-SHIP.pos.z) : 0;
+    const bo=WALK.active?THREE.MathUtils.clamp((bd-70)/60,0,1):0;
+    shipBeacon.visible=bo>0.01;
+    shipBeacon.material.opacity=.17*bo;
+  }
   if(GLOBE.group){
     const want=(!WALK.active)&&!!PLANET&&(GAME.at==="world"||St.dest==="world");
     GLOBE.group.visible=want;
@@ -8913,12 +9098,17 @@ function frame(){
                     !(GAME.at==="earth"&&SHIP.onGround);
   updateQuestHud();
   updateTaskPlate();
-  infoBtn.visible=WALK.active;
-  if(infoBtn.visible)faceHud(infoBtn,.115,.80);
+  /* Dead centre of the view it read as an object hanging in the sky
+   * over the landing pad - Peter went looking for what it was attached
+   * to. It is a HUD chip, so it belongs out at the edge, and only when
+   * there is in fact something to read again. */
+  infoBtn.visible=WALK.active&&(!!lastMsg||taskPlate.visible);
+  if(infoBtn.visible)faceHud(infoBtn,-.105,.80,.235);
   markFlush();
   renderer.render(scene,camera);
 }
 </script>
+
 
 </body>
 </html>
