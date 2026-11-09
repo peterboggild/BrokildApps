@@ -209,7 +209,11 @@
         // a short file is the usual sign of a transfer that stopped early
         if (file.size + 1024 < stated) return `the file is incomplete - it says ${Math.round(stated / 1048576)} MB but only ${Math.round(file.size / 1048576)} MB arrived`;
         if (tag(8, 4) !== 'WAVE') return 'the header is damaged';
-        return 'the browser would not take the audio inside it - most often a WAV holding something other than plain PCM, such as a compressed or 64-bit format. Exporting again as 16- or 24-bit PCM WAV usually fixes it';
+        /* Nothing wrong with the container, so either the payload is not plain PCM, or the
+           browser's own audio service has wedged - which it does, and then every decode fails
+           until the browser is restarted while the same file plays fine everywhere else. The
+           second is worth naming, because otherwise the hunt goes to the file, which is innocent. */
+        return 'the header is a normal WAV, so either it holds something other than plain PCM (export it again as 16- or 24-bit PCM), or the browser itself is refusing to decode - restart the browser and try once more before suspecting the file';
       }
       return 'the file does not start like any audio format the browser reads';
     } catch (err) {
