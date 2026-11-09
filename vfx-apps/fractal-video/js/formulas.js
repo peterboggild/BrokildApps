@@ -24,6 +24,125 @@
     dr = pow(r, pw - 1.0) * pw * dr + 1.0;
     z = pow(r, pw) * vec3(sin(th) * cos(ph), sin(th) * sin(ph), cos(th)) + p;`;
 
+
+  /* The branching estimator, shared by the tree, the dendrite, the nerve cell, the root and the
+     mycelium.
+
+     They share it because in nature they share it too: each is a tube that splits, turns and
+     shrinks, and what tells them apart is the angle it splits at, how fast it thins, and which way
+     gravity pulls. Five near-identical shaders would only have drifted apart under maintenance, so
+     the differences live in the defaults and in the four expressions passed in here.
+
+     Why it is exact rather than approximate. At each generation we measure the distance to ONE
+     capsule, then move the point into the child branch's own frame and go round again. Every
+     transform applied is a rotation or a uniform scale - all conformal - so dividing the distance
+     by the accumulated scale gives a true distance to the structure, not a bound that needs a
+     safety factor.
+
+     Where the branches come from. The N-fold fold is a rotation into a single wedge, so the one
+     capsule we measure stands for N branches arranged around the parent. That is why an
+     11-generation tree with four branches a node - four million twigs - costs eleven capsule
+     evaluations and not four million.
+
+     What it does NOT guarantee, and this is the part that decides the defaults. The fold is a
+     true distance only while each subtree stays inside its own wedge. Measured against an
+     explicitly built tree (scripts/check-branch-de.js), it is exact to 1e-6 with a narrow angle
+     and no twist, and degrades from there: a twist alone costs 1.2x at 10 degrees, and at the
+     angles these formulas actually use the worst case over the volume runs to 10x and beyond,
+     growing with the generation count. An overestimate is the dangerous direction - the ray
+     steps further than there is room for and passes through a branch.
+
+     Two things follow, and both were settled by looking at renders rather than at the numbers.
+     First, that worst case is a worst case over the whole volume, most of it deep inside the
+     canopy where rays have already terminated; it predicts almost nothing about the picture. At
+     seven generations every one of these renders clean at a step factor of 0.35, despite worst
+     ratios in the dozens. Second, the generation count is the real control: the tree shipped at
+     eleven generations and tore into speckle at 0.35, and the same tree at 0.05 came back solid,
+     which is tunnelling and not noise. So these ship at seven generations, where the picture is
+     clean and the structure still reads as branches rather than as a ball of fuzz, and the
+     maximum is held at ten.
+
+     If you raise the generation count past ten, expect speckle and lower Step factor to match -
+     roughly halving it per extra generation. If a narrow-angled, untwisted tree feels slow, raise
+     Step factor freely, because there the estimate really is the distance.
+
+     Gravity is the one piece that cannot be done by folding alone. A branch should bend towards
+     world-down whichever way it happens to be pointing, so we carry world-up along in the local
+     frame (it takes the same rotations the point does) and bend about the axis perpendicular to
+     both. A branch still pointing straight up has no such axis and is left alone, which is exactly
+     what happens to a trunk. */
+  const BRANCH_GLSL = (up, taper, droop, soma, axon) => `
+float brCap(vec3 p, float h, float r) {
+  p.y -= clamp(p.y, 0.0, h);
+  return length(p) - r;
+}
+// Tilt about Z, so the branch leans towards +x - the centre of the wedge the fold maps into.
+// Tilting about X would lean it towards -z instead, a quarter turn out of register with the
+// wedge, and the estimator would then measure a copy that is not the nearest one and report
+// more room than there is.
+mat3 brRotZ(float a) { float c = cos(a), s = sin(a); return mat3(c, s, 0.0, -s, c, 0.0, 0.0, 0.0, 1.0); }
+mat3 brRotY(float a) { float c = cos(a), s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
+mat3 brAxis(vec3 a, float t) {
+  float c = cos(t), s = sin(t), k = 1.0 - c;
+  return mat3(
+    k * a.x * a.x + c,       k * a.x * a.y + s * a.z, k * a.x * a.z - s * a.y,
+    k * a.x * a.y - s * a.z, k * a.y * a.y + c,       k * a.y * a.z + s * a.x,
+    k * a.x * a.z + s * a.y, k * a.y * a.z - s * a.x, k * a.z * a.z + c);
+}
+float fde(vec3 p, out vec4 trap, out float it) {
+  float shrink = max(0.2, uP[0]), ang = uP[1], twist = uP[2];
+  float folds = max(2.0, floor(uP[3] + 0.5));
+  float L = uP[4], R = uP[5];
+  float taper = ${taper}, droop = ${droop}, soma = ${soma}, axon = ${axon};
+  float up = ${up};
+
+  vec3 z = p;
+  z.y *= up;                       // a root is a tree grown the other way: mirror once, here
+  vec3 upL = vec3(0.0, up, 0.0);   // world up, carried along in the branch's own frame
+
+  float dr = 1.0, rr = R, d = 1e9;
+  trap = vec4(1e9);
+  it = 0.0;
+
+  // the cell body, and the one long unbranched fibre leaving it
+  if (soma > 0.0) d = min(d, length(p) - soma);
+  if (axon > 0.0) d = min(d, brCap(vec3(p.x, -p.y, p.z), axon, max(R * 0.9, 0.004)));
+
+  float sector = 6.28318530718 / folds;
+  for (int i = 0; i < MAX_ITER; i++) {
+    if (i >= uIter) break;
+    float seg = brCap(z, L, rr) / dr;
+    if (seg < d) { d = seg; it = float(i) / float(uIter); }
+    trap = min(trap, vec4(abs(z), dot(z, z)));
+
+    z.y -= L;                      // stand at the tip of the branch just measured
+
+    // the whorl: rotate into one wedge, so that single capsule stands for N branches
+    float a = atan(z.z, z.x);
+    float w = mod(a + sector * 0.5, sector) - sector * 0.5;
+    float rxz = length(z.xz);
+    float da = w - a;
+    z.xz = vec2(cos(w), sin(w)) * rxz;
+    float cw = cos(da), sw = sin(da);
+    upL.xz = vec2(upL.x * cw - upL.z * sw, upL.x * sw + upL.z * cw);
+
+    mat3 Ra = brRotZ(ang);         // lean away from the parent, towards the centre of the wedge
+    z = Ra * z; upL = Ra * upL;
+    mat3 Rt = brRotY(twist);       // and turn around it, so the branches do not stack into a plane
+    z = Rt * z; upL = Rt * upL;
+
+    if (abs(droop) > 1e-5) {
+      vec3 ax = cross(vec3(0.0, 1.0, 0.0), upL);
+      float al = length(ax);
+      if (al > 1e-4) { mat3 Rd = brAxis(ax / al, droop); z = Rd * z; upL = Rd * upL; }
+    }
+
+    z /= shrink; dr /= shrink;     // the child is shrink times its parent
+    rr *= taper;                   // thinner again, if the taper asks for it
+  }
+  return d;
+}`;
+
   const FORMULAS = [
     {
       id: 'mandelbulb', name: 'Mandelbulb', blurb: 'Classic power-n bulb. Julia mix morphs it into a Julia bulb.',
@@ -599,6 +718,109 @@ float fde(vec3 p, out vec4 trap, out float it) {
   float d = min(length(vec2(fx, fy)) - uP[2], length(vec3(fx, fy, fz)) - uP[3]);
   return max(d / sc, length(p) - uP[6]);
 }`
+    },
+    // ---------- nature: growth and branching ----------
+    {
+      id: 'tree', name: 'Tree', cat: 'nature',
+      blurb: 'A trunk that splits, turns and thins. Wide angles open the canopy, narrow ones give a poplar, and droop bends the branches under their own weight.',
+      size: 1.5, step: 0.35, iter: { min: 3, max: 10, def: 7 }, camera: { dist: 5.6, pitch: 10, yaw: 25, ty: 1.7 },
+      params: [
+        P('shrink', 'Shrink', 0.45, 0.88, 0.002, 0.68, { calm: [0.6, 0.78], hint: 'How much smaller each generation is. Near 0.85 the tree hardly stops.' }),
+        P('angle', 'Branch angle', 0, 85, 0.25, 32, { unit: '°', calm: [18, 48], hint: 'How far a branch leans off its parent.' }),
+        P('twist', 'Twist', -180, 180, 0.5, 72, { unit: '°', calm: [40, 110], hint: 'Turn around the parent between generations, so the branches do not stack into a plane.' }),
+        P('folds', 'Branches', 2, 8, 1, 4, { calm: [3, 5], hint: 'Branches at each node. They come from a fold, so more of them costs nothing.' }),
+        P('len', 'Segment', 0.4, 2, 0.005, 1, { calm: [0.8, 1.3], hint: 'Length of each piece of branch.' }),
+        P('rad', 'Thickness', 0.02, 0.4, 0.002, 0.11, { calm: [0.06, 0.18] }),
+        P('taper', 'Taper', 0.5, 1.2, 0.005, 0.86, { calm: [0.75, 1], hint: 'Extra thinning each generation, on top of the shrink.' }),
+        P('droop', 'Droop', -60, 60, 0.25, 8, { unit: '°', calm: [-15, 25], hint: 'Bend towards the ground, or towards the sky if negative. It accumulates outwards.' })
+      ],
+      pack: (v) => ({ p: [v.shrink, rad(v.angle), rad(v.twist), v.folds, v.len, v.rad, v.taper, rad(v.droop)] }),
+      glsl: BRANCH_GLSL('1.0', 'uP[6]', 'uP[7]', '0.0', '0.0')
+    },
+    {
+      id: 'dendrite', name: 'Dendrite', cat: 'nature',
+      blurb: 'The crystal kind: manganese in agate, frost on a window, copper out of solution. Near-right angles, no twist and almost no taper, so the side shoots stay as thick as what they grew from.',
+      size: 1.5, step: 0.35, iter: { min: 3, max: 10, def: 7 }, camera: { dist: 6.2, pitch: 12, yaw: 40, ty: 1.9 },
+      params: [
+        P('shrink', 'Shrink', 0.45, 0.92, 0.002, 0.78, { calm: [0.68, 0.86] }),
+        P('angle', 'Branch angle', 0, 85, 0.25, 64, { unit: '°', calm: [50, 78], hint: 'Crystal dendrites branch near a right angle, following the lattice they grow in.' }),
+        P('twist', 'Twist', -180, 180, 0.5, 0, { unit: '°', calm: [-20, 20], hint: 'Zero keeps every generation in one plane, which is what makes it read as a crystal rather than a plant.' }),
+        P('folds', 'Branches', 2, 8, 1, 4, { calm: [3, 6] }),
+        P('len', 'Segment', 0.4, 2, 0.005, 1.15, { calm: [0.9, 1.4] }),
+        P('rad', 'Thickness', 0.02, 0.4, 0.002, 0.06, { calm: [0.03, 0.1] }),
+        P('taper', 'Taper', 0.5, 1.2, 0.005, 1, { calm: [0.92, 1.1] }),
+        P('droop', 'Droop', -60, 60, 0.25, 0, { unit: '°', calm: [-10, 10] })
+      ],
+      pack: (v) => ({ p: [v.shrink, rad(v.angle), rad(v.twist), v.folds, v.len, v.rad, v.taper, rad(v.droop)] }),
+      glsl: BRANCH_GLSL('1.0', 'uP[6]', 'uP[7]', '0.0', '0.0')
+    },
+    {
+      id: 'neuron', name: 'Nerve cell', cat: 'nature',
+      blurb: 'A cell body with one long axon leaving it and a dendritic arbor above. Thin fibres, many generations, wide angles: fly into the arbor and it closes over you.',
+      size: 1.6, step: 0.35, iter: { min: 4, max: 10, def: 7 }, camera: { dist: 6.4, pitch: 6, yaw: 30, ty: 0.9 },
+      params: [
+        P('shrink', 'Shrink', 0.45, 0.92, 0.002, 0.8, { calm: [0.72, 0.87], hint: 'High: a real arbor barely narrows between one branch point and the next.' }),
+        P('angle', 'Branch angle', 0, 85, 0.25, 44, { unit: '°', calm: [30, 60] }),
+        P('twist', 'Twist', -180, 180, 0.5, 96, { unit: '°', calm: [60, 130] }),
+        P('folds', 'Branches', 2, 8, 1, 3, { calm: [2, 4], hint: 'Two or three. Neurons mostly split in two.' }),
+        P('len', 'Segment', 0.4, 2, 0.005, 0.95, { calm: [0.8, 1.2] }),
+        P('rad', 'Thickness', 0.01, 0.2, 0.001, 0.028, { calm: [0.015, 0.05] }),
+        P('soma', 'Cell body', 0, 0.6, 0.005, 0.26, { group: 'Cell', calm: [0.15, 0.4], hint: 'The sphere everything grows out of. Zero removes it.' }),
+        P('axon', 'Axon', 0, 6, 0.01, 2.6, { group: 'Cell', calm: [1.5, 4], hint: 'One long unbranched fibre leaving the cell body downwards.' })
+      ],
+      pack: (v) => ({ p: [v.shrink, rad(v.angle), rad(v.twist), v.folds, v.len, v.rad, v.soma, v.axon] }),
+      glsl: BRANCH_GLSL('1.0', '0.95', '0.0', 'uP[6]', 'uP[7]')
+    },
+    {
+      id: 'root', name: 'Root system', cat: 'nature',
+      blurb: 'The same growth turned downwards and crowded: wide angles, heavy gravity, little twist, so it tangles into a mat instead of opening out.',
+      size: 1.5, step: 0.35, iter: { min: 3, max: 10, def: 7 }, camera: { dist: 5.4, pitch: -8, yaw: 52, ty: -1.5 },
+      params: [
+        P('shrink', 'Shrink', 0.45, 0.9, 0.002, 0.72, { calm: [0.62, 0.82] }),
+        P('angle', 'Branch angle', 0, 85, 0.25, 54, { unit: '°', calm: [38, 72] }),
+        P('twist', 'Twist', -180, 180, 0.5, 38, { unit: '°', calm: [10, 70] }),
+        P('folds', 'Branches', 2, 8, 1, 5, { calm: [4, 7] }),
+        P('len', 'Segment', 0.4, 2, 0.005, 0.9, { calm: [0.7, 1.1] }),
+        P('rad', 'Thickness', 0.02, 0.4, 0.002, 0.075, { calm: [0.04, 0.12] }),
+        P('taper', 'Taper', 0.5, 1.2, 0.005, 0.92, { calm: [0.82, 1] }),
+        P('droop', 'Gravity', -60, 60, 0.25, 30, { unit: '°', calm: [18, 50], hint: 'Pulls the growth further down. This is what makes it a root and not an upside-down tree.' })
+      ],
+      pack: (v) => ({ p: [v.shrink, rad(v.angle), rad(v.twist), v.folds, v.len, v.rad, v.taper, rad(v.droop)] }),
+      glsl: BRANCH_GLSL('-1.0', 'uP[6]', 'uP[7]', '0.0', '0.0')
+    },
+    {
+      id: 'mycelium', name: 'Mycelium', cat: 'nature', unbounded: true,
+      blurb: 'Hyphae: threads so fine and so many that the volume hazes over. Barely shrinks, barely tapers, branches at every chance. Meant to be flown through slowly.',
+      size: 1.8, step: 0.35, iter: { min: 4, max: 10, def: 7 }, camera: { dist: 12.0, pitch: 8, yaw: 20, ty: 1.4 },
+      params: [
+        P('shrink', 'Shrink', 0.55, 0.95, 0.002, 0.87, { calm: [0.8, 0.92], hint: 'Very high: a hypha is much the same width however far it has run.' }),
+        P('angle', 'Branch angle', 0, 85, 0.25, 36, { unit: '°', calm: [22, 55] }),
+        P('twist', 'Twist', -180, 180, 0.5, 118, { unit: '°', calm: [80, 150], hint: 'A large turn fills space instead of making a flat fan.' }),
+        P('folds', 'Branches', 2, 8, 1, 6, { calm: [4, 8] }),
+        P('len', 'Segment', 0.4, 2, 0.005, 1.25, { calm: [1, 1.6] }),
+        P('rad', 'Thickness', 0.005, 0.1, 0.001, 0.016, { calm: [0.008, 0.035] }),
+        P('taper', 'Taper', 0.6, 1.2, 0.005, 1.02, { calm: [0.95, 1.1] }),
+        P('droop', 'Drift', -60, 60, 0.25, -4, { unit: '°', calm: [-20, 20] })
+      ],
+      pack: (v) => ({ p: [v.shrink, rad(v.angle), rad(v.twist), v.folds, v.len, v.rad, v.taper, rad(v.droop)] }),
+      glsl: BRANCH_GLSL('1.0', 'uP[6]', 'uP[7]', '0.0', '0.0')
+    },
+    {
+      id: 'coral', name: 'Coral', cat: 'nature',
+      blurb: 'A colony rather than a plant: short fat lobes, many of them at each node, branching wide and barely thinning. Built on the same spine as the tree, because a coral head is a branching colony - the look comes from blunt, heavy segments instead of slender ones.',
+      size: 1.5, step: 0.35, iter: { min: 3, max: 10, def: 6 }, camera: { dist: 4.6, pitch: 14, yaw: 44, ty: 0.3 },
+      params: [
+        P('shrink', 'Shrink', 0.45, 0.92, 0.002, 0.74, { calm: [0.65, 0.84], hint: 'Kept high so the colony stays chunky all the way out instead of fading into twigs.' }),
+        P('angle', 'Branch angle', 0, 85, 0.25, 52, { unit: '°', calm: [38, 68], hint: 'Wide, so the lobes crowd outwards into a head rather than reaching up.' }),
+        P('twist', 'Twist', -180, 180, 0.5, 34, { unit: '°', calm: [10, 70] }),
+        P('folds', 'Branches', 2, 8, 1, 6, { calm: [5, 8], hint: 'A coral head puts out many lobes at once; this is what separates it from the tree.' }),
+        P('len', 'Segment', 0.4, 2, 0.005, 0.62, { calm: [0.45, 0.9], hint: 'Short segments, so each lobe reads as a lump rather than a branch.' }),
+        P('rad', 'Thickness', 0.02, 0.4, 0.002, 0.2, { calm: [0.13, 0.3] }),
+        P('taper', 'Taper', 0.5, 1.2, 0.005, 0.97, { calm: [0.9, 1.08], hint: 'Near one: the tips stay nearly as fat as the base.' }),
+        P('droop', 'Droop', -60, 60, 0.25, -14, { unit: '°', calm: [-35, 5], hint: 'Negative curls the lobes upwards, the way a head grows towards the light.' })
+      ],
+      pack: (v) => ({ p: [v.shrink, rad(v.angle), rad(v.twist), v.folds, v.len, v.rad, v.taper, rad(v.droop)] }),
+      glsl: BRANCH_GLSL('1.0', 'uP[6]', 'uP[7]', '0.0', '0.0')
     },
     // ---------- architecture ----------
     {
@@ -1248,6 +1470,7 @@ float fde(vec3 p, out vec4 trap, out float it) {
     { id: 'arch', label: 'Architecture' },
     { id: 'machine', label: 'Machines' },
     { id: 'land', label: 'Landscapes' },
+    { id: 'nature', label: 'Nature' },
     { id: 'mixed', label: 'Mixed' }
   ];
   const CAT_OF = { mandelbox: 'arch', kifsMenger: 'arch', octahedra: 'arch', kaliBox: 'arch', pseudoKleinian: 'arch', hyperbolic: 'arch', amazingSurf: 'land' };
