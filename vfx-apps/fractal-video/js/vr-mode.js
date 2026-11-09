@@ -380,7 +380,7 @@ void main() {
     const perf = new Perf(72, { start: 0.75, min: 0.3 });
     const learned = Object.assign({}, S0.perf || {});
     const st = {
-      mode: 'ride', rig: null, pinch: null, twist: null, twistHand: null, held: {}, press: { left: null, right: null }, param: { left: null, right: null },
+      mode: 'ride', rig: null, pinch: null, twist: null, twistHand: null, held: {}, press: { left: null, right: null }, param: { left: null, right: null }, tab: null,
       lastTime: 0, pending: null, msg: '', msgUntil: 0, heavyShownFor: null, hintUntil: performance.now() + 9000,
       sens: S0.sens || 'normal', auto: S0.auto !== false, res: perf.res, lastFormula: null, frame: null
     };
@@ -442,6 +442,19 @@ void main() {
       deps.commit();
       main.dirty = true;
     }
+    /* Picking a palette on its own, which the panel could not do before: a look preset carries a
+       palette plus light and grade, and sometimes you only want the colours changed. The stops are
+       copied rather than referenced, or every scene on that preset would share one array and
+       editing one would edit them all. */
+    function pickPalette(id) {
+      const sc = sceneOf(st.frame);
+      const preset = deps.Pal.PRESET_BY_ID[id];
+      if (!sc || !preset) return;
+      sc.look.palette.stops = preset.stops.map((s2) => ({ p: s2.p, c: s2.c }));
+      deps.holdScene(sc.id);
+      deps.commit();
+      main.dirty = true;
+    }
     function sensK() { return (SENS.find((s) => s.id === st.sens) || SENS[1]).k; }
     function toggleRec(r) {
       const sc = sceneOf(st.frame);
@@ -489,7 +502,27 @@ void main() {
       g.fillStyle = COL.faint;
       g.fillText(`${Math.round(perf.fps())} fps · resolution ${Math.round(perf.res * 100)} %${st.auto ? ' (auto)' : ''} · ${sc ? sc.name : ''}`, 260, 43);
       P.tiles.push({ id: 'close', x: P.cw - 86, y: 14, w: 64, h: 56, label: '✕', font: 28, on: () => { P.open = false; } });
-      let y = 86;
+      /* Tabs across the top, one per family plus Looks and Palettes.
+
+         The panel used to show every fractal, every look and the action bar at once, which meant
+         34 names in a seven-column grid at 21px and 18 looks at 18px. On a headset that is
+         readable right up until the renderer throttles the resolution, which is exactly when you
+         are reaching for the panel. Showing one tab at a time costs a trigger press and buys back
+         enough room for 32px names. */
+      const TABS = deps.Formulas.CATEGORIES.map((c) => ({ id: `cat:${c.id}`, label: c.label }))
+        .concat([{ id: 'look', label: 'Looks' }, { id: 'pal', label: 'Palettes' }]);
+      if (!st.tab || !TABS.some((t) => t.id === st.tab)) {
+        // open on the family the current fractal belongs to, so the panel comes up where you are
+        const cur = sc && deps.Formulas.get(sc.formula);
+        st.tab = `cat:${(cur && cur.cat) || 'mixed'}`;
+      }
+      const tabW = (P.cw - 60 - (TABS.length - 1) * 8) / TABS.length;
+      TABS.forEach((t, i) => P.tiles.push({
+        id: `tab:${t.id}`, x: 30 + i * (tabW + 8), y: 84, w: tabW, h: 60, label: t.label, font: 23,
+        active: st.tab === t.id, on: () => { st.tab = t.id; main.dirty = true; }
+      }));
+
+      let y = 160;
       if (perf.heavy) {
         rr(g, 24, y, P.cw - 48, 112, 14);
         g.fillStyle = 'rgba(255,196,107,0.14)';
@@ -506,28 +539,40 @@ void main() {
         P.tiles.push({ id: 'keep', x: P.cw - 44 - 220, y: y + 50, w: 220, h: 50, label: 'Keep this one', font: 22, on: () => { perf.heavy = false; st.heavyShownFor = sc && sc.formula; } });
         y += 126;
       }
-      g.textAlign = 'left';
-      g.fillStyle = COL.faint;
-      g.font = '600 20px system-ui, sans-serif';
-      g.fillText('FRACTAL', 30, y + 14);
-      y += 32;
-      const forms = deps.Formulas.FORMULAS;
-      const cols = 7, tw = (P.cw - 60 - (cols - 1) * 10) / cols, th = 54;
-      forms.forEach((f, i) => {
-        const pend = st.pending && st.pending.formula === f.id;
-        P.tiles.push({ id: `f:${f.id}`, x: 30 + (i % cols) * (tw + 10), y: y + Math.floor(i / cols) * (th + 10), w: tw, h: th, label: pend ? 'loading…' : f.name, font: 21, active: sc && sc.formula === f.id, on: () => pickFormula(f.id) });
-      });
-      y += Math.ceil(forms.length / cols) * (th + 10) + 14;
-      g.fillStyle = COL.faint;
-      g.fillText('LOOK', 30, y + 14);
-      y += 32;
-      const looks = deps.Schema.LOOK_PRESETS;
-      const lc = 9, lw = (P.cw - 60 - (lc - 1) * 10) / lc, lh = 70;
-      looks.forEach((p, i) => {
-        const stops = (deps.Pal.PRESET_BY_ID[p.palette] || { stops: [] }).stops;
-        P.tiles.push({ id: `l:${p.id}`, x: 30 + (i % lc) * (lw + 10), y: y + Math.floor(i / lc) * (lh + 10), w: lw, h: lh, label: p.name, font: 18, strip: stops, on: () => pickLook(p.id) });
-      });
-      y += Math.ceil(looks.length / lc) * (lh + 10) + 16;
+
+      // the action bar keeps its place at the bottom whatever the tab shows, so the controls you
+      // use every few seconds do not move around under your hand
+      const barY = P.ch - 110;
+      const grid = (items, cols, gap, maxH, make) => {
+        const rects = gridRects(items.length, cols, gap, maxH, y, barY - 16, P.cw);
+        items.forEach((item, i) => P.tiles.push(Object.assign(rects[i], make(item, i))));
+      };
+
+      if (st.tab.indexOf('cat:') === 0) {
+        const cat = st.tab.slice(4);
+        // nine at the most in any family, so three columns leave room for 32px names
+        grid(deps.Formulas.FORMULAS.filter((f) => f.cat === cat), 3, 14, 170, (f) => {
+          const pend = st.pending && st.pending.formula === f.id;
+          return { id: `f:${f.id}`, label: pend ? 'loading…' : f.name, font: 32,
+            active: sc && sc.formula === f.id, on: () => pickFormula(f.id) };
+        });
+      } else if (st.tab === 'look') {
+        grid(deps.Schema.LOOK_PRESETS, 4, 12, 112, (p2) => ({
+          id: `l:${p2.id}`, label: p2.name, font: 26,
+          strip: (deps.Pal.PRESET_BY_ID[p2.palette] || { stops: [] }).stops,
+          active: false, on: () => pickLook(p2.id)
+        }));
+      } else {
+        /* Fifty-one palettes will not go large however they are arranged, so these stay small and
+           lean on the colour strip, which is what you actually recognise a palette by. */
+        const cur = (sc && sc.look && sc.look.palette && sc.look.palette.stops) || [];
+        const same = (a, b) => a.length === b.length && a.every((s2, i) => s2.c === b[i].c && Math.abs(s2.p - b[i].p) < 1e-6);
+        grid(deps.Pal.PRESETS, 6, 8, 66, (p2) => ({
+          id: `p:${p2.id}`, label: p2.name || p2.id, font: 20, strip: p2.stops,
+          active: same(cur, p2.stops), on: () => pickPalette(p2.id)
+        }));
+      }
+
       const bw = (P.cw - 60 - 4 * 12) / 5;
       const bar = [
         { id: 'play', label: deps.playing() ? 'Pause' : 'Play', sub: 'A', on: () => deps.togglePlay() },
@@ -536,13 +581,12 @@ void main() {
         { id: 'sound', label: 'Sound…', sub: 'X, or point + trigger', on: () => openSound(null) },
         { id: 'auto', label: st.auto ? 'Auto quality' : 'Fixed quality', sub: st.auto ? 'follows frame rate' : `${Math.round(perf.res * 100)} %`, active: st.auto, on: () => { st.auto = !st.auto; deps.saveSettings({ auto: st.auto }); } }
       ];
-      bar.forEach((b, i) => P.tiles.push(Object.assign({ x: 30 + i * (bw + 12), y, w: bw, h: 72, font: 22 }, b)));
-      y += 86;
+      bar.forEach((b, i) => P.tiles.push(Object.assign({ x: 30 + i * (bw + 12), y: barY, w: bw, h: 72, font: 22 }, b)));
       if (st.msg && performance.now() < st.msgUntil) {
         g.fillStyle = COL.warn;
         g.font = '500 22px system-ui, sans-serif';
         g.textAlign = 'left';
-        g.fillText(st.msg, 30, Math.min(P.ch - 24, y + 6), P.cw - 60);
+        g.fillText(st.msg, 30, P.ch - 20, P.cw - 60);
       }
       P.tiles.forEach((t) => drawTile(g, t, P.hover === t.id));
     }
@@ -602,7 +646,7 @@ void main() {
       g.fillText('Grip: twist the fractal · Y panel · A play / pause · B scene camera', P.cw / 2, 138, P.cw - 40);
       g.fillStyle = COL.faint;
       g.font = '400 24px system-ui, sans-serif';
-      g.fillText('Point at the fractal and pull the trigger for the sound palette', P.cw / 2, 186, P.cw - 40);
+      g.fillText('Panel: tabs along the top · families, Looks, Palettes · point and pull the trigger', P.cw / 2, 182, P.cw - 40);
     }
 
     function openMain(head, fwd) {
@@ -932,9 +976,29 @@ void main() {
       overlay.dispose();
     }
 
-    return { onFrame, end, state: st, perf, panels: { main, sound, hint }, openMain: () => openMain(lastHead, lastFwd), openSound: () => openSound(null) };
+    // redrawPanels is here so the panel can be drawn and screenshotted outside a headset; the
+    // layout is the part that goes wrong, and checking it in VR means putting the Quest on.
+    return { onFrame, end, state: st, perf, panels: { main, sound, hint }, openMain: () => openMain(lastHead, lastFwd), openSound: () => openSound(null), redrawPanels: () => { layoutMain(); layoutSound(); } };
   }
 
-  FV.VrMode = { Rig, Perf, RECIPES, SENS, recipeOn, toggleRecipe, setSensitivity, fastest, create, math: { add, sub, mul, dot, cross, len, norm, mv, mm, mT, axisAngle } };
+  /* Where the tiles of one tab go. Pulled out of the panel drawing so it can be checked without
+     a headset: the arithmetic is the part that breaks - a family one row taller than expected and
+     the bottom row lands under the action bar, where it is still clickable but invisible. */
+  function gridRects(count, cols, gap, maxH, top, bottom, cw, margin) {
+    const m = margin == null ? 30 : margin;
+    const w = (cw - m * 2 - (cols - 1) * gap) / cols;
+    const rows = Math.max(1, Math.ceil(count / cols));
+    const h = Math.min(maxH, (bottom - top - (rows - 1) * gap) / rows);
+    // A family with six fractals would otherwise sit in the top half with a hole under it, so the
+    // block is centred in the body. Tabs that fill their space are unaffected.
+    const y0 = top + Math.max(0, (bottom - top - (rows * h + (rows - 1) * gap)) / 2);
+    const out = [];
+    for (let i = 0; i < count; i += 1) {
+      out.push({ x: m + (i % cols) * (w + gap), y: y0 + Math.floor(i / cols) * (h + gap), w, h });
+    }
+    return out;
+  }
+
+  FV.VrMode = { Rig, Perf, RECIPES, SENS, recipeOn, toggleRecipe, setSensitivity, fastest, create, gridRects, math: { add, sub, mul, dot, cross, len, norm, mv, mm, mT, axisAngle } };
   if (typeof module !== 'undefined' && module.exports) module.exports = FV.VrMode;
 })();

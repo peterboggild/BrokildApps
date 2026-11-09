@@ -99,6 +99,43 @@ Then either Shape → *Key to music* (pick a parameter and a stem) or the Modula
 source, destination, depth, attack/release and look-ahead (beats), with a plot of the signal over the song.
 Shape routes act in every scene whose formula has that parameter.
 
+## VR (Quest and other WebXR headsets)
+
+Open the page in the headset browser and press the VR button. It also works over a cable through
+Meta Horizon Link, where the PC renders and the headset is a display: the headset does not switch
+to the PC on its own, you start the session on whichever machine is to do the work.
+
+**The panel (Y, or point and pull the trigger).** Tabs across the top: one per fractal family, then
+Looks and Palettes. One tab at a time, because the headset drops its resolution the moment the frame
+rate slips - exactly when you are reaching for the panel - and a 34-name grid is unreadable at that
+point. Names are 32px, and the play/hold/camera/sound bar stays put at the bottom whatever tab is
+open. The panel opens on the family of the fractal you are looking at.
+
+**Shaping the fractal by hand.** Hold one trigger for a moment and move that hand: up/down and
+left/right drive two of that fractal's significant parameters, four across both hands. The delay is
+deliberate, so reaching for the panel or pressing both triggers to scale does not jog a parameter.
+A short trigger click still just presses a tile.
+
+**Microphone.** Off by default. Switch it on under Sound; the browser asks for permission on the page
+first, outside VR.
+
+## Nature family
+
+Six branching formulas - tree, dendrite, nerve cell, root system, mycelium, coral - built on one
+recursive distance estimator: a capsule per generation plus a polar wedge fold for the branches, with
+gravity applied by carrying world-up through the local frame so a branch bends towards the ground
+whichever way it points.
+
+The estimator is approximate, and the defaults come from measuring where it stops being trustworthy.
+`scripts/check-branch-de.js` builds the same tree forwards as explicit capsules and compares: within a
+tenth of a percent at narrow angles with no twist, degrading with angle, with twist, and with every
+generation. That worst case is taken over the whole volume, most of it deep inside the canopy where
+rays have already terminated, so it predicts the picture poorly - the shipped settings were chosen by
+rendering instead. The tree at eleven generations tore into speckle that a step factor of 0.05
+removed, which is tunnelling and not noise; at seven generations all six render clean at 0.35 and
+still read as branches. Hence seven generations by default and ten at most. If you raise the
+generation count, lower Step factor to match - roughly halving it per extra generation.
+
 ## Stability design
 
 See the header of `js/renderer.js`. In short: bounded GPU work per draw call (tiled refinement), no
@@ -115,10 +152,13 @@ and a safe start (preview waits for a click) after an unclean exit or when embed
 - `js/renderer.js` — WebGL2 renderer
 - `js/audio.js` — IndexedDB store, analysis, transport
 - `js/structure.js` — song structure: FFT, log-mel/chroma, self-similarity, segmentation (pure, no DOM)
+- `js/vr-mode.js` — WebXR session: flying, scaling, the hand gesture for parameters, and the panel
 - `js/ui-*.js`, `js/app.js` — panels and app glue
 - `server.js` — local server; also runs movie renders (frames → ffmpeg)
 - `render-driver.js` — Node driver (validates a project and evaluates every frame)
 - `scripts/check.js` — headless tests (`npm run check` runs this and the structure tests)
 - `scripts/check-structure.js`, `scripts/structure-fixture.js` — structure tests against synthetic
   songs whose form is known exactly
+- `scripts/check-branch-de.js` — checks the Nature family's distance estimator against the same tree
+  built forwards as explicit capsules
 - `_old-prototype/` — the previous version, kept for reference (safe to delete)

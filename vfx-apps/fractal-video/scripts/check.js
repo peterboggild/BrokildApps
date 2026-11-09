@@ -190,6 +190,54 @@ const near = (a, b, eps, what) => a.forEach((v, i) => assert.ok(Math.abs(v - b[i
 const roomOf = (rig, w) => VM.mul(VM.mv(VM.mT(rig.R), VM.sub(w, rig.O)), 1 / rig.S);
 const g0 = { camPos: [0, 0.5, 3], camFwd: VM.norm([0, -0.5, -3]), camUp: [0, 1, 0], camRight: [1, 0, 0] };
 
+/* The VR panel's tab grid.
+
+   The panel is a canvas in the headset, so nothing here can be checked by eye without putting on
+   a Quest; what can be checked is that the arithmetic keeps every tile on the panel and clear of
+   the action bar, for every tab, at the sizes the panel actually uses. A tile that lands under the
+   bar is the failure that matters: it still takes the trigger press, but you cannot see it. */
+const PANEL = { cw: 1280, ch: 900, top: 160, bar: 900 - 110 };
+
+function tabContents() {
+  const byCat = {};
+  Formulas.CATEGORIES.forEach((c) => { byCat[c.label] = Formulas.FORMULAS.filter((f) => f.cat === c.id).length; });
+  return byCat;
+}
+
+test('VR panel: every family fits above the action bar, at a size worth reading', () => {
+  const counts = tabContents();
+  Object.keys(counts).forEach((label) => {
+    const rects = VrMode.gridRects(counts[label], 3, 14, 170, PANEL.top, PANEL.bar - 16, PANEL.cw);
+    assert.ok(rects.length === counts[label], label);
+    rects.forEach((r) => {
+      assert.ok(r.x >= 0 && r.x + r.w <= PANEL.cw, `${label}: tile runs off the side`);
+      assert.ok(r.y >= PANEL.top - 1e-9, `${label}: tile above the body`);
+      assert.ok(r.y + r.h <= PANEL.bar - 16 + 1e-9, `${label}: tile reaches under the action bar`);
+    });
+    // 32px type needs the tile to be tall enough to hold it with room to spare
+    assert.ok(rects[0].h >= 60, `${label}: tiles only ${rects[0].h.toFixed(0)}px tall`);
+  });
+});
+
+test('VR panel: the looks and the palettes both fit, and the palettes stay legible', () => {
+  const looks = VrMode.gridRects(Schema.LOOK_PRESETS.length, 4, 12, 112, PANEL.top, PANEL.bar - 16, PANEL.cw);
+  looks.forEach((r) => assert.ok(r.y + r.h <= PANEL.bar - 16 + 1e-9, 'a look tile reaches under the action bar'));
+  assert.ok(looks[0].h >= 60, `look tiles only ${looks[0].h.toFixed(0)}px tall`);
+
+  const pals = VrMode.gridRects(Pal.PRESETS.length, 6, 8, 66, PANEL.top, PANEL.bar - 16, PANEL.cw);
+  pals.forEach((r) => assert.ok(r.y + r.h <= PANEL.bar - 16 + 1e-9, 'a palette tile reaches under the action bar'));
+  // the names are small here on purpose; they still need a line of type to sit on
+  assert.ok(pals[0].h >= 34, `palette tiles only ${pals[0].h.toFixed(0)}px tall`);
+  assert.ok(pals[0].w >= 150, `palette tiles only ${pals[0].w.toFixed(0)}px wide for a name`);
+});
+
+test('VR panel: no family has grown past what three columns can show', () => {
+  const counts = tabContents();
+  Object.keys(counts).forEach((label) => {
+    assert.ok(counts[label] <= 12, `${label} has ${counts[label]} fractals; past 12 the tabs need a second page`);
+  });
+});
+
 test('VR rig: the ride rig sits at the scene camera, level, facing the target', () => {
   const rig = Rig.fromCamera(g0, 2);
   near(Rig.toWorld(rig, [0, 0, 0]), g0.camPos, 1e-9, 'origin');
