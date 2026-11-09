@@ -99,6 +99,27 @@ Then either Shape → *Key to music* (pick a parameter and a stem) or the Modula
 source, destination, depth, attack/release and look-ahead (beats), with a plot of the signal over the song.
 Shape routes act in every scene whose formula has that parameter.
 
+## Keyframes
+
+Nothing is keyframed until you say so, and you say so on the slider itself.
+
+**A parameter.** Right-click any keyable slider - formula parameters, Space, Ray march, numeric
+Look values - and choose *Keyframe "<name>" in <scene>*. From then on, in the scenes that lane is
+switched on in, moving the playhead and then the slider writes a key at the playhead instead of
+changing the scene, and the slider follows the keyed value as the playhead moves. Right-click again
+for the rest: add or set a key at the playhead, delete one, switch the lane on or off per scene,
+or remove it entirely.
+
+**The camera.** Put the playhead where you want it, frame the shot, and press **K**. That keys
+every camera value at once - position, target, roll, field of view - so a move is two presses at
+two points on the timeline.
+
+Keys snap to quarter beats; hold **Alt** while dragging one in the timeline to place it freely.
+Lanes live in `project.keys`, stored relative to their section, so splitting or re-cutting a
+section carries them along. The evaluator applies them after the scene blend and before the
+modulation routes, which means a keyed value sets the value and any route on the same parameter
+still adds movement on top of it.
+
 ## VR (Quest and other WebXR headsets)
 
 Open the page in the headset browser and press the VR button. It also works over a cable through
@@ -152,6 +173,7 @@ and a safe start (preview waits for a click) after an unclean exit or when embed
 - `js/renderer.js` — WebGL2 renderer
 - `js/audio.js` — IndexedDB store, analysis, transport
 - `js/structure.js` — song structure: FFT, log-mel/chroma, self-similarity, segmentation (pure, no DOM)
+- `js/keys.js` — keyframe lanes, the slider right-click menu, and the per-scene on/off control
 - `js/vr-mode.js` — WebXR session: flying, scaling, the hand gesture for parameters, and the panel
 - `js/ui-*.js`, `js/app.js` — panels and app glue
 - `server.js` — local server; also runs movie renders (frames → ffmpeg)
