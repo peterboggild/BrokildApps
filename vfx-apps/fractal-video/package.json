@@ -5,7 +5,8 @@
   "description": "Fractal music-video authoring tool (see PLAN.md).",
   "scripts": {
     "start": "node server.js",
-    "check": "node scripts/check.js",
-    "render:help": "node render-driver.js --help"
+    "check": "node scripts/check.js && node scripts/check-structure.js",
+    "render:help": "node render-driver.js --help",
+    "check:structure": "node scripts/check-structure.js"
   }
 }

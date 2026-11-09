@@ -237,6 +237,7 @@
       try {
         const feats = await AudioLib.featuresFor(blob, key, {
           bands: true,
+          spectral: true,   // the master is the only file structure analysis reads
           onStage: (s) => { st.stage = s; refreshAudioUi(); },
           onProgress: (p) => { st.progress = p; refreshAudioUi(); }
         });
@@ -252,6 +253,10 @@
         toast(`Master: ${st.error}`, 'err');
       }
       rebuildTracks();
+      // A different song means the old structure result describes nothing: drop it rather than
+      // leave boundaries from the last track drawn over this one.
+      if (FV.StructureUI) FV.StructureUI.clear();
+      rebuild('structure');
       refreshAudioUi(true);
       invalidate();
     });
@@ -1163,6 +1168,8 @@
       const key = project.master.key;
       project.master = null;
       commit();
+      if (FV.StructureUI) FV.StructureUI.clear();
+      rebuild('structure');
       syncAudio();
       if (key) AudioLib.idb.del('files', key).catch(() => {});
     },
@@ -1239,6 +1246,9 @@
 
   // ---------- panels ----------
   const timeline = new FV.Timeline($('timeline'), ctx);
+  // Structure analysis: its own pane, and its own rebuild target, because analysing is a
+  // deliberate act and its result has to survive every other panel being rebuilt around it.
+  const structurePanel = FV.StructureUI ? FV.StructureUI.mount($('structurePane'), ctx) : null;
   const TAB_BUILDERS = {
     shape: (el) => Panels.buildShapeTab(el, ctx),
     look: (el) => { deleteKeyHandler = null; FV.LookTab.build(el, Object.assign({}, ctx, { rebuild: () => rebuild('look', 'scenes', 'timeline', 'inspector') })); },
@@ -1254,6 +1264,7 @@
     if (want('scenes')) Panels.buildSceneList($('sceneList'), ctx);
     if (want('inspector')) Panels.buildInspectorHead($('inspectorHead'), ctx, settings.tab);
     if (want('audio')) Panels.buildAudioPane($('audioPane'), ctx);
+    if (want('structure') && structurePanel) structurePanel.refresh();
     if (want('timeline')) timeline.refresh();
     Object.keys(TAB_BUILDERS).forEach((tab) => {
       if (!want(tab)) return;

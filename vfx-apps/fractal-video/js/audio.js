@@ -9,7 +9,7 @@
 
   const RATE = 100;            // feature tracks per second
   const DECODE_RATE = 22050;   // analysis sample rate (halves memory vs 44.1k)
-  const FEATURE_VERSION = 4;
+  const FEATURE_VERSION = 5;   // 5 added the spectral frames structure.js needs
 
   // ---------- IndexedDB ----------
   let dbPromise = null;
@@ -179,6 +179,29 @@
     const rms = new Float32Array(frames);
     for (let f = 0; f < frames; f += 1) rms[f] = count[f] ? Math.sqrt(sum2[f] / count[f]) : 0;
     const onset = onsetsFrom(rms);
+
+    /* Spectral frames for structure.js, computed here because this is the only place the decoded
+       PCM exists: it is dropped as soon as analyse() returns. Structure analysis needs a spectrum,
+       which the band filters above cannot give it, so either it happens in this pass or the file
+       has to be decoded a second time. Tempo is not known yet and is not needed yet - these are a
+       plain 20 Hz grid, and beat-syncing happens later, so changing the BPM re-segments without
+       touching the audio again. */
+    let spec = null;
+    if (o.spectral && typeof window !== 'undefined' && window.FVStructure) {
+      if (o.onStage) o.onStage('structure');
+      const mono = new Float32Array(n);
+      for (let i = 0; i < n; i += 1) {
+        let x = chans[0][i];
+        if (chans.length > 1) x = (x + chans[1][i]) * inv;
+        mono[i] = x;
+      }
+      try {
+        spec = window.FVStructure.spectral(mono, sr);
+      } catch (err) {
+        console.warn('Spectral analysis failed; structure will be unavailable', err);
+      }
+      await tick();
+    }
     const out = {
       version: FEATURE_VERSION,
       rate: RATE,
@@ -188,7 +211,8 @@
       env: normalize(Float32Array.from(rms)),
       onset: onset.pulse,
       flux: onset.flux,
-      onsetTimes: onset.times
+      onsetTimes: onset.times,
+      spec
     };
     if (bands) {
       ['low', 'mid', 'high'].forEach((name, b) => {
@@ -204,7 +228,8 @@
   async function featuresFor(blob, key, opts) {
     try {
       const cached = await idb.get('features', key);
-      if (cached && cached.version === FEATURE_VERSION && (!opts.bands || cached.low)) return cached;
+      if (cached && cached.version === FEATURE_VERSION && (!opts.bands || cached.low)
+        && (!opts.spectral || cached.spec)) return cached;
     } catch (err) {
       console.warn('Feature cache read failed', err);
     }

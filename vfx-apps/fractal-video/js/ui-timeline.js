@@ -476,6 +476,7 @@ Moving the camera (mouse or Camera sliders) with the playhead on a diamond chang
       // master waveform
       this._drawKeys(g, vw, sl);
       const wy = RULER_H + SEC_H + this.keyRows.length * KEY_H;
+      this._structureAt = { g, vw, sl, bpb, waveY: wy, waveH: WAVE_H };
       g.fillStyle = '#0b0e14';
       g.fillRect(0, wy, vw, WAVE_H);
       const mf = analysis && analysis.master;
@@ -535,9 +536,27 @@ Moving the camera (mouse or Camera sliders) with the playhead on a diamond chang
           }
         }
       });
+      this._drawStructure();
     }
 
     redraw() { this._scheduleDraw(); }
+
+    /* The structure overlay, drawn last so it sits over the waveform, and handed this draw's own
+       geometry rather than recomputing it: a second copy of the beat-to-pixel mapping is a second
+       thing to keep in step with the ruler. Absent module, absent overlay, no other difference. */
+    _drawStructure() {
+      const v = this._structureAt;
+      if (!v || !window.FV || !FV.StructureUI) return;
+      try {
+        FV.StructureUI.overlay({
+          g: v.g, vw: v.vw, sl: v.sl, bpb: v.bpb,
+          rulerH: RULER_H, secH: SEC_H, waveY: v.waveY, waveH: v.waveH,
+          x: (beat) => this._x(beat)
+        });
+      } catch (err) {
+        console.warn('structure overlay', err);
+      }
+    }
 
     // ---------- keyframe lanes ----------
     _drawKeys(g, vw, sl) {
