@@ -188,6 +188,35 @@
   let queue = Promise.resolve();
   const enqueue = (job) => { queue = queue.then(job).catch((err) => console.error(err)); return queue; };
 
+  /* Why the decode failed, in the message rather than only in the console.
+
+     decodeAudioData throws an EncodingError with nothing useful in it, so a file the browser will
+     not take looked identical to a file that was simply the wrong kind - "Could not decode this
+     file (try WAV or MP3)" on a .wav is no help at all. These are the cases worth telling apart,
+     read from the first bytes of the file. */
+  async function decodeReason(file) {   // a Blob is enough: slice() and size are all this reads
+    try {
+      const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+      const tag = (o, n) => String.fromCharCode.apply(null, head.subarray(o, o + n));
+      if (head.length < 12) return 'the file is empty or truncated';
+      const riff = tag(0, 4);
+      if (riff === 'RF64') return 'it is an RF64 file (a WAV variant for very large recordings) - browsers do not read those; export it again as a normal WAV';
+      if (riff === 'FORM') return 'it is an AIFF file named .wav; export it again as WAV or MP3';
+      if (riff === 'OggS' || tag(0, 4) === 'fLaC') return 'it is not really a WAV; the name says .wav but the contents are something else';
+      if (riff === 'RIFF') {
+        const dv = new DataView(head.buffer);
+        const stated = dv.getUint32(4, true) + 8;
+        // a short file is the usual sign of a transfer that stopped early
+        if (file.size + 1024 < stated) return `the file is incomplete - it says ${Math.round(stated / 1048576)} MB but only ${Math.round(file.size / 1048576)} MB arrived`;
+        if (tag(8, 4) !== 'WAVE') return 'the header is damaged';
+        return 'the browser would not take the audio inside it - most often a WAV holding something other than plain PCM, such as a compressed or 64-bit format. Exporting again as 16- or 24-bit PCM WAV usually fixes it';
+      }
+      return 'the file does not start like any audio format the browser reads';
+    } catch (err) {
+      return 'the file could not be read from disk';
+    }
+  }
+
   function rebuildTracks() {
     const tr = {};
     const m = analysis.master;
@@ -249,8 +278,8 @@
       } catch (err) {
         console.error(err);
         st.status = 'error';
-        st.error = 'Could not decode this file (try WAV or MP3).';
-        toast(`Master: ${st.error}`, 'err');
+        st.error = `Could not decode this file: ${await decodeReason(blob)}.`;
+        toast(`Master: ${st.error}`, 'err', 12000);
       }
       rebuildTracks();
       // A different song means the old structure result describes nothing: drop it rather than
@@ -282,7 +311,7 @@
       } catch (err) {
         console.error(err);
         st.status = 'error';
-        st.error = 'Could not decode this file.';
+        st.error = `Could not decode this file: ${await decodeReason(blob)}.`;
       }
       rebuildTracks();
       refreshAudioUi(true);
@@ -1492,5 +1521,5 @@
   requestAnimationFrame(loop);
 
   // test hook for headless checks
-  FV.app = { ctx, get project() { return project; }, renderer, transport, analysis, backdrops, setBackdropFile, setView, setTab, selectScene, seek, evaluateNow, commit, undo, redo };
+  FV.app = { ctx, decodeReason, get project() { return project; }, renderer, transport, analysis, backdrops, setBackdropFile, setView, setTab, selectScene, seek, evaluateNow, commit, undo, redo };
 })();
