@@ -308,4 +308,79 @@ test('segmenting is fast enough to re-run on every tempo change', () => {
   console.log(`     (${(song.duration / 60).toFixed(1)} min of audio, ${r.beats} beats, segmented in ${ms} ms)`);
 });
 
+/* ============================================== the cut, against real measurements */
+
+/* These are measured, not invented: the 45 pairwise distances between the ten segments of a
+   5:29 metal track, as clusterSegments computes them. They are here because no synthetic song
+   reproduces this shape. Two attempts were made - varying each take, and putting a shared
+   instrumental bed under every passage - and both left the step between same-passage and
+   different-passage pairs at 20x or more, because a fixture's passages are only as alike as its
+   voices, and four deliberately contrasting voices are nothing like one band playing two riffs.
+
+   On a real recording the distances are a continuum from 0.004 to 0.30 with a step of 2.0x where
+   the repeats end. The first version of chooseCut demanded 3x and reported no repetition at all
+   on this track: ten segments, ten types. That is the bug these numbers exist to catch. */
+const REAL_TRACK_DISTANCES = [
+  0.0040, 0.0047, 0.0080, 0.0161, 0.0238, 0.0269, 0.0285, 0.0290, 0.0298, 0.0300,
+  0.0332, 0.0333, 0.0347, 0.0349, 0.0366, 0.0371, 0.0378, 0.0395, 0.0482, 0.0493,
+  0.0658, 0.0666, 0.0674, 0.0683, 0.0688, 0.0689, 0.0697, 0.0709, 0.0722, 0.0729,
+  0.0731, 0.0771, 0.0776, 0.0838, 0.0842, 0.0940, 0.1298, 0.1577, 0.1714, 0.2096,
+  0.2110, 0.2152, 0.2385, 0.2401, 0.3027
+];
+
+test('the cut finds the repeats in a real recording', () => {
+  const cut = S._internal.chooseCut(REAL_TRACK_DISTANCES);
+  assert.ok(cut > 0, 'no cut taken: the track would report every segment as its own type');
+  // the three closest pairs are the repeats; the fourth distance up is a different passage
+  assert.ok(cut > 0.0080, `cut ${cut.toFixed(4)} is below the third repeat at 0.0080`);
+  assert.ok(cut < 0.0161, `cut ${cut.toFixed(4)} reaches past the first unrelated pair at 0.0161`);
+});
+
+test('the cut is not taken on a continuum with no repetition', () => {
+  // evenly spread distances: a song where every passage differs from every other by about as
+  // much. Nothing here is a repeat and nothing should be merged.
+  const even = [];
+  for (let i = 0; i < 45; i += 1) even.push(0.08 + i * 0.005);
+  assert.strictEqual(S._internal.chooseCut(even), 0);
+});
+
+test('a lone close pair on a continuum is not enough to cut', () => {
+  // one pair a little below the rest, but not unusually so against the median: the step test
+  // might like it, the median test must not.
+  const xs = [0.060];
+  for (let i = 0; i < 44; i += 1) xs.push(0.075 + i * 0.004);
+  assert.strictEqual(S._internal.chooseCut(xs), 0);
+});
+
+test('a song that never changes is one passage, not many', () => {
+  const tiny = [];
+  for (let i = 0; i < 20; i += 1) tiny.push(0.0001 + i * 0.0001);
+  assert.ok(S._internal.chooseCut(tiny) > 0, 'everything should merge');
+});
+
+test('the cut still handles the synthetic cliff it was first built for', () => {
+  const synthetic = [0.0002, 0.0006, 0.0014, 0.0035, 0.2017, 0.2042, 0.2184, 0.2192, 0.2201,
+    0.3017, 0.3033, 0.3105, 0.3118, 0.3338, 0.3350];
+  const cut = S._internal.chooseCut(synthetic);
+  assert.ok(cut > 0.0035 && cut < 0.2017, `cut ${cut} should sit in the gap`);
+});
+
+/* ================================================== descriptors across the song */
+
+test('descriptors stretch across the song rather than against an absolute scale', () => {
+  // Measured on the real track: every segment ran 2.7 to 4.6 onsets a beat, so a fixed "2 a beat
+  // is dense" put all ten at 1.00 and the descriptor carried no information at all.
+  const segs = [2.7, 3.1, 3.5, 4.0, 4.6].map((v) => ({ densityRaw: v }));
+  S._internal.spread(segs, 'density', 0.25);
+  assert.strictEqual(segs[0].density, 0);
+  assert.strictEqual(segs[4].density, 1);
+  assert.ok(segs[2].density > 0.3 && segs[2].density < 0.7, `middle at ${segs[2].density}`);
+});
+
+test('a descriptor that barely varies is not magnified into a full sweep', () => {
+  const segs = [3.0, 3.02, 3.05, 3.1].map((v) => ({ densityRaw: v }));
+  S._internal.spread(segs, 'density', 0.25);
+  assert.ok(segs.every((s) => s.density === 0.5), segs.map((s) => s.density).join(','));
+});
+
 console.log(`\n${passed} passed${process.exitCode ? ', some FAILED' : ''}`);

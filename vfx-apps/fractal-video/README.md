@@ -57,7 +57,12 @@ likely a real odd-length section than an error.
   waveform lane and the detection threshold dotted across it, so a missed boundary can be seen to have
   been a near miss and the **sensitivity** moved accordingly. Blue lines were pulled onto the 4-bar grid.
 - Passages that are the same get the same letter. Letters, not names: which one is the chorus takes
-  knowledge of song form the analysis does not have.
+  knowledge of song form the analysis does not have. Where the cut between "same" and "different"
+  falls is decided per song, from the distances themselves; on music with no clear repetition every
+  segment stays its own type rather than being grouped on a guess.
+- **lvl / brt / dns / bass** are stretched across the song, not measured on an absolute scale: they
+  exist to choose between scenes within one track, and on a dense mix an absolute scale puts every
+  segment at the same value and says nothing.
 - **Use as sections** replaces the sections with the segments, one scene per letter from the scenes
   already in the project, and sets each blend from how abrupt its boundary was. Keyframes belong to
   section ids and do not survive it.

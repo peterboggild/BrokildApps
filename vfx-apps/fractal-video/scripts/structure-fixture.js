@@ -43,11 +43,37 @@ function prng(seed) {
 
 /* form     [{ type: 'A'|'B'|'C'|'D', bars }]
    gainAt   optional (bar, totalBars) -> multiplier, for builds and fades
+   vary     optional 0..1: how much each occurrence of a passage differs from the last one.
+
+   `vary` is the difference between a test and a useful test. With it at 0 every repeat is
+   bit-identical, the distance between two instances of the same passage is ~0.003 against ~0.2
+   for different ones, and any clustering rule at all will separate them. Real repeats are not
+   identical - another vocal take, another fill, another moment in the mix - and on a real
+   recording that step shrinks from 57x to about 2x. A rule tuned only against vary = 0 reports
+   no repetition at all on real music, which is exactly what happened.
+
+   The perturbation is per occurrence, not per bar: detune, a different place in the chord to
+   start from, a different drum weight. The passage stays itself; the take changes.
+
+   bed      optional 0..1: how much of the signal is the same in every passage.
+
+   `vary` alone turns out not to reproduce real music, and measuring that was the point. Even at
+   vary = 1 the step stays around 45x, because these four voices are absurdly unlike one another -
+   a sine, a ten-harmonic sawtooth, odd harmonics only - so the between-passage distance stays
+   enormous however much each take wobbles. A real band is the opposite: the same guitars, the
+   same kit, the same room, and only the riff changes, so verse and chorus are far more alike
+   than any two of these voices. `bed` models that directly by putting a fixed layer under every
+   passage. At bed = 0.75 the measured step falls to roughly the 2x a real recording gives, which
+   is the regime the clustering rule has to survive.
+
    Returns { x, onsets, duration, totalBars, boundaries } where boundaries are the bar numbers
    the form actually changes at - the answer a test compares against. */
 function renderForm(form, bpm, beatsPerBar, opts) {
   const o = opts || {};
   const rnd = prng(o.seed || 12345);
+  const vary = o.vary || 0;
+  const bed = o.bed || 0;
+  const seen = {};
   const spb = 60 / bpm;
   const secPerBar = spb * beatsPerBar;
   const totalBars = form.reduce((a, s) => a + s.bars, 0);
@@ -62,7 +88,15 @@ function renderForm(form, bpm, beatsPerBar, opts) {
     if (si) boundaries.push(acc);
     acc += sec.bars;
     const V = VOICE[sec.type];
-    const notes = V.chord.map(hz);
+    // One perturbation per occurrence of this passage: this take, not this bar.
+    seen[sec.type] = (seen[sec.type] || 0) + 1;
+    const take = vary > 0 ? {
+      detune: 1 + vary * (rnd() - 0.5) * 0.04,      // up to +-2 % at vary = 1
+      rotate: Math.floor(rnd() * V.chord.length),   // start the figure elsewhere in the chord
+      drum: 1 + vary * (rnd() - 0.5) * 0.9,         // a heavier or lighter take on the kit
+      tone: 1 + vary * (rnd() - 0.5) * 0.5          // more or less of the pitched voice
+    } : { detune: 1, rotate: 0, drum: 1, tone: 1 };
+    const notes = V.chord.map((mi) => hz(mi) * take.detune);
     for (let b = 0; b < sec.bars; b += 1, bar += 1) {
       const g = o.gainAt ? o.gainAt(bar, totalBars) : 1;
       for (let beat = 0; beat < beatsPerBar; beat += 1) {
@@ -75,14 +109,14 @@ function renderForm(form, bpm, beatsPerBar, opts) {
           for (let i = 0; i < SR * 0.12; i += 1) {
             const e = Math.exp(-i / (SR * 0.03));
             const f = 90 * Math.exp(-i / (SR * 0.02)) + 45;
-            if (i0 + i < n) x[i0 + i] += 0.9 * g * e * Math.sin(2 * Math.PI * f * i / SR);
+            if (i0 + i < n) x[i0 + i] += 0.9 * g * take.drum * e * Math.sin(2 * Math.PI * f * i / SR);
           }
         }
         if (V.hat) {
           onsets.push(t0);
           for (let i = 0; i < SR * 0.05; i += 1) {
             const e = Math.exp(-i / (SR * 0.012));
-            if (i0 + i < n) x[i0 + i] += 0.33 * g * e * (rnd() * 2 - 1);
+            if (i0 + i < n) x[i0 + i] += 0.33 * g * take.drum * e * (rnd() * 2 - 1);
           }
         }
         if (V.eighths) {
@@ -92,22 +126,48 @@ function renderForm(form, bpm, beatsPerBar, opts) {
             onsets.push(te);
             for (let i = 0; i < SR * 0.09; i += 1) {
               const e = Math.exp(-i / (SR * 0.025));
-              if (ie + i < n) x[ie + i] += 0.3 * g * e * Math.sin(2 * Math.PI * 520 * i / SR) * (0.6 + 0.4 * rnd());
+              if (ie + i < n) x[ie + i] += 0.3 * g * take.drum * e * Math.sin(2 * Math.PI * 520 * i / SR) * (0.6 + 0.4 * rnd());
             }
           }
         }
 
         // one pitched note a beat, cycling the chord
-        const f0 = notes[beat % notes.length];
+        const f0 = notes[(beat + take.rotate) % notes.length];
         const dur = spb * 0.9;
         for (let i = 0; i < dur * SR; i += 1) {
           const t = i / SR;
           const env = Math.min(1, t / 0.01) * Math.exp(-t / (dur * 0.5));
-          if (i0 + i < n) x[i0 + i] += 0.35 * g * V.gain * env * V.harm(f0, t);
+          if (i0 + i < n) x[i0 + i] += 0.35 * g * take.tone * V.gain * env * V.harm(f0, t);
         }
       }
     }
   });
+
+  /* The bed: one unchanging layer under the whole song, mixed in at `bed`. A detuned pair of
+     low notes with a lot of harmonics (a wall of guitar), plus a kit on every beat. It carries no
+     information about which passage is playing, which is the point: it is what makes two
+     different passages of the same band resemble each other. */
+  if (bed > 0) {
+    const bedNotes = [hz(33), hz(33) * 1.006, hz(45)];
+    for (let b = 0; b < totalBars; b += 1) {
+      for (let beat = 0; beat < beatsPerBar; beat += 1) {
+        const t0 = b * secPerBar + beat * spb;
+        const i0 = Math.floor(t0 * SR);
+        for (let i = 0; i < SR * 0.1; i += 1) {
+          const e = Math.exp(-i / (SR * 0.025));
+          if (i0 + i < n) x[i0 + i] += bed * 0.5 * e * (rnd() * 2 - 1);
+        }
+        const dur = spb * 0.95;
+        for (let i = 0; i < dur * SR; i += 1) {
+          const t = i / SR;
+          const env = Math.min(1, t / 0.005) * Math.exp(-t / (dur * 0.8));
+          let v = 0;
+          bedNotes.forEach((f) => { for (let hN = 1; hN <= 9; hN += 1) v += Math.sin(2 * Math.PI * f * hN * t) / (hN * 1.4); });
+          if (i0 + i < n) x[i0 + i] += bed * 0.12 * env * Math.tanh(v * 1.8);
+        }
+      }
+    }
+  }
 
   let peak = 0;
   for (let i = 0; i < n; i += 1) peak = Math.max(peak, Math.abs(x[i]));

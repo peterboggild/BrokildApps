@@ -434,10 +434,20 @@
   /* If the most dissimilar pair of passages in the whole song is this close, the song does not
      change: one type, and no cliff to look for. */
   const UNIFORM_EPS = 0.01;
-  /* How much of a cliff counts as one. A cut has to separate "the same passage" from "a different
-     passage", and measurement puts that step at 50x to 275x even with the signal buried in noise,
-     so 3x is far below anything real and still well above the ripple inside either group. */
-  const MIN_CLIFF = 3;
+  /* How much of a step counts as a cliff.
+
+     Synthetic repeats are bit-identical and step by 50x to 275x. Real ones are not: a chorus comes
+     back with a different vocal take, a different fill, a different moment in the mix, so on a real
+     recording (measured on a 5:29 metal track) the same-passage pairs sit at 0.004 to 0.008, the
+     rest form a continuum from 0.016 to 0.30, and the step between them is 2.0x. A threshold
+     calibrated on the synthetic case alone rejects that and reports no repetition at all, which is
+     what it did until a real song was tried. */
+  const MIN_CLIFF = 1.5;
+  /* A step alone is too weak a signal at 1.5x, so the cut must also land far below the typical
+     distance: the pairs under it have to be unusual for this song, not merely the low tail of one
+     distribution. On the real track the cut falls at 0.011 against a median of 0.067, a sixth; on
+     a song where nothing repeats, no candidate cut gets near its median and none is taken. */
+  const CUT_BELOW_MEDIAN = 3;
   /* A cut must leave most pairs on the "different" side. If more than this fraction of all pairs
      were the same passage, the segmentation has split one passage rather than found several. */
   const MAX_SAME_FRACTION = 0.65;
@@ -465,6 +475,37 @@
 
      If there is no cliff worth the name, the song has told us nothing about repetition, and we say
      so by making every segment its own type rather than inventing groups. */
+  /* Where to cut a sorted list of pairwise distances, or 0 for "nowhere".
+
+     Separated from the clustering so it can be tested directly against distance lists measured
+     from real recordings, which is the only way to check it against the regime that matters: a
+     synthetic song cannot be made to produce one. Two attempts at that - varying each take, then
+     putting a shared instrumental bed under every passage - both left the step at 20x or more,
+     because a fixture's passages are only as alike as its voices and its voices are far less
+     alike than one band playing two riffs.
+
+     Returns the threshold; callers merge every pair at or below it. */
+  function chooseCut(sorted) {
+    if (!sorted.length) return 0;
+    if (sorted[sorted.length - 1] < UNIFORM_EPS) return UNIFORM_EPS; // nothing here changes at all
+    const eps = sorted[sorted.length - 1] * 1e-3;
+    const median = sorted[Math.floor(sorted.length / 2)];
+    const last = Math.max(0, Math.floor(sorted.length * MAX_SAME_FRACTION) - 1);
+    const cuts = [];
+    for (let i = 0; i <= last && i < sorted.length - 1; i += 1) {
+      const lo = sorted[i] + eps;
+      const hi = sorted[i + 1] + eps;
+      const thresh = Math.sqrt(lo * hi);
+      // Both tests, because either alone is fooled: a step without the median test fires on
+      // ripple halfway up a continuum, and the median test without a step has no idea where to
+      // put the cut.
+      if (thresh * CUT_BELOW_MEDIAN > median) continue;
+      cuts.push({ thresh, ratio: hi / lo });
+    }
+    cuts.sort((a, b) => b.ratio - a.ratio);
+    return cuts.length && cuts[0].ratio >= MIN_CLIFF ? cuts[0].thresh : 0;
+  }
+
   function clusterSegments(segs, vecs, maxTypes) {
     const n = segs.length;
     if (n === 0) return 0;
@@ -519,19 +560,10 @@
       // Candidate cuts: the geometric midpoint of every gap, scored by ratio. The epsilon is a
       // fraction of the song's own spread, not a constant, so a pair of bit-identical segments
       // cannot produce an infinite ratio and win on a rounding artefact.
-      const eps = pairs[pairs.length - 1] * 1e-3;
-      const last = Math.max(0, Math.floor(pairs.length * MAX_SAME_FRACTION) - 1);
-      const cuts = [];
-      for (let i = 0; i <= last && i < pairs.length - 1; i += 1) {
-        const lo = pairs[i] + eps;
-        const hi = pairs[i + 1] + eps;
-        cuts.push({ thresh: Math.sqrt(lo * hi), ratio: hi / lo });
-      }
-      cuts.sort((a, b) => b.ratio - a.ratio);
-      for (let c = 0; c < cuts.length; c += 1) {
-        if (cuts[c].ratio < MIN_CLIFF) break; // not a cliff, just the slope of a continuum
-        const g = run(cuts[c].thresh);
-        if (new Set(g).size <= maxTypes) { groups = g; chosen = cuts[c].thresh; break; }
+      const cut = chooseCut(pairs);
+      if (cut > 0) {
+        const g = run(cut);
+        if (new Set(g).size <= maxTypes) { groups = g; chosen = cut; }
       }
     }
 
@@ -595,10 +627,34 @@
     const beats = Math.max(1, seg.beat1 - seg.beat0);
 
     seg.loudness = clamp(mean(feats.env, rate), 0, 1);
-    seg.brightness = clamp(bright, 0, 1);
-    seg.density = clamp(hits / beats / 2, 0, 1);      // 2 onsets a beat reads as fully dense
     seg.bass = total > 0 ? clamp(low / total, 0, 1) : 0;
     seg.seconds = span;
+    // Raw, in their own units. spread() turns these two into 0..1 across the song afterwards.
+    seg.brightnessRaw = clamp(bright, 0, 1);
+    seg.densityRaw = hits / beats;
+    seg.brightness = seg.brightnessRaw;
+    seg.density = clamp(seg.densityRaw / 2, 0, 1);
+  }
+
+  /* Stretch a descriptor across the song's own range.
+
+     An absolute scale is the wrong instrument here. Measured on a real metal track, every segment
+     ran between 2.7 and 4.6 onsets a beat, so a fixed "2 a beat is dense" put all ten segments at
+     1.00 and the descriptor said nothing at all; brightness was squeezed just as flat, between
+     0.05 and 0.11. These numbers exist to choose between scenes WITHIN one song, so the song is
+     the right thing to measure them against.
+
+     Below `floor` the spread is not real - a song whose segments genuinely differ by nothing
+     should not have that nothing magnified into a full sweep - and everything sits at the middle. */
+  function spread(segs, key, floor) {
+    if (segs.length < 2) { if (segs.length) segs[0][key] = 0.5; return; }
+    let lo = Infinity;
+    let hi = -Infinity;
+    segs.forEach((s) => { const v = s[`${key}Raw`]; if (v < lo) lo = v; if (v > hi) hi = v; });
+    const range = hi - lo;
+    segs.forEach((s) => {
+      s[key] = range < floor ? 0.5 : clamp((s[`${key}Raw`] - lo) / range, 0, 1);
+    });
   }
 
   /* ================================================================= public == */
@@ -675,6 +731,13 @@
     }
     const typeThresh = clusterSegments(segs, vecs, o.maxTypes || 8);
     segs.forEach((s) => describe(s, feats, spec, beatTimes));
+    // The smallest spread worth stretching: a quarter of an onset a beat, and half a mel band.
+    // Both are small on purpose - the floor is there to stop a song whose segments differ by
+    // nothing having that nothing magnified, not to demand a dramatic difference before the
+    // descriptor says anything. Measured ranges: 0.05 brightness across the synthetic song's
+    // three voices, 0.24 across a real track's ten segments; half a band is 0.021.
+    spread(segs, 'density', 0.25);
+    spread(segs, 'brightness', 0.5 / N_MEL);
 
     return {
       ok: true,
@@ -695,6 +758,6 @@
     VERSION, SPEC_RATE, FFT_SIZE, N_MEL, N_CHROMA, N_MFCC, ABS_THRESH,
     spectral, segment,
     // exported for tests
-    _internal: { fft, melBank, chromaMap, mfcc, ssm, novelty, detrend, peaks, snapToBars, beatVectors }
+    _internal: { fft, melBank, chromaMap, mfcc, ssm, novelty, detrend, peaks, snapToBars, beatVectors, chooseCut, spread }
   };
 });
