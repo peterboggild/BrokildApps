@@ -929,7 +929,7 @@
   }
 
   const movieSettings = () => {
-    const m = Object.assign({ start: 0, end: null, crf: 16, draft: false, audio: 'aac', preset: null, vr: 'off', vrWidth: null, vrDepth: 0.03, vrLevel: false }, settings.movie || {});
+    const m = Object.assign({ start: 0, end: null, rangeUnit: 'bar', crf: 16, draft: false, audio: 'aac', preset: null, vr: 'off', vrWidth: null, vrDepth: 0.03, vrLevel: false }, settings.movie || {});
     const vf = Schema.VR_FORMATS.find((x) => x.id === m.vr) || Schema.VR_FORMATS[0];
     m.vr = vf.id;
     if (vf.widths && !vf.widths.includes(m.vrWidth)) m.vrWidth = vf.widths[0];
@@ -1004,7 +1004,7 @@
     prev.height = Math.max(2, Math.round(320 * R.h / R.w));
     prev.getContext('2d').clearRect(0, 0, prev.width, prev.height);
     $('renderModalTitle').textContent = `Rendering ${R.vr ? `VR movie (${R.vr.label})` : 'movie'} ${R.w}×${R.h} · ${R.preset.label}`;
-    $('renderModalText').textContent = `${R.frames.toLocaleString()} frames at ${R.fps} fps (${fmtTime(R.start)}–${fmtTime(R.end)}), ${R.samples} sample${R.samples === 1 ? "" : "s"} per pixel, ${R.march} ray marching. Keep this tab visible: browsers pause hidden tabs.`;
+    $('renderModalText').textContent = `${R.frames.toLocaleString()} frames at ${R.fps} fps (${fmtTime(R.start)}–${fmtTime(R.end)}, bars ${(Ev.beatAt(project, R.start) / project.beatsPerBar + 1).toFixed(1)}–${(Ev.beatAt(project, R.end) / project.beatsPerBar + 1).toFixed(1)}), ${R.samples} sample${R.samples === 1 ? "" : "s"} per pixel, ${R.march} ray marching. Keep this tab visible: browsers pause hidden tabs.`;
     stats.textContent = 'Starting…';
     bar.style.width = '0%';
     modal.hidden = false;

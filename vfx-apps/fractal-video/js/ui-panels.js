@@ -672,12 +672,36 @@
     const R = ctx.movieRange();
     const gMovie = group('Movie', 'render-movie', true, `${m.audio === 'pcm' ? 'MOV' : 'MP4'} · ${R.vr ? 'H.265' : 'H.264'} + ${m.audio === 'pcm' ? 'PCM' : 'AAC'}${R.vr ? ' · VR' : ''}`);
     const setM = (patch) => { ctx.setMovieSettings(patch); ctx.rebuild('render'); };
-    const startIn = h('input', { type: 'number', min: '0', step: '0.01', value: String(+R.start.toFixed(2)), title: 'Start (seconds)' });
-    const endIn = h('input', { type: 'number', min: '0', step: '0.01', value: m.end == null ? '' : String(+R.end.toFixed(2)), placeholder: `${dur.toFixed(2)} (end)`, title: 'End (seconds); empty = end of the song' });
+    // The range can be typed in bars, numbered exactly like the timeline ruler (bar 1 = the first bar), or
+    // in seconds. It is always stored in seconds. Bars are the default: "57 on the timeline" is bar 57, and
+    // typing 57 into a seconds field started the movie at bar 29.5 instead.
+    const P = ctx.project();
+    const bpb = P.beatsPerBar || 4;
+    const unit = m.rangeUnit === 's' ? 's' : 'bar';
+    const toBar = (t) => Ev.beatAt(P, t) / bpb + 1;
+    const fromBar = (b) => Math.max(0, Ev.timeAtBeat(P, (b - 1) * bpb));
+    const shown = (t) => String(unit === 'bar' ? +toBar(t).toFixed(2) : +t.toFixed(2));
+    const typed = (v) => (unit === 'bar' ? fromBar(Number(v)) : Number(v));
+    const startIn = h('input', { type: 'number', min: unit === 'bar' ? '1' : '0', step: unit === 'bar' ? '1' : '0.01', value: shown(R.start), title: unit === 'bar' ? 'Start (bar, as on the timeline ruler)' : 'Start (seconds)' });
+    const endIn = h('input', { type: 'number', min: '0', step: unit === 'bar' ? '1' : '0.01', value: m.end == null ? '' : shown(R.end), placeholder: `${shown(dur)} (end)`, title: unit === 'bar' ? 'End (bar); empty = end of the song' : 'End (seconds); empty = end of the song' });
     // saved at once (a render started by the same click uses it); the tab redraws after the click
-    startIn.addEventListener('change', () => { ctx.setMovieSettings({ start: Math.max(0, Number(startIn.value) || 0) }); afterClick(() => ctx.rebuild('render')); });
-    endIn.addEventListener('change', () => { ctx.setMovieSettings({ end: endIn.value.trim() === '' ? null : Math.max(0, Number(endIn.value) || 0) }); afterClick(() => ctx.rebuild('render')); });
-    gMovie.body.appendChild(h('div', { class: 'render-range' }, h('span', { class: 'ctl-label', text: 'From – to (s)' }), startIn, endIn));
+    startIn.addEventListener('change', () => {
+      const start = Math.max(0, typed(startIn.value) || 0);
+      const patch = { start };
+      // a start typed past the end takes the end along (same length), instead of a one-frame movie
+      if (m.end != null && start >= m.end) patch.end = start + Math.max(1 / R.fps, R.end - R.start);
+      ctx.setMovieSettings(patch);
+      afterClick(() => ctx.rebuild('render'));
+    });
+    endIn.addEventListener('change', () => { ctx.setMovieSettings({ end: endIn.value.trim() === '' ? null : Math.max(0, typed(endIn.value) || 0) }); afterClick(() => ctx.rebuild('render')); });
+    gMovie.body.appendChild(select({
+      label: 'Range in', value: unit,
+      hint: 'Bars count like the numbers on the timeline ruler; seconds are song time.',
+      options: [{ value: 'bar', label: 'Bars (as on the timeline)' }, { value: 's', label: 'Seconds' }],
+      onChange: (v) => setM({ rangeUnit: v })
+    }).el);
+    gMovie.body.appendChild(h('div', { class: 'render-range' }, h('span', { class: 'ctl-label', text: unit === 'bar' ? 'From – to (bar)' : 'From – to (s)' }), startIn, endIn));
+    gMovie.body.appendChild(h('p', { class: 'note', text: `From bar ${toBar(R.start).toFixed(1)} = ${fmtTime(R.start)} to bar ${toBar(R.end).toFixed(1)} = ${fmtTime(R.end)}.` }));
     gMovie.body.appendChild(h('div', { class: 'btn-row' },
       button('Start at playhead', { title: 'Begin the movie at the current playhead position', onClick: () => setM({ start: +ctx.playhead().toFixed(3) }) }),
       button('Whole song', { onClick: () => setM({ start: 0, end: null }) }),
