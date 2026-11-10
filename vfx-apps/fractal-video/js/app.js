@@ -939,6 +939,17 @@
   function setMovieSettings(patch) {
     settings.movie = Object.assign(movieSettings(), patch);
     saveSettings();
+    if (patch && Object.prototype.hasOwnProperty.call(patch, 'start')) showMovieStart();
+  }
+
+  // The movie always renders the arrangement (Timeline view). Scene view holds one scene (no sections,
+  // transitions or auto-flight, orbit frozen while paused), so a playhead left there shows a different
+  // picture than the movie at that time. Whenever the start changes or a render begins, the preview goes
+  // to Timeline view and the playhead to the movie's first frame: what you see is the first frame.
+  function showMovieStart() {
+    const R = movieRange();
+    if (settings.view !== 'timeline') setView('timeline');
+    seek(R.start);
   }
 
   const fmtDur = (s) => {
@@ -978,6 +989,8 @@
     if (!chk.ffmpeg) { toast('ffmpeg was not found by the server. Install it (winget install Gyan.FFmpeg) and restart "npm start".', 'err', 8000); return; }
     if (transport.playing) { transport.pause(); updatePlayButton(); }
     saveNow();
+    if (settings.view !== 'timeline') toast('The movie renders the timeline, so the preview now shows the timeline too (it was holding one scene).', '', 7000);
+    showMovieStart();
 
     const R = movieRange();
     const job = { cancelled: false, id: null };
@@ -1230,6 +1243,8 @@
     renderCheck,
     movieSettings,
     setMovieSettings,
+    showMovieStart,
+    micActiveNow: () => mic.active,
     movieRange,
     lastMovie: () => lastMovie,
     liveVrSettings,

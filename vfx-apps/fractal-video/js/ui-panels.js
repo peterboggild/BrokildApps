@@ -665,7 +665,9 @@
     gMovie.body.appendChild(h('div', { class: 'render-range' }, h('span', { class: 'ctl-label', text: 'From – to (s)' }), startIn, endIn));
     gMovie.body.appendChild(h('div', { class: 'btn-row' },
       button('Start at playhead', { title: 'Begin the movie at the current playhead position', onClick: () => setM({ start: +ctx.playhead().toFixed(3) }) }),
-      button('Whole song', { onClick: () => setM({ start: 0, end: null }) })));
+      button('Whole song', { onClick: () => setM({ start: 0, end: null }) }),
+      button('Show first frame', { title: 'Put the preview on the timeline at the movie\'s first frame: that is exactly what the movie starts with', onClick: () => ctx.showMovieStart() })));
+    gMovie.body.appendChild(h('p', { class: 'note', text: `The movie renders the timeline (the arrangement), from the first frame on. Setting the start moves the preview there.${ctx.micActiveNow() ? ' The microphone is on: the preview follows the room, the movie follows the audio files.' : ''}` }));
     gMovie.body.appendChild(select({
       label: 'Encoding', value: String(m.crf),
       options: [{ value: '12', label: 'Very high (large file)' }, { value: '16', label: 'High' }, { value: '20', label: 'Good (smaller file)' }],
