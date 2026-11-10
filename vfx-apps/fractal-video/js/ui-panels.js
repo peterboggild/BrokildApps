@@ -607,6 +607,20 @@
   // ---------- render tab ----------
   const RES_PRESETS = [[1920, 1080, '1080p 16:9'], [3840, 2160, '4K 16:9'], [1080, 1920, 'Vertical 9:16'], [1080, 1080, 'Square 1:1'], [1280, 720, '720p 16:9'], [2560, 1080, 'Ultrawide 21:9']];
 
+  // A field's 'change' fires on the mousedown that leaves it. Rebuilding the tab right then replaces the
+  // button under the mouse, and that click is lost (typing a start time and clicking Render movie did
+  // nothing the first time). Rebuilds caused by a field wait until the click has gone through.
+  let pointerIsDown = false;
+  document.addEventListener('pointerdown', () => { pointerIsDown = true; }, true);
+  document.addEventListener('pointerup', () => { pointerIsDown = false; }, true);
+  document.addEventListener('pointercancel', () => { pointerIsDown = false; }, true);
+  function afterClick(fn) {
+    if (!pointerIsDown) { fn(); return; }
+    const go = () => { document.removeEventListener('pointerup', go, true); document.removeEventListener('pointercancel', go, true); setTimeout(fn, 0); };
+    document.addEventListener('pointerup', go, true);
+    document.addEventListener('pointercancel', go, true);
+  }
+
   function buildRenderTab(host, ctx) {
     host.innerHTML = '';
     const project = ctx.project();
@@ -660,8 +674,9 @@
     const setM = (patch) => { ctx.setMovieSettings(patch); ctx.rebuild('render'); };
     const startIn = h('input', { type: 'number', min: '0', step: '0.01', value: String(+R.start.toFixed(2)), title: 'Start (seconds)' });
     const endIn = h('input', { type: 'number', min: '0', step: '0.01', value: m.end == null ? '' : String(+R.end.toFixed(2)), placeholder: `${dur.toFixed(2)} (end)`, title: 'End (seconds); empty = end of the song' });
-    startIn.addEventListener('change', () => setM({ start: Math.max(0, Number(startIn.value) || 0) }));
-    endIn.addEventListener('change', () => setM({ end: endIn.value.trim() === '' ? null : Math.max(0, Number(endIn.value) || 0) }));
+    // saved at once (a render started by the same click uses it); the tab redraws after the click
+    startIn.addEventListener('change', () => { ctx.setMovieSettings({ start: Math.max(0, Number(startIn.value) || 0) }); afterClick(() => ctx.rebuild('render')); });
+    endIn.addEventListener('change', () => { ctx.setMovieSettings({ end: endIn.value.trim() === '' ? null : Math.max(0, Number(endIn.value) || 0) }); afterClick(() => ctx.rebuild('render')); });
     gMovie.body.appendChild(h('div', { class: 'render-range' }, h('span', { class: 'ctl-label', text: 'From – to (s)' }), startIn, endIn));
     gMovie.body.appendChild(h('div', { class: 'btn-row' },
       button('Start at playhead', { title: 'Begin the movie at the current playhead position', onClick: () => setM({ start: +ctx.playhead().toFixed(3) }) }),
