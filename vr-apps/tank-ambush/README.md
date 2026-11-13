@@ -24,7 +24,7 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 ## Gameplay numbers worth tuning (all in `game.js`)
 
 * Tank speed `vmax`, reload `reloadTime`, shell speed `shellSpeed`, aim scatter `aimErr` — in `spawnTank`, scaled by wave.
-* Rocket: speed (`launch` / `updateRockets`, 3.2 → 8 m/s), homing rate (`2.3` rad/s), lock cone (`0.44` rad).
+* Rocket: the `ROCKET` table in `game.js` — burn time, speed, gravity, seeker turn rate (0.5 rad/s) and lock cone (0.2 rad).
 * Splash: radius `R = 0.8` and the damage / push in `blast`.
 * Player damage: `22` per direct shell in `shellBoom`.
 

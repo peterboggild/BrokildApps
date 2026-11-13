@@ -592,7 +592,8 @@ function launch(h) {
   const obj = buildRocket();
   obj.scale.setScalar(0.72);
   scene.add(obj);
-  const r = { obj, pos: mp.clone(), dir: dir.clone(), speed: 3.2, age: 0, target: h.lock, boomed: false };
+  dir.x += rand(-0.006, 0.006); dir.y += rand(-0.006, 0.006); dir.normalize();     // a hair of launch scatter
+  const r = { obj, pos: mp.clone(), dir: dir.clone(), vel: new V(), speed: ROCKET.v0, age: 0, target: h.lock };
   rockets.push(r);
   h.L.rocket.visible = false;
   h.L.ledMat.color.setHex(0xff3322);
@@ -605,27 +606,42 @@ function launch(h) {
 }
 
 const _q = new THREE.Quaternion(), _z = new V(0, 0, 1), _tgt = new V();
+/*
+ * Rocket flight. The launcher ejects it at 3 m/s, the motor burns for one second and
+ * accelerates it to ~10 m/s, then it coasts: drag bleeds speed and gravity pulls the
+ * nose down in a ballistic arc. The seeker can only nudge the heading (0.5 rad/s at full
+ * speed, and only while the motor burns, inside an 11° cone), so it forgives a slightly
+ * bad aim but never rescues a bad one — and over a long shot you must aim a bit high.
+ */
+const ROCKET = { burn: 1.0, v0: 3.0, vmax: 10, accel: 7, turn: 0.5, lockCone: 0.2, gBurn: 0.15, gCoast: 5, drag: 0.22 };
 function updateRockets(dt) {
   for (let i = rockets.length - 1; i >= 0; i--) {
     const r = rockets[i];
     r.age += dt;
-    r.speed = Math.min(8, 3.2 + r.age * 9);
+    const burning = r.age < ROCKET.burn;
+    r.speed = burning ? Math.min(ROCKET.vmax, r.speed + ROCKET.accel * dt) : r.speed * Math.exp(-ROCKET.drag * dt);
 
-    // moderate homing: after a short delay, bend toward the locked tank
-    if (r.age > 0.1) {
+    // weak seeker: after a short delay, nudge the heading toward the locked tank
+    if (burning && r.age > 0.15) {
       if (r.target && (r.target.dead || !los(r.pos.x, r.pos.y, r.pos.z, r.target.x, 0.08, r.target.z, 0.1, 0.1))) r.target = null;
-      if (!r.target) r.target = lockCandidate(r.pos, r.dir, 0.42, 7, null);
+      if (!r.target) r.target = lockCandidate(r.pos, r.dir, ROCKET.lockCone * 0.75, 7, null);
       if (r.target) {
         _tgt.set(r.target.x, 0.07, r.target.z).sub(r.pos);
         const d = _tgt.length();
         if (d > 0.01) {
           _tgt.divideScalar(d);
           const ang = Math.acos(clamp(r.dir.dot(_tgt), -1, 1));
-          const turn = 2.3 * dt;                        // rad/s — enough to curve, not enough to chase
+          const turn = ROCKET.turn * (r.speed / ROCKET.vmax) * dt;
           if (ang > 1e-4) r.dir.lerp(_tgt, Math.min(1, turn / ang)).normalize();
         }
       }
     }
+    // velocity = heading * speed, then gravity bends the path
+    r.vel.copy(r.dir).multiplyScalar(r.speed);
+    r.vel.y -= (burning ? ROCKET.gBurn : ROCKET.gCoast) * dt;
+    r.speed = r.vel.length();
+    if (r.speed > 1e-3) r.dir.copy(r.vel).divideScalar(r.speed);
+    if (!burning) r.speed = Math.max(r.speed, 0.1);
 
     const step = r.speed * dt, n = Math.max(1, Math.ceil(step / 0.04));
     let hit = null, boom = false;
@@ -643,18 +659,23 @@ function updateRockets(dt) {
         }
       }
     }
-    if (boom || r.age > 5 || r.pos.length() > 20) {
+    if (boom || r.age > 6 || r.pos.length() > 20) {
       scene.remove(r.obj); rockets.splice(i, 1);
       if (boom) blast(r.pos.clone(), hit);
+      else if (r.age > 6) fx.puff(r.pos, 0.5);             // self-destruct
       continue;
     }
     r.obj.position.copy(r.pos);
     r.obj.quaternion.setFromUnitVectors(_z, r.dir);
-    // exhaust flame and smoke trail
+    // motor flame and smoke while it burns; a thin wisp of smoke as it coasts
     const tx = r.pos.x - r.dir.x * 0.17, ty = r.pos.y - r.dir.y * 0.17, tz = r.pos.z - r.dir.z * 0.17;
-    fx.fire.add(tx, ty, tz, 0, 0, 0, 0.08, 0.085, 0.03, [1, 0.9, 0.55], [1, 0.35, 0.05], 1);
-    fx.fire.add(tx, ty, tz, -r.dir.x * 1.2, -r.dir.y * 1.2, -r.dir.z * 1.2, 0.16, 0.05, 0.015, [1, 0.8, 0.3], [0.8, 0.2, 0], 0.9);
-    fx.smoke.add(tx, ty, tz, rand(-0.04, 0.04), rand(0.0, 0.08), rand(-0.04, 0.04), 1.2, 0.035, 0.17, [0.75, 0.75, 0.74], [0.35, 0.35, 0.35], 0.5, 0.6, 0);
+    if (burning) {
+      fx.fire.add(tx, ty, tz, 0, 0, 0, 0.08, 0.085, 0.03, [1, 0.9, 0.55], [1, 0.35, 0.05], 1);
+      fx.fire.add(tx, ty, tz, -r.dir.x * 1.2, -r.dir.y * 1.2, -r.dir.z * 1.2, 0.16, 0.05, 0.015, [1, 0.8, 0.3], [0.8, 0.2, 0], 0.9);
+      fx.smoke.add(tx, ty, tz, rand(-0.04, 0.04), rand(0.0, 0.08), rand(-0.04, 0.04), 1.4, 0.035, 0.17, [0.75, 0.75, 0.74], [0.35, 0.35, 0.35], 0.5, 0.6, 0);
+    } else if (r.age < ROCKET.burn + 0.5) {
+      fx.smoke.add(tx, ty, tz, rand(-0.03, 0.03), rand(0.0, 0.05), rand(-0.03, 0.03), 0.9, 0.025, 0.1, [0.7, 0.7, 0.7], [0.35, 0.35, 0.35], 0.28, 0.8, 0);
+    }
   }
 }
 
@@ -913,13 +934,20 @@ function enterFlat() {
     h.ctrl = c;
   });
   addVirtualCover();
-  let flip = 0;
-  renderer.domElement.addEventListener('click', () => {
-    if (document.pointerLockElement !== renderer.domElement) { renderer.domElement.requestPointerLock?.(); }
+  let flip = 0, down = null, dragged = 0;
+  const dom = renderer.domElement;
+  dom.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; dragged = 0; });
+  dom.addEventListener('pointerup', () => { down = null; });
+  dom.addEventListener('click', () => {
+    if (dragged > 6) return;                                   // that was a look-around drag, not a shot
+    if (document.pointerLockElement !== dom) dom.requestPointerLock?.()?.catch?.(() => {});
     onTrigger(flip ^= 1);
   });
+  // mouse look: captured pointer, or simply hold the button and drag
   document.addEventListener('mousemove', e => {
-    if (document.pointerLockElement !== renderer.domElement) return;
+    const locked = document.pointerLockElement === dom;
+    if (!locked && !(down && (e.buttons & 1))) return;
+    if (!locked) dragged += Math.abs(e.movementX) + Math.abs(e.movementY);
     yaw -= e.movementX * 0.0022; pitch = clamp(pitch - e.movementY * 0.0022, -1.3, 1.3);
   });
   window.addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyG') onSqueeze(); });
@@ -1006,7 +1034,7 @@ function loop(_, frame) {
     h.dot.position.copy(mp).addScaledVector(md, hitD);
     h.dot.visible = hitD < 8 && h.ctrl.visible !== false;
     // lock-on: closest tank within ~25° of where the launcher points, that it can see
-    h.lock = G.phase === 'play' ? lockCandidate(mp, md, 0.44, 8, null) : null;
+    h.lock = G.phase === 'play' ? lockCandidate(mp, md, ROCKET.lockCone, 8, null) : null;
     if (h.lock) {
       h.ring.visible = true;
       h.ring.position.set(h.lock.x, 0.1, h.lock.z);
