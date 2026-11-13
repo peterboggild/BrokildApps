@@ -13,22 +13,43 @@ const rand = (a, b) => a + Math.random() * (b - a);
 /* ------------------------------------------------------------ billboards */
 
 const VERT = `
-attribute vec3 offset; attribute float size; attribute vec4 color;
-varying vec2 vUv; varying vec4 vColor;
+attribute vec3 offset; attribute float size; attribute vec4 color; attribute float rot;
+varying vec2 vUv; varying vec4 vColor; varying float vRot;
 void main(){
-  vUv = uv; vColor = color;
+  vUv = uv; vColor = color; vRot = rot;
   vec4 mv = modelViewMatrix * vec4(offset, 1.0);
   mv.xy += position.xy * size;
   gl_Position = projectionMatrix * mv;
 }`;
 const FRAG = `
-varying vec2 vUv; varying vec4 vColor;
+uniform sampler2D uTex; uniform float uCore;
+varying vec2 vUv; varying vec4 vColor; varying float vRot;
 void main(){
-  float d = length(vUv - 0.5) * 2.0;
-  float a = smoothstep(1.0, 0.0, d);
-  a *= a;
+  vec2 p = vUv - 0.5;
+  float d = length(p) * 2.0;
+  float c = cos(vRot), s = sin(vRot);
+  vec2 q = vec2(c * p.x - s * p.y, s * p.x + c * p.y) + 0.5;     // every puff is turned differently
+  float a = clamp(texture2D(uTex, q).a * 1.5, 0.0, 1.0) * smoothstep(1.0, 0.6, d);
+  a = max(a, uCore * pow(max(0.0, 1.0 - d), 3.0) * 0.55);          // hot centre for fire
   gl_FragColor = vec4(vColor.rgb, vColor.a * a);
 }`;
+
+/* a ragged cloud: dozens of soft blobs piled up, then faded to nothing at the rim */
+let CLOUD = null;
+function cloudTexture() {
+  if (CLOUD) return CLOUD;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d');
+  for (let i = 0; i < 70; i++) {
+    const a = Math.random() * 6.283, r = Math.random() * 36 + 4;
+    const cx = 64 + Math.cos(a) * r, cy = 64 + Math.sin(a) * r, rr = 9 + Math.random() * 26;
+    const g = x.createRadialGradient(cx, cy, 0, cx, cy, rr);
+    g.addColorStop(0, 'rgba(255,255,255,0.2)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  }
+  CLOUD = new THREE.CanvasTexture(c);
+  return CLOUD;
+}
 
 const S = 20;   // floats per particle
 class Billboards {
@@ -43,11 +64,13 @@ class Billboards {
     this.aOff = new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3).setUsage(THREE.DynamicDrawUsage);
     this.aSize = new THREE.InstancedBufferAttribute(new Float32Array(max), 1).setUsage(THREE.DynamicDrawUsage);
     this.aCol = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4).setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute('offset', this.aOff); g.setAttribute('size', this.aSize); g.setAttribute('color', this.aCol);
+    this.aRot = new THREE.InstancedBufferAttribute(new Float32Array(max), 1).setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute('offset', this.aOff); g.setAttribute('size', this.aSize); g.setAttribute('color', this.aCol); g.setAttribute('rot', this.aRot);
     g.instanceCount = 0;
     this.geo = g;
     const m = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
+      uniforms: { uTex: { value: cloudTexture() }, uCore: { value: additive ? 1 : 0 } },
       blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
     });
     this.mesh = new THREE.Mesh(g, m);
@@ -63,10 +86,10 @@ class Billboards {
     p[o + 6] = 0; p[o + 7] = life; p[o + 8] = s0; p[o + 9] = s1;
     p[o + 10] = c0[0]; p[o + 11] = c0[1]; p[o + 12] = c0[2];
     p[o + 13] = c1[0]; p[o + 14] = c1[1]; p[o + 15] = c1[2];
-    p[o + 16] = a0; p[o + 17] = drag; p[o + 18] = grav;
+    p[o + 16] = a0; p[o + 17] = drag; p[o + 18] = grav; p[o + 19] = Math.random() * 6.283;
   }
   update(dt) {
-    const p = this.P, off = this.aOff.array, sz = this.aSize.array, col = this.aCol.array;
+    const p = this.P, off = this.aOff.array, sz = this.aSize.array, col = this.aCol.array, rot = this.aRot.array;
     for (let i = 0; i < this.n; i++) {
       const o = i * S;
       p[o + 6] += dt;
@@ -83,13 +106,14 @@ class Billboards {
       const o = i * S, u = p[o + 6] / p[o + 7];
       off[i * 3] = p[o]; off[i * 3 + 1] = p[o + 1]; off[i * 3 + 2] = p[o + 2];
       sz[i] = p[o + 8] + (p[o + 9] - p[o + 8]) * u;
+      rot[i] = p[o + 19] + p[o + 6] * 0.7;
       col[i * 4] = p[o + 10] + (p[o + 13] - p[o + 10]) * u;
       col[i * 4 + 1] = p[o + 11] + (p[o + 14] - p[o + 11]) * u;
       col[i * 4 + 2] = p[o + 12] + (p[o + 15] - p[o + 12]) * u;
       col[i * 4 + 3] = p[o + 16] * Math.min(1, u * 12) * (1 - u);
     }
     this.geo.instanceCount = this.n;
-    this.aOff.needsUpdate = this.aSize.needsUpdate = this.aCol.needsUpdate = true;
+    this.aOff.needsUpdate = this.aSize.needsUpdate = this.aCol.needsUpdate = this.aRot.needsUpdate = true;
   }
 }
 
@@ -104,7 +128,7 @@ export function createFX(scene) {
 
   // one real light for the flash of a blast; it is always in the scene so no
   // shader ever has to be recompiled in the middle of a fight
-  const flash = new THREE.PointLight(0xffa850, 0, 4, 1.6);
+  const flash = new THREE.PointLight(0xffa850, 0, 2.8, 1.6);
   scene.add(flash);
   let flashT = 0;
 
@@ -144,7 +168,7 @@ export function createFX(scene) {
         smoke.add(p.x, 0.03, p.z, Math.cos(a) * 1.3 * s, 0.05, Math.sin(a) * 1.3 * s,
           0.9, 0.08 * s, 0.3 * s, [0.5, 0.46, 0.4], [0.4, 0.37, 0.33], 0.4, 2.2, 0);
       }
-      flash.position.copy(p); flash.intensity = 14 * s; flashT = 0.22;
+      flash.position.copy(p); flash.intensity = 9 * s; flashT = 0.22;
     },
 
     /** Small bang: a shell hitting a wall or the floor. */

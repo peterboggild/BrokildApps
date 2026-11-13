@@ -48,6 +48,7 @@ renderer.setClearColor(0x000000, 0);
 renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType('local-floor');
 renderer.domElement.id = 'view';
+renderer.domElement.style.display = 'none';        // shown only once a session starts, or it covers the start buttons
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -55,9 +56,9 @@ const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerH
 camera.position.set(0, 1.6, 0);
 scene.add(camera);
 
-scene.add(new THREE.HemisphereLight(0xe6edff, 0x4a4036, 1.5));
-const sun = new THREE.DirectionalLight(0xfff2de, 2.3);
-sun.position.set(1.5, 3.5, 1.0);
+scene.add(new THREE.HemisphereLight(0xfff1dc, 0x6a5846, 1.0));      // warm, like a lit living room
+const sun = new THREE.DirectionalLight(0xfff2de, 1.9);
+sun.position.set(0.8, 3.5, 1.6);
 scene.add(sun);
 
 window.addEventListener('resize', () => {
@@ -65,6 +66,22 @@ window.addEventListener('resize', () => {
   if (G.mode !== 'xr') renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+/* a tiny made-up room (window, ceiling lamps, warm walls, dark floor) turned into an
+ * environment map once, so metal and paint get something to reflect */
+{
+  const eq = canvasTex(256, 128, (c, w, h) => {
+    const gr = c.createLinearGradient(0, 0, 0, h);
+    gr.addColorStop(0, '#f4ecdc'); gr.addColorStop(0.45, '#b8a58c'); gr.addColorStop(0.55, '#8c7a66'); gr.addColorStop(1, '#4a3d31');
+    c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#dfeaff'; c.fillRect(30, 40, 46, 38);                   // window
+    c.fillStyle = '#fffbe8'; c.fillRect(150, 6, 40, 12); c.fillRect(200, 8, 30, 10);   // lamps
+  });
+  eq.mapping = THREE.EquirectangularReflectionMapping;
+  const pm = new THREE.PMREMGenerator(renderer);
+  scene.environment = pm.fromEquirectangular(eq).texture;
+  scene.environmentIntensity = 0.65;
+  pm.dispose();
+}
 const fx = createFX(scene);
 const audio = createAudio();
 tankAssets();
@@ -258,6 +275,28 @@ function updatePlayerField(dt, force) {
   }
 }
 
+/* scorch marks left on the floor by blasts, pooled and faded out */
+const scorch = (() => {
+  const tex = canvasTex(128, 128, (c, w, h) => {
+    const gr = c.createRadialGradient(64, 64, 4, 64, 64, 62);
+    gr.addColorStop(0, 'rgba(8,6,4,0.95)'); gr.addColorStop(0.5, 'rgba(14,10,8,0.6)'); gr.addColorStop(1, 'rgba(14,10,8,0)');
+    c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    c.strokeStyle = 'rgba(10,8,6,0.5)'; c.lineWidth = 2;
+    for (let i = 0; i < 22; i++) { const a = Math.random() * 6.283, r0 = 12 + Math.random() * 10, r1 = 30 + Math.random() * 30; c.beginPath(); c.moveTo(64 + Math.cos(a) * r0, 64 + Math.sin(a) * r0); c.lineTo(64 + Math.cos(a) * r1, 64 + Math.sin(a) * r1); c.stroke(); }
+  });
+  const pool = [];
+  for (let i = 0; i < 10; i++) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+    m.visible = false; m.userData.t = 0; m.renderOrder = 2; scene.add(m); pool.push(m);
+  }
+  let k = 0;
+  return {
+    add(x, z, size) { const m = pool[k++ % pool.length]; m.position.set(x, 0.003, z); m.scale.setScalar(size); m.rotation.y = rand(0, 6.28); m.userData.t = 16; m.material.opacity = 0.85; m.visible = true; },
+    update(dt) { for (const m of pool) if (m.visible) { m.userData.t -= dt; m.material.opacity = Math.min(0.85, m.userData.t / 5 * 0.85); if (m.userData.t <= 0) m.visible = false; } },
+    clear() { for (const m of pool) m.visible = false; },
+  };
+})();
+
 /* =========================================================== tanks & co. */
 
 const tanks = [], rockets = [], shells = [];
@@ -287,8 +326,8 @@ function spawnTank(x, z, yaw) {
   const t = {
     model, x, z, yaw: yaw ?? Math.atan2(head.x - x, head.z - z), v: 0, yawRate: 0, tyaw: 0, gp: 0,
     hp: 100, dead: false, state: 'advance', stateT: 0, hideT: 0, stun: 0, pushX: 0, pushZ: 0, spin: 0,
-    reload: rand(1.5, 3.2), shots: 0, burst: w >= 3 ? 2 : 1, reloadTime: Math.max(2.0, 4.3 - 0.25 * w),
-    shellSpeed: Math.min(4.2, 2.6 + 0.12 * w), aimErr: Math.max(0.012, 0.05 - 0.004 * w),
+    reload: rand(3.5, 6) - Math.min(2, w * 0.25), shots: 0, burst: w >= 3 ? 2 : 1, reloadTime: Math.max(2.4, 5.0 - 0.25 * w),
+    shellSpeed: Math.min(4.2, 2.1 + 0.12 * w), aimErr: Math.max(0.012, 0.07 - 0.005 * w),
     vmax: Math.min(0.85, 0.5 + 0.025 * w), dPref: rand(1.7, 3.2),
     sees: false, seeT: rand(0, 0.12), goalT: 0, gx: x, gz: z, cf: null, spawnT: 0, wreckT: 0, kick: 0,
     eng: audio.engine(), age: 0,
@@ -385,7 +424,7 @@ function updateTank(t, dt) {
         }
         gx = t.gx; gz = t.gz;
         // stop to take a shot, and stop once close enough
-        if ((t.sees && dist < 5.6 && t.reload < 0.45) || (t.sees && dist < t.dPref) || dist < 1.0) { speedMul = 0; gx = px; gz = pz; }
+        if ((t.sees && dist < 5.6 && t.reload < 0.45) || (t.sees && dist < t.dPref) || dist < 1.4) { speedMul = 0; gx = px; gz = pz; }
         break;
       }
       case 'retreat': {
@@ -465,8 +504,8 @@ function fireShell(t) {
   t.kick = 1;
 }
 
-const shellGeo = new THREE.SphereGeometry(0.017, 10, 8);
-const shellMat = new THREE.MeshBasicMaterial({ color: 0xffd27a });
+const shellGeo = new THREE.SphereGeometry(0.013, 12, 10);
+const shellMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0, toneMapped: false });
 
 function updateShells(dt) {
   for (let i = shells.length - 1; i >= 0; i--) {
@@ -486,8 +525,9 @@ function updateShells(dt) {
     }
     s.obj.position.copy(s.pos);
     // glowing head and a little tail
-    fx.fire.add(s.pos.x, s.pos.y, s.pos.z, 0, 0, 0, 0.07, 0.11, 0.08, [1, 0.8, 0.35], [1, 0.4, 0.1], 0.9);
-    fx.fire.add(s.pos.x - s.vel.x * 0.02, s.pos.y - s.vel.y * 0.02, s.pos.z - s.vel.z * 0.02, rand(-0.03, 0.03), rand(-0.03, 0.03), rand(-0.03, 0.03), 0.3, 0.05, 0.015, [1, 0.6, 0.2], [0.5, 0.1, 0], 0.7);
+    fx.fire.add(s.pos.x, s.pos.y, s.pos.z, 0, 0, 0, 0.07, 0.2, 0.15, [1, 0.8, 0.35], [1, 0.4, 0.1], 0.95);
+    for (let k = 1; k <= 2; k++)
+      fx.fire.add(s.pos.x - s.vel.x * 0.03 * k, s.pos.y - s.vel.y * 0.03 * k, s.pos.z - s.vel.z * 0.03 * k, rand(-0.03, 0.03), rand(-0.03, 0.03), rand(-0.03, 0.03), 0.45, 0.075, 0.02, [1, 0.6, 0.2], [0.5, 0.1, 0], 0.8);
   }
 }
 
@@ -499,10 +539,11 @@ function playerDist(p) {
 
 function shellBoom(p) {
   fx.explosion(p, 0.5);
+  if (p.y < 0.3) scorch.add(p.x, p.z, 0.25);
   audio.explosion(p.clone(), 0.55);
   if (G.phase !== 'play') return;
   const d = playerDist(p);
-  const dmg = Math.round(22 * clamp(1 - d / 0.75, 0, 1));
+  const dmg = Math.round(15 * clamp(1 - d / 0.75, 0, 1));
   if (dmg >= 2) hurtPlayer(dmg);
 }
 
@@ -540,19 +581,22 @@ function killTank(t) {
   G.score += 100; G.kills++;
   const p = tmpV.set(t.x, 0.07, t.z);
   fx.explosion(p, 1.0);
+  scorch.add(t.x, t.z, 0.7);
   audio.explosion(p.clone(), 0.9);
   t.eng.stop();
   const m = t.model, a = tankAssets();
   m.group.updateMatrixWorld(true);
   fx.flingObject(m.turret, new V(rand(-1, 1), rand(2.6, 3.8), rand(-1, 1)));
   for (let i = 0; i < 10; i++) fx.debrisBox(new V(t.x, 0.08, t.z), new V(rand(-2.2, 2.2), rand(1.5, 3.8), rand(-2.2, 2.2)), rand(0.012, 0.03), i < 3);
-  m.group.traverse(o => { if (o.isMesh && !o.isInstancedMesh && o !== m.shadow) o.material = a.char; });
-  m.turret.traverse(o => { if (o.isMesh) o.material = a.char; });
+  const burn = o => { if (o.isMesh && !o.isInstancedMesh && o !== m.shadow) o.material = o.material === a.camo ? a.wreckCamo : a.char; };
+  m.group.traverse(burn);
+  m.turret.traverse(burn);
   m.body.rotation.z = rand(-0.1, 0.1);
 }
 
 function blast(p, direct) {
   fx.explosion(p, 1.15);
+  if (p.y < 0.5) scorch.add(p.x, p.z, 0.55);
   audio.explosion(p.clone(), 1.1);
   const R = 0.8;
   for (const t of tanks) {
@@ -613,7 +657,7 @@ const _q = new THREE.Quaternion(), _z = new V(0, 0, 1), _tgt = new V();
  * speed, and only while the motor burns, inside an 11° cone), so it forgives a slightly
  * bad aim but never rescues a bad one — and over a long shot you must aim a bit high.
  */
-const ROCKET = { burn: 1.0, v0: 3.0, vmax: 10, accel: 7, turn: 0.5, lockCone: 0.2, gBurn: 0.15, gCoast: 5, drag: 0.22 };
+const ROCKET = { burn: 1.0, v0: 3.0, vmax: 10, accel: 7, turn: 0.5, lockCone: 0.22, gBurn: 0.15, gCoast: 5, drag: 0.22 };
 function updateRockets(dt) {
   for (let i = rockets.length - 1; i >= 0; i--) {
     const r = rockets[i];
@@ -716,7 +760,7 @@ function drawHud(h) {
   ctx.fillStyle = '#1b2430'; ctx.fillRect(16, 18, 268, 38);
   ctx.fillStyle = f > 0.5 ? '#46d06a' : f > 0.25 ? '#e8b030' : '#e23b2c';
   ctx.fillRect(16, 18, 268 * f, 38);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 28px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 34px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(`HEALTH ${Math.ceil(G.hp)}`, 150, 38);
   ctx.fillStyle = '#ffb454'; ctx.font = 'bold 30px Arial'; ctx.textAlign = 'left';
   ctx.fillText(`WAVE ${G.wave}`, 16, 92);
@@ -790,9 +834,11 @@ function showMenu() {
     { t: 'Tanks are rolling into your room.', s: 36, b: false },
     { t: 'They hide behind your furniture and aim at your head.', s: 32, b: false },
     { t: 'Dodge the shells, or duck behind something solid.', s: 32, b: false },
-    { t: 'Trigger: fire a homing rocket · Grip: show room mesh', s: 28, c: '#9fb3c8', b: false, gap: 8 },
+    G.mode === 'flat'
+      ? { t: 'Click: fire (aim at the red ring) · WASD move · C crouch · G room mesh', s: 26, c: '#9fb3c8', b: false, gap: 8 }
+      : { t: 'Trigger: fire a rocket · Grip: show room mesh', s: 28, c: '#9fb3c8', b: false, gap: 8 },
     scanLine(),
-    { t: 'PULL A TRIGGER TO START', s: 46, c: '#6dff8c', gap: 6 },
+    { t: G.mode === 'flat' ? 'CLICK TO START' : 'PULL A TRIGGER TO START', s: 46, c: '#6dff8c', gap: 6 },
   ].map(l => ({ s: 30, ...l })));
 }
 
@@ -803,7 +849,7 @@ function resetEntities() {
   tanks.length = 0;
   for (const r of rockets) scene.remove(r.obj); rockets.length = 0;
   for (const s of shells) scene.remove(s.obj); shells.length = 0;
-  fx.clear();
+  fx.clear(); scorch.clear();
 }
 
 function startGame() {
@@ -823,7 +869,7 @@ function startGame() {
 function startWave(n) {
   G.wave = n;
   G.toSpawn = Math.min(2 + n, 9);
-  G.maxAlive = Math.min(2 + Math.floor((n + 1) / 2), 5);
+  G.maxAlive = Math.min(1 + Math.ceil(n / 2), 5);
   G.spawnT = 1.8;
   G.waveClear = false;
   audio.alert('wave');
@@ -841,7 +887,7 @@ function gameOver() {
     showMsg([
       { t: 'GAME OVER', s: 110, c: '#ff5a44' },
       { t: `Wave ${G.wave}  ·  ${G.kills} tanks destroyed  ·  score ${G.score}`, s: 38 },
-      { t: 'PULL A TRIGGER TO PLAY AGAIN', s: 44, c: '#6dff8c', gap: 20 },
+      { t: G.mode === 'flat' ? 'CLICK TO PLAY AGAIN' : 'PULL A TRIGGER TO PLAY AGAIN', s: 44, c: '#6dff8c', gap: 20 },
     ]);
   }, 700);
 }
@@ -860,9 +906,9 @@ function updateGame(dt) {
       }
     } else if (alive === 0) {
       G.waveClear = true; G.nextWaveT = 4;
-      G.hp = Math.min(100, G.hp + 25);
+      G.hp = Math.min(100, G.hp + 40);
       audio.alert('wave');
-      showMsg([{ t: 'WAVE CLEARED', s: 90, c: '#6dff8c' }, { t: '+25 health', s: 40, b: false }], 2.6, 0.7);
+      showMsg([{ t: 'WAVE CLEARED', s: 90, c: '#6dff8c' }, { t: '+40 health', s: 40, b: false }], 2.6, 0.7);
     }
   } else {
     G.nextWaveT -= dt;
@@ -905,6 +951,7 @@ async function enterXR() {
     session.addEventListener('end', () => location.reload());
     await renderer.xr.setSession(session);
     G.mode = 'xr';
+    renderer.domElement.style.display = 'block';
     document.body.classList.add('playing');
     attachXRControllers();
     G.menuPending = true;
@@ -920,6 +967,7 @@ let yaw = 0, pitch = 0;
 function enterFlat() {
   audio.init();
   G.mode = 'flat';
+  renderer.domElement.style.display = 'block';
   document.body.classList.add('playing', 'flat');
   scene.background = new THREE.Color(0x141a22);
   renderer.setClearColor(0x141a22, 1);
@@ -927,7 +975,8 @@ function enterFlat() {
   grid.position.y = 0.001; scene.add(grid);
   hands.forEach((h, i) => {
     const c = new THREE.Group();
-    c.position.set(i ? 0.3 : -0.3, -0.3, -0.5);
+    c.position.set(i ? 0.3 : -0.3, -0.27, -0.5);
+    h.L.group.scale.setScalar(0.6);
     c.rotation.set(0.03, i ? 0.09 : -0.09, 0);
     c.add(h.L.group);
     camera.add(c);
@@ -952,12 +1001,17 @@ function enterFlat() {
   });
   window.addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyG') onSqueeze(); });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
+  const releaseKeys = () => { for (const k in keys) keys[k] = false; };
+  window.addEventListener('blur', releaseKeys);
+  document.addEventListener('visibilitychange', releaseKeys);
   G.menuPending = true;
 }
 
 function flatMove(dt) {
   const sp = 1.7 * dt;
   const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  const eye = flatMove.hold ?? ((keys.KeyC || keys.ControlLeft) ? 1.0 : 1.6);                 // C or Ctrl: crouch
+  camera.position.y += (eye - camera.position.y) * Math.min(1, dt * 9);
   camera.position.x += (-Math.sin(yaw) * f + Math.cos(yaw) * s) * sp;
   camera.position.z += (-Math.cos(yaw) * f - Math.sin(yaw) * s) * sp;
   const r = Math.hypot(camera.position.x, camera.position.z);
@@ -1049,6 +1103,7 @@ function loop(_, frame) {
     const t = tanks[i];
     if (t.dead) {
       t.wreckT -= dt;
+      if (t.wreckT > 0 && Math.random() < dt * 5) fx.fire.add(t.x + rand(-0.06, 0.06), 0.07, t.z + rand(-0.08, 0.08), 0, rand(0.1, 0.3), 0, rand(0.2, 0.5), 0.05, 0.015, [1, 0.6, 0.2], [0.6, 0.1, 0], 0.8, 0.5, 0);     // embers
       if (t.wreckT > 0 && Math.random() < dt * 14) fx.smoke.add(t.x, 0.09, t.z, rand(-0.05, 0.05), rand(0.15, 0.3), rand(-0.05, 0.05), rand(1.2, 2), 0.04, 0.2, [0.3, 0.3, 0.3], [0.08, 0.08, 0.08], 0.55, 0.3, 0);
       if (t.wreckT < 0.8) t.model.group.scale.setScalar(Math.max(0.001, t.wreckT / 0.8));
       if (t.wreckT <= 0) { scene.remove(t.model.group); tanks.splice(i, 1); }
@@ -1065,7 +1120,7 @@ function loop(_, frame) {
   }
   updateShells(dt);
   updateRockets(dt);
-  fx.update(dt);
+  fx.update(dt); scorch.update(dt);
 
   // hurt flash
   if (G.hurt > 0) G.hurt = Math.max(0, G.hurt - dt * 1.6);
@@ -1092,4 +1147,4 @@ function loop(_, frame) {
 })();
 
 // handy for poking at the game from the console
-window.__tank = { scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
+window.__tank = { scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };

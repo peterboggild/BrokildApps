@@ -92,13 +92,14 @@ export function tankAssets() {
   const camoTex = camoTexture(); camoTex.repeat.set(5, 5);
   const a = {};
   a.camo = new THREE.MeshStandardMaterial({ map: camoTex, roughness: 0.82, metalness: 0.08 });
-  a.dark = new THREE.MeshStandardMaterial({ color: 0x1c1e1d, roughness: 0.85, metalness: 0.3 });
-  a.rubber = new THREE.MeshStandardMaterial({ color: 0x17181a, roughness: 0.95, metalness: 0.05 });
-  a.steel = new THREE.MeshStandardMaterial({ color: 0x33373a, roughness: 0.55, metalness: 0.6 });
-  a.metal = new THREE.MeshStandardMaterial({ color: 0x555a58, roughness: 0.4, metalness: 0.7 });
+  a.dark = new THREE.MeshStandardMaterial({ color: 0x2a2825, roughness: 0.85, metalness: 0.12 });
+  a.rubber = new THREE.MeshStandardMaterial({ color: 0x302d2a, roughness: 0.92, metalness: 0.05 });
+  a.steel = new THREE.MeshStandardMaterial({ color: 0x4a4f52, roughness: 0.5, metalness: 0.45 });
+  a.metal = new THREE.MeshStandardMaterial({ color: 0x6a706e, roughness: 0.45, metalness: 0.5 });
   a.olive = new THREE.MeshStandardMaterial({ color: 0x4a5230, roughness: 0.8, metalness: 0.1 });
   a.lamp = new THREE.MeshStandardMaterial({ color: 0xffeeb0, emissive: 0xffd070, emissiveIntensity: 0.9, roughness: 0.3 });
-  a.char = new THREE.MeshStandardMaterial({ color: 0x0d0c0b, roughness: 1, metalness: 0 });
+  a.char = new THREE.MeshStandardMaterial({ color: 0x23201e, roughness: 1, metalness: 0 });
+  a.wreckCamo = new THREE.MeshStandardMaterial({ map: camoTex, color: 0x2c2825, roughness: 1, metalness: 0 });   // the same camo, burnt dark
   a.decal = new THREE.MeshBasicMaterial({
     map: canvasTex(64, 40, (ctx, w, h) => {
       ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#e9e4cf'; ctx.font = 'bold 30px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -128,10 +129,10 @@ export function tankAssets() {
   a.antGeo = new THREE.CylinderGeometry(0.0007, 0.0011, 0.2, 5);
   a.shadowTex = canvasTex(64, 64, (ctx, w, h) => {
     const g = ctx.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2);
-    g.addColorStop(0, 'rgba(0,0,0,0.55)'); g.addColorStop(0.6, 'rgba(0,0,0,0.25)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    g.addColorStop(0, 'rgba(0,0,0,0.85)'); g.addColorStop(0.45, 'rgba(0,0,0,0.5)'); g.addColorStop(0.8, 'rgba(0,0,0,0.12)'); g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   });
-  a.shadowGeo = new THREE.PlaneGeometry(0.42, 0.42).rotateX(-Math.PI / 2);
+  a.shadowGeo = new THREE.PlaneGeometry(0.3, 0.48).rotateX(-Math.PI / 2);   // hull-shaped, turns with the tank
   a.shadowMat = new THREE.MeshBasicMaterial({ map: a.shadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
   AS = a;
   return a;
@@ -194,7 +195,7 @@ export function buildTank() {
     }
     wheels.push(ws);
     // fender, mudflap, tool box
-    add(body, M(a.fenderGeo, a.camo, x, 0.0575, 0));
+    add(body, M(a.fenderGeo, a.olive, x, 0.0575, 0));
     add(body, M(new THREE.BoxGeometry(0.046, 0.02, 0.002), a.olive, x, 0.045, 0.148));
     add(body, M(new THREE.BoxGeometry(0.028, 0.011, 0.034), a.olive, x, 0.0655, -0.06));
   }
@@ -203,7 +204,8 @@ export function buildTank() {
   add(body, M(new THREE.BoxGeometry(0.07, 0.004, 0.06), a.dark, 0, 0.0675, -0.085));
   for (const s of [-1, 1]) {
     add(body, M(a.exhaustGeo, a.metal, s * 0.04, 0.05, -0.15));
-    add(body, M(new THREE.BoxGeometry(0.012, 0.012, 0.01), a.lamp, s * 0.05, 0.05, 0.1395));
+    add(body, M(new THREE.BoxGeometry(0.014, 0.014, 0.012), a.dark, s * 0.05, 0.05, 0.138));      // lamp housing
+    add(body, M(new THREE.BoxGeometry(0.007, 0.007, 0.004), a.lamp, s * 0.05, 0.05, 0.1445));    // small lens
     add(body, M(new THREE.BoxGeometry(0.014, 0.018, 0.026), a.olive, s * 0.03, 0.078, -0.115));
   }
   add(body, M(new THREE.BoxGeometry(0.1, 0.002, 0.012), a.dark, 0, 0.066, 0.045));     // hatch seam
