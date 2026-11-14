@@ -63,6 +63,10 @@ const EXTRA = {
     alt: "Guldplaneten — a WebXR spaceship cockpit",
     type: "website",
   },
+  "vr-apps/tank-ambush/index.html": {
+    alt: "Tank Ambush — small tanks in your own room, in mixed reality",
+    type: "website",
+  },
 };
 
 /* Redirect stubs and internal tools: a preview for a page whose only job is to
