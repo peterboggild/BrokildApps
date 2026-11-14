@@ -114,17 +114,37 @@ const HEAD = `
     return normalize(abs(det) * N - g); }`;
 
 const SURF = {
-  /* --- the green one --- */
+  /* --- the green one: wet earth, moss on what faces up, standing water in the hollows, a faint lichen glow --- */
   moss: vein => `
-    float n1 = tri(P, Nw, 0.10).r, n2 = tri(P, Nw, 0.8).a, n3 = tri(P, Nw, 2.6).b;
-    vec3 moss = mix(vec3(0.030, 0.050, 0.042), vec3(0.130, 0.185, 0.095), smoothstep(0.35, 0.72, n1));
-    wA = moss * (0.65 + 0.7 * n2) * (0.85 + 0.3 * n3);
-    float vn = tri(P + vec3(0.0, uTime * 0.004, 0.0), Nw, 0.075).a;
-    float vein = 1.0 - smoothstep(0.0, 0.03, abs(vn - 0.5));
-    wE = vec3(0.03, 0.42, 0.34) * vein * (0.5 + 0.5 * sin(uTime * 0.5 + n1 * 9.0)) * ${vein.toFixed(2)};
-    wR = 0.72 + 0.25 * n2; wH = n1 * 0.03 + n2 * 0.012 + n3 * 0.003;`,
-  stalk: () => 'wA = vec3(0.02, 0.035, 0.028) * (0.7 + 0.6 * tri(P, Nw, 3.0).b); wR = 0.7;',
-  bud: () => 'wA = vec3(0.01, 0.05, 0.045); wE = vec3(0.08, 0.80, 0.64) * (0.8 + 0.3 * sin(uTime * 0.9 + P.x * 7.0 + P.z * 5.0)); wR = 0.4;',
+    float n1 = tri(P, Nw, 0.09).r, n2 = tri(P, Nw, 0.7).a, n3 = tri(P, Nw, 2.8).b, n4 = tri(P, Nw, 7.0).b;
+    float up = smoothstep(0.5, 0.9, Nw.y);
+    float mossAmt = smoothstep(0.47, 0.66, n1 * 0.6 + n2 * 0.4 + up * 0.10);
+    vec3 soil = mix(vec3(0.030, 0.024, 0.018), vec3(0.095, 0.072, 0.050), n2) * (0.75 + 0.5 * n3);
+    vec3 moss = mix(vec3(0.026, 0.050, 0.016), vec3(0.085, 0.125, 0.040), n3) * (0.7 + 0.6 * n4);
+    wA = mix(soil, moss, mossAmt);
+    float pud = up * (1.0 - smoothstep(0.37, 0.42, n1));                // water lies where the ground is low
+    float wet = up * (1.0 - smoothstep(0.40, 0.54, n1));                // and the earth round it is dark and shiny
+    wA = mix(wA, wA * 0.45, wet * (1.0 - pud)); wA = mix(wA, vec3(0.010, 0.018, 0.016), pud * 0.92);
+    wR = mix(mix(mix(0.62, 0.96, mossAmt), 0.3, wet * 0.8), 0.04, pud);
+    wH = (1.0 - pud) * (n1 * 0.035 + mossAmt * (n3 * 0.014 + n4 * 0.004) + (1.0 - mossAmt) * n3 * 0.005)
+       + pud * 0.0006 * sin(length(P.xz * 9.0) * 6.0 - uTime * 1.5) * tri(P, Nw, 0.5).r;
+    float vn = tri(P + vec3(0.0, uTime * 0.003, 0.0), Nw, 0.11).a;
+    float vein = (1.0 - smoothstep(0.0, 0.016, abs(vn - 0.5))) * (1.0 - pud) * (1.0 - 0.6 * mossAmt);
+    wE = vec3(0.02, 0.30, 0.22) * vein * (0.5 + 0.5 * sin(uTime * 0.4 + n1 * 9.0)) * ${vein.toFixed(2)};`,
+  stalk: () => 'wA = vec3(0.030, 0.050, 0.022) * (0.6 + 0.8 * tri(P, Nw, 3.0).b); wR = 0.6;',
+  bud: () => 'float g = 0.6 + 0.4 * sin(uTime * 0.7 + P.x * 5.0 + P.z * 3.0); wA = vec3(0.03, 0.07, 0.05); wE = vec3(0.05, 0.50, 0.38) * g * (0.35 + 0.65 * smoothstep(-0.2, 0.9, Nw.y)); wR = 0.35;',
+  bark: () => `
+    float f = tri(P * vec3(1.0, 0.25, 1.0), Nw, 4.0).b, n = tri(P, Nw, 0.9).a, ms = smoothstep(0.5, 0.7, n + smoothstep(0.3, 0.9, Nw.y) * 0.3);
+    wA = mix(mix(vec3(0.030, 0.022, 0.015), vec3(0.085, 0.062, 0.042), f), vec3(0.05, 0.11, 0.03) * (0.6 + 0.8 * tri(P, Nw, 6.0).b), ms);
+    wR = mix(0.5, 0.95, ms); wH = f * 0.006 + ms * tri(P, Nw, 6.0).b * 0.006;`,
+  cap: () => `
+    float sp = tri(P, Nw, 11.0).b, under = 1.0 - smoothstep(-0.5, 0.15, Nw.y);
+    wA = mix(mix(vec3(0.13, 0.10, 0.075), vec3(0.30, 0.25, 0.18), sp), vec3(0.05, 0.10, 0.08), under);
+    wR = mix(0.35, 0.7, sp);
+    wE = vec3(0.03, 0.40, 0.30) * under * (0.7 + 0.3 * sin(uTime * 0.6 + P.x * 9.0)) + vec3(0.004, 0.022, 0.016) * (1.0 - under);
+    wH = sp * 0.0015;`,
+  stem: () => 'wA = vec3(0.24, 0.22, 0.17) * (0.6 + 0.6 * tri(P, Nw, 9.0).b); wR = 0.6; wE = vec3(0.003, 0.018, 0.013);',
+  blade: () => 'float t = tri(P, Nw, 5.0).b; wA = mix(vec3(0.020, 0.060, 0.015), vec3(0.085, 0.170, 0.040), t) * (0.5 + smoothstep(0.0, 0.14, P.y) * 0.9); wR = 0.5;',
 
   /* --- metal --- */
   plate: () => `
@@ -226,7 +246,7 @@ const SKY = {
     float az = atan(d.x, d.z) / 6.2832;
     float wl = step(0.9, fract(az * 90.0)) * (1.0 - smoothstep(0.004, 0.012, abs(h - 0.02 - 0.012 * texture2D(uNoise, vec2(az * 4.0, 0.2)).r)));
     col += vec3(1.0, 0.55, 0.2) * wl * 0.5;                                  // a far-off rim of work lights
-    col = mix(col, haze * 0.8, smoothstep(0.0, -0.25, h));
+    col = mix(col, haze * 0.8, 1.0 - smoothstep(-0.25, 0.0, h));
     gl_FragColor = vec4(col * uBright, 1.0);
   }`,
   /* dusk over a canyon land: a low sun, thin high cloud, three ranges of mesas sinking into the haze */
@@ -274,7 +294,7 @@ export function createWorlds(scene, renderer, params) {
   }));
   for (const w of W) { w.group.add(w.deco, w.scan); scene.add(w.group); w.group.visible = false; }
   const look = (i, fog, den, grade) => { W[i].base.fog.setRGB(...fog); W[i].base.den = den; W[i].base.grade.set(...grade); W[i].uni.uFogDen.value = den; };
-  look(1, [0.040, 0.080, 0.070], 0.17, [0.72, 1.0, 0.9]);
+  look(1, [0.040, 0.080, 0.070], 0.17, [0.86, 1.0, 0.92]);
   look(2, [0.055, 0.065, 0.080], 0.06, [0.80, 0.85, 0.93]);
   look(3, [0.80, 0.56, 0.40], 0.022, [1.08, 1.0, 0.9]);
 
@@ -369,24 +389,50 @@ export function createWorlds(scene, renderer, params) {
 
   /* ---- 1: the green one ---- */
   {
-    const i = 1; floorOf(i, worldMat(i, SURF.moss(0.55), { env: 0.5 }));
-    W[i].scanMat = worldMat(i, SURF.moss(0.9), { env: 0.5, key: 's' });
-    const stalkM = worldMat(i, SURF.stalk(), { env: 0.4 }), budM = worldMat(i, SURF.bud(), { env: 0.4 });
-    const stalks = [];
+    const i = 1, D = W[i].deco;
+    const ground = worldMat(i, SURF.moss(0.5), { env: 0.9 });
+    floorOf(i, ground); W[i].scanMat = worldMat(i, SURF.moss(0.8), { env: 0.9, key: 's' });
+    const stalkM = worldMat(i, SURF.stalk(), { env: 0.5 }), budM = worldMat(i, SURF.bud(), { env: 0.5 }), barkM = worldMat(i, SURF.bark(), { env: 0.6 });
+    const capM = worldMat(i, SURF.cap(), { env: 0.6 }), stemM = worldMat(i, SURF.stem(), { env: 0.5 }), bladeM = worldMat(i, SURF.blade(), { env: 0.4 });
+    /* mossy stones */
+    const stones = [rockGeometry(3, 11.3), rockGeometry(3, 5.1)], spots = [];
+    const stone = (x, z, s) => { const m = new THREE.Mesh(stones[(Math.random() * 2) | 0], ground); m.scale.set(s * rnd(0.9, 1.3), s * rnd(0.55, 0.85), s * rnd(0.9, 1.3)); m.position.set(x, 0.3 * m.scale.y, z); m.rotation.y = rnd(0, TAU); D.add(m); spots.push([x, z, s]); };
+    stone(-1.5, -2.4, 0.5); stone(1.7, -2.9, 0.75); stone(-2.8, -4.4, 1.0); stone(0.5, -5.2, 0.6); stone(3.2, -1.3, 0.4); stone(-3.4, -1.0, 0.55); stone(2.6, -5.8, 1.2); stone(-0.8, -7.4, 1.4); stone(-2.2, 1.7, 0.45); stone(2.4, 2.2, 0.6);
+    /* roots creeping over the ground from the stones */
     for (let k = 0; k < 12; k++) {
-      const near = k < 6, d = near ? rnd(1.6, 3.2) : rnd(1.0, 5.5), a = near ? rnd(-0.5, 0.5) : rnd(-1.5, 1.5);
-      const h = rnd(0.5, near ? 1.9 : 1.2), lean = rnd(-0.35, 0.35), g = new THREE.Group();
-      const pts = []; for (let j = 0; j <= 5; j++) { const t = j / 5; pts.push(new V(lean * t * t * h + rnd(-0.015, 0.015) * j, t * h, rnd(-0.015, 0.015) * j)); }
-      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, rnd(0.008, 0.016), 6, false), stalkM));
-      const bud = new THREE.Mesh(new THREE.SphereGeometry(rnd(0.025, 0.05), 12, 9), budM); bud.position.copy(pts[5]); bud.scale.y = 1.35; g.add(bud);
-      g.position.set(Math.sin(a) * d, 0, -Math.cos(a) * d); g.userData.p = rnd(0, TAU); g.userData.sw = rnd(0.02, 0.05); W[i].deco.add(g); stalks.push(g);
+      const [sx, sz, ss] = spots[k % spots.length]; let a = rnd(0, TAU), x = sx + Math.cos(a) * ss * 0.7, z = sz + Math.sin(a) * ss * 0.7; const pts = [new V(x, ss * 0.25, z)];
+      const n = 6 + ((Math.random() * 5) | 0); for (let j = 0; j < n; j++) { a += rnd(-0.6, 0.6); x += Math.cos(a) * rnd(0.2, 0.4); z += Math.sin(a) * rnd(0.2, 0.4); pts.push(new V(x, j === 0 ? 0.05 : rnd(0.005, 0.045), z)); }
+      D.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), n * 6, rnd(0.014, 0.034), 7, false), barkM));
     }
-    for (let c = 0; c < 6; c++) {
-      const cx = rnd(-2.5, 2.5), cz = -rnd(0.8, 5);
-      for (let k = 0; k < 4; k++) { const r = rnd(0.04, 0.11), p = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 9), budM); p.scale.y = rnd(0.6, 0.9); p.position.set(cx + rnd(-0.2, 0.2), r * 0.6, cz + rnd(-0.2, 0.2)); W[i].deco.add(p); }
+    /* mushrooms in clusters by the stones: a cap that glows faintly from underneath */
+    const capPts = []; for (let j = 0; j <= 10; j++) { const t = j / 10; capPts.push(new THREE.Vector2(Math.sin(t * Math.PI / 2) * 1.0, Math.cos(t * Math.PI / 2) * 0.55)); } capPts.push(new THREE.Vector2(0.92, -0.05), new THREE.Vector2(0.12, 0.04));
+    const capG = new THREE.LatheGeometry(capPts, 18), stemG = new THREE.CylinderGeometry(0.11, 0.16, 1, 9); stemG.translate(0, 0.5, 0);
+    for (let c = 0; c < 9; c++) {
+      const [sx, sz, ss] = spots[c % spots.length], a0 = rnd(0, TAU), cx = sx + Math.cos(a0) * (ss * 0.75 + 0.1), cz = sz + Math.sin(a0) * (ss * 0.75 + 0.1);
+      for (let k = 0; k < 3 + ((Math.random() * 4) | 0); k++) {
+        const r = rnd(0.025, 0.075), h = r * rnd(1.4, 2.6), g = new THREE.Group();
+        const st = new THREE.Mesh(stemG, stemM); st.scale.set(r, h, r); g.add(st);
+        const cp = new THREE.Mesh(capG, capM); cp.scale.set(r, r * rnd(0.8, 1.2), r); cp.position.y = h; g.add(cp);
+        g.position.set(cx + rnd(-0.14, 0.14), 0, cz + rnd(-0.14, 0.14)); g.rotation.set(rnd(-0.2, 0.2), rnd(0, TAU), rnd(-0.2, 0.2)); D.add(g);
+      }
+    }
+    /* tufts of grass */
+    const bg = new THREE.PlaneGeometry(0.014, 1, 1, 4); bg.translate(0, 0.5, 0);
+    { const p = bg.attributes.position; for (let k = 0; k < p.count; k++) { const y = p.getY(k); p.setZ(k, y * y * 0.35); p.setX(k, p.getX(k) * (1 - y * 0.85)); } bg.computeVertexNormals(); }
+    const NB = 520, blades = new THREE.InstancedMesh(bg, bladeM, NB), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new V(), ps = new V();
+    for (let k = 0, t = 0; k < NB; t++) { const tx = rnd(-4.5, 4.5), tz = rnd(-8, 3), cnt = 10 + ((Math.random() * 14) | 0); for (let j = 0; j < cnt && k < NB; j++, k++) { e.set(rnd(-0.25, 0.25), rnd(0, TAU), rnd(-0.25, 0.25)); q.setFromEuler(e); sc.set(rnd(0.8, 1.6), rnd(0.07, 0.22), 1); ps.set(tx + rnd(-0.12, 0.12), 0, tz + rnd(-0.12, 0.12)); blades.setMatrixAt(k, m4.compose(ps, q, sc)); } }
+    blades.frustumCulled = false; D.add(blades);
+    /* a few tall thin stalks with a dim bud */
+    const stalks = [];
+    for (let k = 0; k < 7; k++) {
+      const d = rnd(1.6, 5), a = rnd(-1.2, 1.2), h = rnd(0.7, 1.7), lean = rnd(-0.3, 0.3), g = new THREE.Group();
+      const pts = []; for (let j = 0; j <= 5; j++) { const t = j / 5; pts.push(new V(lean * t * t * h + rnd(-0.012, 0.012) * j, t * h, rnd(-0.012, 0.012) * j)); }
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, rnd(0.005, 0.01), 6, false), stalkM));
+      const bud = new THREE.Mesh(new THREE.SphereGeometry(rnd(0.014, 0.026), 12, 9), budM); bud.position.copy(pts[5]); bud.scale.y = 1.7; g.add(bud);
+      g.position.set(Math.sin(a) * d, 0, -Math.cos(a) * d); g.userData.p = rnd(0, TAU); g.userData.sw = rnd(0.02, 0.05); D.add(g); stalks.push(g);
     }
     W[i].tick.push((dt, t) => { for (const g of stalks) { g.rotation.z = Math.sin(t * 0.5 + g.userData.p) * g.userData.sw; g.rotation.x = Math.cos(t * 0.4 + g.userData.p) * g.userData.sw * 0.7; } });
-    motes(i, 150, 0xa8ffe8, 0.035, 0.5, [4, 2.6, 7], 0.03);
+    motes(i, 110, 0xa8ffe8, 0.022, 0.35, [4, 2.6, 7], 0.02);
   }
 
   /* ---- 2: metal ---- */

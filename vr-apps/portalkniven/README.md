@@ -46,3 +46,10 @@ verden kan døren føre til din stue eller til en af de andre.
   (instancer); skumringshimmel med lav sol, tynde skyer og tre rækker taffelbjerge i disen.
 * Tåge, farvetone og himmel er pr. verden; refleksioner kommer fra et lille bagt lys-sæt pr. verden. ACES tone mapping.
 * Alle shadere kompileres ved start, så skift ikke hakker.
+
+## Senere tilføjelser
+* **Knivens greb:** midten af skaftet ligger nu i controllerens grebspunkt (før lå hånden på klingen). `?tilt=grader` vipper klingen i hånden, hvis den skal finjusteres.
+* **Den grønne verden:** våd jord med mos på det der vender opad, vand i lavningerne, mosgroede sten, rødder hen over jorden, svampe i klynger
+  (svagt lys under hatten), græstotter, få tynde stilke. Mindre mættet og mindre selvlysende end før.
+* **Musik:** `music/for-moerket.mp3` (128 kbit/s) spiller i metalverdenen, toner ind og ud, og lidt af den siver gennem døren, når døren fører dertil.
+* **Sikkerhed:** uden rumscanning advarer tavlen ("INGEN RUMSCANNING: pas på møbler!"), når man står i en anden verden.
