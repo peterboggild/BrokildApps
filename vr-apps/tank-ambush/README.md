@@ -62,7 +62,7 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 
 ## Super rats
 
-From round 8 (`buildQueue` value 8: 1, 1, 2, 2, 2, then up to 3) a green mutant kamikaze rat (`SUPER` in `game.js`, `buildRunnerRat(true)`): 1.9x size, 140 HP (a direct standard rocket leaves 30; a heavy one kills), half the speed, a 2.1 m blast (12-36 damage) behind a green floor ring, a deeper beep, and a glowing green aura that sheds goo particles and a slime trail. Shot or detonated they burst in `fx.slime`.
+From round 8 (`buildQueue` value 8: 1, 1, 2, 2, 2, then up to 3) a green mutant kamikaze rat (`SUPER` in `game.js`, `buildRunnerRat(true)`): 2.5x size (about a tank's bulk: 0.8 m long with tail, 0.29 m tall), 140 HP (a direct standard rocket leaves 30; a heavy one kills), half the speed, a 2.1 m blast (12-36 damage) behind a green floor ring, a deeper beep, and a glowing green aura that sheds goo particles and a slime trail. Shot or detonated they burst in `fx.slime`.
 
 ## Rat traps (left hand)
 
@@ -82,4 +82,4 @@ Anywhere in the room that is valid (open floor or air you can reach, at least 1.
 
 ## Cache busting
 
-The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114f`) whenever the game files change.**
+The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114g`) whenever the game files change.**

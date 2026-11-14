@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114f';
-import { createFX, createAudio } from './fx.js?v=20261114f';
-import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114f';
+} from './world.js?v=20261114g';
+import { createFX, createAudio } from './fx.js?v=20261114g';
+import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114g';
 
 /* ================================================================ basics */
 
@@ -1106,9 +1106,9 @@ function updateCrash(t, dt) {
  * lights and a moment later: a small bang that takes a part of your health (a short red flash, not a blackout).
  * They are small and quick — shoot them, or a rocket's blast near them, and they go "poof". */
 const RUNNER = { hp: 30, score: 30, fuseAt: 1.6, fuseTime: 0.5, radius: 1.6, dmg: [9, 26, 28] };
-/* From round 8: super rats. About twice the size, a third of the speed, 140 HP, a bigger blast and a glowing green
+/* From round 8: super rats. About two and a half times the size (a tank's bulk), half the speed, 140 HP, a bigger blast and a glowing green
  * aura that sheds goo; their warning ring is green. */
-const SUPER = { hp: 140, score: 120, size: 1.9, speed: 0.5, fuseAt: 2.2, fuseTime: 0.8, radius: 2.1, dmg: [12, 32, 36] };
+const SUPER = { hp: 140, score: 120, size: 2.5, speed: 0.5, fuseAt: 2.2, fuseTime: 0.8, radius: 2.1, dmg: [12, 32, 36] };
 const runnerRingGeo = new THREE.RingGeometry(RUNNER.radius * 0.955, RUNNER.radius, 56).rotateX(-Math.PI / 2);
 
 function spawnRunner(x, z, sup = false) {
