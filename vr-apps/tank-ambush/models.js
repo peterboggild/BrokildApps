@@ -409,7 +409,7 @@ export function buildLauncher() {
   const muzzle = new THREE.Object3D(); muzzle.position.set(0, Y, -0.62); g.add(muzzle);
   const rear = new THREE.Object3D(); rear.position.set(0, Y, 0.28); g.add(rear);
 
-  return { group: g, rocket, rocketH, muzzle, rear, led, ledMat, panel };
+  return { group: g, rocket, rocketH, muzzle, rear, led, ledMat, panel, bodyMats: [olive, oliveDark, venturi.material] };
 }
 
 /* ---------------------------------------------------------------- helicopter */

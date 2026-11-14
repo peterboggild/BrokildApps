@@ -42,6 +42,13 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 * Flat preview: `?flat` in the URL or the button — WASD, mouse (click to capture), click to fire, `G` for the room mesh.
 * URL options: `?cover=1` always add virtual barriers, `?mesh=0` ignore the headset's room scan.
 
+## Hands, rings and room light
+
+* **Right hand** = ordinary rockets, and the machine gun once they run out. **Left hand** = heavy rockets; that launcher (painted dark red) is hidden unless heavy rockets are stocked. Roles come from the controller's handedness (`applyRole`); in the flat preview, click = right hand, right-click or Q = left.
+* The red lock-on rings are off unless ticked on the start page (`G.rings`, or `?rings=1`). The seeker works either way.
+* Room light: the Quest browser gives no camera image, so it cannot be measured. If the headset supports WebXR `light-estimation`, a light probe and the main light are taken from it (`applyEstimate`, untested on hardware). Otherwise the start page's Dark / Normal / Bright sets a brightness for all lights and the environment map, and a thumbstick (or `[` / `]`) adjusts it in play (`applyLight`).
+* Helicopters only spawn and fly over floor the player could walk to (`airReachable`), so never behind a wall; if one gets wedged or leaves the room it heads for the player and then respawns (`relocateHeli`).
+
 ## Cache busting
 
-The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114a`) whenever the game files change.**
+The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114b`) whenever the game files change.**

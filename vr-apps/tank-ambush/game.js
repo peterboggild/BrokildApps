@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114a';
-import { createFX, createAudio } from './fx.js?v=20261114a';
-import { buildTank, buildHeli, heliShadow, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114a';
+} from './world.js?v=20261114b';
+import { createFX, createAudio } from './fx.js?v=20261114b';
+import { buildTank, buildHeli, heliShadow, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114b';
 
 /* ================================================================ basics */
 
@@ -39,6 +39,7 @@ const G = {
   toSpawn: 0, maxAlive: 0, spawnT: 0, waveClear: false, nextWaveT: 0,
   inputLock: 0, hurt: 0, showMesh: false, fieldDirty: true, haveRoom: false, virtual: false,
   menuPending: false, time: 0,
+  rings: false, light: 1, lightMode: 'auto', estimated: false,
   ammo: { std: 6, heavy: 0 }, toast: '', toastT: 0, fade: { t: -1, hold: false }, invuln: 0, queue: [], pickT: 0,
 };
 
@@ -57,7 +58,8 @@ const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerH
 camera.position.set(0, 1.6, 0);
 scene.add(camera);
 
-scene.add(new THREE.HemisphereLight(0xfff1dc, 0x6a5846, 1.0));      // warm, like a lit living room
+const hemi = new THREE.HemisphereLight(0xfff1dc, 0x6a5846, 1.0);      // warm, like a lit living room
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2de, 1.9);
 sun.position.set(0.8, 3.5, 1.6);
 scene.add(sun);
@@ -82,6 +84,33 @@ window.addEventListener('resize', () => {
   scene.environment = pm.fromEquirectangular(eq).texture;
   scene.environmentIntensity = 0.65;
   pm.dispose();
+}
+/* Matching the room's light. The Quest browser does not give pages the camera image, so there is no way to
+ * measure the room directly. Two routes: (1) if the headset offers WebXR light estimation, use it (a light probe
+ * plus the main light's direction and colour); (2) otherwise a brightness level chosen at the start (dark /
+ * normal / bright) and adjustable in the game with the thumbstick (or [ and ] on a keyboard). */
+const xrProbe = new THREE.LightProbe(); xrProbe.intensity = 0; scene.add(xrProbe);
+const BASE = { hemi: 1.0, sun: 1.9, env: 0.65 };
+let sunEst = null;                                    // {color, intensity} from the headset, if it gave one
+function applyLight() {
+  const L = G.light;
+  hemi.intensity = (G.estimated ? 0 : BASE.hemi) * L;
+  xrProbe.intensity = G.estimated ? L : 0;
+  scene.environmentIntensity = (G.estimated ? 0.3 : BASE.env) * L;
+  if (sunEst) { sun.color.copy(sunEst.color); sun.intensity = sunEst.intensity * L; }
+  else { sun.color.setHex(0xfff2de); sun.intensity = BASE.sun * L; }
+}
+const LIGHT_PRESET = { dark: 0.5, normal: 1.0, bright: 1.45 };
+function applyEstimate(est) {
+  const sh = est.sphericalHarmonicsCoefficients;
+  if (sh && sh.length >= 27) { xrProbe.sh.fromArray(sh); G.estimated = true; }
+  const di = est.primaryLightIntensity, dd = est.primaryLightDirection;
+  if (di && dd) {
+    const mx = Math.max(1, di.x, di.y, di.z);
+    sunEst = { color: new THREE.Color(di.x / mx, di.y / mx, di.z / mx), intensity: mx };
+    sun.position.set(dd.x, dd.y, dd.z).multiplyScalar(3.5);
+  }
+  applyLight();
 }
 const fx = createFX(scene);
 const audio = createAudio();
@@ -323,8 +352,8 @@ function pickSpawn() {
 /* tier 0: the green tanks. tier 1 (from wave 6): black, a little larger, much tougher. tier 2 (from wave 10): bigger and tougher still. */
 const TIER = [
   { hp: 100, size: 1.0, score: 100, dmg: 15, vmul: 1.0, reload: 1.0, burst: 0, sh: 0 },
-  { hp: 320, size: 1.3, score: 300, dmg: 22, vmul: 0.85, reload: 0.8, burst: 1, sh: 0.4 },
-  { hp: 800, size: 1.75, score: 700, dmg: 32, vmul: 0.7, reload: 0.7, burst: 1, sh: 0.6 },
+  { hp: 420, size: 1.3, score: 300, dmg: 22, vmul: 0.85, reload: 0.8, burst: 1, sh: 0.4 },
+  { hp: 1000, size: 1.75, score: 700, dmg: 32, vmul: 0.7, reload: 0.7, burst: 1, sh: 0.6 },
 ];
 
 function spawnTank(x, z, yaw, tier = 0) {
@@ -671,9 +700,8 @@ function lockCandidate(origin, dir, maxAng, maxD, ignore) {
 
 function launch(h) {
   if (G.phase !== 'play' || h.cool > 0) return;
-  const A = G.ammo;
-  if (A.std + A.heavy <= 0) return;                 // out of rockets: the machine gun takes over
-  const heavy = A.heavy > 0;
+  const A = G.ammo, heavy = h.role === 'heavy';
+  if (heavy ? A.heavy <= 0 : A.std <= 0) return;    // out of rockets (the right hand's machine gun takes over)
   if (heavy) A.heavy--; else A.std--;
   h.cool = 1.15;
   h.ctrl.updateMatrixWorld(true);
@@ -782,21 +810,35 @@ const tracerGeo = new THREE.SphereGeometry(0.008, 8, 6);
 const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffe0a0, toneMapped: false });
 
 function ceilingAt(x, z) { for (let y = 1.0; y < 3.1; y += 0.1) if (solidAt(x, y, z)) return y; return 3.2; }
-const clearAir = (x, y, z, r = 0.25) => !(solidAt(x, y, z) || solidAt(x, y + 0.3, z) || solidAt(x, y - 0.3, z) || solidAt(x + r, y, z) || solidAt(x - r, y, z) || solidAt(x, y, z + r) || solidAt(x, y, z - r));
+/** Open air with room to spare on every side. Rays, not single points: a thin wall 0.2 m away must still count. */
+const airFree = (x, y, z, bx, by, bz) => !solidAt(bx, by, bz) && los(x, y, z, bx, by, bz, 0, 0);
+const clearAir = (x, y, z, r = 0.3) => !solidAt(x, y, z) && airFree(x, y, z, x + r, y, z) && airFree(x, y, z, x - r, y, z) && airFree(x, y, z, x, y, z + r) && airFree(x, y, z, x, y, z - r) && airFree(x, y, z, x, y + 0.3, z) && airFree(x, y, z, x, y - 0.3, z);
 
-function pickHeliSpawn() {
+/** Is this spot over floor the player could walk to — i.e. inside the room, not on the far side of a wall? */
+function airReachable(x, z, y = 1.2) {
+  if (fieldAt(playerField, x, z) < FAR) return true;
+  for (let k = 0; k < 8; k++) {                       // over furniture the floor cell is blocked: look a little around it,
+    const a = k * Math.PI / 4, sx = x + Math.cos(a) * 0.45, sz = z + Math.sin(a) * 0.45;
+    if (fieldAt(playerField, sx, sz) < FAR && los(x, y, z, sx, y, sz, 0.02, 0.02)) return true;     // but only through open air — a wall blocks it
+  }
+  return false;
+}
+
+function pickHeliSpawn(strict = true) {
   let best = null, bs = -1;
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 80; i++) {
     const a = rand(0, TAU), r = W.arenaR > 0 ? rand(1.8, 3.0) : rand(2.6, 4.6);
     let x = head.x + Math.sin(a) * r, z = head.z + Math.cos(a) * r;
     if (W.arenaR > 0) { const rr = Math.hypot(x, z); if (rr > W.arenaR - 0.4) { x *= (W.arenaR - 0.4) / rr; z *= (W.arenaR - 0.4) / rr; } }
     const y = rand(1.0, 1.7);
     if (!clearAir(x, y, z) || Math.hypot(x - head.x, z - head.z) < 1.8) continue;
+    if (!airReachable(x, z, y)) continue;                                           // never on the far side of a wall
+    if (strict && !los(x, y, z, head.x, y, head.z, 0.1, 1.2)) continue;             // and with a clear flight line toward the player
     if (tanks.some(t => !t.dead && t.air && Math.hypot(t.x - x, t.z - z) < 0.8)) continue;
-    const s = (!los(x, y, z, head.x, head.y - 0.05, head.z) ? 50 : 0) + rand(0, 30);
+    const s = Math.hypot(x - head.x, z - head.z) * 8 + rand(0, 20);                 // prefer to come in from a distance
     if (s > bs) { bs = s; best = { x, y, z }; }
   }
-  return best;
+  return best || (strict ? pickHeliSpawn(false) : null);          // a cramped room: settle for any open air inside it
 }
 
 function spawnHeli(x, y, z, htier = 0) {
@@ -828,7 +870,7 @@ function pickHeliWaypoint(t) {
     const top = Math.min(2.0, ceilingAt(x, z) - 0.25);
     if (top < 0.8) continue;
     const y = rand(0.8, top);
-    if (!clearAir(x, y, z)) continue;
+    if (!clearAir(x, y, z) || !airReachable(x, z, y)) continue;
     if (!los(x, y, z, head.x, head.y - 0.05, head.z)) continue;                       // from there it can see you
     if (!los(t.x, t.y, t.z, x, y, z, 0.15, 0.15)) continue;                           // and the way there is clear
     const d = Math.hypot(x - t.x, z - t.z);
@@ -836,7 +878,19 @@ function pickHeliWaypoint(t) {
     if (s > bs) { bs = s; best = { x, y, z }; }
   }
   if (best) { t.wp = best; t.wpT = rand(2.2, 4.0); }
-  else { t.wp = { x: head.x + Math.sin(t.age) * 2.2, y: Math.max(1.0, t.y), z: head.z + Math.cos(t.age) * 2.2 }; t.wpT = 0.7; }
+  else {                                                                              // nothing good: head straight for the player
+    const dx = head.x - t.x, dz = head.z - t.z, d = Math.hypot(dx, dz) || 1, k = Math.max(0, d - 2.2) / d;
+    t.wp = { x: t.x + dx * k, y: clamp(t.y, 0.9, 1.7), z: t.z + dz * k }; t.wpT = 0.8;
+  }
+}
+
+/** Put a helicopter somewhere valid again: it was shoved into a wall, left the room, or got wedged. */
+function relocateHeli(t) {
+  const s = pickHeliSpawn();
+  if (!s) return;
+  fx.puff(new V(t.x, t.y, t.z), 0.4);
+  t.x = s.x; t.y = s.y; t.z = s.z; t.vx = t.vy = t.vz = 0; t.spawnT = 0.5; t.stuck = 0; t.outT = 0; t.wpT = 0;
+  fx.puff(new V(t.x, t.y, t.z), 0.5);
 }
 
 const AVD = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]];
@@ -855,6 +909,23 @@ function updateHeli(t, dt) {
     t.unseenT = t.sees ? 0 : t.unseenT + 0.12;
   }
 
+  // trapped? (inside furniture or a wall, outside the room, or going nowhere): head for the player, then relocate
+  if (playing) {
+    t.outT = !airReachable(t.x, t.z, t.y) || solidAt(t.x, t.y, t.z) ? (t.outT || 0) + dt : 0;
+    if (t.outT > 1.0) relocateHeli(t);
+    t.progT = (t.progT || 0) + dt;
+    if (t.progT > 1.6) {
+      const moved = Math.hypot(t.x - (t.lastX ?? t.x), t.y - (t.lastY ?? t.y), t.z - (t.lastZ ?? t.z));
+      t.lastX = t.x; t.lastY = t.y; t.lastZ = t.z; t.progT = 0;
+      const far = Math.hypot(t.wp.x - t.x, t.wp.y - t.y, t.wp.z - t.z) > 0.5;
+      if (far && moved < 0.12) {
+        t.stuck = (t.stuck || 0) + 1;
+        if (t.stuck >= 2) relocateHeli(t);
+        else { const dx = head.x - t.x, dz = head.z - t.z, d = Math.hypot(dx, dz) || 1; t.wp = { x: t.x + dx / d * 1.0, y: clamp(t.y + 0.2, 0.9, 1.8), z: t.z + dz / d * 1.0 }; t.wpT = 1.2; }
+      } else if (moved > 0.3) t.stuck = 0;
+    }
+  }
+
   // where to fly: a waypoint that can see you, renewed every few seconds or when it loses sight of you
   t.wpT -= dt;
   if (playing && (t.wpT <= 0 || t.unseenT > 1.4)) { pickHeliWaypoint(t); t.unseenT = 0; }
@@ -862,8 +933,10 @@ function updateHeli(t, dt) {
   const vmax = t.vmax * (0.45 + 0.55 * hpf) * (t.stun > 0 ? 0.3 : 1);
   const sp = playing ? Math.min(vmax, ed * 1.3) : 0;
   let ax = (ex / ed * sp - t.vx) * 2.6, ay = (ey / ed * sp - t.vy) * 2.6, az = (ez / ed * sp - t.vz) * 2.6;
-  for (const d of AVD)                                                        // keep off walls, furniture and the ceiling
-    if (solidAt(t.x + d[0] * 0.24 * t.size, t.y + d[1] * 0.2 * t.size, t.z + d[2] * 0.24 * t.size)) { ax -= d[0] * 3.4; ay -= d[1] * 3.4; az -= d[2] * 3.4; }
+  for (const d of AVD) {                                                      // keep off walls, furniture and the ceiling: the closer, the harder it pushes back
+    const R = 0.34 * t.size, hit = rayHit(t.x, t.y, t.z, d[0], d[1], d[2], R);
+    if (hit < R) { const s = (1 - hit / R) * 5; ax -= d[0] * s; ay -= d[1] * s; az -= d[2] * s; }
+  }
   const hx = t.x - head.x, hy = t.y - head.y, hz = t.z - head.z, hd = Math.hypot(hx, hy, hz);
   if (hd < 1.4 && hd > 1e-3) { const k = (1.4 - hd) * 5 / hd; ax += hx * k; ay += hy * k; az += hz * k; }   // never right on top of you
   if (t.y < 0.5) ay += (0.5 - t.y) * 8;
@@ -1039,7 +1112,7 @@ function updateBullets(dt) {
 const pickups = [];
 const PK = {
   std: { box: 0x56603a, band: 0xe8c040, ring: 0xffe27a, label: '+3 ROCKETS' },
-  heavy: { box: 0x8a2a1c, band: 0xffa020, ring: 0xff6a2a, label: '+2 HEAVY ROCKETS' },
+  heavy: { box: 0x8a2a1c, band: 0xffa020, ring: 0xff6a2a, label: '+2 HEAVY \u2014 LEFT HAND' },
 };
 const pkBox = new THREE.BoxGeometry(0.26, 0.12, 0.15), pkBand = new THREE.BoxGeometry(0.04, 0.125, 0.155);
 const pkRing = new THREE.RingGeometry(0.2, 0.25, 40).rotateX(-Math.PI / 2);
@@ -1122,17 +1195,26 @@ function makeHand(i) {
   scene.add(dot);
   const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xff4a33, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
   ring.visible = false; scene.add(ring);
-  return { i, L, ctrl: null, cool: 0, mg: 0, trig: false, lock: null, beam, dot, ring, gamepad: null, lastHud: '' };
+  return { i, L, role: i === 0 ? 'heavy' : 'std', ctrl: null, cool: 0, mg: 0, trig: false, lock: null, beam, dot, ring, gamepad: null, lastHud: '' };
 }
 hands.push(makeHand(0), makeHand(1));
+
+/** Right hand: ordinary rockets (and the machine gun when they run out). Left hand: heavy rockets, and only
+ *  there while some are stocked. A heavy launcher is painted dark red. */
+function applyRole(h) {
+  const heavy = h.role === 'heavy';
+  const [a, b, c] = h.L.bodyMats;
+  a.color.setHex(heavy ? 0x7d2a1c : 0x4b5233); b.color.setHex(heavy ? 0x55201a : 0x353b25); c.color.setHex(heavy ? 0x7d2a1c : 0x4b5233);
+}
+hands.forEach(applyRole);
 
 function haptic(h, strength, ms) {
   try { h.gamepad?.hapticActuators?.[0]?.pulse(strength, ms); } catch (_) { /* no haptics */ }
 }
 
 function drawHud(h) {
-  const have = G.ammo.std + G.ammo.heavy;
-  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${G.ammo.std}|${G.ammo.heavy}|${G.toast}`;
+  const heavyRole = h.role === 'heavy', have = heavyRole ? G.ammo.heavy : G.ammo.std;
+  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${h.role}|${have}|${G.toast}`;
   if (key === h.lastHud) return;
   h.lastHud = key;
   const { ctx, w, hgt = 170 } = h.L.panel;
@@ -1150,10 +1232,10 @@ function drawHud(h) {
   ctx.textAlign = 'right'; ctx.fillText(`${G.score}`, 284, 92);
   ctx.textAlign = 'center'; ctx.font = 'bold 26px Arial';
   if (G.toast) { ctx.fillStyle = '#ffe27a'; ctx.font = 'bold 28px Arial'; ctx.fillText(G.toast, 150, 140); }
-  else if (have === 0) { ctx.fillStyle = '#ffcc33'; ctx.fillText('MACHINE GUN  \u221e', 150, 140); }
+  else if (!heavyRole && have === 0) { ctx.fillStyle = '#ffcc33'; ctx.fillText('MACHINE GUN  \u221e', 150, 140); }
   else {
-    ctx.fillStyle = h.cool > 0 ? '#ff6a55' : G.ammo.heavy > 0 ? '#ff9a4a' : '#6dff8c';
-    ctx.fillText(`ROCKETS ${G.ammo.std}${G.ammo.heavy ? `  \u00b7  HVY ${G.ammo.heavy}` : ''}`, 150, 140);
+    ctx.fillStyle = h.cool > 0 ? '#ff6a55' : heavyRole ? '#ff9a4a' : '#6dff8c';
+    ctx.fillText(heavyRole ? `HEAVY ROCKETS ${have}` : `ROCKETS ${have}`, 150, 140);
   }
   h.L.panel.refresh();
 }
@@ -1246,8 +1328,8 @@ function showMenu() {
     { t: 'They hide behind your furniture and aim at your head.', s: 32, b: false },
     { t: 'Dodge the shells, duck behind something solid, and grab ammo crates.', s: 30, b: false },
     G.mode === 'flat'
-      ? { t: 'Click: rocket (hold when empty: machine gun) · WASD · C crouch · G mesh', s: 26, c: '#9fb3c8', b: false, gap: 8 }
-      : { t: 'Trigger: rocket (hold when empty: machine gun) · Grip: room mesh', s: 26, c: '#9fb3c8', b: false, gap: 8 },
+      ? { t: 'Click: rocket (hold: machine gun) · Q or right-click: heavy · WASD · C crouch', s: 24, c: '#9fb3c8', b: false, gap: 8 }
+      : { t: 'Right hand: rockets, then machine gun · Left: heavy rockets when stocked', s: 25, c: '#9fb3c8', b: false, gap: 8 },
     scanLine(),
     { t: G.mode === 'flat' ? 'CLICK TO START' : 'PULL A TRIGGER TO START', s: 46, c: '#6dff8c', gap: 6 },
   ].map(l => ({ s: 30, ...l })));
@@ -1392,22 +1474,30 @@ function attachXRControllers() {
     c.add(h.L.group);
     scene.add(c);
     h.ctrl = c;
-    c.addEventListener('connected', e => { h.gamepad = e.data?.gamepad || null; });
+    c.addEventListener('connected', e => {
+      h.gamepad = e.data?.gamepad || null;
+      const hd = e.data?.handedness;
+      if (hd === 'left' || hd === 'right') { h.role = hd === 'left' ? 'heavy' : 'std'; applyRole(h); }
+    });
     c.addEventListener('selectstart', () => { h.trig = true; onTrigger(i); });
     c.addEventListener('selectend', () => { h.trig = false; });
     c.addEventListener('squeezestart', onSqueeze);
   });
 }
 
+let lightProbe = null;
+
 async function enterXR() {
+  readOptions();
   const status = $('status');
   try {
     audio.init();
     const session = await navigator.xr.requestSession('immersive-ar', {
       requiredFeatures: ['local-floor'],
-      optionalFeatures: ['mesh-detection', 'plane-detection', 'bounded-floor'],
+      optionalFeatures: ['mesh-detection', 'plane-detection', 'bounded-floor', 'light-estimation'],
     });
     session.addEventListener('end', () => location.reload());
+    try { if (session.requestLightProbe) session.requestLightProbe().then(p => { lightProbe = p; }).catch(() => {}); } catch (_) { /* no light estimation */ }
     await renderer.xr.setSession(session);
     G.mode = 'xr';
     renderer.domElement.style.display = 'block';
@@ -1420,11 +1510,22 @@ async function enterXR() {
   }
 }
 
+/** The choices made on the start page: red rings (off by default) and the room-light setting. */
+function readOptions() {
+  G.rings = !!$('optRings')?.checked;
+  G.lightMode = $('optLight')?.value || 'auto';
+  let saved = null;
+  try { saved = parseFloat(localStorage.getItem('tankAmbushLight')); } catch (_) { /* no storage */ }
+  G.light = G.lightMode === 'auto' ? (saved > 0 ? saved : 1) : LIGHT_PRESET[G.lightMode] ?? 1;
+  applyLight();
+}
+
 /* flat preview: WASD + mouse look + click */
 const keys = {};
 const flatHold = { down: false, t: 0, dragged: 0 };      // mouse held without dragging = trigger held
 let yaw = 0, pitch = 0;
 function enterFlat() {
+  readOptions();
   audio.init();
   G.mode = 'flat';
   renderer.domElement.style.display = 'block';
@@ -1442,15 +1543,16 @@ function enterFlat() {
     h.ctrl = c;
   });
   addVirtualCover();
-  let flip = 0, down = null, dragged = 0;
+  let down = null, dragged = 0;
   const dom = renderer.domElement;
   dom.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; dragged = 0; flatHold.down = true; flatHold.t = 0; flatHold.dragged = 0; });
   dom.addEventListener('pointerup', () => { down = null; flatHold.down = false; });
   dom.addEventListener('click', () => {
     if (dragged > 6) return;                                   // that was a look-around drag, not a shot
     if (document.pointerLockElement !== dom) dom.requestPointerLock?.()?.catch?.(() => {});
-    onTrigger(flip ^= 1);
+    onTrigger(1);                                              // click: the right-hand launcher
   });
+  dom.addEventListener('contextmenu', e => { e.preventDefault(); onTrigger(0); });      // right click (or Q): the heavy left hand
   // mouse look: captured pointer, or simply hold the button and drag
   document.addEventListener('mousemove', e => {
     const locked = document.pointerLockElement === dom;
@@ -1458,7 +1560,12 @@ function enterFlat() {
     if (!locked) { dragged += Math.abs(e.movementX) + Math.abs(e.movementY); flatHold.dragged = dragged; }
     yaw -= e.movementX * 0.0022; pitch = clamp(pitch - e.movementY * 0.0022, -1.3, 1.3);
   });
-  window.addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyG') onSqueeze(); });
+  window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'KeyG') onSqueeze();
+    if (e.code === 'KeyQ') onTrigger(0);
+    if (e.code === 'BracketLeft' || e.code === 'BracketRight') { G.light = clamp(G.light + (e.code === 'BracketRight' ? 0.1 : -0.1), 0.3, 1.9); applyLight(); toast(`ROOM LIGHT ${Math.round(G.light * 100)}%`); }
+  });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
   const releaseKeys = () => { for (const k in keys) keys[k] = false; };
   window.addEventListener('blur', releaseKeys);
@@ -1505,6 +1612,7 @@ function loop(_, frame) {
         head.set(p.x, p.y, p.z); headQ.set(o.x, o.y, o.z, o.w);
       }
       scanRoom(frame, ref);
+      if (lightProbe && G.lightMode === 'auto') { try { const est = frame.getLightEstimate(lightProbe); if (est) applyEstimate(est); } catch (_) { /* not available this frame */ } }
     }
   } else {
     flatMove(dt);
@@ -1540,18 +1648,28 @@ function loop(_, frame) {
   for (const h of hands) {
     if (!h.ctrl) continue;
     h.ctrl.updateMatrixWorld(true);
-    const have = G.ammo.std + G.ammo.heavy;
+    const heavyRole = h.role === 'heavy', have = heavyRole ? G.ammo.heavy : G.ammo.std;
+    // the heavy launcher (left hand) only exists while heavy rockets are stocked
+    const present = !heavyRole || G.ammo.heavy > 0 || h.cool > 0;
+    h.L.group.visible = present;
+    if (!present) { h.dot.visible = false; h.ring.visible = false; h.lock = null; continue; }
     if (h.cool > 0) {
       h.cool -= dt;
       if (h.cool <= 0 && have > 0) audio.reload(h.ctrl.getWorldPosition(tmpV2).clone());
     }
-    // what is loaded: a standard or heavy rocket, or nothing (machine gun)
+    // what is loaded: a standard or heavy rocket, or nothing (right hand: machine gun)
     const ready = h.cool <= 0 && have > 0;
-    h.L.rocket.visible = ready && G.ammo.heavy === 0;
-    h.L.rocketH.visible = ready && G.ammo.heavy > 0;
-    h.L.ledMat.color.setHex(h.cool > 0 ? 0xff3322 : have === 0 ? 0xffcc33 : G.ammo.heavy > 0 ? 0xff7a1a : 0x44ff66);
+    h.L.rocket.visible = ready && !heavyRole;
+    h.L.rocketH.visible = ready && heavyRole;
+    h.L.ledMat.color.setHex(h.cool > 0 ? 0xff3322 : have === 0 ? 0xffcc33 : heavyRole ? 0xff7a1a : 0x44ff66);
     h.mg = Math.max(0, h.mg - dt);
-    if (G.phase === 'play' && h.trig && have === 0 && h.mg <= 0) { h.mg = MG.rate; fireBullet(h); }
+    if (G.phase === 'play' && h.trig && !heavyRole && G.ammo.std === 0 && h.mg <= 0) { h.mg = MG.rate; fireBullet(h); }
+    // thumbstick up/down: room brightness
+    if (G.mode === 'xr' && h.gamepad) {
+      const ay = h.gamepad.axes?.[3] ?? 0;
+      if (Math.abs(ay) > 0.55) { G.light = clamp(G.light - ay * dt * 0.5, 0.3, 1.9); applyLight(); toast(`ROOM LIGHT ${Math.round(G.light * 100)}%`); G.lightDirty = true; }
+      else if (G.lightDirty) { G.lightDirty = false; try { localStorage.setItem('tankAmbushLight', String(G.light)); } catch (_) { /* no storage */ } }
+    }
     h.L.muzzle.getWorldPosition(mp);
     md.set(0, 0, -1).transformDirection(h.ctrl.matrixWorld);
     // laser sight
@@ -1562,7 +1680,7 @@ function loop(_, frame) {
     h.dot.visible = hitD < 8 && h.ctrl.visible !== false;
     // lock-on: closest tank within ~25° of where the launcher points, that it can see
     h.lock = G.phase === 'play' ? lockCandidate(mp, md, ROCKET.lockCone, 8, null) : null;
-    if (h.lock) {
+    if (h.lock && G.rings) {
       h.ring.visible = true;
       h.ring.position.set(h.lock.x, cyOf(h.lock) + 0.03, h.lock.z);
       h.ring.lookAt(head);
