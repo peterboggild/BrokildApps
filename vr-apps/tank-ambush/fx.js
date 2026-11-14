@@ -183,6 +183,14 @@ export function createFX(scene) {
       flash.position.copy(p); flash.intensity = Math.max(flash.intensity, 4 * s * 2); flashT = Math.max(flashT, 0.12);
     },
 
+    /** A few sparks and a wisp: a bullet hitting a wall or a tank. No light, so a burst of them stays cheap. */
+    spark(p, s = 1) {
+      for (let i = 0; i < 4; i++)
+        fire.add(p.x, p.y, p.z, rand(-1, 1) * 0.9 * s, rand(0.2, 1.2) * s, rand(-1, 1) * 0.9 * s, rand(0.15, 0.35), 0.014 * s, 0.006 * s, WHITE, ORG, 1, 1.5, 6);
+      fire.add(p.x, p.y, p.z, 0, 0, 0, 0.06, 0.05 * s, 0.1 * s, WHITE, YEL, 0.9);
+      smoke.add(p.x, p.y, p.z, rand(-0.05, 0.05), rand(0.05, 0.2), rand(-0.05, 0.05), rand(0.4, 0.8), 0.03 * s, 0.08 * s, SMOKE0, SMOKE1, 0.3, 0.8, 0);
+    },
+
     muzzleFlash(p, d) {
       fire.add(p.x + d.x * 0.02, p.y + d.y * 0.02, p.z + d.z * 0.02, 0, 0, 0, 0.09, 0.05, 0.1, WHITE, ORG, 1);
       for (let i = 0; i < 5; i++)
@@ -312,6 +320,16 @@ export function createAudio() {
       A._noise(master, t, 0.35, 'lowpass', 900, 100, 0.6);
       A._tone(master, t, 0.9, 'sine', 1800, 1500, 0.05);     // ear ring
     },
+    mg(pos) {
+      if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
+      A._noise(out, t, 0.07, 'highpass', 1800, 700, 0.35);
+      A._tone(out, t, 0.06, 'square', 220, 90, 0.18);
+    },
+    pickup(heavy) {
+      if (!ctx) return; const t = ctx.currentTime;
+      A._tone(master, t, 0.12, 'triangle', heavy ? 330 : 440, heavy ? 330 : 440, 0.25);
+      A._tone(master, t + 0.09, 0.2, 'triangle', heavy ? 495 : 660, heavy ? 495 : 660, 0.25);
+    },
     click(pos) {
       if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
       A._tone(out, t, 0.06, 'square', 900, 400, 0.15);
@@ -325,6 +343,41 @@ export function createAudio() {
       if (!ctx) return; const t = ctx.currentTime;
       if (kind === 'wave') { A._tone(master, t, 0.25, 'triangle', 330, 330, 0.25); A._tone(master, t + 0.18, 0.4, 'triangle', 495, 495, 0.25); }
       else if (kind === 'over') { A._tone(master, t, 1.2, 'sawtooth', 220, 55, 0.35); }
+    },
+    /** A helicopter: blade slap (noise chopped at the blade-pass rate), a low thump and a turbine whine. */
+    rotor() {
+      if (!ctx) return { set() {}, stop() {} };
+      const p = ctx.createPanner();
+      p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 0.9; p.rolloffFactor = 1.2;
+      const g = ctx.createGain(); g.gain.value = 0;
+      const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
+      const am = ctx.createGain(); am.gain.value = 0.3;
+      const lfo = ctx.createOscillator(); lfo.type = 'sawtooth'; lfo.frequency.value = 20;
+      const lg = ctx.createGain(); lg.gain.value = 0.28;
+      lfo.connect(lg); lg.connect(am.gain);
+      src.connect(lp); lp.connect(am); am.connect(g);
+      const thump = ctx.createOscillator(); thump.type = 'sine'; thump.frequency.value = 52;
+      const tg = ctx.createGain(); tg.gain.value = 0.35; thump.connect(tg); tg.connect(g);
+      const whine = ctx.createOscillator(); whine.type = 'triangle'; whine.frequency.value = 1150;
+      const wg = ctx.createGain(); wg.gain.value = 0.012; whine.connect(wg); wg.connect(g);
+      g.connect(p); p.connect(master);
+      src.start(0, Math.random()); lfo.start(); thump.start(); whine.start();
+      return {
+        set(pos, speed) {
+          const t = ctx.currentTime;
+          if (p.positionX) { p.positionX.setTargetAtTime(pos.x, t, 0.05); p.positionY.setTargetAtTime(pos.y, t, 0.05); p.positionZ.setTargetAtTime(pos.z, t, 0.05); }
+          g.gain.setTargetAtTime(0.2 + 0.12 * speed, t, 0.15);
+          lfo.frequency.setTargetAtTime(19 + 6 * speed, t, 0.2);
+          thump.frequency.setTargetAtTime(50 + 8 * speed, t, 0.2);
+          whine.frequency.setTargetAtTime(1100 + 450 * speed, t, 0.2);
+        },
+        stop() {
+          const t = ctx.currentTime;
+          g.gain.setTargetAtTime(0, t, 0.25);
+          try { src.stop(t + 1.2); lfo.stop(t + 1.2); thump.stop(t + 1.2); whine.stop(t + 1.2); } catch (_) { /* already stopped */ }
+        },
+      };
     },
     /** A looping engine for one tank. Returns {set(pos, speed01), stop()}. */
     engine() {
