@@ -32,3 +32,17 @@ Siden: `https://peterboggild.github.io/BrokildApps/vr-apps/portalkniven/`
 * Tynde, bøjede stilke med en lysende knop, bløde bælge på gulvet, langsomt svævende sporer, tåge og en tæt, kølig himmel. Alt svajer og lyser meget svagt.
 * Rumlyset (WebXR `light-estimation`) gør den anden stue lysere eller mørkere, så den passer til dit rum. Tavlen viser værdien (`Rumlys`) og om
   `camera-access` blev givet (`Kamera`); kameraet bruges ikke endnu.
+
+## Dimensioner (`worlds.js`)
+Fire verdener: **din stue** (passthrough), **den grønne**, **metalverdenen** og **klippeverdenen**. Højre thumbstick (vip eller tryk; Q/E i preview)
+vælger, hvad døren fører til, altid blandt de verdener du *ikke* står i. Går du igennem, bytter "her" og "der" plads, så inde fra en anden
+verden kan døren føre til din stue eller til en af de andre.
+
+* Alle verdener er det samme rum: rumscanningen tegnes med verdenens overflade. Overfladerne er procedurale i verdensrum (triplanare opslag i én
+  lille flisebar støjtekstur + bump fra skærm-afledte), så de kræver ingen UV'er og passer på enhver scannet form.
+* **Metal:** nittede stålplader i forbandt (børstet, plettet, rust i sømmene, enkelte glødende sømme), søjler, dragere, lamper, kobberrør med ir,
+  en ventil, et stort langsomt hjul; en hal med lysbånd højt oppe, der forsvinder i dis.
+* **Klippe:** lagdelt sandsten med revner, støv på det der vender opad, kampesten (støjformede kugler med brudflader), stensøjler, småsten
+  (instancer); skumringshimmel med lav sol, tynde skyer og tre rækker taffelbjerge i disen.
+* Tåge, farvetone og himmel er pr. verden; refleksioner kommer fra et lille bagt lys-sæt pr. verden. ACES tone mapping.
+* Alle shadere kompileres ved start, så skift ikke hakker.
