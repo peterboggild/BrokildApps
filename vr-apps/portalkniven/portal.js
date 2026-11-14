@@ -148,12 +148,14 @@ const decoA = new THREE.Group(); worldA.add(decoA);
 {
   const orange = reg('A', new THREE.MeshLambertMaterial({ color: 0xff9a3c, emissive: 0x7a3a08, flatShading: true }));
   const warm = reg('A', new THREE.MeshBasicMaterial({ color: 0xffd9a0 }));
-  for (let i = 0; i < 6; i++) {
-    const h = rnd(0.5, 1.5);
-    const p = new THREE.Mesh(new THREE.BoxGeometry(0.16, h, 0.16), orange);
-    p.position.set(rnd(-1.3, 1.3), h / 2, rnd(0.6, 2.6)); decoA.add(p);
+  if (params.has('flat')) {                                       // reference objects for the laptop preview only: the real room has nothing virtual in it
+    for (let i = 0; i < 6; i++) {
+      const h = rnd(0.5, 1.5);
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.16, h, 0.16), orange);
+      p.position.set(rnd(-1.3, 1.3), h / 2, rnd(0.6, 2.6)); decoA.add(p);
+    }
+    const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 1), warm); orb.position.set(0, 1.7, 1.8); decoA.add(orb); decoA.userData.orb = orb;
   }
-  const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 1), warm); orb.position.set(0, 1.7, 1.8); decoA.add(orb); decoA.userData.orb = orb;
   if (params.has('flat') || params.get('floor') === '1') {                    // a floor to stand on, only on a laptop
     const g = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), reg('A', new THREE.MeshBasicMaterial({ map: gridTex('#1b2230', '#33445e', 60), side: THREE.DoubleSide })));
     g.rotation.x = -Math.PI / 2; g.position.y = -0.005; worldA.add(g);
@@ -171,16 +173,15 @@ const scanGroup = new THREE.Group(); worldB.add(scanGroup);
                 reg('B', new THREE.MeshLambertMaterial({ color: 0xff3cc8, emissive: 0x80105a, flatShading: true })),
                 reg('B', new THREE.MeshLambertMaterial({ color: 0x28e0d0, emissive: 0x0a6a64, flatShading: true }))];
   const orbM = reg('B', new THREE.MeshBasicMaterial({ color: 0xffa0ff }));
-  for (let i = 0; i < 16; i++) {                                  // crystals round the door: a tall cluster straight behind it
+  for (let i = 0; i < 11; i++) {                                  // crystals round the door: a tall cluster straight behind it
     const h = i < 5 ? rnd(1.2, 2.6) : rnd(0.3, 1.4);
     const a = i < 5 ? rnd(-0.5, 0.5) : rnd(-1.4, 1.4), d = i < 5 ? rnd(1.8, 3.4) : rnd(0.8, 5);
     const m = new THREE.Mesh(new THREE.ConeGeometry(rnd(0.08, 0.22), h, i % 2 ? 5 : 6), crys[i % 3]);
     m.position.set(Math.sin(a) * d, h / 2, -Math.cos(a) * d); m.rotation.set(rnd(-0.12, 0.12), rnd(0, TAU), rnd(-0.12, 0.12)); decoB.add(m);
   }
   decoB.userData.orbs = [];
-  for (let i = 0; i < 6; i++) { const o = new THREE.Mesh(new THREE.IcosahedronGeometry(rnd(0.06, 0.14), 1), orbM); o.position.set(rnd(-1.6, 1.6), rnd(0.8, 2.2), -rnd(1.2, 4)); o.userData.p = rnd(0, TAU); o.userData.y = o.position.y; decoB.add(o); decoB.userData.orbs.push(o); }
 }
-const scanSolid = reg('B', new THREE.MeshLambertMaterial({ color: 0x2a1450, emissive: 0x120628, flatShading: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+const scanSolid = reg('B', new THREE.MeshLambertMaterial({ color: 0x2a1450, emissive: 0x170a30, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
 const scanWire = reg('B', new THREE.MeshBasicMaterial({ color: 0xd060ff, wireframe: true, transparent: true, opacity: 0.55 }));
 const scanKnown = new Map();
 let scanNext = 0;
@@ -201,7 +202,7 @@ function updateScan(frame, refSpace) {
     geo.setIndex(new THREE.BufferAttribute(new Uint32Array(m.indices), 1));
     geo.computeVertexNormals();
     const g = new THREE.Group(); g.matrixAutoUpdate = false; g.matrix.fromArray(pose.transform.matrix);
-    g.add(new THREE.Mesh(geo, scanSolid), new THREE.Mesh(geo, scanWire));
+    g.add(new THREE.Mesh(geo, scanSolid)); if (params.get('skin') === 'wire') g.add(new THREE.Mesh(geo, scanWire));
     scanGroup.add(g); scanKnown.set(m, { t: m.lastChangedTime, g, geo }); did++;
     applyRoles();
   }
