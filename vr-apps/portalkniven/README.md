@@ -1,9 +1,9 @@
-# Portal-test
+# Portalkniven (teknisk test)
 
 Teknisk test til Meta Quest 3 (WebXR, `immersive-ar`): en grøn knitrende ring midt i rummet er en åben dør til en anden
 version af rummet. Se ind, gå igennem, gå tilbage.
 
-Siden: `https://peterboggild.github.io/BrokildApps/vr-apps/portal-test/`
+Siden: `https://peterboggild.github.io/BrokildApps/vr-apps/portalkniven/`
 
 ## Hvordan det virker
 * Ringens indre er en maske, der skriver 1 i **stencil-bufferen** (kun hvor den er synlig, dvs. ikke skjult af noget foran).

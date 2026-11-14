@@ -1,5 +1,5 @@
 /*
- * Portal test — a green crackling ring in the room that is an open door to another version of the room.
+ * Portalkniven (technical test) — a green crackling ring in the room that is an open door to another version of the room.
  *
  * HOW IT WORKS (this is the whole trick, and the thing this page exists to prove on a Quest 3):
  *
@@ -358,7 +358,7 @@ hudMesh.renderOrder = 100; hudMesh.position.set(0, 0.09, -0.04); hudMesh.rotatio
 function hudLines() {
   const bits = S.stencilBits;
   return [
-    'PORTAL-TEST',
+    'PORTALKNIVEN',
     `Verden: ${S.inB ? 'B  (den lilla)' : 'A  (din stue)'}`,
     `Gennemgange: ${S.crossings}`,
     S.mode === 'xr' ? `Stencil-bits: ${bits === null ? '?' : bits}${bits === 0 ? '  VINDUET VIRKER IKKE' : ''}` : 'Fladt preview',
