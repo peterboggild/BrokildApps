@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114g';
-import { createFX, createAudio } from './fx.js?v=20261114g';
-import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114g';
+} from './world.js?v=20261114h';
+import { createFX, createAudio } from './fx.js?v=20261114h';
+import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114h';
 
 /* ================================================================ basics */
 
@@ -41,7 +41,7 @@ const G = {
   menuPending: false, time: 0,
   waveRockets: 0, waveEnemies: 0, bonusTotal: 0, xrT: 0, meshFeature: undefined,
   rings: false, light: 1, lightMode: 'auto', estimated: false,
-  ammo: { std: 6, heavy: 0, trap: 0 }, leftMode: 'heavy', toast: '', toastT: 0, fade: { t: -1, hold: false }, invuln: 0, queue: [], pickT: 0,
+  ammo: { std: 0, heavy: 0, trap: 0 }, leftMode: 'gun', rightMode: 'gun', toast: '', toastT: 0, fade: { t: -1, hold: false }, invuln: 0, queue: [], pickT: 0,
 };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -735,10 +735,13 @@ function lockCandidate(origin, dir, maxAng, maxD, ignore) {
 }
 
 function launch(h) {
-  if (G.phase !== 'play' || h.cool > 0) return;
-  if (h.role === 'heavy' && G.leftMode === 'trap') { launchTrap(h); return; }
-  const A = G.ammo, heavy = h.role === 'heavy';
-  if (heavy ? A.heavy <= 0 : A.std <= 0) return;    // out of rockets (the right hand's machine gun takes over)
+  if (G.phase !== 'play') return;
+  const mode = handMode(h);
+  if (mode === 'gun') { if (h.mg <= 0) { h.mg = MG.rate; fireBullet(h); } return; }       // a press fires one bullet; holding keeps firing (see the hands loop)
+  if (h.cool > 0) return;
+  if (mode === 'trap') { launchTrap(h); return; }
+  const A = G.ammo, heavy = mode === 'heavy';
+  if (heavy ? A.heavy <= 0 : A.std <= 0) return;
   if (heavy) A.heavy--; else A.std--;
   G.waveRockets++;
   h.cool = 1.15;
@@ -1304,20 +1307,35 @@ function updateTraps(dt) {
   }
 }
 
-/** Left hand: heavy rockets or rat traps. */
-function leftAmmo(mode = G.leftMode) { return mode === 'trap' ? G.ammo.trap : G.ammo.heavy; }
-function setLeftMode(mode) { G.leftMode = mode; hands.forEach(applyRole); }
-function toggleLeft() {
-  const to = G.leftMode === 'trap' ? 'heavy' : 'trap';
-  if (leftAmmo(to) <= 0) { toast(to === 'trap' ? 'INGEN RATTEF\u00c6LDER' : 'INGEN TUNGE RAKETTER'); return; }
-  setLeftMode(to);
-  toast(to === 'trap' ? 'VENSTRE: RATTEF\u00c6LDER' : 'VENSTRE: TUNGE RAKETTER');
+/*
+ * Each hand holds one weapon at a time. Both start as plain bullet guns ('gun'). Picking up ammo switches the
+ * hand it belongs to over to that weapon: ordinary rockets -> the right hand ('rocket'), heavy rockets and rat
+ * traps -> the left hand ('heavy', 'trap'). When that ammo is gone the hand falls back to the gun. The right
+ * thumbstick steps the left hand through what it has; pressing the left thumbstick does the same for the right.
+ * (h.role === 'heavy' marks the LEFT hand — the name is from when it only held the heavy launcher.)
+ */
+const handMode = h => (h.role === 'heavy' ? G.leftMode : G.rightMode);
+const ammoFor = mode => (mode === 'rocket' ? G.ammo.std : mode === 'heavy' ? G.ammo.heavy : mode === 'trap' ? G.ammo.trap : Infinity);
+const MODE_NAME = { gun: 'MASKINGEV\u00c6R', rocket: 'RAKETTER', heavy: 'TUNGE RAKETTER', trap: 'RATTEF\u00c6LDER' };
+function setMode(side, mode, quiet = false) {
+  if (side === 'left') G.leftMode = mode; else G.rightMode = mode;
+  hands.forEach(applyRole);
+  if (!quiet) toast(`${side === 'left' ? 'VENSTRE' : 'H\u00d8JRE'}: ${MODE_NAME[mode]}`);
 }
-/** When the left hand's weapon runs dry and the other one has something, switch to it. */
-function autoLeft() {
-  if (leftAmmo() > 0) return;
-  const other = G.leftMode === 'trap' ? 'heavy' : 'trap';
-  if (leftAmmo(other) > 0) { setLeftMode(other); toast(other === 'trap' ? 'VENSTRE: RATTEF\u00c6LDER' : 'VENSTRE: TUNGE RAKETTER'); }
+function cycleHand(side) {
+  const order = side === 'left' ? ['gun', 'heavy', 'trap'] : ['gun', 'rocket'];
+  const cur = side === 'left' ? G.leftMode : G.rightMode;
+  for (let i = 1; i <= order.length; i++) {
+    const m = order[(order.indexOf(cur) + i) % order.length];
+    if (ammoFor(m) > 0) { if (m !== cur) setMode(side, m); return; }
+  }
+}
+const toggleLeft = () => cycleHand('left');
+const toggleRight = () => cycleHand('right');
+/** A weapon whose ammo is gone gives way to the gun. */
+function autoModes() {
+  if (ammoFor(G.leftMode) <= 0) setMode('left', 'gun');
+  if (ammoFor(G.rightMode) <= 0) setMode('right', 'gun');
 }
 
 /* ------------------------------------------------------- machine gun */
@@ -1426,6 +1444,7 @@ function updatePickups(dt) {
     }
     if (got) {
       if (p.kind === 'heavy') G.ammo.heavy = Math.min(6, G.ammo.heavy + 2); else if (p.kind === 'trap') G.ammo.trap = Math.min(8, G.ammo.trap + 3); else G.ammo.std = Math.min(12, G.ammo.std + 3);
+      if (p.kind === 'heavy') setMode('left', 'heavy', true); else if (p.kind === 'trap') setMode('left', 'trap', true); else setMode('right', 'rocket', true);     // picking up ammo switches to that weapon
       toast(PK[p.kind].label);
       audio.pickup(p.kind === 'heavy');
       fx.spark(new V(p.x, 0.2, p.z), 1.6);
@@ -1457,12 +1476,11 @@ function makeHand(i) {
 }
 hands.push(makeHand(0), makeHand(1));
 
-/** Right hand: ordinary rockets (and the machine gun when they run out). Left hand: heavy rockets, and only
- *  there while some are stocked. A heavy launcher is painted dark red. */
+/** The launcher is painted by what the hand holds: gunmetal (bullets), olive (rockets), dark red (heavy), ochre (traps). */
 function applyRole(h) {
-  const left = h.role === 'heavy', trap = left && G.leftMode === 'trap';
+  const mode = handMode(h);
   const [a, b, c] = h.L.bodyMats;
-  const [ca, cb] = trap ? [0xa4792a, 0x6e5220] : left ? [0x7d2a1c, 0x55201a] : [0x4b5233, 0x353b25];     // rat-trap launcher ochre, heavy launcher dark red
+  const [ca, cb] = mode === 'trap' ? [0xa4792a, 0x6e5220] : mode === 'heavy' ? [0x7d2a1c, 0x55201a] : mode === 'rocket' ? [0x4b5233, 0x353b25] : [0x3f454a, 0x2a2e32];
   a.color.setHex(ca); b.color.setHex(cb); c.color.setHex(ca);
 }
 hands.forEach(applyRole);
@@ -1471,10 +1489,16 @@ function haptic(h, strength, ms) {
   try { h.gamepad?.hapticActuators?.[0]?.pulse(strength, ms); } catch (_) { /* no haptics */ }
 }
 
+/** Draw a line of text centred at (x,y), shrinking the font until it fits in maxW pixels. */
+function fitText(ctx, text, x, y, maxW, size) {
+  ctx.font = `bold ${size}px Arial`;
+  while (ctx.measureText(text).width > maxW && size > 12) { size -= 1; ctx.font = `bold ${size}px Arial`; }
+  ctx.fillText(text, x, y);
+}
+
 function drawHud(h) {
-  const heavyRole = h.role === 'heavy', leftTrap = heavyRole && G.leftMode === 'trap';
-  const have = heavyRole ? leftAmmo() : G.ammo.std;
-  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${h.role}|${G.leftMode}|${have}|${traps.length}|${G.toast}`;
+  const mode = handMode(h), have = ammoFor(mode);
+  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${h.role}|${mode}|${have}|${traps.length}|${G.toast}`;
   if (key === h.lastHud) return;
   h.lastHud = key;
   const { ctx, w, hgt = 170 } = h.L.panel;
@@ -1491,11 +1515,11 @@ function drawHud(h) {
   ctx.fillText(`RUNDE ${G.wave}`, 16, 92);
   ctx.textAlign = 'right'; ctx.fillText(`${G.score}`, 284, 92);
   ctx.textAlign = 'center'; ctx.font = 'bold 26px Arial';
-  if (G.toast) { ctx.fillStyle = '#ffe27a'; ctx.font = 'bold 28px Arial'; ctx.fillText(G.toast, 150, 140); }
-  else if (!heavyRole && have === 0) { ctx.fillStyle = '#ffcc33'; ctx.fillText('MASKINGEV\u00c6R  \u221e', 150, 140); }
+  if (G.toast) { ctx.fillStyle = '#ffe27a'; fitText(ctx, G.toast, 150, 140, 270, 28); }
+  else if (mode === 'gun') { ctx.fillStyle = '#ffcc33'; ctx.fillText('MASKINGEV\u00c6R  \u221e', 150, 140); }
   else {
-    ctx.fillStyle = h.cool > 0 ? '#ff6a55' : leftTrap ? '#ffd040' : heavyRole ? '#ff9a4a' : '#6dff8c';
-    ctx.fillText(leftTrap ? `F\u00c6LDER ${have} \u00b7 UDE ${traps.length}/${TRAP.maxActive}` : heavyRole ? `TUNGE RAKETTER ${have}` : `RAKETTER ${have}`, 150, 140);
+    ctx.fillStyle = h.cool > 0 ? '#ff6a55' : mode === 'trap' ? '#ffd040' : mode === 'heavy' ? '#ff9a4a' : '#6dff8c';
+    fitText(ctx, mode === 'trap' ? `F\u00c6LDER ${have} \u00b7 UDE ${traps.length}/${TRAP.maxActive}` : `${MODE_NAME[mode]} ${have}`, 150, 140, 270, 26);
   }
   h.L.panel.refresh();
 }
@@ -1643,8 +1667,8 @@ function showMenu() {
     { t: 'De k\u00f8rer panservogne, flyver helikoptere og sender kamikaze-r\u00f8tter.', s: 27, b: false },
     { t: 'Duk dig bag m\u00f8blerne, undvig skuddene og saml ammunition op.', s: 27, b: false },
     G.mode === 'flat'
-      ? { t: 'Klik: raket (hold: maskingev\u00e6r) \u00b7 Q / h\u00f8jreklik: venstre \u00b7 E: skift tung/f\u00e6lde \u00b7 WASD \u00b7 C: duk', s: 23, c: '#9fb3c8', b: false, gap: 6 }
-      : { t: 'H\u00f8jre h\u00e5nd: raketter, s\u00e5 maskingev\u00e6r \u00b7 Venstre: tung raket / rattef\u00e6lde (h\u00f8jre stick skifter)', s: 23, c: '#9fb3c8', b: false, gap: 6 },
+      ? { t: 'Klik: raket (hold: maskingev\u00e6r) \u00b7 Q / h\u00f8jreklik: venstre h\u00e5nd \u00b7 R / E: skift v\u00e5ben \u00b7 WASD \u00b7 C: duk', s: 23, c: '#9fb3c8', b: false, gap: 6 }
+      : { t: 'Begge h\u00e5nder: maskingev\u00e6r \u00b7 saml ammo op for raketter, tunge raketter og f\u00e6lder', s: 23, c: '#9fb3c8', b: false, gap: 6 },
     ...roomLines(),
     { t: G.mode === 'flat' ? 'KLIK FOR AT STARTE' : 'TR\u00c6K I UDL\u00d8SEREN FOR AT STARTE', s: 38, c: '#6dff8c', gap: 4 },
   ].map(l => ({ s: 30, ...l })), 0, 1, 'wave');
@@ -1667,7 +1691,7 @@ function startGame() {
   resetEntities();
   hideMsg();
   G.hp = 100; G.score = 0; G.kills = 0; G.wave = 0; G.waveClear = false; G.bonusTotal = 0; G.waveRockets = 0;
-  G.ammo = { std: 6, heavy: 0, trap: 0 }; G.leftMode = 'heavy'; hands.forEach(applyRole); G.toast = ''; G.invuln = 0; G.fade = { t: -1, hold: false }; G.pickT = 9;
+  G.ammo = { std: 0, heavy: 0, trap: 0 }; G.leftMode = 'gun'; G.rightMode = 'gun'; hands.forEach(applyRole); G.toast = ''; G.invuln = 0; G.fade = { t: -1, hold: false }; G.pickT = 9;
   const wantVirtual = params.has('cover') || scan.sources.size === 0;
   if (wantVirtual && !virt.made) addVirtualCover();
   else if (!wantVirtual && virt.made) { removeVirtualCover(); rebuildNow([...scan.sources.values()]); }
@@ -1714,10 +1738,11 @@ function startWave(n) {
   const sub2 = n === 1 ? { t: 'Rotterne rykker ind!', c: '#e6edf5' } : n === 3 ? { t: 'KAMIKAZE-R\u00d8TTER!', c: '#ff5a44' } : n === 6 ? { t: 'SORTE PANSERVOGNE', c: '#ff5a44' } : n === 8 ? { t: 'ANGRIBSHELIKOPTER', c: '#ff5a44' } : n === 10 ? { t: 'SUPERTUNGE PANSERVOGNE', c: '#ff5a44' } : n === 12 ? { t: 'SORT KAMPHELIKOPTER', c: '#ff5a44' }
     : n === 5 ? { t: 'Tunge raketter dukker op', c: '#ffa020' } : { t: 'Rotterne bliver klogere', c: '#e6edf5' };
   showMsg([{ t: `RUNDE ${n}`, s: 110, c: '#ffb454' }, { t: sub2.t, s: 38, c: sub2.c, b: [3, 6, 8, 10, 12].includes(n) },
-    ...(n === 3 ? [{ t: 'Venstre h\u00e5nd: rattef\u00e6lder (maks. 4 ude) \u00b7 h\u00f8jre stick skifter v\u00e5ben', s: 24, c: '#ffd040', b: false }] : []),
+    ...(n === 3 ? [{ t: 'Du har fire rattef\u00e6lder \u2014 h\u00f8jre stick skifter venstre h\u00e5nd (maks. 4 ude)', s: 24, c: '#ffd040', b: false }] : []),
     ...(n === 6 ? [{ t: 'Pakker med rattef\u00e6lder dukker op', s: 26, c: '#ffd040', b: false }] : []),
     ...(n === 8 ? [{ t: 'Og gr\u00f8nne SUPER-R\u00d8TTER \u2014 store, seje og langsomme', s: 26, c: '#7dff4a', b: true }] : [])], 3.4, 0.7, 'angry');
-  if (n > 1) { spawnPickup('std'); if (n >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy'); }
+  spawnPickup('std');                                                           // there is always a rocket crate to find (the hands start with bullet guns)
+  if (n >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy');
   if (n >= 6 && !pickups.some(p => p.kind === 'trap')) spawnPickup('trap');
 }
 
@@ -1901,6 +1926,7 @@ function enterFlat() {
     if (e.code === 'KeyG') onSqueeze();
     if (e.code === 'KeyQ') onTrigger(0);
     if (e.code === 'KeyE' && G.phase === 'play') toggleLeft();
+    if (e.code === 'KeyR' && G.phase === 'play') toggleRight();
     if (e.code === 'BracketLeft' || e.code === 'BracketRight') { G.light = clamp(G.light + (e.code === 'BracketRight' ? 0.1 : -0.1), 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); }
   });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1984,41 +2010,38 @@ function loop(_, frame) {
   updateGame(dt);
 
   // --- hands
-  if (G.phase === 'play') autoLeft();
+  if (G.phase === 'play') autoModes();
   for (const h of hands) {
     if (!h.ctrl) continue;
     h.ctrl.updateMatrixWorld(true);
-    const heavyRole = h.role === 'heavy', leftTrap = heavyRole && G.leftMode === 'trap';
-    const have = heavyRole ? leftAmmo() : G.ammo.std;
-    // thumbsticks (read before anything can skip this hand): the LEFT stick up/down is room brightness; the RIGHT
-    // stick — pressed, or flicked sideways — switches the left hand between heavy rockets and rat traps
+    const isLeft = h.role === 'heavy', mode = handMode(h), have = ammoFor(mode);
+    // thumbsticks: LEFT stick up/down = room brightness, LEFT stick press = the right hand's weapon;
+    // RIGHT stick (pressed, or flicked sideways) = the left hand's weapon
     if (G.mode === 'xr' && h.gamepad) {
-      if (heavyRole) {
-        const ay = h.gamepad.axes?.[3] ?? 0;
+      if (isLeft) {
+        const ay = h.gamepad.axes?.[3] ?? 0, press = !!h.gamepad.buttons?.[3]?.pressed;
         if (Math.abs(ay) > 0.55) { G.light = clamp(G.light - ay * dt * 0.5, 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); G.lightDirty = true; }
         else if (G.lightDirty) { G.lightDirty = false; try { localStorage.setItem('tankAmbushLight', String(G.light)); } catch (_) { /* no storage */ } }
+        if (press && !h.stickDown) { h.stickDown = true; if (G.phase === 'play') toggleRight(); } else if (!press) h.stickDown = false;
       } else {
         const ax = h.gamepad.axes?.[2] ?? 0, down = !!h.gamepad.buttons?.[3]?.pressed || Math.abs(ax) > 0.8;
         if (down && !h.stickDown) { h.stickDown = true; if (G.phase === 'play') toggleLeft(); }
         else if (!down && Math.abs(ax) < 0.4) h.stickDown = false;
       }
     }
-    // the left launcher (heavy rockets or rat traps) only exists while it has something to fire
-    const present = !heavyRole || have > 0 || h.cool > 0;
-    h.L.group.visible = present;
-    if (!present) { h.dot.visible = false; h.ring.visible = false; h.lock = null; continue; }
+    h.L.group.visible = true;
     if (h.cool > 0) {
       h.cool -= dt;
-      if (h.cool <= 0 && have > 0) audio.reload(h.ctrl.getWorldPosition(tmpV2).clone());
+      if (h.cool <= 0 && have > 0 && mode !== 'gun') audio.reload(h.ctrl.getWorldPosition(tmpV2).clone());
     }
-    // what is loaded: a standard or heavy rocket, or nothing (right hand: machine gun)
-    const ready = h.cool <= 0 && have > 0;
-    h.L.rocket.visible = ready && !heavyRole;
-    h.L.rocketH.visible = ready && heavyRole && !leftTrap;
-    h.L.trap.visible = ready && leftTrap;
-    h.L.ledMat.color.setHex(h.cool > 0 ? 0xff3322 : have === 0 ? 0xffcc33 : leftTrap ? 0xffd040 : heavyRole ? 0xff7a1a : 0x44ff66);
+    // what is loaded: a rocket, a heavy rocket, a trap, or nothing (the bullet gun)
+    const ready = h.cool <= 0 && have > 0 && mode !== 'gun';
+    h.L.rocket.visible = ready && mode === 'rocket';
+    h.L.rocketH.visible = ready && mode === 'heavy';
+    h.L.trap.visible = ready && mode === 'trap';
+    h.L.ledMat.color.setHex(h.cool > 0 ? 0xff3322 : mode === 'gun' ? 0xffcc33 : mode === 'trap' ? 0xffd040 : mode === 'heavy' ? 0xff7a1a : 0x44ff66);
     h.mg = Math.max(0, h.mg - dt);
-    if (G.phase === 'play' && h.trig && !heavyRole && G.ammo.std === 0 && h.mg <= 0) { h.mg = MG.rate; fireBullet(h); }
+    if (G.phase === 'play' && h.trig && mode === 'gun' && h.mg <= 0) { h.mg = MG.rate; fireBullet(h); }
     h.L.muzzle.getWorldPosition(mp);
     md.set(0, 0, -1).transformDirection(h.ctrl.matrixWorld);
     // laser sight
@@ -2093,4 +2116,4 @@ function loop(_, frame) {
 })();
 
 // handy for poking at the game from the console
-window.__tank = { startWave, SUPER, TRAP, traps, launchTrap, toggleLeft, setLeftMode, trapBoom, spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
+window.__tank = { setMode, toggleRight, handMode, autoModes, startWave, SUPER, TRAP, traps, launchTrap, toggleLeft, trapBoom, spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
