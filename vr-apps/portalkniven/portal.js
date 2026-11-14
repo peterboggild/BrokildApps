@@ -17,7 +17,7 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=6';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=7';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -430,18 +430,21 @@ function zapSmall() {
   const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
   s.connect(hp); hp.connect(g); g.connect(ctx.destination); s.start(t);
 }
-/* "For Mørket" plays in the metal world; a little of it leaks through the door when the door leads there. */
-const music = { el: null, vol: 0, world: 2 };
+/* Each dimension has its own track. It fades in when you step in, and a little of it leaks through the door when the door leads there. */
+const TRACKS = { 1: 'music/kaospenduler.mp3', 2: 'music/for-moerket.mp3', 3: 'music/selv-guderne.mp3' };
+const music = {};
 function updateMusic(dt) {
-  let target = 0;
-  if (S.cur === music.world) target = 0.85;
-  else if (S.oth === music.world && S.placed && !portal.anim) target = 0.3 * clamp(1.6 / Math.max(0.6, head.distanceTo(portal.c)), 0, 1);
-  if (target > 0 && !music.el && AU.ctx) { music.el = new Audio('music/for-moerket.mp3'); music.el.loop = true; music.el.preload = 'auto'; music.el.volume = 0; }
-  if (!music.el) return;
-  music.vol += (target - music.vol) * Math.min(1, dt * (target > music.vol ? 0.8 : 1.6));
-  music.el.volume = clamp(music.vol, 0, 1);
-  if (music.vol > 0.01 && music.el.paused) music.el.play().catch(() => {});
-  if (music.vol <= 0.01 && target === 0 && !music.el.paused) music.el.pause();
+  for (const k in TRACKS) {
+    const w = +k; let target = 0;
+    if (S.cur === w) target = 0.85;
+    else if (S.oth === w && S.placed && !portal.anim) target = 0.3 * clamp(1.6 / Math.max(0.6, head.distanceTo(portal.c)), 0, 1);
+    let m = music[w];
+    if (!m) { if (!(target > 0 && AU.ctx)) continue; m = music[w] = { el: new Audio(TRACKS[w]), vol: 0 }; m.el.loop = true; m.el.preload = 'auto'; m.el.volume = 0; }
+    m.vol += (target - m.vol) * Math.min(1, dt * (target > m.vol ? 0.8 : 1.6));
+    m.el.volume = clamp(m.vol, 0, 1);
+    if (m.vol > 0.01 && m.el.paused) m.el.play().catch(() => {});
+    if (m.vol <= 0.01 && target === 0 && !m.el.paused) m.el.pause();
+  }
 }
 function updateAudio() {
   const ctx = AU.ctx; if (!ctx || !AU.pan) return;
@@ -612,7 +615,7 @@ renderer.setAnimationLoop(loop);
 })();
 
 window.__portal = {
-  S, portal, head, scene, renderer, camera, knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, placeDirect, igniteAt,
+  S, portal, head, scene, renderer, camera, music, knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },
   tip(x, y, z, pressed) { flatTip.override = true; flatTip.pos.set(x, y, z); flatTip.pressed = pressed; },

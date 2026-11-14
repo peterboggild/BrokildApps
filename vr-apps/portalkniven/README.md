@@ -51,5 +51,6 @@ verden kan døren føre til din stue eller til en af de andre.
 * **Knivens greb:** midten af skaftet ligger nu i controllerens grebspunkt (før lå hånden på klingen). `?tilt=grader` vipper klingen i hånden, hvis den skal finjusteres.
 * **Den grønne verden:** våd jord med mos på det der vender opad, vand i lavningerne, mosgroede sten, rødder hen over jorden, svampe i klynger
   (svagt lys under hatten), græstotter, få tynde stilke. Mindre mættet og mindre selvlysende end før.
-* **Musik:** `music/for-moerket.mp3` (128 kbit/s) spiller i metalverdenen, toner ind og ud, og lidt af den siver gennem døren, når døren fører dertil.
+* **Musik:** hver verden har sit nummer (128 kbit/s MP3): den grønne `music/kaospenduler.mp3`, metalverdenen `music/for-moerket.mp3`, klippeverdenen
+  `music/selv-guderne.mp3`. Det toner ind og ud, og lidt af det siver gennem døren, når døren fører dertil.
 * **Sikkerhed:** uden rumscanning advarer tavlen ("INGEN RUMSCANNING: pas på møbler!"), når man står i en anden verden.
