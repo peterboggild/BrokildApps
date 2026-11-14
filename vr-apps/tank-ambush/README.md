@@ -57,6 +57,13 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 * **Kamikaze rats** (`spawnRunner` / `updateRat` / `explodeRat` in `game.js`, model `buildRunnerRat`): from round 3 (`buildQueue`: 2, 2, 3, 3, 4, 4, 5, 5, then 6 per round; queue value 9). They run at the player's feet along the nav flow field, zigzagging, light a fuse about 1.1 m out and go off 0.45 s later with a small firecracker bang (`fx.bang`) for 9-24 damage and only a short red flash (`hurtPlayer(d, true)`). 30 HP: three machine-gun bullets, or any rocket blast nearby (`fx.poof`). They never get a lock-on ring and do not count toward the enemy cap.
 * **Dialog rats**: every in-game dialog (`showMsg` / `drawMsg`) has an animated cartoon rat in each corner (`drawRat`, moods: wave, angry, sad, cheer). The start page has the same rat as animated inline SVG.
 
+* **Beeping**: each kamikaze rat carries a positional beeper (`audio.beeper`): slow beeps from afar, faster and higher as it closes in, frantic once the fuse is lit. It stops when the rat dies.
+* **Blast zone**: `RUNNER.radius` is 1.6 m (damage 9-26, falling off with distance). A red ring of that radius is drawn on the floor round every rat and pulses with its urgency; `fx.bang(p, s, ringR)` throws a dust shockwave out to that radius.
+
+## Rat traps (left hand)
+
+The left hand has two weapons: heavy rockets and rat traps (`G.leftMode`). The **right thumbstick** (press, or flick sideways; `E` in the flat preview) switches; the **left thumbstick** up/down is room light. A trap (`launchTrap` in `game.js`, model `buildTrap`) is lobbed with a ballistic arc (`TRAP.speed` 4.6 m/s), lands on the floor or a surface, arms after 0.35 s and blinks a red light. Anything on the floor stepping on it (a rat within 0.2 m, or a tank hull) sets it off: `trapBoom`, radius 0.95 m, kills kamikaze rats (+30) and only scratches tanks (15 HP). Helicopters are not affected. Traps come in with round 3 (4 to start, +3 per crate, max 8 carried, 8 on the floor). When the left hand's weapon runs dry it switches to the other if that has ammo (`autoLeft`).
+
 ## Scoring
 
 Kills score 30 (rat) / 100 / 300 / 700 (tanks) / 400 / 900 (helicopters). **Rocket bonus:** at the end of each round, `max(0, 2 x enemies - rockets fired) x 25` points (the machine gun is free). Best score is kept in `localStorage`.
@@ -71,4 +78,4 @@ Anywhere in the room that is valid (open floor or air you can reach, at least 1.
 
 ## Cache busting
 
-The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114d`) whenever the game files change.**
+The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114e`) whenever the game files change.**

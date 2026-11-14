@@ -382,6 +382,9 @@ export function buildLauncher() {
   const rocketH = buildRocket(true);                   // shown instead when a heavy round is loaded
   rocketH.rotation.y = Math.PI; rocketH.position.copy(rocket.position); rocketH.visible = false;
   g.add(rocketH);
+  const trapLoad = buildTrap().group;                    // shown instead when the left hand is set to rat traps
+  trapLoad.scale.setScalar(1.25); trapLoad.rotation.y = Math.PI / 2; trapLoad.position.set(0, Y + 0.012, -0.56); trapLoad.visible = false;
+  g.add(trapLoad);
 
   // handles: pistol grip held by the hand at the controller, foregrip, trigger
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.105, 0.042), wood);
@@ -420,7 +423,7 @@ export function buildLauncher() {
   const muzzle = new THREE.Object3D(); muzzle.position.set(0, Y, -0.62); g.add(muzzle);
   const rear = new THREE.Object3D(); rear.position.set(0, Y, 0.28); g.add(rear);
 
-  return { group: g, rocket, rocketH, muzzle, rear, led, ledMat, panel, bodyMats: [olive, oliveDark, venturi.material] };
+  return { group: g, rocket, rocketH, trap: trapLoad, muzzle, rear, led, ledMat, panel, bodyMats: [olive, oliveDark, venturi.material] };
 }
 
 /* ---------------------------------------------------------------- helicopter */
@@ -558,6 +561,10 @@ function ratAssets() {
   r.gold = new THREE.MeshStandardMaterial({ color: 0xe8c040, roughness: 0.4, metalness: 0.5 });
   r.fuse = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.9 });
   r.strap = new THREE.MeshStandardMaterial({ color: 0x1f1f22, roughness: 0.8 });
+  r.wood = new THREE.MeshStandardMaterial({ color: 0xb98d4c, roughness: 0.8, metalness: 0 });
+  r.steelT = new THREE.MeshStandardMaterial({ color: 0xb4babe, roughness: 0.35, metalness: 0.85 });
+  r.cheese = new THREE.MeshStandardMaterial({ color: 0xf2c53a, roughness: 0.6, metalness: 0 });
+  r.ledRed = new THREE.MeshBasicMaterial({ color: 0xff2a1a, toneMapped: false });
   r.sph = new THREE.SphereGeometry(1, 16, 12);
   r.cone = (() => { const g = new THREE.ConeGeometry(1, 1, 12); g.rotateX(Math.PI / 2); return g; })();   // tip toward +Z
   RT = r;
@@ -689,4 +696,25 @@ export function animRunnerRat(m, t, dist) {
   m.body.rotation.x = Math.sin(m.phase * 2) * 0.05;
   m.head.rotation.y = Math.sin(t * 6) * 0.12;
   m.tail.forEach((seg, i) => { seg.rotation.y = Math.sin(t * 9 - i * 0.7) * 0.22; seg.rotation.x = -0.05; });
+}
+
+
+/** A classic wooden snap rat trap, armed: a spring hammer held up, a cheese crumb, and a blinking red light so
+ *  you can find it again. ~9 cm long, long side along X. */
+export function buildTrap() {
+  const r = ratAssets();
+  const g = new THREE.Group();
+  const box = (w, h, d, mat, x, y, z) => { const mm = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); mm.position.set(x, y, z); return mm; };
+  g.add(box(0.095, 0.012, 0.052, r.wood, 0, 0.006, 0));
+  g.add(box(0.012, 0.0015, 0.05, r.steelT, -0.04, 0.0127, 0));                                  // the hinge strip
+  const coil = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.012, 8), r.steelT);
+  coil.rotation.x = Math.PI / 2; coil.position.set(-0.034, 0.0165, 0); g.add(coil);
+  const hammer = new THREE.Group(); hammer.position.set(-0.04, 0.016, 0); hammer.rotation.z = 1.15; g.add(hammer);   // armed: up
+  for (const z of [-0.022, 0.022]) hammer.add(box(0.072, 0.0032, 0.0032, r.steelT, 0.036, 0, z));
+  hammer.add(box(0.0032, 0.0032, 0.047, r.steelT, 0.072, 0, 0));
+  const cheese = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0085, 0.009, 3), r.cheese);
+  cheese.position.set(0.028, 0.0165, 0); g.add(cheese);
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.0048, 8, 6), r.ledRed);
+  led.position.set(-0.026, 0.0185, 0.019); g.add(led);
+  return { group: g, hammer, led };
 }

@@ -184,8 +184,12 @@ export function createFX(scene) {
     },
 
     /** The kamikaze rat's firecracker: a sharp little bang with coloured sparks, not a battlefield explosion. */
-    bang(p, s = 1) {
+    bang(p, s = 1, ringR = 0) {
       fire.add(p.x, p.y, p.z, 0, 0, 0, 0.1, 0.2 * s, 0.55 * s, WHITE, YEL, 1);
+      if (ringR > 0) for (let i = 0; i < 22; i++) {                     // a shockwave of dust that shows how far the blast reaches
+        const a = (i / 22) * 6.283;
+        smoke.add(p.x, 0.03, p.z, Math.cos(a) * ringR / 0.45, 0.04, Math.sin(a) * ringR / 0.45, 0.5, 0.07, 0.22, [0.62, 0.58, 0.5], [0.45, 0.42, 0.38], 0.45, 0.4, 0);
+      }
       const COL = [[1, 0.3, 0.2], [1, 0.85, 0.2], [0.3, 0.9, 0.4], [0.4, 0.65, 1], [1, 0.5, 0.9]];
       for (let i = 0; i < 18; i++) {
         const a = rand(0, 6.283), sp = rand(0.8, 2.4) * s, e = rand(0.1, 1), c = COL[i % COL.length];
@@ -346,6 +350,57 @@ export function createAudio() {
       A._tone(master, t, 0.5, 'sine', 90, 30, 0.9);
       A._noise(master, t, 0.35, 'lowpass', 900, 100, 0.6);
       A._tone(master, t, 0.9, 'sine', 1800, 1500, 0.05);     // ear ring
+    },
+    /** A bomb beeping: one oscillator whose gain is pulsed on a schedule. set(pos, urgency 0..1) every frame; the
+     *  beeps come faster and higher as urgency rises. Positioned in the room, so you can find the rat by ear. */
+    beeper() {
+      if (!ctx) return { set() {}, stop() {} };
+      const p = ctx.createPanner();
+      p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1.6; p.rolloffFactor = 0.8;
+      const g = ctx.createGain(); g.gain.value = 0;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4200;
+      const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = 1700;
+      o.connect(lp); lp.connect(g); g.connect(p); p.connect(master); o.start();
+      let next = 0, stopped = false;
+      return {
+        set(pos, u) {
+          if (stopped) return;
+          const t = ctx.currentTime;
+          if (p.positionX) { p.positionX.setTargetAtTime(pos.x, t, 0.04); p.positionY.setTargetAtTime(pos.y, t, 0.04); p.positionZ.setTargetAtTime(pos.z, t, 0.04); }
+          const period = 1 / (2.2 + u * 9.5), freq = 1500 + u * 1000;
+          if (next < t) next = t + 0.01;
+          while (next < t + 0.14) {                                        // schedule beeps a little ahead
+            g.gain.setValueAtTime(0.0001, next);
+            g.gain.linearRampToValueAtTime(0.3, next + 0.006);
+            g.gain.setValueAtTime(0.3, next + Math.min(0.05, period * 0.5));
+            g.gain.linearRampToValueAtTime(0.0001, next + Math.min(0.07, period * 0.6));
+            o.frequency.setValueAtTime(freq, next);
+            next += period;
+          }
+        },
+        stop() {
+          if (stopped) return; stopped = true;
+          const t = ctx.currentTime;
+          g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(0, t, 0.02);
+          try { o.stop(t + 0.3); } catch (_) { /* already stopped */ }
+        },
+      };
+    },
+    thunk(pos) {
+      if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
+      A._tone(out, t, 0.12, 'sine', 180, 70, 0.5);
+      A._noise(out, t, 0.08, 'lowpass', 900, 200, 0.3);
+    },
+    snap(pos) {
+      if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
+      A._tone(out, t, 0.05, 'square', 1800, 500, 0.25);
+      A._tone(out, t + 0.08, 0.04, 'square', 900, 400, 0.15);
+    },
+    trapBoom(pos) {
+      if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
+      A._tone(out, t, 0.05, 'square', 2200, 600, 0.3);                       // the snap, then the bang
+      A._noise(out, t + 0.04, 0.22, 'lowpass', 3200, 150, 1.0);
+      A._tone(out, t + 0.04, 0.2, 'sine', 160, 45, 0.9);
     },
     squeak(pos, hi = 1) {
       if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
