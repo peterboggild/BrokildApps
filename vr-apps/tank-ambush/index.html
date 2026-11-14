@@ -90,11 +90,12 @@
       <div class="opts">
         <label>Sværhedsgrad
           <select id="optDiff">
+            <option value="beginner">Begynder</option>
             <option value="easy" selected>Let</option>
             <option value="medium">Mellem</option>
             <option value="hard">Svær</option>
           </select>
-          <span>Mellem og Svær: rotterne rammer hårdere, sigter bedre, skyder hurtigere, er flere og tåler mere — og du får 1,5 / 2 gange point.</span>
+          <span>Begynder: rotterne er mildere (halv skade, langsommere, dårligere sigte, færre, kamikaze-rotter først fra runde 4) — og du får halve point. Mellem og Svær: rotterne rammer hårdere, sigter bedre, skyder hurtigere, er flere og tåler mere — og du får 1,5 / 2 gange point.</span>
         </label>
         <label><input type="checkbox" id="optRings"> Vis røde sigteringe <span>(en hjælp til at sigte; raketterne styrer en smule mod fjenden alligevel)</span></label>
         <label>Rumlys
@@ -190,6 +191,6 @@
       l.addEventListener('change', () => { localStorage.setItem('tankAmbushLightMode', l.value); localStorage.removeItem('tankAmbushLight'); });
     } catch (_) { /* lager blokeret: standardværdier */ }
   </script>
-  <script type="module" src="game.js?v=20261114k"></script>
+  <script type="module" src="game.js?v=20261114l"></script>
 </body>
 </html>

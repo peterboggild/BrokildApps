@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114k';
-import { createFX, createAudio } from './fx.js?v=20261114k';
-import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114k';
+} from './world.js?v=20261114l';
+import { createFX, createAudio } from './fx.js?v=20261114l';
+import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114l';
 
 /* ================================================================ basics */
 
@@ -35,6 +35,7 @@ const V = THREE.Vector3;
 /* Sværhedsgrad: Let er spillet som det altid har været. Mellem og Svær giver fjenderne mere skade, skarpere sigte,
  * hurtigere skud og flere liv, flere af dem på én gang, og de store kommer tidligere (shift = runder foran i opbygningen). */
 const DIFFS = {
+  beginner: { name: 'BEGYNDER', dmg: 0.5, hp: 0.7, reload: 1.5, aim: 1.8, speed: 0.85, extra: -1, alive: 0, shift: -1, score: 0.5 },
   easy:   { name: 'LET',    dmg: 1,   hp: 1,   reload: 1,    aim: 1,    speed: 1,    extra: 0, alive: 0, shift: 0, score: 1 },
   medium: { name: 'MELLEM', dmg: 1.4, hp: 1.25, reload: 0.8, aim: 0.7,  speed: 1.1,  extra: 1, alive: 0, shift: 2, score: 1.5 },
   hard:   { name: 'SV\u00c6R', dmg: 1.9, hp: 1.6, reload: 0.62, aim: 0.45, speed: 1.2, extra: 2, alive: 1, shift: 3, score: 2 },
