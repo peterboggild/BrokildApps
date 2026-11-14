@@ -20,7 +20,7 @@ import {
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
 } from './world.js';
 import { createFX, createAudio } from './fx.js';
-import { buildTank, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js';
+import { buildTank, buildHeli, heliShadow, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js';
 
 /* ================================================================ basics */
 
@@ -530,15 +530,16 @@ function updateShells(dt) {
     }
     if (boom || s.age > 9 || s.pos.length() > 20) {
       scene.remove(s.obj); shells.splice(i, 1);
-      if (boom) shellBoom(s.pos, s.dmg);
+      if (boom) shellBoom(s.pos, s.dmg, s.small);
       continue;
     }
     s.obj.position.copy(s.pos);
     // glowing head and a little tail
-    const c0 = s.tier ? [1, 0.35, 0.25] : [1, 0.8, 0.35], c1 = s.tier ? [0.9, 0.1, 0.05] : [1, 0.4, 0.1];
-    fx.fire.add(s.pos.x, s.pos.y, s.pos.z, 0, 0, 0, 0.07, s.tier ? 0.26 : 0.2, 0.15, c0, c1, 0.95);
+    const c0 = s.tier ? [1, 0.35, 0.25] : [1, 0.8, 0.35], c1 = s.tier ? [0.9, 0.1, 0.05] : [1, 0.4, 0.1], z = s.small ? 0.45 : 1;
+    fx.fire.add(s.pos.x, s.pos.y, s.pos.z, 0, 0, 0, 0.07, (s.tier ? 0.26 : 0.2) * z, 0.15 * z, c0, c1, 0.95);
     for (let k = 1; k <= 2; k++)
-      fx.fire.add(s.pos.x - s.vel.x * 0.03 * k, s.pos.y - s.vel.y * 0.03 * k, s.pos.z - s.vel.z * 0.03 * k, rand(-0.03, 0.03), rand(-0.03, 0.03), rand(-0.03, 0.03), 0.45, 0.075, 0.02, c0, [0.5, 0.05, 0], 0.8);
+      fx.fire.add(s.pos.x - s.vel.x * 0.03 * k, s.pos.y - s.vel.y * 0.03 * k, s.pos.z - s.vel.z * 0.03 * k, rand(-0.03, 0.03), rand(-0.03, 0.03), rand(-0.03, 0.03), 0.45, 0.075 * z, 0.02, c0, [0.5, 0.05, 0], 0.8);
+    if (s.rocket) fx.smoke.add(s.pos.x, s.pos.y, s.pos.z, rand(-0.03, 0.03), 0.02, rand(-0.03, 0.03), 1.0, 0.03, 0.14, [0.6, 0.6, 0.6], [0.3, 0.3, 0.3], 0.45, 0.6, 0);
   }
 }
 
@@ -548,7 +549,12 @@ function playerDist(p) {
   return Math.min(p.distanceTo(head), p.distanceTo(chest) * 0.85);
 }
 
-function shellBoom(p, dmgMax = 15) {
+function shellBoom(p, dmgMax = 15, small = false) {
+  if (small) {                                    // a cannon round: sparks, and damage only for a direct hit
+    fx.spark(p, 1.3);
+    if (G.phase === 'play' && playerDist(p) < 0.24) hurtPlayer(dmgMax);
+    return;
+  }
   fx.explosion(p, 0.5);
   if (p.y < 0.3) scorch.add(p.x, p.z, 0.25);
   audio.explosion(p.clone(), 0.55);
@@ -574,6 +580,13 @@ function hurtPlayer(d) {
 /* --------------------------------------------------------------- damage */
 
 function insideTank(t, p) {
+  if (t.air) {                                                   // a helicopter: fuselage ellipsoid, tail boom, stub wings
+    const dx = p.x - t.x, dz = p.z - t.z, s = Math.sin(t.yaw), c = Math.cos(t.yaw), k = t.size;
+    const lz = (dx * s + dz * c) / k, lx = (dx * c - dz * s) / k, ly = (p.y - t.y) / k;
+    if ((lx / 0.085) ** 2 + (ly / 0.075) ** 2 + (lz / 0.19) ** 2 < 1) return true;
+    if (lz < -0.12 && lz > -0.34 && Math.abs(lx) < 0.03 && Math.abs(ly) < 0.035) return true;
+    return Math.abs(lx) < 0.12 && Math.abs(lz) < 0.03 && ly > -0.03 && ly < 0.02;
+  }
   const dx = p.x - t.x, dz = p.z - t.z, s = Math.sin(t.yaw), c = Math.cos(t.yaw);
   const lz = dx * s + dz * c, lx = dx * c - dz * s;
   const k = t.size;
@@ -587,6 +600,12 @@ function damageTank(t, dmg, from, push, light = false) {
   if (light) return;                       // bullets chip away; they do not shove, stun or scare a tank
   // hit but alive: shoved sideways, shaken, and slower from now on (heavier tanks move less)
   push /= t.size * t.size;
+  if (t.air) {                             // a helicopter is knocked through the air and swings round
+    const dx = t.x - from.x, dy = t.y - from.y, dz = t.z - from.z, l = Math.hypot(dx, dy, dz) || 1;
+    t.vx += dx / l * push * 0.9; t.vy += dy / l * push * 0.6; t.vz += dz / l * push * 0.9;
+    t.yawKick += rand(-1, 1) * push * 2.2; t.stun = Math.max(t.stun, 0.4 + push * 0.15); t.wpT = 0;
+    return;
+  }
   const dx = t.x - from.x, dz = t.z - from.z, l = Math.hypot(dx, dz) || 1;
   t.pushX += (dx / l) * push; t.pushZ += (dz / l) * push;
   t.spin += rand(-1, 1) * push * 2.2;
@@ -596,6 +615,7 @@ function damageTank(t, dmg, from, push, light = false) {
 }
 
 function killTank(t) {
+  if (t.air) { killHeli(t); return; }
   t.dead = true; t.wreckT = 5;
   G.score += t.scoreVal; G.kills++;
   const p = tmpV.set(t.x, 0.07, t.z);
@@ -621,7 +641,7 @@ function blast(p, direct, heavy = false) {
   for (const t of tanks) {
     if (t.dead) continue;
     if (t === direct) { damageTank(t, direct$, p, heavy ? 2 : 1); continue; }
-    const d = Math.hypot(p.x - t.x, p.y - 0.06 * t.size, p.z - t.z) - 0.1 * (t.size - 1);
+    const d = Math.hypot(p.x - t.x, p.y - (t.air ? t.y : 0.06 * t.size), p.z - t.z) - 0.1 * (t.size - 1);
     if (d > R) continue;
     const k = 1 - Math.max(0, d) / R;
     damageTank(t, Math.round(dmgMax * k), p, (3.4 * k + 0.6) * (heavy ? 1.4 : 1));
@@ -631,16 +651,19 @@ function blast(p, direct, heavy = false) {
 
 /* -------------------------------------------------------------- rockets */
 
+/** Height of the middle of a target: floor level for a tank, its altitude for a helicopter. */
+const cyOf = t => (t.air ? t.y : 0.07 * t.size);
+
 function lockCandidate(origin, dir, maxAng, maxD, ignore) {
   let best = null, ba = maxAng;
   for (const t of tanks) {
     if (t.dead || t === ignore) continue;
-    tmpV.set(t.x - origin.x, 0.07 - origin.y, t.z - origin.z);
+    tmpV.set(t.x - origin.x, cyOf(t) - origin.y, t.z - origin.z);
     const d = tmpV.length();
     if (d > maxD || d < 0.2) continue;
     const ang = Math.acos(clamp(tmpV.dot(dir) / d, -1, 1));
     if (ang >= ba) continue;
-    if (!los(origin.x, origin.y, origin.z, t.x, 0.08, t.z, 0.08, 0.1)) continue;
+    if (!los(origin.x, origin.y, origin.z, t.x, cyOf(t) + 0.01, t.z, 0.08, 0.1)) continue;
     ba = ang; best = t;
   }
   return best;
@@ -690,10 +713,10 @@ function updateRockets(dt) {
 
     // weak seeker: after a short delay, nudge the heading toward the locked tank
     if (burning && r.age > 0.15) {
-      if (r.target && (r.target.dead || !los(r.pos.x, r.pos.y, r.pos.z, r.target.x, 0.08, r.target.z, 0.1, 0.1))) r.target = null;
+      if (r.target && (r.target.dead || !los(r.pos.x, r.pos.y, r.pos.z, r.target.x, cyOf(r.target) + 0.01, r.target.z, 0.1, 0.1))) r.target = null;
       if (!r.target) r.target = lockCandidate(r.pos, r.dir, ROCKET.lockCone * 0.75, 7, null);
       if (r.target) {
-        _tgt.set(r.target.x, 0.07, r.target.z).sub(r.pos);
+        _tgt.set(r.target.x, cyOf(r.target), r.target.z).sub(r.pos);
         const d = _tgt.length();
         if (d > 0.01) {
           _tgt.divideScalar(d);
@@ -719,7 +742,7 @@ function updateRockets(dt) {
         if (t.dead) continue;
         if (insideTank(t, r.pos)) { hit = t; boom = true; break; }
         // proximity fuse: goes off at the closest point of a near miss
-        const d = Math.hypot(r.pos.x - t.x, r.pos.y - 0.07 * t.size, r.pos.z - t.z);
+        const d = Math.hypot(r.pos.x - t.x, r.pos.y - cyOf(t), r.pos.z - t.z);
         if (d < 0.45 * t.size) {
           if (r.near === t && d > r.nearD + 0.004) { boom = true; break; }
           if (r.near !== t || d < r.nearD) { r.near = t; r.nearD = d; }
@@ -743,6 +766,228 @@ function updateRockets(dt) {
     } else if (r.age < ROCKET.burn + 0.5) {
       fx.smoke.add(tx, ty, tz, rand(-0.03, 0.03), rand(0.0, 0.05), rand(-0.03, 0.03), 0.9, 0.025, 0.1, [0.7, 0.7, 0.7], [0.35, 0.35, 0.35], 0.28, 0.8, 0);
     }
+  }
+}
+
+/* ================================================================ helicopters */
+
+/* From wave 8 an attack helicopter joins in; from wave 12 a bigger black gunship. They fly in the room's
+ * free air at 1-2 m, keep their nose on your head, strafe between waypoints that can see you, fire bursts of
+ * tracer rounds (the gunship also fires rockets) and when shot down they spin out, burn and crash. */
+const HELI = [
+  { hp: 240, size: 1.0, score: 400, dmg: 5, rounds: 5, speed: 6.0, v: 1.0 },
+  { hp: 520, size: 1.5, score: 900, dmg: 8, rounds: 8, speed: 6.5, v: 0.85 },
+];
+const tracerGeo = new THREE.SphereGeometry(0.008, 8, 6);
+const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffe0a0, toneMapped: false });
+
+function ceilingAt(x, z) { for (let y = 1.0; y < 3.1; y += 0.1) if (solidAt(x, y, z)) return y; return 3.2; }
+const clearAir = (x, y, z, r = 0.25) => !(solidAt(x, y, z) || solidAt(x, y + 0.3, z) || solidAt(x, y - 0.3, z) || solidAt(x + r, y, z) || solidAt(x - r, y, z) || solidAt(x, y, z + r) || solidAt(x, y, z - r));
+
+function pickHeliSpawn() {
+  let best = null, bs = -1;
+  for (let i = 0; i < 60; i++) {
+    const a = rand(0, TAU), r = W.arenaR > 0 ? rand(1.8, 3.0) : rand(2.6, 4.6);
+    let x = head.x + Math.sin(a) * r, z = head.z + Math.cos(a) * r;
+    if (W.arenaR > 0) { const rr = Math.hypot(x, z); if (rr > W.arenaR - 0.4) { x *= (W.arenaR - 0.4) / rr; z *= (W.arenaR - 0.4) / rr; } }
+    const y = rand(1.0, 1.7);
+    if (!clearAir(x, y, z) || Math.hypot(x - head.x, z - head.z) < 1.8) continue;
+    if (tanks.some(t => !t.dead && t.air && Math.hypot(t.x - x, t.z - z) < 0.8)) continue;
+    const s = (!los(x, y, z, head.x, head.y - 0.05, head.z) ? 50 : 0) + rand(0, 30);
+    if (s > bs) { bs = s; best = { x, y, z }; }
+  }
+  return best;
+}
+
+function spawnHeli(x, y, z, htier = 0) {
+  const T = HELI[htier], w = G.wave;
+  const model = buildHeli(htier);
+  scene.add(model.group);
+  const shadow = heliShadow(); shadow.renderOrder = 1; scene.add(shadow);
+  const t = {
+    air: true, model, shadow, tier: 3 + htier, htier, size: T.size, maxhp: T.hp, hp: T.hp, scoreVal: T.score, dmg: T.dmg,
+    x, y, z, vx: 0, vy: 0, vz: 0, yaw: Math.atan2(head.x - x, head.z - z), pitch: 0, roll: 0, yawKick: 0, spin: 0,
+    dead: false, state: 'fly', wp: { x, y, z }, wpT: 0, unseenT: 0, sees: false, seeT: rand(0, 0.12),
+    reload: rand(3, 5), burstLeft: 0, burstT: 0, missileT: rand(5, 8), stun: 0, spawnT: 0, wreckT: 0, landed: false,
+    rounds: T.rounds, shotSpeed: T.speed + Math.min(1.5, 0.06 * w), vmax: (1.0 + Math.min(0.5, 0.04 * w)) * T.v,
+    eng: audio.rotor(), age: 0,
+  };
+  model.group.scale.setScalar(0.3 * t.size);
+  model.group.position.set(x, y, z);
+  tanks.push(t);
+  fx.puff(new V(x, y, z), 0.5);
+  return t;
+}
+
+function pickHeliWaypoint(t) {
+  let best = null, bs = -1e9;
+  for (let i = 0; i < 28; i++) {
+    const a = rand(0, TAU), r = rand(2.0, 4.0);
+    let x = head.x + Math.sin(a) * r, z = head.z + Math.cos(a) * r;
+    if (W.arenaR > 0) { const rr = Math.hypot(x, z); if (rr > W.arenaR - 0.35) { x *= (W.arenaR - 0.35) / rr; z *= (W.arenaR - 0.35) / rr; } }
+    const top = Math.min(2.0, ceilingAt(x, z) - 0.25);
+    if (top < 0.8) continue;
+    const y = rand(0.8, top);
+    if (!clearAir(x, y, z)) continue;
+    if (!los(x, y, z, head.x, head.y - 0.05, head.z)) continue;                       // from there it can see you
+    if (!los(t.x, t.y, t.z, x, y, z, 0.15, 0.15)) continue;                           // and the way there is clear
+    const d = Math.hypot(x - t.x, z - t.z);
+    const s = 10 - Math.abs(d - 1.6) * 2 + rand(0, 4);
+    if (s > bs) { bs = s; best = { x, y, z }; }
+  }
+  if (best) { t.wp = best; t.wpT = rand(2.2, 4.0); }
+  else { t.wp = { x: head.x + Math.sin(t.age) * 2.2, y: Math.max(1.0, t.y), z: head.z + Math.cos(t.age) * 2.2 }; t.wpT = 0.7; }
+}
+
+const AVD = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]];
+function updateHeli(t, dt) {
+  t.age += dt;
+  const playing = G.phase === 'play', m = t.model, hpf = t.hp / t.maxhp;
+  if (t.spawnT < 1) { t.spawnT = Math.min(1, t.spawnT + dt * 1.8); m.group.scale.setScalar(t.size * (0.3 + 0.7 * t.spawnT)); }
+  if (t.stun > 0) t.stun -= dt;
+
+  // can it see the headset?
+  t.seeT -= dt;
+  if (t.seeT <= 0) {
+    t.seeT = 0.12;
+    m.group.updateMatrixWorld(true); m.muzzle.getWorldPosition(mp);
+    t.sees = los(mp.x, mp.y, mp.z, head.x, head.y - 0.05, head.z);
+    t.unseenT = t.sees ? 0 : t.unseenT + 0.12;
+  }
+
+  // where to fly: a waypoint that can see you, renewed every few seconds or when it loses sight of you
+  t.wpT -= dt;
+  if (playing && (t.wpT <= 0 || t.unseenT > 1.4)) { pickHeliWaypoint(t); t.unseenT = 0; }
+  const ex = t.wp.x - t.x, ey = t.wp.y - t.y, ez = t.wp.z - t.z, ed = Math.hypot(ex, ey, ez) || 1;
+  const vmax = t.vmax * (0.45 + 0.55 * hpf) * (t.stun > 0 ? 0.3 : 1);
+  const sp = playing ? Math.min(vmax, ed * 1.3) : 0;
+  let ax = (ex / ed * sp - t.vx) * 2.6, ay = (ey / ed * sp - t.vy) * 2.6, az = (ez / ed * sp - t.vz) * 2.6;
+  for (const d of AVD)                                                        // keep off walls, furniture and the ceiling
+    if (solidAt(t.x + d[0] * 0.24 * t.size, t.y + d[1] * 0.2 * t.size, t.z + d[2] * 0.24 * t.size)) { ax -= d[0] * 3.4; ay -= d[1] * 3.4; az -= d[2] * 3.4; }
+  const hx = t.x - head.x, hy = t.y - head.y, hz = t.z - head.z, hd = Math.hypot(hx, hy, hz);
+  if (hd < 1.4 && hd > 1e-3) { const k = (1.4 - hd) * 5 / hd; ax += hx * k; ay += hy * k; az += hz * k; }   // never right on top of you
+  if (t.y < 0.5) ay += (0.5 - t.y) * 8;
+  ax += Math.sin(t.age * 1.3) * 0.25; az += Math.cos(t.age * 1.1) * 0.25; ay += Math.sin(t.age * 1.9) * 0.2;   // hover wobble
+  const al = Math.hypot(ax, ay, az);
+  if (al > 3.6) { ax *= 3.6 / al; ay *= 3.6 / al; az *= 3.6 / al; }
+  t.vx += ax * dt; t.vy += ay * dt; t.vz += az * dt;
+  const drag = Math.exp(-0.35 * dt); t.vx *= drag; t.vy *= drag; t.vz *= drag;
+  const nx = t.x + t.vx * dt, ny = t.y + t.vy * dt, nz = t.z + t.vz * dt;
+  if (solidAt(nx, ny, nz)) { t.vx *= -0.25; t.vy *= -0.25; t.vz *= -0.25; } else { t.x = nx; t.y = ny; t.z = nz; }
+  if (W.arenaR > 0) { const rr = Math.hypot(t.x, t.z); if (rr > W.arenaR - 0.2) { t.x *= (W.arenaR - 0.2) / rr; t.z *= (W.arenaR - 0.2) / rr; t.vx *= 0.5; t.vz *= 0.5; } }
+
+  // nose on the player; bank into the acceleration like a real one
+  const want = Math.atan2(head.x - t.x, head.z - t.z), rel = wrapPi(want - t.yaw);
+  t.yaw = wrapPi(t.yaw + clamp(rel, -1.6 * dt * (t.stun > 0 ? 0.3 : 1), 1.6 * dt) + t.yawKick * dt);
+  t.yawKick *= Math.exp(-3 * dt);
+  const fwdAcc = ax * Math.sin(t.yaw) + az * Math.cos(t.yaw), latAcc = ax * Math.cos(t.yaw) - az * Math.sin(t.yaw);
+  t.pitch += (clamp(fwdAcc * 0.2, -0.35, 0.35) - t.pitch) * Math.min(1, dt * 5);
+  t.roll += (-clamp(latAcc * 0.22, -0.4, 0.4) - t.roll) * Math.min(1, dt * 5);
+  const shake = hpf < 0.4 ? Math.sin(t.age * 37) * 0.05 * (1 - hpf) : 0;
+  m.group.position.set(t.x, t.y, t.z);
+  m.group.rotation.y = t.yaw;
+  m.body.rotation.x = t.pitch + shake; m.body.rotation.z = t.roll;
+  m.rotor.rotation.y += 36 * dt * (0.5 + 0.5 * hpf);
+  m.tailRotor.rotation.x += 70 * dt;
+  m.strobe.visible = (t.age % 1.2) < 0.08;
+  // the chin gun follows the headset
+  const dyg = (head.y - 0.1) - (t.y - 0.03 * t.size), d2 = Math.max(0.2, Math.hypot(head.x - t.x, head.z - t.z));
+  m.chin.rotation.y = clamp(rel, -1.1, 1.1);
+  m.chin.rotation.x = clamp(-Math.atan2(dyg, d2), -0.4, 1.2);
+
+  // fire: a burst of tracers, and on the gunship now and then a rocket
+  t.reload -= dt;
+  if (playing && t.sees && hd < 7 && t.reload <= 0 && t.burstLeft <= 0 && t.stun <= 0 && Math.abs(rel) < 0.25) {
+    t.burstLeft = t.rounds; t.burstT = 0;
+    t.reload = rand(2.6, 4.2) * (t.htier ? 0.8 : 1) + t.rounds * 0.11;
+  }
+  if (t.burstLeft > 0) {
+    if (!t.sees) t.burstLeft = 0;
+    else { t.burstT -= dt; if (t.burstT <= 0) { fireHeliShot(t); t.burstLeft--; t.burstT = 0.11; } }
+  }
+  if (t.htier && playing && t.sees && hd > 1.8) { t.missileT -= dt; if (t.missileT <= 0) { t.missileT = rand(5, 8); fireHeliMissile(t); } }
+
+  // rotor wash kicks up dust when it is low; a damaged one smokes and then burns
+  if (t.y < 1.5 && Math.random() < (1.5 - t.y) * 40 * dt) {
+    const a = rand(0, TAU), sp2 = rand(0.5, 1.0);
+    fx.smoke.add(t.x + Math.cos(a) * 0.12, 0.02, t.z + Math.sin(a) * 0.12, Math.cos(a) * sp2, 0.03, Math.sin(a) * sp2, 0.9, 0.05, 0.22, [0.5, 0.46, 0.4], [0.42, 0.38, 0.34], 0.22, 1.2, 0);
+  }
+  if (hpf < 0.5 && Math.random() < dt * 25)
+    fx.smoke.add(t.x - Math.sin(t.yaw) * 0.06 * t.size, t.y + 0.04 * t.size, t.z - Math.cos(t.yaw) * 0.06 * t.size, rand(-0.03, 0.03), 0.08, rand(-0.03, 0.03), 1.3, 0.04 * t.size, 0.2 * t.size, [0.22, 0.22, 0.22], [0.07, 0.07, 0.07], 0.6, 0.4, 0);
+  if (hpf < 0.25 && Math.random() < dt * 14)
+    fx.fire.add(t.x - Math.sin(t.yaw) * 0.06 * t.size, t.y + 0.03 * t.size, t.z - Math.cos(t.yaw) * 0.06 * t.size, 0, 0.1, 0, 0.3, 0.05 * t.size, 0.015, [1, 0.7, 0.25], [0.7, 0.1, 0], 0.9, 0.5, 0);
+
+  t.shadow.position.set(t.x, 0.002, t.z);
+  t.shadow.rotation.y = t.yaw;
+  t.shadow.scale.set(0.5 * t.size * (1 + t.y * 0.2), 1, 0.7 * t.size * (1 + t.y * 0.2));
+  t.eng.set(tmpV.set(t.x, t.y, t.z), clamp(Math.hypot(t.vx, t.vz) / 1.2, 0, 1));
+}
+
+function fireHeliShot(t) {
+  const m = t.model;
+  m.group.updateMatrixWorld(true);
+  m.muzzle.getWorldPosition(mp);
+  const aim = tmpV.set(head.x, head.y - 0.08, head.z).sub(mp).normalize();
+  const sc = 0.035 + Math.hypot(t.vx, t.vz) * 0.02;                          // moving makes it less accurate
+  aim.x += rand(-1, 1) * sc; aim.y += rand(-1, 1) * sc; aim.z += rand(-1, 1) * sc; aim.normalize();
+  const core = new THREE.Mesh(tracerGeo, t.htier ? shellMatRed : tracerMat);
+  core.position.copy(mp); scene.add(core);
+  shells.push({ obj: core, pos: mp.clone(), vel: aim.clone().multiplyScalar(t.shotSpeed), age: 0, dmg: t.dmg, tier: t.htier ? 1 : 0, small: true });
+  fx.fire.add(mp.x, mp.y, mp.z, 0, 0, 0, 0.05, 0.05, 0.1, [1, 0.95, 0.7], [1, 0.5, 0.1], 0.9);
+  audio.mg(mp.clone());
+}
+
+function fireHeliMissile(t) {
+  const m = t.model;
+  m.group.updateMatrixWorld(true);
+  const side = Math.random() < 0.5 ? -1 : 1;
+  mp.set(side * 0.12, -0.008, 0.06); m.body.localToWorld(mp);
+  const aim = tmpV.set(head.x, head.y - 0.1, head.z).sub(mp).normalize();
+  aim.x += rand(-1, 1) * 0.03; aim.y += rand(-1, 1) * 0.03; aim.z += rand(-1, 1) * 0.03; aim.normalize();
+  const core = new THREE.Mesh(shellGeo, shellMatRed);
+  core.scale.setScalar(1.5); core.position.copy(mp); scene.add(core);
+  shells.push({ obj: core, pos: mp.clone(), vel: aim.clone().multiplyScalar(3.4), age: 0, dmg: 20, tier: 1, small: false, rocket: true });
+  audio.launch(mp.clone());
+}
+
+function killHeli(t) {
+  t.dead = true; t.landed = false;
+  G.score += t.scoreVal; G.kills++;
+  const m = t.model, p = new V(t.x, t.y, t.z);
+  fx.explosion(p, 0.9 * t.size);
+  audio.explosion(p.clone(), 0.9);
+  t.eng.stop();
+  m.group.updateMatrixWorld(true);
+  fx.flingObject(m.rotor, new V(rand(-1, 1), rand(1.5, 2.5), rand(-1, 1)));                // the rotors fly off
+  fx.flingObject(m.tailRotor, new V(rand(-1, 1), rand(1, 2), rand(-1, 1)));
+  m.disc.visible = false;
+  for (let i = 0; i < 8; i++) fx.debrisBox(p.clone(), new V(rand(-2, 2), rand(0.5, 2.5), rand(-2, 2)), rand(0.012, 0.03), i < 3);
+  t.spin = (Math.random() < 0.5 ? -1 : 1) * rand(4, 8);
+  t.vx *= 0.6; t.vz *= 0.6; t.vy = Math.max(t.vy, 0.3);
+}
+
+/** A shot-down helicopter spins, burns and falls until it hits the floor or the furniture. */
+function updateCrash(t, dt) {
+  const m = t.model, a = tankAssets();
+  t.vy -= 7 * dt;
+  t.x += t.vx * dt; t.y += t.vy * dt; t.z += t.vz * dt;
+  t.yaw += t.spin * dt; t.roll += dt * 1.6; t.pitch += dt * 0.6;
+  m.group.position.set(t.x, t.y, t.z); m.group.rotation.y = t.yaw;
+  m.body.rotation.z = t.roll; m.body.rotation.x = t.pitch;
+  t.shadow.position.set(t.x, 0.002, t.z);
+  fx.fire.add(t.x, t.y, t.z, rand(-0.1, 0.1), rand(0, 0.2), rand(-0.1, 0.1), 0.3, 0.08 * t.size, 0.02, [1, 0.7, 0.25], [0.7, 0.1, 0], 0.9, 0.5, 0);
+  fx.smoke.add(t.x, t.y + 0.03, t.z, rand(-0.05, 0.05), 0.1, rand(-0.05, 0.05), 1.4, 0.06 * t.size, 0.25 * t.size, [0.25, 0.25, 0.25], [0.08, 0.08, 0.08], 0.6, 0.4, 0);
+  if (t.y <= 0.07 * t.size || solidAt(t.x, t.y, t.z)) {
+    const p = new V(t.x, Math.max(t.y, 0.1), t.z);
+    fx.explosion(p, 1.5 * t.size);
+    audio.explosion(p.clone(), 1.3);
+    scorch.add(t.x, t.z, 0.9 * t.size);
+    for (let i = 0; i < 12; i++) fx.debrisBox(p.clone(), new V(rand(-2.2, 2.2), rand(1, 3), rand(-2.2, 2.2)), rand(0.012, 0.03), i < 3);
+    m.group.traverse(o => { if (o.isMesh && !o.isInstancedMesh) o.material = a.char; });
+    t.landed = true; t.wreckT = 6;
+    t.y = 0.05 * t.size; m.group.position.y = t.y;
+    m.body.rotation.set(rand(-0.3, 0.3), 0, rand(-0.5, 0.5));
+    t.shadow.visible = false;
   }
 }
 
@@ -1011,7 +1256,7 @@ function showMenu() {
 /* ================================================================= flow */
 
 function resetEntities() {
-  for (const t of tanks) { scene.remove(t.model.group); t.eng.stop(); }
+  for (const t of tanks) { scene.remove(t.model.group); if (t.shadow) scene.remove(t.shadow); t.eng.stop(); }
   tanks.length = 0;
   for (const r of rockets) scene.remove(r.obj); rockets.length = 0;
   for (const s of shells) scene.remove(s.obj); shells.length = 0;
@@ -1040,10 +1285,14 @@ function buildQueue(n) {
   const total = Math.min(2 + n, 9);
   const t2 = n >= 10 ? Math.min(3, 1 + Math.floor((n - 10) / 2)) : 0;
   const t1 = n >= 10 ? Math.min(2, 1 + Math.floor((n - 10) / 3)) : n >= 6 ? Math.min(3, 1 + Math.floor((n - 6) / 2)) : 0;
+  const h4 = n >= 12 ? Math.min(2, 1 + Math.floor((n - 12) / 3)) : 0;      // black gunships (value 4)
+  const h3 = n >= 12 ? 1 : n >= 10 ? 2 : n >= 8 ? 1 : 0;                    // attack helicopters (value 3)
   const q = [];
+  for (let i = 0; i < h4; i++) q.push(4);
+  for (let i = 0; i < h3; i++) q.push(3);
   for (let i = 0; i < t2; i++) q.push(2);
   for (let i = 0; i < t1; i++) q.push(1);
-  while (q.length < Math.max(total, t1 + t2 + 2)) q.push(0);
+  while (q.length < Math.max(total, t1 + t2 + h3 + h4 + 2)) q.push(0);
   for (let i = q.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [q[i], q[j]] = [q[j], q[i]]; }
   const first = q.findIndex(v => v === 0);                                  // never open a wave with the big ones
   if (first > 0) [q[0], q[first]] = [q[first], q[0]];
@@ -1058,9 +1307,9 @@ function startWave(n) {
   G.spawnT = 1.8;
   G.waveClear = false;
   audio.alert('wave');
-  const sub2 = n === 1 ? { t: 'Tanks inbound', c: '#e6edf5' } : n === 6 ? { t: 'HEAVY ARMOUR INBOUND', c: '#ff5a44' } : n === 10 ? { t: 'SUPER-HEAVY TANKS', c: '#ff5a44' }
+  const sub2 = n === 1 ? { t: 'Tanks inbound', c: '#e6edf5' } : n === 6 ? { t: 'HEAVY ARMOUR INBOUND', c: '#ff5a44' } : n === 8 ? { t: 'ATTACK HELICOPTER INBOUND', c: '#ff5a44' } : n === 10 ? { t: 'SUPER-HEAVY TANKS', c: '#ff5a44' } : n === 12 ? { t: 'BLACK GUNSHIP INBOUND', c: '#ff5a44' }
     : n === 5 ? { t: 'Heavy rocket crates now drop', c: '#ffa020' } : { t: 'They are getting smarter', c: '#e6edf5' };
-  showMsg([{ t: `WAVE ${n}`, s: 120, c: '#ffb454' }, { t: sub2.t, s: 40, c: sub2.c, b: n > 5 && (n === 6 || n === 10) }], 2.6, 0.7);
+  showMsg([{ t: `WAVE ${n}`, s: 120, c: '#ffb454' }, { t: sub2.t, s: 40, c: sub2.c, b: n === 6 || n === 8 || n === 10 || n === 12 }], 2.6, 0.7);
   if (n > 1) { spawnPickup('std'); if (n >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy'); }
 }
 
@@ -1104,8 +1353,13 @@ function updateGame(dt) {
       if (alive < G.maxAlive) {
         G.spawnT -= dt;
         if (G.spawnT <= 0) {
-          const p = pickSpawn();
-          if (p) { spawnTank(p.x, p.z, undefined, G.queue.shift() || 0); G.toSpawn--; G.spawnT = rand(2, 4); } else G.spawnT = 1;
+          const next = G.queue[0] || 0;
+          const p = next >= 3 ? pickHeliSpawn() : pickSpawn();
+          if (p) {
+            G.queue.shift();
+            if (next >= 3) spawnHeli(p.x, p.y, p.z, next - 3); else spawnTank(p.x, p.z, undefined, next);
+            G.toSpawn--; G.spawnT = rand(2, 4);
+          } else G.spawnT = 1;
         }
       }
     } else if (alive === 0) {
@@ -1310,7 +1564,7 @@ function loop(_, frame) {
     h.lock = G.phase === 'play' ? lockCandidate(mp, md, ROCKET.lockCone, 8, null) : null;
     if (h.lock) {
       h.ring.visible = true;
-      h.ring.position.set(h.lock.x, 0.1, h.lock.z);
+      h.ring.position.set(h.lock.x, cyOf(h.lock) + 0.03, h.lock.z);
       h.ring.lookAt(head);
       h.ring.scale.setScalar(1 + 0.12 * Math.sin(G.time * 10));
     } else h.ring.visible = false;
@@ -1321,19 +1575,20 @@ function loop(_, frame) {
   for (let i = tanks.length - 1; i >= 0; i--) {
     const t = tanks[i];
     if (t.dead) {
+      if (t.air && !t.landed) { updateCrash(t, dt); continue; }
       t.wreckT -= dt;
       if (t.wreckT > 0 && Math.random() < dt * 5) fx.fire.add(t.x + rand(-0.06, 0.06), 0.07, t.z + rand(-0.08, 0.08), 0, rand(0.1, 0.3), 0, rand(0.2, 0.5), 0.05, 0.015, [1, 0.6, 0.2], [0.6, 0.1, 0], 0.8, 0.5, 0);     // embers
       if (t.wreckT > 0 && Math.random() < dt * 14) fx.smoke.add(t.x, 0.09, t.z, rand(-0.05, 0.05), rand(0.15, 0.3), rand(-0.05, 0.05), rand(1.2, 2), 0.04, 0.2, [0.3, 0.3, 0.3], [0.08, 0.08, 0.08], 0.55, 0.3, 0);
       if (t.wreckT < 0.8) t.model.group.scale.setScalar(t.size * Math.max(0.001, t.wreckT / 0.8));
-      if (t.wreckT <= 0) { scene.remove(t.model.group); tanks.splice(i, 1); }
+      if (t.wreckT <= 0) { scene.remove(t.model.group); if (t.shadow) scene.remove(t.shadow); tanks.splice(i, 1); }
       continue;
     }
-    updateTank(t, dt);
+    if (t.air) updateHeli(t, dt); else updateTank(t, dt);
   }
   // tanks do not park on top of each other
   for (let i = 0; i < tanks.length; i++) for (let j = i + 1; j < tanks.length; j++) {
     const a = tanks[i], b = tanks[j];
-    if (a.dead || b.dead) continue;
+    if (a.dead || b.dead || a.air || b.air) continue;
     const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
     const min = 0.14 * (a.size + b.size);
     if (d < min && d > 1e-4) { const k = (min - d) * 0.5 / d; moveTo(a, a.x - dx * k, a.z - dz * k); moveTo(b, b.x + dx * k, b.z + dz * k); }
@@ -1370,4 +1625,4 @@ function loop(_, frame) {
 })();
 
 // handy for poking at the game from the console
-window.__tank = { pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
+window.__tank = { spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };

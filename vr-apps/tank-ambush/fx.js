@@ -344,6 +344,41 @@ export function createAudio() {
       if (kind === 'wave') { A._tone(master, t, 0.25, 'triangle', 330, 330, 0.25); A._tone(master, t + 0.18, 0.4, 'triangle', 495, 495, 0.25); }
       else if (kind === 'over') { A._tone(master, t, 1.2, 'sawtooth', 220, 55, 0.35); }
     },
+    /** A helicopter: blade slap (noise chopped at the blade-pass rate), a low thump and a turbine whine. */
+    rotor() {
+      if (!ctx) return { set() {}, stop() {} };
+      const p = ctx.createPanner();
+      p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 0.9; p.rolloffFactor = 1.2;
+      const g = ctx.createGain(); g.gain.value = 0;
+      const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
+      const am = ctx.createGain(); am.gain.value = 0.3;
+      const lfo = ctx.createOscillator(); lfo.type = 'sawtooth'; lfo.frequency.value = 20;
+      const lg = ctx.createGain(); lg.gain.value = 0.28;
+      lfo.connect(lg); lg.connect(am.gain);
+      src.connect(lp); lp.connect(am); am.connect(g);
+      const thump = ctx.createOscillator(); thump.type = 'sine'; thump.frequency.value = 52;
+      const tg = ctx.createGain(); tg.gain.value = 0.35; thump.connect(tg); tg.connect(g);
+      const whine = ctx.createOscillator(); whine.type = 'triangle'; whine.frequency.value = 1150;
+      const wg = ctx.createGain(); wg.gain.value = 0.012; whine.connect(wg); wg.connect(g);
+      g.connect(p); p.connect(master);
+      src.start(0, Math.random()); lfo.start(); thump.start(); whine.start();
+      return {
+        set(pos, speed) {
+          const t = ctx.currentTime;
+          if (p.positionX) { p.positionX.setTargetAtTime(pos.x, t, 0.05); p.positionY.setTargetAtTime(pos.y, t, 0.05); p.positionZ.setTargetAtTime(pos.z, t, 0.05); }
+          g.gain.setTargetAtTime(0.2 + 0.12 * speed, t, 0.15);
+          lfo.frequency.setTargetAtTime(19 + 6 * speed, t, 0.2);
+          thump.frequency.setTargetAtTime(50 + 8 * speed, t, 0.2);
+          whine.frequency.setTargetAtTime(1100 + 450 * speed, t, 0.2);
+        },
+        stop() {
+          const t = ctx.currentTime;
+          g.gain.setTargetAtTime(0, t, 0.25);
+          try { src.stop(t + 1.2); lfo.stop(t + 1.2); thump.stop(t + 1.2); whine.stop(t + 1.2); } catch (_) { /* already stopped */ }
+        },
+      };
+    },
     /** A looping engine for one tank. Returns {set(pos, speed01), stop()}. */
     engine() {
       if (!ctx) return { set() {}, stop() {} };

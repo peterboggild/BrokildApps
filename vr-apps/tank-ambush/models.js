@@ -411,3 +411,117 @@ export function buildLauncher() {
 
   return { group: g, rocket, rocketH, muzzle, rear, led, ledMat, panel };
 }
+
+/* ---------------------------------------------------------------- helicopter */
+
+let HA = null;
+function heliAssets() {
+  if (HA) return HA;
+  const h = {};
+  h.green = new THREE.MeshStandardMaterial({ color: 0x4b5348, roughness: 0.48, metalness: 0.35 });
+  h.greenDark = new THREE.MeshStandardMaterial({ color: 0x353b33, roughness: 0.55, metalness: 0.35 });
+  h.glass = new THREE.MeshStandardMaterial({ color: 0x1b2c3b, roughness: 0.06, metalness: 0.9, transparent: true, opacity: 0.72 });
+  h.blade = new THREE.MeshStandardMaterial({ color: 0x1b1c1b, roughness: 0.6, metalness: 0.3 });
+  h.tip = new THREE.MeshStandardMaterial({ color: 0xf0b020, roughness: 0.5, metalness: 0.2 });
+  h.tipRed = new THREE.MeshBasicMaterial({ color: 0xff2a1a, toneMapped: false });
+  h.disc = new THREE.MeshBasicMaterial({ color: 0x1e1f1e, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide });
+  h.sphere = new THREE.SphereGeometry(1, 20, 14);
+  h.shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  HA = h;
+  return h;
+}
+
+/** A small attack helicopter facing +Z. tier 0: olive scout-attack. tier 1: black gunship with red lights. */
+export function buildHeli(tier = 0) {
+  const a = tankAssets(), h = heliAssets();
+  const skin = tier ? a.black : h.green, trim = tier ? a.blackTrim : h.greenDark;
+  const group = new THREE.Group(), body = new THREE.Group();
+  group.add(body);
+  const parts = [];
+  const add = (parent, m) => { parent.add(m); parts.push(m); return m; };
+  const ell = (mat, sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(h.sphere, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); return m; };
+  const cylZ = (rt, rb, len, mat, x, y, z) => { const g = new THREE.CylinderGeometry(rt, rb, len, 10); g.rotateX(Math.PI / 2); const m = new THREE.Mesh(g, mat); m.position.set(x, y, z); return m; };
+
+  // fuselage, tandem canopies, nose
+  add(body, ell(skin, 0.05, 0.052, 0.15, 0, 0, 0));
+  add(body, ell(skin, 0.036, 0.03, 0.075, 0, -0.012, 0.105));                      // chin fairing
+  add(body, ell(h.glass, 0.036, 0.032, 0.066, 0, 0.026, 0.058));                  // pilot canopy
+  add(body, ell(h.glass, 0.03, 0.026, 0.05, 0, 0.004, 0.118));                    // gunner canopy
+  add(body, ell(trim, 0.04, 0.012, 0.055, 0, 0.048, -0.04));                      // spine
+  // tail
+  add(body, cylZ(0.019, 0.008, 0.24, skin, 0, 0.012, -0.22));
+  const fin = add(body, M(new THREE.BoxGeometry(0.004, 0.07, 0.05), skin, 0, 0.05, -0.325)); fin.rotation.x = -0.45;
+  add(body, M(new THREE.BoxGeometry(0.11, 0.003, 0.028), skin, 0, 0.014, -0.315));
+  // engines and exhausts
+  for (const s of [-1, 1]) {
+    add(body, cylZ(0.019, 0.019, 0.13, trim, s * 0.042, 0.04, -0.045));
+    add(body, cylZ(0.0145, 0.0145, 0.02, a.dark, s * 0.042, 0.04, -0.118));
+    add(body, cylZ(0.015, 0.02, 0.025, a.metal, s * 0.042, 0.04, 0.03));          // intake
+  }
+  // stub wings with rocket pods
+  add(body, M(new THREE.BoxGeometry(0.23, 0.005, 0.045), trim, 0, 0.002, 0.0));
+  for (const s of [-1, 1]) for (const k of [0.07, 0.105]) {
+    add(body, M(new THREE.BoxGeometry(0.004, 0.018, 0.02), a.dark, s * k, -0.006, 0.0));                // pylon
+    add(body, cylZ(0.013, 0.013, 0.07, trim, s * k, -0.02, 0.012));                                      // pod
+    add(body, cylZ(0.0, 0.013, 0.012, a.dark, s * k, -0.02, 0.053));                                     // pod nose
+  }
+  if (tier) for (const s of [-1, 1]) {                                                                    // missiles on the tips (gunship)
+    add(body, cylZ(0.005, 0.005, 0.07, a.metal, s * 0.12, -0.008, 0.02));
+    add(body, M(new THREE.BoxGeometry(0.02, 0.0015, 0.01), a.dark, s * 0.12, -0.008, -0.012));
+  }
+  // landing gear: skids on struts
+  for (const s of [-1, 1]) {
+    add(body, cylZ(0.0032, 0.0032, 0.22, a.dark, s * 0.045, -0.078, 0.01));
+    for (const z of [0.07, -0.05]) {
+      const st = add(body, M(new THREE.BoxGeometry(0.003, 0.058, 0.004), a.dark, s * 0.037, -0.052, z)); st.rotation.z = s * 0.2;
+    }
+  }
+  // chin gun on its own pivot so it can track the player
+  const chin = new THREE.Group(); chin.position.set(0, -0.034, 0.12); body.add(chin);
+  chin.add(M(new THREE.SphereGeometry(0.011, 10, 8), a.dark));
+  const gun = M((() => { const g = new THREE.CylinderGeometry(0.0035, 0.0035, 0.06, 8); g.rotateX(Math.PI / 2); g.translate(0, 0, 0.035); return g; })(), a.steel);
+  chin.add(gun);
+  const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0, 0.068); chin.add(muzzle);
+
+  // main rotor: mast, hub, four blades, and a faint disc for the blur
+  add(body, M(new THREE.CylinderGeometry(0.007, 0.009, 0.034, 8), a.dark, 0, 0.074, -0.01));
+  const rotor = new THREE.Group(); rotor.position.set(0, 0.094, -0.01); body.add(rotor);
+  rotor.add(M(new THREE.CylinderGeometry(0.012, 0.012, 0.012, 10), a.dark));
+  const bladeGeo = new THREE.BoxGeometry(0.19, 0.0016, 0.02), tipGeo = new THREE.BoxGeometry(0.03, 0.0018, 0.021);
+  for (let i = 0; i < 4; i++) {
+    const arm = new THREE.Group(); arm.rotation.y = i * Math.PI / 2;
+    arm.add(M(bladeGeo, h.blade, 0.108, 0, 0));
+    arm.add(M(tipGeo, tier ? h.tipRed : h.tip, 0.188, 0.0002, 0));
+    rotor.add(arm);
+  }
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(0.205, 36).rotateX(-Math.PI / 2), h.disc);
+  disc.position.copy(rotor.position); body.add(disc);
+
+  // tail rotor
+  const tailRotor = new THREE.Group(); tailRotor.position.set(0.012, 0.052, -0.332); body.add(tailRotor);
+  tailRotor.add(M(new THREE.CylinderGeometry(0.004, 0.004, 0.01, 6).rotateZ(Math.PI / 2), a.dark));
+  for (let i = 0; i < 2; i++) { const b = M(new THREE.BoxGeometry(0.002, 0.056, 0.008), h.blade, 0.006, 0, 0); b.rotation.x = i * Math.PI / 2; tailRotor.add(b); }
+
+  // lights: red/green navigation, white strobe on the fin
+  const navL = M(new THREE.SphereGeometry(0.0045, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2020, toneMapped: false }), 0.118, 0.002, 0);
+  const navR = M(new THREE.SphereGeometry(0.0045, 8, 6), new THREE.MeshBasicMaterial({ color: 0x20ff50, toneMapped: false }), -0.118, 0.002, 0);
+  const strobe = M(new THREE.SphereGeometry(0.005, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), 0, 0.083, -0.345);
+  body.add(navL, navR, strobe);
+
+  // red markings and lights on the black gunship
+  if (tier) {
+    for (const s of [-1, 1]) {
+      const chev = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.035), a.redDecal);
+      chev.position.set(s * 0.0506, 0.0, -0.02); chev.rotation.y = s * Math.PI / 2; body.add(chev);
+      add(body, M(new THREE.BoxGeometry(0.003, 0.004, 0.2), a.redGlow, s * 0.0495, -0.016, 0.0));
+      const eye = M(new THREE.BoxGeometry(0.012, 0.004, 0.004), a.redGlow, s * 0.016, -0.004, 0.168); eye.rotation.z = -s * 0.3; body.add(eye);
+    }
+    add(body, M(new THREE.BoxGeometry(0.07, 0.003, 0.003), a.redGlow, 0, -0.03, 0.158));
+  }
+  return { group, body, rotor, disc, tailRotor, chin, muzzle, strobe, navL, navR, parts, tier };
+}
+
+export const heliShadow = () => {
+  const a = tankAssets();
+  return new THREE.Mesh(heliAssets().shadowGeo, a.shadowMat);
+};
