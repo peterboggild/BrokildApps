@@ -88,6 +88,15 @@
     <div class="box">
       <span class="rat-slot small" data-mood="wave"></span>
       <div class="opts">
+        <label>Sværhedsgrad
+          <select id="optDiff">
+            <option value="beginner">Begynder</option>
+            <option value="easy" selected>Let</option>
+            <option value="medium">Mellem</option>
+            <option value="hard">Svær</option>
+          </select>
+          <span>Begynder: rotterne er mildere (halv skade, langsommere, dårligere sigte, færre, kamikaze-rotter først fra runde 4) — og du får halve point. Mellem og Svær: rotterne rammer hårdere, sigter bedre, skyder hurtigere, er flere og tåler mere — og du får 1,5 / 2 gange point.</span>
+        </label>
         <label><input type="checkbox" id="optRings"> Vis røde sigteringe <span>(en hjælp til at sigte; raketterne styrer en smule mod fjenden alligevel)</span></label>
         <label>Rumlys
           <select id="optLight">
@@ -129,7 +138,7 @@
       <li>Fra <strong>runde 6</strong> kommer sorte panservogne med røde lys: større og meget sejere. Fra <strong>runde 10</strong> er de endnu større. Fra <strong>runde 8</strong> angriber en <strong>helikopter</strong> fra luften (fra runde 12 også en sort kamphelikopter). Sigt opad — og find ly under et bord eller bag noget højt.</li>
       <li>Fjenderne skyder kun efter dig, når de kan se dig. Bliver du ramt, går skærmen rød, så sort, og kommer tilbage efter cirka to sekunder. Et brag fra en kamikaze-rotte giver kun et kort rødt glimt.</li>
       <li>Livsmåleren sidder bag på hver raketkaster. Når den er tom, er spillet slut — og du får dine point.</li>
-      <li><strong>Grib-knappen</strong> viser det scannede rumnet (cyan streger), så du kan se, hvad rotterne ser som vægge.</li>
+      <li>Det scannede rumnet (cyan streger) er kun et fejlsøgningsbillede: hold <strong>begge grib-knapper</strong> nede i halvandet sekund for at vise eller skjule det. Et enkelt tryk gør ingenting.</li>
     </ul>
 
     <h2>Før du starter</h2>
@@ -173,13 +182,15 @@
   <script>
     // husk valgene fra startsiden (røde ringe er slået fra som standard)
     try {
-      const q = new URLSearchParams(location.search), r = document.getElementById('optRings'), l = document.getElementById('optLight');
+      const q = new URLSearchParams(location.search), r = document.getElementById('optRings'), d = document.getElementById('optDiff'), l = document.getElementById('optLight');
       r.checked = q.has('rings') || localStorage.getItem('tankAmbushRings') === '1';
+      d.value = q.get('diff') || localStorage.getItem('tankAmbushDiff') || 'easy';
+      d.addEventListener('change', () => localStorage.setItem('tankAmbushDiff', d.value));
       l.value = localStorage.getItem('tankAmbushLightMode') || 'auto';
       r.addEventListener('change', () => localStorage.setItem('tankAmbushRings', r.checked ? '1' : '0'));
       l.addEventListener('change', () => { localStorage.setItem('tankAmbushLightMode', l.value); localStorage.removeItem('tankAmbushLight'); });
     } catch (_) { /* lager blokeret: standardværdier */ }
   </script>
-  <script type="module" src="game.js?v=20261114i"></script>
+  <script type="module" src="game.js?v=20261114l"></script>
 </body>
 </html>

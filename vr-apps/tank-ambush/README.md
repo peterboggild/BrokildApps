@@ -40,7 +40,7 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 
 ## Controls
 
-* Quest: trigger = fire that hand's rocket (also starts / restarts); grip = show or hide the room mesh.
+* Quest: trigger = fire that hand's rocket (also starts / restarts); hold both grips for 1.5 s = show or hide the room mesh (debug view; a single grip does nothing).
 * Flat preview: `?flat` in the URL or the button — WASD, mouse (click to capture), click to fire, `G` for the room mesh.
 * URL options: `?cover=1` always add virtual barriers, `?mesh=0` ignore the headset's room scan.
 
@@ -88,4 +88,21 @@ Anywhere in the room that is valid (open floor or air you can reach, at least 1.
 
 ## Cache busting
 
-The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114i`) whenever the game files change.**
+The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114l`) whenever the game files change.**
+
+## Sværhedsgrad (Let / Mellem / Svær)
+
+Fire trin: Begynder (nemmere end Let), Let, Mellem, Svær. Vælges på startsiden (gemmes i browseren; `?diff=beginner`, `?diff=medium` eller `?diff=hard` i adressen virker også). **Let** er spillet som det altid har været.
+
+| | Begynder | Let | Mellem | Svær |
+|---|---|---|---|---|
+| Skade på dig | 0,5× | 1× | 1,4× | 1,9× |
+| Panservognes/helikopteres liv | 0,7× | 1× | 1,25× | 1,6× |
+| Genladetid | 1,5× | 1× | 0,8× | 0,62× |
+| Sigtefejl | 1,8× | 1× | 0,7× | 0,45× |
+| Fart | 0,85× | 1× | 1,1× | 1,2× |
+| Ekstra fjender pr. runde / på én gang | −1 / 0 | 0 / 0 | +1 / 0 | +2 / +1 |
+| Rundeopbygning (sorte vogne, helikoptere, super-rotter osv.) | 1 runde senere | normal | 2 runder tidligere | 3 runder tidligere |
+| Point | 0,5× | 1× | 1,5× | 2× |
+
+High score gemmes separat for hver sværhedsgrad. Implementeret som `DIFFS` i `game.js`.

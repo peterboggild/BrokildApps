@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114i';
-import { createFX, createAudio } from './fx.js?v=20261114i';
-import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114i';
+} from './world.js?v=20261114l';
+import { createFX, createAudio } from './fx.js?v=20261114l';
+import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114l';
 
 /* ================================================================ basics */
 
@@ -31,6 +31,19 @@ const wrapPi = a => { a %= TAU; if (a > Math.PI) a -= TAU; if (a < -Math.PI) a +
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const V = THREE.Vector3;
+
+/* Sværhedsgrad: Let er spillet som det altid har været. Mellem og Svær giver fjenderne mere skade, skarpere sigte,
+ * hurtigere skud og flere liv, flere af dem på én gang, og de store kommer tidligere (shift = runder foran i opbygningen). */
+const DIFFS = {
+  beginner: { name: 'BEGYNDER', dmg: 0.5, hp: 0.7, reload: 1.5, aim: 1.8, speed: 0.85, extra: -1, alive: 0, shift: -1, score: 0.5 },
+  easy:   { name: 'LET',    dmg: 1,   hp: 1,   reload: 1,    aim: 1,    speed: 1,    extra: 0, alive: 0, shift: 0, score: 1 },
+  medium: { name: 'MELLEM', dmg: 1.4, hp: 1.25, reload: 0.8, aim: 0.7,  speed: 1.1,  extra: 1, alive: 0, shift: 2, score: 1.5 },
+  hard:   { name: 'SV\u00c6R', dmg: 1.9, hp: 1.6, reload: 0.62, aim: 0.45, speed: 1.2, extra: 2, alive: 1, shift: 3, score: 2 },
+};
+let DIFF = DIFFS.easy, diffKey = 'easy';
+function setDifficulty(k) { diffKey = DIFFS[k] ? k : 'easy'; DIFF = DIFFS[diffKey]; }
+(function () { let k = params.get('diff'); try { k = k || localStorage.getItem('tankAmbushDiff'); } catch (_) { /* no storage */ } setDifficulty(k); })();
+const addScore = n => { G.score += Math.round(n * DIFF.score); };
 
 const G = {
   mode: 'none',          // 'none' | 'xr' | 'flat'
@@ -385,10 +398,10 @@ function spawnTank(x, z, yaw, tier = 0) {
   scene.add(model.group);
   const t = {
     model, x, z, yaw: yaw ?? Math.atan2(head.x - x, head.z - z), v: 0, yawRate: 0, tyaw: 0, gp: 0,
-    tier, size: T.size, maxhp: T.hp, hp: T.hp, scoreVal: T.score, dmg: T.dmg, dead: false, state: 'advance', stateT: 0, hideT: 0, stun: 0, pushX: 0, pushZ: 0, spin: 0,
-    reload: rand(3.5, 6) - Math.min(2, w * 0.25), shots: 0, burst: Math.min(3, (w >= 3 ? 2 : 1) + T.burst), reloadTime: Math.max(2.4, 5.0 - 0.25 * w) * T.reload,
-    shellSpeed: Math.min(4.6, 2.1 + 0.12 * w + T.sh), aimErr: Math.max(0.012, 0.07 - 0.005 * w) * (tier ? 0.75 : 1),
-    vmax: Math.min(0.85, 0.5 + 0.025 * w) * T.vmul, dPref: rand(1.7, 3.2) + tier * 0.4,
+    tier, size: T.size, maxhp: Math.round(T.hp * DIFF.hp), hp: Math.round(T.hp * DIFF.hp), scoreVal: T.score, dmg: T.dmg, dead: false, state: 'advance', stateT: 0, hideT: 0, stun: 0, pushX: 0, pushZ: 0, spin: 0,
+    reload: (rand(3.5, 6) - Math.min(2, w * 0.25)) * DIFF.reload, shots: 0, burst: Math.min(3, (w >= 3 ? 2 : 1) + T.burst), reloadTime: Math.max(2.4, 5.0 - 0.25 * w) * T.reload * DIFF.reload,
+    shellSpeed: Math.min(4.6, 2.1 + 0.12 * w + T.sh), aimErr: Math.max(0.012, 0.07 - 0.005 * w) * (tier ? 0.75 : 1) * DIFF.aim,
+    vmax: Math.min(0.85, 0.5 + 0.025 * w) * T.vmul * DIFF.speed, dPref: rand(1.7, 3.2) + tier * 0.4,
     sees: false, seeT: rand(0, 0.12), goalT: 0, gx: x, gz: z, cf: null, spawnT: 0, wreckT: 0, kick: 0,
     eng: audio.engine(), age: 0,
   };
@@ -624,6 +637,7 @@ function shellBoom(p, dmgMax = 15, small = false) {
  * You cannot see during the black, so the same two seconds are also a grace period. */
 function hurtPlayer(d, soft = false) {
   if (G.phase !== 'play' || G.invuln > 0) return;
+  d *= DIFF.dmg;
   G.hp = Math.max(0, G.hp - d);
   G.hurt = soft ? 0.6 : 1;
   G.invuln = soft ? 0.6 : 2.0;
@@ -676,7 +690,7 @@ function killTank(t) {
   if (t.rat) { killRat(t); return; }
   if (t.air) { killHeli(t); return; }
   t.dead = true; t.wreckT = 5;
-  G.score += t.scoreVal; G.kills++;
+  addScore(t.scoreVal); G.kills++;
   const p = tmpV.set(t.x, 0.07, t.z);
   fx.explosion(p, Math.min(1.7, t.size));
   scorch.add(t.x, t.z, 0.7 * t.size);
@@ -886,7 +900,7 @@ function spawnHeli(x, y, z, htier = 0) {
   scene.add(model.group);
   const shadow = heliShadow(); shadow.renderOrder = 1; scene.add(shadow);
   const t = {
-    air: true, model, shadow, tier: 3 + htier, htier, size: T.size, maxhp: T.hp, hp: T.hp, scoreVal: T.score, dmg: T.dmg,
+    air: true, model, shadow, tier: 3 + htier, htier, size: T.size, maxhp: Math.round(T.hp * DIFF.hp), hp: Math.round(T.hp * DIFF.hp), scoreVal: T.score, dmg: T.dmg,
     x, y, z, vx: 0, vy: 0, vz: 0, yaw: Math.atan2(head.x - x, head.z - z), pitch: 0, roll: 0, yawKick: 0, spin: 0,
     dead: false, state: 'fly', wp: { x, y, z }, wpT: 0, unseenT: 0, sees: false, seeT: rand(0, 0.12),
     reload: rand(3, 5), burstLeft: 0, burstT: 0, missileT: rand(5, 8), stun: 0, spawnT: 0, wreckT: 0, landed: false,
@@ -1064,7 +1078,7 @@ function fireHeliMissile(t) {
 
 function killHeli(t) {
   t.dead = true; t.landed = false;
-  G.score += t.scoreVal; G.kills++;
+  addScore(t.scoreVal); G.kills++;
   const m = t.model, p = new V(t.x, t.y, t.z);
   fx.explosion(p, 0.9 * t.size);
   audio.explosion(p.clone(), 0.9);
@@ -1211,7 +1225,7 @@ function killRat(t) {
   if (t.sup) fx.slime(p, 1.4); else fx.poof(p, 1);
   audio.squeak(p.clone(), t.sup ? 0.7 : 1.5);
   t.eng.stop();
-  G.score += t.scoreVal; G.kills++;
+  addScore(t.scoreVal); G.kills++;
   t.dead = true; t.wreckT = 0;
   scene.remove(t.model.group);
 }
@@ -1711,7 +1725,8 @@ function startGame() {
 }
 
 /** Who is in this wave: green tanks, plus black ones from wave 6 and the biggest from wave 10. */
-function buildQueue(n) {
+function buildQueue(n0) {
+  const n = n0 + DIFF.shift;
   const total = Math.min(2 + n, 9);
   const t2 = n >= 10 ? Math.min(3, 1 + Math.floor((n - 10) / 2)) : 0;
   const t1 = n >= 10 ? Math.min(2, 1 + Math.floor((n - 10) / 3)) : n >= 6 ? Math.min(3, 1 + Math.floor((n - 6) / 2)) : 0;
@@ -1722,7 +1737,7 @@ function buildQueue(n) {
   for (let i = 0; i < h3; i++) q.push(3);
   for (let i = 0; i < t2; i++) q.push(2);
   for (let i = 0; i < t1; i++) q.push(1);
-  while (q.length < Math.max(total, t1 + t2 + h3 + h4 + 2)) q.push(0);
+  while (q.length < Math.max(total, t1 + t2 + h3 + h4 + 2) + DIFF.extra) q.push(0);
   const runners = n >= 3 ? [2, 2, 3, 3, 4, 4, 5, 5, 6][Math.min(n - 3, 8)] : 0;       // kamikaze rats (value 9): a few at first, from round 3
   for (let i = 0; i < runners; i++) q.push(9);
   const supers = n >= 8 ? (n < 10 ? 1 : n < 12 ? 2 : Math.min(3, 2 + Math.floor((n - 12) / 3))) : 0;   // super rats (value 8): from round 8
@@ -1735,23 +1750,24 @@ function buildQueue(n) {
 
 function startWave(n) {
   G.wave = n;
+  const m = n + DIFF.shift;                                                    // the round as the enemy mix sees it
   G.queue = buildQueue(n);
   G.toSpawn = G.queue.length;
   G.waveRockets = 0; G.waveEnemies = G.queue.filter(v => v < 8).length;
-  if (n === 3 && G.ammo.trap < 4) G.ammo.trap = 4;                            // rat traps come with the rats
-  G.maxAlive = Math.min(1 + Math.ceil(n / 2), 5);
+  if ((m === 3 || (n === 1 && m > 3)) && G.ammo.trap < 4) G.ammo.trap = 4;                            // rat traps come with the rats
+  G.maxAlive = Math.min(1 + Math.ceil((n + DIFF.shift) / 2), 5) + DIFF.alive;
   G.spawnT = 1.8;
   G.waveClear = false;
   audio.alert('wave');
-  const sub2 = n === 1 ? { t: 'Rotterne rykker ind!', c: '#e6edf5' } : n === 3 ? { t: 'KAMIKAZE-R\u00d8TTER!', c: '#ff5a44' } : n === 6 ? { t: 'SORTE PANSERVOGNE', c: '#ff5a44' } : n === 8 ? { t: 'ANGRIBSHELIKOPTER', c: '#ff5a44' } : n === 10 ? { t: 'SUPERTUNGE PANSERVOGNE', c: '#ff5a44' } : n === 12 ? { t: 'SORT KAMPHELIKOPTER', c: '#ff5a44' }
-    : n === 5 ? { t: 'Tunge raketter dukker op', c: '#ffa020' } : { t: 'Rotterne bliver klogere', c: '#e6edf5' };
-  showMsg([{ t: `RUNDE ${n}`, s: 110, c: '#ffb454' }, { t: sub2.t, s: 38, c: sub2.c, b: [3, 6, 8, 10, 12].includes(n) },
-    ...(n === 3 ? [{ t: 'Du har fire rattef\u00e6lder \u2014 thumbstick skifter v\u00e5ben (maks. 4 ude)', s: 24, c: '#ffd040', b: false }] : []),
-    ...(n === 6 ? [{ t: 'Pakker med rattef\u00e6lder dukker op', s: 26, c: '#ffd040', b: false }] : []),
-    ...(n === 8 ? [{ t: 'Og gr\u00f8nne SUPER-R\u00d8TTER \u2014 store, seje og langsomme', s: 26, c: '#7dff4a', b: true }] : [])], 3.4, 0.7, 'angry');
+  const sub2 = n === 1 ? { t: diffKey === 'easy' ? 'Rotterne rykker ind!' : `Sv\u00e6rhedsgrad: ${DIFF.name}`, c: '#e6edf5' } : m === 3 ? { t: 'KAMIKAZE-R\u00d8TTER!', c: '#ff5a44' } : m === 6 ? { t: 'SORTE PANSERVOGNE', c: '#ff5a44' } : m === 8 ? { t: 'ANGRIBSHELIKOPTER', c: '#ff5a44' } : m === 10 ? { t: 'SUPERTUNGE PANSERVOGNE', c: '#ff5a44' } : m === 12 ? { t: 'SORT KAMPHELIKOPTER', c: '#ff5a44' }
+    : m === 5 ? { t: 'Tunge raketter dukker op', c: '#ffa020' } : { t: 'Rotterne bliver klogere', c: '#e6edf5' };
+  showMsg([{ t: `RUNDE ${n}`, s: 110, c: '#ffb454' }, { t: sub2.t, s: 38, c: sub2.c, b: [3, 6, 8, 10, 12].includes(m) },
+    ...(m === 3 ? [{ t: 'Du har fire rattef\u00e6lder \u2014 thumbstick skifter v\u00e5ben (maks. 4 ude)', s: 24, c: '#ffd040', b: false }] : []),
+    ...(m === 6 ? [{ t: 'Pakker med rattef\u00e6lder dukker op', s: 26, c: '#ffd040', b: false }] : []),
+    ...(m === 8 ? [{ t: 'Og gr\u00f8nne SUPER-R\u00d8TTER \u2014 store, seje og langsomme', s: 26, c: '#7dff4a', b: true }] : [])], 3.4, 0.7, 'angry');
   spawnPickup('std');                                                           // there is always a rocket crate to find (the hands start with bullet guns)
-  if (n >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy');
-  if (n >= 6 && !pickups.some(p => p.kind === 'trap')) spawnPickup('trap');
+  if (m >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy');
+  if (m >= 6 && !pickups.some(p => p.kind === 'trap')) spawnPickup('trap');
 }
 
 function gameOver() {
@@ -1764,20 +1780,28 @@ function gameOver() {
   setTimeout(() => {
     if (G.phase !== 'over') return;
     let best = 0;
-    try { best = +localStorage.getItem('tankAmbushBest') || 0; if (G.score > best) localStorage.setItem('tankAmbushBest', String(G.score)); } catch (_) { /* no storage */ }
+    try { best = +localStorage.getItem('tankAmbushBest' + (diffKey === 'easy' ? '' : diffKey)) || 0; if (G.score > best) localStorage.setItem('tankAmbushBest' + (diffKey === 'easy' ? '' : diffKey), String(G.score)); } catch (_) { /* no storage */ }
     const record = G.score > best;
     showMsg([
       { t: 'FLOT KLARET!', s: 86, c: '#ffd45a' },
-      record ? { t: 'Ny high score!', s: 40, c: '#6dff8c' } : { t: `Din bedste: ${best}`, s: 30, c: '#9fb3c8', b: false },
+      record ? { t: 'Ny high score!', s: 40, c: '#6dff8c' } : { t: `Din bedste (${DIFF.name}): ${best}`, s: 30, c: '#9fb3c8', b: false },
       { t: 'Rotterne vandt, men du gav dem kamp til stregen', s: 34, c: '#ffffff' },
       { t: `POINT ${G.score}`, s: 60, c: '#ffffff' },
+      ...(diffKey !== 'easy' ? [{ t: `Sv\u00e6rhedsgrad: ${DIFF.name}`, s: 26, c: '#ffb454', b: false }] : []),
       { t: `Runde ${G.wave} \u00b7 ${G.kills} fjender besejret${G.bonusTotal ? ` \u00b7 raketbonus ${G.bonusTotal}` : ''}`, s: 28 },
       { t: G.mode === 'flat' ? 'KLIK FOR AT SPILLE IGEN' : 'TR\u00c6K I UDL\u00d8SEREN FOR AT SPILLE IGEN', s: 36, c: '#6dff8c', gap: 6 },
     ], 0, 1, 'cheer');
   }, 700);
 }
 
+let gripHold = 0;
+function updateGripToggle(dt) {                                     // both grips held for 1.5 s toggles the room mesh view
+  if (hands[0].grip && hands[1].grip) { gripHold += dt; if (gripHold > 1.5) { gripHold = -99; onSqueeze(); } }
+  else gripHold = 0;
+}
+
 function updateGame(dt) {
+  updateGripToggle(dt);
   if (G.phase !== 'play') return;
   // ammo crates keep turning up; sooner when you are dry and nothing is lying about
   G.pickT -= dt;
@@ -1811,7 +1835,7 @@ function updateGame(dt) {
       audio.alert('wave');
       // the fewer rockets, the bigger the bonus: two per enemy is par
       const used = G.waveRockets, par = 2 * G.waveEnemies, bonus = Math.max(0, par - used) * 25;
-      G.score += bonus; G.bonusTotal += bonus;
+      addScore(bonus); G.bonusTotal += bonus;
       showMsg([
         { t: 'RUNDEN ER KLARET', s: 64, c: '#6dff8c' },
         { t: '+40 liv', s: 34, b: false },
@@ -1831,6 +1855,7 @@ function onTrigger(i) {
   if (G.phase === 'menu' || G.phase === 'over') { if (G.inputLock <= 0) startGame(); return; }
   launch(hands[i]);
 }
+/* The room mesh is a debug view; a grip squeezed by accident must not paint the room green. */
 function onSqueeze() {
   G.showMesh = !G.showMesh;
   applyMeshVisibility();
@@ -1849,7 +1874,8 @@ function attachXRControllers() {
     });
     c.addEventListener('selectstart', () => { h.trig = true; onTrigger(i); });
     c.addEventListener('selectend', () => { h.trig = false; });
-    c.addEventListener('squeezestart', onSqueeze);
+    c.addEventListener('squeezestart', () => { h.grip = true; });
+    c.addEventListener('squeezeend', () => { h.grip = false; });
   });
 }
 
@@ -2122,4 +2148,4 @@ function loop(_, frame) {
 })();
 
 // handy for poking at the game from the console
-window.__tank = { setMode, toggleRight, handMode, autoModes, startWave, SUPER, TRAP, traps, launchTrap, toggleLeft, trapBoom, spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
+window.__tank = { setDifficulty, DIFFS, setMode, toggleRight, handMode, autoModes, startWave, SUPER, TRAP, traps, launchTrap, toggleLeft, trapBoom, spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
