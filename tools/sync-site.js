@@ -64,7 +64,7 @@ const EXTRA = {
     type: "website",
   },
   "vr-apps/tank-ambush/index.html": {
-    alt: "Tank Ambush — small tanks in your own room, in mixed reality",
+    alt: "Mutant Rotte Angreb — rat-driven tanks in your own room, in mixed reality",
     type: "website",
   },
 };
