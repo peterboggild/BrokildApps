@@ -17,7 +17,7 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=7';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=9';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -273,6 +273,8 @@ function cutterUpdate(dt, tip, pressed) {
   const speed = tipPrev ? tip.distanceTo(tipPrev) / Math.max(dt, 1e-3) : 0;
   if (cut.state === 'idle' && pressed && !cut.wait) {
     clearTrail(); trail.pts.push(tip.clone()); trail.t.push(S.time); cut.state = 'cutting'; S.msg = '';
+  } else if (cut.state === 'cutting' && pressed && tipPrev && crossesRing(tipPrev, tip)) {
+    cut.state = 'idle'; cut.wait = true; fadeTrail(); dissolvePortal();              // a cut across the ring's edge severs the door
   } else if (cut.state === 'cutting') {
     if (!pressed) { cut.state = 'idle'; if (trail.len > 0.15) say('Snittet blev ikke lukket'); fadeTrail(); }
     else {
@@ -292,6 +294,30 @@ function cutterUpdate(dt, tip, pressed) {
   hissLevel(cut.state === 'cutting' ? clamp(speed / 1.2, 0, 1) : 0);
   if (cut.state === 'cutting') haptic(0.12 + Math.min(0.25, speed * 0.2), 30);
   tipPrev = tipPrev || new V(); tipPrev.copy(tip);
+}
+
+/** Did the point of the blade pass over the ring itself (in the door's plane, from inside the oval to outside or the other way)? */
+const _ra = new V(), _rb = new V();
+function ringCoord(p, out) { _r.copy(p).sub(portal.c); return out.set(_r.dot(portal.x) / portal.Rx, _r.dot(portal.y) / portal.Ry, _r.dot(portal.n)); }
+function crossesRing(a, b) {
+  if (!S.placed || portal.anim || portal.closing) return false;
+  ringCoord(a, _ra); ringCoord(b, _rb);
+  if (Math.abs(_ra.z) > 0.14 || Math.abs(_rb.z) > 0.14) return false;
+  const ea = _ra.x * _ra.x + _ra.y * _ra.y, eb = _rb.x * _rb.x + _rb.y * _rb.y;
+  return (ea < 1) !== (eb < 1) && Math.min(ea, eb) > 0.45;                             // a stroke over the rim, not a jump across the whole door
+}
+/** The door collapses and is gone. Whoever is on the far side stays there until a new door is cut. */
+function dissolvePortal() {
+  portal.closing = { t: 0, dur: 0.75 };
+  for (let k = 0; k < 90; k++) {
+    const a = rnd(0, TAU), [ex, ey] = ellipsePt(a), [ox, oy] = ellipseOut(a), sp = rnd(0.4, 1.6);
+    _r.copy(portal.c).addScaledVector(portal.x, ex).addScaledVector(portal.y, ey);
+    const v = new V().addScaledVector(portal.x, ox * sp).addScaledVector(portal.y, oy * sp + 0.3).addScaledVector(portal.n, rnd(-0.5, 0.5));
+    tipSparks.emit(_r.x, _r.y, _r.z, v.x, v.y, v.z, rnd(0.4, 1.1));
+  }
+  flash.userData.t = 0.25; knifeGlow = 2.0; zapSmall(); whoosh(); haptic(1, 180);
+  if (AU.ringGain) { const t = AU.ctx.currentTime; AU.ringGain.gain.cancelScheduledValues(t); AU.ringGain.gain.setTargetAtTime(0, t, 0.15); AU.humGain.gain.cancelScheduledValues(t); AU.humGain.gain.setTargetAtTime(0, t, 0.15); }
+  say(S.cur === 0 ? 'D\u00f8ren er lukket' : 'D\u00f8ren er lukket \u2014 sk\u00e6r en ny for at komme hjem');
 }
 
 /** The loop is closed. Fit a door to it: its centre and which way it faces; the size is always door-sized. */
@@ -321,6 +347,7 @@ function haptic(v, ms) { hapticPulse(v, ms); }
 /* =========================================================== ignition, placing & crossing */
 
 function igniteAt(from, n, s0, dur = 1.35) {
+  portal.closing = null;
   if (new V().subVectors(head, from).dot(n) < 0) n.negate();                 // the door faces you
   portal.n.copy(n); portal.x.crossVectors(_y, n); portal.y.set(0, 1, 0);
   const to = new V(from.x, DOOR.Ry + 0.03, from.z);
@@ -339,6 +366,12 @@ function igniteAt(from, n, s0, dur = 1.35) {
   say('');
 }
 function updateAnim(dt) {
+  const cl = portal.closing;
+  if (cl) {
+    cl.t += dt; const u = clamp(cl.t / cl.dur, 0, 1), sc = Math.max(0.001, 1 - u * u * u);
+    ring.scale.set(sc * (1 + 0.08 * Math.sin(u * 40)), sc, 1);
+    if (u >= 1) { portal.closing = null; ring.visible = false; ring.scale.set(1, 1, 1); S.placed = false; }
+  }
   const a = portal.anim;
   if (a) {
     a.t += dt; const u = clamp(a.t / a.dur, 0, 1);
@@ -364,7 +397,7 @@ function updateAnim(dt) {
 
 const _r = new V();
 function checkCrossing() {
-  if (!S.placed || portal.anim) { prevHead.copy(head); return; }
+  if (!S.placed || portal.anim || portal.closing) { prevHead.copy(head); return; }
   const d0 = _r.copy(prevHead).sub(portal.c).dot(portal.n), d1 = new V().copy(head).sub(portal.c).dot(portal.n);
   if ((d0 < 0) !== (d1 < 0)) {
     const t = d0 / (d0 - d1), p = prevHead.clone().lerp(head, t).sub(portal.c);
@@ -431,19 +464,20 @@ function zapSmall() {
   s.connect(hp); hp.connect(g); g.connect(ctx.destination); s.start(t);
 }
 /* Each dimension has its own track. It fades in when you step in, and a little of it leaks through the door when the door leads there. */
-const TRACKS = { 1: 'music/kaospenduler.mp3', 2: 'music/for-moerket.mp3', 3: 'music/selv-guderne.mp3' };
+const TRACKS = { 1: 'music/doedt-trae.mp3', 2: 'music/rotation.mp3', 3: 'music/tidejord.mp3' };
 const music = {};
+const others = w => Object.keys(music).some(k => +k !== w && music[k].vol > 0.08);
 function updateMusic(dt) {
   for (const k in TRACKS) {
     const w = +k; let target = 0;
     if (S.cur === w) target = 0.85;
-    else if (S.oth === w && S.placed && !portal.anim) target = 0.3 * clamp(1.6 / Math.max(0.6, head.distanceTo(portal.c)), 0, 1);
+    else if (S.cur === 0 && S.oth === w && S.placed && !portal.anim && !portal.closing) target = 0.3 * clamp(1.6 / Math.max(0.6, head.distanceTo(portal.c)), 0, 1);
     let m = music[w];
     if (!m) { if (!(target > 0 && AU.ctx)) continue; m = music[w] = { el: new Audio(TRACKS[w]), vol: 0 }; m.el.loop = true; m.el.preload = 'auto'; m.el.volume = 0; }
-    m.vol += (target - m.vol) * Math.min(1, dt * (target > m.vol ? 0.8 : 1.6));
+    if (target > m.vol) m.vol = Math.min(target, m.vol + dt * 0.45 * (others(w) ? 0.35 : 1)); else m.vol = Math.max(target, m.vol - dt * 0.9);      // out in about a second; in only once the other track has gone
     m.el.volume = clamp(m.vol, 0, 1);
-    if (m.vol > 0.01 && m.el.paused) m.el.play().catch(() => {});
-    if (m.vol <= 0.01 && target === 0 && !m.el.paused) m.el.pause();
+    if (m.vol > 0.001 && m.el.paused) m.el.play().catch(() => {});
+    if (m.vol <= 0.001 && target === 0 && !m.el.paused) m.el.pause();
   }
 }
 function updateAudio() {
@@ -469,7 +503,7 @@ function hudLines() {
     `D\u00f8ren f\u00f8rer til: ${DIMS[S.oth].name}`,
     S.mode === 'xr' ? `Stencil: ${bits === null ? '?' : bits}${bits === 0 ? '  VINDUET VIRKER IKKE' : ''}   Scan: ${S.scanFeature ? S.scanMeshes + ' mesh' : 'ingen'}` : 'Fladt preview',
     S.mode === 'xr' && S.cur !== 0 && !S.scanMeshes ? 'INGEN RUMSCANNING: pas på møbler!' : `Rumlys: ${S.lum < 0 ? 'ingen' : S.lum.toFixed(2)}   Kamera: ${S.camera ? 'ja' : 'nej'}`,
-    cut.state === 'cutting' ? 'Skærer … luk ringen!' : S.placed ? 'Højre stick: skift verden bag døren' : 'Hold udløseren og skær en ring i luften',
+    cut.state === 'cutting' ? 'Skærer … luk ringen!' : S.placed ? 'Højre stick: skift verden bag døren' : S.cur !== 0 ? 'Ingen dør: skær en ny for at komme hjem' : 'Hold udløseren og skær en ring i luften',
     msg,
   ];
 }
