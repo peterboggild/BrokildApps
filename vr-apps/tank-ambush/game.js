@@ -39,6 +39,7 @@ const G = {
   toSpawn: 0, maxAlive: 0, spawnT: 0, waveClear: false, nextWaveT: 0,
   inputLock: 0, hurt: 0, showMesh: false, fieldDirty: true, haveRoom: false, virtual: false,
   menuPending: false, time: 0,
+  ammo: { std: 6, heavy: 0 }, toast: '', toastT: 0, fade: { t: -1, hold: false }, invuln: 0, queue: [], pickT: 0,
 };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -319,22 +320,29 @@ function pickSpawn() {
   return best;
 }
 
-function spawnTank(x, z, yaw) {
-  const w = G.wave;
-  const model = buildTank();
+/* tier 0: the green tanks. tier 1 (from wave 6): black, a little larger, much tougher. tier 2 (from wave 10): bigger and tougher still. */
+const TIER = [
+  { hp: 100, size: 1.0, score: 100, dmg: 15, vmul: 1.0, reload: 1.0, burst: 0, sh: 0 },
+  { hp: 320, size: 1.3, score: 300, dmg: 22, vmul: 0.85, reload: 0.8, burst: 1, sh: 0.4 },
+  { hp: 800, size: 1.75, score: 700, dmg: 32, vmul: 0.7, reload: 0.7, burst: 1, sh: 0.6 },
+];
+
+function spawnTank(x, z, yaw, tier = 0) {
+  const w = G.wave, T = TIER[tier];
+  const model = buildTank(tier);
   scene.add(model.group);
   const t = {
     model, x, z, yaw: yaw ?? Math.atan2(head.x - x, head.z - z), v: 0, yawRate: 0, tyaw: 0, gp: 0,
-    hp: 100, dead: false, state: 'advance', stateT: 0, hideT: 0, stun: 0, pushX: 0, pushZ: 0, spin: 0,
-    reload: rand(3.5, 6) - Math.min(2, w * 0.25), shots: 0, burst: w >= 3 ? 2 : 1, reloadTime: Math.max(2.4, 5.0 - 0.25 * w),
-    shellSpeed: Math.min(4.2, 2.1 + 0.12 * w), aimErr: Math.max(0.012, 0.07 - 0.005 * w),
-    vmax: Math.min(0.85, 0.5 + 0.025 * w), dPref: rand(1.7, 3.2),
+    tier, size: T.size, maxhp: T.hp, hp: T.hp, scoreVal: T.score, dmg: T.dmg, dead: false, state: 'advance', stateT: 0, hideT: 0, stun: 0, pushX: 0, pushZ: 0, spin: 0,
+    reload: rand(3.5, 6) - Math.min(2, w * 0.25), shots: 0, burst: Math.min(3, (w >= 3 ? 2 : 1) + T.burst), reloadTime: Math.max(2.4, 5.0 - 0.25 * w) * T.reload,
+    shellSpeed: Math.min(4.6, 2.1 + 0.12 * w + T.sh), aimErr: Math.max(0.012, 0.07 - 0.005 * w) * (tier ? 0.75 : 1),
+    vmax: Math.min(0.85, 0.5 + 0.025 * w) * T.vmul, dPref: rand(1.7, 3.2) + tier * 0.4,
     sees: false, seeT: rand(0, 0.12), goalT: 0, gx: x, gz: z, cf: null, spawnT: 0, wreckT: 0, kick: 0,
     eng: audio.engine(), age: 0,
   };
-  model.group.scale.setScalar(0.3);
+  model.group.scale.setScalar(0.3 * t.size);
   tanks.push(t);
-  fx.puff(new V(x, 0.05, z), 0.5);
+  fx.puff(new V(x, 0.05, z), 0.5 * t.size);
   return t;
 }
 
@@ -346,7 +354,7 @@ function moveTo(t, nx, nz) {
 }
 
 function drive(t, gx, gz, dt, speedMul) {
-  const sf = 0.4 + 0.6 * (t.hp / 100);          // a damaged tank is slower
+  const sf = 0.4 + 0.6 * (t.hp / t.maxhp);      // a damaged tank is slower
   let vt = 0, yr = 0;
   if (gx != null && t.stun <= 0) {
     const dx = gx - t.x, dz = gz - t.z, d = Math.hypot(dx, dz);
@@ -384,7 +392,7 @@ function pickCover(t) {
 
 function updateTank(t, dt) {
   t.age += dt;
-  if (t.spawnT < 1) { t.spawnT = Math.min(1, t.spawnT + dt * 2.2); t.model.group.scale.setScalar(0.3 + 0.7 * t.spawnT); }
+  if (t.spawnT < 1) { t.spawnT = Math.min(1, t.spawnT + dt * 2.2); t.model.group.scale.setScalar(t.size * (0.3 + 0.7 * t.spawnT)); }
   const playing = G.phase === 'play';
 
   // knocked about by blasts
@@ -448,7 +456,7 @@ function updateTank(t, dt) {
   // turret and gun follow the headset
   t.model.group.updateMatrixWorld(true);
   t.model.muzzle.getWorldPosition(mp);
-  const sf = 0.6 + 0.4 * (t.hp / 100);
+  const sf = 0.6 + 0.4 * (t.hp / t.maxhp);
   const wantYaw = wrapPi(Math.atan2(head.x - t.x, head.z - t.z) - t.yaw);
   const eY = wrapPi(wantYaw - t.tyaw);
   t.tyaw = wrapPi(t.tyaw + clamp(eY, -1.7 * sf * dt, 1.7 * sf * dt));
@@ -478,7 +486,7 @@ function updateTank(t, dt) {
   m.body.rotation.x = -0.03 * t.kick + clamp(t.v - 0.2, -0.3, 0.3) * 0.01;
   m.body.position.y = Math.sin(t.age * 31) * 0.0007 * Math.min(1, Math.abs(t.v) * 3);
   for (let s = 0; s < 2; s++) {
-    const tr = m.tracks[s], sp = t.v - t.yawRate * tr.x, d = sp * dt;
+    const tr = m.tracks[s], sp = t.v - t.yawRate * tr.x * t.size, d = sp * dt / t.size;      // d in the model's own units
     if (Math.abs(d) > 1e-6) {
       tr.off += d; setTrack(tr.mesh, tr.x, tr.off);
       for (const w of m.wheels[s]) w.g.rotation.x += d / w.r;
@@ -495,10 +503,11 @@ function fireShell(t) {
   // the head is the target; a little scatter that shrinks as the game goes on
   const aim = tmpV.set(head.x, head.y - 0.06, head.z).sub(mp).normalize();
   aim.x += rand(-1, 1) * t.aimErr; aim.y += rand(-1, 1) * t.aimErr; aim.z += rand(-1, 1) * t.aimErr; aim.normalize();
-  const core = new THREE.Mesh(shellGeo, shellMat);
+  const core = new THREE.Mesh(shellGeo, t.tier ? shellMatRed : shellMat);
+  core.scale.setScalar(Math.min(1.6, t.size));
   core.position.copy(mp);
   scene.add(core);
-  shells.push({ obj: core, pos: mp.clone(), vel: aim.clone().multiplyScalar(t.shellSpeed), age: 0 });
+  shells.push({ obj: core, pos: mp.clone(), vel: aim.clone().multiplyScalar(t.shellSpeed), age: 0, dmg: t.dmg, tier: t.tier });
   fx.muzzleFlash(mp, aim);
   audio.tankShot(mp.clone());
   t.kick = 1;
@@ -506,6 +515,7 @@ function fireShell(t) {
 
 const shellGeo = new THREE.SphereGeometry(0.013, 12, 10);
 const shellMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0, toneMapped: false });
+const shellMatRed = new THREE.MeshBasicMaterial({ color: 0xff7a66, toneMapped: false });
 
 function updateShells(dt) {
   for (let i = shells.length - 1; i >= 0; i--) {
@@ -520,14 +530,15 @@ function updateShells(dt) {
     }
     if (boom || s.age > 9 || s.pos.length() > 20) {
       scene.remove(s.obj); shells.splice(i, 1);
-      if (boom) shellBoom(s.pos);
+      if (boom) shellBoom(s.pos, s.dmg);
       continue;
     }
     s.obj.position.copy(s.pos);
     // glowing head and a little tail
-    fx.fire.add(s.pos.x, s.pos.y, s.pos.z, 0, 0, 0, 0.07, 0.2, 0.15, [1, 0.8, 0.35], [1, 0.4, 0.1], 0.95);
+    const c0 = s.tier ? [1, 0.35, 0.25] : [1, 0.8, 0.35], c1 = s.tier ? [0.9, 0.1, 0.05] : [1, 0.4, 0.1];
+    fx.fire.add(s.pos.x, s.pos.y, s.pos.z, 0, 0, 0, 0.07, s.tier ? 0.26 : 0.2, 0.15, c0, c1, 0.95);
     for (let k = 1; k <= 2; k++)
-      fx.fire.add(s.pos.x - s.vel.x * 0.03 * k, s.pos.y - s.vel.y * 0.03 * k, s.pos.z - s.vel.z * 0.03 * k, rand(-0.03, 0.03), rand(-0.03, 0.03), rand(-0.03, 0.03), 0.45, 0.075, 0.02, [1, 0.6, 0.2], [0.5, 0.1, 0], 0.8);
+      fx.fire.add(s.pos.x - s.vel.x * 0.03 * k, s.pos.y - s.vel.y * 0.03 * k, s.pos.z - s.vel.z * 0.03 * k, rand(-0.03, 0.03), rand(-0.03, 0.03), rand(-0.03, 0.03), 0.45, 0.075, 0.02, c0, [0.5, 0.05, 0], 0.8);
   }
 }
 
@@ -537,22 +548,27 @@ function playerDist(p) {
   return Math.min(p.distanceTo(head), p.distanceTo(chest) * 0.85);
 }
 
-function shellBoom(p) {
+function shellBoom(p, dmgMax = 15) {
   fx.explosion(p, 0.5);
   if (p.y < 0.3) scorch.add(p.x, p.z, 0.25);
   audio.explosion(p.clone(), 0.55);
   if (G.phase !== 'play') return;
   const d = playerDist(p);
-  const dmg = Math.round(15 * clamp(1 - d / 0.75, 0, 1));
+  const dmg = Math.round(dmgMax * clamp(1 - d / 0.75, 0, 1));
   if (dmg >= 2) hurtPlayer(dmg);
 }
 
+/* A hit takes the view to red, then black, then brings it back, over about two seconds.
+ * You cannot see during the black, so the same two seconds are also a grace period. */
 function hurtPlayer(d) {
+  if (G.phase !== 'play' || G.invuln > 0) return;
   G.hp = Math.max(0, G.hp - d);
   G.hurt = 1;
+  G.invuln = 2.0;
+  G.fade.t = 0; G.fade.hold = false;
   audio.hurt();
   for (const h of hands) haptic(h, 1, 160);
-  if (G.hp <= 0) gameOver();
+  if (G.hp <= 0) { G.fade.hold = true; gameOver(); }
 }
 
 /* --------------------------------------------------------------- damage */
@@ -560,14 +576,17 @@ function hurtPlayer(d) {
 function insideTank(t, p) {
   const dx = p.x - t.x, dz = p.z - t.z, s = Math.sin(t.yaw), c = Math.cos(t.yaw);
   const lz = dx * s + dz * c, lx = dx * c - dz * s;
-  return Math.abs(lx) < 0.13 && Math.abs(lz) < 0.19 && p.y < 0.17 && p.y > -0.02;
+  const k = t.size;
+  return Math.abs(lx) < 0.13 * k && Math.abs(lz) < 0.19 * k && p.y < 0.17 * k && p.y > -0.02;
 }
 
-function damageTank(t, dmg, from, push) {
+function damageTank(t, dmg, from, push, light = false) {
   if (t.dead) return;
   t.hp -= dmg;
   if (t.hp <= 0) { killTank(t); return; }
-  // hit but alive: shoved sideways, shaken, and slower from now on
+  if (light) return;                       // bullets chip away; they do not shove, stun or scare a tank
+  // hit but alive: shoved sideways, shaken, and slower from now on (heavier tanks move less)
+  push /= t.size * t.size;
   const dx = t.x - from.x, dz = t.z - from.z, l = Math.hypot(dx, dz) || 1;
   t.pushX += (dx / l) * push; t.pushZ += (dz / l) * push;
   t.spin += rand(-1, 1) * push * 2.2;
@@ -578,10 +597,10 @@ function damageTank(t, dmg, from, push) {
 
 function killTank(t) {
   t.dead = true; t.wreckT = 5;
-  G.score += 100; G.kills++;
+  G.score += t.scoreVal; G.kills++;
   const p = tmpV.set(t.x, 0.07, t.z);
-  fx.explosion(p, 1.0);
-  scorch.add(t.x, t.z, 0.7);
+  fx.explosion(p, Math.min(1.7, t.size));
+  scorch.add(t.x, t.z, 0.7 * t.size);
   audio.explosion(p.clone(), 0.9);
   t.eng.stop();
   const m = t.model, a = tankAssets();
@@ -594,18 +613,18 @@ function killTank(t) {
   m.body.rotation.z = rand(-0.1, 0.1);
 }
 
-function blast(p, direct) {
-  fx.explosion(p, 1.15);
-  if (p.y < 0.5) scorch.add(p.x, p.z, 0.55);
-  audio.explosion(p.clone(), 1.1);
-  const R = 0.8;
+function blast(p, direct, heavy = false) {
+  fx.explosion(p, heavy ? 1.6 : 1.15);
+  if (p.y < 0.5) scorch.add(p.x, p.z, heavy ? 0.85 : 0.55);
+  audio.explosion(p.clone(), heavy ? 1.4 : 1.1);
+  const R = heavy ? 1.15 : 0.8, dmgMax = heavy ? 200 : 95, direct$ = heavy ? 260 : 110;
   for (const t of tanks) {
     if (t.dead) continue;
-    if (t === direct) { damageTank(t, 999, p, 0); continue; }
-    const d = Math.hypot(p.x - t.x, p.y - 0.06, p.z - t.z);
+    if (t === direct) { damageTank(t, direct$, p, heavy ? 2 : 1); continue; }
+    const d = Math.hypot(p.x - t.x, p.y - 0.06 * t.size, p.z - t.z) - 0.1 * (t.size - 1);
     if (d > R) continue;
-    const k = 1 - d / R;
-    damageTank(t, Math.round(95 * k), p, 3.4 * k + 0.6);
+    const k = 1 - Math.max(0, d) / R;
+    damageTank(t, Math.round(dmgMax * k), p, (3.4 * k + 0.6) * (heavy ? 1.4 : 1));
   }
   for (const h of hands) { const wp = h.ctrl.getWorldPosition(tmpV2); if (wp.distanceTo(p) < 2.5) haptic(h, 0.5, 80); }
 }
@@ -629,17 +648,21 @@ function lockCandidate(origin, dir, maxAng, maxD, ignore) {
 
 function launch(h) {
   if (G.phase !== 'play' || h.cool > 0) return;
+  const A = G.ammo;
+  if (A.std + A.heavy <= 0) return;                 // out of rockets: the machine gun takes over
+  const heavy = A.heavy > 0;
+  if (heavy) A.heavy--; else A.std--;
   h.cool = 1.15;
   h.ctrl.updateMatrixWorld(true);
   h.L.muzzle.getWorldPosition(mp);
   const dir = new V(0, 0, -1).transformDirection(h.ctrl.matrixWorld);
-  const obj = buildRocket();
-  obj.scale.setScalar(0.72);
+  const obj = buildRocket(heavy);
+  obj.scale.setScalar(heavy ? 0.62 : 0.5);
   scene.add(obj);
   dir.x += rand(-0.006, 0.006); dir.y += rand(-0.006, 0.006); dir.normalize();     // a hair of launch scatter
-  const r = { obj, pos: mp.clone(), dir: dir.clone(), vel: new V(), speed: ROCKET.v0, age: 0, target: h.lock };
+  const r = { obj, pos: mp.clone(), dir: dir.clone(), vel: new V(), speed: ROCKET.v0, age: 0, target: h.lock, heavy };
   rockets.push(r);
-  h.L.rocket.visible = false;
+  h.L.rocket.visible = false; h.L.rocketH.visible = false;
   h.L.ledMat.color.setHex(0xff3322);
   // back-blast
   h.L.rear.getWorldPosition(tmpV);
@@ -696,8 +719,8 @@ function updateRockets(dt) {
         if (t.dead) continue;
         if (insideTank(t, r.pos)) { hit = t; boom = true; break; }
         // proximity fuse: goes off at the closest point of a near miss
-        const d = Math.hypot(r.pos.x - t.x, r.pos.y - 0.07, r.pos.z - t.z);
-        if (d < 0.45) {
+        const d = Math.hypot(r.pos.x - t.x, r.pos.y - 0.07 * t.size, r.pos.z - t.z);
+        if (d < 0.45 * t.size) {
           if (r.near === t && d > r.nearD + 0.004) { boom = true; break; }
           if (r.near !== t || d < r.nearD) { r.near = t; r.nearD = d; }
         }
@@ -705,7 +728,7 @@ function updateRockets(dt) {
     }
     if (boom || r.age > 6 || r.pos.length() > 20) {
       scene.remove(r.obj); rockets.splice(i, 1);
-      if (boom) blast(r.pos.clone(), hit);
+      if (boom) blast(r.pos.clone(), hit, r.heavy);
       else if (r.age > 6) fx.puff(r.pos, 0.5);             // self-destruct
       continue;
     }
@@ -723,6 +746,119 @@ function updateRockets(dt) {
   }
 }
 
+/* ------------------------------------------------------- machine gun */
+
+/* With the rockets gone the launchers fall back to bullets: hold the trigger and they fire on
+ * their own, fast and cheap — a tank soaks about nine of these where one rocket would do. */
+const MG = { rate: 0.15, speed: 16, spread: 0.03, dmg: 12 };
+const bullets = [];
+const bulletGeo = new THREE.SphereGeometry(0.0065, 8, 6);
+const bulletMat = new THREE.MeshBasicMaterial({ color: 0xfff2b0, toneMapped: false });
+
+function fireBullet(h) {
+  h.ctrl.updateMatrixWorld(true);
+  h.L.muzzle.getWorldPosition(mp);
+  md.set(0, 0, -1).transformDirection(h.ctrl.matrixWorld);
+  md.x += rand(-1, 1) * MG.spread; md.y += rand(-1, 1) * MG.spread; md.z += rand(-1, 1) * MG.spread; md.normalize();
+  const obj = new THREE.Mesh(bulletGeo, bulletMat);
+  obj.position.copy(mp); scene.add(obj);
+  bullets.push({ obj, pos: mp.clone(), vel: md.clone().multiplyScalar(MG.speed), age: 0 });
+  fx.fire.add(mp.x + md.x * 0.03, mp.y + md.y * 0.03, mp.z + md.z * 0.03, 0, 0, 0, 0.05, 0.05, 0.1, [1, 0.95, 0.7], [1, 0.5, 0.1], 0.9);
+  audio.mg(mp.clone());
+  haptic(h, 0.25, 25);
+}
+
+function updateBullets(dt) {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.age += dt;
+    const step = MG.speed * dt, n = Math.max(1, Math.ceil(step / 0.05));
+    let end = false;
+    for (let k = 0; k < n && !end; k++) {
+      b.pos.addScaledVector(b.vel, dt / n);
+      if (b.pos.y <= 0.005 || solidAt(b.pos.x, b.pos.y, b.pos.z)) { end = true; fx.spark(b.pos); break; }
+      for (const t of tanks) {
+        if (t.dead) continue;
+        if (insideTank(t, b.pos)) { damageTank(t, MG.dmg, b.pos, 0, true); fx.spark(b.pos, 1.3); end = true; break; }
+      }
+    }
+    if (end || b.age > 1.4) { scene.remove(b.obj); bullets.splice(i, 1); continue; }
+    b.obj.position.copy(b.pos);
+    fx.fire.add(b.pos.x, b.pos.y, b.pos.z, 0, 0, 0, 0.05, 0.045, 0.015, [1, 0.9, 0.5], [1, 0.5, 0.1], 0.85);
+    fx.fire.add(b.pos.x - b.vel.x * 0.012, b.pos.y - b.vel.y * 0.012, b.pos.z - b.vel.z * 0.012, 0, 0, 0, 0.07, 0.03, 0.01, [1, 0.7, 0.3], [0.8, 0.2, 0], 0.6);
+  }
+}
+
+/* ------------------------------------------------------------ ammo on the floor */
+
+const pickups = [];
+const PK = {
+  std: { box: 0x56603a, band: 0xe8c040, ring: 0xffe27a, label: '+3 ROCKETS' },
+  heavy: { box: 0x8a2a1c, band: 0xffa020, ring: 0xff6a2a, label: '+2 HEAVY ROCKETS' },
+};
+const pkBox = new THREE.BoxGeometry(0.26, 0.12, 0.15), pkBand = new THREE.BoxGeometry(0.04, 0.125, 0.155);
+const pkRing = new THREE.RingGeometry(0.2, 0.25, 40).rotateX(-Math.PI / 2);
+for (const k in PK) {
+  PK[k].boxMat = new THREE.MeshStandardMaterial({ color: PK[k].box, roughness: 0.7, metalness: 0.25 });
+  PK[k].bandMat = new THREE.MeshStandardMaterial({ color: PK[k].band, roughness: 0.5, metalness: 0.2 });
+}
+
+function pickPickupSpot() {
+  for (let i = 0; i < 40; i++) {
+    const a = rand(0, TAU), r = rand(0.9, 3.2);
+    const x = head.x + Math.sin(a) * r, z = head.z + Math.cos(a) * r;
+    if (navBlockedAt(x, z) || fieldAt(playerField, x, z) >= FAR) continue;
+    if (tanks.some(t => !t.dead && Math.hypot(t.x - x, t.z - z) < 0.8)) continue;
+    if (pickups.some(p => Math.hypot(p.x - x, p.z - z) < 0.9)) continue;
+    return { x, z };
+  }
+  return null;
+}
+
+function spawnPickup(kind) {
+  const spot = pickPickupSpot();
+  if (!spot) return false;
+  const P = PK[kind], group = new THREE.Group();
+  const box = new THREE.Mesh(pkBox, P.boxMat); box.position.y = 0.06; group.add(box);
+  for (const dz of [-0.05, 0.05]) { const b = new THREE.Mesh(pkBand, P.bandMat); b.position.set(dz * 2, 0.06, 0); group.add(b); }
+  const icon = buildRocket(kind === 'heavy'); icon.scale.setScalar(0.5); icon.position.y = 0.3;
+  const iconPivot = new THREE.Group(); iconPivot.add(icon); iconPivot.position.y = 0.3; group.add(iconPivot);
+  const ring = new THREE.Mesh(pkRing, new THREE.MeshBasicMaterial({ color: P.ring, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
+  ring.position.y = 0.006; group.add(ring);
+  group.position.set(spot.x, 0, spot.z); group.rotation.y = rand(0, 6.28);
+  scene.add(group);
+  pickups.push({ kind, group, iconPivot, ring, x: spot.x, z: spot.z, age: 0 });
+  fx.spark(new V(spot.x, 0.15, spot.z), 1.5);
+  return true;
+}
+
+function toast(text) { G.toast = text; G.toastT = 1.8; }
+
+function updatePickups(dt) {
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const p = pickups[i];
+    p.age += dt;
+    p.iconPivot.rotation.y += dt * 2.2;
+    p.iconPivot.position.y = 0.3 + 0.025 * Math.sin(p.age * 3);
+    p.ring.scale.setScalar(1 + 0.12 * Math.sin(p.age * 4));
+    p.ring.material.opacity = 0.55 + 0.3 * Math.sin(p.age * 4);
+    p.group.visible = p.age < 28 || Math.floor(p.age * 6) % 2 === 0;          // blinks for its last few seconds
+    let got = false;
+    if (G.phase === 'play') {
+      if (Math.hypot(head.x - p.x, head.z - p.z) < 0.55) got = true;          // walk over it
+      else for (const h of hands) if (h.ctrl && h.ctrl.getWorldPosition(tmpV2).distanceTo(tmpV.set(p.x, 0.12, p.z)) < 0.32) got = true;   // or reach down to it
+    }
+    if (got) {
+      if (p.kind === 'heavy') G.ammo.heavy = Math.min(6, G.ammo.heavy + 2); else G.ammo.std = Math.min(12, G.ammo.std + 3);
+      toast(PK[p.kind].label);
+      audio.pickup(p.kind === 'heavy');
+      fx.spark(new V(p.x, 0.2, p.z), 1.6);
+      for (const h of hands) haptic(h, 0.5, 70);
+    }
+    if (got || p.age > 34) { scene.remove(p.group); pickups.splice(i, 1); }
+  }
+}
+
 /* ============================================================ hands/HUD */
 
 const hands = [];
@@ -733,6 +869,7 @@ const ringGeo = new THREE.RingGeometry(0.13, 0.15, 36);
 
 function makeHand(i) {
   const L = buildLauncher();
+  L.group.scale.setScalar(0.5);                      // half size: you hold it, you do not carry it
   const beam = new THREE.Mesh(beamGeo, beamMat);
   beam.position.copy(L.muzzle.position);
   L.group.add(beam);
@@ -740,7 +877,7 @@ function makeHand(i) {
   scene.add(dot);
   const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xff4a33, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
   ring.visible = false; scene.add(ring);
-  return { i, L, ctrl: null, cool: 0, lock: null, beam, dot, ring, gamepad: null, lastHud: '' };
+  return { i, L, ctrl: null, cool: 0, mg: 0, trig: false, lock: null, beam, dot, ring, gamepad: null, lastHud: '' };
 }
 hands.push(makeHand(0), makeHand(1));
 
@@ -749,7 +886,8 @@ function haptic(h, strength, ms) {
 }
 
 function drawHud(h) {
-  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}`;
+  const have = G.ammo.std + G.ammo.heavy;
+  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${G.ammo.std}|${G.ammo.heavy}|${G.toast}`;
   if (key === h.lastHud) return;
   h.lastHud = key;
   const { ctx, w, hgt = 170 } = h.L.panel;
@@ -766,8 +904,12 @@ function drawHud(h) {
   ctx.fillText(`WAVE ${G.wave}`, 16, 92);
   ctx.textAlign = 'right'; ctx.fillText(`${G.score}`, 284, 92);
   ctx.textAlign = 'center'; ctx.font = 'bold 26px Arial';
-  ctx.fillStyle = h.cool > 0 ? '#ff6a55' : '#6dff8c';
-  ctx.fillText(h.cool > 0 ? 'RELOADING' : 'ROCKET READY', 150, 140);
+  if (G.toast) { ctx.fillStyle = '#ffe27a'; ctx.font = 'bold 28px Arial'; ctx.fillText(G.toast, 150, 140); }
+  else if (have === 0) { ctx.fillStyle = '#ffcc33'; ctx.fillText('MACHINE GUN  \u221e', 150, 140); }
+  else {
+    ctx.fillStyle = h.cool > 0 ? '#ff6a55' : G.ammo.heavy > 0 ? '#ff9a4a' : '#6dff8c';
+    ctx.fillText(`ROCKETS ${G.ammo.std}${G.ammo.heavy ? `  \u00b7  HVY ${G.ammo.heavy}` : ''}`, 150, 140);
+  }
   h.L.panel.refresh();
 }
 
@@ -783,6 +925,30 @@ const vignette = (() => {
   camera.add(m);
   return m;
 })();
+
+/* the hit fade: red, then black, then back — all over about two seconds, glued to the head */
+const fadeQuad = (() => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, depthTest: false, depthWrite: false, opacity: 0, toneMapped: false }));
+  m.position.set(0, 0, -0.25); m.renderOrder = 400; m.frustumCulled = false; m.visible = false;
+  camera.add(m);
+  return m;
+})();
+function updateFade(dt) {
+  const f = G.fade;
+  if (f.t < 0) { fadeQuad.visible = false; return; }
+  f.t += dt;
+  const t = f.t;
+  let a, r;
+  if (t < 0.2) { a = 0.85 * (t / 0.2); r = 0.78; }                         // flash to red
+  else if (t < 0.9) { const k = (t - 0.2) / 0.7; a = 0.85 + 0.15 * k; r = 0.78 * (1 - k); }   // red goes to black
+  else if (f.hold) { a = 0.92; r = 0; }                                    // dead: stay dark behind the score board
+  else if (t < 1.3) { a = 1; r = 0; }                                      // black
+  else if (t < 2.0) { a = 1 - (t - 1.3) / 0.7; r = 0; }                    // and back
+  else { f.t = -1; fadeQuad.visible = false; return; }
+  fadeQuad.material.color.setRGB(r, 0, 0);
+  fadeQuad.material.opacity = a;
+  fadeQuad.visible = true;
+}
 
 /* floating message board (menu, wave banners, game over) */
 const msg = makePanel(1.2, 0.6, 1024, 512, { depthTest: false });
@@ -833,10 +999,10 @@ function showMenu() {
     { t: 'TANK AMBUSH', s: 84, c: '#ffb454' },
     { t: 'Tanks are rolling into your room.', s: 36, b: false },
     { t: 'They hide behind your furniture and aim at your head.', s: 32, b: false },
-    { t: 'Dodge the shells, or duck behind something solid.', s: 32, b: false },
+    { t: 'Dodge the shells, duck behind something solid, and grab ammo crates.', s: 30, b: false },
     G.mode === 'flat'
-      ? { t: 'Click: fire (aim at the red ring) · WASD move · C crouch · G room mesh', s: 26, c: '#9fb3c8', b: false, gap: 8 }
-      : { t: 'Trigger: fire a rocket · Grip: show room mesh', s: 28, c: '#9fb3c8', b: false, gap: 8 },
+      ? { t: 'Click: rocket (hold when empty: machine gun) · WASD · C crouch · G mesh', s: 26, c: '#9fb3c8', b: false, gap: 8 }
+      : { t: 'Trigger: rocket (hold when empty: machine gun) · Grip: room mesh', s: 26, c: '#9fb3c8', b: false, gap: 8 },
     scanLine(),
     { t: G.mode === 'flat' ? 'CLICK TO START' : 'PULL A TRIGGER TO START', s: 46, c: '#6dff8c', gap: 6 },
   ].map(l => ({ s: 30, ...l })));
@@ -849,6 +1015,8 @@ function resetEntities() {
   tanks.length = 0;
   for (const r of rockets) scene.remove(r.obj); rockets.length = 0;
   for (const s of shells) scene.remove(s.obj); shells.length = 0;
+  for (const b of bullets) scene.remove(b.obj); bullets.length = 0;
+  for (const p of pickups) scene.remove(p.group); pickups.length = 0;
   fx.clear(); scorch.clear();
 }
 
@@ -856,6 +1024,7 @@ function startGame() {
   resetEntities();
   hideMsg();
   G.hp = 100; G.score = 0; G.kills = 0; G.wave = 0; G.waveClear = false;
+  G.ammo = { std: 6, heavy: 0 }; G.toast = ''; G.invuln = 0; G.fade = { t: -1, hold: false }; G.pickT = 9;
   const wantVirtual = params.has('cover') || scan.sources.size === 0;
   if (wantVirtual && !virt.made) addVirtualCover();
   else if (!wantVirtual && virt.made) { removeVirtualCover(); rebuildNow([...scan.sources.values()]); }
@@ -866,14 +1035,33 @@ function startGame() {
   startWave(1);
 }
 
+/** Who is in this wave: green tanks, plus black ones from wave 6 and the biggest from wave 10. */
+function buildQueue(n) {
+  const total = Math.min(2 + n, 9);
+  const t2 = n >= 10 ? Math.min(3, 1 + Math.floor((n - 10) / 2)) : 0;
+  const t1 = n >= 10 ? Math.min(2, 1 + Math.floor((n - 10) / 3)) : n >= 6 ? Math.min(3, 1 + Math.floor((n - 6) / 2)) : 0;
+  const q = [];
+  for (let i = 0; i < t2; i++) q.push(2);
+  for (let i = 0; i < t1; i++) q.push(1);
+  while (q.length < Math.max(total, t1 + t2 + 2)) q.push(0);
+  for (let i = q.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [q[i], q[j]] = [q[j], q[i]]; }
+  const first = q.findIndex(v => v === 0);                                  // never open a wave with the big ones
+  if (first > 0) [q[0], q[first]] = [q[first], q[0]];
+  return q;
+}
+
 function startWave(n) {
   G.wave = n;
-  G.toSpawn = Math.min(2 + n, 9);
+  G.queue = buildQueue(n);
+  G.toSpawn = G.queue.length;
   G.maxAlive = Math.min(1 + Math.ceil(n / 2), 5);
   G.spawnT = 1.8;
   G.waveClear = false;
   audio.alert('wave');
-  showMsg([{ t: `WAVE ${n}`, s: 120, c: '#ffb454' }, { t: n === 1 ? 'Tanks inbound' : 'They are getting smarter', s: 40, c: '#e6edf5', b: false }], 2.4, 0.7);
+  const sub2 = n === 1 ? { t: 'Tanks inbound', c: '#e6edf5' } : n === 6 ? { t: 'HEAVY ARMOUR INBOUND', c: '#ff5a44' } : n === 10 ? { t: 'SUPER-HEAVY TANKS', c: '#ff5a44' }
+    : n === 5 ? { t: 'Heavy rocket crates now drop', c: '#ffa020' } : { t: 'They are getting smarter', c: '#e6edf5' };
+  showMsg([{ t: `WAVE ${n}`, s: 120, c: '#ffb454' }, { t: sub2.t, s: 40, c: sub2.c, b: n > 5 && (n === 6 || n === 10) }], 2.6, 0.7);
+  if (n > 1) { spawnPickup('std'); if (n >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy'); }
 }
 
 function gameOver() {
@@ -882,18 +1070,34 @@ function gameOver() {
   G.inputLock = 1.8;
   audio.alert('over');
   for (const r of rockets) scene.remove(r.obj); rockets.length = 0;
+  for (const b of bullets) scene.remove(b.obj); bullets.length = 0;
   setTimeout(() => {
     if (G.phase !== 'over') return;
+    let best = 0;
+    try { best = +localStorage.getItem('tankAmbushBest') || 0; if (G.score > best) localStorage.setItem('tankAmbushBest', String(G.score)); } catch (_) { /* no storage */ }
+    const record = G.score > best;
     showMsg([
-      { t: 'GAME OVER', s: 110, c: '#ff5a44' },
-      { t: `Wave ${G.wave}  ·  ${G.kills} tanks destroyed  ·  score ${G.score}`, s: 38 },
-      { t: G.mode === 'flat' ? 'CLICK TO PLAY AGAIN' : 'PULL A TRIGGER TO PLAY AGAIN', s: 44, c: '#6dff8c', gap: 20 },
+      { t: 'WELL DONE!', s: 96, c: '#ffd45a' },
+      { t: 'Game over', s: 38, c: '#ff7a66' },
+      { t: `SCORE ${G.score}`, s: 70, c: '#ffffff' },
+      { t: `Wave ${G.wave}  ·  ${G.kills} tank${G.kills === 1 ? '' : 's'} destroyed`, s: 34 },
+      record ? { t: 'NEW BEST!', s: 34, c: '#ffd45a' } : { t: `Best: ${best}`, s: 32, c: '#9fb3c8', b: false },
+      { t: G.mode === 'flat' ? 'CLICK TO PLAY AGAIN' : 'PULL A TRIGGER TO PLAY AGAIN', s: 40, c: '#6dff8c', gap: 10 },
     ]);
   }, 700);
 }
 
 function updateGame(dt) {
   if (G.phase !== 'play') return;
+  // ammo crates keep turning up; sooner when you are dry and nothing is lying about
+  G.pickT -= dt;
+  if (G.ammo.std + G.ammo.heavy === 0 && pickups.length === 0) G.pickT = Math.min(G.pickT, 2.5);
+  if (G.pickT <= 0) {
+    G.pickT = rand(11, 16);
+    const hv = pickups.some(p => p.kind === 'heavy');
+    if (G.wave >= 5 && !hv && Math.random() < 0.45) spawnPickup('heavy');
+    else if (pickups.length < 3) spawnPickup('std');
+  }
   const alive = tanks.reduce((n, t) => n + (t.dead ? 0 : 1), 0);
   if (!G.waveClear) {
     if (G.toSpawn > 0) {
@@ -901,7 +1105,7 @@ function updateGame(dt) {
         G.spawnT -= dt;
         if (G.spawnT <= 0) {
           const p = pickSpawn();
-          if (p) { spawnTank(p.x, p.z); G.toSpawn--; G.spawnT = rand(2, 4); } else G.spawnT = 1;
+          if (p) { spawnTank(p.x, p.z, undefined, G.queue.shift() || 0); G.toSpawn--; G.spawnT = rand(2, 4); } else G.spawnT = 1;
         }
       }
     } else if (alive === 0) {
@@ -935,7 +1139,8 @@ function attachXRControllers() {
     scene.add(c);
     h.ctrl = c;
     c.addEventListener('connected', e => { h.gamepad = e.data?.gamepad || null; });
-    c.addEventListener('selectstart', () => onTrigger(i));
+    c.addEventListener('selectstart', () => { h.trig = true; onTrigger(i); });
+    c.addEventListener('selectend', () => { h.trig = false; });
     c.addEventListener('squeezestart', onSqueeze);
   });
 }
@@ -963,6 +1168,7 @@ async function enterXR() {
 
 /* flat preview: WASD + mouse look + click */
 const keys = {};
+const flatHold = { down: false, t: 0, dragged: 0 };      // mouse held without dragging = trigger held
 let yaw = 0, pitch = 0;
 function enterFlat() {
   audio.init();
@@ -975,8 +1181,7 @@ function enterFlat() {
   grid.position.y = 0.001; scene.add(grid);
   hands.forEach((h, i) => {
     const c = new THREE.Group();
-    c.position.set(i ? 0.3 : -0.3, -0.27, -0.5);
-    h.L.group.scale.setScalar(0.6);
+    c.position.set(i ? 0.28 : -0.28, -0.24, -0.42);
     c.rotation.set(0.03, i ? 0.09 : -0.09, 0);
     c.add(h.L.group);
     camera.add(c);
@@ -985,8 +1190,8 @@ function enterFlat() {
   addVirtualCover();
   let flip = 0, down = null, dragged = 0;
   const dom = renderer.domElement;
-  dom.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; dragged = 0; });
-  dom.addEventListener('pointerup', () => { down = null; });
+  dom.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; dragged = 0; flatHold.down = true; flatHold.t = 0; flatHold.dragged = 0; });
+  dom.addEventListener('pointerup', () => { down = null; flatHold.down = false; });
   dom.addEventListener('click', () => {
     if (dragged > 6) return;                                   // that was a look-around drag, not a shot
     if (document.pointerLockElement !== dom) dom.requestPointerLock?.()?.catch?.(() => {});
@@ -996,7 +1201,7 @@ function enterFlat() {
   document.addEventListener('mousemove', e => {
     const locked = document.pointerLockElement === dom;
     if (!locked && !(down && (e.buttons & 1))) return;
-    if (!locked) dragged += Math.abs(e.movementX) + Math.abs(e.movementY);
+    if (!locked) { dragged += Math.abs(e.movementX) + Math.abs(e.movementY); flatHold.dragged = dragged; }
     yaw -= e.movementX * 0.0022; pitch = clamp(pitch - e.movementY * 0.0022, -1.3, 1.3);
   });
   window.addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyG') onSqueeze(); });
@@ -1050,6 +1255,9 @@ function loop(_, frame) {
   } else {
     flatMove(dt);
     head.copy(camera.position); headQ.copy(camera.quaternion);
+    if (flatHold.down) flatHold.t += dt;
+    const hold = flatHold.down && flatHold.t > 0.18 && flatHold.dragged <= 6;
+    hands[0].trig = hands[1].trig = hold;
   }
   headFwd.set(0, 0, -1).applyQuaternion(headQ);
   headUp.set(0, 1, 0).applyQuaternion(headQ);
@@ -1067,6 +1275,8 @@ function loop(_, frame) {
     if (scan.menuT <= 0) { scan.menuT = 1.2; const n = scan.sources.size; if (n !== scan.menuN) { scan.menuN = n; showMenu(); G.inputLock = Math.max(G.inputLock, 0); } }
   }
   if (G.inputLock > 0) G.inputLock -= dt;
+  if (G.invuln > 0) G.invuln -= dt;
+  if (G.toastT > 0) { G.toastT -= dt; if (G.toastT <= 0) G.toast = ''; }
   if (msgTimer > 0 && G.phase === 'play') { msgTimer -= dt; if (msgTimer <= 0) hideMsg(); }
 
   updatePlayerField(dt, false);
@@ -1076,15 +1286,24 @@ function loop(_, frame) {
   for (const h of hands) {
     if (!h.ctrl) continue;
     h.ctrl.updateMatrixWorld(true);
+    const have = G.ammo.std + G.ammo.heavy;
     if (h.cool > 0) {
       h.cool -= dt;
-      if (h.cool <= 0) { h.L.rocket.visible = true; h.L.ledMat.color.setHex(0x44ff66); audio.reload(h.ctrl.getWorldPosition(tmpV2).clone()); }
+      if (h.cool <= 0 && have > 0) audio.reload(h.ctrl.getWorldPosition(tmpV2).clone());
     }
+    // what is loaded: a standard or heavy rocket, or nothing (machine gun)
+    const ready = h.cool <= 0 && have > 0;
+    h.L.rocket.visible = ready && G.ammo.heavy === 0;
+    h.L.rocketH.visible = ready && G.ammo.heavy > 0;
+    h.L.ledMat.color.setHex(h.cool > 0 ? 0xff3322 : have === 0 ? 0xffcc33 : G.ammo.heavy > 0 ? 0xff7a1a : 0x44ff66);
+    h.mg = Math.max(0, h.mg - dt);
+    if (G.phase === 'play' && h.trig && have === 0 && h.mg <= 0) { h.mg = MG.rate; fireBullet(h); }
     h.L.muzzle.getWorldPosition(mp);
     md.set(0, 0, -1).transformDirection(h.ctrl.matrixWorld);
     // laser sight
     const hitD = rayHit(mp.x, mp.y, mp.z, md.x, md.y, md.z, 8);
-    h.beam.scale.z = hitD;
+    const gs = h.L.group.scale.x;
+    h.beam.scale.set(1 / gs, 1 / gs, hitD / gs);           // the launcher is scaled, the laser should not be
     h.dot.position.copy(mp).addScaledVector(md, hitD);
     h.dot.visible = hitD < 8 && h.ctrl.visible !== false;
     // lock-on: closest tank within ~25° of where the launcher points, that it can see
@@ -1105,7 +1324,7 @@ function loop(_, frame) {
       t.wreckT -= dt;
       if (t.wreckT > 0 && Math.random() < dt * 5) fx.fire.add(t.x + rand(-0.06, 0.06), 0.07, t.z + rand(-0.08, 0.08), 0, rand(0.1, 0.3), 0, rand(0.2, 0.5), 0.05, 0.015, [1, 0.6, 0.2], [0.6, 0.1, 0], 0.8, 0.5, 0);     // embers
       if (t.wreckT > 0 && Math.random() < dt * 14) fx.smoke.add(t.x, 0.09, t.z, rand(-0.05, 0.05), rand(0.15, 0.3), rand(-0.05, 0.05), rand(1.2, 2), 0.04, 0.2, [0.3, 0.3, 0.3], [0.08, 0.08, 0.08], 0.55, 0.3, 0);
-      if (t.wreckT < 0.8) t.model.group.scale.setScalar(Math.max(0.001, t.wreckT / 0.8));
+      if (t.wreckT < 0.8) t.model.group.scale.setScalar(t.size * Math.max(0.001, t.wreckT / 0.8));
       if (t.wreckT <= 0) { scene.remove(t.model.group); tanks.splice(i, 1); }
       continue;
     }
@@ -1116,15 +1335,19 @@ function loop(_, frame) {
     const a = tanks[i], b = tanks[j];
     if (a.dead || b.dead) continue;
     const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
-    if (d < 0.28 && d > 1e-4) { const k = (0.28 - d) * 0.5 / d; moveTo(a, a.x - dx * k, a.z - dz * k); moveTo(b, b.x + dx * k, b.z + dz * k); }
+    const min = 0.14 * (a.size + b.size);
+    if (d < min && d > 1e-4) { const k = (min - d) * 0.5 / d; moveTo(a, a.x - dx * k, a.z - dz * k); moveTo(b, b.x + dx * k, b.z + dz * k); }
   }
   updateShells(dt);
   updateRockets(dt);
+  updateBullets(dt);
+  updatePickups(dt);
   fx.update(dt); scorch.update(dt);
 
   // hurt flash
   if (G.hurt > 0) G.hurt = Math.max(0, G.hurt - dt * 1.6);
-  vignette.material.opacity = Math.min(1, G.hurt * 1.2 + (G.hp < 30 && G.phase === 'play' ? 0.18 + 0.12 * Math.sin(G.time * 6) : 0));
+  updateFade(dt);
+  vignette.material.opacity = Math.min(1, G.hurt * 0.5 + (G.hp < 30 && G.phase === 'play' ? 0.18 + 0.12 * Math.sin(G.time * 6) : 0));
   vignette.visible = vignette.material.opacity > 0.01;
 
   renderer.render(scene, camera);
@@ -1147,4 +1370,4 @@ function loop(_, frame) {
 })();
 
 // handy for poking at the game from the console
-window.__tank = { scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
+window.__tank = { pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };

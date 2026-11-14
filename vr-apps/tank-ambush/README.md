@@ -28,6 +28,13 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 * Splash: radius `R = 0.8` and the damage / push in `blast`.
 * Player damage: `22` per direct shell in `shellBoom`.
 
+## Ammo, tanks and the hit fade
+
+* Rockets are a shared pool (`G.ammo`: 6 to start, crates add 3, max 12). Heavy rockets (`heavy`, crates from wave 5) are used first: direct hit 260 and a 1.15 m blast, versus 110 and 0.8 m.
+* With no rockets left, a held trigger fires bullets (`MG` in `game.js`: 12 damage, 6.7 shots/s per hand), so a 100 HP tank takes about nine.
+* Tiers (`TIER` table): green tanks 100 HP; black from wave 6, 320 HP, 1.3x size; from wave 10, 800 HP, 1.75x size, tougher still. `buildQueue` decides the mix per wave.
+* A hit runs `updateFade`: red, black, back over about 2 s, with 2 s of invulnerability. Dying holds the dark behind the score board; the best score is kept in `localStorage`.
+
 ## Controls
 
 * Quest: trigger = fire that hand's rocket (also starts / restarts); grip = show or hide the room mesh.

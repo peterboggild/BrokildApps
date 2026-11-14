@@ -183,6 +183,14 @@ export function createFX(scene) {
       flash.position.copy(p); flash.intensity = Math.max(flash.intensity, 4 * s * 2); flashT = Math.max(flashT, 0.12);
     },
 
+    /** A few sparks and a wisp: a bullet hitting a wall or a tank. No light, so a burst of them stays cheap. */
+    spark(p, s = 1) {
+      for (let i = 0; i < 4; i++)
+        fire.add(p.x, p.y, p.z, rand(-1, 1) * 0.9 * s, rand(0.2, 1.2) * s, rand(-1, 1) * 0.9 * s, rand(0.15, 0.35), 0.014 * s, 0.006 * s, WHITE, ORG, 1, 1.5, 6);
+      fire.add(p.x, p.y, p.z, 0, 0, 0, 0.06, 0.05 * s, 0.1 * s, WHITE, YEL, 0.9);
+      smoke.add(p.x, p.y, p.z, rand(-0.05, 0.05), rand(0.05, 0.2), rand(-0.05, 0.05), rand(0.4, 0.8), 0.03 * s, 0.08 * s, SMOKE0, SMOKE1, 0.3, 0.8, 0);
+    },
+
     muzzleFlash(p, d) {
       fire.add(p.x + d.x * 0.02, p.y + d.y * 0.02, p.z + d.z * 0.02, 0, 0, 0, 0.09, 0.05, 0.1, WHITE, ORG, 1);
       for (let i = 0; i < 5; i++)
@@ -311,6 +319,16 @@ export function createAudio() {
       A._tone(master, t, 0.5, 'sine', 90, 30, 0.9);
       A._noise(master, t, 0.35, 'lowpass', 900, 100, 0.6);
       A._tone(master, t, 0.9, 'sine', 1800, 1500, 0.05);     // ear ring
+    },
+    mg(pos) {
+      if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
+      A._noise(out, t, 0.07, 'highpass', 1800, 700, 0.35);
+      A._tone(out, t, 0.06, 'square', 220, 90, 0.18);
+    },
+    pickup(heavy) {
+      if (!ctx) return; const t = ctx.currentTime;
+      A._tone(master, t, 0.12, 'triangle', heavy ? 330 : 440, heavy ? 330 : 440, 0.25);
+      A._tone(master, t + 0.09, 0.2, 'triangle', heavy ? 495 : 660, heavy ? 495 : 660, 0.25);
     },
     click(pos) {
       if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
