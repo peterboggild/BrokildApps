@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114d';
-import { createFX, createAudio } from './fx.js?v=20261114d';
-import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114d';
+} from './world.js?v=20261114i';
+import { createFX, createAudio } from './fx.js?v=20261114i';
+import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114i';
 
 /* ================================================================ basics */
 
@@ -41,7 +41,7 @@ const G = {
   menuPending: false, time: 0,
   waveRockets: 0, waveEnemies: 0, bonusTotal: 0, xrT: 0, meshFeature: undefined,
   rings: false, light: 1, lightMode: 'auto', estimated: false,
-  ammo: { std: 6, heavy: 0 }, toast: '', toastT: 0, fade: { t: -1, hold: false }, invuln: 0, queue: [], pickT: 0,
+  ammo: { std: 0, heavy: 0, trap: 0 }, leftMode: 'gun', rightMode: 'gun', toast: '', toastT: 0, fade: { t: -1, hold: false }, invuln: 0, queue: [], pickT: 0,
 };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -636,7 +636,7 @@ function hurtPlayer(d, soft = false) {
 /* --------------------------------------------------------------- damage */
 
 function insideTank(t, p) {
-  if (t.rat) return Math.hypot(p.x - t.x, p.y - 0.05, p.z - t.z) < 0.095;      // small and low
+  if (t.rat) return Math.hypot(p.x - t.x, p.y - 0.05 * t.size, p.z - t.z) < 0.095 * t.size;      // small and low (the super ones are bigger)
   if (t.air) {                                                   // a helicopter: fuselage ellipsoid, tail boom, stub wings
     const dx = p.x - t.x, dz = p.z - t.z, s = Math.sin(t.yaw), c = Math.cos(t.yaw), k = t.size;
     const lz = (dx * s + dz * c) / k, lx = (dx * c - dz * s) / k, ly = (p.y - t.y) / k;
@@ -735,9 +735,13 @@ function lockCandidate(origin, dir, maxAng, maxD, ignore) {
 }
 
 function launch(h) {
-  if (G.phase !== 'play' || h.cool > 0) return;
-  const A = G.ammo, heavy = h.role === 'heavy';
-  if (heavy ? A.heavy <= 0 : A.std <= 0) return;    // out of rockets (the right hand's machine gun takes over)
+  if (G.phase !== 'play') return;
+  const mode = handMode(h);
+  if (mode === 'gun') { if (h.mg <= 0) { h.mg = MG.rate; fireBullet(h); } return; }       // a press fires one bullet; holding keeps firing (see the hands loop)
+  if (h.cool > 0) return;
+  if (mode === 'trap') { launchTrap(h); return; }
+  const A = G.ammo, heavy = mode === 'heavy';
+  if (heavy ? A.heavy <= 0 : A.std <= 0) return;
   if (heavy) A.heavy--; else A.std--;
   G.waveRockets++;
   h.cool = 1.15;
@@ -1104,20 +1108,29 @@ function updateCrash(t, dt) {
 /* From round 3, a few rats with a firecracker pack scurry across the floor at your feet. Close in, the fuse
  * lights and a moment later: a small bang that takes a part of your health (a short red flash, not a blackout).
  * They are small and quick — shoot them, or a rocket's blast near them, and they go "poof". */
-const RUNNER = { hp: 30, score: 30, fuseAt: 1.1, fuseTime: 0.45, radius: 1.0 };
+const RUNNER = { hp: 30, score: 30, fuseAt: 1.6, fuseTime: 0.5, radius: 1.6, dmg: [9, 26, 28] };
+/* From round 8: super rats. About two and a half times the size (a tank's bulk), half the speed, 140 HP, a bigger blast and a glowing green
+ * aura that sheds goo; their warning ring is green. */
+const SUPER = { hp: 140, score: 120, size: 2.5, speed: 0.5, fuseAt: 2.2, fuseTime: 0.8, radius: 2.1, dmg: [12, 32, 36] };
+const runnerRingGeo = new THREE.RingGeometry(RUNNER.radius * 0.955, RUNNER.radius, 56).rotateX(-Math.PI / 2);
 
-function spawnRunner(x, z) {
+function spawnRunner(x, z, sup = false) {
   const a = tankAssets();
-  const model = buildRunnerRat();
+  const model = buildRunnerRat(sup);
   scene.add(model.group);
   const shadow = new THREE.Mesh(a.shadowGeo, a.shadowMat);
   shadow.scale.set(0.45, 1, 0.45); shadow.position.y = 0.003; model.group.add(shadow);
   const t = {
-    rat: true, model, size: 1, tier: -1, maxhp: RUNNER.hp, hp: RUNNER.hp, scoreVal: RUNNER.score, dmg: 0,
+    rat: true, sup, model, size: sup ? SUPER.size : 1, tier: -1, maxhp: sup ? SUPER.hp : RUNNER.hp, hp: sup ? SUPER.hp : RUNNER.hp, scoreVal: sup ? SUPER.score : RUNNER.score, dmg: 0,
+    fuseAt: sup ? SUPER.fuseAt : RUNNER.fuseAt, fuseTime: sup ? SUPER.fuseTime : RUNNER.fuseTime, blastR: sup ? SUPER.radius : RUNNER.radius, dmgRange: sup ? SUPER.dmg : RUNNER.dmg,
     x, z, yaw: Math.atan2(head.x - x, head.z - z), v: 0, dead: false, state: 'run', age: 0, spawnT: 0, wreckT: 0,
-    fuse: -1, weave: rand(0, 6.28), gx: x, gz: z, goalT: 0, stun: 0, sees: false, eng: { set() {}, stop() {} },
-    vmax: Math.min(2.7, 1.7 + 0.07 * G.wave),
+    fuse: -1, weave: rand(0, 6.28), gx: x, gz: z, goalT: 0, stun: 0, sees: false, eng: audio.beeper(sup ? 0.62 : 1),
+    vmax: Math.min(2.7, 1.7 + 0.07 * G.wave) * (sup ? SUPER.speed : 1),
   };
+  // the blast zone, drawn on the floor round the rat so it cannot be overlooked
+  const ring = new THREE.Mesh(runnerRingGeo, new THREE.MeshBasicMaterial({ color: 0xff5030, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+  ring.position.y = 0.006; ring.renderOrder = 3; model.group.add(ring); t.ring = ring;
+  if (sup) { ring.scale.setScalar(SUPER.radius / (RUNNER.radius * SUPER.size)); ring.material.color.setHex(0x55ff30); }   // the model is scaled up: keep the ring at the real blast radius, in green
   model.group.position.set(x, 0, z); model.group.rotation.y = t.yaw; model.group.scale.setScalar(0.4);
   tanks.push(t);
   fx.poof(new V(x, 0.05, z), 0.6);
@@ -1128,7 +1141,7 @@ function spawnRunner(x, z) {
 function updateRat(t, dt) {
   t.age += dt;
   const m = t.model, playing = G.phase === 'play';
-  if (t.spawnT < 1) { t.spawnT = Math.min(1, t.spawnT + dt * 4); m.group.scale.setScalar(0.4 + 0.6 * t.spawnT); }
+  if (t.spawnT < 1) { t.spawnT = Math.min(1, t.spawnT + dt * 4); m.group.scale.setScalar(t.size * (0.4 + 0.6 * t.spawnT)); }
   if (t.stun > 0) t.stun -= dt;
   const px = head.x, pz = head.z, dist = Math.hypot(px - t.x, pz - t.z);
   let moved = 0;
@@ -1151,12 +1164,24 @@ function updateRat(t, dt) {
     if (!moveTo(t, t.x + Math.sin(t.yaw) * t.v * dt, t.z + Math.cos(t.yaw) * t.v * dt)) t.v *= 0.6;
     moved = Math.hypot(t.x - x0, t.z - z0);
     // the fuse: lights when it is close, and the bang follows a heartbeat later
-    if (t.fuse < 0 && dist < RUNNER.fuseAt) { t.fuse = RUNNER.fuseTime; audio.fuse(tmpV.set(t.x, 0.1, t.z)); audio.squeak(tmpV.set(t.x, 0.1, t.z), 1.4); }
-    if (t.fuse >= 0) { t.fuse -= dt; if (t.fuse <= 0 || dist < 0.35) { explodeRat(t); return; } }
+    if (t.fuse < 0 && dist < t.fuseAt) { t.fuse = t.fuseTime; audio.fuse(tmpV.set(t.x, 0.1, t.z)); audio.squeak(tmpV.set(t.x, 0.1, t.z), 1.4); }
+    if (t.fuse >= 0) { t.fuse -= dt; if (t.fuse <= 0 || dist < 0.35 * t.size) { explodeRat(t); return; } }
   }
   m.group.position.set(t.x, 0, t.z);
   m.group.rotation.y = t.yaw;
   animRunnerRat(m, G.time, moved);
+  // it beeps like a bomb — slowly from afar, faster as it closes in, frantic once the fuse is lit — and the ring pulses with it
+  const urge = t.fuse >= 0 ? 1 : clamp(1 - (dist - 1.2) / 4.5, 0, 1);
+  if (playing) t.eng.set(tmpV.set(t.x, 0.1, t.z), urge); else t.eng.stop();
+  const pulse = 0.5 + 0.5 * Math.sin(G.time * (6 + urge * 14));
+  t.ring.material.opacity = t.fuse >= 0 ? 0.55 + 0.4 * pulse : 0.13 + 0.2 * pulse * (0.4 + urge);
+  if (t.sup && playing) {                                    // it radiates glowing green goo
+    const R = t.size, a = m.aura;
+    if (a) { const s = 1 + 0.14 * Math.sin(G.time * 3 + t.weave); a.scale.set(0.1 * s, 0.075 * s, 0.14 * s); a.material.opacity = 0.16 + 0.1 * pulse; }
+    if (Math.random() < dt * 30) fx.fire.add(t.x + rand(-0.09, 0.09) * R, (0.05 + rand(0, 0.12)) * R, t.z + rand(-0.09, 0.09) * R, rand(-0.05, 0.05), rand(0.1, 0.35), rand(-0.05, 0.05), rand(0.6, 1.1), 0.05 * R, 0.02 * R, [0.45, 1, 0.25], [0.1, 0.55, 0.1], 0.65, 0.5, -0.25);
+    if (Math.random() < dt * 9) fx.smoke.add(t.x + rand(-0.06, 0.06) * R, 0.1 * R, t.z + rand(-0.06, 0.06) * R, rand(-0.06, 0.06), rand(0.12, 0.3), rand(-0.06, 0.06), rand(0.9, 1.5), 0.05 * R, 0.16 * R, [0.4, 0.8, 0.2], [0.18, 0.42, 0.1], 0.2, 0.3, -0.05);
+    if (Math.random() < dt * 6) fx.smoke.add(t.x, 0.02, t.z, 0, 0, 0, 1.6, 0.08, 0.14, [0.35, 0.75, 0.15], [0.2, 0.5, 0.1], 0.3, 0.1, 0);   // a slime trail on the floor
+  }
   // the fuse always sputters
   m.group.updateMatrixWorld(true);
   m.fuse.getWorldPosition(tmpV);
@@ -1166,13 +1191,15 @@ function updateRat(t, dt) {
 
 /** Close to your feet: a firecracker bang and a part of your health. */
 function explodeRat(t) {
-  const p = new V(t.x, 0.06, t.z);
-  fx.bang(p, 1);
+  const p = new V(t.x, 0.06 * t.size, t.z);
+  fx.bang(p, t.sup ? 2.0 : 1.5, t.blastR);
+  if (t.sup) fx.slime(p, 1.8);
   audio.bangSmall(p.clone());
-  scorch.add(t.x, t.z, 0.22);
-  if (G.phase === 'play') {
-    const d = Math.hypot(head.x - t.x, head.z - t.z);
-    if (d < RUNNER.radius) hurtPlayer(Math.round(clamp(26 * (1 - d / RUNNER.radius), 9, 24)), true);
+  t.eng.stop();
+  scorch.add(t.x, t.z, t.sup ? 0.7 : 0.4);
+  if (G.phase === 'play') {                                  // the whole blast zone hurts, more the closer you are
+    const d = Math.hypot(head.x - t.x, head.z - t.z), [lo, hi, k] = t.dmgRange;
+    if (d < t.blastR) hurtPlayer(Math.round(clamp(k * (1 - d / t.blastR), lo, hi)), true);
   }
   t.dead = true; t.wreckT = 0;
   scene.remove(t.model.group);
@@ -1180,12 +1207,143 @@ function explodeRat(t) {
 
 /** Shot: a cartoon puff and a few stars. */
 function killRat(t) {
-  const p = new V(t.x, 0.07, t.z);
-  fx.poof(p, 1);
-  audio.squeak(p.clone(), 1.5);
+  const p = new V(t.x, 0.07 * t.size, t.z);
+  if (t.sup) fx.slime(p, 1.4); else fx.poof(p, 1);
+  audio.squeak(p.clone(), t.sup ? 0.7 : 1.5);
+  t.eng.stop();
   G.score += t.scoreVal; G.kills++;
   t.dead = true; t.wreckT = 0;
   scene.remove(t.model.group);
+}
+
+/* ================================================================ rat traps */
+
+/* The left hand's second weapon. It lobs a rat trap that lands, arms itself and waits where it fell until
+ * something on the floor steps on it, then goes off like a mine: a snap and a bang. Kamikaze rats caught in it
+ * are finished; a tank is only scratched. Helicopters are out of reach. Switch the left hand between the heavy
+ * rockets and the traps with the right thumbstick. */
+const TRAP = { speed: 4.6, boom: 0.95, trigger: 0.2, dmgTank: 15, dmgSuperRat: 70, maxActive: 4, cool: 0.9 };   // at most 4 traps lying about at once
+const traps = [];
+
+function launchTrap(h) {
+  if (G.phase !== 'play' || h.cool > 0 || G.ammo.trap <= 0) return;
+  if (traps.length >= TRAP.maxActive) { toast(`${TRAP.maxActive} F\u00c6LDER ER UDE`); haptic(h, 0.3, 40); h.cool = 0.4; return; }     // all four are out: wait until one has gone off
+  G.ammo.trap--;
+  h.cool = TRAP.cool;
+  h.ctrl.updateMatrixWorld(true);
+  h.L.muzzle.getWorldPosition(mp);
+  const dir = new V(0, 0, -1).transformDirection(h.ctrl.matrixWorld);
+  const m = buildTrap();
+  m.group.position.copy(mp); scene.add(m.group);
+  traps.push({ m, x: mp.x, y: mp.y, z: mp.z, vx: dir.x * TRAP.speed, vy: dir.y * TRAP.speed, vz: dir.z * TRAP.speed, state: 'fly', armT: 0, yaw: rand(0, 6.28), spin: rand(-7, 7), age: 0 });
+  h.L.trap.visible = false;
+  h.L.ledMat.color.setHex(0xff3322);
+  audio.thunk(mp.clone());
+  haptic(h, 0.7, 90);
+}
+
+function removeTrap(t) { scene.remove(t.m.group); const i = traps.indexOf(t); if (i >= 0) traps.splice(i, 1); }
+
+function landTrap(t, x, y, z) {
+  t.state = 'armed'; t.armT = 0.35;
+  t.x = x; t.y = y; t.z = z;
+  t.m.group.position.set(x, y, z); t.m.group.rotation.set(0, t.yaw, 0);
+  audio.snap(new V(x, y + 0.03, z));
+}
+
+/** The trap goes off: a snap and a bang. Rats within reach are finished, tanks just get a bump. */
+function trapBoom(t) {
+  const p = new V(t.x, t.y + 0.05, t.z);
+  fx.bang(p, 1.3, TRAP.boom);
+  audio.trapBoom(p.clone());
+  scorch.add(t.x, t.z, 0.4);
+  for (let i = 0; i < 5; i++) fx.debrisBox(p.clone(), new V(rand(-1.5, 1.5), rand(1, 2.6), rand(-1.5, 1.5)), rand(0.008, 0.016), false);   // splinters of the trap
+  let caught = 0;
+  for (const e of tanks) {
+    if (e.dead || e.air) continue;
+    const d = Math.hypot(e.x - t.x, e.z - t.z);
+    if (d > TRAP.boom) continue;
+    if (e.rat) { damageTank(e, e.sup ? TRAP.dmgSuperRat : 999, p, 0); if (e.dead) caught++; }   // a super rat survives it, badly hurt
+    else damageTank(e, Math.round(TRAP.dmgTank * (1 - 0.5 * d / TRAP.boom)), p, 0.5);
+  }
+  if (caught) toast(caught > 1 ? `${caught} R\u00d8TTER FANGET!` : 'RATTE FANGET!');
+  for (const h of hands) haptic(h, 0.4, 60);
+  removeTrap(t);
+}
+
+function updateTraps(dt) {
+  for (let i = traps.length - 1; i >= 0; i--) {
+    const t = traps[i], m = t.m;
+    t.age += dt;
+    if (t.state === 'fly') {
+      t.vy -= 9.8 * dt;
+      const steps = Math.max(1, Math.ceil(Math.hypot(t.vx, t.vy, t.vz) * dt / 0.04));
+      for (let k = 0; k < steps; k++) {
+        let nx = t.x + t.vx * dt / steps, ny = t.y + t.vy * dt / steps, nz = t.z + t.vz * dt / steps;
+        if (ny <= 0) { landTrap(t, nx, 0, nz); break; }
+        if (solidAt(nx, ny, nz)) {
+          if (solidAt(nx, t.y, nz)) {                                              // a wall or a leg: drop straight down along it
+            t.vx *= -0.15; t.vz *= -0.15; nx = t.x; nz = t.z;
+            if (solidAt(nx, ny, nz)) { if (t.vy < 0) { landTrap(t, t.x, t.y, t.z); break; } t.vy = 0; ny = t.y; }
+          } else { if (t.vy < 0) { landTrap(t, nx, t.y, nz); break; } t.vy = 0; ny = t.y; }   // it came down on a surface
+        }
+        t.x = nx; t.y = ny; t.z = nz;
+      }
+      if (t.state === 'fly') {
+        m.group.position.set(t.x, t.y, t.z);
+        m.group.rotation.x += t.spin * dt; m.group.rotation.z += t.spin * 0.6 * dt;
+      }
+      continue;
+    }
+    // armed: waits, blinking; goes off under the first thing that walks, drives or runs over it
+    if (t.armT > 0) { t.armT -= dt; m.led.visible = false; continue; }
+    m.led.visible = Math.floor(G.time * 3 + i) % 2 === 0;
+    if (t.y > 0.3) continue;                                                      // sitting on furniture: nothing on the floor reaches it
+    for (const e of tanks) {
+      if (e.dead || e.air) continue;
+      const hit = e.rat ? Math.hypot(e.x - t.x, e.z - t.z) < TRAP.trigger : insideTank(e, tmpV.set(t.x, 0.06, t.z));
+      if (hit) { trapBoom(t); break; }
+    }
+  }
+}
+
+/*
+ * Each hand holds one weapon at a time, and EITHER hand can hold ANY of them: the bullet gun ('gun'), rockets
+ * ('rocket'), heavy rockets ('heavy') or rat traps ('trap'). Both start as bullet guns. The ammo is one shared
+ * pool, so two hands holding rockets draw on the same stock. Picking up ammo switches a hand to that weapon
+ * (the hand that reached for the crate, otherwise the first hand still holding a gun); when its ammo is gone a
+ * hand falls back to the gun. Each hand's own thumbstick (pressed, or flicked sideways) steps that hand through
+ * the weapons it has ammo for. (h.role === 'heavy' marks the LEFT hand — the name is from an older design.)
+ */
+const handMode = h => (h.role === 'heavy' ? G.leftMode : G.rightMode);
+const ammoFor = mode => (mode === 'rocket' ? G.ammo.std : mode === 'heavy' ? G.ammo.heavy : mode === 'trap' ? G.ammo.trap : Infinity);
+const MODE_NAME = { gun: 'MASKINGEV\u00c6R', rocket: 'RAKETTER', heavy: 'TUNGE RAKETTER', trap: 'RATTEF\u00c6LDER' };
+function setMode(side, mode, quiet = false) {
+  if (side === 'left') G.leftMode = mode; else G.rightMode = mode;
+  hands.forEach(applyRole);
+  if (!quiet) toast(`${side === 'left' ? 'VENSTRE' : 'H\u00d8JRE'}: ${MODE_NAME[mode]}`);
+}
+function cycleHand(side) {
+  const order = ['gun', 'rocket', 'heavy', 'trap'];
+  const cur = side === 'left' ? G.leftMode : G.rightMode;
+  for (let i = 1; i <= order.length; i++) {
+    const m = order[(order.indexOf(cur) + i) % order.length];
+    if (ammoFor(m) > 0) { if (m !== cur) setMode(side, m); return; }
+  }
+}
+const toggleLeft = () => cycleHand('left');
+const toggleRight = () => cycleHand('right');
+/** Picked-up ammo: switch a hand to that weapon unless a hand already holds it. */
+function equip(kind, byHand) {
+  const mode = kind === 'heavy' ? 'heavy' : kind === 'trap' ? 'trap' : 'rocket';
+  if (G.leftMode === mode || G.rightMode === mode) return;
+  const side = byHand ? (byHand.role === 'heavy' ? 'left' : 'right') : G.rightMode === 'gun' ? 'right' : G.leftMode === 'gun' ? 'left' : 'right';
+  setMode(side, mode, true);
+}
+/** A weapon whose ammo is gone gives way to the gun. */
+function autoModes() {
+  if (ammoFor(G.leftMode) <= 0) setMode('left', 'gun');
+  if (ammoFor(G.rightMode) <= 0) setMode('right', 'gun');
 }
 
 /* ------------------------------------------------------- machine gun */
@@ -1237,6 +1395,7 @@ const pickups = [];
 const PK = {
   std: { box: 0x56603a, band: 0xe8c040, ring: 0xffe27a, label: '+3 RAKETTER' },
   heavy: { box: 0x8a2a1c, band: 0xffa020, ring: 0xff6a2a, label: '+2 TUNGE \u2014 VENSTRE H\u00c5ND' },
+  trap: { box: 0xa4792a, band: 0x5a3d18, ring: 0xffd06a, label: '+3 F\u00c6LDER' },
 };
 const pkBox = new THREE.BoxGeometry(0.26, 0.12, 0.15), pkBand = new THREE.BoxGeometry(0.04, 0.125, 0.155);
 const pkRing = new THREE.RingGeometry(0.2, 0.25, 40).rotateX(-Math.PI / 2);
@@ -1263,7 +1422,8 @@ function spawnPickup(kind) {
   const P = PK[kind], group = new THREE.Group();
   const box = new THREE.Mesh(pkBox, P.boxMat); box.position.y = 0.06; group.add(box);
   for (const dz of [-0.05, 0.05]) { const b = new THREE.Mesh(pkBand, P.bandMat); b.position.set(dz * 2, 0.06, 0); group.add(b); }
-  const icon = buildRocket(kind === 'heavy'); icon.scale.setScalar(0.5); icon.position.y = 0.3;
+  const icon = kind === 'trap' ? buildTrap().group : buildRocket(kind === 'heavy');
+  icon.scale.setScalar(kind === 'trap' ? 2.2 : 0.5); icon.position.y = 0.3;
   const iconPivot = new THREE.Group(); iconPivot.add(icon); iconPivot.position.y = 0.3; group.add(iconPivot);
   const ring = new THREE.Mesh(pkRing, new THREE.MeshBasicMaterial({ color: P.ring, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
   ring.position.y = 0.006; group.add(ring);
@@ -1285,13 +1445,14 @@ function updatePickups(dt) {
     p.ring.scale.setScalar(1 + 0.12 * Math.sin(p.age * 4));
     p.ring.material.opacity = 0.55 + 0.3 * Math.sin(p.age * 4);
     p.group.visible = p.age < 28 || Math.floor(p.age * 6) % 2 === 0;          // blinks for its last few seconds
-    let got = false;
+    let got = false, byHand = null;
     if (G.phase === 'play') {
-      if (Math.hypot(head.x - p.x, head.z - p.z) < 0.55) got = true;          // walk over it
-      else for (const h of hands) if (h.ctrl && h.ctrl.getWorldPosition(tmpV2).distanceTo(tmpV.set(p.x, 0.12, p.z)) < 0.32) got = true;   // or reach down to it
+      for (const h of hands) if (h.ctrl && h.ctrl.getWorldPosition(tmpV2).distanceTo(tmpV.set(p.x, 0.12, p.z)) < 0.32) { got = true; byHand = h; }   // reach down to it
+      if (!got && Math.hypot(head.x - p.x, head.z - p.z) < 0.55) got = true;          // or walk over it
     }
     if (got) {
-      if (p.kind === 'heavy') G.ammo.heavy = Math.min(6, G.ammo.heavy + 2); else G.ammo.std = Math.min(12, G.ammo.std + 3);
+      if (p.kind === 'heavy') G.ammo.heavy = Math.min(6, G.ammo.heavy + 2); else if (p.kind === 'trap') G.ammo.trap = Math.min(8, G.ammo.trap + 3); else G.ammo.std = Math.min(12, G.ammo.std + 3);
+      equip(p.kind, byHand);                                                    // picking up ammo switches a hand to that weapon
       toast(PK[p.kind].label);
       audio.pickup(p.kind === 'heavy');
       fx.spark(new V(p.x, 0.2, p.z), 1.6);
@@ -1323,12 +1484,12 @@ function makeHand(i) {
 }
 hands.push(makeHand(0), makeHand(1));
 
-/** Right hand: ordinary rockets (and the machine gun when they run out). Left hand: heavy rockets, and only
- *  there while some are stocked. A heavy launcher is painted dark red. */
+/** The launcher is painted by what the hand holds: gunmetal (bullets), olive (rockets), dark red (heavy), ochre (traps). */
 function applyRole(h) {
-  const heavy = h.role === 'heavy';
+  const mode = handMode(h);
   const [a, b, c] = h.L.bodyMats;
-  a.color.setHex(heavy ? 0x7d2a1c : 0x4b5233); b.color.setHex(heavy ? 0x55201a : 0x353b25); c.color.setHex(heavy ? 0x7d2a1c : 0x4b5233);
+  const [ca, cb] = mode === 'trap' ? [0xa4792a, 0x6e5220] : mode === 'heavy' ? [0x7d2a1c, 0x55201a] : mode === 'rocket' ? [0x4b5233, 0x353b25] : [0x3f454a, 0x2a2e32];
+  a.color.setHex(ca); b.color.setHex(cb); c.color.setHex(ca);
 }
 hands.forEach(applyRole);
 
@@ -1336,9 +1497,16 @@ function haptic(h, strength, ms) {
   try { h.gamepad?.hapticActuators?.[0]?.pulse(strength, ms); } catch (_) { /* no haptics */ }
 }
 
+/** Draw a line of text centred at (x,y), shrinking the font until it fits in maxW pixels. */
+function fitText(ctx, text, x, y, maxW, size) {
+  ctx.font = `bold ${size}px Arial`;
+  while (ctx.measureText(text).width > maxW && size > 12) { size -= 1; ctx.font = `bold ${size}px Arial`; }
+  ctx.fillText(text, x, y);
+}
+
 function drawHud(h) {
-  const heavyRole = h.role === 'heavy', have = heavyRole ? G.ammo.heavy : G.ammo.std;
-  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${h.role}|${have}|${G.toast}`;
+  const mode = handMode(h), have = ammoFor(mode);
+  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${h.role}|${mode}|${have}|${traps.length}|${G.toast}`;
   if (key === h.lastHud) return;
   h.lastHud = key;
   const { ctx, w, hgt = 170 } = h.L.panel;
@@ -1355,11 +1523,11 @@ function drawHud(h) {
   ctx.fillText(`RUNDE ${G.wave}`, 16, 92);
   ctx.textAlign = 'right'; ctx.fillText(`${G.score}`, 284, 92);
   ctx.textAlign = 'center'; ctx.font = 'bold 26px Arial';
-  if (G.toast) { ctx.fillStyle = '#ffe27a'; ctx.font = 'bold 28px Arial'; ctx.fillText(G.toast, 150, 140); }
-  else if (!heavyRole && have === 0) { ctx.fillStyle = '#ffcc33'; ctx.fillText('MASKINGEV\u00c6R  \u221e', 150, 140); }
+  if (G.toast) { ctx.fillStyle = '#ffe27a'; fitText(ctx, G.toast, 150, 140, 270, 28); }
+  else if (mode === 'gun') { ctx.fillStyle = '#ffcc33'; ctx.fillText('MASKINGEV\u00c6R  \u221e', 150, 140); }
   else {
-    ctx.fillStyle = h.cool > 0 ? '#ff6a55' : heavyRole ? '#ff9a4a' : '#6dff8c';
-    ctx.fillText(heavyRole ? `TUNGE RAKETTER ${have}` : `RAKETTER ${have}`, 150, 140);
+    ctx.fillStyle = h.cool > 0 ? '#ff6a55' : mode === 'trap' ? '#ffd040' : mode === 'heavy' ? '#ff9a4a' : '#6dff8c';
+    fitText(ctx, mode === 'trap' ? `F\u00c6LDER ${have} \u00b7 UDE ${traps.length}/${TRAP.maxActive}` : `${MODE_NAME[mode]} ${have}`, 150, 140, 270, 26);
   }
   h.L.panel.refresh();
 }
@@ -1507,8 +1675,8 @@ function showMenu() {
     { t: 'De k\u00f8rer panservogne, flyver helikoptere og sender kamikaze-r\u00f8tter.', s: 27, b: false },
     { t: 'Duk dig bag m\u00f8blerne, undvig skuddene og saml ammunition op.', s: 27, b: false },
     G.mode === 'flat'
-      ? { t: 'Klik: raket (hold: maskingev\u00e6r) \u00b7 Q / h\u00f8jreklik: tung \u00b7 WASD \u00b7 C: duk', s: 23, c: '#9fb3c8', b: false, gap: 6 }
-      : { t: 'H\u00f8jre h\u00e5nd: raketter, s\u00e5 maskingev\u00e6r \u00b7 Venstre: tunge raketter, n\u00e5r du har dem', s: 23, c: '#9fb3c8', b: false, gap: 6 },
+      ? { t: 'Klik: raket (hold: maskingev\u00e6r) \u00b7 Q / h\u00f8jreklik: venstre h\u00e5nd \u00b7 R / E: skift v\u00e5ben \u00b7 WASD \u00b7 C: duk', s: 23, c: '#9fb3c8', b: false, gap: 6 }
+      : { t: 'Begge h\u00e5nder: maskingev\u00e6r \u00b7 saml ammo op \u2014 begge h\u00e5nder kan bruge alle v\u00e5ben (thumbstick skifter)', s: 23, c: '#9fb3c8', b: false, gap: 6 },
     ...roomLines(),
     { t: G.mode === 'flat' ? 'KLIK FOR AT STARTE' : 'TR\u00c6K I UDL\u00d8SEREN FOR AT STARTE', s: 38, c: '#6dff8c', gap: 4 },
   ].map(l => ({ s: 30, ...l })), 0, 1, 'wave');
@@ -1522,6 +1690,7 @@ function resetEntities() {
   for (const r of rockets) scene.remove(r.obj); rockets.length = 0;
   for (const s of shells) scene.remove(s.obj); shells.length = 0;
   for (const b of bullets) scene.remove(b.obj); bullets.length = 0;
+  for (const t of traps) scene.remove(t.m.group); traps.length = 0;
   for (const p of pickups) scene.remove(p.group); pickups.length = 0;
   fx.clear(); scorch.clear(); recentSpawns.length = 0;
 }
@@ -1530,7 +1699,7 @@ function startGame() {
   resetEntities();
   hideMsg();
   G.hp = 100; G.score = 0; G.kills = 0; G.wave = 0; G.waveClear = false; G.bonusTotal = 0; G.waveRockets = 0;
-  G.ammo = { std: 6, heavy: 0 }; G.toast = ''; G.invuln = 0; G.fade = { t: -1, hold: false }; G.pickT = 9;
+  G.ammo = { std: 0, heavy: 0, trap: 0 }; G.leftMode = 'gun'; G.rightMode = 'gun'; hands.forEach(applyRole); G.toast = ''; G.invuln = 0; G.fade = { t: -1, hold: false }; G.pickT = 9;
   const wantVirtual = params.has('cover') || scan.sources.size === 0;
   if (wantVirtual && !virt.made) addVirtualCover();
   else if (!wantVirtual && virt.made) { removeVirtualCover(); rebuildNow([...scan.sources.values()]); }
@@ -1556,6 +1725,8 @@ function buildQueue(n) {
   while (q.length < Math.max(total, t1 + t2 + h3 + h4 + 2)) q.push(0);
   const runners = n >= 3 ? [2, 2, 3, 3, 4, 4, 5, 5, 6][Math.min(n - 3, 8)] : 0;       // kamikaze rats (value 9): a few at first, from round 3
   for (let i = 0; i < runners; i++) q.push(9);
+  const supers = n >= 8 ? (n < 10 ? 1 : n < 12 ? 2 : Math.min(3, 2 + Math.floor((n - 12) / 3))) : 0;   // super rats (value 8): from round 8
+  for (let i = 0; i < supers; i++) q.push(8);
   for (let i = q.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [q[i], q[j]] = [q[j], q[i]]; }
   const first = q.findIndex(v => v === 0);                                  // never open a wave with the big ones
   if (first > 0) [q[0], q[first]] = [q[first], q[0]];
@@ -1566,15 +1737,21 @@ function startWave(n) {
   G.wave = n;
   G.queue = buildQueue(n);
   G.toSpawn = G.queue.length;
-  G.waveRockets = 0; G.waveEnemies = G.queue.filter(v => v !== 9).length;
+  G.waveRockets = 0; G.waveEnemies = G.queue.filter(v => v < 8).length;
+  if (n === 3 && G.ammo.trap < 4) G.ammo.trap = 4;                            // rat traps come with the rats
   G.maxAlive = Math.min(1 + Math.ceil(n / 2), 5);
   G.spawnT = 1.8;
   G.waveClear = false;
   audio.alert('wave');
   const sub2 = n === 1 ? { t: 'Rotterne rykker ind!', c: '#e6edf5' } : n === 3 ? { t: 'KAMIKAZE-R\u00d8TTER!', c: '#ff5a44' } : n === 6 ? { t: 'SORTE PANSERVOGNE', c: '#ff5a44' } : n === 8 ? { t: 'ANGRIBSHELIKOPTER', c: '#ff5a44' } : n === 10 ? { t: 'SUPERTUNGE PANSERVOGNE', c: '#ff5a44' } : n === 12 ? { t: 'SORT KAMPHELIKOPTER', c: '#ff5a44' }
     : n === 5 ? { t: 'Tunge raketter dukker op', c: '#ffa020' } : { t: 'Rotterne bliver klogere', c: '#e6edf5' };
-  showMsg([{ t: `RUNDE ${n}`, s: 110, c: '#ffb454' }, { t: sub2.t, s: 38, c: sub2.c, b: [3, 6, 8, 10, 12].includes(n) }], 2.8, 0.7, 'angry');
-  if (n > 1) { spawnPickup('std'); if (n >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy'); }
+  showMsg([{ t: `RUNDE ${n}`, s: 110, c: '#ffb454' }, { t: sub2.t, s: 38, c: sub2.c, b: [3, 6, 8, 10, 12].includes(n) },
+    ...(n === 3 ? [{ t: 'Du har fire rattef\u00e6lder \u2014 thumbstick skifter v\u00e5ben (maks. 4 ude)', s: 24, c: '#ffd040', b: false }] : []),
+    ...(n === 6 ? [{ t: 'Pakker med rattef\u00e6lder dukker op', s: 26, c: '#ffd040', b: false }] : []),
+    ...(n === 8 ? [{ t: 'Og gr\u00f8nne SUPER-R\u00d8TTER \u2014 store, seje og langsomme', s: 26, c: '#7dff4a', b: true }] : [])], 3.4, 0.7, 'angry');
+  spawnPickup('std');                                                           // there is always a rocket crate to find (the hands start with bullet guns)
+  if (n >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy');
+  if (n >= 6 && !pickups.some(p => p.kind === 'trap')) spawnPickup('trap');
 }
 
 function gameOver() {
@@ -1607,23 +1784,24 @@ function updateGame(dt) {
   if (G.ammo.std + G.ammo.heavy === 0 && pickups.length === 0) G.pickT = Math.min(G.pickT, 2.5);
   if (G.pickT <= 0) {
     G.pickT = rand(11, 16);
-    const hv = pickups.some(p => p.kind === 'heavy');
+    const hv = pickups.some(p => p.kind === 'heavy'), tp = pickups.some(p => p.kind === 'trap');
     if (G.wave >= 5 && !hv && Math.random() < 0.45) spawnPickup('heavy');
+    else if (G.wave >= 6 && !tp && Math.random() < 0.4) spawnPickup('trap');           // trap packs from round 6
     else if (pickups.length < 3) spawnPickup('std');
   }
   const alive = tanks.reduce((n, t) => n + (t.dead || t.rat ? 0 : 1), 0);     // the kamikaze rats do not count toward the cap
   if (!G.waveClear) {
     if (G.toSpawn > 0) {
-      const next = G.queue[0] || 0;
-      if (alive < G.maxAlive || next === 9) {
+      const next = G.queue[0] || 0, isRat = next >= 8;
+      if (alive < G.maxAlive || isRat) {
         G.spawnT -= dt;
         if (G.spawnT <= 0) {
-          const p = next === 9 ? pickSpawn(2.8) : (next >= 3 ? pickHeliSpawn() : pickSpawn());
+          const p = isRat ? pickSpawn(next === 8 ? 3.4 : 2.8) : (next >= 3 ? pickHeliSpawn() : pickSpawn());
           if (p) {
             G.queue.shift(); noteSpawn(p.x, p.z);
-            if (next === 9) spawnRunner(p.x, p.z);
+            if (isRat) spawnRunner(p.x, p.z, next === 8);
             else if (next >= 3) spawnHeli(p.x, p.y, p.z, next - 3); else spawnTank(p.x, p.z, undefined, next);
-            G.toSpawn--; G.spawnT = next === 9 ? rand(0.5, 1.3) : rand(2, 4);
+            G.toSpawn--; G.spawnT = isRat ? rand(0.5, 1.3) : rand(2, 4);
           } else G.spawnT = 1;
         }
       }
@@ -1755,6 +1933,8 @@ function enterFlat() {
     keys[e.code] = true;
     if (e.code === 'KeyG') onSqueeze();
     if (e.code === 'KeyQ') onTrigger(0);
+    if (e.code === 'KeyE' && G.phase === 'play') toggleLeft();
+    if (e.code === 'KeyR' && G.phase === 'play') toggleRight();
     if (e.code === 'BracketLeft' || e.code === 'BracketRight') { G.light = clamp(G.light + (e.code === 'BracketRight' ? 0.1 : -0.1), 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); }
   });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1838,31 +2018,36 @@ function loop(_, frame) {
   updateGame(dt);
 
   // --- hands
+  if (G.phase === 'play') autoModes();
   for (const h of hands) {
     if (!h.ctrl) continue;
     h.ctrl.updateMatrixWorld(true);
-    const heavyRole = h.role === 'heavy', have = heavyRole ? G.ammo.heavy : G.ammo.std;
-    // the heavy launcher (left hand) only exists while heavy rockets are stocked
-    const present = !heavyRole || G.ammo.heavy > 0 || h.cool > 0;
-    h.L.group.visible = present;
-    if (!present) { h.dot.visible = false; h.ring.visible = false; h.lock = null; continue; }
+    const isLeft = h.role === 'heavy', mode = handMode(h), have = ammoFor(mode);
+    // thumbsticks: each stick switches ITS OWN hand's weapon (press it, or flick it sideways); the left stick
+    // pushed up/down is room brightness
+    if (G.mode === 'xr' && h.gamepad) {
+      const ax = h.gamepad.axes?.[2] ?? 0, ay = h.gamepad.axes?.[3] ?? 0;
+      if (isLeft) {
+        if (Math.abs(ay) > 0.55 && Math.abs(ax) < 0.6) { G.light = clamp(G.light - ay * dt * 0.5, 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); G.lightDirty = true; }
+        else if (G.lightDirty) { G.lightDirty = false; try { localStorage.setItem('tankAmbushLight', String(G.light)); } catch (_) { /* no storage */ } }
+      }
+      const down = !!h.gamepad.buttons?.[3]?.pressed || Math.abs(ax) > 0.8;
+      if (down && !h.stickDown) { h.stickDown = true; if (G.phase === 'play') cycleHand(isLeft ? 'left' : 'right'); }
+      else if (!down && Math.abs(ax) < 0.4) h.stickDown = false;
+    }
+    h.L.group.visible = true;
     if (h.cool > 0) {
       h.cool -= dt;
-      if (h.cool <= 0 && have > 0) audio.reload(h.ctrl.getWorldPosition(tmpV2).clone());
+      if (h.cool <= 0 && have > 0 && mode !== 'gun') audio.reload(h.ctrl.getWorldPosition(tmpV2).clone());
     }
-    // what is loaded: a standard or heavy rocket, or nothing (right hand: machine gun)
-    const ready = h.cool <= 0 && have > 0;
-    h.L.rocket.visible = ready && !heavyRole;
-    h.L.rocketH.visible = ready && heavyRole;
-    h.L.ledMat.color.setHex(h.cool > 0 ? 0xff3322 : have === 0 ? 0xffcc33 : heavyRole ? 0xff7a1a : 0x44ff66);
+    // what is loaded: a rocket, a heavy rocket, a trap, or nothing (the bullet gun)
+    const ready = h.cool <= 0 && have > 0 && mode !== 'gun';
+    h.L.rocket.visible = ready && mode === 'rocket';
+    h.L.rocketH.visible = ready && mode === 'heavy';
+    h.L.trap.visible = ready && mode === 'trap';
+    h.L.ledMat.color.setHex(h.cool > 0 ? 0xff3322 : mode === 'gun' ? 0xffcc33 : mode === 'trap' ? 0xffd040 : mode === 'heavy' ? 0xff7a1a : 0x44ff66);
     h.mg = Math.max(0, h.mg - dt);
-    if (G.phase === 'play' && h.trig && !heavyRole && G.ammo.std === 0 && h.mg <= 0) { h.mg = MG.rate; fireBullet(h); }
-    // thumbstick up/down: room brightness
-    if (G.mode === 'xr' && h.gamepad) {
-      const ay = h.gamepad.axes?.[3] ?? 0;
-      if (Math.abs(ay) > 0.55) { G.light = clamp(G.light - ay * dt * 0.5, 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); G.lightDirty = true; }
-      else if (G.lightDirty) { G.lightDirty = false; try { localStorage.setItem('tankAmbushLight', String(G.light)); } catch (_) { /* no storage */ } }
-    }
+    if (G.phase === 'play' && h.trig && mode === 'gun' && h.mg <= 0) { h.mg = MG.rate; fireBullet(h); }
     h.L.muzzle.getWorldPosition(mp);
     md.set(0, 0, -1).transformDirection(h.ctrl.matrixWorld);
     // laser sight
@@ -1907,6 +2092,7 @@ function loop(_, frame) {
   updateShells(dt);
   updateRockets(dt);
   updateBullets(dt);
+  updateTraps(dt);
   updatePickups(dt);
   fx.update(dt); scorch.update(dt);
 
@@ -1936,4 +2122,4 @@ function loop(_, frame) {
 })();
 
 // handy for poking at the game from the console
-window.__tank = { spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
+window.__tank = { setMode, toggleRight, handMode, autoModes, startWave, SUPER, TRAP, traps, launchTrap, toggleLeft, trapBoom, spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };

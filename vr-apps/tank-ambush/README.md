@@ -44,6 +44,12 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 * Flat preview: `?flat` in the URL or the button — WASD, mouse (click to capture), click to fire, `G` for the room mesh.
 * URL options: `?cover=1` always add virtual barriers, `?mesh=0` ignore the headset's room scan.
 
+## Weapons: one per hand, any weapon in either
+
+Both hands start as bullet guns (`'gun'`, `MG`). Each hand holds one weapon at a time and **either hand can hold any of them**: `G.leftMode` / `G.rightMode` are each `gun`, `rocket`, `heavy` or `trap` (`handMode(h)`), all drawing on one shared ammo pool (`G.ammo`). **Picking up ammo switches a hand to that weapon** (`equip`: the hand that reached for the crate, otherwise the first hand still holding a gun; nothing happens if a hand already holds it); when a weapon's ammo is gone the hand falls back to the gun (`autoModes`). The player starts with no rockets, so round 1 always spawns a rocket crate. **Each hand's own thumbstick** (press it, or flick it sideways) steps that hand through the weapons it has ammo for (`cycleHand`); the left stick pushed up/down is room light. Flat preview: `E` left, `R` right. The launcher is painted by what it holds (gunmetal / olive / dark red / ochre) and the readout names the weapon and the ammo.
+
+(Older notes below describe the weapons as they were introduced.)
+
 ## Hands, rings and room light
 
 * **Right hand** = ordinary rockets, and the machine gun once they run out. **Left hand** = heavy rockets; that launcher (painted dark red) is hidden unless heavy rockets are stocked. Roles come from the controller's handedness (`applyRole`); in the flat preview, click = right hand, right-click or Q = left.
@@ -56,6 +62,17 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 * **Tank crews** (`buildRatHead` / `animRatHead` in `models.js`): a rat looks out of every tank's hatch, two (with black caps and red eyes) on the black tanks. They bob, blink, twitch their ears and follow the player with their eyes, duck into the hatch when the tank retreats, and are thrown clear when it blows up.
 * **Kamikaze rats** (`spawnRunner` / `updateRat` / `explodeRat` in `game.js`, model `buildRunnerRat`): from round 3 (`buildQueue`: 2, 2, 3, 3, 4, 4, 5, 5, then 6 per round; queue value 9). They run at the player's feet along the nav flow field, zigzagging, light a fuse about 1.1 m out and go off 0.45 s later with a small firecracker bang (`fx.bang`) for 9-24 damage and only a short red flash (`hurtPlayer(d, true)`). 30 HP: three machine-gun bullets, or any rocket blast nearby (`fx.poof`). They never get a lock-on ring and do not count toward the enemy cap.
 * **Dialog rats**: every in-game dialog (`showMsg` / `drawMsg`) has an animated cartoon rat in each corner (`drawRat`, moods: wave, angry, sad, cheer). The start page has the same rat as animated inline SVG.
+
+* **Beeping**: each kamikaze rat carries a positional beeper (`audio.beeper`): slow beeps from afar, faster and higher as it closes in, frantic once the fuse is lit. It stops when the rat dies.
+* **Blast zone**: `RUNNER.radius` is 1.6 m (damage 9-26, falling off with distance). A red ring of that radius is drawn on the floor round every rat and pulses with its urgency; `fx.bang(p, s, ringR)` throws a dust shockwave out to that radius.
+
+## Super rats
+
+From round 8 (`buildQueue` value 8: 1, 1, 2, 2, 2, then up to 3) a green mutant kamikaze rat (`SUPER` in `game.js`, `buildRunnerRat(true)`): 2.5x size (about a tank's bulk: 0.8 m long with tail, 0.29 m tall), 140 HP (a direct standard rocket leaves 30; a heavy one kills), half the speed, a 2.1 m blast (12-36 damage) behind a green floor ring, a deeper beep, and a glowing green aura that sheds goo particles and a slime trail. Shot or detonated they burst in `fx.slime`.
+
+## Rat traps (left hand)
+
+The left hand has two weapons: heavy rockets and rat traps (`G.leftMode`). The **right thumbstick** (press, or flick sideways; `E` in the flat preview) switches; the **left thumbstick** up/down is room light. A trap (`launchTrap` in `game.js`, model `buildTrap`) is lobbed with a ballistic arc (`TRAP.speed` 4.6 m/s), lands on the floor or a surface, arms after 0.35 s and blinks a red light. Anything on the floor stepping on it (a rat within 0.2 m, or a tank hull) sets it off: `trapBoom`, radius 0.95 m, kills kamikaze rats (+30) and only scratches tanks (15 HP). Helicopters are not affected. Traps come in with round 3 (4 to start); trap packs (+3, `PK.trap`) only turn up from round 6. **At most 4 traps may be out at once** (`TRAP.maxActive`): a throw with 4 out is refused ("4 FÆLDER ER UDE") and costs no ammo. A trap does 70 damage to a super rat instead of killing it. When the left hand's weapon runs dry it switches to the other if that has ammo (`autoLeft`).
 
 ## Scoring
 
@@ -71,4 +88,4 @@ Anywhere in the room that is valid (open floor or air you can reach, at least 1.
 
 ## Cache busting
 
-The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114d`) whenever the game files change.**
+The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114i`) whenever the game files change.**
