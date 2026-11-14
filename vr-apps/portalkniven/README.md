@@ -25,3 +25,10 @@ Siden: `https://peterboggild.github.io/BrokildApps/vr-apps/portalkniven/`
 * Rummets scanning skjuler ikke ringen bag rigtige møbler endnu (ingen occluder).
 * ±3 cm omkring ringens plan ser det ene øje ringen fra den anden side i et øjeblik.
 * Ingen ankre: ringen sidder fast i sessionens koordinater.
+
+## Den anden stue (organisk look)
+* Mørk, fugtig og bevokset: overflader med mos-agtig støj og et svagt, langsomt pulserende net af lysende årer (i verdensrum, så en væg ser ens ud fra begge sider).
+  Rummets scanning (hvis givet) får den samme hud, og et gulv under alt.
+* Tynde, bøjede stilke med en lysende knop, bløde bælge på gulvet, langsomt svævende sporer, tåge og en tæt, kølig himmel. Alt svajer og lyser meget svagt.
+* Rumlyset (WebXR `light-estimation`) gør den anden stue lysere eller mørkere, så den passer til dit rum. Tavlen viser værdien (`Rumlys`) og om
+  `camera-access` blev givet (`Kamera`); kameraet bruges ikke endnu.
