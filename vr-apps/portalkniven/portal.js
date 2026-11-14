@@ -17,6 +17,7 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=5';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -35,6 +36,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
 renderer.setSize(innerWidth, innerHeight, false);
 renderer.setClearColor(0x000000, 0);
 renderer.localClippingEnabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType('local-floor');
 const gl = renderer.getContext();
@@ -43,10 +45,8 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 80);
 camera.rotation.order = 'YXZ';
 camera.position.set(0, 1.6, 0);
-const hemi = new THREE.HemisphereLight(0x86c4b8, 0x0a1210, 1.0); scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xbfe8dd, 0.55); sun.position.set(2, 5, 1); scene.add(sun);
-const FOG_COL = new THREE.Color(0x0a1412);
-scene.fog = new THREE.FogExp2(0x0a1412, 0.17);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x4a4e58, 0.7); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 2.1); sun.position.set(2, 5, 1); scene.add(sun);
 const ringLight = new THREE.PointLight(0x40ff90, 0, 7, 1.5); scene.add(ringLight);
 
 /* a small studio-like environment, so the steel and brass of the knife have something to reflect */
@@ -58,198 +58,25 @@ const ringLight = new THREE.PointLight(0x40ff90, 0, 7, 1.5); scene.add(ringLight
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.04).texture; pm.dispose();
 }
 
-const S = { bright: 1, brightTarget: 1, lum: -1, camera: false, inB: false, side: 1, placed: false, mode: 'menu', stencilBits: null, crossings: 0, frames: 0, scanMeshes: 0, scanFeature: false, time: 0, msg: '', msgT: -99 };
+const S = { bright: 1, brightTarget: 1, lum: -1, camera: false, cur: 0, oth: 1, side: 1, placed: false, mode: 'menu', stencilBits: null, crossings: 0, frames: 0, scanMeshes: 0, scanFeature: false, time: 0, msg: '', msgT: -99 };
 const DOOR = { Rx: 0.6, Ry: 1.1 };                             // an upright oval you can walk through (1.2 m wide, 2.2 m tall)
 const portal = { c: new V(0, DOOR.Ry + 0.03, -1.6), n: new V(0, 0, 1), x: new V(1, 0, 0), y: new V(0, 1, 0), Rx: DOOR.Rx, Ry: DOOR.Ry, anim: null };
 const head = new V(0, 1.6, 0), prevHead = new V(0, 1.6, 0), headQ = new THREE.Quaternion();
 const say = t => { S.msg = t; S.msgT = S.time; };
 
-/* ============================================ the two worlds: roles & stencil */
+/* ================================================================ the dimensions (worlds.js) */
 
-const worldA = new THREE.Group(), worldB = new THREE.Group();
-scene.add(worldA, worldB);
-const world = { A: worldA, B: worldB };
-const mats = { A: [], B: [] };
-const clip = { A: new THREE.Plane(new V(0, 1, 0), 1e6), B: new THREE.Plane(new V(0, 1, 0), 1e6) };   // 1e6: lets everything through
+const worlds = createWorlds(scene, renderer, params);
+const applyRoles = () => worlds.applyRoles(S.cur, S.oth);
 
-/** Every material of a world is registered here, so the world can be switched between "home" and "seen through the oval". */
-function reg(w, m) {
-  m.clippingPlanes = [clip[w]];
-  m.stencilWrite = false; m.stencilRef = 1; m.stencilFunc = THREE.EqualStencilFunc;
-  m.stencilFail = m.stencilZFail = m.stencilZPass = THREE.KeepStencilOp;
-  mats[w].push(m);
-  return m;
-}
-
-const ORDER = { bgHome: -10, home: 0, mask: 10, fill: 20, other: 30 };
-let bgHomeB, fillB, fillA;
-function applyRoles() {
-  for (const w of ['A', 'B']) {
-    const home = (w === 'B') === S.inB;
-    for (const m of mats[w]) m.stencilWrite = !home;
-    world[w].traverse(o => { if (o.isMesh || o.isPoints || o.isLine) o.renderOrder = home ? ORDER.home : ORDER.other; });
-  }
-  bgHomeB.visible = S.inB;       // inside B the whole view is B's sky
-  fillB.visible = !S.inB;        // from A: B's sky + depth reset inside the oval
-  fillA.visible = S.inB;         // from B: the oval shows alpha 0 = the real room (passthrough)
-}
-
-/* a full-screen quad that sits at the far plane and reconstructs the view direction (for the sky) */
-const QUAD_VS = `
-  varying vec3 vDir;
-  void main() {
-    vec4 clipPos = vec4(position.xy, 0.9999, 1.0);
-    vec4 v = inverse(projectionMatrix) * clipPos;
-    vDir = transpose(mat3(viewMatrix)) * (v.xyz / v.w);
-    gl_Position = clipPos;
-  }`;
-const SKY_FS = `
-  precision highp float;
-  varying vec3 vDir; uniform float uTime; uniform float uBright;
-  float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-  float noise(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-               mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z); }
-  void main() {
-    vec3 d = normalize(vDir);
-    float h = d.y;
-    vec3 horizon = vec3(0.040, 0.080, 0.070), zenith = vec3(0.008, 0.020, 0.032);
-    vec3 col = mix(horizon, zenith, smoothstep(-0.05, 0.85, h));
-    vec2 q = d.xz / (abs(d.y) + 0.45);                                   // a slow, thin mist overhead
-    float m = noise(vec3(q * 1.4, uTime * 0.02)) * 0.65 + noise(vec3(q * 3.7, uTime * 0.03 + 4.0)) * 0.35;
-    col += vec3(0.045, 0.115, 0.095) * pow(m, 2.2) * smoothstep(0.0, 0.5, h);
-    float band = exp(-pow((h - 0.30) * 4.5, 2.0)) * pow(noise(vec3(d.x * 5.0, d.y * 1.5, d.z * 5.0) + uTime * 0.05), 2.0);
-    col += vec3(0.0, 0.20, 0.14) * band * 0.28;
-    if (h < 0.0) col = horizon * (0.9 + 0.1 * h);
-    gl_FragColor = vec4(col * uBright, 1.0);
-  }`;
-const CLEAR_FS = 'void main() { gl_FragColor = vec4(0.0); }';
-const stencilEqual = m => { m.stencilWrite = true; m.stencilRef = 1; m.stencilFunc = THREE.EqualStencilFunc; m.stencilFail = m.stencilZFail = m.stencilZPass = THREE.KeepStencilOp; return m; };
-const quadGeo = new THREE.PlaneGeometry(2, 2);
-function quad(fs, inRing) {
-  const m = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: fs, uniforms: { uTime: { value: 0 }, uBright: { value: 1 } }, blending: THREE.NoBlending, depthTest: inRing, depthWrite: inRing, depthFunc: THREE.AlwaysDepth });
-  if (inRing) stencilEqual(m);
-  const q = new THREE.Mesh(quadGeo, m);
-  q.frustumCulled = false; q.renderOrder = inRing ? ORDER.fill : ORDER.bgHome;
-  scene.add(q);
-  return q;
-}
-bgHomeB = quad(SKY_FS, false);
-fillB = quad(SKY_FS, true);
-fillA = quad(CLEAR_FS, true);
-const skyMats = [bgHomeB.material, fillB.material];
-
-/* ================================================================ world A (your room: almost nothing virtual) */
-
-function gridTex(bg, line, repeat) {
-  const c = document.createElement('canvas'); c.width = c.height = 256;
-  const x = c.getContext('2d'); x.fillStyle = bg; x.fillRect(0, 0, 256, 256);
-  x.strokeStyle = line; x.lineWidth = 4; x.strokeRect(2, 2, 252, 252);
-  x.globalAlpha = 0.35; x.lineWidth = 2; x.beginPath(); x.moveTo(128, 0); x.lineTo(128, 256); x.moveTo(0, 128); x.lineTo(256, 128); x.stroke();
-  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-const decoA = new THREE.Group(); worldA.add(decoA);
-{
-  const orange = reg('A', new THREE.MeshLambertMaterial({ color: 0xff9a3c, emissive: 0x7a3a08, flatShading: true }));
-  const warm = reg('A', new THREE.MeshBasicMaterial({ color: 0xffd9a0 }));
-  if (params.has('flat')) {                                       // reference objects for the laptop preview only: the real room has nothing virtual in it
-    for (let i = 0; i < 6; i++) {
-      const h = rnd(0.5, 1.5);
-      const p = new THREE.Mesh(new THREE.BoxGeometry(0.16, h, 0.16), orange);
-      p.position.set(rnd(-1.3, 1.3), h / 2, rnd(0.6, 2.6)); decoA.add(p);
-    }
-    const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 1), warm); orb.position.set(0, 1.7, 1.8); decoA.add(orb); decoA.userData.orb = orb;
-  }
-  if (params.has('flat') || params.get('floor') === '1') {                    // a floor to stand on, only on a laptop
-    const g = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), reg('A', new THREE.MeshBasicMaterial({ map: gridTex('#1b2230', '#33445e', 60), side: THREE.DoubleSide })));
-    g.rotation.x = -Math.PI / 2; g.position.y = -0.005; worldA.add(g);
-  }
-}
-
-/* ================================================================ world B (the other universe) */
-
-const decoB = new THREE.Group(); worldB.add(decoB);
-const scanGroup = new THREE.Group(); worldB.add(scanGroup);
-const orgTime = { value: 0 };
-const NOISE_GLSL = `
-  float orgH(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-  float orgN(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(mix(orgH(i), orgH(i + vec3(1,0,0)), f.x), mix(orgH(i + vec3(0,1,0)), orgH(i + vec3(1,1,0)), f.x), f.y),
-               mix(mix(orgH(i + vec3(0,0,1)), orgH(i + vec3(1,0,1)), f.x), mix(orgH(i + vec3(0,1,1)), orgH(i + vec3(1,1,1)), f.x), f.y), f.z); }
-  float orgF(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * orgN(p); p = p * 2.03 + vec3(1.7, 9.2, 3.4); a *= 0.5; } return s; }`;
-/** Damp, dark, mossy surfaces with a faint network of slowly pulsing glowing veins, in world space (so a wall looks the same from either side). */
-function organic(color, rough, vein) {
-  const m = new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.3 });
-  m.onBeforeCompile = sh => {
-    sh.uniforms.uTime = orgTime;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; uniform float uTime;\n' + NOISE_GLSL)
-      .replace('#include <color_fragment>', `#include <color_fragment>
-        float n1 = orgF(vWP * 1.7), n2 = orgF(vWP * 6.5 + 3.1);
-        vec3 moss = mix(vec3(0.040, 0.060, 0.052), vec3(0.150, 0.190, 0.115), smoothstep(0.35, 0.78, n1));
-        diffuseColor.rgb = mix(diffuseColor.rgb, moss, 0.9) * (0.7 + 0.55 * n2);`)
-      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        float vein = 1.0 - smoothstep(0.0, 0.04, abs(orgF(vWP * 1.15 + vec3(0.0, uTime * 0.01, 0.0)) - 0.5));
-        float pulse = 0.5 + 0.5 * sin(uTime * 0.5 + n1 * 9.0);
-        totalEmissiveRadiance += vec3(0.04, 0.5, 0.42) * vein * pulse * ${vein.toFixed(2)};`);
-  };
-  m.customProgramCacheKey = () => 'organic' + vein;
-  return m;
-}
-{
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), reg('B', organic(0x1a2420, 0.95, 0.5)));
-  floor.rotation.x = -Math.PI / 2; floor.position.y = -0.012; worldB.add(floor);
-  const stalkM = reg('B', new THREE.MeshStandardMaterial({ color: 0x17221d, roughness: 0.75, metalness: 0 }));
-  const glowM = reg('B', new THREE.MeshStandardMaterial({ color: 0x0b2b27, emissive: 0x1fd8b4, emissiveIntensity: 1.1, roughness: 0.45, metalness: 0 }));
-  decoB.userData.stalks = [];
-  for (let i = 0; i < 12; i++) {                                  // thin, bending stalks with a glowing bud: a few right behind the door, the rest scattered
-    const near = i < 6, d = near ? rnd(1.6, 3.2) : rnd(1.0, 5.5), a = near ? rnd(-0.5, 0.5) : rnd(-1.5, 1.5);
-    const h = rnd(0.5, near ? 1.9 : 1.2), lean = rnd(-0.35, 0.35), g = new THREE.Group();
-    const pts = []; for (let k = 0; k <= 5; k++) { const t = k / 5; pts.push(new V(lean * t * t * h + rnd(-0.015, 0.015) * k, t * h, rnd(-0.015, 0.015) * k)); }
-    g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, rnd(0.008, 0.016), 6, false), stalkM));
-    const bud = new THREE.Mesh(new THREE.SphereGeometry(rnd(0.025, 0.05), 12, 9), glowM); bud.position.copy(pts[5]); bud.scale.y = 1.35; g.add(bud);
-    g.position.set(Math.sin(a) * d, 0, -Math.cos(a) * d); g.userData.p = rnd(0, TAU); g.userData.sw = rnd(0.02, 0.05); decoB.add(g); decoB.userData.stalks.push(g);
-  }
-  for (let c = 0; c < 6; c++) {                                    // low clusters of soft pods on the floor
-    const cx = rnd(-2.5, 2.5), cz = -rnd(0.8, 5);
-    for (let k = 0; k < 4; k++) { const r = rnd(0.04, 0.11), p = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 9), glowM); p.scale.y = rnd(0.6, 0.9); p.position.set(cx + rnd(-0.2, 0.2), r * 0.6, cz + rnd(-0.2, 0.2)); decoB.add(p); }
-  }
-  const dot = document.createElement('canvas'); dot.width = dot.height = 64; const dx = dot.getContext('2d');
-  const grd = dx.createRadialGradient(32, 32, 0, 32, 32, 32); grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.4, 'rgba(255,255,255,.35)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
-  dx.fillStyle = grd; dx.fillRect(0, 0, 64, 64);
-  const sp = new Float32Array(150 * 3); for (let i = 0; i < 150; i++) { sp[i * 3] = rnd(-4, 4); sp[i * 3 + 1] = rnd(0.1, 2.6); sp[i * 3 + 2] = -rnd(0.3, 7); }
-  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-  const spores = new THREE.Points(sg, reg('B', new THREE.PointsMaterial({ size: 0.035, map: new THREE.CanvasTexture(dot), color: 0xa8ffe8, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending })));
-  spores.frustumCulled = false; decoB.add(spores); decoB.userData.spores = spores;
-}
-const scanSolid = reg('B', organic(0x202c27, 0.92, 0.8)); scanSolid.polygonOffset = true; scanSolid.polygonOffsetFactor = 1; scanSolid.polygonOffsetUnits = 1;
-const scanWire = reg('B', new THREE.MeshBasicMaterial({ color: 0x40ffd0, wireframe: true, transparent: true, opacity: 0.55 }));
-const scanKnown = new Map();
-let scanNext = 0;
-function updateScan(frame, refSpace) {
-  const now = performance.now();
-  if (now < scanNext || !frame.detectedMeshes) return;
-  scanNext = now + 600; S.scanFeature = true;
-  let did = 0; const seen = new Set();
-  for (const m of frame.detectedMeshes) {
-    seen.add(m);
-    const rec = scanKnown.get(m);
-    if (rec && m.lastChangedTime <= rec.t) continue;
-    if (did >= 1) { scanNext = 0; continue; }
-    const pose = frame.getPose(m.meshSpace, refSpace); if (!pose) continue;
-    if (rec) { scanGroup.remove(rec.g); rec.geo.dispose(); }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.vertices), 3));
-    geo.setIndex(new THREE.BufferAttribute(new Uint32Array(m.indices), 1));
-    geo.computeVertexNormals();
-    const g = new THREE.Group(); g.matrixAutoUpdate = false; g.matrix.fromArray(pose.transform.matrix);
-    g.add(new THREE.Mesh(geo, scanSolid)); if (params.get('skin') === 'wire') g.add(new THREE.Mesh(geo, scanWire));
-    scanGroup.add(g); scanKnown.set(m, { t: m.lastChangedTime, g, geo }); did++;
-    applyRoles();
-  }
-  for (const [k, rec] of scanKnown) if (!seen.has(k)) { scanGroup.remove(rec.g); rec.geo.dispose(); scanKnown.delete(k); }
-  S.scanMeshes = scanKnown.size;
+/** The stick: choose where the door leads. Never the dimension you are standing in. */
+function cycleOther(dir) {
+  let o = S.oth;
+  do { o = (o + dir + DIMS.length) % DIMS.length; } while (o === S.cur);
+  S.oth = o;
+  if (S.placed) { worlds.anchor(o, portal.c.x, portal.c.z, Math.atan2(portal.n.x, portal.n.z)); flash.userData.t = 0.35; shockT = 0.25; knifeGlow = 1.6; zapSmall(); haptic(0.5, 80); }
+  applyRoles();
+  say('D\u00f8ren f\u00f8rer til ' + DIMS[o].name);
 }
 
 /* ================================================================ the oval ring */
@@ -502,8 +329,7 @@ function igniteAt(from, n, s0, dur = 1.35) {
   ring.quaternion.setFromRotationMatrix(m); shock.quaternion.copy(ring.quaternion);
   ring.position.copy(from); ring.scale.set(s0, s0, 1); ring.visible = true;
   const yaw = Math.atan2(n.x, n.z);                                           // the worlds' decorations follow the door
-  decoB.position.set(to.x, 0, to.z); decoB.rotation.set(0, yaw, 0);
-  decoA.position.set(to.x, 0, to.z); decoA.rotation.set(0, yaw, 0);
+  worlds.anchor(S.oth, to.x, to.z, yaw); worlds.anchor(0, to.x, to.z, yaw, true);
   S.placed = true; prevHead.copy(head);
   shock.position.copy(to); shockT = 0;
   flash.position.copy(from); flash.userData.t = 0; flash.userData.from = from.clone(); flash.userData.to = to.clone();
@@ -541,16 +367,14 @@ function checkCrossing() {
   if ((d0 < 0) !== (d1 < 0)) {
     const t = d0 / (d0 - d1), p = prevHead.clone().lerp(head, t).sub(portal.c);
     const lx = p.dot(portal.x) / portal.Rx, ly = p.dot(portal.y) / portal.Ry;
-    if (lx * lx + ly * ly < 0.95) { S.inB = !S.inB; S.crossings++; applyRoles(); whoosh(); haptic(0.6, 120); }
+    if (lx * lx + ly * ly < 0.95) { const c = S.cur; S.cur = S.oth; S.oth = c; S.crossings++; applyRoles(); whoosh(); haptic(0.6, 120); say('Du er i ' + DIMS[S.cur].name); }
   }
   prevHead.copy(head);
 }
 function updateClip() {
   const d = new V().copy(head).sub(portal.c).dot(portal.n);
   S.side = d >= 0 ? 1 : -1;
-  const other = S.inB ? 'A' : 'B', home = S.inB ? 'B' : 'A';
-  clip[other].setFromNormalAndCoplanarPoint(portal.n.clone().multiplyScalar(-S.side), portal.c);   // keep only what is behind the door, seen from where you stand
-  clip[home].set(new V(0, 1, 0), 1e6);
+  worlds.setClip(S.oth, portal.n.clone().multiplyScalar(-S.side), portal.c);   // keep only what is behind the door, seen from where you stand
 }
 
 /* ================================================================ sound */
@@ -597,6 +421,13 @@ function zap() {
   o.connect(og); og.connect(ctx.destination); o.start(t); o.stop(t + 1);
   if (AU.ringGain) { AU.ringGain.gain.cancelScheduledValues(t); AU.ringGain.gain.setValueAtTime(0.0, t); AU.ringGain.gain.linearRampToValueAtTime(0.6, t + 1.2); AU.humGain.gain.setValueAtTime(0, t); AU.humGain.gain.linearRampToValueAtTime(0.07, t + 1.2); }
 }
+function zapSmall() {
+  const ctx = AU.ctx; if (!ctx) return; const t = ctx.currentTime;
+  const s = ctx.createBufferSource(); s.buffer = noiseBuffer(ctx, 0.35);
+  const hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.Q.value = 2; hp.frequency.setValueAtTime(700, t); hp.frequency.exponentialRampToValueAtTime(4200, t + 0.3);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+  s.connect(hp); hp.connect(g); g.connect(ctx.destination); s.start(t);
+}
 function updateAudio() {
   const ctx = AU.ctx; if (!ctx || !AU.pan) return;
   const L = ctx.listener, t = ctx.currentTime;
@@ -616,10 +447,11 @@ function hudLines() {
   const bits = S.stencilBits, msg = S.time - S.msgT < 4 ? S.msg : '';
   return [
     'PORTALKNIVEN',
-    `Verden: ${S.inB ? 'B  (den lilla)' : 'A  (din stue)'}   Gennemgange: ${S.crossings}`,
+    `Du er i: ${DIMS[S.cur].name}`,
+    `D\u00f8ren f\u00f8rer til: ${DIMS[S.oth].name}`,
     S.mode === 'xr' ? `Stencil: ${bits === null ? '?' : bits}${bits === 0 ? '  VINDUET VIRKER IKKE' : ''}   Scan: ${S.scanFeature ? S.scanMeshes + ' mesh' : 'ingen'}` : 'Fladt preview',
     `Rumlys: ${S.lum < 0 ? 'ingen' : S.lum.toFixed(2)}   Kamera: ${S.camera ? 'ja' : 'nej'}`,
-    cut.state === 'cutting' ? 'Skærer … luk ringen!' : S.placed ? 'Skær en ny ring for at flytte døren' : 'Hold udløseren og skær en ring i luften',
+    cut.state === 'cutting' ? 'Skærer … luk ringen!' : S.placed ? 'Højre stick: skift verden bag døren' : 'Hold udløseren og skær en ring i luften',
     msg,
   ];
 }
@@ -627,12 +459,12 @@ let hudNext = 0;
 function drawHud() {
   const now = performance.now(); if (now < hudNext) return; hudNext = now + 200;
   const lines = hudLines();
-  if (S.mode === 'flat') { $('hud').textContent = lines.filter(Boolean).join('\n') + '\n(WASD, træk = kig, Shift+træk = skær, P = sæt ring)'; return; }
+  if (S.mode === 'flat') { $('hud').textContent = lines.filter(Boolean).join('\n') + '\n(WASD, træk = kig, Shift+træk = skær, P = sæt ring, Q/E = skift verden)'; return; }
   const x = hudCanvas.getContext('2d');
   x.clearRect(0, 0, 512, 300); x.fillStyle = 'rgba(4,10,8,.82)'; x.fillRect(0, 0, 512, 300); x.strokeStyle = '#4dff88'; x.lineWidth = 6; x.strokeRect(3, 3, 506, 294);
   x.fillStyle = '#4dff88'; x.font = 'bold 34px monospace'; x.fillText(lines[0], 22, 50);
-  x.font = '22px monospace';
-  lines.slice(1).forEach((l, i) => { x.fillStyle = l.includes('VIRKER IKKE') ? '#ff7a7a' : i === 3 ? '#ffd56a' : '#d7ffe4'; x.fillText(l, 22, 90 + i * 38); });
+  x.font = '21px monospace';
+  lines.slice(1).forEach((l, i) => { x.fillStyle = l.includes('VIRKER IKKE') ? '#ff7a7a' : i === 1 ? '#7dffb0' : i === 4 ? '#ffd56a' : '#d7ffe4'; x.fillText(l, 22, 86 + i * 34); });
   hudTex.needsUpdate = true;
 }
 
@@ -681,7 +513,7 @@ function enterFlat() {
   S.mode = 'flat'; document.body.classList.add('playing', 'flat');
   canvas.style.display = 'block';
   scene.add(camera); scene.add(knife);
-  addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyP') placeDirect(); });
+  addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyP') placeDirect(); if (e.code === 'KeyE') cycleOther(1); if (e.code === 'KeyQ') cycleOther(-1); });
   addEventListener('keyup', e => { keys[e.code] = false; });
   let drag = null;
   const aim = e => { ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera); flatTip.pos.copy(ray.ray.origin).addScaledVector(ray.ray.direction, 1.3); };
@@ -714,6 +546,15 @@ function flatMove(dt) {
 addEventListener('resize', () => { if (S.mode === 'xr') return; renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 
 let lightProbe = null;
+let stickHeld = false;
+function pollStick() {                                              // the right hand's thumbstick (or the knife hand's, if the headset does not say which is right)
+  let i = ctrl.findIndex(c => c.hand === 'right'); if (i < 0) i = knifeIdx;
+  const gp = ctrl[i].src && ctrl[i].src.gamepad; if (!gp) return;
+  const ax = gp.axes.length >= 4 ? gp.axes[2] : gp.axes[0] || 0, press = !!(gp.buttons[3] && gp.buttons[3].pressed);
+  const on = Math.abs(ax) > 0.7 || press;
+  if (on && !stickHeld) cycleOther(ax < -0.7 ? -1 : 1);
+  stickHeld = on || Math.abs(ax) > 0.35;
+}
 const clock = new THREE.Clock(), tipW = new V();
 function loop(_, frame) {
   const dt = Math.min(0.05, clock.getDelta()); S.time += dt; S.frames++;
@@ -721,7 +562,8 @@ function loop(_, frame) {
   else if (S.mode === 'xr' && frame) {
     const ref = renderer.xr.getReferenceSpace(), vp = frame.getViewerPose(ref);
     if (vp) { const p = vp.transform.position, o = vp.transform.orientation; head.set(p.x, p.y, p.z); headQ.set(o.x, o.y, o.z, o.w); }
-    updateScan(frame, ref);
+    { const si = worlds.updateScan(frame, ref); S.scanFeature = si.feature; S.scanMeshes = si.count; if (worlds.dirty) applyRoles(); }
+    pollStick();
     if (lightProbe) { try { const est = frame.getLightEstimate(lightProbe), sh = est && est.sphericalHarmonicsCoefficients; if (sh && sh.length >= 3) { const lum = (0.2126 * sh[0] + 0.7152 * sh[1] + 0.0722 * sh[2]) / 3.54; S.lum = lum; S.brightTarget = clamp(0.5 + lum * 2.0, 0.5, 1.5); } } catch (_) { /* no estimate this frame */ } }
   }
   if (S.mode !== 'menu') {
@@ -732,18 +574,15 @@ function loop(_, frame) {
     trMat.uniforms.uNow.value = S.time; updateTrailGeometry();
     tipSparks.step(dt, 1.2);
     knife.userData.rune.color.setRGB(0.25 * knifeGlow, 1.0 * Math.min(1.4, knifeGlow), 0.5 * knifeGlow);
-    knife.userData.halo.opacity = clamp(0.06 + 0.4 * knifeGlow, 0, 1);
+    knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
     updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); drawHud();
-    for (const q of skyMats) q.uniforms.uTime.value = S.time;
-    orgTime.value = S.time;
-    if (decoB.userData.stalks) for (const g of decoB.userData.stalks) { g.rotation.z = Math.sin(S.time * 0.5 + g.userData.p) * g.userData.sw; g.rotation.x = Math.cos(S.time * 0.4 + g.userData.p) * g.userData.sw * 0.7; }
-    if (decoB.userData.spores) { const a = decoB.userData.spores.geometry.attributes.position, A = a.array; for (let i = 0; i < 150; i++) { A[i * 3 + 1] += (0.03 + 0.02 * Math.sin(S.time * 0.7 + i)) * dt; A[i * 3] += Math.sin(S.time * 0.3 + i * 1.7) * 0.02 * dt; if (A[i * 3 + 1] > 2.7) A[i * 3 + 1] = 0.1; } a.needsUpdate = true; }
-    S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5); hemi.intensity = 1.0 * S.bright; fillB.material.uniforms.uBright.value = bgHomeB.material.uniforms.uBright.value = S.bright; scene.fog.color.copy(FOG_COL).multiplyScalar(S.bright);
-    if (decoA.userData.orb) decoA.userData.orb.position.y = 1.7 + Math.sin(S.time) * 0.06;
+    S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
+    worlds.update(dt, S.time, S.bright, S.cur, S.oth);
     renderer.render(scene, camera);
   }
 }
 
+worlds.precompile(camera);
 applyRoles();
 renderer.setAnimationLoop(loop);
 
@@ -758,7 +597,7 @@ renderer.setAnimationLoop(loop);
 })();
 
 window.__portal = {
-  S, portal, head, scene, renderer, camera, knife, cut, trail, applyRoles, mats, clip, placeDirect, igniteAt,
+  S, portal, head, scene, renderer, camera, knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },
   tip(x, y, z, pressed) { flatTip.override = true; flatTip.pos.set(x, y, z); flatTip.pressed = pressed; },
