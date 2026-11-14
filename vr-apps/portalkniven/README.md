@@ -51,8 +51,8 @@ verden kan døren føre til din stue eller til en af de andre.
 * **Knivens greb:** midten af skaftet ligger nu i controllerens grebspunkt (før lå hånden på klingen). `?tilt=grader` vipper klingen i hånden, hvis den skal finjusteres.
 * **Den grønne verden:** våd jord med mos på det der vender opad, vand i lavningerne, mosgroede sten, rødder hen over jorden, svampe i klynger
   (svagt lys under hatten), græstotter, få tynde stilke. Mindre mættet og mindre selvlysende end før.
-* **Musik:** hver verden har sit nummer (128 kbit/s MP3): den grønne `music/kaospenduler.mp3`, metalverdenen `music/for-moerket.mp3`, klippeverdenen
-  `music/selv-guderne.mp3`. Det toner ind og ud, og lidt af det siver gennem døren, når døren fører dertil.
+* **Musik:** hver verden har sit nummer (128 kbit/s MP3): den grønne `music/doedt-trae.mp3` (Dødt Træ), metalverdenen `music/rotation.mp3` (Rotation), klippeverdenen
+  `music/tidejord.mp3` (Skyggemennesket – Tidejord). Numrene er udgivet i 2025. Det toner ind og ud, og lidt af det siver gennem døren, når døren fører dertil.
 * **Sikkerhed:** uden rumscanning advarer tavlen ("INGEN RUMSCANNING: pas på møbler!"), når man står i en anden verden.
 * **Luk døren:** et snit hen over ringens kant (spidsen krydser ovalen i dørens plan, mens udløseren holdes) opløser døren. Står man i en anden
   verden, bliver man der, til man skærer en ny dør; stikken vælger stadig, hvor den nye dør fører hen.

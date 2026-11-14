@@ -17,7 +17,7 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=8';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=9';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -464,7 +464,7 @@ function zapSmall() {
   s.connect(hp); hp.connect(g); g.connect(ctx.destination); s.start(t);
 }
 /* Each dimension has its own track. It fades in when you step in, and a little of it leaks through the door when the door leads there. */
-const TRACKS = { 1: 'music/kaospenduler.mp3', 2: 'music/for-moerket.mp3', 3: 'music/selv-guderne.mp3' };
+const TRACKS = { 1: 'music/doedt-trae.mp3', 2: 'music/rotation.mp3', 3: 'music/tidejord.mp3' };
 const music = {};
 const others = w => Object.keys(music).some(k => +k !== w && music[k].vol > 0.08);
 function updateMusic(dt) {
