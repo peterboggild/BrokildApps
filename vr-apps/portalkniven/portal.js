@@ -17,7 +17,7 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=5';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=6';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -197,7 +197,8 @@ function updateRing(dt) {
 /* ================================================================ the knife */
 
 function buildKnife() {
-  const root = new THREE.Group(), k = new THREE.Group(); root.add(k); k.position.z = 0.065;       // origin = the middle of the handle; the blade points to -Z
+  const root = new THREE.Group(), k = new THREE.Group(); root.add(k); k.position.z = -0.07;       // origin = the middle of the grip (where the hand is); the blade points to -Z
+  const tilt = (parseFloat(params.get('tilt')) || 0) * Math.PI / 180; k.rotation.x = tilt;         // ?tilt=deg to tune how the blade sits in the fist
   const steel = new THREE.MeshStandardMaterial({ color: 0xe4ecf1, metalness: 0.9, roughness: 0.3, envMapIntensity: 1.8 });
   const brass = new THREE.MeshStandardMaterial({ color: 0xd2a84e, metalness: 0.95, roughness: 0.28 });
   const leather = new THREE.MeshStandardMaterial({ color: 0x2b1912, metalness: 0, roughness: 0.82 });
@@ -219,8 +220,9 @@ function buildKnife() {
   for (let i = 0; i < 9; i++) { const w = new THREE.Mesh(new THREE.TorusGeometry(0.0138 + i * 0.00012, 0.0022, 8, 22), leather); w.position.z = 0.022 + i * 0.0108; w.scale.z = 1.4; k.add(w); }
   const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.0188, 20, 14), brass); pommel.position.z = 0.13; pommel.scale.z = 0.85; k.add(pommel);
   const gem = new THREE.Mesh(new THREE.SphereGeometry(0.0085, 14, 10), rune); gem.position.z = 0.146; k.add(gem);
-  const tip = new THREE.Object3D(); tip.position.set(0, 0, 0.065 - 0.278); root.add(tip);     // the point of the blade, in the root's space
-  root.userData = { tip, rune, halo: haloMat };
+  const tip = new THREE.Object3D(); tip.position.set(0, 0, -0.278); k.add(tip);     // the point of the blade
+  root.updateMatrixWorld(true);
+  root.userData = { tip, rune, halo: haloMat, tipLocal: tip.getWorldPosition(new V()) };       // the point, in the root's own space (the root is still at the origin here)
   return root;
 }
 const knife = buildKnife();
@@ -428,6 +430,19 @@ function zapSmall() {
   const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
   s.connect(hp); hp.connect(g); g.connect(ctx.destination); s.start(t);
 }
+/* "For Mørket" plays in the metal world; a little of it leaks through the door when the door leads there. */
+const music = { el: null, vol: 0, world: 2 };
+function updateMusic(dt) {
+  let target = 0;
+  if (S.cur === music.world) target = 0.85;
+  else if (S.oth === music.world && S.placed && !portal.anim) target = 0.3 * clamp(1.6 / Math.max(0.6, head.distanceTo(portal.c)), 0, 1);
+  if (target > 0 && !music.el && AU.ctx) { music.el = new Audio('music/for-moerket.mp3'); music.el.loop = true; music.el.preload = 'auto'; music.el.volume = 0; }
+  if (!music.el) return;
+  music.vol += (target - music.vol) * Math.min(1, dt * (target > music.vol ? 0.8 : 1.6));
+  music.el.volume = clamp(music.vol, 0, 1);
+  if (music.vol > 0.01 && music.el.paused) music.el.play().catch(() => {});
+  if (music.vol <= 0.01 && target === 0 && !music.el.paused) music.el.pause();
+}
 function updateAudio() {
   const ctx = AU.ctx; if (!ctx || !AU.pan) return;
   const L = ctx.listener, t = ctx.currentTime;
@@ -450,7 +465,7 @@ function hudLines() {
     `Du er i: ${DIMS[S.cur].name}`,
     `D\u00f8ren f\u00f8rer til: ${DIMS[S.oth].name}`,
     S.mode === 'xr' ? `Stencil: ${bits === null ? '?' : bits}${bits === 0 ? '  VINDUET VIRKER IKKE' : ''}   Scan: ${S.scanFeature ? S.scanMeshes + ' mesh' : 'ingen'}` : 'Fladt preview',
-    `Rumlys: ${S.lum < 0 ? 'ingen' : S.lum.toFixed(2)}   Kamera: ${S.camera ? 'ja' : 'nej'}`,
+    S.mode === 'xr' && S.cur !== 0 && !S.scanMeshes ? 'INGEN RUMSCANNING: pas på møbler!' : `Rumlys: ${S.lum < 0 ? 'ingen' : S.lum.toFixed(2)}   Kamera: ${S.camera ? 'ja' : 'nej'}`,
     cut.state === 'cutting' ? 'Skærer … luk ringen!' : S.placed ? 'Højre stick: skift verden bag døren' : 'Hold udløseren og skær en ring i luften',
     msg,
   ];
@@ -464,7 +479,7 @@ function drawHud() {
   x.clearRect(0, 0, 512, 300); x.fillStyle = 'rgba(4,10,8,.82)'; x.fillRect(0, 0, 512, 300); x.strokeStyle = '#4dff88'; x.lineWidth = 6; x.strokeRect(3, 3, 506, 294);
   x.fillStyle = '#4dff88'; x.font = 'bold 34px monospace'; x.fillText(lines[0], 22, 50);
   x.font = '21px monospace';
-  lines.slice(1).forEach((l, i) => { x.fillStyle = l.includes('VIRKER IKKE') ? '#ff7a7a' : i === 1 ? '#7dffb0' : i === 4 ? '#ffd56a' : '#d7ffe4'; x.fillText(l, 22, 86 + i * 34); });
+  lines.slice(1).forEach((l, i) => { x.fillStyle = (l.includes('VIRKER IKKE') || l.includes('pas på')) ? '#ff7a7a' : i === 1 ? '#7dffb0' : i === 4 ? '#ffd56a' : '#d7ffe4'; x.fillText(l, 22, 86 + i * 34); });
   hudTex.needsUpdate = true;
 }
 
@@ -537,7 +552,7 @@ function flatMove(dt) {
   head.copy(camera.position); headQ.copy(camera.quaternion);
   // the knife: a view model in the lower right, or following the point while cutting
   if (knife.userData.free) return;                                 // a test hook: a knife placed by hand
-  const tipLocal = knife.userData.tip.position;
+  const tipLocal = knife.userData.tipLocal;
   knife.quaternion.copy(camera.quaternion);
   if (flatTip.pressed || flatTip.override) knife.position.copy(flatTip.pos).sub(_v.copy(tipLocal).applyQuaternion(camera.quaternion));
   else knife.position.copy(camera.position).add(_v.set(0.2, -0.2, -0.42).applyQuaternion(camera.quaternion));
@@ -575,7 +590,7 @@ function loop(_, frame) {
     tipSparks.step(dt, 1.2);
     knife.userData.rune.color.setRGB(0.25 * knifeGlow, 1.0 * Math.min(1.4, knifeGlow), 0.5 * knifeGlow);
     knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
-    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); drawHud();
+    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
     worlds.update(dt, S.time, S.bright, S.cur, S.oth);
     renderer.render(scene, camera);
