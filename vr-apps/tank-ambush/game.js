@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114b';
-import { createFX, createAudio } from './fx.js?v=20261114b';
-import { buildTank, buildHeli, heliShadow, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114b';
+} from './world.js?v=20261114c';
+import { createFX, createAudio } from './fx.js?v=20261114c';
+import { buildTank, buildHeli, heliShadow, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114c';
 
 /* ================================================================ basics */
 
@@ -332,21 +332,43 @@ const scorch = (() => {
 const tanks = [], rockets = [], shells = [];
 const mp = new V(), md = new V(), tmpV = new V(), tmpV2 = new V();
 
+const recentSpawns = [];                    // the last few spawn points, so consecutive enemies do not pile up in one place
+function noteSpawn(x, z) { recentSpawns.push({ x, z }); if (recentSpawns.length > 5) recentSpawns.shift(); }
+/**
+ * Spawns are random across the whole room. Every valid spot is a candidate and one is drawn at random; two
+ * mild nudges only make a spot less LIKELY (never impossible): where one just came from, and right in front of
+ * you, where it would visibly pop into being. (Taking the "best-scoring" of many random spots is a trap: with
+ * enough candidates any penalty becomes a hard filter.)
+ */
+function spawnWeight(x, y, z) {
+  let w = 1;
+  for (const r of recentSpawns) if (Math.hypot(r.x - x, r.z - z) < 1.6) w *= 0.3;
+  const dx = x - head.x, dz = z - head.z, d = Math.hypot(dx, dz) || 1, fl = Math.hypot(headFwd.x, headFwd.z) || 1;
+  const inView = (dx * headFwd.x + dz * headFwd.z) / (d * fl) > 0.6;                 // within about 53 degrees of where you look
+  if (inView && los(x, y, z, head.x, head.y - 0.05, head.z)) w *= 0.6;
+  return w;
+}
+function drawWeighted(list) {
+  let tot = 0;
+  for (const e of list) tot += e.w;
+  let r = Math.random() * tot;
+  for (const e of list) { r -= e.w; if (r <= 0) return e; }
+  return list[list.length - 1] || null;
+}
+
 function pickSpawn() {
-  let best = null, bs = -1;
+  const list = [];
   for (let i = 0; i < 200; i++) {
     const x = rand(-5.6, 5.6), z = rand(-5.6, 5.6);
     if (navBlockedAt(x, z)) continue;
     const f = fieldAt(playerField, x, z);
     if (f >= FAR) continue;
     const ed = Math.hypot(x - head.x, z - head.z);
-    if (ed < 2.3 || fieldMetres(f) > 10) continue;
+    if (ed < 1.7 || fieldMetres(f) > 10) continue;
     if (tanks.some(t => !t.dead && Math.hypot(t.x - x, t.z - z) < 0.6)) continue;
-    const hidden = !los(x, 0.12, z, head.x, head.y - 0.05, head.z);
-    const s = (hidden ? 60 : 0) + Math.min(ed, 5) * 6 + rand(0, 25);
-    if (s > bs) { bs = s; best = { x, z }; }
+    list.push({ x, z, w: spawnWeight(x, 0.12, z) });
   }
-  return best;
+  return drawWeighted(list);
 }
 
 /* tier 0: the green tanks. tier 1 (from wave 6): black, a little larger, much tougher. tier 2 (from wave 10): bigger and tougher still. */
@@ -825,20 +847,17 @@ function airReachable(x, z, y = 1.2) {
 }
 
 function pickHeliSpawn(strict = true) {
-  let best = null, bs = -1;
-  for (let i = 0; i < 80; i++) {
-    const a = rand(0, TAU), r = W.arenaR > 0 ? rand(1.8, 3.0) : rand(2.6, 4.6);
-    let x = head.x + Math.sin(a) * r, z = head.z + Math.cos(a) * r;
-    if (W.arenaR > 0) { const rr = Math.hypot(x, z); if (rr > W.arenaR - 0.4) { x *= (W.arenaR - 0.4) / rr; z *= (W.arenaR - 0.4) / rr; } }
-    const y = rand(1.0, 1.7);
-    if (!clearAir(x, y, z) || Math.hypot(x - head.x, z - head.z) < 1.8) continue;
+  const list = [];
+  for (let i = 0; i < 200; i++) {
+    const x = rand(-5.6, 5.6), z = rand(-5.6, 5.6), y = rand(1.0, 1.7);              // anywhere in the room's air
+    const ed = Math.hypot(x - head.x, z - head.z);
+    if (ed < 1.7 || ed > 7 || !clearAir(x, y, z)) continue;
     if (!airReachable(x, z, y)) continue;                                           // never on the far side of a wall
     if (strict && !los(x, y, z, head.x, y, head.z, 0.1, 1.2)) continue;             // and with a clear flight line toward the player
     if (tanks.some(t => !t.dead && t.air && Math.hypot(t.x - x, t.z - z) < 0.8)) continue;
-    const s = Math.hypot(x - head.x, z - head.z) * 8 + rand(0, 20);                 // prefer to come in from a distance
-    if (s > bs) { bs = s; best = { x, y, z }; }
+    list.push({ x, y, z, w: spawnWeight(x, y, z) });
   }
-  return best || (strict ? pickHeliSpawn(false) : null);          // a cramped room: settle for any open air inside it
+  return drawWeighted(list) || (strict ? pickHeliSpawn(false) : null);              // a cramped room: settle for any open air inside it
 }
 
 function spawnHeli(x, y, z, htier = 0) {
@@ -1344,7 +1363,7 @@ function resetEntities() {
   for (const s of shells) scene.remove(s.obj); shells.length = 0;
   for (const b of bullets) scene.remove(b.obj); bullets.length = 0;
   for (const p of pickups) scene.remove(p.group); pickups.length = 0;
-  fx.clear(); scorch.clear();
+  fx.clear(); scorch.clear(); recentSpawns.length = 0;
 }
 
 function startGame() {
@@ -1438,7 +1457,7 @@ function updateGame(dt) {
           const next = G.queue[0] || 0;
           const p = next >= 3 ? pickHeliSpawn() : pickSpawn();
           if (p) {
-            G.queue.shift();
+            G.queue.shift(); noteSpawn(p.x, p.z);
             if (next >= 3) spawnHeli(p.x, p.y, p.z, next - 3); else spawnTank(p.x, p.z, undefined, next);
             G.toSpawn--; G.spawnT = rand(2, 4);
           } else G.spawnT = 1;

@@ -49,6 +49,10 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 * Room light: the Quest browser gives no camera image, so it cannot be measured. If the headset supports WebXR `light-estimation`, a light probe and the main light are taken from it (`applyEstimate`, untested on hardware). Otherwise the start page's Dark / Normal / Bright sets a brightness for all lights and the environment map, and a thumbstick (or `[` / `]`) adjusts it in play (`applyLight`).
 * Helicopters only spawn and fly over floor the player could walk to (`airReachable`), so never behind a wall; if one gets wedged or leaves the room it heads for the player and then respawns (`relocateHeli`).
 
+## Where enemies spawn
+
+Anywhere in the room that is valid (open floor or air you can reach, at least 1.7 m from you). `pickSpawn` / `pickHeliSpawn` collect all valid spots and draw one at random (`drawWeighted`); `spawnWeight` only makes a spot less likely — not where one of the last five came from, and not right in front of you where it would visibly pop in. Do not turn this back into "take the best-scoring spot": with 200 candidates any penalty becomes a hard filter and spawns pile up at one end.
+
 ## Cache busting
 
-The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114b`) whenever the game files change.**
+The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114c`) whenever the game files change.**
