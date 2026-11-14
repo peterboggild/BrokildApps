@@ -88,6 +88,14 @@
     <div class="box">
       <span class="rat-slot small" data-mood="wave"></span>
       <div class="opts">
+        <label>Sværhedsgrad
+          <select id="optDiff">
+            <option value="easy" selected>Let</option>
+            <option value="medium">Mellem</option>
+            <option value="hard">Svær</option>
+          </select>
+          <span>Mellem og Svær: rotterne rammer hårdere, sigter bedre, skyder hurtigere, er flere og tåler mere — og du får 1,5 / 2 gange point.</span>
+        </label>
         <label><input type="checkbox" id="optRings"> Vis røde sigteringe <span>(en hjælp til at sigte; raketterne styrer en smule mod fjenden alligevel)</span></label>
         <label>Rumlys
           <select id="optLight">
@@ -173,13 +181,15 @@
   <script>
     // husk valgene fra startsiden (røde ringe er slået fra som standard)
     try {
-      const q = new URLSearchParams(location.search), r = document.getElementById('optRings'), l = document.getElementById('optLight');
+      const q = new URLSearchParams(location.search), r = document.getElementById('optRings'), d = document.getElementById('optDiff'), l = document.getElementById('optLight');
       r.checked = q.has('rings') || localStorage.getItem('tankAmbushRings') === '1';
+      d.value = q.get('diff') || localStorage.getItem('tankAmbushDiff') || 'easy';
+      d.addEventListener('change', () => localStorage.setItem('tankAmbushDiff', d.value));
       l.value = localStorage.getItem('tankAmbushLightMode') || 'auto';
       r.addEventListener('change', () => localStorage.setItem('tankAmbushRings', r.checked ? '1' : '0'));
       l.addEventListener('change', () => { localStorage.setItem('tankAmbushLightMode', l.value); localStorage.removeItem('tankAmbushLight'); });
     } catch (_) { /* lager blokeret: standardværdier */ }
   </script>
-  <script type="module" src="game.js?v=20261114i"></script>
+  <script type="module" src="game.js?v=20261114j"></script>
 </body>
 </html>
