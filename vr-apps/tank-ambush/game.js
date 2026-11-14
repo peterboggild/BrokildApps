@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114e';
-import { createFX, createAudio } from './fx.js?v=20261114e';
-import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114e';
+} from './world.js?v=20261114f';
+import { createFX, createAudio } from './fx.js?v=20261114f';
+import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114f';
 
 /* ================================================================ basics */
 
@@ -636,7 +636,7 @@ function hurtPlayer(d, soft = false) {
 /* --------------------------------------------------------------- damage */
 
 function insideTank(t, p) {
-  if (t.rat) return Math.hypot(p.x - t.x, p.y - 0.05, p.z - t.z) < 0.095;      // small and low
+  if (t.rat) return Math.hypot(p.x - t.x, p.y - 0.05 * t.size, p.z - t.z) < 0.095 * t.size;      // small and low (the super ones are bigger)
   if (t.air) {                                                   // a helicopter: fuselage ellipsoid, tail boom, stub wings
     const dx = p.x - t.x, dz = p.z - t.z, s = Math.sin(t.yaw), c = Math.cos(t.yaw), k = t.size;
     const lz = (dx * s + dz * c) / k, lx = (dx * c - dz * s) / k, ly = (p.y - t.y) / k;
@@ -1105,24 +1105,29 @@ function updateCrash(t, dt) {
 /* From round 3, a few rats with a firecracker pack scurry across the floor at your feet. Close in, the fuse
  * lights and a moment later: a small bang that takes a part of your health (a short red flash, not a blackout).
  * They are small and quick — shoot them, or a rocket's blast near them, and they go "poof". */
-const RUNNER = { hp: 30, score: 30, fuseAt: 1.6, fuseTime: 0.5, radius: 1.6 };
+const RUNNER = { hp: 30, score: 30, fuseAt: 1.6, fuseTime: 0.5, radius: 1.6, dmg: [9, 26, 28] };
+/* From round 8: super rats. About twice the size, a third of the speed, 140 HP, a bigger blast and a glowing green
+ * aura that sheds goo; their warning ring is green. */
+const SUPER = { hp: 140, score: 120, size: 1.9, speed: 0.5, fuseAt: 2.2, fuseTime: 0.8, radius: 2.1, dmg: [12, 32, 36] };
 const runnerRingGeo = new THREE.RingGeometry(RUNNER.radius * 0.955, RUNNER.radius, 56).rotateX(-Math.PI / 2);
 
-function spawnRunner(x, z) {
+function spawnRunner(x, z, sup = false) {
   const a = tankAssets();
-  const model = buildRunnerRat();
+  const model = buildRunnerRat(sup);
   scene.add(model.group);
   const shadow = new THREE.Mesh(a.shadowGeo, a.shadowMat);
   shadow.scale.set(0.45, 1, 0.45); shadow.position.y = 0.003; model.group.add(shadow);
   const t = {
-    rat: true, model, size: 1, tier: -1, maxhp: RUNNER.hp, hp: RUNNER.hp, scoreVal: RUNNER.score, dmg: 0,
+    rat: true, sup, model, size: sup ? SUPER.size : 1, tier: -1, maxhp: sup ? SUPER.hp : RUNNER.hp, hp: sup ? SUPER.hp : RUNNER.hp, scoreVal: sup ? SUPER.score : RUNNER.score, dmg: 0,
+    fuseAt: sup ? SUPER.fuseAt : RUNNER.fuseAt, fuseTime: sup ? SUPER.fuseTime : RUNNER.fuseTime, blastR: sup ? SUPER.radius : RUNNER.radius, dmgRange: sup ? SUPER.dmg : RUNNER.dmg,
     x, z, yaw: Math.atan2(head.x - x, head.z - z), v: 0, dead: false, state: 'run', age: 0, spawnT: 0, wreckT: 0,
-    fuse: -1, weave: rand(0, 6.28), gx: x, gz: z, goalT: 0, stun: 0, sees: false, eng: audio.beeper(),
-    vmax: Math.min(2.7, 1.7 + 0.07 * G.wave),
+    fuse: -1, weave: rand(0, 6.28), gx: x, gz: z, goalT: 0, stun: 0, sees: false, eng: audio.beeper(sup ? 0.62 : 1),
+    vmax: Math.min(2.7, 1.7 + 0.07 * G.wave) * (sup ? SUPER.speed : 1),
   };
   // the blast zone, drawn on the floor round the rat so it cannot be overlooked
   const ring = new THREE.Mesh(runnerRingGeo, new THREE.MeshBasicMaterial({ color: 0xff5030, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
   ring.position.y = 0.006; ring.renderOrder = 3; model.group.add(ring); t.ring = ring;
+  if (sup) { ring.scale.setScalar(SUPER.radius / (RUNNER.radius * SUPER.size)); ring.material.color.setHex(0x55ff30); }   // the model is scaled up: keep the ring at the real blast radius, in green
   model.group.position.set(x, 0, z); model.group.rotation.y = t.yaw; model.group.scale.setScalar(0.4);
   tanks.push(t);
   fx.poof(new V(x, 0.05, z), 0.6);
@@ -1133,7 +1138,7 @@ function spawnRunner(x, z) {
 function updateRat(t, dt) {
   t.age += dt;
   const m = t.model, playing = G.phase === 'play';
-  if (t.spawnT < 1) { t.spawnT = Math.min(1, t.spawnT + dt * 4); m.group.scale.setScalar(0.4 + 0.6 * t.spawnT); }
+  if (t.spawnT < 1) { t.spawnT = Math.min(1, t.spawnT + dt * 4); m.group.scale.setScalar(t.size * (0.4 + 0.6 * t.spawnT)); }
   if (t.stun > 0) t.stun -= dt;
   const px = head.x, pz = head.z, dist = Math.hypot(px - t.x, pz - t.z);
   let moved = 0;
@@ -1156,8 +1161,8 @@ function updateRat(t, dt) {
     if (!moveTo(t, t.x + Math.sin(t.yaw) * t.v * dt, t.z + Math.cos(t.yaw) * t.v * dt)) t.v *= 0.6;
     moved = Math.hypot(t.x - x0, t.z - z0);
     // the fuse: lights when it is close, and the bang follows a heartbeat later
-    if (t.fuse < 0 && dist < RUNNER.fuseAt) { t.fuse = RUNNER.fuseTime; audio.fuse(tmpV.set(t.x, 0.1, t.z)); audio.squeak(tmpV.set(t.x, 0.1, t.z), 1.4); }
-    if (t.fuse >= 0) { t.fuse -= dt; if (t.fuse <= 0 || dist < 0.35) { explodeRat(t); return; } }
+    if (t.fuse < 0 && dist < t.fuseAt) { t.fuse = t.fuseTime; audio.fuse(tmpV.set(t.x, 0.1, t.z)); audio.squeak(tmpV.set(t.x, 0.1, t.z), 1.4); }
+    if (t.fuse >= 0) { t.fuse -= dt; if (t.fuse <= 0 || dist < 0.35 * t.size) { explodeRat(t); return; } }
   }
   m.group.position.set(t.x, 0, t.z);
   m.group.rotation.y = t.yaw;
@@ -1167,6 +1172,13 @@ function updateRat(t, dt) {
   if (playing) t.eng.set(tmpV.set(t.x, 0.1, t.z), urge); else t.eng.stop();
   const pulse = 0.5 + 0.5 * Math.sin(G.time * (6 + urge * 14));
   t.ring.material.opacity = t.fuse >= 0 ? 0.55 + 0.4 * pulse : 0.13 + 0.2 * pulse * (0.4 + urge);
+  if (t.sup && playing) {                                    // it radiates glowing green goo
+    const R = t.size, a = m.aura;
+    if (a) { const s = 1 + 0.14 * Math.sin(G.time * 3 + t.weave); a.scale.set(0.1 * s, 0.075 * s, 0.14 * s); a.material.opacity = 0.16 + 0.1 * pulse; }
+    if (Math.random() < dt * 30) fx.fire.add(t.x + rand(-0.09, 0.09) * R, (0.05 + rand(0, 0.12)) * R, t.z + rand(-0.09, 0.09) * R, rand(-0.05, 0.05), rand(0.1, 0.35), rand(-0.05, 0.05), rand(0.6, 1.1), 0.05 * R, 0.02 * R, [0.45, 1, 0.25], [0.1, 0.55, 0.1], 0.65, 0.5, -0.25);
+    if (Math.random() < dt * 9) fx.smoke.add(t.x + rand(-0.06, 0.06) * R, 0.1 * R, t.z + rand(-0.06, 0.06) * R, rand(-0.06, 0.06), rand(0.12, 0.3), rand(-0.06, 0.06), rand(0.9, 1.5), 0.05 * R, 0.16 * R, [0.4, 0.8, 0.2], [0.18, 0.42, 0.1], 0.2, 0.3, -0.05);
+    if (Math.random() < dt * 6) fx.smoke.add(t.x, 0.02, t.z, 0, 0, 0, 1.6, 0.08, 0.14, [0.35, 0.75, 0.15], [0.2, 0.5, 0.1], 0.3, 0.1, 0);   // a slime trail on the floor
+  }
   // the fuse always sputters
   m.group.updateMatrixWorld(true);
   m.fuse.getWorldPosition(tmpV);
@@ -1176,14 +1188,15 @@ function updateRat(t, dt) {
 
 /** Close to your feet: a firecracker bang and a part of your health. */
 function explodeRat(t) {
-  const p = new V(t.x, 0.06, t.z);
-  fx.bang(p, 1.5, RUNNER.radius);
+  const p = new V(t.x, 0.06 * t.size, t.z);
+  fx.bang(p, t.sup ? 2.0 : 1.5, t.blastR);
+  if (t.sup) fx.slime(p, 1.8);
   audio.bangSmall(p.clone());
   t.eng.stop();
-  scorch.add(t.x, t.z, 0.4);
+  scorch.add(t.x, t.z, t.sup ? 0.7 : 0.4);
   if (G.phase === 'play') {                                  // the whole blast zone hurts, more the closer you are
-    const d = Math.hypot(head.x - t.x, head.z - t.z);
-    if (d < RUNNER.radius) hurtPlayer(Math.round(clamp(28 * (1 - d / RUNNER.radius), 9, 26)), true);
+    const d = Math.hypot(head.x - t.x, head.z - t.z), [lo, hi, k] = t.dmgRange;
+    if (d < t.blastR) hurtPlayer(Math.round(clamp(k * (1 - d / t.blastR), lo, hi)), true);
   }
   t.dead = true; t.wreckT = 0;
   scene.remove(t.model.group);
@@ -1191,9 +1204,9 @@ function explodeRat(t) {
 
 /** Shot: a cartoon puff and a few stars. */
 function killRat(t) {
-  const p = new V(t.x, 0.07, t.z);
-  fx.poof(p, 1);
-  audio.squeak(p.clone(), 1.5);
+  const p = new V(t.x, 0.07 * t.size, t.z);
+  if (t.sup) fx.slime(p, 1.4); else fx.poof(p, 1);
+  audio.squeak(p.clone(), t.sup ? 0.7 : 1.5);
   t.eng.stop();
   G.score += t.scoreVal; G.kills++;
   t.dead = true; t.wreckT = 0;
@@ -1206,11 +1219,12 @@ function killRat(t) {
  * something on the floor steps on it, then goes off like a mine: a snap and a bang. Kamikaze rats caught in it
  * are finished; a tank is only scratched. Helicopters are out of reach. Switch the left hand between the heavy
  * rockets and the traps with the right thumbstick. */
-const TRAP = { speed: 4.6, boom: 0.95, trigger: 0.2, dmgTank: 15, max: 8, cool: 0.9 };
+const TRAP = { speed: 4.6, boom: 0.95, trigger: 0.2, dmgTank: 15, dmgSuperRat: 70, maxActive: 4, cool: 0.9 };   // at most 4 traps lying about at once
 const traps = [];
 
 function launchTrap(h) {
   if (G.phase !== 'play' || h.cool > 0 || G.ammo.trap <= 0) return;
+  if (traps.length >= TRAP.maxActive) { toast(`${TRAP.maxActive} F\u00c6LDER ER UDE`); haptic(h, 0.3, 40); h.cool = 0.4; return; }     // all four are out: wait until one has gone off
   G.ammo.trap--;
   h.cool = TRAP.cool;
   h.ctrl.updateMatrixWorld(true);
@@ -1219,7 +1233,6 @@ function launchTrap(h) {
   const m = buildTrap();
   m.group.position.copy(mp); scene.add(m.group);
   traps.push({ m, x: mp.x, y: mp.y, z: mp.z, vx: dir.x * TRAP.speed, vy: dir.y * TRAP.speed, vz: dir.z * TRAP.speed, state: 'fly', armT: 0, yaw: rand(0, 6.28), spin: rand(-7, 7), age: 0 });
-  while (traps.length > TRAP.max) removeTrap(traps[0]);                      // the oldest one is given up
   h.L.trap.visible = false;
   h.L.ledMat.color.setHex(0xff3322);
   audio.thunk(mp.clone());
@@ -1247,7 +1260,7 @@ function trapBoom(t) {
     if (e.dead || e.air) continue;
     const d = Math.hypot(e.x - t.x, e.z - t.z);
     if (d > TRAP.boom) continue;
-    if (e.rat) { damageTank(e, 999, p, 0); caught++; }
+    if (e.rat) { damageTank(e, e.sup ? TRAP.dmgSuperRat : 999, p, 0); if (e.dead) caught++; }   // a super rat survives it, badly hurt
     else damageTank(e, Math.round(TRAP.dmgTank * (1 - 0.5 * d / TRAP.boom)), p, 0.5);
   }
   if (caught) toast(caught > 1 ? `${caught} R\u00d8TTER FANGET!` : 'RATTE FANGET!');
@@ -1356,7 +1369,7 @@ const pickups = [];
 const PK = {
   std: { box: 0x56603a, band: 0xe8c040, ring: 0xffe27a, label: '+3 RAKETTER' },
   heavy: { box: 0x8a2a1c, band: 0xffa020, ring: 0xff6a2a, label: '+2 TUNGE \u2014 VENSTRE H\u00c5ND' },
-  trap: { box: 0xa4792a, band: 0x5a3d18, ring: 0xffd06a, label: '+3 RATTEF\u00c6LDER' },
+  trap: { box: 0xa4792a, band: 0x5a3d18, ring: 0xffd06a, label: '+3 F\u00c6LDER' },
 };
 const pkBox = new THREE.BoxGeometry(0.26, 0.12, 0.15), pkBand = new THREE.BoxGeometry(0.04, 0.125, 0.155);
 const pkRing = new THREE.RingGeometry(0.2, 0.25, 40).rotateX(-Math.PI / 2);
@@ -1461,7 +1474,7 @@ function haptic(h, strength, ms) {
 function drawHud(h) {
   const heavyRole = h.role === 'heavy', leftTrap = heavyRole && G.leftMode === 'trap';
   const have = heavyRole ? leftAmmo() : G.ammo.std;
-  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${h.role}|${G.leftMode}|${have}|${G.toast}`;
+  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${h.role}|${G.leftMode}|${have}|${traps.length}|${G.toast}`;
   if (key === h.lastHud) return;
   h.lastHud = key;
   const { ctx, w, hgt = 170 } = h.L.panel;
@@ -1482,7 +1495,7 @@ function drawHud(h) {
   else if (!heavyRole && have === 0) { ctx.fillStyle = '#ffcc33'; ctx.fillText('MASKINGEV\u00c6R  \u221e', 150, 140); }
   else {
     ctx.fillStyle = h.cool > 0 ? '#ff6a55' : leftTrap ? '#ffd040' : heavyRole ? '#ff9a4a' : '#6dff8c';
-    ctx.fillText(leftTrap ? `RATTEF\u00c6LDER ${have}` : heavyRole ? `TUNGE RAKETTER ${have}` : `RAKETTER ${have}`, 150, 140);
+    ctx.fillText(leftTrap ? `F\u00c6LDER ${have} \u00b7 UDE ${traps.length}/${TRAP.maxActive}` : heavyRole ? `TUNGE RAKETTER ${have}` : `RAKETTER ${have}`, 150, 140);
   }
   h.L.panel.refresh();
 }
@@ -1680,6 +1693,8 @@ function buildQueue(n) {
   while (q.length < Math.max(total, t1 + t2 + h3 + h4 + 2)) q.push(0);
   const runners = n >= 3 ? [2, 2, 3, 3, 4, 4, 5, 5, 6][Math.min(n - 3, 8)] : 0;       // kamikaze rats (value 9): a few at first, from round 3
   for (let i = 0; i < runners; i++) q.push(9);
+  const supers = n >= 8 ? (n < 10 ? 1 : n < 12 ? 2 : Math.min(3, 2 + Math.floor((n - 12) / 3))) : 0;   // super rats (value 8): from round 8
+  for (let i = 0; i < supers; i++) q.push(8);
   for (let i = q.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [q[i], q[j]] = [q[j], q[i]]; }
   const first = q.findIndex(v => v === 0);                                  // never open a wave with the big ones
   if (first > 0) [q[0], q[first]] = [q[first], q[0]];
@@ -1690,7 +1705,7 @@ function startWave(n) {
   G.wave = n;
   G.queue = buildQueue(n);
   G.toSpawn = G.queue.length;
-  G.waveRockets = 0; G.waveEnemies = G.queue.filter(v => v !== 9).length;
+  G.waveRockets = 0; G.waveEnemies = G.queue.filter(v => v < 8).length;
   if (n === 3 && G.ammo.trap < 4) G.ammo.trap = 4;                            // rat traps come with the rats
   G.maxAlive = Math.min(1 + Math.ceil(n / 2), 5);
   G.spawnT = 1.8;
@@ -1699,9 +1714,11 @@ function startWave(n) {
   const sub2 = n === 1 ? { t: 'Rotterne rykker ind!', c: '#e6edf5' } : n === 3 ? { t: 'KAMIKAZE-R\u00d8TTER!', c: '#ff5a44' } : n === 6 ? { t: 'SORTE PANSERVOGNE', c: '#ff5a44' } : n === 8 ? { t: 'ANGRIBSHELIKOPTER', c: '#ff5a44' } : n === 10 ? { t: 'SUPERTUNGE PANSERVOGNE', c: '#ff5a44' } : n === 12 ? { t: 'SORT KAMPHELIKOPTER', c: '#ff5a44' }
     : n === 5 ? { t: 'Tunge raketter dukker op', c: '#ffa020' } : { t: 'Rotterne bliver klogere', c: '#e6edf5' };
   showMsg([{ t: `RUNDE ${n}`, s: 110, c: '#ffb454' }, { t: sub2.t, s: 38, c: sub2.c, b: [3, 6, 8, 10, 12].includes(n) },
-    ...(n === 3 ? [{ t: 'Venstre h\u00e5nd: rattef\u00e6lder \u00b7 h\u00f8jre stick skifter v\u00e5ben', s: 26, c: '#ffd040', b: false }] : [])], 3.2, 0.7, 'angry');
+    ...(n === 3 ? [{ t: 'Venstre h\u00e5nd: rattef\u00e6lder (maks. 4 ude) \u00b7 h\u00f8jre stick skifter v\u00e5ben', s: 24, c: '#ffd040', b: false }] : []),
+    ...(n === 6 ? [{ t: 'Pakker med rattef\u00e6lder dukker op', s: 26, c: '#ffd040', b: false }] : []),
+    ...(n === 8 ? [{ t: 'Og gr\u00f8nne SUPER-R\u00d8TTER \u2014 store, seje og langsomme', s: 26, c: '#7dff4a', b: true }] : [])], 3.4, 0.7, 'angry');
   if (n > 1) { spawnPickup('std'); if (n >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy'); }
-  if (n >= 3 && !pickups.some(p => p.kind === 'trap')) spawnPickup('trap');
+  if (n >= 6 && !pickups.some(p => p.kind === 'trap')) spawnPickup('trap');
 }
 
 function gameOver() {
@@ -1736,22 +1753,22 @@ function updateGame(dt) {
     G.pickT = rand(11, 16);
     const hv = pickups.some(p => p.kind === 'heavy'), tp = pickups.some(p => p.kind === 'trap');
     if (G.wave >= 5 && !hv && Math.random() < 0.45) spawnPickup('heavy');
-    else if (G.wave >= 3 && !tp && Math.random() < 0.4) spawnPickup('trap');
+    else if (G.wave >= 6 && !tp && Math.random() < 0.4) spawnPickup('trap');           // trap packs from round 6
     else if (pickups.length < 3) spawnPickup('std');
   }
   const alive = tanks.reduce((n, t) => n + (t.dead || t.rat ? 0 : 1), 0);     // the kamikaze rats do not count toward the cap
   if (!G.waveClear) {
     if (G.toSpawn > 0) {
-      const next = G.queue[0] || 0;
-      if (alive < G.maxAlive || next === 9) {
+      const next = G.queue[0] || 0, isRat = next >= 8;
+      if (alive < G.maxAlive || isRat) {
         G.spawnT -= dt;
         if (G.spawnT <= 0) {
-          const p = next === 9 ? pickSpawn(2.8) : (next >= 3 ? pickHeliSpawn() : pickSpawn());
+          const p = isRat ? pickSpawn(next === 8 ? 3.4 : 2.8) : (next >= 3 ? pickHeliSpawn() : pickSpawn());
           if (p) {
             G.queue.shift(); noteSpawn(p.x, p.z);
-            if (next === 9) spawnRunner(p.x, p.z);
+            if (isRat) spawnRunner(p.x, p.z, next === 8);
             else if (next >= 3) spawnHeli(p.x, p.y, p.z, next - 3); else spawnTank(p.x, p.z, undefined, next);
-            G.toSpawn--; G.spawnT = next === 9 ? rand(0.5, 1.3) : rand(2, 4);
+            G.toSpawn--; G.spawnT = isRat ? rand(0.5, 1.3) : rand(2, 4);
           } else G.spawnT = 1;
         }
       }
@@ -2076,4 +2093,4 @@ function loop(_, frame) {
 })();
 
 // handy for poking at the game from the console
-window.__tank = { traps, launchTrap, toggleLeft, setLeftMode, trapBoom, spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
+window.__tank = { startWave, SUPER, TRAP, traps, launchTrap, toggleLeft, setLeftMode, trapBoom, spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };

@@ -202,6 +202,18 @@ export function createFX(scene) {
       flash.position.copy(p); flash.intensity = Math.max(flash.intensity, 5 * s); flashT = Math.max(flashT, 0.1);
     },
 
+    /** A super rat going off or going down: a splash of glowing green goo and green smoke. */
+    slime(p, s = 1) {
+      for (let i = 0; i < 26; i++) {
+        const a = rand(0, 6.283), sp = rand(0.5, 2.2) * s, e = rand(0.1, 1);
+        fire.add(p.x, p.y, p.z, Math.cos(a) * sp, e * sp + 0.5, Math.sin(a) * sp, rand(0.5, 1.1), 0.05 * s, 0.015 * s, [0.55, 1, 0.3], [0.1, 0.6, 0.1], 0.85, 1.2, 5);
+      }
+      for (let i = 0; i < 10; i++) {
+        const a = rand(0, 6.283), sp = rand(0.1, 0.6) * s;
+        smoke.add(p.x, p.y, p.z, Math.cos(a) * sp, rand(0.1, 0.5), Math.sin(a) * sp, rand(0.9, 1.6), 0.08 * s, 0.3 * s, [0.4, 0.8, 0.2], [0.15, 0.4, 0.08], 0.5, 0.7, 0);
+      }
+    },
+
     /** A rat that has been shot: a cartoon puff and a few yellow stars. */
     poof(p, s = 1) {
       for (let i = 0; i < 9; i++) {
@@ -353,7 +365,7 @@ export function createAudio() {
     },
     /** A bomb beeping: one oscillator whose gain is pulsed on a schedule. set(pos, urgency 0..1) every frame; the
      *  beeps come faster and higher as urgency rises. Positioned in the room, so you can find the rat by ear. */
-    beeper() {
+    beeper(pitch = 1) {
       if (!ctx) return { set() {}, stop() {} };
       const p = ctx.createPanner();
       p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1.6; p.rolloffFactor = 0.8;
@@ -367,7 +379,7 @@ export function createAudio() {
           if (stopped) return;
           const t = ctx.currentTime;
           if (p.positionX) { p.positionX.setTargetAtTime(pos.x, t, 0.04); p.positionY.setTargetAtTime(pos.y, t, 0.04); p.positionZ.setTargetAtTime(pos.z, t, 0.04); }
-          const period = 1 / (2.2 + u * 9.5), freq = 1500 + u * 1000;
+          const period = 1 / (2.2 + u * 9.5), freq = (1500 + u * 1000) * pitch;
           if (next < t) next = t + 0.01;
           while (next < t + 0.14) {                                        // schedule beeps a little ahead
             g.gain.setValueAtTime(0.0001, next);

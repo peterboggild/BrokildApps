@@ -551,6 +551,12 @@ function ratAssets() {
   r.furLight = new THREE.MeshStandardMaterial({ color: 0xb59f86, roughness: 0.95, metalness: 0 });
   r.furDark = new THREE.MeshStandardMaterial({ color: 0x2c2623, roughness: 0.9, metalness: 0 });
   r.pink = new THREE.MeshStandardMaterial({ color: 0xe9a3ad, roughness: 0.7, metalness: 0 });
+  // the super rats: green, glowing mutants
+  r.furGreen = new THREE.MeshStandardMaterial({ color: 0x5f8a2e, roughness: 0.85, metalness: 0, emissive: 0x1a4a0a, emissiveIntensity: 0.5 });
+  r.furGreenLight = new THREE.MeshStandardMaterial({ color: 0x9fc95a, roughness: 0.85, metalness: 0, emissive: 0x2a5a10, emissiveIntensity: 0.4 });
+  r.skinGreen = new THREE.MeshStandardMaterial({ color: 0xc4e27a, roughness: 0.6, metalness: 0, emissive: 0x4a7a20, emissiveIntensity: 0.5 });
+  r.eyeGreen = new THREE.MeshBasicMaterial({ color: 0x6aff3a, toneMapped: false });
+  r.auraGreen = new THREE.MeshBasicMaterial({ color: 0x55ff30, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending });
   r.eye = new THREE.MeshStandardMaterial({ color: 0x0b0b0c, roughness: 0.15, metalness: 0.3 });
   r.eyeRed = new THREE.MeshBasicMaterial({ color: 0xff3020, toneMapped: false });
   r.glint = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
@@ -627,25 +633,26 @@ export function animRatHead(rt, t, dt, look, hide) {
 }
 
 /** The kamikaze: a scurrying rat with a firecracker bundle strapped on. ~14 cm long, faces +Z, origin on the floor. */
-export function buildRunnerRat() {
+export function buildRunnerRat(sup = false) {
   const r = ratAssets();
+  const fur = sup ? r.furGreen : r.fur, light = sup ? r.furGreenLight : r.furLight, skin = sup ? r.skinGreen : r.pink, eyeM = sup ? r.eyeGreen : r.eye;
   const group = new THREE.Group(), body = new THREE.Group();
   group.add(body);
-  body.add(ell(r.sph, r.fur, 0.034, 0.03, 0.066, 0, 0.042, 0.0));                        // body
-  body.add(ell(r.sph, r.furLight, 0.026, 0.02, 0.05, 0, 0.034, 0.002));                  // lighter belly
-  body.add(ell(r.sph, r.fur, 0.035, 0.032, 0.04, 0, 0.041, -0.034));                     // haunches
+  body.add(ell(r.sph, fur, 0.034, 0.03, 0.066, 0, 0.042, 0.0));                        // body
+  body.add(ell(r.sph, light, 0.026, 0.02, 0.05, 0, 0.034, 0.002));                  // lighter belly
+  body.add(ell(r.sph, fur, 0.035, 0.032, 0.04, 0, 0.041, -0.034));                     // haunches
   const head = new THREE.Group(); head.position.set(0, 0.048, 0.068); body.add(head);
-  head.add(ell(r.sph, r.fur, 0.022, 0.02, 0.028, 0, 0, 0));
-  head.add(ell(r.cone, r.fur, 0.0125, 0.0125, 0.034, 0, -0.003, 0.03));
-  head.add(ell(r.sph, r.pink, 0.0048, 0.0045, 0.0045, 0, -0.003, 0.0465));
+  head.add(ell(r.sph, fur, 0.022, 0.02, 0.028, 0, 0, 0));
+  head.add(ell(r.cone, fur, 0.0125, 0.0125, 0.034, 0, -0.003, 0.03));
+  head.add(ell(r.sph, skin, 0.0048, 0.0045, 0.0045, 0, -0.003, 0.0465));
   head.add(ell(new THREE.BoxGeometry(1, 1, 1), r.tooth, 0.0055, 0.0075, 0.0015, 0, -0.0095, 0.04));
   for (const s of [-1, 1]) {
-    head.add(ell(r.sph, r.eye, 0.0048, 0.0048, 0.0048, s * 0.0105, 0.0065, 0.016));
+    head.add(ell(r.sph, eyeM, 0.0048, 0.0048, 0.0048, s * 0.0105, 0.0065, 0.016));
     head.add(ell(r.sph, r.glint, 0.0015, 0.0015, 0.0015, s * 0.0092, 0.0088, 0.0205));
     const brow = ell(new THREE.BoxGeometry(1, 1, 1), r.furDark, 0.0085, 0.0017, 0.0022, s * 0.0105, 0.0125, 0.0185); brow.rotation.z = s * 0.5; head.add(brow);   // fierce little frown
     const ear = new THREE.Group(); ear.position.set(s * 0.0145, 0.0145, -0.006);
-    ear.add(ell(r.sph, r.fur, 0.0115, 0.013, 0.003, 0, 0.005, 0));
-    ear.add(ell(r.sph, r.pink, 0.0075, 0.009, 0.002, 0, 0.0047, 0.0018));
+    ear.add(ell(r.sph, fur, 0.0115, 0.013, 0.003, 0, 0.005, 0));
+    ear.add(ell(r.sph, skin, 0.0075, 0.009, 0.002, 0, 0.0047, 0.0018));
     ear.rotation.z = -s * 0.35; ear.rotation.y = s * 0.3; head.add(ear);
     for (let k = 0; k < 3; k++) {
       const w = new THREE.Mesh(new THREE.CylinderGeometry(0.00022, 0.00022, 0.032, 3), r.whisker);
@@ -672,19 +679,25 @@ export function buildRunnerRat() {
   const legs = [];
   for (const [x, z] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
     const hip = new THREE.Group(); hip.position.set(x * 0.023, 0.03, z * 0.034 + (z < 0 ? -0.004 : 0.012)); body.add(hip);
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0035, 0.03, 6), r.fur); leg.position.y = -0.013; hip.add(leg);
-    hip.add(ell(r.sph, r.pink, 0.0055, 0.0035, 0.0085, 0, -0.028, 0.004));
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0035, 0.03, 6), fur); leg.position.y = -0.013; hip.add(leg);
+    hip.add(ell(r.sph, skin, 0.0055, 0.0035, 0.0085, 0, -0.028, 0.004));
     legs.push({ hip, off: (x * z > 0) ? 0 : Math.PI });
   }
   const tail = []; let parent = new THREE.Group(); parent.position.set(0, 0.04, -0.07); body.add(parent);
   for (let i = 0; i < 7; i++) {
-    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.0022 - i * 0.0002, 0.0026 - i * 0.0002, 0.022, 5), r.pink);
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.0022 - i * 0.0002, 0.0026 - i * 0.0002, 0.022, 5), skin);
     seg.rotation.x = Math.PI / 2; seg.position.z = -0.011;
     const piv = new THREE.Group(); piv.add(seg);
     const next = new THREE.Group(); next.position.z = -0.022; piv.add(next);
     parent.add(piv); tail.push(piv); parent = next;
   }
-  return { group, body, head, legs, tail, fuse, phase: Math.random() * 6.28, bob: 0 };
+  let aura = null;
+  if (sup) {                                                      // a soft green glow all round it
+    aura = new THREE.Mesh(r.sph, r.auraGreen);
+    aura.scale.set(0.1, 0.075, 0.14); aura.position.set(0, 0.05, 0.0); aura.renderOrder = 4;
+    group.add(aura);
+  }
+  return { group, body, head, legs, tail, fuse, aura, phase: Math.random() * 6.28, bob: 0 };
 }
 
 /** Scurry: `dist` is how far the rat moved this frame (m). */
