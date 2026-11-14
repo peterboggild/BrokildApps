@@ -119,8 +119,8 @@
 
     <h2>Sådan spiller du</h2>
     <ul>
-      <li><strong>Begge hænder starter som almindelige maskingeværer</strong> — hold aftrækkeren for at skyde. Samler du ammo op, skifter den hånd til det våben: raketter til <strong>højre</strong> hånd, tunge raketter og rottefælder til <strong>venstre</strong>. Er ammoen brugt op, er hånden et maskingevær igen. Skift selv: <strong>højre thumbstick</strong> (tryk, eller skub til siden) skifter venstre hånd mellem maskingevær, tunge raketter og fælder; et tryk på <strong>venstre thumbstick</strong> skifter højre hånd mellem maskingevær og raketter. Launcherens farve viser, hvad du holder: gråt = maskingevær, grønt = raket, rødt = tung, gult = fælde. En raket brænder i ét sekund, glider så og falder, og målsøgeren drejer den kun en smule — sigt godt, og lidt højt på lang afstand. (Sæt kryds ved de røde ringe ovenfor for at se, hvad den sigter efter.)</li>
-      <li><strong>Raketter kommer fra ammokasser.</strong> Du starter uden. Kasserne ligger på gulvet — gå hen over en, eller ræk ned efter den. Fra runde 5 findes <em>tunge</em> raketter med større brag (venstre hånd). Maskingeværet er uendeligt, men svagt — en panservogn tåler omkring ni kugler.</li>
+      <li><strong>Begge hænder starter som almindelige maskingeværer</strong> — hold aftrækkeren for at skyde. Samler du ammo op, skifter en hånd til det våben (den hånd, du rakte ud med — ellers den første hånd, der stadig har et maskingevær). <strong>Begge hænder kan bruge alle våben</strong> — maskingevær, raketter, tunge raketter og rottefælder — og de deler det samme lager. Er ammoen brugt op, er hånden et maskingevær igen. Skift selv med den hånds <strong>thumbstick</strong>: tryk på den, eller skub den til siden. Launcherens farve viser, hvad du holder: gråt = maskingevær, grønt = raket, rødt = tung, gult = fælde.</li>
+      <li><strong>Raketter kommer fra ammokasser.</strong> Du starter uden. Kasserne ligger på gulvet — gå hen over en, eller ræk ned efter den. Fra runde 5 findes <em>tunge</em> raketter med større brag. Maskingeværet er uendeligt, men svagt — en panservogn tåler omkring ni kugler.</li>
       <li><strong>Raketbonus:</strong> jo færre raketter du bruger i en runde, jo flere point.</li>
       <li>Panservognene styres af <strong>rotter</strong>, der kigger op af lugen (to på de sorte). Et direkte hit sprænger en panservogn; en raket, der eksploderer tæt på, skubber den til siden og gør den langsommere. Rotterne smutter ud, når vognen går i luften.</li>
       <li>Fra <strong>runde 3</strong> kommer <strong>kamikaze-rotter</strong>: små, hurtige og med fyrværkeri på ryggen. De <strong>bipper som en bombe</strong> (lyden kommer fra rotten — hold øje med ørerne), løber hen mod dine fødder, tænder lunten og springer med et brag. <strong>Blast-zonen er stor</strong> — en rød ring på gulvet viser, hvor langt den rækker — og det koster dig lidt liv. Skyd dem først, eller stil en fælde!</li>
@@ -141,7 +141,7 @@
     </div>
 
     <h2>Flad forhåndsvisning</h2>
-    <p style="color:#c3d0e0">På en computer: klik på billedet for at fange musen (eller hold knappen nede og træk for at kigge rundt), <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> for at gå, mus til at sigte, klik for at skyde med højre hånd, hold knappen nede for maskingeværet, <kbd>Q</kbd> eller højreklik for venstre hånd, <kbd>R</kbd> skifter højre hånd og <kbd>E</kbd> venstre hånd mellem maskingevær og det, du har samlet op, <kbd>C</kbd> for at ducke bag lave ting, <kbd>[</kbd> <kbd>]</kbd> for rumlys og <kbd>G</kbd> for rumnettet. Fjenderne er små og lave — sigt nedad.</p>
+    <p style="color:#c3d0e0">På en computer: klik på billedet for at fange musen (eller hold knappen nede og træk for at kigge rundt), <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> for at gå, mus til at sigte, klik for at skyde med højre hånd, hold knappen nede for maskingeværet, <kbd>Q</kbd> eller højreklik for venstre hånd, <kbd>R</kbd> skifter højre hånds våben og <kbd>E</kbd> venstre hånds (maskingevær, raketter, tunge raketter, fælder), <kbd>C</kbd> for at ducke bag lave ting, <kbd>[</kbd> <kbd>]</kbd> for rumlys og <kbd>G</kbd> for rumnettet. Fjenderne er små og lave — sigt nedad.</p>
     <p style="color:#5c6c83; font-size: 13px"><a href="../index.html">← Brokild VR</a> · alt her — modeller, teksturer, rotter og lyd — bliver lavet af kode, når siden indlæses; den eneste afhængighed er en medfølgende kopi af <a href="https://threejs.org">three.js</a> (MIT).</p>
   </div>
   <div id="cross"></div>
@@ -180,6 +180,6 @@
       l.addEventListener('change', () => { localStorage.setItem('tankAmbushLightMode', l.value); localStorage.removeItem('tankAmbushLight'); });
     } catch (_) { /* lager blokeret: standardværdier */ }
   </script>
-  <script type="module" src="game.js?v=20261114h"></script>
+  <script type="module" src="game.js?v=20261114i"></script>
 </body>
 </html>

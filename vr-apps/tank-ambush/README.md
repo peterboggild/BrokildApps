@@ -44,9 +44,9 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 * Flat preview: `?flat` in the URL or the button — WASD, mouse (click to capture), click to fire, `G` for the room mesh.
 * URL options: `?cover=1` always add virtual barriers, `?mesh=0` ignore the headset's room scan.
 
-## Weapons: one per hand
+## Weapons: one per hand, any weapon in either
 
-Both hands start as bullet guns (`'gun'`, `MG`). Each hand holds one weapon at a time (`G.leftMode`: gun / heavy / trap; `G.rightMode`: gun / rocket; `handMode(h)`). **Picking up ammo switches that hand to the weapon** (rocket crate -> right hand, heavy crate and trap packs -> left hand); when its ammo is gone the hand falls back to the gun (`autoModes`). The player starts with no rockets, so round 1 always spawns a rocket crate. Thumbsticks: the **right** stick (press or flick sideways) cycles the left hand through what it has (`toggleLeft`); a **press of the left stick** does the same for the right hand (`toggleRight`); the left stick up/down is room light. Flat preview: `E` left, `R` right. The launcher is painted by what it holds (gunmetal / olive / dark red / ochre) and the readout says which weapon and how much ammo.
+Both hands start as bullet guns (`'gun'`, `MG`). Each hand holds one weapon at a time and **either hand can hold any of them**: `G.leftMode` / `G.rightMode` are each `gun`, `rocket`, `heavy` or `trap` (`handMode(h)`), all drawing on one shared ammo pool (`G.ammo`). **Picking up ammo switches a hand to that weapon** (`equip`: the hand that reached for the crate, otherwise the first hand still holding a gun; nothing happens if a hand already holds it); when a weapon's ammo is gone the hand falls back to the gun (`autoModes`). The player starts with no rockets, so round 1 always spawns a rocket crate. **Each hand's own thumbstick** (press it, or flick it sideways) steps that hand through the weapons it has ammo for (`cycleHand`); the left stick pushed up/down is room light. Flat preview: `E` left, `R` right. The launcher is painted by what it holds (gunmetal / olive / dark red / ochre) and the readout names the weapon and the ammo.
 
 (Older notes below describe the weapons as they were introduced.)
 
@@ -88,4 +88,4 @@ Anywhere in the room that is valid (open floor or air you can reach, at least 1.
 
 ## Cache busting
 
-The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114h`) whenever the game files change.**
+The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114i`) whenever the game files change.**

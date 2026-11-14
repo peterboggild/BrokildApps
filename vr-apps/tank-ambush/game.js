@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114h';
-import { createFX, createAudio } from './fx.js?v=20261114h';
-import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114h';
+} from './world.js?v=20261114i';
+import { createFX, createAudio } from './fx.js?v=20261114i';
+import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114i';
 
 /* ================================================================ basics */
 
@@ -1308,11 +1308,12 @@ function updateTraps(dt) {
 }
 
 /*
- * Each hand holds one weapon at a time. Both start as plain bullet guns ('gun'). Picking up ammo switches the
- * hand it belongs to over to that weapon: ordinary rockets -> the right hand ('rocket'), heavy rockets and rat
- * traps -> the left hand ('heavy', 'trap'). When that ammo is gone the hand falls back to the gun. The right
- * thumbstick steps the left hand through what it has; pressing the left thumbstick does the same for the right.
- * (h.role === 'heavy' marks the LEFT hand — the name is from when it only held the heavy launcher.)
+ * Each hand holds one weapon at a time, and EITHER hand can hold ANY of them: the bullet gun ('gun'), rockets
+ * ('rocket'), heavy rockets ('heavy') or rat traps ('trap'). Both start as bullet guns. The ammo is one shared
+ * pool, so two hands holding rockets draw on the same stock. Picking up ammo switches a hand to that weapon
+ * (the hand that reached for the crate, otherwise the first hand still holding a gun); when its ammo is gone a
+ * hand falls back to the gun. Each hand's own thumbstick (pressed, or flicked sideways) steps that hand through
+ * the weapons it has ammo for. (h.role === 'heavy' marks the LEFT hand — the name is from an older design.)
  */
 const handMode = h => (h.role === 'heavy' ? G.leftMode : G.rightMode);
 const ammoFor = mode => (mode === 'rocket' ? G.ammo.std : mode === 'heavy' ? G.ammo.heavy : mode === 'trap' ? G.ammo.trap : Infinity);
@@ -1323,7 +1324,7 @@ function setMode(side, mode, quiet = false) {
   if (!quiet) toast(`${side === 'left' ? 'VENSTRE' : 'H\u00d8JRE'}: ${MODE_NAME[mode]}`);
 }
 function cycleHand(side) {
-  const order = side === 'left' ? ['gun', 'heavy', 'trap'] : ['gun', 'rocket'];
+  const order = ['gun', 'rocket', 'heavy', 'trap'];
   const cur = side === 'left' ? G.leftMode : G.rightMode;
   for (let i = 1; i <= order.length; i++) {
     const m = order[(order.indexOf(cur) + i) % order.length];
@@ -1332,6 +1333,13 @@ function cycleHand(side) {
 }
 const toggleLeft = () => cycleHand('left');
 const toggleRight = () => cycleHand('right');
+/** Picked-up ammo: switch a hand to that weapon unless a hand already holds it. */
+function equip(kind, byHand) {
+  const mode = kind === 'heavy' ? 'heavy' : kind === 'trap' ? 'trap' : 'rocket';
+  if (G.leftMode === mode || G.rightMode === mode) return;
+  const side = byHand ? (byHand.role === 'heavy' ? 'left' : 'right') : G.rightMode === 'gun' ? 'right' : G.leftMode === 'gun' ? 'left' : 'right';
+  setMode(side, mode, true);
+}
 /** A weapon whose ammo is gone gives way to the gun. */
 function autoModes() {
   if (ammoFor(G.leftMode) <= 0) setMode('left', 'gun');
@@ -1437,14 +1445,14 @@ function updatePickups(dt) {
     p.ring.scale.setScalar(1 + 0.12 * Math.sin(p.age * 4));
     p.ring.material.opacity = 0.55 + 0.3 * Math.sin(p.age * 4);
     p.group.visible = p.age < 28 || Math.floor(p.age * 6) % 2 === 0;          // blinks for its last few seconds
-    let got = false;
+    let got = false, byHand = null;
     if (G.phase === 'play') {
-      if (Math.hypot(head.x - p.x, head.z - p.z) < 0.55) got = true;          // walk over it
-      else for (const h of hands) if (h.ctrl && h.ctrl.getWorldPosition(tmpV2).distanceTo(tmpV.set(p.x, 0.12, p.z)) < 0.32) got = true;   // or reach down to it
+      for (const h of hands) if (h.ctrl && h.ctrl.getWorldPosition(tmpV2).distanceTo(tmpV.set(p.x, 0.12, p.z)) < 0.32) { got = true; byHand = h; }   // reach down to it
+      if (!got && Math.hypot(head.x - p.x, head.z - p.z) < 0.55) got = true;          // or walk over it
     }
     if (got) {
       if (p.kind === 'heavy') G.ammo.heavy = Math.min(6, G.ammo.heavy + 2); else if (p.kind === 'trap') G.ammo.trap = Math.min(8, G.ammo.trap + 3); else G.ammo.std = Math.min(12, G.ammo.std + 3);
-      if (p.kind === 'heavy') setMode('left', 'heavy', true); else if (p.kind === 'trap') setMode('left', 'trap', true); else setMode('right', 'rocket', true);     // picking up ammo switches to that weapon
+      equip(p.kind, byHand);                                                    // picking up ammo switches a hand to that weapon
       toast(PK[p.kind].label);
       audio.pickup(p.kind === 'heavy');
       fx.spark(new V(p.x, 0.2, p.z), 1.6);
@@ -1668,7 +1676,7 @@ function showMenu() {
     { t: 'Duk dig bag m\u00f8blerne, undvig skuddene og saml ammunition op.', s: 27, b: false },
     G.mode === 'flat'
       ? { t: 'Klik: raket (hold: maskingev\u00e6r) \u00b7 Q / h\u00f8jreklik: venstre h\u00e5nd \u00b7 R / E: skift v\u00e5ben \u00b7 WASD \u00b7 C: duk', s: 23, c: '#9fb3c8', b: false, gap: 6 }
-      : { t: 'Begge h\u00e5nder: maskingev\u00e6r \u00b7 saml ammo op for raketter, tunge raketter og f\u00e6lder', s: 23, c: '#9fb3c8', b: false, gap: 6 },
+      : { t: 'Begge h\u00e5nder: maskingev\u00e6r \u00b7 saml ammo op \u2014 begge h\u00e5nder kan bruge alle v\u00e5ben (thumbstick skifter)', s: 23, c: '#9fb3c8', b: false, gap: 6 },
     ...roomLines(),
     { t: G.mode === 'flat' ? 'KLIK FOR AT STARTE' : 'TR\u00c6K I UDL\u00d8SEREN FOR AT STARTE', s: 38, c: '#6dff8c', gap: 4 },
   ].map(l => ({ s: 30, ...l })), 0, 1, 'wave');
@@ -1738,7 +1746,7 @@ function startWave(n) {
   const sub2 = n === 1 ? { t: 'Rotterne rykker ind!', c: '#e6edf5' } : n === 3 ? { t: 'KAMIKAZE-R\u00d8TTER!', c: '#ff5a44' } : n === 6 ? { t: 'SORTE PANSERVOGNE', c: '#ff5a44' } : n === 8 ? { t: 'ANGRIBSHELIKOPTER', c: '#ff5a44' } : n === 10 ? { t: 'SUPERTUNGE PANSERVOGNE', c: '#ff5a44' } : n === 12 ? { t: 'SORT KAMPHELIKOPTER', c: '#ff5a44' }
     : n === 5 ? { t: 'Tunge raketter dukker op', c: '#ffa020' } : { t: 'Rotterne bliver klogere', c: '#e6edf5' };
   showMsg([{ t: `RUNDE ${n}`, s: 110, c: '#ffb454' }, { t: sub2.t, s: 38, c: sub2.c, b: [3, 6, 8, 10, 12].includes(n) },
-    ...(n === 3 ? [{ t: 'Du har fire rattef\u00e6lder \u2014 h\u00f8jre stick skifter venstre h\u00e5nd (maks. 4 ude)', s: 24, c: '#ffd040', b: false }] : []),
+    ...(n === 3 ? [{ t: 'Du har fire rattef\u00e6lder \u2014 thumbstick skifter v\u00e5ben (maks. 4 ude)', s: 24, c: '#ffd040', b: false }] : []),
     ...(n === 6 ? [{ t: 'Pakker med rattef\u00e6lder dukker op', s: 26, c: '#ffd040', b: false }] : []),
     ...(n === 8 ? [{ t: 'Og gr\u00f8nne SUPER-R\u00d8TTER \u2014 store, seje og langsomme', s: 26, c: '#7dff4a', b: true }] : [])], 3.4, 0.7, 'angry');
   spawnPickup('std');                                                           // there is always a rocket crate to find (the hands start with bullet guns)
@@ -2015,19 +2023,17 @@ function loop(_, frame) {
     if (!h.ctrl) continue;
     h.ctrl.updateMatrixWorld(true);
     const isLeft = h.role === 'heavy', mode = handMode(h), have = ammoFor(mode);
-    // thumbsticks: LEFT stick up/down = room brightness, LEFT stick press = the right hand's weapon;
-    // RIGHT stick (pressed, or flicked sideways) = the left hand's weapon
+    // thumbsticks: each stick switches ITS OWN hand's weapon (press it, or flick it sideways); the left stick
+    // pushed up/down is room brightness
     if (G.mode === 'xr' && h.gamepad) {
+      const ax = h.gamepad.axes?.[2] ?? 0, ay = h.gamepad.axes?.[3] ?? 0;
       if (isLeft) {
-        const ay = h.gamepad.axes?.[3] ?? 0, press = !!h.gamepad.buttons?.[3]?.pressed;
-        if (Math.abs(ay) > 0.55) { G.light = clamp(G.light - ay * dt * 0.5, 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); G.lightDirty = true; }
+        if (Math.abs(ay) > 0.55 && Math.abs(ax) < 0.6) { G.light = clamp(G.light - ay * dt * 0.5, 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); G.lightDirty = true; }
         else if (G.lightDirty) { G.lightDirty = false; try { localStorage.setItem('tankAmbushLight', String(G.light)); } catch (_) { /* no storage */ } }
-        if (press && !h.stickDown) { h.stickDown = true; if (G.phase === 'play') toggleRight(); } else if (!press) h.stickDown = false;
-      } else {
-        const ax = h.gamepad.axes?.[2] ?? 0, down = !!h.gamepad.buttons?.[3]?.pressed || Math.abs(ax) > 0.8;
-        if (down && !h.stickDown) { h.stickDown = true; if (G.phase === 'play') toggleLeft(); }
-        else if (!down && Math.abs(ax) < 0.4) h.stickDown = false;
       }
+      const down = !!h.gamepad.buttons?.[3]?.pressed || Math.abs(ax) > 0.8;
+      if (down && !h.stickDown) { h.stickDown = true; if (G.phase === 'play') cycleHand(isLeft ? 'left' : 'right'); }
+      else if (!down && Math.abs(ax) < 0.4) h.stickDown = false;
     }
     h.L.group.visible = true;
     if (h.cool > 0) {
