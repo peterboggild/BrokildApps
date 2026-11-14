@@ -1,4 +1,6 @@
-# Tank Ambush
+# Mutant Rotte Angreb (Tank Ambush)
+
+The whole game is in **Danish** and the enemies are rats: panservogne driven by rats, helicopters and kamikaze rats. The folder and URL are still `tank-ambush`.
 
 Mixed-reality tank game for the Meta Quest 3 browser (WebXR `immersive-ar`).
 No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
@@ -49,10 +51,24 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 * Room light: the Quest browser gives no camera image, so it cannot be measured. If the headset supports WebXR `light-estimation`, a light probe and the main light are taken from it (`applyEstimate`, untested on hardware). Otherwise the start page's Dark / Normal / Bright sets a brightness for all lights and the environment map, and a thumbstick (or `[` / `]`) adjusts it in play (`applyLight`).
 * Helicopters only spawn and fly over floor the player could walk to (`airReachable`), so never behind a wall; if one gets wedged or leaves the room it heads for the player and then respawns (`relocateHeli`).
 
+## The rats
+
+* **Tank crews** (`buildRatHead` / `animRatHead` in `models.js`): a rat looks out of every tank's hatch, two (with black caps and red eyes) on the black tanks. They bob, blink, twitch their ears and follow the player with their eyes, duck into the hatch when the tank retreats, and are thrown clear when it blows up.
+* **Kamikaze rats** (`spawnRunner` / `updateRat` / `explodeRat` in `game.js`, model `buildRunnerRat`): from round 3 (`buildQueue`: 2, 2, 3, 3, 4, 4, 5, 5, then 6 per round; queue value 9). They run at the player's feet along the nav flow field, zigzagging, light a fuse about 1.1 m out and go off 0.45 s later with a small firecracker bang (`fx.bang`) for 9-24 damage and only a short red flash (`hurtPlayer(d, true)`). 30 HP: three machine-gun bullets, or any rocket blast nearby (`fx.poof`). They never get a lock-on ring and do not count toward the enemy cap.
+* **Dialog rats**: every in-game dialog (`showMsg` / `drawMsg`) has an animated cartoon rat in each corner (`drawRat`, moods: wave, angry, sad, cheer). The start page has the same rat as animated inline SVG.
+
+## Scoring
+
+Kills score 30 (rat) / 100 / 300 / 700 (tanks) / 400 / 900 (helicopters). **Rocket bonus:** at the end of each round, `max(0, 2 x enemies - rockets fired) x 25` points (the machine gun is free). Best score is kept in `localStorage`.
+
+## Room data check
+
+In a headset session the start dialog reports the scan state (`roomLines`): found (green), "looking" for the first 3 s, or not found with the steps to scan the room (Settings -> Physical space -> Space setup; older software: Settings -> Environment -> Space setup). It also notes when the browser did not enable `mesh-detection` / `plane-detection` at all. A web page cannot open the headset's settings, so this is text only; the game can still be started (virtual barriers).
+
 ## Where enemies spawn
 
 Anywhere in the room that is valid (open floor or air you can reach, at least 1.7 m from you). `pickSpawn` / `pickHeliSpawn` collect all valid spots and draw one at random (`drawWeighted`); `spawnWeight` only makes a spot less likely — not where one of the last five came from, and not right in front of you where it would visibly pop in. Do not turn this back into "take the best-scoring spot": with 200 candidates any penalty becomes a hard filter and spawns pile up at one end.
 
 ## Cache busting
 
-The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114c`) whenever the game files change.**
+The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114d`) whenever the game files change.**

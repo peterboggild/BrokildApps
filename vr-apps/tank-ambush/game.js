@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114c';
-import { createFX, createAudio } from './fx.js?v=20261114c';
-import { buildTank, buildHeli, heliShadow, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114c';
+} from './world.js?v=20261114d';
+import { createFX, createAudio } from './fx.js?v=20261114d';
+import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114d';
 
 /* ================================================================ basics */
 
@@ -39,6 +39,7 @@ const G = {
   toSpawn: 0, maxAlive: 0, spawnT: 0, waveClear: false, nextWaveT: 0,
   inputLock: 0, hurt: 0, showMesh: false, fieldDirty: true, haveRoom: false, virtual: false,
   menuPending: false, time: 0,
+  waveRockets: 0, waveEnemies: 0, bonusTotal: 0, xrT: 0, meshFeature: undefined,
   rings: false, light: 1, lightMode: 'auto', estimated: false,
   ammo: { std: 6, heavy: 0 }, toast: '', toastT: 0, fade: { t: -1, hold: false }, invuln: 0, queue: [], pickT: 0,
 };
@@ -356,7 +357,7 @@ function drawWeighted(list) {
   return list[list.length - 1] || null;
 }
 
-function pickSpawn() {
+function pickSpawn(minD = 1.7) {
   const list = [];
   for (let i = 0; i < 200; i++) {
     const x = rand(-5.6, 5.6), z = rand(-5.6, 5.6);
@@ -364,7 +365,7 @@ function pickSpawn() {
     const f = fieldAt(playerField, x, z);
     if (f >= FAR) continue;
     const ed = Math.hypot(x - head.x, z - head.z);
-    if (ed < 1.7 || fieldMetres(f) > 10) continue;
+    if (ed < minD || fieldMetres(f) > 10) continue;
     if (tanks.some(t => !t.dead && Math.hypot(t.x - x, t.z - z) < 0.6)) continue;
     list.push({ x, z, w: spawnWeight(x, 0.12, z) });
   }
@@ -544,6 +545,10 @@ function updateTank(t, dt) {
     }
   }
   t.eng.set(tmpV.set(t.x, 0.1, t.z), clamp(Math.abs(t.v) / 0.7 + Math.abs(t.yawRate) * 0.15, 0, 1));
+  // the rat crew: look at the player, duck into the hatch when the tank pulls back or is shaken
+  const look = wrapPi(Math.atan2(head.x - t.x, head.z - t.z) - t.yaw - t.tyaw);
+  const duck = (t.state === 'retreat' || t.state === 'hide') && !t.sees ? 0.9 : t.stun > 0 ? 0.5 : 0;
+  m.rats.forEach((rt, i) => animRatHead(rt, G.time + i * 1.7, dt, look, i ? duck * 0.8 : duck));
 }
 
 function fireShell(t) {
@@ -617,20 +622,21 @@ function shellBoom(p, dmgMax = 15, small = false) {
 
 /* A hit takes the view to red, then black, then brings it back, over about two seconds.
  * You cannot see during the black, so the same two seconds are also a grace period. */
-function hurtPlayer(d) {
+function hurtPlayer(d, soft = false) {
   if (G.phase !== 'play' || G.invuln > 0) return;
   G.hp = Math.max(0, G.hp - d);
-  G.hurt = 1;
-  G.invuln = 2.0;
-  G.fade.t = 0; G.fade.hold = false;
+  G.hurt = soft ? 0.6 : 1;
+  G.invuln = soft ? 0.6 : 2.0;
+  G.fade.t = 0; G.fade.hold = false; G.fade.soft = soft;                      // soft: a short red flash, no blackout
   audio.hurt();
-  for (const h of hands) haptic(h, 1, 160);
-  if (G.hp <= 0) { G.fade.hold = true; gameOver(); }
+  for (const h of hands) haptic(h, soft ? 0.6 : 1, soft ? 90 : 160);
+  if (G.hp <= 0) { G.fade.hold = true; G.fade.soft = false; gameOver(); }
 }
 
 /* --------------------------------------------------------------- damage */
 
 function insideTank(t, p) {
+  if (t.rat) return Math.hypot(p.x - t.x, p.y - 0.05, p.z - t.z) < 0.095;      // small and low
   if (t.air) {                                                   // a helicopter: fuselage ellipsoid, tail boom, stub wings
     const dx = p.x - t.x, dz = p.z - t.z, s = Math.sin(t.yaw), c = Math.cos(t.yaw), k = t.size;
     const lz = (dx * s + dz * c) / k, lx = (dx * c - dz * s) / k, ly = (p.y - t.y) / k;
@@ -648,6 +654,7 @@ function damageTank(t, dmg, from, push, light = false) {
   if (t.dead) return;
   t.hp -= dmg;
   if (t.hp <= 0) { killTank(t); return; }
+  if (t.rat) { t.stun = 0.15; return; }                // a rat is only startled
   if (light) return;                       // bullets chip away; they do not shove, stun or scare a tank
   // hit but alive: shoved sideways, shaken, and slower from now on (heavier tanks move less)
   push /= t.size * t.size;
@@ -666,6 +673,7 @@ function damageTank(t, dmg, from, push, light = false) {
 }
 
 function killTank(t) {
+  if (t.rat) { killRat(t); return; }
   if (t.air) { killHeli(t); return; }
   t.dead = true; t.wreckT = 5;
   G.score += t.scoreVal; G.kills++;
@@ -676,6 +684,12 @@ function killTank(t) {
   t.eng.stop();
   const m = t.model, a = tankAssets();
   m.group.updateMatrixWorld(true);
+  for (const rt of m.rats || []) {                                                           // the crew is thrown clear (and squeaks)
+    const wp = rt.group.getWorldPosition(new V());
+    fx.poof(wp, 0.7);
+    fx.flingObject(rt.group, new V(rand(-1.2, 1.2), rand(2.8, 4.2), rand(-1.2, 1.2)));
+  }
+  audio.squeak(new V(t.x, 0.15, t.z), 1.0);
   fx.flingObject(m.turret, new V(rand(-1, 1), rand(2.6, 3.8), rand(-1, 1)));
   for (let i = 0; i < 10; i++) fx.debrisBox(new V(t.x, 0.08, t.z), new V(rand(-2.2, 2.2), rand(1.5, 3.8), rand(-2.2, 2.2)), rand(0.012, 0.03), i < 3);
   const burn = o => { if (o.isMesh && !o.isInstancedMesh && o !== m.shadow) o.material = o.material === a.camo ? a.wreckCamo : a.char; };
@@ -708,7 +722,7 @@ const cyOf = t => (t.air ? t.y : 0.07 * t.size);
 function lockCandidate(origin, dir, maxAng, maxD, ignore) {
   let best = null, ba = maxAng;
   for (const t of tanks) {
-    if (t.dead || t === ignore) continue;
+    if (t.dead || t.rat || t === ignore) continue;                // no lock-on for the little ones
     tmpV.set(t.x - origin.x, cyOf(t) - origin.y, t.z - origin.z);
     const d = tmpV.length();
     if (d > maxD || d < 0.2) continue;
@@ -725,6 +739,7 @@ function launch(h) {
   const A = G.ammo, heavy = h.role === 'heavy';
   if (heavy ? A.heavy <= 0 : A.std <= 0) return;    // out of rockets (the right hand's machine gun takes over)
   if (heavy) A.heavy--; else A.std--;
+  G.waveRockets++;
   h.cool = 1.15;
   h.ctrl.updateMatrixWorld(true);
   h.L.muzzle.getWorldPosition(mp);
@@ -791,6 +806,7 @@ function updateRockets(dt) {
       for (const t of tanks) {
         if (t.dead) continue;
         if (insideTank(t, r.pos)) { hit = t; boom = true; break; }
+        if (t.rat) continue;                                     // a rocket's proximity fuse ignores the rats
         // proximity fuse: goes off at the closest point of a near miss
         const d = Math.hypot(r.pos.x - t.x, r.pos.y - cyOf(t), r.pos.z - t.z);
         if (d < 0.45 * t.size) {
@@ -1083,6 +1099,95 @@ function updateCrash(t, dt) {
   }
 }
 
+/* ================================================================ kamikaze rats */
+
+/* From round 3, a few rats with a firecracker pack scurry across the floor at your feet. Close in, the fuse
+ * lights and a moment later: a small bang that takes a part of your health (a short red flash, not a blackout).
+ * They are small and quick — shoot them, or a rocket's blast near them, and they go "poof". */
+const RUNNER = { hp: 30, score: 30, fuseAt: 1.1, fuseTime: 0.45, radius: 1.0 };
+
+function spawnRunner(x, z) {
+  const a = tankAssets();
+  const model = buildRunnerRat();
+  scene.add(model.group);
+  const shadow = new THREE.Mesh(a.shadowGeo, a.shadowMat);
+  shadow.scale.set(0.45, 1, 0.45); shadow.position.y = 0.003; model.group.add(shadow);
+  const t = {
+    rat: true, model, size: 1, tier: -1, maxhp: RUNNER.hp, hp: RUNNER.hp, scoreVal: RUNNER.score, dmg: 0,
+    x, z, yaw: Math.atan2(head.x - x, head.z - z), v: 0, dead: false, state: 'run', age: 0, spawnT: 0, wreckT: 0,
+    fuse: -1, weave: rand(0, 6.28), gx: x, gz: z, goalT: 0, stun: 0, sees: false, eng: { set() {}, stop() {} },
+    vmax: Math.min(2.7, 1.7 + 0.07 * G.wave),
+  };
+  model.group.position.set(x, 0, z); model.group.rotation.y = t.yaw; model.group.scale.setScalar(0.4);
+  tanks.push(t);
+  fx.poof(new V(x, 0.05, z), 0.6);
+  audio.squeak(new V(x, 0.1, z), 1.2);
+  return t;
+}
+
+function updateRat(t, dt) {
+  t.age += dt;
+  const m = t.model, playing = G.phase === 'play';
+  if (t.spawnT < 1) { t.spawnT = Math.min(1, t.spawnT + dt * 4); m.group.scale.setScalar(0.4 + 0.6 * t.spawnT); }
+  if (t.stun > 0) t.stun -= dt;
+  const px = head.x, pz = head.z, dist = Math.hypot(px - t.x, pz - t.z);
+  let moved = 0;
+  if (playing) {
+    // route: straight at your feet if the floor is clear, else round the furniture along the flow field
+    t.goalT -= dt;
+    if (t.goalT <= 0) {
+      t.goalT = 0.15;
+      if (navLine(t.x, t.z, px, pz)) { t.gx = px; t.gz = pz; }
+      else { const r = pathTarget(playerField, t.x, t.z); if (r.ok) { t.gx = r.x; t.gz = r.z; } else { t.gx = px; t.gz = pz; } }
+    }
+    const dx = t.gx - t.x, dz = t.gz - t.z, d = Math.hypot(dx, dz) || 1;
+    const weave = dist > 1.6 ? Math.sin(t.age * 6 + t.weave) * 0.55 : 0;                 // it zigzags, so it is harder to hit
+    const wx = dx / d - dz / d * weave, wz = dz / d + dx / d * weave;
+    const want = Math.atan2(wx, wz);
+    t.yaw = wrapPi(t.yaw + clamp(wrapPi(want - t.yaw), -9 * dt, 9 * dt));
+    const vt = t.vmax * (t.stun > 0 ? 0.2 : 1) * (t.fuse >= 0 ? 1.15 : 1);
+    t.v += (vt - t.v) * Math.min(1, dt * 6);
+    const x0 = t.x, z0 = t.z;
+    if (!moveTo(t, t.x + Math.sin(t.yaw) * t.v * dt, t.z + Math.cos(t.yaw) * t.v * dt)) t.v *= 0.6;
+    moved = Math.hypot(t.x - x0, t.z - z0);
+    // the fuse: lights when it is close, and the bang follows a heartbeat later
+    if (t.fuse < 0 && dist < RUNNER.fuseAt) { t.fuse = RUNNER.fuseTime; audio.fuse(tmpV.set(t.x, 0.1, t.z)); audio.squeak(tmpV.set(t.x, 0.1, t.z), 1.4); }
+    if (t.fuse >= 0) { t.fuse -= dt; if (t.fuse <= 0 || dist < 0.35) { explodeRat(t); return; } }
+  }
+  m.group.position.set(t.x, 0, t.z);
+  m.group.rotation.y = t.yaw;
+  animRunnerRat(m, G.time, moved);
+  // the fuse always sputters
+  m.group.updateMatrixWorld(true);
+  m.fuse.getWorldPosition(tmpV);
+  fx.fire.add(tmpV.x, tmpV.y, tmpV.z, rand(-0.15, 0.15), rand(0.1, 0.4), rand(-0.15, 0.15), t.fuse >= 0 ? 0.28 : 0.18, t.fuse >= 0 ? 0.04 : 0.025, 0.008, [1, 0.95, 0.6], [1, 0.4, 0.1], 1, 1.5, 3);
+  if (Math.random() < dt * 8) fx.smoke.add(tmpV.x, tmpV.y, tmpV.z, 0, 0.12, 0, 0.6, 0.012, 0.05, [0.7, 0.7, 0.7], [0.4, 0.4, 0.4], 0.3, 0.6, 0);
+}
+
+/** Close to your feet: a firecracker bang and a part of your health. */
+function explodeRat(t) {
+  const p = new V(t.x, 0.06, t.z);
+  fx.bang(p, 1);
+  audio.bangSmall(p.clone());
+  scorch.add(t.x, t.z, 0.22);
+  if (G.phase === 'play') {
+    const d = Math.hypot(head.x - t.x, head.z - t.z);
+    if (d < RUNNER.radius) hurtPlayer(Math.round(clamp(26 * (1 - d / RUNNER.radius), 9, 24)), true);
+  }
+  t.dead = true; t.wreckT = 0;
+  scene.remove(t.model.group);
+}
+
+/** Shot: a cartoon puff and a few stars. */
+function killRat(t) {
+  const p = new V(t.x, 0.07, t.z);
+  fx.poof(p, 1);
+  audio.squeak(p.clone(), 1.5);
+  G.score += t.scoreVal; G.kills++;
+  t.dead = true; t.wreckT = 0;
+  scene.remove(t.model.group);
+}
+
 /* ------------------------------------------------------- machine gun */
 
 /* With the rockets gone the launchers fall back to bullets: hold the trigger and they fire on
@@ -1130,8 +1235,8 @@ function updateBullets(dt) {
 
 const pickups = [];
 const PK = {
-  std: { box: 0x56603a, band: 0xe8c040, ring: 0xffe27a, label: '+3 ROCKETS' },
-  heavy: { box: 0x8a2a1c, band: 0xffa020, ring: 0xff6a2a, label: '+2 HEAVY \u2014 LEFT HAND' },
+  std: { box: 0x56603a, band: 0xe8c040, ring: 0xffe27a, label: '+3 RAKETTER' },
+  heavy: { box: 0x8a2a1c, band: 0xffa020, ring: 0xff6a2a, label: '+2 TUNGE \u2014 VENSTRE H\u00c5ND' },
 };
 const pkBox = new THREE.BoxGeometry(0.26, 0.12, 0.15), pkBand = new THREE.BoxGeometry(0.04, 0.125, 0.155);
 const pkRing = new THREE.RingGeometry(0.2, 0.25, 40).rotateX(-Math.PI / 2);
@@ -1245,16 +1350,16 @@ function drawHud(h) {
   ctx.fillStyle = f > 0.5 ? '#46d06a' : f > 0.25 ? '#e8b030' : '#e23b2c';
   ctx.fillRect(16, 18, 268 * f, 38);
   ctx.fillStyle = '#fff'; ctx.font = 'bold 34px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(`HEALTH ${Math.ceil(G.hp)}`, 150, 38);
+  ctx.fillText(`LIV ${Math.ceil(G.hp)}`, 150, 38);
   ctx.fillStyle = '#ffb454'; ctx.font = 'bold 30px Arial'; ctx.textAlign = 'left';
-  ctx.fillText(`WAVE ${G.wave}`, 16, 92);
+  ctx.fillText(`RUNDE ${G.wave}`, 16, 92);
   ctx.textAlign = 'right'; ctx.fillText(`${G.score}`, 284, 92);
   ctx.textAlign = 'center'; ctx.font = 'bold 26px Arial';
   if (G.toast) { ctx.fillStyle = '#ffe27a'; ctx.font = 'bold 28px Arial'; ctx.fillText(G.toast, 150, 140); }
-  else if (!heavyRole && have === 0) { ctx.fillStyle = '#ffcc33'; ctx.fillText('MACHINE GUN  \u221e', 150, 140); }
+  else if (!heavyRole && have === 0) { ctx.fillStyle = '#ffcc33'; ctx.fillText('MASKINGEV\u00c6R  \u221e', 150, 140); }
   else {
     ctx.fillStyle = h.cool > 0 ? '#ff6a55' : heavyRole ? '#ff9a4a' : '#6dff8c';
-    ctx.fillText(heavyRole ? `HEAVY ROCKETS ${have}` : `ROCKETS ${have}`, 150, 140);
+    ctx.fillText(heavyRole ? `TUNGE RAKETTER ${have}` : `RAKETTER ${have}`, 150, 140);
   }
   h.L.panel.refresh();
 }
@@ -1285,7 +1390,10 @@ function updateFade(dt) {
   f.t += dt;
   const t = f.t;
   let a, r;
-  if (t < 0.2) { a = 0.85 * (t / 0.2); r = 0.78; }                         // flash to red
+  if (f.soft) {                                                            // a firecracker: a quick red flash that fades
+    if (t > 0.9) { f.t = -1; fadeQuad.visible = false; return; }
+    a = t < 0.12 ? 0.6 * (t / 0.12) : 0.6 * (1 - (t - 0.12) / 0.78); r = 0.78;
+  } else if (t < 0.2) { a = 0.85 * (t / 0.2); r = 0.78; }                 // flash to red
   else if (t < 0.9) { const k = (t - 0.2) / 0.7; a = 0.85 + 0.15 * k; r = 0.78 * (1 - k); }   // red goes to black
   else if (f.hold) { a = 0.92; r = 0; }                                    // dead: stay dark behind the score board
   else if (t < 1.3) { a = 1; r = 0; }                                      // black
@@ -1302,25 +1410,66 @@ msg.mesh.renderOrder = 500; msg.mesh.visible = false; msg.mesh.frustumCulled = f
 scene.add(msg.mesh);
 let msgTimer = 0;
 
-function showMsg(lines, secs = 0, scale = 1) {
-  const { ctx } = msg;
-  ctx.clearRect(0, 0, 1024, 512);
-  ctx.fillStyle = 'rgba(5,9,14,0.86)';
-  ctx.beginPath(); ctx.roundRect(8, 8, 1008, 496, 28); ctx.fill();
-  ctx.strokeStyle = '#ffb454'; ctx.lineWidth = 6; ctx.stroke();
-  let y = 30;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  for (const l of lines) {
-    ctx.fillStyle = l.c || '#e6edf5';
-    ctx.font = `${l.b === false ? '' : 'bold '}${l.s || 40}px Arial, sans-serif`;
-    ctx.fillText(l.t, 512, y);
-    y += (l.s || 40) * 1.32 + (l.gap || 0);
-  }
-  msg.refresh();
+let msgState = null, msgDrawT = 0;
+function showMsg(lines, secs = 0, scale = 1, mood = 'wave') {
+  msgState = { lines, mood };
   msg.mesh.scale.setScalar(scale);
   placeMsg();
   msg.mesh.visible = true;
   msgTimer = secs;
+  drawMsg();
+}
+
+/** One cartoon rat for the dialog corners. (cx,cy) is the middle of its head; it faces right unless `flip`.
+ *  Moods: wave (friendly), angry (shaking a fist), sad (a tear), cheer (jumping, both paws up). */
+function drawRat(c, cx, cy, s, t, mood, flip) {
+  c.save(); c.translate(cx, cy); if (flip) c.scale(-1, 1); c.scale(s, s);
+  c.translate(0, Math.sin(t * 3) * (mood === 'cheer' ? 8 : 3));
+  const E = (x, y, rx, ry, col) => { c.fillStyle = col; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, 6.283); c.fill(); };
+  const FUR = '#8a7560', PINK = '#e9a3ad';
+  c.strokeStyle = PINK; c.lineWidth = 5; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(-40, 48); c.quadraticCurveTo(-72, 40 + Math.sin(t * 4) * 10, -66, 8 + Math.sin(t * 4 + 1) * 8); c.stroke();      // tail
+  E(-6, 52, 40, 30, FUR); E(-2, 58, 26, 18, '#b8a38a');                                                                                       // body, belly
+  const ew = Math.sin(t * 5) * 0.12;
+  for (const ex of [-22, 14]) { c.save(); c.translate(ex, -34); c.rotate((ex < 0 ? -0.35 : 0.25) + ew * (ex < 0 ? 1 : -1)); E(0, 0, 17, 20, FUR); E(0, 2, 10, 13, PINK); c.restore(); }   // ears
+  E(0, 0, 40, 34, FUR); E(26, 10, 26, 19, '#9b856e'); E(50, 12, 7, 6, PINK);                                                                   // head, snout, nose
+  c.fillStyle = '#f4ecd6'; c.fillRect(38, 22, 7, 9);                                                                                           // front teeth
+  const blink = (t % 3.2) > 3.05;
+  E(12, -6, 9, blink ? 1.5 : 10, '#fff');
+  if (!blink) { E(15 + Math.sin(t * 1.3) * 1.5, -5, 4.5, 5.5, '#111'); E(16.5, -7, 1.6, 1.6, '#fff'); }
+  c.strokeStyle = '#4a3a2a'; c.lineWidth = 5; c.beginPath();
+  if (mood === 'angry') { c.moveTo(1, -21); c.lineTo(24, -12); } else if (mood === 'sad') { c.moveTo(1, -14); c.lineTo(24, -21); } else { c.moveTo(1, -19); c.lineTo(24, -19); }
+  c.stroke();
+  c.strokeStyle = '#eee'; c.lineWidth = 1.6;
+  for (let k = -1; k <= 1; k++) { c.beginPath(); c.moveTo(40, 14 + k * 3); c.lineTo(78, 14 + k * 11 + Math.sin(t * 9 + k) * 3); c.stroke(); }  // whiskers
+  const py = mood === 'angry' ? 42 + Math.sin(t * 14) * 5 : (mood === 'wave' || mood === 'cheer') ? 30 + Math.sin(t * 6) * 22 - (mood === 'cheer' ? 30 : 0) : 54;
+  c.strokeStyle = FUR; c.lineWidth = 11; c.beginPath(); c.moveTo(22, 62); c.lineTo(54, py); c.stroke(); E(56, py, 8, 8, PINK);                  // an arm
+  if (mood === 'sad') E(10, 8 + ((t * 30) % 30), 3, 5, '#7ec8ff');
+  c.restore();
+}
+
+function drawMsg() {
+  if (!msgState) return;
+  const { ctx } = msg, t = G.time;
+  ctx.clearRect(0, 0, 1024, 512);
+  ctx.fillStyle = 'rgba(5,9,14,0.88)';
+  ctx.beginPath(); ctx.roundRect(8, 8, 1008, 496, 28); ctx.fill();
+  ctx.strokeStyle = '#ffb454'; ctx.lineWidth = 6; ctx.stroke();
+  let y = 26;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const l of msgState.lines) {
+    const nominal = l.s || 40, bold = l.b === false ? '' : 'bold ';
+    const maxW = y < 190 ? 730 : 960;                                           // keep clear of the rats in the corners
+    let size = nominal;
+    ctx.font = `${bold}${size}px Arial, sans-serif`;
+    while (ctx.measureText(l.t).width > maxW && size > 14) { size -= 2; ctx.font = `${bold}${size}px Arial, sans-serif`; }
+    ctx.fillStyle = l.c || '#e6edf5';
+    ctx.fillText(l.t, 512, y);
+    y += nominal * 1.32 + (l.gap || 0);
+  }
+  drawRat(ctx, 84, 96, 0.95, t, msgState.mood, false);
+  drawRat(ctx, 940, 96, 0.95, t + 1.1, msgState.mood, true);
+  msg.refresh();
 }
 function placeMsg() {
   tmpV.set(0, 0, -1).applyQuaternion(headQ); tmpV.y = 0;
@@ -1331,27 +1480,38 @@ function placeMsg() {
 }
 const hideMsg = () => { msg.mesh.visible = false; };
 
-function scanLine() {
-  if (G.mode === 'flat') return { t: 'Flat preview: virtual barriers stand in for your furniture', c: '#9fb3c8' };
+/** What the room scan situation is, as lines for the start dialog. */
+function roomLines() {
+  if (G.mode === 'flat') return [{ t: 'Flad forh\u00e5ndsvisning: virtuelle barrierer erstatter dine m\u00f8bler', s: 24, c: '#9fb3c8', b: false }];
   const n = scan.sources.size;
-  if (n > 0) return { t: `Room scan found (${n} surface ${n === 1 ? 'mesh' : 'meshes'}) — hide behind real furniture!`, c: '#6dff8c' };
-  return { t: 'No room scan found yet — virtual barriers will be used', c: '#ffb454' };
+  if (n > 0) return [{ t: `Rumdata fundet (${n} ${n === 1 ? 'flade' : 'flader'}) \u2014 skjul dig bag rigtige m\u00f8bler!`, s: 26, c: '#6dff8c' }];
+  if (G.meshFeature === false) return [
+    { t: 'Browseren gav ikke adgang til rumdata', s: 28, c: '#ffb454' },
+    { t: 'Tillad adgang til dit rum, n\u00e5r den sp\u00f8rger \u2014 eller genindl\u00e6s siden og pr\u00f8v igen', s: 22, b: false },
+  ];
+  if (G.xrT < 3) return [{ t: 'Leder efter rumdata \u2026', s: 26, c: '#9fb3c8', b: false }];
+  return [
+    { t: 'Ingen rumdata fundet \u2014 rotterne kan ikke bruge dine m\u00f8bler', s: 26, c: '#ffb454' },
+    { t: 'Scan rummet: Indstillinger \u2192 Fysisk rum \u2192 Rumops\u00e6tning \u2192 Ops\u00e6t', s: 23, b: false },
+    { t: '(\u00e6ldre software: Indstillinger \u2192 Milj\u00f8 \u2192 Rumops\u00e6tning) \u2014 genindl\u00e6s siden bagefter', s: 21, c: '#9fb3c8', b: false },
+    { t: 'Du kan ogs\u00e5 starte nu: s\u00e5 bruges virtuelle barrierer', s: 22, c: '#9fb3c8', b: false },
+  ];
 }
 
 function showMenu() {
   G.phase = 'menu';
   G.inputLock = 0.8;
   showMsg([
-    { t: 'TANK AMBUSH', s: 84, c: '#ffb454' },
-    { t: 'Tanks are rolling into your room.', s: 36, b: false },
-    { t: 'They hide behind your furniture and aim at your head.', s: 32, b: false },
-    { t: 'Dodge the shells, duck behind something solid, and grab ammo crates.', s: 30, b: false },
+    { t: 'MUTANT ROTTE ANGREB', s: 62, c: '#ffb454' },
+    { t: 'Rotterne har udviklet sig \u2014 nu vil de have magten i huset!', s: 29, b: false },
+    { t: 'De k\u00f8rer panservogne, flyver helikoptere og sender kamikaze-r\u00f8tter.', s: 27, b: false },
+    { t: 'Duk dig bag m\u00f8blerne, undvig skuddene og saml ammunition op.', s: 27, b: false },
     G.mode === 'flat'
-      ? { t: 'Click: rocket (hold: machine gun) · Q or right-click: heavy · WASD · C crouch', s: 24, c: '#9fb3c8', b: false, gap: 8 }
-      : { t: 'Right hand: rockets, then machine gun · Left: heavy rockets when stocked', s: 25, c: '#9fb3c8', b: false, gap: 8 },
-    scanLine(),
-    { t: G.mode === 'flat' ? 'CLICK TO START' : 'PULL A TRIGGER TO START', s: 46, c: '#6dff8c', gap: 6 },
-  ].map(l => ({ s: 30, ...l })));
+      ? { t: 'Klik: raket (hold: maskingev\u00e6r) \u00b7 Q / h\u00f8jreklik: tung \u00b7 WASD \u00b7 C: duk', s: 23, c: '#9fb3c8', b: false, gap: 6 }
+      : { t: 'H\u00f8jre h\u00e5nd: raketter, s\u00e5 maskingev\u00e6r \u00b7 Venstre: tunge raketter, n\u00e5r du har dem', s: 23, c: '#9fb3c8', b: false, gap: 6 },
+    ...roomLines(),
+    { t: G.mode === 'flat' ? 'KLIK FOR AT STARTE' : 'TR\u00c6K I UDL\u00d8SEREN FOR AT STARTE', s: 38, c: '#6dff8c', gap: 4 },
+  ].map(l => ({ s: 30, ...l })), 0, 1, 'wave');
 }
 
 /* ================================================================= flow */
@@ -1369,7 +1529,7 @@ function resetEntities() {
 function startGame() {
   resetEntities();
   hideMsg();
-  G.hp = 100; G.score = 0; G.kills = 0; G.wave = 0; G.waveClear = false;
+  G.hp = 100; G.score = 0; G.kills = 0; G.wave = 0; G.waveClear = false; G.bonusTotal = 0; G.waveRockets = 0;
   G.ammo = { std: 6, heavy: 0 }; G.toast = ''; G.invuln = 0; G.fade = { t: -1, hold: false }; G.pickT = 9;
   const wantVirtual = params.has('cover') || scan.sources.size === 0;
   if (wantVirtual && !virt.made) addVirtualCover();
@@ -1394,6 +1554,8 @@ function buildQueue(n) {
   for (let i = 0; i < t2; i++) q.push(2);
   for (let i = 0; i < t1; i++) q.push(1);
   while (q.length < Math.max(total, t1 + t2 + h3 + h4 + 2)) q.push(0);
+  const runners = n >= 3 ? [2, 2, 3, 3, 4, 4, 5, 5, 6][Math.min(n - 3, 8)] : 0;       // kamikaze rats (value 9): a few at first, from round 3
+  for (let i = 0; i < runners; i++) q.push(9);
   for (let i = q.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [q[i], q[j]] = [q[j], q[i]]; }
   const first = q.findIndex(v => v === 0);                                  // never open a wave with the big ones
   if (first > 0) [q[0], q[first]] = [q[first], q[0]];
@@ -1404,13 +1566,14 @@ function startWave(n) {
   G.wave = n;
   G.queue = buildQueue(n);
   G.toSpawn = G.queue.length;
+  G.waveRockets = 0; G.waveEnemies = G.queue.filter(v => v !== 9).length;
   G.maxAlive = Math.min(1 + Math.ceil(n / 2), 5);
   G.spawnT = 1.8;
   G.waveClear = false;
   audio.alert('wave');
-  const sub2 = n === 1 ? { t: 'Tanks inbound', c: '#e6edf5' } : n === 6 ? { t: 'HEAVY ARMOUR INBOUND', c: '#ff5a44' } : n === 8 ? { t: 'ATTACK HELICOPTER INBOUND', c: '#ff5a44' } : n === 10 ? { t: 'SUPER-HEAVY TANKS', c: '#ff5a44' } : n === 12 ? { t: 'BLACK GUNSHIP INBOUND', c: '#ff5a44' }
-    : n === 5 ? { t: 'Heavy rocket crates now drop', c: '#ffa020' } : { t: 'They are getting smarter', c: '#e6edf5' };
-  showMsg([{ t: `WAVE ${n}`, s: 120, c: '#ffb454' }, { t: sub2.t, s: 40, c: sub2.c, b: n === 6 || n === 8 || n === 10 || n === 12 }], 2.6, 0.7);
+  const sub2 = n === 1 ? { t: 'Rotterne rykker ind!', c: '#e6edf5' } : n === 3 ? { t: 'KAMIKAZE-R\u00d8TTER!', c: '#ff5a44' } : n === 6 ? { t: 'SORTE PANSERVOGNE', c: '#ff5a44' } : n === 8 ? { t: 'ANGRIBSHELIKOPTER', c: '#ff5a44' } : n === 10 ? { t: 'SUPERTUNGE PANSERVOGNE', c: '#ff5a44' } : n === 12 ? { t: 'SORT KAMPHELIKOPTER', c: '#ff5a44' }
+    : n === 5 ? { t: 'Tunge raketter dukker op', c: '#ffa020' } : { t: 'Rotterne bliver klogere', c: '#e6edf5' };
+  showMsg([{ t: `RUNDE ${n}`, s: 110, c: '#ffb454' }, { t: sub2.t, s: 38, c: sub2.c, b: [3, 6, 8, 10, 12].includes(n) }], 2.8, 0.7, 'angry');
   if (n > 1) { spawnPickup('std'); if (n >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy'); }
 }
 
@@ -1427,13 +1590,13 @@ function gameOver() {
     try { best = +localStorage.getItem('tankAmbushBest') || 0; if (G.score > best) localStorage.setItem('tankAmbushBest', String(G.score)); } catch (_) { /* no storage */ }
     const record = G.score > best;
     showMsg([
-      { t: 'WELL DONE!', s: 96, c: '#ffd45a' },
-      { t: 'Game over', s: 38, c: '#ff7a66' },
-      { t: `SCORE ${G.score}`, s: 70, c: '#ffffff' },
-      { t: `Wave ${G.wave}  ·  ${G.kills} tank${G.kills === 1 ? '' : 's'} destroyed`, s: 34 },
-      record ? { t: 'NEW BEST!', s: 34, c: '#ffd45a' } : { t: `Best: ${best}`, s: 32, c: '#9fb3c8', b: false },
-      { t: G.mode === 'flat' ? 'CLICK TO PLAY AGAIN' : 'PULL A TRIGGER TO PLAY AGAIN', s: 40, c: '#6dff8c', gap: 10 },
-    ]);
+      { t: 'FLOT KLARET!', s: 86, c: '#ffd45a' },
+      record ? { t: 'Ny high score!', s: 40, c: '#6dff8c' } : { t: `Din bedste: ${best}`, s: 30, c: '#9fb3c8', b: false },
+      { t: 'Rotterne vandt, men du gav dem kamp til stregen', s: 34, c: '#ffffff' },
+      { t: `POINT ${G.score}`, s: 60, c: '#ffffff' },
+      { t: `Runde ${G.wave} \u00b7 ${G.kills} fjender besejret${G.bonusTotal ? ` \u00b7 raketbonus ${G.bonusTotal}` : ''}`, s: 28 },
+      { t: G.mode === 'flat' ? 'KLIK FOR AT SPILLE IGEN' : 'TR\u00c6K I UDL\u00d8SEREN FOR AT SPILLE IGEN', s: 36, c: '#6dff8c', gap: 6 },
+    ], 0, 1, 'cheer');
   }, 700);
 }
 
@@ -1448,26 +1611,34 @@ function updateGame(dt) {
     if (G.wave >= 5 && !hv && Math.random() < 0.45) spawnPickup('heavy');
     else if (pickups.length < 3) spawnPickup('std');
   }
-  const alive = tanks.reduce((n, t) => n + (t.dead ? 0 : 1), 0);
+  const alive = tanks.reduce((n, t) => n + (t.dead || t.rat ? 0 : 1), 0);     // the kamikaze rats do not count toward the cap
   if (!G.waveClear) {
     if (G.toSpawn > 0) {
-      if (alive < G.maxAlive) {
+      const next = G.queue[0] || 0;
+      if (alive < G.maxAlive || next === 9) {
         G.spawnT -= dt;
         if (G.spawnT <= 0) {
-          const next = G.queue[0] || 0;
-          const p = next >= 3 ? pickHeliSpawn() : pickSpawn();
+          const p = next === 9 ? pickSpawn(2.8) : (next >= 3 ? pickHeliSpawn() : pickSpawn());
           if (p) {
             G.queue.shift(); noteSpawn(p.x, p.z);
-            if (next >= 3) spawnHeli(p.x, p.y, p.z, next - 3); else spawnTank(p.x, p.z, undefined, next);
-            G.toSpawn--; G.spawnT = rand(2, 4);
+            if (next === 9) spawnRunner(p.x, p.z);
+            else if (next >= 3) spawnHeli(p.x, p.y, p.z, next - 3); else spawnTank(p.x, p.z, undefined, next);
+            G.toSpawn--; G.spawnT = next === 9 ? rand(0.5, 1.3) : rand(2, 4);
           } else G.spawnT = 1;
         }
       }
-    } else if (alive === 0) {
+    } else if (!tanks.some(t => !t.dead)) {
       G.waveClear = true; G.nextWaveT = 4;
       G.hp = Math.min(100, G.hp + 40);
       audio.alert('wave');
-      showMsg([{ t: 'WAVE CLEARED', s: 90, c: '#6dff8c' }, { t: '+40 health', s: 40, b: false }], 2.6, 0.7);
+      // the fewer rockets, the bigger the bonus: two per enemy is par
+      const used = G.waveRockets, par = 2 * G.waveEnemies, bonus = Math.max(0, par - used) * 25;
+      G.score += bonus; G.bonusTotal += bonus;
+      showMsg([
+        { t: 'RUNDEN ER KLARET', s: 64, c: '#6dff8c' },
+        { t: '+40 liv', s: 34, b: false },
+        bonus > 0 ? { t: `Raketbonus +${bonus}  (kun ${used} ${used === 1 ? 'raket' : 'raketter'})`, s: 32, c: '#ffd45a' } : { t: `${used} raketter brugt`, s: 28, c: '#9fb3c8', b: false },
+      ], 3.2, 0.7, 'sad');
     }
   } else {
     G.nextWaveT -= dt;
@@ -1516,6 +1687,7 @@ async function enterXR() {
       optionalFeatures: ['mesh-detection', 'plane-detection', 'bounded-floor', 'light-estimation'],
     });
     session.addEventListener('end', () => location.reload());
+    G.meshFeature = session.enabledFeatures ? (session.enabledFeatures.includes('mesh-detection') || session.enabledFeatures.includes('plane-detection')) : undefined;
     try { if (session.requestLightProbe) session.requestLightProbe().then(p => { lightProbe = p; }).catch(() => {}); } catch (_) { /* no light estimation */ }
     await renderer.xr.setSession(session);
     G.mode = 'xr';
@@ -1524,7 +1696,7 @@ async function enterXR() {
     attachXRControllers();
     G.menuPending = true;
   } catch (e) {
-    status.textContent = 'Could not start the headset session: ' + (e.message || e);
+    status.textContent = 'Kunne ikke starte headset-sessionen: ' + (e.message || e);
     console.error(e);
   }
 }
@@ -1583,7 +1755,7 @@ function enterFlat() {
     keys[e.code] = true;
     if (e.code === 'KeyG') onSqueeze();
     if (e.code === 'KeyQ') onTrigger(0);
-    if (e.code === 'BracketLeft' || e.code === 'BracketRight') { G.light = clamp(G.light + (e.code === 'BracketRight' ? 0.1 : -0.1), 0.3, 1.9); applyLight(); toast(`ROOM LIGHT ${Math.round(G.light * 100)}%`); }
+    if (e.code === 'BracketLeft' || e.code === 'BracketRight') { G.light = clamp(G.light + (e.code === 'BracketRight' ? 0.1 : -0.1), 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); }
   });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
   const releaseKeys = () => { for (const k in keys) keys[k] = false; };
@@ -1653,8 +1825,10 @@ function loop(_, frame) {
   }
   if (G.phase === 'menu') {      // keep the scan line fresh while the player looks around
     scan.menuT = (scan.menuT || 0) - dt;
-    if (scan.menuT <= 0) { scan.menuT = 1.2; const n = scan.sources.size; if (n !== scan.menuN) { scan.menuN = n; showMenu(); G.inputLock = Math.max(G.inputLock, 0); } }
+    if (scan.menuT <= 0) { scan.menuT = 1.2; const n = scan.sources.size, key = n + (G.xrT > 3 ? 'w' : '') + String(G.meshFeature); if (key !== scan.menuN) { scan.menuN = key; showMenu(); G.inputLock = Math.max(G.inputLock, 0); } }
   }
+  if (G.mode === 'xr') G.xrT += dt;
+  if (msg.mesh.visible && G.time - msgDrawT > 0.09) { msgDrawT = G.time; drawMsg(); }           // the dialog rats are animated
   if (G.inputLock > 0) G.inputLock -= dt;
   if (G.invuln > 0) G.invuln -= dt;
   if (G.toastT > 0) { G.toastT -= dt; if (G.toastT <= 0) G.toast = ''; }
@@ -1686,7 +1860,7 @@ function loop(_, frame) {
     // thumbstick up/down: room brightness
     if (G.mode === 'xr' && h.gamepad) {
       const ay = h.gamepad.axes?.[3] ?? 0;
-      if (Math.abs(ay) > 0.55) { G.light = clamp(G.light - ay * dt * 0.5, 0.3, 1.9); applyLight(); toast(`ROOM LIGHT ${Math.round(G.light * 100)}%`); G.lightDirty = true; }
+      if (Math.abs(ay) > 0.55) { G.light = clamp(G.light - ay * dt * 0.5, 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); G.lightDirty = true; }
       else if (G.lightDirty) { G.lightDirty = false; try { localStorage.setItem('tankAmbushLight', String(G.light)); } catch (_) { /* no storage */ } }
     }
     h.L.muzzle.getWorldPosition(mp);
@@ -1720,12 +1894,12 @@ function loop(_, frame) {
       if (t.wreckT <= 0) { scene.remove(t.model.group); if (t.shadow) scene.remove(t.shadow); tanks.splice(i, 1); }
       continue;
     }
-    if (t.air) updateHeli(t, dt); else updateTank(t, dt);
+    if (t.rat) updateRat(t, dt); else if (t.air) updateHeli(t, dt); else updateTank(t, dt);
   }
   // tanks do not park on top of each other
   for (let i = 0; i < tanks.length; i++) for (let j = i + 1; j < tanks.length; j++) {
     const a = tanks[i], b = tanks[j];
-    if (a.dead || b.dead || a.air || b.air) continue;
+    if (a.dead || b.dead || a.air || b.air || a.rat || b.rat) continue;
     const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
     const min = 0.14 * (a.size + b.size);
     if (d < min && d > 1e-4) { const k = (min - d) * 0.5 / d; moveTo(a, a.x - dx * k, a.z - dz * k); moveTo(b, b.x + dx * k, b.z + dz * k); }
@@ -1751,10 +1925,10 @@ function loop(_, frame) {
   const status = $('status'), btnAR = $('enterAR'), btnFlat = $('enterFlat');
   let xrOK = false;
   try { xrOK = !!navigator.xr && await navigator.xr.isSessionSupported('immersive-ar'); } catch (_) { /* no WebXR */ }
-  if (xrOK) { btnAR.disabled = false; status.textContent = 'Mixed reality is available. Put the headset on, then press the button.'; }
+  if (xrOK) { btnAR.disabled = false; status.textContent = 'Blandet virkelighed er tilg\u00e6ngelig. Tag headsettet p\u00e5, og tryk p\u00e5 knappen.'; }
   else status.textContent = navigator.xr
-    ? 'Immersive AR is not available here. Open this page in the Meta Quest 3 browser, or try the flat preview.'
-    : 'WebXR is not available in this browser. Use the Meta Quest 3 browser for the real thing — or try the flat preview.';
+    ? 'Blandet virkelighed er ikke tilg\u00e6ngelig her. \u00c5bn siden i Meta Quest 3-browseren \u2014 eller pr\u00f8v den flade forh\u00e5ndsvisning.'
+    : 'WebXR findes ikke i denne browser. Brug Meta Quest 3-browseren til den rigtige oplevelse \u2014 eller pr\u00f8v den flade forh\u00e5ndsvisning.';
   btnAR.addEventListener('click', enterXR);
   btnFlat.addEventListener('click', enterFlat);
   renderer.setAnimationLoop(loop);
@@ -1762,4 +1936,4 @@ function loop(_, frame) {
 })();
 
 // handy for poking at the game from the console
-window.__tank = { spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
+window.__tank = { spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };

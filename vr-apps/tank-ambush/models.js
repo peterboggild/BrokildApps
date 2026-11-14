@@ -228,9 +228,20 @@ export function buildTank(tier = 0) {
   body.add(turret);
   add(turret, M(a.turretGeo, skin));
   add(turret, M(a.cupolaGeo, a.metal, 0.02, 0.0455, -0.032));
-  add(turret, M(new THREE.BoxGeometry(0.003, 0.012, 0.003), a.dark, 0.02, 0.055, -0.03));
-  const mg = add(turret, M(new THREE.CylinderGeometry(0.0016, 0.0016, 0.026, 6), a.dark, 0.02, 0.054, -0.012));
-  mg.rotation.x = Math.PI / 2;
+  // the crew: a rat looks out of the commander's hatch (green tanks); the black ones carry two
+  const rats = [];
+  const addRat = (x, y, z, dark) => {
+    const rt = buildRatHead(dark);
+    rt.group.position.set(x, y, z); rt.baseY = y; rt.group.userData.rat = true;
+    turret.add(rt.group); rats.push(rt);
+    const rim = M(new THREE.TorusGeometry(0.0135, 0.0022, 6, 18), a.dark, x, y - 0.002, z);
+    rim.rotation.x = Math.PI / 2; turret.add(rim);
+  };
+  addRat(0.02, 0.05, -0.032, tier > 0);
+  if (tier > 0) {
+    add(turret, M(a.cupolaGeo, a.metal, -0.024, 0.0425, 0.004));
+    addRat(-0.024, 0.047, 0.004, true);
+  }
   const ant = add(turret, M(a.antGeo, a.dark, -0.028, 0.12, -0.062)); ant.rotation.x = -0.14;
   add(turret, M(new THREE.BoxGeometry(0.036, 0.03, 0.014), skin, 0, 0.02, 0.07));   // mantlet
   add(turret, M(new THREE.BoxGeometry(0.05, 0.016, 0.03), trim, 0, 0.031, -0.066)); // rear bustle bin
@@ -280,7 +291,7 @@ export function buildTank(tier = 0) {
   group.add(shadow);
 
   if (tier) add(gun, M(new THREE.TorusGeometry(0.0085, 0.0014, 6, 14), a.redGlow, 0, 0, 0.145));      // glowing ring on the barrel
-  return { group, body, turret, gun, muzzle, tracks, wheels, parts, shadow, tier };
+  return { group, body, turret, gun, muzzle, tracks, wheels, parts, shadow, tier, rats };
 }
 
 /* --------------------------------------------------------------- rocket */
@@ -525,3 +536,157 @@ export const heliShadow = () => {
   const a = tankAssets();
   return new THREE.Mesh(heliAssets().shadowGeo, a.shadowMat);
 };
+
+
+/* ------------------------------------------------------------------ rats */
+
+let RT = null;
+function ratAssets() {
+  if (RT) return RT;
+  const r = {};
+  r.fur = new THREE.MeshStandardMaterial({ color: 0x84705c, roughness: 0.95, metalness: 0 });
+  r.furLight = new THREE.MeshStandardMaterial({ color: 0xb59f86, roughness: 0.95, metalness: 0 });
+  r.furDark = new THREE.MeshStandardMaterial({ color: 0x2c2623, roughness: 0.9, metalness: 0 });
+  r.pink = new THREE.MeshStandardMaterial({ color: 0xe9a3ad, roughness: 0.7, metalness: 0 });
+  r.eye = new THREE.MeshStandardMaterial({ color: 0x0b0b0c, roughness: 0.15, metalness: 0.3 });
+  r.eyeRed = new THREE.MeshBasicMaterial({ color: 0xff3020, toneMapped: false });
+  r.glint = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+  r.tooth = new THREE.MeshStandardMaterial({ color: 0xf2ead2, roughness: 0.5 });
+  r.whisker = new THREE.MeshBasicMaterial({ color: 0xe8e4dc });
+  r.helmet = new THREE.MeshStandardMaterial({ color: 0x2f342f, roughness: 0.6, metalness: 0.3 });
+  r.red = new THREE.MeshStandardMaterial({ color: 0xc41c1c, roughness: 0.5 });
+  r.gold = new THREE.MeshStandardMaterial({ color: 0xe8c040, roughness: 0.4, metalness: 0.5 });
+  r.fuse = new THREE.MeshStandardMaterial({ color: 0x6b4a2a, roughness: 0.9 });
+  r.strap = new THREE.MeshStandardMaterial({ color: 0x1f1f22, roughness: 0.8 });
+  r.sph = new THREE.SphereGeometry(1, 16, 12);
+  r.cone = (() => { const g = new THREE.ConeGeometry(1, 1, 12); g.rotateX(Math.PI / 2); return g; })();   // tip toward +Z
+  RT = r;
+  return r;
+}
+const ell = (geo, mat, sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); return m; };
+
+/** A rat's head and shoulders looking out of a hatch, facing +Z, ~3.5 cm across. Origin: the neck. */
+export function buildRatHead(dark = false) {
+  const r = ratAssets(), fur = dark ? r.furDark : r.fur;
+  const group = new THREE.Group(), head = new THREE.Group();
+  group.add(head);
+  group.add(ell(r.sph, fur, 0.017, 0.012, 0.016, 0, 0.0, 0));                           // shoulders in the hatch
+  head.position.y = 0.011;
+  head.add(ell(r.sph, fur, 0.0165, 0.0145, 0.02, 0, 0.004, 0.002));                      // skull
+  head.add(ell(r.cone, fur, 0.0095, 0.0095, 0.024, 0, 0.0, 0.017));                      // snout
+  const nose = ell(r.sph, r.pink, 0.0036, 0.0033, 0.0033, 0, 0.0, 0.0305); head.add(nose);
+  const teeth = ell(new THREE.BoxGeometry(1, 1, 1), r.tooth, 0.0042, 0.0058, 0.0012, 0, -0.0055, 0.0275); head.add(teeth);
+  const eyes = [], ears = [], whiskers = [];
+  for (const s of [-1, 1]) {
+    const eye = ell(r.sph, dark ? r.eyeRed : r.eye, 0.0036, 0.0036, 0.0036, s * 0.0078, 0.0085, 0.0125); head.add(eye); eyes.push(eye);
+    head.add(ell(r.sph, r.glint, 0.0011, 0.0011, 0.0011, s * 0.0068, 0.0102, 0.0153));
+    const brow = ell(new THREE.BoxGeometry(1, 1, 1), dark ? r.fur : fur, 0.0065, 0.0012, 0.0016, s * 0.0078, 0.0128, 0.0140); brow.rotation.z = s * 0.45; head.add(brow);  // a cross little frown
+    const ear = new THREE.Group(); ear.position.set(s * 0.0108, 0.0165, -0.0045);
+    ear.add(ell(r.sph, fur, 0.0085, 0.0095, 0.0022, 0, 0.0035, 0));
+    ear.add(ell(r.sph, r.pink, 0.0056, 0.0066, 0.0016, 0, 0.0033, 0.0014));
+    ear.rotation.z = -s * 0.35; ear.rotation.y = s * 0.3; head.add(ear); ears.push(ear);
+    const wh = new THREE.Group(); wh.position.set(s * 0.0045, -0.0005, 0.024);
+    for (let k = 0; k < 3; k++) {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.0002, 0.0002, 0.02, 3), r.whisker);
+      w.rotation.z = Math.PI / 2; w.position.set(s * 0.01, (k - 1) * 0.0022, 0); w.rotation.y = s * (0.25 + k * 0.18) * 0 + (k - 1) * 0.18 * s; wh.add(w);
+    }
+    head.add(wh); whiskers.push(wh);
+  }
+  if (dark) {                                                                              // the black tanks' rats wear a small commando cap with a red band
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), r.helmet);
+    cap.scale.set(0.0175, 0.011, 0.0185); cap.position.set(0, 0.0105, 0.0); head.add(cap);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.0155, 0.0014, 6, 20), r.red);
+    band.rotation.x = Math.PI / 2; band.position.set(0, 0.0105, 0.0); band.scale.set(1.0, 1.05, 1); head.add(band);
+  }
+  const eyeBase = eyes[0].scale.y;
+  return { group, head, eyes, eyeBase, ears, whiskers, nose, noseBase: nose.scale.clone(), baseY: 0, phase: Math.random() * 6.28, blinkT: 1 + Math.random() * 3, blinking: 0, hide: 0 };
+}
+
+/** Animate a rat head: bob, look at the player, blink, twitch ears and whiskers. `hide` 0..1 ducks it into the hatch. */
+export function animRatHead(rt, t, dt, look, hide) {
+  const p = rt.phase;
+  rt.hide += (hide - rt.hide) * Math.min(1, dt * 5);
+  rt.group.position.y = rt.baseY - rt.hide * 0.03 + Math.sin(t * 2.3 + p) * 0.0014;
+  rt.head.rotation.y += (Math.max(-1.1, Math.min(1.1, look)) - rt.head.rotation.y) * Math.min(1, dt * 6);
+  rt.head.rotation.x = -0.06 + Math.sin(t * 1.7 + p) * 0.05;
+  rt.ears.forEach((e, i) => { const s = i ? 1 : -1; e.rotation.z = -s * (0.35 + Math.max(0, Math.sin(t * 3.1 + p)) * Math.sin(t * 17 + p) * 0.12); });
+  rt.whiskers.forEach((w, i) => { w.rotation.y = (i ? 1 : -1) * 0.12 * Math.sin(t * 11 + p); });
+  rt.nose.scale.copy(rt.noseBase).multiplyScalar(1 + Math.sin(t * 9 + p) * 0.12);        // twitch relative to its own tiny size
+  rt.blinkT -= dt;
+  if (rt.blinkT < 0) { rt.blinking = 0.13; rt.blinkT = 1.5 + Math.random() * 3; }
+  if (rt.blinking > 0) rt.blinking -= dt;
+  const ey = rt.blinking > 0 ? 0.12 : 1;
+  rt.eyes.forEach(e => { e.scale.y = rt.eyeBase * ey; });
+}
+
+/** The kamikaze: a scurrying rat with a firecracker bundle strapped on. ~14 cm long, faces +Z, origin on the floor. */
+export function buildRunnerRat() {
+  const r = ratAssets();
+  const group = new THREE.Group(), body = new THREE.Group();
+  group.add(body);
+  body.add(ell(r.sph, r.fur, 0.034, 0.03, 0.066, 0, 0.042, 0.0));                        // body
+  body.add(ell(r.sph, r.furLight, 0.026, 0.02, 0.05, 0, 0.034, 0.002));                  // lighter belly
+  body.add(ell(r.sph, r.fur, 0.035, 0.032, 0.04, 0, 0.041, -0.034));                     // haunches
+  const head = new THREE.Group(); head.position.set(0, 0.048, 0.068); body.add(head);
+  head.add(ell(r.sph, r.fur, 0.022, 0.02, 0.028, 0, 0, 0));
+  head.add(ell(r.cone, r.fur, 0.0125, 0.0125, 0.034, 0, -0.003, 0.03));
+  head.add(ell(r.sph, r.pink, 0.0048, 0.0045, 0.0045, 0, -0.003, 0.0465));
+  head.add(ell(new THREE.BoxGeometry(1, 1, 1), r.tooth, 0.0055, 0.0075, 0.0015, 0, -0.0095, 0.04));
+  for (const s of [-1, 1]) {
+    head.add(ell(r.sph, r.eye, 0.0048, 0.0048, 0.0048, s * 0.0105, 0.0065, 0.016));
+    head.add(ell(r.sph, r.glint, 0.0015, 0.0015, 0.0015, s * 0.0092, 0.0088, 0.0205));
+    const brow = ell(new THREE.BoxGeometry(1, 1, 1), r.furDark, 0.0085, 0.0017, 0.0022, s * 0.0105, 0.0125, 0.0185); brow.rotation.z = s * 0.5; head.add(brow);   // fierce little frown
+    const ear = new THREE.Group(); ear.position.set(s * 0.0145, 0.0145, -0.006);
+    ear.add(ell(r.sph, r.fur, 0.0115, 0.013, 0.003, 0, 0.005, 0));
+    ear.add(ell(r.sph, r.pink, 0.0075, 0.009, 0.002, 0, 0.0047, 0.0018));
+    ear.rotation.z = -s * 0.35; ear.rotation.y = s * 0.3; head.add(ear);
+    for (let k = 0; k < 3; k++) {
+      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.00022, 0.00022, 0.032, 3), r.whisker);
+      w.rotation.z = Math.PI / 2; w.rotation.y = (k - 1) * 0.2 * s; w.position.set(s * 0.017, -0.004 + (k - 1) * 0.003, 0.036); head.add(w);
+    }
+  }
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.0205, 0.0022, 6, 20), r.red);     // a red headband
+  band.rotation.x = Math.PI / 2 - 0.25; band.position.set(0, 0.006, -0.002); head.add(band);
+  const knot = ell(new THREE.BoxGeometry(1, 1, 1), r.red, 0.004, 0.004, 0.009, 0, 0.004, -0.024); head.add(knot);
+  // the firecracker pack: three red crackers with gold bands, a strap round the belly, a fuse that sparks
+  const pack = new THREE.Group(); pack.position.set(0, 0.075, -0.012); body.add(pack);
+  for (const [x, y] of [[-0.009, 0], [0.009, 0], [0, 0.0145]]) {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.0072, 0.0072, 0.058, 10), r.red);
+    c.rotation.x = Math.PI / 2; c.position.set(x, y, 0); pack.add(c);
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.0075, 0.0075, 0.007, 10), r.gold);
+    b.rotation.x = Math.PI / 2; b.position.set(x, y, 0.012); pack.add(b);
+  }
+  const strap = new THREE.Mesh(new THREE.TorusGeometry(0.033, 0.0028, 6, 18), r.strap);
+  strap.scale.set(1, 0.95, 1); strap.position.set(0, 0.042, 0.002); body.add(strap);
+  const fuseCurve = new THREE.Mesh(new THREE.CylinderGeometry(0.0009, 0.0009, 0.03, 4), r.fuse);
+  fuseCurve.position.set(0, 0.1, 0.034); fuseCurve.rotation.x = 0.7; body.add(fuseCurve);
+  const fuse = new THREE.Object3D(); fuse.position.set(0, 0.112, 0.042); body.add(fuse);        // where the spark is
+  // four legs on hip pivots, and a long tail made of wagging segments
+  const legs = [];
+  for (const [x, z] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
+    const hip = new THREE.Group(); hip.position.set(x * 0.023, 0.03, z * 0.034 + (z < 0 ? -0.004 : 0.012)); body.add(hip);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0035, 0.03, 6), r.fur); leg.position.y = -0.013; hip.add(leg);
+    hip.add(ell(r.sph, r.pink, 0.0055, 0.0035, 0.0085, 0, -0.028, 0.004));
+    legs.push({ hip, off: (x * z > 0) ? 0 : Math.PI });
+  }
+  const tail = []; let parent = new THREE.Group(); parent.position.set(0, 0.04, -0.07); body.add(parent);
+  for (let i = 0; i < 7; i++) {
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.0022 - i * 0.0002, 0.0026 - i * 0.0002, 0.022, 5), r.pink);
+    seg.rotation.x = Math.PI / 2; seg.position.z = -0.011;
+    const piv = new THREE.Group(); piv.add(seg);
+    const next = new THREE.Group(); next.position.z = -0.022; piv.add(next);
+    parent.add(piv); tail.push(piv); parent = next;
+  }
+  return { group, body, head, legs, tail, fuse, phase: Math.random() * 6.28, bob: 0 };
+}
+
+/** Scurry: `dist` is how far the rat moved this frame (m). */
+export function animRunnerRat(m, t, dist) {
+  m.phase += dist * 55;
+  const s = Math.sin(m.phase);
+  m.legs.forEach(l => { l.hip.rotation.x = Math.sin(m.phase + l.off) * 0.9; });
+  m.body.position.y = Math.abs(s) * 0.006;
+  m.body.rotation.x = Math.sin(m.phase * 2) * 0.05;
+  m.head.rotation.y = Math.sin(t * 6) * 0.12;
+  m.tail.forEach((seg, i) => { seg.rotation.y = Math.sin(t * 9 - i * 0.7) * 0.22; seg.rotation.x = -0.05; });
+}

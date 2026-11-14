@@ -183,6 +183,33 @@ export function createFX(scene) {
       flash.position.copy(p); flash.intensity = Math.max(flash.intensity, 4 * s * 2); flashT = Math.max(flashT, 0.12);
     },
 
+    /** The kamikaze rat's firecracker: a sharp little bang with coloured sparks, not a battlefield explosion. */
+    bang(p, s = 1) {
+      fire.add(p.x, p.y, p.z, 0, 0, 0, 0.1, 0.2 * s, 0.55 * s, WHITE, YEL, 1);
+      const COL = [[1, 0.3, 0.2], [1, 0.85, 0.2], [0.3, 0.9, 0.4], [0.4, 0.65, 1], [1, 0.5, 0.9]];
+      for (let i = 0; i < 18; i++) {
+        const a = rand(0, 6.283), sp = rand(0.8, 2.4) * s, e = rand(0.1, 1), c = COL[i % COL.length];
+        fire.add(p.x, p.y, p.z, Math.cos(a) * sp, e * sp + 0.6, Math.sin(a) * sp, rand(0.35, 0.8), 0.022 * s, 0.008 * s, c, c, 1, 1.4, 6);
+      }
+      for (let i = 0; i < 5; i++) {
+        const a = rand(0, 6.283);
+        smoke.add(p.x, p.y, p.z, Math.cos(a) * 0.3, rand(0.2, 0.5), Math.sin(a) * 0.3, rand(0.6, 1.2), 0.07 * s, 0.25 * s, [0.55, 0.53, 0.5], [0.3, 0.3, 0.3], 0.4, 0.8, 0);
+      }
+      flash.position.copy(p); flash.intensity = Math.max(flash.intensity, 5 * s); flashT = Math.max(flashT, 0.1);
+    },
+
+    /** A rat that has been shot: a cartoon puff and a few yellow stars. */
+    poof(p, s = 1) {
+      for (let i = 0; i < 9; i++) {
+        const a = rand(0, 6.283), sp = rand(0.1, 0.5) * s;
+        smoke.add(p.x, p.y, p.z, Math.cos(a) * sp, rand(0.1, 0.4), Math.sin(a) * sp, rand(0.5, 1.0), 0.05 * s, 0.17 * s, [0.85, 0.83, 0.8], [0.6, 0.58, 0.55], 0.55, 1, 0);
+      }
+      for (let i = 0; i < 8; i++) {
+        const a = rand(0, 6.283), sp = rand(0.5, 1.4) * s;
+        fire.add(p.x, p.y, p.z, Math.cos(a) * sp, rand(0.4, 1.3) * s, Math.sin(a) * sp, rand(0.4, 0.8), 0.03 * s, 0.012 * s, [1, 0.95, 0.5], [1, 0.8, 0.2], 1, 1.2, 4);
+      }
+    },
+
     /** A few sparks and a wisp: a bullet hitting a wall or a tank. No light, so a burst of them stays cheap. */
     spark(p, s = 1) {
       for (let i = 0; i < 4; i++)
@@ -319,6 +346,20 @@ export function createAudio() {
       A._tone(master, t, 0.5, 'sine', 90, 30, 0.9);
       A._noise(master, t, 0.35, 'lowpass', 900, 100, 0.6);
       A._tone(master, t, 0.9, 'sine', 1800, 1500, 0.05);     // ear ring
+    },
+    squeak(pos, hi = 1) {
+      if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
+      A._tone(out, t, 0.09, 'triangle', 1500 * hi, 2300 * hi, 0.18);
+      A._tone(out, t + 0.11, 0.08, 'triangle', 1900 * hi, 2700 * hi, 0.16);
+    },
+    fuse(pos) {
+      if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
+      A._noise(out, t, 0.45, 'highpass', 5000, 3000, 0.22);
+    },
+    bangSmall(pos) {
+      if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
+      A._noise(out, t, 0.14, 'highpass', 4500, 900, 0.9);
+      A._tone(out, t, 0.12, 'sine', 220, 60, 0.7);
     },
     mg(pos) {
       if (!ctx) return; const t = ctx.currentTime, out = A._out(pos);
