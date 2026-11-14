@@ -5,6 +5,12 @@ version af rummet. Se ind, gå igennem, gå tilbage.
 
 Siden: `https://peterboggild.github.io/BrokildApps/vr-apps/portalkniven/`
 
+## Kniven
+* Hold udløseren og skær en løkke i luften med knivens spids; et grønt snit følger spidsen (gnister, sus og haptik). Luk løkken, og ringen tænder:
+  glimt, chokring, et slag og knitrende lyd, og ringen vokser fra snittets størrelse til fuld dørstørrelse. Slip før den lukker, og snittet falmer.
+* Ringen er altid en opretstående oval, 1,2 m × 2,2 m. Snittet bestemmer kun *hvor* døren står og hvilken vej den vender (normalen findes med Newells metode).
+* Grib-knappen på den anden controller flytter kniven til den hånd.
+
 ## Hvordan det virker
 * Ringens indre er en maske, der skriver 1 i **stencil-bufferen** (kun hvor den er synlig, dvs. ikke skjult af noget foran).
 * En fuldskærmsflade ved far-planet, kun hvor stencil = 1, nulstiller dybden og maler den anden verdens himmel. Derefter tegnes
