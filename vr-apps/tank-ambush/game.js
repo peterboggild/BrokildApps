@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js';
-import { createFX, createAudio } from './fx.js';
-import { buildTank, buildHeli, heliShadow, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js';
+} from './world.js?v=20261114a';
+import { createFX, createAudio } from './fx.js?v=20261114a';
+import { buildTank, buildHeli, heliShadow, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114a';
 
 /* ================================================================ basics */
 
