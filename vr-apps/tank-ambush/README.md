@@ -40,7 +40,7 @@ No build step: open `index.html` over HTTPS (GitHub Pages) in the Quest browser.
 
 ## Controls
 
-* Quest: trigger = fire that hand's rocket (also starts / restarts); grip = show or hide the room mesh.
+* Quest: trigger = fire that hand's rocket (also starts / restarts); hold both grips for 1.5 s = show or hide the room mesh (debug view; a single grip does nothing).
 * Flat preview: `?flat` in the URL or the button — WASD, mouse (click to capture), click to fire, `G` for the room mesh.
 * URL options: `?cover=1` always add virtual barriers, `?mesh=0` ignore the headset's room scan.
 
@@ -88,7 +88,7 @@ Anywhere in the room that is valid (open floor or air you can reach, at least 1.
 
 ## Cache busting
 
-The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114j`) whenever the game files change.**
+The browser keeps module files for a long time (the Quest browser especially), so a new deploy can show the new start page but run old game code. `index.html` loads `game.js?v=BUILD` and `game.js` imports its siblings with the same `?v=BUILD`. **Bump BUILD in those four places (currently `20261114k`) whenever the game files change.**
 
 ## Sværhedsgrad (Let / Mellem / Svær)
 

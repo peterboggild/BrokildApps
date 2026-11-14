@@ -18,9 +18,9 @@ import * as THREE from './vendor/three.module.min.js';
 import {
   W, los, solidAt, rayHit, rebuildGen, rebuildNow, navBlockedAt, navLine, newField, computeField, nearestFree,
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
-} from './world.js?v=20261114j';
-import { createFX, createAudio } from './fx.js?v=20261114j';
-import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114j';
+} from './world.js?v=20261114k';
+import { createFX, createAudio } from './fx.js?v=20261114k';
+import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114k';
 
 /* ================================================================ basics */
 
@@ -1793,7 +1793,14 @@ function gameOver() {
   }, 700);
 }
 
+let gripHold = 0;
+function updateGripToggle(dt) {                                     // both grips held for 1.5 s toggles the room mesh view
+  if (hands[0].grip && hands[1].grip) { gripHold += dt; if (gripHold > 1.5) { gripHold = -99; onSqueeze(); } }
+  else gripHold = 0;
+}
+
 function updateGame(dt) {
+  updateGripToggle(dt);
   if (G.phase !== 'play') return;
   // ammo crates keep turning up; sooner when you are dry and nothing is lying about
   G.pickT -= dt;
@@ -1847,6 +1854,7 @@ function onTrigger(i) {
   if (G.phase === 'menu' || G.phase === 'over') { if (G.inputLock <= 0) startGame(); return; }
   launch(hands[i]);
 }
+/* The room mesh is a debug view; a grip squeezed by accident must not paint the room green. */
 function onSqueeze() {
   G.showMesh = !G.showMesh;
   applyMeshVisibility();
@@ -1865,7 +1873,8 @@ function attachXRControllers() {
     });
     c.addEventListener('selectstart', () => { h.trig = true; onTrigger(i); });
     c.addEventListener('selectend', () => { h.trig = false; });
-    c.addEventListener('squeezestart', onSqueeze);
+    c.addEventListener('squeezestart', () => { h.grip = true; });
+    c.addEventListener('squeezeend', () => { h.grip = false; });
   });
 }
 
