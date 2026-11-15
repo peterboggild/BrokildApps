@@ -49,7 +49,7 @@ const LETTER = [
 
 export function createStory(c) {
   const { scene, S, head, headQ, worlds } = c;
-  const st = { on: false, phase: 'off', hasKnife: false, stick: false, reading: false, readT: 0, t: 0, nagT: 0, hintT: 0, found: PARTS.map(() => false), revealed: { 1: false, 2: false, 3: false }, doneSaid: false };
+  const st = { busy: false, powered: false, powerT: 0, machT: 0, made: false, arrived: false, jumpT: 0, endT: 0, on: false, phase: 'off', hasKnife: false, stick: false, reading: false, readT: 0, t: 0, nagT: 0, hintT: 0, found: PARTS.map(() => false), revealed: { 1: false, 2: false, 3: false }, doneSaid: false };
   const root = new THREE.Group(); scene.add(root); root.visible = false;
 
   /* ---------------------------------------------------------------- materials */
@@ -126,7 +126,7 @@ export function createStory(c) {
     }
     return g;
   }
-  const parts = PARTS.map((p, k) => { const grp = new THREE.Group(), body = buildPart(k); body.scale.setScalar(1.7); grp.add(body, halo(0x7dffe0, 0.6)); grp.visible = false; root.add(grp); return { k, ...p, grp, body, found: false, shown: false, t: 0, pos: new V() }; });
+  const parts = PARTS.map((p, k) => { const grp = new THREE.Group(), body = buildPart(k); body.scale.setScalar(1.7); grp.add(body, halo(0x7dffe0, 0.6)); grp.visible = false; root.add(grp); return { k, ...p, grp, body, found: false, shown: false, placed: false, held: -1, slot: 0, t: 0, pos: new V() }; });
 
   /* the belt: found parts ride at your hip */
   const belt = new THREE.Group(); root.add(belt); let beltYaw = 0;
@@ -246,19 +246,188 @@ export function createStory(c) {
   }
   function collect(p) {
     p.found = true; st.found[p.k] = true; const n = st.found.filter(Boolean).length;
-    belt.add(p.grp); const a = (-64 + (n - 1) * 16) * Math.PI / 180; p.grp.position.set(Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3); p.grp.scale.setScalar(0.3);
+    p.slot = n - 1; belt.add(p.grp); const a = (-64 + (n - 1) * 16) * Math.PI / 180; p.grp.position.set(Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3); p.grp.scale.setScalar(0.3);
     chime(880 + n * 40); c.haptic(0.7, 90);
     const left = parts.filter(q => q.world === p.world && !q.found).length;
     if (left) toast(`${p.name}. Del ${n} af 9.`, 4);
-    else if (n === 9) toast('Alle ni dele! Skær en dør hjem til stuen.', 9);
+    else if (n === 9) toast('Alle ni dele! Skær en dør hjem, og sæt dem på tidsmaskinen.', 9);
     else if (!st.stick) { st.stick = true; toast('Alle tre dele her er fundet. Højre joystick vælger nu, hvor den næste dør fører hen. Skær en ny dør.', 11); }
     else toast('Alle tre dele her er fundet. Vælg en ny verden med joysticken, og skær en ny dør.', 9);
   }
 
+
+  /* ================================================================ chapter 2: the machine, the past, the knife */
+
+  const SOCK = [                                                   // where each part sits on the machine (in the machine's own space) and how big
+    { p: [-0.2, 0.308, -0.03], r: [0, 0, 0], s: 1.5 },             // flux coil, upright on the left
+    { p: [-0.06, 0.266, -0.11], r: [0, 0, 0], s: 1.4 },            // vacuum tube
+    { p: [0.325, 0.115, 0.0], r: [0, Math.PI / 2, 0], s: 1.45 },   // gears, on the right flank
+    { p: [0.03, 0.318, 0.0], r: [0, 0, 0], s: 1.6 },               // time crystal, in the middle
+    { p: [0.0, 0.1, 0.196], r: [0, 0, 0], s: 1.3 },                // chronometer, on the front
+    { p: [0.17, 0.252, -0.11], r: [0, 0, 0], s: 1.3 },             // capacitor bank
+    { p: [0.25, 0.298, 0.07], r: [0, 0.5, 0], s: 1.35 },           // antenna
+    { p: [0.11, 0.277, 0.13], r: [0, 0, 0], s: 1.4 },              // the lever
+    { p: [-0.2, 0.1, 0.2], r: [0, 0, 0], s: 1.45 },                // power core, in its bay
+  ];
+  const mach = new THREE.Group(), m0 = new THREE.Group(); mach.add(m0); m0.position.y = 0.03; root.add(mach); mach.visible = false;
+  const lamps = [], ghosts = [];
+  const lampOn = new THREE.MeshStandardMaterial({ color: 0x331a00, emissive: 0xffa040, emissiveIntensity: 2.2, roughness: 0.4 }), lampOff = new THREE.MeshStandardMaterial({ color: 0x241a12, roughness: 0.5 });
+  const ghostMat = new THREE.MeshBasicMaterial({ color: 0x66ffe0, transparent: true, opacity: 0.16, depthWrite: false });
+  {
+    const chassis = new THREE.MeshStandardMaterial({ color: 0x2a3038, metalness: 0.85, roughness: 0.42 }), deck = new THREE.MeshStandardMaterial({ color: 0x8b949c, metalness: 0.9, roughness: 0.35 });
+    const wood = new THREE.MeshStandardMaterial({ color: 0x4d2c16, metalness: 0, roughness: 0.55 });
+    const add = (g, m, x, y, z) => { const o = mesh(g, m, x, y, z); m0.add(o); return o; };
+    add(new THREE.BoxGeometry(0.62, 0.2, 0.38), chassis, 0, 0.1, 0);
+    add(new THREE.BoxGeometry(0.636, 0.012, 0.396), M.brass, 0, 0.2, 0); add(new THREE.BoxGeometry(0.636, 0.012, 0.396), M.brass, 0, 0.006, 0);
+    add(new THREE.BoxGeometry(0.56, 0.006, 0.33), deck, 0, 0.208, 0);
+    for (const s of [-1, 1]) { add(new THREE.BoxGeometry(0.022, 0.184, 0.372), wood, s * 0.318, 0.103, 0); const hdl = add(new THREE.TorusGeometry(0.04, 0.007, 8, 18, Math.PI), M.brass, s * 0.333, 0.1, s > 0 ? -0.12 : 0); hdl.rotation.set(0, Math.PI / 2, -Math.PI / 2 * s); }
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.CylinderGeometry(0.024, 0.02, 0.03, 14), M.brass, sx * 0.27, -0.015, sz * 0.15);
+    for (let k = 0; k < 9; k++) { const l = add(new THREE.SphereGeometry(0.0085, 12, 8), lampOff, 0.085 + k * 0.024, 0.165, 0.192); lamps.push(l); add(new THREE.TorusGeometry(0.0105, 0.002, 6, 14), M.brass, 0.085 + k * 0.024, 0.165, 0.191); }
+    add(new THREE.TorusGeometry(0.072, 0.007, 10, 36), M.brass, 0, 0.1, 0.191);                                   // the chronometer's bezel
+    add(new THREE.TorusGeometry(0.066, 0.008, 10, 36), M.brass, -0.2, 0.1, 0.191); const bay = add(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 28), M.dark, -0.2, 0.1, 0.183); bay.rotation.x = Math.PI / 2;
+    for (let k = 0; k < 7; k++) add(new THREE.BoxGeometry(0.11, 0.006, 0.004), M.dark, 0.19, 0.04 + k * 0.014, 0.1905);            // vents
+    for (const k of [0, 1, 3, 5, 6, 7]) add(new THREE.CylinderGeometry(0.042, 0.046, 0.008, 22), M.brass, SOCK[k].p[0], 0.214, SOCK[k].p[2]);
+    add(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 16).rotateZ(Math.PI / 2), M.brass, 0.322, 0.115, 0);                 // the gears' axle boss
+    const cable = (pts, m) => m0.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(q => new V(...q))), 24, 0.0045, 6), m));
+    cable([[-0.2, 0.214, -0.03], [-0.14, 0.24, -0.08], [-0.06, 0.214, -0.11]], M.copper); cable([[-0.06, 0.214, -0.11], [0.0, 0.25, -0.07], [0.03, 0.214, 0.0]], M.copper);
+    cable([[0.03, 0.214, 0.0], [0.1, 0.245, -0.07], [0.17, 0.214, -0.11]], M.dark); cable([[0.17, 0.214, -0.11], [0.24, 0.24, -0.02], [0.25, 0.214, 0.07]], M.copper); cable([[0.03, 0.214, 0.0], [0.07, 0.235, 0.07], [0.11, 0.214, 0.13]], M.dark);
+    const pc = document.createElement('canvas'); pc.width = 256; pc.height = 64; const px = pc.getContext('2d'); px.fillStyle = '#c59a3e'; px.fillRect(0, 0, 256, 64); px.fillStyle = '#2a1c08'; px.font = 'bold 30px Georgia, serif'; px.textAlign = 'center'; px.fillText('TEMPUS  ·  MK I', 128, 42);
+    const plq = new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(pc), metalness: 0.7, roughness: 0.4 }); plq.map.colorSpace = THREE.SRGBColorSpace;
+    add(new THREE.BoxGeometry(0.15, 0.036, 0.004), plq, 0.19, 0.136, 0.192);
+    PARTS.forEach((_, k) => { const g = buildPart(k); g.traverse(o => { if (o.isMesh) o.material = ghostMat; }); g.position.set(...SOCK[k].p); g.rotation.set(...SOCK[k].r); g.scale.setScalar(SOCK[k].s); m0.add(g); ghosts.push(g); });
+  }
+  const stand = new THREE.Group(); mach.add(stand); stand.visible = false;       // a small table for it, when the room offers nothing to put it on
+  { const wd = new THREE.MeshStandardMaterial({ color: 0x3a2212, roughness: 0.6 }); stand.add(mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.03, 40), wd, 0, -0.015, 0), mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.7, 16), M.brass, 0, -0.38, 0), mesh(new THREE.CylinderGeometry(0.24, 0.27, 0.03, 30), wd, 0, -0.725, 0)); }
+  const machPos = new V(); const _w = new V(), _w2 = new V();
+  const sockWorld = (k, out) => m0.localToWorld(out.set(...SOCK[k].p));
+  function placeMachine() {
+    const top = topAt(letterPos.x, letterPos.z);
+    const onTable = top !== null && top >= 0.35 && top <= 1.1;
+    machPos.set(letterPos.x, onTable ? top : 0.74, letterPos.z); stand.visible = !onTable;
+    mach.position.copy(machPos); mach.rotation.y = Math.atan2(head.x - machPos.x, head.z - machPos.z);      // its front faces where you stand
+    mach.visible = true; mach.scale.setScalar(0.01); st.machT = 0;
+    if (letterPos.distanceTo(machPos) < 0.5) { letterPos.set(machPos.x + Math.cos(mach.rotation.y) * 0.42, machPos.y + 0.012, machPos.z - Math.sin(mach.rotation.y) * 0.42); letter.position.copy(letterPos); }
+    chime(392); toast('Tidsmaskinens stel står, hvor brevet lå. Tag en del fra bæltet (hold udløseren), og før den hen til sin plads.', 11);
+  }
+  const placedCount = () => parts.filter(p => p.placed).length;
+
+  /* holding things: a trigger held near something takes it; letting go drops it */
+  const holding = [null, null];
+  function install(p) {
+    p.placed = true; p.held = -1; m0.add(p.grp); p.grp.position.set(...SOCK[p.k].p); p.grp.rotation.set(...SOCK[p.k].r); p.body.rotation.set(0, 0, 0); p.grp.scale.setScalar(SOCK[p.k].s / 1.7);
+    p.grp.children[1].visible = false; ghosts[p.k].visible = false;
+    const n = placedCount(); lamps.forEach((l, i) => { l.material = i < n ? lampOn : lampOff; });
+    chime(440 + n * 55); c.haptic(0.9, 110);
+    if (n === 9) { st.powered = true; st.powerT = 0; toast('Tidsmaskinen er samlet. Den varmer op … træk i håndtaget.', 9); }
+    else toast(`${p.name} sidder. ${n} af 9.`, 4);
+  }
+  const toBelt = p => { p.held = -1; belt.add(p.grp); const a = (-64 + p.slot * 16) * Math.PI / 180; p.grp.position.set(Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3); p.grp.rotation.set(0, 0, 0); p.grp.scale.setScalar(0.3); };
+
+  /* the past: an amber haze over the real room; and the white of the jump */
+  const veil = mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+    uniforms: { uSepia: { value: 0 }, uFlash: { value: 0 }, uTime: { value: 0 } }, transparent: true, depthTest: false, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `precision highp float; varying vec2 vUv; uniform float uSepia, uFlash, uTime;
+      void main() { vec2 q = vUv - 0.5; float v = dot(q, q) * 2.4; float a = uSepia * (0.26 + 0.5 * v);
+        vec3 col = vec3(0.62, 0.36, 0.13) * (0.92 + 0.08 * sin(uTime * 13.0) * sin(uTime * 7.3));
+        gl_FragColor = mix(vec4(col * a, a), vec4(1.0), uFlash); }`,
+  }));
+  veil.frustumCulled = false; veil.renderOrder = 140; veil.visible = false; root.add(veil);
+
+  /* the knife in three pieces, as it lies in the past */
+  const PIECE = { blade: 'Klingen', grip: 'Skaftet', gem: 'Stenen' }, CENTRE = { blade: new V(0, 0, -0.21), grip: new V(0, 0, 0), gem: new V(0, 0, 0.076) };
+  const pieces = [];
+  const showSet = pc => pc.obj.children[0].children.forEach(o => { o.visible = pc.set.has(o.userData.piece); });
+  const centreOf = (pc, out) => pc.obj.localToWorld(out.copy(pc.set.has('grip') ? CENTRE.grip : CENTRE[[...pc.set][0]]));
+  const ringMark = mesh(new THREE.TorusGeometry(0.16, 0.006, 8, 48), new THREE.MeshBasicMaterial({ color: 0x80ffb0, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); ringMark.rotation.x = Math.PI / 2; ringMark.visible = false; root.add(ringMark);
+  function jumpSound() {
+    const ctx = c.audio(); if (!ctx) return; const t = ctx.currentTime;
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(60, t); o.frequency.exponentialRampToValueAtTime(1400, t + 1.6); o.frequency.exponentialRampToValueAtTime(40, t + 3.2);
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(6000, t + 1.6); f.frequency.exponentialRampToValueAtTime(200, t + 3.2);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 1.5); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.3);
+    o.connect(f); f.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 3.4);
+  }
+  function arriveInPast() {
+    st.phase = 'past'; st.hasKnife = false; c.takeKnife(); st.powered = false; veil.material.uniforms.uSepia.value = 1;
+    const used = [letterPos, machPos, head], ya = headYaw();
+    for (const name of ['blade', 'grip', 'gem']) {
+      const s = findSpot(head.x, head.z, 1.0, 2.4, ya - Math.PI, ya + Math.PI, used); used.push(s);
+      const obj = c.makeKnife(); obj.add(halo(0xffd28a, 0.5)); obj.children[obj.children.length - 1].position.copy(CENTRE[name]);
+      const pc = { obj, set: new Set([name]), held: -1, base: new V(s.x, hover(s), s.z), spin: rnd(0, TAU) }; obj.position.copy(pc.base); root.add(obj); showSet(pc); pieces.push(pc);
+    }
+    toast('Du er i fortiden. Kniven findes ikke endnu. Find klingen, skaftet og stenen, og sæt dem sammen (hold udløseren for at tage en del).', 13);
+  }
+  function chapter2(dt, ya) {
+    /* the machine grows out of nothing, glows where parts are waiting, and runs when it is whole */
+    if (mach.visible) {
+      st.machT += dt; const e = clamp(st.machT / 1.0, 0, 1); mach.scale.setScalar(Math.max(0.01, 1 - Math.pow(1 - e, 3)));
+      ghostMat.opacity = 0.1 + 0.08 * Math.sin(st.t * 3);
+      if (st.powered) { st.powerT += dt; lamps.forEach((l, i) => { l.material = Math.sin(st.t * 9 - i * 0.7) > -0.3 ? lampOn : lampOff; }); }
+    }
+    const home = S.cur === 0 && (st.phase === 'play' || st.phase === 'past');
+    /* grabbing */
+    let near = false;
+    c.hands.forEach((h, i) => {
+      if (!h.on) return;
+      let held = holding[i];
+      if (!held && home) {
+        let best = null, bd = 0.17;
+        if (st.phase === 'play' && mach.visible) for (const p of parts) if (p.found && !p.placed && p.held < 0) { const d = p.grp.getWorldPosition(_w).distanceTo(h.pos); if (d < bd) { bd = d; best = { part: p }; } }
+        if (st.phase === 'past') for (const pc of pieces) if (pc.held < 0) { const d = centreOf(pc, _w).distanceTo(h.pos); if (d < bd + 0.05) { bd = d - 0.05; best = { piece: pc }; } }
+        if (best) { near = true; if (h.trigEdge) { held = holding[i] = best; if (best.part) { best.part.held = i; root.add(best.part.grp); best.part.grp.scale.setScalar(0.8); } else best.piece.held = i; c.haptic(0.4, 40); } }
+      }
+      if (!held) return;
+      near = true;
+      if (held.part) {
+        const p = held.part; p.grp.position.copy(h.pos); p.body.rotation.y += dt * 1.5;
+        if (sockWorld(p.k, _w).distanceTo(h.pos) < 0.16) { holding[i] = null; install(p); }
+        else if (!h.trig) { holding[i] = null; toBelt(p); }
+      } else {
+        const pc = held.piece; pc.obj.position.copy(h.pos); pc.obj.quaternion.slerp(h.q, Math.min(1, dt * 12));
+        for (const o of pieces) if (o !== pc && centreOf(o, _w).distanceTo(centreOf(pc, _w2)) < 0.2) {            // two pieces brought together become one
+          for (const n of o.set) pc.set.add(n); showSet(pc); root.remove(o.obj); pieces.splice(pieces.indexOf(o), 1); if (o.held >= 0) holding[o.held] = null;
+          chime(700 + pc.set.size * 120); c.haptic(1, 120);
+          if (pc.set.size === 3) { st.made = true; ringMark.visible = true; ringMark.position.copy(knifePos); toast('Kniven er lavet. Læg den, hvor du fandt den: ved den lysende ring.', 10); }
+          else toast([...pc.set].map(n => PIECE[n]).join(' og ') + ' sidder sammen.', 5);
+          break;
+        }
+        if (st.made && pc.set.size === 3 && centreOf(pc, _w).distanceTo(knifePos) < 0.22) {                       // laid where it was found: the loop closes
+          holding[i] = null; root.remove(pc.obj); pieces.length = 0; ringMark.visible = false; lying.position.copy(knifePos); lying.visible = true; st.phase = 'end'; st.endT = 0; chime(1040); c.haptic(1, 300);
+        } else if (!h.trig) { holding[i] = null; pc.held = -1; pc.base.copy(pc.obj.position); }
+      }
+    });
+    st.busy = near;
+    for (const pc of pieces) if (pc.held < 0) { pc.spin += dt * 0.7; pc.obj.rotation.set(0.3, pc.spin, 0); pc.obj.position.y = pc.base.y + Math.sin(st.t * 1.3 + pc.spin) * 0.02; }
+    if (ringMark.visible) { ringMark.scale.setScalar(1 + 0.12 * Math.sin(st.t * 4)); ringMark.position.y = knifePos.y - 0.05; }
+    /* the lever: a touch, once the machine is whole and has warmed up */
+    if (st.powered && st.powerT > 2.5 && st.phase === 'play' && S.cur === 0 && touching(parts[7].grp.getWorldPosition(_w), 0.14) >= 0) {
+      st.phase = 'jump'; st.jumpT = 0; veil.visible = true; c.closeDoor(); jumpSound(); c.haptic(1, 400); toast('…', 2);
+    }
+    const U = veil.material.uniforms; U.uTime.value = st.t;
+    if (st.phase === 'jump') {
+      st.jumpT += dt; U.uFlash.value = clamp(st.jumpT < 1.6 ? Math.pow(st.jumpT / 1.6, 2) : 1 - (st.jumpT - 1.9) / 1.4, 0, 1);
+      parts[7].body.children[2] && (parts[7].body.children[2].rotation.z = -0.45 + Math.min(1, st.jumpT * 2) * 0.9);
+      if (st.jumpT > 1.75 && pieces.length === 0 && !st.arrived) { st.arrived = true; arriveInPast(); st.phase = 'jump'; }
+      if (st.jumpT > 3.3) { U.uFlash.value = 0; st.phase = 'past'; }
+    }
+    if (st.phase === 'end') {
+      st.endT += dt; U.uSepia.value = clamp(1 - (st.endT - 1) / 4, 0, 1);
+      lying.rotation.y += dt * 0.6;
+      if (st.endT > 1 && !st.e1) { st.e1 = true; toast('Kniven ligger, hvor den skal ligge.', 5); }
+      if (st.endT > 7 && !st.e2) { st.e2 = true; toast('Loopet er sluttet. Ingen paradokser. Det blev en god morgen.', 8); chime(784); }
+      if (st.endT > 16) { st.phase = 'free'; veil.visible = false; st.stick = true; toast('SLUT. Kniven er din igen: rør ved den, hvis du vil ud at gå.', 10); }
+    }
+    if (st.phase === 'free' && lying.visible) {
+      lying.rotation.y += dt * 0.6; const i = touching(lying.position, 0.2);
+      if (i >= 0) { lying.visible = false; st.hasKnife = true; c.giveKnife(i); }
+    }
+  }
+
   /* ---------------------------------------------------------------- the story itself */
   const api = {
-    st, parts, toast,
-    canCut: () => !st.on || st.hasKnife,
+    st, parts, toast, pieces, mach, install, sockWorld, debug: { placeMachine, arriveInPast, knifePos, letterPos, centreOf },
+    canCut: () => !st.on || (st.hasKnife && !st.busy && (st.phase === 'play' || st.phase === 'free')),
     stickOK: () => !st.on || st.stick,
     count: () => st.found.filter(Boolean).length,
     start() { st.on = true; st.phase = 'wait'; st.t = 0; root.visible = true; },
@@ -268,20 +437,30 @@ export function createStory(c) {
       if (st.phase === 'wait' || st.phase === 'letter') return 'Hvad er det for en lyd?';
       if (st.reading) return 'Tryk på udløseren for at folde brevet sammen';
       if (st.phase === 'knife') return 'Find kniven. Følg lyden.';
-      if (S.cur === 0) return api.count() === 9 ? 'Alle dele fundet. Fortsættes …' : S.placed ? 'Gå gennem døren' : 'Skær en dør i luften';
+      if (st.phase === 'jump') return '…';
+      if (st.phase === 'past') return st.made ? 'Læg kniven ved den lysende ring' : 'Find klinge, skaft og sten, og sæt dem sammen';
+      if (st.phase === 'end') return 'Loopet lukker sig';
+      if (st.phase === 'free') return st.hasKnife ? 'Slut. Fri leg.' : 'Slut. Rør ved kniven for fri leg.';
+      if (S.cur === 0) {
+        if (st.powered) return 'Træk i håndtaget på tidsmaskinen';
+        const onBelt = parts.filter(q => q.found && !q.placed).length;
+        if (onBelt) return `Sæt delene på tidsmaskinen: ${placedCount()} af 9`;
+        return S.placed ? 'Gå gennem døren' : 'Skær en dør i luften';
+      }
       if (!st.revealed[S.cur]) return 'Luk døren bag dig: skær hen over ringen';
       const left = parts.filter(q => q.world === S.cur && !q.found).length;
       return left ? `Find delene her: ${3 - left} af 3` : S.placed ? 'Gå gennem døren' : 'Skær en ny dør';
     },
     onEnter(w) {
       if (!st.on || st.phase !== 'play') return;
-      if (w === 0) { if (api.count() === 9 && !st.doneSaid) { st.doneSaid = true; toast('Du har alle ni dele. Fortsættes: tidsmaskinen samles i næste kapitel.', 12); } return; }
+      if (w === 0) { if (api.count() > 0 && !mach.visible) placeMachine(); else if (parts.some(q => q.found && !q.placed)) toast('Sæt delene fra bæltet på tidsmaskinen (hold udløseren for at tage en del).', 8); return; }
       if (!st.revealed[w]) { toast('Luk døren bag dig: skær hen over ringen med kniven.', 8); st.nagT = 0; }
     },
     onClosed() { if (st.on && st.phase === 'play' && S.cur !== 0 && !st.revealed[S.cur]) revealParts(S.cur); },
     update(dt) {
       if (!st.on) return; st.t += dt;
       const ya = headYaw();
+      chapter2(dt, ya);
       if (st.phase === 'wait' && st.t > (S.mode === 'xr' ? 3.0 : 0.6)) {
         const s = findSpot(head.x, head.z, 1.2, 2.6, ya + 1.7, ya + 4.6, []);                 // somewhere behind you or off to the side
         letterPos.set(s.x, s.y === null ? 0.85 : s.y + 0.012, s.z); letter.position.copy(letterPos); letter.rotation.y = rnd(0, TAU); letter.visible = true;
@@ -313,7 +492,7 @@ export function createStory(c) {
       if (st.phase === 'play') {
         if (S.cur !== 0 && S.placed && !st.revealed[S.cur]) { st.nagT += dt; if (st.nagT > 14) { st.nagT = 0; toast('Luk døren bag dig: skær hen over ringen med kniven.', 7); } }
         for (const p of parts) {
-          if (p.found) { p.body.rotation.y += dt * 0.5; continue; }
+          if (p.found) { if (!p.placed && p.held < 0) p.body.rotation.y += dt * 0.5; continue; }
           p.grp.visible = p.shown && S.cur === p.world;
           if (!p.grp.visible) continue;
           p.t += dt; const e = clamp(p.t / 0.8, 0, 1);
@@ -321,8 +500,8 @@ export function createStory(c) {
           p.grp.children[1].material.opacity = 0.4 + 0.2 * Math.sin(st.t * 2.4 + p.k);
           if (p.t > 0.8 && (touching(p.grp.position, 0.2) >= 0 || (st.hasKnife && c.tip().distanceTo(p.grp.position) < 0.17))) collect(p);
         }
-        for (const p of parts) { if (p.body.userData.spin) { p.body.userData.spin[0].rotation.y += dt; p.body.userData.spin[1].rotation.y -= dt * 1.6; } if (p.body.userData.hand) p.body.userData.hand.rotation.z -= dt * 1.2; if (p.body.userData.rings) p.body.userData.rings.forEach((r, i) => { r.rotation.x += dt * (0.6 + i * 0.3); r.rotation.y += dt * 0.4; }); }
       }
+      { for (const p of parts) { if (p.body.userData.spin) { p.body.userData.spin[0].rotation.y += dt; p.body.userData.spin[1].rotation.y -= dt * 1.6; } if (p.body.userData.hand) p.body.userData.hand.rotation.z -= dt * 1.2; if (p.body.userData.rings) p.body.userData.rings.forEach((r, i) => { r.rotation.x += dt * (0.6 + i * 0.3); r.rotation.y += dt * 0.4; }); } }
       /* the belt follows your hips, not every turn of the head */
       let dy = ya - beltYaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); beltYaw += dy * Math.min(1, dt * 2.5);
       belt.position.set(head.x, Math.max(0.5, head.y - 0.62), head.z); belt.rotation.y = -beltYaw;

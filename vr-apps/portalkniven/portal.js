@@ -17,8 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=11';
-import { createStory } from './story.js?v=11';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=12';
+import { createStory } from './story.js?v=12';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -222,6 +222,7 @@ function buildKnife() {
   const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.0188, 20, 14), brass); pommel.position.z = 0.13; pommel.scale.z = 0.85; k.add(pommel);
   const gem = new THREE.Mesh(new THREE.SphereGeometry(0.0085, 14, 10), rune); gem.position.z = 0.146; k.add(gem);
   const tip = new THREE.Object3D(); tip.position.set(0, 0, -0.278); k.add(tip);     // the point of the blade
+  k.children.forEach(o => { o.userData.piece = o === gem ? 'gem' : o.position.z < 0.003 ? 'blade' : 'grip'; });      // the knife in its three pieces (for the story)
   root.updateMatrixWorld(true);
   root.userData = { tip, rune, halo: haloMat, tipLocal: tip.getWorldPosition(new V()) };       // the point, in the root's own space (the root is still at the origin here)
   return root;
@@ -230,11 +231,12 @@ const knife = buildKnife();
 let knifeGlow = 0.35, tipPrev = null;
 
 /* the two hands, as the story sees them: where they are, where they point, and whether the trigger was just pressed */
-const hands = [0, 1].map(() => ({ on: false, pos: new V(), rayO: new V(), rayD: new V(0, 0, -1), trig: false, trigEdge: false }));
+const hands = [0, 1].map(() => ({ on: false, q: new THREE.Quaternion(), pos: new V(), rayO: new V(), rayD: new V(0, 0, -1), trig: false, trigEdge: false }));
 const tipW = new V();
 const story = createStory({
   scene, S, head, headQ, worlds, hands, say: t => say(t), audio: () => AU.ctx, haptic: (v, ms) => { for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(v, ms); } catch (_) { /* none */ } } },
   makeKnife: buildKnife, tip: () => tipW,
+  takeKnife: () => { assignTools(); }, closeDoor: () => { if (S.placed && !portal.closing) dissolvePortal(); },
   giveKnife: i => { knifeIdx = i; ctrl.forEach((c, k) => { c.dragged = k === i; }); assignTools(); knifeGlow = 2.2; zap(); },
 });
 
@@ -569,7 +571,7 @@ async function enterXR(free) {
   } catch (e) { status.textContent = 'Kunne ikke starte headset-sessionen: ' + (e.message || e); console.error(e); }
 }
 
-const keys = {}; let yaw = 0, pitch = 0, flatClick = false;
+const keys = {}; let yaw = 0, pitch = 0, flatClick = false, flatHold = false;
 const flatHand = { pos: null };                                   // a test hook: a hand put somewhere by hand
 const flatTip = { pos: new V(0, 1.4, -1.2), pressed: false, override: false };
 const ray = new THREE.Raycaster();
@@ -631,12 +633,12 @@ function updateHands() {
     let trig = false;
     if (S.mode === 'xr') {
       const g = renderer.xr.getControllerGrip(i), r = renderer.xr.getController(i);
-      h.on = !!ctrl[i].src; g.getWorldPosition(h.pos); r.getWorldPosition(h.rayO); r.getWorldQuaternion(_hq); h.rayD.set(0, 0, -1).applyQuaternion(_hq); trig = ctrl[i].pressed;
+      h.on = !!ctrl[i].src; g.getWorldPosition(h.pos); g.getWorldQuaternion(h.q); r.getWorldPosition(h.rayO); r.getWorldQuaternion(_hq); h.rayD.set(0, 0, -1).applyQuaternion(_hq); trig = ctrl[i].pressed;
     } else {
       h.on = i === 0; if (!h.on) return;
       h.rayO.copy(head); h.rayD.set(0, 0, -1).applyQuaternion(headQ);
       if (flatHand.pos) h.pos.copy(flatHand.pos); else h.pos.copy(head).addScaledVector(h.rayD, 0.45).y -= 0.15;
-      trig = flatClick;
+      h.q.copy(headQ); trig = flatClick || flatHold;
     }
     h.trigEdge = trig && !h.trig; h.trig = trig;
   });
@@ -692,7 +694,7 @@ renderer.setAnimationLoop(loop);
 
 window.__portal = {
   S, portal, head, scene, renderer, camera, music, story, hands, dissolvePortal,
-  hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; },
+  hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; }, hold(v) { flatHold = v; },
   knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },
