@@ -96,3 +96,10 @@ Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start,
   til de brede mønstre, der skal løbe ubrudt rundt om en sten. Klippe: fra 33 til 12 teksturopslag pr. pixel; stål: 18 til 6; mos: 18 til 9.
 * Himlen tegnes efter verdenen med dybdetest, så dækkede pixels aldrig beregnes (i et scannet, lukket rum er det næsten alle).
 * Opløsning: startsiden har *Grafik* (Skarp 1.0, Normal 0.85, Flydende 0.7 af headsettets opløsning) og fast foveation på højeste trin.
+
+### Placering og hjælp til at finde delene
+* Brev, kniv, dele og knivens tre stykker lægges kun et sted, der (1) har gulv eller møbel under sig i scanningen, så det ikke er på den anden side af en væg,
+  (2) ikke er højere end et bord, (3) kan ses i fri sigtelinje fra dér, hvor man står (stråle mod scanningen), og (4) ikke ligger inde i eller klos op ad noget scannet.
+  Findes der intet godt sted, lægges tingen lige foran en.
+* Leder man længe i en verden: efter 3 minutter blinker de manglende dele kraftigt og kalder med en lyd fra deres position; efter 5 minutter sender de en lysstråle op,
+  der ses hen over møbler.

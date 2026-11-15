@@ -49,7 +49,7 @@ const LETTER = [
 
 export function createStory(c) {
   const { scene, S, head, headQ, worlds } = c;
-  const st = { letterOn: false, lyingOn: false, machOn: false, ringOn: false, homeHint: false, warned: false, busy: false, powered: false, powerT: 0, machT: 0, made: false, arrived: false, jumpT: 0, endT: 0, on: false, phase: 'off', hasKnife: false, stick: false, reading: false, readT: 0, t: 0, nagT: 0, hintT: 0, found: PARTS.map(() => false), revealed: { 1: false, 2: false, 3: false }, doneSaid: false };
+  const st = { searchT: 0, hintSaid: false, letterOn: false, lyingOn: false, machOn: false, ringOn: false, homeHint: false, warned: false, busy: false, powered: false, powerT: 0, machT: 0, made: false, arrived: false, jumpT: 0, endT: 0, on: false, phase: 'off', hasKnife: false, stick: false, reading: false, readT: 0, t: 0, nagT: 0, hintT: 0, found: PARTS.map(() => false), revealed: { 1: false, 2: false, 3: false }, doneSaid: false };
   const root = new THREE.Group(); scene.add(root); root.visible = false;
 
   /* ---------------------------------------------------------------- materials */
@@ -126,7 +126,8 @@ export function createStory(c) {
     }
     return g;
   }
-  const parts = PARTS.map((p, k) => { const grp = new THREE.Group(), body = buildPart(k); body.scale.setScalar(1.7); grp.add(body, halo(0x7dffe0, 0.6)); grp.visible = false; root.add(grp); return { k, ...p, grp, body, found: false, shown: false, placed: false, held: -1, slot: 0, t: 0, pos: new V() }; });
+  const parts = PARTS.map((p, k) => { const grp = new THREE.Group(), body = buildPart(k); body.scale.setScalar(1.7); grp.add(body, halo(0x7dffe0, 0.6));
+    const beam = mesh(new THREE.CylinderGeometry(0.012, 0.012, 3, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x7dffe0, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false }), 0, 1.3, 0); beam.visible = false; grp.add(beam); grp.visible = false; root.add(grp); return { k, ...p, grp, body, found: false, shown: false, placed: false, held: -1, slot: 0, t: 0, pos: new V() }; });
 
   /* the belt: found parts ride at your hip */
   const belt = new THREE.Group(); root.add(belt); let beltYaw = 0;
@@ -195,6 +196,11 @@ export function createStory(c) {
     if (p) { hum.pan.positionX.setValueAtTime(p.x, t); hum.pan.positionY.setValueAtTime(p.y, t); hum.pan.positionZ.setValueAtTime(p.z, t); hum.g.gain.setTargetAtTime(0.42, t, 0.6); }
     else hum.g.gain.setTargetAtTime(0, t, 0.4);
   }
+  function pingAt(p, f = 1180) {
+    const ctx = c.audio(); if (!ctx) return; const t = ctx.currentTime;
+    const pan = ctx.createPanner(); pan.panningModel = 'HRTF'; pan.distanceModel = 'inverse'; pan.refDistance = 1; pan.rolloffFactor = 1; pan.positionX.value = p.x; pan.positionY.value = p.y; pan.positionZ.value = p.z; pan.connect(ctx.destination);
+    for (const [m, v] of [[1, 0.5], [2.0, 0.2]]) { const o = ctx.createOscillator(); o.frequency.value = f * m; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9); o.connect(g); g.connect(pan); o.start(t); o.stop(t + 1); }
+  }
   function chime(f = 880) {
     const ctx = c.audio(); if (!ctx) return; const t = ctx.currentTime;
     for (const [m, v] of [[1, 0.22], [1.5, 0.12], [2.01, 0.08]]) { const o = ctx.createOscillator(); o.frequency.value = f * m; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4); o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 1.5); }
@@ -208,18 +214,32 @@ export function createStory(c) {
     const h = rc.intersectObject(g, true); return h.length ? h[0].point.y : null;
   }
   /** A spot r metres from (cx, cz) in the direction range, on top of something no higher than a table. */
-  function findSpot(cx, cz, rmin, rmax, a0, a1, avoid) {
-    let best = null;
-    for (let k = 0; k < 40; k++) {
-      const a = rnd(a0, a1), r = rnd(rmin, rmax), x = cx + Math.sin(a) * r, z = cz - Math.cos(a) * r;
-      if (avoid.some(p => Math.hypot(p.x - x, p.z - z) < 0.8)) continue;
-      const y = topAt(x, z);
-      if (y === null) { best = best || { x, z, y: null }; if (!worlds.W[1].scan.children.length) break; continue; }
-      if (y <= 1.25) return { x, z, y };
-    }
-    return best || { x: cx + Math.sin(a0) * rmin, z: cz - Math.cos(a0) * rmin, y: null };
+  /** Can you see the spot from where your eyes are (nothing scanned in between), and is it clear of what is really there? */
+  const _from = new V(), _to = new V(), _dir = new V();
+  function clearSight(x, y, z) {
+    const g = worlds.W[1].scan; if (!g.children.length) return true;
+    _from.copy(head); _to.set(x, y, z); _dir.copy(_to).sub(_from); const d = _dir.length(); if (d < 0.05) return true; _dir.multiplyScalar(1 / d);
+    rc.set(_from, _dir); rc.far = Math.max(0.01, d - 0.04); if (rc.intersectObject(g, true).length) return false;      // a wall, a sofa back, a shelf in the way
+    return worlds.nearest(_to, 0.1) === Infinity;                                                                       // not inside or pressed against something
   }
-  const hover = s => (s.y === null ? 0.85 : s.y < 0.45 ? 0.72 : s.y + 0.13);        // on a table: just above it; on the floor or unknown: at hand height
+  const hoverAt = y => (y === null ? 0.85 : y < 0.45 ? 0.72 : y + 0.18);     // on a table: just above it; on the floor or unknown: at hand height
+  /** A spot r metres from (cx, cz) in the direction range: over floor or furniture that is really there (so not beyond a wall),
+   *  no higher than a table, in plain sight from where you stand, and clear of the scan. */
+  function findSpot(cx, cz, rmin, rmax, a0, a1, avoid) {
+    const scanned = worlds.W[1].scan.children.length > 0;
+    for (let k = 0; k < 90; k++) {
+      const a = rnd(a0, a1), r = rnd(rmin, rmax) * (k < 60 ? 1 : 0.6), x = cx + Math.sin(a) * r, z = cz - Math.cos(a) * r;
+      if (avoid.some(p => Math.hypot(p.x - x, p.z - z) < 0.8)) continue;
+      if (!scanned) return { x, z, y: null, h: 0.85 };
+      const y = topAt(x, z);
+      if (y === null || y > 1.25) continue;                          // nothing underneath: outside the room; or on top of a cupboard
+      const h = hoverAt(y);
+      if (clearSight(x, h, z)) return { x, z, y, h };
+    }
+    const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize();     // nowhere good: right in front of you
+    return { x: head.x + f.x * 0.7, z: head.z + f.z * 0.7, y: null, h: clamp(head.y - 0.35, 0.6, 1.3) };
+  }
+  const hover = s => (s.h !== undefined ? s.h : hoverAt(s.y));
   const headYaw = () => { const f = new V(0, 0, -1).applyQuaternion(headQ); return Math.atan2(f.x, -f.z); };
 
   /* ---------------------------------------------------------------- touching and pointing */
@@ -244,7 +264,7 @@ export function createStory(c) {
     chime(523); toast('Døren er lukket. Delene viser sig: find tre dele af tidsmaskinen.', 7);
   }
   function collect(p) {
-    p.found = true; p.grp.visible = true; st.found[p.k] = true; const n = st.found.filter(Boolean).length;
+    p.found = true; p.grp.visible = true; p.grp.children[2].visible = false; p.grp.children[1].scale.setScalar(0.6); st.searchT = 0; st.hintSaid = false; st.found[p.k] = true; const n = st.found.filter(Boolean).length;
     p.slot = n - 1; belt.add(p.grp); const a = (-64 + (n - 1) * 16) * Math.PI / 180; p.grp.position.set(Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3); p.grp.scale.setScalar(0.3);
     chime(880 + n * 40); c.haptic(0.7, 90);
     const left = parts.filter(q => q.world === p.world && !q.found).length;
@@ -424,7 +444,7 @@ export function createStory(c) {
 
   /* ---------------------------------------------------------------- the story itself */
   const api = {
-    st, parts, toast, pieces, mach, collect, install, sockWorld, debug: { placeMachine, arriveInPast, knifePos, letterPos, centreOf },
+    st, parts, toast, pieces, mach, collect, findSpot, clearSight, install, sockWorld, debug: { placeMachine, arriveInPast, knifePos, letterPos, centreOf },
     canCut: () => !st.on || (st.hasKnife && !st.busy && (st.phase === 'play' || st.phase === 'free')),
     stickOK: () => !st.on || st.phase === 'free' || (st.stick && S.cur === 0 && st.phase === 'play'),
     count: () => st.found.filter(Boolean).length,
@@ -457,6 +477,7 @@ export function createStory(c) {
         else if (st.homeHint) { st.homeHint = false; st.stick = true; toast('Højre joystick vælger nu, hvilken verden den næste dør fører til. Vælg en ny verden, og skær en dør.', 11); }
         return;
       }
+      st.searchT = 0; st.hintSaid = false;
       if (!st.warned) { st.warned = true; st.nagT = 6; toast('Gå MEGET forsigtigt herinde. Scanningen fanger ikke alt: en stoleryg eller noget, der stritter ud, kan mangle.', 9); }
       else if (!st.revealed[w]) { toast('Luk døren bag dig: skær hen over ringen med kniven.', 8); st.nagT = 0; }
     },
@@ -497,6 +518,10 @@ export function createStory(c) {
         if (i >= 0) { st.lyingOn = false; st.hasKnife = true; st.phase = 'play'; humAt(null); chime(1040); c.giveKnife(i); toast('Hold udløseren, og skær en dør i luften. Luk ringen, så tænder den.', 9); }
       }
       if (st.phase === 'play') {
+        if (S.cur !== 0 && st.revealed[S.cur] && parts.some(q => q.world === S.cur && !q.found)) {
+          st.searchT += dt;
+          if (st.searchT > 180 && !st.hintSaid) { st.hintSaid = true; toast('Lyt og kig efter: delene blinker og kalder nu.', 7); }
+        }
         if (S.cur !== 0 && S.placed && !st.revealed[S.cur]) { st.nagT += dt; if (st.nagT > 14) { st.nagT = 0; toast('Luk døren bag dig: skær hen over ringen med kniven.', 7); } }
         for (const p of parts) {
           if (p.found) { if (!p.placed && p.held < 0) p.body.rotation.y += dt * 0.5; continue; }
@@ -504,7 +529,10 @@ export function createStory(c) {
           if (!p.grp.visible) continue;
           p.t += dt; const e = clamp(p.t / 0.8, 0, 1);
           p.grp.scale.setScalar(0.2 + 0.8 * (1 - Math.pow(1 - e, 3))); p.grp.position.y = p.pos.y + Math.sin(st.t * 1.2 + p.k) * 0.025; p.body.rotation.y += dt * 0.8;
-          p.grp.children[1].material.opacity = 0.4 + 0.2 * Math.sin(st.t * 2.4 + p.k);
+          const lvl = st.searchT > 300 ? 2 : st.searchT > 180 ? 1 : 0;                           // a long search: the parts start to blink and call, later they send up a beam
+          p.grp.children[1].material.opacity = lvl ? 0.55 + 0.45 * Math.sin(st.t * 7 + p.k) : 0.4 + 0.2 * Math.sin(st.t * 2.4 + p.k);
+          p.grp.children[1].scale.setScalar(lvl ? 1.1 : 0.6); p.grp.children[2].visible = lvl === 2;
+          if (lvl && st.t - (p.pingT || 0) > 5 + p.k % 3) { p.pingT = st.t; pingAt(p.grp.position, 1000 + p.k * 60); }
           if (p.t > 0.8 && (touching(p.grp.position, 0.2) >= 0 || (st.hasKnife && c.tip().distanceTo(p.grp.position) < 0.17))) collect(p);
         }
       }
