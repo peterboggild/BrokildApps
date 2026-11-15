@@ -105,3 +105,14 @@ Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start,
   der ses hen over møbler.
 * **Brevet tages med:** når brevet er læst første gang, ligger det ikke længere i rummet. Det sidder i bæltet (yderst til venstre) som de andre ting, man har.
   Læg hånden på det, og tryk på udløseren, så folder det sig ud igen. Arket er 66 × 90 cm og holder sig foran øjnene i øjenhøjde.
+
+### Senere ændringer i historien
+* **Én del ad gangen:** når døren er lukket, bliver én del til: den vokser ud af ingenting over ca. 3,6 sekunder, sitrende og med en lyd fra sit sted
+  (to toner, der stiger og slår mod hinanden, ringmoduleret skær, et pust af støj, en lille klokke til sidst). Den kan først tages, når den er kommet helt frem.
+  Når den er taget, bliver den næste til, så langt fra den forrige som rummet tillader.
+* **Intet ligger lavt:** brev, kniv, dele og knivstykker ligger på et bord, hvis der er et, ellers svæver de i håndhøjde (ca. 95 cm), aldrig ved gulvet.
+* **Tidsmaskinen på et bord:** der søges efter en plan flade i bordhøjde, stor nok til maskinen, med frit rum over; maskinen stilles vinkelret på bordet.
+  Findes ingen, står den på sit eget lille bord på åbent gulv, mindst ca. 40 cm fra vægge og møbler.
+* **Hjem igen:** når kniven er lagt i fortiden, går man hen til tidsmaskinen og trækker håndtaget tilbage. Først hjemme i ens egen tid er det fri leg, og kniven ligger, hvor man fandt den.
+* **Fortidens skær:** ud over det ravgule slør får rummets scannede form et svagt glødende skær, stærkest langs kanterne, med en langsom bølge igennem.
+* Søgning efter steder bruger scanningens 8 cm-gitter (få opslag) i stedet for stråler mod hele scanningen; kun det valgte sted finjusteres med én stråle.

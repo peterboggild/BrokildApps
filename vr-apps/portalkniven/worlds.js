@@ -503,6 +503,24 @@ export function createWorlds(scene, renderer, params) {
   /* ---- the scanned room, wearing each dimension's surface ---- */
   const scanKnown = new Map(); let scanNext = 0; const scanInfo = { feature: false, count: 0 };
   const wire = params.get('skin') === 'wire' ? new THREE.MeshBasicMaterial({ color: 0x40ffd0, wireframe: true, transparent: true, opacity: 0.5 }) : null;
+  /* The past: the real room is still what you see, but its scanned shape carries a faint amber glow, strongest along its edges,
+   * with a slow wave passing through it. Drawn additively over the passthrough. */
+  const pastU = { uAmt: { value: 0 }, uTime: timeU };
+  const pastMat = new THREE.ShaderMaterial({
+    uniforms: pastU, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    vertexShader: 'varying vec3 vP; varying vec3 vN; varying vec3 vV; void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vP = wp.xyz; vN = normalize(mat3(modelMatrix) * normal); vV = cameraPosition - wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }',
+    fragmentShader: `precision highp float; varying vec3 vP; varying vec3 vN; varying vec3 vV; uniform float uAmt; uniform float uTime;
+      void main() {
+        float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.2);
+        float wave = pow(0.5 + 0.5 * sin(vP.y * 9.0 + vP.x * 2.0 - uTime * 0.9), 14.0);
+        float shimmer = 0.5 + 0.5 * sin(uTime * 1.7 + vP.x * 3.1 + vP.z * 2.3);
+        float near = 1.0 - smoothstep(1.5, 6.0, length(vV));
+        vec3 col = vec3(1.0, 0.62, 0.22) * (0.03 + rim * (0.22 + 0.1 * shimmer) + wave * 0.16) * near;
+        gl_FragColor = vec4(col * uAmt, 0.0); }`,
+  });
+  W[0].scan.visible = false;
+
   /* What is really there, as a grid of 8 cm cells, so "how close is my head to something" is a handful of lookups a frame. */
   const CELL = 0.08, grid = new Set(), _p = new V(), _a = new V(), _b = new V(), _c = new V(), _m = new THREE.Matrix4();
   const keyOf = (x, y, z) => ((Math.floor(x / CELL) + 512) & 1023) | (((Math.floor(y / CELL) + 512) & 1023) << 10) | (((Math.floor(z / CELL) + 512) & 1023) << 20);
@@ -527,6 +545,18 @@ export function createWorlds(scene, renderer, params) {
       } }
     return best <= r ? best : Infinity;
   }
+  /** The height of the topmost scanned thing under (x, z), looking down from yMax; null if there is nothing there at all. Grid-accurate (8 cm). */
+  function columnTop(x, z, yMax = 1.9) {
+    const ix = (Math.floor(x / CELL) + 512) & 1023, iz = ((Math.floor(z / CELL) + 512) & 1023) << 20;
+    for (let iy = Math.floor(yMax / CELL); iy >= -2; iy--) if (grid.has(ix | (((iy + 512) & 1023) << 10) | iz)) return (iy + 0.5) * CELL;
+    return null;
+  }
+  /** Is the straight line from a to b free of scanned things (ignoring the first and last few centimetres)? */
+  function lineClear(a, b, skip = 0.13) {
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, d = Math.hypot(dx, dy, dz); if (d <= 2 * skip) return true;
+    for (let s = skip; s <= d - skip; s += 0.035) { const t = s / d; if (grid.has(keyOf(a.x + dx * t, a.y + dy * t, a.z + dz * t))) return false; }
+    return true;
+  }
   function addScan(key, vertices, indices, matrix, time) {
     const rec = scanKnown.get(key);
     if (rec) { for (const g of rec.gs) g.parent.remove(g); rec.geo.dispose(); }
@@ -534,9 +564,9 @@ export function createWorlds(scene, renderer, params) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(new THREE.BufferAttribute(idx, 1)); geo.computeVertexNormals();
     const gs = [];
-    for (const w of W.slice(1)) {
+    for (const w of W) {
       const g = new THREE.Group(); g.matrixAutoUpdate = false; g.matrix.fromArray(matrix); g.matrixWorldNeedsUpdate = true;
-      g.add(new THREE.Mesh(geo, w.scanMat)); if (wire) g.add(new THREE.Mesh(geo, wire));
+      g.add(new THREE.Mesh(geo, w.i === 0 ? pastMat : w.scanMat)); if (wire && w.i) g.add(new THREE.Mesh(geo, wire));
       w.scan.add(g); gs.push(g);
     }
     scanKnown.set(key, { t: time, gs, geo, cells: cellsOf(pos, idx, matrix) }); regrid(); api.dirty = true; scanInfo.count = scanKnown.size;
@@ -562,7 +592,9 @@ export function createWorlds(scene, renderer, params) {
   }
 
   const api = {
-    W, dirty: false, updateScan, nearest, addScan, scanInfo,
+    W, dirty: false, updateScan, nearest, addScan, scanInfo, columnTop, lineClear, hasScan: () => grid.size > 0, pastAmount: 0,
+    /** 0..1: how strongly the room's shape glows (the past). */
+    setPast(v) { api.pastAmount = v; pastU.uAmt.value = v; W[0].scan.visible = v > 0.001; },
     /** cur is home (drawn everywhere), oth is seen through the door, the rest are off. */
     applyRoles(cur, oth) {
       for (const w of W) {
