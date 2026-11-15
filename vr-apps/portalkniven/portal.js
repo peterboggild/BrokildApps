@@ -17,8 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=12';
-import { createStory } from './story.js?v=12';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=13';
+import { createStory } from './story.js?v=13';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -492,6 +492,20 @@ function updateMusic(dt) {
     if (m.vol <= 0.001 && target === 0 && !m.el.paused) m.el.pause();
   }
 }
+/* A warning that swells as your head nears something real (from the room scan) while you cannot see the room. */
+const prox = { d: Infinity, n: 0 };
+function updateProximity() {
+  if ((prox.n++ & 1) === 0) prox.d = S.cur !== 0 ? worlds.nearest(head, 0.42) : Infinity;
+  const ctx = AU.ctx; if (!ctx) return;
+  if (!AU.warn) {
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 440; const g = ctx.createGain(); g.gain.value = 0;
+    const tr = ctx.createOscillator(); tr.type = 'square'; tr.frequency.value = 4; const tg = ctx.createGain(); tg.gain.value = 0; tr.connect(tg); tg.connect(g.gain);
+    o.connect(g); g.connect(ctx.destination); o.start(); tr.start(); AU.warn = { o, g, tr, tg };
+  }
+  const k = prox.d === Infinity ? 0 : clamp((0.38 - prox.d) / 0.26, 0, 1), t = ctx.currentTime, W = AU.warn;       // 0 at 38 cm, full at 12 cm
+  W.g.gain.setTargetAtTime(0.28 * k * k, t, 0.05); W.tg.gain.setTargetAtTime(0.22 * k * k, t, 0.05);
+  W.o.frequency.setTargetAtTime(440 + 500 * k, t, 0.05); W.tr.frequency.setTargetAtTime(3 + 11 * k, t, 0.05);
+}
 function updateAudio() {
   const ctx = AU.ctx; if (!ctx || !AU.pan) return;
   const L = ctx.listener, t = ctx.currentTime;
@@ -650,11 +664,12 @@ function loop(_, frame) {
   else if (S.mode === 'xr' && frame) {
     const ref = renderer.xr.getReferenceSpace(), vp = frame.getViewerPose(ref);
     if (vp) { const p = vp.transform.position, o = vp.transform.orientation; head.set(p.x, p.y, p.z); headQ.set(o.x, o.y, o.z, o.w); }
-    { const si = worlds.updateScan(frame, ref); S.scanFeature = si.feature; S.scanMeshes = si.count; if (worlds.dirty) applyRoles(); }
+    { const si = worlds.updateScan(frame, ref); S.scanFeature = si.feature; S.scanMeshes = si.count; }
     pollStick();
     if (lightProbe) { try { const est = frame.getLightEstimate(lightProbe), sh = est && est.sphericalHarmonicsCoefficients; if (sh && sh.length >= 3) { const lum = (0.2126 * sh[0] + 0.7152 * sh[1] + 0.0722 * sh[2]) / 3.54; S.lum = lum; S.brightTarget = clamp(0.5 + lum * 2.0, 0.5, 1.5); } } catch (_) { /* no estimate this frame */ } }
   }
   if (S.mode !== 'menu') {
+    if (worlds.dirty) applyRoles();
     knife.updateWorldMatrix(true, true); knife.userData.tip.getWorldPosition(tipW);
     updateHands();
     const pressed = story.canCut() && (S.mode === 'xr' ? ctrl[knifeIdx].pressed : flatTip.pressed);
@@ -664,7 +679,7 @@ function loop(_, frame) {
     tipSparks.step(dt, 1.2);
     knife.userData.rune.color.setRGB(0.25 * knifeGlow, 1.0 * Math.min(1.4, knifeGlow), 0.5 * knifeGlow);
     knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
-    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); drawHud();
+    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateProximity(); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
     story.update(dt);
     worlds.update(dt, S.time, S.bright, S.cur, S.oth, S.safe && S.cur !== 0 ? [head, hands[0].on ? hands[0].pos : head, hands[1].on ? hands[1].pos : head] : null);
@@ -693,7 +708,7 @@ renderer.setAnimationLoop(loop);
 })();
 
 window.__portal = {
-  S, portal, head, scene, renderer, camera, music, story, hands, dissolvePortal,
+  S, portal, head, scene, renderer, camera, music, prox, story, hands, dissolvePortal,
   hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; }, hold(v) { flatHold = v; },
   knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
