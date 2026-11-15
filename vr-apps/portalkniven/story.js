@@ -49,7 +49,7 @@ const LETTER = [
 
 export function createStory(c) {
   const { scene, S, head, headQ, worlds } = c;
-  const st = { nextT: -1, nextW: 0, nextFrom: null, letterBelt: false, searchT: 0, hintSaid: false, letterOn: false, lyingOn: false, machOn: false, ringOn: false, homeHint: false, warned: false, busy: false, powered: false, powerT: 0, machT: 0, made: false, arrived: false, jumpT: 0, endT: 0, on: false, phase: 'off', hasKnife: false, stick: false, reading: false, readT: 0, t: 0, nagT: 0, hintT: 0, found: PARTS.map(() => false), revealed: { 1: false, 2: false, 3: false }, doneSaid: false };
+  const st = { help: true, stickUsed: false, hintOn: false, hintT: 0, nextT: -1, nextW: 0, nextFrom: null, letterBelt: false, searchT: 0, hintSaid: false, letterOn: false, lyingOn: false, machOn: false, ringOn: false, homeHint: false, warned: false, busy: false, powered: false, powerT: 0, machT: 0, made: false, arrived: false, jumpT: 0, endT: 0, on: false, phase: 'off', hasKnife: false, stick: false, reading: false, readT: 0, t: 0, nagT: 0, hintT: 0, found: PARTS.map(() => false), revealed: { 1: false, 2: false, 3: false }, doneSaid: false };
   const root = new THREE.Group(); scene.add(root); root.visible = false;
 
   /* ---------------------------------------------------------------- materials */
@@ -168,7 +168,8 @@ export function createStory(c) {
   const tt = new THREE.CanvasTexture(tc); tt.colorSpace = THREE.SRGBColorSpace;
   const toastMesh = mesh(new THREE.PlaneGeometry(0.8, 0.156), new THREE.MeshBasicMaterial({ map: tt, transparent: true, depthTest: false, opacity: 0, toneMapped: false })); toastMesh.renderOrder = 160; root.add(toastMesh);
   let toastT = 0, toastDur = 0; st.toast = '';
-  function toast(text, secs = 6) {
+  function toast(text, secs = 6, always = false) {
+    if (!st.help && !always) return;                                // played without help texts: only safety and the ending speak
     st.toast = text; toastT = 0; toastDur = secs; c.say(text);
     const x = tc.getContext('2d'); x.clearRect(0, 0, 1024, 200);
     x.fillStyle = 'rgba(6,12,10,.78)'; x.beginPath(); x.roundRect(4, 4, 1016, 192, 26); x.fill(); x.strokeStyle = 'rgba(110,255,170,.7)'; x.lineWidth = 4; x.stroke();
@@ -382,13 +383,28 @@ export function createStory(c) {
 
   /* the past: an amber haze over the real room; and the white of the jump */
   const veil = mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
-    uniforms: { uSepia: { value: 0 }, uFlash: { value: 0 }, uTime: { value: 0 } }, transparent: true, depthTest: false, depthWrite: false,
+    uniforms: { uSepia: { value: 0 }, uFlash: { value: 0 }, uTime: { value: 0 }, uJump: { value: 0 }, uDir: { value: 1 } }, transparent: true, depthTest: false, depthWrite: false,
     blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-    fragmentShader: `precision highp float; varying vec2 vUv; uniform float uSepia, uFlash, uTime;
-      void main() { vec2 q = vUv - 0.5; float v = dot(q, q) * 2.4; float a = uSepia * (0.26 + 0.5 * v);
+    fragmentShader: `precision highp float; varying vec2 vUv; uniform float uSepia, uFlash, uTime, uJump, uDir;
+      vec3 hue(float h) { return clamp(abs(fract(h + vec3(0.0, 0.667, 0.333)) * 6.0 - 3.0) - 1.0, 0.0, 1.0); }
+      void main() {
+        vec2 q = vUv - 0.5; float v = dot(q, q) * 2.4; float a = uSepia * (0.26 + 0.5 * v);
         vec3 col = vec3(0.62, 0.36, 0.13) * (0.92 + 0.08 * sin(uTime * 13.0) * sin(uTime * 7.3));
-        gl_FragColor = mix(vec4(col * a, a), vec4(1.0), uFlash); }`,
+        vec4 o = vec4(col * a, a);
+        if (uJump > 0.0) {                                          // the tunnel: rings rushing past, spokes twisting, the colours running through the spectrum
+          vec2 p = q * 2.0; float r = length(p) + 0.02, ang = atan(p.y, p.x);
+          float speed = 3.0 + 22.0 * uJump * uJump, z = 0.5 / r + uTime * speed * uDir;
+          float twist = ang + uDir * (uTime * (1.0 + 6.0 * uJump) + 1.6 / r);
+          float rings = pow(0.5 + 0.5 * sin(z * 5.0), 3.0), spokes = pow(0.5 + 0.5 * sin(twist * 9.0 + z * 1.5), 2.0);
+          float streak = pow(0.5 + 0.5 * sin(twist * 37.0 - z * 9.0), 12.0);
+          vec3 tc = hue(z * 0.07 + uTime * 0.31 + 0.08 * sin(ang * 2.0)) * (rings * 0.9 + spokes * 0.5) + vec3(1.0) * streak * 1.2;
+          tc *= smoothstep(0.0, 0.25, r) * 1.3; tc += vec3(1.0, 0.95, 0.85) * exp(-r * (9.0 - 7.0 * uJump));       // a white eye at the far end, opening as you fall in
+          tc *= 0.75 + 0.25 * sin(uTime * 47.0);                                                                   // strobing
+          float ta = clamp(uJump * 1.6, 0.0, 1.0) * (0.55 + 0.45 * smoothstep(0.9, 0.1, r * (1.3 - uJump)));
+          o = mix(o, vec4(tc * ta, ta), clamp(uJump * 2.5, 0.0, 1.0));
+        }
+        gl_FragColor = mix(o, vec4(1.0), uFlash); }`,
   }));
   veil.frustumCulled = false; veil.renderOrder = 140; veil.visible = false; root.add(veil);
 
@@ -398,15 +414,61 @@ export function createStory(c) {
   const showSet = pc => pc.obj.children[0].children.forEach(o => { o.visible = pc.set.has(o.userData.piece); });
   const centreOf = (pc, out) => pc.obj.localToWorld(out.copy(pc.set.has('grip') ? CENTRE.grip : CENTRE[[...pc.set][0]]));
   const ringMark = mesh(new THREE.TorusGeometry(0.16, 0.006, 8, 48), new THREE.MeshBasicMaterial({ color: 0x80ffb0, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); ringMark.rotation.x = Math.PI / 2; st.ringOn = false; root.add(ringMark);
+  const JUMP = 7.2, JMID = 3.7;                                    // seconds: the whole fall through time, and the moment the world changes
+  /** The fall through time: a climbing roar, a clock ticking faster and faster, a boom as the world turns over, and everything winding down again. */
   function jumpSound() {
-    const ctx = c.audio(); if (!ctx) return; const t = ctx.currentTime;
-    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(60, t); o.frequency.exponentialRampToValueAtTime(1400, t + 1.6); o.frequency.exponentialRampToValueAtTime(40, t + 3.2);
-    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(6000, t + 1.6); f.frequency.exponentialRampToValueAtTime(200, t + 3.2);
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 1.5); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.3);
-    o.connect(f); f.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + 3.4);
+    const ctx = c.audio(); if (!ctx) return; const t = ctx.currentTime, out = ctx.createGain(); out.gain.value = 0.9; out.connect(ctx.destination);
+    for (const [f0, f1, type, v] of [[40, 900, 'sawtooth', 0.22], [43, 1370, 'sawtooth', 0.14], [80, 2600, 'square', 0.05], [30, 240, 'sine', 0.4]]) {
+      const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + JMID); o.frequency.exponentialRampToValueAtTime(f0 * 0.8, t + JUMP);
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(250, t); f.frequency.exponentialRampToValueAtTime(7000, t + JMID); f.frequency.exponentialRampToValueAtTime(180, t + JUMP);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + JMID * 0.9); g.gain.exponentialRampToValueAtTime(0.0001, t + JUMP);
+      o.connect(f); f.connect(g); g.connect(out); o.start(t); o.stop(t + JUMP + 0.1);
+    }
+    const trem = ctx.createOscillator(); trem.frequency.setValueAtTime(3, t); trem.frequency.exponentialRampToValueAtTime(60, t + JMID); trem.frequency.exponentialRampToValueAtTime(2, t + JUMP); const tg = ctx.createGain(); tg.gain.value = 0.35; trem.connect(tg); tg.connect(out.gain); trem.start(t); trem.stop(t + JUMP + 0.1);
+    const nb = ctx.createBuffer(1, (ctx.sampleRate * JUMP) | 0, ctx.sampleRate), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    const ns = ctx.createBufferSource(); ns.buffer = nb; const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2.5; bp.frequency.setValueAtTime(200, t); bp.frequency.exponentialRampToValueAtTime(9000, t + JMID); bp.frequency.exponentialRampToValueAtTime(150, t + JUMP);
+    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.exponentialRampToValueAtTime(0.5, t + JMID); ng.gain.exponentialRampToValueAtTime(0.0001, t + JUMP); ns.connect(bp); bp.connect(ng); ng.connect(out); ns.start(t);
+    const tick = at => { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = 1900; const g = ctx.createGain(); g.gain.setValueAtTime(0.16, at); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.03); o.connect(g); g.connect(out); o.start(at); o.stop(at + 0.04); };
+    for (let x = 0, gap = 0.5; x < JMID; x += gap, gap = Math.max(0.035, gap * 0.86)) tick(t + x);                 // the clock runs away
+    for (let x = JMID + 0.4, gap = 0.05; x < JUMP; x += gap, gap = Math.min(0.6, gap * 1.22)) tick(t + x);        // and comes to rest
+    const b = ctx.createOscillator(); b.type = 'sine'; b.frequency.setValueAtTime(160, t + JMID); b.frequency.exponentialRampToValueAtTime(28, t + JMID + 1.2);
+    const bg = ctx.createGain(); bg.gain.setValueAtTime(0.0001, t + JMID); bg.gain.exponentialRampToValueAtTime(1.0, t + JMID + 0.03); bg.gain.exponentialRampToValueAtTime(0.0001, t + JMID + 1.5); b.connect(bg); bg.connect(ctx.destination); b.start(t + JMID); b.stop(t + JMID + 1.6);
   }
+  /** One frame of the fall: the tunnel, the flash at the turn, the lever, the machine spinning up, the controllers shaking. Returns true at the turn (once). */
+  function jumpFrame(dt, dir) {
+    st.jumpT += dt; const U = veil.material.uniforms, x = st.jumpT, k = x < JMID ? x / JMID : 1 - (x - JMID) / (JUMP - JMID);
+    U.uDir.value = dir; U.uJump.value = clamp(Math.pow(Math.max(0, k), 0.8), 0, 1); U.uFlash.value = clamp(Math.exp(-Math.pow((x - JMID) * 2.2, 2)), 0, 1);
+    parts[7].body.children[2] && (parts[7].body.children[2].rotation.z = dir * (-0.45 + Math.min(1, x * 2) * 0.9));
+    const spin = 1 + 14 * U.uJump.value;                                                                            // gears, clock hand and core run wild
+    for (const p of parts) { if (p.body.userData.spin) { p.body.userData.spin[0].rotation.y += dt * spin; p.body.userData.spin[1].rotation.y -= dt * spin * 1.6; } if (p.body.userData.hand) p.body.userData.hand.rotation.z -= dt * spin * 3 * dir; if (p.body.userData.rings) p.body.userData.rings.forEach((r, i) => { r.rotation.x += dt * spin * (0.6 + i * 0.3); }); }
+    lamps.forEach((l, i) => { l.material = Math.sin(st.t * (10 + 40 * U.uJump.value) - i) > 0 ? lampOn : lampOff; });
+    if (((st.t * (3 + 14 * U.uJump.value)) | 0) !== st.hapN) { st.hapN = (st.t * (3 + 14 * U.uJump.value)) | 0; c.haptic(0.25 + 0.75 * U.uJump.value, 40); }
+    if (x >= JMID && !st.turned) { st.turned = true; return true; }
+    return false;
+  }
+  /* the end of the story: a card that says so */
+  const bc = document.createElement('canvas'); bc.width = 1024; bc.height = 512; const bt = new THREE.CanvasTexture(bc); bt.colorSpace = THREE.SRGBColorSpace;
+  const banner = mesh(new THREE.PlaneGeometry(1.0, 0.5), new THREE.MeshBasicMaterial({ map: bt, transparent: true, depthTest: false, opacity: 0, toneMapped: false })); banner.renderOrder = 155; banner.visible = false; root.add(banner);
+  function showBanner() {
+    const x = bc.getContext('2d'); x.clearRect(0, 0, 1024, 512);
+    x.fillStyle = 'rgba(5,12,9,.86)'; x.beginPath(); x.roundRect(6, 6, 1012, 500, 36); x.fill(); x.strokeStyle = '#6dffa8'; x.lineWidth = 6; x.stroke();
+    x.textAlign = 'center'; x.fillStyle = '#6dffa8'; x.font = 'bold 84px Georgia, serif'; x.fillText('PORTALKNIVEN', 512, 130);
+    x.fillStyle = '#ffffff'; x.font = 'bold 54px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; x.fillText('Du har gennemført spillet', 512, 230);
+    x.fillStyle = '#cfe9da'; x.font = '36px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; x.fillText('Loopet er sluttet. Ingen paradokser.', 512, 310); x.fillText('Det blev en god morgen.', 512, 360);
+    x.fillStyle = '#ffd56a'; x.font = '32px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; x.fillText('Kniven ligger, hvor du fandt den: rør ved den for fri leg.', 512, 440);
+    bt.needsUpdate = true; banner.visible = true; st.bannerT = 0;
+    for (const [f, d] of [[523, 0], [659, 0.18], [784, 0.36], [1047, 0.6]]) setTimeout(() => chime(f), d * 1000);
+  }
+
+  /* the thumbstick hint: a little stick by your right hand, rocking from side to side, and a nudge in the controller */
+  const stickHint = new THREE.Group(); stickHint.visible = false;
+  { const base = mesh(new THREE.CylinderGeometry(0.022, 0.026, 0.008, 24), M.dark), post = new THREE.Group(); post.add(mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.022, 10), M.steel, 0, 0.011, 0), mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.006, 20), M.cyan, 0, 0.025, 0));
+    const arrow = s => { const a = mesh(new THREE.ConeGeometry(0.008, 0.016, 12), M.cyan, s * 0.045, 0.012, 0); a.rotation.z = -s * Math.PI / 2; return a; };
+    stickHint.add(base, post, arrow(1), arrow(-1), halo(0x7dffe0, 0.16)); stickHint.userData.post = post; }
+  c.attachRight(stickHint);
   function arriveInPast() {
     st.phase = 'past'; st.hasKnife = false; c.takeKnife(); st.powered = false; veil.material.uniforms.uSepia.value = 0.7;
+    lamps.forEach(l => { l.material = lampOn; });
     const used = [letterPos, machPos, head], ya = headYaw();
     for (const name of ['blade', 'grip', 'gem']) {
       const s = findSpot(head.x, head.z, 1.0, 2.4, ya - Math.PI, ya + Math.PI, used); used.push(s);
@@ -464,25 +526,30 @@ export function createStory(c) {
     if (st.ringOn) { ringMark.scale.setScalar(1 + 0.12 * Math.sin(st.t * 4)); ringMark.position.y = knifePos.y - 0.05; }
     /* the lever: a touch, once the machine is whole and has warmed up */
     if (st.powered && st.powerT > 2.5 && st.phase === 'play' && S.cur === 0 && touching(parts[7].grp.getWorldPosition(_w), 0.14) >= 0) {
-      st.phase = 'jump'; st.jumpT = 0; veil.visible = true; c.closeDoor(); jumpSound(); c.haptic(1, 400); toast('…', 2);
+      st.phase = 'jump'; st.jumpT = 0; st.turned = false; veil.visible = true; c.closeDoor(); jumpSound();
     }
     const U = veil.material.uniforms; U.uTime.value = st.t;
     if (st.phase === 'jump') {
-      st.jumpT += dt; U.uFlash.value = clamp(st.jumpT < 1.6 ? Math.pow(st.jumpT / 1.6, 2) : 1 - (st.jumpT - 1.9) / 1.4, 0, 1);
-      parts[7].body.children[2] && (parts[7].body.children[2].rotation.z = -0.45 + Math.min(1, st.jumpT * 2) * 0.9);
-      if (st.jumpT > 1.75 && pieces.length === 0 && !st.arrived) { st.arrived = true; arriveInPast(); st.phase = 'jump'; }
-      if (st.jumpT > 3.3) { U.uFlash.value = 0; st.phase = 'past'; }
+      if (jumpFrame(dt, 1)) { arriveInPast(); st.phase = 'jump'; }
+      if (st.jumpT > JUMP) { U.uFlash.value = 0; U.uJump.value = 0; st.phase = 'past'; }
     }
     if (st.phase === 'placed') {
       st.endT += dt; lying.rotation.y += dt * 0.6;
-      if (st.endT > 2 && touching(parts[7].grp.getWorldPosition(_w), 0.14) >= 0) { st.phase = 'back'; st.jumpT = 0; veil.visible = true; jumpSound(); c.haptic(1, 400); }
+      if (st.endT > 2 && touching(parts[7].grp.getWorldPosition(_w), 0.14) >= 0) { st.phase = 'back'; st.jumpT = 0; st.turned = false; veil.visible = true; jumpSound(); }
     }
     if (st.phase === 'back') {
-      st.jumpT += dt; U.uFlash.value = clamp(st.jumpT < 1.6 ? Math.pow(st.jumpT / 1.6, 2) : 1 - (st.jumpT - 1.9) / 1.4, 0, 1);
-      parts[7].body.children[2] && (parts[7].body.children[2].rotation.z = 0.45 - Math.min(1, st.jumpT * 2) * 0.9);
-      if (st.jumpT > 1.75) { U.uSepia.value = 0; worlds.setPast(0); }
-      if (st.jumpT > 3.3) { U.uFlash.value = 0; veil.visible = false; st.phase = 'free'; st.stick = true; chime(784); toast('Du er tilbage i din egen tid. Loopet er sluttet, og kniven ligger, hvor du fandt den. Rør ved den: nu er det fri leg.', 14); }
+      if (jumpFrame(dt, -1)) { U.uSepia.value = 0; worlds.setPast(0); }
+      if (st.jumpT > JUMP) { U.uFlash.value = 0; U.uJump.value = 0; veil.visible = false; st.phase = 'free'; st.stick = true; showBanner(); c.say('Du har gennemført spillet'); }
     }
+    if (banner.visible) {
+      st.bannerT += dt; const a = clamp(Math.min(st.bannerT / 0.8, (16 - st.bannerT) / 1.5), 0, 1); banner.material.opacity = a; if (st.bannerT > 16) banner.visible = false;
+      const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize();
+      _w.copy(head).addScaledVector(f, 1.3); _w.y = head.y + 0.05; banner.position.lerp(_w, Math.min(1, dt * 3)); banner.lookAt(head);
+    }
+    /* the thumbstick hint: at home, the stick is yours, a door stands open to a world you have already emptied, and you have not yet tried the stick */
+    { const want = st.phase === 'play' && st.stick && !st.stickUsed && S.cur === 0 && S.placed && S.oth !== 0 && !parts.some(q => q.world === S.oth && !q.found);
+      stickHint.visible = want;
+      if (want) { st.hintT += dt; stickHint.userData.post.rotation.z = Math.sin(st.hintT * 4) * 0.55; if (((st.hintT / 1.1) | 0) !== st.hintN) { st.hintN = (st.hintT / 1.1) | 0; c.hapticRight(0.8, 120); } } }
     if (st.phase === 'past' || st.phase === 'placed') worlds.setPast(Math.min(1, (worlds.pastAmount || 0) + dt * 0.5));
     if (st.phase === 'free' && st.lyingOn && S.cur === 0) {
       lying.rotation.y += dt * 0.6; const i = touching(lying.position, 0.2);
@@ -492,11 +559,12 @@ export function createStory(c) {
 
   /* ---------------------------------------------------------------- the story itself */
   const api = {
-    st, parts, toast, pieces, mach, collect, findSpot, clearSight, machineSpot, manifestNext, install, sockWorld, debug: { placeMachine, arriveInPast, knifePos, letterPos, centreOf },
+    st, parts, toast, pieces, mach, collect, stickHint, banner, JUMP, findSpot, clearSight, machineSpot, manifestNext, install, sockWorld, debug: { placeMachine, arriveInPast, knifePos, letterPos, centreOf },
     canCut: () => !st.on || (st.hasKnife && !st.busy && (st.phase === 'play' || st.phase === 'free')),
     stickOK: () => !st.on || st.phase === 'free' || (st.stick && S.cur === 0 && st.phase === 'play'),
     count: () => st.found.filter(Boolean).length,
-    start() { st.on = true; st.phase = 'wait'; st.t = 0; root.visible = true; },
+    start(help = true) { st.on = true; st.help = help; st.phase = 'wait'; st.t = 0; root.visible = true; },
+    onStick() { st.stickUsed = true; },
     /** What the board on the controller says you should be doing. */
     objective() {
       if (!st.on) return '';
@@ -527,7 +595,7 @@ export function createStory(c) {
         return;
       }
       st.searchT = 0; st.hintSaid = false;
-      if (!st.warned) { st.warned = true; st.nagT = 6; toast('Gå MEGET forsigtigt herinde. Scanningen fanger ikke alt: en stoleryg eller noget, der stritter ud, kan mangle.', 9); }
+      if (!st.warned) { st.warned = true; st.nagT = 6; toast('Gå MEGET forsigtigt herinde. Scanningen fanger ikke alt: en stoleryg eller noget, der stritter ud, kan mangle.', 9, true); }
       else if (!st.revealed[w]) { toast('Luk døren bag dig: skær hen over ringen med kniven.', 8); st.nagT = 0; }
     },
     onClosed() { if (st.on && st.phase === 'play' && S.cur !== 0 && !st.revealed[S.cur]) revealParts(S.cur); },

@@ -116,3 +116,12 @@ Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start,
 * **Hjem igen:** når kniven er lagt i fortiden, går man hen til tidsmaskinen og trækker håndtaget tilbage. Først hjemme i ens egen tid er det fri leg, og kniven ligger, hvor man fandt den.
 * **Fortidens skær:** ud over det ravgule slør får rummets scannede form et svagt glødende skær, stærkest langs kanterne, med en langsom bølge igennem.
 * Søgning efter steder bruger scanningens 8 cm-gitter (få opslag) i stedet for stråler mod hele scanningen; kun det valgte sted finjusteres med én stråle.
+* **Tidsrejsen** varer nu ca. 7 sekunder hver vej: en tunnel af ringe og eger, der farer forbi i spektrets farver og blinker, et hvidt glimt i vendepunktet,
+  tidsmaskinens tandhjul, ur og kerne, der løber løbsk, lamperne der flimrer, controllerne der ryster; lyden er et stigende brøl, et ur der tikker hurtigere og hurtigere,
+  et drøn når verden vender, og det hele der falder til ro.
+* **Med eller uden hjælpetekster:** vælges på startsiden. Uden hjælpetekster vises kun brevet, sikkerhedsadvarslen, joystick-vinket og slutkortet; tavlen viser kun, hvor man er, og hvor mange dele man har.
+  `?flat&nohelp` i preview.
+* **Joystick-vinket:** når joysticken er låst op, man står i stuen, og der står en dør til en verden, man allerede har tømt, vises en lille joystick ved højre hånd,
+  der vipper fra side til side, og højre controller dunker. Det forsvinder, første gang joysticken bruges.
+* **Slutkortet:** "Du har gennemført spillet" vises foran en, når man er hjemme i sin egen tid.
+* **Sikkerhedsvisningen af stuen nær møbler er altid slået til** og kan ikke vælges fra.
