@@ -20,7 +20,7 @@ const V = THREE.Vector3;
 const TAU = Math.PI * 2;
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-export const ORDER = { bgHome: -10, home: 0, mask: 10, fill: 20, other: 30 };
+export const ORDER = { home: 0, bgHome: 5, mask: 10, fill: 20, other: 30 };          // the home sky comes after the home world (early depth rejection)
 export const DIMS = [
   { key: 'stue', name: 'DIN STUE' },
   { key: 'groen', name: 'DEN GRØNNE' },
@@ -109,6 +109,7 @@ const HEAD = `
   uniform sampler2D uNoise; uniform float uTime; uniform vec3 uFogCol; uniform float uFogDen; uniform vec3 uGrade;
   vec4 tri(vec3 p, vec3 n, float s) { vec3 w = abs(n); w = w * w * w * w; w /= (w.x + w.y + w.z + 1e-5);
     return texture2D(uNoise, p.zy * s) * w.x + texture2D(uNoise, p.xz * s) * w.y + texture2D(uNoise, p.xy * s) * w.z; }
+  vec4 tri1(vec3 p, vec3 n, float s) { vec3 a = abs(n); vec2 uv = (a.y >= a.x && a.y >= a.z) ? p.xz : (a.x > a.z ? p.zy : p.xy); return texture2D(uNoise, uv * s); }
   vec3 wBump(vec3 pv, vec3 N, float h) { vec3 dpdx = dFdx(pv), dpdy = dFdy(pv); float dhdx = dFdx(h), dhdy = dFdy(h);
     vec3 r1 = cross(dpdy, N), r2 = cross(N, dpdx); float det = dot(dpdx, r1); vec3 g = sign(det) * (dhdx * r1 + dhdy * r2);
     return normalize(abs(det) * N - g); }`;
@@ -116,7 +117,7 @@ const HEAD = `
 const SURF = {
   /* --- the green one: wet earth, moss on what faces up, standing water in the hollows, a faint lichen glow --- */
   moss: vein => `
-    float n1 = tri(P, Nw, 0.09).r, n2 = tri(P, Nw, 0.7).a, n3 = tri(P, Nw, 2.8).b, n4 = tri(P, Nw, 7.0).b;
+    float n1 = tri(P, Nw, 0.09).r, n2 = tri1(P, Nw, 0.7).a, n3 = tri1(P, Nw, 2.8).b, n4 = tri1(P, Nw, 7.0).b;
     float up = smoothstep(0.5, 0.9, Nw.y);
     float mossAmt = smoothstep(0.47, 0.66, n1 * 0.6 + n2 * 0.4 + up * 0.10);
     vec3 soil = mix(vec3(0.030, 0.024, 0.018), vec3(0.095, 0.072, 0.050), n2) * (0.75 + 0.5 * n3);
@@ -127,24 +128,24 @@ const SURF = {
     wA = mix(wA, wA * 0.45, wet * (1.0 - pud)); wA = mix(wA, vec3(0.010, 0.018, 0.016), pud * 0.92);
     wR = mix(mix(mix(0.62, 0.96, mossAmt), 0.3, wet * 0.8), 0.04, pud);
     wH = (1.0 - pud) * (n1 * 0.035 + mossAmt * (n3 * 0.014 + n4 * 0.004) + (1.0 - mossAmt) * n3 * 0.005)
-       + pud * 0.0006 * sin(length(P.xz * 9.0) * 6.0 - uTime * 1.5) * tri(P, Nw, 0.5).r;
+       + pud * 0.0006 * sin(length(P.xz * 9.0) * 6.0 - uTime * 1.5) * n2;
     float vn = tri(P + vec3(0.0, uTime * 0.003, 0.0), Nw, 0.11).a;
     float vein = (1.0 - smoothstep(0.0, 0.016, abs(vn - 0.5))) * (1.0 - pud) * (1.0 - 0.6 * mossAmt);
     wE = vec3(0.02, 0.30, 0.22) * vein * (0.5 + 0.5 * sin(uTime * 0.4 + n1 * 9.0)) * ${vein.toFixed(2)};`,
-  stalk: () => 'wA = vec3(0.030, 0.050, 0.022) * (0.6 + 0.8 * tri(P, Nw, 3.0).b); wR = 0.6;',
+  stalk: () => 'wA = vec3(0.030, 0.050, 0.022) * (0.6 + 0.8 * tri1(P, Nw, 3.0).b); wR = 0.6;',
   bud: () => 'float g = 0.6 + 0.4 * sin(uTime * 0.7 + P.x * 5.0 + P.z * 3.0); wA = vec3(0.03, 0.07, 0.05); wE = vec3(0.05, 0.50, 0.38) * g * (0.35 + 0.65 * smoothstep(-0.2, 0.9, Nw.y)); wR = 0.35;',
   bark: () => `
-    float f = tri(P * vec3(1.0, 0.25, 1.0), Nw, 4.0).b, n = tri(P, Nw, 0.9).a, ms = smoothstep(0.5, 0.7, n + smoothstep(0.3, 0.9, Nw.y) * 0.3);
-    wA = mix(mix(vec3(0.030, 0.022, 0.015), vec3(0.085, 0.062, 0.042), f), vec3(0.05, 0.11, 0.03) * (0.6 + 0.8 * tri(P, Nw, 6.0).b), ms);
-    wR = mix(0.5, 0.95, ms); wH = f * 0.006 + ms * tri(P, Nw, 6.0).b * 0.006;`,
+    float f = tri1(P * vec3(1.0, 0.25, 1.0), Nw, 4.0).b, n = tri1(P, Nw, 0.9).a, fine = tri1(P, Nw, 6.0).b, ms = smoothstep(0.5, 0.7, n + smoothstep(0.3, 0.9, Nw.y) * 0.3);
+    wA = mix(mix(vec3(0.030, 0.022, 0.015), vec3(0.085, 0.062, 0.042), f), vec3(0.05, 0.11, 0.03) * (0.6 + 0.8 * fine), ms);
+    wR = mix(0.5, 0.95, ms); wH = f * 0.006 + ms * fine * 0.006;`,
   cap: () => `
-    float sp = tri(P, Nw, 11.0).b, under = 1.0 - smoothstep(-0.5, 0.15, Nw.y);
+    float sp = tri1(P, Nw, 11.0).b, under = 1.0 - smoothstep(-0.5, 0.15, Nw.y);
     wA = mix(mix(vec3(0.13, 0.10, 0.075), vec3(0.30, 0.25, 0.18), sp), vec3(0.05, 0.10, 0.08), under);
     wR = mix(0.35, 0.7, sp);
     wE = vec3(0.03, 0.40, 0.30) * under * (0.7 + 0.3 * sin(uTime * 0.6 + P.x * 9.0)) + vec3(0.004, 0.022, 0.016) * (1.0 - under);
     wH = sp * 0.0015;`,
-  stem: () => 'wA = vec3(0.24, 0.22, 0.17) * (0.6 + 0.6 * tri(P, Nw, 9.0).b); wR = 0.6; wE = vec3(0.003, 0.018, 0.013);',
-  blade: () => 'float t = tri(P, Nw, 5.0).b; wA = mix(vec3(0.020, 0.060, 0.015), vec3(0.085, 0.170, 0.040), t) * (0.5 + smoothstep(0.0, 0.14, P.y) * 0.9); wR = 0.5;',
+  stem: () => 'wA = vec3(0.24, 0.22, 0.17) * (0.6 + 0.6 * tri1(P, Nw, 9.0).b); wR = 0.6; wE = vec3(0.003, 0.018, 0.013);',
+  blade: () => 'float t = tri1(P, Nw, 5.0).b; wA = mix(vec3(0.020, 0.060, 0.015), vec3(0.085, 0.170, 0.040), t) * (0.5 + smoothstep(0.0, 0.14, P.y) * 0.9); wR = 0.5;',
 
   /* --- metal --- */
   plate: () => `
@@ -163,44 +164,46 @@ const SURF = {
     float dome = rivet * sqrt(max(0.0, 1.0 - rv * rv / (0.014 * 0.014)));
     vec2 bu = pid > 0.5 ? uv : uv.yx;                           // each plate is brushed its own way
     float brush = texture2D(uNoise, bu * vec2(6.0, 0.08)).b * 0.6 + texture2D(uNoise, bu * vec2(17.0, 0.21)).b * 0.4;
-    float grime = tri(P, Nw, 0.14).r;
+    vec4 lo = tri(P, Nw, 0.14); float grime = lo.r; vec4 hi = texture2D(uNoise, uv * 1.7);
     float stain = smoothstep(0.50, 0.82, grime + (1.0 - bevel) * 0.2);
-    float rust = smoothstep(0.66, 0.9, tri(P, Nw, 0.33).a + (1.0 - bevel) * 0.3) * 0.9;
+    float rust = smoothstep(0.66, 0.9, texture2D(uNoise, uv * 0.33 + 0.5).a + (1.0 - bevel) * 0.3) * 0.9;
     vec3 steel = mix(vec3(0.40, 0.42, 0.44), vec3(0.25, 0.27, 0.30), pid2) * (0.84 + 0.32 * brush);
-    vec3 rustC = mix(vec3(0.12, 0.05, 0.02), vec3(0.27, 0.12, 0.05), tri(P, Nw, 1.7).a);
+    vec3 rustC = mix(vec3(0.12, 0.05, 0.02), vec3(0.27, 0.12, 0.05), hi.a);
     wA = mix(steel, rustC, rust); wA = mix(wA, wA * 0.4, stain * 0.55); wA = mix(wA, vec3(0.02), seam * 0.92); wA = mix(wA, steel * 1.1, rivet * 0.7);
     wM = (1.0 - rust) * (1.0 - seam);
     wR = mix(0.30 + 0.34 * brush, 0.9, max(rust, stain * 0.7)); wR = mix(wR, 0.3, rivet);
-    wH = bevel * 0.0032 + dome * 0.0045 + (brush - 0.5) * 0.0004 * (1.0 - rust) + rust * tri(P, Nw, 3.0).b * 0.0025;
+    wH = bevel * 0.0032 + dome * 0.0045 + (brush - 0.5) * 0.0004 * (1.0 - rust) + rust * hi.b * 0.0025;
     float hot = step(0.955, pid) * (1.0 - smoothstep(0.004, 0.02, ed.y)) * step(0.06, ed.x);    // a few long seams glow dull orange
     wE = vec3(1.0, 0.30, 0.04) * hot * 1.6 * (0.75 + 0.25 * sin(uTime * 1.3 + pid * 50.0));`,
   steel: () => `
-    float brush = tri(P * vec3(1.0, 0.03, 1.0), Nw, 9.0).b, grime = tri(P, Nw, 0.2).r;
-    float rust = smoothstep(0.56, 0.9, tri(P * vec3(1.0, 0.22, 1.0), Nw, 0.55).a * 0.75 + tri(P, Nw, 1.6).r * 0.25 + (1.0 - smoothstep(0.0, 1.2, P.y)) * 0.2) * 0.8;
-    wA = mix(vec3(0.30, 0.32, 0.35) * (0.82 + 0.34 * brush), mix(vec3(0.13, 0.055, 0.025), vec3(0.28, 0.125, 0.05), tri(P, Nw, 1.7).a), rust);
-    wA *= 1.0 - 0.45 * smoothstep(0.5, 0.8, grime);
-    wM = 1.0 - rust; wR = mix(0.26 + 0.3 * brush, 0.88, rust); wH = (brush - 0.5) * 0.0005 + rust * tri(P, Nw, 3.0).b * 0.002;`,
+    float brush = tri1(P * vec3(1.0, 0.03, 1.0), Nw, 9.0).b; vec4 lo = tri(P, Nw, 0.2), hi = tri1(P, Nw, 1.7);
+    float rust = smoothstep(0.56, 0.9, tri1(P * vec3(1.0, 0.22, 1.0), Nw, 0.55).a * 0.75 + lo.a * 0.25 + (1.0 - smoothstep(0.0, 1.2, P.y)) * 0.2) * 0.8;
+    wA = mix(vec3(0.30, 0.32, 0.35) * (0.82 + 0.34 * brush), mix(vec3(0.13, 0.055, 0.025), vec3(0.28, 0.125, 0.05), hi.a), rust);
+    wA *= 1.0 - 0.45 * smoothstep(0.5, 0.8, lo.r);
+    wM = 1.0 - rust; wR = mix(0.26 + 0.3 * brush, 0.88, rust); wH = (brush - 0.5) * 0.0005 + rust * hi.b * 0.002;`,
   copper: () => `
-    float pat = smoothstep(0.52, 0.78, tri(P, Nw, 0.6).a + tri(P, Nw, 2.5).b * 0.2);
-    wA = mix(vec3(0.78, 0.44, 0.26) * (0.85 + 0.3 * tri(P, Nw, 5.0).b), vec3(0.22, 0.46, 0.38), pat);
-    wM = 1.0 - pat * 0.9; wR = mix(0.24, 0.8, pat); wH = pat * tri(P, Nw, 4.0).b * 0.0015;`,
+    vec4 lo = tri1(P, Nw, 0.6), hi = tri1(P, Nw, 4.0);
+    float pat = smoothstep(0.52, 0.78, lo.a + hi.b * 0.2);
+    wA = mix(vec3(0.78, 0.44, 0.26) * (0.85 + 0.3 * hi.r), vec3(0.22, 0.46, 0.38), pat);
+    wM = 1.0 - pat * 0.9; wR = mix(0.24, 0.8, pat); wH = pat * hi.b * 0.0015;`,
   lamp: () => 'wA = vec3(0.02); wE = vec3(3.0, 3.3, 3.7); wR = 0.5;',
   ember: () => 'wA = vec3(0.02); wE = vec3(2.4, 0.7, 0.10) * (0.8 + 0.2 * sin(uTime * 2.1 + P.y * 9.0)); wR = 0.5;',
 
   /* --- rock --- */
   rock: () => `
-    float warp = tri(P, Nw, 0.11).r;
-    float sy = P.y + warp * 0.55 + tri(P, Nw, 0.5).a * 0.07;       // layers, bent by the noise
+    vec4 lo = tri(P, Nw, 0.11); float warp = lo.r;                 // one broad lookup bends the layers and masks the cracks and the dust
+    float sy = P.y + warp * 0.55 + lo.a * 0.07;
     float bands = texture2D(uNoise, vec2(sy * 0.33, 0.37)).r, fineB = texture2D(uNoise, vec2(sy * 2.4, 0.71)).a, thin = texture2D(uNoise, vec2(sy * 9.0, 0.13)).b;
     vec3 c1 = vec3(0.36, 0.17, 0.09), c2 = vec3(0.52, 0.29, 0.15), c3 = vec3(0.21, 0.11, 0.07), c4 = vec3(0.60, 0.42, 0.27);
     wA = mix(c1, c2, smoothstep(0.35, 0.65, bands)); wA = mix(wA, c3, smoothstep(0.60, 0.80, fineB) * 0.65); wA = mix(wA, c4, smoothstep(0.72, 0.9, thin) * 0.35);
-    float grainLo = tri(P, Nw, 0.6).r;
-    float cr = tri(P + warp * 0.6, Nw, 0.27).g, crack = (1.0 - smoothstep(0.012, 0.05, cr)) * smoothstep(0.35, 0.6, tri(P, Nw, 0.19).a);
-    float fineCr = (1.0 - smoothstep(0.02, 0.07, tri(P, Nw, 1.3).g)) * smoothstep(0.45, 0.7, grainLo);
-    float grain = tri(P, Nw, 2.3).b, speck = tri(P, Nw, 7.0).b;
+    vec4 mid = tri(P + warp * 0.6, Nw, 0.27);                      // cracks need to run unbroken round a boulder, so this one stays triplanar
+    float crack = (1.0 - smoothstep(0.012, 0.05, mid.g)) * smoothstep(0.35, 0.6, lo.a);
+    vec4 d1 = tri1(P, Nw, 1.3), d2 = tri1(P, Nw, 2.3), d3 = tri1(P, Nw, 7.0);
+    float fineCr = (1.0 - smoothstep(0.02, 0.07, d1.g)) * smoothstep(0.45, 0.7, mid.r);
+    float grain = d2.b, speck = d3.b;
     wA *= (0.78 + 0.44 * grain) * (0.92 + 0.16 * speck);
     wA *= 1.0 - crack * 0.6 - fineCr * 0.25;
-    float top = smoothstep(0.55, 0.9, Nw.y) * smoothstep(0.25, 0.6, tri(P, Nw, 0.3).a + 0.25);     // dust and sand lies on what faces up
+    float top = smoothstep(0.55, 0.9, Nw.y) * smoothstep(0.25, 0.6, mid.a + 0.25);     // dust and sand lies on what faces up
     wA = mix(wA, vec3(0.40, 0.25, 0.145) * (0.8 + 0.4 * speck), top * 0.8);
     wR = 0.93 - 0.1 * top; wM = 0.0;
     wH = warp * 0.05 + bands * 0.014 + fineB * 0.006 + grain * 0.005 + speck * 0.0015 - crack * 0.014 - fineCr * 0.004;`,
@@ -363,7 +366,7 @@ export function createWorlds(scene, renderer, params) {
   /* skies: one quad drawn everywhere when the dimension is home, one drawn inside the door (which also resets the depth) */
   const quadGeo = new THREE.PlaneGeometry(2, 2);
   function quad(fs, inRing) {
-    const m = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: fs, uniforms: { uTime: timeU, uBright: brightU, uNoise: noiseU }, blending: THREE.NoBlending, depthTest: inRing, depthWrite: inRing, depthFunc: THREE.AlwaysDepth });
+    const m = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: fs, uniforms: { uTime: timeU, uBright: brightU, uNoise: noiseU }, blending: THREE.NoBlending, depthTest: true, depthWrite: inRing, depthFunc: inRing ? THREE.AlwaysDepth : THREE.LessEqualDepth });   // the home sky tests against the depth: pixels the world covers are never shaded
     if (inRing) { m.stencilWrite = true; m.stencilRef = 1; m.stencilFunc = THREE.EqualStencilFunc; m.stencilFail = m.stencilZFail = m.stencilZPass = THREE.KeepStencilOp; }
     const q = new THREE.Mesh(quadGeo, m); q.frustumCulled = false; q.renderOrder = inRing ? ORDER.fill : ORDER.bgHome; q.visible = false; scene.add(q);
     return q;

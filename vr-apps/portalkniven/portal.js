@@ -17,8 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=10';
-import { createStory } from './story.js?v=10';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=11';
+import { createStory } from './story.js?v=11';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -59,7 +59,7 @@ const ringLight = new THREE.PointLight(0x40ff90, 0, 7, 1.5); scene.add(ringLight
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.04).texture; pm.dispose();
 }
 
-const S = { safe: false, bright: 1, brightTarget: 1, lum: -1, camera: false, cur: 0, oth: 1, side: 1, placed: false, mode: 'menu', stencilBits: null, crossings: 0, frames: 0, scanMeshes: 0, scanFeature: false, time: 0, msg: '', msgT: -99 };
+const S = { safe: false, scale: 0.85, bright: 1, brightTarget: 1, lum: -1, camera: false, cur: 0, oth: 1, side: 1, placed: false, mode: 'menu', stencilBits: null, crossings: 0, frames: 0, scanMeshes: 0, scanFeature: false, time: 0, msg: '', msgT: -99 };
 const DOOR = { Rx: 0.6, Ry: 1.1 };                             // an upright oval you can walk through (1.2 m wide, 2.2 m tall)
 const portal = { c: new V(0, DOOR.Ry + 0.03, -1.6), n: new V(0, 0, 1), x: new V(1, 0, 0), y: new V(0, 1, 0), Rx: DOOR.Rx, Ry: DOOR.Ry, anim: null };
 const head = new V(0, 1.6, 0), prevHead = new V(0, 1.6, 0), headQ = new THREE.Quaternion();
@@ -552,6 +552,7 @@ async function enterXR(free) {
     session.addEventListener('end', () => location.reload());
     S.camera = !!(session.enabledFeatures && session.enabledFeatures.includes('camera-access'));
     try { if (session.requestLightProbe) session.requestLightProbe().then(p => { lightProbe = p; }).catch(() => {}); } catch (_) { /* no light estimation */ }
+    renderer.xr.setFramebufferScaleFactor(S.scale); renderer.xr.setFoveation(1);      // fewer pixels to shade, and fewer still at the edge of view
     await renderer.xr.setSession(session);
     S.mode = 'xr';
     canvas.style.display = 'block'; document.body.classList.add('playing');
@@ -677,7 +678,9 @@ renderer.setAnimationLoop(loop);
   const btnAR = $('btnAR'), btnFlat = $('btnFlat'), status = $('status');
   const btnFree = $('btnFree'), optSafe = $('optSafe');
   try { if (optSafe) { optSafe.checked = localStorage.getItem('portalknivenSafe') !== '0'; optSafe.addEventListener('change', () => localStorage.setItem('portalknivenSafe', optSafe.checked ? '1' : '0')); } } catch (_) { /* no storage */ }
-  const readOpts = () => { S.safe = optSafe ? optSafe.checked : params.get('safe') !== '0'; };
+  const optQual = $('optQual');
+  try { if (optQual) { optQual.value = localStorage.getItem('portalknivenQual') || 'normal'; optQual.addEventListener('change', () => localStorage.setItem('portalknivenQual', optQual.value)); } } catch (_) { /* no storage */ }
+  const readOpts = () => { S.safe = optSafe ? optSafe.checked : params.get('safe') !== '0'; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
   btnFlat.addEventListener('click', () => { readOpts(); enterFlat(); }); btnAR.addEventListener('click', () => { readOpts(); enterXR(false); });
   if (btnFree) btnFree.addEventListener('click', () => { readOpts(); enterXR(true); });
   let ok = false;

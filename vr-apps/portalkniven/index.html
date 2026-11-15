@@ -43,6 +43,14 @@
       <button id="btnFlat" class="alt">Se fladt på computer</button>
     </div>
     <label style="display:flex;gap:10px;align-items:flex-start;margin:10px 0 6px;font-size:15px"><input type="checkbox" id="optSafe" checked style="width:20px;height:20px;accent-color:#4dff88;flex:none;margin-top:2px"> <span>Lad den rigtige stue tone frem, når jeg kommer tæt på mine møbler <span style="color:#8496ad">(kræver rumscanning; anbefales)</span></span></label>
+    <label style="display:flex;gap:10px;align-items:center;margin:6px 0;font-size:15px">Grafik
+      <select id="optQual" style="font:15px ui-monospace,Consolas,monospace;background:#04060b;color:#d7e2f0;border:1px solid #23344a;border-radius:6px;padding:8px 10px">
+        <option value="high">Skarp (tungest)</option>
+        <option value="normal" selected>Normal</option>
+        <option value="fast">Flydende (lettest)</option>
+      </select>
+      <span style="color:#8496ad;font-size:12.5px">Vælg Flydende, hvis det hakker.</span>
+    </label>
     <div id="status">Tjekker dit udstyr …</div>
     <h2>Historien</h2>
     <ul>
@@ -58,6 +66,6 @@
     <h2>På computer</h2>
     <p>Klik (eller <kbd>F</kbd>) er "peg og tryk" i midten af billedet. Tilføj <code>?flat&amp;free</code> for fri leg. <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> gå, træk med musen for at kigge, hold <kbd>Shift</kbd> og træk med musen for at skære en ring med kniven (luk den!). <kbd>P</kbd> sætter en ring foran dig uden kniv, <kbd>Q</kbd>/<kbd>E</kbd> skifter verden bag døren.</p>
   </div>
-  <script type="module" src="portal.js?v=10"></script>
+  <script type="module" src="portal.js?v=11"></script>
 </body>
 </html>

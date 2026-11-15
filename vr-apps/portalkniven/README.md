@@ -73,3 +73,9 @@ Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start,
 * Brev, kniv og dele lægges oven på det, rumscanningen har dér (bord, sofa, gulv), så de kan nås; uden scanning svæver de i håndhøjde.
 * De ni dele: fluxspole, vakuumrør, tandhjulssæt (den grønne); tidskrystal, kronometer, kondensator (metal); antenne, styrehåndtag, kraftkerne (klippe).
 * **Sikkerhed (valgfrit på startsiden, slået til som standard):** hvor den scannede stue er tæt på hoved eller hænder, tynder den ud, så den rigtige stue ses igennem.
+
+## Ydelse
+* Overfladerne bruger nu ét opslag (`tri1`, projektion langs den dominerende akse) til fine detaljer og kun den dyre triplanare blanding (`tri`)
+  til de brede mønstre, der skal løbe ubrudt rundt om en sten. Klippe: fra 33 til 12 teksturopslag pr. pixel; stål: 18 til 6; mos: 18 til 9.
+* Himlen tegnes efter verdenen med dybdetest, så dækkede pixels aldrig beregnes (i et scannet, lukket rum er det næsten alle).
+* Opløsning: startsiden har *Grafik* (Skarp 1.0, Normal 0.85, Flydende 0.7 af headsettets opløsning) og fast foveation på højeste trin.
