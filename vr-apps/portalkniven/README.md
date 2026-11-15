@@ -68,7 +68,24 @@ Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start,
 3. Skær en dør og gå igennem. I hver verden: **luk døren bag dig** (snit over ringen); først da viser de **tre dele** sig. Rør en del (hånd eller knivspids)
    for at tage den; den følger med i et bælte ved hoften. Tavlen viser `Dele: n af 9` og den aktuelle opgave; korte beskeder svæver foran dig.
 4. Når den første verdens tre dele er fundet, låses **højre joystick** op (vælg næste verden).
-5. Kapitel 2 (samle tidsmaskinen med hænderne, fortiden, lave kniven) er ikke bygget endnu.
+5. **Altid hjem til stuen:** indtil historien er slut, fører døren fra en anden verden altid hjem, og joysticken virker kun i stuen.
+   Når en verdens tre dele er fundet, skærer man en dør hjem; hjemme låses joysticken op, så næste verden kan vælges.
+
+### Kapitel 2
+6. Når alle ni dele er fundet, står **tidsmaskinens stel** ("TEMPUS MK I", bordmodel ca. 62 × 38 × 36 cm) dér, hvor brevet lå, på bordet
+   eller på et lille bord, hvis der ikke er noget at stille den på. Hver del har en plads, vist som et svagt lysende omrids. Tag en del fra bæltet
+   (hold udløseren nær den), før den hen til sin plads, og den klikker i. Slipper man for tidligt, vender delen tilbage til bæltet. En lampe tændes pr. del.
+7. Med alle ni dele på plads varmer maskinen op. Rør ved **håndtaget**: et hvidt glimt, og du er i **fortiden** (samme stue set gennem et varmt, ravgult slør).
+   Kniven i din hånd er væk; den er ikke lavet endnu.
+8. **Klinge, skaft og sten** ligger tre steder. Hold udløseren for at tage en; før to sammen, og de sætter sig sammen. Når kniven er hel, lyser en ring,
+   hvor du fandt den. Læg kniven dér: loopet lukker sig, sløret letter, og historien er slut.
+9. Bagefter er det **fri leg**: rør ved kniven igen, og joysticken virker overalt.
+
+### Sikkerhed
+* Brev, kniv, tidsmaskine og markeringer ses kun i den rigtige stue (ikke i de andre verdener).
+* **Advarselslyd:** rumscanningen lægges i et gitter af 8 cm-celler; når hovedet er under ca. 38 cm fra noget scannet (over knæhøjde) i en anden verden,
+  kommer en tone, der bliver højere og hurtigere, jo tættere man er. Den kan ikke advare mod det, scanningen ikke har set.
+* Startsiden og første besøg i en anden verden advarer tydeligt: gå meget forsigtigt; scanningen fanger ikke alt, der stritter ud.
 
 * Brev, kniv og dele lægges oven på det, rumscanningen har dér (bord, sofa, gulv), så de kan nås; uden scanning svæver de i håndhøjde.
 * De ni dele: fluxspole, vakuumrør, tandhjulssæt (den grønne); tidskrystal, kronometer, kondensator (metal); antenne, styrehåndtag, kraftkerne (klippe).

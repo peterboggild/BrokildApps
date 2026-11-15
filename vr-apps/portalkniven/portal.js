@@ -17,8 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=11';
-import { createStory } from './story.js?v=11';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=13';
+import { createStory } from './story.js?v=14';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -222,6 +222,7 @@ function buildKnife() {
   const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.0188, 20, 14), brass); pommel.position.z = 0.13; pommel.scale.z = 0.85; k.add(pommel);
   const gem = new THREE.Mesh(new THREE.SphereGeometry(0.0085, 14, 10), rune); gem.position.z = 0.146; k.add(gem);
   const tip = new THREE.Object3D(); tip.position.set(0, 0, -0.278); k.add(tip);     // the point of the blade
+  k.children.forEach(o => { o.userData.piece = o === gem ? 'gem' : o.position.z < 0.003 ? 'blade' : 'grip'; });      // the knife in its three pieces (for the story)
   root.updateMatrixWorld(true);
   root.userData = { tip, rune, halo: haloMat, tipLocal: tip.getWorldPosition(new V()) };       // the point, in the root's own space (the root is still at the origin here)
   return root;
@@ -230,11 +231,12 @@ const knife = buildKnife();
 let knifeGlow = 0.35, tipPrev = null;
 
 /* the two hands, as the story sees them: where they are, where they point, and whether the trigger was just pressed */
-const hands = [0, 1].map(() => ({ on: false, pos: new V(), rayO: new V(), rayD: new V(0, 0, -1), trig: false, trigEdge: false }));
+const hands = [0, 1].map(() => ({ on: false, q: new THREE.Quaternion(), pos: new V(), rayO: new V(), rayD: new V(0, 0, -1), trig: false, trigEdge: false }));
 const tipW = new V();
 const story = createStory({
   scene, S, head, headQ, worlds, hands, say: t => say(t), audio: () => AU.ctx, haptic: (v, ms) => { for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(v, ms); } catch (_) { /* none */ } } },
   makeKnife: buildKnife, tip: () => tipW,
+  takeKnife: () => { assignTools(); }, closeDoor: () => { if (S.placed && !portal.closing) dissolvePortal(); },
   giveKnife: i => { knifeIdx = i; ctrl.forEach((c, k) => { c.dragged = k === i; }); assignTools(); knifeGlow = 2.2; zap(); },
 });
 
@@ -490,6 +492,20 @@ function updateMusic(dt) {
     if (m.vol <= 0.001 && target === 0 && !m.el.paused) m.el.pause();
   }
 }
+/* A warning that swells as your head nears something real (from the room scan) while you cannot see the room. */
+const prox = { d: Infinity, n: 0 };
+function updateProximity() {
+  if ((prox.n++ & 1) === 0) prox.d = S.cur !== 0 ? worlds.nearest(head, 0.42) : Infinity;
+  const ctx = AU.ctx; if (!ctx) return;
+  if (!AU.warn) {
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 440; const g = ctx.createGain(); g.gain.value = 0;
+    const tr = ctx.createOscillator(); tr.type = 'square'; tr.frequency.value = 4; const tg = ctx.createGain(); tg.gain.value = 0; tr.connect(tg); tg.connect(g.gain);
+    o.connect(g); g.connect(ctx.destination); o.start(); tr.start(); AU.warn = { o, g, tr, tg };
+  }
+  const k = prox.d === Infinity ? 0 : clamp((0.38 - prox.d) / 0.26, 0, 1), t = ctx.currentTime, W = AU.warn;       // 0 at 38 cm, full at 12 cm
+  W.g.gain.setTargetAtTime(0.28 * k * k, t, 0.05); W.tg.gain.setTargetAtTime(0.22 * k * k, t, 0.05);
+  W.o.frequency.setTargetAtTime(440 + 500 * k, t, 0.05); W.tr.frequency.setTargetAtTime(3 + 11 * k, t, 0.05);
+}
 function updateAudio() {
   const ctx = AU.ctx; if (!ctx || !AU.pan) return;
   const L = ctx.listener, t = ctx.currentTime;
@@ -569,7 +585,7 @@ async function enterXR(free) {
   } catch (e) { status.textContent = 'Kunne ikke starte headset-sessionen: ' + (e.message || e); console.error(e); }
 }
 
-const keys = {}; let yaw = 0, pitch = 0, flatClick = false;
+const keys = {}; let yaw = 0, pitch = 0, flatClick = false, flatHold = false;
 const flatHand = { pos: null };                                   // a test hook: a hand put somewhere by hand
 const flatTip = { pos: new V(0, 1.4, -1.2), pressed: false, override: false };
 const ray = new THREE.Raycaster();
@@ -631,12 +647,12 @@ function updateHands() {
     let trig = false;
     if (S.mode === 'xr') {
       const g = renderer.xr.getControllerGrip(i), r = renderer.xr.getController(i);
-      h.on = !!ctrl[i].src; g.getWorldPosition(h.pos); r.getWorldPosition(h.rayO); r.getWorldQuaternion(_hq); h.rayD.set(0, 0, -1).applyQuaternion(_hq); trig = ctrl[i].pressed;
+      h.on = !!ctrl[i].src; g.getWorldPosition(h.pos); g.getWorldQuaternion(h.q); r.getWorldPosition(h.rayO); r.getWorldQuaternion(_hq); h.rayD.set(0, 0, -1).applyQuaternion(_hq); trig = ctrl[i].pressed;
     } else {
       h.on = i === 0; if (!h.on) return;
       h.rayO.copy(head); h.rayD.set(0, 0, -1).applyQuaternion(headQ);
       if (flatHand.pos) h.pos.copy(flatHand.pos); else h.pos.copy(head).addScaledVector(h.rayD, 0.45).y -= 0.15;
-      trig = flatClick;
+      h.q.copy(headQ); trig = flatClick || flatHold;
     }
     h.trigEdge = trig && !h.trig; h.trig = trig;
   });
@@ -648,11 +664,12 @@ function loop(_, frame) {
   else if (S.mode === 'xr' && frame) {
     const ref = renderer.xr.getReferenceSpace(), vp = frame.getViewerPose(ref);
     if (vp) { const p = vp.transform.position, o = vp.transform.orientation; head.set(p.x, p.y, p.z); headQ.set(o.x, o.y, o.z, o.w); }
-    { const si = worlds.updateScan(frame, ref); S.scanFeature = si.feature; S.scanMeshes = si.count; if (worlds.dirty) applyRoles(); }
+    { const si = worlds.updateScan(frame, ref); S.scanFeature = si.feature; S.scanMeshes = si.count; }
     pollStick();
     if (lightProbe) { try { const est = frame.getLightEstimate(lightProbe), sh = est && est.sphericalHarmonicsCoefficients; if (sh && sh.length >= 3) { const lum = (0.2126 * sh[0] + 0.7152 * sh[1] + 0.0722 * sh[2]) / 3.54; S.lum = lum; S.brightTarget = clamp(0.5 + lum * 2.0, 0.5, 1.5); } } catch (_) { /* no estimate this frame */ } }
   }
   if (S.mode !== 'menu') {
+    if (worlds.dirty) applyRoles();
     knife.updateWorldMatrix(true, true); knife.userData.tip.getWorldPosition(tipW);
     updateHands();
     const pressed = story.canCut() && (S.mode === 'xr' ? ctrl[knifeIdx].pressed : flatTip.pressed);
@@ -662,7 +679,7 @@ function loop(_, frame) {
     tipSparks.step(dt, 1.2);
     knife.userData.rune.color.setRGB(0.25 * knifeGlow, 1.0 * Math.min(1.4, knifeGlow), 0.5 * knifeGlow);
     knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
-    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); drawHud();
+    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateProximity(); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
     story.update(dt);
     worlds.update(dt, S.time, S.bright, S.cur, S.oth, S.safe && S.cur !== 0 ? [head, hands[0].on ? hands[0].pos : head, hands[1].on ? hands[1].pos : head] : null);
@@ -691,8 +708,8 @@ renderer.setAnimationLoop(loop);
 })();
 
 window.__portal = {
-  S, portal, head, scene, renderer, camera, music, story, hands, dissolvePortal,
-  hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; },
+  S, portal, head, scene, renderer, camera, music, prox, story, hands, dissolvePortal,
+  hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; }, hold(v) { flatHold = v; },
   knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },

@@ -503,6 +503,44 @@ export function createWorlds(scene, renderer, params) {
   /* ---- the scanned room, wearing each dimension's surface ---- */
   const scanKnown = new Map(); let scanNext = 0; const scanInfo = { feature: false, count: 0 };
   const wire = params.get('skin') === 'wire' ? new THREE.MeshBasicMaterial({ color: 0x40ffd0, wireframe: true, transparent: true, opacity: 0.5 }) : null;
+  /* What is really there, as a grid of 8 cm cells, so "how close is my head to something" is a handful of lookups a frame. */
+  const CELL = 0.08, grid = new Set(), _p = new V(), _a = new V(), _b = new V(), _c = new V(), _m = new THREE.Matrix4();
+  const keyOf = (x, y, z) => ((Math.floor(x / CELL) + 512) & 1023) | (((Math.floor(y / CELL) + 512) & 1023) << 10) | (((Math.floor(z / CELL) + 512) & 1023) << 20);
+  function cellsOf(pos, idx, matrix) {
+    const out = new Set(); _m.fromArray(matrix);
+    for (let i = 0; i < idx.length; i += 3) {
+      _a.fromArray(pos, idx[i] * 3).applyMatrix4(_m); _b.fromArray(pos, idx[i + 1] * 3).applyMatrix4(_m); _c.fromArray(pos, idx[i + 2] * 3).applyMatrix4(_m);
+      const n = Math.min(80, Math.max(1, Math.ceil(Math.max(_a.distanceTo(_b), _b.distanceTo(_c), _c.distanceTo(_a)) / 0.07)));
+      for (let u = 0; u <= n; u++) for (let v = 0; v <= n - u; v++) { const s = u / n, t = v / n; _p.copy(_a).multiplyScalar(1 - s - t).addScaledVector(_b, s).addScaledVector(_c, t); out.add(keyOf(_p.x, _p.y, _p.z)); }
+    }
+    return out;
+  }
+  function regrid() { grid.clear(); for (const rec of scanKnown.values()) for (const k of rec.cells) grid.add(k); }
+  /** Distance from p to the nearest scanned surface above knee height, or Infinity if nothing is within r. */
+  function nearest(p, r = 0.4) {
+    if (!grid.size) return Infinity;
+    const n = Math.ceil(r / CELL), ix = Math.floor(p.x / CELL), iy = Math.floor(p.y / CELL), iz = Math.floor(p.z / CELL); let best = Infinity;
+    for (let dy = -n; dy <= n; dy++) { const cy = (iy + dy + 0.5) * CELL; if (cy < 0.3) continue;
+      for (let dx = -n; dx <= n; dx++) for (let dz = -n; dz <= n; dz++) {
+        if (!grid.has(((ix + dx + 512) & 1023) | (((iy + dy + 512) & 1023) << 10) | (((iz + dz + 512) & 1023) << 20))) continue;
+        const d = Math.hypot((ix + dx + 0.5) * CELL - p.x, cy - p.y, (iz + dz + 0.5) * CELL - p.z); if (d < best) best = d;
+      } }
+    return best <= r ? best : Infinity;
+  }
+  function addScan(key, vertices, indices, matrix, time) {
+    const rec = scanKnown.get(key);
+    if (rec) { for (const g of rec.gs) g.parent.remove(g); rec.geo.dispose(); }
+    const pos = new Float32Array(vertices), idx = new Uint32Array(indices);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(new THREE.BufferAttribute(idx, 1)); geo.computeVertexNormals();
+    const gs = [];
+    for (const w of W.slice(1)) {
+      const g = new THREE.Group(); g.matrixAutoUpdate = false; g.matrix.fromArray(matrix); g.matrixWorldNeedsUpdate = true;
+      g.add(new THREE.Mesh(geo, w.scanMat)); if (wire) g.add(new THREE.Mesh(geo, wire));
+      w.scan.add(g); gs.push(g);
+    }
+    scanKnown.set(key, { t: time, gs, geo, cells: cellsOf(pos, idx, matrix) }); regrid(); api.dirty = true; scanInfo.count = scanKnown.size;
+  }
   function updateScan(frame, refSpace) {
     const now = performance.now();
     if (now < scanNext || !frame.detectedMeshes) return scanInfo;
@@ -514,26 +552,17 @@ export function createWorlds(scene, renderer, params) {
       if (rec && m.lastChangedTime <= rec.t) continue;
       if (did >= 1) { scanNext = 0; continue; }
       const pose = frame.getPose(m.meshSpace, refSpace); if (!pose) continue;
-      if (rec) { for (const g of rec.gs) g.parent.remove(g); rec.geo.dispose(); }
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.vertices), 3));
-      geo.setIndex(new THREE.BufferAttribute(new Uint32Array(m.indices), 1));
-      geo.computeVertexNormals();
-      const gs = [];
-      for (const w of W.slice(1)) {
-        const g = new THREE.Group(); g.matrixAutoUpdate = false; g.matrix.fromArray(pose.transform.matrix);
-        g.add(new THREE.Mesh(geo, w.scanMat)); if (wire) g.add(new THREE.Mesh(geo, wire));
-        w.scan.add(g); gs.push(g);
-      }
-      scanKnown.set(m, { t: m.lastChangedTime, gs, geo }); did++; api.dirty = true;
+      addScan(m, m.vertices, m.indices, pose.transform.matrix, m.lastChangedTime); did++;
     }
-    for (const [k, rec] of scanKnown) if (!seen.has(k)) { for (const g of rec.gs) g.parent.remove(g); rec.geo.dispose(); scanKnown.delete(k); }
+    let gone = false;
+    for (const [k, rec] of scanKnown) if (!seen.has(k) && typeof k !== 'string') { for (const g of rec.gs) g.parent.remove(g); rec.geo.dispose(); scanKnown.delete(k); gone = true; }
+    if (gone) regrid();
     scanInfo.count = scanKnown.size;
     return scanInfo;
   }
 
   const api = {
-    W, dirty: false, updateScan,
+    W, dirty: false, updateScan, nearest, addScan, scanInfo,
     /** cur is home (drawn everywhere), oth is seen through the door, the rest are off. */
     applyRoles(cur, oth) {
       for (const w of W) {
