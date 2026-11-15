@@ -49,7 +49,7 @@ const LETTER = [
 
 export function createStory(c) {
   const { scene, S, head, headQ, worlds } = c;
-  const st = { searchT: 0, hintSaid: false, letterOn: false, lyingOn: false, machOn: false, ringOn: false, homeHint: false, warned: false, busy: false, powered: false, powerT: 0, machT: 0, made: false, arrived: false, jumpT: 0, endT: 0, on: false, phase: 'off', hasKnife: false, stick: false, reading: false, readT: 0, t: 0, nagT: 0, hintT: 0, found: PARTS.map(() => false), revealed: { 1: false, 2: false, 3: false }, doneSaid: false };
+  const st = { letterBelt: false, searchT: 0, hintSaid: false, letterOn: false, lyingOn: false, machOn: false, ringOn: false, homeHint: false, warned: false, busy: false, powered: false, powerT: 0, machT: 0, made: false, arrived: false, jumpT: 0, endT: 0, on: false, phase: 'off', hasKnife: false, stick: false, reading: false, readT: 0, t: 0, nagT: 0, hintT: 0, found: PARTS.map(() => false), revealed: { 1: false, 2: false, 3: false }, doneSaid: false };
   const root = new THREE.Group(); scene.add(root); root.visible = false;
 
   /* ---------------------------------------------------------------- materials */
@@ -252,7 +252,7 @@ export function createStory(c) {
   function openLetter() {
     st.reading = true; st.readT = 0; sheet.visible = true; chime(660);
     const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; f.normalize();
-    sheetFrom.copy(letterPos); sheetTo.copy(head).addScaledVector(f, 0.85); sheetTo.y = head.y - 0.05;
+    letter.getWorldPosition(sheetFrom); sheetTo.copy(head).addScaledVector(f, 0.85); sheetTo.y = head.y - 0.05;
   }
   function revealParts(w) {
     st.revealed[w] = true; const used = [];
@@ -324,7 +324,6 @@ export function createStory(c) {
     machPos.set(letterPos.x, onTable ? top : 0.74, letterPos.z); stand.visible = !onTable;
     mach.position.copy(machPos); mach.rotation.y = Math.atan2(head.x - machPos.x, head.z - machPos.z);      // its front faces where you stand
     st.machOn = true; mach.scale.setScalar(0.01); st.machT = 0;
-    if (letterPos.distanceTo(machPos) < 0.5) { letterPos.set(machPos.x + Math.cos(mach.rotation.y) * 0.42, machPos.y + 0.012, machPos.z - Math.sin(mach.rotation.y) * 0.42); letter.position.copy(letterPos); }
     chime(392); toast('Tidsmaskinens stel står, hvor brevet lå. Tag en del fra bæltet (hold udløseren), og før den hen til sin plads.', 11);
   }
   const placedCount = () => parts.filter(p => p.placed).length;
@@ -415,6 +414,10 @@ export function createStory(c) {
         } else if (!h.trig) { holding[i] = null; pc.held = -1; pc.base.copy(pc.obj.position); }
       }
     });
+    if (st.letterBelt && !st.reading) {                             // the letter on the belt: a trigger press with a hand on it opens it again
+      letter.getWorldPosition(_w);
+      for (const h of c.hands) if (h.on && h.pos.distanceTo(_w) < 0.16) { near = true; if (h.trigEdge && !holding[c.hands.indexOf(h)]) openLetter(); }
+    }
     st.busy = near;
     for (const pc of pieces) if (pc.held < 0) { pc.spin += dt * 0.7; pc.obj.rotation.set(0.3, pc.spin, 0); pc.obj.position.y = pc.base.y + Math.sin(st.t * 1.3 + pc.spin) * 0.02; }
     if (st.ringOn) { ringMark.scale.setScalar(1 + 0.12 * Math.sin(st.t * 4)); ringMark.position.y = knifePos.y - 0.05; }
@@ -453,7 +456,7 @@ export function createStory(c) {
     objective() {
       if (!st.on) return '';
       if (st.phase === 'wait' || st.phase === 'letter') return 'Hvad er det for en lyd?';
-      if (st.reading) return 'Tryk på udløseren for at folde brevet sammen';
+      if (st.reading) return st.letterBelt ? 'Tryk på udløseren for at folde brevet sammen' : 'Tryk på udløseren: brevet kommer med i bæltet';
       if (st.phase === 'knife') return 'Find kniven. Følg lyden.';
       if (st.phase === 'jump') return '…';
       if (st.phase === 'past') return st.made ? 'Læg kniven ved den lysende ring' : 'Find klinge, skaft og sten, og sæt dem sammen';
@@ -492,11 +495,11 @@ export function createStory(c) {
         st.phase = 'letter'; st.hintT = 0; humAt(letterPos);
       }
       if (st.phase === 'letter' || (st.phase !== 'wait' && !st.reading)) {
-        if (st.letterOn && S.cur === 0 && !st.reading && (pointedAt(letterPos, 0.4) >= 0 || (st.phase === 'letter' && touching(letterPos, 0.25) >= 0))) openLetter();
+        if (st.letterOn && S.cur === 0 && !st.reading && (pointedAt(letterPos, 0.4) >= 0 || touching(letterPos, 0.25) >= 0)) openLetter();
       }
       if (st.phase === 'letter') { humAt(letterPos); st.hintT += dt; if (st.hintT > 25) { st.hintT = 0; toast('Der er noget, der summer. Følg lyden, og peg og tryk på det, du finder.', 7); } }
       letter.children[1].material.opacity = st.phase === 'letter' ? 0.4 + 0.25 * Math.sin(st.t * 3) : 0.12;
-      if (st.letterHover && st.phase !== 'wait' && !st.machOn) letter.position.y = letterPos.y + Math.sin(st.t * 1.3) * 0.02;
+      if (st.letterHover && st.letterOn) letter.position.y = letterPos.y + Math.sin(st.t * 1.3) * 0.02;
       if (st.reading) {
         st.readT += dt; const u = clamp(st.readT / 0.7, 0, 1), e = 1 - Math.pow(1 - u, 3);
         { const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize();      // the sheet stays in front of your eyes: stand up, and it comes with you
@@ -505,6 +508,9 @@ export function createStory(c) {
         sheet.position.lerpVectors(sheetFrom, sheetTo, e); sheet.quaternion.copy(sheetQ); sheet.scale.set(0.3 + 0.7 * e, 0.12 + 0.88 * e, 1); sheet.material.opacity = e;
         if (st.readT > 1.5 && c.hands.some(h => h.on && h.trigEdge)) {
           st.reading = false; sheet.visible = false; chime(520);
+          if (!st.letterBelt) {                                        // you take the letter with you: it sits on the belt, far left, and can be read again from there
+            st.letterBelt = true; st.letterOn = false; belt.add(letter); const a = -84 * Math.PI / 180; letter.position.set(Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3); letter.rotation.set(-1.1, -a, 0); letter.scale.setScalar(0.45); letter.children[1].visible = false;
+          }
           if (st.phase === 'letter') {
             const s = findSpot(head.x, head.z, 1.1, 2.5, ya - Math.PI, ya + Math.PI, [letterPos, head]);
             knifePos.set(s.x, hover(s), s.z); lying.position.copy(knifePos); st.lyingOn = true; st.phase = 'knife'; humAt(knifePos);
@@ -537,7 +543,7 @@ export function createStory(c) {
         }
       }
       { for (const p of parts) { if (p.body.userData.spin) { p.body.userData.spin[0].rotation.y += dt; p.body.userData.spin[1].rotation.y -= dt * 1.6; } if (p.body.userData.hand) p.body.userData.hand.rotation.z -= dt * 1.2; if (p.body.userData.rings) p.body.userData.rings.forEach((r, i) => { r.rotation.x += dt * (0.6 + i * 0.3); r.rotation.y += dt * 0.4; }); } }
-      { const home = S.cur === 0; letter.visible = st.letterOn && home; lying.visible = st.lyingOn && home; mach.visible = st.machOn && home; ringMark.visible = st.ringOn && home; }
+      { const home = S.cur === 0; letter.visible = st.letterBelt || (st.letterOn && home); lying.visible = st.lyingOn && home; mach.visible = st.machOn && home; ringMark.visible = st.ringOn && home; }
       /* the belt follows your hips, not every turn of the head */
       let dy = ya - beltYaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); beltYaw += dy * Math.min(1, dt * 2.5);
       belt.position.set(head.x, Math.max(0.5, head.y - 0.62), head.z); belt.rotation.y = -beltYaw;

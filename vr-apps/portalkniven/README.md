@@ -103,3 +103,5 @@ Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start,
   Findes der intet godt sted, lægges tingen lige foran en.
 * Leder man længe i en verden: efter 3 minutter blinker de manglende dele kraftigt og kalder med en lyd fra deres position; efter 5 minutter sender de en lysstråle op,
   der ses hen over møbler.
+* **Brevet tages med:** når brevet er læst første gang, ligger det ikke længere i rummet. Det sidder i bæltet (yderst til venstre) som de andre ting, man har.
+  Læg hånden på det, og tryk på udløseren, så folder det sig ud igen. Arket er 66 × 90 cm og holder sig foran øjnene i øjenhøjde.
