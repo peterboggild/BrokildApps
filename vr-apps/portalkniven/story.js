@@ -152,9 +152,9 @@ export function createStory(c) {
   });
   const foldTex = paper(256, 180, (x, w, h) => { x.fillStyle = '#5a3a14'; x.font = 'italic 34px Georgia, serif'; x.textAlign = 'center'; x.fillText('Til mig', w / 2, h / 2 + 10); });
   const letter = new THREE.Group(); root.add(letter); letter.visible = false;
-  const folded = mesh(new THREE.BoxGeometry(0.2, 0.004, 0.14), [0, 1, 2, 3, 4, 5].map(i => new THREE.MeshStandardMaterial({ color: 0xe6d9b6, roughness: 0.9, map: i === 2 ? foldTex : null })));
-  letter.add(folded, halo(0xffe9a8, 0.5));
-  const sheet = mesh(new THREE.PlaneGeometry(0.44, 0.6), new THREE.MeshBasicMaterial({ map: sheetTex, side: THREE.DoubleSide, transparent: true, depthTest: false, toneMapped: false })); sheet.renderOrder = 150; sheet.visible = false; root.add(sheet);
+  const folded = mesh(new THREE.BoxGeometry(0.3, 0.005, 0.21), [0, 1, 2, 3, 4, 5].map(i => new THREE.MeshStandardMaterial({ color: 0xe6d9b6, roughness: 0.9, map: i === 2 ? foldTex : null })));
+  letter.add(folded, halo(0xffe9a8, 0.75));
+  const sheet = mesh(new THREE.PlaneGeometry(0.66, 0.9), new THREE.MeshBasicMaterial({ map: sheetTex, side: THREE.DoubleSide, transparent: true, depthTest: false, toneMapped: false })); sheet.renderOrder = 150; sheet.visible = false; root.add(sheet);
   const letterPos = new V(), sheetFrom = new V(), sheetTo = new V(), sheetQ = new THREE.Quaternion();
 
   /* the knife as it lies in the room before it is yours */
@@ -232,8 +232,7 @@ export function createStory(c) {
   function openLetter() {
     st.reading = true; st.readT = 0; sheet.visible = true; chime(660);
     const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; f.normalize();
-    sheetFrom.copy(letterPos); sheetTo.copy(head).addScaledVector(f, 0.68); sheetTo.y = head.y - 0.06;
-    sheetQ.setFromRotationMatrix(new THREE.Matrix4().lookAt(head, sheetTo, new V(0, 1, 0)));          // the written side faces you
+    sheetFrom.copy(letterPos); sheetTo.copy(head).addScaledVector(f, 0.85); sheetTo.y = head.y - 0.05;
   }
   function revealParts(w) {
     st.revealed[w] = true; const used = [];
@@ -468,17 +467,20 @@ export function createStory(c) {
       chapter2(dt, ya);
       if (st.phase === 'wait' && st.t > (S.mode === 'xr' ? 3.0 : 0.6)) {
         const s = findSpot(head.x, head.z, 1.2, 2.6, ya + 1.7, ya + 4.6, []);                 // somewhere behind you or off to the side
-        letterPos.set(s.x, s.y === null ? 0.85 : s.y + 0.012, s.z); letter.position.copy(letterPos); letter.rotation.y = rnd(0, TAU); st.letterOn = true;
+        st.letterHover = s.y === null || s.y < 0.45; letterPos.set(s.x, st.letterHover ? 0.8 : s.y + 0.012, s.z); letter.position.copy(letterPos); letter.rotation.y = rnd(0, TAU); st.letterOn = true;
         st.phase = 'letter'; st.hintT = 0; humAt(letterPos);
       }
       if (st.phase === 'letter' || (st.phase !== 'wait' && !st.reading)) {
-        if (st.letterOn && S.cur === 0 && !st.reading && (pointedAt(letterPos, 0.24) >= 0 || (st.phase === 'letter' && touching(letterPos, 0.2) >= 0))) openLetter();
+        if (st.letterOn && S.cur === 0 && !st.reading && (pointedAt(letterPos, 0.4) >= 0 || (st.phase === 'letter' && touching(letterPos, 0.25) >= 0))) openLetter();
       }
       if (st.phase === 'letter') { humAt(letterPos); st.hintT += dt; if (st.hintT > 25) { st.hintT = 0; toast('Der er noget, der summer. Følg lyden, og peg og tryk på det, du finder.', 7); } }
       letter.children[1].material.opacity = st.phase === 'letter' ? 0.4 + 0.25 * Math.sin(st.t * 3) : 0.12;
-      if (letterPos.y > 0.8 && st.phase !== 'wait') letter.position.y = letterPos.y + Math.sin(st.t * 1.3) * 0.02;
+      if (st.letterHover && st.phase !== 'wait' && !st.machOn) letter.position.y = letterPos.y + Math.sin(st.t * 1.3) * 0.02;
       if (st.reading) {
         st.readT += dt; const u = clamp(st.readT / 0.7, 0, 1), e = 1 - Math.pow(1 - u, 3);
+        { const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize();      // the sheet stays in front of your eyes: stand up, and it comes with you
+          _d.copy(head).addScaledVector(f, 0.85); _d.y = head.y - 0.05; sheetTo.lerp(_d, Math.min(1, dt * (sheetTo.distanceTo(_d) > 0.3 ? 4 : 1.2)));
+          sheetQ.setFromRotationMatrix(new THREE.Matrix4().lookAt(head, sheetTo, new V(0, 1, 0))); }
         sheet.position.lerpVectors(sheetFrom, sheetTo, e); sheet.quaternion.copy(sheetQ); sheet.scale.set(0.3 + 0.7 * e, 0.12 + 0.88 * e, 1); sheet.material.opacity = e;
         if (st.readT > 1.5 && c.hands.some(h => h.on && h.trigEdge)) {
           st.reading = false; sheet.visible = false; chime(520);
