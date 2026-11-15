@@ -206,6 +206,12 @@ const SURF = {
     wH = warp * 0.05 + bands * 0.014 + fineB * 0.006 + grain * 0.005 + speck * 0.0015 - crack * 0.014 - fineCr * 0.004;`,
 };
 
+/* Safety: where the scanned room is close to your head or hands, it thins out and the real room (passthrough) shows through. */
+const SAFE = `
+  { float sd = min(min(distance(vWP, uS0), distance(vWP, uS1)), distance(vWP, uS2));
+    gl_FragColor *= 1.0 - 0.85 * uSafeOn * (1.0 - smoothstep(0.28, 0.62, sd)); }`;
+const SAFE_HEAD = 'uniform float uSafeOn; uniform vec3 uS0; uniform vec3 uS1; uniform vec3 uS2;\n';
+
 const QUAD_VS = `
   varying vec3 vDir;
   void main() {
@@ -284,6 +290,7 @@ const CLEAR_FS = 'void main() { gl_FragColor = vec4(0.0); }';
 export function createWorlds(scene, renderer, params) {
   const noise = makeNoiseTexture();
   const timeU = { value: 0 }, brightU = { value: 1 }, noiseU = { value: noise };
+  const safeU = { uSafeOn: { value: 0 }, uS0: { value: new V() }, uS1: { value: new V() }, uS2: { value: new V() } };
   const PASS = new V(0, 1, 0);
 
   const W = DIMS.map((d, i) => ({
@@ -332,7 +339,7 @@ export function createWorlds(scene, renderer, params) {
   function worldMat(i, surf, o = {}) {
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, side: o.side ?? THREE.DoubleSide, envMap: W[i].env, envMapIntensity: o.env ?? 1 });
     m.onBeforeCompile = sh => {
-      Object.assign(sh.uniforms, W[i].uni, { uNoise: noiseU, uTime: timeU });
+      Object.assign(sh.uniforms, W[i].uni, { uNoise: noiseU, uTime: timeU }, o.safe ? safeU : {});
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;')
         .replace('#include <begin_vertex>', `#include <begin_vertex>
           #ifdef USE_INSTANCING
@@ -340,13 +347,13 @@ export function createWorlds(scene, renderer, params) {
           #else
             vWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal);
           #endif`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + HEAD)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + HEAD + (o.safe ? SAFE_HEAD : ''))
         .replace('#include <color_fragment>', '#include <color_fragment>\nvec3 P = vWP; vec3 Nw = normalize(vWN); float wR = 0.8, wM = 0.0, wH = 0.0; vec3 wE = vec3(0.0), wA = vec3(0.5);\n' + surf + '\ndiffuseColor.rgb = wA;')
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp(wR, 0.05, 1.0);')
         .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = clamp(wM, 0.0, 1.0);')
         .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = wBump(-vViewPosition, normal, wH);')
         .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += wE;')
-        .replace('#include <fog_fragment>', 'gl_FragColor.rgb *= uGrade; { float fd = length(vViewPosition); gl_FragColor.rgb = mix(gl_FragColor.rgb, uFogCol, 1.0 - exp(-uFogDen * uFogDen * fd * fd)); }');
+        .replace('#include <fog_fragment>', 'gl_FragColor.rgb *= uGrade; { float fd = length(vViewPosition); gl_FragColor.rgb = mix(gl_FragColor.rgb, uFogCol, 1.0 - exp(-uFogDen * uFogDen * fd * fd)); }' + (o.safe ? SAFE : ''));
     };
     const k = 'w' + i + ':' + surf.length + ':' + surf.slice(0, 40) + (o.key || '');
     m.customProgramCacheKey = () => k;
@@ -391,7 +398,7 @@ export function createWorlds(scene, renderer, params) {
   {
     const i = 1, D = W[i].deco;
     const ground = worldMat(i, SURF.moss(0.5), { env: 0.9 });
-    floorOf(i, ground); W[i].scanMat = worldMat(i, SURF.moss(0.8), { env: 0.9, key: 's' });
+    floorOf(i, ground); W[i].scanMat = worldMat(i, SURF.moss(0.8), { env: 0.9, key: 's', safe: true });
     const stalkM = worldMat(i, SURF.stalk(), { env: 0.5 }), budM = worldMat(i, SURF.bud(), { env: 0.5 }), barkM = worldMat(i, SURF.bark(), { env: 0.6 });
     const capM = worldMat(i, SURF.cap(), { env: 0.6 }), stemM = worldMat(i, SURF.stem(), { env: 0.5 }), bladeM = worldMat(i, SURF.blade(), { env: 0.4 });
     /* mossy stones */
@@ -440,7 +447,7 @@ export function createWorlds(scene, renderer, params) {
     const i = 2, D = W[i].deco;
     const plate = worldMat(i, SURF.plate(), { env: 0.85 }), steel = worldMat(i, SURF.steel(), { env: 0.85 }), copper = worldMat(i, SURF.copper(), { env: 0.9 });
     const lamp = worldMat(i, SURF.lamp()), ember = worldMat(i, SURF.ember());
-    floorOf(i, plate); W[i].scanMat = plate;
+    floorOf(i, plate); W[i].scanMat = worldMat(i, SURF.plate(), { env: 0.85, key: 's', safe: true });
     const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); D.add(m); return m; };
     const colG = new THREE.CylinderGeometry(0.26, 0.26, 9, 28, 1, true), baseG = new THREE.CylinderGeometry(0.42, 0.46, 0.34, 28), collarG = new THREE.CylinderGeometry(0.31, 0.31, 0.12, 28);
     const beamG = new THREE.BoxGeometry(8.4, 0.42, 0.3), flangeG = new THREE.BoxGeometry(8.4, 0.05, 0.46), lampG = new THREE.BoxGeometry(2.2, 0.05, 0.22), hoodG = new THREE.BoxGeometry(2.4, 0.08, 0.36);
@@ -477,7 +484,7 @@ export function createWorlds(scene, renderer, params) {
   {
     const i = 3, D = W[i].deco;
     const rock = worldMat(i, SURF.rock(), { env: 0.7 });
-    floorOf(i, rock); W[i].scanMat = rock;
+    floorOf(i, rock); W[i].scanMat = worldMat(i, SURF.rock(), { env: 0.7, key: 's', safe: true });
     const geos = [rockGeometry(4, 1.3), rockGeometry(4, 7.9), rockGeometry(3, 4.2)];
     const boulder = (x, z, s, sy = 1) => { const m = new THREE.Mesh(geos[(Math.random() * 3) | 0], rock); m.scale.set(s * rnd(0.85, 1.25), s * sy * rnd(0.7, 1.0), s * rnd(0.85, 1.25)); m.position.set(x, 0.42 * m.scale.y, z); m.rotation.y = rnd(0, TAU); D.add(m); return m; };
     boulder(-1.7, -2.6, 0.75); boulder(-2.5, -3.3, 0.45); boulder(1.9, -2.2, 0.5); boulder(2.7, -3.9, 1.0); boulder(0.6, -4.6, 0.6); boulder(-0.9, -5.6, 1.25); boulder(3.6, -1.2, 0.4);
@@ -541,8 +548,9 @@ export function createWorlds(scene, renderer, params) {
     setClip(oth, normal, point) { W[oth].clip.setFromNormalAndCoplanarPoint(normal, point); },
     /** Put a dimension's own things round the door, once, so they do not jump when you cut a new door while standing among them. */
     anchor(i, x, z, yaw, force) { const w = W[i]; if (w.anchored && !force) return; w.deco.position.set(x, 0, z); w.deco.rotation.set(0, yaw, 0); w.anchored = true; },
-    update(dt, t, bright, cur, oth) {
+    update(dt, t, bright, cur, oth, safe) {
       timeU.value = t; brightU.value = bright;
+      safeU.uSafeOn.value = safe ? 1 : 0; if (safe) { safeU.uS0.value.copy(safe[0]); safeU.uS1.value.copy(safe[1]); safeU.uS2.value.copy(safe[2]); }
       for (const w of W) {
         w.uni.uFogCol.value.copy(w.base.fog).multiplyScalar(bright); w.uni.uGrade.value.copy(w.base.grade).multiplyScalar(bright);
         if (w.i === cur || w.i === oth) for (const f of w.tick) f(dt, t);

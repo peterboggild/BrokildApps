@@ -17,7 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=9';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=10';
+import { createStory } from './story.js?v=10';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -58,7 +59,7 @@ const ringLight = new THREE.PointLight(0x40ff90, 0, 7, 1.5); scene.add(ringLight
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.04).texture; pm.dispose();
 }
 
-const S = { bright: 1, brightTarget: 1, lum: -1, camera: false, cur: 0, oth: 1, side: 1, placed: false, mode: 'menu', stencilBits: null, crossings: 0, frames: 0, scanMeshes: 0, scanFeature: false, time: 0, msg: '', msgT: -99 };
+const S = { safe: false, bright: 1, brightTarget: 1, lum: -1, camera: false, cur: 0, oth: 1, side: 1, placed: false, mode: 'menu', stencilBits: null, crossings: 0, frames: 0, scanMeshes: 0, scanFeature: false, time: 0, msg: '', msgT: -99 };
 const DOOR = { Rx: 0.6, Ry: 1.1 };                             // an upright oval you can walk through (1.2 m wide, 2.2 m tall)
 const portal = { c: new V(0, DOOR.Ry + 0.03, -1.6), n: new V(0, 0, 1), x: new V(1, 0, 0), y: new V(0, 1, 0), Rx: DOOR.Rx, Ry: DOOR.Ry, anim: null };
 const head = new V(0, 1.6, 0), prevHead = new V(0, 1.6, 0), headQ = new THREE.Quaternion();
@@ -228,6 +229,15 @@ function buildKnife() {
 const knife = buildKnife();
 let knifeGlow = 0.35, tipPrev = null;
 
+/* the two hands, as the story sees them: where they are, where they point, and whether the trigger was just pressed */
+const hands = [0, 1].map(() => ({ on: false, pos: new V(), rayO: new V(), rayD: new V(0, 0, -1), trig: false, trigEdge: false }));
+const tipW = new V();
+const story = createStory({
+  scene, S, head, headQ, worlds, hands, say: t => say(t), audio: () => AU.ctx, haptic: (v, ms) => { for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(v, ms); } catch (_) { /* none */ } } },
+  makeKnife: buildKnife, tip: () => tipW,
+  giveKnife: i => { knifeIdx = i; ctrl.forEach((c, k) => { c.dragged = k === i; }); assignTools(); knifeGlow = 2.2; zap(); },
+});
+
 /* ======================================================= the cut: a glowing trail that follows the point */
 
 const TR_MAX = 900;
@@ -370,7 +380,7 @@ function updateAnim(dt) {
   if (cl) {
     cl.t += dt; const u = clamp(cl.t / cl.dur, 0, 1), sc = Math.max(0.001, 1 - u * u * u);
     ring.scale.set(sc * (1 + 0.08 * Math.sin(u * 40)), sc, 1);
-    if (u >= 1) { portal.closing = null; ring.visible = false; ring.scale.set(1, 1, 1); S.placed = false; }
+    if (u >= 1) { portal.closing = null; ring.visible = false; ring.scale.set(1, 1, 1); S.placed = false; story.onClosed(); }
   }
   const a = portal.anim;
   if (a) {
@@ -402,7 +412,7 @@ function checkCrossing() {
   if ((d0 < 0) !== (d1 < 0)) {
     const t = d0 / (d0 - d1), p = prevHead.clone().lerp(head, t).sub(portal.c);
     const lx = p.dot(portal.x) / portal.Rx, ly = p.dot(portal.y) / portal.Ry;
-    if (lx * lx + ly * ly < 0.95) { const c = S.cur; S.cur = S.oth; S.oth = c; S.crossings++; applyRoles(); whoosh(); haptic(0.6, 120); say('Du er i ' + DIMS[S.cur].name); }
+    if (lx * lx + ly * ly < 0.95) { const c = S.cur; S.cur = S.oth; S.oth = c; S.crossings++; applyRoles(); whoosh(); haptic(0.6, 120); say('Du er i ' + DIMS[S.cur].name); story.onEnter(S.cur); }
   }
   prevHead.copy(head);
 }
@@ -501,9 +511,9 @@ function hudLines() {
     'PORTALKNIVEN',
     `Du er i: ${DIMS[S.cur].name}`,
     `D\u00f8ren f\u00f8rer til: ${DIMS[S.oth].name}`,
-    S.mode === 'xr' ? `Stencil: ${bits === null ? '?' : bits}${bits === 0 ? '  VINDUET VIRKER IKKE' : ''}   Scan: ${S.scanFeature ? S.scanMeshes + ' mesh' : 'ingen'}` : 'Fladt preview',
+    story.st.on ? `Dele: ${story.count()} af 9` : S.mode === 'xr' ? `Stencil: ${bits === null ? '?' : bits}${bits === 0 ? '  VINDUET VIRKER IKKE' : ''}   Scan: ${S.scanFeature ? S.scanMeshes + ' mesh' : 'ingen'}` : 'Fladt preview',
     S.mode === 'xr' && S.cur !== 0 && !S.scanMeshes ? 'INGEN RUMSCANNING: pas på møbler!' : `Rumlys: ${S.lum < 0 ? 'ingen' : S.lum.toFixed(2)}   Kamera: ${S.camera ? 'ja' : 'nej'}`,
-    cut.state === 'cutting' ? 'Skærer … luk ringen!' : S.placed ? 'Højre stick: skift verden bag døren' : S.cur !== 0 ? 'Ingen dør: skær en ny for at komme hjem' : 'Hold udløseren og skær en ring i luften',
+    cut.state === 'cutting' ? 'Skærer … luk ringen!' : story.st.on ? story.objective() : S.placed ? 'Højre stick: skift verden bag døren' : S.cur !== 0 ? 'Ingen dør: skær en ny for at komme hjem' : 'Hold udløseren og skær en ring i luften',
     msg,
   ];
 }
@@ -511,7 +521,7 @@ let hudNext = 0;
 function drawHud() {
   const now = performance.now(); if (now < hudNext) return; hudNext = now + 200;
   const lines = hudLines();
-  if (S.mode === 'flat') { $('hud').textContent = lines.filter(Boolean).join('\n') + '\n(WASD, træk = kig, Shift+træk = skær, P = sæt ring, Q/E = skift verden)'; return; }
+  if (S.mode === 'flat') { $('hud').textContent = lines.filter(Boolean).join('\n') + '\n(WASD, træk = kig, klik = peg og tryk, Shift+træk = skær, P = sæt ring, Q/E = skift verden)'; return; }
   const x = hudCanvas.getContext('2d');
   x.clearRect(0, 0, 512, 300); x.fillStyle = 'rgba(4,10,8,.82)'; x.fillRect(0, 0, 512, 300); x.strokeStyle = '#4dff88'; x.lineWidth = 6; x.strokeRect(3, 3, 506, 294);
   x.fillStyle = '#4dff88'; x.font = 'bold 34px monospace'; x.fillText(lines[0], 22, 50);
@@ -527,14 +537,14 @@ let knifeIdx = 1;
 function assignTools() {
   const right = ctrl.findIndex(c => c.hand === 'right');
   if (right >= 0 && !ctrl.some(c => c.dragged)) knifeIdx = right;
-  const grip = renderer.xr.getControllerGrip(knifeIdx);
-  if (knife.parent !== grip) { knife.parent?.remove(knife); grip.add(knife); }
+  if (!story.canCut()) { const l = ctrl.findIndex(c => c.hand === 'left'); knifeIdx = l >= 0 ? 1 - l : 1; knife.parent?.remove(knife); }
+  else { const grip = renderer.xr.getControllerGrip(knifeIdx); if (knife.parent !== grip) { knife.parent?.remove(knife); grip.add(knife); } }
   const other = renderer.xr.getController(1 - knifeIdx);
   if (hudMesh.parent !== other) { hudMesh.parent?.remove(hudMesh); other.add(hudMesh); }
   hapticPulse = (v, ms) => { try { const a = ctrl[knifeIdx].src?.gamepad?.hapticActuators?.[0]; a?.pulse?.(clamp(v, 0, 1), ms); } catch (_) { /* no haptics */ } };
 }
 
-async function enterXR() {
+async function enterXR(free) {
   const status = $('status');
   try {
     initAudio();
@@ -549,23 +559,28 @@ async function enterXR() {
       const c = renderer.xr.getController(i); scene.add(c); scene.add(renderer.xr.getControllerGrip(i));
       c.addEventListener('selectstart', () => { ctrl[i].pressed = true; initAudio(); });
       c.addEventListener('selectend', () => { ctrl[i].pressed = false; });
-      c.addEventListener('squeezestart', () => { knifeIdx = i; ctrl[1 - i].dragged = false; ctrl[i].dragged = true; assignTools(); });      // grip: take the knife in this hand
+      c.addEventListener('squeezestart', () => { if (!story.canCut()) return; knifeIdx = i; ctrl[1 - i].dragged = false; ctrl[i].dragged = true; assignTools(); });      // grip: take the knife in this hand
       c.addEventListener('connected', e => { ctrl[i].src = e.data; ctrl[i].hand = e.data?.handedness || ''; assignTools(); });
     }
+    if (free !== true) story.start();
     assignTools();
-    say('Hold udløseren og skær en ring i luften');
+    if (free === true) say('Hold udløseren og skær en ring i luften');
   } catch (e) { status.textContent = 'Kunne ikke starte headset-sessionen: ' + (e.message || e); console.error(e); }
 }
 
-const keys = {}; let yaw = 0, pitch = 0;
+const keys = {}; let yaw = 0, pitch = 0, flatClick = false;
+const flatHand = { pos: null };                                   // a test hook: a hand put somewhere by hand
 const flatTip = { pos: new V(0, 1.4, -1.2), pressed: false, override: false };
 const ray = new THREE.Raycaster();
 function enterFlat() {
   initAudio();
+  if (!params.has('free')) story.start();
   S.mode = 'flat'; document.body.classList.add('playing', 'flat');
   canvas.style.display = 'block';
   scene.add(camera); scene.add(knife);
-  addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyP') placeDirect(); if (e.code === 'KeyE') cycleOther(1); if (e.code === 'KeyQ') cycleOther(-1); });
+  canvas.addEventListener('click', e => { if (!e.shiftKey) flatClick = true; });
+  addEventListener('keydown', e => { if (e.code === 'KeyF') flatClick = true; });
+  addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyP') placeDirect(); if (story.stickOK()) { if (e.code === 'KeyE') cycleOther(1); if (e.code === 'KeyQ') cycleOther(-1); } });
   addEventListener('keyup', e => { keys[e.code] = false; });
   let drag = null;
   const aim = e => { ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), camera); flatTip.pos.copy(ray.ray.origin).addScaledVector(ray.ray.direction, 1.3); };
@@ -576,7 +591,7 @@ function enterFlat() {
     if (!drag) return; yaw -= (e.clientX - drag.x) * 0.004; pitch = clamp(pitch - (e.clientY - drag.y) * 0.004, -1.4, 1.4); drag.x = e.clientX; drag.y = e.clientY;
   });
   head.set(0, 1.6, 0); headQ.identity(); camera.position.copy(head); prevHead.copy(head);
-  say('Shift + træk: skær en ring (eller P)');
+  if (params.has('free')) say('Shift + træk: skær en ring (eller P)');
 }
 function placeDirect() {                                           // a test shortcut: a ring 1.6 m ahead with no cutting
   const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize();
@@ -591,6 +606,7 @@ function flatMove(dt) {
   if (knife.userData.free) return;                                 // a test hook: a knife placed by hand
   const tipLocal = knife.userData.tipLocal;
   knife.quaternion.copy(camera.quaternion);
+  knife.visible = story.canCut();
   if (flatTip.pressed || flatTip.override) knife.position.copy(flatTip.pos).sub(_v.copy(tipLocal).applyQuaternion(camera.quaternion));
   else knife.position.copy(camera.position).add(_v.set(0.2, -0.2, -0.42).applyQuaternion(camera.quaternion));
 }
@@ -604,10 +620,27 @@ function pollStick() {                                              // the right
   const gp = ctrl[i].src && ctrl[i].src.gamepad; if (!gp) return;
   const ax = gp.axes.length >= 4 ? gp.axes[2] : gp.axes[0] || 0, press = !!(gp.buttons[3] && gp.buttons[3].pressed);
   const on = Math.abs(ax) > 0.7 || press;
-  if (on && !stickHeld) cycleOther(ax < -0.7 ? -1 : 1);
+  if (on && !stickHeld && story.stickOK()) cycleOther(ax < -0.7 ? -1 : 1);
   stickHeld = on || Math.abs(ax) > 0.35;
 }
-const clock = new THREE.Clock(), tipW = new V();
+const clock = new THREE.Clock();
+const _hq = new THREE.Quaternion();
+function updateHands() {
+  hands.forEach((h, i) => {
+    let trig = false;
+    if (S.mode === 'xr') {
+      const g = renderer.xr.getControllerGrip(i), r = renderer.xr.getController(i);
+      h.on = !!ctrl[i].src; g.getWorldPosition(h.pos); r.getWorldPosition(h.rayO); r.getWorldQuaternion(_hq); h.rayD.set(0, 0, -1).applyQuaternion(_hq); trig = ctrl[i].pressed;
+    } else {
+      h.on = i === 0; if (!h.on) return;
+      h.rayO.copy(head); h.rayD.set(0, 0, -1).applyQuaternion(headQ);
+      if (flatHand.pos) h.pos.copy(flatHand.pos); else h.pos.copy(head).addScaledVector(h.rayD, 0.45).y -= 0.15;
+      trig = flatClick;
+    }
+    h.trigEdge = trig && !h.trig; h.trig = trig;
+  });
+  flatClick = false;
+}
 function loop(_, frame) {
   const dt = Math.min(0.05, clock.getDelta()); S.time += dt; S.frames++;
   if (S.mode === 'flat') flatMove(dt);
@@ -620,7 +653,8 @@ function loop(_, frame) {
   }
   if (S.mode !== 'menu') {
     knife.updateWorldMatrix(true, true); knife.userData.tip.getWorldPosition(tipW);
-    const pressed = S.mode === 'xr' ? ctrl[knifeIdx].pressed : flatTip.pressed;
+    updateHands();
+    const pressed = story.canCut() && (S.mode === 'xr' ? ctrl[knifeIdx].pressed : flatTip.pressed);
     cutterUpdate(dt, S.mode === 'flat' && (flatTip.pressed || flatTip.override) ? flatTip.pos : tipW, pressed);
     if (trail.fading) { trail.fade -= dt / 0.8; trMat.uniforms.uFade.value = Math.max(0, trail.fade); if (trail.fade <= 0) clearTrail(); }
     trMat.uniforms.uNow.value = S.time; updateTrailGeometry();
@@ -629,7 +663,8 @@ function loop(_, frame) {
     knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
     updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
-    worlds.update(dt, S.time, S.bright, S.cur, S.oth);
+    story.update(dt);
+    worlds.update(dt, S.time, S.bright, S.cur, S.oth, S.safe && S.cur !== 0 ? [head, hands[0].on ? hands[0].pos : head, hands[1].on ? hands[1].pos : head] : null);
     renderer.render(scene, camera);
   }
 }
@@ -640,16 +675,22 @@ renderer.setAnimationLoop(loop);
 
 (async function init() {
   const btnAR = $('btnAR'), btnFlat = $('btnFlat'), status = $('status');
-  btnFlat.addEventListener('click', enterFlat); btnAR.addEventListener('click', enterXR);
+  const btnFree = $('btnFree'), optSafe = $('optSafe');
+  try { if (optSafe) { optSafe.checked = localStorage.getItem('portalknivenSafe') !== '0'; optSafe.addEventListener('change', () => localStorage.setItem('portalknivenSafe', optSafe.checked ? '1' : '0')); } } catch (_) { /* no storage */ }
+  const readOpts = () => { S.safe = optSafe ? optSafe.checked : params.get('safe') !== '0'; };
+  btnFlat.addEventListener('click', () => { readOpts(); enterFlat(); }); btnAR.addEventListener('click', () => { readOpts(); enterXR(false); });
+  if (btnFree) btnFree.addEventListener('click', () => { readOpts(); enterXR(true); });
   let ok = false;
   try { ok = !!(navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')); } catch (_) { /* no WebXR */ }
-  btnAR.disabled = !ok;
-  status.textContent = ok ? 'Klar. Tryk på Start i headset.' : 'Headset-tilstand (immersive-ar) findes ikke her. Du kan se et fladt preview på computer.';
-  if (params.has('flat')) enterFlat();
+  btnAR.disabled = !ok; if (btnFree) btnFree.disabled = !ok;
+  status.textContent = ok ? 'Klar. Tryk på Start historien.' : 'Headset-tilstand (immersive-ar) findes ikke her. Du kan se et fladt preview på computer.';
+  if (params.has('flat')) { readOpts(); enterFlat(); }
 })();
 
 window.__portal = {
-  S, portal, head, scene, renderer, camera, music, knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, placeDirect, igniteAt,
+  S, portal, head, scene, renderer, camera, music, story, hands, dissolvePortal,
+  hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; },
+  knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },
   tip(x, y, z, pressed) { flatTip.override = true; flatTip.pos.set(x, y, z); flatTip.pressed = pressed; },

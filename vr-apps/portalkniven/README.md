@@ -58,3 +58,18 @@ verden kan døren føre til din stue eller til en af de andre.
   verden, bliver man der, til man skærer en ny dør; stikken vælger stadig, hvor den nye dør fører hen.
 * **Musik, ét nummer ad gangen:** kun den verden, man står i, spiller. Når man går ud, toner nummeret ud på cirka et sekund, og det nye toner
   først rigtigt ind, når det gamle er væk. Kun fra den rigtige stue siver lidt musik gennem døren.
+
+## Historien, kapitel 1 (`story.js`)
+Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start, ingen historie). `?flat&free` er fri leg i preview.
+
+1. Tom stue, tomme hænder. En brummende lyd (rumlig) kommer fra et **brev**. Peg og tryk (eller rør): brevet folder sig ud foran dig; tryk igen for at folde det sammen.
+   Brevet er fra dig selv, lidt senere, og forklarer loopet. Det kan læses igen senere.
+2. Først når brevet er læst, viser **kniven** sig; lyden flytter til den. Rør ved den, så er den din (i den hånd, der rørte).
+3. Skær en dør og gå igennem. I hver verden: **luk døren bag dig** (snit over ringen); først da viser de **tre dele** sig. Rør en del (hånd eller knivspids)
+   for at tage den; den følger med i et bælte ved hoften. Tavlen viser `Dele: n af 9` og den aktuelle opgave; korte beskeder svæver foran dig.
+4. Når den første verdens tre dele er fundet, låses **højre joystick** op (vælg næste verden).
+5. Kapitel 2 (samle tidsmaskinen med hænderne, fortiden, lave kniven) er ikke bygget endnu.
+
+* Brev, kniv og dele lægges oven på det, rumscanningen har dér (bord, sofa, gulv), så de kan nås; uden scanning svæver de i håndhøjde.
+* De ni dele: fluxspole, vakuumrør, tandhjulssæt (den grønne); tidskrystal, kronometer, kondensator (metal); antenne, styrehåndtag, kraftkerne (klippe).
+* **Sikkerhed (valgfrit på startsiden, slået til som standard):** hvor den scannede stue er tæt på hoved eller hænder, tynder den ud, så den rigtige stue ses igennem.
