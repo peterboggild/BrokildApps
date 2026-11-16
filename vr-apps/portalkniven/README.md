@@ -153,15 +153,25 @@ De kan kun vælges med joysticken i fri leg, dvs. efter historien er gennemført
 
 ### Styring i de fraktale dimensioner
 Kun når man står i en fraktal dimension:
-* **Venstre stick** frem/tilbage: flyv (0,9 m/s i den retning, man kigger, vandret). **Højre stick** til siden: drej. **B / A** (højre): op / ned.
-* **Y / X** (venstre): ændr fraktalens form, én parameter pr. fraktal (Apollonisk: inversionens størrelse; Pseudo-Kleinsk: inversionens størrelse; Hyperbolsk: antal terninger om hver kant, 4,4 til 7).
+* **Højre stick:** flyv i planen, frem/tilbage og til siderne, efter hvor man kigger (0,9 m/s). **Venstre stick** op/ned: stig og synk.
+* **Y / X** (venstre) og **B / A** (højre): hver sit par ændrer én parameter. Apollonisk: inversionens størrelse og antal gentagelser; Pseudo-Kleinsk: inversionens størrelse og kassens bredde;
+  Hyperbolsk: antal terninger om hver kant (4,4 til 7) og kanternes tykkelse.
 * **Begge greb holdt:** træk hænderne fra hinanden for at gøre fraktalen større, sammen for mindre (højst 1,8 gange hver vej).
-* **Tryk på højre stick:** skift verden bag døren (et vip drejer nu i stedet).
+* **Tryk på højre stick:** skift verden bag døren. Man drejer ved at dreje sig selv.
 * Alt sker om det punkt, hvor hovedet er: fraktalen glider, drejer og vokser, mens man selv bliver stående i stuen. I den hyperbolske verden kan man ikke flyve ud gennem horisonten.
-* **Møblernes omrids** toner ud, når man har stået stille i to sekunder, og kommer straks tilbage, når man går (hovedet flytter sig mere end ca. 0,2 m/s).
+* **Møblernes omrids** toner ud, når hovedet er blevet inden for 30 cm af samme sted i to sekunder, og kommer straks tilbage, når man flytter sig. At dreje hovedet tæller ikke.
   Åbningen mod den rigtige stue tæt på møbler og advarselslyden toner ikke ud.
 * Første gang man kommer ind i en fraktal dimension, dunker og blinker begge controllere, indtil man kigger ned på dem (eller efter 40 sekunder). Der står intet; man opdager styringen ved at prøve.
-* I preview: I/K flyv, J/L drej, U/O ned/op, N/M form, komma/punktum skala.
+* I preview: I/K og J/L flyv, U/O ned/op, N/M og V/B form, komma/punktum skala.
+
+* **Skarpere i ro:** står man stille uden at røre styringen i halvandet sekund, må fraktalbilledet vokse (loftet hæves fra 55 % til 100 % af øjets opløsning, et trin ad gangen så længe
+  billedhastigheden holder), og strålerne marcheres finere. Så snart man går eller styrer, falder det tilbage til det, brillen kunne bære før. Går billedhastigheden ned i ro, huskes det niveau som loft.
+
+* **Bygget op over tid (forsøg, standard):** i ro tegnes det lille fraktalbillede hver gang med en ny forskydning på under en pixel (Halton-følge, 16 trin), og et
+  større billede (2,2 gange bredden) samles af dem: hver pixel tager den nærmeste nye prøve, vægtet efter hvor tæt den faktisk ramte, og blander med sidste billedes værdi
+  dér, hvor det samme punkt af fraktalen lå (fundet ud fra strålens længde, som gemmes i alfa, og begge billeders øjestillinger). Den gamle værdi klemmes ind i det, de nye prøver omkring tillader,
+  så små hovedbevægelser ikke tværer ud. Prisen pr. billede er den samme lave opløsning plus et billigt samlepas. Fraktalens egen bevægelse står stille imens.
+  Startsiden har valget *Fraktaler i ro*: bygges op over tid / større billede, hvis brillen kan / ingen skærpning (`?sharp=taa|res|off`).
 
 ## Gemte idéer (ikke bygget)
 

@@ -17,7 +17,7 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=22';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=26';
 import { createStory } from './story.js?v=21';
 
 const $ = id => document.getElementById(id);
@@ -662,27 +662,33 @@ function blinker() {
 const tips = { left: blinker(), right: blinker() };
 function fractalControls(dt) {
   const inF = !!DIMS[S.cur].fract;
-  /* standing still for a couple of seconds lets the room's outline fade; a step brings it back at once */
-  const sp = Math.hypot(head.x - FC.last.x, head.z - FC.last.z) / Math.max(dt, 1e-3); FC.last.copy(head);
-  if (sp > 0.22) FC.still = 0; else FC.still += dt;
+  /* Standing in one place for a couple of seconds lets the room's outline fade; a step brings it back at once. What counts is the head leaving the spot
+   * (30 cm), not its speed: turning the head swings it a few centimetres and must not count. */
+  if (Math.hypot(head.x - FC.last.x, head.z - FC.last.z) > 0.3) { FC.last.copy(head); FC.still = 0; } else FC.still += dt;
   FC.ghost += ((FC.still > 2 ? 0 : 1) - FC.ghost) * Math.min(1, dt * (FC.still > 2 ? 1.2 : 8)); worlds.setGhost(FC.ghost);
-  if (!inF) { tips.left.visible = tips.right.visible = false; return; }
+  if (!inF) { tips.left.visible = tips.right.visible = false; worlds.setFractalCalm(false); return; }
   let li = ctrl.findIndex(c => c.hand === 'left'), ri = ctrl.findIndex(c => c.hand === 'right'); if (li < 0) li = 0; if (ri < 0) ri = 1;
   const L = ctrl[li].src && ctrl[li].src.gamepad, R = ctrl[ri].src && ctrl[ri].src.gamepad;
-  let fwd = 0, turn = 0, up = 0, par = 0, scale = 1;
+  let fwd = 0, side = 0, up = 0, par = 0, par2 = 0, scale = 1;
   if (S.mode === 'xr') {
-    if (L && L.axes.length >= 4) fwd = -dead(L.axes[3]);
-    if (R && R.axes.length >= 4) turn = dead(R.axes[2]);
-    up = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0); par = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0);
+    if (R && R.axes.length >= 4) { fwd = -dead(R.axes[3]); side = dead(R.axes[2]); }                        // right stick: move in the plane
+    if (L && L.axes.length >= 4) up = -dead(L.axes[3]);                                                     // left stick: rise and sink
+    par = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0); par2 = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0);      // Y / X and B / A: one shape parameter each
     if (btn(L, 1) && btn(R, 1)) { const d = hands[li].pos.distanceTo(hands[ri].pos); if (FC.gripD > 0.02 && d > 0.02) scale = FC.gripD / d; FC.gripD = d; } else FC.gripD = 0;      // hands apart: the fractal grows
   } else {
-    fwd = (keys.KeyI ? 1 : 0) - (keys.KeyK ? 1 : 0); turn = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); up = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0); par = (keys.KeyM ? 1 : 0) - (keys.KeyN ? 1 : 0);
+    fwd = (keys.KeyI ? 1 : 0) - (keys.KeyK ? 1 : 0); side = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); up = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0);
+    par = (keys.KeyM ? 1 : 0) - (keys.KeyN ? 1 : 0); par2 = (keys.KeyB ? 1 : 0) - (keys.KeyV ? 1 : 0);
     scale = keys.Period ? 1 - dt * 0.6 : keys.Comma ? 1 + dt * 0.6 : 1;
   }
-  if (turn) worlds.fractTurn(S.cur, head, turn * dt * 0.95);
-  if (fwd || up) { const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize(); worlds.fractMove(S.cur, head, f.multiplyScalar(fwd * 0.9).setY(up * 0.55), dt); }
+  if (fwd || side || up) {
+    const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize();
+    worlds.fractMove(S.cur, head, new V(f.x * fwd - f.z * side, 0, f.z * fwd + f.x * side).multiplyScalar(0.9).setY(up * 0.55), dt);      // forward and sideways follow where you look
+  }
   if (scale !== 1) worlds.fractScale(S.cur, head, scale);
-  if (par) worlds.fractParam(S.cur, par, dt);
+  if (par) worlds.fractParam(S.cur, 0, par, dt);
+  if (par2) worlds.fractParam(S.cur, 1, par2, dt);
+  worlds.setFractalCalm(FC.still > 1.5 && !fwd && !side && !up && !par && !par2 && scale === 1);      // standing still, hands off: the fractal may sharpen
+  /* the first time in a fractal: the controllers buzz and blink until you look down at them */
   if (!FC.tipsDone && S.mode === 'xr') { FC.tipsDone = true; FC.tipsT = 0; FC.seen = 0; renderer.xr.getController(li).add(tips.left); renderer.xr.getController(ri).add(tips.right); }
   if (FC.tipsT >= 0) {
     FC.tipsT += dt;
@@ -758,7 +764,9 @@ renderer.setAnimationLoop(loop);
   const btnFree = $('btnFree'), btnNoHelp = $('btnNoHelp');
   const optQual = $('optQual');
   try { if (optQual) { optQual.value = localStorage.getItem('portalknivenQual') || 'normal'; optQual.addEventListener('change', () => localStorage.setItem('portalknivenQual', optQual.value)); } } catch (_) { /* no storage */ }
-  const readOpts = () => { S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
+  const optSharp = $('optSharp');
+  try { if (optSharp) { optSharp.value = localStorage.getItem('portalknivenSharp') || 'taa'; optSharp.addEventListener('change', () => localStorage.setItem('portalknivenSharp', optSharp.value)); } } catch (_) { /* no storage */ }
+  const readOpts = () => { worlds.setFractalSharpen(params.get('sharp') || (optSharp ? optSharp.value : 'taa')); S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
   btnFlat.addEventListener('click', () => { readOpts(); enterFlat(); }); btnAR.addEventListener('click', () => { readOpts(); enterXR(false, true); });
   if (btnNoHelp) btnNoHelp.addEventListener('click', () => { readOpts(); enterXR(false, false); });
   if (btnFree) btnFree.addEventListener('click', () => { readOpts(); enterXR(true); });
