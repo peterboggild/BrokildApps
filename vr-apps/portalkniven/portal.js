@@ -17,8 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=27';
-import { createStory } from './story.js?v=21';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=29';
+import { createStory } from './story.js?v=29';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -69,14 +69,19 @@ const say = t => { S.msg = t; S.msgT = S.time; };
 
 const worlds = createWorlds(scene, renderer, params);
 const applyRoles = () => worlds.applyRoles(S.cur, S.oth);
+worlds.setHead(head);
+const late = o => (DIMS[o].fract || DIMS[o].space) && !story.fractalsOK();      // space and the fractal dimensions open once the story is over (or in free play)
 
 /** The stick: choose where the door leads. Never the dimension you are standing in. */
 function cycleOther(dir) {
   story.onStick();
-  let o = S.oth;
-  do { o = (o + dir + DIMS.length) % DIMS.length; } while (o === S.cur || (DIMS[o].fract && !story.fractalsOK()));      // the fractal dimensions open once the story is over (or in free play)
+  let o = VX.on && VX.phase !== 'out' ? VX.pend : S.oth;
+  do { o = (o + dir + DIMS.length) % DIMS.length; } while (o === S.cur || late(o));
+  if (S.placed && !portal.anim && !portal.closing) startVortex(o, dir); else setOther(o);
+}
+function setOther(o) {
   S.oth = o;
-  if (S.placed) { worlds.anchor(o, portal.c.x, portal.c.z, Math.atan2(portal.n.x, portal.n.z)); flash.userData.t = 0.35; shockT = 0.25; knifeGlow = 1.6; zapSmall(); haptic(0.5, 80); }
+  if (S.placed) worlds.anchor(o, portal.c.x, portal.c.z, Math.atan2(portal.n.x, portal.n.z));
   applyRoles();
   say('D\u00f8ren f\u00f8rer til ' + DIMS[o].name);
 }
@@ -112,7 +117,7 @@ const ringMats = [], ringMeshes = [];
 function addTorus(tube, amp) {
   const m = new THREE.ShaderMaterial({ vertexShader: RING_VS, fragmentShader: RING_FS, uniforms: { uTime: { value: 0 }, uAmp: { value: amp }, uR: { value: new THREE.Vector2(1, 1) } }, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false });
   const t = new THREE.Mesh(new THREE.BufferGeometry(), m); t.frustumCulled = false; t.userData.tube = tube; ring.add(t);
-  ringMats.push(m); ringMeshes.push(t);
+  t.renderOrder = 45; ringMats.push(m); ringMeshes.push(t);
 }
 addTorus(0.032, 1.0); addTorus(0.1, 0.2);
 function setRingShape(rx, ry) {
@@ -129,7 +134,7 @@ const ARCS = 18;
 const arcPos = new Float32Array(ARCS * 3 * 2 * 3);
 const arcGeo = new THREE.BufferGeometry(); arcGeo.setAttribute('position', new THREE.BufferAttribute(arcPos, 3));
 const arcMat = new THREE.LineBasicMaterial({ color: 0xb8ffd0, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
-const arcs = new THREE.LineSegments(arcGeo, arcMat); arcs.frustumCulled = false; ring.add(arcs);
+const arcs = new THREE.LineSegments(arcGeo, arcMat); arcs.frustumCulled = false; arcs.renderOrder = 45; ring.add(arcs);
 function regenArc(k) {
   const a = rnd(0, TAU); let [px, py] = ellipsePt(a); let pz = 0; const [ox, oy] = ellipseOut(a);
   const dr = rnd(-0.6, 1.0), dt = rnd(-0.5, 0.5), dz = rnd(-0.5, 0.5), len = rnd(0.12, 0.36) / 3;
@@ -164,7 +169,7 @@ function makeSparks(n, parent) {
   };
   return f;
 }
-const ringSparks = makeSparks(170, ring);
+const ringSparks = makeSparks(170, ring); ringSparks.points.renderOrder = 45;
 const tipSparks = makeSparks(120, scene);
 function respawnRingSpark(i) {
   const a = rnd(0, TAU), [px, py] = ellipsePt(a), [ox, oy] = ellipseOut(a), sp = rnd(0.08, 0.5) * (Math.random() < 0.5 ? 1 : -0.6);
@@ -187,6 +192,78 @@ shock.renderOrder = 55; shock.frustumCulled = false; scene.add(shock);
 let shockT = 9;
 function setShockShape(rx, ry) { shock.geometry.dispose(); shock.geometry = new THREE.TubeGeometry(new OvalCurve(rx, ry), 120, 0.02, 6, true); }
 setShockShape(DOOR.Rx, DOOR.Ry);
+
+/* ---- changing where the door leads: what you see through it is drawn down a spiral into a point, leaving black space and stars; then the new world
+ * unwinds out of the point, faster. The window itself is live geometry and cannot be bent, so for that second the door shows a still picture instead: the
+ * far side as it looked from where you stand, taken the moment you turn the stick, laid on the door and wound up by this shader. ---- */
+const VX = { on: false, phase: '', t: 0, pend: -1, need: false, dir: 1 };
+const snapRT = new THREE.WebGLRenderTarget(640, 960, { depthBuffer: true });
+snapRT.isXRRenderTarget = true; snapRT.texture.colorSpace = THREE.SRGBColorSpace;      // drawn exactly as the headset's own picture is (same tone curve, same shaders: nothing to compile)
+const snapCam = new THREE.PerspectiveCamera();
+const vortexMat = new THREE.ShaderMaterial({
+  uniforms: { uTex: { value: snapRT.texture }, uU: { value: 0 }, uHas: { value: 0 }, uDir: { value: 1 }, uA0: { value: new THREE.Vector4() }, uA1: { value: new THREE.Vector4() }, uA2: { value: new THREE.Vector4() } },
+  transparent: true, blending: THREE.NoBlending, depthWrite: false, side: THREE.DoubleSide,
+  stencilWrite: true, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.KeepStencilOp,
+  vertexShader: 'varying vec2 vP; varying vec3 vW; void main() { vP = position.xy; vec4 wp = modelMatrix * vec4(position, 1.0); vW = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }',
+  fragmentShader: `precision highp float; varying vec2 vP; varying vec3 vW; uniform sampler2D uTex; uniform float uU, uHas, uDir; uniform vec4 uA0, uA1, uA2;
+    ${STARS_GLSL}
+    void main() {
+      vec4 col = vec4(starField(normalize(vW - cameraPosition), 0.3), 1.0);                    // stars at their own distance: each eye looks out through the door
+      float s = pow(1.0 - uU, 1.7), r = length(vP), th = atan(vP.y, vP.x);
+      float rim = 1.0 + 0.22 * uU * cos(2.0 * th + uDir * uU * 7.0);                            // the shrinking picture's edge is drawn out into two arms
+      float rr = r / max(s * rim, 1e-4);
+      if (rr < 1.0 && uHas > 0.5) {
+        float ang = uDir * uU * uU * 8.0 * (1.0 + 1.6 * (1.0 - rr)), c = cos(ang), sn = sin(ang);      // wound up, the middle ahead of the rim
+        vec2 q = mat2(c, -sn, sn, c) * vP / max(s * rim, 1e-4);
+        vec4 cl = uA0 + uA1 * q.x + uA2 * q.y, t = texture2D(uTex, clamp(cl.xy / cl.w * 0.5 + 0.5, 0.0, 1.0));
+        col = mix(col, vec4(t.rgb * (1.0 - 0.3 * uU), t.a), 1.0 - smoothstep(0.84, 1.0, rr));
+      }
+      float e = (rr - 0.97) * 9.0;
+      col.rgb += vec3(0.35, 1.0, 0.55) * exp(-e * e) * uU * (1.0 - uU) * 2.4 * uHas;            // green fire round the edge of the falling picture
+      col.rgb += vec3(0.75, 1.0, 0.85) * exp(-r * r / (0.0012 + s * s * 0.02)) * smoothstep(0.55, 1.0, uU) * 1.4;      // the point it falls into
+      gl_FragColor = col;
+    }`,
+});
+const vortex = new THREE.Mesh(new THREE.CircleGeometry(1, 64), vortexMat); vortex.renderOrder = 40; vortex.frustumCulled = false; vortex.visible = false; ring.add(vortex);
+const _sv = new V(), _sm = new THREE.Matrix4();
+function takeSnap(i) {
+  snapCam.position.copy(head); snapCam.up.set(0, 1, 0); snapCam.lookAt(portal.c); snapCam.updateMatrixWorld(true);
+  let tx = 0.05, ty = 0.05;                                         // a view just wide enough to hold the whole oval
+  for (let k = 0; k < 16; k++) { const [ex, ey] = ellipsePt(k / 16 * TAU); _sv.copy(portal.c).addScaledVector(portal.x, ex).addScaledVector(portal.y, ey).applyMatrix4(snapCam.matrixWorldInverse);
+    if (_sv.z > -0.05) { tx = ty = 4; break; } tx = Math.max(tx, Math.abs(_sv.x / _sv.z)); ty = Math.max(ty, Math.abs(_sv.y / _sv.z)); }
+  tx = Math.min(tx * 1.03, 4); ty = Math.min(ty * 1.03, 4);
+  const n = 0.05; snapCam.projectionMatrix.makePerspective(-tx * n, tx * n, ty * n, -ty * n, n, 80); snapCam.projectionMatrixInverse.copy(snapCam.projectionMatrix).invert();
+  worlds.snapshot(i, snapCam, snapRT, portal.n.clone().multiplyScalar(-S.side), portal.c);
+  _sm.multiplyMatrices(snapCam.projectionMatrix, snapCam.matrixWorldInverse); const U = vortexMat.uniforms, k = 0.985;
+  U.uA0.value.set(portal.c.x, portal.c.y, portal.c.z, 1).applyMatrix4(_sm);
+  U.uA1.value.set(portal.x.x * portal.Rx * k, portal.x.y * portal.Rx * k, portal.x.z * portal.Rx * k, 0).applyMatrix4(_sm);
+  U.uA2.value.set(portal.y.x * portal.Ry * k, portal.y.y * portal.Ry * k, portal.y.z * portal.Ry * k, 0).applyMatrix4(_sm);
+  U.uHas.value = 1; applyRoles(); updateClip();
+}
+function startVortex(o, dir) {
+  VX.pend = o; VX.dir = dir;
+  if (VX.on && VX.phase !== 'out') return;                         // already on its way in: only the destination changes
+  VX.on = true; VX.phase = 'in'; VX.t = 0; VX.need = true; vortexMat.uniforms.uDir.value = dir; whirl(0.6, false); haptic(0.3, 200);
+}
+function cancelVortex() { VX.on = false; vortex.visible = false; }
+function updateVortex(dt) {
+  if (!VX.on) return;
+  if (!S.placed || portal.anim || portal.closing) { cancelVortex(); return; }
+  const U = vortexMat.uniforms;
+  vortex.scale.set(portal.Rx * 0.985, portal.Ry * 0.985, 1);
+  if (VX.need) { VX.need = false; takeSnap(S.oth); vortex.visible = true; }
+  if (!VX.pause) VX.t += dt;                                      // (pause: a test hook)
+  if (VX.phase === 'in') {
+    const u = clamp(VX.t / 0.6, 0, 1); U.uU.value = u * u * (3 - 2 * u);
+    if (u >= 1) { VX.phase = 'hold'; VX.t = 0; U.uHas.value = 0; setOther(VX.pend); }      // nothing but stars: the door changes behind them
+  } else if (VX.phase === 'hold') {
+    U.uU.value = 1;
+    if (VX.t > 0.14) { VX.phase = 'out'; VX.t = 0; takeSnap(S.oth); flash.userData.t = 0.4; shockT = 0.25; knifeGlow = 1.6; zapSmall(); whirl(0.34, true); haptic(0.6, 90); }
+  } else {
+    const u = clamp(VX.t / 0.34, 0, 1); U.uU.value = 1 - easeOutCubic(u);
+    if (u >= 1) cancelVortex();
+  }
+}
 
 function updateRing(dt) {
   for (const m of ringMats) m.uniforms.uTime.value = S.time;
@@ -418,7 +495,7 @@ function checkCrossing() {
   if ((d0 < 0) !== (d1 < 0)) {
     const t = d0 / (d0 - d1), p = prevHead.clone().lerp(head, t).sub(portal.c);
     const lx = p.dot(portal.x) / portal.Rx, ly = p.dot(portal.y) / portal.Ry;
-    if (lx * lx + ly * ly < 0.95) { const c = S.cur; S.cur = S.oth; S.oth = c; S.crossings++; applyRoles(); whoosh(); haptic(0.6, 120); say('Du er i ' + DIMS[S.cur].name); story.onEnter(S.cur); }
+    if (lx * lx + ly * ly < 0.95) { cancelVortex(); const c = S.cur; S.cur = S.oth; S.oth = c; S.crossings++; applyRoles(); whoosh(); haptic(0.6, 120); say('Du er i ' + DIMS[S.cur].name); story.onEnter(S.cur); }
   }
   prevHead.copy(head);
 }
@@ -479,6 +556,43 @@ function zapSmall() {
   const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
   s.connect(hp); hp.connect(g); g.connect(ctx.destination); s.start(t);
 }
+/** The pull of the spiral: a rush of air and a note, falling as the picture goes down the drain, rising as the new one comes up. */
+function whirl(dur, up) {
+  const ctx = AU.ctx; if (!ctx) return; const t = ctx.currentTime;
+  const s = ctx.createBufferSource(); s.buffer = noiseBuffer(ctx, dur + 0.1);
+  const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2.2; f.frequency.setValueAtTime(up ? 260 : 3200, t); f.frequency.exponentialRampToValueAtTime(up ? 3400 : 180, t + dur);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t + dur * (up ? 0.2 : 0.7)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
+  s.connect(f); f.connect(g); g.connect(ctx.destination); s.start(t);
+  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(up ? 60 : 520, t); o.frequency.exponentialRampToValueAtTime(up ? 620 : 46, t + dur);
+  const og = ctx.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.22, t + dur * 0.5); og.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
+  o.connect(og); og.connect(ctx.destination); o.start(t); o.stop(t + dur + 0.1);
+}
+/** Something gave way under a hand: a stalk or straw swishes, a cable's hook rings, the valve wheel clicks. */
+function touchSound(kind, v) {
+  const ctx = AU.ctx; if (!ctx) return; const t = ctx.currentTime;
+  if (kind === 'cable') {
+    for (const [fq, a, d] of [[1310, 1, 0.9], [2740, 0.5, 0.5], [4180, 0.25, 0.3]]) { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = fq * rnd(0.985, 1.015); const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime((0.02 + 0.07 * v) * a, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + d + 0.05); }
+    return;
+  }
+  const dur = kind === 'valve' ? 0.035 : 0.2, s = ctx.createBufferSource(); s.buffer = noiseBuffer(ctx, dur + 0.02);
+  const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = kind === 'valve' ? 5 : 0.9; f.frequency.value = (kind === 'valve' ? 2300 : kind === 'straw' ? 4600 : 2100) * rnd(0.85, 1.15);
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(kind === 'valve' ? 0.1 + 0.15 * v : 0.035 + 0.16 * v, t + (kind === 'valve' ? 0.003 : 0.04)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f); f.connect(g); g.connect(ctx.destination); s.start(t);
+}
+worlds.onTouch = (kind, v, h) => { touchSound(kind, v); try { ctrl[h].src?.gamepad?.hapticActuators?.[0]?.pulse?.(clamp(0.15 + 0.6 * v, 0, 1), kind === 'cable' ? 45 : 25); } catch (_) { /* none */ } };
+/* Deep space is not quite silent: a low, slow drone, so the emptiness has a size. */
+function updateSpaceAmb() {
+  const ctx = AU.ctx; if (!ctx) return;
+  if (!AU.space) {
+    const g = ctx.createGain(); g.gain.value = 0; g.connect(ctx.destination);
+    for (const [fq, a] of [[54, 0.5], [54.4, 0.5], [81.3, 0.28], [162.9, 0.08]]) { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = fq; const og = ctx.createGain(); og.gain.value = a; o.connect(og); og.connect(g); o.start(); }
+    const n = ctx.createBufferSource(); n.buffer = noiseBuffer(ctx, 3); n.loop = true; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; const ng = ctx.createGain(); ng.gain.value = 0.35; n.connect(lp); lp.connect(ng); ng.connect(g); n.start();
+    AU.space = g;
+  }
+  const tgt = DIMS[S.cur].space ? 0.22 : S.cur === 0 && DIMS[S.oth].space && S.placed && !portal.closing ? 0.05 * clamp(1.6 / Math.max(0.6, head.distanceTo(portal.c)), 0, 1) : 0;
+  AU.space.gain.setTargetAtTime(tgt, ctx.currentTime, 0.6);
+}
 /* Each dimension has its own track. It fades in when you step in, and a little of it leaks through the door when the door leads there. */
 const TRACKS = { 1: 'music/doedt-trae.mp3', 2: 'music/rotation.mp3', 3: 'music/tidejord.mp3' };
 const music = {};
@@ -533,7 +647,7 @@ function hudLines() {
     `D\u00f8ren f\u00f8rer til: ${DIMS[S.oth].name}`,
     story.st.on ? `Dele: ${story.count()} af 9` : S.mode === 'xr' ? `Stencil: ${bits === null ? '?' : bits}${bits === 0 ? '  VINDUET VIRKER IKKE' : ''}   Scan: ${S.scanFeature ? S.scanMeshes + ' mesh' : 'ingen'}` : 'Fladt preview',
     S.mode === 'xr' && S.cur !== 0 && !S.scanMeshes ? 'INGEN RUMSCANNING: pas på møbler!' : `Rumlys: ${S.lum < 0 ? 'ingen' : S.lum.toFixed(2)}   Kamera: ${S.camera ? 'ja' : 'nej'}`,
-    cut.state === 'cutting' ? 'Skærer … luk ringen!' : story.st.on ? (story.st.help ? story.objective() : '') : S.placed ? 'Højre stick: skift verden bag døren' : S.cur !== 0 ? 'Ingen dør: skær en ny for at komme hjem' : 'Hold udløseren og skær en ring i luften',
+    cut.state === 'cutting' ? 'Skærer … luk ringen!' : story.st.on ? (story.st.help ? story.objective() : '') : S.placed ? (DIMS[S.cur].fract || DIMS[S.cur].space ? 'Tryk højre stick ned: skift verden bag døren' : 'Højre stick: skift verden bag døren') : S.cur !== 0 ? 'Ingen dør: skær en ny for at komme hjem' : 'Hold udløseren og skær en ring i luften',
     msg,
   ];
 }
@@ -645,7 +759,7 @@ function pollStick() {                                              // the right
   const gp = ctrl[i].src && ctrl[i].src.gamepad; if (!gp) return;
   const ax = gp.axes.length >= 4 ? gp.axes[2] : gp.axes[0] || 0, press = !!(gp.buttons[3] && gp.buttons[3].pressed);
   const on = Math.abs(ax) > 0.7 || press;
-  if (DIMS[S.cur].fract) { if (press && !stickHeld && story.stickOK()) cycleOther(1); stickHeld = press; return; }      // in a fractal the stick turns you; a press still changes what lies behind the door
+  if (DIMS[S.cur].fract || DIMS[S.cur].space) { if (press && !stickHeld && story.stickOK()) cycleOther(1); stickHeld = press; return; }      // in a fractal (or in space) the stick moves you; a press still changes what lies behind the door
   if (on && !stickHeld && story.stickOK()) cycleOther(ax < -0.7 ? -1 : 1);
   stickHeld = on || Math.abs(ax) > 0.35;
 }
@@ -669,9 +783,23 @@ function fractalControls(dt) {
    * (30 cm), not its speed: turning the head swings it a few centimetres and must not count. */
   if (Math.hypot(head.x - FC.last.x, head.z - FC.last.z) > 0.3) { FC.last.copy(head); FC.still = 0; } else FC.still += dt;
   FC.ghost += ((FC.still > 2 ? 0 : 1) - FC.ghost) * Math.min(1, dt * (FC.still > 2 ? 1.2 : 8)); worlds.setGhost(FC.ghost);
-  if (!inF) { tips.left.visible = tips.right.visible = false; gearMesh.visible = false; worlds.setFractalCalm(false); return; }
   let li = ctrl.findIndex(c => c.hand === 'left'), ri = ctrl.findIndex(c => c.hand === 'right'); if (li < 0) li = 0; if (ri < 0) ri = 1;
   const L = ctrl[li].src && ctrl[li].src.gamepad, R = ctrl[ri].src && ctrl[ri].src.gamepad;
+  if (DIMS[S.cur].space) {
+    /* Deep space: there is nowhere to go, but you can tumble. The right stick turns you and tips you forward or back, the left stick rolls you; and since nothing
+     * out here stops a turn once it has begun, you go on turning for a while after you let go. */
+    let yw = 0, pt = 0, rl = 0;
+    if (S.mode === 'xr') { if (R && R.axes.length >= 4) { yw = dead(R.axes[2]); pt = -dead(R.axes[3]); } if (L && L.axes.length >= 4) rl = dead(L.axes[2]); }
+    else { yw = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); pt = (keys.KeyI ? 1 : 0) - (keys.KeyK ? 1 : 0); rl = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0); }
+    if (yw || pt || rl) {
+      const r = new V(1, 0, 0).applyQuaternion(headQ); r.y = 0; if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize(); const f = new V(0, 0, -1).applyQuaternion(headQ).normalize();
+      SPN.w.lerp(new V(0, yw * 0.5, 0).addScaledVector(r, pt * 0.42).addScaledVector(f, -rl * 0.45), Math.min(1, dt * 1.5));
+    } else SPN.w.multiplyScalar(Math.exp(-dt / 4.5));
+    worlds.spaceSpin(head, SPN.w, dt);
+    gearMesh.visible = false; worlds.setFractalCalm(false); controllerTips(dt, li, ri); return;
+  }
+  SPN.w.set(0, 0, 0);
+  if (!inF) { tips.left.visible = tips.right.visible = false; gearMesh.visible = false; worlds.setFractalCalm(false); return; }
   let fwd = 0, side = 0, gear = 0, par = 0, par2 = 0, scale = 1;
   if (S.mode === 'xr') {
     if (R && R.axes.length >= 4) { fwd = -dead(R.axes[3]); side = dead(R.axes[2]); }                        // right stick: fly where you look, and slide sideways
@@ -703,7 +831,11 @@ function fractalControls(dt) {
     const f = new V(0, 0, -1).applyQuaternion(headQ), tgt = new V().copy(head).addScaledVector(f, 0.9); tgt.y -= 0.22;
     gearMesh.position.lerp(tgt, Math.min(1, dt * 10)); gearMesh.lookAt(head); gearMesh.material.opacity = clamp(FC.gearT / 0.5, 0, 1); gearMesh.visible = true;
   } else gearMesh.visible = false;
-  /* the first time in a fractal: the controllers buzz and blink until you look down at them */
+  controllerTips(dt, li, ri);
+}
+const SPN = { w: new V() };
+/* the first time in a fractal (or in space): the controllers buzz and blink until you look down at them */
+function controllerTips(dt, li, ri) {
   if (!FC.tipsDone && S.mode === 'xr') { FC.tipsDone = true; FC.tipsT = 0; FC.seen = 0; renderer.xr.getController(li).add(tips.left); renderer.xr.getController(ri).add(tips.right); }
   if (FC.tipsT >= 0) {
     FC.tipsT += dt;
@@ -760,10 +892,11 @@ function loop(_, frame) {
     knife.userData.rune.color.setRGB(0.25 * knifeGlow, 1.0 * Math.min(1.4, knifeGlow), 0.5 * knifeGlow);
     knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
     fractalControls(dt);
-    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateProximity(); drawHud();
+    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateSpaceAmb(); updateProximity(); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
     story.update(dt);
-    worlds.update(dt, S.time, S.bright, S.cur, S.oth, S.safe && S.cur !== 0 ? [head, hands[0].on ? hands[0].pos : head, hands[1].on ? hands[1].pos : head] : null);
+    worlds.update(dt, S.time, S.bright, S.cur, S.oth, S.safe && S.cur !== 0 ? [head, hands[0].on ? hands[0].pos : head, hands[1].on ? hands[1].pos : head] : null, hands);
+    updateVortex(dt);
     if (S.mode === 'flat') { camera.updateMatrixWorld(); eyeViews = [{ matrix: camera.matrixWorld.elements, proj: camera.projectionMatrix.elements }]; }
     worlds.renderFractals(eyeViews, S.cur, S.placed ? S.oth : -1, dt);      // fractal dimensions are marched into small per-eye pictures first
     renderer.render(scene, camera);
@@ -795,7 +928,7 @@ renderer.setAnimationLoop(loop);
 window.__portal = {
   S, portal, head, scene, renderer, camera, music, prox, FC, keys, story, hands, dissolvePortal,
   hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; }, hold(v) { flatHold = v; },
-  knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, placeDirect, igniteAt,
+  knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },
   tip(x, y, z, pressed) { flatTip.override = true; flatTip.pos.set(x, y, z); flatTip.pressed = pressed; },

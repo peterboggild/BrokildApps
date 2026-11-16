@@ -29,22 +29,21 @@ export const PARTS = [
 const LETTER = [
   'Kære mig.',
   '',
-  'Hvis du læser dette, er det sket igen. Der er gået en knude på tiden, et rumtidsloop, og den strammer.',
+  'Jeg er dig, men fra en anden dimension. Jeg har brug for din hjælp. Der er ingen tid til forklaringer \u2013 følg mine instruktioner:',
   '',
-  'Et sted i dette rum ligger en kniv. Den burde ikke findes. Ingen har lavet den endnu. Det er dig, der skal lave den. Men først skal du bruge den.',
+  '\u2013 Find portalkniven.',
+  '\u2013 Skær en portal, træd ind i dimensionen, og skær portalen over.',
+  '\u2013 Find dele til en tidsmaskine. Du skal bruge den for at lave portalkniven, så der ikke kommer et paradoks.',
+  '\u2013 Når du har tre dele, skær en portal til din egen verden, og træd tilbage.',
+  '\u2013 Du kan nu skære portaler til nye dimensioner og finde resten af delene.',
+  '\u2013 Vend tilbage, byg tidsmaskinen, rejs tilbage, og skab portalkniven. Den skal lægges, hvor du fandt den.',
   '',
-  'Skær en dør i luften. Bag den ligger andre udgaver af stuen. I hver af dem er der gemt tre dele af en tidsmaskine. Ni i alt.',
+  'Kun sådan kan du undgå et kollaps af rum-tid-kontinuummet.',
   '',
-  'Når du er gået igennem en dør: luk den bag dig. Skær hen over ringen. Delene viser sig først, når døren er lukket. (Ja, jeg ved godt, det er ubehageligt. Gør det alligevel.)',
+  'Skynd dig!',
   '',
-  'Saml maskinen her i stuen. Rejs tilbage. Lav kniven. Læg den, hvor du fandt den.',
-  '',
-  'Gør du det ikke, har kniven aldrig ligget her, og så har du aldrig læst dette brev. Og så bliver det en rigtig dårlig morgen. For alle.',
-  '',
-  'Kærlig hilsen',
-  'Dig (lidt senere)',
-  '',
-  'P.S. Følg lyden.',
+  'Venlig hilsen',
+  'dig.',
 ];
 
 export function createStory(c) {
@@ -141,15 +140,22 @@ export function createStory(c) {
     draw(x, w, h);
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
   }
-  const sheetTex = paper(1024, 1400, (x, w) => {
-    x.fillStyle = '#2a1c0c'; x.textBaseline = 'top'; const fs = 41, lh = 54, mx = 70; x.font = `italic ${fs}px Georgia, "Times New Roman", serif`;
-    let y = 70;
-    for (const para of LETTER) {
-      if (!para) { y += lh * 0.5; continue; }
-      let line = '';
-      for (const word of para.split(' ')) { const t = line ? line + ' ' + word : word; if (x.measureText(t).width > w - 2 * mx) { x.fillText(line, mx, y); y += lh; line = word; } else line = t; }
-      x.fillText(line, mx, y); y += lh;
-    }
+  const sheetInfo = { fs: 0, bottom: 0 };
+  const sheetTex = paper(1024, 1400, (x, w, h) => {
+    x.fillStyle = '#2a1c0c'; x.textBaseline = 'top'; const mx = 70, top = 70, room = h - 70;
+    /* lay the letter out at the largest size at which all of it stands on the sheet; bullet lines hang under their dash */
+    const layout = fs => { x.font = `italic ${fs}px Georgia, "Times New Roman", serif`; const lh = fs * 1.32, ind = x.measureText('\u2013 ').width, out = []; let y = top;
+      for (const para of LETTER) {
+        if (!para) { y += lh * 0.45; continue; }
+        const bullet = para.startsWith('\u2013 '), words = (bullet ? para.slice(2) : para).split(' '), x0 = bullet ? mx + ind : mx; let line = '', first = true;
+        const put = () => { out.push([bullet && first ? '\u2013 ' + line : line, bullet && first ? mx : x0, y]); y += lh; first = false; };
+        for (const word of words) { const t = line ? line + ' ' + word : word; if (x.measureText(t).width > w - mx - x0) { put(); line = word; } else line = t; }
+        put();
+      }
+      return { out, bottom: y, fs }; };
+    let L = null; for (let fs = 44; fs >= 24; fs -= 1) { L = layout(fs); if (L.bottom <= room) break; }
+    x.font = `italic ${L.fs}px Georgia, "Times New Roman", serif`; for (const [s, px, py] of L.out) x.fillText(s, px, py);
+    sheetInfo.fs = L.fs; sheetInfo.bottom = Math.round(L.bottom); sheetInfo.lines = L.out.length;
   });
   const foldTex = paper(256, 180, (x, w, h) => { x.fillStyle = '#5a3a14'; x.font = 'italic 34px Georgia, serif'; x.textAlign = 'center'; x.fillText('Til mig', w / 2, h / 2 + 10); });
   const letter = new THREE.Group(); root.add(letter); letter.visible = false;
@@ -569,7 +575,7 @@ export function createStory(c) {
 
   /* ---------------------------------------------------------------- the story itself */
   const api = {
-    st, parts, toast, pieces, mach, collect, stickHint, banner, JUMP, cutMark, sun, findSpot, clearSight, machineSpot, manifestNext, install, sockWorld, debug: { placeMachine, arriveInPast, knifePos, letterPos, centreOf },
+    st, parts, toast, pieces, mach, sheetInfo, collect, stickHint, banner, JUMP, cutMark, sun, findSpot, clearSight, machineSpot, manifestNext, install, sockWorld, debug: { placeMachine, arriveInPast, knifePos, letterPos, centreOf },
     canCut: () => !st.on || (st.hasKnife && (st.phase === 'play' || st.phase === 'free')),
     /** Asked once, when the trigger goes down: a hand resting on something it could take does not start a cut. */
     canStartCut: i => !st.on || !st.busyHands[i],

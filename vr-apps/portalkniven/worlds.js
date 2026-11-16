@@ -19,6 +19,7 @@ import * as THREE from './vendor/three.module.min.js';
 const V = THREE.Vector3;
 const TAU = Math.PI * 2;
 const rnd = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 export const ORDER = { home: 0, bgHome: 5, mask: 10, fill: 20, other: 30 };          // the home sky comes after the home world (early depth rejection)
 export const DIMS = [
@@ -26,6 +27,8 @@ export const DIMS = [
   { key: 'groen', name: 'DEN GRØNNE' },
   { key: 'metal', name: 'METALVERDENEN' },
   { key: 'klippe', name: 'KLIPPEVERDENEN' },
+  /* deep space (free play only): nothing to stand on, stars in every direction; you can turn but not travel */
+  { key: 'rum', name: 'VERDENSRUMMET', space: true },
   /* fractal dimensions (free play only): endless spaces, ray-marched. The distance estimators come from Fractal Video (vfx-apps/fractal-video/js/formulas.js). */
   { key: 'apollo', name: 'APOLLONISK', fract: true },
   { key: 'klein', name: 'PSEUDO-KLEINSK', fract: true },
@@ -143,6 +146,66 @@ const RESOLVE_FS = `precision highp float; varying vec2 vUv;
 const BLIT_FS = 'precision highp float; varying vec2 vUv; uniform sampler2D uTex; void main() { gl_FragColor = vec4(texture2D(uTex, vUv).rgb, 1.0); }';
 
 
+
+/* ------------------------------------------------------------------ deep space */
+
+/* Stars without a texture: the sphere of the sky is cut through a grid of cells, and every cell has a point of light somewhere in it. Cells the sphere
+ * passes close to the middle of give bright stars, the rest fainter ones, so one layer already has a spread of magnitudes; three layers of different cell
+ * size give the myriad. No poles, no seams, and the same stars whichever way you look. */
+export const STARS_GLSL = `
+  vec3 sh3(vec3 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973)); p += dot(p, p.yxz + 33.33); return fract((p.xxy + p.yxx) * p.zyx); }
+  vec3 starTint(float t) { return mix(mix(vec3(1.0, 0.66, 0.42), vec3(1.0, 0.95, 0.88), smoothstep(0.0, 0.42, t)), vec3(0.68, 0.80, 1.0), smoothstep(0.55, 1.0, t)); }
+  vec3 starLayer(vec3 d, float sc, float keep, float rad, float halo) {
+    vec3 p = d * sc, id = floor(p), h2 = sh3(id + 71.3);
+    if (h2.x > keep) return vec3(0.0);
+    float r = length(p - id - 0.5 - (sh3(id) - 0.5) * (1.0 - 2.0 * max(rad, halo)));
+    float b = max(0.0, 1.0 - r / rad), g = max(0.0, 1.0 - r / max(halo, 1e-3)); g *= g;
+    return starTint(h2.z) * (0.35 + 0.65 * h2.y) * (b * b * 1.25 + g * g * 0.22 * step(0.001, halo));
+  }
+  /* dens: 0 in the empty sky, 1 in the thick of the Milky Way */
+  vec3 starField(vec3 d, float dens) {
+    return starLayer(d, 236.0, 0.13 + 0.42 * dens, 0.30, 0.0) * 0.85 + starLayer(d.zxy, 113.0, 0.15 + 0.2 * dens, 0.17, 0.0) * 1.0 + starLayer(d.yzx, 37.0, 0.13, 0.075, 0.34) * 1.5;
+  }`;
+/* The whole sky of the space dimension: the Milky Way (a warped band with a bright bulge towards the core, dust lanes and star clouds), a few glowing nebulae,
+ * two far galaxies, and the stars, thicker along the band. */
+const SPACE_GLSL = STARS_GLSL + `
+  vec3 spaceSky(vec3 d) {
+    const vec3 GP = vec3(0.50028, 0.80044, 0.33018), GC = vec3(0.29001, 0.20440, -0.93494), GT = vec3(-0.81585, 0.56348, -0.12988);
+    float b = dot(d, GP), lon = atan(dot(d, GT), dot(d, GC));
+    vec2 uv = vec2(lon / 6.28318, b);
+    float n1 = textureLod(uNoise, uv * vec2(3.0, 1.3), 0.0).r, n2 = textureLod(uNoise, uv * vec2(8.0, 3.3) + 0.37, 0.0).a, n3 = textureLod(uNoise, uv * vec2(24.0, 9.5) + 0.11, 0.0).b;
+    float bulge = exp(-lon * lon * 1.6), w = 0.085 + 0.13 * bulge + 0.03 * n1;
+    float bw = b + (n1 - 0.5) * 0.11 + (n2 - 0.5) * 0.035;
+    float band = exp(-bw * bw / (w * w)), wide = exp(-bw * bw / (w * w * 7.0));
+    float clouds = 0.30 + 0.85 * n2 * n2 + 0.22 * n3;
+    vec3 col = vec3(0.004, 0.005, 0.009);
+    col += mix(vec3(0.36, 0.43, 0.62), vec3(0.95, 0.74, 0.50), bulge) * band * clouds * (0.22 + 0.50 * bulge) + vec3(0.05, 0.06, 0.10) * wide * (0.5 + n1);
+    float dl = textureLod(uNoise, uv * vec2(5.0, 2.1) + 0.53, 0.0).r * 0.72 + n2 * 0.2 + n3 * 0.08;
+    float dust = smoothstep(0.40, 0.72, dl) * exp(-bw * bw / (w * w * 0.22));
+    col *= 1.0 - 0.88 * dust; col += vec3(0.06, 0.028, 0.014) * dust * (1.0 - dust) * band * 2.0;
+    { float a = dot(d, vec3(-0.31334, 0.58063, -0.75145)); if (a > 0.97134) { vec2 q = vec2(dot(d, vec3(-0.92298, 0.00000, 0.38486)), dot(d, vec3(0.22346, 0.81416, 0.53591))) / 0.23770; float m = max(0.0, 1.0 - dot(q, q)); m *= m;
+        vec4 nz = textureLod(uNoise, q * 0.31 + vec2(0.13, 0.57), 0.0), nf = textureLod(uNoise, q * 1.3 + vec2(0.13, 0.57).yx, 0.0);
+        float f = smoothstep(0.34, 0.82, nz.r * 0.8 + nf.b * 0.2) * m, g = smoothstep(0.45, 0.9, nz.a) * m;
+        col += vec3(0.55, 0.10, 0.16) * f * f * 0.85 + vec3(0.08, 0.26, 0.30) * g * 0.5; col *= 1.0 - 0.35 * m * smoothstep(0.45, 0.8, nf.a) * (1.0 - nz.r); } }
+    { float a = dot(d, vec3(0.80552, -0.58218, -0.11050)); if (a > 0.98723) { vec2 q = vec2(dot(d, vec3(-0.13590, 0.00000, -0.99072)), dot(d, vec3(0.57678, 0.81306, -0.07912))) / 0.15932; float m = max(0.0, 1.0 - dot(q, q)); m *= m;
+        vec4 nz = textureLod(uNoise, q * 0.31 + vec2(0.61, 0.22), 0.0), nf = textureLod(uNoise, q * 1.3 + vec2(0.61, 0.22).yx, 0.0);
+        float f = smoothstep(0.34, 0.82, nz.r * 0.8 + nf.b * 0.2) * m, g = smoothstep(0.45, 0.9, nz.a) * m;
+        col += vec3(0.50, 0.12, 0.22) * f * f * 0.85 + vec3(0.16, 0.20, 0.42) * g * 0.5; col *= 1.0 - 0.35 * m * smoothstep(0.45, 0.8, nf.a) * (1.0 - nz.r); } }
+    { float a = dot(d, vec3(-0.34517, 0.48680, 0.80243)); if (a > 0.94275) { vec2 q = vec2(dot(d, vec3(0.91862, -0.00000, 0.39515)), dot(d, vec3(0.19236, 0.87351, -0.44718))) / 0.33349; float m = max(0.0, 1.0 - dot(q, q)); m *= m;
+        vec4 nz = textureLod(uNoise, q * 0.31 + vec2(0.37, 0.81), 0.0), nf = textureLod(uNoise, q * 1.3 + vec2(0.37, 0.81).yx, 0.0);
+        float f = smoothstep(0.34, 0.82, nz.r * 0.8 + nf.b * 0.2) * m, g = smoothstep(0.45, 0.9, nz.a) * m;
+        col += vec3(0.10, 0.16, 0.36) * f * f * 0.85 + vec3(0.22, 0.10, 0.30) * g * 0.5; col *= 1.0 - 0.35 * m * smoothstep(0.45, 0.8, nf.a) * (1.0 - nz.r); } }
+    { float a = dot(d, vec3(-0.99281, -0.10655, -0.05463)); if (a > 0.99639) { vec2 q = vec2(dot(d, vec3(-0.05494, 0.00000, 0.99849)), dot(d, vec3(-0.10639, 0.99431, -0.00585))) / 0.08490; q = mat2(0.8253, 0.5646, -0.5646, 0.8253) * q; q.y /= 0.42; float r = length(q);
+        float arms = 0.5 + 0.5 * cos(2.0 * atan(q.y, q.x) - 7.0 * log(r + 0.04)); float fade = 1.0 - smoothstep(0.7, 1.0, r);
+        col += (vec3(1.0, 0.86, 0.66) * exp(-r * 13.0) * 0.75 + vec3(0.62, 0.72, 1.0) * exp(-r * 3.4) * (0.10 + 0.34 * arms * arms)) * fade; } }
+    { float a = dot(d, vec3(0.57585, 0.08513, 0.81311)); if (a > 0.99939) { vec2 q = vec2(dot(d, vec3(0.81608, 0.00000, -0.57795)), dot(d, vec3(-0.04920, 0.99637, -0.06947))) / 0.03499; q = mat2(-0.5048, 0.8632, -0.8632, -0.5048) * q; q.y /= 0.70; float r = length(q);
+        float arms = 0.5 + 0.5 * cos(2.0 * atan(q.y, q.x) - 7.0 * log(r + 0.04)); float fade = 1.0 - smoothstep(0.7, 1.0, r);
+        col += (vec3(1.0, 0.86, 0.66) * exp(-r * 13.0) * 0.75 + vec3(0.62, 0.72, 1.0) * exp(-r * 3.4) * (0.10 + 0.34 * arms * arms)) * fade; } }
+
+    col += starField(d, clamp(band * (1.0 - 0.7 * dust) + 0.25 * wide, 0.0, 1.0));
+    return col;
+  }`;
+
 /* ------------------------------------------------------------------ noise */
 
 /** One tileable 256² texture: R = soft fbm, G = cell borders (Worley F2-F1), B = fine grain, A = a second fbm. */
@@ -247,6 +310,7 @@ const SURF = {
     float vn = tri(P + vec3(0.0, uTime * 0.003, 0.0), Nw, 0.11).a;
     float vein = (1.0 - smoothstep(0.0, 0.016, abs(vn - 0.5))) * (1.0 - pud) * (1.0 - 0.6 * mossAmt);
     wE = vec3(0.02, 0.30, 0.22) * vein * (0.5 + 0.5 * sin(uTime * 0.4 + n1 * 9.0)) * ${vein.toFixed(2)};`,
+  straw: () => 'float t = tri1(P, Nw, 6.0).b; wA = mix(vec3(0.46, 0.33, 0.15), vec3(0.74, 0.60, 0.32), t) * (0.55 + 0.6 * smoothstep(0.0, 0.5, P.y)); wR = 0.85;',
   stalk: () => 'wA = vec3(0.030, 0.050, 0.022) * (0.6 + 0.8 * tri1(P, Nw, 3.0).b); wR = 0.6;',
   bud: () => 'float g = 0.6 + 0.4 * sin(uTime * 0.7 + P.x * 5.0 + P.z * 3.0); wA = vec3(0.03, 0.07, 0.05); wE = vec3(0.05, 0.50, 0.38) * g * (0.35 + 0.65 * smoothstep(-0.2, 0.9, Nw.y)); wR = 0.35;',
   bark: () => `
@@ -330,6 +394,18 @@ const SAFE = `
     gl_FragColor *= 1.0 - 0.85 * uSafeOn * (1.0 - smoothstep(0.28, 0.62, sd)); }`;
 const SAFE_HEAD = 'uniform float uSafeOn; uniform vec3 uS0; uniform vec3 uS1; uniform vec3 uS2;\n';
 
+/* Grass (instanced blades, root at y = 0, tip at y = 1): a hand among the blades leans them away from it, the tips most. */
+const TOUCH_VS = `
+  #ifdef USE_INSTANCING
+  { vec3 root = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz; float bh = length((modelMatrix * instanceMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+    vec3 push = vec3(0.0);
+    for (int k = 0; k < 2; k++) { vec3 hp = k == 0 ? uH0 : uH1; vec2 dd = root.xz - hp.xz + vec2(0.003, 0.001); float dh = length(dd), hy = hp.y - root.y;
+      float infl = (1.0 - smoothstep(0.04, 0.27, dh)) * (1.0 - smoothstep(bh, bh + 0.12, hy)) * smoothstep(-0.2, -0.05, hy);
+      push.xz += dd / dh * infl; push.y -= infl * 0.35; }
+    push *= position.y * position.y * min(bh * 0.8, 0.34);
+    mvPosition.xyz += mat3(viewMatrix) * push; gl_Position = projectionMatrix * mvPosition; vWP += push; }
+  #endif`;
+
 const QUAD_VS = `
   varying vec3 vDir;
   void main() {
@@ -400,6 +476,8 @@ const SKY = {
     if (h < 0.0) col = mix(vec3(0.42, 0.27, 0.19), hor * 0.8, exp(h * 14.0));
     gl_FragColor = vec4(col * uBright, 1.0);
   }`,
+  /* deep space; uSpin turns the whole sky (you tumble, it does not) */
+  rum: SPACE_GLSL + 'uniform mat3 uSpin; void main() { gl_FragColor = vec4(spaceSky(uSpin * normalize(vDir)), 1.0); }',
 };
 const CLEAR_FS = 'void main() { gl_FragColor = vec4(0.0); }';
 
@@ -407,12 +485,13 @@ const CLEAR_FS = 'void main() { gl_FragColor = vec4(0.0); }';
 
 export function createWorlds(scene, renderer, params) {
   const noise = makeNoiseTexture();
-  const timeU = { value: 0 }, brightU = { value: 1 }, noiseU = { value: noise };
+  const timeU = { value: 0 }, brightU = { value: 1 }, noiseU = { value: noise }, spinU = { value: new THREE.Matrix3() };
+  const handU = { uH0: { value: new V(0, -99, 0) }, uH1: { value: new V(0, -99, 0) } };      // the hands, for the grass that parts round them
   const safeU = { uSafeOn: { value: 0 }, uS0: { value: new V() }, uS1: { value: new V() }, uS2: { value: new V() } };
   const PASS = new V(0, 1, 0);
 
   const W = DIMS.map((d, i) => ({
-    ...d, i, group: new THREE.Group(), deco: new THREE.Group(), scan: new THREE.Group(), mats: [], tick: [], anchored: false,
+    ...d, i, bare: !!(d.fract || d.space), group: new THREE.Group(), deco: new THREE.Group(), scan: new THREE.Group(), mats: [], tick: [], anchored: false,
     clip: new THREE.Plane(PASS.clone(), 1e6), skyHome: null, fill: null, env: null,
     uni: { uFogCol: { value: new THREE.Color(0, 0, 0) }, uFogDen: { value: 0 }, uGrade: { value: new V(1, 1, 1) } },
     base: { fog: new THREE.Color(0, 0, 0), den: 0, grade: new V(1, 1, 1) },
@@ -457,8 +536,9 @@ export function createWorlds(scene, renderer, params) {
   function worldMat(i, surf, o = {}) {
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, side: o.side ?? THREE.DoubleSide, envMap: W[i].env, envMapIntensity: o.env ?? 1 });
     m.onBeforeCompile = sh => {
-      Object.assign(sh.uniforms, W[i].uni, { uNoise: noiseU, uTime: timeU }, o.safe ? safeU : {});
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;')
+      Object.assign(sh.uniforms, W[i].uni, { uNoise: noiseU, uTime: timeU }, o.safe ? safeU : {}, o.touch ? handU : {});
+      if (o.touch) sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + TOUCH_VS);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;' + (o.touch ? ' uniform vec3 uH0; uniform vec3 uH1;' : ''))
         .replace('#include <begin_vertex>', `#include <begin_vertex>
           #ifdef USE_INSTANCING
             vWP = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);
@@ -481,7 +561,7 @@ export function createWorlds(scene, renderer, params) {
   /* skies: one quad drawn everywhere when the dimension is home, one drawn inside the door (which also resets the depth) */
   const quadGeo = new THREE.PlaneGeometry(2, 2);
   function quad(fs, inRing) {
-    const m = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: fs, uniforms: { uTime: timeU, uBright: brightU, uNoise: noiseU }, blending: THREE.NoBlending, depthTest: true, depthWrite: inRing, depthFunc: inRing ? THREE.AlwaysDepth : THREE.LessEqualDepth });   // the home sky tests against the depth: pixels the world covers are never shaded
+    const m = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: fs, uniforms: { uTime: timeU, uBright: brightU, uNoise: noiseU, uSpin: spinU }, blending: THREE.NoBlending, depthTest: true, depthWrite: inRing, depthFunc: inRing ? THREE.AlwaysDepth : THREE.LessEqualDepth });   // the home sky tests against the depth: pixels the world covers are never shaded
     if (inRing) { m.stencilWrite = true; m.stencilRef = 1; m.stencilFunc = THREE.EqualStencilFunc; m.stencilFail = m.stencilZFail = m.stencilZPass = THREE.KeepStencilOp; }
     const q = new THREE.Mesh(quadGeo, m); q.frustumCulled = false; q.renderOrder = inRing ? ORDER.fill : ORDER.bgHome; q.visible = false; scene.add(q);
     return q;
@@ -597,8 +677,54 @@ export function createWorlds(scene, renderer, params) {
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(A, 3));
     const p = new THREE.Points(geo, reg(i, new THREE.PointsMaterial({ size, map: new THREE.CanvasTexture(dot), color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending })));
     p.frustumCulled = false; W[i].deco.add(p);
-    W[i].tick.push((dt, t) => { for (let k = 0; k < count; k++) { A[k * 3 + 1] += (rise + rise * 0.6 * Math.sin(t * 0.7 + k)) * dt; A[k * 3] += Math.sin(t * 0.3 + k * 1.7) * 0.02 * dt; if (A[k * 3 + 1] > box[1]) A[k * 3 + 1] = 0.1; } geo.attributes.position.needsUpdate = true; });
+    W[i].tick.push((dt, t) => { for (let k = 0; k < count; k++) { A[k * 3 + 1] += (rise + rise * 0.6 * Math.sin(t * 0.7 + k)) * dt; A[k * 3] += Math.sin(t * 0.3 + k * 1.7) * 0.02 * dt; if (A[k * 3 + 1] > box[1]) A[k * 3 + 1] = 0.1; }
+      if (HLw === i) for (let h = 0; h < 2; h++) { if (!HLon[h]) continue; const hp = HL[h];        // the dust in the air swirls away from a hand
+        for (let k = 0; k < count; k++) { const dx = A[k * 3] - hp.x, dy = A[k * 3 + 1] - hp.y, dz = A[k * 3 + 2] - hp.z, d2 = dx * dx + dy * dy + dz * dz; if (d2 < 0.05 && d2 > 1e-6) { const d = Math.sqrt(d2), f = (0.224 - d) / d * Math.min(1, dt * 9); A[k * 3] += dx * f; A[k * 3 + 1] += dy * f; A[k * 3 + 2] += dz * f; } } }
+      geo.attributes.position.needsUpdate = true; });
   }
+
+  /* ---- things that give when a hand passes ----
+   * A rod is a thin stiff thing hinged at its foot (a stalk, a straw) or hung from its top (a cable). It has a lean (sideways metres per metre of length), a spring
+   * that pulls the lean back to rest and a little friction. A hand is a ball: where it overlaps the rod at the hand's own height, the rod is moved out of the hand
+   * and takes on the hand's speed, so a slow hand bends it aside and a quick one sends it swinging. All in the dimension's own (door-anchored) coordinates. */
+  const HL = [new V(), new V()], HV = [new V(), new V()], HLon = [false, false], HLprev = [new V(), new V()]; let HLw = -1, headRef = new V(0, 1.6, 0);
+  const rods = [], UP = new V(0, 1, 0), DOWN = new V(0, -1, 0), _rv = new V(), _rq = new THREE.Quaternion();
+  const fire = (kind, strength, hand) => { if (api.onTouch) api.onTouch(kind, strength, hand); };
+  function makeRod(i, g, o) { const r = { i, g, host: o.host || g, len: o.len, hang: !!o.hang, cq: o.cq || 0, rx: o.rx || 0, rz: o.rz || 0, k: o.k, c: o.c, lx: 0, lz: 0, vx: 0, vz: 0, sw: o.sw || 0, ph: rnd(0, TAU), R: o.R || 0.06, kind: o.kind, hit: 0, max: o.max || 1.1 }; rods.push(r); return r; }
+  function rodsUpdate(dt, t, cur) {
+    for (const r of rods) {
+      if (r.i !== cur || !r.host.visible) continue;
+      r.vx += (-r.k * r.lx - r.c * r.vx) * dt; r.vz += (-r.k * r.lz - r.c * r.vz) * dt; r.lx += r.vx * dt; r.lz += r.vz * dt; r.hit -= dt;
+      const bx = r.g.position.x + (r.host !== r.g ? r.host.position.x : 0), by = r.g.position.y + (r.host !== r.g ? r.host.position.y : 0), bz = r.g.position.z + (r.host !== r.g ? r.host.position.z : 0);
+      if (HLw === cur) for (let h = 0; h < 2; h++) {
+        if (!HLon[h]) continue;
+        const hp = HL[h], y = r.hang ? by - hp.y : hp.y - by; if (y < 0.04 || y > r.len + 0.04) continue;
+        const u = Math.min(1, y / r.len), cx = bx + r.cq * u * u * r.len + (r.rx + r.lx) * y, cz = bz + (r.rz + r.lz) * y;
+        let dx = hp.x - cx, dz = hp.z - cz, d = Math.hypot(dx, dz); if (d >= r.R) continue;
+        if (d < 1e-4) { dx = -HV[h].x; dz = -HV[h].z; d = Math.hypot(dx, dz); if (d < 1e-4) { dx = 1; dz = 0; d = 1; } }
+        const nx = dx / d, nz = dz / d, lever = Math.max(y, 0.15), dl = (r.R - Math.hypot(hp.x - cx, hp.z - cz)) / lever;
+        r.lx -= nx * dl; r.lz -= nz * dl;
+        const hv = -(HV[h].x * nx + HV[h].z * nz), rv = -(r.vx * nx + r.vz * nz) * lever;       // how fast the hand comes on, and how fast the rod already gets out of the way
+        if (hv > rv) { const dv = (hv - rv) / lever; r.vx -= nx * dv; r.vz -= nz * dv; }
+        if (r.hit <= 0) fire(r.kind, Math.min(1, Math.max(0, hv) / 1.2), h); r.hit = 0.3;
+      }
+      const l = Math.hypot(r.lx, r.lz); if (l > r.max) { r.lx *= r.max / l; r.lz *= r.max / l; r.vx *= 0.5; r.vz *= 0.5; }
+      const sx = Math.sin(t * 0.5 + r.ph) * r.sw, sz = Math.cos(t * 0.4 + r.ph) * r.sw * 0.7;
+      _rv.set(r.rx + r.lx + sx, r.hang ? -1 : 1, r.rz + r.lz + sz).normalize(); r.g.quaternion.setFromUnitVectors(r.hang ? DOWN : UP, _rv);
+    }
+  }
+  /** Put a dimension's touchable things where you can actually get at them: on free floor you can walk to, near the door but out of the doorway. */
+  function placeTouch(w) {
+    if (!w.touch) return; w.deco.updateMatrixWorld(true); const used = [];
+    const ok = (x, z) => { for (const u of used) if (Math.hypot(u[0] - x, u[1] - z) < 0.45) return false; if (!grid.size) return true;
+      _p.set(x, 0, z).applyMatrix4(w.deco.matrixWorld); const px = _p.x, pz = _p.z, top = columnTop(px, pz, 1.9); return (top === null || top < 0.14) && reachable(headRef, px, pz, 0.3); };
+    for (const tc of w.touch) {
+      let x = tc.x, z = tc.z, good = ok(x, z);
+      for (let k = 0; k < 40 && !good; k++) { x = rnd(-2.3, 2.3); z = rnd(-3.0, 1.6); if (Math.abs(x) < 0.5 && z > -1.0 && z < 0.7) continue; good = ok(x, z); }
+      tc.host.visible = good; if (good) { tc.host.position.x = x; tc.host.position.z = z; used.push([x, z]); }
+    }
+  }
+  const touchAt = (i, host, x, z) => { host.position.x = x; host.position.z = z; (W[i].touch = W[i].touch || []).push({ host, x, z }); W[i].deco.add(host); return host; };
 
   /* ---- 0: the real room. Only the laptop preview gets something to look at. ---- */
   if (params.has('flat')) {
@@ -617,7 +743,7 @@ export function createWorlds(scene, renderer, params) {
     const ground = worldMat(i, SURF.moss(0.5), { env: 0.9 });
     floorOf(i, ground); W[i].scanMat = worldMat(i, SURF.moss(0.8), { env: 0.9, key: 's', safe: true });
     const stalkM = worldMat(i, SURF.stalk(), { env: 0.5 }), budM = worldMat(i, SURF.bud(), { env: 0.5 }), barkM = worldMat(i, SURF.bark(), { env: 0.6 });
-    const capM = worldMat(i, SURF.cap(), { env: 0.6 }), stemM = worldMat(i, SURF.stem(), { env: 0.5 }), bladeM = worldMat(i, SURF.blade(), { env: 0.4 });
+    const capM = worldMat(i, SURF.cap(), { env: 0.6 }), stemM = worldMat(i, SURF.stem(), { env: 0.5 }), bladeM = worldMat(i, SURF.blade(), { env: 0.4, touch: true, key: 't' });
     /* mossy stones */
     const stones = [rockGeometry(3, 11.3), rockGeometry(3, 5.1)], spots = [];
     const stone = (x, z, s) => { const m = new THREE.Mesh(stones[(Math.random() * 2) | 0], ground); m.scale.set(s * rnd(0.9, 1.3), s * rnd(0.55, 0.85), s * rnd(0.9, 1.3)); m.position.set(x, 0.3 * m.scale.y, z); m.rotation.y = rnd(0, TAU); D.add(m); spots.push([x, z, s]); };
@@ -653,9 +779,25 @@ export function createWorlds(scene, renderer, params) {
       const pts = []; for (let j = 0; j <= 5; j++) { const t = j / 5; pts.push(new V(lean * t * t * h + rnd(-0.012, 0.012) * j, t * h, rnd(-0.012, 0.012) * j)); }
       g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, rnd(0.005, 0.01), 6, false), stalkM));
       const bud = new THREE.Mesh(new THREE.SphereGeometry(rnd(0.014, 0.026), 12, 9), budM); bud.position.copy(pts[5]); bud.scale.y = 1.7; g.add(bud);
-      g.position.set(Math.sin(a) * d, 0, -Math.cos(a) * d); g.userData.p = rnd(0, TAU); g.userData.sw = rnd(0.02, 0.05); D.add(g); stalks.push(g);
+      g.position.set(Math.sin(a) * d, 0, -Math.cos(a) * d); D.add(g); stalks.push(g);
+      makeRod(i, g, { len: h, cq: lean, k: 30, c: 1.3, sw: rnd(0.02, 0.05), kind: 'stalk' });
     }
-    W[i].tick.push((dt, t) => { for (const g of stalks) { g.rotation.z = Math.sin(t * 0.5 + g.userData.p) * g.userData.sw; g.rotation.x = Math.cos(t * 0.4 + g.userData.p) * g.userData.sw * 0.7; } });
+    /* and within reach of the door: stalks to brush aside, and grass tall enough to run a hand through */
+    const near = [[-0.85, -0.9], [0.95, -1.35], [-1.15, 0.75], [1.25, 0.65], [0.3, -2.1], [-0.55, -1.75]];
+    for (const [x, z] of near) {
+      const host = touchAt(i, new THREE.Group(), x, z), n = 2 + ((Math.random() * 2) | 0);
+      for (let k = 0; k < n; k++) {
+        const h = rnd(0.95, 1.5), g = new THREE.Group(), geo = new THREE.CylinderGeometry(0.004, 0.008, h, 6, 5); geo.translate(0, h / 2, 0);
+        g.add(new THREE.Mesh(geo, stalkM)); const bud = new THREE.Mesh(new THREE.SphereGeometry(rnd(0.016, 0.026), 12, 9), budM); bud.position.y = h; bud.scale.y = 1.7; g.add(bud);
+        g.position.set(rnd(-0.08, 0.08), 0, rnd(-0.08, 0.08)); host.add(g);
+        makeRod(i, g, { host, len: h, rx: rnd(-0.12, 0.12), rz: rnd(-0.12, 0.12), k: 34, c: 1.2, sw: rnd(0.015, 0.035), kind: 'stalk' });
+      }
+    }
+    for (const [x, z] of [[0.78, -0.55], [-0.95, -1.5], [1.45, -0.3], [-1.45, -0.15], [0.2, -2.7], [1.0, 1.15], [-0.9, 1.35], [-0.2, -1.45]]) {
+      const NT = 26, tuft = new THREE.InstancedMesh(bg, bladeM, NT);
+      for (let k = 0; k < NT; k++) { e.set(rnd(-0.22, 0.22), rnd(0, TAU), rnd(-0.22, 0.22)); q.setFromEuler(e); sc.set(rnd(1.4, 2.6), rnd(0.35, 0.85), 1.6); const a = rnd(0, TAU), r = Math.sqrt(Math.random()) * 0.16; ps.set(Math.cos(a) * r, 0, Math.sin(a) * r); tuft.setMatrixAt(k, m4.compose(ps, q, sc)); }
+      tuft.frustumCulled = false; touchAt(i, tuft, x, z);
+    }
     motes(i, 110, 0xa8ffe8, 0.022, 0.35, [4, 2.6, 7], 0.02);
   }
 
@@ -682,7 +824,7 @@ export function createWorlds(scene, renderer, params) {
     /* a console block and a valve near the door */
     const bx = add(new THREE.BoxGeometry(0.72, 1.05, 0.46), plate, 1.75, 0.525, -2.3, 0, -0.35); bx.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.035, 0.02), ember)); bx.children[0].position.set(0, 0.3, 0.235);
     const top = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.04, 0.52), steel); top.position.y = 0.545; bx.add(top);
-    const valve = new THREE.Group(); valve.position.set(-1.6, 0.95, -2.6); D.add(valve);
+    const valve = new THREE.Group(); valve.position.y = 0.95; touchAt(i, valve, -1.25, -1.9);
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.95, 18), steel); stem.position.y = -0.475; valve.add(stem);
     const wheel = new THREE.Group(); wheel.position.y = 0.06; wheel.rotation.x = Math.PI / 2 - 0.5; valve.add(wheel);
     wheel.add(new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.017, 10, 30), copper));
@@ -693,7 +835,27 @@ export function createWorlds(scene, renderer, params) {
     gear.add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.7, 24).rotateX(Math.PI / 2), steel));
     for (let k = 0; k < 6; k++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.22, 5.2, 0.16), steel); sp.rotation.z = k * Math.PI / 6; gear.add(sp); }
     for (let k = 0; k < 24; k++) { const a = k / 24 * TAU, tth = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.5), steel); tth.position.set(Math.cos(a) * 3.05, Math.sin(a) * 3.05, 0); tth.rotation.z = a + Math.PI / 2; gear.add(tth); }
-    W[i].tick.push((dt, t) => { gear.rotation.z = t * 0.05; wheel.rotation.z = Math.sin(t * 0.2) * 0.2; });
+    /* the valve wheel turns under a hand: the hand's speed along the rim becomes the wheel's, and it runs on until its friction stops it */
+    const VW = { w: 0, a: 0, tick: 0, ax: new V(0, -Math.sin(Math.PI / 2 - 0.5), Math.cos(Math.PI / 2 - 0.5)), c: new V(), rel: new V(), tan: new V() };
+    W[i].tick.push((dt, t) => {
+      gear.rotation.z = t * 0.05;
+      if (HLw === i && valve.visible) for (let h = 0; h < 2; h++) {
+        if (!HLon[h]) continue;
+        VW.c.copy(valve.position); VW.c.y += 0.06; VW.rel.copy(HL[h]).sub(VW.c); const ha = VW.rel.dot(VW.ax); VW.rel.addScaledVector(VW.ax, -ha); const rr = VW.rel.length();
+        if (Math.abs(ha) < 0.08 && rr > 0.07 && rr < 0.26) { VW.tan.crossVectors(VW.ax, VW.rel).multiplyScalar(1 / rr); VW.w += (clamp(HV[h].dot(VW.tan) / rr, -14, 14) - VW.w) * Math.min(1, dt * 16); VW.hand = h; }
+      }
+      VW.w *= Math.exp(-dt * 0.8); if (Math.abs(VW.w) < 0.02) VW.w = 0; VW.a += VW.w * dt; wheel.rotation.z = VW.a;
+      const tk = Math.floor(VW.a / (Math.PI / 9)); if (tk !== VW.tick) { VW.tick = tk; fire('valve', Math.min(1, Math.abs(VW.w) / 8), VW.hand || 0); }
+    });
+    /* cables with a hook, hanging out of the haze: push one and it swings, slowly, for a long time */
+    const cabG = new THREE.CylinderGeometry(0.005, 0.005, 1, 6); cabG.translate(0, -0.5, 0);
+    for (const [x, z, hy] of [[-0.9, -0.85, 1.32], [0.95, -1.45, 1.12], [-1.35, 0.65, 1.45], [1.35, 0.95, 1.25]]) {
+      const topY = 9, L = topY - hy, g = new THREE.Group(); g.position.y = topY;
+      const cab = new THREE.Mesh(cabG, steel); cab.scale.y = L - 0.1; g.add(cab);
+      const wt = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.022, 0.11, 14), steel); wt.position.y = -(L - 0.1) - 0.045; g.add(wt);
+      const hook = new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.008, 8, 18, Math.PI * 1.45), copper); hook.position.y = -L - 0.035; hook.rotation.z = Math.PI * 0.8; g.add(hook);
+      touchAt(i, g, x, z); makeRod(i, g, { len: L + 0.08, hang: true, k: 9.81 / L, c: 0.1, R: 0.075, kind: 'cable', max: 0.5 });
+    }
     motes(i, 60, 0xcfe0ff, 0.018, 0.25, [4, 3.2, 9], 0.008);
   }
 
@@ -711,7 +873,47 @@ export function createWorlds(scene, renderer, params) {
     const pg = rockGeometry(1, 2.2), N = 170, inst = new THREE.InstancedMesh(pg, rock, N), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new V(), ps = new V();
     for (let k = 0; k < N; k++) { const a = rnd(0, TAU), r = Math.sqrt(Math.random()) * 6.5, s = rnd(0.015, 0.075) * (Math.random() < 0.08 ? 2.2 : 1); e.set(rnd(0, 0.5), rnd(0, TAU), rnd(0, 0.5)); q.setFromEuler(e); sc.set(s * rnd(0.8, 1.4), s * rnd(0.5, 0.9), s * rnd(0.8, 1.4)); ps.set(Math.cos(a) * r, sc.y * 0.3, Math.sin(a) * r - 2); inst.setMatrixAt(k, m4.compose(ps, q, sc)); }
     inst.frustumCulled = false; D.add(inst);
+    /* tufts of dry straw growing out of the sand: every straw gives on its own when a hand goes through */
+    const strawM = worldMat(i, SURF.straw(), { env: 0.3 });
+    for (const [x, z] of [[0.8, -0.6], [-0.9, -1.2], [1.4, 0.5], [-1.3, 0.55], [0.35, -2.2], [-0.5, -2.0], [1.1, 1.3], [-1.0, 1.5]]) {
+      const host = touchAt(i, new THREE.Group(), x, z), n = 7 + ((Math.random() * 5) | 0);
+      for (let k = 0; k < n; k++) {
+        const h = rnd(0.55, 1.2), g = new THREE.Group(), geo = new THREE.CylinderGeometry(0.0014, 0.0034, h, 5, 1); geo.translate(0, h / 2, 0);
+        g.add(new THREE.Mesh(geo, strawM)); const head = new THREE.Mesh(new THREE.SphereGeometry(0.006, 7, 5), strawM); head.scale.y = 5; head.position.y = h; g.add(head);
+        const a = rnd(0, TAU), r = rnd(0, 0.07); g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); host.add(g);
+        makeRod(i, g, { host, len: h, rx: Math.cos(a) * rnd(0.05, 0.3), rz: Math.sin(a) * rnd(0.05, 0.3), k: 60, c: 2.2, sw: rnd(0.01, 0.03), R: 0.055, kind: 'straw' });
+      }
+    }
     motes(i, 70, 0xffd9b0, 0.016, 0.22, [4, 2.6, 8], 0.006);
+  }
+
+  /* ---- deep space: the sky is a shader (SPACE_GLSL); these are the stars near enough to have a place: you see them at their own distance, and they slide
+   * against the far ones when you move your head ---- */
+  const SP = { q: new THREE.Quaternion(), stars: new THREE.Group() };
+  {
+    const i = W.findIndex(w => w.space), N = 1100, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), lum = new Float32Array(N), c = new THREE.Color(), d = new V();
+    for (let k = 0; k < N; k++) {
+      do d.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)); while (d.lengthSq() > 1 || d.lengthSq() < 0.01);
+      d.normalize().multiplyScalar(2.2 * Math.pow(32, Math.pow(Math.random(), 0.55)));                     // from just out of reach to 70 m, most of them far
+      pos[k * 3] = d.x; pos[k * 3 + 1] = d.y; pos[k * 3 + 2] = d.z;
+      const tt = Math.random(); if (tt < 0.42) c.setRGB(1, 0.66 + 0.29 * tt / 0.42, 0.42 + 0.46 * tt / 0.42); else if (tt < 0.6) c.setRGB(1, 0.95, 0.88); else c.setRGB(1 - 0.32 * (tt - 0.6) / 0.4, 0.95 - 0.15 * (tt - 0.6) / 0.4, 0.88 + 0.12 * (tt - 0.6) / 0.4);
+      col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; lum[k] = 0.45 + 1.9 * Math.pow(Math.random(), 3);
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('aCol', new THREE.BufferAttribute(col, 3)); geo.setAttribute('aL', new THREE.BufferAttribute(lum, 1));
+    const m = reg(i, new THREE.ShaderMaterial({ uniforms: { uScale: { value: 900 } }, clipping: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: `attribute vec3 aCol; attribute float aL; uniform float uScale; varying vec3 vC; varying float vB;
+        #include <clipping_planes_pars_vertex>
+        void main() { vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          #include <clipping_planes_vertex>
+          float sz = aL * 0.05 * uScale / max(-mvPosition.z, 0.4), px = clamp(sz, 3.0, 56.0);                // a point of light with a little glow; never less than a few pixels
+          vB = min(1.0, sz * sz / (px * px)) * 0.5 + 0.5 * min(1.0, sz / px); vC = aCol; gl_PointSize = px; gl_Position = projectionMatrix * mvPosition; }`,
+      fragmentShader: `precision highp float; varying vec3 vC; varying float vB;
+        #include <clipping_planes_pars_fragment>
+        void main() {
+          #include <clipping_planes_fragment>
+          float d = length(gl_PointCoord - 0.5) * 2.0, core = exp(-d * d * 22.0), halo = max(0.0, 1.0 - d); halo *= halo * halo * 0.22;
+          gl_FragColor = vec4(mix(vC, vec3(1.0), core * 0.6) * (core * 1.5 + halo) * vB, 1.0); }` }));
+    const p = new THREE.Points(geo, m); p.frustumCulled = false; SP.stars.add(p); SP.stars.position.set(0, 1.4, -1.6); W[i].group.add(SP.stars);
   }
 
   /* ---- the scanned room, wearing each dimension's surface ---- */
@@ -807,7 +1009,7 @@ export function createWorlds(scene, renderer, params) {
     const gs = [];
     for (const w of W) {
       const g = new THREE.Group(); g.matrixAutoUpdate = false; g.matrix.fromArray(matrix); g.matrixWorldNeedsUpdate = true;
-      if (w.fract) { const h = new THREE.Mesh(geo, holeMat), gh = new THREE.Mesh(geo, ghostMat); h.renderOrder = 6; gh.renderOrder = 7; h.userData.keepOrder = gh.userData.keepOrder = true; g.add(h, gh); }
+      if (w.bare) { const h = new THREE.Mesh(geo, holeMat), gh = new THREE.Mesh(geo, ghostMat); h.renderOrder = 6; gh.renderOrder = 7; h.userData.keepOrder = gh.userData.keepOrder = true; g.add(h, gh); }
       else { g.add(new THREE.Mesh(geo, w.i === 0 ? pastMat : w.scanMat)); if (wire && w.i) g.add(new THREE.Mesh(geo, wire)); }
       w.scan.add(g); gs.push(g);
     }
@@ -834,7 +1036,7 @@ export function createWorlds(scene, renderer, params) {
   }
 
   const api = {
-    W, dirty: false, updateScan, nearest, addScan, scanInfo, columnTop, lineClear, reachable, hasScan: () => grid.size > 0, pastAmount: 0,
+    W, dirty: false, onTouch: null, noise, rods, updateScan, nearest, addScan, scanInfo, columnTop, lineClear, reachable, hasScan: () => grid.size > 0, pastAmount: 0,
     /** 0..1: how strongly the room's shape glows (the past). */
     setPast(v) { api.pastAmount = v; pastU.uAmt.value = v; W[0].scan.visible = v > 0.001; },
     /** cur is home (drawn everywhere), oth is seen through the door, the rest are off. */
@@ -844,7 +1046,7 @@ export function createWorlds(scene, renderer, params) {
         w.group.visible = role !== 'off';
         for (const m of w.mats) m.stencilWrite = role === 'other';
         if (role !== 'off') w.group.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine) && !o.userData.keepOrder) o.renderOrder = role === 'home' ? ORDER.home : ORDER.other; });
-        if (w.fract) w.scan.visible = role === 'home';                // the room's outline only when you stand in the fractal, not through the door
+        if (w.bare) w.scan.visible = role === 'home';                 // the room's outline only when you stand in the fractal (or in space), not through the door
         if (w.skyHome) w.skyHome.visible = role === 'home';
         w.fill.visible = role === 'other';
         if (role !== 'other') w.clip.set(PASS, 1e6);
@@ -854,7 +1056,7 @@ export function createWorlds(scene, renderer, params) {
     /** Keep only what is behind the door, seen from where you stand. */
     setClip(oth, normal, point) { W[oth].clip.setFromNormalAndCoplanarPoint(normal, point); },
     /** Put a dimension's own things round the door, once, so they do not jump when you cut a new door while standing among them. */
-    anchor(i, x, z, yaw, force) { const w = W[i]; if (w.anchored && !force) return; w.deco.position.set(x, 0, z); w.deco.rotation.set(0, yaw, 0); w.anchored = true; if (w.march) { w.fr.A.set(x, 0, z); w.fr.yaw = -yaw; w.fr.S = w.fr.f.S; w.fr.off.set(...w.fr.f.off); w.fr.param = w.fr.f.par[0]; w.fr.param2 = w.fr.f.par2[0]; syncFr(w); } },
+    anchor(i, x, z, yaw, force) { const w = W[i]; if (w.anchored && !force) return; w.deco.position.set(x, 0, z); w.deco.rotation.set(0, yaw, 0); w.anchored = true; placeTouch(w); if (w.space) SP.stars.position.set(x, 1.4, z); if (w.march) { w.fr.A.set(x, 0, z); w.fr.yaw = -yaw; w.fr.S = w.fr.f.S; w.fr.off.set(...w.fr.f.off); w.fr.param = w.fr.f.par[0]; w.fr.param2 = w.fr.f.par2[0]; syncFr(w); } },
     renderFractals, fractalScale: () => FR.scale,
     /** 0..1: how visible the room's outline is in a fractal dimension (it fades while you stand still). The opening onto the real room near you is not affected. */
     setGhost(v) { ghostU.value = v; },
@@ -868,8 +1070,36 @@ export function createWorlds(scene, renderer, params) {
     fractScale(i, h, factor) { const w = W[i]; if (!w.fr) return; toF(w, h, _f1); w.fr.S = Math.min(w.fr.f.S * 12, Math.max(w.fr.f.S / 12, w.fr.S * factor)); toF(w, h, _f2); w.fr.off.add(_f1).sub(_f2); keepIn(w, h); },
     fractParam(i, which, dir, dt) { const w = W[i]; if (!w.fr) return; const key = which ? 'param2' : 'param', [, lo, hi] = which ? w.fr.f.par2 : w.fr.f.par; w.fr[key] = Math.min(hi, Math.max(lo, w.fr[key] + dir * dt * (hi - lo) / 7)); syncFr(w); },
     fractState: i => W[i].fr,
-    update(dt, t, bright, cur, oth, safe) {
+    /** The head, kept by reference: where "can you walk there" is measured from. */
+    setHead(v) { headRef = v; },
+    /** Deep space: the whole sky turns about your head by the rotation vector w (radians a second, world axes). You tumble; you do not get anywhere. */
+    spaceSpin(h, w, dt) {
+      const a = w.length() * dt; if (a < 1e-7) return;
+      _rq.setFromAxisAngle(_rv.copy(w).normalize(), a); SP.q.premultiply(_rq).normalize();
+      SP.stars.position.sub(h).applyQuaternion(_rq).add(h); SP.stars.quaternion.copy(SP.q);
+      spinU.value.setFromMatrix4(_m4.makeRotationFromQuaternion(_rq.copy(SP.q).invert()));
+    },
+    /** A still picture of dimension i as it looks from cam through the door (only what lies beyond the plane n, p), into rt. Used while the door changes where it leads. */
+    snapshot(i, cam, rt, n, p) {
+      const w = W[i], xrWas = renderer.xr.enabled, rtWas = renderer.getRenderTarget(); renderer.xr.enabled = false; cam.updateMatrixWorld();
+      if (w.fract) { const calm = FR.calm; FR.calm = false; renderFractals([{ matrix: cam.matrixWorld.elements, proj: cam.projectionMatrix.elements }], i, -1, FR.ema); FR.calm = calm; renderer.xr.enabled = false; }
+      api.applyRoles(i, -1); w.clip.setFromNormalAndCoplanarPoint(n, p); if (w.bare) w.scan.visible = false;
+      const on = o => { o.layers.enable(3); }, off = o => { o.layers.disable(3); };
+      scene.traverse(o => { if (o.isLight) o.layers.enable(3); }); w.group.traverse(on); if (w.skyHome) w.skyHome.traverse(on);
+      cam.layers.set(3); renderer.setRenderTarget(rt); renderer.render(scene, cam);
+      w.group.traverse(off); if (w.skyHome) w.skyHome.traverse(off);
+      renderer.setRenderTarget(rtWas); renderer.xr.enabled = xrWas; api.dirty = true;
+    },
+    update(dt, t, bright, cur, oth, safe, hands) {
       timeU.value = t; brightU.value = bright;
+      /* the hands, in the home dimension's own coordinates (for the things that give when touched) and in the world's (for the grass) */
+      const wc = W[cur], live = hands && cur > 0 && !wc.bare;
+      for (let h = 0; h < 2; h++) {
+        const hd = live && hands[h] && hands[h].on ? hands[h] : null; (h ? handU.uH1 : handU.uH0).value.copy(hd ? hd.pos : _p.set(0, -99, 0));
+        if (hd) { HLprev[h].copy(HL[h]); HL[h].copy(hd.pos).sub(wc.deco.position).applyAxisAngle(UP, -wc.deco.rotation.y); if (HLon[h] && HLw === cur && dt > 1e-4) { HV[h].copy(HL[h]).sub(HLprev[h]).multiplyScalar(1 / dt); if (HV[h].length() > 3) HV[h].setLength(3); } else HV[h].set(0, 0, 0); }      // (a tracking jump is not a blow)
+        HLon[h] = !!hd;
+      }
+      HLw = live ? cur : -1; rodsUpdate(dt, t, cur);
       safeU.uSafeOn.value = safe ? 1 : 0; if (safe) { safeU.uS0.value.copy(safe[0]); safeU.uS1.value.copy(safe[1]); safeU.uS2.value.copy(safe[2]); }
       for (const w of W) {
         w.uni.uFogCol.value.copy(w.base.fog).multiplyScalar(bright); w.uni.uGrade.value.copy(w.base.grade).multiplyScalar(bright);

@@ -1,0 +1,110 @@
+# VR apps: what a new session needs to know
+
+Quest 3 passthrough WebXR apps, plain JavaScript modules, three.js r170 vendored in each app (`vendor/`), no
+build step. Each app's own `README.md` (Danish) documents its design in detail; this file is the handover:
+rules, testing, architecture in brief, and pitfalls.
+
+| App | Folder | State |
+|---|---|---|
+| Mutant Rotte Angreb | `tank-ambush/` | Finished and live. Difficulty Begynder/Let/Mellem/Svær. No open work. |
+| Portalkniven | `portalkniven/` | Live, in active development. Everything below is about this one. |
+| Guldplaneten | `guldplaneten/` | Not touched in the Portalkniven sessions. |
+
+## Working rules (set by the owner)
+
+- **Danish, plain language.** Short answers that lead with what he needs to know or decide.
+- **Branch, PR, wait.** Never merge without an explicit yes ("ja, merge", "jatak"). After merging, check the
+  Pages run (`gh api -X GET repos/peterboggild/BrokildApps/actions/runs -f per_page=3`) and report that it is live.
+  The live site cannot be fetched from a cloud session; the workflow result is the evidence.
+- **Say when you are done.** Send a notification when requested work is finished or live.
+- **Be honest about testing.** Every report says: tested in the flat preview / not tested in the headset, and
+  lists what he should look for in the headset (frame rate, stereo, comfort, feel).
+- **When he asks for a design choice, offer options** as a short question with choices, not an essay.
+- **Say no when something will not be convincing.** He asks for that explicitly ("giv mig et nej"). A scoped yes
+  with the unconvincing part left out, and said so, is what he wants.
+- **Cache busting:** `index.html` loads `portal.js?v=N`, and `portal.js` imports `./worlds.js?v=N` and
+  `./story.js?v=N`. Raise all three together on every change, or the headset keeps old code.
+- Code comments and commit messages in English; everything the player or the owner reads in Danish.
+- He corrects wording himself; when given Danish text for the game, fix obvious typos and tell him which.
+- Music: the three tracks in `portalkniven/music/` are his own. An earlier set was removed from `main` (history
+  rewritten at his request). Do not add audio files he has not supplied.
+
+## Testing without a headset
+
+- Serve the repo root: `python3 -m http.server 8765`, open `/vr-apps/portalkniven/?flat` (story),
+  `?flat&free` (free play), `?flat&nohelp`. Also `?sharp=taa|res|off`, `?tilt=deg`, `?skin=wire`.
+- Playwright with Chromium and software GL:
+  `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader --ignore-gpu-blocklist --no-sandbox`.
+- Software rendering is very slow (seconds per frame in the heavy worlds). **Wait by frames
+  (`requestAnimationFrame`), never by time**, and run long tests in the background. A screenshot takes several
+  frames, so anything timed must be frozen first (see `VX.pause`).
+- Test hooks on `window.__portal`: `S` (state: `cur`, `oth`, `placed`), `placeDirect()` (a door 1.6 m ahead),
+  `walk(x,y,z)` (move the head and check for crossing the door), `view(x,y,z,yaw,pitch)`, `hand(x,y,z)` (put a
+  hand somewhere; `hand(0,-5,0)` to take it away), `click()`, `hold(v)`, `tip(x,y,z,pressed)` (the knife point),
+  `cycleOther(dir)` (with the spiral), `setOther(i)` (at once), `dissolvePortal()`, `igniteAt(...)`, `VX`
+  (the spiral: set `VX.pause = true` and step `VX.t`), `SPN`, `FC`, `keys`, `story`, `worlds`
+  (`worlds.W`, `worlds.rods`, `worlds.addScan(...)` to fake a room scan).
+- After `view()` wait a frame before `placeDirect()`: the door is placed from the head's orientation, which is
+  only updated in the loop.
+- Look at the screenshots. A test that prints numbers is not enough for a visual effect.
+
+## Portalkniven in brief
+
+Three files: `portal.js` (renderer, knife, cutting, the door, sound, controls, the loop), `worlds.js` (the
+dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
+
+- **The door is a stencil window, not a texture.** A mask disc writes stencil 1; a full-screen "fill" quad
+  (stencil == 1, depth Always) resets depth and paints the other world's sky; the other world's objects are
+  drawn where stencil == 1 and clipped to the far side of the door's plane. Render order: home 0, home sky 5,
+  mask 10, fill 20, other 30, spiral overlay 40, ring 45. Walking through swaps `S.cur` and `S.oth`.
+  World 0 is the real room: alpha 0, passthrough.
+- **Opaque and transparent objects are sorted in separate lists** (opaque first). `renderOrder` only orders
+  within a list. Anything that must come after the other world's particles has to be `transparent: true`.
+- **Dimensions** (`DIMS`): 0 stue, 1 groen, 2 metal, 3 klippe (the three "song dimensions", one music track
+  each), 4 rum (deep space), 5 to 10 fractals. Space and fractals are `bare` (no surfaces of their own: the room
+  shows as a faint outline and opens to passthrough near head and hands) and only reachable in free play or once
+  the story is over (`story.fractalsOK()`). Indices are not hard-coded elsewhere; look worlds up by flag.
+- **Surfaces** are procedural in world space: `worldMat(i, surfGLSL, opts)` patches `MeshStandardMaterial`
+  through `onBeforeCompile`, with lookups in one tileable 256² noise texture. Sky shaders are plain
+  `ShaderMaterial` quads and are **not tone mapped**; world materials are.
+- **Room scan** (`mesh-detection`): `addScan`, an 8 cm occupancy grid (`nearest`, `columnTop`, `lineClear`) and a
+  16 cm walkability flood fill (`reachable`). Everything placed for the player (story parts, the time machine,
+  touchable things) is validated against it. With no scan, everything is allowed.
+- **Fractals** are ray-marched into small per-eye render targets and blitted behind everything, with a
+  frame-rate guard on the picture size and optional temporal sharpening at rest. Fractal units and the room are
+  tied by `toF`; flying moves the fractal, not the player.
+- **The spiral** when the stick changes the world behind the door: the window cannot be bent, so a still picture
+  of the far side (`worlds.snapshot`, a render target flagged `isXRRenderTarget` so it uses the same shaders and
+  tone curve as the screen, nothing to compile) is laid on the door and wound up by `vortexMat`.
+- **Touchable things** (`rods` in `worlds.js`): damped springs hinged at the foot or hung from the top, pushed out
+  of a hand-sized ball; grass leans in the vertex shader (`TOUCH_VS`). No physics engine, by decision.
+- **Story phases:** wait, letter, knife, play, jump, past, placed, back, free. Parts appear one at a time; the
+  door closes by itself 10 s after crossing; the stick only chooses a world from the real room until free play.
+- **Safety is not optional:** the proximity warning tone, the passthrough opening near head and hands, and the
+  warning text stay on. The owner made the safety fade mandatory.
+
+## Pitfalls already paid for
+
+- A trailing `//` comment inserted mid-line once commented out the rest of the line (the letter never appeared).
+- Replacing a block of `index.html` dropped unrelated controls. Check what a replaced block contained.
+- Patch scripts that abort half-way leave files half-edited: assert every anchor is found exactly once before
+  writing, and syntax-check after (`cp x.js /tmp/x.mjs && node --check /tmp/x.mjs`).
+- `a.add(b).sub(f(a))` evaluates after `a` has changed. Compute the second term first.
+- A reversed `smoothstep` edge order and negative emission produce red lines and black holes.
+- Test hooks that teleport a hand produce huge velocities; hand speed is clamped for that reason. Keep it.
+- Resetting the branch to `origin/main` once lost an unmerged README note. Check `git log origin/main..` first.
+- After a PR is merged (squash), the branch is restarted from `main` under the same name with a
+  force-with-lease push; a plain push is rejected.
+- `atan` seams with mip-mapped lookups draw a line across the sky: use `textureLod(..., 0.0)` there.
+- Thresholding fine noise gives speckle, and Worley cell borders used as "dark filaments" look like cracked
+  glass. Both were tried in the Milky Way and removed.
+
+## Waiting on headset feedback
+
+Frame rate in the fractals and with the temporal sharpening; whether the spiral reads well in stereo (the still
+picture is flat while it winds); comfort when turning in deep space; star shimmer; how the touchable things
+feel; the knife's tilt in the fist (`?tilt=`).
+
+## Saved, not built
+
+"Drone option" for the fractal dimensions: described at the end of `portalkniven/README.md`.
