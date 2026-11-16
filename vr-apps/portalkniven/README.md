@@ -163,6 +163,9 @@ Kun når man står i en fraktal dimension:
 * Første gang man kommer ind i en fraktal dimension, dunker og blinker begge controllere, indtil man kigger ned på dem (eller efter 40 sekunder). Der står intet; man opdager styringen ved at prøve.
 * I preview: I/K flyv, J/L drej, U/O ned/op, N/M form, komma/punktum skala.
 
+* **Skarpere i ro:** står man stille uden at røre styringen i halvandet sekund, må fraktalbilledet vokse (loftet hæves fra 55 % til 100 % af øjets opløsning, et trin ad gangen så længe
+  billedhastigheden holder), og strålerne marcheres finere. Så snart man går eller styrer, falder det tilbage til det, brillen kunne bære før. Går billedhastigheden ned i ro, huskes det niveau som loft.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option

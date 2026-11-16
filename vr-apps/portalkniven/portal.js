@@ -17,7 +17,7 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=22';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=24';
 import { createStory } from './story.js?v=21';
 
 const $ = id => document.getElementById(id);
@@ -666,7 +666,7 @@ function fractalControls(dt) {
   const sp = Math.hypot(head.x - FC.last.x, head.z - FC.last.z) / Math.max(dt, 1e-3); FC.last.copy(head);
   if (sp > 0.22) FC.still = 0; else FC.still += dt;
   FC.ghost += ((FC.still > 2 ? 0 : 1) - FC.ghost) * Math.min(1, dt * (FC.still > 2 ? 1.2 : 8)); worlds.setGhost(FC.ghost);
-  if (!inF) { tips.left.visible = tips.right.visible = false; return; }
+  if (!inF) { tips.left.visible = tips.right.visible = false; worlds.setFractalCalm(false); return; }
   let li = ctrl.findIndex(c => c.hand === 'left'), ri = ctrl.findIndex(c => c.hand === 'right'); if (li < 0) li = 0; if (ri < 0) ri = 1;
   const L = ctrl[li].src && ctrl[li].src.gamepad, R = ctrl[ri].src && ctrl[ri].src.gamepad;
   let fwd = 0, turn = 0, up = 0, par = 0, scale = 1;
@@ -683,6 +683,7 @@ function fractalControls(dt) {
   if (fwd || up) { const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize(); worlds.fractMove(S.cur, head, f.multiplyScalar(fwd * 0.9).setY(up * 0.55), dt); }
   if (scale !== 1) worlds.fractScale(S.cur, head, scale);
   if (par) worlds.fractParam(S.cur, par, dt);
+  worlds.setFractalCalm(FC.still > 1.5 && !turn && !fwd && !up && !par && scale === 1);      // standing still, hands off: the fractal may sharpen
   if (!FC.tipsDone && S.mode === 'xr') { FC.tipsDone = true; FC.tipsT = 0; FC.seen = 0; renderer.xr.getController(li).add(tips.left); renderer.xr.getController(ri).add(tips.right); }
   if (FC.tipsT >= 0) {
     FC.tipsT += dt;

@@ -63,7 +63,7 @@ const FRACT = {
 };
 const MARCH_VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 const marchFS = f => `precision highp float; varying vec2 vUv;
-  uniform vec3 uCam; uniform mat3 uRot; uniform vec4 uProj; uniform vec3 uAnchor; uniform float uYaw; uniform float uTime; uniform float uBright; uniform float uS; uniform vec3 uOff; uniform float uParam;
+  uniform vec3 uCam; uniform mat3 uRot; uniform vec4 uProj; uniform vec3 uAnchor; uniform float uYaw; uniform float uTime; uniform float uBright; uniform float uS; uniform vec3 uOff; uniform float uParam; uniform float uFine;
   ${f.glsl}
   void main() {
     vec3 rd = normalize(uRot * vec3(mix(uProj.x, uProj.y, vUv.x), mix(uProj.z, uProj.w, vUv.y), -1.0));
@@ -71,7 +71,7 @@ const marchFS = f => `precision highp float; varying vec2 vUv;
     vec3 ro = Ry * (uCam - uAnchor) * uS + uOff; rd = Ry * rd;
     float t = 0.0, d = 0.0, it = 0.0; vec4 trap = vec4(0.0); int n = 0;
     vec2 q = vUv - 0.5; float edge = dot(q, q) * 2.0;                                                       // coarser towards the edge of view
-    for (int i = 0; i < ${f.steps}; i++) { d = fde(ro + rd * t, trap, it); if (d < (0.0013 + 0.0025 * edge) * t + 0.00035 || t > ${f.maxT.toFixed(1)}) break; t += d * 0.92; n = i; }
+    for (int i = 0; i < ${f.steps}; i++) { d = fde(ro + rd * t, trap, it); if (d < (0.0013 - 0.0007 * uFine + 0.0025 * (1.0 - 0.7 * uFine) * edge) * t + 0.00035 - 0.00015 * uFine || t > ${f.maxT.toFixed(1)}) break; t += d * 0.92; n = i; }
     vec3 fog = vec3(${f.fog.map(v => v.toFixed(3)).join(', ')}), col = fog;
     if (t < ${f.maxT.toFixed(1)}) {
       vec3 p = ro + rd * t, L = normalize(vec3(0.5, 0.8, 0.3)); vec4 t2; float i2; float e = 0.002 + 0.004 * t;
@@ -432,7 +432,8 @@ export function createWorlds(scene, renderer, params) {
   for (const w of W.slice(1)) if (!w.fract) { w.skyHome = quad(SKY_HEAD + SKY[w.key], false); w.fill = quad(SKY_HEAD + SKY[w.key], true); }
 
   /* ---- fractal dimensions: ray-marched into a small picture per eye (so the cost does not depend on the headset's resolution), then laid behind everything ---- */
-  const FR = { min: params.has('flat') ? 0.5 : 0.2, scale: params.has('flat') ? 0.5 : 0.42, ema: 1 / 72, slow: 0, fast: 0, rts: {}, scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), flat: true, base: [1440, 1584] };
+  const fineU = { value: 0 };
+  const FR = { calm: false, top: 0.55, min: params.has('flat') ? 0.5 : 0.2, scale: params.has('flat') ? 0.5 : 0.42, ema: 1 / 72, slow: 0, fast: 0, rts: {}, scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), flat: true, base: [1440, 1584] };
   const frMesh = new THREE.Mesh(quadGeo, null); frMesh.frustumCulled = false; FR.scene.add(frMesh);
   const target = (role, eye) => { const k = role + eye; if (!FR.rts[k]) { FR.rts[k] = new THREE.WebGLRenderTarget(8, 8, { depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false }); } return FR.rts[k]; };
   function blit(role, eye) {
@@ -446,7 +447,7 @@ export function createWorlds(scene, renderer, params) {
   for (const w of W) if (w.fract) {
     const f = FRACT[w.key];
     w.march = new THREE.ShaderMaterial({ vertexShader: MARCH_VS, fragmentShader: marchFS(f), depthTest: false, depthWrite: false,
-      uniforms: { uCam: { value: new V() }, uRot: { value: new THREE.Matrix3() }, uProj: { value: new THREE.Vector4() }, uAnchor: { value: new V(0, 0, 0) }, uYaw: { value: 0 }, uTime: timeU, uBright: brightU, uS: { value: f.S }, uOff: { value: new V(...f.off) }, uParam: { value: f.par[0] } } });
+      uniforms: { uCam: { value: new V() }, uRot: { value: new THREE.Matrix3() }, uProj: { value: new THREE.Vector4() }, uAnchor: { value: new V(0, 0, 0) }, uYaw: { value: 0 }, uTime: timeU, uBright: brightU, uS: { value: f.S }, uOff: { value: new V(...f.off) }, uParam: { value: f.par[0] }, uFine: fineU } });
     w.fr = { f, S: f.S, yaw: 0, off: new V(...f.off), param: f.par[0], A: new V() };
     for (const role of ['home', 'other']) { const g = new THREE.Group(); for (const eye of [0, 1]) { const q = blit(role, eye); g.add(q); eyeQuads.push(q); } g.visible = false; scene.add(g); if (role === 'home') w.skyHome = g; else w.fill = g; }
   }
@@ -459,8 +460,13 @@ export function createWorlds(scene, renderer, params) {
     if (!jobs.length || !views.length) return;
     if ((views.length === 1) !== FR.flat) setEyes(views.length === 1);
     FR.ema += (dt - FR.ema) * 0.05;                                 // the frame-rate guard: slow frames shrink the picture, fast ones let it grow back
-    if (FR.ema > 1 / 58) { FR.slow += dt; FR.fast = 0; if (FR.slow > 1) { FR.slow = 0; FR.scale = Math.max(FR.min, FR.scale * 0.85); } }
-    else if (FR.ema < 1 / 70) { FR.fast += dt; FR.slow = 0; if (FR.fast > 4) { FR.fast = 0; FR.scale = Math.min(0.55, FR.scale * 1.08); } } else { FR.slow = 0; FR.fast = 0; }
+    /* Standing still with your hands off the controls, the picture may refine: the ceiling on its size rises and the rays are marched more finely,
+     * a step at a time for as long as the frame rate holds. The moment you move or steer it drops back to what it could carry before. */
+    if (FR.calm) { FR.top = 1.0; if (FR.scale <= 0.55) FR.carried = FR.scale; }
+    else { FR.top = 0.55; if (FR.scale > 0.55) FR.scale = FR.carried || 0.42; }
+    fineU.value += ((FR.calm ? 1 : 0) - fineU.value) * Math.min(1, dt * (FR.calm ? 0.8 : 10));
+    if (FR.ema > 1 / 58) { FR.slow += dt; FR.fast = 0; if (FR.slow > (FR.calm && FR.scale > 0.55 ? 0.35 : 1)) { FR.slow = 0; FR.scale = Math.max(FR.min, FR.scale * 0.85); if (FR.calm) FR.best = Math.min(FR.best || 1, FR.scale); } }
+    else if (FR.ema < 1 / 70) { FR.fast += dt; FR.slow = 0; if (FR.fast > (FR.calm ? 0.6 : 4)) { FR.fast = 0; FR.scale = Math.min(FR.calm ? Math.min(FR.top, FR.best || 1) : FR.top, FR.scale * (FR.calm ? 1.12 : 1.08)); } } else { FR.slow = 0; FR.fast = 0; }
     const size = renderer.getDrawingBufferSize(new THREE.Vector2()), bw = views.length === 1 ? size.x : FR.base[0], bh = views.length === 1 ? size.y : FR.base[1];
     const tw = Math.max(64, Math.round(bw * FR.scale)), th = Math.max(64, Math.round(bh * FR.scale));
     const xrWas = renderer.xr.enabled, rtWas = renderer.getRenderTarget(); renderer.xr.enabled = false;
@@ -769,6 +775,8 @@ export function createWorlds(scene, renderer, params) {
     renderFractals, fractalScale: () => FR.scale,
     /** 0..1: how visible the room's outline is in a fractal dimension (it fades while you stand still). The opening onto the real room near you is not affected. */
     setGhost(v) { ghostU.value = v; },
+    /** True while the player stands still and steers nothing: the fractal may then sharpen. */
+    setFractalCalm(v) { FR.calm = v; }, fractalFine: () => fineU.value,
     /** Moving through a fractal dimension: the fractal slides, turns and grows round the point where your head is. Distances in metres, angles in radians. */
     fractTurn(i, h, a) { const w = W[i]; if (!w.fr) return; toF(w, h, _f1); w.fr.yaw += a; toF(w, h, _f2); w.fr.off.add(_f1).sub(_f2); keepIn(w, h); },
     fractMove(i, h, dir, dist) { const w = W[i]; if (!w.fr) return; const c = Math.cos(w.fr.yaw), s = Math.sin(w.fr.yaw), k = dist * w.fr.S; w.fr.off.x += (c * dir.x - s * dir.z) * k; w.fr.off.y += dir.y * k; w.fr.off.z += (s * dir.x + c * dir.z) * k; keepIn(w, h); },
