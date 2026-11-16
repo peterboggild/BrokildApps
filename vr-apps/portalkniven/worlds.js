@@ -37,19 +37,19 @@ export const DIMS = [
 /* Each: S = fractal units per metre, off = where in the fractal the door's foot stands (an open place), MAXT = how far a ray goes,
  * fde = the distance estimator (returns distance; trap.w = closest approach of the orbit, it = 0..1), pal = colour from (it, trap), fog. */
 const FRACT = {
-  apollo: { S: 0.2, par: [1.15, 0.95, 1.45], off: [1, 1.26, 1], maxT: 14, steps: 56, fog: [0.03, 0.05, 0.10], glsl: `
+  apollo: { S: 0.2, par: [1.15, 0.95, 1.45], par2: [7.0, 3.0, 9.0], off: [1, 1.26, 1], maxT: 14, steps: 56, fog: [0.03, 0.05, 0.10], glsl: `
     float fde(vec3 p, out vec4 trap, out float it) {
       vec3 z = p; float sc = 1.0, k = uParam + 0.03 * sin(uTime * 0.11); trap = vec4(1e9); it = 0.0;
-      for (int i = 0; i < 7; i++) { z = -1.0 + 2.0 * fract(0.5 * z + 0.5); float r2 = dot(z, z); if (r2 < trap.w) it = float(i); trap = min(trap, vec4(abs(z), r2)); float f = k / max(r2, 1e-6); z *= f; sc *= f; }
+      for (int i = 0; i < 9; i++) { if (float(i) >= uParam2) break; z = -1.0 + 2.0 * fract(0.5 * z + 0.5); float r2 = dot(z, z); if (r2 < trap.w) it = float(i); trap = min(trap, vec4(abs(z), r2)); float f = k / max(r2, 1e-6); z *= f; sc *= f; }
       it /= 7.0; return 0.25 * abs(z.y) / sc; }
     vec3 pal(float it, vec4 tr) { return mix(vec3(0.22, 0.55, 1.0), vec3(1.0, 0.72, 0.36), smoothstep(0.05, 0.75, it)) * (0.8 + 0.7 * clamp(tr.w * 1.6, 0.0, 1.0)) + vec3(0.5, 0.12, 0.55) * clamp(tr.x, 0.0, 1.0); }` },
-  klein: { S: 0.3, par: [1.0, 0.86, 1.22], off: [0.9, 1.3, 0.9], maxT: 16, steps: 60, fog: [0.05, 0.04, 0.035], glsl: `
+  klein: { S: 0.3, par: [1.0, 0.86, 1.22], par2: [0.908, 0.80, 0.985], off: [0.9, 1.3, 0.9], maxT: 16, steps: 60, fog: [0.05, 0.04, 0.035], glsl: `
     float fde(vec3 p, out vec4 trap, out float it) {
-      vec3 cs = vec3(0.908, 0.908, 0.924), z = p; float dr = 1.0; trap = vec4(1e9); it = 0.0;
+      vec3 cs = vec3(uParam2, uParam2, 0.924), z = p; float dr = 1.0; trap = vec4(1e9); it = 0.0;
       for (int i = 0; i < 8; i++) { z = 2.0 * clamp(z, -cs, cs) - z; float r2 = dot(z, z); if (r2 < trap.w) it = float(i); trap = min(trap, vec4(abs(z), r2)); float k = max(uParam / max(r2, 1e-9), 1.0); z *= k; dr *= k; }
       it /= 8.0; float rxy = length(z.xy); return max(rxy - 0.928, abs(rxy * z.z) / max(length(z), 1e-9)) / dr; }
     vec3 pal(float it, vec4 tr) { return mix(vec3(0.78, 0.62, 0.40), vec3(0.30, 0.42, 0.50), smoothstep(0.15, 0.85, it)) * (0.6 + 0.5 * clamp(tr.w, 0.0, 1.0)) + vec3(0.25, 0.12, 0.02) * (1.0 - clamp(tr.y * 3.0, 0.0, 1.0)); }` },
-  hyper: { S: 0.085, par: [5.0, 4.4, 7.0], ball: 0.8, off: [0, -0.125, 0], maxT: 2.2, steps: 64, fog: [0.015, 0.02, 0.04], glsl: `
+  hyper: { S: 0.085, par: [5.0, 4.4, 7.0], par2: [0.04, 0.012, 0.11], ball: 0.8, off: [0, -0.125, 0], maxT: 2.2, steps: 64, fog: [0.015, 0.02, 0.04], glsl: `
     float fde(vec3 p, out vec4 trap, out float it) {
       float R2 = 1.0 / max(1e-3, cos(6.28318 / uParam)), D = sqrt(1.0 + R2); vec3 a = vec3(0.0, 0.0, 0.18 * sin(uTime * 0.05));      // {4,3,n}: n cubes round every edge; a slow hyperbolic drift
       float aa = dot(a, a), xx = dot(p, p), ax = dot(a, p), den = max(1.0 + 2.0 * ax + aa * xx, 1e-6), sc = (1.0 - aa) / den;
@@ -57,13 +57,13 @@ const FRACT = {
       for (int i = 0; i < 14; i++) { z = abs(z); if (z.x < z.y) z.xy = z.yx; if (z.x < z.z) z.xz = z.zx; if (z.y < z.z) z.yz = z.zy;
         vec3 dv = z - cx; float l2 = dot(dv, dv); if (l2 >= R2) break; float k = R2 / l2; z = cx + dv * k; sc *= k; it += 1.0; trap = min(trap, vec4(abs(z), dot(z, z))); }
       it /= 14.0; float R = sqrt(R2), fx = abs(length(z - vec3(D, 0.0, 0.0)) - R), fy = abs(length(z - vec3(0.0, D, 0.0)) - R), fz = abs(length(z - vec3(0.0, 0.0, D)) - R);
-      float d = min(length(vec2(fx, fy)) - 0.04, length(vec3(fx, fy, fz)) - 0.075);
+      float d = min(length(vec2(fx, fy)) - uParam2, length(vec3(fx, fy, fz)) - uParam2 * 1.9);
       return max(d / sc, length(p) - 0.985); }
     vec3 pal(float it, vec4 tr) { return mix(vec3(0.95, 0.80, 0.50), vec3(0.20, 0.55, 0.95), smoothstep(0.0, 0.6, it)) * (0.7 + 0.5 * tr.w); }` },
 };
 const MARCH_VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 const marchFS = f => `precision highp float; varying vec2 vUv;
-  uniform vec3 uCam; uniform mat3 uRot; uniform vec4 uProj; uniform vec3 uAnchor; uniform float uYaw; uniform float uTime; uniform float uBright; uniform float uS; uniform vec3 uOff; uniform float uParam; uniform float uFine; uniform vec2 uJitUV;
+  uniform vec3 uCam; uniform mat3 uRot; uniform vec4 uProj; uniform vec3 uAnchor; uniform float uYaw; uniform float uTime; uniform float uBright; uniform float uS; uniform vec3 uOff; uniform float uParam; uniform float uParam2; uniform float uFine; uniform vec2 uJitUV;
   ${f.glsl}
   void main() {
     vec2 uv = vUv + uJitUV;
@@ -477,8 +477,8 @@ export function createWorlds(scene, renderer, params) {
   for (const w of W) if (w.fract) {
     const f = FRACT[w.key];
     w.march = new THREE.ShaderMaterial({ vertexShader: MARCH_VS, fragmentShader: marchFS(f), depthTest: false, depthWrite: false,
-      uniforms: { uCam: { value: new V() }, uRot: { value: new THREE.Matrix3() }, uProj: { value: new THREE.Vector4() }, uAnchor: { value: new V(0, 0, 0) }, uYaw: { value: 0 }, uTime: fracTimeU, uBright: brightU, uS: { value: f.S }, uOff: { value: new V(...f.off) }, uParam: { value: f.par[0] }, uFine: fineU, uJitUV: { value: new THREE.Vector2() } } });
-    w.fr = { f, S: f.S, yaw: 0, off: new V(...f.off), param: f.par[0], A: new V() };
+      uniforms: { uCam: { value: new V() }, uRot: { value: new THREE.Matrix3() }, uProj: { value: new THREE.Vector4() }, uAnchor: { value: new V(0, 0, 0) }, uYaw: { value: 0 }, uTime: fracTimeU, uBright: brightU, uS: { value: f.S }, uOff: { value: new V(...f.off) }, uParam: { value: f.par[0] }, uParam2: { value: f.par2[0] }, uFine: fineU, uJitUV: { value: new THREE.Vector2() } } });
+    w.fr = { f, S: f.S, yaw: 0, off: new V(...f.off), param: f.par[0], param2: f.par2[0], A: new V() };
     for (const role of ['home', 'other']) { const g = new THREE.Group(); for (const eye of [0, 1]) { const q = blit(role, eye); g.add(q); eyeQuads.push(q); } g.visible = false; scene.add(g); if (role === 'home') w.skyHome = g; else w.fill = g; }
   }
   const setEyes = flat => { FR.flat = flat; for (const q of eyeQuads) { if (flat) { q.layers.set(0); q.visible = q.userData.eye === 0; } else { q.layers.set(q.userData.eye + 1); q.visible = true; } } };
@@ -541,7 +541,7 @@ export function createWorlds(scene, renderer, params) {
   const _f1 = new V(), _f2 = new V();
   /** Where a point of the room is in the fractal's own space (the same sum the shader does). */
   function toF(w, p, out) { const r = w.fr, c = Math.cos(r.yaw), s = Math.sin(r.yaw), x = p.x - r.A.x, y = p.y - r.A.y, z = p.z - r.A.z; return out.set((c * x - s * z) * r.S + r.off.x, y * r.S + r.off.y, (s * x + c * z) * r.S + r.off.z); }
-  function syncFr(w) { const U = w.march.uniforms; U.uAnchor.value.copy(w.fr.A); U.uYaw.value = w.fr.yaw; U.uS.value = w.fr.S; U.uOff.value.copy(w.fr.off); U.uParam.value = w.fr.param; }
+  function syncFr(w) { const U = w.march.uniforms; U.uAnchor.value.copy(w.fr.A); U.uYaw.value = w.fr.yaw; U.uS.value = w.fr.S; U.uOff.value.copy(w.fr.off); U.uParam.value = w.fr.param; U.uParam2.value = w.fr.param2; }
   /** The hyperbolic world ends at a horizon: you cannot fly out through it. */
   function keepIn(w, h) { if (w.fr.f.ball) { toF(w, h, _f1); const l = _f1.length(); if (l > w.fr.f.ball) w.fr.off.addScaledVector(_f1, w.fr.f.ball / l - 1); } syncFr(w); }
 
@@ -826,7 +826,7 @@ export function createWorlds(scene, renderer, params) {
     /** Keep only what is behind the door, seen from where you stand. */
     setClip(oth, normal, point) { W[oth].clip.setFromNormalAndCoplanarPoint(normal, point); },
     /** Put a dimension's own things round the door, once, so they do not jump when you cut a new door while standing among them. */
-    anchor(i, x, z, yaw, force) { const w = W[i]; if (w.anchored && !force) return; w.deco.position.set(x, 0, z); w.deco.rotation.set(0, yaw, 0); w.anchored = true; if (w.march) { w.fr.A.set(x, 0, z); w.fr.yaw = -yaw; w.fr.S = w.fr.f.S; w.fr.off.set(...w.fr.f.off); w.fr.param = w.fr.f.par[0]; syncFr(w); } },
+    anchor(i, x, z, yaw, force) { const w = W[i]; if (w.anchored && !force) return; w.deco.position.set(x, 0, z); w.deco.rotation.set(0, yaw, 0); w.anchored = true; if (w.march) { w.fr.A.set(x, 0, z); w.fr.yaw = -yaw; w.fr.S = w.fr.f.S; w.fr.off.set(...w.fr.f.off); w.fr.param = w.fr.f.par[0]; w.fr.param2 = w.fr.f.par2[0]; syncFr(w); } },
     renderFractals, fractalScale: () => FR.scale,
     /** 0..1: how visible the room's outline is in a fractal dimension (it fades while you stand still). The opening onto the real room near you is not affected. */
     setGhost(v) { ghostU.value = v; },
@@ -838,7 +838,7 @@ export function createWorlds(scene, renderer, params) {
     fractTurn(i, h, a) { const w = W[i]; if (!w.fr) return; toF(w, h, _f1); w.fr.yaw += a; toF(w, h, _f2); w.fr.off.add(_f1).sub(_f2); keepIn(w, h); },
     fractMove(i, h, dir, dist) { const w = W[i]; if (!w.fr) return; const c = Math.cos(w.fr.yaw), s = Math.sin(w.fr.yaw), k = dist * w.fr.S; w.fr.off.x += (c * dir.x - s * dir.z) * k; w.fr.off.y += dir.y * k; w.fr.off.z += (s * dir.x + c * dir.z) * k; keepIn(w, h); },
     fractScale(i, h, factor) { const w = W[i]; if (!w.fr) return; toF(w, h, _f1); w.fr.S = Math.min(w.fr.f.S * 1.8, Math.max(w.fr.f.S / 1.8, w.fr.S * factor)); toF(w, h, _f2); w.fr.off.add(_f1).sub(_f2); keepIn(w, h); },
-    fractParam(i, dir, dt) { const w = W[i]; if (!w.fr) return; const [, lo, hi] = w.fr.f.par; w.fr.param = Math.min(hi, Math.max(lo, w.fr.param + dir * dt * (hi - lo) / 7)); syncFr(w); },
+    fractParam(i, which, dir, dt) { const w = W[i]; if (!w.fr) return; const key = which ? 'param2' : 'param', [, lo, hi] = which ? w.fr.f.par2 : w.fr.f.par; w.fr[key] = Math.min(hi, Math.max(lo, w.fr[key] + dir * dt * (hi - lo) / 7)); syncFr(w); },
     fractState: i => W[i].fr,
     update(dt, t, bright, cur, oth, safe) {
       timeU.value = t; brightU.value = bright;
