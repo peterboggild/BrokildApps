@@ -17,7 +17,7 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=21';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=22';
 import { createStory } from './story.js?v=21';
 
 const $ = id => document.getElementById(id);
@@ -583,7 +583,7 @@ async function enterXR(free, help = true) {
       const c = renderer.xr.getController(i); scene.add(c); scene.add(renderer.xr.getControllerGrip(i));
       c.addEventListener('selectstart', () => { ctrl[i].pressed = true; initAudio(); });
       c.addEventListener('selectend', () => { ctrl[i].pressed = false; });
-      c.addEventListener('squeezestart', () => { if (!story.canCut()) return; knifeIdx = i; ctrl[1 - i].dragged = false; ctrl[i].dragged = true; assignTools(); });      // grip: take the knife in this hand
+      c.addEventListener('squeezestart', () => { if (!story.canCut() || DIMS[S.cur].fract) return; knifeIdx = i; ctrl[1 - i].dragged = false; ctrl[i].dragged = true; assignTools(); });      // grip: take the knife in this hand
       c.addEventListener('connected', e => { ctrl[i].src = e.data; ctrl[i].hand = e.data?.handedness || ''; assignTools(); });
     }
     if (free !== true) story.start(help);
@@ -645,8 +645,53 @@ function pollStick() {                                              // the right
   const gp = ctrl[i].src && ctrl[i].src.gamepad; if (!gp) return;
   const ax = gp.axes.length >= 4 ? gp.axes[2] : gp.axes[0] || 0, press = !!(gp.buttons[3] && gp.buttons[3].pressed);
   const on = Math.abs(ax) > 0.7 || press;
+  if (DIMS[S.cur].fract) { if (press && !stickHeld && story.stickOK()) cycleOther(1); stickHeld = press; return; }      // in a fractal the stick turns you; a press still changes what lies behind the door
   if (on && !stickHeld && story.stickOK()) cycleOther(ax < -0.7 ? -1 : 1);
   stickHeld = on || Math.abs(ax) > 0.35;
+}
+/* ---- inside a fractal dimension: fly, turn, rise, reshape and resize; and the room's outline fades while you stand still ---- */
+const FC = { still: 0, ghost: 1, last: new V(), gripD: 0, tipsT: -1, tipsDone: false };
+const dead = v => (Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85);
+const btn = (gp, k) => !!(gp && gp.buttons[k] && gp.buttons[k].pressed);
+function tipPanel(lines) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const x = cv.getContext('2d');
+  x.fillStyle = 'rgba(4,10,16,.86)'; x.beginPath(); x.roundRect(4, 4, 504, 248, 22); x.fill(); x.strokeStyle = '#7dd8ff'; x.lineWidth = 5; x.stroke();
+  x.fillStyle = '#e6f6ff'; x.font = '29px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; lines.forEach((l, i) => { x.fillStyle = i === 0 ? '#7dd8ff' : '#e6f6ff'; x.font = (i === 0 ? 'bold 31px' : '28px') + ' -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; x.fillText(l, 24, 52 + i * 46); });
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.1), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthTest: false, opacity: 0, toneMapped: false })); m.renderOrder = 101; m.position.set(0, 0.1, -0.05); m.rotation.x = -1.0; m.visible = false; return m;
+}
+const tips = { left: tipPanel(['VENSTRE HÅND', 'Stick: flyv frem / tilbage', 'X / Y: ændr fraktalens form', 'Begge greb: træk for at skalere']), right: tipPanel(['HØJRE HÅND', 'Stick: drej', 'A / B: ned / op', 'Tryk på stick: skift verden']) };
+function fractalControls(dt) {
+  const inF = !!DIMS[S.cur].fract;
+  /* standing still for a couple of seconds lets the room's outline fade; a step brings it back at once */
+  const sp = Math.hypot(head.x - FC.last.x, head.z - FC.last.z) / Math.max(dt, 1e-3); FC.last.copy(head);
+  if (sp > 0.22) FC.still = 0; else FC.still += dt;
+  FC.ghost += ((FC.still > 2 ? 0 : 1) - FC.ghost) * Math.min(1, dt * (FC.still > 2 ? 1.2 : 8)); worlds.setGhost(FC.ghost);
+  if (!inF) { tips.left.visible = tips.right.visible = false; return; }
+  let li = ctrl.findIndex(c => c.hand === 'left'), ri = ctrl.findIndex(c => c.hand === 'right'); if (li < 0) li = 0; if (ri < 0) ri = 1;
+  const L = ctrl[li].src && ctrl[li].src.gamepad, R = ctrl[ri].src && ctrl[ri].src.gamepad;
+  let fwd = 0, turn = 0, up = 0, par = 0, scale = 1;
+  if (S.mode === 'xr') {
+    if (L && L.axes.length >= 4) fwd = -dead(L.axes[3]);
+    if (R && R.axes.length >= 4) turn = dead(R.axes[2]);
+    up = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0); par = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0);
+    if (btn(L, 1) && btn(R, 1)) { const d = hands[li].pos.distanceTo(hands[ri].pos); if (FC.gripD > 0.02 && d > 0.02) scale = FC.gripD / d; FC.gripD = d; } else FC.gripD = 0;      // hands apart: the fractal grows
+  } else {
+    fwd = (keys.KeyI ? 1 : 0) - (keys.KeyK ? 1 : 0); turn = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); up = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0); par = (keys.KeyM ? 1 : 0) - (keys.KeyN ? 1 : 0);
+    scale = keys.Period ? 1 - dt * 0.6 : keys.Comma ? 1 + dt * 0.6 : 1;
+  }
+  if (turn) worlds.fractTurn(S.cur, head, turn * dt * 0.95);
+  if (fwd || up) { const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize(); worlds.fractMove(S.cur, head, f.multiplyScalar(fwd * 0.9).setY(up * 0.55), dt); }
+  if (scale !== 1) worlds.fractScale(S.cur, head, scale);
+  if (par) worlds.fractParam(S.cur, par, dt);
+  /* the first time in a fractal: the controllers buzz, and a card on each says what it does */
+  if (!FC.tipsDone && S.mode === 'xr') { FC.tipsDone = true; FC.tipsT = 0; renderer.xr.getController(li).add(tips.left); renderer.xr.getController(ri).add(tips.right); S.hudT = -99; }
+  if (FC.tipsT >= 0) {
+    FC.tipsT += dt; const a = clamp(Math.min(FC.tipsT / 0.6, (26 - FC.tipsT) / 1.5), 0, 1);
+    for (const t of [tips.left, tips.right]) { t.visible = a > 0.01; t.material.opacity = a; }
+    if (FC.tipsT < 2.4 && ((FC.tipsT / 0.6) | 0) !== FC.buzz) { FC.buzz = (FC.tipsT / 0.6) | 0; for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(0.8, 150); } catch (_) { /* none */ } } }
+    if (FC.tipsT > 26) FC.tipsT = -1;
+  }
 }
 const clock = new THREE.Clock();
 let trigWas = false, cutOK = false, eyeViews = [];
@@ -691,6 +736,7 @@ function loop(_, frame) {
     tipSparks.step(dt, 1.2);
     knife.userData.rune.color.setRGB(0.25 * knifeGlow, 1.0 * Math.min(1.4, knifeGlow), 0.5 * knifeGlow);
     knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
+    fractalControls(dt);
     updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateProximity(); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
     story.update(dt);
@@ -722,7 +768,7 @@ renderer.setAnimationLoop(loop);
 })();
 
 window.__portal = {
-  S, portal, head, scene, renderer, camera, music, prox, story, hands, dissolvePortal,
+  S, portal, head, scene, renderer, camera, music, prox, FC, keys, story, hands, dissolvePortal,
   hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; }, hold(v) { flatHold = v; },
   knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
