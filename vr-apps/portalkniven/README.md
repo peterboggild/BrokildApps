@@ -153,16 +153,19 @@ De kan kun vælges med joysticken i fri leg, dvs. efter historien er gennemført
 
 ### Styring i de fraktale dimensioner
 Kun når man står i en fraktal dimension:
-* **Højre stick:** flyv i planen, frem/tilbage og til siderne, efter hvor man kigger (0,9 m/s). **Venstre stick** op/ned: stig og synk.
+* **Højre stick:** frem/tilbage flyver i den retning, man kigger (også op og ned: kig ned for at dykke); til siderne glider man sidelæns.
+* **Venstre stick** frem/tilbage: farten, trin 1 til 9 (1 er en krybefart på 0,15 m/s, 9 ca. 8 m/s; aldrig nul). Trinnet vises foran en, mens man ændrer det.
 * **Y / X** (venstre) og **B / A** (højre): hver sit par ændrer én parameter. Apollonisk: inversionens størrelse og antal gentagelser; Pseudo-Kleinsk: inversionens størrelse og kassens bredde;
-  Hyperbolsk: antal terninger om hver kant (4,4 til 7) og kanternes tykkelse.
-* **Begge greb holdt:** træk hænderne fra hinanden for at gøre fraktalen større, sammen for mindre (højst 1,8 gange hver vej).
+  Hyperbolsk: antal terninger om hver kant (4,4 til 7) og kanternes tykkelse; Menger-labyrinten: gangenes bredde og antal niveauer; Koralsletten: revets form og højde; Kali-templet: skala og mindste radius.
+* Seks fraktale dimensioner: Apollonisk, Pseudo-Kleinsk, Hyperbolsk, **Menger-labyrinten** (en Menger-svamp gentaget i det uendelige: firkantede gange inde i gange, i alle retninger), **Koralsletten** (Kali coral plain: et landskab af hylder og rev)
+  og **Kali-templet** (KaliBox: et udskåret tempel tæt på, som man kan flyve hen til og ind i).
+* **Begge greb holdt:** træk hænderne fra hinanden for at gøre fraktalen større, sammen for mindre (op til 12 gange hver vej; bevægelsen er forstærket).
 * **Tryk på højre stick:** skift verden bag døren. Man drejer ved at dreje sig selv.
 * Alt sker om det punkt, hvor hovedet er: fraktalen glider, drejer og vokser, mens man selv bliver stående i stuen. I den hyperbolske verden kan man ikke flyve ud gennem horisonten.
 * **Møblernes omrids** toner ud, når hovedet er blevet inden for 30 cm af samme sted i to sekunder, og kommer straks tilbage, når man flytter sig. At dreje hovedet tæller ikke.
   Åbningen mod den rigtige stue tæt på møbler og advarselslyden toner ikke ud.
 * Første gang man kommer ind i en fraktal dimension, dunker og blinker begge controllere, indtil man kigger ned på dem (eller efter 40 sekunder). Der står intet; man opdager styringen ved at prøve.
-* I preview: I/K og J/L flyv, U/O ned/op, N/M og V/B form, komma/punktum skala.
+* I preview: I/K og J/L flyv, U/O fart ned/op, N/M og V/B form, komma/punktum skala.
 
 * **Skarpere i ro:** står man stille uden at røre styringen i halvandet sekund, må fraktalbilledet vokse (loftet hæves fra 55 % til 100 % af øjets opløsning, et trin ad gangen så længe
   billedhastigheden holder), og strålerne marcheres finere. Så snart man går eller styrer, falder det tilbage til det, brillen kunne bære før. Går billedhastigheden ned i ro, huskes det niveau som loft.
