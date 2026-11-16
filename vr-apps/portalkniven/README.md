@@ -157,7 +157,7 @@ Kun når man står i en fraktal dimension:
 * **Venstre stick** frem/tilbage: farten, trin 1 til 9 (1 er en krybefart på 0,15 m/s, 9 ca. 8 m/s; aldrig nul). Trinnet vises foran en, mens man ændrer det.
 * **Y / X** (venstre) og **B / A** (højre): hver sit par ændrer én parameter. Apollonisk: inversionens størrelse og antal gentagelser; Pseudo-Kleinsk: inversionens størrelse og kassens bredde;
   Hyperbolsk: antal terninger om hver kant (4,4 til 7) og kanternes tykkelse; Menger-labyrinten: gangenes bredde og antal niveauer; Koralsletten: revets form og højde; Kali-templet: skala og mindste radius.
-* Seks fraktale dimensioner: Apollonisk, Pseudo-Kleinsk, Hyperbolsk, **Menger-labyrinten** (en Menger-svamp gentaget i det uendelige: firkantede gange inde i gange, i alle retninger), **Koralsletten** (Kali coral plain: et landskab af hylder og rev)
+* Seks fraktale dimensioner (Koralsletten er siden afløst af Mandelbox-byen, se nederst): Apollonisk, Pseudo-Kleinsk, Hyperbolsk, **Menger-labyrinten** (en Menger-svamp gentaget i det uendelige: firkantede gange inde i gange, i alle retninger), **Koralsletten** (Kali coral plain: et landskab af hylder og rev)
   og **Kali-templet** (KaliBox: et udskåret tempel tæt på, som man kan flyve hen til og ind i).
 * **Begge greb holdt:** træk hænderne fra hinanden for at gøre fraktalen større, sammen for mindre (op til 12 gange hver vej; bevægelsen er forstærket).
 * **Tryk på højre stick:** skift verden bag døren. Man drejer ved at dreje sig selv.
@@ -211,6 +211,35 @@ Små ting i hånd- og hoftehøjde reagerer på hænderne (controllernes position
 * Tingene sættes, første gang døren fører til verdenen, på frit gulv, man kan gå hen til (ud fra scanningen), nær døren men ikke i selve døråbningen.
   Er der ingen ledig plads, vises tingen ikke.
 * Bevidst fravalgt: at samle ting op, kaste dem eller sparke til sten. Uden fysikmotor og uden at vide, hvor fødderne er, bliver det ikke overbevisende.
+
+## Det firedimensionale rum
+Egen knap på startsiden (døren fører dertil fra start; `?flat&four` i forhåndsvisning), og med i rækken af dimensioner i fri leg.
+
+En møbleret stue med fire rumlige retninger: x og z langs gulvet, y op, og w. Man ser den tredimensionelle skive af rummet, som vores verden skærer ud.
+Alt er faste legemer i 4D, beskrevet ved afstandsfunktioner, og strålen marcheres gennem 4D langs skiven (`FOUR_FS` i `worlds.js`, samme rørledning som
+fraktalerne: lille billede pr. øje, opbygning over tid i ro, billedhastighedsvagt).
+
+* **Hvad der står i rummet** (alt ser almindeligt ud i udgangsskiven, w = 0):
+  bord med **otte ben** (fire ved w = 0, fire ved w = -0,74; imellem svæver pladen), en lysende **kugle** på bordet (4D-kugle: skrumper og forsvinder),
+  en **taburet**, hvis ryglæn står ude i w (trækkes rummet 19 cm, er det en massiv klods; drejes rummet, bliver det et almindeligt ryglæn),
+  en **søjle**, der er rund i tre retninger (bliver tyndere), med en **messingring**, som bliver til to kugler, når rummet drejes en kvart omgang,
+  en **bogreol**, der er 3,2 m dyb i w (andre bøger for hver 33 cm), en **kasse** (terning i x, z, w stillet på et hjørne: sekskant, trekant, væk),
+  et **rundt tæppe** (rundt i tre retninger), et **maleri**, der er et andet landskab i hver dybde, og en **loftslampe** (punktlys i 4D: længere væk i w = svagere lys).
+* **Overflader:** egeplanker, puds og malede paneler, valnød, marmor, messing, bogrygge med guldtryk, uld. Lys fra lampen med bløde skygger, lidt lys fra kuglen,
+  og genskin i blanke flader. Alt er procedurelt i 4D-koordinater, så mønstrene også ændrer sig rigtigt, når man trækker og drejer.
+* **Styring (venstre stick):** op/ned trækker rummet igennem langs w (0,4 m/s); venstre/højre drejer i planet udspændt af ens højre side og w, om det punkt
+  hvor hovedet er, så det, man ser lige på, bliver stående, mens det forandrer sig. Kun én ad gangen (det kraftigste udslag vinder). Tryk på venstre stick
+  sætter alt tilbage. Et lille skilt viser dybde og drejning. Man kan ikke trække sig selv ud gennem rummets vægge i w. Går man ud af rummet, falder det tilbage.
+* Rummets vægge er en skal: kommer man uden for (stuen er større end rummet, eller efter en drejning), ser man rummet udefra i mørke.
+* Sikkerhed som i fraktalerne: stuens omrids, åbning mod den rigtige stue tæt på hoved og hænder, advarselslyd.
+
+## Ændringer i fraktalerne
+* **Mandelbox-byen** har afløst Koralsletten: den klassiske Mandelbox (skala -1,8), én i hver celle af et uendeligt gitter, med gader imellem. B/A ændrer skalaen,
+  Y/X den mindste radius.
+* **Kali-templet** står nu lige foran døren (ca. 2,5 m væk, med pavillonen i øjenhøjde) og svæver i rummet: hvor strålen ikke rammer noget, tegnes stjernerne
+  i fuld skarphed oven på fraktalens lille billede.
+* **Rettet fejl:** fraktalerne blev lagt ud med forkert fortegn på dørens drejning, så "lige frem" i fraktalen kun passede, når døren vendte langs stuens z-akse.
+  Det mærkedes ikke i de uendelige fraktaler, men var grunden til, at Kali-templet var svært at finde.
 
 ## Gemte idéer (ikke bygget)
 

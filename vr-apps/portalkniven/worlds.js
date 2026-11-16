@@ -34,8 +34,10 @@ export const DIMS = [
   { key: 'klein', name: 'PSEUDO-KLEINSK', fract: true },
   { key: 'hyper', name: 'HYPERBOLSK', fract: true },
   { key: 'menger', name: 'MENGER-LABYRINTEN', fract: true },
-  { key: 'koral', name: 'KORALSLETTEN', fract: true },
+  { key: 'boks', name: 'MANDELBOX-BYEN', fract: true },
   { key: 'kali', name: 'KALI-TEMPLET', fract: true },
+  /* a furnished room with four dimensions of space, of which you see a three-dimensional slice (also its own choice on the start page) */
+  { key: 'fire', name: 'DET FIREDIMENSIONALE RUM', fract: true, four: true },
 ];
 
 /* ------------------------------------------------------------------ fractals */
@@ -79,19 +81,189 @@ Object.assign(FRACT, {
         trap = min(trap, vec4(abs(a), dot(a, a))); }
       it /= 4.0; return d; }
     vec3 pal(float it, vec4 tr) { return mix(vec3(0.80, 0.74, 0.62), vec3(0.85, 0.42, 0.22), smoothstep(0.1, 0.9, it)) * (0.6 + 0.45 * clamp(tr.w, 0.0, 1.0)) + vec3(0.05, 0.2, 0.3) * clamp(1.0 - tr.x * 2.0, 0.0, 1.0) * 0.4; }` },
-  koral: { S: 0.35, par: [0.58, 0.44, 0.76], par2: [0.7, 0.2, 1.6], off: [0, 0.8, 0], maxT: 34, steps: 84, fog: [0.03, 0.09, 0.12], glsl: `
-    float fde(vec3 p, out vec4 trap, out float it) {
-      vec2 q = abs(fract(p.xz * 0.0375 + 0.5) * 2.0 - 1.0) * 1.2, c = vec2(uParam, 0.73); float acc = 0.0, prev = 0.0; trap = vec4(1e9);
-      for (int i = 0; i < 9; i++) { q = abs(q) / max(dot(q, q), 1e-3) - c; float l = length(q); acc += exp(-2.4 * abs(l - prev)); prev = l; trap = min(trap, vec4(abs(q), abs(q.x * q.y), l * l)); }
-      float hn = clamp(acc / 9.0, 0.0, 1.0), h = max(uParam2 * hn, -0.2); it = hn; trap.w = hn; return (p.y - h) * 0.4; }
-    vec3 pal(float it, vec4 tr) { return mix(mix(vec3(0.10, 0.22, 0.25), vec3(0.85, 0.38, 0.30), smoothstep(0.15, 0.55, it)), vec3(1.0, 0.86, 0.62), smoothstep(0.55, 0.95, it)) * (0.75 + 0.35 * clamp(tr.x, 0.0, 1.0)); }` },
-  kali: { S: 0.4, par: [2.043, 1.9, 2.2], par2: [0.349, 0.24, 0.5], off: [0, 0.15, 1.7], maxT: 12, steps: 72, fog: [0.045, 0.04, 0.05], glsl: `
+  boks: { S: 0.25, par: [-1.8, -2.3, -1.5], par2: [0.5, 0.3, 0.75], off: [3.4, -0.3, 3.0], maxT: 30, steps: 90, fog: [0.035, 0.045, 0.07], glsl: `
+    float fde(vec3 p, out vec4 trap, out float it) {                  // the classic Mandelbox, one in every cell of an endless grid, with streets between them
+      vec3 c = abs(mod(p + 3.4, 13.6) - 6.8) - 3.4, z = c; float dr = 1.0, s = uParam, mr2 = uParam2 * uParam2; trap = vec4(1e9); it = 0.0;
+      for (int i = 0; i < 11; i++) { z = clamp(z, -1.0, 1.0) * 2.0 - z; float r2 = dot(z, z); if (r2 < trap.w) it = float(i); trap = min(trap, vec4(abs(z), r2));
+        if (r2 < mr2) { float k = 1.0 / mr2; z *= k; dr *= k; } else if (r2 < 1.0) { float k = 1.0 / r2; z *= k; dr *= k; }
+        z = z * s + c; dr = dr * abs(s) + 1.0; }
+      it /= 11.0; return length(z) / abs(dr); }
+    vec3 pal(float it, vec4 tr) { return mix(vec3(0.85, 0.74, 0.55), vec3(0.28, 0.46, 0.60), smoothstep(0.1, 0.75, it)) * (0.6 + 0.5 * clamp(tr.w * 0.5, 0.0, 1.0)) + vec3(0.45, 0.16, 0.06) * clamp(1.0 - tr.x * 1.5, 0.0, 1.0) * 0.5; }` },
+  kali: { S: 0.4, par: [2.043, 1.9, 2.2], par2: [0.349, 0.24, 0.5], off: [0, 0.7, 1.05], maxT: 12, steps: 72, fog: [0.010, 0.011, 0.018], stars: true, glsl: `
     float fde(vec3 p, out vec4 trap, out float it) {
       float s = uParam, mr2 = uParam2; vec3 tr = vec3(0.036, -1.861, 0.036); vec4 c = vec4(-0.669, -1.303, -0.458, 0.0), z = vec4(p, 1.0); trap = vec4(1e9); it = 0.0;
       for (int i = 0; i < 11; i++) { z.xyz = abs(z.xyz) + tr; float r2 = dot(z.xyz, z.xyz); if (r2 < trap.w) it = float(i); trap = min(trap, vec4(abs(z.xyz), r2)); z *= clamp(max(mr2 / max(r2, 1e-9), mr2), 0.0, 1.0); z = z * (s / mr2) + c; }
       it /= 11.0; return (length(z.xyz) - abs(s - 1.0)) / abs(z.w) - pow(abs(s), -10.0); }
     vec3 pal(float it, vec4 tr) { return mix(vec3(0.85, 0.72, 0.52), vec3(0.42, 0.30, 0.42), smoothstep(0.1, 0.8, it)) * (0.65 + 0.5 * clamp(tr.w * 0.6, 0.0, 1.0)) + vec3(0.1, 0.25, 0.3) * clamp(tr.z * 0.5, 0.0, 1.0); }` },
+  fire: { S: 1, par: [0, 0, 1], par2: [0, 0, 1], off: [0, 0, 0], maxT: 18, steps: 80, fog: [0.012, 0.013, 0.02], res: 1.25, fs: true },
 });
+/* the four-dimensional room's bounds, as the shader has them (centre and half-size in x, y, z, w) */
+const ROOM4 = { c: [0, 1.4, -3.0, 0], b: [3.3, 1.4, 3.3, 3.3] };
+const FOUR_FS = `precision highp float; varying vec2 vUv;
+uniform vec3 uCam; uniform mat3 uRot; uniform vec4 uProj; uniform vec3 uAnchor; uniform float uYaw; uniform float uTime; uniform float uBright; uniform float uS; uniform vec3 uOff; uniform float uFine; uniform vec2 uJitUV;
+uniform mat4 uR4; uniform vec4 uC4; uniform float uThru; uniform sampler2D uNoise;
+
+/* A room with four dimensions of space: x and z along the floor, y up, and w, the direction we have no word for. What you see is the slice of it that our
+ * three dimensions cut out. Everything is a solid in 4D, described by its distance function; the ray is marched through 4D along the slice. */
+const vec4 RC = vec4(0.0, 1.4, -3.0, 0.0), RB = vec4(3.3, 1.4, 3.3, 3.3);     // the room: centre and half-size (x, y, z, w)
+const vec4 LP = vec4(0.6, 2.2, -2.4, 0.0);                                    // the lamp hanging from the ceiling
+const vec4 TC = vec4(1.3, 0.0, -2.3, -0.37);                                  // the table: its first set of legs stands at w = 0, the second at w = -0.74
+const vec4 SC = vec4(0.25, 0.0, -2.3, 0.0);                                   // the stool
+const vec4 PC = vec4(-1.7, 0.0, -3.8, 0.0);                                   // the column
+const vec4 BC = vec4(-3.12, 1.0, -2.8, 0.0);                                  // the bookcase
+const vec4 KC = vec4(-1.0, 0.25, -1.2, 0.0);                                  // the crate
+const vec4 GC = vec4(0.9, 0.0, -2.3, 0.0);                                    // the rug
+const vec4 FC = vec4(0.3, 1.5, -6.27, 0.0);                                   // the painting
+
+float box4(vec4 p, vec4 b) { vec4 q = abs(p) - b; return length(max(q, 0.0)) + min(max(max(q.x, q.y), max(q.z, q.w)), 0.0); }
+float h2(vec2 n) { return fract(sin(dot(n, vec2(127.1, 311.7))) * 43758.5453); }
+float bookHash(vec4 p) { return h2(vec2(floor((p.z + 3.8) / 0.055) + floor(p.y / 0.4) * 37.0, floor(p.w / 0.33 + 0.5) * 13.0 + 5.0)); }
+
+/* m: 0 room, 1 table, 2 globe, 3 brass, 4 painted wood, 5 seat, 6 marble, 7 bookcase, 8 books, 9 crate, 10 rug, 11 painting, 12 lamp */
+float map(vec4 p, out int m, bool lamps) {
+  float d = abs(-box4(p - RC, RB) + 0.1) - 0.1, e; m = 0;
+  vec4 q = p - TC;                                                            // the table: a top, and eight legs (one at every corner, and there are eight corners)
+  e = box4(vec4(q.x, p.y - 0.74, q.z, q.w), vec4(0.75, 0.022, 0.45, 0.45)) - 0.004;
+  e = min(e, box4(vec4(abs(q.x) - 0.67, p.y - 0.36, abs(q.z) - 0.37, abs(q.w) - 0.37), vec4(0.03, 0.36, 0.03, 0.08)));
+  if (e < d) { d = e; m = 1; }
+  q = p - SC;                                                                 // the stool; its back is there too, but it stands off in w, where you cannot see it yet
+  e = box4(vec4(abs(q.x) - 0.17, p.y - 0.215, abs(q.z) - 0.17, q.w), vec4(0.02, 0.215, 0.02, 0.06));
+  e = min(e, box4(vec4(q.x, p.y - 0.72, q.z, q.w - 0.19), vec4(0.2, 0.25, 0.2, 0.012)));
+  if (e < d) { d = e; m = 4; }
+  e = box4(vec4(q.x, p.y - 0.45, q.z, q.w), vec4(0.2, 0.02, 0.2, 0.2)) - 0.008;
+  if (e < d) { d = e; m = 5; }
+  q = p - PC;                                                                 // a column that is round in three directions at once, and the ring standing on it
+  float rc = length(q.xzw);
+  e = max(rc - 0.22, abs(p.y - 0.525) - 0.525);
+  e = min(e, max(rc - 0.27, abs(abs(p.y - 0.525) - 0.495) - 0.03));
+  if (e < d) { d = e; m = 6; }
+  e = length(vec3(length(vec2(q.x, p.y - 1.305)) - 0.2, q.z, q.w)) - 0.055;   // a ring here; turned through w it comes apart into two balls
+  q = p - vec4(TC.x, 0.0, TC.z, 0.0);
+  e = min(e, max(length(q.xzw) - 0.07, abs(p.y - 0.777) - 0.015));            // the foot of the globe on the table
+  if (lamps) { q = p - LP; e = min(e, max(length(q.xzw) - 0.006, abs(p.y - 2.55) - 0.26)); }      // the lamp's cord (it throws no shadow: it would fall on everything)
+  q = p - FC;
+  if (e < d) { d = e; m = 3; }
+  e = box4(q, vec4(0.85, 0.6, 0.03, 1.4));                                    // the painting on the far wall
+  if (e < d) { d = e; m = 11; }
+  q = p - BC;                                                                 // the bookcase, 3.2 m deep in w: other books at every depth
+  float outer = box4(q, vec4(0.17, 1.0, 1.0, 1.6));
+  if (outer < d) {
+    float board = abs(mod(p.y + 0.2, 0.4) - 0.2) - 0.012;
+    e = max(outer, min(-box4(q - vec4(0.04, 0.0, 0.0, 0.0), vec4(0.17, 0.975, 0.975, 2.0)), board));
+    if (e < d) { d = e; m = 7; }
+    float hh = bookHash(p), bh = 0.22 + 0.12 * fract(hh * 5.3), dh = 0.095 + 0.03 * fract(hh * 7.7);
+    float bz = (fract((p.z + 3.8) / 0.055) - 0.5) * 0.055, bw = (fract(p.w / 0.33 + 0.5) - 0.5) * 0.33, y0 = floor(p.y / 0.4) * 0.4 + 0.012;
+    e = hh < 0.13 ? 1.0 : box4(vec4(p.x - (-3.25 + dh), p.y - (y0 + bh * 0.5), bz, bw), vec4(dh, bh * 0.5, 0.0215, 0.155)) - 0.003;
+    e = min(e, max(min(0.0275 - abs(bz), 0.165 - abs(bw)), 0.0) + 0.012);     // never step further than into the next book's cell
+    e = max(e, box4(q, vec4(0.165, 0.97, 0.97, 1.6)));
+    if (e < d) { d = e; m = 8; }
+  }
+  q = p - KC;                                                                 // a crate: a cube in x, z and w, standing on one corner in w, so its slice is a hexagon
+  vec3 u = vec3(dot(q.xzw, vec3(0.81650, 0.0, 0.57735)), dot(q.xzw, vec3(-0.40825, 0.70711, 0.57735)), dot(q.xzw, vec3(-0.40825, -0.70711, 0.57735)));
+  e = box4(vec4(u, q.y), vec4(0.26, 0.26, 0.26, 0.25)) - 0.004;
+  if (e < d) { d = e; m = 9; }
+  q = p - GC;                                                                 // a rug, round in three directions
+  e = max(length(q.xzw) - 1.25, abs(p.y - 0.006) - 0.006);
+  if (e < d) { d = e; m = 10; }
+  if (lamps) {
+    e = length(p - vec4(TC.x, 0.94, TC.z, 0.0)) - 0.15; if (e < d) { d = e; m = 2; }      // a glowing globe: a ball in four dimensions
+    e = length(p - LP) - 0.11; if (e < d) { d = e; m = 12; }
+  }
+  return d;
+}
+
+vec3 wood(vec2 uv, vec3 dark, vec3 light) { float g = texture2D(uNoise, uv * vec2(0.4, 2.6)).r, f = texture2D(uNoise, uv * vec2(1.7, 11.0)).b; return mix(dark, light, g) * (0.86 + 0.28 * f); }
+
+void main() {
+  vec2 uv = vUv + uJitUV;
+  vec3 rd3 = normalize(uRot * vec3(mix(uProj.x, uProj.y, uv.x), mix(uProj.z, uProj.w, uv.y), -1.0));
+  float cy = cos(uYaw), sy = sin(uYaw); mat3 Ry = mat3(cy, 0.0, sy, 0.0, 1.0, 0.0, -sy, 0.0, cy);
+  vec3 ro3 = Ry * (uCam - uAnchor); rd3 = Ry * rd3;
+  float t = 0.0;
+  if (uThru > 0.5 && ro3.z > 0.0 && rd3.z < 0.0) t = -ro3.z / rd3.z + 0.01;                                 // seen through the door: the ray starts in the doorway
+  vec4 ro = uR4 * vec4(ro3, 0.0) + uC4, rd = uR4 * vec4(rd3, 0.0);
+  const float MAXT = 18.0; float d = 0.0; int m = 0; bool hit = false;
+  for (int i = 0; i < 80; i++) { d = map(ro + rd * t, m, true); if (d < 0.0006 + 0.0009 * t) { hit = true; break; } t += d; if (t > MAXT) break; }
+  vec3 col = vec3(0.012, 0.013, 0.02);
+  if (hit) {
+    vec4 p = ro + rd * t; int mm; float e = 0.0015 + 0.0008 * t;
+    vec4 n = normalize(vec4(map(p + vec4(e, 0.0, 0.0, 0.0), mm, true), map(p + vec4(0.0, e, 0.0, 0.0), mm, true), map(p + vec4(0.0, 0.0, e, 0.0), mm, true), map(p + vec4(0.0, 0.0, 0.0, e), mm, true)) - d);
+    vec3 alb = vec3(0.6), emi = vec3(0.0); float rough = 0.8, metal = 0.0;
+    if (m == 0) {
+      vec4 r = p - RC;
+      if (n.y > 0.7) {                                                        // the floor: oak boards
+        float v = p.z / 0.13, row = floor(v), rid = h2(vec2(row, floor(p.w / 0.6 + 0.5) * 7.0)), xs = p.x / 1.1 + rid * 5.0, pid = h2(vec2(row * 3.0 + rid, floor(xs)));
+        float gap = min(min(fract(v), 1.0 - fract(v)) * 0.13, min(fract(xs), 1.0 - fract(xs)) * 1.1);
+        alb = wood(vec2(p.x + pid * 7.0, p.z + pid * 3.0 + p.w * 0.5), vec3(0.30, 0.17, 0.08), vec3(0.56, 0.36, 0.19)) * (0.82 + 0.36 * pid) * mix(0.3, 1.0, smoothstep(0.0, 0.004, gap)); rough = 0.3;
+      } else if (n.y < -0.7) { alb = vec3(0.86, 0.85, 0.82) * (0.95 + 0.07 * texture2D(uNoise, p.xz * 0.5).r); rough = 0.95; }
+      else {                                                                  // the walls: plaster above, painted panelling below
+        vec4 an = abs(n); float hc = an.x > max(an.z, an.w) ? p.z + p.w : p.x + (an.z > an.w ? p.w : p.z);
+        float mott = texture2D(uNoise, vec2(hc * 0.21, p.y * 0.21)).r, grain = texture2D(uNoise, vec2(hc * 2.3, p.y * 2.3)).b;
+        alb = vec3(0.80, 0.75, 0.66) * (0.88 + 0.16 * mott) * (0.96 + 0.08 * grain); rough = 0.95;
+        if (p.y < 0.96) {
+          vec2 f = vec2(fract(hc / 0.62), (p.y - 0.12) / 0.78); vec2 bd = min(f, 1.0 - f) * vec2(0.62, 0.78);
+          float inset = smoothstep(0.075, 0.085, min(bd.x, bd.y)), groove = 1.0 - smoothstep(0.0, 0.012, abs(min(bd.x, bd.y) - 0.08));
+          alb = vec3(0.33, 0.43, 0.38) * (0.94 + 0.1 * grain) * (1.0 - 0.07 * inset) * (1.0 - 0.45 * groove); rough = 0.5;
+          if (p.y < 0.11) alb = vec3(0.74, 0.72, 0.66);
+          if (p.y > 0.92) alb = vec3(0.40, 0.50, 0.45);
+        }
+      }
+    } else if (m == 1) { vec4 q = p - TC; alb = wood(vec2(q.x + q.w * 0.6, q.z + p.y * 0.7), vec3(0.17, 0.085, 0.04), vec3(0.42, 0.24, 0.12)); rough = 0.22; }
+    else if (m == 2) { float f = max(0.0, -dot(n, rd)); emi = vec3(1.0, 0.82, 0.55) * (0.9 + 1.5 * f * f); alb = vec3(0.9); rough = 0.2; }
+    else if (m == 3) { alb = vec3(0.86, 0.62, 0.26); metal = 1.0; rough = 0.28; }
+    else if (m == 4) { alb = vec3(0.76, 0.73, 0.65) * (0.9 + 0.14 * texture2D(uNoise, vec2(p.y * 1.5, p.x * 6.0 + p.z * 6.0 + p.w * 6.0)).b); rough = 0.45; }
+    else if (m == 5) { float wv = texture2D(uNoise, vec2(p.x + p.w, p.z) * 9.0).b; alb = vec3(0.50, 0.11, 0.09) * (0.75 + 0.5 * wv); rough = 0.95; }
+    else if (m == 6) {
+      vec2 mu = vec2(p.x + p.y * 0.35 + p.w, p.z + p.y * 0.8); float vein = texture2D(uNoise, mu * 0.55).g, cloud = texture2D(uNoise, mu * 0.3).r;
+      alb = mix(vec3(0.84, 0.82, 0.78), vec3(0.30, 0.31, 0.35), (1.0 - smoothstep(0.0, 0.07, vein)) * 0.75) * (0.86 + 0.2 * cloud); rough = 0.16;
+    } else if (m == 7) { alb = wood(vec2(p.y, p.z + p.w + p.x * 3.0), vec3(0.09, 0.05, 0.03), vec3(0.24, 0.13, 0.07)); rough = 0.4; }
+    else if (m == 8) {
+      float hh = bookHash(p), hue = fract(hh * 3.7), y0 = floor(p.y / 0.4) * 0.4 + 0.012, bh = 0.22 + 0.12 * fract(hh * 5.3), fy = (p.y - y0) / bh;
+      alb = hue < 0.25 ? vec3(0.42, 0.07, 0.06) : hue < 0.5 ? vec3(0.07, 0.17, 0.30) : hue < 0.7 ? vec3(0.10, 0.26, 0.13) : hue < 0.88 ? vec3(0.42, 0.28, 0.12) : vec3(0.60, 0.56, 0.46);
+      alb *= 0.8 + 0.4 * texture2D(uNoise, vec2(p.z * 4.0, p.y * 4.0)).b; rough = 0.6;
+      if (n.x > 0.6 && (abs(fy - 0.16) < 0.018 || abs(fy - 0.84) < 0.018 || (abs(fy - 0.62) < 0.06 && fract(hh * 11.0) > 0.4))) { alb = vec3(0.86, 0.66, 0.28); metal = 0.8; rough = 0.35; }      // gilt bands on the spines
+      if (n.y > 0.6) { alb = vec3(0.80, 0.76, 0.64); rough = 0.9; }                                        // the pages, seen from above
+    } else if (m == 9) {
+      vec4 q = p - KC; float pl = abs(fract(p.y / 0.125 + 0.5) - 0.5) * 0.125;
+      alb = wood(vec2(dot(q.xzw, vec3(0.7, 0.9, 0.8)), p.y * 0.3 + floor(p.y / 0.125) * 0.37), vec3(0.50, 0.35, 0.18), vec3(0.78, 0.62, 0.38)) * mix(0.35, 1.0, smoothstep(0.0, 0.005, pl)); rough = 0.8;
+    } else if (m == 10) {
+      float r = length((p - GC).xzw) / 1.25, band = fract(r * 5.0), wool = texture2D(uNoise, (p.xz + p.w) * 6.0).b;
+      alb = r > 0.93 ? vec3(0.70, 0.62, 0.45) : band < 0.5 ? vec3(0.40, 0.07, 0.07) : band < 0.62 ? vec3(0.72, 0.64, 0.46) : band < 0.9 ? vec3(0.08, 0.12, 0.25) : vec3(0.72, 0.64, 0.46);
+      alb *= 0.7 + 0.5 * wool; rough = 1.0;
+    } else if (m == 11) {
+      vec4 q = p - FC;
+      if (abs(q.x) < 0.76 && abs(q.y) < 0.51 && n.z > 0.5) {                  // the canvas: a landscape that is another landscape at every depth of w
+        vec2 c = vec2(q.x + q.w * 0.9, q.y);
+        float hill = -0.12 + 0.30 * texture2D(uNoise, vec2(c.x * 0.22, 0.3)).r + 0.05 * texture2D(uNoise, vec2(c.x * 0.9, 0.6)).a;
+        float far = 0.02 + 0.26 * texture2D(uNoise, vec2(c.x * 0.13 + 0.4, 0.8)).a;
+        vec3 sky = mix(vec3(0.86, 0.66, 0.44), vec3(0.30, 0.46, 0.66), smoothstep(-0.2, 0.5, q.y)) + vec3(0.2, 0.16, 0.1) * smoothstep(0.55, 0.8, texture2D(uNoise, c * vec2(0.25, 0.6) + 0.2).r);
+        alb = q.y < hill ? mix(vec3(0.10, 0.20, 0.08), vec3(0.34, 0.36, 0.14), texture2D(uNoise, c * 0.8).r) * (0.6 + 0.8 * smoothstep(-0.5, hill, q.y)) : q.y < far ? vec3(0.30, 0.36, 0.44) : sky;
+        alb *= 0.9 + 0.2 * texture2D(uNoise, c * 5.0).b; rough = 0.7;
+      } else { alb = vec3(0.80, 0.60, 0.24); metal = 0.9; rough = 0.4; }
+    } else { emi = vec3(1.0, 0.86, 0.62) * 2.6; alb = vec3(1.0); }
+    /* light: the hanging lamp (it is a point in 4D too: the further you are from it in w, the dimmer), the globe, and what the room throws back */
+    vec3 V3 = vec3(0.0); vec4 L = LP - p; float ld = length(L); L /= ld;
+    float sh = 1.0, st = 0.05;
+    for (int i = 0; i < 22; i++) { float h = map(p + n * 0.02 + L * st, mm, false); sh = min(sh, 14.0 * h / st); st += max(h, 0.04); if (h < 0.002 || st > ld - 0.3) break; }
+    sh = smoothstep(0.0, 1.0, clamp(sh, 0.0, 1.0));
+    float ao = 1.0; for (int i = 1; i <= 3; i++) { float s = 0.06 * float(i) * float(i); ao -= max(0.0, s - map(p + n * s, mm, false)) / s * 0.3; }
+    ao = clamp(ao, 0.15, 1.0);
+    float ndl = max(dot(n, L), 0.0), att = 4.4 / (1.0 + 0.30 * ld * ld);
+    vec4 H = normalize(L - rd); float spec = pow(max(dot(n, H), 0.0), mix(180.0, 8.0, rough)) * mix(1.6, 0.05, rough);
+    vec4 G = vec4(TC.x, 0.94, TC.z, 0.0) - p; float gd = length(G); G /= gd; float gl = max(dot(n, G), 0.0) * 0.5 / (0.15 + gd * gd);
+    vec3 warm = vec3(1.0, 0.86, 0.66);
+    vec3 amb = mix(vec3(0.16, 0.12, 0.08), vec3(0.26, 0.24, 0.21), 0.5 + 0.5 * n.y) * ao;
+    vec4 R = reflect(rd, n); vec3 env = mix(vec3(0.20, 0.12, 0.06), vec3(0.75, 0.68, 0.56), smoothstep(-0.4, 0.6, R.y)) * (0.5 + 0.5 * ao);
+    float fres = pow(1.0 - max(dot(n, -rd), 0.0), 5.0);
+    vec3 dif = alb * (amb + warm * (ndl * att * sh + gl));
+    vec3 met = alb * (env * 1.1 + warm * spec * att * sh * 2.0);
+    col = mix(dif + warm * spec * att * sh + env * fres * (1.0 - rough) * 0.5, met, metal) + emi;
+    col = mix(col, vec3(0.012, 0.013, 0.02), smoothstep(MAXT * 0.7, MAXT, t));
+  }
+  col = col / (1.0 + col * 0.6); col = pow(col, vec3(0.4545));
+  gl_FragColor = vec4(col * uBright, sqrt(clamp(t / MAXT, 0.0, 1.0)));
+}
+`;
 const MARCH_VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 const marchFS = f => `precision highp float; varying vec2 vUv;
   uniform vec3 uCam; uniform mat3 uRot; uniform vec4 uProj; uniform vec3 uAnchor; uniform float uYaw; uniform float uTime; uniform float uBright; uniform float uS; uniform vec3 uOff; uniform float uParam; uniform float uParam2; uniform float uFine; uniform vec2 uJitUV;
@@ -142,7 +314,7 @@ const RESOLVE_FS = `precision highp float; varying vec2 vUv;
         }
       }
     }
-    gl_FragColor = vec4(outc, 1.0); }`;
+    gl_FragColor = vec4(outc, c.a); }`;
 const BLIT_FS = 'precision highp float; varying vec2 vUv; uniform sampler2D uTex; void main() { gl_FragColor = vec4(texture2D(uTex, vUv).rgb, 1.0); }';
 
 
@@ -574,9 +746,15 @@ export function createWorlds(scene, renderer, params) {
   const FR = { mode: 'taa', n: 0, hist: {}, prev: [null, null], acc: false, calm: false, top: 0.55, min: params.has('flat') ? 0.5 : 0.2, scale: params.has('flat') ? 0.5 : 0.42, ema: 1 / 72, slow: 0, fast: 0, rts: {}, scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), flat: true, base: [1440, 1584] };
   const frMesh = new THREE.Mesh(quadGeo, null); frMesh.frustumCulled = false; FR.scene.add(frMesh);
   const target = (role, eye) => { const k = role + eye; if (!FR.rts[k]) { FR.rts[k] = new THREE.WebGLRenderTarget(8, 8, { depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false }); } return FR.rts[k]; };
-  function blit(role, eye) {
+  /* A fractal that floats in space: where its ray went all the way out, the stars are drawn here, at the headset's full sharpness (the fractal's own picture is small). */
+  const BLIT_STAR_VS = 'varying vec2 vUv; varying vec3 vDir; void main() { vUv = uv; vec4 cp = vec4(position.xy, 0.9999, 1.0); vec4 v = inverse(projectionMatrix) * cp; vDir = transpose(mat3(viewMatrix)) * (v.xyz / v.w); gl_Position = cp; }';
+  const BLIT_STAR_FS = 'precision highp float; varying vec2 vUv; varying vec3 vDir; uniform sampler2D uTex; uniform float uYaw;' + STARS_GLSL + `
+    void main() { vec4 t = texture2D(uTex, vUv); vec3 col = t.rgb; float sky = smoothstep(0.97, 1.0, t.a);
+      if (sky > 0.0) { float c = cos(uYaw), s = sin(uYaw); vec3 d = normalize(vDir); col += starField(vec3(c * d.x - s * d.z, d.y, s * d.x + c * d.z), 0.25) * sky; }
+      gl_FragColor = vec4(col, 1.0); }`;
+  function blit(role, eye, stars) {
     const inRing = role === 'other';
-    const m = new THREE.ShaderMaterial({ vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.9999, 1.0); }', fragmentShader: BLIT_FS, uniforms: { uTex: { value: target(role, eye).texture } },
+    const m = new THREE.ShaderMaterial({ vertexShader: stars ? BLIT_STAR_VS : 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.9999, 1.0); }', fragmentShader: stars ? BLIT_STAR_FS : BLIT_FS, uniforms: { uTex: { value: target(role, eye).texture }, uYaw: { value: 0 } },
       blending: THREE.NoBlending, depthTest: true, depthWrite: inRing, depthFunc: inRing ? THREE.AlwaysDepth : THREE.LessEqualDepth });
     if (inRing) { m.stencilWrite = true; m.stencilRef = 1; m.stencilFunc = THREE.EqualStencilFunc; m.stencilFail = m.stencilZFail = m.stencilZPass = THREE.KeepStencilOp; }
     const q = new THREE.Mesh(quadGeo, m); q.frustumCulled = false; q.renderOrder = inRing ? ORDER.fill : ORDER.bgHome; q.userData.eye = eye; q.userData.role = role; return q;
@@ -584,10 +762,10 @@ export function createWorlds(scene, renderer, params) {
   const eyeQuads = [];
   for (const w of W) if (w.fract) {
     const f = FRACT[w.key];
-    w.march = new THREE.ShaderMaterial({ vertexShader: MARCH_VS, fragmentShader: marchFS(f), depthTest: false, depthWrite: false,
-      uniforms: { uCam: { value: new V() }, uRot: { value: new THREE.Matrix3() }, uProj: { value: new THREE.Vector4() }, uAnchor: { value: new V(0, 0, 0) }, uYaw: { value: 0 }, uTime: fracTimeU, uBright: brightU, uS: { value: f.S }, uOff: { value: new V(...f.off) }, uParam: { value: f.par[0] }, uParam2: { value: f.par2[0] }, uFine: fineU, uJitUV: { value: new THREE.Vector2() } } });
-    w.fr = { f, S: f.S, yaw: 0, off: new V(...f.off), param: f.par[0], param2: f.par2[0], A: new V() };
-    for (const role of ['home', 'other']) { const g = new THREE.Group(); for (const eye of [0, 1]) { const q = blit(role, eye); g.add(q); eyeQuads.push(q); } g.visible = false; scene.add(g); if (role === 'home') w.skyHome = g; else w.fill = g; }
+    w.march = new THREE.ShaderMaterial({ vertexShader: MARCH_VS, fragmentShader: f.fs ? FOUR_FS : marchFS(f), depthTest: false, depthWrite: false,
+      uniforms: { uR4: { value: new THREE.Matrix4() }, uC4: { value: new THREE.Vector4() }, uThru: { value: 0 }, uNoise: noiseU, uCam: { value: new V() }, uRot: { value: new THREE.Matrix3() }, uProj: { value: new THREE.Vector4() }, uAnchor: { value: new V(0, 0, 0) }, uYaw: { value: 0 }, uTime: fracTimeU, uBright: brightU, uS: { value: f.S }, uOff: { value: new V(...f.off) }, uParam: { value: f.par[0] }, uParam2: { value: f.par2[0] }, uFine: fineU, uJitUV: { value: new THREE.Vector2() } } });
+    w.fr = { f, S: f.S, yaw: 0, off: new V(...f.off), param: f.par[0], param2: f.par2[0], A: new V(), R4: new THREE.Matrix4(), c4: new THREE.Vector4(0, 0, 0, 0), depth: 0, turn: 0 };
+    for (const role of ['home', 'other']) { const g = new THREE.Group(); for (const eye of [0, 1]) { const q = blit(role, eye, !!f.stars); g.add(q); eyeQuads.push(q); } g.visible = false; scene.add(g); if (role === 'home') w.skyHome = g; else w.fill = g; }
   }
   const setEyes = flat => { FR.flat = flat; for (const q of eyeQuads) { if (flat) { q.layers.set(0); q.visible = q.userData.eye === 0; } else { q.layers.set(q.userData.eye + 1); q.visible = true; } } };
   setEyes(true);
@@ -622,12 +800,13 @@ export function createWorlds(scene, renderer, params) {
     for (const [i, role] of jobs) {
       const w = W[i], U = w.march.uniforms, home = role === 'home';
       views.forEach((v, eye) => {
-        const rt = target(role, eye), sc = home ? 1 : 0.8, lw = Math.round(tw * sc), lh = Math.round(th * sc); if (rt.width !== lw || rt.height !== lh) rt.setSize(lw, lh);
+        const rt = target(role, eye), sc = (home ? 1 : 0.8) * (w.fr.f.res || 1), lw = Math.min(bw, Math.round(tw * sc)), lh = Math.min(bh, Math.round(th * sc)); U.uThru.value = home && !FR.thru ? 0 : 1; if (rt.width !== lw || rt.height !== lh) rt.setSize(lw, lh);
         const m = v.matrix, p = v.proj; _m4.fromArray(m); U.uRot.value.setFromMatrix4(_m4); U.uCam.value.set(m[12], m[13], m[14]);
         U.uProj.value.set((p[8] - 1) / p[0], (p[8] + 1) / p[0], (p[9] - 1) / p[5], (p[9] + 1) / p[5]);
         U.uJitUV.value.set(home && taa ? jx / lw : 0, home && taa ? jy / lh : 0);
         frMesh.material = w.march; renderer.setRenderTarget(rt); renderer.render(FR.scene, FR.cam);
         const quad = eyeQuads.find(q => q.userData.role === role && q.userData.eye === eye && q.parent === (home ? w.skyHome : w.fill));
+        if (quad) quad.material.uniforms.uYaw.value = w.fr.yaw;
         if (home && taa) {
           const hw = Math.min(bw, Math.round(lw * 2.2)), hh = Math.min(bh, Math.round(lh * 2.2)), a = histRT(eye, FR.n & 1), b = histRT(eye, (FR.n + 1) & 1);
           for (const h of [a, b]) if (h.width !== hw || h.height !== hh) { h.setSize(hw, hh); FR.prev[eye] = null; }
@@ -646,10 +825,10 @@ export function createWorlds(scene, renderer, params) {
   }
 
   const ghostU = { value: 1 };
-  const _f1 = new V(), _f2 = new V();
+  const _f1 = new V(), _f2 = new V(), _v4a = new THREE.Vector4(), _v4b = new THREE.Vector4(), _g4 = new THREE.Matrix4();
   /** Where a point of the room is in the fractal's own space (the same sum the shader does). */
   function toF(w, p, out) { const r = w.fr, c = Math.cos(r.yaw), s = Math.sin(r.yaw), x = p.x - r.A.x, y = p.y - r.A.y, z = p.z - r.A.z; return out.set((c * x - s * z) * r.S + r.off.x, y * r.S + r.off.y, (s * x + c * z) * r.S + r.off.z); }
-  function syncFr(w) { const U = w.march.uniforms; U.uAnchor.value.copy(w.fr.A); U.uYaw.value = w.fr.yaw; U.uS.value = w.fr.S; U.uOff.value.copy(w.fr.off); U.uParam.value = w.fr.param; U.uParam2.value = w.fr.param2; }
+  function syncFr(w) { const U = w.march.uniforms; U.uAnchor.value.copy(w.fr.A); U.uYaw.value = w.fr.yaw; U.uS.value = w.fr.S; U.uOff.value.copy(w.fr.off); U.uParam.value = w.fr.param; U.uParam2.value = w.fr.param2; U.uR4.value.copy(w.fr.R4); U.uC4.value.copy(w.fr.c4); }
   /** The hyperbolic world ends at a horizon: you cannot fly out through it. */
   function keepIn(w, h) { if (w.fr.f.ball) { toF(w, h, _f1); const l = _f1.length(); if (l > w.fr.f.ball) w.fr.off.addScaledVector(_f1, w.fr.f.ball / l - 1); } syncFr(w); }
 
@@ -1056,7 +1235,7 @@ export function createWorlds(scene, renderer, params) {
     /** Keep only what is behind the door, seen from where you stand. */
     setClip(oth, normal, point) { W[oth].clip.setFromNormalAndCoplanarPoint(normal, point); },
     /** Put a dimension's own things round the door, once, so they do not jump when you cut a new door while standing among them. */
-    anchor(i, x, z, yaw, force) { const w = W[i]; if (w.anchored && !force) return; w.deco.position.set(x, 0, z); w.deco.rotation.set(0, yaw, 0); w.anchored = true; placeTouch(w); if (w.space) SP.stars.position.set(x, 1.4, z); if (w.march) { w.fr.A.set(x, 0, z); w.fr.yaw = -yaw; w.fr.S = w.fr.f.S; w.fr.off.set(...w.fr.f.off); w.fr.param = w.fr.f.par[0]; w.fr.param2 = w.fr.f.par2[0]; syncFr(w); } },
+    anchor(i, x, z, yaw, force) { const w = W[i]; if (w.anchored && !force) return; w.deco.position.set(x, 0, z); w.deco.rotation.set(0, yaw, 0); w.anchored = true; placeTouch(w); if (w.space) SP.stars.position.set(x, 1.4, z); if (w.march) { w.fr.A.set(x, 0, z); w.fr.yaw = yaw; w.fr.R4.identity(); w.fr.c4.set(0, 0, 0, 0); w.fr.depth = w.fr.turn = 0; w.fr.S = w.fr.f.S; w.fr.off.set(...w.fr.f.off); w.fr.param = w.fr.f.par[0]; w.fr.param2 = w.fr.f.par2[0]; syncFr(w); } },
     renderFractals, fractalScale: () => FR.scale,
     /** 0..1: how visible the room's outline is in a fractal dimension (it fades while you stand still). The opening onto the real room near you is not affected. */
     setGhost(v) { ghostU.value = v; },
@@ -1070,6 +1249,26 @@ export function createWorlds(scene, renderer, params) {
     fractScale(i, h, factor) { const w = W[i]; if (!w.fr) return; toF(w, h, _f1); w.fr.S = Math.min(w.fr.f.S * 12, Math.max(w.fr.f.S / 12, w.fr.S * factor)); toF(w, h, _f2); w.fr.off.add(_f1).sub(_f2); keepIn(w, h); },
     fractParam(i, which, dir, dt) { const w = W[i]; if (!w.fr) return; const key = which ? 'param2' : 'param', [, lo, hi] = which ? w.fr.f.par2 : w.fr.f.par; w.fr[key] = Math.min(hi, Math.max(lo, w.fr[key] + dir * dt * (hi - lo) / 7)); syncFr(w); },
     fractState: i => W[i].fr,
+    /** The four-dimensional room. Which slice of it you see is a rotation R4 and a shift c4: a point q of the room you stand in is the 4D point R4 (q, 0) + c4.
+     *  rot turns the slice in the plane of u (a level direction, e.g. your right) and w, about the point where your head is, so what is straight ahead stays put
+     *  while it changes; pull slides the slice along w. You cannot pull yourself out through the room's walls. */
+    fourStep(i, h, u, rot, pull) {
+      const w = W[i], r = w.fr; if (!r) return; toF(w, h, _f1); const qh = _v4a.set(_f1.x, _f1.y, _f1.z, 0), c = Math.cos(r.yaw), s = Math.sin(r.yaw);
+      if (rot) {
+        const ux = c * u.x - s * u.z, uz = s * u.x + c * u.z, ca = Math.cos(rot), sa = Math.sin(rot), G = _g4.identity().elements, k = ca - 1;
+        G[0] = 1 + k * ux * ux; G[2] = k * ux * uz; G[8] = k * ux * uz; G[10] = 1 + k * uz * uz; G[15] = ca;      // u -> cos u + sin w, w -> cos w - sin u (column-major)
+        G[3] = sa * ux; G[11] = sa * uz; G[12] = -sa * ux; G[14] = -sa * uz;
+        const before = _v4b.copy(qh).applyMatrix4(r.R4); r.R4.multiply(_g4); r.c4.add(before).sub(_v4b.copy(qh).applyMatrix4(r.R4)); r.turn += rot;
+      }
+      if (pull) {
+        const e = r.R4.elements, hp = _v4b.copy(qh).applyMatrix4(r.R4).add(r.c4); hp.x += e[12] * pull; hp.y += e[13] * pull; hp.z += e[14] * pull; hp.w += e[15] * pull;
+        const C = ROOM4.c, B = ROOM4.b, m = 0.3;
+        if (Math.abs(hp.x - C[0]) < B[0] - m && Math.abs(hp.z - C[2]) < B[2] - m && Math.abs(hp.w - C[3]) < B[3] - m) { r.c4.x += e[12] * pull; r.c4.y += e[13] * pull; r.c4.z += e[14] * pull; r.c4.w += e[15] * pull; r.depth += pull; }
+      }
+      syncFr(w);
+    },
+    fourReset(i) { const r = W[i].fr; if (!r) return; r.R4.identity(); r.c4.set(0, 0, 0, 0); r.depth = r.turn = 0; syncFr(W[i]); },
+    fourInfo: i => ({ depth: W[i].fr.depth, turn: W[i].fr.turn }),
     /** The head, kept by reference: where "can you walk there" is measured from. */
     setHead(v) { headRef = v; },
     /** Deep space: the whole sky turns about your head by the rotation vector w (radians a second, world axes). You tumble; you do not get anywhere. */
@@ -1082,7 +1281,7 @@ export function createWorlds(scene, renderer, params) {
     /** A still picture of dimension i as it looks from cam through the door (only what lies beyond the plane n, p), into rt. Used while the door changes where it leads. */
     snapshot(i, cam, rt, n, p) {
       const w = W[i], xrWas = renderer.xr.enabled, rtWas = renderer.getRenderTarget(); renderer.xr.enabled = false; cam.updateMatrixWorld();
-      if (w.fract) { const calm = FR.calm; FR.calm = false; renderFractals([{ matrix: cam.matrixWorld.elements, proj: cam.projectionMatrix.elements }], i, -1, FR.ema); FR.calm = calm; renderer.xr.enabled = false; }
+      if (w.fract) { const calm = FR.calm; FR.calm = false; FR.thru = true; renderFractals([{ matrix: cam.matrixWorld.elements, proj: cam.projectionMatrix.elements }], i, -1, FR.ema); FR.calm = calm; FR.thru = false; renderer.xr.enabled = false; }
       api.applyRoles(i, -1); w.clip.setFromNormalAndCoplanarPoint(n, p); if (w.bare) w.scan.visible = false;
       const on = o => { o.layers.enable(3); }, off = o => { o.layers.disable(3); };
       scene.traverse(o => { if (o.isLight) o.layers.enable(3); }); w.group.traverse(on); if (w.skyHome) w.skyHome.traverse(on);

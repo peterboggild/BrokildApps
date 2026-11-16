@@ -61,7 +61,9 @@ dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
 - **Opaque and transparent objects are sorted in separate lists** (opaque first). `renderOrder` only orders
   within a list. Anything that must come after the other world's particles has to be `transparent: true`.
 - **Dimensions** (`DIMS`): 0 stue, 1 groen, 2 metal, 3 klippe (the three "song dimensions", one music track
-  each), 4 rum (deep space), 5 to 10 fractals. Space and fractals are `bare` (no surfaces of their own: the room
+  each), 4 rum (deep space), then the fractals (apollo, klein, hyper, menger, boks, kali) and `fire`, the
+  four-dimensional room (`fract: true, four: true`: it rides the fractal pipeline with its own shader
+  `FOUR_FS` and its own controls; also a button of its own on the start page, `?flat&four`). Space and fractals are `bare` (no surfaces of their own: the room
   shows as a faint outline and opens to passthrough near head and hands) and only reachable in free play or once
   the story is over (`story.fractalsOK()`). Indices are not hard-coded elsewhere; look worlds up by flag.
 - **Surfaces** are procedural in world space: `worldMat(i, surfGLSL, opts)` patches `MeshStandardMaterial`
@@ -85,6 +87,13 @@ dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
 
 ## Pitfalls already paid for
 
+- The fractal's layout yaw must equal the door's yaw (`w.fr.yaw = yaw`). It was negated for a long time, which
+  only showed with a bounded fractal (the KaliBox could not be found unless the door faced along z).
+- A positive-scale Mandelbox tiled into a grid is a noisy solid mass; the negative-scale one (-1.8) is the
+  classic carved cube. Look at a candidate fractal from several places before adopting it (`k1.js`-style test:
+  set `fractState(i).off` and take screenshots).
+- Soft shadows marched with few, clamped steps draw terraces on plain walls. Let the step be the distance itself.
+
 - A trailing `//` comment inserted mid-line once commented out the rest of the line (the letter never appeared).
 - Replacing a block of `index.html` dropped unrelated controls. Check what a replaced block contained.
 - Patch scripts that abort half-way leave files half-edited: assert every anchor is found exactly once before
@@ -102,7 +111,8 @@ dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
 ## Waiting on headset feedback
 
 Frame rate in the fractals and with the temporal sharpening; whether the spiral reads well in stereo (the still
-picture is flat while it winds); comfort when turning in deep space; star shimmer; how the touchable things
+picture is flat while it winds); comfort when turning in deep space; star shimmer; the four-dimensional room (frame rate, sharpness of the
+textures at the small march resolution, whether pulling and turning read as 4D); how the touchable things
 feel; the knife's tilt in the fist (`?tilt=`).
 
 ## Saved, not built
