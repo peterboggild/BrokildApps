@@ -267,6 +267,8 @@ void main() {
 const MARCH_VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 const marchFS = f => `precision highp float; varying vec2 vUv;
   uniform vec3 uCam; uniform mat3 uRot; uniform vec4 uProj; uniform vec3 uAnchor; uniform float uYaw; uniform float uTime; uniform float uBright; uniform float uS; uniform vec3 uOff; uniform float uParam; uniform float uParam2; uniform float uFine; uniform vec2 uJitUV;
+  uniform float uHue;
+  vec3 hueTurn(vec3 c) { const vec3 k = vec3(0.57735); float ca = cos(uHue), sa = sin(uHue); return max(c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca), 0.0); }      // the colour scheme: every colour turned round the grey axis
   ${f.glsl}
   void main() {
     vec2 uv = vUv + uJitUV;
@@ -276,12 +278,12 @@ const marchFS = f => `precision highp float; varying vec2 vUv;
     float t = 0.0, d = 0.0, it = 0.0; vec4 trap = vec4(0.0); int n = 0;
     vec2 q = vUv - 0.5; float edge = dot(q, q) * 2.0;                                                       // coarser towards the edge of view
     for (int i = 0; i < ${f.steps}; i++) { d = fde(ro + rd * t, trap, it); if (d < (0.0013 - 0.0007 * uFine + 0.0025 * (1.0 - 0.7 * uFine) * edge) * t + 0.00035 - 0.00015 * uFine || t > ${f.maxT.toFixed(1)}) break; t += d * 0.92; n = i; }
-    vec3 fog = vec3(${f.fog.map(v => v.toFixed(3)).join(', ')}), col = fog;
+    vec3 fog = hueTurn(vec3(${f.fog.map(v => v.toFixed(3)).join(', ')})), col = fog;
     if (t < ${f.maxT.toFixed(1)}) {
       vec3 p = ro + rd * t, L = normalize(vec3(0.5, 0.8, 0.3)); vec4 t2; float i2; float e = 0.002 + 0.004 * t;
       float dif = clamp((fde(p + L * e, t2, i2) - d) / e * 0.5 + 0.5, 0.0, 1.0);                            // one extra sample: light from the field's slope
       float ao = 1.0 - float(n) / ${f.steps}.0;
-      col = pal(it, trap) * (0.32 + 1.0 * dif) * (0.45 + 0.55 * ao * ao);
+      col = hueTurn(pal(it, trap)) * (0.32 + 1.0 * dif) * (0.45 + 0.55 * ao * ao);
       col = mix(col, fog, 1.0 - exp(-t * t * ${(3.2 / (f.maxT * f.maxT)).toFixed(4)}));
     }
     col += fog * 2.0 * float(n) / ${f.steps}.0 * 0.6;                                                       // a glow where the ray grazed things
@@ -450,6 +452,17 @@ function rockGeometry(detail, seed) {
   for (let i = 0; i < n; i++) { const s = acc.get(key[i]); fn.copy(s).normalize(); nn[i * 3] = fn.x; nn[i * 3 + 1] = fn.y; nn[i * 3 + 2] = fn.z; }
   g.setAttribute('normal', new THREE.BufferAttribute(nn, 3));
   return g;
+}
+
+/** An upright slab of stone: a box worked over with noise, narrower towards a rounded top; its front (+z) is left nearly flat, to carry a mark. */
+function slabGeometry(w, h, t, seed) {
+  const g = new THREE.BoxGeometry(w, h, t, 8, 12, 2), p = g.attributes.position, v = new V();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i); const u = v.y / h + 0.5, n = f3(v.x * 2.3 + seed, v.y * 2.3, v.z * 2.3 + seed * 2) - 0.5, xr = v.x / (w / 2);
+    v.x = v.x * (1 - 0.2 * u * u) + n * 0.05 * (0.3 + u); v.y -= xr * xr * u * u * h * 0.1; v.z += v.z < 0 ? n * 0.07 - 0.04 * u : n * 0.006;
+    p.setXYZ(i, v.x, v.y + h / 2, v.z);
+  }
+  g.computeVertexNormals(); return g;
 }
 
 /* ------------------------------------------------------------------ shaders */
@@ -649,7 +662,21 @@ const SKY = {
     gl_FragColor = vec4(col * uBright, 1.0);
   }`,
   /* deep space; uSpin turns the whole sky (you tumble, it does not) */
-  rum: SPACE_GLSL + 'uniform mat3 uSpin; void main() { gl_FragColor = vec4(spaceSky(uSpin * normalize(vDir)), 1.0); }',
+  rum: SPACE_GLSL + `uniform mat3 uSpin; uniform vec4 uWarp; uniform float uHole;
+    void main() {
+      vec3 d = normalize(vDir); float dop = 1.0;
+      if (uWarp.w > 0.002) {                                           // speed: the whole sky is swept forward (aberration), blue ahead and red behind
+        vec3 a = uWarp.xyz; float b = uWarp.w, c = dot(d, a), c0 = (c - b) / (1.0 - b * c); vec3 pp = d - c * a;
+        d = a * c0 + pp / max(length(pp), 1e-5) * sqrt(max(0.0, 1.0 - c0 * c0)); dop = sqrt(1.0 - b * b) / (1.0 - b * c); }
+      const vec3 H = vec3(-0.2425, 0.1455, -0.9592); float glow = 0.0, dark = 1.0;
+      if (uHole > 0.002) {                                             // mass: a black hole bends the light that passes it (a point lens), with a shadow and a ring of light
+        float ch = clamp(dot(d, H), -1.0, 1.0), th = acos(ch), sh = uHole * 0.55; vec3 t = normalize(d - H * ch + 1e-6);
+        float be = th - uHole * uHole / max(th, 1e-4); d = H * cos(be) + t * sin(be);
+        dark = smoothstep(sh, sh * 1.07, th); float e = (th - sh * 1.12) / (sh * 0.08); glow = exp(-e * e); }
+      vec3 col = spaceSky(uSpin * d) * dark;
+      col *= (dop < 1.0 ? mix(vec3(1.2, 0.62, 0.42), vec3(1.0), smoothstep(0.35, 1.0, dop)) : mix(vec3(1.0), vec3(0.62, 0.86, 1.4), smoothstep(1.0, 2.4, dop))) * clamp(dop, 0.5, 2.0);
+      col += vec3(1.0, 0.78, 0.5) * glow * 0.7;
+      gl_FragColor = vec4(col, 1.0); }`,
 };
 const CLEAR_FS = 'void main() { gl_FragColor = vec4(0.0); }';
 
@@ -657,7 +684,7 @@ const CLEAR_FS = 'void main() { gl_FragColor = vec4(0.0); }';
 
 export function createWorlds(scene, renderer, params) {
   const noise = makeNoiseTexture();
-  const timeU = { value: 0 }, brightU = { value: 1 }, noiseU = { value: noise }, spinU = { value: new THREE.Matrix3() };
+  const timeU = { value: 0 }, brightU = { value: 1 }, noiseU = { value: noise }, spinU = { value: new THREE.Matrix3() }, warpU = { value: new THREE.Vector4(0, 0, -1, 0) }, holeU = { value: 0 }, travelU = { value: new V() };
   const handU = { uH0: { value: new V(0, -99, 0) }, uH1: { value: new V(0, -99, 0) } };      // the hands, for the grass that parts round them
   const safeU = { uSafeOn: { value: 0 }, uS0: { value: new V() }, uS1: { value: new V() }, uS2: { value: new V() } };
   const PASS = new V(0, 1, 0);
@@ -733,7 +760,7 @@ export function createWorlds(scene, renderer, params) {
   /* skies: one quad drawn everywhere when the dimension is home, one drawn inside the door (which also resets the depth) */
   const quadGeo = new THREE.PlaneGeometry(2, 2);
   function quad(fs, inRing) {
-    const m = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: fs, uniforms: { uTime: timeU, uBright: brightU, uNoise: noiseU, uSpin: spinU }, blending: THREE.NoBlending, depthTest: true, depthWrite: inRing, depthFunc: inRing ? THREE.AlwaysDepth : THREE.LessEqualDepth });   // the home sky tests against the depth: pixels the world covers are never shaded
+    const m = new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: fs, uniforms: { uTime: timeU, uBright: brightU, uNoise: noiseU, uSpin: spinU, uWarp: warpU, uHole: holeU }, blending: THREE.NoBlending, depthTest: true, depthWrite: inRing, depthFunc: inRing ? THREE.AlwaysDepth : THREE.LessEqualDepth });   // the home sky tests against the depth: pixels the world covers are never shaded
     if (inRing) { m.stencilWrite = true; m.stencilRef = 1; m.stencilFunc = THREE.EqualStencilFunc; m.stencilFail = m.stencilZFail = m.stencilZPass = THREE.KeepStencilOp; }
     const q = new THREE.Mesh(quadGeo, m); q.frustumCulled = false; q.renderOrder = inRing ? ORDER.fill : ORDER.bgHome; q.visible = false; scene.add(q);
     return q;
@@ -742,6 +769,7 @@ export function createWorlds(scene, renderer, params) {
   for (const w of W.slice(1)) if (!w.fract) { w.skyHome = quad(SKY_HEAD + SKY[w.key], false); w.fill = quad(SKY_HEAD + SKY[w.key], true); }
 
   /* ---- fractal dimensions: ray-marched into a small picture per eye (so the cost does not depend on the headset's resolution), then laid behind everything ---- */
+  const hueU = { value: 0 };
   const fineU = { value: 0 }, fracTimeU = { value: 0 };           // the fractals' own clock: it slows to a stop while the picture is being built up
   const FR = { mode: 'taa', n: 0, hist: {}, prev: [null, null], acc: false, calm: false, top: 0.55, min: params.has('flat') ? 0.5 : 0.2, scale: params.has('flat') ? 0.5 : 0.42, ema: 1 / 72, slow: 0, fast: 0, rts: {}, scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), flat: true, base: [1440, 1584] };
   const frMesh = new THREE.Mesh(quadGeo, null); frMesh.frustumCulled = false; FR.scene.add(frMesh);
@@ -763,7 +791,7 @@ export function createWorlds(scene, renderer, params) {
   for (const w of W) if (w.fract) {
     const f = FRACT[w.key];
     w.march = new THREE.ShaderMaterial({ vertexShader: MARCH_VS, fragmentShader: f.fs ? FOUR_FS : marchFS(f), depthTest: false, depthWrite: false,
-      uniforms: { uR4: { value: new THREE.Matrix4() }, uC4: { value: new THREE.Vector4() }, uThru: { value: 0 }, uNoise: noiseU, uCam: { value: new V() }, uRot: { value: new THREE.Matrix3() }, uProj: { value: new THREE.Vector4() }, uAnchor: { value: new V(0, 0, 0) }, uYaw: { value: 0 }, uTime: fracTimeU, uBright: brightU, uS: { value: f.S }, uOff: { value: new V(...f.off) }, uParam: { value: f.par[0] }, uParam2: { value: f.par2[0] }, uFine: fineU, uJitUV: { value: new THREE.Vector2() } } });
+      uniforms: { uHue: hueU, uR4: { value: new THREE.Matrix4() }, uC4: { value: new THREE.Vector4() }, uThru: { value: 0 }, uNoise: noiseU, uCam: { value: new V() }, uRot: { value: new THREE.Matrix3() }, uProj: { value: new THREE.Vector4() }, uAnchor: { value: new V(0, 0, 0) }, uYaw: { value: 0 }, uTime: fracTimeU, uBright: brightU, uS: { value: f.S }, uOff: { value: new V(...f.off) }, uParam: { value: f.par[0] }, uParam2: { value: f.par2[0] }, uFine: fineU, uJitUV: { value: new THREE.Vector2() } } });
     w.fr = { f, S: f.S, yaw: 0, off: new V(...f.off), param: f.par[0], param2: f.par2[0], A: new V(), R4: new THREE.Matrix4(), c4: new THREE.Vector4(0, 0, 0, 0), depth: 0, turn: 0 };
     for (const role of ['home', 'other']) { const g = new THREE.Group(); for (const eye of [0, 1]) { const q = blit(role, eye, !!f.stars); g.add(q); eyeQuads.push(q); } g.visible = false; scene.add(g); if (role === 'home') w.skyHome = g; else w.fill = g; }
   }
@@ -1070,22 +1098,25 @@ export function createWorlds(scene, renderer, params) {
    * against the far ones when you move your head ---- */
   const SP = { q: new THREE.Quaternion(), stars: new THREE.Group() };
   {
-    const i = W.findIndex(w => w.space), N = 1100, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), lum = new Float32Array(N), c = new THREE.Color(), d = new V();
+    const i = W.findIndex(w => w.space), N = 3000, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), lum = new Float32Array(N), c = new THREE.Color(), d = new V();
     for (let k = 0; k < N; k++) {
-      do d.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)); while (d.lengthSq() > 1 || d.lengthSq() < 0.01);
-      d.normalize().multiplyScalar(2.2 * Math.pow(32, Math.pow(Math.random(), 0.55)));                     // from just out of reach to 70 m, most of them far
+      d.set(rnd(-30, 30), rnd(-30, 30), rnd(-30, 30));                                                     // a 60 m cube of stars that repeats for ever round you as you fly
       pos[k * 3] = d.x; pos[k * 3 + 1] = d.y; pos[k * 3 + 2] = d.z;
       const tt = Math.random(); if (tt < 0.42) c.setRGB(1, 0.66 + 0.29 * tt / 0.42, 0.42 + 0.46 * tt / 0.42); else if (tt < 0.6) c.setRGB(1, 0.95, 0.88); else c.setRGB(1 - 0.32 * (tt - 0.6) / 0.4, 0.95 - 0.15 * (tt - 0.6) / 0.4, 0.88 + 0.12 * (tt - 0.6) / 0.4);
       col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; lum[k] = 0.45 + 1.9 * Math.pow(Math.random(), 3);
     }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('aCol', new THREE.BufferAttribute(col, 3)); geo.setAttribute('aL', new THREE.BufferAttribute(lum, 1));
-    const m = reg(i, new THREE.ShaderMaterial({ uniforms: { uScale: { value: 900 } }, clipping: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-      vertexShader: `attribute vec3 aCol; attribute float aL; uniform float uScale; varying vec3 vC; varying float vB;
+    const m = reg(i, new THREE.ShaderMaterial({ uniforms: { uScale: { value: 900 }, uTravel: travelU, uWarp: warpU }, clipping: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: `attribute vec3 aCol; attribute float aL; uniform float uScale; uniform vec3 uTravel; uniform vec4 uWarp; varying vec3 vC; varying float vB;
         #include <clipping_planes_pars_vertex>
-        void main() { vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        void main() { const float L = 60.0;
+          vec3 rel = mod(position - uTravel - cameraPosition + 0.5 * L, L) - 0.5 * L; float len = length(rel);      // the nearest copy of this star, from this eye
+          if (uWarp.w > 0.002) { vec3 a = uWarp.xyz, dir = rel / max(len, 1e-4); float b = uWarp.w, c = dot(dir, a), c1 = (c + b) / (1.0 + b * c); vec3 pp = dir - c * a;
+            rel = (a * c1 + pp / max(length(pp), 1e-5) * sqrt(max(0.0, 1.0 - c1 * c1))) * len; }
+          vec4 mvPosition = viewMatrix * vec4(cameraPosition + rel, 1.0);
           #include <clipping_planes_vertex>
           float sz = aL * 0.05 * uScale / max(-mvPosition.z, 0.4), px = clamp(sz, 3.0, 56.0);                // a point of light with a little glow; never less than a few pixels
-          vB = min(1.0, sz * sz / (px * px)) * 0.5 + 0.5 * min(1.0, sz / px); vC = aCol; gl_PointSize = px; gl_Position = projectionMatrix * mvPosition; }`,
+          vB = (min(1.0, sz * sz / (px * px)) * 0.5 + 0.5 * min(1.0, sz / px)) * (1.0 - smoothstep(22.0, 29.0, len)); vC = aCol; gl_PointSize = px; gl_Position = projectionMatrix * mvPosition; }`,
       fragmentShader: `precision highp float; varying vec3 vC; varying float vB;
         #include <clipping_planes_pars_fragment>
         void main() {
@@ -1093,6 +1124,50 @@ export function createWorlds(scene, renderer, params) {
           float d = length(gl_PointCoord - 0.5) * 2.0, core = exp(-d * d * 22.0), halo = max(0.0, 1.0 - d); halo *= halo * halo * 0.22;
           gl_FragColor = vec4(mix(vC, vec3(1.0), core * 0.6) * (core * 1.5 + halo) * vB, 1.0); }` }));
     const p = new THREE.Points(geo, m); p.frustumCulled = false; SP.stars.add(p); SP.stars.position.set(0, 1.4, -1.6); W[i].group.add(SP.stars);
+  }
+
+  /* ---- the band's marks: in each of the three song dimensions an upright slab of that dimension's own stuff stands a little way off, with the sigil and
+   * the name on it as that world would have made them: glowing lichen on the mossy stone, worn stencil paint on the steel, chalk on the sandstone ---- */
+  {
+    const loader = new THREE.TextureLoader(), logo = f => { const t = loader.load('img/' + f); t.anisotropy = 4; return t; };
+    const segl = logo('segl.png'), navn = logo('tidejord.png');
+    const mark = (i, tex, w, h, col, alpha, keep, glow) => {
+      const m = reg(i, new THREE.ShaderMaterial({ clipping: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending,
+        uniforms: { uMap: { value: tex }, uNoise: noiseU, uTime: timeU, uCol: { value: new V(...col) }, uAlpha: { value: alpha }, uKeep: { value: keep }, uGlow: { value: glow ? 1 : 0 }, ...W[i].uni },
+        vertexShader: `varying vec2 vUv; varying vec3 vWP; varying float vD;
+          #include <clipping_planes_pars_vertex>
+          void main() { vUv = uv; vec4 wp = modelMatrix * vec4(position, 1.0); vWP = wp.xyz; vec4 mvPosition = viewMatrix * wp; vD = length(mvPosition.xyz);
+            #include <clipping_planes_vertex>
+            gl_Position = projectionMatrix * mvPosition; }`,
+        fragmentShader: `precision highp float; varying vec2 vUv; varying vec3 vWP; varying float vD;
+          uniform sampler2D uMap, uNoise; uniform float uTime, uAlpha, uKeep, uGlow, uFogDen; uniform vec3 uCol, uFogCol, uGrade;
+          #include <clipping_planes_pars_fragment>
+          void main() {
+            #include <clipping_planes_fragment>
+            vec2 q = vWP.xy + vWP.z * 0.7;
+            float wear = smoothstep(0.30, 0.62, texture2D(uNoise, q * 0.9).r * 0.55 + texture2D(uNoise, q * 5.0).b * 0.45 + uKeep);      // time has taken some of it
+            float a = texture2D(uMap, vUv).r * wear * uAlpha; if (a < 0.004) discard;
+            vec3 c = uCol * (1.0 - uGlow * 0.4 * (0.5 + 0.5 * sin(uTime * 0.45 + vWP.x * 2.0))) * uGrade;
+            float f = 1.0 - exp(-uFogDen * uFogDen * vD * vD);
+            gl_FragColor = vec4(mix(c, uFogCol, f * (1.0 - uGlow)), a * mix(1.0, 1.0 - f, uGlow));
+            #include <tonemapping_fragment>
+            #include <colorspace_fragment>
+          }` }));
+      return new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
+    };
+    const marker = (i, body, zf, x, z, col, alpha, keep, glow) => {
+      const g = new THREE.Group(); g.add(body);
+      const a = mark(i, segl, 0.40, 0.608, col, alpha, keep, glow); a.position.set(0, 1.02, zf); g.add(a);
+      const b = mark(i, navn, 0.46, 0.246, col, alpha * 0.8, keep, glow); b.position.set(0, 0.5, zf); g.add(b);
+      g.position.set(x, 0, z); g.rotation.y = Math.atan2(-x, -z - 0.6); W[i].deco.add(g);
+    };
+    marker(1, new THREE.Mesh(slabGeometry(0.8, 1.55, 0.3, 3.1), worldMat(1, SURF.moss(0.25), { env: 0.9, key: 'm' })), 0.165, -2.2, -3.3, [0.05, 0.85, 0.60], 0.5, 0.12, true);
+    const plateG = new THREE.Group(), steelM = worldMat(2, SURF.steel(), { env: 0.85 });
+    { const p = new THREE.Mesh(new THREE.BoxGeometry(0.78, 1.5, 0.03), worldMat(2, SURF.plate(), { env: 0.85 })); p.position.y = 0.85; plateG.add(p);
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.4), steelM); base.position.y = 0.05; plateG.add(base);
+      for (const sx of [-1, 1]) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.6, 0.05), steelM); st.position.set(sx * 0.415, 0.8, -0.02); plateG.add(st); } }
+    marker(2, plateG, 0.019, -2.3, -3.0, [0.62, 0.61, 0.57], 0.75, 0.02, false);
+    marker(3, new THREE.Mesh(slabGeometry(0.85, 1.6, 0.32, 8.4), worldMat(3, SURF.rock(), { env: 0.7 })), 0.176, 2.2, -3.5, [0.80, 0.72, 0.60], 0.55, 0.06, false);
   }
 
   /* ---- the scanned room, wearing each dimension's surface ---- */
@@ -1272,6 +1347,14 @@ export function createWorlds(scene, renderer, params) {
     /** The head, kept by reference: where "can you walk there" is measured from. */
     setHead(v) { headRef = v; },
     /** Deep space: the whole sky turns about your head by the rotation vector w (radians a second, world axes). You tumble; you do not get anywhere. */
+    /** Flying in deep space: the near stars stream past (they repeat for ever), the far sky stays where it is. */
+    spaceMove(dir, dist) { const t = travelU.value; t.addScaledVector(dir, dist); t.set(((t.x % 60) + 60) % 60, ((t.y % 60) + 60) % 60, ((t.z % 60) + 60) % 60); },
+    /** Warp: axis (a unit vector, the way you are heading) and how hard (0 to 0.95, a fraction of the speed of light): the sky is swept forward and shifts colour. */
+    spaceWarp(axis, b) { warpU.value.set(axis.x, axis.y, axis.z, b); }, spaceWarpNow: () => warpU.value.w,
+    /** The black hole's pull on the light round it: 0 (no hole) to about 0.4 (its ring fills much of the view). */
+    spaceHole(v) { holeU.value = v; }, spaceHoleNow: () => holeU.value,
+    /** The fractals' colour scheme: an angle the hues are turned by. */
+    setHue(a) { hueU.value = a; },
     spaceSpin(h, w, dt) {
       const a = w.length() * dt; if (a < 1e-7) return;
       _rq.setFromAxisAngle(_rv.copy(w).normalize(), a); SP.q.premultiply(_rq).normalize();

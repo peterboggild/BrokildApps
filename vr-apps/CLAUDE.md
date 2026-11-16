@@ -26,6 +26,8 @@ rules, testing, architecture in brief, and pitfalls.
   `./story.js?v=N`. Raise all three together on every change, or the headset keeps old code.
 - Code comments and commit messages in English; everything the player or the owner reads in Danish.
 - He corrects wording himself; when given Danish text for the game, fix obvious typos and tell him which.
+- The band's logos (`portalkniven/img/`, masks made from images he sent) stand on a slab in each song dimension.
+  He asked for them to be discreet and in the world's own style; keep it that way.
 - Music: the three tracks in `portalkniven/music/` are his own. An earlier set was removed from `main` (history
   rewritten at his request). Do not add audio files he has not supplied.
 
@@ -50,7 +52,8 @@ rules, testing, architecture in brief, and pitfalls.
 
 ## Portalkniven in brief
 
-Three files: `portal.js` (renderer, knife, cutting, the door, sound, controls, the loop), `worlds.js` (the
+Four files: `hands.js` (the gloved hands round the controllers; built in WebXR grip space, never seen in a
+headset from here, so the axis signs are the first suspect if they sit wrong), `portal.js` (renderer, knife, cutting, the door, sound, controls, the loop), `worlds.js` (the
 dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
 
 - **The door is a stencil window, not a texture.** A mask disc writes stencil 1; a full-screen "fill" quad
