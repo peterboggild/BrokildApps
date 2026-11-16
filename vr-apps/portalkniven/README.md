@@ -160,7 +160,7 @@ Kun når man står i en fraktal dimension:
 * Alt sker om det punkt, hvor hovedet er: fraktalen glider, drejer og vokser, mens man selv bliver stående i stuen. I den hyperbolske verden kan man ikke flyve ud gennem horisonten.
 * **Møblernes omrids** toner ud, når man har stået stille i to sekunder, og kommer straks tilbage, når man går (hovedet flytter sig mere end ca. 0,2 m/s).
   Åbningen mod den rigtige stue tæt på møbler og advarselslyden toner ikke ud.
-* Første gang man kommer ind i en fraktal dimension, dunker controllerne, og et kort på hver viser, hvad den gør (ca. 25 sekunder).
+* Første gang man kommer ind i en fraktal dimension, dunker og blinker begge controllere, indtil man kigger ned på dem (eller efter 40 sekunder). Der står intet; man opdager styringen ved at prøve.
 * I preview: I/K flyv, J/L drej, U/O ned/op, N/M form, komma/punktum skala.
 
 ## Gemte idéer (ikke bygget)

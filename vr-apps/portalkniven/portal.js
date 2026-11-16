@@ -653,14 +653,13 @@ function pollStick() {                                              // the right
 const FC = { still: 0, ghost: 1, last: new V(), gripD: 0, tipsT: -1, tipsDone: false };
 const dead = v => (Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85);
 const btn = (gp, k) => !!(gp && gp.buttons[k] && gp.buttons[k].pressed);
-function tipPanel(lines) {
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const x = cv.getContext('2d');
-  x.fillStyle = 'rgba(4,10,16,.86)'; x.beginPath(); x.roundRect(4, 4, 504, 248, 22); x.fill(); x.strokeStyle = '#7dd8ff'; x.lineWidth = 5; x.stroke();
-  x.fillStyle = '#e6f6ff'; x.font = '29px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; lines.forEach((l, i) => { x.fillStyle = i === 0 ? '#7dd8ff' : '#e6f6ff'; x.font = (i === 0 ? 'bold 31px' : '28px') + ' -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; x.fillText(l, 24, 52 + i * 46); });
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.1), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthTest: false, opacity: 0, toneMapped: false })); m.renderOrder = 101; m.position.set(0, 0.1, -0.05); m.rotation.x = -1.0; m.visible = false; return m;
+/* the first time in a fractal: the controllers buzz and blink until you look down at them. Nothing is spelled out; you find out by trying. */
+function blinker() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const x = cv.getContext('2d');
+  const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(140,220,255,.55)'); g.addColorStop(1, 'rgba(60,160,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, depthTest: false, opacity: 0 })); sp.scale.setScalar(0.16); sp.position.set(0, 0.02, 0.03); sp.renderOrder = 101; sp.visible = false; return sp;
 }
-const tips = { left: tipPanel(['VENSTRE HÅND', 'Stick: flyv frem / tilbage', 'X / Y: ændr fraktalens form', 'Begge greb: træk for at skalere']), right: tipPanel(['HØJRE HÅND', 'Stick: drej', 'A / B: ned / op', 'Tryk på stick: skift verden']) };
+const tips = { left: blinker(), right: blinker() };
 function fractalControls(dt) {
   const inF = !!DIMS[S.cur].fract;
   /* standing still for a couple of seconds lets the room's outline fade; a step brings it back at once */
@@ -684,13 +683,16 @@ function fractalControls(dt) {
   if (fwd || up) { const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize(); worlds.fractMove(S.cur, head, f.multiplyScalar(fwd * 0.9).setY(up * 0.55), dt); }
   if (scale !== 1) worlds.fractScale(S.cur, head, scale);
   if (par) worlds.fractParam(S.cur, par, dt);
-  /* the first time in a fractal: the controllers buzz, and a card on each says what it does */
-  if (!FC.tipsDone && S.mode === 'xr') { FC.tipsDone = true; FC.tipsT = 0; renderer.xr.getController(li).add(tips.left); renderer.xr.getController(ri).add(tips.right); S.hudT = -99; }
+  if (!FC.tipsDone && S.mode === 'xr') { FC.tipsDone = true; FC.tipsT = 0; FC.seen = 0; renderer.xr.getController(li).add(tips.left); renderer.xr.getController(ri).add(tips.right); }
   if (FC.tipsT >= 0) {
-    FC.tipsT += dt; const a = clamp(Math.min(FC.tipsT / 0.6, (26 - FC.tipsT) / 1.5), 0, 1);
-    for (const t of [tips.left, tips.right]) { t.visible = a > 0.01; t.material.opacity = a; }
-    if (FC.tipsT < 2.4 && ((FC.tipsT / 0.6) | 0) !== FC.buzz) { FC.buzz = (FC.tipsT / 0.6) | 0; for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(0.8, 150); } catch (_) { /* none */ } } }
-    if (FC.tipsT > 26) FC.tipsT = -1;
+    FC.tipsT += dt;
+    const f = new V(0, 0, -1).applyQuaternion(headQ); let looking = false;                                   // looking at either hand?
+    for (const i of [li, ri]) { const d = new V().copy(hands[i].pos).sub(head); if (d.length() > 0.05 && d.normalize().dot(f) > 0.93) looking = true; }
+    FC.seen = looking ? FC.seen + dt : Math.max(0, FC.seen - dt * 0.5);
+    const done = FC.seen > 0.7 || FC.tipsT > 40, a = done ? 0 : Math.pow(0.5 + 0.5 * Math.sin(FC.tipsT * 9), 2);
+    for (const t of [tips.left, tips.right]) { t.visible = !done; t.material.opacity = a; t.scale.setScalar(0.12 + 0.08 * a); }
+    if (!done && ((FC.tipsT / 0.9) | 0) !== FC.buzz) { FC.buzz = (FC.tipsT / 0.9) | 0; for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(0.7, 140); } catch (_) { /* none */ } } }
+    if (done) FC.tipsT = -1;
   }
 }
 const clock = new THREE.Clock();
