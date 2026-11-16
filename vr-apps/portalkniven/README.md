@@ -138,3 +138,15 @@ Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start,
   Den lodrette lysstråle er fjernet; leder man længe, blinker delen, kalder og pulserer som et langsomt fyr.
 * **Tavlen på controlleren** vises kun, når der er noget nyt at sige, og toner ud efter ca. 5 sekunder.
 * **Joystick-vinket** vises nu, så snart man er hjemme og joysticken er låst op, indtil man har brugt den.
+
+## Fraktale dimensioner (fri leg)
+Tre uendelige rum, valgt blandt formlerne i Fractal Video (`vfx-apps/fractal-video/js/formulas.js`, afstandsfunktionerne er hentet derfra): **Apollonisk**
+(kugle-inversioner, bobler i bobler), **Pseudo-Kleinsk** (endeløse haller og gitre) og **Hyperbolsk** ({4,3,5}-bikage af terninger i Poincaré-kuglen, med en langsom hyperbolsk drift).
+De kan kun vælges med joysticken i fri leg, dvs. efter historien er gennemført eller via knappen *Fri leg*.
+
+* **Tegning:** fraktalen stråle-marcheres ind i et lille billede pr. øje (med øjets egen position og projektion fra headsettet i samme frame), og det billede lægges bag alt andet
+  (venstre/højre øje via lag 1/2). Prisen afhænger derfor ikke af headsettets opløsning. Gennem døren bruges samme billede, kun i dørens udsnit.
+* **Billedhastighedsvagt:** er billederne langsomme i et sekund, skrumper fraktalbilledet (ned til 20 % af øjets opløsning); er de hurtige i fire sekunder, vokser det igen (op til 55 %).
+* **Billigere stråler:** grovere mod kanten af synsfeltet, tolerance der vokser med afstanden, lys fra feltets hældning med ét ekstra opslag i stedet for en fuld normal.
+* **Rummet:** den scannede form vises som et svagt omrids oven på fraktalen, og tæt på hoved og hænder åbner det sig mod den rigtige stue. Advarselslyden virker som i de andre verdener.
+* Ingen musik og ingen dele i de fraktale dimensioner.

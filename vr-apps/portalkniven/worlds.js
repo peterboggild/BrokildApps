@@ -26,7 +26,64 @@ export const DIMS = [
   { key: 'groen', name: 'DEN GRØNNE' },
   { key: 'metal', name: 'METALVERDENEN' },
   { key: 'klippe', name: 'KLIPPEVERDENEN' },
+  /* fractal dimensions (free play only): endless spaces, ray-marched. The distance estimators come from Fractal Video (vfx-apps/fractal-video/js/formulas.js). */
+  { key: 'apollo', name: 'APOLLONISK', fract: true },
+  { key: 'klein', name: 'PSEUDO-KLEINSK', fract: true },
+  { key: 'hyper', name: 'HYPERBOLSK', fract: true },
 ];
+
+/* ------------------------------------------------------------------ fractals */
+
+/* Each: S = fractal units per metre, off = where in the fractal the door's foot stands (an open place), MAXT = how far a ray goes,
+ * fde = the distance estimator (returns distance; trap.w = closest approach of the orbit, it = 0..1), pal = colour from (it, trap), fog. */
+const FRACT = {
+  apollo: { S: 0.2, off: [1, 1.26, 1], maxT: 14, steps: 56, fog: [0.03, 0.05, 0.10], glsl: `
+    float fde(vec3 p, out vec4 trap, out float it) {
+      vec3 z = p; float sc = 1.0, k = 1.15 + 0.03 * sin(uTime * 0.11); trap = vec4(1e9); it = 0.0;
+      for (int i = 0; i < 7; i++) { z = -1.0 + 2.0 * fract(0.5 * z + 0.5); float r2 = dot(z, z); if (r2 < trap.w) it = float(i); trap = min(trap, vec4(abs(z), r2)); float f = k / max(r2, 1e-6); z *= f; sc *= f; }
+      it /= 7.0; return 0.25 * abs(z.y) / sc; }
+    vec3 pal(float it, vec4 tr) { return mix(vec3(0.22, 0.55, 1.0), vec3(1.0, 0.72, 0.36), smoothstep(0.05, 0.75, it)) * (0.8 + 0.7 * clamp(tr.w * 1.6, 0.0, 1.0)) + vec3(0.5, 0.12, 0.55) * clamp(tr.x, 0.0, 1.0); }` },
+  klein: { S: 0.3, off: [0.9, 1.3, 0.9], maxT: 16, steps: 60, fog: [0.05, 0.04, 0.035], glsl: `
+    float fde(vec3 p, out vec4 trap, out float it) {
+      vec3 cs = vec3(0.908, 0.908, 0.924), z = p; float dr = 1.0; trap = vec4(1e9); it = 0.0;
+      for (int i = 0; i < 8; i++) { z = 2.0 * clamp(z, -cs, cs) - z; float r2 = dot(z, z); if (r2 < trap.w) it = float(i); trap = min(trap, vec4(abs(z), r2)); float k = max(1.0 / max(r2, 1e-9), 1.0); z *= k; dr *= k; }
+      it /= 8.0; float rxy = length(z.xy); return max(rxy - 0.928, abs(rxy * z.z) / max(length(z), 1e-9)) / dr; }
+    vec3 pal(float it, vec4 tr) { return mix(vec3(0.78, 0.62, 0.40), vec3(0.30, 0.42, 0.50), smoothstep(0.15, 0.85, it)) * (0.6 + 0.5 * clamp(tr.w, 0.0, 1.0)) + vec3(0.25, 0.12, 0.02) * (1.0 - clamp(tr.y * 3.0, 0.0, 1.0)); }` },
+  hyper: { S: 0.085, off: [0, -0.125, 0], maxT: 2.2, steps: 64, fog: [0.015, 0.02, 0.04], glsl: `
+    float fde(vec3 p, out vec4 trap, out float it) {
+      float D = 2.0582, R2 = 3.2361; vec3 a = vec3(0.0, 0.0, 0.18 * sin(uTime * 0.05));                    // {4,3,5}; a slow hyperbolic drift
+      float aa = dot(a, a), xx = dot(p, p), ax = dot(a, p), den = max(1.0 + 2.0 * ax + aa * xx, 1e-6), sc = (1.0 - aa) / den;
+      vec3 z = ((1.0 + 2.0 * ax + xx) * a + (1.0 - aa) * p) / den; trap = vec4(abs(z), dot(z, z)); it = 0.0; vec3 cx = vec3(D, 0.0, 0.0);
+      for (int i = 0; i < 14; i++) { z = abs(z); if (z.x < z.y) z.xy = z.yx; if (z.x < z.z) z.xz = z.zx; if (z.y < z.z) z.yz = z.zy;
+        vec3 dv = z - cx; float l2 = dot(dv, dv); if (l2 >= R2) break; float k = R2 / l2; z = cx + dv * k; sc *= k; it += 1.0; trap = min(trap, vec4(abs(z), dot(z, z))); }
+      it /= 14.0; float R = sqrt(R2), fx = abs(length(z - vec3(D, 0.0, 0.0)) - R), fy = abs(length(z - vec3(0.0, D, 0.0)) - R), fz = abs(length(z - vec3(0.0, 0.0, D)) - R);
+      float d = min(length(vec2(fx, fy)) - 0.04, length(vec3(fx, fy, fz)) - 0.075);
+      return max(d / sc, length(p) - 0.985); }
+    vec3 pal(float it, vec4 tr) { return mix(vec3(0.95, 0.80, 0.50), vec3(0.20, 0.55, 0.95), smoothstep(0.0, 0.6, it)) * (0.7 + 0.5 * tr.w); }` },
+};
+const MARCH_VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+const marchFS = f => `precision highp float; varying vec2 vUv;
+  uniform vec3 uCam; uniform mat3 uRot; uniform vec4 uProj; uniform vec3 uAnchor; uniform float uYaw; uniform float uTime; uniform float uBright;
+  ${f.glsl}
+  void main() {
+    vec3 rd = normalize(uRot * vec3(mix(uProj.x, uProj.y, vUv.x), mix(uProj.z, uProj.w, vUv.y), -1.0));
+    float c = cos(uYaw), s = sin(uYaw); mat3 Ry = mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c);              // the fractal is laid out along the door
+    vec3 ro = Ry * (uCam - uAnchor) * ${f.S.toFixed(4)} + vec3(${f.off.map(v => v.toFixed(4)).join(', ')}); rd = Ry * rd;
+    float t = 0.0, d = 0.0, it = 0.0; vec4 trap = vec4(0.0); int n = 0;
+    vec2 q = vUv - 0.5; float edge = dot(q, q) * 2.0;                                                       // coarser towards the edge of view
+    for (int i = 0; i < ${f.steps}; i++) { d = fde(ro + rd * t, trap, it); if (d < (0.0013 + 0.0025 * edge) * t + 0.00035 || t > ${f.maxT.toFixed(1)}) break; t += d * 0.92; n = i; }
+    vec3 fog = vec3(${f.fog.map(v => v.toFixed(3)).join(', ')}), col = fog;
+    if (t < ${f.maxT.toFixed(1)}) {
+      vec3 p = ro + rd * t, L = normalize(vec3(0.5, 0.8, 0.3)); vec4 t2; float i2; float e = 0.002 + 0.004 * t;
+      float dif = clamp((fde(p + L * e, t2, i2) - d) / e * 0.5 + 0.5, 0.0, 1.0);                            // one extra sample: light from the field's slope
+      float ao = 1.0 - float(n) / ${f.steps}.0;
+      col = pal(it, trap) * (0.32 + 1.0 * dif) * (0.45 + 0.55 * ao * ao);
+      col = mix(col, fog, 1.0 - exp(-t * t * ${(3.2 / (f.maxT * f.maxT)).toFixed(4)}));
+    }
+    col += fog * 2.0 * float(n) / ${f.steps}.0 * 0.6;                                                       // a glow where the ray grazed things
+    gl_FragColor = vec4(col * uBright, 1.0); }`;
+const BLIT_FS = 'precision highp float; varying vec2 vUv; uniform sampler2D uTex; void main() { gl_FragColor = vec4(texture2D(uTex, vUv).rgb, 1.0); }';
+
 
 /* ------------------------------------------------------------------ noise */
 
@@ -372,7 +429,66 @@ export function createWorlds(scene, renderer, params) {
     return q;
   }
   W[0].fill = quad(CLEAR_FS, true);                               // the real room seen through the door: alpha 0 = passthrough
-  for (const w of W.slice(1)) { w.skyHome = quad(SKY_HEAD + SKY[w.key], false); w.fill = quad(SKY_HEAD + SKY[w.key], true); }
+  for (const w of W.slice(1)) if (!w.fract) { w.skyHome = quad(SKY_HEAD + SKY[w.key], false); w.fill = quad(SKY_HEAD + SKY[w.key], true); }
+
+  /* ---- fractal dimensions: ray-marched into a small picture per eye (so the cost does not depend on the headset's resolution), then laid behind everything ---- */
+  const FR = { min: params.has('flat') ? 0.5 : 0.2, scale: params.has('flat') ? 0.5 : 0.42, ema: 1 / 72, slow: 0, fast: 0, rts: {}, scene: new THREE.Scene(), cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), flat: true, base: [1440, 1584] };
+  const frMesh = new THREE.Mesh(quadGeo, null); frMesh.frustumCulled = false; FR.scene.add(frMesh);
+  const target = (role, eye) => { const k = role + eye; if (!FR.rts[k]) { FR.rts[k] = new THREE.WebGLRenderTarget(8, 8, { depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false }); } return FR.rts[k]; };
+  function blit(role, eye) {
+    const inRing = role === 'other';
+    const m = new THREE.ShaderMaterial({ vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.9999, 1.0); }', fragmentShader: BLIT_FS, uniforms: { uTex: { value: target(role, eye).texture } },
+      blending: THREE.NoBlending, depthTest: true, depthWrite: inRing, depthFunc: inRing ? THREE.AlwaysDepth : THREE.LessEqualDepth });
+    if (inRing) { m.stencilWrite = true; m.stencilRef = 1; m.stencilFunc = THREE.EqualStencilFunc; m.stencilFail = m.stencilZFail = m.stencilZPass = THREE.KeepStencilOp; }
+    const q = new THREE.Mesh(quadGeo, m); q.frustumCulled = false; q.renderOrder = inRing ? ORDER.fill : ORDER.bgHome; q.userData.eye = eye; return q;
+  }
+  const eyeQuads = [];
+  for (const w of W) if (w.fract) {
+    const f = FRACT[w.key];
+    w.march = new THREE.ShaderMaterial({ vertexShader: MARCH_VS, fragmentShader: marchFS(f), depthTest: false, depthWrite: false,
+      uniforms: { uCam: { value: new V() }, uRot: { value: new THREE.Matrix3() }, uProj: { value: new THREE.Vector4() }, uAnchor: { value: new V(0, 0, 0) }, uYaw: { value: 0 }, uTime: timeU, uBright: brightU } });
+    for (const role of ['home', 'other']) { const g = new THREE.Group(); for (const eye of [0, 1]) { const q = blit(role, eye); g.add(q); eyeQuads.push(q); } g.visible = false; scene.add(g); if (role === 'home') w.skyHome = g; else w.fill = g; }
+  }
+  const setEyes = flat => { FR.flat = flat; for (const q of eyeQuads) { if (flat) { q.layers.set(0); q.visible = q.userData.eye === 0; } else { q.layers.set(q.userData.eye + 1); q.visible = true; } } };
+  setEyes(true);
+  const _m4 = new THREE.Matrix4();
+  /** Before the main picture: march the fractal(s) in view into their small targets, one per eye. views = [{ matrix (camera to world, 16), proj (16) }]. */
+  function renderFractals(views, cur, oth, dt) {
+    const jobs = [[cur, 'home'], [oth, 'other']].filter(([i]) => W[i] && W[i].fract);
+    if (!jobs.length || !views.length) return;
+    if ((views.length === 1) !== FR.flat) setEyes(views.length === 1);
+    FR.ema += (dt - FR.ema) * 0.05;                                 // the frame-rate guard: slow frames shrink the picture, fast ones let it grow back
+    if (FR.ema > 1 / 58) { FR.slow += dt; FR.fast = 0; if (FR.slow > 1) { FR.slow = 0; FR.scale = Math.max(FR.min, FR.scale * 0.85); } }
+    else if (FR.ema < 1 / 70) { FR.fast += dt; FR.slow = 0; if (FR.fast > 4) { FR.fast = 0; FR.scale = Math.min(0.55, FR.scale * 1.08); } } else { FR.slow = 0; FR.fast = 0; }
+    const size = renderer.getDrawingBufferSize(new THREE.Vector2()), bw = views.length === 1 ? size.x : FR.base[0], bh = views.length === 1 ? size.y : FR.base[1];
+    const tw = Math.max(64, Math.round(bw * FR.scale)), th = Math.max(64, Math.round(bh * FR.scale));
+    const xrWas = renderer.xr.enabled, rtWas = renderer.getRenderTarget(); renderer.xr.enabled = false;
+    for (const [i, role] of jobs) {
+      const w = W[i], U = w.march.uniforms; frMesh.material = w.march;
+      views.forEach((v, eye) => {
+        const rt = target(role, eye), sc = role === 'other' ? 0.8 : 1; if (rt.width !== Math.round(tw * sc) || rt.height !== Math.round(th * sc)) rt.setSize(Math.round(tw * sc), Math.round(th * sc));
+        const m = v.matrix, p = v.proj; _m4.fromArray(m); U.uRot.value.setFromMatrix4(_m4); U.uCam.value.set(m[12], m[13], m[14]);
+        U.uProj.value.set((p[8] - 1) / p[0], (p[8] + 1) / p[0], (p[9] - 1) / p[5], (p[9] + 1) / p[5]);
+        renderer.setRenderTarget(rt); renderer.render(FR.scene, FR.cam);
+      });
+    }
+    renderer.setRenderTarget(rtWas); renderer.xr.enabled = xrWas;
+  }
+
+  /* the room in a fractal dimension: its scanned shape as a faint outline, and close to you it opens onto the real room */
+  const ghostMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { uTime: timeU },
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    vertexShader: 'varying vec3 vN; varying vec3 vV; void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = cameraPosition - wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }',
+    fragmentShader: 'precision highp float; varying vec3 vN; varying vec3 vV; void main() { float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.0); float near = 1.0 - smoothstep(1.0, 4.5, length(vV)); gl_FragColor = vec4(vec3(0.55, 0.85, 1.0) * (0.035 + rim * 0.2) * near, 0.0); }',
+  });
+  const holeMat = new THREE.ShaderMaterial({                         // multiplies what is already drawn (colour and alpha) by 1 - a: the passthrough shows where a is large
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: safeU,
+    blending: THREE.CustomBlending, blendSrc: THREE.ZeroFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+    vertexShader: 'varying vec3 vP; void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vP = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }',
+    fragmentShader: 'precision highp float; varying vec3 vP; uniform float uSafeOn; uniform vec3 uS0; uniform vec3 uS1; uniform vec3 uS2; void main() { float sd = min(min(distance(vP, uS0), distance(vP, uS1)), distance(vP, uS2)); float a = 0.85 * uSafeOn * (1.0 - smoothstep(0.28, 0.62, sd)); if (a < 0.01) discard; gl_FragColor = vec4(0.0, 0.0, 0.0, a); }',
+  });
+  ghostMat.customProgramCacheKey = () => 'ghost'; holeMat.customProgramCacheKey = () => 'hole';
 
   const floorOf = (i, mat) => { const f = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), mat); f.rotation.x = -Math.PI / 2; f.position.y = -0.012; W[i].group.add(f); };
   function motes(i, count, color, size, opacity, box, rise) {
@@ -593,7 +709,8 @@ export function createWorlds(scene, renderer, params) {
     const gs = [];
     for (const w of W) {
       const g = new THREE.Group(); g.matrixAutoUpdate = false; g.matrix.fromArray(matrix); g.matrixWorldNeedsUpdate = true;
-      g.add(new THREE.Mesh(geo, w.i === 0 ? pastMat : w.scanMat)); if (wire && w.i) g.add(new THREE.Mesh(geo, wire));
+      if (w.fract) { const h = new THREE.Mesh(geo, holeMat), gh = new THREE.Mesh(geo, ghostMat); h.renderOrder = 6; gh.renderOrder = 7; h.userData.keepOrder = gh.userData.keepOrder = true; g.add(h, gh); }
+      else { g.add(new THREE.Mesh(geo, w.i === 0 ? pastMat : w.scanMat)); if (wire && w.i) g.add(new THREE.Mesh(geo, wire)); }
       w.scan.add(g); gs.push(g);
     }
     scanKnown.set(key, { t: time, gs, geo, cells: cellsOf(pos, idx, matrix) }); regrid(); api.dirty = true; scanInfo.count = scanKnown.size;
@@ -628,7 +745,8 @@ export function createWorlds(scene, renderer, params) {
         const role = w.i === cur ? 'home' : w.i === oth ? 'other' : 'off';
         w.group.visible = role !== 'off';
         for (const m of w.mats) m.stencilWrite = role === 'other';
-        if (role !== 'off') w.group.traverse(o => { if (o.isMesh || o.isPoints || o.isLine) o.renderOrder = role === 'home' ? ORDER.home : ORDER.other; });
+        if (role !== 'off') w.group.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine) && !o.userData.keepOrder) o.renderOrder = role === 'home' ? ORDER.home : ORDER.other; });
+        if (w.fract) w.scan.visible = role === 'home';                // the room's outline only when you stand in the fractal, not through the door
         if (w.skyHome) w.skyHome.visible = role === 'home';
         w.fill.visible = role === 'other';
         if (role !== 'other') w.clip.set(PASS, 1e6);
@@ -638,7 +756,8 @@ export function createWorlds(scene, renderer, params) {
     /** Keep only what is behind the door, seen from where you stand. */
     setClip(oth, normal, point) { W[oth].clip.setFromNormalAndCoplanarPoint(normal, point); },
     /** Put a dimension's own things round the door, once, so they do not jump when you cut a new door while standing among them. */
-    anchor(i, x, z, yaw, force) { const w = W[i]; if (w.anchored && !force) return; w.deco.position.set(x, 0, z); w.deco.rotation.set(0, yaw, 0); w.anchored = true; },
+    anchor(i, x, z, yaw, force) { const w = W[i]; if (w.anchored && !force) return; w.deco.position.set(x, 0, z); w.deco.rotation.set(0, yaw, 0); w.anchored = true; if (w.march) { w.march.uniforms.uAnchor.value.set(x, 0, z); w.march.uniforms.uYaw.value = -yaw; } },
+    renderFractals, fractalScale: () => FR.scale,
     update(dt, t, bright, cur, oth, safe) {
       timeU.value = t; brightU.value = bright;
       safeU.uSafeOn.value = safe ? 1 : 0; if (safe) { safeU.uS0.value.copy(safe[0]); safeU.uS1.value.copy(safe[1]); safeU.uS2.value.copy(safe[2]); }
@@ -648,7 +767,7 @@ export function createWorlds(scene, renderer, params) {
       }
     },
     /** Compile every dimension's shaders up front, so switching does not stutter in the headset. */
-    precompile(camera) { for (const w of W) { w.group.visible = true; if (w.skyHome) w.skyHome.visible = true; w.fill.visible = true; } renderer.compile(scene, camera); },
+    precompile(camera) { for (const w of W) { w.group.visible = true; if (w.skyHome) w.skyHome.visible = true; w.fill.visible = true; if (w.march) { frMesh.material = w.march; renderer.compile(FR.scene, FR.cam); } } renderer.compile(scene, camera); },
   };
   return api;
 }

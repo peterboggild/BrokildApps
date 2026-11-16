@@ -17,8 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=19';
-import { createStory } from './story.js?v=20';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=21';
+import { createStory } from './story.js?v=21';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -74,7 +74,7 @@ const applyRoles = () => worlds.applyRoles(S.cur, S.oth);
 function cycleOther(dir) {
   story.onStick();
   let o = S.oth;
-  do { o = (o + dir + DIMS.length) % DIMS.length; } while (o === S.cur);
+  do { o = (o + dir + DIMS.length) % DIMS.length; } while (o === S.cur || (DIMS[o].fract && !story.fractalsOK()));      // the fractal dimensions open once the story is over (or in free play)
   S.oth = o;
   if (S.placed) { worlds.anchor(o, portal.c.x, portal.c.z, Math.atan2(portal.n.x, portal.n.z)); flash.userData.t = 0.35; shockT = 0.25; knifeGlow = 1.6; zapSmall(); haptic(0.5, 80); }
   applyRoles();
@@ -649,7 +649,7 @@ function pollStick() {                                              // the right
   stickHeld = on || Math.abs(ax) > 0.35;
 }
 const clock = new THREE.Clock();
-let trigWas = false, cutOK = false;
+let trigWas = false, cutOK = false, eyeViews = [];
 const _hq = new THREE.Quaternion();
 function updateHands() {
   hands.forEach((h, i) => {
@@ -672,7 +672,7 @@ function loop(_, frame) {
   if (S.mode === 'flat') flatMove(dt);
   else if (S.mode === 'xr' && frame) {
     const ref = renderer.xr.getReferenceSpace(), vp = frame.getViewerPose(ref);
-    if (vp) { const p = vp.transform.position, o = vp.transform.orientation; head.set(p.x, p.y, p.z); headQ.set(o.x, o.y, o.z, o.w); }
+    if (vp) { const p = vp.transform.position, o = vp.transform.orientation; head.set(p.x, p.y, p.z); headQ.set(o.x, o.y, o.z, o.w); eyeViews = vp.views.map(v => ({ matrix: v.transform.matrix, proj: v.projectionMatrix })); }
     { const si = worlds.updateScan(frame, ref); S.scanFeature = si.feature; S.scanMeshes = si.count; }
     pollStick();
     if (lightProbe) { try { const est = frame.getLightEstimate(lightProbe), sh = est && est.sphericalHarmonicsCoefficients; if (sh && sh.length >= 3) { const lum = (0.2126 * sh[0] + 0.7152 * sh[1] + 0.0722 * sh[2]) / 3.54; S.lum = lum; S.brightTarget = clamp(0.5 + lum * 2.0, 0.5, 1.5); } } catch (_) { /* no estimate this frame */ } }
@@ -695,6 +695,8 @@ function loop(_, frame) {
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
     story.update(dt);
     worlds.update(dt, S.time, S.bright, S.cur, S.oth, S.safe && S.cur !== 0 ? [head, hands[0].on ? hands[0].pos : head, hands[1].on ? hands[1].pos : head] : null);
+    if (S.mode === 'flat') { camera.updateMatrixWorld(); eyeViews = [{ matrix: camera.matrixWorld.elements, proj: camera.projectionMatrix.elements }]; }
+    worlds.renderFractals(eyeViews, S.cur, S.placed ? S.oth : -1, dt);      // fractal dimensions are marched into small per-eye pictures first
     renderer.render(scene, camera);
   }
 }

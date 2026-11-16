@@ -573,6 +573,7 @@ export function createStory(c) {
     canCut: () => !st.on || (st.hasKnife && (st.phase === 'play' || st.phase === 'free')),
     /** Asked once, when the trigger goes down: a hand resting on something it could take does not start a cut. */
     canStartCut: i => !st.on || !st.busyHands[i],
+    fractalsOK: () => !st.on || st.phase === 'free',
     stickOK: () => !st.on || st.phase === 'free' || (st.stick && S.cur === 0 && st.phase === 'play'),
     count: () => st.found.filter(Boolean).length,
     start(help = true) { st.on = true; st.help = help; st.phase = 'wait'; st.t = 0; root.visible = true; },
