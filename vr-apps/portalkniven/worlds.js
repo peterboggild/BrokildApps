@@ -533,7 +533,7 @@ export function createWorlds(scene, renderer, params) {
     }
     return out;
   }
-  function regrid() { grid.clear(); for (const rec of scanKnown.values()) for (const k of rec.cells) grid.add(k); }
+  function regrid() { blocked2.clear(); reachCache = null; grid.clear(); for (const rec of scanKnown.values()) for (const k of rec.cells) grid.add(k); }
   /** Distance from p to the nearest scanned surface above knee height, or Infinity if nothing is within r. */
   function nearest(p, r = 0.4) {
     if (!grid.size) return Infinity;
@@ -556,6 +556,33 @@ export function createWorlds(scene, renderer, params) {
     const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, d = Math.hypot(dx, dy, dz); if (d <= 2 * skip) return true;
     for (let s = skip; s <= d - skip; s += 0.035) { const t = s / d; if (grid.has(keyOf(a.x + dx * t, a.y + dy * t, a.z + dz * t))) return false; }
     return true;
+  }
+  /* Can you walk there? The scan seen from above, in 16 cm squares: a square is blocked if anything stands in it between shin and head height.
+   * A flood fill from where you stand (through squares with no blocked neighbour, so a gap has to be about half a metre wide) gives everywhere you can get to. */
+  const blocked2 = new Map(); let reachCache = null;
+  const k2 = (i, j) => ((i + 2048) << 12) | (j + 2048);
+  function isBlocked(i, j) {
+    const k = k2(i, j); let b = blocked2.get(k); if (b !== undefined) return b; b = false;
+    for (let dx = 0; dx < 2 && !b; dx++) for (let dz = 0; dz < 2 && !b; dz++) { const ix = ((i * 2 + dx + 512) & 1023), iz = ((j * 2 + dz + 512) & 1023) << 20; for (let iy = 4; iy <= 21; iy++) if (grid.has(ix | ((iy + 512) << 10) | iz)) { b = true; break; } }
+    blocked2.set(k, b); return b;
+  }
+  const roomy = (i, j) => { for (let a = -1; a <= 1; a++) for (let c = -1; c <= 1; c++) if (isBlocked(i + a, j + c)) return false; return true; };
+  function reachFrom(p) {
+    const i0 = Math.floor(p.x / (2 * CELL)), j0 = Math.floor(p.z / (2 * CELL));
+    if (reachCache && reachCache.i === i0 && reachCache.j === j0) return reachCache.set;
+    const set = new Set(), queue = []; let start = null;
+    for (let r = 0; r <= 4 && !start; r++) for (let a = -r; a <= r && !start; a++) for (let c = -r; c <= r && !start; c++) if (roomy(i0 + a, j0 + c)) start = [i0 + a, j0 + c];      // you may be standing right by a table
+    if (start) { queue.push(start); set.add(k2(start[0], start[1])); }
+    for (let q = 0; q < queue.length; q++) { const [i, j] = queue[q];
+      for (const [a, c] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ni = i + a, nj = j + c, k = k2(ni, nj); if (set.has(k) || Math.abs(ni - i0) > 45 || Math.abs(nj - j0) > 45 || !roomy(ni, nj)) continue; set.add(k); queue.push([ni, nj]); } }
+    reachCache = { i: i0, j: j0, set }; return set;
+  }
+  /** Is there somewhere you can walk to, from p, that is within arm's reach (r) of (x, z)? Always true with no scan. */
+  function reachable(p, x, z, r = 0.6) {
+    if (!grid.size) return true;
+    const set = reachFrom(p), n = Math.ceil(r / (2 * CELL)), i0 = Math.floor(x / (2 * CELL)), j0 = Math.floor(z / (2 * CELL));
+    for (let a = -n; a <= n; a++) for (let c = -n; c <= n; c++) if (set.has(k2(i0 + a, j0 + c)) && Math.hypot((i0 + a + 0.5) * 2 * CELL - x, (j0 + c + 0.5) * 2 * CELL - z) <= r) return true;
+    return false;
   }
   function addScan(key, vertices, indices, matrix, time) {
     const rec = scanKnown.get(key);
@@ -592,7 +619,7 @@ export function createWorlds(scene, renderer, params) {
   }
 
   const api = {
-    W, dirty: false, updateScan, nearest, addScan, scanInfo, columnTop, lineClear, hasScan: () => grid.size > 0, pastAmount: 0,
+    W, dirty: false, updateScan, nearest, addScan, scanInfo, columnTop, lineClear, reachable, hasScan: () => grid.size > 0, pastAmount: 0,
     /** 0..1: how strongly the room's shape glows (the past). */
     setPast(v) { api.pastAmount = v; pastU.uAmt.value = v; W[0].scan.visible = v > 0.001; },
     /** cur is home (drawn everywhere), oth is seen through the door, the rest are off. */

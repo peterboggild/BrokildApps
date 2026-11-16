@@ -49,7 +49,7 @@ const LETTER = [
 
 export function createStory(c) {
   const { scene, S, head, headQ, worlds } = c;
-  const st = { help: true, stickUsed: false, hintOn: false, hintT: 0, nextT: -1, nextW: 0, nextFrom: null, letterBelt: false, searchT: 0, hintSaid: false, letterOn: false, lyingOn: false, machOn: false, ringOn: false, homeHint: false, warned: false, busy: false, powered: false, powerT: 0, machT: 0, made: false, arrived: false, jumpT: 0, endT: 0, on: false, phase: 'off', hasKnife: false, stick: false, reading: false, readT: 0, t: 0, nagT: 0, hintT: 0, found: PARTS.map(() => false), revealed: { 1: false, 2: false, 3: false }, doneSaid: false };
+  const st = { busyHands: [false, false], doorT: -1, help: true, stickUsed: false, hintOn: false, hintT: 0, nextT: -1, nextW: 0, nextFrom: null, letterBelt: false, searchT: 0, hintSaid: false, letterOn: false, lyingOn: false, machOn: false, ringOn: false, homeHint: false, warned: false, busy: false, powered: false, powerT: 0, machT: 0, made: false, arrived: false, jumpT: 0, endT: 0, on: false, phase: 'off', hasKnife: false, stick: false, reading: false, readT: 0, t: 0, nagT: 0, hintT: 0, found: PARTS.map(() => false), revealed: { 1: false, 2: false, 3: false }, doneSaid: false };
   const root = new THREE.Group(); scene.add(root); root.visible = false;
 
   /* ---------------------------------------------------------------- materials */
@@ -236,7 +236,7 @@ export function createStory(c) {
       const y = topAt(x, z);
       if (y === null || y > 1.25) continue;                          // nothing underneath: outside the room; or on top of a cupboard
       const h = hoverAt(y);
-      if (clearSight(x, h, z)) { const ye = topExact(x, z), yy = ye !== null && Math.abs(ye - y) < 0.12 ? ye : y; return { x, z, y: yy, h: hoverAt(yy) }; }
+      if (clearSight(x, h, z) && worlds.reachable(head, x, z, 0.45)) { const ye = topExact(x, z), yy = ye !== null && Math.abs(ye - y) < 0.12 ? ye : y; return { x, z, y: yy, h: hoverAt(yy) }; }
     }
     const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize();     // nowhere good: right in front of you
     return { x: head.x + f.x * 0.7, z: head.z + f.z * 0.7, y: null, h: clamp(head.y - 0.35, 0.85, 1.3) };
@@ -267,7 +267,9 @@ export function createStory(c) {
     const ns = ctx.createBufferSource(); ns.buffer = nb; const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 6; bp.frequency.setValueAtTime(300, t); bp.frequency.exponentialRampToValueAtTime(6000, t + secs); const ng = ctx.createGain(); ng.gain.value = 0.35; ns.connect(bp); bp.connect(ng); ng.connect(out); ns.start(t);
     setTimeout(() => pingAt(p, 1568), secs * 1000);
   }
-  const MANIFEST = 3.6;
+  const MANIFEST = 6.0;
+  const sun = new THREE.PointLight(0xfff0d8, 0, 14, 1.3); scene.add(sun);                 // lights the room from where the part is coming into being
+  const sunGlow = halo(0xfff2d6, 1); sunGlow.material.opacity = 0; sunGlow.material.depthTest = false; root.add(sunGlow);
   /** The next part of this world grows out of nothing, as far from the last one as the room allows. */
   function manifestNext(w, from) {
     const p = parts.find(q => q.world === w && !q.found && !q.shown); if (!p) return;
@@ -340,7 +342,7 @@ export function createStory(c) {
   const machPos = new V(); const _w = new V(), _w2 = new V();
   const sockWorld = (k, out) => m0.localToWorld(out.set(...SOCK[k].p));
   /** A flat top big enough for the machine, at table height, with nothing right above it; or else open floor well clear of walls and furniture. */
-  function machineSpot() {
+  function machineSpot(hu = 0.3, hv = 0.19, wantOpen = true) {
     if (!worlds.hasScan()) return null;
     let table = null, td = 1e9, open = null, od = 1e9;
     for (let k = 0; k < 900; k++) {
@@ -350,10 +352,10 @@ export function createStory(c) {
       if (y >= 0.5 && y <= 1.05 && d > 0.6 && d < td) {
         for (const yaw of [0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4]) {
           const cx = Math.cos(yaw), sx = Math.sin(yaw); let flat = true;
-          for (const [u, v] of [[0.3, 0.19], [-0.3, 0.19], [0.3, -0.19], [-0.3, -0.19], [0, 0.19], [0, -0.19]]) { const yy = topAt(x + u * cx + v * sx, z - u * sx + v * cx); if (yy === null || Math.abs(yy - y) > 0.045) { flat = false; break; } }
-          if (flat && worlds.nearest(_w.set(x, y + 0.4, z), 0.3) === Infinity && clearSight(x, y + 0.3, z)) { table = { x, y, z, yaw }; td = d; break; }
+          for (const [u, v] of [[hu, hv], [-hu, hv], [hu, -hv], [-hu, -hv], [0, hv], [0, -hv]]) { const yy = topAt(x + u * cx + v * sx, z - u * sx + v * cx); if (yy === null || Math.abs(yy - y) > 0.045) { flat = false; break; } }
+          if (flat && worlds.nearest(_w.set(x, y + 0.4, z), 0.3) === Infinity && clearSight(x, y + 0.3, z) && worlds.reachable(head, x, z, 0.7)) { table = { x, y, z, yaw }; td = d; break; }
         }
-      } else if (y < 0.3 && d > 1.0 && d < 2.6 && d < od && worlds.nearest(_w.set(x, 0.6, z), 0.42) === Infinity && worlds.nearest(_w.set(x, 1.0, z), 0.42) === Infinity && clearSight(x, 0.9, z)) { open = { x, z }; od = d; }
+      } else if (wantOpen && y < 0.3 && d > 1.0 && d < 2.6 && d < od && worlds.reachable(head, x, z, 0.3) && worlds.nearest(_w.set(x, 0.6, z), 0.42) === Infinity && worlds.nearest(_w.set(x, 1.0, z), 0.42) === Infinity && clearSight(x, 0.9, z)) { open = { x, z }; od = d; }
     }
     if (table) { const ye = topExact(table.x, table.z); if (ye !== null && Math.abs(ye - table.y) < 0.12) table.y = ye; }
     return table ? { ...table, table: true } : open ? { x: open.x, y: 0.74, z: open.z, table: false } : null;
@@ -486,7 +488,7 @@ export function createStory(c) {
     }
     const home = S.cur === 0 && (st.phase === 'play' || st.phase === 'past');
     /* grabbing */
-    let near = false;
+    const nearH = [false, false];
     c.hands.forEach((h, i) => {
       if (!h.on) return;
       let held = holding[i];
@@ -494,10 +496,10 @@ export function createStory(c) {
         let best = null, bd = 0.17;
         if (st.phase === 'play' && st.machOn) for (const p of parts) if (p.found && !p.placed && p.held < 0) { const d = p.grp.getWorldPosition(_w).distanceTo(h.pos); if (d < bd) { bd = d; best = { part: p }; } }
         if (st.phase === 'past') for (const pc of pieces) if (pc.held < 0) { const d = centreOf(pc, _w).distanceTo(h.pos); if (d < bd + 0.05) { bd = d - 0.05; best = { piece: pc }; } }
-        if (best) { near = true; if (h.trigEdge) { held = holding[i] = best; if (best.part) { best.part.held = i; root.add(best.part.grp); best.part.grp.scale.setScalar(0.8); } else best.piece.held = i; c.haptic(0.4, 40); } }
+        if (best) { nearH[i] = true; if (h.trigEdge) { held = holding[i] = best; if (best.part) { best.part.held = i; root.add(best.part.grp); best.part.grp.scale.setScalar(0.8); } else best.piece.held = i; c.haptic(0.4, 40); } }
       }
       if (!held) return;
-      near = true;
+      nearH[i] = true;
       if (held.part) {
         const p = held.part; p.grp.position.copy(h.pos); p.body.rotation.y += dt * 1.5;
         if (sockWorld(p.k, _w).distanceTo(h.pos) < 0.16) { holding[i] = null; install(p); }
@@ -519,9 +521,9 @@ export function createStory(c) {
     });
     if (st.letterBelt && !st.reading) {                             // the letter on the belt: a trigger press with a hand on it opens it again
       letter.getWorldPosition(_w);
-      for (const h of c.hands) if (h.on && h.pos.distanceTo(_w) < 0.16) { near = true; if (h.trigEdge && !holding[c.hands.indexOf(h)]) openLetter(); }
+      c.hands.forEach((h, i) => { if (h.on && h.pos.distanceTo(_w) < 0.16) { nearH[i] = true; if (h.trigEdge && !holding[i] && !c.cutting()) openLetter(); } });
     }
-    st.busy = near;
+    st.busyHands = nearH;
     for (const pc of pieces) if (pc.held < 0) { pc.spin += dt * 0.7; pc.obj.rotation.set(0.3, pc.spin, 0); pc.obj.position.y = pc.base.y + Math.sin(st.t * 1.3 + pc.spin) * 0.02; }
     if (st.ringOn) { ringMark.scale.setScalar(1 + 0.12 * Math.sin(st.t * 4)); ringMark.position.y = knifePos.y - 0.05; }
     /* the lever: a touch, once the machine is whole and has warmed up */
@@ -547,7 +549,8 @@ export function createStory(c) {
       _w.copy(head).addScaledVector(f, 1.3); _w.y = head.y + 0.05; banner.position.lerp(_w, Math.min(1, dt * 3)); banner.lookAt(head);
     }
     /* the thumbstick hint: at home, the stick is yours, a door stands open to a world you have already emptied, and you have not yet tried the stick */
-    { const want = st.phase === 'play' && st.stick && !st.stickUsed && S.cur === 0 && S.placed && S.oth !== 0 && !parts.some(q => q.world === S.oth && !q.found);
+    if (st.phase !== 'play') cutMark.visible = false;
+    { const want = st.phase === 'play' && st.stick && !st.stickUsed && S.cur === 0;
       stickHint.visible = want;
       if (want) { st.hintT += dt; stickHint.userData.post.rotation.z = Math.sin(st.hintT * 4) * 0.55; if (((st.hintT / 1.1) | 0) !== st.hintN) { st.hintN = (st.hintT / 1.1) | 0; c.hapticRight(0.8, 120); } } }
     if (st.phase === 'past' || st.phase === 'placed') worlds.setPast(Math.min(1, (worlds.pastAmount || 0) + dt * 0.5));
@@ -557,10 +560,18 @@ export function createStory(c) {
     }
   }
 
+  /* where to cut: a bright notch across the ring at hand height */
+  const cutMark = new THREE.Group(); cutMark.visible = false; c.ring.add(cutMark);
+  { const mm = new THREE.MeshBasicMaterial({ color: 0xfff6c0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+    cutMark.add(mesh(new THREE.BoxGeometry(0.36, 0.014, 0.014), mm), halo(0xffe9a0, 0.5));
+    for (const s of [-1, 1]) { const ch = mesh(new THREE.ConeGeometry(0.022, 0.05, 10), mm, s * 0.23, 0, 0); ch.rotation.z = s * Math.PI / 2; cutMark.add(ch); } }
+
   /* ---------------------------------------------------------------- the story itself */
   const api = {
-    st, parts, toast, pieces, mach, collect, stickHint, banner, JUMP, findSpot, clearSight, machineSpot, manifestNext, install, sockWorld, debug: { placeMachine, arriveInPast, knifePos, letterPos, centreOf },
-    canCut: () => !st.on || (st.hasKnife && !st.busy && (st.phase === 'play' || st.phase === 'free')),
+    st, parts, toast, pieces, mach, collect, stickHint, banner, JUMP, cutMark, sun, findSpot, clearSight, machineSpot, manifestNext, install, sockWorld, debug: { placeMachine, arriveInPast, knifePos, letterPos, centreOf },
+    canCut: () => !st.on || (st.hasKnife && (st.phase === 'play' || st.phase === 'free')),
+    /** Asked once, when the trigger goes down: a hand resting on something it could take does not start a cut. */
+    canStartCut: i => !st.on || !st.busyHands[i],
     stickOK: () => !st.on || st.phase === 'free' || (st.stick && S.cur === 0 && st.phase === 'play'),
     count: () => st.found.filter(Boolean).length,
     start(help = true) { st.on = true; st.help = help; st.phase = 'wait'; st.t = 0; root.visible = true; },
@@ -582,12 +593,13 @@ export function createStory(c) {
         if (onBelt && st.machOn) return `Sæt delene på tidsmaskinen: ${placedCount()} af 9`;
         return S.placed ? 'Gå gennem døren' : st.stick ? 'Vælg verden med højre joystick, og skær en dør' : 'Skær en dør i luften';
       }
-      if (!st.revealed[S.cur]) return 'Luk døren bag dig: skær hen over ringen';
+      if (!st.revealed[S.cur]) return 'Døren lukker sig om lidt (eller skær den over)';
       const left = parts.filter(q => q.world === S.cur && !q.found).length;
       return left ? `Find delen, der bliver til: ${3 - left} af 3 fundet` : S.placed ? 'Gå gennem døren hjem' : 'Skær en dør hjem til stuen';
     },
     onEnter(w) {
       if (!st.on || st.phase !== 'play') return;
+      st.doorT = 10;                                                // the door you came through closes by itself
       if (w === 0) {
         if (api.count() === 9 && !st.machOn) placeMachine();
         else if (st.machOn && parts.some(q => q.found && !q.placed)) toast('Sæt delene fra bæltet på tidsmaskinen (hold udløseren for at tage en del).', 8);
@@ -595,8 +607,8 @@ export function createStory(c) {
         return;
       }
       st.searchT = 0; st.hintSaid = false;
-      if (!st.warned) { st.warned = true; st.nagT = 6; toast('Gå MEGET forsigtigt herinde. Scanningen fanger ikke alt: en stoleryg eller noget, der stritter ud, kan mangle.', 9, true); }
-      else if (!st.revealed[w]) { toast('Luk døren bag dig: skær hen over ringen med kniven.', 8); st.nagT = 0; }
+      if (!st.warned) { st.warned = true; toast('Gå MEGET forsigtigt herinde. Scanningen fanger ikke alt: en stoleryg eller noget, der stritter ud, kan mangle.', 9, true); }
+      else if (!st.revealed[w]) toast('Døren lukker sig om lidt. Du kan også selv skære den over.', 7);
     },
     onClosed() { if (st.on && st.phase === 'play' && S.cur !== 0 && !st.revealed[S.cur]) revealParts(S.cur); },
     update(dt) {
@@ -604,7 +616,8 @@ export function createStory(c) {
       const ya = headYaw();
       chapter2(dt, ya);
       if (st.phase === 'wait' && st.t > (S.mode === 'xr' ? 3.0 : 0.6)) {
-        const s = findSpot(head.x, head.z, 1.2, 2.6, ya + 1.7, ya + 4.6, []);                 // somewhere behind you or off to the side
+        const tb = machineSpot(0.17, 0.12, false);                                              // on a table top if the room has one you can get to
+        const s = tb || findSpot(head.x, head.z, 1.2, 2.6, ya + 1.7, ya + 4.6, []);              // otherwise somewhere behind you or off to the side
         st.letterHover = s.y === null || s.y < 0.6; letterPos.set(s.x, st.letterHover ? 0.95 : s.y + 0.012, s.z); letter.position.copy(letterPos); letter.rotation.y = rnd(0, TAU); st.letterOn = true;
         st.phase = 'letter'; st.hintT = 0; humAt(letterPos);
       }
@@ -643,7 +656,11 @@ export function createStory(c) {
           st.searchT += dt;
           if (st.searchT > 180 && !st.hintSaid) { st.hintSaid = true; toast('Lyt og kig efter: delene blinker og kalder nu.', 7); }
         }
-        if (S.cur !== 0 && S.placed && !st.revealed[S.cur]) { st.nagT += dt; if (st.nagT > 14) { st.nagT = 0; toast('Luk døren bag dig: skær hen over ringen med kniven.', 7); } }
+        if (!S.placed) st.doorT = -1;
+        else if (st.doorT > 0) { st.doorT -= dt; if (st.doorT <= 0) c.closeDoor(); }
+        cutMark.visible = S.placed && S.cur !== 0 && st.doorT > 0;
+        if (cutMark.visible) { cutMark.position.set(c.portal.Rx, 0, 0); cutMark.scale.setScalar(1 + 0.15 * Math.sin(st.t * 6)); cutMark.children[1].material.opacity = 0.5 + 0.4 * Math.sin(st.t * 6); }
+        st.sunWant = 0;
         for (const p of parts) {
           if (p.found) { if (!p.placed && p.held < 0) p.body.rotation.y += dt * 0.5; continue; }
           p.grp.visible = p.shown && S.cur === p.world;
@@ -653,12 +670,15 @@ export function createStory(c) {
           p.grp.position.y = p.pos.y + Math.sin(st.t * 1.2 + p.k) * 0.025; p.body.rotation.y += dt * (0.8 + (1 - e) * 9);
           const lvl = st.searchT > 300 ? 2 : st.searchT > 180 ? 1 : 0;                           // a long search: the parts start to blink and call, later they send up a beam
           p.grp.children[1].material.opacity = lvl ? 0.55 + 0.45 * Math.sin(st.t * 7 + p.k) : 0.4 + 0.2 * Math.sin(st.t * 2.4 + p.k);
-          p.grp.children[1].scale.setScalar(lvl ? 1.1 : 0.6 + (1 - e) * 1.6 * (0.6 + 0.4 * Math.sin(st.t * 23))); p.grp.children[2].visible = lvl === 2 || (e < 1 && Math.sin(st.t * 17) > 0.2);
+          p.grp.children[1].scale.setScalar(lvl ? 1.1 : 0.6); p.grp.children[2].visible = false;
+          { const glow = e < 1 ? Math.pow(Math.sin(Math.PI * Math.min(1, e * 1.08)), 0.6) : lvl ? (lvl === 2 ? 0.7 : 0.35) * Math.pow(0.5 + 0.5 * Math.sin(st.t * 1.6), 3) : 0;      // a small sun: swells and fades as the part arrives; later, a slow beacon if you cannot find it
+            st.sunWant = Math.max(st.sunWant || 0, glow); if (glow > 0) { sun.position.copy(p.grp.position); sunGlow.position.copy(p.grp.position); } }
           if (lvl && st.t - (p.pingT || 0) > 5 + p.k % 3) { p.pingT = st.t; pingAt(p.grp.position, 1000 + p.k * 60); }
           if (p.t > MANIFEST * 0.85 && (touching(p.grp.position, 0.2) >= 0 || (st.hasKnife && c.tip().distanceTo(p.grp.position) < 0.17))) collect(p);
         }
       }
       { for (const p of parts) { if (p.body.userData.spin) { p.body.userData.spin[0].rotation.y += dt; p.body.userData.spin[1].rotation.y -= dt * 1.6; } if (p.body.userData.hand) p.body.userData.hand.rotation.z -= dt * 1.2; if (p.body.userData.rings) p.body.userData.rings.forEach((r, i) => { r.rotation.x += dt * (0.6 + i * 0.3); r.rotation.y += dt * 0.4; }); } }
+      { const g = st.phase === 'play' ? (st.sunWant || 0) : 0; sun.intensity = 26 * g; sunGlow.material.opacity = 0.75 * g; sunGlow.scale.setScalar(0.4 + 3.2 * g); sunGlow.visible = g > 0.01; }
       { const home = S.cur === 0; letter.visible = st.letterBelt || (st.letterOn && home); lying.visible = st.lyingOn && home; mach.visible = st.machOn && home; ringMark.visible = st.ringOn && home; }
       /* the belt follows your hips, not every turn of the head */
       let dy = ya - beltYaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); beltYaw += dy * Math.min(1, dt * 2.5);

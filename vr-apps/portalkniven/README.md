@@ -125,3 +125,16 @@ Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start,
   der vipper fra side til side, og højre controller dunker. Det forsvinder, første gang joysticken bruges.
 * **Slutkortet:** "Du har gennemført spillet" vises foran en, når man er hjemme i sin egen tid.
 * **Sikkerhedsvisningen af stuen nær møbler er altid slået til** og kan ikke vælges fra.
+
+### Efter anden prøve i brillen
+* **Kniven slap snittet:** et snit blev afbrudt, hver gang en hånd kom tæt på noget, der kunne tages (brevet i bæltet ved hoften). Nu afgøres det kun i det øjeblik,
+  udløseren trykkes ned, og kun for knivhånden; et snit, der er i gang, afbrydes ikke.
+* **Døren lukker sig selv:** i historien lukker den dør, man er gået igennem, efter ca. 10 sekunder (begge veje). Et lysende mærke på ringen i håndhøjde viser, hvor man selv kan skære den over.
+  I fri leg lukker døre ikke af sig selv.
+* **Kan man komme derhen?** Scanningen ses ovenfra i felter på 16 cm; et felt er spærret, hvis noget står i det mellem skinneben og hovedhøjde. En udfyldning fra dér, hvor man står
+  (kun gennem felter uden spærrede naboer, så en passage skal være ca. en halv meter bred), giver alt, man kan gå til. Ting lægges kun inden for en armslængde (45 cm) af sådan et sted.
+* **Brevet på et bord:** der søges først efter en plan flade i bordhøjde, som man kan komme hen til; ellers svæver brevet i håndhøjde.
+* **Fremkomsten:** varer 6 sekunder med lyd fra stedet, og et lys som en lille sol svulmer op og falmer dér, hvor delen bliver til, og oplyser rummet derfra (punktlys uden skygger).
+  Den lodrette lysstråle er fjernet; leder man længe, blinker delen, kalder og pulserer som et langsomt fyr.
+* **Tavlen på controlleren** vises kun, når der er noget nyt at sige, og toner ud efter ca. 5 sekunder.
+* **Joystick-vinket** vises nu, så snart man er hjemme og joysticken er låst op, indtil man har brugt den.

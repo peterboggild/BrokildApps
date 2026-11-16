@@ -17,8 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=17';
-import { createStory } from './story.js?v=18';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=19';
+import { createStory } from './story.js?v=19';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -59,7 +59,7 @@ const ringLight = new THREE.PointLight(0x40ff90, 0, 7, 1.5); scene.add(ringLight
   const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(env, 0.04).texture; pm.dispose();
 }
 
-const S = { safe: false, scale: 0.85, bright: 1, brightTarget: 1, lum: -1, camera: false, cur: 0, oth: 1, side: 1, placed: false, mode: 'menu', stencilBits: null, crossings: 0, frames: 0, scanMeshes: 0, scanFeature: false, time: 0, msg: '', msgT: -99 };
+const S = { hudT: 0, safe: false, scale: 0.85, bright: 1, brightTarget: 1, lum: -1, camera: false, cur: 0, oth: 1, side: 1, placed: false, mode: 'menu', stencilBits: null, crossings: 0, frames: 0, scanMeshes: 0, scanFeature: false, time: 0, msg: '', msgT: -99 };
 const DOOR = { Rx: 0.6, Ry: 1.1 };                             // an upright oval you can walk through (1.2 m wide, 2.2 m tall)
 const portal = { c: new V(0, DOOR.Ry + 0.03, -1.6), n: new V(0, 0, 1), x: new V(1, 0, 0), y: new V(0, 1, 0), Rx: DOOR.Rx, Ry: DOOR.Ry, anim: null };
 const head = new V(0, 1.6, 0), prevHead = new V(0, 1.6, 0), headQ = new THREE.Quaternion();
@@ -237,7 +237,7 @@ const hands = [0, 1].map(() => ({ on: false, q: new THREE.Quaternion(), pos: new
 const tipW = new V();
 const story = createStory({
   scene, S, head, headQ, worlds, hands, say: t => say(t), audio: () => AU.ctx, haptic: (v, ms) => { for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(v, ms); } catch (_) { /* none */ } } },
-  makeKnife: buildKnife, tip: () => tipW,
+  makeKnife: buildKnife, tip: () => tipW, ring, portal, cutting: () => cut.state === 'cutting',
   takeKnife: () => { assignTools(); },
   hapticRight: (v, ms) => { let i = ctrl.findIndex(c => c.hand === 'right'); if (i < 0) i = knifeIdx; try { ctrl[i].src?.gamepad?.hapticActuators?.[0]?.pulse?.(v, ms); } catch (_) { /* none */ } },
   attachRight: o => { rightThing = o; }, closeDoor: () => { if (S.placed && !portal.closing) dissolvePortal(); },
@@ -537,10 +537,12 @@ function hudLines() {
     msg,
   ];
 }
-let hudNext = 0;
+let hudNext = 0, hudSig = '';
 function drawHud() {
   const now = performance.now(); if (now < hudNext) return; hudNext = now + 200;
-  const lines = hudLines();
+  const lines = hudLines(), sig = lines.filter(Boolean).join('|');
+  if (sig !== hudSig) { if (!hudSig.startsWith(sig)) S.hudT = S.time; hudSig = sig; }      // something new to say (a line merely expiring does not count)
+  hudMesh.material.opacity = clamp(1 - (S.time - S.hudT - 5) / 1.2, 0, 1); hudMesh.visible = hudMesh.material.opacity > 0.01;
   if (S.mode === 'flat') { $('hud').textContent = lines.filter(Boolean).join('\n') + '\n(WASD, træk = kig, klik = peg og tryk, Shift+træk = skær, P = sæt ring, Q/E = skift verden)'; return; }
   const x = hudCanvas.getContext('2d');
   x.clearRect(0, 0, 512, 300); x.fillStyle = 'rgba(4,10,8,.82)'; x.fillRect(0, 0, 512, 300); x.strokeStyle = '#4dff88'; x.lineWidth = 6; x.strokeRect(3, 3, 506, 294);
@@ -647,6 +649,7 @@ function pollStick() {                                              // the right
   stickHeld = on || Math.abs(ax) > 0.35;
 }
 const clock = new THREE.Clock();
+let trigWas = false, cutOK = false;
 const _hq = new THREE.Quaternion();
 function updateHands() {
   hands.forEach((h, i) => {
@@ -678,7 +681,10 @@ function loop(_, frame) {
     if (worlds.dirty) applyRoles();
     knife.updateWorldMatrix(true, true); knife.userData.tip.getWorldPosition(tipW);
     updateHands();
-    const pressed = story.canCut() && (S.mode === 'xr' ? ctrl[knifeIdx].pressed : flatTip.pressed);
+    const trig = S.mode === 'xr' ? ctrl[knifeIdx].pressed : flatTip.pressed;
+    if (trig && !trigWas) cutOK = story.canStartCut(S.mode === 'xr' ? knifeIdx : 0);      // decided once, as the trigger goes down: a cut under way is never interrupted by a hand passing the belt
+    if (!trig) cutOK = false; trigWas = trig;
+    const pressed = trig && cutOK && story.canCut();
     cutterUpdate(dt, S.mode === 'flat' && (flatTip.pressed || flatTip.override) ? flatTip.pos : tipW, pressed);
     if (trail.fading) { trail.fade -= dt / 0.8; trMat.uniforms.uFade.value = Math.max(0, trail.fade); if (trail.fade <= 0) clearTrail(); }
     trMat.uniforms.uNow.value = S.time; updateTrailGeometry();
