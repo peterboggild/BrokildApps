@@ -18,7 +18,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { createWorlds, DIMS, ORDER } from './worlds.js?v=27';
-import { createStory } from './story.js?v=21';
+import { createStory } from './story.js?v=28';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
