@@ -17,8 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=29';
-import { createStory } from './story.js?v=29';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=30';
+import { createStory } from './story.js?v=30';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -681,7 +681,9 @@ function assignTools() {
   hapticPulse = (v, ms) => { try { const a = ctrl[knifeIdx].src?.gamepad?.hapticActuators?.[0]; a?.pulse?.(clamp(v, 0, 1), ms); } catch (_) { /* no haptics */ } };
 }
 
-async function enterXR(free, help = true) {
+const FOUR = DIMS.findIndex(d => d.four);
+async function enterXR(free, help = true, first = 0) {
+  if (first) { S.oth = first; applyRoles(); }
   const status = $('status');
   try {
     initAudio();
@@ -702,7 +704,7 @@ async function enterXR(free, help = true) {
     }
     if (free !== true) story.start(help);
     assignTools();
-    if (free === true) say('Hold udløseren og skær en ring i luften');
+    if (free === true) say(first === FOUR ? 'Skær en ring: den fører til det firedimensionale rum' : 'Hold udløseren og skær en ring i luften');
   } catch (e) { status.textContent = 'Kunne ikke starte headset-sessionen: ' + (e.message || e); console.error(e); }
 }
 
@@ -712,7 +714,8 @@ const flatTip = { pos: new V(0, 1.4, -1.2), pressed: false, override: false };
 const ray = new THREE.Raycaster();
 function enterFlat() {
   initAudio();
-  if (!params.has('free')) story.start(!params.has('nohelp'));
+  if (params.has('four')) { S.oth = FOUR; applyRoles(); }
+  if (!params.has('free') && !params.has('four')) story.start(!params.has('nohelp'));
   if (rightThing) { camera.add(rightThing); rightThing.position.set(0.16, -0.12, -0.4); rightThing.rotation.set(0.9, 0, 0); }
   S.mode = 'flat'; document.body.classList.add('playing', 'flat');
   canvas.style.display = 'block';
@@ -799,6 +802,27 @@ function fractalControls(dt) {
     gearMesh.visible = false; worlds.setFractalCalm(false); controllerTips(dt, li, ri); return;
   }
   SPN.w.set(0, 0, 0);
+  if (DIMS[S.cur].four) {
+    /* The four-dimensional room. Left stick up / down pulls the room through our three dimensions (along w); left / right turns it in the plane of your right hand
+     * and w, about your head, so the thing you look at stays where it is while it changes. One at a time (the stronger push wins). A press puts it all back. */
+    let pull = 0, rot = 0, reset = false;
+    if (S.mode === 'xr') { if (L && L.axes.length >= 4) { pull = -dead(L.axes[3]); rot = dead(L.axes[2]); } reset = btn(L, 3); }
+    else { pull = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0); rot = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); reset = !!keys.KeyK; }
+    if (Math.abs(pull) > Math.abs(rot)) rot = 0; else pull = 0;
+    if (pull || rot) { const r = new V(1, 0, 0).applyQuaternion(headQ); r.y = 0; if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize(); worlds.fourStep(S.cur, head, r, rot * 0.7 * dt, pull * 0.4 * dt); FC.fourT = 1.8; }
+    if (reset && !FC.fourReset) { worlds.fourReset(S.cur); FC.fourT = 1.8; } FC.fourReset = reset; FC.wasFour = true;
+    worlds.setFractalCalm(FC.still > 1.5 && !pull && !rot);
+    if (FC.fourT > 0) {
+      FC.fourT -= dt; const inf = worlds.fourInfo(S.cur), dg = ((Math.round(inf.turn * 180 / Math.PI) % 360) + 360) % 360, txt = '4D   dybde ' + (inf.depth >= 0 ? '+' : '\u2212') + Math.abs(inf.depth).toFixed(2) + ' m   drejet ' + dg + '\u00b0';
+      if (txt !== gearShown) { gearShown = txt; const x = gearCanvas.getContext('2d'); x.clearRect(0, 0, 512, 128); x.fillStyle = 'rgba(4,10,16,.8)'; x.beginPath(); x.roundRect(4, 4, 504, 120, 20); x.fill();
+        x.fillStyle = '#ffd9a0'; x.font = 'bold 30px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; x.fillText(txt, 22, 76); gearTex.needsUpdate = true; }
+      if (!gearMesh.parent) scene.add(gearMesh);
+      const f = new V(0, 0, -1).applyQuaternion(headQ), tgt = new V().copy(head).addScaledVector(f, 0.9); tgt.y -= 0.22;
+      gearMesh.position.lerp(tgt, Math.min(1, dt * 10)); gearMesh.lookAt(head); gearMesh.material.opacity = clamp(FC.fourT / 0.5, 0, 1); gearMesh.visible = true;
+    } else gearMesh.visible = false;
+    controllerTips(dt, li, ri); return;
+  }
+  if (FC.wasFour) { FC.wasFour = false; worlds.fourReset(FOUR); }      // step out of the room and it settles back to how it was
   if (!inF) { tips.left.visible = tips.right.visible = false; gearMesh.visible = false; worlds.setFractalCalm(false); return; }
   let fwd = 0, side = 0, gear = 0, par = 0, par2 = 0, scale = 1;
   if (S.mode === 'xr') {
@@ -918,9 +942,10 @@ renderer.setAnimationLoop(loop);
   btnFlat.addEventListener('click', () => { readOpts(); enterFlat(); }); btnAR.addEventListener('click', () => { readOpts(); enterXR(false, true); });
   if (btnNoHelp) btnNoHelp.addEventListener('click', () => { readOpts(); enterXR(false, false); });
   if (btnFree) btnFree.addEventListener('click', () => { readOpts(); enterXR(true); });
+  const btnFour = $('btnFour'); if (btnFour) btnFour.addEventListener('click', () => { readOpts(); enterXR(true, true, FOUR); });
   let ok = false;
   try { ok = !!(navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')); } catch (_) { /* no WebXR */ }
-  btnAR.disabled = !ok; if (btnFree) btnFree.disabled = !ok; if (btnNoHelp) btnNoHelp.disabled = !ok;
+  btnAR.disabled = !ok; if (btnFour) btnFour.disabled = !ok; if (btnFree) btnFree.disabled = !ok; if (btnNoHelp) btnNoHelp.disabled = !ok;
   status.textContent = ok ? 'Klar. Vælg, hvordan du vil spille.' : 'Headset-tilstand (immersive-ar) findes ikke her. Du kan se et fladt preview på computer.';
   if (params.has('flat')) { readOpts(); enterFlat(); }
 })();
