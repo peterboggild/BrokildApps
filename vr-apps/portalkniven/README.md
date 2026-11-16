@@ -176,6 +176,42 @@ Kun når man står i en fraktal dimension:
   så små hovedbevægelser ikke tværer ud. Prisen pr. billede er den samme lave opløsning plus et billigt samlepas. Fraktalens egen bevægelse står stille imens.
   Startsiden har valget *Fraktaler i ro*: bygges op over tid / større billede, hvis brillen kan / ingen skærpning (`?sharp=taa|res|off`).
 
+## Spiralen, når døren skifter verden
+Når man skifter verden bag døren med joysticket, bliver billedet i døren snoet ind i en spiral og trukket ned i et punkt (0,6 s); tilbage er sort rum med
+stjerner, og så vikler den nye verden sig hurtigt ud af punktet igen (0,34 s). Skiftet af verden sker, mens der kun er stjerner.
+
+* Vinduet i døren er ægte geometri og kan ikke bøjes. I det sekund viser døren derfor et **stillbillede**: den anden side, som den så ud derfra, hvor man
+  står, taget i samme øjeblik (`worlds.snapshot`, 640 x 960, tegnet med de samme shadere som brillens eget billede, så intet skal oversættes), lagt på dørens
+  flade og snoet af `vortexMat` i `portal.js`. Billedet er altså fladt, mens det snor sig; stjernerne bag er derimod tegnet pr. øje og ligger uendeligt langt væk.
+* Skubber man til joysticket igen, mens spiralen er på vej ind, ændres kun målet. Går man gennem døren, eller lukker den, afbrydes spiralen.
+* Fører døren til stuen (set fra en anden verden), er "billedet" et hul ind til den rigtige stue, som skrumper i samme spiralform.
+
+## Verdensrummet (fri leg)
+En dimension uden noget at stå på: stjerner i alle retninger. Åbner ligesom de fraktale dimensioner først, når historien er gennemført (eller i fri leg).
+
+* **Himlen** er en shader (`SPACE_GLSL` i `worlds.js`): Mælkevejen som et bånd med en lys kerne, støvbaner og stjerneskyer, tre svagt lysende tåger, to fjerne
+  galakser, og tre lag stjerner (flest langs båndet). Stjernerne laves uden tekstur: himmelkuglen skæres gennem et gitter af celler med et lyspunkt i hver.
+* **De nære stjerner** er 1100 rigtige punkter i rummet, fra lige uden for rækkevidde til 70 m væk. Dem ser man i dybden (hvert øje sit billede), og de
+  forskyder sig mod de fjerne, når man flytter hovedet.
+* **Styring:** man kommer ingen vegne, men kan tumle. Højre stick drejer (om lodret) og vipper frem og tilbage, venstre stick ruller. Der er træghed: man
+  bliver ved med at dreje lidt, efter man har sluppet (dør ud over cirka 5 s). Det er himlen og de nære stjerner, der drejer om hovedet; stuen står stille.
+  Tryk på højre stick skifter verden bag døren.
+* **Rummet og sikkerhed** som i de fraktale dimensioner: stuens scannede form som et svagt omrids, der toner ud, når man står stille, og tæt på hoved og hænder
+  åbner det sig mod den rigtige stue. Advarselslyden virker. En dyb, svag drone som baggrund; ingen musik.
+
+## Ting, der giver efter (de tre sang-dimensioner)
+Små ting i hånd- og hoftehøjde reagerer på hænderne (controllernes position). Ingen fysikmotor: det er fjedre og en enkelt shader, så det koster næsten intet.
+
+* **Den grønne:** stængler bøjer væk fra hånden og svirper tilbage (også de gamle syv); tuer af **højt græs** (35 til 85 cm) lægger sig væk fra hånden
+  (i shaderen, også det korte græs); sporerne i luften viger.
+* **Metalverdenen:** **ventilhjulet** kan drejes med hånden langs kanten og løber videre af sig selv, med klik; fire **kabler med krog** hænger ned fra disen
+  og svinger langsomt og længe, når man skubber til dem.
+* **Klippeverdenen:** tuer af **tørre strå**, hvor hvert strå giver efter for sig.
+* Hver berøring giver en lille lyd (svirp, raslen, metalklang, klik) og et kort dunk i den controller, der rørte.
+* Tingene sættes, første gang døren fører til verdenen, på frit gulv, man kan gå hen til (ud fra scanningen), nær døren men ikke i selve døråbningen.
+  Er der ingen ledig plads, vises tingen ikke.
+* Bevidst fravalgt: at samle ting op, kaste dem eller sparke til sten. Uden fysikmotor og uden at vide, hvor fødderne er, bliver det ikke overbevisende.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option
