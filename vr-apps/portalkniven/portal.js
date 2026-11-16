@@ -17,8 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=13';
-import { createStory } from './story.js?v=14';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=17';
+import { createStory } from './story.js?v=18';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -72,6 +72,7 @@ const applyRoles = () => worlds.applyRoles(S.cur, S.oth);
 
 /** The stick: choose where the door leads. Never the dimension you are standing in. */
 function cycleOther(dir) {
+  story.onStick();
   let o = S.oth;
   do { o = (o + dir + DIMS.length) % DIMS.length; } while (o === S.cur);
   S.oth = o;
@@ -231,12 +232,15 @@ const knife = buildKnife();
 let knifeGlow = 0.35, tipPrev = null;
 
 /* the two hands, as the story sees them: where they are, where they point, and whether the trigger was just pressed */
+let rightThing = null;                                             // something the story shows by the right hand (the thumbstick hint)
 const hands = [0, 1].map(() => ({ on: false, q: new THREE.Quaternion(), pos: new V(), rayO: new V(), rayD: new V(0, 0, -1), trig: false, trigEdge: false }));
 const tipW = new V();
 const story = createStory({
   scene, S, head, headQ, worlds, hands, say: t => say(t), audio: () => AU.ctx, haptic: (v, ms) => { for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(v, ms); } catch (_) { /* none */ } } },
   makeKnife: buildKnife, tip: () => tipW,
-  takeKnife: () => { assignTools(); }, closeDoor: () => { if (S.placed && !portal.closing) dissolvePortal(); },
+  takeKnife: () => { assignTools(); },
+  hapticRight: (v, ms) => { let i = ctrl.findIndex(c => c.hand === 'right'); if (i < 0) i = knifeIdx; try { ctrl[i].src?.gamepad?.hapticActuators?.[0]?.pulse?.(v, ms); } catch (_) { /* none */ } },
+  attachRight: o => { rightThing = o; }, closeDoor: () => { if (S.placed && !portal.closing) dissolvePortal(); },
   giveKnife: i => { knifeIdx = i; ctrl.forEach((c, k) => { c.dragged = k === i; }); assignTools(); knifeGlow = 2.2; zap(); },
 });
 
@@ -522,14 +526,14 @@ const hudTex = new THREE.CanvasTexture(hudCanvas); hudTex.colorSpace = THREE.SRG
 const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.117), new THREE.MeshBasicMaterial({ map: hudTex, transparent: true, depthTest: false }));
 hudMesh.renderOrder = 100; hudMesh.position.set(0, 0.09, -0.04); hudMesh.rotation.x = -1.0;
 function hudLines() {
-  const bits = S.stencilBits, msg = S.time - S.msgT < 4 ? S.msg : '';
+  const bits = S.stencilBits, msg = S.time - S.msgT < 4 && (!story.st.on || story.st.help || /forsigtigt|gennemf/.test(S.msg)) ? S.msg : '';
   return [
     'PORTALKNIVEN',
     `Du er i: ${DIMS[S.cur].name}`,
     `D\u00f8ren f\u00f8rer til: ${DIMS[S.oth].name}`,
     story.st.on ? `Dele: ${story.count()} af 9` : S.mode === 'xr' ? `Stencil: ${bits === null ? '?' : bits}${bits === 0 ? '  VINDUET VIRKER IKKE' : ''}   Scan: ${S.scanFeature ? S.scanMeshes + ' mesh' : 'ingen'}` : 'Fladt preview',
     S.mode === 'xr' && S.cur !== 0 && !S.scanMeshes ? 'INGEN RUMSCANNING: pas på møbler!' : `Rumlys: ${S.lum < 0 ? 'ingen' : S.lum.toFixed(2)}   Kamera: ${S.camera ? 'ja' : 'nej'}`,
-    cut.state === 'cutting' ? 'Skærer … luk ringen!' : story.st.on ? story.objective() : S.placed ? 'Højre stick: skift verden bag døren' : S.cur !== 0 ? 'Ingen dør: skær en ny for at komme hjem' : 'Hold udløseren og skær en ring i luften',
+    cut.state === 'cutting' ? 'Skærer … luk ringen!' : story.st.on ? (story.st.help ? story.objective() : '') : S.placed ? 'Højre stick: skift verden bag døren' : S.cur !== 0 ? 'Ingen dør: skær en ny for at komme hjem' : 'Hold udløseren og skær en ring i luften',
     msg,
   ];
 }
@@ -555,12 +559,13 @@ function assignTools() {
   if (right >= 0 && !ctrl.some(c => c.dragged)) knifeIdx = right;
   if (!story.canCut()) { const l = ctrl.findIndex(c => c.hand === 'left'); knifeIdx = l >= 0 ? 1 - l : 1; knife.parent?.remove(knife); }
   else { const grip = renderer.xr.getControllerGrip(knifeIdx); if (knife.parent !== grip) { knife.parent?.remove(knife); grip.add(knife); } }
+  if (rightThing) { let r = ctrl.findIndex(c => c.hand === 'right'); if (r < 0) r = knifeIdx; const rc = renderer.xr.getController(r); if (rightThing.parent !== rc) { rc.add(rightThing); rightThing.position.set(0, 0.05, 0.03); rightThing.rotation.set(0.9, 0, 0); } }
   const other = renderer.xr.getController(1 - knifeIdx);
   if (hudMesh.parent !== other) { hudMesh.parent?.remove(hudMesh); other.add(hudMesh); }
   hapticPulse = (v, ms) => { try { const a = ctrl[knifeIdx].src?.gamepad?.hapticActuators?.[0]; a?.pulse?.(clamp(v, 0, 1), ms); } catch (_) { /* no haptics */ } };
 }
 
-async function enterXR(free) {
+async function enterXR(free, help = true) {
   const status = $('status');
   try {
     initAudio();
@@ -579,7 +584,7 @@ async function enterXR(free) {
       c.addEventListener('squeezestart', () => { if (!story.canCut()) return; knifeIdx = i; ctrl[1 - i].dragged = false; ctrl[i].dragged = true; assignTools(); });      // grip: take the knife in this hand
       c.addEventListener('connected', e => { ctrl[i].src = e.data; ctrl[i].hand = e.data?.handedness || ''; assignTools(); });
     }
-    if (free !== true) story.start();
+    if (free !== true) story.start(help);
     assignTools();
     if (free === true) say('Hold udløseren og skær en ring i luften');
   } catch (e) { status.textContent = 'Kunne ikke starte headset-sessionen: ' + (e.message || e); console.error(e); }
@@ -591,7 +596,8 @@ const flatTip = { pos: new V(0, 1.4, -1.2), pressed: false, override: false };
 const ray = new THREE.Raycaster();
 function enterFlat() {
   initAudio();
-  if (!params.has('free')) story.start();
+  if (!params.has('free')) story.start(!params.has('nohelp'));
+  if (rightThing) { camera.add(rightThing); rightThing.position.set(0.16, -0.12, -0.4); rightThing.rotation.set(0.9, 0, 0); }
   S.mode = 'flat'; document.body.classList.add('playing', 'flat');
   canvas.style.display = 'block';
   scene.add(camera); scene.add(knife);
@@ -693,17 +699,17 @@ renderer.setAnimationLoop(loop);
 
 (async function init() {
   const btnAR = $('btnAR'), btnFlat = $('btnFlat'), status = $('status');
-  const btnFree = $('btnFree'), optSafe = $('optSafe');
-  try { if (optSafe) { optSafe.checked = localStorage.getItem('portalknivenSafe') !== '0'; optSafe.addEventListener('change', () => localStorage.setItem('portalknivenSafe', optSafe.checked ? '1' : '0')); } } catch (_) { /* no storage */ }
+  const btnFree = $('btnFree'), btnNoHelp = $('btnNoHelp');
   const optQual = $('optQual');
   try { if (optQual) { optQual.value = localStorage.getItem('portalknivenQual') || 'normal'; optQual.addEventListener('change', () => localStorage.setItem('portalknivenQual', optQual.value)); } } catch (_) { /* no storage */ }
-  const readOpts = () => { S.safe = optSafe ? optSafe.checked : params.get('safe') !== '0'; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
-  btnFlat.addEventListener('click', () => { readOpts(); enterFlat(); }); btnAR.addEventListener('click', () => { readOpts(); enterXR(false); });
+  const readOpts = () => { S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
+  btnFlat.addEventListener('click', () => { readOpts(); enterFlat(); }); btnAR.addEventListener('click', () => { readOpts(); enterXR(false, true); });
+  if (btnNoHelp) btnNoHelp.addEventListener('click', () => { readOpts(); enterXR(false, false); });
   if (btnFree) btnFree.addEventListener('click', () => { readOpts(); enterXR(true); });
   let ok = false;
   try { ok = !!(navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')); } catch (_) { /* no WebXR */ }
-  btnAR.disabled = !ok; if (btnFree) btnFree.disabled = !ok;
-  status.textContent = ok ? 'Klar. Tryk på Start historien.' : 'Headset-tilstand (immersive-ar) findes ikke her. Du kan se et fladt preview på computer.';
+  btnAR.disabled = !ok; if (btnFree) btnFree.disabled = !ok; if (btnNoHelp) btnNoHelp.disabled = !ok;
+  status.textContent = ok ? 'Klar. Vælg, hvordan du vil spille.' : 'Headset-tilstand (immersive-ar) findes ikke her. Du kan se et fladt preview på computer.';
   if (params.has('flat')) { readOpts(); enterFlat(); }
 })();
 

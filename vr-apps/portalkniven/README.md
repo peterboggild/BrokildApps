@@ -96,3 +96,32 @@ Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start,
   til de brede mønstre, der skal løbe ubrudt rundt om en sten. Klippe: fra 33 til 12 teksturopslag pr. pixel; stål: 18 til 6; mos: 18 til 9.
 * Himlen tegnes efter verdenen med dybdetest, så dækkede pixels aldrig beregnes (i et scannet, lukket rum er det næsten alle).
 * Opløsning: startsiden har *Grafik* (Skarp 1.0, Normal 0.85, Flydende 0.7 af headsettets opløsning) og fast foveation på højeste trin.
+
+### Placering og hjælp til at finde delene
+* Brev, kniv, dele og knivens tre stykker lægges kun et sted, der (1) har gulv eller møbel under sig i scanningen, så det ikke er på den anden side af en væg,
+  (2) ikke er højere end et bord, (3) kan ses i fri sigtelinje fra dér, hvor man står (stråle mod scanningen), og (4) ikke ligger inde i eller klos op ad noget scannet.
+  Findes der intet godt sted, lægges tingen lige foran en.
+* Leder man længe i en verden: efter 3 minutter blinker de manglende dele kraftigt og kalder med en lyd fra deres position; efter 5 minutter sender de en lysstråle op,
+  der ses hen over møbler.
+* **Brevet tages med:** når brevet er læst første gang, ligger det ikke længere i rummet. Det sidder i bæltet (yderst til venstre) som de andre ting, man har.
+  Læg hånden på det, og tryk på udløseren, så folder det sig ud igen. Arket er 66 × 90 cm og holder sig foran øjnene i øjenhøjde.
+
+### Senere ændringer i historien
+* **Én del ad gangen:** når døren er lukket, bliver én del til: den vokser ud af ingenting over ca. 3,6 sekunder, sitrende og med en lyd fra sit sted
+  (to toner, der stiger og slår mod hinanden, ringmoduleret skær, et pust af støj, en lille klokke til sidst). Den kan først tages, når den er kommet helt frem.
+  Når den er taget, bliver den næste til, så langt fra den forrige som rummet tillader.
+* **Intet ligger lavt:** brev, kniv, dele og knivstykker ligger på et bord, hvis der er et, ellers svæver de i håndhøjde (ca. 95 cm), aldrig ved gulvet.
+* **Tidsmaskinen på et bord:** der søges efter en plan flade i bordhøjde, stor nok til maskinen, med frit rum over; maskinen stilles vinkelret på bordet.
+  Findes ingen, står den på sit eget lille bord på åbent gulv, mindst ca. 40 cm fra vægge og møbler.
+* **Hjem igen:** når kniven er lagt i fortiden, går man hen til tidsmaskinen og trækker håndtaget tilbage. Først hjemme i ens egen tid er det fri leg, og kniven ligger, hvor man fandt den.
+* **Fortidens skær:** ud over det ravgule slør får rummets scannede form et svagt glødende skær, stærkest langs kanterne, med en langsom bølge igennem.
+* Søgning efter steder bruger scanningens 8 cm-gitter (få opslag) i stedet for stråler mod hele scanningen; kun det valgte sted finjusteres med én stråle.
+* **Tidsrejsen** varer nu ca. 7 sekunder hver vej: en tunnel af ringe og eger, der farer forbi i spektrets farver og blinker, et hvidt glimt i vendepunktet,
+  tidsmaskinens tandhjul, ur og kerne, der løber løbsk, lamperne der flimrer, controllerne der ryster; lyden er et stigende brøl, et ur der tikker hurtigere og hurtigere,
+  et drøn når verden vender, og det hele der falder til ro.
+* **Med eller uden hjælpetekster:** vælges på startsiden. Uden hjælpetekster vises kun brevet, sikkerhedsadvarslen, joystick-vinket og slutkortet; tavlen viser kun, hvor man er, og hvor mange dele man har.
+  `?flat&nohelp` i preview.
+* **Joystick-vinket:** når joysticken er låst op, man står i stuen, og der står en dør til en verden, man allerede har tømt, vises en lille joystick ved højre hånd,
+  der vipper fra side til side, og højre controller dunker. Det forsvinder, første gang joysticken bruges.
+* **Slutkortet:** "Du har gennemført spillet" vises foran en, når man er hjemme i sin egen tid.
+* **Sikkerhedsvisningen af stuen nær møbler er altid slået til** og kan ikke vælges fra.
