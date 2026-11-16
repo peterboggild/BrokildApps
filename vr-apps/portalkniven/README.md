@@ -125,3 +125,28 @@ Startsiden har to knapper: **Start historien** og **Fri leg** (kniven fra start,
   der vipper fra side til side, og højre controller dunker. Det forsvinder, første gang joysticken bruges.
 * **Slutkortet:** "Du har gennemført spillet" vises foran en, når man er hjemme i sin egen tid.
 * **Sikkerhedsvisningen af stuen nær møbler er altid slået til** og kan ikke vælges fra.
+
+### Efter anden prøve i brillen
+* **Kniven slap snittet:** et snit blev afbrudt, hver gang en hånd kom tæt på noget, der kunne tages (brevet i bæltet ved hoften). Nu afgøres det kun i det øjeblik,
+  udløseren trykkes ned, og kun for knivhånden; et snit, der er i gang, afbrydes ikke.
+* **Døren lukker sig selv:** i historien lukker den dør, man er gået igennem, efter ca. 10 sekunder (begge veje). Et lysende mærke på ringen i håndhøjde viser, hvor man selv kan skære den over.
+  I fri leg lukker døre ikke af sig selv.
+* **Kan man komme derhen?** Scanningen ses ovenfra i felter på 16 cm; et felt er spærret, hvis noget står i det mellem skinneben og hovedhøjde. En udfyldning fra dér, hvor man står
+  (kun gennem felter uden spærrede naboer, så en passage skal være ca. en halv meter bred), giver alt, man kan gå til. Ting lægges kun inden for en armslængde (45 cm) af sådan et sted.
+* **Brevet på et bord:** der søges først efter en plan flade i bordhøjde, som man kan komme hen til; ellers svæver brevet i håndhøjde.
+* **Fremkomsten:** varer 6 sekunder med lyd fra stedet, og et lys som en lille sol svulmer op og falmer dér, hvor delen bliver til, og oplyser rummet derfra (punktlys uden skygger).
+  Den lodrette lysstråle er fjernet; leder man længe, blinker delen, kalder og pulserer som et langsomt fyr.
+* **Tavlen på controlleren** vises kun, når der er noget nyt at sige, og toner ud efter ca. 5 sekunder.
+* **Joystick-vinket** vises nu, så snart man er hjemme og joysticken er låst op, indtil man har brugt den.
+
+## Fraktale dimensioner (fri leg)
+Tre uendelige rum, valgt blandt formlerne i Fractal Video (`vfx-apps/fractal-video/js/formulas.js`, afstandsfunktionerne er hentet derfra): **Apollonisk**
+(kugle-inversioner, bobler i bobler), **Pseudo-Kleinsk** (endeløse haller og gitre) og **Hyperbolsk** ({4,3,5}-bikage af terninger i Poincaré-kuglen, med en langsom hyperbolsk drift).
+De kan kun vælges med joysticken i fri leg, dvs. efter historien er gennemført eller via knappen *Fri leg*.
+
+* **Tegning:** fraktalen stråle-marcheres ind i et lille billede pr. øje (med øjets egen position og projektion fra headsettet i samme frame), og det billede lægges bag alt andet
+  (venstre/højre øje via lag 1/2). Prisen afhænger derfor ikke af headsettets opløsning. Gennem døren bruges samme billede, kun i dørens udsnit.
+* **Billedhastighedsvagt:** er billederne langsomme i et sekund, skrumper fraktalbilledet (ned til 20 % af øjets opløsning); er de hurtige i fire sekunder, vokser det igen (op til 55 %).
+* **Billigere stråler:** grovere mod kanten af synsfeltet, tolerance der vokser med afstanden, lys fra feltets hældning med ét ekstra opslag i stedet for en fuld normal.
+* **Rummet:** den scannede form vises som et svagt omrids oven på fraktalen, og tæt på hoved og hænder åbner det sig mod den rigtige stue. Advarselslyden virker som i de andre verdener.
+* Ingen musik og ingen dele i de fraktale dimensioner.
