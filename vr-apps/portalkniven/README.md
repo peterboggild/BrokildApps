@@ -162,7 +162,7 @@ Kun når man står i en fraktal dimension:
 * **Begge greb holdt:** træk hænderne fra hinanden for at gøre fraktalen større, sammen for mindre (op til 12 gange hver vej; bevægelsen er forstærket).
 * **Tryk på højre stick:** skift verden bag døren. Man drejer ved at dreje sig selv.
 * Alt sker om det punkt, hvor hovedet er: fraktalen glider, drejer og vokser, mens man selv bliver stående i stuen. I den hyperbolske verden kan man ikke flyve ud gennem horisonten.
-* **Møblernes omrids** toner ud, når hovedet er blevet inden for 30 cm af samme sted i to sekunder, og kommer straks tilbage, når man flytter sig. At dreje hovedet tæller ikke.
+* **Møblernes omrids** toner ud, når hovedet er blevet inden for 80 cm af samme sted i to sekunder (oprindeligt 30 cm; det var for lidt: at kigge ned eller dreje sig på stedet flytter hovedet 20 til 40 cm), og kommer tilbage, når man går et skridt eller to. Stedet følger langsomt med hovedet, så små flytninger ikke lægger sig sammen.
   Åbningen mod den rigtige stue tæt på møbler og advarselslyden toner ikke ud.
 * Første gang man kommer ind i en fraktal dimension, dunker og blinker begge controllere, indtil man kigger ned på dem (eller efter 40 sekunder). Der står intet; man opdager styringen ved at prøve.
 * I preview: I/K og J/L flyv, U/O fart ned/op, N/M og V/B form, komma/punktum skala.

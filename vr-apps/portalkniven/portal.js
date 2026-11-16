@@ -17,8 +17,8 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=30';
-import { createStory } from './story.js?v=30';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=31';
+import { createStory } from './story.js?v=31';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -783,8 +783,8 @@ const tips = { left: blinker(), right: blinker() };
 function fractalControls(dt) {
   const inF = !!DIMS[S.cur].fract;
   /* Standing in one place for a couple of seconds lets the room's outline fade; a step brings it back at once. What counts is the head leaving the spot
-   * (30 cm), not its speed: turning the head swings it a few centimetres and must not count. */
-  if (Math.hypot(head.x - FC.last.x, head.z - FC.last.z) > 0.3) { FC.last.copy(head); FC.still = 0; } else FC.still += dt;
+   * (80 cm), not its speed: turning the head swings it a few centimetres and must not count. */
+  if (Math.hypot(head.x - FC.last.x, head.z - FC.last.z) > 0.8) { FC.last.copy(head); FC.still = 0; } else { FC.still += dt; FC.last.lerp(head, Math.min(1, dt * 0.4)); }      // the spot follows you slowly, so swaying and shuffling never add up. 80 cm: a real step or two. Looking down, leaning and turning on the spot (which shuffles the head 20 to 40 cm) do not count
   FC.ghost += ((FC.still > 2 ? 0 : 1) - FC.ghost) * Math.min(1, dt * (FC.still > 2 ? 1.2 : 8)); worlds.setGhost(FC.ghost);
   let li = ctrl.findIndex(c => c.hand === 'left'), ri = ctrl.findIndex(c => c.hand === 'right'); if (li < 0) li = 0; if (ri < 0) ri = 1;
   const L = ctrl[li].src && ctrl[li].src.gamepad, R = ctrl[ri].src && ctrl[ri].src.gamepad;
