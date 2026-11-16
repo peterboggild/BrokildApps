@@ -17,7 +17,7 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=24';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=25';
 import { createStory } from './story.js?v=21';
 
 const $ = id => document.getElementById(id);
@@ -759,7 +759,9 @@ renderer.setAnimationLoop(loop);
   const btnFree = $('btnFree'), btnNoHelp = $('btnNoHelp');
   const optQual = $('optQual');
   try { if (optQual) { optQual.value = localStorage.getItem('portalknivenQual') || 'normal'; optQual.addEventListener('change', () => localStorage.setItem('portalknivenQual', optQual.value)); } } catch (_) { /* no storage */ }
-  const readOpts = () => { S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
+  const optSharp = $('optSharp');
+  try { if (optSharp) { optSharp.value = localStorage.getItem('portalknivenSharp') || 'taa'; optSharp.addEventListener('change', () => localStorage.setItem('portalknivenSharp', optSharp.value)); } } catch (_) { /* no storage */ }
+  const readOpts = () => { worlds.setFractalSharpen(params.get('sharp') || (optSharp ? optSharp.value : 'taa')); S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
   btnFlat.addEventListener('click', () => { readOpts(); enterFlat(); }); btnAR.addEventListener('click', () => { readOpts(); enterXR(false, true); });
   if (btnNoHelp) btnNoHelp.addEventListener('click', () => { readOpts(); enterXR(false, false); });
   if (btnFree) btnFree.addEventListener('click', () => { readOpts(); enterXR(true); });

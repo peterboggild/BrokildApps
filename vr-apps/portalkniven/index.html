@@ -48,6 +48,22 @@
       <button id="btnFlat" class="alt">Se fladt på computer</button>
     </div>
     <p style="color:#8496ad;font-size:13.5px;margin:4px 0 10px"><strong style="color:#c3d0e0">Uden hjælpetekster</strong> får du kun brevet, lydene og det, du ser. Du får dog stadig sikkerhedsadvarslen, et vink om joysticken og beskeden om, at du har gennemført spillet. Den rigtige stue toner altid frem, når du kommer tæt på dine møbler; det kan ikke slås fra.</p>
+    <label style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0;font-size:15px">Grafik
+      <select id="optQual" style="font:15px ui-monospace,Consolas,monospace;background:#04060b;color:#d7e2f0;border:1px solid #23344a;border-radius:6px;padding:8px 10px">
+        <option value="high">Skarp (tungest)</option>
+        <option value="normal" selected>Normal</option>
+        <option value="fast">Flydende (lettest)</option>
+      </select>
+      <span style="color:#8496ad;font-size:12.5px">Vælg Flydende, hvis det hakker.</span>
+    </label>
+    <label style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0;font-size:15px">Fraktaler i ro
+      <select id="optSharp" style="font:15px ui-monospace,Consolas,monospace;background:#04060b;color:#d7e2f0;border:1px solid #23344a;border-radius:6px;padding:8px 10px">
+        <option value="taa" selected>Bygges op over tid (forsøg)</option>
+        <option value="res">Større billede, hvis brillen kan</option>
+        <option value="off">Ingen skærpning</option>
+      </select>
+      <span style="color:#8496ad;font-size:12.5px">Hvordan de fraktale dimensioner bliver skarpere, når du står stille.</span>
+    </label>
     <div id="status">Tjekker dit udstyr …</div>
     <h2>Historien</h2>
     <ul>
@@ -64,6 +80,6 @@
     <h2>På computer</h2>
     <p>Klik (eller <kbd>F</kbd>) er "peg og tryk" i midten af billedet. Tilføj <code>?flat&amp;free</code> for fri leg. <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> gå, træk med musen for at kigge, hold <kbd>Shift</kbd> og træk med musen for at skære en ring med kniven (luk den!). <kbd>P</kbd> sætter en ring foran dig uden kniv, <kbd>Q</kbd>/<kbd>E</kbd> skifter verden bag døren.</p>
   </div>
-  <script type="module" src="portal.js?v=24"></script>
+  <script type="module" src="portal.js?v=25"></script>
 </body>
 </html>

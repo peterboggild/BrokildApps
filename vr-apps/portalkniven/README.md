@@ -166,6 +166,12 @@ Kun når man står i en fraktal dimension:
 * **Skarpere i ro:** står man stille uden at røre styringen i halvandet sekund, må fraktalbilledet vokse (loftet hæves fra 55 % til 100 % af øjets opløsning, et trin ad gangen så længe
   billedhastigheden holder), og strålerne marcheres finere. Så snart man går eller styrer, falder det tilbage til det, brillen kunne bære før. Går billedhastigheden ned i ro, huskes det niveau som loft.
 
+* **Bygget op over tid (forsøg, standard):** i ro tegnes det lille fraktalbillede hver gang med en ny forskydning på under en pixel (Halton-følge, 16 trin), og et
+  større billede (2,2 gange bredden) samles af dem: hver pixel tager den nærmeste nye prøve, vægtet efter hvor tæt den faktisk ramte, og blander med sidste billedes værdi
+  dér, hvor det samme punkt af fraktalen lå (fundet ud fra strålens længde, som gemmes i alfa, og begge billeders øjestillinger). Den gamle værdi klemmes ind i det, de nye prøver omkring tillader,
+  så små hovedbevægelser ikke tværer ud. Prisen pr. billede er den samme lave opløsning plus et billigt samlepas. Fraktalens egen bevægelse står stille imens.
+  Startsiden har valget *Fraktaler i ro*: bygges op over tid / større billede, hvis brillen kan / ingen skærpning (`?sharp=taa|res|off`).
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option
