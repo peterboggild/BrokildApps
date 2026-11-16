@@ -349,10 +349,11 @@ export function createStory(c) {
       const a = rnd(0, TAU), r = Math.sqrt(Math.random()) * 5.5, x = head.x + Math.sin(a) * r, z = head.z - Math.cos(a) * r, y = topAt(x, z);
       if (y === null) continue;
       const d = Math.hypot(x - head.x, z - head.z);
-      if (y >= 0.5 && y <= 1.05 && d > 0.6 && d < td) {
+      if (y >= 0.42 && y <= 1.1 && d > 0.6 && d < td) {
         for (const yaw of [0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4]) {
-          const cx = Math.cos(yaw), sx = Math.sin(yaw); let flat = true;
-          for (const [u, v] of [[hu, hv], [-hu, hv], [hu, -hv], [-hu, -hv], [0, hv], [0, -hv]]) { const yy = topAt(x + u * cx + v * sx, z - u * sx + v * cx); if (yy === null || Math.abs(yy - y) > 0.045) { flat = false; break; } }
+          const cx = Math.cos(yaw), sx = Math.sin(yaw); let ok = 0;                 // the scan is lumpy and the grid is 8 cm: allow one cell of height difference, and one probe that misses
+          for (const [u, v] of [[hu, hv], [-hu, hv], [hu, -hv], [-hu, -hv], [0, hv], [0, -hv]]) { const yy = topAt(x + u * cx + v * sx, z - u * sx + v * cx); if (yy !== null && Math.abs(yy - y) <= 0.085) ok++; }
+          const flat = ok >= 5;
           if (flat && worlds.nearest(_w.set(x, y + 0.4, z), 0.3) === Infinity && clearSight(x, y + 0.3, z) && worlds.reachable(head, x, z, 0.7)) { table = { x, y, z, yaw }; td = d; break; }
         }
       } else if (wantOpen && y < 0.3 && d > 1.0 && d < 2.6 && d < od && worlds.reachable(head, x, z, 0.3) && worlds.nearest(_w.set(x, 0.6, z), 0.42) === Infinity && worlds.nearest(_w.set(x, 1.0, z), 0.42) === Infinity && clearSight(x, 0.9, z)) { open = { x, z }; od = d; }
