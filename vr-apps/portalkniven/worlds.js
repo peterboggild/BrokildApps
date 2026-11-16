@@ -30,6 +30,9 @@ export const DIMS = [
   { key: 'apollo', name: 'APOLLONISK', fract: true },
   { key: 'klein', name: 'PSEUDO-KLEINSK', fract: true },
   { key: 'hyper', name: 'HYPERBOLSK', fract: true },
+  { key: 'menger', name: 'MENGER-LABYRINTEN', fract: true },
+  { key: 'koral', name: 'KORALSLETTEN', fract: true },
+  { key: 'kali', name: 'KALI-TEMPLET', fract: true },
 ];
 
 /* ------------------------------------------------------------------ fractals */
@@ -61,6 +64,31 @@ const FRACT = {
       return max(d / sc, length(p) - 0.985); }
     vec3 pal(float it, vec4 tr) { return mix(vec3(0.95, 0.80, 0.50), vec3(0.20, 0.55, 0.95), smoothstep(0.0, 0.6, it)) * (0.7 + 0.5 * tr.w); }` },
 };
+/* Three more: an endless Menger sponge (tunnels inside tunnels; the classic construction, repeated with mod), and from Fractal Video the Kali coral plain (a ground grown from
+ * Kali's abs-inversion set: shelves and reefs to fly low over) and the KaliBox (a carved temple standing close by, to fly up to and into). */
+Object.assign(FRACT, {
+  menger: { S: 0.12, par: [1.0, 0.78, 1.22], par2: [4.0, 2.0, 5.0], off: [0, -0.1, 0], maxT: 12, steps: 64, fog: [0.05, 0.045, 0.04], glsl: `
+    float fde(vec3 p, out vec4 trap, out float it) {                 // a Menger sponge repeated for ever: square tunnels inside tunnels, in every direction
+      float d = -1e9, s = 1.0; trap = vec4(1e9); it = 0.0;
+      for (int m = 0; m < 5; m++) { if (float(m) >= uParam2) break;
+        vec3 a = mod(p * s, 2.0) - 1.0; s *= 3.0; vec3 r = abs(1.0 - 3.0 * abs(a));
+        float c = (min(max(r.x, r.y), min(max(r.y, r.z), max(r.z, r.x))) - uParam) / s; if (c > d) { d = c; it = float(m); }
+        trap = min(trap, vec4(abs(a), dot(a, a))); }
+      it /= 4.0; return d; }
+    vec3 pal(float it, vec4 tr) { return mix(vec3(0.80, 0.74, 0.62), vec3(0.85, 0.42, 0.22), smoothstep(0.1, 0.9, it)) * (0.6 + 0.45 * clamp(tr.w, 0.0, 1.0)) + vec3(0.05, 0.2, 0.3) * clamp(1.0 - tr.x * 2.0, 0.0, 1.0) * 0.4; }` },
+  koral: { S: 0.35, par: [0.58, 0.44, 0.76], par2: [0.7, 0.2, 1.6], off: [0, 0.8, 0], maxT: 34, steps: 84, fog: [0.03, 0.09, 0.12], glsl: `
+    float fde(vec3 p, out vec4 trap, out float it) {
+      vec2 q = abs(fract(p.xz * 0.0375 + 0.5) * 2.0 - 1.0) * 1.2, c = vec2(uParam, 0.73); float acc = 0.0, prev = 0.0; trap = vec4(1e9);
+      for (int i = 0; i < 9; i++) { q = abs(q) / max(dot(q, q), 1e-3) - c; float l = length(q); acc += exp(-2.4 * abs(l - prev)); prev = l; trap = min(trap, vec4(abs(q), abs(q.x * q.y), l * l)); }
+      float hn = clamp(acc / 9.0, 0.0, 1.0), h = max(uParam2 * hn, -0.2); it = hn; trap.w = hn; return (p.y - h) * 0.4; }
+    vec3 pal(float it, vec4 tr) { return mix(mix(vec3(0.10, 0.22, 0.25), vec3(0.85, 0.38, 0.30), smoothstep(0.15, 0.55, it)), vec3(1.0, 0.86, 0.62), smoothstep(0.55, 0.95, it)) * (0.75 + 0.35 * clamp(tr.x, 0.0, 1.0)); }` },
+  kali: { S: 0.4, par: [2.043, 1.9, 2.2], par2: [0.349, 0.24, 0.5], off: [0, 0.15, 1.7], maxT: 12, steps: 72, fog: [0.045, 0.04, 0.05], glsl: `
+    float fde(vec3 p, out vec4 trap, out float it) {
+      float s = uParam, mr2 = uParam2; vec3 tr = vec3(0.036, -1.861, 0.036); vec4 c = vec4(-0.669, -1.303, -0.458, 0.0), z = vec4(p, 1.0); trap = vec4(1e9); it = 0.0;
+      for (int i = 0; i < 11; i++) { z.xyz = abs(z.xyz) + tr; float r2 = dot(z.xyz, z.xyz); if (r2 < trap.w) it = float(i); trap = min(trap, vec4(abs(z.xyz), r2)); z *= clamp(max(mr2 / max(r2, 1e-9), mr2), 0.0, 1.0); z = z * (s / mr2) + c; }
+      it /= 11.0; return (length(z.xyz) - abs(s - 1.0)) / abs(z.w) - pow(abs(s), -10.0); }
+    vec3 pal(float it, vec4 tr) { return mix(vec3(0.85, 0.72, 0.52), vec3(0.42, 0.30, 0.42), smoothstep(0.1, 0.8, it)) * (0.65 + 0.5 * clamp(tr.w * 0.6, 0.0, 1.0)) + vec3(0.1, 0.25, 0.3) * clamp(tr.z * 0.5, 0.0, 1.0); }` },
+});
 const MARCH_VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 const marchFS = f => `precision highp float; varying vec2 vUv;
   uniform vec3 uCam; uniform mat3 uRot; uniform vec4 uProj; uniform vec3 uAnchor; uniform float uYaw; uniform float uTime; uniform float uBright; uniform float uS; uniform vec3 uOff; uniform float uParam; uniform float uParam2; uniform float uFine; uniform vec2 uJitUV;
@@ -837,7 +865,7 @@ export function createWorlds(scene, renderer, params) {
     /** Moving through a fractal dimension: the fractal slides, turns and grows round the point where your head is. Distances in metres, angles in radians. */
     fractTurn(i, h, a) { const w = W[i]; if (!w.fr) return; toF(w, h, _f1); w.fr.yaw += a; toF(w, h, _f2); w.fr.off.add(_f1).sub(_f2); keepIn(w, h); },
     fractMove(i, h, dir, dist) { const w = W[i]; if (!w.fr) return; const c = Math.cos(w.fr.yaw), s = Math.sin(w.fr.yaw), k = dist * w.fr.S; w.fr.off.x += (c * dir.x - s * dir.z) * k; w.fr.off.y += dir.y * k; w.fr.off.z += (s * dir.x + c * dir.z) * k; keepIn(w, h); },
-    fractScale(i, h, factor) { const w = W[i]; if (!w.fr) return; toF(w, h, _f1); w.fr.S = Math.min(w.fr.f.S * 1.8, Math.max(w.fr.f.S / 1.8, w.fr.S * factor)); toF(w, h, _f2); w.fr.off.add(_f1).sub(_f2); keepIn(w, h); },
+    fractScale(i, h, factor) { const w = W[i]; if (!w.fr) return; toF(w, h, _f1); w.fr.S = Math.min(w.fr.f.S * 12, Math.max(w.fr.f.S / 12, w.fr.S * factor)); toF(w, h, _f2); w.fr.off.add(_f1).sub(_f2); keepIn(w, h); },
     fractParam(i, which, dir, dt) { const w = W[i]; if (!w.fr) return; const key = which ? 'param2' : 'param', [, lo, hi] = which ? w.fr.f.par2 : w.fr.f.par; w.fr[key] = Math.min(hi, Math.max(lo, w.fr[key] + dir * dt * (hi - lo) / 7)); syncFr(w); },
     fractState: i => W[i].fr,
     update(dt, t, bright, cur, oth, safe) {

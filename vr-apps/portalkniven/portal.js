@@ -17,7 +17,7 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER } from './worlds.js?v=26';
+import { createWorlds, DIMS, ORDER } from './worlds.js?v=27';
 import { createStory } from './story.js?v=21';
 
 const $ = id => document.getElementById(id);
@@ -650,7 +650,10 @@ function pollStick() {                                              // the right
   stickHeld = on || Math.abs(ax) > 0.35;
 }
 /* ---- inside a fractal dimension: fly, turn, rise, reshape and resize; and the room's outline fades while you stand still ---- */
-const FC = { still: 0, ghost: 1, last: new V(), gripD: 0, tipsT: -1, tipsDone: false };
+const FC = { still: 0, ghost: 1, last: new V(), gripD: 0, tipsT: -1, tipsDone: false, gear: 4, gearT: 0 };
+const gearCanvas = document.createElement('canvas'); gearCanvas.width = 512; gearCanvas.height = 128; let gearShown = 0;
+const gearTex = new THREE.CanvasTexture(gearCanvas); gearTex.colorSpace = THREE.SRGBColorSpace;
+const gearMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.08), new THREE.MeshBasicMaterial({ map: gearTex, transparent: true, depthTest: false, toneMapped: false })); gearMesh.renderOrder = 102; gearMesh.visible = false;
 const dead = v => (Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85);
 const btn = (gp, k) => !!(gp && gp.buttons[k] && gp.buttons[k].pressed);
 /* the first time in a fractal: the controllers buzz and blink until you look down at them. Nothing is spelled out; you find out by trying. */
@@ -666,28 +669,40 @@ function fractalControls(dt) {
    * (30 cm), not its speed: turning the head swings it a few centimetres and must not count. */
   if (Math.hypot(head.x - FC.last.x, head.z - FC.last.z) > 0.3) { FC.last.copy(head); FC.still = 0; } else FC.still += dt;
   FC.ghost += ((FC.still > 2 ? 0 : 1) - FC.ghost) * Math.min(1, dt * (FC.still > 2 ? 1.2 : 8)); worlds.setGhost(FC.ghost);
-  if (!inF) { tips.left.visible = tips.right.visible = false; worlds.setFractalCalm(false); return; }
+  if (!inF) { tips.left.visible = tips.right.visible = false; gearMesh.visible = false; worlds.setFractalCalm(false); return; }
   let li = ctrl.findIndex(c => c.hand === 'left'), ri = ctrl.findIndex(c => c.hand === 'right'); if (li < 0) li = 0; if (ri < 0) ri = 1;
   const L = ctrl[li].src && ctrl[li].src.gamepad, R = ctrl[ri].src && ctrl[ri].src.gamepad;
-  let fwd = 0, side = 0, up = 0, par = 0, par2 = 0, scale = 1;
+  let fwd = 0, side = 0, gear = 0, par = 0, par2 = 0, scale = 1;
   if (S.mode === 'xr') {
-    if (R && R.axes.length >= 4) { fwd = -dead(R.axes[3]); side = dead(R.axes[2]); }                        // right stick: move in the plane
-    if (L && L.axes.length >= 4) up = -dead(L.axes[3]);                                                     // left stick: rise and sink
+    if (R && R.axes.length >= 4) { fwd = -dead(R.axes[3]); side = dead(R.axes[2]); }                        // right stick: fly where you look, and slide sideways
+    if (L && L.axes.length >= 4) gear = -dead(L.axes[3]);                                                   // left stick: faster / slower
     par = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0); par2 = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0);      // Y / X and B / A: one shape parameter each
-    if (btn(L, 1) && btn(R, 1)) { const d = hands[li].pos.distanceTo(hands[ri].pos); if (FC.gripD > 0.02 && d > 0.02) scale = FC.gripD / d; FC.gripD = d; } else FC.gripD = 0;      // hands apart: the fractal grows
+    if (btn(L, 1) && btn(R, 1)) { const d = hands[li].pos.distanceTo(hands[ri].pos); if (FC.gripD > 0.02 && d > 0.02) scale = Math.pow(FC.gripD / d, 2.5); FC.gripD = d; } else FC.gripD = 0;      // hands apart: the fractal grows (strongly)
   } else {
-    fwd = (keys.KeyI ? 1 : 0) - (keys.KeyK ? 1 : 0); side = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); up = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0);
+    fwd = (keys.KeyI ? 1 : 0) - (keys.KeyK ? 1 : 0); side = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); gear = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0);
     par = (keys.KeyM ? 1 : 0) - (keys.KeyN ? 1 : 0); par2 = (keys.KeyB ? 1 : 0) - (keys.KeyV ? 1 : 0);
-    scale = keys.Period ? 1 - dt * 0.6 : keys.Comma ? 1 + dt * 0.6 : 1;
+    scale = keys.Period ? 1 - dt * 1.5 : keys.Comma ? 1 + dt * 1.5 : 1;
   }
-  if (fwd || side || up) {
-    const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize();
-    worlds.fractMove(S.cur, head, new V(f.x * fwd - f.z * side, 0, f.z * fwd + f.x * side).multiplyScalar(0.9).setY(up * 0.55), dt);      // forward and sideways follow where you look
+  if (gear) { FC.gear = clamp(FC.gear + gear * dt * 3.2, 1, 9); FC.gearT = 1.6; }
+  if (fwd || side) {
+    const f = new V(0, 0, -1).applyQuaternion(headQ).normalize(), r = new V(1, 0, 0).applyQuaternion(headQ); r.y = 0; if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize();
+    worlds.fractMove(S.cur, head, f.multiplyScalar(fwd).addScaledVector(r, side).multiplyScalar(0.15 * Math.pow(1.65, FC.gear - 1)), dt);      // along your gaze (look down to dive); speed 1 is a crawl, 9 is about 8 m/s
   }
   if (scale !== 1) worlds.fractScale(S.cur, head, scale);
   if (par) worlds.fractParam(S.cur, 0, par, dt);
   if (par2) worlds.fractParam(S.cur, 1, par2, dt);
-  worlds.setFractalCalm(FC.still > 1.5 && !fwd && !side && !up && !par && !par2 && scale === 1);      // standing still, hands off: the fractal may sharpen
+  worlds.setFractalCalm(FC.still > 1.5 && !fwd && !side && !par && !par2 && scale === 1);      // standing still, hands off: the fractal may sharpen
+  /* the speed, 1 to 9, shown in front of you while you change it */
+  if (FC.gearT > 0) {
+    FC.gearT -= dt; const lvl = Math.round(FC.gear);
+    if (lvl !== gearShown) { gearShown = lvl; const x = gearCanvas.getContext('2d'); x.clearRect(0, 0, 512, 128); x.fillStyle = 'rgba(4,10,16,.8)'; x.beginPath(); x.roundRect(4, 4, 504, 120, 20); x.fill();
+      x.fillStyle = '#7dd8ff'; x.font = 'bold 44px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; x.fillText('FART ' + lvl, 24, 78);
+      for (let k = 1; k <= 9; k++) { x.fillStyle = k <= lvl ? '#7dd8ff' : 'rgba(125,216,255,.2)'; x.fillRect(210 + (k - 1) * 31, 92 - k * 7, 23, k * 7 + 4); }
+      gearTex.needsUpdate = true; }
+    if (!gearMesh.parent) scene.add(gearMesh);
+    const f = new V(0, 0, -1).applyQuaternion(headQ), tgt = new V().copy(head).addScaledVector(f, 0.9); tgt.y -= 0.22;
+    gearMesh.position.lerp(tgt, Math.min(1, dt * 10)); gearMesh.lookAt(head); gearMesh.material.opacity = clamp(FC.gearT / 0.5, 0, 1); gearMesh.visible = true;
+  } else gearMesh.visible = false;
   /* the first time in a fractal: the controllers buzz and blink until you look down at them */
   if (!FC.tipsDone && S.mode === 'xr') { FC.tipsDone = true; FC.tipsT = 0; FC.seen = 0; renderer.xr.getController(li).add(tips.left); renderer.xr.getController(ri).add(tips.right); }
   if (FC.tipsT >= 0) {
