@@ -150,3 +150,26 @@ De kan kun vælges med joysticken i fri leg, dvs. efter historien er gennemført
 * **Billigere stråler:** grovere mod kanten af synsfeltet, tolerance der vokser med afstanden, lys fra feltets hældning med ét ekstra opslag i stedet for en fuld normal.
 * **Rummet:** den scannede form vises som et svagt omrids oven på fraktalen, og tæt på hoved og hænder åbner det sig mod den rigtige stue. Advarselslyden virker som i de andre verdener.
 * Ingen musik og ingen dele i de fraktale dimensioner.
+
+### Styring i de fraktale dimensioner
+Kun når man står i en fraktal dimension:
+* **Venstre stick** frem/tilbage: flyv (0,9 m/s i den retning, man kigger, vandret). **Højre stick** til siden: drej. **B / A** (højre): op / ned.
+* **Y / X** (venstre): ændr fraktalens form, én parameter pr. fraktal (Apollonisk: inversionens størrelse; Pseudo-Kleinsk: inversionens størrelse; Hyperbolsk: antal terninger om hver kant, 4,4 til 7).
+* **Begge greb holdt:** træk hænderne fra hinanden for at gøre fraktalen større, sammen for mindre (højst 1,8 gange hver vej).
+* **Tryk på højre stick:** skift verden bag døren (et vip drejer nu i stedet).
+* Alt sker om det punkt, hvor hovedet er: fraktalen glider, drejer og vokser, mens man selv bliver stående i stuen. I den hyperbolske verden kan man ikke flyve ud gennem horisonten.
+* **Møblernes omrids** toner ud, når man har stået stille i to sekunder, og kommer straks tilbage, når man går (hovedet flytter sig mere end ca. 0,2 m/s).
+  Åbningen mod den rigtige stue tæt på møbler og advarselslyden toner ikke ud.
+* Første gang man kommer ind i en fraktal dimension, dunker og blinker begge controllere, indtil man kigger ned på dem (eller efter 40 sekunder). Der står intet; man opdager styringen ved at prøve.
+* I preview: I/K flyv, J/L drej, U/O ned/op, N/M form, komma/punktum skala.
+
+## Gemte idéer (ikke bygget)
+
+### Drone option
+Gemt 16. november 2026 som alternativ, hvis det viser sig for usikkert at bevæge sig rundt i de fraktale dimensioner. Efter en prøve i brillen samme dag
+vurderede Peter, at der ikke umiddelbart er brug for den.
+
+> Hvad med et mode hvor man kun kan kigge ind - passage til den fraktale verden må vi se om kan lade sig gøre. Jeg tænker at man får at vide at man
+> ikke kan overleve i en fraktal dimension, men at man kan sende en drone ind. Når man aktiverer dronen, holder man den i venstre hånd, og skubber
+> ind gennem portalen. Derved skifter perspektivet til dronen, og man styrer den nu med joystick som et lille rumskib. Man får at vide at man kan
+> aborte dronemissionen ved at trykke venstre kontroller knap nede, "X" tror jeg den hedder.
