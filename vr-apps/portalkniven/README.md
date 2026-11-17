@@ -297,6 +297,11 @@ og i verdensrummet; man styrer et rumskib, der hænger i stuen foran én (set ud
   Går man mere end 2,6 m væk, kommer det efter én og lægger sig foran igen.
 * Ikke i det firedimensionale rum og ikke i de tre sang-dimensioner.
 
+## Flyv efter blikket eller efter hånden
+Valg på startsiden ("Flyv efter", `?steer=hand`): når man selv flyver (uden rumskib) i de fraktale dimensioner og i verdensrummet, er "frem" enten dér,
+hvor man kigger (standard, som hidtil), eller dér, hvor højre controller peger. Med hånden kan man kigge sig frit omkring, mens man flyver en anden vej.
+Sidelæns er altid vandret og vinkelret på den retning. Warp i verdensrummet tager også sin retning derfra.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option
