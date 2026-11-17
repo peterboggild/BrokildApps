@@ -56,7 +56,8 @@ run `node tools/sync-site.js` (it writes the social tags and `sitemap.xml`; CI r
 
 ## Portalkniven in brief
 
-Five files: `ship.js` (the optional third-person spaceship for the fractal dimensions and deep space, built in
+Six files: `ambience.js` (the fractal dimensions' soundscapes and the ship's engine, all synthesised, spatial, with
+reverb; headless Chromium needs `--autoplay-policy=no-user-gesture-required` to run any of it), `ship.js` (the optional third-person spaceship for the fractal dimensions and deep space, built in
 code from the owner's drawings of the ship, nine views; an earlier attempt ported his Blender script
 `models/spaceship_model.py`, which did not match the drawings: when he sends reference pictures, they are the
 brief. Surfaces lofted by hand come out inside-out easily: check the winding against the outline pass), `hands.js` (the gloved hands round the controllers: the WebXR generic hand model from
@@ -83,6 +84,8 @@ dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
 - **Room scan** (`mesh-detection`): `addScan`, an 8 cm occupancy grid (`nearest`, `columnTop`, `lineClear`) and a
   16 cm walkability flood fill (`reachable`). Everything placed for the player (story parts, the time machine,
   touchable things) is validated against it. With no scan, everything is allowed.
+- The fractals' distance estimators exist twice: in GLSL (`FRACT`) and in JavaScript (`DE` in `worlds.js`, used by
+  `worlds.fractDist` for the ship's collisions and for echoes). Change one, change the other.
 - **Fractals** are ray-marched into small per-eye render targets and blitted behind everything, with a
   frame-rate guard on the picture size and optional temporal sharpening at rest. Fractal units and the room are
   tied by `toF`; flying moves the fractal, not the player.

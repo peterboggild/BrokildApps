@@ -264,6 +264,33 @@ void main() {
   gl_FragColor = vec4(col * uBright, sqrt(clamp(t / MAXT, 0.0, 1.0)));
 }
 `;
+/* The same distance estimators as the shaders', on the CPU: how far a point is from the fractal's surface (fractal units). Used so that the spaceship
+ * cannot fly through walls, and for echoes. par, par2: the dimension's two shape parameters; time: the fractals' clock. Keep in step with the GLSL above. */
+const fmod = (x, y) => x - y * Math.floor(x / y), cl = (v, a, b) => (v < a ? a : v > b ? b : v);
+const DE = {
+  apollo(x, y, z, par, par2, time) { let sc = 1; const k = par + 0.03 * Math.sin(time * 0.11);
+    for (let i = 0; i < 9 && i < par2; i++) { x = -1 + 2 * fmod(0.5 * x + 0.5, 1); y = -1 + 2 * fmod(0.5 * y + 0.5, 1); z = -1 + 2 * fmod(0.5 * z + 0.5, 1); const f = k / Math.max(x * x + y * y + z * z, 1e-6); x *= f; y *= f; z *= f; sc *= f; }
+    return 0.25 * Math.abs(y) / sc; },
+  klein(x, y, z, par, par2) { let dr = 1; const c = [par2, par2, 0.924];
+    for (let i = 0; i < 8; i++) { x = 2 * cl(x, -c[0], c[0]) - x; y = 2 * cl(y, -c[1], c[1]) - y; z = 2 * cl(z, -c[2], c[2]) - z; const k = Math.max(par / Math.max(x * x + y * y + z * z, 1e-9), 1); x *= k; y *= k; z *= k; dr *= k; }
+    const rxy = Math.hypot(x, y); return Math.max(rxy - 0.928, Math.abs(rxy * z) / Math.max(Math.hypot(x, y, z), 1e-9)) / dr; },
+  hyper(px, py, pz, par, par2, time) { const R2 = 1 / Math.max(1e-3, Math.cos(6.28318 / par)), D = Math.sqrt(1 + R2), az = 0.18 * Math.sin(time * 0.05);
+    const aa = az * az, xx = px * px + py * py + pz * pz, ax = az * pz, den = Math.max(1 + 2 * ax + aa * xx, 1e-6); let sc = (1 - aa) / den;
+    let z = [(1 - aa) * px / den, (1 - aa) * py / den, ((1 + 2 * ax + xx) * az + (1 - aa) * pz) / den];
+    for (let i = 0; i < 14; i++) { z = z.map(Math.abs).sort((a, b) => b - a); const dx = z[0] - D, l2 = dx * dx + z[1] * z[1] + z[2] * z[2]; if (l2 >= R2) break; const k = R2 / l2; z = [D + dx * k, z[1] * k, z[2] * k]; sc *= k; }
+    const R = Math.sqrt(R2), fx = Math.abs(Math.hypot(z[0] - D, z[1], z[2]) - R), fy = Math.abs(Math.hypot(z[0], z[1] - D, z[2]) - R), fz = Math.abs(Math.hypot(z[0], z[1], z[2] - D) - R);
+    return Math.max(Math.min(Math.hypot(fx, fy) - par2, Math.hypot(fx, fy, fz) - par2 * 1.9) / sc, Math.sqrt(xx) - 0.985); },
+  menger(x, y, z, par, par2) { let d = -1e9, s = 1;
+    for (let m = 0; m < 5 && m < par2; m++) { const a = [fmod(x * s, 2) - 1, fmod(y * s, 2) - 1, fmod(z * s, 2) - 1]; s *= 3; const r = a.map(v => Math.abs(1 - 3 * Math.abs(v)));
+      d = Math.max(d, (Math.min(Math.max(r[0], r[1]), Math.min(Math.max(r[1], r[2]), Math.max(r[2], r[0]))) - par) / s); }
+    return d; },
+  boks(x, y, z, par, par2) { const c = [x, y, z].map(v => Math.abs(fmod(v + 3.4, 13.6) - 6.8) - 3.4), mr2 = par2 * par2; let q = c.slice(), dr = 1;
+    for (let i = 0; i < 11; i++) { q = q.map(v => cl(v, -1, 1) * 2 - v); const r2 = q[0] * q[0] + q[1] * q[1] + q[2] * q[2]; let k = 1; if (r2 < mr2) k = 1 / mr2; else if (r2 < 1) k = 1 / r2; dr = dr * k * Math.abs(par) + 1; q = q.map((v, n) => v * k * par + c[n]); }
+    return Math.hypot(q[0], q[1], q[2]) / Math.abs(dr); },
+  kali(x, y, z, par, par2) { let w = 1; const tr = [0.036, -1.861, 0.036], c = [-0.669, -1.303, -0.458];
+    for (let i = 0; i < 11; i++) { x = Math.abs(x) + tr[0]; y = Math.abs(y) + tr[1]; z = Math.abs(z) + tr[2]; const k = cl(Math.max(par2 / Math.max(x * x + y * y + z * z, 1e-9), par2), 0, 1) * (par / par2); x = x * k + c[0]; y = y * k + c[1]; z = z * k + c[2]; w *= k; }
+    return (Math.hypot(x, y, z) - Math.abs(par - 1)) / Math.abs(w) - Math.pow(Math.abs(par), -10); },
+};
 const MARCH_VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 const marchFS = f => `precision highp float; varying vec2 vUv;
   uniform vec3 uCam; uniform mat3 uRot; uniform vec4 uProj; uniform vec3 uAnchor; uniform float uYaw; uniform float uTime; uniform float uBright; uniform float uS; uniform vec3 uOff; uniform float uParam; uniform float uParam2; uniform float uFine; uniform vec2 uJitUV;
@@ -1324,6 +1351,8 @@ export function createWorlds(scene, renderer, params) {
     fractScale(i, h, factor) { const w = W[i]; if (!w.fr) return; toF(w, h, _f1); w.fr.S = Math.min(w.fr.f.S * 12, Math.max(w.fr.f.S / 12, w.fr.S * factor)); toF(w, h, _f2); w.fr.off.add(_f1).sub(_f2); keepIn(w, h); },
     fractParam(i, which, dir, dt) { const w = W[i]; if (!w.fr) return; const key = which ? 'param2' : 'param', [, lo, hi] = which ? w.fr.f.par2 : w.fr.f.par; w.fr[key] = Math.min(hi, Math.max(lo, w.fr[key] + dir * dt * (hi - lo) / 7)); syncFr(w); },
     fractState: i => W[i].fr,
+    /** How far (metres, in the room) the point p is from the surface of fractal dimension i; negative inside it. Infinity where there is nothing to hit. */
+    fractDist(i, p) { const w = W[i], f = w && w.fr && DE[w.key]; if (!f) return Infinity; toF(w, p, _f1); return f(_f1.x, _f1.y, _f1.z, w.fr.param, w.fr.param2, fracTimeU.value) / w.fr.S; },
     /** The four-dimensional room. Which slice of it you see is a rotation R4 and a shift c4: a point q of the room you stand in is the 4D point R4 (q, 0) + c4.
      *  rot turns the slice in the plane of u (a level direction, e.g. your right) and w, about the point where your head is, so what is straight ahead stays put
      *  while it changes; pull slides the slice along w. You cannot pull yourself out through the room's walls. */

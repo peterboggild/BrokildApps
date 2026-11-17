@@ -21,6 +21,7 @@ import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=37';
 import { createStory } from './story.js?v=37';
 import { createHand } from './hands.js?v=37';
 import { buildShip } from './ship.js?v=37';
+import { createAmbience } from './ambience.js?v=37';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -908,7 +909,15 @@ function shipControls(dt, L, R, li, ri) {
   if (thr) { FC.gear = clamp(FC.gear + thr * dt * 3.2, 0, 9); FC.gearT = 1.6; }
   const lvl = Math.round(FC.gear), v = lvl < 1 ? 0 : 0.15 * Math.pow(1.65, FC.gear - 1) * (space ? 3 : 1);
   const nose = new V(0, 0, -1).applyQuaternion(SH.q);
-  if (v) { if (space) worlds.spaceMove(nose, v * dt); else worlds.fractMove(S.cur, ship.position, nose, v * dt); }
+  if (v) {
+    if (space) worlds.spaceMove(nose, v * dt);
+    else {                                                           // the fractal is solid: go forward in short steps, and stop at the first one that would put the ship into a wall
+      const n = Math.max(1, Math.ceil(v * dt / 0.04)), step = v * dt / n; let hit = false;
+      for (let k = 0; k < n && !hit; k++) { const d0 = shipClear(nose, 0), d1 = shipClear(nose, step); if (d1 >= 0 || d1 > d0) worlds.fractMove(S.cur, ship.position, nose, step); else hit = true; }      // (a ship already in a wall may always move out of it)
+      if (hit) { FC.gear = 0; FC.gearT = 1.6; AMB.thud(ship.position); flash.position.copy(ship.position).addScaledVector(nose, 0.4); flash.userData.t = 0.55; for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(1, 160); } catch (_) { /* none */ } } }
+    }
+  }
+  SH.wall = space ? Infinity : worlds.fractDist(S.cur, ship.position);
   if (space) { if (par2) { const b = worlds.spaceWarpNow(); if (b < 0.003 && par2 > 0) SPN.axis.copy(nose); worlds.spaceWarp(SPN.axis, clamp(b + par2 * dt * 0.3, 0, 0.93)); } if (par) worlds.spaceHole(clamp(worlds.spaceHoleNow() + par * dt * 0.09, 0, 0.42)); }
   else { if (scale !== 1) worlds.fractScale(S.cur, ship.position, scale); if (par) worlds.fractParam(S.cur, 0, par, dt); if (par2) worlds.fractParam(S.cur, 1, par2, dt); }
   /* walk away from the ship and it comes after you, to hang in front of you again */
@@ -927,6 +936,16 @@ function flyAim(ri) {
   const r = new V().crossVectors(f, new V(0, 1, 0)); if (r.lengthSq() < 0.01) r.set(1, 0, 0).applyQuaternion(headQ).setY(0); if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize();
   return [f, r];
 }
+/** How much room the ship has: the least distance from its nose, middle, tail, mast and aerial to the fractal, less the ship's own thickness there
+ *  (metres; negative means it is in a wall), once it has gone `ahead` metres along its nose. */
+const _sc = new V(), _su = new V();
+function shipClear(nose, ahead) {
+  _su.set(0, 1, 0).applyQuaternion(SH.q); let m = Infinity;
+  for (const [f, u, r] of [[0.4, -0.06, 0.07], [0.2, 0, 0.14], [0, 0, 0.15], [-0.25, 0, 0.1], [-0.4, 0.12, 0.1], [0.07, 0.32, 0.03], [0.1, -0.28, 0.02]]) {
+    _sc.copy(ship.position).addScaledVector(nose, f + ahead).addScaledVector(_su, u); m = Math.min(m, worlds.fractDist(S.cur, _sc) - r); }
+  return m;
+}
+const AMB = createAmbience();
 function gearPanel(dt) {
   /* the speed, 1 to 9, shown in front of you while you change it */
   if (FC.gearT > 0) {
@@ -1019,7 +1038,9 @@ function loop(_, frame) {
     knife.userData.rune.color.setRGB(0.25 * knifeGlow, 1.0 * Math.min(1.4, knifeGlow), 0.5 * knifeGlow);
     knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
     fractalControls(dt); updateHandModels(dt);
-    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateSpaceAmb(); updateProximity(); drawHud();
+    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateSpaceAmb();
+    { const fr = DIMS[S.cur].fract && !DIMS[S.cur].four, on = !!FC.shipOn;
+      AMB.update(AU.ctx, dt, { dim: fr ? DIMS[S.cur].key : null, ship: on, power: on && FC.gear >= 0.5 ? FC.gear / 9 : 0, pos: ship.position, wall: on ? SH.wall : Infinity }); } updateProximity(); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
     story.update(dt);
     worlds.update(dt, S.time, S.bright, S.cur, S.oth, S.safe && S.cur !== 0 ? [head, hands[0].on ? hands[0].pos : head, hands[1].on ? hands[1].pos : head] : null, hands);
@@ -1060,7 +1081,7 @@ renderer.setAnimationLoop(loop);
 window.__portal = {
   S, portal, head, scene, renderer, camera, music, prox, FC, keys, story, hands, dissolvePortal,
   hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; }, hold(v) { flatHold = v; },
-  knife, cut, trail, applyRoles, worlds, handModels, ship, SH, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
+  knife, cut, trail, applyRoles, worlds, handModels, ship, SH, AMB, shipClear, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },
   tip(x, y, z, pressed) { flatTip.override = true; flatTip.pos.set(x, y, z); flatTip.pressed = pressed; },
