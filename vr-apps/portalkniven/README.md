@@ -277,6 +277,20 @@ nærmere end 5 cm, blev skåret væk, og det ene øje var igennem døren før de
 dørens plan på vej ind (`maskFull`), og de første 13 cm på den anden side er der **intet vindue** (ellers ville det ene øje se tilbage). Kniv og hænder
 tegnes efter døren, så de ikke bliver malet over i døråbningen.
 
+## Rumskibet (valgfrit, `ship.js`)
+Et flueben på startsiden ("Rumskib i de fraktale dimensioner", `?ship` i forhåndsvisning). Er det slået til, flyver man ikke selv i de fraktale dimensioner
+og i verdensrummet; man styrer et rumskib, der hænger i stuen foran én (set udefra).
+
+* **Modellen** er ejerens `models/spaceship_model.py` (et Blender-script: retro-futuristisk skib, ca. 20 m, næse langs -X, op +Z). Der er ingen Blender, hvor
+  spillet bygges, og ingen eksporteret fil, så `ship.js` følger samme opskrift del for del med scriptets egne tal: skrog, køl og rygrad som lofter, fire
+  motorgondoler med kobbergitre, tårn og antenne, finner, panelsømme, serviceluger, nitter og agterventiler. Alt flettes til ét net pr. materiale (fem
+  tegnekald). Skibet vises som en model på 84 cm. Et blåt skær bag halen viser, hvor hårdt det skubber (det er det eneste, der ikke står i scriptet).
+* **Styring:** højre stick styrer skibet (venstre/højre drejer, frem tipper næsen ned, tilbage løfter den; det krænger i svingene). Venstre stick op/ned er
+  gashåndtaget: 0 er stop, 1 til 9 som farten ellers. Skibet flyver, hvor næsen peger. Y/X, B/A, begge greb (skala, om skibet) og farveskift virker som uden skib.
+* **Kun skibet drejer.** Dimensionen glider forbi, men roterer aldrig, så det er skånsomt for maven, og man kan gå rundt om skibet og se det fra alle sider.
+  Går man mere end 2,6 m væk, kommer det efter én og lægger sig foran igen.
+* Ikke i det firedimensionale rum og ikke i de tre sang-dimensioner.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option
