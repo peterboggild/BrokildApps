@@ -56,9 +56,10 @@ run `node tools/sync-site.js` (it writes the social tags and `sitemap.xml`; CI r
 
 ## Portalkniven in brief
 
-Five files: `ship.js` (the optional third-person spaceship for the fractal dimensions and deep space, rebuilt in
-three.js from the owner's Blender script `models/spaceship_model.py`; there is no Blender in a cloud session, so a
-Blender recipe is ported, not run), `hands.js` (the gloved hands round the controllers: the WebXR generic hand model from
+Five files: `ship.js` (the optional third-person spaceship for the fractal dimensions and deep space, built in
+code from the owner's drawings of the ship, nine views; an earlier attempt ported his Blender script
+`models/spaceship_model.py`, which did not match the drawings: when he sends reference pictures, they are the
+brief. Surfaces lofted by hand come out inside-out easily: check the winding against the outline pass), `hands.js` (the gloved hands round the controllers: the WebXR generic hand model from
 `@webxr-input-profiles/assets`, posed by our own forward kinematics because its joints are flat, not a hierarchy;
 the model is laid out in grip space already, which confirmed the axes; never seen in a headset from here), `portal.js` (renderer, knife, cutting, the door, sound, controls, the loop), `worlds.js` (the
 dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
