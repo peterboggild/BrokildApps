@@ -1,0 +1,14 @@
+{
+  "slug": "snip",
+  "name": "Snip (HTML)",
+  "description": "A small, fast audio editor for the everyday jobs, the way Audacity used to feel. Drop in a WAV, MP3 or FLAC, click to set a cursor or drag to select, press Space to play from there and Delete to cut it out. Trim, normalise to −X dB, gain, fades, silence and unlimited undo; copy a piece from one track and paste it into another. Resample with a proper sinc filter and save as 16, 24 or 32-bit WAV, 32-bit float or MP3. Split a stereo track into two mono files, or merge two mono tracks into stereo.",
+  "status": "live",
+  "url": "music-apps/snip/index.html",
+  "icon": "wave",
+  "preview": "assets/app-previews/snip.png",
+  "note": "Runs in the tab; nothing is uploaded. Saving straight back over a file works in Chrome and Edge; other browsers download the result instead.",
+  "tags": [
+    "browser",
+    "tool"
+  ]
+}
