@@ -244,7 +244,7 @@ fraktalerne: lille billede pr. øje, opbygning over tid i ro, billedhastighedsva
 ## Hænder (`hands.js`)
 I alle dimensioner undtagen ens egen stue (hvor man ser sine rigtige hænder) sidder der en handskeklædt hånd om hver controller, lukket på samme måde som den
 rigtige hånd er lukket om controlleren. Pegefingeren følger aftrækkeren, de tre andre fingre strammer med grebsknappen, tommelfingeren går ned, når den hviler
-på stick eller knap, og hånden med kniven er helt lukket om skæftet. Hånden er bygget af kapsler i WebXR's "grip space" (stangen i næven langs Z, -Z ud ved
+på stick eller knap, og hånden med kniven er helt lukket om skæftet. Hånden er WebXR's standard-håndmodel (`models/hand-left.glb`, `hand-right.glb` fra `@webxr-input-profiles/assets`, MIT; indlæses med three's `GLTFLoader` i `vendor/`). Modellen er en flad, åben hånd, hvis 25 led ikke hænger sammen i et skelet, så `hands.js` regner selv lukningen ud: hver finger er en kæde, hvert led bøjer om sin egen akse, og tommelfingeren svinges først om over for de andre fingre og bøjes så. En enkel hånd af kapsler står i stedet, indtil modellen er hentet. Modellen ligger i WebXR's "grip space" (stangen i næven langs Z, -Z ud ved
 tommelfingeren, X gennem håndfladen, +X mod højre for begge hænder); venstre hånd er spejlbilledet. Ikke afprøvet i headset: sidder den forkert, er det
 aksernes fortegn i toppen af `hands.js`, der skal vendes.
 

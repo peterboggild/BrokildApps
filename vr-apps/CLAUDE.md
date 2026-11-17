@@ -52,8 +52,9 @@ rules, testing, architecture in brief, and pitfalls.
 
 ## Portalkniven in brief
 
-Four files: `hands.js` (the gloved hands round the controllers; built in WebXR grip space, never seen in a
-headset from here, so the axis signs are the first suspect if they sit wrong), `portal.js` (renderer, knife, cutting, the door, sound, controls, the loop), `worlds.js` (the
+Four files: `hands.js` (the gloved hands round the controllers: the WebXR generic hand model from
+`@webxr-input-profiles/assets`, posed by our own forward kinematics because its joints are flat, not a hierarchy;
+the model is laid out in grip space already, which confirmed the axes; never seen in a headset from here), `portal.js` (renderer, knife, cutting, the door, sound, controls, the loop), `worlds.js` (the
 dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
 
 - **The door is a stencil window, not a texture.** A mask disc writes stencil 1; a full-screen "fill" quad

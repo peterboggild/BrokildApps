@@ -9,8 +9,15 @@
  * (the knife's blade points that way); X goes through the palm, +X to the user's right for both hands. So a RIGHT hand has its palm on the +X side of the
  * rod, facing -X, its wrist towards +Y and its knuckles towards -Y; its fingers leave the knuckles and wrap round the rod towards -X. The left hand is the
  * mirror image.
+ *
+ * The hand itself is the WebXR generic hand model (models/hand-left.glb, hand-right.glb, from @webxr-input-profiles/assets, MIT), which happens to be laid
+ * out in exactly this space: an open, flat hand with its fingers along -Y. Its 25 joints are not a hierarchy (each has its place in the model's own space),
+ * so closing the hand is worked out here: every finger is a chain, each joint bends about its own X axis, and what a joint does carries on to the joints
+ * beyond it. The thumb is first swung round to face the fingers (opposition) and then bent. Until the model has loaded, or if it cannot be, a simple hand
+ * built from capsules stands in.
  */
 import * as THREE from './vendor/three.module.min.js';
+import { GLTFLoader } from './vendor/GLTFLoader.js';
 
 const D = Math.PI / 180;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -76,7 +83,52 @@ export function createHand(side) {
     index.forEach((j, n) => { j.rotation.z = -lerp(INDEX_OPEN[n], INDEX_SHUT[n], it) * D; });
     for (const f of others) f.forEach((j, n) => { j.rotation.z = -lerp(REST_LOOSE[n], REST_TIGHT[n], ot) * D; });
     thumb[1].rotation.z = -(30 + 14 * st.th + 14 * st.full) * D; thumb[2].rotation.z = -(26 + 18 * st.th + 14 * st.full) * D;
+    if (root.userData.modelPose) root.userData.modelPose();
   };
   root.userData.pose(0, 0, false, false, 1);
+  loadModel(side, root, h, leather, st);
   return root;
 }
+
+/* ---- the real model ---- */
+const FINGERS = ['index-finger', 'middle-finger', 'ring-finger', 'pinky-finger'];
+const M_INDEX_OPEN = [38, 48, 24], M_INDEX_SHUT = [72, 96, 42], M_LOOSE = [66, 88, 40], M_TIGHT = [78, 100, 48];
+const _q = new THREE.Quaternion(), _a = new THREE.Vector3(), _v = new THREE.Vector3();
+
+function loadModel(side, root, standIn, leather, st) {
+  new GLTFLoader().load('models/hand-' + side + '.glb', gltf => {
+    const model = gltf.scene, bones = {}; let mesh = null;
+    model.traverse(o => { if (o.isSkinnedMesh) mesh = o; if (o.isBone || o.name) bones[o.name] = o; });
+    if (!mesh || !bones.wrist) return;
+    mesh.material = leather; mesh.frustumCulled = false;
+    const sx = side === 'left' ? -1 : 1;                           // which side of the rod the palm is on
+    model.position.set(-0.008 * sx, 0.02, 0);                      // the rod lies in the crease at the root of the fingers, not in the middle of the palm
+    const rest = n => ({ b: bones[n], p: bones[n].position.clone(), q: bones[n].quaternion.clone(), x: new THREE.Vector3(1, 0, 0).applyQuaternion(bones[n].quaternion) });
+    /* a chain of joints; bends[j] = [[axis, angle], ...] turns joint j and everything beyond it. Positions and directions are in the model's own space. */
+    const run = (chain, bends) => {
+      const A = new THREE.Quaternion(), p = chain[0].p.clone();
+      chain.forEach((c, j) => {
+        if (j > 0) p.add(_v.copy(c.p).sub(chain[j - 1].p).applyQuaternion(A));
+        for (const [axis, ang] of bends[j] || []) A.multiply(_q.setFromAxisAngle(axis, ang));      // A is the turn carried so far, applied to rest directions
+        c.b.position.copy(p); c.b.quaternion.copy(A).multiply(c.q);
+      });
+    };
+    /* which way is "closed"? Try a small bend and see whether the fingertip goes across to the other side of the rod. */
+    const sign = (chain, j, axis) => { const tip = chain[chain.length - 1].p, piv = chain[j].p; _v.copy(tip).sub(piv).applyAxisAngle(axis, 0.3).add(piv); return (_v.x - tip.x) * sx < 0 ? 1 : -1; };
+    const fingers = FINGERS.map(n => { const c = ['metacarpal', 'phalanx-proximal', 'phalanx-intermediate', 'phalanx-distal', 'tip'].map(k => rest(n + '-' + k)); return { c, s: [1, 2, 3].map(j => sign(c, j, c[j].x)) }; });
+    const tc = ['metacarpal', 'phalanx-proximal', 'phalanx-distal', 'tip'].map(k => rest('thumb-' + k)), Z = new THREE.Vector3(0, 0, 1);
+    const ts = { opp: sign(tc, 0, Z), f: [0, 1, 2].map(j => sign(tc, j, tc[j].x)) };
+    const D = Math.PI / 180, lerp = (a, b, t) => a + (b - a) * t;
+    root.userData.modelPose = () => {
+      const it = Math.max(st.trig, st.full * 0.94), ot = Math.max(st.sq, st.full);
+      fingers.forEach((f, k) => { const o = k === 0 ? M_INDEX_OPEN : M_LOOSE, c = k === 0 ? M_INDEX_SHUT : M_TIGHT, t = k === 0 ? it : ot;
+        run(f.c, [null, [[f.c[1].x, f.s[0] * lerp(o[0], c[0], t) * D]], [[f.c[2].x, f.s[1] * lerp(o[1], c[1], t) * D]], [[f.c[3].x, f.s[2] * lerp(o[2], c[2], t) * D]]]); });
+      /* the thumb opposes the fingers: swung round the rod to the other side, then bent down on to it (more when it rests on something, or holds the knife) */
+      const dn = Math.max(st.th, st.full);
+      run(tc, [[[Z, ts.opp * (TH.opp + TH.oppDown * dn) * D], [tc[0].x, ts.f[0] * (TH.f0 + TH.f0Down * dn) * D]], [[tc[1].x, ts.f[1] * (TH.f1 + TH.f1Down * dn) * D]], [[tc[2].x, ts.f[2] * (TH.f2 + TH.f2Down * dn) * D]]]);
+    };
+    standIn.visible = false; root.add(model); root.userData.model = model; root.userData.modelPose();
+  }, undefined, e => console.warn('hand model not loaded, keeping the simple hand', e));
+}
+/* the thumb's angles (degrees): how far it is swung round to face the fingers, and how much each joint is bent; the "Down" parts are added when it presses */
+export const TH = { opp: 46, oppDown: 6, f0: 16, f0Down: 6, f1: 30, f1Down: 10, f2: 30, f2Down: 14 };
