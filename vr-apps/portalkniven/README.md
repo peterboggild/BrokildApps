@@ -1,7 +1,16 @@
-# Portalkniven (teknisk test)
+# Portalkniven
 
-Teknisk test til Meta Quest 3 (WebXR, `immersive-ar`): en grøn knitrende ring midt i rummet er en åben dør til en anden
-version af rummet. Se ind, gå igennem, gå tilbage.
+Et spil til Meta Quest 3 (WebXR, `immersive-ar`, ingen installation). Med en kniv skærer man en ring i luften i sin egen stue; den tænder som en grøn
+knitrende oval, der er en åben dør til en anden version af rummet. Se ind, gå igennem, gå tilbage.
+
+Det begyndte som en teknisk test af selve døren og er siden vokset til:
+
+* **en historie** (brev fra en selv i en anden dimension, kniven, ni dele til en tidsmaskine i tre verdener, maskinen bygget i hånden, en rejse til fortiden og hjem igen),
+* **tre verdener med hver sit nummer** (den grønne, metalverdenen, klippeverdenen), bygget oven på headsettets scanning af stuen, med ting der giver efter for hænderne og bandets mærker,
+* **verdensrummet** (flyvning, warp og et sort hul), **seks fraktale dimensioner** (flyv, omform, skift farver) og **et firedimensionalt rum**,
+* **hænder**, der følger controllerne, en spiral, når døren skifter verden, og sikkerhed hele vejen (advarselslyd, åbning mod den rigtige stue tæt på).
+
+Resten af denne fil er skrevet i den rækkefølge, tingene blev bygget; de nyeste afsnit står nederst.
 
 Siden: `https://peterboggild.github.io/BrokildApps/vr-apps/portalkniven/`
 
@@ -261,6 +270,12 @@ stålplade i metalverdenen, kridt på en sandsten i klippeverdenen. Slid og tåg
   startede warpen, blåligt forude og rødligt bagude.
 * **Y/X (sort hul):** et sort hul et fast sted på himlen, der virker som en punktlinse: lyset bøjes omkring det, med en skygge og en lysende ring. De nære stjerner
   bøjes ikke (de er foran hullet).
+
+## Døråbningen (de sidste centimeter)
+Tæt på dørens plan gik to ting galt, som i et kort glimt viste den verden, man var på vej ud af (fra stuen: kamerabilledet): den del af vinduet, der var
+nærmere end 5 cm, blev skåret væk, og det ene øje var igennem døren før det andet. Nu er vinduet **hele synsfeltet**, når hovedet er inden for 11 cm af
+dørens plan på vej ind (`maskFull`), og de første 13 cm på den anden side er der **intet vindue** (ellers ville det ene øje se tilbage). Kniv og hænder
+tegnes efter døren, så de ikke bliver malet over i døråbningen.
 
 ## Gemte idéer (ikke bygget)
 

@@ -86,6 +86,7 @@ export function createHand(side) {
     if (root.userData.modelPose) root.userData.modelPose();
   };
   root.userData.pose(0, 0, false, false, 1);
+  root.traverse(o => { if (o.isMesh) o.renderOrder = 46; });        // after the door (see maskFull in portal.js)
   loadModel(side, root, h, leather, st);
   return root;
 }
@@ -100,7 +101,7 @@ function loadModel(side, root, standIn, leather, st) {
     const model = gltf.scene, bones = {}; let mesh = null;
     model.traverse(o => { if (o.isSkinnedMesh) mesh = o; if (o.isBone || o.name) bones[o.name] = o; });
     if (!mesh || !bones.wrist) return;
-    mesh.material = leather; mesh.frustumCulled = false;
+    mesh.material = leather; mesh.frustumCulled = false; mesh.renderOrder = 46;
     const sx = side === 'left' ? -1 : 1;                           // which side of the rod the palm is on
     model.position.set(-0.008 * sx, 0.02, 0);                      // the rod lies in the crease at the root of the fingers, not in the middle of the palm
     const rest = n => ({ b: bones[n], p: bones[n].position.clone(), q: bones[n].quaternion.clone(), x: new THREE.Vector3(1, 0, 0).applyQuaternion(bones[n].quaternion) });

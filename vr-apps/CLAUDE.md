@@ -8,6 +8,10 @@ rules, testing, architecture in brief, and pitfalls.
 |---|---|---|
 | Mutant Rotte Angreb | `tank-ambush/` | Finished and live. Difficulty Begynder/Let/Mellem/Svær. No open work. |
 | Portalkniven | `portalkniven/` | Live, in active development. Everything below is about this one. |
+
+`vr-apps/index.html` is the public "Brokild VR" page (English) with a card per app; the site's front page
+(`index.html`) mentions them in one paragraph. After changing a page's title or description, or adding a page,
+run `node tools/sync-site.js` (it writes the social tags and `sitemap.xml`; CI runs it with `--check`).
 | Guldplaneten | `guldplaneten/` | Not touched in the Portalkniven sessions. |
 
 ## Working rules (set by the owner)
@@ -90,6 +94,10 @@ dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
   warning text stay on. The owner made the safety fade mandatory.
 
 ## Pitfalls already paid for
+
+- A portal window flashes the world you are leaving in the last centimetres: the near plane cuts the mask, and
+  one eye crosses before the other. Hence `maskFull` (the window is the whole view on the way in) and no mask
+  for the first centimetres after the swap. Anything that must survive that (knife, hands) draws after the door.
 
 - The fractal's layout yaw must equal the door's yaw (`w.fr.yaw = yaw`). It was negated for a long time, which
   only showed with a bounded fractal (the KaliBox could not be found unless the door faced along z).

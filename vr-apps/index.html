@@ -245,6 +245,62 @@
       <div class="grid">
         <article class="card">
           <div class="card-art">
+            <!-- A green crackling oval cut in the air of a dark living room; through it, a dusk desert. A knife in the foreground. -->
+            <svg viewBox="0 0 320 180" role="img" aria-label="A glowing green oval door cut in the air of a living room, with a desert at dusk seen through it and a knife in the foreground">
+              <defs>
+                <linearGradient id="pkRoom" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#151b28" /><stop offset="100%" stop-color="#0a0e16" /></linearGradient>
+                <linearGradient id="pkSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a3f7a" /><stop offset="60%" stop-color="#e09a66" /><stop offset="100%" stop-color="#f2c58f" /></linearGradient>
+                <radialGradient id="pkGlow" cx="50%" cy="50%" r="50%"><stop offset="60%" stop-color="#4dff8800" /><stop offset="82%" stop-color="#4dff88" stop-opacity=".55" /><stop offset="100%" stop-color="#4dff8800" /></radialGradient>
+                <clipPath id="pkDoor"><ellipse cx="150" cy="88" rx="44" ry="74" /></clipPath>
+              </defs>
+              <rect width="320" height="180" fill="url(#pkRoom)" />
+              <rect y="138" width="320" height="42" fill="#0d121c" />
+              <path d="M0 138 H320" stroke="#22324a" stroke-width="1.5" />
+              <!-- a sofa and a lamp: the room you are standing in -->
+              <rect x="222" y="104" width="84" height="38" rx="7" fill="#2c3850" /><rect x="230" y="116" width="68" height="18" rx="4" fill="#38476a" />
+              <path d="M34 138 V70" stroke="#2c3850" stroke-width="3" /><path d="M20 70 H48 L42 50 H26 Z" fill="#3b4a63" />
+              <!-- the other side -->
+              <g clip-path="url(#pkDoor)">
+                <rect x="100" y="10" width="100" height="160" fill="url(#pkSky)" />
+                <circle cx="176" cy="96" r="7" fill="#fff0c8" />
+                <path d="M100 104 L116 96 L126 100 L140 90 L152 98 L168 94 L184 100 L200 96 V170 H100 Z" fill="#8a4a30" />
+                <path d="M100 118 H200 V170 H100 Z" fill="#c98a5a" />
+                <path d="M118 124 q8 -10 18 0 v10 h-18 z" fill="#a8683e" /><path d="M160 130 q7 -8 15 0 v8 h-15 z" fill="#a8683e" />
+              </g>
+              <ellipse cx="150" cy="88" rx="56" ry="88" fill="url(#pkGlow)" />
+              <ellipse cx="150" cy="88" rx="44" ry="74" fill="none" stroke="#4dff88" stroke-width="3.5" />
+              <ellipse cx="150" cy="88" rx="44" ry="74" fill="none" stroke="#d9ffe6" stroke-width="1" stroke-dasharray="7 5 2 9" />
+              <path d="M106 60 l-10 -5 l6 -6 M194 118 l11 3 l-5 8 M150 14 l-3 -9 l8 2" fill="none" stroke="#b8ffd0" stroke-width="1.2" />
+              <!-- the knife -->
+              <g transform="translate(232 150) rotate(-38)">
+                <path d="M0 -4 H44 Q58 -4 66 0 Q52 4 30 4.5 H0 Z" fill="#dfe8ee" /><rect x="12" y="-0.8" width="34" height="1.6" fill="#40ff80" />
+                <rect x="-4" y="-9" width="4" height="18" rx="1.5" fill="#d2a84e" /><rect x="-30" y="-4" width="26" height="8" rx="3" fill="#2b1912" /><circle cx="-33" cy="0" r="5" fill="#d2a84e" />
+              </g>
+            </svg>
+          </div>
+          <div class="card-body">
+            <h3>Portalkniven</h3>
+            <div class="tags">
+              <span class="tag live">Live</span>
+              <span class="tag">WebXR</span>
+              <span class="tag">Quest 3</span>
+              <span class="tag">Passthrough</span>
+              <span class="tag">Room scan</span>
+              <span class="tag">Story</span>
+              <span class="tag">Flat fallback</span>
+              <span class="tag">Dansk</span>
+            </div>
+            <p>A knife that cuts doors in the air. Hold the trigger, draw a ring in <strong>your own living room</strong>, close it, and a green crackling oval lights up: an open door to another version of the same room. It is a real window, not a picture: each eye looks through it from its own place, and you walk through. On the other side the Quest's room scan has turned your walls and furniture into mossy ground, riveted steel or layered sandstone, so the other world fits what you can actually walk in.</p>
+            <p>There is a <strong>story</strong> (in Danish): a letter from yourself in another dimension, the knife, nine parts of a time machine hidden in three worlds, the machine built by hand on your own table, a trip to the past to make the knife you found, and home again. After that, or in free play, the door also leads to <strong>deep space</strong> (fly among the stars, bend the sky with a warp and a black hole), to six endless <strong>fractal dimensions</strong> you fly through and reshape, and to a furnished <strong>four-dimensional room</strong> that you pull and turn through our three dimensions: a table with eight legs, a ring that comes apart into two balls. You have gloved hands that follow the controllers; stalks, tall grass, hanging hooks and a valve wheel give when you push them; and each of the three story worlds has its own track by the band Tidejord.</p>
+            <div class="card-actions">
+              <a class="btn btn-primary" href="portalkniven/index.html">Launch</a>
+              <a class="btn" href="https://github.com/peterboggild/BrokildApps/tree/main/vr-apps/portalkniven" target="_blank" rel="noopener">Source</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-art">
             <!-- A cockpit silhouette against the gold planet: drawn here rather
                  than shipped as an image, same as everything inside the app. -->
             <svg viewBox="0 0 320 180" role="img" aria-label="A cockpit window looking out at a golden planet above a starfield">
