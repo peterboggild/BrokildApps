@@ -17,9 +17,10 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=33';
-import { createStory } from './story.js?v=33';
-import { createHand } from './hands.js?v=33';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=36';
+import { createStory } from './story.js?v=36';
+import { createHand } from './hands.js?v=36';
+import { buildShip } from './ship.js?v=36';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -711,7 +712,7 @@ async function enterXR(free, help = true, first = 0) {
       const c = renderer.xr.getController(i); scene.add(c); scene.add(renderer.xr.getControllerGrip(i));
       c.addEventListener('selectstart', () => { ctrl[i].pressed = true; initAudio(); });
       c.addEventListener('selectend', () => { ctrl[i].pressed = false; });
-      c.addEventListener('squeezestart', () => { if (!story.canCut() || DIMS[S.cur].fract) return; knifeIdx = i; ctrl[1 - i].dragged = false; ctrl[i].dragged = true; assignTools(); });      // grip: take the knife in this hand
+      c.addEventListener('squeezestart', () => { if (!story.canCut() || DIMS[S.cur].fract || FC.shipOn) return; knifeIdx = i; ctrl[1 - i].dragged = false; ctrl[i].dragged = true; assignTools(); });      // grip: take the knife in this hand
       c.addEventListener('connected', e => { ctrl[i].src = e.data; ctrl[i].hand = e.data?.handedness || ''; assignTools(); });
     }
     if (free !== true) story.start(help);
@@ -800,6 +801,8 @@ function fractalControls(dt) {
   FC.ghost += ((FC.still > 2 ? 0 : 1) - FC.ghost) * Math.min(1, dt * (FC.still > 2 ? 1.2 : 8)); worlds.setGhost(FC.ghost);
   let li = ctrl.findIndex(c => c.hand === 'left'), ri = ctrl.findIndex(c => c.hand === 'right'); if (li < 0) li = 0; if (ri < 0) ri = 1;
   const L = ctrl[li].src && ctrl[li].src.gamepad, R = ctrl[ri].src && ctrl[ri].src.gamepad;
+  if (S.ship && (DIMS[S.cur].space || (inF && !DIMS[S.cur].four))) { shipControls(dt, L, R, li, ri); return; }
+  if (FC.shipOn) { FC.shipOn = false; ship.visible = false; FC.gear = Math.max(1, FC.gear); }
   if (DIMS[S.cur].space) {
     /* Deep space, flown like the fractals: the right stick flies where you look and slides sideways, the left stick up / down is the speed. B / A is the warp:
      * the faster, the more the whole sky is swept forward into your heading (set when the warp starts) and shifts colour. Y / X feeds a black hole in the sky,
@@ -869,6 +872,52 @@ function fractalControls(dt) {
   worlds.setFractalCalm(FC.still > 1.5 && !fwd && !side && !par && !par2 && scale === 1);      // standing still, hands off: the fractal may sharpen
   gearPanel(dt);
   controllerTips(dt, li, ri);
+}
+/* ---- the spaceship (an option on the start page): in the fractal dimensions and in deep space you do not fly yourself, you fly a ship that hangs in the
+ * room in front of you. The right stick steers it (left / right turns it, forward tips the nose down, back lifts it), the left stick up / down is the
+ * throttle (0 is stopped, 1 to 9 as before) and it flies where its nose points. Nothing turns but the ship: the dimension only ever slides past, so it is
+ * easy on the stomach, and you can walk round the ship and watch it from any side. Y / X, B / A, both grips and the colour flick work as without the ship;
+ * the fractal grows and shrinks about the ship. Or steer it by hand: hold the right grip and turn your wrist. ---- */
+const shipModel = buildShip(), ship = new THREE.Group(); shipModel.scale.setScalar(0.045); ship.add(shipModel); ship.visible = false; scene.add(ship);      // 19 m of ship as an 86 cm model
+const SH = { q: new THREE.Quaternion(), roll: 0, home: false, held: false, h0: new THREE.Quaternion(), s0: new THREE.Quaternion() };
+const _yq = new THREE.Quaternion(), _pq = new THREE.Quaternion(), YAX = new V(0, 1, 0), XAX = new V(1, 0, 0);
+function shipControls(dt, L, R, li, ri) {
+  const space = !!DIMS[S.cur].space, gaze = new V(0, 0, -1).applyQuaternion(headQ); gaze.y = 0; if (gaze.lengthSq() < 0.01) gaze.set(0, 0, -1); gaze.normalize();
+  const spot = new V().copy(head).addScaledVector(gaze, 1.4); spot.y = Math.max(0.7, head.y - 0.4);
+  if (!FC.shipOn) { FC.shipOn = true; ship.position.copy(spot); SH.q.setFromAxisAngle(YAX, Math.atan2(-gaze.x, -gaze.z)); SH.roll = 0; SH.home = false; SH.held = false; FC.gear = 0; FC.gearT = 2.5; }
+  let yawIn = 0, pitchIn = 0, thr = 0, par = 0, par2 = 0, scale = 1, hk = 0, hold = false, hq = headQ;
+  if (S.mode === 'xr') {
+    if (R && R.axes.length >= 4) { yawIn = dead(R.axes[2]); pitchIn = dead(R.axes[3]); }
+    if (L && L.axes.length >= 4) { thr = -dead(L.axes[3]); const lx = L.axes[2]; if (Math.abs(lx) > 0.5) thr = 0; hk = Math.abs(lx) > 0.92 ? Math.sign(lx) : Math.abs(lx) < 0.5 ? 0 : (FC.hueHeld ? 1 : 0); }
+    par = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0); par2 = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0);
+    hold = btn(R, 1) && !btn(L, 1); hq = hands[ri].q;
+    if (!space && btn(L, 1) && btn(R, 1)) { const d = hands[li].pos.distanceTo(hands[ri].pos); if (FC.gripD > 0.02 && d > 0.02) scale = Math.pow(FC.gripD / d, 2.5); FC.gripD = d; } else FC.gripD = 0;
+  } else {
+    yawIn = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); pitchIn = (keys.KeyK ? 1 : 0) - (keys.KeyI ? 1 : 0); thr = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0);
+    par = (keys.KeyM ? 1 : 0) - (keys.KeyN ? 1 : 0); par2 = (keys.KeyB ? 1 : 0) - (keys.KeyV ? 1 : 0); hk = (keys.KeyH ? 1 : 0) - (keys.KeyG ? 1 : 0);
+    scale = space ? 1 : keys.Period ? 1 - dt * 1.5 : keys.Comma ? 1 + dt * 1.5 : 1; hold = !!keys.KeyT;
+  }
+  if (hk && !FC.hueHeld) { FC.hueHeld = true; if (!space) FC.hueTo = (FC.hueTo || 0) + Math.sign(hk); } else if (!hk) FC.hueHeld = false;
+  FC.hue = (FC.hue || 0) + ((FC.hueTo || 0) - (FC.hue || 0)) * Math.min(1, dt * 5); worlds.setHue(FC.hue * Math.PI / 3);
+  /* Steering by hand: hold the right grip and the ship turns as your hand turns, as if you held it (let go, turn your wrist back, take hold again to turn it
+   * further). The stick still works: left / right turns it about the upright, forward / back tips its nose. */
+  if (hold) { if (!SH.held) { SH.held = true; SH.h0.copy(hq).invert(); SH.s0.copy(SH.q); } SH.q.copy(hq).multiply(SH.h0).multiply(SH.s0).normalize(); } else SH.held = false;
+  if (yawIn || pitchIn) SH.q.premultiply(_yq.setFromAxisAngle(YAX, -yawIn * 1.3 * dt)).multiply(_pq.setFromAxisAngle(XAX, pitchIn * 0.9 * dt)).normalize();
+  SH.roll += (-yawIn * 0.5 - SH.roll) * Math.min(1, dt * 4);      // it banks into its turns
+  ship.quaternion.copy(SH.q); shipModel.rotation.z = SH.roll;
+  if (thr) { FC.gear = clamp(FC.gear + thr * dt * 3.2, 0, 9); FC.gearT = 1.6; }
+  const lvl = Math.round(FC.gear), v = lvl < 1 ? 0 : 0.15 * Math.pow(1.65, FC.gear - 1) * (space ? 3 : 1);
+  const nose = new V(0, 0, -1).applyQuaternion(SH.q);
+  if (v) { if (space) worlds.spaceMove(nose, v * dt); else worlds.fractMove(S.cur, ship.position, nose, v * dt); }
+  if (space) { if (par2) { const b = worlds.spaceWarpNow(); if (b < 0.003 && par2 > 0) SPN.axis.copy(nose); worlds.spaceWarp(SPN.axis, clamp(b + par2 * dt * 0.3, 0, 0.93)); } if (par) worlds.spaceHole(clamp(worlds.spaceHoleNow() + par * dt * 0.09, 0, 0.42)); }
+  else { if (scale !== 1) worlds.fractScale(S.cur, ship.position, scale); if (par) worlds.fractParam(S.cur, 0, par, dt); if (par2) worlds.fractParam(S.cur, 1, par2, dt); }
+  /* walk away from the ship and it comes after you, to hang in front of you again */
+  if (Math.hypot(head.x - ship.position.x, head.z - ship.position.z) > 2.6) SH.home = true;
+  if (SH.home) { ship.position.lerp(spot, Math.min(1, dt * 1.6)); if (ship.position.distanceTo(spot) < 0.08) SH.home = false; }
+  shipModel.userData.thrust(lvl < 1 ? 0 : FC.gear / 9, S.time);
+  ship.visible = true;
+  worlds.setFractalCalm(!space && v === 0 && !yawIn && !pitchIn && !hold && !par && !par2 && scale === 1 && FC.still > 1.5);
+  gearPanel(dt); controllerTips(dt, li, ri);
 }
 function gearPanel(dt) {
   /* the speed, 1 to 9, shown in front of you while you change it */
@@ -984,7 +1033,9 @@ renderer.setAnimationLoop(loop);
   try { if (optQual) { optQual.value = localStorage.getItem('portalknivenQual') || 'normal'; optQual.addEventListener('change', () => localStorage.setItem('portalknivenQual', optQual.value)); } } catch (_) { /* no storage */ }
   const optSharp = $('optSharp');
   try { if (optSharp) { optSharp.value = localStorage.getItem('portalknivenSharp') || 'taa'; optSharp.addEventListener('change', () => localStorage.setItem('portalknivenSharp', optSharp.value)); } } catch (_) { /* no storage */ }
-  const readOpts = () => { worlds.setFractalSharpen(params.get('sharp') || (optSharp ? optSharp.value : 'taa')); S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
+  const optShip = $('optShip');
+  try { if (optShip) { optShip.checked = localStorage.getItem('portalknivenShip') === '1'; optShip.addEventListener('change', () => localStorage.setItem('portalknivenShip', optShip.checked ? '1' : '0')); } } catch (_) { /* no storage */ }
+  const readOpts = () => { S.ship = params.has('ship') || !!(optShip && optShip.checked); worlds.setFractalSharpen(params.get('sharp') || (optSharp ? optSharp.value : 'taa')); S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
   btnFlat.addEventListener('click', () => { readOpts(); enterFlat(); }); btnAR.addEventListener('click', () => { readOpts(); enterXR(false, true); });
   if (btnNoHelp) btnNoHelp.addEventListener('click', () => { readOpts(); enterXR(false, false); });
   if (btnFree) btnFree.addEventListener('click', () => { readOpts(); enterXR(true); });
@@ -999,7 +1050,7 @@ renderer.setAnimationLoop(loop);
 window.__portal = {
   S, portal, head, scene, renderer, camera, music, prox, FC, keys, story, hands, dissolvePortal,
   hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; }, hold(v) { flatHold = v; },
-  knife, cut, trail, applyRoles, worlds, handModels, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
+  knife, cut, trail, applyRoles, worlds, handModels, ship, SH, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },
   tip(x, y, z, pressed) { flatTip.override = true; flatTip.pos.set(x, y, z); flatTip.pressed = pressed; },

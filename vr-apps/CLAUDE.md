@@ -56,7 +56,10 @@ run `node tools/sync-site.js` (it writes the social tags and `sitemap.xml`; CI r
 
 ## Portalkniven in brief
 
-Four files: `hands.js` (the gloved hands round the controllers: the WebXR generic hand model from
+Five files: `ship.js` (the optional third-person spaceship for the fractal dimensions and deep space, built in
+code from the owner's drawings of the ship, nine views; an earlier attempt ported his Blender script
+`models/spaceship_model.py`, which did not match the drawings: when he sends reference pictures, they are the
+brief. Surfaces lofted by hand come out inside-out easily: check the winding against the outline pass), `hands.js` (the gloved hands round the controllers: the WebXR generic hand model from
 `@webxr-input-profiles/assets`, posed by our own forward kinematics because its joints are flat, not a hierarchy;
 the model is laid out in grip space already, which confirmed the axes; never seen in a headset from here), `portal.js` (renderer, knife, cutting, the door, sound, controls, the loop), `worlds.js` (the
 dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
@@ -106,11 +109,15 @@ dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
   set `fractState(i).off` and take screenshots).
 - Soft shadows marched with few, clamped steps draw terraces on plain walls. Let the step be the distance itself.
 
-- A trailing `//` comment inserted mid-line once commented out the rest of the line (the letter never appeared).
+- A trailing `//` comment inserted mid-line once commented out the rest of the line (the letter never appeared). It
+  happened again in `ship.js` (the whole module failed to load). Use `/* */` inside a line, and syntax-check every file
+  after every patch, including one-line ones.
 - Replacing a block of `index.html` dropped unrelated controls. Check what a replaced block contained.
 - Patch scripts that abort half-way leave files half-edited: assert every anchor is found exactly once before
   writing, and syntax-check after (`cp x.js /tmp/x.mjs && node --check /tmp/x.mjs`).
 - `a.add(b).sub(f(a))` evaluates after `a` has changed. Compute the second term first.
+- ACES tone mapping turns bright pale blue to turquoise, and the knife's studio environment map has a green panel
+  that tints anything it lights. A flat, drawn-looking object wants `toneMapped: false` and `envMapIntensity: 0`.
 - A reversed `smoothstep` edge order and negative emission produce red lines and black holes.
 - Test hooks that teleport a hand produce huge velocities; hand speed is clamped for that reason. Keep it.
 - Resetting the branch to `origin/main` once lost an unmerged README note. Check `git log origin/main..` first.
