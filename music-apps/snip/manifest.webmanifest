@@ -1,0 +1,31 @@
+{
+  "name": "Snip — audio editor",
+  "short_name": "Snip",
+  "description": "A small, fast audio editor: cut, trim, normalise, fade, resample, WAV/MP3, split and merge channels.",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#121418",
+  "theme_color": "#1b1e24",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "file_handlers": [
+    {
+      "action": "./index.html",
+      "accept": {
+        "audio/wav": [".wav"],
+        "audio/x-wav": [".wav"],
+        "audio/mpeg": [".mp3"],
+        "audio/flac": [".flac"],
+        "audio/ogg": [".ogg", ".opus"]
+      },
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }],
+      "launch_type": "multiple-clients"
+    }
+  ],
+  "launch_handler": { "client_mode": "navigate-new" }
+}
