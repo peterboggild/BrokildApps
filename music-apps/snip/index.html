@@ -23,6 +23,8 @@
 <!-- social-meta:end -->
 <title>Snip — a small, fast audio editor</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1b1e24">
 <style>
 :root{
   --bg:#121418; --panel:#1b1e24; --panel2:#242830; --line:#2f343e; --text:#d9dde4; --dim:#878e9c;
@@ -904,7 +906,15 @@ function demo(){
   S.dirty=false; loadDoc({ch:[L,R],sr,bits:'24'},'demo.wav',null);
 }
 $('bDemo').addEventListener('click',demo);
-if(location.protocol!=='file:') $('back').hidden=false;
+const installed=matchMedia('(display-mode: standalone)').matches;
+if(location.protocol!=='file:'&&!installed) $('back').hidden=false;
+// Installed app: offline cache, and files double-clicked in Explorer arrive through launchQueue.
+if(location.protocol!=='file:'&&'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('launchQueue' in window) launchQueue.setConsumer(async p=>{
+  const hs=(p.files||[]).filter(h=>h.kind==='file'); if(!hs.length) return;
+  await openFile(await hs[0].getFile(),hs[0]);
+  if(hs.length>1) toast(`Opened ${hs[0].name} — open the others one at a time`);
+});
 syncRate(); $('sFmt').value=S.fmt; resize(); update();
 if(location.hash==='#demo'){ demo(); setSel(48000*4.5,48000*6.75); update(); }
 </script>

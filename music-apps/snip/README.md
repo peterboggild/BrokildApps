@@ -10,3 +10,7 @@ Double-click **Snip.cmd** to open it in its own window (Edge app mode; works off
 Press `?` in the app to see all shortcuts.
 
 The MP3 encoder is `vendor/lame.min.js` (lamejs 1.2.1, LGPL). Run `node test/core.test.js` to test the WAV I/O and the resampler.
+
+## Open WAV and MP3 files by double-clicking
+
+Open the site version in Edge or Chrome (https://peterboggild.github.io/BrokildApps/music-apps/snip/) and choose **Install** (the app icon at the right of the address bar, or ⋯ → Apps → Install Snip). The installed app works offline and registers with Windows for .wav, .mp3, .flac and .ogg. Right-click an audio file → **Open with** → **Choose another app** → **Snip**, and tick **Always** to make it the default. The first time, the browser asks whether Snip may open that file type. Ctrl+S then saves straight back to the file.
