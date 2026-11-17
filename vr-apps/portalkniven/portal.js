@@ -17,10 +17,11 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=36';
-import { createStory } from './story.js?v=36';
-import { createHand } from './hands.js?v=36';
-import { buildShip } from './ship.js?v=36';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=38';
+import { createStory } from './story.js?v=38';
+import { createHand } from './hands.js?v=38';
+import { buildShip } from './ship.js?v=38';
+import { createAmbience } from './ambience.js?v=38';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -599,7 +600,7 @@ function updateSpaceAmb() {
   const ctx = AU.ctx; if (!ctx) return;
   if (!AU.space) {
     const g = ctx.createGain(); g.gain.value = 0; g.connect(ctx.destination);
-    for (const [fq, a] of [[54, 0.5], [54.4, 0.5], [81.3, 0.28], [162.9, 0.08]]) { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = fq; const og = ctx.createGain(); og.gain.value = a; o.connect(og); og.connect(g); o.start(); }
+    for (const [fq, a] of [[54, 0.5], [54.4, 0.5], [81.3, 0.28], [162.9, 0.08]]) { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = fq; const og = ctx.createGain(); og.gain.value = a; o.connect(og); og.connect(g); o.start(); (AU.spaceOscs = AU.spaceOscs || []).push(o); }
     const n = ctx.createBufferSource(); n.buffer = noiseBuffer(ctx, 3); n.loop = true; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; const ng = ctx.createGain(); ng.gain.value = 0.35; n.connect(lp); lp.connect(ng); ng.connect(g); n.start();
     AU.space = g;
   }
@@ -817,8 +818,8 @@ function fractalControls(dt) {
       hole = (keys.KeyM ? 1 : 0) - (keys.KeyN ? 1 : 0); warp = (keys.KeyB ? 1 : 0) - (keys.KeyV ? 1 : 0);
     }
     if (gear) { FC.gear = clamp(FC.gear + gear * dt * 3.2, 1, 9); FC.gearT = 1.6; }
-    const f = new V(0, 0, -1).applyQuaternion(headQ).normalize();
-    if (fwd || side) { const r = new V(1, 0, 0).applyQuaternion(headQ); r.y = 0; if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize();
+    const [f, r] = flyAim(ri);
+    if (fwd || side) {
       worlds.spaceMove(new V().addScaledVector(f, fwd).addScaledVector(r, side), 0.45 * Math.pow(1.65, FC.gear - 1) * dt); }      // three times the fractals' speeds: 0.5 to 25 m/s
     if (warp) { const b = worlds.spaceWarpNow(); if (b < 0.003 && warp > 0) SPN.axis.copy(f); worlds.spaceWarp(SPN.axis, clamp(b + warp * dt * 0.3, 0, 0.93)); }
     if (hole) worlds.spaceHole(clamp(worlds.spaceHoleNow() + hole * dt * 0.09, 0, 0.42));
@@ -863,7 +864,7 @@ function fractalControls(dt) {
   FC.hue = (FC.hue || 0) + ((FC.hueTo || 0) - (FC.hue || 0)) * Math.min(1, dt * 5); worlds.setHue(FC.hue * Math.PI / 3);      // six schemes round the colour wheel
   if (gear) { FC.gear = clamp(FC.gear + gear * dt * 3.2, 1, 9); FC.gearT = 1.6; }
   if (fwd || side) {
-    const f = new V(0, 0, -1).applyQuaternion(headQ).normalize(), r = new V(1, 0, 0).applyQuaternion(headQ); r.y = 0; if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize();
+    const [f, r] = flyAim(ri);
     worlds.fractMove(S.cur, head, f.multiplyScalar(fwd).addScaledVector(r, side).multiplyScalar(0.15 * Math.pow(1.65, FC.gear - 1)), dt);      // along your gaze (look down to dive); speed 1 is a crawl, 9 is about 8 m/s
   }
   if (scale !== 1) worlds.fractScale(S.cur, head, scale);
@@ -908,7 +909,15 @@ function shipControls(dt, L, R, li, ri) {
   if (thr) { FC.gear = clamp(FC.gear + thr * dt * 3.2, 0, 9); FC.gearT = 1.6; }
   const lvl = Math.round(FC.gear), v = lvl < 1 ? 0 : 0.15 * Math.pow(1.65, FC.gear - 1) * (space ? 3 : 1);
   const nose = new V(0, 0, -1).applyQuaternion(SH.q);
-  if (v) { if (space) worlds.spaceMove(nose, v * dt); else worlds.fractMove(S.cur, ship.position, nose, v * dt); }
+  if (v) {
+    if (space) worlds.spaceMove(nose, v * dt);
+    else {                                                           // the fractal is solid: go forward in short steps, and stop at the first one that would put the ship into a wall
+      const n = Math.max(1, Math.ceil(v * dt / 0.04)), step = v * dt / n; let hit = false;
+      for (let k = 0; k < n && !hit; k++) { const d0 = shipClear(nose, 0), d1 = shipClear(nose, step); if (d1 >= 0 || d1 > d0) worlds.fractMove(S.cur, ship.position, nose, step); else hit = true; }      // (a ship already in a wall may always move out of it)
+      if (hit) { FC.gear = 0; FC.gearT = 1.6; AMB.thud(ship.position); flash.position.copy(ship.position).addScaledVector(nose, 0.4); flash.userData.t = 0.55; for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(1, 160); } catch (_) { /* none */ } } }
+    }
+  }
+  SH.wall = space ? Infinity : worlds.fractDist(S.cur, ship.position);
   if (space) { if (par2) { const b = worlds.spaceWarpNow(); if (b < 0.003 && par2 > 0) SPN.axis.copy(nose); worlds.spaceWarp(SPN.axis, clamp(b + par2 * dt * 0.3, 0, 0.93)); } if (par) worlds.spaceHole(clamp(worlds.spaceHoleNow() + par * dt * 0.09, 0, 0.42)); }
   else { if (scale !== 1) worlds.fractScale(S.cur, ship.position, scale); if (par) worlds.fractParam(S.cur, 0, par, dt); if (par2) worlds.fractParam(S.cur, 1, par2, dt); }
   /* walk away from the ship and it comes after you, to hang in front of you again */
@@ -919,6 +928,24 @@ function shipControls(dt, L, R, li, ri) {
   worlds.setFractalCalm(!space && v === 0 && !yawIn && !pitchIn && !hold && !par && !par2 && scale === 1 && FC.still > 1.5);
   gearPanel(dt); controllerTips(dt, li, ri);
 }
+/** Which way "forward" is when you fly yourself: where you look (the default), or, if chosen on the start page, where your right hand points. Also the
+ *  level direction to its right, for sliding sideways. */
+function flyAim(ri) {
+  const hand = S.steer === 'hand' && S.mode === 'xr' && hands[ri] && hands[ri].on;
+  const f = hand ? new V().copy(hands[ri].rayD).normalize() : new V(0, 0, -1).applyQuaternion(headQ).normalize();
+  const r = new V().crossVectors(f, new V(0, 1, 0)); if (r.lengthSq() < 0.01) r.set(1, 0, 0).applyQuaternion(headQ).setY(0); if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize();
+  return [f, r];
+}
+/** How much room the ship has: the least distance from its nose, middle, tail, mast and aerial to the fractal, less the ship's own thickness there
+ *  (metres; negative means it is in a wall), once it has gone `ahead` metres along its nose. */
+const _sc = new V(), _su = new V();
+function shipClear(nose, ahead) {
+  _su.set(0, 1, 0).applyQuaternion(SH.q); let m = Infinity;
+  for (const [f, u, r] of [[0.4, -0.06, 0.07], [0.2, 0, 0.14], [0, 0, 0.15], [-0.25, 0, 0.1], [-0.4, 0.12, 0.1], [0.07, 0.32, 0.03], [0.1, -0.28, 0.02]]) {
+    _sc.copy(ship.position).addScaledVector(nose, f + ahead).addScaledVector(_su, u); m = Math.min(m, worlds.fractDist(S.cur, _sc) - r); }
+  return m;
+}
+const AMB = createAmbience(), HOLE_DIR = new V(-0.2425, 0.1455, -0.9592);      // where the black hole is in the sky (the same direction as in the sky shader)
 function gearPanel(dt) {
   /* the speed, 1 to 9, shown in front of you while you change it */
   if (FC.gearT > 0) {
@@ -1011,7 +1038,11 @@ function loop(_, frame) {
     knife.userData.rune.color.setRGB(0.25 * knifeGlow, 1.0 * Math.min(1.4, knifeGlow), 0.5 * knifeGlow);
     knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
     fractalControls(dt); updateHandModels(dt);
-    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateSpaceAmb(); updateProximity(); drawHud();
+    updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateSpaceAmb();
+    { const fr = DIMS[S.cur].fract && !DIMS[S.cur].four, on = !!FC.shipOn;
+      AMB.update(AU.ctx, dt, { dim: fr ? DIMS[S.cur].key : null, ship: on, power: on && FC.gear >= 0.5 ? FC.gear / 9 : 0, pos: ship.position, wall: on ? SH.wall : Infinity,
+        space: DIMS[S.cur].space ? { warp: worlds.spaceWarpNow(), hole: worlds.spaceHoleNow(), dir: HOLE_DIR } : null });
+      if (AU.spaceOscs) for (const o of AU.spaceOscs) o.detune.setTargetAtTime(DIMS[S.cur].space ? worlds.spaceWarpNow() * 1500 : 0, AU.ctx.currentTime, 0.3); }      // the drone of space itself climbs with the warp updateProximity(); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
     story.update(dt);
     worlds.update(dt, S.time, S.bright, S.cur, S.oth, S.safe && S.cur !== 0 ? [head, hands[0].on ? hands[0].pos : head, hands[1].on ? hands[1].pos : head] : null, hands);
@@ -1035,7 +1066,9 @@ renderer.setAnimationLoop(loop);
   try { if (optSharp) { optSharp.value = localStorage.getItem('portalknivenSharp') || 'taa'; optSharp.addEventListener('change', () => localStorage.setItem('portalknivenSharp', optSharp.value)); } } catch (_) { /* no storage */ }
   const optShip = $('optShip');
   try { if (optShip) { optShip.checked = localStorage.getItem('portalknivenShip') === '1'; optShip.addEventListener('change', () => localStorage.setItem('portalknivenShip', optShip.checked ? '1' : '0')); } } catch (_) { /* no storage */ }
-  const readOpts = () => { S.ship = params.has('ship') || !!(optShip && optShip.checked); worlds.setFractalSharpen(params.get('sharp') || (optSharp ? optSharp.value : 'taa')); S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
+  const optSteer = $('optSteer');
+  try { if (optSteer) { optSteer.value = localStorage.getItem('portalknivenSteer') || 'gaze'; optSteer.addEventListener('change', () => localStorage.setItem('portalknivenSteer', optSteer.value)); } } catch (_) { /* no storage */ }
+  const readOpts = () => { S.steer = params.get('steer') || (optSteer ? optSteer.value : 'gaze'); S.ship = params.has('ship') || !!(optShip && optShip.checked); worlds.setFractalSharpen(params.get('sharp') || (optSharp ? optSharp.value : 'taa')); S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
   btnFlat.addEventListener('click', () => { readOpts(); enterFlat(); }); btnAR.addEventListener('click', () => { readOpts(); enterXR(false, true); });
   if (btnNoHelp) btnNoHelp.addEventListener('click', () => { readOpts(); enterXR(false, false); });
   if (btnFree) btnFree.addEventListener('click', () => { readOpts(); enterXR(true); });
@@ -1050,7 +1083,7 @@ renderer.setAnimationLoop(loop);
 window.__portal = {
   S, portal, head, scene, renderer, camera, music, prox, FC, keys, story, hands, dissolvePortal,
   hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; }, hold(v) { flatHold = v; },
-  knife, cut, trail, applyRoles, worlds, handModels, ship, SH, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
+  knife, cut, trail, applyRoles, worlds, handModels, ship, SH, AMB, shipClear, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },
   tip(x, y, z, pressed) { flatTip.override = true; flatTip.pos.set(x, y, z); flatTip.pressed = pressed; },

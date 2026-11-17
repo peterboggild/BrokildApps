@@ -297,6 +297,34 @@ og i verdensrummet; man styrer et rumskib, der hænger i stuen foran én (set ud
   Går man mere end 2,6 m væk, kommer det efter én og lægger sig foran igen.
 * Ikke i det firedimensionale rum og ikke i de tre sang-dimensioner.
 
+## Flyv efter blikket eller efter hånden
+Valg på startsiden ("Flyv efter", `?steer=hand`): når man selv flyver (uden rumskib) i de fraktale dimensioner og i verdensrummet, er "frem" enten dér,
+hvor man kigger (standard, som hidtil), eller dér, hvor højre controller peger. Med hånden kan man kigge sig frit omkring, mens man flyver en anden vej.
+Sidelæns er altid vandret og vinkelret på den retning. Warp i verdensrummet tager også sin retning derfra.
+
+## Skibet kan støde ind i fraktalen
+Fraktalerne er faste for skibet. De samme afstandsfunktioner, som shaderne tegner med, findes også i JavaScript (`DE` i `worlds.js`, `worlds.fractDist`),
+så spillet kan måle, hvor langt der er fra et punkt i stuen til fraktalens overflade. Skibet måles i syv punkter (næse, skrog, hale, halefinne, mast, antenne),
+og hvert billede flyver det frem i korte skridt (4 cm); det første skridt, der ville sætte et punkt ind i en væg, bliver ikke taget: gashåndtaget går på 0,
+der lyder et bump, det glimter ved næsen, og controllerne dunker. Sidder skibet allerede i en væg (efter at man har ændret fraktalens form eller størrelse),
+må det altid bevæge sig ud. Ændres en fraktals formel i shaderen, skal den også ændres i `DE`. Ikke i verdensrummet (der er intet at ramme).
+
+## Lyd i de fraktale dimensioner og fra skibet (`ambience.js`)
+Intet er optaget; alt bygges i Web Audio.
+
+* **Seks lydbilleder**, ét pr. fraktal, hver med en bund (noget, der bare er der) og hændelser (enkelte lyde, der sker et sted omkring én):
+  Apollonisk: anslåede syngeskåle i en lang, lys hal. Pseudo-Kleinsk: dyb orgeldrone, der ånder, og langsomme pust. Hyperbolsk: højt glasagtigt skær og
+  fin tikken tæt på. Menger: vind i tunnelerne og metal, der falder langt væk, med ekkoer. Mandelbox-byen: dyb rumlen af sten, tørre vindstød og blokke, der
+  skurrer i andre gader, med ét tilbageslag fra væggen overfor. Kali-templet: næsten stilhed, og en gong, sjældent, der klinger længe.
+* **Rumlig lyd og afstand:** hændelserne placeres i rummet (HRTF) og sendes ind i en rumklang, der passer til stedet. Den direkte lyd falder med afstanden,
+  rumklangen gør ikke, så en fjern lyd er mest klang og en nær lyd mest direkte. Det er sådan, øret bedømmer afstand.
+* **Skibet:** en svag brummen, når det er fremme, og udstødningen: en brusen, der åbner sig og bliver kraftigere med gashåndtaget, over en dyb rumlen.
+  Begge kommer fra dér, hvor skibet er. Udstødningen høres desuden én gang til, kastet tilbage fra fraktalens nærmeste væg: senere og svagere, jo længere
+  væk væggen er (tiden er regnet, som om skibet var 19 m langt).
+* **Verdensrummet:** warp (B/A) høres: en susen, der stiger i tonehøjde, og en tone, der stiger fire oktaver mod lysets hastighed og slår hurtigere og
+  hurtigere; rummets egen drone stiger med. Det sorte hul (Y/X) er en dyb bas med to toner et par hertz fra hinanden, som kommer fra dér, hvor hullet er på
+  himlen, tungere jo større det er. Lyd regnes på lydtråden og koster ikke billedhastighed.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option
