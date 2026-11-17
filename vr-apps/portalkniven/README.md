@@ -325,6 +325,18 @@ Intet er optaget; alt bygges i Web Audio.
   hurtigere; rummets egen drone stiger med. Det sorte hul (Y/X) er en dyb bas med to toner et par hertz fra hinanden, som kommer fra dér, hvor hullet er på
   himlen, tungere jo større det er. Lyd regnes på lydtråden og koster ikke billedhastighed.
 
+## Bløde parameterskift, og skibet, der holder sig foran én
+* **Parametre (Y/X og B/A i fraktalerne)** skifter ikke længere som en kontakt: ændringen tager fart, når man trykker, løber ud, når man slipper, og går af
+  sig selv langsommere den sidste sjettedel af parameterens område (`easeParams` i `portal.js`). Gælder med og uden rumskib.
+* **Lyd til hver af de fire:** den første parameter (Y/X) er en tone, som en skive, der drejes: tonehøjden er, hvor parameteren står. Opad er den lys med
+  en kvint over og hurtig sitren; nedad mørk med oktaven under og langsom vaklen. Den anden (B/A) er en mekanisme af smalbåndet støj: opad en hård, hurtig
+  skralde; nedad en spinden. Styrken følger farten, og hver giver et blødt bank, når den når enden.
+* **Skibet holder sig foran én i flyveretningen**, så man ser det bagfra: drejer man det, svinger det om til sin nye plads, og man drejer med. Omvendt:
+  vender man sig selv og lader styringen være (3 s), og skibet er bag én i 2 s, kommer det om foran og peger, hvor man ser hen. Skibets plads i stuen er
+  kun dér, man ser det fra; det bliver, hvor det er i dimensionen (dimensionen glider med), så det kan ikke bæres gennem en væg på den måde.
+* **Man kan skubbe til skibet:** en hånd mod skroget flytter det, drejer det lidt, hvis man rammer nær næse eller hale, og så glider det tilbage på plads.
+  Et lille dunk i controlleren og et bump.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option
