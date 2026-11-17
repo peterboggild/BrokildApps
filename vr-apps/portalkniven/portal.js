@@ -17,9 +17,9 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=32';
-import { createStory } from './story.js?v=32';
-import { createHand } from './hands.js?v=32';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=33';
+import { createStory } from './story.js?v=33';
+import { createHand } from './hands.js?v=33';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -95,6 +95,13 @@ const mask = new THREE.Mesh(new THREE.CircleGeometry(1, 80), maskMat);          
 mask.renderOrder = ORDER.mask; mask.frustumCulled = false;
 mask.onAfterRender = () => { if (S.stencilBits === null && S.mode === 'xr') S.stencilBits = gl.getParameter(gl.STENCIL_BITS); };   // asked while the headset's framebuffer is bound
 ring.add(mask);
+/* The last few centimetres before you are through. The window is a flat disc, and so close to it two things go wrong: the part of it nearer than the eye can
+ * focus (the near plane) is cut away, and one eye is through the door before the other, with the disc behind it. Either way that eye sees the world you are
+ * leaving where it should see the one you are entering. So for those centimetres the window is the whole view (maskFull); and for the first centimetres on
+ * the far side, where the same would show the world you left, there is no window at all. */
+const maskFull = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: 'void main() { gl_FragColor = vec4(0.0); }',
+  colorWrite: false, depthWrite: false, depthTest: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp }));
+maskFull.renderOrder = ORDER.mask; maskFull.frustumCulled = false; maskFull.visible = false; scene.add(maskFull);
 
 class OvalCurve extends THREE.Curve {
   constructor(rx, ry) { super(); this.rx = rx; this.ry = ry; }
@@ -306,7 +313,7 @@ function buildKnife() {
   root.userData = { tip, rune, halo: haloMat, tipLocal: tip.getWorldPosition(new V()) };       // the point, in the root's own space (the root is still at the origin here)
   return root;
 }
-const knife = buildKnife();
+const knife = buildKnife(); knife.traverse(o => { if (o.isMesh || o.isLineSegments) o.renderOrder = 46; });      // drawn after the door, so that in the doorway it is not painted over
 let knifeGlow = 0.35, tipPrev = null;
 
 /* the two hands, as the story sees them: where they are, where they point, and whether the trigger was just pressed */
@@ -496,12 +503,16 @@ function checkCrossing() {
   if ((d0 < 0) !== (d1 < 0)) {
     const t = d0 / (d0 - d1), p = prevHead.clone().lerp(head, t).sub(portal.c);
     const lx = p.dot(portal.x) / portal.Rx, ly = p.dot(portal.y) / portal.Ry;
-    if (lx * lx + ly * ly < 0.95) { cancelVortex(); const c = S.cur; S.cur = S.oth; S.oth = c; S.crossings++; applyRoles(); whoosh(); haptic(0.6, 120); say('Du er i ' + DIMS[S.cur].name); story.onEnter(S.cur); }
+    if (lx * lx + ly * ly < 0.95) { cancelVortex(); const c = S.cur; S.cur = S.oth; S.oth = c; S.crossings++; portal.fresh = true; applyRoles(); whoosh(); haptic(0.6, 120); say('Du er i ' + DIMS[S.cur].name); story.onEnter(S.cur); }
   }
   prevHead.copy(head);
 }
 function updateClip() {
   const d = new V().copy(head).sub(portal.c).dot(portal.n);
+  { const p = _r.copy(head).sub(portal.c), lx = p.dot(portal.x) / portal.Rx, ly = p.dot(portal.y) / portal.Ry, live = S.placed && !portal.anim && !portal.closing;
+    const close = live && Math.abs(d) < 0.11 && lx * lx + ly * ly < 0.85;            // in the doorway: within 11 cm of the door's plane (near plane 5 cm, half the distance between the eyes, a frame's travel)
+    if (Math.abs(d) > 0.13 || !live) portal.fresh = false;                           // "just came through" lasts until you are clear of the door
+    maskFull.visible = close && !portal.fresh; mask.visible = !(close && portal.fresh); }
   S.side = d >= 0 ? 1 : -1;
   worlds.setClip(S.oth, portal.n.clone().multiplyScalar(-S.side), portal.c);   // keep only what is behind the door, seen from where you stand
 }

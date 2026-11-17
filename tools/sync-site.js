@@ -63,6 +63,10 @@ const EXTRA = {
     alt: "Guldplaneten — a WebXR spaceship cockpit",
     type: "website",
   },
+  "vr-apps/portalkniven/index.html": {
+    alt: "Portalkniven — cut a door in the air of your own room and walk into another dimension, in mixed reality",
+    type: "website",
+  },
   "vr-apps/tank-ambush/index.html": {
     alt: "Mutant Rotte Angreb — rat-driven tanks in your own room, in mixed reality",
     type: "website",
