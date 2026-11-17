@@ -17,8 +17,9 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=31';
-import { createStory } from './story.js?v=31';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=32';
+import { createStory } from './story.js?v=32';
+import { createHand } from './hands.js?v=32';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -789,17 +790,25 @@ function fractalControls(dt) {
   let li = ctrl.findIndex(c => c.hand === 'left'), ri = ctrl.findIndex(c => c.hand === 'right'); if (li < 0) li = 0; if (ri < 0) ri = 1;
   const L = ctrl[li].src && ctrl[li].src.gamepad, R = ctrl[ri].src && ctrl[ri].src.gamepad;
   if (DIMS[S.cur].space) {
-    /* Deep space: there is nowhere to go, but you can tumble. The right stick turns you and tips you forward or back, the left stick rolls you; and since nothing
-     * out here stops a turn once it has begun, you go on turning for a while after you let go. */
-    let yw = 0, pt = 0, rl = 0;
-    if (S.mode === 'xr') { if (R && R.axes.length >= 4) { yw = dead(R.axes[2]); pt = -dead(R.axes[3]); } if (L && L.axes.length >= 4) rl = dead(L.axes[2]); }
-    else { yw = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); pt = (keys.KeyI ? 1 : 0) - (keys.KeyK ? 1 : 0); rl = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0); }
-    if (yw || pt || rl) {
-      const r = new V(1, 0, 0).applyQuaternion(headQ); r.y = 0; if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize(); const f = new V(0, 0, -1).applyQuaternion(headQ).normalize();
-      SPN.w.lerp(new V(0, yw * 0.5, 0).addScaledVector(r, pt * 0.42).addScaledVector(f, -rl * 0.45), Math.min(1, dt * 1.5));
-    } else SPN.w.multiplyScalar(Math.exp(-dt / 4.5));
-    worlds.spaceSpin(head, SPN.w, dt);
-    gearMesh.visible = false; worlds.setFractalCalm(false); controllerTips(dt, li, ri); return;
+    /* Deep space, flown like the fractals: the right stick flies where you look and slides sideways, the left stick up / down is the speed. B / A is the warp:
+     * the faster, the more the whole sky is swept forward into your heading (set when the warp starts) and shifts colour. Y / X feeds a black hole in the sky,
+     * which bends the light round it. */
+    let fwd = 0, side = 0, gear = 0, hole = 0, warp = 0;
+    if (S.mode === 'xr') {
+      if (R && R.axes.length >= 4) { fwd = -dead(R.axes[3]); side = dead(R.axes[2]); }
+      if (L && L.axes.length >= 4) gear = -dead(L.axes[3]);
+      hole = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0); warp = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0);
+    } else {
+      fwd = (keys.KeyI ? 1 : 0) - (keys.KeyK ? 1 : 0); side = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); gear = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0);
+      hole = (keys.KeyM ? 1 : 0) - (keys.KeyN ? 1 : 0); warp = (keys.KeyB ? 1 : 0) - (keys.KeyV ? 1 : 0);
+    }
+    if (gear) { FC.gear = clamp(FC.gear + gear * dt * 3.2, 1, 9); FC.gearT = 1.6; }
+    const f = new V(0, 0, -1).applyQuaternion(headQ).normalize();
+    if (fwd || side) { const r = new V(1, 0, 0).applyQuaternion(headQ); r.y = 0; if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize();
+      worlds.spaceMove(new V().addScaledVector(f, fwd).addScaledVector(r, side), 0.45 * Math.pow(1.65, FC.gear - 1) * dt); }      // three times the fractals' speeds: 0.5 to 25 m/s
+    if (warp) { const b = worlds.spaceWarpNow(); if (b < 0.003 && warp > 0) SPN.axis.copy(f); worlds.spaceWarp(SPN.axis, clamp(b + warp * dt * 0.3, 0, 0.93)); }
+    if (hole) worlds.spaceHole(clamp(worlds.spaceHoleNow() + hole * dt * 0.09, 0, 0.42));
+    worlds.setFractalCalm(false); gearPanel(dt); controllerTips(dt, li, ri); return;
   }
   SPN.w.set(0, 0, 0);
   if (DIMS[S.cur].four) {
@@ -827,14 +836,17 @@ function fractalControls(dt) {
   let fwd = 0, side = 0, gear = 0, par = 0, par2 = 0, scale = 1;
   if (S.mode === 'xr') {
     if (R && R.axes.length >= 4) { fwd = -dead(R.axes[3]); side = dead(R.axes[2]); }                        // right stick: fly where you look, and slide sideways
-    if (L && L.axes.length >= 4) gear = -dead(L.axes[3]);                                                   // left stick: faster / slower
+    if (L && L.axes.length >= 4) { gear = -dead(L.axes[3]); const lx = L.axes[2]; if (Math.abs(lx) > 0.5) gear = 0;      // left stick: faster / slower ...
+      if (Math.abs(lx) > 0.92 && !FC.hueHeld) { FC.hueHeld = true; FC.hueTo = (FC.hueTo || 0) + Math.sign(lx); } else if (Math.abs(lx) < 0.5) FC.hueHeld = false; }      // ... and all the way to a side: the next colour scheme
     par = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0); par2 = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0);      // Y / X and B / A: one shape parameter each
     if (btn(L, 1) && btn(R, 1)) { const d = hands[li].pos.distanceTo(hands[ri].pos); if (FC.gripD > 0.02 && d > 0.02) scale = Math.pow(FC.gripD / d, 2.5); FC.gripD = d; } else FC.gripD = 0;      // hands apart: the fractal grows (strongly)
   } else {
     fwd = (keys.KeyI ? 1 : 0) - (keys.KeyK ? 1 : 0); side = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); gear = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0);
     par = (keys.KeyM ? 1 : 0) - (keys.KeyN ? 1 : 0); par2 = (keys.KeyB ? 1 : 0) - (keys.KeyV ? 1 : 0);
     scale = keys.Period ? 1 - dt * 1.5 : keys.Comma ? 1 + dt * 1.5 : 1;
+    const hk = (keys.KeyH ? 1 : 0) - (keys.KeyG ? 1 : 0); if (hk && !FC.hueHeld) { FC.hueHeld = true; FC.hueTo = (FC.hueTo || 0) + hk; } else if (!hk) FC.hueHeld = false;
   }
+  FC.hue = (FC.hue || 0) + ((FC.hueTo || 0) - (FC.hue || 0)) * Math.min(1, dt * 5); worlds.setHue(FC.hue * Math.PI / 3);      // six schemes round the colour wheel
   if (gear) { FC.gear = clamp(FC.gear + gear * dt * 3.2, 1, 9); FC.gearT = 1.6; }
   if (fwd || side) {
     const f = new V(0, 0, -1).applyQuaternion(headQ).normalize(), r = new V(1, 0, 0).applyQuaternion(headQ); r.y = 0; if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize();
@@ -844,6 +856,10 @@ function fractalControls(dt) {
   if (par) worlds.fractParam(S.cur, 0, par, dt);
   if (par2) worlds.fractParam(S.cur, 1, par2, dt);
   worlds.setFractalCalm(FC.still > 1.5 && !fwd && !side && !par && !par2 && scale === 1);      // standing still, hands off: the fractal may sharpen
+  gearPanel(dt);
+  controllerTips(dt, li, ri);
+}
+function gearPanel(dt) {
   /* the speed, 1 to 9, shown in front of you while you change it */
   if (FC.gearT > 0) {
     FC.gearT -= dt; const lvl = Math.round(FC.gear);
@@ -855,9 +871,8 @@ function fractalControls(dt) {
     const f = new V(0, 0, -1).applyQuaternion(headQ), tgt = new V().copy(head).addScaledVector(f, 0.9); tgt.y -= 0.22;
     gearMesh.position.lerp(tgt, Math.min(1, dt * 10)); gearMesh.lookAt(head); gearMesh.material.opacity = clamp(FC.gearT / 0.5, 0, 1); gearMesh.visible = true;
   } else gearMesh.visible = false;
-  controllerTips(dt, li, ri);
 }
-const SPN = { w: new V() };
+const SPN = { w: new V(), axis: new V(0, 0, -1) };
 /* the first time in a fractal (or in space): the controllers buzz and blink until you look down at them */
 function controllerTips(dt, li, ri) {
   if (!FC.tipsDone && S.mode === 'xr') { FC.tipsDone = true; FC.tipsT = 0; FC.seen = 0; renderer.xr.getController(li).add(tips.left); renderer.xr.getController(ri).add(tips.right); }
@@ -870,6 +885,26 @@ function controllerTips(dt, li, ri) {
     for (const t of [tips.left, tips.right]) { t.visible = !done; t.material.opacity = a; t.scale.setScalar(0.12 + 0.08 * a); }
     if (!done && ((FC.tipsT / 0.9) | 0) !== FC.buzz) { FC.buzz = (FC.tipsT / 0.9) | 0; for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(0.7, 140); } catch (_) { /* none */ } } }
     if (done) FC.tipsT = -1;
+  }
+}
+/* ---- your hands, where the real ones cannot be seen (every dimension but your own room) ---- */
+const handModels = { left: createHand('left'), right: createHand('right') };
+function updateHandModels(dt) {
+  const show = S.cur !== 0;
+  if (S.mode === 'xr') {
+    for (let i = 0; i < 2; i++) {
+      const sd = ctrl[i].hand; if (sd !== 'left' && sd !== 'right') continue;
+      const m = handModels[sd], grip = renderer.xr.getControllerGrip(i); if (m.parent !== grip) grip.add(m);
+      m.visible = show; if (!show) continue;
+      const gp = ctrl[i].src && ctrl[i].src.gamepad, b = k => (gp && gp.buttons[k]) || null;
+      const thumb = [3, 4, 5].some(k => b(k) && (b(k).touched || b(k).pressed));
+      m.userData.pose(b(0) ? b(0).value : 0, b(1) ? b(1).value : 0, thumb, i === knifeIdx && knife.parent === grip, dt);
+    }
+  } else if (S.mode === 'flat') {
+    const m = handModels.right; if (!m.parent) scene.add(m);
+    m.visible = show && !params.has('nohand'); if (!m.visible) return;
+    if (FC.handPose) { m.position.fromArray(FC.handPose, 0); m.quaternion.fromArray(FC.handPose, 3); } else { m.position.copy(hands[0].pos); m.quaternion.copy(headQ); }
+    m.userData.pose(flatHold ? 1 : 0, keys.KeyT ? 1 : 0, !!keys.KeyY, !!keys.KeyR, dt);
   }
 }
 const clock = new THREE.Clock();
@@ -915,7 +950,7 @@ function loop(_, frame) {
     tipSparks.step(dt, 1.2);
     knife.userData.rune.color.setRGB(0.25 * knifeGlow, 1.0 * Math.min(1.4, knifeGlow), 0.5 * knifeGlow);
     knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
-    fractalControls(dt);
+    fractalControls(dt); updateHandModels(dt);
     updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateSpaceAmb(); updateProximity(); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
     story.update(dt);
@@ -953,7 +988,7 @@ renderer.setAnimationLoop(loop);
 window.__portal = {
   S, portal, head, scene, renderer, camera, music, prox, FC, keys, story, hands, dissolvePortal,
   hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; }, hold(v) { flatHold = v; },
-  knife, cut, trail, applyRoles, worlds, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
+  knife, cut, trail, applyRoles, worlds, handModels, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },
   tip(x, y, z, pressed) { flatTip.override = true; flatTip.pos.set(x, y, z); flatTip.pressed = pressed; },

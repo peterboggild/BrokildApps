@@ -241,6 +241,27 @@ fraktalerne: lille billede pr. øje, opbygning over tid i ro, billedhastighedsva
 * **Rettet fejl:** fraktalerne blev lagt ud med forkert fortegn på dørens drejning, så "lige frem" i fraktalen kun passede, når døren vendte langs stuens z-akse.
   Det mærkedes ikke i de uendelige fraktaler, men var grunden til, at Kali-templet var svært at finde.
 
+## Hænder (`hands.js`)
+I alle dimensioner undtagen ens egen stue (hvor man ser sine rigtige hænder) sidder der en handskeklædt hånd om hver controller, lukket på samme måde som den
+rigtige hånd er lukket om controlleren. Pegefingeren følger aftrækkeren, de tre andre fingre strammer med grebsknappen, tommelfingeren går ned, når den hviler
+på stick eller knap, og hånden med kniven er helt lukket om skæftet. Hånden er WebXR's standard-håndmodel (`models/hand-left.glb`, `hand-right.glb` fra `@webxr-input-profiles/assets`, MIT; indlæses med three's `GLTFLoader` i `vendor/`). Modellen er en flad, åben hånd, hvis 25 led ikke hænger sammen i et skelet, så `hands.js` regner selv lukningen ud: hver finger er en kæde, hvert led bøjer om sin egen akse, og tommelfingeren svinges først om over for de andre fingre og bøjes så. En enkel hånd af kapsler står i stedet, indtil modellen er hentet. Modellen ligger i WebXR's "grip space" (stangen i næven langs Z, -Z ud ved
+tommelfingeren, X gennem håndfladen, +X mod højre for begge hænder); venstre hånd er spejlbilledet. Ikke afprøvet i headset: sidder den forkert, er det
+aksernes fortegn i toppen af `hands.js`, der skal vendes.
+
+## Bandets mærker
+I hver af de tre sang-dimensioner står en opret sten eller plade lidt væk fra døren (2 til 4 m), med seglet og navnet (`img/segl.png`, `img/tidejord.png`, lavet
+som masker ud fra bandets logoer) sat på, som den verden selv ville have lavet dem: lysende lav på en mosgroet sten i den grønne, slidt skabelonmaling på en
+stålplade i metalverdenen, kridt på en sandsten i klippeverdenen. Slid og tåge kommer fra verdenens egne værdier.
+
+## Farveskemaer, flyvning og rumkrumning
+* **Fraktalerne:** venstre stick helt til venstre eller højre skifter farveskema (seks skemaer: alle farver drejes 60 grader rundt i farvecirklen). Op/ned er stadig farten.
+* **Verdensrummet** flyves nu som fraktalerne (højre stick: frem/tilbage langs blikket og sidelæns; venstre stick: fart 1 til 9, tre gange fraktalernes hastigheder).
+  De nære stjerner er en terning på 60 m, der gentager sig uendeligt omkring én; den fjerne himmel står stille. Den tidligere drejning med træghed er fjernet.
+* **B/A (warp):** aberration som ved høj fart, op til 93 % af lysets hastighed. Hele himlen og de nære stjerner fejes frem mod den retning, man kiggede i, da man
+  startede warpen, blåligt forude og rødligt bagude.
+* **Y/X (sort hul):** et sort hul et fast sted på himlen, der virker som en punktlinse: lyset bøjes omkring det, med en skygge og en lysende ring. De nære stjerner
+  bøjes ikke (de er foran hullet).
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option
