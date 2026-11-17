@@ -24,6 +24,11 @@
       "id": "phone",
       "name": "Phone",
       "description": "Works on a phone screen — touch-first, and installable to the home screen."
+    },
+    {
+      "id": "tool",
+      "name": "Tool",
+      "description": "Utilities for working with audio — editing, converting and tidying files rather than making sound."
     }
   ],
   "apps": [
@@ -56,6 +61,7 @@
     "music-apps/photo-synth",
     "music-apps/sound-wizard",
     "music-apps/note-words",
+    "music-apps/snip",
     "health-apps/sleep-noise"
   ]
 }

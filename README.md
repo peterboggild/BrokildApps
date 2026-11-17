@@ -66,6 +66,7 @@ files:
 | Photo Synth (HTML) | [`music-apps/photo-synth`](music-apps/photo-synth) | The same idea in a browser tab, with the things only a browser can do. |
 | Sound Wizard (HTML) | [`music-apps/sound-wizard`](music-apps/sound-wizard) | An audio analyser and tone generator for the phone, fast enough to keep up with real sound, in two rooms. |
 | Note Words (HTML) | [`music-apps/note-words`](music-apps/note-words) | Spell words in musical notes, the way Bach signed B-A-C-H. In German note names B is B flat, H is B natural and S is Es, E flat, so BAGGAGE, CABBAGE… |
+| Snip (HTML) | [`music-apps/snip`](music-apps/snip) | A small, fast audio editor for the everyday jobs, the way Audacity used to feel. |
 | Sleeper Agent (HTML) | [`health-apps/sleep-noise`](health-apps/sleep-noise) | A five-fader mixer for sleeping sound: brown noise, green noise, rain, soft rain and ocean, in any combination rather than one at a time. |
 | DSW | [`dsw`](dsw) | **Digital Science Workstation** (build from source): a native host that runs C++/HTML digital-experiment plugins the way a DAW runs VST3s — drop a bundle in `plugins/`, the browser is the GUI, the math runs native. Ships with Gray–Scott and double-slit wave-tank experiments. |
 | Rite of Passage | [`rite-of-passage`](rite-of-passage) | **VST3 transition processor** (build from source): one automatable slider, six slots of build-up and transitory effects on their own schedules, and a separate sample-accurate ARRIVAL. Design: [`RITE-OF-PASSAGE-DESIGN.md`](RITE-OF-PASSAGE-DESIGN.md). |
