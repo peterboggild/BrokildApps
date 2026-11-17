@@ -118,12 +118,38 @@ export function createAmbience() {
     return { wg, bp, tg, o1, o2, tl, tr, trd, pan, hg };
   }
 
+  /* ---- reshaping a fractal: each of the two parameters has a voice, and each direction its own colour ----
+   * The first (Y / X) is a tone, like a dial being turned: its pitch is where the parameter is in its range. Going up it is bright, with a fifth above it and
+   * a quick shimmer; going down it is dark, with the octave below and a slow waver. The second (B / A) is a mechanism: a narrow band of noise, again pitched
+   * by where the parameter is. Going up it ratchets, hard and quick; going down it purrs. Both are as loud as the change is fast, so they swell and die away
+   * with it, and each gives a soft knock when it reaches the end of its range. */
+  let pv = null; const pin = [{ v: 0, x: 0.5, end: false }, { v: 0, x: 0.5, end: false }];
+  function params() {
+    const a = { g: gain(0), lp: filt('lowpass', 2000, 0.8), o: osc('triangle', 330), hi: osc('sine', 495), lo: osc('sine', 165), gh: gain(0), gl: gain(0), vib: osc('sine', 6), vd: gain(0) };
+    a.o.connect(a.lp); a.hi.connect(a.gh); a.gh.connect(a.lp); a.lo.connect(a.gl); a.gl.connect(a.lp); a.lp.connect(a.g); a.g.connect(out); a.vib.connect(a.vd); for (const o of [a.o, a.hi, a.lo]) a.vd.connect(o.detune);
+    const b = { g: gain(0), n: noise(white), bp: filt('bandpass', 900, 7), amp: gain(0.5), sq: osc('square', 12), sn: osc('sine', 6), dq: gain(0), ds: gain(0), lp: filt('lowpass', 6000, 0.7) };
+    b.n.connect(b.bp); b.bp.connect(b.lp); b.lp.connect(b.amp); b.amp.connect(b.g); b.g.connect(out); b.sq.connect(b.dq); b.dq.connect(b.amp.gain); b.sn.connect(b.ds); b.ds.connect(b.amp.gain);
+    return { a, b };
+  }
+  function knock(f) { const dst = gain(1); dst.connect(out); strike(dst, f, [[1, 1, 0.22], [2.4, 0.4, 0.1]], 0.16, 0.25); setTimeout(() => { try { dst.disconnect(); } catch (_) { /* gone */ } }, 800); }
+  function paramSound() {
+    const live = pin[0].v || pin[1].v; if (!live && !pv) return; if (!pv) pv = params();
+    const t = ctx.currentTime, { a, b } = pv, [p, q] = pin;
+    { const m = Math.abs(p.v), up = p.v > 0, f = 196 * Math.pow(2, p.x * 1.7);
+      a.g.gain.setTargetAtTime(0.085 * Math.min(1, m), t, 0.04); a.o.frequency.setTargetAtTime(f, t, 0.03); a.hi.frequency.setTargetAtTime(f * 1.5, t, 0.03); a.lo.frequency.setTargetAtTime(f * 0.5, t, 0.03);
+      if (m) { a.gh.gain.setTargetAtTime(up ? 0.6 : 0, t, 0.05); a.gl.gain.setTargetAtTime(up ? 0 : 0.9, t, 0.05); a.lp.frequency.setTargetAtTime(up ? 4200 : 750, t, 0.05); a.vib.frequency.setTargetAtTime(up ? 9 : 3.5, t, 0.05); a.vd.gain.setTargetAtTime(up ? 9 : 22, t, 0.05); } }
+    { const m = Math.abs(q.v), up = q.v > 0;
+      b.g.gain.setTargetAtTime(0.3 * Math.min(1, m), t, 0.04); b.bp.frequency.setTargetAtTime(420 * Math.pow(2, q.x * 2.4), t, 0.03);
+      if (m) { b.dq.gain.setTargetAtTime(up ? 0.5 : 0, t, 0.05); b.ds.gain.setTargetAtTime(up ? 0 : 0.45, t, 0.05); b.sq.frequency.setTargetAtTime(9 + 16 * m, t, 0.05); b.sn.frequency.setTargetAtTime(4 + 5 * m, t, 0.05); b.lp.frequency.setTargetAtTime(up ? 7000 : 1300, t, 0.05); } }
+    pin.forEach((s, w) => { const edge = s.x <= 0.002 || s.x >= 0.998; if (edge && !s.end && s.v) knock(w ? 150 : 110); s.end = edge; s.v = 0; });      // v is set afresh every frame the parameter moves
+  }
+
   return {
     /** Call every frame. s: { dim (the fractal's key, or null), ship (is it out?), power (0..1), pos (the ship, a Vector3), wall (metres to the nearest wall, or Infinity),
      *  space (null, or { warp 0..0.93, hole 0..0.42, dir: where the black hole is in the sky }) } */
     update(c, dt, s) {
       if (!c) return; if (!ctx) init(c); clock += dt;
-      setDim(s.dim);
+      setDim(s.dim); paramSound();
       if (cur && DIM[cur] && clock > nextEvt) { nextEvt = clock + rnd(...DIM[cur].every); try { DIM[cur].event(); } catch (e) { console.warn(e); } }
       if (s.space || sp) {
         if (!sp) sp = space();
@@ -148,7 +174,9 @@ export function createAmbience() {
       }
     },
     /** The ship has hit something. */
-    thud(pos) { if (!ctx) return; const dst = gain(1); dst.connect(out); const s = gain(0.6); dst.connect(s); s.connect(verbs.tunnel);
+    /** A fractal parameter is changing: which (0 or 1), how fast (-1..1, signed), and where it is in its range (0..1). Call each frame it moves, before update. */
+    param(which, v, x) { pin[which].v = v; pin[which].x = x; },
+    thud(pos, level = 1) { if (!ctx) return; const dst = gain(level); dst.connect(out); const s = gain(0.6); dst.connect(s); s.connect(verbs.tunnel);
       strike(dst, 62, [[1, 1, 0.5], [1.7, 0.6, 0.3], [2.9, 0.3, 0.2]], 0.7, 0.3); burst(dst, white, 'lowpass', 900, 200, 0.7, 0.5, 0.005, 0.25); setTimeout(() => { try { dst.disconnect(); s.disconnect(); } catch (_) { /* gone */ } }, 2500); },
     dims: Object.keys(DIM),
   };

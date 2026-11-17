@@ -17,11 +17,11 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=38';
-import { createStory } from './story.js?v=38';
-import { createHand } from './hands.js?v=38';
-import { buildShip } from './ship.js?v=38';
-import { createAmbience } from './ambience.js?v=38';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=39';
+import { createStory } from './story.js?v=39';
+import { createHand } from './hands.js?v=39';
+import { buildShip } from './ship.js?v=39';
+import { createAmbience } from './ambience.js?v=39';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -868,9 +868,8 @@ function fractalControls(dt) {
     worlds.fractMove(S.cur, head, f.multiplyScalar(fwd).addScaledVector(r, side).multiplyScalar(0.15 * Math.pow(1.65, FC.gear - 1)), dt);      // along your gaze (look down to dive); speed 1 is a crawl, 9 is about 8 m/s
   }
   if (scale !== 1) worlds.fractScale(S.cur, head, scale);
-  if (par) worlds.fractParam(S.cur, 0, par, dt);
-  if (par2) worlds.fractParam(S.cur, 1, par2, dt);
-  worlds.setFractalCalm(FC.still > 1.5 && !fwd && !side && !par && !par2 && scale === 1);      // standing still, hands off: the fractal may sharpen
+  const moving = easeParams(dt, par, par2);
+  worlds.setFractalCalm(FC.still > 1.5 && !fwd && !side && !moving && scale === 1);      // standing still, hands off: the fractal may sharpen
   gearPanel(dt);
   controllerTips(dt, li, ri);
 }
@@ -880,12 +879,12 @@ function fractalControls(dt) {
  * easy on the stomach, and you can walk round the ship and watch it from any side. Y / X, B / A, both grips and the colour flick work as without the ship;
  * the fractal grows and shrinks about the ship. Or steer it by hand: hold the right grip and turn your wrist. ---- */
 const shipModel = buildShip(), ship = new THREE.Group(); shipModel.scale.setScalar(0.045); ship.add(shipModel); ship.visible = false; scene.add(ship);      // 19 m of ship as an 86 cm model
-const SH = { q: new THREE.Quaternion(), roll: 0, home: false, held: false, h0: new THREE.Quaternion(), s0: new THREE.Quaternion() };
+const SH = { q: new THREE.Quaternion(), roll: 0, away: 0, idle: 9, turnTo: null, touch: false, touchT: 0, held: false, h0: new THREE.Quaternion(), s0: new THREE.Quaternion() };
 const _yq = new THREE.Quaternion(), _pq = new THREE.Quaternion(), YAX = new V(0, 1, 0), XAX = new V(1, 0, 0);
 function shipControls(dt, L, R, li, ri) {
   const space = !!DIMS[S.cur].space, gaze = new V(0, 0, -1).applyQuaternion(headQ); gaze.y = 0; if (gaze.lengthSq() < 0.01) gaze.set(0, 0, -1); gaze.normalize();
   const spot = new V().copy(head).addScaledVector(gaze, 1.4); spot.y = Math.max(0.7, head.y - 0.4);
-  if (!FC.shipOn) { FC.shipOn = true; ship.position.copy(spot); SH.q.setFromAxisAngle(YAX, Math.atan2(-gaze.x, -gaze.z)); SH.roll = 0; SH.home = false; SH.held = false; FC.gear = 0; FC.gearT = 2.5; }
+  if (!FC.shipOn) { FC.shipOn = true; ship.position.copy(spot); SH.q.setFromAxisAngle(YAX, Math.atan2(-gaze.x, -gaze.z)); SH.roll = 0; SH.away = 0; SH.idle = 9; SH.turnTo = null; SH.held = false; FC.gear = 0; FC.gearT = 2.5; }
   let yawIn = 0, pitchIn = 0, thr = 0, par = 0, par2 = 0, scale = 1, hk = 0, hold = false, hq = headQ;
   if (S.mode === 'xr') {
     if (R && R.axes.length >= 4) { yawIn = dead(R.axes[2]); pitchIn = dead(R.axes[3]); }
@@ -919,10 +918,28 @@ function shipControls(dt, L, R, li, ri) {
   }
   SH.wall = space ? Infinity : worlds.fractDist(S.cur, ship.position);
   if (space) { if (par2) { const b = worlds.spaceWarpNow(); if (b < 0.003 && par2 > 0) SPN.axis.copy(nose); worlds.spaceWarp(SPN.axis, clamp(b + par2 * dt * 0.3, 0, 0.93)); } if (par) worlds.spaceHole(clamp(worlds.spaceHoleNow() + par * dt * 0.09, 0, 0.42)); }
-  else { if (scale !== 1) worlds.fractScale(S.cur, ship.position, scale); if (par) worlds.fractParam(S.cur, 0, par, dt); if (par2) worlds.fractParam(S.cur, 1, par2, dt); }
-  /* walk away from the ship and it comes after you, to hang in front of you again */
-  if (Math.hypot(head.x - ship.position.x, head.z - ship.position.z) > 2.6) SH.home = true;
-  if (SH.home) { ship.position.lerp(spot, Math.min(1, dt * 1.6)); if (ship.position.distanceTo(spot) < 0.08) SH.home = false; }
+  else { if (scale !== 1) worlds.fractScale(S.cur, ship.position, scale); par = easeParams(dt, par, par2) ? 1 : 0; par2 = 0; }
+  /* Where the ship hangs. It keeps ahead of you in the direction it is flying, so that you see it from behind: turn it, and it swings round you to its new
+   * place, and you turn with it. And the other way about: turn round yourself, leave the controls alone, and after a moment the ship comes round in front of
+   * you and points where you are facing. Its place in the room is only where you watch it from; it stays where it is in the dimension (the dimension slides
+   * with it), so it cannot be carried through a wall this way. */
+  const noseH = new V(nose.x, 0, nose.z); if (noseH.lengthSq() < 0.02) noseH.copy(gaze); noseH.normalize();
+  const want = new V().copy(head).addScaledVector(noseH, 1.4); want.y = Math.max(0.7, head.y - 0.4);
+  shipShift(new V().subVectors(want, ship.position).multiplyScalar(Math.min(1, dt * 1.3)), space);
+  SH.idle = yawIn || pitchIn || hold ? 0 : SH.idle + dt;
+  const to = new V(ship.position.x - head.x, 0, ship.position.z - head.z).normalize();
+  SH.away = to.dot(gaze) < -0.3 && SH.idle > 3 ? SH.away + dt : 0;        // the ship is behind you, and you are not steering
+  if (SH.away > 2) { SH.turnTo = new THREE.Quaternion().setFromAxisAngle(YAX, Math.atan2(-gaze.x, -gaze.z)); SH.away = 0; }
+  if (SH.turnTo) { if (SH.idle < 0.2 && SH.away === 0 && (yawIn || pitchIn || hold)) SH.turnTo = null; else { SH.q.slerp(SH.turnTo, Math.min(1, dt * 2.2)); if (SH.q.angleTo(SH.turnTo) < 0.03) SH.turnTo = null; } }
+  /* A hand against the hull pushes it: the ship gives way, turns a little if you catch it near the nose or the tail, and drifts back to its place. */
+  for (let h = 0; h < 2; h++) {
+    if (!hands[h].on) continue;
+    const t = clamp(new V().subVectors(hands[h].pos, ship.position).dot(nose), -0.4, 0.42), c = new V().copy(ship.position).addScaledVector(nose, t), dv = new V().subVectors(c, hands[h].pos), d = dv.length();
+    if (d < 0.2 && d > 1e-4) { dv.multiplyScalar(1 / d); const pen = 0.2 - d; shipShift(dv.clone().multiplyScalar(pen), space);
+      SH.q.premultiply(_yq.setFromAxisAngle(YAX, clamp((t / 0.4) * (nose.z * dv.x - nose.x * dv.z) * pen * 4, -0.2, 0.2))).normalize(); SH.idle = 0;
+      if (!SH.touch) { SH.touch = true; AMB.thud(ship.position, 0.25); } try { ctrl[h].src?.gamepad?.hapticActuators?.[0]?.pulse?.(clamp(0.2 + pen * 6, 0, 1), 30); } catch (_) { /* none */ } SH.touchT = 0.25; }
+  }
+  if (SH.touchT > 0) SH.touchT -= dt; else SH.touch = false;
   shipModel.userData.thrust(lvl < 1 ? 0 : FC.gear / 9, S.time);
   ship.visible = true;
   worlds.setFractalCalm(!space && v === 0 && !yawIn && !pitchIn && !hold && !par && !par2 && scale === 1 && FC.still > 1.5);
@@ -939,6 +956,8 @@ function flyAim(ri) {
 /** How much room the ship has: the least distance from its nose, middle, tail, mast and aerial to the fractal, less the ship's own thickness there
  *  (metres; negative means it is in a wall), once it has gone `ahead` metres along its nose. */
 const _sc = new V(), _su = new V();
+/** Move the ship in the room without moving it in the dimension: the dimension is slid along with it. */
+function shipShift(d, space) { const l = d.length(); if (l < 1e-5) return; ship.position.add(d); const u = d.clone().multiplyScalar(1 / l); if (space) worlds.spaceMove(u, -l); else worlds.fractMove(S.cur, ship.position, u, -l); }
 function shipClear(nose, ahead) {
   _su.set(0, 1, 0).applyQuaternion(SH.q); let m = Infinity;
   for (const [f, u, r] of [[0.4, -0.06, 0.07], [0.2, 0, 0.14], [0, 0, 0.15], [-0.25, 0, 0.1], [-0.4, 0.12, 0.1], [0.07, 0.32, 0.03], [0.1, -0.28, 0.02]]) {
@@ -946,6 +965,20 @@ function shipClear(nose, ahead) {
   return m;
 }
 const AMB = createAmbience(), HOLE_DIR = new V(-0.2425, 0.1455, -0.9592);      // where the black hole is in the sky (the same direction as in the sky shader)
+/* Changing a fractal's shape with Y / X and B / A. Not a switch: the change gathers speed when you press, coasts to a stop when you let go, and slows by
+ * itself as it nears either end of the parameter's range. Each of the four (two parameters, two directions) has a sound of its own (ambience.js). */
+const PV = [0, 0];
+function easeParams(dt, par, par2) {
+  const fr = worlds.fractState(S.cur); let any = false;
+  [par, par2].forEach((tgt, w) => {
+    PV[w] += (tgt - PV[w]) * Math.min(1, dt * (tgt ? 3.0 : 2.0)); if (Math.abs(PV[w]) < 0.004 && !tgt) PV[w] = 0;
+    const [, lo, hi] = w ? fr.f.par2 : fr.f.par, x = ((w ? fr.param2 : fr.param) - lo) / (hi - lo), room = PV[w] > 0 ? 1 - x : x, k = clamp(room / 0.16, 0, 1);
+    const v = PV[w] * (0.06 + 0.94 * k * k * (3 - 2 * k));              // the last sixth of the range is taken slowly
+    if (v) { worlds.fractParam(S.cur, w, v * 1.5, dt); any = true; }
+    AMB.param(w, v, x);
+  });
+  return any;
+}
 function gearPanel(dt) {
   /* the speed, 1 to 9, shown in front of you while you change it */
   if (FC.gearT > 0) {
