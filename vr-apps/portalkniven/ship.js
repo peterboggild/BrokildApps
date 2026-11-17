@@ -159,7 +159,7 @@ export function buildShip() {
 
   /* ---- assemble: the painted ship, and its drawn outline (the same shapes a little larger, black, seen from inside) ---- */
   const ship = new THREE.Group();
-  const body = new THREE.Mesh(mergeGeometries(paint, false), new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0, roughness: 0.9, envMapIntensity: 0.3 })); body.renderOrder = 46; ship.add(body);
+  const body = new THREE.Mesh(mergeGeometries(paint, false), new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0, roughness: 0.9, envMapIntensity: 0, toneMapped: false /* the film curve would turn this pale blue to turquoise */ })); body.renderOrder = 46; ship.add(body);
   const og = mergeGeometries(lines.map(g => { const c = g.clone(), p = c.attributes.position, n = c.attributes.normal; for (let i = 0; i < p.count; i++) p.setXYZ(i, p.getX(i) + n.getX(i) * 0.07, p.getY(i) + n.getY(i) * 0.07, p.getZ(i) + n.getZ(i) * 0.07); c.deleteAttribute('color'); return c; }), false);
   const outline = new THREE.Mesh(og, new THREE.MeshBasicMaterial({ color: 0x0b1420, side: THREE.BackSide })); outline.renderOrder = 46; ship.add(outline);
   /* the band's sigil, on the flank pods and on both sides of the tail fin */
@@ -167,10 +167,29 @@ export function buildShip() {
   const sigil = new THREE.MeshBasicMaterial({ color: col(226, 242, 252), alphaMap: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const mark = (x, y, z, w, h, side) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), sigil); m.position.copy(T(x, y, z)); m.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2; m.renderOrder = 47; ship.add(m); };
   for (const s of [-1, 1]) { mark(0.1, s * 4.515, -0.2, 0.92, 1.4, s); mark(8.2, s * 0.325, 2.75, 0.95, 1.45, s); }
-  /* the drive's glow behind the tail, to show how hard it is pushing */
+  /* ---- the drive: a plume of plasma out of every engine, longer and brighter the harder it pushes; white-blue where it leaves the engine, cooling through
+   * violet to orange, with the standing shock pattern of a fast jet running down it ---- */
+  const plumeMat = new THREE.ShaderMaterial({
+    uniforms: { uT: { value: 0 }, uPow: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    vertexShader: 'varying float vL; varying vec3 vN; varying vec3 vV; void main() { vL = uv.y; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: `precision highp float; varying float vL; varying vec3 vN; varying vec3 vV; uniform float uT, uPow;
+      void main() { float t = 1.0 - vL, body = pow(abs(dot(normalize(vN), vV)), 1.6);                      // t: 0 at the engine, 1 at the tip; thickest seen through its middle
+        float shock = 0.72 + 0.28 * sin(t * 26.0 - uT * 38.0) * (1.0 - t), flick = 0.86 + 0.14 * sin(uT * 61.0 + t * 9.0);
+        vec3 c = mix(mix(vec3(0.75, 0.9, 1.0), vec3(0.55, 0.4, 1.0), smoothstep(0.0, 0.45, t)), vec3(1.0, 0.5, 0.2), smoothstep(0.4, 1.0, t));
+        gl_FragColor = vec4(c * body * pow(1.0 - t, 1.3) * shock * flick * (0.35 + 1.5 * uPow), 1.0); }` });
+  const plumeG = new THREE.CylinderGeometry(0.12, 1, 1, 18, 10, true); plumeG.rotateX(Math.PI / 2); plumeG.translate(0, 0, 0.5);      // wide at the engine (z = 0), narrow at the tip (z = 1)
+  const plumes = [];
+  for (const [x, y, z, r] of [[9.56, 0, 0.1, 0.5], [9.68, 0, 5.15, 0.62], [9.68, 2.75, -0.15, 0.5], [9.68, -2.75, -0.15, 0.5], [3.68, 3.2, -1.05, 0.34], [3.68, -3.2, -1.05, 0.34]]) {
+    const m = new THREE.Mesh(plumeG, plumeMat); m.position.copy(T(x, y, z)); m.userData.r = r; m.renderOrder = 48; m.visible = false; ship.add(m); plumes.push(m); }
   const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x2 = cv.getContext('2d'), gr = x2.createRadialGradient(32, 32, 0, 32, 32, 32);
-  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,200,140,.6)'); gr.addColorStop(1, 'rgba(255,140,60,0)'); x2.fillStyle = gr; x2.fillRect(0, 0, 64, 64);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(170,190,255,.55)'); gr.addColorStop(1, 'rgba(120,90,255,0)'); x2.fillStyle = gr; x2.fillRect(0, 0, 64, 64);
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 }));
-  glow.position.set(0, 0, 10.1); glow.scale.setScalar(3); glow.renderOrder = 48; ship.add(glow); ship.userData.glow = glow;
+  glow.position.set(0, 1.2, 10.3); glow.renderOrder = 48; ship.add(glow);
+  /** power 0..1 (the throttle), time in seconds */
+  ship.userData.thrust = (power, time) => {
+    plumeMat.uniforms.uT.value = time; plumeMat.uniforms.uPow.value = power;
+    for (const m of plumes) { m.visible = power > 0.01; const r = m.userData.r; m.scale.set(r * (0.8 + 0.25 * power), r * (0.8 + 0.25 * power), r * (1.2 + 9 * power * power + 2.5 * power)); }
+    glow.material.opacity = Math.min(0.55, power * 0.8) * (0.75 + 0.25 * Math.sin(time * 47)); glow.scale.setScalar(2.5 + 5 * power);
+  };
   return ship;
 }

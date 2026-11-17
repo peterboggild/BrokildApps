@@ -285,8 +285,12 @@ og i verdensrummet; man styrer et rumskib, der hænger i stuen foran én (set ud
   underlæbe stikker frem; højt tårn midtskibs, der vokser ud af skroget og ender i en kuppel og en mast; lang antenne nedad; lodret halefinne med en
   motorgondol på toppen; en gondol på en stubvinge på hver side af halen; en stor og en lille gondol på hver flanke; to skråtstillede finner under halen;
   maskinfyldte nicher langs flankerne; og bandets segl på flankegondolerne og halefinnen. Lyseblå plader i tre nuancer, orange gitre og tegnede konturer
-  (samme form en anelse større, sort, set indefra). Alt malet er ét net med farver pr. hjørne, plus ét net til konturerne. En første udgave fulgte
+  (samme form en anelse større, sort, set indefra). Alt malet er ét net med farver pr. hjørne, plus ét net til konturerne. Ejeren har også sendt to startpakker (samme Blender-script igen, og en grov three.js-skitse); de er vurderet og ikke brugt, fordi denne model ligger tættere på tegningerne. En første udgave fulgte
   `models/spaceship_model.py` (et Blender-script, gemt som reference); det ramte ikke tegningerne og er erstattet. Skibet vises som en model på ca. 86 cm.
+* **Plasma:** ud af hver motor (halen, gondolen på finnen, de to ved halen og de to små på flankerne) står en stråle, der bliver længere og lysere med
+  gashåndtaget: hvidblå ved motoren, over violet til orange i spidsen, med det stående stødmønster fra en hurtig stråle.
+* **Styring med hånden:** hold højre greb inde, og skibet drejer, som hånden drejer, som om man holdt det (slip, drej håndleddet tilbage, og tag fat igen
+  for at dreje videre). Det er den mest naturlige måde at styre en model på i VR og kræver ikke, at man kigger et bestemt sted hen. Sticken virker stadig.
 * **Styring:** højre stick styrer skibet (venstre/højre drejer, frem tipper næsen ned, tilbage løfter den; det krænger i svingene). Venstre stick op/ned er
   gashåndtaget: 0 er stop, 1 til 9 som farten ellers. Skibet flyver, hvor næsen peger. Y/X, B/A, begge greb (skala, om skibet) og farveskift virker som uden skib.
 * **Kun skibet drejer.** Dimensionen glider forbi, men roterer aldrig, så det er skånsomt for maven, og man kan gå rundt om skibet og se det fra alle sider.
