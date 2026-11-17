@@ -15,6 +15,8 @@
  *
  * The ship: a faint hum whenever it is there, and the exhaust: a roar of noise that opens up and gets louder with the throttle, over a low rumble. Both
  * come from where the ship is. The exhaust is also heard a second time, off the nearest wall of the fractal: later and fainter the further the wall is.
+ *
+ * Deep space: see space() below. All of this runs on the audio thread and costs the picture nothing.
  */
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[(Math.random() * a.length) | 0];
@@ -103,12 +105,36 @@ export function createAmbience() {
     return { pan, hum, ex, lp, rumG, cg, dl, eg };
   }
 
+  /* ---- deep space: what the warp and the black hole sound like ----
+   * The warp: a rush of air that climbs in pitch and a tone that rises four octaves as you near the speed of light, beating faster and faster.
+   * The black hole: a sub-bass you feel more than hear, two tones a couple of hertz apart, coming from where the hole is in the sky, heavier as it grows. */
+  let sp = null;
+  function space() {
+    const wg = gain(0), n = noise(white), bp = filt('bandpass', 500, 1.4); n.connect(bp); bp.connect(wg); wg.connect(out);
+    const tg = gain(0), o1 = osc('sawtooth', 70), o2 = osc('sine', 105), tl = filt('lowpass', 900, 0.7), trem = gain(1); o1.connect(tl); o2.connect(tl); tl.connect(trem); trem.connect(tg); tg.connect(out);
+    const tr = osc('sine', 2), trd = gain(0); tr.connect(trd); trd.connect(trem.gain);
+    const pan = ctx.createPanner(); pan.panningModel = 'HRTF'; pan.distanceModel = 'linear'; pan.refDistance = 1000; pan.connect(out);
+    const hg = gain(0); hg.connect(pan); const ha = osc('sine', 31), hb = osc('sine', 33.3), hn = noise(brown, 0.5), hl = filt('lowpass', 70, 0.8); ha.connect(hg); hb.connect(hg); hn.connect(hl); hl.connect(hg);
+    return { wg, bp, tg, o1, o2, tl, tr, trd, pan, hg };
+  }
+
   return {
-    /** Call every frame. s: { dim (the fractal's key, or null), ship (is it out?), power (0..1), pos (the ship, a Vector3), wall (metres to the nearest wall, or Infinity) } */
+    /** Call every frame. s: { dim (the fractal's key, or null), ship (is it out?), power (0..1), pos (the ship, a Vector3), wall (metres to the nearest wall, or Infinity),
+     *  space (null, or { warp 0..0.93, hole 0..0.42, dir: where the black hole is in the sky }) } */
     update(c, dt, s) {
       if (!c) return; if (!ctx) init(c); clock += dt;
       setDim(s.dim);
       if (cur && DIM[cur] && clock > nextEvt) { nextEvt = clock + rnd(...DIM[cur].every); try { DIM[cur].event(); } catch (e) { console.warn(e); } }
+      if (s.space || sp) {
+        if (!sp) sp = space();
+        const t = ctx.currentTime, b = s.space ? s.space.warp / 0.93 : 0, h = s.space ? s.space.hole / 0.42 : 0;
+        sp.wg.gain.setTargetAtTime(0.3 * b * b + (b > 0 ? 0.02 : 0), t, 0.25); sp.bp.frequency.setTargetAtTime(400 + 5600 * b * b, t, 0.25);
+        sp.tg.gain.setTargetAtTime(0.07 * Math.sqrt(b), t, 0.25); sp.o1.frequency.setTargetAtTime(70 * Math.pow(2, 4 * b), t, 0.3); sp.o2.frequency.setTargetAtTime(105 * Math.pow(2, 4 * b), t, 0.3);
+        sp.tl.frequency.setTargetAtTime(600 + 5000 * b, t, 0.3); sp.tr.frequency.setTargetAtTime(1.5 + 16 * b, t, 0.3); sp.trd.gain.setTargetAtTime(0.45 * b, t, 0.3);
+        sp.hg.gain.setTargetAtTime(0.55 * h, t, 0.4);
+        if (s.space && s.space.dir) { const L = ctx.listener, P = sp.pan, x = (L.positionX ? L.positionX.value : 0) + s.space.dir.x * 30, y = (L.positionY ? L.positionY.value : 1.6) + s.space.dir.y * 30, z = (L.positionZ ? L.positionZ.value : 0) + s.space.dir.z * 30;
+          if (P.positionX) { P.positionX.setTargetAtTime(x, t, 0.1); P.positionY.setTargetAtTime(y, t, 0.1); P.positionZ.setTargetAtTime(z, t, 0.1); } else P.setPosition(x, y, z); }
+      }
       if (s.ship || eng) {
         if (!eng) eng = engine();
         const t = ctx.currentTime, p = s.ship ? s.power : 0, P = eng.pan;

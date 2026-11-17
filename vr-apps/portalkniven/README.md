@@ -321,6 +321,9 @@ Intet er optaget; alt bygges i Web Audio.
 * **Skibet:** en svag brummen, når det er fremme, og udstødningen: en brusen, der åbner sig og bliver kraftigere med gashåndtaget, over en dyb rumlen.
   Begge kommer fra dér, hvor skibet er. Udstødningen høres desuden én gang til, kastet tilbage fra fraktalens nærmeste væg: senere og svagere, jo længere
   væk væggen er (tiden er regnet, som om skibet var 19 m langt).
+* **Verdensrummet:** warp (B/A) høres: en susen, der stiger i tonehøjde, og en tone, der stiger fire oktaver mod lysets hastighed og slår hurtigere og
+  hurtigere; rummets egen drone stiger med. Det sorte hul (Y/X) er en dyb bas med to toner et par hertz fra hinanden, som kommer fra dér, hvor hullet er på
+  himlen, tungere jo større det er. Lyd regnes på lydtråden og koster ikke billedhastighed.
 
 ## Gemte idéer (ikke bygget)
 

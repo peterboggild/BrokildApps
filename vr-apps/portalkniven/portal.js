@@ -17,11 +17,11 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=37';
-import { createStory } from './story.js?v=37';
-import { createHand } from './hands.js?v=37';
-import { buildShip } from './ship.js?v=37';
-import { createAmbience } from './ambience.js?v=37';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=38';
+import { createStory } from './story.js?v=38';
+import { createHand } from './hands.js?v=38';
+import { buildShip } from './ship.js?v=38';
+import { createAmbience } from './ambience.js?v=38';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -600,7 +600,7 @@ function updateSpaceAmb() {
   const ctx = AU.ctx; if (!ctx) return;
   if (!AU.space) {
     const g = ctx.createGain(); g.gain.value = 0; g.connect(ctx.destination);
-    for (const [fq, a] of [[54, 0.5], [54.4, 0.5], [81.3, 0.28], [162.9, 0.08]]) { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = fq; const og = ctx.createGain(); og.gain.value = a; o.connect(og); og.connect(g); o.start(); }
+    for (const [fq, a] of [[54, 0.5], [54.4, 0.5], [81.3, 0.28], [162.9, 0.08]]) { const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = fq; const og = ctx.createGain(); og.gain.value = a; o.connect(og); og.connect(g); o.start(); (AU.spaceOscs = AU.spaceOscs || []).push(o); }
     const n = ctx.createBufferSource(); n.buffer = noiseBuffer(ctx, 3); n.loop = true; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; const ng = ctx.createGain(); ng.gain.value = 0.35; n.connect(lp); lp.connect(ng); ng.connect(g); n.start();
     AU.space = g;
   }
@@ -945,7 +945,7 @@ function shipClear(nose, ahead) {
     _sc.copy(ship.position).addScaledVector(nose, f + ahead).addScaledVector(_su, u); m = Math.min(m, worlds.fractDist(S.cur, _sc) - r); }
   return m;
 }
-const AMB = createAmbience();
+const AMB = createAmbience(), HOLE_DIR = new V(-0.2425, 0.1455, -0.9592);      // where the black hole is in the sky (the same direction as in the sky shader)
 function gearPanel(dt) {
   /* the speed, 1 to 9, shown in front of you while you change it */
   if (FC.gearT > 0) {
@@ -1040,7 +1040,9 @@ function loop(_, frame) {
     fractalControls(dt); updateHandModels(dt);
     updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateSpaceAmb();
     { const fr = DIMS[S.cur].fract && !DIMS[S.cur].four, on = !!FC.shipOn;
-      AMB.update(AU.ctx, dt, { dim: fr ? DIMS[S.cur].key : null, ship: on, power: on && FC.gear >= 0.5 ? FC.gear / 9 : 0, pos: ship.position, wall: on ? SH.wall : Infinity }); } updateProximity(); drawHud();
+      AMB.update(AU.ctx, dt, { dim: fr ? DIMS[S.cur].key : null, ship: on, power: on && FC.gear >= 0.5 ? FC.gear / 9 : 0, pos: ship.position, wall: on ? SH.wall : Infinity,
+        space: DIMS[S.cur].space ? { warp: worlds.spaceWarpNow(), hole: worlds.spaceHoleNow(), dir: HOLE_DIR } : null });
+      if (AU.spaceOscs) for (const o of AU.spaceOscs) o.detune.setTargetAtTime(DIMS[S.cur].space ? worlds.spaceWarpNow() * 1500 : 0, AU.ctx.currentTime, 0.3); }      // the drone of space itself climbs with the warp updateProximity(); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
     story.update(dt);
     worlds.update(dt, S.time, S.bright, S.cur, S.oth, S.safe && S.cur !== 0 ? [head, hands[0].on ? hands[0].pos : head, hands[1].on ? hands[1].pos : head] : null, hands);
