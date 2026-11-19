@@ -17,12 +17,12 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=40';
-import { createStory } from './story.js?v=40';
-import { createHand } from './hands.js?v=40';
-import { buildShip } from './ship.js?v=40';
-import { createAmbience } from './ambience.js?v=40';
-import { createCombat } from './combat.js?v=40';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=41';
+import { createStory } from './story.js?v=41';
+import { createHand } from './hands.js?v=41';
+import { buildShip } from './ship.js?v=41';
+import { createAmbience } from './ambience.js?v=41';
+import { createCombat } from './combat.js?v=41';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -506,7 +506,7 @@ function checkCrossing() {
   if ((d0 < 0) !== (d1 < 0)) {
     const t = d0 / (d0 - d1), p = prevHead.clone().lerp(head, t).sub(portal.c);
     const lx = p.dot(portal.x) / portal.Rx, ly = p.dot(portal.y) / portal.Ry;
-    if (lx * lx + ly * ly < 0.95) { cancelVortex(); const c = S.cur; S.cur = S.oth; S.oth = c; S.crossings++; portal.fresh = true; applyRoles(); whoosh(); haptic(0.6, 120); say('Du er i ' + DIMS[S.cur].name); story.onEnter(S.cur); }
+    if (lx * lx + ly * ly < 0.95) { cancelVortex(); const c = S.cur; S.cur = S.oth; S.oth = c; S.crossings++; portal.fresh = true; if (DIMS[S.cur].fract) FC.hue = FC.hueTo = 0; /* a fractal always opens in its own colours */ applyRoles(); whoosh(); haptic(0.6, 120); say('Du er i ' + DIMS[S.cur].name); story.onEnter(S.cur); }
   }
   prevHead.copy(head);
 }
@@ -853,7 +853,7 @@ function fractalControls(dt) {
   if (S.mode === 'xr') {
     if (R && R.axes.length >= 4) { fwd = -dead(R.axes[3]); side = dead(R.axes[2]); }                        // right stick: fly where you look, and slide sideways
     if (L && L.axes.length >= 4) { gear = -dead(L.axes[3]); const lx = L.axes[2]; if (Math.abs(lx) > 0.5) gear = 0;      // left stick: faster / slower ...
-      if (Math.abs(lx) > 0.92 && !FC.hueHeld) { FC.hueHeld = true; FC.hueTo = (FC.hueTo || 0) + Math.sign(lx); } else if (Math.abs(lx) < 0.5) FC.hueHeld = false; }      // ... and all the way to a side: the next colour scheme
+      if (Math.abs(lx) > 0.92 && Math.abs(L.axes[3]) < 0.45 && !FC.hueHeld) { FC.hueHeld = true; FC.hueTo = (FC.hueTo || 0) + Math.sign(lx); } else if (Math.abs(lx) < 0.5) FC.hueHeld = false; }      // ... and all the way to a side: the next colour scheme
     par = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0); par2 = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0);      // Y / X and B / A: one shape parameter each
     if (btn(L, 1) && btn(R, 1)) { const d = hands[li].pos.distanceTo(hands[ri].pos); if (FC.gripD > 0.02 && d > 0.02) scale = Math.pow(FC.gripD / d, 2.5); FC.gripD = d; } else FC.gripD = 0;      // hands apart: the fractal grows (strongly)
   } else {
@@ -894,7 +894,7 @@ function shipControls(dt, L, R, li, ri) {
   let yawIn = 0, pitchIn = 0, thr = 0, par = 0, par2 = 0, scale = 1, hk = 0, hold = false, hq = headQ;
   if (S.mode === 'xr') {
     if (R && R.axes.length >= 4) { yawIn = dead(R.axes[2]); pitchIn = dead(R.axes[3]); }
-    if (L && L.axes.length >= 4) { thr = -dead(L.axes[3]); const lx = L.axes[2]; if (Math.abs(lx) > 0.5) thr = 0; hk = Math.abs(lx) > 0.92 ? Math.sign(lx) : Math.abs(lx) < 0.5 ? 0 : (FC.hueHeld ? 1 : 0); }
+    if (L && L.axes.length >= 4) { thr = -dead(L.axes[3]); const lx = L.axes[2]; if (Math.abs(lx) > 0.5) thr = 0; hk = Math.abs(lx) > 0.92 && Math.abs(L.axes[3]) < 0.45 ? Math.sign(lx) : Math.abs(lx) < 0.5 ? 0 : (FC.hueHeld ? 1 : 0); }
     par = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0); par2 = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0);
     hold = btn(R, 1) && !btn(L, 1); hq = hands[ri].q;
     if (!space && btn(L, 1) && btn(R, 1)) { const d = hands[li].pos.distanceTo(hands[ri].pos); if (FC.gripD > 0.02 && d > 0.02) scale = Math.pow(FC.gripD / d, 2.5); FC.gripD = d; } else FC.gripD = 0;
@@ -975,9 +975,10 @@ const boomSparks = makeSparks(500, scene);
 function glowSprite(stops) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); stops.forEach(([o, s]) => g.addColorStop(o, s)); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 })); sp.renderOrder = 49; sp.visible = false; scene.add(sp); return sp; }
 const BOOMS = [...Array(8)].map((_, k) => Object.assign(glowSprite(k % 2 ? [[0, 'rgba(255,255,255,1)'], [0.3, 'rgba(255,170,80,.7)'], [1, 'rgba(255,80,20,0)']] : [[0, 'rgba(255,255,255,1)'], [0.3, 'rgba(170,255,90,.7)'], [1, 'rgba(60,255,40,0)']]), { userData: { t: 9, d: 0.5, s: 0.3 } }));
-function boomAt(p, size, hot) { const b = BOOMS.filter((s, k) => (k % 2 === 1) === !!hot).sort((a, c) => c.userData.t - a.userData.t)[0]; b.position.copy(p); b.userData = { t: 0, d: 0.35 + 0.25 * size, s: size }; b.visible = true;
+function boomAt(p, size, hot) { boomLast = S.time; const b = BOOMS.filter((s, k) => (k % 2 === 1) === !!hot).sort((a, c) => c.userData.t - a.userData.t)[0]; b.position.copy(p); b.userData = { t: 0, d: 0.35 + 0.25 * size, s: size }; b.visible = true;
   for (let k = 0; k < 14 + 30 * Math.min(2, size); k++) { const sp = rnd(0.3, 1.3) * (0.4 + 0.6 * size); _v.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize(); boomSparks.emit(p.x, p.y, p.z, _v.x * sp, _v.y * sp, _v.z * sp, rnd(0.3, 0.8)); } }
-function updateBooms(dt) { boomSparks.step(dt, 0.15); for (const b of BOOMS) { if (!b.visible) continue; b.userData.t += dt; const u = b.userData.t / b.userData.d; if (u >= 1) { b.visible = false; continue; } b.material.opacity = (1 - u) * (1 - u); b.scale.setScalar((0.08 + 0.5 * b.userData.s) * (0.4 + 1.6 * Math.sqrt(u))); } }
+let boomLast = -99;
+function updateBooms(dt) { const live = S.time - boomLast < 1.2; boomSparks.points.visible = live; if (live) boomSparks.step(dt, 0.15); for (const b of BOOMS) { if (!b.visible) continue; b.userData.t += dt; const u = b.userData.t / b.userData.d; if (u >= 1) { b.visible = false; continue; } b.material.opacity = (1 - u) * (1 - u); b.scale.setScalar((0.08 + 0.5 * b.userData.s) * (0.4 + 1.6 * Math.sqrt(u))); } }
 const buzzAll = (v, ms) => { for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(v, ms); } catch (_) { /* none */ } } };
 const COMBAT = createCombat({ scene, worlds,
   onBlast: (p, size) => { boomAt(p, 0.6 + size * 4, false); AMB.boom(p, 0.6 + size * 6, 'blast'); shipDamage(Math.round(10 * clamp(size / 0.06, 0.5, 3)), p); },

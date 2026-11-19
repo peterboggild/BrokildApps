@@ -355,6 +355,13 @@ Et flueben på startsiden ("Kamp (test)", `?combat`); det slår rumskibet til. K
 * Kendt: i nogle fraktaler og retninger når væggene aldrig insekterne (f.eks. bliver gaderne i Mandelbox-byen bredere, når skalaen øges); man må finde den
   formændring, der lukker rummet.
 
+## Fraktalerne uden kamp ser ud som før
+Billedet af fraktalerne er det samme som i #67 (sammenlignet pixel for pixel i forhåndsvisningen); farveskemaerne er neutrale, indtil man skifter dem, og
+nulstilles, når man går ind i en fraktal. Men fraktalbilledets opløsning følger billedhastigheden, så alt, der koster tid hvert billede, gør fraktalerne
+uskarpe. Derfor: hver lyd i lydbillederne lever kun, så længe den lyder (før 14 s med sin egen 3D-panorering, så op mod 20 kørte samtidig), højst 6 ad
+gangen; rumklangene er kortere (en klangs længde er dens pris); kampens figurer og eksplosionernes gnister tegnes og opdateres kun, når de er i brug.
+Farveskiftet på venstre stick kræver et tydeligt skub til siden, så et skråt skub for at ændre farten ikke skifter farver.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option

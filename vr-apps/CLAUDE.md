@@ -110,6 +110,11 @@ dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
 - A positive-scale Mandelbox tiled into a grid is a noisy solid mass; the negative-scale one (-1.8) is the
   classic carved cube. Look at a candidate fractal from several places before adopting it (`k1.js`-style test:
   set `fractState(i).off` and take screenshots).
+- The fractal picture's resolution follows the frame rate (`FR.scale`), so anything that costs time every frame,
+  even audio, shows up as blurrier fractals. The owner noticed after hands, sound and combat were added. Web Audio
+  HRTF panners and long convolvers are not free on a Quest: free every placed sound when it ends, cap how many
+  play at once, keep reverbs short. Hide idle effects. Compare fractal pictures against an older commit
+  (`git worktree add` plus a second local server) before claiming nothing changed.
 - Soft shadows marched with few, clamped steps draw terraces on plain walls. Let the step be the distance itself.
 
 - A trailing `//` comment inserted mid-line once commented out the rest of the line (the letter never appeared). It

@@ -95,7 +95,7 @@ export function createCombat({ scene, worlds, onBlast, onCrush }) {
     /** st: null (no combat here), or { i: the fractal dimension, ship: room position, nose: room direction, head: room position, alive: can the ship be hit } */
     update(dt, st) {
       t += dt; sacMat.uniforms.uT.value = t;
-      if (!st) { carapace.count = glow.count = 0; halos.visible = false; if (dim >= 0) { bugs.length = 0; dim = -1; } return; }
+      if (!st) { carapace.count = glow.count = 0; carapace.visible = glow.visible = halos.visible = false; if (dim >= 0) { bugs.length = 0; dim = -1; } return; }
       if (st.i !== dim) { bugs.length = 0; dim = st.i; spawnT = 0; }
       const info = worlds.fracInfo(dim), S = info.S;
       worlds.toFrac(dim, st.ship, _sf); worlds.toFrac(dim, st.head, _hf);
@@ -139,7 +139,7 @@ export function createCombat({ scene, worlds, onBlast, onCrush }) {
         hp[c * 3] = b.room.x; hp[c * 3 + 1] = b.room.y; hp[c * 3 + 2] = b.room.z; hs[c] = rR * 6; ha[c] = 0.7 * b.vis * (1 - fog) * pulse;
         c++;
       }
-      carapace.count = glow.count = c; carapace.instanceMatrix.needsUpdate = glow.instanceMatrix.needsUpdate = true;
+      carapace.count = glow.count = c; carapace.visible = glow.visible = c > 0; carapace.instanceMatrix.needsUpdate = glow.instanceMatrix.needsUpdate = true;
       hg.setDrawRange(0, c); hg.attributes.position.needsUpdate = hg.attributes.aS.needsUpdate = hg.attributes.aA.needsUpdate = true; halos.visible = c > 0;
     },
     bugs,

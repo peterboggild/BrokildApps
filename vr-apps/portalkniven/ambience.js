@@ -33,7 +33,7 @@ export function createAmbience() {
     const ir = (secs, pow, damp) => { const len = (ctx.sampleRate * secs) | 0, buf = ctx.createBuffer(2, len, ctx.sampleRate);
       for (let ch = 0; ch < 2; ch++) { const d = buf.getChannelData(ch); let lp = 0; for (let i = 0; i < len; i++) { const t = i / len, k = damp * t; lp += ((Math.random() * 2 - 1) - lp) * (1 - Math.min(0.95, k)); d[i] = lp * Math.pow(1 - t, pow); } }
       const cv = ctx.createConvolver(); cv.buffer = buf; const g = ctx.createGain(); g.gain.value = 1; cv.connect(g); g.connect(out); return cv; };
-    verbs = { hall: ir(5.0, 2.4, 0.5), organ: ir(6.5, 2.0, 0.9), glass: ir(1.1, 3.0, 0.0), tunnel: ir(2.6, 1.8, 0.75), street: ir(1.6, 2.6, 0.85), temple: ir(8.0, 2.2, 0.7) };
+    verbs = { hall: ir(3.6, 2.4, 0.5), organ: ir(4.5, 2.0, 0.9), glass: ir(0.9, 3.0, 0.0), tunnel: ir(2.2, 1.8, 0.75), street: ir(1.4, 2.6, 0.85), temple: ir(5.5, 2.2, 0.7) };      // kept short: a convolver costs in proportion to its length
   }
   const noise = (buf, rate = 1) => { const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.playbackRate.value = rate; s.start(0, Math.random() * 2); made.push(s); return s; };
   const osc = (type, f) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; o.start(); made.push(o); return o; };
@@ -41,13 +41,14 @@ export function createAmbience() {
   const filt = (type, f, q = 1) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; };
   const lfo = (f, depth, target) => { const o = osc('sine', f), g = gain(depth); o.connect(g); g.connect(target); return o; };
   /** A place in space for a one-shot: returns the node to play into. dist in metres from the listener, in a random direction (mostly level). */
-  function place(dist, verb, send) {
+  let placed = 0;
+  function place(dist, verb, send, life = 3) {
     const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 2; p.rolloffFactor = 1;
     const a = rnd(0, Math.PI * 2), e = rnd(-0.35, 0.5), L = ctx.listener, lx = L.positionX ? L.positionX.value : 0, ly = L.positionY ? L.positionY.value : 1.6, lz = L.positionZ ? L.positionZ.value : 0;
     const x = lx + Math.cos(a) * Math.cos(e) * dist, y = ly + Math.sin(e) * dist, z = lz + Math.sin(a) * Math.cos(e) * dist;
     if (p.positionX) { p.positionX.value = x; p.positionY.value = y; p.positionZ.value = z; } else p.setPosition(x, y, z);
     const inp = gain(1), s = gain(send); inp.connect(p); p.connect(out); inp.connect(s); s.connect(verbs[verb]);      // the direct sound falls off with distance, the reverb does not
-    setTimeout(() => { try { inp.disconnect(); p.disconnect(); s.disconnect(); } catch (_) { /* gone */ } }, 14000);
+    placed++; setTimeout(() => { placed--; try { inp.disconnect(); p.disconnect(); s.disconnect(); } catch (_) { /* gone */ } }, life * 1000);
     return inp;
   }
   const env = (g, t, peak, attack, decay) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay); };
@@ -67,23 +68,23 @@ export function createAmbience() {
   /* each: build(dst) starts the bed into dst and returns its nodes (to stop later); every: seconds between events; event(): one event */
   const DIM = {
     apollo: { every: [1.8, 5.5], build(d) { const ns = []; for (const f of [528, 792.5, 1057]) { const o = osc('sine', f), g = gain(0.006); lfo(rnd(0.05, 0.13), 0.005, g.gain); o.connect(g); g.connect(d); g.connect(verbs.hall); ns.push(o); } return ns; },
-      event() { const f = pick([196, 220, 261.6, 293.7, 329.6, 392]) * pick([1, 1, 2]); strike(place(rnd(3, 28), 'hall', 0.5), f, [[1, 1, 7], [2.76, 0.45, 3.5], [5.4, 0.2, 1.6], [8.9, 0.08, 0.8]], 0.22); } },
+      event() { const f = pick([196, 220, 261.6, 293.7, 329.6, 392]) * pick([1, 1, 2]); strike(place(rnd(3, 28), 'hall', 0.5, 7.5), f, [[1, 1, 7], [2.76, 0.45, 3.5], [5.4, 0.2, 1.6], [8.9, 0.08, 0.8]], 0.22); } },
     klein: { every: [9, 17], build(d) { const ns = [], lp = filt('lowpass', 420, 0.7); lfo(0.07, 180, lp.frequency); const g = gain(0.05); lp.connect(g); g.connect(d); const s = gain(0.6); g.connect(s); s.connect(verbs.organ);
         for (const [f, a] of [[55, 1], [55.4, 0.8], [82.5, 0.6], [110.3, 0.5], [165, 0.3], [220.6, 0.15]]) { const o = osc('sawtooth', f), og = gain(a * 0.5); o.connect(og); og.connect(lp); ns.push(o); }
         lfo(0.11, 0.02, g.gain); return ns; },
-      event() { burst(place(rnd(6, 25), 'organ', 0.7), white, 'bandpass', 260, 620, 3, 0.5, 1.6, 2.6); } },
+      event() { burst(place(rnd(6, 25), 'organ', 0.7, 2.6), white, 'bandpass', 260, 620, 3, 0.5, 1.6, 2.6); } },
     hyper: { every: [0.25, 1.1], build(d) { const ns = []; for (let k = 0; k < 6; k++) { const o = osc('sine', rnd(2200, 6400)), g = gain(0.003); lfo(rnd(0.2, 0.9), 0.003, g.gain); o.connect(g); g.connect(d); g.connect(verbs.glass); ns.push(o); } return ns; },
-      event() { strike(place(rnd(0.8, 11), 'glass', 0.35), rnd(2800, 7200), [[1, 1, 0.09], [1.5, 0.4, 0.05]], 0.16); } },
+      event() { strike(place(rnd(0.8, 11), 'glass', 0.35, 0.4), rnd(2800, 7200), [[1, 1, 0.09], [1.5, 0.4, 0.05]], 0.16); } },
     menger: { every: [5, 12], build(d) { const ns = [], n = noise(white), bp = filt('bandpass', 560, 3.5), g = gain(0.16); lfo(0.09, 260, bp.frequency); lfo(0.23, 0.07, g.gain); n.connect(bp); bp.connect(g); g.connect(d); const s = gain(0.5); g.connect(s); s.connect(verbs.tunnel);
         const n2 = noise(white, 0.7), wh = filt('bandpass', 1480, 22), g2 = gain(0.035); lfo(0.05, 300, wh.frequency); lfo(0.17, 0.03, g2.gain); n2.connect(wh); wh.connect(g2); g2.connect(d); ns.push(n, n2); return ns; },
-      event() { const dst = place(rnd(10, 40), 'tunnel', 0.8), dl = ctx.createDelay(1.5), fb = gain(0.5), tap = gain(1); dl.delayTime.value = rnd(0.28, 0.5); tap.connect(dst); tap.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(dst);      // it falls, and the tunnels repeat it
+      event() { const dst = place(rnd(10, 40), 'tunnel', 0.8, 5), dl = ctx.createDelay(1.5), fb = gain(0.5), tap = gain(1); dl.delayTime.value = rnd(0.28, 0.5); tap.connect(dst); tap.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(dst);      // it falls, and the tunnels repeat it
         strike(tap, rnd(240, 380), [[1, 1, 0.5], [1.69, 0.7, 0.4], [2.62, 0.5, 0.3], [3.84, 0.3, 0.2]], 0.5); setTimeout(() => { try { fb.disconnect(); } catch (_) { /* gone */ } }, 6000); } },
     boks: { every: [6, 14], build(d) { const ns = [], n = noise(brown), lp = filt('lowpass', 95, 0.7), g = gain(0.5); lfo(0.06, 0.2, g.gain); n.connect(lp); lp.connect(g); g.connect(d);
         const n2 = noise(white, 1.3), hp = filt('highpass', 2400, 0.7), g2 = gain(0.012); lfo(0.13, 0.011, g2.gain); n2.connect(hp); hp.connect(g2); g2.connect(d); ns.push(n, n2); return ns; },
-      event() { const dst = place(rnd(8, 30), 'street', 0.45), dl = ctx.createDelay(1), sl = gain(0.55), tap = gain(1); dl.delayTime.value = rnd(0.16, 0.3); tap.connect(dst); tap.connect(dl); dl.connect(sl); sl.connect(dst);      // one slap back off the wall across the street
+      event() { const dst = place(rnd(8, 30), 'street', 0.45, 3), dl = ctx.createDelay(1), sl = gain(0.55), tap = gain(1); dl.delayTime.value = rnd(0.16, 0.3); tap.connect(dst); tap.connect(dl); dl.connect(sl); sl.connect(dst);      // one slap back off the wall across the street
         burst(tap, brown, 'bandpass', rnd(150, 230), rnd(90, 140), 2.5, 1.6, 0.3, rnd(1.0, 2.0), rnd(14, 22)); } },
     kali: { every: [8, 18], build(d) { const o = osc('sine', 41.2), g = gain(0.05); lfo(0.04, 0.03, g.gain); o.connect(g); g.connect(d); return [o]; },
-      event() { strike(place(rnd(6, 20), 'temple', 0.9), pick([73.4, 98, 110]), [[1, 1, 10], [1.52, 0.7, 8], [2.31, 0.5, 5], [3.07, 0.35, 3.5], [4.4, 0.2, 2], [6.3, 0.1, 1.2]], 0.3, 0.012); } },
+      event() { strike(place(rnd(6, 20), 'temple', 0.9, 10.5), pick([73.4, 98, 110]), [[1, 1, 10], [1.52, 0.7, 8], [2.31, 0.5, 5], [3.07, 0.35, 3.5], [4.4, 0.2, 2], [6.3, 0.1, 1.2]], 0.3, 0.012); } },
   };
 
   function setDim(key) {
@@ -150,7 +151,7 @@ export function createAmbience() {
     update(c, dt, s) {
       if (!c) return; if (!ctx) init(c); clock += dt;
       setDim(s.dim); paramSound();
-      if (cur && DIM[cur] && clock > nextEvt) { nextEvt = clock + rnd(...DIM[cur].every); try { DIM[cur].event(); } catch (e) { console.warn(e); } }
+      if (cur && DIM[cur] && clock > nextEvt && placed < 6) { nextEvt = clock + rnd(...DIM[cur].every); try { DIM[cur].event(); } catch (e) { console.warn(e); } }
       if (s.space || sp) {
         if (!sp) sp = space();
         const t = ctx.currentTime, b = s.space ? s.space.warp / 0.93 : 0, h = s.space ? s.space.hole / 0.42 : 0;
