@@ -337,6 +337,24 @@ Intet er optaget; alt bygges i Web Audio.
 * **Man kan skubbe til skibet:** en hånd mod skroget flytter det, drejer det lidt, hvis man rammer nær næse eller hale, og så glider det tilbage på plads.
   Et lille dunk i controlleren og et bump.
 
+## Kamp (test): rumvæsner i fraktalerne (`combat.js`)
+Et flueben på startsiden ("Kamp (test)", `?combat`); det slår rumskibet til. Kun i de seks fraktale dimensioner.
+
+* **Insekterne** lever i fraktalens egne koordinater, ikke i stuen: deres plads, størrelse og fart er i fraktalens enheder. Derfor skaleres de med fraktalen
+  (gør man den lille, bliver de små med den, og ingen knuses af det), og en formændring (Y/X, B/A) flytter væggene gennem fraktalens rum: en væg, der når
+  et insekt, knuser det (tælles på skiltet over skibet). Ca. 14 ad gangen, sat ud i det frie rum 3 til 8 m fra skibet (ved fraktalens startskala).
+* **De kravler langsomt mod skibet** (ca. 0,2 m/s ved startskala) og glider langs væggene i stedet for at gå ind i dem, men de flygter ikke fra en væg, der
+  kommer imod dem. Når et når skibet, eksploderer det, og skroget tager ca. 10 % skade.
+* **Skibet tager skade, når det støder ind i fraktalen:** 2 % ved krybefart, op til 60 % ved fuld fart. Ved 0 % sprænges skibet, og efter 3,5 s kommer et nyt
+  med fuldt skrog; insekterne tæt på det fjernes.
+* **Synlighed:** fraktalen er et billede, insekterne almindelige 3D-figurer tegnet ovenpå. Hvert insekt får derfor sin sigtelinje tjekket (nogle få pr. billede,
+  ved at marchere fra hovedet gennem fraktalen på processoren); er det bag en væg eller væk i tågen, tegnes det ikke.
+* **Ydelse:** tre tegnekald uanset antal; afstandsfunktionerne i JavaScript er skrevet om uden arrays (samme resultat, 19 gange hurtigere), da de nu kører
+  et par hundrede gange pr. billede.
+* Lyd: et tungt brag, når et insekt rammer skibet, et vådt knas, når en væg knuser et, og et stort brag, når skibet går tabt.
+* Kendt: i nogle fraktaler og retninger når væggene aldrig insekterne (f.eks. bliver gaderne i Mandelbox-byen bredere, når skalaen øges); man må finde den
+  formændring, der lukker rummet.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option

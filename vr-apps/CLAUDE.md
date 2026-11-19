@@ -56,7 +56,7 @@ run `node tools/sync-site.js` (it writes the social tags and `sitemap.xml`; CI r
 
 ## Portalkniven in brief
 
-Six files: `ambience.js` (the fractal dimensions' soundscapes and the ship's engine, all synthesised, spatial, with
+Seven files: `combat.js` (a test: alien bugs living in the fractal's own space, see the README), `ambience.js` (the fractal dimensions' soundscapes and the ship's engine, all synthesised, spatial, with
 reverb; headless Chromium needs `--autoplay-policy=no-user-gesture-required` to run any of it), `ship.js` (the optional third-person spaceship for the fractal dimensions and deep space, built in
 code from the owner's drawings of the ship, nine views; an earlier attempt ported his Blender script
 `models/spaceship_model.py`, which did not match the drawings: when he sends reference pictures, they are the
