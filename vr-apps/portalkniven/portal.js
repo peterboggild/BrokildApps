@@ -17,11 +17,12 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=39';
-import { createStory } from './story.js?v=39';
-import { createHand } from './hands.js?v=39';
-import { buildShip } from './ship.js?v=39';
-import { createAmbience } from './ambience.js?v=39';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=40';
+import { createStory } from './story.js?v=40';
+import { createHand } from './hands.js?v=40';
+import { buildShip } from './ship.js?v=40';
+import { createAmbience } from './ambience.js?v=40';
+import { createCombat } from './combat.js?v=40';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -879,12 +880,17 @@ function fractalControls(dt) {
  * easy on the stomach, and you can walk round the ship and watch it from any side. Y / X, B / A, both grips and the colour flick work as without the ship;
  * the fractal grows and shrinks about the ship. Or steer it by hand: hold the right grip and turn your wrist. ---- */
 const shipModel = buildShip(), ship = new THREE.Group(); shipModel.scale.setScalar(0.045); ship.add(shipModel); ship.visible = false; scene.add(ship);      // 19 m of ship as an 86 cm model
-const SH = { q: new THREE.Quaternion(), roll: 0, away: 0, idle: 9, turnTo: null, touch: false, touchT: 0, held: false, h0: new THREE.Quaternion(), s0: new THREE.Quaternion() };
+const SH = { hull: 100, kills: 0, dead: 0, redT: 0, q: new THREE.Quaternion(), roll: 0, away: 0, idle: 9, turnTo: null, touch: false, touchT: 0, held: false, h0: new THREE.Quaternion(), s0: new THREE.Quaternion() };
 const _yq = new THREE.Quaternion(), _pq = new THREE.Quaternion(), YAX = new V(0, 1, 0), XAX = new V(1, 0, 0);
 function shipControls(dt, L, R, li, ri) {
   const space = !!DIMS[S.cur].space, gaze = new V(0, 0, -1).applyQuaternion(headQ); gaze.y = 0; if (gaze.lengthSq() < 0.01) gaze.set(0, 0, -1); gaze.normalize();
   const spot = new V().copy(head).addScaledVector(gaze, 1.4); spot.y = Math.max(0.7, head.y - 0.4);
   if (!FC.shipOn) { FC.shipOn = true; ship.position.copy(spot); SH.q.setFromAxisAngle(YAX, Math.atan2(-gaze.x, -gaze.z)); SH.roll = 0; SH.away = 0; SH.idle = 9; SH.turnTo = null; SH.held = false; FC.gear = 0; FC.gearT = 2.5; }
+  if (SH.dead > 0) {                                                  // lost: nothing to fly for a moment; then a new ship, and the bugs near it are cleared away
+    SH.dead -= dt; ship.visible = false; FC.gear = 0; shipModel.userData.thrust(0, S.time); SH.wall = Infinity;
+    if (SH.dead <= 0) { SH.dead = 0; SH.hull = 100; ship.position.copy(spot); SH.q.setFromAxisAngle(YAX, Math.atan2(-gaze.x, -gaze.z)); COMBAT.clearNear(ship.position, 2.5); hullPanel(true); say('Et nyt skib'); }
+    gearPanel(dt); controllerTips(dt, li, ri); return;
+  }
   let yawIn = 0, pitchIn = 0, thr = 0, par = 0, par2 = 0, scale = 1, hk = 0, hold = false, hq = headQ;
   if (S.mode === 'xr') {
     if (R && R.axes.length >= 4) { yawIn = dead(R.axes[2]); pitchIn = dead(R.axes[3]); }
@@ -913,7 +919,7 @@ function shipControls(dt, L, R, li, ri) {
     else {                                                           // the fractal is solid: go forward in short steps, and stop at the first one that would put the ship into a wall
       const n = Math.max(1, Math.ceil(v * dt / 0.04)), step = v * dt / n; let hit = false;
       for (let k = 0; k < n && !hit; k++) { const d0 = shipClear(nose, 0), d1 = shipClear(nose, step); if (d1 >= 0 || d1 > d0) worlds.fractMove(S.cur, ship.position, nose, step); else hit = true; }      // (a ship already in a wall may always move out of it)
-      if (hit) { FC.gear = 0; FC.gearT = 1.6; AMB.thud(ship.position); flash.position.copy(ship.position).addScaledVector(nose, 0.4); flash.userData.t = 0.55; for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(1, 160); } catch (_) { /* none */ } } }
+      if (hit) { FC.gear = 0; FC.gearT = 1.6; AMB.thud(ship.position); const np = ship.position.clone().addScaledVector(nose, 0.4); boomAt(np, 0.4 + v * 0.15, true); shipDamage(Math.min(60, Math.round(2 + 9 * v)), np); for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(1, 160); } catch (_) { /* none */ } } }
     }
   }
   SH.wall = space ? Infinity : worlds.fractDist(S.cur, ship.position);
@@ -963,6 +969,48 @@ function shipClear(nose, ahead) {
   for (const [f, u, r] of [[0.4, -0.06, 0.07], [0.2, 0, 0.14], [0, 0, 0.15], [-0.25, 0, 0.1], [-0.4, 0.12, 0.1], [0.07, 0.32, 0.03], [0.1, -0.28, 0.02]]) {
     _sc.copy(ship.position).addScaledVector(nose, f + ahead).addScaledVector(_su, u); m = Math.min(m, worlds.fractDist(S.cur, _sc) - r); }
   return m;
+}
+/* ---- combat (a test, chosen on the start page): alien bugs in the fractal dimensions (combat.js), and a ship that can be damaged ---- */
+const boomSparks = makeSparks(500, scene);
+function glowSprite(stops) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); stops.forEach(([o, s]) => g.addColorStop(o, s)); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 })); sp.renderOrder = 49; sp.visible = false; scene.add(sp); return sp; }
+const BOOMS = [...Array(8)].map((_, k) => Object.assign(glowSprite(k % 2 ? [[0, 'rgba(255,255,255,1)'], [0.3, 'rgba(255,170,80,.7)'], [1, 'rgba(255,80,20,0)']] : [[0, 'rgba(255,255,255,1)'], [0.3, 'rgba(170,255,90,.7)'], [1, 'rgba(60,255,40,0)']]), { userData: { t: 9, d: 0.5, s: 0.3 } }));
+function boomAt(p, size, hot) { const b = BOOMS.filter((s, k) => (k % 2 === 1) === !!hot).sort((a, c) => c.userData.t - a.userData.t)[0]; b.position.copy(p); b.userData = { t: 0, d: 0.35 + 0.25 * size, s: size }; b.visible = true;
+  for (let k = 0; k < 14 + 30 * Math.min(2, size); k++) { const sp = rnd(0.3, 1.3) * (0.4 + 0.6 * size); _v.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize(); boomSparks.emit(p.x, p.y, p.z, _v.x * sp, _v.y * sp, _v.z * sp, rnd(0.3, 0.8)); } }
+function updateBooms(dt) { boomSparks.step(dt, 0.15); for (const b of BOOMS) { if (!b.visible) continue; b.userData.t += dt; const u = b.userData.t / b.userData.d; if (u >= 1) { b.visible = false; continue; } b.material.opacity = (1 - u) * (1 - u); b.scale.setScalar((0.08 + 0.5 * b.userData.s) * (0.4 + 1.6 * Math.sqrt(u))); } }
+const buzzAll = (v, ms) => { for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(v, ms); } catch (_) { /* none */ } } };
+const COMBAT = createCombat({ scene, worlds,
+  onBlast: (p, size) => { boomAt(p, 0.6 + size * 4, false); AMB.boom(p, 0.6 + size * 6, 'blast'); shipDamage(Math.round(10 * clamp(size / 0.06, 0.5, 3)), p); },
+  onCrush: (p, size) => { SH.kills++; boomAt(p, 0.3 + size * 3, false); AMB.boom(p, 0.4 + size * 4, 'crush'); hullPanel(true); } });
+const shipBody = shipModel.children.find(m => m.material && m.material.vertexColors);
+function shipDamage(n, p) {
+  if (!S.combat || SH.dead > 0 || n <= 0) return;
+  SH.hull = Math.max(0, SH.hull - n); SH.redT = 0.5; buzzAll(clamp(0.3 + n / 40, 0, 1), 120 + n * 4); hullPanel(true);
+  if (SH.hull <= 0) {                                                // the ship is lost: it goes up, and a new one comes after a few seconds
+    const nose = new V(0, 0, -1).applyQuaternion(SH.q);
+    for (let k = -2; k <= 2; k++) { const q = ship.position.clone().addScaledVector(nose, k * 0.18); boomAt(q, 1.6, true); }
+    AMB.boom(ship.position, 3, 'ship'); buzzAll(1, 600); SH.dead = 3.5; FC.gear = 0; ship.visible = false; say('Skibet blev \u00f8delagt');
+  }
+}
+/* a little board over the ship: the hull, and how many bugs the walls have crushed */
+const hullCanvas = document.createElement('canvas'); hullCanvas.width = 256; hullCanvas.height = 56;
+const hullTex = new THREE.CanvasTexture(hullCanvas); hullTex.colorSpace = THREE.SRGBColorSpace;
+const hullMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.057), new THREE.MeshBasicMaterial({ map: hullTex, transparent: true, depthTest: false, toneMapped: false })); hullMesh.renderOrder = 103; hullMesh.visible = false; scene.add(hullMesh);
+let hullSig = '';
+function hullPanel(force) {
+  const sig = Math.round(SH.hull) + '/' + SH.kills; if (!force && sig === hullSig) return; hullSig = sig;
+  const x = hullCanvas.getContext('2d'), h = SH.hull / 100; x.clearRect(0, 0, 256, 56); x.fillStyle = 'rgba(4,10,16,.78)'; x.beginPath(); x.roundRect(2, 2, 252, 52, 12); x.fill();
+  x.fillStyle = h > 0.5 ? '#7dffb0' : h > 0.25 ? '#ffd56a' : '#ff6a5a'; x.fillRect(14, 30, 150 * h, 12); x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 2; x.strokeRect(14, 30, 150, 12);
+  x.fillStyle = '#d7ffe4'; x.font = 'bold 19px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; x.fillText('SKROG ' + Math.round(SH.hull) + '%', 14, 24);
+  x.fillStyle = '#b8ff8a'; x.fillText('\u2716 ' + SH.kills, 186, 42); hullTex.needsUpdate = true;
+}
+function updateCombat(dt) {
+  const on = S.combat && FC.shipOn && DIMS[S.cur].fract && !DIMS[S.cur].four;
+  COMBAT.update(dt, on ? { i: S.cur, ship: ship.position, nose: new V(0, 0, -1).applyQuaternion(SH.q), head, alive: !(SH.dead > 0) } : null);
+  updateBooms(dt);
+  if (SH.redT > 0) { SH.redT -= dt; const k = Math.max(0, SH.redT / 0.5); shipBody.material.color.setRGB(1, 1 - 0.6 * k, 1 - 0.65 * k); } else shipBody.material.color.setRGB(1, 1, 1);
+  hullMesh.visible = on && ship.visible;
+  if (hullMesh.visible) { hullPanel(false); hullMesh.position.copy(ship.position); hullMesh.position.y += 0.3; hullMesh.lookAt(head); }
 }
 const AMB = createAmbience(), HOLE_DIR = new V(-0.2425, 0.1455, -0.9592);      // where the black hole is in the sky (the same direction as in the sky shader)
 /* Changing a fractal's shape with Y / X and B / A. Not a switch: the change gathers speed when you press, coasts to a stop when you let go, and slows by
@@ -1070,10 +1118,10 @@ function loop(_, frame) {
     tipSparks.step(dt, 1.2);
     knife.userData.rune.color.setRGB(0.25 * knifeGlow, 1.0 * Math.min(1.4, knifeGlow), 0.5 * knifeGlow);
     knife.userData.halo.opacity = clamp(0.16 * (knifeGlow - 0.3), 0, 1);
-    fractalControls(dt); updateHandModels(dt);
+    fractalControls(dt); updateHandModels(dt); updateCombat(dt);
     updateAnim(dt); checkCrossing(); updateClip(); updateRing(dt); updateAudio(); updateMusic(dt); updateSpaceAmb();
     { const fr = DIMS[S.cur].fract && !DIMS[S.cur].four, on = !!FC.shipOn;
-      AMB.update(AU.ctx, dt, { dim: fr ? DIMS[S.cur].key : null, ship: on, power: on && FC.gear >= 0.5 ? FC.gear / 9 : 0, pos: ship.position, wall: on ? SH.wall : Infinity,
+      AMB.update(AU.ctx, dt, { dim: fr ? DIMS[S.cur].key : null, ship: on && !(SH.dead > 0), power: on && FC.gear >= 0.5 ? FC.gear / 9 : 0, pos: ship.position, wall: on ? SH.wall : Infinity,
         space: DIMS[S.cur].space ? { warp: worlds.spaceWarpNow(), hole: worlds.spaceHoleNow(), dir: HOLE_DIR } : null });
       if (AU.spaceOscs) for (const o of AU.spaceOscs) o.detune.setTargetAtTime(DIMS[S.cur].space ? worlds.spaceWarpNow() * 1500 : 0, AU.ctx.currentTime, 0.3); }      // the drone of space itself climbs with the warp updateProximity(); drawHud();
     S.bright += (S.brightTarget - S.bright) * Math.min(1, dt * 1.5);
@@ -1101,7 +1149,9 @@ renderer.setAnimationLoop(loop);
   try { if (optShip) { optShip.checked = localStorage.getItem('portalknivenShip') === '1'; optShip.addEventListener('change', () => localStorage.setItem('portalknivenShip', optShip.checked ? '1' : '0')); } } catch (_) { /* no storage */ }
   const optSteer = $('optSteer');
   try { if (optSteer) { optSteer.value = localStorage.getItem('portalknivenSteer') || 'gaze'; optSteer.addEventListener('change', () => localStorage.setItem('portalknivenSteer', optSteer.value)); } } catch (_) { /* no storage */ }
-  const readOpts = () => { S.steer = params.get('steer') || (optSteer ? optSteer.value : 'gaze'); S.ship = params.has('ship') || !!(optShip && optShip.checked); worlds.setFractalSharpen(params.get('sharp') || (optSharp ? optSharp.value : 'taa')); S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
+  const optCombat = $('optCombat');
+  try { if (optCombat) { optCombat.checked = localStorage.getItem('portalknivenCombat') === '1'; optCombat.addEventListener('change', () => localStorage.setItem('portalknivenCombat', optCombat.checked ? '1' : '0')); } } catch (_) { /* no storage */ }
+  const readOpts = () => { S.combat = params.has('combat') || !!(optCombat && optCombat.checked); S.steer = params.get('steer') || (optSteer ? optSteer.value : 'gaze'); S.ship = params.has('ship') || !!(optShip && optShip.checked) || S.combat; worlds.setFractalSharpen(params.get('sharp') || (optSharp ? optSharp.value : 'taa')); S.safe = true; S.scale = ({ high: 1.0, normal: 0.85, fast: 0.7 })[optQual ? optQual.value : 'normal'] || 0.85; };
   btnFlat.addEventListener('click', () => { readOpts(); enterFlat(); }); btnAR.addEventListener('click', () => { readOpts(); enterXR(false, true); });
   if (btnNoHelp) btnNoHelp.addEventListener('click', () => { readOpts(); enterXR(false, false); });
   if (btnFree) btnFree.addEventListener('click', () => { readOpts(); enterXR(true); });
@@ -1116,7 +1166,7 @@ renderer.setAnimationLoop(loop);
 window.__portal = {
   S, portal, head, scene, renderer, camera, music, prox, FC, keys, story, hands, dissolvePortal,
   hand(x, y, z) { flatHand.pos = x === null ? null : new V(x, y, z); }, click() { flatClick = true; }, hold(v) { flatHold = v; },
-  knife, cut, trail, applyRoles, worlds, handModels, ship, SH, AMB, shipClear, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
+  knife, cut, trail, applyRoles, worlds, handModels, ship, SH, AMB, shipClear, COMBAT, shipDamage, DIMS, cycleOther, setOther, VX, SPN, placeDirect, igniteAt,
   view(x, y, z, yw, pt) { camera.position.set(x, y, z); yaw = yw; pitch = pt; prevHead.copy(head.set(x, y, z)); },
   walk(x, y, z) { camera.position.set(x, y, z); head.set(x, y, z); checkCrossing(); },
   tip(x, y, z, pressed) { flatTip.override = true; flatTip.pos.set(x, y, z); flatTip.pressed = pressed; },

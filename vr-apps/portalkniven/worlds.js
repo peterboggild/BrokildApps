@@ -265,31 +265,35 @@ void main() {
 }
 `;
 /* The same distance estimators as the shaders', on the CPU: how far a point is from the fractal's surface (fractal units). Used so that the spaceship
- * cannot fly through walls, and for echoes. par, par2: the dimension's two shape parameters; time: the fractals' clock. Keep in step with the GLSL above. */
+ * cannot fly through walls, for echoes, and by the alien bugs (combat.js), which call them many times a frame: so they are written with plain numbers,
+ * no arrays, nothing for the garbage collector. par, par2: the dimension's two shape parameters; time: the fractals' clock. Keep in step with the GLSL. */
 const fmod = (x, y) => x - y * Math.floor(x / y), cl = (v, a, b) => (v < a ? a : v > b ? b : v);
 const DE = {
   apollo(x, y, z, par, par2, time) { let sc = 1; const k = par + 0.03 * Math.sin(time * 0.11);
     for (let i = 0; i < 9 && i < par2; i++) { x = -1 + 2 * fmod(0.5 * x + 0.5, 1); y = -1 + 2 * fmod(0.5 * y + 0.5, 1); z = -1 + 2 * fmod(0.5 * z + 0.5, 1); const f = k / Math.max(x * x + y * y + z * z, 1e-6); x *= f; y *= f; z *= f; sc *= f; }
     return 0.25 * Math.abs(y) / sc; },
-  klein(x, y, z, par, par2) { let dr = 1; const c = [par2, par2, 0.924];
-    for (let i = 0; i < 8; i++) { x = 2 * cl(x, -c[0], c[0]) - x; y = 2 * cl(y, -c[1], c[1]) - y; z = 2 * cl(z, -c[2], c[2]) - z; const k = Math.max(par / Math.max(x * x + y * y + z * z, 1e-9), 1); x *= k; y *= k; z *= k; dr *= k; }
-    const rxy = Math.hypot(x, y); return Math.max(rxy - 0.928, Math.abs(rxy * z) / Math.max(Math.hypot(x, y, z), 1e-9)) / dr; },
+  klein(x, y, z, par, par2) { let dr = 1;
+    for (let i = 0; i < 8; i++) { x = 2 * cl(x, -par2, par2) - x; y = 2 * cl(y, -par2, par2) - y; z = 2 * cl(z, -0.924, 0.924) - z; const k = Math.max(par / Math.max(x * x + y * y + z * z, 1e-9), 1); x *= k; y *= k; z *= k; dr *= k; }
+    const rxy = Math.sqrt(x * x + y * y); return Math.max(rxy - 0.928, Math.abs(rxy * z) / Math.max(Math.sqrt(x * x + y * y + z * z), 1e-9)) / dr; },
   hyper(px, py, pz, par, par2, time) { const R2 = 1 / Math.max(1e-3, Math.cos(6.28318 / par)), D = Math.sqrt(1 + R2), az = 0.18 * Math.sin(time * 0.05);
     const aa = az * az, xx = px * px + py * py + pz * pz, ax = az * pz, den = Math.max(1 + 2 * ax + aa * xx, 1e-6); let sc = (1 - aa) / den;
-    let z = [(1 - aa) * px / den, (1 - aa) * py / den, ((1 + 2 * ax + xx) * az + (1 - aa) * pz) / den];
-    for (let i = 0; i < 14; i++) { z = z.map(Math.abs).sort((a, b) => b - a); const dx = z[0] - D, l2 = dx * dx + z[1] * z[1] + z[2] * z[2]; if (l2 >= R2) break; const k = R2 / l2; z = [D + dx * k, z[1] * k, z[2] * k]; sc *= k; }
-    const R = Math.sqrt(R2), fx = Math.abs(Math.hypot(z[0] - D, z[1], z[2]) - R), fy = Math.abs(Math.hypot(z[0], z[1] - D, z[2]) - R), fz = Math.abs(Math.hypot(z[0], z[1], z[2] - D) - R);
-    return Math.max(Math.min(Math.hypot(fx, fy) - par2, Math.hypot(fx, fy, fz) - par2 * 1.9) / sc, Math.sqrt(xx) - 0.985); },
+    let a = (1 - aa) * px / den, b = (1 - aa) * py / den, c = ((1 + 2 * ax + xx) * az + (1 - aa) * pz) / den, t;
+    for (let i = 0; i < 14; i++) { a = Math.abs(a); b = Math.abs(b); c = Math.abs(c); if (a < b) { t = a; a = b; b = t; } if (a < c) { t = a; a = c; c = t; } if (b < c) { t = b; b = c; c = t; }
+      const dx = a - D, l2 = dx * dx + b * b + c * c; if (l2 >= R2) break; const k = R2 / l2; a = D + dx * k; b *= k; c *= k; sc *= k; }
+    const R = Math.sqrt(R2), fx = Math.abs(Math.sqrt((a - D) * (a - D) + b * b + c * c) - R), fy = Math.abs(Math.sqrt(a * a + (b - D) * (b - D) + c * c) - R), fz = Math.abs(Math.sqrt(a * a + b * b + (c - D) * (c - D)) - R);
+    return Math.max(Math.min(Math.sqrt(fx * fx + fy * fy) - par2, Math.sqrt(fx * fx + fy * fy + fz * fz) - par2 * 1.9) / sc, Math.sqrt(xx) - 0.985); },
   menger(x, y, z, par, par2) { let d = -1e9, s = 1;
-    for (let m = 0; m < 5 && m < par2; m++) { const a = [fmod(x * s, 2) - 1, fmod(y * s, 2) - 1, fmod(z * s, 2) - 1]; s *= 3; const r = a.map(v => Math.abs(1 - 3 * Math.abs(v)));
-      d = Math.max(d, (Math.min(Math.max(r[0], r[1]), Math.min(Math.max(r[1], r[2]), Math.max(r[2], r[0]))) - par) / s); }
+    for (let m = 0; m < 5 && m < par2; m++) { const rx = Math.abs(1 - 3 * Math.abs(fmod(x * s, 2) - 1)), ry = Math.abs(1 - 3 * Math.abs(fmod(y * s, 2) - 1)), rz = Math.abs(1 - 3 * Math.abs(fmod(z * s, 2) - 1)); s *= 3;
+      d = Math.max(d, (Math.min(Math.max(rx, ry), Math.min(Math.max(ry, rz), Math.max(rz, rx))) - par) / s); }
     return d; },
-  boks(x, y, z, par, par2) { const c = [x, y, z].map(v => Math.abs(fmod(v + 3.4, 13.6) - 6.8) - 3.4), mr2 = par2 * par2; let q = c.slice(), dr = 1;
-    for (let i = 0; i < 11; i++) { q = q.map(v => cl(v, -1, 1) * 2 - v); const r2 = q[0] * q[0] + q[1] * q[1] + q[2] * q[2]; let k = 1; if (r2 < mr2) k = 1 / mr2; else if (r2 < 1) k = 1 / r2; dr = dr * k * Math.abs(par) + 1; q = q.map((v, n) => v * k * par + c[n]); }
-    return Math.hypot(q[0], q[1], q[2]) / Math.abs(dr); },
-  kali(x, y, z, par, par2) { let w = 1; const tr = [0.036, -1.861, 0.036], c = [-0.669, -1.303, -0.458];
-    for (let i = 0; i < 11; i++) { x = Math.abs(x) + tr[0]; y = Math.abs(y) + tr[1]; z = Math.abs(z) + tr[2]; const k = cl(Math.max(par2 / Math.max(x * x + y * y + z * z, 1e-9), par2), 0, 1) * (par / par2); x = x * k + c[0]; y = y * k + c[1]; z = z * k + c[2]; w *= k; }
-    return (Math.hypot(x, y, z) - Math.abs(par - 1)) / Math.abs(w) - Math.pow(Math.abs(par), -10); },
+  boks(x, y, z, par, par2) { const cx = Math.abs(fmod(x + 3.4, 13.6) - 6.8) - 3.4, cy = Math.abs(fmod(y + 3.4, 13.6) - 6.8) - 3.4, cz = Math.abs(fmod(z + 3.4, 13.6) - 6.8) - 3.4, mr2 = par2 * par2, ap = Math.abs(par);
+    let qx = cx, qy = cy, qz = cz, dr = 1;
+    for (let i = 0; i < 11; i++) { qx = cl(qx, -1, 1) * 2 - qx; qy = cl(qy, -1, 1) * 2 - qy; qz = cl(qz, -1, 1) * 2 - qz; const r2 = qx * qx + qy * qy + qz * qz; let k = 1; if (r2 < mr2) k = 1 / mr2; else if (r2 < 1) k = 1 / r2;
+      dr = dr * k * ap + 1; qx = qx * k * par + cx; qy = qy * k * par + cy; qz = qz * k * par + cz; }
+    return Math.sqrt(qx * qx + qy * qy + qz * qz) / Math.abs(dr); },
+  kali(x, y, z, par, par2) { let w = 1;
+    for (let i = 0; i < 11; i++) { x = Math.abs(x) + 0.036; y = Math.abs(y) - 1.861; z = Math.abs(z) + 0.036; const k = cl(Math.max(par2 / Math.max(x * x + y * y + z * z, 1e-9), par2), 0, 1) * (par / par2); x = x * k - 0.669; y = y * k - 1.303; z = z * k - 0.458; w *= k; }
+    return (Math.sqrt(x * x + y * y + z * z) - Math.abs(par - 1)) / Math.abs(w) - Math.pow(Math.abs(par), -10); },
 };
 const MARCH_VS = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 const marchFS = f => `precision highp float; varying vec2 vUv;
@@ -1352,6 +1356,13 @@ export function createWorlds(scene, renderer, params) {
     fractParam(i, which, dir, dt) { const w = W[i]; if (!w.fr) return; const key = which ? 'param2' : 'param', [, lo, hi] = which ? w.fr.f.par2 : w.fr.f.par; w.fr[key] = Math.min(hi, Math.max(lo, w.fr[key] + dir * dt * (hi - lo) / 7)); syncFr(w); },
     fractState: i => W[i].fr,
     /** How far (metres, in the room) the point p is from the surface of fractal dimension i; negative inside it. Infinity where there is nothing to hit. */
+    /** The fractal's own space, for things that live in it (the alien bugs): DE at a fractal-space point (fractal units), room -> fractal and back, and
+     *  the scale (fractal units per metre now, and as it started), how far a ray goes, and the hyperbolic world's horizon. */
+    fractDE(i, x, y, z) { const w = W[i]; return DE[w.key](x, y, z, w.fr.param, w.fr.param2, fracTimeU.value); },
+    toFrac(i, p, out) { return toF(W[i], p, out); },
+    fromFrac(i, f, out) { const r = W[i].fr, c = Math.cos(r.yaw), s = Math.sin(r.yaw), ux = (f.x - r.off.x) / r.S, uy = (f.y - r.off.y) / r.S, uz = (f.z - r.off.z) / r.S; return out.set(r.A.x + c * ux + s * uz, r.A.y + uy, r.A.z - s * ux + c * uz); },
+    fracDirToRoom(i, d, out) { const r = W[i].fr, c = Math.cos(r.yaw), s = Math.sin(r.yaw); return out.set(c * d.x + s * d.z, d.y, -s * d.x + c * d.z); },
+    fracInfo: i => { const r = W[i].fr; return { S: r.S, S0: r.f.S, maxT: r.f.maxT, ball: r.f.ball || 0 }; },
     fractDist(i, p) { const w = W[i], f = w && w.fr && DE[w.key]; if (!f) return Infinity; toF(w, p, _f1); return f(_f1.x, _f1.y, _f1.z, w.fr.param, w.fr.param2, fracTimeU.value) / w.fr.S; },
     /** The four-dimensional room. Which slice of it you see is a rotation R4 and a shift c4: a point q of the room you stand in is the 4D point R4 (q, 0) + c4.
      *  rot turns the slice in the plane of u (a level direction, e.g. your right) and w, about the point where your head is, so what is straight ahead stays put

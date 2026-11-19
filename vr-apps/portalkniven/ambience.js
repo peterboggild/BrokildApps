@@ -174,6 +174,17 @@ export function createAmbience() {
       }
     },
     /** The ship has hit something. */
+    /** Something bursts at a room point: an alien bug at the ship ('blast'), one crushed by a wall ('crush'), or the ship itself ('ship'). size: 0.3 to 3. */
+    boom(pos, size = 1, kind = 'blast') {
+      if (!ctx) return;
+      const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1; p.rolloffFactor = 1;
+      if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+      const inp = gain(Math.min(1.4, 0.5 + 0.4 * size)), s = gain(0.45); inp.connect(p); p.connect(out); inp.connect(s); s.connect(verbs.tunnel);
+      if (kind === 'crush') { burst(inp, white, 'bandpass', 1800, 380, 2.2, 0.55, 0.003, 0.22); strike(inp, rnd(520, 760), [[1, 1, 0.12], [1.9, 0.6, 0.08]], 0.25, 0.5); }      // a wet crunch and a squeal cut short
+      else { burst(inp, white, 'lowpass', kind === 'ship' ? 6000 : 3500, 180, 0.7, kind === 'ship' ? 0.9 : 0.6, 0.004, kind === 'ship' ? 1.6 : 0.55);
+        strike(inp, kind === 'ship' ? 48 : 75, [[1, 1, kind === 'ship' ? 1.4 : 0.55], [1.6, 0.5, 0.3]], 0.9, 0.55); }
+      setTimeout(() => { try { inp.disconnect(); p.disconnect(); s.disconnect(); } catch (_) { /* gone */ } }, 5000);
+    },
     /** A fractal parameter is changing: which (0 or 1), how fast (-1..1, signed), and where it is in its range (0..1). Call each frame it moves, before update. */
     param(which, v, x) { pin[which].v = v; pin[which].x = x; },
     thud(pos, level = 1) { if (!ctx) return; const dst = gain(level); dst.connect(out); const s = gain(0.6); dst.connect(s); s.connect(verbs.tunnel);
