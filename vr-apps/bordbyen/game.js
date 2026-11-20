@@ -17,11 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=6';
-import { buildCar, CARS } from './cars.js?v=6';
-import { createRace, LAPS } from './race.js?v=6';
-import { createAudio } from './audio.js?v=6';
-import { INK, NOIR } from './toon.js?v=6';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=7';
+import { buildCar, CARS, CAR_SCALE } from './cars.js?v=7';
+import { createRace, LAPS } from './race.js?v=7';
+import { createAudio } from './audio.js?v=7';
+import { INK, NOIR } from './toon.js?v=7';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -158,13 +158,13 @@ function alignSeat(dt) {
 function updateCamC(dt, snap) {
   const car = player(); if (!car) return;
   if (S.view === 'cockpit') {
-    const e = car.obj.userData.eye; camC.p.set(e.x, e.y, e.z).applyAxisAngle(YAX, car.yaw).add(new V(car.p.x, 0, car.p.y)); camC.yaw = car.yaw;
+    const e = car.obj.userData.eye; camC.p.set(e.x, e.y, e.z).applyAxisAngle(YAX, car.yaw).add(new V(car.p.x, city.heightAt(car.p.x, car.p.y), car.p.y)); camC.yaw = car.yaw;
   } else {
     let d = car.yaw - camC.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); camC.yaw += snap ? d : d * Math.min(1, dt * 3.2);
     /* behind and above the car; nearer if a building is in the way (never inside one) */
     const back = new V(0, 3.0, 8.0).applyAxisAngle(YAX, camC.yaw); let t = 1;
     for (let k = 1; k <= 12; k++) { const u = k / 12; if (city.inSolid(car.p.x + back.x * u, car.p.y + back.z * u)) { t = Math.max(0.15, (k - 1) / 12); break; } }
-    const want = new V(back.x * t, 3.0 * Math.max(0.6, t), back.z * t).add(new V(car.p.x, 0, car.p.y));
+    const want = new V(back.x * t, 3.0 * Math.max(0.6, t), back.z * t).add(new V(car.p.x, city.heightAt(car.p.x, car.p.y), car.p.y));
     if (snap) camC.p.copy(want); else camC.p.lerp(want, Math.min(1, dt * 6));
   }
 }
@@ -196,16 +196,16 @@ function buzz(v, ms) { for (const c of ctrl) { try { c.gp?.hapticActuators?.[0]?
 
 /* ---------------- the palette (on the left hand in the headset; buttons on screen in the flat preview) ---------------- */
 const PAL = { cols: 4, cell: 120, pad: 8, rows: 4 };
-const palCanvas = document.createElement('canvas'); palCanvas.width = 512; palCanvas.height = 600;
+const palCanvas = document.createElement('canvas'); palCanvas.width = 512; palCanvas.height = 740;
 const palTex = new THREE.CanvasTexture(palCanvas); palTex.colorSpace = THREE.SRGBColorSpace;
-const palette = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.2), new THREE.MeshBasicMaterial({ map: palTex, transparent: true, depthTest: false }));
+const palette = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.2457), new THREE.MeshBasicMaterial({ map: palTex, transparent: true, depthTest: false }));
 palette.renderOrder = 50; palette.visible = false;
 let paletteDirty = true;
 const PAL_ITEMS = [...TOOLS.map((t, i) => ({ tool: i })), { act: 'undo', name: 'Fortryd', color: '#9aa6b2' }, { act: 'go', name: 'Kør!', color: '#3ecf6a', wide: true }];
-function palRect(k) { if (PAL_ITEMS[k].wide) return [PAL.pad, 4 + 3 * 124, 512 - 2 * PAL.pad, 112]; const c = k % 4, r = Math.floor(k / 4); return [PAL.pad + c * 124, 4 + r * 124, 116, 116]; }
+function palRect(k) { if (PAL_ITEMS[k].wide) return [PAL.pad, 4 + Math.ceil((PAL_ITEMS.length - 1) / 4) * 124, 512 - 2 * PAL.pad, 112]; const c = k % 4, r = Math.floor(k / 4); return [PAL.pad + c * 124, 4 + r * 124, 116, 116]; }
 function drawPalette() {
-  paletteDirty = false; const x = palCanvas.getContext('2d'); x.clearRect(0, 0, 512, 600);
-  x.fillStyle = 'rgba(10,14,22,.86)'; x.beginPath(); x.roundRect(0, 0, 512, 600, 26); x.fill();
+  paletteDirty = false; const x = palCanvas.getContext('2d'); x.clearRect(0, 0, 512, 740);
+  x.fillStyle = 'rgba(10,14,22,.86)'; x.beginPath(); x.roundRect(0, 0, 512, 740, 26); x.fill();
   PAL_ITEMS.forEach((it, k) => {
     const [px, py, w, h] = palRect(k), t = it.tool !== undefined ? TOOLS[it.tool] : it, sel = it.tool === S.tool;
     x.fillStyle = sel ? '#ffffff' : 'rgba(255,255,255,.08)'; x.beginPath(); x.roundRect(px, py, w, h, 16); x.fill();
@@ -214,7 +214,7 @@ function drawPalette() {
     x.fillStyle = sel ? '#111' : '#e8eef6'; x.font = `bold ${it.wide ? 34 : 21}px Arial, sans-serif`; x.textAlign = 'center'; x.fillText(t.name, px + w / 2, py + h - 14);
   });
   x.fillStyle = routeInfo && !routeInfo.error ? '#9ff0b4' : '#ffc27a'; x.font = '20px Arial, sans-serif'; x.textAlign = 'left';
-  wrap(x, S.msg || '', 20, 520, 472, 24);
+  wrap(x, S.msg || '', 20, 652, 472, 24);
   palTex.needsUpdate = true;
 }
 function wrap(x, text, px, py, w, lh) { const words = text.split(' '); let line = ''; for (const wd of words) { const t = line ? line + ' ' + wd : wd; if (x.measureText(t).width > w) { x.fillText(line, px, py); py += lh; line = wd; } else line = t; } x.fillText(line, px, py); }
@@ -254,8 +254,8 @@ function cellUnder(o, d) {
 }
 function showCursor(a, b, ok) {
   const t = TOOLS[S.tool], x0 = Math.min(a.i, b.i), x1 = Math.max(a.i, b.i), z0 = Math.min(a.j, b.j), z1 = Math.max(a.j, b.j);
-  const w = (x1 - x0 + 1) * CELL, d = (z1 - z0 + 1) * CELL, h = t.kind === 'lot' && t.solid ? 10 : 1.5;
-  cursor.position.set((city.cx(x0) + city.cx(x1)) / 2, h / 2, (city.cz(z0) + city.cz(z1)) / 2); cursor.scale.set(w + 0.4, h, d + 0.4);
+  const w = (x1 - x0 + 1) * CELL, d = (z1 - z0 + 1) * CELL, h = t.kind === 'lot' && t.solid ? 10 : t.kind === 'terrain' ? 4 : 1.5;
+  { const qx = (city.cx(x0) + city.cx(x1)) / 2, qz = (city.cz(z0) + city.cz(z1)) / 2; cursor.position.set(qx, h / 2 + city.heightAt(qx, qz), qz); } cursor.scale.set(w + 0.4, h, d + 0.4);
   cursor.material.color.set(ok ? t.color : '#ff3030'); cursor.visible = true;
 }
 function designInput(o, d, down, dt) {
@@ -273,7 +273,7 @@ function designInput(o, d, down, dt) {
       D.lastCell = c; if (painted) { D.dirty = true; audio.click(); }
       D.rebuildT -= dt; if (D.dirty && D.rebuildT <= 0) { city.commit(); D.dirty = false; D.rebuildT = 0.12; }
       showCursor(c, c, true);
-    } else if (t.kind === 'lot' || t.kind === 'erase') showCursor(D.a, c, t.kind === 'erase' || city.lotOK(t.key, D.a.i, D.a.j, c.i, c.j));
+    } else if (t.kind === 'lot' || t.kind === 'erase' || t.kind === 'terrain') showCursor(D.a, c, t.kind === 'erase' || t.kind === 'terrain' || city.lotOK(t.key, D.a.i, D.a.j, c.i, c.j));
     else showCursor(c, c, city.isRoad(c.i, c.j));
   } else showCursor(c, c, t.kind !== 'gate' || city.isRoad(c.i, c.j));
   return c;
@@ -284,6 +284,7 @@ function endStroke() {
   let changed = false;
   if (t.kind === 'road') { changed = true; city.commit(); }
   else if (t.kind === 'lot') { changed = city.placeLot(t.key, a.i, a.j, b.i, b.j); if (changed) { city.commit(); audio.pop(); } else toast(t.name + ' skal være mindst ' + t.min + ' × ' + t.min + ' felter'); }
+  else if (t.kind === 'terrain') { changed = city.shapeTerrain(a.i, a.j, b.i, b.j, t.dir); if (changed) { city.reshape(); audio.pop(); } }
   else if (t.kind === 'erase') { changed = city.eraseRect(a.i, a.j, b.i, b.j); if (changed) { city.commit(); audio.click(); } }
   else if (t.kind === 'gate') { changed = city.setGate(b.i, b.j, t.key === 'start'); if (changed) { city.commit(); audio.chime(2, 990); } else toast('Start/mål og porte skal stå på en vej'); }
   if (!changed) { if (D.pushed) undo.pop(); } else { store(); checkRoute(); buzz(0.3, 30); }
@@ -344,6 +345,7 @@ function growUp() {
   TR.t = 0; TR.up = true; TR.F.copy(camC.p); S.mode = 'grow'; audio.whoosh(true); audio.silence(); hud.visible = false; flatUI();
 }
 function endGrow() {
+  carTags(false);
   race.clear(); playerCar = null; if (scenery) scenery.visible = false; city.gridLines().visible = true; S.mode = 'design'; scene.fog = null; inkFog(); sky.visible = false; skyMat.uniforms.uA.value = 0; flatUI();
 }
 function blend(out, t) {
@@ -354,9 +356,9 @@ function blend(out, t) {
 }
 
 /* ---------------- the board in the car: lap, place, time, speed, the countdown ---------------- */
-const hudCanvas = document.createElement('canvas'); hudCanvas.width = 512; hudCanvas.height = 200;
+const hudCanvas = document.createElement('canvas'); hudCanvas.width = 512; hudCanvas.height = 330;
 const hudTex = new THREE.CanvasTexture(hudCanvas); hudTex.colorSpace = THREE.SRGBColorSpace;
-const hud = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.39), new THREE.MeshBasicMaterial({ map: hudTex, transparent: true, depthTest: false })); hud.renderOrder = 60; hud.visible = false; holder.add(hud);
+const hud = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.6445), new THREE.MeshBasicMaterial({ map: hudTex, transparent: true, depthTest: false })); hud.renderOrder = 60; hud.visible = false; holder.add(hud);
 let hudSig = '';
 const fmt = t => { const m = Math.floor(t / 60), s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1); };
 function drawHud() {
@@ -364,9 +366,9 @@ function drawHud() {
   const ord = race.order(), place = ord.indexOf(c) + 1, total = routeInfo.gates.length - 1, lap = c.nCleared, kmh = Math.round(Math.abs(c.v) * 3.6);
   let big = '';
   if (race.state === 'count') big = race.count > 3 ? '' : String(Math.ceil(race.count)); else if (race.state === 'run' && race.t < 1) big = 'KØR!';
-  const sig = [place, lap, Math.floor(race.t * 10), kmh, big, race.state, S.toastT > 0 ? S.toast : ''].join('|'); if (sig === hudSig) return; hudSig = sig;
-  const x = hudCanvas.getContext('2d'); x.clearRect(0, 0, 512, 200);
-  x.fillStyle = 'rgba(10,14,22,.45)'; x.beginPath(); x.roundRect(0, 0, 512, 200, 26); x.fill();
+  const sig = [place, lap, Math.floor(race.t * 10), kmh, big, race.state, S.toastT > 0 ? S.toast : '', ord.map(o => o.nCleared + (o.done ? 'd' : '')).join()].join('|'); if (sig === hudSig) return; hudSig = sig;
+  const x = hudCanvas.getContext('2d'); x.clearRect(0, 0, 512, 330);
+  x.fillStyle = 'rgba(10,14,22,.45)'; x.beginPath(); x.roundRect(0, 0, 512, 330, 26); x.fill();
   x.textAlign = 'left'; x.fillStyle = '#ffd34d'; x.font = 'bold 50px Arial, sans-serif'; x.fillText(place + '/' + race.cars.length, 24, 62);
   x.fillStyle = '#e8eef6'; x.font = 'bold 30px Arial, sans-serif'; x.fillText(lap >= total ? 'Mod mål!' : 'Porte ' + lap + '/' + total, 170, 52);
   x.font = '28px Arial, sans-serif'; x.fillStyle = '#b9c6d6'; x.fillText(fmt(race.state === 'count' ? 0 : c.done ? c.time : race.t), 170, 92);
@@ -375,13 +377,19 @@ function drawHud() {
   if (big) { x.fillStyle = big === 'KØR!' ? '#3ecf6a' : '#ff5a4a'; x.font = 'bold 80px Arial, sans-serif'; x.fillText(big, 256, 178); }
   else if (race.state === 'done' || c.done) { x.fillStyle = '#ffd34d'; x.font = 'bold 30px Arial, sans-serif'; x.fillText(place === 1 ? 'Du vandt! ' : 'Du blev nr. ' + place + '. ', 256, 140); x.fillStyle = '#d8e2ee'; x.font = '22px Arial, sans-serif'; x.fillText('Hold A: kør igen   ·   Y: tilbage til bordet', 256, 178); }
   else if (S.toastT > 0) { x.fillStyle = '#ffffff'; x.font = 'bold 40px Arial, sans-serif'; x.fillText(S.toast, 256, 160); }
+  /* the standings: every car, how many gates it has cleared */
+  x.textAlign = 'left'; x.font = 'bold 22px Arial, sans-serif';
+  ord.forEach((o, k) => { const y = 214 + k * 29, col = (CARS.find(q => q.key === o.key) || {}).color || '#fff';
+    x.fillStyle = col; x.beginPath(); x.arc(34, y - 8, 9, 0, 7); x.fill(); x.fillStyle = o.ai ? '#d8e2ee' : '#ffd34d'; x.fillText((k + 1) + '. ' + o.name, 52, y);
+    for (let g = 0; g < total; g++) { x.fillStyle = g < o.nCleared ? '#5be37d' : 'rgba(255,255,255,.22)'; x.beginPath(); x.arc(330 + g * 22, y - 8, 7, 0, 7); x.fill(); }
+    if (o.done) { x.fillStyle = '#ffd34d'; x.fillText('MÅL', 330 + total * 22 + 6, y); } });
   hudTex.needsUpdate = true;
 }
 function placeHud() {
   const c = player(); if (!c) return; const e = c.obj.userData.eye;
   /* in the seat it sits low on the windscreen, like a head-up display, under the line you look along; behind the car it floats high over it */
-  if (S.view === 'cockpit') { hud.scale.setScalar(0.3); const p = new V(0, e.y - 0.36, e.z - 0.82).applyAxisAngle(YAX, c.yaw); hud.position.set(c.p.x + p.x, p.y, c.p.y + p.z); hud.rotation.set(-0.55, c.yaw, 0, 'YXZ'); }
-  else { hud.scale.setScalar(1.5); const p = new V(0, 4.8, -1).applyAxisAngle(YAX, camC.yaw); hud.position.set(c.p.x + p.x, p.y, c.p.y + p.z); hud.rotation.set(-0.15, camC.yaw, 0, 'YXZ'); }
+  if (S.view === 'cockpit') { hud.scale.setScalar(0.3); const p = new V(0, e.y - 0.36, e.z - 0.82).applyAxisAngle(YAX, c.yaw); hud.position.set(c.p.x + p.x, p.y + city.heightAt(c.p.x, c.p.y), c.p.y + p.z); hud.rotation.set(-0.55, c.yaw, 0, 'YXZ'); }
+  else { hud.scale.setScalar(1.5); const p = new V(0, 4.8, -1).applyAxisAngle(YAX, camC.yaw); hud.position.set(c.p.x + p.x, p.y + city.heightAt(c.p.x, c.p.y), c.p.y + p.z); hud.rotation.set(-0.15, camC.yaw, 0, 'YXZ'); }
 }
 function toast(t) { S.toast = t; S.toastT = 2.2; if (S.mode === 'design' || S.mode === 'pick') { S.msg = t; paletteDirty = true; flatUI(); } }
 
@@ -409,7 +417,7 @@ function wheelToHands(car) {
   const u = car.userData; if (!(S.xr && S.steerMode === 'wheel' && wheelGrip.lp && S.view === 'cockpit')) { u.wheel.rotation.z = -car.userData.steerAngle || u.wheel.rotation.z; return; }
   car.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(car.matrixWorld).invert();
   const mid = wheelGrip.lp.clone().add(wheelGrip.rp).multiplyScalar(0.5).applyMatrix4(inv), span = wheelGrip.lp.distanceTo(wheelGrip.rp);
-  u.wheelBase.position.lerp(mid, 0.5); u.wheelBase.scale.setScalar(clamp(span / 2 / 0.19, 0.8, 1.8)); u.wheel.rotation.z = wheelGrip.angle;
+  u.wheelBase.position.lerp(mid, 0.5); u.wheelBase.scale.setScalar(clamp(span / 2 / 0.19 / CAR_SCALE, 0.8, 2.2)); u.wheel.rotation.z = wheelGrip.angle;
 }
 
 /* ---------------- the room scan: find the table ---------------- */
@@ -476,7 +484,7 @@ function loop(_, frame) {
     if (S.xr) {
       const L = hand('left'); palette.visible = !!L;
       if (L) { if (palette.parent !== L.grip) L.grip.add(palette); palette.position.set(0.02, 0.07, -0.05); palette.rotation.set(-0.9, 0, 0); }
-      if (o && palette.visible) { raycaster.set(o, d); const h = raycaster.intersectObject(palette)[0]; if (h) { onPal = true; if (click) { const u = h.uv.x * 512, v = (1 - h.uv.y) * 600; const k = PAL_ITEMS.findIndex((_, i) => { const [px, py, w, hh] = palRect(i); return u >= px && u <= px + w && v >= py && v <= py + hh; }); if (k >= 0) choose(k); } } }
+      if (o && palette.visible) { raycaster.set(o, d); const h = raycaster.intersectObject(palette)[0]; if (h) { onPal = true; if (click) { const u = h.uv.x * 512, v = (1 - h.uv.y) * 740; const k = PAL_ITEMS.findIndex((_, i) => { const [px, py, w, hh] = palRect(i); return u >= px && u <= px + w && v >= py && v <= py + hh; }); if (k >= 0) choose(k); } } }
     }
     const Rr = hand('right'); if (Rr) { Rr.line.visible = true; Rr.line.scale.z = 3; }
     if (o && (!onPal || D.down)) designInput(o, d, down, dt);
@@ -498,7 +506,8 @@ function loop(_, frame) {
     if (S.mode === 'watch') watchButtons();
     if (!S.paused) race.update(dt, S.mode === 'watch' ? driveInput(dt) : { gas: 0, brake: 0, steer: 0 }); audio.silence();
     if (signDirty) drawWatchSign();
-    const pc = player(); if (pc) { insideView(pc.obj, false); carMark.visible = S.mode === 'watch'; carMark.position.set(pc.p.x, 16 + Math.sin(S.time * 4) * 1.5, pc.p.y); carMark.rotation.y += dt * 2; }
+    const pc = player(); if (pc) { insideView(pc.obj, false); carMark.visible = S.mode === 'watch'; carMark.position.set(pc.p.x, city.heightAt(pc.p.x, pc.p.y) + 22 + Math.sin(S.time * 4) * 1.5, pc.p.y); carMark.rotation.y += dt * 2; }
+    carTags(S.mode === 'watch');
     if (S.mode === 'watch') { holder.matrix.copy(designMatrix(_m1)); watchSign.visible = true; }
     else {
       TR.t = Math.min(1, TR.t + dt / 1.8); const k = S.mode === 'watchUp' ? 1 - TR.t : TR.t;
@@ -508,16 +517,19 @@ function loop(_, frame) {
     }
     holder.matrixWorldNeedsUpdate = true;
   } else if (S.mode === 'drive') {
-    driveButtons(); watchSign.visible = false;
+    driveButtons(); watchSign.visible = false; carTags(false);
     const inp = driveInput(dt);
     if (race.state === 'count') { const n = Math.ceil(race.count); if (n !== S.lastCount && n <= 3) { audio.beep(false); S.lastCount = n; } if (race.count - dt <= 0) audio.beep(true); }
     race.update(dt, inp);
     updateCamC(dt, false); joltStep(dt);
     holder.matrix.copy(driveMatrix(_m1)); holder.matrixWorldNeedsUpdate = true;
     placeHud(); drawHud(); carMark.visible = false;
-    const pc = player(); if (pc) insideView(pc.obj, S.view === 'cockpit');
+    const pc = player(); if (pc) { insideView(pc.obj, S.view === 'cockpit'); pc.noTilt = S.view === 'cockpit'; }
     if (pc) wheelToHands(pc.obj);
     alignSeat(dt);
+    /* off the road it bumps hard: the view shakes, the controllers rumble, and the car rattles */
+    if (pc && pc.rough && Math.abs(pc.v) > 1.5 && race.state !== 'count') { S.roughT = (S.roughT || 0) - dt; const k = Math.min(1, Math.abs(pc.v) / 12);
+      if (S.roughT <= 0) { S.roughT = 0.07 + Math.random() * 0.06; buzz(0.25 + 0.5 * k, 50); JOLT.v.y += (Math.random() * 0.9 - 0.3) * k; JOLT.v.x += (Math.random() - 0.5) * 0.3 * k; if (Math.random() < 0.25) audio.bump(0.6 + k); } }
     /* engines: yours, and the others where they are in the room (the listener is your head) */
     const toWorld = p => new V(p.x, 0.6, p.y).applyMatrix4(holder.matrix);
     audio.engines([player(), ...race.cars.filter(c => c.ai)].map(c => ({ v: c.v, gas: c.ai ? 1 : inp.gas, pos: toWorld(c.p), off: false })),
@@ -575,6 +587,21 @@ function watchButtons() {
   if (edge(L, 4)) { if (S.paused) fromWatch(); else { S.paused = true; signDirty = true; } }      // X: pause; again: on with the race, down in the car
   if (edge(L, 5)) stopRace();                                                   // Y: stop the race
   aButton(Rr);
+}
+/** in the city view, a name tag over every car with the gates it has cleared, so the standings can be read off the table */
+const tags = new Map();
+function carTags(on) {
+  for (const c of race.cars) {
+    let t = tags.get(c); if (!t) { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true }));
+      sp.renderOrder = 70; sp.scale.set(24, 6, 1); holder.add(sp); t = { sp, cv, sig: '' }; tags.set(c, t); }
+    t.sp.visible = on; if (!on) continue;
+    const total = routeInfo.gates.length - 1, sig = c.nCleared + '/' + c.done; t.sp.position.set(c.p.x, city.heightAt(c.p.x, c.p.y) + 12, c.p.y);
+    if (sig !== t.sig) { t.sig = sig; const x = t.cv.getContext('2d'), col = (CARS.find(q => q.key === c.key) || {}).color || '#fff'; x.clearRect(0, 0, 256, 64);
+      x.fillStyle = 'rgba(10,14,22,.85)'; x.beginPath(); x.roundRect(0, 0, 256, 64, 14); x.fill(); x.fillStyle = col; x.fillRect(0, 0, 10, 64);
+      x.fillStyle = c.ai ? '#fff' : '#ffd34d'; x.font = 'bold 24px Arial, sans-serif'; x.fillText(c.name, 20, 28); x.fillStyle = '#5be37d'; x.font = 'bold 22px Arial, sans-serif'; x.fillText(c.done ? 'I MÅL' : 'Porte ' + c.nCleared + '/' + total, 20, 55);
+      t.sp.material.map.needsUpdate = true; }
+  }
+  for (const [c, t] of tags) if (!race.cars.includes(c)) { t.sp.removeFromParent(); t.sp.material.map.dispose(); tags.delete(c); }
 }
 /** a sign on the table's near edge */
 function placeAtEdge(m, h) { const toward = new V().subVectors(head, table.pos); toward.y = 0; const yawT = Math.atan2(toward.x, toward.z), f = new V(Math.sin(yawT), 0, Math.cos(yawT));
@@ -657,7 +684,7 @@ function flatUI() {
   bar.style.display = S.mode === 'menu' ? 'none' : 'flex';
   const design = S.mode === 'design', pick = S.mode === 'pick';
   bar.innerHTML = '';
-  if (design) PAL_ITEMS.forEach((it, k) => { const b = document.createElement('button'); const t = it.tool !== undefined ? TOOLS[it.tool] : it; b.textContent = (k < 9 ? (k + 1) + ' ' : k === 9 ? '0 ' : k === 10 ? '- ' : '') + t.name; b.className = it.tool === S.tool ? 'sel' : ''; b.style.borderColor = t.color; b.onclick = () => choose(k); bar.appendChild(b); });
+  if (design) PAL_ITEMS.forEach((it, k) => { const b = document.createElement('button'); const t = it.tool !== undefined ? TOOLS[it.tool] : it; b.textContent = (k < 12 ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='][k] + ' ' : '') + t.name; b.className = it.tool === S.tool ? 'sel' : ''; b.style.borderColor = t.color; b.onclick = () => choose(k); bar.appendChild(b); });
   if (pick) CARS.forEach((c, k) => { const b = document.createElement('button'); b.textContent = (k + 1) + ' ' + c.name; b.style.borderColor = c.color; b.onclick = () => { S.carKey = c.key; startDrive(); }; bar.appendChild(b); });
   const msg = document.createElement('div'); msg.className = 'msg';
   msg.textContent = design ? (S.msg || '') : pick ? 'Klik på en bil (eller tast 1–4). Esc: tilbage.' : S.mode === 'drive' ? 'W/S: gas og bremse · A/D: styr · C: kamera · V: byoverblik · P: pause · R: forfra · Esc: tilbage til bordet · træk med musen: kig rundt' : S.mode === 'watch' ? (S.paused ? 'PAUSE. P: fortsæt (ned i bilen) · Esc: stop løbet' : 'Byoverblik: løbet kører, og du kan stadig køre (W/A/S/D). V: ned i bilen · P: pause · Esc: stop løbet') : '';
@@ -666,7 +693,7 @@ function flatUI() {
 addEventListener('keydown', e => {
   keys[e.code] = true; if (S.xr || S.mode === 'menu') return;
   if (S.mode === 'design') {
-    const k = e.key === '0' ? 9 : e.key === '-' ? 10 : /^[1-9]$/.test(e.key) ? +e.key - 1 : -1; if (k >= 0) choose(k);
+    const k = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='].indexOf(e.key); if (k >= 0) choose(k);
     if (e.code === 'KeyZ' || e.code === 'Backspace') doUndo(); if (e.code === 'Enter') toPick(); if (e.code === 'KeyN') setStyle(!S.noir);
   } else if (S.mode === 'pick') { if (/^[1-4]$/.test(e.key)) { S.carKey = CARS[+e.key - 1].key; startDrive(); } if (e.code === 'Escape') { S.mode = 'design'; showroom.visible = false; flatUI(); } }
   else if (S.mode === 'watch') { if (e.code === 'KeyV') fromWatch(); if (e.code === 'KeyP') { if (S.paused) fromWatch(); else { S.paused = true; signDirty = true; flatUI(); } } if (e.code === 'Escape') stopRace(); }

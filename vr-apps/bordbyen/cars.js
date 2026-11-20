@@ -12,7 +12,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=6';
+import { toonMat, ink } from './toon.js?v=7';
 
 export const CARS = [
   { key: 'lyn', name: 'Lynet', color: '#e8392f', blurb: 'Lav og hurtig, med spoiler' },
@@ -22,11 +22,13 @@ export const CARS = [
 ];
 /* how they drive: top speed (m/s), acceleration, grip, and how well they do off the road */
 export const HANDLING = {
-  lyn: { vmax: 30, acc: 11, grip: 1.0, off: 0.35, turn: 1.0 },
-  boble: { vmax: 26, acc: 12.5, grip: 1.15, off: 0.4, turn: 1.15 },
-  bulder: { vmax: 25, acc: 10, grip: 0.9, off: 0.85, turn: 0.95 },
-  brum: { vmax: 27, acc: 9.5, grip: 1.05, off: 0.45, turn: 0.9 },
+  lyn: { vmax: 30, acc: 11, grip: 1.0, off: 0.5, turn: 1.0 },
+  boble: { vmax: 26, acc: 12.5, grip: 1.15, off: 0.5, turn: 1.15 },
+  bulder: { vmax: 25, acc: 10, grip: 0.9, off: 0.6, turn: 0.95 },
+  brum: { vmax: 27, acc: 9.5, grip: 1.05, off: 0.5, turn: 0.9 },
 };
+/** the cars are a size smaller than real ones, so there is room on the roads */
+export const CAR_SCALE = 0.8;
 
 function roundedBox(w, h, d, r, seg = 5) {
   const g = new THREE.BoxGeometry(w, h, d, seg, seg, seg), p = g.getAttribute('position'), n = g.getAttribute('normal');
@@ -145,6 +147,7 @@ export function buildCar(key, color) {
   sw.add(new THREE.Mesh(merge(sl), darkMat)); sw.position.set(0, eye.y - 0.42, eye.z - 0.42); sw.rotation.x = -0.45;
   const swSpin = new THREE.Group(); sw.children[0].removeFromParent(); swSpin.add(new THREE.Mesh(merge(sl), darkMat)); sw.add(swSpin);
   cockpit.add(sw); cockpit.visible = false; car.add(cockpit);
+  car.scale.setScalar(CAR_SCALE); eye.multiplyScalar(CAR_SCALE); radius *= CAR_SCALE;      // eye and radius in metres of the scaled car
   car.userData = { key, wheels, steer, cockpit, wheel: swSpin, wheelBase: sw, eye, radius, front: fz, rear: rz, roof: roofMesh };
   return car;
 }

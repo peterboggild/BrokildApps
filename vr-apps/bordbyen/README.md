@@ -16,7 +16,7 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
 | `toon.js` | Tegneserie-looket: flade farver i tre toner og sorte tegnestreger. |
 
 **Cache:** `index.html` indlæser `game.js?v=N`, og `game.js`/`race.js` indlæser de andre med samme `?v=N`. Hæv dem alle sammen ved hver ændring
-(nu **v=6**).
+(nu **v=7**).
 
 ## Sådan hænger det sammen
 
@@ -87,6 +87,21 @@ Et valg på startsiden ("Stil"), og Y ved bordet skifter undervejs (N på comput
 * **Musik**, lavet i koden mens den spiller: langsom noir-jazz i D-mol, 68 slag i minuttet, med mørke akkorder på en blød flade (Dm9, B♭maj7,
   Gm9, A7♭9, to takter hver), en gående kontrabas, børstetrommer på to og fire og et swingende bækken, og spredte vibrafontoner ind i et langt
   ekko. Under det hele regnens sus.
+
+## Bakker, ingen gadelygter, ujævnt uden for vejen, mindre biler, stillingen (v=7)
+* **Bakker og dale:** to nye værktøjer. Et træk hæver (eller sænker) et område blødt med op til 3,5 m i midten, og det klinger ud en celle uden for
+  rektanglet; flere træk lægges oven i (mellem −10 og +16 m). Højden findes i hvert cellehjørne, men ikke på brættets kant, så kanten forbliver
+  flad. Veje, fortove, græs, parker, torve og gitterlinjerne lægges ned på terrænet (hvert hjørne løftes); husene står lodret i højde med det
+  højeste punkt under grunden, på en stensokkel ned til det laveste.
+* **Bilerne kører i terrænet:** de følger højden og vipper med hældningen (din egen ikke, når du sidder i den, for så ville motorhjelmen dække
+  udsynet op ad bakke); op ad bakke bremser tyngden, ned ad bakke speeder den op.
+* **Gadelygterne er væk fra vejene**; trafiklysene står yderst på hjørnet, og bilerne kan ikke længere støde ind i dem (heller ikke lygterne i
+  parker og på torve).
+* **Uden for vejen:** alle biler højst halv fart (Bulderen 60 %), og det ryster: bilen hopper og vipper tilfældigt, udsynet får små stød, controllerne
+  brummer i korte stød, og en gang imellem bumper det i lyden.
+* **Bilerne er 20 % mindre** (krop, øjne og sammenstødscirkler).
+* **Stillingen:** instrumentbrættet viser alle bilerne i rækkefølge med en prik pr. port (grøn når taget) og "MÅL"; i byoverblikket svæver et
+  navneskilt med "Porte x/y" over hver bil.
 
 ## Kroket-regler, nye knapper, rat i hænderne, sædet følger hovedet (v=5)
 * **Løbet er som kroket:** alle porte skal tages, i vilkårlig rækkefølge, og så gælder det om at komme først over start/mål. Modstanderne planlægger
