@@ -19,7 +19,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=5';
+import { toonMat, ink } from './toon.js?v=6';
 
 export const CELL = 8;
 export const SCALE = 1 / 160;                         // city metres to table metres: a cell is 5 cm on the table, a car 2.5 cm
