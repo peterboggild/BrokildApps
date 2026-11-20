@@ -17,12 +17,12 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=41';
-import { createStory } from './story.js?v=41';
-import { createHand } from './hands.js?v=41';
-import { buildShip } from './ship.js?v=41';
-import { createAmbience } from './ambience.js?v=41';
-import { createCombat } from './combat.js?v=41';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=42';
+import { createStory } from './story.js?v=42';
+import { createHand } from './hands.js?v=42';
+import { buildShip } from './ship.js?v=42';
+import { createAmbience } from './ambience.js?v=42';
+import { createCombat } from './combat.js?v=42';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);

@@ -1329,7 +1329,10 @@ export function createWorlds(scene, renderer, params) {
       for (const w of W) {
         const role = w.i === cur ? 'home' : w.i === oth ? 'other' : 'off';
         w.group.visible = role !== 'off';
-        for (const m of w.mats) m.stencilWrite = role === 'other';
+        /* Seen through the door: drawn only inside it (stencil == 1). Home: drawn only outside it (stencil != 1). The second matters for what is drawn after
+         * the door, which is everything transparent (three draws transparent things after opaque ones, whatever their order): the stars and the floating
+         * motes would otherwise be laid over the other side, and over the real room each one punched a little dark square in the camera picture. */
+        for (const m of w.mats) { m.stencilWrite = role !== 'off'; m.stencilFunc = role === 'home' ? THREE.NotEqualStencilFunc : THREE.EqualStencilFunc; }
         if (role !== 'off') w.group.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine) && !o.userData.keepOrder) o.renderOrder = role === 'home' ? ORDER.home : ORDER.other; });
         if (w.bare) w.scan.visible = role === 'home';                 // the room's outline only when you stand in the fractal (or in space), not through the door
         if (w.skyHome) w.skyHome.visible = role === 'home';

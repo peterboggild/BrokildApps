@@ -72,6 +72,9 @@ dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
   World 0 is the real room: alpha 0, passthrough.
 - **Opaque and transparent objects are sorted in separate lists** (opaque first). `renderOrder` only orders
   within a list. Anything that must come after the other world's particles has to be `transparent: true`.
+  The home world's materials are stencil-tested NotEqual 1 (and the other world's Equal 1), so nothing
+  transparent from the world you stand in is laid over the door's other side; over the real room it punched dark
+  squares in the camera picture (stars in deep space). Anything new and transparent in a home world needs the same.
 - **Dimensions** (`DIMS`): 0 stue, 1 groen, 2 metal, 3 klippe (the three "song dimensions", one music track
   each), 4 rum (deep space), then the fractals (apollo, klein, hyper, menger, boks, kali) and `fire`, the
   four-dimensional room (`fract: true, four: true`: it rides the fractal pipeline with its own shader
