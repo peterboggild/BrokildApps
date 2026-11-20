@@ -86,7 +86,7 @@ A knife cuts a door in the air of your own living room; through it you see, and 
 | `README.md` | Danish, very detailed, written in the order things were built (newest at the bottom). |
 
 **Cache busting:** `index.html` loads `portal.js?v=N`, and `portal.js` imports every module with the same `?v=N`.
-Raise them all together on every change (currently **v=47**), or the headset keeps old code.
+Raise them all together on every change (currently **v=48**), or the headset keeps old code.
 
 ### 3.2 What the player can do
 
@@ -115,15 +115,14 @@ Controls in short (the start page and README have the full lists):
 - **Fractals (flying yourself):** right stick flies (where you look, or where the right hand points), left stick
   up/down is speed 1–9, Y/X and B/A reshape, both grips scale, left stick hard sideways changes colour scheme, right
   stick press changes the world behind the door.
-- **Spaceship (option):** a 86 cm ship hangs in front of you; hold the right grip and turn your wrist to steer (or the
-  right stick), left stick is the throttle (0 is stop). It keeps ahead of you in its flying direction, comes round in
+- **Spaceship (option):** a 86 cm ship hangs in front of you; the right stick steers (hand steering was removed), left stick is the throttle (0 is stop). It keeps ahead of you in its flying direction, comes round in
   front of you when you turn yourself, can be pushed by hand, collides with the fractal.
 - **Deep space:** as the fractals, plus B/A warp and Y/X black hole.
 - **4D room:** Y/X pull through w, B/A turn in w (both eased, with sound), left stick walks, right stick snap-turns
   30°, left stick press resets the fourth dimension.
 - **Combat test (option):** bugs crawl towards the ship and burst; reshaping the fractal crushes them; all weapons on the
   hand without the knife fire straight along the nose (no aim assist): trigger = piercing plasma bolts (space bar flat),
-  stick press = a pair of rockets with smoke trails and fireballs (90 cm blast; key X), grip + trigger = a 1.2 s cone of
+  right grip = a pair of rockets with smoke trails and fireballs (90 cm blast; key X), left grip = a 1.2 s cone of
   light that annihilates everything inside it, then 5 s to charge (key C). Bugs speed up each minute (`COMBAT.pace()`, up
   to ×4) and grow in number. Bumping walls damages the ship by speed; the board over the ship shows hull, kills, ray
   charge, rockets and pace.

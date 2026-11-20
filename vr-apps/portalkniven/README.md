@@ -411,6 +411,11 @@ Farveskiftet på venstre stick kræver et tydeligt skub til siden, så et skråt
   20. sekund). Skiltet viser "FART ×1,5" osv. Det nulstilles, når man forlader kampen.
 * Forhåndsvisning: mellemrum, X og C.
 
+## Våbnene på grebene (kamp)
+Ændret efter afprøvning i headsettet: raketterne kunne ikke affyres med et tryk på venstre stick (den bruges til farten), og styring med hånden virkede
+ikke. Nu: **venstre aftrækker** skyder plasma (som før), **venstre greb** fyrer lyskeglen af, **højre greb** sender to raketter. Håndstyringen af
+skibet er fjernet; højre stick styrer. Under kamp skalerer de to greb ikke længere fraktalen (de er våben); uden kamp gør de som før.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option
