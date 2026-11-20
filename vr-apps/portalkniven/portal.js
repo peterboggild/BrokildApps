@@ -17,12 +17,12 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=47';
-import { createStory } from './story.js?v=47';
-import { createHand } from './hands.js?v=47';
-import { buildShip } from './ship.js?v=47';
-import { createAmbience } from './ambience.js?v=47';
-import { createCombat } from './combat.js?v=47';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=48';
+import { createStory } from './story.js?v=48';
+import { createHand } from './hands.js?v=48';
+import { buildShip } from './ship.js?v=48';
+import { createAmbience } from './ambience.js?v=48';
+import { createCombat } from './combat.js?v=48';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -888,7 +888,7 @@ function fractalControls(dt) {
  * room in front of you. The right stick steers it (left / right turns it, forward tips the nose down, back lifts it), the left stick up / down is the
  * throttle (0 is stopped, 1 to 9 as before) and it flies where its nose points. Nothing turns but the ship: the dimension only ever slides past, so it is
  * easy on the stomach, and you can walk round the ship and watch it from any side. Y / X, B / A, both grips and the colour flick work as without the ship;
- * the fractal grows and shrinks about the ship. Or steer it by hand: hold the right grip and turn your wrist. ---- */
+ * the fractal grows and shrinks about the ship (not in combat, where the grips are weapons). ---- */
 const shipModel = buildShip(), ship = new THREE.Group(); shipModel.scale.setScalar(0.045); ship.add(shipModel); ship.visible = false; scene.add(ship);      // 19 m of ship as an 86 cm model
 const SH = { hull: 100, kills: 0, dead: 0, redT: 0, q: new THREE.Quaternion(), roll: 0, away: 0, idle: 9, turnTo: null, touch: false, touchT: 0, held: false, h0: new THREE.Quaternion(), s0: new THREE.Quaternion() };
 const _yq = new THREE.Quaternion(), _pq = new THREE.Quaternion(), YAX = new V(0, 1, 0), XAX = new V(1, 0, 0);
@@ -906,18 +906,16 @@ function shipControls(dt, L, R, li, ri) {
     if (R && R.axes.length >= 4) { yawIn = dead(R.axes[2]); pitchIn = dead(R.axes[3]); }
     if (L && L.axes.length >= 4) { thr = -dead(L.axes[3]); const lx = L.axes[2]; if (Math.abs(lx) > 0.5) thr = 0; hk = Math.abs(lx) > 0.92 && Math.abs(L.axes[3]) < 0.45 ? Math.sign(lx) : Math.abs(lx) < 0.5 ? 0 : (FC.hueHeld ? 1 : 0); }
     par = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0); par2 = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0);
-    hold = btn(R, 1) && !btn(L, 1); hq = hands[ri].q;
-    if (!space && btn(L, 1) && btn(R, 1)) { const d = hands[li].pos.distanceTo(hands[ri].pos); if (FC.gripD > 0.02 && d > 0.02) scale = Math.pow(FC.gripD / d, 2.5); FC.gripD = d; } else FC.gripD = 0;
+    /* both grips scale the fractal; in combat the grips are the ray and the rockets */
+    if (!space && !S.combat && btn(L, 1) && btn(R, 1)) { const d = hands[li].pos.distanceTo(hands[ri].pos); if (FC.gripD > 0.02 && d > 0.02) scale = Math.pow(FC.gripD / d, 2.5); FC.gripD = d; } else FC.gripD = 0;
   } else {
     yawIn = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); pitchIn = (keys.KeyK ? 1 : 0) - (keys.KeyI ? 1 : 0); thr = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0);
     par = (keys.KeyM ? 1 : 0) - (keys.KeyN ? 1 : 0); par2 = (keys.KeyB ? 1 : 0) - (keys.KeyV ? 1 : 0); hk = (keys.KeyH ? 1 : 0) - (keys.KeyG ? 1 : 0);
-    scale = space ? 1 : keys.Period ? 1 - dt * 1.5 : keys.Comma ? 1 + dt * 1.5 : 1; hold = !!keys.KeyT;
+    scale = space ? 1 : keys.Period ? 1 - dt * 1.5 : keys.Comma ? 1 + dt * 1.5 : 1;
   }
   if (hk && !FC.hueHeld) { FC.hueHeld = true; if (!space) FC.hueTo = (FC.hueTo || 0) + Math.sign(hk); } else if (!hk) FC.hueHeld = false;
   FC.hue = (FC.hue || 0) + ((FC.hueTo || 0) - (FC.hue || 0)) * Math.min(1, dt * 5); worlds.setHue(FC.hue * Math.PI / 3);
-  /* Steering by hand: hold the right grip and the ship turns as your hand turns, as if you held it (let go, turn your wrist back, take hold again to turn it
-   * further). The stick still works: left / right turns it about the upright, forward / back tips its nose. */
-  if (hold) { if (!SH.held) { SH.held = true; SH.h0.copy(hq).invert(); SH.s0.copy(SH.q); } SH.q.copy(hq).multiply(SH.h0).multiply(SH.s0).normalize(); } else SH.held = false;
+  /* (Steering by hand with the right grip was tried and dropped: the right grip fires the rockets in combat.) */
   if (yawIn || pitchIn) SH.q.premultiply(_yq.setFromAxisAngle(YAX, -yawIn * 1.3 * dt)).multiply(_pq.setFromAxisAngle(XAX, pitchIn * 0.9 * dt)).normalize();
   SH.roll += (-yawIn * 0.5 - SH.roll) * Math.min(1, dt * 4);      // it banks into its turns
   ship.quaternion.copy(SH.q); shipModel.rotation.z = SH.roll;
@@ -998,10 +996,10 @@ const COMBAT = createCombat({ scene, worlds,
   onRocket: p => { boomAt(p, 2.4, true); boomAt(p, 1.4, false); AMB.boom(p, 3, 'blast'); buzzAll(0.7, 180); if (ship.visible && p.distanceTo(ship.position) < 0.6) shipDamage(20, p); },
   onRayKill: (p, size) => { SH.kills++; boomAt(p, 0.5 + size * 3, false); hullPanel(true); },
   onTrail: (p, d) => { boomLast = S.time; for (let k = 0; k < 3; k++) boomSparks.emit(p.x, p.y, p.z, -d.x * 0.5 + rnd(-0.08, 0.08), -d.y * 0.5 + rnd(-0.08, 0.08), -d.z * 0.5 + rnd(-0.08, 0.08), rnd(0.15, 0.3)); } });
-/* The ship's weapons, all on the hand without the knife (the left, as a rule), all straight ahead along the nose:
- *   trigger            plasma bolts, ten a second while held, from the two cannons by turns; they go through bugs   (flat preview: space bar)
- *   grip + trigger     the ray: a cone of light for 1.2 s that annihilates everything in it; then 5 s to charge     (flat preview: C)
- *   stick press        a pair of rockets from the two pods; 1.5 s to reload                                          (flat preview: X)
+/* The ship's weapons, all straight ahead along the nose:
+ *   trigger of the hand without the knife   plasma bolts, ten a second while held, by turns; they go through bugs   (flat preview: space bar)
+ *   left grip                                the ray: a cone of light for 1.2 s that annihilates everything in it; then 5 s to charge   (flat preview: C)
+ *   right grip                               a pair of rockets from the two pods; 1.5 s to reload                     (flat preview: X)
  * The board over the ship shows the ray charging and the rockets ready, and how fast the bugs have become. */
 const GUN = { cool: 0, side: 1, rayCool: 0, rocketCool: 0, rayWas: false, rocketWas: false };
 const RAY_CHARGE = 5, RAY_LAST = 1.2, ROCKET_RELOAD = 1.5;
@@ -1010,21 +1008,21 @@ function shipGuns(dt) {
   GUN.cool -= dt; if (GUN.rayCool > 0) GUN.rayCool -= dt; if (GUN.rocketCool > 0) GUN.rocketCool -= dt;
   if (!(S.combat && FC.shipOn && ship.visible && !(SH.dead > 0) && DIMS[S.cur].fract && !DIMS[S.cur].four)) { GUN.rayWas = GUN.rocketWas = false; return; }
   const gi = gunHand(), gp = S.mode === 'xr' ? ctrl[gi].src && ctrl[gi].src.gamepad : null;
-  const trig = S.mode === 'xr' ? !!ctrl[gi].pressed : !!keys.Space, grip = S.mode === 'xr' ? btn(gp, 1) && !btn(ctrl[1 - gi].src && ctrl[1 - gi].src.gamepad, 1) : false;
-  const rayKey = S.mode === 'xr' ? trig && grip : !!keys.KeyC, rocketKey = S.mode === 'xr' ? btn(gp, 3) : !!keys.KeyX;
+  const lc = ctrl.find(c => c.hand === 'left') || ctrl[gi], rc = ctrl.find(c => c.hand === 'right') || ctrl[1 - gi];
+  const trig = S.mode === 'xr' ? !!ctrl[gi].pressed : !!keys.Space;
+  const rayKey = S.mode === 'xr' ? btn(lc.src && lc.src.gamepad, 1) : !!keys.KeyC, rocketKey = S.mode === 'xr' ? btn(rc.src && rc.src.gamepad, 1) : !!keys.KeyX;
   const nose = new V(0, 0, -1).applyQuaternion(SH.q), right = new V(1, 0, 0).applyQuaternion(SH.q), down = new V(0, -1, 0).applyQuaternion(SH.q), v = Math.round(FC.gear) < 1 ? 0 : 0.15 * Math.pow(1.65, FC.gear - 1);
   if (rocketKey && !GUN.rocketWas && GUN.rocketCool <= 0) {
     let n = 0;
     for (const sd of [-1, 1]) { const from = ship.position.clone().addScaledVector(nose, 0.25).addScaledVector(right, 0.13 * sd).addScaledVector(down, 0.05); if (COMBAT.launch(from, nose, v)) { n++; AMB.rocket(from); } }
-    if (n) { GUN.rocketCool = ROCKET_RELOAD; hullPanel(true); try { gp?.hapticActuators?.[0]?.pulse?.(0.7, 90); } catch (_) { /* none */ } }
+    if (n) { GUN.rocketCool = ROCKET_RELOAD; hullPanel(true); try { rc.src?.gamepad?.hapticActuators?.[0]?.pulse?.(0.7, 90); } catch (_) { /* none */ } }
   }
   GUN.rocketWas = rocketKey;
   if (rayKey && !GUN.rayWas && GUN.rayCool <= 0) {
     const from = ship.position.clone().addScaledVector(nose, 0.44);
-    if (COMBAT.ray()) { GUN.rayCool = RAY_LAST + RAY_CHARGE; AMB.ray(from); boomAt(from, 0.3, false); hullPanel(true); try { gp?.hapticActuators?.[0]?.pulse?.(1, 1100); } catch (_) { /* none */ } }
+    if (COMBAT.ray()) { GUN.rayCool = RAY_LAST + RAY_CHARGE; AMB.ray(from); boomAt(from, 0.3, false); hullPanel(true); try { lc.src?.gamepad?.hapticActuators?.[0]?.pulse?.(1, 1100); } catch (_) { /* none */ } }
   }
   GUN.rayWas = rayKey;
-  if (grip && S.mode === 'xr') return;                                  // the grip turns the trigger into the ray's
   if (!trig || GUN.cool > 0) return;
   GUN.cool = 0.1; GUN.side = -GUN.side;
   const from = ship.position.clone().addScaledVector(nose, 0.44).addScaledVector(right, 0.07 * GUN.side);
