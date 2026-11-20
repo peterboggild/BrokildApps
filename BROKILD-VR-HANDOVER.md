@@ -52,7 +52,7 @@ commit `04228fc`. No open pull requests, nothing half-done on any branch.
 | Portalkniven | `vr-apps/portalkniven/` | `/vr-apps/portalkniven/` | The main project. Large, live, in active development. |
 | Mutant Rotte Angreb | `vr-apps/tank-ambush/` | `/vr-apps/tank-ambush/` | Finished game; latest addition the cheese bomb (#75). |
 | Guldplaneten | `vr-apps/guldplaneten/` | `/vr-apps/guldplaneten/` | Not touched in these sessions. |
-| Bordbyen | `vr-apps/bordbyen/` | `/vr-apps/bordbyen/` | New city-racing game (#78): build a town on the table (design), pick a toy car, shrink to 1:1 and race: clear all gates in any order, then first over the finish, against 3 AI cars. Files `game.js`, `city.js`, `cars.js`, `race.js`, `audio.js`; README (Danish) has the design; cache `?v=8`. |
+| Ræs i Bordbyen | `vr-apps/bordbyen/` | `/vr-apps/bordbyen/` | New city-racing game (#78): build a town on the table (design), pick a toy car, shrink to 1:1 and race: clear all gates in any order, then first over the finish, against 3 AI cars. Files `game.js`, `city.js`, `cars.js`, `race.js`, `audio.js`; README (Danish) has the design; cache `?v=9`. |
 
 - The site's front page (`index.html` in the root) mentions the three VR apps in one paragraph.
 - `tools/sync-site.js` writes the social preview tags and `sitemap.xml`. Run `node tools/sync-site.js` after

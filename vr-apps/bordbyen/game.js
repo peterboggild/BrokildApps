@@ -17,11 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=8';
-import { buildCar, CARS, CAR_SCALE } from './cars.js?v=8';
-import { createRace, LAPS } from './race.js?v=8';
-import { createAudio } from './audio.js?v=8';
-import { INK, NOIR } from './toon.js?v=8';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=9';
+import { buildCar, CARS, CAR_SCALE } from './cars.js?v=9';
+import { createRace, LAPS } from './race.js?v=9';
+import { createAudio } from './audio.js?v=9';
+import { INK, NOIR } from './toon.js?v=9';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -86,11 +86,12 @@ function applyStyle() {
 function setStyle(noir) { S.noir = noir; try { localStorage.setItem('bordbyen.style', noir ? 'noir' : 'day'); } catch (_) { /* no storage */ } applyStyle(); toast(noir ? 'Graphic novel: nat og regn' : 'Tegneserie: dag'); }
 /** every frame: the hatching follows the city's matrix, the rain falls where you are, and now and then the sky lights up */
 function styleStep(dt) {
+  city.showTunnelMap(S.mode === 'design' || S.mode === 'pick' || S.mode === 'watch' || S.mode === 'setup');
   NOIR.uCityInv.value.copy(holder.matrix).invert(); NOIR.uTime.value = S.time; skyMat.uniforms.uT.value = S.time;
   if (!S.noir) return;
   const driving = S.mode === 'drive' || S.mode === 'shrink' || S.mode === 'watchDown' || S.mode === 'grow' || S.mode === 'watchUp';
   rainMat.uniforms.uT.value = S.time;
-  rain.visible = driving && sky.visible && skyMat.uniforms.uA.value > 0.5;                // rain only down in the streets, not over the town on the table
+  { const pc = player(); rain.visible = driving && sky.visible && skyMat.uniforms.uA.value > 0.5 && !(pc && pc.level === -1); }                // rain only down in the streets, not over the town on the table
   if (rain.visible) { rainMat.uniforms.uC.value.set(camC.p.x, camC.p.y, camC.p.z); rainMat.uniforms.uBox.value.set(50, 26, 50); rainMat.uniforms.uSpeed.value = 17; rainMat.uniforms.uLen.value = 1.1; rainMat.uniforms.uA.value = 0.32; rain.geometry.setDrawRange(0, RAIN_N * 2); }
   else { const W = city.st.W * CELL, H = city.st.H * CELL; rainMat.uniforms.uC.value.set(0, 16, 0); rainMat.uniforms.uBox.value.set(W, 32, H); rainMat.uniforms.uSpeed.value = 90; rainMat.uniforms.uLen.value = 2.6; rainMat.uniforms.uA.value = 0.16; rain.geometry.setDrawRange(0, RAIN_N * 0.5); }
   /* lightning when you are down in the town: a double flicker, then thunder after a moment */
@@ -158,13 +159,14 @@ function alignSeat(dt) {
 function updateCamC(dt, snap) {
   const car = player(); if (!car) return;
   if (S.view === 'cockpit') {
-    const e = car.obj.userData.eye; camC.p.set(e.x, e.y, e.z).applyAxisAngle(YAX, car.yaw).add(new V(car.p.x, city.heightAt(car.p.x, car.p.y), car.p.y)); camC.yaw = car.yaw;
+    const e = car.obj.userData.eye; camC.p.set(e.x, e.y, e.z).applyAxisAngle(YAX, car.yaw).add(new V(car.p.x, city.groundY(car.level, car.p.x, car.p.y), car.p.y)); camC.yaw = car.yaw;
   } else {
     let d = car.yaw - camC.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); camC.yaw += snap ? d : d * Math.min(1, dt * 3.2);
     /* behind and above the car; nearer if a building is in the way (never inside one) */
-    const back = new V(0, 3.0, 8.0).applyAxisAngle(YAX, camC.yaw); let t = 1;
-    for (let k = 1; k <= 12; k++) { const u = k / 12; if (city.inSolid(car.p.x + back.x * u, car.p.y + back.z * u)) { t = Math.max(0.15, (k - 1) / 12); break; } }
-    const want = new V(back.x * t, 3.0 * Math.max(0.6, t), back.z * t).add(new V(car.p.x, city.heightAt(car.p.x, car.p.y), car.p.y));
+    const under = car.level !== 0, up = under ? 2.0 : 3.0, back = new V(0, up, under ? 6.5 : 8.0).applyAxisAngle(YAX, camC.yaw); let t = 1;
+    const blocked = (x, z) => { if (car.level === -1 || (car.level === 'r' && car.rampT > 0.5)) { const q = new THREE.Vector2(x, z), o = q.clone(); city.collideL(q, 0.5, -1); return q.distanceTo(o) > 0.05; } return city.inSolid(x, z); };
+    for (let k = 1; k <= 12; k++) { const u = k / 12; if (blocked(car.p.x + back.x * u, car.p.y + back.z * u)) { t = Math.max(0.15, (k - 1) / 12); break; } }
+    const want = new V(back.x * t, up * Math.max(0.6, t), back.z * t).add(new V(car.p.x, city.groundY(car.level, car.p.x, car.p.y), car.p.y));
     if (snap) camC.p.copy(want); else camC.p.lerp(want, Math.min(1, dt * 6));
   }
 }
@@ -261,11 +263,20 @@ function showCursor(a, b, ok) {
 function designInput(o, d, down, dt) {
   const t = TOOLS[S.tool], c = cellUnder(o, d);
   if (!c) { cursor.visible = false; if (!down && D.down) endStroke(); return null; }
-  if (down && !D.down) { D.down = true; D.a = c; D.lastCell = null; D.pushed = !c.out; if (D.pushed) before(); }
+  if (down && !D.down) { D.down = true; D.a = c; D.lastCell = null; D.tunOn = undefined; D.pushed = !c.out; if (D.pushed) before(); }
   if (!down && D.down) { D.b = c; endStroke(); return c; }
   if (D.down) {
     D.b = c;
-    if (t.kind === 'road' && !D.a.out) {
+    if (t.kind === 'tunnel' && !D.a.out) {
+      /* sweep like a road; starting on a tunnel takes tunnel away instead */
+      if (D.tunOn === undefined) D.tunOn = !city.isTun(D.a.i, D.a.j);
+      const from = D.lastCell || c; let i = from.i, j = from.j, did = false; const step = () => { if (city.paintTunnel(i, j, D.tunOn)) did = true; };
+      step(); while (i !== c.i || j !== c.j) { if (i !== c.i) i += Math.sign(c.i - i); else j += Math.sign(c.j - j); step(); }
+      D.lastCell = c; if (did) { D.dirty = true; audio.click(); }
+      D.rebuildT -= dt; if (D.dirty && D.rebuildT <= 0) { city.commit(); D.dirty = false; D.rebuildT = 0.15; }
+      showCursor(c, c, true);
+    } else if (t.kind === 'ramp') showCursor(D.a, rampEnd(D.a, c), true);
+    else if (t.kind === 'road' && !D.a.out) {
       /* sweep: paint every cell between the last and this one (no gaps when the hand moves fast) */
       const from = D.lastCell || c; let i = from.i, j = from.j; let painted = false;
       const step = () => { if (city.paintRoad(i, j)) painted = true; };
@@ -278,11 +289,14 @@ function designInput(o, d, down, dt) {
   } else showCursor(c, c, t.kind !== 'gate' || city.isRoad(c.i, c.j));
   return c;
 }
+/** a ramp is always two cells: from where you started, one more cell in the main direction you dragged */
+function rampEnd(a, c) { const dx = c.i - a.i, dz = c.j - a.j; if (!dx && !dz) return { i: a.i, j: a.j + 1 }; return Math.abs(dx) >= Math.abs(dz) ? { i: a.i + Math.sign(dx), j: a.j } : { i: a.i, j: a.j + Math.sign(dz) }; }
 function endStroke() {
   const t = TOOLS[S.tool], a = D.a, b = D.b || a; D.down = false; cursor.visible = false;
   if (!a || a.out) return;
   let changed = false;
-  if (t.kind === 'road') { changed = true; city.commit(); }
+  if (t.kind === 'road' || t.kind === 'tunnel') { changed = true; city.commit(); }
+  else if (t.kind === 'ramp') { const e = rampEnd(a, b); changed = city.placeRamp(a.i, a.j, e.i, e.j); if (changed) { city.reshape(); audio.pop(); } else toast('Træk nedkørslen fra vejen og ind mod tunnellen'); }
   else if (t.kind === 'lot') { changed = city.placeLot(t.key, a.i, a.j, b.i, b.j); if (changed) { city.commit(); audio.pop(); } else toast(t.name + ' skal være mindst ' + t.min + ' × ' + t.min + ' felter'); }
   else if (t.kind === 'terrain') { changed = city.shapeTerrain(a.i, a.j, b.i, b.j, t.dir); if (changed) { city.reshape(); audio.pop(); } }
   else if (t.kind === 'erase') { changed = city.eraseRect(a.i, a.j, b.i, b.j); if (changed) { city.commit(); audio.click(); } }
@@ -388,8 +402,8 @@ function drawHud() {
 function placeHud() {
   const c = player(); if (!c) return; const e = c.obj.userData.eye;
   /* in the seat it sits low on the windscreen, like a head-up display, under the line you look along; behind the car it floats high over it */
-  if (S.view === 'cockpit') { hud.scale.setScalar(0.3); const p = new V(0, e.y - 0.36, e.z - 0.82).applyAxisAngle(YAX, c.yaw); hud.position.set(c.p.x + p.x, p.y + city.heightAt(c.p.x, c.p.y), c.p.y + p.z); hud.rotation.set(-0.55, c.yaw, 0, 'YXZ'); }
-  else { hud.scale.setScalar(1.5); const p = new V(0, 4.8, -1).applyAxisAngle(YAX, camC.yaw); hud.position.set(c.p.x + p.x, p.y + city.heightAt(c.p.x, c.p.y), c.p.y + p.z); hud.rotation.set(-0.15, camC.yaw, 0, 'YXZ'); }
+  if (S.view === 'cockpit') { hud.scale.setScalar(0.3); const p = new V(0, e.y - 0.36, e.z - 0.82).applyAxisAngle(YAX, c.yaw); hud.position.set(c.p.x + p.x, p.y + city.groundY(c.level, c.p.x, c.p.y), c.p.y + p.z); hud.rotation.set(-0.55, c.yaw, 0, 'YXZ'); }
+  else { hud.scale.setScalar(1.5); const p = new V(0, 4.8, -1).applyAxisAngle(YAX, camC.yaw); hud.position.set(c.p.x + p.x, p.y + city.groundY(c.level, c.p.x, c.p.y), c.p.y + p.z); hud.rotation.set(-0.15, camC.yaw, 0, 'YXZ'); }
 }
 function toast(t) { S.toast = t; S.toastT = 2.2; if (S.mode === 'design' || S.mode === 'pick') { S.msg = t; paletteDirty = true; flatUI(); } }
 
@@ -516,7 +530,7 @@ function loop(_, frame) {
     if (S.mode === 'watch') watchButtons();
     if (!S.paused) race.update(dt, S.mode === 'watch' ? driveInput(dt) : { gas: 0, brake: 0, steer: 0 }); audio.silence();
     if (signDirty) drawWatchSign();
-    const pc = player(); if (pc) { insideView(pc.obj, false); carMark.visible = S.mode === 'watch'; carMark.position.set(pc.p.x, city.heightAt(pc.p.x, pc.p.y) + 22 + Math.sin(S.time * 4) * 1.5, pc.p.y); carMark.rotation.y += dt * 2; }
+    const pc = player(); if (pc) { insideView(pc.obj, false); carMark.visible = S.mode === 'watch'; carMark.position.set(pc.p.x, Math.max(0, city.heightAt(pc.p.x, pc.p.y)) + 22 + Math.sin(S.time * 4) * 1.5, pc.p.y); carMark.rotation.y += dt * 2; }
     carTags(S.mode === 'watch');
     if (S.mode === 'watch') { holder.matrix.copy(designMatrix(_m1)); watchSign.visible = true; }
     else {

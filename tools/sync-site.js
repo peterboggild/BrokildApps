@@ -72,7 +72,7 @@ const EXTRA = {
     type: "website",
   },
   "vr-apps/bordbyen/index.html": {
-    alt: "Bordbyen — draw a toy town on your real table, then shrink down into it and race, in mixed reality",
+    alt: "Ræs i Bordbyen — draw a toy town on your real table, then shrink down into it and race, in mixed reality",
     type: "website",
   },
 };

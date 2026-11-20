@@ -18,17 +18,25 @@
  * and squares lie on the ground (their vertices are lifted by the height under them); buildings stay upright: each solid lot stands at the highest
  * ground under it, on a stone plinth that reaches down to the lowest.
  *
+ * Tunnels: an underground layer, two-lane roads only, at one depth (TUN_Y). A ramp (two cells) leads down from a road to a tunnel: an open trench
+ * with concrete walls and a portal at the bottom. Nothing else can be built down there; tunnels may run under anything. From the table they show as a
+ * faint brown band over the town. Cars have a level: 0 on the surface, -1 in a tunnel, 'r' on a ramp; they only meet cars on their own level.
+ *
  * Driving: the solid lots are boxes the cars bounce off (the lot less its pavement); parks have trees, squares a fountain (circles); parks and grass are
  * slow, roads and squares fast. The opponents' route is found through roads and squares only (breadth first, then rounded).
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=8';
+import { toonMat, ink } from './toon.js?v=9';
 
 export const CELL = 8;
-export const SCALE = 1 / 160;                         // city metres to table metres: a cell is 5 cm on the table, a car 2.5 cm
+export const SCALE = 1 / 160;
+export const TUN_Y = -4.5, TUN_TOP = -0.6;                // the tunnel floor and ceiling, in city metres below the board's surface
+const DIRV = [null, [0, -1], [1, 0], [0, 1], [-1, 0]];     // ramp directions (downhill): 1 N, 2 E, 3 S, 4 W                         // city metres to table metres: a cell is 5 cm on the table, a car 2.5 cm
 export const TOOLS = [
   { key: 'vej', name: 'Vej', color: '#5b6270', kind: 'road' },
+  { key: 'tunnel', name: 'Tunnel', color: '#8a5a2a', kind: 'tunnel' },
+  { key: 'rampe', name: 'Nedkørsel', color: '#c79a5a', kind: 'ramp' },
   { key: 'huse', name: 'Huse', color: '#f3b6a5', kind: 'lot', solid: true },
   { key: 'byhus', name: 'Byhuse', color: '#f7e48b', kind: 'lot', solid: true },
   { key: 'hoejhus', name: 'Højhus', color: '#8fc3ea', kind: 'lot', solid: true },
@@ -91,8 +99,8 @@ const G = {
 G.prism.computeVertexNormals();
 
 /* ---- trees, windows: shared bits ---- */
-function tree(b, x, z, r, s = 1) {
-  const kind = r(), h = (3 + r() * 2.5) * s;
+function tree(b, x, z, r, s = 1, circles = null) {
+  const kind = r(), h = (3 + r() * 2.5) * s; if (circles) circles.push([x, z, 0.45 * s]);      // a trunk you can run into
   b.cyl(x, 0, z, 0.28 * s, h * 0.5, '#8a5a34', 'cyl6');
   if (kind < 0.6) { const g = pick(r, ['#5cb84a', '#6cc552', '#4fa845']); b.ball(x, h * 0.66, z, 1.6 * s, g, 1.0); b.ball(x + 0.8 * s, h * 0.6, z - 0.3 * s, 1.0 * s, g); b.ball(x - 0.5 * s, h * 0.82, z + 0.5 * s, 1.05 * s, '#7fd462'); }
   else if (kind < 0.85) { b.cone(x, h * 0.25, z, 1.5 * s, h * 0.6, '#3d9a52'); b.cone(x, h * 0.55, z, 1.1 * s, h * 0.55, '#47ab5c'); }
@@ -131,7 +139,7 @@ function stall(b, x, z, ry, r) {
 export function createCity() {
   const root = new THREE.Group(); root.name = 'city';
   const mat = toonMat();
-  const st = { W: 20, H: 14, cells: null, lot: null, hts: null, lots: new Map(), gates: [], nextId: 1 };
+  const st = { W: 20, H: 14, cells: null, lot: null, hts: null, tun: null, rdir: null, rpart: null, lots: new Map(), gates: [], nextId: 1 };
   const meshes = new Map();                            // lot id -> mesh
   let roadMesh = null, groundMesh = null, gridLines = null, gateGroup = new THREE.Group(); root.add(gateGroup);
   const colliders = { rects: [], circles: [] };
@@ -140,12 +148,15 @@ export function createCity() {
   const inside = (i, j) => i >= 0 && j >= 0 && i < st.W && j < st.H;
   const cx = i => (i + 0.5 - st.W / 2) * CELL, cz = j => (j + 0.5 - st.H / 2) * CELL;
   const isRoad = (i, j) => inside(i, j) && st.cells[idx(i, j)] === 1;
+  const roadish = (i, j) => inside(i, j) && st.cells[idx(i, j)] >= 1;                 // a road or a ramp
+  const isTun = (i, j) => inside(i, j) && st.tun[idx(i, j)] === 1;
+  const rampAt = (i, j) => { if (!inside(i, j)) return null; const k = idx(i, j), d = st.rdir[k]; return d ? { d, v: DIRV[d], part: st.rpart[k] } : null; };
   const cellAt = (x, z) => [Math.floor(x / CELL + st.W / 2), Math.floor(z / CELL + st.H / 2)];
 
   function reset(W, H) {
-    st.W = W; st.H = H; st.hts = new Float32Array((W + 1) * (H + 1)); st.cells = new Uint8Array(W * H); st.lot = new Int32Array(W * H).fill(0); st.lots.clear(); st.gates = []; st.nextId = 1;
+    st.W = W; st.H = H; st.hts = new Float32Array((W + 1) * (H + 1)); st.tun = new Uint8Array(W * H); st.rdir = new Uint8Array(W * H); st.rpart = new Uint8Array(W * H); st.cells = new Uint8Array(W * H); st.lot = new Int32Array(W * H).fill(0); st.lots.clear(); st.gates = []; st.nextId = 1;
     for (const m of meshes.values()) { root.remove(m); m.geometry.dispose(); } meshes.clear();
-    rebuildGround(); rebuildRoads(); rebuildGates(); rebuildColliders();
+    rebuildGround(); rebuildRoads(); rebuildUnder(); rebuildGates(); rebuildColliders();
   }
 
   /* ---------- the ground's height ---------- */
@@ -181,16 +192,35 @@ export function createCity() {
     for (let j = z0; j <= z1; j++) for (let i = x0; i <= x1; i++) {
       if (!inside(i, j)) continue; const k = idx(i, j);
       if (st.lot[k]) { removeLot(st.lot[k]); changed = true; }
+      if (st.rdir[k]) { removeRamp(i, j); changed = true; }
       if (st.cells[k]) { st.cells[k] = 0; changed = true; }
     }
     const before = st.gates.length; st.gates = st.gates.filter(g => !(g.i >= x0 && g.i <= x1 && g.j >= z0 && g.j <= z1)); if (st.gates.length !== before) changed = true;
     return changed;
   }
   const norm = (a, b, c, d) => [Math.max(0, Math.min(a, c)), Math.max(0, Math.min(b, d)), Math.min(st.W - 1, Math.max(a, c)), Math.min(st.H - 1, Math.max(b, d))];
+  /** take a ramp away, both its cells */
+  function removeRamp(i, j) {
+    const r = rampAt(i, j); if (!r) return; const [di, dj] = r.v, oi = r.part ? i - di : i + di, oj = r.part ? j - dj : j + dj;
+    for (const [a, b] of [[i, j], [oi, oj]]) if (inside(a, b)) { const k = idx(a, b); if (st.rdir[k]) { st.rdir[k] = 0; st.rpart[k] = 0; st.cells[k] = 0; } }
+  }
+  /** a ramp down from cell a, two cells long towards b (its direction is the larger step from a to b); the tunnel starts beyond it */
+  function placeRamp(ai, aj, bi, bj) {
+    const dx = bi - ai, dz = bj - aj; if (!dx && !dz) return false;
+    const d = Math.abs(dx) >= Math.abs(dz) ? (dx > 0 ? 2 : 4) : (dz > 0 ? 3 : 1), [di, dj] = DIRV[d], ci = ai + di, cj = aj + dj;
+    if (!inside(ai, aj) || !inside(ci, cj)) return false;
+    clearRect(Math.min(ai, ci), Math.min(aj, cj), Math.max(ai, ci), Math.max(aj, cj));
+    for (const [i, j, part] of [[ai, aj, 0], [ci, cj, 1]]) { const k = idx(i, j); st.cells[k] = 2; st.rdir[k] = d; st.rpart[k] = part; st.tun[k] = 0;
+      for (const [a, b] of [[0, 0], [1, 0], [0, 1], [1, 1]]) st.hts[hIdx(i + a, j + b)] = 0; }           // the ground round a ramp is flat
+    if (inside(ci + di, cj + dj)) st.tun[idx(ci + di, cj + dj)] = 1;
+    return true;
+  }
+  /** a tunnel cell, or none (on = false) */
+  function paintTunnel(i, j, on) { if (!inside(i, j)) return false; const k = idx(i, j); if (st.rdir[k]) return false; const v = on ? 1 : 0; if (st.tun[k] === v) return false; st.tun[k] = v; return true; }
   /** paint road on one cell (a lot under it goes) */
   function paintRoad(i, j) {
     if (!inside(i, j) || isRoad(i, j)) return false;
-    const k = idx(i, j); if (st.lot[k]) removeLot(st.lot[k]);
+    const k = idx(i, j); if (st.lot[k]) removeLot(st.lot[k]); if (st.rdir[k]) removeRamp(i, j);
     st.cells[k] = 1; return true;
   }
   /** can a lot of this type go here? (size) */
@@ -212,15 +242,17 @@ export function createCity() {
     st.gates.push({ i, j, start: !!start }); return true;
   }
   /** after any edit: roads, gates and colliders follow */
-  function commit() { rebuildRoads(); rebuildGates(); rebuildColliders(); }
+  function commit() { rebuildRoads(); rebuildUnder(); rebuildGates(); rebuildColliders(); }
 
   /* ---------- meshes ---------- */
   function rebuildGround() {
     if (groundMesh) { root.remove(groundMesh); groundMesh.geometry.dispose(); }
     const b = new Builder(), W = st.W * CELL, H = st.H * CELL;
-    b.box(0, -0.6, 0, W + 1.2, 0.6, H + 1.2, '#6f5a43');                                 // the board's edge, seen from the side
+    /* the board is a thick block (the tunnels live inside it): four sides and a bottom, open on top, where the grass is */
+    const T = 6.4; for (const [x, z, w, d] of [[0, -H / 2 - 0.3, W + 1.2, 0.6], [0, H / 2 + 0.3, W + 1.2, 0.6], [-W / 2 - 0.3, 0, 0.6, H], [W / 2 + 0.3, 0, 0.6, H]]) b.box(x, -T, z, w, T, d, '#6f5a43');
+    b.box(0, -T - 0.3, 0, W + 1.2, 0.3, H + 1.2, '#5a4836');
     groundMesh = ink(new THREE.Mesh(b.build(), mat)); root.add(groundMesh);
-    const gb = new Builder(); gb.add(new THREE.PlaneGeometry(1, 1, st.W, st.H).rotateX(-Math.PI / 2), '#8fcf6e', 0, 0.015, 0, 0, W, 1, H);      // grass on the hills: too thin to ink
+    const gb = new Builder(); for (let j = 0; j < st.H; j++) for (let i = 0; i < st.W; i++) if (!st.rdir[idx(i, j)]) gb.add(G.plane, '#8fcf6e', cx(i), 0.015, cz(j), 0, CELL, 1, CELL);      // grass on the hills (open over the ramps): too thin to ink
     const gg0 = drape(gb.build()); gg0.computeVertexNormals(); groundMesh.add(new THREE.Mesh(gg0, mat));
     /* the grid, for drawing */
     if (gridLines) { root.remove(gridLines); gridLines.geometry.dispose(); }
@@ -239,7 +271,7 @@ export function createCity() {
     const b = new Builder(), f = new Builder(), h = CELL / 2, pw = 1.4, PAVE = '#d8d2c6', KERB = '#bcb5a8';
     for (let j = 0; j < st.H; j++) for (let i = 0; i < st.W; i++) {
       if (!isRoad(i, j)) continue;
-      const x = cx(i), z = cz(j), N = isRoad(i, j - 1), S = isRoad(i, j + 1), E = isRoad(i + 1, j), Wd = isRoad(i - 1, j), n = N + S + E + Wd;
+      const x = cx(i), z = cz(j), N = roadish(i, j - 1), S = roadish(i, j + 1), E = roadish(i + 1, j), Wd = roadish(i - 1, j), n = N + S + E + Wd;
       f.add(G.plane, '#4b515c', x, 0.02, z, 0, CELL, 1, CELL);                                   // asphalt (no ink)
       /* pavements with a kerb where the road ends at a side; a lamp on every other one */
       const sides = [[!N, 0, -1], [!S, 0, 1], [!E, 1, 0], [!Wd, -1, 0]];
@@ -252,7 +284,7 @@ export function createCity() {
       if (lampSide && (i * 7 + j * 13) % 9 === 0) { const [, dx, dz] = lampSide, hx = x + dx * (h - 0.7) + (dz ? 2.5 : 0), hz = z + dz * (h - 0.7) + (dx ? 2.5 : 0); b.cyl(hx, 0.18, hz, 0.2, 0.7, '#e2382f', 'cyl6'); b.ball(hx, 0.92, hz, 0.2, '#e2382f'); }      // a fire hydrant
       for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
         const a = dx > 0 ? E : Wd, c = dz > 0 ? S : N;
-        if (a && c && !isRoad(i + dx, j + dz)) {
+        if (a && c && !roadish(i + dx, j + dz)) {
           const px = x + dx * (h - pw / 2), pz = z + dz * (h - pw / 2); b.box(px, 0, pz, pw, 0.18, pw, PAVE);
           if (n >= 3) {                                                                           // a traffic light, out at the very corner (cars pass it)
             const qx = x + dx * (h - 0.25), qz = z + dz * (h - 0.25);
@@ -283,6 +315,66 @@ export function createCity() {
     const g2 = f.build(); if (g2) { flatRoad = new THREE.Mesh(drape(g2), mat); root.add(flatRoad); }
   }
 
+  /* ---------- the underground: ramps, tunnels, and their map on the table ---------- */
+  let rampMesh = null, tunMesh = null, tunFlat = null, tunMap = null;
+  const tunMapMat = new THREE.MeshBasicMaterial({ color: 0x7a4a1e, transparent: true, opacity: 0.45, depthTest: false, depthWrite: false });
+  /** a quad from four corners (in order round it), for sloping floors */
+  function quad(b, p, color) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([...p[0], ...p[1], ...p[2], ...p[0], ...p[2], ...p[3]], 3)); g.computeVertexNormals(); b.add(g, color); }
+  /** is a tunnel cell open towards a neighbour (another tunnel cell, or the bottom of a ramp that leads into it)? */
+  function tunOpen(i, j, ni, nj) { if (isTun(ni, nj)) return true; const r = rampAt(ni, nj); return !!r && r.part === 1 && ni + r.v[0] === i && nj + r.v[1] === j; }
+  function rebuildUnder() {
+    for (const m of [rampMesh, tunMesh, tunFlat, tunMap]) if (m) { root.remove(m); m.geometry.dispose(); }
+    rampMesh = tunMesh = tunFlat = tunMap = null;
+    const rb = new Builder(), tb = new Builder(), tf = new Builder(), mb = new Builder(), h = CELL / 2, CON = '#bdb7ab', DARK = '#8f8a80';
+    for (let j = 0; j < st.H; j++) for (let i = 0; i < st.W; i++) {
+      const x = cx(i), z = cz(j), r = rampAt(i, j);
+      if (r) {
+        /* a ramp: a sloping floor, walls either side, and at its foot the tunnel's portal */
+        const [di, dj] = r.v, sx = -dj, sz = di, y0 = r.part ? TUN_Y / 2 : 0, y1 = r.part ? TUN_Y : TUN_Y / 2;
+        const P = (a, s, y) => [x + di * a + sx * s, y, z + dj * a + sz * s];
+        quad(rb, [P(-h, -h, y0), P(-h, h, y0), P(h, h, y1), P(h, -h, y1)].map(q => q), '#4b515c');
+        if (r.part === 0) for (let k = -1; k <= 1; k++) quad(tf, [P(-h + 0.5, k * 2 - 0.3, y0 + 0.03), P(-h + 0.5, k * 2 + 0.3, y0 + 0.03), P(-h + 2.0, k * 2 + 0.3, y0 + 0.03 + (y1 - y0) * 1.5 / CELL), P(-h + 2.0, k * 2 - 0.3, y0 + 0.03 + (y1 - y0) * 1.5 / CELL)], '#f2c230');
+        for (const sd of [-1, 1]) rb.add(G.box, CON, x + sx * sd * (h - 0.3), (TUN_Y - 0.3 + 1.0) / 2, z + sz * sd * (h - 0.3), Math.atan2(di, dj), 0.6, 1.0 - TUN_Y + 0.3, CELL);
+        if (r.part === 1) { const fx = x + di * (h - 0.3), fz = z + dj * (h - 0.3); rb.add(G.box, CON, fx, (TUN_TOP + 1.0) / 2, fz, Math.atan2(di, dj) + Math.PI / 2, 0.6, 1.0 - TUN_TOP, CELL);
+          for (let k = 0; k < 4; k++) rb.add(G.box, k % 2 ? '#222' : '#f2c230', fx + di * 0.32 + sx * (k - 1.5) * 1.9, TUN_TOP + 0.25, fz + dj * 0.32 + sz * (k - 1.5) * 1.9, Math.atan2(di, dj) + Math.PI / 2, 0.05, 0.5, 1.9); }
+        mb.add(G.plane, '#7a4a1e', x, 0, z, 0, 3.6, 1, 3.6);
+        continue;
+      }
+      if (!isTun(i, j)) continue;
+      /* a tunnel cell: floor, ceiling, walls where it is closed, lamps under the ceiling, lane dashes on straight pieces */
+      const N = tunOpen(i, j, i, j - 1), S = tunOpen(i, j, i, j + 1), E = tunOpen(i, j, i + 1, j), Wd = tunOpen(i, j, i - 1, j);
+      tf.add(G.plane, '#3f444d', x, TUN_Y + 0.02, z, 0, CELL, 1, CELL);
+      tf.box(x, TUN_TOP, z, CELL, 0.35, CELL, DARK);
+      for (const [on, dx, dz] of [[N, 0, -1], [S, 0, 1], [E, 1, 0], [Wd, -1, 0]]) { if (on) continue;
+        if (dz) tb.box(x, TUN_Y, z + dz * (h - 0.3), CELL, TUN_TOP - TUN_Y, 0.6, CON); else tb.box(x + dx * (h - 0.3), TUN_Y, z, 0.6, TUN_TOP - TUN_Y, CELL, CON); }
+      for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const a = dx > 0 ? E : Wd, c = dz > 0 ? S : N; if (a && c && !isTun(i + dx, j + dz)) tb.box(x + dx * (h - 0.3), TUN_Y, z + dz * (h - 0.3), 0.6, TUN_TOP - TUN_Y, 0.6, CON); }
+      const along = (N || S) && !E && !Wd ? 'z' : (E || Wd) && !N && !S ? 'x' : null;
+      if (along === 'z') { for (const o of [-2, 2]) tf.add(G.plane, '#f4f1e6', x, TUN_Y + 0.04, z + o, 0, 0.22, 1, 2); tb.box(x, TUN_TOP - 0.12, z, 0.35, 0.12, 5, '#fff2b0'); }
+      else if (along === 'x') { for (const o of [-2, 2]) tf.add(G.plane, '#f4f1e6', x + o, TUN_Y + 0.04, z, 0, 2, 1, 0.22); tb.box(x, TUN_TOP - 0.12, z, 5, 0.12, 0.35, '#fff2b0'); }
+      else tb.box(x, TUN_TOP - 0.12, z, 1.2, 0.12, 1.2, '#fff2b0');
+      /* the map on the table: a brown band along the tunnel */
+      mb.add(G.plane, '#7a4a1e', x, 0, z, 0, 3.6, 1, 3.6);
+      for (const [on, dx, dz] of [[N, 0, -1], [S, 0, 1], [E, 1, 0], [Wd, -1, 0]]) if (on) mb.add(G.plane, '#7a4a1e', x + dx * h / 2, 0, z + dz * h / 2, 0, dx ? h : 3.6, 1, dz ? h : 3.6);
+    }
+    const g1 = rb.build(); if (g1) { rampMesh = ink(new THREE.Mesh(g1, mat)); root.add(rampMesh); }
+    const g2 = tb.build(); if (g2) { tunMesh = ink(new THREE.Mesh(g2, mat)); root.add(tunMesh); }
+    const g3 = tf.build(); if (g3) { tunFlat = new THREE.Mesh(g3, mat); root.add(tunFlat); }
+    const g4 = mb.build(); if (g4) { tunMap = new THREE.Mesh(drape(g4, 0.4), tunMapMat); tunMap.renderOrder = 15; tunMap.visible = mapOn; root.add(tunMap); }
+  }
+  let mapOn = true;
+  /** the tunnel map on the table: shown while building and in the city view, hidden down in the streets */
+  function showTunnelMap(on) { mapOn = on; if (tunMap) tunMap.visible = on; }
+  /** the floor's height on a level: the ground (0), the tunnel floor (-1), or along a ramp ('r') */
+  function groundY(level, x, z) {
+    if (level === -1) return TUN_Y;
+    if (level === 'r') { const [i, j] = cellAt(x, z), r = rampAt(i, j); if (r) return rampT(i, j, r, x, z) * TUN_Y; return heightAt(x, z); }
+    return heightAt(x, z);
+  }
+  /** how far down a ramp a point is: 0 at its top, 1 at its foot */
+  function rampT(i, j, r, x, z) { const [di, dj] = r.v, top0 = r.part ? 1.5 * CELL : 0.5 * CELL; return Math.max(0, Math.min(1, ((x - cx(i)) * di + (z - cz(j)) * dj + top0) / (2 * CELL))); }
+  /** a car's level after it has moved to (x, z), coming from level `lv` (with how far down a ramp it was, t) */
+  function levelAt(lv, t, x, z) { const [i, j] = cellAt(x, z), r = rampAt(i, j); if (r) return { level: 'r', t: rampT(i, j, r, x, z) }; if (lv === 'r') return { level: t > 0.5 ? -1 : 0, t: 0 }; return { level: lv, t: 0 }; }
+
   /* lots, one generator per kind; (x, z) the lot's centre, w × d its size in metres */
   const GEN = {
     huse(b, L, r, x, z, w, d, circles) {
@@ -310,8 +402,8 @@ export function createCity() {
         }
         if (r() < 0.5) { const mx = hx + (along ? 1.2 : (dep / 2 - 1.1) * (r() < 0.5 ? 1 : -1)), mz = hz + (along ? (dep / 2 - 1.1) * (r() < 0.5 ? 1 : -1) : 1.2); b.cyl(mx, 0, mz, 0.06, 1.0, '#555', 'cyl6'); b.box(mx, 1.0, mz, 0.4, 0.35, 0.55, '#d93a2b'); }      // a letterbox
       }
-      if (dep > 12) for (let k = 0; k < Math.floor(len / 9); k++) { const o = -len / 2 + 4 + k * 9 + r() * 2, sd = (dep / 2 - 2) * (r() < 0.5 ? 1 : -1);
-        const tx = along ? x + o : x + sd, tz = along ? z + sd : z + o; tree(b, tx, tz, r, 0.8); }
+      if (dep > 14) for (let k = 0; k < Math.floor((len - 6) / 9); k++) { const o = -len / 2 + 5 + k * 9 + r() * 2, sd = (dep / 2 - 3) * (r() < 0.5 ? 1 : -1);
+        const tx = along ? x + o : x + sd, tz = along ? z + sd : z + o; tree(b, tx, tz, r, 0.8, circles); }
     },
     byhus(b, L, r, x, z, w, d) {
       b.flat.box(x, 0, z, w, 0.12, d, '#d8d2c6');
@@ -384,7 +476,7 @@ export function createCity() {
       b.box(x, 0.8, fz + 0.06, 2.4, 3.6, 0.2, '#6a3e22');
       for (const s of [-1, 1]) { const px = x + s * 7, pz = fz + 2.6; b.cyl(px, 0, pz, 0.09, 8, '#d0d0d0', 'cyl6'); b.box(px + 0.75, 6.7, pz, 1.4, 0.9, 0.05, s > 0 ? '#c8102e' : '#ffffff'); if (s < 0) b.box(px + 0.75, 6.7, pz + 0.03, 1.4, 0.18, 0.05, '#c8102e'); circles.push([px, pz, 0.3]); }
     },
-    kirke(b, L, r, x, z, w, d) {
+    kirke(b, L, r, x, z, w, d, circles) {
       b.flat.box(x, 0, z, w, 0.06, d, '#9fd67e');
       const along = w >= d, nl = Math.min((along ? w : d) - 5, 22), nw = Math.min((along ? d : w) - 5, 9), ry = along ? 0 : Math.PI / 2, white = '#f7f3ea';
       const W2 = along ? nl : nw, D2 = along ? nw : nl;
@@ -398,7 +490,7 @@ export function createCity() {
       b.add(G.cylZ, '#8fb3e8', tx + ox, 11.5, tz + oz, ry + Math.PI / 2, 1.0, 1.0, 0.12); b.add(G.cylZ, '#d9cfb8', tx + ox * 0.99, 11.5, tz + oz * 0.99, ry + Math.PI / 2, 1.2, 1.2, 0.08);      // rose window
       b.add(G.box, '#6a3e22', tx + ox, 0, tz + oz, ry + Math.PI / 2, 1.8, 3.2, 0.12); b.add(G.cylZ, '#6a3e22', tx + ox, 3.2, tz + oz, ry + Math.PI / 2, 0.9, 0.9, 0.12);      // arched door
       for (let k = 0; k < 6; k++) { const gx = x + (r() - 0.5) * (w - 3), gz = z + (along ? 1 : -1) * (d / 2 - 1.5) * (r() < 0.5 ? 1 : -1); b.box(gx, 0, gz, 0.6, 0.9, 0.2, '#9aa0a6', ry); }      // gravestones
-      for (let k = 0; k < 3; k++) tree(b, x + (r() - 0.5) * (w - 4), z + (along ? 1 : -1) * (d / 2 - 2) * (r() < 0.5 ? 1 : -1), r, 0.8);
+      for (let k = 0; k < 3; k++) tree(b, x + (r() - 0.5) * (w - 7), z + (along ? 1 : -1) * (d / 2 - 3) * (r() < 0.5 ? 1 : -1), r, 0.8, circles);
     },
     park(b, L, r, x, z, w, d, circles) {
       b.flat.box(x, 0, z, w, 0.06, d, '#7fcc6a');
@@ -421,7 +513,7 @@ export function createCity() {
       for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const fx = x + sx * 2.6, fz = z + sz * 2.6; b.cyl(fx, 0, fz, 1.0, 0.25, '#7a5132'); for (let k = 0; k < 6; k++) b.ball(fx + Math.cos(k) * 0.55, 0.42, fz + Math.sin(k) * 0.55, 0.22, pick(r, ['#ff5d73', '#ffd23b', '#c86bff', '#ff8a3b', '#ffffff'])); }
       const n = Math.round((w * d) / 45);
       for (let k = 0; k < n; k++) {
-        const tx = x + (r() - 0.5) * (w - 3), tz = z + (r() - 0.5) * (d - 3);
+        const tx = x + (r() - 0.5) * (w - 7), tz = z + (r() - 0.5) * (d - 7);                 // well inside the park: no crowns over the road
         if (Math.abs(tx - x) < 4 || Math.abs(tz - z) < 4) continue;
         if (circles.some(c => Math.hypot(c[0] - tx, c[1] - tz) < c[2] + 2)) continue;
         tree(b, tx, tz, r); circles.push([tx, tz, 0.5]);
@@ -501,12 +593,40 @@ export function createCity() {
       for (const c of lotCircles.get(L.id) || []) colliders.circles.push(c);
     }
     for (const c of roadCircles) colliders.circles.push(c);
+    rampWalls();
     for (const g of st.gates) { const ax = gateAxis(g), x = cx(g.i), z = cz(g.j); for (const s of [-1, 1]) colliders.circles.push(ax === 'x' ? [x, z + s * (CELL / 2 - 0.5), 0.4] : [x + s * (CELL / 2 - 0.5), z, 0.4]); }
+  }
+  /* the ramps' walls: both sides of every ramp cell (for everyone), and across the foot of a ramp (for those up on the surface) */
+  const rampSides = [], rampCaps = [];
+  function rampWalls() {
+    rampSides.length = 0; rampCaps.length = 0; const h = CELL / 2;
+    for (let j = 0; j < st.H; j++) for (let i = 0; i < st.W; i++) { const r = rampAt(i, j); if (!r) continue; const [di, dj] = r.v, x = cx(i), z = cz(j);
+      for (const sd of [-1, 1]) { const wx = x - dj * sd * (h - 0.3), wz = z + di * sd * (h - 0.3); rampSides.push(dj ? [wx - 0.3, wz - h, wx + 0.3, wz + h] : [wx - h, wz - 0.3, wx + h, wz + 0.3]); }
+      if (r.part === 1) { const fx = x + di * (h - 0.3), fz = z + dj * (h - 0.3); rampCaps.push(di ? [fx - 0.3, fz - h, fx + 0.3, fz + h] : [fx - h, fz - 0.3, fx + h, fz + 0.3]); } }
+  }
+  function pushRect(p, r, [x0, z0, x1, z1]) {
+    const qx = Math.max(x0, Math.min(x1, p.x)), qz = Math.max(z0, Math.min(z1, p.y)), dx = p.x - qx, dz = p.y - qz, d2 = dx * dx + dz * dz;
+    if (d2 >= r * r) return null;
+    if (d2 > 1e-9) { const d = Math.sqrt(d2); p.x = qx + dx / d * r; p.y = qz + dz / d * r; return _n.set(dx / d, dz / d); }
+    const o = [p.x - x0, x1 - p.x, p.y - z0, z1 - p.y], m = Math.min(...o), k = o.indexOf(m);
+    if (k === 0) { p.x = x0 - r; return _n.set(-1, 0); } if (k === 1) { p.x = x1 + r; return _n.set(1, 0); } if (k === 2) { p.y = z0 - r; return _n.set(0, -1); } p.y = z1 + r; return _n.set(0, 1);
+  }
+  /** push a circle out of everything solid on a level: the surface (0), a ramp ('r') or the tunnels (-1); returns the last push normal */
+  function collideL(p, r, level) {
+    if (level === 0 || level === undefined) { let hit = collide(p, r); for (const q of rampSides) hit = pushRect(p, r, q) || hit; for (const q of rampCaps) hit = pushRect(p, r, q) || hit; return hit; }
+    let hit = null; const W = st.W * CELL / 2 - r, H = st.H * CELL / 2 - r;
+    if (p.x > W) { p.x = W; hit = _n.set(-1, 0); } if (p.x < -W) { p.x = -W; hit = _n.set(1, 0); } if (p.y > H) { p.y = H; hit = _n.set(0, -1); } if (p.y < -H) { p.y = -H; hit = _n.set(0, 1); }
+    for (const q of rampSides) hit = pushRect(p, r, q) || hit;
+    if (level === -1) { const [ci, cj] = cellAt(p.x, p.y);
+      for (let j = cj - 1; j <= cj + 1; j++) for (let i = ci - 1; i <= ci + 1; i++) { if (!inside(i, j)) continue; const k = idx(i, j); if (st.tun[k] || st.rdir[k]) continue;
+        hit = pushRect(p, r, [cx(i) - CELL / 2, cz(j) - CELL / 2, cx(i) + CELL / 2, cz(j) + CELL / 2]) || hit; } }
+    return hit;
   }
   /** is a point inside a building (with a margin, in metres)? */
   function inSolid(x, z, m = 0.6) { for (const [x0, z0, x1, z1] of colliders.rects) if (x > x0 - m && x < x1 + m && z > z0 - m && z < z1 + m) return true; return false; }
   /** what is under a point: 'road', 'torv', 'park', 'grass', 'lot' (a solid lot's pavement), or 'out' */
-  function surfaceAt(x, z) {
+  function surfaceAt(x, z, level = 0) {
+    if (level === -1 || level === 'r') return 'road';
     const [i, j] = cellAt(x, z); if (!inside(i, j)) return 'out';
     const k = idx(i, j); if (st.cells[k]) return 'road';
     const L = st.lot[k] && st.lots.get(st.lot[k]); if (!L) return 'grass';
@@ -532,7 +652,7 @@ export function createCity() {
     }
     return hit;
   }
-  const drivable = (i, j) => { if (!inside(i, j)) return false; const k = idx(i, j); if (st.cells[k]) return true; const L = st.lot[k] && st.lots.get(st.lot[k]); return !!L && L.type === 'torv'; };
+  const drivable = (i, j) => { if (!inside(i, j)) return false; const k = idx(i, j); if (st.cells[k] === 1) return true; const L = st.lot[k] && st.lots.get(st.lot[k]); return !!L && L.type === 'torv'; };
   function bfs(a, b) {
     const prev = new Int32Array(st.W * st.H).fill(-2), q = [idx(a.i, a.j)]; prev[q[0]] = -1;
     for (let h = 0; h < q.length; h++) {
@@ -542,11 +662,33 @@ export function createCity() {
     const end = idx(b.i, b.j); if (prev[end] === -2) return null;
     const out = []; for (let k = end; k !== -1; k = prev[k]) out.push(k); out.reverse(); return out;
   }
-  /** The way by road from a point (x, z) to a cell, rounded, as points; null if there is none. From off the road it starts at the nearest drivable cell. */
-  function pathTo(x, z, ti, tj) {
+  /** the way through both levels: nodes are surface cells (0..N-1, roads, squares and ramps) and tunnel cells (N..2N-1) */
+  function bfs2(start, end) {
+    const N = st.W * st.H, prev = new Int32Array(2 * N).fill(-2), q = [start]; prev[start] = -1;
+    const nb = (node, out) => {
+      out.length = 0; const under = node >= N, k = node % N, i = k % st.W, j = (k / st.W) | 0;
+      if (under) { for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ni = i + di, nj = j + dj; if (isTun(ni, nj)) out.push(N + idx(ni, nj)); const r = rampAt(ni, nj); if (r && r.part === 1 && ni + r.v[0] === i && nj + r.v[1] === j) out.push(idx(ni, nj)); } return; }
+      const r = rampAt(i, j);
+      if (r) { const [di, dj] = r.v; if (r.part === 0) { if (drivable(i - di, j - dj)) out.push(idx(i - di, j - dj)); out.push(idx(i + di, j + dj)); } else { out.push(idx(i - di, j - dj)); if (isTun(i + di, j + dj)) out.push(N + idx(i + di, j + dj)); } return; }
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ni = i + di, nj = j + dj; if (drivable(ni, nj)) out.push(idx(ni, nj)); const rr = rampAt(ni, nj); if (rr && rr.part === 0 && ni - rr.v[0] === i && nj - rr.v[1] === j) out.push(idx(ni, nj)); }
+    };
+    const tmp = [];
+    for (let h = 0; h < q.length; h++) { const n = q[h]; if (n === end) break; nb(n, tmp); for (const m of tmp) { if (prev[m] !== -2) continue; prev[m] = n; q.push(m); } }
+    if (prev[end] === -2) return null; const out = []; for (let n = end; n !== -1; n = prev[n]) out.push(n % N); out.reverse(); return out;
+  }
+  /** The way by road from a point (x, z) on a level to a cell, rounded, as points; null if there is none. From off the road it starts at the nearest drivable cell. */
+  function pathTo(x, z, ti, tj, level = 0) {
     let [i, j] = cellAt(x, z); i = Math.max(0, Math.min(st.W - 1, i)); j = Math.max(0, Math.min(st.H - 1, j));
+    const N = st.W * st.H;
+    if (level === -1 || level === 'r' || rampAt(i, j)) {
+      const start = rampAt(i, j) ? idx(i, j) : isTun(i, j) ? N + idx(i, j) : null;
+      if (start !== null) { const cells = bfs2(start, idx(ti, tj)); if (!cells) return null; return smoothPath(x, z, cells); }
+    }
     if (!drivable(i, j)) { let best = null, bd = Infinity; for (let r = 1; r < 6 && !best; r++) for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) { if (!drivable(i + a, j + b)) continue; const d = a * a + b * b; if (d < bd) { bd = d; best = [i + a, j + b]; } } if (!best) return null; [i, j] = best; }
-    const cells = bfs({ i, j }, { i: ti, j: tj }); if (!cells) return null;
+    const cells = bfs2(idx(i, j), idx(ti, tj)); if (!cells) return null;
+    return smoothPath(x, z, cells);
+  }
+  function smoothPath(x, z, cells) {
     let pts = [new THREE.Vector2(x, z), ...cells.map(k => new THREE.Vector2(cx(k % st.W), cz((k / st.W) | 0)))];
     for (let it = 0; it < 2; it++) { const o = [pts[0]]; for (let k = 0; k + 1 < pts.length; k++) { const a = pts[k], b2 = pts[k + 1]; o.push(a.clone().lerp(b2, 0.25), a.clone().lerp(b2, 0.75)); } o.push(pts[pts.length - 1]); pts = o; }
     let len = 0; for (let k = 1; k < pts.length; k++) len += pts[k].distanceTo(pts[k - 1]);
@@ -578,13 +720,16 @@ export function createCity() {
   }
 
   /* ---------- saving ---------- */
-  function save() { return JSON.stringify({ v: 1, W: st.W, H: st.H, cells: Array.from(st.cells), lots: [...st.lots.values()], gates: st.gates.map(g => ({ i: g.i, j: g.j, start: g.start })), nextId: st.nextId, hts: Array.from(st.hts, v => Math.round(v * 100) / 100) }); }
+  function save() { return JSON.stringify({ v: 1, W: st.W, H: st.H, cells: Array.from(st.cells), lots: [...st.lots.values()], gates: st.gates.map(g => ({ i: g.i, j: g.j, start: g.start })), nextId: st.nextId, hts: Array.from(st.hts, v => Math.round(v * 100) / 100), tun: Array.from(st.tun), rdir: Array.from(st.rdir), rpart: Array.from(st.rpart) }); }
   function load(json) {
     /* (older towns may have ground below the board: it is lifted back up to it) */
     let o; try { o = typeof json === 'string' ? JSON.parse(json) : json; } catch (_) { return false; }
     if (!o || o.v !== 1 || !o.W || !o.H) return false;
     reset(o.W, o.H); st.cells.set(o.cells.slice(0, o.W * o.H)); st.nextId = o.nextId || 1;
-    if (o.hts && o.hts.length === st.hts.length) { st.hts.set(o.hts.map(v => Math.max(0, v))); rebuildGround(); }
+    if (o.tun && o.tun.length === st.tun.length) st.tun.set(o.tun);
+    if (o.rdir && o.rdir.length === st.rdir.length) { st.rdir.set(o.rdir); st.rpart.set(o.rpart || []); }
+    if (o.hts && o.hts.length === st.hts.length) st.hts.set(o.hts.map(v => Math.max(0, v)));
+    rebuildGround();
     for (const L of o.lots) { if (!GEN[L.type]) continue; st.lots.set(L.id, L); for (let j = L.z0; j <= L.z1; j++) for (let i = L.x0; i <= L.x1; i++) if (inside(i, j)) st.lot[idx(i, j)] = L.id; buildLot(L); st.nextId = Math.max(st.nextId, L.id + 1); }
     st.gates = (o.gates || []).map(g => ({ i: g.i, j: g.j, start: !!g.start })); commit(); return true;
   }
@@ -620,7 +765,7 @@ export function createCity() {
   }
 
   reset(20, 14);
-  return { scenery, inSolid, pathTo, markGate, heightAt, shapeTerrain, reshape,
+  return { scenery, inSolid, pathTo, markGate, heightAt, shapeTerrain, reshape, paintTunnel, placeRamp, isTun, rampAt, groundY, levelAt, collideL, showTunnelMap,
     root, st, reset, paintRoad, placeLot, eraseRect, setGate, commit, save, load, starter, route, collide, surfaceAt, cellAt, inside, isRoad, lotOK,
     cx, cz, colliders, gridLines: () => gridLines, ground: () => groundMesh, mat,
   };

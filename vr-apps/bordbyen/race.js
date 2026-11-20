@@ -18,11 +18,11 @@
  * their own way: the nearest gate they have not cleared yet by road, then the next, and at last the finish.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { HANDLING, CAR_SCALE } from './cars.js?v=8';
+import { HANDLING, CAR_SCALE } from './cars.js?v=9';
 
 const V2 = THREE.Vector2, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const MASS = { lyn: 1.0, boble: 0.85, bulder: 1.3, brum: 1.5 };
-const HALF = 1.0 * CAR_SCALE, RAD = 0.98 * CAR_SCALE, BOUNCE = 0.35;                                  // a car is two circles of radius RAD, HALF metres ahead of and behind its middle
+const HALF = 1.15 * CAR_SCALE, RAD = 0.98 * CAR_SCALE, BOUNCE = 0.35;                                  // a car is two circles of radius RAD, HALF metres ahead of and behind its middle
 export const LAPS = 1;
 
 export function createRace({ city, onBump, onGate, onLap, onFinish }) {
@@ -31,7 +31,7 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
   function addCar(obj, key, name, ai, skill = 1) {
     const c = { obj, key, name, ai, skill, h: HANDLING[key], p: new V2(), yaw: 0, v: 0, slip: 0, steer: 0, ang: 0, yawRate: 0, spin: 0,
       lap: 0, next: 0, passed: 0, done: false, time: 0, li: 0, lane: 0, stuck: 0, back: 0, bumpT: 0, roll: 0, pitch: 0, surf: 'road',
-      m: MASS[key] || 1, wx: 0, delay: 0, laneT: 0, cleared: [], nCleared: 0, path: null, pi: 0, target: 0, planT: 0 };
+      m: MASS[key] || 1, wx: 0, delay: 0, laneT: 0, cleared: [], nCleared: 0, path: null, pi: 0, target: 0, planT: 0, level: 0, rampT: 0 };
     R.cars.push(c); return c;
   }
   /** Line up on the grid behind the start, two abreast, in the order given (the player last, like a proper underdog). */
@@ -46,15 +46,15 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
       c.p.copy(L[k]).addScaledVector(side, ci % 2 ? 1.7 : -1.7); c.yaw = Math.atan2(-t.x, -t.y);
       c.v = 0; c.slip = 0; c.wx = 0; c.lap = 0; c.next = 0; c.passed = 0; c.done = false; c.time = 0; c.li = k; c.lane = (ci % 2 ? 1 : -1) * 1.7; c.stuck = 0; c.back = 0;
       c.delay = c.ai ? Math.floor(ci / 2) * 0.35 + (ci % 2) * 0.12 : 0; c.laneT = 0;
-      c.cleared = route.gates.map(() => false); c.nCleared = 0; c.path = null; c.planT = 0;                                     // the front row goes first: no pile-up off the line
-      city.collide(c.p, c.obj.userData.radius * 0.8); row++;
+      c.cleared = route.gates.map(() => false); c.nCleared = 0; c.path = null; c.planT = 0; c.level = 0; c.rampT = 0;                                     // the front row goes first: no pile-up off the line
+      city.collideL(c.p, c.obj.userData.radius * 0.8, 0); row++;
     }
     R.state = 'count'; R.count = 3.5; R.t = 0; R.finishOrder = [];
     for (const c of R.cars) { place(c, 0); if (c.ai) plan(c); }
   }
 
   function place(c, dt) {
-    const o = c.obj, fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw), H = city.heightAt;
+    const o = c.obj, fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw), H = (x, z) => city.groundY(c.level, x, z);
     /* on the ground: its height, tipped by the slope along and across it; and shaken about off the road */
     const pitchG = Math.atan((H(c.p.x + fx * 1.4, c.p.y + fz * 1.4) - H(c.p.x - fx * 1.4, c.p.y - fz * 1.4)) / 2.8), rollG = Math.atan((H(c.p.x - fz * 0.9, c.p.y + fx * 0.9) - H(c.p.x + fz * 0.9, c.p.y - fx * 0.9)) / 1.8);
     const shake = c.rough ? Math.min(1, Math.abs(c.v) / 8) * (c.noTilt ? 0.3 : 1) : 0; const tilt = c.noTilt ? 0 : 1;      // your own car, seen from its seat, keeps level (its bonnet would rise into the view uphill)
@@ -67,8 +67,9 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
     if (u.wheel) u.wheel.rotation.z = -c.ang * 3.2;
   }
 
+  const _w = new V2(), _hn = new V2();
   function drive(c, gas, brake, steer, dt) {
-    const h = c.h, surf = city.surfaceAt(c.p.x, c.p.y), off = surf === 'road' || surf === 'torv' ? 1 : h.off;      // off the road: about half speed
+    const h = c.h, surf = city.surfaceAt(c.p.x, c.p.y, c.level), off = surf === 'road' || surf === 'torv' ? 1 : h.off;      // off the road: a third of the speed
     c.rough = off < 1;
     c.surf = surf;
     const vmax = h.vmax * off * (c.ai ? c.skill : 1);
@@ -87,10 +88,15 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
     c.yaw += (c.yawRate + c.wx) * dt; c.wx *= Math.exp(-dt * 2.5);               // wx: a spin from being hit, dying away
     const fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw);
     c.slip *= Math.exp(-dt * 3.5 * h.grip);
-    { const H = city.heightAt, sl = (H(c.p.x + fx * 1.4, c.p.y + fz * 1.4) - H(c.p.x - fx * 1.4, c.p.y - fz * 1.4)) / 2.8; c.v -= 9.8 * sl * 0.75 * dt; }      // uphill slows, downhill speeds
+    { const H = (x, z) => city.groundY(c.level, x, z), sl = (H(c.p.x + fx * 1.4, c.p.y + fz * 1.4) - H(c.p.x - fx * 1.4, c.p.y - fz * 1.4)) / 2.8; c.v -= 9.8 * sl * 0.75 * dt; }      // uphill slows, downhill speeds
     c.p.x += (fx * c.v + fz * c.slip) * dt; c.p.y += (fz * c.v - fx * c.slip) * dt;
-    /* walls and trees */
-    const hit = city.collide(c.p, c.obj.userData.radius * 0.8);
+    /* walls and trees: the car's whole length (its two circles) is kept out of them, on its own level; then the level it is on now */
+    let hit = null;
+    for (let it = 0; it < 2; it++) for (const sg of [1, -1]) {
+      _w.set(c.p.x + fx * HALF * sg, c.p.y + fz * HALF * sg); const ox = _w.x, oz = _w.y, hh = city.collideL(_w, RAD, c.level);
+      if (hh) { hit = _hn.copy(hh); c.p.x += _w.x - ox; c.p.y += _w.y - oz; }
+    }
+    { const lv = city.levelAt(c.level, c.rampT, c.p.x, c.p.y); c.level = lv.level; c.rampT = lv.t; }
     if (hit) {
       const vn = fx * hit.x + fz * hit.y;                                              // how head-on (−1 straight in)
       if (c.v * vn < -0.3) { const k = Math.abs(vn); const lost = c.v * (0.25 + 0.6 * k); c.v -= lost; c.slip += (fz * hit.x - fx * hit.y) * Math.abs(lost) * 0.2;
@@ -105,7 +111,7 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
   function plan(c) {
     const G = R.route.gates, left = G.map((g, k) => k).filter(k => k > 0 && !c.cleared[k]);
     let best = null, bestK = 0;
-    for (const k of left.length ? left : [0]) { const p = city.pathTo(c.p.x, c.p.y, G[k].i, G[k].j); if (p && (!best || p.len < best.len)) { best = p; bestK = k; } }
+    for (const k of left.length ? left : [0]) { const p = city.pathTo(c.p.x, c.p.y, G[k].i, G[k].j, c.level); if (p && (!best || p.len < best.len)) { best = p; bestK = k; } }
     c.path = best ? best.pts : null; c.target = bestK; c.pi = 0; c.planT = 4;
   }
   function ai(c, dt) {
@@ -164,6 +170,7 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
   function carHits(report) {
     for (let i = 0; i < R.cars.length; i++) for (let j = i + 1; j < R.cars.length; j++) {
       const A = R.cars[i], B = R.cars[j]; if (A.p.distanceToSquared(B.p) > 36) continue;
+      if (Math.abs(city.groundY(A.level, A.p.x, A.p.y) - city.groundY(B.level, B.p.x, B.p.y)) > 2) continue;      // one in a tunnel, one above it: they do not meet
       circles(A, _ca); circles(B, _cb);
       let best = null, pen = 0;
       for (const a of _ca) for (const b of _cb) { const d = a.distanceTo(b), pn = 2 * RAD - d; if (pn > pen && d > 1e-5) { pen = pn; best = [a, b, d]; } }
