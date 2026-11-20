@@ -16,7 +16,7 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
 | `toon.js` | Tegneserie-looket: flade farver i tre toner og sorte tegnestreger. |
 
 **Cache:** `index.html` indlæser `game.js?v=N`, og `game.js`/`race.js` indlæser de andre med samme `?v=N`. Hæv dem alle sammen ved hver ændring
-(nu **v=5**).
+(nu **v=6**).
 
 ## Sådan hænger det sammen
 
@@ -82,7 +82,7 @@ Et valg på startsiden ("Stil"), og Y ved bordet skifter undervejs (N på comput
 * **Lys i mørket:** gadelygterne gløder, og omkring 40 % af vinduerne er tændt med varmt lys (valgt ud fra hvor de sidder, så det er de samme hver
   gang).
 * **Himlen** er en lav stormhimmel med drivende skyer og en diset måne; disen er mørk og tættere.
-* **Regn:** streger, der falder gennem en kasse omkring dig, når du kører, og let over hele brættet, når byen står på bordet.
+* **Regn:** streger, der falder gennem en kasse omkring dig, når du kører. Når byen står på bordet (bygning, valg af bil, byoverblik), regner det ikke.
 * **Lyn og torden** hvert 10. til 28. sekund, når du er nede i byen: himlen og lyset blinker to gange, og tordenen ruller lidt efter.
 * **Musik**, lavet i koden mens den spiller: langsom noir-jazz i D-mol, 68 slag i minuttet, med mørke akkorder på en blød flade (Dm9, B♭maj7,
   Gm9, A7♭9, to takter hver), en gående kontrabas, børstetrommer på to og fire og et swingende bækken, og spredte vibrafontoner ind i et langt

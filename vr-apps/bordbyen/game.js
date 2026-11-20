@@ -17,11 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=5';
-import { buildCar, CARS } from './cars.js?v=5';
-import { createRace, LAPS } from './race.js?v=5';
-import { createAudio } from './audio.js?v=5';
-import { INK, NOIR } from './toon.js?v=5';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=6';
+import { buildCar, CARS } from './cars.js?v=6';
+import { createRace, LAPS } from './race.js?v=6';
+import { createAudio } from './audio.js?v=6';
+import { INK, NOIR } from './toon.js?v=6';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -90,7 +90,8 @@ function styleStep(dt) {
   if (!S.noir) return;
   const driving = S.mode === 'drive' || S.mode === 'shrink' || S.mode === 'watchDown' || S.mode === 'grow' || S.mode === 'watchUp';
   rainMat.uniforms.uT.value = S.time;
-  if (driving && sky.visible && skyMat.uniforms.uA.value > 0.5) { rainMat.uniforms.uC.value.set(camC.p.x, camC.p.y, camC.p.z); rainMat.uniforms.uBox.value.set(50, 26, 50); rainMat.uniforms.uSpeed.value = 17; rainMat.uniforms.uLen.value = 1.1; rainMat.uniforms.uA.value = 0.32; rain.geometry.setDrawRange(0, RAIN_N * 2); }
+  rain.visible = driving && sky.visible && skyMat.uniforms.uA.value > 0.5;                // rain only down in the streets, not over the town on the table
+  if (rain.visible) { rainMat.uniforms.uC.value.set(camC.p.x, camC.p.y, camC.p.z); rainMat.uniforms.uBox.value.set(50, 26, 50); rainMat.uniforms.uSpeed.value = 17; rainMat.uniforms.uLen.value = 1.1; rainMat.uniforms.uA.value = 0.32; rain.geometry.setDrawRange(0, RAIN_N * 2); }
   else { const W = city.st.W * CELL, H = city.st.H * CELL; rainMat.uniforms.uC.value.set(0, 16, 0); rainMat.uniforms.uBox.value.set(W, 32, H); rainMat.uniforms.uSpeed.value = 90; rainMat.uniforms.uLen.value = 2.6; rainMat.uniforms.uA.value = 0.16; rain.geometry.setDrawRange(0, RAIN_N * 0.5); }
   /* lightning when you are down in the town: a double flicker, then thunder after a moment */
   LIGHT.next -= dt;
