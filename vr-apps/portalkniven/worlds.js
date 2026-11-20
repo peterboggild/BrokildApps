@@ -123,6 +123,7 @@ float h2(vec2 n) { return fract(sin(dot(n, vec2(127.1, 311.7))) * 43758.5453); }
 /* The tesseract stands on one of its corners in w: a reflection takes the w axis to its long diagonal (1, 1, 1, 1) / 2, so our three dimensions cut it
  * across that diagonal. Pull through it and the slice grows from a point to a tetrahedron, is cut off at the corners, becomes an octahedron in the middle,
  * and goes back the same way. It also turns slowly about the vertical, which only turns the slice. */
+vec4 sort4(vec4 v) { if (v.x < v.y) v.xy = v.yx; if (v.z < v.w) v.zw = v.wz; if (v.x < v.z) v.xz = v.zx; if (v.y < v.w) v.yw = v.wy; if (v.y < v.z) v.yz = v.zy; return v; }      // largest first
 vec4 tessQ(vec4 p) { vec4 q = p - XC; float a = uTime * 0.12, c = cos(a), s = sin(a); q.xz = mat2(c, -s, s, c) * q.xz; const vec4 v = vec4(-0.5, -0.5, -0.5, 0.5); return q - 2.0 * v * dot(v, q); }
 float bookHash(vec4 p) { return h2(vec2(floor((p.z + 3.8) / 0.055) + floor(p.y / 0.4) * 37.0, floor(p.w / 0.33 + 0.5) * 13.0 + 5.0)); }
 
@@ -178,8 +179,13 @@ float map(vec4 p, out int m, bool lamps) {
   q = p - KB;
   e = max(max(length(q.xz) - 0.22, abs(q.w) - 1.2), abs(p.y - 0.3) - 0.3); e2 = max(max(length(q.xz) - 0.26, abs(q.w) - 1.2), abs(p.y - 0.615) - 0.015);
   if (min(e, e2) < d) { d = min(e, e2); m = e < e2 ? 6 : 3; }
-  e = box4(tessQ(p), vec4(XH)) - 0.005;                                       // the tesseract
-  if (e < d) { d = e; m = 13; }
+  /* The tesseract as a frame: not its edges (an edge meets our three dimensions in a point at most) but its square faces, each thickened into a slab a
+   * centimetre thick: a square face meets the slice in a line, so the slice shows the polyhedron's edges as sticks, which change as you pull. Where the
+   * slice crosses one of its edges (the polyhedron's corners) there is a brass ball. Distance to the nearest face: the two coordinates nearest the
+   * surface at the surface, the rest no further out; to the nearest edge, three of them. */
+  { vec4 s4 = sort4(abs(tessQ(p))) - XH;
+    e = length(vec4(s4.x, s4.y, max(s4.z, 0.0), max(s4.w, 0.0))) - 0.011; if (e < d) { d = e; m = 13; }
+    e = length(vec4(s4.x, s4.y, s4.z, max(s4.w, 0.0))) - 0.026; if (e < d) { d = e; m = 3; } }
   if (lamps) {
     e = length(p - vec4(TC.x, 0.94, TC.z, 0.0)) - 0.15; if (e < d) { d = e; m = 2; }      // a glowing globe: a ball in four dimensions
     e = length(p - LP) - 0.11; if (e < d) { d = e; m = 12; }
@@ -255,9 +261,8 @@ void main() {
         alb = q.y < hill ? mix(vec3(0.10, 0.20, 0.08), vec3(0.34, 0.36, 0.14), texture2D(uNoise, c * 0.8).r) * (0.6 + 0.8 * smoothstep(-0.5, hill, q.y)) : q.y < far ? vec3(0.30, 0.36, 0.44) : sky;
         alb *= 0.9 + 0.2 * texture2D(uNoise, c * 5.0).b; rough = 0.7;
       } else { alb = vec3(0.80, 0.60, 0.24); metal = 0.9; rough = 0.4; }
-    } else if (m == 13) {                                                     // pale crystal, its edges (where two of its cells meet) in glowing gold
-      vec4 aq = abs(tessQ(p)); float edge = clamp(smoothstep(XH - 0.03, XH - 0.012, aq.x) + smoothstep(XH - 0.03, XH - 0.012, aq.y) + smoothstep(XH - 0.03, XH - 0.012, aq.z) + smoothstep(XH - 0.03, XH - 0.012, aq.w) - 1.0, 0.0, 1.0);
-      alb = mix(vec3(0.62, 0.75, 0.88), vec3(1.0, 0.76, 0.34), edge); rough = mix(0.1, 0.25, edge); metal = edge; emi = mix(vec3(0.03, 0.05, 0.08), vec3(1.0, 0.7, 0.28) * 0.9, edge);
+    } else if (m == 13) {                                                     // the tesseract's sticks: dark oak, oiled
+      vec4 q = tessQ(p); alb = wood(vec2(q.x + q.y * 0.7 + q.w * 1.3, q.z * 0.6 + q.y) * 3.0, vec3(0.16, 0.08, 0.035), vec3(0.42, 0.24, 0.11)); rough = 0.35;
     } else { emi = vec3(1.0, 0.86, 0.62) * 2.6; alb = vec3(1.0); }
     /* light: the hanging lamp (it is a point in 4D too: the further you are from it in w, the dimmer), the globe, and what the room throws back */
     vec3 V3 = vec3(0.0); vec4 L = LP - p; float ld = length(L); L /= ld;
@@ -860,7 +865,7 @@ export function createWorlds(scene, renderer, params) {
         const x = -2 / 15 * cu * (3 * cv - 30 * su + 90 * c4 * su - 60 * c6 * su + 5 * cu * cv * su),
           y = -1 / 15 * su * (3 * cv - 3 * c2 * cv - 48 * c4 * cv + 48 * c6 * cv - 60 * su + 5 * cu * cv * su - 5 * c2 * cu * cv * su - 80 * c4 * cu * cv * su + 80 * c6 * cu * cv * su),
           z = 2 / 15 * (3 + 5 * cu * su) * sv;
-        const cx = -2 / 15 * cu * (-30 * su + 90 * c4 * su - 60 * c6 * su), cy = 4 * su * su, k = 1 + 0.75 * Math.exp(-(((u - 0.8) / 0.38) ** 2)) + 0.7 * Math.exp(-(((u - 2.1) / 0.32) ** 2));
+        const cx = -2 / 15 * cu * (-30 * su + 90 * c4 * su - 60 * c6 * su), cy = 4 * su * su, kf = t => 0.75 * Math.exp(-(((t - 0.8) / 0.38) ** 2)) + 0.7 * Math.exp(-(((t - 2.1) / 0.32) ** 2)), k = 1 + kf(u) - kf(0) * (1 - u / Math.PI) - kf(Math.PI) * (u / Math.PI);      // exactly 1 at both ends, where the tube meets itself
         return [cx + k * (x - cx), cy + k * (y - cy), k * z]; };
       const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
       const bump = u => sm(2.3, 2.42, u) * (1 - sm(2.53, 2.65, u));       // the stretch of neck that crosses the body's wall (worked out from the shape: u 2.45 to 2.50)

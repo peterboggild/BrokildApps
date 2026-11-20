@@ -363,17 +363,20 @@ gangen; rumklangene er kortere (en klangs længde er dens pris); kampens figurer
 Farveskiftet på venstre stick kræver et tydeligt skub til siden, så et skråt skub for at ændre farten ikke skifter farver.
 
 ## Tesserakten og kleinflasken i det firedimensionale rum
-* **Tesserakten** (firedimensional terning, halv kantlængde 24 cm) svæver over en marmorsøjle ved rummets bageste højre hjørne. Den står på et hjørne i w: en
-  spejling fører w-aksen over i dens lange diagonal, så vores tre dimensioner skærer den på tværs af diagonalen. I udgangsskiven er snittet et oktaeder; trækker
-  man rummet, bliver det et afskåret tetraeder, så et tetraeder, så et punkt (ved ±48 cm). Den drejer langsomt om lodret, hvilket kun drejer snittet. Lyse
-  krystalflader og glødende guldkanter (der hvor to af dens celler mødes). Den tegnes af rummets egen march (`tessQ`, materiale 13 i `FOUR_FS`).
+* **Tesserakten** (firedimensional terning, halv kantlængde 24 cm) svæver over en marmorsøjle ved rummets bageste højre hjørne, som en trådmodel af
+  egetræsstænger med messingkugler i hjørnerne. Ikke dens kanter (en kant møder vores tre dimensioner i højst ét punkt), men dens kvadratiske sideflader,
+  hver gjort en centimeter tyk: en sideflade møder snittet i en linje, så snittet viser polyedrets kanter som stænger. Hvor snittet krydser en af dens kanter
+  (polyedrets hjørner), sidder en messingkugle. Den står på et hjørne i w: en spejling fører w-aksen over i dens lange diagonal, så vores tre dimensioner
+  skærer den på tværs af diagonalen. I udgangsskiven er snittet et oktaeder; trækker man rummet, bliver det et afskåret tetraeder, så et tetraeder, så et
+  punkt (ved ±48 cm); drejer man rummet, kommer andre polyedre. Den drejer langsomt om lodret, hvilket kun drejer snittet. Den tegnes af rummets egen march
+  (`tessQ`, `sort4`, materiale 13 i `FOUR_FS`).
 * **Kleinflasken** står af glas på sin egen søjle. Glas kan ikke marcheres (én flade pr. stråle), så den er et rigtigt net (`fourGlass` i `worlds.js`), tegnet
   oven på rummets billede. Hvert punkt er et 4D-punkt; shaderen ophæver hvert billede det snit, rummet ses igennem, så punktet lander, hvor det er i snittet,
   og ved hvor langt det er fra snittet i w. Kun det, der er inden for 12 cm, ses, og det toner ud mod kanten. Halsen løftes 30 cm ud i w netop dér, hvor den i
   tre dimensioner ville gå gennem flaskens egen væg (regnet ud fra formen: u = 2,45 til 2,50): i fire dimensioner behøver en kleinflaske ikke skære sig selv.
   Trækker man rummet, kommer det manglende stykke hals til syne, mens resten toner ud. Flasken gemmer sig bag møblerne ved at sammenligne sin afstand med
-  rummets (marchen gemmer, hvor langt hver stråle nåede, i billedets alfa). Formen er den klassiske parametriske flaske med kroppen gjort buttet og halsen lidt
-  tykkere.
+  rummets (marchen gemmer, hvor langt hver stråle nåede, i billedets alfa). Formen er den klassiske parametriske "flaskeform" (x, y, z som på Wikipedias side om kleinflasken, u 0..π, v 0..2π)
+  med kroppen gjort buttet og halsen lidt tykkere omkring rørets midterlinje; opblæsningen er nøjagtigt 1 i begge ender, hvor røret møder sig selv.
 * Søjlerne er runde i x og z og dybe i w, så de bliver stående, mens man trækker.
 
 ## Gemte idéer (ikke bygget)
