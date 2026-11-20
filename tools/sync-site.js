@@ -71,6 +71,10 @@ const EXTRA = {
     alt: "Mutant Rotte Angreb — rat-driven tanks in your own room, in mixed reality",
     type: "website",
   },
+  "vr-apps/bordbyen/index.html": {
+    alt: "Bordbyen — draw a toy town on your real table, then shrink down into it and race, in mixed reality",
+    type: "website",
+  },
 };
 
 /* Redirect stubs and internal tools: a preview for a page whose only job is to
