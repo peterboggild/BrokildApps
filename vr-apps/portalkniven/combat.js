@@ -22,8 +22,9 @@
  * stops at the first wall.
  *
  * Rockets: a pair from the two pods, real little rockets (white body, red nose, fins) with a flame, sparks and a trail of smoke. They speed up to 10 m/s
- * and go off at the first wall, as soon as a bug is within 55 cm (a proximity fuse), or after 3 s: a fireball and smoke, and every bug within 90 cm
- * bursts. Fuse, blast, fireball and smoke are sized in the fractal's units (55 and 90 cm at its starting scale), so they grow with the bugs.
+ * and go off at the first wall, as soon as a bug is within 90 cm (a proximity fuse), or after 3 s: a fireball and smoke, and every bug within 1.5 m
+ * bursts. They home: each turns towards the nearest bug ahead of it. Fuse, blast, fireball and smoke are sized in the fractal's units (at its starting
+ * scale), so they grow with the bugs.
  *
  * The ray: an intense cone of light from the nose, 14 m long and widening to 1.3 m across, for 1.2 s. It follows the ship while it lasts and
  * annihilates every bug inside it, walls or no walls. It then takes 5 s to charge again (kept by the caller).
@@ -35,7 +36,7 @@ import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
 
 const V = THREE.Vector3;
 const rnd = (a, b) => a + Math.random() * (b - a);
-const MAX = 48, BOLTS = 32, BOLT_V = 16, BOLT_LIFE = 1.2, BOLT_REACH = 0.08, RAY_LEN = 14, RAY_T = 1.2, RAY_R0 = 0.05, RAY_R1 = 0.65, ROCKETS = 8, ROCKET_V = 10, ROCKET_R = 0.9, ROCKET_FUSE = 0.55, ROCKET_LIFE = 3, PUFFS = 500, FIREBALLS = 8;
+const MAX = 48, BOLTS = 32, BOLT_V = 16, BOLT_LIFE = 1.2, BOLT_REACH = 0.08, RAY_LEN = 14, RAY_T = 1.2, RAY_R0 = 0.05, RAY_R1 = 0.65, ROCKETS = 8, ROCKET_V = 10, ROCKET_R = 1.5, ROCKET_FUSE = 0.9, ROCKET_SEEK = Math.cos(1.05), ROCKET_TURN = 2.6, ROCKET_LIFE = 3, PUFFS = 500, FIREBALLS = 8;
 
 function bugGeometry() {
   /* about one unit in radius, nose along -Z: carapace, head, six legs, two feelers; the sac at the back is separate (it glows) */
@@ -55,7 +56,7 @@ function bugGeometry() {
   return { body, sac };
 }
 
-export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark, onRocket, onTrail, onRayKill }) {
+export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark, onRocket, onTrail, onRayKill, onWarn }) {
   const { body, sac } = bugGeometry();
   const carapace = new THREE.InstancedMesh(body, new THREE.MeshStandardMaterial({ color: 0x241a2e, roughness: 0.35, metalness: 0.4, emissive: 0x0a1a08 }), MAX);
   /* the sac at the back: translucent and lit from inside, brightest where you look straight into it, with dark veins over it, and each one pulsing in its own time */
@@ -278,6 +279,10 @@ export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark,
       /* rockets: straight on along their nose, speeding up; smoke and sparks behind; they go off at a wall, a bug, or in the end */
       for (let k = rockets.length - 1; k >= 0; k--) {
         const o = rockets[k]; o.age += dt; o.speed += (ROCKET_V - o.speed) * Math.min(1, dt * 1.6);
+        /* homing: turn towards the nearest bug ahead (within about 60 degrees and 10 m at the fractal's starting scale) */
+        if (o.age > 0.12) { let tgt = null, best = Infinity; const reach = 10 * info.S0 / S;
+          for (const b of bugs) { _a.subVectors(b.room, o.room); const d = _a.length(); if (d < 1e-3 || d > reach) continue; if (_a.dot(o.dir) / d < ROCKET_SEEK) continue; if (d < best) { best = d; tgt = b; } }
+          if (tgt) { _b.subVectors(tgt.room, o.room).normalize(); const ang = Math.acos(Math.max(-1, Math.min(1, o.dir.dot(_b)))); if (ang > 1e-4) { const kk = Math.min(1, ROCKET_TURN * dt / ang); o.dir.multiplyScalar(1 - kk).addScaledVector(_b, kk).normalize(); } } }
         const step = o.speed * dt, n = Math.max(1, Math.ceil(step / 0.05)); fracDir(o.room, o.dir, _r); let boom = false;
         for (let j = 0; j < n && !boom; j++) {
           o.f.addScaledVector(_r, step / n);
@@ -302,6 +307,12 @@ export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark,
         for (const q of fbData) { if (q.age >= 1) continue; q.age += dt / 1.1; if (q.age >= 1) continue; worlds.fromFrac(dim, q.f, _a); const r = q.r / S * (0.25 + 0.75 * (1 - Math.exp(-q.age * 7)));
           fireballs.setMatrixAt(n, _m.compose(_a, _o.identity(), _s.setScalar(r))); fbAge.setX(n, q.age); n++; }
         fireballs.count = n; fireballs.visible = n > 0; if (n) { fireballs.instanceMatrix.needsUpdate = true; fbAge.needsUpdate = true; } }
+      /* a warning: the nearest bug that is close to the ship, or close behind your head */
+      { let warn = null, wk = 0; const near = 1.6 * info.S0 / S, gz = st.gaze;
+        for (const b of bugs) { const ds = b.room.distanceTo(st.ship), dh = b.room.distanceTo(st.head); let k = ds < near ? 1 - ds / near : 0;
+          if (gz && dh < near * 1.6) { _a.subVectors(b.room, st.head).normalize(); if (_a.dot(gz) < -0.2) k = Math.max(k, 1 - dh / (near * 1.6)); }
+          if (k > wk) { wk = k; warn = b; } }
+        if (warn && onWarn) onWarn(warn.room, wk); }
       /* line of sight, a few bugs a frame */
       for (let n = 0; n < 4 && bugs.length; n++) { check = (check + 1) % bugs.length; const b = bugs[check]; b.see = inSight(b, _hf); }
       /* draw */

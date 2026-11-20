@@ -420,6 +420,12 @@ skibet er fjernet; højre stick styrer. Under kamp skalerer de to greb ikke læn
 Raketterne springer nu, så snart et insekt er inden for ca. 55 cm (før: først ved berøring), så de rammer også, når de passerer tæt forbi. Sprængningen tager stadig alt inden for 90 cm.
 Nærhedsrør, sprængningens rækkevidde, ildkugle og røg regnes i fraktalens egne enheder, ligesom insekterne: forstørrer man fraktalen, bliver insekterne større, og sprængningen vokser med (55 og 90 cm gælder ved fraktalens startskala).
 
+## Målsøgende raketter, større sprængning, advarselslyd
+* Raketterne styrer mod det nærmeste insekt foran sig (inden for ca. 60 grader og 10 m ved fraktalens startskala), og drejer højst ca. 150 grader i sekundet.
+* Nærhedsrøret er 90 cm og sprængningen 1,5 m (begge i fraktalens enheder, så de vokser med insekterne).
+* **Advarsel:** et kort, kvidrende dobbelt-pip fra der, hvor et insekt nærmer sig: når det er tæt på skibet, eller tæt på og bag dit hoved. Jo
+  tættere, jo højere, lysere og hurtigere gentaget.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option

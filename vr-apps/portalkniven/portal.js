@@ -17,12 +17,12 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=50';
-import { createStory } from './story.js?v=50';
-import { createHand } from './hands.js?v=50';
-import { buildShip } from './ship.js?v=50';
-import { createAmbience } from './ambience.js?v=50';
-import { createCombat } from './combat.js?v=50';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=51';
+import { createStory } from './story.js?v=51';
+import { createHand } from './hands.js?v=51';
+import { buildShip } from './ship.js?v=51';
+import { createAmbience } from './ambience.js?v=51';
+import { createCombat } from './combat.js?v=51';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -994,6 +994,7 @@ const COMBAT = createCombat({ scene, worlds,
   onShot: (p, size) => { SH.kills++; boomAt(p, 0.35 + size * 3, false); AMB.boom(p, 0.35 + size * 4, 'crush'); hullPanel(true); },
   onSpark: p => { boomAt(p, 0.08, true); },
   onRocket: (p, z = 1) => { boomAt(p, 2.4 * z, true); boomAt(p, 1.4 * z, false); AMB.boom(p, 3 * Math.min(2, z), 'blast'); buzzAll(0.7, 180); if (ship.visible && p.distanceTo(ship.position) < 0.6) shipDamage(20, p); },
+  onWarn: (p, k) => { WARN.t -= 0; if (S.time >= WARN.next) { AMB.warn(p, k); WARN.next = S.time + 0.9 - 0.65 * k; } },
   onRayKill: (p, size) => { SH.kills++; boomAt(p, 0.5 + size * 3, false); hullPanel(true); },
   onTrail: (p, d) => { boomLast = S.time; for (let k = 0; k < 3; k++) boomSparks.emit(p.x, p.y, p.z, -d.x * 0.5 + rnd(-0.08, 0.08), -d.y * 0.5 + rnd(-0.08, 0.08), -d.z * 0.5 + rnd(-0.08, 0.08), rnd(0.15, 0.3)); } });
 /* The ship's weapons, all straight ahead along the nose:
@@ -1001,6 +1002,8 @@ const COMBAT = createCombat({ scene, worlds,
  *   left grip                                the ray: a cone of light for 1.2 s that annihilates everything in it; then 5 s to charge   (flat preview: C)
  *   right grip                               a pair of rockets from the two pods; 1.5 s to reload                     (flat preview: X)
  * The board over the ship shows the ray charging and the rockets ready, and how fast the bugs have become. */
+/* the warning chirp's pace: the closer the bug, the faster it repeats */
+const WARN = { next: 0, t: 0 };
 const GUN = { cool: 0, side: 1, rayCool: 0, rocketCool: 0, rayWas: false, rocketWas: false };
 const RAY_CHARGE = 5, RAY_LAST = 1.2, ROCKET_RELOAD = 1.5;
 const gunHand = () => 1 - knifeIdx;
@@ -1061,7 +1064,7 @@ function hullPanel(force) {
 }
 function updateCombat(dt) {
   const on = S.combat && FC.shipOn && DIMS[S.cur].fract && !DIMS[S.cur].four;
-  COMBAT.update(dt, on ? { i: S.cur, ship: ship.position, nose: new V(0, 0, -1).applyQuaternion(SH.q), head, alive: !(SH.dead > 0) } : null);
+  COMBAT.update(dt, on ? { i: S.cur, ship: ship.position, nose: new V(0, 0, -1).applyQuaternion(SH.q), head, gaze: new V(0, 0, -1).applyQuaternion(headQ), alive: !(SH.dead > 0) } : null);
   shipGuns(dt);
   updateBooms(dt);
   if (SH.redT > 0) { SH.redT -= dt; const k = Math.max(0, SH.redT / 0.5); shipBody.material.color.setRGB(1, 1 - 0.6 * k, 1 - 0.65 * k); } else shipBody.material.color.setRGB(1, 1, 1);
