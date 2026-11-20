@@ -17,7 +17,7 @@
  * A lap is the gates in order and then the start/finish; the first time over the start does not count (the grid is behind it).
  */
 import * as THREE from './vendor/three.module.min.js';
-import { HANDLING } from './cars.js?v=3';
+import { HANDLING } from './cars.js?v=4';
 
 const V2 = THREE.Vector2, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const MASS = { lyn: 1.0, boble: 0.85, bulder: 1.3, brum: 1.5 };

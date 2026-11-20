@@ -64,6 +64,10 @@
     </div>
     <div id="status">Tjekker dit udstyr …</div>
     <div class="opts">
+      <label>Stil
+        <select id="optStyle"><option value="day">Tegneserie: dag</option><option value="noir">Graphic novel: nat og regn</option></select>
+        <span>Graphic novel: mørke, kolde farver med skravering i skyggerne, tændte gadelygter og vinduer, regn, lyn og torden, og stemningsfuld jazz. Skift undervejs med Y ved bordet.</span>
+      </label>
       <label>Styring, når du kører
         <select id="optSteer"><option value="pad">Controllere: stick styrer</option><option value="wheel">Rat: hold rattet med begge greb</option></select>
         <span>Med rattet holder du begge greb inde og drejer hænderne, som om du holdt et rat. Med controllerne styrer en af stickene.</span>
@@ -77,7 +81,7 @@
       <li><strong>Huse, Byhuse, Højhus, Rådhus, Kirke, Park, Torv:</strong> hold aftrækkeren inde og træk et rektangel ud på bordet. Rådhus og kirke skal være mindst 2 × 2 felter. Hvert stykke bygges i sin egen stil med lidt tilfældighed.</li>
       <li><strong>Start/mål og Port:</strong> tryk på en vej. Portene køres i den rækkefølge, du satte dem. Tryk på en port igen for at fjerne den.</li>
       <li><strong>Viskelæder:</strong> træk et rektangel for at fjerne alt i det.</li>
-      <li><strong>B</strong> fortryder. <strong>A</strong> (eller "Kør!") går videre til valg af bil. Hold <strong>X</strong> i to sekunder for et tomt bord. Tryk <strong>venstre stick</strong> ned for at finde bordet igen.</li>
+      <li><strong>Y</strong> skifter mellem dag (tegneserie) og nat (graphic novel). <strong>B</strong> fortryder. <strong>A</strong> (eller "Kør!") går videre til valg af bil. Hold <strong>X</strong> i to sekunder for et tomt bord. Tryk <strong>venstre stick</strong> ned for at finde bordet igen.</li>
       <li>Byen gemmes af sig selv i browseren.</li>
     </ul>
     <h2>Kør race (i byen)</h2>
@@ -89,11 +93,11 @@
     </ul>
     <h2>På computeren</h2>
     <ul>
-      <li>Bygning: klik og træk med musen på bordet; højre træk drejer udsigten, hjulet zoomer. Tasterne 1–9, 0 og - vælger værktøj, Z fortryder, Enter går til valg af bil.</li>
+      <li>Bygning: klik og træk med musen på bordet; højre træk drejer udsigten, hjulet zoomer. Tasterne 1–9, 0 og - vælger værktøj, Z fortryder, N skifter dag og nat, Enter går til valg af bil.</li>
       <li>Kørsel: W/S gas og bremse, A/D styr, C kamera, V overblik, R forfra, Esc tilbage til bordet. Træk med musen for at kigge rundt.</li>
     </ul>
     <p style="margin-top:28px;font-size:13px;color:var(--dim)">Alt er lavet i kode: byen, bilerne og lydene. <a href="../index.html">Brokild VR</a></p>
   </main>
-  <script type="module" src="game.js?v=3"></script>
+  <script type="module" src="game.js?v=4"></script>
 </body>
 </html>

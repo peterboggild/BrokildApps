@@ -17,11 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=3';
-import { buildCar, CARS } from './cars.js?v=3';
-import { createRace, LAPS } from './race.js?v=3';
-import { createAudio } from './audio.js?v=3';
-import { INK } from './toon.js?v=3';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=4';
+import { buildCar, CARS } from './cars.js?v=4';
+import { createRace, LAPS } from './race.js?v=4';
+import { createAudio } from './audio.js?v=4';
+import { INK, NOIR } from './toon.js?v=4';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -36,21 +36,68 @@ renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor');
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.04, 3200);      // a near plane not too near: the town on the table is thin
-scene.add(new THREE.HemisphereLight(0xe6f2ff, 0x8a7a60, 1.7));
+const hemi = new THREE.HemisphereLight(0xe6f2ff, 0x8a7a60, 1.7); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff4e0, 2.0); sun.position.set(0.5, 1, 0.35); scene.add(sun);
 
 /* the sky, for driving: a gradient dome round the camera that fades in as you go down (in design the real room shows instead) */
-const skyMat = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, transparent: true, uniforms: { uA: { value: 0 } },
+const skyMat = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, transparent: true, uniforms: { uA: { value: 0 }, uNoir: { value: 0 }, uFlash: { value: 0 }, uT: { value: 0 } },
   vertexShader: 'varying vec3 vD; void main() { vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: `precision highp float; varying vec3 vD; uniform float uA;
+  fragmentShader: `precision highp float; varying vec3 vD; uniform float uA; uniform float uNoir; uniform float uFlash; uniform float uT;
     void main() { float h = vD.y; vec3 top = vec3(0.38, 0.62, 0.95), hor = vec3(0.86, 0.92, 0.97), low = vec3(0.62, 0.74, 0.62);
       vec3 c = h > 0.0 ? mix(hor, top, pow(h, 0.6)) : mix(hor, low, min(1.0, -h * 4.0));
       vec3 s = normalize(vec3(0.5, 0.75, 0.35)); c += vec3(1.0, 0.9, 0.7) * pow(max(dot(vD, s), 0.0), 400.0) * 2.0 + vec3(0.25, 0.2, 0.1) * pow(max(dot(vD, s), 0.0), 8.0);
+      if (uNoir > 0.5) {                                                         /* the night: a low storm sky, a hazy moon behind it, lightning */
+        vec3 nt = vec3(0.05, 0.06, 0.09), nh = vec3(0.17, 0.19, 0.25), nl = vec3(0.06, 0.07, 0.08);
+        c = h > 0.0 ? mix(nh, nt, pow(h, 0.5)) : mix(nh, nl, min(1.0, -h * 4.0));
+        float cl = sin(vD.x * 9.0 + uT * 0.05) * sin(vD.z * 7.0 - uT * 0.04) * sin(vD.y * 13.0 + vD.x * 5.0); c *= 0.85 + 0.25 * smoothstep(-0.2, 0.6, cl) * step(0.0, h);
+        vec3 mo = normalize(vec3(-0.4, 0.55, -0.7)); float md = dot(vD, mo); c += vec3(0.75, 0.8, 0.9) * smoothstep(0.9993, 0.9997, md) * 0.8 + vec3(0.2, 0.22, 0.28) * pow(max(md, 0.0), 30.0);
+        c += vec3(0.75, 0.8, 1.0) * uFlash * (0.4 + 0.6 * max(h, 0.0));
+      }
       gl_FragColor = vec4(c, uA); }` });
 const sky = new THREE.Mesh(new THREE.SphereGeometry(3000, 32, 16), skyMat); sky.renderOrder = -10; sky.frustumCulled = false; sky.visible = false; scene.add(sky);
 const FOG = new THREE.Fog(0xdbe9f3, 250, 1400);
 /** the ink lines fade into the fog like everything else (and not at all on the table) */
 function inkFog() { INK.uNear.value = scene.fog ? FOG.near : 1e6; INK.uFar.value = scene.fog ? FOG.far : 2e6; INK.uFog.value.copy(FOG.color); }
+
+/* ---------------- the style: a bright cartoon by day, or a dark graphic novel by night in the rain ---------------- */
+/* rain: streaks that fall through a box (round the camera when driving, over the whole board on the table); their fall is done in the shader */
+const RAIN_N = 5000;
+const rainMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uT: { value: 0 }, uC: { value: new V() }, uBox: { value: new V(60, 30, 60) }, uSpeed: { value: 16 }, uLen: { value: 1.1 }, uA: { value: 0.35 } },
+  vertexShader: `attribute float aEnd; uniform float uT; uniform vec3 uC; uniform vec3 uBox; uniform float uSpeed; uniform float uLen;
+    void main() { vec3 o = position; float y = fract(o.y - uT * uSpeed / uBox.y);
+      vec3 p = uC + vec3((o.x - 0.5) * uBox.x, (y - 0.5) * uBox.y, (o.z - 0.5) * uBox.z); p.y += aEnd * uLen; p.x += aEnd * uLen * 0.18;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0); }`,
+  fragmentShader: 'precision highp float; uniform float uA; void main() { gl_FragColor = vec4(0.72, 0.78, 0.9, uA); }' });
+const rain = (() => { const pos = new Float32Array(RAIN_N * 6), end = new Float32Array(RAIN_N * 2);
+  for (let k = 0; k < RAIN_N; k++) { const x = Math.random(), y = Math.random(), z = Math.random(); pos.set([x, y, z, x, y, z], k * 6); end[k * 2 + 1] = 1; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aEnd', new THREE.BufferAttribute(end, 1));
+  const r = new THREE.LineSegments(g, rainMat); r.frustumCulled = false; r.visible = false; r.renderOrder = 30; return r; })();
+const LIGHT = { flash: 0, next: 8 };
+function applyStyle() {
+  if (!rain.parent) holder.add(rain);
+  const n = S.noir; NOIR.uNoir.value = n ? 1 : 0; skyMat.uniforms.uNoir.value = n ? 1 : 0; rain.visible = n;
+  FOG.color.set(n ? 0x1d2330 : 0xdbe9f3); FOG.near = n ? 40 : 250; FOG.far = n ? 520 : 1400; inkFog();
+  hemi.color.set(n ? 0x7d8db8 : 0xe6f2ff); hemi.groundColor.set(n ? 0x2a2a33 : 0x8a7a60); hemi.intensity = n ? 1.3 : 1.7;
+  sun.color.set(n ? 0xaebde0 : 0xfff4e0); sun.intensity = n ? 1.3 : 2.0; sun.position.set(n ? -0.4 : 0.5, 1, n ? -0.6 : 0.35);
+  INK.uW.value = n ? 0.004 : 0.0032;
+  if (!S.xr && flatTable) scene.background = new THREE.Color(n ? 0x101318 : 0x2a2f38);
+  audio.noir(n);
+}
+function setStyle(noir) { S.noir = noir; try { localStorage.setItem('bordbyen.style', noir ? 'noir' : 'day'); } catch (_) { /* no storage */ } applyStyle(); toast(noir ? 'Graphic novel: nat og regn' : 'Tegneserie: dag'); }
+/** every frame: the hatching follows the city's matrix, the rain falls where you are, and now and then the sky lights up */
+function styleStep(dt) {
+  NOIR.uCityInv.value.copy(holder.matrix).invert(); NOIR.uTime.value = S.time; skyMat.uniforms.uT.value = S.time;
+  if (!S.noir) return;
+  const driving = S.mode === 'drive' || S.mode === 'shrink' || S.mode === 'watchDown' || S.mode === 'grow' || S.mode === 'watchUp';
+  rainMat.uniforms.uT.value = S.time;
+  if (driving && sky.visible && skyMat.uniforms.uA.value > 0.5) { rainMat.uniforms.uC.value.set(camC.p.x, camC.p.y, camC.p.z); rainMat.uniforms.uBox.value.set(50, 26, 50); rainMat.uniforms.uSpeed.value = 17; rainMat.uniforms.uLen.value = 1.1; rainMat.uniforms.uA.value = 0.32; rain.geometry.setDrawRange(0, RAIN_N * 2); }
+  else { const W = city.st.W * CELL, H = city.st.H * CELL; rainMat.uniforms.uC.value.set(0, 16, 0); rainMat.uniforms.uBox.value.set(W, 32, H); rainMat.uniforms.uSpeed.value = 90; rainMat.uniforms.uLen.value = 2.6; rainMat.uniforms.uA.value = 0.16; rain.geometry.setDrawRange(0, RAIN_N * 0.5); }
+  /* lightning when you are down in the town: a double flicker, then thunder after a moment */
+  LIGHT.next -= dt;
+  if (driving && LIGHT.next <= 0) { LIGHT.next = 10 + Math.random() * 18; LIGHT.flash = 1; LIGHT.t = 0; audio.thunder(Math.random() * 1.5); }
+  if (LIGHT.flash > 0) { LIGHT.t += dt; LIGHT.flash = LIGHT.t < 0.08 ? 1 : LIGHT.t < 0.16 ? 0.2 : LIGHT.t < 0.26 ? 0.8 : Math.max(0, 0.8 - (LIGHT.t - 0.26) * 3); }
+  skyMat.uniforms.uFlash.value = LIGHT.flash; hemi.intensity = 1.3 + LIGHT.flash * 1.6;
+}
 
 /* ---------------- the city, the cars, the race, sound ---------------- */
 const city = createCity();
@@ -400,6 +447,7 @@ function loop(_, frame) {
     if (vp) { const p = vp.transform.position, o = vp.transform.orientation; head.set(p.x, p.y, p.z); headQ.set(o.x, o.y, o.z, o.w); }
     if (S.mode === 'setup') setupStep(frame, ref, dt);
   } else if (!S.xr) flatCamera(dt);
+  styleStep(dt);
   if (S.toastT > 0) { S.toastT -= dt; if (S.toastT <= 0 && (S.mode === 'design' || S.mode === 'pick')) { S.msg = ''; checkRoute(); } }
 
   /* pointing: the right controller's ray, or the mouse */
@@ -481,7 +529,7 @@ function designButtons() {
   const [rx] = axes(Rr); if (Math.abs(rx) > 0.7 && !S.stickHeld) { S.stickHeld = true; S.tool = (S.tool + (rx > 0 ? 1 : TOOLS.length - 1)) % TOOLS.length; paletteDirty = true; audio.click(); } else if (Math.abs(rx) < 0.4) S.stickHeld = false;
   if (edge(L, 3)) { table.found = false; S.mode = 'setup'; SCAN.tried = 0; SCAN.manual = null; palette.visible = false; }           // left stick press: find the table again
   if (btn(L, 4)) { S.clearT = (S.clearT || 0) + 1 / 72; if (S.clearT > 2) { S.clearT = -99; newCity(true); toast('Byen er ryddet. B fortryder.'); } } else S.clearT = 0;      // hold X: an empty board
-  edge(L, 5);
+  if (edge(L, 5)) setStyle(!S.noir);                                            // Y: day or night
 }
 function driveButtons() {
   if (S.xr) {
@@ -564,6 +612,7 @@ function enterFlat() {
   flatTable.position.copy(table.pos); scene.add(flatTable);
   head.set(0, 1.45, 0.1); loadOrStart(); S.loaded = true; S.mode = 'design'; flatUI();
   S.steerMode = $('optSteer') ? $('optSteer').value : 'pad';
+  S.noir = readStyle(); applyStyle();
 }
 function flatCamera(dt) {
   if (S.mode === 'menu') return;
@@ -590,7 +639,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true; if (S.xr || S.mode === 'menu') return;
   if (S.mode === 'design') {
     const k = e.key === '0' ? 9 : e.key === '-' ? 10 : /^[1-9]$/.test(e.key) ? +e.key - 1 : -1; if (k >= 0) choose(k);
-    if (e.code === 'KeyZ' || e.code === 'Backspace') doUndo(); if (e.code === 'Enter') toPick();
+    if (e.code === 'KeyZ' || e.code === 'Backspace') doUndo(); if (e.code === 'Enter') toPick(); if (e.code === 'KeyN') setStyle(!S.noir);
   } else if (S.mode === 'pick') { if (/^[1-4]$/.test(e.key)) { S.carKey = CARS[+e.key - 1].key; startDrive(); } if (e.code === 'Escape') { S.mode = 'design'; showroom.visible = false; flatUI(); } }
   else if (S.mode === 'watch') { if (e.code === 'KeyV') fromWatch(); if (e.code === 'Escape') { race.clear(); playerCar = null; carMark.visible = false; endGrow(); } }
   else if (S.mode === 'drive') { if (e.code === 'KeyV') toWatch(); if (e.code === 'KeyC') { S.view = S.view === 'cockpit' ? 'chase' : 'cockpit'; updateCamC(0, true); } if (e.code === 'KeyR') restartRace(); if (e.code === 'Escape' || e.code === 'KeyG') growUp(); }
@@ -607,6 +656,7 @@ function setMouse(e) { mouse.x = e.clientX / innerWidth * 2 - 1; mouse.y = -(e.c
 addEventListener('resize', () => { if (S.xr) return; renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 
 /* ---------------- the headset session ---------------- */
+function readStyle() { const o = $('optStyle'); return params.has('noir') || (o ? o.value === 'noir' : false); }
 async function enterXR() {
   audio.init();
   try {
@@ -614,13 +664,15 @@ async function enterXR() {
     session.addEventListener('end', () => location.reload());
     await renderer.xr.setSession(session); try { renderer.xr.setFoveation(1); } catch (_) { /* fine */ }
     S.xr = true; document.body.classList.add('playing'); scene.background = null;
-    S.steerMode = $('optSteer') ? $('optSteer').value : 'pad';
+    S.steerMode = $('optSteer') ? $('optSteer').value : 'pad'; S.noir = readStyle(); applyStyle();
     S.mode = 'setup'; SCAN.tried = 0;
   } catch (e) { $('status').textContent = 'Kunne ikke starte headset-sessionen: ' + (e.message || e); console.error(e); }
 }
 
 renderer.setAnimationLoop(loop);
 (async function init() {
+  const optStyle = $('optStyle');
+  try { if (optStyle) { optStyle.value = localStorage.getItem('bordbyen.style') || 'day'; optStyle.addEventListener('change', () => localStorage.setItem('bordbyen.style', optStyle.value)); } } catch (_) { /* no storage */ }
   const optSteer = $('optSteer');
   try { if (optSteer) { optSteer.value = localStorage.getItem('bordbyen.steer') || 'pad'; optSteer.addEventListener('change', () => localStorage.setItem('bordbyen.steer', optSteer.value)); } } catch (_) { /* no storage */ }
   $('btnFlat').addEventListener('click', enterFlat); $('btnAR').addEventListener('click', enterXR);
@@ -629,4 +681,4 @@ renderer.setAnimationLoop(loop);
   if (params.has('flat')) enterFlat();
 })();
 
-window.__bb = { S, orbit, toWatch, fromWatch, JOLT, city, race, table, head, camC, anchor, keys, mouse, toPick, startDrive, growUp, choose, holder, restartRace, setView: v => { S.view = v; updateCamC(0, true); }, TR };
+window.__bb = { S, orbit, setStyle, LIGHT, toWatch, fromWatch, JOLT, city, race, table, head, camC, anchor, keys, mouse, toPick, startDrive, growUp, choose, holder, restartRace, setView: v => { S.view = v; updateCamC(0, true); }, TR };
