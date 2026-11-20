@@ -17,11 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=7';
-import { buildCar, CARS, CAR_SCALE } from './cars.js?v=7';
-import { createRace, LAPS } from './race.js?v=7';
-import { createAudio } from './audio.js?v=7';
-import { INK, NOIR } from './toon.js?v=7';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=8';
+import { buildCar, CARS, CAR_SCALE } from './cars.js?v=8';
+import { createRace, LAPS } from './race.js?v=8';
+import { createAudio } from './audio.js?v=8';
+import { INK, NOIR } from './toon.js?v=8';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -421,7 +421,7 @@ function wheelToHands(car) {
 }
 
 /* ---------------- the room scan: find the table ---------------- */
-const SCAN = { next: 0, tried: 0, manual: null };
+const SCAN = { next: 0, tried: 0, manual: null, cands: [], sel: 0 };
 function findTable(frame, ref) {
   const cands = [];
   try {
@@ -434,29 +434,39 @@ function findTable(frame, ref) {
       const ca = (a0 + a1) / 2, cb = (b0 + b1) / 2, w = a1 - a0, d = b1 - b0; if (w < 0.3 || d < 0.25 || top < 0.3 || top > 1.3) return;
       cands.push({ x: mx + ca * ux - cb * uz, z: mz + ca * uz + cb * ux, y: top, w, d, yaw: -ang });
     };
+    const OK = ['table', 'desk', 'other', ''];
     if (frame.detectedPlanes) for (const p of frame.detectedPlanes) {
-      if ((p.semanticLabel || '') !== 'table') continue; const pose = frame.getPose(p.planeSpace, ref); if (!pose) continue;
+      if (!OK.includes(p.semanticLabel || '') || (p.orientation && p.orientation !== 'horizontal')) continue; const pose = frame.getPose(p.planeSpace, ref); if (!pose) continue;
       const m = new THREE.Matrix4().fromArray(pose.transform.matrix), pts = Array.from(p.polygon, q => new V(q.x, q.y, q.z).applyMatrix4(m));
       add(pts, pts.reduce((s, q) => s + q.y, 0) / pts.length);
     }
     if (frame.detectedMeshes) for (const mesh of frame.detectedMeshes) {
-      if ((mesh.semanticLabel || '') !== 'table') continue; const pose = frame.getPose(mesh.meshSpace, ref); if (!pose) continue;
+      if (!['table', 'desk'].includes(mesh.semanticLabel || '')) continue; const pose = frame.getPose(mesh.meshSpace, ref); if (!pose) continue;
       const m = new THREE.Matrix4().fromArray(pose.transform.matrix), v = mesh.vertices, pts = [];
       for (let k = 0; k < v.length; k += 3) pts.push(new V(v[k], v[k + 1], v[k + 2]).applyMatrix4(m));
       const top = Math.max(...pts.map(p => p.y)); add(pts.filter(p => p.y > top - 0.03), top);
     }
   } catch (e) { console.warn('table scan failed', e); }
-  if (!cands.length) return null;
-  cands.sort((a, b) => Math.hypot(a.x - head.x, a.z - head.z) - Math.hypot(b.x - head.x, b.z - head.z));
-  return cands[0];
+  /* the same table found as a plane and as a mesh: keep the larger; then the ones in front of you first, then the nearer */
+  const out = [];
+  for (const c of cands.sort((a, b) => b.w * b.d - a.w * a.d)) if (!out.some(o => Math.hypot(o.x - c.x, o.z - c.z) < 0.35 && Math.abs(o.y - c.y) < 0.08)) out.push(c);
+  const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; f.normalize();
+  const score = c => { const dx = c.x - head.x, dz = c.z - head.z, d = Math.hypot(dx, dz); return d + 1.2 * (1 - (dx * f.x + dz * f.z) / Math.max(d, 1e-3)); };
+  return out.sort((a, b) => score(a) - score(b));
 }
-function setTable(t) {
-  table.pos.set(t.x, t.y, t.z); table.w = t.w; table.d = t.d;
-  /* turn the board so its long side runs across your view */
-  let yaw = t.yaw; if (t.d > t.w) { yaw += Math.PI / 2; const w = table.w; table.w = table.d; table.d = w; }
+/** where the board would lie on a found table: its long side across your view */
+function boardPose(t) {
+  let yaw = t.yaw, w = t.w, d = t.d; if (d > w) { yaw += Math.PI / 2; [w, d] = [d, w]; }
   const toHead = Math.atan2(head.x - t.x, head.z - t.z); let dd = toHead - yaw; dd = Math.atan2(Math.sin(dd), Math.cos(dd)); if (Math.abs(dd) > Math.PI / 2) yaw += Math.PI;
-  table.yaw = yaw; table.found = true;
+  return { x: t.x, y: t.y, z: t.z, w, d, yaw };
 }
+function setTable(t) { const b = boardPose(t); table.pos.set(b.x, b.y, b.z); table.w = b.w; table.d = b.d; table.yaw = b.yaw; table.found = true; }
+/* a preview of the board on the table on offer: a green outline and a faint fill */
+const preview = (() => { const g = new THREE.Group();
+  const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x5be37d, transparent: true, opacity: 0.28, depthWrite: false })); g.add(fill);
+  const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([new V(-0.5, 0, -0.5), new V(0.5, 0, -0.5), new V(0.5, 0, 0.5), new V(-0.5, 0, 0.5)]), new THREE.LineBasicMaterial({ color: 0x5be37d })); g.add(line);
+  g.visible = false; scene.add(g); return g; })();
+function showPreview(t) { if (!t) { preview.visible = false; return; } const b = boardPose(t); preview.position.set(b.x, b.y + 0.004, b.z); preview.rotation.set(0, b.yaw, 0); preview.scale.set(b.w, 1, b.d); preview.visible = true; }
 
 /* ---------------- the loop ---------------- */
 const keys = {}; let mouse = { x: 0, y: 0, down: false, right: false, click: false }; const orbit = { yaw: 0, pitch: 0.75, dist: 1.25 };
@@ -633,10 +643,20 @@ function setupStep(frame, ref, dt) {
   const f = new V(0, 0, -1).applyQuaternion(headQ); setupPanel.position.copy(head).addScaledVector(f, 0.8); setupPanel.position.y -= 0.1; setupPanel.lookAt(head); setupPanel.visible = true;
   holder.visible = false;
   if (!SCAN.manual) {
-    SCAN.tried += dt; const t = findTable(frame, ref);
-    if (t) { setTable(t); return tableDone(); }
-    setupText(['Leder efter et bord …', 'Bordet skal være med i headsettets rumscanning (Space Setup).', SCAN.tried > 3 ? 'Intet fundet. Tryk på aftrækkeren for at markere bordet selv.' : '']);
-    if (SCAN.tried > 3 && edge(hand('right'), 0)) SCAN.manual = { pts: [] };
+    /* every surface that could be a table, the one in front of you first; you pick which one, or mark it by hand */
+    SCAN.tried += dt; SCAN.next -= dt;
+    if (SCAN.next <= 0) { SCAN.next = 0.6; const prev = SCAN.cands && SCAN.cands[SCAN.sel]; SCAN.cands = findTable(frame, ref);
+      if (prev && SCAN.cands.length) { let best = 0, bd = Infinity; SCAN.cands.forEach((c, k) => { const d = Math.hypot(c.x - prev.x, c.z - prev.z) + Math.abs(c.y - prev.y); if (d < bd) { bd = d; best = k; } }); SCAN.sel = bd < 0.3 ? best : 0; } else SCAN.sel = 0; }
+    const Rr = hand('right'), L = hand('left'), cands = SCAN.cands || [];
+    if (cands.length) {
+      const [rx] = axes(Rr); const flick = Math.abs(rx) > 0.7 && !S.stickHeld; if (Math.abs(rx) > 0.7) S.stickHeld = true; else if (Math.abs(rx) < 0.4) S.stickHeld = false;
+      if (edge(Rr, 5) || flick) { SCAN.sel = (SCAN.sel + (flick && rx < 0 ? cands.length - 1 : 1)) % cands.length; audio.click(); }
+      const t = cands[SCAN.sel]; showPreview(t);
+      setupText(['Bord ' + (SCAN.sel + 1) + ' af ' + cands.length, 'Byen kommer til at ligge på det grønne felt.', 'Aftrækker: brug dette bord · B eller højre stick: næste · X: mærk bordet selv']);
+      if (edge(Rr, 0)) { setTable(t); preview.visible = false; return tableDone(); }
+    } else { showPreview(null); setupText(['Leder efter et bord …', 'Bordet skal være med i headsettets rumscanning (Space Setup).', SCAN.tried > 3 ? 'Intet fundet. Tryk på aftrækkeren for at markere bordet selv.' : '']);
+      if (SCAN.tried > 3 && edge(Rr, 0)) { SCAN.manual = { pts: [] }; return; } }
+    if (edge(L, 4)) { SCAN.manual = { pts: [] }; preview.visible = false; }
     return;
   }
   /* by hand: touch two opposite corners of the table with the right controller's tip */
@@ -736,4 +756,4 @@ renderer.setAnimationLoop(loop);
   if (params.has('flat')) enterFlat();
 })();
 
-window.__bb = { S, orbit, setStyle, LIGHT, stopRace, toWatch, fromWatch, JOLT, city, race, table, head, camC, anchor, keys, mouse, toPick, startDrive, growUp, choose, holder, restartRace, setView: v => { S.view = v; updateCamC(0, true); }, TR };
+window.__bb = { S, orbit, setStyle, LIGHT, findTable, boardPose, stopRace, toWatch, fromWatch, JOLT, city, race, table, head, camC, anchor, keys, mouse, toPick, startDrive, growUp, choose, holder, restartRace, setView: v => { S.view = v; updateCamC(0, true); }, TR };

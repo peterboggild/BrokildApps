@@ -416,6 +416,10 @@ Farveskiftet på venstre stick kræver et tydeligt skub til siden, så et skråt
 ikke. Nu: **venstre aftrækker** skyder plasma (som før), **venstre greb** fyrer lyskeglen af, **højre greb** sender to raketter. Håndstyringen af
 skibet er fjernet; højre stick styrer. Under kamp skalerer de to greb ikke længere fraktalen (de er våben); uden kamp gør de som før.
 
+## Raketter med nærhedsrør
+Raketterne springer nu, så snart et insekt er inden for ca. 55 cm (før: først ved berøring), så de rammer også, når de passerer tæt forbi. Sprængningen tager stadig alt inden for 90 cm.
+Nærhedsrør, sprængningens rækkevidde, ildkugle og røg regnes i fraktalens egne enheder, ligesom insekterne: forstørrer man fraktalen, bliver insekterne større, og sprængningen vokser med (55 og 90 cm gælder ved fraktalens startskala).
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option

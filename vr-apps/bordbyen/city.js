@@ -23,7 +23,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=7';
+import { toonMat, ink } from './toon.js?v=8';
 
 export const CELL = 8;
 export const SCALE = 1 / 160;                         // city metres to table metres: a cell is 5 cm on the table, a car 2.5 cm
@@ -37,7 +37,7 @@ export const TOOLS = [
   { key: 'park', name: 'Park', color: '#7cc46a', kind: 'lot' },
   { key: 'torv', name: 'Torv', color: '#d9c9a8', kind: 'lot' },
   { key: 'bakke', name: 'Bakke', color: '#a6d97f', kind: 'terrain', dir: 1 },
-  { key: 'dal', name: 'Dal', color: '#6f8a62', kind: 'terrain', dir: -1 },
+  { key: 'dal', name: 'Sænk', color: '#6f8a62', kind: 'terrain', dir: -1 },
   { key: 'start', name: 'Start/mål', color: '#ffffff', kind: 'gate' },
   { key: 'port', name: 'Port', color: '#ff9a3c', kind: 'gate' },
   { key: 'slet', name: 'Viskelæder', color: '#ff6a6a', kind: 'erase' },
@@ -161,7 +161,7 @@ export function createCity() {
     for (let cj = 1; cj < st.H; cj++) for (let ci = 1; ci < st.W; ci++) {
       if (ci <= u0 || ci >= u1 || cj <= v0 || cj >= v1) continue;
       const w = Math.sin(Math.PI * (ci - u0) / (u1 - u0)) * Math.sin(Math.PI * (cj - v0) / (v1 - v0)), k = hIdx(ci, cj);
-      st.hts[k] = Math.max(-10, Math.min(16, st.hts[k] + dir * 3.5 * w));
+      st.hts[k] = Math.max(0, Math.min(16, st.hts[k] + dir * 3.5 * w));      // never below the board (it would sink into the board and into your table)
     }
     return true;
   }
@@ -580,10 +580,11 @@ export function createCity() {
   /* ---------- saving ---------- */
   function save() { return JSON.stringify({ v: 1, W: st.W, H: st.H, cells: Array.from(st.cells), lots: [...st.lots.values()], gates: st.gates.map(g => ({ i: g.i, j: g.j, start: g.start })), nextId: st.nextId, hts: Array.from(st.hts, v => Math.round(v * 100) / 100) }); }
   function load(json) {
+    /* (older towns may have ground below the board: it is lifted back up to it) */
     let o; try { o = typeof json === 'string' ? JSON.parse(json) : json; } catch (_) { return false; }
     if (!o || o.v !== 1 || !o.W || !o.H) return false;
     reset(o.W, o.H); st.cells.set(o.cells.slice(0, o.W * o.H)); st.nextId = o.nextId || 1;
-    if (o.hts && o.hts.length === st.hts.length) { st.hts.set(o.hts); rebuildGround(); }
+    if (o.hts && o.hts.length === st.hts.length) { st.hts.set(o.hts.map(v => Math.max(0, v))); rebuildGround(); }
     for (const L of o.lots) { if (!GEN[L.type]) continue; st.lots.set(L.id, L); for (let j = L.z0; j <= L.z1; j++) for (let i = L.x0; i <= L.x1; i++) if (inside(i, j)) st.lot[idx(i, j)] = L.id; buildLot(L); st.nextId = Math.max(st.nextId, L.id + 1); }
     st.gates = (o.gates || []).map(g => ({ i: g.i, j: g.j, start: !!g.start })); commit(); return true;
   }

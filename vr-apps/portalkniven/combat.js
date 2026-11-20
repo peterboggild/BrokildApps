@@ -22,7 +22,8 @@
  * stops at the first wall.
  *
  * Rockets: a pair from the two pods, real little rockets (white body, red nose, fins) with a flame, sparks and a trail of smoke. They speed up to 10 m/s
- * and go off at the first wall, the first bug, or after 3 s: a fireball and smoke, and every bug within 90 cm bursts.
+ * and go off at the first wall, as soon as a bug is within 55 cm (a proximity fuse), or after 3 s: a fireball and smoke, and every bug within 90 cm
+ * bursts. Fuse, blast, fireball and smoke are sized in the fractal's units (55 and 90 cm at its starting scale), so they grow with the bugs.
  *
  * The ray: an intense cone of light from the nose, 14 m long and widening to 1.3 m across, for 1.2 s. It follows the ship while it lasts and
  * annihilates every bug inside it, walls or no walls. It then takes 5 s to charge again (kept by the caller).
@@ -34,7 +35,7 @@ import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
 
 const V = THREE.Vector3;
 const rnd = (a, b) => a + Math.random() * (b - a);
-const MAX = 48, BOLTS = 32, BOLT_V = 16, BOLT_LIFE = 1.2, BOLT_REACH = 0.08, RAY_LEN = 14, RAY_T = 1.2, RAY_R0 = 0.05, RAY_R1 = 0.65, ROCKETS = 8, ROCKET_V = 10, ROCKET_R = 0.9, ROCKET_LIFE = 3, PUFFS = 500, FIREBALLS = 8;
+const MAX = 48, BOLTS = 32, BOLT_V = 16, BOLT_LIFE = 1.2, BOLT_REACH = 0.08, RAY_LEN = 14, RAY_T = 1.2, RAY_R0 = 0.05, RAY_R1 = 0.65, ROCKETS = 8, ROCKET_V = 10, ROCKET_R = 0.9, ROCKET_FUSE = 0.55, ROCKET_LIFE = 3, PUFFS = 500, FIREBALLS = 8;
 
 function bugGeometry() {
   /* about one unit in radius, nose along -Z: carapace, head, six legs, two feelers; the sac at the back is separate (it glows) */
@@ -173,11 +174,12 @@ export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark,
   function fireball(f, r) { const q = fbData[fbNext]; fbNext = (fbNext + 1) % FIREBALLS; q.f.copy(f); q.age = 0; q.r = r; }
   function explode(k) {
     const o = rockets[k]; rockets.splice(k, 1);
-    const S = worlds.fracInfo(dim).S;
-    for (let m = bugs.length - 1; m >= 0; m--) { const b = bugs[m]; if (b.f.distanceTo(o.f) < ROCKET_R * S + b.r) { worlds.fromFrac(dim, b.f, _a); bugs.splice(m, 1); onShot(_a.clone(), b.r / S); } }
-    fireball(o.f, 0.55 * S);
-    for (let j = 0; j < 22; j++) { _g.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize().multiplyScalar(rnd(0.15, 0.6) * S); puff(o.f, _g, rnd(1.2, 2.4), rnd(0.12, 0.25) * S, rnd(0.25, 0.5) * S, j < 8 ? 1 : 0); }
-    worlds.fromFrac(dim, o.f, o.room); onRocket(o.room.clone());
+    /* the blast is sized in the fractal's own units, like the bugs: grow the fractal and the bugs grow, and so does the blast */
+    const { S, S0 } = worlds.fracInfo(dim);
+    for (let m = bugs.length - 1; m >= 0; m--) { const b = bugs[m]; if (b.f.distanceTo(o.f) < ROCKET_R * S0 + b.r) { worlds.fromFrac(dim, b.f, _a); bugs.splice(m, 1); onShot(_a.clone(), b.r / S); } }
+    fireball(o.f, 0.55 * S0);
+    for (let j = 0; j < 22; j++) { _g.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize().multiplyScalar(rnd(0.15, 0.6) * S0); puff(o.f, _g, rnd(1.2, 2.4), rnd(0.12, 0.25) * S0, rnd(0.25, 0.5) * S0, j < 8 ? 1 : 0); }
+    worlds.fromFrac(dim, o.f, o.room); onRocket(o.room.clone(), Math.max(0.3, Math.min(6, S0 / S)));
   }
 
   const api = {
@@ -280,7 +282,7 @@ export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark,
         for (let j = 0; j < n && !boom; j++) {
           o.f.addScaledVector(_r, step / n);
           if (de(o.f) < 0.02 * S) boom = true;
-          else for (const b of bugs) if (b.f.distanceTo(o.f) < b.r + 0.06 * S) { boom = true; break; }
+          else for (const b of bugs) if (b.f.distanceTo(o.f) < b.r + ROCKET_FUSE * info.S0) { boom = true; break; }      // the proximity fuse, in the fractal's units like the bugs
         }
         if (boom || o.age > ROCKET_LIFE) { explode(k); continue; }
         worlds.fromFrac(dim, o.f, o.room);

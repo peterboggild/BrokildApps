@@ -17,12 +17,12 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=48';
-import { createStory } from './story.js?v=48';
-import { createHand } from './hands.js?v=48';
-import { buildShip } from './ship.js?v=48';
-import { createAmbience } from './ambience.js?v=48';
-import { createCombat } from './combat.js?v=48';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=50';
+import { createStory } from './story.js?v=50';
+import { createHand } from './hands.js?v=50';
+import { buildShip } from './ship.js?v=50';
+import { createAmbience } from './ambience.js?v=50';
+import { createCombat } from './combat.js?v=50';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -993,7 +993,7 @@ const COMBAT = createCombat({ scene, worlds,
   onCrush: (p, size) => { SH.kills++; boomAt(p, 0.3 + size * 3, false); AMB.boom(p, 0.4 + size * 4, 'crush'); hullPanel(true); },
   onShot: (p, size) => { SH.kills++; boomAt(p, 0.35 + size * 3, false); AMB.boom(p, 0.35 + size * 4, 'crush'); hullPanel(true); },
   onSpark: p => { boomAt(p, 0.08, true); },
-  onRocket: p => { boomAt(p, 2.4, true); boomAt(p, 1.4, false); AMB.boom(p, 3, 'blast'); buzzAll(0.7, 180); if (ship.visible && p.distanceTo(ship.position) < 0.6) shipDamage(20, p); },
+  onRocket: (p, z = 1) => { boomAt(p, 2.4 * z, true); boomAt(p, 1.4 * z, false); AMB.boom(p, 3 * Math.min(2, z), 'blast'); buzzAll(0.7, 180); if (ship.visible && p.distanceTo(ship.position) < 0.6) shipDamage(20, p); },
   onRayKill: (p, size) => { SH.kills++; boomAt(p, 0.5 + size * 3, false); hullPanel(true); },
   onTrail: (p, d) => { boomLast = S.time; for (let k = 0; k < 3; k++) boomSparks.emit(p.x, p.y, p.z, -d.x * 0.5 + rnd(-0.08, 0.08), -d.y * 0.5 + rnd(-0.08, 0.08), -d.z * 0.5 + rnd(-0.08, 0.08), rnd(0.15, 0.3)); } });
 /* The ship's weapons, all straight ahead along the nose:

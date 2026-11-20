@@ -16,7 +16,7 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
 | `toon.js` | Tegneserie-looket: flade farver i tre toner og sorte tegnestreger. |
 
 **Cache:** `index.html` indlæser `game.js?v=N`, og `game.js`/`race.js` indlæser de andre med samme `?v=N`. Hæv dem alle sammen ved hver ændring
-(nu **v=7**).
+(nu **v=8**).
 
 ## Sådan hænger det sammen
 
@@ -87,6 +87,15 @@ Et valg på startsiden ("Stil"), og Y ved bordet skifter undervejs (N på comput
 * **Musik**, lavet i koden mens den spiller: langsom noir-jazz i D-mol, 68 slag i minuttet, med mørke akkorder på en blød flade (Dm9, B♭maj7,
   Gm9, A7♭9, to takter hver), en gående kontrabas, børstetrommer på to og fire og et swingende bækken, og spredte vibrafontoner ind i et langt
   ekko. Under det hele regnens sus.
+
+## Vælg selv bordet, ingen dale under bordet, langsommere uden for vejen (v=8)
+* **Valg af bord:** alle flader, der kan være et bord, findes (mærket bord eller skrivebord i rumscanningen, og vandrette flader uden mærke i 30 til
+  130 cm højde); den samme flade fundet to gange tælles én gang. De sorteres med dem foran dig først. Et grønt felt viser, hvor byen kommer til at
+  ligge: aftrækkeren vælger det, B eller højre stick viser det næste, X mærker bordet med hånden. Før valgte spillet selv det nærmeste bord, og det
+  var ofte forkert.
+* **Terrænet går ikke under bordpladen:** "Dal" er blevet til "Sænk", der sænker bakker igen, men aldrig under nul. Det sænkede terræn forsvandt
+  ind i brættets plade (og ville stikke ned i det rigtige bord). Ældre byer med terræn under nul løftes op ved indlæsning.
+* **Uden for vejen** nu højst en tredjedel af farten (Bulderen 40 %).
 
 ## Bakker, ingen gadelygter, ujævnt uden for vejen, mindre biler, stillingen (v=7)
 * **Bakker og dale:** to nye værktøjer. Et træk hæver (eller sænker) et område blødt med op til 3,5 m i midten, og det klinger ud en celle uden for
