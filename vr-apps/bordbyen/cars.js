@@ -12,6 +12,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
+import { toonMat, ink } from './toon.js?v=2';
 
 export const CARS = [
   { key: 'lyn', name: 'Lynet', color: '#e8392f', blurb: 'Lav og hurtig, med spoiler' },
@@ -49,9 +50,9 @@ function part(list, geo, color, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx 
 const merge = list => { const g = mergeGeometries(list, false); g.computeBoundingSphere(); return g; };
 const BALL = new THREE.SphereGeometry(1, 20, 14), CYL = new THREE.CylinderGeometry(1, 1, 1, 20), TUBE = new THREE.CylinderGeometry(1, 1, 1, 8);
 
-const bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.38, metalness: 0.08 });
-const glassMat = new THREE.MeshStandardMaterial({ color: 0x1f3550, roughness: 0.08, metalness: 0.5, transparent: true, opacity: 0.4, depthWrite: false });      // tinted, and see-through from the driver's seat
-const darkMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0.1 });
+const bodyMat = toonMat();
+const glassMat = new THREE.MeshToonMaterial({ color: 0x5f8fc4, transparent: true, opacity: 0.45, depthWrite: false });      // tinted, and see-through from the driver's seat
+const darkMat = toonMat();
 
 function lighten(hex, k) { return '#' + new THREE.Color(hex).lerp(new THREE.Color(1, 1, 1), k).getHexString(); }
 function darken(hex, k) { return '#' + new THREE.Color(hex).lerp(new THREE.Color(0, 0, 0), k).getHexString(); }
@@ -68,7 +69,7 @@ function wheel(r, width, hub) {
     part(list, BALL, lighten(hub, 0.4), s * width * 0.5, 0, 0, 0, 0, 0, 0.06, r * 0.16, r * 0.16);
     for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; part(list, BALL, '#d8d8d8', s * width * 0.5, Math.sin(a) * r * 0.3, Math.cos(a) * r * 0.3, 0, 0, 0, 0.04, 0.05, 0.05); }
   }
-  g.add(new THREE.Mesh(merge(list), darkMat)); return g;
+  g.add(ink(new THREE.Mesh(merge(list), darkMat))); return g;
 }
 
 export function buildCar(key, color) {
@@ -120,9 +121,9 @@ export function buildCar(key, color) {
     part(body, roundedBox(1.0, 0.25, 0.08, 0.04), '#ffffff', 0, 1.05, -2.03);                       // a smile of a grille
     wheelR = rearR = 0.5; wx = 1.02; fz = -1.35; rz = 1.35; track = 0.44; eye.set(0, 1.75, -0.6); radius = 1.3;
   }
-  car.add(new THREE.Mesh(merge(body), bodyMat));
+  car.add(ink(new THREE.Mesh(merge(body), bodyMat)));
   if (glass.length) car.add(new THREE.Mesh(merge(glass), glassMat));
-  const roofMesh = roof.length ? new THREE.Mesh(merge(roof), bodyMat) : null; if (roofMesh) car.add(roofMesh);
+  const roofMesh = roof.length ? ink(new THREE.Mesh(merge(roof), bodyMat)) : null; if (roofMesh) car.add(roofMesh);
   for (const [x, z, r, front] of [[-wx, fz, wheelR, true], [wx, fz, wheelR, true], [-wx, rz, rearR, false], [wx, rz, rearR, false]]) {
     const pivot = new THREE.Group(); pivot.position.set(x, r, z); const w = wheel(r, track, key === 'bulder' ? '#f2c230' : '#d7dce2'); pivot.add(w); car.add(pivot);
     wheels.push(w); if (front) steer.push(pivot);
