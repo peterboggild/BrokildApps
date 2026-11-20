@@ -1,5 +1,5 @@
 /*
- * Bordbyen — build a little town on your real table, then shrink down into it and race through its streets.
+ * Ræs i Bordbyen — build a little town on your real table, then shrink down into it and race through its streets.
  *
  *  - Design: the town lies on the table (found in the headset's room scan, or marked by hand). The left hand holds a palette (roads, houses, town
  *    blocks, towers, a town hall, a church, parks, squares, the start/finish and gates, an eraser); the right hand points and draws. Roads are drawn
@@ -17,11 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=8';
-import { buildCar, CARS, CAR_SCALE } from './cars.js?v=8';
-import { createRace, LAPS } from './race.js?v=8';
-import { createAudio } from './audio.js?v=8';
-import { INK, NOIR } from './toon.js?v=8';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=10';
+import { buildCar, CARS, CAR_SCALE } from './cars.js?v=10';
+import { createRace, LAPS } from './race.js?v=10';
+import { createAudio } from './audio.js?v=10';
+import { INK, NOIR } from './toon.js?v=10';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -86,11 +86,12 @@ function applyStyle() {
 function setStyle(noir) { S.noir = noir; try { localStorage.setItem('bordbyen.style', noir ? 'noir' : 'day'); } catch (_) { /* no storage */ } applyStyle(); toast(noir ? 'Graphic novel: nat og regn' : 'Tegneserie: dag'); }
 /** every frame: the hatching follows the city's matrix, the rain falls where you are, and now and then the sky lights up */
 function styleStep(dt) {
+  city.showTunnelMap(S.mode === 'design' || S.mode === 'pick' || S.mode === 'watch' || S.mode === 'setup');
   NOIR.uCityInv.value.copy(holder.matrix).invert(); NOIR.uTime.value = S.time; skyMat.uniforms.uT.value = S.time;
   if (!S.noir) return;
   const driving = S.mode === 'drive' || S.mode === 'shrink' || S.mode === 'watchDown' || S.mode === 'grow' || S.mode === 'watchUp';
   rainMat.uniforms.uT.value = S.time;
-  rain.visible = driving && sky.visible && skyMat.uniforms.uA.value > 0.5;                // rain only down in the streets, not over the town on the table
+  { const pc = player(); rain.visible = driving && sky.visible && skyMat.uniforms.uA.value > 0.5 && !(pc && pc.level === -1); }                // rain only down in the streets, not over the town on the table
   if (rain.visible) { rainMat.uniforms.uC.value.set(camC.p.x, camC.p.y, camC.p.z); rainMat.uniforms.uBox.value.set(50, 26, 50); rainMat.uniforms.uSpeed.value = 17; rainMat.uniforms.uLen.value = 1.1; rainMat.uniforms.uA.value = 0.32; rain.geometry.setDrawRange(0, RAIN_N * 2); }
   else { const W = city.st.W * CELL, H = city.st.H * CELL; rainMat.uniforms.uC.value.set(0, 16, 0); rainMat.uniforms.uBox.value.set(W, 32, H); rainMat.uniforms.uSpeed.value = 90; rainMat.uniforms.uLen.value = 2.6; rainMat.uniforms.uA.value = 0.16; rain.geometry.setDrawRange(0, RAIN_N * 0.5); }
   /* lightning when you are down in the town: a double flicker, then thunder after a moment */
@@ -120,12 +121,37 @@ const table = { pos: new V(0, 0.74, -0.75), yaw: 0, w: 1.2, d: 0.8, found: false
 
 /* ---------------- saving, undo ---------------- */
 const undo = [];
-function store() { try { localStorage.setItem(SAVE_KEY, city.save()); } catch (_) { /* no storage */ } }
+/* ---------------- the towns you have built: each saved under its name; the one you work on saves itself ---------------- */
+const LIB_KEY = 'bordbyen.byer', CUR_KEY = 'bordbyen.current';
+const lib = { list: [], cur: null };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function libLoad() {
+  try { lib.list = JSON.parse(localStorage.getItem(LIB_KEY) || '[]'); } catch (_) { lib.list = []; }
+  if (!Array.isArray(lib.list)) lib.list = [];
+  if (!lib.list.length) { let old = null; try { old = localStorage.getItem(SAVE_KEY); } catch (_) { /* none */ } if (old) lib.list.push({ id: uid(), name: 'Min by', saved: Date.now(), data: old }); }
+  try { lib.cur = localStorage.getItem(CUR_KEY); } catch (_) { lib.cur = null; }
+  if (!lib.list.find(c => c.id === lib.cur)) lib.cur = lib.list[0] ? lib.list[0].id : null;
+}
+function libSave() { try { localStorage.setItem(LIB_KEY, JSON.stringify(lib.list)); localStorage.setItem(CUR_KEY, lib.cur || ''); } catch (_) { /* full or blocked */ } }
+const curEntry = () => lib.list.find(c => c.id === lib.cur) || null;
+function nextName() { let n = lib.list.length + 1; while (lib.list.some(c => c.name === 'By ' + n)) n++; return 'By ' + n; }
+function store() {
+  let e = curEntry(); if (!e) { e = { id: uid(), name: lib.list.length ? nextName() : 'Min by', saved: 0, data: '' }; lib.list.push(e); lib.cur = e.id; }
+  e.data = city.save(); e.saved = Date.now(); libSave();
+}
+/** a new, empty town, saved under a new name (the one you had stays saved) */
+function newTown() { store(); const e = { id: uid(), name: nextName(), saved: Date.now(), data: '' }; lib.list.push(e); lib.cur = e.id; undo.length = 0;
+  const [W, H] = boardFor(table.w, table.d); city.reset(W, H); store(); checkRoute(); toast('Ny by: ' + e.name); audio.chime(2, 700); }
+/** the next saved town */
+function nextTown() { if (lib.list.length < 2) { toast('Der er kun én by. Lav en ny med "Ny by".'); return; } store(); const k = lib.list.findIndex(c => c.id === lib.cur), e = lib.list[(k + 1) % lib.list.length];
+  lib.cur = e.id; libSave(); undo.length = 0; if (!city.load(e.data)) { const [W, H] = boardFor(table.w, table.d); city.reset(W, H); } checkRoute(); toast('By: ' + e.name); audio.chime(2, 760); }
 function before() { undo.push(city.save()); if (undo.length > 40) undo.shift(); }
 function doUndo() { const s = undo.pop(); if (!s) return; city.load(s); store(); audio.click(); checkRoute(); }
 function boardFor(w, d) { return [clamp(Math.floor(w / (CELL * SCALE)), 6, 40), clamp(Math.floor(d / (CELL * SCALE)), 5, 40)]; }
 function loadOrStart() {
-  let ok = false; try { const s = localStorage.getItem(SAVE_KEY); if (s && !params.has('new')) ok = city.load(s); } catch (_) { /* no storage */ }
+  libLoad(); let ok = false; const e = curEntry(); if (e && e.data && !params.has('new')) ok = city.load(e.data);
+  if (params.has('new')) { lib.cur = null; }
+  if (ok) libSave();
   if (!ok) { const [W, H] = boardFor(table.w, table.d); city.reset(W, H); city.starter(); store(); }
   checkRoute();
 }
@@ -158,13 +184,14 @@ function alignSeat(dt) {
 function updateCamC(dt, snap) {
   const car = player(); if (!car) return;
   if (S.view === 'cockpit') {
-    const e = car.obj.userData.eye; camC.p.set(e.x, e.y, e.z).applyAxisAngle(YAX, car.yaw).add(new V(car.p.x, city.heightAt(car.p.x, car.p.y), car.p.y)); camC.yaw = car.yaw;
+    const e = car.obj.userData.eye; camC.p.set(e.x, e.y, e.z).applyAxisAngle(YAX, car.yaw).add(new V(car.p.x, city.groundY(car.level, car.p.x, car.p.y), car.p.y)); camC.yaw = car.yaw;
   } else {
     let d = car.yaw - camC.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); camC.yaw += snap ? d : d * Math.min(1, dt * 3.2);
     /* behind and above the car; nearer if a building is in the way (never inside one) */
-    const back = new V(0, 3.0, 8.0).applyAxisAngle(YAX, camC.yaw); let t = 1;
-    for (let k = 1; k <= 12; k++) { const u = k / 12; if (city.inSolid(car.p.x + back.x * u, car.p.y + back.z * u)) { t = Math.max(0.15, (k - 1) / 12); break; } }
-    const want = new V(back.x * t, 3.0 * Math.max(0.6, t), back.z * t).add(new V(car.p.x, city.heightAt(car.p.x, car.p.y), car.p.y));
+    const under = car.level !== 0, up = under ? 2.0 : 3.0, back = new V(0, up, under ? 6.5 : 8.0).applyAxisAngle(YAX, camC.yaw); let t = 1;
+    const blocked = (x, z) => { if (car.level === -1 || (car.level === 'r' && car.rampT > 0.5)) { const q = new THREE.Vector2(x, z), o = q.clone(); city.collideL(q, 0.5, -1); return q.distanceTo(o) > 0.05; } return city.inSolid(x, z); };
+    for (let k = 1; k <= 12; k++) { const u = k / 12; if (blocked(car.p.x + back.x * u, car.p.y + back.z * u)) { t = Math.max(0.15, (k - 1) / 12); break; } }
+    const want = new V(back.x * t, up * Math.max(0.6, t), back.z * t).add(new V(car.p.x, city.groundY(car.level, car.p.x, car.p.y), car.p.y));
     if (snap) camC.p.copy(want); else camC.p.lerp(want, Math.min(1, dt * 6));
   }
 }
@@ -174,7 +201,7 @@ function joltStep(dt) { const k = 90, damp = 11; JOLT.v.addScaledVector(JOLT.p, 
 function driveMatrix(out) { return cityMatrix(out, anchor.p, anchor.yaw - camC.yaw, 1, camC.p.clone().sub(JOLT.p)); }
 /** In the driver's seat you must see out: your own car loses its ink (its black inside would fill the view) and its roof; its body and glass are
  *  drawn from outside only, so from within they vanish and the view is open, with the dashboard and the wheel in front. */
-function insideView(car, inside) { if (!car) return; car.traverse(o => { if (o.name === 'ink') o.visible = !inside; }); if (car.userData.roof) car.userData.roof.visible = !inside; car.userData.cockpit.visible = inside; }
+function insideView(car, inside) { if (!car) return; car.traverse(o => { if (o.name === 'ink') o.visible = !inside; }); if (car.userData.roof) car.userData.roof.visible = !inside; if (car.userData.glass) car.userData.glass.visible = !inside; car.userData.cockpit.visible = inside; }
 const TR = { t: 0, dur: 2.6, from: null, F: new V(), w0: new V(), yaw0: 0, s0: SCALE, up: false };
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
@@ -196,16 +223,16 @@ function buzz(v, ms) { for (const c of ctrl) { try { c.gp?.hapticActuators?.[0]?
 
 /* ---------------- the palette (on the left hand in the headset; buttons on screen in the flat preview) ---------------- */
 const PAL = { cols: 4, cell: 120, pad: 8, rows: 4 };
-const palCanvas = document.createElement('canvas'); palCanvas.width = 512; palCanvas.height = 740;
+const palCanvas = document.createElement('canvas'); palCanvas.width = 512; palCanvas.height = 830;
 const palTex = new THREE.CanvasTexture(palCanvas); palTex.colorSpace = THREE.SRGBColorSpace;
-const palette = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.2457), new THREE.MeshBasicMaterial({ map: palTex, transparent: true, depthTest: false }));
+const palette = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.2756), new THREE.MeshBasicMaterial({ map: palTex, transparent: true, depthTest: false }));
 palette.renderOrder = 50; palette.visible = false;
 let paletteDirty = true;
-const PAL_ITEMS = [...TOOLS.map((t, i) => ({ tool: i })), { act: 'undo', name: 'Fortryd', color: '#9aa6b2' }, { act: 'go', name: 'Kør!', color: '#3ecf6a', wide: true }];
+const PAL_ITEMS = [...TOOLS.map((t, i) => ({ tool: i })), { act: 'undo', name: 'Fortryd', color: '#9aa6b2' }, { act: 'new', name: 'Ny by', color: '#7fc8f0' }, { act: 'next', name: 'Næste by', color: '#b9a3f0' }, { act: 'go', name: 'Kør!', color: '#3ecf6a', wide: true }];
 function palRect(k) { if (PAL_ITEMS[k].wide) return [PAL.pad, 4 + Math.ceil((PAL_ITEMS.length - 1) / 4) * 124, 512 - 2 * PAL.pad, 112]; const c = k % 4, r = Math.floor(k / 4); return [PAL.pad + c * 124, 4 + r * 124, 116, 116]; }
 function drawPalette() {
-  paletteDirty = false; const x = palCanvas.getContext('2d'); x.clearRect(0, 0, 512, 740);
-  x.fillStyle = 'rgba(10,14,22,.86)'; x.beginPath(); x.roundRect(0, 0, 512, 740, 26); x.fill();
+  paletteDirty = false; const x = palCanvas.getContext('2d'); x.clearRect(0, 0, 512, 830);
+  x.fillStyle = 'rgba(10,14,22,.86)'; x.beginPath(); x.roundRect(0, 0, 512, 830, 26); x.fill();
   PAL_ITEMS.forEach((it, k) => {
     const [px, py, w, h] = palRect(k), t = it.tool !== undefined ? TOOLS[it.tool] : it, sel = it.tool === S.tool;
     x.fillStyle = sel ? '#ffffff' : 'rgba(255,255,255,.08)'; x.beginPath(); x.roundRect(px, py, w, h, 16); x.fill();
@@ -214,7 +241,8 @@ function drawPalette() {
     x.fillStyle = sel ? '#111' : '#e8eef6'; x.font = `bold ${it.wide ? 34 : 21}px Arial, sans-serif`; x.textAlign = 'center'; x.fillText(t.name, px + w / 2, py + h - 14);
   });
   x.fillStyle = routeInfo && !routeInfo.error ? '#9ff0b4' : '#ffc27a'; x.font = '20px Arial, sans-serif'; x.textAlign = 'left';
-  wrap(x, S.msg || '', 20, 652, 472, 24);
+  const ce = curEntry(); if (ce) { x.fillStyle = '#ffffff'; x.font = 'bold 22px Arial, sans-serif'; x.fillText('By: ' + ce.name, 20, 770); x.font = '20px Arial, sans-serif'; x.fillStyle = routeInfo && !routeInfo.error ? '#9ff0b4' : '#ffc27a'; }
+  wrap(x, S.msg || '', 20, 798, 472, 24);
   palTex.needsUpdate = true;
 }
 function wrap(x, text, px, py, w, lh) { const words = text.split(' '); let line = ''; for (const wd of words) { const t = line ? line + ' ' + wd : wd; if (x.measureText(t).width > w) { x.fillText(line, px, py); py += lh; line = wd; } else line = t; } x.fillText(line, px, py); }
@@ -237,6 +265,8 @@ function choose(k) {
   const it = PAL_ITEMS[k]; if (!it) return;
   if (it.tool !== undefined) { S.tool = it.tool; paletteDirty = true; audio.click(); flatUI(); }
   else if (it.act === 'undo') doUndo();
+  else if (it.act === 'new') newTown();
+  else if (it.act === 'next') nextTown();
   else if (it.act === 'go') toPick();
 }
 
@@ -261,11 +291,20 @@ function showCursor(a, b, ok) {
 function designInput(o, d, down, dt) {
   const t = TOOLS[S.tool], c = cellUnder(o, d);
   if (!c) { cursor.visible = false; if (!down && D.down) endStroke(); return null; }
-  if (down && !D.down) { D.down = true; D.a = c; D.lastCell = null; D.pushed = !c.out; if (D.pushed) before(); }
+  if (down && !D.down) { D.down = true; D.a = c; D.lastCell = null; D.tunOn = undefined; D.pushed = !c.out; if (D.pushed) before(); }
   if (!down && D.down) { D.b = c; endStroke(); return c; }
   if (D.down) {
     D.b = c;
-    if (t.kind === 'road' && !D.a.out) {
+    if (t.kind === 'tunnel' && !D.a.out) {
+      /* sweep like a road; starting on a tunnel takes tunnel away instead */
+      if (D.tunOn === undefined) D.tunOn = !city.isTun(D.a.i, D.a.j);
+      const from = D.lastCell || c; let i = from.i, j = from.j, did = false; const step = () => { if (city.paintTunnel(i, j, D.tunOn)) did = true; };
+      step(); while (i !== c.i || j !== c.j) { if (i !== c.i) i += Math.sign(c.i - i); else j += Math.sign(c.j - j); step(); }
+      D.lastCell = c; if (did) { D.dirty = true; audio.click(); }
+      D.rebuildT -= dt; if (D.dirty && D.rebuildT <= 0) { city.commit(); D.dirty = false; D.rebuildT = 0.15; }
+      showCursor(c, c, true);
+    } else if (t.kind === 'ramp') showCursor(D.a, rampEnd(D.a, c), true);
+    else if (t.kind === 'road' && !D.a.out) {
       /* sweep: paint every cell between the last and this one (no gaps when the hand moves fast) */
       const from = D.lastCell || c; let i = from.i, j = from.j; let painted = false;
       const step = () => { if (city.paintRoad(i, j)) painted = true; };
@@ -278,11 +317,14 @@ function designInput(o, d, down, dt) {
   } else showCursor(c, c, t.kind !== 'gate' || city.isRoad(c.i, c.j));
   return c;
 }
+/** a ramp is always two cells: from where you started, one more cell in the main direction you dragged */
+function rampEnd(a, c) { const dx = c.i - a.i, dz = c.j - a.j; if (!dx && !dz) return { i: a.i, j: a.j + 1 }; return Math.abs(dx) >= Math.abs(dz) ? { i: a.i + Math.sign(dx), j: a.j } : { i: a.i, j: a.j + Math.sign(dz) }; }
 function endStroke() {
   const t = TOOLS[S.tool], a = D.a, b = D.b || a; D.down = false; cursor.visible = false;
   if (!a || a.out) return;
   let changed = false;
-  if (t.kind === 'road') { changed = true; city.commit(); }
+  if (t.kind === 'road' || t.kind === 'tunnel') { changed = true; city.commit(); }
+  else if (t.kind === 'ramp') { const e = rampEnd(a, b); changed = city.placeRamp(a.i, a.j, e.i, e.j); if (changed) { city.reshape(); audio.pop(); } else toast('Træk nedkørslen fra vejen og ind mod tunnellen'); }
   else if (t.kind === 'lot') { changed = city.placeLot(t.key, a.i, a.j, b.i, b.j); if (changed) { city.commit(); audio.pop(); } else toast(t.name + ' skal være mindst ' + t.min + ' × ' + t.min + ' felter'); }
   else if (t.kind === 'terrain') { changed = city.shapeTerrain(a.i, a.j, b.i, b.j, t.dir); if (changed) { city.reshape(); audio.pop(); } }
   else if (t.kind === 'erase') { changed = city.eraseRect(a.i, a.j, b.i, b.j); if (changed) { city.commit(); audio.click(); } }
@@ -388,8 +430,8 @@ function drawHud() {
 function placeHud() {
   const c = player(); if (!c) return; const e = c.obj.userData.eye;
   /* in the seat it sits low on the windscreen, like a head-up display, under the line you look along; behind the car it floats high over it */
-  if (S.view === 'cockpit') { hud.scale.setScalar(0.3); const p = new V(0, e.y - 0.36, e.z - 0.82).applyAxisAngle(YAX, c.yaw); hud.position.set(c.p.x + p.x, p.y + city.heightAt(c.p.x, c.p.y), c.p.y + p.z); hud.rotation.set(-0.55, c.yaw, 0, 'YXZ'); }
-  else { hud.scale.setScalar(1.5); const p = new V(0, 4.8, -1).applyAxisAngle(YAX, camC.yaw); hud.position.set(c.p.x + p.x, p.y + city.heightAt(c.p.x, c.p.y), c.p.y + p.z); hud.rotation.set(-0.15, camC.yaw, 0, 'YXZ'); }
+  if (S.view === 'cockpit') { hud.scale.setScalar(0.3); const p = new V(0, e.y - 0.36, e.z - 0.82).applyAxisAngle(YAX, c.yaw); hud.position.set(c.p.x + p.x, p.y + city.groundY(c.level, c.p.x, c.p.y), c.p.y + p.z); hud.rotation.set(-0.55, c.yaw, 0, 'YXZ'); }
+  else { hud.scale.setScalar(1.5); const p = new V(0, 4.8, -1).applyAxisAngle(YAX, camC.yaw); hud.position.set(c.p.x + p.x, p.y + city.groundY(c.level, c.p.x, c.p.y), c.p.y + p.z); hud.rotation.set(-0.15, camC.yaw, 0, 'YXZ'); }
 }
 function toast(t) { S.toast = t; S.toastT = 2.2; if (S.mode === 'design' || S.mode === 'pick') { S.msg = t; paletteDirty = true; flatUI(); } }
 
@@ -494,7 +536,7 @@ function loop(_, frame) {
     if (S.xr) {
       const L = hand('left'); palette.visible = !!L;
       if (L) { if (palette.parent !== L.grip) L.grip.add(palette); palette.position.set(0.02, 0.07, -0.05); palette.rotation.set(-0.9, 0, 0); }
-      if (o && palette.visible) { raycaster.set(o, d); const h = raycaster.intersectObject(palette)[0]; if (h) { onPal = true; if (click) { const u = h.uv.x * 512, v = (1 - h.uv.y) * 740; const k = PAL_ITEMS.findIndex((_, i) => { const [px, py, w, hh] = palRect(i); return u >= px && u <= px + w && v >= py && v <= py + hh; }); if (k >= 0) choose(k); } } }
+      if (o && palette.visible) { raycaster.set(o, d); const h = raycaster.intersectObject(palette)[0]; if (h) { onPal = true; if (click) { const u = h.uv.x * 512, v = (1 - h.uv.y) * 830; const k = PAL_ITEMS.findIndex((_, i) => { const [px, py, w, hh] = palRect(i); return u >= px && u <= px + w && v >= py && v <= py + hh; }); if (k >= 0) choose(k); } } }
     }
     const Rr = hand('right'); if (Rr) { Rr.line.visible = true; Rr.line.scale.z = 3; }
     if (o && (!onPal || D.down)) designInput(o, d, down, dt);
@@ -516,7 +558,7 @@ function loop(_, frame) {
     if (S.mode === 'watch') watchButtons();
     if (!S.paused) race.update(dt, S.mode === 'watch' ? driveInput(dt) : { gas: 0, brake: 0, steer: 0 }); audio.silence();
     if (signDirty) drawWatchSign();
-    const pc = player(); if (pc) { insideView(pc.obj, false); carMark.visible = S.mode === 'watch'; carMark.position.set(pc.p.x, city.heightAt(pc.p.x, pc.p.y) + 22 + Math.sin(S.time * 4) * 1.5, pc.p.y); carMark.rotation.y += dt * 2; }
+    const pc = player(); if (pc) { insideView(pc.obj, false); carMark.visible = S.mode === 'watch'; carMark.position.set(pc.p.x, Math.max(0, city.heightAt(pc.p.x, pc.p.y)) + 22 + Math.sin(S.time * 4) * 1.5, pc.p.y); carMark.rotation.y += dt * 2; }
     carTags(S.mode === 'watch');
     if (S.mode === 'watch') { holder.matrix.copy(designMatrix(_m1)); watchSign.visible = true; }
     else {
@@ -730,6 +772,23 @@ canvas.addEventListener('wheel', e => { orbit.dist = clamp(orbit.dist * Math.exp
 function setMouse(e) { mouse.x = e.clientX / innerWidth * 2 - 1; mouse.y = -(e.clientY / innerHeight) * 2 + 1; }
 addEventListener('resize', () => { if (S.xr) return; renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 
+/* ---------------- the start page: your towns, to choose, rename, copy, delete or start anew ---------------- */
+function townList() {
+  const box = $('towns'); if (!box) return; libLoad(); box.innerHTML = '';
+  const fmtD = t => { try { return new Date(t).toLocaleString('da-DK', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (_) { return ''; } };
+  if (!lib.list.length) { const p = document.createElement('p'); p.className = 'dim'; p.textContent = 'Ingen byer endnu. Den første laves, når du starter.'; box.appendChild(p); }
+  for (const e of lib.list) {
+    const row = document.createElement('div'); row.className = 'town' + (e.id === lib.cur ? ' cur' : '');
+    const pick = document.createElement('input'); pick.type = 'radio'; pick.name = 'town'; pick.checked = e.id === lib.cur; pick.title = 'Åbn denne by'; pick.onchange = () => { lib.cur = e.id; libSave(); townList(); };
+    const name = document.createElement('input'); name.type = 'text'; name.value = e.name; name.maxLength = 40; name.onchange = () => { e.name = name.value.trim() || e.name; libSave(); townList(); };
+    const when = document.createElement('span'); when.className = 'dim'; when.textContent = fmtD(e.saved);
+    const cp = document.createElement('button'); cp.textContent = 'Kopiér'; cp.onclick = () => { lib.list.push({ id: uid(), name: e.name + ' (kopi)', saved: Date.now(), data: e.data }); libSave(); townList(); };
+    const del = document.createElement('button'); del.textContent = 'Slet'; del.onclick = () => { if (!confirm('Slet "' + e.name + '"?')) return; lib.list = lib.list.filter(c => c !== e); if (lib.cur === e.id) lib.cur = lib.list[0] ? lib.list[0].id : null; libSave(); townList(); };
+    row.append(pick, name, when, cp, del); box.appendChild(row);
+  }
+  const add = document.createElement('button'); add.textContent = '+ Ny by'; add.onclick = () => { const e = { id: uid(), name: nextName(), saved: Date.now(), data: '' }; lib.list.push(e); lib.cur = e.id; libSave(); townList(); };
+  box.appendChild(add);
+}
 /* ---------------- the headset session ---------------- */
 function readStyle() { const o = $('optStyle'); return params.has('noir') || (o ? o.value === 'noir' : false); }
 async function enterXR() {
@@ -750,6 +809,7 @@ renderer.setAnimationLoop(loop);
   try { if (optStyle) { optStyle.value = localStorage.getItem('bordbyen.style') || 'day'; optStyle.addEventListener('change', () => localStorage.setItem('bordbyen.style', optStyle.value)); } } catch (_) { /* no storage */ }
   const optSteer = $('optSteer');
   try { if (optSteer) { optSteer.value = localStorage.getItem('bordbyen.steer') || 'pad'; optSteer.addEventListener('change', () => localStorage.setItem('bordbyen.steer', optSteer.value)); } } catch (_) { /* no storage */ }
+  townList();
   $('btnFlat').addEventListener('click', enterFlat); $('btnAR').addEventListener('click', enterXR);
   let ok = false; try { ok = !!(navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')); } catch (_) { /* no WebXR */ }
   $('btnAR').disabled = !ok; $('status').textContent = ok ? 'Klar. Stil dig ved et bord og tryk på Start.' : 'Headset-tilstand findes ikke her. Prøv det fladt på computeren.';

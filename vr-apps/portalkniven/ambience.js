@@ -209,6 +209,13 @@ export function createAmbience() {
       const inp = gain(0.7); inp.connect(p); p.connect(out);
       burst(inp, white, 'bandpass', 350, 1800, 2.5, 0.5, 0.03, 0.6); strike(inp, 90, [[1, 1, 0.25]], 0.5, 0.4);
       setTimeout(() => { try { inp.disconnect(); p.disconnect(); } catch (_) { /* gone */ } }, 1500); },
+    /** a warning chirp from where a bug is closing in: k 0..1, nearer is louder and higher */
+    warn(pos, k) { if (!ctx) return; const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1; p.rolloffFactor = 0.6;
+      if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+      const inp = gain(0.3 + 0.4 * k); inp.connect(p); p.connect(out); const t = ctx.currentTime, f = 1300 + 900 * k;
+      for (const [d, ff] of [[0, f], [0.07, f * 1.33]]) { const o = ctx.createOscillator(), g = gain(0); o.type = 'square'; o.frequency.setValueAtTime(ff, t + d); o.connect(g); g.connect(inp);
+        g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.12, t + d + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.06); o.start(t + d); o.stop(t + d + 0.08); }
+      setTimeout(() => { try { inp.disconnect(); p.disconnect(); } catch (_) { /* gone */ } }, 400); },
     thud(pos, level = 1) { if (!ctx) return; const dst = gain(level); dst.connect(out); const s = gain(0.6); dst.connect(s); s.connect(verbs.tunnel);
       strike(dst, 62, [[1, 1, 0.5], [1.7, 0.6, 0.3], [2.9, 0.3, 0.2]], 0.7, 0.3); burst(dst, white, 'lowpass', 900, 200, 0.7, 0.5, 0.005, 0.25); setTimeout(() => { try { dst.disconnect(); s.disconnect(); } catch (_) { /* gone */ } }, 2500); },
     dims: Object.keys(DIM),

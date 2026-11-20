@@ -52,7 +52,7 @@ commit `04228fc`. No open pull requests, nothing half-done on any branch.
 | Portalkniven | `vr-apps/portalkniven/` | `/vr-apps/portalkniven/` | The main project. Large, live, in active development. |
 | Mutant Rotte Angreb | `vr-apps/tank-ambush/` | `/vr-apps/tank-ambush/` | Finished game; latest addition the cheese bomb (#75). |
 | Guldplaneten | `vr-apps/guldplaneten/` | `/vr-apps/guldplaneten/` | Not touched in these sessions. |
-| Bordbyen | `vr-apps/bordbyen/` | `/vr-apps/bordbyen/` | New city-racing game (#78): build a town on the table (design), pick a toy car, shrink to 1:1 and race: clear all gates in any order, then first over the finish, against 3 AI cars. Files `game.js`, `city.js`, `cars.js`, `race.js`, `audio.js`; README (Danish) has the design; cache `?v=8`. |
+| Ræs i Bordbyen | `vr-apps/bordbyen/` | `/vr-apps/bordbyen/` | New city-racing game (#78): build a town on the table (design), pick a toy car, shrink to 1:1 and race: clear all gates in any order, then first over the finish, against 3 AI cars. Files `game.js`, `city.js`, `cars.js`, `race.js`, `audio.js`; README (Danish) has the design; cache `?v=10`. |
 
 - The site's front page (`index.html` in the root) mentions the three VR apps in one paragraph.
 - `tools/sync-site.js` writes the social preview tags and `sitemap.xml`. Run `node tools/sync-site.js` after
@@ -86,7 +86,7 @@ A knife cuts a door in the air of your own living room; through it you see, and 
 | `README.md` | Danish, very detailed, written in the order things were built (newest at the bottom). |
 
 **Cache busting:** `index.html` loads `portal.js?v=N`, and `portal.js` imports every module with the same `?v=N`.
-Raise them all together on every change (currently **v=50**), or the headset keeps old code.
+Raise them all together on every change (currently **v=51**), or the headset keeps old code.
 
 ### 3.2 What the player can do
 
@@ -122,7 +122,7 @@ Controls in short (the start page and README have the full lists):
   30°, left stick press resets the fourth dimension.
 - **Combat test (option):** bugs crawl towards the ship and burst; reshaping the fractal crushes them; all weapons on the
   hand without the knife fire straight along the nose (no aim assist): trigger = piercing plasma bolts (space bar flat),
-  right grip = a pair of rockets with smoke trails and fireballs (proximity fuse 55 cm, 90 cm blast, both in fractal units so they grow with the bugs; key X), left grip = a 1.2 s cone of
+  right grip = a pair of rockets with smoke trails and fireballs (homing, proximity fuse 90 cm, 1.5 m blast, both in fractal units so they grow with the bugs; key X); a spatial warning chirp for bugs close to the ship or close behind the head (`AMB.warn`), left grip = a 1.2 s cone of
   light that annihilates everything inside it, then 5 s to charge (key C). Bugs speed up each minute (`COMBAT.pace()`, up
   to ×4) and grow in number. Bumping walls damages the ship by speed; the board over the ship shows hull, kills, ray
   charge, rockets and pace.

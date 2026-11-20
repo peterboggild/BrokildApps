@@ -1,5 +1,5 @@
 /*
- * Bordbyen — the cartoon look: flat colour in three tones (toon shading) and black ink lines round everything.
+ * Ræs i Bordbyen — the cartoon look: flat colour in three tones (toon shading) and black ink lines round everything.
  *
  * The ink is an "inverted hull": each mesh is drawn a second time, back faces only, in near-black, pushed outwards a fixed number of pixels in
  * screen space. Where the hull shows past the mesh's own silhouette (its outline, and the edges of every box that stands out from another) it reads

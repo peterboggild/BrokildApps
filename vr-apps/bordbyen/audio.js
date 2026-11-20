@@ -1,5 +1,5 @@
 /*
- * Bordbyen — sound, all synthesised: engines (yours in your ears, the opponents' placed where their cars are), bumps, the countdown, the finish,
+ * Ræs i Bordbyen — sound, all synthesised: engines (yours in your ears, the opponents' placed where their cars are), bumps, the countdown, the finish,
  * and small clicks and pops while you build. Nothing is loaded.
  *
  * An engine is two detuned sawtooths and a square an octave down through a low-pass filter; its pitch follows the speed through four "gears", so it

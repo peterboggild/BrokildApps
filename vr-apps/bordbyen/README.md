@@ -1,4 +1,4 @@
-# Bordbyen
+# Ræs i Bordbyen
 
 Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort lille, så du kan køre race i dens gader. WebXR til Meta Quest 3
 (`immersive-ar`, passthrough), three.js r170 i `vendor/`, almindelige ES-moduler uden byggetrin. Kører også fladt på en computer (`?flat`).
@@ -16,7 +16,7 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
 | `toon.js` | Tegneserie-looket: flade farver i tre toner og sorte tegnestreger. |
 
 **Cache:** `index.html` indlæser `game.js?v=N`, og `game.js`/`race.js` indlæser de andre med samme `?v=N`. Hæv dem alle sammen ved hver ændring
-(nu **v=8**).
+(nu **v=10**).
 
 ## Sådan hænger det sammen
 
@@ -87,6 +87,27 @@ Et valg på startsiden ("Stil"), og Y ved bordet skifter undervejs (N på comput
 * **Musik**, lavet i koden mens den spiller: langsom noir-jazz i D-mol, 68 slag i minuttet, med mørke akkorder på en blød flade (Dm9, B♭maj7,
   Gm9, A7♭9, to takter hver), en gående kontrabas, børstetrommer på to og fire og et swingende bækken, og spredte vibrafontoner ind i et langt
   ekko. Under det hele regnens sus.
+
+## Gemte byer med navne, ingen ruder indefra (v=10)
+* **Mine byer:** hver by gemmes under sit navn i browseren (`bordbyen.byer`; den valgte i `bordbyen.current`). Den by, man arbejder på, gemmer sig
+  selv ved hver ændring. På startsiden står listen: vælg hvilken by, der åbnes, omdøb den (med tastatur, også i Quest-browseren), kopiér, slet,
+  eller lav en ny. Ved bordet laver "Ny by" en tom by (den gamle bliver gemt), og "Næste by" skifter mellem dem. Paletten viser byens navn.
+  Den by, der var gemt før (`bordbyen.by`), bliver til "Min by".
+* **Ingen ruder indefra:** i førersædet skjules ens egen bils ruder (Brummers vinduer, Boblens kuppel), så man ser frit ud.
+
+## Tunneller, træer man kan ramme, hele bilen kolliderer, nyt navn (v=9)
+* **Navnet** er nu "Ræs i Bordbyen" (mappen og adressen er stadig `bordbyen`).
+* **Tunneller:** et lag under byen (gulv i −4,5 m, loft i −0,6 m; brættet er blevet en 6 m tyk blok, så tunnellerne er inde i den). "Tunnel" strygs
+  som en vej, kun tunnelveje kan ligge dernede, og de må gå under alt. Tosporede, med vægge hvor de er lukkede, lamper i loftet og striber.
+  "Nedkørsel" er en rampe over to felter fra overfladen ned til tunnellen: skrå asfalt, betonmure i siderne, en tunnelmunding med gule og sorte
+  striber, og terrænet om den gøres fladt. På bordet (byggeri, bilvalg, byoverblik) ses tunnellerne som et brunt, halvgennemsigtigt bånd ovenpå.
+* **Niveauer:** en bil er på overfladen (0), på en rampe eller i en tunnel (−1); den skifter ved rampens ender. Sammenstød med vægge regnes på
+  bilens eget niveau (i tunnellen er alt, der ikke er tunnel, fast; rampens mure gælder alle; foden af en rampe er lukket for biler oppe på
+  overfladen), og biler mødes kun på samme niveau. Modstandernes vejsøgning går gennem begge lag, så de også bruger tunnellerne som genveje.
+  I tunnellen regner det ikke, og kameraet bag bilen holder sig under loftet.
+* **Træer:** står mindst 3 m inde fra kanten af parker, haver og kirkegårde, så kronerne ikke hænger ud over vejen; alle træer kan man støde ind i.
+* **Hele bilen kolliderer:** to cirkler langs bilens længde holdes ude af huse, træer og mure (før kun én cirkel om midten, så næse og hale kunne
+  stikke ind i ting).
 
 ## Vælg selv bordet, ingen dale under bordet, langsommere uden for vejen (v=8)
 * **Valg af bord:** alle flader, der kan være et bord, findes (mærket bord eller skrivebord i rumscanningen, og vandrette flader uden mærke i 30 til
