@@ -106,3 +106,16 @@ Fire trin: Begynder (nemmere end Let), Let, Mellem, Svær. Vælges på startside
 | Point | 0,5× | 1× | 1,5× | 2× |
 
 High score gemmes separat for hver sværhedsgrad. Implementeret som `DIFFS` i `game.js`.
+
+## Ostebomben (panikknappen)
+Cirka hver anden runde fra runde 6 (runde 6, 8, 10 …) dukker en ostebombe op på gulvet 10 til 22 sekunder inde i runden: en rund ost med en kile skåret
+ud (hullerne ses på snitfladerne) og en lunte. Den ligger i 70 sekunder. Samler man den op, går den bare i lommen (højst to); tavlen bag på
+raketkasterne viser en osteskive og antallet. **A eller X** kaster den fra den hånd, uanset hvilket våben hånden har (på computer: **B**).
+
+Hvor den lander, tænder lunten (5,5 s, gnister og hvæsen, hurtigere til sidst). Imens glemmer alle panservogne, helikoptere og rotter inden for 5 m
+spilleren: panservogne kører hen til osten (rundt om møblerne ad en strømningsfelt-vej beregnet fra osten) med kanonen rettet mod den, rotter løber
+derhen uden at tænde deres egen lunte, helikoptere går ned og svæver lavt over den, og ingen skyder. Så springer den: alt inden for 1,2 m dør, ud til
+1,9 m tager skade. Står spilleren inden for 1,1 m, tager han også skade.
+
+Koden ligger i `game.js` (`CHEESE`, `launchCheese`, `updateCheeses`, `lureTargets`, `cheeseBoom`) og modellen i `models.js` (`buildCheese`).
+

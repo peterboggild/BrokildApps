@@ -20,7 +20,7 @@ import {
   fieldAt, fieldMetres, pathTarget, FAR, cellX, cellZ, GX, computeFieldGen,
 } from './world.js?v=20261114l';
 import { createFX, createAudio } from './fx.js?v=20261114l';
-import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261114l';
+import { buildTank, buildHeli, heliShadow, buildRunnerRat, animRunnerRat, animRatHead, buildTrap, buildCheese, buildLauncher, buildRocket, setTrack, makePanel, tankAssets, canvasTex } from './models.js?v=20261120a';
 
 /* ================================================================ basics */
 
@@ -54,7 +54,7 @@ const G = {
   menuPending: false, time: 0,
   waveRockets: 0, waveEnemies: 0, bonusTotal: 0, xrT: 0, meshFeature: undefined,
   rings: false, light: 1, lightMode: 'auto', estimated: false,
-  ammo: { std: 0, heavy: 0, trap: 0 }, leftMode: 'gun', rightMode: 'gun', toast: '', toastT: 0, fade: { t: -1, hold: false }, invuln: 0, queue: [], pickT: 0,
+  ammo: { std: 0, heavy: 0, trap: 0, cheese: 0 }, cheeseT: 0, leftMode: 'gun', rightMode: 'gun', toast: '', toastT: 0, fade: { t: -1, hold: false }, invuln: 0, queue: [], pickT: 0,
 };
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -486,6 +486,11 @@ function updateTank(t, dt) {
 
   let gx = null, gz = null, speedMul = 1;
   if (!playing) { drive(t, null, null, dt, 0); }
+  else if (t.lure) {                                    // a burning cheese: make for it, round the furniture, and forget everything else
+    const c = t.lure, dc = Math.hypot(c.x - t.x, c.z - t.z);
+    if (navLine(t.x, t.z, c.x, c.z)) { gx = c.x; gz = c.z; } else { const r = pathTarget(c.field, t.x, t.z); if (r.ok) { gx = r.x; gz = r.z; } else { gx = c.x; gz = c.z; } }
+    drive(t, gx, gz, dt, dc < 0.25 ? 0 : 1.25);
+  }
   else {
     switch (t.state) {
       case 'advance': {
@@ -522,7 +527,8 @@ function updateTank(t, dt) {
   t.model.group.updateMatrixWorld(true);
   t.model.muzzle.getWorldPosition(mp);
   const sf = 0.6 + 0.4 * (t.hp / t.maxhp);
-  const wantYaw = wrapPi(Math.atan2(head.x - t.x, head.z - t.z) - t.yaw);
+  const aimX = t.lure ? t.lure.x : head.x, aimZ = t.lure ? t.lure.z : head.z;     // the gun follows the headset, or the cheese
+  const wantYaw = wrapPi(Math.atan2(aimX - t.x, aimZ - t.z) - t.yaw);
   const eY = wrapPi(wantYaw - t.tyaw);
   t.tyaw = wrapPi(t.tyaw + clamp(eY, -1.7 * sf * dt, 1.7 * sf * dt));
   const wantP = Math.atan2((head.y - 0.06) - mp.y, Math.max(0.1, Math.hypot(head.x - mp.x, head.z - mp.z)));
@@ -531,7 +537,7 @@ function updateTank(t, dt) {
 
   // fire
   t.reload -= dt;
-  if (playing && t.sees && dist < 6 && t.reload <= 0 && t.stun <= 0 && Math.abs(eY) < 0.05 && Math.abs(eP) < 0.07 && Math.abs(t.v) < 0.1) {
+  if (playing && !t.lure && t.sees && dist < 6 && t.reload <= 0 && t.stun <= 0 && Math.abs(eY) < 0.05 && Math.abs(eP) < 0.07 && Math.abs(t.v) < 0.1) {
     fireShell(t);
     t.shots++;
     if (t.shots >= t.burst) {
@@ -981,7 +987,8 @@ function updateHeli(t, dt) {
 
   // where to fly: a waypoint that can see you, renewed every few seconds or when it loses sight of you
   t.wpT -= dt;
-  if (playing && (t.wpT <= 0 || t.unseenT > 1.4)) { pickHeliWaypoint(t); t.unseenT = 0; }
+  if (playing && t.lure) { t.wp = { x: t.lure.x, y: Math.max(0.55, t.lure.y + 0.45), z: t.lure.z }; t.wpT = 0.4; t.unseenT = 0; }      // a burning cheese: hover low over it
+  else if (playing && (t.wpT <= 0 || t.unseenT > 1.4)) { pickHeliWaypoint(t); t.unseenT = 0; }
   const ex = t.wp.x - t.x, ey = t.wp.y - t.y, ez = t.wp.z - t.z, ed = Math.hypot(ex, ey, ez) || 1;
   const vmax = t.vmax * (0.45 + 0.55 * hpf) * (t.stun > 0 ? 0.3 : 1);
   const sp = playing ? Math.min(vmax, ed * 1.3) : 0;
@@ -1023,7 +1030,7 @@ function updateHeli(t, dt) {
 
   // fire: a burst of tracers, and on the gunship now and then a rocket
   t.reload -= dt;
-  if (playing && t.sees && hd < 7 && t.reload <= 0 && t.burstLeft <= 0 && t.stun <= 0 && Math.abs(rel) < 0.25) {
+  if (playing && !t.lure && t.sees && hd < 7 && t.reload <= 0 && t.burstLeft <= 0 && t.stun <= 0 && Math.abs(rel) < 0.25) {
     t.burstLeft = t.rounds; t.burstT = 0;
     t.reload = rand(2.6, 4.2) * (t.htier ? 0.8 : 1) + t.rounds * 0.11;
   }
@@ -1031,7 +1038,7 @@ function updateHeli(t, dt) {
     if (!t.sees) t.burstLeft = 0;
     else { t.burstT -= dt; if (t.burstT <= 0) { fireHeliShot(t); t.burstLeft--; t.burstT = 0.11; } }
   }
-  if (t.htier && playing && t.sees && hd > 1.8) { t.missileT -= dt; if (t.missileT <= 0) { t.missileT = rand(5, 8); fireHeliMissile(t); } }
+  if (t.htier && playing && !t.lure && t.sees && hd > 1.8) { t.missileT -= dt; if (t.missileT <= 0) { t.missileT = rand(5, 8); fireHeliMissile(t); } }
 
   // rotor wash kicks up dust when it is low; a damaged one smokes and then burns
   if (t.y < 1.5 && Math.random() < (1.5 - t.y) * 40 * dt) {
@@ -1157,28 +1164,28 @@ function updateRat(t, dt) {
   const m = t.model, playing = G.phase === 'play';
   if (t.spawnT < 1) { t.spawnT = Math.min(1, t.spawnT + dt * 4); m.group.scale.setScalar(t.size * (0.4 + 0.6 * t.spawnT)); }
   if (t.stun > 0) t.stun -= dt;
-  const px = head.x, pz = head.z, dist = Math.hypot(px - t.x, pz - t.z);
+  const lu = t.lure, px = lu ? lu.x : head.x, pz = lu ? lu.z : head.z, dist = Math.hypot(head.x - t.x, head.z - t.z), dGoal = Math.hypot(px - t.x, pz - t.z);
   let moved = 0;
   if (playing) {
-    // route: straight at your feet if the floor is clear, else round the furniture along the flow field
+    // route: straight at your feet (or at a burning cheese) if the floor is clear, else round the furniture along the flow field
     t.goalT -= dt;
-    if (t.goalT <= 0) {
+    if (t.goalT <= 0 || lu) {
       t.goalT = 0.15;
       if (navLine(t.x, t.z, px, pz)) { t.gx = px; t.gz = pz; }
-      else { const r = pathTarget(playerField, t.x, t.z); if (r.ok) { t.gx = r.x; t.gz = r.z; } else { t.gx = px; t.gz = pz; } }
+      else { const r = pathTarget(lu ? lu.field : playerField, t.x, t.z); if (r.ok) { t.gx = r.x; t.gz = r.z; } else { t.gx = px; t.gz = pz; } }
     }
     const dx = t.gx - t.x, dz = t.gz - t.z, d = Math.hypot(dx, dz) || 1;
     const weave = dist > 1.6 ? Math.sin(t.age * 6 + t.weave) * 0.55 : 0;                 // it zigzags, so it is harder to hit
     const wx = dx / d - dz / d * weave, wz = dz / d + dx / d * weave;
     const want = Math.atan2(wx, wz);
     t.yaw = wrapPi(t.yaw + clamp(wrapPi(want - t.yaw), -9 * dt, 9 * dt));
-    const vt = t.vmax * (t.stun > 0 ? 0.2 : 1) * (t.fuse >= 0 ? 1.15 : 1);
+    const vt = lu && dGoal < 0.12 ? 0 : t.vmax * (t.stun > 0 ? 0.2 : 1) * (t.fuse >= 0 ? 1.15 : 1) * (lu ? 1.2 : 1);
     t.v += (vt - t.v) * Math.min(1, dt * 6);
     const x0 = t.x, z0 = t.z;
     if (!moveTo(t, t.x + Math.sin(t.yaw) * t.v * dt, t.z + Math.cos(t.yaw) * t.v * dt)) t.v *= 0.6;
     moved = Math.hypot(t.x - x0, t.z - z0);
     // the fuse: lights when it is close, and the bang follows a heartbeat later
-    if (t.fuse < 0 && dist < t.fuseAt) { t.fuse = t.fuseTime; audio.fuse(tmpV.set(t.x, 0.1, t.z)); audio.squeak(tmpV.set(t.x, 0.1, t.z), 1.4); }
+    if (t.fuse < 0 && !lu && dist < t.fuseAt) { t.fuse = t.fuseTime; audio.fuse(tmpV.set(t.x, 0.1, t.z)); audio.squeak(tmpV.set(t.x, 0.1, t.z), 1.4); }
     if (t.fuse >= 0) { t.fuse -= dt; if (t.fuse <= 0 || dist < 0.35 * t.size) { explodeRat(t); return; } }
   }
   m.group.position.set(t.x, 0, t.z);
@@ -1322,6 +1329,87 @@ function updateTraps(dt) {
 }
 
 /*
+ * THE CHEESE BOMB — the panic button. One turns up about every other round from round 6. Picking it up does nothing
+ * but put it in your pocket (the board shows how many); A or X throws it, from that hand, whatever the hand holds.
+ * Where it lands its fuse catches, and for the few seconds the fuse burns every tank, helicopter and rat within a
+ * wide circle forgets you and makes for the cheese: tanks drive to it with their guns on it, rats run for it,
+ * helicopters come down over it, and none of them shoots. Then it goes off and takes them all with it. It is just as
+ * deadly to you if you stand next to it, so throw it well away.
+ */
+const CHEESE = { speed: 4.0, fuse: 5.5, lure: 5.0, killR: 1.2, hurtR: 1.9, carry: 2, cool: 1.0 };
+const cheeses = [];
+function launchCheese(h) {
+  if (G.phase !== 'play' || G.ammo.cheese <= 0 || (h.cheeseCool || 0) > 0 || !h.ctrl) return;
+  G.ammo.cheese--; h.cheeseCool = CHEESE.cool;
+  h.ctrl.updateMatrixWorld(true); h.L.muzzle.getWorldPosition(mp);
+  const dir = new V(0, 0, -1).transformDirection(h.ctrl.matrixWorld);
+  const m = buildCheese(); m.group.position.copy(mp); scene.add(m.group);
+  cheeses.push({ m, x: mp.x, y: mp.y, z: mp.z, vx: dir.x * CHEESE.speed, vy: dir.y * CHEESE.speed + 1.0, vz: dir.z * CHEESE.speed, state: 'fly', fuse: CHEESE.fuse, spin: rand(-5, 5), hiss: 0, field: null });
+  audio.thunk(mp.clone()); haptic(h, 0.8, 110); toast('OSTEBOMBE KASTET');
+}
+function landCheese(c, x, y, z) {
+  c.state = 'lit'; c.x = x; c.y = y; c.z = z;
+  c.m.group.position.set(x, y, z); c.m.group.rotation.set(0, rand(0, 6.28), 0);
+  c.field = newField(); computeField(c.field, nearestFree(x, z, 6), 900);          // the way to it, round the furniture, for everything on the floor
+  audio.snap(new V(x, y + 0.03, z));
+}
+function cheeseBoom(c) {
+  const p = new V(c.x, c.y + 0.05, c.z);
+  fx.explosion(p, 2.4); fx.bang(p, 2.6, CHEESE.killR); audio.explosion(p.clone(), 1.9); if (c.y < 0.3) scorch.add(c.x, c.z, 1.5);
+  for (let i = 0; i < 14; i++) fx.debrisBox(p.clone(), new V(rand(-2.4, 2.4), rand(1.4, 3.6), rand(-2.4, 2.4)), rand(0.01, 0.024), false);
+  for (let i = 0; i < 40; i++) fx.fire.add(p.x, p.y, p.z, rand(-1.6, 1.6), rand(0.3, 2.2), rand(-1.6, 1.6), rand(0.5, 1.1), 0.05, 0.02, [1, 0.92, 0.5], [0.95, 0.65, 0.15], 1, 1.2, 2.5);   // burning cheese
+  let got = 0;
+  for (const t of tanks) {
+    if (t.dead) continue;
+    const d = Math.hypot(t.x - p.x, cyOf(t) - p.y, t.z - p.z) - 0.1 * (t.size - 1);
+    if (d < CHEESE.killR) { damageTank(t, 9999, p, 3); got++; }
+    else if (d < CHEESE.hurtR) damageTank(t, Math.round(260 * (1 - (d - CHEESE.killR) / (CHEESE.hurtR - CHEESE.killR))), p, 2.5);
+  }
+  const dp = Math.hypot(head.x - p.x, head.z - p.z);
+  if (dp < 1.1) hurtPlayer(Math.round(30 * (1 - dp / 1.1)) + 5);
+  toast(got ? `OSTEBOMBEN TOG ${got}!` : 'OSTEBOMBEN SPRANG');
+  for (const h of hands) haptic(h, 1, 220);
+  scene.remove(c.m.group); cheeses.splice(cheeses.indexOf(c), 1);
+}
+function updateCheeses(dt) {
+  for (let i = cheeses.length - 1; i >= 0; i--) {
+    const c = cheeses[i];
+    if (c.state === 'fly') {                                                    // the same flight as a trap's
+      c.vy -= 9.8 * dt;
+      const steps = Math.max(1, Math.ceil(Math.hypot(c.vx, c.vy, c.vz) * dt / 0.04));
+      for (let k = 0; k < steps; k++) {
+        let nx = c.x + c.vx * dt / steps, ny = c.y + c.vy * dt / steps, nz = c.z + c.vz * dt / steps;
+        if (ny <= 0) { landCheese(c, nx, 0, nz); break; }
+        if (solidAt(nx, ny, nz)) {
+          if (solidAt(nx, c.y, nz)) { c.vx *= -0.15; c.vz *= -0.15; nx = c.x; nz = c.z; if (solidAt(nx, ny, nz)) { if (c.vy < 0) { landCheese(c, c.x, c.y, c.z); break; } c.vy = 0; ny = c.y; } }
+          else { if (c.vy < 0) { landCheese(c, nx, c.y, nz); break; } c.vy = 0; ny = c.y; }
+        }
+        c.x = nx; c.y = ny; c.z = nz;
+      }
+      if (c.state === 'fly') { c.m.group.position.set(c.x, c.y, c.z); c.m.group.rotation.x += c.spin * dt; c.m.group.rotation.z += c.spin * 0.7 * dt; }
+      continue;
+    }
+    if (G.phase !== 'play') continue;
+    c.fuse -= dt;
+    const urge = 1 - c.fuse / CHEESE.fuse;
+    c.m.group.updateMatrixWorld(true); c.m.tip.getWorldPosition(tmpV);          // the fuse spits sparks, harder as it burns down
+    for (let k = 0; k < 2 + urge * 4; k++) fx.fire.add(tmpV.x, tmpV.y, tmpV.z, rand(-0.3, 0.3), rand(0.2, 0.7), rand(-0.3, 0.3), rand(0.15, 0.35), 0.03 + 0.02 * urge, 0.006, [1, 0.95, 0.6], [1, 0.4, 0.1], 1, 1.5, 3);
+    if (Math.random() < dt * 6) fx.smoke.add(tmpV.x, tmpV.y, tmpV.z, 0, 0.15, 0, 0.8, 0.015, 0.06, [0.7, 0.7, 0.7], [0.4, 0.4, 0.4], 0.3, 0.6, 0);
+    c.hiss -= dt; if (c.hiss <= 0) { c.hiss = 0.42; audio.fuse(tmpV.clone()); }
+    c.m.group.scale.setScalar(1 + 0.05 * urge * Math.sin(G.time * (10 + urge * 20)));
+    if (c.fuse <= 0) cheeseBoom(c);
+  }
+}
+/** Who is drawn to a burning cheese: everything within reach of one, each to the nearest. */
+function lureTargets() {
+  for (const t of tanks) {
+    t.lure = null; if (t.dead || G.phase !== 'play') continue;
+    let best = CHEESE.lure;
+    for (const c of cheeses) { if (c.state !== 'lit') continue; const d = Math.hypot(t.x - c.x, t.z - c.z); if (d < best) { best = d; t.lure = c; } }
+  }
+}
+
+/*
  * Each hand holds one weapon at a time, and EITHER hand can hold ANY of them: the bullet gun ('gun'), rockets
  * ('rocket'), heavy rockets ('heavy') or rat traps ('trap'). Both start as bullet guns. The ammo is one shared
  * pool, so two hands holding rockets draw on the same stock. Picking up ammo switches a hand to that weapon
@@ -1410,6 +1498,7 @@ const PK = {
   std: { box: 0x56603a, band: 0xe8c040, ring: 0xffe27a, label: '+3 RAKETTER' },
   heavy: { box: 0x8a2a1c, band: 0xffa020, ring: 0xff6a2a, label: '+2 TUNGE \u2014 VENSTRE H\u00c5ND' },
   trap: { box: 0xa4792a, band: 0x5a3d18, ring: 0xffd06a, label: '+3 F\u00c6LDER' },
+  cheese: { box: 0xd99a28, band: 0xf0c556, ring: 0xfff07a, label: 'OSTEBOMBE! KAST MED A / X' },
 };
 const pkBox = new THREE.BoxGeometry(0.26, 0.12, 0.15), pkBand = new THREE.BoxGeometry(0.04, 0.125, 0.155);
 const pkRing = new THREE.RingGeometry(0.2, 0.25, 40).rotateX(-Math.PI / 2);
@@ -1434,16 +1523,18 @@ function spawnPickup(kind) {
   const spot = pickPickupSpot();
   if (!spot) return false;
   const P = PK[kind], group = new THREE.Group();
-  const box = new THREE.Mesh(pkBox, P.boxMat); box.position.y = 0.06; group.add(box);
-  for (const dz of [-0.05, 0.05]) { const b = new THREE.Mesh(pkBand, P.bandMat); b.position.set(dz * 2, 0.06, 0); group.add(b); }
-  const icon = kind === 'trap' ? buildTrap().group : buildRocket(kind === 'heavy');
-  icon.scale.setScalar(kind === 'trap' ? 2.2 : 0.5); icon.position.y = 0.3;
-  const iconPivot = new THREE.Group(); iconPivot.add(icon); iconPivot.position.y = 0.3; group.add(iconPivot);
+  if (kind !== 'cheese') {                                                       // the cheese bomb has no crate: the cheese itself floats there
+    const box = new THREE.Mesh(pkBox, P.boxMat); box.position.y = 0.06; group.add(box);
+    for (const dz of [-0.05, 0.05]) { const b = new THREE.Mesh(pkBand, P.bandMat); b.position.set(dz * 2, 0.06, 0); group.add(b); }
+  }
+  const icon = kind === 'cheese' ? buildCheese().group : kind === 'trap' ? buildTrap().group : buildRocket(kind === 'heavy');
+  icon.scale.setScalar(kind === 'cheese' ? 1.1 : kind === 'trap' ? 2.2 : 0.5); icon.position.y = kind === 'cheese' ? -0.06 : 0.3;
+  const iconPivot = new THREE.Group(); iconPivot.add(icon); iconPivot.position.y = kind === 'cheese' ? 0.14 : 0.3; group.add(iconPivot);
   const ring = new THREE.Mesh(pkRing, new THREE.MeshBasicMaterial({ color: P.ring, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
   ring.position.y = 0.006; group.add(ring);
   group.position.set(spot.x, 0, spot.z); group.rotation.y = rand(0, 6.28);
   scene.add(group);
-  pickups.push({ kind, group, iconPivot, ring, x: spot.x, z: spot.z, age: 0 });
+  pickups.push({ kind, group, iconPivot, ring, x: spot.x, z: spot.z, age: 0, life: kind === 'cheese' ? 70 : 34 });
   fx.spark(new V(spot.x, 0.15, spot.z), 1.5);
   return true;
 }
@@ -1455,24 +1546,25 @@ function updatePickups(dt) {
     const p = pickups[i];
     p.age += dt;
     p.iconPivot.rotation.y += dt * 2.2;
-    p.iconPivot.position.y = 0.3 + 0.025 * Math.sin(p.age * 3);
+    p.iconPivot.position.y = (p.kind === 'cheese' ? 0.14 : 0.3) + 0.025 * Math.sin(p.age * 3);
     p.ring.scale.setScalar(1 + 0.12 * Math.sin(p.age * 4));
     p.ring.material.opacity = 0.55 + 0.3 * Math.sin(p.age * 4);
-    p.group.visible = p.age < 28 || Math.floor(p.age * 6) % 2 === 0;          // blinks for its last few seconds
+    p.group.visible = p.age < p.life - 6 || Math.floor(p.age * 6) % 2 === 0;          // blinks for its last few seconds
     let got = false, byHand = null;
     if (G.phase === 'play') {
       for (const h of hands) if (h.ctrl && h.ctrl.getWorldPosition(tmpV2).distanceTo(tmpV.set(p.x, 0.12, p.z)) < 0.32) { got = true; byHand = h; }   // reach down to it
       if (!got && Math.hypot(head.x - p.x, head.z - p.z) < 0.55) got = true;          // or walk over it
     }
     if (got) {
-      if (p.kind === 'heavy') G.ammo.heavy = Math.min(6, G.ammo.heavy + 2); else if (p.kind === 'trap') G.ammo.trap = Math.min(8, G.ammo.trap + 3); else G.ammo.std = Math.min(12, G.ammo.std + 3);
-      equip(p.kind, byHand);                                                    // picking up ammo switches a hand to that weapon
+      if (p.kind === 'cheese') G.ammo.cheese = Math.min(CHEESE.carry, G.ammo.cheese + 1);                // into your pocket: it is not lit until you throw it
+      else if (p.kind === 'heavy') G.ammo.heavy = Math.min(6, G.ammo.heavy + 2); else if (p.kind === 'trap') G.ammo.trap = Math.min(8, G.ammo.trap + 3); else G.ammo.std = Math.min(12, G.ammo.std + 3);
+      if (p.kind !== 'cheese') equip(p.kind, byHand);                         // picking up ammo switches a hand to that weapon (but never to the cheese)
       toast(PK[p.kind].label);
       audio.pickup(p.kind === 'heavy');
       fx.spark(new V(p.x, 0.2, p.z), 1.6);
       for (const h of hands) haptic(h, 0.5, 70);
     }
-    if (got || p.age > 34) { scene.remove(p.group); pickups.splice(i, 1); }
+    if (got || p.age > p.life) { scene.remove(p.group); pickups.splice(i, 1); }
   }
 }
 
@@ -1520,7 +1612,7 @@ function fitText(ctx, text, x, y, maxW, size) {
 
 function drawHud(h) {
   const mode = handMode(h), have = ammoFor(mode);
-  const key = `${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${h.role}|${mode}|${have}|${traps.length}|${G.toast}`;
+  const key = `${G.ammo.cheese}|${G.hp}|${G.score}|${G.wave}|${h.cool > 0}|${G.phase}|${h.role}|${mode}|${have}|${traps.length}|${G.toast}`;
   if (key === h.lastHud) return;
   h.lastHud = key;
   const { ctx, w, hgt = 170 } = h.L.panel;
@@ -1536,6 +1628,11 @@ function drawHud(h) {
   ctx.fillStyle = '#ffb454'; ctx.font = 'bold 30px Arial'; ctx.textAlign = 'left';
   ctx.fillText(`RUNDE ${G.wave}`, 16, 92);
   ctx.textAlign = 'right'; ctx.fillText(`${G.score}`, 284, 92);
+  if (G.ammo.cheese > 0) {                                                       // the cheese bombs in your pocket: a wedge of cheese and a count, at the end of the health bar
+    ctx.fillStyle = 'rgba(4,8,12,0.55)'; ctx.fillRect(220, 20, 62, 34);
+    ctx.fillStyle = '#f4cf62'; ctx.beginPath(); ctx.moveTo(238, 47); ctx.arc(238, 47, 16, -2.6, -0.55); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#c99b38'; ctx.beginPath(); ctx.arc(233, 39, 2.4, 0, 6.3); ctx.arc(243, 42, 1.9, 0, 6.3); ctx.fill();
+    ctx.fillStyle = '#ffe27a'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'left'; ctx.fillText(`\u00d7${G.ammo.cheese}`, 254, 38);
+  }
   ctx.textAlign = 'center'; ctx.font = 'bold 26px Arial';
   if (G.toast) { ctx.fillStyle = '#ffe27a'; fitText(ctx, G.toast, 150, 140, 270, 28); }
   else if (mode === 'gun') { ctx.fillStyle = '#ffcc33'; ctx.fillText('MASKINGEV\u00c6R  \u221e', 150, 140); }
@@ -1705,6 +1802,7 @@ function resetEntities() {
   for (const s of shells) scene.remove(s.obj); shells.length = 0;
   for (const b of bullets) scene.remove(b.obj); bullets.length = 0;
   for (const t of traps) scene.remove(t.m.group); traps.length = 0;
+  for (const c of cheeses) scene.remove(c.m.group); cheeses.length = 0;
   for (const p of pickups) scene.remove(p.group); pickups.length = 0;
   fx.clear(); scorch.clear(); recentSpawns.length = 0;
 }
@@ -1713,7 +1811,7 @@ function startGame() {
   resetEntities();
   hideMsg();
   G.hp = 100; G.score = 0; G.kills = 0; G.wave = 0; G.waveClear = false; G.bonusTotal = 0; G.waveRockets = 0;
-  G.ammo = { std: 0, heavy: 0, trap: 0 }; G.leftMode = 'gun'; G.rightMode = 'gun'; hands.forEach(applyRole); G.toast = ''; G.invuln = 0; G.fade = { t: -1, hold: false }; G.pickT = 9;
+  G.ammo = { std: 0, heavy: 0, trap: 0, cheese: 0 }; G.cheeseT = 0; G.leftMode = 'gun'; G.rightMode = 'gun'; hands.forEach(applyRole); G.toast = ''; G.invuln = 0; G.fade = { t: -1, hold: false }; G.pickT = 9;
   const wantVirtual = params.has('cover') || scan.sources.size === 0;
   if (wantVirtual && !virt.made) addVirtualCover();
   else if (!wantVirtual && virt.made) { removeVirtualCover(); rebuildNow([...scan.sources.values()]); }
@@ -1768,6 +1866,7 @@ function startWave(n) {
   spawnPickup('std');                                                           // there is always a rocket crate to find (the hands start with bullet guns)
   if (m >= 5 && !pickups.some(p => p.kind === 'heavy')) spawnPickup('heavy');
   if (m >= 6 && !pickups.some(p => p.kind === 'trap')) spawnPickup('trap');
+  G.cheeseT = n >= 6 && n % 2 === 0 ? rand(10, 22) : 0;                         // a cheese bomb turns up a little into rounds 6, 8, 10 ...
 }
 
 function gameOver() {
@@ -1813,6 +1912,7 @@ function updateGame(dt) {
     else if (G.wave >= 6 && !tp && Math.random() < 0.4) spawnPickup('trap');           // trap packs from round 6
     else if (pickups.length < 3) spawnPickup('std');
   }
+  if (G.cheeseT > 0) { G.cheeseT -= dt; if (G.cheeseT <= 0 && !spawnPickup('cheese')) G.cheeseT = 2; }
   const alive = tanks.reduce((n, t) => n + (t.dead || t.rat ? 0 : 1), 0);     // the kamikaze rats do not count toward the cap
   if (!G.waveClear) {
     if (G.toSpawn > 0) {
@@ -1959,6 +2059,7 @@ function enterFlat() {
     keys[e.code] = true;
     if (e.code === 'KeyG') onSqueeze();
     if (e.code === 'KeyQ') onTrigger(0);
+    if (e.code === 'KeyB' && G.phase === 'play') launchCheese(hands[1]);      // B: throw a cheese bomb (C is crouch)
     if (e.code === 'KeyE' && G.phase === 'play') toggleLeft();
     if (e.code === 'KeyR' && G.phase === 'play') toggleRight();
     if (e.code === 'BracketLeft' || e.code === 'BracketRight') { G.light = clamp(G.light + (e.code === 'BracketRight' ? 0.1 : -0.1), 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); }
@@ -2057,11 +2158,14 @@ function loop(_, frame) {
         if (Math.abs(ay) > 0.55 && Math.abs(ax) < 0.6) { G.light = clamp(G.light - ay * dt * 0.5, 0.3, 1.9); applyLight(); toast(`RUMLYS ${Math.round(G.light * 100)}%`); G.lightDirty = true; }
         else if (G.lightDirty) { G.lightDirty = false; try { localStorage.setItem('tankAmbushLight', String(G.light)); } catch (_) { /* no storage */ } }
       }
+      const ab = !!h.gamepad.buttons?.[4]?.pressed;                                  // A or X: throw a cheese bomb from this hand
+      if (ab && !h.abDown && G.phase === 'play') launchCheese(h); h.abDown = ab;
       const down = !!h.gamepad.buttons?.[3]?.pressed || Math.abs(ax) > 0.8;
       if (down && !h.stickDown) { h.stickDown = true; if (G.phase === 'play') cycleHand(isLeft ? 'left' : 'right'); }
       else if (!down && Math.abs(ax) < 0.4) h.stickDown = false;
     }
     h.L.group.visible = true;
+    if (h.cheeseCool > 0) h.cheeseCool -= dt;
     if (h.cool > 0) {
       h.cool -= dt;
       if (h.cool <= 0 && have > 0 && mode !== 'gun') audio.reload(h.ctrl.getWorldPosition(tmpV2).clone());
@@ -2094,6 +2198,7 @@ function loop(_, frame) {
   }
 
   // --- the fight
+  updateCheeses(dt); lureTargets();
   for (let i = tanks.length - 1; i >= 0; i--) {
     const t = tanks[i];
     if (t.dead) {
@@ -2148,4 +2253,4 @@ function loop(_, frame) {
 })();
 
 // handy for poking at the game from the console
-window.__tank = { setDifficulty, DIFFS, setMode, toggleRight, handMode, autoModes, startWave, SUPER, TRAP, traps, launchTrap, toggleLeft, trapBoom, spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };
+window.__tank = { look(x, y, z, yw, pt) { camera.position.set(x, y, z); flatMove.lx = x; flatMove.lz = z; flatMove.hold = y; yaw = yw; pitch = pt; }, CHEESE, cheeses, launchCheese, spawnPickup, pickups, G, hands, tanks, setDifficulty, DIFFS, setMode, toggleRight, handMode, autoModes, startWave, SUPER, TRAP, traps, launchTrap, toggleLeft, trapBoom, spawnRunner, explodeRat, drawMsg, roomLines, spawnHeli, pickHeliSpawn, updateCrash, pickups, bullets, spawnPickup, fireBullet, hurtPlayer, buildQueue, TIER, scanRoom, pumpRebuild, killTank, blast, updatePlayerField, view(x, y, z, yw, pt) { flatMove.hold = y; camera.position.set(x, y, z); yaw = yw; pitch = pt; flatMove.lx = x; flatMove.lz = z; }, G, tanks, rockets, shells, hands, head, W, scan, spawnTank, launch, startGame, camera, scene, renderer, fx, audio, onTrigger, pickSpawn, showMenu };

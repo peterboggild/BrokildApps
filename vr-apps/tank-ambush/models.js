@@ -714,6 +714,29 @@ export function animRunnerRat(m, t, dist) {
 
 /** A classic wooden snap rat trap, armed: a spring hammer held up, a cheese crumb, and a blinking red light so
  *  you can find it again. ~9 cm long, long side along X. */
+/** The cheese bomb: a round cheese with a wedge cut out of it (holes showing on the cut faces) and a fuse in the top. tip: where the fuse burns. */
+export function buildCheese() {
+  const g = new THREE.Group(), R = 0.07, H = 0.055, cut = 0.85;
+  const holes = canvasTex(128, 64, (c, w, h) => {
+    c.fillStyle = '#f4cf62'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 9; i++) { const x = rnd(10, w - 10), y = rnd(8, h - 8), r = rnd(3, 8); const gr = c.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r);
+      gr.addColorStop(0, '#9c7424'); gr.addColorStop(0.75, '#c99b38'); gr.addColorStop(1, '#f4cf62'); c.fillStyle = gr; c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill(); }
+  });
+  const rind = new THREE.MeshStandardMaterial({ color: 0xd99a28, roughness: 0.5 }), top = new THREE.MeshStandardMaterial({ color: 0xf0c556, roughness: 0.45 });
+  const face = new THREE.MeshStandardMaterial({ map: holes, roughness: 0.6, side: THREE.DoubleSide });
+  const wheel = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 40, 1, false, cut / 2, Math.PI * 2 - cut), [rind, top, top]);
+  wheel.position.y = H / 2; g.add(wheel);
+  for (const th of [cut / 2, -cut / 2]) {                                                                   // the two cut faces
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(R, H), face); f.position.set(Math.sin(th) * R / 2, H / 2, Math.cos(th) * R / 2); f.rotation.y = th - Math.PI / 2; g.add(f);
+  }
+  const pts = [[0, H, -0.022], [0, H + 0.022, -0.024], [0.008, H + 0.04, -0.016], [0.02, H + 0.047, -0.003], [0.03, H + 0.043, 0.004]].map(p => new THREE.Vector3(...p));
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.0028, 6, false), new THREE.MeshStandardMaterial({ color: 0x2c2118, roughness: 0.9 })));
+  const holder = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.009, 0.006, 12), new THREE.MeshStandardMaterial({ color: 0xb08a3a, metalness: 0.8, roughness: 0.35 }));
+  holder.position.set(0, H + 0.002, -0.022); g.add(holder);
+  const tip = new THREE.Object3D(); tip.position.copy(pts[pts.length - 1]); g.add(tip);
+  return { group: g, tip };
+}
+
 export function buildTrap() {
   const r = ratAssets();
   const g = new THREE.Group();
