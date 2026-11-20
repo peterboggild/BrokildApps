@@ -18,7 +18,7 @@
  * their own way: the nearest gate they have not cleared yet by road, then the next, and at last the finish.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { HANDLING, CAR_SCALE } from './cars.js?v=7';
+import { HANDLING, CAR_SCALE } from './cars.js?v=8';
 
 const V2 = THREE.Vector2, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const MASS = { lyn: 1.0, boble: 0.85, bulder: 1.3, brum: 1.5 };
