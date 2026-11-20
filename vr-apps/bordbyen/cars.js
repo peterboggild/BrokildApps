@@ -1,5 +1,5 @@
 /*
- * Bordbyen — the racing cars, built in code: chunky toy cars with rounded bodies, big wheels and round lamps.
+ * Ræs i Bordbyen — the racing cars, built in code: chunky toy cars with rounded bodies, big wheels and round lamps.
  *
  * A car's origin is on the ground between its wheels, its nose along -Z, about 4 m long. Each car has:
  *   userData.wheels       the four wheel groups (they spin about x),
@@ -12,7 +12,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=9';
+import { toonMat, ink } from './toon.js?v=10';
 
 export const CARS = [
   { key: 'lyn', name: 'Lynet', color: '#e8392f', blurb: 'Lav og hurtig, med spoiler' },
@@ -124,7 +124,7 @@ export function buildCar(key, color) {
     wheelR = rearR = 0.5; wx = 1.02; fz = -1.35; rz = 1.35; track = 0.44; eye.set(0, 1.75, -0.6); radius = 1.3;
   }
   car.add(ink(new THREE.Mesh(merge(body), bodyMat)));
-  if (glass.length) car.add(new THREE.Mesh(merge(glass), glassMat));
+  const glassMesh = glass.length ? new THREE.Mesh(merge(glass), glassMat) : null; if (glassMesh) car.add(glassMesh);
   const roofMesh = roof.length ? ink(new THREE.Mesh(merge(roof), bodyMat)) : null; if (roofMesh) car.add(roofMesh);
   for (const [x, z, r, front] of [[-wx, fz, wheelR, true], [wx, fz, wheelR, true], [-wx, rz, rearR, false], [wx, rz, rearR, false]]) {
     const pivot = new THREE.Group(); pivot.position.set(x, r, z); const w = wheel(r, track, key === 'bulder' ? '#f2c230' : '#d7dce2'); pivot.add(w); car.add(pivot);
@@ -148,6 +148,6 @@ export function buildCar(key, color) {
   const swSpin = new THREE.Group(); sw.children[0].removeFromParent(); swSpin.add(new THREE.Mesh(merge(sl), darkMat)); sw.add(swSpin);
   cockpit.add(sw); cockpit.visible = false; car.add(cockpit);
   car.scale.setScalar(CAR_SCALE); eye.multiplyScalar(CAR_SCALE); radius *= CAR_SCALE;      // eye and radius in metres of the scaled car
-  car.userData = { key, wheels, steer, cockpit, wheel: swSpin, wheelBase: sw, eye, radius, front: fz, rear: rz, roof: roofMesh };
+  car.userData = { key, wheels, steer, cockpit, wheel: swSpin, wheelBase: sw, eye, radius, front: fz, rear: rz, roof: roofMesh, glass: glassMesh };
   return car;
 }

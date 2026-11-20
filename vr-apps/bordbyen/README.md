@@ -16,7 +16,7 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
 | `toon.js` | Tegneserie-looket: flade farver i tre toner og sorte tegnestreger. |
 
 **Cache:** `index.html` indlæser `game.js?v=N`, og `game.js`/`race.js` indlæser de andre med samme `?v=N`. Hæv dem alle sammen ved hver ændring
-(nu **v=9**).
+(nu **v=10**).
 
 ## Sådan hænger det sammen
 
@@ -87,6 +87,13 @@ Et valg på startsiden ("Stil"), og Y ved bordet skifter undervejs (N på comput
 * **Musik**, lavet i koden mens den spiller: langsom noir-jazz i D-mol, 68 slag i minuttet, med mørke akkorder på en blød flade (Dm9, B♭maj7,
   Gm9, A7♭9, to takter hver), en gående kontrabas, børstetrommer på to og fire og et swingende bækken, og spredte vibrafontoner ind i et langt
   ekko. Under det hele regnens sus.
+
+## Gemte byer med navne, ingen ruder indefra (v=10)
+* **Mine byer:** hver by gemmes under sit navn i browseren (`bordbyen.byer`; den valgte i `bordbyen.current`). Den by, man arbejder på, gemmer sig
+  selv ved hver ændring. På startsiden står listen: vælg hvilken by, der åbnes, omdøb den (med tastatur, også i Quest-browseren), kopiér, slet,
+  eller lav en ny. Ved bordet laver "Ny by" en tom by (den gamle bliver gemt), og "Næste by" skifter mellem dem. Paletten viser byens navn.
+  Den by, der var gemt før (`bordbyen.by`), bliver til "Min by".
+* **Ingen ruder indefra:** i førersædet skjules ens egen bils ruder (Brummers vinduer, Boblens kuppel), så man ser frit ud.
 
 ## Tunneller, træer man kan ramme, hele bilen kolliderer, nyt navn (v=9)
 * **Navnet** er nu "Ræs i Bordbyen" (mappen og adressen er stadig `bordbyen`).

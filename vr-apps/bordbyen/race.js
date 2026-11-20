@@ -1,5 +1,5 @@
 /*
- * Bordbyen — the race: how the cars drive, the opponents, and the gates and laps.
+ * Ræs i Bordbyen — the race: how the cars drive, the opponents, and the gates and laps.
  *
  * Arcade physics in the city's metres: each car has a place on the ground (x, z), a heading, a speed along its nose and a little sideways slip. Gas
  * and brake change the speed (the brake reverses once stopped); the steering turns it by a bicycle model, with less lock the faster it goes. Roads
@@ -18,7 +18,7 @@
  * their own way: the nearest gate they have not cleared yet by road, then the next, and at last the finish.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { HANDLING, CAR_SCALE } from './cars.js?v=9';
+import { HANDLING, CAR_SCALE } from './cars.js?v=10';
 
 const V2 = THREE.Vector2, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const MASS = { lyn: 1.0, boble: 0.85, bulder: 1.3, brum: 1.5 };

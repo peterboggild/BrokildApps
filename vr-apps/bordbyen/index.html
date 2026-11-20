@@ -49,6 +49,13 @@
     .opts select { font: 15px var(--mono); background: var(--void); color: var(--ink); border: 1px solid var(--line2); border-radius: 6px; padding: 8px 10px; }
     .box { padding: 14px 16px; border: 1px solid #6b4a1c; border-radius: 8px; background: var(--panel); margin: 14px 0; font-size: 14.5px; }
     a { color: var(--amber); }
+    .dim { color: var(--dim); }
+    #towns .town { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line2); border-radius: 8px; margin: 6px 0; background: var(--panel); flex-wrap: wrap; }
+    #towns .town.cur { border-color: var(--amber); }
+    #towns input[type=text] { font: 15px var(--mono); background: var(--void); color: var(--ink); border: 1px solid var(--line2); border-radius: 6px; padding: 6px 8px; flex: 1; min-width: 140px; }
+    #towns input[type=radio] { width: 20px; height: 20px; accent-color: var(--amber); }
+    #towns .dim { font: 12px var(--mono); }
+    #towns button { font: 600 13px var(--mono); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line2); background: transparent; color: var(--ink); cursor: pointer; }
   </style>
 </head>
 <body>
@@ -73,6 +80,9 @@
         <span>Med rattet holder du begge greb inde og drejer hænderne, som om du holdt et rat. Med controllerne styrer en af stickene.</span>
       </label>
     </div>
+    <h2>Mine byer</h2>
+    <div id="towns"></div>
+    <p class="dim" style="font-size:13px;margin:6px 0 0">Den valgte by åbnes, når du starter, og gemmer sig selv, mens du bygger. Ved bordet laver "Ny by" en tom by, og "Næste by" skifter mellem dine byer.</p>
     <div class="box"><strong>Før du starter:</strong> stil dig ved et bord, der er med i headsettets rumscanning (Space Setup). Spillet viser et grønt felt på det bord, det har fundet: tryk på aftrækkeren for at bruge det, tryk B (eller skub højre stick) for at prøve det næste mulige bord, eller tryk X for at markere bordet selv. Når du kører, skjules dit rigtige rum: sid ned, eller stå stille.</div>
     <h2>Byg byen (ved bordet)</h2>
     <ul>
@@ -85,7 +95,7 @@
       <li><strong>Bakke og Sænk:</strong> træk et rektangel for at hæve terrænet blødt (træk igen for en højere bakke), eller for at sænke en bakke igen. Terrænet går aldrig under bordpladen; vil du have en dal, så hæv omgivelserne. Vejene, græsset, parkerne og torvene følger med, og husene står lodret på en stensokkel.</li>
       <li><strong>Viskelæder:</strong> træk et rektangel for at fjerne alt i det.</li>
       <li><strong>Y</strong> skifter mellem dag (tegneserie) og nat (graphic novel). <strong>B</strong> fortryder. <strong>A</strong> (eller "Kør!") går videre til valg af bil. Hold <strong>X</strong> i to sekunder for et tomt bord. Tryk <strong>venstre stick</strong> ned for at finde bordet igen.</li>
-      <li>Byen gemmes af sig selv i browseren.</li>
+      <li>Byen gemmes af sig selv i browseren, under sit navn (se "Mine byer" herover). "Ny by" og "Næste by" på paletten laver en ny by og skifter mellem dine byer.</li>
     </ul>
     <h2>Kør race (i byen)</h2>
     <ul>
@@ -106,6 +116,6 @@
     </ul>
     <p style="margin-top:28px;font-size:13px;color:var(--dim)">Alt er lavet i kode: byen, bilerne og lydene. <a href="../index.html">Brokild VR</a></p>
   </main>
-  <script type="module" src="game.js?v=9"></script>
+  <script type="module" src="game.js?v=10"></script>
 </body>
 </html>

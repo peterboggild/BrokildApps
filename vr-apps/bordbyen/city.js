@@ -1,5 +1,5 @@
 /*
- * Bordbyen — the city: a grid of cells on the table, what is drawn on them, and the meshes.
+ * Ræs i Bordbyen — the city: a grid of cells on the table, what is drawn on them, and the meshes.
  *
  * Everything here is in city metres. The same meshes are shown in both modes: shrunk onto the real table (design) and at full size around the player
  * (driving); only the city's root matrix changes. One cell is CELL metres (one road's width); the board has W × H cells.
@@ -27,7 +27,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=9';
+import { toonMat, ink } from './toon.js?v=10';
 
 export const CELL = 8;
 export const SCALE = 1 / 160;
