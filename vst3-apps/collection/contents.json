@@ -36,11 +36,12 @@
         "martian-gain",
         "rite-of-passage",
         "thin-walls",
-        "magneto-transport"
+        "magneto-transport",
+        "drumeq"
       ],
       "claims": {
-        "count": 13,
-        "phrase": "eight instruments and five effects"
+        "count": 14,
+        "phrase": "eight instruments and six effects"
       }
     },
     "beetmachine": {

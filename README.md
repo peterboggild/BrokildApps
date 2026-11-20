@@ -37,7 +37,7 @@ files:
 
 | App | Folder | What it does |
 |-----|--------|--------------|
-| The Brokild Collection (all 13) | [`vst3-apps/collection`](vst3-apps/collection) | The instruments and effects that are finished and meant to be used. Eight instruments and five effects for Windows, with their manuals and their… |
+| The Brokild Collection (all 14) | [`vst3-apps/collection`](vst3-apps/collection) | The instruments and effects that are finished and meant to be used. Eight instruments and six effects for Windows, with their manuals and their… |
 | The Beetmachine Collection (all 4) | [`vst3-apps/beetmachine-collection`](vst3-apps/beetmachine-collection) | The drums: a kick, a snare and the hats and cymbals, every hit synthesised and no samples anywhere, and Beetmachine, the kit that plays all three. |
 | Beetmachine (VST3) | [`vst3-apps/beetmachine`](vst3-apps/beetmachine) | The kit that plays the three drum synthesisers. Eight slots, each empty or holding a real Kickstart, Snare Tactics or Hats Off, and a click on a slot… |
 | Kickstart (VST3) | [`vst3-apps/kickstart`](vst3-apps/kickstart) | A kick drum synthesiser: no samples, every hit synthesised. Acoustic kicks, the classic drum machines, and gabber, hardstyle, dubstep, techno rumble… |
@@ -48,6 +48,7 @@ files:
 | Thirty Thousand Years (VST3) | [`vst3-apps/thirty-thousand-years`](vst3-apps/thirty-thousand-years) | Four ways of making sound, all running at once and exciting one another: analogue weight, a wavetable and phase-modulation voice, granular and… |
 | Thin Walls (VST3) | [`vst3-apps/thin-walls`](vst3-apps/thin-walls) | An apartment of three rooms and three doors that you put the sound inside and then walk around in. |
 | Magneto Transport (VST3) | [`vst3-apps/magneto-transport`](vst3-apps/magneto-transport) | A tape echo in which nothing is faked: no wow LFO, no saturation curve, no noise generator. |
+| DrumEQ (VST3) | [`vst3-apps/drumeq`](vst3-apps/drumeq) | EQ and compression for every mic of an acoustic rock or metal kit: kick in and out, snare top and bottom, three toms, hi-hat, ride, room and… |
 | Rite of Passage (VST3) | [`vst3-apps/rite-of-passage`](vst3-apps/rite-of-passage) | A transition processor: one slider is the journey, and the landing is a separate thing you fire. |
 | Battlestar Overdrive (VST3) | [`vst3-apps/battlestar-overdrive`](vst3-apps/battlestar-overdrive) | An overdrive, and a tribute: named after Max Christensen's Copenhagen solo project and built with his blessing. |
 | Clone Wars (VST3) | [`vst3-apps/clone-wars`](vst3-apps/clone-wars) | Sixteen detuned oscillators in two armies of eight, crossfaded by a single fader — THE WAR — which can be set to take up to five minutes to cross. |

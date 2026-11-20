@@ -80,6 +80,10 @@ $plugins = @(
   # Moving it means quarantining the old copy first (install-fleet never looks in another group).
   @{ dir = "MagnetoTransport"; name = "Magneto Transport";  group = "Brokild collection";
      build = "C:\Users\peter\b\_build\MagnetoTransport\plugin" }
+  # DrumEQ: the acoustic drum channel - one plug-in per drum mic, one shared kit
+  # (vst3-apps\drumeq\plugin), built outside Dropbox like the drums.
+  @{ dir = "DrumEQ";           name = "DrumEQ";             group = "Brokild collection";
+     build = "C:\Users\peter\b\_build\DrumEQ\plugin" }
   # Clone Wars is deliberately absent: its binary comes from a CI-built zip,
   # never a local build (house rule).
 )

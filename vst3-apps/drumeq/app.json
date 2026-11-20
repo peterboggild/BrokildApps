@@ -1,0 +1,23 @@
+{
+  "slug": "drumeq",
+  "name": "DrumEQ (VST3)",
+  "description": "EQ and compression for every mic of an acoustic rock or metal kit: kick in and out, snare top and bottom, three toms, hi-hat, ride, room and overheads. One plug-in on each drum track; the drum row names and ranges its four bands for that drum, with a gate, a compressor and five presets each. The tracks share a kit, so a drummer's whole kit saves and loads at once, and MASTER turns one panel into the editor for every drum. FIND DRUM listens to the song and sets the input level, the gate and the drum's note.",
+  "status": "live",
+  "url": "vst3-apps/drumeq/index.html",
+  "icon": "device",
+  "cta": "Get the plugin →",
+  "preview": "assets/app-previews/drumeq.jpg",
+  "note": "Windows VST3 + standalone · build 261120.2 · free download · 11 drums · shared kit + MASTER · FIND DRUM · zero latency · manual included.",
+  "tags": [
+    "vst3",
+    "effect"
+  ],
+  "downloads": [
+    {
+      "name": "DrumEQ-VST3-win64.zip",
+      "url": "https://github.com/peterboggild/BrokildApps/releases/download/downloads/DrumEQ-VST3-win64.zip",
+      "bytes": 12065831,
+      "sha256": "96168ff1b6f72dba019df91961bbaa587fbe834a213b5051f18c8475dc50e95e"
+    }
+  ]
+}

@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>DrumEQ — Manual</title>
+<style>
+/* ===========================================================================
+   DrumEQ, the manual. Short on purpose: eight sheets.
+
+   Landscape A4, one fixed sheet per .page with overflow hidden - anything too
+   tall is cut off rather than moved, so tools/shoot-manual.ps1 measures every
+   page before the PDF is trusted. The page is the panel's charcoal.
+   =========================================================================== */
+
+@page { size: 297mm 210mm; margin: 0; }
+
+:root{
+  --ink:    #101114;
+  --ink-2:  #181a1f;
+  --orange: #f39c1f;
+  --blue:   #3d8bff;
+  --amber:  #ffb84a;
+  --body:   #cfccc6;
+  --dim:    #8a867f;
+  --white:  #f4f2ee;
+  --rule:   rgba(243,156,31,.34);
+  --s-in:   #cfd3da; --s-filt: #36c9bd; --s-eq: #f39c1f; --s-gate: #a184ff; --s-comp: #4a8dff; --s-out: #cfd3da;
+}
+
+*{ box-sizing: border-box; }
+html,body{ margin:0; padding:0; background: var(--ink); }
+body{
+  font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif;
+  color: var(--body); font-size: 10.8pt; line-height: 1.5;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
+.page{
+  position: relative; width: 297mm; height: 210mm; overflow: hidden;
+  page-break-after: always; background: var(--ink);
+}
+.page:last-child{ page-break-after: auto; }
+.pad{ position:absolute; inset: 14mm 16mm 18mm 16mm; }
+
+.display{
+  font-family: "Segoe UI Black", "Arial Black", "Segoe UI", sans-serif;
+  font-weight: 900; letter-spacing: .09em; line-height: 1;
+  color: var(--white); margin: 0;
+}
+h1.display{ font-size: 52pt; letter-spacing: .1em; }
+h1.display span{ color: var(--orange); }
+h2.display{ font-size: 24pt; }
+
+.kick{
+  font: 700 8.2pt/1 Consolas, "SF Mono", ui-monospace, monospace;
+  letter-spacing: .3em; text-transform: uppercase;
+  color: var(--orange); margin: 0 0 4mm 0;
+}
+p{ margin: 0 0 3mm 0; }
+b, strong{ color: var(--white); font-weight: 700; }
+em{ color: var(--amber); font-style: normal; font-weight: 600; }
+.mono{ font-family: Consolas, "SF Mono", ui-monospace, monospace; font-size: .92em; color: #efe9df; }
+.blue{ color: var(--blue); }
+
+.rule{
+  height: 3px; border: 0; margin: 5mm 0 6mm 0;
+  background: linear-gradient(90deg, var(--orange) 0%, var(--blue) 45%, rgba(61,139,255,.05) 100%);
+}
+
+img{ display:block; max-width:100%; }
+figure{ margin:0; }
+figcaption{ font-size: 8.3pt; color: var(--dim); margin-top: 1.8mm; line-height: 1.4; }
+figcaption b{ color: var(--amber); }
+.shot{ border: 1px solid rgba(255,255,255,.12); border-radius: 3px; }
+
+.cols{ display:flex; gap: 9mm; }
+.cols > *{ flex: 1 1 0; min-width: 0; }
+.c-55{ flex: 0 0 55%; }
+.c-50{ flex: 0 0 50%; }
+.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 0 9mm; }
+.grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap: 0 8mm; }
+
+.knob{ border-left: 3px solid var(--sec, var(--orange)); padding-left: 4.5mm; margin-bottom: 4.2mm; }
+.knob h3{
+  font: 900 11pt/1 "Segoe UI Black","Arial Black",sans-serif;
+  letter-spacing: .1em; color: var(--white); margin: 0 0 1.2mm 0;
+}
+.knob p{ margin: 0; font-size: 9.8pt; line-height: 1.42; }
+
+.box{
+  border: 1px solid var(--rule); background: linear-gradient(160deg, rgba(243,156,31,.08), rgba(61,139,255,.04));
+  padding: 4.5mm 5.5mm; border-radius: 3px;
+}
+.box.blue-box{ border-color: rgba(61,139,255,.45); background: linear-gradient(160deg, rgba(61,139,255,.12), rgba(61,139,255,.02)); }
+.box h4{ font: 900 9.6pt/1 "Segoe UI Black","Arial Black",sans-serif; letter-spacing:.12em;
+         color: var(--amber); margin: 0 0 2.2mm 0; }
+.box.blue-box h4{ color: var(--blue); }
+.box p{ font-size: 9.8pt; }
+.box p:last-child{ margin-bottom: 0; }
+
+table{ width:100%; border-collapse: collapse; font-size: 9.4pt; }
+th{ text-align:left; font: 700 7.6pt/1 Consolas, monospace; letter-spacing:.18em;
+    text-transform:uppercase; color: var(--orange); padding: 0 0 1.8mm 0; border-bottom: 1px solid var(--rule); }
+td{ padding: 1.3mm 3mm 1.3mm 0; border-bottom: 1px solid rgba(255,255,255,.07); vertical-align: top; }
+td:first-child{ color: var(--white); font-weight: 600; white-space: nowrap; }
+td.num{ font-family: Consolas, monospace; color: var(--amber); white-space: nowrap; }
+
+.toc{ display:flex; gap: 5mm; align-items: baseline; padding: 1.8mm 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+.toc .n{ flex: 0 0 10mm; font: 900 13pt/1 "Segoe UI Black","Arial Black",sans-serif; color: var(--orange); }
+.toc .t{ flex: 0 0 52mm; font-weight: 700; color: var(--white); letter-spacing: .06em; text-transform: uppercase; font-size: 9.4pt; }
+.toc .d{ flex: 1 1 auto; font-size: 9.2pt; color: var(--dim); }
+
+.pl{ font-size: 9.2pt; line-height: 1.32; margin: 0 0 2.6mm 0; }
+.pl b{ display:block; color: var(--orange); letter-spacing: .08em; font-size: 8.6pt; }
+.pl span{ color: var(--body); }
+
+.folio{
+  position:absolute; left:16mm; right:16mm; bottom: 7mm;
+  display:flex; justify-content:space-between; align-items:center;
+  font: 600 7.3pt/1 Consolas, monospace; letter-spacing:.2em; text-transform:uppercase;
+  color: rgba(138,134,127,.85); border-top: 1px solid rgba(243,156,31,.2); padding-top: 2.6mm;
+}
+.folio .n{ color: var(--orange); font-weight: 800; letter-spacing: .1em; }
+
+.cover-art{ position:absolute; left:0; right:0; bottom:0; height: 52%; overflow:hidden; }
+.cover-art img{ width:100%; height:100%; object-fit: cover; object-position: center 62%; }
+.cover-fade{ position:absolute; inset:0;
+  background: linear-gradient(180deg, var(--ink) 0%, rgba(16,17,20,.35) 14%, rgba(16,17,20,0) 30%); }
+.cover-top{ position:absolute; left:18mm; right:18mm; top:24mm; }
+</style>
+</head>
+<body>
+
+<!-- ==================================================  1  COVER  ====== -->
+<section class="page">
+  <div class="cover-top">
+    <p class="kick" style="color:var(--amber); margin-bottom:6mm">Brokild &middot; Windows VST3 &middot; Acoustic drum channel</p>
+    <h1 class="display">DRUM<span>EQ</span></h1>
+    <hr class="rule" style="margin:7mm 0 5mm 0; max-width:190mm" />
+    <div class="cols" style="align-items:flex-end">
+      <div class="c-55">
+        <p style="font-size:12.5pt; color:#e9e5de; margin:0">
+          EQ and compression for every mic of a rock or metal kit. One plug-in
+          on each drum track, one kit across all of them, and one panel that
+          can tune the lot.
+        </p>
+      </div>
+      <div style="text-align:right">
+        <p class="mono" style="margin:0; color:var(--amber); letter-spacing:.14em">MANUAL &middot; BUILD 261120.2</p>
+      </div>
+    </div>
+  </div>
+  <div class="cover-art">
+    <img src="../../../img/panel.jpg" alt="" />
+    <div class="cover-fade"></div>
+  </div>
+</section>
+
+<!-- ============================================  2  QUICK START  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Quick start</p>
+    <h2 class="display">ONE PLUG-IN PER DRUM</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <figure>
+          <img class="shot" src="../../../img/panel.jpg" alt="" />
+          <figcaption><b>The panel.</b> The drum row across the top, the EQ
+          display with its four band nodes, the meters and FIND DRUM on the
+          right. Below, the controls in the order the sound meets them: IN,
+          FILTERS, EQ, then GATE, COMPRESSOR and OUT.</figcaption>
+        </figure>
+        <div class="box" style="margin-top:5mm">
+          <h4>WHAT IT IS FOR</h4>
+          <p>Each mic of an acoustic kit wants different things: a kick wants its
+          thump and its beater, a snare its body and crack, an overhead its air
+          and no mud. DrumEQ knows which drum it is on and labels and ranges its
+          bands for that drum, with five presets each written from common
+          mixing practice.</p>
+        </div>
+      </div>
+      <div>
+        <div class="knob"><h3>1 &middot; INSTALL</h3>
+          <p>Copy <b>DrumEQ.vst3</b> into
+          <span class="mono">C:\Program Files\Common Files\VST3\</span> and
+          rescan. It files under Effect / EQ. <b>DrumEQ.exe</b> is the same
+          effect as a standalone.</p></div>
+        <div class="knob"><h3>2 &middot; PICK THE DRUM</h3>
+          <p>Click the drum on the top row: KICK IN, KICK OUT, SNR TOP, SNR BOT,
+          TOM 1&ndash;3, HI-HAT, RIDE, ROOM or OH. The choice is always yours
+          &mdash; DrumEQ never guesses what is on a track.</p></div>
+        <div class="knob"><h3>3 &middot; PICK A PRESET</h3>
+          <p><b>&lt;</b> and <b>&gt;</b> step through the drum&rsquo;s five
+          presets; the name opens the list. <b>SAVE</b> stores your own.</p></div>
+        <div class="knob"><h3>4 &middot; LET IT LISTEN</h3>
+          <p>Play the song and press <b>FIND DRUM</b>. In six seconds it sets
+          the input level, the gate and the body band. Page 5.</p></div>
+        <div class="knob"><h3>5 &middot; MAKE IT A KIT</h3>
+          <p><b>LINK</b> on every track, then <b>SAVE KIT</b>. With
+          <b class="blue">MASTER</b> one panel tunes every drum. Page 6.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Quick start</span><span class="n">02</span></div>
+</section>
+
+<!-- ===============================================  3  THE CHAIN  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The controls</p>
+    <h2 class="display">IN, FILTERS, EQ, GATE, COMP, OUT</h2>
+    <hr class="rule" />
+    <p style="max-width:240mm">The sound goes <b>IN &rarr; GATE &rarr; FILTERS &rarr; EQ &rarr;
+    COMPRESSOR &rarr; OUT</b>, with no latency. Every switch fades over 10 ms and
+    every knob glides over 20 ms, so nothing clicks; with everything neutral the
+    output is the input, bit for bit.</p>
+    <div class="grid3" style="margin-top:4mm">
+      <div>
+        <div class="knob" style="--sec:var(--s-in)"><h3>IN</h3>
+          <p><b>TRIM</b> &minus;24 to +36 dB, so a quiet mic can be brought up
+          to where the presets expect it. <b>POL</b> flips polarity (Snare
+          Bottom ships flipped).</p></div>
+        <div class="knob" style="--sec:var(--s-filt)"><h3>FILTERS</h3>
+          <p><b>HPF</b> 10 Hz&ndash;1 kHz and <b>LPF</b> 1&ndash;22 kHz, each OFF,
+          12 or 24 dB per octave.</p></div>
+        <div class="knob" style="--sec:var(--s-out)"><h3>OUT</h3>
+          <p><b>TRIM</b> &minus;36 to +24 dB.</p></div>
+      </div>
+      <div>
+        <div class="knob" style="--sec:var(--s-eq)"><h3>EQ</h3>
+          <p>Four bands with <b>FREQ</b>, <b>GAIN</b> &plusmn;18 dB and <b>Q</b>.
+          Band 1 and band 4 switch between <b>SHELF</b> and <b>BELL</b>. Each band
+          is named and ranged for the drum: on a kick THUMP, BOX, BEATER and
+          CLICK; on a snare BODY, BOX, CRACK and AIR. Drag the numbered nodes
+          on the display, or turn the knobs.</p>
+          <p style="margin-top:2mm">The bands are designed to match the analog
+          curve up to the top of the audio range &mdash; a +6 dB bell at 12 kHz
+          is 0.49 dB off at 44.1 kHz, where the textbook design is 2.72 dB off.</p></div>
+      </div>
+      <div>
+        <div class="knob" style="--sec:var(--s-gate)"><h3>GATE</h3>
+          <p><b>THRESH</b>, <b>RANGE</b> (how far it closes), <b>ATTACK</b>,
+          <b>HOLD</b>, <b>RELEASE</b>. <b>KEY LO</b> and <b>KEY HI</b> band-pass
+          what the gate listens to, so a tom gate opens on the tom and not the
+          snare beside it.</p></div>
+        <div class="knob" style="--sec:var(--s-comp)"><h3>COMPRESSOR</h3>
+          <p><b>THRESH</b>, <b>RATIO</b>, <b>ATTACK</b>, <b>RELEASE</b>,
+          <b>KNEE</b>, <b>MAKEUP</b>, <b>MIX</b> (parallel compression) and
+          <b>KEY HPF</b>, which keeps the low end from pumping the rest &mdash;
+          fully left is off. <b>AUTO REL</b> lets the release follow the
+          material.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The controls</span><span class="n">03</span></div>
+</section>
+
+<!-- ===============================================  4  THE DRUMS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The drums</p>
+    <h2 class="display">ELEVEN SOURCES, FOUR BANDS EACH</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <table>
+          <tr><th>Drum</th><th>Band 1</th><th>Band 2</th><th>Band 3</th><th>Band 4</th></tr>
+          <tr><td>Kick In</td><td>THUMP</td><td>BOX</td><td>BEATER</td><td>CLICK</td></tr>
+          <tr><td>Kick Out</td><td>SUB</td><td>MUD</td><td>PRESENCE</td><td>TOP</td></tr>
+          <tr><td>Snare Top</td><td>BODY</td><td>BOX</td><td>CRACK</td><td>AIR</td></tr>
+          <tr><td>Snare Bottom</td><td>BODY</td><td>HONK</td><td>WIRES</td><td>AIR</td></tr>
+          <tr><td>Tom 1&ndash;3</td><td>BODY</td><td>BOX</td><td>ATTACK</td><td>BLEED</td></tr>
+          <tr><td>Hi-hat</td><td>BLEED</td><td>CLANG</td><td>HARSH</td><td>AIR</td></tr>
+          <tr><td>Ride</td><td>BLEED</td><td>WASH</td><td>PING</td><td>AIR</td></tr>
+          <tr><td>Room</td><td>LOW</td><td>MUD</td><td>HARSH</td><td>AIR</td></tr>
+          <tr><td>Overheads</td><td>LOW</td><td>MUD</td><td>HARSH</td><td>AIR</td></tr>
+        </table>
+        <p style="margin-top:4mm; font-size:9.6pt">Each band&rsquo;s frequency knob only
+        covers the range that band means on that drum: a kick&rsquo;s THUMP runs
+        35&ndash;160 Hz, its BEATER 1.5&ndash;9 kHz; a snare&rsquo;s CRACK
+        1.8&ndash;9 kHz. The three toms share their presets but each keeps its own
+        body range, from 40&ndash;180 Hz on the floor tom to 80&ndash;320 Hz on the
+        rack tom.</p>
+      </div>
+      <div>
+        <figure>
+          <img class="shot" src="../../../img/snare.jpg" alt="" />
+          <figcaption><b>Snare Top, METAL CRACK.</b> The same panel on another
+          drum: the bands are now BODY, BOX, CRACK and AIR, and the gate and
+          compressor start where a snare wants them.</figcaption>
+        </figure>
+        <div class="box" style="margin-top:5mm">
+          <h4>WHY ONE PLUG-IN, NOT ELEVEN</h4>
+          <p>Each mic is its own track, and a DAW gives a plug-in one input.
+          So DrumEQ runs once per track, the drum row relabels it, and the
+          instances talk to each other through a shared kit (page 6).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The drums</span><span class="n">04</span></div>
+</section>
+
+<!-- ===============================================  5  FIND  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Find drum &middot; set level</p>
+    <h2 class="display">LET IT LISTEN</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div>
+        <p>Most drum tracks are recorded quiet, and not in proportion to each
+        other. Chasing every threshold down to a quiet track leaves the knobs at
+        the bottom and the presets meaning nothing. So <b>FIND DRUM</b> fixes
+        the input instead.</p>
+        <div class="knob" style="--sec:var(--s-in)"><h3>1 &middot; THE LEVEL</h3>
+          <p>Press it while the song plays (or the drummer plays); it listens for
+          six seconds, or until you press it again. It finds the drum&rsquo;s own
+          hits, tells them from the spill of the rest of the kit, and sets
+          <b>IN</b> so a typical hit peaks at <b>&minus;12 dBFS</b>. Every
+          track then arrives at the level the presets were written for.</p></div>
+        <div class="knob" style="--sec:var(--s-gate)"><h3>2 &middot; THE GATE</h3>
+          <p>The gate threshold goes between the loudest spill and the quietest
+          hit, in the gate&rsquo;s own key band, clear of its 4 dB hysteresis.</p></div>
+        <div class="knob" style="--sec:var(--s-eq)"><h3>3 &middot; THE NOTE</h3>
+          <p>On kick, snare and toms it also finds the drum&rsquo;s note and puts
+          the body band on it. Hi-hat, ride, room and overheads have no single
+          note, so their button reads <b>SET LEVEL</b> and does steps 1 and 2.</p></div>
+        <div class="knob" style="--sec:var(--s-out)"><h3>KEEP TRACK LEVEL</h3>
+          <p>With this on, <b>OUT</b> gives back what IN took, so a mix already
+          balanced on the faders does not move. Off, the kit arrives normalised.</p></div>
+      </div>
+      <div class="c-50">
+        <figure>
+          <img class="shot" src="../../../img/overheads.jpg" alt="" />
+          <figcaption><b>Overheads.</b> No note to find, so the button reads SET
+          LEVEL. The status line reports what it did, for example
+          &ldquo;IN +18.5 dB. Gate &minus;31 dB (above the spill) &ndash; 9 hits&rdquo;.</figcaption>
+        </figure>
+        <div class="box" style="margin-top:5mm">
+          <h4>MEASURED</h4>
+          <p>The same snare recorded 34 dB apart (&times;0.01 and &times;0.5) was
+          trimmed +27.9 and &minus;6.1 dB, and came out at &minus;9.0 dBFS both
+          times. A kick found at 52.1 Hz for 52, a floor tom at 82.2 for 82.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Find drum &middot; set level</span><span class="n">05</span></div>
+</section>
+
+<!-- ===============================================  6  KIT + MASTER  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">The kit &middot; master</p>
+    <h2 class="display">ONE KIT, ONE PANEL</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div>
+        <div class="knob"><h3>LINK</h3>
+          <p>Every DrumEQ in the session with LINK on is part of one kit. A
+          track switched to a drum the kit already holds takes the kit&rsquo;s
+          settings for it.</p></div>
+        <div class="knob"><h3>SAVE KIT &middot; LOAD KIT</h3>
+          <p>From any track. SAVE KIT stores every drum in one <span class="mono">.drumkit</span>
+          file &mdash; your drummer&rsquo;s kit, ready for the next song.
+          LOAD KIT sends each drum to its linked tracks at once. Six factory
+          kits: STANDARD, CLASSIC ROCK, MODERN METAL, EXTREME METAL, VINTAGE ROCK
+          and NATURAL.</p></div>
+        <div class="knob" style="--sec:var(--blue)"><h3 class="blue">MASTER</h3>
+          <p>With LINK on, press <b>MASTER</b> on any track and its panel turns
+          blue. The drum row now picks which drum you <i>edit</i>; this
+          track keeps playing its own drum, marked <b>HOME</b>. Every linked
+          track on the drum you edit follows at once, and the
+          display and meters show what <i>that</i> track hears. FIND DRUM works
+          from here too. One master at a time; pressing MASTER elsewhere takes
+          the role over.</p></div>
+      </div>
+      <div class="c-55">
+        <figure>
+          <img class="shot" src="../../../img/master.jpg" alt="" />
+          <figcaption><b>MASTER on the Kick In track, editing the snare.</b> Blue
+          panel, HOME under KICK IN, and the snare track&rsquo;s own sound on the
+          display.</figcaption>
+        </figure>
+        <div class="box blue-box" style="margin-top:4mm">
+          <h4>GOOD TO KNOW</h4>
+          <p>Each track stores what it receives in its own settings, so deleting
+          the master track or reopening the set changes nothing. A drum with no
+          track yet can still be set up; it is kept in the kit. Host automation
+          on a track wins over the master there, and the master&rsquo;s changes
+          reach the DAW as that track&rsquo;s own (undo steps).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>The kit &middot; master</span><span class="n">06</span></div>
+</section>
+
+<!-- ===============================================  7  PRESETS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Presets</p>
+    <h2 class="display">FIVE PER DRUM, SIX KITS</h2>
+    <hr class="rule" />
+    <div class="grid3">
+      <div>
+        <p class="pl"><b>KICK IN</b><span>Standard &middot; Rock Punch &middot; Metal Click &middot; Extreme Click &middot; Vintage Thud</span></p>
+        <p class="pl"><b>KICK OUT</b><span>Standard &middot; Rock Boom &middot; Metal Sub &middot; Tight &middot; Vintage</span></p>
+        <p class="pl"><b>SNARE TOP</b><span>Standard &middot; Rock Fat &middot; Metal Crack &middot; Tight &amp; Dry &middot; Vintage</span></p>
+        <p class="pl"><b>SNARE BOTTOM</b><span>Standard &middot; Rock Sizzle &middot; Metal Wires &middot; Subtle &middot; Vintage</span></p>
+      </div>
+      <div>
+        <p class="pl"><b>TOM 1&ndash;3</b><span>Standard &middot; Rock Boom &middot; Metal Attack &middot; Natural &middot; Vintage</span></p>
+        <p class="pl"><b>HI-HAT</b><span>Standard &middot; Rock &middot; Metal Tight &middot; Dark &middot; Bright</span></p>
+        <p class="pl"><b>RIDE</b><span>Standard &middot; Rock &middot; Metal Ping &middot; Dark Wash &middot; Bright</span></p>
+        <p class="pl"><b>ROOM</b><span>Standard &middot; Rock Smash &middot; Metal Tight &middot; Natural Air &middot; Crushed</span></p>
+        <p class="pl"><b>OVERHEADS</b><span>Standard &middot; Rock Full Kit &middot; Metal Cymbals Only &middot; Dark &middot; Bright</span></p>
+      </div>
+      <div>
+        <div class="box">
+          <h4>THE FACTORY KITS</h4>
+          <p><b>STANDARD</b> every drum&rsquo;s starting point. <b>CLASSIC ROCK</b>,
+          <b>MODERN METAL</b> and <b>EXTREME METAL</b> the genres.
+          <b>VINTAGE ROCK</b> the seventies. <b>NATURAL</b> light touch, for a
+          kit that already sounds right.</p>
+        </div>
+        <p style="margin-top:4mm; font-size:9.4pt">Your presets go to
+        <span class="mono">Documents\Brokild patches\DrumEQ\&lt;drum&gt;</span>,
+        your kits to <span class="mono">...\DrumEQ\Kits</span>. A preset is
+        written for one drum and only shows on that drum.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Presets</span><span class="n">07</span></div>
+</section>
+
+<!-- ===============================================  8  SPECIFICATIONS  ====== -->
+<section class="page">
+  <div class="pad">
+    <p class="kick">Specifications</p>
+    <h2 class="display">THE NUMBERS</h2>
+    <hr class="rule" />
+    <div class="cols">
+      <div class="c-55">
+        <table>
+          <tr><td>Format</td><td>Windows VST3 (64-bit), plus a standalone application</td></tr>
+          <tr><td>Type</td><td>Effect / EQ, Dynamics &mdash; mono or stereo</td></tr>
+          <tr><td>Drums</td><td>11 sources, each with its own bands, ranges and presets</td></tr>
+          <tr><td>Controls</td><td>31 knobs and 9 switches: IN, FILTERS, EQ (4 bands), GATE, COMPRESSOR, OUT</td></tr>
+          <tr><td>Latency</td><td>None</td></tr>
+          <tr><td>Presets</td><td>5 per drum, 6 factory kits; your own in <span class="mono">Documents\Brokild patches\DrumEQ</span></td></tr>
+          <tr><td>Kit</td><td>Shared between every linked DrumEQ in the session; MASTER tunes it from one panel</td></tr>
+          <tr><td>CPU</td><td>Eleven instances, everything on: about 3 % of one core</td></tr>
+          <tr><td>Build</td><td>261120.2</td></tr>
+          <tr><td>Licence</td><td>AGPLv3 &mdash; source at github.com/peterboggild/BrokildApps</td></tr>
+          <tr><td>Price</td><td>Free. No account, no registration, no telemetry.</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="box">
+          <h4>MEASURED</h4>
+          <p>Neutral settings pass the input through unchanged, bit for bit.</p>
+          <p>The EQ follows its analog curve to within 0.83 dB on typical bands at
+          44.1 kHz, 0.25 dB at 96 kHz, and every section is stable at five sample
+          rates across the whole knob range.</p>
+          <p>113 engine checks, 51 in a real plug-in host with four tracks sharing
+          one kit, and 17 on the panel, all clear.</p>
+        </div>
+        <p style="margin-top:5mm; font-size:9.4pt">From the curved mind of Professor
+        Brokild, programmed with VScode, ChatGPT and Claude. Use it at your own
+        peril; it may make your drums huge, and it may crash your DAW. Cheers,
+        Peter B&oslash;ggild, November 2026.</p>
+      </div>
+    </div>
+  </div>
+  <div class="folio"><span>Specifications</span><span class="n">08</span></div>
+</section>
+
+</body>
+</html>
