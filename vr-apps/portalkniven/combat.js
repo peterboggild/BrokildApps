@@ -53,14 +53,15 @@ export function createCombat({ scene, worlds, onBlast, onCrush }) {
         vec3 c = mix(vec3(0.05, 0.22, 0.02), vec3(0.75, 1.0, 0.3), pow(f, 1.6) * pulse) * (1.0 - 0.75 * vein);
         gl_FragColor = vec4(c * (0.6 + 0.8 * pulse), 1.0); }` });
   const glow = new THREE.InstancedMesh(sac, sacMat, MAX);
-  for (const im of [carapace, glow]) { im.frustumCulled = false; im.renderOrder = 46; im.count = 0; scene.add(im); }
+  const outsideDoor = m => { m.stencilWrite = true; m.stencilRef = 1; m.stencilFunc = THREE.NotEqualStencilFunc; m.stencilFail = m.stencilZFail = m.stencilZPass = THREE.KeepStencilOp; };      // never over the door's other side
+  for (const im of [carapace, glow]) { outsideDoor(im.material); im.frustumCulled = false; im.renderOrder = 46; im.count = 0; scene.add(im); }
   /* halos: one point each, sized in metres */
   const hp = new Float32Array(MAX * 3), hs = new Float32Array(MAX), ha = new Float32Array(MAX);
   const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.BufferAttribute(hp, 3)); hg.setAttribute('aS', new THREE.BufferAttribute(hs, 1)); hg.setAttribute('aA', new THREE.BufferAttribute(ha, 1));
   const halos = new THREE.Points(hg, new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uScale: { value: 800 } },
     vertexShader: 'attribute float aS; attribute float aA; varying float vA; uniform float uScale; void main() { vA = aA; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = clamp(aS * uScale / -mv.z, 1.0, 160.0); gl_Position = projectionMatrix * mv; }',
     fragmentShader: 'precision highp float; varying float vA; void main() { float d = length(gl_PointCoord - 0.5) * 2.0, a = max(0.0, 1.0 - d); a *= a; gl_FragColor = vec4(vec3(0.5, 1.0, 0.25) * a * vA, 1.0); }' }));
-  halos.frustumCulled = false; halos.renderOrder = 47; halos.visible = false; scene.add(halos);
+  outsideDoor(halos.material); halos.frustumCulled = false; halos.renderOrder = 47; halos.visible = false; scene.add(halos);
 
   const bugs = []; let dim = -1, spawnT = 0, check = 0, t = 0;
   const _p = new V(), _q = new V(), _d = new V(), _g = new V(), _a = new V(), _b = new V(), _r = new V(), _m = new THREE.Matrix4(), _o = new THREE.Quaternion(), _s = new V(), Z = new V(0, 0, -1), _sf = new V(), _hf = new V(), _nf = new V();
