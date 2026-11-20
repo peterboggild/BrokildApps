@@ -12,6 +12,7 @@ rules, testing, architecture in brief, and pitfalls.
 | Mutant Rotte Angreb | `tank-ambush/` | Finished and live. Difficulty Begynder/Let/Mellem/Svær; the cheese bomb (#75). |
 | Portalkniven | `portalkniven/` | Live, in active development. Everything below is about this one. |
 | Guldplaneten | `guldplaneten/` | Not touched in the Portalkniven sessions. |
+| Bordbyen | `bordbyen/` | New (#78): draw a toy town on the real table, shrink down and race. See its README (Danish); hooks on `window.__bb`, flat preview `?flat` (`&new` for a fresh town). |
 
 `vr-apps/index.html` is the public "Brokild VR" page (English) with a card per app; the site's front page
 (`index.html`) mentions them in one paragraph. After changing a page's title or description, or adding a page,

@@ -398,6 +398,19 @@ Farveskiftet på venstre stick kræver et tydeligt skub til siden, så et skråt
   den følger dit blik.
 * Skiltet over skibet viser **STRÅLE** og **RAKET** tændt, når de er klar, og dæmpet, mens de lader op.
 
+## Kraftigere våben, lige frem (kamp)
+Ændret efter første runde: alle våben skyder nu lige frem langs skibets næse; sigtehjælpen og den håndstyrede raket er fjernet.
+* **Plasmaskud** (aftrækker): ti i sekundet, 16 m/s plus skibets fart, og de går tværs gennem insekterne: alle inden for 8 cm af skuddets bane springer.
+  Første væg stopper skuddet.
+* **Raketter** (tryk venstre stick ned): to ad gangen fra hver sin side, ægte små raketter (hvid krop, rød næse og finner, flamme) med gnister og et
+  røgspor, der bliver hængende i fraktalen. De speeder op til 10 m/s og springer ved første væg, første insekt eller efter 3 s: en boblende ildkugle,
+  der køler fra hvid over orange til mørkerød, røg, og alle insekter inden for 90 cm springer. 1,5 s til de næste. Tæt på skibet skader de det.
+* **Lysstrålen** (greb + aftrækker): en intens kegle af lys fra næsen, 14 m lang og 1,3 m bred for enden, med en hvidglødende kerne. Den varer 1,2 s,
+  følger skibet, og udsletter hvert insekt inde i keglen, også bag vægge. Derefter 5 s til at lade op (bjælken på skiltet). En brølende lyd, der stiger.
+* **Insekterne bliver hurtigere:** deres fart stiger med startfarten hvert minut, skibet er ude (op til fire gange), og der kommer flere (14, plus en hvert
+  20. sekund). Skiltet viser "FART ×1,5" osv. Det nulstilles, når man forlader kampen.
+* Forhåndsvisning: mellemrum, X og C.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option
