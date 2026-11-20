@@ -16,7 +16,7 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
 | `toon.js` | Tegneserie-looket: flade farver i tre toner og sorte tegnestreger. |
 
 **Cache:** `index.html` indlæser `game.js?v=N`, og `game.js`/`race.js` indlæser de andre med samme `?v=N`. Hæv dem alle sammen ved hver ændring
-(nu **v=3**).
+(nu **v=5**).
 
 ## Sådan hænger det sammen
 
@@ -72,6 +72,34 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
   over den viser hvor. X igen tager dig ned i bilen, rettet ind efter hvor du står nu. Y stopper løbet.
 * **En roligere start:** modstanderne kører fra startgitteret række for række, bliver i deres egen vognbane, holder afstand til bilen foran og
   skifter bane, hvis den er langsommere.
+
+## Graphic novel: nat og regn (v=4)
+Et valg på startsiden ("Stil"), og Y ved bordet skifter undervejs (N på computeren). Byen er den samme, kun looket skifter:
+* **Farverne** bliver mørke, afblegede og kolde (blålige), og i skyggerne lægges **krydsskravering** som pennestreger: et lag i mellemtonen og et
+  til, på tværs, i den mørkeste. Stregerne ligger i byens egne meter på den flade, overfladen vender mest mod (vægge op og på tværs, jorden fladt),
+  så de sidder fast på husene i begge øjne og i begge størrelser, og de toner ud, hvor de ville blive finere end en pixel. Tegnestregerne er lidt
+  tykkere.
+* **Lys i mørket:** gadelygterne gløder, og omkring 40 % af vinduerne er tændt med varmt lys (valgt ud fra hvor de sidder, så det er de samme hver
+  gang).
+* **Himlen** er en lav stormhimmel med drivende skyer og en diset måne; disen er mørk og tættere.
+* **Regn:** streger, der falder gennem en kasse omkring dig, når du kører, og let over hele brættet, når byen står på bordet.
+* **Lyn og torden** hvert 10. til 28. sekund, når du er nede i byen: himlen og lyset blinker to gange, og tordenen ruller lidt efter.
+* **Musik**, lavet i koden mens den spiller: langsom noir-jazz i D-mol, 68 slag i minuttet, med mørke akkorder på en blød flade (Dm9, B♭maj7,
+  Gm9, A7♭9, to takter hver), en gående kontrabas, børstetrommer på to og fire og et swingende bækken, og spredte vibrafontoner ind i et langt
+  ekko. Under det hele regnens sus.
+
+## Kroket-regler, nye knapper, rat i hænderne, sædet følger hovedet (v=5)
+* **Løbet er som kroket:** alle porte skal tages, i vilkårlig rækkefølge, og så gælder det om at komme først over start/mål. Modstanderne planlægger
+  selv: den nærmeste port, de mangler, ad vejene, så den næste, og til sidst mål. Pladsen regnes efter antal porte og afstanden til den næste.
+* **Portene ses tydeligt:** over hver port står en svag lyssøjle og en svævende diamant, 30 m oppe (19 cm på bordet); dine porte bliver grønne.
+* **Knapper i bilen:** højre aftrækker gas, højre greb bremse og bak (venstre aftrækker også). A skifter førersæde og kamera bag bilen; hold A: forfra.
+  B: byoverblik ved bordet, mens løbet kører, og du kan stadig styre din bil; B igen ned. X: pause med byoverblik; X igen fortsætter, nede i bilen.
+  Y: stop løbet.
+* **Rattet følger hænderne** (valget "Rat"): rattet sidder mellem dine hænder, i deres størrelse, og drejer med linjen mellem dem; man behøver
+  ikke holde grebene inde (så højre greb er fri til bremsen).
+* **Sædet følger hovedet:** førerens øjne holdes ved dine: højden følger dit hoved hele tiden (sid eller stå), og læner du dig mere end 12 cm væk,
+  glider sædet efter. Så kan hovedet ikke komme op gennem taget.
+* **Instrumentbrættet** sidder lavt på forruden, halvgennemsigtigt, under synslinjen; bag bilen svæver det højt og mindre.
 
 ## Styring
 

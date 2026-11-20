@@ -19,7 +19,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=3';
+import { toonMat, ink } from './toon.js?v=5';
 
 export const CELL = 8;
 export const SCALE = 1 / 160;                         // city metres to table metres: a cell is 5 cm on the table, a car 2.5 cm
@@ -451,8 +451,13 @@ export function createCity() {
       for (const back of [0, 1]) {                                                    /* two faces, so it reads the right way from both sides */
         const banner = new THREE.Mesh(new THREE.PlaneGeometry(CELL - 1.2, 1.8), new THREE.MeshBasicMaterial({ map: numberTex(label, '#e8742a') }));
         banner.position.set(0, H - 1.1, back ? -0.03 : 0.03); banner.rotation.y = back ? Math.PI : 0; grp.add(banner); }
+      /* a beacon over each gate, so it can be found from anywhere (and seen on the table): a faint pillar of light and a floating diamond.
+       * The diamonds of the gates you have cleared turn green. */
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 30, 10, 1, true), new THREE.MeshBasicMaterial({ color: g.start ? 0xffffff : 0xffa040, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));
+      pillar.position.y = H + 15; grp.add(pillar);
+      const dia = ink(new THREE.Mesh(new THREE.OctahedronGeometry(2.4, 0), new THREE.MeshBasicMaterial({ color: g.start ? 0xffffff : 0xff8a1e }))); dia.position.y = 30; dia.scale.y = 1.5; grp.add(dia);
       grp.position.set(cx(g.i), 0, cz(g.j)); grp.rotation.y = gateAxis(g) === 'x' ? Math.PI / 2 : 0;
-      g.n = g.start ? 0 : n; gateGroup.add(grp);
+      g.n = g.start ? 0 : n; g.dia = dia; g.pillar = pillar; gateGroup.add(grp);
     }
   }
 
@@ -505,6 +510,19 @@ export function createCity() {
     const end = idx(b.i, b.j); if (prev[end] === -2) return null;
     const out = []; for (let k = end; k !== -1; k = prev[k]) out.push(k); out.reverse(); return out;
   }
+  /** The way by road from a point (x, z) to a cell, rounded, as points; null if there is none. From off the road it starts at the nearest drivable cell. */
+  function pathTo(x, z, ti, tj) {
+    let [i, j] = cellAt(x, z); i = Math.max(0, Math.min(st.W - 1, i)); j = Math.max(0, Math.min(st.H - 1, j));
+    if (!drivable(i, j)) { let best = null, bd = Infinity; for (let r = 1; r < 6 && !best; r++) for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) { if (!drivable(i + a, j + b)) continue; const d = a * a + b * b; if (d < bd) { bd = d; best = [i + a, j + b]; } } if (!best) return null; [i, j] = best; }
+    const cells = bfs({ i, j }, { i: ti, j: tj }); if (!cells) return null;
+    let pts = [new THREE.Vector2(x, z), ...cells.map(k => new THREE.Vector2(cx(k % st.W), cz((k / st.W) | 0)))];
+    for (let it = 0; it < 2; it++) { const o = [pts[0]]; for (let k = 0; k + 1 < pts.length; k++) { const a = pts[k], b2 = pts[k + 1]; o.push(a.clone().lerp(b2, 0.25), a.clone().lerp(b2, 0.75)); } o.push(pts[pts.length - 1]); pts = o; }
+    let len = 0; for (let k = 1; k < pts.length; k++) len += pts[k].distanceTo(pts[k - 1]);
+    return { pts, len };
+  }
+  /** show a gate's beacon as cleared (green) or not */
+  function markGate(i, j, cleared) { const g = st.gates.find(q => q.i === i && q.j === j); if (!g || !g.dia || g.start) return; g.dia.material.color.set(cleared ? 0x44dd66 : 0xff8a1e); g.pillar.material.color.set(cleared ? 0x44dd66 : 0xffa040); }
+
   /** The race: the start, then the numbered gates in order, then the start again. Returns { gates, line } where line is a closed, rounded list of
    *  points through the gates (for the opponents), or { error } in Danish. */
   function route() {
@@ -568,7 +586,7 @@ export function createCity() {
   }
 
   reset(20, 14);
-  return { scenery, inSolid,
+  return { scenery, inSolid, pathTo, markGate,
     root, st, reset, paintRoad, placeLot, eraseRect, setGate, commit, save, load, starter, route, collide, surfaceAt, cellAt, inside, isRoad, lotOK,
     cx, cz, colliders, gridLines: () => gridLines, ground: () => groundMesh, mat,
   };
