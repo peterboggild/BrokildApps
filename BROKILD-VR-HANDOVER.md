@@ -86,7 +86,7 @@ A knife cuts a door in the air of your own living room; through it you see, and 
 | `README.md` | Danish, very detailed, written in the order things were built (newest at the bottom). |
 
 **Cache busting:** `index.html` loads `portal.js?v=N`, and `portal.js` imports every module with the same `?v=N`.
-Raise them all together on every change (currently **v=48**), or the headset keeps old code.
+Raise them all together on every change (currently **v=49**), or the headset keeps old code.
 
 ### 3.2 What the player can do
 
@@ -122,7 +122,7 @@ Controls in short (the start page and README have the full lists):
   30°, left stick press resets the fourth dimension.
 - **Combat test (option):** bugs crawl towards the ship and burst; reshaping the fractal crushes them; all weapons on the
   hand without the knife fire straight along the nose (no aim assist): trigger = piercing plasma bolts (space bar flat),
-  right grip = a pair of rockets with smoke trails and fireballs (90 cm blast; key X), left grip = a 1.2 s cone of
+  right grip = a pair of rockets with smoke trails and fireballs (proximity fuse 55 cm, 90 cm blast; key X), left grip = a 1.2 s cone of
   light that annihilates everything inside it, then 5 s to charge (key C). Bugs speed up each minute (`COMBAT.pace()`, up
   to ×4) and grow in number. Bumping walls damages the ship by speed; the board over the ship shows hull, kills, ray
   charge, rockets and pace.

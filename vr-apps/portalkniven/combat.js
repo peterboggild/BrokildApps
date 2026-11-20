@@ -22,7 +22,8 @@
  * stops at the first wall.
  *
  * Rockets: a pair from the two pods, real little rockets (white body, red nose, fins) with a flame, sparks and a trail of smoke. They speed up to 10 m/s
- * and go off at the first wall, the first bug, or after 3 s: a fireball and smoke, and every bug within 90 cm bursts.
+ * and go off at the first wall, as soon as a bug is within 55 cm (a proximity fuse), or after 3 s: a fireball and smoke, and every bug within 90 cm
+ * bursts.
  *
  * The ray: an intense cone of light from the nose, 14 m long and widening to 1.3 m across, for 1.2 s. It follows the ship while it lasts and
  * annihilates every bug inside it, walls or no walls. It then takes 5 s to charge again (kept by the caller).
@@ -34,7 +35,7 @@ import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
 
 const V = THREE.Vector3;
 const rnd = (a, b) => a + Math.random() * (b - a);
-const MAX = 48, BOLTS = 32, BOLT_V = 16, BOLT_LIFE = 1.2, BOLT_REACH = 0.08, RAY_LEN = 14, RAY_T = 1.2, RAY_R0 = 0.05, RAY_R1 = 0.65, ROCKETS = 8, ROCKET_V = 10, ROCKET_R = 0.9, ROCKET_LIFE = 3, PUFFS = 500, FIREBALLS = 8;
+const MAX = 48, BOLTS = 32, BOLT_V = 16, BOLT_LIFE = 1.2, BOLT_REACH = 0.08, RAY_LEN = 14, RAY_T = 1.2, RAY_R0 = 0.05, RAY_R1 = 0.65, ROCKETS = 8, ROCKET_V = 10, ROCKET_R = 0.9, ROCKET_FUSE = 0.55, ROCKET_LIFE = 3, PUFFS = 500, FIREBALLS = 8;
 
 function bugGeometry() {
   /* about one unit in radius, nose along -Z: carapace, head, six legs, two feelers; the sac at the back is separate (it glows) */
@@ -280,7 +281,7 @@ export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark,
         for (let j = 0; j < n && !boom; j++) {
           o.f.addScaledVector(_r, step / n);
           if (de(o.f) < 0.02 * S) boom = true;
-          else for (const b of bugs) if (b.f.distanceTo(o.f) < b.r + 0.06 * S) { boom = true; break; }
+          else for (const b of bugs) if (b.f.distanceTo(o.f) < b.r + ROCKET_FUSE * S) { boom = true; break; }      // the proximity fuse
         }
         if (boom || o.age > ROCKET_LIFE) { explode(k); continue; }
         worlds.fromFrac(dim, o.f, o.room);
