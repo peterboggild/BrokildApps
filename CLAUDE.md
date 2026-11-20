@@ -5,7 +5,8 @@ A push to `main` deploys the site (a Pages workflow, about two minutes).
 
 ## Working on the VR apps (`vr-apps/`)
 
-Read `vr-apps/CLAUDE.md` before touching anything there. It holds the owner's working rules, how to test
+Read `BROKILD-VR-HANDOVER.md` (the full handover: state, history, controls, open questions) and
+`vr-apps/CLAUDE.md` before touching anything there. Together they hold the owner's working rules, how to test
 without a headset, how the apps are built, and the mistakes already made once.
 
 The short version of the rules, which the owner set by how he works:

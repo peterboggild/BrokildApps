@@ -1,18 +1,21 @@
 # VR apps: what a new session needs to know
 
+**Start with `BROKILD-VR-HANDOVER.md` in the repository root**: the full handover (state, history, controls, open
+questions, ideas offered but not built). This file holds the standing rules, the test recipe and the pitfalls.
+
 Quest 3 passthrough WebXR apps, plain JavaScript modules, three.js r170 vendored in each app (`vendor/`), no
 build step. Each app's own `README.md` (Danish) documents its design in detail; this file is the handover:
 rules, testing, architecture in brief, and pitfalls.
 
 | App | Folder | State |
 |---|---|---|
-| Mutant Rotte Angreb | `tank-ambush/` | Finished and live. Difficulty Begynder/Let/Mellem/Svær. No open work. |
+| Mutant Rotte Angreb | `tank-ambush/` | Finished and live. Difficulty Begynder/Let/Mellem/Svær; the cheese bomb (#75). |
 | Portalkniven | `portalkniven/` | Live, in active development. Everything below is about this one. |
+| Guldplaneten | `guldplaneten/` | Not touched in the Portalkniven sessions. |
 
 `vr-apps/index.html` is the public "Brokild VR" page (English) with a card per app; the site's front page
 (`index.html`) mentions them in one paragraph. After changing a page's title or description, or adding a page,
 run `node tools/sync-site.js` (it writes the social tags and `sitemap.xml`; CI runs it with `--check`).
-| Guldplaneten | `guldplaneten/` | Not touched in the Portalkniven sessions. |
 
 ## Working rules (set by the owner)
 
@@ -26,8 +29,10 @@ run `node tools/sync-site.js` (it writes the social tags and `sitemap.xml`; CI r
 - **When he asks for a design choice, offer options** as a short question with choices, not an essay.
 - **Say no when something will not be convincing.** He asks for that explicitly ("giv mig et nej"). A scoped yes
   with the unconvincing part left out, and said so, is what he wants.
-- **Cache busting:** `index.html` loads `portal.js?v=N`, and `portal.js` imports `./worlds.js?v=N` and
-  `./story.js?v=N`. Raise all three together on every change, or the headset keeps old code.
+- **Cache busting:** `index.html` loads `portal.js?v=N`, and `portal.js` imports every module (`worlds`, `story`,
+  `hands`, `ship`, `ambience`, `combat`) with the same `?v=N`. Raise them all together on every change, or the
+  headset keeps old code. Mutant Rotte Angreb: `index.html` loads `game.js?v=YYYYMMDDx`; bump it (and the
+  `models.js?v=` import in `game.js` when the models change).
 - Code comments and commit messages in English; everything the player or the owner reads in Danish.
 - He corrects wording himself; when given Danish text for the game, fix obvious typos and tell him which.
 - The band's logos (`portalkniven/img/`, masks made from images he sent) stand on a slab in each song dimension.
