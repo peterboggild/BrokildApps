@@ -85,7 +85,7 @@ A knife cuts a door in the air of your own living room; through it you see, and 
 | `README.md` | Danish, very detailed, written in the order things were built (newest at the bottom). |
 
 **Cache busting:** `index.html` loads `portal.js?v=N`, and `portal.js` imports every module with the same `?v=N`.
-Raise them all together on every change (currently **v=45**), or the headset keeps old code.
+Raise them all together on every change (currently **v=46**), or the headset keeps old code.
 
 ### 3.2 What the player can do
 
@@ -120,8 +120,12 @@ Controls in short (the start page and README have the full lists):
 - **Deep space:** as the fractals, plus B/A warp and Y/X black hole.
 - **4D room:** Y/X pull through w, B/A turn in w (both eased, with sound), left stick walks, right stick snap-turns
   30°, left stick press resets the fourth dimension.
-- **Combat test (option):** bugs crawl towards the ship and burst; reshaping the fractal crushes them; bumping walls
-  damages the ship by speed; a board over the ship shows hull and kills.
+- **Combat test (option):** bugs crawl towards the ship and burst; reshaping the fractal crushes them; the trigger of
+  the hand without the knife (left, as a rule; space bar in the flat preview) fires the ship's cannons (plasma bolts in
+  fractal space, 7° aim assist; `COMBAT.fire`, `shipGuns`, `AMB.shot`); grip + trigger on that hand fires the ray (to
+  the first wall, 3.5 s recharge; `COMBAT.ray`, key C), its stick press launches a rocket that rides the line the hand
+  points (press again to set it off, 40 cm blast, 5 s recharge; `COMBAT.launch`/`detonate`, key X; flat: follows gaze); bumping walls damages the ship by speed; a board
+  over the ship shows hull and kills.
 
 ### 3.3 How it works (the parts that are easy to break)
 

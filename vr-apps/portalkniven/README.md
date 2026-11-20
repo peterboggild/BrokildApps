@@ -381,6 +381,23 @@ Farveskiftet på venstre stick kræver et tydeligt skub til siden, så et skråt
   med kroppen gjort buttet og halsen lidt tykkere omkring rørets midterlinje; opblæsningen er nøjagtigt 1 i begge ender, hvor røret møder sig selv.
 * Søjlerne er runde i x og z og dybe i w, så de bliver stående, mens man trækker.
 
+## Skibet skyder (kamp)
+* **Aftrækkeren på hånden uden kniven** (normalt venstre) affyrer skibets to kanoner, skiftevis, ca. syv skud i sekundet, så længe den holdes inde. I den flade
+  forhåndsvisning: mellemrumstasten. Kun når kamp er slået til, og kun i de seks fraktale dimensioner. Kniven bruger stadig den anden hånds aftrækker.
+* **Skuddene** er korte orange plasmastråler med et lysskær. De lever i fraktalens eget rum ligesom insekterne og flyver med skibets egen fart plus 9 m/s i
+  op til 1,4 s. Den første væg stopper et skud med en lille gnist; det første insekt inden for rækkevidde springer og tælles på skiltet (samme tæller som de
+  knuste).
+* **Sigtehjælp:** insekterne er kun 6–8 cm, så et skud, der affyres inden for ca. 7 grader af et insekt, man kan se (højst 7 m væk), sigtes direkte mod det.
+* Lyd: et kort, faldende "zap" fra kanonen (højst fire ad gangen), en kort summen i controlleren. To ekstra tegnekald, kun mens der er skud i luften.
+* **Strålen: greb + aftrækker** på samme hånd (knyt hånden). Et kort, kraftigt stød (0,3 s) lige ud fra næsen til første væg (højst 12 m); alle insekter
+  inden for et par centimeter af linjen springer. Samme sigtehjælp som skuddene. Derefter 3,5 s til at lade op. Blåhvid, med sin egen lyd. Mens grebet
+  holdes, skyder aftrækkeren ikke plasma. Forhåndsvisning: C.
+* **Raketten: tryk på venstre stick.** Én ad gangen. Den flyver ca. 3 m/s og styrer efter din hånd: den følger linjen, som controlleren peger (en svag
+  orange sigtestreg fra hånden viser den), og drejer højst ca. 160 grader i sekundet. Den springer ved første væg, første insekt den rører, efter 7 s, eller
+  når du trykker igen; alt inden for 40 cm springer med. Er skibet inden for 45 cm, tager det 25 % skade. Derefter 5 s til en ny. Forhåndsvisning: X, og
+  den følger dit blik.
+* Skiltet over skibet viser **STRÅLE** og **RAKET** tændt, når de er klar, og dæmpet, mens de lader op.
+
 ## Gemte idéer (ikke bygget)
 
 ### Drone option
