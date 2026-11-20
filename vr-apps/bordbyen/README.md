@@ -13,9 +13,10 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
 | `cars.js` | De fire biler, bygget i kode, og hvordan de kører (`HANDLING`). |
 | `race.js` | Kørsel (arkadefysik), modstanderne, porte og omgange. |
 | `audio.js` | Al lyd, lavet i koden: motorer, bump, nedtælling, mål, klik. |
+| `toon.js` | Tegneserie-looket: flade farver i tre toner og sorte tegnestreger. |
 
 **Cache:** `index.html` indlæser `game.js?v=N`, og `game.js`/`race.js` indlæser de andre med samme `?v=N`. Hæv dem alle sammen ved hver ændring
-(nu **v=1**).
+(nu **v=2**).
 
 ## Sådan hænger det sammen
 
@@ -44,6 +45,19 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
   forude. En lille gummibåndseffekt holder løbet samlet. Sidder én fast, bakker den og prøver igen.
 * **Instrumentbrættet** viser plads, omgang, tid og fart, og nedtællingen. I førersædet sidder det på instrumentbrættet; bag bilen svæver det over den.
 * **Lyd:** motoren følger farten gennem fire gear; modstandernes motorer høres, hvor de er.
+
+## Tegneserie-looket (v=2)
+* **Flade farver** i tre toner (lys, mellem, skygge) i stedet for bløde overgange, og **sorte tegnestreger** om alt, der står op: huse, tage,
+  vinduesrammer, træer, lygter, biler, skyer. Stregen er lige tyk på skærmen, nær og fjern, og toner ud i disen, når man kører.
+* Stregen laves ved at tegne hver figur en gang til, sort, lidt udvidet og kun bagsiden (den viser sig kun langs kanterne). Flade ting, der ligger på
+  andre (asfalt, striber, stier, fliser, græs), har ingen streg, ellers ville byen blive overtegnet.
+* **Flere detaljer:** gadelygter på hvert andet fortov, trafiklys på hjørnerne ved kryds, brandhaner, kloakdæksler; huse med sokkel, tagryg,
+  skorsten med hætte, indrammede vinduer, blomsterkasser, farvede døre med trin, havestier, hæk og postkasser; byhuse med altaner, stribede
+  markiser, butiksskilte, vandtanke og ventilationskasser på taget; højhuse med farvede hjørnepiller, helipad eller mast, plantekummer ved
+  indgangen; rådhus med kvistvinduer, søjler, trappe, flag og urskiver med visere; kirke med rosevindue, buet dør og gravsten; parker med hæk,
+  blomsterbede, legeplads (rutsjebane og gynger), lygter, bænke og en and i søen; torve med markedsboder, bænke og blomsterkrukker; blomstrende
+  træer; skyer over markerne.
+* Lygter, trafiklys, bodenes og legepladsens stolper er noget, bilerne kan køre ind i.
 
 ## Styring
 

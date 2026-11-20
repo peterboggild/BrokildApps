@@ -17,10 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=1';
-import { buildCar, CARS } from './cars.js?v=1';
-import { createRace, LAPS } from './race.js?v=1';
-import { createAudio } from './audio.js?v=1';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=2';
+import { buildCar, CARS } from './cars.js?v=2';
+import { createRace, LAPS } from './race.js?v=2';
+import { createAudio } from './audio.js?v=2';
+import { INK } from './toon.js?v=2';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -34,7 +35,7 @@ renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWid
 renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor');
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.01, 4000);
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.04, 3200);      // a near plane not too near: the town on the table is thin
 scene.add(new THREE.HemisphereLight(0xe6f2ff, 0x8a7a60, 1.7));
 const sun = new THREE.DirectionalLight(0xfff4e0, 2.0); sun.position.set(0.5, 1, 0.35); scene.add(sun);
 
@@ -48,6 +49,8 @@ const skyMat = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: fals
       gl_FragColor = vec4(c, uA); }` });
 const sky = new THREE.Mesh(new THREE.SphereGeometry(3000, 32, 16), skyMat); sky.renderOrder = -10; sky.frustumCulled = false; sky.visible = false; scene.add(sky);
 const FOG = new THREE.Fog(0xdbe9f3, 250, 1400);
+/** the ink lines fade into the fog like everything else (and not at all on the table) */
+function inkFog() { INK.uNear.value = scene.fog ? FOG.near : 1e6; INK.uFar.value = scene.fog ? FOG.far : 2e6; INK.uFog.value.copy(FOG.color); }
 
 /* ---------------- the city, the cars, the race, sound ---------------- */
 const city = createCity();
@@ -271,7 +274,7 @@ function growUp() {
   TR.t = 0; TR.up = true; TR.F.copy(camC.p); S.mode = 'grow'; audio.whoosh(true); audio.silence(); hud.visible = false; flatUI();
 }
 function endGrow() {
-  race.clear(); playerCar = null; if (scenery) scenery.visible = false; city.gridLines().visible = true; S.mode = 'design'; scene.fog = null; sky.visible = false; skyMat.uniforms.uA.value = 0; flatUI();
+  race.clear(); playerCar = null; if (scenery) scenery.visible = false; city.gridLines().visible = true; S.mode = 'design'; scene.fog = null; inkFog(); sky.visible = false; skyMat.uniforms.uA.value = 0; flatUI();
 }
 function blend(out, t) {
   const e = ease(t), w = new V().lerpVectors(TR.w0, anchor.p, e);
@@ -413,7 +416,7 @@ function loop(_, frame) {
     TR.t = Math.min(1, TR.t + dt / TR.dur);
     const k = S.mode === 'shrink' ? TR.t : 1 - TR.t;
     if (S.mode === 'grow') { holder.matrix.copy(blendDown(_m1, k)); } else holder.matrix.copy(blend(_m1, TR.t)); holder.matrixWorldNeedsUpdate = true;
-    const a = clamp((k - 0.55) / 0.35, 0, 1); skyMat.uniforms.uA.value = a; sky.visible = a > 0; scene.fog = k > 0.7 ? FOG : null;
+    const a = clamp((k - 0.55) / 0.35, 0, 1); skyMat.uniforms.uA.value = a; sky.visible = a > 0; scene.fog = k > 0.7 ? FOG : null; inkFog();
     if (TR.t >= 1) { if (S.mode === 'shrink') { S.mode = 'drive'; } else endGrow(); }
   } else if (S.mode === 'drive') {
     driveButtons();
