@@ -12,7 +12,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=4';
+import { toonMat, ink } from './toon.js?v=5';
 
 export const CARS = [
   { key: 'lyn', name: 'Lynet', color: '#e8392f', blurb: 'Lav og hurtig, med spoiler' },

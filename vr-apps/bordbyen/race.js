@@ -14,15 +14,16 @@
  * they go and slowing for bends by how much the line turns ahead. A little rubber band keeps the race together. One that has stopped against
  * something backs off and tries again.
  *
- * A lap is the gates in order and then the start/finish; the first time over the start does not count (the grid is behind it).
+ * The race is like croquet: clear every gate, in any order you like, and then be the first over the start/finish line. The opponents each plan
+ * their own way: the nearest gate they have not cleared yet by road, then the next, and at last the finish.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { HANDLING } from './cars.js?v=4';
+import { HANDLING } from './cars.js?v=5';
 
 const V2 = THREE.Vector2, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const MASS = { lyn: 1.0, boble: 0.85, bulder: 1.3, brum: 1.5 };
 const HALF = 1.0, RAD = 0.98, BOUNCE = 0.35;                                  // a car is two circles of radius RAD, HALF metres ahead of and behind its middle
-export const LAPS = 3;
+export const LAPS = 1;
 
 export function createRace({ city, onBump, onGate, onLap, onFinish }) {
   const R = { cars: [], route: null, state: 'idle', t: 0, count: 0, laps: LAPS, finishOrder: [] };
@@ -30,7 +31,7 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
   function addCar(obj, key, name, ai, skill = 1) {
     const c = { obj, key, name, ai, skill, h: HANDLING[key], p: new V2(), yaw: 0, v: 0, slip: 0, steer: 0, ang: 0, yawRate: 0, spin: 0,
       lap: 0, next: 0, passed: 0, done: false, time: 0, li: 0, lane: 0, stuck: 0, back: 0, bumpT: 0, roll: 0, pitch: 0, surf: 'road',
-      m: MASS[key] || 1, wx: 0, delay: 0, laneT: 0 };
+      m: MASS[key] || 1, wx: 0, delay: 0, laneT: 0, cleared: [], nCleared: 0, path: null, pi: 0, target: 0, planT: 0 };
     R.cars.push(c); return c;
   }
   /** Line up on the grid behind the start, two abreast, in the order given (the player last, like a proper underdog). */
@@ -44,11 +45,12 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
       const t = tan(k), side = new V2(-t.y, t.x), c = R.cars[ci];
       c.p.copy(L[k]).addScaledVector(side, ci % 2 ? 1.7 : -1.7); c.yaw = Math.atan2(-t.x, -t.y);
       c.v = 0; c.slip = 0; c.wx = 0; c.lap = 0; c.next = 0; c.passed = 0; c.done = false; c.time = 0; c.li = k; c.lane = (ci % 2 ? 1 : -1) * 1.7; c.stuck = 0; c.back = 0;
-      c.delay = c.ai ? Math.floor(ci / 2) * 0.35 + (ci % 2) * 0.12 : 0; c.laneT = 0;                                     // the front row goes first: no pile-up off the line
+      c.delay = c.ai ? Math.floor(ci / 2) * 0.35 + (ci % 2) * 0.12 : 0; c.laneT = 0;
+      c.cleared = route.gates.map(() => false); c.nCleared = 0; c.path = null; c.planT = 0;                                     // the front row goes first: no pile-up off the line
       city.collide(c.p, c.obj.userData.radius * 0.8); row++;
     }
     R.state = 'count'; R.count = 3.5; R.t = 0; R.finishOrder = [];
-    for (const c of R.cars) place(c, 0);
+    for (const c of R.cars) { place(c, 0); if (c.ai) plan(c); }
   }
 
   function place(c, dt) {
@@ -92,16 +94,24 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
   }
 
   /* the opponents' driving */
+  /** an opponent's next aim: the nearest gate it has not cleared, by road; with them all cleared, the finish */
+  function plan(c) {
+    const G = R.route.gates, left = G.map((g, k) => k).filter(k => k > 0 && !c.cleared[k]);
+    let best = null, bestK = 0;
+    for (const k of left.length ? left : [0]) { const p = city.pathTo(c.p.x, c.p.y, G[k].i, G[k].j); if (p && (!best || p.len < best.len)) { best = p; bestK = k; } }
+    c.path = best ? best.pts : null; c.target = bestK; c.pi = 0; c.planT = 4;
+  }
   function ai(c, dt) {
-    const L = R.route.line, n = L.length;
-    /* where am I on the line: search a little way ahead */
-    let best = c.li, bd = Infinity; for (let k = 0; k < 24; k++) { const j = (c.li + k) % n, d = L[j].distanceToSquared(c.p); if (d < bd) { bd = d; best = j; } } c.li = best;
-    const look = 5 + Math.abs(c.v) * 0.45; let k = c.li, acc = 0; while (acc < look) { const j = (k + 1) % n; acc += L[k].distanceTo(L[j]); k = j; }
-    const a = L[k], b = L[(k + 1) % n], t = new V2(b.x - a.x, b.y - a.y).normalize(), tgt = new V2(a.x - t.y * c.lane, a.y + t.x * c.lane);
-    /* how much the line turns over the next stretch: slow down for it */
-    let turn = 0, k2 = c.li, acc2 = 0; const span = 10 + Math.abs(c.v) * 1.3;
-    while (acc2 < span) { const j = (k2 + 1) % n, j2 = (k2 + 2) % n; const d1 = new V2().subVectors(L[j], L[k2]), d2 = new V2().subVectors(L[j2], L[j]);
-      turn += Math.abs(Math.atan2(d1.x * d2.y - d1.y * d2.x, d1.dot(d2))); acc2 += d1.length(); k2 = j; }
+    c.planT -= dt; if (!c.path || c.planT <= 0) plan(c);
+    const L = c.path || [c.p.clone()], n = L.length, at = k => L[Math.min(n - 1, Math.max(0, k))];
+    /* where am I on my way: search a little way ahead */
+    let best = c.pi, bd = Infinity; for (let k = 0; k < 24 && c.pi + k < n; k++) { const d = L[c.pi + k].distanceToSquared(c.p); if (d < bd) { bd = d; best = c.pi + k; } } c.pi = best;
+    const look = 5 + Math.abs(c.v) * 0.45; let k = c.pi, acc = 0; while (acc < look && k < n - 1) { acc += L[k].distanceTo(L[k + 1]); k++; }
+    const a = at(k), b = at(k + 1), t = b.distanceToSquared(a) > 1e-6 ? new V2(b.x - a.x, b.y - a.y).normalize() : new V2(-Math.sin(c.yaw), -Math.cos(c.yaw)), lane = k >= n - 3 ? 0 : c.lane, tgt = new V2(a.x - t.y * lane, a.y + t.x * lane);
+    /* how much the way turns over the next stretch: slow down for it (and for the gate at its end, if it is a sharp one) */
+    let turn = 0, k2 = c.pi, acc2 = 0; const span = 10 + Math.abs(c.v) * 1.3;
+    while (acc2 < span && k2 < n - 2) { const d1 = new V2().subVectors(L[k2 + 1], L[k2]), d2 = new V2().subVectors(L[k2 + 2], L[k2 + 1]);
+      turn += Math.abs(Math.atan2(d1.x * d2.y - d1.y * d2.x, d1.dot(d2))); acc2 += d1.length(); k2++; }
     let want = c.h.vmax * c.skill * c.band * clamp(1.15 - turn * 0.5, 0.35, 1);
     /* a car ahead in my lane: keep a gap behind it, and pull out into the other lane if that is free */
     { const fx0 = -Math.sin(c.yaw), fz0 = -Math.cos(c.yaw); let ahead = null, gap = Infinity;
@@ -124,17 +134,20 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
 
   function gates(c) {
     if (c.done) return;
-    const g = R.route.gates[c.next], d = Math.abs(c.p.x - g.x) < 4.2 && Math.abs(c.p.y - g.z) < 4.2;
-    if (!d) return;
-    if (c.next === 0) {
-      if (c.passed > 0 || c.lap === 0) { c.lap++; if (c.lap > R.laps) { c.done = true; c.time = R.t; R.finishOrder.push(c); onFinish(c, R.finishOrder.length); return; } if (c.lap > 1) onLap(c, c.lap); }
-    } else onGate(c, c.next);
-    c.passed++; c.next = (c.next + 1) % R.route.gates.length;
+    const G = R.route.gates;
+    for (let k = 1; k < G.length; k++) {
+      if (c.cleared[k]) continue; const g = G[k];
+      if (Math.abs(c.p.x - g.x) < 4.2 && Math.abs(c.p.y - g.z) < 4.2) { c.cleared[k] = true; c.nCleared++; onGate(c, k, c.nCleared, G.length - 1); if (c.ai) plan(c); }
+    }
+    const s0 = G[0];
+    if (c.nCleared === G.length - 1 && Math.abs(c.p.x - s0.x) < 4.2 && Math.abs(c.p.y - s0.z) < 4.2) { c.done = true; c.lap = 1; c.time = R.t; R.finishOrder.push(c); onFinish(c, R.finishOrder.length); }
   }
   /** how far along the race a car is (for the order) */
   function score(c) {
     if (c.done) return 1e9 - R.finishOrder.indexOf(c);
-    const g = R.route.gates[c.next]; return c.passed * 1000 - Math.hypot(c.p.x - g.x, c.p.y - g.z);
+    /* gates cleared count most; then how near the next one is (the nearest left, or the finish) */
+    const G = R.route.gates; let d = Infinity; for (let k = 0; k < G.length; k++) { if (k === 0 ? c.nCleared < G.length - 1 : c.cleared[k]) continue; d = Math.min(d, Math.hypot(c.p.x - G[k].x, c.p.y - G[k].z)); }
+    return c.nCleared * 1000 - (isFinite(d) ? d : 0);
   }
 
   /* ---- car against car ---- */

@@ -17,11 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=4';
-import { buildCar, CARS } from './cars.js?v=4';
-import { createRace, LAPS } from './race.js?v=4';
-import { createAudio } from './audio.js?v=4';
-import { INK, NOIR } from './toon.js?v=4';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=5';
+import { buildCar, CARS } from './cars.js?v=5';
+import { createRace, LAPS } from './race.js?v=5';
+import { createAudio } from './audio.js?v=5';
+import { INK, NOIR } from './toon.js?v=5';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -110,7 +110,7 @@ const race = createRace({ city,
     /* a jolt: the view is knocked the way the car was pushed, and springs back */
     const dir = n ? new V(n.x, 0, n.y) : new V(-Math.sin(c.yaw), 0, -Math.cos(c.yaw)).multiplyScalar(-1);
     JOLT.v.addScaledVector(dir, Math.min(1.6, k * (other ? 0.12 : 0.05))); },
-  onGate: (c, n) => { if (!c.ai) { audio.chime(2, 880); toast('Port ' + n); } },
+  onGate: (c, k, n, total) => { if (c.ai) return; const g = routeInfo.gates[k]; city.markGate(g.i, g.j, true); audio.chime(n === total ? 4 : 2, 880); toast(n === total ? 'Alle porte! Mod mål!' : 'Port ' + n + ' af ' + total); },
   onLap: (c, lap) => { if (!c.ai) { audio.chime(3, 660); toast(lap === LAPS ? 'Sidste omgang!' : 'Omgang ' + lap); } },
   onFinish: (c, place) => { if (!c.ai) { audio.fanfare(); toast(place === 1 ? 'Du vandt!' : 'Du blev nr. ' + place); } } });
 
@@ -146,6 +146,14 @@ const anchor = { p: new V(0, 1.2, 0), yaw: 0 };
 const camC = { p: new V(), yaw: 0 };                                        // the camera's place and heading in the city
 function headYaw() { const f = new V(0, 0, -1).applyQuaternion(headQ); return Math.atan2(-f.x, -f.z); }
 function setAnchor() { anchor.p.copy(head); anchor.yaw = headYaw(); }
+/** Keep your eyes at the driver's eyes: the seat follows your head's height all the time (sit or stand, you look out at the same place), and if you
+ *  lean more than 12 cm away it slides after you, so your head cannot end up through the roof or out of the side. */
+function alignSeat(dt) {
+  if (!S.xr) return;
+  anchor.p.y += (head.y - anchor.p.y) * Math.min(1, dt * 2.5);
+  const dx = head.x - anchor.p.x, dz = head.z - anchor.p.z, d = Math.hypot(dx, dz);
+  if (d > 0.12) { const k = (1 - 0.12 / d) * Math.min(1, dt * 1.5); anchor.p.x += dx * k; anchor.p.z += dz * k; }
+}
 function updateCamC(dt, snap) {
   const car = player(); if (!car) return;
   if (S.view === 'cockpit') {
@@ -322,7 +330,7 @@ function startDrive() {
   others.forEach((c, k) => { const obj = buildCar(c.key); holder.add(obj); race.addCar(obj, c.key, names[CARS.indexOf(c)], true, skills[k]); });
   playerCar = buildCar(S.carKey); holder.add(playerCar); race.addCar(playerCar, S.carKey, 'Dig', false);
   insideView(playerCar, S.view === 'cockpit'); JOLT.p.set(0, 0, 0); JOLT.v.set(0, 0, 0);
-  race.grid(routeInfo);
+  race.grid(routeInfo); resetMarks();
   if (!scenery) { scenery = city.scenery(); city.root.add(scenery); } scenery.visible = true;
   showroom.visible = false; palette.visible = false; city.gridLines().visible = false;
   setAnchor(); S.view = S.view || 'cockpit'; updateCamC(0, true); playerCar.userData.cockpit.visible = S.view === 'cockpit';
@@ -352,26 +360,27 @@ let hudSig = '';
 const fmt = t => { const m = Math.floor(t / 60), s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1); };
 function drawHud() {
   const c = player(); if (!c) return;
-  const ord = race.order(), place = ord.indexOf(c) + 1, lap = clamp(c.lap, 1, LAPS), kmh = Math.round(Math.abs(c.v) * 3.6);
+  const ord = race.order(), place = ord.indexOf(c) + 1, total = routeInfo.gates.length - 1, lap = c.nCleared, kmh = Math.round(Math.abs(c.v) * 3.6);
   let big = '';
   if (race.state === 'count') big = race.count > 3 ? '' : String(Math.ceil(race.count)); else if (race.state === 'run' && race.t < 1) big = 'KØR!';
   const sig = [place, lap, Math.floor(race.t * 10), kmh, big, race.state, S.toastT > 0 ? S.toast : ''].join('|'); if (sig === hudSig) return; hudSig = sig;
   const x = hudCanvas.getContext('2d'); x.clearRect(0, 0, 512, 200);
-  x.fillStyle = 'rgba(10,14,22,.78)'; x.beginPath(); x.roundRect(0, 0, 512, 200, 26); x.fill();
+  x.fillStyle = 'rgba(10,14,22,.45)'; x.beginPath(); x.roundRect(0, 0, 512, 200, 26); x.fill();
   x.textAlign = 'left'; x.fillStyle = '#ffd34d'; x.font = 'bold 50px Arial, sans-serif'; x.fillText(place + '/' + race.cars.length, 24, 62);
-  x.fillStyle = '#e8eef6'; x.font = 'bold 30px Arial, sans-serif'; x.fillText('Omgang ' + lap + '/' + LAPS, 170, 52);
+  x.fillStyle = '#e8eef6'; x.font = 'bold 30px Arial, sans-serif'; x.fillText(lap >= total ? 'Mod mål!' : 'Porte ' + lap + '/' + total, 170, 52);
   x.font = '28px Arial, sans-serif'; x.fillStyle = '#b9c6d6'; x.fillText(fmt(race.state === 'count' ? 0 : c.done ? c.time : race.t), 170, 92);
   x.textAlign = 'right'; x.fillStyle = '#9ff0b4'; x.font = 'bold 46px Arial, sans-serif'; x.fillText(kmh, 470, 62); x.font = '20px Arial, sans-serif'; x.fillText('km/t', 492, 88);
   x.textAlign = 'center';
   if (big) { x.fillStyle = big === 'KØR!' ? '#3ecf6a' : '#ff5a4a'; x.font = 'bold 80px Arial, sans-serif'; x.fillText(big, 256, 178); }
-  else if (race.state === 'done' || c.done) { x.fillStyle = '#ffd34d'; x.font = 'bold 30px Arial, sans-serif'; x.fillText(place === 1 ? 'Du vandt! ' : 'Du blev nr. ' + place + '. ', 256, 140); x.fillStyle = '#d8e2ee'; x.font = '22px Arial, sans-serif'; x.fillText('A: kør igen   ·   Y: tilbage til bordet', 256, 178); }
+  else if (race.state === 'done' || c.done) { x.fillStyle = '#ffd34d'; x.font = 'bold 30px Arial, sans-serif'; x.fillText(place === 1 ? 'Du vandt! ' : 'Du blev nr. ' + place + '. ', 256, 140); x.fillStyle = '#d8e2ee'; x.font = '22px Arial, sans-serif'; x.fillText('Hold A: kør igen   ·   Y: tilbage til bordet', 256, 178); }
   else if (S.toastT > 0) { x.fillStyle = '#ffffff'; x.font = 'bold 40px Arial, sans-serif'; x.fillText(S.toast, 256, 160); }
   hudTex.needsUpdate = true;
 }
 function placeHud() {
   const c = player(); if (!c) return; const e = c.obj.userData.eye;
-  if (S.view === 'cockpit') { hud.scale.setScalar(0.42); const p = new V(0, e.y - 0.12, e.z - 1.05).applyAxisAngle(YAX, c.yaw); hud.position.set(c.p.x + p.x, p.y, c.p.y + p.z); hud.rotation.set(-0.25, c.yaw, 0, 'YXZ'); }
-  else { hud.scale.setScalar(2.2); const p = new V(0, 3.4, 0).applyAxisAngle(YAX, camC.yaw); hud.position.set(c.p.x + p.x, p.y, c.p.y + p.z); hud.rotation.set(-0.2, camC.yaw, 0, 'YXZ'); }
+  /* in the seat it sits low on the windscreen, like a head-up display, under the line you look along; behind the car it floats high over it */
+  if (S.view === 'cockpit') { hud.scale.setScalar(0.3); const p = new V(0, e.y - 0.36, e.z - 0.82).applyAxisAngle(YAX, c.yaw); hud.position.set(c.p.x + p.x, p.y, c.p.y + p.z); hud.rotation.set(-0.55, c.yaw, 0, 'YXZ'); }
+  else { hud.scale.setScalar(1.5); const p = new V(0, 4.8, -1).applyAxisAngle(YAX, camC.yaw); hud.position.set(c.p.x + p.x, p.y, c.p.y + p.z); hud.rotation.set(-0.15, camC.yaw, 0, 'YXZ'); }
 }
 function toast(t) { S.toast = t; S.toastT = 2.2; if (S.mode === 'design' || S.mode === 'pick') { S.msg = t; paletteDirty = true; flatUI(); } }
 
@@ -383,20 +392,23 @@ function driveInput(dt) {
     return { gas, brake, steer: st };
   }
   const L = hand('left'), Rr = hand('right');
-  const gas = val(Rr, 0), brake = val(L, 0);
-  if (S.steerMode === 'wheel') {
-    /* hold the wheel with both grips: its angle is the angle of the line between your hands, seen from where you sit */
-    const both = btn(L, 1) && btn(Rr, 1);
-    if (both) {
-      const lp = new V(), rp = new V(); L.grip.getWorldPosition(lp); Rr.grip.getWorldPosition(rp);
-      const right = new V(1, 0, 0).applyAxisAngle(YAX, anchor.yaw), d = rp.sub(lp), a = Math.atan2(d.y, d.dot(right));
-      if (!wheelGrip.held) { wheelGrip.held = true; wheelGrip.a0 = a; wheelGrip.base = wheelGrip.angle; }
-      wheelGrip.angle = clamp(wheelGrip.base + (a - wheelGrip.a0), -2.2, 2.2);
-    } else { wheelGrip.held = false; wheelGrip.angle *= Math.exp(-dt * 4); }
-    return { gas, brake, steer: clamp(wheelGrip.angle / 1.6, -1, 1) };
+  const gas = val(Rr, 0), brake = Math.max(val(Rr, 1), val(L, 0));                 // right trigger forwards, right grip (or left trigger) brakes and backs
+  if (S.steerMode === 'wheel' && L && Rr) {
+    /* the wheel is where your hands are: its angle is the angle of the line between them, seen from where you sit (no need to grip) */
+    const lp = new V(), rp = new V(); L.grip.getWorldPosition(lp); Rr.grip.getWorldPosition(rp);
+    const right = new V(1, 0, 0).applyAxisAngle(YAX, anchor.yaw), d = rp.clone().sub(lp), a = Math.atan2(d.y, d.dot(right));
+    wheelGrip.angle += (clamp(a, -2.2, 2.2) - wheelGrip.angle) * Math.min(1, dt * 18); wheelGrip.lp = lp; wheelGrip.rp = rp;
+    return { gas, brake, steer: clamp(wheelGrip.angle / 1.4, -1, 1) };
   }
   const [lx] = axes(L), [rx] = axes(Rr); const sx = Math.abs(lx) > Math.abs(rx) ? lx : rx;
   return { gas, brake, steer: -Math.sign(sx) * Math.max(0, Math.abs(sx) - 0.08) / 0.92 };
+}
+/** in wheel mode the steering wheel sits between your hands, sized to them, and turns with them */
+function wheelToHands(car) {
+  const u = car.userData; if (!(S.xr && S.steerMode === 'wheel' && wheelGrip.lp && S.view === 'cockpit')) { u.wheel.rotation.z = -car.userData.steerAngle || u.wheel.rotation.z; return; }
+  car.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(car.matrixWorld).invert();
+  const mid = wheelGrip.lp.clone().add(wheelGrip.rp).multiplyScalar(0.5).applyMatrix4(inv), span = wheelGrip.lp.distanceTo(wheelGrip.rp);
+  u.wheelBase.position.lerp(mid, 0.5); u.wheelBase.scale.setScalar(clamp(span / 2 / 0.19, 0.8, 1.8)); u.wheel.rotation.z = wheelGrip.angle;
 }
 
 /* ---------------- the room scan: find the table ---------------- */
@@ -483,7 +495,8 @@ function loop(_, frame) {
   } else if (S.mode === 'watchUp' || S.mode === 'watch' || S.mode === 'watchDown') {
     /* the overview: up at the table while the race goes on; your own car waits where you left it */
     if (S.mode === 'watch') watchButtons();
-    race.update(dt, { gas: 0, brake: 0, steer: 0 }); audio.silence();
+    if (!S.paused) race.update(dt, S.mode === 'watch' ? driveInput(dt) : { gas: 0, brake: 0, steer: 0 }); audio.silence();
+    if (signDirty) drawWatchSign();
     const pc = player(); if (pc) { insideView(pc.obj, false); carMark.visible = S.mode === 'watch'; carMark.position.set(pc.p.x, 16 + Math.sin(S.time * 4) * 1.5, pc.p.y); carMark.rotation.y += dt * 2; }
     if (S.mode === 'watch') { holder.matrix.copy(designMatrix(_m1)); watchSign.visible = true; }
     else {
@@ -502,7 +515,8 @@ function loop(_, frame) {
     holder.matrix.copy(driveMatrix(_m1)); holder.matrixWorldNeedsUpdate = true;
     placeHud(); drawHud(); carMark.visible = false;
     const pc = player(); if (pc) insideView(pc.obj, S.view === 'cockpit');
-    if (S.steerMode === 'wheel' && pc) pc.obj.userData.wheel.rotation.z = wheelGrip.angle;
+    if (pc) wheelToHands(pc.obj);
+    alignSeat(dt);
     /* engines: yours, and the others where they are in the room (the listener is your head) */
     const toWorld = p => new V(p.x, 0.6, p.y).applyMatrix4(holder.matrix);
     audio.engines([player(), ...race.cars.filter(c => c.ai)].map(c => ({ v: c.v, gas: c.ai ? 1 : inp.gas, pos: toWorld(c.p), off: false })),
@@ -532,36 +546,49 @@ function designButtons() {
   if (edge(L, 5)) setStyle(!S.noir);                                            // Y: day or night
 }
 function driveButtons() {
-  if (S.xr) {
-    const L = hand('left'), Rr = hand('right');
-    if (edge(Rr, 5)) { S.view = S.view === 'cockpit' ? 'chase' : 'cockpit'; updateCamC(0, true); }
-    if (edge(Rr, 4)) restartRace();
-    if (edge(L, 5)) growUp();
-    if (edge(Rr, 3)) setAnchor();
-    if (edge(L, 4)) toWatch();
-  }
+  if (!S.xr) return;
+  const L = hand('left'), Rr = hand('right');
+  aButton(Rr);                                                                  // A: seat or behind; hold it: start again
+  if (edge(Rr, 5)) toWatch(false);                                              // B: the city view, the race going on
+  if (edge(L, 4)) toWatch(true);                                                // X: the city view, paused
+  if (edge(L, 5)) growUp();                                                     // Y: stop the race, back to building
+  if (edge(Rr, 3)) setAnchor();                                                 // right stick press: line up again
 }
-/* ---------------- the overview: X takes you up to the table while the race goes on, X again back down into your car ---------------- */
-function toWatch() { if (S.mode !== 'drive') return; TR.t = 0; TR.F.copy(camC.p); S.mode = 'watchUp'; hud.visible = false; audio.whoosh(true); flatUI(); }
+function aButton(Rr) {
+  const now = btn(Rr, 4);
+  if (now) { S.aHold = (S.aHold || 0) + 1 / 72; if (S.aHold > 1 && !S.aDone) { S.aDone = true; restartRace(); toast('Forfra'); } }
+  else { if (S.aHold > 0 && !S.aDone) { S.view = S.view === 'cockpit' ? 'chase' : 'cockpit'; updateCamC(0, true); } S.aHold = 0; S.aDone = false; }
+}
+/* ---------------- the city view: B (on) or X (paused) takes you up to the table while the race goes on; you can still drive your car from there ---------------- */
+function toWatch(pause) { if (S.mode !== 'drive') return; S.paused = !!pause; TR.t = 0; TR.F.copy(camC.p); S.mode = 'watchUp'; hud.visible = false; audio.whoosh(true); signDirty = true; flatUI(); }
 function fromWatch() {
   if (S.mode !== 'watch') return;
-  setAnchor(); updateCamC(0, true);
+  S.paused = false; setAnchor(); updateCamC(0, true);
   TR.t = 0; TR.F.copy(camC.p); TR.w0.copy(TR.F).multiplyScalar(SCALE).applyAxisAngle(YAX, table.yaw).add(table.pos); TR.w0.y += BOARD_TOP; TR.yaw0 = table.yaw; TR.s0 = SCALE;
   S.mode = 'watchDown'; carMark.visible = false; if (scenery) scenery.visible = true; audio.whoosh(false); flatUI();
 }
+function stopRace() { race.clear(); playerCar = null; carMark.visible = false; S.paused = false; endGrow(); }
 function watchButtons() {
-  if (!S.xr) return; const L = hand('left');
-  if (edge(L, 4)) fromWatch();
-  if (edge(L, 5)) { race.clear(); playerCar = null; carMark.visible = false; endGrow(); }       // Y: leave the race, back to building
+  if (!S.xr) return; const L = hand('left'), Rr = hand('right');
+  if (edge(Rr, 5)) fromWatch();                                                 // B: back down into the street
+  if (edge(L, 4)) { if (S.paused) fromWatch(); else { S.paused = true; signDirty = true; } }      // X: pause; again: on with the race, down in the car
+  if (edge(L, 5)) stopRace();                                                   // Y: stop the race
+  aButton(Rr);
 }
 /** a sign on the table's near edge */
 function placeAtEdge(m, h) { const toward = new V().subVectors(head, table.pos); toward.y = 0; const yawT = Math.atan2(toward.x, toward.z), f = new V(Math.sin(yawT), 0, Math.cos(yawT));
   m.position.copy(table.pos).addScaledVector(f, Math.min(table.d, table.w) * 0.42); m.position.y = table.pos.y + h; m.rotation.set(0, yawT, 0); }
 const carMark = new THREE.Mesh(new THREE.ConeGeometry(3, 7, 4).rotateX(Math.PI), new THREE.MeshBasicMaterial({ color: 0xffd34d })); carMark.visible = false; holder.add(carMark);
-const watchSign = (() => { const c = document.createElement('canvas'); c.width = 512; c.height = 96; const x = c.getContext('2d'); x.fillStyle = 'rgba(10,14,22,.85)'; x.beginPath(); x.roundRect(0, 0, 512, 96, 20); x.fill();
-  x.fillStyle = '#fff'; x.font = 'bold 38px Arial, sans-serif'; x.textAlign = 'center'; x.fillText('Overblik', 256, 46); x.font = '22px Arial, sans-serif'; x.fillStyle = '#b9c6d6'; x.fillText('X: ned i bilen igen  ·  Y: stop løbet', 256, 82);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const m = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.056), new THREE.MeshBasicMaterial({ map: t, transparent: true })); m.visible = false; scene.add(m); return m; })();
-function restartRace() { race.grid(routeInfo); S.lastCount = 4; updateCamC(0, true); }
+const signCanvas = document.createElement('canvas'); signCanvas.width = 512; signCanvas.height = 96; const signTex = new THREE.CanvasTexture(signCanvas); signTex.colorSpace = THREE.SRGBColorSpace;
+const watchSign = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.056), new THREE.MeshBasicMaterial({ map: signTex, transparent: true })); watchSign.visible = false; scene.add(watchSign);
+let signDirty = true;
+function drawWatchSign() {
+  signDirty = false; const x = signCanvas.getContext('2d'); x.clearRect(0, 0, 512, 96); x.fillStyle = S.paused ? 'rgba(60,20,10,.9)' : 'rgba(10,14,22,.85)'; x.beginPath(); x.roundRect(0, 0, 512, 96, 20); x.fill();
+  x.fillStyle = '#fff'; x.font = 'bold 36px Arial, sans-serif'; x.textAlign = 'center'; x.fillText(S.paused ? 'PAUSE' : 'Byoverblik: løbet kører', 256, 44);
+  x.font = '21px Arial, sans-serif'; x.fillStyle = '#c9d5e4'; x.fillText(S.paused ? 'X: fortsæt, ned i bilen  ·  Y: stop løbet' : 'B: ned i bilen  ·  X: pause  ·  Y: stop løbet', 256, 80); signTex.needsUpdate = true;
+}
+function restartRace() { race.grid(routeInfo); resetMarks(); S.lastCount = 4; updateCamC(0, true); }
+function resetMarks() { if (routeInfo && routeInfo.gates) for (const g of routeInfo.gates) city.markGate(g.i, g.j, false); }
 
 /* ---------------- headset: finding the table, by scan or by hand ---------------- */
 const setupCanvas = document.createElement('canvas'); setupCanvas.width = 512; setupCanvas.height = 220;
@@ -632,7 +659,7 @@ function flatUI() {
   if (design) PAL_ITEMS.forEach((it, k) => { const b = document.createElement('button'); const t = it.tool !== undefined ? TOOLS[it.tool] : it; b.textContent = (k < 9 ? (k + 1) + ' ' : k === 9 ? '0 ' : k === 10 ? '- ' : '') + t.name; b.className = it.tool === S.tool ? 'sel' : ''; b.style.borderColor = t.color; b.onclick = () => choose(k); bar.appendChild(b); });
   if (pick) CARS.forEach((c, k) => { const b = document.createElement('button'); b.textContent = (k + 1) + ' ' + c.name; b.style.borderColor = c.color; b.onclick = () => { S.carKey = c.key; startDrive(); }; bar.appendChild(b); });
   const msg = document.createElement('div'); msg.className = 'msg';
-  msg.textContent = design ? (S.msg || '') : pick ? 'Klik på en bil (eller tast 1–4). Esc: tilbage.' : S.mode === 'drive' ? 'W/S: gas og bremse · A/D: styr · C: kamera · V: overblik · R: forfra · Esc: tilbage til bordet · træk med musen: kig rundt' : S.mode === 'watch' ? 'Overblik: løbet kører videre. V: ned i bilen igen · Esc: stop løbet' : '';
+  msg.textContent = design ? (S.msg || '') : pick ? 'Klik på en bil (eller tast 1–4). Esc: tilbage.' : S.mode === 'drive' ? 'W/S: gas og bremse · A/D: styr · C: kamera · V: byoverblik · P: pause · R: forfra · Esc: tilbage til bordet · træk med musen: kig rundt' : S.mode === 'watch' ? (S.paused ? 'PAUSE. P: fortsæt (ned i bilen) · Esc: stop løbet' : 'Byoverblik: løbet kører, og du kan stadig køre (W/A/S/D). V: ned i bilen · P: pause · Esc: stop løbet') : '';
   bar.appendChild(msg);
 }
 addEventListener('keydown', e => {
@@ -641,8 +668,8 @@ addEventListener('keydown', e => {
     const k = e.key === '0' ? 9 : e.key === '-' ? 10 : /^[1-9]$/.test(e.key) ? +e.key - 1 : -1; if (k >= 0) choose(k);
     if (e.code === 'KeyZ' || e.code === 'Backspace') doUndo(); if (e.code === 'Enter') toPick(); if (e.code === 'KeyN') setStyle(!S.noir);
   } else if (S.mode === 'pick') { if (/^[1-4]$/.test(e.key)) { S.carKey = CARS[+e.key - 1].key; startDrive(); } if (e.code === 'Escape') { S.mode = 'design'; showroom.visible = false; flatUI(); } }
-  else if (S.mode === 'watch') { if (e.code === 'KeyV') fromWatch(); if (e.code === 'Escape') { race.clear(); playerCar = null; carMark.visible = false; endGrow(); } }
-  else if (S.mode === 'drive') { if (e.code === 'KeyV') toWatch(); if (e.code === 'KeyC') { S.view = S.view === 'cockpit' ? 'chase' : 'cockpit'; updateCamC(0, true); } if (e.code === 'KeyR') restartRace(); if (e.code === 'Escape' || e.code === 'KeyG') growUp(); }
+  else if (S.mode === 'watch') { if (e.code === 'KeyV') fromWatch(); if (e.code === 'KeyP') { if (S.paused) fromWatch(); else { S.paused = true; signDirty = true; flatUI(); } } if (e.code === 'Escape') stopRace(); }
+  else if (S.mode === 'drive') { if (e.code === 'KeyV') toWatch(false); if (e.code === 'KeyP') toWatch(true); if (e.code === 'KeyC') { S.view = S.view === 'cockpit' ? 'chase' : 'cockpit'; updateCamC(0, true); } if (e.code === 'KeyR') restartRace(); if (e.code === 'Escape' || e.code === 'KeyG') growUp(); }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -681,4 +708,4 @@ renderer.setAnimationLoop(loop);
   if (params.has('flat')) enterFlat();
 })();
 
-window.__bb = { S, orbit, setStyle, LIGHT, toWatch, fromWatch, JOLT, city, race, table, head, camC, anchor, keys, mouse, toPick, startDrive, growUp, choose, holder, restartRace, setView: v => { S.view = v; updateCamC(0, true); }, TR };
+window.__bb = { S, orbit, setStyle, LIGHT, stopRace, toWatch, fromWatch, JOLT, city, race, table, head, camC, anchor, keys, mouse, toPick, startDrive, growUp, choose, holder, restartRace, setView: v => { S.view = v; updateCamC(0, true); }, TR };
