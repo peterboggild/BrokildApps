@@ -18,11 +18,11 @@
  * their own way: the nearest gate they have not cleared yet by road, then the next, and at last the finish.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { HANDLING } from './cars.js?v=6';
+import { HANDLING, CAR_SCALE } from './cars.js?v=7';
 
 const V2 = THREE.Vector2, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const MASS = { lyn: 1.0, boble: 0.85, bulder: 1.3, brum: 1.5 };
-const HALF = 1.0, RAD = 0.98, BOUNCE = 0.35;                                  // a car is two circles of radius RAD, HALF metres ahead of and behind its middle
+const HALF = 1.0 * CAR_SCALE, RAD = 0.98 * CAR_SCALE, BOUNCE = 0.35;                                  // a car is two circles of radius RAD, HALF metres ahead of and behind its middle
 export const LAPS = 1;
 
 export function createRace({ city, onBump, onGate, onLap, onFinish }) {
@@ -54,7 +54,12 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
   }
 
   function place(c, dt) {
-    const o = c.obj; o.position.set(c.p.x, 0, c.p.y); o.rotation.set(0, c.yaw, 0);
+    const o = c.obj, fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw), H = city.heightAt;
+    /* on the ground: its height, tipped by the slope along and across it; and shaken about off the road */
+    const pitchG = Math.atan((H(c.p.x + fx * 1.4, c.p.y + fz * 1.4) - H(c.p.x - fx * 1.4, c.p.y - fz * 1.4)) / 2.8), rollG = Math.atan((H(c.p.x - fz * 0.9, c.p.y + fx * 0.9) - H(c.p.x + fz * 0.9, c.p.y - fx * 0.9)) / 1.8);
+    const shake = c.rough ? Math.min(1, Math.abs(c.v) / 8) * (c.noTilt ? 0.3 : 1) : 0; const tilt = c.noTilt ? 0 : 1;      // your own car, seen from its seat, keeps level (its bonnet would rise into the view uphill)
+    o.position.set(c.p.x, H(c.p.x, c.p.y) + shake * (Math.random() * 0.09), c.p.y); o.rotation.set(0, c.yaw, 0);
+    o.rotateZ(rollG * tilt + shake * (Math.random() - 0.5) * 0.05); o.rotateX(pitchG * tilt + shake * (Math.random() - 0.5) * 0.05);
     /* lean into turns and squat on the gas a little */
     const roll = clamp(-c.yawRate * c.v * 0.012, -0.08, 0.08); c.roll += (roll - c.roll) * Math.min(1, dt * 6);
     o.rotateZ(c.roll); o.rotateX(c.pitch);
@@ -63,7 +68,8 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
   }
 
   function drive(c, gas, brake, steer, dt) {
-    const h = c.h, surf = city.surfaceAt(c.p.x, c.p.y), off = surf === 'road' || surf === 'torv' ? 1 : surf === 'lot' ? 0.6 : h.off;
+    const h = c.h, surf = city.surfaceAt(c.p.x, c.p.y), off = surf === 'road' || surf === 'torv' ? 1 : h.off;      // off the road: about half speed
+    c.rough = off < 1;
     c.surf = surf;
     const vmax = h.vmax * off * (c.ai ? c.skill : 1);
     const a0 = c.v;
@@ -81,6 +87,7 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
     c.yaw += (c.yawRate + c.wx) * dt; c.wx *= Math.exp(-dt * 2.5);               // wx: a spin from being hit, dying away
     const fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw);
     c.slip *= Math.exp(-dt * 3.5 * h.grip);
+    { const H = city.heightAt, sl = (H(c.p.x + fx * 1.4, c.p.y + fz * 1.4) - H(c.p.x - fx * 1.4, c.p.y - fz * 1.4)) / 2.8; c.v -= 9.8 * sl * 0.75 * dt; }      // uphill slows, downhill speeds
     c.p.x += (fx * c.v + fz * c.slip) * dt; c.p.y += (fz * c.v - fx * c.slip) * dt;
     /* walls and trees */
     const hit = city.collide(c.p, c.obj.userData.radius * 0.8);

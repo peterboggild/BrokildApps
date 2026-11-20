@@ -14,12 +14,16 @@
  * The look is a cartoon: flat colours in three tones and black ink round everything that stands up (toon.js); flat things that lie on others (asphalt,
  * markings, paving patterns) go in a second, un-inked mesh so the town is not scribbled over.
  *
+ * Hills: the ground has a height at every cell corner (none at the board's edge). Raising or lowering an area adds a soft bump. Roads, grass, parks
+ * and squares lie on the ground (their vertices are lifted by the height under them); buildings stay upright: each solid lot stands at the highest
+ * ground under it, on a stone plinth that reaches down to the lowest.
+ *
  * Driving: the solid lots are boxes the cars bounce off (the lot less its pavement); parks have trees, squares a fountain (circles); parks and grass are
  * slow, roads and squares fast. The opponents' route is found through roads and squares only (breadth first, then rounded).
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=6';
+import { toonMat, ink } from './toon.js?v=7';
 
 export const CELL = 8;
 export const SCALE = 1 / 160;                         // city metres to table metres: a cell is 5 cm on the table, a car 2.5 cm
@@ -32,6 +36,8 @@ export const TOOLS = [
   { key: 'kirke', name: 'Kirke', color: '#f2efe6', kind: 'lot', solid: true, min: 2 },
   { key: 'park', name: 'Park', color: '#7cc46a', kind: 'lot' },
   { key: 'torv', name: 'Torv', color: '#d9c9a8', kind: 'lot' },
+  { key: 'bakke', name: 'Bakke', color: '#a6d97f', kind: 'terrain', dir: 1 },
+  { key: 'dal', name: 'Dal', color: '#6f8a62', kind: 'terrain', dir: -1 },
   { key: 'start', name: 'Start/mål', color: '#ffffff', kind: 'gate' },
   { key: 'port', name: 'Port', color: '#ff9a3c', kind: 'gate' },
   { key: 'slet', name: 'Viskelæder', color: '#ff6a6a', kind: 'erase' },
@@ -125,7 +131,7 @@ function stall(b, x, z, ry, r) {
 export function createCity() {
   const root = new THREE.Group(); root.name = 'city';
   const mat = toonMat();
-  const st = { W: 20, H: 14, cells: null, lot: null, lots: new Map(), gates: [], nextId: 1 };
+  const st = { W: 20, H: 14, cells: null, lot: null, hts: null, lots: new Map(), gates: [], nextId: 1 };
   const meshes = new Map();                            // lot id -> mesh
   let roadMesh = null, groundMesh = null, gridLines = null, gateGroup = new THREE.Group(); root.add(gateGroup);
   const colliders = { rects: [], circles: [] };
@@ -137,10 +143,32 @@ export function createCity() {
   const cellAt = (x, z) => [Math.floor(x / CELL + st.W / 2), Math.floor(z / CELL + st.H / 2)];
 
   function reset(W, H) {
-    st.W = W; st.H = H; st.cells = new Uint8Array(W * H); st.lot = new Int32Array(W * H).fill(0); st.lots.clear(); st.gates = []; st.nextId = 1;
+    st.W = W; st.H = H; st.hts = new Float32Array((W + 1) * (H + 1)); st.cells = new Uint8Array(W * H); st.lot = new Int32Array(W * H).fill(0); st.lots.clear(); st.gates = []; st.nextId = 1;
     for (const m of meshes.values()) { root.remove(m); m.geometry.dispose(); } meshes.clear();
     rebuildGround(); rebuildRoads(); rebuildGates(); rebuildColliders();
   }
+
+  /* ---------- the ground's height ---------- */
+  const hIdx = (ci, cj) => cj * (st.W + 1) + ci;
+  /** the ground's height at a city point (bilinear between the cell corners) */
+  function heightAt(x, z) {
+    const fx = Math.max(0, Math.min(st.W - 1e-6, x / CELL + st.W / 2)), fz = Math.max(0, Math.min(st.H - 1e-6, z / CELL + st.H / 2)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
+    const h = st.hts; return (h[hIdx(i, j)] * (1 - u) + h[hIdx(i + 1, j)] * u) * (1 - v) + (h[hIdx(i, j + 1)] * (1 - u) + h[hIdx(i + 1, j + 1)] * u) * v;
+  }
+  /** lift (dir 1) or lower (dir -1) the ground softly over a rectangle of cells, fading out one cell beyond it */
+  function shapeTerrain(a, b, c, d, dir) {
+    const [x0, z0, x1, z1] = norm(a, b, c, d), u0 = x0 - 1, u1 = x1 + 2, v0 = z0 - 1, v1 = z1 + 2;
+    for (let cj = 1; cj < st.H; cj++) for (let ci = 1; ci < st.W; ci++) {
+      if (ci <= u0 || ci >= u1 || cj <= v0 || cj >= v1) continue;
+      const w = Math.sin(Math.PI * (ci - u0) / (u1 - u0)) * Math.sin(Math.PI * (cj - v0) / (v1 - v0)), k = hIdx(ci, cj);
+      st.hts[k] = Math.max(-10, Math.min(16, st.hts[k] + dir * 3.5 * w));
+    }
+    return true;
+  }
+  /** lay a geometry on the ground: every vertex lifted by the height under it */
+  function drape(g, lift = 0) { const p = g.getAttribute('position'); for (let k = 0; k < p.count; k++) p.setY(k, p.getY(k) + heightAt(p.getX(k), p.getZ(k)) + lift); p.needsUpdate = true; g.computeBoundingSphere(); return g; }
+  /** a whole new shape of the ground: everything that stands on it is rebuilt */
+  function reshape() { rebuildGround(); for (const L of st.lots.values()) buildLot(L); commit(); }
 
   /* ---------- editing ---------- */
   function removeLot(id) {
@@ -192,13 +220,14 @@ export function createCity() {
     const b = new Builder(), W = st.W * CELL, H = st.H * CELL;
     b.box(0, -0.6, 0, W + 1.2, 0.6, H + 1.2, '#6f5a43');                                 // the board's edge, seen from the side
     groundMesh = ink(new THREE.Mesh(b.build(), mat)); root.add(groundMesh);
-    const gb = new Builder(); gb.box(0, 0, 0, W, 0.015, H, '#8fcf6e');                         // grass: too thin to ink (its line would show through it)
-    groundMesh.add(new THREE.Mesh(gb.build(), mat));
+    const gb = new Builder(); gb.add(new THREE.PlaneGeometry(1, 1, st.W, st.H).rotateX(-Math.PI / 2), '#8fcf6e', 0, 0.015, 0, 0, W, 1, H);      // grass on the hills: too thin to ink
+    const gg0 = drape(gb.build()); gg0.computeVertexNormals(); groundMesh.add(new THREE.Mesh(gg0, mat));
     /* the grid, for drawing */
     if (gridLines) { root.remove(gridLines); gridLines.geometry.dispose(); }
     const pts = [];
-    for (let i = 0; i <= st.W; i++) { const x = (i - st.W / 2) * CELL; pts.push(x, 0.05, -H / 2, x, 0.05, H / 2); }
-    for (let j = 0; j <= st.H; j++) { const z = (j - st.H / 2) * CELL; pts.push(-W / 2, 0.05, z, W / 2, 0.05, z); }
+    const hc = (ci, cj) => st.hts[hIdx(ci, cj)] + 0.08;
+    for (let i = 0; i <= st.W; i++) for (let j = 0; j < st.H; j++) { const x = (i - st.W / 2) * CELL; pts.push(x, hc(i, j), (j - st.H / 2) * CELL, x, hc(i, j + 1), (j + 1 - st.H / 2) * CELL); }
+    for (let j = 0; j <= st.H; j++) for (let i = 0; i < st.W; i++) { const z = (j - st.H / 2) * CELL; pts.push((i - st.W / 2) * CELL, hc(i, j), z, (i + 1 - st.W / 2) * CELL, hc(i + 1, j), z); }
     const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
     gridLines = new THREE.LineSegments(gg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 })); root.add(gridLines);
   }
@@ -220,16 +249,15 @@ export function createCity() {
         else { b.box(x + dx * (h - pw / 2), 0, z, pw, 0.18, CELL, PAVE); b.box(x + dx * (h - pw - 0.08), 0, z, 0.18, 0.2, CELL, KERB); }
       }
       const lampSide = sides.find(sd => sd[0]);
-      if (lampSide && (i + j) % 2 === 0 && n <= 2) { const [, dx, dz] = lampSide, lx = x + dx * (h - 0.6) + (dz ? -2 : 0), lz = z + dz * (h - 0.6) + (dx ? -2 : 0); lamp(b, lx, lz, -dx, -dz); roadCircles.push([lx, lz, 0.25]); }
-      else if (lampSide && (i * 7 + j * 13) % 9 === 0) { const [, dx, dz] = lampSide, hx = x + dx * (h - 0.7) + (dz ? 2.5 : 0), hz = z + dz * (h - 0.7) + (dx ? 2.5 : 0); b.cyl(hx, 0.18, hz, 0.2, 0.7, '#e2382f', 'cyl6'); b.ball(hx, 0.92, hz, 0.2, '#e2382f'); }      // a fire hydrant
+      if (lampSide && (i * 7 + j * 13) % 9 === 0) { const [, dx, dz] = lampSide, hx = x + dx * (h - 0.7) + (dz ? 2.5 : 0), hz = z + dz * (h - 0.7) + (dx ? 2.5 : 0); b.cyl(hx, 0.18, hz, 0.2, 0.7, '#e2382f', 'cyl6'); b.ball(hx, 0.92, hz, 0.2, '#e2382f'); }      // a fire hydrant
       for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
         const a = dx > 0 ? E : Wd, c = dz > 0 ? S : N;
         if (a && c && !isRoad(i + dx, j + dz)) {
           const px = x + dx * (h - pw / 2), pz = z + dz * (h - pw / 2); b.box(px, 0, pz, pw, 0.18, pw, PAVE);
-          if (n >= 3) {                                                                           // a traffic light on the corner
-            b.cyl(px, 0.18, pz, 0.1, 3.4, '#2a2a2e', 'cyl6'); b.box(px, 3.2, pz, 0.45, 1.3, 0.45, '#1f1f24');
-            for (const [k, col] of [[0, '#ff4a3d'], [1, '#ffcf3d'], [2, '#4ade6b']]) b.ball(px - dx * 0.24, 4.25 - k * 0.4, pz - dz * 0.24, 0.13, col);
-            roadCircles.push([px, pz, 0.25]);
+          if (n >= 3) {                                                                           // a traffic light, out at the very corner (cars pass it)
+            const qx = x + dx * (h - 0.25), qz = z + dz * (h - 0.25);
+            b.cyl(qx, 0.18, qz, 0.1, 3.4, '#2a2a2e', 'cyl6'); b.box(qx, 3.2, qz, 0.45, 1.3, 0.45, '#1f1f24');
+            for (const [k, col] of [[0, '#ff4a3d'], [1, '#ffcf3d'], [2, '#4ade6b']]) b.ball(qx - dx * 0.24, 4.25 - k * 0.4, qz - dz * 0.24, 0.13, col);
           }
         }
       }
@@ -251,8 +279,8 @@ export function createCity() {
           f.add(G.plane, '#f4f1e6', px, 0.035, pz, 0, 0.5, 1, 0.5); }
       }
     }
-    const g = b.build(); if (g) { roadMesh = ink(new THREE.Mesh(g, mat)); root.add(roadMesh); }
-    const g2 = f.build(); if (g2) { flatRoad = new THREE.Mesh(g2, mat); root.add(flatRoad); }
+    const g = b.build(); if (g) { roadMesh = ink(new THREE.Mesh(drape(g), mat)); root.add(roadMesh); }
+    const g2 = f.build(); if (g2) { flatRoad = new THREE.Mesh(drape(g2), mat); root.add(flatRoad); }
   }
 
   /* lots, one generator per kind; (x, z) the lot's centre, w × d its size in metres */
@@ -399,7 +427,7 @@ export function createCity() {
         tree(b, tx, tz, r); circles.push([tx, tz, 0.5]);
       }
       bench(b, x + 3.5, z - 1.6, 0); bench(b, x - 3.5, z + 1.6, Math.PI);
-      for (const [sx, sz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const lx = x + sx * (w / 2 - 2.5) + (sz ? 1.6 : 0), lz = z + sz * (d / 2 - 2.5) + (sx ? 1.6 : 0); lamp(b, lx, lz); circles.push([lx, lz, 0.25]); }
+      for (const [sx, sz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const lx = x + sx * (w / 2 - 2.5) + (sz ? 1.6 : 0), lz = z + sz * (d / 2 - 2.5) + (sx ? 1.6 : 0); lamp(b, lx, lz); }
     },
     torv(b, L, r, x, z, w, d, circles) {
       const tiles = Math.max(2, Math.round(w / 2)), tz = Math.max(2, Math.round(d / 2));
@@ -408,7 +436,7 @@ export function createCity() {
       /* the fountain: a basin, a column, two bowls and a spout */
       b.cyl(x, 0, z, 3, 0.8, '#c6c0b4'); b.flat.cyl(x, 0.6, z, 2.6, 0.22, '#5fc0ea'); b.cyl(x, 0.8, z, 0.35, 2.2, '#c6c0b4'); b.cyl(x, 3.0, z, 1.3, 0.3, '#c6c0b4'); b.cyl(x, 3.3, z, 0.25, 0.9, '#c6c0b4'); b.cyl(x, 4.2, z, 0.7, 0.22, '#c6c0b4'); b.ball(x, 4.6, z, 0.35, '#bfe9ff', 1.8);
       circles.push([x, z, 3]);
-      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const lx = x + sx * (w / 2 - 1.2), lz = z + sz * (d / 2 - 1.2); lamp(b, lx, lz); circles.push([lx, lz, 0.25]); }
+      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const lx = x + sx * (w / 2 - 0.6), lz = z + sz * (d / 2 - 0.6); lamp(b, lx, lz); }
       /* market stalls and benches round the fountain, where there is room */
       if (w >= 14 || d >= 14) { const spots = [[0, -1], [0, 1], [1, 0], [-1, 0]]; let k = 0;
         for (const [sx, sz] of spots) { const ox = sx * Math.min(w / 2 - 3, 7), oz = sz * Math.min(d / 2 - 3, 7); if (Math.abs(ox) < 5 && Math.abs(oz) < 5) continue;
@@ -422,8 +450,12 @@ export function createCity() {
     const b = new Builder(), r = rng(L.seed), w = (L.x1 - L.x0 + 1) * CELL, d = (L.z1 - L.z0 + 1) * CELL, x = (cx(L.x0) + cx(L.x1)) / 2, z = (cz(L.z0) + cz(L.z1)) / 2, circles = [];
     const f = new Builder(); b.flat = f; GEN[L.type](b, L, r, x, z, w, d, circles);
     lotCircles.set(L.id, circles);
-    const g = b.build(); if (!g) return; const m = ink(new THREE.Mesh(g, mat)); m.userData.lot = L.id;
-    const gf = f.build(); if (gf) m.add(new THREE.Mesh(gf, mat));
+    const g = b.build(); if (!g) return; const gf = f.build(); const solid = !!TOOL[L.type].solid;
+    let top = -Infinity, low = Infinity; for (let cj = L.z0; cj <= L.z1 + 1; cj++) for (let ci = L.x0; ci <= L.x1 + 1; ci++) { const hh = st.hts[hIdx(ci, cj)]; top = Math.max(top, hh); low = Math.min(low, hh); }
+    if (!solid) { drape(g); if (gf) drape(gf); }
+    const m = ink(new THREE.Mesh(g, mat)); m.userData.lot = L.id;
+    if (gf) m.add(new THREE.Mesh(gf, mat));
+    if (solid) { m.position.y = top; if (top - low > 0.05) { const pb = new Builder(); pb.box(x, low - top - 0.3, z, w - 0.2, top - low + 0.3, d - 0.2, '#a39b8e'); m.add(ink(new THREE.Mesh(pb.build(), mat))); } }      // a stone plinth down to the lowest ground
     meshes.set(L.id, m); root.add(m);
   }
 
@@ -456,7 +488,7 @@ export function createCity() {
       const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 30, 10, 1, true), new THREE.MeshBasicMaterial({ color: g.start ? 0xffffff : 0xffa040, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));
       pillar.position.y = H + 15; grp.add(pillar);
       const dia = ink(new THREE.Mesh(new THREE.OctahedronGeometry(2.4, 0), new THREE.MeshBasicMaterial({ color: g.start ? 0xffffff : 0xff8a1e }))); dia.position.y = 30; dia.scale.y = 1.5; grp.add(dia);
-      grp.position.set(cx(g.i), 0, cz(g.j)); grp.rotation.y = gateAxis(g) === 'x' ? Math.PI / 2 : 0;
+      grp.position.set(cx(g.i), heightAt(cx(g.i), cz(g.j)), cz(g.j)); grp.rotation.y = gateAxis(g) === 'x' ? Math.PI / 2 : 0;
       g.n = g.start ? 0 : n; g.dia = dia; g.pillar = pillar; gateGroup.add(grp);
     }
   }
@@ -546,11 +578,12 @@ export function createCity() {
   }
 
   /* ---------- saving ---------- */
-  function save() { return JSON.stringify({ v: 1, W: st.W, H: st.H, cells: Array.from(st.cells), lots: [...st.lots.values()], gates: st.gates.map(g => ({ i: g.i, j: g.j, start: g.start })), nextId: st.nextId }); }
+  function save() { return JSON.stringify({ v: 1, W: st.W, H: st.H, cells: Array.from(st.cells), lots: [...st.lots.values()], gates: st.gates.map(g => ({ i: g.i, j: g.j, start: g.start })), nextId: st.nextId, hts: Array.from(st.hts, v => Math.round(v * 100) / 100) }); }
   function load(json) {
     let o; try { o = typeof json === 'string' ? JSON.parse(json) : json; } catch (_) { return false; }
     if (!o || o.v !== 1 || !o.W || !o.H) return false;
     reset(o.W, o.H); st.cells.set(o.cells.slice(0, o.W * o.H)); st.nextId = o.nextId || 1;
+    if (o.hts && o.hts.length === st.hts.length) { st.hts.set(o.hts); rebuildGround(); }
     for (const L of o.lots) { if (!GEN[L.type]) continue; st.lots.set(L.id, L); for (let j = L.z0; j <= L.z1; j++) for (let i = L.x0; i <= L.x1; i++) if (inside(i, j)) st.lot[idx(i, j)] = L.id; buildLot(L); st.nextId = Math.max(st.nextId, L.id + 1); }
     st.gates = (o.gates || []).map(g => ({ i: g.i, j: g.j, start: !!g.start })); commit(); return true;
   }
@@ -586,7 +619,7 @@ export function createCity() {
   }
 
   reset(20, 14);
-  return { scenery, inSolid, pathTo, markGate,
+  return { scenery, inSolid, pathTo, markGate, heightAt, shapeTerrain, reshape,
     root, st, reset, paintRoad, placeLot, eraseRect, setGate, commit, save, load, starter, route, collide, surfaceAt, cellAt, inside, isRoad, lotOK,
     cx, cz, colliders, gridLines: () => gridLines, ground: () => groundMesh, mat,
   };
