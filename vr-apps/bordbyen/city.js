@@ -19,7 +19,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=2';
+import { toonMat, ink } from './toon.js?v=3';
 
 export const CELL = 8;
 export const SCALE = 1 / 160;                         // city metres to table metres: a cell is 5 cm on the table, a car 2.5 cm
@@ -466,6 +466,8 @@ export function createCity() {
     for (const c of roadCircles) colliders.circles.push(c);
     for (const g of st.gates) { const ax = gateAxis(g), x = cx(g.i), z = cz(g.j); for (const s of [-1, 1]) colliders.circles.push(ax === 'x' ? [x, z + s * (CELL / 2 - 0.5), 0.4] : [x + s * (CELL / 2 - 0.5), z, 0.4]); }
   }
+  /** is a point inside a building (with a margin, in metres)? */
+  function inSolid(x, z, m = 0.6) { for (const [x0, z0, x1, z1] of colliders.rects) if (x > x0 - m && x < x1 + m && z > z0 - m && z < z1 + m) return true; return false; }
   /** what is under a point: 'road', 'torv', 'park', 'grass', 'lot' (a solid lot's pavement), or 'out' */
   function surfaceAt(x, z) {
     const [i, j] = cellAt(x, z); if (!inside(i, j)) return 'out';
@@ -566,7 +568,7 @@ export function createCity() {
   }
 
   reset(20, 14);
-  return { scenery,
+  return { scenery, inSolid,
     root, st, reset, paintRoad, placeLot, eraseRect, setGate, commit, save, load, starter, route, collide, surfaceAt, cellAt, inside, isRoad, lotOK,
     cx, cz, colliders, gridLines: () => gridLines, ground: () => groundMesh, mat,
   };

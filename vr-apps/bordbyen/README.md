@@ -16,7 +16,7 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
 | `toon.js` | Tegneserie-looket: flade farver i tre toner og sorte tegnestreger. |
 
 **Cache:** `index.html` indlæser `game.js?v=N`, og `game.js`/`race.js` indlæser de andre med samme `?v=N`. Hæv dem alle sammen ved hver ændring
-(nu **v=2**).
+(nu **v=3**).
 
 ## Sådan hænger det sammen
 
@@ -58,6 +58,20 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
   blomsterbede, legeplads (rutsjebane og gynger), lygter, bænke og en and i søen; torve med markedsboder, bænke og blomsterkrukker; blomstrende
   træer; skyer over markerne.
 * Lygter, trafiklys, bodenes og legepladsens stolper er noget, bilerne kan køre ind i.
+
+## Sammenstød, udsyn og overblik (v=3)
+* **Sammenstød mellem biler:** hver bil er to cirkler langs sin længde. Overlap skubbes fra hinanden med det samme (biler kan ikke køre igennem
+  hinanden), og stødet er et rigtigt stød i berøringspunktet, med bilernes vægt (Brummer er tungest, Boblen lettest) og lidt fjedren. En bil, der
+  bliver ramt bagfra, skubbes frem ad vejen; en, der rammes på siden, skubbes til siden og drejes rundt.
+* **Når du rammes:** et ryk i udsynet (en lille fjeder, højst 12 cm, der svinger tilbage), et bump i lyden, og begge controllere vibrerer efter, hvor
+  hårdt stødet var.
+* **Udsyn fra førersædet:** din egen bil tegnes uden tegnestreger og uden tag, når du sidder i den. Stregerne laves af bilens sorte inderside, og den
+  fyldte hele udsynet i de lukkede biler. Udefra ser bilerne ud som før; indefra er de åbne, med instrumentbræt og rat foran dig.
+* **Kameraet bag bilen** rykker nærmere, hvis en bygning står i vejen, så det aldrig havner inde i en mur.
+* **Overblik (X):** du løftes op til bordet, mens løbet kører videre, og ser bilerne køre gennem byen; din egen bil holder stille, og en gul pil
+  over den viser hvor. X igen tager dig ned i bilen, rettet ind efter hvor du står nu. Y stopper løbet.
+* **En roligere start:** modstanderne kører fra startgitteret række for række, bliver i deres egen vognbane, holder afstand til bilen foran og
+  skifter bane, hvis den er langsommere.
 
 ## Styring
 
