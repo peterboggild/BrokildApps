@@ -199,8 +199,10 @@ export function createAmbience() {
     ray(pos) { if (!ctx) return; const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1; p.rolloffFactor = 1;
       if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
       const inp = gain(0.7), s = gain(0.3); inp.connect(p); p.connect(out); inp.connect(s); s.connect(verbs.tunnel);
-      strike(inp, 2100, [[1, 1, 0.38], [1.5, 0.6, 0.3], [0.25, 0.8, 0.45]], 0.35, 0.8); burst(inp, white, 'bandpass', 6000, 900, 1.5, 0.35, 0.004, 0.35, 60);
-      setTimeout(() => { try { inp.disconnect(); p.disconnect(); s.disconnect(); } catch (_) { /* gone */ } }, 1500); },
+      strike(inp, 2100, [[1, 1, 0.3], [1.5, 0.6, 0.25]], 0.3, 0.8);                                    // the crack as it lights
+      strike(inp, 95, [[1, 1, 1.4], [2.01, 0.7, 1.3], [3.02, 0.45, 1.2], [5.03, 0.25, 1.0]], 0.45, -0.35);    // a roar that climbs for as long as it burns
+      burst(inp, white, 'bandpass', 900, 3800, 0.9, 0.45, 0.05, 1.3, 34);
+      setTimeout(() => { try { inp.disconnect(); p.disconnect(); s.disconnect(); } catch (_) { /* gone */ } }, 3000); },
     /** The rocket leaves: a rising whoosh and a low kick. */
     rocket(pos) { if (!ctx) return; const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1; p.rolloffFactor = 1;
       if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);

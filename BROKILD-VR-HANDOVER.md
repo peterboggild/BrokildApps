@@ -86,7 +86,7 @@ A knife cuts a door in the air of your own living room; through it you see, and 
 | `README.md` | Danish, very detailed, written in the order things were built (newest at the bottom). |
 
 **Cache busting:** `index.html` loads `portal.js?v=N`, and `portal.js` imports every module with the same `?v=N`.
-Raise them all together on every change (currently **v=46**), or the headset keeps old code.
+Raise them all together on every change (currently **v=47**), or the headset keeps old code.
 
 ### 3.2 What the player can do
 
@@ -121,17 +121,12 @@ Controls in short (the start page and README have the full lists):
 - **Deep space:** as the fractals, plus B/A warp and Y/X black hole.
 - **4D room:** Y/X pull through w, B/A turn in w (both eased, with sound), left stick walks, right stick snap-turns
   30°, left stick press resets the fourth dimension.
-- **Combat test (option):** bugs crawl towards the ship and burst; reshaping the fractal crushes them; the trigger of
-  the hand without the knife (left, as a rule; space bar in the flat preview) fires the ship's cannons (plasma bolts in
-  fractal space, 7° aim assist; `COMBAT.fire`, `shipGuns`, `AMB.shot`); grip + trigger on that hand fires the ray (to
-  the first wall, 3.5 s recharge; `COMBAT.ray`, key C), its stick press launches a rocket that rides the line the hand
-  points (press again to set it off, 40 cm blast, 5 s recharge; `COMBAT.launch`/`detonate`, key X; flat: follows gaze); bumping walls damages the ship by speed; a board
-  over the ship shows hull and kills.
-
-### 3.3 How it works (the parts that are easy to break)
-
-See `vr-apps/CLAUDE.md` for the full list; the essentials:
-
+- **Combat test (option):** bugs crawl towards the ship and burst; reshaping the fractal crushes them; all weapons on the
+  hand without the knife fire straight along the nose (no aim assist): trigger = piercing plasma bolts (space bar flat),
+  stick press = a pair of rockets with smoke trails and fireballs (90 cm blast; key X), grip + trigger = a 1.2 s cone of
+  light that annihilates everything inside it, then 5 s to charge (key C). Bugs speed up each minute (`COMBAT.pace()`, up
+  to ×4) and grow in number. Bumping walls damages the ship by speed; the board over the ship shows hull, kills, ray
+  charge, rockets and pace.
 - **The door is a stencil window.** Mask disc writes stencil 1; a full-screen fill (stencil 1, depth always) paints
   the other world's sky and resets depth; the other world is drawn where stencil = 1 and clipped behind the door
   plane. Render orders: home 0, home sky 5, mask 10, fill 20, other 30, spiral 40, ring 45, hands/knife 46.
