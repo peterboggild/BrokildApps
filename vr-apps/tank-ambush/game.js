@@ -1332,11 +1332,11 @@ function updateTraps(dt) {
  * THE CHEESE BOMB — the panic button. One turns up about every other round from round 6. Picking it up does nothing
  * but put it in your pocket (the board shows how many); A or X throws it, from that hand, whatever the hand holds.
  * Where it lands its fuse catches, and for the few seconds the fuse burns every tank, helicopter and rat within a
- * wide circle forgets you and makes for the cheese: tanks drive to it with their guns on it, rats run for it,
+ * wide circle (5 m; the rats on foot smell it from anywhere in the room) forgets you and makes for the cheese: tanks drive to it with their guns on it, rats run for it,
  * helicopters come down over it, and none of them shoots. Then it goes off and takes them all with it. It is just as
  * deadly to you if you stand next to it, so throw it well away.
  */
-const CHEESE = { speed: 4.0, fuse: 5.5, lure: 5.0, killR: 1.2, hurtR: 1.9, carry: 2, cool: 1.0 };
+const CHEESE = { speed: 4.0, fuse: 5.5, lure: 5.0, lureRat: 12, killR: 1.2, hurtR: 1.9, carry: 2, cool: 1.0 };
 const cheeses = [];
 function launchCheese(h) {
   if (G.phase !== 'play' || G.ammo.cheese <= 0 || (h.cheeseCool || 0) > 0 || !h.ctrl) return;
@@ -1404,7 +1404,7 @@ function updateCheeses(dt) {
 function lureTargets() {
   for (const t of tanks) {
     t.lure = null; if (t.dead || G.phase !== 'play') continue;
-    let best = CHEESE.lure;
+    let best = t.rat ? CHEESE.lureRat : CHEESE.lure;                             // a rat on foot smells cheese from anywhere in the room
     for (const c of cheeses) { if (c.state !== 'lit') continue; const d = Math.hypot(t.x - c.x, t.z - c.z); if (d < best) { best = d; t.lure = c; } }
   }
 }

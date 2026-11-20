@@ -236,9 +236,11 @@ fraktalerne: lille billede pr. øje, opbygning over tid i ro, billedhastighedsva
   et **rundt tæppe** (rundt i tre retninger), et **maleri**, der er et andet landskab i hver dybde, og en **loftslampe** (punktlys i 4D: længere væk i w = svagere lys).
 * **Overflader:** egeplanker, puds og malede paneler, valnød, marmor, messing, bogrygge med guldtryk, uld. Lys fra lampen med bløde skygger, lidt lys fra kuglen,
   og genskin i blanke flader. Alt er procedurelt i 4D-koordinater, så mønstrene også ændrer sig rigtigt, når man trækker og drejer.
-* **Styring (venstre stick):** op/ned trækker rummet igennem langs w (0,4 m/s); venstre/højre drejer i planet udspændt af ens højre side og w, om det punkt
-  hvor hovedet er, så det, man ser lige på, bliver stående, mens det forandrer sig. Kun én ad gangen (det kraftigste udslag vinder). Tryk på venstre stick
-  sætter alt tilbage. Et lille skilt viser dybde og drejning. Man kan ikke trække sig selv ud gennem rummets vægge i w. Går man ud af rummet, falder det tilbage.
+* **Styring (ændret efter ejerens ønske, så sticksene er fri til at gå rundt):** **Y/X** trækker rummet igennem langs w (0,4 m/s), **B/A** drejer i planet
+  udspændt af ens højre side og w, om det punkt hvor hovedet er, så det, man ser lige på, bliver stående, mens det forandrer sig. Begge tager fart og løber ud
+  (som fraktalernes parametre) og har hver sin lyd. **Venstre stick** går gennem rummet (langs blikket og sidelæns, 1,3 m/s; snittet glider langs sine egne tre
+  retninger, så man aldrig forlader det, og ikke ud gennem rummets vægge), **højre stick** drejer en 30 grader ad gangen. **Tryk venstre stick** sætter den
+  fjerde retning tilbage. Et lille skilt viser dybde og drejning. Går man ud af rummet, falder det tilbage. På computer: M/N trækker, B/V drejer, K nulstiller.
 * Rummets vægge er en skal: kommer man uden for (stuen er større end rummet, eller efter en drejning), ser man rummet udefra i mørke.
 * Sikkerhed som i fraktalerne: stuens omrids, åbning mod den rigtige stue tæt på hoved og hænder, advarselslyd.
 

@@ -1463,6 +1463,20 @@ export function createWorlds(scene, renderer, params) {
       }
       syncFr(w);
     },
+    /** Walk through the four-dimensional room without walking: d is a horizontal step in the real room (metres). The slice slides along its own three
+     *  directions (c4 += R4 (d in the room's frame, 0)), so a step never leaves the slice, whatever way it has been turned. Not out through its walls. */
+    fourWalk(i, h, d) {
+      const w = W[i], r = w.fr; if (!r) return false; const c = Math.cos(r.yaw), s = Math.sin(r.yaw);
+      const q = _v4a.set((c * d.x - s * d.z) * r.S, 0, (s * d.x + c * d.z) * r.S, 0).applyMatrix4(r.R4);
+      toF(w, h, _f1); const hp = _v4b.set(_f1.x, _f1.y, _f1.z, 0).applyMatrix4(r.R4).add(r.c4).add(q), C = ROOM4.c, B = ROOM4.b, m = 0.35;
+      if (Math.abs(hp.x - C[0]) > B[0] - m || Math.abs(hp.z - C[2]) > B[2] - m || Math.abs(hp.w - C[3]) > B[3] - m) return false;
+      r.c4.add(q); syncFr(w); return true;
+    },
+    /** Turn round on the spot in the four-dimensional room: the room turns about your head by a (radians). */
+    fourTurnAbout(i, h, a) {
+      const w = W[i], r = w.fr; if (!r) return; toF(w, h, _f1); r.yaw += a; const c = Math.cos(r.yaw), s = Math.sin(r.yaw), ux = (_f1.x - r.off.x) / r.S, uz = (_f1.z - r.off.z) / r.S;
+      r.A.x = h.x - (c * ux + s * uz); r.A.z = h.z - (-s * ux + c * uz); syncFr(w);
+    },
     fourReset(i) { const r = W[i].fr; if (!r) return; r.R4.identity(); r.c4.set(0, 0, 0, 0); r.depth = r.turn = 0; syncFr(W[i]); },
     fourInfo: i => ({ depth: W[i].fr.depth, turn: W[i].fr.turn }),
     /** The head, kept by reference: where "can you walk there" is measured from. */

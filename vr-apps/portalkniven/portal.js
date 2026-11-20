@@ -17,12 +17,12 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=44';
-import { createStory } from './story.js?v=44';
-import { createHand } from './hands.js?v=44';
-import { buildShip } from './ship.js?v=44';
-import { createAmbience } from './ambience.js?v=44';
-import { createCombat } from './combat.js?v=44';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=45';
+import { createStory } from './story.js?v=45';
+import { createHand } from './hands.js?v=45';
+import { buildShip } from './ship.js?v=45';
+import { createAmbience } from './ambience.js?v=45';
+import { createCombat } from './combat.js?v=45';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -828,15 +828,25 @@ function fractalControls(dt) {
   }
   SPN.w.set(0, 0, 0);
   if (DIMS[S.cur].four) {
-    /* The four-dimensional room. Left stick up / down pulls the room through our three dimensions (along w); left / right turns it in the plane of your right hand
-     * and w, about your head, so the thing you look at stays where it is while it changes. One at a time (the stronger push wins). A press puts it all back. */
-    let pull = 0, rot = 0, reset = false;
-    if (S.mode === 'xr') { if (L && L.axes.length >= 4) { pull = -dead(L.axes[3]); rot = dead(L.axes[2]); } reset = btn(L, 3); }
-    else { pull = (keys.KeyO ? 1 : 0) - (keys.KeyU ? 1 : 0); rot = (keys.KeyL ? 1 : 0) - (keys.KeyJ ? 1 : 0); reset = !!keys.KeyK; }
-    if (Math.abs(pull) > Math.abs(rot)) rot = 0; else pull = 0;
-    if (pull || rot) { const r = new V(1, 0, 0).applyQuaternion(headQ); r.y = 0; if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize(); worlds.fourStep(S.cur, head, r, rot * 0.7 * dt, pull * 0.4 * dt); FC.fourT = 1.8; }
+    /* The four-dimensional room. The buttons move it through the fourth dimension: Y / X pull it through our three dimensions (along w), B / A turn it in the
+     * plane of your right hand and w, about your head, so the thing you look at stays where it is while it changes. Both ease in and out, and each has its
+     * sound (as the fractals' shapes do). The sticks are for getting about: the left stick walks you through the room (along where you look, and sideways),
+     * the right stick turns you, a step of 30 degrees at a time. A press on the left stick puts the fourth dimension back. */
+    let pull = 0, rot = 0, reset = false, mx = 0, mz = 0, snap = 0;
+    if (S.mode === 'xr') {
+      pull = (btn(L, 5) ? 1 : 0) - (btn(L, 4) ? 1 : 0); rot = (btn(R, 5) ? 1 : 0) - (btn(R, 4) ? 1 : 0); reset = btn(L, 3);
+      if (L && L.axes.length >= 4) { mx = dead(L.axes[2]); mz = -dead(L.axes[3]); }
+      if (R && R.axes.length >= 4) { const ax = R.axes[2]; if (Math.abs(ax) > 0.7 && !FC.snapHeld) { snap = Math.sign(ax); FC.snapHeld = true; } else if (Math.abs(ax) < 0.4) FC.snapHeld = false; }
+    } else { pull = (keys.KeyM ? 1 : 0) - (keys.KeyN ? 1 : 0); rot = (keys.KeyB ? 1 : 0) - (keys.KeyV ? 1 : 0); reset = !!keys.KeyK; }
+    FV.p += (pull - FV.p) * Math.min(1, dt * (pull ? 3 : 2)); FV.r += (rot - FV.r) * Math.min(1, dt * (rot ? 3 : 2));
+    if (Math.abs(FV.p) < 0.004 && !pull) FV.p = 0; if (Math.abs(FV.r) < 0.004 && !rot) FV.r = 0;
+    if (FV.p || FV.r) { const r = new V(1, 0, 0).applyQuaternion(headQ); r.y = 0; if (r.lengthSq() < 0.01) r.set(1, 0, 0); r.normalize(); worlds.fourStep(S.cur, head, r, FV.r * 0.7 * dt, FV.p * 0.4 * dt); FC.fourT = 1.8; }
+    { const inf = worlds.fourInfo(S.cur); AMB.param(0, FV.p, clamp((inf.depth + 3) / 6, 0, 1)); AMB.param(1, FV.r, ((inf.turn / TAU) % 1 + 1) % 1); }
+    if (mx || mz) { const f = new V(0, 0, -1).applyQuaternion(headQ); f.y = 0; if (f.lengthSq() < 0.01) f.set(0, 0, -1); f.normalize(); const rr = new V(-f.z, 0, f.x);
+      worlds.fourWalk(S.cur, head, f.multiplyScalar(mz).addScaledVector(rr, mx).multiplyScalar(1.3 * dt)); }
+    if (snap) worlds.fourTurnAbout(S.cur, head, snap * Math.PI / 6);
     if (reset && !FC.fourReset) { worlds.fourReset(S.cur); FC.fourT = 1.8; } FC.fourReset = reset; FC.wasFour = true;
-    worlds.setFractalCalm(FC.still > 1.5 && !pull && !rot);
+    worlds.setFractalCalm(FC.still > 1.5 && !FV.p && !FV.r && !mx && !mz);
     if (FC.fourT > 0) {
       FC.fourT -= dt; const inf = worlds.fourInfo(S.cur), dg = ((Math.round(inf.turn * 180 / Math.PI) % 360) + 360) % 360, txt = '4D   dybde ' + (inf.depth >= 0 ? '+' : '\u2212') + Math.abs(inf.depth).toFixed(2) + ' m   drejet ' + dg + '\u00b0';
       if (txt !== gearShown) { gearShown = txt; const x = gearCanvas.getContext('2d'); x.clearRect(0, 0, 512, 128); x.fillStyle = 'rgba(4,10,16,.8)'; x.beginPath(); x.roundRect(4, 4, 504, 120, 20); x.fill();
@@ -1041,7 +1051,7 @@ function gearPanel(dt) {
     gearMesh.position.lerp(tgt, Math.min(1, dt * 10)); gearMesh.lookAt(head); gearMesh.material.opacity = clamp(FC.gearT / 0.5, 0, 1); gearMesh.visible = true;
   } else gearMesh.visible = false;
 }
-const SPN = { w: new V(), axis: new V(0, 0, -1) };
+const SPN = { w: new V(), axis: new V(0, 0, -1) }, FV = { p: 0, r: 0 };
 /* the first time in a fractal (or in space): the controllers buzz and blink until you look down at them */
 function controllerTips(dt, li, ri) {
   if (!FC.tipsDone && S.mode === 'xr') { FC.tipsDone = true; FC.tipsT = 0; FC.seen = 0; renderer.xr.getController(li).add(tips.left); renderer.xr.getController(ri).add(tips.right); }
