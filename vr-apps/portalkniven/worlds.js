@@ -114,12 +114,19 @@ const vec4 BC = vec4(-3.12, 1.0, -2.8, 0.0);                                  //
 const vec4 KC = vec4(-1.0, 0.25, -1.2, 0.0);                                  // the crate
 const vec4 GC = vec4(0.9, 0.0, -2.3, 0.0);                                    // the rug
 const vec4 FC = vec4(0.3, 1.5, -6.27, 0.0);                                   // the painting
+const vec4 XC = vec4(1.95, 1.5, -4.7, 0.0);                                   // the tesseract, over its plinth
+const float XH = 0.24;                                                        // its half-edge
+const vec4 KB = vec4(-0.4, 0.0, -4.9, 0.0);                                   // the Klein bottle's plinth (the bottle is glass and drawn over this picture: fourGlass in worlds.js)
 
 float box4(vec4 p, vec4 b) { vec4 q = abs(p) - b; return length(max(q, 0.0)) + min(max(max(q.x, q.y), max(q.z, q.w)), 0.0); }
 float h2(vec2 n) { return fract(sin(dot(n, vec2(127.1, 311.7))) * 43758.5453); }
+/* The tesseract stands on one of its corners in w: a reflection takes the w axis to its long diagonal (1, 1, 1, 1) / 2, so our three dimensions cut it
+ * across that diagonal. Pull through it and the slice grows from a point to a tetrahedron, is cut off at the corners, becomes an octahedron in the middle,
+ * and goes back the same way. It also turns slowly about the vertical, which only turns the slice. */
+vec4 tessQ(vec4 p) { vec4 q = p - XC; float a = uTime * 0.12, c = cos(a), s = sin(a); q.xz = mat2(c, -s, s, c) * q.xz; const vec4 v = vec4(-0.5, -0.5, -0.5, 0.5); return q - 2.0 * v * dot(v, q); }
 float bookHash(vec4 p) { return h2(vec2(floor((p.z + 3.8) / 0.055) + floor(p.y / 0.4) * 37.0, floor(p.w / 0.33 + 0.5) * 13.0 + 5.0)); }
 
-/* m: 0 room, 1 table, 2 globe, 3 brass, 4 painted wood, 5 seat, 6 marble, 7 bookcase, 8 books, 9 crate, 10 rug, 11 painting, 12 lamp */
+/* m: 0 room, 1 table, 2 globe, 3 brass, 4 painted wood, 5 seat, 6 marble, 7 bookcase, 8 books, 9 crate, 10 rug, 11 painting, 12 lamp, 13 tesseract */
 float map(vec4 p, out int m, bool lamps) {
   float d = abs(-box4(p - RC, RB) + 0.1) - 0.1, e; m = 0;
   vec4 q = p - TC;                                                            // the table: a top, and eight legs (one at every corner, and there are eight corners)
@@ -165,6 +172,14 @@ float map(vec4 p, out int m, bool lamps) {
   q = p - GC;                                                                 // a rug, round in three directions
   e = max(length(q.xzw) - 1.25, abs(p.y - 0.006) - 0.006);
   if (e < d) { d = e; m = 10; }
+  q = p - vec4(XC.x, 0.0, XC.z, 0.0);                                         // two plinths, round in x and z and deep in w (they stay while you pull the room), each with a brass rim
+  e = max(max(length(q.xz) - 0.26, abs(q.w) - 1.2), abs(p.y - 0.4) - 0.4); float e2 = max(max(length(q.xz) - 0.3, abs(q.w) - 1.2), abs(p.y - 0.83) - 0.03);
+  if (min(e, e2) < d) { d = min(e, e2); m = e < e2 ? 6 : 3; }
+  q = p - KB;
+  e = max(max(length(q.xz) - 0.22, abs(q.w) - 1.2), abs(p.y - 0.3) - 0.3); e2 = max(max(length(q.xz) - 0.26, abs(q.w) - 1.2), abs(p.y - 0.615) - 0.015);
+  if (min(e, e2) < d) { d = min(e, e2); m = e < e2 ? 6 : 3; }
+  e = box4(tessQ(p), vec4(XH)) - 0.005;                                       // the tesseract
+  if (e < d) { d = e; m = 13; }
   if (lamps) {
     e = length(p - vec4(TC.x, 0.94, TC.z, 0.0)) - 0.15; if (e < d) { d = e; m = 2; }      // a glowing globe: a ball in four dimensions
     e = length(p - LP) - 0.11; if (e < d) { d = e; m = 12; }
@@ -240,6 +255,9 @@ void main() {
         alb = q.y < hill ? mix(vec3(0.10, 0.20, 0.08), vec3(0.34, 0.36, 0.14), texture2D(uNoise, c * 0.8).r) * (0.6 + 0.8 * smoothstep(-0.5, hill, q.y)) : q.y < far ? vec3(0.30, 0.36, 0.44) : sky;
         alb *= 0.9 + 0.2 * texture2D(uNoise, c * 5.0).b; rough = 0.7;
       } else { alb = vec3(0.80, 0.60, 0.24); metal = 0.9; rough = 0.4; }
+    } else if (m == 13) {                                                     // pale crystal, its edges (where two of its cells meet) in glowing gold
+      vec4 aq = abs(tessQ(p)); float edge = clamp(smoothstep(XH - 0.03, XH - 0.012, aq.x) + smoothstep(XH - 0.03, XH - 0.012, aq.y) + smoothstep(XH - 0.03, XH - 0.012, aq.z) + smoothstep(XH - 0.03, XH - 0.012, aq.w) - 1.0, 0.0, 1.0);
+      alb = mix(vec3(0.62, 0.75, 0.88), vec3(1.0, 0.76, 0.34), edge); rough = mix(0.1, 0.25, edge); metal = edge; emi = mix(vec3(0.03, 0.05, 0.08), vec3(1.0, 0.7, 0.28) * 0.9, edge);
     } else { emi = vec3(1.0, 0.86, 0.62) * 2.6; alb = vec3(1.0); }
     /* light: the hanging lamp (it is a point in 4D too: the further you are from it in w, the dimmer), the globe, and what the room throws back */
     vec3 V3 = vec3(0.0); vec4 L = LP - p; float ld = length(L); L /= ld;
@@ -826,7 +844,60 @@ export function createWorlds(scene, renderer, params) {
     w.fr = { f, S: f.S, yaw: 0, off: new V(...f.off), param: f.par[0], param2: f.par2[0], A: new V(), R4: new THREE.Matrix4(), c4: new THREE.Vector4(0, 0, 0, 0), depth: 0, turn: 0 };
     for (const role of ['home', 'other']) { const g = new THREE.Group(); for (const eye of [0, 1]) { const q = blit(role, eye, !!f.stars); g.add(q); eyeQuads.push(q); } g.visible = false; scene.add(g); if (role === 'home') w.skyHome = g; else w.fill = g; }
   }
-  const setEyes = flat => { FR.flat = flat; for (const q of eyeQuads) { if (flat) { q.layers.set(0); q.visible = q.userData.eye === 0; } else { q.layers.set(q.userData.eye + 1); q.visible = true; } } };
+  /* The Klein bottle in the four-dimensional room. It is glass, which a march cannot draw (one surface per ray), so it is a mesh drawn over the room's
+   * picture. Its points are points in four dimensions: every frame the shader undoes the slice the room is seen through (the same rotation and shift the
+   * room's march uses), so each point lands where it is in the slice and knows how far it is off it in w; only what is within uDelta of the slice shows,
+   * fading out towards the edge. The neck steps out into w exactly where, in three dimensions, it would have to pass through the bottle's own wall: in four
+   * dimensions a Klein bottle need not cut itself. Pull the room along w and the missing piece of neck appears on its own while the rest fades away.
+   * It hides behind the room's furniture by comparing its distance with the room's own (the march stores how far each ray went in the picture's alpha). */
+  const fourGlass = [], white1 = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); white1.needsUpdate = true;
+  { const fw = W.find(w => w.four);
+    if (fw) {
+      const U = fw.march.uniforms, NU = 120, NV = 36, sc = 0.178, lift = 0.3, at = [-0.4, 0.62, -4.9], pos = [], a4 = [], nrm = [], idx = [];
+      /* the classic parametric bottle (u 0..pi along it, v 0..2pi round it), with its body fattened and its neck thickened a little about the tube's centre
+       * line C(u), so that it looks like the bottle people know rather than a horn */
+      const P = (u, v) => { const cu = Math.cos(u), su = Math.sin(u), cv = Math.cos(v), sv = Math.sin(v), c2 = cu * cu, c4 = c2 * c2, c6 = c4 * c2;
+        const x = -2 / 15 * cu * (3 * cv - 30 * su + 90 * c4 * su - 60 * c6 * su + 5 * cu * cv * su),
+          y = -1 / 15 * su * (3 * cv - 3 * c2 * cv - 48 * c4 * cv + 48 * c6 * cv - 60 * su + 5 * cu * cv * su - 5 * c2 * cu * cv * su - 80 * c4 * cu * cv * su + 80 * c6 * cu * cv * su),
+          z = 2 / 15 * (3 + 5 * cu * su) * sv;
+        const cx = -2 / 15 * cu * (-30 * su + 90 * c4 * su - 60 * c6 * su), cy = 4 * su * su, k = 1 + 0.75 * Math.exp(-(((u - 0.8) / 0.38) ** 2)) + 0.7 * Math.exp(-(((u - 2.1) / 0.32) ** 2));
+        return [cx + k * (x - cx), cy + k * (y - cy), k * z]; };
+      const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+      const bump = u => sm(2.3, 2.42, u) * (1 - sm(2.53, 2.65, u));       // the stretch of neck that crosses the body's wall (worked out from the shape: u 2.45 to 2.50)
+      for (let i = 0; i <= NU; i++) for (let j = 0; j <= NV; j++) {
+        const u = i / NU * Math.PI, v = j / NV * 2 * Math.PI, p = P(u, v), e = 1e-3, pu = P(u + e, v), pv = P(u, v + e);
+        const du = [pu[0] - p[0], pu[1] - p[1], pu[2] - p[2]], dv = [pv[0] - p[0], pv[1] - p[1], pv[2] - p[2]];
+        let n = [du[1] * dv[2] - du[2] * dv[1], du[2] * dv[0] - du[0] * dv[2], du[0] * dv[1] - du[1] * dv[0]]; const l = Math.hypot(...n) || 1; n = n.map(c => c / l);
+        const x = at[0] + p[0] * sc, y = at[1] + p[1] * sc, z = at[2] + p[2] * sc; pos.push(x, y, z); a4.push(x, y, z, lift * bump(u)); nrm.push(...n);
+      }
+      for (let i = 0; i < NU; i++) for (let j = 0; j < NV; j++) { const a = i * (NV + 1) + j, b = a + NV + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('a4', new THREE.Float32BufferAttribute(a4, 4)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); geo.setIndex(idx);
+      for (const eye of [0, 1]) {
+        const m = reg(fw.i, new THREE.ShaderMaterial({ clipping: true, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+          uniforms: { uR4: U.uR4, uC4: U.uC4, uAnchor: U.uAnchor, uYaw: U.uYaw, uDepth: { value: white1 }, uDelta: { value: 0.12 } },
+          vertexShader: `attribute vec4 a4; uniform mat4 uR4; uniform vec4 uC4; uniform vec3 uAnchor; uniform float uYaw; varying vec3 vW; varying vec3 vN; varying float vOff; varying vec4 vClip;
+            #include <clipping_planes_pars_vertex>
+            void main() { mat4 Ri = transpose(uR4); vec4 r = Ri * (a4 - uC4), rn = Ri * vec4(normal, 0.0); float c = cos(uYaw), s = sin(uYaw);      // where it is in the slice, and how far off it
+              vec3 wp = uAnchor + vec3(c * r.x + s * r.z, r.y, -s * r.x + c * r.z); vN = vec3(c * rn.x + s * rn.z, rn.y, -s * rn.x + c * rn.z); vOff = r.w; vW = wp;
+              vec4 mvPosition = viewMatrix * vec4(wp, 1.0);
+              #include <clipping_planes_vertex>
+              gl_Position = projectionMatrix * mvPosition; vClip = gl_Position; }`,
+          fragmentShader: `precision highp float; varying vec3 vW; varying vec3 vN; varying float vOff; varying vec4 vClip; uniform sampler2D uDepth; uniform float uDelta;
+            #include <clipping_planes_pars_fragment>
+            void main() {
+              #include <clipping_planes_fragment>
+              float fade = 1.0 - smoothstep(0.35 * uDelta, uDelta, abs(vOff)); if (fade < 0.01) discard;
+              float a = texture2D(uDepth, vClip.xy / vClip.w * 0.5 + 0.5).a, room = a * a * 18.0; if (a < 0.999 && length(vW - cameraPosition) > room + 0.03) discard;      // behind the furniture
+              vec3 V = normalize(cameraPosition - vW), N = normalize(vN); if (dot(N, V) < 0.0) N = -N; float ndv = max(dot(N, V), 0.0);
+              float fres = 0.04 + 0.96 * pow(1.0 - ndv, 5.0), spec = pow(max(dot(N, normalize(normalize(vec3(0.25, 1.0, 0.35)) + V)), 0.0), 120.0);
+              vec3 R = reflect(-V, N), env = mix(vec3(0.32, 0.2, 0.11), vec3(0.95, 0.92, 0.86), smoothstep(-0.3, 0.5, R.y));      // the warm floor below, the light room above
+              float rim = pow(1.0 - ndv, 2.5);                                    // thick glass seen edge-on: dark and green, as real glass is against a light wall
+              vec3 col = mix(mix(vec3(0.62, 0.86, 0.9), vec3(0.08, 0.24, 0.26), rim), env, fres * 0.8) + vec3(1.0) * spec * 1.6;
+              gl_FragColor = vec4(col, clamp(0.16 + 0.55 * rim + 0.4 * fres + spec, 0.0, 0.95) * fade); }` }));
+        const mesh = new THREE.Mesh(geo, m); mesh.frustumCulled = false; mesh.userData.eye = eye; fw.group.add(mesh); fourGlass.push(mesh);
+      }
+    } }
+  const setEyes = flat => { FR.flat = flat; for (const q of eyeQuads.concat(fourGlass)) { if (flat) { q.layers.set(0); q.visible = q.userData.eye === 0; } else { q.layers.set(q.userData.eye + 1); q.visible = true; } } };
   setEyes(true);
   const _m4 = new THREE.Matrix4();
   /** Before the main picture: march the fractal(s) in view into their small targets, one per eye. views = [{ matrix (camera to world, 16), proj (16) }]. */
@@ -879,6 +950,8 @@ export function createWorlds(scene, renderer, params) {
         } else if (quad) quad.material.uniforms.uTex.value = rt.texture;
       });
     }
+    for (const [i, role] of jobs) if (W[i].four) for (const g of fourGlass) {        // the glass hides behind the room's furniture: give it the picture (and so the distances) it is drawn over
+      const q = eyeQuads.find(e => e.userData.role === role && e.userData.eye === g.userData.eye && e.parent === (role === 'home' ? W[i].skyHome : W[i].fill)); if (q) g.material.uniforms.uDepth.value = q.material.uniforms.uTex.value; }
     FR.acc = taa; if (!taa) FR.prev[0] = FR.prev[1] = null;
     renderer.setRenderTarget(rtWas); renderer.xr.enabled = xrWas;
   }

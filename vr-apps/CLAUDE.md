@@ -78,7 +78,9 @@ dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
 - **Dimensions** (`DIMS`): 0 stue, 1 groen, 2 metal, 3 klippe (the three "song dimensions", one music track
   each), 4 rum (deep space), then the fractals (apollo, klein, hyper, menger, boks, kali) and `fire`, the
   four-dimensional room (`fract: true, four: true`: it rides the fractal pipeline with its own shader
-  `FOUR_FS` and its own controls; also a button of its own on the start page, `?flat&four`). Space and fractals are `bare` (no surfaces of their own: the room
+  `FOUR_FS` and its own controls; also a button of its own on the start page, `?flat&four`).
+  Transparent things in it (the glass Klein bottle, `fourGlass`) are meshes over the march: they undo the slice
+  (`transpose(uR4) * (p - uC4)`) themselves and hide behind the room by reading its distance from the march picture's alpha. Space and fractals are `bare` (no surfaces of their own: the room
   shows as a faint outline and opens to passthrough near head and hands) and only reachable in free play or once
   the story is over (`story.fractalsOK()`). Indices are not hard-coded elsewhere; look worlds up by flag.
 - **Surfaces** are procedural in world space: `worldMat(i, surfGLSL, opts)` patches `MeshStandardMaterial`
