@@ -17,11 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=2';
-import { buildCar, CARS } from './cars.js?v=2';
-import { createRace, LAPS } from './race.js?v=2';
-import { createAudio } from './audio.js?v=2';
-import { INK } from './toon.js?v=2';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=3';
+import { buildCar, CARS } from './cars.js?v=3';
+import { createRace, LAPS } from './race.js?v=3';
+import { createAudio } from './audio.js?v=3';
+import { INK } from './toon.js?v=3';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -58,7 +58,11 @@ const holder = new THREE.Group(); holder.matrixAutoUpdate = false; scene.add(hol
 let scenery = null;
 const audio = createAudio();
 const race = createRace({ city,
-  onBump: (c, k) => { if (!c.ai) { audio.bump(k); buzz(clamp(0.2 + k * 0.05, 0, 1), 60 + k * 10); } },
+  onBump: (c, k, other, n) => { if (c.ai) return;
+    audio.bump(other ? k * 1.6 : k); buzz(clamp(0.25 + k * (other ? 0.09 : 0.05), 0, 1), 70 + Math.min(220, k * (other ? 30 : 10)));
+    /* a jolt: the view is knocked the way the car was pushed, and springs back */
+    const dir = n ? new V(n.x, 0, n.y) : new V(-Math.sin(c.yaw), 0, -Math.cos(c.yaw)).multiplyScalar(-1);
+    JOLT.v.addScaledVector(dir, Math.min(1.6, k * (other ? 0.12 : 0.05))); },
   onGate: (c, n) => { if (!c.ai) { audio.chime(2, 880); toast('Port ' + n); } },
   onLap: (c, lap) => { if (!c.ai) { audio.chime(3, 660); toast(lap === LAPS ? 'Sidste omgang!' : 'Omgang ' + lap); } },
   onFinish: (c, place) => { if (!c.ai) { audio.fanfare(); toast(place === 1 ? 'Du vandt!' : 'Du blev nr. ' + place); } } });
@@ -101,11 +105,20 @@ function updateCamC(dt, snap) {
     const e = car.obj.userData.eye; camC.p.set(e.x, e.y, e.z).applyAxisAngle(YAX, car.yaw).add(new V(car.p.x, 0, car.p.y)); camC.yaw = car.yaw;
   } else {
     let d = car.yaw - camC.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); camC.yaw += snap ? d : d * Math.min(1, dt * 3.2);
-    const want = new V(0, 3.0, 8.0).applyAxisAngle(YAX, camC.yaw).add(new V(car.p.x, 0, car.p.y));
+    /* behind and above the car; nearer if a building is in the way (never inside one) */
+    const back = new V(0, 3.0, 8.0).applyAxisAngle(YAX, camC.yaw); let t = 1;
+    for (let k = 1; k <= 12; k++) { const u = k / 12; if (city.inSolid(car.p.x + back.x * u, car.p.y + back.z * u)) { t = Math.max(0.15, (k - 1) / 12); break; } }
+    const want = new V(back.x * t, 3.0 * Math.max(0.6, t), back.z * t).add(new V(car.p.x, 0, car.p.y));
     if (snap) camC.p.copy(want); else camC.p.lerp(want, Math.min(1, dt * 6));
   }
 }
-function driveMatrix(out) { return cityMatrix(out, anchor.p, anchor.yaw - camC.yaw, 1, camC.p); }
+/** the knock you feel when hit: a little spring the view rides on (city metres) */
+const JOLT = { p: new V(), v: new V() };
+function joltStep(dt) { const k = 90, damp = 11; JOLT.v.addScaledVector(JOLT.p, -k * dt).multiplyScalar(Math.exp(-damp * dt)); JOLT.p.addScaledVector(JOLT.v, dt); if (JOLT.p.length() > 0.12) JOLT.p.setLength(0.12); }
+function driveMatrix(out) { return cityMatrix(out, anchor.p, anchor.yaw - camC.yaw, 1, camC.p.clone().sub(JOLT.p)); }
+/** In the driver's seat you must see out: your own car loses its ink (its black inside would fill the view) and its roof; its body and glass are
+ *  drawn from outside only, so from within they vanish and the view is open, with the dashboard and the wheel in front. */
+function insideView(car, inside) { if (!car) return; car.traverse(o => { if (o.name === 'ink') o.visible = !inside; }); if (car.userData.roof) car.userData.roof.visible = !inside; car.userData.cockpit.visible = inside; }
 const TR = { t: 0, dur: 2.6, from: null, F: new V(), w0: new V(), yaw0: 0, s0: SCALE, up: false };
 const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
@@ -261,6 +274,7 @@ function startDrive() {
   const skills = [0.86, 0.9, 0.94];
   others.forEach((c, k) => { const obj = buildCar(c.key); holder.add(obj); race.addCar(obj, c.key, names[CARS.indexOf(c)], true, skills[k]); });
   playerCar = buildCar(S.carKey); holder.add(playerCar); race.addCar(playerCar, S.carKey, 'Dig', false);
+  insideView(playerCar, S.view === 'cockpit'); JOLT.p.set(0, 0, 0); JOLT.v.set(0, 0, 0);
   race.grid(routeInfo);
   if (!scenery) { scenery = city.scenery(); city.root.add(scenery); } scenery.visible = true;
   showroom.visible = false; palette.visible = false; city.gridLines().visible = false;
@@ -418,23 +432,37 @@ function loop(_, frame) {
     if (S.mode === 'grow') { holder.matrix.copy(blendDown(_m1, k)); } else holder.matrix.copy(blend(_m1, TR.t)); holder.matrixWorldNeedsUpdate = true;
     const a = clamp((k - 0.55) / 0.35, 0, 1); skyMat.uniforms.uA.value = a; sky.visible = a > 0; scene.fog = k > 0.7 ? FOG : null; inkFog();
     if (TR.t >= 1) { if (S.mode === 'shrink') { S.mode = 'drive'; } else endGrow(); }
+  } else if (S.mode === 'watchUp' || S.mode === 'watch' || S.mode === 'watchDown') {
+    /* the overview: up at the table while the race goes on; your own car waits where you left it */
+    if (S.mode === 'watch') watchButtons();
+    race.update(dt, { gas: 0, brake: 0, steer: 0 }); audio.silence();
+    const pc = player(); if (pc) { insideView(pc.obj, false); carMark.visible = S.mode === 'watch'; carMark.position.set(pc.p.x, 16 + Math.sin(S.time * 4) * 1.5, pc.p.y); carMark.rotation.y += dt * 2; }
+    if (S.mode === 'watch') { holder.matrix.copy(designMatrix(_m1)); watchSign.visible = true; }
+    else {
+      TR.t = Math.min(1, TR.t + dt / 1.8); const k = S.mode === 'watchUp' ? 1 - TR.t : TR.t;
+      if (S.mode === 'watchUp') holder.matrix.copy(blendDown(_m1, k)); else { updateCamC(dt, true); holder.matrix.copy(blend(_m1, TR.t)); }
+      const a = clamp((k - 0.55) / 0.35, 0, 1); skyMat.uniforms.uA.value = a; sky.visible = a > 0; scene.fog = k > 0.7 ? FOG : null; inkFog();
+      if (TR.t >= 1) { if (S.mode === 'watchUp') { S.mode = 'watch'; placeAtEdge(watchSign, 0.3); if (scenery) scenery.visible = false; } else { S.mode = 'drive'; hud.visible = true; } flatUI(); }
+    }
+    holder.matrixWorldNeedsUpdate = true;
   } else if (S.mode === 'drive') {
-    driveButtons();
+    driveButtons(); watchSign.visible = false;
     const inp = driveInput(dt);
     if (race.state === 'count') { const n = Math.ceil(race.count); if (n !== S.lastCount && n <= 3) { audio.beep(false); S.lastCount = n; } if (race.count - dt <= 0) audio.beep(true); }
     race.update(dt, inp);
-    updateCamC(dt, false);
+    updateCamC(dt, false); joltStep(dt);
     holder.matrix.copy(driveMatrix(_m1)); holder.matrixWorldNeedsUpdate = true;
-    placeHud(); drawHud();
-    const pc = player(); if (pc && pc.obj.userData.cockpit) { pc.obj.userData.cockpit.visible = S.view === 'cockpit'; if (pc.obj.userData.roof) pc.obj.userData.roof.visible = S.view !== 'cockpit'; }
+    placeHud(); drawHud(); carMark.visible = false;
+    const pc = player(); if (pc) insideView(pc.obj, S.view === 'cockpit');
     if (S.steerMode === 'wheel' && pc) pc.obj.userData.wheel.rotation.z = wheelGrip.angle;
     /* engines: yours, and the others where they are in the room (the listener is your head) */
     const toWorld = p => new V(p.x, 0.6, p.y).applyMatrix4(holder.matrix);
     audio.engines([player(), ...race.cars.filter(c => c.ai)].map(c => ({ v: c.v, gas: c.ai ? 1 : inp.gas, pos: toWorld(c.p), off: false })),
       { p: head, f: new V(0, 0, -1).applyQuaternion(headQ), u: new V(0, 1, 0).applyQuaternion(headQ) });
   }
-  if (S.mode === 'drive' || S.mode === 'shrink' || S.mode === 'grow') sky.position.copy(S.xr ? head : camera.position);
-  if (flatTable) flatTable.visible = S.mode === 'design' || S.mode === 'pick' || (S.mode !== 'drive' && skyMat.uniforms.uA.value < 0.5);
+  if (S.mode === 'drive' || S.mode === 'shrink' || S.mode === 'grow' || S.mode === 'watchUp' || S.mode === 'watchDown') sky.position.copy(S.xr ? head : camera.position);
+  if (S.mode !== 'watch') watchSign.visible = false;
+  if (flatTable) flatTable.visible = S.mode === 'design' || S.mode === 'pick' || S.mode === 'watch' || (S.mode !== 'drive' && skyMat.uniforms.uA.value < 0.5);
   for (const c of ctrl) if (S.mode !== 'design' && c.line) c.line.visible = S.mode === 'pick';
   renderer.render(scene, camera);
 }
@@ -462,9 +490,29 @@ function driveButtons() {
     if (edge(Rr, 4)) restartRace();
     if (edge(L, 5)) growUp();
     if (edge(Rr, 3)) setAnchor();
-    edge(L, 4);
+    if (edge(L, 4)) toWatch();
   }
 }
+/* ---------------- the overview: X takes you up to the table while the race goes on, X again back down into your car ---------------- */
+function toWatch() { if (S.mode !== 'drive') return; TR.t = 0; TR.F.copy(camC.p); S.mode = 'watchUp'; hud.visible = false; audio.whoosh(true); flatUI(); }
+function fromWatch() {
+  if (S.mode !== 'watch') return;
+  setAnchor(); updateCamC(0, true);
+  TR.t = 0; TR.F.copy(camC.p); TR.w0.copy(TR.F).multiplyScalar(SCALE).applyAxisAngle(YAX, table.yaw).add(table.pos); TR.w0.y += BOARD_TOP; TR.yaw0 = table.yaw; TR.s0 = SCALE;
+  S.mode = 'watchDown'; carMark.visible = false; if (scenery) scenery.visible = true; audio.whoosh(false); flatUI();
+}
+function watchButtons() {
+  if (!S.xr) return; const L = hand('left');
+  if (edge(L, 4)) fromWatch();
+  if (edge(L, 5)) { race.clear(); playerCar = null; carMark.visible = false; endGrow(); }       // Y: leave the race, back to building
+}
+/** a sign on the table's near edge */
+function placeAtEdge(m, h) { const toward = new V().subVectors(head, table.pos); toward.y = 0; const yawT = Math.atan2(toward.x, toward.z), f = new V(Math.sin(yawT), 0, Math.cos(yawT));
+  m.position.copy(table.pos).addScaledVector(f, Math.min(table.d, table.w) * 0.42); m.position.y = table.pos.y + h; m.rotation.set(0, yawT, 0); }
+const carMark = new THREE.Mesh(new THREE.ConeGeometry(3, 7, 4).rotateX(Math.PI), new THREE.MeshBasicMaterial({ color: 0xffd34d })); carMark.visible = false; holder.add(carMark);
+const watchSign = (() => { const c = document.createElement('canvas'); c.width = 512; c.height = 96; const x = c.getContext('2d'); x.fillStyle = 'rgba(10,14,22,.85)'; x.beginPath(); x.roundRect(0, 0, 512, 96, 20); x.fill();
+  x.fillStyle = '#fff'; x.font = 'bold 38px Arial, sans-serif'; x.textAlign = 'center'; x.fillText('Overblik', 256, 46); x.font = '22px Arial, sans-serif'; x.fillStyle = '#b9c6d6'; x.fillText('X: ned i bilen igen  ·  Y: stop løbet', 256, 82);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const m = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.056), new THREE.MeshBasicMaterial({ map: t, transparent: true })); m.visible = false; scene.add(m); return m; })();
 function restartRace() { race.grid(routeInfo); S.lastCount = 4; updateCamC(0, true); }
 
 /* ---------------- headset: finding the table, by scan or by hand ---------------- */
@@ -519,7 +567,7 @@ function enterFlat() {
 }
 function flatCamera(dt) {
   if (S.mode === 'menu') return;
-  if (S.mode === 'design' || S.mode === 'pick') {
+  if (S.mode === 'design' || S.mode === 'pick' || S.mode === 'watch') {
     const t = table.pos, cp = Math.cos(orbit.pitch); camera.position.set(t.x + Math.sin(orbit.yaw) * cp * orbit.dist, t.y + Math.sin(orbit.pitch) * orbit.dist, t.z + Math.cos(orbit.yaw) * cp * orbit.dist);
     camera.lookAt(t); head.copy(camera.position); headQ.copy(camera.quaternion);
   } else {
@@ -535,7 +583,7 @@ function flatUI() {
   if (design) PAL_ITEMS.forEach((it, k) => { const b = document.createElement('button'); const t = it.tool !== undefined ? TOOLS[it.tool] : it; b.textContent = (k < 9 ? (k + 1) + ' ' : k === 9 ? '0 ' : k === 10 ? '- ' : '') + t.name; b.className = it.tool === S.tool ? 'sel' : ''; b.style.borderColor = t.color; b.onclick = () => choose(k); bar.appendChild(b); });
   if (pick) CARS.forEach((c, k) => { const b = document.createElement('button'); b.textContent = (k + 1) + ' ' + c.name; b.style.borderColor = c.color; b.onclick = () => { S.carKey = c.key; startDrive(); }; bar.appendChild(b); });
   const msg = document.createElement('div'); msg.className = 'msg';
-  msg.textContent = design ? (S.msg || '') : pick ? 'Klik på en bil (eller tast 1–4). Esc: tilbage.' : S.mode === 'drive' ? 'W/S: gas og bremse · A/D: styr · C: kamera · R: forfra · Esc: tilbage til bordet · træk med musen: kig rundt' : '';
+  msg.textContent = design ? (S.msg || '') : pick ? 'Klik på en bil (eller tast 1–4). Esc: tilbage.' : S.mode === 'drive' ? 'W/S: gas og bremse · A/D: styr · C: kamera · V: overblik · R: forfra · Esc: tilbage til bordet · træk med musen: kig rundt' : S.mode === 'watch' ? 'Overblik: løbet kører videre. V: ned i bilen igen · Esc: stop løbet' : '';
   bar.appendChild(msg);
 }
 addEventListener('keydown', e => {
@@ -544,7 +592,8 @@ addEventListener('keydown', e => {
     const k = e.key === '0' ? 9 : e.key === '-' ? 10 : /^[1-9]$/.test(e.key) ? +e.key - 1 : -1; if (k >= 0) choose(k);
     if (e.code === 'KeyZ' || e.code === 'Backspace') doUndo(); if (e.code === 'Enter') toPick();
   } else if (S.mode === 'pick') { if (/^[1-4]$/.test(e.key)) { S.carKey = CARS[+e.key - 1].key; startDrive(); } if (e.code === 'Escape') { S.mode = 'design'; showroom.visible = false; flatUI(); } }
-  else if (S.mode === 'drive') { if (e.code === 'KeyC') { S.view = S.view === 'cockpit' ? 'chase' : 'cockpit'; updateCamC(0, true); } if (e.code === 'KeyR') restartRace(); if (e.code === 'Escape' || e.code === 'KeyG') growUp(); }
+  else if (S.mode === 'watch') { if (e.code === 'KeyV') fromWatch(); if (e.code === 'Escape') { race.clear(); playerCar = null; carMark.visible = false; endGrow(); } }
+  else if (S.mode === 'drive') { if (e.code === 'KeyV') toWatch(); if (e.code === 'KeyC') { S.view = S.view === 'cockpit' ? 'chase' : 'cockpit'; updateCamC(0, true); } if (e.code === 'KeyR') restartRace(); if (e.code === 'Escape' || e.code === 'KeyG') growUp(); }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -580,4 +629,4 @@ renderer.setAnimationLoop(loop);
   if (params.has('flat')) enterFlat();
 })();
 
-window.__bb = { S, orbit, city, race, table, head, camC, anchor, keys, mouse, toPick, startDrive, growUp, choose, holder, restartRace, setView: v => { S.view = v; updateCamC(0, true); }, TR };
+window.__bb = { S, orbit, toWatch, fromWatch, JOLT, city, race, table, head, camC, anchor, keys, mouse, toPick, startDrive, growUp, choose, holder, restartRace, setView: v => { S.view = v; updateCamC(0, true); }, TR };
