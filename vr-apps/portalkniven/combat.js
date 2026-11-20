@@ -14,13 +14,17 @@
  * on the CPU; one that is hidden, or lost in the fractal's fog, is not drawn.
  *
  * Draw calls: three (carapaces, glowing sacs, halos), whatever the number of bugs.
+ *
+ * Shooting: the ship's two cannons fire plasma bolts. A bolt lives in the fractal's space too (so it flies on with the fractal when the ship turns away),
+ * leaves the muzzle at the ship's own speed plus 9 m/s, and is stepped in short pieces: the first bug within reach of a piece bursts, the first wall stops
+ * it. The bugs are small, so a shot fired within about 7 degrees of a bug in plain view is aimed at it (a gentle aim assist). Two more draw calls, only while bolts are in the air.
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
 
 const V = THREE.Vector3;
 const rnd = (a, b) => a + Math.random() * (b - a);
-const MAX = 40;
+const MAX = 40, BOLTS = 24, BOLT_V = 9, BOLT_LIFE = 1.4, ASSIST = Math.cos(7 * Math.PI / 180);
 
 function bugGeometry() {
   /* about one unit in radius, nose along -Z: carapace, head, six legs, two feelers; the sac at the back is separate (it glows) */
@@ -40,7 +44,7 @@ function bugGeometry() {
   return { body, sac };
 }
 
-export function createCombat({ scene, worlds, onBlast, onCrush }) {
+export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark }) {
   const { body, sac } = bugGeometry();
   const carapace = new THREE.InstancedMesh(body, new THREE.MeshStandardMaterial({ color: 0x241a2e, roughness: 0.35, metalness: 0.4, emissive: 0x0a1a08 }), MAX);
   /* the sac at the back: translucent and lit from inside, brightest where you look straight into it, with dark veins over it, and each one pulsing in its own time */
@@ -62,6 +66,20 @@ export function createCombat({ scene, worlds, onBlast, onCrush }) {
     vertexShader: 'attribute float aS; attribute float aA; varying float vA; uniform float uScale; void main() { vA = aA; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = clamp(aS * uScale / -mv.z, 1.0, 160.0); gl_Position = projectionMatrix * mv; }',
     fragmentShader: 'precision highp float; varying float vA; void main() { float d = length(gl_PointCoord - 0.5) * 2.0, a = max(0.0, 1.0 - d); a *= a; gl_FragColor = vec4(vec3(0.5, 1.0, 0.25) * a * vA, 1.0); }' }));
   outsideDoor(halos.material); halos.frustumCulled = false; halos.renderOrder = 47; halos.visible = false; scene.add(halos);
+
+  /* the bolts: a short glowing streak each, one instanced draw call, brightest at the head */
+  const boltGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, false); boltGeo.rotateX(Math.PI / 2); boltGeo.translate(0, 0, 0.5);      // from z 0 (head) to z 1 (tail)
+  const boltMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+    vertexShader: 'varying float vZ; void main() { vZ = position.z; gl_Position = projectionMatrix * viewMatrix * modelMatrix * instanceMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'precision highp float; varying float vZ; void main() { float a = pow(1.0 - vZ, 1.5); gl_FragColor = vec4(mix(vec3(1.0, 0.35, 0.05), vec3(1.0, 0.9, 0.55), a) * (0.35 + 1.6 * a), 1.0); }' });
+  /* and a wider, faint shell round each for the glow */
+  const boltGlowMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+    vertexShader: 'varying float vZ; varying vec3 vN; varying vec3 vV; void main() { vZ = position.z; vec4 wp = modelMatrix * instanceMatrix * vec4(position, 1.0); vN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * normal); vV = cameraPosition - wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }',
+    fragmentShader: 'precision highp float; varying float vZ; varying vec3 vN; varying vec3 vV; void main() { float f = abs(dot(normalize(vN), normalize(vV))); float a = (1.0 - vZ) * f * f; gl_FragColor = vec4(vec3(1.0, 0.42, 0.08) * 0.55 * a, 1.0); }' });
+  outsideDoor(boltMat); outsideDoor(boltGlowMat);
+  const boltMesh = new THREE.InstancedMesh(boltGeo, boltMat, BOLTS), boltGlow = new THREE.InstancedMesh(boltGeo, boltGlowMat, BOLTS);
+  for (const im of [boltMesh, boltGlow]) { im.frustumCulled = false; im.renderOrder = 47; im.count = 0; im.visible = false; scene.add(im); }
+  const bolts = [];
 
   const bugs = []; let dim = -1, spawnT = 0, check = 0, t = 0;
   const _p = new V(), _q = new V(), _d = new V(), _g = new V(), _a = new V(), _b = new V(), _r = new V(), _m = new THREE.Matrix4(), _o = new THREE.Quaternion(), _s = new V(), Z = new V(0, 0, -1), _sf = new V(), _hf = new V(), _nf = new V();
@@ -92,12 +110,25 @@ export function createCombat({ scene, worlds, onBlast, onCrush }) {
     count: () => bugs.length,
     /** Clear away the bugs near a room point (when a new ship arrives). */
     clearNear(p, metres) { if (dim < 0) return; worlds.toFrac(dim, p, _sf); const S = worlds.fracInfo(dim).S; for (let k = bugs.length - 1; k >= 0; k--) if (bugs[k].f.distanceTo(_sf) < metres * S) bugs.splice(k, 1); },
-    reset() { bugs.length = 0; },
+    reset() { bugs.length = 0; bolts.length = 0; },
+    /** Fire one bolt from a room point along a room direction; shipV is the ship's own speed (m/s). Returns false when there is nothing to fire into. */
+    fire(from, dir, shipV) {
+      if (dim < 0) return false;
+      _d.copy(dir).normalize();
+      /* aim assist: the bug in plain view nearest the line of fire, if it is within a few degrees and not too far */
+      let best = ASSIST, tgt = null;
+      for (const b of bugs) { if (b.vis < 0.5) continue; _a.subVectors(b.room, from); const l = _a.length(); if (l < 0.05 || l > 7) continue; const c = _a.dot(_d) / l; if (c > best) { best = c; tgt = b; } }
+      if (tgt) _d.subVectors(tgt.room, from).normalize();
+      if (bolts.length >= BOLTS) bolts.shift();
+      const f = worlds.toFrac(dim, from, new V()); worlds.toFrac(dim, _a.copy(from).add(_d), _b);
+      bolts.push({ f, v: _b.sub(f).multiplyScalar(BOLT_V + Math.max(0, shipV)), age: 0, prev: f.clone(), room: from.clone(), dir: _d.clone() });
+      return true;
+    },
     /** st: null (no combat here), or { i: the fractal dimension, ship: room position, nose: room direction, head: room position, alive: can the ship be hit } */
     update(dt, st) {
       t += dt; sacMat.uniforms.uT.value = t;
-      if (!st) { carapace.count = glow.count = 0; carapace.visible = glow.visible = halos.visible = false; if (dim >= 0) { bugs.length = 0; dim = -1; } return; }
-      if (st.i !== dim) { bugs.length = 0; dim = st.i; spawnT = 0; }
+      if (!st) { carapace.count = glow.count = 0; carapace.visible = glow.visible = halos.visible = boltMesh.visible = boltGlow.visible = false; if (dim >= 0) { bugs.length = 0; bolts.length = 0; dim = -1; } return; }
+      if (st.i !== dim) { bugs.length = 0; bolts.length = 0; dim = st.i; spawnT = 0; }
       const info = worlds.fracInfo(dim), S = info.S;
       worlds.toFrac(dim, st.ship, _sf); worlds.toFrac(dim, st.head, _hf);
       /* keep about fourteen of them about */
@@ -125,6 +156,24 @@ export function createCombat({ scene, worlds, onBlast, onCrush }) {
         if (st.alive) { _a.copy(st.ship).addScaledVector(st.nose, -0.42); _b.copy(st.nose).multiplyScalar(0.84); const u = Math.max(0, Math.min(1, _r.subVectors(b.room, _a).dot(_b) / 0.7056));
           if (_r.copy(_a).addScaledVector(_b, u).distanceTo(b.room) < 0.13 + b.r / S) { bugs.splice(k, 1); onBlast(b.room.clone(), b.r / S); continue; } }
       }
+      /* the bolts: stepped in short pieces; the first bug in reach bursts, the first wall stops the bolt */
+      for (let k = bolts.length - 1; k >= 0; k--) {
+        const o = bolts[k]; o.age += dt; o.prev.copy(o.f);
+        const span = o.v.length() * dt, n = Math.max(1, Math.ceil(span / (0.05 * S))), reach = 0.035 * S; let gone = false;
+        for (let j = 0; j < n && !gone; j++) {
+          o.f.addScaledVector(o.v, dt / n);
+          for (let m = bugs.length - 1; m >= 0; m--) { const b = bugs[m]; if (b.f.distanceTo(o.f) < b.r + reach) { worlds.fromFrac(dim, b.f, _a); bugs.splice(m, 1); onShot(_a.clone(), b.r / S); gone = true; break; } }
+          if (!gone && de(o.f) < 0.01 * S) { worlds.fromFrac(dim, o.f, _a); onSpark(_a.clone()); gone = true; }
+        }
+        if (gone || o.age > BOLT_LIFE) { bolts.splice(k, 1); continue; }
+        worlds.fromFrac(dim, o.f, o.room); worlds.fracDirToRoom(dim, o.v, o.dir); o.dir.normalize();
+      }
+      {
+        let c = 0;
+        for (const o of bolts) { const len = Math.min(0.24, 0.03 + o.age * 2); _o.setFromUnitVectors(_g.set(0, 0, 1), _r.copy(o.dir).negate());
+          _s.set(0.011, 0.011, len); boltMesh.setMatrixAt(c, _m.compose(o.room, _o, _s)); _s.set(0.032, 0.032, len * 1.15); boltGlow.setMatrixAt(c, _m.compose(o.room, _o, _s)); c++; }
+        boltMesh.count = boltGlow.count = c; boltMesh.visible = boltGlow.visible = c > 0; if (c) boltMesh.instanceMatrix.needsUpdate = boltGlow.instanceMatrix.needsUpdate = true;
+      }
       /* line of sight, a few bugs a frame */
       for (let n = 0; n < 4 && bugs.length; n++) { check = (check + 1) % bugs.length; const b = bugs[check]; b.see = inSight(b, _hf); }
       /* draw */
@@ -143,7 +192,7 @@ export function createCombat({ scene, worlds, onBlast, onCrush }) {
       carapace.count = glow.count = c; carapace.visible = glow.visible = c > 0; carapace.instanceMatrix.needsUpdate = glow.instanceMatrix.needsUpdate = true;
       hg.setDrawRange(0, c); hg.attributes.position.needsUpdate = hg.attributes.aS.needsUpdate = hg.attributes.aA.needsUpdate = true; halos.visible = c > 0;
     },
-    bugs,
+    bugs, bolts,
   };
   return api;
 }

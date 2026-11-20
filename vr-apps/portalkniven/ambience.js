@@ -41,7 +41,7 @@ export function createAmbience() {
   const filt = (type, f, q = 1) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; return b; };
   const lfo = (f, depth, target) => { const o = osc('sine', f), g = gain(depth); o.connect(g); g.connect(target); return o; };
   /** A place in space for a one-shot: returns the node to play into. dist in metres from the listener, in a random direction (mostly level). */
-  let placed = 0;
+  let placed = 0, shots = 0;
   function place(dist, verb, send, life = 3) {
     const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 2; p.rolloffFactor = 1;
     const a = rnd(0, Math.PI * 2), e = rnd(-0.35, 0.5), L = ctx.listener, lx = L.positionX ? L.positionX.value : 0, ly = L.positionY ? L.positionY.value : 1.6, lz = L.positionZ ? L.positionZ.value : 0;
@@ -188,6 +188,13 @@ export function createAmbience() {
     },
     /** A fractal parameter is changing: which (0 or 1), how fast (-1..1, signed), and where it is in its range (0..1). Call each frame it moves, before update. */
     param(which, v, x) { pin[which].v = v; pin[which].x = x; },
+    /** A plasma bolt leaves the cannon: a short falling zap and a puff of hiss. */
+    shot(pos) { if (!ctx || shots > 3) return;
+      const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1; p.rolloffFactor = 1;
+      if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+      const inp = gain(0.55); inp.connect(p); p.connect(out); shots++;
+      strike(inp, rnd(1250, 1450), [[1, 1, 0.13], [1.51, 0.45, 0.09], [0.5, 0.5, 0.16]], 0.32, 0.72); burst(inp, white, 'highpass', 5000, 2200, 0.8, 0.12, 0.002, 0.07);
+      setTimeout(() => { shots--; try { inp.disconnect(); p.disconnect(); } catch (_) { /* gone */ } }, 450); },
     thud(pos, level = 1) { if (!ctx) return; const dst = gain(level); dst.connect(out); const s = gain(0.6); dst.connect(s); s.connect(verbs.tunnel);
       strike(dst, 62, [[1, 1, 0.5], [1.7, 0.6, 0.3], [2.9, 0.3, 0.2]], 0.7, 0.3); burst(dst, white, 'lowpass', 900, 200, 0.7, 0.5, 0.005, 0.25); setTimeout(() => { try { dst.disconnect(); s.disconnect(); } catch (_) { /* gone */ } }, 2500); },
     dims: Object.keys(DIM),

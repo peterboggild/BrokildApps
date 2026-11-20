@@ -17,12 +17,12 @@
  *  - With a room scan (mesh-detection) the real walls and furniture become world B's walls, reskinned.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=45';
-import { createStory } from './story.js?v=45';
-import { createHand } from './hands.js?v=45';
-import { buildShip } from './ship.js?v=45';
-import { createAmbience } from './ambience.js?v=45';
-import { createCombat } from './combat.js?v=45';
+import { createWorlds, DIMS, ORDER, STARS_GLSL } from './worlds.js?v=46';
+import { createStory } from './story.js?v=46';
+import { createHand } from './hands.js?v=46';
+import { buildShip } from './ship.js?v=46';
+import { createAmbience } from './ambience.js?v=46';
+import { createCombat } from './combat.js?v=46';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -992,7 +992,25 @@ function updateBooms(dt) { const live = S.time - boomLast < 1.2; boomSparks.poin
 const buzzAll = (v, ms) => { for (const c of ctrl) { try { c.src?.gamepad?.hapticActuators?.[0]?.pulse?.(v, ms); } catch (_) { /* none */ } } };
 const COMBAT = createCombat({ scene, worlds,
   onBlast: (p, size) => { boomAt(p, 0.6 + size * 4, false); AMB.boom(p, 0.6 + size * 6, 'blast'); shipDamage(Math.round(10 * clamp(size / 0.06, 0.5, 3)), p); },
-  onCrush: (p, size) => { SH.kills++; boomAt(p, 0.3 + size * 3, false); AMB.boom(p, 0.4 + size * 4, 'crush'); hullPanel(true); } });
+  onCrush: (p, size) => { SH.kills++; boomAt(p, 0.3 + size * 3, false); AMB.boom(p, 0.4 + size * 4, 'crush'); hullPanel(true); },
+  onShot: (p, size) => { SH.kills++; boomAt(p, 0.35 + size * 3, false); AMB.boom(p, 0.35 + size * 4, 'crush'); hullPanel(true); },
+  onSpark: p => { boomAt(p, 0.08, true); } });
+/* The ship's cannons: the trigger of the hand without the knife (the left, as a rule) fires, about seven bolts a second while held, from the two
+ * cannons by turns. In the flat preview: the space bar. */
+const GUN = { cool: 0, side: 1 };
+function shipGuns(dt) {
+  GUN.cool -= dt;
+  if (!(S.combat && FC.shipOn && ship.visible && !(SH.dead > 0) && DIMS[S.cur].fract && !DIMS[S.cur].four)) return;
+  const gi = 1 - knifeIdx, held = S.mode === 'xr' ? !!ctrl[gi].pressed : !!keys.Space;
+  if (!held || GUN.cool > 0) return;
+  GUN.cool = 0.14; GUN.side = -GUN.side;
+  const nose = new V(0, 0, -1).applyQuaternion(SH.q), right = new V(1, 0, 0).applyQuaternion(SH.q);
+  const from = ship.position.clone().addScaledVector(nose, 0.44).addScaledVector(right, 0.07 * GUN.side);
+  const v = Math.round(FC.gear) < 1 ? 0 : 0.15 * Math.pow(1.65, FC.gear - 1);
+  if (!COMBAT.fire(from, nose, v)) return;
+  AMB.shot(from); boomAt(from, 0.05, true);
+  try { ctrl[gi].src?.gamepad?.hapticActuators?.[0]?.pulse?.(0.35, 25); } catch (_) { /* none */ }
+}
 const shipBody = shipModel.children.find(m => m.material && m.material.vertexColors);
 function shipDamage(n, p) {
   if (!S.combat || SH.dead > 0 || n <= 0) return;
@@ -1018,6 +1036,7 @@ function hullPanel(force) {
 function updateCombat(dt) {
   const on = S.combat && FC.shipOn && DIMS[S.cur].fract && !DIMS[S.cur].four;
   COMBAT.update(dt, on ? { i: S.cur, ship: ship.position, nose: new V(0, 0, -1).applyQuaternion(SH.q), head, alive: !(SH.dead > 0) } : null);
+  shipGuns(dt);
   updateBooms(dt);
   if (SH.redT > 0) { SH.redT -= dt; const k = Math.max(0, SH.redT / 0.5); shipBody.material.color.setRGB(1, 1 - 0.6 * k, 1 - 0.65 * k); } else shipBody.material.color.setRGB(1, 1, 1);
   hullMesh.visible = on && ship.visible;
