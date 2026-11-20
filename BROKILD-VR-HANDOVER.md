@@ -122,7 +122,9 @@ Controls in short (the start page and README have the full lists):
   30°, left stick press resets the fourth dimension.
 - **Combat test (option):** bugs crawl towards the ship and burst; reshaping the fractal crushes them; the trigger of
   the hand without the knife (left, as a rule; space bar in the flat preview) fires the ship's cannons (plasma bolts in
-  fractal space, 7° aim assist; `COMBAT.fire`, `shipGuns`, `AMB.shot`); bumping walls damages the ship by speed; a board
+  fractal space, 7° aim assist; `COMBAT.fire`, `shipGuns`, `AMB.shot`); grip + trigger on that hand fires the ray (to
+  the first wall, 3.5 s recharge; `COMBAT.ray`, key C), its stick press launches a rocket that rides the line the hand
+  points (press again to set it off, 40 cm blast, 5 s recharge; `COMBAT.launch`/`detonate`, key X; flat: follows gaze); bumping walls damages the ship by speed; a board
   over the ship shows hull and kills.
 
 ### 3.3 How it works (the parts that are easy to break)

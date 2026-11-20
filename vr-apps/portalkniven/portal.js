@@ -994,19 +994,43 @@ const COMBAT = createCombat({ scene, worlds,
   onBlast: (p, size) => { boomAt(p, 0.6 + size * 4, false); AMB.boom(p, 0.6 + size * 6, 'blast'); shipDamage(Math.round(10 * clamp(size / 0.06, 0.5, 3)), p); },
   onCrush: (p, size) => { SH.kills++; boomAt(p, 0.3 + size * 3, false); AMB.boom(p, 0.4 + size * 4, 'crush'); hullPanel(true); },
   onShot: (p, size) => { SH.kills++; boomAt(p, 0.35 + size * 3, false); AMB.boom(p, 0.35 + size * 4, 'crush'); hullPanel(true); },
-  onSpark: p => { boomAt(p, 0.08, true); } });
-/* The ship's cannons: the trigger of the hand without the knife (the left, as a rule) fires, about seven bolts a second while held, from the two
- * cannons by turns. In the flat preview: the space bar. */
-const GUN = { cool: 0, side: 1 };
+  onSpark: p => { boomAt(p, 0.08, true); },
+  onRocket: p => { boomAt(p, 1.3, true); boomAt(p, 0.8, false); AMB.boom(p, 1.6, 'blast'); buzzAll(0.6, 150); GUN.rocketCool = 5; if (ship.visible && p.distanceTo(ship.position) < 0.45) shipDamage(25, p); },
+  onTrail: (p, d) => { boomLast = S.time; for (let k = 0; k < 2; k++) boomSparks.emit(p.x, p.y, p.z, -d.x * 0.3 + rnd(-0.06, 0.06), -d.y * 0.3 + rnd(-0.06, 0.06), -d.z * 0.3 + rnd(-0.06, 0.06), rnd(0.2, 0.35)); } });
+/* The ship's weapons, all on the hand without the knife (the left, as a rule):
+ *   trigger            plasma bolts, about seven a second while held, from the two cannons by turns   (flat preview: space bar)
+ *   grip + trigger     the ray, a short burst through every bug on the line, then 3.5 s to charge      (flat preview: C)
+ *   stick press        the rocket, steered by pointing that hand; press again to set it off; 5 s       (flat preview: X; it follows your gaze)
+ * The board over the ship shows when the ray and the rocket are ready. */
+const GUN = { cool: 0, side: 1, rayCool: 0, rocketCool: 0, rayWas: false, rocketWas: false };
+const gunHand = () => 1 - knifeIdx;
+function gunAim() {
+  if (S.mode === 'xr') { const h = hands[gunHand()]; return h && h.on ? { o: h.rayO, d: h.rayD, show: true } : null; }
+  return { o: head, d: new V(0, 0, -1).applyQuaternion(headQ), show: false };
+}
 function shipGuns(dt) {
-  GUN.cool -= dt;
-  if (!(S.combat && FC.shipOn && ship.visible && !(SH.dead > 0) && DIMS[S.cur].fract && !DIMS[S.cur].four)) return;
-  const gi = 1 - knifeIdx, held = S.mode === 'xr' ? !!ctrl[gi].pressed : !!keys.Space;
-  if (!held || GUN.cool > 0) return;
+  GUN.cool -= dt; if (GUN.rayCool > 0) GUN.rayCool -= dt; if (GUN.rocketCool > 0 && !COMBAT.rocketOn()) GUN.rocketCool -= dt;
+  if (!(S.combat && FC.shipOn && ship.visible && !(SH.dead > 0) && DIMS[S.cur].fract && !DIMS[S.cur].four)) { GUN.rayWas = GUN.rocketWas = false; return; }
+  const gi = gunHand(), gp = S.mode === 'xr' ? ctrl[gi].src && ctrl[gi].src.gamepad : null;
+  const trig = S.mode === 'xr' ? !!ctrl[gi].pressed : !!keys.Space, grip = S.mode === 'xr' ? btn(gp, 1) && !btn(ctrl[1 - gi].src && ctrl[1 - gi].src.gamepad, 1) : false;
+  const rayKey = S.mode === 'xr' ? trig && grip : !!keys.KeyC, rocketKey = S.mode === 'xr' ? btn(gp, 3) : !!keys.KeyX;
+  const nose = new V(0, 0, -1).applyQuaternion(SH.q), v = Math.round(FC.gear) < 1 ? 0 : 0.15 * Math.pow(1.65, FC.gear - 1);
+  if (rocketKey && !GUN.rocketWas) {
+    if (COMBAT.rocketOn()) COMBAT.detonate();
+    else if (GUN.rocketCool <= 0) { const from = ship.position.clone().addScaledVector(nose, 0.3).addScaledVector(new V(0, -1, 0).applyQuaternion(SH.q), 0.06);
+      if (COMBAT.launch(from, nose, v)) { GUN.rocketCool = 5; AMB.rocket(from); hullPanel(true); try { gp?.hapticActuators?.[0]?.pulse?.(0.6, 80); } catch (_) { /* none */ } } }
+  }
+  GUN.rocketWas = rocketKey;
+  if (rayKey && !GUN.rayWas && GUN.rayCool <= 0) {
+    const from = ship.position.clone().addScaledVector(nose, 0.44);
+    if (COMBAT.ray(from, nose) >= 0) { GUN.rayCool = 3.5; AMB.ray(from); boomAt(from, 0.15, false); hullPanel(true); try { gp?.hapticActuators?.[0]?.pulse?.(0.9, 140); } catch (_) { /* none */ } }
+  }
+  GUN.rayWas = rayKey;
+  if (grip && S.mode === 'xr') return;                                  // the grip turns the trigger into the ray's
+  if (!trig || GUN.cool > 0) return;
   GUN.cool = 0.14; GUN.side = -GUN.side;
-  const nose = new V(0, 0, -1).applyQuaternion(SH.q), right = new V(1, 0, 0).applyQuaternion(SH.q);
+  const right = new V(1, 0, 0).applyQuaternion(SH.q);
   const from = ship.position.clone().addScaledVector(nose, 0.44).addScaledVector(right, 0.07 * GUN.side);
-  const v = Math.round(FC.gear) < 1 ? 0 : 0.15 * Math.pow(1.65, FC.gear - 1);
   if (!COMBAT.fire(from, nose, v)) return;
   AMB.shot(from); boomAt(from, 0.05, true);
   try { ctrl[gi].src?.gamepad?.hapticActuators?.[0]?.pulse?.(0.35, 25); } catch (_) { /* none */ }
@@ -1022,25 +1046,29 @@ function shipDamage(n, p) {
   }
 }
 /* a little board over the ship: the hull, and how many bugs the walls have crushed */
-const hullCanvas = document.createElement('canvas'); hullCanvas.width = 256; hullCanvas.height = 56;
+const hullCanvas = document.createElement('canvas'); hullCanvas.width = 256; hullCanvas.height = 84;
 const hullTex = new THREE.CanvasTexture(hullCanvas); hullTex.colorSpace = THREE.SRGBColorSpace;
-const hullMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.057), new THREE.MeshBasicMaterial({ map: hullTex, transparent: true, depthTest: false, toneMapped: false })); hullMesh.renderOrder = 103; hullMesh.visible = false; scene.add(hullMesh);
+const hullMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.0853), new THREE.MeshBasicMaterial({ map: hullTex, transparent: true, depthTest: false, toneMapped: false })); hullMesh.renderOrder = 103; hullMesh.visible = false; scene.add(hullMesh);
 let hullSig = '';
 function hullPanel(force) {
-  const sig = Math.round(SH.hull) + '/' + SH.kills; if (!force && sig === hullSig) return; hullSig = sig;
-  const x = hullCanvas.getContext('2d'), h = SH.hull / 100; x.clearRect(0, 0, 256, 56); x.fillStyle = 'rgba(4,10,16,.78)'; x.beginPath(); x.roundRect(2, 2, 252, 52, 12); x.fill();
+  const rayOK = GUN.rayCool <= 0, rocketOK = GUN.rocketCool <= 0 && !COMBAT.rocketOn();
+  const sig = Math.round(SH.hull) + '/' + SH.kills + '/' + rayOK + '/' + rocketOK; if (!force && sig === hullSig) return; hullSig = sig;
+  const x = hullCanvas.getContext('2d'), h = SH.hull / 100; x.clearRect(0, 0, 256, 84); x.fillStyle = 'rgba(4,10,16,.78)'; x.beginPath(); x.roundRect(2, 2, 252, 80, 12); x.fill();
+  x.font = 'bold 15px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
+  x.fillStyle = rayOK ? '#9fd0ff' : 'rgba(159,208,255,.28)'; x.fillText('\u25cf STR\u00c5LE', 14, 70);
+  x.fillStyle = rocketOK ? '#ffb070' : 'rgba(255,176,112,.28)'; x.fillText('\u25cf RAKET', 130, 70);
   x.fillStyle = h > 0.5 ? '#7dffb0' : h > 0.25 ? '#ffd56a' : '#ff6a5a'; x.fillRect(14, 30, 150 * h, 12); x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 2; x.strokeRect(14, 30, 150, 12);
   x.fillStyle = '#d7ffe4'; x.font = 'bold 19px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif'; x.fillText('SKROG ' + Math.round(SH.hull) + '%', 14, 24);
   x.fillStyle = '#b8ff8a'; x.fillText('\u2716 ' + SH.kills, 186, 42); hullTex.needsUpdate = true;
 }
 function updateCombat(dt) {
   const on = S.combat && FC.shipOn && DIMS[S.cur].fract && !DIMS[S.cur].four;
-  COMBAT.update(dt, on ? { i: S.cur, ship: ship.position, nose: new V(0, 0, -1).applyQuaternion(SH.q), head, alive: !(SH.dead > 0) } : null);
+  COMBAT.update(dt, on ? { i: S.cur, ship: ship.position, nose: new V(0, 0, -1).applyQuaternion(SH.q), head, alive: !(SH.dead > 0), aim: gunAim() } : null);
   shipGuns(dt);
   updateBooms(dt);
   if (SH.redT > 0) { SH.redT -= dt; const k = Math.max(0, SH.redT / 0.5); shipBody.material.color.setRGB(1, 1 - 0.6 * k, 1 - 0.65 * k); } else shipBody.material.color.setRGB(1, 1, 1);
   hullMesh.visible = on && ship.visible;
-  if (hullMesh.visible) { hullPanel(false); hullMesh.position.copy(ship.position); hullMesh.position.y += 0.3; hullMesh.lookAt(head); }
+  if (hullMesh.visible) { hullPanel(false); hullMesh.position.copy(ship.position); hullMesh.position.y += 0.32; hullMesh.lookAt(head); }
 }
 const AMB = createAmbience(), HOLE_DIR = new V(-0.2425, 0.1455, -0.9592);      // where the black hole is in the sky (the same direction as in the sky shader)
 /* Changing a fractal's shape with Y / X and B / A. Not a switch: the change gathers speed when you press, coasts to a stop when you let go, and slows by

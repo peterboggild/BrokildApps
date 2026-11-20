@@ -389,6 +389,14 @@ Farveskiftet på venstre stick kræver et tydeligt skub til siden, så et skråt
   knuste).
 * **Sigtehjælp:** insekterne er kun 6–8 cm, så et skud, der affyres inden for ca. 7 grader af et insekt, man kan se (højst 7 m væk), sigtes direkte mod det.
 * Lyd: et kort, faldende "zap" fra kanonen (højst fire ad gangen), en kort summen i controlleren. To ekstra tegnekald, kun mens der er skud i luften.
+* **Strålen: greb + aftrækker** på samme hånd (knyt hånden). Et kort, kraftigt stød (0,3 s) lige ud fra næsen til første væg (højst 12 m); alle insekter
+  inden for et par centimeter af linjen springer. Samme sigtehjælp som skuddene. Derefter 3,5 s til at lade op. Blåhvid, med sin egen lyd. Mens grebet
+  holdes, skyder aftrækkeren ikke plasma. Forhåndsvisning: C.
+* **Raketten: tryk på venstre stick.** Én ad gangen. Den flyver ca. 3 m/s og styrer efter din hånd: den følger linjen, som controlleren peger (en svag
+  orange sigtestreg fra hånden viser den), og drejer højst ca. 160 grader i sekundet. Den springer ved første væg, første insekt den rører, efter 7 s, eller
+  når du trykker igen; alt inden for 40 cm springer med. Er skibet inden for 45 cm, tager det 25 % skade. Derefter 5 s til en ny. Forhåndsvisning: X, og
+  den følger dit blik.
+* Skiltet over skibet viser **STRÅLE** og **RAKET** tændt, når de er klar, og dæmpet, mens de lader op.
 
 ## Gemte idéer (ikke bygget)
 

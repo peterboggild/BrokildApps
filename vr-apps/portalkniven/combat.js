@@ -18,13 +18,20 @@
  * Shooting: the ship's two cannons fire plasma bolts. A bolt lives in the fractal's space too (so it flies on with the fractal when the ship turns away),
  * leaves the muzzle at the ship's own speed plus 9 m/s, and is stepped in short pieces: the first bug within reach of a piece bursts, the first wall stops
  * it. The bugs are small, so a shot fired within about 7 degrees of a bug in plain view is aimed at it (a gentle aim assist). Two more draw calls, only while bolts are in the air.
+ *
+ * The ray: a short burst (0.3 s) straight from the nose to the first wall (at most 12 m); every bug within a few centimetres of the line bursts. Marched once
+ * through the distance function when fired; afterwards only a fading beam is drawn.
+ *
+ * The rocket: one at a time. It flies at about 3 m/s and turns (at most about 160 degrees a second) towards the line from your hand: it rides the beam,
+ * aiming a little ahead of itself along the line your controller points. It goes off at the first wall, the first bug it touches, after 7 s, or when told
+ * to, and bursts every bug within 40 cm. It lives in fractal space too.
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
 
 const V = THREE.Vector3;
 const rnd = (a, b) => a + Math.random() * (b - a);
-const MAX = 40, BOLTS = 24, BOLT_V = 9, BOLT_LIFE = 1.4, ASSIST = Math.cos(7 * Math.PI / 180);
+const MAX = 40, BOLTS = 24, BOLT_V = 9, BOLT_LIFE = 1.4, ASSIST = Math.cos(7 * Math.PI / 180), RAY_LEN = 12, RAY_T = 0.3, ROCKET_V = 3.2, ROCKET_TURN = 2.8, ROCKET_R = 0.4;
 
 function bugGeometry() {
   /* about one unit in radius, nose along -Z: carapace, head, six legs, two feelers; the sac at the back is separate (it glows) */
@@ -44,7 +51,7 @@ function bugGeometry() {
   return { body, sac };
 }
 
-export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark }) {
+export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark, onRocket, onTrail }) {
   const { body, sac } = bugGeometry();
   const carapace = new THREE.InstancedMesh(body, new THREE.MeshStandardMaterial({ color: 0x241a2e, roughness: 0.35, metalness: 0.4, emissive: 0x0a1a08 }), MAX);
   /* the sac at the back: translucent and lit from inside, brightest where you look straight into it, with dark veins over it, and each one pulsing in its own time */
@@ -80,6 +87,27 @@ export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark 
   const boltMesh = new THREE.InstancedMesh(boltGeo, boltMat, BOLTS), boltGlow = new THREE.InstancedMesh(boltGeo, boltGlowMat, BOLTS);
   for (const im of [boltMesh, boltGlow]) { im.frustumCulled = false; im.renderOrder = 47; im.count = 0; im.visible = false; scene.add(im); }
   const bolts = [];
+  /* the ray: one beam, a bright core in a blue-white glow, fading out */
+  const rayMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, uniforms: { uA: { value: 0 } },
+    vertexShader: 'varying vec3 vN; varying vec3 vV; void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = cameraPosition - wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }',
+    fragmentShader: 'precision highp float; varying vec3 vN; varying vec3 vV; uniform float uA; void main() { float f = abs(dot(normalize(vN), normalize(vV))), core = pow(f, 4.0); gl_FragColor = vec4(mix(vec3(0.25, 0.55, 1.0), vec3(0.92, 0.97, 1.0), core) * (0.25 + 1.6 * core) * f * uA, 1.0); }' });
+  outsideDoor(rayMat);
+  const rayMesh = new THREE.Mesh(boltGeo, rayMat); rayMesh.frustumCulled = false; rayMesh.renderOrder = 47; rayMesh.visible = false; scene.add(rayMesh);
+  let rayT = 0;
+  /* the rocket: a grey body with a red nose and a flame, and the line it rides from your hand */
+  const rocketG = new THREE.Group(); rocketG.visible = false; scene.add(rocketG);
+  { const grey = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: 0.4, metalness: 0.6 }), red = new THREE.MeshStandardMaterial({ color: 0xc8361e, roughness: 0.5, emissive: 0x300800 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.08, 10), grey); body.rotation.x = Math.PI / 2;
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.011, 0.03, 10), red); nose.rotation.x = -Math.PI / 2; nose.position.z = -0.055;
+    const fins = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.003, 0.02), red); fins.position.z = 0.03; const fins2 = fins.clone(); fins2.rotation.z = Math.PI / 2;
+    for (const m of [body, nose, fins, fins2]) { outsideDoor(m.material); m.renderOrder = 46; rocketG.add(m); } }
+  const flame = new THREE.InstancedMesh(boltGeo, boltMat, 1), flameGlow = new THREE.InstancedMesh(boltGeo, boltGlowMat, 1);
+  for (const im of [flame, flameGlow]) { im.frustumCulled = false; im.renderOrder = 47; rocketG.add(im); }
+  rocketG.scale.setScalar(1.8);                                        /* about 20 cm: big enough to follow at a few metres */
+  const aimGeo = new THREE.BufferGeometry().setFromPoints([new V(), new V(0, 0, -1)]);
+  const aimMat = new THREE.LineBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: 0.45, depthWrite: false, toneMapped: false }); outsideDoor(aimMat);
+  const aimLine = new THREE.Line(aimGeo, aimMat); aimLine.frustumCulled = false; aimLine.renderOrder = 47; aimLine.visible = false; scene.add(aimLine);
+  const rocket = { on: false, f: new V(), dir: new V(), room: new V(), age: 0, speed: 0, boom: false };
 
   const bugs = []; let dim = -1, spawnT = 0, check = 0, t = 0;
   const _p = new V(), _q = new V(), _d = new V(), _g = new V(), _a = new V(), _b = new V(), _r = new V(), _m = new THREE.Matrix4(), _o = new THREE.Quaternion(), _s = new V(), Z = new V(0, 0, -1), _sf = new V(), _hf = new V(), _nf = new V();
@@ -106,19 +134,53 @@ export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark 
     return true;
   }
 
+  /** The bug in plain view nearest a line of fire from a room point, if within a few degrees and not too far: dir is turned onto it. */
+  function assist(from, dir) {
+    let best = ASSIST, tgt = null;
+    for (const b of bugs) { if (b.vis < 0.5) continue; _a.subVectors(b.room, from); const l = _a.length(); if (l < 0.05 || l > 7) continue; const c = _a.dot(dir) / l; if (c > best) { best = c; tgt = b; } }
+    if (tgt) dir.subVectors(tgt.room, from).normalize();
+  }
+  /** A room direction at a room point, as a step in fractal space (its length is the fractal's scale). */
+  const fracDir = (p, d, out) => { worlds.toFrac(dim, p, _q); worlds.toFrac(dim, _p.copy(p).add(d), out); return out.sub(_q); };
+  function explode() {
+    rocket.on = false; rocketG.visible = false; aimLine.visible = false;
+    const S = worlds.fracInfo(dim).S;
+    for (let m = bugs.length - 1; m >= 0; m--) { const b = bugs[m]; if (b.f.distanceTo(rocket.f) < ROCKET_R * S + b.r) { worlds.fromFrac(dim, b.f, _a); bugs.splice(m, 1); onShot(_a.clone(), b.r / S); } }
+    worlds.fromFrac(dim, rocket.f, rocket.room); onRocket(rocket.room.clone());
+  }
+
   const api = {
     count: () => bugs.length,
+    rocketOn: () => rocket.on,
+    /** The ray, from a room point along a room direction. Returns how many bugs it took, or -1 if it could not be fired. */
+    ray(from, dir) {
+      if (dim < 0) return -1;
+      _d.copy(dir).normalize(); assist(from, _d);
+      const S = worlds.fracInfo(dim).S, f0 = worlds.toFrac(dim, from, new V()), fd = fracDir(from, _d, new V()).normalize();
+      let s = 0, wall = false;
+      while (s < RAY_LEN * S) { _q.copy(f0).addScaledVector(fd, s); const d = de(_q); if (d < 0.01 * S) { wall = true; break; } s += Math.max(d, 0.02 * S); }
+      s = Math.min(s, RAY_LEN * S);
+      let n = 0;
+      for (let m = bugs.length - 1; m >= 0; m--) { const b = bugs[m]; _a.subVectors(b.f, f0); const u = Math.max(0, Math.min(s, _a.dot(fd)));
+        if (_q.copy(f0).addScaledVector(fd, u).distanceTo(b.f) < b.r + 0.05 * S) { worlds.fromFrac(dim, b.f, _a); bugs.splice(m, 1); onShot(_a.clone(), b.r / S); n++; } }
+      const len = s / S; if (wall) onSpark(_a.copy(from).addScaledVector(_d, len));
+      rayMesh.position.copy(from); rayMesh.quaternion.setFromUnitVectors(_g.set(0, 0, 1), _d); rayMesh.scale.set(0.018, 0.018, len); rayT = RAY_T; rayMesh.visible = true; rayMat.uniforms.uA.value = 1;
+      return n;
+    },
+    /** Launch the rocket from a room point along a room direction, with the ship's speed (m/s). */
+    launch(from, dir, shipV) {
+      if (dim < 0 || rocket.on) return false;
+      rocket.on = true; rocket.age = 0; rocket.speed = 1 + Math.max(0, shipV); rocket.dir.copy(dir).normalize(); rocket.room.copy(from); worlds.toFrac(dim, from, rocket.f);
+      return true;
+    },
+    detonate() { if (rocket.on) explode(); },
     /** Clear away the bugs near a room point (when a new ship arrives). */
     clearNear(p, metres) { if (dim < 0) return; worlds.toFrac(dim, p, _sf); const S = worlds.fracInfo(dim).S; for (let k = bugs.length - 1; k >= 0; k--) if (bugs[k].f.distanceTo(_sf) < metres * S) bugs.splice(k, 1); },
-    reset() { bugs.length = 0; bolts.length = 0; },
+    reset() { bugs.length = 0; bolts.length = 0; rocket.on = false; rocketG.visible = aimLine.visible = false; },
     /** Fire one bolt from a room point along a room direction; shipV is the ship's own speed (m/s). Returns false when there is nothing to fire into. */
     fire(from, dir, shipV) {
       if (dim < 0) return false;
-      _d.copy(dir).normalize();
-      /* aim assist: the bug in plain view nearest the line of fire, if it is within a few degrees and not too far */
-      let best = ASSIST, tgt = null;
-      for (const b of bugs) { if (b.vis < 0.5) continue; _a.subVectors(b.room, from); const l = _a.length(); if (l < 0.05 || l > 7) continue; const c = _a.dot(_d) / l; if (c > best) { best = c; tgt = b; } }
-      if (tgt) _d.subVectors(tgt.room, from).normalize();
+      _d.copy(dir).normalize(); assist(from, _d);
       if (bolts.length >= BOLTS) bolts.shift();
       const f = worlds.toFrac(dim, from, new V()); worlds.toFrac(dim, _a.copy(from).add(_d), _b);
       bolts.push({ f, v: _b.sub(f).multiplyScalar(BOLT_V + Math.max(0, shipV)), age: 0, prev: f.clone(), room: from.clone(), dir: _d.clone() });
@@ -127,8 +189,8 @@ export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark 
     /** st: null (no combat here), or { i: the fractal dimension, ship: room position, nose: room direction, head: room position, alive: can the ship be hit } */
     update(dt, st) {
       t += dt; sacMat.uniforms.uT.value = t;
-      if (!st) { carapace.count = glow.count = 0; carapace.visible = glow.visible = halos.visible = boltMesh.visible = boltGlow.visible = false; if (dim >= 0) { bugs.length = 0; bolts.length = 0; dim = -1; } return; }
-      if (st.i !== dim) { bugs.length = 0; bolts.length = 0; dim = st.i; spawnT = 0; }
+      if (!st) { carapace.count = glow.count = 0; carapace.visible = glow.visible = halos.visible = boltMesh.visible = boltGlow.visible = rayMesh.visible = rocketG.visible = aimLine.visible = false; rocket.on = false; if (dim >= 0) { bugs.length = 0; bolts.length = 0; dim = -1; } return; }
+      if (st.i !== dim) { bugs.length = 0; bolts.length = 0; rocket.on = false; dim = st.i; spawnT = 0; }
       const info = worlds.fracInfo(dim), S = info.S;
       worlds.toFrac(dim, st.ship, _sf); worlds.toFrac(dim, st.head, _hf);
       /* keep about fourteen of them about */
@@ -174,6 +236,31 @@ export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark 
           _s.set(0.011, 0.011, len); boltMesh.setMatrixAt(c, _m.compose(o.room, _o, _s)); _s.set(0.032, 0.032, len * 1.15); boltGlow.setMatrixAt(c, _m.compose(o.room, _o, _s)); c++; }
         boltMesh.count = boltGlow.count = c; boltMesh.visible = boltGlow.visible = c > 0; if (c) boltMesh.instanceMatrix.needsUpdate = boltGlow.instanceMatrix.needsUpdate = true;
       }
+      /* the ray fades */
+      if (rayT > 0) { rayT -= dt; const u = Math.max(0, rayT / RAY_T); rayMat.uniforms.uA.value = u * u; rayMesh.scale.x = rayMesh.scale.y = 0.018 * (0.4 + 0.6 * u); if (rayT <= 0) rayMesh.visible = false; }
+      /* the rocket rides the line from the hand: it steers for a point on that line a little further out than itself */
+      if (rocket.on) {
+        rocket.age += dt; rocket.speed += (ROCKET_V - rocket.speed) * Math.min(1, dt * 2);
+        if (st.aim) {
+          const o = st.aim.o, ad = st.aim.d, t0 = Math.max(0, _a.subVectors(rocket.room, o).dot(ad));
+          _b.copy(o).addScaledVector(ad, t0 + 0.9).sub(rocket.room).normalize();
+          const ang = Math.acos(Math.max(-1, Math.min(1, rocket.dir.dot(_b)))), mx = ROCKET_TURN * dt;
+          if (ang > 1e-4) { const k = Math.min(1, mx / ang); rocket.dir.multiplyScalar(1 - k).addScaledVector(_b, k).normalize(); }
+          aimLine.position.copy(o); aimLine.quaternion.setFromUnitVectors(_g.set(0, 0, -1), ad); aimLine.scale.setScalar(Math.max(1, t0 + 1.5)); aimLine.visible = !!st.aim.show;
+        } else aimLine.visible = false;
+        const step = rocket.speed * dt, n = Math.max(1, Math.ceil(step / 0.04)); fracDir(rocket.room, rocket.dir, _r);
+        for (let j = 0; j < n && rocket.on; j++) {
+          rocket.f.addScaledVector(_r, step / n);
+          if (de(rocket.f) < 0.015 * S) { explode(); break; }
+          for (const b of bugs) if (b.f.distanceTo(rocket.f) < b.r + 0.03 * S) { explode(); break; }
+        }
+        if (rocket.on && rocket.age > 7) explode();
+        if (rocket.on) {
+          worlds.fromFrac(dim, rocket.f, rocket.room); rocketG.position.copy(rocket.room); rocketG.quaternion.setFromUnitVectors(_g.set(0, 0, -1), rocket.dir); rocketG.visible = true;
+          _s.set(0.012, 0.012, 0.05 + 0.03 * Math.random()); flame.setMatrixAt(0, _m.compose(_a.set(0, 0, 0.045), _o.identity(), _s)); _s.set(0.035, 0.035, _s.z * 1.3); flameGlow.setMatrixAt(0, _m.compose(_a, _o, _s)); flame.instanceMatrix.needsUpdate = flameGlow.instanceMatrix.needsUpdate = true;
+          onTrail(_a.copy(rocket.room).addScaledVector(rocket.dir, -0.06), rocket.dir);
+        }
+      } else { rocketG.visible = false; aimLine.visible = false; }
       /* line of sight, a few bugs a frame */
       for (let n = 0; n < 4 && bugs.length; n++) { check = (check + 1) % bugs.length; const b = bugs[check]; b.see = inSight(b, _hf); }
       /* draw */
@@ -192,7 +279,7 @@ export function createCombat({ scene, worlds, onBlast, onCrush, onShot, onSpark 
       carapace.count = glow.count = c; carapace.visible = glow.visible = c > 0; carapace.instanceMatrix.needsUpdate = glow.instanceMatrix.needsUpdate = true;
       hg.setDrawRange(0, c); hg.attributes.position.needsUpdate = hg.attributes.aS.needsUpdate = hg.attributes.aA.needsUpdate = true; halos.visible = c > 0;
     },
-    bugs, bolts,
+    bugs, bolts, rocket,
   };
   return api;
 }

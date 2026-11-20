@@ -195,6 +195,18 @@ export function createAmbience() {
       const inp = gain(0.55); inp.connect(p); p.connect(out); shots++;
       strike(inp, rnd(1250, 1450), [[1, 1, 0.13], [1.51, 0.45, 0.09], [0.5, 0.5, 0.16]], 0.32, 0.72); burst(inp, white, 'highpass', 5000, 2200, 0.8, 0.12, 0.002, 0.07);
       setTimeout(() => { shots--; try { inp.disconnect(); p.disconnect(); } catch (_) { /* gone */ } }, 450); },
+    /** The ray: a bright falling whine over a rush of hiss. */
+    ray(pos) { if (!ctx) return; const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1; p.rolloffFactor = 1;
+      if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+      const inp = gain(0.7), s = gain(0.3); inp.connect(p); p.connect(out); inp.connect(s); s.connect(verbs.tunnel);
+      strike(inp, 2100, [[1, 1, 0.38], [1.5, 0.6, 0.3], [0.25, 0.8, 0.45]], 0.35, 0.8); burst(inp, white, 'bandpass', 6000, 900, 1.5, 0.35, 0.004, 0.35, 60);
+      setTimeout(() => { try { inp.disconnect(); p.disconnect(); s.disconnect(); } catch (_) { /* gone */ } }, 1500); },
+    /** The rocket leaves: a rising whoosh and a low kick. */
+    rocket(pos) { if (!ctx) return; const p = ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1; p.rolloffFactor = 1;
+      if (p.positionX) { p.positionX.value = pos.x; p.positionY.value = pos.y; p.positionZ.value = pos.z; } else p.setPosition(pos.x, pos.y, pos.z);
+      const inp = gain(0.7); inp.connect(p); p.connect(out);
+      burst(inp, white, 'bandpass', 350, 1800, 2.5, 0.5, 0.03, 0.6); strike(inp, 90, [[1, 1, 0.25]], 0.5, 0.4);
+      setTimeout(() => { try { inp.disconnect(); p.disconnect(); } catch (_) { /* gone */ } }, 1500); },
     thud(pos, level = 1) { if (!ctx) return; const dst = gain(level); dst.connect(out); const s = gain(0.6); dst.connect(s); s.connect(verbs.tunnel);
       strike(dst, 62, [[1, 1, 0.5], [1.7, 0.6, 0.3], [2.9, 0.3, 0.2]], 0.7, 0.3); burst(dst, white, 'lowpass', 900, 200, 0.7, 0.5, 0.005, 0.25); setTimeout(() => { try { dst.disconnect(); s.disconnect(); } catch (_) { /* gone */ } }, 2500); },
     dims: Object.keys(DIM),
