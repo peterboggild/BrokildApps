@@ -17,11 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=10';
-import { buildCar, CARS, CAR_SCALE } from './cars.js?v=10';
-import { createRace, LAPS } from './race.js?v=10';
-import { createAudio } from './audio.js?v=10';
-import { INK, NOIR } from './toon.js?v=10';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=11';
+import { buildCar, CARS, CAR_SCALE } from './cars.js?v=11';
+import { createRace, LAPS } from './race.js?v=11';
+import { createAudio } from './audio.js?v=11';
+import { INK, NOIR } from './toon.js?v=11';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -193,6 +193,8 @@ function updateCamC(dt, snap) {
     for (let k = 1; k <= 12; k++) { const u = k / 12; if (blocked(car.p.x + back.x * u, car.p.y + back.z * u)) { t = Math.max(0.15, (k - 1) / 12); break; } }
     const want = new V(back.x * t, up * Math.max(0.6, t), back.z * t).add(new V(car.p.x, city.groundY(car.level, car.p.x, car.p.y), car.p.y));
     if (snap) camC.p.copy(want); else camC.p.lerp(want, Math.min(1, dt * 6));
+    /* never in the tunnel's ceiling or the lintel over its mouth, never under the road (it trails behind and lags, so it is checked where it is) */
+    const sp = city.spaceAt(car.level, camC.p.x, camC.p.z); camC.p.y = Math.max(sp.floor + 0.7, Math.min(sp.ceil, camC.p.y));
   }
 }
 /** the knock you feel when hit: a little spring the view rides on (city metres) */

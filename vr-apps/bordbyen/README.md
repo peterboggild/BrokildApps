@@ -16,7 +16,7 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
 | `toon.js` | Tegneserie-looket: flade farver i tre toner og sorte tegnestreger. |
 
 **Cache:** `index.html` indlæser `game.js?v=N`, og `game.js`/`race.js` indlæser de andre med samme `?v=N`. Hæv dem alle sammen ved hver ændring
-(nu **v=10**).
+(nu **v=11**).
 
 ## Sådan hænger det sammen
 
@@ -60,7 +60,7 @@ Byg en lille by på dit rigtige bord i blandet virkelighed, og bliv så gjort li
 * Lygter, trafiklys, bodenes og legepladsens stolper er noget, bilerne kan køre ind i.
 
 ## Sammenstød, udsyn og overblik (v=3)
-* **Sammenstød mellem biler:** hver bil er to cirkler langs sin længde. Overlap skubbes fra hinanden med det samme (biler kan ikke køre igennem
+* **Sammenstød mellem biler:** hver bil er to cirkler langs sin længde (fra v=11 en kasse). Overlap skubbes fra hinanden med det samme (biler kan ikke køre igennem
   hinanden), og stødet er et rigtigt stød i berøringspunktet, med bilernes vægt (Brummer er tungest, Boblen lettest) og lidt fjedren. En bil, der
   bliver ramt bagfra, skubbes frem ad vejen; en, der rammes på siden, skubbes til siden og drejes rundt.
 * **Når du rammes:** et ryk i udsynet (en lille fjeder, højst 12 cm, der svinger tilbage), et bump i lyden, og begge controllere vibrerer efter, hvor
@@ -87,6 +87,22 @@ Et valg på startsiden ("Stil"), og Y ved bordet skifter undervejs (N på comput
 * **Musik**, lavet i koden mens den spiller: langsom noir-jazz i D-mol, 68 slag i minuttet, med mørke akkorder på en blød flade (Dm9, B♭maj7,
   Gm9, A7♭9, to takter hver), en gående kontrabas, børstetrommer på to og fire og et swingende bækken, og spredte vibrafontoner ind i et langt
   ekko. Under det hele regnens sus.
+
+## Tunnellerne virker, bilerne er kasser, ingen træer på vejene (v=11)
+* **Udsigten i nedkørsler og tunneller:** markerne uden om byen var én stor skive lige under hele brættet. Nede i en nedkørsel eller tunnel lå den
+  som et låg over dig (sort set nedefra, grønt ovenfra, så bilen forsvandt under "jorden"). Nu har markerne et hul, hvor brættet er, og man ser
+  himlen over nedkørslen og tunnellens munding forude.
+* **Nedkørslen vender selv rigtigt:** trækker man den fra tunnellen mod vejen i stedet for omvendt, vendes den, så toppen ligger ved vejen og
+  foden ved tunnellen. Feltet for foden af en nedkørsel er altid tunnel (et tunneltræk, der startede netop dér, slettede det før, og så kørte
+  rampen ind i jorden).
+* **Tunnellens vægge:** de står inde i tunnelfeltet (60 cm); bilerne holdes nu ude af dem, hvor de faktisk står, i stedet for at synke ind i dem.
+* **Kameraet bag bilen** holder sig under tunnelloftet og under bjælken over mundingen, og over vejen, når det følger bilen op og ned.
+* **Bilerne er kasser:** hver bil er sin egen kasse (karrosseri og hjul, som den er bygget), drejet med bilen, i stedet for to cirkler, så ingen
+  hjørner synker ind i huse, mure, træer eller andre biler. Rammer man en mur på skrå, tages kun den del af farten, der gik ind i muren; resten
+  bliver, så man kan skrabe sig langs den. Hvor bilen rører, drejer den lidt (et forhjørne på muren lægger næsen ind langs muren). Bil mod bil
+  er også kasse mod kasse.
+* **Ingen træer på vejene:** ringen af træer uden om byen var en ellipse og nåede ind over brættets hjørner, oven på vejene. Nu står de kun uden
+  for brættet.
 
 ## Gemte byer med navne, ingen ruder indefra (v=10)
 * **Mine byer:** hver by gemmes under sit navn i browseren (`bordbyen.byer`; den valgte i `bordbyen.current`). Den by, man arbejder på, gemmer sig
