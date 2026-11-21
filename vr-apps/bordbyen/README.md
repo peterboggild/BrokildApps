@@ -88,7 +88,7 @@ Et valg på startsiden ("Stil"), og Y ved bordet skifter undervejs (N på comput
   Gm9, A7♭9, to takter hver), en gående kontrabas, børstetrommer på to og fire og et swingende bækken, og spredte vibrafontoner ind i et langt
   ekko. Under det hele regnens sus.
 
-## Tunnellerne virker, bilerne er kasser, ingen træer på vejene (v=11)
+## Tunnellerne virker, bilerne er kasser, skilt, ikoner, hænder på rattet, ingen træer på vejene (v=11)
 * **Udsigten i nedkørsler og tunneller:** markerne uden om byen var én stor skive lige under hele brættet. Nede i en nedkørsel eller tunnel lå den
   som et låg over dig (sort set nedefra, grønt ovenfra, så bilen forsvandt under "jorden"). Nu har markerne et hul, hvor brættet er, og man ser
   himlen over nedkørslen og tunnellens munding forude.
@@ -101,6 +101,14 @@ Et valg på startsiden ("Stil"), og Y ved bordet skifter undervejs (N på comput
   hjørner synker ind i huse, mure, træer eller andre biler. Rammer man en mur på skrå, tages kun den del af farten, der gik ind i muren; resten
   bliver, så man kan skrabe sig langs den. Hvor bilen rører, drejer den lidt (et forhjørne på muren lægger næsen ind langs muren). Bil mod bil
   er også kasse mod kasse.
+* **Skilt ved nedkørslen:** en portal over toppen af hver nedkørsel med et blåt skilt: en pil ned og TUNNEL. På bordet dækker det brune
+  tunnelbånd ikke længere selve nedkørslen, så man kan se åbningen ned.
+* **Ikoner i værktøjsmenuen** for alt (også tunnel, nedkørsel, bakke, sænk, fortryd, ny by, næste by), og **Kør!** viser tre biler på vej mod
+  et ternet flag. I den flade forhåndsvisning har knapperne de samme ikoner.
+* **Rattet bliver siddende** i bilen. Styrer man med rattet, sidder et par hvide handsker på rattets kant og drejer med det, og dine egne
+  controllere skjules imens (så de hænder, du ser, er dem på rattet). Rattet drejer stadig med linjen mellem dine hænder.
+* **Bilvalget** står højere og lige ud over bordets forkant, så bilerne ikke står inde i byen.
+* **Modstanderne er langsommere** (72 til 80 % af deres topfart før 86 til 94 %), og gummibåndet hjælper dem mindre, når de er bagud.
 * **Ingen træer på vejene:** ringen af træer uden om byen var en ellipse og nåede ind over brættets hjørner, oven på vejene. Nu står de kun uden
   for brættet.
 

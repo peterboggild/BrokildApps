@@ -379,7 +379,7 @@ const pickSign = (() => { const c = document.createElement('canvas'); c.width = 
 function placeShowroom() {
   /* along the near edge of the table, towards you, lifted well clear of the town (they stood in among its houses) */
   const toward = new V().subVectors(head, table.pos); toward.y = 0; const yawT = Math.atan2(toward.x, toward.z);
-  const r = new V(Math.cos(yawT), 0, -Math.sin(yawT)), f = new V(Math.sin(yawT), 0, Math.cos(yawT)), edgeD = Math.min(table.d, table.w) * 0.5 * 0.8;
+  const r = new V(Math.cos(yawT), 0, -Math.sin(yawT)), f = new V(Math.sin(yawT), 0, Math.cos(yawT)), edgeD = Math.min(table.d, table.w) * 0.5 + 0.06;      // just past the near edge
   showCars.forEach((g, k) => { g.position.copy(table.pos).addScaledVector(f, edgeD).addScaledVector(r, (k - 1.5) * 0.17); g.position.y = table.pos.y + 0.34; g.rotation.set(0, yawT, 0); });
   pickSign.position.copy(table.pos).addScaledVector(f, edgeD); pickSign.position.y = table.pos.y + 0.52; pickSign.rotation.set(0, yawT, 0);
 }
