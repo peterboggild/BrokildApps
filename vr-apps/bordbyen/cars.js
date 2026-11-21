@@ -12,7 +12,7 @@
  */
 import * as THREE from './vendor/three.module.min.js';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
-import { toonMat, ink } from './toon.js?v=10';
+import { toonMat, ink } from './toon.js?v=11';
 
 export const CARS = [
   { key: 'lyn', name: 'Lynet', color: '#e8392f', blurb: 'Lav og hurtig, med spoiler' },
@@ -130,6 +130,9 @@ export function buildCar(key, color) {
     const pivot = new THREE.Group(); pivot.position.set(x, r, z); const w = wheel(r, track, key === 'bulder' ? '#f2c230' : '#d7dce2'); pivot.add(w); car.add(pivot);
     wheels.push(w); if (front) steer.push(pivot);
   }
+  /* the car's footprint, for its collisions: the box round body and wheels as built (before the shadow and the cockpit are added) */
+  const fp = new THREE.Box3().setFromObject(car);
+  const box = { ox: (fp.min.x + fp.max.x) / 2 * CAR_SCALE, oz: (fp.min.z + fp.max.z) / 2 * CAR_SCALE, hx: (fp.max.x - fp.min.x) / 2 * CAR_SCALE, hz: (fp.max.z - fp.min.z) / 2 * CAR_SCALE };
   /* a soft dark shadow under the car (cheap, no shadow maps) */
   const shadowTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 4, 32, 32, 32);
     g.addColorStop(0, 'rgba(0,0,0,.55)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();
@@ -146,8 +149,16 @@ export function buildCar(key, color) {
   part(sl, CYL, c, 0, 0, 0.02, Math.PI / 2, 0, 0, 0.06, 0.04, 0.06);
   sw.add(new THREE.Mesh(merge(sl), darkMat)); sw.position.set(0, eye.y - 0.42, eye.z - 0.42); sw.rotation.x = -0.45;
   const swSpin = new THREE.Group(); sw.children[0].removeFromParent(); swSpin.add(new THREE.Mesh(merge(sl), darkMat)); sw.add(swSpin);
+  /* gloved hands on the rim, at a quarter to three, turning with the wheel (shown when you steer with your hands, see game.js) */
+  const gl = [];
+  for (const s of [-1, 1]) {
+    part(gl, roundedBox(0.075, 0.1, 0.06, 0.028), '#f4f1e6', s * 0.19, 0.0, 0.012);                    // the palm round the rim
+    part(gl, roundedBox(0.03, 0.055, 0.03, 0.013), '#f4f1e6', s * 0.155, 0.04, 0.03);                  // the thumb on top
+    part(gl, roundedBox(0.085, 0.06, 0.07, 0.03), '#d9534f', s * 0.2, -0.075, 0.03);                    // the cuff
+  }
+  const gloves = new THREE.Mesh(merge(gl), darkMat); gloves.visible = false; swSpin.add(gloves);
   cockpit.add(sw); cockpit.visible = false; car.add(cockpit);
   car.scale.setScalar(CAR_SCALE); eye.multiplyScalar(CAR_SCALE); radius *= CAR_SCALE;      // eye and radius in metres of the scaled car
-  car.userData = { key, wheels, steer, cockpit, wheel: swSpin, wheelBase: sw, eye, radius, front: fz, rear: rz, roof: roofMesh, glass: glassMesh };
+  car.userData = { key, wheels, steer, cockpit, wheel: swSpin, wheelBase: sw, gloves, eye, radius, box, front: fz, rear: rz, roof: roofMesh, glass: glassMesh };
   return car;
 }

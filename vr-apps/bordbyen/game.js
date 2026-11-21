@@ -17,11 +17,11 @@
  * Flat preview (?flat, or the button): a wooden table in an empty room; the mouse draws (right drag turns the view, the wheel zooms), keys choose.
  */
 import * as THREE from './vendor/three.module.min.js';
-import { createCity, TOOLS, CELL, SCALE } from './city.js?v=10';
-import { buildCar, CARS, CAR_SCALE } from './cars.js?v=10';
-import { createRace, LAPS } from './race.js?v=10';
-import { createAudio } from './audio.js?v=10';
-import { INK, NOIR } from './toon.js?v=10';
+import { createCity, TOOLS, CELL, SCALE } from './city.js?v=11';
+import { buildCar, CARS, CAR_SCALE } from './cars.js?v=11';
+import { createRace, LAPS } from './race.js?v=11';
+import { createAudio } from './audio.js?v=11';
+import { INK, NOIR } from './toon.js?v=11';
 
 const params = new URLSearchParams(location.search);
 const $ = id => document.getElementById(id);
@@ -193,6 +193,8 @@ function updateCamC(dt, snap) {
     for (let k = 1; k <= 12; k++) { const u = k / 12; if (blocked(car.p.x + back.x * u, car.p.y + back.z * u)) { t = Math.max(0.15, (k - 1) / 12); break; } }
     const want = new V(back.x * t, up * Math.max(0.6, t), back.z * t).add(new V(car.p.x, city.groundY(car.level, car.p.x, car.p.y), car.p.y));
     if (snap) camC.p.copy(want); else camC.p.lerp(want, Math.min(1, dt * 6));
+    /* never in the tunnel's ceiling or the lintel over its mouth, never under the road (it trails behind and lags, so it is checked where it is) */
+    const sp = city.spaceAt(car.level, camC.p.x, camC.p.z); camC.p.y = Math.max(sp.floor + 0.7, Math.min(sp.ceil, camC.p.y));
   }
 }
 /** the knock you feel when hit: a little spring the view rides on (city metres) */
@@ -211,7 +213,7 @@ const ctrl = [0, 1].map(i => { const ray = renderer.xr.getController(i), grip = 
   ray.addEventListener('connected', e => { c.hand = e.data.handedness; c.gp = e.data.gamepad; });
   ray.addEventListener('disconnected', () => { c.hand = null; c.gp = null; });
   /* a little toy controller: a rounded handle and a ray when pointing */
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.07, 4, 10), new THREE.MeshStandardMaterial({ color: 0x2c3038, roughness: 0.6 })); body.rotation.x = Math.PI / 2 - 0.5; grip.add(body);
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.07, 4, 10), new THREE.MeshStandardMaterial({ color: 0x2c3038, roughness: 0.6 })); body.rotation.x = Math.PI / 2 - 0.5; grip.add(body); c.body = body;
   const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(), new V(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
   line.visible = false; ray.add(line); c.line = line; return c; });
 const hand = h => ctrl.find(c => c.hand === h) || null;
@@ -237,7 +239,7 @@ function drawPalette() {
     const [px, py, w, h] = palRect(k), t = it.tool !== undefined ? TOOLS[it.tool] : it, sel = it.tool === S.tool;
     x.fillStyle = sel ? '#ffffff' : 'rgba(255,255,255,.08)'; x.beginPath(); x.roundRect(px, py, w, h, 16); x.fill();
     x.fillStyle = t.color; x.beginPath(); x.roundRect(px + 10, py + 10, w - 20, h - 52, 10); x.fill();
-    if (it.tool !== undefined) icon(x, t.key, px + w / 2, py + 10 + (h - 52) / 2);
+    if (it.tool !== undefined || it.act) icon(x, t.key || it.act, px + w / 2, py + 10 + (h - 52) / 2, w - 20);
     x.fillStyle = sel ? '#111' : '#e8eef6'; x.font = `bold ${it.wide ? 34 : 21}px Arial, sans-serif`; x.textAlign = 'center'; x.fillText(t.name, px + w / 2, py + h - 14);
   });
   x.fillStyle = routeInfo && !routeInfo.error ? '#9ff0b4' : '#ffc27a'; x.font = '20px Arial, sans-serif'; x.textAlign = 'left';
@@ -246,8 +248,24 @@ function drawPalette() {
   palTex.needsUpdate = true;
 }
 function wrap(x, text, px, py, w, lh) { const words = text.split(' '); let line = ''; for (const wd of words) { const t = line ? line + ' ' + wd : wd; if (x.measureText(t).width > w) { x.fillText(line, px, py); py += lh; line = wd; } else line = t; } x.fillText(line, px, py); }
-function icon(x, key, cx, cy) {
-  x.save(); x.translate(cx, cy); x.fillStyle = 'rgba(0,0,0,.35)'; x.strokeStyle = 'rgba(0,0,0,.45)'; x.lineWidth = 4;
+/** a little car seen from the side, for the icons (facing right, centred on 0, 0, about 52 × 26) */
+function carIcon(x, col) {
+  x.fillStyle = col; x.beginPath(); x.roundRect(-26, -4, 52, 14, 6); x.fill(); x.beginPath(); x.roundRect(-14, -16, 26, 14, 6); x.fill();
+  x.fillStyle = '#bfe6ff'; x.fillRect(-10, -13, 9, 8); x.fillRect(1, -13, 8, 8);
+  x.fillStyle = '#1b1b1b'; for (const o of [-14, 14]) { x.beginPath(); x.arc(o, 11, 7, 0, 7); x.fill(); } x.fillStyle = '#ddd'; for (const o of [-14, 14]) { x.beginPath(); x.arc(o, 11, 3, 0, 7); x.fill(); }
+}
+function icon(x, key, cx, cy, wide = 96) {
+  x.save(); x.translate(cx, cy);
+  if (key === 'go') {
+    /* the race: three cars on their way to a chequered flag */
+    x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(-wide / 2 + 6, 16, wide - 12, 10);
+    for (let k = 0; k < 6; k++) { x.fillStyle = '#f4f1e6'; x.fillRect(-wide / 2 + 20 + k * 60, 19, 30, 4); }
+    const fx = wide / 2 - 60; x.fillStyle = '#5a4836'; x.fillRect(fx, -30, 5, 56);
+    for (let i = 0; i < 5; i++) for (let j = 0; j < 3; j++) { x.fillStyle = (i + j) % 2 ? '#111' : '#fff'; x.fillRect(fx + 5 + i * 9, -30 + j * 9, 9, 9); }
+    for (const [o, col, sp] of [[-150, '#3c8dd8', 0], [-70, '#f0c419', 1], [20, '#e84c3d', 2]]) { x.save(); x.translate(o, 2); carIcon(x, col);
+      x.strokeStyle = 'rgba(255,255,255,.8)'; x.lineWidth = 3; for (let k = 0; k < 3; k++) { x.beginPath(); x.moveTo(-34 - k * 4, -10 + k * 8); x.lineTo(-48 - k * 4 - sp * 4, -10 + k * 8); x.stroke(); } x.restore(); }
+    x.restore(); return;
+  } x.fillStyle = 'rgba(0,0,0,.35)'; x.strokeStyle = 'rgba(0,0,0,.45)'; x.lineWidth = 4;
   if (key === 'vej') { x.fillStyle = '#f4f1e6'; for (let k = -2; k <= 2; k++) x.fillRect(-4, k * 12 - 4, 8, 7); }
   else if (key === 'huse') { for (const o of [-22, 6]) { x.fillRect(o - 2, -6, 18, 20); x.beginPath(); x.moveTo(o - 5, -6); x.lineTo(o + 7, -18); x.lineTo(o + 19, -6); x.fill(); } }
   else if (key === 'byhus') { x.fillRect(-26, -16, 22, 32); x.fillRect(2, -24, 24, 40); }
@@ -258,6 +276,20 @@ function icon(x, key, cx, cy) {
   else if (key === 'torv') { x.beginPath(); x.arc(0, 0, 14, 0, 7); x.stroke(); x.beginPath(); x.arc(0, 0, 5, 0, 7); x.fill(); }
   else if (key === 'start') { for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) { x.fillStyle = (i + j) % 2 ? '#111' : '#bbb'; x.fillRect(-24 + i * 12, -18 + j * 12, 12, 12); } }
   else if (key === 'port') { x.fillStyle = 'rgba(0,0,0,.45)'; x.fillRect(-20, -18, 6, 34); x.fillRect(14, -18, 6, 34); x.fillRect(-20, -20, 40, 10); }
+  else if (key === 'tunnel') { x.fillStyle = 'rgba(0,0,0,.45)'; x.beginPath(); x.moveTo(-28, 18); x.lineTo(-28, -2); x.arc(0, -2, 28, Math.PI, 0); x.lineTo(28, 18); x.closePath(); x.fill();
+    x.fillStyle = '#2a2d33'; x.beginPath(); x.moveTo(-17, 18); x.lineTo(-17, 0); x.arc(0, 0, 17, Math.PI, 0); x.lineTo(17, 18); x.closePath(); x.fill();
+    x.fillStyle = '#ffe680'; for (const o of [-6, 6]) { x.beginPath(); x.arc(o, -8, 2.5, 0, 7); x.fill(); } x.fillStyle = '#f4f1e6'; x.fillRect(-2, 6, 4, 8); }
+  else if (key === 'rampe') { x.fillStyle = 'rgba(0,0,0,.4)'; x.beginPath(); x.moveTo(-30, -10); x.lineTo(-8, -10); x.lineTo(30, 16); x.lineTo(-30, 16); x.closePath(); x.fill();
+    x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(12, -24); x.lineTo(24, -24); x.lineTo(24, -8); x.lineTo(30, -8); x.lineTo(18, 4); x.lineTo(6, -8); x.lineTo(12, -8); x.closePath(); x.fill(); }
+  else if (key === 'bakke') { x.fillStyle = 'rgba(0,0,0,.35)'; x.beginPath(); x.moveTo(-32, 16); x.quadraticCurveTo(0, -40, 32, 16); x.closePath(); x.fill();
+    x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(0, -24); x.lineTo(9, -12); x.lineTo(-9, -12); x.closePath(); x.fill(); }
+  else if (key === 'dal') { x.fillStyle = 'rgba(0,0,0,.35)'; x.beginPath(); x.moveTo(-32, 16); x.quadraticCurveTo(0, -4, 32, 16); x.closePath(); x.fill();
+    x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(0, -4); x.lineTo(9, -16); x.lineTo(-9, -16); x.closePath(); x.fill(); x.fillRect(-3, -28, 6, 12); }
+  else if (key === 'undo') { x.strokeStyle = '#ffffff'; x.lineWidth = 7; x.beginPath(); x.arc(4, 4, 16, -Math.PI * 0.9, Math.PI * 0.6); x.stroke();
+    x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(-22, -12); x.lineTo(-4, -16); x.lineTo(-14, 2); x.closePath(); x.fill(); }
+  else if (key === 'new') { x.fillStyle = 'rgba(255,255,255,.9)'; x.fillRect(-20, -24, 34, 44); x.fillStyle = 'rgba(0,0,0,.4)'; x.fillRect(-5, -12, 4, 20); x.fillRect(-13, -4, 20, 4); }
+  else if (key === 'next') { x.fillStyle = 'rgba(255,255,255,.55)'; x.fillRect(-24, -20, 30, 38); x.fillStyle = 'rgba(255,255,255,.9)'; x.fillRect(-12, -26, 30, 38);
+    x.fillStyle = 'rgba(0,0,0,.45)'; x.beginPath(); x.moveTo(-4, -14); x.lineTo(12, -7); x.lineTo(-4, 0); x.closePath(); x.fill(); }
   else if (key === 'slet') { x.rotate(-0.5); x.fillStyle = 'rgba(255,255,255,.8)'; x.fillRect(-20, -9, 40, 18); x.fillStyle = 'rgba(0,0,0,.3)'; x.fillRect(4, -9, 16, 18); }
   x.restore();
 }
@@ -345,11 +377,11 @@ const pickSign = (() => { const c = document.createElement('canvas'); c.width = 
   x.fillStyle = '#fff'; x.font = 'bold 40px Arial, sans-serif'; x.textAlign = 'center'; x.fillText('Vælg din bil', 256, 48); x.font = '22px Arial, sans-serif'; x.fillStyle = '#b9c6d6'; x.fillText('peg og tryk  ·  B: tilbage', 256, 82);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const m = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.056), new THREE.MeshBasicMaterial({ map: t, transparent: true })); showroom.add(m); return m; })();
 function placeShowroom() {
-  /* along the near edge of the table, towards you */
+  /* along the near edge of the table, towards you, lifted well clear of the town (they stood in among its houses) */
   const toward = new V().subVectors(head, table.pos); toward.y = 0; const yawT = Math.atan2(toward.x, toward.z);
-  const r = new V(Math.cos(yawT), 0, -Math.sin(yawT)), f = new V(Math.sin(yawT), 0, Math.cos(yawT)), edgeD = Math.min(table.d, table.w) * 0.5 * 0.8;
-  showCars.forEach((g, k) => { g.position.copy(table.pos).addScaledVector(f, edgeD).addScaledVector(r, (k - 1.5) * 0.17); g.position.y = table.pos.y + 0.12; g.rotation.set(0, yawT, 0); });
-  pickSign.position.copy(table.pos).addScaledVector(f, edgeD); pickSign.position.y = table.pos.y + 0.3; pickSign.rotation.set(0, yawT, 0);
+  const r = new V(Math.cos(yawT), 0, -Math.sin(yawT)), f = new V(Math.sin(yawT), 0, Math.cos(yawT)), edgeD = Math.min(table.d, table.w) * 0.5 + 0.06;      // just past the near edge
+  showCars.forEach((g, k) => { g.position.copy(table.pos).addScaledVector(f, edgeD).addScaledVector(r, (k - 1.5) * 0.17); g.position.y = table.pos.y + 0.34; g.rotation.set(0, yawT, 0); });
+  pickSign.position.copy(table.pos).addScaledVector(f, edgeD); pickSign.position.y = table.pos.y + 0.52; pickSign.rotation.set(0, yawT, 0);
 }
 let hoverCar = null;
 function toPick() {
@@ -370,7 +402,7 @@ function startDrive() {
   audio.init();
   race.clear();
   const others = CARS.filter(c => c.key !== S.carKey), names = ['Rød Rasmus', 'Gule Gerda', 'Grønne Gustav', 'Blå Bente'];
-  const skills = [0.86, 0.9, 0.94];
+  const skills = [0.72, 0.76, 0.8];                                              // beatable for a child (they were 0.86 to 0.94)
   others.forEach((c, k) => { const obj = buildCar(c.key); holder.add(obj); race.addCar(obj, c.key, names[CARS.indexOf(c)], true, skills[k]); });
   playerCar = buildCar(S.carKey); holder.add(playerCar); race.addCar(playerCar, S.carKey, 'Dig', false);
   insideView(playerCar, S.view === 'cockpit'); JOLT.p.set(0, 0, 0); JOLT.v.set(0, 0, 0);
@@ -454,12 +486,14 @@ function driveInput(dt) {
   const [lx] = axes(L), [rx] = axes(Rr); const sx = Math.abs(lx) > Math.abs(rx) ? lx : rx;
   return { gas, brake, steer: -Math.sign(sx) * Math.max(0, Math.abs(sx) - 0.08) / 0.92 };
 }
-/** in wheel mode the steering wheel sits between your hands, sized to them, and turns with them */
+/** The steering wheel stays where it is in the car. In wheel mode (and in the flat preview) a pair of gloved hands sits on its rim and turns with it;
+ *  in the headset your own controllers are hidden then, so the hands you see are the ones on the wheel. The wheel turns as the line between your
+ *  hands turns, as before. */
 function wheelToHands(car) {
-  const u = car.userData; if (!(S.xr && S.steerMode === 'wheel' && wheelGrip.lp && S.view === 'cockpit')) { u.wheel.rotation.z = -car.userData.steerAngle || u.wheel.rotation.z; return; }
-  car.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(car.matrixWorld).invert();
-  const mid = wheelGrip.lp.clone().add(wheelGrip.rp).multiplyScalar(0.5).applyMatrix4(inv), span = wheelGrip.lp.distanceTo(wheelGrip.rp);
-  u.wheelBase.position.lerp(mid, 0.5); u.wheelBase.scale.setScalar(clamp(span / 2 / 0.19 / CAR_SCALE, 0.8, 2.2)); u.wheel.rotation.z = wheelGrip.angle;
+  const u = car.userData, onWheel = S.view === 'cockpit' && (!S.xr || S.steerMode === 'wheel');
+  if (u.gloves) u.gloves.visible = onWheel;
+  for (const c of ctrl) if (c.body) c.body.visible = !(S.xr && onWheel && S.mode === 'drive');
+  if (S.xr && S.steerMode === 'wheel' && wheelGrip.lp && S.view === 'cockpit') u.wheel.rotation.z = wheelGrip.angle;
 }
 
 /* ---------------- the room scan: find the table ---------------- */
@@ -515,6 +549,7 @@ const keys = {}; let mouse = { x: 0, y: 0, down: false, right: false, click: fal
 const clock = new THREE.Clock(); let setupMsg = null;
 function loop(_, frame) {
   const dt = Math.min(0.05, clock.getDelta()); S.time += dt; S.frames++;
+  for (const c of ctrl) if (c.body) c.body.visible = true;                         // hidden again below while your hands are on the wheel
   if (S.xr && frame) {
     const ref = renderer.xr.getReferenceSpace(), vp = frame.getViewerPose(ref);
     if (vp) { const p = vp.transform.position, o = vp.transform.orientation; head.set(p.x, p.y, p.z); headQ.set(o.x, o.y, o.z, o.w); }
@@ -746,7 +781,11 @@ function flatUI() {
   bar.style.display = S.mode === 'menu' ? 'none' : 'flex';
   const design = S.mode === 'design', pick = S.mode === 'pick';
   bar.innerHTML = '';
-  if (design) PAL_ITEMS.forEach((it, k) => { const b = document.createElement('button'); const t = it.tool !== undefined ? TOOLS[it.tool] : it; b.textContent = (k < 12 ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='][k] + ' ' : '') + t.name; b.className = it.tool === S.tool ? 'sel' : ''; b.style.borderColor = t.color; b.onclick = () => choose(k); bar.appendChild(b); });
+  if (design) PAL_ITEMS.forEach((it, k) => { const b = document.createElement('button'); const t = it.tool !== undefined ? TOOLS[it.tool] : it; b.textContent = (k < 12 ? ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='][k] + ' ' : '') + t.name; b.className = it.tool === S.tool ? 'sel' : ''; b.style.borderColor = t.color; b.onclick = () => choose(k);
+    { const w = it.wide ? 120 : 34, cv = document.createElement('canvas'); cv.width = w * 2; cv.height = 68; const x = cv.getContext('2d'); x.fillStyle = t.color; x.beginPath(); x.roundRect(0, 0, w * 2, 68, 10); x.fill();
+      if (it.wide) { x.translate(w, 34); x.scale(0.5, 0.5); icon(x, 'go', 0, 0, 470); } else { x.translate(34, 34); x.scale(0.62, 0.62); icon(x, t.key || it.act, 0, 0); }
+      cv.style.cssText = `width:${w}px;height:34px;vertical-align:middle;margin-right:6px;border-radius:5px`; b.prepend(cv); }
+    bar.appendChild(b); });
   if (pick) CARS.forEach((c, k) => { const b = document.createElement('button'); b.textContent = (k + 1) + ' ' + c.name; b.style.borderColor = c.color; b.onclick = () => { S.carKey = c.key; startDrive(); }; bar.appendChild(b); });
   const msg = document.createElement('div'); msg.className = 'msg';
   msg.textContent = design ? (S.msg || '') : pick ? 'Klik på en bil (eller tast 1–4). Esc: tilbage.' : S.mode === 'drive' ? 'W/S: gas og bremse · A/D: styr · C: kamera · V: byoverblik · P: pause · R: forfra · Esc: tilbage til bordet · træk med musen: kig rundt' : S.mode === 'watch' ? (S.paused ? 'PAUSE. P: fortsæt (ned i bilen) · Esc: stop løbet' : 'Byoverblik: løbet kører, og du kan stadig køre (W/A/S/D). V: ned i bilen · P: pause · Esc: stop løbet') : '';
@@ -816,4 +855,4 @@ renderer.setAnimationLoop(loop);
   if (params.has('flat')) enterFlat();
 })();
 
-window.__bb = { S, orbit, setStyle, LIGHT, findTable, boardPose, stopRace, toWatch, fromWatch, JOLT, city, race, table, head, camC, anchor, keys, mouse, toPick, startDrive, growUp, choose, holder, restartRace, setView: v => { S.view = v; updateCamC(0, true); }, TR };
+window.__bb = { palette: () => { drawPalette(); return palCanvas.toDataURL(); }, S, orbit, setStyle, LIGHT, findTable, boardPose, stopRace, toWatch, fromWatch, JOLT, city, race, table, head, camC, anchor, keys, mouse, toPick, startDrive, growUp, choose, holder, restartRace, setView: v => { S.view = v; updateCamC(0, true); }, TR };
