@@ -98,6 +98,19 @@ const G = {
 };
 G.prism.computeVertexNormals();
 
+/* ---- the tunnel sign: blue, an arrow pointing down, and TUNNEL (one texture for them all) ---- */
+const SIGN_GEO = new THREE.PlaneGeometry(5.4, 2.1);
+let _signMat = null;
+function signMat() {
+  if (_signMat) return _signMat;
+  const c = document.createElement('canvas'); c.width = 512; c.height = 200; const x = c.getContext('2d');
+  x.fillStyle = '#1f5fae'; x.beginPath(); x.roundRect(0, 0, 512, 200, 26); x.fill(); x.strokeStyle = '#ffffff'; x.lineWidth = 10; x.beginPath(); x.roundRect(12, 12, 488, 176, 18); x.stroke();
+  x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(62, 40); x.lineTo(102, 40); x.lineTo(102, 100); x.lineTo(132, 100); x.lineTo(82, 165); x.lineTo(32, 100); x.lineTo(62, 100); x.closePath(); x.fill();
+  x.font = 'bold 92px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('TUNNEL', 318, 104);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return (_signMat = new THREE.MeshBasicMaterial({ map: t }));
+}
+
 /* ---- trees, windows: shared bits ---- */
 function tree(b, x, z, r, s = 1, circles = null) {
   const kind = r(), h = (3 + r() * 2.5) * s; if (circles) circles.push([x, z, 0.45 * s]);      // a trunk you can run into
@@ -325,13 +338,14 @@ export function createCity() {
   }
 
   /* ---------- the underground: ramps, tunnels, and their map on the table ---------- */
-  let rampMesh = null, tunMesh = null, tunFlat = null, tunMap = null;
+  let rampMesh = null, tunMesh = null, tunFlat = null, tunMap = null; const signs = new THREE.Group(); root.add(signs);
   const tunMapMat = new THREE.MeshBasicMaterial({ color: 0x7a4a1e, transparent: true, opacity: 0.45, depthTest: false, depthWrite: false });
   /** a quad from four corners (in order round it), for sloping floors */
   function quad(b, p, color) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([...p[0], ...p[1], ...p[2], ...p[0], ...p[2], ...p[3]], 3)); g.computeVertexNormals(); b.add(g, color); }
   /** is a tunnel cell open towards a neighbour (another tunnel cell, or the bottom of a ramp that leads into it)? */
   function tunOpen(i, j, ni, nj) { if (isTun(ni, nj)) return true; const r = rampAt(ni, nj); return !!r && r.part === 1 && ni + r.v[0] === i && nj + r.v[1] === j; }
   function rebuildUnder() {
+    signs.clear();
     for (const m of [rampMesh, tunMesh, tunFlat, tunMap]) if (m) { root.remove(m); m.geometry.dispose(); }
     rampMesh = tunMesh = tunFlat = tunMap = null;
     const rb = new Builder(), tb = new Builder(), tf = new Builder(), mb = new Builder(), h = CELL / 2, CON = '#bdb7ab', DARK = '#8f8a80';
@@ -346,7 +360,12 @@ export function createCity() {
         for (const sd of [-1, 1]) rb.add(G.box, CON, x + sx * sd * (h - 0.3), (TUN_Y - 0.3 + 1.0) / 2, z + sz * sd * (h - 0.3), Math.atan2(di, dj), 0.6, 1.0 - TUN_Y + 0.3, CELL);
         if (r.part === 1) { const fx = x + di * (h - 0.3), fz = z + dj * (h - 0.3); rb.add(G.box, CON, fx, (TUN_TOP + 1.0) / 2, fz, Math.atan2(di, dj) + Math.PI / 2, 0.6, 1.0 - TUN_TOP, CELL);
           for (let k = 0; k < 4; k++) rb.add(G.box, k % 2 ? '#222' : '#f2c230', fx + di * 0.32 + sx * (k - 1.5) * 1.9, TUN_TOP + 0.25, fz + dj * 0.32 + sz * (k - 1.5) * 1.9, Math.atan2(di, dj) + Math.PI / 2, 0.05, 0.5, 1.9); }
-        mb.add(G.plane, '#7a4a1e', x, 0, z, 0, 3.6, 1, 3.6);
+        /* over the top of the ramp, a gantry with a blue sign: an arrow down and TUNNEL, facing the cars that come to it */
+        if (r.part === 0) { const tx = x - di * (h - 0.4), tz = z - dj * (h - 0.4), ry = Math.atan2(di, dj);
+          for (const sd of [-1, 1]) rb.box(tx + sx * sd * (h - 0.3), 1.0, tz + sz * sd * (h - 0.3), 0.35, 5.0, 0.35, '#8d949c');
+          rb.add(G.box, '#8d949c', tx, 5.85, tz, ry + Math.PI / 2, 0.3, 0.3, CELL - 0.2);
+          rb.add(G.box, '#2b3440', tx + di * 0.08, 4.55, tz + dj * 0.08, ry + Math.PI / 2, 0.12, 2.3, 5.6);
+          const sg = new THREE.Mesh(SIGN_GEO, signMat()); sg.position.set(tx - di * 0.01, 4.55, tz - dj * 0.01); sg.rotation.y = Math.atan2(-di, -dj); signs.add(sg); }
         continue;
       }
       if (!isTun(i, j)) continue;

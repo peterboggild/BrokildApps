@@ -149,8 +149,16 @@ export function buildCar(key, color) {
   part(sl, CYL, c, 0, 0, 0.02, Math.PI / 2, 0, 0, 0.06, 0.04, 0.06);
   sw.add(new THREE.Mesh(merge(sl), darkMat)); sw.position.set(0, eye.y - 0.42, eye.z - 0.42); sw.rotation.x = -0.45;
   const swSpin = new THREE.Group(); sw.children[0].removeFromParent(); swSpin.add(new THREE.Mesh(merge(sl), darkMat)); sw.add(swSpin);
+  /* gloved hands on the rim, at a quarter to three, turning with the wheel (shown when you steer with your hands, see game.js) */
+  const gl = [];
+  for (const s of [-1, 1]) {
+    part(gl, roundedBox(0.075, 0.1, 0.06, 0.028), '#f4f1e6', s * 0.19, 0.0, 0.012);                    // the palm round the rim
+    part(gl, roundedBox(0.03, 0.055, 0.03, 0.013), '#f4f1e6', s * 0.155, 0.04, 0.03);                  // the thumb on top
+    part(gl, roundedBox(0.085, 0.06, 0.07, 0.03), '#d9534f', s * 0.2, -0.075, 0.03);                    // the cuff
+  }
+  const gloves = new THREE.Mesh(merge(gl), darkMat); gloves.visible = false; swSpin.add(gloves);
   cockpit.add(sw); cockpit.visible = false; car.add(cockpit);
   car.scale.setScalar(CAR_SCALE); eye.multiplyScalar(CAR_SCALE); radius *= CAR_SCALE;      // eye and radius in metres of the scaled car
-  car.userData = { key, wheels, steer, cockpit, wheel: swSpin, wheelBase: sw, eye, radius, box, front: fz, rear: rz, roof: roofMesh, glass: glassMesh };
+  car.userData = { key, wheels, steer, cockpit, wheel: swSpin, wheelBase: sw, gloves, eye, radius, box, front: fz, rear: rz, roof: roofMesh, glass: glassMesh };
   return car;
 }

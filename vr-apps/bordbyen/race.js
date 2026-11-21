@@ -182,6 +182,7 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
         _o.nx = nx; _o.nz = nz; _o.d = over; support(_b, -nx, -nz, _pt); _o.px = _pt.x; _o.pz = _pt.z; take(); }
       if (!moved) break;
     }
+    c.touch = hit ? hit.d : 0;                                                    // for the test hooks
     return hit;
   }
 
@@ -282,7 +283,7 @@ export function createRace({ city, onBump, onGate, onLap, onFinish }) {
     for (const c of R.cars) {
       if (c.ai) {
         /* rubber band: a little faster when behind the player, a little slower when well ahead */
-        const r = ord.indexOf(c); c.band = !player || player.done ? 1 : clamp(1 + (r - pr) * 0.03 + (score(player) - score(c)) * 0.00002, 0.9, 1.08);
+        const r = ord.indexOf(c); c.band = !player || player.done ? 1 : clamp(1 + (r - pr) * 0.03 + (score(player) - score(c)) * 0.00002, 0.88, 1.03);
         if (go) ai(c, dt); else c.v = 0;
       } else if (go && !c.done) drive(c, input.gas, input.brake, input.steer, dt);
       else if (c.done) drive(c, 0, 0, 0, dt);
