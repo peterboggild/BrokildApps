@@ -1,13 +1,13 @@
 /* Planet Designer: boot, state, the desktop page (panel, 3D view, ledger), and the climate worker.
  * The VR workshop (M5) attaches to the same state later. */
 import { validate, defaultDesign, PRESETS, saveLocal, loadLocal, toHash, fromHash, MAX_HZ, MAX_PLANETS,
-  earthPlanet, otherPlanet } from './design.js?v=13';
-import { derive, deriveSync } from './physics/derive.js?v=13';
-import { ledger } from './physics/ledger.js?v=13';
-import { renderPanel, renderLedger } from './ui/dom.js?v=13';
-import { t, setLang, getLang } from './i18n.js?v=13';
-import { createView } from './scene/view.js?v=13';
-import { createAudio } from './audio.js?v=13';
+  earthPlanet, otherPlanet } from './design.js?v=14';
+import { derive, deriveSync } from './physics/derive.js?v=14';
+import { ledger } from './physics/ledger.js?v=14';
+import { renderPanel, renderLedger } from './ui/dom.js?v=14';
+import { t, setLang, getLang } from './i18n.js?v=14';
+import { createView } from './scene/view.js?v=14';
+import { createAudio } from './audio.js?v=14';
 
 const $ = (id) => document.getElementById(id);
 
@@ -28,7 +28,7 @@ const S = {
     for (const k of parts) o = o[k];
     o[last] = value;
     this.design = validate(this.design);
-    if (this.audio) this.audio.param(path, value, soundPos(path, value));
+    if (this.audio && this.audio.param(path, value, soundPos(path, value)) && this.xr && this.xr.tickHaptic) this.xr.tickHaptic();
     this.changed(false);
   },
   /* A structural edit (add/remove planet or moon, role change): apply, validate, redraw everything. */
@@ -105,7 +105,7 @@ const S = {
 let worker = null, climateTimer = null;
 const inFlight = {};
 try {
-  worker = new Worker(new URL('./physics/worker.js?v=13', import.meta.url), { type: 'module' });
+  worker = new Worker(new URL('./physics/worker.js?v=14', import.meta.url), { type: 'module' });
   worker.onmessage = (ev) => {
     const { id, key, result } = ev.data;
     delete inFlight[id];
@@ -257,7 +257,7 @@ async function boot() {
   $('musicBtn').onclick = () => { S.audio.setPref('music', !S.audio.prefs.music); renderHeader(); };
   $('fxBtn').onclick = () => { S.audio.setPref('fx', !S.audio.prefs.fx); renderHeader(); };
   /* every button and tab on the page clicks */
-  document.addEventListener('click', (e) => { if (e.target.closest('button, .tab, .chip, select')) S.audio.click(); }, true);
+  document.addEventListener('click', (e) => { if (e.target.closest('button, .tab, .chip, select, .cm-node, .cm-info, input[type=checkbox], input[type=radio]')) S.audio.click(); }, true);
   renderHeader();
   window.__pd = S;    /* test hook */
 }

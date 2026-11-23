@@ -7,13 +7,13 @@ import { EffectComposer } from '../vendor/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../vendor/postprocessing/OutputPass.js';
-import { createSky } from './sky.js?v=13';
-import { createStar } from './star.js?v=13';
-import { createOrrery, rOf } from './orrery.js?v=13';
-import { createPlanet } from './planet.js?v=13';
-import { t, fmt } from '../i18n.js?v=13';
-import { createCausality } from '../ui/causality.js?v=13';
-import { createXR } from './xr.js?v=13';
+import { createSky } from './sky.js?v=14';
+import { createStar } from './star.js?v=14';
+import { createOrrery, rOf } from './orrery.js?v=14';
+import { createPlanet } from './planet.js?v=14';
+import { t, fmt } from '../i18n.js?v=14';
+import { createCausality } from '../ui/causality.js?v=14';
+import { createXR } from './xr.js?v=14';
 
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 
@@ -294,6 +294,7 @@ export function createView(container, S) {
     if (u.kind === 'slot') { S.addHzAt(u.a); return; }
     S.sel = u.index; S.tab = 'orbit'; S.redraw();
     drag = u;
+    if (S.audio) S.audio.grab();
     controls.enabled = false;
     renderer.domElement.setPointerCapture(ev.pointerId);
   });
@@ -316,7 +317,7 @@ export function createView(container, S) {
       S.set('planet.orbit.argPeriDeg', orrery.toArgPeri(p));
     }
   });
-  const endDrag = () => { if (drag) { drag = null; controls.enabled = true; S.redraw(); } };
+  const endDrag = () => { if (drag) { drag = null; controls.enabled = true; if (S.audio) S.audio.release(); S.redraw(); } };
   renderer.domElement.addEventListener('pointerup', endDrag);
   renderer.domElement.addEventListener('pointercancel', endDrag);
   renderer.domElement.addEventListener('dblclick', (ev) => {

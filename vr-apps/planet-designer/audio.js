@@ -1,6 +1,7 @@
 /* Sound design: every change makes a sound, and a slow, spacious ambient track plays underneath.
  * Everything is synthesised with Web Audio (owner rule: no audio files he has not supplied).
  *   UI       ticks whose pitch follows the value (sliders, dials, dragging a planet), clicks for buttons and tabs,
+ *            two-note toggles for settings, a thunk on taking hold of something and a soft tone on letting go,
  *            chimes up/down for adding/removing, a whoosh for presets and for entering VR,
  *            the ledger: a bright little chord when a tier is reached, a dark low tone when one is lost
  *   Music    pads (detuned oscillators, low-passed, slow attack) moving through a modal progression, a sub drone,
@@ -96,7 +97,7 @@ export function createAudio() {
     s.onended = () => { s.disconnect(); f.disconnect(); g.disconnect(); };
     A.stats.fx++;
   }
-  const click = () => { noiseBurst({ dur: 0.025, gain: 0.07, freq: 3200, q: 2 }); blip(1400, { dur: 0.03, gain: 0.03, type: 'triangle' }); };
+  const click = () => { noiseBurst({ dur: 0.03, gain: 0.1, freq: 3200, q: 2 }); blip(1400, { dur: 0.04, gain: 0.06, type: 'triangle' }); };
 
   /* A value changed: a tick whose pitch follows the value, at most every ~40 ms and only when the value moved enough
    * to be heard as a step (so a dial at 72 Hz ticks like a ratchet, not a buzz). */
@@ -105,11 +106,28 @@ export function createAudio() {
     const k = path.replace(/\.\d+\./, '.n.');
     const L = A.last[k] || (A.last[k] = { t: 0, q: null });
     const q = Math.round(pos * 60);
-    if (q === L.q || now - L.t < 40) return;
+    if (q === L.q || now - L.t < 40) return false;
+    const dir = L.q == null ? 0 : Math.sign(q - L.q);
     L.q = q; L.t = now;
     const base = /aAU/.test(k) ? 1900 - 1300 * pos : /massSun/.test(k) ? 300 + 900 * pos : 500 + 900 * pos;
-    blip(base, { dur: 0.06, gain: 0.07, type: /massSun|ageGyr/.test(k) ? 'triangle' : 'sine' });
+    /* a clear ratchet tick: a short click for the attack, the pitched tone, and a soft octave under it */
+    noiseBurst({ dur: 0.02, gain: 0.06, freq: 2600, q: 3 });
+    blip(base, { dur: 0.08, gain: 0.13, type: /massSun|ageGyr/.test(k) ? 'triangle' : 'sine' });
+    blip(base / 2, { dur: 0.07, gain: 0.05, type: 'triangle' });
+    A.lastDir = dir;
+    return true;
   }
+  /* a setting switched (chips, toggles): two quick notes, rising for "on"/the later option, falling for "off" */
+  function toggle(up) {
+    const r = rootMidi + 31;
+    const seq = up ? [0, 7] : [7, 0];
+    seq.forEach((iv, i) => setTimeout(() => blip(mtof(r + iv), { dur: 0.16, gain: 0.1, type: 'triangle', verb: true }), i * 60));
+  }
+  /* taking hold of something (a dial, a planet, the star, the world) and letting go */
+  function grab() { blip(180, { dur: 0.14, gain: 0.16, type: 'triangle' }); noiseBurst({ dur: 0.05, gain: 0.07, freq: 900, q: 1.5 }); }
+  function release() { blip(260, { dur: 0.1, gain: 0.08, type: 'sine' }); }
+  /* a snap turn: a short air swish */
+  function swish() { noiseBurst({ dur: 0.22, gain: 0.07, freq: 700, q: 0.9, sweepTo: 1800 }); }
   function chime(up) {
     const r = rootMidi + 24;
     const seq = up ? [0, 4, 7, 12] : [12, 7, 3, 0];
@@ -201,7 +219,7 @@ export function createAudio() {
       if (k === 'music') setMusic(v);
       if (k === 'fx') A.fxBus.gain.setTargetAtTime(v ? 0.55 : 0, A.ctx.currentTime, 0.05);
       if (k === 'vol') A.master.gain.setTargetAtTime(v * GAIN, A.ctx.currentTime, 0.05); },
-    param, click, chime, whoosh, tier,
+    param, click, chime, whoosh, tier, toggle, grab, release, swish,
     /* the star sets the key (cool stars lower) and the brightness of the pads; applied at the next chord */
     setStar(teff) {
       const k = Math.max(-5, Math.min(5, Math.round(Math.log2(teff / 5772) * 9)));
