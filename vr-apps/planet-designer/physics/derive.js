@@ -1,20 +1,23 @@
 /* derive(design) -> every derived number the panel and the ledger show. Pure; recomputed on every change. */
 import { starAt, parRelativeToSun, snowLineAU, peakWavelength, blackbodyRGB, activityAuto, spectralLetter,
-  STAR_MASS_HZ_VALID } from './star.js?v=2';
-import { habitableZone, hzPosition, timeInHZ } from './hz.js?v=2';
+  STAR_MASS_HZ_VALID } from './star.js?v=3';
+import { habitableZone, hzPosition, timeInHZ } from './hz.js?v=3';
 import { periodYears, fluxEarth, eccMeanFactor, periApoFlux, hillRadiusAU, mutualHillSpacing, tidalLockBand,
-  moonInfo } from './orbit.js?v=2';
-import { bulk, layers } from './structure.js?v=2';
+  moonInfo } from './orbit.js?v=3';
+import { bulk, layers } from './structure.js?v=3';
 import { composition, atmosphereMass, scaleHeight, jeansLambda, T_EXO_EARTH, satVapourPa, boilingPointK,
-  hasOzone, climate0D, bondAlbedo, TRIPLE_POINT_PA } from './atmosphere.js?v=2';
-import { seaLevel, reliefMeters } from './terrain.js?v=2';
-import { MOLAR, OCEAN_MASS, M_EARTH, RHO_WATER } from './const.js?v=2';
+  hasOzone, climate0D, bondAlbedo, TRIPLE_POINT_PA } from './atmosphere.js?v=3';
+import { seaLevel, reliefMeters } from './terrain.js?v=3';
+import { MOLAR, OCEAN_MASS, M_EARTH, RHO_WATER } from './const.js?v=3';
+import { xuvEnvironment, shorelineI, cosmicDose } from './space.js?v=3';
+import { wetBulb, runEBM } from './climate.js?v=3';
 
 /* Default bulk densities for the simplified planets (kg/m^3), giving a radius from the mass:
  * rocky like Earth, icy like Ganymede/Callisto-type bodies, ice giant like Neptune, gas giant like Jupiter. */
 const TYPE_DENSITY = { rocky: 5500, icy: 1900, iceGiant: 1640, gasGiant: 1330 };
 
-export function derive(d) {
+/* ebm: optional map planet id -> { key, result } of energy-balance runs (they run in a worker; see main.js). */
+export function derive(d, ebm = {}) {
   const st = starAt(d.star.massSun, d.star.ageGyr);
   const star = {
     ...st, massSun: d.star.massSun, letter: spectralLetter(st.spt),
@@ -26,7 +29,7 @@ export function derive(d) {
   };
   star.hz = habitableZone(st.teff, st.lum, 1);
 
-  const planets = d.planets.map((p) => derivePlanet(p, d, star));
+  const planets = d.planets.map((p) => derivePlanet(p, d, star, ebm));
   /* Stability: each planet against its neighbours, in mutual Hill radii. */
   const order = planets.map((p, i) => ({ i, aAU: p.aAU, e: p.e, massEarth: p.massEarth })).sort((a, b) => a.aAU - b.aAU);
   for (let k = 0; k < order.length; k++) {
@@ -42,7 +45,7 @@ export function derive(d) {
   return { star, planets, nPlanets: planets.length };
 }
 
-function derivePlanet(p, d, star) {
+function derivePlanet(p, d, star, ebm) {
   const out = { id: p.id, name: p.name, role: p.role, type: p.type, aAU: p.orbit.aAU, e: p.orbit.e,
     massEarth: p.bulk.massEarth };
   out.periodYr = periodYears(p.orbit.aAU, d.star.massSun);
@@ -114,8 +117,14 @@ function derivePlanet(p, d, star) {
   out.TsC = clim.Ts - 273.15;
   out.Teq = clim.Teq;
   out.scaleHeightKm = scaleHeight(clim.Ts, comp.molar, b.g) / 1e3;
+  /* the star's XUV: exosphere temperature, the cosmic shoreline, and the surface dose from cosmic rays */
+  out.xuv = xuvEnvironment(d.star.massSun, d.star.ageGyr, p.orbit.aAU, star.lum);
   out.jeans = {};
-  for (const k of ['N2', 'O2', 'CO2', 'H2O', 'H']) out.jeans[k] = jeansLambda(b.vesc, MOLAR[k], T_EXO_EARTH);
+  for (const k of ['N2', 'O2', 'CO2', 'H2O', 'H']) out.jeans[k] = jeansLambda(b.vesc, MOLAR[k], out.xuv.Texo);
+  out.jeansEarthExo = jeansLambda(b.vesc, MOLAR.N2, T_EXO_EARTH);
+  out.shoreRatio = out.xuv.fluence / shorelineI(b.vesc / 1e3);
+  out.columnGcm2 = comp.totalPa / b.g / 10;
+  out.doseMSv = cosmicDose(out.columnGcm2, star.activity);
   out.ozone = hasOzone(p.atmosphere.pO2bar);
   out.boilK = boilingPointK(comp.totalPa);
   out.aboveTriple = comp.totalPa > TRIPLE_POINT_PA;
@@ -135,5 +144,52 @@ function derivePlanet(p, d, star) {
     : waterFrac > 1e-5 && m >= 0.3 && m <= 8 ? 'uncertain' : 'unlikely';
   out.thermostat = out.tectonics === 'likely' && out.landFrac > 0.02 && p.surface.oceansEarth > 0.05 ? 'active'
     : out.tectonics !== 'unlikely' && p.surface.oceansEarth > 0 ? 'partial' : 'absent';
+
+  /* Clouds (for the picture; the climate's albedo already includes Earth-like cloud cover): water and warmth make
+   * clouds, a runaway greenhouse makes a total haze deck, a frozen world few. */
+  out.cloudFrac = clim.runaway ? 1 : p.surface.oceansEarth <= 0 ? 0 : Math.min(0.75, 0.2 + 0.45 * (1 - out.landFrac)) * (clim.Ts > 250 ? 1 : 0.5);
+
+  /* The energy balance model: its parameters, and its result if a run for exactly these parameters exists. */
+  out.ebmParams = clim.runaway ? null : {
+    S: out.flux, e: p.orbit.e, obliquityDeg: p.spin.obliquityDeg, argPeriDeg: p.orbit.argPeriDeg || 0,
+    dayHours: out.dayHours, locked: out.locked, pBar: comp.totalBar, molar: comp.molar,
+    forcing: clim.forcingCO2 + (clim.forcingCH4 || 0), greenhouse: Math.min(1, Math.sqrt(Math.max(comp.totalBar, 0))),
+    albedoFree: albedo + 0.015,   /* calibrated: Earth 14.4 C with polar ice */ albedoIce: 0.62, landFrac: out.landFrac, hasWater: p.surface.oceansEarth > 0,
+    periodYears: out.periodYr, years: 30,
+  };
+  out.ebmKey = out.ebmParams ? JSON.stringify(out.ebmParams) : null;
+  const run = ebm[p.id];
+  if (run && run.key === out.ebmKey) applyEBM(out, run.result);
+  else out.ebmPending = !!out.ebmParams;
   return out;
+}
+
+/* derive() with the climate model run synchronously (node tests, and the browser's fallback without workers). */
+export function deriveSync(d, ebm = {}) {
+  const D0 = derive(d, ebm);
+  const runs = { ...ebm };
+  let any = false;
+  for (const P of D0.planets) if (P.ebmParams && !(runs[P.id] && runs[P.id].key === P.ebmKey)) {
+    runs[P.id] = { key: P.ebmKey, result: runEBM(P.ebmParams) }; any = true;
+  }
+  return any ? derive(d, runs) : D0;
+}
+
+/* Bring the climate model's result into the planet: mean temperature, where water is liquid, ice, humid heat,
+ * and the land with a liveable climate. */
+function applyEBM(out, r) {
+  out.ebm = r;
+  out.TsC = r.gmean; out.Ts = r.gmean + 273.15;
+  const boilC = out.boilK - 273.15;
+  const meanWarm = r.mean.some((t) => t > 0 && t < boilC);
+  out.liquidWater = out.oceans > 0 && out.aboveTriple && meanWarm;
+  out.seasonalOnly = out.oceans > 0 && out.aboveTriple && !meanWarm && r.max.some((t) => t > 0);
+  out.snowball = r.snowball;
+  out.iceFrac = r.iceFrac;
+  let tw = -99;
+  for (let j = 0; j < r.max.length; j++) if (r.max[j] > -10) tw = Math.max(tw, wetBulb(Math.min(r.max[j], 55), 70));
+  out.wetBulbMax = out.oceans > 0 ? tw : null;
+  const comfy = r.mean.filter((t, j) => t >= 0 && t <= 30 && r.max[j] < 45 && r.min[j] > -45).length / r.mean.length;
+  out.comfortFrac = comfy;
+  out.habLand = comfy * out.landFrac;
 }

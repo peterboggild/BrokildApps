@@ -7,11 +7,11 @@ import { EffectComposer } from '../vendor/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../vendor/postprocessing/OutputPass.js';
-import { createSky } from './sky.js?v=2';
-import { createStar } from './star.js?v=2';
-import { createOrrery, rOf } from './orrery.js?v=2';
-import { createPlanet } from './planet.js?v=2';
-import { t, fmt } from '../i18n.js?v=2';
+import { createSky } from './sky.js?v=3';
+import { createStar } from './star.js?v=3';
+import { createOrrery, rOf } from './orrery.js?v=3';
+import { createPlanet } from './planet.js?v=3';
+import { t, fmt } from '../i18n.js?v=3';
 
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 

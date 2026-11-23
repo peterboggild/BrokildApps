@@ -35,6 +35,25 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 - **Højdeoverdrivelse** kan sættes fra 1 til 40 gange og står altid på skærmen.
 - **Grafikkvalitet:** høj, middel eller lav. Den skifter selv ned efter mange langsomme billeder, og et valg man selv har truffet huskes. `?q=low` i adressen tvinger lav.
 
+## Status: M3 (23. november 2026)
+
+- **Klimamodel** (`physics/climate.js`): Den er endimensional og regner med årstider. Den finder temperaturen på 36 breddegrader gennem et helt år ud fra stjernens lys, banen og aksehældningen. Med i regningen er varmetransport (skaleret med tryk og rotation efter Williams & Kasting 1997), is, der kaster lyset tilbage (så sneboldplaneter og deres "hukommelse" findes), og drivhusgasser (Budyko-tilpasning med CO₂ og CH₄). Låste planeter regnes ud fra vinklen til punktet lige under stjernen.
+  - Jorden giver 14,4 °C med iskant ved cirka 76°.
+  - Med 10 % mindre lys forbliver en varm Jord ikke-frossen, mens en frossen forbliver frossen.
+  - Modellen kører i en baggrundstråd (`physics/worker.js`) og følger selv med, når man ændrer noget. Den starter fra planetens forrige klima, så man kan fryse en verden og tø den op igen og se hysteresen. Et nyt design eller en forudindstilling starter varmt.
+- **Tavlen** bruger klimamodellen til flydende vand (også kun om sommeren eller under is), middeltemperatur, vådtemperatur (Stull 2011, 70 % luftfugtighed i den varmeste sæson) og land med et klima, man kan bo i.
+- **Stråling og luft** (`physics/space.js`):
+  - Stjernens røntgen- og UV-lys gennem livet. Røde dværge er urolige meget længere, og det er en tilpasning, ikke Jacksons tabel.
+  - Exosfærens temperatur og dermed Jeans-parameteren.
+  - Den kosmiske kystlinje (Zahnle & Catling 2017, linjen lagt gennem Mars).
+  - Kosmisk stråling ved overfladen ud fra luftsøjlens masse (Jorden 0,35 mSv/år, Mars 0,64 mSv/dag).
+- **Fanen Klima**: temperatur over breddegrader og den kosmiske kystlinje med solsystemets kloder.
+- **Grafik**:
+  - Atmosfæren regner spredning af lys gennem luften (molekyler og dis eller støv) med stjernens farve, luftsøjlen og gassernes art. Sollyset på jorden bliver rødt ved terminatoren.
+  - Skyer i bånd (ækvator, stormbælter, klare subtroper) med skygger på jorden. Drivhusverdener har et lukket skydække, og låste planeter samler skyerne under stjernen.
+  - Is og planter følger klimamodellens temperaturer.
+  - Kvalitetsindstillingen styrer også skyernes detaljer, skyggerne og antallet af trin i atmosfæren.
+
 ## Filer
 
 | Fil | Indhold |
@@ -44,22 +63,22 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 | `design.js` | Designobjektet: standard, forudindstillinger, validering (hårde grænser), gem, delingslink. |
 | `i18n.js` | Al tekst på dansk og engelsk. |
 | `ui/schema.js`, `ui/dom.js` | Panelets beskrivelse og tegningen af den i browseren. |
-| `physics/*.js` | Rene funktioner uden three.js: `star`, `hz`, `orbit`, `structure`, `atmosphere`, `derive`, `ledger`, `const`. |
+| `physics/*.js` | Rene funktioner uden three.js: `star`, `hz`, `orbit`, `structure`, `atmosphere`, `climate` (klimamodellen), `space` (røntgenlys, kystlinje, stråling), `terrain`, `noise`, `derive` (med `deriveSync`), `ledger`, `const`, `worker`. |
 | `data/*.js` | Tabeller kopieret med script fra kilderne (se hovedet i hver fil). |
 | `test/physics.test.mjs` | Benchmarks fra spec §5.12: `node test/physics.test.mjs`. |
 | `test/flat.test.cjs` | Browsertjek med Playwright og software-grafik: panel, solsystem (klik på pladsen, træk en planet), planet og gennemskæring. |
 | `scene/*.js` | `view` (renderer, bloom, kamera, mus, navne), `sky`, `star`, `orrery`, `planet`, `glsl` (støj og landskab). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=2`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=3`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 
 - Mamajeks tabel er skaleret ~2 %, så Solen ved 4,57 mia. år er præcis 1 L☉ og 1 R☉.
 - Gough-formlen er generaliseret til andre masser ved at måle alderen i stjernens egen levetid.
   Røde dværges lyse ungdom er ikke med endnu (tidsmaskinen, M6).
-- Klimaskønnet giver Jorden cirka 17–18 °C (den publicerede Budyko-fit), ikke 15 °C. Det skal M3's
-  klimamodel rette.
+- Klimamodellen er kalibreret til Jorden (varmetransport og albedo). Uden for 0,5–2 bar og 100–10.000 ppm CO₂ står der, at den er uden for sit afprøvede område. Tykke CO₂-atmosfærer kræver Williams & Kasting's polynomier, som ikke er med endnu.
+- Atmosfærens farver i grafikken bruger tilnærmede spredningstal pr. gas. Meget tyk luft er loftet ved en optisk dybde på 12 (et grafisk valg).
 - Landandelen kommer nu fra terrænets højdefordeling (M2). Den gamle tabel ligger stadig i `atmosphere.js`, men bruges ikke.
 - Temperaturen over breddegrader er et skøn (ækvator varmere end polerne, aksehældningen udjævner). Den rigtige klimamodel kommer i M3.
 - Indre kerne: 0,35 af kernens radius over 0,6 jordmasser og ingen under 0,2 (en pladsholder indtil tidsmaskinen i M6). Mars' kerne bliver 1.695 km mod InSights 1.830 km, fordi modellen ikke kender svovl i kernen.

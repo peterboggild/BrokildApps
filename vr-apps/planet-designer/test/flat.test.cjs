@@ -35,9 +35,15 @@ const screenPos = (p, which) => p.evaluate((which) => {
   /* M1: second HZ planet by clicking the slot, then drag it */
   await p.selectOption('#preset', 'kdwarf');
   await frames(p, 2);
-  const slot = await screenPos(p, 'slot');
-  await p.mouse.click(slot.x, slot.y);
-  await frames(p, 2);
+  /* the slow software renderer can still be settling after the preset: wait for the climate run, retry the click */
+  await p.waitForFunction(() => window.__pd.derivedPlanet().ebm, null, { timeout: 60000 });
+  for (let k = 0; k < 3; k++) {
+    await frames(p, 2);
+    const slot = await screenPos(p, 'slot');
+    await p.mouse.click(slot.x, slot.y);
+    await frames(p, 2);
+    if (await p.evaluate(() => window.__pd.design.planets.filter((q) => q.role === 'hz').length === 2)) break;
+  }
   const hz = await p.evaluate(() => window.__pd.derived.planets.filter((q) => q.role === 'hz').map((q) => ({ a: q.aAU, hill: q.hillSpacing, pos: q.hzPos })));
   check('Slot click adds a second HZ planet', hz.length === 2, JSON.stringify(hz.map((x) => x.a.toFixed(3))));
   check('Both HZ planets in the conservative zone', hz.every((x) => x.pos === 'cons'));
@@ -67,7 +73,7 @@ const screenPos = (p, which) => p.evaluate((which) => {
   check('English after toggle', (await p.textContent('h2')) === 'Can it host life?');
   await p.selectOption('#preset', 'hothouse');
   check('Hothouse world fails tier 1', await p.evaluate(() => document.querySelectorAll('.lamp.red').length === 5));
-  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=2')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
+  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=3')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
   const p2 = await b.newPage();
   await p2.goto(p.url());
   await p2.waitForFunction(() => window.__pd && window.__pd.derived, null, { timeout: 120000 });

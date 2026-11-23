@@ -1,6 +1,6 @@
 /* Planet structure: radius from mass and composition (Zeng et al. tables), gravity, escape velocity, layers. */
-import { MR_FE, MR_ROCK, MR_MGSIO3, MR_W50, MR_W100, ROCK_CMF } from '../data/massradius.js?v=2';
-import { G, M_EARTH, R_EARTH, OCEAN_MASS, RHO_WATER } from './const.js?v=2';
+import { MR_FE, MR_ROCK, MR_MGSIO3, MR_W50, MR_W100, ROCK_CMF } from '../data/massradius.js?v=3';
+import { G, M_EARTH, R_EARTH, OCEAN_MASS, RHO_WATER } from './const.js?v=3';
 
 export const PLANET_MASS_MIN = 0.05;
 export const PLANET_MASS_MAX = 10;

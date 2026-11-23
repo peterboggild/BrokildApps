@@ -1,12 +1,12 @@
-/* Planet Designer, milestone M0: boot, state, the desktop page (parameter panel and ledger as text).
- * The 3D workshop (M1+) and VR (M5) attach to the same state later. */
+/* Planet Designer: boot, state, the desktop page (panel, 3D view, ledger), and the climate worker.
+ * The VR workshop (M5) attaches to the same state later. */
 import { validate, defaultDesign, PRESETS, saveLocal, loadLocal, toHash, fromHash, MAX_HZ, MAX_PLANETS,
-  earthPlanet, otherPlanet } from './design.js?v=2';
-import { derive } from './physics/derive.js?v=2';
-import { ledger } from './physics/ledger.js?v=2';
-import { renderPanel, renderLedger } from './ui/dom.js?v=2';
-import { t, setLang, getLang } from './i18n.js?v=2';
-import { createView } from './scene/view.js?v=2';
+  earthPlanet, otherPlanet } from './design.js?v=3';
+import { derive, deriveSync } from './physics/derive.js?v=3';
+import { ledger } from './physics/ledger.js?v=3';
+import { renderPanel, renderLedger } from './ui/dom.js?v=3';
+import { t, setLang, getLang } from './i18n.js?v=3';
+import { createView } from './scene/view.js?v=3';
 
 const $ = (id) => document.getElementById(id);
 
@@ -15,7 +15,8 @@ const S = {
   planet() { return this.design.planets[this.sel] || this.design.planets[0]; },
   derivedPlanet() { return this.derived.planets[this.sel] || this.derived.planets[0]; },
   ledgerFor(P) { return ledger(P, this.derived); },
-  recompute() { this.derived = derive(this.design); },
+  ebm: {},                      /* planet id -> { key, result } of the climate model runs */
+  recompute() { this.derived = derive(this.design, this.ebm); requestClimate(); },
   /* A value edit: set, re-derive, refresh readouts and the ledger, keep the controls. */
   set(path, value) {
     const parts = path.split('.');
@@ -78,6 +79,43 @@ const S = {
   removePlanet(i) { this.design.planets.splice(i, 1); this.sel = 0; },
 };
 
+/* The climate model runs in a worker (spec §10.6: heavy models never on the render thread). On the PC it follows
+ * edits by itself, debounced; the panel and the ledger show the previous result as 'running' meanwhile. A new run
+ * starts from the planet's last climate, so freezing a world and warming it again shows the hysteresis. */
+let worker = null, climateTimer = null;
+const inFlight = {};
+try {
+  worker = new Worker(new URL('./physics/worker.js?v=3', import.meta.url), { type: 'module' });
+  worker.onmessage = (ev) => {
+    const { id, key, result } = ev.data;
+    delete inFlight[id];
+    if (!result) return;
+    S.ebm[id] = { key, result };
+    S.derived = derive(S.design, S.ebm);
+    for (const f of S.live) f();
+    renderLedger($('ledger'), S);
+    if (S.view) S.view.refresh();
+    requestClimate();
+  };
+} catch (e) { worker = null; }
+function requestClimate() {
+  clearTimeout(climateTimer);
+  climateTimer = setTimeout(() => {
+    if (!S.derived) return;
+    for (const P of S.derived.planets) {
+      if (!P.ebmPending || inFlight[P.id] === P.ebmKey) continue;
+      const prev = S.ebm[P.id];
+      const params = { ...P.ebmParams, init: prev ? prev.result.final : 'warm' };
+      if (worker) { inFlight[P.id] = P.ebmKey; worker.postMessage({ id: P.id, key: P.ebmKey, params }); }
+    }
+    if (!worker) {
+      S.derived = deriveSync(S.design, S.ebm);
+      for (const P of S.derived.planets) if (P.ebm) S.ebm[P.id] = { key: P.ebmKey, result: P.ebm };
+      renderLedger($('ledger'), S);
+    }
+  }, 120);
+}
+
 /* The share link is kept in the address bar as the design changes (debounced). */
 let hashTimer = null;
 function scheduleHash() {
@@ -111,6 +149,7 @@ function toast(msg) {
 }
 
 function load(design) {
+  S.ebm = {};                   /* a new design starts its climate from warm, not from the last world's ice */
   S.design = validate(design); S.sel = Math.max(0, S.design.planets.findIndex((p) => p.role === 'hz'));
   S.changed(true);
 }

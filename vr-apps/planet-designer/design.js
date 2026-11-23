@@ -1,8 +1,8 @@
 /* The design object: defaults, presets, validation (hard limits), save/load, JSON export/import, share link.
  * SI-friendly units as named in the keys. Derived values are never stored here. */
-import { ECC_MAX } from './physics/orbit.js?v=2';
-import { STAR_MASS_MIN, STAR_MASS_MAX } from './physics/star.js?v=2';
-import { PLANET_MASS_MIN, PLANET_MASS_MAX } from './physics/structure.js?v=2';
+import { ECC_MAX } from './physics/orbit.js?v=3';
+import { STAR_MASS_MIN, STAR_MASS_MAX } from './physics/star.js?v=3';
+import { PLANET_MASS_MIN, PLANET_MASS_MAX } from './physics/structure.js?v=3';
 
 export const APP_ID = 'PlanetDesigner';
 export const DESIGN_VERSION = 1;

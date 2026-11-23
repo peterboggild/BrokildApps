@@ -7,9 +7,10 @@
  *   { kind: 'planets' } | { kind: 'moons' } | { kind: 'system' }   (custom widgets)
  * level: 1 = Explorer, 2 = Student, 3 = Scientist; a row shows at its level and above.
  * Paths: 'star.*' on the design, 'planet.*' on the selected planet. */
-import { t, fmt, esc } from '../i18n.js?v=2';
-import { ECC_MAX } from '../physics/orbit.js?v=2';
-import { rgbToCss } from '../physics/star.js?v=2';
+import { t, fmt, esc } from '../i18n.js?v=3';
+import { ECC_MAX } from '../physics/orbit.js?v=3';
+import { rgbToCss } from '../physics/star.js?v=3';
+import { climateChart, shorelineChart } from './charts.js?v=3';
 
 const f = fmt;
 const u = (k) => t('u.' + k);
@@ -100,6 +101,22 @@ export const TABS = [
     { kind: 'readout', label: 'r.jeans', level: 3, value: (D, P) => `${f(P.jeans.N2, 3)} / ${f(P.jeans.H, 2)}` },
     { kind: 'readout', label: 'r.ozone', level: 1, value: (D, P) => t(P.ozone ? 'yes' : 'no') },
     { kind: 'warn', value: (D, P) => (P.climate.valid ? null : 'warn.climate') },
+  ] },
+  { id: 'climate', hzOnly: true, rows: [
+    { kind: 'planets' },
+    { kind: 'heading', label: 'ch.tlat' },
+    { kind: 'chart', value: (D, P) => climateChart(P) },
+    { kind: 'readout', label: 'r.Ts', level: 1, value: (D, P) => (P.climate.runaway ? t('v.runawayT') : `${f(P.TsC, 3)} °C`) },
+    { kind: 'readout', label: 'r.iceLine', level: 1, value: (D, P) => (!P.ebm ? '–' : P.ebm.snowball ? t('ch.snowball') : P.ebm.iceLatN >= 89.9 ? t('none') : `${f(P.ebm.iceLatN, 2)}°`) },
+    { kind: 'readout', label: 'r.wb', level: 2, value: (D, P) => (P.wetBulbMax == null ? '–' : `${f(P.wetBulbMax, 3)} °C`) },
+    { kind: 'readout', label: 'r.habLand', level: 1, value: (D, P) => (P.ebm ? `${f(P.habLand * 100, 3)} %` : '–') },
+    { kind: 'heading', label: 'ch.shore' },
+    { kind: 'chart', value: (D, P) => shorelineChart(P) },
+    { kind: 'readout', label: 'r.fluence', level: 1, value: (D, P) => f(P.xuv.fluence, 3) },
+    { kind: 'readout', label: 'r.xuvNow', level: 2, value: (D, P) => f(P.xuv.flux, 3) },
+    { kind: 'readout', label: 'r.texo', level: 3, value: (D, P) => `${f(P.xuv.Texo, 3)} K` },
+    { kind: 'readout', label: 'r.dose', level: 1, value: (D, P) => `${f(P.doseMSv, 3)} mSv/${t('u.yr')}` },
+    { kind: 'readout', label: 'r.column', level: 3, value: (D, P) => `${f(P.columnGcm2, 3)} g/cm²` },
   ] },
   { id: 'moons', hzOnly: true, rows: [{ kind: 'planets' }, { kind: 'moons' }] },
   { id: 'system', rows: [{ kind: 'system' }] },

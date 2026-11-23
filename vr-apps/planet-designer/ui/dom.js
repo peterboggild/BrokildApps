@@ -1,8 +1,8 @@
 /* Desktop renderer of the UI schema (ui/schema.js). The state object owns the design; this file only draws it and
  * reports edits through state.set(path, value) and state.structural(fn). */
-import { TABS, LEVELS } from './schema.js?v=2';
-import { t, fmt, esc } from '../i18n.js?v=2';
-import { MAX_HZ, MAX_PLANETS } from '../design.js?v=2';
+import { TABS, LEVELS } from './schema.js?v=3';
+import { t, fmt, esc } from '../i18n.js?v=3';
+import { MAX_HZ, MAX_PLANETS } from '../design.js?v=3';
 
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 
@@ -81,6 +81,12 @@ export function renderPanel(root, S) {
     else if (row.kind === 'planets') body.appendChild(planetPicker(S));
     else if (row.kind === 'moons') moons(body, S, level);
     else if (row.kind === 'system') system(body, S);
+    else if (row.kind === 'heading') body.appendChild(el('h4', 'subhead', t(row.label)));
+    else if (row.kind === 'chart') {
+      const c = el('div', 'chartbox');
+      const upd = () => { c.innerHTML = row.value(S.derived, S.derivedPlanet(), S.design); };
+      upd(); S.live.push(upd); body.appendChild(c);
+    }
     else if (row.kind === 'seed') {
       const w = el('div', 'row picker');
       const b = el('button', 'btn', '🎲 ' + t('btn.terrain'));
