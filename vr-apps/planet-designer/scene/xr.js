@@ -5,10 +5,10 @@
  * No controller button resets the view: only the Meta button recentres (owner rule). While presenting, only the
  * XR loop renders (pitfall: a desktop render during XR breaks the frame), and nothing resizes the renderer. */
 import * as THREE from 'three';
-import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=7';
-import { createVRPanel } from '../ui/vrpanel.js?v=7';
-import { rOf, aOf } from './orrery.js?v=7';
-import { t } from '../i18n.js?v=7';
+import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=8';
+import { createVRPanel } from '../ui/vrpanel.js?v=8';
+import { rOf, aOf } from './orrery.js?v=8';
+import { t } from '../i18n.js?v=8';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const MASS_RANGE = [Math.log10(0.08), Math.log10(2.0)];
@@ -72,7 +72,9 @@ export function createXR(V) {
     dolly.position.copy(p); dolly.quaternion.setFromAxisAngle(UP, yaw); dolly.scale.setScalar(1 / VR.S);
     dolly.updateMatrixWorld(true);
   }
-  const headWorld = () => new THREE.Vector3().setFromMatrixPosition(renderer.xr.getCamera().matrixWorld);
+  /* the head from the scene camera (a child of the dolly), so the dolly's own turn is included; the XR array camera's
+   * world matrix does not carry its parent when re-computed, which turned "forward" backwards after a snap turn */
+  const headWorld = () => { camera.updateMatrixWorld(true); return new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld); };
   const ctrlWorld = (hs) => new THREE.Vector3().setFromMatrixPosition(hs.ctrl.matrixWorld);
 
   /* ---------- panel ---------- */
@@ -89,7 +91,9 @@ export function createXR(V) {
       panel.markDirty();
     }
   }
-  S.xr = { togglePanel, exit: () => VR.session && VR.session.end() };
+  S.xr = { togglePanel, exit: () => VR.session && VR.session.end(),
+    resetSun: () => { ws.forgeGroup.position.copy(LAYOUT.forge); },
+    setSmoothTurn: (v) => { VR.smoothTurn = v; }, get smoothTurn() { return !!VR.smoothTurn; } };
   function panelPx(origin, dir) {
     if (!panel.mesh.visible) return null;
     panel.mesh.updateMatrixWorld(true);
@@ -129,6 +133,9 @@ export function createXR(V) {
     ws.starLight.intensity = 140 * Math.min(1.6, Math.max(0.35, D.star.lum ** 0.15));
     ws.massDial.userData.value.userData.setText(`${S.design.star.massSun.toFixed(2)} ${t('u.Msun')}`);
     ws.ageDial.userData.value.userData.setText(`${S.design.star.ageGyr.toFixed(2)} ${t('u.Gyr')}`);
+    const Pd = S.derivedPlanet();
+    ws.distDial.userData.setAngle(0);
+    ws.distDial.userData.value.userData.setText(Pd ? `${Pd.aAU.toFixed(3)} ${t('u.AU')} · ${Pd.role === 'hz' ? (Pd.climate.runaway ? t('v.runawayT') : (Pd.ebm ? '' : '~') + Math.round(Pd.TsC) + ' °C') : ''}` : '');
     ws.forgeLabel.userData.setText(`${D.star.spt} · ${Math.round(D.star.teff)} K · ${D.star.lum < 0.1 ? D.star.lum.toPrecision(2) : D.star.lum.toFixed(2)} L☉`);
     const P = S.derivedPlanet();
     ws.cradleLabel.userData.setText(P ? P.name : '');
@@ -139,6 +146,8 @@ export function createXR(V) {
     const list = [];
     ws.massDial.traverse((o) => { if (o.userData.kind === 'dial') list.push(o); });
     ws.ageDial.traverse((o) => { if (o.userData.kind === 'dial') list.push(o); });
+    ws.distDial.traverse((o) => { if (o.userData.kind === 'dial') list.push(o); });
+    list.push(ws.forge.group.children[0]);
     for (const o of V.orrery.pickables()) list.push(o);
     return list;
   }
@@ -177,7 +186,14 @@ export function createXR(V) {
       const { o, d } = rayOf(hs);
       hs.mode = 'dial'; hs.modeBy = kind; hs.dial = hv.dial;
       hs.dialA0 = dialAngle(hv.dial, o, d) || 0;
-      hs.dialV0 = hv.dial === ws.massDial ? S.design.star.massSun : S.design.star.ageGyr;
+      hs.dialV0 = hv.dial === ws.massDial ? S.design.star.massSun : hv.dial === ws.ageDial ? S.design.star.ageGyr : S.planet().orbit.aAU;
+      return;
+    }
+    /* the star: carry it round with the ray (at the distance it was grabbed), to light the planet from any side */
+    if (hv.kind === 'sun') {
+      const { o } = rayOf(hs);
+      hs.mode = 'sun'; hs.modeBy = kind;
+      hs.sunDist = o.distanceTo(ws.forgeGroup.getWorldPosition(new THREE.Vector3()));
       return;
     }
     if (hv.kind === 'slot') { S.addHzAt(hv.data.a); return; }
@@ -201,6 +217,12 @@ export function createXR(V) {
     const { o, d } = rayOf(hs);
     const a = dialAngle(hs.dial, o, d);
     if (a == null) return;
+    if (hs.dial === ws.distDial) {
+      /* the planet's distance, very finely: a whole sweep of the dial is about +-10 % */
+      const f = Math.exp((a - hs.dialA0) / (2 * ARC) * 0.2);
+      S.set('planet.orbit.aAU', Math.max(0.01, Math.min(50, hs.dialV0 * f)));
+      return;
+    }
     const R = hs.dial === ws.massDial ? MASS_RANGE : AGE_RANGE;
     const lv = Math.log10(Math.max(hs.dialV0, 0.01)) + (a - hs.dialA0) / (2 * ARC) * (R[1] - R[0]) * 0.5;
     const v = 10 ** Math.max(R[0], Math.min(R[1], lv));
@@ -264,21 +286,17 @@ export function createXR(V) {
       hs.prevBtn = btn;
       if (hs.handed === 'left') {
         if (Math.hypot(ax[0], ax[1]) > 0.15) {
-          const cam = renderer.xr.getCamera();
-          const q = new THREE.Quaternion(); cam.getWorldQuaternion(q);
+          const q = new THREE.Quaternion(); camera.updateMatrixWorld(true); camera.getWorldQuaternion(q);
           const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q); fwd.y = 0; fwd.normalize();
           const right = new THREE.Vector3().crossVectors(fwd, UP);
           const speed = 2.2 * Math.max(0.3, 1 / VR.S) * dt;
           dolly.position.addScaledVector(fwd, -ax[1] * speed).addScaledVector(right, ax[0] * speed);
         }
       } else if (hs.handed === 'right') {
-        if (Math.abs(ax[0]) > 0.7 && !hs.turned) {
-          hs.turned = true;
-          const a = -Math.sign(ax[0]) * Math.PI / 6;
-          const h = headWorld();
-          const p = dolly.position.clone().sub(h).applyAxisAngle(UP, a).add(h);
-          setDolly(p, VR.yaw + a, VR.S);
-        } else if (Math.abs(ax[0]) < 0.3) hs.turned = false;
+        const turnBy = (a) => { const h = headWorld(); const p = dolly.position.clone().sub(h).applyAxisAngle(UP, a).add(h); setDolly(p, VR.yaw + a, VR.S); };
+        if (VR.smoothTurn) { if (Math.abs(ax[0]) > 0.2) turnBy(-ax[0] * 1.6 * dt); }
+        else if (Math.abs(ax[0]) > 0.7 && !hs.turned) { hs.turned = true; turnBy(-Math.sign(ax[0]) * Math.PI / 6); }
+        else if (Math.abs(ax[0]) < 0.3) hs.turned = false;
         if (Math.abs(ax[1]) > 0.3) dolly.position.y += -ax[1] * 1.4 * Math.max(0.3, 1 / VR.S) * dt;
       }
     }
@@ -352,6 +370,7 @@ export function createXR(V) {
       if (!hs.src) { hs.dot.visible = false; continue; }
       if (hs.mode === 'ui') { const { o, d } = rayOf(hs); const pp = panelPx(o, d); if (pp) panel.move(pp.px); }
       else if (hs.mode === 'dial') dragDial(hs);
+      else if (hs.mode === 'sun') { const { o, d } = rayOf(hs); ws.forgeGroup.position.copy(ws.root.worldToLocal(o.clone().addScaledVector(d, hs.sunDist))); }
       else if (hs.mode === 'bead' || hs.mode === 'handle') dragOrrery(hs);
       else updateHover(hs);
     }
@@ -359,11 +378,13 @@ export function createXR(V) {
     panel.tick(performance.now());
     /* the scene */
     V.star.tick(tsec); ws.forge.tick(tsec);
-    if (!VR.hands.some((h) => h.mode === 'bead' || h.mode === 'handle')) V.orbitAdvance(dt);
+    /* the planets stand still while a ray rests on one (so they can be caught) or one is being dragged */
+    if (!VR.hands.some((h) => h.mode === 'bead' || h.mode === 'handle' || (h.hover && (h.hover.kind === 'bead' || h.hover.kind === 'handle' || h.hover.kind === 'slot')))) V.orbitAdvance(dt);
     V.orrery.tick(V.orbitClock(), 1);
     V.orrery.beads.forEach((b, k) => { const l = beadLabels[k]; if (!l) return; l.visible = true; b.mesh.getWorldPosition(l.position); l.position.y += 0.07; });
     ws.cradleSlot.updateMatrixWorld(true);
-    sunDir.copy(LAYOUT.forge).sub(LAYOUT.cradle).normalize();
+    ws.forgeGroup.updateMatrixWorld(true);
+    sunDir.copy(ws.forgeGroup.getWorldPosition(new THREE.Vector3())).sub(ws.cradleSlot.getWorldPosition(new THREE.Vector3())).normalize();
     const xrCam = renderer.xr.getCamera();
     V.state.chunks = V.planet.tick(tsec, xrCam, sunDir, V.state.spinOn, 0.0011 * VR.S);
     V.planet.bakeStep(renderer);

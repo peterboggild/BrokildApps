@@ -116,6 +116,45 @@ function aimQuat(dir) {
   const S1 = await ev(() => window.__pd.view.xr.VR.S);
   ok('two grips pulled apart scale the world', S1 > S0 * 2, `S ${S0.toFixed(2)} -> ${S1.toFixed(2)}`);
 
+  /* the atmosphere follows the planet's size in the cradle (it was drawn at 1 m inside a 1.75 m planet) */
+  const atm = await ev(() => { const pl = window.__pd.view.planet; let r0 = null; pl.group.traverse((o) => { if (o.material && o.material.uniforms && o.material.uniforms.uR0) r0 = o.material.uniforms.uR0.value; }); return r0; });
+  ok('the atmosphere is scaled with the planet in VR', Math.abs(atm - 1.75) < 0.01, `uR0 ${atm}`);
+
+  /* forward is where you look, also after a snap turn (it ran backwards before) */
+  const hand0 = aimQuat([0, -0.3, -1]);
+  await setHand('left', [-0.2, 1.2, -0.3], hand0); await setHand('right', [0.2, 1.2, -0.3], hand0);
+  const axes = (h, x, y) => ev(([h, x, y]) => window.__dev.controllers[h].updateAxes('thumbstick', x, y), [h, x, y]);
+  await axes('right', 1, 0); await xrFrames(2); await axes('right', 0, 0); await xrFrames(2);
+  await axes('right', 1, 0); await xrFrames(2); await axes('right', 0, 0); await xrFrames(2);
+  const before = await ev(() => { const X = window.__pd.view.xr; const c = window.__pd.view.camera; c.updateMatrixWorld(true); const f = c.getWorldDirection(c.position.clone()); return { p: X.VR.dolly.position.toArray(), f: [f.x, f.z] }; });
+  await axes('left', 0, -1); await xrFrames(4); await axes('left', 0, 0); await xrFrames(1);
+  const after = await ev(() => window.__pd.view.xr.VR.dolly.position.toArray());
+  const mv = [after[0] - before.p[0], after[2] - before.p[2]];
+  const along = (mv[0] * before.f[0] + mv[1] * before.f[1]) / (Math.hypot(...mv) * Math.hypot(...before.f) + 1e-9);
+  ok('after two snap turns, stick forward moves where the head looks', along > 0.9, `cos ${along.toFixed(2)}`);
+
+  /* carry the star round with the ray */
+  const sunW = await ev(() => { const X = window.__pd.view.xr; const p = X.ws.forgeGroup.getWorldPosition(X.ws.forgeGroup.position.clone()); return X.VR.dolly.worldToLocal(p).toArray(); });
+  const sun0 = await ev(() => window.__pd.view.xr.ws.forgeGroup.position.toArray());
+  await aimAt('right', sunW, [0.2, 1.3, -0.2]);
+  await btn('right', 'trigger', 1); await xrFrames(2);
+  await aimAt('right', [sunW[0] + 25, sunW[1], sunW[2] + 25], [0.2, 1.3, -0.2]); await xrFrames(2);
+  await btn('right', 'trigger', 0); await xrFrames(1);
+  const sun1 = await ev(() => window.__pd.view.xr.ws.forgeGroup.position.toArray());
+  ok('the star can be carried round with the ray', Math.hypot(sun1[0] - sun0[0], sun1[2] - sun0[2]) > 2, `${sun0.map((v) => v.toFixed(1))} -> ${sun1.map((v) => v.toFixed(1))}`);
+  await ev(() => window.__pd.xr.resetSun());
+
+  /* the distance dial: fine control of the selected planet's orbit */
+  const dd = await ev(() => { const X = window.__pd.view.xr; const d = X.ws.distDial; d.updateMatrixWorld(true); return X.VR.dolly.worldToLocal(d.getWorldPosition(d.position.clone())).toArray(); });
+  const a0 = await ev(() => window.__pd.planet().orbit.aAU);
+  await aimAt('right', [dd[0], dd[1] + 0.2, dd[2]], [dd[0] + 0.1, dd[1] + 0.6, dd[2] + 0.6]);
+  await btn('right', 'trigger', 1); await xrFrames(2);
+  await aimAt('right', [dd[0] + 0.2, dd[1], dd[2]], [dd[0] + 0.1, dd[1] + 0.6, dd[2] + 0.6]); await xrFrames(2);
+  await btn('right', 'trigger', 0); await xrFrames(1);
+  const a1 = await ev(() => window.__pd.planet().orbit.aAU);
+  ok('the distance dial moves the planet a little (fine control)', a1 !== a0 && Math.abs(a1 / a0 - 1) < 0.1, `${a0.toFixed(4)} -> ${a1.toFixed(4)} AU`);
+  if (out) await p.screenshot({ path: out + '/xr-5-tools.png' });
+
   /* leave */
   await ev(() => window.__pd.xr.exit());
   await ev(() => new Promise((res) => { const tk = () => (!window.__pd.view.xr.VR.session ? res() : setTimeout(tk, 100)); tk(); }));

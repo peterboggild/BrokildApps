@@ -2,8 +2,8 @@
  * 0.80 x 0.54 m tablet. Tabs, a scrolling column of rows, sliders with - and + (auto-repeat), chips, readouts and
  * headings. Hit testing in canvas pixels; the caller maps a controller ray to (px, py). */
 import * as THREE from 'three';
-import { TABS, LEVELS } from './schema.js?v=7';
-import { t, fmt } from '../i18n.js?v=7';
+import { TABS, LEVELS } from './schema.js?v=8';
+import { t, fmt } from '../i18n.js?v=8';
 
 export const PW = 0.8, PH = 0.54;          /* metres */
 const W = 1200, H = 810;
@@ -100,6 +100,9 @@ export function createVRPanel(S) {
       { kind: 'buttons', opts: [{ label: t('act.toZone'), act: () => S.toZone() }] },
       c('v.cut', [{ label: t('yes'), on: V.cut, act: () => { V.cut = true; S.view.refresh(); } }, { label: t('no'), on: !V.cut, act: () => { V.cut = false; S.view.refresh(); } }]),
       c('v.spin', [{ label: t('yes'), on: V.spinOn, act: () => { V.spinOn = true; } }, { label: t('no'), on: !V.spinOn, act: () => { V.spinOn = false; } }]),
+      c('vr.fill', [{ label: t('yes'), on: S.view.planet.fill, act: () => S.view.planet.setFill(true) }, { label: t('no'), on: !S.view.planet.fill, act: () => S.view.planet.setFill(false) }]),
+      c('vr.turn', [{ label: t('vr.turnStep'), on: !(S.xr && S.xr.smoothTurn), act: () => S.xr && S.xr.setSmoothTurn(false) }, { label: t('vr.turnSmooth'), on: !!(S.xr && S.xr.smoothTurn), act: () => S.xr && S.xr.setSmoothTurn(true) }]),
+      c('vr.sun', [{ label: t('vr.sunReset'), on: false, act: () => S.xr && S.xr.resetSun() }]),
       c('v.exag', [5, 10, 20].map((x) => ({ label: '×' + x, on: V.exag === x, act: () => { V.exag = x; S.view.refresh(); } }))),
       c('vr.quality', ['low', 'medium'].map((q) => ({ label: t('v.q.' + q), on: V.quality === q, act: () => S.view.setQuality(q, true) }))),
       { kind: 'note', text: t('vr.qualityNote') },
@@ -259,9 +262,13 @@ export function createVRPanel(S) {
         ctx.strokeStyle = '#2a3646'; ctx.stroke();
         ctx.fillStyle = '#dfe7ef'; ctx.font = '34px system-ui'; ctx.fillText(ch, xx + 17, ty);
         state.widgets.push({ id: wid, x: xx, y: ty - 26, w: 56, h: 52, repeat: true, act: () => {
-          const pos = clamp01(toPos(row, getPath(row.path)) + d * 0.006);
-          let nv = toValue(row, pos);
-          if (nv === getPath(row.path)) nv = toValue(row, clamp01(pos + d * 0.006));
+          let nv;
+          if (row.log) nv = getPath(row.path) * (1 + d * 0.005);      /* log sliders: 0.5 % per press */
+          else {
+            const pos = clamp01(toPos(row, getPath(row.path)) + d * 0.006);
+            nv = toValue(row, pos);
+            if (nv === getPath(row.path)) nv = toValue(row, clamp01(pos + d * 0.006));
+          }
           S.set(row.path, Math.max(row.min, Math.min(row.max, nv)));
         } });
       }

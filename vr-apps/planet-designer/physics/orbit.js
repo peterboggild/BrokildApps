@@ -1,5 +1,5 @@
 /* Orbits, fluxes, stability, tidal locking and moons. SI inside, named units at the edges. */
-import { G, AU, M_SUN, M_EARTH, R_EARTH, YEAR, GYR, M_MOON, A_MOON, R_SUN } from './const.js?v=7';
+import { G, AU, M_SUN, M_EARTH, R_EARTH, YEAR, GYR, M_MOON, A_MOON, R_SUN } from './const.js?v=8';
 
 export const ECC_MAX = 0.4;   // owner's hard cap: "orbits must not be excessive"
 

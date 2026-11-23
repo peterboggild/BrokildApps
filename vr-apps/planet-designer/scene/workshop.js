@@ -6,8 +6,8 @@
  * The star's colour lights the whole platform. Desktop groups are re-parented in here while in VR and put back
  * afterwards. Metres; the floor at y = 0. */
 import * as THREE from 'three';
-import { createStar } from './star.js?v=7';
-import { t } from '../i18n.js?v=7';
+import { createStar } from './star.js?v=8';
+import { t } from '../i18n.js?v=8';
 
 export const LAYOUT = {
   forge: new THREE.Vector3(0, 4.2, -15), forgeR: 2.2,
@@ -98,20 +98,23 @@ export function createWorkshop() {
 
   /* light: the star floods the platform with its colour; a dim cool fill so nothing is black */
   const starLight = new THREE.PointLight(0xffffff, 180, 0, 1.6);
-  starLight.position.copy(LAYOUT.forge);
   const fill = new THREE.HemisphereLight(0x55667a, 0x10131a, 0.5);
-  root.add(starLight, fill);
+  root.add(fill);
 
   /* Star Forge */
+  /* the forge is one group (star, rings, label, light) that can be carried round with the controller ray */
+  const forgeGroup = new THREE.Group();
+  forgeGroup.position.copy(LAYOUT.forge);
+  root.add(forgeGroup);
   const forge = createStar();
-  forge.group.position.copy(LAYOUT.forge);
   forge.group.scale.setScalar(LAYOUT.forgeR);
   forge.uniforms.uGain.value = 1.15;            /* no bloom in VR: keep the colour below white so it reads */
-  root.add(forge.group);
+  forgeGroup.add(forge.group, starLight);
+  forge.group.children[0].userData = { kind: 'sun' };
   const ring = new THREE.Mesh(new THREE.TorusGeometry(LAYOUT.forgeR * 1.75, 0.09, 16, 128), new THREE.MeshStandardMaterial({ color: 0x3b4552, metalness: 0.9, roughness: 0.25, emissive: 0x112233 }));
-  ring.position.copy(LAYOUT.forge); root.add(ring);
-  const ring2 = ring.clone(); ring2.rotation.y = Math.PI / 2; root.add(ring2);
-  const forgeLabel = textSprite('', { size: 0.45 }); forgeLabel.position.copy(LAYOUT.forge).add(new THREE.Vector3(0, LAYOUT.forgeR * 2.2, 0)); root.add(forgeLabel);
+  forgeGroup.add(ring);
+  const ring2 = ring.clone(); ring2.rotation.y = Math.PI / 2; forgeGroup.add(ring2);
+  const forgeLabel = textSprite('', { size: 0.45 }); forgeLabel.position.set(0, LAYOUT.forgeR * 2.2, 0); forgeGroup.add(forgeLabel);
   const pedestal = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.05, 0.5), new THREE.MeshStandardMaterial({ color: 0x1c2229, metalness: 0.6, roughness: 0.45 }));
   pedestal.position.set(LAYOUT.dials.x, 0.52, LAYOUT.dials.z - 0.2); root.add(pedestal);
   const massDial = makeDial(t('vr.massDial'), 0xffc870);
@@ -127,6 +130,13 @@ export function createWorkshop() {
   table.position.copy(LAYOUT.table).add(new THREE.Vector3(0, -0.04, 0)); root.add(table);
   const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.45, LAYOUT.table.y - 0.04, 24), pedestal.material);
   leg.position.set(LAYOUT.table.x, (LAYOUT.table.y - 0.04) / 2, LAYOUT.table.z); root.add(leg);
+  /* the distance dial for the selected planet, at the table's near edge */
+  const distDial = makeDial(t('vr.distDial'), 0x8ff0b0);
+  distDial.position.copy(LAYOUT.table).add(new THREE.Vector3(0.75, 0.15, LAYOUT.tableR + 0.45));
+  distDial.rotation.x = -0.7;
+  const distStand = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, LAYOUT.table.y + 0.1, 12), pedestal.material);
+  distStand.position.set(distDial.position.x, (LAYOUT.table.y + 0.1) / 2 - 0.05, distDial.position.z - 0.08);
+  root.add(distDial, distStand);
   const tableSlot = new THREE.Group(); tableSlot.position.copy(LAYOUT.table); tableSlot.scale.setScalar(LAYOUT.tableScale); root.add(tableSlot);
 
   /* Planet Cradle: a gantry of two rings around the planet */
@@ -178,7 +188,7 @@ export function createWorkshop() {
 
   const holds = {};
   return {
-    root, forge, starLight, massDial, ageDial, tableSlot, cradleSlot, board, drawBoard, forgeLabel, cradleLabel, LAYOUT,
+    root, forge, forgeGroup, starLight, massDial, ageDial, distDial, tableSlot, cradleSlot, board, drawBoard, forgeLabel, cradleLabel, LAYOUT,
     /* move the desktop groups in (and out again) */
     adopt(name, obj) { holds[name] = { parent: obj.parent, pos: obj.position.clone(), quat: obj.quaternion.clone(), scale: obj.scale.clone(), vis: obj.visible }; },
     release(name, obj) { const h = holds[name]; if (!h) return; h.parent.add(obj); obj.position.copy(h.pos); obj.quaternion.copy(h.quat); obj.scale.copy(h.scale); obj.visible = h.vis; },

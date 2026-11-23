@@ -84,6 +84,16 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 - **Drejeknapperne er relative og fine.** Man griber skiven og drejer fra der, hvor den står, og en hel drejning flytter værdien et halvt spænd. **Træk på bordet** er også relativt (en fjerdedel af bevægelsen), fordi hele den beboelige zone kun er cirka 3 cm på bordet.
 - Fanerne i VR-panelet skrumper, så alle ni kan være der (VR-fanen lå uden for kanten).
 
+## Anden test i brillerne (ejerens ønsker)
+
+- **Fejl rettet:** atmosfæren blev i VR tegnet som en kugle på 1 m inde i den 1,75 m store planet og oven på den. Planeten så derfor halvgennemsigtig og "brun og mystisk" ud. Strålegangen i atmosfæren regner nu i verdens enheder (`atmLocal`, skaleres i `tick`). Trinnene har en lille forskydning pr. pixel, og "lav" bruger 12 trin.
+- **Stjernen kan flyttes:** peg på den og hold aftrækkeren, så følger den strålen i samme afstand. Lyset på planeten følger med. "Sæt stjernen tilbage" ligger i VR-fanen.
+- **"Lys på natsiden"** (VR-fanen) lægger et svagt lys over hele planeten, så man kan se skyggesiden.
+- **Fremad er, hvor man kigger:** retningen kom før fra XR-kameraets egen matrix, som mister dollyens drej. Derfor gik fremad baglæns efter et drej. Nu bruges scenekameraet.
+- **Drejning** kan vælges i trin eller glidende (VR-fanen).
+- **Afstandsknappen** står ved bordets forkant. Den er relativ, og en hel drejning er ±10 %. Den viser afstand og middeltemperatur (~ mens klimamodellen regner). Panelets − og + på skydere med logaritmisk skala (fx afstand og masse) flytter 0,5 % pr. tryk, både i VR og på PC. Planeterne på bordet står stille, når strålen hviler på dem.
+- **Til ejerens spørgsmål:** med Jordens luft er der kun plads til mennesker fra cirka 0,96 til 1,05 AE. Ved 0,95 AE bliver den fugtige varme for høj, og ved 1,06 AE fryser planeten til (isen kaster lyset tilbage). Den grønne zone på bordet (0,95–1,67 AE) betyder "flydende vand med den rette luft", for eksempel mere CO₂ længere ude.
+
 ## Filer
 
 | Fil | Indhold |
@@ -102,7 +112,7 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 | `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=7`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=8`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 

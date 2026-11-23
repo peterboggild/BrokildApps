@@ -7,10 +7,10 @@
  *   { kind: 'planets' } | { kind: 'moons' } | { kind: 'system' }   (custom widgets)
  * level: 1 = Explorer, 2 = Student, 3 = Scientist; a row shows at its level and above.
  * Paths: 'star.*' on the design, 'planet.*' on the selected planet. */
-import { t, fmt, esc } from '../i18n.js?v=7';
-import { ECC_MAX } from '../physics/orbit.js?v=7';
-import { rgbToCss } from '../physics/star.js?v=7';
-import { climateChart, shorelineChart } from './charts.js?v=7';
+import { t, fmt, esc } from '../i18n.js?v=8';
+import { ECC_MAX } from '../physics/orbit.js?v=8';
+import { rgbToCss } from '../physics/star.js?v=8';
+import { climateChart, shorelineChart } from './charts.js?v=8';
 
 const f = fmt;
 const u = (k) => t('u.' + k);
