@@ -5,9 +5,9 @@
  * No controller button resets the view: only the Meta button recentres (owner rule). While presenting, only the
  * XR loop renders (pitfall: a desktop render during XR breaks the frame), and nothing resizes the renderer. */
 import * as THREE from 'three';
-import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=5';
-import { createVRPanel } from '../ui/vrpanel.js?v=5';
-import { t } from '../i18n.js?v=5';
+import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=6';
+import { createVRPanel } from '../ui/vrpanel.js?v=6';
+import { t } from '../i18n.js?v=6';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const MASS_RANGE = [Math.log10(0.08), Math.log10(2.0)];
@@ -344,6 +344,7 @@ export function createXR(V) {
     sunDir.copy(LAYOUT.forge).sub(LAYOUT.cradle).normalize();
     const xrCam = renderer.xr.getCamera();
     V.state.chunks = V.planet.tick(tsec, xrCam, sunDir, V.state.spinOn, 0.0011 * VR.S);
+    V.planet.bakeStep(renderer);
     V.sky.follow(xrCam, 1);
     renderer.render(scene, camera);
   }

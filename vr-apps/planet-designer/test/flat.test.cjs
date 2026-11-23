@@ -61,7 +61,10 @@ const screenPos = (p, which) => p.evaluate((which) => {
   await p.selectOption('#preset', 'solar');
   await p.evaluate(() => window.__pd.view.setMode('planet'));
   await frames(p, 3);
-  check('Planet view draws terrain chunks', (await p.evaluate(() => window.__pd.view.state.chunks)) > 6);
+  /* "low" (the setting this test runs at, and the Quest's) draws the baked planet; the others the live LOD terrain */
+  await p.waitForFunction(() => !window.__pd.view.planet.baked || window.__pd.view.planet.bakeProgress > 0, null, { timeout: 120000, polling: 500 }).catch(() => {});
+  const pv = await p.evaluate(() => ({ baked: window.__pd.view.planet.baked, prog: window.__pd.view.planet.bakeProgress, chunks: window.__pd.view.state.chunks }));
+  check('Planet view draws the planet (baked at low quality)', pv.baked ? pv.prog > 0 : pv.chunks > 6, JSON.stringify(pv));
   await p.evaluate(() => { const v = window.__pd.view; v.state.cut = true; v.refresh(); });
   await frames(p, 3);
   const labels = await p.evaluate(() => [...document.querySelectorAll('.v-label.layer')].filter((e) => !e.hidden).map((e) => e.textContent));
@@ -73,7 +76,7 @@ const screenPos = (p, which) => p.evaluate((which) => {
   check('English after toggle', (await p.textContent('h2')) === 'Can it host life?');
   await p.selectOption('#preset', 'hothouse');
   check('Hothouse world fails tier 1', await p.evaluate(() => document.querySelectorAll('.lamp.red').length === 5));
-  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=5')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
+  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=6')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
   const p2 = await b.newPage();
   await p2.goto(p.url());
   await p2.waitForFunction(() => window.__pd && window.__pd.derived, null, { timeout: 120000 });

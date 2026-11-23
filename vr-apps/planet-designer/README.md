@@ -74,6 +74,7 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
   - Kun Meta-knappen centrerer.
 - **Panelet** (`ui/vrpanel.js`) tegner de samme faner og rækker som PC'en (`ui/schema.js`) på en tavle med − og + (gentager, når man holder), skydere og chips. Fanen **VR** har gennemskæring, rotation, højdeoverdrivelse, grafikkvalitet, niveau og "Forlad VR". Diagrammerne vises kun på PC.
 - I VR er grafikken **lav** som standard (Quest 3), og der er ingen glød (bloom virker ikke i XR). Alle egne shadere tone-mapper selv, så farverne passer uden efterbehandling.
+- **Efter første test i Quest 3 (styrt):** den levende landskabs-shader var for tung for brillerne. Ved "lav" (altid i VR og på Quest-browserens flade side) bliver planetens overflade nu **bagt** til billeder på 2048 × 1024 (farve og ruhed, normal og højde). Det sker 16 rækker pr. billede, så intet enkelt billede bliver tungt, og billederne tegnes på en kugle. Skyerne bliver bagt på samme måde, og Mælkevejen regnes pr. hjørne i stedet for pr. pixel. I VR-panelet kan man kun vælge lav eller middel. Går grafikken ned, står der nu en tydelig besked på siden.
 - Test: `test/xr.test.cjs` i en emuleret Quest 3 (IWER).
 
 ## Filer
@@ -94,7 +95,7 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 | `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=5`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=6`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 
