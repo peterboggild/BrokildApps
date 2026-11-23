@@ -2,8 +2,8 @@
  * 0.80 x 0.54 m tablet. Tabs, a scrolling column of rows, sliders with - and + (auto-repeat), chips, readouts and
  * headings. Hit testing in canvas pixels; the caller maps a controller ray to (px, py). */
 import * as THREE from 'three';
-import { TABS, LEVELS } from './schema.js?v=6';
-import { t, fmt } from '../i18n.js?v=6';
+import { TABS, LEVELS } from './schema.js?v=7';
+import { t, fmt } from '../i18n.js?v=7';
 
 export const PW = 0.8, PH = 0.54;          /* metres */
 const W = 1200, H = 810;
@@ -54,16 +54,50 @@ export function createVRPanel(S) {
       if ((row.level || 1) > level || (row.hz && !isHz) || (row.other && isHz)) continue;
       if (tab.hzOnly && !isHz && row.kind !== 'planets') continue;
       if (['slider', 'chips', 'readout', 'heading', 'planets', 'warn'].includes(row.kind)) out.push(row);
+      if (row.kind === 'action') out.push({ kind: 'buttons', opts: [{ label: t(row.label), act: () => row.act(S) }] });
+      if (row.kind === 'moons') out.push(...moonRows());
+      if (row.kind === 'system') out.push(...systemRows());
       if (row.kind === 'chart') out.push({ kind: 'note', text: t('vr.chartOnPc') });
     }
     return out;
   }
 
+  /* moons: per moon its mass and distance sliders and a remove button (second press confirms); add up to three */
+  function moonRows() {
+    const out = [];
+    const P = S.planet();
+    (P.moons || []).forEach((m, i) => {
+      out.push({ kind: 'title', text: t('moon.n', { n: String(i + 1) }) });
+      out.push({ kind: 'slider', path: `planet.moons.${i}.massMoon`, labelKey: 'p.moon.massMoon', min: 0.081, max: 8.13, log: true, unit: 'Moon', digits: 3 });
+      out.push({ kind: 'slider', path: `planet.moons.${i}.aEarthRadii`, labelKey: 'p.moon.aEarthRadii', min: 1.5, max: 1000, log: true, unit: '', digits: 3 });
+      out.push({ kind: 'buttons', opts: [{ id: 'moonrm' + i, label: t('moon.remove'), danger: true, act: () => S.structural(() => S.planet().moons.splice(i, 1)) }] });
+    });
+    if ((P.moons || []).length < 3) out.push({ kind: 'buttons', opts: [{ label: t('moon.add'), act: () => S.structural(() => S.planet().moons.push({ massMoon: 1, aEarthRadii: 40 })) }] });
+    return out;
+  }
+  /* the system: each planet with select, make habitable / other, remove; add a planet */
+  function systemRows() {
+    const out = [];
+    const hzCount = S.design.planets.filter((p) => p.role === 'hz').length;
+    S.design.planets.forEach((p, i) => {
+      const opts = [{ label: p.name.slice(0, 14), on: i === S.sel, act: () => { S.sel = i; } }];
+      if (p.role === 'other' && hzCount < 2) opts.push({ label: t('vr.makeHz'), act: () => S.structural(() => S.makeHz(i)) });
+      if (p.role === 'hz') opts.push({ label: t('vr.makeOther'), act: () => S.structural(() => S.makeOther(i)) });
+      if (S.design.planets.length > 1) opts.push({ id: 'plrm' + i, label: t('vr.remove'), danger: true, act: () => S.structural(() => S.removePlanet(i)) });
+      out.push({ kind: 'buttons', opts });
+    });
+    if (S.design.planets.length < 8) out.push({ kind: 'buttons', opts: [{ label: t('planet.add'), act: () => S.structural(() => S.addPlanet()) }] });
+    return out;
+  }
   /* the VR tab: view settings and leaving VR */
   function vrRows() {
     const V = S.view.state;
     const c = (label, opts) => ({ kind: 'vrchips', label, opts });
     return [
+      { kind: 'title', text: t('preset') },
+      { kind: 'buttons', opts: ['solar', 'kdwarf'].map((k) => ({ label: t('preset.' + k), act: () => S.loadPreset(k) })) },
+      { kind: 'buttons', opts: ['reddwarf', 'dryworld', 'hothouse'].map((k) => ({ label: t('preset.' + k), act: () => S.loadPreset(k) })) },
+      { kind: 'buttons', opts: [{ label: t('act.toZone'), act: () => S.toZone() }] },
       c('v.cut', [{ label: t('yes'), on: V.cut, act: () => { V.cut = true; S.view.refresh(); } }, { label: t('no'), on: !V.cut, act: () => { V.cut = false; S.view.refresh(); } }]),
       c('v.spin', [{ label: t('yes'), on: V.spinOn, act: () => { V.spinOn = true; } }, { label: t('no'), on: !V.spinOn, act: () => { V.spinOn = false; } }]),
       c('v.exag', [5, 10, 20].map((x) => ({ label: '×' + x, on: V.exag === x, act: () => { V.exag = x; S.view.refresh(); } }))),
@@ -81,15 +115,25 @@ export function createVRPanel(S) {
     rr(0, 0, W, H, 34); ctx.fillStyle = 'rgba(12,17,24,0.94)'; ctx.fill();
     ctx.lineWidth = 3; ctx.strokeStyle = '#2a3646'; ctx.stroke();
     /* tabs */
-    ctx.font = '600 30px system-ui, sans-serif'; ctx.textBaseline = 'middle';
+    /* tabs: shrink the type until all of them fit on the panel's width */
+    const allTabs = [...TABS, { id: 'vr' }];
+    const tabLabel = (tab) => (tab.id === 'vr' ? 'VR' : t('tab.' + tab.id));
+    let fs = 30, pad = 34;
+    for (; fs > 18; fs -= 1) {
+      ctx.font = `600 ${fs}px system-ui, sans-serif`;
+      const total = allTabs.reduce((sum, tb) => sum + ctx.measureText(tabLabel(tb)).width + pad + 10, 0);
+      if (total <= W - 2 * PAD) break;
+      pad = Math.max(18, pad - 1);
+    }
+    ctx.textBaseline = 'middle';
     let x = PAD;
-    for (const tab of [...TABS, { id: 'vr' }]) {
-      const label = tab.id === 'vr' ? 'VR' : t('tab.' + tab.id);
-      const w = ctx.measureText(label).width + 34;
+    for (const tab of allTabs) {
+      const label = tabLabel(tab);
+      const w = ctx.measureText(label).width + pad;
       const on = S.tab === tab.id, hov = state.hover && state.hover.id === 'tab:' + tab.id;
       rr(x, 14, w, TAB_H - 22, 12); ctx.fillStyle = on ? '#1d3550' : hov ? '#1b2430' : '#151c26'; ctx.fill();
       ctx.strokeStyle = on ? '#6fb7ff' : '#2a3646'; ctx.lineWidth = 2; ctx.stroke();
-      ctx.fillStyle = '#dfe7ef'; ctx.fillText(label, x + 17, 14 + (TAB_H - 22) / 2);
+      ctx.fillStyle = '#dfe7ef'; ctx.fillText(label, x + pad / 2, 14 + (TAB_H - 22) / 2);
       state.widgets.push({ id: 'tab:' + tab.id, x, y: 14, w, h: TAB_H - 22, act: () => { S.tab = tab.id; state.scroll = 0; } });
       x += w + 10;
     }
@@ -103,12 +147,13 @@ export function createVRPanel(S) {
     /* rows */
     const list = rows();
     const viewH = H - TOP - 20;
-    const contentH = list.reduce((s, r) => s + (r.kind === 'slider' ? ROW + 26 : r.kind === 'heading' || r.kind === 'note' ? 50 : ROW - 18), 0);
+    const rowH = (r) => (r.kind === 'slider' ? ROW + 26 : r.kind === 'heading' || r.kind === 'note' || r.kind === 'title' ? 50 : ROW - 18);
+    const contentH = list.reduce((s, r) => s + rowH(r), 0);
     state.scroll = Math.max(0, Math.min(state.scroll, Math.max(0, contentH - viewH)));
     ctx.save(); ctx.beginPath(); ctx.rect(0, TOP - 6, W - 70, viewH + 8); ctx.clip();
     let y = TOP - state.scroll;
     for (const row of list) {
-      const h = row.kind === 'slider' ? ROW + 26 : row.kind === 'heading' || row.kind === 'note' ? 50 : ROW - 18;
+      const h = rowH(row);
       if (y + h > TOP - 10 && y < TOP + viewH) drawRow(row, y, P);
       y += h;
     }
@@ -148,6 +193,28 @@ export function createVRPanel(S) {
       ctx.fillStyle = '#dfe7ef'; ctx.textAlign = 'right'; ctx.fillText(v, x1, y + 26); ctx.textAlign = 'left';
       return;
     }
+    if (row.kind === 'title') { ctx.font = '600 26px system-ui'; ctx.fillStyle = '#9fd0ff'; ctx.fillText(row.text, x0, y + 25); return; }
+    if (row.kind === 'buttons') {
+      ctx.font = '600 24px system-ui';
+      let x = x0;
+      row.opts.forEach((o, i) => {
+        const id = 'btn:' + (o.id || o.label) + ':' + i;
+        const armed = state.armed && state.armed.id === id && performance.now() - state.armed.t < 3000;
+        const label = armed ? t('btn.confirm') : o.label;
+        const w = Math.min(x1 - x, ctx.measureText(label).width + 30);
+        if (w < 60) return;
+        rr(x, y + 4, w, 46, 10);
+        ctx.fillStyle = o.on ? '#1d3550' : armed ? '#4a1c1c' : state.hover && state.hover.id === id ? '#1b2430' : '#151c26'; ctx.fill();
+        ctx.strokeStyle = o.on ? '#6fb7ff' : o.danger ? '#7a3a3a' : '#2a3646'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = o.danger ? '#f0a0a0' : '#dfe7ef'; ctx.fillText(label, x + 15, y + 27);
+        state.widgets.push({ id, x, y: y + 4, w, h: 46, act: () => {
+          if (o.danger && !armed) { state.armed = { id, t: performance.now() }; return; }
+          state.armed = null; o.act(); if (S.redrawAll) S.redrawAll();
+        } });
+        x += w + 8;
+      });
+      return;
+    }
     if (row.kind === 'vrchips') {
       ctx.font = '26px system-ui'; ctx.fillStyle = '#8a98a8'; ctx.fillText(t(row.label), x0, y + 27);
       ctx.font = '600 24px system-ui';
@@ -181,7 +248,7 @@ export function createVRPanel(S) {
     }
     if (row.kind === 'slider') {
       const v = getPath(row.path);
-      const label = t('p.' + row.path.replace('planet.', ''));
+      const label = row.labelKey ? t(row.labelKey) : t('p.' + row.path.replace('planet.', ''));
       ctx.font = '26px system-ui'; ctx.fillStyle = '#dfe7ef'; ctx.fillText(label, x0, y + 20);
       const vs = row.pct ? `${fmt(v * 100, row.digits || 2)} %` : `${fmt(v, row.digits || 2)}${row.unit ? ' ' + t('u.' + row.unit) : ''}`;
       ctx.fillStyle = '#6fb7ff'; ctx.textAlign = 'right'; ctx.fillText(vs, x1, y + 20); ctx.textAlign = 'left';

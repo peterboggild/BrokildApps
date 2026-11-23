@@ -1,12 +1,12 @@
 /* Planet Designer: boot, state, the desktop page (panel, 3D view, ledger), and the climate worker.
  * The VR workshop (M5) attaches to the same state later. */
 import { validate, defaultDesign, PRESETS, saveLocal, loadLocal, toHash, fromHash, MAX_HZ, MAX_PLANETS,
-  earthPlanet, otherPlanet } from './design.js?v=6';
-import { derive, deriveSync } from './physics/derive.js?v=6';
-import { ledger } from './physics/ledger.js?v=6';
-import { renderPanel, renderLedger } from './ui/dom.js?v=6';
-import { t, setLang, getLang } from './i18n.js?v=6';
-import { createView } from './scene/view.js?v=6';
+  earthPlanet, otherPlanet } from './design.js?v=7';
+import { derive, deriveSync } from './physics/derive.js?v=7';
+import { ledger } from './physics/ledger.js?v=7';
+import { renderPanel, renderLedger } from './ui/dom.js?v=7';
+import { t, setLang, getLang } from './i18n.js?v=7';
+import { createView } from './scene/view.js?v=7';
 
 const $ = (id) => document.getElementById(id);
 
@@ -77,6 +77,17 @@ const S = {
     this.sel = this.design.planets.length - 1;
   },
   removePlanet(i) { this.design.planets.splice(i, 1); this.sel = 0; },
+  loadPreset(k) { if (PRESETS[k]) load({ ...PRESETS[k](), level: this.design.level }); },
+  /* Put the selected habitable-zone planet where it gets about as much light as Earth (S = 0.95), kept inside the
+   * conservative zone for this star and this planet's mass, allowing for its eccentricity. */
+  toZone() {
+    const P = this.derivedPlanet();
+    if (!P || P.role !== 'hz') return;
+    const s = P.hz.seff;
+    const target = Math.min(s.runaway * 0.95, Math.max(s.maxGreenhouse * 1.05, 0.95));
+    const e = this.planet().orbit.e;
+    this.set('planet.orbit.aAU', Math.sqrt(this.derived.star.lum / (target * Math.sqrt(1 - e * e))));
+  },
 };
 
 /* The climate model runs in a worker (spec §10.6: heavy models never on the render thread). On the PC it follows
@@ -85,7 +96,7 @@ const S = {
 let worker = null, climateTimer = null;
 const inFlight = {};
 try {
-  worker = new Worker(new URL('./physics/worker.js?v=6', import.meta.url), { type: 'module' });
+  worker = new Worker(new URL('./physics/worker.js?v=7', import.meta.url), { type: 'module' });
   worker.onmessage = (ev) => {
     const { id, key, result } = ev.data;
     delete inFlight[id];

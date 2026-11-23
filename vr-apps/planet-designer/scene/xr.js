@@ -5,9 +5,10 @@
  * No controller button resets the view: only the Meta button recentres (owner rule). While presenting, only the
  * XR loop renders (pitfall: a desktop render during XR breaks the frame), and nothing resizes the renderer. */
 import * as THREE from 'three';
-import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=6';
-import { createVRPanel } from '../ui/vrpanel.js?v=6';
-import { t } from '../i18n.js?v=6';
+import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=7';
+import { createVRPanel } from '../ui/vrpanel.js?v=7';
+import { rOf, aOf } from './orrery.js?v=7';
+import { t } from '../i18n.js?v=7';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const MASS_RANGE = [Math.log10(0.08), Math.log10(2.0)];
@@ -171,11 +172,22 @@ export function createXR(V) {
     const hv = hs.hover;
     if (!hv) return;
     if (hv.kind === 'panel') { if (panel.down(hv.px, hv.py, performance.now())) { hs.mode = 'ui'; hs.modeBy = kind; } return; }
-    if (hv.kind === 'dial') { hs.mode = 'dial'; hs.modeBy = kind; hs.dial = hv.dial; dragDial(hs); return; }
+    if (hv.kind === 'dial') {
+      /* relative and fine: turning the dial by a whole sweep moves the value by half its range */
+      const { o, d } = rayOf(hs);
+      hs.mode = 'dial'; hs.modeBy = kind; hs.dial = hv.dial;
+      hs.dialA0 = dialAngle(hv.dial, o, d) || 0;
+      hs.dialV0 = hv.dial === ws.massDial ? S.design.star.massSun : S.design.star.ageGyr;
+      return;
+    }
     if (hv.kind === 'slot') { S.addHzAt(hv.data.a); return; }
     if (hv.kind === 'bead' || hv.kind === 'handle') {
       S.sel = hv.data.index; if (S.redrawAll) S.redrawAll();
       hs.mode = hv.kind; hs.modeBy = kind;
+      /* relative and fine: the bead moves by a fraction of the pointer's movement on the table */
+      const lp = tablePoint(hs);
+      hs.drag0 = lp ? Math.hypot(lp.x, lp.z) : null;
+      hs.a0 = S.planet().orbit.aAU;
     }
   }
   function onRelease(hs, kind) {
@@ -189,19 +201,29 @@ export function createXR(V) {
     const { o, d } = rayOf(hs);
     const a = dialAngle(hs.dial, o, d);
     if (a == null) return;
-    if (hs.dial === ws.massDial) S.set('star.massSun', toRange(a, MASS_RANGE));
-    else S.set('star.ageGyr', toRange(a, AGE_RANGE));
+    const R = hs.dial === ws.massDial ? MASS_RANGE : AGE_RANGE;
+    const lv = Math.log10(Math.max(hs.dialV0, 0.01)) + (a - hs.dialA0) / (2 * ARC) * (R[1] - R[0]) * 0.5;
+    const v = 10 ** Math.max(R[0], Math.min(R[1], lv));
+    if (hs.dial === ws.massDial) S.set('star.massSun', v); else S.set('star.ageGyr', v);
   }
   const tablePlane = new THREE.Plane();
-  function dragOrrery(hs) {
+  function tablePoint(hs) {
     const { o, d } = rayOf(hs);
     V.orrery.group.updateMatrixWorld(true);
     const c = new THREE.Vector3().setFromMatrixPosition(V.orrery.group.matrixWorld);
     tablePlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), c);
     const p = new THREE.Vector3();
-    if (!new THREE.Ray(o, d).intersectPlane(tablePlane, p)) return;
-    const lp = V.orrery.group.worldToLocal(p);
-    if (hs.mode === 'bead') S.set('planet.orbit.aAU', V.orrery.toA(lp));
+    if (!new THREE.Ray(o, d).intersectPlane(tablePlane, p)) return null;
+    return V.orrery.group.worldToLocal(p);
+  }
+  function dragOrrery(hs) {
+    const lp = tablePoint(hs);
+    if (!lp) return;
+    if (hs.mode === 'bead') {
+      if (hs.drag0 == null) return;
+      const r0 = rOf(hs.a0), r = r0 + (Math.hypot(lp.x, lp.z) - hs.drag0) * 0.25;
+      S.set('planet.orbit.aAU', aOf(Math.max(0.5, r)));
+    }
     else { S.set('planet.orbit.e', V.orrery.toE(lp, S.planet().orbit.aAU)); S.set('planet.orbit.argPeriDeg', V.orrery.toArgPeri(lp)); }
   }
 
