@@ -1,16 +1,16 @@
 /* Benchmarks of spec §5.12 (the EBM rows wait for milestone M3). Run: node test/physics.test.mjs
  * Node resolves the '?v=N' cache-busting suffixes as part of a file URL, so the browser modules run unchanged. */
-import { starAt, mainSequence, blackbodyRGB, parRelativeToSun } from '../physics/star.js?v=7';
-import { habitableZone } from '../physics/hz.js?v=7';
-import { bulk } from '../physics/structure.js?v=7';
-import { mutualHillSpacing, moonInfo, tidalLockBand, periodYears } from '../physics/orbit.js?v=7';
-import { jeansLambda, scaleHeight, climate0D, boilingPointK } from '../physics/atmosphere.js?v=7';
-import { MOLAR } from '../physics/const.js?v=7';
-import { derive, deriveSync } from '../physics/derive.js?v=7';
-import { runEBM } from '../physics/climate.js?v=7';
-import { xuvEnvironment, cosmicDose, shorelineI } from '../physics/space.js?v=7';
-import { ledger } from '../physics/ledger.js?v=7';
-import { PRESETS, validate } from '../design.js?v=7';
+import { starAt, mainSequence, blackbodyRGB, parRelativeToSun } from '../physics/star.js?v=8';
+import { habitableZone } from '../physics/hz.js?v=8';
+import { bulk } from '../physics/structure.js?v=8';
+import { mutualHillSpacing, moonInfo, tidalLockBand, periodYears } from '../physics/orbit.js?v=8';
+import { jeansLambda, scaleHeight, climate0D, boilingPointK } from '../physics/atmosphere.js?v=8';
+import { MOLAR } from '../physics/const.js?v=8';
+import { derive, deriveSync } from '../physics/derive.js?v=8';
+import { runEBM } from '../physics/climate.js?v=8';
+import { xuvEnvironment, cosmicDose, shorelineI } from '../physics/space.js?v=8';
+import { ledger } from '../physics/ledger.js?v=8';
+import { PRESETS, validate } from '../design.js?v=8';
 
 let fails = 0, n = 0;
 function near(name, got, want, tol) {
@@ -133,12 +133,12 @@ for (const k of Object.keys(PRESETS)) {
 
 /* M4 done-when: every ledger row has a card (both languages, all parts) and a source */
 {
-  const { CARDS } = await import('../ui/cards.js?v=7');
+  const { CARDS } = await import('../ui/cards.js?v=8');
   const Dd = deriveSync(validate(PRESETS.solar()));
   const Lg = ledger(Dd.planets[0], Dd);
   const bad = Lg.rows.filter((r) => !r.src || !CARDS[r.id] || ['da', 'en'].some((l) => !CARDS[r.id][l] || ['what', 'why', 'ours', 'try', 'more'].some((f) => !CARDS[r.id][l][f])));
   truth('Every ledger row has a card in both languages and a source', bad.length === 0, `${Lg.rows.length} rows${bad.length ? ', missing: ' + bad.map((r) => r.id).join(' ') : ''}`);
-  const { esi } = await import('../physics/esi.js?v=7');
+  const { esi } = await import('../physics/esi.js?v=8');
   near('ESI of the Earth-like start', esi(Dd.planets[0]), 1, 0.02);
   near('ESI of the dry world (Mars numbers; Mars 0.64)', esi(deriveSync(validate(PRESETS.dryworld())).planets[0]), 0.64, 0.05);
 }

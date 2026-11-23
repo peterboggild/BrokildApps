@@ -4,8 +4,8 @@
  * estimate, an atmosphere rim (a preview until the scattering model of M3), the cutaway with the interior layers,
  * and simple looks for the other planet types. Radius 1 in scene units; heights are exaggerated (stated on screen). */
 import * as THREE from 'three';
-import { NOISE, TERRAIN, CUBESPHERE } from './glsl.js?v=7';
-import { seedOffsets } from '../physics/terrain.js?v=7';
+import { NOISE, TERRAIN, CUBESPHERE } from './glsl.js?v=8';
+import { seedOffsets } from '../physics/terrain.js?v=8';
 
 const GRID = 48;                          /* quads per chunk side */
 const MAX_LEVEL = 13;
@@ -189,7 +189,7 @@ const TERRAIN_FS = NOISE + TERRAIN + ATMO + CLOUDS + SURFACE + /* glsl */`
 uniform float uCut, uCloudH, uCloudShadow;
 uniform vec3 uSunLocal;
 uniform vec3 uSunDir, uSunColor, uAtmColor;
-uniform float uAtmDensity, uPixelAngle, uOctMax, uFDNormals;
+uniform float uAtmDensity, uPixelAngle, uOctMax, uFDNormals, uFill;
 uniform mat4 modelMatrix;
 varying vec3 vN; varying vec3 vWP; varying vec3 vWN;
 
@@ -255,6 +255,7 @@ void main() {
     lit += sun * shade * min(D * F, 6.0) * NdL * 0.5;
     lit += uAtmColor * F * 0.2 * smoothstep(-0.1, 0.2, mu0);
   }
+  lit += col * uFill;                                     /* optional light on the night side, for looking */
   gl_FragColor = vec4(lit, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -296,9 +297,11 @@ void main() {
   vec3 bR = uTauR / uHR, bM = uTauM * uMieTint / uHM;              /* extinction coefficients at the ground */
   float dt = (t1 - t0) / uSteps;
   vec3 tauV = vec3(0.0), sum = vec3(0.0);
+  /* a per-pixel offset of the sample positions turns the step bands into fine, invisible noise */
+  float jit = 0.3 + 0.4 * fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
   for (int i = 0; i < 24; i++) {
     if (float(i) >= uSteps) break;
-    vec3 p = oc + rd * (t0 + (float(i) + 0.5) * dt);
+    vec3 p = oc + rd * (t0 + (float(i) + jit) * dt);
     float r = length(p);
     if (r < uR0) break;                                             /* into the ground (or the cutaway's open wedge) */
     float h = r - uR0;
@@ -477,7 +480,7 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * vec4(vWP, 1.0);
 }`;
 const BAKEDPLANET_FS = EQUI + ATMO + /* glsl */`
-uniform sampler2D uTexA, uTexB, uCloudTex; uniform float uHasBake, uCut, uCloudShift, uCloudShadow, uCloudH;
+uniform sampler2D uTexA, uTexB, uCloudTex; uniform float uHasBake, uCut, uCloudShift, uCloudShadow, uCloudH, uFill;
 uniform vec3 uSunDir, uSunColor, uAtmColor, uSunLocal;
 uniform mat4 modelMatrix;
 varying vec3 vN; varying vec3 vWP; varying vec3 vWN;
@@ -498,7 +501,7 @@ void main() {
     shade = 1.0 - 0.6 * textureLod(uCloudTex, vec2(fract(cuv.x + uCloudShift), cuv.y), 0.0).r;
   }
   float NdL = max(dot(N, L), 0.0);
-  vec3 lit = A.rgb * sun * NdL * shade + A.rgb * uAtmColor * 0.08 * smoothstep(-0.2, 0.25, mu0);
+  vec3 lit = A.rgb * sun * NdL * shade + A.rgb * uAtmColor * 0.08 * smoothstep(-0.2, 0.25, mu0) + A.rgb * uFill;
   if (water) {
     vec3 Hh = normalize(L + V);
     float NdH = max(dot(N0, Hh), 0.0);
@@ -520,6 +523,7 @@ export function createPlanet() {
   /* the air (shared by terrain, clouds and the atmosphere shell) and the clouds (shared by terrain and clouds) */
   const airU = { uTauR: { value: new THREE.Vector3(0.046, 0.108, 0.265) }, uTauM: { value: 0.08 }, uMieTint: { value: new THREE.Vector3(1, 1, 1) },
     uMieColor: { value: new THREE.Vector3(1, 1, 1) } };
+  const fillU = { uFill: { value: 0 } };
   const bakedU = { uTexA: { value: null }, uTexB: { value: null }, uCloudTex: { value: null }, uHasBake: { value: 0 },
     uUseCloudTex: { value: 0 }, uCloudShift: { value: 0 } };
   const cloudU = { uCloudFrac: { value: 0.6 }, uCloudTime: { value: 0 }, uCloudOct: { value: 5 }, uCloudLocked: { value: 0 },
@@ -537,7 +541,7 @@ export function createPlanet() {
       uRelief: { value: 4500 }, uAtmDensity: { value: 1 }, uPixelAngle: { value: 0.001 }, uHasWater: { value: 1 }, uOctMax: { value: 13 }, uFDNormals: { value: 1 },
       uSubstellar: { value: new THREE.Vector3(1, 0, 0) },
       ...airU, ...cloudU, uLatT: { value: new Array(36).fill(15) }, uHasEBM: { value: 0 }, uCloudH: { value: 0.01 },
-      uCloudShadow: { value: 1 }, uSunLocal: { value: new THREE.Vector3(1, 0, 0) },
+      uCloudShadow: { value: 1 }, uSunLocal: { value: new THREE.Vector3(1, 0, 0) }, ...fillU,
     },
     vertexShader: TERRAIN_VS, fragmentShader: TERRAIN_FS,
     extensions: { derivatives: true },
@@ -606,6 +610,8 @@ export function createPlanet() {
     blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
   });
   const atm = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 48), atmMat);
+  const atmLocal = { HR: 0.01, HM: 0.002, R1: 1.05 };
+  const wScale = new THREE.Vector3();
   atm.renderOrder = 10;
   root.add(atm);
 
@@ -622,7 +628,7 @@ export function createPlanet() {
 
   /* the baked planet and its baker */
   const bakedMat = new THREE.ShaderMaterial({
-    uniforms: { ...light, ...airU, ...bakedU, uCut: common.uCut, uCloudShadow: { value: 1 }, uCloudH: { value: 0.01 },
+    uniforms: { ...light, ...airU, ...bakedU, ...fillU, uCut: common.uCut, uCloudShadow: { value: 1 }, uCloudH: { value: 0.01 },
       uSunLocal: { value: new THREE.Vector3(1, 0, 0) } },
     vertexShader: BAKEDPLANET_VS, fragmentShader: BAKEDPLANET_FS,
   });
@@ -765,11 +771,10 @@ export function createPlanet() {
     airU.uTauM.value = tM; airU.uMieTint.value.set(...tint); airU.uMieColor.value.set(...mcol);
     atmMat.uniforms.uG.value = P.climate.runaway ? 0.25 : 0.76;
     const Hs = Math.min(0.03, Math.max(0.0025, P.scaleHeightKm / (Rm / 1000) * exag));
-    atmMat.uniforms.uHR.value = Hs;
-    atmMat.uniforms.uHM.value = Hs * (P.climate.runaway ? 0.8 : 0.25);
-    atmMat.uniforms.uR0.value = 1.0;
-    atmMat.uniforms.uR1.value = 1.0 + Math.min(Hs * 7, 0.09);
-    atm.scale.setScalar(atmMat.uniforms.uR1.value);
+    /* planet-local sizes; tick() turns them into world units (the planet is 1 here, 1.75 m in the VR cradle) */
+    atmLocal.HR = Hs; atmLocal.HM = Hs * (P.climate.runaway ? 0.8 : 0.25);
+    atmLocal.R1 = 1.0 + Math.min(Hs * 7, 0.09);
+    atm.scale.setScalar(atmLocal.R1);
     /* skylight colour for the ground: the scattered fraction of each channel, tinted by the star */
     const sk = [0, 1, 2].map((i) => (1 - Math.exp(-airU.uTauR.value.getComponent(i) - tM * tint[i] * 0.5)));
     light.uAtmColor.value.setRGB(sk[0] * rgb[0], sk[1] * rgb[1], sk[2] * rgb[2]);
@@ -804,6 +809,11 @@ export function createPlanet() {
     baked.visible = isHz && useBaked;
     light.uSunDir.value.copy(sunDirWorld);
     atmMat.uniforms.uCenter.value.setFromMatrixPosition(root.matrixWorld);
+    /* the ray march works in world units: scale the shell's radii and heights with the planet's world scale */
+    root.getWorldScale(wScale);
+    const sc = wScale.x;
+    atmMat.uniforms.uR0.value = sc; atmMat.uniforms.uR1.value = atmLocal.R1 * sc;
+    atmMat.uniforms.uHR.value = atmLocal.HR * sc; atmMat.uniforms.uHM.value = atmLocal.HM * sc;
     capMat.uniforms.uTime.value = t;
     terrainMat.uniforms.uPixelAngle.value = pixelAngle;
     cloudU.uCloudTime.value = t;
@@ -825,13 +835,13 @@ export function createPlanet() {
   /* Quality: 'high' (fine LOD, per-pixel normals from the height function), 'medium', 'low'. */
   function setQuality(q) {
     /* split, fragment octaves, per-pixel normals, cloud octaves, cloud shadows, atmosphere steps */
-    const Q = { high: [5.0, 13, 1, 6, 1, 16], medium: [3.5, 11, 1, 5, 1, 12], low: [2.2, 8, 0, 3, 0, 8] }[q] || [5.0, 13, 1, 6, 1, 16];
+    const Q = { high: [5.0, 13, 1, 6, 1, 16], medium: [3.5, 11, 1, 5, 1, 12], low: [2.2, 8, 0, 3, 0, 12] }[q] || [5.0, 13, 1, 6, 1, 16];
     LOD_SPLIT = Q[0]; terrainMat.uniforms.uOctMax.value = Q[1]; terrainMat.uniforms.uFDNormals.value = Q[2];
     cloudU.uCloudOct.value = q === 'low' ? 5 : Q[3]; terrainMat.uniforms.uCloudShadow.value = Q[4]; atmMat.uniforms.uSteps.value = Q[5];
     /* low = the baked planet (cheap per frame; used in VR and on the Quest's flat page) */
     useBaked = q === 'low';
     bakedMat.uniforms.uCloudShadow.value = 1;
   }
-  return { group: root, spin, set, tick, info, caps, setQuality, bakeStep, get baked() { return useBaked; }, get bakeDone() { return bake.row >= BAKE_H && bake.cloudsDone; }, get bakeProgress() { return bake.key ? Math.min(1, bake.row / BAKE_H) : 0; },
+  return { group: root, spin, set, tick, info, caps, setQuality, bakeStep, setFill(v) { fillU.uFill.value = v ? 0.35 : 0; }, get fill() { return fillU.uFill.value > 0; }, get baked() { return useBaked; }, get bakeDone() { return bake.row >= BAKE_H && bake.cloudsDone; }, get bakeProgress() { return bake.key ? Math.min(1, bake.row / BAKE_H) : 0; },
     get chunks() { return useBaked ? (bakedU.uHasBake.value ? 1 : 0) : used; } };
 }

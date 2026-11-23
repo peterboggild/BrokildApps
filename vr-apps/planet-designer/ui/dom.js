@@ -1,11 +1,11 @@
 /* Desktop renderer of the UI schema (ui/schema.js). The state object owns the design; this file only draws it and
  * reports edits through state.set(path, value) and state.structural(fn). */
-import { TABS, LEVELS } from './schema.js?v=7';
-import { t, fmt, esc, getLang } from '../i18n.js?v=7';
-import { CARDS, CARD_LABELS } from './cards.js?v=7';
-import { nodeForRow } from './causality.js?v=7';
-import { esi } from '../physics/esi.js?v=7';
-import { MAX_HZ, MAX_PLANETS } from '../design.js?v=7';
+import { TABS, LEVELS } from './schema.js?v=8';
+import { t, fmt, esc, getLang } from '../i18n.js?v=8';
+import { CARDS, CARD_LABELS } from './cards.js?v=8';
+import { nodeForRow } from './causality.js?v=8';
+import { esi } from '../physics/esi.js?v=8';
+import { MAX_HZ, MAX_PLANETS } from '../design.js?v=8';
 
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 
@@ -141,6 +141,7 @@ function slider(row, S, path = row.path, labelKey = 'p.' + row.path.replace('pla
   const setV = (v) => { S.set(path, Math.max(row.min, Math.min(row.max, v))); show(); };
   range.oninput = () => setV(toValue(row, range.value / 1000));
   const nudge = (dir) => {
+    if (row.log) { setV(get() * (1 + dir * 0.005)); return; }      /* log sliders: 0.5 % per press */
     const pos = clamp01(toPos(row, get()) + dir * 0.004);
     let v = toValue(row, pos);
     if (v === get()) v = toValue(row, clamp01(pos + dir * 0.004));

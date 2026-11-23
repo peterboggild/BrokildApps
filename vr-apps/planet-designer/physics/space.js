@@ -1,6 +1,6 @@
 /* The space environment: the star's X-ray and extreme-UV history, the exosphere it heats, the cosmic shoreline,
  * and the radiation dose at the surface. Estimates, labelled as such in the ledger. */
-import { luminosityAt } from './star.js?v=7';
+import { luminosityAt } from './star.js?v=8';
 
 /* XUV fraction of the bolometric light: saturated at 10^-3.2 while young, then falling as (t / t_sat)^-1.5.
  * Saturation lasts ~0.1 Gyr for a Sun-like star and much longer for red dwarfs (Jackson, Davis & Wheatley 2012
