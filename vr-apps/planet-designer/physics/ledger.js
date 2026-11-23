@@ -1,8 +1,8 @@
 /* The Habitability Ledger: criteria with green/amber/red status, grouped in five tiers (spec §6, §4.11).
  * Returns language-neutral rows: { id, tier, status, value: {k, p}, why: {k, p}, src, contested }.
  * The UI turns the keys into text (i18n.js). Status 'na' = not computed yet (a later milestone); it never blocks. */
-import { HILL_TWO_PLANET, HILL_MULTI } from './orbit.js?v=11';
-import { ARMSTRONG_PA } from './atmosphere.js?v=11';
+import { HILL_TWO_PLANET, HILL_MULTI } from './orbit.js?v=12';
+import { ARMSTRONG_PA } from './atmosphere.js?v=12';
 
 const band = (x, g0, g1, a0, a1) => (x >= g0 && x <= g1 ? 'green' : x >= a0 && x <= a1 ? 'amber' : 'red');
 

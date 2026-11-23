@@ -1,7 +1,7 @@
 /* The star: limb darkening, animated granulation, spots for active stars, and a corona with streamers.
  * Colour from the black-body colour of its effective temperature (physics/star.js). HDR values feed the bloom. */
 import * as THREE from 'three';
-import { NOISE } from './glsl.js?v=11';
+import { NOISE } from './glsl.js?v=12';
 
 export function createStar() {
   const uniforms = {
@@ -37,22 +37,28 @@ export function createStar() {
       }`,
   }));
 
-  /* Corona: a camera-facing disc with radial streamers, additive */
-  const corona = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
-    uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    vertexShader: `varying vec2 vUv; void main() { vUv = uv * 2.0 - 1.0;
-      vec4 mv = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-      float s = length(modelMatrix[0].xyz);
-      mv.xy += position.xy * s;
-      gl_Position = projectionMatrix * mv; }`,
+  /* Corona: a shell of 4 star radii. Each pixel finds how close its view ray passes to the star's centre and glows by
+   * that distance; the streamers are noise on the direction of that closest point in the star's own frame. So the
+   * glow stands still in space and does not turn with the head (a camera-facing disc did, in the headset). */
+  const corona = new THREE.Mesh(new THREE.SphereGeometry(4, 48, 24), new THREE.ShaderMaterial({
+    uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.BackSide,
+    vertexShader: `varying vec3 vWP; void main() { vWP = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vWP, 1.0); }`,
     fragmentShader: NOISE + `
-      varying vec2 vUv; uniform vec3 uColor; uniform float uTime, uActivity, uGain;
+      varying vec3 vWP; uniform vec3 uColor; uniform float uTime, uActivity, uGain;
+      uniform mat4 modelMatrix;
       void main() {
-        float r = length(vUv) * 4.0;          /* in star radii: the plane spans 4 radii each way */
-        if (r < 0.98) discard;
-        float a = atan(vUv.y, vUv.x);
-        float streak = 0.55 + 0.45 * snoise(vec3(cos(a) * 3.0, sin(a) * 3.0, uTime * 0.02));
-        streak = pow(streak, 2.0);
+        vec3 c = modelMatrix[3].xyz;
+        float R = length(modelMatrix[0].xyz);
+        vec3 rd = normalize(vWP - cameraPosition);
+        vec3 oc = c - cameraPosition;
+        float tp = dot(oc, rd);
+        if (tp < 0.0) discard;
+        vec3 q = cameraPosition + rd * tp - c;           /* closest approach, from the centre */
+        float r = length(q) / R;                        /* in star radii */
+        if (r < 1.0 || r > 4.0) discard;
+        vec3 dir = normalize(transpose(mat3(modelMatrix)) * q);
+        float streak = 0.55 + 0.45 * snoise(dir * 3.0 + vec3(0.0, 0.0, uTime * 0.02));
+        streak = streak * streak;
         float glow = pow(max(r - 0.9, 0.02), -1.6) * 0.012;
         float rays = streak * exp(-(r - 1.0) * (2.2 - 0.8 * uActivity)) * 0.1;
         float I = (glow + rays) * smoothstep(4.0, 2.2, r);
@@ -61,7 +67,6 @@ export function createStar() {
         #include <colorspace_fragment>
       }`,
   }));
-  corona.scale.setScalar(8);           /* 4 star radii each way */
   corona.renderOrder = 2;
 
   const group = new THREE.Group();

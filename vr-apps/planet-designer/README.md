@@ -100,6 +100,15 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 - **Følg planeten** (PC): kameraet følger den valgte planet, og man kan zoome helt tæt på.
 - **Zoom på bordet** (VR-fanen, ×1, ×3, ×10 eller ×30): solsystemet vokser omkring den valgte planet, som holdes midt over bordet. Ved ×30 er den beboelige zone over 2 m bred.
 
+## Tredje test i brillerne
+
+- **To visninger i VR i stedet for zoom ×3/×10:**
+  - **Værksted (×1):** den store stjerne, planeten i holderen og det lille solsystem på bordet.
+  - **Ind i solsystemet (×30):** stjernesmedjen, planetholderen og bordet forsvinder. Der er så kun én stjerne (systemets egen) og én planet: den rigtige, tegnede planet med skyer og have i sin bane.
+- Solsystemet forankres én gang med den valgte planet midt over bordet og **ligger så fast**. Før centrerede zoomen hele tiden på planeten, så hele solsystemet med solen kørte rundt om brugeren, også mens man trak i banen. Nu flytter træk og afstandsknappen kun planeten. Tiden går automatisk til virkelig tid, når man går ind, og tilbage, når man går ud. Vælg "Ind i solsystemet" igen for at centrere på planeten på ny.
+- **Stjernens korona** er nu en skal i rummet. Hver pixel lyser efter, hvor tæt dens synslinje går på stjernens centrum, og strålerne følger stjernens egne retninger. Den drejer ikke længere med hovedet. Før var den en flad skive, der vendte mod kameraet.
+- **Den mørke metalring** om stjernesmedjen er fjernet. Den så ud som en sort ring om solen.
+
 ## Lyd (`audio.js`)
 
 Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges lydfiler, han ikke selv har leveret.
@@ -136,7 +145,7 @@ Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges l
 | `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=11`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=12`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 
