@@ -2,8 +2,8 @@
  * 0.80 x 0.54 m tablet. Tabs, a scrolling column of rows, sliders with - and + (auto-repeat), chips, readouts and
  * headings. Hit testing in canvas pixels; the caller maps a controller ray to (px, py). */
 import * as THREE from 'three';
-import { TABS, LEVELS } from './schema.js?v=12';
-import { t, fmt } from '../i18n.js?v=12';
+import { TABS, LEVELS } from './schema.js?v=13';
+import { t, fmt } from '../i18n.js?v=13';
 
 export const PW = 0.8, PH = 0.54;          /* metres */
 const W = 1200, H = 810;
@@ -48,6 +48,7 @@ export function createVRPanel(S) {
     const level = LEVELS[S.design.level] || 1;
     const isHz = S.planet().role === 'hz';
     if (S.tab === 'vr') return vrRows();
+    if (S.tab === 'scene') return sceneRows();
     const tab = TABS.find((x) => x.id === S.tab) || TABS[0];
     const out = [];
     for (const row of tab.rows) {
@@ -89,8 +90,8 @@ export function createVRPanel(S) {
     if (S.design.planets.length < 8) out.push({ kind: 'buttons', opts: [{ label: t('planet.add'), act: () => S.structural(() => S.addPlanet()) }] });
     return out;
   }
-  /* the VR tab: view settings and leaving VR */
-  function vrRows() {
+  /* the Scene tab: what is shown and how (start designs, light, time, view, heights, level) */
+  function sceneRows() {
     const V = S.view.state;
     const c = (label, opts) => ({ kind: 'vrchips', label, opts });
     return [
@@ -98,22 +99,29 @@ export function createVRPanel(S) {
       { kind: 'buttons', opts: ['solar', 'kdwarf'].map((k) => ({ label: t('preset.' + k), act: () => S.loadPreset(k) })) },
       { kind: 'buttons', opts: ['reddwarf', 'dryworld', 'hothouse'].map((k) => ({ label: t('preset.' + k), act: () => S.loadPreset(k) })) },
       { kind: 'buttons', opts: [{ label: t('act.toZone'), act: () => S.toZone() }] },
-      c('v.cut', [{ label: t('yes'), on: V.cut, act: () => { V.cut = true; S.view.refresh(); } }, { label: t('no'), on: !V.cut, act: () => { V.cut = false; S.view.refresh(); } }]),
-      c('v.spin', [{ label: t('yes'), on: V.spinOn, act: () => { V.spinOn = true; } }, { label: t('no'), on: !V.spinOn, act: () => { V.spinOn = false; } }]),
-      c('vr.fill', [{ label: t('yes'), on: S.view.planet.fill, act: () => S.view.planet.setFill(true) }, { label: t('no'), on: !S.view.planet.fill, act: () => S.view.planet.setFill(false) }]),
-      c('vr.turn', [{ label: t('vr.turnStep'), on: !(S.xr && S.xr.smoothTurn), act: () => S.xr && S.xr.setSmoothTurn(false) }, { label: t('vr.turnSmooth'), on: !!(S.xr && S.xr.smoothTurn), act: () => S.xr && S.xr.setSmoothTurn(true) }]),
-      c('vr.sun', [{ label: t('vr.sunReset'), on: false, act: () => S.xr && S.xr.resetSun() }]),
+      c('vr.zoom', [[1, 'vr.zoom1'], [30, 'vr.zoom30']].map(([z, k]) => ({ label: t(k), on: S.xr && S.xr.zoom === z, act: () => S.xr && S.xr.setZoom(z) }))),
       c('v.time', [['pause', 0], ['real', 1 / 3.15576e7], ['h', 3600 / 3.15576e7], ['d', 86400 / 3.15576e7], ['std', 0.0637]].map(([k, ts]) => ({
         label: t('vr.time.' + k), on: k === 'pause' ? V.paused : !V.paused && Math.abs(V.timeScale / ts - 1) < 0.01,
         act: () => { if (k === 'pause') V.paused = true; else { V.paused = false; V.timeScale = ts; } } }))),
+      c('vr.sun', [{ label: t('vr.sunReset'), on: false, act: () => S.xr && S.xr.resetSun() }]),
+      c('vr.fill', [{ label: t('yes'), on: S.view.planet.fill, act: () => S.view.planet.setFill(true) }, { label: t('no'), on: !S.view.planet.fill, act: () => S.view.planet.setFill(false) }]),
+      c('v.spin', [{ label: t('yes'), on: V.spinOn, act: () => { V.spinOn = true; } }, { label: t('no'), on: !V.spinOn, act: () => { V.spinOn = false; } }]),
+      c('v.cut', [{ label: t('yes'), on: V.cut, act: () => { V.cut = true; S.view.refresh(); } }, { label: t('no'), on: !V.cut, act: () => { V.cut = false; S.view.refresh(); } }]),
+      c('v.exag', [5, 10, 20].map((x) => ({ label: '×' + x, on: V.exag === x, act: () => { V.exag = x; S.view.refresh(); } }))),
+      c('level', ['explorer', 'student', 'scientist'].map((l) => ({ label: t('level.' + l), on: S.design.level === l, act: () => { S.design.level = l; S.changed(true); } }))),
+    ];
+  }
+  /* the VR tab: only what belongs to being in VR (moving, sound, graphics load, leaving) */
+  function vrRows() {
+    const V = S.view.state;
+    const c = (label, opts) => ({ kind: 'vrchips', label, opts });
+    return [
+      c('vr.turn', [{ label: t('vr.turnStep'), on: !(S.xr && S.xr.smoothTurn), act: () => S.xr && S.xr.setSmoothTurn(false) }, { label: t('vr.turnSmooth'), on: !!(S.xr && S.xr.smoothTurn), act: () => S.xr && S.xr.setSmoothTurn(true) }]),
       c('snd.music', [true, false].map((v) => ({ label: t(v ? 'snd.on' : 'snd.off'), on: S.audio && S.audio.prefs.music === v, act: () => S.audio && S.audio.setPref('music', v) }))),
       c('snd.fx', [true, false].map((v) => ({ label: t(v ? 'snd.on' : 'snd.off'), on: S.audio && S.audio.prefs.fx === v, act: () => S.audio && S.audio.setPref('fx', v) }))),
       c('snd.vol', [[0.35, 'snd.low'], [0.7, 'snd.mid'], [1, 'snd.high']].map(([v, k]) => ({ label: t(k), on: S.audio && Math.abs(S.audio.prefs.vol - v) < 0.01, act: () => S.audio && S.audio.setPref('vol', v) }))),
-      c('vr.zoom', [[1, 'vr.zoom1'], [30, 'vr.zoom30']].map(([z, k]) => ({ label: t(k), on: S.xr && S.xr.zoom === z, act: () => S.xr && S.xr.setZoom(z) }))),
-      c('v.exag', [5, 10, 20].map((x) => ({ label: '×' + x, on: V.exag === x, act: () => { V.exag = x; S.view.refresh(); } }))),
       c('vr.quality', ['low', 'medium'].map((q) => ({ label: t('v.q.' + q), on: V.quality === q, act: () => S.view.setQuality(q, true) }))),
       { kind: 'note', text: t('vr.qualityNote') },
-      c('level', ['explorer', 'student', 'scientist'].map((l) => ({ label: t('level.' + l), on: S.design.level === l, act: () => { S.design.level = l; S.changed(true); } }))),
       c('vr.leave', [{ label: t('vr.exit'), on: false, act: () => S.xr && S.xr.exit() }]),
       { kind: 'note', text: t('vr.help') },
     ];
@@ -126,8 +134,8 @@ export function createVRPanel(S) {
     ctx.lineWidth = 3; ctx.strokeStyle = '#2a3646'; ctx.stroke();
     /* tabs */
     /* tabs: shrink the type until all of them fit on the panel's width */
-    const allTabs = [...TABS, { id: 'vr' }];
-    const tabLabel = (tab) => (tab.id === 'vr' ? 'VR' : t('tab.' + tab.id));
+    const allTabs = [...TABS, { id: 'scene' }, { id: 'vr' }];
+    const tabLabel = (tab) => (tab.id === 'vr' ? 'VR' : t('tab.' + tab.id));  /* tab.scene is in i18n */
     let fs = 30, pad = 34;
     for (; fs > 18; fs -= 1) {
       ctx.font = `600 ${fs}px system-ui, sans-serif`;
