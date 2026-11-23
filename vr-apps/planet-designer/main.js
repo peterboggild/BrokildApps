@@ -1,12 +1,12 @@
 /* Planet Designer: boot, state, the desktop page (panel, 3D view, ledger), and the climate worker.
  * The VR workshop (M5) attaches to the same state later. */
 import { validate, defaultDesign, PRESETS, saveLocal, loadLocal, toHash, fromHash, MAX_HZ, MAX_PLANETS,
-  earthPlanet, otherPlanet } from './design.js?v=3';
-import { derive, deriveSync } from './physics/derive.js?v=3';
-import { ledger } from './physics/ledger.js?v=3';
-import { renderPanel, renderLedger } from './ui/dom.js?v=3';
-import { t, setLang, getLang } from './i18n.js?v=3';
-import { createView } from './scene/view.js?v=3';
+  earthPlanet, otherPlanet } from './design.js?v=4';
+import { derive, deriveSync } from './physics/derive.js?v=4';
+import { ledger } from './physics/ledger.js?v=4';
+import { renderPanel, renderLedger } from './ui/dom.js?v=4';
+import { t, setLang, getLang } from './i18n.js?v=4';
+import { createView } from './scene/view.js?v=4';
 
 const $ = (id) => document.getElementById(id);
 
@@ -85,7 +85,7 @@ const S = {
 let worker = null, climateTimer = null;
 const inFlight = {};
 try {
-  worker = new Worker(new URL('./physics/worker.js?v=3', import.meta.url), { type: 'module' });
+  worker = new Worker(new URL('./physics/worker.js?v=4', import.meta.url), { type: 'module' });
   worker.onmessage = (ev) => {
     const { id, key, result } = ev.data;
     delete inFlight[id];

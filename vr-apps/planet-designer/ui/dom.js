@@ -1,8 +1,11 @@
 /* Desktop renderer of the UI schema (ui/schema.js). The state object owns the design; this file only draws it and
  * reports edits through state.set(path, value) and state.structural(fn). */
-import { TABS, LEVELS } from './schema.js?v=3';
-import { t, fmt, esc } from '../i18n.js?v=3';
-import { MAX_HZ, MAX_PLANETS } from '../design.js?v=3';
+import { TABS, LEVELS } from './schema.js?v=4';
+import { t, fmt, esc, getLang } from '../i18n.js?v=4';
+import { CARDS, CARD_LABELS } from './cards.js?v=4';
+import { nodeForRow } from './causality.js?v=4';
+import { esi } from '../physics/esi.js?v=4';
+import { MAX_HZ, MAX_PLANETS } from '../design.js?v=4';
 
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 
@@ -253,7 +256,33 @@ function system(body, S) {
   }
 }
 
-/* The ledger: five tier lamps, then the rows grouped by tier. */
+/* An explanation card (spec §6.2): Explorer sees what, why, our solar system and something to try; Student and
+ * Scientist also the equation, model and uncertainty; contested rows show both views with sources (§6.3). */
+function card(r, level, S) {
+  const lang = getLang(), c = CARDS[r.id] && CARDS[r.id][lang], Lb = CARD_LABELS[lang];
+  const box = el('div', 'card');
+  if (!c) return box;
+  const part = (k) => { const d = el('div', 'cpart'); d.append(el('span', 'ck', Lb[k]), el('span', 'cv')); d.lastChild.textContent = c[k]; box.appendChild(d); };
+  part('what'); part('why'); part('ours'); part('try');
+  if (level >= 2) part('more');
+  const con = CARDS[r.id].contested;
+  if (con) {
+    const d = el('div', 'cpart contested-views');
+    d.appendChild(el('span', 'ck', Lb.contested));
+    for (const v of con[lang]) { const p = el('p', 'view'); p.textContent = v; d.appendChild(p); }
+    box.appendChild(d);
+  }
+  const src = el('div', 'cpart'); src.append(el('span', 'ck', t('src')), el('span', 'cv')); src.lastChild.textContent = r.src; box.appendChild(src);
+  const node = nodeForRow(r.id);
+  if (node && S.view) {
+    const b = el('button', 'btn', Lb.map);
+    b.onclick = (ev) => { ev.stopPropagation(); S.view.showCausality(node); };
+    box.appendChild(b);
+  }
+  return box;
+}
+
+/* The ledger: five tier lamps, then the rows grouped by tier; a row opens its explanation card. */
 export function renderLedger(root, S) {
   const level = LEVELS[S.design.level] || 1;
   root.innerHTML = '';
@@ -273,11 +302,22 @@ export function renderLedger(root, S) {
     lamps.appendChild(lamp);
   }
   root.appendChild(lamps);
+  /* the Earth Similarity Index, small and qualified: similarity, not habitability (spec §5.11) */
+  const e = esi(DP);
+  if (e != null) root.appendChild(el('p', 'esi', t('esi', { x: e })));
+  root.appendChild(el('p', 'cardhint', t('card.hint')));
   for (const tier of [1, 2, 3, 4, 5]) {
     const sec = el('section', 'tier');
     sec.appendChild(el('h3', '', `${tier}. ${t('tier.' + tier)}`));
     for (const r of L.rows.filter((x) => x.tier === tier)) {
-      const row = el('div', 'lrow ' + r.status);
+      const open = S.openCard === r.id;
+      const row = el('div', 'lrow ' + r.status + (open ? ' open' : ''));
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-expanded', open ? 'true' : 'false');
+      const toggle = () => { S.openCard = open ? null : r.id; renderLedger(root, S); };
+      row.addEventListener('click', (ev) => { if (!ev.target.closest('.card')) toggle(); });
+      row.addEventListener('keydown', (ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && !ev.target.closest('.card')) { ev.preventDefault(); toggle(); } });
       const top = el('div', 'ltop');
       top.innerHTML = `<span class="dot"></span><span class="lname">${t('row.' + r.id)}</span>` +
         `<span class="lval">${t(r.value.k, r.value.p)}</span><span class="lst">${t('st.' + r.status)}</span>`;
@@ -285,7 +325,8 @@ export function renderLedger(root, S) {
       const why = el('div', 'lwhy', t(r.why.k, r.why.p));
       if (r.contested) why.innerHTML += ` <span class="contested">${t('contested')}</span>`;
       row.appendChild(why);
-      if (level >= 2) row.appendChild(el('div', 'lsrc', `${t('src')}: ${r.src}`));
+      if (level >= 2) row.appendChild(el('div', 'lsrc', `${t('src')}: ${esc(r.src)}`));
+      if (open) row.appendChild(card(r, level, S));
       sec.appendChild(row);
     }
     root.appendChild(sec);

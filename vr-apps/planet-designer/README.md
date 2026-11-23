@@ -54,6 +54,12 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
   - Is og planter følger klimamodellens temperaturer.
   - Kvalitetsindstillingen styrer også skyernes detaljer, skyggerne og antallet af trin i atmosfæren.
 
+## Status: M4 (23. november 2026)
+
+- **Forklaringskort** (`ui/cards.js`): klik på en række på tavlen. Kortet har fem dele: hvad, hvorfor det betyder noget, i vores solsystem, prøv og (fra niveauet Studerende) mere (ligning, model og usikkerhed). Kilden står der også. Omstridte rækker (termostat/tektonik, aksens stabilitet uden måne, røde dværges aktivitet, magnetfeltets betydning for luften og låste planeter) viser begge synspunkter med kilder. Alle 30 rækker har kort på dansk og engelsk, og det testes.
+- **Årsagskort** (`ui/causality.js`, knappen "Årsagskort" eller tasten M): 31 knuder i ni kolonner fra stjernen til mennesker, med de aktuelle tal. Knuderne er farvet efter de rækker på tavlen, de hører til. Klik på en knude for at se alt nedstrøms. En ændring sender en puls ned gennem kæden. Kortene har en knap "Vis i årsagskortet".
+- **Jordlighedsindeks (ESI)** står lille under lamperne, med forbeholdet om, at det måler lighed og ikke beboelighed (Schulze-Makuch m.fl. 2011).
+
 ## Filer
 
 | Fil | Indhold |
@@ -70,7 +76,7 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 | `scene/*.js` | `view` (renderer, bloom, kamera, mus, navne), `sky`, `star`, `orrery`, `planet`, `glsl` (støj og landskab). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=3`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=4`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 
