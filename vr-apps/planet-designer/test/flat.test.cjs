@@ -57,6 +57,18 @@ const screenPos = (p, which) => p.evaluate((which) => {
   check('Dragging a planet changes its distance', Math.abs(a1 - a0) > 1e-3, `${a0.toFixed(3)} -> ${a1.toFixed(3)} AU`);
   if (out) await p.screenshot({ path: out + '/t-kdwarf.png' });
 
+  /* time: at real time a planet does not visibly move; "follow" puts the camera's target on the selected planet */
+  const pos = () => p.evaluate(() => { const v = window.__pd.view; const b = v.orrery.beads.find((x) => x.index === window.__pd.sel); return b.mesh.position.toArray(); });
+  await p.evaluate(() => { window.__pd.view.state.timeScale = 1 / 3.15576e7; });
+  const q0 = await pos(); await frames(p, 4); const q1 = await pos();
+  check('At real time the planet stands (almost) still', Math.hypot(q1[0] - q0[0], q1[2] - q0[2]) < 1e-3, `moved ${Math.hypot(q1[0] - q0[0], q1[2] - q0[2]).toExponential(1)}`);
+  await p.evaluate(() => { window.__pd.view.state.timeScale = 0.0637; });
+  await p.click('text=Følg planeten');
+  await frames(p, 3);
+  const fd = await p.evaluate(() => { const v = window.__pd.view; const b = v.orrery.beads.find((x) => x.index === window.__pd.sel); return b.mesh.getWorldPosition(b.mesh.position.clone()).distanceTo(v.controls.target); });
+  check('"Follow the planet" keeps the camera on the selected planet', fd < 0.05, `distance ${fd.toFixed(3)}`);
+  await p.click('text=Følg planeten');
+
   /* M2: planet view, LOD terrain, cutaway */
   await p.selectOption('#preset', 'solar');
   await p.evaluate(() => window.__pd.view.setMode('planet'));
@@ -76,7 +88,7 @@ const screenPos = (p, which) => p.evaluate((which) => {
   check('English after toggle', (await p.textContent('h2')) === 'Can it host life?');
   await p.selectOption('#preset', 'hothouse');
   check('Hothouse world fails tier 1', await p.evaluate(() => document.querySelectorAll('.lamp.red').length === 5));
-  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=8')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
+  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=9')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
   const p2 = await b.newPage();
   await p2.goto(p.url());
   await p2.waitForFunction(() => window.__pd && window.__pd.derived, null, { timeout: 120000 });

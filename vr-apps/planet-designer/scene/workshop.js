@@ -6,8 +6,8 @@
  * The star's colour lights the whole platform. Desktop groups are re-parented in here while in VR and put back
  * afterwards. Metres; the floor at y = 0. */
 import * as THREE from 'three';
-import { createStar } from './star.js?v=8';
-import { t } from '../i18n.js?v=8';
+import { createStar } from './star.js?v=9';
+import { t } from '../i18n.js?v=9';
 
 export const LAYOUT = {
   forge: new THREE.Vector3(0, 4.2, -15), forgeR: 2.2,

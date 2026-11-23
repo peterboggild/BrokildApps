@@ -5,10 +5,10 @@
  * No controller button resets the view: only the Meta button recentres (owner rule). While presenting, only the
  * XR loop renders (pitfall: a desktop render during XR breaks the frame), and nothing resizes the renderer. */
 import * as THREE from 'three';
-import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=8';
-import { createVRPanel } from '../ui/vrpanel.js?v=8';
-import { rOf, aOf } from './orrery.js?v=8';
-import { t } from '../i18n.js?v=8';
+import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=9';
+import { createVRPanel } from '../ui/vrpanel.js?v=9';
+import { rOf, aOf } from './orrery.js?v=9';
+import { t } from '../i18n.js?v=9';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const MASS_RANGE = [Math.log10(0.08), Math.log10(2.0)];
@@ -93,7 +93,8 @@ export function createXR(V) {
   }
   S.xr = { togglePanel, exit: () => VR.session && VR.session.end(),
     resetSun: () => { ws.forgeGroup.position.copy(LAYOUT.forge); },
-    setSmoothTurn: (v) => { VR.smoothTurn = v; }, get smoothTurn() { return !!VR.smoothTurn; } };
+    setSmoothTurn: (v) => { VR.smoothTurn = v; }, get smoothTurn() { return !!VR.smoothTurn; },
+    setZoom: (z) => { VR.tableZoom = z; }, get zoom() { return VR.tableZoom || 1; } };
   function panelPx(origin, dir) {
     if (!panel.mesh.visible) return null;
     panel.mesh.updateMatrixWorld(true);
@@ -380,7 +381,14 @@ export function createXR(V) {
     V.star.tick(tsec); ws.forge.tick(tsec);
     /* the planets stand still while a ray rests on one (so they can be caught) or one is being dragged */
     if (!VR.hands.some((h) => h.mode === 'bead' || h.mode === 'handle' || (h.hover && (h.hover.kind === 'bead' || h.hover.kind === 'handle' || h.hover.kind === 'slot')))) V.orbitAdvance(dt);
-    V.orrery.tick(V.orbitClock(), 1);
+    V.orrery.tick(V.orbitClock(), tsec);
+    /* table zoom: the system grows round the selected planet, which stays over the middle of the table */
+    const z = VR.tableZoom || 1;
+    ws.tableSlot.scale.setScalar(LAYOUT.tableScale * z);
+    if (z > 1) {
+      const bd = V.orrery.beads.find((x) => x.index === S.sel);
+      if (bd) ws.tableSlot.position.set(LAYOUT.table.x - bd.mesh.position.x * LAYOUT.tableScale * z, LAYOUT.table.y + 0.15, LAYOUT.table.z - bd.mesh.position.z * LAYOUT.tableScale * z);
+    } else ws.tableSlot.position.copy(LAYOUT.table);
     V.orrery.beads.forEach((b, k) => { const l = beadLabels[k]; if (!l) return; l.visible = true; b.mesh.getWorldPosition(l.position); l.position.y += 0.07; });
     ws.cradleSlot.updateMatrixWorld(true);
     ws.forgeGroup.updateMatrixWorld(true);

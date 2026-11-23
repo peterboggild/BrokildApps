@@ -3,8 +3,8 @@
  * radius (dashed), orbits coloured by eccentricity, planets as beads that can be dragged (distance) with a handle
  * at apoastron (eccentricity and orientation), and a glowing slot where a second HZ planet would sit stably. */
 import * as THREE from 'three';
-import { orbitPosition, mutualHillSpacing, HILL_MULTI, tidalLockGyr, ECC_MAX } from '../physics/orbit.js?v=8';
-import { habitableZone } from '../physics/hz.js?v=8';
+import { orbitPosition, mutualHillSpacing, HILL_MULTI, tidalLockGyr, ECC_MAX } from '../physics/orbit.js?v=9';
+import { habitableZone } from '../physics/hz.js?v=9';
 
 export const A_MIN = 0.005;
 export const rOf = (a) => 2.2 + 6.5 * Math.log10(Math.max(a, A_MIN) / A_MIN);   /* AU -> scene units */
@@ -132,15 +132,16 @@ export function createOrrery() {
     }
   }
 
-  function tick(t, speed) {
+  /* simYears: simulated time in years (the orbits move in true proportion to their periods); realT for the pulse */
+  function tick(simYears, realT) {
     for (const b of beads) {
-      const M = phase[b.index] + (t * speed) / Math.max(b.period, 0.02) * 0.4;
+      const M = phase[b.index] + 2 * Math.PI * simYears / Math.max(b.period, 1e-4);
       const { x, y } = orbitPosition(b.a, b.e, M);
       const r = Math.hypot(x, y), th = Math.atan2(y, x) + b.argPeri;
       const R = rOf(r);
       b.mesh.position.set(Math.cos(th) * R, 0, -Math.sin(th) * R);
     }
-    if (slot) slot.material.opacity = 0.35 + 0.25 * Math.sin(t * 3);
+    if (slot) slot.material.opacity = 0.35 + 0.25 * Math.sin((realT || 0) * 3);
   }
 
   const pickables = () => {

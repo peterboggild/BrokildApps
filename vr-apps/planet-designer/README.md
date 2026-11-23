@@ -94,6 +94,12 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 - **Afstandsknappen** står ved bordets forkant. Den er relativ, og en hel drejning er ±10 %. Den viser afstand og middeltemperatur (~ mens klimamodellen regner). Panelets − og + på skydere med logaritmisk skala (fx afstand og masse) flytter 0,5 % pr. tryk, både i VR og på PC. Planeterne på bordet står stille, når strålen hviler på dem.
 - **Til ejerens spørgsmål:** med Jordens luft er der kun plads til mennesker fra cirka 0,96 til 1,05 AE. Ved 0,95 AE bliver den fugtige varme for høj, og ved 1,06 AE fryser planeten til (isen kaster lyset tilbage). Den grønne zone på bordet (0,95–1,67 AE) betyder "flydende vand med den rette luft", for eksempel mere CO₂ længere ude.
 
+## Tid og zoom (ejerens ønske)
+
+- **Tid på solsystemet**: banerne bevæger sig nu i rigtigt forhold til deres omløbstider (`orrery.tick(simYears)`). På PC er der en skyder **Tid** i solsystemvisningen, logaritmisk fra virkelig tid til "1 s = 1 år", og en **Pause**. I VR-fanen vælges Pause, Virkelig tid, 1 s = 1 time, 1 s = 1 døgn eller 1 år ≈ 16 s (standard).
+- **Følg planeten** (PC): kameraet følger den valgte planet, og man kan zoome helt tæt på.
+- **Zoom på bordet** (VR-fanen, ×1, ×3, ×10 eller ×30): solsystemet vokser omkring den valgte planet, som holdes midt over bordet. Ved ×30 er den beboelige zone over 2 m bred.
+
 ## Filer
 
 | Fil | Indhold |
@@ -112,7 +118,7 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 | `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=8`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=9`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 
