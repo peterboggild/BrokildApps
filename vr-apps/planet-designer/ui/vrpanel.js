@@ -2,8 +2,9 @@
  * 0.80 x 0.54 m tablet. Tabs, a scrolling column of rows, sliders with - and + (auto-repeat), chips, readouts and
  * headings. Hit testing in canvas pixels; the caller maps a controller ray to (px, py). */
 import * as THREE from 'three';
-import { TABS, LEVELS } from './schema.js?v=14';
-import { t, fmt } from '../i18n.js?v=14';
+import { TABS, LEVELS } from './schema.js?v=15';
+import { t, fmt } from '../i18n.js?v=15';
+import { CHALLENGES } from '../challenges.js?v=15';
 
 export const PW = 0.8, PH = 0.54;          /* metres */
 const W = 1200, H = 810;
@@ -108,8 +109,30 @@ export function createVRPanel(S) {
       c('v.spin', [{ label: t('yes'), on: V.spinOn, act: () => { V.spinOn = true; } }, { label: t('no'), on: !V.spinOn, act: () => { V.spinOn = false; } }]),
       c('v.cut', [{ label: t('yes'), on: V.cut, act: () => { V.cut = true; S.view.refresh(); } }, { label: t('no'), on: !V.cut, act: () => { V.cut = false; S.view.refresh(); } }]),
       c('v.exag', [5, 10, 20].map((x) => ({ label: '×' + x, on: V.exag === x, act: () => { V.exag = x; S.view.refresh(); } }))),
+      ...challengeRows(),
       c('level', ['explorer', 'student', 'scientist'].map((l) => ({ label: t('level.' + l), on: S.design.level === l, act: () => { S.design.level = l; S.changed(true); } }))),
     ];
+  }
+  /* challenges in VR: one button per challenge (✓ when met); the chosen one's goal, wrapped over a few lines */
+  function wrapNotes(text, n = 44) {
+    const out = []; let line = '';
+    for (const w of text.split(' ')) { if ((line + w).length > n && line) { out.push({ kind: 'note', text: line.trim() }); line = ''; } line += w + ' '; }
+    if (line.trim()) out.push({ kind: 'note', text: line.trim() });
+    return out;
+  }
+  function challengeRows() {
+    const done = S.chDone || new Set();
+    const rows = [{ kind: 'title', text: `${t('ch.btn')} ${done.size}/${CHALLENGES.length}` }];
+    for (let i = 0; i < CHALLENGES.length; i += 2) {
+      rows.push({ kind: 'buttons', opts: CHALLENGES.slice(i, i + 2).map((c) => ({
+        label: (done.has(c.id) ? '✓ ' : '○ ') + t('ch.' + c.id + '.title'),
+        act: () => { state.chOpen = state.chOpen === c.id ? null : c.id; } })) });
+    }
+    if (state.chOpen) {
+      rows.push(...wrapNotes(t('ch.' + state.chOpen + '.goal')));
+      if (done.has(state.chOpen)) rows.push(...wrapNotes(t('ch.think') + ' ' + t('ch.' + state.chOpen + '.think')));
+    } else rows.push({ kind: 'note', text: t('ch.vrHint') });
+    return rows;
   }
   /* the VR tab: only what belongs to being in VR (moving, sound, graphics load, leaving) */
   function vrRows() {

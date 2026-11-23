@@ -220,6 +220,8 @@ export function createAudio() {
       if (k === 'fx') A.fxBus.gain.setTargetAtTime(v ? 0.55 : 0, A.ctx.currentTime, 0.05);
       if (k === 'vol') A.master.gain.setTargetAtTime(v * GAIN, A.ctx.currentTime, 0.05); },
     param, click, chime, whoosh, tier, toggle, grab, release, swish,
+    /* a new design: forget the last tick of each value, so the first change always sounds */
+    resetParams() { A.last = {}; },
     /* the star sets the key (cool stars lower) and the brightness of the pads; applied at the next chord */
     setStar(teff) {
       const k = Math.max(-5, Math.min(5, Math.round(Math.log2(teff / 5772) * 9)));

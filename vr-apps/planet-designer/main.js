@@ -1,17 +1,19 @@
 /* Planet Designer: boot, state, the desktop page (panel, 3D view, ledger), and the climate worker.
  * The VR workshop (M5) attaches to the same state later. */
 import { validate, defaultDesign, PRESETS, saveLocal, loadLocal, toHash, fromHash, MAX_HZ, MAX_PLANETS,
-  earthPlanet, otherPlanet } from './design.js?v=14';
-import { derive, deriveSync } from './physics/derive.js?v=14';
-import { ledger } from './physics/ledger.js?v=14';
-import { renderPanel, renderLedger } from './ui/dom.js?v=14';
-import { t, setLang, getLang } from './i18n.js?v=14';
-import { createView } from './scene/view.js?v=14';
-import { createAudio } from './audio.js?v=14';
+  earthPlanet, otherPlanet } from './design.js?v=15';
+import { derive, deriveSync } from './physics/derive.js?v=15';
+import { ledger } from './physics/ledger.js?v=15';
+import { renderPanel, renderLedger } from './ui/dom.js?v=15';
+import { t, setLang, getLang } from './i18n.js?v=15';
+import { createView } from './scene/view.js?v=15';
+import { createAudio } from './audio.js?v=15';
+import { CHALLENGES, loadDone, saveDone, meets } from './challenges.js?v=15';
 
 const $ = (id) => document.getElementById(id);
 
 const S = {
+  chDone: loadDone(),
   design: defaultDesign(), derived: null, sel: 0, tab: 'star', live: [],
   planet() { return this.design.planets[this.sel] || this.design.planets[0]; },
   derivedPlanet() { return this.derived.planets[this.sel] || this.derived.planets[0]; },
@@ -105,7 +107,7 @@ const S = {
 let worker = null, climateTimer = null;
 const inFlight = {};
 try {
-  worker = new Worker(new URL('./physics/worker.js?v=14', import.meta.url), { type: 'module' });
+  worker = new Worker(new URL('./physics/worker.js?v=15', import.meta.url), { type: 'module' });
   worker.onmessage = (ev) => {
     const { id, key, result } = ev.data;
     delete inFlight[id];
@@ -162,6 +164,7 @@ function renderHeader() {
   }
   const ps = $('preset');
   ps.innerHTML = `<option value="">…</option>` + Object.keys(PRESETS).map((k) => `<option value="${k}">${t('preset.' + k)}</option>`).join('');
+  $('chBtn').textContent = `${t('ch.btn')} ${S.chDone.size}/${CHALLENGES.length}`;
   $('shareBtn').textContent = t('btn.share');
   $('exportBtn').textContent = t('btn.export');
   $('importBtn').textContent = t('btn.import');
@@ -186,7 +189,34 @@ function soundPos(path, v) {
 /* The ledger sings: a tier reached plays a bright chord, a tier lost a dark tone. Only on the climate model's
  * verdict (not the quick estimate while it runs), at most every 0.6 s, for the planet in view. */
 let ledgerPrev = null, ledgerT = 0;
+/* Challenges: a newly met one is saved, announced and celebrated */
+function checkChallenges() {
+  if (!S.derived) return;
+  const now = meets(S.derived, (P) => S.ledgerFor(P));
+  const fresh = [...now].filter((id) => !S.chDone.has(id));
+  if (!fresh.length) return;
+  for (const id of fresh) S.chDone.add(id);
+  saveDone(S.chDone);
+  toast(t('ch.toast', { name: fresh.map((id) => t('ch.' + id + '.title')).join(', ') }));
+  if (S.audio) S.audio.tier(true, 4);
+  renderHeader();
+  if (!$('chBox').hidden) renderChallenges();
+  if (S.redrawAll) S.redrawAll();
+}
+function renderChallenges() {
+  const box = $('chBox');
+  box.innerHTML = `<button class="cm-pop-x" id="chClose" aria-label="${t('close')}">×</button><h2>${t('ch.title')}</h2><p class="note">${t('ch.intro')}</p>`
+    + CHALLENGES.map((c) => {
+      const done = S.chDone.has(c.id);
+      return `<div class="chal${done ? ' done' : ''}"><div class="chal-top"><span class="chal-mark">${done ? '✓' : '○'}</span><strong>${t('ch.' + c.id + '.title')}</strong>`
+        + `<span class="chal-st">${t(done ? 'ch.done' : 'ch.open')}</span></div><p>${t('ch.' + c.id + '.goal')}</p>`
+        + (done ? `<p class="chal-think"><b>${t('ch.think')}</b> ${t('ch.' + c.id + '.think')}</p>` : '') + '</div>';
+    }).join('');
+  $('chClose').onclick = () => { box.hidden = true; };
+}
+
 function listenLedger() {
+  checkChallenges();
   if (!S.audio || !S.derived) return;
   S.audio.setStar(S.derived.star.teff);
   const P = S.derivedPlanet();
@@ -203,7 +233,7 @@ function listenLedger() {
 }
 
 function load(design) {
-  if (S.audio) S.audio.whoosh();
+  if (S.audio) { S.audio.whoosh(); S.audio.resetParams(); }
   S.ebm = {};                   /* a new design starts its climate from warm, not from the last world's ice */
   S.design = validate(design); S.sel = Math.max(0, S.design.planets.findIndex((p) => p.role === 'hz'));
   S.changed(true);
@@ -231,6 +261,8 @@ function wire() {
     e.target.value = '';
   };
   let armed = 0;
+  $('chBtn').onclick = () => { const b = $('chBox'); b.hidden = !b.hidden; if (!b.hidden) renderChallenges(); };
+  window.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') $('chBox').hidden = true; });
   $('resetBtn').onclick = () => {
     if (armed && Date.now() - armed < 3000) { armed = 0; load({ ...defaultDesign(), level: S.design.level }); return; }
     armed = Date.now(); $('resetBtn').textContent = t('btn.confirm');

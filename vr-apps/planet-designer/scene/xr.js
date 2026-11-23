@@ -5,10 +5,10 @@
  * No controller button resets the view: only the Meta button recentres (owner rule). While presenting, only the
  * XR loop renders (pitfall: a desktop render during XR breaks the frame), and nothing resizes the renderer. */
 import * as THREE from 'three';
-import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=14';
-import { createVRPanel } from '../ui/vrpanel.js?v=14';
-import { rOf, aOf } from './orrery.js?v=14';
-import { t } from '../i18n.js?v=14';
+import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=15';
+import { createVRPanel } from '../ui/vrpanel.js?v=15';
+import { rOf, aOf } from './orrery.js?v=15';
+import { t } from '../i18n.js?v=15';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const MASS_RANGE = [Math.log10(0.08), Math.log10(2.0)];

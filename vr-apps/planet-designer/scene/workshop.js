@@ -6,8 +6,8 @@
  * The star's colour lights the whole platform. Desktop groups are re-parented in here while in VR and put back
  * afterwards. Metres; the floor at y = 0. */
 import * as THREE from 'three';
-import { createStar } from './star.js?v=14';
-import { t } from '../i18n.js?v=14';
+import { createStar } from './star.js?v=15';
+import { t } from '../i18n.js?v=15';
 
 export const LAYOUT = {
   forge: new THREE.Vector3(0, 4.2, -15), forgeR: 2.2,
@@ -181,6 +181,24 @@ export function createWorkshop() {
       g.fillStyle = col[r.status]; g.beginPath(); g.arc(cx + 14, y, 11, 0, Math.PI * 2); g.fill();
       g.fillStyle = '#c4cfdb'; g.fillText(t('row.' + r.id).slice(0, 24), cx + 36, y);
     });
+    /* where the model stops holding, under the tiers */
+    if (P.modelLimits && P.modelLimits.length) {
+      const worst = P.modelLimits.some((l) => l.level === 'outside') ? 'outside' : 'rough';
+      g.fillStyle = worst === 'outside' ? '#f0c8ff' : '#c9b8ff'; g.font = '600 30px system-ui';
+      g.fillText('⚠ ' + t('lim.title.' + worst), 50, 640);
+      g.font = '24px system-ui'; g.fillStyle = '#b0a8cc';
+      let y = 690;
+      for (const l of P.modelLimits.slice(0, 4)) {
+        const words = t('lim.' + l.id).split(' ');
+        let line = '';
+        for (const w of words) {
+          if (g.measureText(line + w).width > 690) { g.fillText(line, 60, y); y += 30; line = ''; if (y > 920) break; }
+          line += w + ' ';
+        }
+        if (y <= 920) { g.fillText(line, 60, y); y += 40; }
+        if (y > 920) break;
+      }
+    }
     g.fillStyle = '#8a98a8'; g.font = '26px system-ui'; g.fillText(t('vr.boardHint'), 50, 960);
     btex.needsUpdate = true;
   }
