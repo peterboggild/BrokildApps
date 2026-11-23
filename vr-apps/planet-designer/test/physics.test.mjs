@@ -86,21 +86,21 @@ for (const k of Object.keys(PRESETS)) {
   console.log(`   preset ${k}: T ${P.TsC.toFixed(1)} C, S ${P.fluxMean.toFixed(2)}, R ${P.radiusEarth.toFixed(2)}, tiers ${tiers}, ` +
     `first fails ${JSON.stringify(L.firstFail)}`);
   if (k === 'solar') { truth('Solar preset: Earth reaches tier 4', L.pass[4]); near('Earth climate estimate [C]', P.TsC, 15, 3); }
-  if (k === 'venus') truth('Venus preset: runaway, tier 1 fails', P.climate.runaway && !L.pass[1]);
-  if (k === 'mars') truth('Mars preset: fails tier 1', !L.pass[1]);
+  if (k === 'hothouse') truth('Hothouse preset: runaway, tier 1 fails', P.climate.runaway && !L.pass[1]);
+  if (k === 'dryworld') truth('Dry-world preset: fails tier 1', !L.pass[1]);
   if (k === 'reddwarf') truth('Red-dwarf preset: locked, flare warning', P.locked && L.rows.find((r) => r.id === 'activity').status === 'amber');
 }
 
 /* Interior layers (M2 done-when: Earth and Mars) */
 {
-  const E = derive(validate(PRESETS.solar())).planets[0], M = derive(validate(PRESETS.mars())).planets[0];
+  const E = derive(validate(PRESETS.solar())).planets[0], M = derive(validate(PRESETS.dryworld())).planets[0];
   near('Earth core radius [km] (true 3480)', E.layers.coreKm, 3480, 250);
   near('Earth inner core [km] (true 1220)', E.layers.innerCoreKm, 1220, 120);
-  near('Mars core radius [km] (InSight 1830)', M.layers.coreKm, 1830, 200);
-  truth('Mars has no solid inner core', M.layers.innerCoreKm === 0);
+  near('Dry world (Mars numbers) core radius [km] (InSight 1830)', M.layers.coreKm, 1830, 200);
+  truth('Dry world (Mars mass) has no solid inner core', M.layers.innerCoreKm === 0);
   near('Earth land fraction from the terrain', E.landFrac, 0.29, 0.03);
   near('Earth mean ocean depth [km] (true 3.7)', E.oceanDepthKm, 3.7, 0.4);
-  truth('Mars: all land', M.landFrac === 1);
+  truth('Dry world: all land', M.landFrac === 1);
 }
 
 /* Hard limits */

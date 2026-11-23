@@ -4,7 +4,7 @@ Design en stjerne og et solsystem, byg en planet indefra, og se om den kan bære
 på den uden dragt. Hele specifikationen står i `PLANET-STUDIO-DESIGN.md` i repoets rod (filen beholder sit gamle
 navn). Ejerens beslutninger står i dens §14.
 
-Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (ikke på Brokild VR-siden før M5).
+Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på Brokild VR-siden som "Test"-kort, så ejeren kan følge arbejdsversionen).
 
 ## Status: M0 (23. november 2026)
 

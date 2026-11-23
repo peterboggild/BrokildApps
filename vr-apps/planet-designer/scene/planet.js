@@ -488,7 +488,7 @@ export function createPlanet() {
 
   /* Quality: 'high' (fine LOD, per-pixel normals from the height function), 'medium', 'low'. */
   function setQuality(q) {
-    const Q = { high: [5.0, 13, 1], medium: [3.5, 11, 1], low: [2.4, 9, 0] }[q] || [5.0, 13, 1];
+    const Q = { high: [5.0, 13, 1], medium: [3.5, 11, 1], low: [2.2, 8, 0] }[q] || [5.0, 13, 1];
     LOD_SPLIT = Q[0]; terrainMat.uniforms.uOctMax.value = Q[1]; terrainMat.uniforms.uFDNormals.value = Q[2];
   }
   return { group: root, spin, set, tick, info, caps, setQuality, get chunks() { return used; } };

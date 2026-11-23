@@ -17,7 +17,9 @@ const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) 
 
 export function createView(container, S) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  /* Quest 3 (and other headset/phone browsers): pixel ratio 1 and the light graphics setting by default */
+  const LIGHT_DEVICE = /OculusBrowser|Quest|Android|iPhone|iPad/i.test(navigator.userAgent);
+  renderer.setPixelRatio(LIGHT_DEVICE ? 1 : Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   container.appendChild(renderer.domElement);
@@ -71,7 +73,7 @@ export function createView(container, S) {
   let q0 = new URLSearchParams(location.search).get('q');
   try { q0 = q0 || localStorage.getItem('planetDesigner.quality'); } catch (e) { /* ignore */ }
   const state = { mode: 'system', cut: false, spinOn: true, exag: 10, frames: 0, chunks: 0,
-    quality: ['high', 'medium', 'low'].includes(q0) ? q0 : 'high', autoQ: true, slow: 0 };
+    quality: ['high', 'medium', 'low'].includes(q0) ? q0 : LIGHT_DEVICE ? 'low' : 'high', autoQ: true, slow: 0 };
   planet.setQuality(state.quality);
   function setQuality(q, manual) {
     state.quality = q; planet.setQuality(q);

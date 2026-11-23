@@ -44,9 +44,11 @@ export const PRESETS = {
     d.planets[0].moons[0].aEarthRadii = 40;   /* a closer moon: at 60 Earth radii the K dwarf would pull it away */
     d.planets[1].orbit.aAU = 3.5; return d;
   },
-  mars: () => {
-    const d = defaultDesign(); d.name = 'Mars';
-    const p = d.planets[0]; p.name = 'Mars';
+  /* Teaching start points. Their numbers are taken from Mars and Venus, but in a DIY system they are new worlds
+   * with names of their own (owner: "there is no Mars in a DIY solar system"). */
+  dryworld: () => {
+    const d = defaultDesign(); d.name = 'Ferrox';
+    const p = d.planets[0]; p.name = 'Ferrox';
     Object.assign(p.orbit, { aAU: 1.524, e: 0.0934 });
     Object.assign(p.spin, { dayHours: 24.62, obliquityDeg: 25.19 });
     Object.assign(p.bulk, { massEarth: 0.107, coreMassFraction: 0.25, waterMassFraction: 0 });   /* InSight: core ~1830 km */
@@ -54,9 +56,9 @@ export const PRESETS = {
     Object.assign(p.atmosphere, { pN2bar: 0.00017, pO2bar: 0.0000013, pCO2bar: 0.0061, pArbar: 0.00012, pCH4bar: 0 });
     p.moons = []; return d;
   },
-  venus: () => {
-    const d = defaultDesign(); d.name = 'Venus';
-    const p = d.planets[0]; p.name = 'Venus';
+  hothouse: () => {
+    const d = defaultDesign(); d.name = 'Calida';
+    const p = d.planets[0]; p.name = 'Calida';
     Object.assign(p.orbit, { aAU: 0.723, e: 0.0068 });
     Object.assign(p.spin, { dayHours: 5832.5, obliquityDeg: 177.4 });
     Object.assign(p.bulk, { massEarth: 0.815, coreMassFraction: 0.30, waterMassFraction: 0 });

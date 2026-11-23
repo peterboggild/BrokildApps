@@ -65,13 +65,13 @@ const screenPos = (p, which) => p.evaluate((which) => {
   /* panel, language, share link, phone width (from M0) */
   await p.click('#langBtn');
   check('English after toggle', (await p.textContent('h2')) === 'Can it host life?');
-  await p.selectOption('#preset', 'venus');
-  check('Venus fails tier 1', await p.evaluate(() => document.querySelectorAll('.lamp.red').length === 5));
-  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=2')).fromHash(location.hash.slice(1)))?.name === 'Venus', null, { timeout: 60000, polling: 500 });
+  await p.selectOption('#preset', 'hothouse');
+  check('Hothouse world fails tier 1', await p.evaluate(() => document.querySelectorAll('.lamp.red').length === 5));
+  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=2')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
   const p2 = await b.newPage();
   await p2.goto(p.url());
   await p2.waitForFunction(() => window.__pd && window.__pd.derived, null, { timeout: 120000 });
-  check('Share link round trip', (await p2.evaluate(() => window.__pd.design.name)) === 'Venus');
+  check('Share link round trip', (await p2.evaluate(() => window.__pd.design.name)) === 'Calida');
   const mob = await b.newPage({ viewport: { width: 390, height: 844 } });
   await mob.goto(BASE);
   await mob.waitForFunction(() => window.__pd && window.__pd.derived, null, { timeout: 120000 });
