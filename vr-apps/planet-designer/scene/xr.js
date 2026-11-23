@@ -5,10 +5,10 @@
  * No controller button resets the view: only the Meta button recentres (owner rule). While presenting, only the
  * XR loop renders (pitfall: a desktop render during XR breaks the frame), and nothing resizes the renderer. */
 import * as THREE from 'three';
-import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=9';
-import { createVRPanel } from '../ui/vrpanel.js?v=9';
-import { rOf, aOf } from './orrery.js?v=9';
-import { t } from '../i18n.js?v=9';
+import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=11';
+import { createVRPanel } from '../ui/vrpanel.js?v=11';
+import { rOf, aOf } from './orrery.js?v=11';
+import { t } from '../i18n.js?v=11';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const MASS_RANGE = [Math.log10(0.08), Math.log10(2.0)];
@@ -181,7 +181,7 @@ export function createXR(V) {
     updateHover(hs);
     const hv = hs.hover;
     if (!hv) return;
-    if (hv.kind === 'panel') { if (panel.down(hv.px, hv.py, performance.now())) { hs.mode = 'ui'; hs.modeBy = kind; } return; }
+    if (hv.kind === 'panel') { if (panel.down(hv.px, hv.py, performance.now())) { hs.mode = 'ui'; hs.modeBy = kind; if (S.audio) S.audio.click(); } return; }
     if (hv.kind === 'dial') {
       /* relative and fine: turning the dial by a whole sweep moves the value by half its range */
       const { o, d } = rayOf(hs);
@@ -193,7 +193,7 @@ export function createXR(V) {
     /* the star: carry it round with the ray (at the distance it was grabbed), to light the planet from any side */
     if (hv.kind === 'sun') {
       const { o } = rayOf(hs);
-      hs.mode = 'sun'; hs.modeBy = kind;
+      hs.mode = 'sun'; hs.modeBy = kind; if (S.audio) S.audio.click();
       hs.sunDist = o.distanceTo(ws.forgeGroup.getWorldPosition(new THREE.Vector3()));
       return;
     }
@@ -343,6 +343,7 @@ export function createXR(V) {
     VR.frames = 0;
     session.addEventListener('end', onEnd);
     togglePanel(true);
+    if (S.audio) { S.audio.start(); S.audio.whoosh(); }
     syncDials(); ws.drawBoard(S); syncBeadLabels();
     renderer.setAnimationLoop(xrFrame);
   }

@@ -3,8 +3,8 @@
  * radius (dashed), orbits coloured by eccentricity, planets as beads that can be dragged (distance) with a handle
  * at apoastron (eccentricity and orientation), and a glowing slot where a second HZ planet would sit stably. */
 import * as THREE from 'three';
-import { orbitPosition, mutualHillSpacing, HILL_MULTI, tidalLockGyr, ECC_MAX } from '../physics/orbit.js?v=9';
-import { habitableZone } from '../physics/hz.js?v=9';
+import { orbitPosition, mutualHillSpacing, HILL_MULTI, tidalLockGyr, ECC_MAX } from '../physics/orbit.js?v=11';
+import { habitableZone } from '../physics/hz.js?v=11';
 
 export const A_MIN = 0.005;
 export const rOf = (a) => 2.2 + 6.5 * Math.log10(Math.max(a, A_MIN) / A_MIN);   /* AU -> scene units */

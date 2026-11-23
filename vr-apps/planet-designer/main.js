@@ -1,12 +1,13 @@
 /* Planet Designer: boot, state, the desktop page (panel, 3D view, ledger), and the climate worker.
  * The VR workshop (M5) attaches to the same state later. */
 import { validate, defaultDesign, PRESETS, saveLocal, loadLocal, toHash, fromHash, MAX_HZ, MAX_PLANETS,
-  earthPlanet, otherPlanet } from './design.js?v=9';
-import { derive, deriveSync } from './physics/derive.js?v=9';
-import { ledger } from './physics/ledger.js?v=9';
-import { renderPanel, renderLedger } from './ui/dom.js?v=9';
-import { t, setLang, getLang } from './i18n.js?v=9';
-import { createView } from './scene/view.js?v=9';
+  earthPlanet, otherPlanet } from './design.js?v=11';
+import { derive, deriveSync } from './physics/derive.js?v=11';
+import { ledger } from './physics/ledger.js?v=11';
+import { renderPanel, renderLedger } from './ui/dom.js?v=11';
+import { t, setLang, getLang } from './i18n.js?v=11';
+import { createView } from './scene/view.js?v=11';
+import { createAudio } from './audio.js?v=11';
 
 const $ = (id) => document.getElementById(id);
 
@@ -27,11 +28,19 @@ const S = {
     for (const k of parts) o = o[k];
     o[last] = value;
     this.design = validate(this.design);
+    if (this.audio) this.audio.param(path, value, soundPos(path, value));
     this.changed(false);
   },
   /* A structural edit (add/remove planet or moon, role change): apply, validate, redraw everything. */
-  structural(fn) { fn(); this.design = validate(this.design); this.sel = Math.min(this.sel, this.design.planets.length - 1); this.changed(true); },
+  structural(fn) {
+    const count = (d) => d.planets.length + d.planets.reduce((s, p) => s + (p.moons ? p.moons.length : 0), 0);
+    const before = count(this.design);
+    fn(); this.design = validate(this.design); this.sel = Math.min(this.sel, this.design.planets.length - 1);
+    if (this.audio) { const after = count(this.design); if (after !== before) this.audio.chime(after > before); }
+    this.changed(true);
+  },
   changed(full) {
+    setTimeout(listenLedger, 0);
     this.recompute();
     saveLocal(this.design);
     if (full) this.redraw();
@@ -96,12 +105,13 @@ const S = {
 let worker = null, climateTimer = null;
 const inFlight = {};
 try {
-  worker = new Worker(new URL('./physics/worker.js?v=9', import.meta.url), { type: 'module' });
+  worker = new Worker(new URL('./physics/worker.js?v=11', import.meta.url), { type: 'module' });
   worker.onmessage = (ev) => {
     const { id, key, result } = ev.data;
     delete inFlight[id];
     if (!result) return;
     S.ebm[id] = { key, result };
+    setTimeout(listenLedger, 0);
     S.derived = derive(S.design, S.ebm);
     for (const f of S.live) f();
     renderLedger($('ledger'), S);
@@ -140,6 +150,10 @@ function renderHeader() {
   $('m0').textContent = t('app.m0');
   $('foot').textContent = t('foot');
   $('langBtn').textContent = t('lang');
+  if (S.audio) {
+    $('musicBtn').textContent = t('snd.music') + ': ' + t(S.audio.prefs.music ? 'snd.on' : 'snd.off');
+    $('fxBtn').textContent = t('snd.fx') + ': ' + t(S.audio.prefs.fx ? 'snd.on' : 'snd.off');
+  }
   $('levelLabel').textContent = t('level');
   $('presetLabel').textContent = t('preset');
   for (const b of document.querySelectorAll('#levels button')) {
@@ -159,7 +173,37 @@ function toast(msg) {
   clearTimeout(toast.t); toast.t = setTimeout(() => { e.hidden = true; }, 2200);
 }
 
+/* Sound: a position 0..1 for the pitch of a value's tick (log scale for the quantities that span decades) */
+const RANGES = { aAU: [0.01, 50], massSun: [0.08, 2], ageGyr: [0.01, 15], massEarth: [0.05, 10], oceansEarth: [0.01, 50],
+  pN2bar: [1e-4, 10], pO2bar: [1e-4, 2], pCO2bar: [1e-5, 100], pCH4bar: [1e-8, 0.01], pArbar: [1e-5, 1], massMoon: [0.08, 8.1], aEarthRadii: [1.5, 1000] };
+function soundPos(path, v) {
+  const k = path.split('.').pop();
+  if (typeof v !== 'number') return 0.5;
+  const R = RANGES[k];
+  if (R) return Math.max(0, Math.min(1, Math.log(Math.max(v, R[0]) / R[0]) / Math.log(R[1] / R[0])));
+  return Math.max(0, Math.min(1, 0.5 + 0.5 * Math.tanh(v / 10)));
+}
+/* The ledger sings: a tier reached plays a bright chord, a tier lost a dark tone. Only on the climate model's
+ * verdict (not the quick estimate while it runs), at most every 0.6 s, for the planet in view. */
+let ledgerPrev = null, ledgerT = 0;
+function listenLedger() {
+  if (!S.audio || !S.derived) return;
+  S.audio.setStar(S.derived.star.teff);
+  const P = S.derivedPlanet();
+  if (!P || P.role !== 'hz' || (!P.ebm && !P.climate.runaway)) return;
+  const pass = [1, 2, 3, 4, 5].map((n) => !!S.ledgerFor(P).pass[n]);
+  const key = P.id;
+  if (ledgerPrev && ledgerPrev.key === key && performance.now() - ledgerT > 600) {
+    const gained = pass.map((v, i) => v && !ledgerPrev.pass[i]).lastIndexOf(true);
+    const lost = pass.some((v, i) => !v && ledgerPrev.pass[i]);
+    if (gained >= 0) { S.audio.tier(true, gained + 1); ledgerT = performance.now(); }
+    else if (lost) { S.audio.tier(false); ledgerT = performance.now(); }
+  }
+  ledgerPrev = { key, pass };
+}
+
 function load(design) {
+  if (S.audio) S.audio.whoosh();
   S.ebm = {};                   /* a new design starts its climate from warm, not from the last world's ice */
   S.design = validate(design); S.sel = Math.max(0, S.design.planets.findIndex((p) => p.role === 'hz'));
   S.changed(true);
@@ -209,6 +253,12 @@ async function boot() {
   try { S.view = createView($('view'), S); } catch (e) { console.error(e); $('view').textContent = 'WebGL: ' + e.message; }
   S.redraw();
   S.redrawAll = () => S.redraw();
+  S.audio = createAudio();
+  $('musicBtn').onclick = () => { S.audio.setPref('music', !S.audio.prefs.music); renderHeader(); };
+  $('fxBtn').onclick = () => { S.audio.setPref('fx', !S.audio.prefs.fx); renderHeader(); };
+  /* every button and tab on the page clicks */
+  document.addEventListener('click', (e) => { if (e.target.closest('button, .tab, .chip, select')) S.audio.click(); }, true);
+  renderHeader();
   window.__pd = S;    /* test hook */
 }
 boot();

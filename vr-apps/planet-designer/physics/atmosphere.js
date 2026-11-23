@@ -1,6 +1,6 @@
 /* Atmosphere basics: pressure, mass, scale height, retention (Jeans), ozone, water's phase limits.
  * And a zero-dimensional climate estimate that stands in until the energy balance model (milestone M3). */
-import { K_B, AMU, R_GAS, MOLAR, BAR, S_EARTH } from './const.js?v=9';
+import { K_B, AMU, R_GAS, MOLAR, BAR, S_EARTH } from './const.js?v=11';
 
 export const GASES = ['N2', 'O2', 'CO2', 'H2O', 'Ar', 'CH4'];
 
