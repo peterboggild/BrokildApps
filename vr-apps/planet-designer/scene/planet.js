@@ -4,8 +4,8 @@
  * estimate, an atmosphere rim (a preview until the scattering model of M3), the cutaway with the interior layers,
  * and simple looks for the other planet types. Radius 1 in scene units; heights are exaggerated (stated on screen). */
 import * as THREE from 'three';
-import { NOISE, TERRAIN, CUBESPHERE } from './glsl.js?v=4';
-import { seedOffsets } from '../physics/terrain.js?v=4';
+import { NOISE, TERRAIN, CUBESPHERE } from './glsl.js?v=5';
+import { seedOffsets } from '../physics/terrain.js?v=5';
 
 const GRID = 48;                          /* quads per chunk side */
 const MAX_LEVEL = 13;
@@ -242,6 +242,8 @@ void main() {
     lit += uAtmColor * F * 0.2 * smoothstep(-0.1, 0.2, mu0);
   }
   gl_FragColor = vec4(lit, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 
 /* The atmosphere: single scattering by molecules (Rayleigh, per colour channel) and by haze or dust (Mie,
@@ -299,6 +301,8 @@ void main() {
   vec3 T = exp(-tauV);
   float alpha = 1.0 - (T.r + T.g + T.b) / 3.0;
   gl_FragColor = vec4(sum * uSunColor * uGain, alpha);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 
 /* The cloud layer: a transparent shell above the ground, lit by reddened sunlight with a soft wrap and skylight. */
@@ -317,6 +321,8 @@ void main() {
   float wrap = clamp(mu * 0.75 + 0.25, 0.0, 1.0);
   vec3 col = uCloudTint * (sun * wrap * (0.75 + 0.25 * d) + uAtmColor * 0.12 * smoothstep(-0.2, 0.2, mu));
   gl_FragColor = vec4(col * d, d * 0.95);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 
 /* Cut faces of the cutaway: half-discs in the local planes x = 0 (z > 0) and z = 0 (x > 0), coloured by layer. */
@@ -356,6 +362,8 @@ void main() {
   float NdL = max(dot(normalize(vWN), normalize(uSunDir)), 0.0);
   vec3 lit = col * (glow + (1.0 - glow) * (0.25 + NdL)) * mix(vec3(1.0), uSunColor, 1.0 - glow);
   gl_FragColor = vec4(lit, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 const CAP_VS = `varying vec3 vLP; varying vec3 vWN; void main() { vLP = position; vWN = normalize(mat3(modelMatrix) * normal);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
@@ -390,6 +398,8 @@ void main() {
   if (uType > 1.5) col *= pow(max(dot(N, V), 0.0), 0.35);      /* limb darkening of a deep atmosphere */
   float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0) * (uType > 1.5 ? 0.25 : 0.0);
   gl_FragColor = vec4(col * uSunColor * NdL + rim * uSunColor * NdL * vec3(0.6, 0.8, 1.0), 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 const OTHER_VS = `varying vec3 vN; varying vec3 vWN; varying vec3 vWP; void main() { vN = position; vWN = normalize(mat3(modelMatrix) * normal);
   vWP = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vWP, 1.0); }`;

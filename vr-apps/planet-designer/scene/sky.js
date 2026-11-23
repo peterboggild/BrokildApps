@@ -1,8 +1,8 @@
 /* The sky behind everything: a few thousand stars with real-looking colours and brightness spread, and a faint
  * Milky Way band. Drawn on a sphere that follows the camera, without depth. */
 import * as THREE from 'three';
-import { NOISE } from './glsl.js?v=4';
-import { blackbodyRGB } from '../physics/star.js?v=4';
+import { NOISE } from './glsl.js?v=5';
+import { blackbodyRGB } from '../physics/star.js?v=5';
 
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
@@ -28,6 +28,8 @@ export function createSky() {
         float I = band * (0.5 + 0.8 * core) * n * (1.0 - 0.75 * dust);
         vec3 col = mix(vec3(0.55, 0.6, 0.75), vec3(1.0, 0.86, 0.68), core) * I * 0.05 * uGain;
         gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }`,
   }));
   mw.renderOrder = -10;
@@ -56,7 +58,10 @@ export function createSky() {
     vertexShader: `attribute vec3 color; attribute float size; varying vec3 vC; uniform float uPx;
       void main() { vC = color; gl_PointSize = size * uPx; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: `varying vec3 vC;
-      void main() { vec2 d = gl_PointCoord - 0.5; float a = exp(-dot(d, d) * 18.0); gl_FragColor = vec4(vC * a, a); }`,
+      void main() { vec2 d = gl_PointCoord - 0.5; float a = exp(-dot(d, d) * 18.0); gl_FragColor = vec4(vC * a, a); 
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`,
   }));
   stars.renderOrder = -9;
   stars.frustumCulled = false;

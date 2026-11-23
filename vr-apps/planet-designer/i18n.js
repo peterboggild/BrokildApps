@@ -3,7 +3,7 @@
 const DA = {
   'app.title': 'Planet Designer',
   'app.sub': 'Design en stjerne og en verden, der kan bære liv',
-  'app.m0': 'Version M4: stjernen, solsystemet og planeten i 3D, klimamodel, atmosfære og skyer, forklaringskort og årsagskort. VR (M5) kommer senere.',
+  'app.m0': 'Version M5: værkstedet i VR (Quest 3) ud over PC-visningen. I brillerne: tryk på "Gå ind i VR" over 3D-billedet.',
   'lang': 'English', 'level': 'Niveau',
   'level.explorer': 'Opdager', 'level.student': 'Studerende', 'level.scientist': 'Forsker',
   'preset': 'Start fra', 'preset.solar': 'Jordlignende start', 'preset.kdwarf': 'En anden Jord ved en K-dværg',
@@ -205,12 +205,16 @@ const DA = {
   'cm.photo': 'Plantelys', 'cm.dose': 'Stråling', 'cm.lifeN': 'Liv', 'cm.humans': 'Mennesker',
   'cm.th.active': 'virker', 'cm.th.partial': 'delvis', 'cm.th.absent': 'mangler',
   'esi': 'Jordlighedsindeks (ESI) {x}. Det måler lighed med Jorden, ikke beboelighed.', 'card.hint': 'Klik på en række for at få forklaringen.',
+  'v.enterVR': 'Gå ind i VR', 'vr.massDial': 'Stjernens masse', 'vr.ageDial': 'Alder', 'vr.chartOnPc': 'Diagrammet ses på PC-skærmen.',
+  'vr.quality': 'Grafik', 'vr.leave': 'VR', 'vr.exit': 'Forlad VR',
+  'vr.help': 'Venstre pind: flyv. Højre pind: drej og op/ned. Greb: tag fat i verden (to hænder: større/mindre). Y eller B: panelet. Meta-knappen: centrer.',
+  'vr.boardHint': 'Klik på en række på PC-skærmen for forklaringen. Ret stjernen med drejeknapperne og planeterne på bordet.',
   'foot': 'Fysikken er forenklede, kendte modeller fra forskningen med kilder. Tallene er skøn, ikke sandheder.',
 };
 
 const EN = {
   'app.sub': 'Design a star and a world that can host life',
-  'app.m0': 'Version M4: the star, the system and the planet in 3D, climate model, atmosphere and clouds, explanation cards and the cause map. VR (M5) comes later.',
+  'app.m0': 'Version M5: the workshop in VR (Quest 3) as well as the PC view. In the headset: press "Enter VR" above the 3D picture.',
   'lang': 'Dansk', 'level': 'Level',
   'level.explorer': 'Explorer', 'level.student': 'Student', 'level.scientist': 'Scientist',
   'preset': 'Start from', 'preset.solar': 'Earth-like start', 'preset.kdwarf': 'A second Earth at a K dwarf',
@@ -412,6 +416,10 @@ const EN = {
   'cm.photo': 'Plant light', 'cm.dose': 'Radiation', 'cm.lifeN': 'Life', 'cm.humans': 'Humans',
   'cm.th.active': 'works', 'cm.th.partial': 'partial', 'cm.th.absent': 'missing',
   'esi': 'Earth Similarity Index (ESI) {x}: it measures similarity to Earth, not habitability.', 'card.hint': 'Click a row for its explanation.',
+  'v.enterVR': 'Enter VR', 'vr.massDial': 'Star mass', 'vr.ageDial': 'Age', 'vr.chartOnPc': 'The chart is shown on the PC screen.',
+  'vr.quality': 'Graphics', 'vr.leave': 'VR', 'vr.exit': 'Leave VR',
+  'vr.help': 'Left stick: fly. Right stick: turn and up/down. Grip: grab the world (two hands: bigger/smaller). Y or B: the panel. Meta button: recentre.',
+  'vr.boardHint': 'Click a row on the PC screen for its explanation. Set the star with the dials and the planets on the table.',
   'foot': 'The physics is simplified, well-known research models with sources. The numbers are estimates, not truths.',
 };
 
