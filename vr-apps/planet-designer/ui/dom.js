@@ -1,8 +1,8 @@
 /* Desktop renderer of the UI schema (ui/schema.js). The state object owns the design; this file only draws it and
  * reports edits through state.set(path, value) and state.structural(fn). */
-import { TABS, LEVELS } from './schema.js?v=1';
-import { t, fmt, esc } from '../i18n.js?v=1';
-import { MAX_HZ, MAX_PLANETS } from '../design.js?v=1';
+import { TABS, LEVELS } from './schema.js?v=2';
+import { t, fmt, esc } from '../i18n.js?v=2';
+import { MAX_HZ, MAX_PLANETS } from '../design.js?v=2';
 
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 
@@ -81,6 +81,14 @@ export function renderPanel(root, S) {
     else if (row.kind === 'planets') body.appendChild(planetPicker(S));
     else if (row.kind === 'moons') moons(body, S, level);
     else if (row.kind === 'system') system(body, S);
+    else if (row.kind === 'seed') {
+      const w = el('div', 'row picker');
+      const b = el('button', 'btn', '🎲 ' + t('btn.terrain'));
+      b.onclick = () => S.structural(() => { S.planet().surface.terrainSeed = 1 + Math.floor(Math.random() * 99998); });
+      w.append(b);
+      if (level >= 3) w.append(el('span', 'note', `${t('r.seed')} ${P.surface ? P.surface.terrainSeed : ''}`));
+      body.appendChild(w);
+    }
   }
 }
 

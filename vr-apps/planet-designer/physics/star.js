@@ -1,7 +1,7 @@
 /* Main-sequence stars: properties from mass, brightening with age, colour, photosynthetic light.
  * Pure functions, SI or solar units as named. No three.js. */
-import { STAR_TABLE } from '../data/stars.js?v=1';
-import { WIEN_B, H_PLANCK, C_LIGHT, K_B, AGE_SUN } from './const.js?v=1';
+import { STAR_TABLE } from '../data/stars.js?v=2';
+import { WIEN_B, H_PLANCK, C_LIGHT, K_B, AGE_SUN } from './const.js?v=2';
 
 export const STAR_MASS_MIN = 0.08;
 export const STAR_MASS_MAX = 2.0;

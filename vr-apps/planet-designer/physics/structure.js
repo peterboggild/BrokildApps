@@ -1,6 +1,6 @@
 /* Planet structure: radius from mass and composition (Zeng et al. tables), gravity, escape velocity, layers. */
-import { MR_FE, MR_ROCK, MR_MGSIO3, MR_W50, MR_W100, ROCK_CMF } from '../data/massradius.js?v=1';
-import { G, M_EARTH, R_EARTH, OCEAN_MASS, RHO_WATER } from './const.js?v=1';
+import { MR_FE, MR_ROCK, MR_MGSIO3, MR_W50, MR_W100, ROCK_CMF } from '../data/massradius.js?v=2';
+import { G, M_EARTH, R_EARTH, OCEAN_MASS, RHO_WATER } from './const.js?v=2';
 
 export const PLANET_MASS_MIN = 0.05;
 export const PLANET_MASS_MAX = 10;
@@ -68,8 +68,12 @@ export function layers(massEarth, cmf, oceansEarth, radiusEarth) {
   const rockR = R - oceanDepth;
   const coreR = Math.sqrt(Math.max(0, cmf)) * rockR;
   const crust = Math.min(40e3, rockR * 0.006);                             // Earth: ~35 km continental, 7 km oceanic
-  return { coreKm: coreR / 1e3, mantleKm: (rockR - coreR - crust) / 1e3, crustKm: crust / 1e3,
-    oceanDepthKm: oceanDepth / 1e3, radiusKm: R / 1e3, approximate: true };
+  /* Solid inner core: Earth's is 0.35 of the core radius; small planets cool to a fully liquid or fully frozen core
+   * differently, and Mars has no solid inner core (InSight). A placeholder rule until the thermal history (M6):
+   * 0.35 above 0.6 Earth masses, fading to none at 0.2. */
+  const inner = coreR * 0.35 * Math.min(1, Math.max(0, (massEarth - 0.2) / 0.4));
+  return { innerCoreKm: inner / 1e3, coreKm: coreR / 1e3, mantleKm: (rockR - coreR - crust) / 1e3, crustKm: crust / 1e3,
+    oceanDepthKm: oceanDepth / 1e3, radiusKm: R / 1e3, rockKm: rockR / 1e3, approximate: true };
 }
 
 /* Surface gravity in g for a given mass and radius (Earth units). */

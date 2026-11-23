@@ -1,14 +1,14 @@
 /* Benchmarks of spec §5.12 (the EBM rows wait for milestone M3). Run: node test/physics.test.mjs
  * Node resolves the '?v=N' cache-busting suffixes as part of a file URL, so the browser modules run unchanged. */
-import { starAt, mainSequence, blackbodyRGB, parRelativeToSun } from '../physics/star.js?v=1';
-import { habitableZone } from '../physics/hz.js?v=1';
-import { bulk } from '../physics/structure.js?v=1';
-import { mutualHillSpacing, moonInfo, tidalLockBand, periodYears } from '../physics/orbit.js?v=1';
-import { jeansLambda, scaleHeight, climate0D, boilingPointK } from '../physics/atmosphere.js?v=1';
-import { MOLAR } from '../physics/const.js?v=1';
-import { derive } from '../physics/derive.js?v=1';
-import { ledger } from '../physics/ledger.js?v=1';
-import { PRESETS, validate } from '../design.js?v=1';
+import { starAt, mainSequence, blackbodyRGB, parRelativeToSun } from '../physics/star.js?v=2';
+import { habitableZone } from '../physics/hz.js?v=2';
+import { bulk } from '../physics/structure.js?v=2';
+import { mutualHillSpacing, moonInfo, tidalLockBand, periodYears } from '../physics/orbit.js?v=2';
+import { jeansLambda, scaleHeight, climate0D, boilingPointK } from '../physics/atmosphere.js?v=2';
+import { MOLAR } from '../physics/const.js?v=2';
+import { derive } from '../physics/derive.js?v=2';
+import { ledger } from '../physics/ledger.js?v=2';
+import { PRESETS, validate } from '../design.js?v=2';
 
 let fails = 0, n = 0;
 function near(name, got, want, tol) {
@@ -89,6 +89,18 @@ for (const k of Object.keys(PRESETS)) {
   if (k === 'venus') truth('Venus preset: runaway, tier 1 fails', P.climate.runaway && !L.pass[1]);
   if (k === 'mars') truth('Mars preset: fails tier 1', !L.pass[1]);
   if (k === 'reddwarf') truth('Red-dwarf preset: locked, flare warning', P.locked && L.rows.find((r) => r.id === 'activity').status === 'amber');
+}
+
+/* Interior layers (M2 done-when: Earth and Mars) */
+{
+  const E = derive(validate(PRESETS.solar())).planets[0], M = derive(validate(PRESETS.mars())).planets[0];
+  near('Earth core radius [km] (true 3480)', E.layers.coreKm, 3480, 250);
+  near('Earth inner core [km] (true 1220)', E.layers.innerCoreKm, 1220, 120);
+  near('Mars core radius [km] (InSight 1830)', M.layers.coreKm, 1830, 200);
+  truth('Mars has no solid inner core', M.layers.innerCoreKm === 0);
+  near('Earth land fraction from the terrain', E.landFrac, 0.29, 0.03);
+  near('Earth mean ocean depth [km] (true 3.7)', E.oceanDepthKm, 3.7, 0.4);
+  truth('Mars: all land', M.landFrac === 1);
 }
 
 /* Hard limits */

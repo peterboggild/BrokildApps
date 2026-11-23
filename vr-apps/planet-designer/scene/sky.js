@@ -1,0 +1,75 @@
+/* The sky behind everything: a few thousand stars with real-looking colours and brightness spread, and a faint
+ * Milky Way band. Drawn on a sphere that follows the camera, without depth. */
+import * as THREE from 'three';
+import { NOISE } from './glsl.js?v=2';
+import { blackbodyRGB } from '../physics/star.js?v=2';
+
+function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+export function createSky() {
+  const group = new THREE.Group();
+  group.renderOrder = -10;
+
+  /* Milky Way: a band along a great circle, with dust lanes, on an inside-out sphere */
+  const mw = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, depthTest: true,
+    uniforms: { uGain: { value: 1 } },
+    vertexShader: `varying vec3 vDir; void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: NOISE + `
+      varying vec3 vDir; uniform float uGain;
+      void main() {
+        vec3 d = normalize(vDir);
+        vec3 pole = normalize(vec3(0.35, 0.85, -0.4));
+        float lat = dot(d, pole);
+        float band = exp(-lat * lat * 28.0);
+        float core = exp(-pow(length(d - normalize(vec3(-0.6, 0.12, 0.79))), 2.0) * 3.0);
+        float n = 0.5 + 0.5 * snoise(d * 3.0) * 0.6 + 0.25 * snoise(d * 9.0);
+        float dust = smoothstep(0.15, 0.65, 0.5 + 0.5 * snoise(d * 6.0 + 3.1)) * exp(-lat * lat * 140.0);
+        float I = band * (0.5 + 0.8 * core) * n * (1.0 - 0.75 * dust);
+        vec3 col = mix(vec3(0.55, 0.6, 0.75), vec3(1.0, 0.86, 0.68), core) * I * 0.05 * uGain;
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  }));
+  mw.renderOrder = -10;
+  group.add(mw);
+
+  /* Stars: power-law brightness, colours from black bodies 3000-12000 K */
+  const N = 5000, r = rng(11);
+  const pos = new Float32Array(N * 3), col = new Float32Array(N * 3), size = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const u = r() * 2 - 1, th = r() * Math.PI * 2, s = Math.sqrt(1 - u * u);
+    pos.set([s * Math.cos(th), u, s * Math.sin(th)], i * 3);
+    const T = 3000 + 9000 * r() ** 2.2;
+    const c = blackbodyRGB(T);
+    const mag = r() ** 6;
+    const b = 0.25 + 3.0 * mag;
+    col.set([c[0] * b, c[1] * b, c[2] * b], i * 3);
+    size[i] = 1.0 + 2.2 * mag;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setAttribute('size', new THREE.BufferAttribute(size, 1));
+  const stars = new THREE.Points(g, new THREE.ShaderMaterial({
+    depthWrite: false, depthTest: true, transparent: true, blending: THREE.AdditiveBlending,
+    uniforms: { uPx: { value: 1 } },
+    vertexShader: `attribute vec3 color; attribute float size; varying vec3 vC; uniform float uPx;
+      void main() { vC = color; gl_PointSize = size * uPx; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `varying vec3 vC;
+      void main() { vec2 d = gl_PointCoord - 0.5; float a = exp(-dot(d, d) * 18.0); gl_FragColor = vec4(vC * a, a); }`,
+  }));
+  stars.renderOrder = -9;
+  stars.frustumCulled = false;
+  group.add(stars);
+
+  return {
+    group,
+    /* keep the sky centred on the camera, inside the far plane */
+    follow(camera, pixelRatio) {
+      group.position.copy(camera.position);
+      const R = camera.far * 0.95;
+      group.scale.setScalar(R);
+      stars.material.uniforms.uPx.value = pixelRatio;
+    },
+  };
+}
