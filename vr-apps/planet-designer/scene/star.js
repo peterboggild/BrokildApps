@@ -1,7 +1,7 @@
 /* The star: limb darkening, animated granulation, spots for active stars, and a corona with streamers.
  * Colour from the black-body colour of its effective temperature (physics/star.js). HDR values feed the bloom. */
 import * as THREE from 'three';
-import { NOISE } from './glsl.js?v=4';
+import { NOISE } from './glsl.js?v=5';
 
 export function createStar() {
   const uniforms = {
@@ -32,6 +32,8 @@ export function createStar() {
         float fac = smoothstep(0.55, 0.8, s) * belt * uActivity * 0.15;   /* bright faculae around spots, near the limb */
         float I = limb * gran * (1.0 - 0.75 * spot) + fac * (1.0 - mu);
         gl_FragColor = vec4(uColor * I * uGain, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }`,
   }));
 
@@ -55,6 +57,8 @@ export function createStar() {
         float rays = streak * exp(-(r - 1.0) * (2.2 - 0.8 * uActivity)) * 0.1;
         float I = (glow + rays) * smoothstep(4.0, 2.2, r);
         gl_FragColor = vec4(mix(uColor, vec3(1.0), 0.35) * I * uGain * 0.35, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }`,
   }));
   corona.scale.setScalar(8);           /* 4 star radii each way */

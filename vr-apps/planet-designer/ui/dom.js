@@ -1,11 +1,11 @@
 /* Desktop renderer of the UI schema (ui/schema.js). The state object owns the design; this file only draws it and
  * reports edits through state.set(path, value) and state.structural(fn). */
-import { TABS, LEVELS } from './schema.js?v=4';
-import { t, fmt, esc, getLang } from '../i18n.js?v=4';
-import { CARDS, CARD_LABELS } from './cards.js?v=4';
-import { nodeForRow } from './causality.js?v=4';
-import { esi } from '../physics/esi.js?v=4';
-import { MAX_HZ, MAX_PLANETS } from '../design.js?v=4';
+import { TABS, LEVELS } from './schema.js?v=5';
+import { t, fmt, esc, getLang } from '../i18n.js?v=5';
+import { CARDS, CARD_LABELS } from './cards.js?v=5';
+import { nodeForRow } from './causality.js?v=5';
+import { esi } from '../physics/esi.js?v=5';
+import { MAX_HZ, MAX_PLANETS } from '../design.js?v=5';
 
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 

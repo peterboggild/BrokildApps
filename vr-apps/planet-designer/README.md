@@ -60,6 +60,22 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 - **Årsagskort** (`ui/causality.js`, knappen "Årsagskort" eller tasten M): 31 knuder i ni kolonner fra stjernen til mennesker, med de aktuelle tal. Knuderne er farvet efter de rækker på tavlen, de hører til. Klik på en knude for at se alt nedstrøms. En ændring sender en puls ned gennem kæden. Kortene har en knap "Vis i årsagskortet".
 - **Jordlighedsindeks (ESI)** står lille under lamperne, med forbeholdet om, at det måler lighed og ikke beboelighed (Schulze-Makuch m.fl. 2011).
 
+## Status: M5 (23. november 2026): VR-værkstedet
+
+- Knappen **"Gå ind i VR"** øverst i 3D-visningen (vises kun, når browseren kan VR, som Quest-browseren). Den åbner **værkstedet**: en platform ude i rummet.
+  - **Stjernesmedjen** for enden: stjernen i en ring med to drejeknapper til masse og alder. Man peger på skiven og holder aftrækkeren. Stjernens farve lyser hele platformen op.
+  - **Bordet med solsystemet** i midten, hvor planeterne trækkes med strålen og aftrækkeren. Den grønne plads tilføjer en planet.
+  - **Planetholderen** til højre med den valgte planet (3,5 m).
+  - **Tavlen** på venstre væg.
+- **Styring** (samme principper som Illusion Studio, `scene/xr.js`):
+  - Venstre pind flyver, og højre pind drejer 30° ad gangen og flytter op og ned.
+  - Greb med én hånd flytter verden, og greb med to hænder skalerer og drejer den.
+  - **Y eller B** åbner panelet.
+  - Kun Meta-knappen centrerer.
+- **Panelet** (`ui/vrpanel.js`) tegner de samme faner og rækker som PC'en (`ui/schema.js`) på en tavle med − og + (gentager, når man holder), skydere og chips. Fanen **VR** har gennemskæring, rotation, højdeoverdrivelse, grafikkvalitet, niveau og "Forlad VR". Diagrammerne vises kun på PC.
+- I VR er grafikken **lav** som standard (Quest 3), og der er ingen glød (bloom virker ikke i XR). Alle egne shadere tone-mapper selv, så farverne passer uden efterbehandling.
+- Test: `test/xr.test.cjs` i en emuleret Quest 3 (IWER).
+
 ## Filer
 
 | Fil | Indhold |
@@ -73,10 +89,12 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 | `data/*.js` | Tabeller kopieret med script fra kilderne (se hovedet i hver fil). |
 | `test/physics.test.mjs` | Benchmarks fra spec §5.12: `node test/physics.test.mjs`. |
 | `test/flat.test.cjs` | Browsertjek med Playwright og software-grafik: panel, solsystem (klik på pladsen, træk en planet), planet og gennemskæring. |
-| `scene/*.js` | `view` (renderer, bloom, kamera, mus, navne), `sky`, `star`, `orrery`, `planet`, `glsl` (støj og landskab). |
+| `scene/*.js` | `view` (renderer, bloom, kamera, mus, navne), `sky`, `star`, `orrery`, `planet`, `glsl` (støj og landskab), `workshop` (VR-værkstedet), `xr` (session, rig, styring). |
+| `ui/vrpanel.js`, `ui/cards.js`, `ui/causality.js`, `ui/charts.js` | VR-panelet, forklaringskortene, årsagskortet, diagrammerne. |
+| `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=4`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=5`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 

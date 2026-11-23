@@ -7,12 +7,13 @@ import { EffectComposer } from '../vendor/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../vendor/postprocessing/OutputPass.js';
-import { createSky } from './sky.js?v=4';
-import { createStar } from './star.js?v=4';
-import { createOrrery, rOf } from './orrery.js?v=4';
-import { createPlanet } from './planet.js?v=4';
-import { t, fmt } from '../i18n.js?v=4';
-import { createCausality } from '../ui/causality.js?v=4';
+import { createSky } from './sky.js?v=5';
+import { createStar } from './star.js?v=5';
+import { createOrrery, rOf } from './orrery.js?v=5';
+import { createPlanet } from './planet.js?v=5';
+import { t, fmt } from '../i18n.js?v=5';
+import { createCausality } from '../ui/causality.js?v=5';
+import { createXR } from './xr.js?v=5';
 
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 
@@ -101,12 +102,14 @@ export function createView(container, S) {
     planet: { pos: new THREE.Vector3(1.6, 0.9, 2.6), target: new THREE.Vector3() },
   };
 
+  let vrOK = false, xr = null;
   function buildHud() {
     hud.innerHTML = '';
     const b = (key, on, fn, title) => { const x = el('button', 'v-btn' + (on ? ' on' : ''), t(key)); if (title) x.title = title; x.onclick = fn; hud.appendChild(x); return x; };
     b('v.system', state.mode === 'system', () => setMode('system'), '1');
     b('v.planet', state.mode === 'planet', () => setMode('planet'), '2');
     b('v.cmap', !cmBox.hidden, () => { if (cmBox.hidden) showCausality(); else { cmBox.hidden = true; buildHud(); } }, 'M');
+    if (vrOK) { const v = b('v.enterVR', false, () => xr && xr.enter().catch((e) => console.error(e))); v.classList.add('vrbtn'); v.id = 'vrBtn'; }
     if (state.mode === 'planet' && S.derivedPlanet().role === 'hz') {
       b('v.cut', state.cut, () => { state.cut = !state.cut; refresh(); buildHud(); }, 'C');
       b('v.spin', state.spinOn, () => { state.spinOn = !state.spinOn; buildHud(); });
@@ -142,6 +145,7 @@ export function createView(container, S) {
   /* Re-read the design into the scene (called after every change). */
   function refresh() {
     const D = S.derived;
+    if (xr) xr.onDesignChanged();
     if (!cmBox.hidden) cmap.render();
     star.set(D.star); sun.set(D.star);
     const R = 1.0 + 0.5 * Math.sqrt(Math.min(D.star.radius, 4));
@@ -297,6 +301,7 @@ export function createView(container, S) {
 
   /* --- Size and loop --- */
   function resize() {
+    if (renderer.xr.isPresenting) return;            /* never resize while presenting (pitfall from Illusion Studio) */
     const w = Math.max(10, container.clientWidth), h = Math.max(10, container.clientHeight);
     renderer.setSize(w, h, false);
     composer.setSize(w, h);
@@ -312,7 +317,7 @@ export function createView(container, S) {
   const sunDir = new THREE.Vector3(1, 0.18, 0.55).normalize();
   function frame() {
     requestAnimationFrame(frame);
-    if (document.hidden) return;
+    if (document.hidden || renderer.xr.isPresenting) return;   /* while in VR only the XR loop renders */
     const time = clock.getElapsedTime();
     const rawDt = time - lastT;
     const dt = Math.min(0.1, rawDt); lastT = time;
@@ -357,8 +362,15 @@ export function createView(container, S) {
 
   resize();
   setMode('system');
+  try {
+    xr = createXR({ renderer, scene, camera, controls, S, system, planetBay, planet, orrery, star, sky, state,
+      setQuality: (q, manual) => setQuality(q, manual),
+      orbitAdvance: (dt) => { orbitClock += dt; }, orbitClock: () => orbitClock,
+      onExit: () => { setMode(state.mode); refresh(); buildHud(); },
+      onSupport: (ok) => { vrOK = ok; buildHud(); } });
+  } catch (e) { console.error(e); }
   requestAnimationFrame(frame);
 
-  return { refresh: () => { refresh(); buildHud(); }, setMode, setQuality, showCausality, cmap, state, camera, controls, renderer, orrery, planet, bloom, scene, star, sky,
+  return { refresh: () => { refresh(); buildHud(); }, setMode, setQuality, showCausality, cmap, state, get xr() { return xr; }, camera, controls, renderer, orrery, planet, bloom, scene, star, sky,
     toScreen, get mode() { return state.mode; } };
 }
