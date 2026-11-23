@@ -510,6 +510,50 @@
 
         <article class="card">
           <div class="card-art">
+            <!-- A ball on a honeycomb floor beside a funnel-shaped hole; each tile has a white edge on one side and a black edge on the other. -->
+            <svg viewBox="0 0 320 180" role="img" aria-label="A purple and gold honeycomb floor with a funnel-shaped hole and a red honeycomb ball beside it; the tiles have white and black edges that make them seem to drift">
+              <defs>
+                <pattern id="isHex" width="24" height="41.6" patternUnits="userSpaceOnUse">
+                  <rect width="24" height="41.6" fill="#c99b2e" />
+                  <g id="isCell"><path d="M12 2.6 L21.2 7.9 V18.5 L12 23.8 L2.8 18.5 V7.9 Z" fill="#16101b" transform="translate(1.3 1.1)" /><path d="M12 2.6 L21.2 7.9 V18.5 L12 23.8 L2.8 18.5 V7.9 Z" fill="#fff" transform="translate(-1.3 -1.1)" /><path d="M12 2.6 L21.2 7.9 V18.5 L12 23.8 L2.8 18.5 V7.9 Z" fill="#6b2a96" /></g>
+                  <use href="#isCell" transform="translate(12 20.8)" /><use href="#isCell" transform="translate(-12 20.8)" />
+                </pattern>
+                <pattern id="isHexBall" width="16" height="27.7" patternUnits="userSpaceOnUse">
+                  <rect width="16" height="27.7" fill="#c99b2e" />
+                  <g id="isCellB"><path d="M8 1.7 L14.1 5.3 V12.3 L8 15.9 L1.9 12.3 V5.3 Z" fill="#1a0b10" transform="translate(.9 .8)" /><path d="M8 1.7 L14.1 5.3 V12.3 L8 15.9 L1.9 12.3 V5.3 Z" fill="#fff" transform="translate(-.9 -.8)" /><path d="M8 1.7 L14.1 5.3 V12.3 L8 15.9 L1.9 12.3 V5.3 Z" fill="#8c1f3e" /></g>
+                  <use href="#isCellB" transform="translate(8 13.85)" /><use href="#isCellB" transform="translate(-8 13.85)" />
+                </pattern>
+                <radialGradient id="isHole" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#0b0710" /><stop offset="45%" stop-color="#1c1024" /><stop offset="100%" stop-color="#1c1024" stop-opacity="0" /></radialGradient>
+                <radialGradient id="isShade" cx="35%" cy="30%" r="75%"><stop offset="0%" stop-color="#fff" stop-opacity=".25" /><stop offset="70%" stop-color="#000" stop-opacity="0" /><stop offset="100%" stop-color="#000" stop-opacity=".5" /></radialGradient>
+              </defs>
+              <rect width="320" height="180" fill="url(#isHex)" />
+              <ellipse cx="205" cy="96" rx="78" ry="62" fill="url(#isHole)" />
+              <ellipse cx="205" cy="100" rx="22" ry="17" fill="#0b0710" />
+              <circle cx="98" cy="86" r="50" fill="url(#isHexBall)" />
+              <circle cx="98" cy="86" r="50" fill="url(#isShade)" />
+            </svg>
+          </div>
+          <div class="card-body">
+            <h3>Illusion Studio</h3>
+            <div class="tags">
+              <span class="tag live">Test</span>
+              <span class="tag">WebXR</span>
+              <span class="tag">Quest 3</span>
+              <span class="tag">Hand tracking</span>
+              <span class="tag">Passthrough</span>
+              <span class="tag">Flat editor</span>
+            </div>
+            <p>Build 3D scenes whose every surface is covered in a <strong>self-moving optical illusion</strong>: honeycomb tiles with a light edge on one side and a dark edge on the other, Kitaoka's rotating snakes, Fraser–Wilcox gradients, Pinna–Brelstaff squares, Ouchi, Enigma, the scintillating grid and the café wall. Nothing moves, yet floors flow into holes and balls seem to roll. Spaces (a floor with a funnel-shaped hole, a tunnel, a room, a dome) hold objects (spheres, tori, boxes, cylinders, cones), and bumps, ripples, waves, twists and bulges bend them all, the pattern stretching with the surface. On the desktop you compose the scene and export a JPG of up to 3000 pixels in square, print, social-media or banner formats.</p>
+            <p>Press <strong>Enter VR</strong> to stand inside it. <strong>Y</strong>, <strong>B</strong> or the button on your left wrist opens a panel with six tabs (Scene, Object, Pattern, Colours, Distort, View); use it with the trigger, or poke it with a finger if you use hand tracking. Point at an object and hold the trigger to carry it. Grab empty space to move the world; grab with two hands and pull them apart or together to scale it, from a <strong>dollhouse</strong> on a table, through life size, to being as small as an <strong>ant</strong> among giant balls. The View tab has the same three sizes as buttons. The left stick flies and the right stick turns. <strong>Enter mixed reality</strong> puts the objects in your own room.</p>
+            <div class="card-actions">
+              <a class="btn btn-primary" href="illusion-studio/index.html">Launch</a>
+              <a class="btn" href="https://github.com/peterboggild/BrokildApps/blob/main/vr-apps/illusion-studio/index.html" target="_blank" rel="noopener">Source</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-art">
             <!-- A graphene sheet with one carbon atom lifted out of it on a glowing pointer beam. -->
             <svg viewBox="0 0 320 180" role="img" aria-label="A graphene honeycomb with one atom lifted out of the sheet by a pointer beam">
               <defs>
