@@ -125,6 +125,19 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 - Lyd: tydeligere tik ved ændringer, et "tag fat" og "slip" (knapper, planeter, stjernen, verden), to toner når
   en indstilling skiftes, et sus ved trinvis drejning, og i VR en lille vibration i hånden ved greb og trin.
 
+## Tyk CO₂-luft, modellens grænser og udfordringer
+
+- **Drivhuseffekt ved meget CO₂**: over 0,01 bar følger CO₂'s opvarmning nu en tabel, der genskaber de store 1-D
+  modeller (Kasting 1993, Kopparapu 2013). Med flere bar CO₂ kan en planet om en sol som vores have flydende vand ud
+  til ca. 1,6–1,7 AU, som i forskningen. Myhre-formlen gælder stadig op til 0,01 bar, så Jorden er uændret.
+- **Modellens grænser** (`modelLimits` i `physics/derive.js`): en violet boks i regnskabet og på tavlen i VR fortæller,
+  hvor modellen kun er et skøn, eller hvor den ikke holder. Det gælder fx meget CO₂, metan-dis, tyk eller tynd luft,
+  tidevandslås, en stjerne eller masse uden for zonens beregninger, mini-Neptun og vandverden. Berørte rækker får
+  mærket "≈", og boksene på årsagskortet får en stiplet kant.
+- **Udfordringer** (`challenges.js`): ti mål, der viser andre veje end Jorden, fx "så langt ude som muligt",
+  "mikrober, men ikke mennesker" og "snebolde-Jorden". Hver har et "tænk over"-spørgsmål. De findes på PC
+  (knappen "Udfordringer") og i VR under fanen Scene. Fysiktesten tjekker, at alle ti kan løses.
+
 ## Lyd (`audio.js`)
 
 Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges lydfiler, han ikke selv har leveret.
@@ -161,7 +174,7 @@ Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges l
 | `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=14`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=15`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 

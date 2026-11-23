@@ -1,11 +1,12 @@
 /* Desktop renderer of the UI schema (ui/schema.js). The state object owns the design; this file only draws it and
  * reports edits through state.set(path, value) and state.structural(fn). */
-import { TABS, LEVELS } from './schema.js?v=14';
-import { t, fmt, esc, getLang } from '../i18n.js?v=14';
-import { CARDS, CARD_LABELS } from './cards.js?v=14';
-import { nodeForRow } from './causality.js?v=14';
-import { esi } from '../physics/esi.js?v=14';
-import { MAX_HZ, MAX_PLANETS } from '../design.js?v=14';
+import { TABS, LEVELS } from './schema.js?v=15';
+import { t, fmt, esc, getLang } from '../i18n.js?v=15';
+import { CARDS, CARD_LABELS } from './cards.js?v=15';
+import { nodeForRow } from './causality.js?v=15';
+import { esi } from '../physics/esi.js?v=15';
+import { limitFor } from '../physics/derive.js?v=15';
+import { MAX_HZ, MAX_PLANETS } from '../design.js?v=15';
 
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 
@@ -309,6 +310,14 @@ export function renderLedger(root, S) {
     lamps.appendChild(lamp);
   }
   root.appendChild(lamps);
+  /* where the models stop holding (or hold only roughly) for this planet */
+  if (DP.modelLimits && DP.modelLimits.length) {
+    const worst = DP.modelLimits.some((l) => l.level === 'outside') ? 'outside' : 'rough';
+    const box = el('div', 'limits ' + worst);
+    box.innerHTML = `<strong>⚠ ${esc(t('lim.title.' + worst))}</strong><p>${esc(t('lim.intro'))}</p><ul>`
+      + DP.modelLimits.map((l) => `<li class="${l.level}">${esc(t('lim.' + l.id))}</li>`).join('') + '</ul>';
+    root.appendChild(box);
+  }
   /* the Earth Similarity Index, small and qualified: similarity, not habitability (spec §5.11) */
   const e = esi(DP);
   if (e != null) root.appendChild(el('p', 'esi', t('esi', { x: e })));
@@ -328,6 +337,8 @@ export function renderLedger(root, S) {
       const top = el('div', 'ltop');
       top.innerHTML = `<span class="dot"></span><span class="lname">${t('row.' + r.id)}</span>` +
         `<span class="lval">${t(r.value.k, r.value.p)}</span><span class="lst">${t('st.' + r.status)}</span>`;
+      const lim = limitFor(DP, r.id);
+      if (lim) top.querySelector('.lname').insertAdjacentHTML('beforeend', ` <span class="mlim ${lim}" title="${esc(t('lim.title.' + lim))}">${esc(t('lim.tag.' + lim))}</span>`);
       row.appendChild(top);
       const why = el('div', 'lwhy', t(r.why.k, r.why.p));
       if (r.contested) why.innerHTML += ` <span class="contested">${t('contested')}</span>`;

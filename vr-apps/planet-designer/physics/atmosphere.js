@@ -1,6 +1,6 @@
 /* Atmosphere basics: pressure, mass, scale height, retention (Jeans), ozone, water's phase limits.
  * And a zero-dimensional climate estimate that stands in until the energy balance model (milestone M3). */
-import { K_B, AMU, R_GAS, MOLAR, BAR, S_EARTH } from './const.js?v=14';
+import { K_B, AMU, R_GAS, MOLAR, BAR, S_EARTH } from './const.js?v=15';
 
 export const GASES = ['N2', 'O2', 'CO2', 'H2O', 'Ar', 'CH4'];
 
@@ -47,16 +47,38 @@ export function hasOzone(pO2bar) { return pO2bar >= 0.01 * 0.21; }
  * Absorbed flux  F = S (1 - A) / 4,  S = flux x 1361 W/m^2.
  * Outgoing       OLR = A0 + B T[deg C] - 5.35 ln(pCO2 / 330 ppm) - CH4 term
  * with A0 = 203.3 W/m^2, B = 2.09 W/m^2/K (Budyko-type fit for Earth, North et al. 1981) and the CO2 forcing of
- * Myhre et al. 1998, referred to 330 ppm, the CO2 level of the years the fit was made for. Valid near Earth's state only: about 0.5-2 bar, 100-10 000 ppm CO2, no ice feedback.
+ * Myhre et al. 1998, referred to 330 ppm, the CO2 level of the years the fit was made for, with the thick-CO2 table
+ * below above 0.01 bar. Calibrated near Earth's state: about 0.5-2 bar, 100-10 000 ppm CO2; beyond that a fitted estimate.
  * Runaway check first: absorbed > 282 W/m^2 means a runaway greenhouse (Goldblatt et al. 2013). */
 export const RUNAWAY_FLUX = 282;
+
+/* CO2 forcing, W/m^2 relative to 330 ppm. Up to 0.01 bar the logarithmic fit of Myhre et al. 1998. Above it that fit
+ * falls far short: new absorption bands open and pressure broadening grows. There the forcing follows a table that
+ * reproduces the one-dimensional radiative-convective results of Kasting et al. 1993 and Kopparapu et al. 2013 for an
+ * Earth-like planet round a Sun-like star (about 0.1 bar for a mean above freezing at 0.75 of Earth's light, about
+ * 1 bar at 0.5, and the "maximum greenhouse" of about 8 bar at 0.35). It is a net effect: it already includes the
+ * extra sunlight a thick CO2 atmosphere scatters back, which is why it falls again beyond about 8 bar.
+ * A fitted estimate, uncertain by about +-10 W/m^2 (a few degrees); flagged as a model limit in derive(). */
+const CO2_HIGH = [[-2, 18.2], [-1, 38], [-0.5, 58], [0, 84], [0.4, 103], [0.9, 120], [1.3, 112], [2, 90]];
+export const CO2_FIT_BAR = 0.01, CO2_MAXGH_BAR = 8;
+export function forcingCO2(ppm, pCO2bar) {
+  const myhre = 5.35 * Math.log(ppm / 330);
+  if (!(pCO2bar > CO2_FIT_BAR)) return myhre;
+  const x = Math.min(2, Math.log10(pCO2bar));
+  let f = CO2_HIGH[CO2_HIGH.length - 1][1];
+  for (let i = 0; i < CO2_HIGH.length - 1; i++) {
+    const [x0, f0] = CO2_HIGH[i], [x1, f1] = CO2_HIGH[i + 1];
+    if (x <= x1) { f = f0 + (f1 - f0) * (x - x0) / (x1 - x0); break; }
+  }
+  return Math.max(myhre, f);
+}
 export function climate0D({ S, albedo, pCO2bar, pCH4bar, totalBar }) {
   const absorbed = S * S_EARTH * (1 - albedo) / 4;
   const Teq = (absorbed / 5.670374419e-8) ** 0.25;
   const runaway = absorbed > RUNAWAY_FLUX;
   const totalSafe = Math.max(totalBar, 1e-6);
   const ppm = Math.max(1, (pCO2bar / totalSafe) * 1e6 * Math.min(1, totalSafe));   // column-weighted mixing ratio
-  const fCO2 = 5.35 * Math.log(ppm / 330);
+  const fCO2 = forcingCO2(ppm, pCO2bar);
   const ch4ppb = (pCH4bar / totalSafe) * 1e9 * Math.min(1, totalSafe);
   const fCH4 = 0.036 * (Math.sqrt(Math.max(ch4ppb, 0)) - Math.sqrt(1800));
   /* A thin atmosphere holds little water vapour and little greenhouse effect: fade the Earth-calibrated greenhouse

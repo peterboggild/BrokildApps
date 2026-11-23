@@ -83,6 +83,22 @@ const screenPos = (p, which) => p.evaluate((which) => {
   check('Cutaway labels the four layers of Earth', labels.length === 4, JSON.stringify(labels));
   if (out) await p.screenshot({ path: out + '/t-cut.png' });
 
+  /* model limits are shown beside the results; a met challenge is announced and ticked */
+  await p.evaluate(() => { window.__pd.loadPreset('solar'); });
+  await p.waitForFunction(() => window.__pd.derivedPlanet().ebm, null, { timeout: 60000 });
+  await p.evaluate(() => { window.__pd.set('planet.atmosphere.pCO2bar', 2); window.__pd.set('planet.orbit.aAU', 1.3); });
+  await p.waitForFunction(() => window.__pd.derivedPlanet().ebm, null, { timeout: 60000 });
+  await p.evaluate(() => new Promise((res) => setTimeout(res, 400)));
+  const lim = await p.evaluate(() => ({ box: !!document.querySelector('#ledger .limits'), tags: document.querySelectorAll('#ledger .mlim').length, T: window.__pd.derivedPlanet().TsC }));
+  check('Thick CO2 shows the model-limits box and tags rows', lim.box && lim.tags > 0, JSON.stringify(lim));
+  check('Challenge "As far out as possible" is met at 1.3 AU with 2 bar CO2', await p.evaluate(() => window.__pd.chDone.has('far')));
+  if (out) await p.screenshot({ path: out + '/t-limits.png' });
+  await p.click('#chBtn');
+  const ch = await p.evaluate(() => ({ n: document.querySelectorAll('#chBox .chal').length, done: document.querySelectorAll('#chBox .chal.done').length, btn: document.querySelector('#chBtn').textContent }));
+  check('The challenges list opens with ten challenges', ch.n === 10 && ch.done >= 1, JSON.stringify(ch));
+  if (out) await p.screenshot({ path: out + '/t-challenges.png' });
+  await p.click('#chClose');
+
   /* the cause map: arrowheads, and the i on a box opens a card explaining it */
   await p.evaluate(() => window.__pd.view.showCausality());
   await frames(p, 2);

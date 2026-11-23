@@ -10,7 +10,7 @@
  * Heat transport D scales with pressure and rotation as in Williams & Kasting 1997. Tidally locked planets use the
  * same equation with x = cosine of the angle from the substellar point and no seasons (qualitative).
  * Implicit in time (backward Euler, tridiagonal), so it is stable for any D. Pure function; runs in a worker. */
-import { S_EARTH } from './const.js?v=14';
+import { S_EARTH } from './const.js?v=15';
 
 const SIGMA = 5.670374419e-8;
 export const EBM_N = 36;                 /* latitude bands, equal area (uniform in x) */

@@ -164,6 +164,21 @@
   .cm-edge { fill: none; stroke: #2c3a4c; stroke-width: 1.3; }
   .cm-edge.on { stroke: #6fb7ff; stroke-width: 2; }
   .cm-edge.dim { opacity: 0.25; }
+  .limits { border: 1px solid #8a6fe0; background: #17122a; border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-size: 12.5px; color: #d8d0f5; }
+  .limits.outside { border-color: #c06fe0; background: #22102a; }
+  .limits strong { color: #c9b8ff; font-size: 13px; } .limits p { margin: 4px 0; color: #b0a8cc; }
+  .limits ul { margin: 4px 0 0; padding-left: 18px; } .limits li { margin: 3px 0; } .limits li.outside { color: #f0c8ff; font-weight: 600; }
+  .mlim { font-size: 10.5px; font-weight: 600; color: #c9b8ff; border: 1px solid #8a6fe0; border-radius: 8px; padding: 0 5px; white-space: nowrap; }
+  .mlim.outside { color: #f0c8ff; border-color: #c06fe0; background: #3a1846; }
+  .cm-node.lim rect { stroke: #b58cff; stroke-dasharray: 4 3; stroke-width: 2; }
+  .chbtn { border-color: #8a6fe0 !important; }
+  .chbox { position: fixed; top: 8vh; left: 50%; transform: translateX(-50%); width: min(640px, calc(100vw - 32px)); max-height: 84vh; overflow: auto; z-index: 70; background: #0d121a; border: 1px solid #8a6fe0; border-radius: 12px; padding: 14px 18px; box-shadow: 0 12px 50px rgba(0,0,0,0.7); }
+  .chbox h2 { margin: 0 24px 6px 0; font-size: 18px; }
+  .chal { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; }
+  .chal.done { border-color: var(--green); background: #0f1f16; }
+  .chal-top { display: flex; gap: 8px; align-items: baseline; } .chal-mark { color: var(--green); font-weight: 700; width: 14px; }
+  .chal-st { margin-left: auto; font-size: 12px; color: var(--dim); } .chal.done .chal-st { color: var(--green); }
+  .chal p { margin: 4px 0 0 22px; font-size: 13px; } .chal-think { color: #c9b8ff; }
   .cm-edge.up { stroke: #ffb36b; stroke-width: 2; }
   .cm-node.upn rect { fill: #2a1f12; }
   .cm-info { cursor: help; }
@@ -212,7 +227,7 @@
     <div class="ctrl"><label id="levelLabel"></label><span id="levels">
       <button data-level="explorer"></button> <button data-level="student"></button> <button data-level="scientist"></button></span></div>
     <div class="ctrl">
-      <button class="btn" id="shareBtn"></button><button class="btn" id="exportBtn"></button>
+      <button class="btn chbtn" id="chBtn"></button><button class="btn" id="shareBtn"></button><button class="btn" id="exportBtn"></button>
       <button class="btn" id="importBtn"></button><button class="btn danger" id="resetBtn"></button>
       <button class="btn" id="musicBtn"></button><button class="btn" id="fxBtn"></button>
       <button id="langBtn"></button>
@@ -227,7 +242,8 @@
   </main>
   <footer id="foot"></footer>
   <div id="toast" hidden></div>
+  <div id="chBox" class="chbox" hidden></div>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
-  <script type="module" src="main.js?v=14"></script>
+  <script type="module" src="main.js?v=15"></script>
 </body>
 </html>

@@ -1,16 +1,16 @@
 /* derive(design) -> every derived number the panel and the ledger show. Pure; recomputed on every change. */
 import { starAt, parRelativeToSun, snowLineAU, peakWavelength, blackbodyRGB, activityAuto, spectralLetter,
-  STAR_MASS_HZ_VALID } from './star.js?v=14';
-import { habitableZone, hzPosition, timeInHZ } from './hz.js?v=14';
+  STAR_MASS_HZ_VALID } from './star.js?v=15';
+import { habitableZone, hzPosition, timeInHZ } from './hz.js?v=15';
 import { periodYears, fluxEarth, eccMeanFactor, periApoFlux, hillRadiusAU, mutualHillSpacing, tidalLockBand,
-  moonInfo } from './orbit.js?v=14';
-import { bulk, layers } from './structure.js?v=14';
+  moonInfo } from './orbit.js?v=15';
+import { bulk, layers } from './structure.js?v=15';
 import { composition, atmosphereMass, scaleHeight, jeansLambda, T_EXO_EARTH, satVapourPa, boilingPointK,
-  hasOzone, climate0D, bondAlbedo, TRIPLE_POINT_PA } from './atmosphere.js?v=14';
-import { seaLevel, reliefMeters } from './terrain.js?v=14';
-import { MOLAR, OCEAN_MASS, M_EARTH, RHO_WATER } from './const.js?v=14';
-import { xuvEnvironment, shorelineI, cosmicDose } from './space.js?v=14';
-import { wetBulb, runEBM } from './climate.js?v=14';
+  hasOzone, climate0D, bondAlbedo, TRIPLE_POINT_PA } from './atmosphere.js?v=15';
+import { seaLevel, reliefMeters } from './terrain.js?v=15';
+import { MOLAR, OCEAN_MASS, M_EARTH, RHO_WATER } from './const.js?v=15';
+import { xuvEnvironment, shorelineI, cosmicDose } from './space.js?v=15';
+import { wetBulb, runEBM } from './climate.js?v=15';
 
 /* Default bulk densities for the simplified planets (kg/m^3), giving a radius from the mass:
  * rocky like Earth, icy like Ganymede/Callisto-type bodies, ice giant like Neptune, gas giant like Jupiter. */
@@ -149,6 +149,8 @@ function derivePlanet(p, d, star, ebm) {
    * clouds, a runaway greenhouse makes a total haze deck, a frozen world few. */
   out.cloudFrac = clim.runaway ? 1 : p.surface.oceansEarth <= 0 ? 0 : Math.min(0.75, 0.2 + 0.45 * (1 - out.landFrac)) * (clim.Ts > 250 ? 1 : 0.5);
 
+  out.modelLimits = modelLimits(out, p, star);
+
   /* The energy balance model: its parameters, and its result if a run for exactly these parameters exists. */
   out.ebmParams = clim.runaway ? null : {
     S: out.flux, e: p.orbit.e, obliquityDeg: p.spin.obliquityDeg, argPeriDeg: p.orbit.argPeriDeg || 0,
@@ -161,6 +163,48 @@ function derivePlanet(p, d, star, ebm) {
   const run = ebm[p.id];
   if (run && run.key === out.ebmKey) applyEBM(out, run.result);
   else out.ebmPending = !!out.ebmParams;
+  return out;
+}
+
+/* Where the models stop holding, or hold only roughly, for this planet: a list of { id, level }, level 'rough'
+ * (an estimate with a wider error than near Earth) or 'outside' (the model does not describe what would happen).
+ * Shown beside the results, so a number is never read as more certain than it is. */
+const CLIMATE_ROWS = ['liquid', 'runaway', 'temp', 'wetbulb', 'land', 'fresh'];
+export const LIMIT_ROWS = {
+  runaway: CLIMATE_ROWS, nearRunaway: CLIMATE_ROWS, co2max: CLIMATE_ROWS, co2fit: CLIMATE_ROWS, haze: CLIMATE_ROWS,
+  thin: CLIMATE_ROWS, thick: CLIMATE_ROWS, dense: CLIMATE_ROWS, locked: CLIMATE_ROWS, ecc: [...CLIMATE_ROWS, 'ecc'],
+  dry: CLIMATE_ROWS, waterworld: ['thermostat', 'land', 'balance'], teff: ['hz', 'chz', 'time', 'par'],
+  mass: ['hz', 'retain', 'envelope'], envelope: null /* everything */, young: ['activity', 'chz', 'time'],
+};
+/* the worst limit that touches a ledger row: null, 'rough' or 'outside' */
+export function limitFor(P, rowId) {
+  let lv = null;
+  for (const l of P.modelLimits || []) {
+    const rows = LIMIT_ROWS[l.id];
+    if (rows === null || (rows && rows.includes(rowId))) { if (l.level === 'outside') return 'outside'; lv = 'rough'; }
+  }
+  return lv;
+}
+export function modelLimits(P, p, star) {
+  const out = [];
+  const add = (id, level) => out.push({ id, level });
+  const co2 = p.atmosphere.pCO2bar, ch4 = p.atmosphere.pCH4bar || 0, bar = P.pBar;
+  if (P.climate.runaway) add('runaway', 'outside');
+  else if (P.climate.absorbed > 0.93 * 282) add('nearRunaway', 'rough');
+  if (co2 > 8) add('co2max', 'outside');
+  else if (co2 > 0.01) add('co2fit', 'rough');
+  if (ch4 > 1e-4 && ch4 > 0.1 * co2) add('haze', 'rough');
+  if (bar < 0.1) add('thin', 'rough');
+  else if (bar > 10) add('thick', 'outside');
+  else if (bar > 3) add('dense', 'rough');
+  if (P.locked) add('locked', 'rough');
+  if (P.e > 0.3) add('ecc', 'rough');
+  if (!P.hz.valid) add('teff', 'rough');
+  if (p.bulk.massEarth < 0.1 || p.bulk.massEarth > 5) add('mass', 'rough');
+  if (P.likelyMiniNeptune) add('envelope', 'outside');
+  if (p.surface.oceansEarth > 0 && p.surface.oceansEarth < 0.1) add('dry', 'rough');
+  if (p.surface.oceansEarth > 3) add('waterworld', 'rough');
+  if (star.ageGyr < 0.3) add('young', 'rough');
   return out;
 }
 

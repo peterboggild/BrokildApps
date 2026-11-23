@@ -1,16 +1,18 @@
 /* Benchmarks of spec §5.12 (the EBM rows wait for milestone M3). Run: node test/physics.test.mjs
  * Node resolves the '?v=N' cache-busting suffixes as part of a file URL, so the browser modules run unchanged. */
-import { starAt, mainSequence, blackbodyRGB, parRelativeToSun } from '../physics/star.js?v=12';
-import { habitableZone } from '../physics/hz.js?v=12';
-import { bulk } from '../physics/structure.js?v=12';
-import { mutualHillSpacing, moonInfo, tidalLockBand, periodYears } from '../physics/orbit.js?v=12';
-import { jeansLambda, scaleHeight, climate0D, boilingPointK } from '../physics/atmosphere.js?v=12';
-import { MOLAR } from '../physics/const.js?v=12';
-import { derive, deriveSync } from '../physics/derive.js?v=12';
-import { runEBM } from '../physics/climate.js?v=12';
-import { xuvEnvironment, cosmicDose, shorelineI } from '../physics/space.js?v=12';
-import { ledger } from '../physics/ledger.js?v=12';
-import { PRESETS, validate } from '../design.js?v=12';
+import { starAt, mainSequence, blackbodyRGB, parRelativeToSun } from '../physics/star.js?v=15';
+import { habitableZone } from '../physics/hz.js?v=15';
+import { bulk } from '../physics/structure.js?v=15';
+import { mutualHillSpacing, moonInfo, tidalLockBand, periodYears } from '../physics/orbit.js?v=15';
+import { jeansLambda, scaleHeight, climate0D, boilingPointK } from '../physics/atmosphere.js?v=15';
+import { MOLAR } from '../physics/const.js?v=15';
+import { derive, deriveSync } from '../physics/derive.js?v=15';
+import { runEBM } from '../physics/climate.js?v=15';
+import { xuvEnvironment, cosmicDose, shorelineI } from '../physics/space.js?v=15';
+import { ledger } from '../physics/ledger.js?v=15';
+import { PRESETS, validate } from '../design.js?v=15';
+import { CHALLENGES, meets } from '../challenges.js?v=15';
+import { forcingCO2 } from '../physics/atmosphere.js?v=15';
 
 let fails = 0, n = 0;
 function near(name, got, want, tol) {
@@ -133,12 +135,12 @@ for (const k of Object.keys(PRESETS)) {
 
 /* M4 done-when: every ledger row has a card (both languages, all parts) and a source */
 {
-  const { CARDS } = await import('../ui/cards.js?v=12');
+  const { CARDS } = await import('../ui/cards.js?v=15');
   const Dd = deriveSync(validate(PRESETS.solar()));
   const Lg = ledger(Dd.planets[0], Dd);
   const bad = Lg.rows.filter((r) => !r.src || !CARDS[r.id] || ['da', 'en'].some((l) => !CARDS[r.id][l] || ['what', 'why', 'ours', 'try', 'more'].some((f) => !CARDS[r.id][l][f])));
   truth('Every ledger row has a card in both languages and a source', bad.length === 0, `${Lg.rows.length} rows${bad.length ? ', missing: ' + bad.map((r) => r.id).join(' ') : ''}`);
-  const { esi } = await import('../physics/esi.js?v=12');
+  const { esi } = await import('../physics/esi.js?v=15');
   near('ESI of the Earth-like start', esi(Dd.planets[0]), 1, 0.02);
   near('ESI of the dry world (Mars numbers; Mars 0.64)', esi(deriveSync(validate(PRESETS.dryworld())).planets[0]), 0.64, 0.05);
 }
@@ -151,6 +153,39 @@ truth('Black-body colour of the Sun is near white', blackbodyRGB(5772).every((c)
 /* Black-body sanity check, not a literature value: an M5 dwarf gives roughly a quarter to a third of the Sun's PAR photons per watt. */
 near('PAR photons per watt, M5 dwarf vs Sun', parRelativeToSun(3060).photonsPerW, 0.28, 0.1);
 truth('Table covers 0.08 Msun', !mainSequence(0.08).outsideTable);
+
+/* Thick CO2: the forcing follows the 1-D radiative-convective results; the outer edge lands near Kopparapu's */
+{
+  near('CO2 forcing at 1 bar (fit to 1-D models) [W/m2]', forcingCO2(1e6, 1), 84, 0.01);
+  truth('CO2 forcing below 0.01 bar is Myhre et al.', Math.abs(forcingCO2(1000, 0.001) - 5.35 * Math.log(1000 / 330)) < 1e-9);
+  const out = (a, co2) => { const d = PRESETS.solar(); d.planets[0].orbit.aAU = a; d.planets[0].atmosphere.pCO2bar = co2; const D = deriveSync(validate(d)); return D.planets[0]; };
+  const p13 = out(1.3, 2), p17 = out(1.75, 8);
+  truth('1.3 AU with 2 bar CO2 is above freezing', p13.TsC > 0, `${p13.TsC.toFixed(1)} C`);
+  truth('1.75 AU is past the maximum greenhouse (frozen)', p17.TsC < 0, `${p17.TsC.toFixed(1)} C`);
+  truth('Thick CO2 is flagged as a model estimate', p13.modelLimits.some((l) => l.id === 'co2fit'));
+  const e = deriveSync(validate(PRESETS.solar())).planets[0];
+  truth('Earth has no model limits', e.modelLimits.length === 0, JSON.stringify(e.modelLimits));
+}
+
+/* Every challenge can be met in the model */
+{
+  const L = (D) => (P) => ledger(P, D);
+  const hz = (d) => d.planets[0];
+  const recipes = {
+    microbes: (d) => { hz(d).orbit.aAU = 1.1; hz(d).atmosphere.pCO2bar = 0.1; },
+    far: (d) => { hz(d).orbit.aAU = 1.3; hz(d).atmosphere.pCO2bar = 2; },
+    k: (d) => { d.star.massSun = 0.78; d.star.ageGyr = 7; hz(d).orbit.aAU = Math.sqrt(starAt(0.78, 7).lum); },
+    cold: (d) => { hz(d).orbit.aAU = 1.15; hz(d).atmosphere.pCH4bar = 0.001; hz(d).atmosphere.pCO2bar = 0.004; },
+    hot: (d) => { hz(d).orbit.aAU = 0.95; hz(d).atmosphere.pCO2bar = 0.0001; },
+    heavy: (d) => { hz(d).bulk.massEarth = 2; },
+    red: (d) => { d.star.massSun = 0.5; d.star.ageGyr = 8; hz(d).orbit.aAU = Math.sqrt(starAt(0.5, 8).lum); },
+    snowball: (d) => { hz(d).atmosphere.pCO2bar = 0.00001; },
+    water: (d) => { hz(d).surface.oceansEarth = 3; },
+    nomoon: (d) => { hz(d).moons = []; },
+  };
+  const missing = CHALLENGES.filter((c) => { const d = PRESETS.solar(); recipes[c.id](d); const D = deriveSync(validate(d)); return !meets(D, L(D)).has(c.id); }).map((c) => c.id);
+  truth('Every challenge is reachable', missing.length === 0, missing.join(' '));
+}
 
 console.log(`\n${n - fails}/${n} passed`);
 process.exit(fails ? 1 : 0);

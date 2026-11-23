@@ -4,8 +4,9 @@
  * drawn in an overlay over the 3D view. Labels sit inside their own boxes, never over the edges' ends.
  * Edges end in arrowheads; a selected box shows what it drives (blue) and what drives it (orange). The "i" on each
  * box opens a small card: what the quantity is, how to read its value, and its direct causes and effects. */
-import { t, fmt, esc, getLang } from '../i18n.js?v=14';
-import { CM_INFO } from './cminfo.js?v=14';
+import { t, fmt, esc, getLang } from '../i18n.js?v=15';
+import { CM_INFO } from './cminfo.js?v=15';
+import { limitFor } from '../physics/derive.js?v=15';
 
 /* [id, column, label key, value(P, D), ledger rows whose worst status colours the node] */
 const NODES = [
@@ -152,7 +153,8 @@ export function createCausality(container, S) {
       let st = 'none';
       for (const r of rows) if (status[r] && (st === 'none' || RANK[status[r]] > RANK[st])) st = status[r];
       const dim = sel && !sel.has(id) && !up.has(id);
-      g += `<g class="cm-node ${st}${dim ? ' dim' : ''}${up && up.has(id) && !sel.has(id) ? ' upn' : ''}${state.selected === id ? ' sel' : ''}${changed.has(id) ? ' changed' : ''}" data-id="${id}" transform="translate(${p.x},${p.y})">`;
+      const lim = (id === 'temp' || id === 'green' || id === 'ice' ? ['temp'] : rows).some((r) => limitFor(P, r));
+      g += `<g class="cm-node ${st}${dim ? ' dim' : ''}${up && up.has(id) && !sel.has(id) ? ' upn' : ''}${state.selected === id ? ' sel' : ''}${changed.has(id) ? ' changed' : ''}${lim ? ' lim' : ''}" data-id="${id}" transform="translate(${p.x},${p.y})">`;
       g += `<rect width="${boxW}" height="${boxH}" rx="7"/><text class="cm-l" x="8" y="15"${t(key).length * 6.1 > boxW - 30 ? ` textLength="${boxW - 30}" lengthAdjust="spacingAndGlyphs"` : ''}>${esc(t(key))}</text>`;
       g += `<text class="cm-v" x="8" y="30">${esc(vals[id])}</text>`;
       g += `<g class="cm-info" data-info="${id}" role="button" aria-label="info"><circle cx="${boxW - 11}" cy="11" r="8"/><text x="${boxW - 11}" y="15" text-anchor="middle">i</text></g></g>`;
