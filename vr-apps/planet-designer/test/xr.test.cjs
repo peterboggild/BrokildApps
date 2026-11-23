@@ -155,6 +155,12 @@ function aimQuat(dir) {
   ok('the distance dial moves the planet a little (fine control)', a1 !== a0 && Math.abs(a1 / a0 - 1) < 0.1, `${a0.toFixed(4)} -> ${a1.toFixed(4)} AU`);
   if (out) await p.screenshot({ path: out + '/xr-5-tools.png' });
 
+  /* table zoom: the system grows round the selected planet */
+  await ev(() => window.__pd.xr.setZoom(10)); await xrFrames(2);
+  const zs = await ev(() => window.__pd.view.xr.ws.tableSlot.scale.x);
+  ok('table zoom x10 enlarges the orrery round the selected planet', Math.abs(zs / 0.046 - 10) < 0.01, `scale ${zs.toFixed(3)}`);
+  await ev(() => window.__pd.xr.setZoom(1));
+
   /* leave */
   await ev(() => window.__pd.xr.exit());
   await ev(() => new Promise((res) => { const tk = () => (!window.__pd.view.xr.VR.session ? res() : setTimeout(tk, 100)); tk(); }));

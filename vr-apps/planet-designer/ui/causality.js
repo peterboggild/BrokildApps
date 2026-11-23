@@ -2,7 +2,7 @@
  * edges for "this drives that". Nodes carry their current value and the colour of the ledger rows they feed.
  * Selecting a node lights everything downstream; a change sends a pulse along the edges it touched. Inline SVG,
  * drawn in an overlay over the 3D view. Labels sit inside their own boxes, never over the edges' ends. */
-import { t, fmt, esc } from '../i18n.js?v=8';
+import { t, fmt, esc } from '../i18n.js?v=9';
 
 /* [id, column, label key, value(P, D), ledger rows whose worst status colours the node] */
 const NODES = [

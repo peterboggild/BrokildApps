@@ -7,15 +7,25 @@ import { EffectComposer } from '../vendor/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../vendor/postprocessing/OutputPass.js';
-import { createSky } from './sky.js?v=8';
-import { createStar } from './star.js?v=8';
-import { createOrrery, rOf } from './orrery.js?v=8';
-import { createPlanet } from './planet.js?v=8';
-import { t, fmt } from '../i18n.js?v=8';
-import { createCausality } from '../ui/causality.js?v=8';
-import { createXR } from './xr.js?v=8';
+import { createSky } from './sky.js?v=9';
+import { createStar } from './star.js?v=9';
+import { createOrrery, rOf } from './orrery.js?v=9';
+import { createPlanet } from './planet.js?v=9';
+import { t, fmt } from '../i18n.js?v=9';
+import { createCausality } from '../ui/causality.js?v=9';
+import { createXR } from './xr.js?v=9';
 
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+
+export const REAL_TIME = 1 / 3.15576e7;        /* simulated years per real second, for real time */
+/* "1 s = 3,2 døgn": how much simulated time passes in one real second */
+export function timeLabel(yps) {
+  const sec = yps * 3.15576e7;
+  if (sec < 1.5) return t('v.real');
+  const U = [[31557600, 'u.t.yr'], [2629800, 'u.t.mo'], [604800, 'u.t.wk'], [86400, 'u.t.d'], [3600, 'u.t.h'], [60, 'u.t.min'], [1, 'u.t.s']];
+  const [d, k] = U.find(([d]) => sec >= d);
+  return t('v.perSec', { x: fmt(sec / d, 2), u: t(k) });
+}
 
 export function createView(container, S) {
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -97,7 +107,9 @@ export function createView(container, S) {
 
   let q0 = new URLSearchParams(location.search).get('q');
   try { q0 = q0 || localStorage.getItem('planetDesigner.quality'); } catch (e) { /* ignore */ }
-  const state = { mode: 'system', cut: false, spinOn: true, exag: 10, frames: 0, chunks: 0,
+  /* time on the orrery: simulated years per real second. Real time is 1 / 3.15576e7; the default makes a year
+   * take about 16 s. follow: the camera follows the selected planet (desktop). */
+  const state = { mode: 'system', cut: false, spinOn: true, exag: 10, frames: 0, chunks: 0, timeScale: 0.0637, paused: false, follow: false,
     quality: ['high', 'medium', 'low'].includes(q0) ? q0 : LIGHT_DEVICE ? 'low' : 'high', autoQ: true, slow: 0 };
   planet.setQuality(state.quality);
   function setQuality(q, manual) {
@@ -117,6 +129,20 @@ export function createView(container, S) {
     b('v.system', state.mode === 'system', () => setMode('system'), '1');
     b('v.planet', state.mode === 'planet', () => setMode('planet'), '2');
     b('v.cmap', !cmBox.hidden, () => { if (cmBox.hidden) showCausality(); else { cmBox.hidden = true; buildHud(); } }, 'M');
+    if (state.mode === 'system') {
+      /* time: from real time to fast, log scale; pause; follow the selected planet */
+      const wrap = el('label', 'v-ex');
+      wrap.append(el('span', '', t('v.time')));
+      const r = el('input'); r.type = 'range'; r.min = 0; r.max = 1000; r.step = 1;
+      const lo = Math.log(REAL_TIME), hi = Math.log(1);
+      r.value = Math.round((Math.log(state.timeScale) - lo) / (hi - lo) * 1000);
+      const v = el('span', 'v-exv', timeLabel(state.timeScale));
+      r.oninput = () => { state.timeScale = Math.exp(lo + (hi - lo) * r.value / 1000); v.textContent = timeLabel(state.timeScale); };
+      wrap.append(r, v);
+      hud.appendChild(wrap);
+      b(state.paused ? 'v.play' : 'v.pause', state.paused, () => { state.paused = !state.paused; buildHud(); });
+      b('v.follow', state.follow, () => { state.follow = !state.follow; controls.minDistance = state.follow ? 0.12 : 3; buildHud(); });
+    }
     if (vrOK) { const v = b('v.enterVR', false, () => xr && xr.enter().catch((e) => { console.error(e); showError(t('err.xr') + ' ' + (e && e.message ? e.message : e)); })); v.classList.add('vrbtn'); v.id = 'vrBtn'; }
     if (state.mode === 'planet' && S.derivedPlanet().role === 'hz') {
       b('v.cut', state.cut, () => { state.cut = !state.cut; refresh(); buildHud(); }, 'C');
@@ -144,7 +170,7 @@ export function createView(container, S) {
     controls.target.copy(camStore[m].target);
     system.visible = m === 'system';
     planetBay.visible = m === 'planet';
-    controls.minDistance = m === 'system' ? 3 : 1.0005;
+    controls.minDistance = m === 'system' ? (state.follow ? 0.12 : 3) : 1.0005;
     controls.maxDistance = m === 'system' ? 160 : 12;
     refresh();
     buildHud();
@@ -340,8 +366,17 @@ export function createView(container, S) {
       camera.near = 0.05; camera.far = 600;
       controls.rotateSpeed = 0.8; controls.zoomSpeed = 1.0;
       star.tick(time);
-      if (!hover && !drag) orbitClock += dt;
-      orrery.tick(orbitClock, 1);
+      if (!hover && !drag && !state.paused) orbitClock += dt * state.timeScale;
+      orrery.tick(orbitClock, time);
+      /* follow the selected planet: move the target and the camera with it */
+      if (state.follow) {
+        const bd = orrery.beads.find((x) => x.index === S.sel);
+        if (bd) {
+          const wp = bd.mesh.getWorldPosition(new THREE.Vector3());
+          const delta = wp.sub(controls.target);
+          controls.target.add(delta); camera.position.add(delta);
+        }
+      }
     } else {
       const alt = Math.max(d - 1, 1e-5);
       camera.near = Math.max(2e-6, alt * 0.25); camera.far = d + 3;
@@ -374,7 +409,7 @@ export function createView(container, S) {
   try {
     xr = createXR({ renderer, scene, camera, controls, S, system, planetBay, planet, orrery, star, sky, state,
       setQuality: (q, manual) => setQuality(q, manual),
-      orbitAdvance: (dt) => { orbitClock += dt; }, orbitClock: () => orbitClock,
+      orbitAdvance: (dt) => { if (!state.paused) orbitClock += dt * state.timeScale; }, orbitClock: () => orbitClock,
       onExit: () => { setMode(state.mode); refresh(); buildHud(); },
       onSupport: (ok) => { vrOK = ok; buildHud(); } });
   } catch (e) { console.error(e); }
