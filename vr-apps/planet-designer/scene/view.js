@@ -7,13 +7,13 @@ import { EffectComposer } from '../vendor/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../vendor/postprocessing/OutputPass.js';
-import { createSky } from './sky.js?v=12';
-import { createStar } from './star.js?v=12';
-import { createOrrery, rOf } from './orrery.js?v=12';
-import { createPlanet } from './planet.js?v=12';
-import { t, fmt } from '../i18n.js?v=12';
-import { createCausality } from '../ui/causality.js?v=12';
-import { createXR } from './xr.js?v=12';
+import { createSky } from './sky.js?v=13';
+import { createStar } from './star.js?v=13';
+import { createOrrery, rOf } from './orrery.js?v=13';
+import { createPlanet } from './planet.js?v=13';
+import { t, fmt } from '../i18n.js?v=13';
+import { createCausality } from '../ui/causality.js?v=13';
+import { createXR } from './xr.js?v=13';
 
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 

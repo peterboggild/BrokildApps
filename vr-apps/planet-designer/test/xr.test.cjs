@@ -79,10 +79,13 @@ function aimQuat(dir) {
   ok('turning the mass dial changes the star, finely (relative dial)', sm1 < sm0 - 0.02 && sm1 > 0.25, `${sm0.toFixed(3)} -> ${sm1.toFixed(3)} Msun`);
   if (out) await p.screenshot({ path: out + '/xr-3-dial.png' });
 
-  /* the VR tab: move the planet to a temperate place in the zone, then "Start with Earth" */
+  /* the Scene tab: move the planet to a temperate place in the zone, then "Start with Earth" */
   await press('right', 'b-button');
   const panelClick = async (prefix) => { const w = await ev((p) => window.__pd.view.xr.widgetLocal(p), prefix); if (!w) return false; await aimAt('right', w); await press('right', 'trigger'); return true; };
   await panelClick('tab:vr');
+  const vrIds = await ev(() => { const ws = window.__pd.view.xr.panel; ws.redraw(); return ws.state.widgets.map((x) => x.id).join('|'); });
+  ok('the VR tab holds only VR things (no start designs, no time)', !/Start med Jorden|Start with Earth|v\.time|vr\.zoom|level/.test(vrIds) && /vr\.leave/.test(vrIds), vrIds);
+  await panelClick('tab:scene');
   const toZone = await ev(() => { const ws = window.__pd.view.xr.panel; ws.redraw(); const w = ws.state.widgets.find((x) => x.id.includes('Flyt til') || x.id.includes('Move to')); return w ? w.id : null; });
   await panelClick(toZone);
   const pos = await ev(() => window.__pd.derivedPlanet().hzPos);
@@ -161,7 +164,11 @@ function aimQuat(dir) {
   const zi = await ev(() => { const X = window.__pd.view.xr; return { s: X.ws.tableSlot.scale.x, forge: X.ws.forgeGroup.visible, star: X.ws.tableSlot.position.toArray(), ts: window.__pd.view.state.timeScale }; });
   ok('"Into the system": the system x30, the forge hidden, time at real time', Math.abs(zi.s / 0.046 - 30) < 0.01 && !zi.forge && zi.ts < 1e-7, JSON.stringify(zi));
   /* the star stays put while the planet's distance changes */
+  const ang = () => ev(() => { const b = window.__pd.view.orrery.beads[window.__pd.sel].mesh.position; return Math.atan2(-b.z, b.x); });
+  const ang0 = await ang();
   await ev(() => window.__pd.set('planet.orbit.aAU', 1.03)); await xrFrames(3);
+  const ang1 = await ang();
+  ok('a changed orbit keeps the planet at the same place round the star', Math.abs(Math.atan2(Math.sin(ang1 - ang0), Math.cos(ang1 - ang0))) < 0.01, `${ang0.toFixed(3)} -> ${ang1.toFixed(3)} rad`);
   const star2 = await ev(() => window.__pd.view.xr.ws.tableSlot.position.toArray());
   ok('the star stays put while the orbit changes', Math.hypot(star2[0] - zi.star[0], star2[2] - zi.star[2]) < 1e-6);
   const pp = await ev(() => { const v = window.__pd.view; return v.planet.group.getWorldPosition(v.planet.group.position.clone()).distanceTo(v.xr.ws.tableSlot.getWorldPosition(v.xr.ws.tableSlot.position.clone())); });

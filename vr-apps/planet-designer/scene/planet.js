@@ -4,8 +4,8 @@
  * estimate, an atmosphere rim (a preview until the scattering model of M3), the cutaway with the interior layers,
  * and simple looks for the other planet types. Radius 1 in scene units; heights are exaggerated (stated on screen). */
 import * as THREE from 'three';
-import { NOISE, TERRAIN, CUBESPHERE } from './glsl.js?v=12';
-import { seedOffsets } from '../physics/terrain.js?v=12';
+import { NOISE, TERRAIN, CUBESPHERE } from './glsl.js?v=13';
+import { seedOffsets } from '../physics/terrain.js?v=13';
 
 const GRID = 48;                          /* quads per chunk side */
 const MAX_LEVEL = 13;

@@ -3,8 +3,8 @@
  * radius (dashed), orbits coloured by eccentricity, planets as beads that can be dragged (distance) with a handle
  * at apoastron (eccentricity and orientation), and a glowing slot where a second HZ planet would sit stably. */
 import * as THREE from 'three';
-import { orbitPosition, mutualHillSpacing, HILL_MULTI, tidalLockGyr, ECC_MAX } from '../physics/orbit.js?v=12';
-import { habitableZone } from '../physics/hz.js?v=12';
+import { orbitPosition, mutualHillSpacing, HILL_MULTI, tidalLockGyr, ECC_MAX } from '../physics/orbit.js?v=13';
+import { habitableZone } from '../physics/hz.js?v=13';
 
 export const A_MIN = 0.005;
 export const rOf = (a) => 2.2 + 6.5 * Math.log10(Math.max(a, A_MIN) / A_MIN);   /* AU -> scene units */
@@ -52,7 +52,13 @@ export function createOrrery() {
   let slot = null;
   let phase = [];
 
+  let lastSim = 0;                    /* the simulated time of the last tick */
+
   function update(design, D) {
+    /* Remember where each planet stands now (its angle round the star). A changed orbit keeps the planet at the
+       same angle and restarts its motion from there, instead of jumping to wherever the new period would put it. */
+    const prevAngle = beads.length === design.planets.length
+      ? beads.map((b) => Math.atan2(-b.mesh.position.z, b.mesh.position.x)) : null;
     dyn.clear();
     beads.length = 0;
     const st = D.star;
@@ -104,8 +110,14 @@ export function createOrrery() {
       handle.userData = { kind: 'handle', index: i };
       dyn.add(handle);
       if (phase[i] === undefined) phase[i] = Math.random() * Math.PI * 2;
+      if (prevAngle && Number.isFinite(prevAngle[i]) && Dp.periodYr > 0) {
+        const nu = prevAngle[i] - argPeri;    /* true anomaly that gives the same angle on the new orbit */
+        const E = 2 * Math.atan2(Math.sqrt(1 - e) * Math.sin(nu / 2), Math.sqrt(1 + e) * Math.cos(nu / 2));
+        phase[i] = E - e * Math.sin(E) - 2 * Math.PI * lastSim / Math.max(Dp.periodYr, 1e-4);
+      }
       beads.push({ mesh, index: i, a: p.orbit.aAU, e, argPeri, period: Dp.periodYr, handle });
     });
+    placeBeads();
 
     /* the slot for a second (or first) HZ planet */
     slot = null;
@@ -132,15 +144,19 @@ export function createOrrery() {
     }
   }
 
-  /* simYears: simulated time in years (the orbits move in true proportion to their periods); realT for the pulse */
-  function tick(simYears, realT) {
+  function placeBeads() {
     for (const b of beads) {
-      const M = phase[b.index] + 2 * Math.PI * simYears / Math.max(b.period, 1e-4);
+      const M = phase[b.index] + 2 * Math.PI * lastSim / Math.max(b.period, 1e-4);
       const { x, y } = orbitPosition(b.a, b.e, M);
-      const r = Math.hypot(x, y), th = Math.atan2(y, x) + b.argPeri;
-      const R = rOf(r);
+      const th = Math.atan2(y, x) + b.argPeri, R = rOf(Math.hypot(x, y));
       b.mesh.position.set(Math.cos(th) * R, 0, -Math.sin(th) * R);
     }
+  }
+
+  /* simYears: simulated time in years (the orbits move in true proportion to their periods); realT for the pulse */
+  function tick(simYears, realT) {
+    lastSim = simYears;
+    placeBeads();
     if (slot) slot.material.opacity = 0.35 + 0.25 * Math.sin((realT || 0) * 3);
   }
 

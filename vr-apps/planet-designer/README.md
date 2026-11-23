@@ -109,6 +109,14 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 - **Stjernens korona** er nu en skal i rummet. Hver pixel lyser efter, hvor tæt dens synslinje går på stjernens centrum, og strålerne følger stjernens egne retninger. Den drejer ikke længere med hovedet. Før var den en flad skive, der vendte mod kameraet.
 - **Den mørke metalring** om stjernesmedjen er fjernet. Den så ud som en sort ring om solen.
 
+## Fjerde test i brillerne
+
+- **Ny fane "Scene"** i VR-panelet: startdesigns, "Flyt til et tempereret sted", visning (Værksted / Ind i
+  solsystemet), tid, stjernen, lys på natsiden, drej, gennemskæring, højder og niveau. VR-fanen har nu kun det, der
+  hører til at være i VR: drejning, lyd, grafik, forlad VR og hjælp.
+- **En ændret bane flytter ikke planeten rundt**: planeten bliver stående på samme sted rundt om stjernen, og dens
+  bevægelse starter forfra derfra (gælder både PC og VR).
+
 ## Lyd (`audio.js`)
 
 Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges lydfiler, han ikke selv har leveret.
@@ -145,7 +153,7 @@ Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges l
 | `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=12`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=13`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 
