@@ -148,6 +148,12 @@ dimensions, the room scan, fractals), `story.js` (the story, `createStory(c)`).
 - Thresholding fine noise gives speckle, and Worley cell borders used as "dark filaments" look like cracked
   glass. Both were tried in the Milky Way and removed.
 
+- **Planet Designer crashed a real Quest 3** (M5, first headset test): the live terrain shader evaluates the whole
+  height function (about 30 noise calls) for every pixel; with the planet 3.5 m away in both eyes the GPU went down,
+  and afterwards the browser refused WebGL for the site until restarted. In VR and at "low" quality the planet is now
+  baked into equirectangular textures, 16 rows per frame (`bakeStep` in `scene/planet.js`), and drawn on a plain
+  sphere; clouds likewise; the Milky Way is per-vertex. Budget any per-pixel procedural work for two Quest eyes.
+
 ## Waiting on headset feedback
 
 Frame rate in the fractals and with the temporal sharpening; whether the spiral reads well in stereo (the still

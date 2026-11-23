@@ -59,6 +59,7 @@
   .v-hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; pointer-events: auto; }
   .v-btn { background: rgba(15, 20, 27, 0.82); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; color: var(--ink); }
   .v-btn:hover { border-color: var(--accent); }
+  .v-error { position: absolute; left: 10px; right: 10px; top: 56px; z-index: 5; padding: 12px 14px; border-radius: 8px; background: #3a1414; border: 1px solid #e45d5d; color: #ffd9d9; font-size: 15px; pointer-events: auto; }
   .v-btn.vrbtn { background: #1d3550; border-color: var(--accent); font-weight: 600; }
   .v-ex { display: flex; align-items: center; gap: 6px; background: rgba(15, 20, 27, 0.82); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 13px; color: var(--dim); }
   .v-ex input { width: 110px; accent-color: var(--accent); }
@@ -213,6 +214,6 @@
   <footer id="foot"></footer>
   <div id="toast" hidden></div>
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
-  <script type="module" src="main.js?v=5"></script>
+  <script type="module" src="main.js?v=6"></script>
 </body>
 </html>

@@ -1,8 +1,8 @@
 /* The sky behind everything: a few thousand stars with real-looking colours and brightness spread, and a faint
  * Milky Way band. Drawn on a sphere that follows the camera, without depth. */
 import * as THREE from 'three';
-import { NOISE } from './glsl.js?v=5';
-import { blackbodyRGB } from '../physics/star.js?v=5';
+import { snoise } from '../physics/noise.js?v=6';
+import { blackbodyRGB } from '../physics/star.js?v=6';
 
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
@@ -10,28 +10,26 @@ export function createSky() {
   const group = new THREE.Group();
   group.renderOrder = -10;
 
-  /* Milky Way: a band along a great circle, with dust lanes, on an inside-out sphere */
-  const mw = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.ShaderMaterial({
-    side: THREE.BackSide, depthWrite: false, depthTest: true,
-    uniforms: { uGain: { value: 1 } },
-    vertexShader: `varying vec3 vDir; void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: NOISE + `
-      varying vec3 vDir; uniform float uGain;
-      void main() {
-        vec3 d = normalize(vDir);
-        vec3 pole = normalize(vec3(0.35, 0.85, -0.4));
-        float lat = dot(d, pole);
-        float band = exp(-lat * lat * 28.0);
-        float core = exp(-pow(length(d - normalize(vec3(-0.6, 0.12, 0.79))), 2.0) * 3.0);
-        float n = 0.5 + 0.5 * snoise(d * 3.0) * 0.6 + 0.25 * snoise(d * 9.0);
-        float dust = smoothstep(0.15, 0.65, 0.5 + 0.5 * snoise(d * 6.0 + 3.1)) * exp(-lat * lat * 140.0);
-        float I = band * (0.5 + 0.8 * core) * n * (1.0 - 0.75 * dust);
-        vec3 col = mix(vec3(0.55, 0.6, 0.75), vec3(1.0, 0.86, 0.68), core) * I * 0.05 * uGain;
-        gl_FragColor = vec4(col, 1.0);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }`,
-  }));
+  /* Milky Way: a band along a great circle, with dust lanes, on an inside-out sphere. The noise is evaluated once per
+   * vertex in JavaScript (a dense sphere) and interpolated, not per pixel: the sky covers every pixel of both eyes in
+   * the headset, and per-pixel noise there was a needless cost. */
+  const mwGeo = new THREE.SphereGeometry(1, 160, 80);
+  const P = mwGeo.attributes.position, C = new Float32Array(P.count * 3);
+  const pole = new THREE.Vector3(0.35, 0.85, -0.4).normalize(), coreDir = new THREE.Vector3(-0.6, 0.12, 0.79).normalize();
+  const d = new THREE.Vector3();
+  for (let i = 0; i < P.count; i++) {
+    d.fromBufferAttribute(P, i).normalize();
+    const lat = d.dot(pole);
+    const band = Math.exp(-lat * lat * 28);
+    const core = Math.exp(-(d.distanceTo(coreDir) ** 2) * 3);
+    const n = 0.5 + 0.5 * snoise(d.x * 3, d.y * 3, d.z * 3) * 0.6 + 0.25 * snoise(d.x * 9, d.y * 9, d.z * 9);
+    const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const dust = sm(0.15, 0.65, 0.5 + 0.5 * snoise(d.x * 6 + 3.1, d.y * 6 + 3.1, d.z * 6 + 3.1)) * Math.exp(-lat * lat * 140);
+    const I = Math.max(0, band * (0.5 + 0.8 * core) * n * (1 - 0.75 * dust)) * 0.05;
+    C[i * 3] = (0.55 + 0.45 * core) * I; C[i * 3 + 1] = (0.6 + 0.26 * core) * I; C[i * 3 + 2] = (0.75 - 0.07 * core) * I;
+  }
+  mwGeo.setAttribute('color', new THREE.BufferAttribute(C, 3));
+  const mw = new THREE.Mesh(mwGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, depthWrite: false }));
   mw.renderOrder = -10;
   group.add(mw);
 

@@ -2,8 +2,8 @@
  * 0.80 x 0.54 m tablet. Tabs, a scrolling column of rows, sliders with - and + (auto-repeat), chips, readouts and
  * headings. Hit testing in canvas pixels; the caller maps a controller ray to (px, py). */
 import * as THREE from 'three';
-import { TABS, LEVELS } from './schema.js?v=5';
-import { t, fmt } from '../i18n.js?v=5';
+import { TABS, LEVELS } from './schema.js?v=6';
+import { t, fmt } from '../i18n.js?v=6';
 
 export const PW = 0.8, PH = 0.54;          /* metres */
 const W = 1200, H = 810;
@@ -67,7 +67,8 @@ export function createVRPanel(S) {
       c('v.cut', [{ label: t('yes'), on: V.cut, act: () => { V.cut = true; S.view.refresh(); } }, { label: t('no'), on: !V.cut, act: () => { V.cut = false; S.view.refresh(); } }]),
       c('v.spin', [{ label: t('yes'), on: V.spinOn, act: () => { V.spinOn = true; } }, { label: t('no'), on: !V.spinOn, act: () => { V.spinOn = false; } }]),
       c('v.exag', [5, 10, 20].map((x) => ({ label: '×' + x, on: V.exag === x, act: () => { V.exag = x; S.view.refresh(); } }))),
-      c('vr.quality', ['low', 'medium', 'high'].map((q) => ({ label: t('v.q.' + q), on: V.quality === q, act: () => S.view.setQuality(q, true) }))),
+      c('vr.quality', ['low', 'medium'].map((q) => ({ label: t('v.q.' + q), on: V.quality === q, act: () => S.view.setQuality(q, true) }))),
+      { kind: 'note', text: t('vr.qualityNote') },
       c('level', ['explorer', 'student', 'scientist'].map((l) => ({ label: t('level.' + l), on: S.design.level === l, act: () => { S.design.level = l; S.changed(true); } }))),
       c('vr.leave', [{ label: t('vr.exit'), on: false, act: () => S.xr && S.xr.exit() }]),
       { kind: 'note', text: t('vr.help') },

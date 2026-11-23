@@ -7,13 +7,13 @@ import { EffectComposer } from '../vendor/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../vendor/postprocessing/OutputPass.js';
-import { createSky } from './sky.js?v=5';
-import { createStar } from './star.js?v=5';
-import { createOrrery, rOf } from './orrery.js?v=5';
-import { createPlanet } from './planet.js?v=5';
-import { t, fmt } from '../i18n.js?v=5';
-import { createCausality } from '../ui/causality.js?v=5';
-import { createXR } from './xr.js?v=5';
+import { createSky } from './sky.js?v=6';
+import { createStar } from './star.js?v=6';
+import { createOrrery, rOf } from './orrery.js?v=6';
+import { createPlanet } from './planet.js?v=6';
+import { t, fmt } from '../i18n.js?v=6';
+import { createCausality } from '../ui/causality.js?v=6';
+import { createXR } from './xr.js?v=6';
 
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 
@@ -25,6 +25,14 @@ export function createView(container, S) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   container.appendChild(renderer.domElement);
+  /* If the graphics go down (WebGL context lost: on a headset usually an overloaded GPU), say so plainly on the page,
+   * instead of leaving a frozen picture. The browser may refuse WebGL for the site until it (or the headset) restarts. */
+  const errBox = el('div', 'v-error');
+  errBox.hidden = true;
+  container.appendChild(errBox);
+  function showError(msg) { errBox.hidden = false; errBox.textContent = msg; }
+  renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); showError(t('err.lost')); });
+  renderer.domElement.addEventListener('webglcontextrestored', () => { errBox.hidden = true; });
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 500);
@@ -109,7 +117,7 @@ export function createView(container, S) {
     b('v.system', state.mode === 'system', () => setMode('system'), '1');
     b('v.planet', state.mode === 'planet', () => setMode('planet'), '2');
     b('v.cmap', !cmBox.hidden, () => { if (cmBox.hidden) showCausality(); else { cmBox.hidden = true; buildHud(); } }, 'M');
-    if (vrOK) { const v = b('v.enterVR', false, () => xr && xr.enter().catch((e) => console.error(e))); v.classList.add('vrbtn'); v.id = 'vrBtn'; }
+    if (vrOK) { const v = b('v.enterVR', false, () => xr && xr.enter().catch((e) => { console.error(e); showError(t('err.xr') + ' ' + (e && e.message ? e.message : e)); })); v.classList.add('vrbtn'); v.id = 'vrBtn'; }
     if (state.mode === 'planet' && S.derivedPlanet().role === 'hz') {
       b('v.cut', state.cut, () => { state.cut = !state.cut; refresh(); buildHud(); }, 'C');
       b('v.spin', state.spinOn, () => { state.spinOn = !state.spinOn; buildHud(); });
@@ -341,6 +349,7 @@ export function createView(container, S) {
       controls.zoomSpeed = 0.6;
       const pxAngle = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / Math.max(1, container.clientHeight * renderer.getPixelRatio());
       state.chunks = planet.tick(time, camera, sunDir, state.spinOn, pxAngle);
+      planet.bakeStep(renderer);
       /* the star in the sky, at its apparent size (at least 0.35 deg so it stays visible) */
       const P = S.derivedPlanet();
       const angR = Math.max(Math.atan(S.derived.star.radius * 6.957e8 / (P.aAU * 1.496e11)), 0.35 * Math.PI / 360);

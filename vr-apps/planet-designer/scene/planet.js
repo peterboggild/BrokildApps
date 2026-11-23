@@ -4,8 +4,8 @@
  * estimate, an atmosphere rim (a preview until the scattering model of M3), the cutaway with the interior layers,
  * and simple looks for the other planet types. Radius 1 in scene units; heights are exaggerated (stated on screen). */
 import * as THREE from 'three';
-import { NOISE, TERRAIN, CUBESPHERE } from './glsl.js?v=5';
-import { seedOffsets } from '../physics/terrain.js?v=5';
+import { NOISE, TERRAIN, CUBESPHERE } from './glsl.js?v=6';
+import { seedOffsets } from '../physics/terrain.js?v=6';
 
 const GRID = 48;                          /* quads per chunk side */
 const MAX_LEVEL = 13;
@@ -120,11 +120,14 @@ float cloudDensity(vec3 n) {
   return smoothstep(th, th + 0.16, f) * smoothstep(th - 0.05, th + 0.5, f);
 }
 `;
-const TERRAIN_FS = NOISE + TERRAIN + ATMO + CLOUDS + /* glsl */`
-uniform float uSea, uRef, uK, uHasOcean, uCut;
-uniform float uLatT[36]; uniform float uHasEBM, uCloudH, uCloudShadow;
-uniform vec3 uSunLocal;
-/* annual-mean temperature from the climate model at x = sin(latitude) (or cos of the substellar angle) */
+const SURFACE = `
+/* The surface's colour and roughness at a point (shared by the live terrain shader and the baker). Climate from the
+ * climate model's latitudes (or the angle from the substellar point if locked), with the lapse rate; biomes only
+ * where life is possible; ice only where there is water; roughness 0.06 marks open water. */
+uniform float uSea, uRef, uK, uHasOcean;
+uniform float uLatT[36]; uniform float uHasEBM;
+uniform float uTs, uDT, uLocked, uLife, uRust, uRelief, uHasWater;
+uniform vec3 uSubstellar;
 float latT(float xx) {
   float f = (xx + 1.0) * 18.0 - 0.5;
   float i0 = clamp(floor(f), 0.0, 35.0), i1 = min(i0 + 1.0, 35.0);
@@ -133,9 +136,60 @@ float latT(float xx) {
   for (int i = 0; i < 36; i++) { if (float(i) == i0) a = uLatT[i]; if (float(i) == i1) b = uLatT[i]; }
   return mix(a, b, w);
 }
+vec4 surfaceAlbedo(vec3 n, float h, float c, float slope) {
+  bool water = uHasOcean > 0.5 && h < uSea;
+  /* climate at this point: latitude (or angle from the substellar point if locked) and elevation lapse rate */
+  float elevKm = max(h - uSea, 0.0) * uRelief / 1000.0;
+  float T = uHasEBM > 0.5 ? latT(uLocked > 0.5 ? dot(n, uSubstellar) : n.y)
+    : uLocked > 0.5 ? uTs + 55.0 * (dot(n, uSubstellar) - 0.25)
+    : uTs + uDT * (1.0 / 3.0 - n.y * n.y);
+  T -= 6.5 * elevKm;
+  T += 3.0 * snoise(n * 5.0 + uOc);                       /* weather-scale variation of the ice edge */
+
+  float tex = 0.85 + 0.3 * (0.5 + 0.5 * snoise(n * 140.0 + uOf)) * (0.6 + 0.4 * snoise(n * 31.0));
+  vec3 col;
+  float rough = 0.9;
+  if (water) {
+    float depthM = (uSea - h) * uRelief;
+    vec3 deep = vec3(0.004, 0.018, 0.055), shallow = vec3(0.03, 0.16, 0.17);
+    col = mix(deep, shallow, exp(-depthM / 160.0));
+    rough = 0.06;
+    if (T < -2.0) { col = vec3(0.78, 0.84, 0.9) * tex; rough = 0.5; }   /* sea ice */
+  } else {
+    /* moisture: wet near coasts, dry in continental interiors and the subtropical belts */
+    float latS = abs(n.y);
+    float m = 0.62 + 0.28 * snoise(n * 3.0 + uOe) + 0.12 * snoise(n * 11.0) - 0.22 * smoothstep(0.3, 0.7, c) - 0.4 * exp(-pow((latS - 0.4) / 0.1, 2.0));
+    vec3 rock = vec3(0.16, 0.145, 0.13), basalt = vec3(0.09, 0.085, 0.08), dust = vec3(0.42, 0.2, 0.09);
+    vec3 barren = mix(mix(rock, basalt, 0.5 + 0.5 * snoise(n * 20.0)), dust, uRust * (0.6 + 0.4 * snoise(n * 6.0 + uOd)));
+    col = barren;
+    if (uLife > 0.5) {
+      vec3 desert = vec3(0.42, 0.3, 0.17), grass = vec3(0.13, 0.15, 0.055), forest = vec3(0.035, 0.07, 0.025),
+           rain = vec3(0.02, 0.055, 0.015), tundra = vec3(0.17, 0.15, 0.11), boreal = vec3(0.03, 0.05, 0.03);
+      vec3 veg = T > 20.0 ? mix(desert, mix(grass, rain, smoothstep(0.45, 0.75, m)), smoothstep(0.2, 0.45, m))
+               : T > 5.0  ? mix(desert * 0.9, mix(grass, forest, smoothstep(0.4, 0.65, m)), smoothstep(0.15, 0.35, m))
+               : T > -5.0 ? mix(tundra, boreal, smoothstep(0.35, 0.6, m))
+               : tundra;
+      col = mix(veg, rock, smoothstep(0.25, 0.5, slope));
+      if (T < 0.0 || T > 45.0) col = mix(col, barren, 0.6);
+    }
+    /* beaches */
+    if (uHasOcean > 0.5) col = mix(vec3(0.5, 0.43, 0.3), col, smoothstep(0.0, 40.0, (h - uSea) * uRelief));
+    /* snow and ice, not on steep cliffs */
+    float snow = smoothstep(-9.0, -15.0, T + 4.0 * snoise(n * 60.0 + uOd)) * (1.0 - smoothstep(0.3, 0.55, slope));
+    /* no water, no snow: a dry world keeps only small polar caps of frost */
+    if (uHasWater < 0.5) snow = smoothstep(0.9, 0.95, abs(n.y) + 0.02 * snoise(n * 30.0)) * smoothstep(-40.0, -60.0, T) * 0.9;
+    col = mix(col * tex, vec3(0.86, 0.89, 0.93), snow);
+    rough = mix(0.9, 0.6, snow);
+  }
+
+  return vec4(col, rough);
+}
+`;
+const TERRAIN_FS = NOISE + TERRAIN + ATMO + CLOUDS + SURFACE + /* glsl */`
+uniform float uCut, uCloudH, uCloudShadow;
+uniform vec3 uSunLocal;
 uniform vec3 uSunDir, uSunColor, uAtmColor;
-uniform float uTs, uDT, uLocked, uLife, uRust, uRelief, uAtmDensity, uPixelAngle, uHasWater, uOctMax, uFDNormals;
-uniform vec3 uSubstellar;
+uniform float uAtmDensity, uPixelAngle, uOctMax, uFDNormals;
 uniform mat4 modelMatrix;
 varying vec3 vN; varying vec3 vWP; varying vec3 vWN;
 
@@ -178,51 +232,11 @@ void main() {
   vec3 L = normalize(uSunDir);
   vec3 V = normalize(cameraPosition - vWP);
 
-  /* climate at this point: latitude (or angle from the substellar point if locked) and elevation lapse rate */
-  float elevKm = max(h - uSea, 0.0) * uRelief / 1000.0;
-  float T = uHasEBM > 0.5 ? latT(uLocked > 0.5 ? dot(n, uSubstellar) : n.y)
-    : uLocked > 0.5 ? uTs + 55.0 * (dot(n, uSubstellar) - 0.25)
-    : uTs + uDT * (1.0 / 3.0 - n.y * n.y);
-  T -= 6.5 * elevKm;
-  T += 3.0 * snoise(n * 5.0 + uOc);                       /* weather-scale variation of the ice edge */
-
   float slope = 1.0 - clamp(dot(N, N0), 0.0, 1.0);
-  float tex = 0.85 + 0.3 * (0.5 + 0.5 * snoise(n * 140.0 + uOf)) * (0.6 + 0.4 * snoise(n * 31.0));
-  vec3 col;
-  float rough = 0.9;
-  if (water) {
-    float depthM = (uSea - h) * uRelief;
-    vec3 deep = vec3(0.004, 0.018, 0.055), shallow = vec3(0.03, 0.16, 0.17);
-    col = mix(deep, shallow, exp(-depthM / 160.0));
-    rough = 0.06;
-    if (T < -2.0) { col = vec3(0.78, 0.84, 0.9) * tex; rough = 0.5; water = false; }   /* sea ice */
-  } else {
-    /* moisture: wet near coasts, dry in continental interiors and the subtropical belts */
-    float latS = abs(n.y);
-    float m = 0.62 + 0.28 * snoise(n * 3.0 + uOe) + 0.12 * snoise(n * 11.0) - 0.22 * smoothstep(0.3, 0.7, c) - 0.4 * exp(-pow((latS - 0.4) / 0.1, 2.0));
-    vec3 rock = vec3(0.16, 0.145, 0.13), basalt = vec3(0.09, 0.085, 0.08), dust = vec3(0.42, 0.2, 0.09);
-    vec3 barren = mix(mix(rock, basalt, 0.5 + 0.5 * snoise(n * 20.0)), dust, uRust * (0.6 + 0.4 * snoise(n * 6.0 + uOd)));
-    col = barren;
-    if (uLife > 0.5) {
-      vec3 desert = vec3(0.42, 0.3, 0.17), grass = vec3(0.13, 0.15, 0.055), forest = vec3(0.035, 0.07, 0.025),
-           rain = vec3(0.02, 0.055, 0.015), tundra = vec3(0.17, 0.15, 0.11), boreal = vec3(0.03, 0.05, 0.03);
-      vec3 veg = T > 20.0 ? mix(desert, mix(grass, rain, smoothstep(0.45, 0.75, m)), smoothstep(0.2, 0.45, m))
-               : T > 5.0  ? mix(desert * 0.9, mix(grass, forest, smoothstep(0.4, 0.65, m)), smoothstep(0.15, 0.35, m))
-               : T > -5.0 ? mix(tundra, boreal, smoothstep(0.35, 0.6, m))
-               : tundra;
-      col = mix(veg, rock, smoothstep(0.25, 0.5, slope));
-      if (T < 0.0 || T > 45.0) col = mix(col, barren, 0.6);
-    }
-    /* beaches */
-    if (uHasOcean > 0.5) col = mix(vec3(0.5, 0.43, 0.3), col, smoothstep(0.0, 40.0, (h - uSea) * uRelief));
-    /* snow and ice, not on steep cliffs */
-    float snow = smoothstep(-9.0, -15.0, T + 4.0 * snoise(n * 60.0 + uOd)) * (1.0 - smoothstep(0.3, 0.55, slope));
-    /* no water, no snow: a dry world keeps only small polar caps of frost */
-    if (uHasWater < 0.5) snow = smoothstep(0.9, 0.95, abs(n.y) + 0.02 * snoise(n * 30.0)) * smoothstep(-40.0, -60.0, T) * 0.9;
-    col = mix(col * tex, vec3(0.86, 0.89, 0.93), snow);
-    rough = mix(0.9, 0.6, snow);
-  }
-
+  vec4 sa = surfaceAlbedo(n, h, c, slope);
+  vec3 col = sa.rgb;
+  float rough = sa.a;
+  water = rough < 0.1;
   /* lighting: sunlight reddened by its path through the air, skylight, cloud shadows, and the ocean's glint.
    * The air between the ground and the eye is added by the atmosphere shell drawn on top. */
   float mu0 = dot(N0, L);
@@ -309,11 +323,15 @@ void main() {
 const CLOUD_VS = `varying vec3 vN; varying vec3 vWN; void main() { vN = normalize(position); vWN = normalize(mat3(modelMatrix) * normal);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const CLOUD_FS = NOISE + ATMO + CLOUDS + /* glsl */`
-uniform vec3 uSunDir, uSunColor, uAtmColor, uCloudTint; uniform float uCut;
+uniform vec3 uSunDir, uSunColor, uAtmColor, uCloudTint; uniform float uCut, uUseCloudTex, uCloudShift;
+uniform sampler2D uCloudTex;
+vec2 equiUvC(vec3 n) { return vec2(atan(n.z, n.x) / 6.2831853 + 0.5, asin(clamp(n.y, -1.0, 1.0)) / 3.1415927 + 0.5); }
 varying vec3 vN; varying vec3 vWN;
 void main() {
   if (uCut > 0.5 && vN.x > 0.0 && vN.z > 0.0) discard;
-  float d = cloudDensity(vN);
+  float d;
+  if (uUseCloudTex > 0.5) { vec2 cuv = equiUvC(normalize(vN)); d = textureLod(uCloudTex, vec2(fract(cuv.x + uCloudShift), cuv.y), 0.0).r; }
+  else d = cloudDensity(vN);
   if (d < 0.02) discard;
   vec3 N = normalize(vWN), L = normalize(uSunDir);
   float mu = dot(N, L);
@@ -327,17 +345,24 @@ void main() {
 
 /* Cut faces of the cutaway: half-discs in the local planes x = 0 (z > 0) and z = 0 (x > 0), coloured by layer. */
 const CAP_FS = NOISE + TERRAIN + /* glsl */`
-uniform float uSea, uRef, uK, uTime;
+uniform float uSea, uRef, uK, uTime, uHasBake;
+uniform sampler2D uTexB;
 uniform float uRi, uRc, uRm, uRr;   /* inner core, core, mantle top (base of crust), rock surface: radii in planet radii */
 uniform vec3 uSunDir, uSunColor;
 varying vec3 vLP; varying vec3 vWN;
 void main() {
   float r = length(vLP);
   vec3 dir = vLP / max(r, 1e-6);
-  float h = terrainH(dir, 4.0);
-  float surf = 1.0 + (max(h, uSea) - uRef) * uK;
+  /* the surface's edge: from the baked height texture when there is one (cheap), else from the height function */
+  float surf, rock;
+  if (uHasBake > 0.5) {
+    vec2 uv = vec2(atan(dir.z, dir.x) / 6.2831853 + 0.5, asin(clamp(dir.y, -1.0, 1.0)) / 3.1415927 + 0.5);
+    surf = 1.0 + textureLod(uTexB, uv, 0.0).a; rock = surf;
+  } else {
+    float h = terrainH(dir, 4.0);
+    surf = 1.0 + (max(h, uSea) - uRef) * uK; rock = 1.0 + (h - uRef) * uK;
+  }
   if (r > surf) discard;
-  float rock = 1.0 + (h - uRef) * uK;
   float t = uTime;
   vec3 col; float glow = 0.0;
   float edge = 0.004;
@@ -404,6 +429,89 @@ void main() {
 const OTHER_VS = `varying vec3 vN; varying vec3 vWN; varying vec3 vWP; void main() { vN = position; vWN = normalize(mat3(modelMatrix) * normal);
   vWP = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vWP, 1.0); }`;
 
+
+/* ---------- The baked planet (Quest 3 and the "low" setting) ----------
+ * The live terrain shader evaluates the whole height function for every pixel of every frame: fine on a PC graphics
+ * card, too much for a headset at 3.5 m and two eyes (it brought the Quest's graphics down). Here the surface is
+ * evaluated once per design change into equirectangular textures (colour and roughness; local normal and the
+ * displaced height), a band of rows per frame so no single frame is heavy, and drawn on a plain sphere. */
+const BAKE_W = 2048, BAKE_H = 1024, BAKE_ROWS = 16;      /* rows per frame: small, so no frame gets heavy on a headset */
+const BAKE_VS = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+const BAKE_FS = NOISE + TERRAIN + SURFACE + /* glsl */`
+uniform float uPass;
+varying vec2 vUv;
+void main() {
+  float lon = (vUv.x - 0.5) * 6.2831853, lat = (vUv.y - 0.5) * 3.1415927;
+  vec3 n = vec3(cos(lat) * cos(lon), sin(lat), cos(lat) * sin(lon));
+  float c, land, mm;
+  float h = terrainH(n, 9.0, c, land, mm);
+  vec3 t1 = normalize(cross(n, abs(n.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
+  vec3 t2 = cross(n, t1);
+  float eps = 3.1415927 / float(${BAKE_H});
+  float ha = terrainH(normalize(n + t1 * eps), 9.0), hb = terrainH(normalize(n + t2 * eps), 9.0);
+  float k = uK / eps;
+  vec3 nL = normalize(n - t1 * (max(ha, uSea) - max(h, uSea)) * k - t2 * (max(hb, uSea) - max(h, uSea)) * k);
+  float slope = 1.0 - clamp(dot(nL, n), 0.0, 1.0);
+  if (uPass < 0.5) gl_FragColor = surfaceAlbedo(n, h, c, slope);
+  else gl_FragColor = vec4(nL, (max(h, uSea) - uRef) * uK);
+}`;
+const CLOUDBAKE_FS = NOISE + CLOUDS + /* glsl */`
+varying vec2 vUv;
+void main() {
+  float lon = (vUv.x - 0.5) * 6.2831853, lat = (vUv.y - 0.5) * 3.1415927;
+  gl_FragColor = vec4(cloudDensity(vec3(cos(lat) * cos(lon), sin(lat), cos(lat) * sin(lon))), 0.0, 0.0, 1.0);
+}`;
+/* equirect lookup without the seam: textureLod at level 0 (no mip maps, so no seam line across the sphere) */
+const EQUI = /* glsl */`
+vec2 equiUv(vec3 n) { return vec2(atan(n.z, n.x) / 6.2831853 + 0.5, asin(clamp(n.y, -1.0, 1.0)) / 3.1415927 + 0.5); }
+`;
+const BAKEDPLANET_VS = EQUI + /* glsl */`
+uniform sampler2D uTexB; uniform float uHasBake;
+varying vec3 vN; varying vec3 vWP; varying vec3 vWN;
+void main() {
+  vec3 n = normalize(position);
+  float h = uHasBake > 0.5 ? textureLod(uTexB, equiUv(n), 0.0).a : 0.0;
+  vN = n;
+  vWN = normalize(mat3(modelMatrix) * n);
+  vWP = (modelMatrix * vec4(n * (1.0 + h), 1.0)).xyz;
+  gl_Position = projectionMatrix * viewMatrix * vec4(vWP, 1.0);
+}`;
+const BAKEDPLANET_FS = EQUI + ATMO + /* glsl */`
+uniform sampler2D uTexA, uTexB, uCloudTex; uniform float uHasBake, uCut, uCloudShift, uCloudShadow, uCloudH;
+uniform vec3 uSunDir, uSunColor, uAtmColor, uSunLocal;
+uniform mat4 modelMatrix;
+varying vec3 vN; varying vec3 vWP; varying vec3 vWN;
+void main() {
+  if (uCut > 0.5 && vN.x > 0.0 && vN.z > 0.0) discard;
+  vec3 n = normalize(vN);
+  vec2 uv = equiUv(n);
+  vec4 A = uHasBake > 0.5 ? textureLod(uTexA, uv, 0.0) : vec4(0.2, 0.22, 0.25, 0.9);
+  vec3 nL = uHasBake > 0.5 ? normalize(textureLod(uTexB, uv, 0.0).xyz) : n;
+  vec3 N0 = normalize(vWN), N = normalize(mat3(modelMatrix) * nL);
+  vec3 L = normalize(uSunDir), V = normalize(cameraPosition - vWP);
+  bool water = A.a < 0.1;
+  float mu0 = dot(N0, L);
+  vec3 sun = uSunColor * sunTrans(mu0);
+  float shade = 1.0;
+  if (uCloudShadow > 0.5 && mu0 > 0.0) {
+    vec2 cuv = equiUv(normalize(n + uSunLocal * uCloudH / max(mu0, 0.15)));
+    shade = 1.0 - 0.6 * textureLod(uCloudTex, vec2(fract(cuv.x + uCloudShift), cuv.y), 0.0).r;
+  }
+  float NdL = max(dot(N, L), 0.0);
+  vec3 lit = A.rgb * sun * NdL * shade + A.rgb * uAtmColor * 0.08 * smoothstep(-0.2, 0.25, mu0);
+  if (water) {
+    vec3 Hh = normalize(L + V);
+    float NdH = max(dot(N0, Hh), 0.0);
+    float a2 = 0.0036;
+    float D = a2 / (3.14159 * pow(NdH * NdH * (a2 - 1.0) + 1.0, 2.0));
+    float F = 0.02 + 0.98 * pow(1.0 - max(dot(V, N0), 0.0), 5.0);
+    lit += sun * shade * min(D * F, 6.0) * NdL * 0.5 + uAtmColor * F * 0.2 * smoothstep(-0.1, 0.2, mu0);
+  }
+  gl_FragColor = vec4(lit, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+
 export function createPlanet() {
   const root = new THREE.Group();          /* tilted by obliquity */
   const spin = new THREE.Group();          /* turns about the local y axis */
@@ -412,6 +520,8 @@ export function createPlanet() {
   /* the air (shared by terrain, clouds and the atmosphere shell) and the clouds (shared by terrain and clouds) */
   const airU = { uTauR: { value: new THREE.Vector3(0.046, 0.108, 0.265) }, uTauM: { value: 0.08 }, uMieTint: { value: new THREE.Vector3(1, 1, 1) },
     uMieColor: { value: new THREE.Vector3(1, 1, 1) } };
+  const bakedU = { uTexA: { value: null }, uTexB: { value: null }, uCloudTex: { value: null }, uHasBake: { value: 0 },
+    uUseCloudTex: { value: 0 }, uCloudShift: { value: 0 } };
   const cloudU = { uCloudFrac: { value: 0.6 }, uCloudTime: { value: 0 }, uCloudOct: { value: 5 }, uCloudLocked: { value: 0 },
     uCloudSeed: { value: new THREE.Vector3(3, 1, 4) }, uCloudSub: { value: new THREE.Vector3(1, 0, 0) } };
   const light = {
@@ -501,7 +611,8 @@ export function createPlanet() {
 
   /* clouds */
   const cloudMat = new THREE.ShaderMaterial({
-    uniforms: { ...light, ...airU, ...cloudU, uCloudTint: { value: new THREE.Color(1, 1, 1) }, uCut: common.uCut },
+    uniforms: { ...light, ...airU, ...cloudU, uCloudTint: { value: new THREE.Color(1, 1, 1) }, uCut: common.uCut,
+      uUseCloudTex: bakedU.uUseCloudTex, uCloudTex: bakedU.uCloudTex, uCloudShift: bakedU.uCloudShift },
     vertexShader: CLOUD_VS, fragmentShader: CLOUD_FS, transparent: true, depthWrite: false,
     blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
   });
@@ -509,9 +620,69 @@ export function createPlanet() {
   clouds.renderOrder = 5;
   spin.add(clouds);
 
+  /* the baked planet and its baker */
+  const bakedMat = new THREE.ShaderMaterial({
+    uniforms: { ...light, ...airU, ...bakedU, uCut: common.uCut, uCloudShadow: { value: 1 }, uCloudH: { value: 0.01 },
+      uSunLocal: { value: new THREE.Vector3(1, 0, 0) } },
+    vertexShader: BAKEDPLANET_VS, fragmentShader: BAKEDPLANET_FS,
+  });
+  const baked = new THREE.Mesh(new THREE.SphereGeometry(1, 384, 192), bakedMat);
+  baked.visible = false;
+  spin.add(baked);
+  let useBaked = false;
+  const bake = { key: null, row: BAKE_H, pass: 0, cloudsDone: true, rtA: null, rtB: null, rtC: null, scene: null, cam: null, mat: null, cmat: null, quad: null };
+  function bakeTargets() {
+    if (bake.rtA) return;
+    const opt = { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false,
+      wrapS: THREE.RepeatWrapping, generateMipmaps: false };
+    bake.rtA = new THREE.WebGLRenderTarget(BAKE_W, BAKE_H, opt);
+    bake.rtB = new THREE.WebGLRenderTarget(BAKE_W, BAKE_H, opt);
+    bake.rtC = new THREE.WebGLRenderTarget(BAKE_W / 2, BAKE_H / 2, opt);
+    for (const rt of [bake.rtA, bake.rtB, bake.rtC]) rt.texture.wrapS = THREE.RepeatWrapping;
+    bake.mat = new THREE.ShaderMaterial({ uniforms: { ...terrainMat.uniforms, uPass: { value: 0 } }, vertexShader: BAKE_VS, fragmentShader: BAKE_FS, depthTest: false, depthWrite: false });
+    bake.cmat = new THREE.ShaderMaterial({ uniforms: { ...cloudU }, vertexShader: BAKE_VS, fragmentShader: CLOUDBAKE_FS, depthTest: false, depthWrite: false });
+    bake.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bake.mat);
+    bake.quad.frustumCulled = false;
+    bake.scene = new THREE.Scene(); bake.scene.add(bake.quad);
+    bake.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    bakedU.uTexA.value = bake.rtA.texture; bakedU.uTexB.value = bake.rtB.texture; bakedU.uCloudTex.value = bake.rtC.texture;
+  }
+  /* Restart the bake when anything that shapes the surface changes. */
+  function bakeKey() {
+    const u = terrainMat.uniforms;
+    return JSON.stringify([common.uOa.value, common.uOf.value, common.uSea.value, common.uRef.value, common.uK.value, common.uHasOcean.value,
+      u.uHasEBM.value, u.uLatT.value.map((x) => Math.round(x * 10)), u.uTs.value, u.uDT.value, u.uLocked.value, u.uLife.value, u.uRust.value,
+      u.uRelief.value, u.uHasWater.value, cloudU.uCloudFrac.value, cloudU.uCloudLocked.value, cloudU.uCloudSeed.value]);
+  }
+  /* Bake a band of rows; call once per frame before rendering. Returns true while work remains. */
+  function bakeStep(renderer) {
+    if (!useBaked || !isHz) return false;
+    const key = bakeKey();
+    if (key !== bake.key) { bakeTargets(); bake.key = key; bake.row = 0; bake.pass = 0; bake.cloudsDone = false; }
+    if (bake.row >= BAKE_H && bake.cloudsDone) return false;
+    const prevTarget = renderer.getRenderTarget(), prevXR = renderer.xr.enabled;
+    renderer.xr.enabled = false;                          /* render the bake as a plain off-screen pass */
+    if (bake.row < BAKE_H) {
+      const rt = bake.pass === 0 ? bake.rtA : bake.rtB;
+      bake.quad.material = bake.mat;
+      bake.mat.uniforms.uPass.value = bake.pass;
+      rt.scissorTest = true; rt.scissor.set(0, bake.row, BAKE_W, BAKE_ROWS); rt.viewport.set(0, 0, BAKE_W, BAKE_H);
+      renderer.setRenderTarget(rt); renderer.render(bake.scene, bake.cam);
+      if (bake.pass === 0) bake.pass = 1; else { bake.pass = 0; bake.row += BAKE_ROWS; }
+      if (bake.row >= BAKE_H) bakedU.uHasBake.value = 1;
+    } else {
+      bake.quad.material = bake.cmat;
+      renderer.setRenderTarget(bake.rtC); renderer.render(bake.scene, bake.cam);
+      bake.cloudsDone = true;
+    }
+    renderer.setRenderTarget(prevTarget);
+    renderer.xr.enabled = prevXR;
+    return true;
+  }
+
   /* cutaway caps */
   const capMat = new THREE.ShaderMaterial({
-    uniforms: { ...common, ...light, uTime: { value: 0 }, uRi: { value: 0.19 }, uRc: { value: 0.55 }, uRm: { value: 0.99 }, uRr: { value: 1 } },
+    uniforms: { ...common, ...light, uHasBake: bakedU.uHasBake, uTexB: bakedU.uTexB, uTime: { value: 0 }, uRi: { value: 0.19 }, uRc: { value: 0.55 }, uRm: { value: 0.99 }, uRr: { value: 1 } },
     vertexShader: CAP_VS, fragmentShader: CAP_FS, side: THREE.DoubleSide, extensions: { derivatives: true },
   });
   /* geometry is built in planet-local coordinates (the shader reads the position as the local point) */
@@ -609,6 +780,7 @@ export function createPlanet() {
     cloudU.uCloudSeed.value.set(O.e[0] * 0.1, O.e[1] * 0.1, O.e[2] * 0.1);
     const ch = Math.min(0.02, Math.max(0.003, 6 / (Rm / 1000) * exag));
     u.uCloudH.value = ch;
+    bakedMat.uniforms.uCloudH.value = ch;
     clouds.scale.setScalar(1 + ch);
     cloudMat.uniforms.uCloudTint.value.setRGB(...(P.climate.runaway ? [0.95, 0.86, 0.62] : [1, 1, 1]));
     /* the climate model's temperatures by latitude */
@@ -625,7 +797,11 @@ export function createPlanet() {
   }
 
   function tick(t, camera, sunDirWorld, spinOn, pixelAngle) {
-    if (spinOn) spin.rotation.y = t * 0.03;
+    /* a locked planet keeps one face to its star: it does not turn in the picture either */
+    if (spinOn && !terrainMat.uniforms.uLocked.value) spin.rotation.y = t * 0.03;
+    bakedU.uCloudShift.value = useBaked ? (t * 0.0015) % 1 : 0;
+    bakedU.uUseCloudTex.value = useBaked && bake.cloudsDone && bake.key ? 1 : 0;
+    baked.visible = isHz && useBaked;
     light.uSunDir.value.copy(sunDirWorld);
     atmMat.uniforms.uCenter.value.setFromMatrixPosition(root.matrixWorld);
     capMat.uniforms.uTime.value = t;
@@ -639,6 +815,8 @@ export function createPlanet() {
       terrainMat.uniforms.uSunLocal.value.copy(sl);
       cloudU.uCloudSub.value.copy(sl);
       atmMat.uniforms.uToLocal.value.copy(inv);
+      bakedMat.uniforms.uSunLocal.value.copy(sl);
+      if (useBaked) { for (const m of pool) m.visible = false; used = 0; return 1; }
       return updateLOD(camera);
     }
     return 1;
@@ -649,7 +827,11 @@ export function createPlanet() {
     /* split, fragment octaves, per-pixel normals, cloud octaves, cloud shadows, atmosphere steps */
     const Q = { high: [5.0, 13, 1, 6, 1, 16], medium: [3.5, 11, 1, 5, 1, 12], low: [2.2, 8, 0, 3, 0, 8] }[q] || [5.0, 13, 1, 6, 1, 16];
     LOD_SPLIT = Q[0]; terrainMat.uniforms.uOctMax.value = Q[1]; terrainMat.uniforms.uFDNormals.value = Q[2];
-    cloudU.uCloudOct.value = Q[3]; terrainMat.uniforms.uCloudShadow.value = Q[4]; atmMat.uniforms.uSteps.value = Q[5];
+    cloudU.uCloudOct.value = q === 'low' ? 5 : Q[3]; terrainMat.uniforms.uCloudShadow.value = Q[4]; atmMat.uniforms.uSteps.value = Q[5];
+    /* low = the baked planet (cheap per frame; used in VR and on the Quest's flat page) */
+    useBaked = q === 'low';
+    bakedMat.uniforms.uCloudShadow.value = 1;
   }
-  return { group: root, spin, set, tick, info, caps, setQuality, get chunks() { return used; } };
+  return { group: root, spin, set, tick, info, caps, setQuality, bakeStep, get baked() { return useBaked; }, get bakeDone() { return bake.row >= BAKE_H && bake.cloudsDone; }, get bakeProgress() { return bake.key ? Math.min(1, bake.row / BAKE_H) : 0; },
+    get chunks() { return useBaked ? (bakedU.uHasBake.value ? 1 : 0) : used; } };
 }

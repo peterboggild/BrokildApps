@@ -45,7 +45,9 @@ function aimQuat(dir) {
   let s = await ev(() => { const X = window.__pd.view.xr; return { session: !!X.VR.session, frames: X.VR.frames, ws: X.ws.root.visible, panel: X.panel.mesh.visible, chunks: window.__pd.view.state.chunks }; });
   ok('VR session runs and the workshop is shown', s.session && s.ws && s.frames >= 4, JSON.stringify(s));
   ok('panel opens on entering', s.panel);
-  ok('the planet in the cradle draws terrain chunks', s.chunks > 6, `chunks ${s.chunks}`);
+  /* in VR the planet is the light, baked version (the live terrain shader brought a real Quest 3 down) */
+  const pb = await ev(() => ({ baked: window.__pd.view.planet.baked, q: window.__pd.view.state.quality, prog: window.__pd.view.planet.bakeProgress }));
+  ok('the planet in the cradle is the light baked version, and baking has started', pb.baked && pb.q === 'low' && pb.prog > 0, JSON.stringify(pb));
   if (out) await p.screenshot({ path: out + '/xr-1-enter.png' });
 
   /* panel: click the Planet tab, then the + of the first slider */
