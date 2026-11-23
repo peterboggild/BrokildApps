@@ -1,16 +1,16 @@
 /* derive(design) -> every derived number the panel and the ledger show. Pure; recomputed on every change. */
 import { starAt, parRelativeToSun, snowLineAU, peakWavelength, blackbodyRGB, activityAuto, spectralLetter,
-  STAR_MASS_HZ_VALID } from './star.js?v=9';
-import { habitableZone, hzPosition, timeInHZ } from './hz.js?v=9';
+  STAR_MASS_HZ_VALID } from './star.js?v=11';
+import { habitableZone, hzPosition, timeInHZ } from './hz.js?v=11';
 import { periodYears, fluxEarth, eccMeanFactor, periApoFlux, hillRadiusAU, mutualHillSpacing, tidalLockBand,
-  moonInfo } from './orbit.js?v=9';
-import { bulk, layers } from './structure.js?v=9';
+  moonInfo } from './orbit.js?v=11';
+import { bulk, layers } from './structure.js?v=11';
 import { composition, atmosphereMass, scaleHeight, jeansLambda, T_EXO_EARTH, satVapourPa, boilingPointK,
-  hasOzone, climate0D, bondAlbedo, TRIPLE_POINT_PA } from './atmosphere.js?v=9';
-import { seaLevel, reliefMeters } from './terrain.js?v=9';
-import { MOLAR, OCEAN_MASS, M_EARTH, RHO_WATER } from './const.js?v=9';
-import { xuvEnvironment, shorelineI, cosmicDose } from './space.js?v=9';
-import { wetBulb, runEBM } from './climate.js?v=9';
+  hasOzone, climate0D, bondAlbedo, TRIPLE_POINT_PA } from './atmosphere.js?v=11';
+import { seaLevel, reliefMeters } from './terrain.js?v=11';
+import { MOLAR, OCEAN_MASS, M_EARTH, RHO_WATER } from './const.js?v=11';
+import { xuvEnvironment, shorelineI, cosmicDose } from './space.js?v=11';
+import { wetBulb, runEBM } from './climate.js?v=11';
 
 /* Default bulk densities for the simplified planets (kg/m^3), giving a radius from the mass:
  * rocky like Earth, icy like Ganymede/Callisto-type bodies, ice giant like Neptune, gas giant like Jupiter. */

@@ -1,7 +1,7 @@
 /* Charts as inline SVG (no library): temperature by latitude from the climate model, and the cosmic shoreline.
  * Axes, units and labels beside the data (owner rule); colours via CSS classes so both themes read. */
-import { t, fmt, esc } from '../i18n.js?v=9';
-import { SOLAR_BODIES, shorelineI } from '../physics/space.js?v=9';
+import { t, fmt, esc } from '../i18n.js?v=11';
+import { SOLAR_BODIES, shorelineI } from '../physics/space.js?v=11';
 
 const W = 340, H = 210, L = 40, R = 12, T = 14, B = 34;
 const px = (v, a, b) => L + (v - a) / (b - a) * (W - L - R);

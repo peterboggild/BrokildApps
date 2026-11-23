@@ -2,8 +2,8 @@
  * 0.80 x 0.54 m tablet. Tabs, a scrolling column of rows, sliders with - and + (auto-repeat), chips, readouts and
  * headings. Hit testing in canvas pixels; the caller maps a controller ray to (px, py). */
 import * as THREE from 'three';
-import { TABS, LEVELS } from './schema.js?v=9';
-import { t, fmt } from '../i18n.js?v=9';
+import { TABS, LEVELS } from './schema.js?v=11';
+import { t, fmt } from '../i18n.js?v=11';
 
 export const PW = 0.8, PH = 0.54;          /* metres */
 const W = 1200, H = 810;
@@ -106,6 +106,9 @@ export function createVRPanel(S) {
       c('v.time', [['pause', 0], ['real', 1 / 3.15576e7], ['h', 3600 / 3.15576e7], ['d', 86400 / 3.15576e7], ['std', 0.0637]].map(([k, ts]) => ({
         label: t('vr.time.' + k), on: k === 'pause' ? V.paused : !V.paused && Math.abs(V.timeScale / ts - 1) < 0.01,
         act: () => { if (k === 'pause') V.paused = true; else { V.paused = false; V.timeScale = ts; } } }))),
+      c('snd.music', [true, false].map((v) => ({ label: t(v ? 'snd.on' : 'snd.off'), on: S.audio && S.audio.prefs.music === v, act: () => S.audio && S.audio.setPref('music', v) }))),
+      c('snd.fx', [true, false].map((v) => ({ label: t(v ? 'snd.on' : 'snd.off'), on: S.audio && S.audio.prefs.fx === v, act: () => S.audio && S.audio.setPref('fx', v) }))),
+      c('snd.vol', [[0.35, 'snd.low'], [0.7, 'snd.mid'], [1, 'snd.high']].map(([v, k]) => ({ label: t(k), on: S.audio && Math.abs(S.audio.prefs.vol - v) < 0.01, act: () => S.audio && S.audio.setPref('vol', v) }))),
       c('vr.zoom', [1, 3, 10, 30].map((z) => ({ label: '×' + z, on: S.xr && S.xr.zoom === z, act: () => S.xr && S.xr.setZoom(z) }))),
       c('v.exag', [5, 10, 20].map((x) => ({ label: '×' + x, on: V.exag === x, act: () => { V.exag = x; S.view.refresh(); } }))),
       c('vr.quality', ['low', 'medium'].map((q) => ({ label: t('v.q.' + q), on: V.quality === q, act: () => S.view.setQuality(q, true) }))),

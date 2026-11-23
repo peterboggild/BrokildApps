@@ -1,5 +1,5 @@
 /* Worker entry for the heavy models (spec §10.6): the energy balance model now, the time machine later. */
-import { runEBM } from './climate.js?v=9';
+import { runEBM } from './climate.js?v=11';
 
 self.onmessage = (ev) => {
   const { id, key, params } = ev.data;

@@ -100,6 +100,24 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 - **Følg planeten** (PC): kameraet følger den valgte planet, og man kan zoome helt tæt på.
 - **Zoom på bordet** (VR-fanen, ×1, ×3, ×10 eller ×30): solsystemet vokser omkring den valgte planet, som holdes midt over bordet. Ved ×30 er den beboelige zone over 2 m bred.
 
+## Lyd (`audio.js`)
+
+Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges lydfiler, han ikke selv har leveret.
+
+- **Hver ændring har en lyd.**
+  - Værdier giver små klik. Tonehøjden følger værdien, og en planet, der trækkes udad, falder i tone. Klikkene kommer højst hver 40. ms og kun ved hørbare trin, så en drejeknap lyder som en skralde og ikke som en summen.
+  - Knapper og faner klikker.
+  - Når man tilføjer noget, spiller en klokke opad, og når man fjerner noget, spiller den nedad.
+  - Startpunkter og at gå ind i VR giver et "sus".
+- **Tavlen synger.** Et trin, der nås, spiller en lys akkord (flere toner for højere trin). Et trin, der mistes, giver en mørk tone. Det sker kun på klimamodellens dom og højst hver 0,6 s.
+- **Ambient-musik:**
+  - Flader af to let forskudte oscillatorer gennem et lavpasfilter med langsom optoning, i en langsom akkordrække (cirka 18 s pr. akkord).
+  - En dyb grundtone og spredte FM-klokker med 5–14 s mellemrum.
+  - En svag, båndfiltreret "rumvind".
+  - Stjernens temperatur bestemmer toneart og lyshed (kold stjerne: lavere og mørkere), og det skifter ved næste akkord.
+- **Let for Quest:** én kort rumklang (2,6 s), ingen rumlig lyd, og stemmer, der er færdige, kobles fra.
+- **Start:** browsere kræver et klik, før der må komme lyd. "Musik" og "Lyde" findes i toppen af siden og i VR-fanen (sammen med lydstyrke), og valgene huskes.
+
 ## Filer
 
 | Fil | Indhold |
@@ -118,7 +136,7 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
 | `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=9`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=11`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 

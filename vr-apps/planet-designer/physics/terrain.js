@@ -2,7 +2,7 @@
  * scaled by 1/g), shared with the GPU (scene/glsl.js, function terrainH). Here it is used for the hypsometry:
  * the distribution of heights, from which the sea level follows from the ocean volume, and the land fraction
  * from the sea level (spec §4.7). Pure functions; the same seed gives the same planet everywhere. */
-import { snoise, GRAD } from './noise.js?v=9';
+import { snoise, GRAD } from './noise.js?v=11';
 
 /* Seed -> offsets into noise space (passed to the GPU as uniforms, so both sides use the same numbers). */
 export function seedOffsets(seed) {

@@ -19,7 +19,7 @@ const screenPos = (p, which) => p.evaluate((which) => {
 
 (async () => {
   const out = process.argv[2];
-  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
+  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const p = await b.newPage({ viewport: { width: 1500, height: 900 } });
   const errs = [];
   let fails = 0;
@@ -83,12 +83,34 @@ const screenPos = (p, which) => p.evaluate((which) => {
   check('Cutaway labels the four layers of Earth', labels.length === 4, JSON.stringify(labels));
   if (out) await p.screenshot({ path: out + '/t-cut.png' });
 
+  /* sound: the first click starts it; a value change ticks; the music plays; a tier lost and regained sings */
+  await p.click('#fxBtn'); await p.click('#fxBtn');
+  await p.evaluate(() => new Promise((res) => setTimeout(res, 300)));
+  const st = await p.evaluate(() => ({ state: window.__pd.audio.ctx && window.__pd.audio.ctx.state, fx: window.__pd.audio.stats.fx }));
+  check('Sound starts on the first click', st.state === 'running', JSON.stringify(st));
+  const fx0 = await p.evaluate(() => window.__pd.audio.stats.fx);
+  await p.evaluate(() => window.__pd.set('star.massSun', 0.9));
+  check('A change makes a sound', (await p.evaluate(() => window.__pd.audio.stats.fx)) > fx0);
+  await p.evaluate(() => new Promise((res) => setTimeout(res, 3500)));
+  const lvl = await p.evaluate(() => window.__pd.audio.level());
+  check('The ambient music is playing', lvl > 1e-4, `rms ${lvl.toExponential(1)}`);
+  await p.evaluate(() => window.__pd.loadPreset('solar'));
+  await p.waitForFunction(() => window.__pd.derivedPlanet().ebm, null, { timeout: 60000 });
+  await p.evaluate(() => new Promise((res) => setTimeout(res, 700)));
+  const fx1 = await p.evaluate(() => window.__pd.audio.stats.fx);
+  await p.evaluate(() => window.__pd.set('planet.orbit.aAU', 1.2));
+  await p.waitForFunction(() => window.__pd.derivedPlanet().ebm && window.__pd.derivedPlanet().aAU === 1.2, null, { timeout: 60000 });
+  await p.evaluate(() => new Promise((res) => setTimeout(res, 1500)));
+  const fx2 = await p.evaluate(() => window.__pd.audio.stats.fx);
+  check('Losing the human tiers plays the ledger sound', fx2 >= fx1 + 3, `${fx1} -> ${fx2}`);
+  await p.evaluate(() => window.__pd.set('planet.orbit.aAU', 1.0));
+
   /* panel, language, share link, phone width (from M0) */
   await p.click('#langBtn');
   check('English after toggle', (await p.textContent('h2')) === 'Can it host life?');
   await p.selectOption('#preset', 'hothouse');
   check('Hothouse world fails tier 1', await p.evaluate(() => document.querySelectorAll('.lamp.red').length === 5));
-  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=9')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
+  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=11')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
   const p2 = await b.newPage();
   await p2.goto(p.url());
   await p2.waitForFunction(() => window.__pd && window.__pd.derived, null, { timeout: 120000 });
