@@ -4,9 +4,9 @@
  * drawn in an overlay over the 3D view. Labels sit inside their own boxes, never over the edges' ends.
  * Edges end in arrowheads; a selected box shows what it drives (blue) and what drives it (orange). The "i" on each
  * box opens a small card: what the quantity is, how to read its value, and its direct causes and effects. */
-import { t, fmt, esc, getLang } from '../i18n.js?v=15';
-import { CM_INFO } from './cminfo.js?v=15';
-import { limitFor } from '../physics/derive.js?v=15';
+import { t, fmt, esc, getLang } from '../i18n.js?v=16';
+import { CM_INFO } from './cminfo.js?v=16';
+import { limitFor } from '../physics/derive.js?v=16';
 
 /* [id, column, label key, value(P, D), ledger rows whose worst status colours the node] */
 const NODES = [

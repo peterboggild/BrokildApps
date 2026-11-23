@@ -67,17 +67,25 @@ function aimQuat(dir) {
   s = await ev(() => window.__pd.view.xr.panel.mesh.visible);
   ok('B closes the panel', !s);
 
-  /* the star-mass dial: aim at its left side and hold the trigger: the mass goes down */
-  const dial = await ev(() => window.__pd.view.xr.dialLocal('mass'));
-  const sm0 = await ev(() => window.__pd.design.star.massSun);
-  /* the dial is relative: grab it at the top, sweep the ray to the left side: the mass goes down, a little */
-  await aimAt('right', [dial[0], dial[1] + 0.2, dial[2] + 0.02]);
-  await btn('right', 'trigger', 1); await xrFrames(2);
-  await aimAt('right', [dial[0] - 0.22, dial[1] + 0.05, dial[2] + 0.02]); await xrFrames(2);
-  await btn('right', 'trigger', 0); await xrFrames(2);
+  /* the dials are gone (owner: more in the way than useful) */
+  const dialsIn = await ev(() => { const X = window.__pd.view.xr; return [X.ws.massDial, X.ws.ageDial, X.ws.distDial].some((d) => !!d.parent); });
+  ok('the three dials are no longer in the workshop', !dialsIn);
   const sm1 = await ev(() => window.__pd.design.star.massSun);
-  ok('turning the mass dial changes the star, finely (relative dial)', sm1 < sm0 - 0.02 && sm1 > 0.25, `${sm0.toFixed(3)} -> ${sm1.toFixed(3)} Msun`);
-  if (out) await p.screenshot({ path: out + '/xr-3-dial.png' });
+
+  /* A fetches the ledger board to just in front of you; its grab bar carries it */
+  await press('right', 'a-button');
+  const bn = await ev(() => { const X = window.__pd.view.xr; const g = X.ws.boardGroup; g.updateMatrixWorld(true); const p = X.VR.dolly.worldToLocal(g.getWorldPosition(g.position.clone())); return { near: X.VR.boardNear, p: p.toArray() }; });
+  ok('A fetches the board to near you', bn.near && Math.hypot(bn.p[0], bn.p[2]) < 2.5, JSON.stringify(bn));
+  if (out) await p.screenshot({ path: out + '/xr-3-board.png' });
+  const barL = await ev(() => { const X = window.__pd.view.xr; const b = X.ws.boardGroup.children[2]; b.updateMatrixWorld(true); return X.VR.dolly.worldToLocal(b.getWorldPosition(b.position.clone())).toArray(); });
+  await aimAt('right', barL);
+  await btn('right', 'trigger', 1); await xrFrames(2);
+  await aimAt('right', [barL[0] + 0.8, barL[1] + 0.2, barL[2]]); await xrFrames(3);
+  await btn('right', 'trigger', 0); await xrFrames(2);
+  const bn2 = await ev(() => { const X = window.__pd.view.xr; const g = X.ws.boardGroup; return X.VR.dolly.worldToLocal(g.getWorldPosition(g.position.clone())).toArray(); });
+  ok('the board can be carried by its grab bar', Math.hypot(bn2[0] - bn.p[0], bn2[2] - bn.p[2]) > 0.3, `${bn.p.map((v) => v.toFixed(2))} -> ${bn2.map((v) => v.toFixed(2))}`);
+  await press('right', 'a-button');
+  ok('A again sends the board home', await ev(() => !window.__pd.view.xr.VR.boardNear));
 
   /* the Scene tab: move the planet to a temperate place in the zone, then "Start with Earth" */
   await press('right', 'b-button');
@@ -147,15 +155,21 @@ function aimQuat(dir) {
   ok('the star can be carried round with the ray', Math.hypot(sun1[0] - sun0[0], sun1[2] - sun0[2]) > 2, `${sun0.map((v) => v.toFixed(1))} -> ${sun1.map((v) => v.toFixed(1))}`);
   await ev(() => window.__pd.xr.resetSun());
 
-  /* the distance dial: fine control of the selected planet's orbit */
-  const dd = await ev(() => { const X = window.__pd.view.xr; const d = X.ws.distDial; d.updateMatrixWorld(true); return X.VR.dolly.worldToLocal(d.getWorldPosition(d.position.clone())).toArray(); });
-  const a0 = await ev(() => window.__pd.planet().orbit.aAU);
-  await aimAt('right', [dd[0], dd[1] + 0.2, dd[2]], [dd[0] + 0.1, dd[1] + 0.6, dd[2] + 0.6]);
+  /* the panel's grab bar carries the panel */
+  await press('right', 'b-button');
+  const pbx = await ev(() => { const X = window.__pd.view.xr; const m = X.panel.mesh; const b = m.children[0]; m.updateMatrixWorld(true); return { bar: X.VR.dolly.worldToLocal(b.getWorldPosition(b.position.clone())).toArray(), p: m.position.toArray() }; });
+  await aimAt('right', pbx.bar);
   await btn('right', 'trigger', 1); await xrFrames(2);
-  await aimAt('right', [dd[0] + 0.2, dd[1], dd[2]], [dd[0] + 0.1, dd[1] + 0.6, dd[2] + 0.6]); await xrFrames(2);
-  await btn('right', 'trigger', 0); await xrFrames(1);
-  const a1 = await ev(() => window.__pd.planet().orbit.aAU);
-  ok('the distance dial moves the planet a little (fine control)', a1 !== a0 && Math.abs(a1 / a0 - 1) < 0.1, `${a0.toFixed(4)} -> ${a1.toFixed(4)} AU`);
+  await aimAt('right', [pbx.bar[0] - 0.4, pbx.bar[1] + 0.1, pbx.bar[2]]); await xrFrames(3);
+  await btn('right', 'trigger', 0); await xrFrames(2);
+  const pp1 = await ev(() => window.__pd.view.xr.panel.mesh.position.toArray());
+  ok('the panel can be carried by its grab bar', Math.hypot(pp1[0] - pbx.p[0], pp1[2] - pbx.p[2]) > 0.15, `${pbx.p.map((v) => v.toFixed(2))} -> ${pp1.map((v) => v.toFixed(2))}`);
+  await press('right', 'b-button');
+  /* inclination tilts the orbit on the table */
+  await ev(() => window.__pd.set('planet.orbit.incDeg', 10)); await xrFrames(2);
+  const tiltY = await ev(() => { let m = 0; window.__pd.view.orrery.group.traverse((o) => { if (o.isLine) { const a = o.geometry.attributes.position.array; for (let k = 1; k < a.length; k += 3) m = Math.max(m, Math.abs(a[k])); } }); return m; });
+  ok('an inclined orbit is drawn tilted', tiltY > 0.05, `orbit up to ${tiltY.toFixed(3)} above the plane`);
+  await ev(() => window.__pd.set('planet.orbit.incDeg', 0));
   if (out) await p.screenshot({ path: out + '/xr-5-tools.png' });
 
   /* table zoom: the system grows round the selected planet */

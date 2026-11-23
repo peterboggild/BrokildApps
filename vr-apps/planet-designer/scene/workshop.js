@@ -6,8 +6,8 @@
  * The star's colour lights the whole platform. Desktop groups are re-parented in here while in VR and put back
  * afterwards. Metres; the floor at y = 0. */
 import * as THREE from 'three';
-import { createStar } from './star.js?v=15';
-import { t } from '../i18n.js?v=15';
+import { createStar } from './star.js?v=16';
+import { t } from '../i18n.js?v=16';
 
 export const LAYOUT = {
   forge: new THREE.Vector3(0, 4.2, -15), forgeR: 2.2,
@@ -46,6 +46,17 @@ export function textSprite(text, { size = 0.12, color = '#dfe7ef', bg = 'rgba(8,
   s.scale.set(size * w / 84, size, 1);
   s.userData.setText = (txt) => { const n = textSprite(txt, { size, color, bg }); s.material.map.dispose(); s.material.map = n.material.map; s.scale.copy(n.scale); };
   return s;
+}
+
+/* A grab bar along the top edge of a window (width in the window's units): point at it and hold the trigger to carry
+ * the window; it lights up when pointed at. */
+export function grabBar(width, win) {
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(width * 0.4, 0.09 * Math.max(1, width / 3.75), 0.05),
+    new THREE.MeshBasicMaterial({ color: 0x3a5a80, toneMapped: false }));
+  const h = win === 'board' ? 2.4 : 0;
+  bar.position.set(0, h / 2 + 0.12, 0);
+  bar.userData = { kind: 'grabbar', win };
+  return bar;
 }
 
 /* A dial: a disc facing the user that turns to the angle the controller ray points to around its centre. */
@@ -114,14 +125,15 @@ export function createWorkshop() {
   /* (the dark containment rings read as a black ring round the star in the headset; removed) */
   const forgeLabel = textSprite('', { size: 0.45 }); forgeLabel.position.set(0, LAYOUT.forgeR * 2.2, 0); forgeGroup.add(forgeLabel);
   const pedestal = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.05, 0.5), new THREE.MeshStandardMaterial({ color: 0x1c2229, metalness: 0.6, roughness: 0.45 }));
-  pedestal.position.set(LAYOUT.dials.x, 0.52, LAYOUT.dials.z - 0.2); root.add(pedestal);
+  pedestal.position.set(LAYOUT.dials.x, 0.52, LAYOUT.dials.z - 0.2);
   const massDial = makeDial(t('vr.massDial'), 0xffc870);
   massDial.position.copy(LAYOUT.dials).add(new THREE.Vector3(-0.5, 0.35, 0.1));
   massDial.rotation.x = -0.45;
   const ageDial = makeDial(t('vr.ageDial'), 0x9fd0ff);
   ageDial.position.copy(LAYOUT.dials).add(new THREE.Vector3(0.5, 0.35, 0.1));
   ageDial.rotation.x = -0.45;
-  root.add(massDial, ageDial);
+  /* the three dials (mass, age, distance) are not in the workshop any more: the owner found them more in the way
+   * than useful, and the panel does the same job more precisely. They are kept as objects for the tests' sake. */
 
   /* Orrery Table */
   const table = new THREE.Mesh(new THREE.CylinderGeometry(LAYOUT.tableR + 0.12, LAYOUT.tableR + 0.2, 0.06, 96), new THREE.MeshStandardMaterial({ color: 0x14181e, metalness: 0.5, roughness: 0.6 }));
@@ -134,7 +146,7 @@ export function createWorkshop() {
   distDial.rotation.x = -0.7;
   const distStand = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, LAYOUT.table.y + 0.1, 12), pedestal.material);
   distStand.position.set(distDial.position.x, (LAYOUT.table.y + 0.1) / 2 - 0.05, distDial.position.z - 0.08);
-  root.add(distDial, distStand);
+
   const tableSlot = new THREE.Group(); tableSlot.position.copy(LAYOUT.table); tableSlot.scale.setScalar(LAYOUT.tableScale); root.add(tableSlot);
 
   /* Planet Cradle: a gantry of two rings around the planet */
@@ -153,10 +165,14 @@ export function createWorkshop() {
   const bc = document.createElement('canvas'); bc.width = 1600; bc.height = 1000;
   const btex = new THREE.CanvasTexture(bc); btex.colorSpace = THREE.SRGBColorSpace; btex.anisotropy = 4;
   const board = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.25), new THREE.MeshBasicMaterial({ map: btex, toneMapped: false }));
-  board.position.copy(LAYOUT.board); board.rotation.y = Math.PI / 2.6;
   const frame = new THREE.Mesh(new THREE.BoxGeometry(3.75, 2.4, 0.06), pedestal.material);
-  frame.position.copy(LAYOUT.board); frame.rotation.y = board.rotation.y; frame.translateZ(-0.04);
-  root.add(frame, board);
+  frame.position.z = -0.04;
+  /* the board is a movable window: a group with a grab bar on top (see xr.js, moving windows) */
+  const boardGroup = new THREE.Group();
+  boardGroup.add(frame, board, grabBar(3.75, 'board'));
+  boardGroup.position.copy(LAYOUT.board); boardGroup.rotation.y = Math.PI / 2.6;
+  boardGroup.userData.home = { pos: LAYOUT.board.clone(), rotY: Math.PI / 2.6, scale: 1 };
+  root.add(boardGroup);
 
   function drawBoard(S) {
     const g = bc.getContext('2d');
@@ -205,7 +221,7 @@ export function createWorkshop() {
 
   const holds = {};
   return {
-    root, forge, forgeGroup, starLight, cradleParts, tableParts: [table, leg], massDial, ageDial, distDial, tableSlot, cradleSlot, board, drawBoard, forgeLabel, cradleLabel, LAYOUT,
+    root, forge, forgeGroup, starLight, cradleParts, tableParts: [table, leg], massDial, ageDial, distDial, tableSlot, cradleSlot, board, boardGroup, drawBoard, forgeLabel, cradleLabel, LAYOUT,
     /* move the desktop groups in (and out again) */
     adopt(name, obj) { holds[name] = { parent: obj.parent, pos: obj.position.clone(), quat: obj.quaternion.clone(), scale: obj.scale.clone(), vis: obj.visible }; },
     release(name, obj) { const h = holds[name]; if (!h) return; h.parent.add(obj); obj.position.copy(h.pos); obj.quaternion.copy(h.quat); obj.scale.copy(h.scale); obj.visible = h.vis; },

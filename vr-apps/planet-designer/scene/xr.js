@@ -5,10 +5,10 @@
  * No controller button resets the view: only the Meta button recentres (owner rule). While presenting, only the
  * XR loop renders (pitfall: a desktop render during XR breaks the frame), and nothing resizes the renderer. */
 import * as THREE from 'three';
-import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=15';
-import { createVRPanel } from '../ui/vrpanel.js?v=15';
-import { rOf, aOf } from './orrery.js?v=15';
-import { t } from '../i18n.js?v=15';
+import { createWorkshop, textSprite, LAYOUT } from './workshop.js?v=16';
+import { createVRPanel } from '../ui/vrpanel.js?v=16';
+import { rOf, aOf } from './orrery.js?v=16';
+import { t } from '../i18n.js?v=16';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const MASS_RANGE = [Math.log10(0.08), Math.log10(2.0)];
@@ -31,6 +31,50 @@ export function createXR(V) {
   panel.mesh.visible = false;
   dolly.add(panel.mesh);
   VR.panel = panel;
+  /* the panel's grab bar, along its top edge */
+  const panelBar = new THREE.Mesh(new THREE.BoxGeometry(panel.PW * 0.4, 0.028, 0.012), new THREE.MeshBasicMaterial({ color: 0x3a5a80, toneMapped: false }));
+  panelBar.position.set(0, panel.PH / 2 + 0.032, 0);
+  panelBar.userData = { kind: 'grabbar', win: 'panel' };
+  panel.mesh.add(panelBar);
+
+  /* ---------- moving windows ----------
+   * The panel and the ledger board each have a grab bar on top. Point at it and hold the trigger: the window follows
+   * the ray at the distance it was caught, keeps upright and turns to face the head. X or A fetches the board to just
+   * in front of you (smaller), and sends it home again. */
+  const winObj = (w) => (w === 'panel' ? panel.mesh : ws.boardGroup);
+  function placeFacing(obj, worldPos, tilt = 0) {
+    const head = headWorld();
+    const yaw = Math.atan2(head.x - worldPos.x, head.z - worldPos.z);
+    const qWorld = new THREE.Quaternion().setFromEuler(new THREE.Euler(tilt, yaw, 0, 'YXZ'));
+    obj.parent.updateMatrixWorld(true);
+    const qParent = new THREE.Quaternion(); obj.parent.getWorldQuaternion(qParent);
+    obj.quaternion.copy(qParent.invert().multiply(qWorld));
+    obj.position.copy(obj.parent.worldToLocal(worldPos.clone()));
+  }
+  function dragWindow(hs) {
+    const { o, d } = rayOf(hs);
+    const p = o.clone().addScaledVector(d, hs.winDist).sub(hs.winOffset);
+    placeFacing(winObj(hs.win), p, hs.win === 'panel' ? -0.15 : 0);
+  }
+  function setBoardNear(near) {
+    const g = ws.boardGroup;
+    VR.boardNear = near;
+    if (near) {
+      /* about 1.6 m away, a little to the left of where you look, at eye height, a third of its wall size */
+      const q = new THREE.Quaternion(); camera.updateMatrixWorld(true); camera.getWorldQuaternion(q);
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q); fwd.y = 0; fwd.normalize();
+      const left = new THREE.Vector3().crossVectors(UP, fwd);
+      const p = headWorld().addScaledVector(fwd, 1.6 / VR.S).addScaledVector(left, 0.45 / VR.S);
+      g.scale.setScalar(0.38 / VR.S);
+      placeFacing(g, p);
+    } else {
+      const h = g.userData.home;
+      g.position.copy(h.pos); g.rotation.set(0, h.rotY, 0); g.scale.setScalar(h.scale);
+    }
+    if (S.audio) S.audio.toggle(near);
+    if (S.redrawAll) S.redrawAll();
+  }
+
 
   /* controllers: target-ray space for rays, grip space for a small body */
   const ray = new THREE.Raycaster();
@@ -93,6 +137,7 @@ export function createXR(V) {
     }
   }
   S.xr = { togglePanel, exit: () => VR.session && VR.session.end(),
+    setBoardNear: (v) => setBoardNear(v), get boardNear() { return !!VR.boardNear; },
     resetSun: () => { ws.forgeGroup.position.copy(LAYOUT.forge); },
     setSmoothTurn: (v) => { VR.smoothTurn = v; },
     /* a value step felt in the hand that is changing it */
@@ -168,9 +213,8 @@ export function createXR(V) {
   /* ---------- input ---------- */
   function pickList() {
     const list = [];
-    ws.massDial.traverse((o) => { if (o.userData.kind === 'dial') list.push(o); });
-    ws.ageDial.traverse((o) => { if (o.userData.kind === 'dial') list.push(o); });
-    ws.distDial.traverse((o) => { if (o.userData.kind === 'dial') list.push(o); });
+    if (panel.mesh.visible) list.push(panelBar);
+    if (ws.boardGroup.visible) list.push(ws.boardGroup.children[2]);
     list.push(ws.forge.group.children[0]);
     for (const o of V.orrery.pickables()) list.push(o);
     return list;
@@ -193,6 +237,9 @@ export function createXR(V) {
       const u = hit.object.userData;
       hs.hover = { kind: u.kind, dial: u.dial, data: u, point: hit.point, dist: hit.distance };
     } else hs.hover = null;
+    /* the grab bars light up under the ray */
+    const bars = [panelBar, ws.boardGroup.children[2]];
+    for (const b of bars) b.material.color.setHex(VR.hands.some((h) => (h.hover && h.hover.data === b.userData) || (h.mode === 'win' && winObj(h.win).children.includes(b))) ? 0x6fb7ff : 0x3a5a80);
     const len = hs.hover ? hs.hover.dist * VR.S : 3;
     hs.line.scale.z = Math.max(0.05, len);
     hs.dot.visible = !!hs.hover;
@@ -212,6 +259,16 @@ export function createXR(V) {
     const hv = hs.hover;
     if (!hv) return;
     if (hv.kind === 'panel') { if (panel.down(hv.px, hv.py, performance.now())) { hs.mode = 'ui'; hs.modeBy = kind; if (S.audio) S.audio.click(); buzz(hs, 0.3, 15); } return; }
+    if (hv.kind === 'grabbar') {
+      const obj = winObj(hv.data.win);
+      hs.mode = 'win'; hs.modeBy = kind; hs.win = hv.data.win; grabbed(hs);
+      const { o } = rayOf(hs);
+      hs.winDist = o.distanceTo(hv.point);
+      obj.updateMatrixWorld(true);
+      hs.winOffset = hv.point.clone().sub(new THREE.Vector3().setFromMatrixPosition(obj.matrixWorld));
+      if (hv.data.win === 'board') VR.boardNear = true;
+      return;
+    }
     if (hv.kind === 'dial') {
       /* relative and fine: turning the dial by a whole sweep moves the value by half its range */
       const { o, d } = rayOf(hs);
@@ -315,6 +372,8 @@ export function createXR(V) {
       const btn = gp.buttons.map((b) => b.pressed);
       /* Y (left) or B (right): the panel */
       if (btn[5] && !hs.prevBtn[5]) togglePanel();
+      /* X (left) or A (right): fetch the ledger board, or send it home */
+      if (btn[4] && !hs.prevBtn[4]) setBoardNear(!VR.boardNear);
       hs.prevBtn = btn;
       if (hs.handed === 'left') {
         if (Math.hypot(ax[0], ax[1]) > 0.15) {
@@ -404,6 +463,7 @@ export function createXR(V) {
       if (!hs.src) { hs.dot.visible = false; continue; }
       if (hs.mode === 'ui') { const { o, d } = rayOf(hs); const pp = panelPx(o, d); if (pp) panel.move(pp.px); }
       else if (hs.mode === 'dial') dragDial(hs);
+      else if (hs.mode === 'win') dragWindow(hs);
       else if (hs.mode === 'sun') { const { o, d } = rayOf(hs); ws.forgeGroup.position.copy(ws.root.worldToLocal(o.clone().addScaledVector(d, hs.sunDist))); }
       else if (hs.mode === 'bead' || hs.mode === 'handle') dragOrrery(hs);
       else updateHover(hs);

@@ -138,6 +138,15 @@ Live: `https://peterboggild.github.io/BrokildApps/vr-apps/planet-designer/` (på
   "mikrober, men ikke mennesker" og "snebolde-Jorden". Hver har et "tænk over"-spørgsmål. De findes på PC
   (knappen "Udfordringer") og i VR under fanen Scene. Fysiktesten tjekker, at alle ti kan løses.
 
+## Femte test i brillerne
+
+- De tre drejeknapper (stjernens masse, alder og afstand) er fjernet fra værkstedet. Panelet gør det samme mere
+  præcist.
+- Panelet og tavlen ("Kan den bære liv?") har en bjælke foroven: peg og hold aftrækkeren for at flytte dem. De vender
+  sig mod dig. X eller A henter tavlen hen foran dig og sender den tilbage på væggen (også i VR-fanen: "Tavlen").
+- Banens hældning vises i solsystemet: banen er vippet, med en svag flad kopi på bordet og to lodrette streger ved
+  det højeste og laveste punkt.
+
 ## Lyd (`audio.js`)
 
 Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges lydfiler, han ikke selv har leveret.
@@ -174,7 +183,7 @@ Al lyd er syntetiseret med Web Audio. Ejerens regel er, at der ikke må bruges l
 | `test/xr.test.cjs` | VR-test i emuleret Quest 3 (IWER, se filens hoved). |
 | `vendor/` | three.js r170 (samme som de andre apps) plus OrbitControls og efterbehandling (bloom), MIT. Indlæses via et import map i `index.html`. |
 
-**Cache:** alle imports har `?v=15`. Hæv dem alle sammen ved hver ændring.
+**Cache:** alle imports har `?v=16`. Hæv dem alle sammen ved hver ændring.
 
 ## Kendte forenklinger (står også i koden)
 

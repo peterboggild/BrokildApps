@@ -3,8 +3,8 @@
  * radius (dashed), orbits coloured by eccentricity, planets as beads that can be dragged (distance) with a handle
  * at apoastron (eccentricity and orientation), and a glowing slot where a second HZ planet would sit stably. */
 import * as THREE from 'three';
-import { orbitPosition, mutualHillSpacing, HILL_MULTI, tidalLockGyr, ECC_MAX } from '../physics/orbit.js?v=15';
-import { habitableZone } from '../physics/hz.js?v=15';
+import { orbitPosition, mutualHillSpacing, HILL_MULTI, tidalLockGyr, ECC_MAX } from '../physics/orbit.js?v=16';
+import { habitableZone } from '../physics/hz.js?v=16';
 
 export const A_MIN = 0.005;
 export const rOf = (a) => 2.2 + 6.5 * Math.log10(Math.max(a, A_MIN) / A_MIN);   /* AU -> scene units */
@@ -54,11 +54,19 @@ export function createOrrery() {
 
   let lastSim = 0;                    /* the simulated time of the last tick */
 
+  /* a point on the table plane, tilted by the orbit's inclination about the x axis */
+  function tilt(v, inc) {
+    if (!inc) return v;
+    const z = v.z;
+    v.y = -z * Math.sin(inc); v.z = z * Math.cos(inc);
+    return v;
+  }
+
   function update(design, D) {
     /* Remember where each planet stands now (its angle round the star). A changed orbit keeps the planet at the
        same angle and restarts its motion from there, instead of jumping to wherever the new period would put it. */
     const prevAngle = beads.length === design.planets.length
-      ? beads.map((b) => Math.atan2(-b.mesh.position.z, b.mesh.position.x)) : null;
+      ? beads.map((b) => Math.atan2(-b.mesh.position.z / Math.cos(b.inc || 0), b.mesh.position.x)) : null;
     dyn.clear();
     beads.length = 0;
     const st = D.star;
@@ -86,9 +94,21 @@ export function createOrrery() {
       const e = p.orbit.e;
       const leaves = p.role === 'hz' && (!Dp.periInHZ || !Dp.apoInHZ);
       const ecol = leaves || e > 0.3 ? 0xe45d5d : e > 0.1 ? 0xe8b04a : 0x6f8fb0;
-      const orbit = new THREE.Line(new THREE.BufferGeometry().setFromPoints(ellipsePoints(p.orbit.aAU, e, argPeri)),
+      /* inclination: the orbit is tilted about the table's x axis (line of nodes along x; the model has no node angle).
+       * A faint flat copy stays on the table, with drop lines at the high and low points, so the tilt shows from above. */
+      const inc = (p.orbit.incDeg || 0) * Math.PI / 180;
+      const flatPts = ellipsePoints(p.orbit.aAU, e, argPeri);
+      const orbit = new THREE.Line(new THREE.BufferGeometry().setFromPoints(flatPts.map((v) => tilt(v.clone(), inc))),
         new THREE.LineBasicMaterial({ color: ecol, transparent: true, opacity: 0.85 }));
       dyn.add(orbit);
+      if (inc > 0.002) {
+        dyn.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(flatPts),
+          new THREE.LineBasicMaterial({ color: ecol, transparent: true, opacity: 0.22 })));
+        let hi = flatPts[0], lo = flatPts[0];
+        for (const v of flatPts) { if (v.z < hi.z) hi = v; if (v.z > lo.z) lo = v; }
+        for (const v of [hi, lo]) dyn.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([v.clone(), tilt(v.clone(), inc)]),
+          new THREE.LineBasicMaterial({ color: ecol, transparent: true, opacity: 0.5 })));
+      }
       const type = p.role === 'hz' ? 'hz' : p.type;
       const size = 0.16 + 0.16 * Math.sqrt(Math.min(Dp.radiusEarth || 1, 12));
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 32, 16),
@@ -106,7 +126,7 @@ export function createOrrery() {
       const ra = rOf(p.orbit.aAU * (1 + e));
       const handle = new THREE.Mesh(new THREE.OctahedronGeometry(0.16),
         new THREE.MeshBasicMaterial({ color: ecol }));
-      handle.position.set(-Math.cos(argPeri) * ra, 0, Math.sin(argPeri) * ra);
+      tilt(handle.position.set(-Math.cos(argPeri) * ra, 0, Math.sin(argPeri) * ra), inc);
       handle.userData = { kind: 'handle', index: i };
       dyn.add(handle);
       if (phase[i] === undefined) phase[i] = Math.random() * Math.PI * 2;
@@ -115,7 +135,7 @@ export function createOrrery() {
         const E = 2 * Math.atan2(Math.sqrt(1 - e) * Math.sin(nu / 2), Math.sqrt(1 + e) * Math.cos(nu / 2));
         phase[i] = E - e * Math.sin(E) - 2 * Math.PI * lastSim / Math.max(Dp.periodYr, 1e-4);
       }
-      beads.push({ mesh, index: i, a: p.orbit.aAU, e, argPeri, period: Dp.periodYr, handle });
+      beads.push({ mesh, index: i, a: p.orbit.aAU, e, argPeri, inc, period: Dp.periodYr, handle });
     });
     placeBeads();
 
@@ -149,7 +169,7 @@ export function createOrrery() {
       const M = phase[b.index] + 2 * Math.PI * lastSim / Math.max(b.period, 1e-4);
       const { x, y } = orbitPosition(b.a, b.e, M);
       const th = Math.atan2(y, x) + b.argPeri, R = rOf(Math.hypot(x, y));
-      b.mesh.position.set(Math.cos(th) * R, 0, -Math.sin(th) * R);
+      tilt(b.mesh.position.set(Math.cos(th) * R, 0, -Math.sin(th) * R), b.inc || 0);
     }
   }
 

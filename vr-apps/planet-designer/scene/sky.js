@@ -1,8 +1,8 @@
 /* The sky behind everything: a few thousand stars with real-looking colours and brightness spread, and a faint
  * Milky Way band. Drawn on a sphere that follows the camera, without depth. */
 import * as THREE from 'three';
-import { snoise } from '../physics/noise.js?v=15';
-import { blackbodyRGB } from '../physics/star.js?v=15';
+import { snoise } from '../physics/noise.js?v=16';
+import { blackbodyRGB } from '../physics/star.js?v=16';
 
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
