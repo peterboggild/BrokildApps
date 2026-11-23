@@ -7,11 +7,12 @@ import { EffectComposer } from '../vendor/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../vendor/postprocessing/OutputPass.js';
-import { createSky } from './sky.js?v=3';
-import { createStar } from './star.js?v=3';
-import { createOrrery, rOf } from './orrery.js?v=3';
-import { createPlanet } from './planet.js?v=3';
-import { t, fmt } from '../i18n.js?v=3';
+import { createSky } from './sky.js?v=4';
+import { createStar } from './star.js?v=4';
+import { createOrrery, rOf } from './orrery.js?v=4';
+import { createPlanet } from './planet.js?v=4';
+import { t, fmt } from '../i18n.js?v=4';
+import { createCausality } from '../ui/causality.js?v=4';
 
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 
@@ -69,6 +70,21 @@ export function createView(container, S) {
   const note = el('div', 'v-note');
   overlay.append(hud, info, note);
   container.appendChild(overlay);
+  /* the Causality Map, as a panel over the view */
+  const cmBox = el('div', 'v-cmap');
+  cmBox.hidden = true;
+  const cmClose = el('button', 'v-btn v-cmclose', '×');
+  const cmBody = el('div', 'v-cmbody');
+  cmBox.append(cmClose, cmBody);
+  container.appendChild(cmBox);
+  const cmap = createCausality(cmBody, S);
+  cmClose.onclick = () => { cmBox.hidden = true; buildHud(); };
+  window.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !cmBox.hidden) { cmBox.hidden = true; buildHud(); } });
+  function showCausality(nodeId) {
+    cmBox.hidden = false;
+    if (nodeId !== undefined) cmap.select(nodeId); else cmap.render();
+    buildHud();
+  }
 
   let q0 = new URLSearchParams(location.search).get('q');
   try { q0 = q0 || localStorage.getItem('planetDesigner.quality'); } catch (e) { /* ignore */ }
@@ -90,6 +106,7 @@ export function createView(container, S) {
     const b = (key, on, fn, title) => { const x = el('button', 'v-btn' + (on ? ' on' : ''), t(key)); if (title) x.title = title; x.onclick = fn; hud.appendChild(x); return x; };
     b('v.system', state.mode === 'system', () => setMode('system'), '1');
     b('v.planet', state.mode === 'planet', () => setMode('planet'), '2');
+    b('v.cmap', !cmBox.hidden, () => { if (cmBox.hidden) showCausality(); else { cmBox.hidden = true; buildHud(); } }, 'M');
     if (state.mode === 'planet' && S.derivedPlanet().role === 'hz') {
       b('v.cut', state.cut, () => { state.cut = !state.cut; refresh(); buildHud(); }, 'C');
       b('v.spin', state.spinOn, () => { state.spinOn = !state.spinOn; buildHud(); });
@@ -125,6 +142,7 @@ export function createView(container, S) {
   /* Re-read the design into the scene (called after every change). */
   function refresh() {
     const D = S.derived;
+    if (!cmBox.hidden) cmap.render();
     star.set(D.star); sun.set(D.star);
     const R = 1.0 + 0.5 * Math.sqrt(Math.min(D.star.radius, 4));
     star.group.scale.setScalar(R);
@@ -273,6 +291,7 @@ export function createView(container, S) {
     if (ev.target.tagName === 'INPUT' || ev.target.tagName === 'SELECT') return;
     if (ev.key === '1') setMode('system');
     if (ev.key === '2') setMode('planet');
+    if (ev.key === 'm' || ev.key === 'M') { if (cmBox.hidden) showCausality(); else { cmBox.hidden = true; buildHud(); } }
     if (ev.key === 'c' || ev.key === 'C') { if (state.mode === 'planet') { state.cut = !state.cut; refresh(); buildHud(); } }
   });
 
@@ -340,6 +359,6 @@ export function createView(container, S) {
   setMode('system');
   requestAnimationFrame(frame);
 
-  return { refresh: () => { refresh(); buildHud(); }, setMode, setQuality, state, camera, controls, renderer, orrery, planet, bloom, scene, star, sky,
+  return { refresh: () => { refresh(); buildHud(); }, setMode, setQuality, showCausality, cmap, state, camera, controls, renderer, orrery, planet, bloom, scene, star, sky,
     toScreen, get mode() { return state.mode; } };
 }

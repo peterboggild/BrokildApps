@@ -73,7 +73,7 @@ const screenPos = (p, which) => p.evaluate((which) => {
   check('English after toggle', (await p.textContent('h2')) === 'Can it host life?');
   await p.selectOption('#preset', 'hothouse');
   check('Hothouse world fails tier 1', await p.evaluate(() => document.querySelectorAll('.lamp.red').length === 5));
-  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=3')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
+  await p.waitForFunction(async () => location.hash.length > 2 && (await (await import('./design.js?v=4')).fromHash(location.hash.slice(1)))?.name === 'Calida', null, { timeout: 60000, polling: 500 });
   const p2 = await b.newPage();
   await p2.goto(p.url());
   await p2.waitForFunction(() => window.__pd && window.__pd.derived, null, { timeout: 120000 });
