@@ -13,6 +13,8 @@ rules, testing, architecture in brief, and pitfalls.
 | Portalkniven | `portalkniven/` | Live, in active development. Everything below is about this one. |
 | Guldplaneten | `guldplaneten/` | Not touched in the Portalkniven sessions. |
 | Bordbyen | `bordbyen/` | New (#78): draw a toy town on the real table, shrink down and race. See its README (Danish); hooks on `window.__bb`, flat preview `?flat` (`&new` for a fresh town). |
+| Illusion Studio | `illusion-studio/` | Live, tag "Test" (17000bc). One HTML file, three.js 0.164.1 + three-mesh-bvh from jsDelivr (not vendored, unlike the others). 3D scenes clad in self-moving optical illusions, JPG export, VR and mixed reality. Not yet tried in a headset. The owner's master copy is on the owner's PC: say so before changing it here. Emulator test in `illusion-studio/tests/`. Its handover is §15 of `PLANET-STUDIO-DESIGN.md`. |
+| Planet Studio | `planet-studio/` (not created yet) | **Design only.** Full specification and handover: `PLANET-STUDIO-DESIGN.md` in the repository root. Start there. |
 
 `vr-apps/index.html` is the public "Brokild VR" page (English) with a card per app; the site's front page
 (`index.html`) mentions them in one paragraph. After changing a page's title or description, or adding a page,

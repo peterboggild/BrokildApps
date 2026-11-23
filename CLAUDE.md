@@ -5,6 +5,8 @@ A push to `main` deploys the site (a Pages workflow, about two minutes).
 
 ## Working on the VR apps (`vr-apps/`)
 
+**Planet Studio** (a new VR/PC app, not started): the specification and handover is `PLANET-STUDIO-DESIGN.md`.
+
 Read `BROKILD-VR-HANDOVER.md` (the full handover: state, history, controls, open questions) and
 `vr-apps/CLAUDE.md` before touching anything there. Together they hold the owner's working rules, how to test
 without a headset, how the apps are built, and the mistakes already made once.
