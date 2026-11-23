@@ -627,6 +627,46 @@ brightens (estimates differ with the model), red-dwarf planets dried out before 
 
 ## 10. Look and rendering
 
+### 10.0 Owner's direction: spectacular (23 November 2026, binding)
+
+> *"Husk at lave grafikken spektakulær. Det er trods alt en hel planet – det ultimative byggeprojekt. Høj
+> opløsning, detaljer, realisme, lav det overbevisende!"*
+
+The planet is the hero of the app, and it must look like a real world photographed from orbit, not a textured
+ball. Its looks come from the physics wherever possible, which keeps them honest: ice where the climate says ice,
+sky colour from the star's spectrum and the air's column, vegetation only where life is possible. Concretely:
+
+- **Terrain**: a cube-sphere with a chunked quadtree LOD, so detail grows as you approach, from the whole disc down
+  to mountain ridges. Heights generated on the GPU: layered noise (fBm, ridged multifractal, domain warping), an
+  erosion approximation for drainage valleys and sediment fans, craters scaled by age and atmosphere, continents
+  shaped by the land fraction and the user's brushes. Per-pixel normals; height-dependent rock, sand, snow and soil
+  materials; true sea level.
+- **Oceans**: depth-coloured water (shallow shelves turquoise, deep sea dark), Fresnel reflection, the star's glint
+  with a roughness from wind, coastlines with foam at close range, sea ice from the climate.
+- **Atmosphere**: physically based scattering (Rayleigh, Mie and ozone absorption, with precomputed look-up tables
+  in the manner of Bruneton & Neyret 2008 or Hillaire 2020), driven by the actual pressure, composition and star
+  spectrum. The limb glow, the terminator's red band, a hazy Venus, a near-black Mars-thin sky, a red dwarf's
+  salmon sky all fall out of the same model.
+- **Clouds**: on the PC a ray-marched cloud layer with its shadows on the ground; cloud cover from the climate.
+  Weather bands follow the rotation (fast spin, narrow belts).
+- **Night side**: aurorae at the magnetic poles when there is a dynamo and an active star; lightning in storms;
+  no city lights (there is no civilisation to assume).
+- **The star**: limb darkening, animated granulation and spicules, a corona, flares for active stars, bloom with
+  HDR and a filmic tone curve, its colour lighting everything.
+- **The cutaway**: textured, glowing layers (a white-hot inner core, convecting orange outer core, a mantle with
+  plumes), with a heat shimmer and the scale bars.
+- **Space**: a real star field and the Milky Way band for depth; the other planets as lit spheres with their own
+  types (banded gas giants, blue ice giants, cratered rock, bright ice).
+
+**Platform honesty.** The PC gets the full quality (high resolution, ray-marched clouds, full-resolution
+scattering). The Quest 3 gets the same planet with a lower LOD, cloud shells instead of ray-marched clouds, the
+scattering at reduced resolution and baked textures, held at 72 Hz with a quality setting (as in Illusion
+Studio). Ray-marched volumetric clouds at full resolution in the headset are not realistic on a mobile GPU, and
+the app should say so rather than stutter. Every view states its height and atmosphere exaggeration (§2.2).
+
+Milestones: the terrain and ocean in M2, the atmosphere, clouds and sky in M3, the star's full look in M1, and a
+"quality" pass before M5 that sets the Quest budget.
+
 ### 10.1 The workshop
 
 Its own look: a huge, quiet hall of dark metal and glass, warm work lights, the star's light flooding in from
