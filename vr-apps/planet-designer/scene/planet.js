@@ -4,8 +4,8 @@
  * estimate, an atmosphere rim (a preview until the scattering model of M3), the cutaway with the interior layers,
  * and simple looks for the other planet types. Radius 1 in scene units; heights are exaggerated (stated on screen). */
 import * as THREE from 'three';
-import { NOISE, TERRAIN, CUBESPHERE } from './glsl.js?v=2';
-import { seedOffsets } from '../physics/terrain.js?v=2';
+import { NOISE, TERRAIN, CUBESPHERE } from './glsl.js?v=3';
+import { seedOffsets } from '../physics/terrain.js?v=3';
 
 const GRID = 48;                          /* quads per chunk side */
 const MAX_LEVEL = 13;
@@ -82,8 +82,57 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(n * r, 1.0);
 }`;
 
-const TERRAIN_FS = NOISE + TERRAIN + /* glsl */`
+const ATMO = `
+/* Sunlight through the air: vertical optical depths (Rayleigh per channel, Mie grey times its tint) times the
+ * air mass for a sun at cosine mu (Kasten & Young 1989), dark below the horizon. */
+uniform vec3 uTauR, uMieTint; uniform float uTauM;
+vec3 sunTrans(float mu) {
+  if (mu <= -0.02) return vec3(0.0);
+  float m = mu > 0.0 ? 1.0 / (mu + 0.50572 * pow(96.07995 - degrees(acos(clamp(mu, -1.0, 1.0))), -1.6364)) : 40.0;
+  m = min(m, 40.0);
+  return exp(-(uTauR + uTauM * uMieTint) * m);
+}
+`;
+const CLOUDS = `
+/* Cloud cover on the unit sphere (planet-local direction n): a warped fbm field thresholded by the cover fraction,
+ * with Earth-like belts (rising air at the equator and in the storm tracks near 55 deg, clear subtropics near 25 deg),
+ * or a deck centred on the substellar point for a tidally locked world. */
+uniform float uCloudFrac, uCloudTime, uCloudOct, uCloudLocked;
+uniform vec3 uCloudSeed, uCloudSub;
+float cloudDensity(vec3 n) {
+  if (uCloudFrac <= 0.001) return 0.0;
+  float cov = uCloudFrac;
+  if (uCloudLocked > 0.5) cov *= 0.35 + 1.1 * smoothstep(-0.3, 0.9, dot(n, uCloudSub));
+  else {
+    float a = abs(n.y);
+    cov += 0.2 * exp(-pow(a / 0.1, 2.0)) + 0.16 * exp(-pow((a - 0.8) / 0.12, 2.0)) - 0.24 * exp(-pow((a - 0.42) / 0.1, 2.0));
+  }
+  vec3 p = n * 2.4 + uCloudSeed + vec3(uCloudTime * 0.012, 0.0, uCloudTime * 0.004);
+  /* swirls: warp sheared east-west, as rotation stretches weather into bands */
+  vec3 w = vec3(snoise(p * 1.2), 0.35 * snoise(p * 1.2 + 11.0), snoise(p * 1.2 + 23.0));
+  p += 0.6 * w;
+  float f = 0.0, amp = 0.55, fr = 1.0;
+  for (int i = 0; i < 6; i++) { if (float(i) >= uCloudOct) break; f += amp * snoise(p * fr * 2.0 * vec3(1.0, 1.6, 1.0)); fr *= 2.15; amp *= 0.5; }
+  /* f is roughly normal around 0 with spread ~0.25: put the threshold where about cov of the area lies above it */
+  /* a closed deck (hothouse) keeps faint banded structure instead of a blank disc */
+  if (cov >= 0.999) return 0.82 + 0.18 * smoothstep(-0.4, 0.4, f + 0.3 * sin(n.y * 9.0));
+  float th = 0.62 * (0.5 - clamp(cov, 0.0, 1.0));
+  return smoothstep(th, th + 0.16, f) * smoothstep(th - 0.05, th + 0.5, f);
+}
+`;
+const TERRAIN_FS = NOISE + TERRAIN + ATMO + CLOUDS + /* glsl */`
 uniform float uSea, uRef, uK, uHasOcean, uCut;
+uniform float uLatT[36]; uniform float uHasEBM, uCloudH, uCloudShadow;
+uniform vec3 uSunLocal;
+/* annual-mean temperature from the climate model at x = sin(latitude) (or cos of the substellar angle) */
+float latT(float xx) {
+  float f = (xx + 1.0) * 18.0 - 0.5;
+  float i0 = clamp(floor(f), 0.0, 35.0), i1 = min(i0 + 1.0, 35.0);
+  float w = clamp(f - i0, 0.0, 1.0);
+  float a = 0.0, b = 0.0;
+  for (int i = 0; i < 36; i++) { if (float(i) == i0) a = uLatT[i]; if (float(i) == i1) b = uLatT[i]; }
+  return mix(a, b, w);
+}
 uniform vec3 uSunDir, uSunColor, uAtmColor;
 uniform float uTs, uDT, uLocked, uLife, uRust, uRelief, uAtmDensity, uPixelAngle, uHasWater, uOctMax, uFDNormals;
 uniform vec3 uSubstellar;
@@ -131,8 +180,8 @@ void main() {
 
   /* climate at this point: latitude (or angle from the substellar point if locked) and elevation lapse rate */
   float elevKm = max(h - uSea, 0.0) * uRelief / 1000.0;
-  float T = uLocked > 0.5
-    ? uTs + 55.0 * (dot(n, uSubstellar) - 0.25)
+  float T = uHasEBM > 0.5 ? latT(uLocked > 0.5 ? dot(n, uSubstellar) : n.y)
+    : uLocked > 0.5 ? uTs + 55.0 * (dot(n, uSubstellar) - 0.25)
     : uTs + uDT * (1.0 / 3.0 - n.y * n.y);
   T -= 6.5 * elevKm;
   T += 3.0 * snoise(n * 5.0 + uOc);                       /* weather-scale variation of the ice edge */
@@ -174,59 +223,100 @@ void main() {
     rough = mix(0.9, 0.6, snow);
   }
 
-  /* lighting: the star (with the sphere's own terminator softened by the air), skylight, and the ocean's glint */
+  /* lighting: sunlight reddened by its path through the air, skylight, cloud shadows, and the ocean's glint.
+   * The air between the ground and the eye is added by the atmosphere shell drawn on top. */
+  float mu0 = dot(N0, L);
+  vec3 sun = uSunColor * sunTrans(mu0);
+  float shade = 1.0;
+  if (uCloudShadow > 0.5 && mu0 > 0.0) shade = 1.0 - 0.6 * cloudDensity(normalize(n + uSunLocal * uCloudH / max(mu0, 0.15)));
   float NdL = max(dot(N, L), 0.0);
-  float twilight = smoothstep(-0.12 * uAtmDensity - 0.01, 0.1, dot(N0, L));
-  vec3 lit = col * uSunColor * NdL * twilight;
-  lit += col * uAtmColor * 0.06 * twilight;
+  vec3 lit = col * sun * NdL * shade;
+  lit += col * uAtmColor * 0.08 * smoothstep(-0.2, 0.25, mu0);
   if (water) {
     vec3 Hh = normalize(L + V);
     float NdH = max(dot(N0, Hh), 0.0);
     float a2 = rough * rough;
     float D = a2 / (3.14159 * pow(NdH * NdH * (a2 - 1.0) + 1.0, 2.0));
     float F = 0.02 + 0.98 * pow(1.0 - max(dot(V, N0), 0.0), 5.0);
-    lit += uSunColor * min(D * F, 6.0) * NdL * 0.5;
-    lit += uAtmColor * F * 0.25 * twilight;
+    lit += sun * shade * min(D * F, 6.0) * NdL * 0.5;
+    lit += uAtmColor * F * 0.2 * smoothstep(-0.1, 0.2, mu0);
   }
-  /* aerial perspective: the air veils the ground towards the limb */
-  float veil = (1.0 - max(dot(N0, V), 0.0));
-  lit = mix(lit, uAtmColor * twilight * 0.6, uAtmDensity * pow(veil, 3.0) * 0.6);
   gl_FragColor = vec4(lit, 1.0);
 }`;
 
-/* Atmosphere rim: a back-facing shell, glow from the path length through it, lit by the star with a reddened
- * terminator. A preview only; the physically based scattering model arrives in M3. */
+/* The atmosphere: single scattering by molecules (Rayleigh, per colour channel) and by haze or dust (Mie,
+ * Henyey-Greenstein), marched along the view ray through an exponential shell, with the sunlight at each sample
+ * attenuated by its own path (air mass) and shadowed by the planet. The colour of the sky, the blue limb, the red
+ * terminator, a hazy hothouse and a thin dusty sky all come from the same model and the design's air and star.
+ * Drawn after the surface with premultiplied alpha: it adds the scattered light and dims what lies behind by the
+ * transmittance, so a thick atmosphere hides the ground. Heights exaggerated as the terrain (stated on screen). */
 const ATM_VS = `varying vec3 vWP; void main() { vWP = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vWP, 1.0); }`;
 const ATM_FS = `
-uniform vec3 uCenter, uSunDir, uSunColor, uAtmColor; uniform float uR0, uR1, uDensity;
+uniform vec3 uCenter, uSunDir, uSunColor, uTauR, uMieTint, uMieColor; uniform float uR0, uR1, uHR, uHM, uTauM, uSteps, uGain, uCut, uG;
+uniform mat3 uToLocal;
 varying vec3 vWP;
 void main() {
   vec3 ro = cameraPosition, rd = normalize(vWP - cameraPosition);
   vec3 oc = ro - uCenter;
   float b = dot(oc, rd);
-  float c1 = dot(oc, oc) - uR1 * uR1;
-  float disc = b * b - c1;
+  float disc = b * b - (dot(oc, oc) - uR1 * uR1);
   if (disc < 0.0) discard;
   float t0 = max(-b - sqrt(disc), 0.0), t1 = -b + sqrt(disc);
-  float c0 = dot(oc, oc) - uR0 * uR0;
-  float d0 = b * b - c0;
-  if (d0 > 0.0) { float tp = -b - sqrt(d0); if (tp > 0.0) t1 = min(t1, tp); }
-  /* integrate density exp(-height/H) along the ray in 12 steps */
-  float H = (uR1 - uR0) * 0.25;
-  float dt = (t1 - t0) / 12.0;
-  vec3 acc = vec3(0.0);
-  for (int i = 0; i < 12; i++) {
-    vec3 p = ro + rd * (t0 + (float(i) + 0.5) * dt) - uCenter;
-    float hgt = length(p) - uR0;
-    float dens = exp(-max(hgt, 0.0) / H);
-    float mu = dot(normalize(p), normalize(uSunDir));
-    float lightAmt = smoothstep(-0.25, 0.3, mu);
-    vec3 sunset = mix(vec3(1.0, 0.45, 0.2), vec3(1.0), smoothstep(0.0, 0.35, mu));
-    acc += dens * lightAmt * sunset * dt;
+  float d0 = b * b - (dot(oc, oc) - uR0 * uR0);
+  if (d0 > 0.0) {
+    float tp = -b - sqrt(d0);
+    /* the cutaway wedge: let the ray pass into the open quadrant */
+    vec3 hp = uToLocal * (oc + rd * tp);
+    bool inCut = uCut > 0.5 && hp.x > 0.0 && hp.z > 0.0;
+    if (inCut && tp > 0.0) discard;                                  /* the wedge is cut out of the air as well */
+    if (tp > 0.0) t1 = min(t1, tp);
   }
-  float phase = 1.0 + 0.6 * pow(max(dot(rd, normalize(uSunDir)), 0.0), 8.0);
-  vec3 col = acc * uAtmColor * uSunColor * uDensity * phase * 9.0;
-  gl_FragColor = vec4(col, 1.0);
+  if (t1 <= t0) discard;
+  vec3 L = normalize(uSunDir);
+  float cosT = dot(rd, L);
+  float pR = 0.0597 * (1.0 + cosT * cosT);                          /* 3/(16 pi) (1 + cos^2) */
+  float g = uG;
+  float pM = 0.0796 * (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosT, 1.5);   /* Henyey-Greenstein / (4 pi) */
+  vec3 bR = uTauR / uHR, bM = uTauM * uMieTint / uHM;              /* extinction coefficients at the ground */
+  float dt = (t1 - t0) / uSteps;
+  vec3 tauV = vec3(0.0), sum = vec3(0.0);
+  for (int i = 0; i < 24; i++) {
+    if (float(i) >= uSteps) break;
+    vec3 p = oc + rd * (t0 + (float(i) + 0.5) * dt);
+    float r = length(p);
+    if (r < uR0) break;                                             /* into the ground (or the cutaway's open wedge) */
+    float h = r - uR0;
+    float dR = exp(-h / uHR), dM = exp(-h / uHM);
+    tauV += (bR * dR + bM * dM) * dt;
+    float mu = dot(p / r, L);
+    /* planet shadow, then the air mass along the sun's path from this height */
+    float shadowMu = -sqrt(max(0.0, 1.0 - (uR0 / r) * (uR0 / r)));
+    if (mu < shadowMu) continue;
+    float am = 1.0 / max(mu + 0.15 * pow(max(93.885 - degrees(acos(clamp(mu, -1.0, 1.0))), 0.01), -1.253), 0.025);
+    vec3 tauS = (uTauR * dR + uTauM * uMieTint * dM) * min(am, 40.0);
+    sum += (bR * dR * pR + bM * uMieColor * dM * pM) * exp(-(tauV + tauS)) * dt;
+  }
+  vec3 T = exp(-tauV);
+  float alpha = 1.0 - (T.r + T.g + T.b) / 3.0;
+  gl_FragColor = vec4(sum * uSunColor * uGain, alpha);
+}`;
+
+/* The cloud layer: a transparent shell above the ground, lit by reddened sunlight with a soft wrap and skylight. */
+const CLOUD_VS = `varying vec3 vN; varying vec3 vWN; void main() { vN = normalize(position); vWN = normalize(mat3(modelMatrix) * normal);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const CLOUD_FS = NOISE + ATMO + CLOUDS + /* glsl */`
+uniform vec3 uSunDir, uSunColor, uAtmColor, uCloudTint; uniform float uCut;
+varying vec3 vN; varying vec3 vWN;
+void main() {
+  if (uCut > 0.5 && vN.x > 0.0 && vN.z > 0.0) discard;
+  float d = cloudDensity(vN);
+  if (d < 0.02) discard;
+  vec3 N = normalize(vWN), L = normalize(uSunDir);
+  float mu = dot(N, L);
+  vec3 sun = uSunColor * sunTrans(mu);
+  float wrap = clamp(mu * 0.75 + 0.25, 0.0, 1.0);
+  vec3 col = uCloudTint * (sun * wrap * (0.75 + 0.25 * d) + uAtmColor * 0.12 * smoothstep(-0.2, 0.2, mu));
+  gl_FragColor = vec4(col * d, d * 0.95);
 }`;
 
 /* Cut faces of the cutaway: half-discs in the local planes x = 0 (z > 0) and z = 0 (x > 0), coloured by layer. */
@@ -309,6 +399,11 @@ export function createPlanet() {
   const spin = new THREE.Group();          /* turns about the local y axis */
   root.add(spin);
   const common = COMMON_UNIFORMS();
+  /* the air (shared by terrain, clouds and the atmosphere shell) and the clouds (shared by terrain and clouds) */
+  const airU = { uTauR: { value: new THREE.Vector3(0.046, 0.108, 0.265) }, uTauM: { value: 0.08 }, uMieTint: { value: new THREE.Vector3(1, 1, 1) },
+    uMieColor: { value: new THREE.Vector3(1, 1, 1) } };
+  const cloudU = { uCloudFrac: { value: 0.6 }, uCloudTime: { value: 0 }, uCloudOct: { value: 5 }, uCloudLocked: { value: 0 },
+    uCloudSeed: { value: new THREE.Vector3(3, 1, 4) }, uCloudSub: { value: new THREE.Vector3(1, 0, 0) } };
   const light = {
     uSunDir: { value: new THREE.Vector3(1, 0.25, 0.4).normalize() }, uSunColor: { value: new THREE.Color(1, 1, 1) },
     uAtmColor: { value: new THREE.Color(0.3, 0.5, 1.0) },
@@ -321,6 +416,8 @@ export function createPlanet() {
       uTs: { value: 15 }, uDT: { value: 45 }, uLocked: { value: 0 }, uLife: { value: 1 }, uRust: { value: 0 },
       uRelief: { value: 4500 }, uAtmDensity: { value: 1 }, uPixelAngle: { value: 0.001 }, uHasWater: { value: 1 }, uOctMax: { value: 13 }, uFDNormals: { value: 1 },
       uSubstellar: { value: new THREE.Vector3(1, 0, 0) },
+      ...airU, ...cloudU, uLatT: { value: new Array(36).fill(15) }, uHasEBM: { value: 0 }, uCloudH: { value: 0.01 },
+      uCloudShadow: { value: 1 }, uSunLocal: { value: new THREE.Vector3(1, 0, 0) },
     },
     vertexShader: TERRAIN_VS, fragmentShader: TERRAIN_FS,
     extensions: { derivatives: true },
@@ -381,12 +478,26 @@ export function createPlanet() {
 
   /* atmosphere shell */
   const atmMat = new THREE.ShaderMaterial({
-    uniforms: { ...light, uCenter: { value: new THREE.Vector3() }, uR0: { value: 1 }, uR1: { value: 1.03 }, uDensity: { value: 1 } },
-    vertexShader: ATM_VS, fragmentShader: ATM_FS, side: THREE.BackSide, transparent: true, depthWrite: false,
-    blending: THREE.AdditiveBlending,
+    uniforms: { ...light, ...airU, uCenter: { value: new THREE.Vector3() }, uR0: { value: 1 }, uR1: { value: 1.05 },
+      uHR: { value: 0.01 }, uHM: { value: 0.002 }, uSteps: { value: 16 }, uGain: { value: 9 }, uG: { value: 0.76 }, uCut: common.uCut,
+      uToLocal: { value: new THREE.Matrix3() } },
+    vertexShader: ATM_VS, fragmentShader: ATM_FS, side: THREE.BackSide, transparent: true, depthWrite: false, depthTest: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
   });
   const atm = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 48), atmMat);
+  atm.renderOrder = 10;
   root.add(atm);
+
+  /* clouds */
+  const cloudMat = new THREE.ShaderMaterial({
+    uniforms: { ...light, ...airU, ...cloudU, uCloudTint: { value: new THREE.Color(1, 1, 1) }, uCut: common.uCut },
+    vertexShader: CLOUD_VS, fragmentShader: CLOUD_FS, transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+  });
+  const clouds = new THREE.Mesh(new THREE.SphereGeometry(1, 160, 80), cloudMat);
+  clouds.renderOrder = 5;
+  spin.add(clouds);
 
   /* cutaway caps */
   const capMat = new THREE.ShaderMaterial({
@@ -420,6 +531,7 @@ export function createPlanet() {
     other.visible = !isHz;
     caps.visible = isHz && cut;
     atm.visible = isHz && P.pBar > 0.0005;
+    clouds.visible = isHz && P.cloudFrac > 0.01;
     for (const m of pool) if (!isHz) m.visible = false;
     const rgb = D.star.rgb;
     const intensity = 1.7 * Math.min(1.8, Math.max(0.25, (P.fluxMean || P.flux) ** 0.25));
@@ -449,17 +561,48 @@ export function createPlanet() {
     u.uRust.value = P.oceans <= 0 && P.pBar < 0.1 ? 1 : P.oceans <= 0 ? 0.4 : 0;
     u.uRelief.value = P.reliefM;
     u.uHasWater.value = P.oceans > 0.001 || P.waterFrac > 1e-4 ? 1 : 0;
-    const dens = Math.min(1.6, Math.log10(1 + P.pBar * 9) * 0.9);
-    u.uAtmDensity.value = dens;
-    /* sky tint: Rayleigh-blue for thin, clear air, whiter with thick or CO2-heavy air, tinted by the star */
-    const thick = Math.min(1, P.pBar / 8);
-    const ray = [0.18, 0.42, 1.0];
-    light.uAtmColor.value.setRGB(
-      (ray[0] * (1 - thick) + thick * 0.9) * rgb[0], (ray[1] * (1 - thick) + thick * 0.85) * rgb[1], (ray[2] * (1 - thick) + thick * 0.75) * rgb[2]);
-    atmMat.uniforms.uDensity.value = dens;
+    /* The air for the picture. Vertical Rayleigh optical depth at 680/550/440 nm is Earth's (0.046, 0.108, 0.265)
+     * scaled by the column mass (P/g) and by how strongly the gases scatter per kilogram relative to air
+     * (CO2 ~1.6, O2 ~0.85, Ar ~0.83, H2O ~0.6: per-molecule cross-sections divided by molar mass, approximate).
+     * Haze: Earth's aerosol ~0.08; a dry world with air carries dust (0.4, reddish: it absorbs blue); a runaway
+     * hothouse is a deck of haze. Scale heights from the physics, exaggerated like the terrain, capped. */
+    const col = (P.pBar * 1e5 / P.g) / (101325 / 9.80665);
+    const pp = P.atm.p, tot = Math.max(P.pBar, 1e-9);
+    const kGas = ((pp.N2 || 0) * 1 + (pp.O2 || 0) * 0.85 + (pp.CO2 || 0) * 1.6 + (pp.Ar || 0) * 0.83 + (pp.H2O || 0) * 0.6 + (pp.CH4 || 0) * 2.0) / tot;
+    /* very thick air: past an optical depth of a few the sky is saturated anyway; capping it keeps the limb from
+     * splitting into coloured fringes (a rendering limit, not physics) */
+    /* under a haze deck (runaway) the haze, not the molecules, sets the colour seen from space */
+    const tR = P.climate.runaway ? Math.min(col * kGas, 3) : Math.min(col * kGas, 12);
+    airU.uTauR.value.set(0.046 * tR, 0.108 * tR, 0.265 * tR);
+    const dry = P.oceans <= 0;
+    /* Mie: extinction tint (dust absorbs blue a little more) and the colour of the light it scatters */
+    let tM = 0.08 * Math.sqrt(Math.min(col, 4)), tint = [1, 1, 1], mcol = [1, 1, 1];
+    if (dry && P.pBar > 0.002) { tM = 0.4; tint = [0.9, 0.95, 1.08]; mcol = [1.0, 0.72, 0.48]; }
+    /* a haze deck: single scattering alone leaves it dark, because most light in a thick, bright haze is scattered
+     * many times; we stand in for that with a broad phase function and a brightened haze colour (an approximation) */
+    if (P.climate.runaway) { tM = 2.5; tint = [1, 1, 1]; mcol = [3.2, 2.8, 2.0]; }
+    airU.uTauM.value = tM; airU.uMieTint.value.set(...tint); airU.uMieColor.value.set(...mcol);
+    atmMat.uniforms.uG.value = P.climate.runaway ? 0.25 : 0.76;
+    const Hs = Math.min(0.03, Math.max(0.0025, P.scaleHeightKm / (Rm / 1000) * exag));
+    atmMat.uniforms.uHR.value = Hs;
+    atmMat.uniforms.uHM.value = Hs * (P.climate.runaway ? 0.8 : 0.25);
     atmMat.uniforms.uR0.value = 1.0;
-    atmMat.uniforms.uR1.value = 1.0 + 0.018 + 0.03 * thick;
+    atmMat.uniforms.uR1.value = 1.0 + Math.min(Hs * 7, 0.09);
     atm.scale.setScalar(atmMat.uniforms.uR1.value);
+    /* skylight colour for the ground: the scattered fraction of each channel, tinted by the star */
+    const sk = [0, 1, 2].map((i) => (1 - Math.exp(-airU.uTauR.value.getComponent(i) - tM * tint[i] * 0.5)));
+    light.uAtmColor.value.setRGB(sk[0] * rgb[0], sk[1] * rgb[1], sk[2] * rgb[2]);
+    u.uAtmDensity.value = Math.min(1.6, Math.log10(1 + P.pBar * 9) * 0.9);
+    /* clouds */
+    cloudU.uCloudFrac.value = P.cloudFrac;
+    cloudU.uCloudLocked.value = P.locked ? 1 : 0;
+    cloudU.uCloudSeed.value.set(O.e[0] * 0.1, O.e[1] * 0.1, O.e[2] * 0.1);
+    const ch = Math.min(0.02, Math.max(0.003, 6 / (Rm / 1000) * exag));
+    u.uCloudH.value = ch;
+    clouds.scale.setScalar(1 + ch);
+    cloudMat.uniforms.uCloudTint.value.setRGB(...(P.climate.runaway ? [0.95, 0.86, 0.62] : [1, 1, 1]));
+    /* the climate model's temperatures by latitude */
+    if (P.ebm) { u.uHasEBM.value = 1; for (let j = 0; j < 36; j++) u.uLatT.value[j] = P.ebm.mean[j]; } else u.uHasEBM.value = 0;
     /* tilt and the interior */
     root.rotation.set(0, 0, -(P.obliquityDeg || 0) * Math.PI / 180);
     const L = P.layers, Rk = L.radiusKm;
@@ -477,10 +620,15 @@ export function createPlanet() {
     atmMat.uniforms.uCenter.value.setFromMatrixPosition(root.matrixWorld);
     capMat.uniforms.uTime.value = t;
     terrainMat.uniforms.uPixelAngle.value = pixelAngle;
+    cloudU.uCloudTime.value = t;
     if (isHz) {
-      /* substellar point in local coordinates for locked planets */
+      /* the star's direction in planet-local coordinates: substellar point, cloud shadows, the cutaway in the air */
       const s = sunDirWorld.clone(); spin.updateMatrixWorld(); const inv = new THREE.Matrix3().setFromMatrix4(spin.matrixWorld).invert();
-      terrainMat.uniforms.uSubstellar.value.copy(s.applyMatrix3(inv).normalize());
+      const sl = s.applyMatrix3(inv).normalize();
+      terrainMat.uniforms.uSubstellar.value.copy(sl);
+      terrainMat.uniforms.uSunLocal.value.copy(sl);
+      cloudU.uCloudSub.value.copy(sl);
+      atmMat.uniforms.uToLocal.value.copy(inv);
       return updateLOD(camera);
     }
     return 1;
@@ -488,8 +636,10 @@ export function createPlanet() {
 
   /* Quality: 'high' (fine LOD, per-pixel normals from the height function), 'medium', 'low'. */
   function setQuality(q) {
-    const Q = { high: [5.0, 13, 1], medium: [3.5, 11, 1], low: [2.2, 8, 0] }[q] || [5.0, 13, 1];
+    /* split, fragment octaves, per-pixel normals, cloud octaves, cloud shadows, atmosphere steps */
+    const Q = { high: [5.0, 13, 1, 6, 1, 16], medium: [3.5, 11, 1, 5, 1, 12], low: [2.2, 8, 0, 3, 0, 8] }[q] || [5.0, 13, 1, 6, 1, 16];
     LOD_SPLIT = Q[0]; terrainMat.uniforms.uOctMax.value = Q[1]; terrainMat.uniforms.uFDNormals.value = Q[2];
+    cloudU.uCloudOct.value = Q[3]; terrainMat.uniforms.uCloudShadow.value = Q[4]; atmMat.uniforms.uSteps.value = Q[5];
   }
   return { group: root, spin, set, tick, info, caps, setQuality, get chunks() { return used; } };
 }

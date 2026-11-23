@@ -1,14 +1,16 @@
 /* Benchmarks of spec §5.12 (the EBM rows wait for milestone M3). Run: node test/physics.test.mjs
  * Node resolves the '?v=N' cache-busting suffixes as part of a file URL, so the browser modules run unchanged. */
-import { starAt, mainSequence, blackbodyRGB, parRelativeToSun } from '../physics/star.js?v=2';
-import { habitableZone } from '../physics/hz.js?v=2';
-import { bulk } from '../physics/structure.js?v=2';
-import { mutualHillSpacing, moonInfo, tidalLockBand, periodYears } from '../physics/orbit.js?v=2';
-import { jeansLambda, scaleHeight, climate0D, boilingPointK } from '../physics/atmosphere.js?v=2';
-import { MOLAR } from '../physics/const.js?v=2';
-import { derive } from '../physics/derive.js?v=2';
-import { ledger } from '../physics/ledger.js?v=2';
-import { PRESETS, validate } from '../design.js?v=2';
+import { starAt, mainSequence, blackbodyRGB, parRelativeToSun } from '../physics/star.js?v=3';
+import { habitableZone } from '../physics/hz.js?v=3';
+import { bulk } from '../physics/structure.js?v=3';
+import { mutualHillSpacing, moonInfo, tidalLockBand, periodYears } from '../physics/orbit.js?v=3';
+import { jeansLambda, scaleHeight, climate0D, boilingPointK } from '../physics/atmosphere.js?v=3';
+import { MOLAR } from '../physics/const.js?v=3';
+import { derive, deriveSync } from '../physics/derive.js?v=3';
+import { runEBM } from '../physics/climate.js?v=3';
+import { xuvEnvironment, cosmicDose, shorelineI } from '../physics/space.js?v=3';
+import { ledger } from '../physics/ledger.js?v=3';
+import { PRESETS, validate } from '../design.js?v=3';
 
 let fails = 0, n = 0;
 function near(name, got, want, tol) {
@@ -76,10 +78,36 @@ const lock = tidalLockBand(mid, 0.3, 1, 1, 5);
 truth('0.3 Msun HZ planet tidally locked', lock.state === 'locked', `${lock.state}, t_lock(Q=100) ${lock.mid.toExponential(1)} Gyr`);
 near('Earth period [yr]', periodYears(1, 1), 1, 1e-9);
 
+/* Energy balance model (§5.12 EBM rows) */
+{
+  const base = { S: 1, e: 0.0167, obliquityDeg: 23.44, argPeriDeg: 283, dayHours: 24, locked: false, pBar: 1, molar: 0.029,
+    forcing: 5.35 * Math.log(420 / 330), greenhouse: 1, albedoFree: 0.31, albedoIce: 0.62, landFrac: 0.29, hasWater: true, years: 30 };
+  const r = runEBM({ ...base, init: 'warm' });
+  near('EBM Earth global mean [C]', r.gmean, 15, 2);
+  near('EBM Earth ice line [deg]', r.iceLatN, 70, 8);
+  near('EBM Earth equator annual mean [C]', r.mean[18], 27, 3);
+  const w = runEBM({ ...base, S: 0.9, init: 'warm' }), c = runEBM({ ...base, S: 0.9, init: 'cold' });
+  truth('EBM S x 0.9 from a warm start: no snowball', !w.snowball, `mean ${w.gmean.toFixed(1)} C, ice to ${w.iceLatN.toFixed(0)} deg`);
+  truth('EBM S x 0.9 from a frozen start: stays frozen (hysteresis)', c.snowball, `mean ${c.gmean.toFixed(1)} C`);
+  const lk = runEBM({ ...base, S: 0.8, locked: true, obliquityDeg: 0, init: 'warm' });
+  truth('Locked planet: hot day side, cold night side', lk.mean[35] > lk.mean[0] + 40, `${lk.mean[35].toFixed(0)} / ${lk.mean[0].toFixed(0)} C`);
+}
+/* XUV, shoreline, radiation */
+{
+  const x = xuvEnvironment(1, 4.57, 1, 1);
+  near('XUV Earth today = 1', x.flux, 1, 1e-6);
+  near('XUV fluence Earth = 1', x.fluence, 1, 1e-6);
+  truth('Earth well below the cosmic shoreline', 1 / shorelineI(11.19) < 0.2);
+  near('Dose at Earth sea level [mSv/yr]', cosmicDose(1033, 'low'), 0.35, 0.01);
+  near('Dose on Mars surface [mSv/day]', cosmicDose(16.4, 'low') / 365, 0.64, 0.05);
+  const rd = xuvEnvironment(0.3, 5, 0.1, starAt(0.3, 5).lum);
+  truth('Red-dwarf HZ planet: much more XUV than Earth', rd.fluence > 5, `fluence ${rd.fluence.toFixed(1)} x Earth`);
+}
+
 /* The whole chain on presets */
 for (const k of Object.keys(PRESETS)) {
   const d = validate(PRESETS[k]());
-  const D = derive(d);
+  const D = deriveSync(d);
   const P = D.planets.find((p) => p.role === 'hz');
   const L = ledger(P, D);
   const tiers = [1, 2, 3, 4, 5].map((t) => (L.pass[t] ? t : '-')).join('');

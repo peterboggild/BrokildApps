@@ -1,8 +1,8 @@
 /* The Habitability Ledger: criteria with green/amber/red status, grouped in five tiers (spec §6, §4.11).
  * Returns language-neutral rows: { id, tier, status, value: {k, p}, why: {k, p}, src, contested }.
  * The UI turns the keys into text (i18n.js). Status 'na' = not computed yet (a later milestone); it never blocks. */
-import { HILL_TWO_PLANET, HILL_MULTI } from './orbit.js?v=2';
-import { ARMSTRONG_PA } from './atmosphere.js?v=2';
+import { HILL_TWO_PLANET, HILL_MULTI } from './orbit.js?v=3';
+import { ARMSTRONG_PA } from './atmosphere.js?v=3';
 
 const band = (x, g0, g1, a0, a1) => (x >= g0 && x <= g1 ? 'green' : x >= a0 && x <= a1 ? 'amber' : 'red');
 
@@ -30,20 +30,28 @@ export function ledger(P, D) {
     'Goldblatt et al. 2013');
   add(1, 'triple', P.aboveTriple ? 'green' : 'red', { k: 'v.bar', p: { p: P.pBar } },
     { k: P.aboveTriple ? 'w.triple.ok' : 'w.triple.low' }, 'IAPWS triple point 611.657 Pa');
-  const frozen = P.oceans > 0 && !P.climate.runaway && P.Ts <= 273.15 - 15;
+  const frozen = P.ebm ? (P.snowball || P.seasonalOnly) && P.oceans > 0 : P.oceans > 0 && !P.climate.runaway && P.Ts <= 273.15 - 15;
   const tVal = P.climate.runaway ? { k: 'v.runawayT' } : { k: 'v.tempC', p: { t: P.TsC } };
   add(1, 'liquid', P.liquidWater ? 'green' : frozen ? 'amber' : 'red', tVal,
     { k: P.oceans <= 0 ? 'w.liquid.dry' : P.liquidWater ? (P.climate.valid ? 'w.liquid.ok' : 'w.liquid.okRough')
-      : frozen ? 'w.liquid.ice' : P.climate.runaway ? 'w.liquid.boiled' : 'w.liquid.boil' }, 'climate estimate (M0)');
+      : frozen ? (P.seasonalOnly ? 'w.liquid.seasonal' : 'w.liquid.ice') : P.climate.runaway ? 'w.liquid.boiled' : 'w.liquid.boil' },
+    P.ebm ? 'energy balance model (North 1981; Williams & Kasting 1997)' : 'climate estimate');
 
   /* ---- Tier 2: microbes ---- */
   const chz = P.chz.consSoFar;
   add(2, 'chz', chz >= 4 ? 'green' : chz >= 1 ? 'amber' : 'red',
     { k: 'v.gyr2', p: { a: chz, b: P.chz.consTotal } }, { k: chz >= 1 ? 'w.chz.ok' : 'w.chz.short' },
     'Kopparapu 2013; Gough 1981');
-  const lam = P.jeans.N2;
-  add(2, 'retain', lam >= 50 ? 'green' : lam >= 20 ? 'amber' : 'red', { k: 'v.lambda', p: { l: lam } },
-    { k: lam >= 50 ? 'w.retain.ok' : lam >= 20 ? 'w.retain.slow' : 'w.retain.lost' }, 'Jeans escape; Catling & Kasting 2017');
+  /* Keeping the air: the cosmic shoreline (XUV fluence against escape velocity) first, the Jeans parameter of N2
+   * at the exosphere temperature as the second check; the worse of the two counts. */
+  const lam = P.jeans.N2, sr = P.shoreRatio;
+  const stShore = sr < 0.3 ? 'green' : sr < 1 ? 'amber' : 'red';
+  const stJeans = lam >= 50 ? 'green' : lam >= 20 ? 'amber' : 'red';
+  const rank = { green: 0, amber: 1, red: 2 };
+  const stRet = rank[stShore] >= rank[stJeans] ? stShore : stJeans;
+  add(2, 'retain', stRet, { k: 'v.shore', p: { r: sr, l: lam } },
+    { k: stRet === 'green' ? 'w.retain.ok' : stRet === 'amber' ? 'w.retain.slow' : 'w.retain.lost' },
+    'Zahnle & Catling 2017; Jeans escape');
   add(2, 'envelope', P.likelyMiniNeptune ? 'red' : P.radiusEarth > 1.4 ? 'amber' : 'green',
     { k: 'v.radius', p: { r: P.radiusEarth } }, { k: P.likelyMiniNeptune ? 'w.env.gas' : 'w.env.rock' },
     'Rogers 2015; Fulton et al. 2017');
@@ -90,8 +98,13 @@ export function ledger(P, D) {
     { k: pPa < ARMSTRONG_PA ? 'w.p.armstrong' : P.pBar < 0.5 ? 'w.p.low' : P.pBar > 2 ? 'w.p.high' : 'w.p.ok' },
     'Armstrong limit; NASA-STD-3001');
   add(4, 'temp', P.climate.runaway ? 'red' : band(P.TsC, 5, 25, -15, 35), tVal,
-    { k: P.climate.valid ? 'w.t.est' : 'w.t.outside' }, 'climate estimate (M0)');
-  add(4, 'wetbulb', 'na', { k: 'v.na' }, { k: 'w.na.m3' }, 'Sherwood & Huber 2010; Vecellio et al. 2022');
+    { k: P.ebm ? (P.climate.valid ? 'w.t.ebm' : 'w.t.ebmOutside') : P.ebmPending ? 'w.t.pending' : 'w.t.outside' },
+    P.ebm ? 'energy balance model' : 'climate estimate');
+  if (P.climate.runaway) add(4, 'wetbulb', 'red', { k: 'v.runawayT' }, { k: 'w.wb.runaway' }, 'Sherwood & Huber 2010');
+  else if (P.wetBulbMax == null) add(4, 'wetbulb', P.ebm ? 'green' : 'na', { k: P.ebm ? 'v.dry' : 'v.na' },
+    { k: P.ebm ? 'w.wb.dry' : 'w.t.pending' }, 'Sherwood & Huber 2010; Vecellio et al. 2022');
+  else add(4, 'wetbulb', P.wetBulbMax < 31 ? 'green' : P.wetBulbMax <= 35 ? 'amber' : 'red', { k: 'v.tempC', p: { t: P.wetBulbMax } },
+    { k: P.wetBulbMax < 31 ? 'w.wb.ok' : P.wetBulbMax <= 35 ? 'w.wb.hard' : 'w.wb.deadly' }, 'Sherwood & Huber 2010; Vecellio et al. 2022');
   const dh = P.dayHours;
   /* Locked by the nominal tidal Q (spec §5.8). 'likely' (only the nominal Q locks it) is amber, because Q is
    * uncertain by orders of magnitude; 'locked' (even the weakest tides lock it) is red. */
@@ -100,11 +113,13 @@ export function ledger(P, D) {
     { k: P.locked ? 'v.locked' : 'v.hours', p: { h: dh } },
     { k: lockSt === 'locked' ? 'w.day.locked' : lockSt === 'likely' ? 'w.day.likely'
       : dh >= 20 && dh <= 28 ? 'w.day.ok' : 'w.day.off' }, 'Gladman et al. 1996; circadian research', lockSt === 'likely');
-  add(4, 'radiation', 'na', { k: 'v.na' }, { k: 'w.na.m3' }, 'ICRP 103; Hassler et al. 2014');
+  const dose = P.doseMSv;
+  add(4, 'radiation', dose < 5 ? 'green' : dose <= 20 ? 'amber' : 'red', { k: 'v.dose', p: { d: dose } },
+    { k: dose < 5 ? 'w.rad.ok' : dose <= 20 ? 'w.rad.work' : 'w.rad.high' }, 'ICRP 103; Hassler et al. 2014 (cosmic rays only)');
   add(4, 'uv', P.ozone ? 'green' : 'red', { k: P.ozone ? 'v.ozone' : 'v.noOzone' },
     { k: P.ozone ? 'w.uv.ok' : 'w.uv.none' }, 'WHO UV index');
   const tempOk = P.TsC >= -15 && P.TsC <= 35 && !P.climate.runaway;
-  const hland = tempOk ? P.landFrac : 0;
+  const hland = P.ebm ? P.habLand : tempOk ? P.landFrac : 0;
   add(4, 'land', hland >= 0.1 ? 'green' : hland >= 0.01 ? 'amber' : 'red', { k: 'v.pct', p: { x: hland * 100 } },
     { k: P.landFrac < 0.01 ? 'w.land.ocean' : !tempOk ? 'w.land.climate' : 'w.land.ok' }, 'terrain heuristic (M0)');
   const fresh = P.liquidWater && P.landFrac > 0.01 ? 'green' : P.liquidWater ? 'amber' : 'red';

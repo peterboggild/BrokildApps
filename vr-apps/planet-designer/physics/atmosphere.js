@@ -1,6 +1,6 @@
 /* Atmosphere basics: pressure, mass, scale height, retention (Jeans), ozone, water's phase limits.
  * And a zero-dimensional climate estimate that stands in until the energy balance model (milestone M3). */
-import { K_B, AMU, R_GAS, MOLAR, BAR, S_EARTH } from './const.js?v=2';
+import { K_B, AMU, R_GAS, MOLAR, BAR, S_EARTH } from './const.js?v=3';
 
 export const GASES = ['N2', 'O2', 'CO2', 'H2O', 'Ar', 'CH4'];
 
@@ -65,7 +65,7 @@ export function climate0D({ S, albedo, pCO2bar, pCH4bar, totalBar }) {
   const Tbudyko = (absorbed - 203.3 + fCO2 + fCH4) / 2.09 + 273.15;
   const Ts = Teq + (Tbudyko - Teq) * pFade;
   const valid = totalBar >= 0.5 && totalBar <= 2 && ppm >= 100 && ppm <= 10000 && !runaway;
-  return { absorbed, Teq, Ts: runaway ? Math.max(Ts, 600) : Ts, runaway, valid, forcingCO2: fCO2 };
+  return { absorbed, Teq, Ts: runaway ? Math.max(Ts, 600) : Ts, runaway, valid, forcingCO2: fCO2, forcingCH4: fCH4 };
 }
 
 /* Default albedo from the surface: ocean 0.06, land as set, clouds raise the planet's albedo; tuned so Earth with
