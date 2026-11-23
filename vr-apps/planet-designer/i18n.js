@@ -269,8 +269,8 @@ const DA = {
   'vr.time.pause': 'Pause', 'vr.time.real': 'Virkelig tid', 'vr.time.h': '1 s = 1 time', 'vr.time.d': '1 s = 1 døgn', 'vr.time.std': '1 år ≈ 16 s', 'vr.distDial': 'Afstand til stjernen', 'vr.fill': 'Lys på natsiden', 'vr.turn': 'Drejning', 'vr.turnStep': 'i trin', 'vr.turnSmooth': 'glidende', 'vr.sun': 'Stjernen', 'vr.sunReset': 'Sæt stjernen tilbage', 'act.toZone': 'Flyt til et tempereret sted i zonen', 'vr.makeHz': 'Gør beboelig', 'vr.makeOther': 'Gør til anden', 'vr.remove': 'Fjern', 'vr.massDial': 'Stjernens masse', 'vr.ageDial': 'Alder', 'vr.chartOnPc': 'Diagrammet ses på PC-skærmen.',
   'vr.quality': 'Grafik', 'vr.leave': 'VR', 'vr.exit': 'Forlad VR', 'vr.qualityNote': 'Lav er planeten som et færdigt billede. Middel regner landskabet live og kan være for tungt for brillerne.',
   'err.lost': 'Grafikken gik ned (WebGL). Luk fanen. Virker det ikke igen bagefter, så genstart brillerne eller browseren: efter et nedbrud kan browseren nægte 3D for siden et stykke tid.', 'err.xr': 'VR kunne ikke starte:',
-  'vr.help': 'Venstre pind: flyv. Højre pind: drej og op/ned. Greb: tag fat i verden (to hænder: større/mindre). Peg på stjernen og hold aftrækkeren: flyt den rundt. Y eller B: panelet. Meta-knappen: centrer.',
-  'vr.boardHint': 'Klik på en række på PC-skærmen for forklaringen. Ret stjernen med drejeknapperne og planeterne på bordet.',
+  'vr.board': 'Tavlen', 'vr.boardNear': 'hent hertil', 'vr.boardHome': 'på væggen', 'vr.help': 'Venstre pind: flyv. Højre pind: drej og op/ned. Greb: tag fat i verden (to hænder: større/mindre). Peg på stjernen og hold aftrækkeren: flyt den rundt. Y eller B: panelet. X eller A: hent tavlen. Bjælken over panelet og tavlen: tag fat og flyt dem. Meta-knappen: centrer.',
+  'vr.boardHint': 'Klik på en række på PC-skærmen for forklaringen. X eller A henter tavlen. Tag fat i bjælken for at flytte den.',
   'foot': 'Fysikken er forenklede, kendte modeller fra forskningen med kilder. Tallene er skøn, ikke sandheder.',
 };
 
@@ -542,8 +542,8 @@ const EN = {
   'vr.time.pause': 'Pause', 'vr.time.real': 'Real time', 'vr.time.h': '1 s = 1 hour', 'vr.time.d': '1 s = 1 day', 'vr.time.std': '1 yr ≈ 16 s', 'vr.distDial': 'Distance to the star', 'vr.fill': 'Light on the night side', 'vr.turn': 'Turning', 'vr.turnStep': 'in steps', 'vr.turnSmooth': 'smooth', 'vr.sun': 'The star', 'vr.sunReset': 'Put the star back', 'act.toZone': 'Move to a temperate place in the zone', 'vr.makeHz': 'Make habitable', 'vr.makeOther': 'Make other', 'vr.remove': 'Remove', 'vr.massDial': 'Star mass', 'vr.ageDial': 'Age', 'vr.chartOnPc': 'The chart is shown on the PC screen.',
   'vr.quality': 'Graphics', 'vr.leave': 'VR', 'vr.exit': 'Leave VR', 'vr.qualityNote': 'Low draws the planet as a finished picture. Medium computes the landscape live and may be too heavy for the headset.',
   'err.lost': 'The graphics went down (WebGL). Close the tab. If it does not work again afterwards, restart the headset or the browser: after a crash the browser may refuse 3D for the site for a while.', 'err.xr': 'VR could not start:',
-  'vr.help': 'Left stick: fly. Right stick: turn and up/down. Grip: grab the world (two hands: bigger/smaller). Point at the star and hold the trigger: carry it round. Y or B: the panel. Meta button: recentre.',
-  'vr.boardHint': 'Click a row on the PC screen for its explanation. Set the star with the dials and the planets on the table.',
+  'vr.board': 'The board', 'vr.boardNear': 'bring here', 'vr.boardHome': 'on the wall', 'vr.help': 'Left stick: fly. Right stick: turn and up/down. Grip: grab the world (two hands: bigger/smaller). Point at the star and hold the trigger: carry it round. Y or B: the panel. X or A: fetch the board. The bar above the panel and the board: grab it to move them. Meta button: recentre.',
+  'vr.boardHint': 'Click a row on the PC screen for its explanation. X or A fetches the board. Grab the bar to move it.',
   'foot': 'The physics is simplified, well-known research models with sources. The numbers are estimates, not truths.',
 };
 

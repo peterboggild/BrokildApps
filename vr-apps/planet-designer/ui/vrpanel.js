@@ -2,9 +2,9 @@
  * 0.80 x 0.54 m tablet. Tabs, a scrolling column of rows, sliders with - and + (auto-repeat), chips, readouts and
  * headings. Hit testing in canvas pixels; the caller maps a controller ray to (px, py). */
 import * as THREE from 'three';
-import { TABS, LEVELS } from './schema.js?v=15';
-import { t, fmt } from '../i18n.js?v=15';
-import { CHALLENGES } from '../challenges.js?v=15';
+import { TABS, LEVELS } from './schema.js?v=16';
+import { t, fmt } from '../i18n.js?v=16';
+import { CHALLENGES } from '../challenges.js?v=16';
 
 export const PW = 0.8, PH = 0.54;          /* metres */
 const W = 1200, H = 810;
@@ -140,13 +140,14 @@ export function createVRPanel(S) {
     const c = (label, opts) => ({ kind: 'vrchips', label, opts });
     return [
       c('vr.turn', [{ label: t('vr.turnStep'), on: !(S.xr && S.xr.smoothTurn), act: () => S.xr && S.xr.setSmoothTurn(false) }, { label: t('vr.turnSmooth'), on: !!(S.xr && S.xr.smoothTurn), act: () => S.xr && S.xr.setSmoothTurn(true) }]),
+      c('vr.board', [true, false].map((v) => ({ label: t(v ? 'vr.boardNear' : 'vr.boardHome'), on: !!(S.xr && S.xr.boardNear) === v, act: () => S.xr && S.xr.setBoardNear(v) }))),
       c('snd.music', [true, false].map((v) => ({ label: t(v ? 'snd.on' : 'snd.off'), on: S.audio && S.audio.prefs.music === v, act: () => S.audio && S.audio.setPref('music', v) }))),
       c('snd.fx', [true, false].map((v) => ({ label: t(v ? 'snd.on' : 'snd.off'), on: S.audio && S.audio.prefs.fx === v, act: () => S.audio && S.audio.setPref('fx', v) }))),
       c('snd.vol', [[0.35, 'snd.low'], [0.7, 'snd.mid'], [1, 'snd.high']].map(([v, k]) => ({ label: t(k), on: S.audio && Math.abs(S.audio.prefs.vol - v) < 0.01, act: () => S.audio && S.audio.setPref('vol', v) }))),
       c('vr.quality', ['low', 'medium'].map((q) => ({ label: t('v.q.' + q), on: V.quality === q, act: () => S.view.setQuality(q, true) }))),
       { kind: 'note', text: t('vr.qualityNote') },
       c('vr.leave', [{ label: t('vr.exit'), on: false, act: () => S.xr && S.xr.exit() }]),
-      { kind: 'note', text: t('vr.help') },
+      ...wrapNotes(t('vr.help'), 62),
     ];
   }
   function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
