@@ -1,17 +1,20 @@
-# PLANET STUDIO: design a star and a habitable world
+# PLANET DESIGNER: design a star and a habitable world
 
-**Status: DESIGN ONLY, 2026-11-23.** No code yet. This is the specification and handover for the Claude session
+*(The working title was "Planet Studio"; the owner named the app **Planet Designer** on 23 November 2026. The file keeps
+its old name so links still work.)*
+
+**Status: DESIGN ONLY, 2026-11-23. The owner's answers to the open questions are in §14.** No code yet. This is the specification and handover for the Claude session
 that builds it. It was written at the end of the Illusion Studio session (see §15 for that handover). Read this
 file, `vr-apps/CLAUDE.md` and `BROKILD-VR-HANDOVER.md` before writing a line.
 
-> **Til Peter (dansk resumé).** Dette er kravspecifikationen til *Planet Studio*: et værksted, på PC og i VR, hvor
+> **Til Peter (dansk resumé).** Dette er kravspecifikationen til *Planet Designer*: et værksted, på PC og i VR, hvor
 > man designer en stjerne og et solsystem med én eller to planeter i den beboelige zone, og bygger planeten
 > indefra: kerne, kappe, skorpe, hav, atmosfære, rotation, hældning og måner. Appen regner hele tiden på, om
 > planeten kan bære liv, og især mennesker, og viser *hvorfor* i en kæde af årsager (masse → tyngde →
 > undvigelseshastighed → kan den holde på luften → tryk → drivhuseffekt → temperatur …). Målet er at det er sjovt
 > og samtidig lærer brugeren, hvor svært det er at lave en Jord. For at starte en ny session: vælg repoet
 > `peterboggild/BrokildApps` og skriv fx *"Læs PLANET-STUDIO-DESIGN.md og vr-apps/CLAUDE.md, og byg milepæl M0."*
-> Åbne spørgsmål til dig står i §14.
+> Dine svar på de åbne spørgsmål står i §14.
 
 ---
 
@@ -56,7 +59,7 @@ delivery, orbital stability). **Orbits must not be excessive:** eccentricity has
 **Same page, same file set, same design JSON.** A design made on the PC opens in the headset and the other way
 round (local storage plus a JSON export/import, and a share link with the design compressed into the URL hash).
 
-Levels, following the Atomic Workbench precedent (Kid / Adult / Researcher): **Explorer**, **Designer** and
+Levels, following the Atomic Workbench precedent (Kid / Adult / Researcher): **Explorer**, **Student** and
 **Scientist**. The level decides how many parameters are shown and how much of the maths. The physics is the
 same in all three.
 
@@ -135,7 +138,7 @@ saved as truth.
 
 ```json
 {
-  "app": "PlanetStudio", "v": 1, "name": "Second Earth",
+  "app": "PlanetDesigner", "v": 1, "name": "Second Earth",
   "star": { "massSun": 0.85, "ageGyr": 4.0, "metallicityFeH": 0.0, "activity": "auto" },
   "planets": [
     {
@@ -149,15 +152,17 @@ saved as truth.
                       "pArbar": 0.009, "pCH4bar": 0.0000018 },
       "moons": [ { "massMoon": 1.0, "aEarthRadii": 60 } ]
     },
-    { "id": "j1", "name": "Bulwark", "role": "giant",
+    { "id": "j1", "name": "Bulwark", "role": "other", "type": "gasGiant",
       "orbit": { "aAU": 4.2, "e": 0.04, "incDeg": 0.5 }, "bulk": { "massEarth": 300 } }
   ],
-  "level": "designer"
+  "level": "student"
 }
 ```
 
-`role` is `hz` (at most two planets), `rocky`, `ice` or `giant`. Giants have only orbit and mass; they matter for
-stability, impacts and the snow line, and are not habitable worlds here (their moons could be, later, §13).
+`role` is `hz` (at most two planets) or `other`. Planets other than the HZ worlds are simplified (owner's decision,
+§14): they have only **mass, orbit and a type**, `"type": "rocky" | "icy" | "iceGiant" | "gasGiant"`, which sets a
+default density (hence radius) and colour and how much they count for stability, impacts, water delivery and the snow
+line. They are not habitable worlds here (moons of giants could be, later, §13).
 
 ---
 
@@ -548,7 +553,7 @@ A design can fail a tier for one reason; the lamp says which.
 
 Each row opens a short card: what the criterion is, why it matters, what Earth, Mars and Venus do, and one
 thing to try ("move the planet 0.1 AU outward and watch the ocean"). Written for the Explorer level first, with a
-"more" fold for Designer and Scientist (the equation, the source, the uncertainty).
+"more" fold for Student and Scientist (the equation, the source, the uncertainty).
 
 ### 6.3 Contested science
 
@@ -699,7 +704,7 @@ Follow the `vr-apps` conventions (plain JavaScript modules, three.js r170 vendor
 cache-busting `?v=N` on every import, raised together), unlike Illusion Studio, which is one file using a CDN.
 
 ```
-vr-apps/planet-studio/
+vr-apps/planet-designer/
   index.html            page shell, loads main.js?v=N
   main.js               boot, renderer, loop, the desktop/XR switch
   design.js             the design JSON: defaults, validation, migration, save/load, share link
@@ -754,16 +759,28 @@ page (see `vr-apps/CLAUDE.md`).
 
 ---
 
-## 14. Open questions for Peter (ask as short choices, not essays)
+## 14. Decisions by the owner (23 November 2026)
 
-1. **Language of the app**: English, Danish, or both with a toggle? (The site's VR page is English; the games
-   are Danish.)
-2. **Name**: "Planet Studio", "Planetværkstedet", or something else?
-3. **First audience**: classroom (upper secondary), general public, or Peter's own exploration first?
-4. **Exotic life**: strictly water/carbon life (recommended for v1), or a later "other chemistries" mode?
-5. **How strict**: should impossible designs be blocked, or allowed and flagged red (recommended: allowed and
-   flagged)?
-6. **Planets beyond the two HZ worlds**: fully designable, or simplified (mass and orbit only, recommended)?
+The six open questions were answered; they are binding for the build.
+
+1. **Language: both, with a toggle** (Danish and English). Keep every text in a string table from M0 so nothing is
+   hard-coded in one language; the ledger cards and the teacher notes need both too.
+2. **Name: Planet Designer.** Folder `vr-apps/planet-designer/`, app id `"PlanetDesigner"` in the design JSON.
+   Because the app is now called "Designer", the middle level needs another name (see 3).
+3. **Audience: upper secondary students (gymnasium) *and* university students in sustainability and in
+   physics, with several levels.** Consequences:
+   - The three levels stay, but the middle one is renamed so it does not clash with the app's name; proposal
+     **Explorer / Student / Scientist** (Danish: *Opdager / Studerende / Forsker*). Ask the owner to confirm the
+     names when M0 shows them.
+   - The sustainability students make the climate side matter as much as the astrophysics: the carbon–silicate
+     thermostat (§5.10), CO₂ forcing, ice–albedo feedback, the runaway greenhouse and the human wet-bulb limits
+     deserve good explanation cards and at least one challenge each (§9). A link from "why Earth works" to "what
+     we are changing on Earth" is welcome, kept factual.
+   - The physics students get the equations, units and sources in the Scientist fold, and the benchmark numbers.
+4. **Life: water and carbon only, at first.** "Other chemistries" stays in Later (§13).
+5. **Impossible designs are allowed and flagged red**, never blocked. The hard limits that remain are the ones
+   the owner set himself: eccentricity ≤ 0.4 and at most two planets in the HZ.
+6. **Planets other than the HZ worlds: mass, orbit and type only** (rocky, icy, ice giant, gas giant), see §3.
 
 ---
 
@@ -820,7 +837,7 @@ controller and hand specifications without seeing it), comfort when flying and w
 - UVs in physical units with an integer number of pattern periods around closed directions avoid seams; a
   sphere with the pole axis horizontal keeps the poles out of typical views. (Relevant for planet textures:
   prefer the cube-sphere.)
-- Heavy procedural fragment shaders cost a lot at Quest resolution: start Planet Studio with a performance
+- Heavy procedural fragment shaders cost a lot at Quest resolution: start Planet Designer with a performance
   budget and a frame-time readout (§10.5).
 
 ---
